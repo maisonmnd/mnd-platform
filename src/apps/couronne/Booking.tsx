@@ -4,6 +4,7 @@ import { useBranch } from '../../shared/branches';
 import { fmtMoney } from '../../shared/currency';
 import { depositForServices, depositPctFor, useSettings, useExceptionsHoraires, joursFermesParmi, horairesDescendus } from '../../shared/settings';
 import { useBlocages } from '../../shared/blocages';
+import { prochainesPlaces } from '../../shared/reservation-express';
 import { appointmentsStore, useAppointments, venuesHonorees, type Appointment, estampilleLesPoses } from '../../shared/agenda';
 import { useSubscribers, subPaid } from '../../shared/abonnements';
 import { peutReserver } from '../../shared/echeancier';
@@ -30,7 +31,7 @@ import {
   firstName,
   fmtDuration,
   freeSlots,
-  useCreneauxOccupes,
+  useCreneauxOccupesCharges,
   pad2,
   todayIso,
   useClient,
@@ -118,6 +119,19 @@ const lettresDesJours = (): string[] =>
    connaissent pas : il porte ses mots lui-même. */
 const QUIZ = -1;
 
+/* LA RÉSERVATION EN TRENTE SECONDES, DANS MA COURONNE — 7 octobre 2026
+   (maquette « Le rendez-vous s'ouvre partout », validée : « construis »). Le
+   premier écran est celui du site, en mieux puisqu'elle est connue :
+   « Comme la dernière fois » (SA dernière venue), puis les formules les plus
+   réservées de la Maison (`formulesRapides`, le même document que le site),
+   puis les six prochaines places libres pour CES gestes. « Composer
+   moi-même » rouvre le quiz et l'accordéon d'avant ; « Un autre jour », le
+   calendrier. Rien ne s'ouvre ici quand il n'y a ni venue ni formule. */
+const EXPRESS = -2;
+/* Les places se cherchent sur quatre semaines : au-delà, le calendrier. */
+const JOURS_DES_PLACES = 28;
+const cleDesGestes = (ids: readonly string[]) => [...new Set(ids)].sort().join('|');
+
 const TITLES = ['Votre rituel.', '—', '—', 'Le moment.', '—', 'L’acompte.', 'Confirmé.'];
 const EYEBROWS = [
   'Réserver · votre rituel',
@@ -139,9 +153,11 @@ type Props = {
   prefill?: BookingPrefill;
   onClose: () => void;
   toast: (msg: string) => void;
+  /** « Voir mon rendez-vous » après la confirmation (7 octobre 2026). */
+  onVoirRdv?: (id: string) => void;
 };
 
-export default function Booking({ prefill, onClose, toast }: Props) {
+export default function Booking({ prefill, onClose, toast, onVoirRdv }: Props) {
   const { branch, currency } = useBranch();
   /* Ses abonnements, pour la porte du paiement (voir plus bas). */
   const [mesAbonnements] = useSubscribers();
@@ -223,7 +239,11 @@ export default function Booking({ prefill, onClose, toast }: Props) {
   /* Une prestation déjà désignée (offre instantanée, re-réservation) saute le
      quiz ET l'objectif : on ne demande pas son envie à une cliente qui vient de
      toucher « Réserver ce rituel ». */
-  const [step, setStep] = useState(prefService ? 3 : QUIZ);
+  const [step, setStep] = useState(prefService ? 3 : EXPRESS);
+  /* Le parcours express a-t-il été pris ? Le retour et le compte le suivent. */
+  const [viaExpress, setViaExpress] = useState(false);
+  /* Le rendez-vous qui vient de naître : « Voir mon rendez-vous » l'ouvre. */
+  const [rdvCree, setRdvCree] = useState<string | null>(null);
   /* Le quiz du seuil : la variante de questions posée, l'envie et l'élan dits. */
   const [cfg] = useStore(vitrineConfigStore);
   const [variante, setVariante] = useState(0);
@@ -432,15 +452,39 @@ export default function Booking({ prefill, onClose, toast }: Props) {
   /* L'écran qu'on REGARDE. Le quiz s'efface s'il n'a rien à dire — l'objectif
      prend alors sa place, sans qu'aucune navigation n'ait à le savoir (le
      catalogue peut arriver du serveur après le premier rendu). */
-  const vue = step === QUIZ && !quizActif ? 0 : step;
-  const premierEcran = quizActif ? QUIZ : 0;
+  /* ── LES CHOIX DU PREMIER ÉCRAN ── SA dernière venue, si tous ses gestes
+     sont encore à sa portée ; puis les formules de la Maison qui le sont. */
+  const derniereVenue = useMemo(() => {
+    if (!cible) return null;
+    const honores = appts
+      .filter((a) => a.clientId === cible.id && a.status === 'honoré' && a.serviceIds.length > 0)
+      .sort((a, b) => `${a.date} ${a.time}`.localeCompare(`${b.date} ${b.time}`));
+    const d = honores[honores.length - 1];
+    if (!d) return null;
+    const ids = [...new Set(d.serviceIds)];
+    return ids.every((id) => offre.some((x) => x.id === id)) ? ids : null;
+  }, [cible, appts, offre]);
+  const formulesExpress = useMemo(() => (cfg.formulesRapides ?? [])
+    .map((f) => [...new Set(f.serviceIds)])
+    .filter((ids) => ids.length > 0 && ids.every((id) => offre.some((x) => x.id === id)))
+    .filter((ids) => !derniereVenue || cleDesGestes(ids) !== cleDesGestes(derniereVenue))
+    .slice(0, derniereVenue ? 3 : 4), [cfg.formulesRapides, offre, derniereVenue]);
+  const expressDispo = !prefService && (!!derniereVenue || formulesExpress.length > 0);
+  const vue = step === EXPRESS
+    ? (expressDispo ? EXPRESS : quizActif ? QUIZ : 0)
+    : step === QUIZ && !quizActif ? 0 : step;
+  const premierEcran = expressDispo ? EXPRESS : quizActif ? QUIZ : 0;
   /* LE COMPTE DIT LA VÉRITÉ DE CE PARCOURS-CI : votre rituel · le moment · la
      confirmation, plus le quiz s'il s'ouvre et l'acompte si la Maison en
      demande un sur ces prestations. Il bouge donc pendant qu'elle compose —
      c'est le prix de l'honnêteté : annoncer trois écrans puis en imposer un
      quatrième vaut moins qu'un dénominateur qui suit la vérité. */
-  const total = 3 + (quizActif ? 1 : 0) + (hasDeposit ? 1 : 0);
+  /* Le parcours express : ses choix · (le moment) · (l'acompte) · confirmé. */
+  const express = vue === EXPRESS || viaExpress;
+  const total = express ? 3 + (hasDeposit ? 1 : 0) : 3 + (quizActif ? 1 : 0) + (hasDeposit ? 1 : 0);
   const rang = (s: number) => {
+    if (s === EXPRESS) return 1;
+    if (express) return s === 3 ? 2 : s === 5 ? 3 : total;
     if (s === QUIZ) return 1;
     const q = quizActif ? 1 : 0;
     if (s === 0) return 1 + q;
@@ -516,7 +560,7 @@ export default function Booking({ prefill, onClose, toast }: Props) {
       au: `${d.y}-${pad2(d.m + 1)}-${pad2(new Date(d.y, d.m + 1, 0).getDate())}`,
     };
   }, [months]);
-  const occupes = useCreneauxOccupes(branch.id, fenetre.du, fenetre.au);
+  const { occupes, charge: occupesCharges } = useCreneauxOccupesCharges(branch.id, fenetre.du, fenetre.au);
 
   /* LES RÉGLAGES ENTRENT DANS LES DÉPENDANCES — 31 août 2026. « Le calendrier
      est libre le lundi 31 août pourtant le salon est fermé. »
@@ -563,12 +607,14 @@ export default function Booking({ prefill, onClose, toast }: Props) {
   const heurePosee = useRef(false);
   useEffect(() => {
     if (heurePosee.current || !prefill?.time || !prefIso || totalSessions > 1) return;
+    /* Les murs d'abord : un agenda encore vide dirait libre un moment pris. */
+    if (!occupesCharges) return;
     if (selIso !== prefIso.iso || sessionDates.length > 0) return;
     if (!dayTimes.includes(prefill.time)) return;
     heurePosee.current = true;
     setSessionDates([{ iso: prefIso.iso, time: prefill.time }]);
     setTime(prefill.time);
-  }, [prefill, prefIso, totalSessions, selIso, sessionDates.length, dayTimes]);
+  }, [prefill, prefIso, totalSessions, selIso, sessionDates.length, dayTimes, occupesCharges]);
 
   /* ---- Densité déclarée (12 août) — la question ne se pose qu'au créneau,
      et seulement quand elle compte : tête jamais comptée par la Maison, et au
@@ -588,10 +634,12 @@ export default function Booking({ prefill, onClose, toast }: Props) {
   /* ---- Navigation ---- */
   const back = () => {
     if (paying) return;
-    if (step === QUIZ) { onClose(); return; }
+    if (vue === EXPRESS) { onClose(); return; }
+    if (step === QUIZ || (step === EXPRESS && vue === QUIZ)) { if (expressDispo && vue === QUIZ && step === QUIZ) setStep(EXPRESS); else onClose(); return; }
     /* Depuis son rituel : on retourne à l'envie quand le quiz existe — elle a pu
        l'enjamber d'un mot, elle doit pouvoir y revenir du même geste. */
-    if (step === 0) { if (quizActif) setStep(QUIZ); else onClose(); return; }
+    if (step === 0) { if (quizActif) setStep(QUIZ); else if (expressDispo) setStep(EXPRESS); else onClose(); return; }
+    if (step === EXPRESS) { onClose(); return; }
     /* Depuis l'acompte : revenir au moment — ses séances restent posées, elle
        les corrige sur place si elle le veut. */
     if (step === 5) { setStep(3); return; }
@@ -604,8 +652,9 @@ export default function Booking({ prefill, onClose, toast }: Props) {
       }
       setSelIso(null); setTime(null);
       /* Les étapes 1 et 2 n'existent plus : depuis le créneau, on remonte à
-         l'accordéon — son atelier ouvert et ses cases cochées intacts. */
-      setStep(0);
+         l'accordéon — son atelier ouvert et ses cases cochées intacts. Venue
+         du premier écran express, elle y retourne. */
+      setStep(viaExpress && expressDispo ? EXPRESS : 0);
       return;
     }
     setStep(step - 1);
@@ -732,6 +781,7 @@ export default function Booking({ prefill, onClose, toast }: Props) {
         };
       });
       appointmentsStore.set((prev) => [...prev, ...estampilleLesPoses(newAppts)]);
+      setRdvCree(newAppts[0]?.id ?? null);
       /* Alerte le personnel du Trône (Web Push), même Le Trône fermé. */
       void pushNotifyStaff(
         online?.confirmed ? 'Réservation payée · Ma Couronne' : tenu ? 'Réservé · Ma Couronne' : 'Nouvelle réservation · Ma Couronne',
@@ -743,7 +793,8 @@ export default function Booking({ prefill, onClose, toast }: Props) {
       /* Le bon moment pour proposer les notifications : juste après une réservation
          réussie. Web Push si possible (arrive même app fermée) ; sinon notif locale. */
       const first = sessionDates[0];
-      const url = `${import.meta.env.BASE_URL}#/suivi`;
+      /* La notification ouvre la fiche de CE rendez-vous (7 octobre 2026). */
+      const url = `${import.meta.env.BASE_URL}#/rdv/${newAppts[0]?.id ?? ''}`;
       void enablePush(clientId).then((subbed) => {
         if (!first) return;
         /* Cette notification est la SIENNE (son téléphone) : elle lui parle
@@ -764,6 +815,92 @@ export default function Booking({ prefill, onClose, toast }: Props) {
     setPaying(true);
     finalize();
   };
+
+  /* ══ UNE TOUCHE QUI RÉSERVE — 7 octobre 2026 ═════════════════════════
+     « Réserver ce moment » arrive avec `express` : quand son heure habituelle
+     est posée, que les murs du serveur sont connus, que le moment est
+     toujours libre, qu'aucun acompte n'est demandé et qu'il n'y a qu'une
+     séance, la réservation s'écrit d'elle-même. Sinon, rien ne se fait seul :
+     le tunnel reste ouvert sur le moment, comme avant. Une seule fois. */
+  const expressFait = useRef(false);
+  useEffect(() => {
+    if (!prefill?.express || expressFait.current || step !== 3 || paying) return;
+    if (!occupesCharges || !horairesDescendus() || selected.length === 0) return;
+    if (totalSessions > 1 || hasDeposit) { expressFait.current = true; return; }
+    const voulu = prefill.time;
+    if (!prefIso || !voulu || selIso !== prefIso.iso) return;
+    const pose = sessionDates.length === 1 && sessionDates[0].iso === prefIso.iso && sessionDates[0].time === voulu;
+    if (pose && dayTimes.includes(voulu)) {
+      expressFait.current = true;
+      settle();
+      return;
+    }
+    if (!pose && !dayTimes.includes(voulu)) {
+      expressFait.current = true;
+      toast(t('Ce moment vient d’être pris, choisissez-en un autre.'));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [prefill, step, paying, occupesCharges, selected.length, totalSessions, hasDeposit, prefIso, selIso, sessionDates, dayTimes]);
+
+  /* ── LES SIX PROCHAINES PLACES pour les gestes choisis (écran express) ── */
+  const placesExpress = useMemo(() => {
+    if (vue !== EXPRESS || !selected.length || totalSessions > 1 || !occupesCharges) return [];
+    const d0 = new Date();
+    const jours: { iso: string; heures: { heure: string }[] }[] = [];
+    for (let k = 0; k < JOURS_DES_PLACES; k++) {
+      const d = new Date(d0.getFullYear(), d0.getMonth(), d0.getDate() + k);
+      const iso = `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+      const heures = freeSlots(iso, master, totalDuration, appts, tousServices, branch.id, occupes);
+      if (heures.length) jours.push({ iso, heures: heures.map((heure) => ({ heure })) });
+    }
+    return prochainesPlaces(jours, 6);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [vue, selected.length, totalSessions, occupesCharges, master, totalDuration, appts, tousServices, branch.id, occupes, blocages, exceptions, reglages]);
+  const [placeExpress, setPlaceExpress] = useState<{ iso: string; heure: string } | null>(null);
+  const choisisLesGestes = (ids: string[]) => {
+    setSelectedIds(ids);
+    setSessionDates([]); setSelIso(null); setTime(null); setPlaceExpress(null);
+  };
+  /* Le premier choix est posé d'office : elle n'a plus qu'à toucher une place. */
+  useEffect(() => {
+    if (vue !== EXPRESS || selectedIds.length > 0) return;
+    const premier = derniereVenue ?? formulesExpress[0];
+    if (premier) setSelectedIds(premier);
+  }, [vue, selectedIds.length, derniereVenue, formulesExpress]);
+  const reserveLaPlace = () => {
+    if (!placeExpress) return;
+    /* La place a pu partir entre l'affichage et la touche : on la relit. */
+    if (!placesExpress.some((p) => p.iso === placeExpress.iso && p.place.heure === placeExpress.heure)) {
+      setPlaceExpress(null);
+      toast(t('Ce moment vient d’être pris, choisissez-en un autre.'));
+      return;
+    }
+    setViaExpress(true);
+    setSessionDates([{ iso: placeExpress.iso, time: placeExpress.heure }]);
+    setSelIso(placeExpress.iso);
+    setTime(placeExpress.heure);
+    if (hasDeposit) setStep(5);
+    else expressAPoser.current = true;
+  };
+  /* settle lit les séances posées : on attend le rendu qui les porte. */
+  const expressAPoser = useRef(false);
+  useEffect(() => {
+    if (!expressAPoser.current || sessionDates.length === 0) return;
+    expressAPoser.current = false;
+    settle();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessionDates]);
+  const unAutreJour = () => {
+    setViaExpress(true);
+    setSessionDates([]); setSelIso(null); setTime(null); setMonthIdx(0);
+    setStep(3);
+  };
+  const composerMoiMeme = () => {
+    setViaExpress(false);
+    setSelectedIds([]); setSessionDates([]); setSelIso(null); setTime(null); setPlaceExpress(null);
+    setStep(quizActif ? QUIZ : 0);
+  };
+  const nomsDe = (ids: string[]) => ids.map((id) => services.find((x) => x.id === id)?.name).filter(Boolean).join(' · ');
 
   /* ---- Acompte réglé EN LIGNE (KkiaPay) ----
      Trois temps, dans cet ordre précis : on paie, le serveur vérifie, PUIS la
@@ -944,8 +1081,8 @@ export default function Booking({ prefill, onClose, toast }: Props) {
         <div className="mc-progress"><div style={{ width: `${(rang(vue) / total) * 100}%` }} /></div>
         <div className="mc-flowhead__titles">
           <div>
-            <div className="mc-micro-eyebrow">{vue === QUIZ ? t('Réserver · une question pour vous') : t(EYEBROWS[vue])}</div>
-            <h1 className="mc-flowhead__h1">{vue === QUIZ ? t('Dites-nous, en deux gestes.') : t(TITLES[vue])}</h1>
+            <div className="mc-micro-eyebrow">{vue === EXPRESS ? t('Réserver · en trente secondes') : vue === QUIZ ? t('Réserver · une question pour vous') : t(EYEBROWS[vue])}</div>
+            <h1 className="mc-flowhead__h1">{vue === EXPRESS ? t('Que fait-on ?') : vue === QUIZ ? t('Dites-nous, en deux gestes.') : t(TITLES[vue])}</h1>
           </div>
           <span className="mc-flowhead__count">{rang(vue)} / {total}</span>
         </div>
@@ -956,10 +1093,10 @@ export default function Booking({ prefill, onClose, toast }: Props) {
         {/* POUR QUI ? — le sélecteur de tête (TEMPS 2). Ne paraît que si la
             Maison a validé des mineurs sur son compte : réserver pour Keli est
             un geste, pas un détour. */}
-        {tetes.length > 0 && vue === 0 && (
+        {tetes.length > 0 && (vue === 0 || vue === EXPRESS) && (
           <div className="mc-pourqui">
             <span className="mc-pourqui__lb">{t('Pour')}</span>
-            <button type="button" className={`mc-pourqui__chip ${!pourId ? 'is-on' : ''}`} onClick={() => setPourId('')}>
+            <button type="button" className={`mc-pourqui__chip ${!pourId ? 'is-on' : ''}`} onClick={() => { setPourId(''); if (vue === EXPRESS) choisisLesGestes([]); }}>
               {t('Moi')}
             </button>
             {tetes.map((t) => (
@@ -967,11 +1104,72 @@ export default function Booking({ prefill, onClose, toast }: Props) {
                 key={t.id}
                 type="button"
                 className={`mc-pourqui__chip ${pourId === t.id ? 'is-on' : ''}`}
-                onClick={() => setPourId(t.id)}
+                onClick={() => { setPourId(t.id); if (vue === EXPRESS) choisisLesGestes([]); }}
               >
                 {t.name.split(' ')[0]}
               </button>
             ))}
+          </div>
+        )}
+
+        {/* -------- −2 · en trente secondes : quoi, puis quand -------- */}
+        {vue === EXPRESS && (
+          <div className="mc-fade mc-express">
+            <div className="mc-stack" style={{ gap: 8 }} role="group" aria-label={t('Que fait-on ?')}>
+              {derniereVenue && (
+                <button type="button" className={`mc-formule ${cleDesGestes(selectedIds) === cleDesGestes(derniereVenue) ? 'is-on' : ''}`}
+                  aria-pressed={cleDesGestes(selectedIds) === cleDesGestes(derniereVenue)} onClick={() => choisisLesGestes(derniereVenue)}>
+                  <span className="mc-formule__t">{t('Comme la dernière fois')}</span>
+                  <span className="mc-formule__s">{nomsDe(derniereVenue)}</span>
+                </button>
+              )}
+              {formulesExpress.map((ids, i) => (
+                <button key={cleDesGestes(ids)} type="button" className={`mc-formule ${cleDesGestes(selectedIds) === cleDesGestes(ids) ? 'is-on' : ''}`}
+                  aria-pressed={cleDesGestes(selectedIds) === cleDesGestes(ids)} onClick={() => choisisLesGestes(ids)}>
+                  <span className="mc-formule__t">{nomsDe(ids)}</span>
+                  <span className="mc-formule__s">{i === 0 ? t('La plus réservée à la Maison') : t('Souvent réservée à la Maison')}</span>
+                </button>
+              ))}
+              <button type="button" className="mc-textbtn" style={{ justifySelf: 'start' }} onClick={composerMoiMeme}>{t('Composer moi-même →')}</button>
+            </div>
+
+            {selected.length > 0 && (
+              <>
+                <div className="mc-sectionlabel" style={{ margin: '22px 0 10px' }}>{t('Les prochaines places')}</div>
+                {totalSessions > 1 ? (
+                  <button type="button" className="mc-cta mc-cta--outline" onClick={unAutreJour}>{t('Choisir les séances')}</button>
+                ) : !occupesCharges ? (
+                  <div className="mc-emptyline">{t('Les places se chargent…')}</div>
+                ) : (
+                  <div className="mc-places" role="group" aria-label={t('Les prochaines places')}>
+                    {placesExpress.map(({ iso, place }) => {
+                      const on = placeExpress?.iso === iso && placeExpress.heure === place.heure;
+                      return (
+                        <button key={`${iso}-${place.heure}`} type="button" className={`mc-place ${on ? 'is-on' : ''}`} aria-pressed={on}
+                          onClick={() => setPlaceExpress({ iso, heure: place.heure })}>
+                          {jourDit(iso)} · {place.heure}
+                        </button>
+                      );
+                    })}
+                    {placesExpress.length === 0 && <div className="mc-emptyline">{t('Aucune place libre ces quatre semaines.')}</div>}
+                    <button type="button" className="mc-place mc-place--autre" onClick={unAutreJour}>{t('Un autre jour')}</button>
+                  </div>
+                )}
+                <div className="mc-multibar">
+                  <div className="mc-multibar__info">
+                    <span className="mc-multibar__count">{totalLabel}</span>
+                    <span className="mc-multibar__meta">{fmtDuration(totalDuration)}</span>
+                  </div>
+                  <button className="mc-cta mc-cta--copper mc-multibar__cta" disabled={!placeExpress || paying} onClick={reserveLaPlace}>
+                    {placeExpress
+                      ? hasDeposit
+                        ? t('Continuer · acompte')
+                        : t('Réserver · {jour} à {heure}', { jour: jourDit(placeExpress.iso), heure: placeExpress.heure })
+                      : t('Choisissez une place')}
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         )}
 
@@ -1588,7 +1786,12 @@ export default function Booking({ prefill, onClose, toast }: Props) {
                 <span>{onlinePaid?.ok || !hasDeposit ? t('Confirmé') : t('En attente de la maison')}</span>
               </div>
             </div>
-            <button className="mc-cta mc-cta--indigo" style={{ marginTop: 20 }} onClick={addToCalendar}>
+            {onVoirRdv && rdvCree && (
+              <button className="mc-cta mc-cta--copper" style={{ marginTop: 20 }} onClick={() => onVoirRdv(rdvCree)}>
+                {t('Voir mon rendez-vous')}
+              </button>
+            )}
+            <button className="mc-cta mc-cta--indigo" style={{ marginTop: onVoirRdv && rdvCree ? 10 : 20 }} onClick={addToCalendar}>
               {t('Ajouter au calendrier')}
             </button>
             <button className="mc-quietbtn" onClick={onClose}>{t('Revenir à l’accueil')}</button>

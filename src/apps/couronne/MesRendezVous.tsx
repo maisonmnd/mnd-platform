@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type KeyboardEvent } from 'react';
 import { useBranch } from '../../shared/branches';
 import { ecrisRendezVous, useAppointments, type Appointment } from '../../shared/agenda';
 import { useClients, useFamilies } from '../../shared/clients';
@@ -8,6 +8,8 @@ import { askNotifyPermission, downloadIcs, notifyLocal, type IcsEvent } from '..
 import { enablePush, pushNotify, pushNotifyStaff } from '../../shared/push';
 import { useExceptionsHoraires, useSettings } from '../../shared/settings';
 import { useBlocages } from '../../shared/blocages';
+import { useBilans, type Bilan } from '../../shared/bilans';
+import { BilanLecteur } from './Tabs';
 import {
   DOW_LETTERS,
   MONTHS,
@@ -27,7 +29,22 @@ import { t, prix } from './i18n';
    il repasse le rendez-vous « en attente » pour que la maison re-confirme.
    « Calendrier » télécharge un fichier .ics : le rappel natif du téléphone. */
 
-type Props = { onClose: () => void; onBook: () => void; toast: (msg: string) => void };
+/* LA FICHE D'UN RENDEZ-VOUS — 7 octobre 2026 (maquette « Le rendez-vous
+   s'ouvre partout », validée : « construis »). Chaque carte de Ma Couronne qui
+   montre un rendez-vous l'ouvre ICI, sur sa fiche : son moment, ses gestes,
+   son acompte, et ce qu'on peut en faire (calendrier, déplacer, annuler ; ou,
+   passé, le refaire et relire son bilan). `ouvrir` désigne la fiche à ouvrir
+   d'entrée ; sans lui, l'écran s'ouvre sur la liste, comme avant.
+
+   AUCUN NOM DE MAÎTRE : la Maison choisit qui s'occupe d'elle (règle des 30
+   secondes, 29 septembre). Ce qui part au Trône garde le sien. */
+type Props = {
+  onClose: () => void;
+  onBook: () => void;
+  toast: (msg: string) => void;
+  ouvrir?: string;
+  onRefaire?: (a: Appointment) => void;
+};
 
 const STATUS_META: Record<Appointment['status'], { label: string; cls: string }> = {
   'confirmé': { label: 'Confirmé', cls: 'mc-stchip--ok' },
@@ -36,7 +53,7 @@ const STATUS_META: Record<Appointment['status'], { label: string; cls: string }>
   'annulé': { label: 'Annulé', cls: 'mc-stchip--off' },
 };
 
-export default function MesRendezVous({ onClose, onBook, toast }: Props) {
+export default function MesRendezVous({ onClose, onBook, toast, ouvrir, onRefaire }: Props) {
   const { branch, currency } = useBranch();
   const [services] = useServices();
   const [appts] = useAppointments();
@@ -71,6 +88,23 @@ export default function MesRendezVous({ onClose, onBook, toast }: Props) {
     (a.date > today || (a.date === today && a.time >= nowTime));
 
   const upcoming = mine.filter(isUpcoming);
+
+  /* La fiche ouverte : désignée d'entrée (une carte, une notification), ou
+     touchée dans la liste. Une nouvelle désignation la remplace. */
+  const [ficheId, setFicheId] = useState<string | null>(ouvrir ?? null);
+  useEffect(() => { if (ouvrir) setFicheId(ouvrir); }, [ouvrir]);
+  const fiche = ficheId ? mine.find((a) => a.id === ficheId) : undefined;
+  const ouvreLaFiche = (a: Appointment) => setFicheId(a.id);
+  const auClavier = (a: Appointment) => (e: KeyboardEvent) => {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); ouvreLaFiche(a); }
+  };
+  const [bilans] = useBilans();
+  const bilanDe = (a: Appointment): Bilan | undefined =>
+    bilans.find((b) => b.apptId === a.id) ?? bilans.find((b) => !b.apptId && b.clientId === a.clientId && b.date === a.date);
+  const [bilanOuvert, setBilanOuvert] = useState<Bilan | null>(null);
+  /* Le net annoncé à la réservation, quand il a été figé : jamais recalculé ici. */
+  const netAnnonce = (a: Appointment): number | null =>
+    a.priceXof == null ? null : Math.max(0, Math.round(a.priceXof * (1 - (a.discountPct ?? 0) / 100)) - (a.discountXof ?? 0));
   /* Ses cinq derniers passages, en résumé (29 septembre 2026). */
   const past = mine.filter((a) => !isUpcoming(a)).slice(-5).reverse();
 
@@ -96,9 +130,7 @@ export default function MesRendezVous({ onClose, onBook, toast }: Props) {
     const group = a.seriesId ? mine.filter((x) => x.seriesId === a.seriesId && x.status !== 'annulé') : [a];
     const events: IcsEvent[] = group.map((x) => ({
       title: `Maison MND · ${names(x)}`,
-      description: x.seriesTotal
-        ? t('Séance {i}/{n} · avec {maitre}', { i: x.seriesIndex ?? '', n: x.seriesTotal, maitre: x.master })
-        : t('Avec {maitre}', { maitre: x.master }),
+      description: x.seriesTotal ? t('Séance {i}/{n}', { i: x.seriesIndex ?? '', n: x.seriesTotal }) : branch.name,
       location: branch.name,
       dateIso: x.date,
       time: x.time,
@@ -212,7 +244,7 @@ export default function MesRendezVous({ onClose, onBook, toast }: Props) {
     const body = t('{rituel} · {jour} à {heure}, en attente de confirmation de la maison.', { rituel: names(a), jour: dayLabelIso(iso), heure });
     const titre = t('Rendez-vous modifié');
     void enablePush(clientId).then((subbed) => {
-      if (subbed) void pushNotify(clientId, titre, body, `${import.meta.env.BASE_URL}#/suivi`);
+      if (subbed) void pushNotify(clientId, titre, body, `${import.meta.env.BASE_URL}#/rdv/${a.id}`);
       else void askNotifyPermission().then((ok) => { if (ok) notifyLocal(titre, body); });
     });
     toast(t('Rendez-vous déplacé, la maison confirmera.'));
@@ -244,7 +276,7 @@ export default function MesRendezVous({ onClose, onBook, toast }: Props) {
         '/trone/#/calendrier',
       );
       void enablePush(clientId).then((subbed) => {
-        if (subbed) void pushNotify(clientId, titre, body, `${import.meta.env.BASE_URL}#/suivi`);
+        if (subbed) void pushNotify(clientId, titre, body, `${import.meta.env.BASE_URL}#/rdv/${a.id}`);
         else void askNotifyPermission().then((ok) => { if (ok) notifyLocal(titre, body); });
       });
       toast(t('Rendez-vous annulé, la maison est prévenue.'));
@@ -270,9 +302,16 @@ export default function MesRendezVous({ onClose, onBook, toast }: Props) {
           {editing ? (
             <>
               <button className="mc-linkback" onClick={() => { setEditing(null); setSelIso(null); }}>
-                ← {t('Mes rendez-vous')}
+                ← {fiche ? t('Votre rituel') : t('Mes rendez-vous')}
               </button>
               <h1 className="mc-flowhead__h1" style={{ marginTop: 8 }}>{t('Déplacer le rituel.')}</h1>
+            </>
+          ) : fiche ? (
+            <>
+              <button className="mc-linkback" onClick={() => setFicheId(null)}>
+                ← {t('Mes rendez-vous')}
+              </button>
+              <h1 className="mc-flowhead__h1" style={{ marginTop: 8 }}>{t('Votre rituel.')}</h1>
             </>
           ) : (
             <>
@@ -323,7 +362,7 @@ export default function MesRendezVous({ onClose, onBook, toast }: Props) {
           /* -------- déplacement : calendrier + heures libres -------- */
           <div className="mc-fade">
             <div className="mc-prefillnote">
-              {t('{rituel} · actuellement {jour} à {heure} · avec {maitre}', { rituel: names(editing), jour: dayLabelIso(editing.date), heure: editing.time, maitre: editing.master })}
+              {t('{rituel} · actuellement {jour} à {heure}', { rituel: names(editing), jour: dayLabelIso(editing.date), heure: editing.time })}
               {editing.seriesTotal ? <>{' · '}{t('séance {i}/{n}', { i: editing.seriesIndex ?? '', n: editing.seriesTotal })}</> : null}
             </div>
             <div className="mc-calnav">
@@ -360,7 +399,7 @@ export default function MesRendezVous({ onClose, onBook, toast }: Props) {
               )}
             </div>
             <div className="mc-callegend">
-              <span />{t('Jours avec créneaux libres')} · {fmtDuration(durationOf(editing))} · {t('maître {maitre}', { maitre: editing.master })}
+              <span />{t('Jours avec créneaux libres')} · {fmtDuration(durationOf(editing))}
             </div>
 
             {selIso && (
@@ -371,7 +410,7 @@ export default function MesRendezVous({ onClose, onBook, toast }: Props) {
                     <button key={heure} className="mc-slotcard" onClick={() => reschedule(heure)}>
                       <div>
                         <div className="mc-slotcard__time">{heure}</div>
-                        <div className="mc-slotcard__who">{t('avec {maitre}', { maitre: editing.master })} · {fmtDuration(durationOf(editing))}</div>
+                        <div className="mc-slotcard__who">{fmtDuration(durationOf(editing))}</div>
                       </div>
                       <span className="mc-slotcard__free">{t('Choisir')}</span>
                     </button>
@@ -386,6 +425,68 @@ export default function MesRendezVous({ onClose, onBook, toast }: Props) {
               {t('Le déplacement repasse le rendez-vous en attente, la maison le re-confirme.')}
             </div>
           </div>
+        ) : fiche ? (
+          /* -------- la fiche d'UN rendez-vous -------- */
+          (() => {
+            const a = fiche;
+            const aVenir = isUpcoming(a);
+            const net = netAnnonce(a);
+            const bilan = !aVenir ? bilanDe(a) : undefined;
+            const tete = a.clientId !== clientId ? tetes.find((x) => x.id === a.clientId) : undefined;
+            return (
+              <div className="mc-fade mc-fiche">
+                <div className="mc-micro-eyebrow">{aVenir ? t('Votre rituel') : t('Votre rituel · passé')}</div>
+                <div className="mc-fiche__quand">{dayLabelIso(a.date)}<br />{a.time}</div>
+                <div className="mc-fiche__etat">
+                  <span className={`mc-stchip ${STATUS_META[a.status].cls}`}>{t(STATUS_META[a.status].label)}</span>
+                  <span>{fmtDuration(durationOf(a))} · {branch.name}</span>
+                </div>
+                <div className="mc-recapcard" style={{ textAlign: 'left' }}>
+                  {tete && <div className="mc-recapcard__meta">{t('Pour {prenom}', { prenom: tete.name.split(' ')[0] })}</div>}
+                  {a.serviceIds.map((id, i) => {
+                    const s = services.find((x) => x.id === id);
+                    return (
+                      <div key={`${id}-${i}`} className="mc-recapcard__line">
+                        <span>{s?.name ?? t('Rituel de la maison')}</span>
+                        <span>{s?.durationMin ? fmtDuration(s.durationMin) : ''}</span>
+                      </div>
+                    );
+                  })}
+                  {a.seriesTotal && (
+                    <div className="mc-recapcard__line"><span>{t('Séance {i}/{n}', { i: a.seriesIndex ?? '', n: a.seriesTotal })}</span><span /></div>
+                  )}
+                  {net != null && (
+                    <div className="mc-recapcard__line"><span>{t('Total annoncé')}</span><span>{prix(net, currency)}</span></div>
+                  )}
+                  {a.depositXof != null && (
+                    <div className="mc-recapcard__line"><span>{a.depositConfirmed ? t('Acompte reçu') : t('Acompte')}</span><span>{prix(a.depositXof, currency)}</span></div>
+                  )}
+                </div>
+                {aVenir ? (
+                  <div className="mc-fiche__acts">
+                    <button className="mc-rdvact" onClick={() => addToCalendar(a)}>{t('Calendrier')}</button>
+                    <button className="mc-rdvact" onClick={() => openEdit(a)}>{t('Déplacer')}</button>
+                    <button className="mc-rdvact mc-rdvact--danger" onClick={() => setCancelling(a)}>{t('Annuler')}</button>
+                  </div>
+                ) : (
+                  <div className="mc-stack" style={{ gap: 10 }}>
+                    {onRefaire && a.serviceIds.length > 0 && (
+                      <button className="mc-cta mc-cta--copper" onClick={() => onRefaire(a)}>{t('Refaire ce rituel')}</button>
+                    )}
+                    {bilan && (
+                      <button className="mc-cta mc-cta--outline" onClick={() => setBilanOuvert(bilan)}>{t('Lire mon bilan de séance')}</button>
+                    )}
+                  </div>
+                )}
+                {branch.mapsUrl && (
+                  <a className="mc-textbtn" href={branch.mapsUrl} target="_blank" rel="noopener noreferrer">{t('Itinéraire vers la Maison →')}</a>
+                )}
+                <div className="mc-footnote" style={{ textAlign: 'left' }}>{t('La Maison choisit qui s’occupe de vous.')}</div>
+              </div>
+            );
+          })()
+        ) : ficheId ? (
+          <div className="mc-emptyline">{t('Le rendez-vous se charge.')}</div>
         ) : (
           /* -------- liste : à venir puis passés récents -------- */
           <div className="mc-fade">
@@ -404,13 +505,13 @@ export default function MesRendezVous({ onClose, onBook, toast }: Props) {
             )}
             <div className="mc-stack" style={{ gap: 10 }}>
               {upcoming.map((a) => (
-                <div key={a.id} className="mc-rdvcard">
+                <div key={a.id} className="mc-rdvcard mc-rdvcard--ouvrable" role="button" tabIndex={0} onClick={() => ouvreLaFiche(a)} onKeyDown={auClavier(a)}>
                   <div className="mc-rdvcard__top">
                     <span className="mc-rdvcard__when">{dayLabelIso(a.date)} · {a.time}</span>
                     <span className={`mc-stchip ${STATUS_META[a.status].cls}`}>{t(STATUS_META[a.status].label)}</span>
                   </div>
                   <div className="mc-rdvcard__svc">{names(a)}</div>
-                  <div className="mc-rdvcard__meta">{t('avec {maitre}', { maitre: a.master })} · {fmtDuration(durationOf(a))} · {branch.name}</div>
+                  <div className="mc-rdvcard__meta">{fmtDuration(durationOf(a))} · {branch.name}</div>
                   {(a.seriesTotal || a.depositXof != null) && (
                     <div className="mc-rdvcard__chips">
                       {a.seriesTotal && <span className="mc-pillseal">{t('Séance {i}/{n}', { i: a.seriesIndex ?? '', n: a.seriesTotal })}</span>}
@@ -419,7 +520,7 @@ export default function MesRendezVous({ onClose, onBook, toast }: Props) {
                       )}
                     </div>
                   )}
-                  <div className="mc-rdvcard__acts">
+                  <div className="mc-rdvcard__acts" onClick={(e) => e.stopPropagation()}>
                     <button className="mc-rdvact" onClick={() => openEdit(a)}>{t('Modifier')}</button>
                     <button className="mc-rdvact" onClick={() => addToCalendar(a)}>{t('Calendrier')}</button>
                     <button className="mc-rdvact mc-rdvact--danger" onClick={() => setCancelling(a)}>{t('Annuler')}</button>
@@ -433,13 +534,13 @@ export default function MesRendezVous({ onClose, onBook, toast }: Props) {
                 <div className="mc-sectionlabel" style={{ margin: '24px 0 10px' }}>{t('Passés récents')}</div>
                 <div className="mc-stack" style={{ gap: 10 }}>
                   {past.map((a) => (
-                    <div key={a.id} className="mc-rdvcard mc-rdvcard--past">
+                    <div key={a.id} className="mc-rdvcard mc-rdvcard--past mc-rdvcard--ouvrable" role="button" tabIndex={0} onClick={() => ouvreLaFiche(a)} onKeyDown={auClavier(a)}>
                       <div className="mc-rdvcard__top">
                         <span className="mc-rdvcard__when">{dayLabelIso(a.date)} · {a.time}</span>
                         <span className={`mc-stchip ${STATUS_META[a.status].cls}`}>{t(STATUS_META[a.status].label)}</span>
                       </div>
                       <div className="mc-rdvcard__svc">{names(a)}</div>
-                      <div className="mc-rdvcard__meta">{t('avec {maitre}', { maitre: a.master })}</div>
+                      <div className="mc-rdvcard__meta">{branch.name}</div>
                       {a.seriesTotal && (
                         <div className="mc-rdvcard__chips">
                           <span className="mc-pillseal">{t('Séance {i}/{n}', { i: a.seriesIndex ?? '', n: a.seriesTotal })}</span>
@@ -459,6 +560,17 @@ export default function MesRendezVous({ onClose, onBook, toast }: Props) {
           </div>
         )}
 
+        {bilanOuvert && (() => {
+          const porteuse = tousClients.find((c) => c.id === bilanOuvert.clientId) ?? moi;
+          return porteuse ? (
+            <BilanLecteur
+              bilan={bilanOuvert}
+              porteuse={porteuse}
+              onClose={() => setBilanOuvert(null)}
+            />
+          ) : null;
+        })()}
+
         {/* -------- feuille de confirmation d'annulation -------- */}
         {cancelling && (
           <div className="mc-paysheet mc-fade">
@@ -466,7 +578,7 @@ export default function MesRendezVous({ onClose, onBook, toast }: Props) {
               <div className="mc-micro-eyebrow">{t('Annulation')}</div>
               <div className="mc-cancel__t">{t('Annuler ce rendez-vous ?')}</div>
               <div className="mc-cancel__s">
-                {t('{rituel} · {jour} à {heure} · avec {maitre}.', { rituel: names(cancelling), jour: dayLabelIso(cancelling.date), heure: cancelling.time, maitre: cancelling.master })}
+                {t('{rituel} · {jour} à {heure}.', { rituel: names(cancelling), jour: dayLabelIso(cancelling.date), heure: cancelling.time })}
               </div>
               {cancelling.depositXof != null && (
                 <div className="mc-cancel__warn">

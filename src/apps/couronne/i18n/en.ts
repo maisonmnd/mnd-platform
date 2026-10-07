@@ -7,6 +7,7 @@ import { EN_TABS } from './en-tabs';
 import { EN_BOOKING } from './en-booking';
 import { EN_PARCOURS } from './en-parcours';
 import { EN_FORMULE } from './en-formule';
+import { EN_RDV } from './en-rdv';
 
 export const EN: Record<string, string> = {
   ...EN_COMMUN,
@@ -14,4 +15,5 @@ export const EN: Record<string, string> = {
   ...EN_BOOKING,
   ...EN_PARCOURS,
   ...EN_FORMULE,
+  ...EN_RDV,
 };

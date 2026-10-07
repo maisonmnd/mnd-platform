@@ -96,7 +96,7 @@ const premierePhrase = (s: string): string => {
   return (m ? m[0] : s).trim();
 };
 
-function BilanLecteur({ bilan, porteuse, onClose, onReserver }: {
+export function BilanLecteur({ bilan, porteuse, onClose, onReserver }: {
   bilan: Bilan;
   porteuse: Client;
   onClose: () => void;
@@ -400,7 +400,8 @@ export function HomeTab({
   onOpenBooking: OpenBooking;
   onOpenCompose: () => void;
   onOpenNotif: () => void;
-  onOpenRdv: () => void;
+  /** Sans identifiant : la liste. Avec : la fiche de CE rendez-vous (7 octobre 2026). */
+  onOpenRdv: (id?: string) => void;
   goGamme: () => void;
   toast: (m: string) => void;
   /** La carte de marraine (28 septembre 2026). */
@@ -523,7 +524,7 @@ export function HomeTab({
       <div className="mc-pagepad">
         {/* rappel discret — rituel sous 48 h */}
         {soon && (
-          <button className="mc-remindbanner" onClick={onOpenRdv}>
+          <button className="mc-remindbanner" onClick={() => onOpenRdv(soon.id)}>
             <span className="mc-remindbanner__dot" aria-hidden="true" />
             <span className="mc-remindbanner__txt">
               {t('Votre rituel approche, {jour} · {heure}', { jour: jourDit(soon.date), heure: soon.time })}
@@ -545,9 +546,11 @@ export function HomeTab({
             {next && <span className="mc-nextrdv__status">{next.status === 'confirmé' ? t('Confirmé') : t('En attente')}</span>}
           </div>
           {next ? (
-            <>
+            /* LA CARTE S'OUVRE — 7 octobre 2026 (maquette validée) : toute la
+               séance se touche et ouvre SA fiche. Aucun nom de maître. */
+            <button type="button" className="mc-nextrdv__ouvrir" onClick={() => onOpenRdv(next.id)}>
               <div className="mc-nextrdv__service">{serviceNames(next, services)}</div>
-              <div className="mc-nextrdv__when">{t('{jour} · {heure} · avec {maitre}', { jour: jourDit(next.date), heure: next.time, maitre: next.master })}</div>
+              <div className="mc-nextrdv__when">{jourDit(next.date)} · {next.time}</div>
               {next.seriesTotal && (
                 <span className="mc-nextrdv__seal" style={{ marginRight: 8 }}>
                   {t('Séance {i}/{n}', { i: next.seriesIndex ?? '', n: next.seriesTotal })}
@@ -556,7 +559,8 @@ export function HomeTab({
               {next.depositXof != null && (
                 <span className="mc-nextrdv__seal">{next.depositConfirmed ? t('Acompte reçu') : t('Acompte')} · {prix(next.depositXof, currency)}</span>
               )}
-            </>
+              <span className="mc-nextrdv__voir">{t('Ouvrir')} →</span>
+            </button>
           ) : predite ? (
             /* RIEN N'EST PRIS, MAIS LA MAISON SAIT — le ≈ dit l'estimation, la
                phrase dit le rythme, et DEUX gestes répondent (13 août) :
@@ -585,7 +589,7 @@ export function HomeTab({
                       serviceId: predite.template!.serviceIds[0],
                       serviceIds: predite.template!.serviceIds,
                       dateIso: predite.iso!,
-                      ...(predite.template!.time ? { time: predite.template!.time } : {}),
+                      ...(predite.template!.time ? { time: predite.template!.time, express: true } : {}),
                     })}
                   >
                     {t('Réserver ce moment')}
@@ -605,7 +609,7 @@ export function HomeTab({
               <div className="mc-nextrdv__when">{t('La maison vous attend.')}</div>
             </>
           )}
-          <button className="mc-nextrdv__manage" onClick={onOpenRdv}>
+          <button className="mc-nextrdv__manage" onClick={() => onOpenRdv()}>
             {t('Mes rendez-vous')}
           </button>
         </div>
@@ -813,10 +817,12 @@ export function HomeTab({
    qui ne nomme pas sa tête laisse poser un rendez-vous sur la mauvaise
    personne, et personne ne s'en aperçoit avant le fauteuil. */
 
-export function HomeEnfant({ enfant, onOpenBooking, onRevenir }: {
+export function HomeEnfant({ enfant, onOpenBooking, onRevenir, onOpenRdv }: {
   enfant: Client;
   onOpenBooking: OpenBooking;
   onRevenir: () => void;
+  /** Son rituel s'ouvre sur sa fiche (7 octobre 2026). */
+  onOpenRdv?: (id?: string) => void;
 }) {
   const [services] = useServices();
   const [bands] = useModelBands();
@@ -882,10 +888,11 @@ export function HomeEnfant({ enfant, onOpenBooking, onRevenir }: {
           {next && <span className="mc-nextrdv__status">{next.status === 'confirmé' ? t('Confirmé') : t('En attente')}</span>}
         </div>
         {next ? (
-          <>
+          <button type="button" className="mc-nextrdv__ouvrir" onClick={() => onOpenRdv?.(next.id)}>
             <div className="mc-nextrdv__service">{serviceNames(next, services) || t('Rituel de la maison')}</div>
-            <div className="mc-nextrdv__when">{t('{jour} · {heure} · avec {maitre}', { jour: jourDit(next.date), heure: next.time, maitre: next.master })}</div>
-          </>
+            <div className="mc-nextrdv__when">{jourDit(next.date)} · {next.time}</div>
+            {onOpenRdv && <span className="mc-nextrdv__voir">{t('Ouvrir')} →</span>}
+          </button>
         ) : (
           <>
             <div className="mc-nextrdv__service">{t('Aucun rituel à venir')}</div>
@@ -907,7 +914,7 @@ export function HomeEnfant({ enfant, onOpenBooking, onRevenir }: {
 
 /* ================= SUIVI ================= */
 
-export function SuiviTab({ regard, onOpenBooking, onOpenRdv, onOpenOrders, goGamme }: { regard?: Client; onOpenBooking: OpenBooking; onOpenRdv: () => void; onOpenOrders: () => void; goGamme: () => void }) {
+export function SuiviTab({ regard, onOpenBooking, onOpenRdv, onOpenOrders, goGamme }: { regard?: Client; onOpenBooking: OpenBooking; onOpenRdv: (id?: string) => void; onOpenOrders: () => void; goGamme: () => void }) {
   const [services] = useServices();
   const moi = useClient();
   /* LE SUIVI SUIT LE REGARD : la tête choisie au sélecteur de l'accueil.
@@ -989,7 +996,8 @@ export function SuiviTab({ regard, onOpenBooking, onOpenRdv, onOpenOrders, goGam
 
   /* La timeline naît des vrais rendez-vous : naissance de la couronne,
      rituels honorés, puis le prochain rendez-vous en attente. */
-  const timeline: { d: string; t: string; s: string; done: boolean }[] = [];
+  /* `id` : le rendez-vous qu'un passage ouvre (7 octobre 2026). */
+  const timeline: { d: string; t: string; s: string; done: boolean; id?: string }[] = [];
   if (client?.crownSince) {
     timeline.push({
       d: jourDit(client.crownSince),
@@ -1016,18 +1024,18 @@ export function SuiviTab({ regard, onOpenBooking, onOpenRdv, onOpenOrders, goGam
     timeline.push({
       d: `${jourDit(a.date)} · ${a.time}`,
       t: serviceNames(a, services) || t('Rituel de la maison'),
-      s: t('avec {maitre}', { maitre: a.master }),
+      s: t('Honoré'),
       done: true,
+      id: a.id,
     });
   }
   if (next) {
     timeline.push({
       d: `${jourDit(next.date)} · ${next.time}`,
       t: serviceNames(next, services) || t('Prochain rituel'),
-      s: next.status === 'confirmé'
-        ? t('avec {maitre} · confirmé', { maitre: next.master })
-        : t('avec {maitre} · en attente de la maison', { maitre: next.master }),
+      s: next.status === 'confirmé' ? t('Confirmé') : t('En attente de la maison'),
       done: false,
+      id: next.id,
     });
   }
 
@@ -1183,11 +1191,19 @@ export function SuiviTab({ regard, onOpenBooking, onOpenRdv, onOpenOrders, goGam
             <span className={`mc-tl__dot ${ev.done ? 'is-done' : ''}`} />
             {i < timeline.length - 1 && <span className="mc-tl__line" />}
           </div>
-          <div className="mc-tl__body">
-            <div className="mc-micro-eyebrow" style={{ fontSize: 10 }}>{ev.d}</div>
-            <div className="mc-tl__t">{ev.t}</div>
-            <div className="mc-tl__s">{ev.s}</div>
-          </div>
+          {ev.id ? (
+            <button type="button" className="mc-tl__body mc-tl__body--ouvrable" onClick={() => onOpenRdv(ev.id)}>
+              <div className="mc-micro-eyebrow" style={{ fontSize: 10 }}>{ev.d}</div>
+              <div className="mc-tl__t">{ev.t}</div>
+              <div className="mc-tl__s">{ev.s} · {t('Ouvrir')} →</div>
+            </button>
+          ) : (
+            <div className="mc-tl__body">
+              <div className="mc-micro-eyebrow" style={{ fontSize: 10 }}>{ev.d}</div>
+              <div className="mc-tl__t">{ev.t}</div>
+              <div className="mc-tl__s">{ev.s}</div>
+            </div>
+          )}
         </div>
       ))}
       {timeline.length === 0 && (
@@ -1209,7 +1225,7 @@ export function SuiviTab({ regard, onOpenBooking, onOpenRdv, onOpenOrders, goGam
         <>
           <div className="mc-sectionlabel" style={{ margin: '24px 0 10px' }}>{t('Tout suivre')}</div>
           <div className="mc-preflist">
-            <button className="mc-navrow" onClick={onOpenRdv}>
+            <button className="mc-navrow" onClick={() => onOpenRdv()}>
               <span className="mc-navrow__main">
                 <span>{t('Mes rendez-vous')}</span>
                 <span className="mc-navrow__sub">{t('voir, déplacer, annuler')}</span>
@@ -2298,7 +2314,7 @@ export function MesCommandes({ onClose }: { onClose: () => void }) {
 
 /* ================= NOTIFICATIONS ================= */
 
-export function Notifications({ onClose }: { onClose: () => void }) {
+export function Notifications({ onClose, onOpenRdv }: { onClose: () => void; onOpenRdv?: (id: string) => void }) {
   const { currency } = useBranch();
   const [services] = useServices();
   const devis = useClientDevis();
@@ -2406,13 +2422,13 @@ export function Notifications({ onClose }: { onClose: () => void }) {
                 <span className="mc-notif__time">{jourDit(next.date)}</span>
               </div>
               <div className="mc-notif__msg">
-                {t('{rituel} · {jour} à {heure} avec {maitre}. Venez les locks secs, sans produit.', {
+                {t('{rituel} · {jour} à {heure}. Venez les locks secs, sans produit.', {
                   rituel: serviceNames(next, services) || t('Votre rituel'),
                   jour: jourDit(next.date),
                   heure: next.time,
-                  maitre: next.master,
                 })}
               </div>
+              {onOpenRdv && <button className="mc-smallcta" style={{ marginTop: 10 }} onClick={() => onOpenRdv(next.id)}>{t('Voir mon rendez-vous')}</button>}
             </div>
           </div>
         )}
@@ -2429,9 +2445,10 @@ export function Notifications({ onClose }: { onClose: () => void }) {
               </div>
               <div className="mc-notif__msg">
                 {a.status === 'confirmé'
-                  ? t('{rituel} confirmé, la maison vous attend, avec {maitre}.', { rituel: serviceNames(a, services) || t('Votre rituel'), maitre: a.master })
+                  ? t('{rituel} confirmé, la maison vous attend.', { rituel: serviceNames(a, services) || t('Votre rituel') })
                   : t('{rituel}, acompte reçu, en attente de la maison.', { rituel: serviceNames(a, services) || t('Votre rituel') })}
               </div>
+              {onOpenRdv && <button className="mc-smallcta" style={{ marginTop: 10 }} onClick={() => onOpenRdv(a.id)}>{t('Voir mon rendez-vous')}</button>}
             </div>
           </div>
         ))}

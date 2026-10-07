@@ -100,8 +100,14 @@ if (!existsSync(construit)) {
      qu'ils portent. Le Disallow ne se pose qu'APRÈS leur disparition. */
   dit('… et n’interdit PAS /trone/ ni /couronne/ tant qu’ils sont indexés (la balise noindex les fait sortir, un Disallow les figerait)', [],
     ['/trone/', '/couronne/'].filter((c) => new RegExp('Disallow:\\s*' + c.split('/').join('\\/')).test(robots)));
-  dit('… et compte autant d’adresses que de pages à dossier', adresses.length,
-    pages.filter((r) => r.endsWith('index.html')).length);
+  /* Une page hors des moteurs (noindex) n'a rien à faire au plan : le lien
+     court des ambassadrices, /m/, mène ailleurs (7 octobre 2026). */
+  const horsMoteurs = (r: string) => /<meta name="robots" content="noindex"/.test(readFileSync(join(construit, r), 'utf8'));
+  const aDossier = pages.filter((r) => r.endsWith('index.html'));
+  dit('… et compte autant d’adresses que de pages à dossier ouvertes aux moteurs', adresses.length,
+    aDossier.filter((r) => !horsMoteurs(r)).length);
+  dit('… aucune page noindex n’entre au plan', [],
+    aDossier.filter(horsMoteurs).map((r) => r.replace(/index\.html$/, '')).filter((r) => adresses.some((a) => a.endsWith(`/${r}`))));
   const cname = join(construit, 'CNAME');
   const hote = adresses[0] ? new URL(adresses[0]).host : '';
   dit('… le CNAME dit le domaine du plan du site, ou n’existe pas s’il n’y a pas de domaine propre',

@@ -179,7 +179,8 @@ dit('Ma Couronne : sans acompte, la place est tenue', true, booking.includes("co
 const tabs = lis('src/apps/couronne/Tabs.tsx');
 dit('Ma Couronne : « Reserver ce moment » emporte tous les gestes et son heure', [true, true], [
   tabs.includes('serviceIds: predite.template!.serviceIds,'),
-  tabs.includes('...(predite.template!.time ? { time: predite.template!.time } : {}),'),
+  /* Depuis le 7 octobre, avec `express` : la touche réserve vraiment. */
+  tabs.includes('...(predite.template!.time ? { time: predite.template!.time, express: true } : {}),'),
 ]);
 
 console.log(ko === 0 ? '\nTout tient.' : `\n${ko} echec(s).`);

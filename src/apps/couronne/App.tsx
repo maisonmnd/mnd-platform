@@ -111,7 +111,10 @@ function Shell() {
   const [booking, setBooking] = useState<{ prefill?: BookingPrefill } | null>(null);
   const [composeOpen, setComposeOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
-  const [rdvOpen, setRdvOpen] = useState(false);
+  /* MES RENDEZ-VOUS, ouvert sur la liste (`{}`) ou sur la fiche d'UN
+     rendez-vous (`{ ouvrir }`) — 7 octobre 2026, « le rendez-vous s'ouvre
+     partout ». */
+  const [rdv, setRdv] = useState<{ ouvrir?: string } | null>(null);
   const [ordersOpen, setOrdersOpen] = useState(false);
   const [carteOpen, setCarteOpen] = useState(false);
 
@@ -131,7 +134,7 @@ function Shell() {
       return;
     }
     setNotifOpen(false);
-    setRdvOpen(false);
+    setRdv(null);
     setBooking({ prefill });
   }, [ferme, toast]);
 
@@ -143,15 +146,30 @@ function Shell() {
     setComposeOpen(true);
   }, [ferme, toast]);
 
-  const openRdv = useCallback(() => {
+  const openRdv = useCallback((id?: string) => {
     setNotifOpen(false);
     setOrdersOpen(false);
-    setRdvOpen(true);
+    setRdv(id ? { ouvrir: id } : {});
   }, []);
+
+  /* LE LIEN D'UNE NOTIFICATION — `#/rdv/<id>` ouvre la fiche de CE
+     rendez-vous, à l'ouverture comme quand l'app est déjà là. Le fragment
+     s'efface ensuite : revenir en arrière ne la rouvre pas en boucle. */
+  useEffect(() => {
+    const lis = () => {
+      const m = /^#\/rdv\/([A-Za-z0-9_-]+)$/.exec(window.location.hash);
+      if (!m) return;
+      openRdv(m[1]);
+      try { history.replaceState(null, '', window.location.pathname + window.location.search); } catch { /* sans historique, tant pis */ }
+    };
+    lis();
+    window.addEventListener('hashchange', lis);
+    return () => window.removeEventListener('hashchange', lis);
+  }, [openRdv]);
 
   const openOrders = useCallback(() => {
     setNotifOpen(false);
-    setRdvOpen(false);
+    setRdv(null);
     setOrdersOpen(true);
   }, []);
 
@@ -186,7 +204,7 @@ function Shell() {
           </div>
         )}
         {tab === 'accueil' && (enfant ? (
-          <HomeEnfant enfant={enfant} onOpenBooking={openBooking} onRevenir={() => setTete('')} />
+          <HomeEnfant enfant={enfant} onOpenBooking={openBooking} onRevenir={() => setTete('')} onOpenRdv={openRdv} />
         ) : (
           <HomeTab
             onOpenBooking={openBooking}
@@ -226,6 +244,7 @@ function Shell() {
           prefill={booking.prefill}
           onClose={() => setBooking(null)}
           toast={toast}
+          onVoirRdv={(id) => { setBooking(null); openRdv(id); }}
         />
       )}
       {/* UN FORFAIT À UNE SÉANCE SE RÉSERVE (16 août) : le composeur se ferme et
@@ -239,12 +258,18 @@ function Shell() {
           onReserver={(serviceId) => { setComposeOpen(false); openBooking({ serviceId }); }}
         />
       )}
-      {notifOpen && <Notifications onClose={() => setNotifOpen(false)} />}
-      {rdvOpen && (
+      {notifOpen && <Notifications onClose={() => setNotifOpen(false)} onOpenRdv={openRdv} />}
+      {rdv && (
         <MesRendezVous
-          onClose={() => setRdvOpen(false)}
+          onClose={() => setRdv(null)}
           onBook={() => openBooking()}
           toast={toast}
+          ouvrir={rdv.ouvrir}
+          onRefaire={(a) => openBooking({
+            serviceId: a.serviceIds[0],
+            serviceIds: a.serviceIds,
+            ...(me && a.clientId !== me.id ? { pourId: a.clientId } : {}),
+          })}
         />
       )}
       {ordersOpen && <MesCommandes onClose={() => setOrdersOpen(false)} />}

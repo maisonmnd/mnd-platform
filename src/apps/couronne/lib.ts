@@ -552,20 +552,30 @@ export function freeSlots(
     prise — que le Trône refusera à la confirmation — que de fermer le salon
     tout entier parce qu'une requête n'a pas abouti. */
 export function useCreneauxOccupes(branchId: string, du: string, au: string): CreneauOccupe[] {
-  const [occupes, setOccupes] = useState<CreneauOccupe[]>([]);
+  return useCreneauxOccupesCharges(branchId, du, au).occupes;
+}
+
+/** LES MURS, ET LE MOMENT OÙ ON LES CONNAÎT — 7 octobre 2026. Une touche
+    qui réserve ne peut pas juger sur un agenda encore vide : `charge` ne passe
+    à vrai qu'une fois la réponse du serveur arrivée (ou sans serveur). Une
+    erreur laisse `charge` faux : mieux vaut ouvrir le tunnel que réserver à
+    l'aveugle. */
+export function useCreneauxOccupesCharges(branchId: string, du: string, au: string): { occupes: CreneauOccupe[]; charge: boolean } {
+  const [etat, setEtat] = useState<{ occupes: CreneauOccupe[]; charge: boolean; cle: string }>({ occupes: [], charge: false, cle: '' });
+  const cle = `${branchId}|${du}|${au}`;
   useEffect(() => {
     let vivant = true;
-    if (!supabase || !branchId || !du || !au) { setOccupes([]); return; }
+    if (!supabase || !branchId || !du || !au) { setEtat({ occupes: [], charge: !supabase, cle }); return; }
     void supabase
       .rpc('creneaux_occupes', { p_branch: branchId, p_du: du, p_au: au })
       .then(({ data, error }) => {
         if (!vivant) return;
-        if (error) { setOccupes([]); return; }
-        setOccupes((data ?? []) as CreneauOccupe[]);
+        if (error) { setEtat({ occupes: [], charge: false, cle }); return; }
+        setEtat({ occupes: (data ?? []) as CreneauOccupe[], charge: true, cle });
       });
     return () => { vivant = false; };
-  }, [branchId, du, au]);
-  return occupes;
+  }, [branchId, du, au, cle]);
+  return { occupes: etat.occupes, charge: etat.charge && etat.cle === cle };
 }
 
 /* ---------- Paliers d'expérience ---------- */
@@ -715,4 +725,9 @@ export type BookingPrefill = {
   /** SON HEURE HABITUELLE : posée d'office si elle est libre ce jour-là, et
       le bouton « Réserver » est armé. Sinon, la cliente choisit, comme avant. */
   time?: string;
+  /** UNE TOUCHE QUI RÉSERVE — 7 octobre 2026 (maquette « Le rendez-vous
+      s'ouvre partout », validée) : « Réserver ce moment » réserve vraiment,
+      quand le moment est libre et qu'aucun acompte n'est demandé. Sinon le
+      tunnel reste ouvert sur le moment, comme avant. */
+  express?: boolean;
 };

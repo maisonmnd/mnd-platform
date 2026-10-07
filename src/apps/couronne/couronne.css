@@ -3155,3 +3155,52 @@
   padding: 7px 11px; border-radius: 999px; color: var(--ink-soft); min-height: 32px;
 }
 .mc-seg__opt.is-on { background: var(--mc-plein); color: var(--mc-sur-plein); }
+
+/* ══ LE RENDEZ-VOUS S'OUVRE PARTOUT — 7 octobre 2026 (maquette validée) ══
+   Toute carte qui montre un rendez-vous se touche et ouvre sa fiche ; la
+   réservation en trente secondes a son premier écran. Les jetons du jour et
+   du soir sont ceux de la feuille : rien n'est écrit en dur pour un seul. */
+.mc-nextrdv__ouvrir {
+  display: block; width: 100%; text-align: left; background: none; border: 0; padding: 0;
+  font: inherit; color: inherit; cursor: pointer;
+}
+.mc-nextrdv__ouvrir:focus-visible, .mc-rdvcard--ouvrable:focus-visible, .mc-tl__body--ouvrable:focus-visible,
+.mc-formule:focus-visible, .mc-place:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.mc-nextrdv__voir {
+  display: inline-block; margin-top: 10px; font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase;
+  color: var(--copper-300, #D6A06F);
+}
+.mc-rdvcard--ouvrable { cursor: pointer; }
+.mc-rdvcard--ouvrable:hover { border-color: var(--accent); }
+.mc-tl__body--ouvrable {
+  display: block; width: 100%; text-align: left; background: none; border: 0; font: inherit; color: inherit;
+  cursor: pointer; padding: 0 0 20px;
+}
+.mc-tl__body--ouvrable .mc-tl__s { color: var(--mc-cuivre-texte); }
+
+/* La fiche d'un rendez-vous */
+.mc-fiche { display: grid; gap: 14px; }
+.mc-fiche__quand { font-family: var(--font-serif); font-weight: 300; font-size: 32px; line-height: 1.05; color: var(--mc-encre); }
+.mc-fiche__etat { display: flex; flex-wrap: wrap; gap: 8px 10px; align-items: center; font-size: 12.5px; color: var(--ink-soft); }
+.mc-fiche__acts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.mc-fiche__acts .mc-rdvact { min-height: 48px; }
+.mc-fiche .mc-textbtn { justify-self: start; }
+
+/* Le premier écran en trente secondes */
+.mc-formule {
+  display: grid; gap: 2px; width: 100%; text-align: left; cursor: pointer; font: inherit;
+  padding: 14px 16px; border-radius: 14px; border: 1px solid var(--hairline);
+  background: var(--surface-card); color: var(--mc-encre);
+}
+.mc-formule:hover { border-color: var(--mc-encre); }
+.mc-formule.is-on { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+.mc-formule__t { font-family: var(--font-serif); font-size: 20px; line-height: 1.15; }
+.mc-formule__s { font-size: 12.5px; color: var(--ink-soft); }
+.mc-places { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 18px; }
+.mc-place {
+  min-height: 44px; padding: 8px 12px; border-radius: 12px; border: 1px solid var(--hairline);
+  background: transparent; color: var(--mc-encre); font: inherit; font-size: 13px; cursor: pointer;
+}
+.mc-place:hover { border-color: var(--mc-encre); }
+.mc-place.is-on { background: var(--accent); border-color: var(--accent); color: var(--color-ivoire); }
+.mc-place--autre { color: var(--mc-cuivre-texte); }
