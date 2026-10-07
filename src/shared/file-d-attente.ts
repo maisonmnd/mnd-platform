@@ -223,7 +223,7 @@ export function champsQuiDifferent(c: Pick<Conflit, 'table' | 'notre' | 'leur'>)
    Le conflit ne reste à l'écran que tant que la ligne porte ENCORE, sur les
    champs disputés, la version gardée d'ailleurs. Chaque magasin dit où lire
    sa ligne actuelle (`declareLecteurDeLigne`, posé par la synchro). */
-type LecteurDeLigne = (id: string) => unknown;
+type LecteurDeLigne = () => readonly unknown[];
 const LECTEURS = new Map<string, LecteurDeLigne>();
 export function declareLecteurDeLigne(table: string, lire: LecteurDeLigne): void { LECTEURS.set(table, lire); }
 
@@ -232,22 +232,43 @@ export function declareLecteurDeLigne(table: string, lire: LecteurDeLigne): void
    tableau de bord, le secrétariat n'était pas encore là, et ses onze conflits
    restaient comptés. Sans lecteur, on relit la ligne dans ce que l'appareil
    garde de ce magasin : le nom noté avec le conflit, sinon `mnd_<table>`. */
-function lisLaLigneSurLAppareil(c: Pick<Conflit, 'table' | 'id'> & { magasin?: string }): unknown {
+function lesLignesSurLAppareil(c: Pick<Conflit, 'table'> & { magasin?: string }): readonly unknown[] | undefined {
   try {
     const nom = c.magasin ?? `mnd_${c.table}`;
     const brut = localStorage.getItem(`${surface()}::${nom}`) ?? localStorage.getItem(nom);
     const lignes = brut ? (JSON.parse(brut) as unknown) : null;
-    return Array.isArray(lignes) ? lignes.find((x) => !!x && typeof x === 'object' && (x as { id?: unknown }).id === c.id) : undefined;
+    return Array.isArray(lignes) ? lignes : undefined;
   } catch { return undefined; }
 }
 
-export function dejaTranche(c: Pick<Conflit, 'table' | 'id' | 'notre' | 'leur'> & { magasin?: string }): boolean {
+/* ══ UNE LIGNE SUPPRIMÉE NE SE DISPUTE PLUS — 7 octobre 2026 ══════════
+   « Résoudre les 11 conflits » (Yéman, le lendemain) : les mêmes onze, les
+   étapes de sa frappe sur deux lettres du secrétariat. Les deux lettres
+   n'existaient plus sur le poste : sans ligne à relire, la règle du 6
+   gardait le conflit, pour toujours. Or une ligne supprimée depuis ne
+   laisse rien à garder ni à reprendre (« Reprendre ma version » la ferait
+   même renaître). La question ne se pose plus.
+
+   LA GARDE : un magasin VIDE ne prouve rien (pas encore descendu, écran
+   jamais ouvert sur ce poste) : le conflit reste alors montré, comme avant. */
+function laLigneActuelle(c: Pick<Conflit, 'table' | 'id'> & { magasin?: string }): { connue: boolean; ligne?: Record<string, unknown> } {
   const lire = LECTEURS.get(c.table);
+  const lignes = lire ? lire() : lesLignesSurLAppareil(c);
+  if (!lignes || lignes.length === 0) return { connue: false };
+  const ligne = lignes.find((x) => !!x && typeof x === 'object' && (x as { id?: unknown }).id === c.id);
+  return { connue: true, ligne: ligne as Record<string, unknown> | undefined };
+}
+
+export function dejaTranche(c: Pick<Conflit, 'table' | 'id' | 'notre' | 'leur'> & { magasin?: string }): boolean {
   const gardee = enLigne(c.leur);
-  if (!gardee || !enLigne(c.notre)) return false;
-  const actuel = lire ? lire(c.id) : lisLaLigneSurLAppareil(c);
-  if (!actuel || typeof actuel !== 'object') return false;
-  const ligne = actuel as Record<string, unknown>;
+  if (!gardee) return false;
+  const actuel = laLigneActuelle(c);
+  if (!actuel.connue) return false;
+  /* Supprimée depuis le conflit : plus rien à trancher. */
+  if (!actuel.ligne) return true;
+  /* Notre suppression contre une version qui vit encore : la question reste. */
+  if (!enLigne(c.notre)) return false;
+  const ligne = actuel.ligne;
   return champsQuiDifferent(c).some((k) => canonique(ligne[k]) !== canonique(gardee[k]));
 }
 

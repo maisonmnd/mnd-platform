@@ -770,8 +770,9 @@ export function bindCollection<T extends WithId>(
   options?: { colonnes?: (it: T) => Record<string, unknown> },
 ): void {
   magasinsParTable.set(table, store as Store<any>); // eslint-disable-line @typescript-eslint/no-explicit-any
-  /* La ligne actuelle, pour savoir si un conflit a été tranché depuis. */
-  declareLecteurDeLigne(table, (id) => store.get().find((x) => x.id === id));
+  /* Les lignes actuelles, pour savoir si un conflit a été tranché depuis
+     (réécrite, ou supprimée : 7 octobre 2026). */
+  declareLecteurDeLigne(table, () => store.get());
   if (!supabase) return;
   const sb = supabase;
 

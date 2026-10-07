@@ -37,7 +37,6 @@ import { sameName } from '../../../../shared/text';
 import { gammeNetteXof, gammeBruteXof, ligneNetteXof, ligneBruteXof, poseUnProduit, retireUnProduit, remiseDeLaLigne, ecartsDeTarif, manqueALEtagere, type LigneGamme } from '../../../../shared/gamme';
 import type { CommRates } from '../equipe/payroll';
 import { invoicesStore, invoiceTotal, invoiceReglements, caissesHorsBilan, type Invoice, type InvoiceLine, type Cashbox, totalProduitsXof } from '../../../../shared/finance';
-import { DemanderModal } from '../equipe/DemanderModal';
 import './clients.css';
 import { cheminDeLaConversation, lienDuFil, lienWaMe } from '../../../../shared/conversations';
 import { appelDe } from '../../../../shared/civilite';
@@ -1449,8 +1448,6 @@ export function RdvModal({
      `initial?.clientId` RESTE : quand on ouvre le rendez-vous DEPUIS une fiche,
      la tête est connue et la poser n'est pas deviner. */
   const [clientId, setClientId] = useState(appt?.clientId ?? initial?.clientId ?? '');
-  /* La porte « Demander » du rituel — l'autre porte de la maquette du Fil. */
-  const [demanderOuvert, setDemanderOuvert] = useState(false);
   const [serviceIds, setServiceIds] = useState<string[]>(appt?.serviceIds ?? initial?.serviceIds ?? []);
   /* LES MAINS, prestation par prestation. Un tableau parallele a `serviceIds` :
      le rituel peut porter deux fois le meme geste, et pas forcement par les
@@ -4034,12 +4031,9 @@ export function RdvModal({
                 Enregistrer et encaisser
               </Button>
             ))}
-            {/* L'AUTRE PORTE DE LA MAQUETTE DU FIL — 20 août : « Demander »
-                naît LÀ OÙ LE TRAVAIL SE TROUVE. La dernière pièce de la liste
-                de Yéman : la porte existait sur la facture, pas sur le rituel. */}
-            <Button variant="ghost" onClick={() => setDemanderOuvert(true)}>
-              Demander à quelqu’un de s’en occuper
-            </Button>
+            {/* « Demander à quelqu'un de s'en occuper » RETIRÉ du rituel le
+                7 octobre 2026 (Yéman) : la porte reste sur la facture et sur la
+                fiche de la cliente. */}
             {/* LA DESTRUCTION QUITTE LA PILE (14 août). Annuler et supprimer
                 s'alignaient, pleine largeur, avec Enregistrer et Encaisser :
                 quatre boutons de même poids dont deux qui détruisent — une
@@ -4083,17 +4077,6 @@ export function RdvModal({
           </div>
         )}
       </div>
-      )}
-      {demanderOuvert && appt && (
-        <DemanderModal
-          piece={{
-            kind: 'rituel',
-            id: appt.id,
-            label: `${clients.find((c) => c.id === appt.clientId)?.name ?? appt.clientName ?? 'Cliente'} · ${appt.date} ${appt.time} · ${apptLabel(appt, byId)}`,
-          }}
-          sousTitre={`Le rituel de ${clients.find((c) => c.id === appt.clientId)?.name ?? appt.clientName ?? 'la cliente'} · ${appt.date}`}
-          onClose={() => setDemanderOuvert(false)}
-        />
       )}
     </Modal>
   );

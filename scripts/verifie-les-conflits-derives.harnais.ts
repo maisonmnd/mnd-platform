@@ -92,7 +92,7 @@ dit('le panneau montre ce qui differe, et se vide d un geste', [true, true],
    ② L'écho de notre propre poussée est reconnu AVANT le jugement : la frappe
       en attente gagne, sans conflit. */
 const lignesDuBanc = new Map<string, Record<string, unknown>>();
-declareLecteurDeLigne('banc_frappe', (id) => lignesDuBanc.get(id));
+declareLecteurDeLigne('banc_frappe', () => [...lignesDuBanc.values()]);
 const frappe = (gardee: string, votre: string) => ({
   table: 'banc_frappe', id: 'doc-1',
   notre: JSON.stringify({ id: 'doc-1', objet: votre, corps: 'x' }),
@@ -127,8 +127,25 @@ dit('l echo de notre poussee est reconnu avant le jugement de conflit', [true, t
   /const notreEcho = !!distant && estNotreEcho\(idTouche, contenuCanonique\(distant\)\);/.test(synchro),
   /\} else if \(notreEcho \|\| leGesteLocalTient\(enAttente, distantAt\)\) \{/.test(synchro),
 ]);
-dit('chaque magasin dit ou lire sa ligne actuelle', true,
-  /declareLecteurDeLigne\(table, \(id\) => store\.get\(\)\.find\(\(x\) => x\.id === id\)\);/.test(synchro));
+dit('chaque magasin dit ou lire ses lignes actuelles', true,
+  /declareLecteurDeLigne\(table, \(\) => store\.get\(\)\);/.test(synchro));
+
+/* ── UNE LIGNE SUPPRIMÉE NE SE DISPUTE PLUS — 7 octobre 2026 (les mêmes 11) ──
+   Les deux lettres disputées n'existaient plus sur le poste : la règle du 6
+   les gardait pour toujours. Supprimée depuis = plus rien à trancher ; mais
+   un magasin VIDE ne prouve rien, le conflit reste. */
+const lignesSupprimees = new Map<string, Record<string, unknown>>([['autre-doc', { id: 'autre-doc', objet: 'Autre' }]]);
+declareLecteurDeLigne('banc_supprime', () => [...lignesSupprimees.values()]);
+const supprime = { ...frappe('Demande de Moov Afric', 'Demande de Moov Africa'), table: 'banc_supprime' };
+dit('la ligne a ete supprimee depuis : le conflit est tranche', [true, false], [dejaTranche(supprime), conflitUtile(supprime)]);
+dit('notre suppression contre une ligne supprimee aussi : tranche', false, conflitUtile({ ...supprime, notre: null }));
+lignesSupprimees.set('doc-1', { id: 'doc-1', objet: 'Demande de Moov Afric', corps: 'x' });
+dit('notre suppression contre une ligne qui vit encore : la question reste', true, conflitUtile({ ...supprime, notre: null }));
+declareLecteurDeLigne('banc_vide', () => []);
+dit('un magasin vide ne prouve rien : le conflit reste montre', [false, true],
+  [dejaTranche({ ...supprime, table: 'banc_vide' }), conflitUtile({ ...supprime, table: 'banc_vide' })]);
+localStorage.setItem('trone::mnd_banc_disparu', JSON.stringify([{ id: 'autre-doc', objet: 'Autre' }]));
+dit('ecran ferme, ligne absente du magasin de l appareil : tranche', false, conflitUtile({ ...supprime, table: 'banc_disparu' }));
 
 console.log(ko === 0 ? '\nCe que la Maison calcule ne se dispute pas.' : `\n${ko} controle(s) en echec.`);
 process.exit(ko === 0 ? 0 : 1);
