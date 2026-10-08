@@ -1964,3 +1964,23 @@ html.js [data-voile].vu--net, html.js [data-voile]:focus-within { opacity: 1; tr
   body { background-image: none; }
   footer::before { display: none; }
 }
+
+/* ── LE RYTHME DE L'ACCUEIL · 8 octobre 2026 ────────────────────────────────
+   « J'aime la transition entre le diagnostic, les offres et la carte cadeau ;
+   elle n'a pas été faite pour le parrainage, notre histoire et la galerie :
+   tout vient brutalement. Même chose entre La Maison et les cinq portes. »
+   (Yéman). Chaque section de l'accueil prend sa couleur, aucune ne répète sa
+   voisine : ivoire (La Maison), argile (les portes), indigo (diagnostic),
+   indigo pâle (offres), indigo (carte cadeau), indigo pâle (parrainage),
+   argile (notre histoire), indigo (galerie), ivoire (avis). La couleur dit
+   la famille, comme les toiles des pages : l'argile mène aux parcours, la
+   tuile froide porte ce qui s'offre (« pourquoi les offres de la Maison ne
+   sont pas construites avec la tuile froide ? », Yéman). Entre deux clairs,
+   un fondu sur une plume ; contre l'indigo, la coupe reste franche. */
+.accueil-plein .vt-offres { --chaude: var(--indigo-pale); }
+.accueil-plein #portes { padding-block: var(--air);
+  background: linear-gradient(180deg, transparent 0, var(--chaude) var(--plume), var(--chaude) 100%); }
+.accueil-plein .parrain { padding-block: var(--air); background: var(--indigo-pale); }
+.accueil-plein .fondateurs { padding-block: var(--air);
+  background: linear-gradient(180deg, var(--indigo-pale) 0, var(--chaude) var(--plume), var(--chaude) 100%); }
+.accueil-plein .galerie-bande { padding-block: var(--air); }

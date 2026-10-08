@@ -956,7 +956,7 @@ function rendAccueil(articles) {
           <p style="margin-top:18px"><a class="btn btn--lien" href="${lien('/notre-histoire/')}">Lire notre histoire</a></p>
         </div>
       </div></section>
-      <section class="galerie-bande" id="galerie"><div class="conteneur">
+      <section class="galerie-bande sombre" id="galerie"><div class="conteneur">
         <div class="tete tete--ligne"><div><p class="sur">${echappe(a.galerie.sur)}</p><h2>${echappe(a.galerie.titre)}</h2></div>${bouton(a.galerie.bouton, 'btn btn--lien')}</div>
         <div class="bande">${a.galerie.images.map((img) => `<figure>${image(img, '')}</figure>`).join('')}</div>
       </div></section>
