@@ -11,8 +11,12 @@
 
   /* ---- Neutres minéraux ---- */
   --color-ivoire:        #F6F1E7; /* paper par défaut */
-  --color-sable:         #E3DACB;
+  --color-sable:         #E3DACB; /* jeton du Trône ; le site public, lui, dit sable = #EEE6D6 (--fond-2) */
   --color-argile:        #CDBBA9;
+  /* LE SOIR DU SITE PUBLIC, 8 octobre 2026 : le sable du site (#EEE6D6) sous le voile
+     cuivre .14. La seule surface de fin d'une page : la toile y tourne sur le
+     dernier écran, l'appel s'y pose, le pied suit. Recopié dans revelateur.css. */
+  --color-sable-cuivre:  #E7D7C2;
 
   /* ---- Indigo Royal — 600 = référence ---- */
   --indigo-50:  #EDEEF4;

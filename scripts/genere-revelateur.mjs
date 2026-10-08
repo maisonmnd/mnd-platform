@@ -34,6 +34,7 @@ const entree = path.join(dossierTmp, 'entree.ts');
 writeFileSync(entree, `export * from '${path.join(racine, 'src/apps/revelateur/contenu.ts').replace(/\\/g, '/')}';
 export { DEVISE_COMPLETE } from '${path.join(racine, 'src/shared/identite.ts').replace(/\\/g, '/')}';
 export { appliqueLesRetouches } from '${path.join(racine, 'src/shared/site-retouches.ts').replace(/\\/g, '/')}';
+export { TONS, tonDe } from '${path.join(racine, 'src/apps/revelateur/tons.ts').replace(/\\/g, '/')}';
 `);
 const module_ = path.join(dossierTmp, 'contenu.mjs');
 let contenu;
@@ -52,7 +53,7 @@ globalThis.CustomEvent = class { constructor(t, o) { this.type = t; Object.assig
 } finally {
   rmSync(dossierTmp, { recursive: true, force: true });
 }
-const { COMMUN, ACCUEIL, PAGES, GALERIE, DEVISE_COMPLETE, COMMUNAUTE, PARRAINAGE, INGREDIENTS, INGREDIENTS_TETE, AVANT_APRES, ENGAGEMENTS } = contenu;
+const { COMMUN, ACCUEIL, PAGES, GALERIE, DEVISE_COMPLETE, COMMUNAUTE, PARRAINAGE, INGREDIENTS, INGREDIENTS_TETE, AVANT_APRES, ENGAGEMENTS, TONS, tonDe } = contenu;
 
 /* ══ LES RETOUCHES DU TRÔNE — 4 octobre 2026 ═════════════════════════
    L'éditeur du site (Les vitrines › Le site public) écrit ses retouches
@@ -259,8 +260,24 @@ const jsonld = (noeuds) => `<script type="application/ld+json">${JSON.stringify(
    précharge, l'accueil l'affiche, le harnais la vérifie. */
 const PHOTO_ACCUEIL = 'cauris-accueil.jpg';
 
-function page({ chemin, titre, description, corps, noeuds, image: og, classeBody = '', precharge = '' }) {
+/* L'ÉCLAIRCISSEMENT AU DÉFILEMENT — 8 octobre 2026. Les têtes de section
+   reçoivent data-voile à partir de la deuxième section : le premier écran
+   (hero-plein, page-hero, ing-hero, recit-ouverture) n'est jamais voilé. La
+   galerie a son propre mouvement : rien. Les chapitres du récit n'ont pas de
+   .tete : rien non plus. Sans la classe js sur <html>, l'attribut ne fait rien. */
+function voile(corps, classeBody) {
+  if (classeBody === 'galerie-plein') return corps;
+  const premiere = corps.indexOf('</section>');
+  if (premiere < 0) return corps;
+  return corps.slice(0, premiere) + corps.slice(premiere).replace(/<div class="tete(?=[ "])/g, '<div data-voile class="tete');
+}
+
+function page({ chemin, titre, description, corps, noeuds, image: og, classeBody = '', precharge = '', ton = 'maison', transition = true }) {
   const canon = `${SITE}${chemin.replace(/^\//, '')}`;
+  /* LA COULEUR DU HAUT DU TÉLÉPHONE est celle de la toile, sauf sur l'accueil
+     dont le premier écran est indigo (main.ts la rend ivoire dès que la barre
+     est pleine). */
+  const couleurDuHaut = classeBody === 'accueil-plein' ? '#1E2150' : TONS[ton];
   const nav = COMMUN.nav.map((l) => `<a href="${attr(lien(l.vers))}">${echappe(l.texte)}</a>`).join('\n      ');
   const suivre = comptesPublics().length
     ? `\n    <div><h4>Nous suivre</h4><ul>${comptesPublics().map((c) => `<li><a href="${attr(c.url)}" target="_blank" rel="noopener">${echappe(c.nom)}</a></li>`).join('')}</ul></div>`
@@ -277,7 +294,8 @@ function page({ chemin, titre, description, corps, noeuds, image: og, classeBody
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#1E2150" />
+    <script>if(!matchMedia('(prefers-reduced-motion: reduce)').matches)document.documentElement.classList.add('js')</script>
+    <meta name="theme-color" content="${couleurDuHaut}" />
     <link rel="icon" type="image/png" sizes="32x32" href="/assets/icones/icone-32.png" />
     <link rel="icon" type="image/png" sizes="192x192" href="/assets/icones/icone-192.png" />
     <link rel="apple-touch-icon" sizes="180x180" href="/assets/icones/icone-180.png" />
@@ -297,7 +315,7 @@ function page({ chemin, titre, description, corps, noeuds, image: og, classeBody
     ${precharge ? (estPhoto(precharge) ? `<link rel="preload" as="image" href="${attr(webp(precharge))}" type="image/webp" fetchpriority="high" />` : `<link rel="preload" as="image" href="${attr(precharge)}" fetchpriority="high" />`) : ''}
     ${jsonld(noeuds)}
   </head>
-  <body data-surface="revelateur"${classeBody ? ` class="${classeBody}"` : ''}>
+  <body data-surface="revelateur" data-ton="${ton}"${classeBody ? ` class="${classeBody}"` : ''}>
     <a class="evitement" href="#contenu">Aller au contenu</a>
     ${ICONES}
     <header class="barre">
@@ -312,24 +330,26 @@ function page({ chemin, titre, description, corps, noeuds, image: og, classeBody
         <a class="btn btn--plein" href="${lien('/reserver/')}">Réserver</a>
       </div>
     </header>
+    ${classeBody === 'accueil-plein' ? '<script>(function(){var b=document.querySelector(".barre");if(b&&(location.hash.length>1||window.scrollY>24))b.classList.add("solide")})()</script>' : ''}
     <main id="contenu" tabindex="-1">
-${corps}
+${voile(corps, classeBody)}
     </main>
     <footer>
       <div class="conteneur">
+        ${classeBody === 'accueil-plein' ? '' : `<p class="pied-signature">${echappe(DEVISE_COMPLETE)}</p>`}
         <div>
           <a class="logo" href="${BASE}" aria-label="${attr(COMMUN.nom)}"><img src="/assets/photos/site/mono-ivoire.png" alt="MND" width="240" height="198"></a>
           <p style="margin-top:14px; max-width:32ch">${echappe(COMMUN.pied.phrase)}</p>
         </div>
     ${colonnes}
         <div class="pied-bas">
-          <span class="devise">${echappe(DEVISE_COMPLETE)}</span>
           <span class="pied-copyright">&copy; Copyright ${new Date().getFullYear()}</span>
           ${legal}
         </div>
       </div>
     </footer>
 ${bulle(chemin)}    <script type="module" src="/src/apps/revelateur/main.ts"></script>
+${transition ? '' : '    <style>@view-transition{navigation:none}</style><script>["pageswap","pagereveal"].forEach(function(n){addEventListener(n,function(e){if(e.viewTransition)e.viewTransition.skipTransition()})})</script>'}
   </body>
 </html>
 `;
@@ -931,14 +951,14 @@ function rendAccueil(articles) {
       ${sectionAvantApres()}
       ${railDesIngredients()}
       ${sectionCommunaute()}
-      ${SCRIPT_COMMUNAUTE}
-      <section class="journal" id="journal" style="background:var(--fond-2); border-block:1px solid var(--filet)"><div class="conteneur">
+      <section class="journal" id="journal"><div class="conteneur">
         <div class="tete"><p class="sur">${echappe(a.journal.sur)}</p><h2>${echappe(a.journal.titre)}</h2></div>
         <div class="articles">
         ${journal}
         </div>
         <p style="margin-top:18px"><a class="btn btn--lien" href="${lien('/journal/')}">Tous les articles</a></p>
       </div></section>
+      ${SCRIPT_COMMUNAUTE}
       <!-- LES MARQUES APRÈS LE JOURNAL — 28 septembre 2026 (Yéman). -->
       ${marques(a.marques)}
       <section class="devise-bande sombre" id="signature"><div class="conteneur">
@@ -1310,7 +1330,7 @@ for (const p of PAGES) {
   if (p.jsonld === 'course') noeuds.push({ '@type': 'Course', name: p.h1, description: p.description, provider: { '@type': 'Organization', name: COMMUN.nom, '@id': `${SITE}#maison` } });
   const faqItems = p.jsonld === 'faq' ? (p.sections ?? []).filter((s) => s.type === 'faq').flatMap((s) => s.items) : [];
   if (faqItems.length) noeuds.push({ '@type': 'FAQPage', mainEntity: faqItems.map(([q, r]) => ({ '@type': 'Question', name: q, acceptedAnswer: { '@type': 'Answer', text: r } })) });
-  ecrit(p.chemin, page({ chemin: p.chemin, titre: p.titre, description: p.description, corps, noeuds, image: p.image, classeBody: p.cta ? 'a-barre-mobile' : '' }));
+  ecrit(p.chemin, page({ chemin: p.chemin, titre: p.titre, description: p.description, corps, noeuds, image: p.image, classeBody: p.cta ? 'a-barre-mobile' : '', ton: tonDe(p) }));
   pagesEcrites.push(p.chemin);
 }
 
@@ -1353,7 +1373,7 @@ for (const l of LEGALES) {
 
 /* La page 404 n'est qu'une page d'erreur : jamais un routeur. */
 writeFileSync(path.join(SORTIE, '404.html'), page({
-  chemin: '/404.html', titre: 'Page introuvable · Maison MND', description: 'Cette page n’existe pas ou plus. Retrouvez votre parcours depuis l’accueil de la Maison MND.',
+  chemin: '/404.html', transition: false, titre: 'Page introuvable · Maison MND', description: 'Cette page n’existe pas ou plus. Retrouvez votre parcours depuis l’accueil de la Maison MND.',
   corps: `<section class="page-hero page-hero--simple"><div class="conteneur"><div><p class="sur">Page introuvable</p><h1>Cette page n’existe pas.</h1><p class="ligne">Reprenez depuis l’accueil, ou trouvez votre parcours en trois questions.</p><div class="rangee" style="margin-top:22px"><a class="btn btn--plein" href="${BASE}">Retour à l’accueil</a><a class="btn" href="${lien('/mon-parcours/')}">Trouver mon parcours</a></div></div></div></section>`,
   noeuds: [noeudSite()],
 }).replace('<link rel="canonical"', '<meta name="robots" content="noindex" /><link rel="canonical"'));
@@ -1370,10 +1390,10 @@ writeFileSync(path.join(SORTIE, '404.html'), page({
 const FORME_DU_CODE_COURT = '^[A-Z]{1,6}-[ABCDEFGHJKMNPQRSTUVWXYZ23456789]{3}$';
 mkdirSync(path.join(SORTIE, 'm'), { recursive: true });
 writeFileSync(path.join(SORTIE, 'm', 'index.html'), page({
-  chemin: '/m/', titre: 'Un cadeau de bienvenue vous attend · Maison MND',
+  chemin: '/m/', transition: false, titre: 'Un cadeau de bienvenue vous attend · Maison MND',
   description: 'Une amie vous offre la Maison MND : réservez avec son code, votre cadeau de bienvenue vous attend à votre première visite.',
   corps: `<section class="page-hero page-hero--simple"><div class="conteneur"><div><p class="sur">De la part d’une amie</p><h1>Votre cadeau de bienvenue vous attend.</h1><p class="ligne">La réservation s’ouvre, le code de votre amie déjà posé.</p><div class="rangee" style="margin-top:22px"><a class="btn btn--plein" id="vers-la-reservation" href="${attr(lien('/reserver/'))}">Réserver ma place</a></div></div></div></section>
-      <script>(function(){var q=location.search.slice(1);try{q=decodeURIComponent(q);}catch(e){}q=q.replace(/^code=/i,'').split('&')[0].trim().toUpperCase();var v=${JSON.stringify(lien('/reserver/'))};if(new RegExp(${JSON.stringify(FORME_DU_CODE_COURT)}).test(q))v+='?code='+encodeURIComponent(q);var a=document.getElementById('vers-la-reservation');if(a)a.href=v;location.replace(v);})();</script>`,
+      <script>if('onpageswap' in window)addEventListener('pageswap',function(e){if(e.viewTransition)e.viewTransition.skipTransition()});(function(){var q=location.search.slice(1);try{q=decodeURIComponent(q);}catch(e){}q=q.replace(/^code=/i,'').split('&')[0].trim().toUpperCase();var v=${JSON.stringify(lien('/reserver/'))};if(new RegExp(${JSON.stringify(FORME_DU_CODE_COURT)}).test(q))v+='?code='+encodeURIComponent(q);var a=document.getElementById('vers-la-reservation');if(a)a.href=v;location.replace(v);})();</script>`,
   noeuds: [noeudSite()],
 }).replace('<link rel="canonical"', '<meta name="robots" content="noindex" /><link rel="canonical"'));
 

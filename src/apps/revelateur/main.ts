@@ -85,8 +85,19 @@ if (pleines) {
     if (e.key === 'Escape') a?.click(); else va(a);
   });
 }
+/* LA BARRE DE L'ACCUEIL ET LA COULEUR DU HAUT — 8 octobre 2026. La barre est
+   pleine dès 24 px ; le theme-color suit : indigo tant que la barre est
+   transparente sur la photo, ivoire ensuite (sur téléphone, c'est la bande
+   au-dessus de la page que l'œil lit comme « la couleur de la page »). La
+   ligne en ligne du gabarit, écrite après </header>, a déjà posé .solide si
+   l'adresse portait une ancre : ici on ne fait que suivre. */
 if (barre && document.body.classList.contains('accueil-plein')) {
-  const suit = () => barre.classList.toggle('solide', window.scrollY > 24);
+  const couleurDuHaut = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]');
+  const suit = () => {
+    const solide = window.scrollY > 24;
+    barre.classList.toggle('solide', solide);
+    couleurDuHaut?.setAttribute('content', solide ? '#F6F1E7' : '#1E2150');
+  };
   suit();
   addEventListener('scroll', suit, { passive: true });
 }
@@ -99,4 +110,36 @@ if (document.querySelector('[data-ilot="reserver"]')) {
     const jours = prochainsJours(JOURS_DU_CALENDRIER);
     void calendrierDuSite(jours[0], jours[jours.length - 1]).catch(() => { /* l'îlot réessaiera */ });
   });
+}
+/* L'ÉCLAIRCISSEMENT AU DÉFILEMENT, 8 octobre 2026. « On n'apparaît pas, on
+   s'éclaire. » La classe js a été posée sur <html> par une ligne dans <head>,
+   sous la garde prefers-reduced-motion ; sans elle, aucune règle de voile ne
+   s'applique et ce bloc ne fait rien. Les têtes de section marquées
+   data-voile par le générateur (jamais le premier écran, jamais un îlot, jamais
+   la galerie) s'éclairent quand leur bord haut passe 92 % de la fenêtre, UNE
+   fois : jamais re-voilées en remontant (le récit, lui, le fait à dessein).
+   Ce qui est déjà à l'écran quand ce module arrive est révélé NET, sans
+   transition : pas de fondu par-dessus le fondu de page. Ce qui est au-dessus
+   du point d'arrivée (ancre /#portes) est révélé aussi. Sans
+   IntersectionObserver, on retire la classe js : tout est visible aussitôt,
+   sans attendre le filet de secours de 1,6 s de la feuille. */
+const racine = document.documentElement;
+if (racine.classList.contains('js')) {
+  const voiles = [...document.querySelectorAll<HTMLElement>('[data-voile]')];
+  if ('IntersectionObserver' in window && voiles.length) {
+    const io = new IntersectionObserver((entrees) => {
+      for (const e of entrees) {
+        if (e.isIntersecting || e.boundingClientRect.top < 0) {
+          e.target.classList.add('vu');
+          io.unobserve(e.target);
+        }
+      }
+    }, { rootMargin: '0px 0px -8% 0px' });
+    for (const el of voiles) {
+      if (el.getBoundingClientRect().top < innerHeight) el.classList.add('vu', 'vu--net');
+      else io.observe(el);
+    }
+  } else {
+    racine.classList.remove('js');
+  }
 }

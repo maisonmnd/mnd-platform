@@ -898,9 +898,6 @@ footer li svg { width: 15px; height: 15px; flex: none; }
 .hero-plein .rangee { margin-top: 0; }
 .hero-plein .btn:not(.btn--plein) { background: #F6F1E7; border-color: #F6F1E7; color: var(--titre); }
 .hero-plein .btn:not(.btn--plein):hover { background: #fff; }
-.promesses.promesses--sombre { background: var(--sombre-2); border: 0; padding-block: 22px; }
-.promesses--sombre .promesse i { background: rgba(214, 160, 111, .18); color: var(--accent-sombre); }
-.promesses--sombre .promesse b { color: #F6F1E7; }
 .promesses--sombre .promesse small { color: rgba(246, 241, 231, .66); }
 @media (max-width: 860px) {
   /* « Sur la version mobile c'est très important qu'il n'y ait aucune écriture
@@ -994,13 +991,13 @@ footer li svg { width: 15px; height: 15px; flex: none; }
 .accueil-plein .barre { transition: background var(--t), border-color var(--t); }
 .accueil-plein { --barre-h: 76px; }
 .accueil-plein .barre .conteneur { min-height: var(--barre-h); }
-.accueil-plein .barre:not(.solide) { background: transparent; backdrop-filter: none; border-bottom-color: transparent; }
-.accueil-plein .barre:not(.solide) .logo img { filter: brightness(0) invert(1); opacity: .96; }
-.accueil-plein .barre:not(.solide) .verrou__maison,
-.accueil-plein .barre:not(.solide) .verrou__sigle { color: #F6F1E7; }
-.accueil-plein .barre:not(.solide) .menu-bouton span { background: #F6F1E7; }
-.accueil-plein .barre:not(.solide) .tel { color: #F6F1E7; }
-.accueil-plein .barre:not(.solide) .tel:hover { background: rgba(246, 241, 231, .14); }
+.accueil-plein:not(:has(:target)) .barre:not(.solide) { background: transparent; backdrop-filter: none; border-bottom-color: transparent; }
+.accueil-plein:not(:has(:target)) .barre:not(.solide) .logo img { filter: brightness(0) invert(1); opacity: .96; }
+.accueil-plein:not(:has(:target)) .barre:not(.solide) .verrou__maison,
+.accueil-plein:not(:has(:target)) .barre:not(.solide) .verrou__sigle { color: #F6F1E7; }
+.accueil-plein:not(:has(:target)) .barre:not(.solide) .menu-bouton span { background: #F6F1E7; }
+.accueil-plein:not(:has(:target)) .barre:not(.solide) .tel { color: #F6F1E7; }
+.accueil-plein:not(:has(:target)) .barre:not(.solide) .tel:hover { background: rgba(246, 241, 231, .14); }
 /* Ciblé sur la barre : le pied de page a son propre .logo, et un .logo absolu
    sans ancêtre positionné se retrouvait au milieu du premier écran. */
 .accueil-plein .barre .logo { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); }
@@ -1760,3 +1757,197 @@ body.galerie-plein { scroll-behavior: smooth; }
 .recit-fin h2 { font-family: var(--serif); font-weight: 400; font-size: clamp(28px, 3.6vw, 44px); line-height: 1.15; margin: 0 auto; max-width: 22ch; color: var(--fond); }
 .recit-fin p { font-family: var(--serif); font-style: italic; font-size: 20px; color: var(--accent-sombre); margin: 16px auto 0; max-width: none; }
 .recit-fin .rangee { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; margin-top: 32px; }
+
+/* ══ LA LUMIÈRE ET LA FIN · 8 octobre 2026 ═══════════════════════════════════
+   Ce que la propriétaire a vu chez leafandflower : une toile par page, des
+   surfaces qui montent de la toile au lieu de la couper, une fin qu'on sent
+   avant de la lire, et un passage d'une page à l'autre où la barre et le pied
+   ne bougent pas. Ici avec les seuls jetons de la Maison, plus UNE voisine (le
+   sable cuivré). Trois règles tiennent tout :
+     1. une page est un jour : sa toile va de SON ton (le jour) au sable cuivré
+        (le soir) sur le dernier écran seulement ;
+     2. un dégradé reste dans sa famille : ivoire · lin · sable · sable cuivré
+        entre eux, jamais vers l'indigo (le mi-chemin #8A899C est un gris-lavande
+        étranger) ; contre un chapitre indigo, la coupe est FRANCHE ;
+     3. le sable cuivré et l'indigo profond ne vivent qu'à la fin : la toile au
+        soir, l'appel, puis le pied, seule surface en indigo profond, filet
+        cuivre, allover à .06, devise en signature.
+   Rien ici ne demande un script. L'éclaircissement au défilement (bloc 10) ne
+   voile que sous html.js, posé dans <head> sous la garde reduce. */
+
+/* ── 0 · Les jetons de la lumière ──────────────────────────────────────────
+   Les valeurs sont recopiées ici comme les autres ; leur sens vit dans
+   ds/tokens/colors.css (y déclarer --color-sable-cuivre #E7D7C2, et dire que
+   --color-sable / --color-argile du Trône ne sont pas le sable ni l'argile du
+   site public). */
+:root {
+  --sable-cuivre: #E7D7C2;            /* le sable sous le voile cuivre .14 : le SOIR de toute page, la seule surface de fin */
+  --filet-cuivre: rgba(214, 160, 111, .45);
+  --jour: var(--fond);                 /* le ton de la page : ivoire par défaut (famille Maison) */
+  --jour-soir: var(--sable-cuivre);    /* le même soir pour toutes les familles : l'œil l'apprend en deux pages */
+  --jour-barre: rgba(246, 241, 231, .9);
+  --soir: 760px;                       /* la hauteur du soir : un écran de téléphone, jamais plus */
+  --plume: clamp(40px, 6vw, 72px);     /* le fondu d'une section chaude : terme à terme SOUS --air */
+  --air: clamp(56px, 8vw, 110px);      /* l'air d'une section chaude, d'un chapitre, de l'appel : le texte ne touche jamais la plume */
+}
+/* Les familles : le ton se lit sur <body data-ton>, écrit par le générateur
+   (tons.ts). Sans attribut connu : la famille Maison. */
+body[data-ton="parcours"] { --jour: var(--accent-clair); --jour-barre: rgba(250, 241, 233, .9); }
+body[data-ton="offres"]   { --jour: var(--fond-2);       --jour-barre: rgba(238, 230, 214, .9); }
+
+/* ── 1 · La toile ──────────────────────────────────────────────────────────
+   La ligne 53 garde « background: var(--fond) » : c'est le repli. Ici la toile :
+   unie au ton de la page, elle tourne au sable cuivré sur le dernier écran (au
+   plus 760 px ; au moins les 45 % du bas d'une page courte). Écrite sur body,
+   elle se propage au canevas et couvre tout le document : html ne reçoit AUCUN
+   fond, body aucun position / transform / filter / isolation (la barre, la
+   barre-mobile, la bulle et le fil du récit resteraient sinon sans ancre).
+   Un navigateur sans max() ignore la déclaration et garde la couleur unie.
+   vh puis svh, dans la même règle : les Android anciens gardent vh. */
+body { background-color: var(--jour);
+  background-image: linear-gradient(180deg, var(--jour) 0, var(--jour) max(55%, 100% - var(--soir)), var(--jour-soir) 100%);
+  background-repeat: no-repeat; min-height: 100vh; min-height: 100svh; }
+
+/* ── 2 · La barre, la barre du bas et les encadrés suivent la lumière ─────── */
+.barre { background: var(--jour-barre); }
+.barre-mobile { background: var(--jour-barre); }
+/* Sur une toile lin, un encadré lin disparaîtrait : il passe en carte. */
+body[data-ton="parcours"] .geste, body[data-ton="parcours"] .merci, body[data-ton="parcours"] .prose .maison { background: var(--carte); }
+/* Sur une toile sable, les onglets sable disparaîtraient : un voile indigo, lisible sur tout clair. */
+body[data-ton="offres"] .onglets, body[data-ton="offres"] .offres-onglets { background: rgba(30, 33, 80, .06); }
+/* La galerie retombe sur la toile, pas sur un ivoire recopié (l. 1113). */
+.gal-scene::after { background: var(--jour); }
+
+/* ── 3 · Les sections chaudes montent de la toile ──────────────────────────
+   Plume en haut ; en bas, elles redescendent quand ce qui suit est clair.
+   Contre un chapitre indigo, le bord reste FRANC des deux côtés (un dégradé
+   entre deux familles est interdit) : « section.sombre + » aplatit le haut,
+   « :has(+ …) » n'adoucit le bas que devant un voisin clair. Sans :has(), le
+   bas reste franc : c'est l'aspect d'aujourd'hui, jamais une bande neuve.
+   Les deux règles restent SÉPARÉES : un navigateur qui ne lit pas :has() ne
+   doit perdre qu'elle. Le générateur a retiré le style en ligne du journal et
+   déplacé SCRIPT_COMMUNAUTE après lui : un <script> frère casserait le « + ». */
+.vt-offres, .ingredients, .univers, .journal {
+  --bord-haut: transparent; --bord-bas: var(--fond-2);
+  background: linear-gradient(180deg, var(--bord-haut) 0, var(--fond-2) var(--plume), var(--fond-2) calc(100% - var(--plume)), var(--bord-bas) 100%);
+  padding-block: var(--air); border: 0; }
+:is(section.sombre, .communaute:not(.communaute--claire)) + :is(.vt-offres, .ingredients, .univers, .journal) { --bord-haut: var(--fond-2); }
+:is(.vt-offres, .ingredients, .univers, .journal):has(+ :not(section.sombre, .communaute:not(.communaute--claire))) { --bord-bas: transparent; }
+.ingredients--autres { border-top: 0; }   /* le filet de la l. 1693 flotterait au-dessus de la plume */
+
+/* ── 4 · Les chapitres indigo : UN habit, la coupe franche, plus d'air ──────
+   Le diag et la carte cadeau gardent leur habit (l. 1503-1510) ; la confiance
+   de /maison-mnd/ le prend aussi : un bloc sombre encadré, c'est un chapitre ;
+   un bloc sombre plat avec un filet cuivre, c'est la fin. */
+.diag, .offrir-teaser, .confiance { padding-block: var(--air); }
+.confiance { position: relative; isolation: isolate; overflow: hidden;
+  background: radial-gradient(120% 90% at 50% 0%, #272B6C 0%, var(--sombre) 55%, var(--sombre-2) 100%);
+  outline: 1px solid rgba(214, 160, 111, .26); outline-offset: -18px; }
+.confiance::before { content: ''; position: absolute; inset: 0; z-index: -1;
+  background: url(/assets/motifs/allover-aere-indigo-cuivre.png) center / 260px repeat; opacity: .13; }
+@media (max-width: 720px) { .confiance { outline-offset: -10px; } }
+
+/* ── 5 · La dernière lumière : l'appel ─────────────────────────────────────
+   Il monte de la toile par une plume et reste plat jusqu'au pied : la seule
+   section en sable cuivré du site, posée sur le soir de la toile. Au milieu
+   d'une page (contact : l'appel précède « Qui signe »), ce n'est pas une fin :
+   il prend le sable, plume aux deux bords, comme une section chaude. Sur une
+   page de parcours, le div.barre-mobile qui suit n'est pas une section :
+   l'appel y reste bien :last-of-type. */
+.appel { border: 0; padding-block: var(--air);
+  background: linear-gradient(180deg, transparent 0, var(--sable-cuivre) var(--plume), var(--sable-cuivre) 100%); }
+.appel:not(:last-of-type) {
+  background: linear-gradient(180deg, transparent 0, var(--fond-2) var(--plume), var(--fond-2) calc(100% - var(--plume)), transparent 100%); }
+/* L'anneau de focus cuivre fait 2,85:1 sur le sable et 2,51:1 sur le sable
+   cuivré : indigo là, et sur la dernière section claire (le soir de la toile). */
+:is(.appel, .vt-offres, .ingredients, .univers, .journal) .btn:focus-visible,
+main > section:last-of-type:not(.sombre) .btn:focus-visible { outline-color: var(--titre); }
+
+/* ── 6 · Le pied : la seule nuit profonde, reconnaissable sans lire ─────────
+   Un filet cuivre pleine largeur, plus d'air que toute section, l'allover à
+   .06, la devise en signature sur toute la largeur avant les colonnes (écrite
+   par page() sauf sur l'accueil). Sur l'accueil la devise en grand EST la tête
+   du pied : même fond, aucune couture, le filet s'efface. Sur le récit,
+   « Entrez. » est le dernier chapitre et se verse dans le pied. */
+footer { position: relative; isolation: isolate; border-top: 1px solid var(--filet-cuivre); padding-block: clamp(64px, 9vw, 110px) 36px; }
+footer::before { content: ''; position: absolute; inset: 0; z-index: -1;
+  background: url(/assets/motifs/allover-aere-indigo-cuivre.png) center / 260px repeat; opacity: .06; }
+.pied-signature { grid-column: 1 / -1; margin: 0 0 clamp(28px, 4vw, 48px); font-family: var(--serif); font-style: italic;
+  font-size: clamp(26px, 3.6vw, 44px); line-height: 1.1; color: var(--accent-sombre); text-wrap: balance; }
+.devise-bande { background: var(--sombre-2); outline: 0; padding-block: var(--air) clamp(40px, 6vw, 72px); }
+.devise-bande::before { opacity: .06; }
+.accueil-plein footer { border-top: 0; padding-top: 0; }
+.accueil-plein .marques { border-bottom-color: transparent; }
+.recit-fin { background: linear-gradient(180deg, var(--sombre) 0, var(--sombre-2) 100%); }
+main:has(> .recit-fin:last-child) + footer { border-top-color: transparent; }
+
+/* ── 7 · Les marques : plus de fond recopié ni de voiles peints ─────────────
+   Un masque laisse voir la toile, quelle que soit sa couleur à cet endroit ;
+   il fond aussi les deux filets cuivre du défilé à leurs bouts. */
+.marques { background: transparent; }
+.defile::before, .defile::after { content: none; }
+.defile { -webkit-mask-image: linear-gradient(90deg, transparent, var(--sombre) clamp(40px, 10vw, 140px), var(--sombre) calc(100% - clamp(40px, 10vw, 140px)), transparent);
+  mask-image: linear-gradient(90deg, transparent, var(--sombre) clamp(40px, 10vw, 140px), var(--sombre) calc(100% - clamp(40px, 10vw, 140px)), transparent); }
+
+/* ── 8 · Les îlots gardent une hauteur ─────────────────────────────────────
+   React efface le repli au montage (monte.tsx l. 37-40) : le fondu d'arrivée
+   finirait sur une grille qui reflue. PLANCHERS PROVISOIRES : le banc mesure
+   la plus petite hauteur montée (390 px compris) et l'intégrateur pose cette
+   valeur avant de publier. .diag__quiz a déjà 320 px (l. 1359). */
+[data-ilot="reserver"] { min-height: 420px; }
+[data-ilot="offres"] { min-height: 320px; }
+[data-ilot="offrir"] { min-height: 360px; }
+[data-ilot="joindre"] { min-height: 260px; }
+
+/* ── 9 · Le passage d'une page à l'autre ───────────────────────────────────
+   Un fondu de racine d'un quart de seconde, les images d'appui du navigateur
+   (plus-lighter, durées égales : un fondu croisé exact). Rien n'est NOMMÉ :
+   la barre de l'accueil (76 px, verrou centré, transparente) et celle des
+   pages (72 px, verrou à gauche) morpheraient, et le pied a aussi un .logo.
+   La toile, la barre et le pied étant identiques d'une page à l'autre, seul
+   le contenu se dissout ; la teinte de la toile glisse (lin vers sable) : la
+   « couleur ajustée ». L'opt-in ne s'écrit que si la personne n'a pas demandé
+   moins de mouvement ; le bloc 11 coupe de toute façon les pseudo-éléments.
+   Firefox, Chrome < 126, Safari < 18.2 ignorent la règle et restent parfaits.
+   /m/ et 404 se retirent par un <style> écrit en FIN de body par page(),
+   donc après la feuille que Vite injecte en fin de <head>. Les navigations de
+   fragment dans le même document (galerie, #portes) ne déclenchent rien. */
+@media (prefers-reduced-motion: no-preference) {
+  @view-transition { navigation: auto; }
+}
+::view-transition-old(root), ::view-transition-new(root) { animation-duration: .25s; animation-timing-function: ease; }
+
+/* ── 10 · L'éclaircissement au défilement ──────────────────────────────────
+   Rien n'est caché sans la classe js, posée sur <html> par UNE ligne dans
+   <head> sous la garde reduce (page()). Seules les TÊTES de section
+   (data-voile, écrit par page() à partir de la deuxième section, jamais sur
+   la galerie, jamais dans un îlot) montent de 12 px en s'éclairant, UNE fois,
+   jamais re-voilées. Un div de texte, jamais une section ni un ancêtre d'un
+   élément collant : aucun bloc conteneur, aucun décalage. Un filet de secours
+   CSS rend tout visible à 1,6 s même si main.ts ne vient jamais ; ce qui est
+   déjà à l'écran quand main.ts passe est révélé net (vu--net) ; ce qui reçoit
+   le focus s'allume sans attendre. Un lecteur d'écran lit l'opacité 0. */
+html.js [data-voile] { opacity: 0; transform: translateY(12px); transition: opacity .48s ease, transform .48s ease;
+  animation: voile-secours 1ms linear 1.6s forwards; }
+html.js [data-voile].vu { opacity: 1; transform: none; animation: none; }
+html.js [data-voile].vu--net, html.js [data-voile]:focus-within { opacity: 1; transform: none; transition: none; animation: none; }
+@keyframes voile-secours { to { opacity: 1; transform: none; } }
+
+/* ── 11 · Moins de mouvement, impression, couleurs forcées ─────────────────
+   La règle globale de la l. 705 coupe transitions et animations mais ne remet
+   PAS une opacité ni un transform : on les remet ici (motif de la l. 1755).
+   La ceinture sur les pseudo-éléments de transition tient même si un
+   navigateur ne lisait pas @view-transition imbriqué sous @media. Le masque
+   du défilé part : sous reduce les marques sont en rang, il rognerait la
+   première et la dernière. */
+@media (prefers-reduced-motion: reduce) {
+  html.js [data-voile] { opacity: 1 !important; transform: none !important; transition: none !important; animation: none !important; }
+  ::view-transition-group(*), ::view-transition-old(*), ::view-transition-new(*) { animation: none !important; }
+  .defile { -webkit-mask-image: none; mask-image: none; }
+}
+@media print, (forced-colors: active) {
+  html.js [data-voile] { opacity: 1 !important; transform: none !important; }
+  .defile { -webkit-mask-image: none; mask-image: none; }
+  body { background-image: none; }
+  footer::before { display: none; }
+}

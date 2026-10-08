@@ -6,6 +6,8 @@
    leurs emplacements. Les textes viennent de `docs/site-revelateur/voix-du-site.md`
    (la voix) et de `docs/site-revelateur/plan-seo.md` (titres, descriptions). */
 
+import type { Ton } from './tons';
+
 /** Le parcours associé : il choisit le message WhatsApp et pré-remplit le formulaire. */
 export type Besoin = 'creation' | 'reparation' | 'entretien' | 'enfant' | 'formation' | 'inconnu';
 
@@ -87,6 +89,9 @@ export type Page = {
     /* 28 septembre 2026 : la communauté. `engagements` et `ingredients` ne
        montent pas de React, ils se rendent à la construction. */
     | 'parrainer' | 'testeuse' | 'engagements' | 'ingredients';
+  /** LA FAMILLE DE LUMIÈRE, forcée. Sans ce champ, tons.ts la déduit : parcours
+      (cta, pas, îlot d'action), offres (offres, offrir, parrainer), maison sinon. */
+  ton?: Ton;
 };
 
 export type Accueil = {
