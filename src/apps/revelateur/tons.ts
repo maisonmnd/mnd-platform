@@ -3,10 +3,11 @@
    leafandflower.com, les pages passent en douceur avec les couleurs
    ajustées » (Yéman). Le ton d'une page est ce qui est sous la barre du
    navigateur à l'arrivée (theme-color) et la toile de la page (data-ton sur
-   <body>) : trois familles, trois jetons de la Maison. Le harnais
+   <body>) : trois familles que l'œil distingue, l'ivoire, l'argile (le sable
+   sous le voile cuivre) et l'indigo pâle (indigo-50 des jetons). Le harnais
    verifie-la-lumiere garde SA propre table : il ne déduit pas son attente
    d'ici. */
-export const TONS = { maison: '#F6F1E7', parcours: '#FAF1E9', offres: '#EEE6D6' } as const;
+export const TONS = { maison: '#F6F1E7', parcours: '#E7D7C2', offres: '#EDEEF4' } as const;
 export type Ton = keyof typeof TONS;
 
 /** Les îlots d'action prolongent le parcours (lin) ; ceux de la vente et du

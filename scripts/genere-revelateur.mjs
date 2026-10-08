@@ -267,10 +267,30 @@ const PHOTO_ACCUEIL = 'cauris-accueil.jpg';
    .tete : rien non plus. Sans la classe js sur <html>, l'attribut ne fait rien. */
 function voile(corps, classeBody) {
   if (classeBody === 'galerie-plein') return corps;
-  const premiere = corps.indexOf('</section>');
-  if (premiere < 0) return corps;
-  return corps.slice(0, premiere) + corps.slice(premiere).replace(/<div class="tete(?=[ "])/g, '<div data-voile class="tete');
+  /* Section par section, la première exceptée : un bloc simple s'éclaire
+     entier (son conteneur) ; une section qui porte un îlot, un rail ou un
+     script ne voile que sa tête, l'îlot garde sa place. */
+  let premiere = true;
+  return corps.split(/(?=<section\b)/).map((m) => {
+    if (!m.startsWith('<section')) return m;
+    if (premiere) { premiere = false; return m; }
+    if (/data-ilot=|data-rail|<script|class="recit/.test(m)) return m.replace(/<div class="tete(?=[ "])/g, '<div data-voile class="tete');
+    /* L'appel garde sa chaîne figée, que les autres harnais lisent. */
+    if (m.startsWith('<section class="appel"')) return m;
+    return m.replace(/^(<section[^>]*>)(\s*)<div class="conteneur"/, '$1$2<div data-voile class="conteneur"');
+  }).join('');
 }
+
+/* L'APPEL DE FIN — 8 octobre 2026. « Une phrase et des boutons avant le pied »
+   (Yéman) sur toute page qui ne finit ni par un appel, ni par la devise de
+   l'accueil, ni par le dernier chapitre du récit : la galerie, les offres, le
+   Journal, les mentions, le plan, les ingrédients. La même bande cuivre que
+   sur les parcours, la même chaîne que les harnais lisent. */
+/* Une page finit bien quand sa DERNIERE section est l'appel, la devise ou le
+   dernier chapitre : le contact porte un appel au milieu (avant « Qui signe »)
+   et reçoit quand même sa bande de fin. */
+const finitBien = (corps) => { const i = corps.lastIndexOf('<section'); return i >= 0 && /^<section class="(appel|recit-fin|devise-bande)[ "]/.test(corps.slice(i)); };
+const appelDeFin = () => `<section class="appel"><div class="conteneur"><div><h2>Votre couronne, à votre tour.</h2><p class="ligne" style="margin-top:8px">La Maison vous attend à Cotonou : un diagnostic, un rendez-vous, ou simplement un mot.</p></div><div class="rangee"><a class="btn btn--fort" href="${lien('/reserver/')}">Réserver</a>${bouton({ texte: 'Écrire sur WhatsApp', vers: 'whatsapp:inconnu' }, 'btn')}</div></div></section>`;
 
 function page({ chemin, titre, description, corps, noeuds, image: og, classeBody = '', precharge = '', ton = 'maison', transition = true }) {
   const canon = `${SITE}${chemin.replace(/^\//, '')}`;
@@ -332,7 +352,7 @@ function page({ chemin, titre, description, corps, noeuds, image: og, classeBody
     </header>
     ${classeBody === 'accueil-plein' ? '<script>(function(){var b=document.querySelector(".barre");if(b&&(location.hash.length>1||window.scrollY>24))b.classList.add("solide")})()</script>' : ''}
     <main id="contenu" tabindex="-1">
-${voile(corps, classeBody)}
+${voile(transition && !finitBien(corps) ? corps + appelDeFin() : corps, classeBody)}
     </main>
     <footer>
       <div class="conteneur">

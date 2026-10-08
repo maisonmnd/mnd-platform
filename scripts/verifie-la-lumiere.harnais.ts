@@ -102,10 +102,10 @@ function finDeLElement(html: string, debut: number): number {
 }
 
 /* ── Les regles ──────────────────────────────────────────────────────────── */
-const TONS = { maison: '#F6F1E7', parcours: '#FAF1E9', offres: '#EEE6D6' } as const;
-const PALETTE_CLAIRE = ['#F6F1E7', '#EEE6D6', '#FFFDF9', '#FAF1E9'];
+const TONS = { maison: '#F6F1E7', parcours: '#E7D7C2', offres: '#EDEEF4' } as const;
+const PALETTE_CLAIRE = ['#F6F1E7', '#EEE6D6', '#FFFDF9', '#FAF1E9', '#E7D7C2', '#EDEEF4'];
 const JETONS_SOMBRES = ['var(--sombre)', 'var(--sombre-2)', '#1E2150', '#15173A', '#272B6C', '#23265E', 'rgba(30, 33, 80', 'rgba(21, 23, 58'];
-const JETONS_CLAIRS = ['var(--fond)', 'var(--fond-2)', 'var(--carte)', 'var(--accent-clair)', 'var(--jour)', 'var(--jour-soir)', 'var(--sable-cuivre)', '#F6F1E7', '#EEE6D6', '#FFFDF9', '#FAF1E9', '#E7D7C2'];
+const JETONS_CLAIRS = ['var(--fond)', 'var(--fond-2)', 'var(--carte)', 'var(--accent-clair)', 'var(--jour)', 'var(--chaude)', 'var(--sable-cuivre)', 'var(--indigo-pale)', '#F6F1E7', '#EEE6D6', '#FFFDF9', '#FAF1E9', '#E7D7C2', '#EDEEF4'];
 const LIGNE_JS = `<script>if(!matchMedia('(prefers-reduced-motion: reduce)').matches)document.documentElement.classList.add('js')</script>`;
 const BLOC = 'LA LUMIÈRE ET LA FIN';
 
@@ -133,7 +133,7 @@ const regles: Regle[] = [
     },
     pannes: [
       { nom: 'theme-color indigo en dur', mute: (e) => { const c = copie(e); c.pages.set('/soins-locks/', page(e, '/soins-locks/').replace(/theme-color" content="[^"]*"/, 'theme-color" content="#1E2150"')); return c; } },
-      { nom: 'un ton hors table', mute: (e) => ({ ...copie(e), tonsTs: e.tonsTs.replace('#EEE6D6', '#C9A24A') }) },
+      { nom: 'un ton hors table', mute: (e) => ({ ...copie(e), tonsTs: e.tonsTs.replace('#EDEEF4', '#C9A24A') }) },
       { nom: 'la galerie en indigo', mute: (e) => { const c = copie(e); c.pages.set('/galerie/', page(e, '/galerie/').replace(/theme-color" content="[^"]*"/, 'theme-color" content="#1E2150"')); return c; } },
     ],
   },
@@ -142,7 +142,7 @@ const regles: Regle[] = [
     eprouve: (e) => {
       const ecarts: string[] = [];
       const f = e.feuille;
-      const clairs: Record<string, Rgb> = { ivoire: hex(jeton(f, '--fond')), sable: hex(jeton(f, '--fond-2')), carte: hex(jeton(f, '--carte')), lin: hex(jeton(f, '--accent-clair')), 'sable cuivre': hex(jeton(f, '--sable-cuivre')) };
+      const clairs: Record<string, Rgb> = { ivoire: hex(jeton(f, '--fond')), sable: hex(jeton(f, '--fond-2')), carte: hex(jeton(f, '--carte')), lin: hex(jeton(f, '--accent-clair')), argile: hex(jeton(f, '--sable-cuivre')), 'indigo pale': hex(jeton(f, '--indigo-pale')) };
       const texte = hex(jeton(f, '--texte')), doux = hex(jeton(f, '--texte-doux')), titre = hex(jeton(f, '--titre')), profond = hex(jeton(f, '--accent-profond'));
       for (const [nom, fond] of Object.entries(clairs)) {
         const t = [['texte', texte, 4.5], ['texte doux', doux, 4.5], ['cuivre profond', profond, 4.5], ['titre', titre, 3]] as const;
@@ -177,7 +177,7 @@ const regles: Regle[] = [
     pannes: [{ nom: 'un fondu ivoire vers indigo', mute: (e) => ({ ...copie(e), feuille: e.feuille + '\n.diag { background: linear-gradient(var(--fond), var(--sombre)); }\n' }) }],
   },
   {
-    nom: 'les conditions de la toile : html sans fond, body sans ancre cassee, la toile ecrite vh puis svh',
+    nom: 'les conditions de la toile : html sans fond, body sans ancre cassee, la toile unie au ton, vh puis svh',
     eprouve: (e) => {
       const ecarts: string[] = [];
       const sans = sansCommentaires(e.feuille);
@@ -188,33 +188,42 @@ const regles: Regle[] = [
         if (/^(html|body|body\.[\w-]+|body\[data-ton="[a-z]+"\]|main)$/.test(sel) && /(^|;|\s)(position|transform|translate|filter|backdrop-filter|perspective|isolation|will-change|contain|opacity|z-index)\s*:/.test(corps)) ecarts.push(`${sel} : une propriete qui casserait l ancre des fixes`);
         if (sel === 'html' && /background/.test(corps)) ecarts.push('html porte un fond');
       }
-      if (!/\nbody \{[^}]*background-image: linear-gradient\(180deg, var\(--jour\) 0, var\(--jour\) max\([^;]*?\), var\(--jour-soir\) 100%\);[^}]*background-repeat: no-repeat;[^}]*min-height: 100vh; min-height: 100svh;/.test(sans)) ecarts.push('la toile de body n est pas ecrite comme promise (degrade 180deg, no-repeat, vh puis svh)');
+      if (!/\nbody \{ background: var\(--jour\); min-height: 100vh; min-height: 100svh; \}/.test(sans)) ecarts.push('la toile de body n est pas ecrite comme promise (unie au ton, vh puis svh)');
       if (!/\nbody \{ margin: 0; background: var\(--fond\);/.test(sans)) ecarts.push('le repli « background: var(--fond) » de body a disparu');
       return ecarts;
     },
     pannes: [
       { nom: 'html avec un fond', mute: (e) => ({ ...copie(e), feuille: e.feuille + '\nhtml { background: var(--fond); }\n' }) },
       { nom: 'body transforme', mute: (e) => ({ ...copie(e), feuille: e.feuille + '\nbody { transform: translateZ(0); }\n' }) },
-      { nom: 'sans no-repeat', mute: (e) => ({ ...copie(e), feuille: e.feuille.replace('background-repeat: no-repeat; min-height: 100vh;', 'min-height: 100vh;') }) },
+      { nom: 'sans hauteur minimale', mute: (e) => ({ ...copie(e), feuille: e.feuille.replace('body { background: var(--jour); min-height: 100vh; min-height: 100svh; }', 'body { background: var(--jour); }') }) },
     ],
   },
   {
-    nom: 'le sable cuivre n a qu une place : la fin (:root et l appel)',
+    nom: 'la fin est une bande cuivre lisible, et toute page qui finit la porte',
     eprouve: (e) => {
       const ecarts: string[] = [];
       const sans = sansCommentaires(e.feuille);
-      const re = /(^|\n)([^{}\n]+)\{([^}]*)\}/g;
-      let m: RegExpExecArray | null;
-      while ((m = re.exec(sans))) {
-        const sel = m[2].trim(), corps = m[3];
-        if (!/var\(--sable-cuivre\)|#E7D7C2/i.test(corps)) continue;
-        if (sel === ':root' || sel === '.appel') continue;
-        ecarts.push(`${sel} : le sable cuivre ailleurs qu a la fin`);
+      if (!/\n\.appel \{ border: 0; padding-block: var\(--air\); color: var\(--sombre-2\);\s*background: linear-gradient\(180deg, transparent 0, var\(--accent\) var\(--plume\), var\(--accent\) 100%\); \}/.test(sans)) ecarts.push('l appel n est pas la bande cuivre promise');
+      if (!/\.appel h2 \{ color: #F6F1E7; \}/.test(sans)) ecarts.push('le titre de l appel n est pas ivoire');
+      if (!/\.appel \.ligne, \.appel \.legende \{ color: var\(--sombre-2\); \}/.test(sans)) ecarts.push('le texte de l appel n est pas indigo profond');
+      const cuivre = hex(jeton(e.feuille, '--accent'));
+      const titre = hex(jeton(e.feuille, '--sombre-2')), ivoire = hex(jeton(e.feuille, '--fond'));
+      if (contraste(titre, cuivre) < 4.5) ecarts.push(`indigo profond sur cuivre : ${contraste(titre, cuivre).toFixed(2)} < 4,5`);
+      if (contraste(ivoire, cuivre) < 3) ecarts.push(`ivoire sur cuivre : ${contraste(ivoire, cuivre).toFixed(2)} < 3`);
+      for (const [chemin, html] of e.pages) {
+        if (chemin === '/m/' || chemin === '/404.html') { if (html.includes('class="appel"')) ecarts.push(`${chemin} : un appel sur une page hors transition`); continue; }
+        const blocs = enfantsDeMain(html).filter((x) => x.balise === 'section');
+        const dernier = blocs[blocs.length - 1];
+        if (!dernier) { ecarts.push(`${chemin} : main sans section`); continue; }
+        if (!/\b(appel|devise-bande|recit-fin)\b/.test(dernier.classe)) ecarts.push(`${chemin} : la page finit sans appel, sans devise et sans dernier chapitre (${dernier.classe})`);
       }
-      for (const [chemin, html] of e.pages) if (/style="[^"]*--sable-cuivre/.test(html)) ecarts.push(`${chemin} : un style en ligne cite --sable-cuivre`);
       return ecarts;
     },
-    pannes: [{ nom: 'le sable cuivre sur les offres', mute: (e) => ({ ...copie(e), feuille: e.feuille + '\n.vt-offres { background: var(--sable-cuivre); }\n' }) }],
+    pannes: [
+      { nom: 'l appel revenu au sable', mute: (e) => ({ ...copie(e), feuille: e.feuille.replace('background: linear-gradient(180deg, transparent 0, var(--accent) var(--plume), var(--accent) 100%); }', 'background: linear-gradient(180deg, transparent 0, var(--sable-cuivre) var(--plume), var(--sable-cuivre) 100%); }') }) },
+      { nom: 'la galerie sans appel de fin', mute: (e) => { const c = copie(e); const g = page(e, '/galerie/'); const i = g.lastIndexOf('<section class="appel">'); c.pages.set('/galerie/', g.slice(0, i) + g.slice(g.indexOf('</section>', i) + 10)); return c; } },
+      { nom: 'un appel sur /m/', mute: (e) => { const c = copie(e); c.pages.set('/m/', page(e, '/m/').replace('</main>', '<section class="appel"></section></main>')); return c; } },
+    ],
   },
   {
     nom: 'la plume reste sous l air, terme a terme, et l air est l air des sections chaudes et de l appel',
@@ -237,7 +246,7 @@ const regles: Regle[] = [
     nom: 'la coupe contre l indigo est franche, et les voisins des lisieres sont des sections',
     eprouve: (e) => {
       const ecarts: string[] = [];
-      if (!e.feuille.includes(':is(section.sombre, .communaute:not(.communaute--claire)) + :is(.vt-offres, .ingredients, .univers, .journal) { --bord-haut: var(--fond-2); }')) ecarts.push('la regle du haut franc manque');
+      if (!e.feuille.includes(':is(section.sombre, .communaute:not(.communaute--claire)) + :is(.vt-offres, .ingredients, .univers, .journal) { --bord-haut: var(--chaude); }')) ecarts.push('la regle du haut franc manque');
       if (!e.feuille.includes(':is(.vt-offres, .ingredients, .univers, .journal):has(+ :not(section.sombre, .communaute:not(.communaute--claire))) { --bord-bas: transparent; }')) ecarts.push('la regle du bas adouci manque ou est collee a l autre');
       const accueil = page(e, '/');
       for (const cls of ['journal', 'vt-offres']) {
@@ -383,8 +392,7 @@ const regles: Regle[] = [
         }
       }
       if ((page(e, '/').match(/data-voile/g) ?? []).length < 6) ecarts.push('accueil : moins de six tetes voilees');
-      if (/data-voile/.test(page(e, '/mentions-legales/'))) ecarts.push('mentions legales : un voile');
-      if (!e.gen.includes('function voile(') || !e.gen.includes('${voile(corps, classeBody)}')) ecarts.push('generateur : page() ne passe pas par voile()');
+      if (!e.gen.includes('function voile(') || !e.gen.includes('${voile(transition && !finitBien(corps) ? corps + appelDeFin() : corps, classeBody)}')) ecarts.push('generateur : page() ne passe pas par voile()');
       return ecarts;
     },
     pannes: [
@@ -489,14 +497,15 @@ const regles: Regle[] = [
       const i = e.feuille.indexOf(BLOC);
       if (i < 0) return ['le bloc « LA LUMIERE ET LA FIN » manque'];
       const bloc = sansCommentaires(e.feuille.slice(e.feuille.lastIndexOf('/*', i)));
-      const permis = new Set(['#F6F1E7', '#EEE6D6', '#FFFDF9', '#FAF1E9', '#E7D7C2', '#1E2150', '#15173A', '#272B6C', '#B97A4A', '#D6A06F', '#7C4C2C', '#2A2722', '#5E5750']);
+      const permis = new Set(['#F6F1E7', '#EEE6D6', '#FFFDF9', '#FAF1E9', '#E7D7C2', '#EDEEF4', '#1E2150', '#15173A', '#272B6C', '#B97A4A', '#D6A06F', '#7C4C2C', '#2A2722', '#5E5750']);
       for (const h of bloc.match(/#[0-9A-Fa-f]{3,6}\b/g) ?? []) if (!permis.has(h.toUpperCase())) ecarts.push(`${h} hors palette dans le bloc`);
-      for (const r of bloc.match(/rgba\([^)]*\)/g) ?? []) if (!/^rgba\((246, 241, 231|30, 33, 80|214, 160, 111|21, 23, 58|250, 241, 233|238, 230, 214)/.test(r)) ecarts.push(`${r} : un rgba hors palette`);
+      for (const r of bloc.match(/rgba\([^)]*\)/g) ?? []) if (!/^rgba\((246, 241, 231|30, 33, 80|214, 160, 111|21, 23, 58|250, 241, 233|238, 230, 214|231, 215, 194|237, 238, 244)/.test(r)) ecarts.push(`${r} : un rgba hors palette`);
       const apres = e.feuille.slice(e.feuille.indexOf('LA COMMUNAUTÉ MND'));
       if (/radial-gradient\(circle/.test(apres)) ecarts.push('un radial-gradient(circle apres la communaute (le harnais du parrainage le refuse)');
       if (/:hover[^{]*\{[^}]*transform: translate/.test(bloc)) ecarts.push('un survol qui deplace');
       for (const motif of bloc.match(/\/assets\/motifs\/([\w-]+\.png)/g) ?? []) if (!existsSync(path.join('public', motif))) ecarts.push(`motif absent : ${motif}`);
       const neuf = sansCommentaires(e.gen.slice(e.gen.indexOf('function voile('), e.gen.indexOf('/* ── Les sections libres'))).replace(/<!--[\s\S]*?-->/g, '');
+      if (!e.gen.includes('const appelDeFin = () => `<section class="appel"><div class="conteneur"><div><h2>')) ecarts.push('l appel de fin ne porte pas la chaine que les harnais lisent');
       if (neuf.includes('—') || /\bsalon\b/i.test(neuf)) ecarts.push('le gabarit neuf porte un tiret cadratin ou « salon »');
       if (!e.gen.includes('<p class="pied-signature">${echappe(DEVISE_COMPLETE)}</p>')) ecarts.push('la signature n est pas DEVISE_COMPLETE');
       return ecarts;

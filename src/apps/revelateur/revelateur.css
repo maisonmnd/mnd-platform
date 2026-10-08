@@ -1781,19 +1781,19 @@ body.galerie-plein { scroll-behavior: smooth; }
    --color-sable / --color-argile du Trône ne sont pas le sable ni l'argile du
    site public). */
 :root {
-  --sable-cuivre: #E7D7C2;            /* le sable sous le voile cuivre .14 : le SOIR de toute page, la seule surface de fin */
+  --sable-cuivre: #E7D7C2;            /* le sable sous le voile cuivre .14 : la toile des parcours, et la section chaude des pages ivoire */
+  --indigo-pale: #EDEEF4;             /* indigo-50 des jetons : la toile des offres, froide a cote des chaudes */
+  --chaude: var(--sable-cuivre);      /* la teinte des sections chaudes, par famille : plus chaude que la toile, ou plus claire */
   --filet-cuivre: rgba(214, 160, 111, .45);
   --jour: var(--fond);                 /* le ton de la page : ivoire par défaut (famille Maison) */
-  --jour-soir: var(--sable-cuivre);    /* le même soir pour toutes les familles : l'œil l'apprend en deux pages */
   --jour-barre: rgba(246, 241, 231, .9);
-  --soir: 760px;                       /* la hauteur du soir : un écran de téléphone, jamais plus */
   --plume: clamp(40px, 6vw, 72px);     /* le fondu d'une section chaude : terme à terme SOUS --air */
   --air: clamp(56px, 8vw, 110px);      /* l'air d'une section chaude, d'un chapitre, de l'appel : le texte ne touche jamais la plume */
 }
 /* Les familles : le ton se lit sur <body data-ton>, écrit par le générateur
    (tons.ts). Sans attribut connu : la famille Maison. */
-body[data-ton="parcours"] { --jour: var(--accent-clair); --jour-barre: rgba(250, 241, 233, .9); }
-body[data-ton="offres"]   { --jour: var(--fond-2);       --jour-barre: rgba(238, 230, 214, .9); }
+body[data-ton="parcours"] { --jour: var(--sable-cuivre); --jour-barre: rgba(231, 215, 194, .9); --chaude: var(--carte); }
+body[data-ton="offres"]   { --jour: var(--indigo-pale);  --jour-barre: rgba(237, 238, 244, .9); }
 
 /* ── 1 · La toile ──────────────────────────────────────────────────────────
    La ligne 53 garde « background: var(--fond) » : c'est le repli. Ici la toile :
@@ -1804,16 +1804,14 @@ body[data-ton="offres"]   { --jour: var(--fond-2);       --jour-barre: rgba(238,
    barre-mobile, la bulle et le fil du récit resteraient sinon sans ancre).
    Un navigateur sans max() ignore la déclaration et garde la couleur unie.
    vh puis svh, dans la même règle : les Android anciens gardent vh. */
-body { background-color: var(--jour);
-  background-image: linear-gradient(180deg, var(--jour) 0, var(--jour) max(55%, 100% - var(--soir)), var(--jour-soir) 100%);
-  background-repeat: no-repeat; min-height: 100vh; min-height: 100svh; }
+body { background: var(--jour); min-height: 100vh; min-height: 100svh; }
 
 /* ── 2 · La barre, la barre du bas et les encadrés suivent la lumière ─────── */
 .barre { background: var(--jour-barre); }
 .barre-mobile { background: var(--jour-barre); }
-/* Sur une toile lin, un encadré lin disparaîtrait : il passe en carte. */
-body[data-ton="parcours"] .geste, body[data-ton="parcours"] .merci, body[data-ton="parcours"] .prose .maison { background: var(--carte); }
-/* Sur une toile sable, les onglets sable disparaîtraient : un voile indigo, lisible sur tout clair. */
+/* Sur une toile argile, un encadré lin ou sable se perdrait : il passe en carte. */
+body[data-ton="parcours"] .geste, body[data-ton="parcours"] .merci, body[data-ton="parcours"] .prose .maison, body[data-ton="parcours"] .rassure, body[data-ton="parcours"] .appel:not(:last-of-type) { background: var(--carte); }
+/* Sur une toile froide, les onglets sable prennent un voile indigo, lisible sur tout clair. */
 body[data-ton="offres"] .onglets, body[data-ton="offres"] .offres-onglets { background: rgba(30, 33, 80, .06); }
 /* La galerie retombe sur la toile, pas sur un ivoire recopié (l. 1113). */
 .gal-scene::after { background: var(--jour); }
@@ -1828,10 +1826,10 @@ body[data-ton="offres"] .onglets, body[data-ton="offres"] .offres-onglets { back
    doit perdre qu'elle. Le générateur a retiré le style en ligne du journal et
    déplacé SCRIPT_COMMUNAUTE après lui : un <script> frère casserait le « + ». */
 .vt-offres, .ingredients, .univers, .journal {
-  --bord-haut: transparent; --bord-bas: var(--fond-2);
-  background: linear-gradient(180deg, var(--bord-haut) 0, var(--fond-2) var(--plume), var(--fond-2) calc(100% - var(--plume)), var(--bord-bas) 100%);
+  --bord-haut: transparent; --bord-bas: var(--chaude);
+  background: linear-gradient(180deg, var(--bord-haut) 0, var(--chaude) var(--plume), var(--chaude) calc(100% - var(--plume)), var(--bord-bas) 100%);
   padding-block: var(--air); border: 0; }
-:is(section.sombre, .communaute:not(.communaute--claire)) + :is(.vt-offres, .ingredients, .univers, .journal) { --bord-haut: var(--fond-2); }
+:is(section.sombre, .communaute:not(.communaute--claire)) + :is(.vt-offres, .ingredients, .univers, .journal) { --bord-haut: var(--chaude); }
 :is(.vt-offres, .ingredients, .univers, .journal):has(+ :not(section.sombre, .communaute:not(.communaute--claire))) { --bord-bas: transparent; }
 .ingredients--autres { border-top: 0; }   /* le filet de la l. 1693 flotterait au-dessus de la plume */
 
@@ -1847,17 +1845,29 @@ body[data-ton="offres"] .onglets, body[data-ton="offres"] .offres-onglets { back
   background: url(/assets/motifs/allover-aere-indigo-cuivre.png) center / 260px repeat; opacity: .13; }
 @media (max-width: 720px) { .confiance { outline-offset: -10px; } }
 
-/* ── 5 · La dernière lumière : l'appel ─────────────────────────────────────
-   Il monte de la toile par une plume et reste plat jusqu'au pied : la seule
-   section en sable cuivré du site, posée sur le soir de la toile. Au milieu
-   d'une page (contact : l'appel précède « Qui signe »), ce n'est pas une fin :
-   il prend le sable, plume aux deux bords, comme une section chaude. Sur une
-   page de parcours, le div.barre-mobile qui suit n'est pas une section :
-   l'appel y reste bien :last-of-type. */
-.appel { border: 0; padding-block: var(--air);
-  background: linear-gradient(180deg, transparent 0, var(--sable-cuivre) var(--plume), var(--sable-cuivre) 100%); }
-.appel:not(:last-of-type) {
-  background: linear-gradient(180deg, transparent 0, var(--fond-2) var(--plume), var(--fond-2) calc(100% - var(--plume)), transparent 100%); }
+/* ── 5 · La dernière lumière : l'appel, en CUIVRE ───────────────────────────
+   « Je veux que la différence soit nette et remarquable » (Yéman, 8 octobre).
+   La fin d'une page ne se devine plus : une bande cuivre pleine, montée de la
+   toile par une plume, avec le titre en ivoire et le texte en indigo profond (4,9:1),
+   puis la nuit du pied. Toute page qui ne finit ni par la devise ni par le
+   dernier chapitre du récit en reçoit une (page() l'écrit). Au milieu d'une
+   page (contact : l'appel précède « Qui signe »), ce n'est pas une fin : il
+   prend la teinte chaude, plume aux deux bords. Sur une page de parcours, le
+   div.barre-mobile qui suit n'est pas une section : l'appel y reste bien
+   :last-of-type. */
+.appel { border: 0; padding-block: var(--air); color: var(--sombre-2);
+  background: linear-gradient(180deg, transparent 0, var(--accent) var(--plume), var(--accent) 100%); }
+.appel h2 { color: #F6F1E7; }
+.appel .ligne, .appel .legende { color: var(--sombre-2); }
+.appel:last-of-type .btn { color: var(--sombre-2); border-color: rgba(21, 23, 58, .45); }
+.appel:last-of-type .btn:hover { border-color: var(--sombre-2); background: rgba(246, 241, 231, .22); }
+.appel:last-of-type .btn--fort { background: #F6F1E7; border-color: #F6F1E7; color: var(--sombre-2); }
+.appel:last-of-type .btn--plein { background: var(--sombre); border-color: var(--sombre); color: #F6F1E7; }
+.appel:last-of-type .btn--lien { color: var(--sombre-2); border-bottom-color: rgba(21, 23, 58, .45); }
+.appel:not(:last-of-type) { color: var(--texte);
+  background: linear-gradient(180deg, transparent 0, var(--chaude) var(--plume), var(--chaude) calc(100% - var(--plume)), transparent 100%); }
+.appel:not(:last-of-type) h2 { color: var(--titre); }
+.appel:not(:last-of-type) .ligne { color: var(--texte-doux); }
 /* L'anneau de focus cuivre fait 2,85:1 sur le sable et 2,51:1 sur le sable
    cuivré : indigo là, et sur la dernière section claire (le soir de la toile). */
 :is(.appel, .vt-offres, .ingredients, .univers, .journal) .btn:focus-visible,
@@ -1900,8 +1910,8 @@ main:has(> .recit-fin:last-child) + footer { border-top-color: transparent; }
 [data-ilot="joindre"] { min-height: 260px; }
 
 /* ── 9 · Le passage d'une page à l'autre ───────────────────────────────────
-   Un fondu de racine d'un quart de seconde, les images d'appui du navigateur
-   (plus-lighter, durées égales : un fondu croisé exact). Rien n'est NOMMÉ :
+   Un fondu d'une demi-seconde avec un léger glissement : la page qui part
+   s'efface en montant, celle qui arrive s'éclaire en montant. Rien n'est NOMMÉ :
    la barre de l'accueil (76 px, verrou centré, transparente) et celle des
    pages (72 px, verrou à gauche) morpheraient, et le pied a aussi un .logo.
    La toile, la barre et le pied étant identiques d'une page à l'autre, seul
@@ -1915,7 +1925,10 @@ main:has(> .recit-fin:last-child) + footer { border-top-color: transparent; }
 @media (prefers-reduced-motion: no-preference) {
   @view-transition { navigation: auto; }
 }
-::view-transition-old(root), ::view-transition-new(root) { animation-duration: .25s; animation-timing-function: ease; }
+::view-transition-old(root) { animation: .32s ease-in both page-sortie; }
+::view-transition-new(root) { animation: .5s cubic-bezier(.2, .7, .2, 1) both page-entree; }
+@keyframes page-sortie { to { opacity: 0; transform: translateY(-14px); } }
+@keyframes page-entree { from { opacity: 0; transform: translateY(22px); } }
 
 /* ── 10 · L'éclaircissement au défilement ──────────────────────────────────
    Rien n'est caché sans la classe js, posée sur <html> par UNE ligne dans
@@ -1927,7 +1940,7 @@ main:has(> .recit-fin:last-child) + footer { border-top-color: transparent; }
    CSS rend tout visible à 1,6 s même si main.ts ne vient jamais ; ce qui est
    déjà à l'écran quand main.ts passe est révélé net (vu--net) ; ce qui reçoit
    le focus s'allume sans attendre. Un lecteur d'écran lit l'opacité 0. */
-html.js [data-voile] { opacity: 0; transform: translateY(12px); transition: opacity .48s ease, transform .48s ease;
+html.js [data-voile] { opacity: 0; transform: translateY(28px); transition: opacity .7s cubic-bezier(.2, .7, .2, 1), transform .7s cubic-bezier(.2, .7, .2, 1);
   animation: voile-secours 1ms linear 1.6s forwards; }
 html.js [data-voile].vu { opacity: 1; transform: none; animation: none; }
 html.js [data-voile].vu--net, html.js [data-voile]:focus-within { opacity: 1; transform: none; transition: none; animation: none; }
