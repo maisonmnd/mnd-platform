@@ -5,7 +5,7 @@
    rien ne l'annonce. C'est la faute la plus discrète et la plus coûteuse de
    tout ce champ, et elle vient presque toujours du même endroit : JavaScript
    fait commencer la semaine le DIMANCHE, le Bénin le lundi. */
-import { readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import {
   jourDeSemaineLundi, grilleDuMois, moisVoisin,
   anneesPossibles, retardEnJours, correctionsPossibles,
@@ -179,5 +179,20 @@ const datesSansAnnee = fichiersCouronne.flatMap((f) => {
 dit('Ma Couronne n ecrit aucune date « jour + mois » sans l annee', [], datesSansAnnee);
 /* Le contrôle doit VOIR des dates pour en juger : s'il n'en lit aucune, il est mort. */
 dit('… et il en lit bien (au moins cinq)', true, fichiersCouronne.flatMap((f) => sansCommentaires(`src/apps/couronne/${f}`).match(/toLocaleDateString\([^{;]*\{[^}]*\}/g) ?? []).length >= 5);
+
+/* LES FONCTIONS DU SERVEUR AUSSI — 9 octobre 2026. La règle ne lisait que
+   les écrans : `rappels-j1` proposait encore une reprise « mardi 14
+   octobre », sans l'année, dans un message WhatsApp à la cliente. Une date
+   « jour + mois » écrite par une fonction part chez une cliente (confirmation,
+   rappel, reprise, accusé) : elle porte son année, comme partout ailleurs. */
+const fonctions = readdirSync('supabase/functions')
+  .map((d) => `supabase/functions/${d}/index.ts`)
+  .filter((f) => existsSync(f));
+const datesDesFonctions = fonctions.flatMap((f) => (sansCommentaires(f).match(/toLocaleDateString\([^{;]*\{[^}]*\}/g) ?? [])
+  .map((o) => ({ f: f.split('/')[2], o: o.replace(/\s+/g, ' ') })));
+dit('aucune fonction du serveur n ecrit une date « jour + mois » sans l annee', [],
+  datesDesFonctions.filter(({ o }) => /\bday:/.test(o) && /\bmonth:/.test(o) && !/\byear:/.test(o)).map(({ f, o }) => `${f}: ${o}`));
+/* Le contrôle doit voir des dates : moins de huit, il ne lit plus rien. */
+dit('… et il en lit bien (au moins huit)', true, datesDesFonctions.length >= 8);
 
 console.log(ko === 0 ? '\nTout passe.' : `\n${ko} épreuve(s) en échec.`);

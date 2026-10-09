@@ -185,11 +185,14 @@ const reprisesAProposer = (appts: readonly Reprise[], dansTroisJours: string): R
   appts.filter((a) => a.date === dansTroisJours && a.status === 'confirmé' && !!a.clientId && !!a.repriseDe
     && !a.confirmeeParLaClienteLe && !a.autreMomentDemandeLe);
 
-/** « mardi 14 octobre ». Recopiée de confirmation-rdv. */
+/** « mardi 14 octobre 2026 ». Recopiée de confirmation-rdv. L'ANNÉE SE DIT
+    (9 octobre 2026) : la reprise proposée trois jours avant est une date
+    lue par la cliente, et la copie avait gardé la forme d'avant, sans
+    l'année. verifie-calendrier lit désormais toutes les fonctions. */
 const jourEnClair = (iso: string): string => {
   try {
     return new Date(`${iso}T12:00:00`).toLocaleDateString('fr-FR', {
-      weekday: 'long', day: 'numeric', month: 'long', timeZone: TZ,
+      weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: TZ,
     });
   } catch { return iso; }
 };
