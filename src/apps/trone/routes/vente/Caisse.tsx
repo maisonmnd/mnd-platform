@@ -653,6 +653,9 @@ export default function Caisse() {
           ...(remise > 0 ? { discountXof: (a.discountXof ?? 0) + remise } : {}),
           paidXof: (a.paidXof ?? 0) + partNette,
           ...fige,
+          /* C'est l'argent qui fige ce prix : annuler l'encaissement le rendra
+             au tarif de la tête (10 octobre 2026, `prixFigeParLArgent`). */
+          ...(typeof fige.priceXof === 'number' ? { prixFigeParLArgent: fige.priceXof } : {}),
           ...(partNette > 0 ? {
             payments: [
               ...(a.payments ?? []),

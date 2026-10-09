@@ -201,6 +201,14 @@ export type Appointment = {
       sur les RDV repris de l'ancien ERP, l'écart atteignait 3 M F.
       Absent (le cas courant) → le total se calcule sur le catalogue, comme avant. */
   priceXof?: number;
+  /** LE PRIX QUE L'ARGENT A FIGÉ — 10 octobre 2026, décision de la direction.
+      Posé avec `priceXof` quand un versement (écran d'encaissement ou Caisse)
+      fige le prix d'un rendez-vous qui n'en avait pas. Annuler l'encaissement
+      rend alors le rendez-vous au tarif de sa tête, mais seulement si
+      `priceXof` vaut encore ce montant et que le rituel n'est pas honoré : un
+      prix retouché dans la fenêtre n'est jamais effacé, un rituel qui a eu
+      lieu garde le sien. */
+  prixFigeParLArgent?: number;
   /** Prestations sur lesquelles l'acompte est calculé (défaut : toutes). */
   depositServiceIds?: string[];
   /** Série multi-séances : les RDV liés partagent cet identifiant. */

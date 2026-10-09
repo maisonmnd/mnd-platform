@@ -129,6 +129,12 @@ export function poseLaReprise(appt: Appointment): ReprisePosee {
        La somme réglée passait, le 2 octobre : la reprise naissait « payée ». Elle
        se chiffre au tarif du jour où on l'ouvre, et se fige quand on l'enregistre. */
     ...sansLaVisite(appt),
+    /* LA REMISE FAMILLE SUIT LA REPRISE — 10 octobre 2026, décision de la
+       direction : la fenêtre la fige en francs, `sansLaVisite` la retirait
+       comme une remise du jour, et la visite suivante d'une tête à compte
+       famille la perdait en silence. Même geste que « Reprogrammé depuis
+       l'encaissement ». */
+    ...remiseFamilleQuiSuit(appt),
     id: `ap-${uid()}`,
     date,
     status: 'confirmé',
@@ -467,6 +473,18 @@ export function restituerAvoir(invoiceId: string): void {
   creditMovementsStore.set((prev) => prev.filter((m) => !ids.has(m.id)));
 }
 
+/** CE QUE L'ARGENT RENDU LIBÈRE — 10 octobre 2026. Le prix figé par un
+    versement (`prixFigeParLArgent`) s'efface avec le marqueur si le rendez-vous
+    n'est pas honoré et si `priceXof` vaut encore ce montant ; sinon seul le
+    marqueur s'en va. Pure : rend les champs à écrire. */
+export const prixLibereParLAnnulation = (
+  a: Pick<Appointment, 'status' | 'priceXof' | 'prixFigeParLArgent'>,
+): Partial<Pick<Appointment, 'priceXof' | 'prixFigeParLArgent'>> => {
+  if (typeof a.prixFigeParLArgent !== 'number') return {};
+  const libre = a.status !== 'honoré' && a.priceXof === a.prixFigeParLArgent;
+  return libre ? { priceXof: undefined, prixFigeParLArgent: undefined } : { prixFigeParLArgent: undefined };
+};
+
 export function cancelAppointmentPayment(appt: Appointment): { invoicesRemoved: number } {
   /* TOUTES LES PIÈCES QUE CET ENCAISSEMENT A PRODUITES, pas seulement la
      dernière. Le rendez-vous ne retient qu'un `invoiceId` ; un rituel réglé en
@@ -535,6 +553,13 @@ export function cancelAppointmentPayment(appt: Appointment): { invoicesRemoved: 
            facturer. L'argent rendu rouvre la promesse — c'est le même geste
            que `paidXof` qui repart à zéro. */
         gamme: a.gamme?.map(({ regleeAt, ...l }) => { void regleeAt; return l; }),
+        /* LE PRIX QUE CET ARGENT AVAIT FIGÉ SE LIBÈRE — 10 octobre 2026,
+           décision de la direction. Tout versement fige le prix d'un rendez-vous
+           qui n'en avait pas (`prixFigeParLArgent`) ; l'argent rendu, le
+           rendez-vous à venir revient au tarif de sa tête. Jamais un prix
+           retouché dans la fenêtre (il ne vaut plus le marqueur), jamais un
+           rituel honoré : il a eu lieu, il garde le sien. */
+        ...prixLibereParLAnnulation(a),
       }
     : a)));
   return { invoicesRemoved };
@@ -590,6 +615,10 @@ export function rewindPaymentForDeletedInvoice(invoiceId: string, amountXof: num
            premier règlement d'un rituel qui en compte deux ne doit pas détacher
            la facture qui, elle, existe toujours. */
         invoiceId: a.invoiceId === invoiceId ? undefined : a.invoiceId,
+        /* Plus aucun argent sur le rendez-vous : le prix que l'argent avait
+           figé se libère, comme à l'annulation (10 octobre 2026). Tant qu'un
+           versement reste, il reste figé. */
+        ...(newPaid <= 0 && journal.length === 0 ? prixLibereParLAnnulation(a) : {}),
       }
     : a)));
   return appt;
@@ -1473,7 +1502,11 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour }: {
          tête, par `prixAFiger`, lu sur la ligne encore non honorée. Un rituel
          de demain réglé d'avance fige son prix sans s'honorer : le prix payé
          ne doit plus bouger. */
-      const freeze = settleTotal > 0 ? prixAFiger(appt, byId) : {};
+      const prixFige = settleTotal > 0 ? prixAFiger(appt, byId) : {};
+      /* Le marqueur dit que c'est L'ARGENT qui a figé ce prix (10 octobre
+         2026) : annuler l'encaissement le rendra au tarif de la tête. */
+      const freeze = typeof prixFige.priceXof === 'number'
+        ? { ...prixFige, prixFigeParLArgent: prixFige.priceXof } : prixFige;
       appointmentsStore.set((prev) => prev.map((a) => (a.id === appt.id
         ? {
             ...a,

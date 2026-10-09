@@ -22,7 +22,7 @@
 export const CHAMPS_DE_LA_VISITE = [
   'payments', 'paidXof', 'invoiceId', 'pointsAwarded',
   'depositXof', 'depositConfirmed', 'depositConfirmedAt', 'depositServiceIds',
-  'discountXof', 'remisesLignes', 'gamme', 'forfait', 'priceXof', 'offertPar',
+  'discountXof', 'remisesLignes', 'gamme', 'forfait', 'priceXof', 'prixFigeParLArgent', 'offertPar',
   'coveredBySub', 'coverKind', 'subId', 'foyerId', 'seriesId', 'seriesIndex', 'seriesTotal',
   'confirmeeParLaClienteLe', 'autreMomentDemandeLe', 'repriseProposeeLe', 'relanceFaite',
   'creeLe', 'note', 'repriseRetiree',

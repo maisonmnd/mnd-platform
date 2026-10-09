@@ -17,7 +17,7 @@ import { readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import * as S from '../src/apps/trone/routes/clients/_shared';
 import { apptTotalXof, apptNetXof, apptDueXof, tarifsDuRituel } from '../src/apps/trone/routes/clients/_shared';
-import { honorAppointment, honoreSansEncaisser, resetAllPaidInvoices } from '../src/apps/trone/routes/clients/actions';
+import { honorAppointment, honoreSansEncaisser, resetAllPaidInvoices, cancelAppointmentPayment, rewindPaymentForDeletedInvoice } from '../src/apps/trone/routes/clients/actions';
 import { appointmentsStore, type Appointment } from '../src/shared/agenda';
 import { sansLaVisite } from '../src/shared/reprise-nue';
 import { clientsStore, type Client } from '../src/shared/clients';
@@ -236,7 +236,7 @@ else {
   const actions = sansCom('src/apps/trone/routes/clients/actions.tsx');
   dit('actions : honorer fige, encaisser fige, la visite suivante nait nue', [true, true, true, false], [
     new RegExp(String.raw`\.\.\.prixAFiger\(a, byId\), status: 'honoré'`).test(actions),
-    new RegExp(String.raw`const freeze = settleTotal > 0 \? prixAFiger\(appt, byId\) : \{\};`).test(actions),
+    new RegExp(String.raw`const (?:freeze|prixFige) = settleTotal > 0 \? prixAFiger\(appt, byId\) : \{\};`).test(actions),
     new RegExp(String.raw`const newAppt: Appointment = \{\s*\.\.\.sansLaVisite\(appt\),`).test(actions),
     new RegExp(String.raw`priceXof: appt\.priceXof \?\? apptTotalXof`).test(actions),
   ]);
@@ -354,6 +354,48 @@ else {
     (dash.match(new RegExp(String.raw`, clefDuTarif\]\);`, 'g')) ?? []).length,
     new RegExp(String.raw`\[appts, aujourdhui, byId, clefDuTarif\]`).test(creances),
   ]);
+  /* ── 15. L'argent rendu libere le prix qu'il avait fige (10 octobre 2026) ──
+     Decision de la direction : annuler un encaissement rend un rendez-vous a
+     venir au tarif de sa tete. Jamais un prix retouche dans la fenetre, jamais
+     un rituel honore. Le tarif d'Ayaba est de 40 000 F ; l'argent avait fige
+     35 000 F, quand son tarif etait plus bas. Attendus ecrits en dur. */
+  const figeParLArgent = (o: object) => rdv({ date: '2026-12-19', status: 'confirmé', priceXof: 35_000, prixFigeParLArgent: 35_000,
+    paidXof: 10_000, payments: [{ id: 'p1', amountXof: 10_000, date: '2026-10-09', method: 'Espèces', invoiceId: 'f-1' }], invoiceId: 'f-1', ...o });
+  const champs = (a: Appointment) => [a.priceXof ?? null, (a as Any).prixFigeParLArgent ?? null, a.paidXof ?? null, apptTotalXof(a, byId)];
+  neuf([ayaba], [figeParLArgent({ id: 'lib-1' })]);
+  cancelAppointmentPayment(lu('lib-1'));
+  dit('annuler l encaissement : le prix fige par l argent se libere, le Carnet relit 40000', [null, null, null, 40000], champs(lu('lib-1')));
+  neuf([ayaba], [figeParLArgent({ id: 'lib-2', priceXof: 38_000 })]);
+  cancelAppointmentPayment(lu('lib-2'));
+  dit('... un prix retouche dans la fenetre (38000) reste', [38000, null, null, 38000], champs(lu('lib-2')));
+  neuf([ayaba], [figeParLArgent({ id: 'lib-3', date: '2026-10-09', status: 'honoré' })]);
+  cancelAppointmentPayment(lu('lib-3'));
+  dit('... un rituel honore garde le sien', [35000, null, null, 35000], champs(lu('lib-3')));
+  neuf([ayaba], [figeParLArgent({ id: 'lib-4', paidXof: 20_000, payments: [
+    { id: 'p1', amountXof: 10_000, date: '2026-10-09', method: 'Espèces', invoiceId: 'f-1' },
+    { id: 'p2', amountXof: 10_000, date: '2026-10-10', method: 'Espèces', invoiceId: 'f-2' }], invoiceId: 'f-2' })]);
+  rewindPaymentForDeletedInvoice('f-2', 10_000);
+  dit('... une piece supprimee sur deux : 10000 restent, le prix reste fige', [35000, 35000, 10000, 35000], champs(lu('lib-4')));
+  rewindPaymentForDeletedInvoice('f-1', 10_000);
+  dit('... la derniere supprimee : le prix se libere', [null, null, null, 40000], champs(lu('lib-4')));
+  dit('... la reprise n emporte pas le marqueur', false, 'prixFigeParLArgent' in sansLaVisite({ prixFigeParLArgent: 35_000 } as object));
+  dit('ecrans d argent : l encaissement et la Caisse posent le marqueur avec le prix', [true, true], [
+    new RegExp(String.raw`prixFigeParLArgent: prixFige\.priceXof`).test(actions),
+    new RegExp(String.raw`prixFigeParLArgent: fige\.priceXof`).test(caisse),
+  ]);
+
+  /* ── 16. La reprise de la cloture garde la remise famille (10 octobre 2026) ──
+     Le meme geste que la visite reprogrammee, dans le corps de `poseLaReprise`. */
+  const corpsDe = (src: string, debut: string, fin: string) => {
+    const i = src.indexOf(debut); const j = i < 0 ? -1 : src.indexOf(fin, i + debut.length);
+    return i < 0 || j < 0 ? '' : src.slice(i, j);
+  };
+  const laReprise = corpsDe(actions, 'export function poseLaReprise', 'export function honorAppointment');
+  dit('poseLaReprise : sansLaVisite puis remiseFamilleQuiSuit', [true, true], [
+    laReprise.length > 0,
+    new RegExp(String.raw`\.\.\.sansLaVisite\(appt\),\s*\.\.\.remiseFamilleQuiSuit\(appt\),`).test(laReprise),
+  ]);
+
 }
 
 console.log(ko === 0 ? '\nLe Carnet dit la fenetre : un seul tarif de la tete, partout.' : `\n${ko} controle(s) en echec.`);
