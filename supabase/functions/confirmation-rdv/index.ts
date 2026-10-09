@@ -104,14 +104,22 @@ const estAConfirmer = (
    L'HEURE DE POSE, qui ne bouge jamais. Sans aucune heure de pose, on ne
    confirme pas. La réservation du site fait exception : elle naît « en
    attente » et la Maison la confirme plus tard, c'est tout l'objet de son
-   message. Recopié à l'identique de `shared/agenda.ts`. */
+   message. Recopié à l'identique de `shared/agenda.ts`.
+
+   WHATSAPP AUSSI — 9 octobre 2026. Une inconnue qui réserve sur WhatsApp
+   (`whatsapp-automate`) n'a pas encore de fiche : comme celle du site, son
+   rendez-vous attend que le Trône la rattache, parfois des heures plus tard.
+   Sa confirmation est déjà dite dans la conversation, et la ligne
+   `conf-<rdv>-whatsapp` posée avec le rendez-vous verrouille le modèle
+   payant ; si cette parole a échoué, le modèle prend le relais au
+   rattachement. */
 const confirmationEstNeuve = (
   a: { source?: string; creeLe?: string },
   poseLe: string | undefined,
   maintenantMs: number,
   fenetreMs: number,
 ): boolean => {
-  if (a.source === 'site') return true;
+  if (a.source === 'site' || a.source === 'whatsapp') return true;
   const pose = Date.parse(poseLe ?? a.creeLe ?? '');
   return Number.isFinite(pose) && maintenantMs - pose <= fenetreMs;
 };
@@ -119,7 +127,7 @@ const confirmationEstNeuve = (
 /** La version de ce fichier, rendue dans chaque réponse : dire ce qui tourne
     vraiment évite de chercher une panne dans un fichier qui n'est pas celui
     qu'on croit déployé. */
-const VERSION = '2026-10-02-a';
+const VERSION = '2026-10-09-b';
 
 /* UNE RAFALE NE PART JAMAIS TOUTE SEULE — 21 septembre 2026. Le soir du
    21, une écriture en bloc a fait partir des dizaines de confirmations d'un
@@ -213,6 +221,20 @@ const depot = (maintenantMs: number, r: ReglesDeLaSalle, colis: Record<string, u
 /** Les verdicts qui ne verrouillent pas : un raté se retente, un message
     périmé (rendez-vous déplacé pendant l'attente) peut se redéposer. */
 const SE_RETENTE = new Set(['échec', 'périmé']);
+/* ══ UNE PAROLE « EN COURS » NE VERROUILLE PAS POUR TOUJOURS · relecture du
+   9 octobre 2026 ══ La ligne `conf-<rdv>-whatsapp` naît « en cours » avec le
+   rendez-vous que WhatsApp pose (`pose_si_libre`, 0125) : la confirmation
+   part dans la conversation, et la ligne passe à « envoyé » ou « échec ».
+   Si le tour s'arrête entre les deux (Meta qui pend, une base qui hoquette),
+   elle resterait « en cours », et la cliente sans rien. Passé dix minutes
+   (un tour de l'automate en dure quelques secondes), elle se retente : le
+   modèle prend le relais. Une heure illisible ne verrouille pas non plus. */
+const EN_COURS_PERIME_MS = 10 * 60 * 1000;
+const enCoursPerime = (d: { statut?: string; quand?: string } | null | undefined, maintenantMs: number): boolean => {
+  if ((d?.statut ?? '') !== 'en cours') return false;
+  const q = Date.parse(d?.quand ?? '');
+  return !(Number.isFinite(q) && maintenantMs - q < EN_COURS_PERIME_MS);
+};
 
 /* ══ MADAME NAFFI — 2 octobre 2026 ═════════════════════════════════════
    La Maison écrit « Madame Naffi » : la civilité de la fiche, puis le prénom.
@@ -258,11 +280,13 @@ const heureLisible = (hhmm: string | undefined): string => {
     : `${Number(h)} h`;
 };
 
-/** « vendredi 28 août » — la date telle qu'on la dit, pas telle qu'on la code. */
+/** « vendredi 28 août 2026 » — la date telle qu'on la dit, pas telle qu'on
+    la code. L'ANNÉE SE DIT (9 octobre 2026) : toute date dite à une cliente
+    la porte, un rendez-vous peut se prendre trois mois à l'avance. */
 const jourEnClair = (iso: string): string => {
   try {
     return new Date(`${iso}T12:00:00`).toLocaleDateString('fr-FR', {
-      weekday: 'long', day: 'numeric', month: 'long', timeZone: TZ,
+      weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: TZ,
     });
   } catch { return iso; }
 };
@@ -379,6 +403,7 @@ Deno.serve(async (req) => {
   const deja = new Set(
     (dejaRows ?? [])
       .filter((r) => !SE_RETENTE.has((r.data as { statut?: string } | null)?.statut ?? ''))
+      .filter((r) => !enCoursPerime(r.data as { statut?: string; quand?: string } | null, Date.now()))
       .map((r) => r.id as string),
   );
 
@@ -437,9 +462,10 @@ Deno.serve(async (req) => {
     const fiche = fiches.get(a.clientId);
     const prenom = appelDe(fiche, a.clientName);
     const quand = `${jourEnClair(a.date)} à ${heureLisible(a.time)}`;
-    /* ELLE A RÉSERVÉ ELLE-MÊME (Ma Couronne) : sa confirmation part tout de
+    /* ELLE A RÉSERVÉ ELLE-MÊME (Ma Couronne, et depuis le 9 octobre 2026
+       WhatsApp, au toucher « Je confirme ») : sa confirmation part tout de
        suite, elle l'attend. Tout ce que la Maison pose passe par la salle. */
-    const enSalle = salleOuverte && a.source !== 'couronne';
+    const enSalle = salleOuverte && a.source !== 'couronne' && a.source !== 'whatsapp';
     const texteDuFil = `Bonjour ${prenom}, c'est confirmé : votre rendez-vous est retenu ${quand}. Nous vous attendons. Merci de nous prévenir en cas d'empêchement.`;
 
     /* ① PUSH — gratuit, et il part DÈS AUJOURD'HUI, sans aucune clé Meta. */

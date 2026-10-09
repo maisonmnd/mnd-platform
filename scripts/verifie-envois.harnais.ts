@@ -89,16 +89,34 @@ dit('une heure de pose illisible ne confirme pas non plus', false,
    le lendemain matin, c'est là que la cliente doit être prévenue. */
 dit('une réservation du site confirmée le lendemain part quand même', true,
   confirmationEstNeuve({ source: 'site', creeLe: '2026-09-20T21:40:00.000Z' }, '2026-09-20T21:40:00.000Z', t21, DEUX_H));
+/* WHATSAPP AUSSI — 9 octobre 2026 : l'inconnue qui réserve sur WhatsApp
+   attend son rattachement comme celle du site. Une autre source, non. */
+dit('une réservation WhatsApp rattachée le lendemain part quand même', true,
+  confirmationEstNeuve({ source: 'whatsapp', creeLe: '2026-09-20T21:40:00.000Z' }, '2026-09-20T21:40:00.000Z', t21, DEUX_H));
+dit('… mais une pose du Trône d’il y a trois semaines, jamais', false,
+  confirmationEstNeuve({ source: 'trone', creeLe: '2026-08-30T09:00:00.000Z' }, '2026-08-30T09:00:00.000Z', t21, DEUX_H));
 
 /* LA COPIE DE LA FONCTION NE DÉRIVE PAS. */
-const regleNeuve = "if (a.source === 'site') return true;";
+const regleNeuve = "if (a.source === 'site' || a.source === 'whatsapp') return true;";
 const posePasse = 'Number.isFinite(pose) && maintenantMs - pose <= fenetreMs';
 const edge = readFileSync('supabase/functions/confirmation-rdv/index.ts', 'utf8');
 dit('shared/agenda.ts porte la règle du neuf', true,
-  readFileSync('src/shared/agenda.ts', 'utf8').includes(posePasse));
+  readFileSync('src/shared/agenda.ts', 'utf8').includes(posePasse) && readFileSync('src/shared/agenda.ts', 'utf8').includes(regleNeuve));
 dit('confirmation-rdv porte la même, mot pour mot', true, edge.includes(posePasse) && edge.includes(regleNeuve));
 dit('… et s’en sert pour filtrer', true, edge.includes('confirmationEstNeuve(a, poses.get(a.id), maintenant, FENETRE_MS)'));
 dit('… et la rafale s’arrête à cinq', true, edge.includes('rdvs.length > RAFALE_MAX'));
+
+/* ── UNE PAROLE « EN COURS » NE VERROUILLE PAS POUR TOUJOURS — relecture du
+   9 octobre 2026 ──
+   La ligne `conf-<rdv>-whatsapp` naît « en cours » avec le rendez-vous que
+   WhatsApp pose. Si le tour s'arrête avant de dire la confirmation, elle
+   resterait « en cours » et la cliente sans rien : passé dix minutes, elle
+   se retente (le modèle prend le relais). Exécuté sur la vraie fonction par
+   verifie-l-automate-wa (R26) ; ici, la lettre. */
+dit('confirmation-rdv : une ligne « en cours » de plus de dix minutes se retente', true,
+  edge.includes('const EN_COURS_PERIME_MS = 10 * 60 * 1000;')
+  && edge.includes('.filter((r) => !enCoursPerime(r.data as { statut?: string; quand?: string } | null, Date.now()))')
+  && /if \(\(d\?\.statut \?\? ''\) !== 'en cours'\) return false;/.test(edge));
 
 if (ko) {
   console.log(`\n${ko} échec(s).`);

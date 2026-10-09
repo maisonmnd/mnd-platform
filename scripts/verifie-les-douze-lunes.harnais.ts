@@ -598,6 +598,16 @@ const regles: Regle[] = [
         bienvenue: { fichier: 'src/shared/parrainage-pur.ts', extrait: (s) => entre(s, 'bienvenue') },
         /* L'original ne porte pas de reperes : de PAGE_DE_LECTURE a la fin. */
         'lecture-entiere': { fichier: 'src/shared/lecture-entiere.ts', extrait: (s) => { const i = s.indexOf('export const PAGE_DE_LECTURE'); return i < 0 ? null : s.slice(i).trimEnd(); } },
+        /* La regle des places (9 octobre 2026) : le juge du serveur et ce
+           dont il depend, chacun entre ses reperes dans son original. */
+        'agenda-pur': { fichier: 'src/shared/agenda-pur.ts', extrait: (s) => entre(s, 'agenda-pur') },
+        'catalogue-pur': { fichier: 'src/shared/catalogue-pur.ts', extrait: (s) => entre(s, 'catalogue-pur') },
+        qualification: { fichier: 'src/shared/qualification.ts', extrait: (s) => entre(s, 'qualification') },
+        'place-du-serveur': { fichier: 'src/shared/place-du-serveur.ts', extrait: (s) => entre(s, 'place-du-serveur') },
+        /* La Maison répond sur WhatsApp (9 octobre 2026) : l'ordre des places
+           du site, et le dialogue entier, recopiés dans whatsapp-automate. */
+        'prochaines-places': { fichier: 'src/shared/reservation-express.ts', extrait: (s) => entre(s, 'prochaines-places') },
+        'automate-wa': { fichier: 'src/shared/automate-wa.ts', extrait: (s) => entre(s, 'automate-wa') },
       };
       const fonctions: string[] = [];
       const marche = (d: string) => { for (const n of readdirSync(d)) { const p = `${d}/${n}`; if (statSync(p).isDirectory()) marche(p); else if (/\.(ts|js)$/.test(n)) fonctions.push(p); } };
@@ -633,6 +643,8 @@ const regles: Regle[] = [
       { nom: 'l original change seul', mute: [P(POUR, "return f.archived !== true && typeof code === 'string'", "return f.archived != true && typeof code === 'string'")] },
       { nom: 'une copie sans original connu', mute: [P(EDGE, '/* ⟨/code-actif⟩ */', '/* ⟨/code-actif⟩ */\n/* ⟨inconnu⟩ */\nconst x = 1;\n/* ⟨/inconnu⟩ */')] },
       { nom: 'la forme du code change dans l Edge', mute: [P(EDGE, 'const FORME_DU_CODE = /^[A-Z]{1,6}-', 'const FORME_DU_CODE = /^[A-Z]{1,7}-')] },
+      { nom: 'un caractere change dans la copie automate-wa de whatsapp-automate', mute: [P('supabase/functions/whatsapp-automate/index.ts', 'const PLAFOND_DE_L_AUTOMATE = 10;', 'const PLAFOND_DE_L_AUTOMATE = 11;')] },
+      { nom: 'l original de prochaines-places change seul', mute: [P('src/shared/reservation-express.ts', 'export const PLACES_PAR_JOUR = 2;', 'export const PLACES_PAR_JOUR = 3;')] },
     ],
   },
 

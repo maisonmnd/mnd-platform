@@ -242,7 +242,9 @@ export type Appointment = {
   seriesIndex?: number; // n° de la séance (1..N)
   seriesTotal?: number; // nombre total de séances de la série
   note?: string;
-  source?: 'trone' | 'couronne' | 'consultation' | 'site';
+  /* 'whatsapp' · 9 octobre 2026 : posé confirmé par la réponse automatique
+     de WhatsApp (`shared/automate-wa`), au toucher « Je confirme ». */
+  source?: 'trone' | 'couronne' | 'consultation' | 'site' | 'whatsapp';
   /** QUAND LA RÉSERVATION A ÉTÉ PRISE — 5 septembre 2026.
 
       « J'ai besoin de voir plus d'informations quand le client a fait la
@@ -808,6 +810,11 @@ export const estAConfirmer = (
    « en attente » le soir, la Maison la confirme le lendemain matin, et c'est
    à ce moment-là que la cliente doit être prévenue.
 
+   WHATSAPP AUSSI — 9 octobre 2026 : une inconnue qui réserve sur WhatsApp
+   n'a pas encore de fiche, son rendez-vous attend le rattachement comme
+   celui du site. La ligne `conf-<rdv>-whatsapp` posée avec lui verrouille
+   le modèle payant ; une parole échouée laisse le modèle prendre le relais.
+
    RECOPIÉ À L'IDENTIQUE dans la fonction confirmation-rdv ; éprouvé par
    `verifie-envois`. */
 export const confirmationEstNeuve = (
@@ -816,7 +823,7 @@ export const confirmationEstNeuve = (
   maintenantMs: number,
   fenetreMs: number,
 ): boolean => {
-  if (a.source === 'site') return true;
+  if (a.source === 'site' || a.source === 'whatsapp') return true;
   const pose = Date.parse(poseLe ?? a.creeLe ?? '');
   return Number.isFinite(pose) && maintenantMs - pose <= fenetreMs;
 };

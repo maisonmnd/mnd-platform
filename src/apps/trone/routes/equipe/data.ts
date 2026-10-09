@@ -3,6 +3,7 @@ import type { RetenueCompteCourant } from '../../../../shared/compte-courant';
 import { DEVISE_COMPLETE } from '../../../../shared/identite';
 import type { PaymentMethod } from '../../../../shared/finance';
 import type { Appointment } from '../../../../shared/agenda';
+import type { ReglageDeLAutomate } from '../../../../shared/automate-wa';
 import { ussdAvecMontant } from '../../../../shared/momo';
 import type { Echeance } from '../../../../shared/echeancier';
 import type { OptionCouleur } from '../../../../shared/couleur';
@@ -398,6 +399,12 @@ export type AutoConfig = {
   avisAuto?: boolean;
   wifi2Ssid?: string;
   wifi2Pass?: string;
+  /** LA MAISON RÉPOND SUR WHATSAPP · 9 octobre 2026 : éteint, essai ou
+      ouvert, les numéros d'essai, l'horizon des places et la durée de la
+      main de l'équipe. ABSENT = essai, liste vide : personne n'est servi.
+      Se lit toujours par `reglageDeLAutomate` (shared/automate-wa) ; la base
+      le remet en forme et ne le laisse écrire qu'à la direction (0125). */
+  automateWa?: Partial<ReglageDeLAutomate>;
 };
 
 /** Défauts du compte marchand — relevés du document MoMo de la Maison. */

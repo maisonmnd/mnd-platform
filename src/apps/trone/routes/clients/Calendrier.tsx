@@ -99,6 +99,13 @@ export default function Calendrier() {
   const serieMark = (a: Appointment): string | null =>
     a.seriesIndex && a.seriesTotal && a.seriesTotal > 1 ? `${a.seriesIndex}/${a.seriesTotal}` : null;
 
+  /* PRIS SUR WHATSAPP · 9 octobre 2026 : la réponse automatique l'a posé
+     confirmé au « Je confirme » de la cliente. La marque le dit au calendrier,
+     à côté de la série. */
+  const marqueWhatsApp = (a: Appointment) => (a.source === 'whatsapp'
+    ? <span className="trc-cal__serie" title="Pris sur WhatsApp, réponse automatique">WhatsApp</span>
+    : null);
+
   /* Chevauchement — même maître, même jour, statut non annulé (indication non bloquante). */
   const collides = (moved: Appointment, date: string, time: string, master: string): boolean => {
     const start = timeToMin(time);
@@ -447,6 +454,7 @@ export default function Calendrier() {
                         {nomDuRdv(a)}
                       </span>
                       {serieMark(a) && <span className="trc-cal__serie">{serieMark(a)}</span>}
+                      {marqueWhatsApp(a)}
                       {live && <span style={{ opacity: .75, fontWeight: 400 }}> · en cours</span>}
                     </span>
                     <span className="trc-agenda__svc">{apptLabel(a, byId)} · {a.master}</span>
@@ -551,6 +559,7 @@ export default function Calendrier() {
                           {nomDuRdv(a)}
                         </button>
                         {serieMark(a) && <span className="trc-cal__serie">{serieMark(a)}</span>}
+                        {marqueWhatsApp(a)}
                         {/* L'INDIGO SE DIT EN TOUTES LETTRES. La couleur seule
                             voulait dire « au fauteuil en ce moment » — et il
                             fallait le savoir pour la comprendre (question de
@@ -611,6 +620,7 @@ export default function Calendrier() {
                         <span className="trc-agenda__client">
                           {nomDuRdv(a)}
                           {serieMark(a) && <span className="trc-cal__serie">{serieMark(a)}</span>}
+                          {marqueWhatsApp(a)}
                         </span>
                         <span className="trc-agenda__svc">{first?.name ?? 'Rituel'} · {a.master}</span>
                       </span>
@@ -669,7 +679,7 @@ export default function Calendrier() {
                         <i className="trc-week__who">{nomDuRdv(a)}</i>
                         <i>
                           {a.master[0]} · {first?.name ?? 'Rituel'}
-                          {serieMark(a) ? ` · ${serieMark(a)}` : ''}
+                          {serieMark(a) ? ` · ${serieMark(a)}` : ''}{a.source === 'whatsapp' ? ' · WhatsApp' : ''}
                         </i>
                         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, marginTop: 2 }}>
                           <span style={{ pointerEvents: 'none', display: 'inline-flex' }}>

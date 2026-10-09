@@ -67,6 +67,17 @@
       que le webhook lira. Le titre est ce qu'il lit ; l'identifiant ce que
       le Trône fait.
 
+   ═══ LA MAISON RÉPOND SUR WHATSAPP · 9 octobre 2026 ═══════════════
+   Décision de la direction : pour les clientes, `whatsapp-automate` parle de
+   rendez-vous et pose le rendez-vous au toucher « Je confirme ». Il se tait
+   dès que l'équipe parle. L'écran pose la main à la première lettre tapée ;
+   CETTE PORTE EST LA SECONDE SÉCURITÉ : tout message que l'équipe envoie
+   d'ici met le fil en pause (`pause_le_fil`, 0125), même si l'écran a perdu
+   sa connexion, et même sur un fil que l'automate n'a jamais touché. Il ne
+   coupe donc jamais une conversation humaine. La durée se lit en base
+   (`automateWa.pauseHeures`, 24 h par défaut). La pause ne fait JAMAIS
+   échouer l'envoi : sans 0125, le message part comme avant.
+
    AUCUN SECRET ICI :
      · WA_TOKEN, WA_PHONE_ID — l'API Meta (déjà posés pour les rappels).
      · CLE_SERVICE           — pour écrire dans `messages_wa`.
@@ -86,7 +97,7 @@ import { createClient } from 'npm:@supabase/supabase-js@2';
     s'est perdue le 14 septembre à chercher dans le dépôt une panne qui venait
     d'une version plus ancienne restée en ligne. À incrémenter à chaque
     déploiement. */
-const VERSION = '2026-09-15-c · l équipe, le modèle avec document, les boutons';
+const VERSION = '2026-10-09-a · un message de l équipe met l automate en pause';
 
 const FENETRE_MS = 24 * 60 * 60 * 1000;
 
@@ -207,6 +218,10 @@ Deno.serve(async (req) => {
          lirait par tout le personnel. */
       const { error: errTiroir } = await sonde.rpc('tiroir_du_numero', { n: '0' });
       rapport.migration0102 = errTiroir ? `ABSENTE : ${errTiroir.message}` : 'posée';
+      /* LA PAUSE DE L'AUTOMATE (0125). Un numéro trop court ne pose rien :
+         `pause_le_fil` rend null sans écrire, la sonde reste muette. */
+      const { error: errPause } = await sonde.rpc('pause_le_fil', { p_numero: '0', p_par: null, p_motif: 'sonde' });
+      rapport.migration0125 = errPause ? `ABSENTE : ${errPause.message}` : 'posée';
     }
     const phone = Deno.env.get('WA_PHONE_ID');
     const tok = Deno.env.get('WA_TOKEN');
@@ -589,6 +604,23 @@ Deno.serve(async (req) => {
       ...(boutons.length ? { boutons } : {}),
     },
   }, { onConflict: 'id' });
+
+  /* ── ⑤ bis L'ÉQUIPE A PARLÉ : L'AUTOMATE SE TAIT · 9 octobre 2026 ────
+     Après la trace, et même si elle a raté ou si Meta a refusé : la Maison a
+     voulu parler, c'est elle qui tient le fil. `pause_le_fil` (0125) pose la
+     ligne `main-<numéro>` pour `automateWa.pauseHeures`, et `avance_le_fil`
+     refuse ensuite d'écrire : un tour de l'automate déjà lancé se tait. Une
+     pause impossible (0125 absente, base lente) ne fait JAMAIS échouer
+     l'envoi : elle se dit au journal, sans numéro. */
+  try {
+    const { error: errPause } = await sb.rpc('pause_le_fil', {
+      p_numero: numero, p_par: parQui ?? null, p_motif: 'envoi-equipe',
+    });
+    if (errPause) console.error('whatsapp-envoi: pause de l automate', errPause.message.slice(0, 160));
+  } catch (e) {
+    console.error('whatsapp-envoi: pause de l automate', String(e).slice(0, 160));
+  }
+
   /* ══ ON NE DIT JAMAIS « ENVOYÉ » SANS AVOIR CONSIGNÉ ═══════════════
      14 septembre 2026, au soir. La trace ratée partait en `console.error`
      et la fonction répondait 200 : l'écran annonçait « Message envoyé », la

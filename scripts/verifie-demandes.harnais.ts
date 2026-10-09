@@ -121,6 +121,43 @@ dit('un rendez-vous du Trône sans demande n’est pas concerné', 0,
 dit('la fiche neuve porte un identifiant fixe : deux postes, une fiche', 'prospect-d-rdv',
   ficheDepuisLaDemande(dRdv, 'p-initie').id);
 
+/* ── LE PREMIER NUMÉRO SEUL, SA CIVILITÉ, SA PROVENANCE — 9 octobre 2026 ──
+   Relecture du 9 octobre : le second numéro (`phone2`) est un recours, celui
+   d'un mari ou d'une sœur. Une visiteuse du site qui réserve avec le numéro
+   de sa sœur ne devient pas sa sœur : une fiche naît pour elle. Sur
+   WhatsApp, la fiche du numéro ne l'emporte que si elle porte le prénom de
+   la demande (la maman qui réserve « Pour moi » sur le numéro de sa fille).
+   La fiche née d'une réservation WhatsApp dit d'où elle vient et porte la
+   civilité choisie. Les deux sens : ce qui doit se rattacher se rattache, ce
+   qui ne doit pas ne se rattache pas. */
+dit('le second numéro d’une fiche ne la fait PAS reconnaître (sa sœur reste elle-même)', null,
+  rattachementsAFaire([rdvSite()], [dRdv], [{ id: 'cl-deux', name: 'A. K.', phone: '+2290196000000', phone2: '01 97 00 00 00' }])[0]?.ficheExistante?.id ?? null);
+dit('… le premier numéro, lui, rattache', 'cl-premier',
+  rattachementsAFaire([rdvSite()], [dRdv], [
+    { id: 'cl-deux', name: 'B.', phone: '+2290196000000', phone2: '+2290197000000' },
+    { id: 'cl-premier', name: 'A.', phone: '0197000000' },
+  ])[0]?.ficheExistante?.id);
+dit('… et un autre numéro ne rattache à personne', null,
+  rattachementsAFaire([rdvSite()], [dRdv], [{ id: 'cl-autre', name: 'C.', phone: '+2290196000000', phone2: '+2290195000000' }])[0]?.ficheExistante?.id ?? null);
+const dWaMaman = demande({ id: 'd-wa-m', genre: 'rdv', source: 'whatsapp', prenom: 'Grâce', apptId: 'rdv-1' });
+dit('WhatsApp : la fiche du numéro qui porte un autre prénom (sa fille) ne capte pas la réservation de la maman', null,
+  rattachementsAFaire([rdvSite()], [dWaMaman], [{ id: 'cl-kemi', name: 'Kemi Morou', phone: '+2290197000000' }])[0]?.ficheExistante?.id ?? null);
+dit('… celle qui porte son prénom, oui (accents et majuscules mis à part)', 'cl-grace',
+  rattachementsAFaire([rdvSite()], [dWaMaman], [{ id: 'cl-kemi', name: 'Kemi Morou', phone: '+2290197000000' }, { id: 'cl-grace', name: 'GRACE Morou', phone: '01 97 00 00 00' }])[0]?.ficheExistante?.id);
+dit('… et le site garde sa règle : le numéro suffit', 'cl-kemi',
+  rattachementsAFaire([rdvSite()], [dRdv], [{ id: 'cl-kemi', name: 'Kemi Morou', phone: '+2290197000000' }])[0]?.ficheExistante?.id);
+const dWa = demande({ id: 'd-wa', genre: 'rdv', source: 'whatsapp', civilite: 'monsieur', apptId: 'rdv-wa-1' });
+const ficheWa = ficheDepuisLaDemande(dWa, 'p-initie');
+dit('la fiche née de WhatsApp dit d’où elle vient, et porte « Monsieur » (et le masculin des cartes)',
+  { source: 'whatsapp', civilite: 'monsieur', auMasculin: true },
+  { source: ficheWa.source, civilite: ficheWa.civilite, auMasculin: ficheWa.auMasculin });
+dit('« Mademoiselle » se pose sans le masculin', { civilite: 'mademoiselle', masculin: false },
+  ((f) => ({ civilite: f.civilite, masculin: 'auMasculin' in f }))(ficheDepuisLaDemande(demande({ source: 'whatsapp', civilite: 'mademoiselle' }), 'p-initie')));
+dit('une demande du site sans civilité reste muette (une dame), et dit « site »', { source: 'site', civilite: false, masculin: false },
+  ((f) => ({ source: f.source, civilite: 'civilite' in f, masculin: 'auMasculin' in f }))(ficheDepuisLaDemande(demande(), 'p-initie')));
+dit('une civilité inconnue ne s’écrit pas', false,
+  'civilite' in ficheDepuisLaDemande(demande({ civilite: 'docteur' as never }), 'p-initie'));
+
 
 /* ── LE GENRE QUE LA TABLE EXIGE — 24 septembre 2026 ───────────────
    `demandes.genre` est `not null check (genre in ('prospect','rdv'))` et

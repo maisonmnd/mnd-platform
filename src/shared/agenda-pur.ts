@@ -16,6 +16,13 @@
    `blocages.ts` sont ici ; leurs anciens domiciles les ré-exportent, rien
    n'a changé d'adresse pour le reste du code. */
 
+/* ENTRE SES REPÈRES ⟨agenda-pur⟩, CE MODULE SE RECOPIE TEL QUEL — 9 octobre 2026.
+   Une fonction Edge ne lit rien du dépôt : celles qui jugent une place
+   (`demande-submit`, `whatsapp-automate`) portent la copie entre les mêmes
+   repères. La règle R8 de `verifie-les-douze-lunes` les confronte caractère
+   pour caractère, `verifie-la-place-du-serveur` les fait tourner. Rien
+   n'entre entre les repères qui ne puisse vivre dans une fonction Edge. */
+/* ⟨agenda-pur⟩ */
 export const pad2 = (n: number): string => (n < 10 ? `0${n}` : `${n}`);
 
 /** '09h30' → minutes depuis minuit. La graphie de la Maison, au Trône. */
@@ -172,3 +179,4 @@ export const occupesDuJour = (
   occupes
     .filter((c) => c.jour === dateIso && c.debut)
     .map((c) => ({ maitre: c.maitre, debutMin: minutesDeHhmm(c.debut), dureeMin: c.duree }));
+/* ⟨/agenda-pur⟩ */

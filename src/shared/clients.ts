@@ -22,8 +22,9 @@ export type Client = {
   email?: string;
   /** D'OÙ ELLE VIENT — 17 septembre 2026. Le site public dépose des prospects
       (`shared/demandes`) ; sans provenance, la Maison ne sait pas ce qui l'a
-      menée à elle : ni la page, ni la campagne, ni le jour où elle a consenti. */
-  source?: 'site' | 'consultation' | 'maison';
+      menée à elle : ni la page, ni la campagne, ni le jour où elle a consenti.
+      'whatsapp' · 9 octobre 2026 : née d'un rendez-vous pris sur WhatsApp. */
+  source?: 'site' | 'consultation' | 'maison' | 'whatsapp';
   campagne?: string;
   pageOrigine?: string;
   consentementLe?: string;

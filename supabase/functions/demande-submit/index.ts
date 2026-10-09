@@ -33,6 +33,40 @@
 // dépôt. Sa source de vérité est `src/shared/agenda-pur.ts`, éprouvé par
 // `scripts/verifie-agenda-pur.mjs` — les deux doivent changer ensemble.
 //
+// ══ LA RÈGLE RENFORCÉE, ET LE VERROU — 9 octobre 2026 ═══════════════
+// La Maison répond désormais sur WhatsApp et y pose des rendez-vous
+// (`whatsapp-automate`) : deux portes posent une place sans qu'une main la
+// voie. Le relevé du jour a montré que ce juge-ci était plus lâche que
+// l'écran du site : il ne comptait pas les fauteuils, laissait réserver une
+// création d'un appel direct, prenait le premier maître sans regarder,
+// comptait le jour sur l'horloge UTC, et ignorait la durée figée des
+// rendez-vous déjà posés. Désormais :
+//   · LE JUGE EST `laPlaceTient` de `src/shared/place-du-serveur.ts`,
+//     recopié tel quel entre ses repères avec ceux dont il dépend
+//     (⟨agenda-pur⟩, ⟨catalogue-pur⟩, ⟨qualification⟩). La règle R8 de
+//     `verifie-les-douze-lunes` confronte chaque copie caractère pour
+//     caractère, `verifie-la-place-du-serveur` les fait tourner. Les
+//     anciennes copies partielles du calendrier sont parties ;
+//   · une création, une restauration, un devis ou une prestation marquée
+//     « consultation avant » répond 409 `consultation_requise` ; un geste
+//     qui ne se réserve pas en ligne, 409 `prestation_retiree` ;
+//   · le jour se compte à Cotonou (UTC+1) : entre minuit et une heure, le
+//     jour même ne passe plus ;
+//   · les créneaux occupés se lisent par `creneaux_occupes` (qui lit
+//     `dureeMin` d'abord depuis 0125), le catalogue et ses familles PAR
+//     PAGES, les blocages du jour et de la branche seulement. Une lecture en
+//     panne refuse (503 `agenda_illisible`) au lieu de croire la journée
+//     vide ;
+//   · LE RENDEZ-VOUS SE POSE SOUS VERROU (`pose_si_libre`, 0125) : une pose
+//     à la fois par maison et par jour ; le plafond, les fauteuils et le
+//     premier maître encore libre rejoués sous le verrou ; la durée figée
+//     (`dureeMin`) sur le rendez-vous. Le site et WhatsApp ne peuvent plus
+//     prendre la même place au même instant. Un refus du verrou se traite
+//     comme l'échec d'écriture d'avant : la demande vit, la Maison rappelle ;
+//   · le maître que l'écran envoie n'est plus lu : la Maison attribue.
+// LA MIGRATION 0125 SE PASSE AVANT DE COLLER CE FICHIER : sans
+// `pose_si_libre`, aucune place ne se pose (la demande vit quand même).
+//
 // ══ ET, DEPUIS LE 24 SEPTEMBRE, ELLE RÉSOUT LE CODE DE L'OFFRE ═══════
 // « Le −10 % de la vitrine ne réduit rien » (Yéman). La carte écrit un code
 // (RENTREE10), le lien l'emporte, la réservation le montre rempli et barre
@@ -144,6 +178,11 @@ const VAPID_SUBJECT = Deno.env.get('VAPID_SUBJECT') ?? 'mailto:contact@maison-mn
 
 const admin = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } });
 
+/** La version de ce fichier : ouvrir l'adresse de la fonction la dit (405),
+    pour ne jamais chercher une panne dans un fichier qui n'est pas celui
+    qu'on croit déployé. */
+const VERSION = '2026-10-09-a';
+
 const CORS: Record<string, string> = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -209,37 +248,71 @@ const quandDeLaDemande = (genre: string, profil: string): string =>
       : genre === 'rdv' ? 'un rendez-vous' : 'un rappel de la Maison';
 const texte = (v: unknown, max: number): string => String(v ?? '').replace(/\s+/g, ' ').trim().slice(0, max);
 
-async function brancheParDefaut(voulue: string): Promise<{ id: string; maitres: string[] }> {
+/* La branche rend aussi SA LIGNE (9 octobre 2026) : le juge des places y
+   lit les maîtres ET les fauteuils (`seats`), que l'ancien juge ignorait. */
+async function brancheParDefaut(voulue: string): Promise<{ id: string; maitres: string[]; ligne: { id: string; data?: unknown } }> {
   const { data: rows } = await admin.from('branches').select('id, data');
-  const branches = (rows ?? []) as { id: string; data?: { flagship?: boolean; status?: string; masters?: string[] } }[];
+  const branches = (rows ?? []) as { id: string; data?: { flagship?: boolean; status?: string; masters?: string[]; seats?: number } }[];
   const choisie = (voulue && branches.find((b) => b.id === voulue))
     || branches.find((b) => b.data?.flagship && b.data?.status !== 'paused')
     || branches[0];
-  return { id: choisie?.id ?? 'maison', maitres: (choisie?.data?.masters ?? []).filter(Boolean) };
+  const id = choisie?.id ?? 'maison';
+  return { id, maitres: (choisie?.data?.masters ?? []).filter(Boolean), ligne: { id, data: choisie?.data ?? {} } };
 }
 
-/* ══ LE CALENDRIER, RECOPIÉ DE `shared/agenda-pur.ts` ═══════════════ */
+/* ══ LE CALENDRIER ET LA RÈGLE DES PLACES, RECOPIÉS TELS QUELS ═════════
+   9 octobre 2026. Quatre blocs, chacun entre ses repères, copiés caractère
+   pour caractère de `src/shared/agenda-pur.ts`, `catalogue-pur.ts`,
+   `qualification.ts` et `place-du-serveur.ts` (une fonction Edge ne lit rien
+   du dépôt). R8 (`verifie-les-douze-lunes`) les confronte,
+   `verifie-la-place-du-serveur` les fait tourner sur les cas de l'original.
+   Les `export` qu'ils portent ne gênent pas une fonction Edge.
+   NE RIEN RETOUCHER ENTRE LES REPÈRES : on corrige l'original, puis on
+   recopie le bloc entier.
 
-const hourToMin = (h: string): number => {
-  const m = /^(\d{1,2})h(\d{2})?$/.exec(String(h ?? '').trim());
+   CE QUE LA MAISON A DÉCOCHÉ POUR LE SITE (`siteMasques`, 17 septembre
+   2026) ne se réserve toujours pas, même par un appel direct : sans ce
+   refus, décocher ne serait qu'un décor. Le juge en est `masquePourLeSite`
+   (catalogue-pur), lu par `reservableSurLeSite` (place-du-serveur). */
+/* ⟨agenda-pur⟩ */
+export const pad2 = (n: number): string => (n < 10 ? `0${n}` : `${n}`);
+
+/** '09h30' → minutes depuis minuit. La graphie de la Maison, au Trône. */
+export const hourToMin = (h: string): number => {
+  const m = /^(\d{1,2})h(\d{2})?$/.exec(h.trim());
   return m ? Number(m[1]) * 60 + Number(m[2] ?? 0) : 9 * 60;
 };
-const minutesDeHhmm = (hhmm: string): number => {
-  const [h, m] = String(hhmm ?? '').split(':').map(Number);
+
+/** '09:30' → minutes depuis minuit. La graphie d'un rendez-vous. */
+export const minutesDeHhmm = (hhmm: string): number => {
+  const [h, m] = hhmm.split(':').map(Number);
   return (h || 0) * 60 + (m || 0);
 };
+
+export const hhmmDeMinutes = (min: number): string => `${pad2(Math.floor(min / 60))}:${pad2(min % 60)}`;
+
+export type FenetreDuJour = { closed: boolean; openMin: number; closeMin: number };
+export type HeureDeLaSemaine = { key: string; open: string; close: string; closed: boolean };
+export type ExceptionDHoraire = { date: string; staffId?: string; open?: string; close?: string; closed?: boolean };
+export type MurPose = { branchId: string; date: string; master?: string; debut?: string; fin?: string };
+
 const JOURS = ['dim', 'lun', 'mar', 'mer', 'jeu', 'ven', 'sam'];
 
-type Fenetre = { closed: boolean; openMin: number; closeMin: number };
-type HeureSemaine = { key: string; open: string; close: string; closed: boolean };
-type Exception = { date: string; staffId?: string; open?: string; close?: string; closed?: boolean };
-
-function ouvertureDuJour(dateIso: string, semaine: HeureSemaine[], exceptions: Exception[]): Fenetre {
-  const FERME: Fenetre = { closed: true, openMin: 0, closeMin: 0 };
+/** La fenêtre d'ouverture d'une date, EXCEPTIONS COMPRISES : une fermeture
+    exceptionnelle saisie pour la paie ferme aussi la réservation en ligne
+    (celle de la Maison ; celles d'une personne restent l'affaire du
+    pointage). Sans semaine connue, la journée est tenue pour FERMÉE : mieux
+    vaut ne rien proposer que d'ouvrir un lundi que la Maison ferme. */
+export function ouvertureDuJour(
+  dateIso: string,
+  semaine: readonly HeureDeLaSemaine[],
+  exceptions: readonly ExceptionDHoraire[] = [],
+): FenetreDuJour {
+  const FERME: FenetreDuJour = { closed: true, openMin: 0, closeMin: 0 };
   const dow = new Date(`${dateIso}T00:00:00`).getDay();
   const jour = semaine.find((h) => h.key === JOURS[dow]);
   if (!jour || jour.closed) return FERME;
-  const base: Fenetre = { closed: false, openMin: hourToMin(jour.open), closeMin: hourToMin(jour.close) };
+  const base: FenetreDuJour = { closed: false, openMin: hourToMin(jour.open), closeMin: hourToMin(jour.close) };
   const ex = exceptions.find((e) => e.date === dateIso && !e.staffId);
   if (!ex) return base;
   if (ex.closed) return FERME;
@@ -250,30 +323,171 @@ function ouvertureDuJour(dateIso: string, semaine: HeureSemaine[], exceptions: E
   };
 }
 
-/* ══ CE QUE LA MAISON A DÉCOCHÉ POUR LE SITE ═══════════════════════
-   « Il y a des services que je ne voudrais pas sur le site » (Yéman,
-   17 septembre 2026). La Maison décoche depuis la régie de la Vitrine,
-   onglet « Sur le site public » ; la liste vit dans
-   `mnd_vitrine_config.siteMasques`, À PART de `hiddenServices` et
-   `hiddenCategories`, qui règlent le comptoir et Ma Couronne.
+/** Les murs d'une date pour UN maître, en minutes depuis minuit. Un blocage
+    sans bornes couvre la journée entière ; un blocage sans maître vaut pour
+    tous. */
+export function plagesBloquees(
+  murs: readonly MurPose[],
+  branchId: string,
+  dateIso: string,
+  master: string,
+): Array<[number, number]> {
+  return murs
+    .filter((b) => b.branchId === branchId && b.date === dateIso && (!b.master || b.master === master))
+    .map((b): [number, number] => [
+      b.debut?.trim() ? hourToMin(b.debut) : 0,
+      b.fin?.trim() ? hourToMin(b.fin) : 24 * 60,
+    ])
+    .filter(([s, e]) => e > s);
+}
 
-   SANS CE REFUS, DÉCOCHER NE SERAIT QU'UN DÉCOR : l'écran cesserait de
-   proposer, mais un appel direct à cette fonction réserverait encore, et le
-   rendez-vous naîtrait dans le carnet. L'écran propose, le serveur dispose.
+/** UN CRÉNEAU DÉJÀ PRIS, dit sans dire par qui — voir la migration 0079.
+    C'est tout ce que le serveur consent à donner à une inconnue, et tout ce
+    qu'un calendrier honnête demande. */
+export type CreneauOccupe = { jour: string; maitre: string; debut: string; duree: number };
 
-   RECOPIÉ DE `src/shared/catalogue-pur.ts` (`masquePourLeSite`), éprouvé par
-   `scripts/verifie-qualification.mjs` : les deux changent ensemble. */
-type MasquesDuSite = { services?: string[]; categories?: string[] };
+/** LE CŒUR DU CALCUL, SANS AUCUN MAGASIN — pour qu'il soit jugeable.
 
-function masquePourLeSite(
+    Les murs entrent par la porte : le harnais peut poser n'importe quelle
+    journée, et les trois surfaces obtiennent la même réponse. */
+export function creneauxLibres(o: {
+  opening: FenetreDuJour;
+  durationMin: number;
+  /** Tout ce qui occupe la journée, tous maîtres confondus. */
+  occupes: readonly { maitre: string; debutMin: number; dureeMin: number }[];
+  /** Murs posés à la main (pause, absence), déjà résolus en minutes. */
+  bloques?: readonly (readonly [number, number])[];
+  master: string;
+  capMaison?: number;
+  capMaitre?: number;
+  /** LE SALON N'A QU'UN NOMBRE DE FAUTEUILS — 17 septembre 2026.
+      « Pourquoi toutes les heures sont disponibles sur le site pourtant il
+      n'y a pas de place la journée du samedi ? » (Yéman).
+
+      LA CAUSE ÉTAIT L'UNION PAR MAÎTRE : le site demandait les heures libres
+      de CHAQUE maître et gardait leur union. La branche porte deux libellés,
+      « Team » et « Expert » ; le second ne reçoit jamais, donc toutes ses
+      heures étaient libres, et un libellé inoccupé rouvrait un salon plein.
+
+      Ce plafond compte les rituels qui SE CHEVAUCHENT, tous maîtres
+      confondus : c'est la contrainte réelle d'un salon, ses fauteuils
+      (`Branch.seats`). 0 ou absent = pas de limite, le comportement d'avant,
+      celui que Ma Couronne garde. */
+  capSimultane?: number;
+  /** Minutes depuis minuit si la date est aujourd'hui ; sinon `null`. */
+  maintenantMin?: number | null;
+  /** Le pas de la grille. Une heure, comme au comptoir. */
+  pasMin?: number;
+}): string[] {
+  if (o.opening.closed) return [];
+
+  /* LE PLAFOND D'ABORD : au-delà, plus aucun créneau, même si des heures
+     restent. La maison choisit son souffle ; le comptoir, lui, n'est pas
+     bridé (poser un rendez-vous à la main reste un geste du personnel).
+     0 = illimité. */
+  const capMaison = o.capMaison ?? 0;
+  const capMaitre = o.capMaitre ?? 0;
+  if (capMaison > 0 && o.occupes.length >= capMaison) return [];
+  const duMaitre = o.occupes.filter((a) => a.maitre === o.master);
+  if (capMaitre > 0 && duMaitre.length >= capMaitre) return [];
+
+  const busy: Array<readonly [number, number]> = duMaitre
+    .map((a) => [a.debutMin, a.debutMin + a.dureeMin] as const);
+  if (o.bloques) busy.push(...o.bloques);
+
+  const pas = o.pasMin ?? 60;
+  const cap = o.capSimultane ?? 0;
+  const out: string[] = [];
+  for (let m = o.opening.openMin; m + o.durationMin <= o.opening.closeMin; m += pas) {
+    if (o.maintenantMin != null && m <= o.maintenantMin) continue;
+    const overlaps = busy.some(([s, e]) => m < e && m + o.durationMin > s);
+    if (overlaps) continue;
+    /* LES FAUTEUILS : le maître est libre, mais la Maison peut être pleine. */
+    if (cap > 0) {
+      const ensemble = o.occupes
+        .filter((a) => m < a.debutMin + a.dureeMin && m + o.durationMin > a.debutMin).length;
+      if (ensemble >= cap) continue;
+    }
+    out.push(hhmmDeMinutes(m));
+  }
+  return out;
+}
+
+/** La durée d'un rituel : la somme de ses prestations, une heure au moins.
+    Une prestation inconnue du catalogue vaut une heure, comme au comptoir. */
+export function dureeDesPrestations(
+  ids: readonly string[],
+  services: readonly { id: string; durationMin?: number }[],
+): number {
+  const total = ids.reduce((s, id) => s + (services.find((x) => x.id === id)?.durationMin ?? 60), 0);
+  return Math.max(60, total);
+}
+
+/** Les créneaux occupés d'un jour, mis en la forme que le calcul attend. */
+export const occupesDuJour = (
+  occupes: readonly CreneauOccupe[],
+  dateIso: string,
+): { maitre: string; debutMin: number; dureeMin: number }[] =>
+  occupes
+    .filter((c) => c.jour === dateIso && c.debut)
+    .map((c) => ({ maitre: c.maitre, debutMin: minutesDeHhmm(c.debut), dureeMin: c.duree }));
+/* ⟨/agenda-pur⟩ */
+
+/* ⟨catalogue-pur⟩ */
+export type PriceMode = 'fixe' | 'variable' | 'devis';
+
+/* La règle reconnaît par la CATÉGORIE, jamais par le nom : « une règle qui
+   reconnaît par le NOM casse en silence » (leçon du 18 août). L'atelier
+   VÈKPÈ™ EST l'atelier de la Naissance ; FÍNFÍN™ celui de la Renaissance.
+   Les identifiants sont ceux de la semence, stables depuis le premier jour. */
+export const CATEGORIE_VEKPE = 'atl-i-vekpe';
+export const CATEGORIE_FINFIN = 'atl-iv-finfin';
+/* L'ATELIER DES CONSULTATIONS — corrigé le 17 septembre 2026, EN LIGNE.
+
+   Le site public ne proposait que la catégorie `doto`, celle de la semence.
+   La Maison, elle, a posé le sien : `koko` (KÒKÒ™, « Le Diagnostic »), qui
+   porte ses trois consultations. Résultat, l'écran de réservation est sorti
+   VIDE en production : « voilà ce qui sort » (Yéman, capture à l'appui).
+   C'est exactement la faute que la relecture adversaire avait annoncée,
+   reconnaître par un identifiant que la base vivante ne porte pas.
+
+   ON EN CONNAÎT DONC LES DEUX, et on garde un dernier recours par le nom :
+   une règle qui ne sait plus reconnaître ce qu'elle cherche doit se rabattre,
+   jamais rendre une page vide. */
+export const CATEGORIES_CONSULTATION: readonly string[] = ['doto', 'koko'];
+
+/* CE QUE LE SITE PUBLIC NE MONTRE PAS — 17 septembre 2026. « Il y a des
+   services que je ne voudrais pas sur le site. Comment je peux avoir la main
+   pour les décocher ? » (Yéman). La Maison décoche depuis la régie de la
+   Vitrine, onglet « Sur le site public » ; la liste vit dans
+   `mnd_vitrine_config.siteMasques`.
+
+   ELLE EST À PART DE `hiddenServices` ET `hiddenCategories`, et c'est tout
+   l'enjeu : ces deux-là règlent la carte du comptoir et Ma Couronne, où la
+   Maison a masqué le Diagnostic, la Création et la Renaissance. Les confondre
+   viderait le site de ses consultations, on l'a vérifié.
+
+   MASQUER, PAS SÉLECTIONNER : on liste ce qu'on RETIRE, jamais ce qu'on
+   garde, sinon toute prestation née après la liste resterait invisible sans
+   qu'aucun réglage ne le dise. Un atelier décoché emporte ses familles,
+   comme partout ailleurs dans la Maison.
+
+   LE MÊME JUGE SERT DEUX FOIS : l'écran du site pour ne plus proposer, et la
+   fonction `demande-submit` pour REFUSER (elle le recopie, une fonction Edge
+   n'importe rien du dépôt). Sans le second, décocher ne serait qu'un décor :
+   un appel direct réserverait encore. */
+export type MasquesDuSite = { services?: string[]; categories?: string[] };
+
+export function masquePourLeSite(
   s: { id: string; categoryId: string },
   masques: MasquesDuSite | undefined,
-  cats: { id: string; parentId?: string }[],
+  cats: readonly { id: string; parentId?: string }[] = [],
 ): boolean {
   if (!masques) return false;
   if ((masques.services ?? []).includes(s.id)) return true;
   const caches = masques.categories ?? [];
   if (caches.length === 0) return false;
+  /* La remontée est bornée : un parent circulaire ne fige pas l'écran. */
   let cur: string | undefined = s.categoryId;
   for (let i = 0; cur && i < 8; i += 1) {
     if (caches.includes(cur)) return true;
@@ -282,101 +496,503 @@ function masquePourLeSite(
   return false;
 }
 
-/* ══ LA PLACE DEMANDÉE, REVÉRIFIÉE ICI ═════════════════════════════
-   Rend l'erreur à dire, ou la durée et le maître si la place tient. L'écran
-   a déjà jugé, mais un écran vieux d'une minute, un retour en arrière du
-   navigateur ou un appel direct à cette fonction ne jugent rien du tout. */
-async function laPlaceTient(o: {
+export function estUneConsultation(
+  s: { categoryId: string; name?: string },
+  cats: readonly { id: string; parentId?: string }[] = [],
+): boolean {
+  if (CATEGORIES_CONSULTATION.includes(s.categoryId)) return true;
+  const racine = racineOf(cats, s.categoryId)?.id;
+  if (racine && CATEGORIES_CONSULTATION.includes(racine)) return true;
+  return /consultation|diagnostic/i.test(s.name ?? '');
+}
+
+export const fondeLaCouronne = (s: { categoryId: string }): boolean => s.categoryId === CATEGORIE_VEKPE;
+
+/** Mode de prix effectif — dérive des anciennes données (hidePrice) si non renseigné. */
+export const priceModeOf = (s: { priceMode?: PriceMode; hidePrice?: boolean }): PriceMode =>
+  s.priceMode ?? (s.hidePrice ? 'devis' : 'fixe');
+
+/** LA RACINE d'une catégorie — l'atelier dont elle relève, ou elle-même si
+    c'en est un. La remontée est bornée pour qu'un parent circulaire ne fige
+    pas l'écran. */
+export const racineOf = <C extends { id: string; parentId?: string }>(cats: readonly C[], id: string | undefined): C | undefined => {
+  let cur = cats.find((c) => c.id === id);
+  for (let i = 0; cur?.parentId && i < 8; i += 1) {
+    const parent = cats.find((c) => c.id === cur!.parentId);
+    if (!parent) break;
+    cur = parent;
+  }
+  return cur;
+};
+/* ⟨/catalogue-pur⟩ */
+
+/* ⟨qualification⟩ */
+export type Porte = 'consultation' | 'directe';
+
+export type Besoin = 'creation' | 'reparation' | 'entretien' | 'enfant' | 'formation' | 'inconnu';
+
+type PrestationJugee = {
+  categoryId: string;
+  priceMode?: PriceMode;
+  hidePrice?: boolean;
+  /** L'exception posée au Catalogue : une prestation qui exige un regard
+      avant réservation, même hors création, devis et restauration. */
+  consultationAvant?: boolean;
+};
+
+/** Ce qui décide n'est pas l'état déclaré, c'est la prestation visée :
+    une création (atelier VÈKPÈ™), un prix sur devis, une restauration
+    (atelier FÍNFÍN™), ou le drapeau posé à la main. */
+export function exigeConsultation(s: PrestationJugee, cats: { id: string; parentId?: string }[]): boolean {
+  if (s.consultationAvant === true) return true;
+  if (fondeLaCouronne(s)) return true;
+  if (priceModeOf(s) === 'devis') return true;
+  return racineOf(cats, s.categoryId)?.id === CATEGORIE_FINFIN;
+}
+
+export const porteDe = (s: PrestationJugee, cats: { id: string; parentId?: string }[]): Porte =>
+  exigeConsultation(s, cats) ? 'consultation' : 'directe';
+
+/** Le site ne connaît pas encore de prestation, seulement un besoin : la
+    même règle, dite par parcours. Un enfant commence par un échange avec ses
+    parents ; une formation est une demande, pas un fauteuil. « Je ne sais
+    pas » mène au regard : c'est le bon défaut. */
+export const porteDuBesoin = (b: Besoin): Porte =>
+  b === 'entretien' || b === 'formation' ? 'directe' : 'consultation';
+
+export const ditLaPorte = (p: Porte): string =>
+  p === 'consultation' ? 'Commence par une consultation.' : 'Se réserve directement.';
+/* ⟨/qualification⟩ */
+
+/* ⟨place-du-serveur⟩ */
+/* ── 1. CE QUI SE RÉSERVE EN LIGNE ──────────────────────────────────────
+   Deux ateliers, et c'est délibéré : l'Entretien (lavages, soins, reprises de
+   racines, sorties signature) et la Coloration. Une création et une
+   restauration passent par la consultation, les formations sont des
+   candidatures, les mèches et les fournitures ne sont pas des rendez-vous.
+   Les masques de la Vitrine (comptoir, Ma Couronne) ne comptent pas ici :
+   seuls ceux du site public (`siteMasques`). */
+const ATELIERS_RESERVABLES: readonly string[] = ['atl-ii-gbeji', 'atl-iii-yekpe'];
+
+/* LA CONSULTATION DE CHAQUE PORTE (la Maison, 17 septembre 2026) : le KÒKÒ
+   Origine pour une première couronne, le KÒKÒ Suivi pour une réparation, le
+   Conseil et diagnostic pour un enfant. Un identifiant disparu ne ferme
+   jamais la porte : l'écran propose alors toutes les consultations. */
+const CONSULTATION_PAR_PARCOURS: Readonly<Partial<Record<Besoin, string>>> = {
+  creation: 'sv-koko-ori',
+  reparation: 'sv-koko-sui',
+  enfant: 'svc-doto-conseil',
+};
+
+/** Trois mois au plus : un carnet ne se remplit pas à l'aveugle. */
+const FENETRE_DE_RESERVATION = 90;
+const UN_JOUR_MS = 86_400_000;
+
+type PrestationDuServeur = {
+  id: string;
+  name?: string;
+  categoryId: string;
+  durationMin?: number;
+  priceMode?: PriceMode;
+  hidePrice?: boolean;
+  consultationAvant?: boolean;
+  enabled?: boolean;
+  archived?: boolean;
+  /** Le maître que la prestation désigne, quand elle en désigne un. */
+  master?: string;
+};
+
+type CategorieDuServeur = { id: string; parentId?: string };
+
+/** UNE PRESTATION SE RÉSERVE-T-ELLE EN LIGNE ? Active, non décochée pour le
+    site, et soit une consultation, soit un geste d'un atelier réservable qui
+    n'exige pas de consultation et n'est pas sur devis. */
+function reservableSurLeSite(
+  s: {
+    id: string; categoryId: string; name?: string; priceMode?: PriceMode; hidePrice?: boolean;
+    consultationAvant?: boolean; enabled?: boolean; archived?: boolean;
+  },
+  cats: { id: string; parentId?: string }[],
+  masques: MasquesDuSite | undefined,
+): boolean {
+  if (s.enabled === false || s.archived) return false;
+  if (masquePourLeSite(s, masques, cats)) return false;
+  if (estUneConsultation(s, cats)) return true;
+  if (exigeConsultation(s, cats) || priceModeOf(s) === 'devis') return false;
+  const racine = racineOf(cats, s.categoryId)?.id ?? s.categoryId;
+  return ATELIERS_RESERVABLES.includes(racine);
+}
+
+/* ── 2. L'AGENDA DU SERVEUR ─────────────────────────────────────────────
+   Tout ce que le juge lit, mis en forme depuis les lignes que la fonction
+   vient de lire en base : la branche (maîtres, fauteuils), `mnd_settings`
+   (semaine, plafonds), `mnd_horaires_exceptions`, `mnd_vitrine_config`
+   (masques du site, formules rapides), le catalogue et ses familles, les
+   blocages, et les créneaux occupés (`creneaux_occupes`). Une valeur mal
+   écrite en base se lit comme vide, jamais comme une panne. */
+type AgendaDuServeur = {
   branchId: string;
   maitres: string[];
+  /** Les fauteuils de la Maison. 0 = sans limite. */
+  sieges: number;
+  capMaison: number;
+  capMaitre: number;
+  semaine: HeureDeLaSemaine[];
+  exceptions: ExceptionDHoraire[];
+  murs: MurPose[];
+  occupes: CreneauOccupe[];
+  /** Tout le catalogue, prestations éteintes comprises : le juge dit pourquoi. */
+  services: PrestationDuServeur[];
+  categories: CategorieDuServeur[];
+  masques: MasquesDuSite;
+  formules: { serviceIds: string[] }[];
+};
+
+type LignesDeLAgenda = {
+  branche: { id: string; data?: unknown } | null | undefined;
+  /** `mnd_settings.data` */
+  reglages?: unknown;
+  /** `mnd_horaires_exceptions.data` */
+  exceptions?: unknown;
+  /** `mnd_vitrine_config.data` */
+  vitrine?: unknown;
+  services?: readonly { id: string; data?: unknown }[] | null;
+  categories?: readonly { id: string; data?: unknown }[] | null;
+  blocages?: readonly { id?: string; data?: unknown }[] | null;
+  /** Les lignes de `creneaux_occupes` : jour, maître, début, durée. */
+  occupes?: readonly unknown[] | null;
+};
+
+function agendaDepuisLesLignes(l: LignesDeLAgenda): AgendaDuServeur | null {
+  const objet = (v: unknown): Record<string, unknown> =>
+    (v && typeof v === 'object' && !Array.isArray(v) ? v as Record<string, unknown> : {});
+  const chaine = (v: unknown): string =>
+    (typeof v === 'string' ? v : typeof v === 'number' && Number.isFinite(v) ? String(v) : '');
+  const liste = (v: unknown): unknown[] => (Array.isArray(v) ? v : []);
+  const ids = (v: unknown): string[] => liste(v).filter((x): x is string => typeof x === 'string' && x !== '');
+  /* Un entier écrit en nombre ou en texte, comme le lit le verrou (0125) ;
+     illisible ou négatif : 0, c'est-à-dire sans limite. */
+  const entier = (v: unknown): number => {
+    const n = typeof v === 'number' ? v : typeof v === 'string' && /^\s*\d{1,4}(\.\d+)?\s*$/.test(v) ? Number(v) : Number.NaN;
+    return Number.isFinite(n) && n > 0 ? Math.floor(n) : 0;
+  };
+  const MODES: readonly string[] = ['fixe', 'variable', 'devis'];
+
+  const brancheId = chaine(l.branche?.id);
+  if (!l.branche || !brancheId) return null;
+  const branche = objet(l.branche.data);
+  const reglages = objet(l.reglages);
+  const vitrine = objet(l.vitrine);
+  const masques = objet(vitrine.siteMasques);
+
+  const semaine: HeureDeLaSemaine[] = liste(reglages.hours).map(objet)
+    .filter((h) => chaine(h.key) !== '')
+    .map((h) => ({ key: chaine(h.key), open: chaine(h.open), close: chaine(h.close), closed: !!h.closed }));
+  const exceptions: ExceptionDHoraire[] = liste(l.exceptions).map(objet)
+    .filter((e) => chaine(e.date) !== '')
+    .map((e) => ({
+      date: chaine(e.date),
+      ...(chaine(e.staffId) ? { staffId: chaine(e.staffId) } : {}),
+      ...(chaine(e.open) ? { open: chaine(e.open) } : {}),
+      ...(chaine(e.close) ? { close: chaine(e.close) } : {}),
+      closed: !!e.closed,
+    }));
+  const murs: MurPose[] = (l.blocages ?? []).map((b) => objet(objet(b).data))
+    .filter((b) => chaine(b.branchId) !== '' && chaine(b.date) !== '')
+    .map((b) => ({
+      branchId: chaine(b.branchId),
+      date: chaine(b.date),
+      ...(chaine(b.master) ? { master: chaine(b.master) } : {}),
+      ...(chaine(b.debut) ? { debut: chaine(b.debut) } : {}),
+      ...(chaine(b.fin) ? { fin: chaine(b.fin) } : {}),
+    }));
+  const occupes: CreneauOccupe[] = (l.occupes ?? []).map(objet)
+    .filter((c) => chaine(c.jour) !== '' && /^\d{1,2}:\d{2}/.test(chaine(c.debut)))
+    .map((c) => {
+      const d = Number(c.duree);
+      return { jour: chaine(c.jour), maitre: chaine(c.maitre), debut: chaine(c.debut), duree: Number.isFinite(d) && d >= 1 ? d : 60 };
+    });
+  const services: PrestationDuServeur[] = (l.services ?? []).map((r) => {
+    const d = objet(r.data);
+    const duree = Number(d.durationMin);
+    const mode = chaine(d.priceMode);
+    return {
+      id: chaine(r.id) || chaine(d.id),
+      name: chaine(d.name),
+      categoryId: chaine(d.categoryId),
+      ...(d.durationMin !== undefined && d.durationMin !== null && d.durationMin !== '' && Number.isFinite(duree) && duree >= 0 ? { durationMin: duree } : {}),
+      ...(MODES.includes(mode) ? { priceMode: mode as PriceMode } : {}),
+      ...(d.hidePrice ? { hidePrice: true } : {}),
+      ...(d.consultationAvant === true ? { consultationAvant: true } : {}),
+      ...(d.enabled === false ? { enabled: false } : {}),
+      ...(d.archived ? { archived: true } : {}),
+      ...(chaine(d.master) ? { master: chaine(d.master) } : {}),
+    };
+  }).filter((s) => s.id !== '');
+  const categories: CategorieDuServeur[] = (l.categories ?? []).map((r) => {
+    const d = objet(r.data);
+    return { id: chaine(r.id), ...(chaine(d.parentId) ? { parentId: chaine(d.parentId) } : {}) };
+  }).filter((c) => c.id !== '');
+
+  return {
+    branchId: brancheId,
+    maitres: ids(branche.masters),
+    sieges: entier(branche.seats),
+    capMaison: entier(reglages.maxRdvParJourMaison),
+    capMaitre: entier(reglages.maxRdvParJourMaitre),
+    semaine,
+    exceptions,
+    murs,
+    occupes,
+    services,
+    categories,
+    masques: { services: ids(masques.services), categories: ids(masques.categories) },
+    formules: liste(vitrine.formulesRapides).map(objet)
+      .map((f) => ({ serviceIds: ids(f.serviceIds) }))
+      .filter((f) => f.serviceIds.length > 0),
+  };
+}
+
+/* ── 3. LE JOUR, À L'HEURE DE COTONOU ───────────────────────────────────
+   UTC+1, toute l'année. Jamais l'horloge du serveur (UTC) : entre minuit et
+   une heure à Cotonou, elle croit encore être la veille. */
+const jourDeCotonou = (ms: number): string => new Date(ms + 3_600_000).toISOString().slice(0, 10);
+
+/** Le jour `n` jours après `iso` (AAAA-MM-JJ). Illisible : chaîne vide. */
+function isoApresJours(iso: string, n: number): string {
+  const t = Date.parse(`${iso}T00:00:00Z`);
+  return Number.isFinite(t) ? new Date(t + n * UN_JOUR_MS).toISOString().slice(0, 10) : '';
+}
+
+/** Combien de jours d'ici (Cotonou) à `dateIso` : 1 = demain, 0 = aujourd'hui.
+    Une date qui n'existe pas (le 31 février) rend NaN. */
+function joursDEcart(dateIso: string, ms: number): number {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateIso) || isoApresJours(dateIso, 0) !== dateIso) return Number.NaN;
+  return Math.round((Date.parse(`${dateIso}T00:00:00Z`) - Date.parse(`${jourDeCotonou(ms)}T00:00:00Z`)) / UN_JOUR_MS);
+}
+
+/* ── 4. LE JUGE ─────────────────────────────────────────────────────────
+   Les codes sont ceux que le site sait déjà dire (`creneau_*`, `prestation_*`),
+   plus `consultation_requise`. */
+type RefusDeLaPlace =
+  | 'creneau_invalide' | 'creneau_hors_fenetre' | 'creneau_ferme'
+  | 'prestation_inconnue' | 'prestation_retiree' | 'consultation_requise'
+  | 'creneau_hors_ouverture' | 'creneau_plafond' | 'creneau_pris';
+
+type DemandeDePlace = { date: string; time: string; serviceIds: readonly string[] };
+
+/** La place tient : sa durée, et les maîtres LIBRES à cette heure, dans
+    l'ordre de la Maison (le verrou prend le premier encore libre). */
+type VerdictDeLaPlace =
+  | { ok: true; dureeMin: number; maitres: string[] }
+  | { ok: false; erreur: RefusDeLaPlace };
+
+/** Une place proposée : un jour et une heure, jamais un maître. */
+type PlaceDuServeur = { iso: string; heure: string };
+
+/** LA FORME ET LA FENÊTRE, avant toute lecture : un appel mal formé ne coûte
+    rien à la base. Jamais le jour même (la Maison prépare la venue), jamais
+    au-delà de trois mois. */
+function laPlaceEstRecevable(p: { date: string; time: string }, ms: number): RefusDeLaPlace | null {
+  const m = /^(\d{2}):(\d{2})$/.exec(String(p.time ?? ''));
+  if (!m || Number(m[1]) > 23 || Number(m[2]) > 59) return 'creneau_invalide';
+  const ecart = joursDEcart(String(p.date ?? ''), ms);
+  if (Number.isNaN(ecart)) return 'creneau_invalide';
+  if (ecart < 1 || ecart > FENETRE_DE_RESERVATION) return 'creneau_hors_fenetre';
+  return null;
+}
+
+/** LES GESTES : tous connus et actifs, aucun qui exige une consultation
+    (sauf la consultation elle-même), tous ouverts à la réservation en ligne. */
+function lesGestesSeReservent(agenda: AgendaDuServeur, serviceIds: readonly string[]): RefusDeLaPlace | null {
+  if (serviceIds.length === 0) return 'prestation_inconnue';
+  const gestes = serviceIds.map((id) => agenda.services.find((s) => s.id === id));
+  const connus = gestes.filter((s): s is PrestationDuServeur => !!s && s.enabled !== false && !s.archived);
+  if (connus.length !== serviceIds.length) return 'prestation_inconnue';
+  const cats = agenda.categories;
+  if (connus.some((s) => !estUneConsultation(s, cats) && exigeConsultation(s, cats))) return 'consultation_requise';
+  if (connus.some((s) => !reservableSurLeSite(s, cats, agenda.masques))) return 'prestation_retiree';
+  return null;
+}
+
+/** LES MAÎTRES À ESSAYER, comme le site (`heuresLibres`) : celui que désigne
+    une prestation s'il y en a un, sinon ceux de la Maison, sinon le libellé
+    vide d'une branche qui n'en déclare aucun. */
+function maitresDuRituel(agenda: AgendaDuServeur, serviceIds: readonly string[]): string[] {
+  const designes = serviceIds
+    .map((id) => agenda.services.find((s) => s.id === id)?.master)
+    .filter((m): m is string => !!m);
+  if (designes.length > 0) return [...new Set(designes)];
+  return agenda.maitres.length > 0 ? [...agenda.maitres] : [''];
+}
+
+/** LA PLACE TIENT-ELLE ? Tout ce que le site montrait, revérifié sur
+    l'instantané que la fonction vient de lire. Le verrou (`pose_si_libre`)
+    rejoue le plafond, les fauteuils et les maîtres sous verrou. */
+function laPlaceTient(agenda: AgendaDuServeur, p: DemandeDePlace, ms: number): VerdictDeLaPlace {
+  const recevable = laPlaceEstRecevable(p, ms);
+  if (recevable) return { ok: false, erreur: recevable };
+  /* Sans semaine connue, le jour est fermé : mieux vaut un rappel qu'un
+     lundi ouvert que la Maison ferme. */
+  const fenetre = ouvertureDuJour(p.date, agenda.semaine, agenda.exceptions);
+  if (fenetre.closed) return { ok: false, erreur: 'creneau_ferme' };
+  const gestes = lesGestesSeReservent(agenda, p.serviceIds);
+  if (gestes) return { ok: false, erreur: gestes };
+
+  const dureeMin = dureeDesPrestations(p.serviceIds, agenda.services);
+  const debut = minutesDeHhmm(p.time);
+  const fin = debut + dureeMin;
+  if (debut < fenetre.openMin || fin > fenetre.closeMin) return { ok: false, erreur: 'creneau_hors_ouverture' };
+
+  const duJour = occupesDuJour(agenda.occupes, p.date);
+  /* Le plafond de la Maison : ses rendez-vous du jour, tous maîtres confondus. */
+  if (agenda.capMaison > 0 && duJour.length >= agenda.capMaison) return { ok: false, erreur: 'creneau_plafond' };
+  /* LES FAUTEUILS : le maître peut être libre, la Maison pleine. */
+  if (agenda.sieges > 0
+    && duJour.filter((a) => debut < a.debutMin + a.dureeMin && fin > a.debutMin).length >= agenda.sieges) {
+    return { ok: false, erreur: 'creneau_pris' };
+  }
+
+  /* LES MAÎTRES LIBRES, tous, dans l'ordre : jamais le premier sans regarder. */
+  const candidats = maitresDuRituel(agenda, p.serviceIds);
+  const libres: string[] = [];
+  let plafonnes = 0;
+  for (const m of candidats) {
+    const siens = duJour.filter((a) => a.maitre === m);
+    if (agenda.capMaitre > 0 && siens.length >= agenda.capMaitre) {
+      plafonnes += 1;
+      continue;
+    }
+    const occupe = [
+      ...siens.map((a): [number, number] => [a.debutMin, a.debutMin + a.dureeMin]),
+      ...plagesBloquees(agenda.murs, agenda.branchId, p.date, m),
+    ].some(([s, e]) => debut < e && fin > s);
+    if (!occupe) libres.push(m);
+  }
+  if (libres.length === 0) return { ok: false, erreur: plafonnes === candidats.length ? 'creneau_plafond' : 'creneau_pris' };
+  return { ok: true, dureeMin, maitres: libres };
+}
+
+/** LES PLACES LIBRES, de demain (à Cotonou) à l'horizon, rangées dans le
+    temps : les heures que le site montrerait, jour par jour (le même
+    `creneauxLibres`, maître par maître, fauteuils, plafonds et murs compris).
+    Des gestes qui ne se réservent pas en ligne n'ont aucune place. */
+function placesLibres(
+  agenda: AgendaDuServeur, serviceIds: readonly string[], ms: number, horizonJours = 14,
+): PlaceDuServeur[] {
+  if (lesGestesSeReservent(agenda, serviceIds)) return [];
+  const voulu = Math.round(Number(horizonJours));
+  const n = Math.max(1, Math.min(FENETRE_DE_RESERVATION, Number.isFinite(voulu) && voulu > 0 ? voulu : 14));
+  const durationMin = dureeDesPrestations(serviceIds, agenda.services);
+  const maitres = maitresDuRituel(agenda, serviceIds);
+  const aujourdhui = jourDeCotonou(ms);
+  const out: PlaceDuServeur[] = [];
+  for (let i = 1; i <= n; i += 1) {
+    const iso = isoApresJours(aujourdhui, i);
+    const opening = ouvertureDuJour(iso, agenda.semaine, agenda.exceptions);
+    if (opening.closed) continue;
+    const occupes = occupesDuJour(agenda.occupes, iso);
+    const heures = new Set<string>();
+    for (const master of maitres) {
+      const libres = creneauxLibres({
+        opening,
+        durationMin,
+        occupes,
+        bloques: plagesBloquees(agenda.murs, agenda.branchId, iso, master),
+        master,
+        capMaison: agenda.capMaison,
+        capMaitre: agenda.capMaitre,
+        capSimultane: agenda.sieges,
+        maintenantMin: null,
+      });
+      for (const h of libres) heures.add(h);
+    }
+    for (const heure of [...heures].sort()) out.push({ iso, heure });
+  }
+  return out;
+}
+/* ⟨/place-du-serveur⟩ */
+
+/* ══ LA PLACE DEMANDÉE, REVÉRIFIÉE ICI ═════════════════════════════
+   Rend l'erreur à dire, ou la durée et les maîtres LIBRES si la place
+   tient. L'écran a déjà jugé, mais un écran vieux d'une minute, un retour
+   en arrière du navigateur ou un appel direct à cette fonction ne jugent
+   rien du tout. Depuis le 9 octobre 2026, cette fonction ne fait que LIRE ;
+   le juge est `laPlaceTient` (place-du-serveur, recopié ci-dessus), sur
+   l'instantané qu'elle vient de lire. Le catalogue lu ici sert aussi au code
+   de l'offre et à la remise de bienvenue : une seule lecture. */
+type LigneDeTable = { id: string; data?: any };
+const toutesLesLignes = (table: string, filtres: [string, string][] = []): Promise<ReponseDePage<LigneDeTable>> =>
+  litToutesLesPages<LigneDeTable>((apres, taille) => {
+    let page = admin.from(table).select('id, data');
+    for (const [colonne, valeur] of filtres) page = page.eq(colonne, valeur);
+    if (apres !== null) page = page.gt('id', apres);
+    return page.order('id', { ascending: true }).limit(taille) as unknown as PromiseLike<ReponseDePage<LigneDeTable>>;
+  });
+
+/* Supabase ne rend jamais plus de mille lignes d'un coup : une journée qui
+   en rendrait mille pile serait une TRANCHE, pas une journée. */
+const PLAFOND_D_UNE_REPONSE = 1000;
+
+async function laPlaceDemandee(o: {
+  branche: { id: string; data?: unknown };
   serviceIds: string[];
   date: string;
   time: string;
-  master: string;
 }): Promise<{ erreur: string } | {
-  dureeMin: number; master: string; catalogue: ServiceEnBase[]; offres: any[];
+  dureeMin: number;
+  /** Les maîtres libres à cette heure, dans l'ordre : le verrou prend le premier encore libre. */
+  maitres: string[];
+  catalogue: ServiceEnBase[];
+  offres: any[];
   /** L'arbre des familles, lu ici une fois : la remise de bienvenue s'en sert. */
   familles: { id: string; parentId?: string }[];
 }> {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(o.date) || !/^\d{2}:\d{2}$/.test(o.time)) return { erreur: 'creneau_invalide' };
+  const maintenant = Date.now();
+  /* La forme et la fenêtre d'abord : un appel mal formé ne coûte rien à la base. */
+  const recevable = laPlaceEstRecevable({ date: o.date, time: o.time }, maintenant);
+  if (recevable) return { erreur: recevable };
 
-  /* Jamais le jour même ni le passé : la Maison prépare la venue. Jamais
-     au-delà de trois mois : un carnet ne se remplit pas à l'aveugle. */
-  const jour = new Date(`${o.date}T00:00:00`);
-  const aujourdHui = new Date();
-  aujourdHui.setHours(0, 0, 0, 0);
-  const joursDEcart = Math.round((jour.getTime() - aujourdHui.getTime()) / 86_400_000);
-  if (!(joursDEcart >= 1 && joursDEcart <= 90)) return { erreur: 'creneau_hors_fenetre' };
-
-  const [docs, services, categories, blocages, rdvs] = await Promise.all([
+  const [docs, services, categories, blocages, occupes] = await Promise.all([
     admin.from('documents').select('key, data').in('key', ['mnd_settings', 'mnd_horaires_exceptions', 'mnd_vitrine_config', 'mnd_offers']),
-    admin.from('catalog_services').select('id, data'),
-    admin.from('catalog_categories').select('id, data'),
-    admin.from('blocages').select('id, data'),
-    admin.from('appointments').select('id, data').eq('data->>branchId', o.branchId).eq('data->>date', o.date),
+    toutesLesLignes('catalog_services'),
+    toutesLesLignes('catalog_categories'),
+    toutesLesLignes('blocages', [['data->>branchId', o.branche.id], ['data->>date', o.date]]),
+    admin.rpc('creneaux_occupes', { p_branch: o.branche.id, p_du: o.date, p_au: o.date }),
   ]);
+  /* UNE LECTURE EN PANNE REFUSE : croire la journée vide, c'était poser une
+     place sur un mur ou sur un rendez-vous qu'on n'a pas su lire. */
+  const panne = docs.error ?? services.error ?? categories.error ?? blocages.error ?? occupes.error;
+  const pris = (Array.isArray(occupes.data) ? occupes.data : []) as unknown[];
+  if (panne || pris.length >= PLAFOND_D_UNE_REPONSE) {
+    console.error('demande-submit: agenda illisible', panne?.message ?? 'une tranche de mille créneaux');
+    return { erreur: 'agenda_illisible' };
+  }
+  const doc = (cle: string): any => ((docs.data ?? []) as { key: string; data?: any }[]).find((d) => d.key === cle)?.data;
+  const agenda = agendaDepuisLesLignes({
+    branche: o.branche,
+    reglages: doc('mnd_settings'),
+    exceptions: doc('mnd_horaires_exceptions'),
+    vitrine: doc('mnd_vitrine_config'),
+    services: services.data ?? [],
+    categories: categories.data ?? [],
+    blocages: blocages.data ?? [],
+    occupes: pris,
+  });
+  if (!agenda) return { erreur: 'creneau_invalide' };
+  const verdict = laPlaceTient(agenda, { date: o.date, time: o.time, serviceIds: o.serviceIds }, maintenant);
+  if (!verdict.ok) return { erreur: verdict.erreur };
 
-  const reglages = ((docs.data ?? []) as { key: string; data?: any }[]).find((d) => d.key === 'mnd_settings')?.data ?? {};
-  const exceptions = (((docs.data ?? []) as { key: string; data?: any }[]).find((d) => d.key === 'mnd_horaires_exceptions')?.data ?? []) as Exception[];
-  const semaine = (Array.isArray(reglages.hours) ? reglages.hours : []) as HeureSemaine[];
-
-  /* Sans horaires en base, on refuse : ouvrir un jour que la Maison ferme
-     est pire que de demander un rappel (la leçon du lundi 12 octobre). */
-  const fenetre = ouvertureDuJour(o.date, semaine, exceptions);
-  if (fenetre.closed) return { erreur: 'creneau_ferme' };
-
-  const catalogue = ((services.data ?? []) as ServiceEnBase[]);
   /* Les offres de la Maison, pour résoudre un code : lues ici, avec le reste,
      pour ne pas rouvrir la base une seconde fois. */
-  const offresBrutes = ((docs.data ?? []) as { key: string; data?: any }[]).find((d) => d.key === 'mnd_offers')?.data;
-  const offres = (Array.isArray(offresBrutes) ? offresBrutes : []) as any[];
-  const connus = o.serviceIds.filter((id) => catalogue.some((s) => s.id === id && s.data?.enabled !== false && !s.data?.archived));
-  if (connus.length === 0) return { erreur: 'prestation_inconnue' };
-
-  /* CE QUE LA MAISON A DÉCOCHÉ NE SE RÉSERVE PAS, même par un appel direct. */
-  const masques = (((docs.data ?? []) as { key: string; data?: any }[])
-    .find((d) => d.key === 'mnd_vitrine_config')?.data?.siteMasques ?? {}) as MasquesDuSite;
-  const arbre = ((categories.data ?? []) as { id: string; data?: { parentId?: string } }[])
-    .map((c) => ({ id: c.id, parentId: c.data?.parentId }));
-  const retiree = connus.some((id) => masquePourLeSite(
-    { id, categoryId: catalogue.find((x) => x.id === id)?.data?.categoryId ?? '' }, masques, arbre));
-  if (retiree) return { erreur: 'prestation_retiree' };
-  const dureeMin = Math.max(60, connus.reduce((s, id) =>
-    s + Number(catalogue.find((x) => x.id === id)?.data?.durationMin ?? 60), 0));
-
-  const debut = minutesDeHhmm(o.time);
-  if (debut < fenetre.openMin || debut + dureeMin > fenetre.closeMin) return { erreur: 'creneau_hors_ouverture' };
-
-  /* Le maître : celui que l'écran a retenu s'il est de la Maison, sinon le
-     premier. Un maître inventé ne doit pas ouvrir un agenda parallèle. */
-  const master = o.maitres.includes(o.master) ? o.master : (o.maitres[0] ?? '');
-
-  const poses = ((rdvs.data ?? []) as { id: string; data?: any }[])
-    .map((r) => r.data)
-    .filter((a) => a && String(a.status ?? '') !== 'annulé' && String(a.time ?? '') !== '');
-  const dureeDe = (a: any): number => Math.max(60, (Array.isArray(a.serviceIds) ? a.serviceIds : [])
-    .reduce((s: number, id: string) => s + Number(catalogue.find((x) => x.id === id)?.data?.durationMin ?? 60), 0));
-
-  const capMaison = Number(reglages.maxRdvParJourMaison ?? 0);
-  const capMaitre = Number(reglages.maxRdvParJourMaitre ?? 0);
-  if (capMaison > 0 && poses.length >= capMaison) return { erreur: 'creneau_plafond' };
-  const duMaitre = poses.filter((a) => String(a.master ?? '') === master);
-  if (capMaitre > 0 && duMaitre.length >= capMaitre) return { erreur: 'creneau_plafond' };
-
-  const murs = ((blocages.data ?? []) as { id: string; data?: any }[])
-    .map((b) => b.data)
-    .filter((b) => b && b.branchId === o.branchId && b.date === o.date && (!b.master || b.master === master))
-    .map((b) => [b.debut?.trim() ? hourToMin(b.debut) : 0, b.fin?.trim() ? hourToMin(b.fin) : 24 * 60] as [number, number])
-    .filter(([s, e]) => e > s);
-
-  const occupe: [number, number][] = duMaitre.map((a) => {
-    const d = minutesDeHhmm(String(a.time));
-    return [d, d + dureeDe(a)];
-  });
-  const chevauche = [...occupe, ...murs].some(([s, e]) => debut < e && debut + dureeMin > s);
-  if (chevauche) return { erreur: 'creneau_pris' };
-
-  return { dureeMin, master, catalogue, offres, familles: arbre };
+  const offresBrutes = doc('mnd_offers');
+  return {
+    dureeMin: verdict.dureeMin,
+    maitres: verdict.maitres,
+    catalogue: (services.data ?? []) as ServiceEnBase[],
+    offres: (Array.isArray(offresBrutes) ? offresBrutes : []) as any[],
+    familles: agenda.categories,
+  };
 }
 
 /* ══ LE CODE DE L'OFFRE, RECOPIÉ DE `src/shared/offres-pur.ts` ══════
@@ -893,11 +1509,13 @@ const heureLisible = (hhmm: string | undefined): string => {
     : `${Number(h)} h`;
 };
 
-/** « vendredi 20 septembre ». Recopiée de confirmation-rdv. */
+/** « vendredi 20 septembre 2026 ». Recopiée de confirmation-rdv. L'ANNÉE
+    SE DIT (9 octobre 2026) : toute date dite à une cliente la porte, une
+    réservation peut se prendre trois mois à l'avance, par-dessus l'an neuf. */
 const jourEnClair = (iso: string): string => {
   try {
     return new Date(`${iso}T12:00:00`).toLocaleDateString('fr-FR', {
-      weekday: 'long', day: 'numeric', month: 'long', timeZone: TZ,
+      weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: TZ,
     });
   } catch { return iso; }
 };
@@ -1011,7 +1629,7 @@ async function envoieLAccuse(o: {
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
-  if (req.method !== 'POST') return json({ error: 'method' }, 405);
+  if (req.method !== 'POST') return json({ error: 'method', version: VERSION }, 405);
   const ip = ipOf(req);
 
   const corps = await req.text();
@@ -1070,7 +1688,13 @@ Deno.serve(async (req) => {
   const branchId = branche.id;
 
   /* ── La place, revérifiée AVANT d'écrire quoi que ce soit ───────── */
+  /* Le maître ATTENDU (le premier libre) : le verrou peut en prendre un
+     autre, encore libre, et la demande suit alors le rendez-vous. */
   let master = '';
+  /** Les maîtres libres à cette heure, dans l'ordre de la Maison. */
+  let maitresLibres: string[] = [];
+  /** La durée du rituel, figée sur le rendez-vous à la pose. */
+  let dureeMin = 0;
   /* Le code, résolu ICI : le navigateur ne dit que le code. Celui d'une
      amie arrive dans `codeAmie` depuis le 9 octobre au soir (le site le
      sépare du code d'une offre pour que l'ANCIENNE fonction, qui ne lit que
@@ -1080,11 +1704,11 @@ Deno.serve(async (req) => {
   let duCode: VerdictDuCode = { code: '' };
   let nomsDesGestes: string[] = [];
   if (avecPlace) {
-    const verdict = await laPlaceTient({
-      branchId, maitres: branche.maitres, serviceIds, date, time, master: texte(d.master, 60),
-    });
-    if ('erreur' in verdict) return json({ error: verdict.erreur }, 409);
-    master = verdict.master;
+    const verdict = await laPlaceDemandee({ branche: branche.ligne, serviceIds, date, time });
+    if ('erreur' in verdict) return json({ error: verdict.erreur }, verdict.erreur === 'agenda_illisible' ? 503 : 409);
+    maitresLibres = verdict.maitres;
+    dureeMin = verdict.dureeMin;
+    master = verdict.maitres[0] ?? '';
     nomsDesGestes = serviceIds.map((sid: string) => verdict.catalogue.find((x) => x.id === sid)?.data?.name ?? sid);
     duCode = remiseDuCode({ code: codeEcrit, serviceIds, branchId, catalogue: verdict.catalogue, offres: verdict.offres });
     /* Une fois par personne : la remise tombe, la réservation tient. */
@@ -1193,6 +1817,10 @@ Deno.serve(async (req) => {
       date,
       time,
       master,
+      /* LA DURÉE SE FIGE À LA POSE (9 octobre 2026), comme au Trône depuis le
+         1er septembre : le carnet et les créneaux occupés lisent celle-ci,
+         pas le catalogue du jour où on les regarde. */
+      dureeMin,
       status: 'confirmé',
       source: 'site',
       creeLe: now,
@@ -1203,16 +1831,25 @@ Deno.serve(async (req) => {
       ...(duCode.raison ? { codeRaison: duCode.raison } : {}),
       ...(duCode.remisesLignes ? { remisesLignes: duCode.remisesLignes } : {}),
     };
-    const { error: errRdv } = await admin.from('appointments').insert({ id: candidat, branch_id: branchId, data: appt });
-    if (!errRdv) {
+    /* LE VERROU — 9 octobre 2026 (`pose_si_libre`, 0125). Entre la lecture
+       ci-dessus et l'écriture, une autre porte (WhatsApp, un second onglet) a
+       pu prendre la place : sous un verrou par maison et par jour, la base
+       rejoue le plafond, les fauteuils et les maîtres, prend le premier
+       encore libre, et écrit le rendez-vous avec sa durée figée. Plus jamais
+       d'insertion directe : deux poses au même instant ne passent plus. */
+    const { data: pose, error: errPose } = await admin.rpc('pose_si_libre', { p_rdv: appt, p_maitres: maitresLibres });
+    const posee = (pose ?? null) as { ok?: boolean; verdict?: string; id?: string; master?: string; raison?: string } | null;
+    if (!errPose && posee?.ok === true && posee.id === candidat) {
       apptId = candidat;
       /* L'USAGE SE POSE ICI, ET NULLE PART AILLEURS : le code n'est consommé
          qu'une fois le rendez-vous réellement inscrit avec sa remise. Un
          rendez-vous que la base refuse ne prend pas la fois de la cliente. */
       const applique = duCode.remisesLignes ? { codeApplique: true } : {};
-      await admin.from('demandes').update({ data: { ...demande, apptId, ...applique } }).eq('id', id);
+      await admin.from('demandes').update({ data: { ...demande, apptId, master: posee.master ?? master, ...applique } }).eq('id', id);
+    } else {
+      console.error('demande-submit: place non posée', errPose?.message ?? posee?.raison ?? 'réponse vide');
     }
-    /* Si l'écriture échoue, la demande vit quand même et la Maison
+    /* Si le verrou refuse ou se tait, la demande vit quand même et la Maison
        rappellera : on ne perd jamais une visiteuse pour une ligne. */
   }
 
@@ -1233,9 +1870,9 @@ Deno.serve(async (req) => {
 
   const quand = avecPlace ? ` · ${date} à ${time}` : '';
   const sent = await alerteLePersonnel(
-    avecPlace ? 'Réservé depuis le site' : (genre === 'rdv' ? 'Demande de rendez-vous depuis le site' : 'Nouvelle demande depuis le site'),
+    apptId ? 'Réservé depuis le site' : (genre === 'rdv' ? 'Demande de rendez-vous depuis le site' : 'Nouvelle demande depuis le site'),
     `${prenom || 'Une visiteuse'} · ${besoin}${quand}`,
-    avecPlace ? '/trone/#/calendrier' : '/trone/#/demandes',
+    apptId ? '/trone/#/calendrier' : '/trone/#/demandes',
   ).catch(() => 0);
   /* LA RAISON REMONTE À LA PAGE : « déjà utilisé » se dit au clic, pas au
      comptoir. `codeApplique` dit si la remise a réellement porté. */

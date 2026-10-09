@@ -1,6 +1,10 @@
 import { createStore, useStore } from './store';
 import { bindCollection, bindDocument } from './sync';
 import { estEnvoiAutomatique } from './envois';
+import {
+  vueDeLAutomate, silenceDeLAlarme, REGLAGE_LIVRE,
+  type EtapeDuFil, type VueDeLAutomate, type EtatDuFil, type MainDuFil, type TenueDuFil,
+} from './automate-wa';
 
 /* ══ LES CONVERSATIONS — 11 septembre 2026 ═══════════════════════════
    Maquette `public/maquette-les-conversations.html`, validée.
@@ -23,8 +27,8 @@ import { estEnvoiAutomatique } from './envois';
 
 /** Le numéro réduit à ses chiffres, au format que Meta emploie (sans « + »).
 
-    LE RAPPROCHEMENT SE JOUE ICI. Une fiche porte « +229 0166144465 », Meta
-    renvoie « 2290166144465 », et si les deux ne se réduisent pas au même
+    LE RAPPROCHEMENT SE JOUE ICI. Une fiche porte « +229 0197000088 », Meta
+    renvoie « 2290197000088 », et si les deux ne se réduisent pas au même
     chiffre, les messages d'une cliente tombent dans « inconnu » à côté de sa
     propre fiche. Même règle que `numeroIntl` des fonctions Edge, recopiée
     parce qu'une fonction Edge ne peut rien importer d'ici. */
@@ -170,7 +174,14 @@ export type MessageWa = {
   /** UN MESSAGE PARTI TOUT SEUL, et pourquoi : l'accusé d'un devis reçu, le
       formulaire de congé proposé. Deux seulement, dits d'avance dans la
       maquette. Ils portent `parQui: 'Le Trône'`. */
-  auto?: 'accuse' | 'formulaire' | 'transmis' | 'reprise-ok' | 'reprise-autre';
+  auto?: 'accuse' | 'formulaire' | 'transmis' | 'reprise-ok' | 'reprise-autre' | 'automate';
+  /** LA RÉPONSE AUTOMATIQUE QUI RÉSERVE · 9 octobre 2026 (`shared/automate-wa`).
+      Un message `auto: 'automate'` dit l'étape qu'il ouvre et les choix
+      qu'il proposait, tels qu'elle les a lus : le fil du Trône les montre au
+      lieu de « Parti tout seul ». Il ne compte JAMAIS comme une réponse de
+      la Maison (la règle d'alarme le saute). */
+  etape?: EtapeDuFil;
+  choix?: string[];
   /** UNE PIÈCE REÇUE D'UN PRESTATAIRE, RANGÉE DANS SON DOSSIER — l'identifiant
       de l'engagement. Absent avec une pièce : elle attend « à ranger ». */
   rangeDans?: string;
@@ -412,6 +423,10 @@ export type Fil = {
   tiroir: Tiroir;
   /** Où s'ouvre sa fiche dans le Trône, quand elle en a une. */
   fiche?: string;
+  /** CE QUE LA RÉPONSE AUTOMATIQUE EN FAIT · 9 octobre 2026 : tenu, en
+      pause, main passée, fini (`vueDeLAutomate`, shared/automate-wa).
+      Absent : l'automate n'a jamais touché ce fil. */
+  automate?: VueDeLAutomate;
 };
 
 export type TeteConnue = {
@@ -497,6 +512,10 @@ export function filsDeLaMaison(
   prives: readonly string[],
   maintenant: number,
   branchId?: string,
+  /** CE QUE LA RÉPONSE AUTOMATIQUE FAIT DE CHAQUE NUMÉRO (9 octobre 2026),
+      tiré de `fils_automate` par `automatesDesFils`. Absent : l'écran juge
+      comme avant, un message de l'automate ne répondant toujours pas. */
+  automates?: AutomatesDesFils,
 ): Fil[] {
   /* LE RAPPROCHEMENT PAR NUMÉRO, LES DEUX LIGNES DE LA FICHE. Le second
      numéro est un recours (un mari, une sœur) : un message qui en vient
@@ -542,8 +561,25 @@ export function filsDeLaMaison(
        ait lu sa question. Le juge regarde donc le dernier message qui COMPTE :
        un modèle envoyé automatiquement n’en est pas un. Ce qu’une personne
        écrit de sa main, modèle ou non, répond toujours. */
+    /* ══ L'AUTOMATE NE RÉPOND PAS À LA PLACE DE LA MAISON · 9 octobre 2026 ══
+       Ses messages (`auto: 'automate'`) se sautent comme les modèles partis
+       seuls : s'il échoue, se tait ou passe la main, la question d'elle reste
+       la dernière qui compte, et l'alarme sonne. Ce qui l'éteint, c'est le fil
+       lui-même (`laReponseDeLAutomateSuffit`) : un parcours qu'il mène et dont
+       il a traité le dernier mot n'attend pas la Maison. */
     const dernierQuiCompte = [...liste].reverse()
-      .find((x) => !(x.sens === 'sortant' && !!x.modele && estEnvoiAutomatique(x.parQui))) ?? dernier;
+      .find((x) => !(x.sens === 'sortant'
+        && ((!!x.modele && estEnvoiAutomatique(x.parQui)) || x.auto === 'automate'))) ?? dernier;
+    const elleAttend = dernierQuiCompte.sens === 'entrant';
+    const auto = automates?.get(numero);
+    const vue = vueDuNumero(automates, numero, maintenant);
+    /* UNE RÉPONSE DE L'AUTOMATE QUE META N'A PAS REMISE ne répond à rien
+       (relecture du 9 octobre 2026) : acceptée à l'envoi, elle est revenue
+       « non remis » par l'accusé. Elle attend toujours, l'alarme sonne. */
+    const reponseNonRemise = elleAttend && liste.some((x) => x.sens === 'sortant' && x.auto === 'automate'
+      && x.etat === 'non-remis' && x.quand >= dernierQuiCompte.quand);
+    const repondueParLAutomate = elleAttend && !reponseNonRemise && !!vue && !!auto
+      && laReponseDeLAutomateSuffit(vue.tenue, auto.fil, dernierQuiCompte.quand, maintenant);
     fils.push({
       numero,
       /* `clientId` reste celui d'une CLIENTE : une tête d'équipe ne l'est
@@ -556,9 +592,10 @@ export function filsDeLaMaison(
       messages: liste,
       dernier,
       fenetre: fenetreDe(liste, maintenant),
-      attendUneReponse: dernierQuiCompte.sens === 'entrant',
+      attendUneReponse: elleAttend && !repondueParLAutomate,
       tiroir: tete?.tiroir ?? tiroirDesMessages(liste),
       fiche: tete?.fiche,
+      ...(vue ? { automate: vue } : {}),
     });
   }
 
@@ -989,13 +1026,19 @@ export function messagesQuiSonnent(o: {
   filOuvert?: string;
   /** Vrai tant que le premier chargement n'est pas passé. */
   premiereLecture: boolean;
+  /** ⑤ LES FILS QUE L'AUTOMATE MÈNE (9 octobre 2026, `numerosTenus`) : elle
+      touche un choix, il lui répond dans la seconde ; la Maison n'a rien à
+      faire, la sonnette se tait. Une main passée sonne de nouveau. */
+  tenus?: Iterable<string>;
 }): MessageWa[] {
   if (o.premiereLecture) return [];
   const connus = new Set(o.avant.map((m) => m.id));
   const ouvert = numeroWa(o.filOuvert);
+  const tenus = new Set([...(o.tenus ?? [])].map((n) => numeroWa(n)).filter(Boolean));
   return o.apres.filter((m) => !connus.has(m.id)
     && m.sens === 'entrant'
-    && !(ouvert && numeroWa(m.numero) === ouvert));
+    && !(ouvert && numeroWa(m.numero) === ouvert)
+    && !tenus.has(numeroWa(m.numero)));
 }
 
 /** CE QUE LA CLOCHE DOIT COMPTER : les fils dont le dernier mot vient d'elle
@@ -1086,6 +1129,216 @@ export function alerteDuTelephone(
   };
 }
 
+/* ══ LA MAISON RÉPOND SUR WHATSAPP · 9 octobre 2026 ═══════════════════════
+   Maquette « Réserver sur WhatsApp », validée le 9 octobre 2026 (façon B).
+   La réponse automatique (`shared/automate-wa`, fonction `whatsapp-automate`)
+   parle aux clientes qui demandent un rendez-vous, leur propose de vraies
+   places et pose le rendez-vous confirmé à leur « Je confirme ».
+
+   DEUX LIGNES PAR NUMÉRO dans `fils_automate` (0125) :
+     · `fil-<numéro>`, l'état du parcours. Le SERVEUR seul l'écrit : le
+       Trône le lit, et la base ignorerait sans un mot ce qu'il y écrirait ;
+     · `main-<numéro>`, la main de l'équipe. Prendre ou rendre la main est un
+       geste de la main : il passe par le magasin, comme tout geste du Trône.
+       La base n'en garde que l'heure de la pause, sa fin, son motif et
+       l'heure où elle a été rendue, 72 heures au plus, et signe elle-même qui.
+
+   CE QUE L'ÉCRAN EN TIRE : la pastille, le bandeau, et la règle d'alarme
+   (`laReponseDeLAutomateSuffit`). Un message de l'automate ne répond jamais
+   à la place de la Maison ; c'est le fil qui dit s'il a fait le travail. */
+
+/** Une ligne de `fils_automate`, telle que la base la rend : l'état du
+    parcours ou la main de l'équipe (voir `automatesDesFils`). */
+export type LigneDesFilsAutomate = { id: string; branchId?: string; numero?: string; [champ: string]: unknown };
+
+export const filsAutomateStore = createStore<LigneDesFilsAutomate[]>('mnd_fils_automate', []);
+export const useFilsAutomate = () => useStore(filsAutomateStore);
+
+/** Ce que la base sait d'un numéro : son parcours, la main de l'équipe, et
+    combien d'heures une main tient (le réglage `automateWa.pauseHeures`). */
+export type AutomateDuNumero = { fil: EtatDuFil | null; main: MainDuFil | null; pauseHeures: number };
+export type AutomatesDesFils = ReadonlyMap<string, AutomateDuNumero>;
+
+/** LE GENRE D'UNE LIGNE, à son identifiant ; à défaut, à sa forme (un
+    parcours a une étape, une main a ses heures). */
+const genreDeLaLigne = (l: LigneDesFilsAutomate): 'fil' | 'main' | null => {
+  const id = typeof l.id === 'string' ? l.id : '';
+  if (id.startsWith('fil-')) return 'fil';
+  if (id.startsWith('main-')) return 'main';
+  if (typeof l.etape === 'string') return 'fil';
+  if ('pauseLe' in l || 'rendueLe' in l || 'jusqua' in l) return 'main';
+  return null;
+};
+
+/** LES LIGNES DE LA TABLE, RANGÉES PAR NUMÉRO (réduit, `numeroWa`). */
+export function automatesDesFils(
+  lignes: readonly LigneDesFilsAutomate[],
+  pauseHeures: number = REGLAGE_LIVRE.pauseHeures,
+): Map<string, AutomateDuNumero> {
+  const m = new Map<string, AutomateDuNumero>();
+  for (const l of lignes) {
+    if (!l || typeof l !== 'object') continue;
+    const genre = genreDeLaLigne(l);
+    if (!genre) continue;
+    const brut = typeof l.numero === 'string' && l.numero
+      ? l.numero
+      : (typeof l.id === 'string' ? l.id.replace(/^(fil|main)-/, '') : '');
+    const n = numeroWa(brut);
+    if (!n) continue;
+    const a = m.get(n) ?? { fil: null, main: null, pauseHeures };
+    if (genre === 'fil') a.fil = l as unknown as EtatDuFil;
+    else a.main = l as unknown as MainDuFil;
+    m.set(n, a);
+  }
+  return m;
+}
+
+/** CE QUE L'AUTOMATE FAIT DE CE NUMÉRO, maintenant. `undefined` tant qu'il
+    n'a jamais mené ce fil : une main posée par `whatsapp-envoi` sur une
+    conversation ordinaire (il pose la pause à chaque envoi de l'équipe) ne
+    fait ni pastille ni bandeau. */
+export function vueDuNumero(
+  automates: AutomatesDesFils | undefined, numero: string, maintenant: number,
+): VueDeLAutomate | undefined {
+  const a = automates?.get(numeroWa(numero));
+  if (!a?.fil) return undefined;
+  return vueDeLAutomate(a.fil, a.main, maintenant, a.pauseHeures);
+}
+
+/** LE DERNIER MOT D'ELLE A-T-IL EU SA RÉPONSE PAR L'AUTOMATE ?
+
+    Oui quand il mène le fil, ou vient de le finir (rendez-vous posé, parcours
+    arrêté), et qu'il a traité ce mot-là ; oui aussi pour un message de moins
+    d'une minute sur un fil qu'il mène, le temps d'un tour (`silenceDeLAlarme`).
+
+    OUI ENCORE QUAND LE FIL EST RETOMBÉ AU REPOS sans que la main ait passé :
+    le rendez-vous de la veille, un parcours qu'elle a laissé en route. Il a
+    répondu à son dernier mot, c'est elle qui n'a pas poursuivi. Sans cela,
+    chaque fil mené par l'automate redeviendrait « en attente » au bout de
+    24 heures, et remonterait en tête pour toujours.
+
+    NON pour une main passée (elle attend une personne), une pause de
+    l'équipe (l'équipe a pris la main, c'est à elle de répondre), et tout mot
+    arrivé après ce qu'il a traité. */
+export function laReponseDeLAutomateSuffit(
+  tenue: TenueDuFil, fil: EtatDuFil | null | undefined, sonDernierMot: string | undefined, maintenant: number,
+): boolean {
+  if (silenceDeLAlarme(tenue, fil, sonDernierMot, maintenant)) return true;
+  if (tenue !== 'aucun' || !fil || fil.etape === 'main') return false;
+  const elle = Date.parse(sonDernierMot ?? '');
+  const traite = Date.parse(fil.dernierEntrantQuand ?? '');
+  return Number.isFinite(elle) && Number.isFinite(traite) && elle <= traite;
+}
+
+/** CE QUE LA SONNETTE A VU D'UN FIL MENÉ PAR L'AUTOMATE, d'un rendu à
+    l'autre : attendait-il une réponse, et l'automate le tenait-il ? */
+export type VueDeLaSonnette = ReadonlyMap<string, { attend: boolean; tenue?: TenueDuFil }>;
+
+/** LA MAIN QUI PASSE SONNE (relecture du 9 octobre 2026).
+
+    La sonnette juge un message AU MOMENT OÙ IL ARRIVE : sur un fil que
+    l'automate mène, elle se tait (`messagesQuiSonnent`, ⑤). Quand l'automate
+    passe la main quelques secondes plus tard (« Parler à la Maison », un
+    prix, une photo, deux écarts, un message refusé par Meta) ou échoue son
+    tour, aucun message neuf ne la réveille. C'est donc le PASSAGE qui sonne :
+    un fil que l'automate TENAIT et qui n'attendait rien, et qui attend
+    maintenant une personne. Un fil qui n'était pas tenu a déjà sonné à
+    l'arrivée de son message : il ne sonne pas deux fois. Jamais au premier
+    chargement (`avant` nul), jamais le fil ouvert à l'écran. */
+export function sonnentApresLAutomate(o: {
+  avant: VueDeLaSonnette | null;
+  fils: readonly Pick<Fil, 'numero' | 'attendUneReponse' | 'automate'>[];
+  filOuvert?: string;
+}): { numeros: string[]; vue: Map<string, { attend: boolean; tenue?: TenueDuFil }> } {
+  const vue = new Map<string, { attend: boolean; tenue?: TenueDuFil }>();
+  const numeros: string[] = [];
+  const ouvert = numeroWa(o.filOuvert);
+  for (const f of o.fils) {
+    const n = numeroWa(f.numero);
+    if (!n) continue;
+    vue.set(n, { attend: f.attendUneReponse, ...(f.automate ? { tenue: f.automate.tenue } : {}) });
+    const avant = o.avant?.get(n);
+    if (!o.avant || !avant || avant.attend || avant.tenue !== 'tenu') continue;
+    if (!f.attendUneReponse || (ouvert && n === ouvert)) continue;
+    numeros.push(n);
+  }
+  return { numeros, vue };
+}
+
+/** LES NUMÉROS QUE L'AUTOMATE MÈNE EN CE MOMENT : la sonnette s'y tait. */
+export function numerosTenus(automates: AutomatesDesFils, maintenant: number): Set<string> {
+  const s = new Set<string>();
+  for (const n of automates.keys()) {
+    if (vueDuNumero(automates, n, maintenant)?.tenue === 'tenu') s.add(n);
+  }
+  return s;
+}
+
+const instantDuFil = (iso: unknown): number => {
+  const t = typeof iso === 'string' ? Date.parse(iso) : NaN;
+  return Number.isFinite(t) ? t : 0;
+};
+
+/** L'ÉQUIPE PREND LA MAIN : l'automate se tait sur ce fil pendant
+    `pauseHeures` (24 h livrées). Écrit la seule ligne `main-<numéro>`,
+    jamais le parcours.
+
+    LA PAUSE NE PART JAMAIS AVANT CE QUI L'A RENDUE : si l'horloge du poste
+    retarde sur celle du serveur, une pause posée juste après « Rendre à
+    l'automate » tomberait avant, et ne tiendrait pas. */
+export function poseLaMain(
+  numero: string, motif: string,
+  o: { pauseHeures?: number; maintenant?: number; branchId?: string } = {},
+): boolean {
+  const n = numeroWa(numero);
+  if (!n) return false;
+  const id = `main-${n}`;
+  const heures = Math.min(72, Math.max(1, Math.round(Number(o.pauseHeures) || REGLAGE_LIVRE.pauseHeures)));
+  const maintenant = o.maintenant ?? Date.now();
+  filsAutomateStore.set((prev) => {
+    const avant = prev.find((l) => l.id === id);
+    const pose = Math.max(maintenant, instantDuFil(avant?.rendueLe) + 1);
+    const ligne: LigneDesFilsAutomate = {
+      ...(avant ?? {}),
+      id,
+      numero: n,
+      ...(o.branchId && !avant?.branchId ? { branchId: o.branchId } : {}),
+      pauseLe: new Date(pose).toISOString(),
+      jusqua: new Date(pose + heures * 3_600_000).toISOString(),
+      motif: (motif || 'equipe').slice(0, 40),
+    };
+    return avant ? prev.map((l) => (l.id === id ? ligne : l)) : [...prev, ligne];
+  });
+  return true;
+}
+
+/** L'ÉQUIPE REND LA MAIN À L'AUTOMATE. Il ne dit rien sur le moment : il
+    reprend au prochain message de la cliente, à l'étape où il en était
+    (`etapeCourante`). L'heure rendue n'est jamais avant la pause ni avant la
+    main qu'il avait passée, quelle que soit l'horloge du poste. */
+export function rendsALAutomate(
+  numero: string,
+  o: { maintenant?: number; mainPasseeLe?: string; branchId?: string } = {},
+): boolean {
+  const n = numeroWa(numero);
+  if (!n) return false;
+  const id = `main-${n}`;
+  const maintenant = o.maintenant ?? Date.now();
+  filsAutomateStore.set((prev) => {
+    const avant = prev.find((l) => l.id === id);
+    const rendue = Math.max(maintenant, instantDuFil(avant?.pauseLe), instantDuFil(o.mainPasseeLe));
+    const ligne: LigneDesFilsAutomate = {
+      ...(avant ?? {}),
+      id,
+      numero: n,
+      ...(o.branchId && !avant?.branchId ? { branchId: o.branchId } : {}),
+      rendueLe: new Date(rendue).toISOString(),
+    };
+    return avant ? prev.map((l) => (l.id === id ? ligne : l)) : [...prev, ligne];
+  });
+  return true;
+}
+
 /* LA SYNCHRO — la table `messages_wa` (0086). Le fil vit dans la Maison, pas
    dans un navigateur : une conversation lue sur la tablette du salon doit se
    retrouver sur le téléphone du soir.
@@ -1099,3 +1352,7 @@ bindCollection(messagesWaStore, 'messages_wa');
 /* L'ARCHIVE, ELLE, VOYAGE : voir « Archiver un fil ». */
 bindDocument(filsArchivesStore, 'mnd_fils_archives');
 bindDocument(alarmeRetiresStore, 'mnd_alarme_retires');
+/* LES FILS DE LA RÉPONSE AUTOMATIQUE (0125), en direct : le bandeau suit le
+   parcours étape par étape. Lus par le personnel (clientes) et la direction
+   (tout) ; seule la ligne `main-` part d'ici. */
+bindCollection(filsAutomateStore, 'fils_automate');

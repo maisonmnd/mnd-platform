@@ -3,8 +3,9 @@ import {
   creneauxLibres, dureeDesPrestations, occupesDuJour, ouvertureDuJour, plagesBloquees,
   type CreneauOccupe, type ExceptionDHoraire, type HeureDeLaSemaine, type MurPose,
 } from '../../shared/agenda-pur';
-import { estUneConsultation, masquePourLeSite, priceModeOf, racineOf, type MasquesDuSite } from '../../shared/catalogue-pur';
-import { exigeConsultation, porteDuBesoin, type Besoin } from '../../shared/qualification';
+import { estUneConsultation, type MasquesDuSite } from '../../shared/catalogue-pur';
+import { porteDuBesoin, type Besoin } from '../../shared/qualification';
+import { ATELIERS_RESERVABLES, CONSULTATION_PAR_PARCOURS, reservableSurLeSite } from '../../shared/place-du-serveur';
 import type { Bande } from './prix-calibre';
 import { client } from './maison';
 
@@ -279,34 +280,19 @@ export const jourCourt = (iso: string): { lettre: string; chiffre: string } => {
 
 
 /* ══ CE QUE LE SITE OUVRE À LA RÉSERVATION ═════════════════════════
-   Deux ateliers, et c'est délibéré : l'Entretien (avec ses familles, les
-   lavages, les soins, les reprises de racines, les sorties signature) et la
-   Coloration. Tout le reste ne se prend pas d'un clic par une inconnue : une
-   création et une restauration passent par la consultation, les formations
-   sont des candidatures, les mèches et les fournitures ne sont pas des
-   rendez-vous, et MND Kids commence par un échange avec les parents.
+   Deux ateliers (l'Entretien et la Coloration), et la consultation de chaque
+   porte (le KÒKÒ Origine, le KÒKÒ Suivi, le Conseil et diagnostic). DEPUIS LE
+   9 OCTOBRE 2026, LA RÈGLE VIT DANS `shared/place-du-serveur` : la même
+   ligne sert à cet écran pour proposer, et au serveur (`demande-submit`,
+   `whatsapp-automate`) pour refuser. Une règle tenue à deux endroits finit
+   toujours par diverger, et c'est au comptoir qu'on l'apprend. Les deux
+   constantes se ré-exportent ici : rien n'a changé d'adresse pour le site.
 
    POURQUOI PAS LES MASQUES DE LA VITRINE, qui sont pourtant lisibles ici :
    ils règlent la carte du comptoir et Ma Couronne, deux surfaces où la
    Maison a choisi de cacher le Diagnostic, la Création et la Renaissance.
    Les suivre aurait caché exactement ce que ce site doit faire réserver. */
-export const ATELIERS_RESERVABLES: readonly string[] = ['atl-ii-gbeji', 'atl-iii-yekpe'];
-
-/* LA CONSULTATION DE CHAQUE PORTE — 17 septembre 2026, dictée par la Maison :
-   « Le parcours 1 c'est le KÒKÒ Origine, première couronne ; le parcours 2
-   c'est le KÒKÒ Suivi ; la consultation de MND Kids c'est Conseil et
-   diagnostic. » Une visiteuse qui vient créer sa couronne n'a pas à choisir
-   entre trois diagnostics : on lui propose LE SIEN.
-
-   CE SONT DES IDENTIFIANTS, et on a appris ce matin ce qu'ils valent quand la
-   Maison renomme : si celui-ci a disparu, on montre TOUTES les consultations
-   plutôt qu'une page vide. Le prix n'est jamais écrit ici, il se lit sur le
-   catalogue. */
-export const CONSULTATION_PAR_PARCOURS: Readonly<Partial<Record<Besoin, string>>> = {
-  creation: 'sv-koko-ori',
-  reparation: 'sv-koko-sui',
-  enfant: 'svc-doto-conseil',
-};
+export { ATELIERS_RESERVABLES, CONSULTATION_PAR_PARCOURS };
 
 /** Les prestations que CETTE porte autorise à réserver. Vide = l'écran
     retombe sur la demande de rappel, jamais sur une page morte. */
@@ -315,7 +301,7 @@ export function prestationsReservables(agenda: AgendaDeLaMaison, besoin: Besoin)
   /* CE QUE LA MAISON A DÉCOCHÉ NE SE PROPOSE PLUS (17 septembre 2026). Le
      même juge sert à `demande-submit`, qui REFUSE : sans lui, décocher ne
      serait qu'un décor. */
-  const offert = (s: PrestationPublique) => !masquePourLeSite(s, agenda.masques, cats);
+  const offert = (s: PrestationPublique) => reservableSurLeSite(s, cats, agenda.masques);
   if (porteDuBesoin(besoin) === 'consultation') {
     const consultations = agenda.services.filter((s) => estUneConsultation(s, cats) && offert(s));
     const sienne = CONSULTATION_PAR_PARCOURS[besoin];
@@ -324,14 +310,9 @@ export function prestationsReservables(agenda: AgendaDeLaMaison, besoin: Besoin)
        jamais la porte sur un identifiant qui a changé de nom. */
     return laSienne.length > 0 ? laSienne : consultations;
   }
-  return agenda.services.filter((s) => {
-    if (!offert(s)) return false;
-    if (estUneConsultation(s, cats)) return false;
-    if (exigeConsultation(s, cats)) return false;
-    if (priceModeOf(s) === 'devis') return false;
-    const racine = racineOf(cats, s.categoryId)?.id ?? s.categoryId;
-    return ATELIERS_RESERVABLES.includes(racine);
-  });
+  /* Un geste d'un atelier réservable, sans consultation exigée, ni devis
+     (`reservableSurLeSite`) ; une consultation n'est pas un entretien. */
+  return agenda.services.filter((s) => !estUneConsultation(s, cats) && offert(s));
 }
 
 /* SIX GESTES AU PLUS DANS UNE MÊME VENUE — 18 septembre 2026.

@@ -1,6 +1,7 @@
 import { createStore, useStore } from './store';
 import { bindCollection } from './sync';
 import type { Client } from './clients';
+import { CIVILITES, ficheAvecCivilite, type Civilite } from './civilite';
 
 /* ══ LES DEMANDES VENUES DU SITE · 17 septembre 2026 ═══════════════════
    Le site révélateur dépose des DEMANDES sans compte : un prospect qui
@@ -53,7 +54,11 @@ export type Demande = {
   besoin: BesoinDeLaDemande;
   profil?: string;            // « Je n'ai pas encore de locks », « J'ai des locks créées ailleurs »…
   mot?: string;               // le message libre
-  source: 'site';
+  /* 'whatsapp' · 9 octobre 2026 : une inconnue a réservé sur WhatsApp
+     (`shared/automate-wa`) et a choisi sa civilité. La fiche née au
+     rattachement l'emporte, avec sa provenance (`ficheDepuisLaDemande`). */
+  source: 'site' | 'whatsapp';
+  civilite?: Civilite;
   page?: string;              // le chemin de la page d'où elle vient (/premiere-couronne/)
   campagne?: string;          // utm_campaign s'il y en a une
   consentementLe: string;     // ISO, la case cochée
@@ -227,9 +232,20 @@ export function ficheDepuisLaDemande(d: Demande, persona: string): Client {
     segments: [SEGMENT_PROSPECT],
     priceCoef: 1,
     loyaltyPoints: 0,
-    source: 'site',
+    /* La provenance de la DEMANDE (9 octobre 2026) : une fiche née d'une
+       réservation WhatsApp ne se dit pas venue du site. */
+    source: d.source === 'whatsapp' ? 'whatsapp' : 'site',
     consentementLe: d.consentementLe,
   };
+  /* LA CIVILITÉ QU'ELLE A CHOISIE (WhatsApp, 9 octobre 2026) passe sur sa
+     fiche, par le même geste qu'au Trône : « Monsieur » marque aussi la fiche
+     au masculin, pour les cartes. Rien de dit : rien d'écrit, elle reste une
+     dame comme toute fiche muette. */
+  if (d.civilite && CIVILITES.some((c) => c.cle === d.civilite)) {
+    const civ = ficheAvecCivilite(d.civilite);
+    fiche.civilite = civ.civilite;
+    if (civ.auMasculin) fiche.auMasculin = true;
+  }
   if (d.email?.trim()) fiche.email = d.email.trim();
   if (d.lockCount && d.lockCount > 0) fiche.lockCount = Math.round(d.lockCount);
   if (d.page) fiche.pageOrigine = d.page;
@@ -251,7 +267,19 @@ export function ficheDepuisLaDemande(d: Demande, persona: string): Client {
 
    LA FICHE QUI A DÉJÀ CE NUMÉRO L'EMPORTE : deux fiches pour une tête, ce
    sont deux histoires qui ne se retrouvent plus. Pur ; éprouvé par
-   `verifie-demandes`. */
+   `verifie-demandes`.
+
+   LE PREMIER NUMÉRO SEUL — relecture du 9 octobre 2026. Le second numéro
+   (`phone2`) est un recours, celui d'un mari ou d'une sœur : une visiteuse
+   du site qui réserve avec le numéro de sa sœur ne devient pas sa sœur (sa
+   confirmation, sa venue, ses points partiraient chez l'autre). Une cliente
+   qui écrit sur WhatsApp depuis ce second numéro, l'automate la reconnaît
+   déjà par `fiches_du_numero` : il ne crée pas de demande pour elle.
+
+   SUR WHATSAPP, LE PRÉNOM AUSSI : sur un numéro qui porte la fiche d'une
+   enfant, la maman qui réserve « Pour moi » laisse une demande à SON
+   prénom. La fiche du numéro ne l'emporte que si elle porte ce prénom-là ;
+   sinon une fiche naît pour elle. */
 export type Rattachement = {
   apptId: string;
   demande: Demande;
@@ -259,10 +287,18 @@ export type Rattachement = {
   ficheExistante?: Pick<Client, 'id' | 'name'>;
 };
 
+/** Le même prénom, sans accents ni majuscules : « Grâce » est « grace ». */
+const memePrenom = (nom: string | undefined, prenom: string | undefined): boolean => {
+  const premier = (s: string | undefined) => String(s ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .trim().split(/\s+/)[0]?.toLowerCase() ?? '';
+  const a = premier(nom);
+  return a !== '' && a === premier(prenom);
+};
+
 export function rattachementsAFaire(
   appts: readonly { id: string; status: string; clientId?: string }[],
   demandes: readonly Demande[],
-  clients: readonly Pick<Client, 'id' | 'name' | 'phone' | 'archived'>[],
+  clients: readonly (Pick<Client, 'id' | 'name' | 'phone' | 'archived'> & Partial<Pick<Client, 'phone2'>>)[],
 ): Rattachement[] {
   const parRdv = new Map<string, Demande>();
   for (const d of demandes) if (d.apptId) parRdv.set(d.apptId, d);
@@ -273,7 +309,8 @@ export function rattachementsAFaire(
     if (!demande) continue;
     const numero = telephoneNormalise(demande.telephone);
     const ficheExistante = numero
-      ? clients.find((c) => !c.archived && telephoneNormalise(c.phone ?? '') === numero)
+      ? clients.find((c) => !c.archived && telephoneNormalise(c.phone ?? '') === numero
+        && (demande.source !== 'whatsapp' || memePrenom(c.name, demande.prenom)))
       : undefined;
     out.push({ apptId: a.id, demande, ...(ficheExistante ? { ficheExistante: { id: ficheExistante.id, name: ficheExistante.name } } : {}) });
   }

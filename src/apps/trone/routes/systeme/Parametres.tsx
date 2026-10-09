@@ -48,6 +48,9 @@ type ToggleRow = { k: string; l: string; sub: string };
    partagée. Même clé (`mnd_house_identity`) : rien à migrer. */
 import { useHouseIdentity, type HouseIdentity } from '../../../../shared/identite';
 import { ChampDeDate } from '../../../../ds/dates';
+import { reglageDeLAutomate, type ModeDeLAutomate, type ReglageDeLAutomate } from '../../../../shared/automate-wa';
+import { numeroWa } from '../../../../shared/conversations';
+import { useEstDirection } from '../_vie';
 
 const FUSEAU_OPTIONS = [
   'Cotonou · GMT+1', 'Abidjan · GMT', 'Lomé · GMT', 'Dakar · GMT',
@@ -1095,6 +1098,195 @@ function SommaireParametres() {
   );
 }
 
+/* ══ LA MAISON RÉPOND SUR WHATSAPP · 9 octobre 2026 ═══════════════════
+   Maquette « Réserver sur WhatsApp », validée le 9 octobre 2026. Décision de
+   la direction : un interrupteur à trois positions, éteint, essai, ouvert.
+   LIVRÉ EN ESSAI AVEC UNE LISTE VIDE : personne n'est servi tant que la
+   direction n'a pas saisi ses numéros. La base remet le réglage en forme et
+   ne laisse que la direction le changer (0125) ; ici, on ne fait que le
+   dire, et le montrer en lecture au reste du personnel. */
+const MODES_DE_L_AUTOMATE: { value: ModeDeLAutomate; label: string; dit: string }[] = [
+  { value: 'eteint', label: 'Éteint', dit: 'Personne n’est servi : l’équipe répond à tout, comme avant.' },
+  { value: 'essai', label: 'Essai', dit: 'Seuls les numéros d’essai ci-dessous sont servis, même rangés dans Équipe. Toutes les autres clientes reçoivent la réponse de l’équipe.' },
+  { value: 'ouvert', label: 'Ouvert', dit: 'Toutes les clientes qui écrivent pour un rendez-vous sont servies, et les numéros d’essai aussi. Jamais l’équipe ni les prestataires.' },
+];
+const HORIZONS_DES_PLACES = [7, 10, 14, 21, 30];
+const DUREES_DE_LA_MAIN = [1, 2, 4, 8, 12, 24, 48, 72];
+
+function LaMaisonRepondSurWhatsApp({ brut, ecris }: {
+  brut: Partial<ReglageDeLAutomate> | undefined;
+  ecris: (r: ReglageDeLAutomate) => void;
+}) {
+  const estDirection = useEstDirection();
+  const [equipe] = useStaff();
+  const [clients] = useClients();
+  const [saisi, setSaisi] = useState('');
+  const r = reglageDeLAutomate(brut);
+  const change = (patch: Partial<ReglageDeLAutomate>) => {
+    if (!estDirection) { toast('Ce réglage appartient à la direction.'); return; }
+    ecris({ ...r, ...patch });
+  };
+  const ajoute = () => {
+    const n = numeroWa(saisi);
+    if (n.length < 8) { toast('Ce numéro n’est pas lisible. Huit chiffres, ou le numéro complet avec son indicatif.'); return; }
+    if (r.numerosEssai.includes(n)) { toast('Ce numéro est déjà servi en essai.'); setSaisi(''); return; }
+    if (r.numerosEssai.length >= 20) { toast('Vingt numéros d’essai au plus.'); return; }
+    change({ numerosEssai: [...r.numerosEssai, n] });
+    setSaisi('');
+  };
+  /* À QUI EST CE NUMÉRO : l'équipe d'abord, comme la base range les fils. */
+  const quiEst = (n: string): string | null => {
+    const m = equipe.find((x) => numeroWa(x.phone) === n);
+    if (m) return `${m.name.split(' ')[0]} · équipe`;
+    const c = clients.find((x) => numeroWa(x.phone) === n || numeroWa(x.phone2) === n);
+    return c ? c.name.split(' ')[0] : null;
+  };
+  const personne = r.mode === 'eteint' || (r.mode === 'essai' && r.numerosEssai.length === 0);
+  /* UN NUMÉRO D'ESSAI PORTÉ PAR UNE FICHE CLIENTE (relecture du 9 octobre
+     2026) : en essai, l'automate ne pose que sur une fiche dont c'est le
+     PREMIER numéro, et ce rendez-vous-là est un vrai rendez-vous confirmé
+     (sa confirmation, son rappel). On le dit avant l'essai. */
+  const fichesDesEssais = r.numerosEssai.flatMap((n) => clients
+    .filter((c) => !c.archived && (numeroWa(c.phone) === n || numeroWa(c.phone2) === n))
+    .map((c) => {
+      const prenom = c.name.split(' ')[0];
+      return numeroWa(c.phone) === n
+        ? `le +${n} est le numéro de ${prenom} : un essai « pour ${prenom} » pose un vrai rendez-vous confirmé sur sa fiche`
+        : `le +${n} n’est que le second numéro de ${prenom} : l’essai ne touche jamais sa fiche`;
+    }));
+  const mode = MODES_DE_L_AUTOMATE.find((m) => m.value === r.mode) ?? MODES_DE_L_AUTOMATE[1];
+  const choixDe = (liste: number[], v: number) => (liste.includes(v) ? liste : [...liste, v].sort((a, b) => a - b));
+
+  return (
+    <Card className="sys-section" style={{ marginTop: 18 }}>
+      <div className="sys-section__title">La Maison répond sur WhatsApp</div>
+      <div className="sys-section__cap" style={{ maxWidth: 680 }}>
+        Quand une cliente écrit pour un rendez-vous, la Maison lui répond seule, lui propose de vraies
+        places libres et pose le rendez-vous confirmé à son « Je confirme », la nuit comprise. Jamais de
+        prix, jamais d’annulation, jamais le jour même ; une création passe toujours par sa consultation.
+        Au deuxième message non compris, à une question de prix, à un vocal ou une photo, la main passe à
+        l’équipe et l’alarme sonne.
+      </div>
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginTop: 6 }}>
+        <div className="mnd-segs" role="radiogroup" aria-label="La réponse automatique">
+          {MODES_DE_L_AUTOMATE.map((m) => (
+            <button
+              key={m.value}
+              type="button"
+              role="radio"
+              aria-checked={r.mode === m.value}
+              className={`mnd-seg ${r.mode === m.value ? 'is-active' : ''}`}
+              disabled={!estDirection}
+              style={!estDirection ? { cursor: 'not-allowed' } : undefined}
+              onClick={() => change({ mode: m.value })}
+            >
+              {m.label}
+            </button>
+          ))}
+        </div>
+        <span className="mnd-muted" style={{ fontSize: 12, maxWidth: '52ch', lineHeight: 1.5 }}>{mode.dit}</span>
+      </div>
+
+      {personne && (
+        <div style={{
+          marginTop: 12, padding: '9px 12px', borderLeft: '3px solid var(--color-brique, #96412E)',
+          background: '#F7E4E0', color: '#6E2618', fontSize: 12.5, lineHeight: 1.5, borderRadius: 3, maxWidth: 680,
+        }}>
+          <b>Personne n’est servi.</b>{' '}
+          {r.mode === 'eteint'
+            ? 'La réponse automatique est éteinte.'
+            : 'En essai, seuls les numéros saisis ci-dessous sont servis, et la liste est vide.'}
+        </div>
+      )}
+
+      <div style={{ borderTop: '1px solid var(--hairline)', marginTop: 16, paddingTop: 14 }}>
+        <div style={{ fontFamily: 'var(--font-serif)', fontSize: 17, color: 'var(--color-indigo)' }}>
+          Les numéros d’essai
+        </div>
+        <div className="mnd-muted" style={{ fontSize: 12, marginTop: 2, lineHeight: 1.5, maxWidth: 640 }}>
+          Servis en essai comme en ouvert, même rangés dans Équipe. Vingt au plus.
+        </div>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 10 }}>
+          {r.numerosEssai.length === 0 && <span className="mnd-muted" style={{ fontSize: 12.5 }}>Aucun numéro.</span>}
+          {fichesDesEssais.length > 0 && (
+            <div style={{
+              flexBasis: '100%', padding: '9px 12px', borderLeft: '3px solid var(--color-brique, #96412E)',
+              background: '#F7E4E0', color: '#6E2618', fontSize: 12.5, lineHeight: 1.5, borderRadius: 3, maxWidth: 680,
+            }}>
+              <b>Des fiches clientes portent ces numéros.</b>{' '}
+              {fichesDesEssais.join(' ; ')}.
+            </div>
+          )}
+          {r.numerosEssai.map((n) => {
+            const qui = quiEst(n);
+            return (
+              <span key={n} className="tre-chip is-on" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, cursor: 'default' }}>
+                +{n}{qui ? ` · ${qui}` : ''}
+                {estDirection && (
+                  <button
+                    type="button"
+                    onClick={() => change({ numerosEssai: r.numerosEssai.filter((x) => x !== n) })}
+                    aria-label={`Retirer le +${n}`}
+                    style={{ border: 0, background: 'none', cursor: 'pointer', font: 'inherit', color: 'inherit', textDecoration: 'underline', padding: 0 }}
+                  >
+                    Retirer
+                  </button>
+                )}
+              </span>
+            );
+          })}
+        </div>
+        {estDirection && (
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 10, maxWidth: 480 }}>
+            <Input
+              value={saisi}
+              onChange={(e) => setSaisi(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); ajoute(); } }}
+              placeholder="+229 01 97 00 00 00"
+              aria-label="Un numéro d’essai"
+              style={{ flex: 1, minWidth: 180 }}
+            />
+            <Button variant="ghost" size="sm" onClick={ajoute} disabled={!numeroWa(saisi)}>Ajouter</Button>
+          </div>
+        )}
+      </div>
+
+      <div className="tr-grid tr-grid--2" style={{ marginTop: 16 }}>
+        <label className="mnd-field">
+          <span className="mnd-field__label">Les places proposées, jusqu’à</span>
+          <Select
+            value={String(r.horizonJours)}
+            disabled={!estDirection}
+            onChange={(e) => change({ horizonJours: Number(e.target.value) })}
+          >
+            {choixDe(HORIZONS_DES_PLACES, r.horizonJours).map((j) => (
+              <option key={j} value={j}>{j} jours</option>
+            ))}
+          </Select>
+        </label>
+        <label className="mnd-field">
+          <span className="mnd-field__label">La main de l’équipe tient</span>
+          <Select
+            value={String(r.pauseHeures)}
+            disabled={!estDirection}
+            onChange={(e) => change({ pauseHeures: Number(e.target.value) })}
+          >
+            {choixDe(DUREES_DE_LA_MAIN, r.pauseHeures).map((h) => (
+              <option key={h} value={h}>{h} h</option>
+            ))}
+          </Select>
+        </label>
+      </div>
+      <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 8, lineHeight: 1.55, maxWidth: 680 }}>
+        {estDirection
+          ? 'Dès qu’une personne de l’équipe tape une lettre dans un fil que l’automate mène, ou y envoie un message, il se tait sur ce fil pendant cette durée. « Rendre à l’automate », dans le fil, le relance.'
+          : 'Ce réglage appartient à la direction : il se lit ici, il se change depuis un compte de la direction.'}
+      </div>
+    </Card>
+  );
+}
+
 export default function Parametres() {
   const [exceptions, setExceptions] = useExceptionsHoraires();
   const [blocages, setBlocages] = useBlocages();
@@ -1282,7 +1474,14 @@ export default function Parametres() {
      que remplir l'un laissait l'autre vide. Marketing porte les automatisations
      elles-mêmes, donc son magasin fait foi ; Paramètres écrit désormais dedans.
      `settings.automations` n'est plus que la source d'une reprise unique. */
+  /* TOUT LE DOCUMENT D'ABORD · 9 octobre 2026. Ce mélange ne recomposait
+     que sept champs, et chaque retouche d'un lien réécrivait le document
+     avec eux seuls : l'avis sans main, la salle d'attente, les heures calmes,
+     le Wi-Fi s'effaçaient en silence, et le réglage de la réponse
+     automatique aurait suivi. On part donc du document entier, et seuls ces
+     champs-ci prennent leur repli. */
   const autoCfg: AutoConfig = {
+    ...autoCfgRaw,
     momoLink: autoCfgRaw.momoLink || settings.automations.momoLink,
     mapsLink: autoCfgRaw.mapsLink || settings.automations.mapsLink,
     reviewLink: autoCfgRaw.reviewLink || settings.automations.reviewLink,
@@ -2247,6 +2446,12 @@ export default function Parametres() {
           </div>
         </div>
       </Card>
+
+      {/* ══ LA MAISON RÉPOND SUR WHATSAPP · 9 octobre 2026 ═══════════ */}
+      <LaMaisonRepondSurWhatsApp
+        brut={autoCfgRaw.automateWa}
+        ecris={(r) => setAutoCfgRaw({ ...autoCfg, automateWa: r })}
+      />
 
       {/* ══ LES DONNÉES ═════════════════════════════════════════════
           Ce qu'on garde et ce qu'on emporte. Le destructif est plus bas, et

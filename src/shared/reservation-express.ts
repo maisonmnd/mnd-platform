@@ -78,7 +78,14 @@ export const memesFormules = (a: readonly FormuleRapide[] | undefined, b: readon
     temps, DEUX PAR JOUR AU PLUS d'abord (la première du matin, la première
     de l'après-midi quand il y en a une) : six pastilles « Demain » ne
     laissent pas de choix. S'il manque des jours, on complète dans l'ordre.
-    La cliente pressée touche la première ; « Un autre jour » ouvre tout. */
+    La cliente pressée touche la première ; « Un autre jour » ouvre tout.
+
+    ENTRE SES REPÈRES ⟨prochaines-places⟩ (9 octobre 2026), ce bloc se
+    recopie TEL QUEL dans la fonction Edge `whatsapp-automate` : la Maison
+    propose sur WhatsApp les places dans le même ordre que le site. Les
+    harnais `verifie-les-douze-lunes` (R8) et `verifie-l-automate-wa`
+    confrontent la copie, caractère pour caractère. */
+/* ⟨prochaines-places⟩ */
 export const PLACES_PAR_JOUR = 2;
 export function prochainesPlaces<H extends { heure: string }>(
   jours: readonly { iso: string; heures: readonly H[] }[],
@@ -107,6 +114,7 @@ export function prochainesPlaces<H extends { heure: string }>(
   }
   return out.sort((x, y) => (x.iso < y.iso ? -1 : x.iso > y.iso ? 1 : x.place.heure < y.place.heure ? -1 : 1));
 }
+/* ⟨/prochaines-places⟩ */
 
 /* ── CE QUE LE TÉLÉPHONE RETIENT D'ELLE ──────────────────────────────────
    Sur le site, le même appareil la reconnaît : « Bon retour, Awa ». Rien ne

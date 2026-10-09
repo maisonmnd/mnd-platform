@@ -15,7 +15,14 @@ import {
   laFenetreSePaie, REPONSES_GRATUITES_DU_MOIS,
   useFilsArchives, estArchive, archiveLeFil, desarchiveLeFil, filCorrespond, filEffacable,
   tetesDeLaMaison, teteDuNumero, estReserve, TIROIRS, TIROIR_DIT, type Tiroir, type PieceRecue,
+  useFilsAutomate, automatesDesFils, numerosTenus, poseLaMain, rendsALAutomate,
+  sonnentApresLAutomate, type VueDeLaSonnette,
 } from '../../../../shared/conversations';
+import {
+  ETAPE_DITE, MOTIF_DIT, ETAPES_EN_COURS, reglageDeLAutomate, jourDitAvecAnnee, heureDite,
+  type EtapeDuFil, type EtatDuFil, type MainDuFil, type VueDeLAutomate,
+} from '../../../../shared/automate-wa';
+import { appointmentsStore, useAppointments, type Appointment } from '../../../../shared/agenda';
 import { motifDuRefus, adresseDeLaPieceRecue } from '../../../../shared/whatsapp';
 import { useProviders } from '../../../../shared/prestataires';
 import { useFournisseurs } from '../../../../shared/stock';
@@ -24,11 +31,11 @@ import { armeLaSonnette, sonne, cestLaNuit } from '../../../../shared/sonnette';
 import { adresseDesFonctions, cleAnonyme } from '../../../../shared/supabase';
 import { appelleOuGarde, gardeUnAppel } from '../../../../shared/appels-en-attente';
 import { useSettings } from '../../../../shared/settings';
-import { useStaff as useEquipe, useEnvois } from '../equipe/data';
+import { useStaff as useEquipe, useEnvois, useAutoConfig } from '../equipe/data';
 import { EnvoisAutomatiques } from './EnvoisAutomatiques';
 import { compteDuJournal, envoisDeLaPeriode, jourDuSalon, estEnvoiAutomatique, modeleDit } from '../../../../shared/envois';
 import { heuresDuJour } from './_heures';
-import { ClientPicker } from './_shared';
+import { ClientPicker, RdvModal, useServicesById, type RdvInitial } from './_shared';
 import { useEstDirection } from '../_vie';
 import {
   useGestesDuFil, BarreDesGestes, ChoisirUnFichier, PanneauDeLaPromo,
@@ -159,6 +166,126 @@ type Attente = {
   posteLe: number;
 };
 
+/* ══ LA MAISON RÉPOND SEULE · 9 octobre 2026 ════════════════════════
+   Maquette « Réserver sur WhatsApp », validée le 9 octobre 2026. Quand la
+   réponse automatique mène un fil, l'équipe le voit et reprend la main d'un
+   geste : une pastille dans la liste, ce bandeau dans la zone de saisie (au
+   téléphone aussi, jamais derrière « ⋯ »), des bulles qui disent leur étape.
+   Une main passée rallume l'alarme en rouge brique. */
+
+/** « 21 h 04 » (ou « à 21 h 04 »), « hier à 21 h 04 », « le 7 octobre 2026
+    à 21 h 04 ». */
+const quandDuBandeau = (iso: string | undefined, aLHeure = ''): string => {
+  const t = Date.parse(iso ?? '');
+  if (!iso || !Number.isFinite(t)) return '';
+  const j = jour(iso);
+  if (j === 'Aujourd’hui') return `${aLHeure}${heure(iso)}`;
+  if (j === 'Hier') return `hier à ${heure(iso)}`;
+  return `le ${new Date(t).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })} à ${heure(iso)}`;
+};
+
+/** La fin d'une pause : « jusqu’à 21 h 04 », « jusqu’à demain 21 h 04 »,
+    « jusqu’au 11 octobre 2026, 21 h 04 ». */
+const finDuBandeau = (iso: string | undefined): string => {
+  const t = Date.parse(iso ?? '');
+  if (!iso || !Number.isFinite(t)) return '';
+  const d = new Date(t);
+  const auj = new Date();
+  if (d.toDateString() === auj.toDateString()) return `jusqu’à ${heure(iso)}`;
+  if (d.toDateString() === new Date(auj.getTime() + 86_400_000).toDateString()) return `jusqu’à demain ${heure(iso)}`;
+  return `jusqu’au ${d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}, ${heure(iso)}`;
+};
+
+const etapeDite = (e: string | undefined): string =>
+  (e && e in ETAPE_DITE ? ETAPE_DITE[e as EtapeDuFil] : e ?? '');
+
+function BandeauDeLAutomate({
+  vue, etat, main, rdv, gestesDuRdv, surReprendre, surRendre, surPoser, surOuvrirRdv,
+}: {
+  vue: VueDeLAutomate;
+  etat: EtatDuFil | null;
+  main: MainDuFil | null;
+  /** Le rendez-vous qu'il a posé, s'il est déjà arrivé sur ce poste. */
+  rdv?: Appointment;
+  gestesDuRdv: string;
+  surReprendre: () => void;
+  surRendre: () => void;
+  /** Absent : le panier ne porte encore aucun geste à poser. */
+  surPoser?: () => void;
+  surOuvrirRdv?: () => void;
+}) {
+  const etape = etapeDite(vue.etape);
+  if (vue.tenue === 'tenu') {
+    return (
+      <div className="trc-automate" role="status">
+        <span className="trc-automate__dit">
+          La Maison répond seule{vue.depuis ? ` depuis ${quandDuBandeau(vue.depuis)}` : ''} · étape : <b>{etape}</b>
+        </span>
+        <span className="trc-automate__gestes">
+          {surPoser && <Button variant="ghost" size="sm" onClick={surPoser}>Poser ce rendez-vous</Button>}
+          <Button size="sm" onClick={surReprendre}>Reprendre la main</Button>
+        </span>
+      </div>
+    );
+  }
+  if (vue.tenue === 'main') {
+    return (
+      <div className="trc-automate trc-automate--main" role="status">
+        <span className="trc-automate__dit">
+          <span className="trc-horloge trc-horloge--main">Main passée</span>{' '}
+          L’automate a passé la main{etat?.mainPasseeLe ? ` ${quandDuBandeau(etat.mainPasseeLe, 'à ')}` : ''}
+          {vue.motif ? ` · ${MOTIF_DIT[vue.motif] ?? vue.motif}` : ''}. Elle attend une personne de la Maison.
+        </span>
+        <span className="trc-automate__gestes">
+          {surPoser && <Button size="sm" onClick={surPoser}>Poser ce rendez-vous</Button>}
+          <Button variant="ghost" size="sm" onClick={surRendre}>Rendre à l’automate</Button>
+        </span>
+      </div>
+    );
+  }
+  if (vue.tenue === 'pause') {
+    const enRoute = !!etat && (ETAPES_EN_COURS as readonly string[]).includes(etat.etape);
+    return (
+      <div className="trc-automate trc-automate--pause" role="status">
+        <span className="trc-automate__dit">
+          L’équipe a la main{main?.jusqua ? ` ${finDuBandeau(main.jusqua)}` : ''} : l’automate se tait sur ce fil.
+          {enRoute ? ` Il en était à : ${etapeDite(etat?.etape)}.` : ''}
+        </span>
+        <span className="trc-automate__gestes">
+          {surPoser && <Button variant="ghost" size="sm" onClick={surPoser}>Poser ce rendez-vous</Button>}
+          <Button variant="ghost" size="sm" onClick={surRendre}>Rendre à l’automate</Button>
+        </span>
+      </div>
+    );
+  }
+  if (vue.tenue === 'fini' && vue.etape === 'confirme') {
+    return (
+      <div className="trc-automate trc-automate--pose" role="status">
+        <span className="trc-automate__dit">
+          <b>Rendez-vous posé</b>
+          {rdv
+            ? <> · {jourDitAvecAnnee(rdv.date)} à {heureDite(rdv.time)}{gestesDuRdv ? ` · ${gestesDuRdv}` : ''} · « Pris sur WhatsApp, réponse automatique »
+                {rdv.status === 'annulé' ? ' · annulé depuis par la Maison' : ''}</>
+            : ' par la réponse automatique. Il paraîtra au calendrier dès qu’il arrive sur ce poste.'}
+        </span>
+        {rdv && surOuvrirRdv && (
+          <span className="trc-automate__gestes">
+            <Button variant="ghost" size="sm" onClick={surOuvrirRdv}>Ouvrir le rendez-vous</Button>
+          </span>
+        )}
+      </div>
+    );
+  }
+  if (vue.tenue === 'fini') {
+    return (
+      <div className="trc-automate trc-automate--pause" role="status">
+        <span className="trc-automate__dit">Parcours arrêté à sa demande : rien n’a été réservé.</span>
+      </div>
+    );
+  }
+  return null;
+}
+
 export default function Conversations() {
   const navigate = useNavigate();
   const { branch } = useBranch();
@@ -222,6 +349,24 @@ export default function Conversations() {
   const [fournisseurs] = useFournisseurs();
   const [engagements] = useEngagements();
 
+  /* ══ LA MAISON RÉPOND SEULE · 9 octobre 2026 ════════════════════════
+     Les fils de la réponse automatique (`fils_automate`, en direct) et son
+     réglage : la durée d'une main de l'équipe se lit là, pas ici. */
+  const [lignesDeLAutomate] = useFilsAutomate();
+  const [configAuto] = useAutoConfig();
+  const reglageAutomate = useMemo(() => reglageDeLAutomate(configAuto.automateWa), [configAuto.automateWa]);
+  const automates = useMemo(
+    () => automatesDesFils(lignesDeLAutomate, reglageAutomate.pauseHeures),
+    [lignesDeLAutomate, reglageAutomate.pauseHeures],
+  );
+  const [rendezVous] = useAppointments();
+  const servicesParId = useServicesById();
+  /* « POSER UN RENDEZ-VOUS » DEPUIS LE FIL : la fenêtre du rendez-vous,
+     pré-remplie (la fiche, et le panier de l'automate s'il y en a un). La
+     création se lit en comptant, comme depuis un appel. */
+  const [rdvDuFil, setRdvDuFil] = useState<{ initial: RdvInitial; avant: number } | null>(null);
+  const [rdvOuvert, setRdvOuvert] = useState<Appointment | null>(null);
+
   /* ══ CE QUE LES MODÈLES COÛTENT CE MOIS-CI — 15 septembre 2026 ═════
      « Combien Meta facture une conversation de 24 h ? » (Yéman).
 
@@ -265,9 +410,12 @@ export default function Conversations() {
     () => tetesDeLaMaison({ clientes: clients, equipe, prestataires, fournisseurs, engagements }),
     [clients, equipe, prestataires, fournisseurs, engagements],
   );
+  /* L'AUTOMATE ENTRE DANS LE JUGE (9 octobre 2026) : un fil qu'il mène et
+     dont il a traité le dernier mot n'attend pas la Maison ; une main passée,
+     si. Ses messages ne répondent jamais à la place de la Maison. */
   const tous = useMemo(
-    () => filsDeLaMaison(messages, tetes, prives, tick, branch.id),
-    [messages, tetes, prives, tick, branch.id],
+    () => filsDeLaMaison(messages, tetes, prives, tick, branch.id, automates),
+    [messages, tetes, prives, tick, branch.id, automates],
   );
   /* « TOUT LE PERSONNEL, SAUF CE QUE JE MARQUE PRIVÉ » (Yéman, 11 septembre).
      Le fil privé se replie, il ne s'efface pas : un bouton le rouvre, et
@@ -322,6 +470,52 @@ export default function Conversations() {
   const ouvre = (n: string) => {
     setParams(n ? { n } : {}, { replace: true });
     setTexte('');
+  };
+
+  /* ══ L'ÉQUIPE PREND LA MAIN · 9 octobre 2026 ═══════════════════════
+     DÈS LA PREMIÈRE LETTRE, et non au départ du message : la retenue de huit
+     secondes vit dans ce navigateur, le serveur ne la voit pas. Un geste, un
+     lien, un modèle, « Continuer dans WhatsApp » (l'automate ne voit pas
+     cette sortie) font de même. `whatsapp-envoi` pose aussi la pause côté
+     serveur : elle tient même si cet écran a perdu le réseau.
+
+     SEULEMENT SUR UN FIL QUE L'AUTOMATE MÈNE : ailleurs il n'y a personne à
+     faire taire, et une ligne de plus par fil ne servirait à rien. Une fois
+     par fil et par demi-minute : la frappe ne réécrit pas la ligne à chaque
+     touche. */
+  const mainPriseLe = useRef<Map<string, number>>(new Map());
+  const prendsLaMain = (motif: string, explicite = false): void => {
+    if (!fil || fil.automate?.tenue !== 'tenu') return;
+    if (estReserve(fil.tiroir) && !estDirection) return;
+    const avant = mainPriseLe.current.get(fil.numero) ?? 0;
+    if (!explicite && Date.now() - avant < 30_000) return;
+    mainPriseLe.current.set(fil.numero, Date.now());
+    poseLaMain(fil.numero, motif, { pauseHeures: reglageAutomate.pauseHeures, branchId: branch.id });
+    if (explicite) toast(`Vous avez la main : l’automate se tait sur ce fil pendant ${reglageAutomate.pauseHeures} h.`);
+  };
+  const rendsLaMain = (): void => {
+    if (!fil?.automate) return;
+    mainPriseLe.current.delete(fil.numero);
+    rendsALAutomate(fil.numero, { mainPasseeLe: automates.get(fil.numero)?.fil?.mainPasseeLe, branchId: branch.id });
+    toast('Rendu à l’automate. Il reprendra au prochain message de la cliente, sans rien lui écrire d’ici là.');
+  };
+  /* LE RENDEZ-VOUS SE POSE À LA MAIN, depuis le fil. Pré-rempli du panier
+     quand l'automate en a un ; jamais de maître choisi d'avance, la Maison
+     attribue. Pour un fil sans fiche, la fenêtre fait choisir la tête :
+     aucune fiche ne naît ici. */
+  const poseUnRendezVous = (depuisLePanier: boolean): void => {
+    if (!fil) return;
+    const p = depuisLePanier ? fil.automate?.panier : undefined;
+    if (depuisLePanier) prendsLaMain('rendez-vous');
+    setRdvDuFil({
+      initial: {
+        clientId: p?.clientId ?? fil.clientId,
+        ...(p?.serviceIds?.length ? { serviceIds: [...p.serviceIds] } : {}),
+        ...(p?.date ? { date: p.date } : {}),
+        ...(p?.time ? { time: p.time } : {}),
+      },
+      avant: appointmentsStore.get().length,
+    });
   };
 
   /* ── LE MESSAGE PRÉ-ÉCRIT QUI ARRIVE D'AILLEURS ────────────────────
@@ -408,6 +602,7 @@ export default function Conversations() {
      contestera est pire qu'un silence, et l'écran doit le dire AVANT. */
   const poseLeGeste = (g: Geste) => {
     if (g.eteint) { toast(g.eteint); return; }
+    prendsLaMain('geste');
     if (g.compose) setTexte(g.compose);
     if (g.avertit) toast(g.avertit);
     if (g.piece && g.piece.quoi !== 'facture' && g.piece.quoi !== 'devis') {
@@ -524,6 +719,9 @@ export default function Conversations() {
     /* SANS SUPABASE, RIEN NE PART, et l'écran le dit. La Maison peut tourner
        hors ligne pour lire son carnet ; écrire à une cliente, non. */
     if (!supabase) { toast('Pas de connexion à la Maison : le message n’est pas parti.'); return; }
+    /* UN MESSAGE DE L'ÉQUIPE FAIT TAIRE L'AUTOMATE, même posé sans frappe
+       (un texte venu d'ailleurs, un modèle). */
+    prendsLaMain(modele ? 'modele' : 'envoi');
 
     /* ON POSTE, ON N'ENVOIE PAS ENCORE. Le message paraît dans le fil tout de
        suite ; il ne quitte la Maison qu'au bout du délai. C'est le seul vrai
@@ -579,6 +777,8 @@ export default function Conversations() {
       apres: messages,
       filOuvert: ouvertNum || undefined,
       premiereLecture: vus.current.premiere,
+      /* Un fil que l'automate mène ne sonne pas (9 octobre 2026). */
+      tenus: numerosTenus(automates, Date.now()),
     });
     vus.current = { ids: messages.map((m) => m.id), premiere: false };
     if (sonnants.length === 0 || reglages.sonnette === false) return;
@@ -596,6 +796,25 @@ export default function Conversations() {
       : `${sonnants.length} messages viennent d’arriver.`);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [messages]);
+
+  /* LA MAIN QUI PASSE SONNE AUSSI (relecture du 9 octobre 2026) : un fil
+     que l'automate tenait et qui attend maintenant une personne (la main
+     passée, un tour en échec, un message refusé par Meta). Aucun message
+     neuf ne le dit : c'est le passage qui sonne (`sonnentApresLAutomate`). */
+  const vusDeLAutomate = useRef<VueDeLaSonnette | null>(null);
+  useEffect(() => {
+    const { numeros, vue } = sonnentApresLAutomate({ avant: vusDeLAutomate.current, fils: tous, filOuvert: ouvertNum || undefined });
+    vusDeLAutomate.current = vue;
+    if (numeros.length === 0 || reglages.sonnette === false) return;
+    const [ouvre, ferme] = heuresDuJour();
+    if (cestLaNuit(new Date(), ouvre, ferme)) return;
+    sonne();
+    const qui = teteDuNumero(numeros[0], tetes)?.name ?? `+${numeros[0]}`;
+    toast(numeros.length === 1
+      ? `${qui} attend une personne de la Maison.`
+      : `${numeros.length} conversations attendent une personne de la Maison.`);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tous]);
 
   /* LE NAVIGATEUR REFUSE TOUT SON avant qu'on ait touché la page — une
      protection contre les publicités sonores, et elle s'applique à nous
@@ -884,11 +1103,26 @@ export default function Conversations() {
               <span className="trc-conv__c">
                 <span className="trc-conv__n">{f.nom}</span>
                 <span className="trc-conv__d">
-                  {f.dernier.sens === 'sortant' ? (estEnvoiAutomatique(f.dernier.parQui) ? 'Le Trône : ' : 'Vous : ') : f.dernier.canal === 'site' ? 'Le site : ' : ''}
+                  {f.dernier.sens === 'sortant'
+                    ? (f.dernier.auto === 'automate' ? 'Automate : ' : estEnvoiAutomatique(f.dernier.parQui) ? 'Le Trône : ' : 'Vous : ')
+                    : f.dernier.canal === 'site' ? 'Le site : ' : ''}
                   {f.dernier.sens === 'entrant' && f.dernier.piece && !f.dernier.texte.startsWith(f.dernier.piece.nom)
                     ? `${f.dernier.piece.nom} · ` : ''}
                   {f.dernier.texte}
                 </span>
+                {/* LA RÉPONSE AUTOMATIQUE, VUE DE LA LISTE (9 octobre 2026) :
+                    elle mène le fil (et dit où elle en est), ou elle a passé
+                    la main, en brique, et l'alarme sonne. */}
+                {f.automate?.tenue === 'tenu' && (
+                  <span className="trc-conv__auto">
+                    <span className="trc-horloge trc-horloge--automate">Automate · {etapeDite(f.automate.etape)}</span>
+                  </span>
+                )}
+                {f.automate?.tenue === 'main' && (
+                  <span className="trc-conv__auto">
+                    <span className="trc-horloge trc-horloge--main">Main passée</span>
+                  </span>
+                )}
               </span>
               <span className="trc-conv__r">
                 <b>{jour(f.dernier.quand) === 'Aujourd’hui' ? heure(f.dernier.quand) : jour(f.dernier.quand)}</b>
@@ -928,6 +1162,9 @@ export default function Conversations() {
                     +{fil.numero}
                     {fil.sansFiche ? ' · aucune fiche' : ''}
                     {estReserve(fil.tiroir) ? ` · ${TIROIR_DIT[fil.tiroir].toLowerCase()} · direction seule` : ''}
+                    {fil.automate?.tenue === 'tenu' ? ' · la Maison répond seule'
+                      : fil.automate?.tenue === 'main' ? ' · main passée à l’équipe'
+                        : fil.automate?.tenue === 'pause' ? ' · l’équipe a la main' : ''}
                   </span>
                 </span>
                 <button
@@ -962,6 +1199,8 @@ export default function Conversations() {
                     rel="noreferrer"
                     title="Continuer dans l’application WhatsApp. Ce qui s’y écrit n’entre pas dans le fil de la Maison."
                     aria-label="Ouvrir cette conversation dans l’application WhatsApp"
+                    /* L'automate ne voit pas cette sortie : il se tait (9 octobre 2026). */
+                    onClick={() => prendsLaMain('whatsapp')}
                   >
                     <WaGlyph taille={15} />
                     <span className="trc-wa__mot">Continuer dans WhatsApp</span>
@@ -988,6 +1227,14 @@ export default function Conversations() {
                       {fil.tiroir === 'equipe' ? 'Sa fiche d’équipe'
                         : fil.tiroir === 'prestataires' ? (fil.fiche === '/engagements' ? 'Ses engagements' : 'Le répertoire')
                           : 'Ouvrir sa fiche'}
+                    </button>
+                  )}
+                  {/* POSER UN RENDEZ-VOUS DEPUIS LE FIL (9 octobre 2026) : la
+                      fenêtre du rendez-vous, la fiche déjà posée. Pas pour
+                      l'équipe ni les prestataires. */}
+                  {!estReserve(fil.tiroir) && (
+                    <button type="button" className="trv-minibtn" onClick={() => poseUnRendezVous(false)}>
+                      Poser un rendez-vous
                     </button>
                   )}
                   <button
@@ -1029,11 +1276,15 @@ export default function Conversations() {
               <div className="trc-bulles">
                 {fil.messages.map((m, i) => {
                   const nouveauJour = i === 0 || jour(fil.messages[i - 1].quand) !== jour(m.quand);
+                  /* LA BULLE DE L'AUTOMATE A SON HABIT (9 octobre 2026) : elle
+                     n'est ni un mot de l'équipe ni un modèle payé, et dit
+                     l'étape qu'elle ouvre et les choix qu'elle proposait. */
+                  const deLAutomate = m.sens === 'sortant' && m.auto === 'automate';
                   return (
                     <div key={m.id} style={{ display: 'contents' }}>
                       {nouveauJour && <span className="trc-jour">{jour(m.quand)}</span>}
                       <div
-                        className={`trc-b trc-b--${m.sens === 'entrant' ? 'elle' : m.modele ? 'modele' : 'nous'}${bulleTouchee === m.id ? ' est-touchee' : ''}`}
+                        className={`trc-b trc-b--${m.sens === 'entrant' ? 'elle' : m.modele ? 'modele' : deLAutomate ? 'automate' : 'nous'}${bulleTouchee === m.id ? ' est-touchee' : ''}`}
                         onClick={() => setBulleTouchee((t) => (t === m.id ? null : m.id))}
                       >
                         {/* CE QUE CE MESSAGE CITE. Le fil a déjà le texte : on
@@ -1087,11 +1338,18 @@ export default function Conversations() {
                             <span className="trc-b__h">Entrée pour corriger, Échap pour laisser</span>
                           </>
                         ) : m.texte}
+                        {deLAutomate && (m.choix ?? []).length > 0 && (
+                          <span className="trc-b__choix" aria-label="Les choix proposés">
+                            {(m.choix ?? []).map((c, k) => <span key={`${k}-${c}`}>{c}</span>)}
+                          </span>
+                        )}
                         <span className="trc-b__h">
                           {m.canal === 'site' ? 'Depuis le site · ' : ''}
                           {m.modele ? `Modèle ${modeleDit(m.modele)} · ` : ''}
-                          {estEnvoiAutomatique(m.parQui) ? 'Parti tout seul · ' : ''}
-                          {m.bouton?.id ? 'A touché un bouton · ' : ''}
+                          {deLAutomate
+                            ? `Automate${m.etape ? ` · ${etapeDite(m.etape)}` : ''} · `
+                            : estEnvoiAutomatique(m.parQui) ? 'Parti tout seul · ' : ''}
+                          {m.bouton?.id ? (m.bouton.id.startsWith('MND:') ? 'A touché un choix · ' : 'A touché un bouton · ') : ''}
                           {heure(m.quand)}
                           {m.etat === 'lu' ? ' · lu' : m.etat === 'remis' ? ' · remis'
                             : m.etat === 'non-remis' ? ' · non remis' : m.etat === 'en-route' ? ' · en route' : ''}
@@ -1149,6 +1407,31 @@ export default function Conversations() {
 
               {/* ── LA SAISIE, ET LA RÈGLE QU'ELLE PORTE ── */}
               <div className={`trc-saisie${fil.fenetre.ouverte ? '' : ' est-close'}`}>
+                {/* LE BANDEAU DE L'AUTOMATE, DANS LA SAISIE (9 octobre 2026) :
+                    c'est là qu'on reprend la main, au téléphone aussi. */}
+                {fil.automate && fil.automate.tenue !== 'aucun' && (() => {
+                  const vue = fil.automate;
+                  const a = automates.get(fil.numero);
+                  const rdv = vue.rdvId ? rendezVous.find((x) => x.id === vue.rdvId) : undefined;
+                  const noms = (rdv?.serviceIds ?? []).map((id) => servicesParId.get(id)?.name ?? '').filter(Boolean);
+                  const gestesDuRdv = noms.length <= 1 ? (noms[0] ?? '') : `${noms.slice(0, -1).join(', ')} et ${noms[noms.length - 1]}`;
+                  /* Un rendez-vous déjà posé par l'automate (même si la main
+                     a passé juste après) ne se pose pas deux fois. */
+                  const posable = vue.tenue !== 'fini' && !vue.rdvId && !estReserve(fil.tiroir) && (vue.panier?.serviceIds?.length ?? 0) > 0;
+                  return (
+                    <BandeauDeLAutomate
+                      vue={vue}
+                      etat={a?.fil ?? null}
+                      main={a?.main ?? null}
+                      rdv={rdv}
+                      gestesDuRdv={gestesDuRdv}
+                      surReprendre={() => prendsLaMain('reprendre', true)}
+                      surRendre={rendsLaMain}
+                      surPoser={posable ? () => poseUnRendezVous(true) : undefined}
+                      surOuvrirRdv={rdv ? () => setRdvOuvert(rdv) : undefined}
+                    />
+                  );
+                })()}
                 <div className="trc-saisie__q">
                   {fil.fenetre.ouverte ? (
                     <>
@@ -1233,7 +1516,11 @@ export default function Conversations() {
                       rows={2}
                       value={texte}
                       placeholder={`Écrivez à ${fil.nom.split(' ')[0]}…`}
-                      onChange={(e) => setTexte(e.target.value)}
+                      onChange={(e) => {
+                        /* La première lettre fait taire l'automate (9 octobre 2026). */
+                        if (e.target.value.trim()) prendsLaMain('frappe');
+                        setTexte(e.target.value);
+                      }}
                       onKeyDown={(e) => {
                         if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); void envoie(); }
                       }}
@@ -1295,7 +1582,7 @@ export default function Conversations() {
         <LienDeReservation
           prenom={appelDe(clients.find((c) => c.id === fil.clientId), fil.nom)}
           fenetreOuverte={fil.fenetre.ouverte}
-          surMessage={(m) => { setTexte(m); setLienOuvert(false); toast('Lien posé. Relisez le message avant de l’envoyer.'); }}
+          surMessage={(m) => { prendsLaMain('lien'); setTexte(m); setLienOuvert(false); toast('Lien posé. Relisez le message avant de l’envoyer.'); }}
           surModele={(variables, boutonUrl, texteAffiche) => {
             setLienOuvert(false);
             setModeleAConfirmer({ nom: 'reservation_preparee', dit: 'Réservation préparée', variables, boutonUrl, texteAffiche });
@@ -1310,6 +1597,7 @@ export default function Conversations() {
           parQui={session?.user?.email ?? undefined}
           vivants={codesVivants}
           surCode={(c, message) => {
+            prendsLaMain('geste');
             setTexte(message);
             setPromoOuverte(false);
             toast(`Code ${c.code} posé. Relisez le message avant de l’envoyer.`);
@@ -1486,6 +1774,23 @@ export default function Conversations() {
             })()}
           </div>
         </div>
+      )}
+
+      {/* LE RENDEZ-VOUS DEPUIS LA CONVERSATION · 9 octobre 2026. La création
+          se lit en comptant, comme depuis un appel. */}
+      {rdvDuFil && (
+        <RdvModal
+          title="Rendez-vous depuis une conversation"
+          initial={rdvDuFil.initial}
+          onClose={() => {
+            const apres = appointmentsStore.get().length;
+            if (apres > rdvDuFil.avant) toast('Rendez-vous posé depuis la conversation.');
+            setRdvDuFil(null);
+          }}
+        />
+      )}
+      {rdvOuvert && (
+        <RdvModal appt={rdvOuvert} onClose={() => setRdvOuvert(null)} />
       )}
 
       {/* RATTACHER — on choisit une tête EXISTANTE. Créer une fiche depuis un

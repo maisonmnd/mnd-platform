@@ -3049,3 +3049,51 @@
   border: 1px solid var(--hairline); background: var(--paper, #fff); color: var(--ink);
 }
 .trc-convs__cherche input:focus { outline: 2px solid var(--copper-300); outline-offset: 0; border-color: var(--copper-500); }
+
+/* ══ LA MAISON RÉPOND SEULE · 9 octobre 2026 ═════════════════════════
+   Maquette « Réserver sur WhatsApp », validée le 9 octobre 2026. L'indigo
+   pâle dit « l'automate mène », la brique dit « la main est passée, elle
+   attend une personne », le sable cuivré porte le bandeau, comme la
+   maquette. Jamais d'obsidienne. Le bandeau vit DANS la saisie : au
+   téléphone, c'est la seule zone du fil qui reste à l'écran avec la tête. */
+.trc-horloge--automate { color: var(--indigo-600); border-color: var(--indigo-100); background: var(--indigo-50); }
+.trc-horloge--main { color: #8A2E1E; border-color: #E0B3A9; background: #F4D9D2; }
+.trc-conv__auto { display: block; margin-top: 3px; min-width: 0; }
+.trc-conv__auto .trc-horloge {
+  max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  vertical-align: top; margin-top: 0; box-sizing: border-box;
+}
+
+.trc-automate {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between;
+  gap: 8px 12px; margin-bottom: 10px; padding: 9px 12px;
+  background: var(--color-sable-cuivre, #E7D7C2); border-left: 3px solid var(--color-copper);
+  border-radius: 3px; font-size: 13px; line-height: 1.45; color: var(--color-indigo);
+}
+.trc-automate__dit { flex: 1 1 260px; min-width: 0; }
+.trc-automate__dit b { font-weight: 600; }
+.trc-automate__dit .trc-horloge { margin: 0 4px 0 0; vertical-align: 1px; }
+.trc-automate__gestes { display: inline-flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.trc-automate--main { background: #F7E4E0; border-left-color: var(--color-brique, #96412E); color: #6E2618; }
+.trc-automate--pause { background: var(--indigo-50); border-left-color: var(--indigo-300); }
+.trc-automate--pose { background: var(--paper, #F6F1E7); border: 1px solid var(--hairline); border-left: 3px solid var(--color-copper); }
+
+/* LA BULLE DE L'AUTOMATE : ni l'indigo plein d'une main de l'équipe, ni le
+   filet d'un modèle payé. Le papier, un filet cuivre, et ses choix dessous. */
+.trc-b--automate {
+  align-self: flex-end; background: var(--surface-card, #FFFDF9); color: var(--color-indigo);
+  border: 1px solid var(--hairline); border-left: 3px solid var(--color-copper);
+}
+.trc-b--automate .trc-b__h { color: var(--copper-700); }
+.trc-b__choix { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+.trc-b__choix span {
+  font-size: 11.5px; line-height: 1.3; padding: 3px 8px; border-radius: 999px;
+  border: 1px solid var(--copper-300); background: var(--copper-50); color: var(--copper-700);
+}
+
+@media (max-width: 760px) {
+  .trc-automate { padding: 7px 9px; margin-bottom: 7px; font-size: 12.5px; gap: 6px 8px; }
+  .trc-automate__dit { flex-basis: 100%; }
+  .trc-automate__gestes { width: 100%; }
+  .trc-automate__gestes .mnd-btn { flex: 1 1 auto; padding: 8px 10px; }
+}

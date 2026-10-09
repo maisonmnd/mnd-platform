@@ -4,14 +4,16 @@ import { useClients } from '../../../../shared/clients';
 import {
   useMessagesWa, useFilsPrives, useFilsArchives, useAlarmeRetires, filsDeLaMaison, tetesDeLaMaison,
   filsSansReponse, resteEnClair, lienDuFil, messagesQuiSonnent, numeroWa, TIROIRS, TIROIR_DIT,
-  type Fil, type MessageWa,
+  useFilsAutomate, automatesDesFils, numerosTenus, sonnentApresLAutomate,
+  type Fil, type MessageWa, type VueDeLaSonnette,
 } from '../../../../shared/conversations';
+import { reglageDeLAutomate } from '../../../../shared/automate-wa';
 import { useProviders } from '../../../../shared/prestataires';
 import { useFournisseurs } from '../../../../shared/stock';
 import { useEngagements } from '../../../../shared/engagements';
 import { useSettings } from '../../../../shared/settings';
 import { armeLaSonnette, sonne, cestLaNuit } from '../../../../shared/sonnette';
-import { useStaff as useEquipe } from '../equipe/data';
+import { useStaff as useEquipe, useAutoConfig } from '../equipe/data';
 import { useEstDirection } from '../_vie';
 import { heuresDuJour } from '../clients/_heures';
 
@@ -84,6 +86,16 @@ export default function AlarmeWhatsApp() {
   const [engagements] = useEngagements();
   const [reglages] = useSettings();
   const estDirection = useEstDirection();
+  /* LA RÉPONSE AUTOMATIQUE (9 octobre 2026) : un fil qu'elle mène, dont elle
+     a traité le dernier mot, n'alarme pas ; une main passée, si. Le même juge
+     que l'écran des conversations. */
+  const [lignesDeLAutomate] = useFilsAutomate();
+  const [configAuto] = useAutoConfig();
+  const pauseHeures = reglageDeLAutomate(configAuto.automateWa).pauseHeures;
+  const automates = useMemo(
+    () => automatesDesFils(lignesDeLAutomate, pauseHeures),
+    [lignesDeLAutomate, pauseHeures],
+  );
 
   /* L'HORLOGE BAT : une fenêtre qui se ferme doit quitter l'alarme à la
      minute près, et le compte à rebours ne doit pas vieillir. */
@@ -99,8 +111,8 @@ export default function AlarmeWhatsApp() {
     [clients, equipe, prestataires, fournisseurs, engagements],
   );
   const tous = useMemo(
-    () => filsDeLaMaison(messages, tetes, prives, tick, branch.id),
-    [messages, tetes, prives, tick, branch.id],
+    () => filsDeLaMaison(messages, tetes, prives, tick, branch.id, automates),
+    [messages, tetes, prives, tick, branch.id, automates],
   );
   const enAttente = useMemo(
     () => filsSansReponse(tous, archives, estDirection ? TIROIRS : ['clientes'], retires),
@@ -119,6 +131,7 @@ export default function AlarmeWhatsApp() {
       avant: vus.current.ids.map((id) => ({ id })),
       apres: messages,
       premiereLecture: vus.current.premiere,
+      tenus: numerosTenus(automates, Date.now()),
     });
     vus.current = { ids: messages.map((m) => m.id), premiere: false };
     if (sonnants.length === 0 || reglages.sonnette === false) return;
@@ -127,6 +140,19 @@ export default function AlarmeWhatsApp() {
     sonne();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [messages]);
+
+  /* LA MAIN QUI PASSE SONNE AUSSI (relecture du 9 octobre 2026) : le même
+     juge que l'écran des conversations (`sonnentApresLAutomate`). */
+  const vusDeLAutomate = useRef<VueDeLaSonnette | null>(null);
+  useEffect(() => {
+    const { numeros, vue } = sonnentApresLAutomate({ avant: vusDeLAutomate.current, fils: tous });
+    vusDeLAutomate.current = vue;
+    if (numeros.length === 0 || reglages.sonnette === false) return;
+    const [ouvre, ferme] = heuresDuJour();
+    if (cestLaNuit(new Date(), ouvre, ferme)) return;
+    sonne();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tous]);
 
   /* Le navigateur ne laisse sonner qu'après un geste : on arme au premier. */
   useEffect(() => {
@@ -162,6 +188,8 @@ export default function AlarmeWhatsApp() {
                 <div className="trp-alarme__nom">
                   {f.nom}
                   {f.tiroir !== 'clientes' && <span className="trp-alarme__tiroir">{TIROIR_DIT[f.tiroir]}</span>}
+                  {/* L'automate a passé la main : c'est pour cela qu'elle sonne. */}
+                  {f.automate?.tenue === 'main' && <span className="trp-alarme__tiroir">Main passée</span>}
                 </div>
                 <div className="trp-alarme__dit">{ceQuElleDit(f)}</div>
               </div>

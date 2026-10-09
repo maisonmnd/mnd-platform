@@ -10,6 +10,13 @@ import { CATEGORIE_FINFIN, fondeLaCouronne, priceModeOf, racineOf, type PriceMod
    SEUL juge, pur, lu par le site (par le besoin déclaré) et par Ma Couronne
    (par la prestation visée). Il n'importe rien qui touche à Supabase. */
 
+/* ENTRE SES REPÈRES ⟨qualification⟩, CE MODULE SE RECOPIE TEL QUEL — 9 octobre 2026.
+   Une fonction Edge ne lit rien du dépôt : celles qui jugent une place
+   (`demande-submit`, `whatsapp-automate`) portent la copie entre les mêmes
+   repères. La règle R8 de `verifie-les-douze-lunes` les confronte caractère
+   pour caractère, `verifie-la-place-du-serveur` les fait tourner. Rien
+   n'entre entre les repères qui ne puisse vivre dans une fonction Edge. */
+/* ⟨qualification⟩ */
 export type Porte = 'consultation' | 'directe';
 
 export type Besoin = 'creation' | 'reparation' | 'entretien' | 'enfant' | 'formation' | 'inconnu';
@@ -45,3 +52,4 @@ export const porteDuBesoin = (b: Besoin): Porte =>
 
 export const ditLaPorte = (p: Porte): string =>
   p === 'consultation' ? 'Commence par une consultation.' : 'Se réserve directement.';
+/* ⟨/qualification⟩ */

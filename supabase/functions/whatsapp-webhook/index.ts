@@ -62,6 +62,37 @@
    de congé. Ils portent `parQui: 'Le Trône'`, et jamais deux fois en
    vingt-quatre heures. Pas de robot : la Maison reconnaît, range, prévient.
 
+   ══ LA MAISON RÉPOND ET RÉSERVE · décision de la direction, 9 octobre 2026 ══
+   Maquette « Réserver sur WhatsApp », validée le 9 octobre 2026 (façon B :
+   une conversation à boutons et à listes qui propose de vraies places libres).
+
+   « PAS DE ROBOT » A VALU JUSQU'À CE JOUR. Depuis, pour les CLIENTES
+   seulement, une seconde fonction, `whatsapp-automate`, prend la parole :
+     · quand elle parle de rendez-vous, et au premier message d'un numéro
+       inconnu (« merci pour hier » ne déclenche rien) ;
+     · elle propose de vraies places libres et pose le rendez-vous CONFIRMÉ
+       au toucher « Je confirme », comme le site, la nuit comprise ;
+     · pas de modèle de langue : des boutons, des listes et quelques mots
+       reconnus (les jours, demain, matin, après-midi, annuler). Au deuxième
+       écart, la main passe à l'équipe, et l'alarme se rallume ;
+     · L'ANNULATION N'EST JAMAIS AUTOMATIQUE : elle se transmet à l'équipe ;
+     · elle se tait dès que l'équipe parle (la main posée à l'écran, et
+       `pause_le_fil` dans whatsapp-envoi) ;
+     · un interrupteur à trois positions dans les réglages de la Maison
+       (éteint, essai, ouvert), LIVRÉ EN ESSAI AVEC UNE LISTE VIDE : personne
+       n'est servi tant que la direction n'a pas saisi ses numéros.
+
+   CE FICHIER NE CHANGE PAS DE MÉTIER : il range les messages, puis confie
+   les messages NEUFS (jamais une seconde livraison de Meta) à l'automate,
+   en tâche de fond (`EdgeRuntime.waitUntil`), après quoi il répond à Meta
+   sans l'attendre. L'automate juge seul qui il sert (`numeroServi`) ; si
+   ce tour n'est pas à lui, s'il échoue ou s'il tarde, la notification
+   habituelle part, et rien ne s'écrit en double. Pendant qu'il tient le
+   fil, c'est lui qui dit ce qui mérite de sonner : un rendez-vous posé, ou
+   la main passée. L'ÉQUIPE ET LES PRESTATAIRES N'ONT TOUJOURS AUCUN ROBOT :
+   un numéro de l'équipe n'est servi que s'il est inscrit en essai par la
+   direction, un prestataire jamais.
+
    ═══ CETTE ADRESSE EST PUBLIQUE ═══════════════════════════════════
    Meta ne peut présenter aucun jeton : il faut donc DÉCOCHER « Verify JWT »
    sur cette fonction dans le tableau de bord Supabase. C'est voulu, et c'est
@@ -79,6 +110,8 @@
                           clés que whatsapp-envoi).
      · WA_FLOW_CONGE   — l'identifiant du Flow « Demander un congé », publié
                           dans WhatsApp Manager (docs/BRANCHER-ENVOIS.md).
+     · CLE_SERVICE sert aussi de porte vers `whatsapp-automate` (le même
+       secret que le cron vers confirmation-rdv) : aucun secret neuf.
 
    Déploiement : Supabase → Edge Functions → New function « whatsapp-webhook »
    → coller CE FICHIER ENTIER → Deploy → décocher « Verify JWT ». Puis, chez
@@ -86,7 +119,7 @@
    et le jeton de vérification, et s'abonner au champ « messages ».
    ═══════════════════════════════════════════════════════════════════ */
 
-import { createClient } from 'npm:@supabase/supabase-js@2';
+import { createClient, type SupabaseClient } from 'npm:@supabase/supabase-js@2';
 /* La meme bibliotheque et la meme version que push-notify, avec les memes
    secrets (VAPID_PUBLIC, VAPID_PRIVATE, VAPID_SUBJECT) : les secrets Edge
    valent pour toutes les fonctions du projet. */
@@ -94,7 +127,7 @@ import webpush from 'npm:web-push@3.6.7';
 
 /** LA VERSION DE CE FICHIER, dite par le contrôle de santé. Sans elle on ne
     sait pas quel code tourne vraiment. À incrémenter à chaque déploiement. */
-const VERSION = '2026-09-29-a · la reprise confirmee d une touche';
+const VERSION = '2026-10-09-b · les fiches par numero, la Maison repond et reserve ; refus apres coup';
 
 /** LE POIDS QU'UNE PIÈCE REÇUE PEUT FAIRE : le plafond du compartiment
     `whatsapp` (0102). Au-delà, le fichier reste chez Meta et le fil le dit. */
@@ -300,14 +333,30 @@ async function telechargeChezMeta(
 }
 
 /* ── LA REPRISE DITE COMME ON PARLE — 29 septembre 2026 ───────────────────
-   « mardi 14 octobre à 10 h » : recopiées de confirmation-rdv (une fonction
-   Edge n'importe rien du dépôt). Une heure absente n'est pas minuit. */
+   « mardi 14 octobre 2026 à 10 h » : recopiées de confirmation-rdv (une
+   fonction Edge n'importe rien du dépôt). Une heure absente n'est pas minuit.
+   L'ANNÉE, TOUJOURS, sur une date dite à une cliente (9 octobre 2026 : la
+   reprise ne la disait pas, la règle de la Maison le veut). */
 const jourDeLaReprise = (iso: string): string => {
   try {
     return new Date(`${iso}T12:00:00`).toLocaleDateString('fr-FR', {
-      weekday: 'long', day: 'numeric', month: 'long', timeZone: 'Africa/Porto-Novo',
+      weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Africa/Porto-Novo',
     });
   } catch { return iso; }
+};
+
+/* ══ MADAME NAFFI — 2 octobre 2026 ═════════════════════════════════════
+   La Maison écrit « Madame Naffi » : la civilité de la fiche, puis le prénom.
+   Une fiche qui ne dit rien est une dame ; une fiche au masculin d'avant ce
+   jour est « Monsieur ». Recopié de `src/shared/civilite.ts` (une fonction
+   Edge ne lit rien du dépôt) ; `verifie-civilite` tient la copie. Le
+   9 octobre 2026, la reprise disait encore « C'est noté, Naffi ». */
+const appelDe = (d: { name?: unknown; civilite?: unknown; auMasculin?: unknown } | null | undefined, repli?: unknown): string => {
+  const civ = d?.civilite === 'monsieur' || d?.civilite === 'mademoiselle' || d?.civilite === 'madame'
+    ? d.civilite : d?.auMasculin === true ? 'monsieur' : 'madame';
+  const mot = civ === 'monsieur' ? 'Monsieur' : civ === 'mademoiselle' ? 'Mademoiselle' : 'Madame';
+  const prenom = String(d?.name ?? repli ?? '').trim().split(/\s+/)[0] ?? '';
+  return prenom ? `${mot} ${prenom}` : mot;
 };
 const heureDeLaReprise = (hhmm: string | undefined): string => {
   if (!/^\d{1,2}:\d{2}$/.test(hhmm ?? '')) return hhmm ?? '';
@@ -434,8 +483,18 @@ function alerteDuTelephone(arrivees: readonly Arrivee[], pourLaDirection: boolea
 
 /** Previent les telephones abonnes. Ne leve JAMAIS : une alerte manquee ne
     doit pas faire echouer le rangement du message, ni la reponse a Meta. */
-async function alerteLePersonnel(sb: ReturnType<typeof createClient>, arrivees: Arrivee[]): Promise<void> {
+async function alerteLePersonnel(sb: SupabaseClient, arrivees: Arrivee[]): Promise<void> {
   if (arrivees.length === 0) return;
+  await previensLesTelephones(sb, alerteDuTelephone(arrivees, true), alerteDuTelephone(arrivees, false), arrivees.length);
+}
+
+/** L ENVOI LUI-MEME, pour une alerte deja faite : celle des arrivees
+    (ci-dessus), ou celle que rend l automate (un rendez-vous pose, la main
+    passee · 9 octobre 2026). Une alerte nulle ne part pas. Ne leve JAMAIS. */
+async function previensLesTelephones(
+  sb: SupabaseClient, pourLaDirection: Alerte | null, pourLesAutres: Alerte | null, messages: number,
+): Promise<void> {
+  if (!pourLaDirection && !pourLesAutres) return;
   const pub = Deno.env.get('VAPID_PUBLIC');
   const priv = Deno.env.get('VAPID_PRIVATE');
   if (!pub || !priv) { dis('alerte · cles VAPID absentes'); return; }
@@ -472,9 +531,231 @@ async function alerteLePersonnel(sb: ReturnType<typeof createClient>, arrivees: 
     return n;
   };
 
-  const n = (await envoie(direction, alerteDuTelephone(arrivees, true)))
-    + (await envoie(autres, alerteDuTelephone(arrivees, false)));
-  dis('alerte · telephones prevenus', { envois: n, messages: arrivees.length });
+  const n = (await envoie(direction, pourLaDirection))
+    + (await envoie(autres, pourLesAutres));
+  dis('alerte · telephones prevenus', { envois: n, messages });
+}
+
+/* ══ LA MAISON RÉPOND ET RÉSERVE · 9 octobre 2026 ══════════════════════
+   Les messages NEUFS d'un numéro (jamais une seconde livraison) sont confiés
+   à `whatsapp-automate`, un appel par numéro, porte fermée par CLE_SERVICE
+   (comme le cron vers confirmation-rdv). Il juge seul qui il sert, et rend
+   `{ pris, alerte? }` :
+     · pris: false, une erreur, un retard : la notification habituelle part,
+       et l'alarme du Trône sonne comme avant. Une panne se voit, elle ne
+       crée jamais de doublon (une relivraison n'est jamais neuve) ;
+     · pris: true : l'automate tient le fil. Il ne sonne que pour ce qui
+       demande la Maison, un rendez-vous posé ou la main passée, avec le
+       prénom seul, jamais le texte.
+   EN TÂCHE DE FOND : `EdgeRuntime.waitUntil` laisse répondre 200 à Meta
+   sans attendre la conversation (l'automate attend 2,5 s « en train
+   d'écrire », lit l'agenda, pose sous verrou). Sans elle, le webhook attend
+   la même tâche, 8 s au plus. */
+const AUTOMATE_EN_FOND_MS = 30_000;
+const AUTOMATE_SANS_FOND_MS = 8_000;
+
+type Confie = { numero: string; tiroir: string; waIds: string[]; nom: string };
+type ReponseDeLAutomate = { pris: boolean; alerte?: Alerte };
+
+/** `EdgeRuntime.waitUntil`, s'il existe ici. Le contrôle de santé le dit. */
+const tacheDeFond = (): ((p: Promise<unknown>) => void) | null => {
+  const er = (globalThis as { EdgeRuntime?: { waitUntil?: (p: Promise<unknown>) => void } }).EdgeRuntime;
+  const attends = er?.waitUntil;
+  return typeof attends === 'function' ? (p) => attends.call(er, p) : null;
+};
+
+/** UN NUMÉRO CONFIÉ À L'AUTOMATE. Ne lève jamais : tout ce qui n'est pas
+    un « pris » lisible vaut `pris: false`, et la notification part. */
+async function passeALAutomate(
+  urlBase: string, service: string, c: Confie, delaiMs: number,
+): Promise<ReponseDeLAutomate> {
+  return demandeALAutomate(urlBase, service, { numero: c.numero, tiroir: c.tiroir, waIds: c.waIds }, delaiMs);
+}
+
+/** L'APPEL LUI-MÊME : un tour (`waIds`) ou un rattrapage (`apresCoup`). */
+async function demandeALAutomate(
+  urlBase: string, service: string, corps: Record<string, unknown>, delaiMs: number,
+): Promise<ReponseDeLAutomate> {
+  try {
+    const r = await fetch(`${urlBase.replace(/\/+$/, '')}/functions/v1/whatsapp-automate`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', authorization: `Bearer ${service}` },
+      body: JSON.stringify(corps),
+      signal: AbortSignal.timeout(delaiMs),
+    });
+    const rep = await r.json().catch(() => ({})) as { pris?: unknown; alerte?: Partial<Alerte> | null };
+    if (!r.ok) {
+      dis('automate · refus', { statut: r.status });
+      return { pris: false };
+    }
+    const a = rep?.alerte;
+    const alerte = a && typeof a.titre === 'string' && typeof a.corps === 'string' && typeof a.url === 'string'
+      ? { titre: a.titre.slice(0, 120), corps: a.corps.slice(0, 200), url: a.url.slice(0, 200) }
+      : undefined;
+    return { pris: rep?.pris === true, ...(alerte ? { alerte } : {}) };
+  } catch (e) {
+    dis('automate · injoignable ou trop lent', { motif: String(e).slice(0, 120) });
+    return { pris: false };
+  }
+}
+
+/** LES NUMÉROS CONFIÉS, ensemble, puis ce qui doit sonner. Une alerte de
+    l'automate sur un fil de l'équipe (un numéro d'essai de la direction) ne
+    va qu'à la direction, comme tout message de l'équipe (0102). */
+async function confieALAutomate(
+  sb: SupabaseClient, urlBase: string, service: string, confies: Confie[], delaiMs: number,
+): Promise<void> {
+  try {
+    const reponses = await Promise.all(confies.map((c) => passeALAutomate(urlBase, service, c, delaiMs)));
+    const repli: Arrivee[] = [];
+    for (let i = 0; i < confies.length; i += 1) {
+      const c = confies[i];
+      const r = reponses[i];
+      if (!r.pris) {
+        for (let k = 0; k < c.waIds.length; k += 1) repli.push({ numero: c.numero, tiroir: c.tiroir, nom: c.nom });
+        continue;
+      }
+      if (r.alerte) await previensLesTelephones(sb, r.alerte, c.tiroir === 'clientes' ? r.alerte : null, c.waIds.length);
+    }
+    dis('automate · tours rendus', { confies: confies.length, pris: reponses.filter((r) => r.pris).length });
+    await alerteLePersonnel(sb, repli);
+  } catch (e) {
+    dis('automate · echec', { motif: String(e).slice(0, 120) });
+  }
+}
+
+/** UN MESSAGE DE L'AUTOMATE REFUSÉ APRÈS COUP par Meta (l'accusé
+    « failed ») : chaque numéro est rendu à l'automate, qui passe la main
+    d'un parcours en cours et rend l'alerte. Le tiroir vient de la base,
+    comme pour un message reçu. Ne lève jamais. */
+async function rattrapeLesRefus(
+  sb: SupabaseClient, urlBase: string, service: string, numeros: string[], delaiMs: number,
+): Promise<void> {
+  try {
+    for (const numero of numeros) {
+      const { data: tete } = await sb.rpc('tete_du_numero', { n: numero });
+      const tiroir = String((tete as { tiroir?: string } | null)?.tiroir ?? 'clientes');
+      if (tiroir !== 'clientes' && tiroir !== 'equipe') continue;
+      const r = await demandeALAutomate(urlBase, service, { numero, tiroir, apresCoup: 'envoi-refuse' }, delaiMs);
+      if (r.alerte) await previensLesTelephones(sb, r.alerte, tiroir === 'clientes' ? r.alerte : null, 1);
+    }
+  } catch (e) {
+    dis('automate · rattrapage en echec', { motif: String(e).slice(0, 120) });
+  }
+}
+
+/* ══ LES FICHES D'UN NUMÉRO · 9 octobre 2026 ═══════════════════════════
+   Ce fichier lisait `clients` d'un seul select, puis rapprochait les
+   numéros avec un `find` : au-delà de mille fiches, une cliente connue
+   passait pour inconnue, et seule la première fiche d'un numéro était vue.
+   `fiches_du_numero` (0125) rend en UNE valeur les fiches non archivées
+   dont `phone` ou `phone2` est ce numéro, celles du premier numéro d'abord,
+   puis leur famille. Le rapprochement garde sa règle : une fiche ne vaut
+   pour un numéro que si elle le PORTE (`numeros`), un enfant de la famille
+   sans numéro à lui n'est jamais pris pour celle qui écrit.
+
+   SANS 0125 (la RPC absente ou en panne), on lit la table PAR PAGES : le
+   plafond de mille ne revient pas par la porte de secours, et l'oreille
+   rattache toujours. Le journal le dit. */
+type FicheDuNumero = { id: string; nom?: string; civilite?: string; auMasculin?: boolean; branchId?: string; numeros: string[] };
+
+/* TOUTE LA TABLE, PAGE PAR PAGE. Recopié TEL QUEL de
+   `src/shared/lecture-entiere.ts`, de `PAGE_DE_LECTURE` à la fin du fichier
+   (l'original ne porte pas de repères : la copie entre les siens doit s'y
+   retrouver mot pour mot). Une erreur en route rend l'erreur et AUCUNE
+   ligne. */
+/* ⟨lecture-entiere⟩ */
+export const PAGE_DE_LECTURE = 1000;
+
+type ErreurDeLecture = { message: string };
+export type ReponseDePage<L> = { data: L[] | null; error: ErreurDeLecture | null };
+/** Lit une page : les `taille` premières lignes dont l'`id` suit `apres`
+    (toutes depuis le début si `apres` est nul), dans l'ordre croissant des `id`. */
+export type LecteurDePage<L extends { id: string }> = (apres: string | null, taille: number) => PromiseLike<ReponseDePage<L>>;
+
+/* Deux mille pages font deux millions de lignes : au-delà, ce n'est plus une
+   table qu'on charge dans un navigateur, c'est une boucle qui ne finit pas. */
+const PAGES_AU_PLUS = 2000;
+
+export async function litToutesLesPages<L extends { id: string }>(
+  page: LecteurDePage<L>,
+  taille: number = PAGE_DE_LECTURE,
+): Promise<ReponseDePage<L>> {
+  const vues = new Map<string, L>();
+  let apres: string | null = null;
+  for (let tour = 0; tour < PAGES_AU_PLUS; tour += 1) {
+    const { data, error } = await page(apres, taille);
+    if (error) return { data: null, error };
+    const lignes = data ?? [];
+    for (const l of lignes) vues.set(l.id, l);
+    if (lignes.length < taille) return { data: [...vues.values()], error: null };
+    apres = lignes[lignes.length - 1].id;
+  }
+  return { data: null, error: { message: 'lecture interminable : la table ne finit pas' } };
+}
+/* ⟨/lecture-entiere⟩ */
+
+/** UN LECTEUR DE FICHES POUR UN APPEL : une RPC par numéro, gardée ; la
+    table par pages une seule fois, si la RPC manque. Ne lève jamais : une
+    lecture impossible rend « aucune fiche », le message se range quand même
+    (sans fiche, comme une tête inconnue), et le journal le dit. */
+function lecteurDesFiches(sb: SupabaseClient): (n: string) => Promise<FicheDuNumero[]> {
+  const vus = new Map<string, Promise<FicheDuNumero[]>>();
+  type LigneDeFiche = { id: string; data?: Record<string, unknown> | null };
+  type FicheLue = FicheDuNumero & { premier: string };
+  let parPages: Promise<FicheLue[]> | null = null;
+  const toutes = (): Promise<FicheLue[]> => {
+    if (parPages) return parPages;
+    parPages = (async () => {
+      const { data, error } = await litToutesLesPages<LigneDeFiche>((apres, taille) => {
+        let page = sb.from('clients').select('id, data');
+        if (apres !== null) page = page.gt('id', apres);
+        return page.order('id', { ascending: true }).limit(taille) as unknown as PromiseLike<ReponseDePage<LigneDeFiche>>;
+      });
+      if (error) { dis('fiches · illisibles', { motif: error.message.slice(0, 120) }); return []; }
+      return (data ?? [])
+        .filter((r) => r.data?.archived !== true)
+        .map((r) => ({
+          id: String(r.id),
+          nom: typeof r.data?.name === 'string' ? r.data.name : undefined,
+          civilite: typeof r.data?.civilite === 'string' ? r.data.civilite : undefined,
+          auMasculin: r.data?.auMasculin === true,
+          branchId: typeof r.data?.branchId === 'string' ? r.data.branchId : undefined,
+          premier: numeroWa(r.data?.phone as string | undefined),
+          numeros: [numeroWa(r.data?.phone as string | undefined), numeroWa(r.data?.phone2 as string | undefined)].filter(Boolean),
+        }));
+    })();
+    return parPages;
+  };
+  return (n: string) => {
+    if (!n) return Promise.resolve([]);
+    const deja = vus.get(n);
+    if (deja) return deja;
+    const lu = (async (): Promise<FicheDuNumero[]> => {
+      try {
+        const { data, error } = await sb.rpc('fiches_du_numero', { n });
+        if (!error && Array.isArray(data)) {
+          return (data as Record<string, unknown>[]).map((f) => ({
+            id: String(f.id ?? ''),
+            nom: typeof f.nom === 'string' ? f.nom : undefined,
+            civilite: typeof f.civilite === 'string' ? f.civilite : undefined,
+            auMasculin: f.auMasculin === true,
+            branchId: typeof f.branchId === 'string' ? f.branchId : undefined,
+            numeros: Array.isArray(f.numeros) ? (f.numeros as unknown[]).map((x) => String(x ?? '')).filter(Boolean) : [],
+          })).filter((f) => f.id);
+        }
+        dis('fiches_du_numero · absente, lecture par pages', { motif: String(error?.message ?? 'reponse illisible').slice(0, 120) });
+      } catch (e) {
+        dis('fiches_du_numero · echec, lecture par pages', { motif: String(e).slice(0, 120) });
+      }
+      /* Celles qui le portent en premier numéro d'abord, comme la RPC. */
+      const portent = (await toutes()).filter((f) => f.numeros.includes(n));
+      return [...portent.filter((f) => f.premier === n), ...portent.filter((f) => f.premier !== n)]
+        .map(({ premier: _premier, ...f }) => f);
+    })();
+    vus.set(n, lu);
+    return lu;
+  };
 }
 
 Deno.serve(async (req) => {
@@ -716,6 +997,11 @@ Deno.serve(async (req) => {
       /* Si vous lisez ceci dans un navigateur SANS être connecté, c'est que
          « Verify JWT » est bien décoché. C'est la preuve qu'on cherchait. */
       jwt: 'décoché, sinon vous ne liriez pas ceci',
+      /* LA TÂCHE DE FOND (9 octobre 2026) : jamais éprouvée dans ce dépôt
+         avant la réponse automatique. `true` : le webhook répond à Meta sans
+         attendre l'automate. `false` : il l'attend, 8 s au plus. */
+      tacheDeFond: tacheDeFond() !== null,
+      automate: 'whatsapp-automate, confié des messages neufs ; il juge seul qui il sert (réglage automateWa)',
       pourVerifierLeSecret: 'ajoutez ?verifie=<identifiant de votre app Meta> à cette adresse',
       pourSavoirQuelNumero: 'ajoutez ?numero=1 à cette adresse',
       pourVoirTousLesNumeros: 'ajoutez ?numeros=<identifiant du compte WhatsApp> à cette adresse',
@@ -788,6 +1074,9 @@ Deno.serve(async (req) => {
     return new Response('ok', { status: 200 });
   }
   const sb = createClient(urlBase, service);
+  /* Les tours confiés à l'automate quand la tâche de fond manque : on les
+     attend juste avant de répondre, 8 s au plus (voir ⑤ quinquies). */
+  const automateEnCours: Promise<void>[] = [];
   /* Les clés Meta servent à aller chercher les pièces et à envoyer les deux
      messages automatiques. Absentes, l'oreille entend quand même — elle ne
      garde pas les pièces, et le dit au contrôle de santé. */
@@ -949,23 +1238,20 @@ Deno.serve(async (req) => {
     formulaires: entrants.filter((e) => e.formulaire).length,
   });
 
-  /* ── ④ LES FICHES, POUR RATTACHER — une seule lecture.
-     La Maison compte quelques centaines de têtes : on les lit toutes et l'on
-     rapproche en mémoire. Le jour où elles seront dix mille, il faudra un
-     index sur le numéro plutôt que ce balayage, et ce commentaire sera le
-     rappel qu'on le savait. */
-  let fiches: { id: string; branchId?: string; numeros: string[]; nom?: string }[] = [];
-  if (entrants.length > 0) {
-    const { data } = await sb.from('clients').select('id, data');
-    fiches = (data ?? []).map((r: any) => ({
-      id: r.id as string,
-      branchId: r.data?.branchId,
-      /* Le nom, pour la notification du telephone : elle en dit le prenom. */
-      nom: typeof r.data?.name === 'string' ? r.data.name : undefined,
-      numeros: [numeroWa(r.data?.phone), numeroWa(r.data?.phone2)].filter(Boolean),
-    }));
-  }
-  const teteDuNumero = (n: string) => fiches.find((f) => f.numeros.includes(n));
+  /* ── ④ LES FICHES, POUR RATTACHER — par numéro, 9 octobre 2026.
+     Jusqu'à ce jour, une seule lecture de toute la table, puis un `find` en
+     mémoire : « le jour où elles seront dix mille, il faudra un index sur le
+     numéro », disait ce commentaire. Le jour est venu plus tôt, à MILLE :
+     Supabase ne rend jamais plus de mille lignes, et une cliente connue
+     passait pour inconnue. `fiches_du_numero` (0125) lit par index, en une
+     valeur, les fiches de CE numéro (voir `lecteurDesFiches`). Le nom sert à
+     la notification du téléphone : elle en dit le prénom. La civilité, à la
+     reprise : « C'est noté, Madame Naffi ». */
+  const fichesDe = lecteurDesFiches(sb);
+  const fichesParNumero = new Map<string, FicheDuNumero[]>();
+  for (const n of new Set(entrants.map((e) => e.numero))) fichesParNumero.set(n, await fichesDe(n));
+  const fiches: FicheDuNumero[] = [...fichesParNumero.values()].flat();
+  const teteDuNumero = (n: string) => (fichesParNumero.get(n) ?? []).find((f) => f.numeros.includes(n));
 
   /* ── ④ bis QUI ÉCRIT, SELON LA BASE — 15 septembre 2026 ─────────────
      `tete_du_numero` (0102) est le seul juge : l'équipe d'abord, puis les
@@ -1109,12 +1395,39 @@ Deno.serve(async (req) => {
       });
       /* ── ⑤ quater LA NOTIFICATION SUR LE TELEPHONE — 18 septembre 2026 ── */
       const neufs = new Set(((ecrits ?? []) as { id: string }[]).map((r) => r.id));
+      const nomDe = (e: Entrant): string => teteDuNumero(e.numero)?.nom ?? e.nomProfil ?? `+${e.numero}`;
+
+      /* ── ⑤ quinquies LA MAISON RÉPOND ET RÉSERVE — 9 octobre 2026 ──────
+         Les seuls messages NEUFS, regroupés par numéro, des tiroirs Clientes
+         et Équipe (un numéro de l'équipe n'est servi que s'il est inscrit en
+         essai par la direction : l'automate en juge). Jamais un prestataire,
+         jamais un numéro dont la base n'a pas dit le tiroir : au moindre
+         doute, la Maison répond elle-même. Ces numéros-là ne sonnent pas
+         ici : l'automate dit ce qui doit sonner (`confieALAutomate`). */
+      const confies = new Map<string, Confie>();
+      for (const e of entrants) {
+        if (!neufs.has(`wa-${e.waId}`) || !tetes.has(e.numero)) continue;
+        const tiroir = tiroirDe(e.numero);
+        if (tiroir !== 'clientes' && tiroir !== 'equipe') continue;
+        const c = confies.get(e.numero) ?? { numero: e.numero, tiroir, waIds: [], nom: nomDe(e) };
+        c.waIds.push(e.waId);
+        confies.set(e.numero, c);
+      }
+      if (confies.size > 0) {
+        const enFond = tacheDeFond();
+        const tache = confieALAutomate(sb, urlBase, service, [...confies.values()],
+          enFond ? AUTOMATE_EN_FOND_MS : AUTOMATE_SANS_FOND_MS);
+        if (enFond) enFond(tache);
+        else automateEnCours.push(tache);
+        dis('automate · numeros confies', { combien: confies.size, enFond: !!enFond });
+      }
+
       const arrivees: Arrivee[] = entrants
-        .filter((e) => neufs.has(`wa-${e.waId}`))
+        .filter((e) => neufs.has(`wa-${e.waId}`) && !confies.has(e.numero))
         .map((e) => ({
           numero: e.numero,
           tiroir: tiroirDe(e.numero),
-          nom: teteDuNumero(e.numero)?.nom ?? e.nomProfil ?? `+${e.numero}`,
+          nom: nomDe(e),
         }));
       try {
         await alerteLePersonnel(sb, arrivees);
@@ -1174,17 +1487,18 @@ Deno.serve(async (req) => {
     if (error) { dis('reprise · écriture refusée', { motif: error.message.slice(0, 120) }); continue; }
     dis('reprise · réponse', { geste: m[1] });
     if (!jetonMeta || !phoneIdMeta) continue;
-    const prenom = (fiche.nom ?? rdv.clientName ?? '').trim().split(/\s+/)[0] || 'Madame';
+    /* « Madame Naffi », jamais le premier mot seul (9 octobre 2026). */
+    const appel = appelDe({ name: fiche.nom, civilite: fiche.civilite, auMasculin: fiche.auMasculin }, rdv.clientName);
     const quand = `${jourDeLaReprise(rdv.date ?? '')} à ${heureDeLaReprise(rdv.time)}`;
     const couronne = (Deno.env.get('COURONNE_URL') ?? 'https://maisonmnd.com/couronne/').trim();
     await ditDepuisLeTrone(sb, jetonMeta, phoneIdMeta, ok
       ? {
         numero: e.numero, branchId: rdv.branchId ?? fiche.branchId, auto: 'reprise-ok',
-        texte: `C'est noté, ${prenom} : ${quand}. La Maison vous attend.`,
+        texte: `C'est noté, ${appel} : ${quand}. La Maison vous attend.`,
       }
       : {
         numero: e.numero, branchId: rdv.branchId ?? fiche.branchId, auto: 'reprise-autre',
-        texte: `Bien sûr, ${prenom}. Choisissez votre nouveau moment dans Ma Couronne : ${couronne}\nOu répondez ici avec le jour qui vous va, la Maison vous propose une heure.`,
+        texte: `Bien sûr, ${appel}. Choisissez votre nouveau moment dans Ma Couronne : ${couronne}\nOu répondez ici avec le jour qui vous va, la Maison vous propose une heure.`,
       });
   }
 
@@ -1269,6 +1583,10 @@ Deno.serve(async (req) => {
   /* ── ⑥ LES ACCUSÉS. Ils corrigent DEUX journaux, et c'est voulu : les
      rappels automatiques vivent dans `envois`, les conversations dans
      `messages_wa`, et Meta ne sait pas lequel il vient de livrer. */
+  /* LES RÉPONSES DE L'AUTOMATE QUE META REFUSE APRÈS COUP (relecture du
+     9 octobre 2026) : le numéro est rendu à l'automate (`apresCoup`), qui
+     passe la main d'un parcours en cours et dit ce qui doit sonner. */
+  const refusesApresCoup = new Set<string>();
   for (const a of accuses) {
     const { data: lignes } = await sb.from('envois').select('id, data')
       .eq('data->>waMessageId', a.waId).limit(1);
@@ -1304,8 +1622,20 @@ Deno.serve(async (req) => {
           data: { ...msg.data, etat: a.etat, ...(a.detail ? { detail: a.detail } : {}) },
           updated_at: new Date().toISOString(),
         }).eq('id', msg.id);
+        if (a.etat === 'non-remis' && avant !== 'non-remis' && (msg.data as { auto?: string }).auto === 'automate') {
+          const n = numeroWa(String((msg.data as { numero?: string }).numero ?? a.numero ?? ''));
+          if (n) refusesApresCoup.add(n);
+        }
       }
     }
+  }
+  if (refusesApresCoup.size > 0 && service && urlBase) {
+    const fond = tacheDeFond();
+    const rattrapage = rattrapeLesRefus(sb, urlBase, service, [...refusesApresCoup],
+      fond ? AUTOMATE_EN_FOND_MS : AUTOMATE_SANS_FOND_MS);
+    if (fond) fond(rattrapage);
+    else automateEnCours.push(rattrapage);
+    dis('automate · refus apres coup confies', { combien: refusesApresCoup.size, enFond: !!fond });
   }
 
   /* ── ⑥ LES REACTIONS QU ELLE POSE ──────────────────────────────────
@@ -1338,15 +1668,11 @@ Deno.serve(async (req) => {
     const { data: deja } = await sb.from('appels_wa').select('id, data').eq('id', id).limit(1);
     const avant = ((deja ?? [])[0]?.data ?? {}) as Record<string, unknown>;
     /* LA TETE, quand on la connait. Meta ne donne qu un numero : c est la
-       Maison qui reconnait la personne. */
-    const { data: fichesA } = avant.clientId ? { data: null } : await sb.from('clients').select('id, data');
+       Maison qui reconnait la personne. Par `fiches_du_numero` depuis le
+       9 octobre 2026 : la table entiere lue d un trait s arretait a mille. */
     const tete = avant.clientId
       ? { id: String(avant.clientId), branchId: avant.branchId as string | undefined }
-      : (fichesA ?? []).map((r: any) => ({
-        id: r.id as string,
-        branchId: r.data?.branchId as string | undefined,
-        numeros: [numeroWa(r.data?.phone), numeroWa(r.data?.phone2)].filter(Boolean),
-      })).find((f: any) => f.numeros.includes(a.numero));
+      : (await fichesDe(a.numero)).find((f) => f.numeros.includes(a.numero));
 
     const data: Record<string, unknown> = {
       ...avant,
@@ -1372,6 +1698,11 @@ Deno.serve(async (req) => {
     if (error) console.error(`whatsapp-webhook · APPEL · ${error.message}`);
   }
   if (appels.length) dis('appels rangés', { combien: appels.length });
+
+  /* SANS TÂCHE DE FOND, l'automate s'attend ici, borné (8 s par appel) :
+     un retard n'écrit jamais rien en double, une relivraison n'est jamais
+     neuve. Avec elle, la liste est vide et Meta a sa réponse tout de suite. */
+  if (automateEnCours.length > 0) await Promise.all(automateEnCours);
 
   return new Response(
     JSON.stringify({

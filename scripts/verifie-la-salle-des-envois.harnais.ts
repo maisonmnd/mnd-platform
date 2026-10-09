@@ -207,7 +207,8 @@ dit('le soir du 2, elles finissent le 3 a 8 h', iso(salon('2026-10-03', '08:00')
   dit('le facteur ne porte rien pendant les heures calmes, sauf a la main', true, /partAde\(l\) <= maintenantMs && \(!calme \|\| l\.data\.parLaMain === true\)/.test(facteur));
   dit('le facteur relit le rendez-vous avant de porter', true, /pourquoiIlNePartPlus\(l\.data, \(rdvRow\?\.data \?\? null\)/.test(facteur) && /statut: 'périmé', detail: motif/.test(facteur));
   const confirmation = egalise('supabase/functions/confirmation-rdv/index.ts');
-  dit('celle qui reserve elle-meme (Ma Couronne) recoit sa confirmation tout de suite', true, /const enSalle = salleOuverte && a\.source !== 'couronne';/.test(confirmation));
+  /* Depuis le 9 octobre 2026, WhatsApp aussi : elle a touche « Je confirme ». */
+  dit('celle qui reserve elle-meme (Ma Couronne, WhatsApp) recoit sa confirmation tout de suite', true, /const enSalle = salleOuverte && a\.source !== 'couronne' && a\.source !== 'whatsapp';/.test(confirmation));
   dit('un message perime peut se redeposer, un message retenu verrouille', true, /const SE_RETENTE = new Set\(\['échec', 'périmé'\]\);/.test(confirmation));
   const push = egalise('supabase/functions/push-notify/index.ts');
   dit('le facteur peut notifier une cliente et le personnel avec la cle service', true, /if \(!parLeService\(req\)\) \{ const jwt/.test(push) && /if \(!parLeService\(req\) && !\(await allowRate\(ipOf\(req\)\)\)\)/.test(push));

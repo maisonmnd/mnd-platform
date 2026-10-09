@@ -7,6 +7,13 @@
    et deux lectures sur des objets plats. `catalog.ts` les ré-exporte, tout le
    Trône continue de les importer d'où il l'a toujours fait. */
 
+/* ENTRE SES REPÈRES ⟨catalogue-pur⟩, CE MODULE SE RECOPIE TEL QUEL — 9 octobre 2026.
+   Une fonction Edge ne lit rien du dépôt : celles qui jugent une place
+   (`demande-submit`, `whatsapp-automate`) portent la copie entre les mêmes
+   repères. La règle R8 de `verifie-les-douze-lunes` les confronte caractère
+   pour caractère, `verifie-la-place-du-serveur` les fait tourner. Rien
+   n'entre entre les repères qui ne puisse vivre dans une fonction Edge. */
+/* ⟨catalogue-pur⟩ */
 export type PriceMode = 'fixe' | 'variable' | 'devis';
 
 /* La règle reconnaît par la CATÉGORIE, jamais par le nom : « une règle qui
@@ -97,3 +104,4 @@ export const racineOf = <C extends { id: string; parentId?: string }>(cats: read
   }
   return cur;
 };
+/* ⟨/catalogue-pur⟩ */

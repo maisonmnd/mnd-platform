@@ -38,7 +38,9 @@ dit('poser Madame retire la marque', { civilite: 'madame', auMasculin: undefined
     if (a < 0) return null;
     return t.slice(a, t.indexOf('\n};\n', a) + 3);
   };
-  const FONCTIONS = ['confirmation-rdv', 'rappels-j1', 'avis-google', 'demande-submit'];
+  /* 9 octobre 2026 : la reprise du webhook dit « Madame Naffi », et la
+     réponse automatique (whatsapp-automate) parle à chaque cliente. */
+  const FONCTIONS = ['confirmation-rdv', 'rappels-j1', 'avis-google', 'demande-submit', 'whatsapp-webhook', 'whatsapp-automate'];
   const copies = FONCTIONS.map(copie);
   dit('chaque fonction porte appelDe', [], FONCTIONS.filter((_, i) => !copies[i]));
   dit('... la meme, mot pour mot', 1, new Set(copies).size);
@@ -73,6 +75,11 @@ return appelDe;`)() as any;
     ['src/apps/trone/shell/useParrainageVivant.ts', /fiche \? appelDe\(fiche\) : m\.prenomMarraine/],
     ['src/apps/trone/routes/clients/CarteDeMarrainePanneau.tsx', /variables: \[appelDe\(client\), donnees\.code\]/],
     ['src/apps/trone/routes/finances/Creances.tsx', /Bonjour \$\{appelDe\(tete\)\}/],
+    /* La réponse automatique (9 octobre 2026) : la fiche qui écrit, sinon la
+       civilité qu'elle a choisie, sinon Madame. Depuis la relecture du même
+       jour, la civilité choisie vaut aussi sur un numéro qui porte d'autres
+       fiches (« Pour moi » : celle qui écrit n'en a pas). */
+    ['src/shared/automate-wa.ts', /if \(titulaire\) return appelDe\(\{ name: titulaire\.nom, civilite: titulaire\.civilite, auMasculin: titulaire\.auMasculin \}\);\s*if \(base\.panier\.civilite\) return appelDe\(\{ name: base\.panier\.prenom \?\? '', civilite: base\.panier\.civilite \}\);\s*return appelDe\(null\);/],
   ];
   dit('les messages du Trone disent la civilite', [], ECRANS.filter(([f, m]) => !m.test(lit(f))).map(([f]) => f));
   const fiche = lit('src/apps/trone/routes/clients/Customers.tsx');

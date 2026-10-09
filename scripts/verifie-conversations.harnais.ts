@@ -15,6 +15,7 @@ import {
   tetesDeLaMaison, teteDuNumero, filNeuf, estReserve,
   FENETRE_MS, type MessageWa, type TeteConnue, lienDuFil,
   filCorrespond, filEffacable,
+  automatesDesFils, numerosTenus, messagesQuiSonnent, type LigneDesFilsAutomate,
 } from '../src/shared/conversations';
 
 let ko = 0;
@@ -29,19 +30,19 @@ const T = Date.parse('2026-09-11T09:00:00Z');
 const il = (h: number) => new Date(T - h * 3600_000).toISOString();
 
 const m = (o: Partial<MessageWa>): MessageWa => ({
-  id: 'm1', sens: 'entrant', numero: '2290166144465', texte: 'Bonjour',
+  id: 'm1', sens: 'entrant', numero: '2290197000088', texte: 'Bonjour',
   quand: il(1), ...o,
 });
 const t = (o: Partial<TeteConnue>): TeteConnue =>
-  ({ id: 'c1', name: 'R. A.', phone: '+229 0166144465', branchId: 'b1', ...o });
+  ({ id: 'c1', name: 'R. A.', phone: '+229 0197000088', branchId: 'b1', ...o });
 
 /* ── ① LE RAPPROCHEMENT PAR NUMÉRO ─────────────────────────────────
-   La fiche porte « +229 0166144465 », Meta renvoie « 2290166144465 ». Si les
+   La fiche porte « +229 0197000088 », Meta renvoie « 2290197000088 ». Si les
    deux ne se réduisent pas au même chiffre, ses messages tombent dans
    « inconnu » à côté de sa propre fiche. */
-dit('le format de la fiche rejoint celui de Meta', '2290166144465', numeroWa('+229 0166144465'));
-dit('… avec des espaces et des tirets', '2290166144465', numeroWa('229-01 66 14 44 65'));
-dit('… et le double zéro international', '2290166144465', numeroWa('002290166144465'));
+dit('le format de la fiche rejoint celui de Meta', '2290197000088', numeroWa('+229 0197000088'));
+dit('… avec des espaces et des tirets', '2290197000088', numeroWa('229-01 97 00 00 88'));
+dit('… et le double zéro international', '2290197000088', numeroWa('002290197000088'));
 /* HUIT CHIFFRES, L'ANCIEN PLAN : le Bénin a préfixé « 01 » en 2021, et les
    fiches d'avant portent encore la forme courte. `22901` + les huit, donc
    treize chiffres — j'en avais compté onze dans mon épreuve, le harnais a
@@ -91,19 +92,19 @@ const fermee = fenetreDe([m({ quand: il(30) })], T);
 const jamais = fenetreDe([], T);
 
 dit('fenêtre ouverte : le texte part', null,
-  pourquoiLEnvoiEstImpossible({ texte: 'Bonjour R.', fenetre: ouverte, numero: '2290166144465' }));
+  pourquoiLEnvoiEstImpossible({ texte: 'Bonjour R.', fenetre: ouverte, numero: '2290197000088' }));
 dit('un message vide ne part pas', 'Le message est vide.',
-  pourquoiLEnvoiEstImpossible({ texte: '   ', fenetre: ouverte, numero: '2290166144465' }));
+  pourquoiLEnvoiEstImpossible({ texte: '   ', fenetre: ouverte, numero: '2290197000088' }));
 dit('fenêtre fermée : le texte libre est refusé',
   'La fenêtre de 24 heures est fermée. WhatsApp n’accepte plus qu’un modèle approuvé.',
-  pourquoiLEnvoiEstImpossible({ texte: 'Bonjour', fenetre: fermee, numero: '2290166144465' }));
+  pourquoiLEnvoiEstImpossible({ texte: 'Bonjour', fenetre: fermee, numero: '2290197000088' }));
 /* ELLE N'A JAMAIS ÉCRIT : le message n'est pas le même, et c'est voulu. « La
    fenêtre est fermée » laisserait croire qu'elle s'était ouverte un jour. */
 dit('elle n’a jamais écrit : un autre refus',
   'Elle ne vous a jamais écrit : seul un modèle approuvé peut ouvrir la conversation.',
-  pourquoiLEnvoiEstImpossible({ texte: 'Bonjour', fenetre: jamais, numero: '2290166144465' }));
+  pourquoiLEnvoiEstImpossible({ texte: 'Bonjour', fenetre: jamais, numero: '2290197000088' }));
 dit('un modèle passe hors fenêtre, c’est tout son objet', null,
-  pourquoiLEnvoiEstImpossible({ texte: '', fenetre: fermee, modele: 'rappel_rdv', numero: '2290166144465' }));
+  pourquoiLEnvoiEstImpossible({ texte: '', fenetre: fermee, modele: 'rappel_rdv', numero: '2290197000088' }));
 dit('sans numéro lisible, rien ne part', 'Ce fil n’a pas de numéro lisible.',
   pourquoiLEnvoiEstImpossible({ texte: 'Bonjour', fenetre: ouverte, numero: 'allo' }));
 
@@ -112,32 +113,32 @@ dit('sans numéro lisible, rien ne part', 'Ce fil n’a pas de numéro lisible.'
    plus qu'un fil de ce matin déjà traité. */
 const fils = filsDeLaMaison(
   [
-    m({ id: 'a1', numero: '2290166144465', quand: il(30), texte: 'Bonjour' }),
-    m({ id: 'a2', numero: '2290166144465', sens: 'sortant', quand: il(29), texte: 'Bonjour R.' }),
+    m({ id: 'a1', numero: '2290197000088', quand: il(30), texte: 'Bonjour' }),
+    m({ id: 'a2', numero: '2290197000088', sens: 'sortant', quand: il(29), texte: 'Bonjour R.' }),
     m({ id: 'b1', numero: '22997000000', quand: il(40), texte: 'Vous faites les locks homme ?', nomProfil: 'Inconnu W.' }),
   ],
   [t({})], [], T,
 );
-dit('le fil sans réponse remonte', ['22997000000', '2290166144465'], fils.map((f) => f.numero));
+dit('le fil sans réponse remonte', ['22997000000', '2290197000088'], fils.map((f) => f.numero));
 /* UN MODÈLE PARTI TOUT SEUL NE RÉPOND PAS (18 septembre) : sa question
    reste en attente, même après la confirmation automatique. */
 const apresAuto = filsDeLaMaison([
-  m({ id: 'q1', numero: '2290166144465', quand: il(30), texte: 'Je peux décaler ?' }),
-  m({ id: 'q2', numero: '2290166144465', sens: 'sortant', quand: il(20), texte: 'Bonjour R., c’est confirmé…', modele: 'confirmation_rdv', parQui: 'Le Trône' }),
+  m({ id: 'q1', numero: '2290197000088', quand: il(30), texte: 'Je peux décaler ?' }),
+  m({ id: 'q2', numero: '2290197000088', sens: 'sortant', quand: il(20), texte: 'Bonjour R., c’est confirmé…', modele: 'confirmation_rdv', parQui: 'Le Trône' }),
 ], [t({})], [], T)[0];
 dit('une question suivie d’une confirmation automatique attend toujours', true, apresAuto.attendUneReponse);
 dit('… et le fil montre bien la confirmation en dernier', 'q2', apresAuto.dernier.id);
 dit('un rappel automatique d’avant (la Maison, automatiquement) non plus', true, filsDeLaMaison([
-  m({ id: 'r1', numero: '2290166144465', quand: il(30), texte: 'Bonjour' }),
-  m({ id: 'r2', numero: '2290166144465', sens: 'sortant', quand: il(20), texte: 'Rappel', modele: 'rappel_rdv', parQui: 'la Maison, automatiquement' }),
+  m({ id: 'r1', numero: '2290197000088', quand: il(30), texte: 'Bonjour' }),
+  m({ id: 'r2', numero: '2290197000088', sens: 'sortant', quand: il(20), texte: 'Rappel', modele: 'rappel_rdv', parQui: 'la Maison, automatiquement' }),
 ], [t({})], [], T)[0].attendUneReponse);
 dit('un modèle envoyé à la main répond, lui', false, filsDeLaMaison([
-  m({ id: 'h1', numero: '2290166144465', quand: il(30), texte: 'Bonjour' }),
-  m({ id: 'h2', numero: '2290166144465', sens: 'sortant', quand: il(20), texte: '', modele: 'rappel_rdv', parQui: 'accueil@maison.bj' }),
+  m({ id: 'h1', numero: '2290197000088', quand: il(30), texte: 'Bonjour' }),
+  m({ id: 'h2', numero: '2290197000088', sens: 'sortant', quand: il(20), texte: '', modele: 'rappel_rdv', parQui: 'accueil@maison.bj' }),
 ], [t({})], [], T)[0].attendUneReponse);
 dit('le fil connu porte le nom de la fiche', 'R. A.',
-  fils.find((f) => f.numero === '2290166144465')?.nom);
-dit('… et son identifiant', 'c1', fils.find((f) => f.numero === '2290166144465')?.clientId);
+  fils.find((f) => f.numero === '2290197000088')?.nom);
+dit('… et son identifiant', 'c1', fils.find((f) => f.numero === '2290197000088')?.clientId);
 /* UNE TÊTE SANS FICHE GARDE SON NOM DE PROFIL : un fil qu'on ne sait pas
    nommer ne se rouvre pas, et « Inconnu » tout court n'est pas un nom. */
 dit('le fil sans fiche porte son nom de profil', 'Inconnu W.',
@@ -158,7 +159,7 @@ dit('… même écrit à l’ancienne', 'c1',
 /* UN FIL PRIVÉ SE DIT PRIVÉ — il ne disparaît pas ici : l'écran décide de ce
    qu'il en fait, et la règle pure se contente de le nommer. */
 dit('un fil marqué privé se dit privé', true,
-  filsDeLaMaison([m({})], [t({})], ['2290166144465'], T)[0].prive);
+  filsDeLaMaison([m({})], [t({})], ['2290197000088'], T)[0].prive);
 
 /* LA BRANCHE FILTRE PAR LA FICHE, jamais par le message : un message reçu ne
    sait pas de quelle maison il relève. Un fil SANS fiche reste visible
@@ -185,9 +186,9 @@ dit('les messages d’un fil sont dans l’ordre du temps',
 const filDe = (msgs: MessageWa[]) => filsDeLaMaison(msgs, [t({})], [], T)[0];
 const vieux = filDe([m({ id: 'x1', quand: il(5) }), m({ id: 'x2', sens: 'sortant', quand: il(4) })]);
 dit('sans archive, un fil n’est pas rangé', false, estArchive(vieux, {}));
-const rangee = archiveLeFil({}, '+229 0166144465', 'Y. B.', il(3));
+const rangee = archiveLeFil({}, '+229 0197000088', 'Y. B.', il(3));
 dit('l’archive se range sous le numéro réduit, avec qui et quand',
-  { '2290166144465': { le: il(3), par: 'Y. B.' } }, rangee);
+  { '2290197000088': { le: il(3), par: 'Y. B.' } }, rangee);
 dit('archivé après son dernier message, le fil est rangé', true, estArchive(vieux, rangee));
 /* ELLE REVIENT SEULE : aucune case à décocher. */
 dit('un message reçu après l’archive le fait revenir', false,
@@ -196,16 +197,16 @@ dit('… un message parti aussi', false,
   estArchive(filDe([...vieux.messages, m({ id: 'x4', sens: 'sortant', quand: il(2) })]), rangee));
 dit('la même seconde écrite autrement ne le fait pas revenir', true,
   estArchive(filDe([m({ id: 'x5', quand: '2026-09-11T06:00:00Z' })]),
-    archiveLeFil({}, '2290166144465', undefined, '2026-09-11T06:00:00.000Z')));
+    archiveLeFil({}, '2290197000088', undefined, '2026-09-11T06:00:00.000Z')));
 dit('sans nom, l’archive ne porte pas de « par » vide',
-  { '2290166144465': { le: il(3) } }, archiveLeFil({}, '2290166144465', undefined, il(3)));
-dit('désarchiver retire l’entrée', {}, desarchiveLeFil(rangee, '2290166144465'));
+  { '2290197000088': { le: il(3) } }, archiveLeFil({}, '2290197000088', undefined, il(3)));
+dit('désarchiver retire l’entrée', {}, desarchiveLeFil(rangee, '2290197000088'));
 dit('désarchiver un fil non rangé ne touche à rien', rangee, desarchiveLeFil(rangee, '22997000000'));
 dit('un numéro illisible ne s’archive pas', {}, archiveLeFil({}, 'abc', 'Y. B.', il(3)));
 dit('un fil archivé n’attend plus de réponse', [],
-  filsQuiAttendent([filDe([m({ id: 'x6', quand: il(5) })])], archiveLeFil({}, '2290166144465', undefined, il(1)))
+  filsQuiAttendent([filDe([m({ id: 'x6', quand: il(5) })])], archiveLeFil({}, '2290197000088', undefined, il(1)))
     .map((f) => f.numero));
-dit('… mais un fil non archivé attend toujours', ['2290166144465'],
+dit('… mais un fil non archivé attend toujours', ['2290197000088'],
   filsQuiAttendent([filDe([m({ id: 'x6', quand: il(5) })])]).map((f) => f.numero));
 
 /* ── ⑤ TROIS TIROIRS, UN NUMÉRO — 15 septembre 2026 ────────────────
@@ -215,7 +216,7 @@ dit('… mais un fil non archivé attend toujours', ['2290166144465'],
    collègues), et une personne partie de l'équipe dont les bulletins
    redeviendraient lisibles à tous. */
 const carnet = tetesDeLaMaison({
-  clientes: [{ id: 'c1', name: 'R. A.', phone: '+229 0166144465', branchId: 'b1' },
+  clientes: [{ id: 'c1', name: 'R. A.', phone: '+229 0197000088', branchId: 'b1' },
     { id: 'c2', name: 'A. D.', phone: '97 22 22 22', branchId: 'b1' }],
   equipe: [{ id: 's1', name: 'A. D.', phone: '+229 0197222222', branchId: 'b1' }],
   prestataires: [{ id: 'p1', name: 'K. H.', phone: '+229 0195000000', branchId: 'b1' },
@@ -231,7 +232,7 @@ const carnet = tetesDeLaMaison({
 });
 dit('une cliente est une cliente, avec sa fiche',
   { tiroir: 'clientes', fiche: '/customers?id=c1' },
-  (({ tiroir, fiche }) => ({ tiroir, fiche }))(teteDuNumero('2290166144465', carnet)!));
+  (({ tiroir, fiche }) => ({ tiroir, fiche }))(teteDuNumero('2290197000088', carnet)!));
 /* L'ÉQUIPE D'ABORD : le même numéro est sur une fiche cliente ET sur une
    fiche d'équipe. C'est la décision du 15 septembre. */
 dit('une employée qui est aussi cliente va dans Équipe', 's1',
@@ -260,7 +261,7 @@ dit('équipe et prestataires sont réservés, pas les clientes',
 
 const filsTiroirs = filsDeLaMaison([
   m({ id: 't1', numero: '2290197222222', quand: il(3) }),
-  m({ id: 't2', numero: '2290166144465', quand: il(2) }),
+  m({ id: 't2', numero: '2290197000088', quand: il(2) }),
   /* PARTIE DE L'ÉQUIPE : aucune tête ne porte ce numéro, mais la base avait
      écrit le tiroir sur ses messages. Le fil reste réservé. */
   m({ id: 't3', numero: '22997333333', quand: il(1), tiroir: 'equipe' }),
@@ -269,7 +270,7 @@ const tiroirDu = (n: string) => filsTiroirs.find((f) => f.numero === n)?.tiroir;
 dit('le fil de l’employée est dans Équipe', 'equipe', tiroirDu('2290197222222'));
 dit('… sans clientId : les gestes des clientes ne la concernent pas', undefined,
   filsTiroirs.find((f) => f.numero === '2290197222222')?.clientId);
-dit('le fil de la cliente est dans Clientes', 'clientes', tiroirDu('2290166144465'));
+dit('le fil de la cliente est dans Clientes', 'clientes', tiroirDu('2290197000088'));
 dit('une personne partie de l’équipe garde un fil réservé', 'equipe', tiroirDu('22997333333'));
 dit('… et se dit sans fiche', true, filsTiroirs.find((f) => f.numero === '22997333333')?.sansFiche);
 dit('un fil neuf porte le tiroir de sa tête', 'prestataires',
@@ -299,6 +300,34 @@ dit('sans numero, aucun lien', null, lienDuFil(''));
   dit('effacer : un fil sans fiche, oui', true, filEffacable({ sansFiche: true, messages: [{}] }));
   dit('... le fil d une cliente avec fiche, jamais (il s archive)', false, filEffacable({ sansFiche: false, messages: [{}] }));
   dit('... un fil vide, rien a effacer', false, filEffacable({ sansFiche: true, messages: [] }));
+}
+
+/* ── LA MAISON RÉPOND SUR WHATSAPP (9 octobre 2026) ──────────────────
+   Un message de l'automate (`auto: 'automate'`) ne répond JAMAIS à la place
+   de la Maison : c'est le fil qu'il mène qui dit s'il a fait le travail. Une
+   main passée, une pause de l'équipe, un mot d'elle après la confirmation :
+   l'alarme sonne. Le détail, et les pannes, dans verifie-l-automate-wa. */
+{
+  const NUM = '2290197000088';
+  const elle = m({ id: 'au1', numero: NUM, quand: il(0.2), texte: 'Je voudrais un rendez-vous samedi' });
+  const lui = m({ id: 'au2', numero: NUM, sens: 'sortant', quand: il(0.19), texte: 'Bonjour Madame R.', parQui: 'Le Trône', auto: 'automate' });
+  const fil = (o: Record<string, unknown> = {}): LigneDesFilsAutomate => ({
+    id: `fil-${NUM}`, numero: NUM, version: 2, etape: 'places', depuis: il(0.19), versionDeLEtape: 2, majLe: il(0.19),
+    traites: ['x'], dernierEntrantQuand: il(0.2), panier: {}, ecarts: 0, envois: [il(0.19)], ...o,
+  } as LigneDesFilsAutomate);
+  const attend = (msgs: MessageWa[], lignes?: LigneDesFilsAutomate[]) =>
+    filsDeLaMaison(msgs, [t({})], [], T, undefined, lignes ? automatesDesFils(lignes) : undefined)[0].attendUneReponse;
+  dit('un message de l automate ne répond pas à sa place (sans la table des fils)', true, attend([elle, lui]));
+  dit('… un fil qu il mène, dont il a traité le dernier mot, n attend pas', false, attend([elle, lui], [fil()]));
+  dit('… une main passée attend', true, attend([elle, lui], [fil({ etape: 'main', mainPasseeLe: il(0.19), motifMain: 'ecarts' })]));
+  dit('… une pause de l équipe attend', true, attend([elle, lui], [fil(), { id: `main-${NUM}`, numero: NUM, pauseLe: il(0.1), jusqua: new Date(T + 3600_000).toISOString(), motif: 'frappe' }]));
+  dit('… un mot d elle après la confirmation attend', true, attend([elle, lui, m({ id: 'au3', numero: NUM, quand: il(0.05), texte: 'Merci !' })], [fil({ etape: 'confirme' })]));
+  dit('… la confirmation sans mot de plus n attend pas', false, attend([elle, lui], [fil({ etape: 'confirme' })]));
+  const automates = automatesDesFils([fil(), { ...fil({ etape: 'main', mainPasseeLe: il(0.19) }), id: 'fil-22997000000', numero: '22997000000' }]);
+  dit('les fils tenus : celui qu il mène, pas la main passée', [NUM], [...numerosTenus(automates, T)]);
+  dit('la sonnette se tait sur un fil tenu, sonne sur la main passée', ['s2'], messagesQuiSonnent({
+    avant: [], apres: [m({ id: 's1', numero: NUM }), m({ id: 's2', numero: '22997000000' })], premiereLecture: false, tenus: numerosTenus(automates, T),
+  }).map((x) => x.id));
 }
 
 console.log(ko === 0 ? '\nTout passe.' : `\n${ko} épreuve(s) en échec.`);

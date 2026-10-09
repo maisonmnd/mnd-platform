@@ -172,7 +172,7 @@ export default function AFaire() {
     const de = deDuJour(a.date);
     const origine = a.repriseDe
       ? (a.note ? a.note.replace('Reprise posée à la clôture · ', 'cadence · ').replace('toutes les ', '≈ ').replace('cadence observée ', '') : 'cadence')
-      : a.source === 'couronne' ? 'Ma Couronne' : 'à la main';
+      : a.source === 'couronne' ? 'Ma Couronne' : a.source === 'whatsapp' ? 'WhatsApp' : 'à la main';
     const rituel = apptLabel(a as never, byId);
     const message = a.repriseDe
       ? texteDeLaRelance({ prenom, jourIso: a.date, heure: a.time ?? '', aujourdhuiIso: auj, maison: maisonNom() })

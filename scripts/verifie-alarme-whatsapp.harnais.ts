@@ -9,7 +9,7 @@
    Le juge est `filsSansReponse`, bâti sur celui de la cloche. */
 import {
   filsDeLaMaison, filsSansReponse, filsQuiAttendent, tetesDeLaMaison, resteEnClair, alerteDuTelephone,
-  type MessageWa, type ArchivesDesFils,
+  automatesDesFils, type MessageWa, type ArchivesDesFils,
 } from '../src/shared/conversations';
 
 let ko = 0;
@@ -113,6 +113,32 @@ dit('⑲ le personnel, pour une cliente et un maître : la cliente seule',
 dit('⑳ la direction, pour les deux : deux personnes',
   '2 personnes vous écrivent sur WhatsApp', alerteDuTelephone([ELIANE, MAITRE], true)?.titre);
 dit('㉑ rien d’arrivé, rien à dire', null, alerteDuTelephone([], true));
+
+/* ── La Maison répond sur WhatsApp (9 octobre 2026) ───────────────
+   L'automate mène A (il a traité son dernier mot) et a passé la main sur B
+   (deux réponses non comprises) : seule B reste dans l'alarme, avec la
+   pastille « Main passée ». Ses messages ne répondent jamais à sa place. */
+{
+  const ligne = (numero: string, o: Record<string, unknown>) => ({
+    id: `fil-${numero}`, numero, version: 2, etape: 'places', depuis: '2026-09-18T08:00:05Z', versionDeLEtape: 2,
+    majLe: '2026-09-18T08:00:05Z', traites: ['x'], panier: {}, ecarts: 0, envois: ['2026-09-18T08:00:05Z'], ...o,
+  });
+  const automates = automatesDesFils([
+    ligne(A, { dernierEntrantQuand: '2026-09-18T08:00:00Z' }),
+    ligne(B, { etape: 'main', mainPasseeLe: '2026-09-17T12:00:05Z', motifMain: 'ecarts', majLe: '2026-09-17T12:00:05Z', dernierEntrantQuand: '2026-09-17T12:00:00Z' }),
+  ] as never);
+  const avecLAutomate = [
+    ...MESSAGES,
+    msg(A, 'sortant', '2026-09-18T08:00:05Z', { parQui: 'Le Trône', auto: 'automate' }),
+    msg(B, 'sortant', '2026-09-17T12:00:05Z', { parQui: 'Le Trône', auto: 'automate' }),
+  ];
+  const tous = filsDeLaMaison(avecLAutomate, TETES, [], MAINTENANT, undefined, automates);
+  const enAlarme = filsSansReponse(tous, {}, undefined, {}).map((f) => f.numero);
+  dit('㉒ un fil que l’automate mène, son dernier mot traité, quitte l’alarme', false, enAlarme.includes(A));
+  dit('㉓ la main passée y reste, pastille « Main passée »', [true, 'main'], [enAlarme.includes(B), tous.find((f) => f.numero === B)?.automate?.tenue]);
+  dit('㉔ sans la table des fils, un message de l’automate ne répond pas',
+    true, filsSansReponse(filsDeLaMaison(avecLAutomate, TETES, [], MAINTENANT), {}, undefined, {}).map((f) => f.numero).includes(A));
+}
 
 console.log(ko === 0 ? '\nTOUT EST JUSTE.' : `\n${ko} ÉCHEC(S).`);
 process.exit(ko === 0 ? 0 : 1);
