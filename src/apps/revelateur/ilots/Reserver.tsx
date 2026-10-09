@@ -151,31 +151,52 @@ const quandDit = (iso: string): string => {
    la page barre les prix des soins d'entretien dès le lien ouvert. Le
    serveur la revérifie à l'envoi (première visite, une seule fois). */
 type Invitation = { prenom: string; cadeau: string; remise?: { pct: number; serviceIds: string[] } };
-function useInvitation(code: string): Invitation | null {
-  const [qui, setQui] = useState<Invitation | null>(null);
+/* TROIS ÉTATS — 9 octobre 2026 (De main en main). Les anciens codes ont la
+   MÊME forme que ceux des Graines : seul le serveur les distingue. La page
+   ne promet donc plus rien sur la forme, elle attend sa réponse :
+   · 'attente' : la réponse n'est pas encore là, ou le serveur n'a pas pu
+     répondre (réseau, débit) ; le code se jugera à l'envoi ;
+   · 'inconnu' : le serveur ne connaît pas ce code (un ancien code, une
+     Graine archivée, une faute de frappe) ;
+   · l'invitation, quand le code est celui d'une Graine.
+   `null` : ce n'est pas un code de marraine, il n'y a rien à demander. La
+   réponse se garde avec SON code : un code changé entre-temps repart en
+   attente au lieu d'hériter de la réponse du précédent. */
+type EtatDeLInvitation = 'attente' | 'inconnu' | Invitation | null;
+function useInvitation(code: string): EtatDeLInvitation {
+  const aDemander = !!code && FORME_DU_CODE.test(code);
+  const [lu, setLu] = useState<{ code: string; etat: 'inconnu' | Invitation } | null>(null);
   useEffect(() => {
-    setQui(null);
-    if (!code || !FORME_DU_CODE.test(code)) return;
+    if (!aDemander) return;
     let vivant = true;
     void (async () => {
       try {
         const supabase = await client();
         if (!supabase) return;
-        const { data } = await supabase.functions.invoke('demande-submit', { body: { parrainage: 'qui', code } });
+        const { data, error } = await supabase.functions.invoke('demande-submit', { body: { parrainage: 'qui', code } });
+        /* Sans réponse sûre, on reste en attente : dire « inconnu » à une
+           amie dont seul le réseau a flanché serait une fausse nouvelle. */
+        if (!vivant || error) return;
         const r = (data ?? {}) as { ok?: boolean; prenom?: string; cadeau?: string; remise?: { pct?: unknown; serviceIds?: unknown } };
-        if (!vivant || !r.ok || !r.prenom) return;
+        if (!r.ok || !r.prenom) { setLu({ code, etat: 'inconnu' }); return; }
         const pct = Number(r.remise?.pct);
         const ids = Array.isArray(r.remise?.serviceIds) ? (r.remise!.serviceIds as unknown[]).filter((x): x is string => typeof x === 'string') : [];
-        setQui({
-          prenom: r.prenom, cadeau: r.cadeau ?? '',
-          ...(pct > 0 && pct <= 90 && ids.length > 0 ? { remise: { pct: Math.round(pct), serviceIds: ids } } : {}),
+        setLu({
+          code,
+          etat: {
+            prenom: r.prenom, cadeau: r.cadeau ?? '',
+            ...(pct > 0 && pct <= 90 && ids.length > 0 ? { remise: { pct: Math.round(pct), serviceIds: ids } } : {}),
+          },
         });
       } catch { /* sans invitation, la réservation reste entière */ }
     })();
     return () => { vivant = false; };
-  }, [code]);
-  return qui;
+  }, [code, aDemander]);
+  if (!aDemander) return null;
+  return lu && lu.code === code ? lu.etat : 'attente';
 }
+/** L'invitation seule, quand le serveur l'a rendue. */
+const invitationDe = (e: EtatDeLInvitation): Invitation | null => (e && typeof e === 'object' ? e : null);
 
 /** LE CODE POSÉ PAR LE BOUTON DE L'OFFRE — 24 septembre 2026.
     « Du coup le code se remplit automatiquement lors de la réservation avec
@@ -388,7 +409,8 @@ function Calendrier({ besoin: besoinInitial }: Props) {
   );
   /* LA REMISE DE BIENVENUE D'UNE MARRAINE se calcule exactement comme celle
      d'une offre : mêmes lignes, même barre sur le prix (7 octobre 2026). */
-  const invitation = useInvitation(offreDuMoment ? '' : code);
+  const etatDuCode = useInvitation(offreDuMoment ? '' : code);
+  const invitation = invitationDe(etatDuCode);
   const offreDeBienvenue = useMemo<OffreCodee | null>(
     () => (invitation?.remise ? { active: true, discountPct: invitation.remise.pct, serviceIds: invitation.remise.serviceIds } : null),
     [invitation],
@@ -500,8 +522,21 @@ function Calendrier({ besoin: besoinInitial }: Props) {
             /* LE CODE VOYAGE, LE POURCENTAGE NON : c'est au serveur de
                résoudre le code contre les offres de la Maison. Un
                navigateur à qui l'on demanderait sa propre remise
-               répondrait 90 le jour où quelqu'un s'en amuserait. */
-            ...(offreDuMoment ? { code: codeNormalise(code) } : {}),
+               répondrait 90 le jour où quelqu'un s'en amuserait.
+               LE CODE D'UNE MARRAINE VOYAGE AUSSI — 9 octobre 2026. Depuis
+               le 24 septembre, seul le code d'une offre partait : celui d'une
+               marraine (PRENOM-XXX) n'arrivait jamais au serveur, qui ne
+               pouvait ni l'honorer ni prévenir la marraine. Un code de cette
+               forme part donc toujours ; le serveur seul sait s'il est celui
+               d'une Graine, et un code éteint s'y dit « inconnu », sans
+               jamais refuser la place.
+               DANS UN CHAMP À LUI, `codeAmie` (9 octobre 2026, au soir) :
+               l'ANCIENNE fonction ne lit que `code`, et elle honorerait
+               encore les anciens codes. Si cette page partait avant la
+               fonction neuve (une publication des six sites un autre soir),
+               le code d'une amie n'y ferait donc rien ; la neuve lit les deux. */
+            ...(offreDuMoment ? { code: codeNormalise(code) }
+              : FORME_DU_CODE.test(codeNormalise(code)) ? { codeAmie: codeNormalise(code) } : {}),
             serviceIds, date: jour, time: heure.heure, master: heure.maitre,
             ...(bandeChoisie ? { lockCount: lockCountAnnonce, calibre: bandeChoisie.name } : {}),
             page: location.pathname, campagne: campagne() || undefined, consentement: true,
@@ -772,8 +807,18 @@ function Calendrier({ besoin: besoinInitial }: Props) {
                 </p>
               )
             )}
-            {!offreDuMoment && !offrePassee && !offreDeBienvenue && code && FORME_DU_CODE.test(code) && (
-              <p className="code-offre__dit est-bonne">Code de parrainage. Votre cadeau de bienvenue se confirme à l’envoi, s’il s’agit de votre première visite.</p>
+            {/* UN CODE DE LA BONNE FORME NE PROMET PLUS RIEN PAR SA FORME —
+                9 octobre 2026. « Votre cadeau se confirme à l'envoi » se lisait
+                aussi sous un ancien code, qui ne donne plus rien : la page
+                attend la réponse du serveur, puis dit ce qu'il a répondu. */}
+            {!offreDuMoment && !offrePassee && !offreDeBienvenue && invitation && (
+              <p className="code-offre__dit est-bonne">Bienvenue de la part de {invitation.prenom}. Votre cadeau de bienvenue se confirme à l’envoi, s’il s’agit de votre première visite.</p>
+            )}
+            {!offreDuMoment && !offrePassee && etatDuCode === 'attente' && (
+              <p className="code-offre__dit">Ce code se vérifie à l’envoi de votre réservation.</p>
+            )}
+            {!offreDuMoment && !offrePassee && etatDuCode === 'inconnu' && (
+              <p className="code-offre__dit">Ce code n’ouvre pas de cadeau de bienvenue. Vous pouvez réserver au prix de la carte.</p>
             )}
             {!offreDuMoment && !offrePassee && code && !FORME_DU_CODE.test(code) && (
               <p className="code-offre__dit">Nous ne connaissons pas ce code. Vous pouvez réserver, tout se règle au prix de la carte.</p>
@@ -1091,10 +1136,12 @@ function Calendrier({ besoin: besoinInitial }: Props) {
    avec tous ses crochets, et n'est monté qu'une fois le parcours connu. */
 /* L'INVITATION — 28 septembre 2026 (carte de marraine validée). L'amie qui
    a scanné une carte arrive ici avec le code posé ; la fonction rend le
-   PRÉNOM de la marraine (rien d'autre), et la page l'accueille par lui. */
+   PRÉNOM de la marraine (rien d'autre), et la page l'accueille par lui.
+   Depuis le 9 octobre, la bannière ne paraît que pour le code d'une Graine,
+   reconnu par le serveur ; un ancien code ne l'ouvre plus. */
 function BanniereDInvitation() {
   const [c] = useState(codeDeLAdresse);
-  const qui = useInvitation(c);
+  const qui = invitationDe(useInvitation(c));
   if (!qui) return null;
   return (
     <div className="invitation sombre" role="note">
@@ -1129,11 +1176,21 @@ export default function Reserver({ besoin: besoinInitial }: Props) {
   );
   if (besoin && besoin !== 'inconnu') return <><BanniereDInvitation /><Calendrier besoin={besoin} /></>;
   const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+  /* LE CODE PASSE LA PORTE — 9 octobre 2026. L'amie qui arrive de /m/ porte
+     `?code=` sans parcours ; « entretien » réécrivait l'adresse en
+     `?besoin=` seul, et le calendrier, qui relit l'adresse en montant, ne
+     trouvait plus le code que la bannière disait « déjà posé ». */
   const choisit = (b: Besoin) => {
     mesure('parcours_choisi', { parcours: b });
-    try { history.replaceState(null, '', `${location.pathname}?besoin=${b}`); } catch { /* sans histoire, tant pis */ }
+    const codePose = codeDeLAdresse();
+    try { history.replaceState(null, '', `${location.pathname}?besoin=${b}${codePose ? `&code=${encodeURIComponent(codePose)}` : ''}`); } catch { /* sans histoire, tant pis */ }
     setBesoin(b);
   };
+  /* LE CODE SUIT AUSSI LA CONSULTATION ET LA CRÉATION — 9 octobre 2026 au
+     soir. Une amie qui n'a pas encore de locks touche « créer ma couronne » :
+     c'est le cas le plus courant d'une filleule, et la page du rappel
+     recevait l'adresse sans le code que la bannière disait « déjà posé ». */
+  const suiteDuCode = (() => { const c = codeDeLAdresse(); return c ? `&code=${encodeURIComponent(c)}` : ''; })();
   return (
     <>
     <BanniereDInvitation />
@@ -1144,11 +1201,11 @@ export default function Reserver({ besoin: besoinInitial }: Props) {
         <span>Oui, elles ont besoin de leur entretien</span>
         <small>Vous choisissez votre heure en ligne, en trois pas.</small>
       </button>
-      <a className="porte-rdv__choix" href={`${base}/rappel/?besoin=reparation`}>
+      <a className="porte-rdv__choix" href={`${base}/rappel/?besoin=reparation${suiteDuCode}`}>
         <span>Oui, mais elles ont besoin de soin, ou j’ai un doute</span>
         <small>Une consultation d’abord. Laissez votre numéro, la Maison vous rappelle.</small>
       </a>
-      <a className="porte-rdv__choix" href={`${base}/rappel/?besoin=creation`}>
+      <a className="porte-rdv__choix" href={`${base}/rappel/?besoin=creation${suiteDuCode}`}>
         <span>Je veux créer ma couronne</span>
         <small>Une création commence par une consultation. La Maison vous rappelle.</small>
       </a>

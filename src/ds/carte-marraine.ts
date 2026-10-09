@@ -17,7 +17,13 @@
    médaillon et le verrou se posent à leurs proportions, jamais étirés.
 
    LE QR MÈNE À LA RÉSERVATION, CODE POSÉ : c'est le même lien que celui que
-   la marraine partage (`lienDuParrainage`). */
+   la marraine partage (`lienDuParrainage`).
+
+   DE MAIN EN MAIN — 9 octobre 2026. La carte se gagne : elle n'existe plus
+   que pour une Graine. Le recto garde « CARTE DE MARRAINE » et écrit
+   toujours le rang, Graine comprise (un rang absent vaut Graine). Le verso
+   ne promet plus un soin seul : le merci est un soin ou une remise, au
+   choix de la marraine. */
 
 import qrcode from 'qrcode-generator';
 import { asset } from '../shared/asset';
@@ -42,7 +48,8 @@ export type DonneesDeCarte = {
   /** L'année d'entrée à la Maison (la fiche, `since`). */
   depuis: string;
   modele?: ModeleDeCarte;
-  /** Son rang d'ambassadrice : il s'écrit à côté de « Carte de marraine ». */
+  /** Son rang d'ambassadrice : il s'écrit à côté de « Carte de marraine ».
+      Absent, il vaut Graine (9 octobre 2026) : la carte n'est qu'à elle. */
   rang?: RangId;
 };
 
@@ -189,7 +196,7 @@ async function peinsLeRecto(c: CanvasRenderingContext2D, d: DonneesDeCarte): Pro
   c.textBaseline = 'alphabetic';
   c.fillStyle = accent;
   c.font = `400 17px ${SANS}`;
-  espace(c, d.rang && d.rang !== 'graine' ? `CARTE DE MARRAINE · ${nomDuRang(d.rang).split(" ")[0].toUpperCase()}` : 'CARTE DE MARRAINE', 70, 250, 17 * 0.34);
+  espace(c, `CARTE DE MARRAINE · ${nomDuRang(d.rang ?? 'graine').split(' ')[0].toUpperCase()}`, 70, 250, 17 * 0.34);
 
   /* Le prénom, en grand ; il se resserre s'il est long, jamais ne déborde. */
   let taille = 132;
@@ -241,7 +248,7 @@ async function peinsLeVerso(c: CanvasRenderingContext2D, d: DonneesDeCarte): Pro
   const fin = plie(c, `Scannez ce carré : votre amie réserve avec le code ${deLaMarraine(d.prenom)}, et son cadeau de bienvenue l’attend à sa première visite.`, 70, 312, 450, 33);
   c.fillStyle = CU_700;
   c.font = `400 19px ${SANS}`;
-  plie(c, 'Quand elle est venue, un soin vous est offert.', 70, fin + 48, 450, 30);
+  plie(c, 'Quand elle est venue, un soin ou une remise, à votre choix.', 70, fin + 48, 450, 30);
   c.fillStyle = CUIVRE;
   c.font = `italic 400 26px ${SERIF_FON}`;
   c.fillText('mi nyɔ́ ɖɛkpɛ', 70, 584);

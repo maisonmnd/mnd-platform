@@ -122,7 +122,8 @@ oublieLesPassages();
 
   /* LA PANNE ELLE-MEME, sur le vrai calcul : une marraine et deux filleules sans date.
      Lues dans deux ordres SANS rangement, les lignees different ; rangees, elles sont egales. */
-  const marraine = { id: 'm', name: 'Awa M', codeParrain: 'AWA-K7M' };
+  /* Une Graine (« De main en main », 9 octobre 2026) : sans elle, plus de lignée. */
+  const marraine = { id: 'm', name: 'Awa M', codeParrain: 'AWA-K7M', graine: { code: 'AWA-K7M', le: '2026-10-09', atteinteLe: '2026-09-01', seuil: 5 } };
   const f1 = { id: 'f1', name: 'Bintou B', parraineePar: 'AWA-K7M' };
   const f2 = { id: 'f2', name: 'Chantal C', parraineePar: 'AWA-K7M' };
   // deno-lint-ignore no-explicit-any

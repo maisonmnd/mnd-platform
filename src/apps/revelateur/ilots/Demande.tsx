@@ -3,6 +3,8 @@ import { COMMUN } from '../contenu';
 import { client, lienWhatsApp, maison } from '../maison';
 import { campagne, mesure } from '../mesure';
 import type { Besoin } from '../../../shared/qualification';
+import { codeNormalise } from '../../../shared/offres-pur';
+import { FORME_DU_CODE } from '../../../shared/parrainage-pur';
 
 /* LA DEMANDE SANS COMPTE — un prénom, un numéro, la Maison rappelle.
 
@@ -26,6 +28,19 @@ function besoinDeLAdresse(): Besoin | '' {
 
 const base = (chemin: string): string => import.meta.env.BASE_URL.replace(/\/$/, '') + chemin;
 
+/* LE CODE D'UNE AMIE SUIT LA DEMANDE DE RAPPEL — 9 octobre 2026 au soir.
+   L'amie d'une Graine qui veut créer sa couronne (ou faire soigner ses
+   locks) passe par une consultation, donc par ce formulaire : le code de
+   sa marraine voyage avec elle depuis la porte de la réservation, part au
+   serveur dans `codeAmie` (que l'ancienne fonction ignore), et le serveur
+   seul dit s'il est celui d'une Graine. Rien ne se promet ici. */
+const codeDAmieDeLAdresse = (): string => {
+  try {
+    const c = codeNormalise(new URLSearchParams(location.search).get('code') ?? '');
+    return FORME_DU_CODE.test(c) ? c : '';
+  } catch { return ''; }
+};
+
 export default function Demande({ genre, besoin: besoinInitial, profil: profilPose }: Props) {
   const f = COMMUN.formulaire;
   const [prenom, setPrenom] = useState('');
@@ -38,6 +53,7 @@ export default function Demande({ genre, besoin: besoinInitial, profil: profilPo
   const [envoi, setEnvoi] = useState(false);
   const [recu, setRecu] = useState(false);
   const [whatsapp, setWhatsapp] = useState('');
+  const [codeAmie] = useState(codeDAmieDeLAdresse);
   useEffect(() => { void maison().then((m) => setWhatsapp(m?.whatsapp ?? '')); }, []);
 
   const cle: Besoin = besoin || 'inconnu';
@@ -58,6 +74,7 @@ export default function Demande({ genre, besoin: besoinInitial, profil: profilPo
           genre,
           data: {
             prenom, telephone: numero, besoin: cle, profil, mot,
+            ...(codeAmie ? { codeAmie } : {}),
             page: location.pathname, campagne: campagne() || undefined, consentement: true,
           },
         },
@@ -119,6 +136,7 @@ export default function Demande({ genre, besoin: besoinInitial, profil: profilPo
             {f.profils.map((p) => <option key={p} value={p}>{p}</option>)}
           </select></div>
       </div>}
+      {codeAmie && <p className="code-offre__dit">Le code {codeAmie} accompagne votre demande : la Maison le regarde en vous rappelant.</p>}
       <div className="champ"><label htmlFor="dem-mot">{profilPose ? 'Vos locks en quelques mots (âge, calibre, ce qui vous préoccupe)' : 'Un mot, si vous voulez'}</label><textarea id="dem-mot" name="mot" rows={3} value={mot} onChange={(e) => setMot(e.target.value)} /></div>
       <label className="consentement"><input type="checkbox" id="dem-consent" name="consent" checked={consent} onChange={(e) => setConsent(e.target.checked)} /><span>{f.consentement}</span></label>
       <button className="btn btn--plein" type="submit" disabled={envoi}>{envoi ? 'Envoi en cours' : f.bouton}</button>

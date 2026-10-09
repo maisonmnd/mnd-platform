@@ -1,17 +1,29 @@
 import type { Client } from './clients';
 import {
-  FORME_DU_CODE, RANGS, prenomDuNom, rangDe,
+  FORME_DU_CODE, prenomDuNom, rangDe,
   type ClassementAmbassade, type EtatDeLaFilleule, type ResumeParrainage, type SoinOffert,
 } from './parrainage-pur';
+import { codeActifDe } from './douze-lunes-pur';
 
 /* ══ LES AMBASSADRICES DE LA MAISON — 28 septembre 2026 ══════════════════
    Maquette validée (canvas « La carte de marraine MND », page « Les
    ambassadrices ») : « construits » (Yéman).
 
-   CHAQUE CLIENTE EST UNE AMBASSADRICE. Ce module est PUR : il lit les
-   fiches, les demandes du site et le carnet, et dit ce qui doit être. Le
-   Trône l'applique (`useParrainageVivant`), Ma Couronne et la caisse le
-   lisent, `verifie-le-parrainage` l'éprouve.
+   Ce module est PUR : il lit les fiches, les demandes du site et le
+   carnet, et dit ce qui doit être. Le Trône l'applique
+   (`useParrainageVivant`), Ma Couronne et la caisse le lisent,
+   `verifie-le-parrainage` l'éprouve.
+
+   ── DE MAIN EN MAIN (9 octobre 2026). Chaque cliente n'est plus
+   ambassadrice d'office : la carte se gagne, à la Nᵉ visite honorée depuis
+   le 1er janvier (la GRAINE, shared/douze-lunes-pur). Une lignée ne naît
+   que d'une fiche Graine, par son code actif (`codeActifDe`) ; les
+   marraines du site (demandes « Marraine ») n'en font plus. Une amie
+   invitée AVANT le lancement avec l'ancien code de la même fiche la
+   retrouve (l'archive garde cet ancien code), et vaut son merci si elle est
+   venue APRÈS le lancement. L'écho, les rangs récompensés et le défi du
+   mois sont retirés du code : un réglage resté dans le document n'y peut
+   plus rien. Les échos restent une ligne d'honneur dans Ma Couronne.
 
    ── UNE AMIE, DEUX CHEMINS. Elle réserve sur le site avec le code (la
    demande porte `parrainDe`), ou le Trône la rattache à la main (« Vient de
@@ -22,37 +34,54 @@ import {
    ── UNE AMIE COMPTE QUAND ELLE EST VENUE : sa première visite HONORÉE. Une
    réservation seule ne rend rien.
 
-   ── DEUX GÉNÉRATIONS, JAMAIS D'ARGENT. L'amie vaut une récompense au choix
-   (soin offert ou remise sur un produit) ; l'amie d'une amie vaut un écho
-   (une remise plus petite) ; l'arbre s'arrête là. Des soins et des remises,
-   rien à payer pour entrer : c'est un programme de fidélité, pas une vente
-   pyramidale. */
+   ── JAMAIS D'ARGENT. L'amie vaut une récompense au choix (soin offert ou
+   remise sur un produit) ; les amies de ses amies grandissent l'arbre, sans
+   rien rapporter. Des soins et des remises, rien à payer pour entrer : c'est
+   un programme de fidélité, pas une vente pyramidale. */
 
 export type RdvLu = { id: string; status: string; date: string; clientId?: string };
 
 export type FicheAmb = Pick<Client, 'id' | 'name' | 'phone' | 'since'>
-  & Partial<Pick<Client, 'codeParrain' | 'archived' | 'soinsOfferts' | 'parrainage' | 'parraineePar' | 'parraineeLe' | 'choixRecompenses'>>;
+  & Partial<Pick<Client, 'codeParrain' | 'archived' | 'soinsOfferts' | 'parrainage' | 'parraineePar' | 'parraineeLe' | 'choixRecompenses' | 'graine' | 'avantLesDouzeLunes'>>;
 
 export type DemandeLue = {
   id: string; prenom: string; telephone: string; createdAt: string;
   codeParrain?: string; codeRaison?: string; parrainDe?: string; apptId?: string;
   cadeauMarraineRemisLe?: string;
+  /** La fiche que le Trône a ouverte en la convertissant (« En faire une
+      cliente ») : le seul lien d'une demande de RAPPEL, qui n'a pas de
+      rendez-vous (9 octobre 2026). */
+  clientId?: string;
 };
 
 export type ReglageAmbassade = {
   soinMarraineServiceId?: string;
   /** La remise « au choix », sur un produit de la Gamme (20 % par défaut). */
   remisePct?: number;
-  /** L'écho, deuxième génération (10 % par défaut). */
+  /** ÉTEINT depuis le 9 octobre 2026 : l'écho ne se pose plus. */
   echoPct?: number;
   validiteMois?: number;
-  /** Le soin offert une fois, au rang atteint. Sans prestation : rien. */
+  /** ÉTEINTS depuis le 9 octobre 2026 : ni bonus de rang, ni défi du mois. */
   bonusRangs?: Partial<Record<'tresse' | 'couronne' | 'reine', string>>;
   defi?: { actif: boolean; objectif: number; serviceId?: string };
   merciParWhatsApp?: boolean;
+  /** LE JOUR DU LANCEMENT de « De main en main » (AAAA-MM-JJ, heure du
+      Bénin), tiré de `mnd_douze_lunes` par le Trône. Absent : aucun merci.
+      Une amie venue avant ce jour ne pose rien : c'est la date métier. */
+  lanceLe?: string;
 };
 
+/** LE RÉGLAGE QUE LE MOTEUR LIT (9 octobre 2026) : celui du document
+    `mnd_parrainage` (soin, remise, validité), le jour du lancement, et le
+    remerciement WhatsApp de `mnd_douze_lunes`, jamais celui de l'ancien
+    programme que le geste a éteint. Le crochet du Trône et les écrans qui
+    comptent les mercis à venir passent par lui : une seule lecture. */
+export const reglageDuMoteur = (
+  reglage: ReglageAmbassade, lunes: { merciParWhatsApp?: boolean } | null | undefined, lanceLe: string | undefined,
+): ReglageAmbassade => ({ ...reglage, merciParWhatsApp: lunes?.merciParWhatsApp === true, lanceLe });
+
 export const REMISE_PAR_DEFAUT = 20;
+/** L'ancien écho (éteint) : gardé pour l'écran qui montre l'ancien réglage. */
 export const ECHO_PAR_DEFAUT = 10;
 /** Une remise de parrainage reste une remise : jamais plus que la moitié. */
 export const REMISE_MAX = 50;
@@ -75,8 +104,10 @@ export type FilleuleAmb = {
 };
 
 export type Lignee = {
+  /** Le code ACTIF de la Graine. */
   code: string;
-  /** La fiche de l'ambassadrice ; absente pour une marraine du site pas encore cliente. */
+  /** La fiche de l'ambassadrice. (Une marraine du site sans fiche n'a plus
+      de lignée depuis le 9 octobre 2026 ; le champ reste facultatif.) */
   clientId?: string;
   demandeId?: string;
   prenom: string;
@@ -97,32 +128,73 @@ function etatDeLaFiche(clientId: string, rdvs: readonly RdvLu[]): { etat: EtatDe
   return prochain ? { etat: 'a-venir', dateRdv: prochain.date } : { etat: 'sans-rdv' };
 }
 
-/** LES LIGNÉES : pour chaque code, l'ambassadrice et ses amies. */
+/** LES CODES QUI MÈNENT À UNE GRAINE, vers son code actif : ce code-là, et
+    l'ancien code de la MÊME fiche, gardé dans son archive (décision 5 : une
+    amie invitée avant le lancement retrouve sa marraine). L'ancien code
+    d'une fiche qui n'est pas Graine ne mène nulle part, celui d'une
+    demande « Marraine » du site non plus. */
+function cheminsDesCodes(clients: readonly FicheAmb[]): Map<string, string> {
+  const vers = new Map<string, string>();
+  for (const c of clients) {
+    const actif = codeActifDe(c);
+    if (actif) vers.set(actif, actif);
+  }
+  for (const c of clients) {
+    const actif = codeActifDe(c);
+    const ancien = c?.avantLesDouzeLunes?.codeParrain;
+    if (actif && ancien && FORME_DU_CODE.test(ancien) && !vers.has(ancien)) vers.set(ancien, actif);
+  }
+  return vers;
+}
+
+/** Le code actif de chaque fiche Graine, par fiche. */
+const codesActifsParFiche = (clients: readonly FicheAmb[]): Map<string, string> => {
+  const m = new Map<string, string>();
+  for (const c of clients) {
+    const code = codeActifDe(c);
+    if (code) m.set(c.id, code);
+  }
+  return m;
+};
+
+/** LA GRAINE QU'UN CODE DÉSIGNE (son code actif, ou son ancien code gardé
+    dans l'archive), ou rien. Pour les écrans qui montrent « Vient de la
+    part de » sur une amie rattachée par l'ancien code. */
+export function ficheDuCode(code: string | undefined, clients: readonly FicheAmb[]): FicheAmb | undefined {
+  if (!code) return undefined;
+  const actif = cheminsDesCodes(clients).get(code);
+  return actif ? clients.find((c) => codeActifDe(c) === actif) : undefined;
+}
+
+/** LES LIGNÉES : pour chaque Graine, son code actif et ses amies. */
 export function lignees(clients: readonly FicheAmb[], demandes: readonly DemandeLue[], rdvs: readonly RdvLu[]): Map<string, Lignee> {
   const parId = new Map(clients.map((c) => [c.id, c]));
+  const vers = cheminsDesCodes(clients);
   const res = new Map<string, Lignee>();
   for (const c of clients) {
-    if (!c || c.archived || !c.codeParrain || !FORME_DU_CODE.test(c.codeParrain)) continue;
-    res.set(c.codeParrain, { code: c.codeParrain, clientId: c.id, prenom: prenomDuNom(c.name), telephone: c.phone, depuis: c.since, filleules: [] });
+    const code = codeActifDe(c);
+    if (!c || !code) continue;
+    res.set(code, { code, clientId: c.id, prenom: prenomDuNom(c.name), telephone: c.phone, depuis: c.since, filleules: [] });
   }
-  for (const d of demandes) {
-    if (!d?.codeParrain || !FORME_DU_CODE.test(d.codeParrain) || res.has(d.codeParrain)) continue;
-    res.set(d.codeParrain, { code: d.codeParrain, demandeId: d.id, prenom: prenomDuNom(d.prenom), telephone: d.telephone, depuis: d.createdAt, filleules: [] });
-  }
-  /* ① Les fiches rattachées à la main (ou depuis leur réservation). */
+  /* ① Les fiches rattachées à la main (ou depuis leur réservation), par le
+     code actif ou par l'ancien code de la même fiche. */
   for (const c of clients) {
     if (!c || c.archived || !c.parraineePar) continue;
-    const l = res.get(c.parraineePar);
+    const l = res.get(vers.get(c.parraineePar) ?? '');
     if (!l || l.clientId === c.id) continue;
     l.filleules.push({ cle: `c:${c.id}`, prenom: prenomDuNom(c.name) || 'Une amie', clientId: c.id, ...etatDeLaFiche(c.id, rdvs), recompenseId: `parr-c-${c.id}` });
   }
-  /* ② Les réservations du site faites avec le code. */
+  /* ② Les réservations du site faites avec le code (actif, ou ancien code
+     de la même fiche : l'amie invitée avant le lancement). Une demande de
+     RAPPEL (une consultation, une création : pas de rendez-vous) rejoint
+     sa fiche quand le Trône la convertit (9 octobre 2026). */
   for (const d of demandes) {
     if (!d || d.codeRaison !== 'parrainage' || !d.parrainDe) continue;
-    const l = res.get(d.parrainDe);
+    const l = res.get(vers.get(d.parrainDe) ?? '');
     if (!l) continue;
     const appt = d.apptId ? rdvs.find((r) => r.id === d.apptId) : undefined;
-    const cid = appt?.clientId && parId.has(appt.clientId) ? appt.clientId : undefined;
+    const cid = appt?.clientId && parId.has(appt.clientId) ? appt.clientId
+      : !d.apptId && d.clientId && parId.has(d.clientId) ? d.clientId : undefined;
     if (cid && cid === l.clientId) continue;
     const cle = cid ? `c:${cid}` : `d:${d.id}`;
     const deja = l.filleules.find((f) => f.cle === cle);
@@ -152,7 +224,9 @@ export function lignees(clients: readonly FicheAmb[], demandes: readonly Demande
 /** Les amies venues d'une lignée. */
 export const venuesDe = (l: Lignee | undefined): FilleuleAmb[] => (l?.filleules ?? []).filter((f) => !!f.venueLe);
 
-/** L'écho : les amies VENUES de ses amies, avec l'amie par qui elles viennent. */
+/** L'écho : les amies VENUES de ses amies, avec l'amie par qui elles
+    viennent. Une ligne d'honneur depuis le 9 octobre 2026 : plus aucune
+    récompense. */
 export function echosDe(l: Lignee, tout: Map<string, Lignee>, parCodeDeFiche: Map<string, string>): { f: FilleuleAmb; via: FilleuleAmb }[] {
   const sortie: { f: FilleuleAmb; via: FilleuleAmb }[] = [];
   for (const via of l.filleules) {
@@ -181,30 +255,40 @@ export type Poses = {
   mercis: { clientId: string; telephone: string; prenomMarraine: string; prenomFilleule: string; libelle: string }[];
 };
 
-/** CE QUI DOIT ÊTRE POSÉ. Chaque récompense porte un identifiant tiré de ce
-    qui l'a gagnée : la reposer ne la double jamais, deux postes n'en font
-    qu'une. */
+/** CE QUI DOIT ÊTRE POSÉ : un merci par amie venue, sur la fiche de sa
+    Graine, et rien d'autre (ni écho, ni rang, ni défi, depuis le 9 octobre
+    2026). Chaque récompense porte un identifiant tiré de ce qui l'a gagnée,
+    et un identifiant déjà vu (sur la fiche, ou dans son archive) ne se pose
+    plus : la reposer ne la double jamais, deux postes n'en font qu'une, une
+    récompense retirée au lancement ne revient pas. */
 export function recompensesAPoser(
   clients: readonly FicheAmb[], L: Map<string, Lignee>, reglage: ReglageAmbassade, aujourdhui: string,
   nomDuService: (id: string) => string | undefined = () => undefined,
 ): Poses {
   const poses: Poses = { parFiche: new Map(), demandesMarquees: [], mercis: [] };
+  const lance = reglage.lanceLe?.slice(0, 10);
+  if (!lance) return poses;
   const expireLe = ajouteMois(aujourdhui, Math.max(1, reglage.validiteMois ?? 6));
   const remise = borne(reglage.remisePct, REMISE_PAR_DEFAUT);
-  const echo = borne(reglage.echoPct, ECHO_PAR_DEFAUT);
-  const parCodeDeFiche = new Map(clients.filter((c) => c?.codeParrain).map((c) => [c.id, c.codeParrain as string]));
   for (const c of clients) {
-    if (!c || c.archived || !c.codeParrain) continue;
-    const l = L.get(c.codeParrain);
+    const code = codeActifDe(c);
+    if (!c || !code) continue;
+    const l = L.get(code);
     if (!l) continue;
-    const deja = new Set((c.soinsOfferts ?? []).map((s) => s.id));
+    const deja = new Set([...(c.soinsOfferts ?? []), ...(c.avantLesDouzeLunes?.soinsRetires ?? [])].map((s) => s?.id));
     const neuves: SoinOffert[] = [];
-    const pose = (s: SoinOffert) => { if (!deja.has(s.id)) { deja.add(s.id); neuves.push(s); } };
-    const venues = venuesDe(l);
-    for (const f of venues) {
+    for (const f of venuesDe(l)) {
       if (f.remisALaMain || deja.has(f.recompenseId)) continue;
-      const merci = !!reglage.merciParWhatsApp;
-      pose({
+      /* LA DATE MÉTIER : l'amie venue avant le lancement ne pose rien. */
+      if (!f.venueLe || f.venueLe.slice(0, 10) < lance) continue;
+      deja.add(f.recompenseId);
+      /* LA BORNE ANTI-RAFALE DU REMERCIEMENT (9 octobre 2026) : le message
+         ne part que pour une amie venue depuis que sa marraine est Graine.
+         Venue AVANT (invitée par l'ancien code, décision 5), elle vaut
+         toujours son merci, posé EN SILENCE : poser d'un geste quinze
+         Graines, ou baisser N, enverrait sinon quinze messages d'un coup. */
+      const merci = !!reglage.merciParWhatsApp && f.venueLe.slice(0, 10) >= (c.graine?.le ?? '9999-12-31');
+      neuves.push({
         id: f.recompenseId, genre: 'a-choisir', libelle: 'Une récompense à choisir',
         raison: `Pour la venue de ${f.prenom}`, poseLe: aujourdhui, expireLe, source: 'amie', pct: remise,
         ...(reglage.soinMarraineServiceId ? { serviceId: reglage.soinMarraineServiceId } : {}),
@@ -212,30 +296,6 @@ export function recompensesAPoser(
       });
       if (f.demandeId) poses.demandesMarquees.push(f.demandeId);
       if (merci) poses.mercis.push({ clientId: c.id, telephone: c.phone, prenomMarraine: prenomDuNom(c.name), prenomFilleule: f.prenom, libelle: 'un soin offert ou une remise, à votre choix' });
-    }
-    for (const { f, via } of echosDe(l, L, parCodeDeFiche)) {
-      pose({
-        id: `echo-${f.recompenseId}`, genre: 'remise', pct: echo, libelle: `−${echo} % sur un produit`,
-        raison: `Écho : ${f.prenom}, venue grâce à ${via.prenom}`, poseLe: aujourdhui, expireLe, source: 'echo',
-      });
-    }
-    for (const r of RANGS) {
-      const service = r.id === 'tresse' || r.id === 'couronne' || r.id === 'reine' ? reglage.bonusRangs?.[r.id] : undefined;
-      if (!service || venues.length < r.seuil) continue;
-      pose({
-        id: `rang-${r.id}-${c.id}`, genre: 'soin', serviceId: service, libelle: nomDuService(service) ?? 'Un soin offert',
-        raison: `Rang ${r.nom} atteint`, poseLe: aujourdhui, expireLe, source: 'rang',
-      });
-    }
-    const defi = reglage.defi;
-    if (defi?.actif && defi.objectif > 0 && defi.serviceId) {
-      const mois = aujourdhui.slice(0, 7);
-      if (venues.filter((f) => f.venueLe!.startsWith(mois)).length >= defi.objectif) {
-        pose({
-          id: `defi-${mois}-${c.id}`, genre: 'soin', serviceId: defi.serviceId, libelle: nomDuService(defi.serviceId) ?? 'Un soin offert',
-          raison: `Défi de ${moisDit(mois)} relevé`, poseLe: aujourdhui, expireLe, source: 'defi',
-        });
-      }
     }
     if (neuves.length) poses.parFiche.set(c.id, neuves);
   }
@@ -262,66 +322,72 @@ export function choixReportes(
   return change ? soins : null;
 }
 
-/** LE RATTACHEMENT DEPUIS LE SITE : l'amie qui a réservé avec un code et dont
-    le rendez-vous a trouvé sa fiche porte désormais ce code sur sa fiche. */
+/** LE RATTACHEMENT DEPUIS LE SITE : l'amie qui a réservé avec le code d'une
+    Graine (actif, ou l'ancien code de la même fiche) et dont le rendez-vous
+    a trouvé sa fiche porte désormais ce code sur sa fiche. Un code éteint
+    ne rattache personne. */
 export function rattachementsDuSite(clients: readonly FicheAmb[], demandes: readonly DemandeLue[], rdvs: readonly RdvLu[]): { clientId: string; code: string; le: string }[] {
   const parId = new Map(clients.map((c) => [c.id, c]));
+  const vers = cheminsDesCodes(clients);
   const sortie: { clientId: string; code: string; le: string }[] = [];
   const vus = new Set<string>();
   for (const d of demandes) {
-    if (d?.codeRaison !== 'parrainage' || !d.parrainDe || !d.apptId) continue;
-    const cid = rdvs.find((r) => r.id === d.apptId)?.clientId;
+    if (d?.codeRaison !== 'parrainage' || !d.parrainDe || (!d.apptId && !d.clientId)) continue;
+    const actif = vers.get(d.parrainDe);
+    if (!actif) continue;
+    /* Une demande de rappel n'a pas de rendez-vous : sa fiche est celle de
+       sa conversion (9 octobre 2026). */
+    const cid = d.apptId ? rdvs.find((r) => r.id === d.apptId)?.clientId : d.clientId;
     const c = cid ? parId.get(cid) : undefined;
-    if (!c || c.parraineePar || c.codeParrain === d.parrainDe || vus.has(c.id)) continue;
+    if (!c || c.parraineePar || c.codeParrain === d.parrainDe || codeActifDe(c) === actif || vus.has(c.id)) continue;
     vus.add(c.id);
     sortie.push({ clientId: c.id, code: d.parrainDe, le: d.createdAt });
   }
   return sortie;
 }
 
-/** POURQUOI LE TRÔNE REFUSE « Vient de la part de ». Rend `null` si c'est bon. */
+/** POURQUOI LE TRÔNE REFUSE « Vient de la part de ». Rend `null` si c'est
+    bon. La marraine est une Graine : la fiche dont le code ACTIF est ce
+    code. */
 export function pourquoiPasDeMarraine(
   fiche: FicheAmb, code: string, clients: readonly FicheAmb[], rdvs: readonly RdvLu[], demandes: readonly DemandeLue[] = [],
 ): string | null {
-  const marraine = clients.find((c) => c.codeParrain === code && !c.archived);
-  if (!marraine) return 'Ce code ne correspond à aucune cliente.';
+  const marraine = clients.find((c) => codeActifDe(c) === code);
+  if (!marraine) return 'Ce code n’est celui d’aucune Graine : seule une Graine parraine une amie.';
   if (marraine.id === fiche.id) return 'C’est son propre code : il se partage avec une amie.';
-  const venues = rdvs.filter((r) => r.clientId === fiche.id && r.status === 'honoré').length;
-  if (venues > 1) return 'Elle est déjà venue plusieurs fois : le parrainage accueille les nouvelles clientes.';
+  /* Une visite est un jour (décision du 9 octobre 2026). */
+  const jours = new Set(rdvs.filter((r) => r.clientId === fiche.id && r.status === 'honoré').map((r) => String(r.date).slice(0, 10)));
+  if (jours.size > 1) return 'Elle est déjà venue plusieurs fois : le parrainage accueille les nouvelles clientes.';
   /* LA MARRAINE ACTUELLE a-t-elle déjà reçu sa récompense pour elle ? Par
-     la fiche (`parr-c-…`) ou par sa réservation du site (`parr-<demande>`). */
+     la fiche (`parr-c-…`) ou par sa réservation du site (`parr-<demande>`),
+     dans ses récompenses ou dans celles que le lancement a rangées. */
   if (fiche.parraineePar) {
-    const actuelle = clients.find((c) => c.codeParrain === fiche.parraineePar);
+    const p = fiche.parraineePar;
+    const actuelle = clients.find((c) => c.codeParrain === p || codeActifDe(c) === p || c.avantLesDouzeLunes?.codeParrain === p);
     const ids = new Set([`parr-c-${fiche.id}`, ...demandes
       .filter((d) => d.codeRaison === 'parrainage' && d.apptId && rdvs.find((r) => r.id === d.apptId)?.clientId === fiche.id)
       .map((d) => `parr-${d.id}`)]);
-    if ((actuelle?.soinsOfferts ?? []).some((s) => ids.has(s.id))) return 'Sa marraine a déjà reçu sa récompense pour elle : on ne la déplace plus.';
+    const recues = [...(actuelle?.soinsOfferts ?? []), ...(actuelle?.avantLesDouzeLunes?.soinsRetires ?? [])];
+    if (recues.some((s) => ids.has(s?.id))) return 'Sa marraine a déjà reçu sa récompense pour elle : on ne la déplace plus.';
   }
   return null;
 }
 
-/** CE QUE MA COURONNE MONTRE à l'ambassadrice : des prénoms, des états, son
-    rang, son défi. Rien d'autre ne quitte le Trône. */
+/** CE QUE MA COURONNE MONTRE à la Graine : des prénoms, des états, ses
+    échos (une ligne d'honneur), son rang. Plus de défi depuis le 9 octobre
+    2026. Rien d'autre ne quitte le Trône. (`reglage`, `aujourdhui` et
+    `nomDuService` restent dans la signature, que d'autres appellent.) */
 export function resumeDeLAmbassade(
   l: Lignee, L: Map<string, Lignee>, clients: readonly FicheAmb[], reglage: ReglageAmbassade, aujourdhui: string,
   nomDuService: (id: string) => string | undefined = () => undefined,
 ): ResumeParrainage {
-  const parCodeDeFiche = new Map(clients.filter((c) => c?.codeParrain).map((c) => [c.id, c.codeParrain as string]));
+  const parCodeDeFiche = codesActifsParFiche(clients);
   const venues = venuesDe(l);
-  const mois = aujourdhui.slice(0, 7);
-  const defi = reglage.defi;
   return {
     filleules: l.filleules.map((f) => ({ prenom: f.prenom, etat: f.etat, ...((f.venueLe ?? f.dateRdv) ? { date: f.venueLe ?? f.dateRdv } : {}) })),
     echos: echosDe(l, L, parCodeDeFiche).map(({ f, via }) => ({ prenom: f.prenom, via: via.prenom, ...(f.venueLe ? { date: f.venueLe } : {}) })),
     venues: venues.length,
     rang: rangDe(venues.length).id,
-    ...(defi?.actif && defi.objectif > 0 && defi.serviceId ? {
-      defi: {
-        mois, objectif: defi.objectif,
-        fait: Math.min(defi.objectif, venues.filter((f) => f.venueLe!.startsWith(mois)).length),
-        libelle: nomDuService(defi.serviceId) ?? 'Un soin offert',
-      },
-    } : {}),
   };
 }
 

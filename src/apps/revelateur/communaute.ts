@@ -40,17 +40,36 @@ export const COMMUNAUTE = {
   ] as CarteCommunaute[],
 };
 
+/* DE MAIN EN MAIN — 9 octobre 2026. Le programme d'ambassadrices change de
+   règle, et le site avec lui : la carte de marraine ne se demande plus sur
+   le site, elle se GAGNE à la Maison (la Graine, posée au fil des visites,
+   arrive dans Ma Couronne). Trois promesses d'hier tombent : « chaque
+   cliente est une ambassadrice », l'écho récompensé (les amies de vos amies
+   font grandir l'arbre, pas les récompenses), et « votre numéro vous rend
+   toujours le même code ». Le site ne dit pas combien de visites font une
+   Graine (décision du 9 octobre) : « au fil de vos visites ». */
 export const PARRAINAGE = {
-  sur: 'Le parrainage',
+  sur: 'De main en main',
   titre: 'Offrez la Maison à une amie.',
-  ligne: 'Chaque cliente est une ambassadrice. Votre amie découvre la Maison avec un cadeau de bienvenue ; quand elle est venue, vous choisissez le vôtre.',
+  ligne: 'Votre amie découvre la Maison avec un cadeau de bienvenue ; quand elle est venue, vous choisissez le vôtre.',
   pas: [
-    ['Vous recevez votre code', 'Votre prénom et votre numéro, et le site vous donne un code à vous, à partager sur WhatsApp.'],
+    ['Votre Graine arrive dans Ma Couronne', 'Au fil de vos visites, la Maison vous remet votre Graine : votre carte de marraine et votre code, à partager sur WhatsApp.'],
     ['Votre amie réserve avec votre code', 'Sur le site, le code déjà posé dans le lien. Son cadeau de bienvenue l’attend à sa première visite.'],
     ['Elle vient, vous choisissez', 'Dès que sa visite est passée, votre récompense vous attend dans Ma Couronne : un soin offert, ou une remise sur un produit de la Gamme.'],
-    ['Ses amies vous reviennent en écho', 'Quand votre amie fait venir les siennes, vous recevez un écho. Et vous montez de rang : Pousse, Racine, Couronne, Reine de la Maison.'],
+    ['Votre arbre grandit', 'Vos amies venues vous font monter de rang : Pousse, Racine, Couronne, Reine de la Maison. Les amies de vos amies font grandir votre arbre.'],
   ] as [string, string][],
-  regle: 'Un code sert une fois par nouvelle cliente, jamais à une cliente déjà connue de la Maison, ni à la marraine elle-même. Deux générations, jamais d’argent : des soins et des remises.',
+  regle: 'Un code sert une fois par nouvelle cliente, jamais à une cliente déjà connue de la Maison, ni à la marraine elle-même. Des soins et des remises, jamais d’argent.',
+  /** Le bloc de la carte, le même dans la page écrite et dans l'îlot
+      `parrainer` : il ne crée aucun code, il mène à la réservation et à Ma
+      Couronne. */
+  carte: {
+    sur: 'Votre carte de marraine',
+    titre: 'La Maison vous la remet.',
+    ligne: 'La carte se gagne à la Maison : au fil de vos visites, votre Graine arrive dans Ma Couronne, avec votre code à partager.',
+    reserver: 'Prendre rendez-vous',
+    couronne: 'Ouvrir Ma Couronne',
+    amie: 'Une amie vous a envoyé son lien ? Il ouvre la réservation, son code déjà posé.',
+  },
 };
 
 /* ── LES INGRÉDIENTS ─────────────────────────────────────────────────── */

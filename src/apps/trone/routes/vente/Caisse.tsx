@@ -1142,7 +1142,7 @@ export default function Caisse() {
 
               {soinsDispo.length > 0 && (
                 <div style={{ marginTop: 12, border: '1px solid var(--copper-300)', borderRadius: 'var(--radius-md)', background: 'var(--copper-50)', padding: '10px 12px', display: 'grid', gap: 8 }}>
-                  <span style={{ fontFamily: 'var(--font-sans)', fontSize: 9.5, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--copper-700)' }}>Ses récompenses d’ambassadrice · une par ticket</span>
+                  <span style={{ fontFamily: 'var(--font-sans)', fontSize: 9.5, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--copper-700)' }}>Ses récompenses · une par ticket</span>
                   {soinsDispo.map((s) => {
                     const pose = soinPose?.id === s.id;
                     const g = genreEffectif(s, posClient?.choixRecompenses);

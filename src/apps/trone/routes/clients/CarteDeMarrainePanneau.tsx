@@ -7,9 +7,12 @@ import {
 import { clientsStore, useClients, type Client } from '../../../../shared/clients';
 import { useDemandes } from '../../../../shared/demandes';
 import { useAppointments } from '../../../../shared/agenda';
-import { pourquoiPasDeMarraine, type DemandeLue } from '../../../../shared/ambassade';
+import { ficheDuCode, pourquoiPasDeMarraine, type DemandeLue } from '../../../../shared/ambassade';
 import { envoieSurWhatsApp } from '../../../../shared/whatsapp';
+import { jourDuSalon } from '../../../../shared/envois';
 import { MODELES_DE_CARTE, genreEffectif, nomDuRang, prenomDuNom, rangSuivant, soinsEnAttente, type ModeleDeCarte, type SoinOffert } from '../../../../shared/parrainage-pur';
+import { useDouzeLunes } from '../../../../shared/douze-lunes';
+import { attendLeLancement, codeActifDe, resteAvantLaGraine, seuilDeLaGraine, visitesDesLunes } from '../../../../shared/douze-lunes-pur';
 import { appelDe } from '../../../../shared/civilite';
 
 /* ══ SA CARTE DE MARRAINE, DANS SA FICHE — 28 septembre 2026 ════════════
@@ -17,9 +20,14 @@ import { appelDe } from '../../../../shared/civilite';
    son modèle, trois gestes (l'envoyer sur WhatsApp, l'imprimer au format
    carte bancaire, l'enregistrer), ses filleules et ses soins offerts.
 
-   LE CODE N'EST JAMAIS SAISI ICI : `useParrainageVivant` le pose sur chaque
-   fiche, tiré de son prénom. Les soins se posent tout seuls quand une amie
-   est venue, et se consomment à la caisse. */
+   LE CODE N'EST JAMAIS SAISI ICI. Depuis « De main en main » (9 octobre
+   2026), la carte se gagne : `useParrainageVivant` pose la Graine (son
+   code, tiré du prénom) à la Nᵉ visite depuis janvier, et seul ce code-là
+   compte (`codeActifDe`). Sans Graine, le panneau dit le chemin qui reste
+   (« Graine dans k visites ») ; « Vient de la part de » reste ouvert à
+   toutes, puisque l'amie qu'on rattache n'a presque jamais de carte. Les
+   soins se posent tout seuls quand une amie est venue, et se consomment à
+   la caisse. */
 
 const MODELE_DIT: Record<ModeleDeCarte, string> = { indigo: 'Indigo', ivoire: 'Ivoire', cuivre: 'Cuivre' };
 const ETAT_DIT = { 'sans-rdv': 'pas encore de rendez-vous', 'a-venir': 'rendez-vous à venir', venue: 'venue', annulee: 'rendez-vous annulé' } as const;
@@ -27,6 +35,10 @@ const dateCourte = (iso?: string) => {
   if (!iso) return '';
   const d = new Date(`${iso.slice(0, 10)}T12:00:00`);
   return Number.isNaN(d.getTime()) ? iso : d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
+};
+const dateAvecAnnee = (iso: string) => {
+  const d = new Date(`${iso.slice(0, 10)}T12:00:00`);
+  return Number.isNaN(d.getTime()) ? iso : d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
 };
 
 async function imprime(d: DonneesDeCarte): Promise<void> {
@@ -46,47 +58,69 @@ async function imprime(d: DonneesDeCarte): Promise<void> {
 /* « VIENT DE LA PART DE » — 28 septembre 2026 (les ambassadrices). L'amie
    venue sans le site (WhatsApp, téléphone, en passant) se rattache ici à sa
    marraine : par son code ou par son prénom. Le juge (`pourquoiPasDeMarraine`)
-   refuse sa propre marraine, une cliente déjà venue plusieurs fois, et un
-   rattachement dont la récompense est déjà posée. */
-function VientDeLaPartDe({ client }: { client: Client }) {
+   refuse sa propre marraine, une cliente déjà venue plusieurs jours, et un
+   rattachement dont la récompense est déjà posée.
+
+   Depuis « De main en main » (9 octobre 2026), seule une Graine parraine :
+   la recherche ne trouve que les fiches qui ont un code actif. Une amie
+   rattachée avant le lancement par l'ancien code d'une fiche devenue Graine
+   la retrouve (`ficheDuCode` lit l'archive). */
+function VientDeLaPartDe({ client, lanceLe }: { client: Client; lanceLe?: string }) {
   const [clients] = useClients();
   const [rdvs] = useAppointments();
   const [demandes] = useDemandes();
   const [cherche, setCherche] = useState('');
   const [ouvert, setOuvert] = useState(false);
   const lus = rdvs.map((a) => ({ id: a.id, status: a.status, date: a.date, clientId: a.clientId }));
-  const marraine = client.parraineePar ? clients.find((c) => c.codeParrain === client.parraineePar) : undefined;
+  const designee = ficheDuCode(client.parraineePar, clients);
+  const marraine = designee ? clients.find((c) => c.id === designee.id) : undefined;
+  const codeDeLaMarraine = marraine ? codeActifDe(marraine) : null;
   const q = cherche.trim().toLowerCase();
   const trouvees = q.length < 2 ? [] : clients
-    .filter((c) => c.codeParrain && !c.archived && c.id !== client.id
-      && (c.codeParrain.toLowerCase().includes(q) || c.name.toLowerCase().includes(q)))
+    .filter((c) => {
+      const code = codeActifDe(c);
+      return !!code && c.id !== client.id && (code.toLowerCase().includes(q) || c.name.toLowerCase().includes(q));
+    })
     .slice(0, 5);
   const rattache = (c: Client) => {
-    const refus = pourquoiPasDeMarraine(client, c.codeParrain as string, clients, lus, demandes as DemandeLue[]);
+    const code = codeActifDe(c);
+    if (!code) { toast('Cette cliente n’est pas Graine : elle ne parraine pas encore.'); return; }
+    const refus = pourquoiPasDeMarraine(client, code, clients, lus, demandes as DemandeLue[]);
     if (refus) { toast(refus); return; }
     clientsStore.set((prev) => prev.map((x) => (x.id === client.id
-      ? { ...x, parraineePar: c.codeParrain, parraineeLe: new Date().toISOString().slice(0, 10) } : x)));
+      ? { ...x, parraineePar: code, parraineeLe: new Date().toISOString().slice(0, 10) } : x)));
     setCherche(''); setOuvert(false);
-    toast(`Rattachée à ${prenomDuNom(c.name)}. Sa première visite honorée récompensera sa marraine.`);
+    /* LE MERCI SUIT LA DATE MÉTIER : une visite d'avant le lancement n'en
+       donne pas (shared/ambassade, `recompensesAPoser`). */
+    const venue = lus.filter((r) => r.clientId === client.id && r.status === 'honoré').map((r) => String(r.date).slice(0, 10)).sort()[0];
+    const lance = lanceLe ? jourDuSalon(lanceLe) : '';
+    toast(!venue
+      ? `Rattachée à ${prenomDuNom(c.name)}. Sa première visite honorée vaudra un merci à sa marraine.`
+      : lance && venue >= lance
+        ? `Rattachée à ${prenomDuNom(c.name)} : sa marraine reçoit son merci.`
+        : `Rattachée à ${prenomDuNom(c.name)}. Venue avant le lancement de De main en main : cette visite ne donne pas de merci.`);
   };
   return (
     <div style={{ display: 'grid', gap: 6 }}>
       <span className="trc-sub" style={{ fontSize: 11, letterSpacing: '.14em', textTransform: 'uppercase' }}>Vient de la part de</span>
-      {marraine && !ouvert ? (
+      {marraine && codeDeLaMarraine && !ouvert ? (
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, padding: '8px 10px', borderRadius: 8, background: 'var(--copper-50, #FAF1E9)', border: '1px solid var(--copper-300, #D6A06F)' }}>
-          <span style={{ fontSize: 13.5 }}>{prenomDuNom(marraine.name)} <span className="trc-sub">· {marraine.codeParrain}</span></span>
+          <span style={{ fontSize: 13.5 }}>{prenomDuNom(marraine.name)} <span className="trc-sub">· {codeDeLaMarraine}</span></span>
           <button type="button" onClick={() => setOuvert(true)} style={{ border: 0, background: 'transparent', color: 'var(--copper-700)', fontSize: 12, cursor: 'pointer', minHeight: 32 }}>Changer</button>
         </div>
       ) : (
         <>
-          <input className="mnd-input" value={cherche} onChange={(e) => setCherche(e.target.value)} placeholder="Son code, ou le prénom de sa marraine" aria-label="Code ou prénom de la marraine" />
+          {client.parraineePar && !marraine && (
+            <span className="trc-sub" style={{ fontSize: 12 }}>Venue avec le code {client.parraineePar}, qui ne mène à aucune Graine.</span>
+          )}
+          <input className="mnd-input" value={cherche} onChange={(e) => setCherche(e.target.value)} placeholder="Son code, ou le prénom de sa Graine" aria-label="Code ou prénom de la marraine" />
           {trouvees.map((c) => (
             <button key={c.id} type="button" onClick={() => rattache(c)}
               style={{ textAlign: 'left', padding: '8px 10px', borderRadius: 8, border: '1px solid rgba(20,20,27,.12)', background: 'transparent', cursor: 'pointer', fontSize: 13.5 }}>
-              {c.name} <span className="trc-sub">· {c.codeParrain}</span>
+              {c.name} <span className="trc-sub">· {codeActifDe(c)}</span>
             </button>
           ))}
-          {q.length >= 2 && trouvees.length === 0 && <span className="trc-sub" style={{ fontSize: 12 }}>Aucune cliente ne porte ce code ou ce prénom.</span>}
+          {q.length >= 2 && trouvees.length === 0 && <span className="trc-sub" style={{ fontSize: 12 }}>Aucune Graine ne porte ce code ou ce prénom.</span>}
         </>
       )}
     </div>
@@ -99,19 +133,65 @@ const genreDit = (s: SoinOffert, choix: Client['choixRecompenses']): string => {
   return g === 'remise' ? 'remise produit' : 'soin offert';
 };
 
+/** Les récompenses de la fiche : en attente (Foyer compris), puis utilisées. */
+function SesRecompenses({ client }: { client: Client }) {
+  const soins = client.soinsOfferts ?? [];
+  const enAttente = soinsEnAttente(soins);
+  return (
+    <>
+      {enAttente.length > 0 && (
+        <div style={{ display: 'grid', gap: 6 }}>
+          {enAttente.map((s) => (
+            <div key={s.id} style={{ display: 'flex', justifyContent: 'space-between', gap: 10, padding: '10px 12px', borderRadius: 8, background: 'var(--copper-50, #FAF1E9)', border: '1px solid var(--copper-300, #D6A06F)' }}>
+              <span style={{ fontSize: 13 }}><b style={{ fontWeight: 500 }}>{s.libelle}</b> · <span className="trc-sub">{s.raison}</span></span>
+              <span style={{ fontSize: 11.5, color: 'var(--copper-700)', whiteSpace: 'nowrap' }}>{genreDit(s, client.choixRecompenses)}</span>
+            </div>
+          ))}
+        </div>
+      )}
+      {soins.filter((s) => s.utiliseLe).map((s) => (
+        <span key={s.id} className="trc-sub" style={{ fontSize: 12 }}>{s.libelle} offert, utilisé le {dateCourte(s.utiliseLe)}{s.piece ? ` (${s.piece})` : ''}</span>
+      ))}
+    </>
+  );
+}
+
 export function CarteDeMarrainePanneau({ client }: { client: Client }) {
   const [envoi, setEnvoi] = useState(false);
-  if (!client.codeParrain) {
+  const [rdvs] = useAppointments();
+  const [lunes] = useDouzeLunes();
+  const code = codeActifDe(client);
+  if (!code) {
+    /* PAS ENCORE GRAINE (9 octobre 2026) : le chemin qui reste, compté
+       comme le moteur (un jour honoré compte une fois, depuis janvier). */
+    const seuil = seuilDeLaGraine(lunes);
+    const visites = visitesDesLunes(rdvs, client.id, jourDuSalon(new Date().toISOString()) || new Date().toISOString().slice(0, 10));
+    const reste = resteAvantLaGraine(visites, seuil);
+    const ancien = client.avantLesDouzeLunes?.codeParrain;
+    const pourquoi = !lunes.lanceLe ? 'Elle sera posée au lancement de De main en main.'
+        : attendLeLancement(client) ? 'Sa fiche porte encore l’ancien programme : la direction la range depuis « Le lancement ».'
+          : 'Le Trône la pose dans un instant, ou la direction d’un geste quand elles sont nombreuses.';
     return (
       <div>
         <span className="trc-microlabel">Carte de marraine</span>
-        <p className="trc-sub" style={{ fontSize: 12.5, margin: '6px 0 0' }}>Sa carte se prépare : son code arrive dans un instant.</p>
+        <div style={{ display: 'grid', gap: 12, marginTop: 8 }}>
+          <div style={{ fontSize: 13, color: 'var(--color-indigo)' }}>
+            {reste > 0 && !client.archived
+              ? <>Graine dans <b style={{ fontWeight: 500 }}>{reste} visite{reste > 1 ? 's' : ''}</b> <span className="trc-sub">· {visites} sur {seuil} depuis janvier 2026</span></>
+              : client.archived
+                ? <span className="trc-sub">Fiche archivée : pas de Graine.</span>
+                : <><b style={{ fontWeight: 500 }}>Graine à poser</b> <span className="trc-sub">· {visites} visite{visites > 1 ? 's' : ''} depuis janvier 2026, sur {seuil}. {pourquoi}</span></>}
+            {ancien && <span className="trc-sub" style={{ display: 'block', fontSize: 12, marginTop: 4 }}>Ancienne carte rangée au lancement : {ancien}.</span>}
+          </div>
+          <SesRecompenses client={client} />
+          <VientDeLaPartDe client={client} lanceLe={lunes.lanceLe} />
+        </div>
       </div>
     );
   }
   const donnees: DonneesDeCarte = {
     prenom: prenomDuNom(client.name) || client.name,
-    code: client.codeParrain,
+    code,
     depuis: (client.since ?? '').slice(0, 4) || String(new Date().getFullYear()),
     modele: client.carteModele ?? 'indigo',
     rang: client.parrainage?.rang,
@@ -119,8 +199,6 @@ export function CarteDeMarrainePanneau({ client }: { client: Client }) {
   const venues = client.parrainage?.venues ?? 0;
   const suivant = rangSuivant(venues);
   const filleules = client.parrainage?.filleules ?? [];
-  const soins = client.soinsOfferts ?? [];
-  const enAttente = soinsEnAttente(soins);
 
   const changeModele = (m: ModeleDeCarte) =>
     clientsStore.set((prev) => prev.map((c) => (c.id === client.id ? { ...c, carteModele: m } : c)));
@@ -191,23 +269,12 @@ export function CarteDeMarrainePanneau({ client }: { client: Client }) {
         <div style={{ fontSize: 13, color: 'var(--color-indigo)' }}>
           Ambassadrice · <b style={{ fontWeight: 500 }}>{nomDuRang(client.parrainage?.rang)}</b> · {venues} {venues > 1 ? 'amies venues' : 'amie venue'}
           {suivant && <span className="trc-sub"> · encore {suivant.seuil - venues} pour {suivant.nom}</span>}
+          {client.graine?.atteinteLe && <span className="trc-sub" style={{ display: 'block', fontSize: 12 }}>Graine à sa {client.graine.seuil}ᵉ visite, le {dateAvecAnnee(client.graine.atteinteLe)}</span>}
         </div>
 
-        {enAttente.length > 0 && (
-          <div style={{ display: 'grid', gap: 6 }}>
-            {enAttente.map((s) => (
-              <div key={s.id} style={{ display: 'flex', justifyContent: 'space-between', gap: 10, padding: '10px 12px', borderRadius: 8, background: 'var(--copper-50, #FAF1E9)', border: '1px solid var(--copper-300, #D6A06F)' }}>
-                <span style={{ fontSize: 13 }}><b style={{ fontWeight: 500 }}>{s.libelle}</b> · <span className="trc-sub">{s.raison}</span></span>
-                <span style={{ fontSize: 11.5, color: 'var(--copper-700)', whiteSpace: 'nowrap' }}>{genreDit(s, client.choixRecompenses)}</span>
-              </div>
-            ))}
-          </div>
-        )}
-        {soins.filter((s) => s.utiliseLe).map((s) => (
-          <span key={s.id} className="trc-sub" style={{ fontSize: 12 }}>{s.libelle} offert, utilisé le {dateCourte(s.utiliseLe)}{s.piece ? ` (${s.piece})` : ''}</span>
-        ))}
+        <SesRecompenses client={client} />
 
-        <VientDeLaPartDe client={client} />
+        <VientDeLaPartDe client={client} lanceLe={lunes.lanceLe} />
 
         <div>
           <span className="trc-sub" style={{ fontSize: 11, letterSpacing: '.14em', textTransform: 'uppercase' }}>Ses filleules</span>

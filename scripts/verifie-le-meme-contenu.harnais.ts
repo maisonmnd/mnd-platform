@@ -50,7 +50,12 @@ dit('le texte range ne depend pas de l ordre d ecriture', contenuCanonique({ b: 
 
 /* ── 2. LA PANNE ELLE-MEME, sur le vrai resume du parrainage ── */
 {
-  const marraine = { id: 'm', name: 'Awa M', phone: '+2290151000001', since: '2026-01-10', codeParrain: 'AWA-K7M' };
+  /* Depuis « De main en main » (9 octobre 2026), une lignée ne naît que
+     d'une Graine : la marraine du banc porte la sienne. */
+  const marraine = {
+    id: 'm', name: 'Awa M', phone: '+2290151000001', since: '2026-01-10', codeParrain: 'AWA-K7M',
+    graine: { code: 'AWA-K7M', le: '2026-10-09', atteinteLe: '2026-09-01', seuil: 5 },
+  };
   const f1 = { id: 'f1', name: 'Bintou B', phone: '+2290151000002', since: '2026-09-02', parraineePar: 'AWA-K7M', parraineeLe: '2026-09-02' };
   const f2 = { id: 'f2', name: 'Chantal C', phone: '+2290151000003', since: '2026-09-20', parraineePar: 'AWA-K7M', parraineeLe: '2026-09-20' };
   // deno-lint-ignore no-explicit-any

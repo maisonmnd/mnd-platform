@@ -1,4 +1,5 @@
 import type { ChoixDeRecompense, ModeleDeCarte, ResumeParrainage, SoinOffert } from './parrainage-pur';
+import type { ArchiveDesLunes, Graine } from './douze-lunes-pur';
 import { createStore, useStore, uid, HOUSE_BLANK } from './store';
 import { accordePour, type AccordImage } from './droit-image';
 import { type EnvieKey } from './quiz';
@@ -78,6 +79,14 @@ export type Client = {
   parraineePar?: string;
   parraineeLe?: string;
   choixRecompenses?: Record<string, ChoixDeRecompense>;
+  /* DE MAIN EN MAIN — 9 octobre 2026 (shared/douze-lunes-pur). La Graine :
+     son code, le jour de sa pose, le jour de sa Nᵉ visite, N. Une DÉCISION
+     écrite par le Trône seul, jamais une déduction ; son code est le seul
+     qui ouvre quelque chose (`codeActifDe`). L'archive garde ce que la fiche
+     portait avant le lancement et sert au retour en arrière. Protégées par
+     0124. */
+  graine?: Graine;
+  avantLesDouzeLunes?: ArchiveDesLunes;
   /** AU MASCULIN — 6 septembre 2026, pour les cartes de la Maison.
 
       Les cartes s'adressent à quelqu'un : « Chère » ou « Cher », « entourée »

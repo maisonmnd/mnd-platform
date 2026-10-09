@@ -102,6 +102,32 @@
 // est posé (secret WA_TEMPLATE_PARRAINAGE_RESERVE, variables : son prénom,
 // celui de l'amie).
 //
+// DE MAIN EN MAIN — 9 octobre 2026. Les deux paragraphes ci-dessus disent
+// l'histoire, plus ce que fait la fonction. La carte ne se donne plus à
+// toutes : elle se GAGNE à la Maison. À sa Nᵉ visite honorée, le Trône pose
+// sur la fiche une Graine (`graine: { code, … }`), et c'est désormais le SEUL
+// code qui ouvre quelque chose :
+//   · la marraine d'un code est l'unique fiche dont `data->graine->>code`
+//     vaut ce code, jugée par `codeActifDe` (recopiée telle quelle de
+//     `src/shared/douze-lunes-pur.ts`, entre les repères « code-actif »). Les
+//     anciens `codeParrain` et les codes des demandes « Marraine » du site
+//     sont éteints : plus aucune marraine ne se cherche dans `demandes` ;
+//   · le site ne crée plus de code : `{ parrainage: true }` répond 409
+//     `parrainage_ferme` ;
+//   · « qui » a son propre seau de débit (`parrainage_qui`, 30 par 10 min),
+//     compté AVANT celui des dépôts : ouvrir le lien d'une amie ne mange plus
+//     le quota des réservations ;
+//   · les fiches d'un numéro se lisent PAR PAGES (copie de
+//     `src/shared/lecture-entiere.ts`) : au-delà de mille fiches, une cliente
+//     connue passait pour nouvelle ;
+//   · le code d'une amie arrive dans `codeAmie` (que l'ancienne version de
+//     cette fonction ignore : un site publié avant elle n'honore aucun ancien
+//     code), et se résout aussi sur une demande de RAPPEL, sans place ni
+//     remise : la demande garde `parrainDe`, le Trône la voit dans la lignée.
+// La fonction ne décide jamais qui est Graine : elle n'a besoin ni de N ni de
+// la date du lancement. Un code éteint rend `inconnu` à la réservation, et
+// `{ ok: false }` à « qui ».
+//
 // Déployez via le tableau de bord (Edge Functions → New function → coller ce
 // fichier EN ENTIER). Secrets : SERVICE_KEY (comme push-notify) ; pour
 // l'alerte, VAPID_PUBLIC, VAPID_PRIVATE, VAPID_SUBJECT (les mêmes).
@@ -134,15 +160,19 @@ const RATE_WINDOW_MIN = 10;  // …par 10 minutes et par IP
 const ipOf = (req: Request): string =>
   (req.headers.get('x-forwarded-for') ?? '').split(',')[0].trim() || 'unknown';
 
-async function allowRate(ip: string): Promise<boolean> {
+/* UN SEAU PAR USAGE — 9 octobre 2026. Les dépôts gardent le leur (six par
+   dix minutes) ; « qui » (la page d'une amie qui s'ouvre) a le sien, plus
+   large, pour qu'un lien ouvert trois fois ne refuse pas la réservation qui
+   suit, surtout derrière l'adresse partagée d'un opérateur mobile. */
+async function allowRate(ip: string, seau: string = RATE_BUCKET, plafond: number = RATE_MAX): Promise<boolean> {
   const since = new Date(Date.now() - RATE_WINDOW_MIN * 60_000).toISOString();
   const { count, error } = await admin
     .from('edge_rate_limits')
     .select('*', { count: 'exact', head: true })
-    .eq('bucket', RATE_BUCKET).eq('ip', ip).gte('at', since);
+    .eq('bucket', seau).eq('ip', ip).gte('at', since);
   if (error) return true; // table absente : ne pas bloquer
-  if ((count ?? 0) >= RATE_MAX) return false;
-  await admin.from('edge_rate_limits').insert({ bucket: RATE_BUCKET, ip });
+  if ((count ?? 0) >= plafond) return false;
+  await admin.from('edge_rate_limits').insert({ bucket: seau, ip });
   return true;
 }
 
@@ -263,7 +293,11 @@ async function laPlaceTient(o: {
   date: string;
   time: string;
   master: string;
-}): Promise<{ erreur: string } | { dureeMin: number; master: string; catalogue: ServiceEnBase[]; offres: any[] }> {
+}): Promise<{ erreur: string } | {
+  dureeMin: number; master: string; catalogue: ServiceEnBase[]; offres: any[];
+  /** L'arbre des familles, lu ici une fois : la remise de bienvenue s'en sert. */
+  familles: { id: string; parentId?: string }[];
+}> {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(o.date) || !/^\d{2}:\d{2}$/.test(o.time)) return { erreur: 'creneau_invalide' };
 
   /* Jamais le jour même ni le passé : la Maison prépare la venue. Jamais
@@ -490,15 +524,25 @@ async function codeDejaUtilise(code: string, telephone: string): Promise<boolean
 
 /* ══ LE PARRAINAGE ══════════════════════════════════════════════════════
    La forme du code est le contrat avec `src/shared/parrainage.ts`
-   (FORME_DU_CODE, SIGNES_DU_CODE) ; `verifie-le-parrainage` les confronte. */
+   (FORME_DU_CODE, SIGNES_DU_CODE) ; `verifie-le-parrainage` les confronte.
+   Depuis De main en main (9 octobre 2026), la fonction ne fabrique plus
+   aucun code : `racineDuCode` et `codeDeMarraine` sont partis avec le mode
+   `parrainage: true`. Les signes restent écrits, la forme en est faite. */
 const SIGNES_DU_CODE = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
 const FORME_DU_CODE = /^[A-Z]{1,6}-[ABCDEFGHJKMNPQRSTUVWXYZ23456789]{3}$/;
-const racineDuCode = (prenom: string): string =>
-  prenom.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().replace(/[^A-Z]/g, '').slice(0, 6) || 'MND';
-function codeDeMarraine(prenom: string): string {
-  const octets = crypto.getRandomValues(new Uint8Array(3));
-  return `${racineDuCode(prenom)}-${[...octets].map((o) => SIGNES_DU_CODE[o % SIGNES_DU_CODE.length]).join('')}`;
+
+/* LE CODE ACTIF — 9 octobre 2026. Recopié TEL QUEL de
+   `src/shared/douze-lunes-pur.ts` (une fonction Edge ne lit rien du dépôt) ;
+   le harnais confronte les deux copies, caractère pour caractère, entre
+   leurs repères. Seul le code de la Graine ouvre quelque chose. */
+/* ⟨code-actif⟩ */
+function codeActifDe(fiche: unknown): string | null {
+  if (!fiche || typeof fiche !== 'object') return null;
+  const f = fiche as { archived?: unknown; graine?: { code?: unknown } | null };
+  const code = f.graine && typeof f.graine === 'object' ? f.graine.code : undefined;
+  return f.archived !== true && typeof code === 'string' && FORME_DU_CODE.test(code) ? code : null;
 }
+/* ⟨/code-actif⟩ */
 
 type ReglageParrainage = {
   actif?: boolean; cadeauFilleule?: string; cadeauMarraine?: string;
@@ -562,17 +606,61 @@ async function reglageDuParrainage(): Promise<ReglageParrainage> {
     (+229, espaces, 01 ou pas), ses huit derniers chiffres ne changent pas. */
 const huitDerniers = (t: string): string => String(t ?? '').replace(/\D/g, '').slice(-8);
 
+/* TOUTE LA TABLE, PAGE PAR PAGE — 9 octobre 2026. Supabase ne rend jamais
+   plus de mille lignes par requête, et le carnet des fiches les a passées :
+   lue d'un seul select, la table devenait une TRANCHE, et une cliente
+   connue passait pour nouvelle (cadeau de bienvenue à tort). Recopié TEL
+   QUEL de `src/shared/lecture-entiere.ts`, de `PAGE_DE_LECTURE` à la fin du
+   fichier (l'original ne porte pas de repères : la copie entre les siens
+   doit s'y retrouver mot pour mot). Une erreur en route rend l'erreur et
+   AUCUNE ligne. */
+/* ⟨lecture-entiere⟩ */
+export const PAGE_DE_LECTURE = 1000;
+
+type ErreurDeLecture = { message: string };
+export type ReponseDePage<L> = { data: L[] | null; error: ErreurDeLecture | null };
+/** Lit une page : les `taille` premières lignes dont l'`id` suit `apres`
+    (toutes depuis le début si `apres` est nul), dans l'ordre croissant des `id`. */
+export type LecteurDePage<L extends { id: string }> = (apres: string | null, taille: number) => PromiseLike<ReponseDePage<L>>;
+
+/* Deux mille pages font deux millions de lignes : au-delà, ce n'est plus une
+   table qu'on charge dans un navigateur, c'est une boucle qui ne finit pas. */
+const PAGES_AU_PLUS = 2000;
+
+export async function litToutesLesPages<L extends { id: string }>(
+  page: LecteurDePage<L>,
+  taille: number = PAGE_DE_LECTURE,
+): Promise<ReponseDePage<L>> {
+  const vues = new Map<string, L>();
+  let apres: string | null = null;
+  for (let tour = 0; tour < PAGES_AU_PLUS; tour += 1) {
+    const { data, error } = await page(apres, taille);
+    if (error) return { data: null, error };
+    const lignes = data ?? [];
+    for (const l of lignes) vues.set(l.id, l);
+    if (lignes.length < taille) return { data: [...vues.values()], error: null };
+    apres = lignes[lignes.length - 1].id;
+  }
+  return { data: null, error: { message: 'lecture interminable : la table ne finit pas' } };
+}
+/* ⟨/lecture-entiere⟩ */
+
 /** A-T-ELLE DÉJÀ UNE FICHE ? En cas d'erreur de lecture, on la dit nouvelle :
     un cadeau de bienvenue donné à tort se rattrape au comptoir, qui voit la
-    fiche ; un cadeau refusé à tort se vit devant elle. */
-type FicheLue = { id: string; phone?: string; phone2?: string; code?: string; name?: string };
+    fiche ; un cadeau refusé à tort se vit devant elle. Depuis le 9 octobre,
+    les fiches se lisent PAR PAGES, dans l'ordre des identifiants, à la suite
+    de la dernière lue. */
+type FicheLue = { id: string; phone?: string; phone2?: string };
 async function fichesDuNumero(telephone: string): Promise<FicheLue[] | null> {
   const fin = huitDerniers(telephone);
   if (fin.length < 8) return [];
-  const { data, error } = await admin.from('clients')
-    .select('id, phone:data->>phone, phone2:data->>phone2, code:data->>codeParrain, name:data->>name');
+  const { data, error } = await litToutesLesPages<FicheLue>((apres, taille) => {
+    let page = admin.from('clients').select('id, phone:data->>phone, phone2:data->>phone2');
+    if (apres !== null) page = page.gt('id', apres);
+    return page.order('id', { ascending: true }).limit(taille) as unknown as PromiseLike<ReponseDePage<FicheLue>>;
+  });
   if (error) { console.error('demande-submit: fiches illisibles', error.message); return null; }
-  return ((data ?? []) as FicheLue[]).filter((c) => huitDerniers(c.phone ?? '') === fin || huitDerniers(c.phone2 ?? '') === fin);
+  return (data ?? []).filter((c) => huitDerniers(c.phone ?? '') === fin || huitDerniers(c.phone2 ?? '') === fin);
 }
 async function dejaCliente(telephone: string): Promise<boolean> {
   const fiches = await fichesDuNumero(telephone);
@@ -594,17 +682,21 @@ const appelDe = (d: { name?: unknown; civilite?: unknown; auMasculin?: unknown }
 
 const premierMot = (t: unknown): string => String(t ?? '').trim().split(/\s+/)[0] ?? '';
 
-/** LA MARRAINE D'UN CODE : une fiche du Trône d'abord, une demande du site
-    ensuite. Rend `null` si personne ne porte ce code. */
+/** LA MARRAINE D'UN CODE — De main en main, 9 octobre 2026 : l'UNIQUE fiche
+    vivante dont la Graine porte ce code. Ni `codeParrain` (l'ancien code,
+    qu'un vieux poste du Trône pourrait reposer), ni les demandes du site.
+    Deux fiches vivantes pour un même code ne désignent personne : on ne
+    choisit pas au hasard la marraine d'une amie. Une lecture impossible
+    rend `null`, comme un code inconnu : la réservation tient, sans remise. */
 async function marraineDuCode(code: string): Promise<{ id: string; prenom: string; telephone: string; clientId?: string } | null> {
-  const { data: f } = await admin.from('clients').select('id, data').eq('data->>codeParrain', code).limit(1);
-  const fiche = (f ?? [])[0] as { id: string; data: Record<string, unknown> } | undefined;
-  if (fiche && fiche.data?.archived !== true) {
-    return { id: fiche.id, prenom: premierMot(fiche.data.name), telephone: String(fiche.data.phone ?? ''), clientId: fiche.id };
-  }
-  const { data: m } = await admin.from('demandes').select('id, data').eq('data->>codeParrain', code).limit(1);
-  const dem = (m ?? [])[0] as { id: string; data: Record<string, unknown> } | undefined;
-  return dem ? { id: dem.id, prenom: premierMot(dem.data.prenom), telephone: String(dem.data.telephone ?? '') } : null;
+  if (!FORME_DU_CODE.test(code)) return null;
+  const { data, error } = await admin.from('clients').select('id, data').eq('data->graine->>code', code).limit(2);
+  if (error) { console.error('demande-submit: marraine illisible', error.message); return null; }
+  const vivantes = ((data ?? []) as { id: string; data: Record<string, unknown> }[])
+    .filter((f) => codeActifDe(f.data) === code);
+  if (vivantes.length !== 1) return null;
+  const fiche = vivantes[0];
+  return { id: fiche.id, prenom: premierMot(fiche.data.name), telephone: String(fiche.data.phone ?? ''), clientId: fiche.id };
 }
 
 /** LE CODE D'UNE MARRAINE, lu à la réservation quand aucune offre ne le
@@ -638,49 +730,16 @@ async function verdictDuParrainage(
   return { ...base, raison: 'parrainage', cadeau: texte(reglage.cadeauFilleule, 160) };
 }
 
-/** LE MODE `parrainage` : le code de ce numéro, créé s'il le faut. */
-async function codePourLaMarraine(body: Record<string, unknown>): Promise<Response> {
-  const d = (body.data ?? {}) as Record<string, unknown>;
-  if (d.consentement !== true) return json({ error: 'consentement' }, 400);
-  const telephone = telephoneNormalise(String(d.telephone ?? ''), String(d.dial ?? '+229'));
-  if (!telephone) return json({ error: 'telephone' }, 400);
-  const prenom = texte(d.prenom, 60);
-  if (!prenom) return json({ error: 'prenom' }, 400);
-  const reglage = await reglageDuParrainage();
-  if (reglage.actif === false) return json({ error: 'parrainage_ferme' }, 409);
-  const cadeaux = { filleule: texte(reglage.cadeauFilleule, 160), marraine: texte(reglage.cadeauMarraine, 160) };
+/* LE MODE `parrainage: true` EST FERMÉ — 9 octobre 2026. Il donnait un code
+   à quiconque tapait un prénom et un numéro, et rendait l'ancien code d'une
+   fiche à qui tapait son numéro : il contournait la Graine. La carte se
+   gagne à la Maison ; l'aiguillage répond `parrainage_ferme` (409), que la
+   page du site dit déjà sans reproche. Les demandes « Marraine » déjà
+   écrites restent en base, leurs codes ne donnent plus rien. */
 
-  /* UNE CLIENTE A DÉJÀ SA CARTE : le site lui rend le code de sa fiche. */
-  const fiches = await fichesDuNumero(telephone);
-  const saFiche = (fiches ?? []).find((c) => c.code && FORME_DU_CODE.test(c.code));
-  if (saFiche?.code) return json({ ok: true, code: saFiche.code, cadeaux, deja: true });
-
-  const { data: siens } = await admin.from('demandes').select('id, data')
-    .eq('data->>telephone', telephone).not('data->>codeParrain', 'is', null).limit(1);
-  const connu = (siens ?? [])[0] as { data: Record<string, unknown> } | undefined;
-  if (connu?.data?.codeParrain) return json({ ok: true, code: connu.data.codeParrain, cadeaux, deja: true });
-
-  let code = '';
-  for (let i = 0; i < 6 && !code; i++) {
-    const essai = codeDeMarraine(prenom);
-    if (!(await marraineDuCode(essai))) code = essai;
-  }
-  if (!code) return json({ error: 'generation_impossible' }, 500);
-
-  const id = `dem-${crypto.randomUUID()}`;
-  const now = new Date().toISOString();
-  const branche = await brancheParDefaut(String(d.branchId ?? ''));
-  const demande = {
-    id, genre: 'prospect', createdAt: now, branchId: branche.id, prenom, telephone,
-    besoin: 'inconnu', profil: 'Marraine', source: 'site', page: texte(d.page, 120) || '/parrainage/',
-    codeParrain: code, consentementLe: now, statut: 'nouvelle',
-  };
-  const { error } = await admin.from('demandes').insert({ id, genre: 'prospect', branch_id: branche.id, data: demande });
-  if (error) return json({ error: 'insert_failed' }, 500);
-  await alerteLePersonnel('Nouvelle marraine', `${prenom} · code ${code}`, '/trone/#/parrainages').catch(() => 0);
-  return json({ ok: true, code, cadeaux });
-}
-/** `{ parrainage: 'qui', code }` : le PRÉNOM de la marraine, rien d'autre. */
+/** `{ parrainage: 'qui', code }` : le PRÉNOM de la marraine, rien d'autre.
+    Depuis le 9 octobre, celui d'une Graine seulement (`marraineDuCode`) :
+    un ancien code rend `{ ok: false }`, ni bannière ni prix barrés. */
 async function quiOffre(body: Record<string, unknown>): Promise<Response> {
   const code = codeNormalise(body.code);
   if (!FORME_DU_CODE.test(code)) return json({ ok: false });
@@ -953,15 +1012,23 @@ async function envoieLAccuse(o: {
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
   if (req.method !== 'POST') return json({ error: 'method' }, 405);
-  if (!(await allowRate(ipOf(req)))) return json({ error: 'rate_limited' }, 429);
+  const ip = ipOf(req);
 
   const corps = await req.text();
   if (corps.length > 5_000) return json({ error: 'too_large' }, 400);
   let body: Record<string, unknown>;
   try { body = JSON.parse(corps); } catch { return json({ error: 'bad_request' }, 400); }
 
-  if (body.parrainage === 'qui') return await quiOffre(body);
-  if (body.parrainage === true) return await codePourLaMarraine(body);
+  /* « QUI » PASSE AVANT LE SEAU DES DÉPÔTS — 9 octobre 2026, avec le sien :
+     chaque ouverture de `/reserver/?code=` en fait un ou deux, et trois
+     ouvertures suffisaient à refuser la réservation qui suivait. */
+  if (body.parrainage === 'qui') {
+    if (!(await allowRate(ip, 'parrainage_qui', 30))) return json({ error: 'rate_limited' }, 429);
+    return await quiOffre(body);
+  }
+  /* Le site ne crée plus de code (De main en main) : réponse sans base. */
+  if (body.parrainage === true) return json({ error: 'parrainage_ferme' }, 409);
+  if (!(await allowRate(ip))) return json({ error: 'rate_limited' }, 429);
 
   const genre = String(body.genre ?? 'prospect');
   const d = (body.data ?? {}) as Record<string, unknown>;
@@ -1004,7 +1071,12 @@ Deno.serve(async (req) => {
 
   /* ── La place, revérifiée AVANT d'écrire quoi que ce soit ───────── */
   let master = '';
-  /* Le code, résolu ICI : le navigateur ne dit que le code. */
+  /* Le code, résolu ICI : le navigateur ne dit que le code. Celui d'une
+     amie arrive dans `codeAmie` depuis le 9 octobre au soir (le site le
+     sépare du code d'une offre pour que l'ANCIENNE fonction, qui ne lit que
+     `code`, n'honore pas un ancien code si le site part avant elle) ; les
+     deux se résolvent ici de la même façon. */
+  const codeEcrit = d.codeAmie ?? d.code;
   let duCode: VerdictDuCode = { code: '' };
   let nomsDesGestes: string[] = [];
   if (avecPlace) {
@@ -1014,7 +1086,7 @@ Deno.serve(async (req) => {
     if ('erreur' in verdict) return json({ error: verdict.erreur }, 409);
     master = verdict.master;
     nomsDesGestes = serviceIds.map((sid: string) => verdict.catalogue.find((x) => x.id === sid)?.data?.name ?? sid);
-    duCode = remiseDuCode({ code: d.code, serviceIds, branchId, catalogue: verdict.catalogue, offres: verdict.offres });
+    duCode = remiseDuCode({ code: codeEcrit, serviceIds, branchId, catalogue: verdict.catalogue, offres: verdict.offres });
     /* Une fois par personne : la remise tombe, la réservation tient. */
     if (duCode.remisesLignes && await codeDejaUtilise(duCode.code, telephone)) {
       duCode = { code: duCode.code, offreId: duCode.offreId, raison: 'deja-utilise' };
@@ -1025,6 +1097,16 @@ Deno.serve(async (req) => {
         serviceIds, catalogue: verdict.catalogue, familles: verdict.familles,
       }).catch(() => null)) ?? duCode;
     }
+  } else if (FORME_DU_CODE.test(codeNormalise(codeEcrit))) {
+    /* LA DEMANDE DE RAPPEL PORTE AUSSI LE CODE D'UNE GRAINE — 9 octobre 2026
+       au soir. L'amie qui veut créer sa couronne passe par une consultation,
+       sans place : son code se résout comme à la réservation, sans remise
+       (aucune ligne), et la demande garde `parrainDe` et `marraineId` pour
+       que le Trône la voie dans la lignée de sa marraine dès qu'il la
+       convertit. Aucun message de plus : la marraine n'est prévenue que d'une
+       place réellement posée. */
+    const code = codeNormalise(codeEcrit);
+    duCode = (await verdictDuParrainage(code, telephone).catch(() => null)) ?? { code, raison: 'inconnu' };
   }
 
   const demande = {

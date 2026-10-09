@@ -11,6 +11,9 @@ import { useServices } from '../../../../shared/catalog';
 import { useStore } from '../../../../shared/store';
 import { cercleSeuilStore, estDuCercle, useFoyerTiers, meilleurPalierFoyer, type FoyerTier } from '../../../../shared/offers';
 import { nomDuRang, rangSuivant, soinsEnAttente } from '../../../../shared/parrainage-pur';
+import { useDouzeLunes } from '../../../../shared/douze-lunes';
+import { codeActifDe, joursParFiche, resteAvantLaGraine, seuilDeLaGraine } from '../../../../shared/douze-lunes-pur';
+import { jourDuSalon } from '../../../../shared/envois';
 import { pointsHistoryStore } from './data';
 import { Bar, Pill, Tabs } from './ui';
 import Parrainages from './Parrainages';
@@ -52,6 +55,15 @@ export default function Cercle() {
     for (const c of clients) m.set(c.id, venuesDeLAnnee(appts, c.id));
     return m;
   }, [clients, appts]);
+  /* DE MAIN EN MAIN (9 octobre 2026) : le rang et le code ne se disent que
+     pour une Graine ; les autres voient le chemin qui reste, compté comme
+     le moteur (un jour honoré compte une fois, depuis janvier). */
+  const [lunes] = useDouzeLunes();
+  const seuilGraine = seuilDeLaGraine(lunes);
+  const visitesDesLunes = useMemo(
+    () => joursParFiche(appts, jourDuSalon(new Date().toISOString()) || aujourdhui),
+    [appts, aujourdhui],
+  );
   const eligibleCercle = (c: Client): boolean => !aUnPrixConvenu(c) && !estDependant(c, families);
   const branchClients = useMemo(
     () => clients.filter((c) => c.branchId === branch.id && !c.archived),
@@ -152,11 +164,17 @@ export default function Cercle() {
                 {visibles.map((c) => {
                   const membre = vue === 'membres';
                   const v = venuesDe.get(c.id) ?? 0;
-                  const amies = c.parrainage?.venues ?? 0;
+                  const code = codeActifDe(c);
+                  const amies = code ? c.parrainage?.venues ?? 0 : 0;
                   const suivant = rangSuivant(amies);
                   const attente = soinsEnAttente(c.soinsOfferts, aujourdhui).length;
+                  const visitesLunes = visitesDesLunes.get(c.id)?.length ?? 0;
+                  const avantLaGraine = resteAvantLaGraine(visitesLunes, seuilGraine);
+                  const aRecompenses = attente ? ` · ${attente} récompense${attente > 1 ? 's' : ''} à utiliser` : '';
                   const pct = membre
-                    ? (suivant ? Math.round((amies / suivant.seuil) * 100) : 100)
+                    ? (code
+                      ? (suivant ? Math.round((amies / suivant.seuil) * 100) : 100)
+                      : Math.min(100, Math.round((visitesLunes / Math.max(1, seuilGraine)) * 100)))
                     : Math.round((v / Math.max(1, seuil)) * 100);
                   return (
                     <div key={c.id} className="tre-reg__row">
@@ -165,7 +183,9 @@ export default function Cercle() {
                         <span className="tre-reg__nom">{c.name}</span>
                         <span className="tre-reg__meta">
                           {membre
-                            ? `${nomDuRang(c.parrainage?.rang)}${c.codeParrain ? ` · ${c.codeParrain}` : ''}${amies ? ` · ${amies} amie${amies > 1 ? 's' : ''} venue${amies > 1 ? 's' : ''}` : ''}${attente ? ` · ${attente} récompense${attente > 1 ? 's' : ''} à utiliser` : ''}`
+                            ? (code
+                              ? `${nomDuRang(c.parrainage?.rang)} · ${code}${amies ? ` · ${amies} amie${amies > 1 ? 's' : ''} venue${amies > 1 ? 's' : ''}` : ''}${aRecompenses}`
+                              : `${avantLaGraine > 0 ? `encore ${avantLaGraine} visite${avantLaGraine > 1 ? 's' : ''} avant la Graine` : 'Graine à poser'}${aRecompenses}`)
                             : `encore ${Math.max(1, seuil - v)} venue${Math.max(1, seuil - v) > 1 ? 's' : ''} avant le Cercle`}
                         </span>
                       </span>

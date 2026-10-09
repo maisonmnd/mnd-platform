@@ -26,7 +26,9 @@ export const EN_COMMUN: Record<string, string> = {
   'Rituel de la maison': 'Maison ritual',
   'L’éclat': 'Radiance',
   'Offert': 'Complimentary',
-  'Le Cercle MND · transmettre': 'The MND Circle · pass it on',
+  // De main en main (9 octobre 2026) : le programme des ambassadrices.
+  'Le Cercle MND · de main en main': 'The MND Circle · hand in hand',
+  'De main en main': 'Hand in hand',
   'À venir': 'Upcoming',
   'Aucune disponibilité ce jour.': 'No availability that day.',
   'Plus de créneau ce jour, choisissez un autre jour.': 'No time slots left that day. Please choose another day.',

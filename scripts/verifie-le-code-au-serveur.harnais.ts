@@ -192,6 +192,20 @@ dit('... et seulement quand la remise a porte', true,
 const reponse = sansCommentaires.slice(sansCommentaires.lastIndexOf('return json({'));
 dit('la raison remonte a la page, pour se dire au clic', true,
   /codeRaison: duCode\.raison/.test(reponse) && /codeApplique: !!duCode\.remisesLignes/.test(reponse));
+/* « QUI » AVANT LE SEAU DES DÉPÔTS — 9 octobre 2026 (De main en main). La
+   page d'une amie demande « qui offre ? » à chaque ouverture de
+   `/reserver/?code=` : dans le seau des dépôts (six par dix minutes), trois
+   ouvertures refusaient la réservation qui suivait. « Qui » a son seau, et le
+   dépôt garde le sien, compté par seau. */
+const aiguillage = sansCommentaires.slice(sansCommentaires.indexOf('Deno.serve('));
+const qui = aiguillage.indexOf("if (body.parrainage === 'qui') {");
+const seauDesDepots = aiguillage.indexOf("if (!(await allowRate(ip))) return json({ error: 'rate_limited' }, 429);");
+dit('« qui » passe avant le seau des depots, avec le sien', [true, true],
+  [qui > -1 && seauDesDepots > qui, /if \(body\.parrainage === 'qui'\) \{\s*if \(!\(await allowRate\(ip, 'parrainage_qui', \d+\)\)\) return json\(\{ error: 'rate_limited' \}, 429\);\s*return await quiOffre\(body\);/.test(aiguillage)]);
+dit('... et le depot reste borne par le sien, avant toute lecture du formulaire', true,
+  seauDesDepots > -1 && seauDesDepots < aiguillage.indexOf('const genre = String(body.genre'));
+dit('... chaque seau se compte a part', true,
+  /\.eq\('bucket', seau\)/.test(sansCommentaires) && /\.insert\(\{ bucket: seau, ip \}\)/.test(sansCommentaires));
 dit('une lecture d usage impossible laisse passer la remise plutot que de la refuser', true,
   /if \(error\) \{\s*console\.error\([^)]*\);\s*return false;/.test(sansCommentaires));
 

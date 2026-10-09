@@ -610,7 +610,13 @@ function sectionCommunaute() {
 }
 
 const pasDuParrainage = () => `<div class="pas-parrain">${PARRAINAGE.pas.map(([t, l], i) => `<div><span>${i + 1}</span><div><b>${echappe(t)}</b><p>${echappe(l)}</p></div></div>`).join('')}</div>`;
-const ilotParrainer = () => `<div data-ilot="parrainer"><div class="bon sombre"><p class="sur">Votre code de marraine</p><h3>Parrainez une amie.</h3><p class="bon__petit">Le formulaire se charge. Vous pouvez aussi demander votre code sur WhatsApp.</p><p>${bouton({ texte: 'Demander mon code', vers: 'whatsapp:inconnu' }, 'btn btn--plein')}</p></div></div>`;
+/* DE MAIN EN MAIN — 9 octobre 2026 : plus de « Demander mon code ». La carte
+   se gagne à la Maison ; le bloc écrit ici est celui que l'îlot `parrainer`
+   remonte, mot pour mot (`PARRAINAGE.carte`), et il tient sans script. */
+const ilotParrainer = () => {
+  const c = PARRAINAGE.carte;
+  return `<div data-ilot="parrainer"><div class="bon sombre"><p class="sur">${echappe(c.sur)}</p><h3>${echappe(c.titre)}</h3><p class="bon__petit">${echappe(c.ligne)}</p><div class="rangee">${bouton({ texte: c.reserver, vers: '/reserver/' }, 'btn btn--plein')}${bouton({ texte: c.couronne, vers: 'soeur:couronne' }, 'btn')}</div><p class="bon__petit">${echappe(c.amie)}</p></div></div>`;
+};
 
 function sectionParrainage(accueil) {
   const p = PARRAINAGE;
@@ -1406,13 +1412,18 @@ writeFileSync(path.join(SORTIE, '404.html'), page({
    (jamais dans `pagesEcrites`, et le sitemap saute les pages noindex). Sa
    carte de lien parle à l'amie qui reçoit le message. La forme du code est
    une copie de FORME_DU_CODE (parrainage-pur), confrontée par
-   `verifie-le-parrainage`. */
+   `verifie-le-parrainage`.
+   DE MAIN EN MAIN — 9 octobre 2026 : la page ne promet plus de cadeau. Elle
+   ne sait pas si le code est celui d'une Graine (seul le serveur le sait), et
+   c'est aussi la carte de lien que WhatsApp montre pour les ANCIENS liens
+   partagés, dont les codes ne donnent plus rien. Titre, description et h1
+   neutres ; la redirection, elle, ne change pas. */
 const FORME_DU_CODE_COURT = '^[A-Z]{1,6}-[ABCDEFGHJKMNPQRSTUVWXYZ23456789]{3}$';
 mkdirSync(path.join(SORTIE, 'm'), { recursive: true });
 writeFileSync(path.join(SORTIE, 'm', 'index.html'), page({
-  chemin: '/m/', transition: false, titre: 'Un cadeau de bienvenue vous attend · Maison MND',
-  description: 'Une amie vous offre la Maison MND : réservez avec son code, votre cadeau de bienvenue vous attend à votre première visite.',
-  corps: `<section class="page-hero page-hero--simple"><div class="conteneur"><div><p class="sur">De la part d’une amie</p><h1>Votre cadeau de bienvenue vous attend.</h1><p class="ligne">La réservation s’ouvre, le code de votre amie déjà posé.</p><div class="rangee" style="margin-top:22px"><a class="btn btn--plein" id="vers-la-reservation" href="${attr(lien('/reserver/'))}">Réserver ma place</a></div></div></div></section>
+  chemin: '/m/', transition: false, titre: 'La Maison vous attend · Maison MND',
+  description: 'Une amie vous ouvre la porte de la Maison MND : la réservation s’ouvre, son code déjà posé.',
+  corps: `<section class="page-hero page-hero--simple"><div class="conteneur"><div><p class="sur">De la part d’une amie</p><h1>La Maison vous attend.</h1><p class="ligne">La réservation s’ouvre, le code de votre amie déjà posé.</p><div class="rangee" style="margin-top:22px"><a class="btn btn--plein" id="vers-la-reservation" href="${attr(lien('/reserver/'))}">Réserver ma place</a></div></div></div></section>
       <script>if('onpageswap' in window)addEventListener('pageswap',function(e){if(e.viewTransition)e.viewTransition.skipTransition()});(function(){var q=location.search.slice(1);try{q=decodeURIComponent(q);}catch(e){}q=q.replace(/^code=/i,'').split('&')[0].trim().toUpperCase();var v=${JSON.stringify(lien('/reserver/'))};if(new RegExp(${JSON.stringify(FORME_DU_CODE_COURT)}).test(q))v+='?code='+encodeURIComponent(q);var a=document.getElementById('vers-la-reservation');if(a)a.href=v;location.replace(v);})();</script>`,
   noeuds: [noeudSite()],
 }).replace('<link rel="canonical"', '<meta name="robots" content="noindex" /><link rel="canonical"'));

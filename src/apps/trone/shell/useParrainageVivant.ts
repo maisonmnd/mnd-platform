@@ -8,10 +8,16 @@ import { useProducts, useServices } from '../../../shared/catalog';
 import { useAuth } from '../../../shared/auth';
 import { documentDescendu, tablePrete } from '../../../shared/sync';
 import { envoieSurWhatsApp } from '../../../shared/whatsapp';
-import { codesAAttribuer, useParrainage, type DemandeParrainee } from '../../../shared/parrainage';
+import { jourDuSalon } from '../../../shared/envois';
+import { useParrainage, type DemandeParrainee } from '../../../shared/parrainage';
 import {
-  choixReportes, classementDuMois, lignees, rattachementsDuSite, recompensesAPoser, resumeDeLAmbassade, sceauxDuFoyerAPoser,
+  choixReportes, lignees, rattachementsDuSite, recompensesAPoser, reglageDuMoteur, resumeDeLAmbassade, sceauxDuFoyerAPoser,
+  type ReglageAmbassade,
 } from '../../../shared/ambassade';
+import { useDouzeLunes } from '../../../shared/douze-lunes';
+import {
+  PLAFOND_SANS_MAIN, attendLeLancement, codeActifDe, codesConnus, grainesAAttribuer, seuilDeLaGraine,
+} from '../../../shared/douze-lunes-pur';
 import { CLASSEMENT_VIDE, classementStore, useClassement } from '../../../shared/classement-ambassade';
 import { carteDeMarraineEnPiece } from '../../../ds/carte-marraine';
 /* Un automatisme qui réécrit les fiches en boucle se tait de lui-même
@@ -21,23 +27,35 @@ import { memeContenu } from '../../../shared/meme-contenu';
 import { parIdentifiant, rendezVousEnOrdre } from '../../../shared/ordre-canonique';
 import { appelDe } from '../../../shared/civilite';
 /* ══ LES AMBASSADRICES, TENUES À JOUR — 28 septembre 2026 ═══════════════
-   Maquette validée (« construits », Yéman). Six gestes, en tâche de fond,
+   Maquette validée (« construits », Yéman). Des gestes en tâche de fond,
    UN PAR PASSAGE : chaque geste écrit puis rend la main, le suivant part au
    rendu d'après, sur des données fraîches.
 
-   ① Chaque fiche a son code (tiré de son prénom, le même sur tous les postes).
-   ② L'amie qui a réservé avec un code et dont le rendez-vous a trouvé sa
-     fiche porte ce code sur sa fiche (`parraineePar`) : les deux chemins se
-     rejoignent.
-   ③ Le choix de la cliente (soin ou remise) est reporté sur sa récompense.
-   ④ Le résumé de Ma Couronne (amies, échos, rang, défi) suit le carnet.
-   ⑤ Les récompenses se posent : une par amie venue, l'écho, les rangs, le
-     défi ; le remerciement part si la Maison l'a allumé.
-   ⑥ Le classement du mois, si la Maison l'a rendu visible.
+   ── DE MAIN EN MAIN (9 octobre 2026). Plus de code pour toutes : la carte
+   se gagne (la Graine, shared/douze-lunes-pur). L'ordre devient :
 
-   Les juges sont PURS (shared/ambassade), éprouvés par verifie-le-parrainage.
-   Rien ne s'écrit avant la première lecture des fiches, des demandes et du
-   carnet, ni les récompenses avant le réglage. */
+   ① Le choix de la cliente (soin ou remise) est reporté sur sa récompense.
+   ② L'amie qui a réservé avec le code d'une Graine (actif, ou l'ancien code
+     de la même fiche) et dont le rendez-vous a trouvé sa fiche porte ce
+     code sur sa fiche (`parraineePar`) : les deux chemins se rejoignent.
+   ③ Les Graines, une fois les deux réglages descendus et seulement après
+     le lancement : un code neuf pour chaque fiche qui atteint N jours de
+     visite depuis janvier. Plus de PLAFOND_SANS_MAIN d'un coup : rien ne
+     s'écrit, la direction voit la liste (borne anti-rafale).
+   ④ Le résumé de Ma Couronne (amies, échos, rang) suit le carnet, pour les
+     Graines seules.
+   ⑤ Les mercis se posent, un par amie venue après le lancement ; le
+     remerciement part si la Maison l'a allumé (dans `mnd_douze_lunes`), et
+     seulement pour une amie venue depuis la Graine de sa marraine : les
+     mercis en retard se posent en silence. Ni écho, ni rang, ni défi.
+   ⑥ Les sceaux du Foyer, sans changement.
+   ⑦ Le classement ne se montre plus aux clientes : le document reste vide
+     (le personnel le calcule sur son écran).
+
+   Les juges sont PURS (shared/ambassade, shared/douze-lunes-pur), éprouvés
+   par leurs harnais. Rien ne s'écrit avant la première lecture des fiches,
+   des demandes et du carnet, ni les Graines et les récompenses avant les
+   réglages. */
 export function useParrainageVivant(): void {
   const { session } = useAuth();
   /* MÊME ORDRE SUR TOUS LES POSTES (1er octobre 2026) : ce qui est lu se range d'abord,
@@ -52,6 +70,7 @@ export function useParrainageVivant(): void {
   const [services] = useServices();
   const [produits] = useProducts();
   const [reglage] = useParrainage();
+  const [lunes] = useDouzeLunes();
   const [classement] = useClassement();
   const [familles] = useFamilies();
   const [sceaux] = useFoyerTiers();
@@ -64,28 +83,12 @@ export function useParrainageVivant(): void {
     const lus = rdvs.map((a) => ({ id: a.id, status: a.status, date: a.date, clientId: a.clientId }));
     const nomDuService = (id: string) => services.find((s) => s.id === id)?.name;
     const nomDuProduit = (id: string) => produits.find((p) => p.id === id)?.name;
-    const aujourdhui = new Date().toISOString().slice(0, 10);
+    /* LE JOUR DE LA MAISON, pas celui de Greenwich (9 octobre 2026) : entre
+       minuit et une heure au Bénin, l'heure UTC disait encore la veille. */
+    const aujourdhui = jourDuSalon(new Date().toISOString());
+    if (!aujourdhui) return;
 
-    /* ① Les codes. */
-    const codes = codesAAttribuer(clients, liste);
-    if (codes.length) {
-      const parFiche = new Map(codes.map((c) => [c.clientId, c.code]));
-      gardeLEcriture('parrainage', clientsStore).set((prev) => prev.map((c) => (parFiche.has(c.id) && !c.codeParrain ? { ...c, codeParrain: parFiche.get(c.id) } : c)));
-      return;
-    }
-
-    /* ② Le chemin du site rejoint la fiche. */
-    const rattache = rattachementsDuSite(clients, liste, lus);
-    if (rattache.length) {
-      const parFiche = new Map(rattache.map((r) => [r.clientId, r]));
-      gardeLEcriture('parrainage', clientsStore).set((prev) => prev.map((c) => {
-        const r = parFiche.get(c.id);
-        return r && !c.parraineePar ? { ...c, parraineePar: r.code, parraineeLe: r.le } : c;
-      }));
-      return;
-    }
-
-    /* ③ Les choix reportés. */
+    /* ① Les choix reportés. */
     const reportes = new Map<string, NonNullable<ReturnType<typeof choixReportes>>>();
     for (const c of clients) {
       const r = choixReportes(c, nomDuService, nomDuProduit);
@@ -96,16 +99,55 @@ export function useParrainageVivant(): void {
       return;
     }
 
-    if (!documentDescendu('mnd_parrainage')) return;
+    /* ② Le chemin du site rejoint la fiche (codes de Graine seulement). */
+    const rattache = rattachementsDuSite(clients, liste, lus);
+    if (rattache.length) {
+      const parFiche = new Map(rattache.map((r) => [r.clientId, r]));
+      gardeLEcriture('parrainage', clientsStore).set((prev) => prev.map((c) => {
+        const r = parFiche.get(c.id);
+        return r && !c.parraineePar ? { ...c, parraineePar: r.code, parraineeLe: r.le } : c;
+      }));
+      return;
+    }
+
+    if (!documentDescendu('mnd_parrainage') || !documentDescendu('mnd_douze_lunes')) return;
+    /* Le jour du lancement, à l'heure du Bénin : la date métier des mercis.
+       Le remerciement WhatsApp se lit dans le document du programme (le
+       geste éteint l'ancien, pour un vieux poste resté ouvert). */
+    const lanceLe = lunes.lanceLe ? jourDuSalon(lunes.lanceLe) || undefined : undefined;
+    const reglageAmb: ReglageAmbassade = reglageDuMoteur(reglage, lunes, lanceLe);
+
+    /* ③ LES GRAINES, après le lancement seulement. AUCUNE EXCLUSION
+       (décision de la direction, 9 octobre 2026) : enfants et prix
+       convenus compris, d'où un ensemble vide. Une fiche qui porte encore
+       l'ancien programme sans être passée par le geste attend la relance :
+       lui poser une Graine effacerait son ancien code sans l'archiver. */
+    if (lunes.lanceLe) {
+      const exclues = new Set<string>();
+      const candidates = clients.filter((c) => !attendLeLancement(c));
+      const graines = grainesAAttribuer(candidates, lus, seuilDeLaGraine(lunes), aujourdhui, codesConnus(clients, liste), exclues);
+      if (graines.length > 0 && graines.length <= PLAFOND_SANS_MAIN) {
+        const parFiche = new Map(graines.map((g) => [g.clientId, g.graine]));
+        gardeLEcriture('parrainage', clientsStore).set((prev) => prev.map((c) => {
+          const g = parFiche.get(c.id);
+          return g && !c.graine && !attendLeLancement(c) ? { ...c, graine: g, codeParrain: g.code } : c;
+        }));
+        return;
+      }
+      /* Au-delà du plafond, rien ne s'écrit seul : Parrainages montre
+         « n Graines attendent votre accord » et la main les pose. */
+    }
+
     const L = lignees(clients, liste, lus);
 
-    /* ④ Les résumés : seulement ceux qui changent. */
+    /* ④ Les résumés des Graines : seulement ceux qui changent. */
     const resumes = new Map<string, ReturnType<typeof resumeDeLAmbassade>>();
     for (const c of clients) {
-      if (!c.codeParrain || c.archived) continue;
-      const l = L.get(c.codeParrain);
+      const code = codeActifDe(c);
+      if (!code) continue;
+      const l = L.get(code);
       if (!l) continue;
-      const r = resumeDeLAmbassade(l, L, clients, reglage, aujourdhui, nomDuService);
+      const r = resumeDeLAmbassade(l, L, clients, reglageAmb, aujourdhui, nomDuService);
       /* LE CONTENU, PAS L'ORDRE DES CHAMPS (2 octobre 2026) : la base rend le
          résumé rangé à sa façon, et le comparer par son texte le faisait
          réécrire sans fin, 289 fiches par minute (voir shared/meme-contenu). */
@@ -116,8 +158,8 @@ export function useParrainageVivant(): void {
       return;
     }
 
-    /* ⑤ Les récompenses. */
-    const poses = recompensesAPoser(clients, L, reglage, aujourdhui, nomDuService);
+    /* ⑤ Les mercis. */
+    const poses = recompensesAPoser(clients, L, reglageAmb, aujourdhui, nomDuService);
     if (poses.parFiche.size) {
       gardeLEcriture('parrainage', clientsStore).set((prev) => prev.map((c) => {
         const neuves = (poses.parFiche.get(c.id) ?? []).filter((s) => !(c.soinsOfferts ?? []).some((x) => x.id === s.id));
@@ -134,9 +176,10 @@ export function useParrainageVivant(): void {
         if (enVol.current.has(cle)) continue;
         enVol.current.add(cle);
         const fiche = clients.find((c) => c.id === m.clientId);
+        const code = codeActifDe(fiche);
         void (async () => {
-          const piece = fiche?.codeParrain
-            ? await carteDeMarraineEnPiece({ prenom: m.prenomMarraine, code: fiche.codeParrain, depuis: (fiche.since ?? '').slice(0, 4), modele: fiche.carteModele, rang: fiche.parrainage?.rang }).catch(() => undefined)
+          const piece = fiche && code
+            ? await carteDeMarraineEnPiece({ prenom: m.prenomMarraine, code, depuis: (fiche.since ?? '').slice(0, 4), modele: fiche.carteModele, rang: fiche.parrainage?.rang }).catch(() => undefined)
             : undefined;
           await envoieSurWhatsApp({
             numero: m.telephone, modele: 'parrainage_merci', variables: [fiche ? appelDe(fiche) : m.prenomMarraine, m.prenomFilleule, m.libelle],
@@ -147,7 +190,7 @@ export function useParrainageVivant(): void {
       return;
     }
 
-    /* ⑤ bis LES SCEAUX DU FOYER (29 septembre, le Cercle réuni) : un palier
+    /* ⑥ LES SCEAUX DU FOYER (29 septembre, le Cercle réuni) : un palier
        atteint par la maisonnée pose sa récompense sur la fiche de celle qui
        règle le foyer. Une fois par palier et par foyer. */
     if (documentDescendu('mnd_foyer_tiers') && sceaux.length && tablePrete('families')) {
@@ -165,9 +208,9 @@ export function useParrainageVivant(): void {
       }
     }
 
-    /* ⑥ Le classement du mois, une fois le document descendu. */
+    /* ⑦ Le classement : TOUJOURS vide pour Ma Couronne (9 octobre 2026),
+       quel que soit l'ancien réglage `classementVisible`. */
     if (!documentDescendu('mnd_classement_ambassade')) return;
-    const voulu = reglage.classementVisible ? classementDuMois(L, aujourdhui) : CLASSEMENT_VIDE;
-    if (!memeContenu(voulu, classement)) gardeLEcriture('parrainage', classementStore).set(voulu);
-  }, [session, clients, demandes, rdvs, services, produits, reglage, classement, familles, sceaux]);
+    if (!memeContenu(CLASSEMENT_VIDE, classement)) gardeLEcriture('parrainage', classementStore).set(CLASSEMENT_VIDE);
+  }, [session, clients, demandes, rdvs, services, produits, reglage, lunes, classement, familles, sceaux]);
 }

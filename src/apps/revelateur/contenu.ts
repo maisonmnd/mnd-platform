@@ -1400,10 +1400,14 @@ export const PAGES: Page[] = [
     court: 'Réserver',
   },
   /* ── LA COMMUNAUTÉ MND — 28 septembre 2026 (maquette validée) ────── */
+  /* DE MAIN EN MAIN — 9 octobre 2026 : la page garde son adresse et se
+     réécrit. La carte se gagne à la Maison, le site ne donne plus de code ;
+     plus d'écho récompensé, plus de « votre numéro vous rend toujours le
+     même code ». Le nombre de visites ne se dit pas. */
   {
     chemin: '/parrainage/',
-    titre: 'Parrainer une amie · Maison MND',
-    description: 'Offrez la Maison MND à une amie : votre code de marraine, son cadeau de bienvenue à sa première visite, et le vôtre quand elle est venue.',
+    titre: 'De main en main, parrainer une amie · Maison MND',
+    description: 'Au fil de vos visites, votre carte de marraine arrive dans Ma Couronne. Votre amie reçoit un cadeau de bienvenue à sa première visite, et vous choisissez le vôtre quand elle est venue.',
     h1: PARRAINAGE.titre,
     sur: PARRAINAGE.sur,
     ligne: PARRAINAGE.ligne,
@@ -1414,11 +1418,12 @@ export const PAGES: Page[] = [
         type: 'faq',
         sur: 'Bon à savoir',
         items: [
-          ['Qui peut être marraine ?', 'Toute personne qui aime la Maison, cliente ou non. Votre numéro vous rend toujours le même code.'],
+          ['Comment devient-on marraine ?', 'La carte se gagne à la Maison : au fil de vos visites, votre Graine arrive dans Ma Couronne, avec votre code. La Maison vous la remet d’elle-même.'],
           ['Qui peut être filleule ?', 'Une personne qui vient à la Maison pour la première fois. Le code ne vaut pas pour une cliente déjà connue, ni pour la marraine elle-même.'],
           ['Quand reçoit-on les cadeaux ?', 'Celui de votre amie l’attend à sa première visite. Le vôtre vous attend dès que sa visite est passée : vous le choisissez dans Ma Couronne ou à l’accueil, un soin offert ou une remise sur un produit.'],
-          ['Qu’est-ce que l’écho ?', 'Quand une amie venue grâce à vous fait venir les siennes, vous recevez une petite remise sur un produit. L’arbre s’arrête là : deux générations.'],
-          ['Combien d’amies puis-je parrainer ?', 'Autant que vous voulez : un cadeau pour chaque amie venue.'],
+          ['Et les amies de mes amies ?', 'Elles font grandir votre arbre, que vous voyez dans Ma Couronne. Les récompenses, elles, viennent de vos amies : une pour chaque amie venue.'],
+          ['J’avais déjà un code. Vaut-il encore ?', 'Les codes donnés avant De main en main ne courent plus. Votre Graine arrive dans Ma Couronne avec un code neuf, et c’est lui qui se partage.'],
+          ['Combien d’amies puis-je parrainer ?', 'Autant que vous voulez : une récompense pour chaque amie venue.'],
         ],
       },
     ],

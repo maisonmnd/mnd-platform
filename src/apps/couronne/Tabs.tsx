@@ -1,7 +1,7 @@
 import { asset } from '../../shared/asset';
 import { DEVISE_MAISON } from '../../shared/identite';
 import { CarteDeMarraine } from '../../ds/CarteDeMarraine';
-import { donneesDeMaCarte, MonAmbassade } from './MaCarte';
+import { graineDansDite, MonAmbassade, useMaCarte, useMaGraine, visitesDites } from './MaCarte';
 import { nomDuRang, rangDe, rangSuivant, soinsEnAttente } from '../../shared/parrainage-pur';
 import { MapPin } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
@@ -408,7 +408,9 @@ export function HomeTab({
   onOpenCarte?: () => void;
 }) {
   const client = useClient();
-  const maCarte = donneesDeMaCarte(client);
+  const maCarte = useMaCarte();
+  /* DE MAIN EN MAIN (9 octobre 2026) : sans Graine, le chemin vers elle. */
+  const maGraine = useMaGraine();
   const soinsQuiAttendent = soinsEnAttente(client?.soinsOfferts);
   const { currency } = useBranch();
   const [services] = useServices();
@@ -630,9 +632,10 @@ export function HomeTab({
               </span>
             </div>
             {/* LE CERCLE RÉUNI (29 septembre) : plus de sceau à points, son rang
-                d'ambassadrice dès qu'une amie est venue. */}
-            {(client?.parrainage?.venues ?? 0) > 0 && (
-              <span className="mc-pillseal">{t(nomDuRang(client?.parrainage?.rang))}</span>
+                d'ambassadrice. Depuis De main en main (9 octobre 2026), dès
+                sa Graine : le rang se gagne, Graine comprise. */}
+            {maCarte && (
+              <span className="mc-pillseal">{t(nomDuRang(maCarte.rang))}</span>
             )}
           </div>
           {/* AVANT LE CERCLE, ON COMPTE DES PASSAGES, PAS DES POINTS. Montrer une
@@ -665,6 +668,18 @@ export function HomeTab({
                     ? t(', encore {n} avant le Cercle', { n: cercle.reste })
                     : ''}
               </span>
+            </div>
+          ) : !maCarte ? (
+            /* MEMBRE DU CERCLE, PAS ENCORE GRAINE (9 octobre 2026) : la ligne
+               de la Graine, à la place des amies qu'elle ne peut pas encore
+               inviter. */
+            <div className="mc-crownstatus__progress">
+              <div className="mc-bar"><div style={{ width: `${Math.min(100, Math.round((maGraine.visites / Math.max(1, maGraine.seuil)) * 100))}%` }} /></div>
+              <span>{maGraine.reste > 0
+                ? maGraine.reste > 1
+                  ? t('Membre du Cercle · votre Graine dans {n} visites', { n: maGraine.reste })
+                  : t('Membre du Cercle · votre Graine dans {n} visite', { n: maGraine.reste })
+                : t('Membre du Cercle · votre carte se prépare à la Maison')}</span>
             </div>
           ) : (() => {
             const venues = client?.parrainage?.venues ?? 0;
@@ -746,9 +761,38 @@ export function HomeTab({
             Le recto à son prénom, en petit ; une touche ouvre la carte
             entière, son QR et ses filleules. Un soin qui l'attend se dit
             ici, en premier. */}
+        {/* DE MAIN EN MAIN — 9 octobre 2026. La carte est celle de la
+            Graine ; sans elle, une petite carte dit le chemin et ouvre le
+            Cercle. Une récompense qui attend (le Foyer compris) se dit dans
+            les deux cas, en premier. */}
+        {!maCarte && onOpenCarte && (
+          <>
+            <div className="mc-sectionlabel" style={{ margin: '24px 0 10px' }}>{t('De main en main')}</div>
+            <button type="button" onClick={onOpenCarte}
+              style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 14, padding: 12, borderRadius: 16, border: '1px solid var(--mc-filet-12)', background: 'var(--mc-blanc)', cursor: 'pointer', textAlign: 'left', WebkitTapHighlightColor: 'transparent' }}>
+              <span aria-hidden="true" style={{ position: 'relative', width: 64, height: 64, flex: 'none' }}>
+                <svg viewBox="0 0 64 64" style={{ position: 'absolute', inset: 0 }}>
+                  <circle cx={32} cy={32} r={28} fill="none" style={{ stroke: 'var(--mc-piste)' }} strokeWidth={4} />
+                  <circle cx={32} cy={32} r={28} fill="none" style={{ stroke: 'var(--copper-700)' }} strokeWidth={4} strokeLinecap="round"
+                    strokeDasharray={`${(2 * Math.PI * 28 * Math.max(0.02, Math.min(1, maGraine.visites / Math.max(1, maGraine.seuil)))).toFixed(1)} ${(2 * Math.PI * 28).toFixed(1)}`} transform="rotate(-90 32 32)" />
+                </svg>
+                <img src={asset('/assets/motifs/medaillon-seul-cuivre.png')} alt="" style={{ position: 'absolute', left: 13, top: 13, width: 38, height: 38 }} />
+              </span>
+              <span style={{ display: 'grid', gap: 4, flexGrow: 1 }}>
+                <span style={{ fontFamily: 'var(--font-serif, Georgia)', fontSize: 19, color: 'var(--mc-encre)', lineHeight: 1.15 }}>
+                  {soinsQuiAttendent.length ? t('Une récompense vous attend.') : maGraine.reste > 0 ? graineDansDite(maGraine.reste) : t('Votre carte se prépare à la Maison.')}
+                </span>
+                <span style={{ fontSize: 12.5, color: soinsQuiAttendent.length ? 'var(--copper-700)' : 'var(--mc-doux)' }}>
+                  {soinsQuiAttendent.length ? t('Un soin vous attend : {soin}', { soin: soinsQuiAttendent[0].libelle }) : visitesDites(maGraine)}
+                </span>
+              </span>
+              <span aria-hidden style={{ color: 'var(--copper-700)', fontSize: 18 }}>→</span>
+            </button>
+          </>
+        )}
         {maCarte && onOpenCarte && (
           <>
-            <div className="mc-sectionlabel" style={{ margin: '24px 0 10px' }}>{t('Mon ambassade · {rang}', { rang: t(nomDuRang(client?.parrainage?.rang)) })}</div>
+            <div className="mc-sectionlabel" style={{ margin: '24px 0 10px' }}>{t('De main en main · {rang}', { rang: t(nomDuRang(maCarte.rang)) })}</div>
             <button type="button" onClick={onOpenCarte}
               style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 14, padding: 12, borderRadius: 16, border: '1px solid var(--mc-filet-12)', background: 'var(--mc-blanc)', cursor: 'pointer', textAlign: 'left', WebkitTapHighlightColor: 'transparent' }}>
               <CarteDeMarraine donnees={maCarte} largeur={120} retournable={false} />
@@ -1644,11 +1688,14 @@ export function CercleTab({ toast }: { toast: (m: string) => void }) {
   /* ══ LE CERCLE RÉUNI — 29 septembre 2026 (maquette validée) ══════════════
      Le Cercle et les ambassadrices ne font plus qu'un. On y lit, dans
      l'ordre : où elle en est au Cercle (sa 3ᵉ venue, son prix convenu, son
-     foyer), puis son ambassade (rang, récompense à choisir, défi, arbre,
+     foyer), puis son ambassade (rang, récompense à choisir, arbre,
      récompenses, carte), puis le Foyer. Les POINTS sont partis : éteints
      depuis juillet et jamais reliés à la caisse, ils affichaient un compteur
      à zéro. Le bouton « Introduire » qui n'envoyait rien est parti avec eux :
-     la carte se partage pour de vrai. */
+     la carte se partage pour de vrai.
+     DE MAIN EN MAIN (9 octobre 2026) : le programme des ambassadrices porte
+     ce nom ; « transmettre » lui cède la place dans l'en-tête. Le défi est
+     parti, et sans Graine l'ambassade dit le chemin vers elle. */
   const foyerLadder = useMemo(() => foyerTiers.slice().sort((a, b) => a.seuilXof - b.seuilXof), [foyerTiers]);
   const prochainFoyer = foyerLadder.find((tier) => cercle.depenseFoyer < tier.seuilXof);
   const cibleFoyer = prochainFoyer?.seuilXof ?? cercle.seuilFoyer;
@@ -1657,7 +1704,7 @@ export function CercleTab({ toast }: { toast: (m: string) => void }) {
 
   return (
     <div className="mc-pagepad mc-pagepad--top mc-fade">
-      <div className="mc-micro-eyebrow">{t('Le Cercle MND · transmettre')}</div>
+      <div className="mc-micro-eyebrow">{t('Le Cercle MND · de main en main')}</div>
       <h1 className="mc-serif-title" style={{ margin: '6px 0 14px' }}>{t('Votre lignée.')}</h1>
 
       {/* OÙ ELLE EN EST AU CERCLE, en une ligne. */}
@@ -1687,7 +1734,8 @@ export function CercleTab({ toast }: { toast: (m: string) => void }) {
         </div>
       )}
 
-      {/* SON AMBASSADE : elle y est dès sa carte, membre du Cercle ou pas. */}
+      {/* SON AMBASSADE, membre du Cercle ou pas : sa Graine et sa carte, ou
+          le chemin vers elles, et ses récompenses dans les deux cas. */}
       <MonAmbassade toast={toast} />
 
       {/* LE FOYER — la reconnaissance de la maisonnée, sur sa dépense cumulée.

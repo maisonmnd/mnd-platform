@@ -9,7 +9,10 @@
    Ce harnais porte la REGLE, pas le cas du jour : une lecture de table rend
    TOUTES les lignes, quelle que soit la taille, ou rend une erreur. Et la
    synchronisation ne lit plus jamais une table autrement. */
-import { readFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { litToutesLesPages, PAGE_DE_LECTURE, type LecteurDePage } from '../src/shared/lecture-entiere';
 
 let ko = 0;
@@ -101,6 +104,67 @@ for (const n of [0, 1, 999, 1000, 1001, 2500]) {
   dit('sync.ts : chaque lecture de table est ordonnee par id (donc paginee)', lectures.length, paginees.length);
   dit('... et il n en reste qu une, celle du lecteur de pages', 1, lectures.length);
   dit('... qui passe par litToutesLesPages', true, source.includes('litToutesLesPages'));
+}
+
+/* ── 7. Les copies des fonctions Edge (9 octobre 2026) ──
+   Une fonction Edge ne lit rien du depot : celle qui doit lire une table
+   entiere recopie ce module entre ses reperes ⟨lecture-entiere⟩ (depuis
+   `PAGE_DE_LECTURE` jusqu'a la fin du fichier ; c'est la qu'est ne
+   `fichesDuNumero` de demande-submit, qui lisait d'un seul trait les fiches
+   d'un numero et prenait, au-dela de mille, une cliente connue pour une
+   nouvelle). La regle, pour TOUTE fonction qui porte le repere : la copie
+   est l'original caractere pour caractere, elle tourne seule (aucun import
+   manquant) avec le meme faux serveur, et chaque lecteur de pages qu'elle
+   sert lit « apres tel id », dans l'ordre des id, une page a la fois. */
+{
+  const lf = (s: string) => s.replace(/\r\n/g, '\n');
+  const original = lf(readFileSync('src/shared/lecture-entiere.ts', 'utf8'));
+  const ori = original.slice(original.indexOf('export const PAGE_DE_LECTURE')).trimEnd();
+  const fichiers: string[] = [];
+  const marche = (d: string) => {
+    for (const n of readdirSync(d)) {
+      const p = `${d}/${n}`;
+      if (statSync(p).isDirectory()) marche(p);
+      else if (/\.(ts|js)$/.test(n)) fichiers.push(p);
+    }
+  };
+  marche('supabase/functions');
+  const OUVRE = '/* ⟨lecture-entiere⟩ */\n';
+  const FERME = '\n/* ⟨/lecture-entiere⟩ */';
+  const copies = fichiers.map((f) => ({ f, src: lf(readFileSync(f, 'utf8')) })).filter((c) => c.src.includes(OUVRE));
+  dit('au moins une fonction Edge porte la copie (sinon cette regle ne verrait rien)', true, copies.length >= 1);
+  const { transform } = await import(pathToFileURL(path.join(process.cwd(), 'node_modules/esbuild/lib/main.js')).href) as typeof import('esbuild');
+  for (const { f, src } of copies) {
+    const i = src.indexOf(OUVRE);
+    const k = src.indexOf(FERME, i);
+    const bloc = k < 0 ? '' : src.slice(i + OUVRE.length, k);
+    dit(`${f} : la copie est l original, caractere pour caractere`, true, ori.length > 100 && bloc.trimEnd() === ori);
+    const { code } = await transform(bloc, { loader: 'ts', format: 'esm' });
+    const banc = mkdtempSync(path.join(os.tmpdir(), 'lecture-entiere-'));
+    let copie: { litToutesLesPages: typeof litToutesLesPages };
+    try {
+      writeFileSync(path.join(banc, 'copie.mjs'), code);
+      copie = await import(pathToFileURL(path.join(banc, 'copie.mjs')).href);
+    } finally {
+      rmSync(banc, { recursive: true, force: true });
+    }
+    const s = serveur(table(2500));
+    const r = await copie.litToutesLesPages(s.lit);
+    dit(`... et, executee, elle rend les 2500 lignes en 3 pages`, [2500, 3], [r.data?.length ?? -1, s.etat.appels]);
+    let appels = 0;
+    const enPanne: LecteurDePage<Ligne> = async (apres, taille) => {
+      appels += 1;
+      if (appels === 2) return { data: null, error: { message: 'reseau coupe' } };
+      return { data: table(3000).filter((l) => apres === null || l.id > apres).slice(0, taille), error: null };
+    };
+    dit(`... et une erreur en route ne rend aucune ligne`, null, (await copie.litToutesLesPages(enPanne)).data);
+    /* Les appels, hors du bloc : chaque lecteur lit apres tel id, dans l'ordre. */
+    const dehors = (src.slice(0, i) + src.slice(k)).replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+    const lecteurs = [...dehors.matchAll(/litToutesLesPages(?:<[^>]*>)?\(/g)].map((m) => dehors.slice(m.index ?? 0, (m.index ?? 0) + 500));
+    dit(`${f} : chaque lecteur de pages lit apres tel id, par id croissant, une page a la fois`, [],
+      lecteurs.filter((t) => !(/\.gt\('id', apres\)/.test(t) && /\.order\('id', \{ ascending: true \}\)/.test(t) && /\.limit\(taille\)/.test(t))).map((t) => t.slice(0, 80)));
+    dit(`... et il y en a au moins un (une copie qui ne sert pas est un oubli)`, true, lecteurs.length >= 1);
+  }
 }
 
 console.log(ko === 0 ? '\nLa lecture entiere tient.' : `\n${ko} controle(s) en echec.`);

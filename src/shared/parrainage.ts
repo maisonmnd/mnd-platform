@@ -3,6 +3,7 @@ import { bindDocument } from './sync';
 import type { Demande } from './demandes';
 import type { Client } from './clients';
 import { FORME_DU_CODE, codeDeMarraine, prenomDuNom, type SoinOffert } from './parrainage-pur';
+import { hasardDe } from './douze-lunes-pur';
 
 /* LE PARRAINAGE — 28 septembre 2026, maquette « La communauté MND » validée
    (« construis avec les patterns réels de la marque », Yéman).
@@ -39,11 +40,15 @@ export type ReglageParrainage = {
   merciParWhatsApp?: boolean;
   /* LES AMBASSADRICES — 28 septembre 2026 (voir shared/ambassade). */
   remisePct?: number;
+  /* ÉTEINTS depuis « De main en main » (9 octobre 2026) : l'écho, les bonus
+     de rang, le défi du mois et le classement dans Ma Couronne. Le moteur ne
+     les lit plus (le code les a retirés, le réglage n'y peut rien) ; ils
+     restent dans le type pour les documents déjà écrits. */
   echoPct?: number;
   validiteMois?: number;
   bonusRangs?: Partial<Record<'tresse' | 'couronne' | 'reine', string>>;
   defi?: { actif: boolean; objectif: number; serviceId?: string };
-  /** Le classement du mois se montre dans Ma Couronne (au prénom seul). */
+  /** Éteint : le classement ne se montre plus aux clientes (le personnel le voit toujours). */
   classementVisible?: boolean;
   /** LA REMISE DE BIENVENUE DE L'AMIE (7 octobre 2026) : son pourcentage
       (20 par défaut) et les familles d'entretien qu'elle couvre. Sans
@@ -76,31 +81,24 @@ export type DemandeParrainee = Demande & {
   merciEnvoyeLe?: string;
 };
 
-export type FicheLue = Pick<Client, 'id' | 'name' | 'phone' | 'since'> & Partial<Pick<Client, 'codeParrain' | 'archived' | 'soinsOfferts' | 'parrainage' | 'phone2'>>;
+export type FicheLue = Pick<Client, 'id' | 'name' | 'phone' | 'since'> & Partial<Pick<Client, 'codeParrain' | 'archived' | 'soinsOfferts' | 'parrainage' | 'phone2' | 'graine' | 'avantLesDouzeLunes'>>;
 
 /* ══ LA CARTE DE CHAQUE CLIENTE — 28 septembre 2026 ═════════════════════
    Le code de chaque fiche. Les amies, les récompenses, les rangs : voir
-   `shared/ambassade`. */
+   `shared/ambassade`. Depuis « De main en main » (9 octobre 2026), la carte
+   se gagne : le code est celui de la Graine (`shared/douze-lunes-pur`). */
 
 /** Les huit derniers chiffres d'un numéro : la même règle que la fonction. */
 export const huitDerniers = (t: string | undefined): string => String(t ?? '').replace(/\D/g, '').slice(-8);
 
-/** Un hasard DÉTERMINISTE, tiré de l'identifiant de la fiche : deux postes
-    du Trône qui attribuent en même temps écrivent le MÊME code. */
-function graine(texte: string): () => number {
-  let h = 2166136261;
-  for (let i = 0; i < texte.length; i++) h = Math.imul(h ^ texte.charCodeAt(i), 16777619);
-  let a = h >>> 0;
-  return () => {
-    a = (a + 0x6D2B79F5) >>> 0;
-    let t = a;
-    t = Math.imul(t ^ (t >>> 15), t | 1);
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
+/** @deprecated ÉTEINT le 9 octobre 2026 (« De main en main ») : plus aucun
+    code pour toutes, la Graine se gagne (`grainesAAttribuer`, shared/
+    douze-lunes-pur). Le Trône ne l'appelle plus. Gardé pour le seul banc
+    (`verifie-le-parrainage`), qui en tire les ANCIENS codes pour prouver
+    qu'un code de Graine ne les reprend jamais : son hasard (ex-`graine()`,
+    devenu `hasardDe`) et son sel `${id}:${essai}` ne doivent pas changer.
 
-/** LES CODES À POSER : chaque fiche vivante qui n'en a pas. Une cliente qui a
+    LES CODES À POSER : chaque fiche vivante qui n'en a pas. Une cliente qui a
     déjà demandé son code sur le site (même numéro) GARDE ce code-là : il a
     peut-être déjà été partagé. Sinon, un code tiré de son prénom, unique
     parmi les fiches ET les marraines du site. */
@@ -121,7 +119,7 @@ export function codesAAttribuer(clients: readonly FicheLue[], demandes: readonly
       continue;
     }
     for (let essai = 0; essai < 40; essai++) {
-      const code = codeDeMarraine(prenomDuNom(c.name), graine(`${c.id}:${essai}`));
+      const code = codeDeMarraine(prenomDuNom(c.name), hasardDe(`${c.id}:${essai}`));
       if (!pris.has(code)) {
         pris.add(code);
         desFiches.add(code);

@@ -1,25 +1,36 @@
-import { useState, type CSSProperties } from 'react';
+import { useMemo, useState, type CSSProperties } from 'react';
 import { CarteDeMarraine } from '../../ds/CarteDeMarraine';
 import { carteDeMarraineEnBlob, lienDeLaCarte, lienDeLaCarteEcrit, messageDeLaCarte, type DonneesDeCarte } from '../../ds/carte-marraine';
 import {
-  genreEffectif, nomDuRang, prenomDuNom, rangDe, rangSuivant, soinsEnAttente, RANGS,
+  genreEffectif, prenomDuNom, rangDe, rangSuivant, soinsEnAttente, RANGS,
   type ChoixDeRecompense, type SoinOffert,
 } from '../../shared/parrainage-pur';
+import { codeDeLaCarte, resteAvantLaGraine, seuilDeLaGraine, visitesDesLunes, DEBUT_DES_LUNES } from '../../shared/douze-lunes-pur';
+import { useDouzeLunes } from '../../shared/douze-lunes';
+import { useAppointments } from '../../shared/agenda';
 import { clientsStore } from '../../shared/clients';
-import { useClassement } from '../../shared/classement-ambassade';
 import { asset } from '../../shared/asset';
-import { useClient, useVisibleCatalog } from './lib';
+import { todayIso, useClient, useVisibleCatalog } from './lib';
 import { t, locale } from './i18n';
 
 /* ══ MON AMBASSADE — 28 septembre 2026 (maquette validée, « construits ») ══
-   Chaque cliente est une ambassadrice. Ici : son rang dans un médaillon qui
-   se remplit, la récompense qu'elle CHOISIT (un soin offert, ou une remise
-   sur un produit), le défi du mois, sa lignée en arbre, ses récompenses, le
-   classement si la Maison l'a allumé, et sa carte à partager.
+   Ici : son rang dans un médaillon qui se remplit, la récompense qu'elle
+   CHOISIT (un soin offert, ou une remise sur un produit), sa lignée en
+   arbre, ses récompenses, et sa carte à partager.
 
    Ma Couronne LIT ce que le Trône écrit (code, résumé, récompenses, protégés
-   par 0111). Elle n'écrit qu'une chose : son CHOIX (`choixRecompenses`),
-   que le Trône reporte sur la récompense. */
+   par 0111 puis 0124). Elle n'écrit qu'une chose : son CHOIX
+   (`choixRecompenses`), que le Trône reporte sur la récompense.
+
+   DE MAIN EN MAIN — 9 octobre 2026. La carte ne se donne plus à toutes :
+   elle se GAGNE à la Maison. À sa Nᵉ visite honorée depuis le 1er janvier
+   2026, le Trône pose sa GRAINE (`client.graine`) : son code et sa carte.
+   Avant, elle lit « votre Graine dans n visites », compté ici avec le MÊME
+   juge que le Trône (`visitesDesLunes`) et N lu dans `mnd_douze_lunes` ;
+   mais Ma Couronne ne décide jamais qu'elle est Graine, seule la marque du
+   Trône ouvre la carte. Le défi et le classement sont partis (le classement
+   reste au personnel) ; l'écho n'est plus qu'une ligne d'honneur de
+   l'arbre ; ses récompenses (le Foyer compris) se lisent sans carte. */
 
 const ETAT_DIT = { 'sans-rdv': 'pas encore de rendez-vous', 'a-venir': 'rendez-vous à venir', venue: 'venue', annulee: 'rendez-vous annulé' } as const;
 const dateDite = (iso?: string) => {
@@ -67,16 +78,75 @@ const CARTE = 'var(--mc-blanc)';
 const FILET = 'var(--hairline)';
 const SERIF = 'var(--font-serif, "Cormorant Garamond", Georgia, serif)';
 
-export function donneesDeMaCarte(client: ReturnType<typeof useClient>): DonneesDeCarte | null {
-  if (!client?.codeParrain) return null;
+/** SA CARTE, SEULEMENT SI ELLE EST GRAINE (9 octobre 2026). La porte est
+    la marque posée par le Trône, et le code celui de la Graine
+    (`codeActifDe`, la règle que l'Edge recopie) : un ancien `codeParrain`
+    n'ouvre plus rien. Le rang s'écrit toujours, Graine comprise : elle est
+    désormais gagnée.
+    AVANT LE LANCEMENT (`lance` faux : `lanceLe` absent ou illisible, comme
+    avant 0124), l'ancienne carte reste à celle qui l'a : publiée un autre
+    soir que le geste, Ma Couronne n'efface la carte de personne. Le geste
+    range les anciens codes ; ensuite, seule la Graine ouvre la carte. La
+    règle est pure (`codeDeLaCarte`), éprouvée par verifie-les-douze-lunes. */
+export function donneesDeMaCarte(client: ReturnType<typeof useClient>, lance: boolean): DonneesDeCarte | null {
+  const code = codeDeLaCarte(client, lance);
+  if (!client || !code) return null;
   return {
     prenom: prenomDuNom(client.name) || client.name,
-    code: client.codeParrain,
+    code,
     depuis: (client.since ?? '').slice(0, 4) || String(new Date().getFullYear()),
     modele: client.carteModele ?? 'indigo',
-    rang: client.parrainage?.rang,
+    rang: client.parrainage?.rang ?? 'graine',
   };
 }
+/** Sa carte, selon que le programme est lancé (lu dans `mnd_douze_lunes`). */
+export function useMaCarte(): DonneesDeCarte | null {
+  const client = useClient();
+  const [lunes] = useDouzeLunes();
+  return donneesDeMaCarte(client, !!lunes.lanceLe);
+}
+
+export type MaGraine = {
+  /** La carte est là : le Trône a posé sa Graine. */
+  estGraine: boolean;
+  /** Ses jours de visite honorée depuis le 1er janvier 2026. */
+  visites: number;
+  /** N, lu dans `mnd_douze_lunes`. */
+  seuil: number;
+  /** Ce qu'il lui reste avant la Graine (jamais moins de zéro). */
+  reste: number;
+};
+
+/** OÙ ELLE EN EST DE SA GRAINE (9 octobre 2026). Ses rendez-vous à elle
+    seule (la RLS montre aussi ceux de ses enfants : le juge filtre par
+    fiche), le jour d'ici (`todayIso`), N du document du programme. Le compte
+    DIT le chemin ; il n'ouvre jamais la carte. */
+export function useMaGraine(): MaGraine {
+  const client = useClient();
+  const [appts] = useAppointments();
+  const [lunes] = useDouzeLunes();
+  return useMemo(() => {
+    const seuil = seuilDeLaGraine(lunes);
+    const visites = client ? visitesDesLunes(appts, client.id, todayIso()) : 0;
+    return { estGraine: !!donneesDeMaCarte(client, !!lunes.lanceLe), visites, seuil, reste: resteAvantLaGraine(visites, seuil) };
+  }, [client, appts, lunes]);
+}
+
+/** « Janvier 2026 », dans sa langue : le jour d'où les visites comptent. */
+export const debutDesLunesDit = (): string =>
+  new Date(`${DEBUT_DES_LUNES}T12:00:00`).toLocaleDateString(locale(), { month: 'long', year: 'numeric' });
+
+/** « Votre Graine dans n visites », au singulier comme au pluriel. */
+export const graineDansDite = (reste: number): string =>
+  reste > 1 ? t('Votre Graine dans {n} visites', { n: reste }) : t('Votre Graine dans {n} visite', { n: reste });
+
+/** Ses visites comptées, sur N. */
+export const visitesDites = (g: Pick<MaGraine, 'visites' | 'seuil'>): string =>
+  g.visites === 0
+    ? t('Pas encore de visite honorée depuis {debut}.', { debut: debutDesLunesDit() })
+    : g.visites > 1
+      ? t('{n} visites honorées depuis {debut}, sur {seuil}', { n: g.visites, debut: debutDesLunesDit(), seuil: g.seuil })
+      : t('{n} visite honorée depuis {debut}, sur {seuil}', { n: g.visites, debut: debutDesLunesDit(), seuil: g.seuil });
 
 /** LA LIGNÉE EN ARBRE : elle au sommet, ses amies en branches, les amies de
     ses amies en feuilles (l'écho). Six branches au plus : au-delà, un nombre. */
@@ -178,9 +248,9 @@ export function Choix({ s, nomDuSoin, produits, garde }: {
     l'écran superposé ci-dessous ne sert plus que lorsque cet onglet est fermé. */
 export function MonAmbassade({ toast }: { toast: (m: string) => void }) {
   const client = useClient();
-  const donnees = donneesDeMaCarte(client);
+  const donnees = useMaCarte();
+  const maGraine = useMaGraine();
   const { services, products } = useVisibleCatalog();
-  const [classement] = useClassement();
   const [occupe, setOccupe] = useState(false);
   const aujourdhui = new Date().toISOString().slice(0, 10);
   const resume = client?.parrainage;
@@ -240,101 +310,98 @@ export function MonAmbassade({ toast }: { toast: (m: string) => void }) {
   const etiquette: CSSProperties = { fontSize: 11, letterSpacing: '.26em', textTransform: 'uppercase', color: CU_700 };
   const circ = 2 * Math.PI * 70;
   const base = rang.seuil;
-  const part = suivant ? (venues - base) / (suivant.seuil - base) : 1;
+  /* L'anneau se remplit vers le rang suivant ; sans Graine, vers la Graine. */
+  const part = !donnees
+    ? Math.min(1, maGraine.visites / Math.max(1, maGraine.seuil))
+    : suivant ? (venues - base) / (suivant.seuil - base) : 1;
   const nuit: CSSProperties = {
     position: 'relative', overflow: 'hidden', borderRadius: 20, color: IVOIRE,
     backgroundColor: INDIGO, backgroundImage: `linear-gradient(rgba(30,33,80,.55), rgba(30,33,80,.55)), url(${asset('/assets/motifs/allover-aere-indigo-cuivre.png')})`,
     backgroundSize: 'auto, 110px', backgroundRepeat: 'repeat',
   };
+  const anneau = (
+    <div style={{ position: 'relative', width: 160, height: 160 }}>
+      <svg viewBox="0 0 160 160" style={{ position: 'absolute', inset: 0 }} aria-hidden="true">
+        <circle cx={80} cy={80} r={70} fill="none" stroke="rgba(246,241,231,.18)" strokeWidth={7} />
+        <circle cx={80} cy={80} r={70} fill="none" stroke={CU_300} strokeWidth={7} strokeLinecap="round"
+          strokeDasharray={`${(circ * Math.max(0.02, part)).toFixed(1)} ${circ.toFixed(1)}`} transform="rotate(-90 80 80)" style={{ transition: 'stroke-dasharray .8s ease' }} />
+      </svg>
+      <img src={asset('/assets/motifs/medaillon-seul-cuivre.png')} alt="" style={{ position: 'absolute', left: 30, top: 30, width: 100, height: 100 }} />
+    </div>
+  );
 
   return (
       <div style={{ display: 'grid', gap: 20, alignContent: 'start' }}>
         {!donnees ? (
-          <p style={{ fontSize: 14.5, lineHeight: 1.6, color: DOUX }}>{t('Votre carte se prépare à la Maison. Revenez dans un instant : elle portera votre prénom et votre code.')}</p>
+          /* SANS GRAINE : le chemin vers elle, dans le même anneau. Arrivée au
+             compte, elle attend la pose du Trône (il n'agit qu'ouvert) : la
+             phrase d'avant le dit. */
+          <div style={{ ...nuit, padding: '24px 20px', display: 'grid', justifyItems: 'center', gap: 10, textAlign: 'center' }}>
+            <span style={{ fontSize: 10.5, letterSpacing: '.28em', textTransform: 'uppercase', color: CU_300 }}>{t('De main en main')}</span>
+            {anneau}
+            {maGraine.reste > 0 && <span style={{ fontFamily: SERIF, fontWeight: 300, fontSize: 30, lineHeight: 1.1 }}>{graineDansDite(maGraine.reste)}</span>}
+            <span style={{ fontSize: 14, color: 'rgba(246,241,231,.86)' }}>{visitesDites(maGraine)}</span>
+            <p style={{ margin: 0, fontSize: 13.5, lineHeight: 1.55, color: CU_300, maxWidth: 320 }}>
+              {maGraine.reste > 0
+                ? maGraine.seuil === 1
+                  ? t('À votre première visite, la Maison vous remet votre Graine : votre carte et votre code, à partager avec vos amies.')
+                  : t('À votre {seuil}ᵉ visite, la Maison vous remet votre Graine : votre carte et votre code, à partager avec vos amies.', { seuil: maGraine.seuil })
+                : t('Votre carte se prépare à la Maison. Revenez dans un instant : elle portera votre prénom et votre code.')}
+            </p>
+          </div>
         ) : (
-          <>
-            {/* LE RANG, dans un médaillon qui se remplit. */}
-            <div style={{ ...nuit, padding: '24px 20px', display: 'grid', justifyItems: 'center', gap: 10, textAlign: 'center' }}>
-              <span style={{ fontSize: 10.5, letterSpacing: '.28em', textTransform: 'uppercase', color: CU_300 }}>{t('Ambassadrice de la Maison')}</span>
-              <div style={{ position: 'relative', width: 160, height: 160 }}>
-                <svg viewBox="0 0 160 160" style={{ position: 'absolute', inset: 0 }} aria-hidden="true">
-                  <circle cx={80} cy={80} r={70} fill="none" stroke="rgba(246,241,231,.18)" strokeWidth={7} />
-                  <circle cx={80} cy={80} r={70} fill="none" stroke={CU_300} strokeWidth={7} strokeLinecap="round"
-                    strokeDasharray={`${(circ * Math.max(0.02, part)).toFixed(1)} ${circ.toFixed(1)}`} transform="rotate(-90 80 80)" style={{ transition: 'stroke-dasharray .8s ease' }} />
-                </svg>
-                <img src={asset('/assets/motifs/medaillon-seul-cuivre.png')} alt="" style={{ position: 'absolute', left: 30, top: 30, width: 100, height: 100 }} />
-              </div>
-              <span style={{ fontFamily: SERIF, fontWeight: 300, fontSize: 36, lineHeight: 1 }}>{t(rang.nom)}</span>
-              <span style={{ fontSize: 14, color: 'rgba(246,241,231,.86)' }}>{venues === 0 ? t('Votre première amie vous attend.') : venues > 1 ? t('{n} amies venues grâce à vous', { n: venues }) : t('{n} amie venue grâce à vous', { n: venues })}</span>
-              {suivant && <span style={{ fontSize: 13, color: CU_300 }}>{t('Encore {n} pour devenir {rang}', { n: suivant.seuil - venues, rang: t(suivant.nom) })}</span>}
+          /* LE RANG, dans un médaillon qui se remplit. */
+          <div style={{ ...nuit, padding: '24px 20px', display: 'grid', justifyItems: 'center', gap: 10, textAlign: 'center' }}>
+            <span style={{ fontSize: 10.5, letterSpacing: '.28em', textTransform: 'uppercase', color: CU_300 }}>{t('Ambassadrice de la Maison')}</span>
+            {anneau}
+            <span style={{ fontFamily: SERIF, fontWeight: 300, fontSize: 36, lineHeight: 1 }}>{t(rang.nom)}</span>
+            <span style={{ fontSize: 14, color: 'rgba(246,241,231,.86)' }}>{venues === 0 ? t('Votre première amie vous attend.') : venues > 1 ? t('{n} amies venues grâce à vous', { n: venues }) : t('{n} amie venue grâce à vous', { n: venues })}</span>
+            {suivant && <span style={{ fontSize: 13, color: CU_300 }}>{t('Encore {n} pour devenir {rang}', { n: suivant.seuil - venues, rang: t(suivant.nom) })}</span>}
+          </div>
+        )}
+
+        {/* LA RÉCOMPENSE À CHOISIR, carte ou pas (9 octobre 2026). */}
+        {aChoisir.map((s) => (
+          <Choix key={s.id} s={s} nomDuSoin={nomDuService(s.serviceId)} produits={products.map((p) => ({ id: p.id, name: p.name }))} garde={(c) => garde(s.id, c)} />
+        ))}
+
+        {donnees && (
+          /* LA LIGNÉE. Les amies de ses amies y restent, en écho : une ligne
+             d'honneur de l'arbre, plus une récompense (9 octobre 2026). */
+          <div style={{ ...nuit, padding: '20px 16px', display: 'grid', gap: 10 }}>
+            <span style={{ fontSize: 11, letterSpacing: '.26em', textTransform: 'uppercase', color: CU_300 }}>{t('Votre lignée')}</span>
+            {(resume?.filleules ?? []).length === 0
+              ? <p style={{ margin: 0, fontSize: 14, lineHeight: 1.55, color: 'rgba(246,241,231,.86)' }}>{t('Tout part de vous. Partagez votre carte : chaque amie venue devient une branche, et les amies de vos amies vous reviennent en écho.')}</p>
+              : <Arbre prenom={donnees.prenom} filleules={resume?.filleules ?? []} echos={resume?.echos ?? []} />}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+              <span style={{ background: IVOIRE, color: INDIGO, borderRadius: 12, padding: 10, fontSize: 12.5, lineHeight: 1.4 }}><b style={{ fontWeight: 500 }}>{t('Vos amies')}</b><br />{t('une récompense chacune')}</span>
+              <span style={{ border: `1px solid ${CU_300}`, borderRadius: 12, padding: 10, fontSize: 12.5, lineHeight: 1.4 }}><b style={{ fontWeight: 500 }}>{t('Leurs amies')}</b><br />{t('votre arbre les garde')}</span>
             </div>
+          </div>
+        )}
 
-            {aChoisir.map((s) => (
-              <Choix key={s.id} s={s} nomDuSoin={nomDuService(s.serviceId)} produits={products.map((p) => ({ id: p.id, name: p.name }))} garde={(c) => garde(s.id, c)} />
-            ))}
-
-            {resume?.defi && (
-              <div style={{ borderRadius: 16, border: '1px solid rgba(124,76,44,.35)', padding: 16, display: 'grid', gap: 10, background: CARTE }}>
-                <span style={etiquette}>{t('Le défi du mois')}</span>
-                <span style={{ fontFamily: SERIF, fontSize: 21, lineHeight: 1.15, color: ENCRE }}>{(() => {
-                  const v = { n: resume.defi.objectif, soin: resume.defi.libelle === 'Un soin offert' ? t('Un soin offert') : resume.defi.libelle };
-                  return resume.defi.objectif === 1 ? t('{n} amie venue ce mois : {soin} offert.', v) : t('{n} amies venues ce mois : {soin} offert.', v);
-                })()}</span>
-                <div style={{ display: 'flex', gap: 6 }}>
-                  {Array.from({ length: resume.defi.objectif }, (_, i) => (
-                    <span key={i} style={{ flex: 1, height: 10, borderRadius: 99, background: i < resume.defi!.fait ? CUIVRE : 'var(--mc-piste)' }} />
-                  ))}
+        {/* SES RÉCOMPENSES, le Foyer compris : elles se lisent sans carte. */}
+        {(client?.soinsOfferts ?? []).length > 0 && (
+          <div style={{ display: 'grid', gap: 4 }}>
+            <span style={etiquette}>{t('Vos récompenses')}</span>
+            {(client?.soinsOfferts ?? []).map((s) => {
+              const g = genreEffectif(s, choix);
+              const expiree = !s.utiliseLe && !!s.expireLe && s.expireLe < aujourdhui;
+              const dit = g === 'a-choisir' ? t('à choisir') : g === 'remise' ? (choix[s.id]?.produitId ? t('−{pct} % sur {produit}', { pct: s.pct ?? 20, produit: products.find((p) => p.id === choix[s.id]?.produitId)?.name ?? t('un produit') }) : s.libelle.startsWith('−') ? libelleDit(s.libelle) : t('−{pct} % sur {produit}', { pct: s.pct ?? 20, produit: t('un produit') })) : (nomDuService(s.serviceId) ?? (s.libelle === 'Une récompense à choisir' ? t('Un soin offert') : libelleDit(s.libelle)));
+              return (
+                <div key={s.id} style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'center', padding: '11px 0', borderBottom: '1px solid var(--mc-filet-12)', opacity: s.utiliseLe || expiree ? 0.55 : 1 }}>
+                  <span style={{ display: 'grid' }}><span style={{ fontSize: 14.5, color: ENCRE }}>{dit}</span><span style={{ fontSize: 12, color: DOUX }}>{raisonDite(s.raison)}{s.expireLe && !s.utiliseLe && !expiree ? <>{' · '}{t('jusqu’au {date}', { date: dateDite(s.expireLe) })}</> : null}</span></span>
+                  <span style={{ fontSize: 11, padding: '4px 10px', borderRadius: 999, whiteSpace: 'nowrap', ...(s.utiliseLe ? { background: 'var(--mc-ok-fond)', color: 'var(--mc-ok-texte)' } : expiree ? { background: 'var(--mc-voile-06)', color: DOUX } : { background: 'rgba(185,122,74,.13)', color: CU_700 }) }}>
+                    {s.utiliseLe ? t('utilisée') : expiree ? t('expirée') : t('à utiliser')}
+                  </span>
                 </div>
-                <span style={{ fontSize: 12.5, color: DOUX }}>{t('{fait} sur {objectif}', { fait: resume.defi.fait, objectif: resume.defi.objectif })}{resume.defi.fait >= resume.defi.objectif ? <>{' · '}{t('relevé !')}</> : null}</span>
-              </div>
-            )}
+              );
+            })}
+          </div>
+        )}
 
-            {/* LA LIGNÉE */}
-            <div style={{ ...nuit, padding: '20px 16px', display: 'grid', gap: 10 }}>
-              <span style={{ fontSize: 11, letterSpacing: '.26em', textTransform: 'uppercase', color: CU_300 }}>{t('Votre lignée')}</span>
-              {(resume?.filleules ?? []).length === 0
-                ? <p style={{ margin: 0, fontSize: 14, lineHeight: 1.55, color: 'rgba(246,241,231,.86)' }}>{t('Tout part de vous. Partagez votre carte : chaque amie venue devient une branche, et les amies de vos amies vous reviennent en écho.')}</p>
-                : <Arbre prenom={donnees.prenom} filleules={resume?.filleules ?? []} echos={resume?.echos ?? []} />}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                <span style={{ background: IVOIRE, color: INDIGO, borderRadius: 12, padding: 10, fontSize: 12.5, lineHeight: 1.4 }}><b style={{ fontWeight: 500 }}>{t('Vos amies')}</b><br />{t('une récompense chacune')}</span>
-                <span style={{ border: `1px solid ${CU_300}`, borderRadius: 12, padding: 10, fontSize: 12.5, lineHeight: 1.4 }}><b style={{ fontWeight: 500 }}>{t('Leurs amies')}</b><br />{t('un écho chacune')}</span>
-              </div>
-            </div>
-
-            {/* SES RÉCOMPENSES */}
-            {(client?.soinsOfferts ?? []).length > 0 && (
-              <div style={{ display: 'grid', gap: 4 }}>
-                <span style={etiquette}>{t('Vos récompenses')}</span>
-                {(client?.soinsOfferts ?? []).map((s) => {
-                  const g = genreEffectif(s, choix);
-                  const expiree = !s.utiliseLe && !!s.expireLe && s.expireLe < aujourdhui;
-                  const dit = g === 'a-choisir' ? t('à choisir') : g === 'remise' ? (choix[s.id]?.produitId ? t('−{pct} % sur {produit}', { pct: s.pct ?? 20, produit: products.find((p) => p.id === choix[s.id]?.produitId)?.name ?? t('un produit') }) : s.libelle.startsWith('−') ? libelleDit(s.libelle) : t('−{pct} % sur {produit}', { pct: s.pct ?? 20, produit: t('un produit') })) : (nomDuService(s.serviceId) ?? (s.libelle === 'Une récompense à choisir' ? t('Un soin offert') : libelleDit(s.libelle)));
-                  return (
-                    <div key={s.id} style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'center', padding: '11px 0', borderBottom: '1px solid var(--mc-filet-12)', opacity: s.utiliseLe || expiree ? 0.55 : 1 }}>
-                      <span style={{ display: 'grid' }}><span style={{ fontSize: 14.5, color: ENCRE }}>{dit}</span><span style={{ fontSize: 12, color: DOUX }}>{raisonDite(s.raison)}{s.expireLe && !s.utiliseLe && !expiree ? <>{' · '}{t('jusqu’au {date}', { date: dateDite(s.expireLe) })}</> : null}</span></span>
-                      <span style={{ fontSize: 11, padding: '4px 10px', borderRadius: 999, whiteSpace: 'nowrap', ...(s.utiliseLe ? { background: 'var(--mc-ok-fond)', color: 'var(--mc-ok-texte)' } : expiree ? { background: 'var(--mc-voile-06)', color: DOUX } : { background: 'rgba(185,122,74,.13)', color: CU_700 }) }}>
-                        {s.utiliseLe ? t('utilisée') : expiree ? t('expirée') : t('à utiliser')}
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-
-            {/* LE CLASSEMENT, si la Maison l'a allumé */}
-            {classement.lignes.length > 0 && (
-              <div style={{ display: 'grid', gap: 4 }}>
-                <span style={etiquette}>{t('Les ambassadrices du mois')}</span>
-                {classement.lignes.slice(0, 5).map((x, i) => (
-                  <div key={`${x.prenom}-${i}`} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '9px 0', borderBottom: '1px solid var(--mc-filet-10)' }}>
-                    <span style={{ fontFamily: SERIF, fontSize: 22, color: CUIVRE, width: 22 }}>{i + 1}</span>
-                    <span style={{ flexGrow: 1, fontSize: 14.5, color: ENCRE }}>{x.prenom === 'Une cliente' ? t('Une cliente') : x.prenom} <span style={{ fontSize: 12, color: DOUX }}>· {t(nomDuRang(x.rang))}</span></span>
-                    <span style={{ fontSize: 12.5, color: DOUX }}>{t('{n} ce mois', { n: x.ceMois })}</span>
-                  </div>
-                ))}
-              </div>
-            )}
-
+        {donnees && (
+          <>
             {/* SA CARTE */}
             <div style={{ display: 'grid', gap: 12 }}>
               <span style={etiquette}>{t('Votre carte')}</span>
@@ -351,7 +418,7 @@ export function MonAmbassade({ toast }: { toast: (m: string) => void }) {
               <span style={{ fontSize: 12.5, color: DOUX, textAlign: 'center', userSelect: 'all' }}>{lienDeLaCarteEcrit(donnees.code)}</span>
             </div>
 
-            {/* LES RANGS ET LES RÈGLES */}
+            {/* LES RANGS ET LA RÈGLE */}
             <div style={{ display: 'grid', gap: 8 }}>
               <span style={etiquette}>{t('Les rangs')}</span>
               <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
@@ -362,7 +429,7 @@ export function MonAmbassade({ toast }: { toast: (m: string) => void }) {
                 ))}
               </div>
               <p style={{ margin: 0, fontSize: 12.5, lineHeight: 1.55, color: DOUX }}>
-                {t('Une amie compte quand elle est venue. Une récompense par amie, au choix ; un écho pour les amies de vos amies. Rien à payer, jamais d’argent : des soins et des remises, chacune avec sa date de fin.')}
+                {t('Une amie compte quand elle est venue. Pour chacune, une récompense à choisir : un soin offert ou une remise. Les amies de vos amies grandissent votre arbre. Rien à payer, jamais d’argent.')}
               </p>
             </div>
           </>
@@ -376,7 +443,8 @@ export default function MaCarte({ onClose, toast }: { onClose: () => void; toast
     <div className="mc-overlayscreen mc-slide" style={{ zIndex: 42 }}>
       <div className="mc-flowhead mc-flowhead--split">
         <div>
-          <div className="mc-micro-eyebrow">{t('Le Cercle MND · transmettre')}</div>
+          {/* Le nom du programme (9 octobre 2026), au-dessus de son ambassade. */}
+          <div className="mc-micro-eyebrow">{t('De main en main')}</div>
           <h1 className="mc-flowhead__h1" style={{ marginTop: 4 }}>{t('Mon ambassade.')}</h1>
         </div>
         <button className="mc-x" aria-label={t('Fermer')} onClick={onClose}>✕</button>

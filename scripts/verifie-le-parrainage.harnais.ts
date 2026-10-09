@@ -2,15 +2,18 @@ import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import {
   FORME_DU_CODE, SIGNES_DU_CODE, codeDeMarraine, racineDuCode, lienDuParrainage, lienCourtDuParrainage,
 } from '../src/shared/parrainage-pur';
-import { codesAAttribuer, soinUtilise, type DemandeParrainee, type FicheLue } from '../src/shared/parrainage';
+import { codesAAttribuer, type DemandeParrainee, type FicheLue } from '../src/shared/parrainage';
 import {
   lignees, venuesDe, recompensesAPoser, choixReportes, rattachementsDuSite, pourquoiPasDeMarraine,
   resumeDeLAmbassade, classementDuMois, chiffresDuMois, sceauxDuFoyerAPoser, type FicheAmb, type DemandeLue,
 } from '../src/shared/ambassade';
+import { codesConnus, grainesAAttribuer, hasardDe, type Graine } from '../src/shared/douze-lunes-pur';
+import { prenomDuNom } from '../src/shared/parrainage-pur';
 import { soinsEnAttente, genreEffectif, rangDe, rangSuivant, RANGS, type SoinOffert } from '../src/shared/parrainage-pur';
 import { prestationsDeBienvenue, remiseDeBienvenue, motDeLaRemise, REMISE_BIENVENUE_PCT } from '../src/shared/parrainage-pur';
 import { venuesDeLAnnee } from '../src/shared/agenda';
 import { INGREDIENTS, AVANT_APRES, COMMUNAUTE } from '../src/apps/revelateur/communaute';
+import { unGesteParPassage } from './un-geste-par-passage';
 
 /* LA COMMUNAUTÉ MND, ÉPROUVÉE — 28 septembre 2026.
 
@@ -32,6 +35,17 @@ import { INGREDIENTS, AVANT_APRES, COMMUNAUTE } from '../src/apps/revelateur/com
          motif appelé existe dans public/assets/motifs/ (les patterns réels,
          jamais dessinés), et toute photo d'avant / après ou d'ingrédient
          est inscrite au registre des accords AVANT de sortir.
+
+   DE MAIN EN MAIN — 9 octobre 2026. Les contrôles qui éprouvaient l'ANCIEN
+   programme (un code pour chaque fiche, le code demandé sur le site, l'écho,
+   le rang et le défi récompensés, le classement lu par les clientes, la
+   marraine cherchée dans les demandes, « exactement cinq return ») sont
+   devenus ceux de la règle neuve : la carte se GAGNE (la Graine), seul son
+   code ouvre quelque chose, un merci par amie venue après le lancement, et
+   rien d'autre. Chacun a été vu crier, sa panne remise (le banc complet, avec
+   `--prouve`, vit dans verifie-les-douze-lunes). Les dates du banc sont
+   posées APRÈS le lancement (`LANCE_A`), sauf celles qui disent l'avant :
+   sans quoi un « cinq mercis » changerait de sens en silence.
 
    Lance : node scripts/verifie-le-parrainage.mjs (après genere-revelateur). */
 
@@ -70,7 +84,8 @@ dit('Edge : le mode parrainage répond avant le genre', true,
   && sansCommentaires.indexOf('body.parrainage === true') < sansCommentaires.indexOf("const genre = String(body.genre"));
 dit('Edge : le code de marraine n’est cherché que si aucune offre ne le connaît', true,
   /if \(duCode\.raison === 'inconnu'\) \{\s*duCode = \(await verdictDuParrainage\(/.test(sansCommentaires));
-const verdict = sansCommentaires.slice(sansCommentaires.indexOf('async function verdictDuParrainage'), sansCommentaires.indexOf('async function codePourLaMarraine'));
+const verdict = sansCommentaires.slice(sansCommentaires.indexOf('async function verdictDuParrainage'), sansCommentaires.indexOf('async function quiOffre'));
+dit('Edge : le verdict est bien lu (sans quoi les quatre contrôles suivants ne prouveraient rien)', true, verdict.length > 300);
 dit('Edge : refuse la marraine elle-même', true, verdict.includes("raison: 'parrainage-soi-meme'"));
 dit('Edge : refuse un second parrainage du même numéro', true, verdict.includes("raison: 'parrainage-deja-utilise'"));
 dit('Edge : refuse une cliente déjà connue', true, verdict.includes('await dejaCliente(telephone)') && verdict.includes("raison: 'parrainage-deja-cliente'"));
@@ -79,7 +94,14 @@ dit('Edge : le cadeau ne se donne qu’en DERNIER, après les trois refus', true
 dit('Edge : une pause au Trône ferme le parrainage', true, verdict.includes('reglage.actif === false') && sansCommentaires.includes("json({ error: 'parrainage_ferme' }, 409)"));
 dit('Edge : la demande garde la marraine', true, /parrainDe: duCode\.code, marraineId: duCode\.marraineId/.test(sansCommentaires));
 dit('Edge : la note du rendez-vous dit le cadeau', true, sansCommentaires.includes("v.raison === 'parrainage') return `parrainée par"));
-dit('Edge : un même numéro retrouve son code', true, /\.eq\('data->>telephone', telephone\)\.not\('data->>codeParrain', 'is', null\)/.test(sansCommentaires));
+/* De main en main : le site ne rend plus AUCUN code, ni celui d'une fiche,
+   ni celui d'une demande « Marraine » (l'ancien « un même numéro retrouve
+   son code ») ; l'ancien appel reçoit 409 sans qu'aucune table soit lue. */
+dit('Edge : le site ne rend plus de code, ni d’une fiche ni d’une demande', [false, false, true], [
+  /\.not\('data->>codeParrain', 'is', null\)/.test(sansCommentaires),
+  /codePourLaMarraine|const saFiche/.test(sansCommentaires),
+  /if \(body\.parrainage === true\) return json\(\{ error: 'parrainage_ferme' \}, 409\);/.test(sansCommentaires),
+]);
 
 /* ── Le site dit chaque issue (la page de réservation) ── */
 const reserver = readFileSync('src/apps/revelateur/ilots/Reserver.tsx', 'utf8');
@@ -111,6 +133,10 @@ dit('l’avant / après ne sort pas tant qu’il n’a pas de paires', AVANT_APR
 dit('chaque carte de la communauté mène à une page écrite', [], COMMUNAUTE.cartes.filter((c) => !lit(c.vers)).map((c) => c.vers));
 dit('la page testeuse monte le formulaire, profil posé', true, /data-ilot="demande"[^>]*data-profil="Testeuse"/.test(lit('/testeuse/')));
 dit('la page parrainage monte l’îlot', true, lit('/parrainage/').includes('data-ilot="parrainer"'));
+/* De main en main : l'îlot ne distribue plus de code (il en donnait un à
+   quiconque tapait un prénom et un numéro) ; la carte se gagne à la Maison. */
+const ilotParrainer = readFileSync('src/apps/revelateur/ilots/Parrainer.tsx', 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+dit('… un îlot qui ne demande plus de code au serveur', [false, false], [/parrainage: true/.test(ilotParrainer), /fetch\(/.test(ilotParrainer)]);
 
 /* LES PATTERNS RÉELS : tout motif appelé existe. On lit le HTML servi ET la
    feuille, pour qu'un nom de tuile mal tapé ne passe nulle part. */
@@ -130,50 +156,87 @@ dit('toute photo de l’avant / après ou d’un ingrédient existe', [], photos
 dit('… et porte sa ligne au registre des accords', [], photosCommunaute.filter((f) => !inscrite(f)));
 dit('… et le contrôle du registre CRIE sur une photo non inscrite', false, inscrite('avant-inconnue-000.jpg'));
 
-/* ══ (6) LA CARTE DE CHAQUE CLIENTE — 28 septembre 2026 ═════════════════
-   Toute fiche a son code ; un code ne se partage jamais ; le même code sort
-   sur tous les postes ; une cliente qui l'avait demandé sur le site le
-   garde ; un soin par amie venue, jamais deux ; la caisse le consomme une
-   fois ; la base le protège. */
+/* ══ (6) LA CARTE SE GAGNE — De main en main, 9 octobre 2026 ════════════
+   (Jusqu'au 9 octobre : « la carte de chaque cliente », un code pour toute
+   fiche vivante, et le code demandé sur le site gardé.) Désormais seule une
+   fiche qui a ses N jours de visite honorée depuis le 1er janvier 2026
+   reçoit sa Graine : un code neuf, unique, le même sur tous les postes,
+   jamais un code déjà vu (ni l'ancien code d'une fiche, ni celui d'une
+   marraine du site). Le banc complet du seuil vit dans verifie-les-douze-
+   lunes (R1 à R3) ; ici, ce que l'ancien contrôle tenait, retourné. */
 const fiche = (o: Partial<FicheLue> & { id: string }): FicheLue => ({ name: 'Aïcha K.', phone: '+2290100000000', since: '2019-03-01', ...o } as FicheLue);
+const CINQ_VISITES = ['2026-01-15', '2026-03-02', '2026-05-04', '2026-07-06', '2026-09-08'];
+const visitesDe = (clientId: string, n = 5) => CINQ_VISITES.slice(0, n).map((date, i) => ({ id: `v-${clientId}-${i}`, status: 'honoré', date, clientId }));
+const AUJOURDHUI = '2026-10-20';
 const foule = Array.from({ length: 60 }, (_, i) => fiche({ id: `c${String(i).padStart(3, '0')}`, name: i % 2 ? 'Aïcha Test' : 'Grâce', phone: `+22901${String(10000000 + i)}` }));
-const codesFoule = codesAAttribuer(foule, []);
-dit('chaque fiche vivante reçoit un code', 60, codesFoule.length);
-dit('… chacun a la forme PRENOM-XXX', [], codesFoule.filter((c) => !FORME_DU_CODE.test(c.code)).map((c) => c.code));
-dit('… et aucun ne se répète, même à trente prénoms identiques', 60, new Set(codesFoule.map((c) => c.code)).size);
-dit('… et le même code sort sur tous les postes (ordre des fiches indifférent)', JSON.stringify([...codesFoule].sort((a, b) => a.clientId.localeCompare(b.clientId))),
-  JSON.stringify([...codesAAttribuer([...foule].reverse(), [])].sort((a, b) => a.clientId.localeCompare(b.clientId))));
+const rdvFoule = [...foule.slice(0, 50).flatMap((c) => visitesDe(c.id)), ...foule.slice(50).flatMap((c) => visitesDe(c.id, 4))];
+const codesFoule = grainesAAttribuer(foule, rdvFoule, 5, AUJOURDHUI).map((g) => ({ clientId: g.clientId, code: g.graine.code }));
+dit('la carte se gagne : cinquante fiches à cinq visites ont leur Graine, les dix à quatre visites non', [50, []],
+  [codesFoule.length, codesFoule.filter((c) => Number(c.clientId.slice(1)) >= 50).map((c) => c.clientId)]);
+dit('… chaque code a la forme PRENOM-XXX', [], codesFoule.filter((c) => !FORME_DU_CODE.test(c.code)).map((c) => c.code));
+dit('… et aucun ne se répète, même à vingt-cinq prénoms identiques', 50, new Set(codesFoule.map((c) => c.code)).size);
+dit('… et le même code sort sur tous les postes (ordre des fiches indifférent)', JSON.stringify(codesFoule),
+  JSON.stringify(grainesAAttribuer([...foule].reverse(), [...rdvFoule].reverse(), 5, AUJOURDHUI).map((g) => ({ clientId: g.clientId, code: g.graine.code }))));
 dit('… et il vient de son prénom', true, codesFoule.find((c) => c.clientId === 'c001')?.code.startsWith('AICHA-'));
-const avecDeja = [fiche({ id: 'x1', codeParrain: 'AICHA-7K2' }), fiche({ id: 'x2', name: 'Aïcha B.', phone: '+2290199999999' }), fiche({ id: 'x3', archived: true, phone: '+2290188888888' })];
-const codesDeja = codesAAttribuer(avecDeja, []);
-dit('une fiche qui a déjà son code le garde, une fiche archivée n’en reçoit pas', ['x2'], codesDeja.map((c) => c.clientId));
-dit('… et le nouveau code évite celui qui existe', true, codesDeja[0]?.code !== 'AICHA-7K2');
-const duSite = [d({ id: 'ds1', prenom: 'Rama', telephone: '+2290166666666', codeParrain: 'RAMA-4HX' })];
-dit('une cliente qui a demandé son code sur le site GARDE ce code', [{ clientId: 'r1', code: 'RAMA-4HX' }],
-  codesAAttribuer([fiche({ id: 'r1', name: 'Rama D.', phone: '01 66 66 66 66' })], duSite));
-dit('… mais jamais deux fiches pour un même code du site', 1,
-  codesAAttribuer([fiche({ id: 'r1', name: 'Rama D.', phone: '0166666666' }), fiche({ id: 'r2', name: 'Rama E.', phone: '+229 01 66 66 66 66' })], duSite).filter((c) => c.code === 'RAMA-4HX').length);
-dit('… et un code neuf n’emprunte jamais celui d’une marraine du site', false,
-  codesAAttribuer([fiche({ id: 'z1', name: 'Rama', phone: '+2290155555555' })], duSite).some((c) => c.code === 'RAMA-4HX'));
+/* L'ancien programme donnait un code à chacune ; la Graine n'en reprend aucun. */
+const anciens = new Map(codesAAttribuer(foule, []).map((c) => [c.clientId, c.code]));
+dit('… et aucune Graine ne reprend l’ancien code de sa fiche', [], codesFoule.filter((c) => c.code === anciens.get(c.clientId)).map((c) => c.clientId));
+/* Le piège : chaque code déjà vu est justement le PREMIER tirage de la
+   fiche qui reçoit sa Graine, sans quoi « jamais repris » ne prouverait
+   rien (deux tirages au hasard ne se rencontrent presque jamais). */
+const premierTirage = (id: string, nom: string) => codeDeMarraine(prenomDuNom(nom), hasardDe(`lunes:${id}:0`));
+const deja: Graine = { code: premierTirage('x2', 'Aïcha B.'), le: '2026-10-09', atteinteLe: '2026-09-08', seuil: 5 };
+const avecDeja = [fiche({ id: 'x1', graine: deja, codeParrain: deja.code }), fiche({ id: 'x2', name: 'Aïcha B.', phone: '+2290199999999' }), fiche({ id: 'x3', archived: true, phone: '+2290188888888' })];
+const codesDeja = grainesAAttribuer(avecDeja, ['x1', 'x2', 'x3'].flatMap((id) => visitesDe(id)), 5, AUJOURDHUI);
+dit('une Graine posée ne se repose pas, une fiche archivée n’en reçoit pas', ['x2'], codesDeja.map((c) => c.clientId));
+dit('… et le nouveau code évite celui d’une Graine qui existe', [true, true], [FORME_DU_CODE.test(codesDeja[0]?.graine.code ?? ''), codesDeja[0]?.graine.code !== deja.code]);
+/* La marraine du site (une demande « Marraine ») : son code s'éteint. La
+   fiche du même numéro ne l'ADOPTE plus (l'ancien « elle GARDE ce code »),
+   et aucune Graine ne le reprend. */
+const duSite = [
+  d({ id: 'ds1', prenom: 'Rama', telephone: '+2290166666666', codeParrain: premierTirage('r1', 'Rama D.') }),
+  d({ id: 'ds2', prenom: 'Awa', telephone: '+2290167777777', parrainDe: premierTirage('z1', 'Rama') }),
+];
+const deRama = grainesAAttribuer([fiche({ id: 'r1', name: 'Rama D.', phone: '01 66 66 66 66' })], visitesDe('r1'), 5, AUJOURDHUI, codesConnus([], duSite));
+dit('une cliente qui avait demandé son code sur le site reçoit un code NEUF à sa Graine', [1, false], [deRama.length, deRama.some((g) => g.graine.code === premierTirage('r1', 'Rama D.'))]);
+dit('… et aucun code vu sur le site ne revient à personne', false,
+  grainesAAttribuer([fiche({ id: 'z1', name: 'Rama', phone: '+2290155555555' })], visitesDe('z1'), 5, AUJOURDHUI, codesConnus([], duSite)).some((g) => g.graine.code === premierTirage('z1', 'Rama')));
 
 /* ══ (7) LES AMBASSADRICES — 28 septembre 2026 ══════════════════════════
    La règle, pas le cas : une amie compte UNE fois (site et Trône se
-   rejoignent), quand elle est VENUE ; une récompense au choix par amie ;
-   l'écho à la deuxième génération et JAMAIS à la troisième ; les rangs et le
-   défi ; rien ne se pose deux fois ; le choix de la cliente est reporté ; la
-   remise est bornée ; Ma Couronne ne reçoit que des prénoms. */
+   rejoignent), quand elle est VENUE ; rien ne se pose deux fois ; le choix
+   de la cliente est reporté ; la remise est bornée ; Ma Couronne ne reçoit
+   que des prénoms.
+
+   DE MAIN EN MAIN (9 octobre 2026) : une lignée ne naît que d'une GRAINE,
+   et une amie vaut UN merci, posé seulement si elle est venue après le
+   lancement (`LANCE_A`, avant toutes les venues d'octobre du banc ; Sika,
+   venue en septembre, dit l'avant). Plus d'écho, de rang ni de défi
+   récompensés, même avec l'ancien réglage resté allumé dans le document.
+   L'ancien code d'une Graine, gardé dans son archive, mène encore à elle
+   (Mila, invitée avant le lancement, venue après : décision 5) ; celui
+   d'une fiche qui n'est pas Graine ne mène nulle part (Yao). */
+const LANCE_A = '2026-10-01';
+const graineA = (code: string): Graine => ({ code, le: LANCE_A, atteinteLe: '2026-09-08', seuil: 5 });
 const fa = (o: Partial<FicheAmb> & { id: string }): FicheAmb => ({ name: 'X', phone: '+2290100000000', since: '2019-01-01', ...o } as FicheAmb);
 const ficheA = [
-  fa({ id: 'adjoa', name: 'Adjoa Mensah', phone: '+2290170000000', codeParrain: 'ADJOA-7K2' }),
-  fa({ id: 'grace', name: 'Grâce H.', phone: '+2290171000000', codeParrain: 'GRACE-9MT', parraineePar: 'ADJOA-7K2' }),
-  fa({ id: 'ines', name: 'Inès K.', phone: '+2290172000000', codeParrain: 'INES-3PQ', parraineePar: 'GRACE-9MT' }),
-  fa({ id: 'lea', name: 'Léa T.', phone: '+2290173000000', codeParrain: 'LEA-2WX', parraineePar: 'INES-3PQ' }),
-  fa({ id: 'rama', name: 'Rama D.', phone: '+2290174000000', codeParrain: 'RAMA-4HX', parraineePar: 'ADJOA-7K2' }),
-  fa({ id: 'zoe', name: 'Zoé A.', phone: '+2290175000000', codeParrain: 'ZOE-8KM', parraineePar: 'ADJOA-7K2' }),
+  fa({ id: 'adjoa', name: 'Adjoa Mensah', phone: '+2290170000000', graine: graineA('ADJOA-7K2'), codeParrain: 'ADJOA-7K2',
+    avantLesDouzeLunes: { le: '2026-10-01T20:00:00.000Z', codeParrain: 'ADJOA-4QF', soinsRetires: [] } }),
+  fa({ id: 'grace', name: 'Grâce H.', phone: '+2290171000000', graine: graineA('GRACE-9MT'), codeParrain: 'GRACE-9MT', parraineePar: 'ADJOA-7K2' }),
+  fa({ id: 'ines', name: 'Inès K.', phone: '+2290172000000', graine: graineA('INES-3PQ'), codeParrain: 'INES-3PQ', parraineePar: 'GRACE-9MT' }),
+  fa({ id: 'lea', name: 'Léa T.', phone: '+2290173000000', graine: graineA('LEA-2WX'), codeParrain: 'LEA-2WX', parraineePar: 'INES-3PQ' }),
+  fa({ id: 'rama', name: 'Rama D.', phone: '+2290174000000', parraineePar: 'ADJOA-7K2' }),
+  fa({ id: 'zoe', name: 'Zoé A.', phone: '+2290175000000', parraineePar: 'ADJOA-7K2' }),
+  fa({ id: 'sika', name: 'Sika B.', phone: '+2290177000000', parraineePar: 'ADJOA-7K2' }),
+  fa({ id: 'mila', name: 'Mila F.', phone: '+2290176500000', parraineePar: 'ADJOA-4QF' }),
+  fa({ id: 'yao', name: 'Yao K.', phone: '+2290178000000', codeParrain: 'YAO-7HP' }),
+  fa({ id: 'awa', name: 'Awa H.', phone: '+2290179000000', parraineePar: 'YAO-7HP' }),
 ];
 const demA: DemandeLue[] = [
   { id: 'd1', prenom: 'Rama', telephone: '+2290174000000', createdAt: '2026-10-01T09:00:00Z', codeRaison: 'parrainage', parrainDe: 'ADJOA-7K2', apptId: 'a-r' },
   { id: 'd2', prenom: 'Nadia', telephone: '+2290176000000', createdAt: '2026-10-02T09:00:00Z', codeRaison: 'parrainage', parrainDe: 'ADJOA-7K2', apptId: 'a-n' },
+  { id: 'd3', prenom: 'Awa', telephone: '+2290179000000', createdAt: '2026-10-02T10:00:00Z', codeRaison: 'parrainage', parrainDe: 'YAO-7HP', apptId: 'a-a' },
+  { id: 'd4', prenom: 'Mila', telephone: '+2290176500000', createdAt: '2026-09-25T09:00:00Z', codeRaison: 'parrainage', parrainDe: 'ADJOA-4QF', apptId: 'a-m' },
 ];
 const rdvA = [
   { id: 'a-g', status: 'honoré', date: '2026-10-03', clientId: 'grace' },
@@ -182,35 +245,51 @@ const rdvA = [
   { id: 'a-r', status: 'honoré', date: '2026-10-12', clientId: 'rama' },
   { id: 'a-n', status: 'honoré', date: '2026-10-05' },
   { id: 'a-z', status: 'confirmé', date: '2026-10-30', clientId: 'zoe' },
+  { id: 'a-s', status: 'honoré', date: '2026-09-20', clientId: 'sika' },
+  { id: 'a-m', status: 'honoré', date: '2026-10-08', clientId: 'mila' },
+  { id: 'a-a', status: 'honoré', date: '2026-10-06', clientId: 'awa' },
 ];
 const LA = lignees(ficheA, demA, rdvA);
 const adjoa = LA.get('ADJOA-7K2')!;
-dit('une amie compte UNE fois, même venue par le site ET rattachée au Trône', 1, adjoa.filleules.filter((f) => f.clientId === 'rama').length);
-dit('… et garde l’identifiant de sa réservation', 'parr-d1', adjoa.filleules.find((f) => f.clientId === 'rama')?.recompenseId);
-dit('Adjoa : quatre amies, dont trois venues (une réservation seule ne compte pas)', [4, 3], [adjoa.filleules.length, venuesDe(adjoa).length]);
-const reglageA = { soinMarraineServiceId: 'svc-dandan', remisePct: 20, echoPct: 10, bonusRangs: { tresse: 'svc-signature' }, defi: { actif: true, objectif: 2, serviceId: 'svc-defi' } };
+dit('une lignée ne naît que d’une Graine (ni l’ancien code de Yao, ni son ancien code à elle)', ['ADJOA-7K2', 'GRACE-9MT', 'INES-3PQ', 'LEA-2WX'], [...LA.keys()].sort());
+dit('une amie compte UNE fois, même venue par le site ET rattachée au Trône', 1, adjoa?.filleules.filter((f) => f.clientId === 'rama').length);
+dit('… et garde l’identifiant de sa réservation', 'parr-d1', adjoa?.filleules.find((f) => f.clientId === 'rama')?.recompenseId);
+dit('… même invitée par l’ANCIEN code de sa marraine Graine (Mila, décision 5)', [1, 'parr-d4'],
+  [adjoa?.filleules.filter((f) => f.clientId === 'mila').length, adjoa?.filleules.find((f) => f.clientId === 'mila')?.recompenseId]);
+dit('Adjoa : six amies, dont cinq venues (une réservation seule ne compte pas)', [6, 5], [adjoa?.filleules.length, venuesDe(adjoa).length]);
+/* L'ANCIEN RÉGLAGE RESTÉ ALLUMÉ dans le document (écho, bonus de rang,
+   défi) : le moteur ne le lit plus. */
+const reglageA = { soinMarraineServiceId: 'svc-dandan', remisePct: 20, echoPct: 10, bonusRangs: { tresse: 'svc-signature' }, defi: { actif: true, objectif: 2, serviceId: 'svc-defi' }, lanceLe: LANCE_A };
 const nomsA = (id: string) => ({ 'svc-dandan': 'DÀNDÀN™', 'svc-signature': 'Le rituel signature', 'svc-defi': 'KLƆKLƆ™' } as Record<string, string>)[id];
 const posesA = recompensesAPoser(ficheA, LA, reglageA, '2026-10-20', nomsA);
 const idsDe = (id: string) => (posesA.parFiche.get(id) ?? []).map((s) => s.id).sort();
-dit('Adjoa : une récompense par amie venue, l’écho d’Inès, le rang Tresse, le défi d’octobre',
-  ['defi-2026-10-adjoa', 'echo-parr-c-ines', 'parr-c-grace', 'parr-d1', 'parr-d2', 'rang-tresse-adjoa'], idsDe('adjoa'));
-dit('… JAMAIS d’écho à la troisième génération (Léa, amie d’Inès, amie de Grâce)', false, idsDe('adjoa').some((id) => id.includes('lea')));
-dit('Grâce : sa récompense pour Inès, et l’écho de Léa', ['echo-parr-c-lea', 'parr-c-ines'], idsDe('grace'));
-dit('Inès : sa récompense pour Léa', ['parr-c-lea'], idsDe('ines'));
+dit('Adjoa : un merci par amie venue après le lancement, et rien d’autre (l’ancien réglage allumé n’y peut rien)',
+  ['parr-c-grace', 'parr-d1', 'parr-d2', 'parr-d4'], idsDe('adjoa'));
+dit('… ni écho, ni rang, ni défi, à aucune fiche', [], [...posesA.parFiche.values()].flat().map((s) => s.id).filter((id) => /^(echo|rang|defi)-/.test(id)));
+dit('… rien pour Sika, venue AVANT le lancement (la date métier)', false, idsDe('adjoa').some((id) => id.includes('sika')));
+dit('Grâce : son merci pour Inès, et plus d’écho de Léa', ['parr-c-ines'], idsDe('grace'));
+dit('Inès : son merci pour Léa', ['parr-c-lea'], idsDe('ines'));
+dit('Yao, sans Graine : ni lignée ni merci pour Awa (son ancien code s’est éteint)', [false, false], [LA.has('YAO-7HP'), posesA.parFiche.has('yao')]);
 const parrD1 = (posesA.parFiche.get('adjoa') ?? []).find((s) => s.id === 'parr-d1');
-dit('la récompense d’une amie est À CHOISIR, avec son soin et sa remise', { genre: 'a-choisir', serviceId: 'svc-dandan', pct: 20, expireLe: '2027-04-20' },
-  { genre: parrD1?.genre, serviceId: parrD1?.serviceId, pct: parrD1?.pct, expireLe: parrD1?.expireLe });
-dit('l’écho est une remise plus petite', { genre: 'remise', pct: 10 }, (() => { const e = (posesA.parFiche.get('adjoa') ?? []).find((s) => s.id === 'echo-parr-c-ines'); return { genre: e?.genre, pct: e?.pct }; })());
-dit('les réservations du site récompensées sont marquées', ['d1', 'd2'], [...posesA.demandesMarquees].sort());
+dit('la récompense d’une amie est À CHOISIR, avec son soin et sa remise', { genre: 'a-choisir', serviceId: 'svc-dandan', pct: 20, expireLe: '2027-04-20', source: 'amie' },
+  { genre: parrD1?.genre, serviceId: parrD1?.serviceId, pct: parrD1?.pct, expireLe: parrD1?.expireLe, source: parrD1?.source });
+dit('les réservations du site récompensées sont marquées', ['d1', 'd2', 'd4'], [...posesA.demandesMarquees].sort());
 dit('aucun remerciement tant que la Maison ne l’a pas allumé', 0, posesA.mercis.length);
-dit('… et un par amie venue quand elle l’allume', 5, recompensesAPoser(ficheA, LA, { ...reglageA, merciParWhatsApp: true }, '2026-10-20', nomsA).mercis.length);
+dit('… et un par merci posé quand elle l’allume', 6, recompensesAPoser(ficheA, LA, { ...reglageA, merciParWhatsApp: true }, '2026-10-20', nomsA).mercis.length);
+dit('sans lancement (le document des Lunes ne l’a pas dit), aucun merci', 0, recompensesAPoser(ficheA, LA, { ...reglageA, lanceLe: undefined }, '2026-10-20', nomsA).parFiche.size);
 const ficheApres = ficheA.map((c) => ({ ...c, soinsOfferts: [...(c.soinsOfferts ?? []), ...(posesA.parFiche.get(c.id) ?? [])] }));
 dit('rien ne se pose deux fois (deux postes, un passage de plus)', 0, recompensesAPoser(ficheApres, lignees(ficheApres, demA, rdvA), reglageA, '2026-10-21', nomsA).parFiche.size);
+/* Le merci que le lancement a rangé dans l'archive (posé avant, retiré au
+   geste) ne revient pas : c'est un identifiant déjà vu. */
+const ficheRangee = ficheA.map((c) => (c.id === 'adjoa' ? { ...c, avantLesDouzeLunes: { ...c.avantLesDouzeLunes!, soinsRetires: [{ id: 'parr-c-grace', libelle: 'x', raison: 'x', poseLe: '2026-10-04', source: 'amie' as const }] } } : c));
+dit('un merci rangé dans l’archive au lancement ne revient pas', false,
+  (recompensesAPoser(ficheRangee, lignees(ficheRangee, demA, rdvA), reglageA, '2026-10-20', nomsA).parFiche.get('adjoa') ?? []).some((s) => s.id === 'parr-c-grace'));
 dit('un cadeau déjà remis à la main ne se repose pas', false,
-  (recompensesAPoser(ficheA, lignees(ficheA, [demA[0], { ...demA[1], cadeauMarraineRemisLe: '2026-10-06' }], rdvA), reglageA, '2026-10-20', nomsA).parFiche.get('adjoa') ?? []).some((s) => s.id === 'parr-d2'));
-dit('sans prestation choisie, pas de bonus de rang ni de défi (rien ne s’invente)', ['echo-parr-c-ines', 'parr-c-grace', 'parr-d1', 'parr-d2'],
-  (recompensesAPoser(ficheA, LA, { remisePct: 20 }, '2026-10-20').parFiche.get('adjoa') ?? []).map((s) => s.id).sort());
-dit('la remise ne dépasse jamais la moitié', 50, (recompensesAPoser(ficheA, LA, { remisePct: 80 }, '2026-10-20').parFiche.get('adjoa') ?? [])[0]?.pct);
+  (recompensesAPoser(ficheA, lignees(ficheA, [demA[0], { ...demA[1], cadeauMarraineRemisLe: '2026-10-06' }, ...demA.slice(2)], rdvA), reglageA, '2026-10-20', nomsA).parFiche.get('adjoa') ?? []).some((s) => s.id === 'parr-d2'));
+const sansPrestation = recompensesAPoser(ficheA, LA, { remisePct: 20, lanceLe: LANCE_A }, '2026-10-20').parFiche.get('adjoa') ?? [];
+dit('sans prestation choisie, le merci reste une remise à choisir (rien ne s’invente)', [['parr-c-grace', 'parr-d1', 'parr-d2', 'parr-d4'], false],
+  [sansPrestation.map((s) => s.id).sort(), sansPrestation.some((s) => !!s.serviceId)]);
+dit('la remise ne dépasse jamais la moitié', 50, (recompensesAPoser(ficheA, LA, { remisePct: 80, lanceLe: LANCE_A }, '2026-10-20').parFiche.get('adjoa') ?? [])[0]?.pct);
 
 /* ── Le choix de la cliente ── */
 const aChoisir: SoinOffert = { id: 'parr-d1', genre: 'a-choisir', libelle: 'Une récompense à choisir', raison: 'Pour la venue de Rama', poseLe: '2026-10-20', pct: 20, serviceId: 'svc-dandan' };
@@ -228,70 +307,130 @@ dit('une récompense expirée n’est plus à utiliser', 0, soinsEnAttente([{ ..
 dit('les noms des rangs : Graine, Pousse, Racine, Couronne, Reine de la Maison', ['Graine', 'Pousse', 'Racine', 'Couronne', 'Reine de la Maison'], RANGS.map((r) => r.nom));
 dit('les rangs : 0 Graine, 1 Pousse, 3 Racine (id tresse, gardé), 5 Couronne, 10 Reine', ['graine', 'pousse', 'pousse', 'tresse', 'couronne', 'reine'], [0, 1, 2, 3, 5, 10].map((n) => rangDe(n).id));
 dit('… et le suivant', ['pousse', 'couronne', undefined], [0, 3, 10].map((n) => rangSuivant(n)?.id));
+/* LA GRAINE RESTE LE RANG DE ZÉRO AMIE, mais elle ne se dit plus que
+   derrière la Graine posée (9 octobre 2026) : `nomDuRang(undefined)` dit
+   « Graine », donc chaque écran qui l'écrit doit d'abord passer la porte. */
+const sansBlocs = (s: string) => s.replace(/\/\*[\s\S]*?\*\//g, '');
+const carteSrc = sansBlocs(readFileSync('src/apps/couronne/MaCarte.tsx', 'utf8'));
+const ongletsSrc = sansBlocs(readFileSync('src/apps/couronne/Tabs.tsx', 'utf8'));
+const cercleSrc = sansBlocs(readFileSync('src/apps/trone/routes/equipe/Cercle.tsx', 'utf8'));
+/* Depuis le 9 octobre au soir, la porte passe par la règle pure
+   `codeDeLaCarte` (la Graine ; l'ancien code avant le lancement seulement,
+   éprouvée par verifie-les-douze-lunes R17), et l'appel dit le lancement. */
+dit('la carte de Ma Couronne exige la Graine une fois lancé, et son rang vaut Graine par défaut', [true, true, true], [
+  /export function donneesDeMaCarte\([^)]*\)[^{]*\{\s*const code = codeDeLaCarte\(client, lance\);\s*if \(!client \|\| !code\) return null;/.test(carteSrc),
+  /return donneesDeMaCarte\(client, !!lunes\.lanceLe\);/.test(carteSrc),
+  /rang: client\.parrainage\?\.rang \?\? 'graine',/.test(carteSrc),
+]);
+dit('… la pastille du rang, à l’accueil, ne paraît qu’avec la carte', true, /\{maCarte && \(\s*<span className="mc-pillseal">\{t\(nomDuRang\(maCarte\.rang\)\)\}/.test(ongletsSrc));
+dit('… et le Cercle du Trône ne dit le rang que d’une fiche au code actif', true,
+  /const code = codeActifDe\(c\);/.test(cercleSrc)
+  && (cercleSrc.match(/\(code\s*\?\s*`\$\{nomDuRang\(c\.parrainage\?\.rang\)\}/g) ?? []).length === (cercleSrc.match(/nomDuRang\(/g) ?? []).length);
 
 /* ── Les deux chemins se rejoignent ── */
 const sansLien = ficheA.map((c) => (c.id === 'rama' ? { ...c, parraineePar: undefined } : c));
 dit('l’amie venue par le site reçoit le code sur sa fiche', [{ clientId: 'rama', code: 'ADJOA-7K2', le: '2026-10-01T09:00:00Z' }], rattachementsDuSite(sansLien, demA, rdvA));
 dit('… une fiche déjà rattachée ne bouge pas', [], rattachementsDuSite(ficheA, demA, rdvA));
+const sansLienMila = ficheA.map((c) => (c.id === 'mila' ? { ...c, parraineePar: undefined } : c));
+dit('… l’ancien code d’une Graine rattache encore son amie (Mila, décision 5)', [{ clientId: 'mila', code: 'ADJOA-4QF', le: '2026-09-25T09:00:00Z' }], rattachementsDuSite(sansLienMila, demA, rdvA));
+const sansLienAwa = ficheA.map((c) => (c.id === 'awa' ? { ...c, parraineePar: undefined } : c));
+dit('… l’ancien code d’une fiche qui n’est pas Graine ne rattache personne (Awa)', [], rattachementsDuSite(sansLienAwa, demA, rdvA));
 
 /* ── « Vient de la part de » ── */
-const nouvelle = fa({ id: 'neuve', name: 'Awa', codeParrain: 'AWA-3JJ' });
+const nouvelle = fa({ id: 'neuve', name: 'Afi' });
 dit('« Vient de la part de » : un code inconnu est refusé', true, !!pourquoiPasDeMarraine(nouvelle, 'NULLE-222', ficheA, rdvA));
 dit('… son propre code aussi', true, !!pourquoiPasDeMarraine(ficheA[0], 'ADJOA-7K2', ficheA, rdvA));
-dit('… une cliente déjà venue plusieurs fois aussi', true,
+dit('… le code d’une fiche qui n’est pas Graine aussi (l’ancien code de Yao)', true, !!pourquoiPasDeMarraine(nouvelle, 'YAO-7HP', [...ficheA, nouvelle], rdvA));
+dit('… une cliente déjà venue plusieurs JOURS aussi', true,
   !!pourquoiPasDeMarraine(nouvelle, 'ADJOA-7K2', ficheA, [...rdvA, { id: 'v1', status: 'honoré', date: '2026-01-01', clientId: 'neuve' }, { id: 'v2', status: 'honoré', date: '2026-02-01', clientId: 'neuve' }]));
+dit('… mais deux rendez-vous honorés le même jour font UNE visite : elle passe (décision 1)', null,
+  pourquoiPasDeMarraine(nouvelle, 'ADJOA-7K2', [...ficheA, nouvelle], [...rdvA, { id: 'v1', status: 'honoré', date: '2026-10-02', clientId: 'neuve' }, { id: 'v2', status: 'honoré', date: '2026-10-02', clientId: 'neuve' }]));
 dit('… une nouvelle cliente passe', null, pourquoiPasDeMarraine(nouvelle, 'ADJOA-7K2', [...ficheA, nouvelle], rdvA));
 dit('… et une récompense déjà posée ne se déplace plus', true,
-  !!pourquoiPasDeMarraine(ficheA[1], 'RAMA-4HX', ficheApres, rdvA));
+  !!pourquoiPasDeMarraine(ficheA[1], 'LEA-2WX', ficheApres, rdvA));
 dit('… même quand elle est venue par le site (récompense de sa réservation)', true,
   !!pourquoiPasDeMarraine(ficheA.find((c) => c.id === 'rama')!, 'GRACE-9MT', ficheApres, rdvA, demA));
+dit('… même rangée dans l’archive au lancement', true,
+  !!pourquoiPasDeMarraine(ficheA[1], 'LEA-2WX', ficheRangee, rdvA));
 
 /* ── Ce que Ma Couronne reçoit ── */
 const resA = resumeDeLAmbassade(adjoa, LA, ficheA, reglageA, '2026-10-20', nomsA);
 dit('Ma Couronne : des prénoms, des états, des dates, rien d’autre', [],
   [...resA.filleules.flatMap((f) => Object.keys(f)), ...(resA.echos ?? []).flatMap((e) => Object.keys(e))].filter((k) => !['prenom', 'etat', 'date', 'via'].includes(k)));
-dit('… son rang, ses échos, son défi', { rang: 'tresse', venues: 3, echos: ['Inès via Grâce'], defi: { fait: 2, objectif: 2 } },
-  { rang: resA.rang, venues: resA.venues, echos: (resA.echos ?? []).map((e) => `${e.prenom} via ${e.via}`), defi: { fait: resA.defi?.fait, objectif: resA.defi?.objectif } });
+dit('… son rang et ses échos (une ligne d’honneur), plus de défi', { rang: 'couronne', venues: 5, echos: ['Inès via Grâce'], defi: false },
+  { rang: resA.rang, venues: resA.venues, echos: (resA.echos ?? []).map((e) => `${e.prenom} via ${e.via}`), defi: 'defi' in resA });
+/* Le classement reste au personnel (décision 6) : calculé sur son écran,
+   jamais plus écrit pour Ma Couronne. */
 const clA = classementDuMois(LA, '2026-10-20');
-dit('le classement : un prénom, un rang, deux nombres', [], clA.lignes.flatMap((l) => Object.keys(l)).filter((k) => !['prenom', 'rang', 'ceMois', 'amies'].includes(k)));
+dit('le classement du personnel : un prénom, un rang, deux nombres', [], clA.lignes.flatMap((l) => Object.keys(l)).filter((k) => !['prenom', 'rang', 'ceMois', 'amies'].includes(k)));
 dit('… Adjoa en tête', 'Adjoa', clA.lignes[0]?.prenom);
-dit('les chiffres du mois comptent les amies venues par une amie', 5, chiffresDuMois(ficheA, LA, rdvA, '2026-10-20').parUneAmie);
+const hookBrut = readFileSync('src/apps/trone/shell/useParrainageVivant.ts', 'utf8');
+const hook = hookBrut.replace(/\/\*[\s\S]*?\*\//g, '');
+dit('… et Ma Couronne ne le reçoit plus : le document reste vide, l’écran ne le lit pas', [true, false, false], [
+  /classementStore\)\.set\(CLASSEMENT_VIDE\);/.test(hook) && (hook.match(/classementStore\)\.set\(/g) ?? []).length === 1,
+  /classementVisible/.test(hook),
+  /classement-ambassade|useClassement/.test(carteSrc + ongletsSrc),
+]);
+dit('les chiffres du mois comptent les amies venues par une amie', 6, chiffresDuMois(ficheA, LA, rdvA, '2026-10-20').parUneAmie);
 
-/* ── La base protège les champs (0111, qui contient 0110) ── */
+/* ── La base protège les champs ── Jusqu'au 9 octobre, ce contrôle lisait
+   0111 par son nom ; il lit désormais la DERNIÈRE migration qui définit le
+   déclencheur (0124 aujourd'hui), pour qu'une migration de plus ne le fasse
+   pas juger une règle d'hier. */
 dit('0110 existe toujours (le premier temps)', true, existsSync('supabase/migrations/0110_la_carte_de_marraine.sql'));
-const migration = readFileSync('supabase/migrations/0111_les_ambassadrices.sql', 'utf8');
-const sqlSansCommentaires = migration.replace(/--.*$/gm, '');
-dit('0111 : l’éditeur SQL et la clé de service gardent la main', true, /if auth\.uid\(\) is null then return new;/.test(sqlSansCommentaires));
-dit('0111 : le personnel aussi', true, /if public\.is_staff\(\) then return new;/.test(sqlSansCommentaires));
-dit('0111 : le code, le résumé et les soins sont réimposés', true,
-  ['codeParrain', 'parrainage', 'soinsOfferts', 'parraineePar', 'parraineeLe'].every((k) => sqlSansCommentaires.includes(`'${k}', old.data -> '${k}'`)));
-dit('0111 : son choix entre soin et remise reste à ELLE', false, sqlSansCommentaires.includes("'choixRecompenses'"));
-dit('0111 : le classement se lit par les clientes connectées, jamais par le site public', true,
-  /create policy docs_ambassade_read on public\.documents for select to authenticated\s+using \(key = 'mnd_classement_ambassade'\)/.test(sqlSansCommentaires)
-  && !/docs_ambassade_read[^;]*anon/.test(sqlSansCommentaires));
-dit('0111 : le modèle de carte reste libre', false, sqlSansCommentaires.includes("'carteModele'"));
-dit('0111 : garde l’insertion comme la mise à jour', true, /before insert or update on public\.clients/.test(sqlSansCommentaires));
+const lesMigrations = readdirSync('supabase/migrations').filter((f) => f.endsWith('.sql')).sort()
+  .map((nom) => ({ nom, sql: readFileSync(`supabase/migrations/${nom}`, 'utf8').replace(/\r\n/g, '\n').replace(/--.*$/gm, '') }));
+const derniereQui = (motif: RegExp) => lesMigrations.filter((m) => motif.test(m.sql)).pop();
+/* La DÉFINITION (`create … function`), pas le déclencheur qui l'appelle
+   (`execute function …`) : une migration qui ne ferait que recréer le
+   déclencheur ne doit pas passer pour la règle. */
+const declencheur = derniereQui(/create (?:or replace )?function public\.clients_protege_parrainage\(\)/);
+const sqlSansCommentaires = declencheur?.sql ?? '';
+const enTete = declencheur?.nom.slice(0, 4) ?? '????';
+dit(`${enTete} : la dernière définition du déclencheur des fiches est lue`, true, !!declencheur && !declencheur.nom.startsWith('0111'));
+dit(`${enTete} : l’éditeur SQL et la clé de service gardent la main`, true, /if auth\.uid\(\) is null then return new;/.test(sqlSansCommentaires));
+dit(`${enTete} : le personnel passe par la garde une fois lancé (plus de laissez-passer)`, [true, false],
+  [/public\.douze_lunes_garde\(old\.data, new\.data, lance\)/.test(sqlSansCommentaires), /if public\.is_staff\(\) then return new;/.test(sqlSansCommentaires)]);
+dit(`${enTete} : le code, le résumé, les soins, les liens, la Graine et l’archive sont réimposés`, true,
+  ['codeParrain', 'parrainage', 'soinsOfferts', 'parraineePar', 'parraineeLe', 'graine', 'avantLesDouzeLunes'].every((k) => sqlSansCommentaires.includes(`'${k}', old.data -> '${k}'`)));
+dit(`${enTete} : son choix entre soin et remise reste à ELLE`, false, sqlSansCommentaires.includes("'choixRecompenses'"));
+dit(`${enTete} : le modèle de carte reste libre`, false, sqlSansCommentaires.includes("'carteModele'"));
+dit(`${enTete} : garde l’insertion comme la mise à jour`, true, /before insert or update on public\.clients/.test(sqlSansCommentaires));
+const classementSql = derniereQui(/docs_ambassade_read/)?.sql ?? '';
+dit('le classement ne se lit plus par les clientes (la dernière migration qui le nomme le retire)', [true, false],
+  [/drop policy if exists docs_ambassade_read on public\.documents;/.test(classementSql), /create policy docs_ambassade_read/.test(classementSql)]);
 
-/* ── La fonction : la fiche d'abord, le prénom seul ── */
+/* ── La fonction : la Graine seule, le prénom seul ── */
 const qui = sansCommentaires.slice(sansCommentaires.indexOf('async function quiOffre'), sansCommentaires.indexOf('async function previensLaMarraine'));
 /* Depuis le 7 octobre, « qui » rend aussi la remise de bienvenue (pourcentage
    et soins couverts) : toujours rien de la marraine que son prénom. */
 dit('Edge : « qui » rend le prénom, le cadeau et la remise, jamais le numéro', true,
   /return json\(\{\s*ok: true, prenom: m\.prenom,\s*cadeau: /.test(qui) && !/telephone/.test(qui.slice(qui.indexOf('ok: true, prenom: m.prenom'))));
+/* Jusqu'au 9 octobre : « les fiches AVANT les demandes », et la cliente qui
+   demandait son code recevait celui de sa fiche (`saFiche`). Désormais la
+   marraine d'un code est la seule fiche vivante dont la GRAINE porte ce
+   code ; les demandes « Marraine » du site ne désignent plus personne. */
 const duCode = sansCommentaires.slice(sansCommentaires.indexOf('async function marraineDuCode'), sansCommentaires.indexOf('async function verdictDuParrainage'));
-dit('Edge : la marraine se cherche parmi les fiches AVANT les demandes', true,
-  duCode.indexOf("from('clients')") > -1 && duCode.indexOf("from('clients')") < duCode.indexOf("from('demandes')"));
-dit('Edge : une cliente qui demande son code sur le site reçoit celui de sa fiche', true,
-  /const saFiche = \(fiches \?\? \[\]\)\.find/.test(sansCommentaires) && sansCommentaires.indexOf('const saFiche') < sansCommentaires.indexOf("const { data: siens }"));
+dit('Edge : la marraine d’un code est une Graine, jamais une demande du site', [true, true, false, true], [
+  duCode.length > 200,
+  /\.from\('clients'\)\.select\('id, data'\)\.eq\('data->graine->>code', code\)/.test(duCode),
+  /from\('demandes'\)|codeParrain/.test(duCode),
+  /\.filter\(\(f\) => codeActifDe\(f\.data\) === code\)/.test(duCode) && /if \(vivantes\.length !== 1\) return null;/.test(duCode),
+]);
 dit('Edge : la marraine n’est prévenue que si le modèle est posé', true, /if \(!MODELE\) return 'sans-modele';/.test(sansCommentaires));
 
 /* ── Le Trône : ce qui écrit, et quand ── */
-const hook = readFileSync('src/apps/trone/shell/useParrainageVivant.ts', 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
 dit('le Trône n’écrit rien avant d’avoir lu fiches, demandes et carnet', true,
   /!tablePrete\('clients'\) \|\| !tablePrete\('demandes'\) \|\| !tablePrete\('appointments'\)/.test(hook));
-dit('… ni les soins avant le réglage', true, /if \(!documentDescendu\('mnd_parrainage'\)\) return;/.test(hook));
+dit('… ni les Graines ni les mercis avant les deux réglages (parrainage et Lunes)', true,
+  /if \(!documentDescendu\('mnd_parrainage'\) \|\| !documentDescendu\('mnd_douze_lunes'\)\) return;/.test(hook)
+  && hook.indexOf("documentDescendu('mnd_douze_lunes')") < hook.indexOf('grainesAAttribuer(')
+  && hook.indexOf("documentDescendu('mnd_douze_lunes')") < hook.indexOf('recompensesAPoser('));
 dit('… et n’envoie que les remerciements que le juge a comptés', true, /for \(const m of poses\.mercis\)/.test(hook) && !/merciParWhatsApp/.test(hook));
-dit('… un passage, un geste : chaque étape rend la main après avoir écrit', 5, hook.split('      return;\n    }').length - 1);
+/* Jusqu'au 9 octobre : « exactement cinq `return;` ». Une étape de plus (les
+   Graines) le faisait mentir ; on lit la PROPRIÉTÉ (scripts/un-geste-par-
+   passage) : chaque étape qui écrit rend la main après sa dernière écriture. */
+dit('… un passage, un geste : chaque étape qui écrit rend la main', [], unGesteParPassage(hookBrut));
 dit('le crochet est monté dans le Trône', true, /useParrainageVivant\(\);/.test(readFileSync('src/apps/trone/shell/Shell.tsx', 'utf8')));
 const caisse = readFileSync('src/apps/trone/routes/vente/Caisse.tsx', 'utf8');
 dit('la caisse ne consomme le soin qu’à l’encaissement, ligne encore offerte, avec la pièce', true,
@@ -323,7 +462,11 @@ dit('… la page /m/ est écrite, hors des moteurs, hors du plan', [true, true, 
   /pagesEcrites\.push\('\/m\/'\)/.test(generateur),
 ]);
 dit('… et le plan du site saute les pages noindex', true, /\.filter\(\(rel\) => !\/<meta name="robots" content="noindex"\/\.test\(readFileSync/.test(readFileSync('scripts/build-sites.mjs', 'utf8')));
-dit('le site partage le lien court, lui aussi', true, /base\('\/m\/'\)\}\?\$\{encodeURIComponent\(code\)\}/.test(readFileSync('src/apps/revelateur/ilots/Parrainer.tsx', 'utf8')));
+/* Jusqu'au 9 octobre, le site partageait lui aussi le lien court du code
+   qu'il venait de donner. Il ne donne plus de code : son bloc mène à la
+   réservation et à Ma Couronne, où la carte arrive avec la Graine. */
+dit('le site ne partage plus de lien de carte : il mène à la réservation et à Ma Couronne', [false, true, true],
+  [/\/m\/|lienCourt|encodeURIComponent\(code\)/.test(ilotParrainer), /href=\{base\('\/reserver\/'\)\}/.test(ilotParrainer), /href=\{COURONNE\}/.test(ilotParrainer)]);
 const tailleDuPng = (f: string) => { const b = readFileSync(f); return [b.readUInt32BE(16), b.readUInt32BE(20)]; };
 const [vw, vh] = tailleDuPng('public/assets/verrous/verrou-couche-ivoire.png');
 const verrou = /drawImage\(clair \? vIndigo : vIvoire, \d+, \d+, (\d+), (\d+)\)/.exec(peinture);
