@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { Fragment, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Bell, BellOff, Check } from 'lucide-react';
 import { Button, Field, Input, Modal, Select, toast, demande } from '../../../../ds/components';
@@ -20,7 +20,7 @@ import { fermerLeSalonPour, rouvrirLeSalonDe } from '../../../../shared/blocages
 import {
   type Appointment, type ReminderKind,
 } from '../../../../shared/agenda';
-import { sousArbreOf, useServices, useCategories, useProducts, priceModeOf, catsDansLOrdre, mondeDeCat, mondeLabel, LONGUEURS, suitLongueur, type LongueurId, type Service } from '../../../../shared/catalog';
+import { categoriesStore, servicesStore, productsStore, sousArbreOf, useServices, useCategories, useProducts, priceModeOf, catsDansLOrdre, mondeDeCat, mondeLabel, LONGUEURS, suitLongueur, type LongueurId, type Service } from '../../../../shared/catalog';
 import { RANG_DU_PALIER, plusHautDes, avertissementDHabilitation, type Palier } from '../../../../shared/paliers';
 import { depositForServices, depositPctFor, useSettings, settingsStore } from '../../../../shared/settings';
 import { createStore, uid, useStore } from '../../../../shared/store';
@@ -32,7 +32,7 @@ import { catalogueDeLaTete, masqueesParLAge, compositionDuForfait, gainDuForfait
 import { useSubscribers, usePlans, activeSubscriberOf, contratPourLaDate, coveredRemaining, inclusVendus, useStaff, ordonneEquipe, type StaffMember } from '../equipe/data';
 import { useEstDirection, useVieDuRendezVous, TamponDeNaissance, SaVie, nombreDeGestes } from '../_vie';
 import { estampilleLaPose, estampilleLesPoses, momentDuRdv } from '../../../../shared/agenda';
-import { prixFerme, prixFixeDe, useModelBands, useBandSets, pricingOf, personalPriceXof, prixDansPanier, remiseGestePct, TAUX_DE_REMISE, unGesteDansLePanier, prixDeBase, isPersonalized, bandLabel, personalDurationMin, servesBand, bandForService, estProposable, regimeTarifaire, splitByWeights, type ModelBand } from '../../../../shared/pricing';
+import { modelBandsStore, bandSetsStore, prixFerme, prixFixeDe, useModelBands, useBandSets, pricingOf, personalPriceXof, prixDansPanier, remiseGestePct, TAUX_DE_REMISE, unGesteDansLePanier, prixDeBase, isPersonalized, bandLabel, personalDurationMin, servesBand, bandForService, estProposable, regimeTarifaire, splitByWeights, type ModelBand } from '../../../../shared/pricing';
 import { sameName } from '../../../../shared/text';
 import { gammeNetteXof, gammeBruteXof, ligneNetteXof, ligneBruteXof, poseUnProduit, retireUnProduit, remiseDeLaLigne, ecartsDeTarif, manqueALEtagere, type LigneGamme } from '../../../../shared/gamme';
 import type { CommRates } from '../equipe/payroll';
@@ -187,7 +187,7 @@ export function relDays(iso: string): string {
 }
 
 /* ---------- Rendez-vous ---------- */
-export const apptServices = (a: Appointment, byId: Map<string, Service>): Service[] =>
+export const apptServices = (a: Pick<Appointment, 'serviceIds'>, byId: Map<string, Service>): Service[] =>
   a.serviceIds.map((id) => byId.get(id)).filter((s): s is Service => !!s);
 
 /** Le prix d'une prestation POUR CE RENDEZ-VOUS : celui de la longueur
@@ -241,9 +241,22 @@ export function rangeeBougee<T>(t: T[], de: number, vers: number | null): T[] {
   return n;
 }
 
-export const remiseDeLigne = (a: Appointment, i: number): { pct: number; xof: number } => {
+export const remiseDeLigne = (a: Pick<Appointment, 'remisesLignes'>, i: number): { pct: number; xof: number } => {
   const r = a.remisesLignes?.[i];
   return { pct: Math.max(0, Math.min(100, r?.pct ?? 0)), xof: Math.max(0, r?.xof ?? 0) };
+};
+
+/** LE PRIX D'UNE LIGNE DU RITUEL : son prix plein, moins le geste de la
+    Maison, moins sa remise de ligne (le % puis les francs), jamais négatif.
+
+    9 octobre 2026 : c'était le `prixDe` de la fenêtre du rendez-vous, écrit
+    là-bas et nulle part ailleurs. Le Carnet, la caisse et la facture lisaient
+    une autre formule, au prix de vitrine, et une même reprise valait 40 000 F
+    dans la fenêtre et 28 000 F au Carnet (le cas du 9 octobre 2026, K. K.).
+    Une seule formule, et ils ne peuvent plus se contredire. */
+export const netDeLaLigne = (plein: number, gestePct: number, r: { pct: number; xof: number }): number => {
+  const apresGeste = Math.round(plein * (1 - gestePct / 100));
+  return Math.max(0, Math.round(apresGeste * (1 - r.pct / 100)) - r.xof);
 };
 
 /** Ce que vaut la prestation à la position `i` une fois sa remise appliquée. */
@@ -260,6 +273,15 @@ export const apptTotalXof = (a: Appointment, byId: Map<string, Service>) => {
      ERP, à 3 M F près. La règle des séries reste au-dessus : une séance 2+ ne
      vaut rien, prix figé ou non. */
   if (typeof a.priceXof === 'number') return a.priceXof;
+  /* SANS PRIX ENREGISTRÉ, UN RENDEZ-VOUS PAS ENCORE HONORÉ SE LIT AU TARIF DE
+     SA TÊTE — 9 octobre 2026, décision de la direction. Par le calcul de la
+     fenêtre, mot pour mot (`tarifDeLaTeteXof`) : son calibre ou son comptage,
+     son Juste Prix, ses prix fermes, sa longueur, le geste offert. Le Carnet,
+     l'encaissement, la facture et les impayés suivent d'ici sans être touchés
+     un par un. Le passé ne bouge pas : un rituel honoré sans prix, une vente
+     sans fiche, un annulé gardent la lecture d'avant, ci-dessous. */
+  const tete = tarifDeLaTeteXof(a, byId);
+  if (tete !== undefined) return tete;
   /* Les remises de LIGNE se retranchent ici — avant la remise globale, qui les
      trouvera donc déjà déduites. On parcourt `serviceIds` et non la liste des
      prestations, pour que l'index de la remise soit le bon même si une fiche a
@@ -525,7 +547,9 @@ export type EcartDeConformite = { avant: Invoice; apres: Invoice };
     secours ventilait le total au prorata. Deux écrans, deux prix pour la même
     tête. Une seule définition, et ils ne peuvent plus se contredire. */
 export function tarifsDuRituel(
-  appt: Appointment,
+  /* Les prestations et la longueur suffisent (9 octobre 2026) : la fenêtre du
+     rendez-vous y passe ce qui est à l'écran, avant tout enregistrement. */
+  appt: Pick<Appointment, 'serviceIds' | 'longueur'>,
   ctx: {
     client?: Pick<Client, 'lockCount' | 'priceCoef' | 'prixFixes' | 'longueur'>;
     bands: ModelBand[];
@@ -549,6 +573,297 @@ export function tarifsDuRituel(
   const gesteDe = (sv: Service) => remiseGestePct(sv, pricing, chosen);
   return { pricing, chosen, prixPlein, gesteDe };
 }
+
+/* ══ LE TARIF DE LA TÊTE, UN SEUL CALCUL — 9 octobre 2026 ═══════════════
+   Le cas du 9 octobre 2026 (K. K.) : sa reprise du 19 décembre, posée sans
+   prix à la clôture, valait 40 000 F dans la fenêtre du rendez-vous et
+   28 000 F au Carnet, à la caisse et sur la facture. La fenêtre faisait son
+   calcul, les autres lisaient le prix de vitrine. Le prix payé dépendait du
+   bouton sur lequel on appuyait.
+
+   La règle, décidée par la direction : un rendez-vous à venir sans prix
+   enregistré se lit au tarif de SA tête, par un seul calcul, partout. Ce prix
+   se fige au premier geste qui engage de l'argent (honorer, encaisser), voir
+   `prixAFiger`. La fenêtre et `apptTotalXof` passent toutes deux par
+   `brutDuRituel` : il n'y a plus de formule à elle. */
+
+export type LigneAuTarif = { i: number; sv: Service; plein: number; gestePct: number; net: number };
+type TarifsDeLigne = Pick<ReturnType<typeof tarifsDuRituel>, 'prixPlein' | 'gesteDe'>;
+
+/** LES LIGNES D'UN RITUEL AU TARIF D'UN CONTEXTE, alignées sur `serviceIds`
+    (une fiche disparue du catalogue est sautée, l'index reste le bon : c'est
+    lui qui porte la remise de ligne). */
+export function lignesAuTarif(
+  rituel: Pick<Appointment, 'serviceIds' | 'remisesLignes'>,
+  byId: Map<string, Service>,
+  tarifs: TarifsDeLigne,
+): LigneAuTarif[] {
+  const out: LigneAuTarif[] = [];
+  rituel.serviceIds.forEach((id, i) => {
+    const sv = byId.get(id);
+    if (!sv) return;
+    const plein = tarifs.prixPlein(sv);
+    const gestePct = tarifs.gesteDe(sv);
+    out.push({ i, sv, plein, gestePct, net: netDeLaLigne(plein, gestePct, remiseDeLigne(rituel, i)) });
+  });
+  return out;
+}
+
+/** LE BRUT DU RITUEL : remises de ligne et geste déduits, avant la remise
+    globale. LA fenêtre et `apptTotalXof` passent toutes deux par ici. */
+export function brutDuRituel(
+  rituel: Pick<Appointment, 'serviceIds' | 'remisesLignes'>,
+  byId: Map<string, Service>,
+  tarifs: TarifsDeLigne,
+): number {
+  return lignesAuTarif(rituel, byId, tarifs).reduce((n, l) => n + l.net, 0);
+}
+
+/* LA MÉMOIRE DU TARIF. La Synthèse repasse sur tous les rendez-vous à chaque
+   rendu : on ne recalcule pas un tarif dont rien n'a bougé. Les écritures sont
+   immuables (toute modification d'un rendez-vous crée un nouvel objet), donc
+   l'objet lui-même sert de clef, et le WeakMap laisse partir les anciens. Une
+   entrée ne vaut que si la fiche, le contexte et le catalogue sont les mêmes
+   objets qu'à son calcul. Rien ne dépend de la date du jour. */
+type ContexteDuTarif = {
+  bands: ReturnType<typeof modelBandsStore.get>;
+  sets: ReturnType<typeof bandSetsStore.get>;
+  cats: ReturnType<typeof categoriesStore.get>;
+  services: ReturnType<typeof servicesStore.get>;
+  produits: ReturnType<typeof productsStore.get>;
+};
+let contexteDuTarif: { refs: readonly unknown[]; ctx: ContexteDuTarif } | null = null;
+let fichesDuTarif: { source: readonly Client[]; parId: Map<string, Client> } | null = null;
+const memoDuTarif = new WeakMap<Appointment, { fiche: Client; ctx: ContexteDuTarif; byId: Map<string, Service>; brut: number }>();
+/* LES MAGASINS NE SE RELISENT PAS À CHAQUE RENDEZ-VOUS — mesuré au banc le
+   9 octobre 2026. Une case absente du disque (barèmes d'atelier, catégories,
+   produits, réglages, souvent) relit le navigateur à CHAQUE lecture (`store.ts`,
+   la semence ne se retient pas) : sept lectures par rendez-vous sans prix,
+   et le Carnet passait de 1 649 à 8 097 lectures par clic. Le contexte se lit
+   donc UNE fois par passe : il tient jusqu'à la fin du travail synchrone en
+   cours (une micro-tâche l'efface), et toute écriture dans l'un des sept
+   magasins l'efface aussitôt (abonnement), pour qu'un geste qui écrit puis
+   relit dans le même élan voie ce qu'il vient d'écrire. */
+let lectureDuTarif: { fiches: Map<string, Client>; ctx: ContexteDuTarif } | null = null;
+let abonneAuTarif = false;
+const oublieLaLectureDuTarif = () => { lectureDuTarif = null; };
+/* LA CLEF DU TARIF, POUR LES ÉCRANS — 9 octobre 2026, relecture. Un écran qui
+   mémorise un total (`useMemo`) sur les seuls rendez-vous gardait l'ancien
+   chiffre quand une fiche était recomptée ou un barème changé ailleurs : le
+   Carnet le savait, le Tableau de bord et les Créances non. La clef monte à
+   chaque écriture dans l'un des sept magasins du tarif, sans rien relire
+   (un compteur, pas une lecture du navigateur). */
+let versionDuTarif = 0;
+const ecoutesDuTarif = new Set<() => void>();
+const quandLeTarifBouge = () => {
+  oublieLaLectureDuTarif();
+  versionDuTarif += 1;
+  ecoutesDuTarif.forEach((f) => f());
+};
+function brancheLeTarif(): void {
+  if (abonneAuTarif) return;
+  abonneAuTarif = true;
+  for (const s of [clientsStore, modelBandsStore, bandSetsStore, categoriesStore, servicesStore, productsStore, settingsStore] as const) {
+    (s.subscribe as (fn: () => void) => unknown)(quandLeTarifBouge);
+  }
+}
+const ecouteLaClefDuTarif = (fn: () => void) => {
+  brancheLeTarif();
+  ecoutesDuTarif.add(fn);
+  return () => { ecoutesDuTarif.delete(fn); };
+};
+const laClefDuTarif = () => versionDuTarif;
+/** Une clef qui change dès que le tarif d'une tête peut avoir changé (fiches,
+    calibres, barèmes d'atelier, catégories, catalogue, produits, réglages).
+    À mettre dans les dépendances de tout `useMemo` qui additionne
+    `apptTotalXof`, `apptNetXof` ou `apptDueXof` sur des rendez-vous à venir. */
+export function useClefDuTarif(): number {
+  return useSyncExternalStore(ecouteLaClefDuTarif, laClefDuTarif, laClefDuTarif);
+}
+function lisLeTarif(): { fiches: Map<string, Client>; ctx: ContexteDuTarif } {
+  if (lectureDuTarif) return lectureDuTarif;
+  brancheLeTarif();
+  const toutes = clientsStore.get();
+  if (!fichesDuTarif || fichesDuTarif.source !== toutes) {
+    fichesDuTarif = { source: toutes, parId: new Map(toutes.map((c) => [c.id, c] as const)) };
+  }
+  /* Les réglages ne sont lus que comme clef : suspendre le barème
+     (`baremeSuspendu`) change le prix de toute tête. Le contexte garde le
+     MÊME objet tant qu'aucune référence n'a changé : la mémoire du tarif,
+     qui compare des objets, survit ainsi d'une passe à l'autre. */
+  const refs = [modelBandsStore.get(), bandSetsStore.get(), categoriesStore.get(), servicesStore.get(), productsStore.get(), settingsStore.get()] as const;
+  if (!contexteDuTarif || refs.some((r, k) => r !== contexteDuTarif!.refs[k])) {
+    contexteDuTarif = { refs, ctx: { bands: refs[0], sets: refs[1], cats: refs[2], services: refs[3], produits: refs[4] } };
+  }
+  lectureDuTarif = { fiches: fichesDuTarif.parId, ctx: contexteDuTarif.ctx };
+  queueMicrotask(oublieLaLectureDuTarif);
+  return lectureDuTarif;
+}
+
+/** Le rendez-vous porte-t-il déjà de l'argent : un versement au journal, une
+    somme encaissée, une pièce de règlement ? */
+const porteDeLArgent = (a: Pick<Appointment, 'paidXof' | 'payments' | 'invoiceId'>): boolean =>
+  (a.paidXof ?? 0) > 0 || (a.payments?.length ?? 0) > 0 || !!a.invoiceId;
+
+/** La fiche et le contexte tarifaire d'un rendez-vous qui se lit au tarif de
+    sa tête, ou `undefined` quand la lecture d'avant doit rester. Les gardes
+    viennent d'abord et ne lisent aucun magasin : presque tous les rendez-vous
+    (honorés, ou à prix enregistré) sortent là sans rien coûter.
+    `prixCompris` : on veut le tarif même si un prix est enregistré (les
+    POIDS d'une ventilation, jamais un total). */
+function contexteDeLaTete(
+  a: Appointment,
+  byId: Map<string, Service>,
+  prixCompris = false,
+): { fiche: Client; ctx: ContexteDuTarif } | undefined {
+  if (!prixCompris && typeof a.priceXof === 'number') return undefined;
+  /* L'ARGENT DÉJÀ REÇU GARDE SA LECTURE — 9 octobre 2026, relecture. Avant
+     la correction, la Caisse ne figeait jamais le prix, et l'écran
+     d'encaissement seulement au solde complet : un rendez-vous de demain
+     réglé d'avance restait « confirmé », sans prix, payé au prix qu'on lisait
+     alors. Pour lui, le premier geste d'argent a DÉJÀ eu lieu : le relire au
+     tarif de sa tête ferait naître une dette après coup (28 000 F payés,
+     40 000 F demandés). Depuis la correction, tout versement fige le prix,
+     et ce cas ne naît plus. */
+  if (typeof a.priceXof !== 'number' && porteDeLArgent(a)) return undefined;
+  if (a.status === 'honoré' || a.status === 'annulé') return undefined;
+  if (a.coveredBySub || (a.seriesIndex ?? 1) > 1 || !a.clientId) return undefined;
+  /* Jamais un tarif né d'un catalogue vide : il se figerait à zéro. */
+  if (!a.serviceIds.some((id) => byId.has(id))) return undefined;
+  /* Lus paresseusement, comme `baremeSuspendu` (shared/pricing) : ne pas
+     nouer les modules au chargement. Une lecture qui échoue rend la lecture
+     d'avant, jamais une erreur à l'écran. */
+  try {
+    const { fiches, ctx } = lisLeTarif();
+    /* La fiche que voit la fenêtre (`useBranchClients`) : non archivée, de la
+       branche du rendez-vous. Sinon la fenêtre tarifierait « sans tête » et
+       le Carnet « avec ». */
+    const fiche = fiches.get(a.clientId);
+    if (!fiche || fiche.archived || fiche.branchId !== a.branchId) return undefined;
+    return { fiche, ctx };
+  } catch {
+    return undefined;
+  }
+}
+
+/** LE TARIF DE SA TÊTE POUR UN RENDEZ-VOUS QUI N'A PAS ENCORE DE PRIX, ou
+    `undefined` quand la lecture d'avant doit rester (prix enregistré, argent
+    déjà reçu, honoré, annulé, couvert, séance de suite, sans fiche, fiche
+    archivée ou d'une autre branche, aucune prestation au catalogue). */
+export function tarifDeLaTeteXof(a: Appointment, byId: Map<string, Service>): number | undefined {
+  const c = contexteDeLaTete(a, byId);
+  if (!c) return undefined;
+  const vu = memoDuTarif.get(a);
+  if (vu && vu.fiche === c.fiche && vu.ctx === c.ctx && vu.byId === byId) return vu.brut;
+  const { fiche, ctx } = c;
+  const brut = brutDuRituel(a, byId, tarifsDuRituel(a, {
+    client: fiche, bands: ctx.bands, sets: ctx.sets, cats: ctx.cats, byId, tousServices: ctx.services, produits: ctx.produits,
+  }));
+  memoDuTarif.set(a, { fiche, ctx, byId, brut });
+  return brut;
+}
+
+/** CE QUI SE FIGE AU PREMIER GESTE D'ARGENT — 9 octobre 2026. Rend
+    `{ priceXof }` quand le rendez-vous n'a pas de prix et qu'on peut le lire,
+    `{}` sinon. À appeler sur la ligne du magasin AVANT que le statut ne passe
+    à « honoré » : le prix figé est alors exactement celui que l'écran montrait.
+    Une tête connue fige son tarif ; une vente sans fiche fige sa lecture de
+    catalogue du jour, le chiffre déjà montré (« un rituel est un fait »).
+    Jamais un zéro né d'un catalogue vide. */
+export const prixAFiger = (a: Appointment, byId: Map<string, Service>): { priceXof?: number } =>
+  typeof a.priceXof === 'number' || (a.seriesIndex ?? 1) > 1 || !a.serviceIds.some((id) => byId.has(id))
+    ? {} : { priceXof: apptTotalXof(a, byId) };
+
+/** CE QUE FIGE LE TICKET DE LA CAISSE — 9 octobre 2026, relecture. Le ticket
+    pose chaque prestation du rituel à sa part (`partsDuRituelXof`), mais la
+    caissière peut ensuite saisir le montant convenu d'une ligne « Devis » ou
+    changer une quantité : figer `prixAFiger` gravait alors un autre prix que
+    celui que le ticket encaissait (une prestation sur devis à 15 000 F, une
+    facture de 55 000 F, un rendez-vous figé à 40 000 F). Une prestation du
+    rituel présente au ticket fige donc CE que le ticket dit d'elle (prix
+    unitaire × quantité, avant remise) ; une prestation retirée du ticket
+    garde sa part, elle reste due. Rien ne change, le prix figé est celui de
+    `prixAFiger`. `auTicket` : prestation → montant brut de sa ligne. */
+export function prixAFigerAuTicket(
+  a: Appointment,
+  byId: Map<string, Service>,
+  auTicket: ReadonlyMap<string, number>,
+): { priceXof?: number } {
+  const fige = prixAFiger(a, byId);
+  if (fige.priceXof === undefined) return fige;
+  const parts = partsDuRituelXof(a, byId);
+  const parPrestation = new Map<string, number>();
+  a.serviceIds.forEach((id, i) => parPrestation.set(id, (parPrestation.get(id) ?? 0) + (parts[i] ?? 0)));
+  let total = 0;
+  for (const [id, part] of parPrestation) {
+    const auComptoir = auTicket.get(id);
+    total += auComptoir === undefined ? part : Math.max(0, Math.round(auComptoir));
+  }
+  return { priceXof: total };
+}
+
+/** LA REMISE FAMILLE QUI SUIT LA VISITE SUIVANTE — 9 octobre 2026, relecture.
+    La fenêtre fige la remise famille EN FRANCS (`discountXof` avec le drapeau
+    `remiseFamille`, sans pourcentage) ; `sansLaVisite` retire ces francs comme
+    une remise du jour. « Reprogrammé depuis l'encaissement » recopiait le prix
+    et la remise : passé par `sansLaVisite`, il faisait payer 6 000 F de trop à
+    une tête à −15 % (rituel de 40 000 F, 34 000 F demandés avant, 40 000 F
+    après). La remise famille appartient à la tête, pas à la visite : elle
+    suit, en francs, comme la fenêtre l'a figée. Sans remise famille, le
+    drapeau tombe aussi, sinon une remise posée plus tard se dirait « Remise
+    famille ». */
+export const remiseFamilleQuiSuit = (
+  appt: Pick<Appointment, 'remiseFamille' | 'discountXof'>,
+): Pick<Appointment, 'remiseFamille' | 'discountXof'> =>
+  appt.remiseFamille && (appt.discountXof ?? 0) > 0
+    ? { discountXof: appt.discountXof, remiseFamille: true }
+    : { remiseFamille: undefined };
+
+/** LE RITUEL QU'ON DÉS-HONORE GARDE LA LECTURE QU'IL AVAIT — 9 octobre 2026,
+    relecture. Un rituel honoré avant la correction, sans prix, se lisait au
+    prix de vitrine ; redevenu « confirmé », il passait au tarif de sa tête, et
+    le ré-honorer figeait ce nouveau prix : un rituel de septembre soldé à
+    28 000 F devait soudain 12 000 F. Le prix se fige donc à la lecture
+    d'honoré, AVANT le changement de statut (`prixAFiger` lit la ligne encore
+    honorée). Un prix déjà enregistré n'est jamais touché. */
+export const rituelDeshonore = (a: Appointment, byId: Map<string, Service>): Appointment => ({
+  ...a,
+  ...(a.status === 'honoré' ? prixAFiger(a, byId) : {}),
+  status: 'confirmé',
+});
+
+/** LA PART DE CHAQUE LIGNE DANS `apptTotalXof`, alignée sur `serviceIds` —
+    9 octobre 2026. Le ticket de la Caisse posait chaque prestation d'un
+    rituel au prix de vitrine : la reprise du cas K. K. y sortait à 28 000 F,
+    puis l'honneur figeait 40 000 F, et il restait 12 000 F « dus ». Les poids
+    sont les lignes au tarif de la tête quand il s'applique (prix enregistré
+    compris : il se répartit alors selon ce que chaque geste vaut pour elle),
+    sinon la lecture d'avant. Invariant : la somme des parts égale
+    `apptTotalXof`. */
+export function partsDuRituelXof(a: Appointment, byId: Map<string, Service>): number[] {
+  if ((a.seriesIndex ?? 1) > 1) return a.serviceIds.map(() => 0);
+  const c = contexteDeLaTete(a, byId, true);
+  const poids = a.serviceIds.map((id, i) => { const sv = byId.get(id); return sv ? svcNetForAppt(a, sv, i) : 0; });
+  if (c) {
+    const tarifs = tarifsDuRituel(a, {
+      client: c.fiche, bands: c.ctx.bands, sets: c.ctx.sets, cats: c.ctx.cats, byId, tousServices: c.ctx.services, produits: c.ctx.produits,
+    });
+    poids.fill(0);
+    for (const l of lignesAuTarif(a, byId, tarifs)) poids[l.i] = l.net;
+  }
+  return typeof a.priceXof === 'number' ? splitByWeights(a.priceXof, poids) : poids;
+}
+
+/** CE QUE DIT LA COLONNE MONTANT DU CARNET — le chiffre du bandeau de la
+    fenêtre, décision de la direction du 9 octobre 2026 : le prix APRÈS remise
+    (le pourcentage du rendez-vous, puis ses francs, ou son forfait), et
+    l'ancien prix barré à côté quand il diffère. Les remises de ligne et le
+    geste offert sont dans les deux chiffres, comme dans la fenêtre. */
+export const montantDuCarnet = (a: Appointment, byId: Map<string, Service>): { montant: number; barre?: number } => {
+  const net = apptNetXof(a, byId);
+  const brut = apptTotalXof(a, byId);
+  return Math.round(brut) !== Math.round(net) ? { montant: net, barre: brut } : { montant: net };
+};
 
 export function alignerFacturesDuRituel(
   appt: Appointment,
@@ -1808,7 +2123,13 @@ export function RdvModal({
   /* LES MONTANTS SE TAISENT AUSSI SUR UNE SÉANCE INCLUSE : afficher le prix
      d'un soin dont la séance ne se facture pas ferait croire à un dû. */
   const argent = (n: number): string => (sansPrix || estSuite ? '—' : fmtMoney(n, currency));
-  const pricing = { ...pricingOf(rdvClient, bands, sets, cats), longueur };
+  /* LE CONTEXTE TARIFAIRE DE CE QUI EST À L'ÉCRAN — 9 octobre 2026. La
+     fenêtre passe par la même définition que le Carnet et la caisse
+     (`tarifsDuRituel`), avec SA longueur, celle du sélecteur. */
+  const tarifs = tarifsDuRituel({ serviceIds, longueur }, {
+    client: rdvClient, bands, sets, cats, byId, tousServices: services, produits: produitsGamme,
+  });
+  const pricing = tarifs.pricing;
 
   /* ══ LA DURÉE SUIT LA TÊTE — 1er septembre 2026 ════════════════════
      « Le coefficient durée ne sert à rien, on dirait qu'il ne bouge pas du
@@ -1979,21 +2300,11 @@ export function RdvModal({
      retranche rien à la main, et la facture dira la même chose. */
   /* LE TOTAL DU RITUEL, REMISES DE LIGNE DÉDUITES. Elles se retranchent ICI,
      avant la remise globale — c'est l'ordre annoncé à Yéman le 17 août : la
-     ligne d'abord, l'ensemble ensuite. */
-  const remiseLigneAt = (i: number) => {
-    const r = remisesL[i];
-    return { pct: Math.max(0, Math.min(100, r?.pct ?? 0)), xof: Math.max(0, r?.xof ?? 0) };
-  };
-  const apresRemiseLigne = (brut: number, i: number) => {
-    const r = remiseLigneAt(i);
-    return Math.max(0, Math.round(brut * (1 - r.pct / 100)) - r.xof);
-  };
-  const grossBase = rdvPersonalized
-    ? chosen.reduce((s, sv) => s + apresRemiseLigne(prixDansPanier(sv, pricing, chosen, services, produitsGamme), serviceIds.indexOf(sv.id)), 0)
-    : chosen.reduce((s, sv) => {
-        const pct = remiseGestePct(sv, pricing, chosen);
-        return s + apresRemiseLigne(Math.round(prixDeBase(sv, pricing) * (1 - pct / 100)), serviceIds.indexOf(sv.id));
-      }, 0);
+     ligne d'abord, l'ensemble ensuite.
+     9 octobre 2026 : par `brutDuRituel`, le calcul que lisent aussi le Carnet,
+     la caisse et la facture d'un rendez-vous sans prix. La fenêtre n'a plus de
+     formule à elle. */
+  const grossBase = brutDuRituel({ serviceIds, remisesLignes: remisesL }, byId, tarifs);
   const servicesChanged = !!appt && [...appt.serviceIds].sort().join('|') !== [...serviceIds].sort().join('|');
   /* Prestation à prix variable ou sur devis : le montant se fixe au fauteuil. Le
      montant convenu (saisi dans la modale) prime alors sur la somme de référence ;
@@ -2049,9 +2360,8 @@ export function RdvModal({
   /* LE PRIX PLEIN ET LE GESTE, SÉPARÉMENT (16 août) — la facture doit pouvoir
      écrire « 10 000 F · remise −100 % » là où l'écran du rituel l'écrit. Les
      confondre en un seul nombre rendait le cadeau invisible sur la pièce. */
-  const prixPlein = (sv: Service) =>
-    rdvPersonalized ? personalPriceXof(sv, pricing, services, produitsGamme) : prixDeBase(sv, pricing);
-  const gesteDe = (sv: Service) => remiseGestePct(sv, pricing, chosen);
+  const prixPlein = tarifs.prixPlein;
+  const gesteDe = tarifs.gesteDe;
   /* LA REMISE POSÉE À LA MAIN SUR CETTE LIGNE — 18 août 2026.
      « La remise par prestation ne marche pas » (Yéman) : le bloc calculait bien
      « 30 000 F au lieu de 60 000 F », mais la ligne affichait toujours 60 000 et
@@ -2064,17 +2374,10 @@ export function RdvModal({
      toujours par diverger ; celui-ci n'a qu'une source.
 
      L'index vient de `serviceIds` et non de `chosen` : les deux divergent dès
-     qu'une fiche a disparu du catalogue, et la remise irait au geste voisin. */
-  const remiseLigneDe = (sv: Service) => {
-    const i = serviceIds.indexOf(sv.id);
-    const r = i >= 0 ? remisesL[i] : undefined;
-    return { pct: Math.max(0, Math.min(100, r?.pct ?? 0)), xof: Math.max(0, r?.xof ?? 0) };
-  };
-  const prixDe = (sv: Service) => {
-    const apresGeste = Math.round(prixPlein(sv) * (1 - gesteDe(sv) / 100));
-    const r = remiseLigneDe(sv);
-    return Math.max(0, Math.round(apresGeste * (1 - r.pct / 100)) - r.xof);
-  };
+     qu'une fiche a disparu du catalogue, et la remise irait au geste voisin.
+     9 octobre 2026 : la formule vit dans `netDeLaLigne`, la même pour tous. */
+  const prixDe = (sv: Service) =>
+    netDeLaLigne(prixPlein(sv), gesteDe(sv), remiseDeLigne({ remisesLignes: remisesL }, serviceIds.indexOf(sv.id)));
   const grossLibre = libres.reduce((s, sv) => s + prixDe(sv), 0);
   const grossFixe = Math.max(0, grossBase - grossLibre);
   /* LA PART LIBRE DÉJÀ FIGÉE — retrouvée en ôtant les prix fixes du total

@@ -8,7 +8,7 @@ import { useSettings } from '../../../../shared/settings';
 import { dateDeLaReprise, RYTHMES_ABO, rythmeDeReprise } from '../../../../shared/cadence';
 import { useClients, clientsStore, useFamilies, familiesStore, aUnPrixConvenu } from '../../../../shared/clients';
 import { appointmentsStore, useAppointments, apptPayeurId, apptPaidXof, venuesHonorees, type Appointment, type ApptPayment, estampilleLaPose } from '../../../../shared/agenda';
-import { useCategories, fondeLaCouronne, type Service, useProducts } from '../../../../shared/catalog';
+import { useCategories, fondeLaCouronne, servicesStore, type Service, useProducts } from '../../../../shared/catalog';
 import { aDefaitSesLocks, estDePassage as estDePassageCli, estDiaspora, joursDeLaTete } from '../../../../shared/clients';
 import { remiseDeFactureAReporter } from '../../../../shared/offres-pur';
 import { invoicesStore, useCashboxes, caissesPourLaDate, invoiceTotal, ligneNetXof, usePaymentMethods, cashboxCurrency, nouvelleFacture, ligneFacture, useCredits, creditMovementsStore, creditBalanceOf, invoiceReglements, invoiceRegleXof, invoiceSoldee, useInvoices, quiEncaisse, type Invoice, type InvoiceLine, type InvoicePayment, type PaymentMethod, type CreditHolder, ligneProduit, lignesDuRituelPiece } from '../../../../shared/finance';
@@ -32,7 +32,7 @@ import { Toggle } from '../equipe/ui';
 import '../equipe/equipe.css'; // styles du Toggle partagé (tre-toggle)
 import {
   apptLabel, apptServices, apptNetXof, apptTotalXof, apptDueXof, svcPriceForAppt, remiseDeLigne, forfaitTauxPct, frShort, todayISO, useServicesById,
-  ChampDeDate, frShortAn, tarifsDuRituel,
+  ChampDeDate, frShortAn, tarifsDuRituel, prixAFiger, rituelDeshonore, remiseFamilleQuiSuit,
 } from './_shared';
 import { cheminDeLaConversation } from '../../../../shared/conversations';
 import { appelDe } from '../../../../shared/civilite';
@@ -187,8 +187,14 @@ export function honorAppointment(
   const awarded = appt.pointsAwarded || !eligible
     ? 0
     : awardLoyalty(beneficiaire, total, `Rituel honoré · ${frShort(appt.date)}`);
+  /* LE PRIX SE FIGE À L'HONNEUR — 9 octobre 2026. Un rendez-vous sans prix
+     enregistré se lisait au tarif de sa tête tant qu'il était à venir ; une
+     fois honoré, il retomberait sur la lecture d'avant (le prix de vitrine).
+     `prixAFiger` lit la ligne du magasin ENCORE NON HONORÉE, dans la même
+     écriture : le prix figé est celui que l'écran montrait. Un prix déjà
+     enregistré n'est jamais touché. */
   appointmentsStore.set((prev) =>
-    prev.map((a) => (a.id === appt.id ? { ...a, status: 'honoré', pointsAwarded: true } : a)),
+    prev.map((a) => (a.id === appt.id ? { ...a, ...prixAFiger(a, byId), status: 'honoré', pointsAwarded: true } : a)),
   );
   /* LE STOCK SUIT LE GESTE. La recette des services consommés s'écrit au journal
      des mouvements (référence rdv:<id>) — une seule fois : ré-honorer un rituel
@@ -280,7 +286,11 @@ export type HonneurFacture = { honore: boolean; facture?: Invoice; deja?: boolea
 export function honoreSansEncaisser(
   appt: Appointment,
   byId: Map<string, Service>,
-  prixPlein?: (s: Service) => number,
+  /* LE CONTEXTE TARIFAIRE ENTIER, plus seulement le prix plein — 9 octobre
+     2026 : la pièce porte aussi le geste offert sur sa ligne (« Le Souffle,
+     10 000 F, −100 % »), comme l'écran du rituel, au lieu d'en faire une
+     remise globale que personne n'a consentie. */
+  tarifs?: Pick<ReturnType<typeof tarifsDuRituel>, 'prixPlein' | 'gesteDe'>,
 ): HonneurFacture {
   const frais = appointmentsStore.get().find((a) => a.id === appt.id) ?? appt;
   if (frais.date > todayISO()) {
@@ -293,7 +303,7 @@ export function honoreSansEncaisser(
   let deja = false;
   let erreur: string | undefined;
   if (apptDueXof(maj, byId) > 0) {
-    const r = factureAEnvoyer(maj, byId, maj.branchId, prixPlein);
+    const r = factureAEnvoyer(maj, byId, maj.branchId, tarifs?.prixPlein, tarifs?.gesteDe);
     if (r.ok) { facture = r.inv; deja = r.deja; } else erreur = r.erreur;
   }
   toast([
@@ -410,7 +420,9 @@ export async function deshonoreLeRituel(appt: Appointment, byId: Map<string, Ser
     dur: true,
   })) return false;
   const r = retireLHonneur(frais, byId);
-  appointmentsStore.set((prev) => prev.map((a) => (a.id === frais.id ? { ...a, status: 'confirmé' } : a)));
+  /* Redevenu « confirmé », il garde la lecture qu'il avait une fois honoré
+     (9 octobre 2026, voir `rituelDeshonore`) : le passé ne bouge pas. */
+  appointmentsStore.set((prev) => prev.map((a) => (a.id === frais.id ? rituelDeshonore(a, byId) : a)));
   toast(ditLeRetrait(r));
   return true;
 }
@@ -606,8 +618,12 @@ export function resetAllPaidInvoices(branchId: string): { invoices: number; appt
   }
   if (linked.length) {
     const linkedIds = new Set(linked.map((a) => a.id));
+    /* Un rituel honoré qui redevient « confirmé » garde la lecture qu'il avait
+       (9 octobre 2026, voir `rituelDeshonore`) : sans elle, tout l'historique
+       encaissé à la Caisse, jamais figé, se relirait au tarif du jour. */
+    const parIdDuCatalogue = new Map(servicesStore.get().map((s) => [s.id, s] as const));
     appointmentsStore.set((prev) => prev.map((a) => (linkedIds.has(a.id)
-      ? { ...a, paidXof: undefined, invoiceId: undefined, status: a.status === 'honoré' ? 'confirmé' : a.status, pointsAwarded: false }
+      ? { ...(a.status === 'honoré' ? rituelDeshonore(a, parIdDuCatalogue) : a), paidXof: undefined, invoiceId: undefined, pointsAwarded: false }
       : a)));
   }
 
@@ -676,6 +692,11 @@ export function factureAEnvoyer(
       tarifaire ; le repli reste l'ancien calcul pour ne rien casser d'un appel
       nu, mais il sous-tarife toute tête qui n'est pas au barème de référence. */
   prixPlein: (s: Service) => number = (s) => svcPriceForAppt(appt, s),
+  /** LE GESTE DE LA MAISON SUR CHAQUE LIGNE — 9 octobre 2026. Même règle que
+      `alignerFacturesDuRituel` : le geste l'emporte sur la remise de ligne
+      (on ne remise pas ce qui est déjà donné). Sans contexte, aucun geste :
+      l'appel nu garde son comportement d'avant. */
+  gesteOf: (s: Service) => number = () => 0,
 ): { ok: true; inv: Invoice; deja: boolean } | { ok: false; erreur: string } {
   const du = apptDueXof(appt, byId);
   /* ══ UNE PIÈCE À ZÉRO EST UNE ATTESTATION — 4 septembre 2026 ═══════
@@ -709,7 +730,8 @@ export function factureAEnvoyer(
     gestes: services.map((sv) => {
       const pos = appt.serviceIds.indexOf(sv.id);
       const r = remiseDeLigne(appt, pos >= 0 ? pos : 0);
-      return { nom: sv.name, pleinXof: prixPlein(sv), remisePct: r.pct, remiseXof: r.xof };
+      const g = Math.max(0, Math.min(100, Math.round(gesteOf(sv))));
+      return { nom: sv.name, pleinXof: prixPlein(sv), remisePct: g > 0 ? g : r.pct, remiseXof: g > 0 ? 0 : r.xof };
     }),
     netXof: net,
     libelleNu: apptLabel(appt, byId),
@@ -1444,9 +1466,14 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour }: {
       }
       /* ENCAISSER, C'EST HONORER depuis le 13 septembre 2026 : l'honneur se pose
          plus bas, une fois la pièce écrite (`honoreALEncaissement`).
-         Un rituel SOLDÉ fige son prix (priceXof) au tarif du jour de la vente :
-         le catalogue bougera, l'histoire non. */
-      const freeze = fullyPaid && appt.priceXof == null ? { priceXof: apptTotalXof(appt, byId) } : {};
+         Un rituel ENCAISSÉ fige son prix (priceXof) au tarif du jour de la
+         vente : le catalogue bougera, l'histoire non.
+         9 octobre 2026 : TOUT versement fige, partiel compris (un premier
+         acompte laissait le prix flotter), et le prix figé est celui de sa
+         tête, par `prixAFiger`, lu sur la ligne encore non honorée. Un rituel
+         de demain réglé d'avance fige son prix sans s'honorer : le prix payé
+         ne doit plus bouger. */
+      const freeze = settleTotal > 0 ? prixAFiger(appt, byId) : {};
       appointmentsStore.set((prev) => prev.map((a) => (a.id === appt.id
         ? {
             ...a,
@@ -1539,10 +1566,17 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour }: {
         : x)));
     }
 
-    /* Reprogrammation automatique : nouveau RDV « confirmé » À L'IDENTIQUE — même
-       cliente, mêmes prestations, même maître, MÊME PRIX et MÊME REMISE. On fige le
-       prix (avant remise) et on reporte la remise (% et CFA) pour que le prochain RDV
-       porte exactement le même net. Impayé, à honorer et encaisser le moment venu. */
+    /* Reprogrammation automatique : la VISITE SUIVANTE, « confirmée » — même
+       cliente, mêmes prestations, mêmes mains, même maître. Impayée, à honorer
+       et encaisser le moment venu.
+       9 octobre 2026 : elle suit désormais la règle de la reprise
+       (`sansLaVisite`, comme `poseLaReprise`). Elle recopiait le prix et la
+       remise en francs de la visite encaissée ; elle se chiffre maintenant au
+       tarif de sa tête le jour où elle a lieu, et se fige au premier geste
+       d'argent. Le pourcentage du rendez-vous passe. La remise famille, que
+       la fenêtre fige en FRANCS, passe aussi (`remiseFamilleQuiSuit`) :
+       `sansLaVisite` la retirait comme une remise du jour, et la visite
+       suivante d'une tête à compte famille la perdait en silence. */
     let rescheduled = false;
     /* UN RITUEL, UN SEUL PROCHAIN RENDEZ-VOUS — 4 octobre 2026. Ce bloc
        créait son rendez-vous à chaque encaissement, sans garde : repasser ou
@@ -1553,22 +1587,17 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour }: {
     const dejaPose = reschedule ? prochainDejaPose(appt, appointmentsStore.get(), todayISO()) : null;
     if (reschedule && nextDate && !dejaPose) {
       const newAppt: Appointment = {
+        ...sansLaVisite(appt),
+        ...remiseFamilleQuiSuit(appt),
         id: `appt-${uid()}`,
-        branchId: appt.branchId,
-        clientId: appt.clientId,
         clientName: appt.clientName ?? client?.name,
-        serviceIds: appt.serviceIds,
         date: nextDate,
         time: nextTime || appt.time || '09:00',
-        master: appt.master,
         status: 'confirmé',
         source: 'trone',
-        priceXof: appt.priceXof ?? apptTotalXof(appt, byId), // prix figé, à l'identique
-        ...(appt.discountXof != null ? { discountXof: appt.discountXof } : {}),
-        ...(appt.discountPct != null ? { discountPct: appt.discountPct } : {}),
         note: 'Reprogrammé depuis l’encaissement',
         repriseDe: appt.id,
-      };
+      } as Appointment;
       appointmentsStore.set((prev) => [...prev, estampilleLaPose(newAppt)]);
       rescheduled = true;
     }
@@ -2440,7 +2469,7 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour }: {
             variant="ghost"
             onClick={() => honoreSansEncaisser(appt, byId, tarifsDuRituel(appt, {
               client, bands, sets, cats: categories, byId, tousServices: [...byId.values()], produits: produitsCatalogue,
-            }).prixPlein)}
+            }))}
             style={{ marginTop: 4 }}
           >
             Honorer sans encaisser · facture à régler

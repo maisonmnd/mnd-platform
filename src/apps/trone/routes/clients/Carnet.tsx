@@ -13,6 +13,7 @@ import { monthTitle } from '../finances/_shared';
 import { appointmentsStore, type Appointment } from '../../../../shared/agenda';
 import { useCategories, useServices, useProducts, MAISONS, type Maison } from '../../../../shared/catalog';
 import { useModelBands, useBandSets } from '../../../../shared/pricing';
+import { useSettings } from '../../../../shared/settings';
 import { useStaff as useMyStaff } from '../../../../shared/auth';
 import { staffAccessStore } from '../equipe/data';
 import { useStore } from '../../../../shared/store';
@@ -20,7 +21,7 @@ import { voitLesPrix } from '../index';
 import { type Service } from '../../../../shared/catalog';
 import {
   Avatar, PayStatusPill, RdvModal, ReminderBell, SourceBadge, StatusPill, type RdvInitial,
-  addDaysISO, apptLabel, apptNetXof, apptGammeXof, apptPayState, apptTotalXof, apptDueXof, apptDepositCreditXof, frDay, frShort, timeToMin, todayISO, useBranchAppointments, useBranchClients, useServicesById,
+  addDaysISO, apptLabel, apptNetXof, apptGammeXof, apptPayState, montantDuCarnet, apptDueXof, apptDepositCreditXof, frDay, frShort, timeToMin, todayISO, useBranchAppointments, useBranchClients, useServicesById,
   tarifsDuRituel, PortesWhatsApp,
 } from './_shared';
 import { cancelAppointmentPayment, deshonoreLeRituel, factureAEnvoyer, honoreSansEncaisser, PayAppointmentModal } from './actions';
@@ -124,6 +125,12 @@ export default function Carnet() {
   const [sets] = useBandSets();
   const [services] = useServices();
   const [produits] = useProducts();
+  /* LES TOTAUX SUIVENT LE TARIF DE LA TÊTE — 9 octobre 2026. Un rendez-vous à
+     venir sans prix se lit au tarif de sa tête (`apptTotalXof`) : un calibre,
+     un barème d'atelier, un produit ou un réglage qui change doit refaire les
+     totaux, pas seulement les fiches et le catalogue. Les réglages ne servent
+     que de clef (barème suspendu). */
+  const [reglages] = useSettings();
   const today = todayISO();
 
   const [modal, setModal] = useState<{ initial?: RdvInitial; title?: string; appt?: Appointment } | null>(null);
@@ -170,7 +177,7 @@ export default function Carnet() {
       client: clients.find((c) => c.id === a.clientId),
       bands, sets, cats: categories, byId, tousServices: services, produits,
     });
-    const r = factureAEnvoyer(a, byId, branch.id, t.prixPlein);
+    const r = factureAEnvoyer(a, byId, branch.id, t.prixPlein, t.gesteDe);
     setMenuFor(null);
     if (!r.ok) { refus(r.erreur); return; }
     navigate(`/factures?id=${r.inv.id}`);
@@ -260,7 +267,7 @@ export default function Carnet() {
       .filter((a) => !aVenir(a) && garde(a))
       .sort((a, b) => b.date.localeCompare(a.date) || timeToMin(b.time) - timeToMin(a.time));
     return { upcoming, past, comptes, totaux };
-  }, [appts, today, query, ficheParId, maison, categories, byId, vue]);
+  }, [appts, today, query, ficheParId, maison, categories, byId, vue, bands, sets, produits, reglages]);
 
   /* ══ LES MOIS PASSÉS SE REPLIENT — 1er octobre 2026 ═════════════════
      « Quand je clique dans la barre de navigation du Trône, c'est lent »
@@ -519,11 +526,22 @@ export default function Carnet() {
             </span>
           ) : (
             <>
-              {!sansPrix && (
-                <span style={{ fontFamily: 'var(--font-serif)', fontSize: 18, color: 'var(--color-indigo)' }}>
-                  {fmtMoney(apptTotalXof(a, byId), currency)}
-                </span>
-              )}
+              {/* LE CHIFFRE DU BANDEAU DE LA FENÊTRE — 9 octobre 2026, décision
+                  de la direction : le prix APRÈS remise, l'ancien barré à côté
+                  quand il diffère. La colonne disait le prix avant toute
+                  remise, la fenêtre le prix remisé : deux nombres pour le même
+                  rendez-vous. Voir `montantDuCarnet`. */}
+              {!sansPrix && (() => {
+                const m = montantDuCarnet(a, byId);
+                return (
+                  <span style={{ fontFamily: 'var(--font-serif)', fontSize: 18, color: 'var(--color-indigo)' }}>
+                    {m.barre !== undefined && (
+                      <s style={{ color: 'var(--ink-soft)', fontSize: 13, marginRight: 6 }}>{fmtMoney(m.barre, currency)}</s>
+                    )}
+                    {fmtMoney(m.montant, currency)}
+                  </span>
+                );
+              })()}
               {(a.seriesTotal ?? 0) > 1 && <span className="trc-serie-chip">Séance 1/{a.seriesTotal}</span>}
               {showReste && !sansPrix && (
                 <span
@@ -612,7 +630,7 @@ export default function Carnet() {
                       honoreSansEncaisser(a, byId, tarifsDuRituel(a, {
                         client: clients.find((c) => c.id === a.clientId),
                         bands, sets, cats: categories, byId, tousServices: services, produits,
-                      }).prixPlein);
+                      }));
                       setMenuFor(null);
                     }}
                   >

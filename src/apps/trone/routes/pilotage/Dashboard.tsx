@@ -23,7 +23,7 @@ import {
   Avatar, PayStatusPill, RdvModal, ReminderBell, SourceBadge, StatusPill, tarifsDuRituel, apptLabel, apptTotalXof, apptNetXof, apptDueXof, addDaysISO, frShort, frShortAn, fromISO,
   facturesQuiAttendent,
   predictNextVisit, timeToMin, todayISO, useBranchAppointments, useBranchClients, useServicesById,
-  DrillModal, revenuDuMois, revenusProjetesDuMois, type Drill, type DrillRow,
+  DrillModal, revenuDuMois, revenusProjetesDuMois, useClefDuTarif, type Drill, type DrillRow,
 } from '../clients/_shared';
 import { useBilans, seancesSansBilan } from '../../../../shared/bilans';
 import { relancesAReprendre } from '../../../../shared/afaire';
@@ -93,6 +93,10 @@ export default function Dashboard() {
   const clients = useBranchClients();
   const [allClients] = useClients();
   const byId = useServicesById();
+  /* Le tarif d’une tête a pu changer sans qu’aucun rendez-vous ne bouge (fiche
+     recomptée, barème) : les totaux qui lisent les rendez-vous à venir se
+     refont sur cette clef (9 octobre 2026). */
+  const clefDuTarif = useClefDuTarif();
   const [invoices] = useInvoices();
   const [lesPrets] = usePrets();
   const pretsAVeiller = pretsASurveiller(lesPrets, branch.id, todayISO());
@@ -232,7 +236,7 @@ export default function Dashboard() {
         .filter((a) => a.date === today && a.status !== 'annulé')
         .sort((a, b) => timeToMin(a.time) - timeToMin(b.time)),
     };
-  }, [appts, byId, invoices, expenses, apprenants, abonnes, branch.id, today, thisMonth, prevMonth, cutPrev, registre]);
+  }, [appts, byId, invoices, expenses, apprenants, abonnes, branch.id, today, thisMonth, prevMonth, cutPrev, registre, clefDuTarif]);
 
   /* — décomposition du revenu du mois : rituels par catégorie + encaissements par moyen — */
   const breakdown = useMemo(() => {
@@ -309,7 +313,7 @@ export default function Dashboard() {
       overdue: { rows: overdue, total: sum(overdue) },
       upcoming: { rows: upcoming, total: sum(upcoming) },
     };
-  }, [appts, byId, today]);
+  }, [appts, byId, today, clefDuTarif]);
 
   /* ---------- Ce qui presse — des gestes, pas des constats ----------
 
@@ -348,7 +352,7 @@ export default function Dashboard() {
        l'argent déjà reçu. */
     const total = rows.reduce((s, i) => s + invoiceResteXof(i), 0);
     return { count: rows.length, total };
-  }, [invoices, appts, byId, branch.id, today]);
+  }, [invoices, appts, byId, branch.id, today, clefDuTarif]);
 
   /* LES BILANS DUS — un rituel honoré est une séance dont la cliente attend le
      mot de la maison. On se borne aux TRENTE DERNIERS JOURS : au-delà, le
@@ -698,7 +702,7 @@ export default function Dashboard() {
       honoreSansEncaisser(a, byId, tarifsDuRituel(a, {
         client: clients.find((c) => c.id === a.clientId),
         bands, sets, cats: categories, byId, tousServices: [...byId.values()], produits: produitsTarif,
-      }).prixPlein);
+      }));
     }
   };
 

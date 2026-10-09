@@ -16,7 +16,7 @@ import { soinUtilise } from '../../../../shared/parrainage';
 import {
   useModelBands, useBandSets, pricingOf, personalPriceXof, prixFerme, estProposable,
 } from '../../../../shared/pricing';
-import { ClientPicker, useBranchAppointments, apptLabel, apptDueXof, useServicesById, svcPriceForAppt, frShortAn } from '../clients/_shared';
+import { ClientPicker, useBranchAppointments, apptLabel, apptDueXof, useServicesById, partsDuRituelXof, prixAFigerAuTicket, frShortAn } from '../clients/_shared';
 import { honoreALEncaissement } from '../clients/actions';
 import { appointmentsStore, useAppointments, venuesHonorees } from '../../../../shared/agenda';
 import { ClotureDuTiroir } from '../finances/ClotureDuTiroir';
@@ -198,21 +198,26 @@ export default function Caisse() {
     const a = carnet.find((x) => x.id === id);
     if (!a) return;
     const poses: string[] = [];
+    /* LE PRIX DE CE RITUEL-LÀ — 9 octobre 2026. Le commentaire d'avant
+       promettait « le barème de la tête et la remise de la ligne » ; la ligne
+       lisait en fait le prix de vitrine (`svcPriceForAppt`), sans l'un ni
+       l'autre. La reprise du cas K. K. sortait ici à 28 000 F quand la
+       fenêtre disait 40 000 F, et même un prix enregistré à 35 000 F y
+       redevenait 28 000 F. Chaque ligne prend désormais SA part de ce que le
+       rendez-vous vaut (`partsDuRituelXof`) : son tarif de la tête, geste et
+       remise de ligne déduits, ou son prix enregistré réparti. */
+    const parts = partsDuRituelXof(a, svcById);
     setCart((c) => {
       const next = { ...c };
       a.serviceIds.forEach((sid, i) => {
         const cle = `s:${sid}`;
         if (!flat[cle]) return; // prestation quittée du catalogue : rien à poser
-        const sv = svcById.get(sid);
-        /* LE PRIX DE CE RITUEL-LÀ. `svcPriceForAppt` porte le barème de la
-           tête, sa longueur d'alors et la remise posée sur cette ligne. */
-        const prix = sv ? svcPriceForAppt(a, sv) : 0;
+        const prix = parts[i] ?? 0;
         const dedans = next[cle];
         next[cle] = dedans
           ? { ...dedans, qty: dedans.qty + 1 }
           : { qty: 1, disc: 0, unitXof: prix };
         if (!dedans) poses.push(cle);
-        void i;
       });
       /* ── CE QU'ELLE EMPORTE ARRIVE AUSSI — 5 septembre 2026 ──────
          La Gamme posee a la reservation ne servait a rien si le comptoir
@@ -625,17 +630,29 @@ export default function Caisse() {
       const brutDuRituel = lines
         .filter((l) => l.kind === 'service')
         .reduce((n, l) => n + l.unit * l.qty, 0);
-      appointmentsStore.set((prev) => prev.map((a) => (a.id === apptToSettle
-        ? {
+      /* LE PRIX SE FIGE AU PREMIER GESTE D'ARGENT — 9 octobre 2026 : un
+         règlement d'avance d'un rendez-vous sans prix enregistre le tarif de
+         sa tête, lu sur la ligne encore non honorée, corrigé de ce que le
+         ticket dit de ses prestations (montant d'un devis, quantité) : le
+         prix figé est celui que le ticket encaisse (`prixAFigerAuTicket`). */
+      const auTicket = new Map<string, number>();
+      for (const l of lines) {
+        if (l.kind === 'service') auTicket.set(l.key.slice(2), (auTicket.get(l.key.slice(2)) ?? 0) + l.unit * l.qty);
+      }
+      appointmentsStore.set((prev) => prev.map((a) => {
+        if (a.id !== apptToSettle) return a;
+        const fige = partNette > 0 ? prixAFigerAuTicket(a, svcById, auTicket) : {};
+        /* Le reste d'avant se lit sur le prix figé : c'est contre lui que la
+           remise du comptoir se mesure. */
+        const remise = remiseDuComptoirAuRendezVous({
+          brutDuRituelXof: brutDuRituel, encaisseXof: partNette, resteAvantXof: apptDueXof({ ...a, ...fige }, svcById),
+        });
+        return {
           ...a,
           invoiceId: inv.id,
-          ...(() => {
-            const remise = remiseDuComptoirAuRendezVous({
-              brutDuRituelXof: brutDuRituel, encaisseXof: partNette, resteAvantXof: apptDueXof(a, svcById),
-            });
-            return remise > 0 ? { discountXof: (a.discountXof ?? 0) + remise } : {};
-          })(),
+          ...(remise > 0 ? { discountXof: (a.discountXof ?? 0) + remise } : {}),
           paidXof: (a.paidXof ?? 0) + partNette,
+          ...fige,
           ...(partNette > 0 ? {
             payments: [
               ...(a.payments ?? []),
@@ -649,8 +666,8 @@ export default function Caisse() {
               },
             ],
           } : {}),
-        }
-        : a)));
+        };
+      }));
       /* ENCAISSER, C'EST HONORER — 13 septembre 2026. Le ticket solde le
          rituel ; il le clôture du même geste (voir `honoreALEncaissement`). */
       if (partNette > 0) honoreALEncaissement(apptToSettle, svcById);

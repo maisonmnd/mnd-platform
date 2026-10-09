@@ -7,7 +7,7 @@ import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
 import { normName } from '../../../../shared/text';
 import { creancesDeLaMaison, trancheDe, TRANCHES, type Tranche } from '../../../../shared/compte';
-import { apptDueXof, todayISO, useBranchAppointments, useBranchClients, useServicesById } from '../clients/_shared';
+import { apptDueXof, todayISO, useBranchAppointments, useBranchClients, useServicesById, useClefDuTarif } from '../clients/_shared';
 import './finances.css';
 import { appelDe } from '../../../../shared/civilite';
 
@@ -30,13 +30,16 @@ export default function Creances() {
   const appts = useBranchAppointments();
   const clients = useBranchClients();
   const byId = useServicesById();
+  /* Le dû d’un rendez-vous sans prix suit le tarif de sa tête : une fiche
+     recomptée ou un barème changé refont la liste (9 octobre 2026). */
+  const clefDuTarif = useClefDuTarif();
   const aujourdhui = todayISO();
   const [q, setQ] = useState('');
   const [tranche, setTranche] = useState<Tranche | ''>('');
 
   const creances = useMemo(
     () => creancesDeLaMaison({ appts, aujourdhui, dûDuRituel: (a) => apptDueXof(a, byId) }),
-    [appts, aujourdhui, byId],
+    [appts, aujourdhui, byId, clefDuTarif],
   );
 
   const parTranche = useMemo(() => {
