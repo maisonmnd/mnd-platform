@@ -126,7 +126,7 @@ export default function Offres({ genre, initiales }: { genre?: string; initiales
     : (onglet === 'cours' ? enCours : aVenir);
 
   const vide = offres === null
-    ? 'Les offres de la Maison se disent au salon. Écrivez-nous, nous vous les présentons.'
+    ? 'Les offres se disent de vive voix, à la Maison. Écrivez-nous, nous vous les présentons.'
     : accueil
       ? 'La Maison prépare ses prochaines offres. Les cinq portes ci-dessus vous ouvrent la Maison.'
       : onglet === 'cours'

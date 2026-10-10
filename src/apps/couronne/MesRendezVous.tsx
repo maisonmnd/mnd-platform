@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type KeyboardEvent } from 'react';
+import { useEffect, useMemo, useState, useSyncExternalStore, type KeyboardEvent } from 'react';
 import { useBranch } from '../../shared/branches';
 import { ecrisRendezVous, useAppointments, type Appointment } from '../../shared/agenda';
 import { useClients, useFamilies } from '../../shared/clients';
@@ -9,6 +9,8 @@ import { enablePush, pushNotify, pushNotifyStaff } from '../../shared/push';
 import { useExceptionsHoraires, useSettings } from '../../shared/settings';
 import { useBlocages } from '../../shared/blocages';
 import { useBilans, type Bilan } from '../../shared/bilans';
+import { getSyncState, quandTablePrete, subscribeSync, tablePrete } from '../../shared/sync';
+import { TABLES_DU_CARNET, ficheIntrouvable, lectureDesRdvEnEchec } from './fiche-pure';
 import { BilanLecteur } from './Tabs';
 import {
   DOW_LETTERS,
@@ -94,6 +96,29 @@ export default function MesRendezVous({ onClose, onBook, toast, ouvrir, onRefair
   const [ficheId, setFicheId] = useState<string | null>(ouvrir ?? null);
   useEffect(() => { if (ouvrir) setFicheId(ouvrir); }, [ouvrir]);
   const fiche = ficheId ? mine.find((a) => a.id === ficheId) : undefined;
+  /* UNE FICHE INTROUVABLE N'EST PAS UNE FICHE QUI SE CHARGE — 10 octobre
+     2026 (revue de code). Un rendez-vous effacé au Trône, ou d'une tête sortie
+     du foyer, gardait l'écran sur « se charge » pour toujours, sans retour
+     vers la liste : une notification gardée y ramenait à chaque fois. Une
+     fois les rendez-vous lus, l'écran dit qu'il n'est plus au carnet.
+
+     LUS, ET BIEN LUS (reprise du même jour). « Prête » veut dire résolue, même
+     sur une lecture ÉCHOUÉE, et « les miens » dépend aussi des fiches et du
+     foyer : le RDV d'une fille mineure, ouvert à froid, se disait disparu le
+     temps que les fiches arrivent, et un poste hors ligne déclarait disparu
+     ce qu'il ne pouvait que ne pas joindre. On attend les trois tables, et on
+     ne dit « plus au carnet » que sur une lecture réussie (`fiche-pure.ts`). */
+  const [tablesLues, setTablesLues] = useState(() => TABLES_DU_CARNET.every((x) => tablePrete(x)));
+  useEffect(() => {
+    if (tablesLues) return;
+    for (const x of TABLES_DU_CARNET) quandTablePrete(x, () => setTablesLues(TABLES_DU_CARNET.every((y) => tablePrete(y))));
+  }, [tablesLues]);
+  const etatSync = useSyncExternalStore(subscribeSync, getSyncState, getSyncState);
+  const introuvable = ficheIntrouvable({
+    tablesResolues: tablesLues,
+    lectureEnEchec: lectureDesRdvEnEchec(etatSync),
+    enLigne: etatSync.online && (typeof navigator === 'undefined' || navigator.onLine !== false),
+  });
   const ouvreLaFiche = (a: Appointment) => setFicheId(a.id);
   const auClavier = (a: Appointment) => (e: KeyboardEvent) => {
     if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); ouvreLaFiche(a); }
@@ -306,7 +331,7 @@ export default function MesRendezVous({ onClose, onBook, toast, ouvrir, onRefair
               </button>
               <h1 className="mc-flowhead__h1" style={{ marginTop: 8 }}>{t('Déplacer le rituel.')}</h1>
             </>
-          ) : fiche ? (
+          ) : ficheId ? (
             <>
               <button className="mc-linkback" onClick={() => setFicheId(null)}>
                 ← {t('Mes rendez-vous')}
@@ -486,7 +511,14 @@ export default function MesRendezVous({ onClose, onBook, toast, ouvrir, onRefair
             );
           })()
         ) : ficheId ? (
-          <div className="mc-emptyline">{t('Le rendez-vous se charge.')}</div>
+          <div className="mc-stack" style={{ gap: 12 }}>
+            <div className="mc-emptyline">{introuvable === 'plus-au-carnet'
+              ? t('Ce rendez-vous n’est plus au carnet.')
+              : introuvable === 'injoignable'
+                ? t('Ce rendez-vous ne se lit pas pour l’instant : la connexion manque.')
+                : t('Le rendez-vous se charge.')}</div>
+            <button className="mc-cta mc-cta--outline" onClick={() => setFicheId(null)}>{t('Mes rendez-vous')}</button>
+          </div>
         ) : (
           /* -------- liste : à venir puis passés récents -------- */
           <div className="mc-fade">

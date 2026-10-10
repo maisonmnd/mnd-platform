@@ -14,6 +14,7 @@ import {
   ceQueLeCodeRetire, codeNormalise, lignesDuCode, offreDuCode, offreDuCodePassee, type OffreCodee,
 } from '../../../shared/offres-pur';
 import Demande from './Demande';
+import { raisonDuRefus } from '../refus-du-serveur';
 import { lienLu } from '../../../shared/lien-reservation';
 import { FORME_DU_CODE } from '../../../shared/parrainage-pur';
 import {
@@ -142,7 +143,8 @@ const besoinDeLAdresse = (): Besoin | '' => {
     mieux qu'un refus muet, qui passe pour une panne. */
 const quandDit = (iso: string): string => {
   const d = new Date(`${iso}T00:00:00`);
-  return Number.isNaN(d.getTime()) ? iso : d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' });
+  /* L'année toujours, sur une date montrée à une cliente (10 octobre 2026). */
+  return Number.isNaN(d.getTime()) ? iso : d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
 };
 
 /* ══ L'INVITATION D'UNE MARRAINE, LUE UNE FOIS — 7 octobre 2026 ══════════
@@ -312,7 +314,10 @@ function Calendrier({ besoin: besoinInitial }: Props) {
     const jours = prochainsJours(JOURS_PROPOSES);
     void calendrierDuSite(jours[0], jours[jours.length - 1]).then(({ agenda: a, occupes: pris }) => {
       if (!vivant) return;
-      setAgenda(a);
+      /* Un agenda absent ne remplace pas celui de la dernière visite : il
+         rendait « La réservation en ligne n'est pas disponible » par-dessus
+         un calendrier qui s'affichait (10 octobre 2026). */
+      setAgenda((prec) => a ?? prec ?? null);
       setOccupes(pris);
     }).catch(() => { if (vivant) setAgenda((prec) => prec ?? null); });
     return () => { vivant = false; };
@@ -421,7 +426,10 @@ function Calendrier({ besoin: besoinInitial }: Props) {
       choisies.map((s) => ({ id: s.id, prixXof: prixFerme(s, ctx), ferme: prixFerme(s, ctx) > 0 })),
       offreAppliquee,
     ),
-    [choisies, offreAppliquee],
+    /* `ctx` AUSSI (10 octobre 2026) : une formule choisie, puis un calibre,
+       et le total restait au prix de la carte alors que chaque ligne disait
+       déjà le prix du calibre. */
+    [choisies, offreAppliquee, ctx],
   );
   const compte = useMemo(() => ceQueLeCodeRetire(lignes), [lignes]);
   const netDe = (id: string): number => lignes.find((l) => l.id === id)?.net ?? 0;
@@ -551,9 +559,13 @@ function Calendrier({ besoin: besoinInitial }: Props) {
         marraine?: string; cadeau?: string; confirme?: boolean;
       };
       if (error || !r.ok) {
-        const code = r.error ?? (error?.message ?? '');
+        /* La raison est dans le corps de la réponse refusée, pas dans `data`
+           (voir refus-du-serveur.ts, 10 octobre 2026). */
+        const code = await raisonDuRefus(data, error);
         if (code.includes('creneau')) {
-          setErreur('Cette heure vient d’être prise. Choisissez-en une autre, la liste est à jour.');
+          setErreur(code === 'creneau_pris' || code === 'creneau_plafond'
+            ? 'Cette heure vient d’être prise. Choisissez-en une autre, la liste est à jour.'
+            : 'Ce moment ne se réserve plus en ligne. Choisissez-en un autre, la liste est à jour.');
           const suite = prochainsJours(JOURS_PROPOSES);
           if (agenda) setOccupes(await creneauxOccupes(agenda.branchId, suite[0], suite[suite.length - 1]));
           setHeure(null);
@@ -715,7 +727,7 @@ function Calendrier({ besoin: besoinInitial }: Props) {
           {s.durationMin && prixDit(s, devise, ctx) ? ' · ' : ''}
           {prixDit(s, devise, ctx)
             ? <span className="prix">{prixDit(s, devise, ctx)}</span>
-            : <span className="au-salon">prix au salon</span>}
+            : <span className="au-salon">prix à la Maison</span>}
         </small>
       </button>
     );
@@ -1018,12 +1030,12 @@ function Calendrier({ besoin: besoinInitial }: Props) {
             <p className="total"><span>Durée</span><b>{dit(dureeTotale) || 'à voir ensemble'}</b></p>
             <p className="total">
               <span>Prix</span>
-              <b>{prixFlou && prixTotal > 0 ? <em>à partir de </em> : null}{prixTotal > 0 ? fmtMoney(prixTotal, devise) : 'au salon'}</b>
+              <b>{prixFlou && prixTotal > 0 ? <em>à partir de </em> : null}{prixTotal > 0 ? fmtMoney(prixTotal, devise) : 'à la Maison'}</b>
             </p>
           </div>
           {blocDuCode}
           {plein && <p className="legende avertit">Six gestes au plus dans une même venue. Retirez-en un pour en cocher un autre.</p>}
-          {prixFlou && prixTotal > 0 && <p className="legende">Un geste au moins se règle au salon : ce total est un plancher, jamais une promesse.</p>}
+          {prixFlou && prixTotal > 0 && <p className="legende">Un geste au moins se règle à la Maison : ce total est un plancher, jamais une promesse.</p>}
         </div>
       )}
 

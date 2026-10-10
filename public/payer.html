@@ -120,13 +120,13 @@
     <img class="affiche" src="momopay-affiche.jpg" alt="Payez facilement avec MTN MoMo Pay, Maison MND" />
     <div class="marchand">
       <i>Nom Marchand</i><b id="nomMarchand">ACIA1</b>
-      <i>Code Marchand</i><b id="codeMarchand">—</b>
+      <i>Code Marchand</i><b id="codeMarchand">·</b>
     </div>
   </div>
 
   <div class="bloc" id="bloc"></div>
 
-  <div class="pied">mi nyɔ́ ɖɛkpɛ — la maison veille.</div>
+  <div class="pied">mi nyɔ́ ɖɛkpɛ, votre beauté est déjà là</div>
 
 <script>
   var p = new URLSearchParams(location.search);
@@ -138,7 +138,7 @@
   if (!code) {
     /* Sans code marchand, la page ne devine rien : elle le DIT plutôt que
        d'afficher un bouton qui composerait un numéro incomplet. */
-    bloc.innerHTML = '<div class="absent">Ce lien est incomplet — il lui manque le code marchand.<br>Demandez-en un nouveau à la Maison.</div>';
+    bloc.innerHTML = '<div class="absent">Ce lien est incomplet, il lui manque le code marchand.<br>Demandez-en un nouveau à la Maison.</div>';
   } else {
     var ussd = '*880*41*' + code + '*' + (montant || '') + '#';
     var e = function (s) { return String(s).replace(/[&<>"]/g, function (c) { return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]; }); };

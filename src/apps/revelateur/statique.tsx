@@ -16,7 +16,13 @@ export function rendsLesOffres(offres: OffreDuSite[], genre?: string): string {
   return renderToString(<Offres genre={genre} initiales={offres} />);
 }
 
-/* Le JSON posé dans un <script> ne doit jamais pouvoir le fermer. */
+/* Le JSON posé dans un <script> ne doit jamais pouvoir le fermer.
+   LES ÉCHAPPEMENTS SONT DOUBLÉS — 10 octobre 2026 (revue de code). Écrit
+   avec une seule barre, le littéral de remplacement valait le caractère
+   lui-même (« < ») : chaque remplacement rendait la même chaîne, et une offre
+   dont le texte portait « </script> » fermait la balise de la page générée.
+   Avec deux barres, ce sont les six caractères de l'échappement qui
+   s'écrivent, et JSON.parse les relit en « < ». */
 export function jsonPourLaPage(valeur: unknown): string {
-  return JSON.stringify(valeur).replace(/</g, '\u003c').replace(/\u2028/g, '\u2028').replace(/\u2029/g, '\u2029');
+  return JSON.stringify(valeur).replace(/</g, '\\u003c').replace(/\u2028/g, '\\u2028').replace(/\u2029/g, '\\u2029');
 }

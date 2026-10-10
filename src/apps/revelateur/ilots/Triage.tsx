@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { COMMUN } from '../contenu';
 import { client, lienWhatsApp, maison } from '../maison';
 import { mesure } from '../mesure';
+import { raisonDuRefus } from '../refus-du-serveur';
 import type { Besoin } from '../../../shared/qualification';
 
 /* LE DIAGNOSTIC LOCKS — 27 septembre 2026, maquette validée. « J'aime
@@ -246,7 +247,8 @@ function Resultat({ rep, routine, numero, recommence }: { rep: Reponses; routine
       });
       const r = (data ?? {}) as { ok?: boolean; error?: string };
       if (error || !r.ok) {
-        const code = r.error ?? (error?.message ?? '');
+        /* La raison est dans le corps de la réponse refusée (refus-du-serveur.ts, 10 octobre 2026). */
+        const code = await raisonDuRefus(data, error);
         setErreur(code.includes('telephone') ? f.erreurNumero : 'L’envoi n’a pas abouti. Envoyez votre routine sur WhatsApp, nous la gardons.');
         return;
       }

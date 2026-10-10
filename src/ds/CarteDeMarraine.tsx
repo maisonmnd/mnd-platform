@@ -21,8 +21,21 @@ export function CarteDeMarraine({ donnees, largeur = 350, retournable = true, fa
     const canvas = ref.current;
     if (!canvas) return;
     setPrete(false);
-    dessineLaCarteDeMarraine(canvas, face, donnees)
-      .then(() => { if (vivant) setPrete(true); })
+    /* HORS ÉCRAN D'ABORD — 10 octobre 2026 (revue de code). Le recto attend
+       huit images, le verso deux : retournée pendant le premier dessin, la
+       carte peignait le verso, puis le recto arrivait et peignait par-dessus
+       sur la MÊME toile, alors que l'étiquette disait « verso ». Chaque dessin
+       se fait sur sa propre toile, et seul celui qui est encore voulu
+       (`vivant`) est recopié à l'écran. */
+    const horsEcran = document.createElement('canvas');
+    dessineLaCarteDeMarraine(horsEcran, face, donnees)
+      .then(() => {
+        if (!vivant) return;
+        canvas.width = horsEcran.width;
+        canvas.height = horsEcran.height;
+        canvas.getContext('2d')?.drawImage(horsEcran, 0, 0);
+        setPrete(true);
+      })
       .catch(() => { if (vivant) setPrete(true); });
     return () => { vivant = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps

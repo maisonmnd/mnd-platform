@@ -31,6 +31,7 @@ import {
   firstName,
   fmtDuration,
   freeSlots,
+  grilleDuJour,
   useCreneauxOccupesCharges,
   pad2,
   todayIso,
@@ -40,6 +41,8 @@ import {
   type BookingPrefill,
 } from './lib';
 import { t, locale, langue, prix } from './i18n';
+import { heureHabituelle, naitConfirme, relisLesMurs } from './reservation-pure';
+import { supabase } from '../../shared/supabase';
 
 /* LE JOUR DIT DANS SA LANGUE : « Sam. 5 juil » en français (le libellé de
    toujours), « Sat 5 Jul » en anglais. Ce qui part au Trône garde
@@ -246,6 +249,9 @@ export default function Booking({ prefill, onClose, toast, onVoirRdv }: Props) {
   const [viaExpress, setViaExpress] = useState(false);
   /* Le rendez-vous qui vient de naître : « Voir mon rendez-vous » l'ouvre. */
   const [rdvCree, setRdvCree] = useState<string | null>(null);
+  /* Le rendez-vous écrit est-il né confirmé ? L'écran de fin le dit tel
+     qu'il est parti, jamais d'après le seul acompte (10 octobre 2026). */
+  const [neTenu, setNeTenu] = useState(true);
   /* Le quiz du seuil : la variante de questions posée, l'envie et l'élan dits. */
   const [cfg] = useStore(vitrineConfigStore);
   const [variante, setVariante] = useState(0);
@@ -689,10 +695,11 @@ export default function Booking({ prefill, onClose, toast, onVoirRdv }: Props) {
      serveur, jamais une décision de cet écran. La preuve, elle, vit dans la
      table `payments` (écrite par la fonction Edge) — c'est elle que le comptoir
      doit croire en cas de doute. */
+  const ecritureEnCours = useRef(false);
   const settle = (online?: { apptId: string; transactionId: string; confirmed: boolean }) => {
     if (hasDeposit && !online && !pay) { toast(t('Choisissez votre moyen d’envoi.')); return; }
     if (!selected.length || sessionDates.length < totalSessions) return;
-    const finalize = () => {
+    const finalize = async () => {
       const baseNotes: string[] = [];
       if (offerLabel) baseNotes.push(`Offre instantanée · ${offerLabel}`);
       /* CE QU'ELLE EST VENUE CHERCHER, porté par le rituel : le maître le lit au
@@ -747,7 +754,36 @@ export default function Booking({ prefill, onClose, toast, onVoirRdv }: Props) {
       }
       /* Série liée : un identifiant commun quand il y a plusieurs séances. */
       const seriesId = totalSessions > 1 ? uid() : undefined;
-      const tenu = !!online?.confirmed || !hasDeposit;
+      /* LES MURS ET LA PLACE, RELUS AU DERNIER MOT — 10 octobre 2026 (revue
+         de code). Une place ne naît confirmée que si l'agenda du serveur est
+         arrivé ET que chaque séance y est encore libre : un agenda pas encore
+         chargé, ou en erreur, est une grille vide, et la confirmation
+         WhatsApp partirait sur une heure déjà prise. Sinon le rendez-vous
+         part quand même, « en attente », et la Maison confirme.
+
+         RELUS AU SERVEUR, PAS DANS L'AGENDA DU MONTAGE (reprise du même
+         jour) : `occupes` est lu une fois par fenêtre de trois mois, et une
+         autre cliente a pu prendre l'heure depuis. Les murs des jours des
+         séances se redemandent ici (`relisLesMurs`) ; un échec les laisse
+         inconnus. Seule une place qui PEUT naître confirmée les attend : un
+         acompte, vérifié ou seulement annoncé, décide sans eux. */
+      const peutNaitreConfirme = !online?.confirmed && !hasDeposit;
+      const joursDesSeances = sessionDates.map((sd) => sd.iso).sort();
+      const sb = supabase;
+      const mursFrais = peutNaitreConfirme
+        ? await relisLesMurs(sb ? () => sb.rpc('creneaux_occupes', {
+          p_branch: branch.id, p_du: joursDesSeances[0], p_au: joursDesSeances[joursDesSeances.length - 1],
+        }) : null)
+        : null;
+      const seancesToujoursLibres = mursFrais !== null && sessionDates.every((sd) =>
+        freeSlots(sd.iso, master, totalDuration, appts, tousServices, branch.id, mursFrais).includes(sd.time));
+      const tenu = naitConfirme({
+        acompteVerifie: !!online?.confirmed,
+        acompteDemande: hasDeposit,
+        mursConnus: mursFrais !== null,
+        seancesToujoursLibres,
+      });
+      setNeTenu(tenu);
       const newAppts: Appointment[] = sessionDates.map((sd, i) => {
         const notes = [...baseNotes];
         if (totalSessions > 1) notes.push(`Séance ${i + 1}/${totalSessions}`);
@@ -786,8 +822,12 @@ export default function Booking({ prefill, onClose, toast, onVoirRdv }: Props) {
             : {}),
           /* LA REMISE FAMILLE VOYAGE AVEC LE RENDEZ-VOUS — figée en francs
              (part hors forfaits × taux) : l'encaissement du Trône retranche
-             ce montant exact, et la facture le nommera « Remise famille ». */
-          ...(i === 0 && famRemiseXof > 0 ? { discountXof: famRemiseXof, remiseFamille: true } : {}),
+             ce montant exact, et la facture le nommera « Remise famille ».
+             La part famille s'écrit AUSSI à part (`remiseFamilleXof`, 10
+             octobre 2026, revue de code) : le comptoir ajoutera peut-être à
+             `discountXof` la remise d'un code, et seule la part famille doit
+             suivre à la visite suivante (`remiseFamilleQuiSuit`). */
+          ...(i === 0 && famRemiseXof > 0 ? { discountXof: famRemiseXof, remiseFamille: true, remiseFamilleXof: famRemiseXof } : {}),
           /* LA LONGUEUR QUI A FAIT CE PRIX se fige avec lui (11 août) : c'est
              celle de la fiche, héritée par `pricingOf`. Sans elle, le comptoir
              rouvrirait le rituel à SA longueur du jour et retarifierait ce que
@@ -835,8 +875,14 @@ export default function Booking({ prefill, onClose, toast, onVoirRdv }: Props) {
     /* Voie MANUELLE : rien n'est débité ici. La cliente envoie elle-même son
        Mobile Money et l'annonce ; l'acompte reste « annoncé » jusqu'à
        vérification au salon. Aucun théâtre de paiement — jamais. */
+    /* L'écriture attend désormais la relecture des murs : un second appui
+       pendant ce temps ne pose pas un second rendez-vous. */
+    if (ecritureEnCours.current) return;
+    ecritureEnCours.current = true;
     setPaying(true);
-    finalize();
+    void finalize()
+      .catch((e: unknown) => { console.warn('[mnd-couronne] réservation :', e); setPaying(false); })
+      .finally(() => { ecritureEnCours.current = false; });
   };
 
   /* ══ UNE TOUCHE QUI RÉSERVE — 7 octobre 2026 ═════════════════════════
@@ -858,9 +904,14 @@ export default function Booking({ prefill, onClose, toast, onVoirRdv }: Props) {
       settle();
       return;
     }
-    if (!pose && !dayTimes.includes(voulu)) {
+    /* « PRIS » SEULEMENT SI LA GRILLE LE PORTAIT — 10 octobre 2026. Une
+       heure habituelle à la demi-heure n'est jamais sur la grille d'une
+       heure : on ne dit rien de faux, le tunnel reste ouvert sur le jour. */
+    if (!pose && heureHabituelle(voulu, dayTimes, grilleDuJour(prefIso.iso, totalDuration)) === 'prise') {
       expressFait.current = true;
       toast(t('Ce moment vient d’être pris, choisissez-en un autre.'));
+    } else if (!pose && !dayTimes.includes(voulu)) {
+      expressFait.current = true;
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [prefill, step, paying, occupesCharges, selected.length, totalSessions, hasDeposit, prefIso, selIso, sessionDates, dayTimes]);
@@ -1787,9 +1838,11 @@ export default function Booking({ prefill, onClose, toast, onVoirRdv }: Props) {
             <p>
               {onlinePaid?.ok
                 ? t('Votre acompte est reçu, votre créneau est tenu.')
-                : !hasDeposit
+                : !hasDeposit && neTenu
                   ? t('Votre créneau est tenu, la confirmation arrive sur WhatsApp.')
-                  : t('La Maison vérifie votre acompte et confirme votre créneau très vite.')}
+                  : !hasDeposit
+                    ? t('La Maison confirme votre créneau très vite, sur WhatsApp.')
+                    : t('La Maison vérifie votre acompte et confirme votre créneau très vite.')}
               {' '}
               {t('Ajoutez le rituel à votre calendrier : c’est lui qui vous rappellera sur votre téléphone, même l’app fermée.')}
             </p>
@@ -1826,7 +1879,7 @@ export default function Booking({ prefill, onClose, toast, onVoirRdv }: Props) {
               )}
               <div className="mc-recapcard__line">
                 <span>{t('Statut')}</span>
-                <span>{onlinePaid?.ok || !hasDeposit ? t('Confirmé') : t('En attente de la maison')}</span>
+                <span>{onlinePaid?.ok || (!hasDeposit && neTenu) ? t('Confirmé') : t('En attente de la maison')}</span>
               </div>
             </div>
             {onVoirRdv && rdvCree && (

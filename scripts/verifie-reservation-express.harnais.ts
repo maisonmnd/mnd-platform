@@ -175,7 +175,12 @@ dit('le site : plus de case a cocher, la phrase la remplace', [false, true],
   [sansCommentaires.includes('type="checkbox"'), reserver.includes('En réservant, vous acceptez que la Maison vous écrive sur WhatsApp')]);
 const booking = lis('src/apps/couronne/Booking.tsx');
 dit('Ma Couronne : le tunnel n annonce plus de nom', false, booking.includes('` · avec ${master}'));
-dit('Ma Couronne : sans acompte, la place est tenue', true, booking.includes("const tenu = !!online?.confirmed || !hasDeposit;")
+/* Depuis le 10 octobre 2026 (revue de code), « tenue » veut aussi dire : les
+   murs du serveur sont connus et la place y est encore libre. Le juge vit dans
+   couronne/reservation-pure.ts, éprouvé par verifie-revue-couronne-site.
+   Les murs sont RELUS au serveur au moment d'écrire (reprise du même jour). */
+dit('Ma Couronne : sans acompte, la place est tenue (murs connus, place libre)', true,
+  /const tenu = naitConfirme\(\{\s*acompteVerifie: !!online\?\.confirmed,\s*acompteDemande: hasDeposit,\s*mursConnus: mursFrais !== null,/.test(booking)
   && booking.includes("status: tenu ? 'confirmé' : 'en attente',"));
 const tabs = lis('src/apps/couronne/Tabs.tsx');
 dit('Ma Couronne : « Reserver ce moment » emporte tous les gestes et son heure', [true, true], [

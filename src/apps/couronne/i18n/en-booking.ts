@@ -187,6 +187,7 @@ export const EN_BOOKING: Record<string, string> = {
   'Votre acompte est reçu, votre créneau est tenu.': 'Your deposit is received, your time slot is held.',
   'Votre créneau est tenu, la confirmation arrive sur WhatsApp.': 'Your time slot is held. Your confirmation is on its way on WhatsApp.',
   'La Maison vérifie votre acompte et confirme votre créneau très vite.': 'The Maison is checking your deposit and will confirm your time slot very soon.',
+  'La Maison confirme votre créneau très vite, sur WhatsApp.': 'The Maison will confirm your time slot very soon, on WhatsApp.',
   'Ajoutez le rituel à votre calendrier : c’est lui qui vous rappellera sur votre téléphone, même l’app fermée.':
     'Add the ritual to your calendar: it will remind you on your phone, even with the app closed.',
   '{n} séances liées': '{n} linked sessions',

@@ -68,7 +68,10 @@ const rangDuParcours = (p: ParcoursMND): 0 | 1 | 2 => {
   return 2;
 };
 
-type EtatDeLaDemande = '' | 'envoi' | 'recue' | 'paiement' | 'payee' | 'refus';
+/* 'a-verifier' (10 octobre 2026, revue de code) : le widget a rendu une
+   référence, l'argent est parti, mais le serveur n'a pas encore dit « reçu ».
+   On revérifie, on ne repaie JAMAIS : « Payer l'acompte » ne s'y montre pas. */
+type EtatDeLaDemande = '' | 'envoi' | 'recue' | 'paiement' | 'a-verifier' | 'payee' | 'refus';
 
 export default function App() {
   const [porte, setPorte] = useState<PublicDeFormation | 'tous'>('debutante');
@@ -97,6 +100,9 @@ export default function App() {
   const [etat, setEtat] = useState<EtatDeLaDemande>('');
   const [dit, setDit] = useState('');
   const [deposee, setDeposee] = useState<DemandeAcademie | null>(null);
+  /* La référence du paiement parti, gardée tant que le serveur n'a pas dit « reçu ». */
+  const [refPaiement, setRefPaiement] = useState('');
+  const [reverifie, setReverifie] = useState(false);
 
   const parcoursChoisi = PARCOURS_MND.find((p) => p.id === choisi) ?? PARCOURS_MND[0];
   const acompte = acompteDe(parcoursChoisi.prixXof);
@@ -113,23 +119,35 @@ export default function App() {
         phone: d.telephone,
         name: d.nom,
       });
-      try {
-        const v = await verifyDeposit({
-          transactionId, apptId: '', inscriptionId: d.id,
-          expectedXof: d.acompteXof, branchId: d.branchId,
-        });
-        setEtat(v.ok ? 'payee' : 'recue');
-        if (!v.ok) setDit('Paiement reçu, vérification en cours. L’Académie vous confirme.');
-      } catch (e) {
-        /* Le paiement a eu lieu ; seule la vérification a échoué. La demande
-           reste, avec sa référence : on ne perd ni la place ni l'argent. */
-        setEtat('recue');
-        setDit(e instanceof Error ? e.message : 'Vérification impossible, l’Académie vérifiera.');
-      }
+      setRefPaiement(transactionId);
+      await verifieLAcompte(d, transactionId);
     } catch (e) {
       setEtat('recue');
       setDit(e instanceof Error ? e.message : 'Le paiement n’a pas abouti. Votre demande est enregistrée.');
     }
+  };
+
+  /* Le paiement a eu lieu : seule la vérification peut encore échouer. La
+     demande reste, avec sa référence, et l'écran offre « Revérifier », jamais
+     un second paiement (10 octobre 2026). */
+  const verifieLAcompte = async (d: DemandeAcademie, transactionId: string) => {
+    try {
+      const v = await verifyDeposit({
+        transactionId, apptId: '', inscriptionId: d.id,
+        expectedXof: d.acompteXof, branchId: d.branchId,
+      });
+      if (v.ok) { setEtat('payee'); setDit(''); return; }
+      setEtat('a-verifier');
+      setDit('Paiement reçu, vérification en cours. L’Académie vous confirme.');
+    } catch (e) {
+      setEtat('a-verifier');
+      setDit(e instanceof Error ? e.message : 'Vérification impossible, l’Académie vérifiera.');
+    }
+  };
+  const reverifierLAcompte = async () => {
+    if (!deposee || !refPaiement || reverifie) return;
+    setReverifie(true);
+    try { await verifieLAcompte(deposee, refPaiement); } finally { setReverifie(false); }
   };
 
   const envoyer = async (etPayer: boolean) => {
@@ -323,6 +341,17 @@ export default function App() {
               <b>Votre place est tenue.</b>
               Nous avons reçu votre acompte pour {deposee?.parcoursTitre}. L’Académie vous appelle pour
               la date de début et la suite du règlement.
+            </div>
+          ) : etat === 'a-verifier' ? (
+            <div className="ac-recu">
+              <b>Votre paiement est parti, {deposee?.nom}.</b>
+              Référence : {refPaiement}. Gardez-la : l’Académie la rapproche de votre demande.
+              {dit && <span className="ac-dit">{dit}</span>}
+              {deposee && (
+                <button type="button" className="ac-btn ac-btn--plein" style={{ marginTop: 14 }} disabled={reverifie} onClick={() => void reverifierLAcompte()}>
+                  {reverifie ? 'Vérification…' : 'Revérifier mon paiement'}
+                </button>
+              )}
             </div>
           ) : etat === 'recue' ? (
             <div className="ac-recu">

@@ -25,6 +25,8 @@ export const EN_RDV: Record<string, string> = {
   'Itinéraire vers la Maison →': 'Directions to the Maison →',
   'La Maison choisit qui s’occupe de vous.': 'The Maison chooses who takes care of you.',
   'Le rendez-vous se charge.': 'Your appointment is loading.',
+  'Ce rendez-vous n’est plus au carnet.': 'This appointment is no longer in the book.',
+  'Ce rendez-vous ne se lit pas pour l’instant : la connexion manque.': 'This appointment cannot be read right now: the connection is missing.',
   '{rituel} · actuellement {jour} à {heure}': '{rituel} · currently {jour} at {heure}',
   '{rituel} · {jour} à {heure}.': '{rituel} · {jour} at {heure}.',
   'Ouvrir': 'Open',

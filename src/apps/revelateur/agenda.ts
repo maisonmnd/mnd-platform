@@ -8,6 +8,7 @@ import { porteDuBesoin, type Besoin } from '../../shared/qualification';
 import { ATELIERS_RESERVABLES, CONSULTATION_PAR_PARCOURS, reservableSurLeSite } from '../../shared/place-du-serveur';
 import type { Bande } from './prix-calibre';
 import { client } from './maison';
+import { litToutesLesPages } from '../../shared/lecture-entiere';
 
 /* LE CALENDRIER DU SITE, SANS COMPTE — 17 septembre 2026.
 
@@ -97,18 +98,35 @@ let promesse: Promise<AgendaDeLaMaison | null> | null = null;
    branches arrivent déjà dans le même lot que le reste : attendre `maison()`
    avant de lancer ce lot ajoutait un aller-retour entier à la base. La règle
    est celle de `maison()` : la vedette active, sinon la première. */
+/* UNE LECTURE EN PANNE N'EST PAS UNE TABLE VIDE — 10 octobre 2026 (revue de
+   code). Les cinq lectures ne regardaient jamais `error` : des réglages en
+   panne fermaient chaque jour, des murs en panne rouvraient des heures
+   bloquées, des branches en panne rendaient « La réservation en ligne n'est
+   pas disponible », et ce faux agenda était gardé pour la vie de la page et
+   mis en cache. Désormais une panne REJETTE, la promesse s'oublie (le
+   prochain appel relit), et rien de faux n'entre au cache.
+
+   LES MURS SE LISENT PAR PAGES, DEPUIS HIER À COTONOU : au-delà de mille
+   lignes, un seul select rend une tranche sans le dire (voir
+   lecture-entiere.ts) ; les murs passés ne servent à rien ici. */
 export function agendaDeLaMaison(branchIdDonne?: string): Promise<AgendaDeLaMaison | null> {
   if (promesse) return promesse;
-  promesse = (async () => {
+  const p = (async () => {
     const supabase = await client();
     if (!supabase) return null;
+    const depuis = jourDeCotonou(Date.now() - 86_400_000);
     const [services, categories, docs, blocages, branches] = await Promise.all([
       supabase.from('catalog_services').select('id,data'),
       supabase.from('catalog_categories').select('id,data'),
       supabase.from('documents').select('key,data').in('key', ['mnd_settings', 'mnd_horaires_exceptions', 'mnd_vitrine_config', 'mnd_model_bands', 'mnd_model_band_sets']),
-      supabase.from('blocages').select('id,data'),
+      litToutesLesPages<{ id: string; data: unknown }>((apres, taille) => {
+        const q = supabase.from('blocages').select('id,data').gte('data->>date', depuis).order('id', { ascending: true }).limit(taille);
+        return apres === null ? q : q.gt('id', apres);
+      }),
       supabase.from('branches').select('id,data'),
     ]);
+    const panne = services.error ?? categories.error ?? docs.error ?? blocages.error ?? branches.error;
+    if (panne) throw new Error(`agenda illisible : ${panne.message}`);
     const lignes = <T,>(r: { data: unknown }): T[] =>
       ((r.data ?? []) as { data?: T }[]).map((x) => x.data).filter(Boolean) as T[];
 
@@ -152,7 +170,9 @@ export function agendaDeLaMaison(branchIdDonne?: string): Promise<AgendaDeLaMais
       formules,
     };
   })();
-  return promesse;
+  promesse = p;
+  p.catch(() => { if (promesse === p) promesse = null; });
+  return p;
 }
 
 /** Les créneaux déjà pris d'une période. ELLE ÉCHOUE OUVERT, comme Ma
@@ -186,7 +206,7 @@ export function agendaEnCache(): AgendaDeLaMaison | null {
 let calendrier: Promise<{ agenda: AgendaDeLaMaison | null; occupes: CreneauOccupe[] }> | null = null;
 export function calendrierDuSite(du: string, au: string): Promise<{ agenda: AgendaDeLaMaison | null; occupes: CreneauOccupe[] }> {
   if (calendrier) return calendrier;
-  calendrier = (async () => {
+  const c = (async () => {
     let devine = '';
     try { devine = localStorage.getItem(CLE_BRANCHE) ?? ''; } catch { /* pas de stockage */ }
     const pris = devine ? creneauxOccupes(devine, du, au) : null;
@@ -199,7 +219,11 @@ export function calendrierDuSite(du: string, au: string): Promise<{ agenda: Agen
     const occupes = pris && devine === agenda.branchId ? await pris : await creneauxOccupes(agenda.branchId, du, au);
     return { agenda, occupes };
   })();
-  return calendrier;
+  /* Un échec s'oublie : l'îlot qui rappelle relit, au lieu de recevoir la
+     même promesse rejetée pour la vie de la page (10 octobre 2026). */
+  calendrier = c;
+  c.catch(() => { if (calendrier === c) calendrier = null; });
+  return c;
 }
 export const JOURS_DU_CALENDRIER = JOURS_DU_SITE;
 
@@ -254,23 +278,36 @@ export const isoDuJour = (d: Date): string =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
 /** Les `n` prochains jours à partir de demain : on ne propose pas le jour
-    même, la Maison a besoin de préparer la venue. */
-export function prochainsJours(n: number, depuis = new Date()): string[] {
+    même, la Maison a besoin de préparer la venue.
+
+    DEMAIN À COTONOU, PAS CHEZ LA VISITEUSE — 10 octobre 2026 (revue de
+    code). Le serveur juge l'écart en jours de Cotonou (UTC+1, sans heure
+    d'été, `jourDeCotonou` de place-du-serveur) : à 23 h 30 à Londres, il est
+    déjà 0 h 30 le lendemain au Bénin, et le « demain » de la visiteuse était
+    refusé, heure après heure. */
+export function prochainsJours(n: number, maintenant: Date = new Date()): string[] {
+  const aujourdhui = jourDeCotonou(maintenant.getTime());
   const out: string[] = [];
   for (let i = 1; i <= n; i += 1) {
-    const d = new Date(depuis);
-    d.setDate(d.getDate() + i);
-    out.push(isoDuJour(d));
+    const d = new Date(`${aujourdhui}T12:00:00Z`);
+    d.setUTCDate(d.getUTCDate() + i);
+    out.push(d.toISOString().slice(0, 10));
   }
   return out;
 }
 
+/** Le jour qu'il est à Cotonou à cet instant (UTC+1 toute l'année). */
+const jourDeCotonou = (ms: number): string => new Date(ms + 3_600_000).toISOString().slice(0, 10);
+
 const JOURS_DITS = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'];
 const MOIS_DITS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
 
+/* L'ANNÉE TOUJOURS — 10 octobre 2026. Une date de rendez-vous montrée à une
+   cliente porte son année (demandé trois fois) : à l'écran « C'est réservé »,
+   au-dessus des heures, et dans le message WhatsApp qu'elle envoie. */
 export function jourDit(iso: string): string {
   const d = new Date(`${iso}T00:00:00`);
-  return `${JOURS_DITS[d.getDay()]} ${d.getDate()} ${MOIS_DITS[d.getMonth()]}`;
+  return `${JOURS_DITS[d.getDay()]} ${d.getDate()} ${MOIS_DITS[d.getMonth()]} ${d.getFullYear()}`;
 }
 
 export const jourCourt = (iso: string): { lettre: string; chiffre: string } => {

@@ -7,6 +7,7 @@ import {
   TABLE_CARTES, commandeDuSite, montantRefuse, montantTape, nouvelIdDeCarte, type CarteCadeau, type ModeleDeCarte,
 } from '../../../shared/cartes-cadeaux-pur';
 import { imageDeLaCarte } from './carte-image';
+import { raisonDuRefus } from '../refus-du-serveur';
 
 /* LA CARTE CADEAU — 27 septembre 2026, maquette validée. « Intègre également
    le concept des cartes cadeaux. L'ERP nous le permet » (Yéman). Trois
@@ -110,14 +111,19 @@ export default function Offrir() {
     try {
       const supabase = await client();
       if (!supabase) { setErreur('La commande n’est pas reliée pour l’instant. Écrivez-nous sur WhatsApp, la carte se prépare aussi bien.'); return; }
-      /* Une commande abandonnée en ligne n'en dépose pas une seconde. */
-      if (!commande) await deposeLaCommande('maison');
+      /* Une commande abandonnée en ligne n'en dépose pas une seconde, ET UN
+         ESSAI MANQUÉ NON PLUS (10 octobre 2026, revue de code) : la commande
+         déposée est gardée avant l'envoi. Sans cela, chaque clic après un échec
+         de demande-submit insérait une nouvelle carte « à régler ». */
+      const deposee = commande ?? await deposeLaCommande('maison');
+      if (deposee && deposee !== commande) setCommande(deposee);
       const { data, error } = await supabase.functions.invoke('demande-submit', {
         body: { genre: 'prospect', data: { prenom: de, telephone: tel, besoin: 'inconnu', profil: 'Carte cadeau', mot: resume, page: location.pathname, consentement: true } },
       });
       const r = (data ?? {}) as { ok?: boolean; error?: string };
       if (error || !r.ok) {
-        const code = r.error ?? (error?.message ?? '');
+        /* La raison est dans le corps de la réponse refusée (refus-du-serveur.ts). */
+        const code = await raisonDuRefus(data, error);
         if (code.includes('rate')) setErreur('Beaucoup de demandes d’un coup : réessayez dans quelques minutes, ou écrivez-nous sur WhatsApp.');
         else if (code.includes('telephone')) setErreur(f.erreurNumero);
         else setErreur('L’envoi n’a pas abouti. Écrivez-nous sur WhatsApp, la carte se prépare aussi bien.');
@@ -142,7 +148,15 @@ export default function Offrir() {
     setErreur(null);
     setEnvoi(true);
     try {
-      const c = commande ?? await deposeLaCommande('en-ligne');
+      /* UNE COMMANDE « À LA MAISON » NE SE RÈGLE PAS EN LIGNE — 10 octobre
+         2026 (reprise de la revue). Depuis qu'un essai manqué de « je règle à
+         la Maison » garde sa commande, celle-ci arrivait ici et se payait par
+         KkiaPay en restant d'origine 'maison' : le Trône l'aurait dite
+         « commandée sur le site », sans « réglée en ligne ». Le site ne peut
+         pas réécrire une carte déposée (la base ne lui ouvre que l'insertion) :
+         seule une commande déjà 'en-ligne' se reprend, sinon une carte en
+         ligne naît, à son origine juste. */
+      const c = (commande?.origine === 'en-ligne' ? commande : null) ?? await deposeLaCommande('en-ligne');
       if (!c) { setErreur('Le paiement en ligne n’est pas disponible pour l’instant. Commandez la carte : la Maison la prépare avec vous.'); return; }
       setCommande(c);
       mesure('cadeau_paiement_ouvert', { parcours: 'inconnu' });
@@ -263,7 +277,7 @@ export default function Offrir() {
       <form className="config" onSubmit={(e) => void commander(e)} noValidate>
         <div className="pilules" role="radiogroup" aria-label="Le modèle de la carte">
           {MODELES.map(([m, nom]) => (
-            <label key={m}><input type="radio" name="modele" value={m} checked={modele === m} onChange={() => setModele(m)} />{nom}</label>
+            <label key={m}><input type="radio" name="modele" value={m} checked={modele === m} onChange={() => setModele(m)} disabled={!!commande} />{nom}</label>
           ))}
         </div>
         <div className="onglets" role="tablist" aria-label="Offrir">
@@ -272,7 +286,7 @@ export default function Offrir() {
         </div>
         {mode === 'geste' ? (
           <div className="pilules" role="radiogroup" aria-label="Le geste offert">
-            {GESTES.map((g) => <label key={g}><input type="radio" name="geste" value={g} checked={geste === g} onChange={() => setGeste(g)} />{g}</label>)}
+            {GESTES.map((g) => <label key={g}><input type="radio" name="geste" value={g} checked={geste === g} onChange={() => setGeste(g)} disabled={!!commande} />{g}</label>)}
           </div>
         ) : (
           <div className="champ"><label htmlFor="cc-montant">Le montant de votre choix</label><input id="cc-montant" name="montant" inputMode="numeric" placeholder="En francs CFA" value={montant} onChange={(e) => setMontant(e.target.value)} disabled={!!commande} /></div>
@@ -293,7 +307,7 @@ export default function Offrir() {
         {mode === 'montant' && peutPayer ? (
           <>
             <button className="btn btn--fort" type="button" onClick={() => void regler()} disabled={envoi}>
-              {envoi ? 'Paiement en cours' : commande ? 'Rouvrir le paiement' : 'Régler maintenant'}
+              {envoi ? 'Paiement en cours' : commande?.origine === 'en-ligne' ? 'Rouvrir le paiement' : 'Régler maintenant'}
             </button>
             <p className="note-paiement">Mobile Money, Wave ou carte, avec KkiaPay. Les frais de paiement sont à votre charge.</p>
             <button className="btn btn--lien" type="submit" disabled={envoi}>Commander, je règle à la Maison</button>

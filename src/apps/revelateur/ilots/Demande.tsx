@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { COMMUN } from '../contenu';
 import { client, lienWhatsApp, maison } from '../maison';
 import { campagne, mesure } from '../mesure';
+import { raisonDuRefus } from '../refus-du-serveur';
 import type { Besoin } from '../../../shared/qualification';
 import { codeNormalise } from '../../../shared/offres-pur';
 import { FORME_DU_CODE } from '../../../shared/parrainage-pur';
@@ -81,7 +82,8 @@ export default function Demande({ genre, besoin: besoinInitial, profil: profilPo
       });
       const r = (data ?? {}) as { ok?: boolean; error?: string };
       if (error || !r.ok) {
-        const code = r.error ?? (error?.message ?? '');
+        /* La raison est dans le corps de la réponse refusée (refus-du-serveur.ts, 10 octobre 2026). */
+        const code = await raisonDuRefus(data, error);
         if (code.includes('rate')) setErreur('Beaucoup de demandes d’un coup : réessayez dans quelques minutes, ou écrivez-nous sur WhatsApp.');
         else if (code.includes('telephone')) setErreur(f.erreurNumero);
         else setErreur('L’envoi n’a pas abouti. Écrivez-nous sur WhatsApp, nous vous répondons.');

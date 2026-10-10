@@ -544,6 +544,22 @@ export function freeSlots(
   });
 }
 
+/** LA GRILLE DU JOUR, SANS AUCUN MUR — 10 octobre 2026. Les heures qu'un
+    jour peut proposer quand rien ne les occupe : l'ouverture, la durée, le pas
+    d'une heure, l'heure déjà passée. Elle dit si une heure habituelle à la
+    demi-heure (« 10:30 », posée au Trône) a jamais pu être proposée ici, pour
+    ne plus la dire « prise » à tort (voir `heureHabituelle`). */
+export function grilleDuJour(dateIso: string, durationMin: number): string[] {
+  const now = new Date();
+  return creneauxLibres({
+    opening: openingForIso(dateIso),
+    durationMin,
+    occupes: [],
+    master: '',
+    maintenantMin: dateIso === isoOf(now) ? now.getHours() * 60 + now.getMinutes() : null,
+  });
+}
+
 /** LES CRÉNEAUX OCCUPÉS D'UNE PÉRIODE, lus au serveur.
 
     ELLE ÉCHOUE OUVERT, ET C'EST DÉLIBÉRÉ : si la fonction n'est pas encore

@@ -18,6 +18,10 @@ import {
   projMetrics, protocoleTemps, roadmapOf, scoreTag, scoreTone, stageOf,
   type Answers, type CurrencyChoice, type Parcours, type PhotoSlot,
 } from './data';
+import {
+  ACCES_VIDE, accesApresDepot, accesApresLeWidget, accesSansVerdict, voieDAcces,
+  type Access, type Reglement,
+} from './acces-pur';
 
 /* La Consultation — le rite d'entrée mondial de la Maison MND.
    Huit temps numérotés, du seuil à la porte du salon. */
@@ -31,12 +35,7 @@ import {
    `consultationId` est tiré AVANT le paiement : c'est la référence que porte
    la transaction (`partnerId`), et l'identifiant de la ligne déposée à la fin ;
    le serveur relie les deux sans croire le navigateur. */
-type Reglement = 'kkiapay' | 'declare' | 'aucun';
-type Access = {
-  paid: boolean; ref: string | null; at: string | null;
-  consultationId: string | null; amountXof: number; reglement: Reglement;
-};
-const ACCES_VIDE: Access = { paid: false, ref: null, at: null, consultationId: null, amountXof: 0, reglement: 'aucun' };
+/* Le type et ses passages vivent dans acces-pur.ts (10 octobre 2026). */
 const accessStore = createStore<Access>('mnd_consultation_access', ACCES_VIDE);
 
 type Scene =
@@ -44,6 +43,12 @@ type Scene =
   | 'portrait' | 'preuves' | 'habitudes' | 'vision'
   | 'analyse' | 'diagnostic' | 'projection' | 'protocole' | 'reserver'
   | 'bienvenue';
+
+/* LA FEUILLE DE ROUTE SE DIT SANS « SALON » — 10 octobre 2026. Les valeurs
+   internes ('Salon', 'Maison') restent, seule leur étiquette change : la
+   séance a lieu à la Maison, l'entretien d'entre deux se fait chez elle. */
+const etiquetteDeRoute = (tag: string): string =>
+  (tag === 'Salon' ? 'À la Maison' : tag === 'Maison' ? 'Chez vous' : tag);
 
 const RAIL: { id: Scene; label: string }[] = [
   { id: 'portrait', label: 'Portrait' },
@@ -153,6 +158,9 @@ export default function App() {
   const [payPhone, setPayPhone] = useState('');
   const [paying, setPaying] = useState(false);
   const [payErreur, setPayErreur] = useState<string | null>(null);
+  /* L'accès qui a porté la consultation déposée : l'écran de bienvenue le
+     relit, l'accès persisté, lui, est déjà vide (10 octobre 2026). */
+  const [scelle, setScelle] = useState<Access | null>(null);
 
   // analyse & projection
   const [analysePct, setAnalysePct] = useState(0);
@@ -266,15 +274,34 @@ export default function App() {
         phone: payPhone.trim() ? `${answers.dial}${payPhone}` : undefined,
         name: answers.nom.trim() || undefined,
       });
-      /* Le serveur relit la barre de la Maison (jamais ce corps de requête),
-         enregistre le paiement, et c'est LUI qui dit « reçu ». */
-      const v = await verifyDeposit({ transactionId, apptId: '', consultationId, expectedXof: FEE_XOF, branchId });
-      if (!v.ok) throw new Error('Vérification impossible pour l’instant, gardez votre référence.');
-      setAccess({ paid: true, ref: transactionId, at: new Date().toISOString(), consultationId, amountXof: v.amountXof, reglement: 'kkiapay' });
-      fire('Paiement confirmé, la consultation est déverrouillée.');
-      go('portrait');
+      /* L'ARGENT EST PARTI : la référence se garde AVANT la vérification
+         (10 octobre 2026, revue de code). Une vérification en échec ne
+         réoffre plus le paiement, seulement « Revérifier ». */
+      setAccess(accesApresLeWidget(access, consultationId, transactionId, new Date().toISOString()));
+      await verifieLePaiement(transactionId);
     } catch (e) {
       setPayErreur(e instanceof Error ? e.message : 'Le paiement n’a pas abouti.');
+    } finally {
+      setPaying(false);
+    }
+  };
+  /* Le serveur relit la barre de la Maison (jamais ce corps de requête),
+     enregistre le paiement, et c'est LUI qui dit « reçu ». */
+  const verifieLePaiement = async (transactionId: string) => {
+    const v = await verifyDeposit({ transactionId, apptId: '', consultationId, expectedXof: FEE_XOF, branchId });
+    if (!v.ok) throw new Error(`Vérification impossible pour l’instant. Gardez votre référence : ${transactionId}.`);
+    setAccess({ paid: true, ref: transactionId, at: new Date().toISOString(), consultationId, amountXof: v.amountXof, reglement: 'kkiapay' });
+    fire('Paiement confirmé, la consultation est déverrouillée.');
+    go('portrait');
+  };
+  const reverifie = async () => {
+    if (paying || !access.ref) return;
+    setPaying(true);
+    setPayErreur(null);
+    try {
+      await verifieLePaiement(access.ref);
+    } catch (e) {
+      setPayErreur(e instanceof Error ? e.message : 'La vérification n’a pas abouti.');
     } finally {
       setPaying(false);
     }
@@ -283,16 +310,16 @@ export default function App() {
      rapproche un versement Mobile Money déclaré, ou encaisse au salon. Rien
      n'est « crédité » tant que le serveur ne l'a pas dit. */
   const poursuivreSansPaiement = (reglement: Reglement) => {
-    setAccess({ ...ACCES_VIDE, consultationId, reglement });
+    setAccess(accesSansVerdict(access, consultationId, reglement));
     go('portrait');
   };
 
   const copyUssd = async () => {
     try {
       await navigator.clipboard.writeText(MOMO_USSD);
-      fire('Syntaxe copiée — composez-la sur votre téléphone.');
+      fire('Syntaxe copiée, composez-la sur votre téléphone.');
     } catch {
-      fire('Copie indisponible — recopiez la syntaxe affichée.');
+      fire('Copie indisponible, recopiez la syntaxe affichée.');
     }
   };
 
@@ -396,6 +423,13 @@ export default function App() {
       status: 'nouvelle',
     };
     consultationsQueueStore.set((q) => [consultation, ...q]);
+    /* L'ACCÈS EST SCELLÉ AVEC LE DOSSIER — 10 octobre 2026 (revue de code).
+       Gardé, il faisait porter le MÊME identifiant à une seconde
+       consultation (après un rechargement), et l'upsert du serveur écrasait
+       la première. L'écran de bienvenue relit l'accès scellé. */
+    const { scelle: porte, suivant } = accesApresDepot(access);
+    setScelle(porte);
+    setAccess(suivant);
     /* Dépôt côté serveur + alerte du personnel en UN appel, LIMITÉ EN DÉBIT par IP
        (fonction Edge, mode tunnel-submit) — l'INSERT anonyme direct est fermé.
        Le magasin local reste écrit (pont même-navigateur vers Le Trône) ; si la
@@ -450,6 +484,7 @@ export default function App() {
     setPayErreur(null);
     // Un nouveau rite requiert un nouvel accès : le crédit précédent est déjà scellé au dossier transmis.
     setAccess(ACCES_VIDE);
+    setScelle(null);
     go('seuil');
   };
 
@@ -530,9 +565,9 @@ export default function App() {
               <h1 className="lc-display">Avant le rituel,<br />le diagnostic.</h1>
               <p className="lc-lead">
                 La première rencontre avec la Maison se fait ici, où que vous soyez dans le monde.
-                Quelques photos, vos habitudes, votre vision — et l’intelligence de la Maison lit votre
+                Quelques photos, vos habitudes, votre vision, et l’intelligence de la Maison lit votre
                 couronne, projette son avenir, et compose votre protocole.{' '}
-                <span className="lc-strong">Puis vous franchissez la porte du salon, déjà attendue.</span>
+                <span className="lc-strong">Puis vous franchissez la porte de la Maison, déjà attendue.</span>
               </p>
 
               <div className="lc-label lc-seuil__voies">Choisissez votre voie</div>
@@ -547,7 +582,7 @@ export default function App() {
                   <span className="lc-door__urgence">Urgence</span>
                   <span className="lc-door__seal lc-door__seal--copper">✚</span>
                   <span className="lc-door__name">SOS Locks</span>
-                  <span className="lc-door__desc">Mes locks souffrent — casse, amincissement, racines fragiles. Je veux les sauver et les restaurer.</span>
+                  <span className="lc-door__desc">Mes locks souffrent : casse, amincissement, racines fragiles. Je veux les sauver et les restaurer.</span>
                   <span className="lc-door__cta lc-door__cta--copper">Restauration →</span>
                 </button>
               </div>
@@ -590,7 +625,7 @@ export default function App() {
                 <h2 className="lc-h2">Déverrouillez votre consultation.</h2>
                 <p className="lc-intro lc-acces__intro">
                   La consultation souveraine se règle à l’entrée : <span className="lc-strong">{fee}</span>,
-                  crédités sur votre premier rituel au salon dès que le paiement est vérifié.
+                  crédités sur votre premier rituel à la Maison dès que le paiement est vérifié.
                 </p>
               </div>
 
@@ -644,7 +679,14 @@ export default function App() {
                 </div>
 
                 <div className="lc-pay__foot">
-                  {kkiapayEnabled() ? (
+                  {voieDAcces(access) === 'a-reverifier' ? (
+                    <>
+                      <button type="button" className={`lc-pay__btn${paying ? ' is-paying' : ''}`} onClick={() => void reverifie()} disabled={paying}>
+                        {paying ? 'Vérification en cours…' : 'Revérifier mon paiement'}
+                      </button>
+                      <div className="lc-hint" style={{ marginTop: 10 }}>Votre paiement est parti. Référence : <span className="lc-strong">{access.ref}</span></div>
+                    </>
+                  ) : kkiapayEnabled() ? (
                     <button type="button" className={`lc-pay__btn${paying ? ' is-paying' : ''}`} onClick={() => void payNow()} disabled={paying}>
                       {paying ? 'Vérification en cours…' : `Payer ${fee} avec KkiaPay`}
                     </button>
@@ -661,7 +703,7 @@ export default function App() {
                       : 'Le paiement en ligne n’est pas encore ouvert : la consultation se règle à la Maison.'}
                   </div>
                   <button type="button" className="lc-back" style={{ marginTop: 12 }} onClick={() => poursuivreSansPaiement('declare')}>
-                    J’ai réglé par Mobile Money moi-même, poursuivre →
+                    {voieDAcces(access) === 'a-reverifier' ? 'Poursuivre, la Maison vérifiera mon paiement →' : 'J’ai réglé par Mobile Money moi-même, poursuivre →'}
                   </button>
                 </div>
               </div>
@@ -670,7 +712,7 @@ export default function App() {
                 <button type="button" className="lc-back" onClick={() => go('seuil')}>← Changer de voie</button>
                 <div className="lc-acces__assurance">
                   <span className="lc-dot lc-dot--ok" />
-                  Paiement chiffré · référence unique · crédité au salon
+                  Paiement chiffré · référence unique · crédité à la Maison
                 </div>
               </div>
             </div>
@@ -787,7 +829,7 @@ export default function App() {
             <h2 className="lc-h2">Montrez votre couronne.</h2>
             <p className="lc-intro" style={{ maxWidth: 560 }}>
               Trois angles suffisent à l’intelligence pour lire la densité, la santé du cuir chevelu et l’état
-              des pointes. Vos images restent privées — elles ne servent qu’à votre diagnostic.
+              des pointes. Vos images restent privées, elles ne servent qu’à votre diagnostic.
             </p>
             <div className="lc-pill-hint"><span className="lc-dot lc-dot--copper" />Déposez une image sur chaque cadre</div>
 
@@ -822,7 +864,7 @@ export default function App() {
 
             <div className="lc-note">
               <Seal color="indigo" size={22} style={{ opacity: 0.6 }} />
-              <span>Pas de photo sous la main ? Vous pourrez les présenter au Maître le jour du rendez-vous — le diagnostic s’affine alors en salon.</span>
+              <span>Pas de photo sous la main ? Vous pourrez les présenter au Maître le jour du rendez-vous, le diagnostic s’affine alors à la Maison.</span>
             </div>
 
             <Nav onBack={() => go('portrait')} onNext={() => go('habitudes')} />
@@ -882,7 +924,7 @@ export default function App() {
             <FieldError show={!!tried.habitudes && !answers.nuit}>La nuit fait la moitié du soin.</FieldError>
 
             <label className="lc-label">Votre mode de vie <span className="lc-label__plus">· plusieurs choix</span></label>
-            <div className="lc-hint">Sport, eau, climat — la couronne vit ce que vous vivez.</div>
+            <div className="lc-hint">Sport, eau, climat : la couronne vit ce que vous vivez.</div>
             <div className="lc-chips">
               {LIFE_CHIPS.map(([k, name]) => (
                 <Chip key={k} on={answers.lifestyle.includes(k)} onClick={() => setA({ lifestyle: toggleIn(answers.lifestyle, k) })}>
@@ -1075,8 +1117,8 @@ export default function App() {
               </div>
               <p className="lc-proj__intro">
                 {sos
-                  ? 'Parcourez les chapitres du temps. La Maison projette la restauration de vos locks — la santé qui remonte, mèche après mèche, à partir de votre diagnostic.'
-                  : 'Parcourez les chapitres du temps. La Maison projette l’évolution de vos locks, horizon après horizon — longueur, densité, maturité — à partir de votre diagnostic et de votre mode de vie.'}
+                  ? 'Parcourez les chapitres du temps. La Maison projette la restauration de vos locks : la santé qui remonte, mèche après mèche, à partir de votre diagnostic.'
+                  : 'Parcourez les chapitres du temps. La Maison projette l’évolution de vos locks, horizon après horizon (longueur, densité, maturité), à partir de votre diagnostic et de votre mode de vie.'}
               </p>
 
               <div className="lc-chapters">
@@ -1130,8 +1172,8 @@ export default function App() {
             <div className="lc-eyebrow">Le protocole souverain · {prenom || 'votre couronne'} · Étape 7 sur 8</div>
             <h2 className="lc-h2">Votre rituel, écrit à la main.</h2>
             <p className="lc-intro" style={{ maxWidth: 600 }}>
-              Quatre temps, composés pour votre couronne et votre quotidien. C’est le standard de la Maison —
-              le même qui se joue au salon, désormais le vôtre.
+              Quatre temps, composés pour votre couronne et votre quotidien. C’est le standard de la Maison,
+              le même qui se joue au fauteuil, désormais le vôtre.
             </p>
 
             <div className="lc-temps">
@@ -1148,7 +1190,7 @@ export default function App() {
 
             <div className="lc-proto__grid">
               <div className="lc-panel">
-                <div className="lc-label lc-panel__title">La feuille de route · salon + maison</div>
+                <div className="lc-label lc-panel__title">La feuille de route · Maison + chez vous</div>
                 {roadmapOf(diag, parcours).map((r, i, arr) => (
                   <div key={r.when} className="lc-road">
                     <div className="lc-road__rail">
@@ -1158,7 +1200,7 @@ export default function App() {
                     <div className="lc-road__body">
                       <div className="lc-road__meta">
                         <span className="lc-road__when">{r.when}</span>
-                        <span className={`lc-road__tag${r.tag === 'Salon' ? ' is-salon' : ''}`}>{r.tag}</span>
+                        <span className={`lc-road__tag${r.tag === 'Salon' ? ' is-salon' : ''}`}>{etiquetteDeRoute(r.tag)}</span>
                       </div>
                       <div className="lc-road__t">{r.t}</div>
                       <div className="lc-road__s">{r.s}</div>
@@ -1271,7 +1313,7 @@ export default function App() {
                             key={iso}
                             className={`lc-cal__cell${sel ? ' is-sel' : ''}${past || closed ? ' is-off' : ''}`}
                             onClick={() => {
-                              if (past) { fire('Ce jour est déjà passé — la Maison regarde devant.'); return; }
+                              if (past) { fire('Ce jour est déjà passé, la Maison regarde devant.'); return; }
                               if (closed) { fire('La Maison est fermée le lundi.'); return; }
                               setSelDate({ iso, label });
                               setSelTime(null);
@@ -1308,7 +1350,7 @@ export default function App() {
                   <div className="lc-label lc-panel__title">Le solde</div>
                   <div className="lc-hint" style={{ marginBottom: 0 }}>
                     {access.paid ? 'Les frais de consultation sont réglés via KkiaPay et crédités à 100 %. ' : ''}
-                    Le solde de la prestation se règle {mode === 'visio' ? 'à la séance' : 'au salon'} : carte, mobile money ou
+                    Le solde de la prestation se règle {mode === 'visio' ? 'à la séance' : 'à la Maison'} : carte, mobile money ou
                     espèces, comme il vous plaira.
                   </div>
                 </div>
@@ -1318,12 +1360,12 @@ export default function App() {
               <aside className="lc-summary">
                 <div className="lc-label lc-label--copperlight">Votre dossier</div>
                 <div className="lc-summary__name">{answers.nom.trim() || 'Invitée'}</div>
-                <div className="lc-summary__line">{pathLabel} · {answers.pays ?? '—'} · couronne {diag.palierTete} · acte {diag.palier}</div>
+                <div className="lc-summary__line">{pathLabel} · {answers.pays ?? 'pays à préciser'} · couronne {diag.palierTete} · acte {diag.palier}</div>
 
                 <div className="lc-summary__rows">
                   <div className="lc-summary__row"><span>Prescription</span><span className="lc-summary__val">{diag.service.name}</span></div>
-                  <div className="lc-summary__row"><span>Rencontre</span><span className="lc-summary__val">{mode === 'salon' ? 'Cotonou · Flagship' : mode === 'visio' ? 'À distance · visio' : '—'}</span></div>
-                  <div className="lc-summary__row"><span>Créneau</span><span className="lc-summary__val">{selDate ? `${selDate.label} · ${selTime ?? '—:—'}` : '—'}</span></div>
+                  <div className="lc-summary__row"><span>Rencontre</span><span className="lc-summary__val">{mode === 'salon' ? 'Cotonou · Flagship' : mode === 'visio' ? 'À distance · visio' : 'à choisir'}</span></div>
+                  <div className="lc-summary__row"><span>Créneau</span><span className="lc-summary__val">{selDate ? `${selDate.label} · ${selTime ?? 'heure à choisir'}` : 'à choisir'}</span></div>
                 </div>
 
                 <div className="lc-summary__money">
@@ -1339,7 +1381,7 @@ export default function App() {
                   )}
                   <div className="lc-summary__msep" />
                   <div className="lc-summary__mrow lc-summary__mrow--total">
-                    <span>Solde {mode === 'visio' ? 'à la séance' : 'au salon'}</span>
+                    <span>Solde {mode === 'visio' ? 'à la séance' : 'à la Maison'}</span>
                     <span className="lc-summary__total">{fmtMoney(Math.max(0, diag.service.priceXof - credit), cur)}</span>
                   </div>
                 </div>
@@ -1370,7 +1412,7 @@ export default function App() {
               <h1 className="lc-display lc-fin__title">Bienvenue à la<br />Maison, {prenom || 'chère couronne'}.</h1>
               <p className="lc-lead lc-fin__lead">
                 Votre consultation est transmise au Trône : le Maître la reçoit avec votre diagnostic, votre
-                projection et votre protocole.{access.paid && <> Vos frais de consultation ({fee}) sont réglés et crédités sur votre première séance.</>}
+                projection et votre protocole.{(scelle ?? access).paid && <> Vos frais de consultation ({fee}) sont réglés et crédités sur votre première séance.</>}
               </p>
               <p className="lc-fin__devise">Transmise au Trône. La maison vous attend.</p>
 

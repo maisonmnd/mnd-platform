@@ -108,10 +108,20 @@ function Fenetre({ d, champ, repond }: {
     } else {
       sur.current?.focus();
     }
-    const auClavier = (e: KeyboardEvent) => { if (e.key === 'Escape') repond(null); };
-    window.addEventListener('keydown', auClavier);
+    /* ÉCHAP NE FERME QUE LA QUESTION — 10 octobre 2026 (revue de code). La
+       Modal qui la porte écoute elle aussi Échap sur la fenêtre : les deux
+       écouteurs couraient, la question rendait « garder » et la Modal se
+       fermait quand même, saisie perdue. On écoute donc EN CAPTURE (avant
+       tout écouteur de bulle) et l'événement s'arrête ici. */
+    const auClavier = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      e.stopImmediatePropagation();
+      e.preventDefault();
+      repond(null);
+    };
+    window.addEventListener('keydown', auClavier, true);
     return () => {
-      window.removeEventListener('keydown', auClavier);
+      window.removeEventListener('keydown', auClavier, true);
       avant?.focus?.();
     };
   }, [repond, champ]);
