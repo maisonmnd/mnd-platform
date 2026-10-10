@@ -551,9 +551,9 @@ export type EcartDeConformite = { avant: Invoice; apres: Invoice };
 export function tarifsDuRituel(
   /* Les prestations et la longueur suffisent (9 octobre 2026) : la fenêtre du
      rendez-vous y passe ce qui est à l'écran, avant tout enregistrement. */
-  appt: Pick<Appointment, 'serviceIds' | 'longueur'>,
+  appt: Pick<Appointment, 'serviceIds' | 'longueur'> & { date?: string },
   ctx: {
-    client?: Pick<Client, 'lockCount' | 'priceCoef' | 'prixFixes' | 'longueur'>;
+    client?: Pick<Client, 'lockCount' | 'priceCoef' | 'prixFixes' | 'longueur' | 'prixTenus'>;
     bands: ModelBand[];
     sets: Parameters<typeof pricingOf>[2];
     cats: Parameters<typeof pricingOf>[3];
@@ -563,7 +563,8 @@ export function tarifsDuRituel(
   },
 ) {
   const pricing = {
-    ...pricingOf(ctx.client, ctx.bands, ctx.sets, ctx.cats),
+    /* Le jour du rendez-vous : un prix tenu se lit à SA date (bascule de janvier 2027). */
+    ...pricingOf(ctx.client, ctx.bands, ctx.sets, ctx.cats, appt.date?.slice(0, 10)),
     /* Même ordre que la modale : la longueur figée du rituel prime — relire
        mars ne le retarife pas —, puis celle de la fiche, puis Mi-Long. */
     longueur: appt.longueur ?? ctx.client?.longueur ?? 'mi-long',

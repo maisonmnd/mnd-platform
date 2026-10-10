@@ -3,6 +3,13 @@ import { bindDocument } from './sync';
 import { mondeDeCat, priceModeOf, type CatalogCategory, type GesteOffert, type LongueurId, type Service } from './catalog';
 import type { Client } from './clients';
 import { settingsStore } from './settings';
+import { avecLesPrixTenus } from './bascule-de-janvier-pur';
+
+/** Le jour local (AAAA-MM-JJ) : un prix tenu se lit au jour de Cotonou. */
+const jourLocal = (): string => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
 
 /* L'intelligence des prix — le prix d'une cliente dépend de son MODÈLE (nombre
    de locks : 100, 204, 450…) et de son Juste Prix (coefficient personnel).
@@ -311,13 +318,16 @@ export const prixDeBase = (
 /** Le contexte tarifaire d'une cliente : sa tranche de modèle + son Juste Prix.
     `sets` est facultatif : sans lui, tout suit le barème de la Maison, comme avant. */
 export const pricingOf = (
-  client: Pick<Client, 'lockCount' | 'priceCoef' | 'prixFixes' | 'longueur' | 'margeCalibre'> | undefined,
+  client: Pick<Client, 'lockCount' | 'priceCoef' | 'prixFixes' | 'longueur' | 'margeCalibre' | 'prixTenus'> | undefined,
   bands: ModelBand[],
   sets?: Record<string, ModelBand[]>,
   /* L'arbre des categories : sans lui, une prestation rangee sous une famille
      ne trouverait pas le bareme de son atelier. Facultatif — absent, tout se
      comporte comme avant la mise en place des familles. */
   cats?: Pick<CatalogCategory, 'id' | 'parentId' | 'maison'>[],
+  /* LE JOUR DU PRIX (la bascule de janvier 2027) : ses prix tenus valent pour
+     un rendez-vous daté jusqu'au 31 mars 2027. Absent : aujourd'hui. */
+  jour?: string,
 ): PersonalPricing => ({
   /* LA MARGE ENTRE ICI, à la source : `pricingOf` est l'entonnoir de tous les
      prix personnels du Trône et de la Caisse. La poser plus bas obligerait
@@ -326,7 +336,7 @@ export const pricingOf = (
   margeCalibre: client?.margeCalibre,
   clientCoef: client?.priceCoef && client.priceCoef > 0 ? client.priceCoef : 1,
   lockCount: client?.lockCount,
-  prixFixes: client?.prixFixes,
+  prixFixes: avecLesPrixTenus(client?.prixFixes, client?.prixTenus, jour ?? jourLocal()),
   /* SA longueur par défaut — les écrans qui posent la leur (modale RDV,
      Caisse) l'écrasent par l'étalement `{ ...pricingOf(...), longueur }` ;
      Ma Couronne, qui n'a pas de sélecteur, montre ainsi SES prix. */
@@ -462,6 +472,19 @@ export const isPersonalized = (p: PersonalPricing): boolean =>
     règle nue, contre 7 sur 16 dès qu'on borne. Les prix « affichés » du catalogue
     (15 000 → 25 000 F) ne sont qu'une fourchette de vitrine, jamais une limite :
     455 locks ont été facturés 500 500 F. Borner ici aurait plafonné à 110 000 F. */
+/** LES LOCKS AU TARIF DE LEUR TRANCHE — 1er janvier 2027 (la genèse des
+    prix). Sans `auDelaDesLocks`, ou sous le seuil : `locks × tarif`, comme
+    avant. Au-delà : les `seuil` premiers au tarif de base, les suivants au
+    tarif fin de la longueur. */
+export const locksAuTarif = (
+  sv: Pick<Service, 'auDelaDesLocks'>, locks: number, longueur: LongueurId, tarif: number,
+): number => {
+  const fin = sv.auDelaDesLocks;
+  const tarifFin = fin?.tarifParLongueur?.[longueur];
+  if (!fin || tarifFin === undefined || !(fin.seuil > 0) || locks <= fin.seuil) return locks * tarif;
+  return fin.seuil * tarif + (locks - fin.seuil) * tarifFin;
+};
+
 export const perLockPriceXof = (
   sv: Pick<Service, 'ratePerLock' | 'priceFloors'>,
   lockCount: number | undefined,
@@ -600,7 +623,9 @@ const regimeBrut = (sv: Service): RegimeTarifaire => {
   if (sv.tarifLockParLongueur && Object.keys(sv.tarifLockParLongueur).length > 0) {
     return {
       k: 'lock',
-      mots: 'comptage, locks × le tarif de sa longueur, jamais sous le prix affiché',
+      mots: sv.auDelaDesLocks
+        ? `comptage par tranches : les ${sv.auDelaDesLocks.seuil} premiers locks au tarif de sa longueur, les suivants au tarif fin, jamais sous le prix affiché`
+        : 'comptage, locks × le tarif de sa longueur, jamais sous le prix affiché',
       justePrix: true,
     };
   }
@@ -906,7 +931,7 @@ export const personalPriceXof = (sv: Service, p: PersonalPricing, catalogue?: re
   const plancherLong = p.longueur ? sv.prixParLongueur?.[p.longueur] : undefined;
   const auLock = tarifLong !== undefined
     ? (p.lockCount && p.lockCount > 0
-      ? Math.max(p.lockCount * tarifLong, plancherLong ?? 0)
+      ? Math.max(locksAuTarif(sv, p.lockCount, p.longueur as LongueurId, tarifLong), plancherLong ?? 0)
       : undefined)
     : sv.tarifMode === 'lock'
       ? (p.lockCount && p.lockCount > 0 && sv.ratePerLock ? p.lockCount * sv.ratePerLock : undefined)

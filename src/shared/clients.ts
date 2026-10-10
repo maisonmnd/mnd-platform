@@ -219,6 +219,10 @@ export type Client = {
       ni une révision du catalogue ne le déplacent. Une valeur ≤ 0 n'existe
       pas — un accord à zéro franc se dit « offert », pas « prix fixe ». */
   prixFixes?: Record<string, number>;
+  /** SES PRIX TENUS TROIS MOIS — la bascule du 1er janvier 2027 : sa visite
+      montait de plus de 10 %, chaque ligne qui monte garde son prix d'avant
+      jusqu'au `jusquau`. Lus SOUS ses prix fermes (`avecLesPrixTenus`). */
+  prixTenus?: { jusquau: string; services: Record<string, number>; poseLe?: string };
   /* — la couronne : partagé Trône (CRM 360) ↔ Ma Couronne (statut, suivi) — */
   crownStyle?: string; // Microlocks, Locks fines, Sisterlocks…
   /** SA LONGUEUR PAR DÉFAUT (évolution du 11 août 2026). La doctrine du 6 août

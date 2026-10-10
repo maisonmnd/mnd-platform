@@ -2192,6 +2192,21 @@ export default function Catalogue() {
                     le plancher. Tant que la tête n’est pas comptée, c’est le plancher qui s’annonce.
                     Laisse ces cases vides pour garder un tarif unique.
                   </div>
+                  {/* LA CRÉATION PAR TRANCHES (la grille de la Maison, 1er janvier
+                      2027) : les cases ci-dessus sont le tarif de base ; le tarif
+                      fin vient de la grille et se lit ici. */}
+                  {(() => {
+                    const fin = svcForm.id ? services.find((s) => s.id === svcForm.id)?.auDelaDesLocks : undefined;
+                    if (!fin) return null;
+                    const tarifs = LONGUEURS
+                      .map((l) => (fin.tarifParLongueur[l.id] !== undefined ? `${fmtMoney(fin.tarifParLongueur[l.id] as number, currency)} en ${l.label.toLowerCase()}` : null))
+                      .filter(Boolean).join(', ');
+                    return (
+                      <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 8, lineHeight: 1.55 }}>
+                        Par tranches, la grille de la Maison : les {fin.seuil} premiers locks à ces tarifs, les suivants à {tarifs}.
+                      </div>
+                    );
+                  })()}
                 </div>
               </Field>
             )}
@@ -2991,10 +3006,13 @@ function ProgrammerAuComptage({
     () => (grillesPosees.length > 1 ? grillesPosees[grillesPosees.length - 1].g : { court: '1400', 'mi-long': '1500', long: '1600' }),
   );
   /* Quels calibres suivent la grille B — les autres suivent la A. */
+  /* UNE SEULE GRILLE LUE, TOUS LA SUIVENT (10 octobre 2026) : depuis la
+     création par tranches, les six créations portent le même tarif de base ;
+     cocher Micro et au-delà d'office les aurait mis sur la grille B d'usine. */
   const [enB, setEnB] = useState<string[]>(
     () => (grillesPosees.length > 1
       ? [...new Set(grillesPosees[grillesPosees.length - 1].bandIds)]
-      : ['cal-micro', 'cal-nano', 'cal-pico', 'cal-galaxy']),
+      : grillesPosees.length === 1 ? [] : ['cal-micro', 'cal-nano', 'cal-pico', 'cal-galaxy']),
   );
 
   const n = (v: string) => parseInt(v.replace(/[^0-9]/g, ''), 10) || 0;

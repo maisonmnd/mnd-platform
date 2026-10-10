@@ -227,6 +227,10 @@ export type Appointment = {
       prix retouché dans la fenêtre n'est jamais effacé, un rituel qui a eu
       lieu garde le sien. */
   prixFigeParLArgent?: number;
+  /** LE PRIX FIGÉ PAR LA BASCULE DU 1er JANVIER 2027 : un rendez-vous pris
+      avant garde le prix du catalogue d'avant (`shared/bascule-de-janvier-pur`).
+      Posé avec `priceXof`, du même montant ; il dit pourquoi. */
+  prixFigeParLaBascule?: number;
   /** Prestations sur lesquelles l'acompte est calculé (défaut : toutes). */
   depositServiceIds?: string[];
   /** Série multi-séances : les RDV liés partagent cet identifiant. */

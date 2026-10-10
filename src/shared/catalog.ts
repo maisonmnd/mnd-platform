@@ -139,6 +139,13 @@ export type Service = {
       Sans comptage (tête pas encore comptée), c'est ce même
       `prixParLongueur` qui s'annonce : le prix reste connu. */
   tarifLockParLongueur?: Partial<Record<LongueurId, number>>;
+  /** LA CRÉATION PAR TRANCHES — la genèse des prix, 1er janvier 2027.
+      « Au lock, par tranches, comme un barème d'impôt » : les `seuil` premiers
+      locks au `tarifLockParLongueur` (le tarif de base), les suivants au tarif
+      fin de leur longueur. Un lock de plus coûte toujours entre le tarif de
+      base et le tarif fin, jamais le saut d'un calibre au suivant.
+      `prixParLongueur` reste le plancher. Absent : le comptage d'avant. */
+  auDelaDesLocks?: { seuil: number; tarifParLongueur: Partial<Record<LongueurId, number>> };
   /** Qui commande le prix : le comptage ou la tranche. Voir TarifMode. */
   tarifMode?: TarifMode;
   /** Prestations reellement couvertes par ce forfait. Voir ServiceInclus. */

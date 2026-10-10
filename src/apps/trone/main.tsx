@@ -16,6 +16,7 @@ import { registerSW } from '../../shared/push';
 import { migreLesFormulesAZero } from '../../shared/abonnements';
 import { migreLaNouvelleGrille } from '../../shared/nouvelle-grille';
 import { migreLesFormulesEnLunes } from '../../shared/formules-en-lunes';
+import { migreLaBasculeDeJanvier } from './shell/bascule-de-janvier';
 
 /* L'APPLICATION RESTE SUR LE TÉLÉPHONE (4 octobre 2026, « hors ligne », temps 2) :
    le service s'enregistre dès l'ouverture, pas seulement quand on règle les
@@ -45,6 +46,8 @@ migreLaNouvelleGrille();
 /* LES SEPT FORMULES EN LUNES — 10 octobre 2026 (lot 2) : nées une fois,
    au comptoir pour le pilote, masquées de Ma Couronne jusqu'en janvier. */
 migreLesFormulesEnLunes();
+/* LA BASCULE DU 1er JANVIER 2027 (la genèse des prix) : ne fait rien avant ce jour-là. */
+migreLaBasculeDeJanvier();
 
 // « Remplacer la Maison » : après le redémarrage à blanc, appliquer le fichier en
 // attente sur les magasins vides AVANT le premier rendu (la synchro poussera au serveur).

@@ -43,7 +43,7 @@ const PANNES = [
   ['un prix par calibre a 0 compte pour un prix', 'src/shared/formules-fermees-pur.ts', '  && !Object.values(p.prixParCalibre ?? {}).some((v) => Number(v) > 0);', '  && !Object.values(p.prixParCalibre ?? {}).some((v) => Number(v) >= 0);'],
   ['une des six mal recopiee', 'src/shared/formules-fermees-pur.ts', "  'mlaZXBKRR4to793TZ47U', // KÚNDO™ Annuel · Pack Prestige", "  'mlaZXBKRR4to793TZ47V', // KÚNDO™ Annuel · Pack Prestige"],
   ['Ma Couronne propose encore les fermees', 'src/shared/abonnements.ts', '  const ouvertes = ouvertesALaVente(plans);', '  const ouvertes = plans.slice();'],
-  ['le comptoir vend encore les fermees', 'src/apps/trone/routes/equipe/Abonnements.tsx', '                {choixDeVente(plans, subForm.planId).map((p) => {', '                {plans.map((p) => {'],
+  ['le comptoir vend encore les fermees', 'src/apps/trone/routes/equipe/Abonnements.tsx', '{plans.filter((p) => choixDeVente(plans, subForm.planId).includes(p)', '{plans.filter((p) => true'],
   ['la nouvelle vente part d une fermee', 'src/apps/trone/routes/equipe/Abonnements.tsx', "    setSubForm({ clientId: '', planId: premiereOuverte(plans)?.id ?? '',", "    setSubForm({ clientId: '', planId: plans[0]?.id ?? '',"],
   ['la carte de la Maison fait defiler les fermees', 'src/apps/carte/App.tsx', '            plans={gardeSurLaCarte(ouvertesALaVente(plans), reglages.formulesMasquees)}', '            plans={gardeSurLaCarte(plans, reglages.formulesMasquees)}'],
   ['le Trone ne lance pas la fermeture', 'src/apps/trone/main.tsx', 'migreLesFormulesAZero();\n', 'void 0;\n'],

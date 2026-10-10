@@ -23,6 +23,7 @@ import {
 } from './data';
 import { useServices, LONGUEURS } from '../../../../shared/catalog';
 import { basculeLaVente, choixDeVente, estOuverteALaVente, premiereOuverte } from '../../../../shared/formules-fermees-pur';
+import { peutReprendreSonAncienne } from '../../../../shared/bascule-de-janvier-pur';
 import { isoDuJour } from '../../../../shared/offres-pur';
 import {
   useModelBands, useBandSets, bandsAbonnements, sortedBands, bandLabel, roundPrice,
@@ -2863,13 +2864,18 @@ export default function Abonnements() {
                 {/* FERMÉE À LA VENTE (10 octobre 2026) : une formule fermée ne se
                     vend plus au comptoir. Seule celle déjà choisie (une demande
                     venue de Ma Couronne avant la fermeture) reste, et se dit. */}
-                {choixDeVente(plans, subForm.planId).map((p) => {
+                {/* SON PREMIER RENOUVELLEMENT À L'ANCIEN PRIX (la bascule du
+                    1er janvier 2027) : la formule qu'elle tenait avant reste à
+                    sa portée une fois, même fermée aux autres. */}
+                {plans.filter((p) => choixDeVente(plans, subForm.planId).includes(p)
+                  || peutReprendreSonAncienne(p, subForm.clientId, subs)).map((p) => {
                   const four = libelleFourchette(p, subForm.cycle, calibresAbo, (x) => fmtMoney(x, currency));
+                  const reprise = peutReprendreSonAncienne(p, subForm.clientId, subs);
                   return (
                     <option key={p.id} value={p.id}>
                       {p.name} · {four ? `${four} ${SELON_LE_CALIBRE}` : fmtMoney(p.priceXof, currency)}
                       {p.mode === 'pack' ? ` · ${moisDuPack(p)} mois` : ' / mois'}
-                      {estOuverteALaVente(p) ? '' : ' · fermée à la vente'}
+                      {reprise ? ' · son renouvellement, à l’ancien prix' : estOuverteALaVente(p) ? '' : ' · fermée à la vente'}
                     </option>
                   );
                 })}

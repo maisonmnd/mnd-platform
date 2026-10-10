@@ -26,7 +26,7 @@ export type Temps = 'maintenant' | 'janvier';
 export const BASCULE_DE_JANVIER = '2027-01-01';
 /** La phase de la grille en vigueur ce jour-là (jour local, AAAA-MM-JJ). */
 export const phaseDeLaGrille = (jour: string): Temps => (jour.slice(0, 10) >= BASCULE_DE_JANVIER ? 'janvier' : 'maintenant');
-export const JOUR_DE_JANVIER = '2027-01-01';
+export const JOUR_DE_JANVIER = BASCULE_DE_JANVIER;
 
 type Champs = Record<string, unknown>;
 type Fiche = Champs & { id: string };
@@ -57,6 +57,12 @@ const NOM = (id: string, avant: string, apres: string, pourquoi = 'nom de la gri
   SV(id, { name: avant }, { name: apres }, pourquoi);
 const ARCHIVE = (id: string, nom: string, pourquoi: string, temps: Temps = 'maintenant'): Retouche =>
   SV(id, { name: nom, archived: undefined }, { archived: true }, pourquoi, temps);
+
+/* ── La création par tranches (janvier 2027) ─────────────────────────── */
+const TARIF_D_AVANT = { long: 1500, court: 1100, 'mi-long': 1300 };
+const TARIF_D_AVANT_FIN = { long: 1600, court: 1400, 'mi-long': 1500 };
+export const TARIF_DE_BASE = { court: 1150, 'mi-long': 1350, long: 1550 };
+export const AU_DELA_DE_250 = { seuil: 250, tarifParLongueur: { court: 1700, 'mi-long': 1750, long: 1800 } };
 
 export const RETOUCHES: readonly Retouche[] = [
   /* Les six chapitres, et leurs familles. */
@@ -161,6 +167,79 @@ export const RETOUCHES: readonly Retouche[] = [
   NOM('sv-sup-50', 'Option Nuage · technique knotless', 'Option Nuage · sans nœud', 'anglais retiré'),
   NOM('sv-aca-pro-biz', 'Module Business du Salon', 'Module Business · Tenir sa maison', 'le mot interdit retiré'),
   NOM('sv-aca-pro-cert', 'Cursus Certifiant Complet · KPLƆ̌N™', 'Cursus Certifiant Complet', 'KPLƆ̌N™ sort du vocabulaire public (son caron échappe à la police fon)'),
+
+  /* ══ JANVIER 2027 : LES HAUSSES ET LA CRÉATION PAR TRANCHES ═══════════
+     Posées par la bascule du 1er janvier (`bascule-de-janvier`), après que
+     les rendez-vous déjà pris ont été figés à leur prix d'avant. Chaque ligne
+     part de l'état que la phase « maintenant » a laissé. */
+
+  /* VÈKPÈ™ · La Naissance, au lock par tranches : les 250 premiers locks à
+     1 150 / 1 350 / 1 550 F, les suivants à 1 700 / 1 750 / 1 800 F ;
+     plancher 80 / 100 / 120 000 F. Chaque calibre reçoit son « dès » : le
+     prix au premier lock du calibre, arrondi aux 5 000 F inférieurs (jamais
+     plus que ce qu'une tête du calibre paie au comptage). */
+  SV('sv-atl-i-jum', { tarifLockParLongueur: TARIF_D_AVANT, prixParLongueur: { long: 120000, court: 80000, 'mi-long': 100000 }, auDelaDesLocks: undefined },
+    { tarifLockParLongueur: TARIF_DE_BASE, auDelaDesLocks: AU_DELA_DE_250, prixParLongueur: { court: 80000, 'mi-long': 100000, long: 120000 } },
+    'la création par tranches ; dès 80 000 F', 'janvier'),
+  SV('sv-atl-i-med', { tarifLockParLongueur: TARIF_D_AVANT, prixParLongueur: undefined, auDelaDesLocks: undefined },
+    { tarifLockParLongueur: TARIF_DE_BASE, auDelaDesLocks: AU_DELA_DE_250, prixParLongueur: { court: 90000, 'mi-long': 105000, long: 125000 } },
+    'la création par tranches ; dès 90 000 F (il affichait 0 F)', 'janvier'),
+  SV('sv-atl-i-min', { tarifLockParLongueur: TARIF_D_AVANT, prixParLongueur: undefined, auDelaDesLocks: undefined },
+    { tarifLockParLongueur: TARIF_DE_BASE, auDelaDesLocks: AU_DELA_DE_250, prixParLongueur: { court: 170000, 'mi-long': 200000, long: 230000 } },
+    'la création par tranches ; dès 170 000 F (il affichait 0 F)', 'janvier'),
+  SV('sv-atl-i-mic', { tarifLockParLongueur: TARIF_D_AVANT_FIN, prixParLongueur: undefined, auDelaDesLocks: undefined },
+    { tarifLockParLongueur: TARIF_DE_BASE, auDelaDesLocks: AU_DELA_DE_250, prixParLongueur: { court: 285000, 'mi-long': 335000, long: 385000 } },
+    'la création par tranches ; dès 285 000 F (il affichait 0 F)', 'janvier'),
+  SV('sv-atl-i-nan', { tarifLockParLongueur: TARIF_D_AVANT_FIN, prixParLongueur: { long: 600000, court: 525000, 'mi-long': 575000 }, auDelaDesLocks: undefined },
+    { tarifLockParLongueur: TARIF_DE_BASE, auDelaDesLocks: AU_DELA_DE_250, prixParLongueur: { court: 455000, 'mi-long': 510000, long: 565000 } },
+    'la création par tranches ; dès 455 000 F, au comptage', 'janvier'),
+  SV('sv-atl-i-pic', { tarifLockParLongueur: TARIF_D_AVANT_FIN, prixParLongueur: { long: 825000, court: 700000, 'mi-long': 775000 }, auDelaDesLocks: undefined },
+    { tarifLockParLongueur: TARIF_DE_BASE, auDelaDesLocks: AU_DELA_DE_250, prixParLongueur: { court: 625000, 'mi-long': 685000, long: 745000 } },
+    'la création par tranches ; dès 625 000 F, au comptage', 'janvier'),
+
+  /* GBÈJÍ™ · La Vie : La Retouche au calibre (la première, après une
+     création, reste comprise). */
+  SV('sv-retouches-post-reprise',
+    { priceXof: 4000, priceFloors: { 'cal-mini': 7000, 'cal-nano': 12000, 'cal-pico': 15000, 'cal-jumbo': 3000, 'cal-micro': 10000, 'cal-galaxy': 20000, 'cal-medium': 5000 } },
+    { priceXof: 5000, priceFloors: { 'cal-jumbo': 5000, 'cal-medium': 7000, 'cal-mini': 9000, 'cal-micro': 12000, 'cal-nano': 15000, 'cal-pico': 18000, 'cal-galaxy': 20000 } },
+    'La Retouche au calibre, de 5 000 à 20 000 F', 'janvier'),
+
+  /* YÈKPÈ™ · La Lumière : l'Éclat comme porte, une seule Couleur, la
+     Transformation hors de la couleur végétale. */
+  SV('sv-atl-iii-ecl-c', { name: 'YÈKPÈ™ Éclat · Le Raviveur de Couleur · Court', priceXof: 5000 },
+    { name: 'YÈKPÈ™ Éclat · Le Raviveur de Couleur', priceXof: 8000 }, 'l’Éclat, la porte de la couleur, 8 000 F sans DÀNDÀN™ inclus', 'janvier'),
+  SV('sv-atl-iii-cou-c', { prixParLongueur: { court: 15000, 'mi-long': 20000 } },
+    { prixParLongueur: { court: 15000, 'mi-long': 20000, long: 25000 } }, 'les deux YÈKPÈ™ Couleur en une ligne, 15 / 20 / 25 000 F', 'janvier'),
+  ARCHIVE('sv-atl-iii-cou-l', 'YÈKPÈ™ Couleur', 'fondue dans YÈKPÈ™ Couleur · La Révélation Végétale', 'janvier'),
+  SV('sv-atl-iii-sub-c', { priceXof: 25000, prixParLongueur: { long: 35000, court: 25000, 'mi-long': 30000 } },
+    { priceXof: 35000, prixParLongueur: { court: 35000, 'mi-long': 45000, long: 55000 } }, 'La Transformation, 35 / 45 / 55 000 F', 'janvier'),
+  ARCHIVE('sv-plt-60-pc-c', 'Le Protocole Post-Couleur · Court', 'remplacé par YÈKPÈ™ · Cure de Lumière', 'janvier'),
+  ARCHIVE('sv-plt-60-pc-m', 'Le Protocole Post-Couleur · Mi-Long', 'remplacé par YÈKPÈ™ · Cure de Lumière', 'janvier'),
+  ARCHIVE('sv-plt-60-pc-l', 'Le Protocole Post-Couleur · Long ou haute densité', 'remplacé par YÈKPÈ™ · Cure de Lumière', 'janvier'),
+  ARCHIVE('sv-forfait-sv-fft-iii-01', 'YÈKPÈ™ × 3 · Le Cycle de Transformation, 3 mois', 'remplacé par YÈKPÈ™ · Cure de Lumière', 'janvier'),
+
+  /* FÍNFÍN™ · La Renaissance : une pente régulière, une cure recomposée. */
+  SV('sv-atl-iv-gbp-c', { prixParLongueur: { long: 120000, court: 80000, 'mi-long': 90000 } },
+    { prixParLongueur: { court: 80000, 'mi-long': 100000, long: 120000 } }, 'FÍNFÍN™ Profond, pente régulière : 80 / 100 / 120 000 F', 'janvier'),
+  SV('sv-fft-iv-01', { name: 'Cure GBÌGBÌ™ Profond × 3 · La Reconstruction Suivie', priceXof: 270000, prixParLongueur: undefined },
+    { name: 'FÍNFÍN™ · Cure Profonde de trois', priceXof: 245000, prixParLongueur: { court: 245000, 'mi-long': 310000, long: 370000 } },
+    'la cure recomposée, la composition moins 10 % : 245 / 310 / 370 000 F', 'janvier'),
+  ARCHIVE('sv-fft-iv-02', 'FÍNFÍN™ × GBÈJÍ™ · La Renaissance + 6 Mois d’Entretien', 'remplacé par FÍNFÍN™ puis le Carnet de Six', 'janvier'),
+
+  /* Les forfaits et abonnements d'avant : les formules en lunes les remplacent. */
+  ARCHIVE('sv-forfait-gbeji-fidelite', 'GBÈJÍ™ Fidélité · Reprise & Shampoing Signature', 'remplacé par la venue nommée', 'janvier'),
+  ARCHIVE('sv-forfait-sv-fft-ii-01', 'Abonnement : GBÈJÍ™ Trimestriel · Le Cycle de Vie, 3 mois', 'remplacé par les Carnets en lunes', 'janvier'),
+  ARCHIVE('sv-forfait-sv-fft-ii-02', 'Abonnement : GBÈJÍ™ Annuel · Le Cycle de Vie, 12 mois', 'doublait le Carnet de l’Année', 'janvier'),
+  ARCHIVE('sv-forfait-sv-fft-i-01', 'Forfait VÈKPÈ™ Initiation · La Naissance + Trousse MND™', 'remplacé par VÈKPÈ™ · Les Premières Lunes', 'janvier'),
+  ARCHIVE('sv-fft-i-02', 'Forfait VÈKPÈ™ × GBÈJÍ™ · La Naissance + Les 3 Premiers Entretiens', 'remplacé par VÈKPÈ™ · Les Premières Lunes', 'janvier'),
+
+  /* MND Kids : la marche à 150 locks, la naissance recomposée. */
+  SV('sv-kids-sinsin', { paliersDeLocks: [{ auDela: 250, prixXof: 20000 }] }, { paliersDeLocks: [{ auDela: 150, prixXof: 20000 }] },
+    'SÍNSIN™ Kids : 20 000 F au-delà de 150 locks (et non 250)', 'janvier'),
+  SV('sv-kids-rituel', { paliersDeLocks: [{ auDela: 250, prixXof: 30000 }] }, { paliersDeLocks: [{ auDela: 150, prixXof: 30000 }] },
+    'la marche du Rituel suit celle du SÍNSIN™ Kids, à 150 locks', 'janvier'),
+  SV('sv-kids-naissance', { priceXof: 150000, forfaitRemisePct: undefined }, { priceXof: 0, forfaitRemisePct: 10 },
+    'Les Premières Venues : la composition moins 10 %, au calibre de l’enfant', 'janvier'),
 ];
 
 /* ── Les descriptions : Kòfí™ n'existe pas encore, les noms fon sont
@@ -182,6 +261,14 @@ export const PHRASES: readonly Phrase[] = [
   { id: 'sv-atl-i-mic', temps: 'maintenant', avant: 'Inclus : DÀNDÀN™ + GBÌGBÌ™ post pose, 1 Retouches Post Création à 4 semaines, coiffure signature de sortie.', apres: 'Inclus : la préparation, DÀNDÀN™ + GBÌGBÌ™ post pose, la sortie signature, et La Retouche à 4 semaines, posée d’office.', pourquoi: 'le socle de la création, le même à tous les calibres (correction 3) ; La Retouche posée d’office' },
   { id: 'sv-atl-i-nan', temps: 'maintenant', avant: 'Inclus : DÀNDÀN™ + GBÌGBÌ™ post pose, 1 SÍNSIN™ Essentiel offert à 6 semaines, coiffure signature de sortie.', apres: 'Inclus : la préparation, DÀNDÀN™ + GBÌGBÌ™ post pose, 1 SÍNSIN™ Essentiel offert à 6 semaines, la sortie signature, et La Retouche à 4 semaines, posée d’office.', pourquoi: 'le socle de la création, le même à tous les calibres (correction 3) ; La Retouche posée d’office' },
   { id: 'sv-atl-i-pic', temps: 'maintenant', avant: 'Inclus : DÀNDÀN™ + GBÌGBÌ™ post pose, 1 SÍNSIN™ Essentiel offert à 6 semaines, coiffure signature de sortie.', apres: 'Inclus : la préparation, DÀNDÀN™ + GBÌGBÌ™ post pose, 1 SÍNSIN™ Essentiel offert à 6 semaines, la sortie signature, et La Retouche à 4 semaines, posée d’office.', pourquoi: 'le socle de la création, le même à tous les calibres (correction 3) ; La Retouche posée d’office' },
+  /* ── Janvier 2027 ── */
+  { id: 'sv-atl-i-min', temps: 'janvier', avant: 'le DÀNDÀN™ post pose, 1 SÍNSIN™ Essentiel offert à 6 semaines, la sortie signature', apres: 'le DÀNDÀN™ post pose, la sortie signature', pourquoi: 'le SÍNSIN™ à 6 semaines reste à Nano, Pico et Galaxy (maquette validée)' },
+  { id: 'sv-atl-iii-ecl-c', temps: 'janvier', avant: 'Inclus : DÀNDÀN™ post couleur et styling de sortie.', apres: 'Inclus : la sortie soignée. Le DÀNDÀN™ se propose à côté.', pourquoi: 'l’Éclat sans DÀNDÀN™ inclus' },
+  { id: 'sv-kids-sinsin', temps: 'janvier', avant: '20 000 F au-delà de 250 locks.', apres: '20 000 F au-delà de 150 locks.', pourquoi: 'la marche à 150 locks' },
+  { id: 'sv-kids-rituel', temps: 'janvier', avant: 'Au-delà de 250 locks', apres: 'Au-delà de 150 locks', pourquoi: 'la marche à 150 locks' },
+  { id: 'sv-kids-naissance', temps: 'janvier', avant: 'La pose, puis les trois venues qui la tiennent : deux retouches post création à 2 et à 4 semaines, et une reprise essentielle à 8 semaines.', apres: 'La création, puis les trois venues qui la tiennent : La Retouche à 2 et à 4 semaines, et un SÍNSIN™ Kids à 8 semaines. La composition moins 10 %, au calibre de l’enfant.', pourquoi: 'la naissance recomposée' },
+  { id: 'sv-fft-iv-01', temps: 'janvier', avant: '3 séances GBÌGBÌ™ Profond espacées de 3 semaines', apres: '3 séances FÍNFÍN™ Profond espacées de 3 semaines', pourquoi: 'GBÌGBÌ™ ne nomme plus que le renfort' },
+  { id: 'sv-fft-iv-01', temps: 'janvier', avant: '1 Retouches Post Restauration', apres: '1 FÍNFÍN™ · La Retouche', pourquoi: 'la retouche de restauration a son nom' },
 ];
 
 /* ── Ce qui naît. Masqué du site et de Ma Couronne jusqu'en janvier :
@@ -229,11 +316,29 @@ export const NAISSANCES: readonly Naissance[] = [
     includes: [{ serviceId: 'sv-plt-40-m' }, { serviceId: 'sv-plt-40-m', afterWeeks: 3 }, { serviceId: 'sv-plt-40-m', afterWeeks: 6 }],
     description: 'Trois renforts GBÌGBÌ™ en six semaines, posés au carnet.',
   }) },
+
+  /* ── Janvier 2027 : visibles dès leur naissance ── */
+  { quoi: 'service', temps: 'janvier', pourquoi: 'la couleur et ses soins en une cure, au lieu de trois protocoles aux liens morts', fiche: PRESTATION({
+    id: 'sv-yekpe-cure-lumiere', categoryId: 'atl-iii-yekpe', name: 'YÈKPÈ™ · Cure de Lumière', code: 'ATL·III·CUR', order: 20,
+    priceXof: 0, forfaitRemisePct: 15, durationMin: 150,
+    includes: [
+      { serviceId: 'sv-atl-iii-cou-c' }, { serviceId: 'sv-plt-40-m', afterWeeks: 2 }, { serviceId: 'sv-plt-10-m', afterWeeks: 4 },
+      { serviceId: 'sv-plt-20-c', afterWeeks: 6 }, { serviceId: 'sv-atl-iii-ecl-c', afterWeeks: 8 },
+    ],
+    description: 'La Couleur, puis ses soins posés au carnet : le Renfort à deux semaines, le DÀNDÀN™ à un mois, le WÈWÈ™ à six semaines, l’Éclat à huit semaines. La composition moins 15 %.',
+  }) },
+  { quoi: 'service', temps: 'janvier', pourquoi: 'la passerelle du cheveu naturel vers les locks (question 10)', fiche: PRESTATION({
+    id: 'sv-stu-transition', categoryId: 'stu-b', name: 'RÉVÉLER · Le Programme Transition', code: 'STU·B·TRA', order: 3,
+    priceXof: 16000, prixParLongueur: { court: 16000, 'mi-long': 22000, long: 30000 }, sessions: 2, durationMin: 60,
+    description: 'La passerelle du cheveu naturel vers les locks : deux Éveils, posés au fil de la transition. Le second est déduit de la création qui suit.',
+  }) },
 ];
 
 /** Les nouveautés masquées du site et de Ma Couronne jusqu'en janvier. */
 export const MASQUEES_JUSQUEN_JANVIER: readonly string[] = NAISSANCES
-  .filter((n) => n.quoi === 'service').map((n) => n.fiche.id);
+  .filter((n) => n.quoi === 'service' && n.temps === 'maintenant').map((n) => n.fiche.id);
+/** Ce que janvier montre en plus : la Cure VÍVÍVÓ™, décidée visible. */
+export const DEMASQUEES_EN_JANVIER: readonly string[] = ['sv-plt-30-cur'];
 
 /* ══ LE JUGE ══════════════════════════════════════════════════════════ */
 
@@ -315,10 +420,11 @@ export function masquesDeLaGrille<C extends { hiddenServices?: string[]; siteMas
   cfg: C, phase: Temps,
 ): C | null {
   const ids = MASQUEES_JUSQUEN_JANVIER;
+  const montrees = [...ids, ...DEMASQUEES_EN_JANVIER];
   const caches = cfg.hiddenServices ?? [];
   const site = cfg.siteMasques?.services ?? [];
-  const nCaches = phase === 'maintenant' ? [...caches, ...ids.filter((i) => !caches.includes(i))] : caches.filter((i) => !ids.includes(i));
-  const nSite = phase === 'maintenant' ? [...site, ...ids.filter((i) => !site.includes(i))] : site.filter((i) => !ids.includes(i));
+  const nCaches = phase === 'maintenant' ? [...caches, ...ids.filter((i) => !caches.includes(i))] : caches.filter((i) => !montrees.includes(i));
+  const nSite = phase === 'maintenant' ? [...site, ...ids.filter((i) => !site.includes(i))] : site.filter((i) => !montrees.includes(i));
   if (egaux(nCaches, caches) && egaux(nSite, site)) return null;
   return { ...cfg, hiddenServices: nCaches, siteMasques: { ...(cfg.siteMasques ?? {}), services: nSite } };
 }

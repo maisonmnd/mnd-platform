@@ -86,7 +86,9 @@ dit('la migration ferme par le juge, depuis le magasin des formules', true,
   new RegExp(String.raw`fermeLesFormulesAZero\(plansStore\.get\(\), isoDuJour\(new Date\(\)\)\)`).test(abo));
 const ecran = sansCom('src/apps/trone/routes/equipe/Abonnements.tsx');
 dit('comptoir : vente et contrat lisent choixDeVente, defaut premiereOuverte (x4), bouton par basculeLaVente', [true, true, 4, true, false], [
-  new RegExp(String.raw`choixDeVente\(plans, subForm\.planId\)\.map\(`).test(ecran),
+  /* La vente lit choixDeVente ; seule s'y ajoute la reprise unique d'une formule
+     fermee par la bascule de janvier 2027 (`peutReprendreSonAncienne`). */
+  new RegExp(String.raw`plans\.filter\(\(p\) => choixDeVente\(plans, subForm\.planId\)\.includes\(p\)\s*\|\| peutReprendreSonAncienne\(p, subForm\.clientId, subs\)\)\.map\(`).test(ecran),
   new RegExp(String.raw`choixDeVente\(plans, contratEdit\.planId\)\.map\(`).test(ecran),
   (ecran.match(/planId: premiereOuverte\(plans\)\?\.id \?\? ''/g) ?? []).length,
   new RegExp(String.raw`basculeLaVente\(x, isoDuJour\(new Date\(\)\)\)`).test(ecran),

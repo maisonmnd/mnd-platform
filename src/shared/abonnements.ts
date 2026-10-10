@@ -140,6 +140,9 @@ export type Plan = {
   fermee?: boolean;
   /** Le jour de la fermeture (AAAA-MM-JJ). */
   fermeeLe?: string;
+  /** Fermée par la bascule du 1er janvier 2027 : la tête qui la tenait peut
+      la reprendre une fois, à l'ancien prix (`peutReprendreSonAncienne`). */
+  fermeeParLaBascule?: boolean;
 
   /* ══ LES FORMULES EN LUNES — 10 octobre 2026 (la genèse des prix, lot 2) ══
      Voir `shared/formules-en-lunes-pur`. */

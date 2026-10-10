@@ -30,6 +30,8 @@ export const CHAMPS_DE_LA_VISITE = [
      promesse, le Regard déduit, appartiennent à CETTE visite. La suite
      imposée les pose elle-même quand il le faut. */
   'retoucheComprise', 'sinsinOffert', 'regardDeduit', 'deduitSur',
+  /* Le prix d'avant la bascule de janvier 2027 tient pour CE rendez-vous. */
+  'prixFigeParLaBascule',
 ] as const;
 
 /** Le rituel d'avant, débarrassé de sa visite. Rend une copie. */
