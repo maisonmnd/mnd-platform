@@ -405,7 +405,7 @@ export function catalogueVisiblePour(o: {
   const parCatalogue = (a: { categoryId: string; order: number }, b: { categoryId: string; order: number }): number =>
     ((rangCat.get(a.categoryId) ?? 9999) - (rangCat.get(b.categoryId) ?? 9999)) || (a.order - b.order);
   const services = o.services
-    .filter((s) => catOk(s.categoryId) && !o.cfg.hiddenServices.includes(s.id) && !mSvcs.includes(s.id))
+    .filter((s) => s.archived !== true && catOk(s.categoryId) && !o.cfg.hiddenServices.includes(s.id) && !mSvcs.includes(s.id))
     .slice()
     .sort(parCatalogue);
   const products = o.products
@@ -438,6 +438,12 @@ import type { FormuleRapide } from './reservation-express';
 bindCollection(consultationsQueueStore, 'consultations_queue');
 bindDocument(composeStore, 'mnd_couronne_compose');
 bindDocument(vitrineConfigStore, 'mnd_vitrine_config');
+
+/** LES AVIS GOOGLE CHOISIS — 10 octobre 2026. Le seul geste de l'onglet du
+    site sur la vitrine, et il ne touche QUE `avisChoisis` : le site ne règle
+    ni Ma Couronne ni la carte du comptoir (règle des vitrines, 4 octobre). */
+export const poseLesAvisChoisis = (liste: string[]): void =>
+  vitrineConfigStore.set((c) => ({ ...c, avisChoisis: liste }));
 
 /* ── LES DEMANDES DE FORMULE — Ma Couronne → Le Trône, 28 août 2026 ────
    « Build an interactive way for the clients to purchase and follow their

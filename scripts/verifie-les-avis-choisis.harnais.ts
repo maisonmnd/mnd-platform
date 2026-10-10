@@ -81,7 +81,8 @@ dit('site : le choix se lit dans mnd_vitrine_config (lisible sans compte)', true
   new RegExp(String.raw`export async function avisChoisis\(\)[\s\S]{0,300}eq\('key', 'mnd_vitrine_config'\)`).test(maison));
 const trone = sansCom('src/apps/trone/routes/clients/VitrineSite.tsx');
 dit('Trone : le choix s ecrit dans avisChoisis, par les fonctions du juge', [true, true, true, true], [
-  new RegExp(String.raw`vitrineConfigStore\.set\(\(c\) => \(\{ \.\.\.c, avisChoisis: liste \}\)\)`).test(trone),
+  /const pose = \(liste: string\[\]\) => poseLesAvisChoisis\(liste\);/.test(trone)
+    && new RegExp(String.raw`export const poseLesAvisChoisis = \(liste: string\[\]\): void =>\s*vitrineConfigStore\.set\(\(c\) => \(\{ \.\.\.c, avisChoisis: liste \}\)\)`).test(sansCom('src/shared/bridges.ts')),
   new RegExp(String.raw`basculeLeChoix\(choisis, cle\)`).test(trone),
   new RegExp(String.raw`deplaceLeChoix\(choisis, cle, -1\)`).test(trone),
   new RegExp(String.raw`<ChoixDesAvis avis=`).test(trone),

@@ -1413,7 +1413,12 @@ export default function Catalogue() {
                     {CHIFFRE_DU_PALIER[svc.palier]} · {svc.palier} · {prestations.filter((x) => x.palier === svc.palier).length}
                   </div>
                 )}
-                <article className={`trv-pal trv-svc trv-svc--${RANG_DU_PALIER[svc.palier]}`}>
+                <article className={`trv-pal trv-svc trv-svc--${RANG_DU_PALIER[svc.palier]}`} style={svc.archived ? { opacity: 0.55 } : undefined}>
+                  {svc.archived && (
+                    <div style={{ fontFamily: 'var(--font-sans)', fontSize: 10.5, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--copper-700)', marginBottom: 4 }}>
+                      Archivée{svc.archivedLe ? ` le ${new Date(`${svc.archivedLe}T12:00:00`).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' })}` : ''} · fermée à la vente, gardée pour l’historique
+                    </div>
+                  )}
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 10 }}>
                     <div className="trv-svc__name">{svc.name}</div>
                     <div style={{ display: 'flex', alignItems: 'baseline', gap: 9, flex: 'none' }}>
@@ -1637,6 +1642,20 @@ export default function Catalogue() {
                       <button className="trv-sq" title="Monter la prestation" disabled={si === 0} onClick={() => moveSvc(svc, -1)}>▲</button>
                       <button className="trv-sq" title="Descendre la prestation" disabled={si === list.length - 1} onClick={() => moveSvc(svc, 1)}>▼</button>
                       <button className="trv-minibtn" onClick={() => openSvcEdit(svc)}>Modifier</button>
+                      {/* ARCHIVER, PAS EFFACER (10 octobre 2026) : fermée à la vente
+                          et masquée partout ; l'historique la lit toujours. */}
+                      <button
+                        className="trv-minibtn"
+                        title={svc.archived ? 'Remettre la prestation en vente' : 'Fermer à la vente et masquer partout, sans rien effacer'}
+                        onClick={() => {
+                          const j = new Date();
+                          const jour = `${j.getFullYear()}-${String(j.getMonth() + 1).padStart(2, '0')}-${String(j.getDate()).padStart(2, '0')}`;
+                          patchSvc(svc.id, svc.archived ? { archived: false, archivedLe: undefined } : { archived: true, archivedLe: jour });
+                          toast(svc.archived ? `« ${svc.name} » remise en vente.` : `« ${svc.name} » archivée : fermée à la vente, gardée pour l’historique.`);
+                        }}
+                      >
+                        {svc.archived ? 'Rétablir' : 'Archiver'}
+                      </button>
                       <button className="trv-minibtn" title="Supprimer la prestation" onClick={() => deleteSvc(svc)}>Supprimer</button>
                     </span>
                   </div>

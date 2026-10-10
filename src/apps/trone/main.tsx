@@ -14,6 +14,7 @@ import { applyPendingReplace } from './backup';
 import { migreLaRaisonDeLaMaison, migreLeNomDeLaBranche, migreLeNomDeLaMaison } from '../../shared/identite';
 import { registerSW } from '../../shared/push';
 import { migreLesFormulesAZero } from '../../shared/abonnements';
+import { migreLaNouvelleGrille } from '../../shared/nouvelle-grille';
 
 /* L'APPLICATION RESTE SUR LE TÉLÉPHONE (4 octobre 2026, « hors ligne », temps 2) :
    le service s'enregistre dès l'ouverture, pas seulement quand on règle les
@@ -36,6 +37,10 @@ migreLaRaisonDeLaMaison();
    aujourd'hui ») : fermées à la vente une fois, depuis le Trône seul, jamais
    effacées ; leurs contrats en cours les lisent toujours. */
 migreLesFormulesAZero();
+/* LA NOUVELLE GRILLE — 10 octobre 2026 (« construis ») : la phase
+   « maintenant » de la genèse des prix (noms, archives, baisses, nouveautés au
+   comptoir), une fois, depuis le Trône seul. Voir shared/nouvelle-grille. */
+migreLaNouvelleGrille();
 
 // « Remplacer la Maison » : après le redémarrage à blanc, appliquer le fichier en
 // attente sur les magasins vides AVANT le premier rendu (la synchro poussera au serveur).

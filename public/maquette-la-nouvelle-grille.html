@@ -1,0 +1,610 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>La nouvelle grille · maquette validée</title>
+</head>
+<body>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Jost:wght@300;400;500;600&display=swap">
+<style>
+@font-face{font-family:'MND Fon';font-style:normal;font-weight:400;src:url('assets/fonts/devise-fon.woff2') format('woff2');unicode-range:U+0186,U+0189,U+0190,U+0254,U+025B,U+0256,U+0301}
+:root{
+  --fond:#F6F1E7; --surface:#FBF8F2; --sable:#EEE6D6; --texte:#2A2722; --doux:#5E5750;
+  --titre:#1E2150; --cuivre:#B97A4A; --cuivre-txt:#7C4C2C; --filet:#E2D8C6; --filet-fort:#CDBFA6;
+  --barre:rgba(246,241,231,.94); --actif:#1E2150; --actif-txt:#F6F1E7;
+  --b-neuf:#E9D9C6; --b-change:#E4E0EF; --b-attente:#EFE6CF; --b-gris:#E8E3D9;
+  --tel:#15173A; --tel-carte:#22265A; --tel-txt:#F6F1E7; --tel-doux:#C9C3D9;
+  --serif:'MND Fon','Cormorant Garamond',Georgia,'Times New Roman',serif;
+  --sans:'MND Fon','Jost','Segoe UI',system-ui,sans-serif;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  color-scheme:dark;
+  --fond:#15173A; --surface:#1B1E48; --sable:#22265A; --texte:#ECE6DA; --doux:#B8B2C4;
+  --titre:#F6F1E7; --cuivre:#D6A06F; --cuivre-txt:#D6A06F; --filet:#2C3068; --filet-fort:#3A3F80;
+  --barre:rgba(21,23,58,.94); --actif:#D6A06F; --actif-txt:#15173A;
+  --b-neuf:#4A3A30; --b-change:#33366A; --b-attente:#46402A; --b-gris:#2A2D5C;
+  --tel:#0F1130; --tel-carte:#1E2150;
+}}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --fond:#15173A; --surface:#1B1E48; --sable:#22265A; --texte:#ECE6DA; --doux:#B8B2C4;
+  --titre:#F6F1E7; --cuivre:#D6A06F; --cuivre-txt:#D6A06F; --filet:#2C3068; --filet-fort:#3A3F80;
+  --barre:rgba(21,23,58,.94); --actif:#D6A06F; --actif-txt:#15173A;
+  --b-neuf:#4A3A30; --b-change:#33366A; --b-attente:#46402A; --b-gris:#2A2D5C;
+  --tel:#0F1130; --tel-carte:#1E2150;
+}
+*{box-sizing:border-box}
+body{background:var(--fond);color:var(--texte);font:16px/1.58 var(--sans);padding-inline:16px;padding-block:0 64px;margin:0}
+.page{max-width:1080px;margin:0 auto}
+.verrou{display:block;width:170px;height:auto}
+.verrou.sombre{display:none}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .verrou.clair{display:none}:root:not([data-theme="light"]) .verrou.sombre{display:block}}
+:root[data-theme="dark"] .verrou.clair{display:none}
+:root[data-theme="dark"] .verrou.sombre{display:block}
+header.tete{padding-block:36px 22px;display:grid;gap:14px}
+.surtitre{font:500 12px/1.4 var(--sans);letter-spacing:.16em;text-transform:uppercase;color:var(--cuivre-txt);margin:0}
+h1{font:500 clamp(40px,7vw,62px)/1.02 var(--serif);color:var(--titre);margin:0;text-wrap:balance}
+h1 em,h2 em{font-style:italic;color:var(--cuivre)}
+.intro{max-width:68ch;color:var(--doux);margin:0}
+.legende{display:flex;flex-wrap:wrap;gap:8px;margin:4px 0 0;padding:0;list-style:none}
+.barre{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--barre);backdrop-filter:blur(6px);border-block:1px solid var(--filet-fort);padding-block:10px;margin-inline:-16px;padding-inline:16px;display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center}
+.barre .lbl{font:500 11.5px/1 var(--sans);letter-spacing:.14em;text-transform:uppercase;color:var(--cuivre-txt)}
+.choix{display:flex;flex-wrap:wrap;gap:4px}
+.choix button{font:500 13px/1 var(--sans);border:1px solid var(--filet-fort);background:transparent;color:var(--texte);padding:8px 11px;border-radius:999px;cursor:pointer}
+.choix button[aria-pressed="true"]{background:var(--actif);color:var(--actif-txt);border-color:var(--actif)}
+.barre .dit{font-size:13px;color:var(--doux);margin-left:auto}
+nav.toc{padding-block:16px;display:flex;flex-wrap:wrap;gap:6px 16px;font-size:14px;border-bottom:1px solid var(--filet)}
+nav.toc a{color:var(--texte);text-decoration:none;border-bottom:1px solid var(--filet-fort)}
+section.ch{padding-block:34px 10px;border-bottom:1px solid var(--filet);display:grid;gap:14px}
+h2{font:500 clamp(30px,4.6vw,40px)/1.08 var(--serif);color:var(--titre);margin:0;text-wrap:balance}
+h3{font:600 22px/1.25 var(--serif);color:var(--titre);margin:10px 0 0}
+.chap{font:500 12px/1.4 var(--sans);letter-spacing:.16em;text-transform:uppercase;color:var(--cuivre-txt);margin:0}
+.sous{max-width:70ch;color:var(--doux);margin:0}
+.tbl{overflow-x:auto;border:1px solid var(--filet);border-radius:4px;background:var(--surface)}
+table{border-collapse:collapse;width:100%;font-size:14px;line-height:1.45;font-variant-numeric:tabular-nums}
+th{background:var(--sable);text-align:left;font-weight:500;font-size:12px;letter-spacing:.04em;color:var(--titre);padding:9px 12px;vertical-align:bottom;white-space:nowrap}
+td{padding:9px 12px;border-top:1px solid var(--filet);vertical-align:top}
+td.nom{min-width:220px}
+td.nom b{font-weight:500;color:var(--titre)}
+td.nom span{display:block;color:var(--doux);font-size:12.5px}
+td.prix{white-space:nowrap;font-weight:600;color:var(--titre);text-align:right}
+td.avant{white-space:nowrap;color:var(--doux);font-size:12.5px;text-align:right}
+td.note{min-width:200px;color:var(--doux);font-size:13px}
+th.r{text-align:right}
+.badge{display:inline-block;font:500 10.5px/1 var(--sans);letter-spacing:.08em;text-transform:uppercase;padding:4px 7px;border-radius:3px;white-space:nowrap;color:var(--texte);background:var(--b-gris)}
+.badge.nouveau{background:var(--b-neuf)}
+.badge.change,.badge.fusionne,.badge.renomme{background:var(--b-change)}
+.badge.janvier,.badge.mains,.badge.trancher{background:var(--b-attente)}
+.cartes{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:14px}
+.carte{border:1px solid var(--filet-fort);background:var(--surface);border-radius:6px;padding:18px;display:grid;gap:8px;align-content:start}
+.carte.vedette{border-color:var(--cuivre)}
+.carte .k{font:500 11px/1.4 var(--sans);letter-spacing:.14em;text-transform:uppercase;color:var(--cuivre-txt);margin:0}
+.carte .t{font:500 24px/1.15 var(--serif);color:var(--titre);margin:0}
+.carte .p{font:600 26px/1.1 var(--serif);color:var(--titre);margin:0;font-variant-numeric:lining-nums tabular-nums}
+.carte .p small{font:400 13px/1 var(--sans);color:var(--doux)}
+.carte .g{color:var(--cuivre-txt);font-size:14px;margin:0}
+.carte ul{margin:0;padding-left:18px;font-size:13.5px;color:var(--doux);display:grid;gap:3px}
+.carte .f{font-size:12.5px;color:var(--doux);margin:0;border-top:1px dashed var(--filet-fort);padding-top:8px}
+.calc{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.2fr);gap:18px;align-items:start}
+@media (max-width:760px){.calc{grid-template-columns:minmax(0,1fr)}}
+.calc .panneau{border:1px solid var(--cuivre);border-radius:6px;background:var(--surface);padding:18px;display:grid;gap:10px}
+.calc label{font-size:13px;color:var(--doux);display:grid;gap:6px}
+.calc input[type=range]{width:100%;accent-color:var(--cuivre)}
+.calc .gros{font:600 34px/1 var(--serif);color:var(--titre);font-variant-numeric:lining-nums tabular-nums}
+.calc .detail{font-size:13px;color:var(--doux)}
+.offres{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
+@media (max-width:760px){.offres{grid-template-columns:minmax(0,1fr)}}
+.offres figure{margin:0;display:grid;gap:8px}
+.offres img{width:100%;height:auto;border-radius:3px;display:block}
+.offres figcaption{font-size:13.5px;color:var(--doux)}
+.offres figcaption b{display:block;font:500 18px/1.25 var(--serif);color:var(--titre)}
+.tel-zone{display:grid;grid-template-columns:minmax(0,320px) minmax(0,1fr);gap:24px;align-items:center}
+@media (max-width:760px){.tel-zone{grid-template-columns:minmax(0,1fr)}}
+.tel{background:var(--tel);border-radius:30px;padding:22px 16px 26px;max-width:320px;width:100%;box-shadow:0 0 0 6px var(--sable);color:var(--tel-txt);display:grid;gap:12px}
+.tel .haut{font:500 11px/1 var(--sans);letter-spacing:.16em;text-transform:uppercase;color:var(--tel-doux);text-align:center}
+.tel .mc{background:var(--tel-carte);border-radius:14px;padding:16px;display:grid;gap:8px;border:1px solid rgba(214,160,111,.35)}
+.tel .mc .k{font:500 10.5px/1.3 var(--sans);letter-spacing:.16em;text-transform:uppercase;color:#D6A06F;margin:0}
+.tel .mc .t{font:500 22px/1.2 'Cormorant Garamond',Georgia,serif;margin:0;color:var(--tel-txt)}
+.tel .mc .t em{color:#D6A06F}
+.tel .mc p{margin:0;font-size:13px;color:var(--tel-doux)}
+.tel .mc .btn{justify-self:start;background:#B97A4A;color:#F6F1E7;border-radius:999px;padding:9px 14px;font:500 13px/1 var(--sans)}
+.tel .petit{display:flex;justify-content:space-between;font-size:12px;color:var(--tel-doux);padding-inline:4px}
+.points{display:grid;gap:14px}
+.point{border:1px solid var(--filet-fort);border-left:3px solid var(--cuivre);background:var(--surface);border-radius:4px;padding:16px 18px;display:grid;gap:8px}
+.point h3{margin:0;font-size:21px}
+.point p{margin:0;max-width:75ch}
+.point ol{margin:0;padding-left:20px;display:grid;gap:4px;font-size:14.5px}
+.point .reco{color:var(--cuivre-txt);font-weight:500}
+.cas{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px}
+.cas div{border-top:2px solid var(--cuivre);padding-top:10px;display:grid;gap:4px}
+.cas b{font:500 18px/1.25 var(--serif);color:var(--titre)}
+.cas span{font-size:13.5px;color:var(--doux)}
+footer{padding-block:40px 0;text-align:center;display:grid;gap:8px;justify-items:center}
+.devise{font:italic 400 22px/1.3 var(--serif);color:var(--titre);margin:0}
+.oa{position:relative;display:inline-block}
+.oa::after{content:'\00B4';position:absolute;left:50%;top:-.36em;transform:translateX(-46%);font-family:'Cormorant Garamond',serif;font-style:normal}
+.pied{font:500 11.5px/1.4 var(--sans);letter-spacing:.18em;text-transform:uppercase;color:var(--doux);margin:0}
+.paliers{list-style:none;padding:0!important;margin:0;display:grid;gap:6px!important}
+.paliers li{border:1px solid var(--filet);border-radius:4px;padding:8px 10px;font-size:14px;color:var(--texte)}
+.paliers b{font-weight:600;color:var(--titre)}
+.paliers span{float:right;color:var(--cuivre-txt);font-size:13px}
+.affiche-absente{aspect-ratio:4/5;border:1px dashed var(--cuivre);border-radius:3px;display:grid;place-items:center;padding:16px;text-align:center;font-size:12.5px;color:var(--doux);background:var(--surface)}
+</style>
+<div class="page">
+<header class="tete">
+  <img class="verrou clair" src="assets/vectoriel/verrou-couche-indigo.svg" alt="Maison MND">
+  <img class="verrou sombre" src="assets/vectoriel/verrou-couche-ivoire.svg" alt="Maison MND">
+  <p class="surtitre">Maquette à valider · 10 octobre 2026</p>
+  <h1>La nouvelle <em>grille</em></h1>
+  <p class="intro">La carte de la Maison telle qu'elle sortirait de vos décisions du 10 octobre. Choisissez une tête en haut : chaque prix se recalcule pour elle. Rien n'a changé au Trône ; les prix de cette page sont ceux du comptoir et de Ma Couronne, jamais d'une campagne.</p>
+  <ul class="legende" aria-label="Légende">
+    <li><span class="badge nouveau">nouveau</span></li>
+    <li><span class="badge change">changé</span></li>
+    <li><span class="badge renomme">renommé</span></li>
+    <li><span class="badge fusionne">fusionné</span></li>
+    <li><span class="badge janvier">janvier 2027</span></li>
+    <li><span class="badge mains">avis des mains</span></li>
+    <li><span class="badge trancher">à trancher</span></li>
+    <li><span class="badge">inchangé</span></li>
+  </ul>
+</header>
+
+<div class="barre" role="group" aria-label="La tête">
+  <span class="lbl">Calibre</span>
+  <div class="choix" id="ch-cal"></div>
+  <span class="lbl">Longueur</span>
+  <div class="choix" id="ch-len"></div>
+  <span class="dit" id="dit"></span>
+</div>
+
+<nav class="toc" aria-label="Sommaire">
+  <a href="#koko">Le Regard</a><a href="#vekpe">La Naissance</a><a href="#gbeji">La Vie</a><a href="#yekpe">La Lumière</a><a href="#finfin">La Renaissance</a><a href="#gbata">Le Dénouement</a><a href="#kids">MND Kids</a><a href="#studio">Studio et options</a><a href="#formules">Les formules</a><a href="#offres">Les offres</a><a href="#couronne">Ma Couronne</a><a href="#famille">Le Foyer</a><a href="#trancher">Tranché</a>
+</nav>
+
+<section class="ch" id="koko">
+  <p class="chap">Chapitre 1</p><h2>KÒKÒ™ · <em>Le Regard</em></h2>
+  <p class="sous">Le seul endroit où l'on dit non. Le Regard est déduit de l'acte qui le suit sous 30 jours : c'est un premier pas, pas un coût en plus.</p>
+  <div class="tbl" id="t-koko"></div>
+</section>
+
+<section class="ch" id="vekpe">
+  <p class="chap">Chapitre 2</p><h2>VÈKPÈ™ · <em>La Naissance</em></h2>
+  <p class="sous">Au lock, par tranches, comme un barème d'impôt : les 250 premiers locks au tarif de base, les suivants au tarif fin. Un lock de plus coûte toujours entre 1 150 et 1 800 F, jamais 76 400 F. Le prix exact se dit au Regard, après comptage.</p>
+  <div class="calc">
+    <div class="panneau">
+      <label>Nombre de locks : <b id="v-locks"></b>
+        <input type="range" id="r-locks" min="30" max="650" step="1">
+      </label>
+      <div class="gros" id="v-crea"></div>
+      <div class="detail" id="v-detail"></div>
+      <div class="detail" id="v-avant"></div>
+    </div>
+    <div class="carte">
+      <p class="k">Dans toute création, à tous les calibres</p>
+      <ul>
+        <li>la préparation ;</li>
+        <li>le DÀNDÀN™ post pose, compris dans le prix ;</li>
+        <li>la sortie ;</li>
+        <li>une Retouche à 3 ou 4 semaines, posée d'office dans l'agenda ;</li>
+        <li>Nano, Pico et Galaxy : un SÍNSIN™ à 6 semaines compris.</li>
+      </ul>
+      <p class="f">KÒKÒ™ Origine déduit si la création suit sous 30 jours. L'huile Kòfí™ sort des textes tant qu'elle n'existe pas. Plancher : 80 000 / 100 000 / 120 000 F (court, mi-long, long).</p>
+    </div>
+  </div>
+  <div class="tbl" id="t-tranches"></div>
+</section>
+
+<section class="ch" id="gbeji">
+  <p class="chap">Chapitre 3</p><h2>GBÈJÍ™ · <em>La Vie</em></h2>
+  <p class="sous">Le cœur de la Maison : la venue d'entretien toutes les six semaines. Elle porte enfin un nom, au prix de la carte. Le nom simplifie, il ne remise pas le cœur.</p>
+  <h3>La venue nommée</h3>
+  <div class="cartes" id="c-venue"></div>
+  <h3>Les gestes</h3>
+  <div class="tbl" id="t-gestes"></div>
+  <h3>Les soins et les cures</h3>
+  <div class="tbl" id="t-soins"></div>
+</section>
+
+<section class="ch" id="yekpe">
+  <p class="chap">Chapitre 4</p><h2>YÈKPÈ™ · <em>La Lumière</em></h2>
+  <p class="sous">La couleur végétale, et l'Éclat comme porte. La décoloration sort de YÈKPÈ™ : la promesse « 100 % végétale » redevient vraie.</p>
+  <div class="tbl" id="t-yekpe"></div>
+</section>
+
+<section class="ch" id="finfin">
+  <p class="chap">Chapitre 5</p><h2>FÍNFÍN™ · <em>La Renaissance</em></h2>
+  <p class="sous">La restauration prend le nom de son chapitre ; GBÌGBÌ™ ne nomme plus que le renfort. ÀLÀLÀ™ garde son prix en 2027, en deux séances. GBÀTÀ™ et Portes closes se reprennent au temps de main en janvier, une fois les heures réelles mesurées.</p>
+  <div class="tbl" id="t-finfin"></div>
+</section>
+
+<section class="ch" id="gbata">
+  <p class="chap">Chapitre 6</p><h2>GBÀTÀ™ · <em>Le Dénouement</em></h2>
+  <p class="sous">La sortie des locks, avec la même dignité que l'entrée. La porte reste ouverte : le cheveu naturel au Studio, puis un nouveau Regard.</p>
+  <div class="tbl" id="t-gbata"></div>
+</section>
+
+<section class="ch" id="kids">
+  <p class="chap">Les petites têtes couronnées</p><h2>MND <em>Kids</em></h2>
+  <p class="sous">Cette saison, un correctif : plus de doublement à 81 locks, Medium Kids à 120 000 F. Au prochain catalogue, la règle d'une phrase : 80 % de la création adulte au même nombre de locks, plancher 60 000 F.</p>
+  <div class="tbl" id="t-kids"></div>
+</section>
+
+<section class="ch" id="studio">
+  <p class="chap">Autour des chapitres</p><h2>Le Studio, Portes closes, <em>Pendant le rituel</em></h2>
+  <p class="sous">Les tresses sont suspendues : elles rendaient 2 400 à 3 000 F de l'heure de main et n'ont jamais amené une cliente à l'Atelier. Le Programme Transition devient la passerelle du cheveu naturel vers les locks.</p>
+  <div class="tbl" id="t-studio"></div>
+</section>
+
+<section class="ch" id="formules">
+  <p class="chap">Ce qui s'achète d'avance</p><h2>Les sept formules, <em>en lunes</em></h2>
+  <p class="sous">Les sept noms de l'expert marque, vos règles : la durée se dit en lunes ; dans un Carnet, la dernière visite est offerte ; le DÀNDÀN™ n'est jamais offert ; jamais plus de 25 % ; les « Chaque Lune » se règlent à chaque lune, sans dette. Les prix ci-dessous sont ceux de la tête choisie en haut.</p>
+  <div class="cartes" id="c-formules"></div>
+  <h3>Le Foyer, sur chaque formule</h3>
+  <p class="sous">La deuxième et la troisième tête du même foyer : −15 %, mais l'avantage total de la tête ne dépasse jamais 25 %. Ce que la deuxième tête paie vraiment (arrondi au 500 F supérieur, pour que le plafond tienne) :</p>
+  <div class="tbl" id="t-foyer"></div>
+  <h3>Les Carnets, à toutes les têtes</h3>
+  <div class="tbl" id="t-carnets"></div>
+</section>
+
+<section class="ch" id="offres">
+  <p class="chap">Les offres de saison · style L'Écrin</p><h2>Trois offres, <em>trois moments</em></h2>
+  <p class="sous">Chacune rivée à un moment du parcours, jamais sur le cœur (SÍNSIN™, la création, une formule). Une faveur à la fois, jamais le samedi, jamais du 15 décembre au 10 janvier.</p>
+  <div class="offres">
+    <figure><div class="affiche-absente">Affiche L’Écrin · dans la galerie privée « Trois offres, trois regards » (le dépôt est public, la campagne pas encore)</div><figcaption><b>Venez à deux</b>Deux couronnes au même créneau, le lavage de la seconde offert. Février, juillet et août, du mardi au jeudi.</figcaption></figure>
+    <figure><div class="affiche-absente">Affiche L’Écrin · dans la galerie privée « Trois offres, trois regards » (le dépôt est public, la campagne pas encore)</div><figcaption><b>Le pas suivant</b>Un VÍVÍVÓ™ aujourd'hui, le suivant offert à la venue suivante, dans les six semaines. De mi-janvier à fin février.</figcaption></figure>
+    <figure><div class="affiche-absente">Affiche L’Écrin · dans la galerie privée « Trois offres, trois regards » (le dépôt est public, la campagne pas encore)</div><figcaption><b>50 %, trois premières fois</b>Le premier soin (DÀNDÀN™, WÈWÈ™ ou GBÌGBÌ™), la première couleur, Le Passage de l'enfant à l'adulte. Une fois chacun, au comptoir ou à la cliente concernée, jamais en campagne de masse.</figcaption></figure>
+  </div>
+</section>
+
+<section class="ch" id="couronne">
+  <p class="chap">Ce que voit la cliente</p><h2>Ma Couronne · <em>Votre prochaine marche</em></h2>
+  <div class="tel-zone">
+    <div class="tel" aria-label="Aperçu de Ma Couronne">
+      <div class="petit"><span>Ma Couronne</span><span>Accueil</span></div>
+      <div class="mc">
+        <p class="k">Votre prochaine marche</p>
+        <p class="t" id="mc-t"></p>
+        <p id="mc-p"></p>
+        <span class="btn">En parler à la Maison</span>
+      </div>
+      <div class="mc">
+        <p class="k">Votre couronne</p>
+        <p class="t">Cinq lunes, <em>trois visites</em></p>
+        <p>Votre prochaine venue : GBÈJÍ™ Signature, toutes les six semaines.</p>
+      </div>
+    </div>
+    <div class="sous">
+      <p>Une seule carte, calculée sur le palier, la date de couronne, la dernière visite et la formule. Ici, une cliente de la tête choisie en haut, couronne de cinq lunes, qui vient toutes les six semaines sans formule : la Maison lui propose le Carnet de Six.</p>
+      <p>Ma Couronne montre les formules avec leur prix pour SA tête. Le site, lui, parle des formules par leur geste offert, sans un franc.</p>
+    </div>
+  </div>
+</section>
+
+<section class="ch" id="cas">
+  <p class="chap">Ce qui change pour une cliente</p><h2>Quatre têtes, <em>avant et après</em></h2>
+  <div class="cas" id="cas-liste"></div>
+</section>
+
+<section class="ch" id="famille">
+  <p class="chap">Validé le 10 octobre 2026</p><h2>Le Foyer, <em>la Maison en famille</em></h2>
+  <p class="sous">Aujourd'hui, l'avantage famille est éparpillé : une remise qui ne joue que s'il y a un enfant mineur, deux offres à −15 % qui se disent mal, un palier de 300 000 F jamais rempli et qui disparaît avec l'horloge unique. Deux sœurs, une mère et sa grande fille n'ont rien. Proposition : un seul programme, quatre promesses, un seul compte.</p>
+  <div class="cartes">
+    <div class="carte vedette">
+      <p class="k">1 · D'avance · <span class="badge nouveau">nouveau</span></p>
+      <p class="t">La Cagnotte du Foyer</p>
+      <p class="g">Vous mettez de côté, la Maison ajoute.</p>
+      <ul class="paliers">
+        <li><b>100 000 F</b> versés, <b>110 000 F</b> de crédit <span>+ 10 %</span></li>
+        <li><b>200 000 F</b> versés, <b>225 000 F</b> de crédit <span>+ 12,5 %</span></li>
+        <li><b>300 000 F</b> versés, <b>345 000 F</b> de crédit <span>+ 15 %</span></li>
+      </ul>
+      <ul>
+        <li>chaque tête du foyer y puise, enfants compris, pour toute prestation ;</li>
+        <li>en 2 fois dès 100 000 F, en 3 fois dès 200 000 F ; l'ajout de la Maison arrive avec le dernier versement ;</li>
+        <li>valable douze lunes ; le solde se lit dans Ma Couronne du payeur.</li>
+      </ul>
+      <p class="f">L'esprit de la tontine : on « a » ses venues d'avance. Pour la Maison, de l'argent encaissé avant le travail, et des têtes qui reviennent ensemble.</p>
+    </div>
+    <div class="carte">
+      <p class="k">2 · À la carte · <span class="badge change">changé</span></p>
+      <p class="t">La remise famille, pour toutes les têtes</p>
+      <p class="g">Dès la deuxième tête du foyer : 10 %. Dès la troisième : 15 %.</p>
+      <ul>
+        <li>aujourd'hui, seuls les enfants mineurs l'ouvrent (10 % pour un, 15 % pour deux) ;</li>
+        <li>demain, une sœur, une mère, une grande fille comptent aussi ;</li>
+        <li>jamais sur une formule (le Foyer y a sa règle : −15 %, plafond 25 %).</li>
+      </ul>
+      <p class="f">Exemple : deux sœurs Medium et Mini courtes, GBÈJÍ™ Essentiel ensemble toutes les six semaines. Aujourd'hui 56 000 F, aucune remise. Demain 50 400 F.</p>
+    </div>
+    <div class="carte">
+      <p class="k">3 · Ensemble, le même jour · <span class="badge change">changé</span></p>
+      <p class="t">Un geste, pas un pourcentage</p>
+      <ul>
+        <li><b>Parent et enfant</b> : le KLƆKLƆ™ Kids de l'enfant offert avec la venue du parent ;</li>
+        <li><b>Deux têtes adultes</b> : Venez à deux, le second lavage offert (février, juillet et août, du mardi au jeudi) ;</li>
+        <li>remplacent les deux −15 % du 23 septembre, qui portaient sur le cœur.</li>
+      </ul>
+      <p class="f">Un geste se raconte au fauteuil ; un pourcentage se compare et apprend à attendre.</p>
+    </div>
+    <div class="carte">
+      <p class="k">4 · Les premières fois de l'enfant</p>
+      <p class="t">De la première couronne au Passage</p>
+      <ul>
+        <li>KÒKÒ™ Conseil offert à l'enfant d'une cliente ;</li>
+        <li>MND Kids · Les Premières Venues : la création, deux Retouches et un SÍNSIN™ Kids, moins 10 % ;</li>
+        <li>Le Passage, à 13 ans : la première visite d'adulte à moitié.</li>
+      </ul>
+      <p class="f">L'enfant d'une cliente entre à la Maison par un geste offert, et en sort adulte par un autre.</p>
+    </div>
+  </div>
+  <p class="sous"><b>Un seul compte.</b> Le payeur voit dans Ma Couronne les têtes de son foyer, leurs prochaines venues et le solde de la Cagnotte. Le Trône sait déjà reconnaître un foyer et désigner son payeur : rien n'est à inventer de ce côté.</p>
+</section>
+
+<section class="ch" id="trancher">
+  <p class="chap">Avant de construire</p><h2>Tout est <em>tranché</em></h2>
+  <div class="points">
+    <div class="point"><h3>Tranché le 10 octobre 2026</h3>
+      <ol>
+        <li>Le Carnet de Quatre ne se prend qu'une fois par tête ; le Carnet de l'Année offre la quatrième et la huitième visite (25 %).</li>
+        <li>Les Premières Lunes (après une création à la Maison) et le Carnet de Quatre (couronne née ailleurs) gardent leurs deux noms, une fois chacun.</li>
+        <li>GBÈJÍ™ · Chaque Lune : le soin de la lune, DÀNDÀN™, VÍVÍVÓ™ et WÈWÈ™ tour à tour, remisé de 25 % ; la mensualité est lissée.</li>
+        <li>Le Foyer garde sa règle : −15 % sur la deuxième et la troisième tête, plafond de 25 % tenu.</li>
+      </ol></div>
+    <div class="point"><h3>Le Foyer, tranché le 10 octobre 2026</h3>
+      <ol>
+        <li class="reco">La Cagnotte du Foyer, à trois paliers (+10 %, +12,5 %, +15 %).</li>
+        <li class="reco">La remise famille ouverte aux têtes adultes du foyer (10 % dès la deuxième, 15 % dès la troisième).</li>
+        <li class="reco">La Cagnotte est un moyen de paiement : elle se cumule avec la remise famille, sans jamais dépasser 25 %.</li>
+        <li class="reco">Ensemble le même jour : des gestes offerts à la place des deux −15 % du 23 septembre.</li>
+      </ol></div>
+  </div>
+</section>
+
+<footer>
+  <p class="devise">mi ny<span class="oa">ɔ</span> ɖɛkpɛ, votre beauté est déjà là</p>
+  <p class="pied">Maison MND · Cotonou</p>
+</footer>
+</div>
+
+<script>
+(function () {
+  var CAL = ['Jumbo', 'Medium', 'Mini', 'Micro', 'Nano', 'Pico', 'Galaxy'];
+  var BORNE = [80, 150, 250, 350, 450, 550, 650];
+  var LEN = ['court', 'mi-long', 'long'];
+  var K = function (a) { return a.map(function (x) { return x * 1000; }); };
+  var SIN_E = K([20, 20, 20, 30, 40, 50, 60]), SIN_S = K([25, 25, 25, 35, 45, 55, 65]);
+  var RET = K([5, 7, 9, 12, 15, 18, 20]);
+  var KLO_E = K([8, 10, 12]), KLO_S = K([12, 15, 18]), KLO_P = K([18, 22, 25]);
+  var DAN = K([20, 25, 28]), WEWE = K([15, 22, 28]), GBI = K([15, 25, 35]), VIV = 6000;
+  var etat = { c: 1, l: 0, locks: 120 };
+  try { var m = JSON.parse(localStorage.getItem('grille-tete') || 'null'); if (m && m.c >= 0 && m.c < 7 && m.l >= 0 && m.l < 3) { etat.c = m.c; etat.l = m.l; } } catch (e) {}
+
+  var NB = ' ';
+  var F = function (n) { return String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, NB) + ' F'; };
+  var pas = function (n) { var p = n < 20000 ? 1000 : n <= 100000 ? 2500 : 5000; return Math.floor(n / p) * p; };
+  var pct = function (x) { return String(Math.round(x * 1000) / 10).replace('.', ',') + ' %'; };
+  var esc = function (s) { return String(s); };
+
+  var GE = function (c, l) { return SIN_E[c] + KLO_E[l]; };
+  var GS = function (c, l) { return SIN_S[c] + KLO_E[l]; };
+  var MOM = function (c, l) { return KLO_S[l] + SIN_S[c] + DAN[l]; };
+  var lon = function (a) { return function (c, l) { return a[l]; }; };
+  var cal = function (a) { return function (c) { return a[c]; }; };
+  var fixe = function (n) { return function () { return n; }; };
+
+  var BADGE = { nouveau: 'nouveau', change: 'changé', renomme: 'renommé', fusionne: 'fusionné', janvier: 'janvier 2027', mains: 'avis des mains', trancher: 'à trancher', inchange: 'inchangé', suspendu: 'suspendu' };
+
+  function tableau(lignes) {
+    var h = '<table><thead><tr><th>Prestation</th><th class="r">Pour cette tête</th><th class="r">Aujourd’hui</th><th></th><th>Ce qui change</th></tr></thead><tbody>';
+    lignes.forEach(function (r) {
+      var p = typeof r.p === 'function' ? r.p(etat.c, etat.l) : r.p;
+      var a = typeof r.a === 'function' ? r.a(etat.c, etat.l) : (r.a || '');
+      h += '<tr><td class="nom"><b>' + esc(r.n) + '</b>' + (r.s ? '<span>' + esc(r.s) + '</span>' : '') + '</td>'
+        + '<td class="prix">' + (typeof p === 'number' ? F(p) : esc(p)) + '</td>'
+        + '<td class="avant">' + (typeof a === 'number' ? F(a) : esc(a)) + '</td>'
+        + '<td><span class="badge ' + (r.b === 'inchange' ? '' : r.b) + '">' + BADGE[r.b] + '</span></td>'
+        + '<td class="note">' + esc(r.note || '') + '</td></tr>';
+    });
+    return h + '</tbody></table>';
+  }
+
+  var KOKO = [
+    { n: 'KÒKÒ™ Origine', s: 'avant la création', p: 15000, a: 15000, b: 'change', note: 'déduit de la création si elle suit sous 30 jours ; L’Essai compris' },
+    { n: 'KÒKÒ™ Accueil', s: 'pour des locks nées ailleurs (ex Suivi)', p: 10000, a: 10000, b: 'renomme', note: 'déduit de la restauration sous 30 jours' },
+    { n: 'KÒKÒ™ Conseil', s: 'enfant, cheveu naturel', p: 5000, a: 5000, b: 'change', note: 'la porte des Kids et du Studio ; offert à l’enfant d’une cliente' },
+    { n: 'KÒKÒ™ Bilan', s: 'la lecture de votre couronne', p: 10000, a: '', b: 'nouveau', note: 'mèche témoin, longueur, cuir chevelu : c’est lui qui recommande un soin' },
+    { n: 'VÈKPÈ™ · L’Essai', s: 'ex Lock Test', p: 5000, a: 5000, b: 'renomme', note: 'compris dans KÒKÒ™ Origine' }
+  ];
+  var GESTES = [
+    { n: 'SÍNSIN™ Essentiel', s: 'la reprise des racines', p: cal(SIN_E), a: cal(SIN_E), b: 'inchange', note: 'votre décision : pas de pente nouvelle' },
+    { n: 'SÍNSIN™ Signature', s: 'la reprise longue durée (ex Élaboré)', p: cal(SIN_S), a: cal(SIN_S), b: 'renomme', note: 'une seule gamme partout : Essentiel, Signature, Prestige' },
+    { n: 'La Retouche', s: 'contours et racines', p: cal(RET), a: 'Post Création 35 000 F', b: 'fusionne', note: 'une seule ligne au calibre ; la première après une création est comprise' },
+    { n: 'KLƆKLƆ™ Essentiel', s: 'Le Souffle', p: lon(KLO_E), a: lon(KLO_E), b: 'renomme', note: '« Le Shampoing » retiré du nom' },
+    { n: 'KLƆKLƆ™ Signature', s: 'L’Ancrage', p: lon(KLO_S), a: lon(KLO_S), b: 'renomme', note: '' },
+    { n: 'KLƆKLƆ™ Prestige', s: 'La Dépose', p: lon(KLO_P), a: lon(KLO_P), b: 'renomme', note: '' },
+    { n: 'KLƆKLƆ™ avec votre produit', s: '', p: 6000, a: 6000, b: 'renomme', note: '« à Façon » retiré' },
+    { n: 'La sortie soignée', s: '', p: 2000, a: 2000, b: 'change', note: 'comprise dans toute venue nommée' },
+    { n: 'La sortie Signature', s: '', p: 5000, a: 5000, b: 'inchange', note: '' },
+    { n: 'La sortie de grand jour', s: '', p: 10000, a: 10000, b: 'inchange', note: '' }
+  ];
+  var SOINS = [
+    { n: 'DÀNDÀN™', s: 'l’hydratation aux sept huiles', p: lon(DAN), a: lon(DAN), b: 'fusionne', note: 'absorbe AQUA LOCKS RITUAL™ (même soin) ; jamais offert, peut être remisé' },
+    { n: 'VÍVÍVÓ™', s: 'le vivifiant, 20 minutes au fauteuil', p: VIV, a: VIV, b: 'change', note: 'proposé en ajout de fauteuil ; le soin du « pas suivant »' },
+    { n: 'WÈWÈ™', s: 'la purification', p: lon(WEWE), a: lon(WEWE), b: 'inchange', note: 'tous les trois mois' },
+    { n: 'GBÌGBÌ™ · Le Renfort', s: 'ex GBÌGBÌ™ Module', p: lon(GBI), a: lon(GBI), b: 'renomme', note: 'rangé dans les soins de GBÈJÍ™, sans consultation exigée' },
+    { n: 'GBÌGBÌ™ Protéiné', s: 'post-technique', p: 15000, a: 15000, b: 'mains', note: 'fusion dans Le Renfort en attente de l’avis des mains' },
+    { n: 'FÍNFÍN™ Légère', s: 'la réparation douce', p: 15000, a: 15000, b: 'mains', note: 'idem' },
+    { n: 'Sublimation', s: 'le renfort durable', p: 15000, a: 15000, b: 'mains', note: 'option de SÍNSIN™ si c’est un geste de main, sinon fondue dans Le Renfort' },
+    { n: 'VÍVÍVÓ™ · Cure de trois', s: 'trois fois 20 minutes en six semaines', p: 15000, a: 'masquée', b: 'change', note: 'visible ; 18 000 F à la carte' },
+    { n: 'GBÌGBÌ™ · Cure de trois', s: 'trois renforts en six semaines', p: function (c, l) { return pas(GBI[l] * 3 * 0.85); }, a: '', b: 'nouveau', note: 'la marche entre le renfort et la restauration (−15 %)' },
+    { n: 'WÈWÈ™ + DÀNDÀN™', s: 'le soin du trimestre', p: lon(K([30, 40, 50])), a: lon(K([38.5, 46, 51.5])), b: 'change', note: 'plus jamais au-dessus de la carte' }
+  ];
+  var YEKPE = [
+    { n: 'YÈKPÈ™ Éclat', s: 'la porte de la couleur', p: 8000, a: 5000, b: 'change', note: 'sans DÀNDÀN™ inclus (proposé à côté)' },
+    { n: 'YÈKPÈ™ Couleur', s: 'l’acte de fond', p: lon(K([15, 20, 25])), a: '', b: 'fusionne', note: 'les deux « YÈKPÈ™ Couleur » en une ligne' },
+    { n: 'YÈKPÈ™ Lumière', s: 'seule, ou en finition d’une Couleur', p: '15 000 F · + 10 000 F', a: 25000, b: 'change', note: 'la finition ne coûte plus plus cher que l’acte de fond' },
+    { n: 'YÈKPÈ™ · Cure de Lumière', s: 'Couleur, Renfort J14, DÀNDÀN™ J30, WÈWÈ™ J45, Éclat J56', p: lon(K([60, 85, 105])), a: '', b: 'nouveau', note: '−15 % sur la composition ; remplace trois protocoles aux liens morts' },
+    { n: 'YÈKPÈ™ avec votre couleur', s: '', p: 8000, a: 8000, b: 'renomme', note: '« à Façon » retiré' },
+    { n: 'La Transformation', s: 'décoloration et oxydation, hors YÈKPÈ™', p: lon(K([35, 45, 55])), a: lon(K([25, 30, 35])), b: 'change', note: 'sort de YÈKPÈ™ avec une mention claire ; YÈKPÈ™ reste 100 % végétale' }
+  ];
+  var FINFIN = [
+    { n: 'FÍNFÍN™ Essentiel', s: 'ex GBÌGBÌ™ Essentiel', p: lon(K([40, 60, 80])), a: lon(K([40, 60, 80])), b: 'renomme', note: '' },
+    { n: 'FÍNFÍN™ Profond', s: 'ex GBÌGBÌ™ Profond', p: lon(K([80, 100, 120])), a: '', b: 'renomme', note: 'pente régulière' },
+    { n: 'ÀLÀLÀ™ · La Grande Renaissance', s: 'en deux séances', p: lon(K([110, 150, 180])), a: lon(K([110, 150, 200])), b: 'change', note: 'deux séances, chacune avec un GBÌGBÌ™ et un DÀNDÀN™ compris ; prix tenu en 2027 ; le long passe de 200 000 à 180 000 F' },
+    { n: 'FÍNFÍN™ · La Retouche', s: '', p: lon(K([12, 15, 18])), a: '', b: 'change', note: 'code séparé de La Retouche d’entretien' },
+    { n: 'FÍNFÍN™ · Cure Profonde de trois', s: '', p: lon(K([245, 310, 370])), a: 270000, b: 'change', note: 'la composition moins 10 %, au lieu d’un prix unique' }
+  ];
+  var GBATA = [
+    { n: 'GBÀTÀ™ Essentiel', s: 'après KÒKÒ™ Accueil', p: '80 000 à 120 000 F', a: '80 000 à 120 000 F', b: 'janvier', note: 'en janvier, après mesure : 400 F le lock, dès 80 000 F' },
+    { n: 'GBÀTÀ™ Intégral', s: 'quatre mains, 8 à 10 heures', p: 150000, a: 150000, b: 'janvier', note: 'en janvier, après mesure : 700 F le lock, dès 150 000 F' }
+  ];
+  var kidsCrea = function (c) { return c === 0 ? 80000 : c === 1 ? 120000 : 180000; };
+  var sinKids = function (c) { return c <= 1 ? 15000 : 20000; };
+  var KIDS = [
+    { n: 'KÒKÒ™ Conseil', s: 'la porte des Kids', p: 5000, a: '', b: 'nouveau', note: 'déduit de la création ; offert à l’enfant d’une cliente' },
+    { n: 'VÈKPÈ™ Kids · La Première Couronne', s: 'cette saison, au calibre', p: kidsCrea, a: function (c) { return c === 0 ? 80000 : c === 1 ? 150000 : 180000; }, b: 'change', note: 'plus de doublement à 81 locks ; au prochain catalogue, 80 % de l’adulte' },
+    { n: 'SÍNSIN™ Kids', s: '', p: sinKids, a: function (c) { return c <= 2 ? 15000 : 20000; }, b: 'change', note: '20 000 F au-delà de 150 locks (et non 250)' },
+    { n: 'KLƆKLƆ™ Kids · Le Souffle', s: '', p: 5000, a: 5000, b: 'change', note: 'plus de prix barré permanent' },
+    { n: 'GBÌGBÌ™ Kids · Le Renfort', s: '', p: 5000, a: 5000, b: 'change', note: 'plus de prix barré permanent' },
+    { n: 'GBÌGBÌ™ Kids · L’Éclat', s: 'ex YÈKPÈ™ Kids', p: 15000, a: 15000, b: 'renomme', note: 'ce n’est pas une couleur' },
+    { n: 'La Retouche (Kids)', s: '', p: cal(RET), a: 10000, b: 'change', note: 'au calibre, comme l’adulte' },
+    { n: 'MND Kids · Le Rituel', s: '', p: function (c) { return c <= 1 ? 25000 : 30000; }, a: '', b: 'renomme', note: 'capitales retirées' },
+    { n: 'MND Kids · Les Premières Venues', s: 'création, deux Retouches, un SÍNSIN™ Kids', p: function (c) { return pas((kidsCrea(c) + 2 * RET[c] + sinKids(c)) * 0.9); }, a: 150000, b: 'change', note: 'la composition moins 10 %' }
+  ];
+  var STUDIO = [
+    { n: 'Les tresses du Studio', s: 'cinq prestations', p: '', a: '', b: 'suspendu', note: 'votre décision : suspendues' },
+    { n: 'RÉVÉLER · Éveil', s: '', p: lon(K([8, 11, 15])), a: lon(K([8, 11, 15])), b: 'inchange', note: '' },
+    { n: 'RÉVÉLER · Coupe et forme', s: '', p: lon(K([10, 14, 18])), a: lon(K([10, 14, 18])), b: 'inchange', note: '' },
+    { n: 'RÉVÉLER · Le Programme Transition', s: 'deux Éveils', p: lon(K([16, 22, 30])), a: '', b: 'nouveau', note: 'le second déduit de la création : la passerelle vers les locks' },
+    { n: 'CÉLÉBRER · Coiffure d’événement', s: '', p: lon(K([15, 22, 30])), a: lon(K([15, 22, 30])), b: 'inchange', note: '' },
+    { n: 'CÉLÉBRER · Le Grand Jour Essentiel', s: 'ex Sika Day', p: lon(K([20, 24, 28])), a: lon(K([20, 24, 28])), b: 'renomme', note: '' },
+    { n: 'CÉLÉBRER · Le Grand Jour Signature', s: '', p: lon(K([35, 40, 45])), a: lon(K([35, 40, 45])), b: 'renomme', note: '' },
+    { n: 'Portes closes · une heure', s: 'la Maison pour vous seule', p: 20000, a: 20000, b: 'janvier', note: 'nom changé (le mot interdit retiré) ; en janvier, 30 000 F l’heure en plus des gestes, du mardi au jeudi' },
+    { n: 'Portes closes · deux heures', s: '', p: 35000, a: 35000, b: 'janvier', note: 'idem' },
+    { n: 'Pendant le rituel', s: 'manucure · pédicure · les deux', p: '4 000 · 6 000 · 8 000 F', a: '4 000 · 6 000 · 8 000 F', b: 'inchange', note: '' }
+  ];
+
+  /* La création par tranches, et celle d'aujourd'hui (comptage au calibre). */
+  var BASE = [1150, 1350, 1550], FIN = [1700, 1750, 1800], PLANCHER = K([80, 100, 120]);
+  var crea = function (n, l) { return Math.max(PLANCHER[l], Math.min(n, 250) * BASE[l] + Math.max(0, n - 250) * FIN[l]); };
+  var EX = [[60, 80000, 120000], [120, 132000, 180000], [200, 220000, 300000], [250, 275000, 375000], [251, 351400, 401600], [300, 420000, 480000], [350, 490000, 560000], [450, 630000, 720000], [451, 700000, 825000], [550, 770000, 880000], [650, 910000, 1040000]];
+
+  /* Les formules. Le soin de la lune (DÀNDÀN™, VÍVÍVÓ™, WÈWÈ™ tour à tour) est
+     remisé de 25 % ; la mensualité est lissée sur les trois lunes, au pas inférieur. */
+  var soinLune = function (l) { return (DAN[l] + VIV + WEWE[l]) / 3; };
+  var chaqueLune = function (c, l) { return pas(GE(c, l) + 0.75 * soinLune(l)); };
+  function formules(c, l) {
+    var ge = GE(c, l), gs = GS(c, l), sl = soinLune(l);
+    return [
+      { k: 'La porte', t: 'KLƆKLƆ™ · Chaque Lune', p: KLO_S[l], u: '/ lune', v: KLO_S[l] + 2000, g: 'la sortie soignée offerte à chaque lavage', d: ['un KLƆKLƆ™ Signature par lune', 'réglée chaque lune ; non réglée, elle se met en pause, jamais de dette'], b: '' },
+      { k: 'La naissance', t: 'VÈKPÈ™ · Les Premières Lunes', p: 3 * ge, u: 'quatre visites', v: 4 * ge, g: 'la quatrième visite offerte', d: ['quatre GBÈJÍ™ Essentiel, semaines 6, 12, 18 et 24', 'à signer à la caisse de la création ou dans les 30 jours', 'valable sept lunes', 'une seule fois par tête, après une création à la Maison'], b: '' },
+      { k: 'Le prolongement', t: 'GBÈJÍ™ · Chaque Lune', p: chaqueLune(c, l), u: '/ lune', v: ge + sl, g: 'le soin de la lune à −25 %', d: ['un GBÈJÍ™ Essentiel et un soin par lune : DÀNDÀN™, VÍVÍVÓ™, WÈWÈ™ tour à tour', 'mensualité lissée sur les trois lunes', 'réglée chaque lune ; non réglée, pause, jamais de dette'], b: '' },
+      { k: 'Le prolongement', t: 'GBÈJÍ™ · Carnet de Quatre', p: 3 * ge, u: 'Essentiel · Signature ' + F(3 * gs), v: 4 * ge, g: 'la quatrième visite offerte', d: ['quatre visites GBÈJÍ™ en six lunes', 'une seule fois par tête, pour une couronne née ailleurs : c’est la porte', 'ex Carnet de Trois'], b: '', vedette: true },
+      { k: 'Les années', t: 'GBÈJÍ™ · Carnet de Six', p: 5 * ge, u: 'Essentiel · Signature ' + F(5 * gs), v: 6 * ge, g: 'la sixième visite offerte', d: ['six visites en neuf lunes', 'remplace La Juste Cadence et quatre autres formules'], b: '' },
+      { k: 'Les années', t: 'GBÈJÍ™ · Carnet de l’Année', p: 6 * ge, u: 'Essentiel · Signature ' + F(6 * gs), v: 8 * ge, g: 'la quatrième et la huitième visite offertes', d: ['huit visites en douze lunes, prix figé douze lunes', 'proposé au premier anniversaire de couronne'], b: '' },
+      { k: 'La renaissance', t: 'FÍNFÍN™ puis le Carnet de Six', p: '', u: 'le prix de la restauration + ' + F(5 * ge), v: 0, g: 'deux noms connus mis bout à bout', d: ['FÍNFÍN™ Essentiel, Profond ou ÀLÀLÀ™, puis le Carnet de Six', 'remplace FÍNFÍN™ × GBÈJÍ™ à 425 000 F fixe'], b: '' }
+    ];
+  }
+
+  function rend() {
+    var c = etat.c, l = etat.l;
+    document.querySelectorAll('#ch-cal button').forEach(function (b, i) { b.setAttribute('aria-pressed', String(i === c)); });
+    document.querySelectorAll('#ch-len button').forEach(function (b, i) { b.setAttribute('aria-pressed', String(i === l)); });
+    document.getElementById('dit').textContent = 'Tête ' + CAL[c] + ' ' + LEN[l] + (c === 0 ? ' · jusqu’à 80 locks' : ' · ' + (BORNE[c - 1] + 1) + ' à ' + BORNE[c] + ' locks');
+
+    document.getElementById('t-koko').innerHTML = tableau(KOKO);
+    document.getElementById('t-gestes').innerHTML = tableau(GESTES);
+    document.getElementById('t-soins').innerHTML = tableau(SOINS);
+    document.getElementById('t-yekpe').innerHTML = tableau(YEKPE);
+    document.getElementById('t-finfin').innerHTML = tableau(FINFIN);
+    document.getElementById('t-gbata').innerHTML = tableau(GBATA);
+    document.getElementById('t-kids').innerHTML = tableau(KIDS);
+    document.getElementById('t-studio').innerHTML = tableau(STUDIO);
+
+    var venues = [
+      { k: 'La venue de tous les jours', t: 'GBÈJÍ™ Essentiel', p: GE(c, l), d: ['KLƆKLƆ™ Essentiel', 'SÍNSIN™ Essentiel', 'la sortie soignée comprise'], f: '34 venues relevées sur 113 : ce duo n’avait pas de nom.' },
+      { k: 'La plus vendue', t: 'GBÈJÍ™ Signature', p: GS(c, l), d: ['KLƆKLƆ™ Essentiel', 'SÍNSIN™ Signature', 'la sortie soignée comprise'], f: '38 venues relevées : la combinaison la plus vendue, en une ligne au lieu de deux.', v: true },
+      { k: 'Le temps s’arrête', t: 'Le Moment', p: MOM(c, l), d: ['KLƆKLƆ™ Signature', 'SÍNSIN™ Signature', 'DÀNDÀN™ (réglé)', 'VÍVÍVÓ™ et la sortie Signature offerts'], f: 'Valeur ' + F(MOM(c, l) + VIV + 5000) + ', sans horloge, sur créneau dédié. Le DÀNDÀN™ y est réglé : seuls le VÍVÍVÓ™ et la sortie sont offerts.' }
+    ];
+    document.getElementById('c-venue').innerHTML = venues.map(function (x) {
+      return '<div class="carte' + (x.v ? ' vedette' : '') + '"><p class="k">' + x.k + '</p><p class="t">' + x.t + '</p><p class="p">' + F(x.p) + '</p><ul>' + x.d.map(function (d) { return '<li>' + d + '</li>'; }).join('') + '</ul><p class="f">' + x.f + '</p></div>';
+    }).join('');
+
+    var fs = formules(c, l);
+    document.getElementById('c-formules').innerHTML = fs.map(function (x) {
+      var av = x.v > 0 && typeof x.p === 'number' ? 1 - x.p / x.v : null;
+      return '<div class="carte' + (x.vedette ? ' vedette' : '') + '"><p class="k">' + x.k + (x.b ? ' · <span class="badge ' + x.b + '">' + BADGE[x.b] + '</span>' : '') + '</p><p class="t">' + x.t + '</p>'
+        + '<p class="p">' + (typeof x.p === 'number' && x.p > 0 ? F(x.p) + ' <small>' + x.u + '</small>' : '<small>' + x.u + '</small>') + '</p>'
+        + '<p class="g">' + x.g + (av !== null ? ' · ' + pct(av) : '') + '</p>'
+        + '<ul>' + x.d.map(function (d) { return '<li>' + d + '</li>'; }).join('') + '</ul>'
+        + (x.v > 0 ? '<p class="f">Valeur à la carte ' + F(x.v) + (x.u.indexOf('lune') >= 0 ? ' par lune' : '') + '</p>' : '') + '</div>';
+    }).join('');
+
+    var hf = '<table><thead><tr><th>Formule</th><th class="r">Première tête</th><th class="r">Son avantage</th><th class="r">Deuxième tête</th><th class="r">Avantage du Foyer</th></tr></thead><tbody>';
+    fs.filter(function (x) { return x.v > 0; }).forEach(function (x) {
+      var a = 1 - x.p / x.v, en_plus = Math.max(0, Math.min(0.15, 0.25 - a));
+      /* Arrondi au 500 F SUPÉRIEUR : le pas inférieur ferait passer la tête au-dessus du plafond de 25 %. */
+      var deux = en_plus > 0.0005 ? Math.ceil(x.v * (1 - a - en_plus) / 500) * 500 : x.p;
+      hf += '<tr><td class="nom"><b>' + x.t + '</b></td><td class="prix">' + F(x.p) + '</td><td class="avant">' + pct(a) + '</td><td class="prix">' + F(deux) + '</td><td class="avant">' + (en_plus > 0.0005 ? '+ ' + pct(en_plus) : 'rien de plus') + '</td></tr>';
+    });
+    document.getElementById('t-foyer').innerHTML = hf + '</tbody></table>';
+
+    var hc = '<table><thead><tr><th>Calibre (' + LEN[l] + ')</th><th class="r">GBÈJÍ™ Essentiel</th><th class="r">Carnet de Quatre</th><th class="r">Carnet de Six</th><th class="r">Carnet de l’Année</th><th class="r">Chaque Lune</th></tr></thead><tbody>';
+    CAL.forEach(function (nom, i) {
+      var g = GE(i, l);
+      hc += '<tr' + (i === c ? ' style="background:var(--sable)"' : '') + '><td class="nom"><b>' + nom + '</b></td><td class="prix">' + F(g) + '</td><td class="prix">' + F(3 * g) + '</td><td class="prix">' + F(5 * g) + '</td><td class="prix">' + F(6 * g) + '</td><td class="prix">' + F(chaqueLune(i, l)) + '</td></tr>';
+    });
+    hc += '<tr><td class="nom"><b>Avantage</b></td><td class="avant">carte</td><td class="avant">25 %, une fois</td><td class="avant">16,7 %</td><td class="avant">25 %</td><td class="avant">soin −25 %</td></tr>';
+    document.getElementById('t-carnets').innerHTML = hc + '</tbody></table>';
+
+    var ht = '<table><thead><tr><th>Locks</th><th class="r">Court, aujourd’hui</th><th class="r">Court, par tranches</th><th class="r">Écart</th><th class="r">Long, aujourd’hui</th><th class="r">Long, par tranches</th><th class="r">Écart</th></tr></thead><tbody>';
+    EX.forEach(function (e) {
+      var nc = crea(e[0], 0), nl = crea(e[0], 2);
+      var ec = (nc - e[1]) / e[1], el = (nl - e[2]) / e[2];
+      var s = function (x) { return (x > 0 ? '+ ' : x < 0 ? '− ' : '') + pct(Math.abs(x)); };
+      ht += '<tr' + (e[0] === 251 || e[0] === 451 ? ' style="background:var(--sable)"' : '') + '><td class="nom"><b>' + e[0] + '</b></td><td class="avant">' + F(e[1]) + '</td><td class="prix">' + F(nc) + '</td><td class="avant">' + s(ec) + '</td><td class="avant">' + F(e[2]) + '</td><td class="prix">' + F(nl) + '</td><td class="avant">' + s(el) + '</td></tr>';
+    });
+    document.getElementById('t-tranches').innerHTML = ht + '</tbody></table>';
+    rendCrea();
+
+    var c6 = 5 * GS(c, l);
+    document.getElementById('mc-t').innerHTML = 'Le Carnet de Six, <em>la sixième visite offerte</em>';
+    document.getElementById('mc-p').textContent = 'Six GBÈJÍ™ Signature en neuf lunes pour votre tête ' + CAL[c] + ' ' + LEN[l] + ' : ' + F(c6) + ', réglable en ' + (c6 >= 200000 ? 'trois' : 'deux') + ' fois.';
+
+    var cas = [
+      ['Une tête Medium courte, toutes les six semaines', 'Aujourd’hui : KLƆKLƆ™ Essentiel + SÍNSIN™ Élaboré, deux lignes, ' + F(GS(1, 0)) + '. Demain : « un GBÈJÍ™ Signature », même prix, un nom. En Carnet de Six : ' + F(5 * GS(1, 0)) + ' les six.'],
+      ['Une création de 251 locks courts', 'Aujourd’hui ' + F(351400) + ' (le saut de la frontière Mini / Micro). Par tranches : ' + F(crea(251, 0)) + '.'],
+      ['Une création de 120 locks courts', 'Aujourd’hui ' + F(132000) + '. Par tranches : ' + F(crea(120, 0)) + ' (+ 4,5 %), Retouche et DÀNDÀN™ post pose compris.'],
+      ['Une enfant de 100 locks', 'Aujourd’hui ' + F(150000) + ', plus cher qu’une adulte. Cette saison : ' + F(120000) + '. Au prochain catalogue : ' + F(crea(100, 0) * 0.8) + ' (80 % de l’adulte).']
+    ];
+    document.getElementById('cas-liste').innerHTML = cas.map(function (x) { return '<div><b>' + x[0] + '</b><span>' + x[1] + '</span></div>'; }).join('');
+  }
+
+  function rendCrea() {
+    var n = etat.locks, l = etat.l;
+    document.getElementById('v-locks').textContent = n;
+    document.getElementById('r-locks').value = n;
+    var p = crea(n, l);
+    document.getElementById('v-crea').textContent = F(p);
+    var a = Math.min(n, 250), b = Math.max(0, n - 250);
+    var brut = a * BASE[l] + b * FIN[l];
+    document.getElementById('v-detail').textContent = a + ' × ' + F(BASE[l]) + (b ? ' + ' + b + ' × ' + F(FIN[l]) : '') + (brut < PLANCHER[l] ? ' · plancher ' + F(PLANCHER[l]) : '') + ' · cheveux ' + LEN[l];
+    var cl = CAL.findIndex(function (x, i) { return n <= BORNE[i]; });
+    document.getElementById('v-avant').textContent = 'Calibre ' + CAL[cl < 0 ? 6 : cl] + '. Un lock de plus : ' + F(n < 250 ? BASE[l] : FIN[l]) + '.';
+  }
+
+  document.getElementById('ch-cal').innerHTML = CAL.map(function (x, i) { return '<button type="button" data-i="' + i + '">' + x + '</button>'; }).join('');
+  document.getElementById('ch-len').innerHTML = LEN.map(function (x, i) { return '<button type="button" data-i="' + i + '">' + x + '</button>'; }).join('');
+  var garde = function () { try { localStorage.setItem('grille-tete', JSON.stringify({ c: etat.c, l: etat.l })); } catch (e) {} };
+  document.getElementById('ch-cal').addEventListener('click', function (e) { var b = e.target.closest('button'); if (!b) return; etat.c = +b.dataset.i; etat.locks = Math.min(BORNE[etat.c], (etat.c ? BORNE[etat.c - 1] : 30) + 40); garde(); rend(); });
+  document.getElementById('ch-len').addEventListener('click', function (e) { var b = e.target.closest('button'); if (!b) return; etat.l = +b.dataset.i; garde(); rend(); });
+  document.getElementById('r-locks').addEventListener('input', function (e) { etat.locks = +e.target.value; rendCrea(); });
+  rend();
+})();
+</script>
+</body>
+</html>

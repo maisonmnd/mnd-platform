@@ -670,6 +670,9 @@ export const forfaitPriceXof = (
   if (remise === undefined) return undefined;
   let somme = 0;
   for (const inc of sv.includes) {
+    /* LA LIGNE OFFERTE (10 octobre 2026) : elle se pose au carnet, elle ne se
+       paie pas. */
+    if (inc.offert) continue;
     if (inc.productId) {
       const pr = produits?.find((x) => x.id === inc.productId);
       if (pr) somme += pr.priceXof;
@@ -823,7 +826,9 @@ export const estProposable = (
      tarif du catalogue, « dès X F » — il ne retire rien de la carte.
      Mesurée et HORS de ses calibres, en revanche, elle disparaît toujours :
      là on sait, et proposer serait mentir. */
-  (servesBand(sv, bandForService(sv, p)) || !calibreConnu(p))
+  /* ARCHIVÉE (10 octobre 2026) : fermée à la vente partout, jamais effacée. */
+  sv.archived !== true
+  && (servesBand(sv, bandForService(sv, p)) || !calibreConnu(p))
   && ouverteDesVenue(sv, venuesAcquises)
   && (!sv.reserveFamilles || aFamille)
   && (!sv.reserveEnfants || kids !== 'non');

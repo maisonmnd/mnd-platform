@@ -11,7 +11,7 @@ import { jourCourtAn } from '../../../../shared/calendrier';
 import { EditeurDuSite } from './EditeurDuSite';
 import { useBrouillonDuSite, changementsEnAttente } from '../../../../shared/site-retouches-store';
 import { useStore } from '../../../../shared/store';
-import { vitrineConfigStore } from '../../../../shared/bridges';
+import { poseLesAvisChoisis, vitrineConfigStore } from '../../../../shared/bridges';
 import {
   avisAMontrer, basculeLeChoix, choixDisparus, cleDeLAvis, deplaceLeChoix, mentionDuTri, type UnAvisGoogle,
 } from '../../../../shared/avis-google-pur';
@@ -134,7 +134,7 @@ function useAvisGoogle(): { note: number; nombre: number; le?: string; avis: UnA
 function ChoixDesAvis({ avis }: { avis: UnAvisGoogle[] | null }) {
   const [cfg] = useStore(vitrineConfigStore);
   const choisis = cfg.avisChoisis ?? [];
-  const pose = (liste: string[]) => vitrineConfigStore.set((c) => ({ ...c, avisChoisis: liste }));
+  const pose = (liste: string[]) => poseLesAvisChoisis(liste);
   const tous = avis ?? [];
   const vue = avisAMontrer(tous, choisis);
   const disparus = choixDisparus(choisis, tous);

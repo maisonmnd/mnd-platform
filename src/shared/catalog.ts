@@ -104,6 +104,14 @@ export type Service = {
       pour une prestation qui exige un regard avant réservation, même hors
       création, devis et restauration. Le juge : `shared/qualification.ts`. */
   consultationAvant?: boolean;
+  /** ARCHIVÉE — 10 octobre 2026 (la genèse des prix). Fermée à la vente et
+      masquée partout (comptoir, Ma Couronne, carte de la Maison, site), mais
+      JAMAIS supprimée : l'historique, les factures et les rendez-vous la lisent
+      toujours par son identifiant. Le site et le serveur lisaient déjà ce champ
+      (`reservableSurLeSite`) ; personne ne l'écrivait. Le juge : `estArchivee`. */
+  archived?: boolean;
+  /** Le jour de l'archivage (AAAA-MM-JJ), pour le dire au Catalogue. */
+  archivedLe?: string;
   priceXof: number;
   hidePrice: boolean;
   priceMode?: PriceMode; // défaut dérivé de hidePrice (voir priceModeOf)
@@ -407,7 +415,16 @@ export type ServiceInclus = {
   productId?: string;
   /** Dans combien de semaines apres la visite d'ouverture. 0 = le jour meme. */
   afterWeeks?: number;
+  /** OFFERTE — 10 octobre 2026 (la genèse des prix). La ligne fait partie du
+      forfait et se pose au carnet, mais elle ne compte pas dans son prix :
+      Le Moment offre le VÍVÍVÓ™ et la sortie Signature. Un pourcentage sur
+      tout le forfait ne dirait pas la même chose à toutes les têtes. */
+  offert?: boolean;
 };
+
+/** LA PRESTATION EST-ELLE ARCHIVÉE ? Le juge unique : fermée à la vente,
+    masquée partout, jamais effacée. */
+export const estArchivee = (s: { archived?: boolean }): boolean => s.archived === true;
 
 export const SEUIL_REASSORT = 3;
 
@@ -449,8 +466,14 @@ export { CATEGORIE_VEKPE, CATEGORIE_FINFIN, fondeLaCouronne } from './catalogue-
    reconnaît « Le Défaisage » casse en silence le jour où quelqu'un le renomme,
    et personne ne voit qu'elle s'est tue. */
 export const CATEGORIE_GBATA = 'plt-45';
+/* LA CATÉGORIE VIVANTE — 10 octobre 2026 (la genèse des prix). Le catalogue
+   vivant range le défaisage sous `cat-defaisage`, pas sous `plt-45` (l'id de la
+   semence) : la règle n'a donc jamais reconnu un seul défaisage. Exactement ce
+   que la leçon du 18 août craignait, par l'identifiant cette fois. Les deux
+   sont reconnus. */
+export const CATEGORIE_GBATA_VIVANTE = 'cat-defaisage';
 export const defaitLaCouronne = (s: Pick<Service, 'categoryId'>): boolean =>
-  s.categoryId === CATEGORIE_GBATA;
+  s.categoryId === CATEGORIE_GBATA || s.categoryId === CATEGORIE_GBATA_VIVANTE;
 
 export const CATEGORIES_SEED: CatalogCategory[] = [
   /* ─── Maison 1 · ATELIER MND™ — les locks exclusivement ─── */

@@ -114,7 +114,7 @@ export default function App() {
       <div className="kio-corps" ref={corps}>
         {volet === 'rituels' && (
           <Rituels
-            services={gardeSurLaCarte(services, reglages.servicesMasques)}
+            services={gardeSurLaCarte(services.filter((s) => s.archived !== true), reglages.servicesMasques)}
             categories={categories}
             currency={currency}
           />
