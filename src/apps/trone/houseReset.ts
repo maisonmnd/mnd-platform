@@ -94,8 +94,12 @@ export function activateBlankAndReload(): void {
     magasins (« trone::mnd_… ») en place. */
 export function videLeCacheSaufLesDrapeaux(): void {
   const KEEP = new Set(['mnd_house_blank', RESET_FLAG, PENDING_REPLACE_KEY]);
+  /* LA FILE D'ATTENTE ET SES CONFLITS PARTENT AUSSI — 10 octobre 2026 (revue
+     de code). `trone::file::<table>` ne porte pas « mnd_ » : elle survivait,
+     et au rechargement ses gestes repartaient vers un serveur vidé, ou
+     par-dessus le fichier de « Remplacer la Maison ». */
   Object.keys(localStorage)
-    .filter((k) => estCleDeLaMaison(k) && !KEEP.has(k))
+    .filter((k) => (estCleDeLaMaison(k) || k.includes('::file::')) && !KEEP.has(k))
     .forEach((k) => localStorage.removeItem(k));
 }
 

@@ -205,6 +205,13 @@ const SENSITIVE_KEYS = [
      (/trone/), toute faille sur cette page y avait acces de plein droit. */
   'mnd_clients', 'mnd_appointments', 'mnd_invoices', 'mnd_families',
   'mnd_consult_forms', 'mnd_consultations_queue', 'mnd_client_sessions',
+  /* LE SECRÉTARIAT ET LES BILANS AUSSI — 10 octobre 2026 (revue de code).
+     Lettres privées, dossiers de la famille, bilans et notes de séance
+     restaient sur le poste après une déconnexion faite hors ligne : la
+     relecture anonyme qui les aurait vidés ne pouvait pas partir. La purge
+     ne s'inscrit plus comme un geste (store.ts, `estUnePurge`) : rien ne
+     part au serveur. */
+  'mnd_secretariat', 'mnd_bilans', 'mnd_notes_de_seance',
 ];
 
 export async function signOut(): Promise<void> {

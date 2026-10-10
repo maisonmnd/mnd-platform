@@ -81,12 +81,22 @@ export function ecouteLesPauses(fn: () => void): () => void {
 }
 
 /** Un magasin dont l'écriture AUTOMATIQUE passe par la règle. `get` et le reste
-    ne changent pas : on ne garde que la porte par laquelle un automatisme écrit. */
+    ne changent pas : on ne garde que la porte par laquelle un automatisme écrit.
+
+    L'ÉCRITURE DIT SI ELLE A EU LIEU — 10 octobre 2026 (revue de code). En
+    pause, elle ne faisait rien sans le dire, et le parrainage envoyait
+    quand même le merci WhatsApp d'une récompense jamais posée : au
+    rechargement, la récompense s'écrivait, et le merci repartait. `set`
+    rend `false` quand l'automatisme se tait ; ce qui DÉCOULE de l'écriture
+    (un message) attend ce `true`. */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function gardeLEcriture<S extends { set: (...a: any[]) => void }>(nom: string, magasin: S): Pick<S, 'set'> {
+export function gardeLEcriture<S extends { set: (...a: any[]) => void }>(nom: string, magasin: S): { set: (...a: Parameters<S['set']>) => boolean } {
   return {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    set: ((...a: any[]) => { if (peutEcrireSeul(nom)) magasin.set(...a); }) as S['set'],
+    set: (...a: Parameters<S['set']>): boolean => {
+      if (!peutEcrireSeul(nom)) return false;
+      magasin.set(...a);
+      return true;
+    },
   };
 }
 

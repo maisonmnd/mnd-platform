@@ -161,18 +161,34 @@ export function useParrainageVivant(): void {
     /* ⑤ Les mercis. */
     const poses = recompensesAPoser(clients, L, reglageAmb, aujourdhui, nomDuService);
     if (poses.parFiche.size) {
-      gardeLEcriture('parrainage', clientsStore).set((prev) => prev.map((c) => {
+      const recompensesEcrites = gardeLEcriture('parrainage', clientsStore).set((prev) => prev.map((c) => {
         const neuves = (poses.parFiche.get(c.id) ?? []).filter((s) => !(c.soinsOfferts ?? []).some((x) => x.id === s.id));
         return neuves.length ? { ...c, soinsOfferts: [...(c.soinsOfferts ?? []), ...neuves] } : c;
       }));
+      /* PAS DE MERCI SANS RÉCOMPENSE ÉCRITE — 10 octobre 2026 (revue de
+         code). En pause, la fiche ne portait ni la récompense ni `merciLe`,
+         le merci partait quand même, et repartait au rechargement quand la
+         récompense s'écrivait enfin. Le merci suit l'écriture, jamais
+         l'inverse. */
+      if (!recompensesEcrites) return;
       if (poses.demandesMarquees.length) {
         const marquees = new Set(poses.demandesMarquees);
         const maintenant = new Date().toISOString();
         gardeLEcriture('parrainage', demandesStore).set((prev) => prev.map((d) => (marquees.has(d.id) && !(d as DemandeParrainee).cadeauMarraineRemisLe
           ? { ...d, cadeauMarraineRemisLe: maintenant } as typeof d : d)));
       }
+      /* LA RÉCOMPENSE DE CHAQUE MERCI : `recompensesAPoser` pousse, fiche
+         par fiche, un merci pour chaque récompense neuve qui porte `merciLe`,
+         dans le même ordre. On les apparie ici pour nommer la clé. */
+      const rangDuMerci = new Map<string, number>();
+      const recompenseDuMerci = (clientId: string): string | undefined => {
+        const rang = rangDuMerci.get(clientId) ?? 0;
+        rangDuMerci.set(clientId, rang + 1);
+        return (poses.parFiche.get(clientId) ?? []).filter((s) => !!s.merciLe)[rang]?.id;
+      };
       for (const m of poses.mercis) {
-        const cle = `${m.clientId}|${m.prenomFilleule}`;
+        const recompenseId = recompenseDuMerci(m.clientId);
+        const cle = `${m.clientId}|${recompenseId ?? m.prenomFilleule}`;
         if (enVol.current.has(cle)) continue;
         enVol.current.add(cle);
         const fiche = clients.find((c) => c.id === m.clientId);
@@ -184,6 +200,10 @@ export function useParrainageVivant(): void {
           await envoieSurWhatsApp({
             numero: m.telephone, modele: 'parrainage_merci', variables: [fiche ? appelDe(fiche) : m.prenomMarraine, m.prenomFilleule, m.libelle],
             ...(piece ? { enTete: 'image' as const, piece } : {}), clientId: m.clientId, parQui: 'Le Trône · ambassadrices',
+            /* UNE CLÉ PAR RÉCOMPENSE (10 octobre 2026) : deux postes ouverts
+               peuvent calculer le même merci au même instant. La fonction
+               du serveur refusera une clé déjà envoyée. */
+            ...(recompenseId ? { cleUnique: `merci:${m.clientId}:${recompenseId}` } : {}),
           });
         })();
       }

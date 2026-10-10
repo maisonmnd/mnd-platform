@@ -44,9 +44,15 @@ export const versionDesAppels = (): number => version;
 export function lisLesAppels(): AppelEnAttente[] {
   try { return JSON.parse(localStorage.getItem(CLE()) || '[]') as AppelEnAttente[]; } catch { return []; }
 }
-const ecris = (l: readonly AppelEnAttente[]): void => {
-  try { if (l.length) localStorage.setItem(CLE(), JSON.stringify(l)); else localStorage.removeItem(CLE()); } catch { /* stockage refusé */ }
+/* L'ÉCRITURE DIT SI ELLE A TENU — 10 octobre 2026 (revue de code). Le
+   refus du stockage était avalé : une pièce de 5 Mo (lue en ~6,7 M de
+   caractères) dépasse tout le stockage d'une origine, rien n'était gardé,
+   et l'écran disait pourtant « partira au retour du réseau ». */
+const ecris = (l: readonly AppelEnAttente[]): boolean => {
+  let tenu = true;
+  try { if (l.length) localStorage.setItem(CLE(), JSON.stringify(l)); else localStorage.removeItem(CLE()); } catch { tenu = false; }
   annonce();
+  return tenu;
 };
 export const appelsEnAttente = (): number => lisLesAppels().length;
 
@@ -60,29 +66,64 @@ export const estHorsLigne = (err: unknown): boolean => {
     || m.includes('network request failed') || m.includes('err_internet_disconnected');
 };
 
-export function gardeUnAppel(fonction: string, corps: unknown, dit: string): void {
-  const a: AppelEnAttente = { id: `ap-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`, fonction, corps, dit, at: new Date().toISOString() };
-  ecris([...lisLesAppels(), a]);
+/** Ce que dit un envoi que l'appareil n'a pas pu garder. */
+export const TROP_LOURD_POUR_ATTENDRE = 'Hors ligne, et la pièce est trop lourde pour attendre sur cet appareil : renvoyez-la au retour du réseau.';
+/** Ce que dit un envoi refusé parce que l'appareil est plein. */
+export const APPAREIL_PLEIN_POUR_ATTENDRE = 'Hors ligne, et la mémoire de cet appareil est pleine : l’envoi n’a pas pu être gardé. Refaites-le au retour du réseau.';
+
+/* LA VRAIE CAUSE DU REFUS — 10 octobre 2026 (revue de code, reprise). Tout
+   refus du stockage parlait d'une pièce trop lourde, même pour un WhatsApp
+   de texte seul ou une notification, quand les magasins avaient rempli
+   l'appareil (`magasinsSatures`, store.ts). On SONDE : si un kilo-octet
+   n'entre plus, l'appareil est plein ; s'il entre et que l'envoi porte une
+   pièce, c'est elle qui est trop lourde. */
+const pourquoiPasGarde = (corps: unknown): string => {
+  const sonde = `${surface()}::sonde-du-stockage`;
+  let place = true;
+  try { localStorage.setItem(sonde, 'x'.repeat(1024)); } catch { place = false; }
+  try { localStorage.removeItem(sonde); } catch { /* rien à retirer */ }
+  const piece = !!corps && typeof corps === 'object' && !!(corps as { piece?: unknown }).piece;
+  return place && piece ? TROP_LOURD_POUR_ATTENDRE : APPAREIL_PLEIN_POUR_ATTENDRE;
+};
+
+const nouvelAppel = (fonction: string, corps: unknown, dit: string): AppelEnAttente =>
+  ({ id: `ap-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`, fonction, corps, dit, at: new Date().toISOString() });
+
+/** Garde l'appel ; `false` si l'appareil a refusé de le garder. */
+const garde = (a: AppelEnAttente): boolean => {
+  if (!ecris([...lisLesAppels(), a])) return false;
   planifieLeVidage();
+  return true;
+};
+
+/** GARDER POUR PLUS TARD (en fermant l'onglet, hors ligne). Rend `false` si
+    l'appareil n'a pas pu le garder : il est alors noté REFUSÉ, sans sa
+    pièce, pour que le panneau de la pastille dise qu'il n'est pas parti. */
+export function gardeUnAppel(fonction: string, corps: unknown, dit: string): boolean {
+  const a = nouvelAppel(fonction, corps, dit);
+  if (garde(a)) return true;
+  noteUnRefus({ ...a, corps: null }, pourquoiPasGarde(corps));
+  annonce();
+  return false;
 }
 
 /** APPELER, OU GARDER POUR PLUS TARD. Hors ligne, l'appel ne part pas : il
     se garde, et l'écran le dit (« partira au retour du réseau »). */
 export async function appelleOuGarde<D = unknown>(fonction: string, corps: unknown, dit: string): Promise<Issue<D>> {
   if (!supabase) return { erreur: new Error('Pas de connexion à la Maison.') };
-  if (typeof navigator !== 'undefined' && navigator.onLine === false) {
-    gardeUnAppel(fonction, corps, dit);
-    return { enAttente: true };
-  }
+  /* Gardé, il partira ; refusé par le stockage, l'écran le dit tout de
+     suite au lieu d'annoncer un départ qui n'aura pas lieu. */
+  const gardeOuDit = (): Issue<D> => (garde(nouvelAppel(fonction, corps, dit)) ? { enAttente: true } : { erreur: new Error(pourquoiPasGarde(corps)) });
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) return gardeOuDit();
   try {
     const { data, error } = await supabase.functions.invoke(fonction, { body: corps as Record<string, unknown> });
     if (error) {
-      if (estHorsLigne(error)) { gardeUnAppel(fonction, corps, dit); return { enAttente: true }; }
+      if (estHorsLigne(error)) return gardeOuDit();
       return { erreur: error };
     }
     return { parti: true, data: data as D };
   } catch (err) {
-    if (estHorsLigne(err)) { gardeUnAppel(fonction, corps, dit); return { enAttente: true }; }
+    if (estHorsLigne(err)) return gardeOuDit();
     return { erreur: err };
   }
 }
@@ -104,32 +145,55 @@ const noteUnRefus = (a: AppelEnAttente, refus: string): void => {
   try { localStorage.setItem(CLE_REFUS(), JSON.stringify([{ ...a, refus, le: new Date().toISOString() }, ...lisLesRefus()].slice(0, 50))); } catch { /* idem */ }
 };
 
+/* ══ UN SEUL ONGLET VIDE LA FILE — 10 octobre 2026 (revue de code) ══════
+   Deux onglets du Trône lisaient la même file au retour du réseau, chacun
+   avec son garde à lui, et rejouaient les mêmes appels : la cliente
+   recevait le WhatsApp deux fois. Trois précautions :
+   ① le verrou du navigateur (`navigator.locks`), quand il existe : un
+     onglet à la fois ;
+   ② la file se RELIT à chaque appel (un autre onglet a pu en prendre) ;
+   ③ l'appel sort de la file AVANT de partir, et n'y revient que sur une
+     coupure, à sa place, en tête. Un onglet fermé en plein vol perd au pire
+     un appel ; il n'en envoie jamais deux. */
+type Verrous = { request: (nom: string, f: () => Promise<number>) => Promise<number> };
+const VERROU = (): string => `${surface()}::appels-en-attente`;
+
 let enCours = false;
 export async function videLesAppels(): Promise<number> {
   if (!supabase || enCours) return 0;
   if (typeof navigator !== 'undefined' && navigator.onLine === false) return 0;
   if (lisLesAppels().length === 0) return 0;
   enCours = true;
-  let partis = 0;
   try {
-    /* Une session vraie d'abord : hors ligne, le jeton a pu expirer, et
-       supabase-js le rafraîchit à cette lecture. */
-    await supabase.auth.getSession();
-    for (const a of lisLesAppels()) {
-      let issue: 'parti' | 'coupure' | string;
-      try {
-        const { error } = await supabase.functions.invoke(a.fonction, { body: a.corps as Record<string, unknown> });
-        issue = !error ? 'parti' : estHorsLigne(error) ? 'coupure' : String((error as { message?: string }).message ?? error);
-      } catch (err) {
-        issue = estHorsLigne(err) ? 'coupure' : String((err as { message?: string })?.message ?? err);
-      }
-      if (issue === 'coupure') break;
-      if (issue !== 'parti') noteUnRefus(a, issue);
-      else partis += 1;
-      ecris(lisLesAppels().filter((x) => x.id !== a.id));
-    }
+    const verrous = typeof navigator !== 'undefined' ? (navigator as unknown as { locks?: Verrous }).locks : undefined;
+    return verrous && typeof verrous.request === 'function' ? await verrous.request(VERROU(), videSousVerrou) : await videSousVerrou();
   } finally {
     enCours = false;
+  }
+}
+
+async function videSousVerrou(): Promise<number> {
+  if (!supabase || lisLesAppels().length === 0) return 0;
+  let partis = 0;
+  /* Une session vraie d'abord : hors ligne, le jeton a pu expirer, et
+     supabase-js le rafraîchit à cette lecture. */
+  await supabase.auth.getSession();
+  const vus = new Set<string>();
+  for (;;) {
+    const a = lisLesAppels()[0];
+    if (!a || vus.has(a.id)) break;
+    vus.add(a.id);
+    ecris(lisLesAppels().filter((x) => x.id !== a.id));
+    let issue: 'parti' | 'coupure' | string;
+    try {
+      const { error } = await supabase.functions.invoke(a.fonction, { body: a.corps as Record<string, unknown> });
+      issue = !error ? 'parti' : estHorsLigne(error) ? 'coupure' : String((error as { message?: string }).message ?? error);
+    } catch (err) {
+      issue = estHorsLigne(err) ? 'coupure' : String((err as { message?: string })?.message ?? err);
+    }
+    if (issue === 'coupure') { ecris([a, ...lisLesAppels().filter((x) => x.id !== a.id)]); break; }
+    if (issue !== 'parti') noteUnRefus(a, issue);
+    else partis += 1;
   }
   return partis;
 }

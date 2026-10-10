@@ -168,11 +168,11 @@ function SyncDot() {
   const title =
     mode === 'off' ? `Hors ligne. ${enAttente ? `${gestesDits} sur ce téléphone : ils` : 'Les écritures'} restent ici, même si l’application se ferme, et partiront au retour du réseau. Le geste le plus récent l’emporte.`
     : mode === 'err'
-      ? `Refusé par le serveur :\n${causes.join('\n') || '—'}\n\nUn refus de DROIT n'allume pas cette pastille : ce qui s'affiche ici est une vraie panne.${s.reprises.length
+      ? `Refusé par le serveur :\n${causes.join('\n') || 'cause non nommée'}\n\nUn refus de DROIT n'allume pas cette pastille : ce qui s'affiche ici est une vraie panne.${s.reprises.length
         ? ' Le serveur ne répond pas : la Maison réessaie d’elle-même, de plus en plus espacé, jusqu’à ce qu’il revienne.'
         : ' Ce refus ne guérira pas en attendant : il faut agir sur la base, puis refaire une modification pour relancer.'}`
     : mode === 'wait' ? `Écritures locales en cours d’envoi :
-${s.pendingNames.map((t) => t.replace(/^doc:/, '')).join(', ') || '—'}
+${s.pendingNames.map((t) => t.replace(/^doc:/, '')).join(', ') || 'aucune table nommée'}
 
 Si cela dure plus d’une minute, une donnée se réécrit en boucle : rechargez ce poste, puis les autres postes ouverts.`
     : pauses
@@ -288,7 +288,8 @@ function LaFileDAttente({ conflits, refus, onClose }: { conflits: Conflit[]; ref
 function LesConflits({ conflits }: { conflits: Conflit[] }) {
   const heure = (iso: string) => new Date(iso).toLocaleString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
   const nom = (c: Conflit, j: string | null): string => {
-    if (!j) return 'supprimée';
+    /* « null » : la ligne supprimée ailleurs (10 octobre 2026). */
+    if (!j || j === 'null') return 'supprimée';
     try {
       const d = JSON.parse(j) as Record<string, unknown>;
       return CARTE_DES_TABLES[c.table]?.nomme(d) ?? String(d.name ?? d.label ?? d.number ?? c.id);
@@ -298,14 +299,16 @@ function LesConflits({ conflits }: { conflits: Conflit[] }) {
   /* CE QUI DIFFÈRE, CHAMP PAR CHAMP — 4 octobre 2026. Le nom seul des deux
      côtés laissait croire à deux versions identiques : on montre ce qui a
      vraiment changé, avec les deux valeurs. */
+  /* PAS DE TIRET CADRATIN À L'ÉCRAN (10 octobre 2026, revue de code) : une
+     valeur absente se dit « vide ». */
   const valeurDe = (j: string | null, k: string): string => {
-    if (!j) return '—';
+    if (!j || j === 'null') return 'vide';
     try {
       const v = (JSON.parse(j) as Record<string, unknown>)[k];
-      if (v === undefined || v === null || v === '') return '—';
+      if (v === undefined || v === null || v === '') return 'vide';
       const t = typeof v === 'object' ? JSON.stringify(v) : String(v);
       return t.length > 48 ? `${t.slice(0, 47)}…` : t;
-    } catch { return '—'; }
+    } catch { return 'vide'; }
   };
   if (conflits.length === 0) return null;
   return (
@@ -321,13 +324,18 @@ function LesConflits({ conflits }: { conflits: Conflit[] }) {
         </div>
       )}
       {conflits.map((c) => {
-        const notreGagne = Date.parse(c.notreAt) > Date.parse(c.leurAt);
+        /* SUPPRIMÉE AILLEURS (10 octobre 2026, revue de code, reprise) : une
+           suppression ne dit pas son heure, et l'arbitre la date de NOTRE
+           geste. Elle se dit donc « constatée » à l'heure où le poste l'a
+           vue, et le détail champ par champ se tait : tout diffère. */
+        const supprimee = c.leur === 'null';
+        const notreGagne = !supprimee && Date.parse(c.notreAt) > Date.parse(c.leurAt);
         return (
           <div key={`${c.table}-${c.id}-${c.vuLe}`} style={{ borderTop: '1px solid var(--hairline)', padding: '12px 0', display: 'grid', gap: 6 }}>
             <div style={{ fontSize: 13.5 }}><b style={{ fontWeight: 500 }}>{ecran(c)}</b> · {nom(c, c.leur)}</div>
             {(() => {
               const champs = champsQuiDifferent(c);
-              if (c.notre === null || champs.length === 0) return null;
+              if (c.notre === null || supprimee || champs.length === 0) return null;
               return (
                 <div className="mnd-muted" style={{ fontSize: 12, lineHeight: 1.5 }}>
                   Ce qui diffère : {champs.slice(0, 4).map((k) => (
@@ -340,7 +348,7 @@ function LesConflits({ conflits }: { conflits: Conflit[] }) {
             })()}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 8, fontSize: 12.5 }}>
               <div style={{ border: '1px solid var(--hairline)', borderRadius: 3, padding: '6px 9px' }}>
-                <div className="mnd-muted" style={{ fontSize: 10.5, letterSpacing: '.12em', textTransform: 'uppercase' }}>{notreGagne ? 'Écartée' : 'Gardée'} · ailleurs · {heure(c.leurAt)}</div>
+                <div className="mnd-muted" style={{ fontSize: 10.5, letterSpacing: '.12em', textTransform: 'uppercase' }}>{supprimee ? `Gardée · supprimée ailleurs · constatée le ${heure(c.vuLe)}` : `${notreGagne ? 'Écartée' : 'Gardée'} · ailleurs · ${heure(c.leurAt)}`}</div>
                 {nom(c, c.leur)}
               </div>
               <div style={{ border: '1px solid var(--hairline)', borderRadius: 3, padding: '6px 9px' }}>

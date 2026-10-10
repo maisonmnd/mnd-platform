@@ -28,6 +28,11 @@ export type Entree = {
   at: string;
   /** La ligne telle que le geste l'a laissée (JSON), pour un `set`. */
   j?: string;
+  /** Le serveur portait déjà cette ligne au moment du geste (10 octobre
+      2026). Absente au retour, elle a donc été SUPPRIMÉE ailleurs : le geste
+      devient un conflit, il ne la recrée pas. Sans ce drapeau (ligne neuve,
+      ou geste noté avant ce jour), le geste part comme avant. */
+  connue?: true;
 };
 
 export type Conflit = {
@@ -82,6 +87,17 @@ export function arbitre<T extends { id: string }>(
       if (!notre) { finis.push(id); continue; }
       /* Déjà arrivé (l'application s'était fermée juste après l'envoi). */
       if (s && canon(s) === canon(notre)) { finis.push(id); continue; }
+      /* SUPPRIMÉE AILLEURS PENDANT QUE LE GESTE ATTENDAIT — 10 octobre 2026
+         (revue de code). La ligne que le serveur portait n'y est plus : la
+         repousser la faisait renaître, et la suppression la plus récente
+         perdait. Une suppression ne dit pas son heure : on ne tranche pas,
+         on garde notre version en conflit (« Reprendre ma version » la
+         repose d'un clic), et rien ne part. */
+      if (!s && e.connue) {
+        conflits.push({ id, notre: e.j!, notreAt: e.at, leur: 'null', leurAt: e.at });
+        finis.push(id);
+        continue;
+      }
       if (plusRecentAilleurs) {
         conflits.push({ id, notre: e.j!, notreAt: e.at, leur: JSON.stringify(s), leurAt: sAt! });
         finis.push(id);
@@ -109,10 +125,13 @@ export const leGesteLocalTient = (e: Entree, distantAt: string | undefined): boo
   !distantAt || Date.parse(distantAt) <= Date.parse(e.at);
 
 /** Les gestes à inscrire, d'un état local à l'autre : ce qui a changé ou
-    disparu, à l'heure `at`. */
-export function gestesEntre(avant: ReadonlyMap<string, string>, apres: ReadonlyMap<string, string>, at: string): Map<string, Entree> {
+    disparu, à l'heure `at`. `connue` dit si le serveur portait déjà la ligne. */
+export function gestesEntre(
+  avant: ReadonlyMap<string, string>, apres: ReadonlyMap<string, string>, at: string,
+  connue: (id: string) => boolean = () => false,
+): Map<string, Entree> {
   const sortie = new Map<string, Entree>();
-  for (const [id, j] of apres) if (avant.get(id) !== j) sortie.set(id, { op: 'set', at, j });
+  for (const [id, j] of apres) if (avant.get(id) !== j) sortie.set(id, connue(id) ? { op: 'set', at, j, connue: true } : { op: 'set', at, j });
   for (const id of avant.keys()) if (!apres.has(id)) sortie.set(id, { op: 'del', at });
   return sortie;
 }
@@ -191,8 +210,12 @@ const canonique = (v: unknown): string => JSON.stringify(v, (_k, x) =>
     ? Object.fromEntries(Object.keys(x as Record<string, unknown>).sort().map((k) => [k, (x as Record<string, unknown>)[k]]))
     : x));
 
+/* « null » écrit en toutes lettres est une SUPPRESSION (10 octobre 2026,
+   revue de code, reprise) : lu `{ valeur: null }`, il faisait lister au
+   panneau des conflits tous les champs de la ligne et un faux champ
+   « valeur ». */
 const enLigne = (j: string | null): Record<string, unknown> | null => {
-  if (j === null) return null;
+  if (j === null || j === 'null') return null;
   try {
     const v = JSON.parse(j) as unknown;
     return v && typeof v === 'object' && !Array.isArray(v) ? (v as Record<string, unknown>) : { valeur: v };
@@ -260,6 +283,13 @@ function laLigneActuelle(c: Pick<Conflit, 'table' | 'id'> & { magasin?: string }
 }
 
 export function dejaTranche(c: Pick<Conflit, 'table' | 'id' | 'notre' | 'leur'> & { magasin?: string }): boolean {
+  /* SUPPRIMÉE AILLEURS (10 octobre 2026) : la question reste tant que la
+     ligne est absente ; reprise depuis (« Reprendre ma version », ou posée
+     à nouveau), elle est tranchée. */
+  if (c.leur === 'null') {
+    const actuel = laLigneActuelle(c);
+    return actuel.connue && !!actuel.ligne;
+  }
   const gardee = enLigne(c.leur);
   if (!gardee) return false;
   const actuel = laLigneActuelle(c);

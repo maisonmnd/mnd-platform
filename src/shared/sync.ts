@@ -1,4 +1,5 @@
 import type { Store } from './store';
+import { estUnePurge } from './store';
 import { supabase } from './supabase';
 import { attendsLaPorte } from './auth';
 import { serveurInjoignable } from './hors-ligne';
@@ -191,6 +192,15 @@ const estRefusDeDroit = (msg: string | undefined): boolean => {
   const m = (msg ?? '').toLowerCase();
   return m.includes('row-level security') || m.includes('permission denied') || m.includes('42501');
 };
+/* UN REFUS SANS SESSION N'EST PAS UN REFUS DE DROIT — 10 octobre 2026
+   (revue de code, reprise). Le poste verrouillé (signOut au bout de quinze
+   minutes) garde ses gestes faits hors ligne ; la reprise programmée après
+   la coupure les poussait en anonyme dès le retour du réseau. Refusés, ils
+   sortaient de la file, et la table passait « hors de portée » pour tout
+   l'onglet : la vente était perdue, et rien ne repartait après la
+   reconnexion. Sans session, le geste attend : la connexion le rejouera. */
+const refusSansSession = async (): Promise<boolean> =>
+  !supabase || !(await supabase.auth.getSession()).data.session;
 /** Les tables en échec ET le message brut du serveur, table → message. */
 const failedTables = new Map<string, string>();
 /** Les canaux temps réel à terre — voir `SyncState.directEnPanne`. */
@@ -825,8 +835,20 @@ export function bindCollection<T extends WithId>(
     return js;
   };
   observe(store.get());
+  /* ══ UNE RELECTURE PARTIE AVANT UNE POUSSÉE — 10 octobre 2026 (revue de
+     code). La lecture partait, la poussée validait le geste et vidait la
+     file, puis la lecture revenait avec la ligne d'AVANT : l'écran
+     reculait, l'écho correctif était écarté comme le nôtre, et le geste
+     suivant repartait de l'ancien contenu. LA RÈGLE : une lecture ne
+     s'applique que si rien n'a bougé pendant qu'elle volait. Le compteur
+     avance à chaque geste inscrit et à chaque poussée reçue ; une lecture
+     dépassée est jetée, et se refait après la poussée. */
+  let generation = 0;
+  let pousseesEnVol = 0;
+  let relectureDue = false;
   const inscris = (gestes: ReadonlyMap<string, Entree>): void => {
     if (gestes.size === 0) return;
+    generation += 1;
     for (const [id, e] of gestes) attente.set(id, e);
     ecrisLaFile(table, attente);
   };
@@ -973,7 +995,12 @@ export function bindCollection<T extends WithId>(
          local) connaît toutes les lignes du serveur et passe sans obstacle. */
       const massif = upserts.length >= 10 && upserts.length * 4 >= prev.size;
       if (massif) {
-        const { data: distant } = await litTouteLaTable();
+        const { data: distant, error: lecture } = await litTouteLaTable();
+        /* UNE RELECTURE RATÉE NE DIT RIEN — 10 octobre 2026 (revue de code).
+           Une erreur se lisait « aucune ligne inconnue », et la poussée
+           massive partait sans le contrôle qui la justifie. On ne touche à
+           rien et l'on réessaiera : la reprise suit la panne. */
+        if (lecture) { syncMark.fail(table, lecture.message); return false; }
         const inconnues = (distant ?? []).filter((r) => !next.has((r as { id: string }).id));
         if (inconnues.length) {
           console.warn(
@@ -1008,7 +1035,10 @@ export function bindCollection<T extends WithId>(
         const { error } = await sb.from(table).upsert(tranche);
         /* Refus de droit : on cesse d'insister, mais on ne prétend PAS avoir
            écrit (voir plus haut) — le repère doit rester en arrière. */
-        if (error && estRefusDeDroit(error.message)) { syncMark.horsPortee(table); refuseeAuxDroits(tranche.map((u) => u.id)); return false; }
+        if (error && estRefusDeDroit(error.message)) {
+          if (await refusSansSession()) return false;
+          syncMark.horsPortee(table); refuseeAuxDroits(tranche.map((u) => u.id)); return false;
+        }
         if (error) { ok = false; refus ??= error.message; console.warn(`[mnd-sync] ${table} upsert:`, error.message); }
       }
     }
@@ -1074,20 +1104,46 @@ export function bindCollection<T extends WithId>(
            On va donc rechercher la vérité au serveur et on s'aligne dessus.
            Le poste redevient sain sans qu'on ait à lui demander quoi que ce
            soit, et rien n'a été détruit. */
-        const { data: distant } = await litTouteLaTable();
+        /* ── 10 OCTOBRE 2026 (revue de code), TROIS CORRECTIONS ──
+           ① UNE RELECTURE RATÉE (hors ligne) vidait le magasin et jetait
+             toute la file : un rendez-vous posé hors ligne était perdu. On
+             ne touche plus à rien, la reprise relira.
+           ② SEULES LES SUPPRESSIONS REFUSÉES sortent de la file : les autres
+             gestes (une ligne posée hors ligne) se rejouent sur l'état du
+             serveur, par l'arbitre, comme à la première lecture.
+           ③ ON REND FAUX : l'appelant remplaçait sinon le repère par l'état
+             local refusé, et le geste suivant repoussait des lignes pour
+             rien. Le repère est ici celui du serveur. */
+        const { data: distant, error: lecture } = await litTouteLaTable();
+        if (lecture) { syncMark.fail(table, lecture.message); return false; }
         const items2 = (distant ?? []).map((r) => (r as { data: T }).data);
+        sortDeLaFile(deletes.filter((id) => attente.get(id)?.op === 'del'));
+        const { items: rejoues, aPousser } = await fusionne(items2);
         applyingRemote = true;
-        store.set(items2);
+        store.set(rejoues);
         applyingRemote = false;
         lastPushed = snapshot(items2);
-          /* Le garde-fou a jugé l'état local suspect : sa file part avec lui,
-             sinon elle reviendrait au prochain retour (4 octobre 2026). */
-          sortDeLaFile([...attente.keys()]);
         syncMark.ok(table);
-        return true;
+        if (aPousser) planifiePoussee();
+        return false;
       } else {
+        /* SANS SESSION, UNE SUPPRESSION NE PART PAS (10 octobre 2026, revue
+           de code, reprise) : la RLS ne la refuse pas, elle la rend MUETTE,
+           zéro ligne effacée et aucune erreur. Le geste se croyait arrivé,
+           sortait de la file, et la ligne revenait du serveur après la
+           reconnexion. Il attend la session, son laissez-passer gardé. */
+        if (await refusSansSession()) { if (purgeVoulue) purgesAutorisees.add(table); return false; }
         const { error } = await sb.from(table).delete().in('id', deletes);
-        if (error && estRefusDeDroit(error.message)) { syncMark.horsPortee(table); refuseeAuxDroits(deletes); return false; }
+        if (error && estRefusDeDroit(error.message)) {
+          if (await refusSansSession()) return false;
+          syncMark.horsPortee(table); refuseeAuxDroits(deletes); return false;
+        }
+        /* LE LAISSEZ-PASSER SURVIT À UNE COUPURE — 10 octobre 2026 (revue de
+           code). Consommé par l'essai raté, il manquait à la reprise : la
+           série retirée volontairement était jugée « en masse », et
+           revenait du serveur. Une panne passagère n'a rien effacé : la
+           reprise a droit au même laissez-passer, et à lui seul. */
+        if (error && purgeVoulue && estPassager(error.message)) purgesAutorisees.add(table);
         if (error) { ok = false; refus ??= error.message; console.warn(`[mnd-sync] ${table} delete:`, error.message); }
       }
     }
@@ -1168,21 +1224,27 @@ export function bindCollection<T extends WithId>(
          sortaient sans rien faire. Le filet de fraicheur n'existait plus. */
       timer = undefined;
       const items = store.get();
-      const next = snapshot(items);
-      const prev = lastPushed;
-      /* On n'avance le repere qu'APRES un envoi reussi. En l'avancant avant, une
-         poussee en echec (hors ligne, RLS, reseau) sortait ses lignes de tout
-         diff futur : l'ecriture etait perdue sans retour possible, et le
-         rechargement suivant l'effacait. */
-      void pushDiff(prev, next, items).then((ok) => {
-        if (ok) {
-          lastPushed = next;
-          /* Ce que le serveur vient de recevoir sort de la file ; un geste
-             posé pendant l'envoi y reste et partira au tour suivant. */
-          sortDeLaFile(recus(attente, next));
-        }
-      });
+      void pousse(lastPushed, snapshot(items), items);
     }, PUSH_DEBOUNCE_MS);
+  };
+  /* On n'avance le repere qu'APRES un envoi reussi. En l'avancant avant, une
+     poussee en echec (hors ligne, RLS, reseau) sortait ses lignes de tout
+     diff futur : l'ecriture etait perdue sans retour possible, et le
+     rechargement suivant l'effacait. */
+  const pousse = async (prev: Map<string, string>, next: Map<string, string>, items: readonly T[]): Promise<void> => {
+    pousseesEnVol += 1;
+    try {
+      if (await pushDiff(prev, next, items)) {
+        lastPushed = next;
+        /* Ce que le serveur vient de recevoir sort de la file ; un geste
+           posé pendant l'envoi y reste et partira au tour suivant. */
+        sortDeLaFile(recus(attente, next));
+        generation += 1;
+      }
+    } finally {
+      pousseesEnVol -= 1;
+      if (pousseesEnVol === 0 && relectureDue) { relectureDue = false; setTimeout(() => void refetch(true), 0); }
+    }
   };
   /* LA REPRISE REPASSE PAR LE MÊME CHEMIN QU'UNE ÉCRITURE : le diff se
      recalcule depuis `lastPushed`, resté en arrière tant que rien n'est parti,
@@ -1301,7 +1363,22 @@ export function bindCollection<T extends WithId>(
       return;
     }
     if (!force && Date.now() - lastRefetch < 15000) return;
+    /* SANS SESSION, LA FILE NE SE REJOUE PAS — 10 octobre 2026 (revue de
+       code, reprise). Le poste verrouillé hors ligne (signOut au bout de
+       quinze minutes) gardait sa vente en file ; au retour du réseau, AVANT
+       la reconnexion, cette relecture partait en anonyme. Sous la RLS elle
+       rend zéro ligne : la vente neuve était poussée, refusée, retirée ; la
+       ligne connue devenait un conflit « supprimée » dont le JSON restait
+       sur le poste après la déconnexion, puis se cachait au retour de la
+       ligne. Les gestes attendent donc la session, comme l'hydratation et le
+       document (`bindDocument`) ; la connexion relira et rejouera. Une
+       relecture SANS geste en attente reste permise : le tunnel public lit
+       ainsi le catalogue, et rien ne s'y perd. */
+    if (attente.size > 0 && !(await sb.auth.getSession()).data.session) return;
     lastRefetch = Date.now();
+    /* Une poussée vole : la lecture se fera après elle (10 octobre 2026). */
+    if (lu && pousseesEnVol > 0) { relectureDue = true; return; }
+    const generationAuDepart = generation;
     const { data, error } = await litTouteLaTable();
     if (error || !data) return;
     const items = data.map((r) => (r as { data: T }).data);
@@ -1309,6 +1386,14 @@ export function bindCollection<T extends WithId>(
        quand la session arrive apres le chargement du module — et il rejoue
        alors les gestes de la fenêtre froide comme l'hydratation. */
     if (!lu) { await premiereLecture(items); return; }
+    /* LA LECTURE EST DÉPASSÉE : un geste ou une poussée l'a doublée pendant
+       qu'elle volait. On la jette ; elle se refait après la poussée en
+       cours, ou tout de suite s'il n'y en a plus. */
+    if (generation !== generationAuDepart || pousseesEnVol > 0 || timer) {
+      if (pousseesEnVol > 0 || timer) relectureDue = true;
+      else setTimeout(() => void refetch(true), PUSH_DEBOUNCE_MS);
+      return;
+    }
     /* DES GESTES ATTENDENT ENCORE (4 octobre 2026) : relire le serveur ne
        doit pas les effacer. Ce chemin les perdait au retour du réseau — le
        focus revenait avant la poussée, le serveur remplaçait tout, et le
@@ -1340,10 +1425,7 @@ export function bindCollection<T extends WithId>(
        Lu et rien en attente : on pousse simplement ce qui reste. */
     if (lu && attente.size === 0) {
       const items = store.get();
-      const next = snapshot(items);
-      void pushDiff(lastPushed, next, items).then((ok) => {
-        if (ok) { lastPushed = next; sortDeLaFile(recus(attente, next)); }
-      });
+      void pousse(lastPushed, snapshot(items), items);
       return;
     }
     void attendsLaPorte().then(() => refetch(true));
@@ -1400,7 +1482,29 @@ export function bindCollection<T extends WithId>(
        première lecture, il n'attend que d'être rejoué sur l'état du serveur. */
     const avant = vuJson;
     const cur = observe(store.get());
-    inscris(gestesEntre(avant, cur, new Date().toISOString()));
+    /* LA PURGE DE DÉCONNEXION N'EST PAS UN GESTE — 10 octobre 2026 (revue
+       de code). Elle inscrivait chaque ligne en « del », qu'une connexion
+       suivante pouvait rejouer sous une vraie session (hors ligne, une table
+       d'une ligne passait). On prend acte du vide, sans file ni envoi, et
+       la table se relira comme au premier jour : `lu` repasse à faux. */
+    if (estUnePurge(store.key)) {
+      if (timer) { clearTimeout(timer); timer = undefined; }
+      lu = false;
+      syncMark.ok(table);
+      return;
+    }
+    /* LA LIGNE CONNUE DU SERVEUR SE MARQUE — 10 octobre 2026 (revue de
+       code). Un « set » sur une ligne que le serveur portait, et qu'il ne
+       porte plus au retour, n'est pas une ligne neuve : quelqu'un l'a
+       supprimée ailleurs, et l'arbitre en fait un conflit au lieu de la
+       recréer. Avant la première lecture, une ligne déjà là sur le poste
+       vient du serveur, sauf si la file la garde encore comme neuve. */
+    const connue = (id: string): boolean => {
+      const deja = attente.get(id);
+      if (deja) return deja.connue === true || lastPushed.has(id);
+      return lu ? lastPushed.has(id) : avant.has(id);
+    };
+    inscris(gestesEntre(avant, cur, new Date().toISOString(), connue));
     if (!lu) return;
     planifiePoussee();
   });
@@ -1420,7 +1524,16 @@ export function bindCollection<T extends WithId>(
         const idTouche = (payload.eventType === 'DELETE' ? payload.old.id : payload.new.id) as string;
         const enAttente = attente.get(idTouche);
         if (enAttente) {
-          const distantAt = payload.eventType === 'DELETE' ? undefined : (payload.new.updated_at as string | undefined);
+          /* UNE LIGNE CONNUE, SUPPRIMÉE AILLEURS — 10 octobre 2026 (revue de
+             code). « Le geste local tient » la faisait renaître : la
+             suppression, sans heure, perdait toujours. Celle d'une ligne que
+             le serveur portait au moment du geste se date de l'instant où on
+             la VOIT, donc après le geste : notre version est gardée en
+             conflit (même règle que l'arbitre), et la ligne part. */
+          const supprimeeAilleurs = payload.eventType === 'DELETE' && enAttente.op === 'set' && enAttente.connue === true;
+          const distantAt = payload.eventType === 'DELETE'
+            ? (supprimeeAilleurs ? new Date().toISOString() : undefined)
+            : (payload.new.updated_at as string | undefined);
           const distant = payload.eventType === 'DELETE' ? undefined : (payload.new as { data: T }).data;
           /* NOTRE PROPRE ÉCHO, AVANT TOUT JUGEMENT — 6 octobre 2026. On tape
              « Moov Africa » : « Moov Afric » part, le « a » attend, l'écho de
@@ -1633,6 +1746,10 @@ export function bindDocument<T>(store: Store<T>, key: string): void {
         }]);
         sortDuDoc();
       } else {
+        /* SANS SESSION, LE GESTE ATTEND LA SUIVANTE (10 octobre 2026, revue
+           de code) : rejoué en anonyme après une déconnexion, il remettait
+           le document purgé sur le disque et se faisait refuser. */
+        if (!(await sb.auth.getSession()).data.session) return;
         applyingRemote = true;
         store.set(notre);
         applyingRemote = false;
@@ -1702,7 +1819,13 @@ export function bindDocument<T>(store: Store<T>, key: string): void {
     const j = JSON.stringify(val);
     if (j === lastPushed) { if (attenteDoc.get(key)?.j === j) sortDuDoc(); syncMark.ok(`doc:${key}`); return; }
     const { error } = await upsert(val);
-    if (error && estRefusDeDroit(error.message)) { syncMark.horsPortee(`doc:${key}`); return; }
+    /* UN REFUS DE DROIT NE SE REJOUE PAS (10 octobre 2026, revue de code),
+       comme aux collections : gardé, ce geste anonyme repartait sous la
+       session suivante. */
+    if (error && estRefusDeDroit(error.message)) {
+      if (await refusSansSession()) return;
+      syncMark.horsPortee(`doc:${key}`); if (attenteDoc.get(key)?.j === j) sortDuDoc(); return;
+    }
     if (error) { syncMark.fail(`doc:${key}`, error.message); console.warn(`[mnd-sync] doc ${key} upsert:`, error.message); return; }
     /* LE REPÈRE N'AVANCE QU'APRÈS UN ENVOI RÉUSSI — 7 septembre 2026. Il
        avançait AVANT : après un raté, la reprise comparait le document au
@@ -1731,6 +1854,16 @@ export function bindDocument<T>(store: Store<T>, key: string): void {
     if (applyingRemote) { vu = j; return; }
     if (j === vu) return;
     vu = j;
+    /* LA PURGE DE DÉCONNEXION N'EST PAS UN GESTE — 10 octobre 2026 (revue
+       de code). Les codes d'accès, primes, retenues, surcharges de paie et
+       taux se vidaient au serveur : la purge s'inscrivait `{}` dans la file,
+       refusée en anonyme, puis rejouée à la connexion suivante comme le
+       geste le plus récent. On prend acte du vide, et rien ne part. */
+    if (estUnePurge(store.key)) {
+      if (timer) { clearTimeout(timer); timer = undefined; }
+      syncMark.ok(`doc:${key}`);
+      return;
+    }
     /* Le geste s'inscrit dans la file avant de partir (4 octobre 2026). */
     attenteDoc.set(key, { op: 'set', at: new Date().toISOString(), j });
     ecrisLaFile(`doc:${key}`, attenteDoc);

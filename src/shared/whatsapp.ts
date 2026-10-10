@@ -36,6 +36,11 @@ export type EnvoiWhatsApp = {
   branchId?: string;
   parQui?: string;
   citeWaId?: string;
+  /** UNE CLÉ D'UNICITÉ (10 octobre 2026, revue de code) : un message que
+      deux postes peuvent calculer au même instant (le merci d'une
+      ambassadrice) la porte, et la fonction du serveur refusera de
+      l'envoyer deux fois. Sans elle, rien ne change. */
+  cleUnique?: string;
 };
 
 export type ResultatDEnvoi =
@@ -84,6 +89,7 @@ export async function envoieSurWhatsApp(e: EnvoiWhatsApp): Promise<ResultatDEnvo
     branchId: e.branchId,
     parQui: e.parQui,
     ...(e.citeWaId ? { citeWaId: e.citeWaId } : {}),
+    ...(e.cleUnique ? { cleUnique: e.cleUnique } : {}),
   };
   /* HORS LIGNE, LE MESSAGE ATTEND (4 octobre 2026, `appels-en-attente`) : il
      part de lui-même au retour du réseau. Seul un message certainement pas

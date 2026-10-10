@@ -55,6 +55,40 @@ export const traceDeLaLigne = (r: LigneDeLaBase): Trace => ({
 
 export type PieceTracee = { table: string; id: string };
 
+/* ══ LA TRACE SE LIT PAR PAGES — 10 octobre 2026 (revue de code) ══════════
+   Supabase ne rend jamais plus de mille lignes par réponse
+   (lecture-entiere.ts). « Qui fait quoi » lisait le mois d'un seul select :
+   au-delà de mille gestes, les plus anciens tombaient en silence, et
+   l'encaissé par personne était faux sans que l'écran le dise. La vie d'une
+   pièce perdait, elle, ses gestes les plus récents.
+
+   On lit donc page après page (`range`), jusqu'à une page incomplète, avec
+   une borne : au-delà, l'écran dit que la lecture s'arrête là
+   (`traces.tronquee`). Une ligne glissée d'une page à l'autre pendant la
+   lecture (un geste neuf en tête) se reconnaît à son id et ne compte qu'une
+   fois. Une erreur en route rend `null`, jamais une moitié. */
+export const PAGE_DES_TRACES = 1000;
+export const PAGES_DE_TRACES_AU_PLUS = 20;
+type ReponseDePageDeTraces = { data: unknown[] | null; error: { message: string } | null };
+/** Une page : les lignes de rang `de` à `a` (inclus), dans l'ordre voulu. */
+export type LecteurDePageDeTraces = (de: number, a: number) => PromiseLike<ReponseDePageDeTraces>;
+/** Des traces lues jusqu'à la borne : `tronquee` dit qu'il en reste. */
+export type TracesLues = Trace[] & { tronquee?: true };
+
+export async function litLesTracesParPages(page: LecteurDePageDeTraces, pagesAuPlus: number = PAGES_DE_TRACES_AU_PLUS): Promise<TracesLues | null> {
+  const vues = new Map<number, LigneDeLaBase>();
+  for (let n = 0; n < pagesAuPlus; n += 1) {
+    const { data, error } = await page(n * PAGE_DES_TRACES, (n + 1) * PAGE_DES_TRACES - 1);
+    if (error) return null;
+    const lignes = (data ?? []) as LigneDeLaBase[];
+    for (const l of lignes) vues.set(l.id, l);
+    if (lignes.length < PAGE_DES_TRACES) return [...vues.values()].map(traceDeLaLigne);
+  }
+  const lues: TracesLues = [...vues.values()].map(traceDeLaLigne);
+  lues.tronquee = true;
+  return lues;
+}
+
 /** La vie de quelques pièces, du plus ancien au plus récent.
     `null` = la trace ne répond pas : migration absente, ou compte hors
     direction. Une vie vide (`[]`) n'est pas la même chose. */
@@ -68,33 +102,37 @@ export async function litLesTracesDesPieces(pieces: readonly PieceTracee[]): Pro
     parTable.set(p.table, s);
   }
   if (parTable.size === 0) return [];
-  const out: Trace[] = [];
+  const sb = supabase;
+  const out: TracesLues = [];
   for (const [table, ids] of parTable) {
-    const { data, error } = await supabase
+    const lues = await litLesTracesParPages((de, a) => sb
       .from('traces')
       .select(COLONNES)
       .eq('table_name', table)
       .in('piece_id', [...ids])
       .order('fait_le', { ascending: true })
-      .limit(2000);
-    if (error) return null;
-    out.push(...((data ?? []) as LigneDeLaBase[]).map(traceDeLaLigne));
+      .order('id', { ascending: true })
+      .range(de, a));
+    if (lues === null) return null;
+    out.push(...lues);
+    if (lues.tronquee) out.tronquee = true;
   }
-  return out.sort((a, b) => a.faitLe.localeCompare(b.faitLe) || a.id - b.id);
+  out.sort((a, b) => a.faitLe.localeCompare(b.faitLe) || a.id - b.id);
+  return out;
 }
 
 /** Les gestes d'une période, du plus récent au plus ancien. */
-export async function litLesTracesDeLaPeriode(debutIso: string, finIso: string): Promise<Trace[] | null> {
+export async function litLesTracesDeLaPeriode(debutIso: string, finIso: string): Promise<TracesLues | null> {
   if (!supabase) return null;
-  const { data, error } = await supabase
+  const sb = supabase;
+  return litLesTracesParPages((de, a) => sb
     .from('traces')
     .select(COLONNES)
     .gte('fait_le', debutIso)
     .lt('fait_le', finIso)
     .order('fait_le', { ascending: false })
-    .limit(6000);
-  if (error) return null;
-  return ((data ?? []) as LigneDeLaBase[]).map(traceDeLaLigne);
+    .order('id', { ascending: false })
+    .range(de, a));
 }
 
 /* ---------- Les jours et les heures, à l'heure locale ---------- */

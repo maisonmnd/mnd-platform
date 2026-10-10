@@ -4,7 +4,8 @@ import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
 import { todayISO } from '../finances/_shared';
 import {
-  cleDeLaMain, initiales, litLeGeste, litLesTracesDeLaPeriode, resumeParPersonne, type Trace,
+  cleDeLaMain, initiales, litLeGeste, litLesTracesDeLaPeriode, resumeParPersonne, type Trace, type TracesLues,
+  PAGE_DES_TRACES, PAGES_DE_TRACES_AU_PLUS,
 } from '../../../../shared/traces';
 import { GesteDeLaVie, ModaleDeLaVie, useContexteDeLecture } from '../_vie';
 import { postePartageStore, DELAI_DU_POSTE_MS } from '../../shell/useVerrouDuPoste';
@@ -107,6 +108,14 @@ export default function QuiFaitQuoi() {
           <div className="tvie-note">
             La trace de la base ne répond pas : la migration 0092 n’est pas encore passée, ou ce compte n’a pas le rang de la
             direction. Le journal écrit par l’application reste lisible plus bas.
+          </div>
+        )}
+        {/* LA BORNE SE DIT (10 octobre 2026, revue de code) : une lecture
+            arrêtée à sa borne ne compte pas tout, et l'écran le dit. */}
+        {lecture.etat === 'pret' && (lecture.traces as TracesLues).tronquee && (
+          <div className="tvie-note">
+            Plus de {(PAGE_DES_TRACES * PAGES_DE_TRACES_AU_PLUS).toLocaleString('fr-FR')} gestes sur cette période : seuls les plus
+            récents sont comptés ici. Choisissez une période plus courte pour tout compter.
           </div>
         )}
         {lecture.etat === 'pret' && resume.length === 0 && (

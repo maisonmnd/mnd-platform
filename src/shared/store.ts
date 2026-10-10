@@ -121,6 +121,23 @@ export const magasinsEnMemoireSeule = (): string[] => [...magasinsSatures].sort(
    Entre deux, lire coûte une comparaison, quelle que soit la taille. */
 const aRelire = new Set<() => void>();
 
+/* ══ UNE PURGE N'EST PAS UN GESTE — 10 octobre 2026 (revue de code) ══════
+   La déconnexion vide les magasins sensibles du poste, et chaque magasin
+   prévient ses abonnés. La synchronisation prenait ce vide pour un geste
+   de la main : un document (codes d'accès, primes, retenues, taux) inscrit
+   `{}` dans sa file, refusé en anonyme, puis rejoué à la connexion suivante
+   par-dessus le serveur. Pendant l'avis d'une purge, ce poste ou un autre
+   onglet du même Trône (la case disparaît : `storage` sans nouvelle
+   valeur), la clé est marquée ici, et la synchronisation se contente de
+   prendre acte. */
+const disparitions = new Set<string>();
+/** Vrai pendant l'avis d'une purge (ou d'une case vidée par un autre onglet). */
+export const estUnePurge = (key: string): boolean => disparitions.has(key);
+const pendantLaPurge = (key: string, f: () => void): void => {
+  disparitions.add(key);
+  try { f(); } finally { disparitions.delete(key); }
+};
+
 /** À appeler après avoir écrit DIRECTEMENT dans une case de magasin, sans
     passer par lui (la restauration d'une sauvegarde le fait) : les magasins
     relisent leur case à la prochaine lecture. */
@@ -166,7 +183,10 @@ export function createStore<T>(key: string, initial: T): Store<T> {
      repondre. Une cle absente dit que l'autre onglet a tout vide. */
   window.addEventListener('storage', (e) => {
     if (e.key === null) { disqueARelire = true; return; }
-    if (e.key === nsKey(key)) { disqueARelire = true; notify(); }
+    if (e.key === nsKey(key)) {
+      disqueARelire = true;
+      if (e.newValue === null) pendantLaPurge(key, notify); else notify();
+    }
   });
   window.addEventListener(EVT, (e) => {
     if ((e as CustomEvent).detail !== key) return;
@@ -221,6 +241,6 @@ export function purgeLocalKeys(keys: string[]): void {
   for (const k of keys) {
     /* La cle de surface, sinon la purge de deconnexion ne retirerait rien. */
     try { localStorage.removeItem(nsKey(k)); } catch { /* stockage indisponible — tant pis */ }
-    window.dispatchEvent(new CustomEvent(EVT, { detail: k }));
+    pendantLaPurge(k, () => { window.dispatchEvent(new CustomEvent(EVT, { detail: k })); });
   }
 }
