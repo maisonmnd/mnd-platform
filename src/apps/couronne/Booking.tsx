@@ -12,7 +12,7 @@ import { askNotifyPermission, downloadIcs, notifyLocal, type IcsEvent } from '..
 import { enablePush, pushNotify, pushNotifyStaff } from '../../shared/push';
 import { uid, useStore } from '../../shared/store';
 import { vitrineConfigStore } from '../../shared/bridges';
-import { clientsStore, useClients, useFamilies, usePersonas, remiseFamillePct } from '../../shared/clients';
+import { clientsStore, useClients, useFamilies, usePersonas, remiseFamillePct, remiseFamillePourTetes } from '../../shared/clients';
 import { ageDe, estKids, tetesPortees } from '../../shared/accounts';
 import { catalogueDeLaTete, masqueesParLAge } from '../../shared/kids';
 import { ENVIES, QUIZ_POOL, envieLabel, type ElanKey, type EnvieKey } from '../../shared/quiz';
@@ -36,6 +36,7 @@ import {
   pad2,
   todayIso,
   useClient,
+  useTetesDuFoyer,
   useClientId,
   useVisibleCatalog,
   type BookingPrefill,
@@ -223,8 +224,12 @@ export default function Booking({ prefill, onClose, toast, onVoirRdv }: Props) {
      celui de la maison : taux posé = personnalisé ; compte muet = barème du
      foyer (1 enfant → 10 %, 2 et plus → 15 %). Jamais sur les forfaits. */
   const familleDeLaTete = cible?.familyId ? familles.find((f) => f.id === cible.familyId) : undefined;
-  /* La règle des mineurs, jusqu'au compte du serveur (voir `remiseFamillePct`). */
-  const famPctCompte = remiseFamillePct(familleDeLaTete, tousClients, todayIso(), 'mineurs');
+  /* LE COMPTE DU SERVEUR (0127) : la règle du foyer, comme au comptoir ; sans
+     lui, la règle des mineurs (voir `remiseFamillePct`). */
+  const tetesDuFoyer = useTetesDuFoyer();
+  const famPctCompte = tetesDuFoyer !== null && familleDeLaTete && familleDeLaTete.id === client?.familyId
+    ? remiseFamillePourTetes(familleDeLaTete, tetesDuFoyer)
+    : remiseFamillePct(familleDeLaTete, tousClients, todayIso(), 'mineurs');
 
   const prefService = prefill ? services.find((s) => s.id === (prefill.serviceId ?? prefill.serviceIds?.[0])) ?? null : null;
   /* La venue entière, dans l'ordre du catalogue, sans les gestes retirés. */

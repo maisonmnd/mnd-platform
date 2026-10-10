@@ -82,6 +82,20 @@ export const seuilCliente = (seuilPose?: number): number =>
 export const deuxFoisPossible = (totalXof: number, seuilPose?: number): boolean =>
   totalXof > seuilCliente(seuilPose);
 
+/** LES DÉCOUPES EN LIGNE — la bascule de janvier 2027 (0127). La règle de la
+    Maison vaut aussi dans Ma Couronne : deux fois DÈS le seuil, trois fois dès
+    le second. Mais seulement quand le serveur la tient : tant que la 0127 n'a
+    pas posé `seuilTroisFoisXof` dans la vitrine, la règle d'avant (deux fois
+    au-dessus du seuil, jamais trois), sinon le serveur refuserait. */
+export const decoupesEnLigne = (
+  totalXof: number, cfg: { seuilDeuxFoisXof?: number; seuilTroisFoisXof?: number },
+): (1 | 2 | 3)[] => {
+  if (typeof cfg.seuilTroisFoisXof !== 'number') return deuxFoisPossible(totalXof, cfg.seuilDeuxFoisXof) ? [1, 2] : [1];
+  const s2 = seuilCliente(cfg.seuilDeuxFoisXof);
+  const s3 = Math.max(s2, Math.round(cfg.seuilTroisFoisXof));
+  return [1, ...(totalXof >= s2 ? [2 as const] : []), ...(totalXof >= s3 ? [3 as const] : [])];
+};
+
 const addDays = (iso: string, days: number): string =>
   new Date(new Date(`${iso}T12:00:00`).getTime() + days * 86_400_000).toISOString().slice(0, 10);
 

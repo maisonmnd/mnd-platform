@@ -77,6 +77,13 @@ export const EN_FORMULE: Record<string, string> = {
   'Cette formule n’est plus au catalogue.': 'This plan is no longer offered.',
   'Cette formule n’a pas encore de prix. La Maison la prépare.': 'This plan has no price yet. The Maison is preparing it.',
   'Ce découpage ne se donne qu’au comptoir.': 'This split is only offered at the counter.',
+  'Cette formule n’est plus proposée.': 'This plan is no longer offered.',
+  'Cette formule ne se prend qu’une fois, et vous l’avez déjà prise.': 'This plan can only be taken once, and you have already taken it.',
+  'Les Premières Lunes se signent dans les trente jours qui suivent votre création.': 'The First Moons are signed within thirty days of your creation.',
+  'En trois fois': 'In three instalments',
+  'Le premier tiers aujourd’hui, les deux autres à trente et soixante jours.': 'The first third today, the other two at thirty and sixty days.',
+  'Dans 60 jours': 'In 60 days',
+  'Un mot vous rappellera chaque échéance': 'A message will remind you of each instalment',
   'Cette formule se règle en une fois.': 'This plan is paid in one payment.',
   // Les messages du paiement en ligne (shared/kkiapay, shared/kkiapay-widget).
   'Backend non configuré.': 'The service is not configured.',

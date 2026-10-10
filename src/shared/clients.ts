@@ -521,6 +521,16 @@ export const remiseFamillePct = (
   return enfants >= 2 ? 15 : enfants === 1 ? 10 : 0;
 };
 
+/** LA REMISE FAMILLE QUAND LE SERVEUR DONNE LE COMPTE (0127) : Ma Couronne ne
+    voit pas une sœur adulte, le serveur lui rend le nombre de têtes de son
+    foyer. Un taux posé sur le compte l'emporte, comme partout. */
+export const remiseFamillePourTetes = (f: Family | null | undefined, tetes: number): number => {
+  if (!f) return 0;
+  const p = Number(f.remisePct);
+  if (Number.isFinite(p)) return Math.max(0, Math.min(100, Math.round(p)));
+  return baremeDuFoyer(tetes);
+};
+
 /** Styles de couronne par défaut — la liste est éditable (crownStylesStore).
     LA NOMENCLATURE DE LA MAISON (Yéman, 13 août) : la finesse des locks,
     du plus épais au plus fin — les mêmes mots que les calibres du Juste

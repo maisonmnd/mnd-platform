@@ -3,7 +3,7 @@ import { useBranch } from '../../shared/branches';
 import { useStore } from '../../shared/store';
 import { supabase } from '../../shared/supabase';
 import { vitrineConfigStore } from '../../shared/bridges';
-import { deuxFoisPossible } from '../../shared/echeancier';
+import { decoupesEnLigne } from '../../shared/echeancier';
 import {
   moisDuPack, prixDeLaFormule, etendueDeLaFormule, type Plan, type TeteConnue,
 } from '../../shared/abonnements';
@@ -50,6 +50,10 @@ const REFUS: Record<string, string> = {
   prix_absent: 'Cette formule n’a pas encore de prix. La Maison la prépare.',
   decoupe_refusee: 'Ce découpage ne se donne qu’au comptoir.',
   seuil_non_atteint: 'Cette formule se règle en une fois.',
+  /* 0127 (la bascule de janvier 2027) : le serveur tient les règles du comptoir. */
+  formule_fermee: 'Cette formule n’est plus proposée.',
+  deja_prise: 'Cette formule ne se prend qu’une fois, et vous l’avez déjà prise.',
+  apres_une_creation: 'Les Premières Lunes se signent dans les trente jours qui suivent votre création.',
 };
 
 export default function AchatFormule({
@@ -65,7 +69,7 @@ export default function AchatFormule({
   const [cfg] = useStore(vitrineConfigStore);
 
   const [temps, setTemps] = useState<Temps>('recap');
-  const [parts, setParts] = useState<1 | 2>(1);
+  const [parts, setParts] = useState<1 | 2 | 3>(1);
   const [occupe, setOccupe] = useState<Voie | null>(null);
   const [souscrit, setSouscrit] = useState<Souscrit | null>(null);
   const [regleXof, setRegleXof] = useState(0);
@@ -106,7 +110,10 @@ export default function AchatFormule({
   const doitDemander = varie && !calibreSu;
 
   const total = prixDeLaFormule(plan, 'mensuel', maTete, calibresAbo).montantXof;
-  const deuxFois = deuxFoisPossible(total, cfg.seuilDeuxFoisXof);
+  /* EN 1, 2 OU 3 FOIS, quand le serveur le tient (`decoupesEnLigne`). */
+  const offertes = decoupesEnLigne(total, cfg);
+  const deuxFois = offertes.includes(2);
+  const troisFois = offertes.includes(3);
   /* Ce que l'écran ANNONCE. Le serveur recalculera la même chose ; en cas
      d'écart, c'est le sien qui s'inscrit. */
   /* ══ CHAQUE CARTE ANNONCE SON PROPRE MONTANT — 2 septembre 2026 ═════
@@ -123,7 +130,8 @@ export default function AchatFormule({
      carte doit dire ce qu'elle vaut, qu'on l'ait choisie ou non. Le franc
      impair part sur la PREMIÈRE échéance, comme au comptoir. */
   const moitie = total - Math.floor(total / 2);
-  const premiere = parts === 2 ? moitie : total;
+  const tiers = total - 2 * Math.floor(total / 3);
+  const premiere = parts === 3 ? tiers : parts === 2 ? moitie : total;
 
   /** Crée l'abonnement CÔTÉ SERVEUR. Rend `null` et parle si le serveur refuse. */
   const souscrire = async (): Promise<Souscrit | null> => {
@@ -342,6 +350,28 @@ export default function AchatFormule({
                 </span>
               </button>
             ) : null}
+            {troisFois ? (
+              <button
+                type="button"
+                className={`cma-choix ${parts === 3 ? 'is-on' : ''}`}
+                onClick={() => setParts(3)}
+              >
+                <span className="cma-choix__t">
+                  <span className="cma-choix__n">{t('En trois fois')}</span>
+                  <span className="cma-choix__m">
+                    {prix(tiers, currency)}
+                    <i>{t('aujourd’hui')}</i>
+                  </span>
+                </span>
+                <span className="cma-choix__d">{t('Le premier tiers aujourd’hui, les deux autres à trente et soixante jours.')}</span>
+                <span className="cma-ech2">
+                  <span><span>{t('Aujourd’hui')}</span><b>{prix(tiers, currency)}</b></span>
+                  <span><span>{t('Dans 30 jours')}</span><b>{prix(Math.floor(total / 3), currency)}</b></span>
+                  <span><span>{t('Dans 60 jours')}</span><b>{prix(Math.floor(total / 3), currency)}</b></span>
+                  <span className="cma-ech2__tot"><span>{t('Au total')}</span><b>{prix(total, currency)}</b></span>
+                </span>
+              </button>
+            ) : null}
             {/* CE QUI NE LA REGARDE PAS NE S'AFFICHE PAS — 29 août 2026.
                 Deux cadres expliquaient ici le SEUIL des deux fois et la
                 règle des quatre fois. C'est de la politique de maison : la
@@ -380,7 +410,7 @@ export default function AchatFormule({
                 {regleXof > 0
                   ? t('Vous avez réglé {montant}.', { montant: prix(regleXof, currency) })
                   : t('Vous réglerez au comptoir ou par MoMo.')}
-                {souscrit.parts === 2
+                {souscrit.parts > 1
                   ? <>{' '}{t('Il restera {montant} à régler.', { montant: prix(souscrit.totalXof - Math.max(regleXof, 0), currency) })}</>
                   : null}
               </p>
@@ -398,7 +428,9 @@ export default function AchatFormule({
               <ul className="cma-inclus" style={{ borderTop: 'none', paddingTop: 0 }}>
                 <li><i>◆</i><span>{t('Prenez votre première venue quand vous voulez')}</span></li>
                 <li><i>◆</i><span>{t('Votre suivi paraît dans « Ma formule »')}</span></li>
-                {souscrit.parts === 2
+                {souscrit.parts === 3
+                  ? <li><i>◆</i><span>{t('Un mot vous rappellera chaque échéance')}</span></li>
+                  : souscrit.parts === 2
                   ? <li><i>◆</i><span>{t('Un mot vous rappellera la seconde échéance')}</span></li>
                   : <li><i>◆</i><span>{t('La Maison vous écrit si quelque chose manque')}</span></li>}
               </ul>

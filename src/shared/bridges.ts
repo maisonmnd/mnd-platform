@@ -248,6 +248,10 @@ export type VitrineConfig = {
       LA DÉCOUPE EN QUATRE N'EST JAMAIS ICI. Elle se demande au comptoir :
       c'est un accord, pas une case à cocher. */
   seuilDeuxFoisXof?: number;
+  /** TROIS FOIS EN LIGNE, dès ce montant (0127, la bascule de janvier 2027) :
+      posé par le serveur quand il sait le faire ; absent, Ma Couronne ne
+      propose jamais trois fois. */
+  seuilTroisFoisXof?: number;
   /** CE QUE LE QUIZ RECOMMANDE, prestation par envie.
 
       Le miroir proposait quatre rituels écrits en dur dans le code — « Le Soin

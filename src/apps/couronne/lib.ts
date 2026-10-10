@@ -235,6 +235,25 @@ export function useEnsureClient(): string {
   return clientId;
 }
 
+/* ══ LE COMPTE DES TÊTES DE SON FOYER — 0127 (la bascule de janvier 2027) ══
+   Un nombre, demandé une fois au serveur. `null` tant qu'il n'a pas répondu,
+   ou s'il ne sait pas encore le faire (0127 pas posée) : l'écran garde alors
+   la règle des mineurs. */
+let tetesDuFoyerLues: number | null | undefined;
+export function useTetesDuFoyer(): number | null {
+  const [n, setN] = useState<number | null>(tetesDuFoyerLues ?? null);
+  useEffect(() => {
+    if (tetesDuFoyerLues !== undefined || !supabase) return;
+    let vivant = true;
+    void supabase.rpc('nombre_de_tetes_de_mon_foyer').then(({ data, error }) => {
+      tetesDuFoyerLues = !error && typeof data === 'number' ? data : null;
+      if (vivant) setN(tetesDuFoyerLues);
+    });
+    return () => { vivant = false; };
+  }, []);
+  return n;
+}
+
 export function useClient(): Client | undefined {
   const [clients] = useClients();
   const clientId = useClientId();

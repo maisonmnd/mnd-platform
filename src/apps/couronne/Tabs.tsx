@@ -11,7 +11,7 @@ import { useBranch } from '../../shared/branches';
 import { signOut, useAuth } from '../../shared/auth';
 import { useAppointments, venuesHonorees, type Appointment } from '../../shared/agenda';
 import { useCategories, useProducts, useServices } from '../../shared/catalog';
-import { clientsStore, useClients, useFamilies, usePersonas, remiseFamillePct, type Client } from '../../shared/clients';
+import { clientsStore, useClients, useFamilies, usePersonas, remiseFamillePct, remiseFamillePourTetes, type Client } from '../../shared/clients';
 import { vitrineConfigStore } from '../../shared/bridges';
 import { recoPourEnvie } from '../../shared/reco';
 import { envieLabel, type EnvieKey } from '../../shared/quiz';
@@ -43,6 +43,7 @@ import {
   productMeta,
   todayIso,
   useClient,
+  useTetesDuFoyer,
   useClientId,
   useLiveOffers,
   useOfferCountdown,
@@ -2024,8 +2025,11 @@ export function ProfilTab({ toast }: { toast: (m: string) => void }) {
   const [famillesProfil] = useFamilies();
   const [tousClientsProfil] = useClients();
   const familleProfil = client?.familyId ? famillesProfil.find((f) => f.id === client.familyId) : undefined;
-  /* La règle des mineurs, jusqu'au compte du serveur (voir `remiseFamillePct`). */
-  const famPctProfil = remiseFamillePct(familleProfil, tousClientsProfil, todayIso(), 'mineurs');
+  /* LE COMPTE DU SERVEUR (0127), sinon la règle des mineurs (voir `remiseFamillePct`). */
+  const tetesDuFoyerProfil = useTetesDuFoyer();
+  const famPctProfil = tetesDuFoyerProfil !== null && familleProfil
+    ? remiseFamillePourTetes(familleProfil, tetesDuFoyerProfil)
+    : remiseFamillePct(familleProfil, tousClientsProfil, todayIso(), 'mineurs');
   const { session } = useAuth();
   const email = client?.email ?? session?.user?.email ?? '';
   /* Le calibre affiché se déduit du comptage — le style à la main est retiré. */
