@@ -104,7 +104,11 @@ dit('shared/agenda.ts porte la règle du neuf', true,
   readFileSync('src/shared/agenda.ts', 'utf8').includes(posePasse) && readFileSync('src/shared/agenda.ts', 'utf8').includes(regleNeuve));
 dit('confirmation-rdv porte la même, mot pour mot', true, edge.includes(posePasse) && edge.includes(regleNeuve));
 dit('… et s’en sert pour filtrer', true, edge.includes('confirmationEstNeuve(a, poses.get(a.id), maintenant, FENETRE_MS)'));
-dit('… et la rafale s’arrête à cinq', true, edge.includes('rdvs.length > RAFALE_MAX'));
+/* Depuis le 10 octobre 2026 (revue de nuit), la rafale se compte APRÈS le
+   journal, sur les seuls rendez-vous qui ont encore un message à recevoir :
+   six confirmations déjà parties ne taisent plus la septième. */
+dit('… et la rafale s’arrête à cinq, comptée sur ce qui reste à dire', true,
+  edge.includes('aEnvoyer.length > RAFALE_MAX') && edge.indexOf('const deja = new Set(') < edge.indexOf('aEnvoyer.length > RAFALE_MAX'));
 
 /* ── UNE PAROLE « EN COURS » NE VERROUILLE PAS POUR TOUJOURS — relecture du
    9 octobre 2026 ──

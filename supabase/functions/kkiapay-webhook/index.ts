@@ -34,6 +34,12 @@ const SERVICE_KEY = Deno.env.get('SERVICE_KEY') ?? Deno.env.get('SUPABASE_SERVIC
 const KKIA_BASE = Deno.env.get('KKIAPAY_API_BASE') ?? 'https://api.kkiapay.me';
 const KKIA_VERIFY_PATH = '/api/v1/transactions/status';
 
+/** La version de ce fichier, écrite au journal des fonctions à chaque
+    passage. 10 octobre 2026 (revue de nuit) : le filet confirme aussi
+    l'acompte d'une inscription à l'Académie, et un rejeu pose l'effet sur
+    SA cible ; la carte cadeau liée à sa transaction. */
+const VERSION = '2026-10-10-a';
+
 /** Comparaison à temps constant — une comparaison naïve fuit le secret, octet
     par octet, par le temps de réponse. */
 function safeEqual(a: string, b: string): boolean {
@@ -60,13 +66,49 @@ async function fetchTransaction(transactionId: string): Promise<KkiaTransaction>
   return (await res.json()) as KkiaTransaction;
 }
 
+/* ══ LE PAIEMENT APPLIQUÉ — JUMEAU À L'IDENTIQUE ══════════════════════
+   Ce corps vit, mot pour mot, dans kkiapay-verify ET dans kkiapay-webhook
+   (une fonction Edge se colle seule, elle n'importe rien). Le harnais
+   `verifie-revue-serveur-site` compare les deux copies : toute correction
+   se fait aux deux endroits, le même jour.
+
+   CE QUI A CHANGÉ LE 10 OCTOBRE 2026 (revue de nuit) :
+   ① UN REJEU N'EST PLUS UN MUR. Le filet arrive souvent AVANT la
+     vérification ; celle-ci trouvait le registre déjà écrit (23505) et
+     s'arrêtait là, sans poser l'effet sur ce qui était réglé. Une inscription
+     à l'Académie restait ainsi sans acompte confirmé, « payée » à l'écran.
+     Désormais l'effet se pose aussi sur un rejeu, mais SEULEMENT si la
+     transaction inscrite au registre vise la MÊME cible : sans cette garde,
+     un paiement réel servirait de clé pour régler autre chose. La fonction
+     rend alors FAUX : la transaction appartient à une autre cible.
+   ② CHAQUE EFFET RELIT SON DÛ. L'acompte d'un rendez-vous, la première
+     échéance d'un abonnement, l'acompte d'une inscription : l'argent reçu
+     doit les couvrir (un franc d'arrondi), et un dû absent ne se confirme
+     pas. Les appelants le contrôlent déjà ; le contrôler ici aussi ferme la
+     fenêtre entre leur lecture et cette écriture.
+   ③ CHAQUE EFFET EST IDEMPOTENT. Un acompte déjà confirmé ne se réécrit
+     pas, un versement d'abonnement ne s'inscrit qu'une fois, une
+     inscription déjà réglée garde son premier règlement. */
 async function applyPayment(admin: any, opts: {
-  transactionId: string; tx: KkiaTransaction; partnerId: string; branchId: string; clientId?: string;
-}): Promise<void> {
+  transactionId: string;
+  tx: KkiaTransaction;
+  partnerId: string;
+  branchId: string;
+  clientId?: string;
+  /** L'abonnement réglé, quand c'en est un (29 août). */
+  subId?: string;
+  /** L'inscription à l'Académie réglée, quand c'en est une (17 septembre). */
+  inscriptionId?: string;
+  /** La consultation en ligne réglée, quand c'en est une (17 septembre). */
+  consultationId?: string;
+}): Promise<boolean> {
   const amount = Math.round(Number(opts.tx.amount ?? 0));
   const fees = Math.round(Number(opts.tx.fees ?? 0));
   const at = new Date().toISOString();
+  const couvre = (du: number): boolean => du > 0 && amount + 1 >= du;
 
+  // 1) Le registre. La clé primaire est l'identifiant KkiaPay : un paiement
+  //    n'entre qu'une fois, quel que soit le nombre de rejeux.
   const { error: insErr } = await admin.from('payments').insert({
     id: opts.transactionId,
     branch_id: opts.branchId,
@@ -84,54 +126,78 @@ async function applyPayment(admin: any, opts: {
     },
   });
   if (insErr) {
-    if (insErr.code === '23505') return; // déjà encaissé — rejeu normal
-    throw new Error(insErr.message);
+    if (insErr.code !== '23505') throw new Error(insErr.message);
+    // Déjà au registre : l'effet ne se pose que pour la cible qu'il porte.
+    const { data: inscrit } = await admin.from('payments').select('data').eq('id', opts.transactionId).maybeSingle();
+    if (String(inscrit?.data?.partnerId ?? '') !== opts.partnerId) return false;
   }
 
+  // 2) L'acompte du rendez-vous — posé par le SERVEUR, jamais par la cliente.
   if (opts.partnerId) {
     const { data: appt } = await admin.from('appointments').select('id, data').eq('id', opts.partnerId).maybeSingle();
-    if (appt) {
-      const next = { ...(appt.data ?? {}), depositXof: amount, depositConfirmed: true };
-      await admin.from('appointments').update({ data: next }).eq('id', opts.partnerId);
+    const d = (appt?.data ?? {}) as { depositXof?: number; depositConfirmed?: boolean };
+    if (appt && d.depositConfirmed !== true && couvre(Math.round(Number(d.depositXof ?? 0)))) {
+      await admin.from('appointments').update({ data: { ...d, depositXof: amount, depositConfirmed: true } }).eq('id', opts.partnerId);
     }
+    // Pas de rendez-vous ? Le paiement reste au registre avec son partnerId :
+    // le comptoir le rapprochera. On ne perd jamais un franc reçu.
+  }
 
-    /* LE FILET COUVRE AUSSI LES ABONNEMENTS — 29 août 2026.
-       Ce webhook ne connaissait que les rendez-vous. Or `AchatFormule` règle
-       un ABONNEMENT et lui passe la même référence : quand le téléphone de la
-       cliente se ferme avant la confirmation, ou quand la vérification échoue,
-       ce filet était le dernier recours — et il laissait tomber l'abonnement.
-       L'argent restait au registre, orphelin de ce qu'il réglait.
-
-       LES DEUX N'ENTRENT JAMAIS EN CONCURRENCE : les identifiants sont de deux
-       familles (`a-…` pour un rituel, `ab-…` pour un abonnement), et le
-       versement ne s'inscrit que s'il n'y est pas déjà — la vérification
-       cliente et ce filet peuvent donc arriver dans n'importe quel ordre. */
-    if (!appt) {
-      const { data: sub } = await admin.from('subscribers').select('id, data').eq('id', opts.partnerId).maybeSingle();
-      if (sub) {
-        const d = (sub.data ?? {}) as { payments?: { id?: string }[]; status?: string };
-        const deja = Array.isArray(d.payments) ? d.payments : [];
-        if (!deja.some((x: { id?: string }) => x?.id === opts.transactionId)) {
-          await admin.from('subscribers').update({
-            data: {
-              ...d,
-              payments: [...deja, {
-                id: opts.transactionId,
-                amountXof: amount,
-                date: new Date().toISOString().slice(0, 10),
-                method: opts.tx.source ?? 'KkiaPay',
-              }],
-              status: d.status === 'churn' ? d.status : 'active',
-            },
-          }).eq('id', opts.partnerId);
-        }
+  /* 2bis) LE RÈGLEMENT D'UN ABONNEMENT — 29 août 2026. Il s'AJOUTE aux
+     règlements existants (l'état de chaque échéance se dérive des versements,
+     shared/echeancier.ts) ; l'identifiant du versement est celui de la
+     transaction, deux rejeux n'inscrivent qu'une ligne. Le dû est la PREMIÈRE
+     échéance quand elle a choisi de payer en deux fois, le prix entier sinon. */
+  if (opts.subId) {
+    const { data: sub } = await admin.from('subscribers').select('id, data').eq('id', opts.subId).maybeSingle();
+    if (sub) {
+      const d = (sub.data ?? {}) as { payments?: { id?: string }[]; status?: string; echeances?: { amountXof?: number }[]; priceXof?: number; mrrXof?: number };
+      const deja = Array.isArray(d.payments) ? d.payments : [];
+      const premiere = Array.isArray(d.echeances) && d.echeances.length > 0 ? Math.round(Number(d.echeances[0]?.amountXof ?? 0)) : 0;
+      const du = premiere > 0 ? premiere : Math.round(Number(d.priceXof ?? d.mrrXof ?? 0));
+      if (couvre(du) && !deja.some((x) => x?.id === opts.transactionId)) {
+        await admin.from('subscribers').update({
+          data: {
+            ...d,
+            payments: [...deja, { id: opts.transactionId, amountXof: amount, date: at.slice(0, 10), method: opts.tx.source ?? 'KkiaPay' }],
+            /* Elle a payé : l'abonnement cesse d'être « neuf en attente ». */
+            status: d.status === 'churn' ? d.status : 'active',
+          },
+        }).eq('id', opts.subId);
       }
     }
   }
 
-  /* Aucune dépense de commission : les frais KkiaPay sont à la charge de la
-     CLIENTE (1,9 % Mobile Money, 4 % carte). La Maison encaisse le montant
-     demandé, entier. `feesXof` n'est gardé que pour la trace. */
+  /* 2ter) L'INSCRIPTION À L'ACADÉMIE — 17 septembre 2026. La place n'est
+     tenue qu'à l'acompte, que le SERVEUR fixe (0107, 40 % du parcours) et
+     que lui seul confirme : le déclencheur de 0107 retire `acompteConfirme`
+     de toute autre écriture. */
+  if (opts.inscriptionId) {
+    const { data: dem } = await admin.from('academie_demandes').select('id, data').eq('id', opts.inscriptionId).maybeSingle();
+    const d = (dem?.data ?? {}) as { acompteXof?: number; acompteConfirme?: boolean };
+    if (dem && d.acompteConfirme !== true && couvre(Math.round(Number(d.acompteXof ?? 0)))) {
+      await admin.from('academie_demandes').update({
+        data: { ...d, acompteConfirme: true, acompteVerseXof: amount, transactionId: opts.transactionId, payeLe: at },
+      }).eq('id', opts.inscriptionId);
+    }
+  }
+
+  /* 2quater) LA CONSULTATION EN LIGNE — 17 septembre 2026. Le paiement
+     précède le questionnaire : si la ligne existe déjà (rejeu, filet tardif),
+     on y pose le règlement ; sinon `push-notify` (tunnel-submit) relit le
+     registre par `partnerId` au moment du dépôt. */
+  if (opts.consultationId) {
+    const { data: row } = await admin.from('consultations_queue').select('id, data').eq('id', opts.consultationId).maybeSingle();
+    if (row) {
+      const next = { ...(row.data ?? {}), paidXof: amount, transactionId: opts.transactionId, payeLe: at, reglement: 'kkiapay' };
+      await admin.from('consultations_queue').update({ data: next }).eq('id', opts.consultationId);
+    }
+  }
+
+  /* 3) AUCUNE dépense de commission. Les frais KkiaPay (1,9 % Mobile Money,
+        4 % carte) sont à la charge de la CLIENTE : la Maison reçoit le montant
+        demandé, entier. `feesXof` reste au registre pour la seule trace. */
+  return true;
 }
 
 /* ══ LA CARTE CADEAU RÉGLÉE — 2 octobre 2026 ═══════════════════════════
@@ -154,14 +220,28 @@ const tireUnCode = (): string => {
 };
 
 async function regleLaCarte(admin: any, o: { carteId: string; transactionId: string }): Promise<{ code: string; valableJusquau: string } | null> {
+  /* LA TRANSACTION EST CELLE DE CETTE CARTE — 10 octobre 2026 (revue de nuit).
+     Rien ne reliait le paiement à la carte : une seule transaction réelle,
+     rejouée avec l'identifiant d'une autre commande, réglait autant de cartes
+     qu'on voulait, chacune avec son code et son avoir. Le registre dit à qui
+     l'argent était destiné (`partnerId`, posé à sa première inscription) et
+     combien est entré : la carte ne se règle que si c'est elle, et si c'est
+     assez. Une carte déjà réglée ne rend son code qu'à SA transaction. */
+  const { data: inscrit } = await admin.from('payments').select('data').eq('id', o.transactionId).maybeSingle();
+  if (String(inscrit?.data?.partnerId ?? '') !== o.carteId) return null;
+  const recu = Math.round(Number(inscrit?.data?.amountXof ?? 0));
   for (let essai = 0; essai < 6; essai++) {
     const { data: row } = await admin.from('cartes_cadeaux').select('id, branch_id, data').eq('id', o.carteId).maybeSingle();
     if (!row) return null;
     const c = (row.data ?? {}) as Record<string, any>;
-    if (c.code) return { code: String(c.code), valableJusquau: String(c.valableJusquau ?? '') };
+    if (c.code) return c.transactionId === o.transactionId ? { code: String(c.code), valableJusquau: String(c.valableJusquau ?? '') } : null;
+    /* UN GESTE NE SE RÈGLE PAS EN LIGNE (10 octobre 2026) : seul un montant
+       a un prix écrit sur la commande. Un « geste » à montant glissé à la
+       main ne devient pas « Création complète » pour 100 F. */
+    if (c.objet !== 'montant') return null;
     if (c.statut !== 'a-regler') return null;
     const montant = Math.round(Number(c.montantXof ?? 0));
-    if (montant <= 0) return null;
+    if (montant <= 0 || recu + 1 < montant) return null;
     const at = new Date().toISOString();
     const d = new Date(at);
     const valable = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 12, d.getUTCDate())).toISOString().slice(0, 10);
@@ -231,31 +311,28 @@ Deno.serve(async (req) => {
 
     const admin = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } });
 
-    // Branche inconnue (webhook plus ancien que l'app) : on la retrouve par le
-    // rendez-vous, pour que le paiement tombe dans la bonne maison.
-    if (!branchId && partnerId) {
-      const { data: subBr } = await admin.from('subscribers').select('branch_id').eq('id', partnerId).maybeSingle();
-      if (subBr?.branch_id) branchId = String(subBr.branch_id);
-    }
-    if (!branchId && partnerId) {
-      const { data: appt } = await admin.from('appointments').select('branch_id').eq('id', partnerId).maybeSingle();
-      branchId = String(appt?.branch_id ?? '');
+    // Branche inconnue (webhook plus ancien que l'app) : on la retrouve par ce
+    // qui est réglé, pour que le paiement tombe dans la bonne maison.
+    for (const table of ['subscribers', 'appointments', 'academie_demandes']) {
+      if (branchId || !partnerId) break;
+      const { data: br } = await admin.from(table).select('branch_id').eq('id', partnerId).maybeSingle();
+      if (br?.branch_id) branchId = String(br.branch_id);
     }
 
     // LE MONTANT ATTENDU VIENT DU SERVEUR — 24 août 2026 (audit), jumeau du
-    // contrôle de kkiapay-verify. On lit l'acompte DEMANDÉ sur la fiche
-    // (`depositXof`, posé à la réservation, avant tout paiement). Un paiement réel
-    // INFÉRIEUR (100 F pour un acompte de 25 000 F) ne confirme pas l'acompte :
-    // on accuse réception (200, KkiaPay cesse de retenter) sans rien créditer —
+    // contrôle de kkiapay-verify. On lit le dû SUR ce qui est réglé. Un paiement
+    // réel INFÉRIEUR (100 F pour un acompte de 25 000 F) ne confirme rien : on
+    // accuse réception (200, KkiaPay cesse de retenter) sans rien créditer, et
     // le comptoir rapprochera via le tableau KkiaPay.
     const paid = Math.round(Number(tx.amount ?? 0));
     /* LA CARTE CADEAU (`cc-…`) — 2 octobre 2026. Même lecture que
-       kkiapay-verify : le montant de la commande déposée, jamais le corps. */
+       kkiapay-verify : le montant de la commande déposée, jamais le corps, et
+       seulement pour un MONTANT (10 octobre 2026). */
     if (partnerId.startsWith('cc-')) {
       const { data: cc } = await admin.from('cartes_cadeaux').select('branch_id, data').eq('id', partnerId).maybeSingle();
       const attendu = Math.round(Number(cc?.data?.montantXof ?? 0));
-      if (!cc || attendu <= 0 || paid + 1 < attendu) {
-        console.log(`kkiapay-webhook: carte ${partnerId} non reglee (${paid} pour ${attendu})`);
+      if (!cc || cc.data?.objet !== 'montant' || attendu <= 0 || paid + 1 < attendu) {
+        console.log(`kkiapay-webhook ${VERSION}: carte ${partnerId} non reglee (${paid} pour ${attendu})`);
         return new Response('ok', { status: 200 });
       }
       if (!branchId) branchId = String(cc.branch_id ?? '');
@@ -263,29 +340,46 @@ Deno.serve(async (req) => {
       await regleLaCarte(admin, { carteId: partnerId, transactionId });
       return new Response('ok', { status: 200 });
     }
+    /* CE QUE LA RÉFÉRENCE RÈGLE : un rendez-vous (`depositXof`), sinon un
+       abonnement (sa première échéance, ou son prix entier), sinon une
+       inscription à l'Académie (`acompteXof`, fixé par la base, 0107).
+       L'INSCRIPTION MANQUAIT (10 octobre 2026, revue de nuit) : le widget de
+       l'Académie part avec l'identifiant de la demande, et ce filet n'y
+       reconnaissait rien. Quand la vérification ne venait pas, la place
+       restait sans acompte confirmé, et personne au comptoir ne pouvait le
+       poser (0107 réserve ce geste au serveur). */
+    let subId: string | undefined;
+    let inscriptionId: string | undefined;
     if (partnerId) {
       const { data: apptDue } = await admin
         .from('appointments').select('data').eq('id', partnerId).maybeSingle();
       let expected = Math.round(Number(apptDue?.data?.depositXof ?? 0));
-      /* L'ABONNEMENT ATTEND SA PREMIÈRE ÉCHÉANCE, ou son prix entier. Même
-         règle et même lecture que `kkiapay-verify` : le montant attendu se lit
-         DANS ce qui est réglé, jamais dans le corps de la requête. */
       if (!apptDue) {
         const { data: subDue } = await admin
           .from('subscribers').select('data').eq('id', partnerId).maybeSingle();
-        const d = (subDue?.data ?? {}) as { echeances?: { amountXof?: number }[]; priceXof?: number; mrrXof?: number };
-        const premiere = Array.isArray(d.echeances) && d.echeances.length > 0
-          ? Math.round(Number(d.echeances[0]?.amountXof ?? 0))
-          : 0;
-        expected = premiere > 0 ? premiere : Math.round(Number(d.priceXof ?? d.mrrXof ?? 0));
+        if (subDue) {
+          subId = partnerId;
+          const d = (subDue.data ?? {}) as { echeances?: { amountXof?: number }[]; priceXof?: number; mrrXof?: number };
+          const premiere = Array.isArray(d.echeances) && d.echeances.length > 0
+            ? Math.round(Number(d.echeances[0]?.amountXof ?? 0))
+            : 0;
+          expected = premiere > 0 ? premiere : Math.round(Number(d.priceXof ?? d.mrrXof ?? 0));
+        } else {
+          const { data: dem } = await admin
+            .from('academie_demandes').select('data').eq('id', partnerId).maybeSingle();
+          if (dem) {
+            inscriptionId = partnerId;
+            expected = Math.round(Number(dem.data?.acompteXof ?? 0));
+          }
+        }
       }
       if (expected > 0 && paid + 1 < expected) {
-        console.log(`kkiapay-webhook: ${transactionId} sous-payé (${paid} < ${expected}) — non confirmé`);
+        console.log(`kkiapay-webhook ${VERSION}: ${transactionId} sous-payé (${paid} < ${expected}), non confirmé`);
         return new Response('ok', { status: 200 });
       }
     }
 
-    await applyPayment(admin, { transactionId, tx, partnerId, branchId, clientId: state?.clientId });
+    await applyPayment(admin, { transactionId, tx, partnerId, branchId, clientId: state?.clientId, subId, inscriptionId });
     return new Response('ok', { status: 200 });
   } catch (e) {
     // Panne passagère (base ou KkiaPay) : on rend un 5xx EXPRÈS pour que

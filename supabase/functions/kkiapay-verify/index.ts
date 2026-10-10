@@ -43,6 +43,13 @@ const SERVICE_KEY = Deno.env.get('SERVICE_KEY') ?? Deno.env.get('SUPABASE_SERVIC
 const KKIA_BASE = Deno.env.get('KKIAPAY_API_BASE') ?? 'https://api.kkiapay.me';
 const KKIA_VERIFY_PATH = '/api/v1/transactions/status';
 
+/** La version de ce fichier, rendue dans chaque réponse : dire ce qui tourne
+    vraiment évite de chercher une panne dans un fichier qui n'est pas celui
+    qu'on croit déployé. 10 octobre 2026 : une transaction, une cible ; le
+    montant attendu de CETTE cible, jamais du corps ; la carte cadeau liée à
+    sa transaction (revue de nuit). */
+const VERSION = '2026-10-10-a';
+
 /* LA CONSULTATION EN LIGNE SE PAIE AVANT D'EXISTER — 17 septembre 2026.
    Aucune ligne à relire : la barre est celle de la Maison, tenue ICI, et
    jamais par le corps de la requête. Le tunnel affiche le même montant
@@ -81,8 +88,30 @@ async function fetchTransaction(transactionId: string): Promise<KkiaTransaction>
   return (await res.json()) as KkiaTransaction;
 }
 
-/** Applique un paiement vérifié. Rejouable sans effet double. */
-export async function applyPayment(admin: any, opts: {
+/* ══ LE PAIEMENT APPLIQUÉ — JUMEAU À L'IDENTIQUE ══════════════════════
+   Ce corps vit, mot pour mot, dans kkiapay-verify ET dans kkiapay-webhook
+   (une fonction Edge se colle seule, elle n'importe rien). Le harnais
+   `verifie-revue-serveur-site` compare les deux copies : toute correction
+   se fait aux deux endroits, le même jour.
+
+   CE QUI A CHANGÉ LE 10 OCTOBRE 2026 (revue de nuit) :
+   ① UN REJEU N'EST PLUS UN MUR. Le filet arrive souvent AVANT la
+     vérification ; celle-ci trouvait le registre déjà écrit (23505) et
+     s'arrêtait là, sans poser l'effet sur ce qui était réglé. Une inscription
+     à l'Académie restait ainsi sans acompte confirmé, « payée » à l'écran.
+     Désormais l'effet se pose aussi sur un rejeu, mais SEULEMENT si la
+     transaction inscrite au registre vise la MÊME cible : sans cette garde,
+     un paiement réel servirait de clé pour régler autre chose. La fonction
+     rend alors FAUX : la transaction appartient à une autre cible.
+   ② CHAQUE EFFET RELIT SON DÛ. L'acompte d'un rendez-vous, la première
+     échéance d'un abonnement, l'acompte d'une inscription : l'argent reçu
+     doit les couvrir (un franc d'arrondi), et un dû absent ne se confirme
+     pas. Les appelants le contrôlent déjà ; le contrôler ici aussi ferme la
+     fenêtre entre leur lecture et cette écriture.
+   ③ CHAQUE EFFET EST IDEMPOTENT. Un acompte déjà confirmé ne se réécrit
+     pas, un versement d'abonnement ne s'inscrit qu'une fois, une
+     inscription déjà réglée garde son premier règlement. */
+async function applyPayment(admin: any, opts: {
   transactionId: string;
   tx: KkiaTransaction;
   partnerId: string;
@@ -94,14 +123,14 @@ export async function applyPayment(admin: any, opts: {
   inscriptionId?: string;
   /** La consultation en ligne réglée, quand c'en est une (17 septembre). */
   consultationId?: string;
-}): Promise<void> {
+}): Promise<boolean> {
   const amount = Math.round(Number(opts.tx.amount ?? 0));
   const fees = Math.round(Number(opts.tx.fees ?? 0));
   const at = new Date().toISOString();
+  const couvre = (du: number): boolean => du > 0 && amount + 1 >= du;
 
-  // 1) Le registre. La clé primaire est l'identifiant KkiaPay : `on conflict`
-  //    ignoré = un paiement n'entre qu'une fois, quel que soit le nombre de
-  //    rejeux (webhook réessayé 5 fois, vérification cliente en parallèle).
+  // 1) Le registre. La clé primaire est l'identifiant KkiaPay : un paiement
+  //    n'entre qu'une fois, quel que soit le nombre de rejeux.
   const { error: insErr } = await admin.from('payments').insert({
     id: opts.transactionId,
     branch_id: opts.branchId,
@@ -118,81 +147,69 @@ export async function applyPayment(admin: any, opts: {
       at,
     },
   });
-  // 23505 = déjà enregistré : c'est le cas NORMAL d'un rejeu, on s'arrête là
-  // pour ne pas recréditer l'acompte ni recommissionner la Maison.
   if (insErr) {
-    if (insErr.code === '23505') return;
-    throw new Error(insErr.message);
+    if (insErr.code !== '23505') throw new Error(insErr.message);
+    // Déjà au registre : l'effet ne se pose que pour la cible qu'il porte.
+    const { data: inscrit } = await admin.from('payments').select('data').eq('id', opts.transactionId).maybeSingle();
+    if (String(inscrit?.data?.partnerId ?? '') !== opts.partnerId) return false;
   }
 
   // 2) L'acompte du rendez-vous — posé par le SERVEUR, jamais par la cliente.
   if (opts.partnerId) {
     const { data: appt } = await admin.from('appointments').select('id, data').eq('id', opts.partnerId).maybeSingle();
-    if (appt) {
-      const next = { ...(appt.data ?? {}), depositXof: amount, depositConfirmed: true };
-      await admin.from('appointments').update({ data: next }).eq('id', opts.partnerId);
+    const d = (appt?.data ?? {}) as { depositXof?: number; depositConfirmed?: boolean };
+    if (appt && d.depositConfirmed !== true && couvre(Math.round(Number(d.depositXof ?? 0)))) {
+      await admin.from('appointments').update({ data: { ...d, depositXof: amount, depositConfirmed: true } }).eq('id', opts.partnerId);
     }
     // Pas de rendez-vous ? Le paiement reste au registre avec son partnerId :
     // le comptoir le rapprochera. On ne perd jamais un franc reçu.
   }
 
-  /* 2bis) LE RÈGLEMENT D'UN ABONNEMENT — 29 août 2026.
-     Il s'AJOUTE aux règlements existants, il ne les remplace pas : l'état de
-     chaque échéance se dérive des versements (shared/echeancier.ts), et
-     écraser la liste effacerait la première moitié le jour où elle paie la
-     seconde. L'identifiant du versement est celui de la transaction : deux
-     rejeux du webhook n'inscrivent qu'une ligne. */
+  /* 2bis) LE RÈGLEMENT D'UN ABONNEMENT — 29 août 2026. Il s'AJOUTE aux
+     règlements existants (l'état de chaque échéance se dérive des versements,
+     shared/echeancier.ts) ; l'identifiant du versement est celui de la
+     transaction, deux rejeux n'inscrivent qu'une ligne. Le dû est la PREMIÈRE
+     échéance quand elle a choisi de payer en deux fois, le prix entier sinon. */
   if (opts.subId) {
     const { data: sub } = await admin.from('subscribers').select('id, data').eq('id', opts.subId).maybeSingle();
     if (sub) {
-      const d = (sub.data ?? {}) as { payments?: { id?: string }[]; status?: string };
+      const d = (sub.data ?? {}) as { payments?: { id?: string }[]; status?: string; echeances?: { amountXof?: number }[]; priceXof?: number; mrrXof?: number };
       const deja = Array.isArray(d.payments) ? d.payments : [];
-      if (!deja.some((x) => x?.id === opts.transactionId)) {
-        const next = {
-          ...d,
-          payments: [...deja, {
-            id: opts.transactionId,
-            amountXof: amount,
-            date: at.slice(0, 10),
-            method: opts.tx.source ?? 'KkiaPay',
-          }],
-          /* Elle a payé : l'abonnement cesse d'être « neuf en attente » et
-             devient actif. Le comptoir n'a rien à confirmer. */
-          status: d.status === 'churn' ? d.status : 'active',
-        };
-        await admin.from('subscribers').update({ data: next }).eq('id', opts.subId);
+      const premiere = Array.isArray(d.echeances) && d.echeances.length > 0 ? Math.round(Number(d.echeances[0]?.amountXof ?? 0)) : 0;
+      const du = premiere > 0 ? premiere : Math.round(Number(d.priceXof ?? d.mrrXof ?? 0));
+      if (couvre(du) && !deja.some((x) => x?.id === opts.transactionId)) {
+        await admin.from('subscribers').update({
+          data: {
+            ...d,
+            payments: [...deja, { id: opts.transactionId, amountXof: amount, date: at.slice(0, 10), method: opts.tx.source ?? 'KkiaPay' }],
+            /* Elle a payé : l'abonnement cesse d'être « neuf en attente ». */
+            status: d.status === 'churn' ? d.status : 'active',
+          },
+        }).eq('id', opts.subId);
       }
     }
   }
 
   /* 2ter) L'INSCRIPTION À L'ACADÉMIE — 17 septembre 2026. La place n'est
-     tenue qu'à l'acompte : c'est le SERVEUR qui le dit, sur la ligne déposée
-     par le site public. Rejouable sans effet double — on n'écrase que des
-     champs constants pour une même transaction. */
+     tenue qu'à l'acompte, que le SERVEUR fixe (0107, 40 % du parcours) et
+     que lui seul confirme : le déclencheur de 0107 retire `acompteConfirme`
+     de toute autre écriture. */
   if (opts.inscriptionId) {
-    const { data: dem } = await admin
-      .from('academie_demandes').select('id, data').eq('id', opts.inscriptionId).maybeSingle();
-    if (dem) {
-      const next = {
-        ...(dem.data ?? {}),
-        acompteConfirme: true,
-        acompteVerseXof: amount,
-        transactionId: opts.transactionId,
-        payeLe: at,
-      };
-      await admin.from('academie_demandes').update({ data: next }).eq('id', opts.inscriptionId);
+    const { data: dem } = await admin.from('academie_demandes').select('id, data').eq('id', opts.inscriptionId).maybeSingle();
+    const d = (dem?.data ?? {}) as { acompteXof?: number; acompteConfirme?: boolean };
+    if (dem && d.acompteConfirme !== true && couvre(Math.round(Number(d.acompteXof ?? 0)))) {
+      await admin.from('academie_demandes').update({
+        data: { ...d, acompteConfirme: true, acompteVerseXof: amount, transactionId: opts.transactionId, payeLe: at },
+      }).eq('id', opts.inscriptionId);
     }
   }
 
-  /* 2quater) LA CONSULTATION EN LIGNE — 17 septembre 2026. Le paiement précède
-     le questionnaire : la ligne n'existe pas encore quand on vérifie, et on ne
-     la crée PAS ici (le Trône y lit un nom, une ville ; une ligne vide le
-     ferait trébucher). Si elle existe déjà (rejeu, webhook tardif), on y pose
-     le règlement ; sinon `push-notify` (tunnel-submit) relit le registre des
-     paiements par `partnerId` au moment du dépôt. */
+  /* 2quater) LA CONSULTATION EN LIGNE — 17 septembre 2026. Le paiement
+     précède le questionnaire : si la ligne existe déjà (rejeu, filet tardif),
+     on y pose le règlement ; sinon `push-notify` (tunnel-submit) relit le
+     registre par `partnerId` au moment du dépôt. */
   if (opts.consultationId) {
-    const { data: row } = await admin
-      .from('consultations_queue').select('id, data').eq('id', opts.consultationId).maybeSingle();
+    const { data: row } = await admin.from('consultations_queue').select('id, data').eq('id', opts.consultationId).maybeSingle();
     if (row) {
       const next = { ...(row.data ?? {}), paidXof: amount, transactionId: opts.transactionId, payeLe: at, reglement: 'kkiapay' };
       await admin.from('consultations_queue').update({ data: next }).eq('id', opts.consultationId);
@@ -201,10 +218,8 @@ export async function applyPayment(admin: any, opts: {
 
   /* 3) AUCUNE dépense de commission. Les frais KkiaPay (1,9 % Mobile Money,
         4 % carte) sont à la charge de la CLIENTE : la Maison reçoit le montant
-        demandé, entier. Les inscrire en dépense sortirait d'une caisse un
-        argent qui n'y est jamais entré, et raboterait le résultat de la Maison
-        d'une charge qu'elle ne paie pas. `feesXof` reste au registre pour la
-        seule trace de ce que la cliente a versé en plus. */
+        demandé, entier. `feesXof` reste au registre pour la seule trace. */
+  return true;
 }
 
 /* ══ LA CARTE CADEAU RÉGLÉE — 2 octobre 2026 ═══════════════════════════
@@ -227,14 +242,28 @@ const tireUnCode = (): string => {
 };
 
 async function regleLaCarte(admin: any, o: { carteId: string; transactionId: string }): Promise<{ code: string; valableJusquau: string } | null> {
+  /* LA TRANSACTION EST CELLE DE CETTE CARTE — 10 octobre 2026 (revue de nuit).
+     Rien ne reliait le paiement à la carte : une seule transaction réelle,
+     rejouée avec l'identifiant d'une autre commande, réglait autant de cartes
+     qu'on voulait, chacune avec son code et son avoir. Le registre dit à qui
+     l'argent était destiné (`partnerId`, posé à sa première inscription) et
+     combien est entré : la carte ne se règle que si c'est elle, et si c'est
+     assez. Une carte déjà réglée ne rend son code qu'à SA transaction. */
+  const { data: inscrit } = await admin.from('payments').select('data').eq('id', o.transactionId).maybeSingle();
+  if (String(inscrit?.data?.partnerId ?? '') !== o.carteId) return null;
+  const recu = Math.round(Number(inscrit?.data?.amountXof ?? 0));
   for (let essai = 0; essai < 6; essai++) {
     const { data: row } = await admin.from('cartes_cadeaux').select('id, branch_id, data').eq('id', o.carteId).maybeSingle();
     if (!row) return null;
     const c = (row.data ?? {}) as Record<string, any>;
-    if (c.code) return { code: String(c.code), valableJusquau: String(c.valableJusquau ?? '') };
+    if (c.code) return c.transactionId === o.transactionId ? { code: String(c.code), valableJusquau: String(c.valableJusquau ?? '') } : null;
+    /* UN GESTE NE SE RÈGLE PAS EN LIGNE (10 octobre 2026) : seul un montant
+       a un prix écrit sur la commande. Un « geste » à montant glissé à la
+       main ne devient pas « Création complète » pour 100 F. */
+    if (c.objet !== 'montant') return null;
     if (c.statut !== 'a-regler') return null;
     const montant = Math.round(Number(c.montantXof ?? 0));
-    if (montant <= 0) return null;
+    if (montant <= 0 || recu + 1 < montant) return null;
     const at = new Date().toISOString();
     const d = new Date(at);
     const valable = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 12, d.getUTCDate())).toISOString().slice(0, 10);
@@ -269,8 +298,18 @@ async function regleLaCarte(admin: any, o: { carteId: string; transactionId: str
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
   try {
-    const { transactionId, apptId, subId, inscriptionId, consultationId, carteId, expectedXof, branchId, clientId } = await req.json();
-    if (!transactionId || !branchId) return json({ error: 'bad_request' }, 400);
+    const { transactionId, apptId, subId, inscriptionId, consultationId, carteId, branchId, clientId } = await req.json();
+    if (!transactionId || !branchId) return json({ error: 'bad_request', version: VERSION }, 400);
+
+    /* UNE TRANSACTION, UNE CIBLE — 10 octobre 2026 (revue de nuit). Le corps
+       pouvait nommer un rendez-vous ET une inscription : le montant attendu
+       se lisait sur l'une, s'écrasait avec celui de l'autre (zéro pour une
+       inscription inventée), et l'acompte du rendez-vous se confirmait pour
+       100 F. Avec une carte en plus, le même argent comptait deux fois. Un
+       paiement règle UNE chose : deux cibles, ou aucune, se refusent avant
+       même de parler à KkiaPay. */
+    const cibles = [apptId, subId, inscriptionId, consultationId, carteId].filter((c) => String(c ?? '').trim() !== '');
+    if (cibles.length !== 1) return json({ error: cibles.length > 1 ? 'cibles_multiples' : 'cible_absente', version: VERSION }, 400);
 
     const tx = await fetchTransaction(String(transactionId));
     if ((tx.status ?? '').toUpperCase() !== 'SUCCESS') {
@@ -279,93 +318,92 @@ Deno.serve(async (req) => {
 
     const admin = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } });
 
-    // LE MONTANT ATTENDU VIENT DU SERVEUR, PAS DU CLIENT — 24 août 2026 (audit).
-    // `expectedXof` arrivait dans le corps de requête : un appelant pouvait
-    // l'envoyer à 0 (contrôle entièrement sauté) ou fixer lui-même la barre, et
-    // valider un acompte de 25 000 F avec un paiement réel de 100 F. On lit donc
-    // l'acompte DEMANDÉ sur la fiche du rendez-vous (`depositXof`, posé à la
-    // réservation, AVANT tout paiement — applyPayment ne l'écrase qu'ensuite).
-    // Le `expectedXof` du client ne sert plus que de repli, jamais à assouplir.
+    /* LE MONTANT ATTENDU VIENT DU SERVEUR, PAS DU CLIENT — 24 août 2026 (audit),
+       et SEULEMENT DE LA CIBLE — 10 octobre 2026. `expectedXof` du corps ne
+       sert plus à rien, pas même de repli : un repli à zéro sautait tout le
+       contrôle. Une cible introuvable, ou sans montant, se refuse (404), sauf
+       un cas : le rendez-vous de Ma Couronne, qui se paie AVANT de s'écrire
+       (Booking, « on paie, le serveur vérifie, puis la réservation s'écrit »).
+       Absent ici, il n'a rien à confirmer : le paiement entre au registre
+       seul, et le filet confirmera l'acompte quand la fiche portera son dû. */
     let expected = 0;
     if (apptId) {
       const { data: apptDue } = await admin
         .from('appointments').select('data').eq('id', String(apptId)).maybeSingle();
-      expected = Math.round(Number(apptDue?.data?.depositXof ?? 0));
+      if (apptDue) {
+        expected = Math.round(Number(apptDue?.data?.depositXof ?? 0));
+        if (expected <= 0) return json({ error: 'cible_sans_montant', version: VERSION }, 404);
+      }
     }
-    /* L'ABONNEMENT PRIS DEPUIS MA COURONNE — 29 août 2026. Même règle et même
-       raison que pour l'acompte d'un rendez-vous : le montant attendu se lit
-       DANS l'abonnement, jamais dans le corps de requête. Sans quoi une
-       cliente ouvrirait une Année à 405 000 F en réglant 100 F.
-
-       Ce qu'on attend d'elle est la PREMIÈRE ÉCHÉANCE quand elle a choisi de
-       payer en deux fois, et le prix entier sinon. `souscrire_a_une_formule`
-       (0077) a écrit l'un ou l'autre à la signature. */
-    let sub: { id: string; data: Record<string, unknown> } | null = null;
+    /* L'ABONNEMENT PRIS DEPUIS MA COURONNE — 29 août 2026. Ce qu'on attend
+       d'elle est la PREMIÈRE ÉCHÉANCE quand elle a choisi de payer en deux
+       fois, et le prix entier sinon. `souscrire_a_une_formule` (0077) a écrit
+       l'un ou l'autre à la signature. Sans quoi une cliente ouvrirait une
+       Année à 405 000 F en réglant 100 F. */
     if (subId) {
       const { data: row } = await admin
         .from('subscribers').select('id, data').eq('id', String(subId)).maybeSingle();
-      sub = (row as typeof sub) ?? null;
-      if (sub) {
-        const d = sub.data as { echeances?: { amountXof?: number }[]; priceXof?: number; mrrXof?: number };
-        const premiere = Array.isArray(d.echeances) && d.echeances.length > 0
-          ? Math.round(Number(d.echeances[0]?.amountXof ?? 0))
-          : 0;
-        expected = premiere > 0 ? premiere : Math.round(Number(d.priceXof ?? d.mrrXof ?? 0));
-      }
+      const d = (row?.data ?? {}) as { echeances?: { amountXof?: number }[]; priceXof?: number; mrrXof?: number };
+      const premiere = Array.isArray(d.echeances) && d.echeances.length > 0
+        ? Math.round(Number(d.echeances[0]?.amountXof ?? 0))
+        : 0;
+      expected = premiere > 0 ? premiere : Math.round(Number(d.priceXof ?? d.mrrXof ?? 0));
+      if (!row || expected <= 0) return json({ error: 'cible_sans_montant', version: VERSION }, 404);
     }
-    /* L'INSCRIPTION À L'ACADÉMIE — 17 septembre 2026. Le site public dépose
-       la demande AVANT d'ouvrir le widget, avec son acompte déjà écrit : on le
-       relit ici, comme on relit celui d'un rendez-vous. Le corps de la requête
-       ne fixe jamais la barre. */
+    /* L'INSCRIPTION À L'ACADÉMIE — 17 septembre 2026. Le site dépose la
+       demande AVANT d'ouvrir le widget ; l'acompte y est fixé par la base
+       (0107). On le relit ici ; sans lui, on refuse. */
     if (inscriptionId) {
       const { data: dem } = await admin
         .from('academie_demandes').select('data').eq('id', String(inscriptionId)).maybeSingle();
       expected = Math.round(Number(dem?.data?.acompteXof ?? 0));
+      if (expected <= 0) return json({ error: 'cible_sans_montant', version: VERSION }, 404);
     }
     /* LA CONSULTATION EN LIGNE — 17 septembre 2026. Pas de ligne à relire :
        la barre est celle de la Maison, tenue par le serveur. */
     if (consultationId) expected = CONSULTATION_FEE_XOF;
     /* LA CARTE CADEAU — 2 octobre 2026. Le site dépose la commande AVANT
-       d'ouvrir KkiaPay, montant écrit (et borné par la base, 0112). On le
-       relit ici. Sans commande, on ne règle rien : le repli sur le corps de
-       la requête ne vaut JAMAIS pour une carte. */
+       d'ouvrir KkiaPay, montant écrit (et borné par la base). On le relit
+       ici ; seul un MONTANT se règle en ligne (10 octobre 2026). */
     if (carteId) {
       const { data: cc } = await admin
         .from('cartes_cadeaux').select('data').eq('id', String(carteId)).maybeSingle();
       expected = Math.round(Number(cc?.data?.montantXof ?? 0));
-      if (expected <= 0) return json({ error: 'carte_introuvable' }, 404);
+      if (cc?.data?.objet !== 'montant' || expected <= 0) return json({ error: 'carte_introuvable', version: VERSION }, 404);
     }
-    if (expected <= 0) expected = Math.round(Number(expectedXof ?? 0));
 
     // Le contrôle qui protège la Maison : on n'ouvre rien tant que le montant
-    // reçu n'atteint pas l'acompte attendu (tolérance d'un franc d'arrondi).
+    // reçu n'atteint pas ce qui est attendu (tolérance d'un franc d'arrondi).
     const paid = Math.round(Number(tx.amount ?? 0));
     if (expected > 0 && paid + 1 < expected) {
-      return json({ error: 'amount_mismatch', amountXof: paid, expectedXof: expected }, 402);
+      return json({ error: 'amount_mismatch', amountXof: paid, expectedXof: expected, version: VERSION }, 402);
     }
 
-    await applyPayment(admin, {
+    /* Une transaction déjà inscrite pour une AUTRE cible ne règle rien ici :
+       on le dit (409) au lieu d'un « ok » qui ferait croire à un paiement. */
+    const pourCetteCible = await applyPayment(admin, {
       transactionId: String(transactionId),
       tx,
-      /* La référence porte l'abonnement quand il n'y a pas de rendez-vous :
-         c'est elle qui relie le paiement à ce qu'il règle, au registre comme
-         au comptoir. */
-      partnerId: String(apptId || subId || inscriptionId || consultationId || carteId || ''),
+      /* La référence est la cible, et elle seule : c'est elle qui relie le
+         paiement à ce qu'il règle, au registre comme au comptoir. */
+      partnerId: String(cibles[0]),
       branchId: String(branchId),
       clientId: clientId ? String(clientId) : undefined,
       subId: subId ? String(subId) : undefined,
       inscriptionId: inscriptionId ? String(inscriptionId) : undefined,
       consultationId: consultationId ? String(consultationId) : undefined,
     });
+    if (!pourCetteCible) return json({ error: 'transaction_deja_utilisee', version: VERSION }, 409);
 
     /* La carte se règle APRÈS le registre : si le paiement y était déjà
-       (rejeu, filet passé avant), elle se règle quand même, ou rend son code. */
+       (rejeu, filet passé avant), elle se règle quand même, ou rend son code,
+       mais seulement pour SA transaction (voir regleLaCarte). */
     const carte = carteId
       ? await regleLaCarte(admin, { carteId: String(carteId), transactionId: String(transactionId) })
       : null;
-    if (carteId && !carte) return json({ error: 'carte_non_reglee' }, 409);
+    if (carteId && !carte) return json({ error: 'carte_non_reglee', version: VERSION }, 409);
 
-    return json({ ok: true, amountXof: paid, feesXof: Math.round(Number(tx.fees ?? 0)), method: tx.source, ...(carte ? { carte } : {}) });
+    return json({ ok: true, version: VERSION, amountXof: paid, feesXof: Math.round(Number(tx.fees ?? 0)), method: tx.source, ...(carte ? { carte } : {}) });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     /* Diagnostic d'installation : QUELS secrets sont posés (jamais leur valeur)

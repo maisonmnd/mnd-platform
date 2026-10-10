@@ -41,7 +41,7 @@
 
 import { createClient } from 'npm:@supabase/supabase-js@2';
 
-const VERSION = '2026-10-02-a';
+const VERSION = '2026-10-10-a';
 
 /* ── LE CALCUL DES HEURES, recopié de src/shared/salle-des-envois.ts ── */
 const DECALAGE_DU_SALON_H = 1;
@@ -109,6 +109,18 @@ const PAR_REVEIL = 30;
 /** On prévient le personnel de ce qui part dans ce délai. */
 const ANNONCE_MS = 10 * 60_000;
 
+/* ══ UN ENVOI NE PEND PAS, UNE LIGNE PRISE NE RESTE PAS PRISE — 10 octobre 2026 ══
+   Revue de nuit. Les appels à Meta, à push-notify et à Twilio partaient sans
+   délai maximal : un appel qui pendait jusqu'à la limite de la fonction la
+   tuait, et la ligne déjà passée « en-envoi » le restait POUR TOUJOURS (le
+   facteur ne relit que « en-attente », les fonctions qui déposent ne
+   retentent que « échec » et « périmé »). Chaque appel est donc borné à huit
+   secondes, et chaque réveil commence par rendre « échec » (motif « envoi
+   interrompu ») une ligne prise en main depuis plus de dix minutes : la
+   fonction qui l'a déposée la retentera, comme un raté. */
+const ENVOI_MAX_MS = 8_000;
+const EN_ENVOI_PERIME_MS = 10 * 60_000;
+
 const TYPE_DIT: Record<string, string> = {
   confirmation: 'Confirmation', 'rappel-j1': 'Rappel de la veille', 'reprise-j3': 'Reprise proposée',
   'avis-google': 'Demande d’avis', 'fin-de-paquet': 'Fin de paquet',
@@ -138,12 +150,27 @@ Deno.serve(async (req) => {
   const nomMaison: string =
     ((docs?.find((d) => d.key === 'mnd_house_identity')?.data as { nom?: string } | undefined)?.nom ?? '').trim() || 'Maison MND';
 
+  /* LES LIGNES PRISES ET JAMAIS RENDUES. L'heure de prise (`prisLe`) date la
+     main ; une ligne prise avant ce jour n'en a pas, son dépôt en tient lieu.
+     L'écriture ne passe que si la ligne est toujours « en-envoi ». */
+  let interrompus = 0;
+  const { data: prises } = await sb.from('envois').select('id, data')
+    .eq('data->>statut', 'en-envoi').limit(100);
+  for (const p of (prises ?? []) as { id: string; data: Record<string, unknown> }[]) {
+    const depuis = Date.parse(String(p.data?.prisLe ?? p.data?.quand ?? p.data?.deposeLe ?? ''));
+    if (Number.isFinite(depuis) && maintenantMs - depuis < EN_ENVOI_PERIME_MS) continue;
+    const { data: rendue } = await sb.from('envois')
+      .update({ data: { ...p.data, statut: 'échec', detail: 'envoi interrompu', quand: maintenant } })
+      .eq('id', p.id).eq('data->>statut', 'en-envoi').select('id');
+    if ((rendue ?? []).length > 0) interrompus++;
+  }
+
   const { data: rows, error } = await sb.from('envois').select('id, branch_id, data')
     .eq('data->>statut', 'en-attente').limit(300);
   if (error) return new Response(JSON.stringify({ version: VERSION, erreur: error.message }), { status: 500 });
   const enSalle = (rows ?? []) as Ligne[];
   if (enSalle.length === 0) {
-    return new Response(JSON.stringify({ version: VERSION, enSalle: 0, partis: 0 }), { headers: { 'content-type': 'application/json' } });
+    return new Response(JSON.stringify({ version: VERSION, enSalle: 0, partis: 0, interrompus }), { headers: { 'content-type': 'application/json' } });
   }
 
   const partAde = (l: Ligne): number => Date.parse(l.data.partA ?? '');
@@ -162,6 +189,7 @@ Deno.serve(async (req) => {
     try {
       await fetch(`${urlBase}/functions/v1/push-notify`, {
         method: 'POST',
+        signal: AbortSignal.timeout(ENVOI_MAX_MS),
         headers: { 'content-type': 'application/json', authorization: `Bearer ${service}` },
         body: JSON.stringify({
           mode: 'staff',
@@ -202,7 +230,7 @@ Deno.serve(async (req) => {
        encore « en-attente ». Retenu ou déjà pris une seconde plus tôt, elle ne
        touche aucune ligne et je passe au suivant. */
     const { data: pris } = await sb.from('envois')
-      .update({ data: { ...l.data, statut: 'en-envoi' } })
+      .update({ data: { ...l.data, prisLe: maintenant, statut: 'en-envoi' } })
       .eq('id', l.id).eq('data->>statut', 'en-attente').select('id');
     if ((pris ?? []).length === 0) { dejaPris++; continue; }
 
@@ -224,6 +252,7 @@ Deno.serve(async (req) => {
         if (!WA_TOKEN || !WA_PHONE_ID) { await ecris({ statut: 'échec', detail: 'clés Meta absentes' }); echecs++; continue; }
         const r = await fetch(`https://graph.facebook.com/v20.0/${WA_PHONE_ID}/messages`, {
           method: 'POST',
+          signal: AbortSignal.timeout(ENVOI_MAX_MS),
           headers: { 'content-type': 'application/json', authorization: `Bearer ${WA_TOKEN}` },
           body: JSON.stringify({
             messaging_product: 'whatsapp', to: colis.numero, type: 'template',
@@ -263,6 +292,7 @@ Deno.serve(async (req) => {
       } else if (colis.genre === 'push') {
         const r = await fetch(`${urlBase}/functions/v1/push-notify`, {
           method: 'POST',
+          signal: AbortSignal.timeout(ENVOI_MAX_MS),
           headers: { 'content-type': 'application/json', authorization: `Bearer ${service}` },
           body: JSON.stringify({ mode: 'to-client', clientId: colis.clientId, title: colis.titre, body: colis.corps, url: colis.url ?? '/couronne/' }),
         });
@@ -273,6 +303,7 @@ Deno.serve(async (req) => {
         if (!SMS_SID || !SMS_TOKEN || !SMS_FROM) { await ecris({ statut: 'échec', detail: 'clés SMS absentes' }); echecs++; continue; }
         const r = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${SMS_SID}/Messages.json`, {
           method: 'POST',
+          signal: AbortSignal.timeout(ENVOI_MAX_MS),
           headers: { 'content-type': 'application/x-www-form-urlencoded', authorization: `Basic ${btoa(`${SMS_SID}:${SMS_TOKEN}`)}` },
           body: new URLSearchParams({ From: SMS_FROM, To: `+${colis.numero}`, Body: colis.texte }).toString(),
         });
@@ -289,7 +320,7 @@ Deno.serve(async (req) => {
   }
 
   return new Response(
-    JSON.stringify({ version: VERSION, enSalle: enSalle.length, heuresCalmes: calme, annonces, partis, perimes, echecs, dejaPris }),
+    JSON.stringify({ version: VERSION, enSalle: enSalle.length, heuresCalmes: calme, annonces, partis, perimes, echecs, dejaPris, interrompus }),
     { headers: { 'content-type': 'application/json' } },
   );
 });

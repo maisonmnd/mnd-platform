@@ -15,6 +15,38 @@ const VAPID_SUBJECT = Deno.env.get('VAPID_SUBJECT') ?? 'mailto:contact@maison-mn
 const CRON_SECRET = Deno.env.get('CRON_SECRET') ?? '';
 // Fuseau de la maison (Bénin = +01:00) pour caler les rappels sur l'heure locale.
 const TZ_OFFSET = Deno.env.get('TZ_OFFSET') ?? '+01:00';
+/* Le fuseau nommé, pour dire une date à la cliente comme le reste de la Maison. */
+const TZ = 'Africa/Porto-Novo';
+
+/** La version de ce fichier, rendue par les balayages : dire ce qui tourne
+    vraiment évite de chercher une panne dans un fichier qui n'est pas celui
+    qu'on croit déployé. 10 octobre 2026 (revue de nuit) : le rappel dit la
+    date en clair avec l'année ; le rappel de 21 h ne compte plus les caisses
+    hors bilan et voit les mouvements hors activité. */
+const VERSION = '2026-10-10-a';
+
+/* LA DATE ET L'HEURE TELLES QU'ON LES DIT — 10 octobre 2026 (revue de nuit).
+   Le rappel disait « Rendez-vous le 2026-10-11 à 09:00 », puis un tiret
+   long et « la maison » : une date de machine, le tiret que la Maison
+   n'écrit plus, et son nom en minuscule.
+   Recopiées à l'identique de confirmation-rdv (une fonction Edge n'importe
+   rien) ; le harnais `verifie-revue-serveur-site` tient les deux copies. */
+const heureLisible = (hhmm: string | undefined): string => {
+  if (!/^\d{1,2}:\d{2}$/.test(hhmm ?? '')) return hhmm ?? '';
+  const [h, m] = (hhmm as string).split(':');
+  const minutes = Number(m);
+  return Number.isFinite(minutes) && minutes > 0
+    ? `${Number(h)} h ${String(minutes).padStart(2, '0')}`
+    : `${Number(h)} h`;
+};
+
+const jourEnClair = (iso: string): string => {
+  try {
+    return new Date(`${iso}T12:00:00`).toLocaleDateString('fr-FR', {
+      weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: TZ,
+    });
+  } catch { return iso; }
+};
 
 webpush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC, VAPID_PRIVATE);
 const admin = createClient(SUPABASE_URL, SERVICE_KEY);
@@ -198,7 +230,7 @@ async function runReminders(): Promise<number> {
     const { data: seen } = await admin.from('push_reminders').select('appointment_id').eq('appointment_id', a.id ?? row.id).eq('kind', kind).maybeSingle();
     if (seen) continue;
     const title = kind === 'j-1' ? 'Rappel · demain' : 'Votre rituel approche';
-    const body = `Rendez-vous le ${date} à ${time} — la maison vous attend.`;
+    const body = `Rendez-vous le ${jourEnClair(date)} à ${heureLisible(time)}, la Maison vous attend.`;
     const n = await sendToClient(clientId, { title, body, url: '/couronne/#/suivi', tag: `rdv-${row.id}` });
     // On journalise même sans abonnement, pour ne pas re-tenter en boucle.
     await admin.from('push_reminders').insert({ appointment_id: (a.id as string) ?? row.id, kind });
@@ -266,10 +298,20 @@ async function rappelDesTiroirs(): Promise<number> {
   const { data: dejaDit } = await admin.from('push_reminders').select('appointment_id').eq('appointment_id', cle).eq('kind', 'cloture').maybeSingle();
   if (dejaDit) return 0;
 
+  /* LES CAISSES HORS BILAN NE SE COMPTENT PAS LE SOIR — 10 octobre 2026
+     (revue de nuit). Même règle que l'écran (`tiroirsQuiSeComptent`) : la
+     notification nommait encore « Caisse du foyer » ou un compte du foyer à
+     l'étranger, un tiroir qu'aucune fenêtre ne laisse clôturer. */
+  const horsBilan = new Set<string>();
+  for (const row of await toutes('cashboxes', 'id,branch_id,data')) {
+    const c = row.data ?? {};
+    if (c.horsBilan === true && typeof c.name === 'string') horsBilan.add(`${row.branch_id ?? c.branchId ?? ''}|${c.name}`);
+  }
   const bouge = new Map<string, Set<string>>(); // branche -> tiroirs
   const note = (branche: string | null | undefined, tiroir: unknown) => {
     if (typeof tiroir !== 'string' || !tiroir || tiroir === 'Pourboires' || tiroir === 'KkiaPay') return;
     const b = branche ?? '';
+    if (horsBilan.has(`${b}|${tiroir}`)) return;
     if (!bouge.has(b)) bouge.set(b, new Set());
     bouge.get(b)!.add(tiroir);
   };
@@ -285,6 +327,14 @@ async function rappelDesTiroirs(): Promise<number> {
   for (const row of await toutes('expenses', 'id,branch_id,data')) {
     const e = row.data ?? {};
     if (e.date === jour && !e.avancee && !e.stopped) note(row.branch_id ?? e.branchId, e.cashbox);
+  }
+  /* LES MOUVEMENTS HORS ACTIVITÉ FONT BOUGER UN TIROIR — 10 octobre 2026.
+     Une sortie (prélèvement de l'associé, échéance rendue) ou une entrée hors
+     activité change ce que le tiroir doit compter le soir : même garde que
+     l'écran (`tiroirsSansCloture`), un montant, le jour. */
+  for (const row of await toutes('entrees_hors_activite', 'id,branch_id,data')) {
+    const m = row.data ?? {};
+    if (typeof m.date === 'string' && m.date.slice(0, 10) === jour && Number(m.amountXof) > 0) note(row.branch_id ?? m.branchId, m.cashbox);
   }
   for (const row of await toutes('clotures_caisse', 'id,branch_id,data')) {
     const c = row.data ?? {};
@@ -324,8 +374,8 @@ Deno.serve(async (req) => {
   // Modes cron (rappels clientes + RDV personnel dans 1h). Pas de secret requis :
   // la passerelle exige déjà la clé publishable, et ces balayages sont idempotents
   // (journal push_reminders + fenêtre horaire) — les rejouer est sans effet.
-  if (body.mode === 'reminders') return json({ sent: await runReminders() });
-  if (body.mode === 'staff-cron') return json({ sent: await runStaffCron(), tiroirs: await rappelDesTiroirs() });
+  if (body.mode === 'reminders') return json({ version: VERSION, sent: await runReminders() });
+  if (body.mode === 'staff-cron') return json({ version: VERSION, sent: await runStaffCron(), tiroirs: await rappelDesTiroirs() });
 
   // Mode diffusion — annonce (offre/promo) à TOUTES les clientes. Réservé au personnel.
   if (body.mode === 'broadcast') {

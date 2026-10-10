@@ -30,6 +30,12 @@ import { createClient } from 'npm:@supabase/supabase-js@2';
 
 const TZ = 'Africa/Porto-Novo'; // le fuseau du salon — pas celui du serveur
 
+/** La version de ce fichier, rendue dans chaque réponse : dire ce qui tourne
+    vraiment évite de chercher une panne dans un fichier qui n'est pas celui
+    qu'on croit déployé. 10 octobre 2026 : le passage du soir ne dépose plus
+    un rappel que les heures calmes retiendraient jusqu'au jour même. */
+const VERSION = '2026-10-10-a';
+
 type Rdv = {
   id: string;
   branchId?: string;
@@ -377,6 +383,18 @@ Deno.serve(async (req) => {
 
   const reprises = await proposeLesReprises(sb, salleOuverte, regles).catch((e) => ({ reprises: 'echec', motif: String(e).slice(0, 120) }));
 
+  /* ══ LE PASSAGE DU SOIR ET LES HEURES CALMES — 10 octobre 2026 (revue de nuit) ══
+     Le second passage tourne à 21 h. Déposé à cette heure, un rappel attend la
+     fin des heures calmes (8 h), c'est-à-dire LE MATIN DU RENDEZ-VOUS, et le
+     facteur le déclare alors « trop tard pour un rappel de la veille » : salle
+     ouverte, aucun rappel du soir ne partait plus. La règle de la Maison est
+     que rien ne part la nuit ; on ne la contourne pas. On ne dépose donc pas
+     ce qui partirait le jour même : le journal le dit « pas envoyé », avec son
+     motif, pour que la Maison voie la cliente à appeler. Envoyer quand même à
+     21 h serait une règle nouvelle, qui revient à la direction. */
+  const partiraitLeJourMeme = salleOuverte
+    && new Date(heureDeDepart(Date.now(), regles).partA + DECALAGE_DU_SALON_H * 3_600_000).toISOString().slice(0, 10) >= demain;
+
   /* ── Les rendez-vous de demain, non annulés ─────────────────────── */
   const { data: apptRows, error: errA } = await sb.from('appointments')
     .select('id, branch_id, data')
@@ -484,6 +502,12 @@ Deno.serve(async (req) => {
        Le modèle approuvé attend deux variables : {{1}} le prénom,
        {{2}} l'heure (voir docs/BRANCHER-ENVOIS.md). */
     const tel = numeroIntl(fiche?.phone);
+    if (partiraitLeJourMeme) {
+      const motif = 'heures calmes : déposé ce soir, il partirait le jour même du rendez-vous';
+      if (WA_TOKEN && WA_PHONE_ID && tel && !deja.has(`env-${a.id}-whatsapp`)) consigne('whatsapp', a, 'périmé', motif);
+      if (SMS_SID && SMS_TOKEN && SMS_FROM && tel && !deja.has(`env-${a.id}-sms`)) consigne('sms', a, 'périmé', motif);
+      continue;
+    }
     if (salleOuverte && WA_TOKEN && WA_PHONE_ID && tel && !deja.has(`env-${a.id}-whatsapp`)) {
       consigne('whatsapp', a, 'en-attente', undefined, undefined, depot(Date.now(), regles, {
         genre: 'whatsapp', numero: tel, modele: WA_TEMPLATE, parQui: 'la Maison, automatiquement',
@@ -568,7 +592,7 @@ Deno.serve(async (req) => {
   /* ── Le journal s'écrit en un geste (upsert : re-réveil sans doublon) ── */
   if (aInserer.length > 0) {
     const { error: errE } = await sb.from('envois').upsert(aInserer, { onConflict: 'id' });
-    if (errE) return new Response(JSON.stringify({ erreur: errE.message }), { status: 500 });
+    if (errE) return new Response(JSON.stringify({ version: VERSION, erreur: errE.message }), { status: 500 });
   }
 
   /* LE FIL, S'IL Y A QUELQUE CHOSE À Y METTRE. Une table absente ne doit pas
@@ -580,7 +604,7 @@ Deno.serve(async (req) => {
   }
 
   return new Response(
-    JSON.stringify({ jour: demain, rdv: rdvs.length, push: 'au job mnd-push-rappels', salle: salleOuverte, deposes: nDeposes, whatsapp: nWa, sms: nSms, ...reprises }),
+    JSON.stringify({ version: VERSION, jour: demain, rdv: rdvs.length, push: 'au job mnd-push-rappels', salle: salleOuverte, partiraitLeJourMeme, deposes: nDeposes, whatsapp: nWa, sms: nSms, ...reprises }),
     { status: 200, headers: { 'content-type': 'application/json' } },
   );
 });

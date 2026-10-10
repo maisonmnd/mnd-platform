@@ -127,15 +127,30 @@ const confirmationEstNeuve = (
 /** La version de ce fichier, rendue dans chaque réponse : dire ce qui tourne
     vraiment évite de chercher une panne dans un fichier qui n'est pas celui
     qu'on croit déployé. */
-const VERSION = '2026-10-09-b';
+const VERSION = '2026-10-10-a';
 
 /* UNE RAFALE NE PART JAMAIS TOUTE SEULE — 21 septembre 2026. Le soir du
    21, une écriture en bloc a fait partir des dizaines de confirmations d'un
    coup. Une prise de rendez-vous, c'est une ou deux confirmations par
    passage ; au-delà, c'est un accident, et on n'envoie RIEN. Mieux vaut un
    silence que la Maison peut voir dans le journal des fonctions qu'un
-   message inutile chez quarante clientes. */
+   message inutile chez quarante clientes.
+
+   ON NE COMPTE QUE CE QUI RESTE À DIRE — 10 octobre 2026 (revue de nuit). La
+   fenêtre de deux heures garde les rendez-vous déjà confirmés : six poses de
+   l'accueil en deux heures faisaient six candidats au passage suivant, la
+   rafale jouait, et la septième cliente n'était jamais confirmée. La rafale
+   se compte désormais APRÈS le journal, sur les seuls rendez-vous qui ont
+   encore un message à recevoir. */
 const RAFALE_MAX = 5;
+
+/* UN ENVOI A UNE DURÉE BORNÉE, ET SE CONSIGNE AUSSITÔT — 10 octobre 2026
+   (revue de nuit). Un appel à Meta ou à push-notify qui pendait jusqu'à la
+   limite de la fonction la tuait au milieu de la boucle : les messages
+   déjà partis n'étaient pas au journal (écrit d'un seul geste, à la fin), et
+   le passage suivant les renvoyait. Chaque appel est borné à huit secondes,
+   et le journal d'un rendez-vous s'écrit dès ses envois faits. */
+const ENVOI_MAX_MS = 8_000;
 
 /** L'heure de pose signée par la base, rendez-vous par rendez-vous. Une trace
     absente (rendez-vous d'avant 0092) laisse la place à `creeLe`. */
@@ -362,26 +377,6 @@ Deno.serve(async (req) => {
     });
   }
 
-  /* LA RAFALE S'ARRÊTE ICI. Une prise de rendez-vous, c'est un ou deux
-     messages par passage. Au-delà, quelque chose a écrit en bloc, et l'on
-     préfère un silence visible au journal des fonctions à quarante messages
-     inutiles chez les clientes. */
-  if (rdvs.length > RAFALE_MAX) {
-    console.error(`confirmation-rdv: rafale écartée, ${rdvs.length} rendez-vous d'un coup, rien n'est parti`);
-    return new Response(
-      JSON.stringify({ version: VERSION, rafaleEcartee: rdvs.length, push: 0, whatsapp: 0 }),
-      { headers: { 'content-type': 'application/json' } },
-    );
-  }
-
-  /* ── Les fiches, pour le prénom et le téléphone ──────────────────── */
-  const { data: ficheRows } = await sb.from('clients')
-    .select('id, data')
-    .in('id', [...new Set(rdvs.map((a) => a.clientId))]);
-  const fiches = new Map<string, Fiche>(
-    (ficheRows ?? []).map((r) => [r.id as string, { id: r.id as string, ...(r.data as Fiche) }]),
-  );
-
   /* ── CE QUI EST DÉJÀ PARTI — l'idempotence ───────────────────────
      On demande les identifiants exacts qu'on s'apprête à écrire : le cron
      peut se réveiller cent fois, une cliente ne reçoit qu'une confirmation. */
@@ -412,6 +407,37 @@ Deno.serve(async (req) => {
   /* Un modèle À PART de celui du rappel : Meta approuve chaque modèle pour un
      usage, et confirmer n'est pas rappeler. */
   const WA_TEMPLATE = Deno.env.get('WA_TEMPLATE_CONF') ?? 'confirmation_rdv';
+
+  /* CE QUI RESTE À DIRE : un push pas encore verrouillé, ou un WhatsApp pas
+     encore verrouillé quand les clés Meta sont posées. Un rendez-vous déjà
+     confirmé sur tous ses canaux ne compte plus dans la rafale. */
+  const aEnvoyer = rdvs.filter((a) => !deja.has(`conf-${a.id}-push`)
+    || (!!WA_TOKEN && !!WA_PHONE_ID && !deja.has(`conf-${a.id}-whatsapp`)));
+  if (aEnvoyer.length === 0) {
+    return new Response(JSON.stringify({ version: VERSION, vus: rdvs.length, dejaDits: rdvs.length, push: 0, whatsapp: 0 }), {
+      headers: { 'content-type': 'application/json' },
+    });
+  }
+
+  /* LA RAFALE S'ARRÊTE ICI. Une prise de rendez-vous, c'est un ou deux
+     messages par passage. Au-delà, quelque chose a écrit en bloc, et l'on
+     préfère un silence visible au journal des fonctions à quarante messages
+     inutiles chez les clientes. */
+  if (aEnvoyer.length > RAFALE_MAX) {
+    console.error(`confirmation-rdv: rafale écartée, ${aEnvoyer.length} rendez-vous d'un coup, rien n'est parti`);
+    return new Response(
+      JSON.stringify({ version: VERSION, rafaleEcartee: aEnvoyer.length, push: 0, whatsapp: 0 }),
+      { headers: { 'content-type': 'application/json' } },
+    );
+  }
+
+  /* ── Les fiches, pour le prénom et le téléphone ──────────────────── */
+  const { data: ficheRows } = await sb.from('clients')
+    .select('id, data')
+    .in('id', [...new Set(aEnvoyer.map((a) => a.clientId))]);
+  const fiches = new Map<string, Fiche>(
+    (ficheRows ?? []).map((r) => [r.id as string, { id: r.id as string, ...(r.data as Fiche) }]),
+  );
 
   const aInserer: { id: string; branch_id: string | null; data: Record<string, unknown> }[] = [];
   /* ══ L'IDENTIFIANT META ET LE CODE SE GARDENT — 18 septembre 2026 ══════
@@ -456,9 +482,10 @@ Deno.serve(async (req) => {
     });
   };
 
-  let nPush = 0, nWa = 0, nDeposes = 0;
+  let nPush = 0, nWa = 0, nDeposes = 0, nJournal = 0;
+  let journalRefuse = '';
 
-  for (const a of rdvs) {
+  for (const a of aEnvoyer) {
     const fiche = fiches.get(a.clientId);
     const prenom = appelDe(fiche, a.clientName);
     const quand = `${jourEnClair(a.date)} à ${heureLisible(a.time)}`;
@@ -479,6 +506,7 @@ Deno.serve(async (req) => {
       try {
         const r = await fetch(`${urlBase}/functions/v1/push-notify`, {
           method: 'POST',
+          signal: AbortSignal.timeout(ENVOI_MAX_MS),
           headers: { 'content-type': 'application/json', authorization: `Bearer ${service}` },
           body: JSON.stringify({
             mode: 'to-client',
@@ -516,6 +544,7 @@ Deno.serve(async (req) => {
       try {
         const r = await fetch(`https://graph.facebook.com/v20.0/${WA_PHONE_ID}/messages`, {
           method: 'POST',
+          signal: AbortSignal.timeout(ENVOI_MAX_MS),
           headers: { 'content-type': 'application/json', authorization: `Bearer ${WA_TOKEN}` },
           body: JSON.stringify({
             messaging_product: 'whatsapp',
@@ -550,23 +579,33 @@ Deno.serve(async (req) => {
         consigne('whatsapp', a, 'échec', String(e));
       }
     }
-  }
 
-  /* ── Le journal, d'un seul geste ─────────────────────────────────
-     `upsert` plutôt qu'`insert` : deux réveils simultanés du cron ne doivent
-     pas faire échouer la course, seulement écrire la même ligne. */
-  if (aInserer.length > 0) {
-    await sb.from('envois').upsert(aInserer, { onConflict: 'id' });
-  }
-  /* Le fil, s'il y a quelque chose à y mettre. Une erreur d'écriture ne fait
-     pas tomber l'envoi : la confirmation est partie, c'est l'essentiel. */
-  if (auFil.length > 0) {
-    const { error } = await sb.from('messages_wa').upsert(auFil, { onConflict: 'id' });
-    if (error) console.error('confirmation-rdv: fil', error.message);
+    /* ── LE JOURNAL DE CE RENDEZ-VOUS, AUSSITÔT (10 octobre 2026) ──────
+       `upsert` plutôt qu'`insert` : deux réveils simultanés du cron ne
+       doivent pas faire échouer la course, seulement écrire la même ligne.
+       SI LE JOURNAL REFUSE, ON S'ARRÊTE : un message parti sans trace
+       repartirait au passage suivant, et les rendez-vous d'après aussi. */
+    const lignes = aInserer.splice(0);
+    if (lignes.length > 0) {
+      const { error: errJ } = await sb.from('envois').upsert(lignes, { onConflict: 'id' });
+      if (errJ) {
+        journalRefuse = errJ.message;
+        console.error('confirmation-rdv: journal refusé, envoi arrêté', errJ.message);
+        break;
+      }
+      nJournal += lignes.length;
+    }
+    /* Le fil, s'il y a quelque chose à y mettre. Une erreur d'écriture ne fait
+       pas tomber l'envoi : la confirmation est partie, c'est l'essentiel. */
+    const auFilDuRdv = auFil.splice(0);
+    if (auFilDuRdv.length > 0) {
+      const { error } = await sb.from('messages_wa').upsert(auFilDuRdv, { onConflict: 'id' });
+      if (error) console.error('confirmation-rdv: fil', error.message);
+    }
   }
 
   return new Response(
-    JSON.stringify({ version: VERSION, vus: rdvs.length, ecartes: candidats.length - rdvs.length, salle: salleOuverte, deposes: nDeposes, push: nPush, whatsapp: nWa, modele: WA_TEMPLATE }),
-    { headers: { 'content-type': 'application/json' } },
+    JSON.stringify({ version: VERSION, vus: rdvs.length, ecartes: candidats.length - rdvs.length, salle: salleOuverte, deposes: nDeposes, push: nPush, whatsapp: nWa, journal: nJournal, ...(journalRefuse ? { journalRefuse } : {}), modele: WA_TEMPLATE }),
+    { status: journalRefuse ? 500 : 200, headers: { 'content-type': 'application/json' } },
   );
 });
