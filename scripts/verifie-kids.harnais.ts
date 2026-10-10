@@ -19,6 +19,7 @@ import {
   MODEL_BANDS_SEED, calibreConnu, estProposable, personalPriceXof, prixDeBase, prixSelonLesLocks, pricingOf,
 } from '../src/shared/pricing';
 import { servicesStore, type Service } from '../src/shared/catalog';
+import { appliqueLaGrille } from '../src/shared/nouvelle-grille-pur';
 import type { Client } from '../src/shared/clients';
 
 let ko = 0;
@@ -45,6 +46,16 @@ const RETOUCHE = geste('sv-kids-retouche');
 const SINSIN = geste('sv-kids-sinsin');
 const GBIGBI = geste('sv-kids-gbigbi');
 const KLOKLO = geste('sv-kids-kloklo');
+/* ══ LE TARIF DE LA MAISON EST CELUI DE LA GRILLE — 10 octobre 2026 ═══
+   La genèse des prix retarife la section depuis le Trône (plus de prix barré
+   permanent, La Retouche Kids au calibre, noms nettoyés). Les constantes
+   restent ce qui a été posé un jour ; la fiche « au tarif » est celle que la
+   GRILLE fait d'elles. La grille est calculée ici par elle-même, jamais par le
+   juge éprouvé. Le jour est écrit : le banc tient après la bascule. */
+const JOUR_DE_LA_GRILLE = '2026-10-10';
+const LA_GRILLE = new Map((appliqueLaGrille({ services: TOUT_KIDS, categories: [] }, 'maintenant', JOUR_DE_LA_GRILLE)!.services as unknown as Service[])
+  .map((s) => [s.id, s] as const));
+const gr = (s: Service): Service => ({ ...(LA_GRILLE.get(s.id) ?? s) });
 
 const JOUR = '2026-09-03';
 const neeEn = (annee: number): Client => ({ birthday: `${annee}-01-01` } as Client);
@@ -281,7 +292,7 @@ dit('le forfait s’annonce comme un pack', 'PACK MND KIDS · Le rituel complet'
 /* ET UN FORFAIT RESTÉ À L'ANCIEN NOM SE VOIT, sinon la section garderait
    deux appellations selon l'ancienneté de la fiche. */
 dit('un forfait resté à l’ancien nom se remet au tarif', 1,
-  kidsADepasser([{ ...FORFAIT_KIDS, name: 'MND Kids · Le Rituel Complet' }]));
+  kidsADepasser([{ ...gr(FORFAIT_KIDS), name: 'MND Kids · Le Rituel Complet' }], undefined, JOUR_DE_LA_GRILLE));
 dit('… et le comptoir le garde', 'pour elle', pourQui({ reserveEnfants: false }));
 /* LA MÊME FONCTION LIT UNE MAP — c'est ce que porte la modale du rituel
    (`byId`) et ce que porte l'écran des factures (un tableau). Deux chemins,
@@ -307,13 +318,17 @@ dit('… et la reprise comprise suit la tête', true,
 /* ══ LA SECTION QUI A DÉRIVÉ SE RECONNAÎT ═══════════════════════════
    La section a été posée le 3 septembre, ses tarifs décidés le 4 : sans un juge
    qui le voie, il faudrait rouvrir cinq fiches à la main. */
-dit('aux tarifs de la Maison, rien à remettre', 0, kidsADepasser(SERVICES_KIDS));
+dit('aux tarifs de la Maison, rien à remettre', 0, kidsADepasser(SERVICES_KIDS.map(gr), undefined, JOUR_DE_LA_GRILLE));
 dit('un prix qui a bougé se voit', 1,
-  kidsADepasser([{ ...VEKPE, priceXof: 9_000 }, ...SERVICES_KIDS.slice(1)]));
-/* Le renfort et le shampoing portent un barré, la Première Couronne non : le
-   juge doit voir disparaître CE QUI EXISTE, pas ce qui n'a jamais été là. */
-dit('un prix barré effacé aussi', 1,
-  kidsADepasser([{ ...KLOKLO, prixBarreXof: undefined }]));
+  kidsADepasser([{ ...gr(VEKPE), priceXof: 9_000 }, ...SERVICES_KIDS.slice(1).map(gr)], undefined, JOUR_DE_LA_GRILLE));
+/* Le renfort et le shampoing portaient un barré permanent, retiré par la grille
+   le 10 octobre 2026 : le juge doit voir REVENIR ce que la Maison a retiré. */
+dit('un prix barré revenu se voit aussi', 1,
+  kidsADepasser([{ ...gr(KLOKLO), prixBarreXof: 10_000 }], undefined, JOUR_DE_LA_GRILLE));
+/* Et les constantes d'hier, posées sans la grille, sont hors tarif : le
+   bouton les mène à la grille, jamais l'inverse. */
+dit('les fiches d’avant la grille se remettent à la grille', true,
+  kidsADepasser(SERVICES_KIDS, undefined, JOUR_DE_LA_GRILLE) > 0);
 /* ET RIEN D'AUTRE QUE LA SECTION. Le juge sert à décider d'un geste qui
    RÉÉCRIT : s'il comptait une prestation d'un autre atelier, ce geste
    l'écraserait. */
@@ -379,8 +394,8 @@ dit('… et la pièce l’écrit', true,
    catalogues d'avant garderaient 25 000 F pour toutes les têtes, et le bouton
    de mise à jour dirait qu'il n'y a rien à faire. */
 dit('un pack sans la marche se signale', 1,
-  kidsADepasser([{ ...FORFAIT_KIDS, paliersDeLocks: undefined }]));
-dit('… et avec elle, plus rien', 0, kidsADepasser([FORFAIT_KIDS]));
+  kidsADepasser([{ ...gr(FORFAIT_KIDS), paliersDeLocks: undefined }], undefined, JOUR_DE_LA_GRILLE));
+dit('… et avec elle, plus rien', 0, kidsADepasser([gr(FORFAIT_KIDS)], undefined, JOUR_DE_LA_GRILLE));
 
 /* ── DE BOUT EN BOUT, COMME LE FAIT L'ECRAN ────────────────────────
    `prixDeBase` est l'entonnoir, mais le rendez-vous et la caisse appellent
@@ -467,16 +482,16 @@ dit('zéro et absent font la même empreinte', true,
    150 000 F, trois suites, quatre venues — et l'on demande à la Maison de la
    remettre au tarif. Après le geste, plus rien ne doit dépasser. */
 const couronneDHier: Service = {
-  ...VEKPE, priceXof: 150_000, sessions: 4,
+  ...gr(VEKPE), priceXof: 150_000, sessions: 4,
   description: 'Inclus : deux retouches post création à 3 semaines et à 6 semaines.',
   includes: [{ serviceId: 'sv-kids-retouche' }, { serviceId: 'sv-kids-retouche' }, { serviceId: 'sv-kids-sinsin' }],
 };
-const retoucheDHier: Service = { ...RETOUCHE, description: 'Comprise dans La Première Couronne, aux semaines 2 et 4.' };
-servicesStore.set(() => [couronneDHier, retoucheDHier, ...TOUT.filter((x) => x.id !== VEKPE.id && x.id !== RETOUCHE.id)]);
-dit('avant le geste, deux fiches dépassent', 2, kidsADepasser(servicesStore.get()));
-dit('le geste en touche deux', 2, metAJourLaSectionKids());
+const retoucheDHier: Service = { ...gr(RETOUCHE), description: 'Comprise dans La Première Couronne, aux semaines 2 et 4.' };
+servicesStore.set(() => [couronneDHier, retoucheDHier, ...TOUT.filter((x) => x.id !== VEKPE.id && x.id !== RETOUCHE.id).map(gr)]);
+dit('avant le geste, deux fiches dépassent', 2, kidsADepasser(servicesStore.get(), undefined, JOUR_DE_LA_GRILLE));
+dit('le geste en touche deux', 2, metAJourLaSectionKids(JOUR_DE_LA_GRILLE));
 const apres = servicesStore.get();
-dit('après le geste, plus rien ne dépasse', 0, kidsADepasser(apres));
+dit('après le geste, plus rien ne dépasse', 0, kidsADepasser(apres, undefined, JOUR_DE_LA_GRILLE));
 const couronneApres = apres.find((x) => x.id === VEKPE.id)!;
 dit('… la couronne est revenue à une venue', [120_000, 1, undefined],
   [couronneApres.priceXof, couronneApres.sessions, couronneApres.includes]);
@@ -485,7 +500,7 @@ dit('… et la retouche dit le pack', true,
 /* CE QUE LA MAISON A AJOUTÉ ELLE-MÊME RESTE : un maître posé sur la fiche
    n'est pas au tarif, il est à la Maison. */
 servicesStore.set(() => [{ ...couronneDHier, master: 'Gérard' }]);
-metAJourLaSectionKids();
+metAJourLaSectionKids(JOUR_DE_LA_GRILLE);
 dit('… sans toucher à ce que la Maison avait posé', 'Gérard', servicesStore.get()[0].master);
 
 /* ══ LA PORTE DE SORTIE EST LA DERNIÈRE LIGNE — 7 septembre 2026 ═════

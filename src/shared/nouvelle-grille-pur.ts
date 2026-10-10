@@ -22,6 +22,10 @@
    (`migreLaNouvelleGrille`, shared/nouvelle-grille.ts), le harnais l'éprouve. */
 
 export type Temps = 'maintenant' | 'janvier';
+/** Le jour de la bascule : les hausses, la création par tranches, Ma Couronne. */
+export const BASCULE_DE_JANVIER = '2027-01-01';
+/** La phase de la grille en vigueur ce jour-là (jour local, AAAA-MM-JJ). */
+export const phaseDeLaGrille = (jour: string): Temps => (jour.slice(0, 10) >= BASCULE_DE_JANVIER ? 'janvier' : 'maintenant');
 export const JOUR_DE_JANVIER = '2027-01-01';
 
 type Champs = Record<string, unknown>;

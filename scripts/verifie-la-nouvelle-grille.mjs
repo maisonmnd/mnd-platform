@@ -59,6 +59,10 @@ const PANNES = [
   ['sans session on ecrit quand meme', 'src/shared/nouvelle-grille.ts', '      if (!(await sb.auth.getSession()).data.session) return;   // ①', '      void 0;'],
   ['les masques sur une vitrine non relue', 'src/shared/nouvelle-grille.ts', ".eq('key', 'mnd_vitrine_config')", ".eq('key', 'autre')"],
   ['le Trone ne lance pas la grille', 'src/apps/trone/main.tsx', 'migreLaNouvelleGrille();\n', 'void 0;\n'],
+  ['le bouton Kids compare aux constantes', 'src/shared/kids.ts', '  const voulus = new Map(kidsVoulus(jour).filter((s) => !retires.has(s.id)).map((s) => [s.id, s] as const));' + String.fromCharCode(10) + '  return services', '  const voulus = new Map(TOUT_KIDS.filter((s) => !retires.has(s.id)).map((s) => [s.id, s] as const));' + String.fromCharCode(10) + '  return services'],
+  ['le bouton Kids remet les constantes', 'src/shared/kids.ts', '  const voulus = new Map(kidsVoulus(jour).filter((s) => !retires.has(s.id)).map((s) => [s.id, s] as const));\n  let touchees', '  const voulus = new Map(TOUT_KIDS.filter((s) => !retires.has(s.id)).map((s) => [s.id, s] as const));\n  let touchees'],
+  ['la fiche voulue ignore la grille', 'src/shared/kids.ts', '  if (!g) return TOUT_KIDS.map((s) => ({ ...s }));', '  if (g || !g) return TOUT_KIDS.map((s) => ({ ...s }));'],
+  ['la bascule tombe un jour trop tot', 'src/shared/nouvelle-grille-pur.ts', "jour.slice(0, 10) >= BASCULE_DE_JANVIER ? 'janvier'", "jour.slice(0, 10) >= '2026-12-31' ? 'janvier'"],
 ];
 
 const md5 = (f) => createHash('md5').update(readFileSync(path.join(racine, f))).digest('hex');

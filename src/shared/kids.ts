@@ -19,6 +19,7 @@
    seule au démarrage. */
 import { categoriesStore, servicesStore, removedServiceIds, type CatalogCategory, type Service } from './catalog';
 import { prixSelonLesLocks } from './pricing';
+import { appliqueLaGrille, phaseDeLaGrille } from './nouvelle-grille-pur';
 
 /** La catégorie qui porte la section. Elle vit à la racine du catalogue, à
     côté des Ateliers : MND Kids TRAVERSE les quatre, elle n'est sous aucun. */
@@ -308,6 +309,28 @@ const remiseAuTarif = (posee: Service, voulue: Service): Service => ({
   durationMin: voulue.durationMin,
 });
 
+/* ══ LA FICHE VOULUE PASSE PAR LA GRILLE — 10 octobre 2026 ══════════════
+   La grille de la Maison (la genèse des prix) renomme et retarife des fiches
+   Kids depuis le Trône : le prix barré permanent retiré, La Retouche Kids au
+   calibre, les noms nettoyés. Comparées aux constantes d'hier, sept fiches
+   paraissaient « hors tarif », et « MND Kids · 7 à remettre au tarif » les y
+   aurait remises : la grille défaite d'un clic, les prix barrés revenus.
+
+   LA FICHE VOULUE EST CELLE QUE LA GRILLE FAIT DES CONSTANTES, à la phase du
+   jour. Une seule vérité : la grille. Les constantes restent ce qui a été
+   posé un jour, et le juge de la grille (`si`) ne touche que ce qu'il
+   reconnaît. */
+const jourLocal = (): string => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
+export const kidsVoulus = (jour: string = jourLocal()): Service[] => {
+  const g = appliqueLaGrille({ services: TOUT_KIDS, categories: [] }, phaseDeLaGrille(jour), jour);
+  if (!g) return TOUT_KIDS.map((s) => ({ ...s }));
+  const ids = new Set(TOUT_KIDS.map((s) => s.id));
+  return g.services.filter((s) => ids.has(s.id)) as unknown as Service[];
+};
+
 /** Combien de gestes de la section manquent encore au catalogue. */
 export const kidsAbsents = (
   services: readonly Service[],
@@ -317,7 +340,7 @@ export const kidsAbsents = (
   /* UNE FICHE SUPPRIMÉE NE MANQUE PAS, ELLE A ÉTÉ ÉCARTÉE — 6 septembre 2026.
      Sans cela le bouton reparaissait sans fin pour reposer ce que la Maison
      venait de retirer. */
-  return TOUT_KIDS.filter((s) => !retires.has(s.id) && !connus.has(s.id)).length;
+  return kidsVoulus().filter((s) => !retires.has(s.id) && !connus.has(s.id)).length;
 };
 
 /** POSER LA SECTION, une fois. Rend le nombre de gestes ajoutés.
@@ -333,7 +356,7 @@ export function poseLaSectionKids(): number {
   }
   const connus = new Set(servicesStore.get().map((s) => s.id));
   const retires = removedServiceIds();
-  const neufs = TOUT_KIDS.filter((s) => !retires.has(s.id) && !connus.has(s.id));
+  const neufs = kidsVoulus().filter((s) => !retires.has(s.id) && !connus.has(s.id));
   if (neufs.length === 0) return 0;
   servicesStore.set((prev) => [
     ...prev,
@@ -494,12 +517,12 @@ export const gainDuForfait = (
     ce geste, il faudrait rouvrir six fiches à la main, et une seule oubliée
     ferait un forfait qui ne tombe plus sur son total. Il ne touche QUE les
     prestations de la section, jamais le reste du catalogue. */
-export function metAJourLaSectionKids(): number {
+export function metAJourLaSectionKids(jour?: string): number {
   /* CE QUI A ÉTÉ SUPPRIMÉ NE SE REMET PAS AU TARIF : la fiche n'existe plus,
      et la ligne suivante ne la trouverait pas de toute façon. On l'écarte pour
      que le compte affiché au bouton dise la vérité. */
   const retires = removedServiceIds();
-  const voulus = new Map(TOUT_KIDS.filter((s) => !retires.has(s.id)).map((s) => [s.id, s] as const));
+  const voulus = new Map(kidsVoulus(jour).filter((s) => !retires.has(s.id)).map((s) => [s.id, s] as const));
   let touchees = 0;
   servicesStore.set((prev) => prev.map((s) => {
     const v = voulus.get(s.id);
@@ -514,8 +537,9 @@ export function metAJourLaSectionKids(): number {
 export const kidsADepasser = (
   services: readonly Service[],
   retires: ReadonlySet<string> = removedServiceIds(),
+  jour?: string,
 ): number => {
-  const voulus = new Map(TOUT_KIDS.filter((s) => !retires.has(s.id)).map((s) => [s.id, s] as const));
+  const voulus = new Map(kidsVoulus(jour).filter((s) => !retires.has(s.id)).map((s) => [s.id, s] as const));
   return services.filter((s) => {
     const v = voulus.get(s.id);
     return !!v && empreinteKids(s) !== empreinteKids(v);

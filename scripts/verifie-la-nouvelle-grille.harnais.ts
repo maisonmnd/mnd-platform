@@ -19,7 +19,9 @@ import {
   appliqueLaGrille, egaux, masquesDeLaGrille, MASQUEES_JUSQUEN_JANVIER, NAISSANCES, PHRASES, RETOUCHES,
 } from '../src/shared/nouvelle-grille-pur';
 import { MODEL_BANDS_SEED, pricingOf, personalPriceXof, estProposable, type PersonalPricing } from '../src/shared/pricing';
-import type { Service } from '../src/shared/catalog';
+import { servicesStore, type Service } from '../src/shared/catalog';
+import { TOUT_KIDS, kidsADepasser, kidsVoulus, metAJourLaSectionKids } from '../src/shared/kids';
+import { phaseDeLaGrille } from '../src/shared/nouvelle-grille-pur';
 
 let ko = 0;
 const ascii = (s: string) => s.replace(/[^\x20-\x7e]/g, (c) => `\\u${c.charCodeAt(0).toString(16).padStart(4, '0')}`);
@@ -161,5 +163,19 @@ const catalogTs = sansCom('src/shared/catalog.ts');
 dit('le defaisage vivant est reconnu', true, /s\.categoryId === CATEGORIE_GBATA_VIVANTE/.test(catalogTs) && /CATEGORIE_GBATA_VIVANTE = 'cat-defaisage'/.test(catalogTs));
 const pur = sansCom('src/shared/nouvelle-grille-pur.ts');
 dit('le juge est pur : aucun import', false, /^\s*import\s/m.test(pur));
+
+/* ── Le bouton « MND Kids · à remettre au tarif » ne défait pas la grille ──
+   (10 octobre 2026 : il comparait aux constantes d'hier, et sept fiches Kids
+   retarifées par la grille lui paraissaient « hors tarif »). */
+const kidsPoses = appliqueLaGrille({ services: TOUT_KIDS, categories: [] }, 'maintenant', '2026-10-10')!.services as unknown as Service[];
+dit('Kids : apres la grille, rien a remettre au tarif', 0, kidsADepasser(kidsPoses, new Set(), '2026-10-10'));
+dit('Kids : la fiche voulue n a plus de prix barre, la Retouche Kids est au calibre', [0, 0, 7000],
+  [kidsVoulus('2026-10-10').find((s) => s.id === 'sv-kids-kloklo')?.prixBarreXof ?? 0,
+    kidsVoulus('2026-10-10').find((s) => s.id === 'sv-kids-gbigbi')?.prixBarreXof ?? 0,
+    kidsVoulus('2026-10-10').find((s) => s.id === 'sv-kids-retouche')?.priceXof]);
+servicesStore.set(kidsPoses.map((s) => ({ ...s })));
+dit('Kids : le bouton ne touche aucune fiche apres la grille', 0, metAJourLaSectionKids());
+dit('la phase de la grille : maintenant jusqu au 31 decembre 2026, janvier ensuite', ['maintenant', 'janvier', 'janvier'],
+  [phaseDeLaGrille('2026-12-31'), phaseDeLaGrille('2027-01-01'), phaseDeLaGrille('2027-06-15')]);
 
 console.log(ko === 0 ? '\nLa nouvelle grille tient.' : `\n${ko} epreuve(s) en echec.`);
