@@ -29,7 +29,7 @@ import { derniereCouleur, ouvertureDuProgramme, suivreLeProtocole, useProtocoles
 import { ageDe, tetesPortees, statutFidelite, type StatutFidelite } from '../../shared/accounts';
 import { corrigerNaissance, declarationsDe, rattacherEnfant, nomPropose, useEnfantsDeclares } from '../../shared/enfants';
 import { invoiceTotal, invoicesStore, useInvoices, type Invoice, type InvoiceLine } from '../../shared/finance';
-import { cercleSeuilStore, foyerSeuilStore, estDuCercle, useFoyerTiers } from '../../shared/offers';
+import { cercleSeuilStore, foyerSeuilStore, estDuCercle, useFoyerTiers, cercleActifStore, foyerActifStore } from '../../shared/offers';
 import { deliveryFee, useSettings } from '../../shared/settings';
 import { palierDuCarnet, pasSuivant, jourLocal, PALIER_DIT } from '../../shared/paliers';
 import { createStore, uid, useStore } from '../../shared/store';
@@ -286,17 +286,20 @@ function useCercle(): StatutFidelite & { membre: boolean } {
   const [families] = useFamilies();
   const [seuil] = useStore(cercleSeuilStore);
   const [seuilFoyer] = useStore(foyerSeuilStore);
+  const [cercleOuvert] = useStore(cercleActifStore);
+  const [foyerOuvert] = useStore(foyerActifStore);
   return useMemo(() => {
     /* PAR TÊTE (25 août) : le Cercle se gagne par SES propres venues, à plein
        tarif. Un prix convenu, un enfant/membre dépendant, un foyer — chacun sa
        reconnaissance. Un seul juge, partagé avec le Trône (`statutFidelite`). */
     if (!client) {
       return { genre: 'passage', membreCercle: false, venues: 0, seuil, reste: seuil, convenu: false,
-        dependant: false, foyer: false, depenseFoyer: 0, seuilFoyer, foyerAtteint: false, resteFoyer: seuilFoyer, membre: false };
+        dependant: false, foyer: false, depenseFoyer: 0, seuilFoyer, foyerAtteint: false, resteFoyer: seuilFoyer, membre: false,
+        cercleOuvert, foyerOuvert };
     }
-    const s = statutFidelite(client, clients, families, appts, seuil, seuilFoyer);
+    const s = statutFidelite(client, clients, families, appts, seuil, seuilFoyer, cercleOuvert, foyerOuvert);
     return { ...s, membre: s.membreCercle };
-  }, [appts, client, clients, families, seuil, seuilFoyer]);
+  }, [appts, client, clients, families, seuil, seuilFoyer, cercleOuvert, foyerOuvert]);
 }
 
 /* ---------- devis — le pont Factures du Trône ---------- */
@@ -641,7 +644,7 @@ export function HomeTab({
           {/* AVANT LE CERCLE, ON COMPTE DES PASSAGES, PAS DES POINTS. Montrer une
               barre de paliers figée à zéro à qui n'y a pas encore droit fait
               croire que rien ne compte — alors que ses venues, elles, comptent. */}
-          {!cercle.membre ? (
+          {!cercle.membre && cercle.cercleOuvert ? (
             /* LE CERCLE EN CHIFFRES (chantier ④). La barre muette disait
                « presque » sans dire où l'on en est ; les points se comptent
                d'un regard — un par passage, remplis au fil des venues. Au-delà
@@ -675,11 +678,13 @@ export function HomeTab({
                inviter. */
             <div className="mc-crownstatus__progress">
               <div className="mc-bar"><div style={{ width: `${Math.min(100, Math.round((maGraine.visites / Math.max(1, maGraine.seuil)) * 100))}%` }} /></div>
+              {/* UNE SEULE HORLOGE (10 octobre 2026) : le Cercle fermé, la
+                  Graine se dit seule, sans « Membre du Cercle ». */}
               <span>{maGraine.reste > 0
                 ? maGraine.reste > 1
-                  ? t('Membre du Cercle · votre Graine dans {n} visites', { n: maGraine.reste })
-                  : t('Membre du Cercle · votre Graine dans {n} visite', { n: maGraine.reste })
-                : t('Membre du Cercle · votre carte se prépare à la Maison')}</span>
+                  ? (cercle.cercleOuvert ? t('Membre du Cercle · votre Graine dans {n} visites', { n: maGraine.reste }) : t('Votre Graine dans {n} visites', { n: maGraine.reste }))
+                  : (cercle.cercleOuvert ? t('Membre du Cercle · votre Graine dans {n} visite', { n: maGraine.reste }) : t('Votre Graine dans {n} visite', { n: maGraine.reste }))
+                : (cercle.cercleOuvert ? t('Membre du Cercle · votre carte se prépare à la Maison') : t('Votre carte se prépare à la Maison'))}</span>
             </div>
           ) : (() => {
             const venues = client?.parrainage?.venues ?? 0;
@@ -691,7 +696,7 @@ export function HomeTab({
               <div className="mc-crownstatus__progress">
                 <div className="mc-bar"><div style={{ width: `${pct}%` }} /></div>
                 <span>{venues === 0
-                  ? t('Membre du Cercle · votre première amie vous fera Pousse')
+                  ? (cercle.cercleOuvert ? t('Membre du Cercle · votre première amie vous fera Pousse') : t('Votre première amie vous fera Pousse'))
                   : suivant.seuil - venues > 1
                     ? t('Encore {n} amies pour devenir {rang}', { n: suivant.seuil - venues, rang: t(suivant.nom) })
                     : t('Encore {n} amie pour devenir {rang}', { n: suivant.seuil - venues, rang: t(suivant.nom) })}</span>
@@ -1704,7 +1709,7 @@ export function CercleTab({ toast }: { toast: (m: string) => void }) {
 
   return (
     <div className="mc-pagepad mc-pagepad--top mc-fade">
-      <div className="mc-micro-eyebrow">{t('Le Cercle MND · de main en main')}</div>
+      <div className="mc-micro-eyebrow">{cercle.cercleOuvert ? t('Le Cercle MND · de main en main') : t('De main en main')}</div>
       <h1 className="mc-serif-title" style={{ margin: '6px 0 14px' }}>{t('Votre lignée.')}</h1>
 
       {/* OÙ ELLE EN EST AU CERCLE, en une ligne. */}
@@ -1717,11 +1722,15 @@ export function CercleTab({ toast }: { toast: (m: string) => void }) {
           <span className="mc-pillseal">{cercle.venues > 1
             ? t('Membre du Cercle · {n} venues en 12 mois', { n: cercle.venues })
             : t('Membre du Cercle · {n} venue en 12 mois', { n: cercle.venues })}</span>
+        ) : !cercle.cercleOuvert ? (
+          <span className="mc-pillseal">{cercle.venues > 1
+            ? t('{n} venues en 12 mois', { n: cercle.venues })
+            : t('{n} venue en 12 mois', { n: cercle.venues })}</span>
         ) : (
           <span className="mc-pillseal">{t('Le Cercle s’ouvre à {seuil} venues en 12 mois · {n} sur {seuil}', { seuil: cercle.seuil, n: cercle.venues })}</span>
         )}
       </div>
-      {!cercle.convenu && !cercle.dependant && !cercle.membre && (
+      {cercle.cercleOuvert && !cercle.convenu && !cercle.dependant && !cercle.membre && (
         <div style={{ marginBottom: 18 }}>
           <div className="mc-bar"><div style={{ width: `${pctCercle}%` }} /></div>
           <div className="mc-footnote" style={{ textAlign: 'left', marginTop: 6 }}>
@@ -1740,7 +1749,7 @@ export function CercleTab({ toast }: { toast: (m: string) => void }) {
 
       {/* LE FOYER — la reconnaissance de la maisonnée, sur sa dépense cumulée.
           Un sceau atteint se pose comme une récompense (Vos récompenses). */}
-      {cercle.foyer && !cercle.dependant && (<>
+      {cercle.foyer && !cercle.dependant && cercle.foyerOuvert && (<>
         <div className="mc-sectionlabel" style={{ margin: '26px 0 10px' }}>{t('Le Foyer')}</div>
         <div className="mc-pointscard">
           <div className="mc-pointscard__watermark" aria-hidden="true" />

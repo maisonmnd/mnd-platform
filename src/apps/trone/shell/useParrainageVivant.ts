@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef } from 'react';
 import { useAppointments } from '../../../shared/agenda';
 import { useClients, useFamilies, clientsStore } from '../../../shared/clients';
 import { depenseFoyerXof } from '../../../shared/accounts';
-import { useFoyerTiers } from '../../../shared/offers';
+import { useFoyerTiers, foyerActifStore } from '../../../shared/offers';
 import { useDemandes, demandesStore } from '../../../shared/demandes';
 import { useProducts, useServices } from '../../../shared/catalog';
 import { useAuth } from '../../../shared/auth';
@@ -213,7 +213,9 @@ export function useParrainageVivant(): void {
     /* ⑥ LES SCEAUX DU FOYER (29 septembre, le Cercle réuni) : un palier
        atteint par la maisonnée pose sa récompense sur la fiche de celle qui
        règle le foyer. Une fois par palier et par foyer. */
-    if (documentDescendu('mnd_foyer_tiers') && sceaux.length && tablePrete('families')) {
+    /* LE FOYER FERMÉ (une seule horloge, 10 octobre 2026) ne pose plus de
+       sceau ; ceux déjà posés s'offrent jusqu'à leur échéance. */
+    if (foyerActifStore.get() && documentDescendu('mnd_foyer_tiers') && sceaux.length && tablePrete('families')) {
       const foyers = familles.map((f) => {
         const payeur = clients.find((c) => c.id === f.payerClientId);
         return payeur ? { famId: f.id, nom: f.name, payeurId: payeur.id, depense: depenseFoyerXof(payeur, clients, familles, rdvs) } : null;

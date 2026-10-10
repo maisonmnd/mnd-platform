@@ -31,7 +31,7 @@ import './vente.css';
 import { retirerParReferences } from '../../../../shared/stock';
 import { detacherFacture } from '../../../../shared/laboratoire';
 import { ChampDeDate } from '../../../../ds/dates';
-import { VieDeLaFacture } from '../_vie';
+import { VieDeLaFacture, useEstDirection } from '../_vie';
 import { cheminDeLaConversation, lienWaMe } from '../../../../shared/conversations';
 import { appelDe } from '../../../../shared/civilite';
 import { aligneLeRituel, corrigeLeVersement, estLieALaPiece, sansTiroir, type CorrectionDeVersement } from '../../../../shared/caisse-du-versement';
@@ -114,6 +114,9 @@ type EditState = { mode: 'new' | 'edit'; draft: Invoice };
 
 export default function Factures() {
   const { branch, currency } = useBranch();
+  /* 50 % et 100 % : la direction seulement (10 octobre 2026). Une remise déjà
+     posée reste lisible dans le menu, même pour l'équipe. */
+  const estDirection = useEstDirection();
   const [invoices, setInvoices] = useInvoices();
   const [clients] = useClients();
   /* LA PAYEUSE DU FOYER, pour le lien commun : c'est elle qui règle. */
@@ -1317,7 +1320,7 @@ export default function Factures() {
                           value={l.discountPct}
                           onChange={(e) => setLine(l.id, { discountPct: +e.target.value })}
                         >
-                          {DISC_OPTIONS.map((v) => (
+                          {DISC_OPTIONS.filter((v) => estDirection || v < 50 || v === l.discountPct).map((v) => (
                             <option key={v} value={v}>{v === 0 ? 'Aucune remise' : `Remise −${v}%`}</option>
                           ))}
                         </select>
@@ -1352,7 +1355,7 @@ export default function Factures() {
                     value={draft.globalDiscountPct}
                     onChange={(e) => patchDraft({ globalDiscountPct: +e.target.value })}
                   >
-                    {DISC_OPTIONS.map((v) => (
+                    {DISC_OPTIONS.filter((v) => estDirection || v < 50 || v === draft.globalDiscountPct).map((v) => (
                       <option key={v} value={v}>{v === 0 ? 'Aucune' : `−${v}%`}</option>
                     ))}
                   </select>

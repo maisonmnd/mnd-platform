@@ -9,7 +9,7 @@ import { useAppointments, venuesDeLAnnee } from '../../../../shared/agenda';
 import { estDependant, depenseFoyerXof } from '../../../../shared/accounts';
 import { useServices } from '../../../../shared/catalog';
 import { useStore } from '../../../../shared/store';
-import { cercleSeuilStore, estDuCercle, useFoyerTiers, meilleurPalierFoyer, type FoyerTier } from '../../../../shared/offers';
+import { cercleSeuilStore, estDuCercle, useFoyerTiers, meilleurPalierFoyer, cercleActifStore, type FoyerTier } from '../../../../shared/offers';
 import { nomDuRang, rangSuivant, soinsEnAttente } from '../../../../shared/parrainage-pur';
 import { useDouzeLunes } from '../../../../shared/douze-lunes';
 import { codeActifDe, joursParFiche, resteAvantLaGraine, seuilDeLaGraine } from '../../../../shared/douze-lunes-pur';
@@ -43,6 +43,7 @@ export default function Cercle() {
   const [foyerTiers] = useFoyerTiers();
   const [history] = useStore(pointsHistoryStore);
   const [seuil] = useStore(cercleSeuilStore);
+  const [cercleOuvert] = useStore(cercleActifStore);
   const [tab, setTab] = useState<Tab>('ambassadrices');
   const [recherche, setRecherche] = useState('');
   const [vue, setVue] = useState<'membres' | 'portes' | 'foyers' | 'convenus'>('membres');
@@ -79,10 +80,10 @@ export default function Cercle() {
   );
   const auxPortes = useMemo(
     () => branchClients
-      .filter((c) => eligibleCercle(c) && !estDuCercle(venuesDe.get(c.id) ?? 0, seuil) && !estDePassage(c) && (venuesDe.get(c.id) ?? 0) > 0)
+      .filter((c) => cercleOuvert && eligibleCercle(c) && !estDuCercle(venuesDe.get(c.id) ?? 0, seuil) && !estDePassage(c) && (venuesDe.get(c.id) ?? 0) > 0)
       .sort((a, b) => (venuesDe.get(b.id) ?? 0) - (venuesDe.get(a.id) ?? 0)),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [branchClients, venuesDe, seuil, families],
+    [branchClients, venuesDe, seuil, families, cercleOuvert],
   );
   const foyersList = useMemo(() => branchClients
     .filter((c) => c.familyId && families.some((f) => f.id === c.familyId))

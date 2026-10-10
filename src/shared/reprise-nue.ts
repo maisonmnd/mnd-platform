@@ -26,6 +26,10 @@ export const CHAMPS_DE_LA_VISITE = [
   'coveredBySub', 'coverKind', 'subId', 'foyerId', 'seriesId', 'seriesIndex', 'seriesTotal',
   'confirmeeParLaClienteLe', 'autreMomentDemandeLe', 'repriseProposeeLe', 'relanceFaite',
   'creeLe', 'note', 'repriseRetiree',
+  /* La genèse des prix (10 octobre 2026) : la Retouche comprise et sa
+     promesse, le Regard déduit, appartiennent à CETTE visite. La suite
+     imposée les pose elle-même quand il le faut. */
+  'retoucheComprise', 'sinsinOffert', 'regardDeduit', 'deduitSur',
 ] as const;
 
 /** Le rituel d'avant, débarrassé de sa visite. Rend une copie. */

@@ -248,6 +248,18 @@ export type Appointment = {
       de plus. Il dit aussi, sur la fiche, d'où vient ce rendez-vous que
       personne ne se souvient d'avoir pris. */
   repriseDe?: string;
+  /** LA RETOUCHE COMPRISE dans une création, posée d'office (10 octobre 2026,
+      la genèse des prix) : sa suite est la première venue, pas une autre
+      retouche. Voir `shared/retouche-comprise-pur`. */
+  retoucheComprise?: boolean;
+  /** Sur une Retouche comprise d'une Mini, d'une Nano ou d'une Pico : la venue
+      qui la suit offre le SÍNSIN™ Essentiel promis à la création. */
+  sinsinOffert?: boolean;
+  /** LE REGARD DÉDUIT (10 octobre 2026) : le KÒKÒ™ réglé qui a été déduit de
+      cet acte, et combien. Voir `shared/regard-deduit-pur`. */
+  regardDeduit?: { apptId: string; xof: number };
+  /** Sur un Regard : l'acte dont il a été déduit. Un Regard ne se déduit qu'une fois. */
+  deduitSur?: string;
   /** SA REPRISE A ÉTÉ EFFACÉE À LA MAIN — 2 octobre 2026. Elle ne se repose
       plus jamais toute seule (voir `pourquoiPasDeRepriseIci`). */
   repriseRetiree?: boolean;

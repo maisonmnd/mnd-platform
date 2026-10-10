@@ -168,6 +168,9 @@ export type StatutFidelite = {
   seuilFoyer: number;
   foyerAtteint: boolean;
   resteFoyer: number;
+  /** Le Cercle et le Foyer sont-ils ouverts ? (une seule horloge, 10 octobre 2026) */
+  cercleOuvert: boolean;
+  foyerOuvert: boolean;
 };
 
 /** LE STATUT DE FIDÉLITÉ d'une tête — la source unique. `seuilCercle` en venues,
@@ -179,15 +182,19 @@ export function statutFidelite(
   appts: readonly Appointment[],
   seuilCercle: number,
   seuilFoyer: number,
+  /* UNE SEULE HORLOGE (10 octobre 2026) : le Cercle et le Foyer fermés ne
+     reconnaissent personne. Ouverts par défaut pour les appelants d'hier. */
+  cercleOuvert = true,
+  foyerOuvert = true,
 ): StatutFidelite {
   const convenu = aUnPrixConvenu(client);
   const dependant = estDependant(client, families);
   const foyer = !!client.familyId && families.some((f) => f.id === client.familyId);
   /* SES venues des douze derniers mois (29 septembre 2026), pas par la payeuse. */
   const venues = venuesDeLAnnee(appts, client.id);
-  const membreCercle = !convenu && !dependant && venues >= Math.max(1, seuilCercle);
+  const membreCercle = cercleOuvert && !convenu && !dependant && venues >= Math.max(1, seuilCercle);
   const depenseFoyer = foyer ? depenseFoyerXof(client, clients, families, appts) : 0;
-  const foyerAtteint = foyer && depenseFoyer >= Math.max(1, seuilFoyer);
+  const foyerAtteint = foyerOuvert && foyer && depenseFoyer >= Math.max(1, seuilFoyer);
   const genre: StatutFidelite['genre'] = convenu ? 'convenu'
     : dependant ? 'dependant'
       : membreCercle ? 'cercle'
@@ -197,5 +204,6 @@ export function statutFidelite(
     genre, membreCercle, venues, seuil: seuilCercle, reste: Math.max(0, seuilCercle - venues),
     convenu, dependant, foyer, depenseFoyer, seuilFoyer, foyerAtteint,
     resteFoyer: Math.max(0, seuilFoyer - depenseFoyer),
+    cercleOuvert, foyerOuvert,
   };
 }

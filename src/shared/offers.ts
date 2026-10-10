@@ -580,8 +580,19 @@ export const cercleSeuilStore = createStore<number>('mnd_cercle_seuil', 3);
 /** Est-elle du Cercle ? `venues` compte désormais SES PROPRES venues (par tête,
     `venuesHonorees(appts, id, false)`) — plus par la payeuse. Le statut complet
     (prix convenu, dépendant, foyer) se lit par `statutFidelite` (shared/accounts). */
-export const estDuCercle = (venues: number, seuil = cercleSeuilStore.get()): boolean =>
-  venues >= Math.max(1, seuil);
+export const estDuCercle = (venues: number, seuil = cercleSeuilStore.get(), actif = cercleActifStore.get()): boolean =>
+  actif && venues >= Math.max(1, seuil);
+
+/* ══ UNE SEULE HORLOGE DE FIDÉLITÉ — 10 octobre 2026 (la genèse des prix,
+   correction 11, décidée au sélecteur) : la visite honorée (3ᵉ Élévation,
+   5ᵉ Graine, douze lunes L'Année). Le Cercle à 7 venues et les sceaux du
+   Foyer (300 000 F) sont RETIRÉS : quatre seuils coexistaient et un seul
+   donnait quelque chose. Deux interrupteurs, éteints, plutôt qu'un
+   effacement : les seuils, les points et les sceaux déjà posés restent
+   (les sceaux posés s'offrent jusqu'à leur échéance), et la Maison peut
+   rouvrir d'un geste (Parrainages). */
+export const cercleActifStore = createStore<boolean>('mnd_cercle_actif', false);
+export const foyerActifStore = createStore<boolean>('mnd_foyer_actif', false);
 
 /** LE SEUIL DU FOYER (25 août) — dépense honorée CUMULÉE d'une famille (F CFA) à
     partir de laquelle la maisonnée reçoit un geste. Une reconnaissance de
@@ -631,5 +642,7 @@ bindDocument(pointsRateStore, 'mnd_points_rate');
 bindDocument(cercleSeuilStore, 'mnd_cercle_seuil');
 bindDocument(foyerSeuilStore, 'mnd_foyer_seuil');
 bindDocument(foyerTiersStore, 'mnd_foyer_tiers');
+bindDocument(cercleActifStore, 'mnd_cercle_actif');
+bindDocument(foyerActifStore, 'mnd_foyer_actif');
 bindDocument(pointsEnabledStore, 'mnd_points_enabled');
 bindDocument(pointsHistoryStore, 'mnd_points_history');

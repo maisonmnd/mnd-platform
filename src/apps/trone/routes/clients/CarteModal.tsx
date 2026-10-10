@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Button, Modal, toast } from '../../../../ds/components';
 import { carteEnBlob, dessineLaCarte } from '../../../../ds/carte';
 import { clientsStore, type Client } from '../../../../shared/clients';
+import { cercleActifStore } from '../../../../shared/offers';
 import {
   CARTES_DE_LA_MAISON, MOTIFS_DE_MERCI, motDeLaCarte, nomDuFichier, objetDeLaCarte,
   prenomDe, texteDeLaCarte, type CleCarte, type CleMotif, type Genre,
@@ -120,7 +121,7 @@ export function CarteModal({ client, onClose }: { client: Client; onClose: () =>
           <div>
             <div className="trc-microlabel">La carte</div>
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-              {CARTES_DE_LA_MAISON.map((c) => (
+              {CARTES_DE_LA_MAISON.filter((c) => c.cle !== 'cercle' || cercleActifStore.get()).map((c) => (
                 <button key={c.cle} type="button" style={puce(c.cle === carte)} onClick={() => setCarte(c.cle)}>
                   {c.mot}
                 </button>

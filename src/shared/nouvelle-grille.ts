@@ -30,7 +30,9 @@ import { supabase } from './supabase';
 import { appliqueLaGrille, masquesDeLaGrille } from './nouvelle-grille-pur';
 import { isoDuJour } from './offres-pur';
 
-const MARQUEUR = 'mnd_nouvelle_grille_2026_10_maintenant';
+/* v2 (lot 4) : le socle de la création s'ajoute à la carte. Le juge ne touche
+   qu'une ligne restée telle qu'on la connaît : rejouer la v1 ne fait rien. */
+const MARQUEUR = 'mnd_nouvelle_grille_2026_10_maintenant_v2';
 const FIN = Date.parse('2026-12-31T23:59:59+01:00');
 
 /** Le catalogue de la Maison est-il là ? Trois lignes qu'il porte depuis le

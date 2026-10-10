@@ -80,6 +80,9 @@ export const EN_TABS: Record<string, string> = {
   'Membre du Cercle · votre Graine dans {n} visites': 'Circle member · your Seed in {n} visits',
   'Membre du Cercle · votre Graine dans {n} visite': 'Circle member · your Seed in {n} visit',
   'Membre du Cercle · votre carte se prépare à la Maison': 'Circle member · your card is being prepared at the Maison',
+  /* Le Cercle fermé (10 octobre 2026) : les mêmes phrases, sans le Cercle. */
+  'Votre carte se prépare à la Maison': 'Your card is being prepared at the Maison',
+  'Votre première amie vous fera Pousse': 'Your first friend will make you a Sprout',
   'Une récompense vous attend.': 'A reward awaits you.',
   'Offrez la Maison à une amie.': 'Share the Maison with a friend.',
   'Un soin vous attend : {soin}': 'A treatment awaits you: {soin}',
@@ -244,6 +247,8 @@ export const EN_TABS: Record<string, string> = {
   'Rattachée à votre foyer': 'Linked to your household',
   'Membre du Cercle · {n} venues en 12 mois': 'Circle member · {n} visits in 12 months',
   'Membre du Cercle · {n} venue en 12 mois': 'Circle member · {n} visit in 12 months',
+  '{n} venues en 12 mois': '{n} visits in 12 months',
+  '{n} venue en 12 mois': '{n} visit in 12 months',
   'Le Cercle s’ouvre à {seuil} venues en 12 mois · {n} sur {seuil}': 'The Circle opens at {seuil} visits in 12 months · {n} of {seuil}',
   'Votre lignée commence à votre première venue. Le Cercle vous accueille à {seuil} venues en douze mois.':
     'Your lineage begins with your first visit. The Circle welcomes you at {seuil} visits in twelve months.',

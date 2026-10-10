@@ -1,4 +1,5 @@
 import { sansLaVisite, pourquoiPasDeRepriseIci, prochainDejaPose } from '../../../../shared/reprise-nue';
+import { suiteImposee } from '../../../../shared/retouche-comprise-pur';
 import { useMemo, useRef, useState } from 'react';
 import { Button, Field, Input, Modal, Select, toast, alerte, demande } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
@@ -104,6 +105,36 @@ export function poseLaReprise(appt: Appointment): ReprisePosee {
   if (!cliente) return { raison: 'fiche cliente introuvable' };
   if (cliente.sansRepriseAuto) return { raison: 'la reprise est coupée sur sa fiche' };
   const tous = appointmentsStore.get();
+  /* ══ LA CRÉATION APPELLE SA RETOUCHE — 10 octobre 2026 ════════════════
+     Après une création, la suite n'est pas une autre création au rythme de
+     la tête : c'est La Retouche comprise, à quatre semaines, offerte ; après
+     elle, la première venue (voir `shared/retouche-comprise-pur`). Sans
+     attendre de rythme : la couronne vient de naître. */
+  const catalogue = servicesStore.get();
+  const imposee = suiteImposee(appt, (id) => { const sv = catalogue.find((s) => s.id === id); return !!sv && fondeLaCouronne(sv); }, catalogue);
+  if (imposee) {
+    const gardeI = pourquoiPasDeRepriseIci(appt, tous, todayISO());
+    if (gardeI) return { raison: gardeI };
+    const aVenirI = prochainDejaPose(appt, tous, todayISO());
+    if (aVenirI) return { raison: `elle a déjà un rendez-vous à venir (${frShort(aVenirI.date)})` };
+    const suiteI: Appointment = {
+      ...sansLaVisite(appt),
+      id: `ap-${uid()}`,
+      date: dateDeLaReprise(appt.date, imposee.semaines, joursDeLaTete(cliente)),
+      status: 'confirmé',
+      source: 'trone',
+      repriseDe: appt.id,
+      serviceIds: imposee.serviceIds,
+      mains: undefined,
+      dureeMin: imposee.dureeMin,
+      remisesLignes: imposee.remisesLignes,
+      retoucheComprise: imposee.retoucheComprise,
+      sinsinOffert: imposee.sinsinOffert,
+      note: imposee.note,
+    } as Appointment;
+    appointmentsStore.set((prev) => [...prev, estampilleLaPose(suiteI)]);
+    return { pose: suiteI };
+  }
   const rythme = rythmeDeReprise(cliente, tous);
   if (!rythme) {
     return {
@@ -1648,6 +1679,10 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour }: {
        la reprise de la clôture le reconnaisse. */
     const dejaPose = reschedule ? prochainDejaPose(appt, appointmentsStore.get(), todayISO()) : null;
     if (reschedule && nextDate && !dejaPose) {
+      /* Après une création, le prochain est La Retouche comprise, jamais une
+         autre création (10 octobre 2026, voir `poseLaReprise`). */
+      const catalogueE = servicesStore.get();
+      const imposeeE = suiteImposee(appt, (id) => { const sv = catalogueE.find((s) => s.id === id); return !!sv && fondeLaCouronne(sv); }, catalogueE);
       const newAppt: Appointment = {
         ...sansLaVisite(appt),
         ...remiseFamilleQuiSuit(appt),
@@ -1659,6 +1694,11 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour }: {
         source: 'trone',
         note: 'Reprogrammé depuis l’encaissement',
         repriseDe: appt.id,
+        ...(imposeeE ? {
+          serviceIds: imposeeE.serviceIds, mains: undefined, dureeMin: imposeeE.dureeMin,
+          remisesLignes: imposeeE.remisesLignes, retoucheComprise: imposeeE.retoucheComprise, sinsinOffert: imposeeE.sinsinOffert,
+          discountXof: undefined, remiseFamille: undefined, remiseFamilleXof: undefined, note: imposeeE.note,
+        } : {}),
       } as Appointment;
       appointmentsStore.set((prev) => [...prev, estampilleLaPose(newAppt)]);
       rescheduled = true;

@@ -38,7 +38,7 @@ import { useEstDirection } from '../_vie';
 import { maisonNom, maisonRaisonDuPdfAu, signeLeMessage } from '../../../../shared/identite';
 import { uid } from '../../../../shared/store';
 import { ligneNetteXof } from '../../../../shared/gamme';
-import { TAUX_DE_REMISE } from '../../../../shared/pricing';
+import { plafondDeRemiseXof, tauxPermis } from '../../../../shared/pricing';
 import '../equipe/equipe.css'; // styles du Toggle partagé (tre-toggle)
 import './vente.css';
 import { cheminDeLaConversation } from '../../../../shared/conversations';
@@ -1119,7 +1119,7 @@ export default function Caisse() {
                   <div className={`trv-line__disc ${discFor === l.key ? 'is-open' : ''}`}>
                     <span style={{ fontFamily: 'var(--font-sans)', fontSize: 9.5, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--ink-soft)' }}>Remise ligne</span>
                     <span className="trv-disc-badge">{l.disc}</span>
-                    {TAUX_DE_REMISE.map((pct) => (
+                    {tauxPermis(estDirection).map((pct) => (
                       <button key={pct} className={`trv-pill ${l.disc === pct ? 'is-active is-active--copper' : ''}`} onClick={() => setLineDisc(l.key, pct)}>
                         −{pct}%
                       </button>
@@ -1137,7 +1137,8 @@ export default function Caisse() {
                     offerte, une réparation après une erreur — et le NET À PAYER,
                     en gros caractères sous le ticket, est ce qui le rend
                     impossible à ne pas voir. */}
-                {[0, ...TAUX_DE_REMISE].map((pct) => (
+                {/* 50 % et 100 % : la direction seulement (10 octobre 2026). */}
+                {[0, ...tauxPermis(estDirection)].map((pct) => (
                   <button key={pct} className={`trv-pill ${globalDisc === pct ? 'is-active' : ''}`} onClick={() => setGlobalDisc(pct)}>
                     {pct === 0 ? '0' : `−${pct}%`}
                   </button>
@@ -1154,7 +1155,8 @@ export default function Caisse() {
                   type="number"
                   min={0}
                   value={globalDiscXof}
-                  onChange={(e) => setGlobalDiscXof(Math.max(0, Math.round(Number(e.target.value) || 0)))}
+                  onChange={(e) => setGlobalDiscXof(Math.min(plafondDeRemiseXof(estDirection, subXof), Math.max(0, Math.round(Number(e.target.value) || 0))))}
+                  title={estDirection ? undefined : 'Au-delà de la moitié du ticket, la remise appartient à la direction.'}
                   style={{ width: 130, textAlign: 'right' }}
                   placeholder="0"
                   aria-label={`Remise manuelle en ${currency}`}

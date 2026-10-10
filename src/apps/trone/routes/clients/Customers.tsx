@@ -33,7 +33,7 @@ import { derniereCouleur, dernierDeclencheur, ouvertureDuProgramme, suivreLeProt
 import { useAuth } from '../../../../shared/auth';
 import { useStaff } from '../equipe/data';
 import { useInvoices, invoiceTotal, type Invoice } from '../../../../shared/finance';
-import { usePointsHistory, cercleSeuilStore, foyerSeuilStore, estDuCercle, pointsEnabledStore, useFoyerTiers, meilleurPalierFoyer } from '../../../../shared/offers';
+import { usePointsHistory, cercleSeuilStore, foyerSeuilStore, estDuCercle, pointsEnabledStore, useFoyerTiers, meilleurPalierFoyer, cercleActifStore, foyerActifStore } from '../../../../shared/offers';
 import { dernierBilanDe, useBilans, seancesSansBilan } from '../../../../shared/bilans';
 import { BilanModal, RegistreDesBilans } from './BilanModal';
 import { CarteDeMarrainePanneau } from './CarteDeMarrainePanneau';
@@ -2496,7 +2496,9 @@ function Customer360({
   const [seuilCercle] = useStore(cercleSeuilStore);
   const [seuilFoyer] = useStore(foyerSeuilStore);
   const [pointsOn] = useStore(pointsEnabledStore);
-  const statut = statutFidelite(client, clientsBranche, families, branchAppts, seuilCercle, seuilFoyer);
+  const [cercleOuvert] = useStore(cercleActifStore);
+  const [foyerOuvert] = useStore(foyerActifStore);
+  const statut = statutFidelite(client, clientsBranche, families, branchAppts, seuilCercle, seuilFoyer, cercleOuvert, foyerOuvert);
   const venuesCercle = statut.venues;
   const [foyerTiers] = useFoyerTiers();
   const palierFoyer = statut.foyer ? meilleurPalierFoyer(statut.depenseFoyer, foyerTiers) : null;
@@ -4181,14 +4183,20 @@ function Customer360({
                     : 'Elle compte comme relation.'}
             </div>
             <div className="trc-sub" style={{ marginTop: 6, lineHeight: 1.5 }}>
-              {statut.convenu
+              {/* UNE SEULE HORLOGE (10 octobre 2026) : le Cercle fermé, on dit
+                  ses venues, la Graine se lit à côté. */}
+              {!statut.cercleOuvert
+                ? (statut.convenu ? 'Prix convenu · sa reconnaissance est déjà son prix.'
+                  : statut.dependant ? 'Rattachée à un foyer.'
+                    : `${venuesCercle} venue${venuesCercle > 1 ? 's' : ''} honorée${venuesCercle > 1 ? 's' : ''} en douze mois.`)
+                : statut.convenu
                 ? 'Prix convenu · sa reconnaissance est déjà son prix. Elle n’entre pas au Cercle et ne cumule pas de points.'
                 : statut.dependant
                   ? `Dépendante du foyer · ses venues nourrissent le Foyer, pas le Cercle.${statut.foyer ? ` Foyer : ${fmtMoney(statut.depenseFoyer, currency)} / ${fmtMoney(statut.seuilFoyer, currency)}.` : ''}`
                   : statut.membreCercle
                     ? `Du Cercle · ${(client.loyaltyPoints ?? 0).toLocaleString('fr-FR')} points.`
                     : `Cercle à sa ${seuilCercle}ᵉ venue, elle en a ${venuesCercle}.`}
-              {statut.foyer && !statut.dependant && (
+              {statut.foyer && !statut.dependant && statut.foyerOuvert && (
                 <> Foyer : {fmtMoney(statut.depenseFoyer, currency)} cumulés{palierFoyer ? <>, sceau « {tousServices.find((s) => s.id === palierFoyer.serviceId)?.name ?? 'soin'} » à offrir à la maisonnée.</> : '.'}</>
               )}
             </div>

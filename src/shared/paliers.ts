@@ -221,17 +221,29 @@ export function palierDeLaCliente(o: {
 /** LE PALIER LU SUR LE CARNET du Trône — les rendez-vous honorés de cette
     tête, et le palier de chaque prestation. Le même juge pour la fiche, Ma
     Couronne et la Synthèse. */
+/* ══ NI L'ACADÉMIE NI UNE PRIVATISATION NE FONT MONTER — 10 octobre 2026 ══
+   La genèse des prix, correction 11 (une seule horloge, la visite honorée) :
+   un cours de l'Académie ou une heure de Portes closes n'est pas une visite
+   de sa couronne. Le cursus certifiant (Souveraineté) ou une privatisation
+   rendaient une cliente Souveraine en une fois. Ces prestations ne comptent
+   ni comme rituel ni comme acte ; un rendez-vous qui ne porte qu'elles ne
+   compte pas du tout. */
+export const compteAuPalier = (sv: Partial<Pick<Service, 'categoryId' | 'privatise'>> | undefined): boolean =>
+  !!sv && !sv.privatise && sv.categoryId !== 'cat-souverain' && !String(sv.categoryId ?? '').startsWith('aca-');
+
 export function palierDuCarnet(
   client: { id: string; crownSince?: string },
   rdvs: readonly Pick<Appointment, 'clientId' | 'status' | 'date' | 'serviceIds'>[],
-  parId: ReadonlyMap<string, Pick<Service, 'palier'>>,
+  parId: ReadonlyMap<string, Pick<Service, 'palier'> & Partial<Pick<Service, 'categoryId' | 'privatise'>>>,
   aujourdhui: string,
   seuils?: Partial<SeuilsDePalier>,
 ): PalierDeLaCliente {
   const honores: RituelHonore[] = [];
   for (const a of rdvs) {
     if (a.clientId !== client.id || a.status !== 'honoré') continue;
-    const paliers = a.serviceIds.map((id) => parId.get(id)?.palier).filter((p): p is Palier => !!p);
+    const comptes = a.serviceIds.filter((id) => { const sv = parId.get(id); return !sv || compteAuPalier(sv); });
+    if (a.serviceIds.length > 0 && comptes.length === 0) continue;
+    const paliers = comptes.map((id) => parId.get(id)?.palier).filter((p): p is Palier => !!p);
     honores.push({ date: a.date, paliers });
   }
   return palierDeLaCliente({ honores, crownSince: client.crownSince, aujourdhui, seuils });

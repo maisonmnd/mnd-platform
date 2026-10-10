@@ -20,7 +20,7 @@ import { fermerLeSalonPour, rouvrirLeSalonDe } from '../../../../shared/blocages
 import {
   type Appointment, type ReminderKind,
 } from '../../../../shared/agenda';
-import { categoriesStore, servicesStore, productsStore, sousArbreOf, useServices, useCategories, useProducts, priceModeOf, catsDansLOrdre, mondeDeCat, mondeLabel, LONGUEURS, suitLongueur, type LongueurId, type Service } from '../../../../shared/catalog';
+import { categoriesStore, servicesStore, productsStore, sousArbreOf, useServices, useCategories, useProducts, priceModeOf, catsDansLOrdre, mondeDeCat, mondeLabel, LONGUEURS, suitLongueur, fondeLaCouronne, type LongueurId, type Service } from '../../../../shared/catalog';
 import { RANG_DU_PALIER, plusHautDes, avertissementDHabilitation, type Palier } from '../../../../shared/paliers';
 import { depositForServices, depositPctFor, useSettings, settingsStore } from '../../../../shared/settings';
 import { createStore, uid, useStore } from '../../../../shared/store';
@@ -31,9 +31,10 @@ import { ChampDeDate } from '../../../../ds/dates';
 import { catalogueDeLaTete, masqueesParLAge, compositionDuForfait, gainDuForfait, detailDuForfait, pourQui } from '../../../../shared/kids';
 import { useSubscribers, usePlans, activeSubscriberOf, contratPourLaDate, coveredRemaining, inclusVendus, useStaff, ordonneEquipe, type StaffMember } from '../equipe/data';
 import { enPause } from '../../../../shared/formules-en-lunes-pur';
+import { regardADeduire, remiseAvecLeRegard, type RegardADeduire } from '../../../../shared/regard-deduit-pur';
 import { useEstDirection, useVieDuRendezVous, TamponDeNaissance, SaVie, nombreDeGestes } from '../_vie';
 import { estampilleLaPose, estampilleLesPoses, momentDuRdv } from '../../../../shared/agenda';
-import { modelBandsStore, bandSetsStore, prixFerme, prixFixeDe, useModelBands, useBandSets, pricingOf, personalPriceXof, prixDansPanier, remiseGestePct, TAUX_DE_REMISE, unGesteDansLePanier, prixDeBase, isPersonalized, bandLabel, personalDurationMin, servesBand, bandForService, estProposable, regimeTarifaire, splitByWeights, type ModelBand } from '../../../../shared/pricing';
+import { modelBandsStore, bandSetsStore, prixFerme, prixFixeDe, useModelBands, useBandSets, pricingOf, personalPriceXof, prixDansPanier, remiseGestePct, tauxPermis, plafondDeRemisePct, plafondDeRemiseXof, unGesteDansLePanier, prixDeBase, isPersonalized, bandLabel, personalDurationMin, servesBand, bandForService, estProposable, regimeTarifaire, splitByWeights, type ModelBand } from '../../../../shared/pricing';
 import { sameName } from '../../../../shared/text';
 import { gammeNetteXof, gammeBruteXof, ligneNetteXof, ligneBruteXof, poseUnProduit, retireUnProduit, remiseDeLaLigne, ecartsDeTarif, manqueALEtagere, type LigneGamme } from '../../../../shared/gamme';
 import type { CommRates } from '../equipe/payroll';
@@ -1729,6 +1730,17 @@ export const poseLHoteDuFoyer = (fn: ((clientId: string) => void) | null) => { h
 export const foyerEstServi = () => hoteDuFoyer !== null;
 export const demandeLeFoyer = (clientId: string) => hoteDuFoyer?.(clientId);
 
+/** LE REGARD DÉDUIT, ÉCRIT DES DEUX CÔTÉS (10 octobre 2026) : l'acte dit quel
+    Regard il a déduit et combien, le Regard dit de quel acte. Un Regard ne se
+    déduit qu'une fois (`shared/regard-deduit-pur`). */
+const marqueLaDeduction = (acteId: string, d: RegardADeduire): void => {
+  appointmentsStore.set((prev) => prev.map((x) => {
+    if (x.id === acteId) return { ...x, regardDeduit: { apptId: d.kokoId, xof: d.xof } };
+    if (x.id === d.kokoId) return { ...x, deduitSur: acteId };
+    return x;
+  }));
+};
+
 export function RdvModal({
   onClose,
   initial,
@@ -1794,6 +1806,8 @@ export function RdvModal({
   const [mainsOuvertes, setMainsOuvertes] = useState<string[]>([]);
   /* LES REMISES DE LIGNE — tableau parallèle à `serviceIds`, comme les mains. */
   const [remisesL, setRemisesL] = useState<({ pct?: number; xof?: number } | null)[]>(appt?.remisesLignes ?? []);
+  /* LE REGARD DÉDUIT (10 octobre 2026) : posé d'un geste, écrit à l'enregistrement. */
+  const [deduction, setDeduction] = useState<RegardADeduire | null>(null);
   const [remisesOuvertes, setRemisesOuvertes] = useState<string[]>([]);
   /* LE DÉPLACEMENT D'UNE LIGNE, EN UN SEUL ENDROIT. Chaque tableau marqué
      « parallèle à `serviceIds` » ci-dessus doit bouger ici, et le harnais
@@ -2701,6 +2715,7 @@ export function RdvModal({
          lignes conformes (voir alignerFacturesDuRituel). Le contexte tarifaire
          de la modale (calibre, Juste Prix, longueur figée) donne les VRAIS
          prix pleins — pas le prix catalogue nu. */
+      if (deduction) marqueLaDeduction(appt.id, deduction);
       const maj = appointmentsStore.get().find((x) => x.id === appt.id);
       if (maj) alignerFacturesDuRituel(maj, byId, prixPlein, produitsGamme, gesteDe, { argent: (x) => fmtMoney(x, currency), lockCount: pricing.lockCount });
       /* ══ LA REPRISE SUIT LE STATUT, QUEL QUE SOIT LE CHEMIN — 9 sept. ══
@@ -2816,6 +2831,7 @@ export function RdvModal({
         return estSuite ? attacheSeance(avec, created.id, suiteDe) : avec;
       });
       reglerLeSalon(created.id, chosenStatus);
+      if (deduction) marqueLaDeduction(created.id, deduction);
     }
     onClose();
     return true;
@@ -3381,7 +3397,7 @@ export function RdvModal({
                             2026, demande de Yéman. Le geste se posait à la main
                             dans la case en francs, et une remise calculée de
                             tête se relit mal sur une pièce. */}
-                        {TAUX_DE_REMISE.map((v) => (
+                        {tauxPermis(estDirection).map((v) => (
                           <button
                             key={v}
                             type="button"
@@ -3689,6 +3705,52 @@ export function RdvModal({
           );
         })()}
 
+        {(() => {
+          /* ══ LE REGARD DÉDUIT SOUS 30 JOURS — 10 octobre 2026 ══════════
+             KÒKÒ™ Origine de la création, KÒKÒ™ Accueil de la restauration,
+             KÒKÒ™ Conseil de la création Kids : proposé ici, posé d'un geste,
+             en remise sur la ligne de l'acte. */
+          if (appt?.regardDeduit) {
+            return (
+              <div className="tre-inline-note"><span className="mark">✓</span>
+                <span>Le Regard est déduit de cet acte : −{fmtMoney(appt.regardDeduit.xof, currency)}.</span>
+              </div>
+            );
+          }
+          if (!clientId) return null;
+          const regard = regardADeduire({
+            rdv: { id: appt?.id, clientId, date, serviceIds },
+            rdvs: appointmentsStore.get(),
+            estCreation: (id) => { const sv = byId.get(id); return !!sv && fondeLaCouronne(sv); },
+            payeXof: (a) => apptPaidXof(a as Appointment),
+            prixDuRegard: (id) => byId.get(id)?.priceXof ?? 0,
+          });
+          if (!regard) return null;
+          const nom = byId.get(regard.regardServiceId)?.name?.split(' · ')[0] ?? 'Le Regard';
+          if (deduction) {
+            return (
+              <div className="tre-inline-note"><span className="mark">✓</span>
+                <span>{nom} du {frShortAn(regard.date)} déduit : −{fmtMoney(regard.xof, currency)} sur la ligne de l’acte, à l’enregistrement.</span>
+              </div>
+            );
+          }
+          return (
+            <div className="tre-inline-note"><span className="mark">!</span>
+              <span>
+                {nom} du {frShortAn(regard.date)}, réglé, se déduit de cet acte (sous 30 jours) : −{fmtMoney(regard.xof, currency)}.{' '}
+                <button type="button" className="trc-c360-linkbtn" onClick={() => {
+                  setRemisesL((prev) => {
+                    const l = serviceIds.map((_, k) => prev[k] ?? null);
+                    l[regard.index] = remiseAvecLeRegard(l[regard.index], regard.xof);
+                    return l;
+                  });
+                  setDeduction(regard);
+                }}>Déduire</button>
+              </span>
+            </div>
+          );
+        })()}
+
         {coverageRows.length > 0 && (
           <div style={{ border: '1px solid var(--copper-300)', borderLeft: '3px solid var(--color-copper)', borderRadius: 'var(--radius-md)', background: 'var(--copper-50)', padding: '11px 13px' }}>
             <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, cursor: canCover ? 'pointer' : 'default' }}>
@@ -3969,7 +4031,7 @@ export function RdvModal({
                         </div>
                         {ouverte && (
                           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 9, flexWrap: 'wrap' }}>
-                            {TAUX_DE_REMISE.map((v) => (
+                            {tauxPermis(estDirection).map((v) => (
                               <button
                                 key={v}
                                 type="button"
@@ -4095,7 +4157,7 @@ export function RdvModal({
                       Famille −{famPct}%
                     </button>
                   )}
-                  {TAUX_DE_REMISE.map((p) => (
+                  {tauxPermis(estDirection).map((p) => (
                     <button
                       key={p}
                       type="button"
@@ -4111,7 +4173,8 @@ export function RdvModal({
                     min={0}
                     max={100}
                     value={discountPct}
-                    onChange={(e) => setDiscountPct(Math.max(0, Math.min(100, Math.round(Number(e.target.value) || 0))))}
+                    onChange={(e) => setDiscountPct(Math.max(0, Math.min(plafondDeRemisePct(estDirection), Math.round(Number(e.target.value) || 0))))}
+                    title={estDirection ? undefined : '50 % et plus : la direction seulement.'}
                     style={{ width: 68, textAlign: 'right' }}
                     aria-label="Remise en pourcentage"
                   />
@@ -4121,7 +4184,7 @@ export function RdvModal({
                     type="number"
                     min={0}
                     value={discountXof}
-                    onChange={(e) => setDiscountXof(Math.max(0, Math.round(Number(e.target.value) || 0)))}
+                    onChange={(e) => setDiscountXof(Math.min(plafondDeRemiseXof(estDirection, effGross), Math.max(0, Math.round(Number(e.target.value) || 0))))}
                     style={{ width: 120, textAlign: 'right' }}
                     placeholder="0"
                     aria-label={`Remise en ${currency}`}

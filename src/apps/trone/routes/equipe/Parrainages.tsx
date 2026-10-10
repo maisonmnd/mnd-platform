@@ -10,7 +10,7 @@ import { useAppointments } from '../../../../shared/agenda';
 import { useClients, useFamilies, aUnPrixConvenu } from '../../../../shared/clients';
 import { estDependant } from '../../../../shared/accounts';
 import { venuesDeLAnnee } from '../../../../shared/agenda';
-import { cercleSeuilStore, foyerSeuilStore, estDuCercle, useFoyerTiers } from '../../../../shared/offers';
+import { cercleSeuilStore, foyerSeuilStore, estDuCercle, useFoyerTiers, cercleActifStore, foyerActifStore } from '../../../../shared/offers';
 import { useStore, uid } from '../../../../shared/store';
 import { fmtMoney } from '../../../../shared/currency';
 import { useServices, useCategories, catsDansLOrdre } from '../../../../shared/catalog';
@@ -86,6 +86,8 @@ export default function Parrainages({ dansLeCercle = false }: { dansLeCercle?: b
   const [familles] = useFamilies();
   const [seuilCercle, setSeuilCercle] = useStore(cercleSeuilStore);
   const [seuilFoyer, setSeuilFoyer] = useStore(foyerSeuilStore);
+  const [cercleOuvert, setCercleOuvert] = useStore(cercleActifStore);
+  const [foyerOuvert, setFoyerOuvert] = useStore(foyerActifStore);
   const [sceaux, setSceaux] = useFoyerTiers();
   const [demandes] = useDemandes();
   const [rdvs] = useAppointments();
@@ -353,6 +355,11 @@ export default function Parrainages({ dansLeCercle = false }: { dansLeCercle?: b
             </Reglage>
 
             <Reglage id="cercle" nom="L’entrée au Cercle" resume={resumes.cercle} ouvert={ouvert === 'cercle'} bascule={bascule}>
+              {/* UNE SEULE HORLOGE (10 octobre 2026) : le Cercle est fermé, il se rouvre ici. */}
+              <p className="amb-muet" style={{ color: 'var(--copper-700)' }}>
+                {cercleOuvert ? 'Le Cercle est ouvert.' : 'Le Cercle est fermé depuis le 10 octobre 2026 : une seule horloge de fidélité, la visite honorée (la Graine à la 5ᵉ).'}
+                {' '}<button type="button" className="trc-c360-linkbtn" onClick={() => { setCercleOuvert(!cercleOuvert); toast(cercleOuvert ? 'Le Cercle est fermé.' : 'Le Cercle est rouvert.'); }}>{cercleOuvert ? 'Fermer le Cercle' : 'Rouvrir le Cercle'}</button>
+              </p>
               <p className="amb-muet">On entre au Cercle par ses propres venues des douze derniers mois, et on y reste tant qu’on les garde. Un prix convenu et une tête dépendante sont reconnus autrement.</p>
               <Champ label="Venues sur 12 mois pour y être" aide="Une venue : un jour où un rituel a été honoré">
                 <span className="amb-suffixe">
@@ -382,6 +389,10 @@ export default function Parrainages({ dansLeCercle = false }: { dansLeCercle?: b
             </Reglage>
 
             <Reglage id="foyer" nom="Les sceaux du Foyer" resume={resumes.foyer} ouvert={ouvert === 'foyer'} bascule={bascule}>
+              <p className="amb-muet" style={{ color: 'var(--copper-700)' }}>
+                {foyerOuvert ? 'Les sceaux du Foyer sont ouverts.' : 'Les sceaux du Foyer sont fermés depuis le 10 octobre 2026 : le Foyer vit désormais par la remise famille et la Cagnotte. Les sceaux déjà posés s’offrent jusqu’à leur échéance.'}
+                {' '}<button type="button" className="trc-c360-linkbtn" onClick={() => { setFoyerOuvert(!foyerOuvert); toast(foyerOuvert ? 'Les sceaux du Foyer sont fermés.' : 'Les sceaux du Foyer sont rouverts.'); }}>{foyerOuvert ? 'Fermer les sceaux' : 'Rouvrir les sceaux'}</button>
+              </p>
               <p className="amb-muet">La maisonnée franchit un sceau par sa dépense cumulée. Le soin se pose alors tout seul sur la fiche de celle qui règle le foyer, et la caisse l’offre.</p>
               <Champ label="Le premier palier, dit dans Ma Couronne" aide="Quand aucun sceau n’est encore défini">
                 <span className="amb-suffixe">

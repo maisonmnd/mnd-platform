@@ -754,6 +754,19 @@ export const unGesteDansLePanier = (panier: readonly Service[], p: PersonalPrici
 
     LE ZÉRO N'EN FAIT PAS PARTIE : il n'est pas une remise, c'est son retrait.
     Les écrans qui l'offrent le posent devant, à part. */
+/* ══ 50 % ET 100 % : LA DIRECTION SEULEMENT — 10 octobre 2026 ═══════════
+   La genèse des prix, correction 10 (décidée au sélecteur) : « plus de prix
+   barré permanent ; 50 % et 100 % au comptoir sur décision de la direction
+   seulement ». Une remise de moitié ou un geste offert est de l'argent qui
+   sort : l'équipe propose jusqu'à 49 %, la direction (souveraine, gérante)
+   au-delà. */
+export const SEUIL_DE_LA_DIRECTION_PCT = 50;
+export const tauxPermis = (estDirection: boolean): number[] =>
+  TAUX_DE_REMISE.filter((p) => estDirection || p < SEUIL_DE_LA_DIRECTION_PCT);
+export const plafondDeRemisePct = (estDirection: boolean): number => (estDirection ? 100 : SEUIL_DE_LA_DIRECTION_PCT - 1);
+/** Le plafond d'une remise en francs sur un montant : la moitié moins un franc pour l'équipe. */
+export const plafondDeRemiseXof = (estDirection: boolean, baseXof: number): number =>
+  estDirection ? Number.POSITIVE_INFINITY : Math.max(0, Math.floor((baseXof * (SEUIL_DE_LA_DIRECTION_PCT - 1)) / 100));
 export const TAUX_DE_REMISE = [5, 10, 15, 20, 25, 50, 100] as const;
 
 export const remiseGestePct = (sv: Service, p: PersonalPricing, panier: readonly Service[]): number => {

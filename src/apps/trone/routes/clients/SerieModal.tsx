@@ -17,11 +17,12 @@ import {
   prixDeLaReprise, type LigneLue, type Remise,
 } from '../../../../shared/serie';
 import {
-  TAUX_DE_REMISE, useModelBands, useBandSets, pricingOf, prixDansPanier, prixDeBase,
+  tauxPermis, useModelBands, useBandSets, pricingOf, prixDansPanier, prixDeBase,
   remiseGestePct, isPersonalized,
 } from '../../../../shared/pricing';
 import { ChampDeDate, ClientPicker, frJourAn, frShortAn, todayISO, useServicesById } from './_shared';
 import { OptionsPrestations } from '../_ui';
+import { useEstDirection } from '../_vie';
 
 /* ══ LA SAISIE EN SÉRIE — 5 septembre 2026 (maquette validée) ═══════
 
@@ -80,6 +81,8 @@ type Ligne = {
 
 export function SerieModal({ onClose }: { onClose: () => void }) {
   const { branch, currency } = useBranch();
+  /* 50 % et 100 % : la direction seulement (10 octobre 2026). */
+  const estDirection = useEstDirection();
   const [clients] = useClients();
   const [services] = useServices();
   const [tousLesRituels] = useAppointments();
@@ -881,7 +884,7 @@ export function SerieModal({ onClose }: { onClose: () => void }) {
               La remise de la série
             </span>
             <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
-              {[0, ...TAUX_DE_REMISE].map((pct) => (
+              {[0, ...tauxPermis(estDirection)].map((pct) => (
                 <button
                   key={pct}
                   type="button"
@@ -1077,7 +1080,7 @@ export function SerieModal({ onClose }: { onClose: () => void }) {
                                 {(remiseSerie.pct ?? 0) > 0 ? `Celle de la série · ${remiseSerie.pct} %` : 'Celle de la série'}
                               </option>
                               <option value="0">Plein tarif</option>
-                              {TAUX_DE_REMISE.map((pct) => (
+                              {tauxPermis(estDirection).map((pct) => (
                                 <option key={pct} value={String(pct)}>{pct} %</option>
                               ))}
                             </Select>
