@@ -298,6 +298,14 @@ export type Expense = {
       Voir `fournisseurDeLaDepense`. */
   fournisseurId?: string;
   validation?: ValidationDepense;
+  /** ── LES INTÉRÊTS D'UNE ÉCHÉANCE — 10 octobre 2026 (revue) ──────
+      L'emprunt et le rang de l'échéance dont cette dépense est le prix de
+      l'argent. Sans ce lien, « Défaire » retrouvait la dépense par morceaux
+      de libellé, et effaçait aussi les intérêts d'un autre emprunt du même
+      prêteur. ABSENT sur tout le reste, et sur les intérêts d'avant ce jour :
+      ceux-là se retrouvent par leur libellé exact. Voir `defaitUneEcheance`. */
+  empruntId?: string;
+  echeance?: number;
 };
 
 /** L'ÉTAT D'UNE DÉPENSE SOUMISE, et la trace de la décision.
@@ -666,6 +674,10 @@ export type Cashbox = {
   avantLaBascule?: { name: string; openingXof: number; horsBilan?: boolean };
   /** Créée par la bascule : un retour en arrière la retire si rien ne la nomme. */
   creeeParLaBascule?: boolean;
+  /** LE SOLDE D'OUVERTURE QUE LE DÉPART DES CAISSES A REMIS À 0 — 10 octobre
+      2026 (revue). Il s'effaçait sans trace ; il est gardé ici, et « Compter
+      depuis toujours » le rend. Voir `shared/depart-des-caisses-pur`. */
+  ouvertureAvantDepart?: number;
   /** ANCIENNE — 4 octobre 2026, « Ouvrir octobre ». Une caisse d'avant qui
       reste visible partout, avec tout son passé, pour finir le travail
       jusqu'au 30 septembre ; son solde compte toute son histoire (le départ
@@ -1242,6 +1254,34 @@ export function horsActiviteParMotif(
     .sort((a, b) => b.xof - a.xof);
 }
 
+/* ══ CE QU'UN MOUVEMENT HORS ACTIVITÉ FAIT À SON TIROIR — 10 octobre 2026 ══
+   Revue de code. Le magasin nommait son tiroir (« c'est lui qui la rend
+   dépensable ») mais aucun solde de caisse ne le lisait : un prêt reçu de
+   2 000 000 F ne faisait monter aucune caisse, l'échéance rendue ne retirait
+   que ses intérêts (« la caisse perd le total », disait pourtant
+   `rendUneEcheance`), et un prélèvement de l'associé laissait le tiroir
+   plein (« la caisse monte », dit le compte courant au remboursement). La
+   clôture du soir attendait alors l'argent prélevé, et déclarait un écart
+   qui n'en était pas un.
+   UNE ENTRÉE MONTE, UNE SORTIE DESCEND, dans la monnaie du tiroir : ces
+   mouvements ne portent pas de `fx`, ils pèsent donc zéro sur un tiroir en
+   devise et le relevé le dit (même règle que `surLeTiroir`). */
+export const signeSurLeTiroir = (m: Pick<MouvementHorsActivite, 'sens' | 'amountXof'> & EcritureDeTiroir, deviseDuTiroir: string, maison: string): number =>
+  (sensDe(m) === 'entree' ? 1 : -1) * surLeTiroir(m, deviseDuTiroir, maison);
+
+/** Les mouvements hors activité d'UN tiroir, dont le mois passe `garde`. */
+export const horsActiviteDuTiroir = (
+  l: readonly MouvementHorsActivite[], branchId: string, cashbox: string, garde: (mk: string) => boolean,
+): MouvementHorsActivite[] =>
+  l.filter((m) => m.branchId === branchId && m.cashbox === cashbox && m.amountXof > 0 && garde(m.date.slice(0, 7)));
+
+/** Ce qu'ils font, ensemble, au solde de ce tiroir. */
+export const soldeHorsActiviteDuTiroir = (
+  l: readonly MouvementHorsActivite[], branchId: string, cashbox: string, garde: (mk: string) => boolean,
+  deviseDuTiroir: string, maison: string,
+): number =>
+  horsActiviteDuTiroir(l, branchId, cashbox, garde).reduce((s, m) => s + signeSurLeTiroir(m, deviseDuTiroir, maison), 0);
+
 /* ══ CE QUE LA MAISON DOIT — l'emprunt reçu, 11 septembre 2026 ═══════
    Maquette `public/maquette-ce-que-la-maison-doit.html`, validée.
 
@@ -1435,15 +1475,40 @@ export function rendUneEcheance(
     expensesStore.set((prev) => [...prev, {
       id: `dep-${uid()}`,
       branchId: emprunt.branchId,
-      label: `Intérêts · ${emprunt.preteur} · échéance ${rang} sur ${emprunt.nombre}`,
+      label: libelleDesInterets(emprunt, rang),
       amountXof: ech.interetXof,
       date: jour,
       cashbox,
       category: CATEGORIE_INTERETS,
       subcategory: SOUS_CATEGORIE_INTERETS,
+      /* Le lien, pour que « Défaire » n'efface que CETTE dépense (10 octobre 2026). */
+      empruntId: emprunt.id,
+      echeance: rang,
     } as Expense]);
   }
   return { ok: true };
+}
+
+/** Le libellé de la dépense d'intérêts d'une échéance — un seul endroit l'écrit. */
+export const libelleDesInterets = (emprunt: Pick<Emprunt, 'preteur' | 'nombre'>, rang: number): string =>
+  `Intérêts · ${emprunt.preteur} · échéance ${rang} sur ${emprunt.nombre}`;
+
+/** LES INTÉRÊTS QUE « DÉFAIRE » RETIRE — 10 octobre 2026 (revue). Le filtre
+    lisait des morceaux du libellé : « Ecobank » est dans « Ecobank Bénin »,
+    « échéance 1 sur 1 » est dans « échéance 1 sur 12 », et deux emprunts du
+    même prêteur se partagent le même libellé. Défaire l'échéance 2 de l'un
+    effaçait aussi la charge de l'autre, resté rendu : le résultat et le tiroir
+    perdaient une dépense bien réelle.
+    D'abord le LIEN (emprunt et rang). Pour les intérêts d'avant le lien, le
+    libellé EXACT, et UNE seule dépense : deux emprunts au libellé identique
+    restent indiscernables, on n'en retire donc jamais qu'une. */
+export function sansLesInteretsDeLEcheance(depenses: Expense[], emprunt: Pick<Emprunt, 'id' | 'branchId' | 'preteur' | 'nombre'>, rang: number): Expense[] {
+  const liee = (d: Expense) => d.empruntId === emprunt.id && d.echeance === rang;
+  if (depenses.some(liee)) return depenses.filter((d) => !liee(d));
+  const libelle = libelleDesInterets(emprunt, rang);
+  const i = depenses.findIndex((d) => !d.empruntId && d.branchId === emprunt.branchId
+    && d.category === CATEGORIE_INTERETS && d.label === libelle);
+  return i < 0 ? depenses : [...depenses.slice(0, i), ...depenses.slice(i + 1)];
 }
 
 /** DÉFAIRE UN REMBOURSEMENT — la main se trompe de ligne, et le registre ne
@@ -1457,10 +1522,7 @@ export function defaitUneEcheance(emprunt: Emprunt, rang: number): void {
   entreesHorsActiviteStore.set((prev) => prev.filter(
     (m) => !(m.empruntId === emprunt.id && sensDe(m) === 'sortie' && m.label.includes(marque)),
   ));
-  expensesStore.set((prev) => prev.filter(
-    (d) => !(d.branchId === emprunt.branchId && d.category === CATEGORIE_INTERETS
-      && d.label.includes(emprunt.preteur) && d.label.includes(marque)),
-  ));
+  expensesStore.set((prev) => sansLesInteretsDeLEcheance(prev, emprunt, rang));
 }
 
 /** CE QUI EMPÊCHE D'ENREGISTRER, dit plutôt que refusé en silence. */
@@ -1691,6 +1753,20 @@ export const recuDansSaDevise = (
     total, chacun chez lui. Même règle que la trésorerie des caisses. */
 export const coffreBalanceMaison = (moves: readonly CoffreMovement[]): number =>
   Math.max(0, moves.filter((m) => !m.fx).reduce((s, m) => s + coffreSignedXof(m), 0));
+
+/** LE SOLDE DU COFFRE, UN SEUL — 10 octobre 2026 (revue). Le Coffre comptait
+    depuis la bascule (« à 0 lui aussi », 4 octobre), l'onglet Objectifs et le
+    Partage comptaient tout l'historique, devises comprises : trois écrans,
+    deux soldes, et « Reprendre » laissait virer vers la banque l'argent d'avant
+    octobre que le Coffre ne montrait plus. Une seule porte désormais : la
+    monnaie de la Maison, depuis le mois de départ quand la bascule est faite. */
+export const soldeDuCoffre = (
+  moves: readonly CoffreMovement[],
+  reglages: { caissesDepuis?: string; basculeDesCaisses?: unknown },
+): number => {
+  const depart = reglages.basculeDesCaisses ? reglages.caissesDepuis : undefined;
+  return coffreBalanceMaison(depart ? moves.filter((m) => m.date.slice(0, 7) >= depart) : moves);
+};
 
 /** CE QUE LE COFFRE A REÇU POUR DE VRAI — les vrais versements, en monnaie de la
     Maison. Les FLÉCHAGES (paires internes qui ne font rien entrer ni sortir) et

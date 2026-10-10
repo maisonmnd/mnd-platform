@@ -292,6 +292,83 @@ export function caissesApres(caisses: readonly Cashbox[], branchId: string, plan
   return out;
 }
 
+/* ══ LE PLAN D'UNE BASCULE DÉJÀ FAITE — 10 octobre 2026 (revue) ══════════
+   « Les déplacer » (une écriture d'octobre encore posée sur une ancienne)
+   relançait la bascule avec `planPropose`, un plan NEUF. Or la proposition
+   ne connaît pas les choix faits : BIIC, gardée comme Banque, y redevenait
+   « ancienne », la relance la marquait jusqu'au 30 septembre (elle sortait
+   de la trésorerie) et « La Banque » naissait à 0. Une ancienne dont la pièce
+   d'octobre avait été choisie retombait sans pièce, et la relance refusait
+   (« Choisissez la pièce… ») sans offrir de quoi choisir.
+   LA RELANCE REPREND LE PLAN APPLIQUÉ : celui que `appliqueLaBascule` garde
+   dans les réglages. Pour la bascule du 4 octobre, qui ne l'a pas gardé, il
+   se relit dans les caisses et les écritures, qui en portent la trace :
+   · `jusquAu` posé : ancienne, et sa suite si une caisse de la bascule dit
+     « Suite de <nom> » ; sinon la pièce où ses écritures d'octobre sont
+     déjà parties (la note `…Avant` de chaque case) ;
+   · `avantLaBascule` sans `jusquAu` : gardée, avec sa pièce (`role`) ;
+   · ni l'un ni l'autre : née après, la bascule n'a rien à en dire.
+   UN PLAN PAR BRANCHE (reprise de la revue, même jour). Le plan gardé se
+   lit sous l'identifiant de la branche demandée, jamais celui d'une autre :
+   ses destins nomment d'autres caisses, les anciennes de cette branche-ci
+   n'en auraient eu aucun (pas de sélecteur, rien de déplacé, rien de dit).
+   Une branche que la bascule n'a jamais touchée (aucune caisse marquée
+   `avantLaBascule` ni `creeeParLaBascule`) n'a pas de plan à relire : rien
+   n'est rendu, et l'écran repart de la proposition (`planPropose`). */
+export function planDeLaBasculeFaite(
+  caisses: readonly Cashbox[], branchId: string,
+  lots: Partial<Record<Sorte, readonly unknown[]>>, enregistres?: Readonly<Record<string, Plan>>,
+): Plan | undefined {
+  const enregistre = enregistres?.[branchId];
+  if (enregistre && enregistre.etape === 'ouvrir') {
+    return { etape: 'ouvrir', destins: { ...enregistre.destins }, octobreVers: { ...enregistre.octobreVers } };
+  }
+  if (!caisses.some((c) => c.branchId === branchId && (c.avantLaBascule || c.creeeParLaBascule))) return undefined;
+  const destins: Record<string, Destin> = {};
+  const octobreVers: Record<string, string> = {};
+  const deLaBranche = caisses.filter((c) => c.branchId === branchId && !c.archiveeLe);
+  const suites = deLaBranche.filter((c) => c.creeeParLaBascule);
+  /* Où les écritures d'octobre de chaque ancienne sont parties : la note
+     `…Avant` d'une case dit son ancienne caisse, la case dit la nouvelle. */
+  const partiesVers = new Map<string, Map<string, number>>();
+  const note = (avant: unknown, nom: unknown, date: unknown) => {
+    const j = jourDe(date);
+    if (typeof avant !== 'string' || typeof nom !== 'string' || !j || j < JOUR_DE_DEPART || avant === nom) return;
+    const m = partiesVers.get(avant) ?? new Map<string, number>();
+    m.set(nom, (m.get(nom) ?? 0) + 1);
+    partiesVers.set(avant, m);
+  };
+  for (const [sorte, liste] of Object.entries(lots) as [Sorte, readonly unknown[]][]) {
+    for (const e of liste ?? []) {
+      const r = e as Rec;
+      if (sorte === 'transferts') { note(r.deAvant, r.de, r.date); note(r.versAvant, r.vers, r.date); continue; }
+      if (sorte === 'factures' || sorte === 'rendezVous') {
+        const payments = Array.isArray(r.payments) ? (r.payments as Rec[]) : [];
+        for (const p of payments) note(p.cashboxAvant, p.cashbox, p.date);
+        if (sorte === 'factures' && payments.length === 0) note(r.cashboxAvant, r.cashbox, r.date);
+        continue;
+      }
+      note(r.cashboxAvant, r.cashbox, r[SIMPLES[sorte]]);
+    }
+  }
+  for (const c of deLaBranche) {
+    if (c.creeeParLaBascule) continue;
+    if (c.jusquAu) {
+      const suite = suites.find((s) => s.sub === `Suite de ${c.name}`);
+      if (suite) {
+        destins[c.name] = { sort: 'suite', nom: suite.name, role: suite.role ?? 'terrasse', ...(suite.horsBilan ? { horsBilan: true } : {}) };
+        continue;
+      }
+      destins[c.name] = { sort: 'ancienne' };
+      const vers = [...(partiesVers.get(c.name) ?? new Map<string, number>()).entries()].sort((a, b) => b[1] - a[1])[0];
+      if (vers) octobreVers[c.name] = vers[0];
+      continue;
+    }
+    if (c.avantLaBascule) destins[c.name] = { sort: 'garder', role: c.role ?? 'terrasse', ...(c.horsBilan ? { horsBilan: true } : {}) };
+  }
+  return { etape: 'ouvrir', destins, octobreVers };
+}
+
 /** Les pièces qu'une caisse gardée telle quelle tient déjà. */
 export const rolesTenus = (plan: Plan): Set<RoleDeCaisse> =>
   new Set(Object.values(plan.destins).flatMap((d) => (d.sort === 'garder' ? [d.role] : [])));

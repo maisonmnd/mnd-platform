@@ -4,7 +4,7 @@ import { useBranch } from '../../../../shared/branches';
 import { useSettings } from '../../../../shared/settings';
 import { useToutesLesCaisses, type RoleDeCaisse } from '../../../../shared/finance';
 import {
-  JOUR_DE_DEPART, NEUVES, PIECES_D_OCTOBRE, casesDe, compteLaBascule, jourDe, planPropose, rolesTenus,
+  JOUR_DE_DEPART, NEUVES, PIECES_D_OCTOBRE, casesDe, compteLaBascule, jourDe, planDeLaBasculeFaite, planPropose, rolesTenus,
   type Destin, type Plan, type Sorte,
 } from '../../../../shared/bascule-des-caisses-pur';
 import { appliqueLaBascule, annuleLaBascule, lisLesLots, resteAFaire } from './bascule';
@@ -48,7 +48,13 @@ export function BasculeDOctobre({ onClose }: { onClose: () => void }) {
   const [reglages] = useSettings();
   const faite = reglages.basculeDesCaisses;
   const lesSiennes = toutes.filter((c) => c.branchId === branch.id && !c.archiveeLe && !c.creeeParLaBascule);
-  const [plan, setPlan] = useState<Plan>(() => planPropose(toutes.filter((c) => !c.creeeParLaBascule), branch.id, currency));
+  /* FAITE, ELLE REPART DE SES CHOIX — 10 octobre 2026 (revue). Le plan neuf
+     oubliait une caisse gardée comme Banque (marquée ancienne à la relance,
+     « La Banque » née à 0) et les pièces d'octobre déjà choisies. Voir
+     `planDeLaBasculeFaite`. Le plan se lit sous la branche ; une branche que
+     la bascule n'a pas touchée repart de la proposition. */
+  const [plan, setPlan] = useState<Plan>(() => (faite && planDeLaBasculeFaite(toutes, branch.id, lisLesLots(branch.id), faite.plans))
+    || planPropose(toutes.filter((c) => !c.creeeParLaBascule), branch.id, currency));
   const [sauvee, setSauvee] = useState(false);
   const [etat, setEtat] = useState<'' | 'en-cours' | 'complete' | 'incomplete'>('');
 
@@ -66,6 +72,7 @@ export function BasculeDOctobre({ onClose }: { onClose: () => void }) {
   }, [branch.id, toutes]);
   const bilan = useMemo(() => compteLaBascule(plan, lisLesLots(branch.id)), [plan, branch.id]);
   const manquent = Object.keys(bilan.manquantes);
+  const restent = bilan.deplacees + Object.values(bilan.manquantes).reduce((n, x) => n + x, 0);
   const suitesChoisies = Object.values(plan.destins).flatMap((d) => (d.sort === 'suite' ? [d.nom] : []));
   const tenues = rolesTenus(plan);
   const neuves = [...NEUVES.filter((n) => n.role !== 'archive' && (n.role === 'terrasse' || !tenues.has(n.role))).map((n) => n.nom), ...suitesChoisies]
@@ -137,10 +144,23 @@ export function BasculeDOctobre({ onClose }: { onClose: () => void }) {
               Octobre est ouvert depuis le {new Date(faite.le).toLocaleString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}.
               Les pièces neuves comptent depuis le 1er octobre 2026 ; les anciennes caisses gardent tout leur passé pour que vous finissiez le travail jusqu’au 30 septembre.
             </div>
-            {bilan.deplacees > 0 && (
-              <div style={{ fontSize: 13, color: 'var(--copper-700)' }}>
-                {bilan.deplacees} écriture{bilan.deplacees > 1 ? 's' : ''} d’octobre {bilan.deplacees > 1 ? 'sont' : 'est'} encore sur une ancienne caisse.
-                <button className="mnd-btn" style={{ marginLeft: 10 }} onClick={() => { const r = appliqueLaBascule(plan, branch.id); if (r.ok) verifier(); else toast(r.pourquoi); }}>Les déplacer</button>
+            {(bilan.deplacees > 0 || manquent.length > 0) && (
+              <div style={{ fontSize: 13, color: 'var(--copper-700)', display: 'grid', gap: 8 }}>
+                <span>
+                  {restent} écriture{restent > 1 ? 's' : ''} d’octobre {restent > 1 ? 'sont' : 'est'} encore sur une ancienne caisse.
+                </span>
+                {/* UNE ANCIENNE SANS PIÈCE SE CHOISIT ICI AUSSI (10 octobre
+                    2026) : sans ce choix, la relance refusait sans offrir de
+                    quoi répondre. */}
+                {manquent.map((nom) => (
+                  <Select key={nom} aria-label={`Où vont les écritures d'octobre de ${nom}`} value={plan.octobreVers[nom] ?? ''} onChange={(e) => poseOctobre(nom, e.target.value)} style={{ fontSize: 12.5, borderColor: 'var(--color-copper)' }}>
+                    <option value="">Les écritures d’octobre de {nom} vont vers…</option>
+                    {destinationsOctobre.map((n) => <option key={n} value={n}>{n}</option>)}
+                  </Select>
+                ))}
+                <span>
+                  <button className="mnd-btn" disabled={manquent.length > 0} onClick={() => { const r = appliqueLaBascule(plan, branch.id); if (r.ok) verifier(); else toast(r.pourquoi); }}>Les déplacer</button>
+                </span>
               </div>
             )}
             <div style={{ display: 'flex', gap: 10, justifyContent: 'space-between', flexWrap: 'wrap' }}>

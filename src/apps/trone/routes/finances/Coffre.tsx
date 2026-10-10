@@ -11,7 +11,7 @@ import { useClients } from '../../../../shared/clients';
 import {
   useCoffre, coffreStore, coffreBalance, coffreSignedXof, invoiceRegleXof, useInvoices, useCashboxes,
   useObjectifs, objectifsStore, recuParObjectif, coffreNonFleche, moisPourAtteindre, type ObjectifCoffre,
-  recuDansSaDevise, deviseDuCompartiment, compartimentEtranger, coffreBalanceMaison, coffreVerseXof, coffreSortiBanqueXof, cashboxCurrency,
+  recuDansSaDevise, deviseDuCompartiment, compartimentEtranger, soldeDuCoffre, coffreVerseXof, coffreSortiBanqueXof, cashboxCurrency,
   caissesEnDevise, motDesCaissesEnDevise,
   type CoffreMovement, type Cashbox,
 } from '../../../../shared/finance';
@@ -124,8 +124,9 @@ export default function Coffre() {
      sélecteur : « à 0 lui aussi »). Son solde ne compte que les mouvements
      du mois de départ et après ; l'historique reste dans la liste. */
   const [reglagesCoffre] = useSettings();
-  const departDuCoffre = reglagesCoffre.basculeDesCaisses ? reglagesCoffre.caissesDepuis : undefined;
-  const balance = coffreBalanceMaison(departDuCoffre ? moves.filter((m) => m.date.slice(0, 7) >= departDuCoffre) : moves);
+  /* Le calcul vit dans `soldeDuCoffre` (10 octobre 2026) : les Objectifs et le
+     Partage lisent la même porte, un seul solde pour un seul coffre. */
+  const balance = soldeDuCoffre(moves, reglagesCoffre);
   /* LES TUILES LISENT LES MÊMES PORTES QUE LE SOLDE — 24 août. « Total versé »
      et « Versé ce mois » sommaient TOUS les dépôts, fléchages et devises
      compris : chaque fléchage (une paire interne qui ne fait rien entrer) les

@@ -70,12 +70,23 @@ export function appliqueLaBascule(plan: Plan, branchId: string, le = new Date().
   for (const l of LOTS) {
     l.store.set((prev) => prev.map((r) => (garde(r) ? basculeLEcriture(l.sorte, r, plan) : r)));
   }
-  settingsStore.set((prev) => ({
-    ...prev,
+  settingsStore.set((prev) => {
     /* Une relance garde la date et le départ d'avant la PREMIÈRE bascule. */
-    basculeDesCaisses: prev.basculeDesCaisses ?? { le, ...(prev.caissesDepuis ? { depuisAvant: prev.caissesDepuis } : {}) },
-    caissesDepuis: MOIS_DE_DEPART,
-  }));
+    const faite = prev.basculeDesCaisses ?? { le, ...(prev.caissesDepuis ? { depuisAvant: prev.caissesDepuis } : {}) };
+    return {
+      ...prev,
+      /* …ET LE PLAN APPLIQUÉ (10 octobre 2026, revue) : une relance repart
+         des choix faits, jamais d'une proposition neuve qui les oublie. Le
+         temps ② (« ranger ») ne l'écrase pas : c'est le plan d'octobre qu'on
+         relit. Voir `planDeLaBasculeFaite`. Rangé SOUS SA BRANCHE : les
+         destins nomment les caisses de celle-ci, et celui d'une autre
+         branche reste tel qu'il était. */
+      basculeDesCaisses: plan.etape === 'ouvrir'
+        ? { ...faite, plans: { ...faite.plans, [branchId]: { etape: plan.etape, destins: { ...plan.destins }, octobreVers: { ...faite.plans?.[branchId]?.octobreVers, ...plan.octobreVers } } } }
+        : faite,
+      caissesDepuis: MOIS_DE_DEPART,
+    };
+  });
   return { ok: true };
 }
 

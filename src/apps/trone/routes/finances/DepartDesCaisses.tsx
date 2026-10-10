@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Modal, toast } from '../../../../ds/components';
 import { settingsStore, useSettings } from '../../../../shared/settings';
 import { useCashboxes } from '../../../../shared/finance';
+import { ouverturesARemettre, ouverturesAuDepart, ouverturesRendues } from '../../../../shared/depart-des-caisses-pur';
 import { useBranch } from '../../../../shared/branches';
 import { monthKey, todayISO } from './_shared';
 
@@ -28,20 +29,25 @@ export function DepartDesCaisses({ onClose }: { onClose: () => void }) {
   const [caisses, setCaisses] = useCashboxes();
   const [mois, setMois] = useState(reglages.caissesDepuis ?? monthKey(todayISO()));
   const [aZero, setAZero] = useState(true);
-  const lesNotres = caisses.filter((c) => c.branchId === branch.id);
-  const avecOuverture = lesNotres.filter((c) => (c.openingXof ?? 0) !== 0);
+  /* NI LES ANCIENNES NI LES RANGÉES, ET JAMAIS SANS TRACE — 10 octobre 2026
+     (revue). Une ancienne compte tout son passé, ouverture comprise : le
+     départ relancé après la bascule la lui retirait. Et la valeur effacée
+     disparaissait. Voir `shared/depart-des-caisses-pur`. */
+  const avecOuverture = ouverturesARemettre(caisses, branch.id);
 
   const poser = () => {
     if (!/^\d{4}-\d{2}$/.test(mois)) { toast('Choisissez un mois.'); return; }
     settingsStore.set((prev) => ({ ...prev, caissesDepuis: mois }));
     if (aZero && avecOuverture.length > 0) {
-      setCaisses((prev) => prev.map((c) => (c.branchId === branch.id ? { ...c, openingXof: 0 } : c)));
+      setCaisses((prev) => ouverturesAuDepart(prev, branch.id));
     }
     toast(`Les caisses comptent depuis ${moisEtAn(mois)}${aZero ? ', à partir de 0' : ''}.`);
     onClose();
   };
   const retirer = () => {
     settingsStore.set((prev) => { const { caissesDepuis: _, ...reste } = prev; return reste; });
+    /* Les ouvertures que le départ avait remises à 0 reviennent. */
+    setCaisses((prev) => ouverturesRendues(prev, branch.id));
     toast('Les caisses comptent de nouveau depuis toujours.');
     onClose();
   };
@@ -67,6 +73,7 @@ export function DepartDesCaisses({ onClose }: { onClose: () => void }) {
                 ? 'Toutes les caisses partent déjà de 0.'
                 : `${avecOuverture.length} caisse${avecOuverture.length > 1 ? 's ont' : ' a'} un solde d’ouverture aujourd’hui : ${avecOuverture.map((c) => c.name).join(', ')}.`}
               {' '}S’il y avait de l’argent dans un tiroir le 1er au matin, écrivez-le ensuite dans sa fiche.
+              {' '}Les anciennes caisses gardent le leur, et « Compter depuis toujours » rend les ouvertures remises à 0.
             </span>
           </span>
         </label>

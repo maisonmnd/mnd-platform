@@ -1,4 +1,5 @@
 import { createStore, useStore } from './store';
+import type { Plan } from './bascule-des-caisses-pur';
 
 /* Paramètres de la Maison — persistés en localStorage (clé `mnd_settings`).
    Jours & heures d'ouverture, bascules de rituel/notifications, et les liens
@@ -69,7 +70,16 @@ export type Settings = {
   /** LA BASCULE D'OCTOBRE — 4 octobre 2026 : faite le…, et le départ des
       caisses qu'il y avait avant elle (pour le retour en arrière). Posée, le
       coffre repart lui aussi du mois de départ. */
-  basculeDesCaisses?: { le: string; depuisAvant?: string };
+  /* LE PLAN APPLIQUÉ, gardé avec elle — 10 octobre 2026 (revue). « Les
+     déplacer » repartait d'un plan neuf qui oubliait les choix faits (une
+     caisse gardée comme Banque redevenait ancienne, « La Banque » naissait à
+     0). Absent sur la bascule du 4 octobre : il se reconstruit alors depuis
+     les caisses (voir `planDeLaBasculeFaite`).
+     UN PLAN PAR BRANCHE (reprise de la revue, même jour) : la bascule
+     s'applique branche par branche, et ses destins portent des noms de
+     caisses. Un seul plan pour la Maison aurait servi à une deuxième branche
+     les caisses de la première. Clé : l'identifiant de la branche. */
+  basculeDesCaisses?: { le: string; depuisAvant?: string; plans?: Record<string, Plan> };
   toggles: Record<string, boolean>;
   hours: DayHours[];
   automations: Automations;

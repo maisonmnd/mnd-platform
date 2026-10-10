@@ -69,6 +69,10 @@ export type Cloture = {
       C'est lui qui permet au prochain soir de ne compter que ce qui a bougé
       depuis — un encaissement saisi après la clôture n'est jamais perdu. */
   livreXof: number;
+  /** Le livre de cette clôture compte les mouvements hors activité du tiroir
+      (prêt reçu, échéance, prélèvement…). Posé sur toute clôture depuis le
+      10 octobre 2026 ; absent avant. Voir `livreDeLaCloture`. */
+  livreAvecHorsActivite?: boolean;
   par: string;
   le: string;
   /** La clôture que celle-ci reprend, quand la direction l'a rouverte. */
@@ -238,9 +242,32 @@ export function attenduDuTiroir(o: { livreMaintenantXof: number; derniere?: Pick
   return Math.round(o.derniere.laisseXof + (o.livreMaintenantXof - o.derniere.livreXof));
 }
 
+/** LE LIVRE D'UNE CLÔTURE D'AVANT LE 10 OCTOBRE 2026, REMIS À LA MÊME MESURE.
+    Depuis ce jour, le livre d'un tiroir compte ses mouvements hors activité
+    (revue, constat 42). Une clôture d'avant a retenu un livre qui les
+    ignorait : comparé au livre d'aujourd'hui, l'attendu du soir suivant
+    reprendrait d'un coup tout le hors activité d'avant elle, et la caisse
+    déclarerait un écart déjà compté (le compté de ce soir-là l'avait
+    absorbé). On ajoute donc à son livre le hors activité du tiroir jusqu'à
+    son jour. Une clôture d'après porte `livreAvecHorsActivite` : rien à
+    ajouter. */
+export const livreDeLaCloture = (
+  c: Pick<Cloture, 'livreXof' | 'livreAvecHorsActivite'>, horsActiviteJusquASonJourXof: number,
+): number => (c.livreAvecHorsActivite ? c.livreXof : c.livreXof + Math.round(horsActiviteJusquASonJourXof));
+
 /** Le surplus que le Trône propose de verser au coffre : ce qui dépasse le fond. */
 export const surplusAuCoffre = (compteXof: number, fondXof: number): number =>
   Math.max(0, Math.round(compteXof) - Math.max(0, Math.round(fondXof)));
+
+/** LE SURPLUS N'EST PROPOSÉ AU COFFRE QUE POUR DES BILLETS — 10 octobre 2026
+    (revue). La case était cochée pour tout tiroir en francs : clôturer
+    « Terrasse · MoMoPay société » compté à 300 000 F écrivait, sans un geste,
+    un dépôt au coffre de 280 000 F. Le tiroir MoMo perdait cet argent sur le
+    papier, et le coffre se croyait garni de billets toujours chez MTN. Seul un
+    tiroir d'espèces (son nom ou sa référence le dit) part coché ; les autres
+    restent libres de l'être à la main. */
+export const versementParDefaut = (box: { name: string; sub?: string }): boolean =>
+  /esp[eè]ces|cash|liquide/i.test(`${box.name} ${box.sub ?? ''}`);
 
 /** Le fond proposé : celui de la dernière clôture du tiroir, sinon 20 000 F. */
 export const FOND_PROPOSE_XOF = 20000;
@@ -275,6 +302,7 @@ export function nouvelleCloture(o: {
     /* Le versement au coffre s'écrit au livre AVEC la clôture : le livre
        retenu est donc celui d'après. */
     livreXof: Math.round(o.livreAvantCoffreXof) - verse,
+    livreAvecHorsActivite: true,
     par: o.par, le: o.le,
     ...(o.reprend ? { reprend: o.reprend } : {}),
   };
@@ -309,12 +337,34 @@ export function tiroirsSansCloture(o: {
   registre: readonly Pick<Receipt, 'date' | 'cashbox'>[];
   depenses: readonly { branchId: string; date: string; cashbox?: string; avancee?: boolean; stopped?: boolean }[];
   clotures: readonly Pick<Cloture, 'branchId' | 'cashbox' | 'date'>[];
+  /** Les tiroirs qui SE COMPTENT (voir `tiroirsQuiSeComptent`). Absent : tout
+      tiroir nommé, comme avant le 10 octobre 2026. */
+  seComptent?: ReadonlySet<string>;
+  /* LES MOUVEMENTS HORS ACTIVITÉ, DANS LES DEUX SENS — 10 octobre 2026
+     (reprise de la revue). Une sortie (prélèvement de l'associé, échéance
+     rendue) n'entre plus au registre, qui ne garde que l'argent reçu, mais
+     elle fait baisser le tiroir. Lue par le registre seul, une journée où
+     l'associé n'avait prélevé que 50 000 F disait « Rien n'a bougé », et la
+     veille ne signalait aucun oubli : l'attendu avait pourtant changé. Le
+     solde lit ces mouvements (voir `horsActiviteDuTiroir`), le « a bougé »
+     les lit donc aussi, avec la même garde (un montant, la branche, le jour). */
+  horsActivite?: readonly { branchId: string; date: string; cashbox: string; amountXof: number }[];
 }): string[] {
   const bouge = new Set<string>();
   for (const r of o.registre) if (r.date === o.date && r.cashbox) bouge.add(r.cashbox);
   for (const e of o.depenses) if (e.branchId === o.branchId && e.date === o.date && e.cashbox && !e.avancee && !e.stopped) bouge.add(e.cashbox);
+  for (const m of o.horsActivite ?? []) if (m.branchId === o.branchId && m.date.slice(0, 10) === o.date && m.cashbox && m.amountXof > 0) bouge.add(m.cashbox);
   bouge.delete(CAISSE_POURBOIRES);
   bouge.delete('KkiaPay');
   const fermes = new Set(o.clotures.filter((c) => c.branchId === o.branchId && c.date === o.date).map((c) => c.cashbox));
-  return [...bouge].filter((b) => !fermes.has(b)).sort((a, b) => a.localeCompare(b, 'fr'));
+  return [...bouge].filter((b) => !fermes.has(b) && (!o.seComptent || o.seComptent.has(b))).sort((a, b) => a.localeCompare(b, 'fr'));
 }
+
+/** LES TIROIRS QUI SE COMPTENT LE SOIR — 10 octobre 2026 (revue). Une seule
+    règle pour la fenêtre de clôture et l'alerte de la veille : ni le bocal des
+    pourboires, ni KkiaPay, ni une caisse hors bilan. L'alerte comptait encore
+    « Caisse du foyer » ou « Foyer · Wells Fargo » : un oubli qu'aucune fenêtre
+    ne laissait clôturer, et qui revenait chaque jour où le foyer avait bougé. */
+export const tiroirsQuiSeComptent = <B extends { branchId: string; name: string; horsBilan?: boolean }>(
+  caisses: readonly B[], branchId: string,
+): B[] => caisses.filter((b) => b.branchId === branchId && b.name !== CAISSE_POURBOIRES && b.name !== 'KkiaPay' && !b.horsBilan);

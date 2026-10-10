@@ -17,18 +17,19 @@ import { useExpenses, expenseTotal, type PieceJointe } from '../../../../shared/
 import { adresseSignee } from '../../../../shared/fil';
 import { summaryPdf } from '../../../../shared/pdf';
 import { maisonNom } from '../../../../shared/identite';
-import { downloadCsv } from './_shared';
+import { downloadCsv, todayISO } from './_shared';
 import {
   useFournisseurs, fournisseursStore, comptesFournisseurs, articlesDuFournisseur,
   libellesVoisins, maisonsARanger, type Fournisseur,
 } from '../../../../shared/fournisseurs';
 import './finances.css';
 
-const todayISO = () => new Date().toISOString().slice(0, 10);
+/* AUJOURD'HUI SE DIT À L'HEURE DE LA MAISON — 10 octobre 2026 (revue). La
+   date UTC est encore celle d'hier entre minuit et une heure à Cotonou :
+   `todayISO` de `_shared` donne le jour local, comme partout aux Finances. */
 const ilYAUnAn = () => {
-  const d = new Date();
-  d.setFullYear(d.getFullYear() - 1);
-  return d.toISOString().slice(0, 10);
+  const [a, m, j] = todayISO().split('-');
+  return `${Number(a) - 1}-${m}-${m === '02' && j === '29' ? '28' : j}`;
 };
 const frDate = (iso: string) => new Date(`${iso}T00:00:00`).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' });
 const joursDepuis = (iso: string) =>

@@ -29,7 +29,7 @@ import { uid } from '../../../../shared/store';
 import { CURRENCIES } from '../../../../shared/geo';
 import { useClients } from '../../../../shared/clients';
 import {
-  useCoffre, coffreStore, coffreBalance, invoiceRegleXof, useInvoices, useCashboxes,
+  useCoffre, coffreStore, soldeDuCoffre, invoiceRegleXof, useInvoices, useCashboxes,
   useObjectifs, objectifsStore, coffreNonFleche, type ObjectifCoffre,
   recuDansSaDevise, deviseDuCompartiment, compartimentEtranger, cashboxCurrency,
   caissesEnDevise, motDesCaissesEnDevise,
@@ -270,7 +270,6 @@ export function LesObjectifs() {
 
   const moves = tousMoves.filter((m) => m.branchId === branch.id);
   const vivants = objectifs.filter((o) => o.branchId === branch.id && !o.clos);
-  const balance = coffreBalance(moves);
 
   /* LE VERROU DU COFFRE VAUT AUSSI ICI — 24 août 2026 (audit). Cet onglet vit
      derrière le code des Prêts (CLE_PRETS), un code DIFFÉRENT de celui du Coffre :
@@ -281,6 +280,11 @@ export function LesObjectifs() {
      dit une répartition, pas le total en un chiffre (même limite assumée que les
      mouvements d'un tiroir à code). */
   const [reglages] = useSettings();
+  /* LE MÊME SOLDE QUE LE COFFRE — 10 octobre 2026 (revue). Il comptait tout
+     l'historique : le Coffre disait 0 depuis la bascule, et « Reprendre »
+     acceptait encore de virer vers la banque l'argent d'avant octobre. Ce
+     chiffre pré-remplit et borne le virement : il doit être celui du Coffre. */
+  const balance = soldeDuCoffre(moves, reglages);
   const seanceOuverte = useCaissesOuvertes();
   const coffreSeMontre = coffreOuvert(reglages.codeCoffreHash, seanceOuverte);
   const masqueCoffre = (montant: number) => (coffreSeMontre ? fmtMoney(montant, currency) : '••• •••');

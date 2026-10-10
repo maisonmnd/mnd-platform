@@ -4,14 +4,13 @@ import { fmtIn } from '../../../../shared/currency';
 import { useStaff as useMaTete } from '../../../../shared/auth';
 import { uid } from '../../../../shared/store';
 import {
-  aValider as aValiderDepenses, cashboxCurrency, coffreStore, expenseTotal, expensesStore, soumission, useExpenseCategories, useExpenses,
+  aValider as aValiderDepenses, cashboxCurrency, coffreStore, expenseTotal, expensesStore, soumission, useEntreesHorsActivite, useExpenseCategories, useExpenses,
   type Cashbox, type Expense, type PieceJointe,
 } from '../../../../shared/finance';
-import { CAISSE_POURBOIRES } from '../../../../shared/receipts';
 import { cloturesStore, useClotures } from '../../../../shared/caisse-du-soir';
 import {
-  COUPURES, attenduDuTiroir, derniereCloture, fondPropose, jourPropose, nouvelleCloture, pourquoiOnNeCloturePas, pourquoiPasCeJour,
-  sommeDuBilletage, surplusAuCoffre, tiroirsSansCloture, type Cloture,
+  COUPURES, attenduDuTiroir, derniereCloture, fondPropose, jourPropose, livreDeLaCloture, nouvelleCloture, pourquoiOnNeCloturePas, pourquoiPasCeJour,
+  sommeDuBilletage, surplusAuCoffre, tiroirsQuiSeComptent, tiroirsSansCloture, versementParDefaut, type Cloture,
 } from '../../../../shared/caisse-du-soir-pur';
 import { useCaisses } from './tiroirs';
 import { ChampDeDate } from '../../../../ds/dates';
@@ -62,6 +61,7 @@ export function ClotureDuTiroir({ onClose, tiroir: tiroirDemande, jour: jourDema
   const { branch, currency, branchBoxes } = caisses;
   const [clotures] = useClotures();
   const [expenses] = useExpenses();
+  const [horsActivite] = useEntreesHorsActivite();
   const registre = useRegistreEncaissements();
   const me = useMaTete();
   const moi = me?.name?.trim() || 'Sans nom';
@@ -69,10 +69,13 @@ export function ClotureDuTiroir({ onClose, tiroir: tiroirDemande, jour: jourDema
   /* Les tiroirs qui se comptent : ni le bocal des pourboires (l'argent des
      mains), ni KkiaPay (l'argent vit chez le prestataire), ni ce qui est
      hors bilan. */
-  const tiroirs = branchBoxes.filter((b) => b.name !== CAISSE_POURBOIRES && b.name !== 'KkiaPay' && !b.horsBilan);
+  const tiroirs = tiroirsQuiSeComptent(branchBoxes, branch.id);
   const aClore = useMemo(() => new Set(tiroirsSansCloture({
     branchId: branch.id, date: jour, registre, depenses: expenses, clotures,
-  })), [branch.id, jour, registre, expenses, clotures]);
+    /* Une sortie hors activité fait bouger le tiroir sans passer au
+       registre (10 octobre 2026) : voir `tiroirsSansCloture`. */
+    horsActivite,
+  })), [branch.id, jour, registre, expenses, clotures, horsActivite]);
   const ceJour = jour === aujourdhui ? 'aujourd’hui' : jour === veilleDe(aujourdhui) ? 'hier' : 'ce jour-là';
   const [choisi, setChoisi] = useState<string | null>(tiroirDemande ?? null);
   const box = tiroirs.find((b) => b.name === choisi);
@@ -159,7 +162,13 @@ function Comptage({ box, jour, aujourdhui, moi, role, clotures, expenses, caisse
     .filter((e) => e.cashbox === box.name && !e.avancee && e.date <= jour)
     .reduce((n, e) => n + expenseTotal(e), 0);
   const livreMaintenant = duJour.balance - enAttente;
-  const derniere = derniereCloture(clotures, branch.id, box.name, jour);
+  /* Une clôture d'avant le 10 octobre 2026 a retenu un livre sans le hors
+     activité du tiroir : on le remet à la même mesure que celui de ce soir,
+     sinon l'écart d'un prélèvement déjà compté reviendrait (`livreDeLaCloture`). */
+  const derniereBrute = derniereCloture(clotures, branch.id, box.name, jour);
+  const derniere = derniereBrute
+    ? { ...derniereBrute, livreXof: livreDeLaCloture(derniereBrute, caisses.horsActiviteJusquAu(box.name, derniereBrute.date)) }
+    : undefined;
   const attendu = attenduDuTiroir({ livreMaintenantXof: livreMaintenant, derniere });
   const horsBorne = pourquoiPasCeJour({ clotures, branchId: branch.id, cashbox: box.name, jour, aujourdhui });
 
@@ -183,8 +192,12 @@ function Comptage({ box, jour, aujourdhui, moi, role, clotures, expenses, caisse
   const fond = Math.max(0, nombre(fondTexte) ?? 0);
   const surplus = compte === null ? 0 : surplusAuCoffre(compte, fond);
   const [versement, setVersement] = useState<boolean | null>(null);
-  /* Proposé, jamais imposé : un tiroir Mobile Money ne se vide pas au coffre. */
-  const verse = !enDevise && (versement ?? surplus > 0) ? surplus : 0;
+  /* Proposé, jamais imposé : un tiroir Mobile Money ne se vide pas au coffre.
+     Le code disait le contraire de ce commentaire jusqu'au 10 octobre 2026 :
+     sans geste, tout tiroir en francs versait son surplus. Seul un tiroir
+     d'espèces part coché désormais (`versementParDefaut`). */
+  const coche = versement ?? versementParDefaut(box);
+  const verse = !enDevise && coche && surplus > 0 ? surplus : 0;
 
   /* « C'ÉTAIT UNE DÉPENSE » */
   const [depOuverte, setDepOuverte] = useState(false);
@@ -372,7 +385,7 @@ function Comptage({ box, jour, aujourdhui, moi, role, clotures, expenses, caisse
               </label>
               {surplus > 0 && (
                 <label>
-                  <input type="checkbox" checked={versement ?? true} onChange={(e) => setVersement(e.target.checked)} />
+                  <input type="checkbox" checked={coche} onChange={(e) => setVersement(e.target.checked)} />
                   Verser le surplus au coffre : {f(surplus)}
                 </label>
               )}

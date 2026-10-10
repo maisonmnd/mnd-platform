@@ -21,6 +21,7 @@ import {
   useCashboxes, useExpenses, useDepensesComptees, enAttenteSurLaCaisse, useInvoices, useCoffre, useCredits, useTransferts,
   cashboxCurrency, expenseTotal, invoiceReglements, transfertSurCaisse,
   caisseDiscrete, empreinteDuCode, caissesHorsBilan, surLeTiroir, montantMuet,
+  useEntreesHorsActivite, horsActiviteDuTiroir, soldeHorsActiviteDuTiroir, signeSurLeTiroir, sensDe,
   type Cashbox,
   type Invoice, type Expense, type CoffreMovement, type CreditMovement,
 } from '../../../../shared/finance';
@@ -267,6 +268,17 @@ export function useCaisses(month: string) {
   const pretsMouvements = (name: string, keep: (mk: string) => boolean) =>
     prets.filter((p) => p.branchId === branch.id && p.cashbox === name && keep(monthKey(p.date)));
 
+  /* LES MOUVEMENTS HORS ACTIVITÉ BOUGENT LEUR TIROIR — 10 octobre 2026 (revue).
+     Prêt reçu, apport, échéance rendue, prélèvement et remboursement de
+     l'associé nomment tous leur caisse, mais aucun solde ne les lisait : la
+     caisse ne montait pas au prêt, ne perdait que les intérêts à l'échéance
+     (« la caisse perd le total », dit pourtant `rendUneEcheance`), et la
+     clôture du soir attendait l'argent d'un prélèvement déjà sorti. Une
+     entrée monte, une sortie descend. Voir `soldeHorsActiviteDuTiroir`. */
+  const [horsActivite] = useEntreesHorsActivite();
+  const horsActiviteDeCaisse = (name: string, keep: (mk: string) => boolean): number =>
+    soldeHorsActiviteDuTiroir(horsActivite, branch.id, name, keep, deviseDuTiroir(name), currency);
+
   const avoirsMouvements = (name: string, keep: (mk: string) => boolean) =>
     creditMvts.filter((m) => m.branchId === branch.id && m.cashbox === name
       && (m.kind === 'depot' || m.kind === 'remboursement') && keep(monthKey(m.date)));
@@ -318,7 +330,8 @@ export function useCaisses(month: string) {
        s’en trouvait faux. */
     const out = boxExpenses(name).filter((e) => keep(monthKey(e.date)))
       .reduce((s, e) => s + surLeTiroir({ amountXof: expenseTotal(e), fx: e.fx }, boxCur, currency), 0);
-    return (box?.openingXof ?? 0) + inn - out - boxRemboursements(name, keep) - verseAuCoffre(name, keep) + avoirsDeCaisse(name, keep) + pretsDeCaisse(name, keep) + transfertsDeCaisse(name, keep);
+    return (box?.openingXof ?? 0) + inn - out - boxRemboursements(name, keep) - verseAuCoffre(name, keep) + avoirsDeCaisse(name, keep) + pretsDeCaisse(name, keep) + transfertsDeCaisse(name, keep)
+      + horsActiviteDeCaisse(name, keep);
   };
   /** Solde à la FIN du mois affiché (c'est « à ce jour » quand on est sur le mois courant). */
   const boxBalance = (name: string) => boxBalanceWhere(name, (mk) => mk <= month);
@@ -343,7 +356,12 @@ export function useCaisses(month: string) {
       + verseAuCoffre(name, (mk) => mk === month)
       + avoirs.filter((m) => m.kind === 'remboursement').reduce((s, m) => s + dans(m), 0)
       + p.filter((x) => x.type === 'pret').reduce((s, x) => s + dans(x), 0);
-    return { inn, out };
+    /* Le flux du mois dit aussi les mouvements hors activité, chacun de son côté. */
+    const hors = horsActiviteDuTiroir(horsActivite, branch.id, name, (mk) => mk === month);
+    return {
+      inn: inn + hors.filter((m) => sensDe(m) === 'entree').reduce((s, m) => s + dans(m), 0),
+      out: out + hors.filter((m) => sensDe(m) === 'sortie').reduce((s, m) => s + dans(m), 0),
+    };
   };
   /* La trésorerie ne somme QUE les caisses de la maison : additionner des euros
      à des francs donnerait un nombre qui ne veut rien dire. Les caisses en
@@ -501,12 +519,33 @@ export function useCaisses(month: string) {
         transfertId: t.id as string | undefined,
       }));
 
-    const bruts = [...inn, ...out, ...avoirs, ...versements, ...lesPrets, ...lesTransferts]
+    /* Le relevé DIT les mouvements hors activité que le solde compte depuis le
+       10 octobre 2026 : sans ces lignes, « solde au début + mouvements » ne
+       tomberait plus sur le solde affiché, et la clôture du soir non plus. */
+    const horsDuTiroir = horsActiviteDuTiroir(horsActivite, branch.id, name, dansLaPeriode).map((m) => ({
+      date: m.date,
+      label: `${m.motif} · ${m.label}`,
+      sub: [sensDe(m) === 'entree' ? 'Entrée hors activité' : 'Sortie hors activité', m.fichier ? 'pièce jointe' : null,
+        montantMuet(m, boxCur, currency) ? `montant en ${boxCur} non renseigné` : null].filter(Boolean).join(' · '),
+      delta: signeSurLeTiroir(m, boxCur, currency),
+      invoiceId: undefined as string | undefined,
+      expense: undefined as Expense | undefined,
+      transfertId: undefined as string | undefined,
+    }));
+
+    const bruts = [...inn, ...out, ...avoirs, ...versements, ...lesPrets, ...lesTransferts, ...horsDuTiroir]
       .sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
     if (periode) {
-      const dedans = bruts.filter((m) => m.date >= periode.de && m.date <= periode.a);
+      /* LE JOUR, PAS L'HEURE — 10 octobre 2026 (revue). Un mouvement daté en
+         ISO complet (« 2026-10-10T13:22:11.000Z », la carte cadeau vendue au
+         comptoir, KkiaPay) est plus grand que « 2026-10-10 » : la période d'un
+         jour le rejetait, et le solde de départ aussi. La clôture du jour
+         voyait alors un faux excédent du montant de la carte. On compare les
+         dix premiers caractères. */
+      const jour = (m: { date: string }) => m.date.slice(0, 10);
+      const dedans = bruts.filter((m) => jour(m) >= periode.de && jour(m) <= periode.a);
       const debutDeLaPeriode = boxBalanceWhere(name, (mk) => mk < mDe)
-        + bruts.filter((m) => m.date < periode.de).reduce((s, m) => s + m.delta, 0);
+        + bruts.filter((m) => jour(m) < periode.de).reduce((s, m) => s + m.delta, 0);
       return {
         boxCur,
         startBalance: debutDeLaPeriode,
@@ -532,8 +571,19 @@ export function useCaisses(month: string) {
   const horsBilan = branchBoxes.filter((b) => b.horsBilan).length;
   const discretesFermees = branchBoxes.filter((b) => caisseDiscrete(b) && !ouvertesMaintenant.has(b.id)).length;
 
+  /** Le hors activité d'un tiroir jusqu'au jour dit, compris, selon les règles
+      du solde (le départ, sauf pour une ancienne). La clôture du soir s'en sert
+      pour remettre à la même mesure le livre d'une clôture d'avant le
+      10 octobre 2026 (voir `livreDeLaCloture`). */
+  const horsActiviteJusquAu = (name: string, jour: string): number => {
+    const ancienne = !!boxOf(name)?.jusquAu;
+    return horsActiviteDuTiroir(horsActivite, branch.id, name, (mk) => ancienne || dansLesComptes(mk, depuis))
+      .filter((m) => m.date.slice(0, 10) <= jour)
+      .reduce((s, m) => s + signeSurLeTiroir(m, deviseDuTiroir(name), currency), 0);
+  };
+
   return {
-    branch, currency, branchBoxes, depuis,
+    branch, currency, branchBoxes, depuis, horsActiviteJusquAu,
     boxOf, boxBalance, boxBalanceStart, boxMonthFlux, boxMoves, treasury,
     tresorerieVisible, anciennesTotal, discretesFermees, horsBilan, ouvertes: ouvertesMaintenant,
     exclues: caissesHorsBilan(branchBoxes, branch.id),

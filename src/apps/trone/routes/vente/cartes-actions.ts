@@ -1,4 +1,5 @@
 import { creditMovementsStore, type CreditHolder } from '../../../../shared/finance';
+import { jourLocal } from '../../../../shared/paliers';
 import {
   cartesCadeauxStore, creditDeLaCarte, genereCode, aleaDuNavigateur, valableJusquau, rattacheLeCredit,
   pourquoiOnNeRattachePas, VALIDITE_MOIS, type CarteCadeau,
@@ -24,7 +25,13 @@ function codeNeuf(): string {
 export function encaisseLaCarte(c: CarteCadeau, o: { montantXof: number; cashbox: string; methode: string }): string {
   const maintenant = new Date().toISOString();
   const code = codeNeuf();
-  const credit = creditDeLaCarte(c, { montantXof: o.montantXof, cashbox: o.cashbox, methode: o.methode, date: maintenant, code });
+  /* LE DÉPÔT SE DATE DU JOUR LOCAL — 10 octobre 2026 (revue). Daté en ISO
+     complet, il sortait de la période d'un jour de la clôture du soir (« 2026-
+     10-10T13:22Z » est plus grand que « 2026-10-10 ») : faux excédent le jour
+     de la vente, puis retour le lendemain. Et l'horodatage UTC rangeait une
+     vente de minuit et demie à la veille. L'heure exacte reste sur la carte
+     (`payeLe`). */
+  const credit = creditDeLaCarte(c, { montantXof: o.montantXof, cashbox: o.cashbox, methode: o.methode, date: jourLocal(), code });
   creditMovementsStore.set((prev) => (prev.some((m) => m.id === credit.id) ? prev : [...prev, credit]));
   change(c.id, (x) => ({
     ...x, statut: 'reglee', montantXof: o.montantXof, code, valableJusquau: valableJusquau(maintenant),

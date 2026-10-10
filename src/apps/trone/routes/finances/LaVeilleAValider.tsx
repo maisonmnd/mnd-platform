@@ -1,9 +1,9 @@
 import { useMemo, useState } from 'react';
 import { fmtIn } from '../../../../shared/currency';
 import { useStaff as useMaTete } from '../../../../shared/auth';
-import { cashboxCurrency, useCashboxes, useExpenses } from '../../../../shared/finance';
+import { cashboxCurrency, useCashboxes, useEntreesHorsActivite, useExpenses } from '../../../../shared/finance';
 import { cloturesStore, useClotures } from '../../../../shared/caisse-du-soir';
-import { aValider, pourquoiOnNeValidePas, tiroirsSansCloture, type Cloture } from '../../../../shared/caisse-du-soir-pur';
+import { aValider, pourquoiOnNeValidePas, tiroirsQuiSeComptent, tiroirsSansCloture, type Cloture } from '../../../../shared/caisse-du-soir-pur';
 import { useBranch } from '../../../../shared/branches';
 import { useRegistreEncaissements, todayISO } from './_shared';
 import { ClotureDuTiroir } from './ClotureDuTiroir';
@@ -33,6 +33,7 @@ export function LaVeilleAValider() {
   const [clotures] = useClotures();
   const [boxes] = useCashboxes();
   const [expenses] = useExpenses();
+  const [horsActivite] = useEntreesHorsActivite();
   const registre = useRegistreEncaissements();
   const [ouvert, setOuvert] = useState<string | null>(null);
   const [reprise, setReprise] = useState<string | null>(null);
@@ -43,9 +44,15 @@ export function LaVeilleAValider() {
 
   const veille = hier(todayISO());
   const ecarts = useMemo(() => aValider(clotures, branch.id), [clotures, branch.id]);
+  /* Seuls les tiroirs que la fenêtre de clôture laisse compter (10 octobre
+     2026) : une caisse hors bilan qui a bougé hier n'est pas un oubli. */
   const oublies = useMemo(() => tiroirsSansCloture({
     branchId: branch.id, date: veille, registre, depenses: expenses, clotures,
-  }), [branch.id, veille, registre, expenses, clotures]);
+    seComptent: new Set(tiroirsQuiSeComptent(boxes, branch.id).map((b) => b.name)),
+    /* Un prélèvement de l'associé, seul mouvement de la veille, est un oubli
+       à signaler : il n'entre pas au registre (10 octobre 2026). */
+    horsActivite,
+  }), [branch.id, veille, registre, expenses, clotures, boxes, horsActivite]);
 
   if (!voit || (ecarts.length === 0 && oublies.length === 0)) return null;
 

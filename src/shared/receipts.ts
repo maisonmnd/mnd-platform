@@ -1,4 +1,4 @@
-import { invoiceReglements, type Invoice, type Payment as OnlinePayment, type CreditMovement } from './finance';
+import { invoiceReglements, sensDe, type Invoice, type Payment as OnlinePayment, type CreditMovement } from './finance';
 import type { Appointment, ApptPayment } from './agenda';
 
 /* Le registre des encaissements — TOUT ce que la Maison reçoit, d'où que ça vienne.
@@ -190,6 +190,8 @@ export type ReceiptSources = {
   horsActivite?: {
     id: string; branchId: string; date: string; motif: string;
     label: string; amountXof: number; cashbox: string;
+    /** ABSENT = entrée (les lignes du premier jour). Voir `sensDe`. */
+    sens?: 'entree' | 'sortie';
   }[];
 };
 
@@ -360,8 +362,13 @@ export function buildReceipts(s: ReceiptSources): Receipt[] {
      parce que le registre mesure la TRÉSORERIE — et parce qu'une dépense
      doit pouvoir les désigner comme source, sinon cet argent serait dans le
      tiroir sans pouvoir en sortir. */
+  /* UNE SORTIE N'EST PAS UN ENCAISSEMENT — 10 octobre 2026 (revue). Le même
+     magasin porte les deux sens depuis le second passage : l'échéance rendue
+     et le prélèvement de l'associé entraient ici comme de l'argent REÇU, et
+     gonflaient Encaissements, la clôture et le revenu du jour. Le registre ne
+     garde que les entrées ; les sorties se lisent à la Synthèse et au tiroir. */
   for (const e of s.horsActivite ?? []) {
-    if (e.branchId !== s.branchId || !(e.amountXof > 0)) continue;
+    if (e.branchId !== s.branchId || !(e.amountXof > 0) || sensDe(e) !== 'entree') continue;
     out.push({
       id: `r-hors-${e.id}`,
       kind: 'hors-activite',

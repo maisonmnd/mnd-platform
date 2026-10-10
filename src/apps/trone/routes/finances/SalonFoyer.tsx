@@ -8,7 +8,7 @@ import { useStaff } from '../../../../shared/auth';
 import { useAppointments } from '../../../../shared/agenda';
 import { useClients } from '../../../../shared/clients';
 import {
-  useInvoices, usePayments, useCredits, useDepensesComptees, useCoffre, coffreBalance,
+  useInvoices, usePayments, useCredits, useDepensesComptees, useCoffre, soldeDuCoffre,
   expenseOccurrences, expenseTotal, type CoffreMovement, usePorteurs, ajouteUnPorteur } from '../../../../shared/finance';
 import { useApprenants, useSubscribers } from '../equipe/data';
 import { buildReceipts } from '../../../../shared/receipts';
@@ -1540,7 +1540,7 @@ export default function SalonFoyer() {
               <div className="v">{fmtMoney(soldeReinvest + soldeFiscale, currency)}</div>
               <div className="c">
                 à l'abri · le coffre entier vaut {coffreSeMontre
-                  ? fmtMoney(coffreBalance(coffre.filter((m) => m.branchId === branch.id)), currency)
+                  ? fmtMoney(soldeDuCoffre(coffre.filter((m) => m.branchId === branch.id), reglages), currency)
                   : '••• •••'}
               </div>
             </div>
@@ -2174,7 +2174,7 @@ export default function SalonFoyer() {
                 <ChampDeDate compact sens="arriere" value={cfgForm.debut} onChange={(iso) => setFCfg({ ...cfgForm, debut: iso })} />
               </Field>
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                <button className="trf-act trf-act--ghost" onClick={() => setFCfg({ ...cfgForm, debut: new Date().toISOString().slice(0, 10) })}>Compter à partir d’aujourd’hui</button>
+                <button className="trf-act trf-act--ghost" onClick={() => setFCfg({ ...cfgForm, debut: todayISO() })}>Compter à partir d’aujourd’hui</button>
                 {cfgForm.debut && <button className="trf-act trf-act--ghost" onClick={() => setFCfg({ ...cfgForm, debut: '' })}>Depuis toujours</button>}
               </div>
               <div className="mnd-muted" style={{ fontSize: 12.5, lineHeight: 1.55, gridColumn: '1 / -1' }}>
