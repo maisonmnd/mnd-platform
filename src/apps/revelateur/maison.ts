@@ -102,6 +102,17 @@ export function heuresDeLaMaison(): Promise<HeuresDeLaMaison> {
   return heures;
 }
 
+/** LE CHOIX DE LA MAISON — 10 octobre 2026 : les clés des avis cochés au
+    Trône, lues dans `mnd_vitrine_config` (lisible sans compte). Une lecture
+    ratée rend un choix vide : le site montre alors les avis de Google. */
+export async function avisChoisis(): Promise<string[]> {
+  const supabase = await client();
+  if (!supabase) return [];
+  const { data } = await supabase.from('documents').select('data').eq('key', 'mnd_vitrine_config').maybeSingle();
+  const liste = (data as { data?: { avisChoisis?: unknown } } | null)?.data?.avisChoisis;
+  return Array.isArray(liste) ? liste.filter((c): c is string => typeof c === 'string') : [];
+}
+
 export async function avisGoogle(): Promise<AvisGoogle | null> {
   const supabase = await client();
   if (!supabase) return null;

@@ -10,6 +10,11 @@ import { supabase } from '../../../../shared/supabase';
 import { jourCourtAn } from '../../../../shared/calendrier';
 import { EditeurDuSite } from './EditeurDuSite';
 import { useBrouillonDuSite, changementsEnAttente } from '../../../../shared/site-retouches-store';
+import { useStore } from '../../../../shared/store';
+import { vitrineConfigStore } from '../../../../shared/bridges';
+import {
+  avisAMontrer, basculeLeChoix, choixDisparus, cleDeLAvis, deplaceLeChoix, mentionDuTri, type UnAvisGoogle,
+} from '../../../../shared/avis-google-pur';
 
 /* ══ LE SITE PUBLIC, VU DU TRÔNE — 4 octobre 2026 ═════════════════════
    « Cette page ne sert absolument à rien. Mettre le site public sur cette
@@ -102,20 +107,80 @@ function usePagesDuSite(): string[] {
   return pages;
 }
 
-/** Les avis Google relevés pour le site. */
-function useAvisGoogle(): { note: number; nombre: number; le?: string } | null {
-  const [avis, setAvis] = useState<{ note: number; nombre: number; le?: string } | null>(null);
+/** Les avis Google relevés pour le site, avec la liste du moment (10 octobre
+    2026 : la Maison y choisit ceux que le site montre). */
+function useAvisGoogle(): { note: number; nombre: number; le?: string; avis: UnAvisGoogle[] } | null {
+  const [avis, setAvis] = useState<{ note: number; nombre: number; le?: string; avis: UnAvisGoogle[] } | null>(null);
   useEffect(() => {
     let vivant = true;
     if (!supabase) return;
     void supabase.from('documents').select('data,updated_at').eq('key', 'mnd_avis_google').maybeSingle()
       .then(({ data }) => {
-        const d = (data as { data?: { note?: number; nombre?: number }; updated_at?: string } | null);
-        if (vivant && d?.data && Number(d.data.note) > 0) setAvis({ note: Number(d.data.note), nombre: Number(d.data.nombre) || 0, le: d.updated_at });
+        const d = (data as { data?: { note?: number; nombre?: number; avis?: UnAvisGoogle[] }; updated_at?: string } | null);
+        const liste = Array.isArray(d?.data?.avis) ? d.data.avis.filter((a) => a && typeof a.auteur === 'string' && typeof a.texte === 'string') : [];
+        if (vivant && d?.data && Number(d.data.note) > 0) setAvis({ note: Number(d.data.note), nombre: Number(d.data.nombre) || 0, le: d.updated_at, avis: liste });
       });
     return () => { vivant = false; };
   }, []);
   return avis;
+}
+
+/* ══ LES AVIS GOOGLE QUE LE SITE MONTRE — 10 octobre 2026 ═══════════════
+   « Je veux avoir la possibilité de les sélectionner, pas de mettre les
+   derniers sur mon site en permanence » (Yéman). On coche parmi les avis du
+   moment (cinq au plus, relus deux fois par jour) ; rien de coché, le site
+   montre ceux de Google. Le juge et la mention vivent dans
+   shared/avis-google-pur, le même module que le site. */
+function ChoixDesAvis({ avis }: { avis: UnAvisGoogle[] | null }) {
+  const [cfg] = useStore(vitrineConfigStore);
+  const choisis = cfg.avisChoisis ?? [];
+  const pose = (liste: string[]) => vitrineConfigStore.set((c) => ({ ...c, avisChoisis: liste }));
+  const tous = avis ?? [];
+  const vue = avisAMontrer(tous, choisis);
+  const disparus = choixDisparus(choisis, tous);
+  /* Les cochés d'abord, dans l'ordre du site, puis les autres dans celui de
+     Google : l'écran se lit comme la page. */
+  const rangs = tous.map((a, i) => ({ a, cle: cleDeLAvis(a), i }))
+    .map((x) => ({ ...x, rang: choisis.indexOf(x.cle) }))
+    .sort((x, y) => (x.rang >= 0 ? x.rang : 1000 + x.i) - (y.rang >= 0 ? y.rang : 1000 + y.i));
+  return (
+    <Bloc titre="Les avis Google du site" ou="Cochez ceux que le site montre, dans l’ordre de votre choix. Google en renvoie cinq au plus, relus deux fois par jour : un avis qu’il ne renvoie plus quitte le site, même coché. Rien de coché : le site montre ceux de Google.">
+      {!avis && <span className="mnd-muted" style={{ fontSize: 12.5 }}>Les avis ne sont pas encore relevés.</span>}
+      {rangs.map(({ a, cle, rang }) => (
+        <div key={cle} style={{ display: 'flex', gap: 10, alignItems: 'flex-start', borderTop: '1px solid var(--hairline)', paddingTop: 7 }}>
+          <input type="checkbox" checked={rang >= 0} onChange={() => pose(basculeLeChoix(choisis, cle))}
+            aria-label={`Montrer l’avis de ${a.auteur} sur le site`} style={{ marginTop: 3, flex: 'none' }} />
+          <span style={{ flex: 1, minWidth: 0, fontSize: 13 }}>
+            <span style={{ color: 'var(--color-copper)' }}>{'★'.repeat(Math.max(0, Math.min(5, Math.round(a.note))))}</span>{' '}
+            <b style={{ fontWeight: 600 }}>{a.auteur || 'Sans nom'}</b>
+            {a.quand ? <span className="mnd-muted"> · {a.quand}</span> : null}
+            <span className="mnd-muted" style={{ display: 'block', fontSize: 12, lineHeight: 1.45, marginTop: 2 }}>
+              {a.texte.length > 180 ? `${a.texte.slice(0, 177).trimEnd()}…` : a.texte}
+            </span>
+          </span>
+          {rang >= 0 && (
+            <span style={{ display: 'flex', gap: 4, alignItems: 'center', flex: 'none' }}>
+              <span className="mnd-muted" style={{ fontSize: 11.5, minWidth: 14, textAlign: 'right' }}>{rang + 1}</span>
+              <button type="button" className="trc-c360-linkbtn" disabled={rang === 0} aria-label="Monter"
+                onClick={() => pose(deplaceLeChoix(choisis, cle, -1))}>↑</button>
+              <button type="button" className="trc-c360-linkbtn" disabled={rang === choisis.length - 1} aria-label="Descendre"
+                onClick={() => pose(deplaceLeChoix(choisis, cle, 1))}>↓</button>
+            </span>
+          )}
+        </div>
+      ))}
+      {disparus.length > 0 && (
+        <Ligne gauche={disparus.length > 1 ? `${disparus.length} avis cochés que Google ne renvoie plus` : '1 avis coché que Google ne renvoie plus'}
+          sous="il ne s’affiche plus sur le site"
+          droite={<button type="button" className="trc-c360-linkbtn" onClick={() => pose(choisis.filter((c) => !disparus.includes(c)))}>Retirer</button>} />
+      )}
+      <span className="mnd-muted" style={{ fontSize: 11.5, lineHeight: 1.5 }}>
+        {vue.mode === 'choix'
+          ? `Le site montre ${vue.avis.length > 1 ? `ces ${vue.avis.length} avis` : 'cet avis'}, dans cet ordre, avec la mention « ${mentionDuTri('choix')} »`
+          : `Rien de coché : le site montre les avis de Google, avec la mention « ${mentionDuTri('google')} »`}
+      </span>
+    </Bloc>
+  );
 }
 
 export function VitrineSite({ catalogue }: { catalogue: ReactNode }) {
@@ -192,6 +257,8 @@ export function VitrineSite({ catalogue }: { catalogue: ReactNode }) {
           <Ligne gauche="Avis Google" sous={avis ? `${avis.note.toLocaleString('fr-FR')} · ${avis.nombre} avis${avis.le ? ` · relevé le ${jourCourtAn(avis.le.slice(0, 10))}` : ''}` : 'pas encore relevés'} droite={<span />} />
           <Ligne gauche="Cartes cadeaux payées en ligne" sous="KkiaPay" droite={<Lien vers="/cartes-cadeaux">Les cartes →</Lien>} />
         </Bloc>
+
+        <ChoixDesAvis avis={avis ? avis.avis : null} />
 
         <Bloc titre="Les pages du site" ou="Lues dans le plan du site. Pour changer un texte ou une photo : « Modifier les textes et photos », en haut.">
           {pages.length === 0 && <span className="mnd-muted" style={{ fontSize: 12.5 }}>Le plan du site n’a pas pu être lu (hors ligne ?).</span>}

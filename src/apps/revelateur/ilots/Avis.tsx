@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { avisGoogle, maison, type AvisGoogle } from '../maison';
+import { avisChoisis, avisGoogle, maison, type AvisGoogle } from '../maison';
+import { avisAMontrer, mentionDuTri } from '../../../shared/avis-google-pur';
 
 /* LES AVIS GOOGLE, TELS QUELS. « Insérer les avis Google » (Yéman).
 
@@ -17,13 +18,19 @@ const etoiles = (n: number): string => '★'.repeat(Math.round(Math.max(0, Math.
 export default function Avis() {
   const [avis, setAvis] = useState<AvisGoogle | null | undefined>(undefined);
   const [fiche, setFiche] = useState('');
+  const [choisis, setChoisis] = useState<string[]>([]);
   useEffect(() => {
     void avisGoogle().then(setAvis).catch(() => setAvis(null));
+    void avisChoisis().then(setChoisis).catch(() => setChoisis([]));
     void maison().then((m) => setFiche(m?.fiche ?? ''));
   }, []);
 
   const lienFiche = avis?.fiche || fiche || '';
   const lienEcrire = avis?.ecrire || LIEN_AVIS_DEFAUT;
+  /* LES AVIS QUE LA MAISON A CHOISIS — 10 octobre 2026 : ceux cochés au
+     Trône, encore renvoyés par Google, dans l'ordre de la Maison ; sinon
+     ceux de Google. La mention du tri est exigée par Google. */
+  const vue = avis ? avisAMontrer(avis.avis, choisis) : null;
 
   return (
     <div className="conteneur">
@@ -49,20 +56,21 @@ export default function Avis() {
         </div>
         {avis === null && <p className="legende" style={{ marginTop: 12 }}>Les avis de la Maison se lisent sur sa fiche Google.</p>}
       </div>
-      {avis && avis.avis.length > 0 && (
+      {vue && vue.avis.length > 0 && (
         <div className="avis-liste">
           {/* TOUS CEUX QUE GOOGLE DONNE — 17 septembre 2026 : « choisir au
               moins 5 avis » (Yéman). L'écran en coupait trois alors que les
               cinq étaient rangés. Google n'en rend jamais plus de cinq, c'est
               lui qui borne, pas nous : un nombre écrit ici en cacherait
               silencieusement d'autres le jour où il en donnerait davantage. */}
-          {avis.avis.map((a, i) => (
+          {vue.avis.map((a, i) => (
             <div className="avis-carte" key={i}>
               <span className="etoiles">{etoiles(a.note)}</span>
               <p>{a.texte.length > 280 ? a.texte.slice(0, 277).trimEnd() + '…' : a.texte}</p>
               <div className="qui">{a.photo ? <img src={a.photo} alt="" loading="lazy" /> : <i />}<span>{a.auteur}{a.quand ? ` · ${a.quand}` : ''}</span></div>
             </div>
           ))}
+          <p className="legende" style={{ gridColumn: '1 / -1', marginTop: 4 }}>{mentionDuTri(vue.mode)}</p>
         </div>
       )}
     </div>

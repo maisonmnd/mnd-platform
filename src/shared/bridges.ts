@@ -213,6 +213,12 @@ export type VitrineConfig = {
       `demande-submit` le RELIT pour refuser, sans quoi décocher ne serait
       qu'un décor. Le juge est `masquePourLeSite` (shared/catalogue-pur). */
   siteMasques?: { services?: string[]; categories?: string[] };
+  /** LES AVIS GOOGLE QUE LA MAISON MONTRE — 10 octobre 2026 : les clés
+      (`cleDeLAvis`, shared/avis-google-pur) des avis cochés au Trône, dans
+      l'ordre du site. Ici parce que ce document est déjà lisible sans
+      compte. Aucune clé ne garde de texte de Google. Vide : le site montre
+      les avis de Google. */
+  avisChoisis?: string[];
   /** LES FORMULES QU'ON NE MONTRE PAS — « je ne veux pas rendre visible tous
       les abonnements en ligne sur Ma Couronne » (Yéman, 28 août).
 
