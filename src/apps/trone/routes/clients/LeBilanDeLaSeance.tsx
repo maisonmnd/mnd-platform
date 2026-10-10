@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { toast } from '../../../../ds/components';
 import type { Appointment } from '../../../../shared/agenda';
 import type { Client } from '../../../../shared/clients';
@@ -62,6 +62,13 @@ export function LeBilanDeLaSeance({ appt, client, byId }: {
   const [enCours, setEnCours] = useState(false);
   const [fiche, setFiche] = useState<BrouillonDeBilan | null>(null);
   const [parLaMain, setParLaMain] = useState(false);
+  /* LA NOTE DU DERNIER RENDU — 10 octobre 2026, relecture. Pendant que
+     l'assistant rédige, les puces et les champs restent libres : une case
+     cochée là s'écrit aussitôt. Au retour, `rediger` reposait la note lue AU
+     CLIC et effaçait ces gestes, à l'écran et dans la table. Il repart
+     désormais de la note telle qu'elle est quand la réponse arrive. */
+  const noteVive = useRef(note);
+  noteVive.current = note;
 
   /* Une case se garde au geste ; un texte, quand on quitte le champ. */
   const garde = (n: NoteDeSeance) => {
@@ -106,7 +113,7 @@ export function LeBilanDeLaSeance({ appt, client, byId }: {
     setEnCours(true);
     try {
       const b = await demande('rediger');
-      garde({ ...note, brouillon: b, brouillonLe: new Date().toISOString() });
+      garde({ ...noteVive.current, brouillon: b, brouillonLe: new Date().toISOString() });
       setParLaMain(false);
       setFiche(b);
     } catch (e) {

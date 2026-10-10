@@ -57,10 +57,11 @@ export async function gesteDeLaSalle(id: string, geste: Geste, qui: string, regl
   return (data ?? []).length > 0 ? 'fait' : 'trop-tard';
 }
 
-/** « jeu. 8 oct. · 10 h » */
+/** « jeu. 8 oct. 2026 · 10 h ». L'année depuis le 10 octobre 2026, comme au
+    journal des envois : un rendez-vous retenu ici peut tomber l'an prochain. */
 const pourLeRdv = (date?: string, heure?: string): string => {
   if (!date) return '';
-  const jour = new Date(`${date}T12:00:00`).toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' });
+  const jour = new Date(`${date}T12:00:00`).toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
   return heure ? `${jour} · ${heureLisible(heure)}` : jour;
 };
 const heureDite = (iso?: string): string => {

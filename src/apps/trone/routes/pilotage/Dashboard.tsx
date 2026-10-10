@@ -940,7 +940,9 @@ export default function Dashboard() {
                 <span style={{ fontWeight: 500 }}>{d.prenom || 'Sans prénom'}</span>
                 <span className="mnd-muted" style={{ marginLeft: 10, fontSize: 12 }}>
                   {ditLeGenre(d.genre)} · {ditLeBesoin(d.besoin)}
-                  {d.date ? ` · le ${d.date.slice(8, 10)}/${d.date.slice(5, 7)}${d.time ? ` à ${d.time}` : ''}` : ''}
+                  {/* L'année aussi (10 octobre 2026) : une demande de décembre pour
+                      janvier se lisait comme une date passée. */}
+                  {d.date ? ` · le ${d.date.slice(8, 10)}/${d.date.slice(5, 7)}/${d.date.slice(0, 4)}${d.time ? ` à ${d.time}` : ''}` : ''}
                   {' · '}{telephoneMasque(d.telephone)} · {depuisQuand(d.createdAt)}
                 </span>
               </div>

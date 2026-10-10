@@ -278,10 +278,24 @@ export function recompensesAPoser(
     const deja = new Set([...(c.soinsOfferts ?? []), ...(c.avantLesDouzeLunes?.soinsRetires ?? [])].map((s) => s?.id));
     const neuves: SoinOffert[] = [];
     for (const f of venuesDe(l)) {
-      if (f.remisALaMain || deja.has(f.recompenseId)) continue;
+      if (f.remisALaMain) continue;
+      /* UNE AMIE, TOUS SES NOMS — 10 octobre 2026, relecture. Rattachée à la
+         main, l'amie vaut `parr-c-<fiche>` ; si sa demande du site rejoint
+         ensuite la même fiche (une demande de rappel convertie), la lignée
+         la renomme `parr-<demande>`, et ce nom neuf passait la garde : une
+         seconde récompense, et parfois un second merci WhatsApp. Elle est
+         désormais tenue pour récompensée sous n'importe lequel de ses noms,
+         ce qui suffit à ne rien reposer. Vue sous l'autre nom, sa demande
+         rejoint aussi les demandes à marquer (le Trône les marque au premier
+         passage qui pose une récompense) : le chemin se ferme pour de bon. */
+      const sesNoms = [f.recompenseId, ...(f.clientId ? [`parr-c-${f.clientId}`] : []), ...(f.demandeId ? [`parr-${f.demandeId}`] : [])];
+      if (sesNoms.some((n) => deja.has(n))) {
+        if (f.demandeId && !deja.has(f.recompenseId)) poses.demandesMarquees.push(f.demandeId);
+        continue;
+      }
       /* LA DATE MÉTIER : l'amie venue avant le lancement ne pose rien. */
       if (!f.venueLe || f.venueLe.slice(0, 10) < lance) continue;
-      deja.add(f.recompenseId);
+      for (const n of sesNoms) deja.add(n);
       /* LA BORNE ANTI-RAFALE DU REMERCIEMENT (9 octobre 2026) : le message
          ne part que pour une amie venue depuis que sa marraine est Graine.
          Venue AVANT (invitée par l'ancien code, décision 5), elle vaut

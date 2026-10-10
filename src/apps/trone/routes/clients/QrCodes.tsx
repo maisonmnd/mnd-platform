@@ -41,10 +41,10 @@ const escWifi = (s: string) => s.replace(/([\\;,:"])/g, '\\$1');
 /* ÉCHAPPEMENT HTML — défense en profondeur. La carte A5 se bâtit par
    concaténation de chaîne ; nom de la Maison, SSID, marchand MoMo et libellés
    viennent de documents SYNCHRONISÉS (mnd_house_identity, mnd_auto_config),
-   qu'un autre poste peut écrire via l'API. L'impression est aujourd'hui inerte
-   (`window.open('', ..., 'noopener')` rend `null`), mais si elle est réparée un
-   jour sans garde, un balisage glissé dans ces champs s'exécuterait en même
-   origine. On échappe donc à la source, comme le fait déjà public/payer.html. */
+   qu'un autre poste peut écrire via l'API. Depuis le 10 octobre 2026 la
+   fenêtre d'impression s'ouvre vraiment (voir `imprime`) et vit en même
+   origine que le Trône : un balisage glissé dans ces champs s'y exécuterait.
+   On échappe donc à la source, comme le fait déjà public/payer.html. */
 const escHtml = (s: string): string =>
   s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] as string));
 const wifiPayload = (ssid: string, pass: string) =>
@@ -108,9 +108,16 @@ const carteA5 = (o: { titre: string; sous: string; qr: string; grand?: string; s
 </body></html>`;
 };
 
+/* L'IMPRESSION QUI NE FAISAIT RIEN — 10 octobre 2026. On ouvrait avec
+   'noopener' : la spécification veut qu'alors window.open rende null, et la
+   fonction sortait sans un mot. « Carte A5 », « Imprimer l'affiche » et la
+   carte MoMo n'ont jamais imprimé. On ouvre donc SANS 'noopener', on écrit la
+   carte, puis on coupe le lien vers le Trône à la main (comme _piece.tsx). Un
+   vrai blocage du navigateur se dit, il ne se tait plus. */
 const imprime = (html: string) => {
-  const fen = window.open('', '_blank', 'noopener,width=520,height=760');
-  if (!fen) return;
+  const fen = window.open('', '_blank', 'width=520,height=760');
+  if (!fen) { toast('La fenêtre d’impression a été bloquée par le navigateur. Autorisez les fenêtres pour le Trône.'); return; }
+  fen.opener = null;
   fen.document.write(html);
   fen.document.close();
 };

@@ -193,3 +193,26 @@ export function publie(
     ...(publieAvant ? { precedent: avant } : {}),
   };
 }
+
+/** CE QUI RESTE AU BROUILLON APRÈS UNE PUBLICATION — 10 octobre 2026,
+    relecture. Le brouillon est partagé entre les postes. Publier le remettait
+    à zéro d'un bloc (`{ pages: {} }`) : une retouche arrivée d'un autre poste
+    pendant la confirmation n'était ni publiée ni gardée, elle disparaissait.
+    On ne retire plus que ce qui est PARTI, clé par clé et à la même valeur ;
+    une clé retouchée depuis (autre valeur) reste à publier, comme une photo
+    ajoutée depuis. */
+export function resteDuBrouillon<B extends { pages?: Record<string, RetouchesDePage>; photos?: LigneDuRegistre[] }>(
+  actuel: B,
+  parti: { pages?: Record<string, RetouchesDePage>; photos?: LigneDuRegistre[] },
+): { pages: Record<string, RetouchesDePage>; photos?: LigneDuRegistre[] } {
+  const pages: Record<string, RetouchesDePage> = {};
+  for (const [page, r] of Object.entries(actuel.pages ?? {})) {
+    const envoye = parti.pages?.[page] ?? {};
+    const reste: RetouchesDePage = {};
+    for (const [cle, v] of Object.entries(r)) if (!(cle in envoye) || envoye[cle] !== v) reste[cle] = v;
+    if (Object.keys(reste).length) pages[page] = reste;
+  }
+  const memePhoto = (a: LigneDuRegistre, b: LigneDuRegistre) => a.photo === b.photo && a.page === b.page && a.accordLe === b.accordLe;
+  const photos = (actuel.photos ?? []).filter((p) => !(parti.photos ?? []).some((q) => memePhoto(p, q)));
+  return { pages, ...(photos.length ? { photos } : {}) };
+}

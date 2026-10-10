@@ -50,10 +50,11 @@ const PERIODE_DITE: Record<FiltreDuJournal['jour'], string> = {
   aujourdhui: 'aujourd’hui', hier: 'hier', semaine: 'ces 7 derniers jours',
 };
 
-/** « jeu. 8 oct. · 10 h » */
+/** « jeu. 8 oct. 2026 · 10 h ». L'année depuis le 10 octobre 2026 : une
+    reprise ou un rappel vise parfois un rendez-vous de l'an prochain. */
 const pourLeRdv = (date?: string, heure?: string): string => {
   if (!date) return '';
-  const jour = new Date(`${date}T12:00:00`).toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' });
+  const jour = new Date(`${date}T12:00:00`).toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
   return heure ? `${jour} · ${heureLisible(heure)}` : jour;
 };
 
@@ -174,7 +175,7 @@ export function EnvoisAutomatiques({ onOuvrirLeFil }: { onOuvrirLeFil: (numero: 
                 <span style={{ fontFamily: 'var(--font-serif)', fontSize: 17, color: 'var(--color-indigo)' }}>{heure}</span>
                 {jour !== aujourdhui && (
                   <span className="mnd-muted" style={{ display: 'block', fontSize: 11 }}>
-                    {new Date(`${jour}T12:00:00`).toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' })}
+                    {new Date(`${jour}T12:00:00`).toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}
                   </span>
                 )}
               </div>

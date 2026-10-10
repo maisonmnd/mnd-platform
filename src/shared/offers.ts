@@ -171,7 +171,9 @@ export const SAISONS: readonly Saison[] = [
     code: 'RENTREE10', remise: 10, categories: [LAVAGES, REPRISES],
     parcours: 'entretien',
     conditions: 'Sur les lavages rituels et les reprises de racines. '
-      + 'Les prestations dont le prix se dit au salon ne sont pas remisées. '
+      /* « à la Maison », jamais « au salon » (10 octobre 2026) : ces
+         conditions se déplient sous la carte du site, la cliente les lit. */
+      + 'Les prestations dont le prix se dit à la Maison ne sont pas remisées. '
       + 'Une seule fois par personne, et une offre à la fois, au règlement à la Maison.',
   },
   {

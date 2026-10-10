@@ -31,10 +31,14 @@ import { appelDe } from '../../../../shared/civilite';
 
 const MODELE_DIT: Record<ModeleDeCarte, string> = { indigo: 'Indigo', ivoire: 'Ivoire', cuivre: 'Cuivre' };
 const ETAT_DIT = { 'sans-rdv': 'pas encore de rendez-vous', 'a-venir': 'rendez-vous à venir', venue: 'venue', annulee: 'rendez-vous annulé' } as const;
+/* L'ANNÉE AUSSI ICI (10 octobre 2026, relecture) : « utilisé le 3 oct. »,
+   « venue · 12 sept. » se lisaient sans l'année, alors qu'une marraine garde
+   ses filleules et ses soins d'une saison à l'autre. La règle des années vaut
+   pour toute date d'une cliente. */
 const dateCourte = (iso?: string) => {
   if (!iso) return '';
   const d = new Date(`${iso.slice(0, 10)}T12:00:00`);
-  return Number.isNaN(d.getTime()) ? iso : d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
+  return Number.isNaN(d.getTime()) ? iso : d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' });
 };
 const dateAvecAnnee = (iso: string) => {
   const d = new Date(`${iso.slice(0, 10)}T12:00:00`);

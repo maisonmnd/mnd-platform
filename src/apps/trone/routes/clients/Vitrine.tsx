@@ -23,6 +23,7 @@ import { autoConfigStore } from '../equipe/data';
 import { usePlans } from '../../../../shared/abonnements';
 import { seuilCliente } from '../../../../shared/echeancier';
 import { VitrineSite, BandeDeVitrine, Pastille } from './VitrineSite';
+import { tapisDuSite } from './tapis-du-site';
 import './clients.css';
 
 /* Les vitrines — le site public, Ma Couronne, la carte du comptoir : trois
@@ -175,8 +176,11 @@ export const imprimeCarteCouronne = () => {
   const lienCouronne = lienMaCouronne();
   {
     const { path, n } = qrMatrice(lienCouronne);
-    const fen = window.open('', '_blank', 'noopener,width=520,height=760');
-    if (!fen) return;
+    /* Sans 'noopener' (10 octobre 2026) : avec lui, window.open rend null et
+       la carte ne s'imprimait jamais. Le lien vers le Trône se coupe à la main. */
+    const fen = window.open('', '_blank', 'width=520,height=760');
+    if (!fen) { toast('La fenêtre d’impression a été bloquée par le navigateur. Autorisez les fenêtres pour le Trône.'); return; }
+    fen.opener = null;
     fen.document.write(`<!doctype html><html lang="fr"><head><meta charset="utf-8" />
 <title>Ma Couronne, carte d'invitation</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,500;1,400&family=Jost:wght@400;500;600&display=swap" />
@@ -376,13 +380,23 @@ function CatalogueEnVitrine({ client, portees }: { client?: ReturnType<typeof us
     () => catalogueVisiblePour({ cfg, masques: portee === 'cliente' ? client?.vitrineMasques : undefined, cats: categories, services, products }),
     [cfg, client, categories, services, products, portee],
   );
+  /* LE SITE A SON PROPRE JUGE (10 octobre 2026, relecture) : le tapis du
+     site public se compose comme le serveur juge une place (`tapisDuSite`,
+     `siteMasques` seuls, sans produit), et non par les masques de Ma
+     Couronne. Le compte des pièces éteintes suit le même périmètre. */
+  const surLeSite = useMemo(
+    () => (portee === 'site' ? tapisDuSite(services, catsDansLOrdre(categories), cfg.siteMasques) : null),
+    [portee, services, categories, cfg.siteMasques],
+  );
   const carpet = useMemo(
-    () => [...sonCatalogue.services.map((x) => x.name), ...sonCatalogue.products.map((x) => x.name)],
-    [sonCatalogue],
+    () => (surLeSite
+      ? surLeSite.map((x) => x.name)
+      : [...sonCatalogue.services.map((x) => x.name), ...sonCatalogue.products.map((x) => x.name)]),
+    [sonCatalogue, surLeSite],
   );
 
   const onCount = carpet.length;
-  const offCount = services.length + products.length - onCount;
+  const offCount = (surLeSite ? services.length : services.length + products.length) - onCount;
 
   const byCat = (catId: string) => ({
     services: services.filter((s) => s.categoryId === catId).sort((a, b) => a.order - b.order),

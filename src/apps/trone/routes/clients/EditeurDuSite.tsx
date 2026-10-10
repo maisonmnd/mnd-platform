@@ -4,7 +4,7 @@ import { supabase } from '../../../../shared/supabase';
 import { identiteCourante } from '../../../../shared/journal';
 import { ACCUEIL, PAGES } from '../../../revelateur/contenu';
 import {
-  PAGE_ACCUEIL, PAGE_PROTEGEE, bloquants, champsDeLaPage, gardesDuTexte, publie,
+  PAGE_ACCUEIL, PAGE_PROTEGEE, bloquants, champsDeLaPage, gardesDuTexte, publie, resteDuBrouillon,
   type Champ, type RetouchesDePage,
 } from '../../../../shared/site-retouches';
 import {
@@ -154,9 +154,16 @@ export function EditeurDuSite({ onClose }: { onClose: () => void }) {
       accepter: 'Publier',
       refuser: 'Pas encore',
     })) return;
+    /* LE BROUILLON TEL QU'IL EST APRÈS LA CONFIRMATION (10 octobre 2026),
+       pas celui du rendu : un autre poste a pu y écrire pendant qu'elle était
+       ouverte. Il se rejuge, part entier, et seul ce qui est parti s'en
+       retire (`resteDuBrouillon`), jamais le brouillon d'un bloc. */
+    const parti = brouillonDuSiteStore.get();
+    const bloqueAuDepart = bloquants(parti.pages ?? {});
+    if (bloqueAuDepart.length) { toast(bloqueAuDepart[0].dit); return; }
     setEnvoi('publication');
-    publieDuSiteStore.set((p) => publie(p, brouillon.pages ?? {}, new Date().toISOString(), identiteCourante().nom, brouillon.photos ?? []));
-    brouillonDuSiteStore.set({ pages: {} });
+    publieDuSiteStore.set((p) => publie(p, parti.pages ?? {}, new Date().toISOString(), identiteCourante().nom, parti.photos ?? []));
+    brouillonDuSiteStore.set((b) => resteDuBrouillon(b, parti));
     setEnvoi('');
     await refabrique();
   };

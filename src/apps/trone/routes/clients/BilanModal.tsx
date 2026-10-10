@@ -16,7 +16,7 @@ import { INGREDIENTS_DU_BILAN, nomDeLIngredient } from '../../../../shared/bilan
 import { annonceLeBilan, donneesDuBilanPdf, envoieLeBilan } from '../../../../shared/bilan-document';
 import { useAuth } from '../../../../shared/auth';
 import { appelDe } from '../../../../shared/civilite';
-import { apptLabel, frShort, todayISO } from './_shared';
+import { apptLabel, frShortAn, todayISO } from './_shared';
 import { ChampDeDate } from '../../../../ds/dates';
 
 /* LA REMISE D'UN BILAN — le Carnet de Suivi s'écrit ICI.
@@ -228,7 +228,7 @@ export function BilanModal({ client, honored, byId, branchId, onClose, seance, b
           : (
             <div className="mnd-muted" style={{ fontSize: 12, lineHeight: 1.5 }}>
               {precedent
-                ? `Pré-rempli du bilan ${precedent.numero} (${frShort(precedent.date)}), la couronne s'évalue dans la continuité.`
+                ? `Pré-rempli du bilan ${precedent.numero} (${frShortAn(precedent.date)}), la couronne s'évalue dans la continuité.`
                 : 'Premier bilan de cette couronne, les Quatre Temps partent de la voix de la maison.'}
             </div>
           )}
@@ -441,7 +441,7 @@ export function RegistreDesBilans({ client, onClose }: { client: Client; onClose
                 <div>
                   <div style={{ fontFamily: 'var(--font-serif)', fontSize: 15, color: 'var(--color-indigo)' }}>{b.numero}</div>
                   <div className="mnd-muted" style={{ fontSize: 12 }}>
-                    Séance du {frShort(b.date)}{b.prestation ? ` · ${b.prestation}` : ''} · signé {b.praticien ?? 'la Maison'}, remis le {frShort(b.remisLe)}
+                    Séance du {frShortAn(b.date)}{b.prestation ? ` · ${b.prestation}` : ''} · signé {b.praticien ?? 'la Maison'}, remis le {frShortAn(b.remisLe)}
                   </div>
                 </div>
                 <div style={{ display: 'flex', gap: 6 }}>

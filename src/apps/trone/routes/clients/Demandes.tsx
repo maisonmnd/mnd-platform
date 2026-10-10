@@ -51,10 +51,12 @@ const STATUT_DIT: Record<StatutDeLaDemande, { mot: string; classe: string }> = {
 };
 
 /** Le lundi de cette semaine, à minuit, en millisecondes. */
-/** « mercredi 24 septembre, 10:00 » — la place qu'une visiteuse a prise. */
+/** « mercredi 24 septembre 2026, 10:00 » — la place qu'une visiteuse a prise.
+    L'année depuis le 10 octobre 2026 : la file garde les demandes traitées et
+    écartées, et une place prise en décembre pour janvier se lisait passée. */
 const placeDite = (d: Demande): string => {
   if (!d.date || !d.time) return '';
-  const quand = new Date(`${d.date}T00:00:00`).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+  const quand = new Date(`${d.date}T00:00:00`).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
   return `${quand}, ${d.time}${d.master ? ` · ${d.master}` : ''}`;
 };
 

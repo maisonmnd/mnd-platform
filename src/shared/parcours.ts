@@ -103,7 +103,10 @@ export const PARCOURS_MND: ParcoursMND[] = [
       { nom: 'Nourrir', seances: 2, contenu: 'DÀNDÀN™, l’hydratation aux sept huiles. Lire ce dont la fibre a besoin, doser, appliquer, protéger la racine.' },
       { nom: 'Sceller et couronner', seances: 2, contenu: 'Fixer le soin et protéger la mèche. Le styling de sortie : chignon, demi-attache, détaché structuré, huile parfumée. Le conseil d’entretien à la maison.' },
     ],
-    tetesReelles: 'trois rituels d’entretien au salon, en observation puis assistée',
+    /* « à la Maison », jamais « salon », dans tout ce que lit l'apprenante
+       (10 octobre 2026). Les fiches déjà complétées gardent l'ancien texte en
+       base : elles se corrigent à la main. */
+    tetesReelles: 'trois rituels d’entretien à la Maison, en observation puis assistée',
   },
   {
     id: 'affirmation', titre: 'Affirmation', niveau: 'Palier II · L’Affirmation',
@@ -160,7 +163,7 @@ export const PARCOURS_MND: ParcoursMND[] = [
     duree: 'trois jours · douze heures · quatre séances', semaines: 1, seances: 4,
     competences: 'les gestes fondateurs du soin des locks : lavage doux, hydratation et protection de la fibre',
     public: 'professionnelle', prixXof: 90000, heures: 12,
-    accroche: 'Trois jours pour soigner les têtes lockées qui s’assoient déjà dans votre salon, sans les abîmer.',
+    accroche: 'Trois jours pour soigner les têtes lockées qui s’assoient déjà dans votre fauteuil, sans les abîmer.',
     pourQui: 'Coiffeuses, tresseuses et esthéticiennes en activité, qui reçoivent des têtes lockées sans avoir appris à les soigner.',
     pourEntrer: 'Exercer déjà dans la coiffure ou l’esthétique, et un entretien.',
     sait: [
@@ -225,7 +228,7 @@ export const PARCOURS_MND: ParcoursMND[] = [
     duree: 'deux semaines · vingt heures · six séances', semaines: 2, seances: 6,
     competences: 'le resserrage de précision, la santé du cuir chevelu et la protection de la longueur acquise',
     public: 'professionnelle', prixXof: 180000, heures: 20,
-    accroche: 'Le geste le plus demandé au salon, jusqu’à la précision : un resserrage qui tient, une racine qui respire.',
+    accroche: 'Le geste le plus demandé à la Maison, jusqu’à la précision : un resserrage qui tient, une racine qui respire.',
     pourQui: 'Coiffeuses et locticiennes en activité qui veulent se spécialiser dans l’entretien des locks.',
     pourEntrer: 'Pratiquer déjà le soin des locks, ou avoir suivi l’Initiation.',
     sait: [
@@ -264,7 +267,7 @@ export const PARCOURS_MND: ParcoursMND[] = [
       { nom: 'Préparer pour une cliente', seances: 1, contenu: 'Partir du besoin : sécheresse, casse, cuir chevelu. Doser, fabriquer, étiqueter, consigner la préparation.' },
       { nom: 'Remplacer et conserver', seances: 1, contenu: 'Les équivalences et les incompatibilités, le test de tolérance, la conservation et les dates.' },
     ],
-    tetesReelles: 'deux préparations fabriquées et remises à des clientes du salon',
+    tetesReelles: 'deux préparations fabriquées et remises à des clientes de la Maison',
   },
   {
     id: 'referentiel', titre: 'Certification Référentiel MND', niveau: 'Certifiant · Pro',
