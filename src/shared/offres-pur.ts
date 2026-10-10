@@ -300,19 +300,68 @@ export function remiseDuComptoirAuRendezVous(e: {
     encaissés au comptoir AVANT la règle ci-dessus : la pièce porte la remise et
     son libellé (« Offre … · ROSE15 », « Promotion … »), le rendez-vous non.
     Rend ce qu'il faut reporter, ou rien. Une pièce sans libellé de remise ne
-    dit pas qu'un code a été honoré : on ne devine pas. */
+    dit pas qu'un code a été honoré : on ne devine pas.
+
+    CE QUE LE RENDEZ-VOUS A DÉJÀ REÇU — 10 octobre 2026, relecture. La fonction
+    ne regardait que le reste dû : un rendez-vous déjà remisé par le comptoir
+    (80 000 F encaissés 68 000 F avec ROSE15, `discountXof` à 12 000 F) à qui
+    l'on ajoutait une prestation de 10 000 F se voyait proposer d'effacer ces
+    10 000 F, une vraie dette. Et la pièce « Remise famille » de l'écran
+    d'encaissement porte une remise que le rendez-vous a TOUJOURS reçue (elle
+    vient de lui) : la reporter la comptait deux fois. Désormais :
+    les pièces « Remise famille » ne se reportent jamais ; les remises des
+    pièces s'additionnent ; on n'en reporte que ce qui manque encore au
+    rendez-vous (`remiseDejaSurLeRdvXof`, son `discountXof`), borné au reste
+    dû. Un report déjà fait ne se propose donc plus. */
+export const LIBELLE_REMISE_FAMILLE = 'Remise famille';
 export function remiseDeFactureAReporter(e: {
   resteDuXof: number;
+  /** Ce que le rendez-vous porte déjà en remise en francs (`discountXof`). */
+  remiseDejaSurLeRdvXof: number;
   factures: readonly { number?: string; discountLabel?: string; globalDiscountXof?: number }[];
 }): { xof: number; piece: string; libelle: string } | null {
   const reste = Math.max(0, Math.round(e.resteDuXof));
   if (reste <= 0) return null;
-  for (const f of e.factures) {
-    const remise = Math.max(0, Math.round(f.globalDiscountXof ?? 0));
-    if (!f.discountLabel || remise <= 0) continue;
-    return { xof: Math.min(reste, remise), piece: f.number ?? '', libelle: f.discountLabel };
-  }
-  return null;
+  const remisees = e.factures.filter((f) => !!f.discountLabel && f.discountLabel !== LIBELLE_REMISE_FAMILLE
+    && Math.round(f.globalDiscountXof ?? 0) > 0);
+  if (remisees.length === 0) return null;
+  const surLesPieces = remisees.reduce((n, f) => n + Math.round(f.globalDiscountXof ?? 0), 0);
+  const manque = surLesPieces - Math.max(0, Math.round(e.remiseDejaSurLeRdvXof ?? 0));
+  if (manque <= 0) return null;
+  return {
+    xof: Math.min(reste, manque),
+    piece: remisees.map((f) => f.number ?? '').filter(Boolean).join(', '),
+    libelle: [...new Set(remisees.map((f) => f.discountLabel as string))].join(' ; '),
+  };
+}
+
+/** LA REMISE DU COMPTOIR S'ÉCRIT AVEC SON MARQUEUR — 10 octobre 2026. Une
+    remise du comptoir (code honoré à la Caisse, report d'une pièce) s'ajoute à
+    `discountXof` ET à `remiseDuComptoirXof`, pour que l'argent rendu sache
+    ce qu'il doit reprendre. Rend les champs à écrire, rien pour une remise
+    nulle. */
+export function remiseDuComptoirEcrite(
+  a: { discountXof?: number; remiseDuComptoirXof?: number },
+  remiseXof: number,
+): { discountXof?: number; remiseDuComptoirXof?: number } {
+  const r = Math.max(0, Math.round(remiseXof));
+  if (r <= 0) return {};
+  return { discountXof: (a.discountXof ?? 0) + r, remiseDuComptoirXof: (a.remiseDuComptoirXof ?? 0) + r };
+}
+
+/** LA REMISE DU COMPTOIR S'EN VA AVEC L'ARGENT — 10 octobre 2026, relecture.
+    Annuler l'encaissement, ou supprimer la dernière pièce, supprime la pièce
+    qui portait « Offre … · ROSE15 » : rien ne justifie plus les 12 000 F de
+    remise écrits au rendez-vous, et le prochain encaissement se faisait
+    sans code à 68 000 F au lieu de 80 000 F. On retire le marqueur de
+    `discountXof` (jamais sous zéro), puis le marqueur. La remise famille et
+    la remise manuelle de la fenêtre restent. Rien sans marqueur. */
+export function remiseDuComptoirRendue(
+  a: { discountXof?: number; remiseDuComptoirXof?: number },
+): { discountXof?: number; remiseDuComptoirXof?: number } {
+  if (a.remiseDuComptoirXof === undefined) return {};
+  const reste = Math.max(0, Math.round(a.discountXof ?? 0) - Math.max(0, Math.round(a.remiseDuComptoirXof)));
+  return { discountXof: reste > 0 ? reste : undefined, remiseDuComptoirXof: undefined };
 }
 
 const MOIS_DITS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];

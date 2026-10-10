@@ -51,9 +51,17 @@ export function poserBlocage(champs: Omit<Blocage, 'id'>): Blocage {
     entière qui ne reçoit plus, pas un fauteuil.
 
     Ce n'est pas une absence, c'est une vente — le motif le dit, pour qu'on ne
-    « libère » pas la plage en croyant nettoyer un oubli. */
+    « libère » pas la plage en croyant nettoyer un oubli.
+
+    JAMAIS LE NOM DE LA CLIENTE — 10 octobre 2026, relecture. Le motif disait
+    « Salon Souverain, <nom de la fiche> ». Or cette table se lit avec la clé
+    publique du site (Ma Couronne et le site calculent leurs créneaux avec
+    elle) : toute personne munie de cette clé lisait qui réserve le Salon Souverain, et
+    quel jour. Le motif ne porte plus que l'identifiant du rendez-vous, qui
+    suffit au Trône pour retrouver la cliente. Le paramètre `qui` a disparu :
+    on ne peut plus l'y remettre par mégarde. */
 export function fermerLeSalonPour(p: {
-  apptId: string; branchId: string; date: string; debut: string; fin: string; qui?: string;
+  apptId: string; branchId: string; date: string; debut: string; fin: string;
 }): void {
   const marque = `rdv:${p.apptId}`;
   blocagesStore.set((prev) => [
@@ -61,7 +69,7 @@ export function fermerLeSalonPour(p: {
     {
       id: `blk-priv-${p.apptId}`, branchId: p.branchId, date: p.date,
       debut: p.debut, fin: p.fin,
-      motif: `${marque} · Salon Souverain${p.qui ? `, ${p.qui}` : ''}`,
+      motif: `${marque} · Salon Souverain`,
     },
   ]);
 }

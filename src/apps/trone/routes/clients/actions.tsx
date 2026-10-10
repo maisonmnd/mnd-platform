@@ -10,7 +10,7 @@ import { useClients, clientsStore, useFamilies, familiesStore, aUnPrixConvenu } 
 import { appointmentsStore, useAppointments, apptPayeurId, apptPaidXof, venuesHonorees, type Appointment, type ApptPayment, estampilleLaPose } from '../../../../shared/agenda';
 import { useCategories, fondeLaCouronne, servicesStore, type Service, useProducts } from '../../../../shared/catalog';
 import { aDefaitSesLocks, estDePassage as estDePassageCli, estDiaspora, joursDeLaTete } from '../../../../shared/clients';
-import { remiseDeFactureAReporter } from '../../../../shared/offres-pur';
+import { remiseDeFactureAReporter, remiseDuComptoirEcrite, remiseDuComptoirRendue } from '../../../../shared/offres-pur';
 import { invoicesStore, useCashboxes, caissesPourLaDate, invoiceTotal, ligneNetXof, usePaymentMethods, cashboxCurrency, nouvelleFacture, ligneFacture, useCredits, creditMovementsStore, creditBalanceOf, invoiceReglements, invoiceRegleXof, invoiceSoldee, useInvoices, quiEncaisse, type Invoice, type InvoiceLine, type InvoicePayment, type PaymentMethod, type CreditHolder, ligneProduit, lignesDuRituelPiece } from '../../../../shared/finance';
 import { detailDuForfait } from '../../../../shared/kids';
 import { holderOf, payerClientIdOf, estDependant } from '../../../../shared/accounts';
@@ -485,6 +485,29 @@ export const prixLibereParLAnnulation = (
   return libre ? { priceXof: undefined, prixFigeParLArgent: undefined } : { prixFigeParLArgent: undefined };
 };
 
+/** CE QUE FIGE UN PASSAGE À L'ÉCRAN D'ENCAISSEMENT — 10 octobre 2026,
+    relecture. Le prix se figeait au seul versement du rituel
+    (`settleTotal > 0`). Or « la Gamme seule » (un flacon sur un rituel de
+    demain, sans rien verser pour lui) écrit AUSSI la pièce du rituel, ses
+    lignes au tarif de la tête (40 000 F), et pose `invoiceId` : le rendez-vous
+    porte alors une pièce, `contexteDeLaTete` cesse de le lire au tarif de la
+    tête, et il retombait au prix de vitrine (28 000 F). Au règlement suivant,
+    la pièce se reconformait à ce prix plus bas : 12 000 F perdus. Toute pièce
+    rattachée fige donc le prix qu'elle porte, avec le marqueur de l'argent
+    (`prixFigeParLArgent`) : annuler l'encaissement le libère comme un
+    versement. Pure : rend les champs à écrire. */
+export function prixFigeAuReglement(
+  appt: Appointment,
+  byId: Map<string, Service>,
+  e: { settleTotal: number; totalGamme: number },
+): { priceXof?: number; prixFigeParLArgent?: number } {
+  const prixFige = e.settleTotal > 0 || e.totalGamme > 0 ? prixAFiger(appt, byId) : {};
+  /* Le marqueur dit que c'est L'ARGENT qui a figé ce prix (10 octobre
+     2026) : annuler l'encaissement le rendra au tarif de la tête. */
+  return typeof prixFige.priceXof === 'number'
+    ? { ...prixFige, prixFigeParLArgent: prixFige.priceXof } : prixFige;
+}
+
 export function cancelAppointmentPayment(appt: Appointment): { invoicesRemoved: number } {
   /* TOUTES LES PIÈCES QUE CET ENCAISSEMENT A PRODUITES, pas seulement la
      dernière. Le rendez-vous ne retient qu'un `invoiceId` ; un rituel réglé en
@@ -560,6 +583,11 @@ export function cancelAppointmentPayment(appt: Appointment): { invoicesRemoved: 
            retouché dans la fenêtre (il ne vaut plus le marqueur), jamais un
            rituel honoré : il a eu lieu, il garde le sien. */
         ...prixLibereParLAnnulation(a),
+        /* LA REMISE DU COMPTOIR S'EN VA AVEC SA PIÈCE — 10 octobre 2026,
+           relecture. La pièce « Offre … · ROSE15 » vient d'être supprimée :
+           les 12 000 F qu'elle avait écrits au rendez-vous n'ont plus rien
+           qui les justifie (`remiseDuComptoirRendue`). */
+        ...remiseDuComptoirRendue(a),
       }
     : a)));
   return { invoicesRemoved };
@@ -619,6 +647,9 @@ export function rewindPaymentForDeletedInvoice(invoiceId: string, amountXof: num
            figé se libère, comme à l'annulation (10 octobre 2026). Tant qu'un
            versement reste, il reste figé. */
         ...(newPaid <= 0 && journal.length === 0 ? prixLibereParLAnnulation(a) : {}),
+        /* Et la remise que le comptoir avait écrite s'en va avec le dernier
+           argent (10 octobre 2026, comme à l'annulation). */
+        ...(newPaid <= 0 && journal.length === 0 ? remiseDuComptoirRendue(a) : {}),
       }
     : a)));
   return appt;
@@ -652,7 +683,7 @@ export function resetAllPaidInvoices(branchId: string): { invoices: number; appt
        encaissé à la Caisse, jamais figé, se relirait au tarif du jour. */
     const parIdDuCatalogue = new Map(servicesStore.get().map((s) => [s.id, s] as const));
     appointmentsStore.set((prev) => prev.map((a) => (linkedIds.has(a.id)
-      ? { ...(a.status === 'honoré' ? rituelDeshonore(a, parIdDuCatalogue) : a), paidXof: undefined, invoiceId: undefined, pointsAwarded: false }
+      ? { ...(a.status === 'honoré' ? rituelDeshonore(a, parIdDuCatalogue) : a), ...remiseDuComptoirRendue(a), paidXof: undefined, invoiceId: undefined, pointsAwarded: false }
       : a)));
   }
 
@@ -1501,12 +1532,10 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour }: {
          acompte laissait le prix flotter), et le prix figé est celui de sa
          tête, par `prixAFiger`, lu sur la ligne encore non honorée. Un rituel
          de demain réglé d'avance fige son prix sans s'honorer : le prix payé
-         ne doit plus bouger. */
-      const prixFige = settleTotal > 0 ? prixAFiger(appt, byId) : {};
-      /* Le marqueur dit que c'est L'ARGENT qui a figé ce prix (10 octobre
-         2026) : annuler l'encaissement le rendra au tarif de la tête. */
-      const freeze = typeof prixFige.priceXof === 'number'
-        ? { ...prixFige, prixFigeParLArgent: prixFige.priceXof } : prixFige;
+         ne doit plus bouger.
+         10 octobre 2026 : la Gamme seule fige aussi, car elle écrit la pièce
+         du rituel (`prixFigeAuReglement`). */
+      const freeze = prixFigeAuReglement(appt, byId, { settleTotal, totalGamme });
       appointmentsStore.set((prev) => prev.map((a) => (a.id === appt.id
         ? {
             ...a,
@@ -1873,22 +1902,26 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour }: {
             les pièces d'avant, on le propose ici, d'un geste, et c'est une main
             qui décide. Un forfait fait foi : on ne le remise pas. */}
         {(() => {
+          /* Ce que le rendez-vous a DÉJÀ reçu se retranche (10 octobre 2026) :
+             la remise écrite par le comptoir, un report déjà fait, la remise
+             famille de la pièce ne se proposent plus une seconde fois. */
           const aReporter = appt.forfait ? null : remiseDeFactureAReporter({
             resteDuXof: due,
+            remiseDejaSurLeRdvXof: appt.discountXof ?? 0,
             factures: toutesLesPieces.filter((i: Invoice) => i.kind === 'facture' && i.status === 'payée'
               && (i.apptId === appt.id || i.id === appt.invoiceId || (appt.payments ?? []).some((p) => p.invoiceId === i.id))),
           });
           if (!aReporter) return null;
           return (
             <div style={{ fontSize: 12, color: 'var(--copper-700)', background: 'var(--copper-50)', border: '1px solid var(--copper-300)', borderRadius: 'var(--radius-md)', padding: '9px 11px', lineHeight: 1.5 }}>
-              La facture <b>{aReporter.piece}</b> porte une remise que ce rendez-vous n’a pas reçue :{' '}
-              <b>{aReporter.libelle}</b>. Ce reste n’est pas dû.
+              {aReporter.piece.includes(',') ? 'Les factures' : 'La facture'} <b>{aReporter.piece}</b> {aReporter.piece.includes(',') ? 'portent' : 'porte'} une remise que ce rendez-vous n’a pas reçue en entier :{' '}
+              <b>{aReporter.libelle}</b>. Il lui en manque {fmtMoney(aReporter.xof, currency)}.
               <div style={{ marginTop: 8 }}>
                 <button
                   type="button"
                   onClick={() => {
                     appointmentsStore.set((prev) => prev.map((a) => (a.id === appt.id
-                      ? { ...a, discountXof: (a.discountXof ?? 0) + aReporter.xof }
+                      ? { ...a, ...remiseDuComptoirEcrite(a, aReporter.xof) }
                       : a)));
                     toast(`Remise de ${fmtMoney(aReporter.xof, currency)} reportée au rendez-vous.`);
                   }}

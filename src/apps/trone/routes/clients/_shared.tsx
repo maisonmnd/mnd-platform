@@ -811,13 +811,31 @@ export function prixAFigerAuTicket(
     après). La remise famille appartient à la tête, pas à la visite : elle
     suit, en francs, comme la fenêtre l'a figée. Sans remise famille, le
     drapeau tombe aussi, sinon une remise posée plus tard se dirait « Remise
-    famille ». */
+    famille ».
+
+    SEULE LA PART FAMILLE SUIT — 10 octobre 2026, relecture. `discountXof`
+    cumule la part famille, la remise manuelle saisie au même écran, la
+    remise d'un code au comptoir et le report d'une pièce. Le recopier entier
+    offrait à chaque visite suivante, en cascade, un geste du jour (5 000 F à
+    la main, la remise de ROSE15). La fenêtre tient désormais la part famille
+    à part (`remiseFamilleXof`) : c'est elle seule qui suit. Un rendez-vous
+    d'avant ce champ garde son cumul, moins ce que le comptoir y a marqué
+    (`remiseDuComptoirXof`) : on ne sait pas y distinguer la part famille
+    d'un geste manuel, on n'invente pas. Jamais plus que le cumul. */
 export const remiseFamilleQuiSuit = (
-  appt: Pick<Appointment, 'remiseFamille' | 'discountXof'>,
-): Pick<Appointment, 'remiseFamille' | 'discountXof'> =>
-  appt.remiseFamille && (appt.discountXof ?? 0) > 0
-    ? { discountXof: appt.discountXof, remiseFamille: true }
-    : { remiseFamille: undefined };
+  appt: Pick<Appointment, 'remiseFamille' | 'discountXof' | 'remiseFamilleXof' | 'remiseDuComptoirXof'>,
+): Pick<Appointment, 'remiseFamille' | 'discountXof' | 'remiseFamilleXof'> => {
+  const cumul = Math.max(0, Math.round(appt.discountXof ?? 0));
+  if (!appt.remiseFamille || cumul <= 0) return { remiseFamille: undefined, remiseFamilleXof: undefined };
+  if (typeof appt.remiseFamilleXof === 'number') {
+    const part = Math.min(cumul, Math.max(0, Math.round(appt.remiseFamilleXof)));
+    return part > 0
+      ? { discountXof: part, remiseFamille: true, remiseFamilleXof: part }
+      : { remiseFamille: undefined, remiseFamilleXof: undefined };
+  }
+  const part = Math.max(0, cumul - Math.max(0, Math.round(appt.remiseDuComptoirXof ?? 0)));
+  return part > 0 ? { discountXof: part, remiseFamille: true } : { remiseFamille: undefined, remiseFamilleXof: undefined };
+};
 
 /** LE RITUEL QU'ON DÉS-HONORE GARDE LA LECTURE QU'IL AVAIT — 9 octobre 2026,
     relecture. Un rituel honoré avant la correction, sans prix, se lisait au
@@ -2546,10 +2564,11 @@ export function RdvModal({
       const debutMin = timeToMin(time);
       const finMin = debutMin + (chosen.reduce((n, sv) => n + sv.durationMin, 0) || priv.durationMin);
       const enHeure = (m: number) => `${Math.floor(m / 60)}h${String(m % 60).padStart(2, '0')}`;
+      /* Sans le nom de la cliente (10 octobre 2026) : la table des blocages
+         se lit avec la clé publique du site, voir `fermerLeSalonPour`. */
       fermerLeSalonPour({
         apptId: id, branchId: branch.id, date,
         debut: enHeure(debutMin), fin: enHeure(Math.min(finMin, 24 * 60)),
-        qui: rdvClient?.name,
       });
     };
 
@@ -2620,6 +2639,9 @@ export function RdvModal({
                   : remiseEstFamille ? (((discountXof || 0) + remiseFamilleXof) || undefined)
                   : (discountXof || undefined),
                 remiseFamille: !effCovered && !forfaitPose && remiseEstFamille ? true : undefined,
+                /* La part famille, seule (10 octobre 2026) : c'est elle, et
+                   non le cumul, qui suit à la visite suivante. */
+                remiseFamilleXof: !effCovered && !forfaitPose && remiseEstFamille ? (remiseFamilleXof || undefined) : undefined,
                 /* PRIX D'ORIGINE CONSERVÉ tant que les prestations ne changent pas.
                    Prestations modifiées → recalcul au tarif du jour DE LA CLIENTE
                    (personnalisé si modèle/Juste Prix, sinon catalogue). Variable/
@@ -2721,6 +2743,7 @@ export function RdvModal({
           : remiseEstFamille ? (((discountXof || 0) + remiseFamilleXof) || undefined)
           : (discountXof || undefined),
         remiseFamille: !effCovered && !forfaitPose && remiseEstFamille ? true : undefined,
+        remiseFamilleXof: !effCovered && !forfaitPose && remiseEstFamille ? (remiseFamilleXof || undefined) : undefined,
         /* Couvert par l'abonnement → prix 0 ; variable/devis gèle le montant
            convenu ; cliente au prix personnalisé → SON prix, figé dès la prise. */
         /* MÊME RÈGLE SUR LE CHEMIN DES SÉRIES : un rituel est un fait, il

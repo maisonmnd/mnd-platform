@@ -195,6 +195,24 @@ export type Appointment = {
       l'étiquette : la modale et la facture disent « Remise famille » pour que
       la cliente sache d'où vient son avantage. */
   remiseFamille?: boolean;
+  /** LA PART FAMILLE DE `discountXof`, en francs — 10 octobre 2026. La
+      fenêtre fige la remise famille DANS `discountXof`, avec la remise
+      manuelle saisie au même écran ; le comptoir y ajoute ensuite la remise
+      d'un code. La visite suivante ne doit hériter que de la part famille
+      (`remiseFamilleQuiSuit`) : ce champ la tient à part. L'écrivent la
+      fenêtre du Trône et la réservation de Ma Couronne (Booking). Absent sur
+      les rendez-vous posés avant le 10 octobre 2026 et sur ceux qui portent
+      la remise famille en pourcentage (le foyer, RdvFoyer) : la visite
+      suivante les lit alors par l'ancienne voie, le cumul moins la part du
+      comptoir. */
+  remiseFamilleXof?: number;
+  /** LA PART DE `discountXof` ÉCRITE PAR LE COMPTOIR — 10 octobre 2026. La
+      remise d'un code honoré à la Caisse, ou reportée d'une pièce
+      (« Reporter la remise au rendez-vous »), s'ajoute à `discountXof` ; ce
+      marqueur dit combien. L'argent rendu (annulation, pièce supprimée) la
+      retire avec lui : la pièce qui la justifiait n'existe plus
+      (`remiseDuComptoirRendue`, shared/offres-pur). */
+  remiseDuComptoirXof?: number;
   /** Prix du rituel FIGÉ au moment où il a été facturé, avant remise.
       Le catalogue vit : ses tarifs changent. Sans ce champ, un rituel de mars se
       relirait au tarif d'aujourd'hui et l'historique se réécrirait tout seul —
