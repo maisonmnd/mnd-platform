@@ -344,7 +344,10 @@ const rappels = await charge('rappels-j1', ENV_CRON);
     prepare();
     await appelCron(rappels, 'rappels-j1');
     const l = ligne('envois', 'env-a-demain-whatsapp')?.data ?? {};
-    dit('19 : 17 h, salle ouverte : le rappel est depose et part a 17 h 10', ['en-attente', '2026-10-12T16:10:00.000Z'], [l.statut, l.partA]);
+    /* A la minute pres (10 octobre 2026) : l'horloge du banc est un decalage sur
+       la vraie, qui avance pendant l'appel ; une milliseconde d'ecart faisait
+       crier le banc une fois sur deux sans faute dans la fonction. */
+    dit('19 : 17 h, salle ouverte : le rappel est depose et part a 17 h 10', ['en-attente', '2026-10-12T16:10'], [l.statut, String(l.partA ?? '').slice(0, 16)]);
   });
 }
 
