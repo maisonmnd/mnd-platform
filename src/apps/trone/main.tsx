@@ -15,6 +15,7 @@ import { migreLaRaisonDeLaMaison, migreLeNomDeLaBranche, migreLeNomDeLaMaison } 
 import { registerSW } from '../../shared/push';
 import { migreLesFormulesAZero } from '../../shared/abonnements';
 import { migreLaNouvelleGrille } from '../../shared/nouvelle-grille';
+import { migreLesFormulesEnLunes } from '../../shared/formules-en-lunes';
 
 /* L'APPLICATION RESTE SUR LE TÉLÉPHONE (4 octobre 2026, « hors ligne », temps 2) :
    le service s'enregistre dès l'ouverture, pas seulement quand on règle les
@@ -41,6 +42,9 @@ migreLesFormulesAZero();
    « maintenant » de la genèse des prix (noms, archives, baisses, nouveautés au
    comptoir), une fois, depuis le Trône seul. Voir shared/nouvelle-grille. */
 migreLaNouvelleGrille();
+/* LES SEPT FORMULES EN LUNES — 10 octobre 2026 (lot 2) : nées une fois,
+   au comptoir pour le pilote, masquées de Ma Couronne jusqu'en janvier. */
+migreLesFormulesEnLunes();
 
 // « Remplacer la Maison » : après le redémarrage à blanc, appliquer le fichier en
 // attente sur les magasins vides AVANT le premier rendu (la synchro poussera au serveur).

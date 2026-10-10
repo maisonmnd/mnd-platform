@@ -22,8 +22,10 @@ const dit = (nom: string, attendu: unknown, obtenu: unknown) => {
 };
 
 /* ── ① LE SEUIL EST UNE PORTE ──────────────────────────────────────── */
-dit('sous le seuil, on ne découpe pas', false, peutEtreEchelonne(100_000));
-dit('au-dessus, on peut', true, peutEtreEchelonne(100_001));
+/* « En 2 fois dès 100 000 F, en 3 fois dès 200 000 F » : la règle unique de la
+   Maison depuis le 10 octobre 2026 (la genèse des prix, correction 12). */
+dit('sous le seuil, on ne découpe pas', false, peutEtreEchelonne(99_999));
+dit('dès 100 000 F, on peut', true, peutEtreEchelonne(100_000));
 dit('le seuil vaut 100 000', 100_000, SEUIL_ECHELONNEMENT_XOF);
 
 /* ── ② L'ARRONDI VA SUR LA PREMIÈRE ────────────────────────────────

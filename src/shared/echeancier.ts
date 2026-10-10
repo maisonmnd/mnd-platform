@@ -35,10 +35,20 @@
 /** Au-delà de ce montant, la Maison propose de découper. */
 export const SEUIL_ECHELONNEMENT_XOF = 100_000;
 
-/** Les découpes offertes. Deux ou quatre, jamais trois : la moitié et le
-    quart se disent au comptoir, le tiers ne se dit pas. */
-export const DECOUPES = [2, 4] as const;
+/** LES DÉCOUPES OFFERTES — une seule règle pour toute la Maison depuis le
+    10 octobre 2026 (la genèse des prix, correction 12, décidée au sélecteur) :
+    comptant sous 100 000 F, en 2 fois dès 100 000 F, en 3 fois dès 200 000 F.
+    La découpe en quatre n'est plus proposée ; les échéanciers déjà signés en
+    quatre restent tels quels (une parole donnée ne se recalcule pas). */
+export const DECOUPES = [2, 3] as const;
 export type Decoupe = (typeof DECOUPES)[number];
+
+/** Dès ce montant, la Maison propose aussi trois fois. */
+export const SEUIL_TROIS_FOIS_XOF = 200_000;
+
+/** Les découpes que la Maison propose pour ce total. */
+export const decoupesPour = (totalXof: number): Decoupe[] =>
+  totalXof >= SEUIL_TROIS_FOIS_XOF ? [2, 3] : totalXof >= SEUIL_ECHELONNEMENT_XOF ? [2] : [];
 
 export type Echeance = {
   /** Rang, à partir de 1 — c'est ainsi qu'on en parle : « la deuxième ». */
@@ -51,7 +61,7 @@ export type Echeance = {
 /** Un abonnement peut-il être découpé ? Au comptoir, c'est le seuil de la
     Maison qui juge. */
 export const peutEtreEchelonne = (totalXof: number): boolean =>
-  totalXof > SEUIL_ECHELONNEMENT_XOF;
+  totalXof >= SEUIL_ECHELONNEMENT_XOF;
 
 /* ── LE SEUIL QUE MA COURONNE APPLIQUE — 29 août 2026 ──────────────
    « Je veux avoir un autre seuil, que je vous donne » (Yéman). Plutôt que

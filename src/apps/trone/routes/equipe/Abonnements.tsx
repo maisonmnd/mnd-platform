@@ -26,12 +26,14 @@ import { basculeLaVente, choixDeVente, estOuverteALaVente, premiereOuverte } fro
 import { isoDuJour } from '../../../../shared/offres-pur';
 import {
   useModelBands, useBandSets, bandsAbonnements, sortedBands, bandLabel, roundPrice,
-  calibreDeLaTete,
+  calibreDeLaTete, pricingOf, personalPriceXof,
 } from '../../../../shared/pricing';
+import { dejaPriseParLaTete, leFoyerJoue, prixDuFoyer, rangDansLeFoyer } from '../../../../shared/formules-en-lunes-pur';
+import { fondeLaCouronne } from '../../../../shared/catalog';
 import { useAppointments, appointmentsStore, type Appointment, estampilleLesPoses } from '../../../../shared/agenda';
 import { proposeLaCadence, decaleLaSuite, RYTHMES_ABO, type SeanceProposee } from '../../../../shared/cadence';
 import { maitreParDefaut } from '../../../../shared/branches';
- import { DECOUPES, SEUIL_ECHELONNEMENT_XOF, construitEcheancier, deplaceEcheance, etatDesEcheances, enRetardXof, peutEtreEchelonne, prochaineEcheance, resteDeLEcheancier, type Decoupe, type Echeance } from '../../../../shared/echeancier';
+ import { decoupesPour, SEUIL_ECHELONNEMENT_XOF, construitEcheancier, deplaceEcheance, etatDesEcheances, enRetardXof, peutEtreEchelonne, prochaineEcheance, resteDeLEcheancier, type Decoupe, type Echeance } from '../../../../shared/echeancier';
 import { REMISE_OPTION_PCT, RYTHMES, VOIES, libelleCouleur, partMensuelleXof, reprisesDeCouleur, supplementCouleurXof, supplementSansRemiseXof, voieDe, type RythmeCouleur, type VoieCouleur } from '../../../../shared/couleur';
 import { demandesFormuleStore, useDemandesFormule, type DemandeFormule } from '../../../../shared/bridges';
 import { ClientPicker, RdvModal, useBranchClients } from '../clients/_shared';
@@ -585,10 +587,39 @@ export default function Abonnements() {
     return liste;
   };
 
+  /* ══ LE FOYER — 10 octobre 2026 (la genèse des prix) ═════════════════
+     « −15 % sur la deuxième et la troisième tête, plafond de 25 % tenu »
+     (Yéman, au sélecteur). La tête est la deuxième ou la troisième de son
+     foyer quand une ou deux AUTRES têtes du même foyer portent déjà une
+     formule vivante. Le Foyer se pose alors comme un prix convenu, avec son
+     motif : il se lit sur le contrat, il ne se recalcule plus. Un prix tapé à
+     la main passe devant. La valeur à la carte se compte au prix de SA tête
+     (sa longueur, son calibre, son Juste Prix). */
+  const foyerDeLaVente = (): { rang: number; prixXof: number; avantXof: number } | null => {
+    const c = clients.find((x) => x.id === subForm.clientId);
+    const plan = planOf(subForm.planId);
+    if (!c?.familyId || !plan) return null;
+    const autres = clients.filter((x) => x.familyId === c.familyId && x.id !== c.id && abonnementsVivantsDe(subs, x.id).length > 0).length;
+    const rang = rangDansLeFoyer(autres);
+    if (!leFoyerJoue(rang)) return null;
+    const tete = { ...pricingOf(c, bands, jeuxDeCalibres), longueur: c.longueur };
+    const prixDe = (id: string): number => {
+      const sv = services.find((s) => s.id === id);
+      return sv ? personalPriceXof(sv, tete, services) : 0;
+    };
+    let valeur = (plan.included ?? []).reduce((t, i) => t + (i.qty ?? 0) * prixDe(i.serviceId), 0);
+    const soins = plan.soinsDeLaLune ?? [];
+    if (soins.length) valeur += soins.reduce((t, id) => t + prixDe(id), 0) / soins.length;
+    const avant = prixDeLaFormule(plan, subForm.cycle, teteDeLaVente(), calibresAbo).montantXof;
+    const apres = prixDuFoyer(avant, valeur);
+    return apres < avant ? { rang, prixXof: apres, avantXof: avant } : null;
+  };
+
   /** Le prix RÉELLEMENT demandé pour cette vente, option couleur exclue. */
   const prixDeLaVente = (): number => {
     const plan = planOf(subForm.planId);
-    return prixConvenuSaisi() ?? (plan ? prixDeLaFormule(plan, subForm.cycle, teteDeLaVente(), calibresAbo).montantXof : 0);
+    return prixConvenuSaisi() ?? foyerDeLaVente()?.prixXof
+      ?? (plan ? prixDeLaFormule(plan, subForm.cycle, teteDeLaVente(), calibresAbo).montantXof : 0);
   };
   /** Les mois que couvre cette vente — la durée convenue fait foi sur un pack. */
   const moisDeLaVente = (): number => {
@@ -633,6 +664,14 @@ export default function Abonnements() {
       toast(`${client.name} a déjà « ${occupe} » en cours. Résiliez-la d’abord, ou modifiez-la : deux abonnements ouverts font deux compteurs sur les mêmes rendez-vous.`);
       return;
     }
+    /* ══ UNE FOIS PAR TÊTE — 10 octobre 2026 (la genèse des prix) ══════
+       Les Premières Lunes et le Carnet de Quatre sont des portes : chacune
+       se prend une fois par tête. Tout contrat compte, même fini. */
+    const dejaPrise = dejaPriseParLaTete(plan, subs.filter((s) => s.clientId === client.id), plans);
+    if (dejaPrise) {
+      toast(`« ${plan.name} » ne se prend qu’une fois par tête : ${client.name} l’a déjà prise${dejaPrise.sinceIso ? ` le ${dateComplete(dejaPrise.sinceIso)}` : ''}. Proposez le Carnet de Six ou de l’Année.`);
+      return;
+    }
     const cycle = subForm.cycle;
     const opt = chiffreLOption(plan, cycle);
     /* CE QUI A ÉTÉ CONVENU AU COMPTOIR fait foi partout à partir d'ici : le
@@ -640,7 +679,8 @@ export default function Abonnements() {
        quotas que Ma Couronne affichera. Retomber sur le catalogue à un seul
        de ces endroits ferait dire un chiffre à l'écran et un autre à la
        caisse, sans que personne sache lequel croire. */
-    const convenu = prixConvenuSaisi();
+    const foyer = prixConvenuSaisi() === null ? foyerDeLaVente() : null;
+    const convenu = prixConvenuSaisi() ?? foyer?.prixXof ?? null;
     const joursVendus = validiteConvenue();
     const prixVente = prixDeLaVente();
     /* ══ CE QUI A FAIT CE PRIX, ÉCRIT SUR LA VENTE — 1er septembre 2026 ══
@@ -689,7 +729,9 @@ export default function Abonnements() {
          retombera au franc près sur ce que le comptoir a annoncé. */
       ...(teteVendue.bandId ? { calibreVendu: teteVendue.bandId } : {}),
       ...(teteVendue.longueur ? { longueurVendue: teteVendue.longueur } : {}),
-      ...(subForm.motif.trim() ? { motifConvenu: subForm.motif.trim() } : {}),
+      ...(subForm.motif.trim()
+        ? { motifConvenu: subForm.motif.trim() }
+        : foyer ? { motifConvenu: `Le Foyer · ${foyer.rang === 2 ? 'deuxième' : 'troisième'} tête (−15 %, plafond 25 %)` } : {}),
       ...(subForm.inclus ? { inclusPropres: subForm.inclus.map((i) => ({ ...i })) } : {}),
       ...(joursVendus !== null ? { validiteJours: joursVendus } : {}),
       ...(plan.mode === 'pack'
@@ -1930,7 +1972,8 @@ export default function Abonnements() {
               </div>
 
               <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>
-                {DECOUPES.map((n) => (
+                {/* 2 fois dès 100 000 F, 3 fois dès 200 000 F (10 octobre 2026). */}
+                {decoupesPour(total).map((n) => (
                   <button
                     key={n}
                     type="button"
@@ -2832,6 +2875,25 @@ export default function Abonnements() {
                 })}
               </Select>
             </Field>
+            {(() => {
+              /* LE FOYER ET LES PORTES, DITS AVANT DE SIGNER (10 octobre 2026). */
+              const foyer = prixConvenuSaisi() === null ? foyerDeLaVente() : null;
+              const plan = planOf(subForm.planId);
+              const c = clients.find((x) => x.id === subForm.clientId);
+              const dejaPrise = plan && c ? dejaPriseParLaTete(plan, subs.filter((s) => s.clientId === c.id), plans) : undefined;
+              const creationRecente = !!c && allAppts.some((a) => a.clientId === c.id && a.status === 'honoré'
+                && a.date >= addDaysISO(-30) && a.serviceIds.some((id) => { const sv = services.find((s) => s.id === id); return !!sv && fondeLaCouronne(sv); }));
+              const lignes: string[] = [];
+              if (foyer) lignes.push(`Le Foyer : ${foyer.rang === 2 ? 'deuxième' : 'troisième'} tête du foyer, ${fmtMoney(foyer.prixXof, currency)} au lieu de ${fmtMoney(foyer.avantXof, currency)} (−15 %, jamais plus de 25 % au total).`);
+              if (dejaPrise) lignes.push(`« ${plan?.name} » ne se prend qu’une fois par tête, et cette tête l’a déjà prise.`);
+              if (plan?.uneFoisParTete === 'premieres-lunes' && c && !creationRecente) lignes.push('Les Premières Lunes se signent après une création à la Maison, dans les 30 jours. Aucune création honorée n’apparaît ces 30 derniers jours.');
+              if (lignes.length === 0) return null;
+              return (
+                <div style={{ border: '1px solid var(--copper-300)', borderLeft: '3px solid var(--color-copper)', borderRadius: 3, padding: '9px 12px', fontSize: 12.5, lineHeight: 1.55, color: 'var(--copper-700)', display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  {lignes.map((l) => <span key={l}>{l}</span>)}
+                </div>
+              );
+            })()}
             <Field label="Cycle de facturation">
               {/* ══ UN PAQUET N'A PAS DE CYCLE — 10 septembre 2026 ═══════
                   « Le cycle de facturation n'est pas branché et ne marche
@@ -3233,7 +3295,7 @@ export default function Abonnements() {
                     >
                       En une fois
                     </button>
-                    {DECOUPES.map((n) => (
+                    {decoupesPour(total).map((n) => (
                       <button
                         key={n}
                         type="button"

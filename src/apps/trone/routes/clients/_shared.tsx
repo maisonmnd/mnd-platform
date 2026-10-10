@@ -30,6 +30,7 @@ import { jourAn, jourCourtAn, jourEnLettres } from '../../../../shared/calendrie
 import { ChampDeDate } from '../../../../ds/dates';
 import { catalogueDeLaTete, masqueesParLAge, compositionDuForfait, gainDuForfait, detailDuForfait, pourQui } from '../../../../shared/kids';
 import { useSubscribers, usePlans, activeSubscriberOf, contratPourLaDate, coveredRemaining, inclusVendus, useStaff, ordonneEquipe, type StaffMember } from '../equipe/data';
+import { enPause } from '../../../../shared/formules-en-lunes-pur';
 import { useEstDirection, useVieDuRendezVous, TamponDeNaissance, SaVie, nombreDeGestes } from '../_vie';
 import { estampilleLaPose, estampilleLesPoses, momentDuRdv } from '../../../../shared/agenda';
 import { modelBandsStore, bandSetsStore, prixFerme, prixFixeDe, useModelBands, useBandSets, pricingOf, personalPriceXof, prixDansPanier, remiseGestePct, TAUX_DE_REMISE, unGesteDansLePanier, prixDeBase, isPersonalized, bandLabel, personalDurationMin, servesBand, bandForService, estProposable, regimeTarifaire, splitByWeights, type ModelBand } from '../../../../shared/pricing';
@@ -2054,8 +2055,9 @@ export function RdvModal({
   useEffect(() => { setToutLeCatalogue(false); }, [clientId]);
   const coverageRows = (membership && membershipPlan)
     ? chosen
-        /* SES prestations à elle : le contenu ajusté à la vente fait foi. */
-        .filter((sv) => inclusVendus(membership, membershipPlan).some((i) => i.serviceId === sv.id))
+        /* SES prestations à elle : le contenu ajusté à la vente fait foi. Le
+           soin de la lune est celui de la lune du rendez-vous. */
+        .filter((sv) => inclusVendus(membership, membershipPlan, date).some((i) => i.serviceId === sv.id))
         .map((sv) => ({ sv, remaining: coveredRemaining(membership, membershipPlan, sv.id, branchAppts, appt?.id) }))
     : [];
   /* ══ CE QUE LA FORMULE NE PORTE PAS — 1er septembre 2026 ═══════════
@@ -2078,9 +2080,15 @@ export function RdvModal({
      Maison peut encore décider : ajouter la bonne prestation, ou assumer le
      geste. */
   const horsFormule = (membership && membershipPlan)
-    ? chosen.filter((sv) => !inclusVendus(membership, membershipPlan).some((i) => i.serviceId === sv.id))
+    ? chosen.filter((sv) => !inclusVendus(membership, membershipPlan, date).some((i) => i.serviceId === sv.id))
     : [];
-  const canCover = coverageRows.length > 0 && (coverageRows.some((r) => r.remaining === null || (r.remaining ?? 0) > 0) || !!appt?.coveredBySub);
+  /* ══ UNE LUNE NON RÉGLÉE MET LA FORMULE EN PAUSE — 10 octobre 2026 ═══
+     La genèse des prix : les formules « Chaque Lune » se règlent lune par
+     lune ; une lune non réglée ne crée JAMAIS de dette, elle met la formule en
+     pause. Tant que la lune n'est pas réglée, rien ne se couvre ; un rituel
+     déjà couvert le reste (on ne défait pas ce qui a été fait). */
+  const pauseDeLaLune = !!membership && enPause(membershipPlan, membership, todayISO()) && !appt?.coveredBySub;
+  const canCover = !pauseDeLaLune && coverageRows.length > 0 && (coverageRows.some((r) => r.remaining === null || (r.remaining ?? 0) > 0) || !!appt?.coveredBySub);
   const effCovered = covered && canCover;
   /* LE PRIX D'ORIGINE FAIT FOI. Un rituel au prix figé (facturé à CE prix-là —
      ancien ERP ou encaissement passé) GARDE son prix quand on le modifie : le
@@ -3695,6 +3703,11 @@ export function RdvModal({
                 <span style={{ display: 'block', fontSize: 12.5, fontWeight: 600, color: 'var(--copper-700)' }}>
                   Inclus dans l’abonnement, ne rien facturer
                 </span>
+                {pauseDeLaLune && (
+                  <span style={{ display: 'block', fontSize: 11.5, color: 'var(--copper-700)', marginTop: 3, lineHeight: 1.5 }}>
+                    La lune n’est pas réglée : la formule est en pause, sans dette. Elle reprend dès le règlement de la lune.
+                  </span>
+                )}
                 <span style={{ display: 'block', fontSize: 11, color: 'var(--ink-soft)', marginTop: 3, lineHeight: 1.5 }}>
                   {coverageRows.map((r) => {
                     const label = r.remaining === null

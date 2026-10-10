@@ -17,6 +17,7 @@
 import { createStore, useStore } from './store';
 import { bindCollection, quandTablePrete } from './sync';
 import { fermeLesFormulesAZero, ouvertesALaVente } from './formules-fermees-pur';
+import { soinDeLaLune } from './formules-en-lunes-pur';
 import { isoDuJour } from './offres-pur';
 import type { PaymentMethod } from './finance';
 import type { Appointment } from './agenda';
@@ -139,6 +140,14 @@ export type Plan = {
   fermee?: boolean;
   /** Le jour de la fermeture (AAAA-MM-JJ). */
   fermeeLe?: string;
+
+  /* ══ LES FORMULES EN LUNES — 10 octobre 2026 (la genèse des prix, lot 2) ══
+     Voir `shared/formules-en-lunes-pur`. */
+  /** UNE FOIS PAR TÊTE : une tête qui a déjà signé une formule de la même clé
+      (Les Premières Lunes, le Carnet de Quatre) ne la reprend pas. */
+  uneFoisParTete?: string;
+  /** LE SOIN DE LA LUNE, tour à tour, un par cycle (GBÈJÍ™ · Chaque Lune). */
+  soinsDeLaLune?: string[];
 };
 
 /** CE QU'ON SAIT DE LA TÊTE au moment de dire un prix. Les deux champs
@@ -477,8 +486,13 @@ export const coversSub = (a: Appointment, sub: Subscriber, plan: Plan | undefine
      deux contrats dont les fenêtres se chevauchent, pas à ressusciter un paquet
      clos ni à faire porter au présent un rituel du passé. */
   if (!dansLaVieDuContrat(sub, plan, a.date)) return false;
-  if (a.subId) return a.subId === sub.id;
-  if (a.clientId !== sub.clientId) return false;
+  /* LE LIEN DÉPARTAGE, IL NE FAIT PAS SAUTER LA LUNE — 10 octobre 2026. Un
+     rendez-vous lié à un contrat à cycle ne compte que dans le cycle EN COURS,
+     comme un rendez-vous sans lien : sinon le quota d'une formule mensuelle
+     ne se rechargeait jamais (chaque venue liée comptait pour toutes les
+     lunes à la fois). */
+  if (a.subId) { if (a.subId !== sub.id) return false; }
+  else if (a.clientId !== sub.clientId) return false;
   /* LA VIE DU PAQUET EST SA FENÊTRE, et elle vient d'être vérifiée, dernier jour
      compris. Un abonnement à CYCLE, lui, ne compte que le cycle EN COURS :
      c'est la seule chose qui l'empêche de compter deux cycles à la fois. */
@@ -1047,8 +1061,13 @@ export const prixVenduXof = (sub: Subscriber, plan: Plan | undefined, cycle: Sub
     : 0);
 
 /** LE CONTENU RÉELLEMENT VENDU — ses quotas à elle, sinon ceux de la formule. */
-export const inclusVendus = (sub: Subscriber, plan: Plan | undefined): PlanIncluded[] =>
-  sub.inclusPropres ?? plan?.included ?? [];
+export const inclusVendus = (sub: Subscriber, plan: Plan | undefined, dateIso: string = todayIsoLocal()): PlanIncluded[] => {
+  const base = sub.inclusPropres ?? plan?.included ?? [];
+  /* LE SOIN DE LA LUNE (10 octobre 2026) : un par cycle, tour à tour depuis la
+     signature. Il s'ajoute au contenu du cycle, jamais aux autres. */
+  const soin = plan ? soinDeLaLune(plan, sub.sinceIso ?? sub.startIso ?? undefined, dateIso) : undefined;
+  return soin && !base.some((i) => i.serviceId === soin) ? [...base, { serviceId: soin, qty: 1 }] : base;
+};
 
 /** LA DURÉE DE VIE RÉELLEMENT VENDUE d'un pack, en jours. `null` = sans limite. */
 export const validiteVendueJours = (sub: Subscriber, plan: Plan | undefined): number | null =>
