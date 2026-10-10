@@ -2,6 +2,65 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## LA MAISON A SON REGISTRE : « MAISON MND », SEULE — 10 octobre 2026
+
+La Maison est immatriculée depuis le 9 octobre 2026 (greffe de Cotonou,
+entreprise individuelle ; « Maison MND » est l'enseigne et le nom
+commercial) : **RCCM RB/COT/26 A 120676**, **IFU 1 2010 0097 2809**. Feu vert
+de la direction le 10, puis la précision : « juste Maison MND ». **Aucun nom
+de personne** dans l'identité de la Maison (ni « ETS de … », ni exploitant),
+et l'adresse publique reste celle du site (Ilot 130-F, Suru-Léré, 06 BP 2076) :
+celle du registre nomme le propriétaire des murs et ne sort pas.
+
+Fait (mise en ligne validée d'avance par la direction le 10 octobre,
+« pas besoin de me montrer ») :
+- `shared/registre.ts` (nouveau, pur) : le registre, la raison
+  `Maison MND · RCCM RB/COT/26 A 120676 · IFU 1 2010 0097 2809`, la raison
+  d'ACIA 1 figée, le jour de bascule (`BASCULE_DE_L_IDENTITE`, 2026-10-10).
+- `identite.ts` : la raison par défaut devient le registre ; un champ
+  **`employeur`** la SÉPARE de l'employeur (règlement intérieur, lettres du
+  prêt), qui reste ACIA 1 ; `maisonRaisonAu(jour)` : une facture ou un accord
+  d'avant la bascule se réimprime avec la raison d'alors, à la lettre
+  (`raisonAvant`, gardée par la migration).
+- **Deux migrations datées** (mortes le 31 déc. 2026, marqueur par poste) :
+  `migreLaRaisonDeLaMaison` (main.tsx du Trône) ne remplace qu'une raison
+  ACIA 1 connue et pose l'employeur à la lettre ; `migreLesMentionsDeLaMaison`
+  (à l'ouverture du Secrétariat par la direction) corrige, champ par champ,
+  les numéros d'ACIA 1 posés sous Maison MND. Une lettre de Maison MND sans
+  mentions tapées prend le registre ; une pièce signée garde les siennes.
+- Nouveau tampon `mnd-cachet-registre` (cachet commercial avec RCCM et IFU,
+  `scripts/fabrique-le-cachet-de-la-maison.mjs`) ; l'ancien `mnd-3-cachet` est
+  gardé tel quel (les pièces signées relisent l'image par sa clé).
+- Facture à l'écran : la ligne légale du jour de la pièce. PDF de facture et
+  reçu-facture de la Caisse : la ligne légale (« RCCM … · IFU … », sans
+  répéter le nom de la devise dessous) pour une pièce datée de la bascule ou
+  après seulement ; le PDF d'une pièce d'avant n'en avait pas et n'en gagne
+  pas.
+- Site : `COMMUN.editeur` sans exploitante, avec l'IFU ; « Qui est la Maison
+  MND » et « Qui signe ce site » disent une seule phrase ; les mentions
+  légales et la direction de la publication sans nom de personne ; JSON-LD
+  `legalName` « Maison MND », mais NI RCCM NI IFU dans ce nœud, qui nomme les
+  fondateurs (le registre et un nom de personne ne s'y croisent pas). Les
+  deux paragraphes du registre portent `cle: 'registre'` : le générateur y
+  remet la phrase APRÈS les retouches du Trône (`remetsLaPhraseDuRegistre`).
+- Relecture du 10 octobre : une ligne `mentions-mnd` restée aux numéros
+  d'ACIA 1 se corrige à la LECTURE (`mentionsDuJourDe`), la première pièce
+  signée avant la migration ne fige donc plus ACIA 1 sous Maison MND ; les
+  **pièces d'employeur** du Secrétariat (`PIECES_D_EMPLOYEUR` : équipe,
+  attestation et contrat de travail) se font au nom de l'employeur réglé,
+  ACIA 1 tant qu'il dit ACIA 1.
+- Harnais `verifie-l-identite-de-la-maison` (`--prouve` : trente et une
+  fautes remises en mémoire, toutes font crier le harnais).
+
+NE BOUGE PAS sans décision : le marchand Mobile Money « ACIA1 » (vrai nom chez
+l'opérateur) ; l'employeur des contrats et bulletins (à voir avec le
+comptable) ; l'entité ACIA 1 du Secrétariat et ses tampons ; les documents
+déjà émis. À trancher : la loi béninoise peut exiger le nom de l'exploitant
+sur un site marchand (rien ajouté) ; la fiche Business de Meta dit encore
+ACIA 1 ; le `founder` du JSON-LD ; le jour de bascule à aligner sur la mise en
+ligne ; une retouche publiée du registre dans `mnd_site_publie` (lire les
+octets servis de /contact/ et /maison-mnd/ après build-sites).
+
 ## LE CODE DE L'OFFRE, ET SEPT SAISONS QUI ARRIVENT REMPLIES — 24 septembre 2026
 
 Trois demandes du même soir, qui n'en font qu'une. « Les 10 % ne marchent sur

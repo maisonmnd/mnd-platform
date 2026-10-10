@@ -20,7 +20,10 @@ export type Besoin = 'creation' | 'reparation' | 'entretien' | 'enfant' | 'forma
 export type Lien = { texte: string; vers: string };
 
 export type Section =
-  | { type: 'texte'; sur?: string; titre?: string; corps: string; image?: string }
+  /** `cle: 'registre'` (10 octobre 2026) : le paragraphe qui dit le registre
+      de la Maison. Le générateur y remet la phrase du registre APRÈS les
+      retouches du Trône : ce texte légal ne se retouche pas. */
+  | { type: 'texte'; sur?: string; titre?: string; corps: string; image?: string; cle?: 'registre' }
   /** `style` : `lignes` (un filet cuivre, du texte), `cartes` (une carte à
       bandeau indigo par item), `portes` (les cartes à photo des parcours,
       la même bande qu'à l'accueil ; chaque `vers` doit désigner une page de
@@ -167,10 +170,12 @@ export type Commun = {
   /** QUI ÉDITE LE SITE, tel que l'écrit l'extrait du registre du commerce
       (19 septembre 2026). Les mentions légales et la fiche lue par Google le
       disent ; c'est aussi ce qui relie « Maison MND » à son immatriculation
-      pour l'examen du nom WhatsApp par Meta. */
+      pour l'examen du nom WhatsApp par Meta. Depuis le 10 octobre 2026, la
+      Maison a son propre registre, et aucun nom de personne : plus de champ
+      pour l'exploitante (décision « juste Maison MND »). */
   editeur: {
-    nomCommercial: string; forme: string; exploitante: string;
-    rccm: string; greffe: string; telephone: string; email: string;
+    nomCommercial: string; forme: string;
+    rccm: string; ifu: string; greffe: string; telephone: string; email: string;
     /** L'adresse du registre : les mentions légales et la preuve faite à Meta. */
     adresse: string;
     /** La même, avec le repère, pour qui cherche la porte. */

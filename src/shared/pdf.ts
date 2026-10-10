@@ -6,6 +6,7 @@
 
 import qrcode from 'qrcode-generator';
 import { maisonNom, DEVISE_COMPLETE, estLaMaisonMND } from './identite';
+import { ligneLegaleSousLeNom } from './registre';
 import { DEVISE_FON_B64 } from './devise-fon-b64';
 import { estIdentifiantMomo } from './momo';
 
@@ -604,6 +605,11 @@ export type InvoicePdfData = {
       l'app MoMo reconnaît (jamais un lien web — leçon du 25 août), le code se
       compose montant compris, et le marchand se nomme. */
   momo?: { qr: string; code?: string; marchand?: string };
+  /** LA LIGNE LÉGALE au pied (10 octobre 2026) : la raison de la Maison, RCCM
+      et IFU, comme la facture à l'écran. Seulement pour une pièce datée de
+      la bascule ou après (`maisonRaisonDuPdfAu`) : le PDF d'une facture
+      d'avant n'avait pas de ligne, il se retélécharge tel qu'il a été remis. */
+  legal?: string;
 };
 
 /* ── UNE PIÈCE SE TÉLÉCHARGE, OU S'ENVOIE — 14 septembre 2026 ────────
@@ -851,6 +857,16 @@ async function construitLaFacture(d: InvoicePdfData): Promise<{ doc: any; filena
   }
 
   // — Pied —
+  /* La ligne légale, juste au-dessus de la devise (10 octobre 2026). Elle
+     est centrée, à gauche du QR MoMo qui vit dans la marge de droite. La
+     devise dessous commence déjà par le nom de la Maison : la ligne légale
+     ne le répète pas (« RCCM … · IFU … » seul, relecture du même jour). */
+  if (d.legal?.trim()) {
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(6.5);
+    doc.setTextColor(SOFT);
+    doc.text(pdfSafe(ligneLegaleSousLeNom(d.legal, maisonNom())), W / 2, 280.5, { align: 'center' });
+  }
   await pieDeLaMaison(doc, W, 285);
 
   const filename = `${d.kind === 'devis' ? 'Devis' : d.kind === 'releve' ? 'Releve' : 'Facture'}-${d.number}.pdf`;

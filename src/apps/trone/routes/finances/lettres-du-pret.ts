@@ -19,7 +19,7 @@
    d'impression n'a pas d'adresse à elle, d'où une adresse ENTIÈRE. */
 
 import { nombreEnLettres } from '../../../../shared/nombre-en-lettres';
-import { maisonNom, maisonRaison, maisonVille } from '../../../../shared/identite';
+import { maisonEmployeur, maisonNom, maisonVille } from '../../../../shared/identite';
 
 export type DonneesDesLettres = {
   nom: string;
@@ -263,7 +263,8 @@ export const moisCourtEnClair = (mois: string): string => moisCourt(mois);
     pictogramme ; vide, l'en-tête s'en passe. */
 export function lettresDuPretHtml(d: DonneesDesLettres, picto = ''): string {
   const maison = maisonNom();
-  const raison = maisonRaison();
+  /* L'employeur, pas la raison des factures (10 octobre 2026). */
+  const raison = maisonEmployeur();
   const societe = raison.split('·')[0].trim() || maison;
   const ville = maisonVille();
   const entete = (reference: string) => `

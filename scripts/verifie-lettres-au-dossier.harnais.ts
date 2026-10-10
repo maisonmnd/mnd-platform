@@ -16,7 +16,7 @@ import {
   phrasesDesLettres, lignesDeLEcheancier, mentionDuPret, VERSION_DES_LETTRES,
   type LettresDuPretPdf,
 } from '../src/apps/trone/routes/finances/lettres-du-pret-pdf';
-import { maisonNom, maisonRaison, maisonVille } from '../src/shared/identite';
+import { maisonEmployeur, maisonNom, maisonVille } from '../src/shared/identite';
 
 let ko = 0;
 const dit = (nom: string, attendu: unknown, obtenu: unknown) => {
@@ -62,7 +62,9 @@ const d: DonneesDesLettres = {
 };
 const jourLong = (iso: string) => new Date(`${iso}T00:00:00`).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
 const moisLong = (m: string) => new Date(`${m}-01T00:00:00`).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
-const raison = maisonRaison();
+/* L'employeur, comme l'écran du prêt depuis le 10 octobre 2026 : la raison
+   des factures n'entre plus dans ces lettres. */
+const raison = maisonEmployeur();
 const p: LettresDuPretPdf = {
   maison: maisonNom(), raison, ville: maisonVille(),
   deLaMaison: `de la ${maisonNom()}`, avecArticle: `la ${maisonNom()}`,

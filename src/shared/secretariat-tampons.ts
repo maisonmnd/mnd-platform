@@ -12,6 +12,13 @@ export type Tampon = { cle: string; nom: string; fichier: string; ratio: number 
 
 export const TAMPONS: Record<'mnd' | 'acia', Tampon[]> = {
   mnd: [
+    /* LE CACHET AVEC LE REGISTRE (10 octobre 2026) : la Maison est
+       immatriculée depuis le 9 ; ce cachet dit son RCCM et son IFU, sans nom
+       de personne. Un NOUVEAU fichier sous une nouvelle clé : l'ancien
+       cachet commercial reste tel quel, car une pièce signée ne garde que la
+       clé de son tampon et relit l'image à chaque rendu. Fabriqué par
+       scripts/fabrique-le-cachet-de-la-maison.mjs. */
+    { cle: 'mnd-cachet-registre', nom: 'Le cachet commercial, RCCM et IFU', fichier: 'mnd-cachet-registre.png', ratio: 600 / 278 },
     { cle: 'mnd-6-dentele', nom: 'Le sceau dentelé', fichier: 'mnd-6-dentele.png', ratio: 1 },
     { cle: 'mnd-premium-indigo', nom: 'Premium indigo', fichier: 'mnd-premium-indigo.png', ratio: 1 },
     { cle: 'mnd-premium-cuivre', nom: 'Premium cuivre', fichier: 'mnd-premium-cuivre.png', ratio: 1 },

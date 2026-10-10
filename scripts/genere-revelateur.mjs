@@ -65,6 +65,10 @@ const { COMMUN, ACCUEIL, PAGES, GALERIE, DEVISE_COMPLETE, COMMUNAUTE, PARRAINAGE
   const docs = await documentsPublics(['mnd_site_publie']);
   const n = contenu.appliqueLesRetouches(PAGES, ACCUEIL, docs?.mnd_site_publie);
   console.log(docs ? `  retouches du Trône appliquées : ${n}` : '  retouches du Trône non lues : contenu d’origine');
+  /* Le texte du registre ne se retouche pas (10 octobre 2026) : il reprend
+     sa phrase APRÈS les retouches, et on le dit s'il a fallu la remettre. */
+  const remis = contenu.remetsLaPhraseDuRegistre(PAGES);
+  if (remis) console.log(`  phrase du registre remise par-dessus une retouche : ${remis}`);
 }
 
 /* ── CE QUE LA CONSTRUCTION ÉCRIT DANS LA PAGE — 24 septembre 2026 ──────
@@ -233,6 +237,11 @@ const noeudMaison = () => ({
   name: COMMUN.nom, url: SITE, image: `${SITE}assets/photos/site/partage-accueil.jpg`, logo: `${SITE}assets/monograms/mono-indigo.png`,
   description: 'Maison boutique de soin et de création de dreadlocks afro à Cotonou.',
   legalName: COMMUN.editeur.nomCommercial,
+  /* PAS DE RCCM NI D'IFU ICI (relecture du 10 octobre 2026). Ce nœud nomme
+     les fondateurs (`founder`, le récit de la marque) : y joindre le
+     registre relierait l'immatriculation à un nom de personne, ce que la
+     direction a demandé d'enlever (« juste Maison MND »). Le registre se lit
+     dans les mentions légales et sur /contact/, sans nom. */
   email: COMMUN.editeur.email,
   telephone: COMMUN.editeur.telephone.replace(/\s/g, ''),
   address: { '@type': 'PostalAddress', streetAddress: COMMUN.editeur.rue, postOfficeBoxNumber: COMMUN.editeur.boitePostale, addressLocality: COMMUN.ville, addressCountry: 'BJ' },
@@ -1110,7 +1119,7 @@ function rendArticle(art) {
 
 /* ── Les pages légales, sobres et vraies ─────────────────────────────── */
 const LEGALES = [
-  { chemin: '/mentions-legales/', court: 'Mentions légales', titre: 'Mentions légales · Maison MND', description: 'Lisez qui édite ce site, qui l’héberge et comment joindre la Maison MND à Cotonou.', h1: 'Mentions légales', corps: `<p><b>Éditeur.</b> ${echappe(COMMUN.nom)} est la marque exploitée par ${echappe(COMMUN.editeur.nomCommercial)}, ${echappe(COMMUN.editeur.forme)} de ${echappe(COMMUN.editeur.exploitante)}, immatriculée au Registre du commerce et du crédit mobilier de ${echappe(COMMUN.editeur.greffe)} sous le n° ${echappe(COMMUN.editeur.rccm)}.</p><p><b>Établissement principal.</b> ${echappe(COMMUN.editeur.adresse)}. Téléphone et WhatsApp : ${echappe(COMMUN.editeur.telephone)}.</p><p><b>Direction de la publication.</b> Yéman Ahouansou.</p><p><b>Hébergement.</b> GitHub Pages (GitHub, Inc.).</p><p><b>Nous joindre.</b> Par WhatsApp, depuis n’importe quelle page du site, par courriel à ${echappe(COMMUN.editeur.email)}, ou en laissant vos coordonnées.</p><p><b>Photographies.</b> Les images de ce site appartiennent à la Maison MND ou lui ont été confiées avec l’accord des personnes qui y figurent.</p>` },
+  { chemin: '/mentions-legales/', court: 'Mentions légales', titre: 'Mentions légales · Maison MND', description: 'Lisez qui édite ce site, qui l’héberge et comment joindre la Maison MND à Cotonou.', h1: 'Mentions légales', corps: `<p><b>Éditeur.</b> Ce site est édité par ${echappe(COMMUN.editeur.nomCommercial)}, ${echappe(COMMUN.editeur.forme)} immatriculée au Registre du commerce et du crédit mobilier de ${echappe(COMMUN.editeur.greffe)} sous le n° ${echappe(COMMUN.editeur.rccm)}, IFU ${echappe(COMMUN.editeur.ifu)}. « ${echappe(COMMUN.editeur.nomCommercial)} » en est à la fois l’enseigne et le nom commercial.</p><p><b>Établissement principal.</b> ${echappe(COMMUN.editeur.adresse)}. Téléphone et WhatsApp : ${echappe(COMMUN.editeur.telephone)}.</p><p><b>Direction de la publication.</b> La direction de la ${echappe(COMMUN.nom)}, joignable à ${echappe(COMMUN.editeur.email)}.</p><p><b>Hébergement.</b> GitHub Pages (GitHub, Inc.).</p><p><b>Nous joindre.</b> Par WhatsApp, depuis n’importe quelle page du site, par courriel à ${echappe(COMMUN.editeur.email)}, ou en laissant vos coordonnées.</p><p><b>Photographies.</b> Les images de ce site appartiennent à la Maison MND ou lui ont été confiées avec l’accord des personnes qui y figurent.</p>` },
   /* LA POLITIQUE DIT CE QUE LE SITE FAIT VRAIMENT — 18 septembre 2026. Le
      texte precedent annoncait « parfois votre e-mail » : le formulaire n'en
      a jamais demande, et depuis la reservation en ligne il en demande encore

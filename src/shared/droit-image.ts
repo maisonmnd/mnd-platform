@@ -24,7 +24,8 @@
    CE FICHIER N'EST PAS UN AVIS JURIDIQUE. La mécanique est juste ; la
    formulation devrait être relue par quelqu'un qui connaît le droit béninois. */
 
-import { DEVISE_COMPLETE } from './identite';
+import { DEVISE_COMPLETE, maisonRaisonAvantLaBascule } from './identite';
+import { BASCULE_DE_L_IDENTITE, laMaisonEtSaRaison } from './registre';
 
 /** LA VERSION DU TEXTE SIGNÉ. À incrémenter dès qu'un mot du contrat change,
     jamais autrement : c'est elle qui dit à quoi elle a dit oui. */
@@ -188,7 +189,8 @@ export function texteDuContrat(o: {
   const dehors = USAGES.filter((u) => !o.usages.includes(u.cle));
   const simulation = o.usages.includes('simulation');
   const jour = o.jourIso.split('-').reverse().join('/');
-  const maison = o.raison?.trim() ? `${o.maison} (${o.raison.trim()})` : o.maison;
+  /* Sans doublon depuis le 10 octobre 2026 (voir `laMaisonEtSaRaison`). */
+  const maison = laMaisonEtSaRaison(o.maison, o.raison);
 
   const entete = o.pourEnfant
     ? [
@@ -358,8 +360,15 @@ export function texteDuContrat(o: {
 export function exemplaireDe(a: AccordImage, o: {
   maison: string; raison?: string; ville?: string; tete: string;
 }) {
+  /* LA RAISON DU JOUR DE LA SIGNATURE (10 octobre 2026). Un accord signé
+     avant que la Maison ait son registre nommait ACIA 1 : il se réimprime
+     avec ACIA 1, quelle que soit la raison du jour. Sinon l'exemplaire dirait
+     autre chose que ce qu'elle a signé. Relecture du même jour : la raison
+     d'avant À LA LETTRE (`maisonRaisonAvantLaBascule`), pas une constante,
+     car la raison stockée a pu être une variante. */
+  const raison = o.raison?.trim() && (a.at ?? '').slice(0, 10) < BASCULE_DE_L_IDENTITE ? maisonRaisonAvantLaBascule() : o.raison;
   return texteDuContrat({
-    maison: o.maison, raison: o.raison, ville: o.ville, tete: o.tete,
+    maison: o.maison, raison, ville: o.ville, tete: o.tete,
     signataire: a.signePar, pourEnfant: a.pourEnfant,
     usages: a.usages, jourIso: a.at, mois: a.mois, version: a.version,
   });

@@ -35,7 +35,7 @@ import { offreDuCode, offreDuCodePassee, remiseDeLOffreSurLeTicket, pourquoiLOff
 import { useAuth } from '../../../../shared/auth';
 import { ChampDeDate } from '../../../../ds/dates';
 import { useEstDirection } from '../_vie';
-import { maisonNom, signeLeMessage } from '../../../../shared/identite';
+import { maisonNom, maisonRaisonDuPdfAu, signeLeMessage } from '../../../../shared/identite';
 import { uid } from '../../../../shared/store';
 import { ligneNetteXof } from '../../../../shared/gamme';
 import { TAUX_DE_REMISE } from '../../../../shared/pricing';
@@ -716,6 +716,9 @@ export default function Caisse() {
         houseName: branch.name,
         houseSub: branch.city ? `${branch.city} · l'art de la couronne` : undefined,
         date: fmtDateFr(inv.date),
+        /* Le registre au pied du reçu-facture (10 octobre 2026), pour une
+           pièce datée de la bascule ou après, comme dans Factures. */
+        legal: maisonRaisonDuPdfAu(inv.date),
         clientName: client?.name ?? 'Cliente de passage',
         clientPhone: client?.phone,
         lines: inv.lines.map((l) => ({

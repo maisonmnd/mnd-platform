@@ -11,7 +11,7 @@ import { ErreurDEcran } from './shell/ErreurDEcran';
 import { NAV } from './routes/index';
 import { AuthGate } from './auth/AuthGate';
 import { applyPendingReplace } from './backup';
-import { migreLeNomDeLaBranche, migreLeNomDeLaMaison } from '../../shared/identite';
+import { migreLaRaisonDeLaMaison, migreLeNomDeLaBranche, migreLeNomDeLaMaison } from '../../shared/identite';
 import { registerSW } from '../../shared/push';
 
 /* L'APPLICATION RESTE SUR LE TÉLÉPHONE (4 octobre 2026, « hors ligne », temps 2) :
@@ -25,6 +25,12 @@ void registerSW();
    dans le navigateur d'une cliente. Elle expire fin 2026. */
 migreLeNomDeLaMaison();
 migreLeNomDeLaBranche();
+/* LE REGISTRE DE LA MAISON — 10 octobre 2026. La raison stockée qui dit
+   encore ACIA 1 passe au registre de Maison MND ; l'employeur garde ACIA 1.
+   Une fois, depuis le Trône seul, morte fin 2026. Les mentions du
+   Secrétariat, elles, se corrigent à l'ouverture du Secrétariat : charger
+   ici sa table, signatures comprises, alourdirait chaque démarrage. */
+migreLaRaisonDeLaMaison();
 
 // « Remplacer la Maison » : après le redémarrage à blanc, appliquer le fichier en
 // attente sur les magasins vides AVANT le premier rendu (la synchro poussera au serveur).

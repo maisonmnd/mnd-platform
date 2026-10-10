@@ -44,7 +44,7 @@ import {
 } from './lettres-du-pret';
 import { lettresDuPretPdf } from './lettres-du-pret-pdf';
 import LettresAuDossier from './LettresAuDossier';
-import { maisonNom, maisonRaison, maisonVille } from '../../../../shared/identite';
+import { maisonEmployeur, maisonNom, maisonVille } from '../../../../shared/identite';
 import { nombreEnLettres } from '../../../../shared/nombre-en-lettres';
 import { identiteDuPersonnel, imageDuCoffre } from '../../../../shared/engagements-coffre';
 import { ClientPicker } from '../clients/_shared';
@@ -313,7 +313,8 @@ export default function Prets() {
     if (!membreDuPret) throw new Error('aucun membre');
     const rangees = await identiteDuPersonnel(membreDuPret.id);
     const identite = rangees && rangees[0] ? await imageDuCoffre(rangees[0].chemin) : null;
-    const raison = maisonRaison();
+    /* Une pièce EMPLOYEUR (10 octobre 2026) : ACIA 1 tant que rien n'est décidé. */
+    const raison = maisonEmployeur();
     const motif = fPret.motif.trim();
     return lettresDuPretPdf({
       maison: maisonNom(), raison, ville: maisonVille(),

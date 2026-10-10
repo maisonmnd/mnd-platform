@@ -185,6 +185,16 @@ dit('la qualité de chacun est dite', true, p.entete[1].includes('le prestataire
 dit('et le « pour qui » quand il y en a un', true,
   entreLesParties({ maison: 'M', autre: 'A', qualiteAutre: 'le signataire', pourQui: 'E' })[1]
     .includes('agissant pour E'));
+/* LE NOM NE SE RÉPÈTE PAS — 10 octobre 2026. La raison de la Maison commence
+   désormais par son nom (« Maison MND · RCCM … · IFU … ») ; la partie se dit
+   « Maison MND (RCCM … · IFU …) ». Une raison qui nomme un autre
+   établissement s'écrit entière, comme avant. */
+dit('la raison qui commence par le nom ne le repete pas',
+  'Entre Maison MND (RCCM RB/COT/26 A 120676 · IFU 1 2010 0097 2809), dont le siège est à Cotonou, ci-après « la Maison »,',
+  entreLesParties({ maison: 'Maison MND', raison: 'Maison MND · RCCM RB/COT/26 A 120676 · IFU 1 2010 0097 2809', ville: 'Cotonou', autre: 'X', qualiteAutre: 'y' })[0]);
+dit('une raison d un autre etablissement s ecrit entiere',
+  'Entre Maison MND (ACIA 1 · RCCM RB/COT/12 A 14509), dont le siège est à Cotonou, ci-après « la Maison »,',
+  entreLesParties({ maison: 'Maison MND', raison: 'ACIA 1 · RCCM RB/COT/12 A 14509', ville: 'Cotonou', autre: 'X', qualiteAutre: 'y' })[0]);
 
 /* ── LES RÉGLAGES DE LA MAISON — 7 septembre 2026 ──────────────────
    « Dans les textes de la Maison il manque les contrats » (Yéman). Quatre

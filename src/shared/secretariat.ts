@@ -2,9 +2,10 @@ import { createStore, useStore, uid } from './store';
 import { supabase } from './supabase';
 import { asset } from './asset';
 import {
-  annulable, APPELS, clotures, enTeteDe, prefixeDeSerie, prochainNumero, rangeDansLeCadre, retireLesSignatures, signe, modifiable, supprimable,
-  type Entite, type Entreprise, type LigneSecretariat, type Mentions, type Piece, type Profil, type Signataire,
+  annulable, APPELS, clotures, corrigeLesMentionsMND, enTeteDe, mentionsDuJourDe, prefixeDeSerie, prochainNumero, rangeDansLeCadre, retireLesSignatures, signe, modifiable, supprimable,
+  type Entite, type Entreprise, type LigneSecretariat, type Mentions, type MentionsLegales, type Piece, type Profil, type Signataire,
 } from './secretariat-pur';
+import { quandTablePrete } from './sync';
 import { modeleDe, remplis } from './secretariat-modeles';
 import { cachetAutoSvg, dateSurLeRecu, RATIO_DU_CACHET, TAMPON_A_DATER, tamponAutoSvg, tamponParCle, tamponParDefaut, svgEnPng } from './secretariat-tampons';
 
@@ -31,6 +32,12 @@ export const profils = (l: readonly LigneSecretariat[]): Profil[] => l.filter((x
 /** Les mentions (RCCM, IFU) d'une entité, telles que la direction les a tapées. */
 export const mentionsDe = (l: readonly LigneSecretariat[], entite: Entite): Mentions | undefined =>
   l.find((x): x is Mentions => x.genre === 'mentions' && x.entite === entite);
+/** CE QU'UNE PIÈCE NON SIGNÉE IMPRIME (10 octobre 2026) : pour Maison MND,
+    un champ laissé vide prend le registre de la Maison ; ACIA 1, telle que
+    tapée. Une pièce signée, elle, ne lit jamais ce repli : elle garde ses
+    mentions figées. */
+export const mentionsDuJour = (l: readonly LigneSecretariat[], entite: 'mnd' | 'acia'): MentionsLegales | undefined =>
+  mentionsDuJourDe(entite, mentionsDe(l, entite));
 
 export const ecris = (ligne: LigneSecretariat): void =>
   secretariatStore.set((prev) => (prev.some((x) => x.id === ligne.id) ? prev.map((x) => (x.id === ligne.id ? ligne : x)) : [...prev, ligne]));
@@ -76,7 +83,7 @@ function numerote(p: Piece, toutes: readonly LigneSecretariat[]): Piece {
   const prefixe = prefixeDeSerie(p, { entreprise, auteurNom: auteur?.nom });
   const annee = parseInt(p.date.slice(0, 4), 10) || new Date().getFullYear();
   /* Les mentions du jour de la signature se figent dans la pièce. */
-  const m = p.entite === 'mnd' || p.entite === 'acia' ? mentionsDe(toutes, p.entite) : undefined;
+  const m = p.entite === 'mnd' || p.entite === 'acia' ? mentionsDuJour(toutes, p.entite) : undefined;
   const mentionsFigees = m ? { rccm: m.rccm, ifu: m.ifu } : undefined;
   return { ...p, numero: prochainNumero(prefixe, annee, pieces(toutes).map((x) => x.numero)), ...(mentionsFigees ? { mentionsFigees } : {}) };
 }
@@ -148,6 +155,41 @@ export function enregistreMonSignataire(o: { branchId: string; userId: string; n
 /** La direction tape le RCCM et l'IFU d'une entité. */
 export function enregistreLesMentions(o: { branchId: string; entite: 'mnd' | 'acia'; rccm: string; ifu: string }): void {
   ecris({ id: `mentions-${o.entite}`, genre: 'mentions', ...o, rccm: o.rccm.trim(), ifu: o.ifu.trim() });
+}
+
+/* LES MENTIONS DE MAISON MND, corrigées une fois — 10 octobre 2026.
+   Si la ligne `mentions-mnd` porte encore le RCCM ou l'IFU d'ACIA 1, ce champ
+   passe au registre de la Maison (`corrigeLesMentionsMND`) ; un champ vide
+   ou tapé autrement reste, la ligne d'ACIA 1 n'est jamais touchée, et une
+   ligne absente n'est pas créée (le repli `mentionsDuJour` y pourvoit).
+   Même patron que le nom de la Maison : un marqueur par poste, une minute
+   d'écoute après la descente, morte au 31 décembre 2026. Elle part de
+   l'écran du Secrétariat, dans le Trône seul : c'est là que la table se
+   charge, et c'est là seulement qu'une lettre s'imprime. */
+const MARQUEUR_MENTIONS = 'mnd_mentions_maison_2026_10';
+const EXPIRE_LES_MENTIONS = Date.parse('2026-12-31T23:59:59+01:00');
+const mentionsDejaMigrees = (): boolean => { try { return !!localStorage.getItem(MARQUEUR_MENTIONS); } catch { return false; } };
+const marqueLesMentions = () => { try { localStorage.setItem(MARQUEUR_MENTIONS, new Date().toISOString()); } catch { /* sans stockage, on rejouera : sans effet une fois corrigé */ } };
+const corrigeLaLigneMND = (): boolean => {
+  const ligne = mentionsDe(secretariatStore.get(), 'mnd');
+  const corrigees = corrigeLesMentionsMND(ligne);
+  if (!ligne || !corrigees) return false;
+  enregistreLesMentions({ branchId: ligne.branchId, entite: 'mnd', ...corrigees });
+  return true;
+};
+/** À appeler depuis l'écran du Secrétariat du Trône, jamais au chargement. */
+export function migreLesMentionsDeLaMaison(): void {
+  if (Date.now() > EXPIRE_LES_MENTIONS) return;
+  if (mentionsDejaMigrees()) return;
+  quandTablePrete('secretariat', () => {
+    if (corrigeLaLigneMND()) { marqueLesMentions(); return; }
+    let arret: () => void = () => {};
+    const off = secretariatStore.subscribe(() => {
+      setTimeout(() => { if (corrigeLaLigneMND()) { marqueLesMentions(); arret(); } }, 0);
+    });
+    const fin = setTimeout(() => { arret(); marqueLesMentions(); }, 60_000);
+    arret = () => { off(); clearTimeout(fin); };
+  });
 }
 
 export function enregistreMonProfil(o: { branchId: string; userId: string; nom: string; adresse: string; telephone: string }): void {
@@ -265,8 +307,14 @@ export type DocumentResolu = {
 export async function resous(p: Piece, toutes: readonly LigneSecretariat[], nomMaison: string): Promise<DocumentResolu> {
   const entreprise = entreprises(toutes).find((e) => e.id === p.entrepriseId);
   const profil = profils(toutes).find((x) => x.userId === p.auteurId);
-  /* Une pièce signée garde SES mentions ; un brouillon prend celles du jour. */
-  const actuelles = p.entite === 'mnd' || p.entite === 'acia' ? mentionsDe(toutes, p.entite) : undefined;
+  /* Une pièce signée garde SES mentions ; un brouillon prend celles du jour.
+     Le repli sur le registre (10 octobre 2026) ne vaut que pour ce qui n'est
+     pas encore signé : une pièce signée sans mentions figées relit la ligne,
+     sans repli, comme avant. */
+  const pasSignee = p.etat === 'brouillon' || p.etat === 'a-signer';
+  const actuelles = p.entite === 'mnd' || p.entite === 'acia'
+    ? (pasSignee ? mentionsDuJour(toutes, p.entite) : mentionsDe(toutes, p.entite))
+    : undefined;
   const enTete = enTeteDe(p.entite, { nomMaison, entreprise, profil, mentions: p.mentionsFigees ?? actuelles });
   const premier = p.signataires[0];
   const v = {

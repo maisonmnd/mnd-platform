@@ -6,17 +6,18 @@ import { useEstDirection } from '../_vie';
 import { Button, Field, Input, Modal, toast } from '../../../../ds/components';
 import { useAuth, useStaff } from '../../../../shared/auth';
 import { useBranch } from '../../../../shared/branches';
-import { maisonNom } from '../../../../shared/identite';
+import { maisonEmployeur, maisonNom } from '../../../../shared/identite';
 import {
-  effaceLaPiece, enregistreLesMentions, entreprises, mentionsDe, nouvellePiece, pieces, profils, signatairesDe, useSecretariat,
+  effaceLaPiece, enregistreLesMentions, entreprises, mentionsDe, migreLesMentionsDeLaMaison, nouvellePiece, pieces, profils, signatairesDe, useSecretariat,
 } from '../../../../shared/secretariat';
-import { ACIA, dateDite, ifuPlausible, supprimable, type Entite, type Entreprise, type Piece } from '../../../../shared/secretariat-pur';
-import { FAMILLES, MODELES, type Famille } from '../../../../shared/secretariat-modeles';
+import { ACIA, dateDite, ifuPlausible, mentionsDuJourDe, supprimable, type Entite, type Entreprise, type Piece } from '../../../../shared/secretariat-pur';
+import { entiteDeLaPiece, FAMILLES, MODELES, PIECES_D_EMPLOYEUR, type Famille } from '../../../../shared/secretariat-modeles';
 import { Editeur } from './secretariat/Editeur';
 import { MaSignature, NouvelleEntreprise } from './secretariat/Signatures';
 import { LesPapiers } from './secretariat/Papiers';
 import { LeDossierDeBourse } from './secretariat/Bourse';
 import { MARQUE_HEBERGEANT } from '../../../../shared/bourse';
+import { REGISTRE_MAISON_MND } from '../../../../shared/registre';
 import './pilotage.css';
 
 /* ══ LE SECRÉTARIAT — 6 octobre 2026 (maquette StpDQGL3HE1nHyyjSRNU9r validée) ══
@@ -53,6 +54,10 @@ export default function Secretariat() {
   const [signature, setSignature] = useState(false);
   const [aSupprimer, setASupprimer] = useState<string | null>(null);
   const [mentions, setMentions] = useState(false);
+  /* LE REGISTRE DE LA MAISON (10 octobre 2026) : à la première ouverture par
+     la direction, les numéros d'ACIA 1 posés sous Maison MND passent au
+     registre de la Maison. Une fois par poste ; morte fin 2026. */
+  useEffect(() => { if (direction) migreLesMentionsDeLaMaison(); }, [direction]);
 
   const ents = entreprises(lignes);
   /* L'hébergeant du dossier de bourse est un particulier gardé en fiche : ce
@@ -248,7 +253,11 @@ function NouveauDocument({ direction, branchId, moi, nomParDefaut, entreprisesCo
     } else if (fiche) {
       signataires = [{ userId: moi, nom: fiche.nom, qualite: fiche.qualite }];
     }
-    const p = nouvellePiece({ branchId, entite, entrepriseId: entite === 'autre' ? entrepriseId : undefined, modele, auteurId: moi, signataires });
+    /* Une pièce d'employeur se fait au nom de l'employeur réglé (relecture
+       du 10 octobre 2026, voir PIECES_D_EMPLOYEUR) : on le dit, sans bloquer. */
+    const auNomDe = entiteDeLaPiece(entite, modele, maisonEmployeur());
+    if (auNomDe !== entite) toast(`Pièce d’employeur : faite au nom de ${ACIA.nom}, l’employeur de l’équipe tant que le comptable n’a rien décidé.`);
+    const p = nouvellePiece({ branchId, entite: auNomDe, entrepriseId: auNomDe === 'autre' ? entrepriseId : undefined, modele, auteurId: moi, signataires });
     surCree(p.id);
   };
 
@@ -276,6 +285,7 @@ function NouveauDocument({ direction, branchId, moi, nomParDefaut, entreprisesCo
           )}
           <p className="mnd-muted" style={{ fontSize: 12.5, margin: '8px 0 0' }}>
             {entite === 'mnd' && 'En-tête Maison MND, tampon de la Maison, série MND-DOC.'}
+            {entite === 'mnd' && entiteDeLaPiece('mnd', PIECES_D_EMPLOYEUR[0], maisonEmployeur()) === 'acia' && ` Les pièces d’employeur (équipe, attestation et contrat de travail) se font au nom de ${ACIA.nom}, l’employeur de l’équipe.`}
             {entite === 'acia' && 'En-tête ACIA 1 seul, rien de Maison MND ; série ACIA.'}
             {entite === 'autre' && 'Son nom, ses mentions et son tampon dessiné à l’instant ; sa propre série de numéros.'}
             {entite === 'perso' && 'À votre nom, sans en-tête d’entreprise ni tampon : elle n’engage pas l’entreprise. Vue de la direction seule.'}
@@ -322,8 +332,12 @@ function MentionsDeLEnTete({ branchId, onClose }: { branchId: string; onClose: (
   const [lignes] = useSecretariat();
   const mnd = mentionsDe(lignes, 'mnd');
   const acia = mentionsDe(lignes, 'acia');
-  const [mndRccm, setMndRccm] = useState(mnd?.rccm ?? '');
-  const [mndIfu, setMndIfu] = useState(mnd?.ifu ?? '');
+  /* Vides, ils prennent le registre de la Maison (10 octobre 2026), comme
+     ACIA 1 prend son RCCM connu ; un numéro d'ACIA 1 resté sous Maison MND
+     s'y montre déjà corrigé : la direction voit ce qui s'imprimera. */
+  const duJour = mentionsDuJourDe('mnd', mnd);
+  const [mndRccm, setMndRccm] = useState(duJour?.rccm || REGISTRE_MAISON_MND.rccm);
+  const [mndIfu, setMndIfu] = useState(duJour?.ifu || REGISTRE_MAISON_MND.ifu);
   const [aciaRccm, setAciaRccm] = useState(acia?.rccm || ACIA.rccm);
   const [aciaIfu, setAciaIfu] = useState(acia?.ifu ?? '');
   const avis = (ifu: string) => (ifu.trim() && !ifuPlausible(ifu)
@@ -346,7 +360,7 @@ function MentionsDeLEnTete({ branchId, onClose }: { branchId: string; onClose: (
         <div style={{ display: 'grid', gap: 10 }}>
           <div className="mnd-eyebrow">{maisonNom()} · au pied des lettres</div>
           <div className="tr-grid tr-grid--2" style={{ gap: 12 }}>
-            <Field label="RCCM"><Input value={mndRccm} onChange={(e) => setMndRccm(e.target.value)} placeholder="RB/COT/…" /></Field>
+            <Field label="RCCM"><Input value={mndRccm} onChange={(e) => setMndRccm(e.target.value)} /></Field>
             <Field label="IFU"><Input value={mndIfu} onChange={(e) => setMndIfu(e.target.value)} inputMode="numeric" placeholder="13 chiffres" /></Field>
           </div>
           {avis(mndIfu)}

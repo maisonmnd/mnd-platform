@@ -1552,12 +1552,24 @@ export default function Parametres() {
               aria-label="Nom de la Maison"
             />
           </EditRow>
-          <EditRow l="Raison sociale" sub="La ligne légale des factures, RCCM compris.">
+          <EditRow l="Raison sociale" sub="La ligne légale des factures, RCCM et IFU compris.">
             <input
               className="sys-input"
               value={identity.raison}
               onChange={(e) => setIdent('raison', e.target.value)}
               aria-label="Raison sociale"
+            />
+          </EditRow>
+          {/* L'EMPLOYEUR, SÉPARÉ DE LA RAISON — 10 octobre 2026. La raison est
+              passée au registre de Maison MND ; l'employeur de l'équipe n'a
+              pas changé, c'est au comptable d'en décider. */}
+          <EditRow l="Employeur de l’équipe" sub="Nommé au règlement intérieur, aux lettres du prêt et aux pièces d’employeur du Secrétariat. Il reste ACIA 1 tant que le comptable n’a rien décidé.">
+            <input
+              className="sys-input"
+              value={identity.employeur ?? ''}
+              placeholder="ACIA 1 · RCCM RB/COT/12 A 14509"
+              onChange={(e) => setIdent('employeur', e.target.value)}
+              aria-label="Employeur de l’équipe"
             />
           </EditRow>
           {/* LA VILLE DU SIÈGE, PAS CELLE DU FAUTEUIL. L'atelier est à Suru-Léré,

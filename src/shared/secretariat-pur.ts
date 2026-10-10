@@ -21,6 +21,7 @@
      politesse, jamais à un endroit absolu de la page. L'aperçu et le PDF
      tombent ainsi au même endroit, même quand la lettre passe sur deux
      pages. */
+import { REGISTRE_MAISON_MND } from './registre';
 
 export type Entite = 'mnd' | 'acia' | 'autre' | 'perso';
 export type Genre = 'piece' | 'entreprise' | 'signataire' | 'profil' | 'mentions' | 'bourse';
@@ -157,6 +158,40 @@ export function ligneDesMentions(m: Partial<MentionsLegales> | undefined): strin
 
 /** L'IFU du Bénin compte treize chiffres : on prévient, on ne bloque pas. */
 export const ifuPlausible = (ifu: string): boolean => /^\d{13}$/.test(ifu.replace(/\s/g, ''));
+
+/* LE REGISTRE DE MAISON MND — 10 octobre 2026. Les mentions de Maison MND
+   ont pu recevoir, le 8 octobre, les numéros d'ACIA 1 (IFU « sur cachet et
+   en-tête ») : la Maison n'avait pas encore le sien. Depuis le 9 elle l'a.
+
+   `mentionsDuJourDe` : ce qu'une lettre de Maison MND imprime AVANT d'être
+   signée. Un champ vide prend le registre ; un numéro d'ACIA 1 resté dans la
+   ligne est corrigé À LA LECTURE (relecture du même jour : la migration de la
+   ligne ne part qu'à l'ouverture par la direction, alors que tout le
+   personnel peut signer une pièce de Maison MND ; sans cela, la première
+   signée avant elle figeait les numéros d'ACIA 1 sous l'en-tête de la
+   Maison). Tout autre champ tapé reste tel quel. ACIA 1 n'a pas de repli
+   ici (son RCCM connu vit dans `enTeteDe`).
+
+   `corrigeLesMentionsMND` : la correction, champ par champ, d'un numéro
+   d'ACIA 1 posé sous Maison MND. Rien d'autre ne se remplace : un champ vide
+   ou tapé autrement reste, et la ligne d'ACIA 1 n'est jamais une entrée. */
+export function mentionsDuJourDe(entite: 'mnd' | 'acia', m: Partial<MentionsLegales> | undefined): MentionsLegales | undefined {
+  if (entite !== 'mnd') return m ? { rccm: m.rccm ?? '', ifu: m.ifu ?? '' } : undefined;
+  const lu = corrigeLesMentionsMND({ entite: 'mnd', rccm: m?.rccm, ifu: m?.ifu }) ?? m;
+  return { rccm: lu?.rccm?.trim() || REGISTRE_MAISON_MND.rccm, ifu: lu?.ifu?.trim() || REGISTRE_MAISON_MND.ifu };
+}
+const aPlatRccm = (s: string) => s.toUpperCase().replace(/^\s*RCCM\s*/, '').replace(/^N°\s*/, '').replace(/\s+/g, '');
+const RCCM_ACIA_A_PLAT = 'RB/COT/12A14509';
+const IFU_ACIA_A_PLAT = '3201200548614';
+export function corrigeLesMentionsMND(m: { entite: string; rccm?: string; ifu?: string } | undefined): MentionsLegales | null {
+  if (!m || m.entite !== 'mnd') return null;
+  const rccm = m.rccm ?? '';
+  const ifu = m.ifu ?? '';
+  const rccmACIA = aPlatRccm(rccm) === RCCM_ACIA_A_PLAT;
+  const ifuACIA = ifu.replace(/\D/g, '') === IFU_ACIA_A_PLAT;
+  if (!rccmACIA && !ifuACIA) return null;
+  return { rccm: rccmACIA ? REGISTRE_MAISON_MND.rccm : rccm, ifu: ifuACIA ? REGISTRE_MAISON_MND.ifu : ifu };
+}
 
 /* ══ LES FORMULES, PRÉ-REMPLIES ══════════════════════════════════════ */
 

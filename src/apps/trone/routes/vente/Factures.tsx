@@ -6,7 +6,7 @@ import { OptionsPrestations, PageHead } from '../_ui';
 import { Button, Select, demande } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
-import { maisonNom, maisonRaison, signeLeMessage, DEVISE_COMPLETE } from '../../../../shared/identite';
+import { maisonNom, maisonRaisonAu, maisonRaisonDuPdfAu, signeLeMessage, DEVISE_COMPLETE } from '../../../../shared/identite';
 import { useServices } from '../../../../shared/catalog';
 import { useClients, useFamilies } from '../../../../shared/clients';
 import { payerClientIdOf } from '../../../../shared/accounts';
@@ -655,6 +655,9 @@ export default function Factures() {
       houseName: branch.name,
       houseSub: branch.city ? `${branch.city} · l'art de la couronne` : undefined,
       date: fmtDateFr(d.date),
+      /* Le registre au pied du PDF (10 oct. 2026), pour une pièce datée de la
+         bascule ou après : le PDF d'avant n'avait pas de ligne légale. */
+      legal: maisonRaisonDuPdfAu(d.date),
       clientName: clientNameForPdf(d),
       ...(payeurAutreQue(d) ? { payeurName: payeurAutreQue(d) } : {}),
       clientPhone: clientOf(d)?.phone,
@@ -2034,7 +2037,9 @@ export default function Factures() {
                 {/* LA LIGNE LÉGALE VIENT DES PARAMÈTRES (13 août). Un RCCM codé
                     en dur ici contredisait celui de l'identité — deux numéros
                     pour une seule maison, et c'est la pièce OFFICIELLE. */}
-                <div className="trv-doc__legal">{maisonRaison()} · {branch.city} · merci de cultiver votre couronne avec nous.</div>
+                {/* 10 octobre 2026 : la raison DU JOUR DE LA PIÈCE. Une facture
+                    d'avant la bascule se relit avec ACIA 1, comme remise. */}
+                <div className="trv-doc__legal">{maisonRaisonAu(active.date)} · {branch.city} · merci de cultiver votre couronne avec nous.</div>
               </div>
             </div>
           </div>

@@ -11,7 +11,7 @@ import { useInvoices, invoiceTotal, expensesStore, expenseCategoriesStore, useCa
 import { useServices, useCategories, sousArbreOf } from '../../../../shared/catalog';
 import { useStaff as useMyStaff, useAuth } from '../../../../shared/auth';
 import { summaryPdf, payslipPdf, type SummarySection, type PayslipRow } from '../../../../shared/pdf';
-import { maisonNom, maisonRaison, maisonVille } from '../../../../shared/identite';
+import { maisonEmployeur, maisonNom, maisonVille } from '../../../../shared/identite';
 import { ContratModal } from '../_contrat';
 import { EvaluationModal } from './Evaluation';
 import { texteReglementInterieur } from '../../../../shared/reglement-interieur';
@@ -1945,7 +1945,9 @@ export default function Personnel() {
           qualiteSignataire="Reçu un exemplaire, lu et approuvé :"
           fichier={`reglement-interieur-${reglementFor.name.split(' ')[0].toLowerCase()}.pdf`}
           contrat={texteReglementInterieur({
-            maison: maisonNom(), raison: maisonRaison(), ville: maisonVille(),
+            /* L'EMPLOYEUR, pas la raison des factures (10 octobre 2026) : il
+               reste ACIA 1 tant que le comptable n'a rien décidé. */
+            maison: maisonNom(), raison: maisonEmployeur(), ville: maisonVille(),
             nom: reglementFor.name, fonction: reglementFor.role,
             jourIso: new Date().toISOString().slice(0, 10),
             version: reglementDuJour.version,

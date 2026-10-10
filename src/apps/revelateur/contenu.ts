@@ -9,6 +9,7 @@
 
 import type { Accueil, Commun, Galerie, Page } from './contenu-types';
 import { PARRAINAGE } from './communaute';
+import { REGISTRE_MAISON_MND } from '../../shared/registre';
 
 /* La communauté, le parrainage, les ingrédients, l'avant / après : 28 septembre 2026. */
 export * from './communaute';
@@ -16,14 +17,19 @@ export * from './communaute';
 export const COMMUN: Commun = {
   nom: 'Maison MND',
   ville: 'Cotonou',
-  /* Recopié de l'extrait du RCCM, sans rien de ce qui est personnel
-     (naissance, domicile, téléphone privé ne sortent jamais d'ici). */
+  /* Recopié de l'extrait du RCCM du 9 octobre 2026, sans rien de ce qui est
+     personnel : ni nom de personne (décision du 10 octobre, « juste Maison
+     MND »), ni naissance, ni domicile, ni téléphone privé. L'adresse reste
+     celle que le site emploie depuis septembre : celle du registre nomme le
+     propriétaire des murs, elle ne sort jamais d'ici. Le nom, la forme, le
+     RCCM, l'IFU et le greffe viennent du module du registre, la seule
+     source. */
   editeur: {
-    nomCommercial: 'ACIA 1',
-    forme: 'entreprise individuelle',
-    exploitante: 'Yéman Ahouansou',
-    rccm: 'RB/COT/12 A 14509',
-    greffe: 'Cotonou',
+    nomCommercial: REGISTRE_MAISON_MND.nom,
+    forme: REGISTRE_MAISON_MND.forme,
+    rccm: REGISTRE_MAISON_MND.rccm,
+    ifu: REGISTRE_MAISON_MND.ifu,
+    greffe: REGISTRE_MAISON_MND.greffe,
     adresse: 'Ilot 130-F, quartier Suru-Léré, 06 BP 2076, Cotonou, Bénin',
     /* DEUX ADRESSES POUR UN SEUL LIEU — 22 septembre 2026, demandé par Yéman.
        `adresse` est celle du registre : elle signe les mentions légales et le
@@ -218,6 +224,35 @@ export const COMMUN: Commun = {
     ],
   },
 };
+
+/* LA PHRASE DU REGISTRE — 10 octobre 2026. Elle disait « Maison MND est le
+   nom commercial sous lequel exerce ACIA 1, entreprise individuelle de … » ;
+   la Maison est immatriculée à son nom depuis le 9, et la direction a décidé
+   le 10 qu'elle se nomme seule, sans nom de personne. Une seule phrase pour
+   les deux endroits qui la portent (« Qui est la Maison MND », « Qui signe ce
+   site ») : elles ne divergeront plus. Relecture du même jour : « Maison
+   MND est à la fois son enseigne » faisait de la Maison sa propre enseigne ;
+   « « Maison MND » en est l'enseigne » dit juste. */
+const ED = COMMUN.editeur;
+export const PHRASE_DU_REGISTRE = `${ED.nomCommercial} est une ${ED.forme} immatriculée au registre du commerce et du crédit mobilier de ${ED.greffe} sous le numéro ${ED.rccm}, IFU ${ED.ifu}. « ${ED.nomCommercial} » en est à la fois l’enseigne et le nom commercial. Établissement principal : ${ED.adresse}. Téléphone et WhatsApp : ${ED.telephone}. Courriel : ${ED.email}.`;
+
+/** LA PHRASE DU REGISTRE NE SE RETOUCHE PAS (relecture du 10 octobre 2026).
+    Les deux paragraphes du registre sont des champs de pages : l'éditeur du
+    site du Trône peut les retoucher, et le générateur applique les retouches
+    publiées par-dessus. Une retouche d'avant le 10 (l'ancienne phrase, qui
+    nommait ACIA 1 et son exploitante) ou d'après (un nom ajouté) aurait
+    servi autre chose que le texte vérifié. Le générateur appelle donc ceci
+    APRÈS les retouches : tout paragraphe marqué `cle: 'registre'` reprend la
+    phrase. Rend le nombre de paragraphes remis. */
+export function remetsLaPhraseDuRegistre(pages: Page[]): number {
+  let n = 0;
+  for (const p of pages) {
+    for (const s of p.sections ?? []) {
+      if (s.type === 'texte' && s.cle === 'registre' && s.corps !== PHRASE_DU_REGISTRE) { s.corps = PHRASE_DU_REGISTRE; n++; }
+    }
+  }
+  return n;
+}
 
 export const ACCUEIL: Accueil = {
   titre: 'Dreadlocks à Cotonou, soin et création · Maison MND',
@@ -751,7 +786,8 @@ export const PAGES: Page[] = [
         type: 'texte',
         sur: 'La Maison',
         titre: 'Qui est la Maison MND',
-        corps: `Maison MND est le nom commercial sous lequel exerce ${COMMUN.editeur.nomCommercial}, ${COMMUN.editeur.forme} de ${COMMUN.editeur.exploitante}, immatriculée au registre du commerce et du crédit mobilier de ${COMMUN.editeur.greffe} sous le numéro ${COMMUN.editeur.rccm}. Établissement principal : ${COMMUN.editeur.adresse}. Téléphone et WhatsApp : ${COMMUN.editeur.telephone}. Courriel : ${COMMUN.editeur.email}.`,
+        corps: PHRASE_DU_REGISTRE,
+        cle: 'registre',
       },
     ],
     jsonld: 'maison',
@@ -1290,6 +1326,11 @@ export const PAGES: Page[] = [
          une maison, sa page de contact et sa page de présentation. Le texte vient
          de `COMMUN.editeur`, jamais recopié à la main.
 
+         10 OCTOBRE 2026 : la Maison a son propre registre (RCCM et IFU à son
+         nom, sans nom de personne). Le paragraphe dit désormais CE registre ;
+         la fiche Business de Meta, qui dit encore ACIA 1, est à mettre au même
+         nom, sinon l'examen bute sur un désaccord.
+
          IL A DESCENDU LA PAGE LE 21 AU SOIR, sans rien perdre de sa lettre :
          il prouve la Maison à Meta et à Google, il ne renseigne pas la
          cliente, et il occupait la place des heures d'ouverture. */
@@ -1297,7 +1338,8 @@ export const PAGES: Page[] = [
         type: 'texte',
         sur: 'La Maison',
         titre: 'Qui signe ce site',
-        corps: `Maison MND est le nom commercial sous lequel exerce ${COMMUN.editeur.nomCommercial}, ${COMMUN.editeur.forme} de ${COMMUN.editeur.exploitante}, immatriculée au registre du commerce et du crédit mobilier de ${COMMUN.editeur.greffe} sous le numéro ${COMMUN.editeur.rccm}. Établissement principal : ${COMMUN.editeur.adresse}. Téléphone et WhatsApp : ${COMMUN.editeur.telephone}. Courriel : ${COMMUN.editeur.email}.`,
+        corps: PHRASE_DU_REGISTRE,
+        cle: 'registre',
       },
     ],
     jsonld: 'maison',

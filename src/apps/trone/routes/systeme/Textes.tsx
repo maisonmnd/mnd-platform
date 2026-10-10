@@ -3,6 +3,7 @@ import { PageHead } from '../_ui';
 import { Button, Card, Modal, toast, demande } from '../../../../ds/components';
 import { Tabs } from '../equipe/ui';
 import { maisonNom, maisonVille } from '../../../../shared/identite';
+import { laMaisonEtSaRaison } from '../../../../shared/registre';
 import { useStaff } from '../equipe/data';
 import {
   aChange, aRappeler, aTravailler, enVigueur, motDeLEtat, ouEnEst, prochaineVersion,
@@ -1105,8 +1106,8 @@ function OngletIdentite() {
           <span className="txt-rub__t">La raison sociale</span>
           <input className="mnd-input" value={id.raison} onChange={(e) => setId({ ...id, raison: e.target.value })} />
           <span className="txt-rub__aide">
-            La ligne légale, RCCM compris. Elle nomme la partie qui s’engage dans « entre les
-            parties » : sans elle, un contrat lie un nom commercial, pas une société.
+            La ligne légale, RCCM et IFU compris. Elle nomme la partie qui s’engage dans « entre les
+            parties » : sans elle, un contrat ne dit pas sous quel registre la Maison s’engage.
           </span>
         </label>
         <label className="txt-nombre">
@@ -1128,8 +1129,9 @@ function OngletIdentite() {
           <span>CONTRAT</span>
         </div>
         <div className="txt-papier__corps">
-          Entre la Maison {id.nom || '…'}
-          {id.raison ? `, ${id.raison}` : ''}, dont le siège est à {id.ville || '…'}, ci-après « la
+          {/* Comme le contrat (10 octobre 2026) : le nom ne se répète pas
+              quand la raison commence par lui. */}
+          Entre {laMaisonEtSaRaison(id.nom || '…', id.raison)}, dont le siège est à {id.ville || '…'}, ci-après « la
           Maison », et Nom de la personne, ci-après « le prestataire ».
         </div>
         <div className="txt-papier__bas">

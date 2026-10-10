@@ -27,7 +27,8 @@ import {
   nomsDansLaZone, rangeDansLeCadre, restentASigner, retireLesSignatures, sigle, signe, SIGNATURE_MM, TAMPON_MM, Y_DES_NOMS, ZONE, type Piece,
 } from '../src/shared/secretariat-pur';
 import { FAMILLES, MODELES } from '../src/shared/secretariat-modeles';
-import { cachetAutoSvg, morceauxDuCachet, morceauxDuRecu, RATIO_DU_CACHET, tamponAutoSvg } from '../src/shared/secretariat-tampons';
+import { cachetAutoSvg, morceauxDuCachet, morceauxDuRecu, RATIO_DU_CACHET, TAMPONS, tamponAutoSvg } from '../src/shared/secretariat-tampons';
+import { resous } from '../src/shared/secretariat';
 import { entiteDuFiltre } from '../src/apps/trone/routes/pilotage/Secretariat';
 import { ditLePartage, ouvreWhatsAppAvecLePdf } from '../src/shared/partage-whatsapp';
 
@@ -291,6 +292,19 @@ dit('le PDF pose le cachet a sa forme', [true, true], [
   /svgEnPng\(svg, 600, 600 \/ RATIO_DU_CACHET\)/.test(sourceDuSecretariat),
 ]);
 dit('l editeur propose le cachet a une entreprise', true, sansCommentaires('src/apps/trone/routes/pilotage/secretariat/Editeur.tsx').includes('<option value="auto-cachet">'));
+
+/* ── 15. LE REGISTRE DE LA MAISON — 10 octobre 2026 ──
+   La Maison est immatriculée depuis le 9 octobre. Un brouillon de Maison MND
+   sans mentions tapées imprime son registre ; une pièce SIGNÉE garde, elle,
+   les mentions du jour de sa signature, même celles d'ACIA 1 posées par
+   erreur ; l'ancien cachet commercial reste proposé, tel quel. */
+const brouillonMND: Piece = { ...base, id: 'doc-r1', tampon: undefined, poses: [] };
+const signeeACIA: Piece = { ...base, id: 'doc-r2', tampon: undefined, poses: [], etat: 'signe', numero: 'MND-DOC-2026-003', mentionsFigees: { rccm: 'RB/COT/12 A 14509', ifu: '' } };
+const resolus = await Promise.all([resous(brouillonMND, [], 'Maison MND'), resous(signeeACIA, [], 'Maison MND')]);
+dit('un brouillon de Maison MND sans mentions porte le registre de la Maison', 'RCCM RB/COT/26 A 120676 · IFU 1 2010 0097 2809', resolus[0].enTete.pied[1]);
+dit('une piece signee garde les mentions de sa signature', 'RCCM RB/COT/12 A 14509', resolus[1].enTete.pied[1]);
+dit('l ancien cachet commercial reste propose, et le cachet du registre s y ajoute', [true, true],
+  ['mnd-3-cachet', 'mnd-cachet-registre'].map((cle) => TAMPONS.mnd.some((t) => t.cle === cle)));
 
 console.log(ko === 0 ? '\nLe secretariat tient ses regles.' : `\n${ko} controle(s) en echec.`);
 process.exit(ko === 0 ? 0 : 1);

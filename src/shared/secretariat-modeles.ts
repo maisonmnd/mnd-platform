@@ -12,6 +12,8 @@
    l'écran affiche « Modèle à faire relire par un juriste ou le comptable
    avant le premier usage », tant que la direction ne l'a pas levé. */
 
+import type { Entite } from './secretariat-pur';
+
 export type Famille = 'lettres' | 'clients' | 'fournisseurs' | 'equipe' | 'administration' | 'attestations' | 'notes' | 'contrats' | 'oapi' | 'juridiques' | 'perso' | 'libre';
 
 export type Modele = {
@@ -248,6 +250,28 @@ export const MODELES: Modele[] = [
 ];
 
 export const modeleDe = (cle: string): Modele => MODELES.find((m) => m.cle === cle) ?? MODELES[0];
+
+/* LES PIÈCES D'EMPLOYEUR — relecture du 10 octobre 2026. Depuis que Maison
+   MND a son registre, une pièce faite à son nom porte au pied le RCCM et
+   l'IFU de l'établissement immatriculé le 9 octobre. Or l'employeur de
+   l'équipe n'a pas changé (décision attendue du comptable) : une attestation
+   de travail sous Maison MND aurait affirmé un emploi par un établissement
+   de la veille, contre les déclarations sociales. Ces pièces se font donc au
+   nom de l'EMPLOYEUR réglé dans Paramètres › Identité (le même qui signe le
+   règlement intérieur et les lettres du prêt) : ACIA 1 tant qu'il dit ACIA 1,
+   Maison MND le jour où le comptable l'aura décidé. Les autres pièces
+   (attestation de stage, de formation, de paiement, contrats de prestation)
+   restent au nom choisi. */
+export const PIECES_D_EMPLOYEUR: readonly string[] = [
+  'convocation-entretien', 'avertissement', 'felicitations', 'certificat-fin-contrat', 'acceptation-demission',
+  'attestation-travail', 'contrat-travail',
+];
+/** L'entité d'une pièce nouvelle : celle choisie, sauf une pièce d'employeur
+    demandée au nom de Maison MND alors que l'employeur réglé est ACIA 1. */
+export function entiteDeLaPiece(entite: Entite, cle: string, employeur: string): Entite {
+  if (entite !== 'mnd' || !PIECES_D_EMPLOYEUR.includes(cle)) return entite;
+  return /^\s*(?:ets\.?\s+)?acia\s*1\b/i.test(employeur ?? '') ? 'acia' : entite;
+}
 
 /** Les marques « à compléter » restées dans un texte. */
 export const aCompleter = (...textes: string[]): number =>

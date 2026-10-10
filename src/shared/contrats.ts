@@ -17,6 +17,7 @@
    à qui que ce soit. */
 
 import { DEVISE_COMPLETE } from './identite';
+import { laMaisonEtSaRaison } from './registre';
 
 export type ArticleDuContrat = { n: string; titre: string; lignes: string[] };
 
@@ -124,7 +125,9 @@ export function entreLesParties(o: {
   qualiteAutre: string;
   pourQui?: string;
 }): string[] {
-  const m = o.raison?.trim() ? `${o.maison} (${o.raison.trim()})` : o.maison;
+  /* Sans doublon (10 octobre 2026) : « Maison MND (RCCM … · IFU …) » quand la
+     raison commence par le nom de la Maison. */
+  const m = laMaisonEtSaRaison(o.maison, o.raison);
   const siege = o.ville?.trim() ? `, dont le siège est à ${o.ville.trim()}` : '';
   return [
     `Entre ${m}${siege}, ci-après « la Maison »,`,
