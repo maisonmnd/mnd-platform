@@ -127,11 +127,22 @@ import webpush from 'npm:web-push@3.6.7';
 
 /** LA VERSION DE CE FICHIER, dite par le contrôle de santé. Sans elle on ne
     sait pas quel code tourne vraiment. À incrémenter à chaque déploiement. */
-const VERSION = '2026-10-09-b · les fiches par numero, la Maison repond et reserve ; refus apres coup';
+const VERSION = '2026-10-10-a · Meta borne dans le temps, un seul accuse, les boutons ne se rejouent plus';
 
 /** LE POIDS QU'UNE PIÈCE REÇUE PEUT FAIRE : le plafond du compartiment
     `whatsapp` (0102). Au-delà, le fichier reste chez Meta et le fil le dit. */
 const TAILLE_MAX_PIECE = 16 * 1024 * 1024;
+
+/* ══ META RÉPOND DANS LE TEMPS, OU PAS DU TOUT · 10 octobre 2026 ═══════
+   Revue de code : aucun appel à Graph n'avait de borne. Les pièces se
+   téléchargent AVANT que les messages de la livraison soient rangés ; un
+   Graph ou un CDN qui pend, et rien n'était écrit, l'alerte ne partait pas,
+   l'automate n'était pas confié. Dix secondes pour une réponse de Graph
+   (la borne de `whatsapp-automate`), vingt pour le fichier lui-même, qui
+   peut peser seize mégaoctets. Un délai dépassé tombe dans le `catch`
+   existant : la pièce reste nommée sans chemin, le message s'écrit. */
+const DELAI_DE_META_MS = 10_000;
+const DELAI_DU_FICHIER_MS = 20_000;
 
 const FENETRE_MS = 24 * 60 * 60 * 1000;
 
@@ -314,6 +325,7 @@ async function telechargeChezMeta(
   try {
     const r1 = await fetch(`https://graph.facebook.com/v20.0/${encodeURIComponent(mediaId)}`, {
       headers: { authorization: `Bearer ${jeton}` },
+      signal: AbortSignal.timeout(DELAI_DE_META_MS),
     });
     const meta = await r1.json().catch(() => ({}));
     if (!r1.ok || !meta?.url) {
@@ -321,7 +333,10 @@ async function telechargeChezMeta(
       return null;
     }
     if (Number(meta.file_size ?? 0) > TAILLE_MAX_PIECE) return { tropLourde: true };
-    const r2 = await fetch(String(meta.url), { headers: { authorization: `Bearer ${jeton}` } });
+    const r2 = await fetch(String(meta.url), {
+      headers: { authorization: `Bearer ${jeton}` },
+      signal: AbortSignal.timeout(DELAI_DU_FICHIER_MS),
+    });
     if (!r2.ok) { dis('pièce · le fichier ne se lit pas', { statut: r2.status }); return null; }
     const octets = new Uint8Array(await r2.arrayBuffer());
     if (octets.length > TAILLE_MAX_PIECE) return { tropLourde: true };
@@ -386,6 +401,33 @@ async function ditDepuisLeTrone(
     .gte('data->>quand', depuis).limit(1);
   if ((deja ?? []).length > 0) return;
 
+  /* ── LA PLACE SE RÉSERVE AVANT DE PARLER · 10 octobre 2026 ───────────
+     Revue de code : la garde ci-dessus est une lecture, et la ligne qui
+     l'arme ne s'écrivait qu'APRÈS la réponse de Graph. Deux livraisons de
+     Meta traitées en même temps passaient toutes deux la lecture, et le
+     prestataire recevait deux « Bien reçu, merci ». On écrit donc d'abord
+     une ligne à identifiant DÉTERMINISTE (le motif, le numéro, le jour de
+     Cotonou) : la base n'en garde qu'une, `ignoreDuplicates` + `.select`
+     ne la rend qu'à celui qui l'a vraiment écrite, et lui seul parle. La
+     ligne porte déjà le texte, « en route » : l'écran la montre comme tout
+     message qui part. La lecture des 24 heures reste : elle tient la règle
+     d'une fois par vingt-quatre heures glissantes, la réservation tient
+     la course. */
+  const jourDeCotonou = new Date(Date.now() + 3600000).toISOString().slice(0, 10);
+  const id = `wa-auto-${o.auto}-${o.numero}-${jourDeCotonou}`;
+  const ligne = (waId: string, etat: string, detail?: string) => ({
+    id, branch_id: o.branchId ?? null,
+    data: {
+      id, waId: waId || undefined, branchId: o.branchId, sens: 'sortant', numero: o.numero,
+      texte: o.texte, type: o.interactive ? 'interactive' : 'text', quand: new Date().toISOString(),
+      etat, detail, parQui: 'Le Trône', auto: o.auto,
+    },
+  });
+  const { data: reservee, error: errReserve } = await sb.from('messages_wa')
+    .upsert(ligne('', 'en-route'), { onConflict: 'id', ignoreDuplicates: true }).select('id');
+  if (errReserve) { console.error(`whatsapp-webhook · AUTO · ${errReserve.message}`); return; }
+  if (!(reservee ?? []).length) { dis('deja parti par une autre livraison', { auto: o.auto }); return; }
+
   const charge = o.interactive
     ? { messaging_product: 'whatsapp', to: o.numero, type: 'interactive', interactive: o.interactive }
     : { messaging_product: 'whatsapp', to: o.numero, type: 'text', text: { body: o.texte } };
@@ -397,6 +439,7 @@ async function ditDepuisLeTrone(
       method: 'POST',
       headers: { 'content-type': 'application/json', authorization: `Bearer ${jeton}` },
       body: JSON.stringify(charge),
+      signal: AbortSignal.timeout(DELAI_DE_META_MS),
     });
     const rep = await r.json().catch(() => ({}));
     if (r.ok && rep?.messages?.[0]?.id) waId = String(rep.messages[0].id);
@@ -405,15 +448,8 @@ async function ditDepuisLeTrone(
     etat = 'non-remis';
     detail = String(e).slice(0, 300);
   }
-  const id = waId ? `wa-${waId}` : `wa-local-${crypto.randomUUID()}`;
-  const { error } = await sb.from('messages_wa').upsert({
-    id, branch_id: o.branchId ?? null,
-    data: {
-      id, waId: waId || undefined, branchId: o.branchId, sens: 'sortant', numero: o.numero,
-      texte: o.texte, type: o.interactive ? 'interactive' : 'text', quand: new Date().toISOString(),
-      etat, detail, parQui: 'Le Trône', auto: o.auto,
-    },
-  }, { onConflict: 'id' });
+  /* LA MÊME LIGNE, COMPLÉTÉE : l'accusé de Meta la retrouve par `waId`. */
+  const { error } = await sb.from('messages_wa').upsert(ligne(waId, etat, detail), { onConflict: 'id' });
   if (error) console.error(`whatsapp-webhook · AUTO · ${error.message}`);
   else dis('parti tout seul', { auto: o.auto, etat });
 }
@@ -823,7 +859,7 @@ Deno.serve(async (req) => {
           + 'quality_rating,platform_type,throughput,name_status,messaging_limit_tier';
         const r = await fetch(
           `https://graph.facebook.com/v20.0/${encodeURIComponent(leCompte)}/phone_numbers?fields=${champs}`,
-          { headers: { authorization: `Bearer ${jeton}` } },
+          { headers: { authorization: `Bearer ${jeton}` }, signal: AbortSignal.timeout(DELAI_DE_META_MS) },
         );
         const rep = await r.json().catch(() => ({}));
         const branche = (Deno.env.get('WA_PHONE_ID') ?? '').trim();
@@ -858,7 +894,7 @@ Deno.serve(async (req) => {
         const r = await fetch(
           `https://graph.facebook.com/v20.0/${encodeURIComponent(phoneId)}`
           + '?fields=display_phone_number,verified_name,quality_rating,platform_type,code_verification_status',
-          { headers: { authorization: `Bearer ${jeton}` } },
+          { headers: { authorization: `Bearer ${jeton}` }, signal: AbortSignal.timeout(DELAI_DE_META_MS) },
         );
         const rep = await r.json().catch(() => ({}));
         return new Response(JSON.stringify(
@@ -908,7 +944,7 @@ Deno.serve(async (req) => {
       try {
         const r = await fetch(
           `https://graph.facebook.com/v20.0/${phone}?fields=display_phone_number,verified_name,platform_type,code_verification_status`,
-          { headers: { authorization: `Bearer ${tok}` } },
+          { headers: { authorization: `Bearer ${tok}` }, signal: AbortSignal.timeout(DELAI_DE_META_MS) },
         );
         const rep = await r.json().catch(() => ({}));
         rapport.leNumero = r.ok
@@ -928,7 +964,7 @@ Deno.serve(async (req) => {
       try {
         const r = await fetch(
           `https://graph.facebook.com/v20.0/${phone}/settings?include_fields=calling`,
-          { headers: { authorization: `Bearer ${tok}` } },
+          { headers: { authorization: `Bearer ${tok}` }, signal: AbortSignal.timeout(DELAI_DE_META_MS) },
         );
         const rep = await r.json().catch(() => ({}));
         rapport.lesAppels = r.ok
@@ -960,6 +996,7 @@ Deno.serve(async (req) => {
         const r = await fetch(
           `https://graph.facebook.com/v20.0/${encodeURIComponent(aVerifier)}`
           + `?fields=name,id&access_token=${encodeURIComponent(`${aVerifier}|${secret}`)}`,
+          { signal: AbortSignal.timeout(DELAI_DE_META_MS) },
         );
         const rep = await r.json().catch(() => ({}));
         return new Response(JSON.stringify(
@@ -1359,6 +1396,16 @@ Deno.serve(async (req) => {
      ET IL NE S'ÉCRASE PAS : une seconde livraison du même message ne doit
      pas effacer l'accusé, la réaction ou la lecture posés entre-temps.
      `ignoreDuplicates` laisse la première ligne tranquille. */
+  /* LES GESTES NE SE REJOUENT PAS · 10 octobre 2026. Revue de code : les
+     boutons (RECU, REPRISE_OK, REPRISE_AUTRE), le formulaire de congé et
+     les deux messages qui partent seuls parcouraient TOUS les entrants,
+     relivraisons comprises. Une relivraison tardive de « Un autre moment »
+     effaçait un « Je confirme » touché depuis. Ils ne jouent plus que les
+     messages NEUFS, comme l'automate. Si l'écriture elle-même échoue, on ne
+     sait pas lesquels le sont : on les joue tous, comme avant, plutôt que
+     de perdre un geste que Meta ne relivrera pas (il a reçu son 200). */
+  let neufs: Set<string> | null = null;
+  const estNeuf = (e: Entrant): boolean => neufs === null || neufs.has(`wa-${e.waId}`);
   if (entrants.length > 0) {
     const lignes = entrants.map((e) => {
       const tete = teteDuNumero(e.numero);
@@ -1394,7 +1441,7 @@ Deno.serve(async (req) => {
         tiroirs: entrants.map((e) => tiroirDe(e.numero)),
       });
       /* ── ⑤ quater LA NOTIFICATION SUR LE TELEPHONE — 18 septembre 2026 ── */
-      const neufs = new Set(((ecrits ?? []) as { id: string }[]).map((r) => r.id));
+      neufs = new Set(((ecrits ?? []) as { id: string }[]).map((r) => r.id));
       const nomDe = (e: Entrant): string => teteDuNumero(e.numero)?.nom ?? e.nomProfil ?? `+${e.numero}`;
 
       /* ── ⑤ quinquies LA MAISON RÉPOND ET RÉSERVE — 9 octobre 2026 ──────
@@ -1423,7 +1470,7 @@ Deno.serve(async (req) => {
       }
 
       const arrivees: Arrivee[] = entrants
-        .filter((e) => neufs.has(`wa-${e.waId}`) && !confies.has(e.numero))
+        .filter((e) => estNeuf(e) && !confies.has(e.numero))
         .map((e) => ({
           numero: e.numero,
           tiroir: tiroirDe(e.numero),
@@ -1442,6 +1489,7 @@ Deno.serve(async (req) => {
      il dit ne pas l'avoir reçu, et le dossier le signale. Le bouton est une
      trace, pas une signature : la décharge reste à signer sur l'écran. */
   for (const e of entrants) {
+    if (!estNeuf(e)) continue;
     const id = e.bouton?.id ?? '';
     const m = id.match(/^(RECU|PASENCORE):(.+)$/);
     if (!m) continue;
@@ -1470,6 +1518,7 @@ Deno.serve(async (req) => {
      SEUL SON NUMÉRO RÉPOND POUR ELLE : le bouton ne vaut que venu du numéro
      de la fiche du rendez-vous, celui à qui le message est parti. */
   for (const e of entrants) {
+    if (!estNeuf(e)) continue;
     const m = (e.bouton?.id ?? '').match(/^REPRISE_(OK|AUTRE):(.+)$/);
     if (!m) continue;
     const { data: l } = await sb.from('appointments').select('id, branch_id, data').eq('id', m[2]).limit(1);
@@ -1507,7 +1556,7 @@ Deno.serve(async (req) => {
      n'est accordé ici : le Trône transmet, la direction décide. Un même
      formulaire n'en fait jamais deux (identifiant dérivé du message). */
   for (const e of entrants) {
-    if (!e.formulaire) continue;
+    if (!estNeuf(e) || !e.formulaire) continue;
     const tete = tetes.get(e.numero);
     if (tete?.tiroir !== 'equipe' || !tete.staffId) { dis('formulaire · pas de l équipe'); continue; }
     const r = e.formulaire.reponse ?? {};
@@ -1543,6 +1592,7 @@ Deno.serve(async (req) => {
      30 septembre 2026, puis comptés parmi les réponses du mois. */
   if (jetonMeta && phoneIdMeta) {
     for (const e of entrants) {
+      if (!estNeuf(e)) continue;
       const tete = tetes.get(e.numero);
       if (!tete) continue;
       /* L'ACCUSÉ D'UNE PIÈCE REÇUE D'UN PRESTATAIRE. Il sait que la Maison

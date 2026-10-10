@@ -567,6 +567,19 @@ class Requete {
   gte(c: string, v: unknown) { this.filtres.push((l) => valeur(l, c) !== null && String(valeur(l, c)) >= String(v)); return this; }
   lte(c: string, v: unknown) { this.filtres.push((l) => valeur(l, c) !== null && String(valeur(l, c)) <= String(v)); return this; }
   in(c: string, vs: unknown[]) { const s = new Set((vs ?? []).map(String)); this.filtres.push((l) => s.has(String(valeur(l, c)))); return this; }
+  /* `or('a.is.null,a.neq.v')`, comme PostgREST (10 octobre 2026 : la fenetre de
+     whatsapp-envoi ecarte les demandes du site). Une comparaison avec null
+     n'est jamais vraie, sauf `is.null`. */
+  or(txt: string) {
+    const fs = txt.split(',').map((x) => {
+      const m = /^(.+)\.(is|eq|neq)\.(.*)$/.exec(x.trim());
+      if (!m) throw new Error(`or illisible : ${x}`);
+      const [, c, op, v] = m;
+      return (l: Any) => { const x2 = valeur(l, c); return op === 'is' ? (v === 'null' && x2 === null) : x2 !== null && (op === 'eq' ? String(x2) === v : String(x2) !== v); };
+    });
+    this.filtres.push((l) => fs.some((g) => g(l)));
+    return this;
+  }
   order(c: string, o: Any = {}) { this.ordre = { c, asc: o.ascending !== false }; return this; }
   limit(n: number) { this.borne = n; return this; }
   maybeSingle() { this.unique = true; return this; }
@@ -1717,7 +1730,9 @@ const regles: Regle[] = [
         && tete.includes('« PAS DE ROBOT » A VALU JUSQU\'À CE JOUR.'));
       vrai('... il dit : les clientes seulement, la nuit, sans modele de langue, jamais d annulation, livre en essai a liste vide, aucun robot pour l equipe',
         ['pour les CLIENTES', 'la nuit comprise', 'pas de modèle de langue', "L'ANNULATION N'EST JAMAIS AUTOMATIQUE", 'LIVRÉ EN ESSAI AVEC UNE LISTE VIDE', "L'ÉQUIPE ET LES PRESTATAIRES N'ONT TOUJOURS AUCUN ROBOT", 'EdgeRuntime.waitUntil'].every((x) => tete.includes(x)));
-      vrai('les quatre fonctions touchees disent leur version du 9 octobre 2026', [F_HOOK, F_ENVOI, F_CONF, F_AUTO].every((f) => /const VERSION = '2026-10-09/.test(lit(f))),
+      /* Le 9 octobre 2026 ou plus tard : la revue du 10 octobre a avance
+         whatsapp-webhook et whatsapp-envoi (2026-10-10-a). */
+      vrai('les quatre fonctions touchees disent leur version du 9 octobre 2026 ou d apres', [F_HOOK, F_ENVOI, F_CONF, F_AUTO].every((f) => (/const VERSION = '(\d{4}-\d{2}-\d{2})/.exec(lit(f))?.[1] ?? '') >= '2026-10-09'),
         [F_HOOK, F_ENVOI, F_CONF, F_AUTO].filter((f) => !/const VERSION = '2026-10-09/.test(lit(f))));
       await auBanc(ecarts, async () => {
         avecTacheDeFond(true);
@@ -1768,7 +1783,7 @@ const regles: Regle[] = [
       { nom: 'pas de notification de repli', mute: [P(F_HOOK, '    await alerteLePersonnel(sb, repli);', '')] },
       { nom: 'l en-tete oublie que Pas de robot a change', mute: [P(F_HOOK, '   « PAS DE ROBOT » A VALU JUSQU\'À CE JOUR. Depuis, pour les CLIENTES', '   Depuis, pour les CLIENTES')] },
       { nom: 'l en-tete ne dit plus que l annulation n est jamais automatique', mute: [P(F_HOOK, "     · L'ANNULATION N'EST JAMAIS AUTOMATIQUE : elle se transmet à l'équipe ;\n", '')] },
-      { nom: 'la version du webhook n est pas celle du 9 octobre', mute: [P(F_HOOK, "const VERSION = '2026-10-09-", "const VERSION = '2026-10-08-")] },
+      { nom: 'la version du webhook n est pas celle du 9 octobre', mute: [P(F_HOOK, "const VERSION = '2026-10-10-", "const VERSION = '2026-10-08-")] },
     ],
   },
 

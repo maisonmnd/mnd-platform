@@ -97,9 +97,30 @@ import { createClient } from 'npm:@supabase/supabase-js@2';
     s'est perdue le 14 septembre à chercher dans le dépôt une panne qui venait
     d'une version plus ancienne restée en ligne. À incrémenter à chaque
     déploiement. */
-const VERSION = '2026-10-09-a · un message de l équipe met l automate en pause';
+const VERSION = '2026-10-10-a · Meta borne dans le temps, la fenetre sans le site, une cle d unicite';
 
 const FENETRE_MS = 24 * 60 * 60 * 1000;
+
+/* ══ META RÉPOND DANS LE TEMPS, OU PAS DU TOUT · 10 octobre 2026 ═══════
+   Revue de code : aucun appel à Graph n'avait de borne. Un envoi qui pend
+   n'écrivait ni sa trace ni la pause de l'automate, et l'écran recevait une
+   erreur de réseau sans savoir si le message était parti. Dix secondes pour
+   un message (la borne de `whatsapp-automate`), trente pour le dépôt d'une
+   pièce qui peut peser cinq mégaoctets. Un délai dépassé tombe dans le
+   `catch` existant : « non remis », sa raison, la trace, la pause. */
+const DELAI_DE_META_MS = 10_000;
+const DELAI_DU_DEPOT_MS = 30_000;
+
+/** UNE CLÉ D'UNICITÉ, 120 signes au plus, devient un identifiant de ligne
+    sûr : son empreinte SHA-256, tronquée. Deux clés différentes ne se
+    rencontrent pas sur 128 bits ; la clé elle-même reste lisible dans `data`. */
+const idDeLaCle = async (cle: string): Promise<string> => {
+  const h = new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(cle)));
+  return `wa-cle-${[...h.slice(0, 16)].map((o) => o.toString(16).padStart(2, '0')).join('')}`;
+};
+/** Une réservation sans réponse de Meta depuis plus longtemps que ceci est
+    abandonnée (la fonction est morte entre les deux) : on peut la reprendre. */
+const RESERVATION_ABANDONNEE_MS = 5 * 60 * 1000;
 
 /** LE POIDS QU'UNE PIÈCE PEUT FAIRE, en octets réels.
 
@@ -229,7 +250,7 @@ Deno.serve(async (req) => {
       try {
         const r = await fetch(
           `https://graph.facebook.com/v20.0/${phone}?fields=display_phone_number,verified_name,quality_rating,code_verification_status,platform_type`,
-          { headers: { authorization: `Bearer ${tok}` } },
+          { headers: { authorization: `Bearer ${tok}` }, signal: AbortSignal.timeout(DELAI_DE_META_MS) },
         );
         const rep = await r.json().catch(() => ({}));
         rapport.ceNumeroChezMeta = r.ok
@@ -294,6 +315,10 @@ Deno.serve(async (req) => {
   const clientId = corps.clientId ? String(corps.clientId) : undefined;
   const branchId = corps.branchId ? String(corps.branchId) : undefined;
   const parQui = corps.parQui ? String(corps.parQui).slice(0, 80) : undefined;
+  /** LA CLÉ D'UNICITÉ (10 octobre 2026, revue de code) : un message que deux
+      postes peuvent calculer au même instant (le merci d'une ambassadrice)
+      la porte, et il ne part qu'une fois. Sans elle, rien ne change. */
+  const cleUnique = corps.cleUnique ? String(corps.cleUnique).slice(0, 120) : '';
   /** Le modèle porte un document en en-tête (le bulletin de paie). */
   /* 28 septembre 2026 : l'en-tête peut aussi être une IMAGE (la carte de
      marraine du modèle `parrainage_merci`). */
@@ -338,6 +363,7 @@ Deno.serve(async (req) => {
         method: 'POST',
         headers: { 'content-type': 'application/json', authorization: `Bearer ${WA_TOKEN}` },
         body: JSON.stringify({ messaging_product: 'whatsapp', status: 'read', message_id: marquerLu }),
+        signal: AbortSignal.timeout(DELAI_DE_META_MS),
       });
       const rep = await r.json().catch(() => ({}));
       if (!r.ok) return refus(String(rep?.error?.message ?? `HTTP ${r.status}`).slice(0, 300), 502);
@@ -394,6 +420,7 @@ Deno.serve(async (req) => {
           type: 'reaction',
           reaction: { message_id: reaction.surWaId, emoji: reaction.emoji },
         }),
+        signal: AbortSignal.timeout(DELAI_DE_META_MS),
       });
       const rep = await r.json().catch(() => ({}));
       if (!r.ok) return refus(String(rep?.error?.message ?? `HTTP ${r.status}`).slice(0, 300), 502);
@@ -449,11 +476,20 @@ Deno.serve(async (req) => {
      aussi ce que Meta facture. Le texte libre et les pièces jointes, eux,
      exigent qu'ELLE ait écrit dans les 24 heures — jamais que NOUS ayons
      écrit : c'est la faute naturelle, et elle ferait refuser l'envoi sans
-     qu'on comprenne. */
+     qu'on comprenne.
+
+     UNE DEMANDE DU SITE N'OUVRE RIEN (10 octobre 2026, revue de code).
+     `demande-submit` range la demande du site dans son fil, sens « entrant »,
+     `canal: 'site'` : Meta ne l'a jamais vue, la fenêtre reste fermée.
+     L'écran le savait (`fenetreDe`), pas cette garde ; un envoi gardé hors
+     ligne puis rejoué passait, Meta le refusait, et la pause coupait quand
+     même l'automate. `canal` absent est un vrai message WhatsApp : le
+     `is.null` le garde, car en SQL `null <> 'site'` n'est pas vrai. */
   if (!modele) {
     const depuis = new Date(Date.now() - FENETRE_MS).toISOString();
     const { data: entrants } = await sb.from('messages_wa').select('id')
       .eq('data->>numero', numero).eq('data->>sens', 'entrant')
+      .or('data->>canal.is.null,data->>canal.neq.site')
       .gte('data->>quand', depuis).limit(1);
     if (!(entrants ?? []).length) {
       return refus(
@@ -463,10 +499,62 @@ Deno.serve(async (req) => {
     }
   }
 
+  /* ── ② bis LA CLÉ D'UNICITÉ SE RÉSERVE AVANT DE PARLER · 10 octobre 2026 ──
+     Revue de code (constat 79) : le merci d'une ambassadrice se calcule sur
+     chaque poste ouvert, et deux postes l'envoyaient deux fois. Une lecture
+     puis un envoi laisseraient passer deux appels simultanés ; on écrit donc
+     d'abord une ligne à identifiant DÉRIVÉ de la clé (`ignoreDuplicates` +
+     `.select` ne la rend qu'à qui l'a vraiment écrite). Celui qui la trouve
+     déjà prise rend `deja: true`, l'identifiant existant, et n'envoie rien.
+     Seule une tentative refusée par Meta (« non remis ») ou abandonnée en
+     route (`RESERVATION_ABANDONNEE_MS`, aucune réponse de Meta) se reprend,
+     et par une mise à jour CONDITIONNELLE sur l'état et l'instant lus :
+     deux reprises simultanées, une seule passe. La ligne réservée devient
+     la trace, complétée après la réponse de Meta (l'accusé la retrouve par
+     `waId`). Aucune migration n'est nécessaire : la clé primaire suffit. */
+  let idReserve = '';
+  let reservation: Record<string, unknown> | null = null;
+  const relacheLaCle = async (pourquoi: string) => {
+    if (!idReserve || !reservation) return;
+    await sb.from('messages_wa').update({
+      data: { ...reservation, etat: 'non-remis', detail: pourquoi.slice(0, 300) },
+      updated_at: new Date().toISOString(),
+    }).eq('id', idReserve);
+  };
+  if (cleUnique) {
+    idReserve = await idDeLaCle(cleUnique);
+    const quandReserve = new Date().toISOString();
+    reservation = {
+      id: idReserve, branchId, sens: 'sortant', numero, clientId,
+      texte: texte || (modele ? `Modèle « ${modele} »` : pieceNom),
+      type: 'text', quand: quandReserve, etat: 'en-route', modele: modele || undefined, parQui, cleUnique,
+    };
+    const deja = (avant: { waId?: string; quand?: string }) => new Response(JSON.stringify({
+      id: idReserve, waId: avant.waId, quand: avant.quand, deja: true, version: VERSION,
+    }), { status: 200, headers: { ...CORS, 'content-type': 'application/json' } });
+    const { data: prise, error: errPrise } = await sb.from('messages_wa')
+      .upsert({ id: idReserve, branch_id: branchId ?? null, data: reservation }, { onConflict: 'id', ignoreDuplicates: true })
+      .select('id');
+    if (errPrise) return refus(`la clé d’unicité n’a pas pu être réservée : ${errPrise.message}`.slice(0, 300), 500);
+    if (!(prise ?? []).length) {
+      const { data: l } = await sb.from('messages_wa').select('id, data').eq('id', idReserve).limit(1);
+      const avant = (((l ?? [])[0] as { data?: Record<string, unknown> } | undefined)?.data ?? {}) as { waId?: string; etat?: string; quand?: string };
+      const depuis = Date.parse(String(avant.quand ?? ''));
+      const reprenable = avant.etat === 'non-remis'
+        || (!avant.waId && avant.etat === 'en-route' && Number.isFinite(depuis) && Date.now() - depuis > RESERVATION_ABANDONNEE_MS);
+      if (!reprenable) return deja(avant);
+      const { data: reprise } = await sb.from('messages_wa').update({ data: reservation, updated_at: quandReserve })
+        .eq('id', idReserve).eq('data->>etat', String(avant.etat)).eq('data->>quand', String(avant.quand))
+        .select('id');
+      if (!(reprise ?? []).length) return deja(avant);
+    }
+  }
+
   /* ── ③ LE DÉPÔT DE LA PIÈCE CHEZ META ─────────────────────────────
      On dépose, Meta rend un identifiant, et c'est lui seul qu'on envoie.
      Aucune adresse n'existe : ni chez nous, ni chez eux, rien qu'un
-     identifiant que l'API seule sait résoudre. */
+     identifiant que l'API seule sait résoudre. Un dépôt raté rend la clé
+     d'unicité (« non remis ») : rien n'est parti, on pourra réessayer. */
   let mediaId = '';
   if (octets) {
     try {
@@ -478,14 +566,19 @@ Deno.serve(async (req) => {
         method: 'POST',
         headers: { authorization: `Bearer ${WA_TOKEN}` },
         body: fd,
+        signal: AbortSignal.timeout(DELAI_DU_DEPOT_MS),
       });
       const rep = await r.json().catch(() => ({}));
       if (!r.ok || !rep?.id) {
-        return refus(String(rep?.error?.message ?? `dépôt refusé (HTTP ${r.status})`).slice(0, 300), 502);
+        const motif = String(rep?.error?.message ?? `dépôt refusé (HTTP ${r.status})`).slice(0, 300);
+        await relacheLaCle(motif);
+        return refus(motif, 502);
       }
       mediaId = String(rep.id);
     } catch (e) {
-      return refus(`le dépôt de la pièce a échoué : ${String(e).slice(0, 200)}`, 502);
+      const motif = `le dépôt de la pièce a échoué : ${String(e).slice(0, 200)}`;
+      await relacheLaCle(motif);
+      return refus(motif, 502);
     }
   }
 
@@ -561,6 +654,7 @@ Deno.serve(async (req) => {
       method: 'POST',
       headers: { 'content-type': 'application/json', authorization: `Bearer ${WA_TOKEN}` },
       body: JSON.stringify(charge),
+      signal: AbortSignal.timeout(DELAI_DE_META_MS),
     });
     const rep = await r.json().catch(() => ({}));
     if (r.ok && rep?.messages?.[0]?.id) {
@@ -587,7 +681,9 @@ Deno.serve(async (req) => {
      — seulement son nom et son genre. Une base qui porterait les pièces
      jointes en base64 referait la faute des photos de fiches du 29 août :
      deux mégaoctets redescendus à chaque ouverture, sur chaque poste. */
-  const id = waId ? `wa-${waId}` : `wa-local-${crypto.randomUUID()}`;
+  /* Une clé d'unicité garde SA ligne, réservée plus haut : c'est elle qui
+     tient la porte au prochain envoi de la même clé. */
+  const id = idReserve || (waId ? `wa-${waId}` : `wa-local-${crypto.randomUUID()}`);
   const quand = new Date().toISOString();
   const ditDansLeFil = modele
     ? (texte || `Modèle « ${modele} »${mediaId ? ` · ${pieceNom}` : ''}`)
@@ -600,6 +696,7 @@ Deno.serve(async (req) => {
       texte: ditDansLeFil,
       type: mediaId && !modele ? famille : (boutons.length && !modele ? 'interactive' : 'text'),
       quand, etat, detail, modele: modele || undefined, parQui,
+      ...(cleUnique ? { cleUnique } : {}),
       ...(mediaId ? { piece: { nom: pieceNom, type: pieceType, octets: octets?.length ?? 0 } } : {}),
       ...(boutons.length ? { boutons } : {}),
     },
