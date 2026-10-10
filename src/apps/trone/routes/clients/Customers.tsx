@@ -52,7 +52,7 @@ import { Camera, Search } from 'lucide-react';
 import {
   Avatar, ClientPicker, Drawer, RdvModal, StatusPill, readImageDownscaled, type RdvInitial,
   addDaysISO, apptDueXof, apptLabel, apptResume, apptServices, apptNetXof, cadenceLabel, dureeEnClair, frLong, frLongAn,
-  fromISO, predictNextVisit, relDays, timeToMin, todayISO, useBranchAppointments, useBranchClients, useServicesById,
+  fromISO, predictNextVisit, relDays, timeToMin, todayISO, useBranchAppointments, useBranchClients, useServicesById, useClefDuTarif,
   type Cadence, frJourAn, frShortAn, PortesWhatsApp } from './_shared';
 import { ecrituresDeLaTete, ecrituresDuCompte, lignesImpayees, soldeDuCompte, tetesDuCompte, rendezVousAVenirDuFoyer } from '../../../../shared/compte';
 import { survivantDe, fusionnerFiches } from '../../../../shared/fusion';
@@ -1569,6 +1569,9 @@ function PanneauCompte({
   const [clients] = useStore(clientsStore);
   const [families] = useFamilies();
   const aujourdhui = todayISO();
+  /* Le dû d'un rendez-vous à venir se lit au tarif de sa tête : le
+     relevé se refait quand ce tarif change (10 octobre 2026). */
+  const clefDuTarif = useClefDuTarif();
 
   const ids = useMemo(() => tetesDuCompte(client, clients, families), [client, clients, families]);
   /* LES PORTEURS D'AVOIR DE CE COMPTE. Un avoir appartient à la FAMILLE quand
@@ -1591,7 +1594,7 @@ function PanneauCompte({
     ids, porteurs, appts, invoices, credits, aujourdhui,
     netDuRituel: (a) => apptNetXof(a, byId),
     dûDuRituel: (a) => apptDueXof(a, byId),
-  }), [ids, porteurs, appts, invoices, credits, aujourdhui, byId]);
+  }), [ids, porteurs, appts, invoices, credits, aujourdhui, byId, clefDuTarif]);
 
   /* ── SES MOUVEMENTS, PAS CEUX DE SA MÈRE — 28 août ─────────────────
      « Les mouvements des enfants dans un foyer portent tous les mouvements de
@@ -1976,6 +1979,9 @@ function Customer360({
   predicted: Cadence;
 }) {
   const { branch, currency } = useBranch();
+  /* SON SOLDE DÛ se somme au rendu (`owing`, `due`), sans mémo : la fiche se
+     redessine quand le tarif de la tête change (10 octobre 2026). */
+  useClefDuTarif();
   const navigate = useNavigate();
   const [personas] = usePersonas();
   const [products] = useProducts();

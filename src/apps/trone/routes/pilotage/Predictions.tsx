@@ -7,7 +7,7 @@ import { fmtMoney } from '../../../../shared/currency';
 import { useSettings, openingForIso } from '../../../../shared/settings';
 import {
   apptNetXof, cadenceLabel, frShort, predictNextVisit, todayISO,
-  useBranchAppointments, useBranchClients, useServicesById, type Cadence,
+  useBranchAppointments, useBranchClients, useServicesById, useClefDuTarif, type Cadence,
 } from '../clients/_shared';
 import { downloadCsv } from '../finances/_shared';
 import { tauxDeRealisation } from '../../../../shared/cadence';
@@ -65,6 +65,10 @@ export default function Predictions() {
   const clients = useBranchClients();
   const appts = useBranchAppointments();
   const byId = useServicesById();
+  /* La valeur attendue se lit par `apptNetXof` (10 octobre 2026). Son modèle
+     est aujourd'hui un rituel honoré, que le tarif de la tête ne relit pas ;
+     la clef garde la somme juste le jour où le modèle viendrait d'ailleurs. */
+  const clefDuTarif = useClefDuTarif();
   const [reglages] = useSettings();
   const today = todayISO();
   const [horizonChoisi, setHorizonChoisi] = useState<'8' | '12'>('8');
@@ -92,7 +96,7 @@ export default function Predictions() {
       });
     }
     return out.sort((a, b) => (a.cadence.iso ?? '').localeCompare(b.cadence.iso ?? ''));
-  }, [clients, appts, byId, today]);
+  }, [clients, appts, byId, today, clefDuTarif]);
 
   const estimees = lignes.filter((l) => l.cadence.predicted);
   const prises = lignes.filter((l) => !l.cadence.predicted);

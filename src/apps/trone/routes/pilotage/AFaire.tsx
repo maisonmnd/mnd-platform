@@ -18,7 +18,7 @@ import { signeLeMessage, maisonNom } from '../../../../shared/identite';
 import { jourLisible, texteDeLaRelance, texteDuRappel } from '../../../../shared/rappel';
 import { appointmentsStore } from '../../../../shared/agenda';
 
-import { addDaysISO, apptDueXof, apptLabel, frJourAn, todayISO, useBranchAppointments, useServicesById } from '../clients/_shared';
+import { addDaysISO, apptDueXof, apptLabel, frJourAn, todayISO, useBranchAppointments, useServicesById, useClefDuTarif } from '../clients/_shared';
 import './pilotage.css';
 import { cheminDeLaConversation } from '../../../../shared/conversations';
 import { appelDe } from '../../../../shared/civilite';
@@ -98,6 +98,8 @@ export default function AFaire() {
   const byId = useServicesById();
   const navigate = useNavigate();
   const estDirection = useEstDirection();
+  /* Les restes dus se lisent au tarif de la tête (10 octobre 2026). */
+  const clefDuTarif = useClefDuTarif();
 
   const travail = useMemo(() => leTravail({
     branchId: branch.id,
@@ -106,7 +108,7 @@ export default function AFaire() {
     bilans,
     stock,
     duXof: (a) => apptDueXof(a as never, byId),
-  }), [branch.id, clients, appts, bilans, stock, byId]);
+  }), [branch.id, clients, appts, bilans, stock, byId, clefDuTarif]);
 
   const reste = travail.gestes.reduce((n, g) => n + g.combien, 0);
 

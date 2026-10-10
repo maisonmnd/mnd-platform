@@ -1,8 +1,8 @@
 import { build } from 'esbuild';
 import { mkdtempSync, rmSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { pathToFileURL } from 'node:url';
 
 /* UN AUTOMATISME QUI S'EMBALLE SE TAIT, EPROUVE — `node scripts/verifie-la-reprise-nue.mjs`.
 
@@ -31,7 +31,12 @@ globalThis.document = { body: { dataset: {} }, addEventListener() {} };
 globalThis.CustomEvent = class { constructor(t, o) { this.type = t; Object.assign(this, o); } };`,
     },
   });
-  await import(pathToFileURL(sortie).href);
+  /* DANS UN PROCESSUS FILS (10 octobre 2026). Importe ici, le banc finissait
+     par `process.exit` et tuait le lanceur avant son `finally` : le dossier
+     temporaire restait dans %TEMP% a chaque passage (89 dossiers comptes).
+     Meme remede que verifie-le-carnet-dit-la-fenetre. */
+  const r = spawnSync(process.execPath, [sortie], { cwd: racine, stdio: 'inherit' });
+  process.exitCode = r.status ?? 1;
 } finally {
   rmSync(dossier, { recursive: true, force: true });
 }

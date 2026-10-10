@@ -6,7 +6,7 @@ import { useBranch, maitreParDefaut } from '../../../../shared/branches';
 import { bornesDuSalon, appointmentsStore, type Appointment } from '../../../../shared/agenda';
 import {
   PayStatusPill, RdvModal, ReminderBell, addDaysISO, apptDurationMin, apptLabel, apptPayState, frShort, fromISO, pad2, timeToMin, toISO, todayISO,
-  useBranchAppointments, useBranchClients, useServicesById, type RdvInitial,
+  useBranchAppointments, useBranchClients, useServicesById, useClefDuTarif, type RdvInitial,
 } from './_shared';
 import { PayAppointmentModal } from './actions';
 import { useStaff as useMyStaff } from '../../../../shared/auth';
@@ -54,6 +54,10 @@ export default function Calendrier() {
   const appts = useBranchAppointments();
   const clients = useBranchClients();
   const byId = useServicesById();
+  /* LA PASTILLE DE PAIEMENT SUIT LE TARIF DE LA TÊTE (10 octobre 2026).
+     `apptPayState` se lit au rendu, aucun mémo ne le garde : il suffit que
+     l'écran se redessine quand le tarif change. */
+  useClefDuTarif();
   const today = todayISO();
   /* LE NOM MÈNE À LA FICHE (15 août, demande de Yéman). Le carnet dit qui
      vient ; quand il manque son téléphone — la cloche du rappel barrée le

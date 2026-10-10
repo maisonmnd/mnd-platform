@@ -16,7 +16,7 @@ import {
 } from '../../../../shared/finance';
 import { useAppointments, type Appointment } from '../../../../shared/agenda';
 import { holderOf, holderLabel, estMineur, ageDe } from '../../../../shared/accounts';
-import { ClientPicker, apptDueXof, apptLabel, useServicesById, frShortAn } from '../clients/_shared';
+import { ClientPicker, apptDueXof, apptLabel, useServicesById, useClefDuTarif, frShortAn } from '../clients/_shared';
 import { rituelAuCompte } from '../../../../shared/compte';
 import { PayAppointmentModal } from '../clients/actions';
 import { ContrepartieMaison, montantsDuTiroir, libelleDuMontant, nettoieLeMontant } from './tiroirs';
@@ -230,6 +230,10 @@ export default function Comptes() {
   const [appts] = useAppointments();
   const [invoices] = useInvoices();
   const byId = useServicesById();
+  /* `unpaidOfHolder` additionne au rendu, sans mémo, des restes dus lus au
+     tarif de la tête : l'écran se redessine quand ce tarif change
+     (10 octobre 2026). */
+  useClefDuTarif();
 
   /** Les membres d'un compte : les clientes de la famille, ou la cliente seule. */
   const membersOfHolder = (holder: CreditHolder): Client[] =>

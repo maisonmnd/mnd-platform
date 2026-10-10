@@ -396,6 +396,44 @@ else {
     new RegExp(String.raw`\.\.\.sansLaVisite\(appt\),\s*\.\.\.remiseFamilleQuiSuit\(appt\),`).test(laReprise),
   ]);
 
+  /* ── 17. Les cinq autres ecrans suivent la clef du tarif (10 octobre 2026) ──
+     Un ecran qui additionne des restes dus ou des valeurs a venir doit se
+     refaire quand le tarif d'une tete change : la clef entre dans la
+     dependance du memo qui somme, ou, quand la somme se fait au rendu sans
+     memo, l'appel seul suffit a redessiner l'ecran. Attendus ecrits en dur. */
+  const ecran = (f: string) => sansCom(`src/apps/trone/routes/${f}.tsx`);
+  const appelsDeLaClef = (src: string) => (src.match(new RegExp(String.raw`useClefDuTarif\(\)`, 'g')) ?? []).length;
+  const clients = ecran('clients/Customers');
+  const panneau = corpsDe(clients, 'function PanneauCompte(', 'function Customer360(');
+  const fiche = corpsDe(clients, 'function Customer360(', 'function IntakeModal(');
+  dit('Customers : le releve du compte et le solde de la fiche suivent la clef', [2, true, true, 1, true], [
+    appelsDeLaClef(clients),
+    new RegExp(String.raw`const clefDuTarif = useClefDuTarif\(\);`).test(panneau),
+    new RegExp(String.raw`\[ids, porteurs, appts, invoices, credits, aujourdhui, byId, clefDuTarif\]`).test(panneau),
+    appelsDeLaClef(fiche),
+    new RegExp(String.raw`^\s*useClefDuTarif\(\);`, 'm').test(fiche),
+  ]);
+  const calendrier = ecran('clients/Calendrier');
+  dit('Calendrier : les pastilles de paiement se redessinent', [1, true], [
+    appelsDeLaClef(calendrier),
+    new RegExp(String.raw`^\s*useClefDuTarif\(\);`, 'm').test(calendrier),
+  ]);
+  const afaire = ecran('pilotage/AFaire');
+  dit('A faire : le travail du jour suit la clef', [1, true], [
+    appelsDeLaClef(afaire),
+    new RegExp(String.raw`\[branch\.id, clients, appts, bilans, stock, byId, clefDuTarif\]`).test(afaire),
+  ]);
+  const comptes = ecran('finances/Comptes');
+  dit('Comptes : les impayes d un compte se redessinent', [1, true], [
+    appelsDeLaClef(comptes),
+    new RegExp(String.raw`^\s*useClefDuTarif\(\);`, 'm').test(comptes),
+  ]);
+  const predictions = ecran('pilotage/Predictions');
+  dit('Predictions : la valeur attendue suit la clef', [1, true], [
+    appelsDeLaClef(predictions),
+    new RegExp(String.raw`\[clients, appts, byId, today, clefDuTarif\]`).test(predictions),
+  ]);
+
 }
 
 console.log(ko === 0 ? '\nLe Carnet dit la fenetre : un seul tarif de la tete, partout.' : `\n${ko} controle(s) en echec.`);
