@@ -234,9 +234,15 @@ else {
     new RegExp(String.raw`fmtMoney\(apptTotalXof\(a, byId\)`).test(carnetSrc),
   ]);
   const actions = sansCom('src/apps/trone/routes/clients/actions.tsx');
+  /* ENCAISSER FIGE PAR `prixFigeAuReglement` depuis le 10 octobre 2026 (la
+     Gamme seule fige aussi) : l'ecran l'appelle avec ce qu'il regle, ET son
+     corps fige par `prixAFiger` des qu'un versement ou la Gamme passe. Les
+     deux sont exiges : un appel a une fonction videe ne figerait rien. */
+  const auReglement = corps(actions, 'export function prixFigeAuReglement');
   dit('actions : honorer fige, encaisser fige, la visite suivante nait nue', [true, true, true, false], [
     new RegExp(String.raw`\.\.\.prixAFiger\(a, byId\), status: 'honoré'`).test(actions),
-    new RegExp(String.raw`const (?:freeze|prixFige) = settleTotal > 0 \? prixAFiger\(appt, byId\) : \{\};`).test(actions),
+    new RegExp(String.raw`const freeze = prixFigeAuReglement\(appt, byId, \{ settleTotal, totalGamme \}\);`).test(actions)
+      && new RegExp(String.raw`const prixFige = e\.settleTotal > 0 \|\| e\.totalGamme > 0 \? prixAFiger\(appt, byId\) : \{\};`).test(auReglement),
     new RegExp(String.raw`const newAppt: Appointment = \{\s*\.\.\.sansLaVisite\(appt\),`).test(actions),
     new RegExp(String.raw`priceXof: appt\.priceXof \?\? apptTotalXof`).test(actions),
   ]);

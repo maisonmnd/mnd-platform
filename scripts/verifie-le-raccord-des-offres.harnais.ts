@@ -180,7 +180,7 @@ for (const s of TOUTES) {
   const sansCommentaires = (f: string) => readFileSync(f, 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
   const caisseSoldee = sansCommentaires('src/apps/trone/routes/vente/Caisse.tsx');
   dit('la caisse ecrit la remise au rendez-vous qu elle solde', true,
-    /remiseDuComptoirAuRendezVous\(\{/.test(caisseSoldee) && /discountXof: \(a\.discountXof \?\? 0\) \+ remise/.test(caisseSoldee));
+    /remiseDuComptoirAuRendezVous\(\{/.test(caisseSoldee) && /\.\.\.remiseDuComptoirEcrite\(a, remise\)/.test(caisseSoldee));
   const encaisser = sansCommentaires('src/apps/trone/routes/clients/actions.tsx');
   dit('l ecran d encaissement propose de reporter la remise d une piece d avant', true,
     /remiseDeFactureAReporter\(\{/.test(encaisser) && /Reporter la remise au rendez-vous/.test(encaisser));

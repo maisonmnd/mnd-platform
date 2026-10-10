@@ -41,6 +41,7 @@ import { useEstDirection } from '../_vie';
 import { usePayrollParameters, parametersFor, computePay, plafondDeLaRetenue, periodeLisible } from '../equipe/payroll';
 import {
   ouvreLesLettresDuPret, jourEnClair, duMoisEnClair, moisCourtEnClair, deLaMaison, avecArticle,
+  peutSignerALEcran, signatureQuiSurvit, type TermesDesLettres,
 } from './lettres-du-pret';
 import { lettresDuPretPdf } from './lettres-du-pret-pdf';
 import LettresAuDossier from './LettresAuDossier';
@@ -277,6 +278,20 @@ export default function Prets() {
     };
   })();
   const enPartDuSalaire = fPret.type === 'pret' && fPret.genre === 'equipe' && fPret.retour === 'salaire';
+  /* CE QUE LES LETTRES ENGAGERAIENT, LU SUR LE FORMULAIRE — 10 octobre 2026,
+     revue. La signature à l'écran ne vaut que pour le prêt ENREGISTRÉ, sous le
+     plafond, quand le formulaire dit encore exactement ses termes
+     (`peutSignerALEcran`, lettres-du-pret.ts) : sinon la copie signée, qui ne
+     se remplace jamais, dirait un autre prêt que le registre. */
+  const termesDuFormulaire: TermesDesLettres = {
+    amountXof: montantsPret.xof,
+    date: fPret.date || todayISO(),
+    motif: fPret.motif,
+    personneId: fPret.personneId || undefined,
+    retenue: enPartDuSalaire ? { partPct: planSalaire.partPct, premierMois: fPret.premierMois } : undefined,
+  };
+  const signableALEcran = peutSignerALEcran(pretEdite, termesDuFormulaire,
+    { trop: planSalaire.trop, mensXof: planSalaire.mens, baseXof: baseDuMembre });
   const imprimerLesLettres = () => {
     if (!membreDuPret) return;
     const motif = fPret.motif.trim();
@@ -427,6 +442,11 @@ export default function Prets() {
         ? (parseInt(fPret.retenue.replace(/[^0-9]/g, ''), 10) || 0) || undefined
         : undefined,
     };
+    /* LA SIGNATURE SURVIT À UNE CORRECTION QUI NE TOUCHE PAS SES TERMES
+       (10 octobre 2026, revue) : la ligne se reconstruisait sans elle, et
+       « Enregistrer » après la signature l'effaçait. */
+    const signee = signatureQuiSurvit(pretEdite, ligne);
+    if (signee) ligne.signatureDesLettres = signee;
     if (pretEdite) {
       setPrets((prev) => prev.map((x) => (x.id === pretEdite.id ? ligne : x)));
       setPretEdite(null);
@@ -1199,7 +1219,7 @@ export default function Prets() {
                   estDirection={estDirection}
                   jour={fPret.date || todayISO()}
                   fabriqueLePdf={fabriqueLePdfDesLettres}
-                  aSigner={baseDuMembre > 0 && montantsPret.xof > 0 && planSalaire.mens > 0 ? {
+                  aSigner={signableALEcran ? {
                     nom: membreDuPret.name,
                     montantXof: montantsPret.xof,
                     montantEnLettres: nombreEnLettres(montantsPret.xof),
@@ -1211,7 +1231,11 @@ export default function Prets() {
                   } : undefined}
                   onSignee={(s) => {
                     if (!pretEdite) return;
-                    setPrets((prev) => prev.map((x) => (x.id === pretEdite.id ? { ...x, signatureDesLettres: s } : x)));
+                    /* Datée du jour où l'on signe, pas du jour du prêt ; et la
+                       fiche ouverte le sait aussitôt (10 octobre 2026). */
+                    const signee = { ...s, at: todayISO() };
+                    setPrets((prev) => prev.map((x) => (x.id === pretEdite.id ? { ...x, signatureDesLettres: signee } : x)));
+                    setPretEdite((p) => (p && p.id === pretEdite.id ? { ...p, signatureDesLettres: signee } : p));
                   }}
                 />
                 {pretEdite?.signatureDesLettres && (

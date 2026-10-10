@@ -10,7 +10,7 @@ import { maisonNom, maisonRaisonAu, maisonRaisonDuPdfAu, signeLeMessage, DEVISE_
 import { useServices } from '../../../../shared/catalog';
 import { useClients, useFamilies } from '../../../../shared/clients';
 import { payerClientIdOf } from '../../../../shared/accounts';
-import { Avatar, ClientPicker, RdvModal, alignerFacturesDuRituel, facturesQuiAttendent, frDay, tarifsDuRituel, todayISO, useServicesById, type EcartDeConformite } from '../clients/_shared';
+import { Avatar, ClientPicker, RdvModal, alignerFacturesDuRituel, facturesQuiAttendent, frDay, frShortAn, tarifsDuRituel, todayISO, useServicesById, type EcartDeConformite } from '../clients/_shared';
 import { useModelBands, useBandSets, TAUX_DE_REMISE } from '../../../../shared/pricing';
 import { useCategories, useProducts } from '../../../../shared/catalog';
 import { Modal, toast, Field, Input } from '../../../../ds/components';
@@ -35,6 +35,7 @@ import { VieDeLaFacture } from '../_vie';
 import { cheminDeLaConversation, lienWaMe } from '../../../../shared/conversations';
 import { appelDe } from '../../../../shared/civilite';
 import { aligneLeRituel, corrigeLeVersement, estLieALaPiece, sansTiroir, type CorrectionDeVersement } from '../../../../shared/caisse-du-versement';
+import { soldeDeLaPiece, caisseManquante } from './encaissement-pur';
 
 /* Factures & devis — documents de marque à âme. Six thèmes émotionnels,
    remises par ligne et globale, conversion devis → facture, impression.
@@ -183,6 +184,10 @@ export default function Factures() {
   const [payChoice, setPayChoice] = useState<PaymentMethod>('MTN MoMo');
   /* La caisse du « Marquer payée » : jamais la première de la liste, on la dit. */
   const [payCaisse, setPayCaisse] = useState('');
+  /* Elle se redit à chaque pièce (10 octobre 2026, revue) : gardée d'une
+     pièce à l'autre, elle créditait en silence le tiroir choisi pour la
+     précédente. */
+  useEffect(() => { setPayCaisse(''); }, [selectedId]);
   const [freeLabel, setFreeLabel] = useState('');
   const [freeAmount, setFreeAmount] = useState('');
   const [editing, setEditing] = useState<EditState | null>(null);
@@ -1793,10 +1798,17 @@ export default function Factures() {
                       <option key={p} value={p}>{p}</option>
                     ))}
                   </Select>
-                  {(selected.payments ?? []).length === 0 && boxesBranche.length > 0 && (
+                  {/* LE SOLDE EST UN VERSEMENT DU JOUR — 10 octobre 2026, revue.
+                      Le statut seul rangeait l'argent au jour de la FACTURE
+                      (une pièce du 2 réglée le 10 comptait le 2), sans caisse
+                      quand on n'en choisissait pas, et taisait le reste d'une
+                      pièce déjà réglée en partie. Le bouton écrit désormais
+                      un versement daté d'aujourd'hui, du reste dû, à la caisse
+                      choisie, et attend cette caisse quand la branche en a. */}
+                  {boxesBranche.length > 0 && (
                     <Select aria-label="Caisse créditée" value={payCaisse} onChange={(e) => setPayCaisse(e.target.value)} style={{ flex: 1, fontSize: 12 }}>
                       <option value="">Caisse…</option>
-                      {boxesBranche.map((c) => (
+                      {caissesPourLaDate(boxesBranche, jourLocalIso(), payCaisse).map((c) => (
                         <option key={c.id} value={c.name}>{c.name}</option>
                       ))}
                     </Select>
@@ -1804,11 +1816,15 @@ export default function Factures() {
                   <Button
                     variant="copper"
                     size="sm"
-                    onClick={() => patchSelected({
-                      status: 'payée',
-                      payment: payChoice,
-                      ...((selected.payments ?? []).length === 0 && payCaisse ? { cashbox: payCaisse } : {}),
-                    })}
+                    disabled={caisseManquante(payCaisse, boxesBranche.length)}
+                    title={caisseManquante(payCaisse, boxesBranche.length) ? 'Choisissez la caisse qui reçoit l’argent' : undefined}
+                    onClick={() => patchSelected(soldeDeLaPiece(selected, {
+                      id: `ip-${uid()}`,
+                      jour: jourLocalIso(),
+                      moyen: payChoice,
+                      caisse: payCaisse || undefined,
+                      time: new Date().toTimeString().slice(0, 5),
+                    }))}
                   >
                     Marquer payée
                   </Button>
@@ -2274,7 +2290,7 @@ export default function Factures() {
         const msg = signeLeMessage(
           `${maisonNom()}\n`
           + `Bonjour ${appelDe(payeur)}, pour régler ${fmtMoney(total, currency)} par Mobile Money, ouvrez cette page : le code à composer s'y affiche, montant compris.\n${lien ?? ''}\n`
-          + `Ce règlement couvre :\n${prises.map((i) => `· ${clientNameOf(i)} · ${frDay(i.date)} · ${fmtMoney(invoiceResteXof(i), currency)}`).join('\n')}\n`
+          + `Ce règlement couvre :\n${prises.map((i) => `· ${clientNameOf(i)} · ${frShortAn(i.date)} · ${fmtMoney(invoiceResteXof(i), currency)}`).join('\n')}\n`
           + `Références ${prises.map((i) => i.number).join(', ')}`,
         );
         /* ══ LE RÉCAPITULATIF DU FOYER — 4 septembre 2026 ══════════════
@@ -2312,7 +2328,8 @@ export default function Factures() {
             }
             if (regle > 0) rows.push({ label: 'Déjà réglé', value: `− ${fmtMoney(regle, currency)}` });
             rows.push({ label: 'Reste à régler', value: fmtMoney(invoiceResteXof(i), currency), strong: true });
-            return { heading: `${clientNameOf(i)} · ${frDay(jourDuPassage(i))} · ${i.number}`, rows };
+            /* L'année sur toute date remise à la payeuse (10 octobre 2026, revue). */
+            return { heading: `${clientNameOf(i)} · ${frShortAn(jourDuPassage(i))} · ${i.number}`, rows };
           });
           await summaryPdf({
             eyebrow: 'Avant règlement',
@@ -2357,7 +2374,7 @@ export default function Factures() {
                       <span style={{ flex: 1, minWidth: 0 }}>
                         <b style={{ fontWeight: 500, color: 'var(--color-indigo)' }}>{clientNameOf(i)}</b>
                         <span className="mnd-muted" style={{ display: 'block', fontSize: 11 }}>
-                          {frDay(i.date)} · {i.number}
+                          {frShortAn(i.date)} · {i.number}
                         </span>
                       </span>
                       <span style={{ fontFamily: 'var(--font-serif)', fontSize: 17, color: 'var(--color-indigo)', fontVariantNumeric: 'tabular-nums' }}>

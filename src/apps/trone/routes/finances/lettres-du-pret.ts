@@ -443,3 +443,60 @@ export function ouvreLesLettresDuPret(
     .then((carte) => { if (!w.closed) ecris(lettresDuPretHtml({ ...d, identite: carte ?? undefined }, adresseDuPicto())); });
   return true;
 }
+
+/* ══ LA SIGNATURE À L'ÉCRAN NE SIGNE QUE LE PRÊT ENREGISTRÉ — 10 octobre 2026 ══
+   Revue de code de la Maison. « Faire signer à l'écran » fabriquait le PDF
+   depuis le formulaire EN COURS DE FRAPPE, et le rangeait comme copie signée
+   « qui ne se remplace jamais » : un prêt enregistré à 100 000 F, retapé à
+   150 000 F au-delà du plafond, se signait sans être enregistré. La copie
+   signée disait 150 000 F, le prêt 100 000 F. Et l'enregistrement suivant
+   reconstruisait la ligne sans sa signature : elle s'effaçait.
+
+   LA RÈGLE. On ne signe à l'écran qu'un prêt déjà enregistré, sous le
+   plafond, quand le formulaire dit exactement ce qu'il dit (montant, jour,
+   motif, part du salaire, premier bulletin, personne). Une correction qui
+   change ces termes perd la signature : ce n'est plus ce qui a été signé.
+   Une correction qui ne les touche pas la garde. */
+
+/** Les termes que les lettres écrivent, et qu'une signature engage. */
+export type TermesDesLettres = {
+  amountXof: number;
+  date: string;
+  motif?: string;
+  personneId?: string;
+  retenue?: { partPct: number; premierMois: string };
+};
+
+const lePourcent = (x: number | undefined): number => Math.round((x ?? 0) * 100);
+const leMotif = (m: string | undefined): string => (m ?? '').trim() || 'Prêt';
+
+/** Deux prêts disent-ils les mêmes lettres ? */
+export const memesTermes = (a: TermesDesLettres, b: TermesDesLettres): boolean =>
+  Math.round(a.amountXof) === Math.round(b.amountXof)
+  && a.date.slice(0, 10) === b.date.slice(0, 10)
+  && leMotif(a.motif) === leMotif(b.motif)
+  && (a.personneId ?? '') === (b.personneId ?? '')
+  && !!a.retenue === !!b.retenue
+  && (!a.retenue || !b.retenue
+    || (lePourcent(a.retenue.partPct) === lePourcent(b.retenue.partPct) && a.retenue.premierMois === b.retenue.premierMois));
+
+/** La porte « Faire signer à l'écran » : un prêt enregistré, sous le plafond,
+    que le formulaire n'a pas changé. */
+export function peutSignerALEcran(
+  enregistre: TermesDesLettres | null | undefined,
+  formulaire: TermesDesLettres,
+  plan: { trop: boolean; mensXof: number; baseXof: number },
+): boolean {
+  if (!enregistre || plan.trop) return false;
+  if (!(plan.baseXof > 0) || !(plan.mensXof > 0) || !(formulaire.amountXof > 0)) return false;
+  return memesTermes(enregistre, formulaire);
+}
+
+/** La signature qui survit à l'enregistrement : celle d'avant, si les termes
+    n'ont pas bougé ; aucune sinon. */
+export function signatureQuiSurvit<S>(
+  avant: (TermesDesLettres & { signatureDesLettres?: S }) | null | undefined,
+  apres: TermesDesLettres,
+): S | undefined {
+  return avant?.signatureDesLettres && memesTermes(avant, apres) ? avant.signatureDesLettres : undefined;
+}

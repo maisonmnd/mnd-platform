@@ -16,7 +16,7 @@ import { soinUtilise } from '../../../../shared/parrainage';
 import {
   useModelBands, useBandSets, pricingOf, personalPriceXof, prixFerme, estProposable,
 } from '../../../../shared/pricing';
-import { ClientPicker, useBranchAppointments, apptLabel, apptDueXof, useServicesById, partsDuRituelXof, prixAFigerAuTicket, frShortAn } from '../clients/_shared';
+import { ClientPicker, useBranchAppointments, apptLabel, apptDueXof, apptNetXof, apptTotalXof, useServicesById, partsDuRituelXof, prixAFigerAuTicket, frShortAn } from '../clients/_shared';
 import { honoreALEncaissement } from '../clients/actions';
 import { appointmentsStore, useAppointments, venuesHonorees } from '../../../../shared/agenda';
 import { ClotureDuTiroir } from '../finances/ClotureDuTiroir';
@@ -28,10 +28,10 @@ import { holderOf, payerClientIdOf } from '../../../../shared/accounts';
 import { invoicePdf, type InvoicePdfData } from '../../../../shared/pdf';
 import {
   useCodesPromo, codesPromoStore, codeDit, pourquoiLeCodeNeVautPas, remiseDuCode,
-  laMeilleureEnFrancs, honoreLeCode, normaliseLeCode,
+  honoreLeCode, normaliseLeCode,
 } from '../../../../shared/promos';
 import { useOffers } from '../../../../shared/offers';
-import { offreDuCode, offreDuCodePassee, remiseDeLOffreSurLeTicket, pourquoiLOffreNeCourtPas, remiseDuComptoirAuRendezVous } from '../../../../shared/offres-pur';
+import { offreDuCode, offreDuCodePassee, remiseDeLOffreSurLeTicket, pourquoiLOffreNeCourtPas, remiseDuComptoirAuRendezVous, remiseDuComptoirEcrite } from '../../../../shared/offres-pur';
 import { useAuth } from '../../../../shared/auth';
 import { ChampDeDate } from '../../../../ds/dates';
 import { useEstDirection } from '../_vie';
@@ -43,6 +43,7 @@ import '../equipe/equipe.css'; // styles du Toggle partagé (tre-toggle)
 import './vente.css';
 import { cheminDeLaConversation } from '../../../../shared/conversations';
 import { RattacherUneCarte } from './RattacherUneCarte';
+import { leTicket, versementsDuTicket, ceQueLeRendezVousRecoit, lArgentDejaRecu, aDejaSaPiece } from './encaissement-pur';
 
 /* Caisse POS — encaissement au fauteuil. Chaque encaissement crée une facture
    payée dans le registre des finances et crédite la caisse choisie. */
@@ -177,9 +178,11 @@ export default function Caisse() {
 
      LE PRIX EST CELUI DU RITUEL, PAS DU CATALOGUE DU JOUR. Un soin de juillet
      se reprend à son tarif de juillet, remises de ligne comprises. */
+  /* NI UN RITUEL QUI A ENCORE SA PIÈCE — 10 octobre 2026, reprise de la
+     revue (`aDejaSaPiece`) : son règlement s'inscrit sur elle, au Carnet. */
   const rituelsDuJour = useMemo(
-    () => carnet.filter((a) => a.clientId && a.clientId === clientId && !a.invoiceId && a.status !== 'annulé'),
-    [carnet, clientId],
+    () => carnet.filter((a) => a.clientId && a.clientId === clientId && !a.invoiceId && a.status !== 'annulé' && !aDejaSaPiece(a, invoices)),
+    [carnet, clientId, invoices],
   );
 
   /* Les clés que le rituel a posées au ticket — pour les retirer toutes si
@@ -496,11 +499,31 @@ export default function Caisse() {
      cliente au tarif famille paierait 72 % du prix parce qu'un code est
      passé. À égalité, le code reste entier — le consommer sans qu'il apporte
      un franc reviendrait à le voler à la cliente. */
-  const dejaPoseXof = Math.round(subXof * (globalDisc / 100)) + globalDiscXof;
-  const cumul = laMeilleureEnFrancs(dejaPoseXof, promoBrutXof, codePromo?.code ?? offreCodee?.code ?? '');
-  const promoXof = cumul.codeConsomme ? promoBrutXof : 0;
+  /* LE CODE QUI GAGNE REMPLACE CE QUI ÉTAIT POSÉ — 10 octobre 2026, revue.
+     L'écran disait « la remise déjà posée est écartée » et le net la
+     retranchait quand même : 80 000 F, −10 %, ROSE15 à 12 000 F, la cliente
+     payait 60 000 F au lieu de 68 000 F. Le calcul vit dans
+     `encaissement-pur` (`leTicket`), éprouvé par verifie-revue-vente-bis.
 
-  const netXof = Math.max(0, Math.round(subXof * (1 - globalDisc / 100)) - globalDiscXof - promoXof);
+     LE RITUEL REPRIS APPORTE SA REMISE ET SON ACOMPTE (même revue). Ses
+     lignes se posent à leur part du brut ; sa remise (pourcentage, francs,
+     forfait) et l'argent qu'il a déjà reçu restaient au Carnet, et la
+     cliente payait le brut, l'acompte une seconde fois. Les deux se lisent
+     sur le rendez-vous lui-même, à l'instant. */
+  const rituelChoisi = apptToSettle ? carnet.find((a) => a.id === apptToSettle) : undefined;
+  const ticket = leTicket({
+    sousTotalXof: subXof,
+    prestationsXof: lines.filter((l) => l.kind === 'service').reduce((n, l) => n + l.netXof, 0),
+    remisePct: globalDisc,
+    remiseXof: globalDiscXof,
+    remiseDuRendezVousXof: rituelChoisi ? Math.max(0, apptTotalXof(rituelChoisi, svcById) - apptNetXof(rituelChoisi, svcById)) : 0,
+    dejaRecuXof: rituelChoisi ? Math.max(0, apptNetXof(rituelChoisi, svcById) - apptDueXof(rituelChoisi, svcById)) : 0,
+    promoBrutXof,
+    nomDuCode: codePromo?.code ?? offreCodee?.code ?? '',
+  });
+  const { cumul, promoXof, netXof } = ticket;
+  /* Ce qui reste à régler au comptoir : le net, moins l'acompte déjà reçu. */
+  const aPayerXof = ticket.aPayerXof;
   /* Ce que les remises retirent au ticket, toutes confondues (lignes + globale
      + manuelle) — la barre ancrée le dit en clair à côté du net. */
   const remisesXof = Math.max(0, Math.round(lines.reduce((s, l) => s + l.unit * l.qty, 0)) - netXof);
@@ -532,12 +555,28 @@ export default function Caisse() {
     setCart((c) => (c[cle] ? { ...c, [cle]: { ...c[cle], disc: 0 } } : c));
     setSoinPose(null);
   };
+  /* CHANGER DE CLIENTE REPART D'UN TICKET À ELLE — 10 octobre 2026, revue.
+     Le rendez-vous à solder et la ligne offerte de la précédente restaient :
+     le rituel de A recevait l'argent d'une pièce au nom de B, et B ne payait
+     pas le soin de A, qui restait à resservir. On retire d'abord ce que le
+     rituel avait posé et le soin offert, puis on change de tête.
+     L'AVOIR TAPÉ AUSSI (reprise de la relecture) : la somme tapée pour A
+     se posait aussitôt sur le compte de B, et l'avoir de B partait à
+     l'encaissement sans que personne l'ait demandé. */
+  const changeDeCliente = (id: string) => {
+    if (id !== clientId) {
+      choisirRituel('');
+      retireLeSoin();
+      setAvoirStr('0');
+    }
+    setClientId(id);
+  };
   const posAccount: CreditHolder | null = posClient ? holderOf(posClient, families) : null;
   const posAvoirBal = posAccount ? creditBalanceOf(credits, posAccount) : 0;
-  const posAvoir = Math.max(0, Math.min(Math.min(posAvoirBal, netXof), Math.round(Number(avoirStr) || 0)));
+  const posAvoir = Math.max(0, Math.min(Math.min(posAvoirBal, aPayerXof), Math.round(Number(avoirStr) || 0)));
   const posPayerId = posClient ? payerClientIdOf(posClient, families) : '';
   const posPayer = branchClients.find((c) => c.id === posPayerId);
-  const posCashDue = Math.max(0, netXof - posAvoir);
+  const posCashDue = Math.max(0, aPayerXof - posAvoir);
   /* Le montant en devise se DÉDUIT du COMPTANT dû (net − avoir) : c'est le XOF
      qui fait foi, jamais l'inverse — et la part réglée par avoir ne traverse
      pas le comptoir, elle n'a pas à être convertie en billets. */
@@ -553,7 +592,7 @@ export default function Caisse() {
     try {
     const client = branchClients.find((c) => c.id === clientId);
     const grossXof = lines.reduce((s, l) => s + l.unit * l.qty, 0);
-    const inv: Invoice = nouvelleFacture({
+    const piece: Invoice = nouvelleFacture({
       branchId: branch.id,
       serie: 'MND',
       status: 'payée',
@@ -563,18 +602,42 @@ export default function Caisse() {
       forClientId: posPayerId && posPayerId !== clientId ? clientId : undefined,
       date: dateVente,
       lines: lines.map((l) => ligneFacture(l.n, l.unit, l.qty, l.disc)),
-      globalDiscountPct: globalDisc,
+      /* LES REMISES QUI S'APPLIQUENT, ET ELLES SEULES (10 octobre 2026) : le
+         code qui gagne a écarté la remise posée, la pièce ne la porte plus. */
+      globalDiscountPct: ticket.remisePct,
       /* LA PROMOTION S'ÉCRIT SUR LA PIÈCE, en francs exacts, avec la remise
-         manuelle : c'est `invoiceTotal` qui fait foi partout, et le net du
-         ticket doit être celui du papier, au franc près. */
-      globalDiscountXof: (globalDiscXof + promoXof) || undefined,
+         manuelle et celle du rendez-vous soldé : c'est `invoiceTotal` qui fait
+         foi partout, et le net du ticket doit être celui du papier, au franc
+         près. */
+      globalDiscountXof: (ticket.remiseXof + ticket.remiseDuRendezVousXof + promoXof) || undefined,
       ...(promoXof > 0 && codePromo ? { discountLabel: `Promotion ${codePromo.code}` }
         : promoXof > 0 && offreCodee ? { discountLabel: `Offre ${offreCodee.title} · ${offreCodee.code ?? ''}`.trim() } : {}),
       fx: fxOn && fxAmount > 0 ? { code: fxCode, rate: fxRateNum, amount: fxAmount } : undefined,
       payment: posCashDue > 0 ? pay : (posAvoir > 0 ? 'Avoir' : pay),
       cashbox: activeCashbox || undefined,
       avoirXof: posAvoir > 0 ? posAvoir : undefined,
+      depositCreditXof: ticket.acompteXof > 0 ? ticket.acompteXof : undefined,
     });
+    /* UN VERSEMENT PAR NATURE D'ARGENT — 10 octobre 2026, revue. Sans eux, la
+       pièce s'en fabriquait un seul, du net entier, au moyen du comptant :
+       50 000 F dont 10 000 F d'avoir, et le tiroir comme la clôture du soir
+       attendaient 50 000 F pour 40 000 F reçus. */
+    const versements = versementsDuTicket({
+      nouvelId: () => `ip-${uid()}`,
+      date: dateVente,
+      time: piece.time,
+      encaissePar: piece.encaissePar,
+      comptantXof: posCashDue,
+      moyen: pay,
+      caisse: activeCashbox || undefined,
+      fx: piece.fx,
+      avoirXof: posAvoir,
+      acompteXof: ticket.acompteXof,
+      acompteDate: rituelChoisi?.depositConfirmedAt?.slice(0, 10),
+      /* Chaque argent déjà reçu à son jour (10 octobre 2026, reprise). */
+      dejaRecu: rituelChoisi ? lArgentDejaRecu(rituelChoisi, dateVente) : undefined,
+    });
+    const inv: Invoice = versements.length > 0 ? { ...piece, payments: versements } : piece;
     setInvoices((prev) => [inv, ...prev]);
 
     /* LE CODE SE FERME ICI, ET PAS AVANT. Le consommer au moment où on le
@@ -620,10 +683,11 @@ export default function Caisse() {
          ON NE SOLDE QUE CE QUI LE CONCERNE : les produits du même ticket ne
          sont pas son rituel. `paidXof` ne compte donc que les lignes de
          PRESTATION, et le versement inscrit au carnet dit la même somme. */
-      const partRituel = lines
-        .filter((l) => l.kind === 'service')
-        .reduce((n, l) => n + l.netXof, 0);
-      const partNette = Math.max(0, Math.round(partRituel * (1 - globalDisc / 100)) - globalDiscXof - promoXof);
+      /* Ce que valent ses prestations au ticket, toutes remises déduites
+         (`leTicket`), et la part de l'acompte déjà reçu qui s'y impute. */
+      const partNette = ticket.partNetteXof;
+      const acompteImpute = ticket.acompteXof;
+      const recu = ceQueLeRendezVousRecoit({ partNetteXof: partNette, acompteXof: acompteImpute, avoirXof: posAvoir });
       /* LA REMISE DU COMPTOIR S'ÉCRIT AU RENDEZ-VOUS — 2 octobre 2026. Sans
          elle, un rituel à 80 000 F encaissé 68 000 F avec ROSE15 restait
          « devoir 12 000 F » au Carnet (voir shared/offres-pur). */
@@ -641,32 +705,50 @@ export default function Caisse() {
       }
       appointmentsStore.set((prev) => prev.map((a) => {
         if (a.id !== apptToSettle) return a;
-        const fige = partNette > 0 ? prixAFigerAuTicket(a, svcById, auTicket) : {};
+        /* TOUJOURS (10 octobre 2026, revue, constat 57) : le ticket pose sa
+           pièce sur le rendez-vous sans condition, même pour la Gamme seule ;
+           un rendez-vous qui porte une pièce porte aussi son prix. */
+        const fige = prixAFigerAuTicket(a, svcById, auTicket);
         /* Le reste d'avant se lit sur le prix figé : c'est contre lui que la
            remise du comptoir se mesure. */
+        /* L'acompte imputé au ticket compte des deux côtés : dans ce que le
+           ticket vaut, et dans ce que le rendez-vous devait avant lui. */
         const remise = remiseDuComptoirAuRendezVous({
-          brutDuRituelXof: brutDuRituel, encaisseXof: partNette, resteAvantXof: apptDueXof({ ...a, ...fige }, svcById),
+          brutDuRituelXof: brutDuRituel, encaisseXof: partNette, resteAvantXof: apptDueXof({ ...a, ...fige }, svcById) + acompteImpute,
         });
         return {
           ...a,
           invoiceId: inv.id,
-          ...(remise > 0 ? { discountXof: (a.discountXof ?? 0) + remise } : {}),
-          paidXof: (a.paidXof ?? 0) + partNette,
+          /* La remise du comptoir s'écrit AVEC son marqueur (10 octobre 2026,
+             revue, constat 59) : annuler l'encaissement ou supprimer la pièce
+             la retire, sans toucher à une remise posée ailleurs. */
+          ...remiseDuComptoirEcrite(a, remise),
+          paidXof: (a.paidXof ?? 0) + recu.comptantXof + recu.avoirXof,
           ...fige,
           /* C'est l'argent qui fige ce prix : annuler l'encaissement le rendra
              au tarif de la tête (10 octobre 2026, `prixFigeParLArgent`). */
           ...(typeof fige.priceXof === 'number' ? { prixFigeParLArgent: fige.priceXof } : {}),
-          ...(partNette > 0 ? {
+          /* LE CARNET VENTILE COMME LA PIÈCE (10 octobre 2026) : l'avoir sur
+             son versement, sans caisse, le comptant sur le sien. L'acompte y
+             est déjà : il ne s'inscrit pas une seconde fois. */
+          ...(recu.comptantXof + recu.avoirXof > 0 ? {
             payments: [
               ...(a.payments ?? []),
-              {
+              ...(recu.comptantXof > 0 ? [{
                 id: `pay-${uid()}`,
-                amountXof: partNette,
+                amountXof: recu.comptantXof,
                 date: dateVente,
-                method: posCashDue > 0 ? pay : (posAvoir > 0 ? 'Avoir' : pay),
+                method: pay,
                 cashbox: activeCashbox || undefined,
                 invoiceId: inv.id,
-              },
+              }] : []),
+              ...(recu.avoirXof > 0 ? [{
+                id: `pay-${uid()}`,
+                amountXof: recu.avoirXof,
+                date: dateVente,
+                method: 'Avoir' as PaymentMethod,
+                invoiceId: inv.id,
+              }] : []),
             ],
           } : {}),
         };
@@ -730,6 +812,7 @@ export default function Caisse() {
         subtotal: fmtMoney(Math.round(grossXof), currency),
         discount: grossXof - netXof > 0 ? `− ${fmtMoney(Math.round(grossXof - netXof), currency)}` : undefined,
         total: fmtMoney(netXof, currency),
+        deposit: ticket.acompteXof > 0 ? `− ${fmtMoney(ticket.acompteXof, currency)}` : undefined,
         tip: (inv.tipXof ?? 0) > 0 ? fmtMoney(inv.tipXof!, currency) : undefined,
         /* Le reçu doit dire ce que la cliente a réellement tendu, sinon elle lit
            un montant en F qu'elle n'a jamais versé. */
@@ -855,7 +938,7 @@ export default function Caisse() {
               </>
             ) : (
               <div style={{ flex: 1, minWidth: 200 }}>
-                <ClientPicker value={clientId} onChange={(v) => { setClientId(v); setChangeCliente(false); }} allowWalkIn allowPassage />
+                <ClientPicker value={clientId} onChange={(v) => { changeDeCliente(v); setChangeCliente(false); }} allowWalkIn allowPassage />
               </div>
             )}
           </div>
@@ -1158,9 +1241,23 @@ export default function Caisse() {
                 <span>Sous-total</span>
                 <span>{fmtMoney(Math.round(subXof), currency)}</span>
               </div>
+              {/* CE QUE LE RENDEZ-VOUS APPORTE SE LIT (10 octobre 2026) : sa
+                  remise et l'argent qu'il a déjà reçu, sous le sous-total. */}
+              {ticket.remiseDuRendezVousXof > 0 && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: 8, fontFamily: 'var(--font-sans)', fontSize: 13, color: 'var(--copper-700)' }}>
+                  <span>Remise du rendez-vous</span>
+                  <span>−{fmtMoney(ticket.remiseDuRendezVousXof, currency)}</span>
+                </div>
+              )}
+              {ticket.acompteXof > 0 && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: 8, fontFamily: 'var(--font-sans)', fontSize: 13, color: 'var(--ink-soft)' }}>
+                  <span>Déjà reçu pour ce rendez-vous</span>
+                  <span>−{fmtMoney(ticket.acompteXof, currency)}</span>
+                </div>
+              )}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', padding: '14px 0 4px' }}>
                 <span style={{ fontFamily: 'var(--font-sans)', fontSize: 11, letterSpacing: '.18em', textTransform: 'uppercase', color: 'var(--color-indigo)' }}>Net à payer</span>
-                <span className="trv-net">{fmtMoney(netXof, currency)}</span>
+                <span className="trv-net">{fmtMoney(aPayerXof, currency)}</span>
               </div>
 
               {soinsDispo.length > 0 && (
@@ -1189,15 +1286,15 @@ export default function Caisse() {
                 </div>
               )}
 
-              {posAvoirBal > 0 && netXof > 0 && (
+              {posAvoirBal > 0 && aPayerXof > 0 && (
                 <div style={{ marginTop: 12, border: '1px solid var(--copper-300)', borderLeft: '3px solid var(--color-copper)', borderRadius: 'var(--radius-md)', background: 'var(--copper-50)', padding: '10px 12px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
                     <span style={{ fontFamily: 'var(--font-sans)', fontSize: 9.5, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--copper-700)' }}>Régler par l’avoir</span>
                     <span style={{ fontSize: 11.5, color: 'var(--copper-700)' }}>dispo {fmtMoney(posAvoirBal, currency)}</span>
                   </div>
                   <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginTop: 8 }}>
-                    <input className="mnd-input" type="number" min={0} max={Math.min(posAvoirBal, netXof)} value={avoirStr} onChange={(e) => setAvoirStr(e.target.value)} style={{ flex: 1, minWidth: 0, textAlign: 'right' }} aria-label="Montant réglé par avoir" />
-                    <button type="button" className="mnd-btn mnd-btn--ghost mnd-btn--sm" style={{ flex: 'none' }} onClick={() => setAvoirStr(String(Math.min(posAvoirBal, netXof)))}>Max</button>
+                    <input className="mnd-input" type="number" min={0} max={Math.min(posAvoirBal, aPayerXof)} value={avoirStr} onChange={(e) => setAvoirStr(e.target.value)} style={{ flex: 1, minWidth: 0, textAlign: 'right' }} aria-label="Montant réglé par avoir" />
+                    <button type="button" className="mnd-btn mnd-btn--ghost mnd-btn--sm" style={{ flex: 'none' }} onClick={() => setAvoirStr(String(Math.min(posAvoirBal, aPayerXof)))}>Max</button>
                   </div>
                   {posAvoir > 0 && (
                     <div style={{ fontSize: 11, color: 'var(--copper-700)', marginTop: 7 }}>
@@ -1324,7 +1421,7 @@ export default function Caisse() {
             <div className="trv-totalbar">
               <div className="trv-totalbar__info">
                 <span className="lb">Net à payer</span>
-                <span className="v">{fmtMoney(netXof, currency)}</span>
+                <span className="v">{fmtMoney(aPayerXof, currency)}</span>
                 <span className="m">
                   {posCashDue === 0 && posAvoir > 0 ? 'par avoir' : pay}
                   {remisesXof > 0 ? ` · remises −${fmtMoney(remisesXof, currency)}` : ''}
