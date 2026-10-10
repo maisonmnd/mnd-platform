@@ -214,6 +214,7 @@ function Shell() {
             goGamme={() => setTab('gamme')}
             toast={toast}
             onOpenCarte={() => (visibleTabs.some((t) => t.id === 'cercle') ? setTab('cercle') : setCarteOpen(true))}
+            goFormule={visibleTabs.some((t) => t.id === 'formule') ? () => setTab('formule') : undefined}
           />
         ))}
         {tab === 'suivi' && <SuiviTab regard={enfant} onOpenBooking={openBooking} onOpenRdv={openRdv} onOpenOrders={openOrders} goGamme={() => setTab('gamme')} />}

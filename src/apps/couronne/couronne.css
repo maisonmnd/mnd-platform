@@ -867,6 +867,32 @@
   padding: 4px 10px;
 }
 
+/* VOTRE PROCHAINE MARCHE (janvier 2027) : une carte, sous la séance. */
+.mc-marche {
+  margin-top: 14px;
+  background: var(--surface-card);
+  border: 1px solid var(--hairline);
+  border-radius: 4px;
+  padding: 18px;
+}
+.mc-marche__k {
+  font-size: 10px;
+  font-weight: var(--weight-medium);
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--accent-strong);
+}
+.mc-marche__t {
+  font-family: var(--font-serif);
+  font-size: 22px;
+  line-height: 1.15;
+  color: var(--mc-encre);
+  margin: 8px 0 6px;
+  text-wrap: balance;
+}
+.mc-marche__t em { font-style: italic; color: var(--accent-strong); }
+.mc-marche__p { font-size: 13px; line-height: 1.5; color: var(--ink-soft); margin: 4px 0 0; }
+
 .mc-recocard {
   background: var(--surface-card);
   border: 1px solid var(--hairline);

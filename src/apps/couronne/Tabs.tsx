@@ -32,6 +32,7 @@ import { invoiceTotal, invoicesStore, useInvoices, type Invoice, type InvoiceLin
 import { cercleSeuilStore, foyerSeuilStore, estDuCercle, useFoyerTiers, cercleActifStore, foyerActifStore } from '../../shared/offers';
 import { deliveryFee, useSettings } from '../../shared/settings';
 import { palierDuCarnet, pasSuivant, jourLocal, PALIER_DIT } from '../../shared/paliers';
+import { ProchaineMarche } from './ProchaineMarche';
 import { createStore, uid, useStore } from '../../shared/store';
 import {
   ensureClient,
@@ -399,6 +400,7 @@ export function HomeTab({
   goGamme,
   toast,
   onOpenCarte,
+  goFormule,
 }: {
   onOpenBooking: OpenBooking;
   onOpenCompose: () => void;
@@ -409,6 +411,8 @@ export function HomeTab({
   toast: (m: string) => void;
   /** La carte de marraine (28 septembre 2026). */
   onOpenCarte?: () => void;
+  /** L'onglet « Ma formule » (la prochaine marche, janvier 2027). */
+  goFormule?: () => void;
 }) {
   const client = useClient();
   const maCarte = useMaCarte();
@@ -618,6 +622,10 @@ export function HomeTab({
             {t('Mes rendez-vous')}
           </button>
         </div>
+
+        {/* VOTRE PROCHAINE MARCHE (1er janvier 2027, la genèse des prix) :
+            une seule carte, la première marche qui s'applique à sa couronne. */}
+        <ProchaineMarche appts={clientAppts} onOpenBooking={onOpenBooking} goFormule={goFormule} />
 
         {/* statut couronne */}
         <div className="mc-crownstatus">
