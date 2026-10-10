@@ -2007,7 +2007,8 @@ export function ProfilTab({ toast }: { toast: (m: string) => void }) {
   const [famillesProfil] = useFamilies();
   const [tousClientsProfil] = useClients();
   const familleProfil = client?.familyId ? famillesProfil.find((f) => f.id === client.familyId) : undefined;
-  const famPctProfil = remiseFamillePct(familleProfil, tousClientsProfil, todayIso());
+  /* La règle des mineurs, jusqu'au compte du serveur (voir `remiseFamillePct`). */
+  const famPctProfil = remiseFamillePct(familleProfil, tousClientsProfil, todayIso(), 'mineurs');
   const { session } = useAuth();
   const email = client?.email ?? session?.user?.email ?? '';
   /* Le calibre affiché se déduit du comptage — le style à la main est retiré. */

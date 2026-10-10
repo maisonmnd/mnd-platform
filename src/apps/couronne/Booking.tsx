@@ -223,7 +223,8 @@ export default function Booking({ prefill, onClose, toast, onVoirRdv }: Props) {
      celui de la maison : taux posé = personnalisé ; compte muet = barème du
      foyer (1 enfant → 10 %, 2 et plus → 15 %). Jamais sur les forfaits. */
   const familleDeLaTete = cible?.familyId ? familles.find((f) => f.id === cible.familyId) : undefined;
-  const famPctCompte = remiseFamillePct(familleDeLaTete, tousClients, todayIso());
+  /* La règle des mineurs, jusqu'au compte du serveur (voir `remiseFamillePct`). */
+  const famPctCompte = remiseFamillePct(familleDeLaTete, tousClients, todayIso(), 'mineurs');
 
   const prefService = prefill ? services.find((s) => s.id === (prefill.serviceId ?? prefill.serviceIds?.[0])) ?? null : null;
   /* La venue entière, dans l'ordre du catalogue, sans les gestes retirés. */

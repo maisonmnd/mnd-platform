@@ -23,8 +23,10 @@ import { catalogueDeLaTete } from '../../../../shared/kids';
 import { useServices, useProducts, type Service } from '../../../../shared/catalog';
 import {
   useModelBands, useBandSets, pricingOf, personalPriceXof, prixDeBase, isPersonalized,
-  personalDurationMin,
+  personalDurationMin, regimeTarifaire,
 } from '../../../../shared/pricing';
+import { estMineur } from '../../../../shared/accounts';
+import { gestesEnsemble, libelleDuGeste, remisesDesGestes } from '../../../../shared/ensemble-pur';
 import { useCategories } from '../../../../shared/catalog';
 import {
   appointmentsStore, useAppointments, maitresLibres, placeLeFoyer, type Appointment, estampilleLesPoses } from '../../../../shared/agenda';
@@ -86,21 +88,44 @@ export function RdvFoyerModal({ clientId, onClose }: { clientId: string; onClose
     const pricing = pricingOf(c, bands, sets, cats);
     const perso = isPersonalized(pricing);
     const svcs = ids.map((id) => byId.get(id)).filter(Boolean) as Service[];
-    const prixXof = svcs.reduce(
-      (n, sv) => n + (perso ? personalPriceXof(sv, pricing, services, produits) : prixDeBase(sv, pricing)), 0,
-    );
+    /* LIGNE À LIGNE (10 octobre 2026) : un geste offre UNE ligne, et la remise
+       famille ne porte pas sur les forfaits. */
+    const prixLignes = ids.map((id) => {
+      const sv = byId.get(id);
+      return sv ? (perso ? personalPriceXof(sv, pricing, services, produits) : prixDeBase(sv, pricing)) : 0;
+    });
+    const forfaitXof = ids.reduce((n, id, i) => {
+      const sv = byId.get(id);
+      return n + (sv && regimeTarifaire(sv).k === 'forfait' ? prixLignes[i] : 0);
+    }, 0);
+    const prixXof = prixLignes.reduce((n, x) => n + x, 0);
     const dureeMin = svcs.reduce((n, sv) => n + (personalDurationMin(sv, pricing) ?? sv.durationMin ?? 60), 0);
-    return { prixXof, dureeMin: dureeMin || 60, perso };
+    return { prixXof, prixLignes, forfaitXof, dureeMin: dureeMin || 60, perso };
   };
 
   const retenues = tetes.filter((t) => pris[t.id]);
   const lignes = retenues.map((t) => ({ tete: t, ...chiffreDe(t, pris[t.id].serviceIds), ids: pris[t.id].serviceIds }));
   const totalXof = lignes.reduce((n, l) => n + l.prixXof, 0);
 
-  /* LA REMISE DU FOYER SE POSE UNE FOIS, sur le total : la poser tête par tête
-     la doublerait, et la Maison offrirait deux fois ce qu'elle a promis une. */
+  /* ══ ENSEMBLE, LE MÊME JOUR — 10 octobre 2026 (la genèse des prix) ══════
+     Un geste plutôt qu'un pourcentage : le KLƆKLƆ™ Kids de l'enfant offert
+     avec la venue du parent ; en saison, le lavage de la seconde tête adulte
+     offert. UNE FAVEUR À LA FOIS : la tête qui reçoit un geste ne prend pas
+     la remise famille sur ce rendez-vous.
+
+     LA REMISE FAMILLE SE FIGE EN FRANCS, HORS FORFAITS, tête par tête, comme
+     à la modale (`_shared`). Elle se posait ici en pourcentage sur tout,
+     forfaits compris : le même foyer payait autrement selon l'écran. */
   const famPct = remiseFamillePct(famille, clients, todayISO());
-  const netXof = Math.max(0, totalXof - Math.round(totalXof * (famPct / 100)));
+  const gestes = gestesEnsemble(lignes.map((l) => ({ id: l.tete.id, mineur: estMineur(l.tete, todayISO()), serviceIds: l.ids })), date);
+  const chiffres = lignes.map((l) => {
+    const g = gestes[l.tete.id];
+    const gesteXof = (g ?? []).reduce((n, x) => n + (l.prixLignes[x.index] ?? 0), 0);
+    const famXof = !g && famPct > 0 ? Math.round(Math.max(0, l.prixXof - l.forfaitXof) * famPct / 100) : 0;
+    return { id: l.tete.id, gestes: g, gesteXof, famXof };
+  });
+  const remisesXof = chiffres.reduce((n, c) => n + c.gesteXof + c.famXof, 0);
+  const netXof = Math.max(0, totalXof - remisesXof);
 
   /* CE QUE L'AGENDA PERMET, avant de proposer quoi que ce soit. Promettre deux
      fauteuils qui n'existent pas se paie à l'arrivée, devant la famille. */
@@ -150,7 +175,11 @@ export function RdvFoyerModal({ clientId, onClose }: { clientId: string; onClose
         /* LE PRIX SE FIGE QUAND IL EST PERSONNEL, comme à la modale : sans
            cela, la fiche relirait le catalogue et contredirait le comptoir. */
         ...(l.perso ? { priceXof: l.prixXof } : {}),
-        ...(famPct > 0 ? { remiseFamille: true as const, discountPct: famPct } : {}),
+        ...(() => {
+          const c = chiffres.find((x) => x.id === l.tete.id);
+          if (c?.gestes) return { remisesLignes: remisesDesGestes(l.ids, c.gestes) };
+          return c && c.famXof > 0 ? { remiseFamille: true as const, discountXof: c.famXof, remiseFamilleXof: c.famXof } : {};
+        })(),
       } as Appointment;
     });
     appointmentsStore.set((prev) => [...prev, ...estampilleLesPoses(neufs)]);
@@ -339,9 +368,11 @@ export function RdvFoyerModal({ clientId, onClose }: { clientId: string; onClose
               <div style={{ borderTop: '1px solid var(--hairline)', paddingTop: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12, flexWrap: 'wrap' }}>
                 <span className="mnd-eyebrow" style={{ fontSize: 9.5 }}>Le foyer règle</span>
                 <span style={{ fontFamily: 'var(--font-serif)', fontSize: 24, color: 'var(--color-indigo)' }}>{fmtMoney(netXof, currency)}</span>
-                {famPct > 0 && (
-                  <span className="mnd-muted" style={{ flex: '1 1 100%', fontSize: 11 }}>
-                    {fmtMoney(totalXof, currency)} moins la remise famille de {famPct} %
+                {remisesXof > 0 && (
+                  <span className="mnd-muted" style={{ flex: '1 1 100%', fontSize: 11, lineHeight: 1.5 }}>
+                    {fmtMoney(totalXof, currency)}
+                    {chiffres.some((c) => c.famXof > 0) ? ` moins la remise famille de ${famPct} % (hors forfaits)` : ''}
+                    {chiffres.filter((c) => c.gestes).map((c) => ` · ${(c.gestes ?? []).map(libelleDuGeste).join(', ')}`).join('')}
                   </span>
                 )}
               </div>

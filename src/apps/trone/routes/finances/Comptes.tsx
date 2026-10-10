@@ -6,7 +6,7 @@ import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
 import { uid } from '../../../../shared/store';
 import {
-  useClients, clientsStore, useFamilies, familiesStore, remiseFamillePct, REMISE_FAMILLE_DEFAUT,
+  useClients, clientsStore, useFamilies, familiesStore, remiseFamillePct, REMISE_FAMILLE_DEFAUT, baremeDuFoyer, nombreDeTetesDuFoyer,
   type Client, type Family,
 } from '../../../../shared/clients';
 import {
@@ -27,6 +27,8 @@ import { todayISO } from './_shared';
 import './finances.css';
 import { ChampDeDate } from '../../../../ds/dates';
 import { appelDe } from '../../../../shared/civilite';
+import { cagnottesStore, poseLAjoutSiVerse, useCagnottes } from '../../../../shared/cagnotte';
+import { PALIERS, ajoutDeLaMaison, etatDeLaCagnotte, partsPermises, valableJusquau, type Cagnotte } from '../../../../shared/cagnotte-pur';
 
 /* Comptes & Avoirs — les comptes familles (regroupement + parent payeur) et les
    avoirs (crédit prépayé) qui vivent sur ces comptes. Un avoir se verse d'avance
@@ -65,7 +67,7 @@ function RemiseSurCarte({ famille, autoPct, onClose }: {
           type="button"
           className={`tre-chip ${estAuto ? 'is-on' : ''}`}
           onClick={() => { pose(undefined); setLibre(''); }}
-          title="1 enfant → 10 % · 2 et plus → 15 %, le taux suit la famille"
+          title="2 têtes au foyer → 10 % · 3 et plus → 15 %, adultes comprises, le taux suit la famille"
         >
           Barème · −{autoPct}%
         </button>
@@ -94,7 +96,7 @@ function RemiseSurCarte({ famille, autoPct, onClose }: {
       </div>
       <div className="mnd-muted" style={{ fontSize: 10.5, marginTop: 7, lineHeight: 1.5 }}>
         {estAuto
-          ? <>Le barème suit le foyer, un enfant de plus, et le taux monte. Un taux à la main devient une remise personnalisée.</>
+          ? <>Le barème suit le foyer, une tête de plus, et le taux monte. Un taux à la main devient une remise personnalisée.</>
           : <>Remise personnalisée, la main fait foi (0 = pas de remise). Posée hors forfaits, déjà réduits.</>}
       </div>
     </div>
@@ -221,7 +223,16 @@ export default function Comptes() {
     else { setFamModal('new'); setPrefill(parent ?? null); }
     setParams({}, { replace: true });
   }, [params, branchFamilies, branchClients, setParams]);
-  const [deposit, setDeposit] = useState<{ holder: CreditHolder; kind: 'depot' | 'remboursement'; edite?: CreditMovement } | null>(null);
+  const [deposit, setDeposit] = useState<{ holder: CreditHolder; kind: 'depot' | 'remboursement'; edite?: CreditMovement; cagnotte?: Cagnotte; montant?: number } | null>(null);
+  /* LA CAGNOTTE DU FOYER — 10 octobre 2026 (la genèse des prix). */
+  const [cagnottes] = useCagnottes();
+  const [cagnotteAOuvrir, setCagnotteAOuvrir] = useState<Family | null>(null);
+  /* Le filet : un versement venu d'ailleurs (une correction, un autre poste)
+     qui complète une Cagnotte pose l'ajout ici. Le geste ne pose jamais deux
+     fois. */
+  useEffect(() => {
+    for (const c of cagnottes) poseLAjoutSiVerse(c.id, todayISO());
+  }, [cagnottes, credits]);
   const [ledgerHolder, setLedgerHolder] = useState<CreditHolder | null>(null);
   /* Impayés d'un compte (RDV dus + factures envoyées de ses membres) — pour les
      solder directement par l'avoir. */
@@ -332,7 +343,7 @@ export default function Comptes() {
       .filter((m) => m.holderType === h.type && m.holderId === h.id)
       .sort((a, b) => b.date.localeCompare(a.date))[0];
     const totalVerse = (h: CreditHolder) => credits
-      .filter((m) => m.holderType === h.type && m.holderId === h.id && m.kind === 'depot')
+      .filter((m) => m.holderType === h.type && m.holderId === h.id && m.kind === 'depot' && !m.abondement)
       .reduce((s, m) => s + m.amountXof, 0);
     const desFamilles = branchFamilies
       .map((f) => ({ holder: { type: 'family' as const, id: f.id }, nom: f.name }))
@@ -419,8 +430,8 @@ export default function Comptes() {
                 const bal = famBalance(f);
                 const payeuse = branchClients.find((c) => c.id === f.payerClientId);
                 const autres = members.filter((m) => m.id !== f.payerClientId);
-                const mineurs = autres.filter((m) => estMineur(m, todayISO())).length;
-                const autoPct = mineurs >= 2 ? 15 : mineurs === 1 ? 10 : 0;
+                /* Le barème du foyer, le même juge que partout (10 octobre 2026). */
+                const autoPct = baremeDuFoyer(nombreDeTetesDuFoyer(f, branchClients));
                 const pct = remiseFamillePct(f, branchClients, todayISO());
                 const sansNaissance = autres.filter((m) => !(m.birthday ?? '').trim()).length;
                 const adresseAbsente = !!payeuse && !payeuse.authUserId && !(payeuse.email ?? '').trim();
@@ -470,10 +481,35 @@ export default function Comptes() {
 
                     {(adresseAbsente || sansNaissance > 0) && (
                       <div style={{ marginTop: 9, fontSize: 12, color: 'var(--copper-700)', lineHeight: 1.5 }}>
-                        {adresseAbsente && <div>, Adresse e-mail absente : elle ne retrouvera pas ses enfants en s’inscrivant sur Ma Couronne.</div>}
-                        {sansNaissance > 0 && <div>— {sansNaissance} naissance{sansNaissance > 1 ? 's' : ''} manquante{sansNaissance > 1 ? 's' : ''} : {sansNaissance > 1 ? 'ces enfants n’apparaîtront pas' : 'cet enfant n’apparaîtra pas'} dans son espace.</div>}
+                        {adresseAbsente && <div>Adresse e-mail absente : elle ne retrouvera pas ses enfants en s’inscrivant sur Ma Couronne.</div>}
+                        {sansNaissance > 0 && <div>{sansNaissance} naissance{sansNaissance > 1 ? 's' : ''} manquante{sansNaissance > 1 ? 's' : ''} : {sansNaissance > 1 ? 'ces enfants n’apparaîtront pas' : 'cet enfant n’apparaîtra pas'} dans son espace.</div>}
                       </div>
                     )}
+
+                    {(() => {
+                      /* LA CAGNOTTE DU FOYER, dite sur la carte : ce qui est versé,
+                         ce qui reste, l'ajout de la Maison et sa validité. */
+                      const sienne = cagnottes.filter((c) => c.familyId === f.id).sort((a, b) => b.ouverteLe.localeCompare(a.ouverteLe))[0];
+                      if (!sienne) return null;
+                      const e = etatDeLaCagnotte(sienne, credits);
+                      const jusquau = new Date(`${sienne.valableJusquau}T12:00:00`).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' });
+                      return (
+                        <div style={{ marginTop: 10, border: '1px solid var(--copper-300)', borderLeft: '3px solid var(--color-copper)', borderRadius: 3, padding: '8px 11px', fontSize: 12.5, lineHeight: 1.55 }}>
+                          <div style={{ fontWeight: 600, color: 'var(--copper-700)' }}>Cagnotte du Foyer · {fmtMoney(sienne.verseXof, currency)}</div>
+                          <div className="mnd-muted">
+                            {e.complete
+                              ? <>Versée. L’ajout de la Maison {e.ajoutPose ? 'est posé' : 'se pose'} : +{fmtMoney(sienne.ajoutXof, currency)}. Valable jusqu’au {jusquau}.</>
+                              : <>{fmtMoney(e.verseXof, currency)} versés, {fmtMoney(e.resteXof, currency)} à verser. L’ajout de la Maison, +{fmtMoney(sienne.ajoutXof, currency)}, arrive avec le dernier versement. Valable jusqu’au {jusquau}.</>}
+                          </div>
+                          {!e.complete && (
+                            <Button size="sm" variant="ghost" style={{ marginTop: 6 }}
+                              onClick={() => setDeposit({ holder: { type: 'family', id: f.id }, kind: 'depot', cagnotte: sienne, montant: Math.min(e.resteXof, Math.ceil(sienne.verseXof / sienne.parts)) })}>
+                              Verser sur la Cagnotte
+                            </Button>
+                          )}
+                        </div>
+                      );
+                    })()}
 
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginTop: 12, paddingTop: 11, borderTop: '1px solid var(--hairline)' }}>
                       <Button size="sm" variant="ghost" onClick={() => setFamModal(f)}>Ouvrir le foyer</Button>
@@ -505,6 +541,7 @@ export default function Comptes() {
                     {plusOuvert === f.id && (
                       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 10 }}>
                         <Button size="sm" variant="ghost" onClick={() => { setDeposit({ holder: { type: 'family', id: f.id }, kind: 'depot' }); setPlusOuvert(null); }}>Verser un avoir</Button>
+                        <Button size="sm" variant="ghost" onClick={() => { setCagnotteAOuvrir(f); setPlusOuvert(null); }}>Ouvrir une Cagnotte du Foyer</Button>
                         <Button size="sm" variant="ghost" onClick={() => { setLedgerHolder({ type: 'family', id: f.id }); setPlusOuvert(null); }}>Mouvements</Button>
                       </div>
                     )}
@@ -607,7 +644,19 @@ export default function Comptes() {
           families={branchFamilies}
           credits={credits}
           edite={deposit.edite}
+          cagnotte={deposit.cagnotte}
+          montantPropose={deposit.montant}
           onClose={() => setDeposit(null)}
+        />
+      )}
+      {cagnotteAOuvrir && (
+        <CagnotteModal
+          famille={cagnotteAOuvrir}
+          remiseFamillePct={remiseFamillePct(cagnotteAOuvrir, branchClients, todayISO())}
+          currency={currency}
+          branchId={branch.id}
+          onClose={() => setCagnotteAOuvrir(null)}
+          onOuverte={(c) => { setCagnotteAOuvrir(null); setDeposit({ holder: { type: 'family', id: c.familyId }, kind: 'depot', cagnotte: c, montant: Math.ceil(c.verseXof / c.parts) }); }}
         />
       )}
       {ledgerHolder && (
@@ -829,8 +878,7 @@ function FamilyModal({
           {(() => {
             /* Le barème, lu sur les membres COCHÉS ICI — l'aperçu dit ce que
                le compte donnera une fois enregistré, pas l'état d'hier. */
-            const mineurs = memberClients.filter((m) => m.id !== payerId && estMineur(m, todayISO())).length;
-            const autoPct = mineurs >= 2 ? 15 : mineurs === 1 ? 10 : 0;
+            const autoPct = baremeDuFoyer(new Set([...memberClients.map((m) => m.id), ...(payerId ? [payerId] : [])]).size);
             return (
               <>
                 <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
@@ -838,7 +886,7 @@ function FamilyModal({
                     type="button"
                     className={`tre-chip ${remiseAuto ? 'is-on' : ''}`}
                     onClick={() => setRemiseChoix('auto')}
-                    title="1 enfant → 10 % · 2 et plus → 15 %, le taux suit la famille tout seul"
+                    title="2 têtes au foyer → 10 % · 3 et plus → 15 %, adultes comprises, le taux suit la famille tout seul"
                   >
                     Barème du foyer · −{autoPct}%
                   </button>
@@ -863,11 +911,11 @@ function FamilyModal({
                 </div>
                 <div className="mnd-muted" style={{ fontSize: 10.5, marginTop: 6 }}>
                   {remiseAuto
-                    ? <>Le barème suit le foyer : 1 enfant → −10 %, 2 et plus → −15 %, ce compte donne
+                    ? <>Le barème suit le foyer : 2 têtes → −10 %, 3 et plus → −15 %, adultes comprises, ce compte donne
                         aujourd’hui −{autoPct}%. Un taux saisi à la main devient une remise personnalisée.</>
                     : <>Remise personnalisée · <b style={{ fontWeight: 600, color: 'var(--copper-700)' }}>−{remiseNum}%</b>, la main fait foi
                         (0 = pas de remise pour ce compte). Revenir au barème : touchez « Barème du foyer ».</>}
-                  {' '}Posée d’office sur les rendez-vous des membres, hors forfaits, déjà réduits, ,
+                  {' '}Posée d’office sur les rendez-vous des membres, hors forfaits, déjà réduits,
                   et nommée « Remise famille » jusqu’à la facture.
                 </div>
               </>
@@ -927,12 +975,81 @@ function FamilyModal({
    ajouté, et les deux se seraient contredits sur la même écriture : c’est la
    faute du registre des encaissements, refaite trois fois cette semaine.
    `edite` bascule la modale de « poser » à « reprendre ». */
+/* ══ OUVRIR UNE CAGNOTTE DU FOYER — 10 octobre 2026 (la genèse des prix) ══
+   « Vous mettez de côté, la Maison ajoute. » Trois paliers ; l'ajout est
+   plafonné pour que la remise famille et la Cagnotte ensemble ne dépassent
+   jamais 25 % ; en 2 fois dès 100 000 F, en 3 fois dès 200 000 F. Ouvrir
+   n'encaisse rien : le premier versement suit, dans la fenêtre de dépôt
+   (une caisse, un moyen), et l'ajout se pose avec le dernier. */
+function CagnotteModal({ famille, remiseFamillePct: r, currency, branchId, onClose, onOuverte }: {
+  famille: Family; remiseFamillePct: number; currency: string; branchId: string;
+  onClose: () => void; onOuverte: (c: Cagnotte) => void;
+}) {
+  const [palier, setPalier] = useState(PALIERS[1].verseXof);
+  const [parts, setParts] = useState(1);
+  const choisi = PALIERS.find((p) => p.verseXof === palier) ?? PALIERS[0];
+  const ajout = ajoutDeLaMaison(choisi, r);
+  const permises = partsPermises(palier);
+  const nParts = permises.includes(parts) ? parts : 1;
+  const ouvrir = () => {
+    const jour = todayISO();
+    const c: Cagnotte = {
+      id: `cg-${uid()}`, branchId, familyId: famille.id, verseXof: palier, ajoutXof: ajout, parts: nParts,
+      ouverteLe: jour, valableJusquau: valableJusquau(jour), remiseFamillePct: r,
+    };
+    cagnottesStore.set((prev) => [...prev, c]);
+    onOuverte(c);
+  };
+  return (
+    <Modal onClose={onClose} title={`Ouvrir une Cagnotte du Foyer · ${famille.name}`}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+        <div className="mnd-muted" style={{ fontSize: 13, lineHeight: 1.6 }}>
+          Le foyer met de côté, la Maison ajoute. Chaque tête du foyer y puise, enfants compris, pour toute prestation, pendant douze lunes.
+        </div>
+        <Field label="Le palier">
+          <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>
+            {PALIERS.map((p) => (
+              <button key={p.verseXof} type="button" className={`tre-chip ${palier === p.verseXof ? 'is-on' : ''}`} onClick={() => setPalier(p.verseXof)}>
+                {fmtMoney(p.verseXof, currency)} · +{fmtMoney(ajoutDeLaMaison(p, r), currency)}
+              </button>
+            ))}
+          </div>
+        </Field>
+        <Field label="En combien de fois">
+          <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>
+            {permises.map((n) => (
+              <button key={n} type="button" className={`tre-chip ${nParts === n ? 'is-on' : ''}`} onClick={() => setParts(n)}>
+                {n === 1 ? 'En une fois' : `En ${n} fois`}
+              </button>
+            ))}
+          </div>
+        </Field>
+        <div style={{ border: '1px solid var(--copper-300)', borderLeft: '3px solid var(--color-copper)', borderRadius: 3, padding: '9px 12px', fontSize: 13, lineHeight: 1.6 }}>
+          Le foyer verse <b>{fmtMoney(palier, currency)}</b>{nParts > 1 ? ` en ${nParts} fois` : ''} ; la Maison ajoute <b>{fmtMoney(ajout, currency)}</b> avec le dernier versement : <b>{fmtMoney(palier + ajout, currency)}</b> de crédit pour le foyer.
+          {ajout < Math.floor((palier * choisi.ajoutPct) / 100 / 500) * 500 && (
+            <span className="mnd-muted" style={{ display: 'block', marginTop: 4 }}>
+              L’ajout est plafonné : avec la remise famille de {r} %, l’avantage ne dépasse jamais 25 %.
+            </span>
+          )}
+        </div>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <Button variant="ghost" onClick={onClose}>Annuler</Button>
+          <Button variant="copper" style={{ flex: 1 }} onClick={ouvrir}>Ouvrir et encaisser le premier versement</Button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
 function DepositModal({
-  initHolder, kind, currency, branchId, clients, families, credits, edite, onClose,
+  initHolder, kind, currency, branchId, clients, families, credits, edite, cagnotte, montantPropose, onClose,
 }: {
   initHolder: CreditHolder;
   kind: 'depot' | 'remboursement';
   edite?: CreditMovement;
+  /** Un versement sur la Cagnotte du Foyer (10 octobre 2026). */
+  cagnotte?: Cagnotte;
+  montantPropose?: number;
   currency: string;
   branchId: string;
   clients: Client[];
@@ -958,7 +1075,7 @@ function DepositModal({
     ? families.find((f) => f.id === holder.id)?.name ?? 'Compte famille'
     : clients.find((c) => c.id === holder.id)?.name ?? '';
 
-  const [amount, setAmount] = useState(edite ? String(edite.fx ? edite.fx.amount : edite.amountXof) : '');
+  const [amount, setAmount] = useState(edite ? String(edite.fx ? edite.fx.amount : edite.amountXof) : (montantPropose ? String(montantPropose) : ''));
   const [date, setDate] = useState(edite?.date?.slice(0, 10) ?? todayISO());
   const [note, setNote] = useState(edite?.note ?? '');
 
@@ -1017,7 +1134,10 @@ function DepositModal({
     creditMovementsStore.set((prev) => [...prev, {
       id: uid(), branchId, holderType: holder.type, holderId: holder.id, kind,
       ...corps,
+      ...(cagnotte && kind === 'depot' ? { cagnotteId: cagnotte.id, note: corps.note ?? 'Cagnotte du Foyer · versement' } : {}),
     }]);
+    /* LE DERNIER VERSEMENT POSE L'AJOUT DE LA MAISON, dans le même geste. */
+    if (cagnotte && kind === 'depot') poseLAjoutSiVerse(cagnotte.id, corps.date);
     onClose();
   };
 

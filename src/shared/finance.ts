@@ -1902,6 +1902,13 @@ export type CreditMovement = {
   cashbox?: string;
   /** Le moyen par lequel l'argent est arrivé — Espèces, Mobile Money… */
   method?: string;
+  /** LA CAGNOTTE DU FOYER — 10 octobre 2026 (la genèse des prix). Le
+      versement (ou l'ajout) appartient à cette Cagnotte (`shared/cagnotte`). */
+  cagnotteId?: string;
+  /** L'AJOUT DE LA MAISON : un dépôt qui n'est PAS de l'argent reçu. Sans
+      caisse ni moyen, il n'entre dans aucun tiroir et ne paraît pas au
+      registre des recettes ; il se dépense comme l'avoir. */
+  abondement?: boolean;
 };
 /** L'AVOIR DÉPENSÉ POUR UNE FACTURE QUI N'EXISTE PLUS — 3 octobre 2026.
     « J'ai supprimé le paiement de 47 000 F et le montant n'est pas revenu

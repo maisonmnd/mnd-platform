@@ -478,14 +478,40 @@ export const REMISE_FAMILLE_DEFAUT = 15;
     Elle ne porte JAMAIS sur les forfaits — déjà réduits par construction ;
     ce sont les surfaces d'application qui excluent leur part (part hors
     forfaits × taux, en francs exacts). */
+/* ══ LE FOYER, POUR TOUTES LES TÊTES — 10 octobre 2026 ══════════════════
+   La genèse des prix, décision de Yéman au sélecteur : « dès la deuxième tête
+   du foyer, adulte ou enfant : 10 % ; dès la troisième : 15 % ». Deux sœurs,
+   une mère et sa grande fille n'avaient rien : seuls les enfants mineurs
+   ouvraient le barème. Les têtes se comptent PAYEUR COMPRIS, rattaché ou non
+   (un parent et un enfant gardent leurs 10 %, un parent et deux enfants leurs
+   15 % : personne ne perd rien). */
+export const baremeDuFoyer = (tetes: number): number => (tetes >= 3 ? 15 : tetes === 2 ? 10 : 0);
+/** Les têtes d'un foyer : ses membres non archivés, et son payeur. */
+export const nombreDeTetesDuFoyer = (
+  f: Pick<Family, 'id' | 'payerClientId'>,
+  clients: readonly Pick<Client, 'id' | 'familyId' | 'archived'>[],
+): number => {
+  const tetes = new Set(clients.filter((c) => c.familyId === f.id && !c.archived).map((c) => c.id));
+  if (f.payerClientId) tetes.add(f.payerClientId);
+  return tetes.size;
+};
+
 export const remiseFamillePct = (
   f: Family | null | undefined,
   clients: readonly Pick<Client, 'id' | 'familyId' | 'birthday' | 'archived'>[],
   aujourdhui: string,
+  /* LA RÈGLE DU FOYER, OU CELLE D'HIER (10 octobre 2026). Ma Couronne ne voit
+     que ce que le serveur lui montre : un payeur y voit ses enfants mineurs,
+     jamais une sœur adulte. Elle compterait donc moins de têtes que le
+     comptoir et annoncerait une autre remise. Elle garde la règle des
+     mineurs jusqu'à ce que le serveur lui donne le compte exact (kit de
+     janvier) ; le Trône, qui voit tout le foyer, applique la nouvelle. */
+  regle: 'foyer' | 'mineurs' = 'foyer',
 ): number => {
   if (!f) return 0;
   const p = Number(f.remisePct);
   if (Number.isFinite(p)) return Math.max(0, Math.min(100, Math.round(p)));
+  if (regle === 'foyer') return baremeDuFoyer(nombreDeTetesDuFoyer(f, clients));
   const enfants = clients.filter((c) =>
     c.familyId === f.id && c.id !== f.payerClientId && !c.archived && estMineur(c, aujourdhui)).length;
   return enfants >= 2 ? 15 : enfants === 1 ? 10 : 0;

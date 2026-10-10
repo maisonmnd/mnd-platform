@@ -245,7 +245,7 @@ export function ecrituresDuCompte(o: CompteArgs): EcritureCompte[] {
   for (const m of o.credits) {
     if (!porteurs.has(`${m.holderType}:${m.holderId}`)) continue;
     const signe = creditSignedXof(m);
-    const libelle = m.kind === 'depot' ? 'Avoir déposé'
+    const libelle = m.kind === 'depot' ? (m.abondement ? 'Cagnotte du Foyer · l’ajout de la Maison' : m.cagnotteId ? 'Cagnotte du Foyer · versement' : 'Avoir déposé')
       : m.kind === 'usage' ? 'Réglé par avoir'
         : 'Avoir remboursé';
     /* SEUL LE DÉPÔT CRÉDITE. L'usage et le remboursement SORTENT de l'avoir,

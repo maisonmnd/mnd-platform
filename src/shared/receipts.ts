@@ -418,6 +418,9 @@ export function buildReceipts(s: ReceiptSources): Receipt[] {
      (Un USAGE d'avoir n'est pas une entrée : il consomme ce qui est déjà là.) */
   for (const m of s.credits) {
     if (m.branchId !== s.branchId || m.kind !== 'depot') continue;
+    /* L'AJOUT DE LA MAISON (Cagnotte du Foyer, 10 octobre 2026) n'est pas
+       de l'argent reçu : il n'a rien à faire au registre des recettes. */
+    if (m.abondement) continue;
     out.push({
       id: `r-cre-${m.id}`,
       kind: 'avoir',
