@@ -16,7 +16,7 @@ import {
   useFilsArchives, estArchive, archiveLeFil, desarchiveLeFil, filCorrespond, filEffacable,
   tetesDeLaMaison, teteDuNumero, estReserve, TIROIRS, TIROIR_DIT, type Tiroir, type PieceRecue,
   useFilsAutomate, automatesDesFils, numerosTenus, poseLaMain, rendsALAutomate,
-  sonnentApresLAutomate, type VueDeLaSonnette,
+  sonnentApresLAutomate, type VueDeLaSonnette, partEnFermant, rattachementDuNumero,
 } from '../../../../shared/conversations';
 import {
   ETAPE_DITE, MOTIF_DIT, ETAPES_EN_COURS, reglageDeLAutomate, jourDitAvecAnnee, heureDite,
@@ -654,6 +654,11 @@ export default function Conversations() {
       /* Hors ligne, le message ne peut pas finir sa course : il se garde, et
          part à la prochaine ouverture avec réseau (4 octobre 2026). */
       if (typeof navigator !== 'undefined' && navigator.onLine === false) { gardeUnAppel('whatsapp-envoi', corps, `WhatsApp au ${a.numero}`); return; }
+      /* UNE PIÈCE TROP LOURDE POUR `keepalive` SE GARDE AUSSI (10 octobre
+         2026, revue) : au-delà de 64 Kio le navigateur refuse la requête, et
+         le refus se perdait avec l'onglet. Gardée, elle part à la prochaine
+         ouverture du Trône. */
+      if (!partEnFermant(JSON.stringify(corps))) { gardeUnAppel('whatsapp-envoi', corps, `WhatsApp au ${a.numero}`); return; }
       const base = adresseDesFonctions;
       const jeton = (await supabase?.auth.getSession())?.data.session?.access_token;
       if (!base || !jeton) return;
@@ -685,6 +690,23 @@ export default function Conversations() {
     }
   };
 
+  /* UN MESSAGE RETENU NE PART QU'UNE FOIS — 10 octobre 2026 (revue). Cinq
+     chemins le font partir : le bout du compte, « Envoyer maintenant », le
+     message suivant, l'onglet qui se ferme, l'écran qu'on quitte. Un oubli
+     de l'un d'eux l'envoyait deux fois à la cliente (un modèle posé pendant
+     la retenue) : chaque attente partie se note, et ne repart plus. */
+  const dejaPartis = useRef(new WeakSet<Attente>());
+  const partirUneFois = (a: Attente, enFermant = false) => {
+    if (dejaPartis.current.has(a)) return;
+    dejaPartis.current.add(a);
+    void partir(a, enFermant);
+  };
+  /* `partir` lit la branche et la session du rendu : les écoutes posées une
+     fois pour toutes l'appellent par cette référence, jamais par la copie du
+     premier rendu. */
+  const partirUneFoisRef = useRef(partirUneFois);
+  partirUneFoisRef.current = partirUneFois;
+
   /* LE DÉPART SE DÉCLENCHE AU BOUT DU COMPTE. */
   const attenteEnCours = useRef<Attente | null>(null);
   attenteEnCours.current = enAttente;
@@ -692,7 +714,7 @@ export default function Conversations() {
     if (!enAttente) return undefined;
     const t = window.setTimeout(() => {
       setEnAttente(null);
-      void partir(enAttente);
+      partirUneFois(enAttente);
     }, Math.max(0, enAttente.posteLe + delaiMs - Date.now()));
     return () => window.clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -703,11 +725,20 @@ export default function Conversations() {
   useEffect(() => {
     const surFermeture = () => {
       const a = attenteEnCours.current;
-      if (a) void partir(a, true);
+      if (a) partirUneFoisRef.current(a, true);
     };
     window.addEventListener('pagehide', surFermeture);
     return () => window.removeEventListener('pagehide', surFermeture);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  /* L'ÉCRAN QU'ON QUITTE NE MANGE PAS LE MESSAGE NON PLUS — 10 octobre 2026
+     (revue). Les Conversations se démontent dès qu'on change d'écran
+     (« Ouvrir sa fiche », la barre) : le compte à rebours s'effaçait avec
+     elles, et le message annoncé « part dans 5 secondes » ne partait jamais,
+     sans un mot. Il part donc au démontage, comme à la fermeture. */
+  useEffect(() => () => {
+    const a = attenteEnCours.current;
+    if (a) partirUneFoisRef.current(a);
   }, []);
 
   /* ── L'ENVOI PASSE PAR LA FONCTION, JAMAIS PAR LE NAVIGATEUR ────────
@@ -747,7 +778,10 @@ export default function Conversations() {
 
     /* UN SEUL MESSAGE RETENU À LA FOIS : le précédent part tout de suite,
        sinon « retenir » ne désignerait plus rien. */
-    if (enAttente) void partir(enAttente);
+    /* ET L'ATTENTE SE VIDE (10 octobre 2026, revue) : sur le chemin d'un
+       modèle, rien d'autre ne la vidait, et le compte à rebours déjà armé
+       renvoyait le même message à son terme. */
+    if (enAttente) { const a = enAttente; setEnAttente(null); partirUneFois(a); }
     /* UN MODÈLE NE SE RETIENT PAS. Son texte est fixe et approuvé par Meta :
        il n'y a aucune faute de frappe à rattraper, et la confirmation qui
        vient de l'annoncer a déjà joué ce rôle, mieux. Lui imposer huit
@@ -924,15 +958,29 @@ export default function Conversations() {
   /* RATTACHER UN NUMÉRO INCONNU À UNE FICHE — jamais l'inverse, et jamais
      tout seul. On écrit le numéro sur la fiche choisie ; les messages
      rejoignent sa tête au prochain rendu, sans qu'aucun message ne bouge. */
-  const attache = (clientId: string, numero: string) => {
+  const attache = async (clientId: string, numero: string) => {
     const c = clients.find((x) => x.id === clientId);
     if (!c) return;
     const n = numeroWa(numero);
     /* LE PREMIER NUMÉRO NE S'ÉCRASE PAS : c'est le contact principal, celui
        des rappels. Un numéro qui écrit devient le SECOND, à moins que la
-       fiche n'en ait aucun. */
-    const champ = numeroWa(c.phone) ? 'phone2' : 'phone';
-    clientsStore.set((prev) => prev.map((x) => (x.id === clientId ? { ...x, [champ]: `+${n}` } : x)));
+       fiche n'en ait aucun. LE SECOND NE S'ÉCRASE PLUS EN SILENCE (10 octobre
+       2026, revue) : s'il est pris, une main lit le numéro qu'elle remplace
+       et dit oui, sinon rien ne bouge. */
+    const r = rattachementDuNumero(c, numero);
+    if (r.geste === 'remplacer' && !await demande({
+      quoi: 'Rattacher un numéro',
+      titre: `Remplacer le second numéro de ${c.name.split(' ')[0]} ?`,
+      dit: `Sa fiche porte déjà deux numéros : le second, +${r.ancien}, laisserait sa place à +${n}.`,
+      suite: 'Son numéro principal ne change pas. L’ancien second disparaîtra de la fiche : ses messages ne la rejoindront plus.',
+      accepter: 'Remplacer le second',
+      refuser: 'Ne rien changer',
+      dur: true,
+    })) return;
+    if (r.geste !== 'deja') {
+      const champ = r.champ;
+      clientsStore.set((prev) => prev.map((x) => (x.id === clientId ? { ...x, [champ]: `+${n}` } : x)));
+    }
     /* ON RATTACHE AUSSI L'HISTOIRE : les messages déjà reçus portent un
        `clientId` vide, et le rapprochement par numéro suffirait à l'écran —
        mais la fiche, le carnet et tout ce qui lira ces lignes demain veut
@@ -1395,7 +1443,7 @@ export default function Conversations() {
                       <button type="button" onClick={retenir}>Retenir</button>
                       <button
                         type="button"
-                        onClick={() => { const a = enAttente; setEnAttente(null); void partir(a); }}
+                        onClick={() => { const a = enAttente; setEnAttente(null); partirUneFois(a); }}
                       >
                         Envoyer maintenant
                       </button>
@@ -1804,12 +1852,13 @@ export default function Conversations() {
             <p className="trc-sub" style={{ marginTop: 0 }}>
               Le numéro s’écrira sur la fiche choisie, et tout ce fil la rejoindra.
               Si elle a déjà un numéro principal, celui-ci devient son second.
+              Si elle en a déjà deux, on vous demandera avant de remplacer le second.
               <b> Aucune fiche n’est créée ici</b> : si c’est une nouvelle tête, ouvrez-la d’abord
               depuis Les clientes.
             </p>
             <ClientPicker
               value=""
-              onChange={(id) => id && attache(id, rattacher.numero)}
+              onChange={(id) => { if (id) void attache(id, rattacher.numero); }}
               placeholder="Cherchez une cliente…"
             />
           </div>

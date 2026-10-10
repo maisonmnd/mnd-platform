@@ -1,7 +1,7 @@
 import { createStore, useStore } from './store';
 import { bindCollection } from './sync';
 import type { Client } from './clients';
-import { CIVILITES, ficheAvecCivilite, type Civilite } from './civilite';
+import { CIVILITES, appelDe, ficheAvecCivilite, type Civilite } from './civilite';
 
 /* ══ LES DEMANDES VENUES DU SITE · 17 septembre 2026 ═══════════════════
    Le site révélateur dépose des DEMANDES sans compte : un prospect qui
@@ -187,14 +187,18 @@ const BESOIN_DANS_LA_PHRASE: Record<BesoinDeLaDemande, string> = {
 };
 
 /** LE MESSAGE DE RAPPEL, NU. Sans devise : l'écran la pose par
-    `signeLeMessage`, et elle ne se tape jamais à la main. */
-export function messageDeRappel(d: Pick<Demande, 'prenom' | 'besoin'>): string {
-  const prenom = d.prenom.trim() || 'Madame';
+    `signeLeMessage`, et elle ne se tape jamais à la main.
+
+    SON APPEL, AVEC SA CIVILITÉ (10 octobre 2026, revue) : la règle du
+    2 octobre vaut aussi pour ce qu'on écrit depuis le Trône. Celle qu'elle a
+    choisie sur WhatsApp, sinon Madame ; sans prénom, « Madame » seul. */
+export function messageDeRappel(d: Pick<Demande, 'prenom' | 'besoin' | 'civilite'>): string {
+  const appel = appelDe({ name: d.prenom, civilite: d.civilite });
   const pour = BESOIN_DANS_LA_PHRASE[d.besoin] ?? '';
   const ecrit = pour
     ? `Vous nous avez écrit depuis notre site pour ${pour}.`
     : 'Vous nous avez écrit depuis notre site.';
-  return `Bonjour ${prenom}, ici la Maison MND. ${ecrit} Quand pouvons-nous vous appeler ?`;
+  return `Bonjour ${appel}, ici la Maison MND. ${ecrit} Quand pouvons-nous vous appeler ?`;
 }
 
 /** « IL Y A 2 H » : l'âge d'une demande, en mots. Une file se lit à l'âge

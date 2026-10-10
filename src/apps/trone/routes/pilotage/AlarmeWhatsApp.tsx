@@ -59,7 +59,10 @@ const CE_QUI_EST_ARRIVE: Record<string, string> = {
 /** Ce qu'elle a écrit, en une ligne. Un fil privé ne se lit pas ici. */
 const ceQuElleDit = (f: Fil): string => {
   if (f.prive) return 'Fil privé, ouvrez-le pour lire.';
-  const m: MessageWa = f.dernier;
+  /* SA QUESTION, PAS LA CONFIRMATION AUTOMATIQUE ARRIVÉE DERRIÈRE (10 octobre
+     2026, revue) : l'alarme se juge sur le dernier message qui compte, elle
+     le montre aussi. */
+  const m: MessageWa = f.dernierQuiCompte;
   const t = (m.texte ?? '').trim();
   if (t) return t;
   return CE_QUI_EST_ARRIVE[m.type ?? ''] ?? 'Un message';
@@ -194,7 +197,7 @@ export default function AlarmeWhatsApp() {
                 <div className="trp-alarme__dit">{ceQuElleDit(f)}</div>
               </div>
               <div className="trp-alarme__quand">
-                <span className="trp-alarme__recu">Reçu {quandRecu(f.dernier.quand, tick)}</span>
+                <span className="trp-alarme__recu">Reçu {quandRecu(f.dernierQuiCompte.quand, tick)}</span>
                 <span className="trp-alarme__fenetre">{resteEnClair(f.fenetre.resteMs)} pour répondre librement</span>
               </div>
               <div className="trp-alarme__gestes">

@@ -66,12 +66,13 @@ dit('un autre besoin n’est pas un doublon', undefined,
 /* ── 5. LE MESSAGE DE RAPPEL, NU ; LA DEVISE, POSÉE PAR LE CODE ────── */
 const msg = messageDeRappel(demande({ prenom: 'A.', besoin: 'creation' }));
 dit('le message dit qui, d’où, et demande quand',
-  'Bonjour A., ici la Maison MND. Vous nous avez écrit depuis notre site pour créer votre couronne. Quand pouvons-nous vous appeler ?',
+  /* Avec sa civilité, Madame par défaut (10 octobre 2026, revue). */
+  'Bonjour Madame A., ici la Maison MND. Vous nous avez écrit depuis notre site pour créer votre couronne. Quand pouvons-nous vous appeler ?',
   msg);
 dit('il ne porte pas la devise', false, porteLaDevise(msg));
 dit('c’est signeLeMessage qui la pose, une fois', true, signeLeMessage(msg).endsWith(DEVISE_COMPLETE) && !porteLaDevise(msg));
 dit('« ne sait pas encore » ne fait pas une phrase cassée',
-  'Bonjour B., ici la Maison MND. Vous nous avez écrit depuis notre site. Quand pouvons-nous vous appeler ?',
+  'Bonjour Madame B., ici la Maison MND. Vous nous avez écrit depuis notre site. Quand pouvons-nous vous appeler ?',
   messageDeRappel(demande({ prenom: 'B.', besoin: 'inconnu' })));
 dit('le besoin se dit comme sur le site', 'Pour son enfant', ditLeBesoin('enfant'));
 

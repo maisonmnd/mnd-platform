@@ -45,8 +45,13 @@ export function heureLisible(hhmm: string): string {
 /** « vendredi 11 septembre » — et l'année seulement quand elle change quelque
     chose. Une cadence posée court sur deux ans : « vendredi 11 septembre » nu
     se lit comme celui de cette année-ci. La porter toujours alourdirait le
-    rappel de la semaine prochaine pour rien. */
-export function jourLisible(iso: string, aujourdhuiIso: string): string {
+    rappel de la semaine prochaine pour rien.
+
+    CE QUI PART À LA CLIENTE LA PORTE TOUJOURS (10 octobre 2026, revue) :
+    `toujoursLAnnee`. C'est la règle de la Maison sur toute date qu'elle lit,
+    demandée trois fois ; seuls les écrans de l'équipe (le titre du jour
+    d'À faire, les bulles) gardent la forme courte. */
+export function jourLisible(iso: string, aujourdhuiIso: string, toujoursLAnnee = false): string {
   const [a, m, j] = (iso ?? '').split('-').map(Number);
   if (!a || !m || !j) return iso ?? '';
   const d = new Date(a, m - 1, j);
@@ -54,7 +59,7 @@ export function jourLisible(iso: string, aujourdhuiIso: string): string {
   const mois = MOIS[m - 1];
   if (!nom || !mois) return iso;
   const memeAnnee = (aujourdhuiIso ?? '').slice(0, 4) === String(a);
-  return `${nom} ${j} ${mois}${memeAnnee ? '' : ` ${a}`}`;
+  return `${nom} ${j} ${mois}${memeAnnee && !toujoursLAnnee ? '' : ` ${a}`}`;
 }
 
 /** LE MOMENT, TEL QU'ON LE DIT DANS LA PHRASE.
@@ -62,22 +67,26 @@ export function jourLisible(iso: string, aujourdhuiIso: string): string {
     « prévu pour le vendredi 11 septembre » se dit ; « prévu pour aujourd'hui »
     ne se dit pas. La préposition appartient donc au moment, pas à la phrase :
     laissée dans la phrase, elle aurait obligé à écrire deux phrases, et les
-    deux auraient divergé. */
+    deux auraient divergé.
+
+    La phrase part à la cliente : une date au-delà de demain dit son année
+    (10 octobre 2026, revue). */
 export function quandDuRappel(o: {
   jourIso: string; heure: string; aujourdhuiIso: string; demainIso: string;
-}): string {
+}, toujoursLAnnee = true): string {
   const h = heureLisible(o.heure);
   if (o.jourIso === o.aujourdhuiIso) return `aujourd’hui à ${h}`;
   if (o.jourIso === o.demainIso) return `demain à ${h}`;
-  return `pour le ${jourLisible(o.jourIso, o.aujourdhuiIso)} à ${h}`;
+  return `pour le ${jourLisible(o.jourIso, o.aujourdhuiIso, toujoursLAnnee)} à ${h}`;
 }
 
 /** LE MÊME MOMENT SANS SA PRÉPOSITION — pour les bulles de l'écran, où il se
-    lit après « RDV » et non après « prévu ». */
+    lit après « RDV » et non après « prévu ». L'écran est celui de l'équipe :
+    l'année ne s'y montre que lorsqu'elle change quelque chose. */
 export function momentCourt(o: {
   jourIso: string; heure: string; aujourdhuiIso: string; demainIso: string;
 }): string {
-  return quandDuRappel(o).replace(/^pour le /, '');
+  return quandDuRappel(o, false).replace(/^pour le /, '');
 }
 
 /** « de la Maison MND », mais « de L'atelier MND ».
@@ -139,7 +148,7 @@ export function texteDeLaRelance(o: {
   const blocs = [
     `Bonjour ${o.prenom},`,
     `Petit mot de ${deLaMaison(o.maison)} : selon votre rythme habituel, votre `
-    + `prochain rendez-vous est prévu le ${jourLisible(o.jourIso, o.aujourdhuiIso)}`
+    + `prochain rendez-vous est prévu le ${jourLisible(o.jourIso, o.aujourdhuiIso, true)}`
     + `${h ? ` à ${h}` : ''}.`,
     'Dites-nous si le créneau vous convient toujours, sinon nous le déplacerons avec vous.',
   ];

@@ -226,7 +226,10 @@ export const instantDit = (iso: string): string => {
   const h = d.getUTCHours();
   const m = d.getUTCMinutes();
   const heure = m === 0 ? `${h} h` : `${h} h ${String(m).padStart(2, '0')}`;
-  return `${jours[d.getUTCDay()]} ${d.getUTCDate()} ${mois[d.getUTCMonth()]} à ${heure}`;
+  /* AVEC L'ANNÉE (10 octobre 2026, revue) : cet instant part dans le message
+     du code à la cliente (« valable jusqu'à… »), règle de la Maison sur toute
+     date qu'elle lit. */
+  return `${jours[d.getUTCDay()]} ${d.getUTCDate()} ${mois[d.getUTCMonth()]} ${d.getUTCFullYear()} à ${heure}`;
 };
 
 /** POURQUOI CE CODE NE VAUT PAS — la phrase du comptoir, ou `null` s'il vaut.

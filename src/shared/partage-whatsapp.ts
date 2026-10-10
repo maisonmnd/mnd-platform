@@ -36,8 +36,13 @@ export async function ouvreWhatsAppAvecLePdf(o: { fichier: File; texte: string; 
   document.body.appendChild(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 10_000);
   const lien = lienWaMe(o.numero, o.texte) ?? `https://wa.me/?text=${encodeURIComponent(o.texte)}`;
-  const w = window.open(lien, '_blank', 'noopener');
-  return w === null ? 'bloque' : 'telecharge-et-ouvre';
+  /* SANS 'noopener' DANS L'APPEL (10 octobre 2026, revue) : avec lui, la norme
+     veut que `window.open` rende `null` même quand l'onglet s'ouvre, et
+     l'écran annonçait toujours « le navigateur a bloqué ». On coupe le lien
+     vers notre page à la main : même protection, et le vrai blocage se lit. */
+  const w = window.open(lien, '_blank');
+  if (w) { try { w.opener = null; } catch { /* rien : l'onglet est ouvert */ } }
+  return w ? 'telecharge-et-ouvre' : 'bloque';
 }
 
 /** Ce que l'écran dit après le geste. */

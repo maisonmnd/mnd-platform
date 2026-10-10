@@ -415,6 +415,11 @@ export type Fil = {
   prive: boolean;
   messages: MessageWa[];
   dernier: MessageWa;
+  /** LE DERNIER MESSAGE QUI COMPTE · 10 octobre 2026 (revue) : le dernier,
+      modèles partis seuls et mots de l'automate sautés. C'est sur lui que se
+      juge `attendUneReponse`, et c'est lui que l'alarme doit montrer : sa
+      question, pas la confirmation automatique arrivée derrière. */
+  dernierQuiCompte: MessageWa;
   fenetre: Fenetre;
   /** Le dernier mot vient d'elle et personne n'a répondu. */
   attendUneReponse: boolean;
@@ -591,6 +596,7 @@ export function filsDeLaMaison(
       prive: prives.includes(numero),
       messages: liste,
       dernier,
+      dernierQuiCompte,
       fenetre: fenetreDe(liste, maintenant),
       attendUneReponse: elleAttend && !repondueParLAutomate,
       tiroir: tete?.tiroir ?? tiroirDesMessages(liste),
@@ -729,6 +735,7 @@ export function filNeuf(numero: string, tete?: TeteConnue): Fil | null {
     prive: false,
     messages: [],
     dernier: fantome,
+    dernierQuiCompte: fantome,
     tiroir: tete?.tiroir ?? 'clientes',
     fiche: tete?.fiche,
     /* JAMAIS OUVERTE : elle n'a rien écrit, donc rien n'a démarré la fenêtre
@@ -954,6 +961,45 @@ export const delaiDeRetenue = (secondes: number | undefined): number => {
 /** CE QU'IL RESTE À ATTENDRE, en secondes entières, pour l'afficher. */
 export const resteDeLaRetenue = (posteLe: number, delaiMs: number, maintenant: number): number =>
   Math.max(0, Math.ceil((posteLe + delaiMs - maintenant) / 1000));
+
+/** CE QUE `keepalive` PORTE ENCORE — 10 octobre 2026 (revue). Le navigateur
+    refuse toute requête `keepalive` dont le corps dépasse 64 Kio, et le refus
+    se perd en silence : l'onglet est déjà fermé. Une photo de 50 Ko, en
+    base64 dans le corps, suffit à passer la borne. On garde une marge sous la
+    limite, comptée en OCTETS (un accent en vaut deux). */
+export const KEEPALIVE_MAX_OCTETS = 60_000;
+
+/** LE CORPS D'UN ENVOI PEUT-IL PARTIR PAR `keepalive` en fermant l'onglet ?
+    Sinon, il se garde sur l'appareil et part à la prochaine ouverture. */
+export const partEnFermant = (corpsJson: string): boolean =>
+  new TextEncoder().encode(corpsJson).length <= KEEPALIVE_MAX_OCTETS;
+
+/* ══ RATTACHER UN NUMÉRO À UNE FICHE — 10 octobre 2026 (revue) ═════════
+   Une fiche porte deux numéros. Le premier ne s'écrase jamais : c'est celui
+   des rappels. Le second s'écrivait sans regarder s'il était pris, et l'ancien
+   second (un mari, une sœur) disparaissait de la fiche en silence : ses
+   messages ne rejoignaient plus la tête. Il ne se remplace plus qu'avec
+   l'accord d'une main, qui lit le numéro qu'elle remplace. */
+export type Rattachement =
+  /** Le numéro est déjà sur la fiche : rien à écrire, seul le fil la rejoint. */
+  | { geste: 'deja' }
+  /** Une place est libre : on y écrit le numéro. */
+  | { geste: 'ecrire'; champ: 'phone' | 'phone2' }
+  /** Les deux places sont prises : remplacer le second demande un accord. */
+  | { geste: 'remplacer'; champ: 'phone2'; ancien: string };
+
+export function rattachementDuNumero(
+  fiche: { phone?: string; phone2?: string },
+  numero: string,
+): Rattachement {
+  const n = numeroWa(numero);
+  const premier = numeroWa(fiche.phone);
+  const second = numeroWa(fiche.phone2);
+  if (n && (n === premier || n === second)) return { geste: 'deja' };
+  if (!premier) return { geste: 'ecrire', champ: 'phone' };
+  if (!second) return { geste: 'ecrire', champ: 'phone2' };
+  return { geste: 'remplacer', champ: 'phone2', ancien: second };
+}
 
 /* ══ RÉÉCRIRE UN MESSAGE PARTI ═══════════════════════════════════════ */
 

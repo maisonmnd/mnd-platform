@@ -31,7 +31,6 @@ const DUREE = 0.16;
 const VOLUME = 0.14;
 
 let contexte: AudioContext | null = null;
-let armee = false;
 
 /** Le contexte audio du navigateur, créé une seule fois et à la demande.
     Le créer au chargement du module le poserait « suspendu » sur tous les
@@ -47,23 +46,27 @@ const leContexte = (): AudioContext | null => {
 };
 
 /** LA SONNETTE EST-ELLE EN ÉTAT DE SONNER ? L'écran s'en sert pour ne pas
-    promettre un son que le navigateur refusera. */
-export const laSonnetteEstArmee = (): boolean => armee;
+    promettre un son que le navigateur refusera. Elle lit l'état du contexte
+    À CHAQUE FOIS (10 octobre 2026, revue) : un drapeau posé une fois pour
+    toutes mentait dès que le navigateur suspendait le son. */
+export const laSonnetteEstArmee = (): boolean => contexte?.state === 'running';
 
-/** ARMER LA SONNETTE — à appeler au premier geste de l'utilisateur, quel
+/** ARMER LA SONNETTE — à appeler à chaque geste de l'utilisateur, quel
     qu'il soit. Sans geste, un navigateur laisse le contexte « suspendu » et
     toute note jouée se perd en silence, sans erreur.
 
     IDEMPOTENT ET SANS BRUIT : on peut l'appeler à chaque clic de la journée,
-    elle ne fait quelque chose que la première fois. */
+    elle ne fait quelque chose que lorsque le son est coupé.
+
+    ELLE SE RÉARME (10 octobre 2026, revue). Elle ne travaillait que la
+    première fois : un appel téléphonique sur la tablette, un retour
+    d'arrière-plan sous Safari, et le contexte repassait « suspendu » (ou
+    « interrompu ») pour le reste de la journée, sans un son jusqu'au
+    rechargement. On relit donc l'état, et le geste suivant relance le son. */
 export function armeLaSonnette(): void {
-  if (armee) return;
   const ctx = leContexte();
-  if (!ctx) return;
-  /* `resume` rend une promesse ; on ne l'attend pas, mais on ne se déclare
-     armé que lorsqu'elle a tenu — sinon l'écran dirait « le son est prêt »
-     alors qu'il ne l'est pas encore. */
-  void ctx.resume().then(() => { armee = ctx.state === 'running'; }).catch(() => { armee = false; });
+  if (!ctx || ctx.state === 'running') return;
+  void ctx.resume().catch(() => { /* le geste suivant réessaiera */ });
 }
 
 /** SONNER. Ne fait rien si le navigateur n'a pas encore laissé la main : ce

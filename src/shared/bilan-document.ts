@@ -58,13 +58,25 @@ export function donneesDuBilanPdf(b: Bilan, c: Porteuse): BilanPdfData {
     maître ; sinon celui de la Maison. Toujours signé de la devise. */
 export function messageDuBilan(b: Bilan, c: Porteuse): string {
   const mot = b.message?.trim()
-    || `Bonjour ${appelDe(c)}, voici le bilan de votre séance du ${jourDit(b.date)}, avec votre routine à la maison. Vous le retrouvez aussi dans Ma Couronne.`;
+    || `Bonjour ${appelDe(c)}, voici le bilan de votre séance du ${dateDite(b.date)}, avec votre routine à la maison. Vous le retrouvez aussi dans Ma Couronne.`;
   return signeLeMessage(mot);
 }
+
+/* LE JOUR DE LA SÉANCE SE DIT AVEC SON ANNÉE (10 octobre 2026, revue) : le
+   message, le modèle et la notification lisaient `jourDit` (« 4 octobre »),
+   quand le PDF disait déjà « 4 octobre 2026 ». Règle de la Maison sur toute
+   date qu'une cliente lit. */
 
 /** LE MODÈLE META DU BILAN, en-tête document — à faire approuver (docs/
     BRANCHER-ENVOIS.md). Variables : {{1}} son appel, {{2}} le jour. */
 export const MODELE_BILAN = 'bilan_de_seance';
+
+/** Les deux variables du modèle : « Madame Awa », « 4 octobre 2026 ». */
+export const variablesDuModeleBilan = (b: Bilan, c: Porteuse): string[] => [appelDe(c), dateDite(b.date)];
+
+/** Ce que dit la notification de Ma Couronne. */
+export const annonceDuBilan = (b: Bilan, c: Porteuse): string =>
+  `${appelDe(c)}, votre bilan du ${dateDite(b.date)} est prêt, avec votre routine à la maison.`;
 
 /** ENVOIE LE BILAN SUR WHATSAPP. Dans la fenêtre de 24 heures, le PDF part
     avec le mot du bilan ; hors fenêtre, le modèle `bilan_de_seance` le porte
@@ -81,7 +93,7 @@ export async function envoieLeBilan(
   });
   if (!r.ok && /fenêtre/i.test(r.erreur)) {
     r = await envoieSurWhatsApp({
-      numero: c.phone, modele: MODELE_BILAN, variables: [appelDe(c), jourDit(b.date)],
+      numero: c.phone, modele: MODELE_BILAN, variables: variablesDuModeleBilan(b, c),
       enTete: 'document', piece, clientId: c.id, branchId: c.branchId, parQui,
     });
   }
@@ -93,7 +105,7 @@ export function annonceLeBilan(b: Bilan, c: Porteuse & { id: string; email?: str
   return pushToClient(
     c.id,
     `${maisonNom()} · votre bilan`,
-    `${appelDe(c)}, votre bilan du ${jourDit(b.date)} est prêt, avec votre routine à la maison.`,
+    annonceDuBilan(b, c),
     '/couronne/',
     c.email,
   ).catch(() => 0);

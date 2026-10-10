@@ -53,11 +53,14 @@ dit('aujourd’hui se dit sans préposition', 'aujourd’hui à 8 h 30',
   quandDuRappel({ ...jours, jourIso: '2026-09-07', heure: '08:30' }));
 dit('demain aussi', 'demain à 14 h',
   quandDuRappel({ ...jours, jourIso: '2026-09-08', heure: '14:00' }));
-dit('une date prend la sienne', 'pour le vendredi 11 septembre à 8 h 30',
+/* LA PHRASE PART À LA CLIENTE : l'année, même celle de cette année-ci
+   (10 octobre 2026, revue). */
+dit('une date prend la sienne, avec son année', 'pour le vendredi 11 septembre 2026 à 8 h 30',
   quandDuRappel({ ...jours, jourIso: '2026-09-11', heure: '08:30' }));
 /* LES BULLES DE L'ÉCRAN LISENT LE MÊME MOMENT, sans la préposition : il s'y
    place après « RDV » et non après « prévu ». Deux calculs auraient fini par
    afficher deux heures différentes pour le même rendez-vous. */
+/* … mais l'écran de l'équipe garde la forme courte. */
 dit('l’écran lit le même moment, sans préposition', 'vendredi 11 septembre à 8 h 30',
   momentCourt({ ...jours, jourIso: '2026-09-11', heure: '08:30' }));
 
@@ -74,7 +77,7 @@ const blocs = msg.split('\n\n');
 dit('cinq blocs, séparés par du blanc', 5, blocs.length);
 dit('on salue en premier', 'Bonjour Jocelyne,', blocs[0]);
 dit('le rendez-vous ensuite, avec son jour',
-  'Petit rappel de la Maison MND : votre rendez-vous est prévu pour le vendredi 11 septembre à 8 h 30.',
+  'Petit rappel de la Maison MND : votre rendez-vous est prévu pour le vendredi 11 septembre 2026 à 8 h 30.',
   blocs[1]);
 /* UN RITUEL PAR LIGNE. Entre parenthèses au milieu de la phrase, trois noms à
    marque déposée poussaient l'heure hors de l'écran sur un téléphone : ce qui
@@ -139,7 +142,7 @@ const relance = texteDeLaRelance({
 dit('la relance demande, elle n’impose pas', true,
   relance.includes('Dites-nous si le créneau vous convient toujours'));
 dit('… dit le rythme habituel et le moment en clair', true,
-  relance.includes('selon votre rythme habituel') && relance.includes('samedi 12 septembre à 9 h'));
+  relance.includes('selon votre rythme habituel') && relance.includes('samedi 12 septembre 2026 à 9 h'));
 dit('… et parle du bon nom, sans double article', true,
   relance.includes('Petit mot de la Maison MND'));
 

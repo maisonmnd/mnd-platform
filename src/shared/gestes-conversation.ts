@@ -89,16 +89,19 @@ export const pointFinal = (phrase: string): string =>
 const JOURS = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'];
 const MOIS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
 
-/** « samedi 6 septembre ». Sans l'année : on parle de choses proches, et
-    l'année ferait administratif. */
+/** « samedi 6 septembre 2026 ». AVEC L'ANNÉE, TOUJOURS (10 octobre 2026,
+    revue) : c'est la règle de la Maison sur toute date qu'une cliente lit,
+    demandée trois fois. Ces jours partent dans ses messages (facture, devis,
+    bilan, rendez-vous, abonnement) : une facture « du 6 septembre » relue en
+    janvier ne dit plus de quelle année. */
 export const jourDit = (iso: string): string => {
   const [a, m, j] = (iso ?? '').split('-').map(Number);
   if (!a || !m || !j) return iso ?? '';
   const d = new Date(a, m - 1, j);
-  return `${JOURS[d.getDay()]} ${j} ${MOIS[m - 1]}`;
+  return `${JOURS[d.getDay()]} ${j} ${MOIS[m - 1]} ${a}`;
 };
 
-/** « samedi 6 septembre à 10 h 30 ». */
+/** « samedi 6 septembre 2026 à 10 h 30 ». */
 export const jourEtHeureDits = (iso: string, hhmm: string | undefined): string => {
   const j = jourDit(iso);
   if (!/^\d{1,2}:\d{2}$/.test(hhmm ?? '')) return j;

@@ -462,8 +462,10 @@ migration. Un seul geste : faire approuver le modèle.
 > Bonjour {{1}}, il vous reste {{2}} sur votre {{3}}, {{4}}. Pensez à
 > réserver : nous vous gardons votre place.
 
-({{1}} = prénom, {{2}} = « 1 séance » ou « 2 séances », {{3}} = le nom de la
-formule, {{4}} = « valable jusqu'au 12 juin » ou « sans date limite ».) Il
+({{1}} = son appel, civilité comprise, « Madame Awa », {{2}} = « 1 séance » ou
+« 2 séances », {{3}} = le nom de la formule, {{4}} = « valable jusqu'au
+12 juin 2027 » ou « sans date limite ». L'année et la civilité depuis le
+10 octobre 2026.) Il
 informe, il ne vend pas : c'est ce qui le garde utilitaire chez Meta. La suite
 se propose au fauteuil.
 
@@ -495,7 +497,7 @@ création, n'importe lequel). Corps :
 > à la maison. Vous le retrouvez aussi dans Ma Couronne.
 
 Pied de page : « mi nyɔ́ ɖɛkpɛ, votre beauté est déjà là ».
-({{1}} = « Madame Awa », {{2}} = « 4 octobre ».) Il remet un document après
+({{1}} = « Madame Awa », {{2}} = « 4 octobre 2026 », avec l'année.) Il remet un document après
 une séance, il ne vend rien : c'est ce qui le garde utilitaire. Tant qu'il
 n'est pas approuvé, l'envoi hors fenêtre est refusé et l'écran le dit.
 

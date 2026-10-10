@@ -38,10 +38,13 @@ const piece = (o: Partial<PieceDuGeste> & { id: string; number: string; clientId
 } as PieceDuGeste);
 
 /* ── LES MOTS DU COMPTOIR ────────────────────────────────────────── */
-dit('un jour se dit sans son année', 'dimanche 6 septembre', jourDit('2026-09-06'));
-dit('une heure ronde se dit courte', 'dimanche 6 septembre à 10 h', jourEtHeureDits('2026-09-06', '10:00'));
-dit('une heure pleine garde ses minutes', 'dimanche 6 septembre à 10 h 30', jourEtHeureDits('2026-09-06', '10:30'));
-dit('sans heure, le jour seul', 'dimanche 6 septembre', jourEtHeureDits('2026-09-06', undefined));
+/* L'ANNÉE, TOUJOURS (10 octobre 2026, revue) : ces jours partent dans les
+   messages à la cliente, et la règle de la Maison y veut l'année. Le banc
+   tenait le contraire, il protégeait la faute. */
+dit('un jour se dit avec son année', 'dimanche 6 septembre 2026', jourDit('2026-09-06'));
+dit('une heure ronde se dit courte', 'dimanche 6 septembre 2026 à 10 h', jourEtHeureDits('2026-09-06', '10:00'));
+dit('une heure pleine garde ses minutes', 'dimanche 6 septembre 2026 à 10 h 30', jourEtHeureDits('2026-09-06', '10:30'));
+dit('sans heure, le jour seul', 'dimanche 6 septembre 2026', jourEtHeureDits('2026-09-06', undefined));
 dit('une date illisible se rend telle quelle', '', jourDit(''));
 dit('on s’adresse par le prénom', 'Akouavi', prenomDe('Akouavi Kossou'));
 /* Depuis le 2 octobre 2026, la Maison écrit « Madame Akouavi » : la civilité de la fiche, puis le prénom (shared/civilite). */
@@ -190,7 +193,7 @@ const pack: SuiviDAbonnement = {
   lignes: [{ nom: 'soins GBÈZÀ™', reste: 2, total: 6 }, { nom: 'rituels SÍNSIN™', reste: 0, total: 6 }],
 };
 dit('un paquet dit ce qu’il reste et jusqu’à quand',
-  'A., il vous reste 2 soins GBÈZÀ™ sur votre Année Sereine, valables jusqu’au samedi 12 juin. rituels SÍNSIN™ : tout est consommé.',
+  'A., il vous reste 2 soins GBÈZÀ™ sur votre Année Sereine, valables jusqu’au samedi 12 juin 2027. rituels SÍNSIN™ : tout est consommé.',
   phraseDeLAbonnement(pack, 'A.', francs));
 
 const cycle: SuiviDAbonnement = {
@@ -199,7 +202,7 @@ const cycle: SuiviDAbonnement = {
   lignes: [{ nom: 'rituels SÍNSIN™', reste: 1, total: 2 }, { nom: 'soins GBÈZÀ™', reste: 0, total: 2 }],
 };
 dit('un cycle dit ce qu’il reste et quand il recharge',
-  'A., il vous reste 1 rituels SÍNSIN™ ce mois-ci sur L’Essentielle. Vos compteurs se rechargent le jeudi 1 octobre. soins GBÈZÀ™ : tout est consommé.',
+  'A., il vous reste 1 rituels SÍNSIN™ ce mois-ci sur L’Essentielle. Vos compteurs se rechargent le jeudi 1 octobre 2026. soins GBÈZÀ™ : tout est consommé.',
   phraseDeLAbonnement(cycle, 'A.', francs));
 
 /* UN RETARD NE S'ANNONCE JAMAIS COMME UN SOLDE : annoncer « il vous reste
@@ -235,11 +238,11 @@ dit('le lien de paiement porte ce qui reste dû, pas le total',
   'Madame Akouavi, il reste 37 000 F sur votre rituel. Voici le lien pour régler par Mobile Money : https://exemple/payer?montant=37000',
   gesteDit(g, 'paiement')?.compose);
 dit('le devis dit son numéro et son total',
-  'Madame Akouavi, voici le devis DV-2026-0088 du samedi 12 septembre, pour 45 000 F. Dites-nous simplement oui et nous posons le rendez-vous.',
+  'Madame Akouavi, voici le devis DV-2026-0088 du samedi 12 septembre 2026, pour 45 000 F. Dites-nous simplement oui et nous posons le rendez-vous.',
   gesteDit(g, 'devis')?.compose);
 dit('le devis attend un oui', 'attend un oui', gesteDit(g, 'devis')?.attend);
 dit('la facture dit ce qui reste',
-  'Madame Akouavi, voici votre facture FA-2026-0412 du dimanche 6 septembre, pour 17 000 F. Il reste 15 000 F à régler.',
+  'Madame Akouavi, voici votre facture FA-2026-0412 du dimanche 6 septembre 2026, pour 17 000 F. Il reste 15 000 F à régler.',
   gesteDit(g, 'facture')?.compose);
 dit('la facture voyage en pièce jointe',
   { quoi: 'facture', invoiceId: 'i2', nom: 'Facture FA-2026-0412' }, gesteDit(g, 'facture')?.piece);
@@ -248,7 +251,7 @@ dit('l’itinéraire est le même pour tout le monde',
   'Madame Akouavi, voici comment nous rejoindre : Rue 12.34, Suru-Léré, Cotonou',
   gesteDit(g, 'itineraire')?.compose);
 dit('le rendez-vous du soir, pas celui de ce matin',
-  'Madame Akouavi, nous vous attendons lundi 14 septembre à 17 h.', gesteDit(g, 'rendezvous')?.compose);
+  'Madame Akouavi, nous vous attendons lundi 14 septembre 2026 à 17 h.', gesteDit(g, 'rendezvous')?.compose);
 
 /* ── UN BOUTON ÉTEINT DIT POURQUOI ───────────────────────────────── */
 const muet = lesGestes(ctx({ tete: undefined, pieces: [], appts: [], photos: 0 }));

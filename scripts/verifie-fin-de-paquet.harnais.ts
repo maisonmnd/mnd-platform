@@ -77,14 +77,15 @@ dit('… à deux séances, il attend', 0,
 /* ── ⑤ LE MESSAGE, MOT POUR MOT ───────────────────────────────────── */
 const avecDate = paquetsEnFin([contrat({ sub: sub({ expiresIso: '2026-10-12' }) })], AUJOURDHUI)[0];
 dit('les quatre variables du modèle',
-  ['R.', '1 séance', 'Prolongement 6 soins', 'valable jusqu’au 12 octobre'],
+  /* Son appel et l'année (10 octobre 2026, revue). */
+  ['Madame R.', '1 séance', 'Prolongement 6 soins', 'valable jusqu’au 12 octobre 2026'],
   variablesDeLaFinDePaquet(avecDate));
 dit('… au pluriel quand il en reste deux', '2 séances',
   variablesDeLaFinDePaquet(paquetsEnFin([contrat({ sub: sub({ expiresIso: '2026-09-20' }), lignes: [ligne(6, 4)] })], AUJOURDHUI)[0])[1]);
 dit('… sans date : « sans date limite », jamais une variable vide', 'sans date limite',
   variablesDeLaFinDePaquet(sansDate)[3]);
 dit('la phrase du fil est celle du modèle',
-  'Bonjour R., il vous reste 1 séance sur votre Prolongement 6 soins, valable jusqu’au 12 octobre. Pensez à réserver : nous vous gardons votre place.',
+  'Bonjour Madame R., il vous reste 1 séance sur votre Prolongement 6 soins, valable jusqu’au 12 octobre 2026. Pensez à réserver : nous vous gardons votre place.',
   phraseDeLaFinDePaquet(avecDate));
 dit('sans nom, on écrit « Madame »', 'Madame',
   variablesDeLaFinDePaquet({ ...avecDate, nom: '  ' })[0]);

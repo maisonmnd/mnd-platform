@@ -90,8 +90,8 @@ dit('un code vivant, à elle, ne dit rien', null, juge('eclat15-a7k', 'c1'));
 dit('un code inconnu le dit', 'Ce code n’existe pas dans la Maison.', juge('XXXX-000', 'c1'));
 dit('un code sans tête nommée le dit', 'Nommez la cliente : un code de promotion appartient à une tête.', juge('ECLAT15-A7K'));
 dit('un code d’une autre le dit', 'Ce code appartient à une autre cliente.', juge('ECLAT15-A7K', 'c9'));
-dit('un code déjà servi dit QUAND', 'Ce code a déjà été utilisé mardi 15 septembre à 11 h.', juge('SOIN10-D4R', 'c1'));
-dit('un code périmé dit QUAND', 'Ce code a expiré dimanche 13 septembre à 14 h.', juge('NUIT20-M2P', 'c1'));
+dit('un code déjà servi dit QUAND', 'Ce code a déjà été utilisé mardi 15 septembre 2026 à 11 h.', juge('SOIN10-D4R', 'c1'));
+dit('un code périmé dit QUAND', 'Ce code a expiré dimanche 13 septembre 2026 à 14 h.', juge('NUIT20-M2P', 'c1'));
 dit('rien de tapé n’est pas un refus', null, juge('', 'c1'));
 
 /* L'ORDRE DES REFUS EST VOULU : dire « expiré » à qui a tapé le code de sa
@@ -193,7 +193,8 @@ dit('ses codes vivants, du plus pressé au plus lointain',
 
 /* L'HEURE EST CELLE DU SALON, PAS CELLE DE LA MACHINE : ce harnais tourne
    aussi bien sur un poste réglé à Cotonou que sur une machine à Paris. */
-dit('l’instant se dit à l’heure du salon', 'mardi 15 septembre à 14 h 30',
+/* Avec l'année : l'instant part dans le message du code (10 octobre 2026, revue). */
+dit('l’instant se dit à l’heure du salon', 'mardi 15 septembre 2026 à 14 h 30',
   instantDit('2026-09-15T13:30:00.000Z'));
 dit('une date illisible ne ment pas', 'une date inconnue', instantDit('hier'));
 

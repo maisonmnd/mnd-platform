@@ -28,6 +28,7 @@ import {
 import { lienPaiementMomo, useAutoConfig } from '../equipe/data';
 import { laFenetreSePaie, REPONSES_GRATUITES_DU_MOIS } from '../../../../shared/conversations';
 import { todayISO } from './_shared';
+import { appelDe } from '../../../../shared/civilite';
 
 /* ═══════════════════════════════════════════════════════════════════
    LA BARRE D'OUTILS D'UNE CONVERSATION — maquette
@@ -306,8 +307,12 @@ export function PanneauDeLaPromo({
   const [pct, setPct] = useState('15');
   const [serviceId, setServiceId] = useState('');
   const [heures, setHeures] = useState(String(HEURES_DE_LA_PROMO));
+  const [clients] = useClients();
 
   const prenom = tete.name.split(/\s+/)[0] ?? tete.name;
+  /* LE MESSAGE L'APPELLE AVEC SA CIVILITÉ (10 octobre 2026, revue) : la
+     règle du 2 octobre, `appelDe`, sur sa fiche quand on la tient. */
+  const appel = appelDe(clients.find((c) => c.id === tete.id), tete.name);
   const aFabriquer = {
     branchId: branch.id,
     clientId: tete.id,
@@ -326,7 +331,7 @@ export function PanneauDeLaPromo({
     const quoi = serviceId
       ? (services.find((s) => s.id === serviceId)?.name ?? 'votre prochaine prestation')
       : 'votre prochain rituel';
-    const message = `${prenom}, la Maison vous offre −${Math.round(Number(pct))} % sur ${quoi}, avec le code ${neuf.code}, valable jusqu’à ${instantDit(neuf.expireLe)}. Il n’appartient qu’à vous et ne sert qu’une fois.`;
+    const message = `${appel}, la Maison vous offre −${Math.round(Number(pct))} % sur ${quoi}, avec le code ${neuf.code}, valable jusqu’à ${instantDit(neuf.expireLe)}. Il n’appartient qu’à vous et ne sert qu’une fois.`;
     codesPromoStore.set((prev) => [...prev, { ...neuf, note: message }]);
     surCode(neuf, message);
   };

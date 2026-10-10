@@ -7,6 +7,7 @@ import { appointmentsStore } from './agenda';
 import { clientsStore } from './clients';
 import { numeroWa, MODELE_FIN_DE_PAQUET } from './conversations';
 import { envoieSurWhatsApp, jourDit } from './whatsapp';
+import { appelDe } from './civilite';
 
 /* ══ LA FIN DE PAQUET, ENVOYÉE PAR LE TRÔNE — 15 septembre 2026 ═══════
    Maquette `public/maquette-la-fin-de-paquet.html`, validée.
@@ -47,25 +48,36 @@ export const heureAuSalon = (instant: Date = new Date()): number => {
 /** ON N'ÉCRIT PAS LA NUIT : de 9 h 30 à 21 h 30. */
 export const estLHeureDEcrire = (heure: number = heureAuSalon()): boolean => heure >= 9.5 && heure < 21.5;
 
-/** Le prénom, tel qu'on l'écrit dans un message : le premier mot du nom. */
-const prenomDe = (nom: string): string => nom.trim().split(/\s+/)[0] || 'Madame';
+/** « 12 janvier 2027 » : le jour du message, AVEC SON ANNÉE (10 octobre 2026,
+    revue). Un paquet prévenu en décembre qui expire en janvier disait
+    « valable jusqu'au 12 janvier » : de quelle année ? C'est la règle de la
+    Maison sur toute date qu'une cliente lit. */
+const jourEtAn = (iso: string): string => {
+  const a = iso.slice(0, 4);
+  return /^\d{4}$/.test(a) ? `${jourDit(iso)} ${a}` : jourDit(iso);
+};
 
 /** LES QUATRE VARIABLES DU MODÈLE `fin_de_paquet` (docs/BRANCHER-ENVOIS.md,
-    étape 7) : le prénom, ce qui reste, la formule, la validité. Un paquet
+    étape 7) : son appel, ce qui reste, la formule, la validité. Un paquet
     sans date dit « sans date limite » : une variable ne peut pas être vide
-    chez Meta, et la phrase reste juste. */
-export const variablesDeLaFinDePaquet = (f: FinDePaquet): string[] => [
-  prenomDe(f.nom),
+    chez Meta, et la phrase reste juste.
+
+    SON APPEL, PAS LE PREMIER MOT DE LA FICHE (10 octobre 2026, revue) : la
+    civilité vit dans les messages automatiques depuis le 2 octobre
+    (`appelDe`, shared/civilite). « Madame Naffi », « Monsieur Koffi » ; une
+    fiche absente ou muette est une dame. */
+export const variablesDeLaFinDePaquet = (f: FinDePaquet, fiche?: Parameters<typeof appelDe>[0]): string[] => [
+  appelDe(fiche, f.nom),
   `${f.reste} séance${f.reste > 1 ? 's' : ''}`,
   f.formule,
-  f.jusquau ? `valable jusqu’au ${jourDit(f.jusquau)}` : 'sans date limite',
+  f.jusquau ? `valable jusqu’au ${jourEtAn(f.jusquau)}` : 'sans date limite',
 ];
 
 /** CE QU'ELLE LIT, tel que le fil du Trône le garde : le même texte que le
     modèle approuvé, variables posées. */
-export const phraseDeLaFinDePaquet = (f: FinDePaquet): string => {
-  const [prenom, reste, formule, validite] = variablesDeLaFinDePaquet(f);
-  return `Bonjour ${prenom}, il vous reste ${reste} sur votre ${formule}, ${validite}. Pensez à réserver : nous vous gardons votre place.`;
+export const phraseDeLaFinDePaquet = (f: FinDePaquet, fiche?: Parameters<typeof appelDe>[0]): string => {
+  const [appel, reste, formule, validite] = variablesDeLaFinDePaquet(f, fiche);
+  return `Bonjour ${appel}, il vous reste ${reste} sur votre ${formule}, ${validite}. Pensez à réserver : nous vous gardons votre place.`;
 };
 
 /** L'identifiant du verrou, une ligne par contrat, pour la vie du paquet. */
@@ -127,9 +139,9 @@ export async function previensLesFinsDePaquet(o: { branchId: string }): Promise<
     const r = await envoieSurWhatsApp({
       numero,
       modele: MODELE_FIN_DE_PAQUET,
-      variables: variablesDeLaFinDePaquet(f),
+      variables: variablesDeLaFinDePaquet(f, fiche),
       /* Le fil garde les mots qu'elle lit, pas le nom du modèle. */
-      texte: phraseDeLaFinDePaquet(f),
+      texte: phraseDeLaFinDePaquet(f, fiche),
       clientId: f.clientId,
       branchId: o.branchId,
       parQui: 'la Maison, automatiquement',
