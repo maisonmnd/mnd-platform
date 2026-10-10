@@ -5,6 +5,7 @@ import { DEVISE_COMPLETE, maisonNom } from '../../shared/identite';
 import { useCategories, useProducts, useServices, catsDansLOrdre, priceModeOf } from '../../shared/catalog';
 import { FAMILLES_FORMULES, usePlans } from '../../shared/abonnements';
 import { carteReglages, directionDuGlisse, gardeSurLaCarte, indexSuivant, vitrineConfigStore, wifiPayload } from '../../shared/bridges';
+import { ouvertesALaVente } from '../../shared/formules-fermees-pur';
 import { useStore } from '../../shared/store';
 import { QrSvg } from './Qr';
 
@@ -120,7 +121,7 @@ export default function App() {
         )}
         {volet === 'formules' && (
           <Formules
-            plans={gardeSurLaCarte(plans, reglages.formulesMasquees)}
+            plans={gardeSurLaCarte(ouvertesALaVente(plans), reglages.formulesMasquees)}
             currency={currency}
             defile={reglages.defileFormules}
             secondes={reglages.secondesParFormule}

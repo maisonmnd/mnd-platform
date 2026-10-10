@@ -22,6 +22,8 @@ import {
   type Plan, type Subscriber, type Payment, type SubCycle, type PlanIncluded, type FamilleFormule,
 } from './data';
 import { useServices, LONGUEURS } from '../../../../shared/catalog';
+import { basculeLaVente, choixDeVente, estOuverteALaVente, premiereOuverte } from '../../../../shared/formules-fermees-pur';
+import { isoDuJour } from '../../../../shared/offres-pur';
 import {
   useModelBands, useBandSets, bandsAbonnements, sortedBands, bandLabel, roundPrice,
   calibreDeLaTete,
@@ -170,7 +172,7 @@ export default function Abonnements() {
   const [rdvOuvert, setRdvOuvert] = useState<{ appt: Appointment; retourA: Subscriber } | null>(null);
   const serviceName = (id: string) => services.find((s) => s.id === id)?.name ?? 'Prestation retirée';
   const [subModal, setSubModal] = useState(false);
-  const [subForm, setSubForm] = useState<SubForm>({ clientId: '', planId: plans[0]?.id ?? '', slot: '', cycle: 'mensuel', parts: null, premiere: '', dates: {}, voie: '', rythme: 'reguliere', couleurServiceId: '', prixConvenu: '', motif: '', inclus: null, validiteMois: '' });
+  const [subForm, setSubForm] = useState<SubForm>({ clientId: '', planId: premiereOuverte(plans)?.id ?? '', slot: '', cycle: 'mensuel', parts: null, premiere: '', dates: {}, voie: '', rythme: 'reguliere', couleurServiceId: '', prixConvenu: '', motif: '', inclus: null, validiteMois: '' });
   const [methods] = usePaymentMethods();
   const [payFor, setPayFor] = useState<Subscriber | null>(null);
   const [payForm, setPayForm] = useState<PayForm>({ amount: '', date: '', method: '' });
@@ -705,7 +707,7 @@ export default function Abonnements() {
     };
     setSubs((prev) => [...prev, nm]);
     setSubModal(false);
-    setSubForm({ clientId: '', planId: plans[0]?.id ?? '', slot: '', cycle: 'mensuel', parts: null, premiere: '', dates: {}, voie: '', rythme: 'reguliere', couleurServiceId: '', prixConvenu: '', motif: '', inclus: null, validiteMois: '' });
+    setSubForm({ clientId: '', planId: premiereOuverte(plans)?.id ?? '', slot: '', cycle: 'mensuel', parts: null, premiere: '', dates: {}, voie: '', rythme: 'reguliere', couleurServiceId: '', prixConvenu: '', motif: '', inclus: null, validiteMois: '' });
     if (nm.echeances) toast(`Abonnement signé, réglable en ${nm.echeances.length} fois.`);
   };
 
@@ -1067,7 +1069,7 @@ export default function Abonnements() {
      prochaine venue : c'est le seul moment où la formule se revend toute seule. */
   const reproposer = (clientId: string) => {
     setSubForm({
-      clientId, planId: plans[0]?.id ?? '', slot: '', cycle: 'mensuel', parts: null, premiere: '',
+      clientId, planId: premiereOuverte(plans)?.id ?? '', slot: '', cycle: 'mensuel', parts: null, premiere: '',
       dates: {}, voie: '', rythme: 'reguliere', couleurServiceId: '', prixConvenu: '', motif: '',
       inclus: null, validiteMois: '',
     });
@@ -1527,6 +1529,11 @@ export default function Abonnements() {
                     ? <span className="tre-plan__tagpop">{p.tag}</span>
                     : <div className="mnd-eyebrow" style={{ fontSize: 9.5, color: 'var(--copper-700)' }}>{p.tag}</div>}
                   <div className="tre-plan__name" style={{ marginTop: p.popular ? 6 : 8 }}>{p.name}</div>
+                  {!estOuverteALaVente(p) && (
+                    <div style={{ marginTop: 6, fontSize: 11.5, fontWeight: 500, color: p.popular ? 'var(--copper-300)' : 'var(--copper-700)' }}>
+                      Fermée à la vente{p.fermeeLe ? ` depuis le ${dateComplete(p.fermeeLe)}` : ''} · ses contrats en cours continuent
+                    </div>
+                  )}
                   <div className="tre-plan__line">{p.line}</div>
                   <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, margin: '10px 0 4px', flexWrap: 'wrap' }}>
                     <span className="tre-plan__price" style={etendue ? { fontSize: 25 } : undefined}>
@@ -1552,6 +1559,23 @@ export default function Abonnements() {
                   </div>
                   <div style={{ display: 'flex', gap: 8, marginTop: 20 }}>
                     <Button size="sm" variant={p.popular ? 'copper' : 'ghost'} style={{ flex: 1 }} onClick={() => openPlanEdit(p)}>Modifier</Button>
+                    {/* FERMER À LA VENTE, PAS EFFACER — 10 octobre 2026 (la genèse
+                        des prix). La formule ne se propose plus à une nouvelle
+                        abonnée ; ses contrats la lisent toujours. Rouvrir est le
+                        même geste. */}
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => {
+                        const ouverte = estOuverteALaVente(p);
+                        setPlans((prev) => prev.map((x) => (x.id === p.id ? basculeLaVente(x, isoDuJour(new Date())) : x)));
+                        toast(ouverte
+                          ? `« ${p.name} » fermée à la vente. Ses contrats en cours continuent.`
+                          : `« ${p.name} » rouverte à la vente.`);
+                      }}
+                    >
+                      {estOuverteALaVente(p) ? 'Fermer à la vente' : 'Rouvrir'}
+                    </Button>
                     {/* UN REFUS SE DIT, TOUJOURS (règle du 28 août). « Pourquoi
                         je n'arrive pas à retirer l'abonnement VÈKPÈ ? » — parce
                         que ce bouton se taisait de DEUX façons.
@@ -1636,7 +1660,7 @@ export default function Abonnements() {
             <div className="mnd-muted" style={{ fontSize: 13 }}>
               <span style={{ fontFamily: 'var(--font-serif)', fontSize: 22, color: 'var(--color-indigo)' }}>{members.length}</span> abonnés actifs · chacun avec son créneau réservé
             </div>
-            <Button variant="copper" onClick={() => { setSubForm({ clientId: '', planId: plans[0]?.id ?? '', slot: '', cycle: 'mensuel', parts: null, premiere: '', dates: {}, voie: '', rythme: 'reguliere', couleurServiceId: '', prixConvenu: '', motif: '', inclus: null, validiteMois: '' }); setSubModal(true); }}>+ Nouvel abonné</Button>
+            <Button variant="copper" onClick={() => { setSubForm({ clientId: '', planId: premiereOuverte(plans)?.id ?? '', slot: '', cycle: 'mensuel', parts: null, premiere: '', dates: {}, voie: '', rythme: 'reguliere', couleurServiceId: '', prixConvenu: '', motif: '', inclus: null, validiteMois: '' }); setSubModal(true); }}>+ Nouvel abonné</Button>
           </div>
 
           {/* ── LES DEMANDES VENUES DE MA COURONNE — 28 août ────────────
@@ -2640,7 +2664,9 @@ export default function Abonnements() {
                     setContratEdit({ ...contratEdit, planId: e.target.value, inclus: (pl?.included ?? []).map((i) => ({ ...i })) });
                   }}
                 >
-                  {plans.map((pl) => <option key={pl.id} value={pl.id}>{pl.name}</option>)}
+                  {/* Une formule fermée à la vente ne se propose pas ; celle du
+                      contrat reste dans la liste, même fermée (10 octobre 2026). */}
+                  {choixDeVente(plans, contratEdit.planId).map((pl) => <option key={pl.id} value={pl.id}>{pl.name}{estOuverteALaVente(pl) ? '' : ' · fermée à la vente'}</option>)}
                 </Select>
               </Field>
 
@@ -2791,12 +2817,16 @@ export default function Abonnements() {
                     référence : le maître lisait 140 000 F et le comptoir en
                     réclamait 201 500 à une tête Micro. Une formule qui varie dit
                     sa fourchette jusque dans un menu déroulant. */}
-                {plans.map((p) => {
+                {/* FERMÉE À LA VENTE (10 octobre 2026) : une formule fermée ne se
+                    vend plus au comptoir. Seule celle déjà choisie (une demande
+                    venue de Ma Couronne avant la fermeture) reste, et se dit. */}
+                {choixDeVente(plans, subForm.planId).map((p) => {
                   const four = libelleFourchette(p, subForm.cycle, calibresAbo, (x) => fmtMoney(x, currency));
                   return (
                     <option key={p.id} value={p.id}>
                       {p.name} · {four ? `${four} ${SELON_LE_CALIBRE}` : fmtMoney(p.priceXof, currency)}
                       {p.mode === 'pack' ? ` · ${moisDuPack(p)} mois` : ' / mois'}
+                      {estOuverteALaVente(p) ? '' : ' · fermée à la vente'}
                     </option>
                   );
                 })}

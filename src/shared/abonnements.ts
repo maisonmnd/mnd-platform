@@ -15,7 +15,9 @@
    `routes/equipe/data.ts` réexporte tout ce fichier : aucun import existant
    n'a bougé. */
 import { createStore, useStore } from './store';
-import { bindCollection } from './sync';
+import { bindCollection, quandTablePrete } from './sync';
+import { fermeLesFormulesAZero, ouvertesALaVente } from './formules-fermees-pur';
+import { isoDuJour } from './offres-pur';
 import type { PaymentMethod } from './finance';
 import type { Appointment } from './agenda';
 import { etatDesEcheances, resteDeLEcheancier, enRetardXof } from './echeancier';
@@ -129,6 +131,14 @@ export type Plan = {
   /** Ce que la longueur ajoute, en francs, APRÈS le prix du calibre. Trois
       chiffres plutôt que la grille croisée : voir `prixDeLaFormule`. */
   supplementLongueur?: Partial<Record<LongueurId, number>>;
+
+  /** FERMÉE À LA VENTE — 10 octobre 2026 (la genèse des prix). `true` : elle
+      ne se propose plus à une nouvelle abonnée, nulle part ; ses contrats en
+      cours la lisent toujours. `false` écrit : rouverte à la main. Absent :
+      ouverte. Voir `shared/formules-fermees-pur`. */
+  fermee?: boolean;
+  /** Le jour de la fermeture (AAAA-MM-JJ). */
+  fermeeLe?: string;
 };
 
 /** CE QU'ON SAIT DE LA TÊTE au moment de dire un prix. Les deux champs
@@ -1097,10 +1107,17 @@ export const ecartDuPrixConvenu = (
 
    LE MASQUE DE LA VITRINE RESTE AU-DESSUS. Ceci retire ce qui ne la concerne
    pas ; `formulesVisiblesPour` retire ce que la Maison a décidé de cacher. Les
-   deux se composent, dans cet ordre. */
-export const formulesPourElle = <T extends { famille?: FamilleFormule }>(
+   deux se composent, dans cet ordre.
+
+   UNE FORMULE FERMÉE À LA VENTE n'est proposée à personne (10 octobre 2026) :
+   ce filtre la retire avant tout le reste. Celle dont elle porte déjà le
+   contrat se lit ailleurs, par son id. */
+export const formulesPourElle = <T extends { famille?: FamilleFormule; fermee?: boolean }>(
   plans: readonly T[], aUnFoyer: boolean,
-): T[] => (aUnFoyer ? plans.slice() : plans.filter((p) => p.famille !== 'foyer'));
+): T[] => {
+  const ouvertes = ouvertesALaVente(plans);
+  return aUnFoyer ? ouvertes : ouvertes.filter((p) => p.famille !== 'foyer');
+};
 
 /** L'ÉTENDUE DES REMISES ANNONCÉES — « de 17 % à 37 % ». Elle se CALCULE sur
     les formules réellement montrées, jamais écrite à la main : un chiffre posé
@@ -1118,6 +1135,36 @@ export const etendueDesRemises = (
    lisent la même table par le même magasin. */
 bindCollection(plansStore, 'plans');
 bindCollection(subscribersStore, 'subscribers');
+
+/* ── LES SIX FORMULES À 0 F, FERMÉES UNE FOIS — 10 octobre 2026 ─────────
+   « Fermer aujourd'hui » (Yéman, au sélecteur de la genèse des prix). Même
+   geste que le nom de la Maison : depuis le Trône seul, au démarrage, morte
+   au 31 décembre 2026. Le juge (`fermeLesFormulesAZero`) ne ferme que les six
+   encore à 0 F et jamais touchées : rejouée sur un autre poste, elle ne fait
+   rien, et une formule rouverte à la main reste ouverte. */
+const MARQUEUR_FORMULES_A_ZERO = 'mnd_formules_a_zero_2026_10';
+const FIN_DES_FORMULES_A_ZERO = Date.parse('2026-12-31T23:59:59+01:00');
+const fermeLesSix = (): boolean => {
+  const r = fermeLesFormulesAZero(plansStore.get(), isoDuJour(new Date()));
+  if (!r) return false;
+  plansStore.set(r.plans);
+  return true;
+};
+const marqueLesSix = () => { try { localStorage.setItem(MARQUEUR_FORMULES_A_ZERO, new Date().toISOString()); } catch { /* sans stockage, on rejouera : sans effet */ } };
+/** À appeler une fois, au démarrage du Trône seulement. */
+export function migreLesFormulesAZero(): void {
+  if (Date.now() > FIN_DES_FORMULES_A_ZERO) return;
+  try { if (localStorage.getItem(MARQUEUR_FORMULES_A_ZERO)) return; } catch { /* on tente */ }
+  quandTablePrete('plans', () => {
+    if (fermeLesSix()) { marqueLesSix(); return; }
+    let arret: () => void = () => {};
+    const off = plansStore.subscribe(() => {
+      setTimeout(() => { if (fermeLesSix()) { marqueLesSix(); arret(); } }, 0);
+    });
+    const fin = setTimeout(() => { arret(); marqueLesSix(); }, 60_000);
+    arret = () => { off(); clearTimeout(fin); };
+  });
+}
 
 /* ── CE QU'ELLE AURAIT GAGNÉ — 28 août 2026 ───────────────────────────
    « Vos trois derniers rituels vous auraient coûté 18 000 F de moins avec La
