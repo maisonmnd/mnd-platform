@@ -17,7 +17,14 @@ import type { PublicDeFormation } from './parcours';
    `acompteXof` sur la ligne pour contrôler ce qui a été payé : le montant
    attendu vient du serveur, jamais du navigateur. C'est la règle posée le
    24 août sur les rendez-vous, et elle vaut ici pour la même raison : sans
-   elle, une inscription à 450 000 F se validerait avec 100 F. */
+   elle, une inscription à 450 000 F se validerait avec 100 F.
+   CE QUI LA TIENT (10 octobre 2026, relu après la revue) : le
+   `prixXof` et l'`acompteXof` calculés ici ne sont qu'un AFFICHAGE. Le
+   déclencheur `academie_demande_nettoie` de la migration 0107 les recalcule
+   à chaque dépôt depuis `academie_tarifs` (écrite par la Maison seule),
+   refuse un parcours inconnu et retire les champs de paiement hors service
+   role. Un parcours ajouté à `PARCOURS_MND` doit donc recevoir sa ligne de
+   tarif, sinon le dépôt échoue (c'est voulu). */
 
 export const TABLE_DEMANDES = 'academie_demandes';
 

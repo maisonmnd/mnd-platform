@@ -152,6 +152,8 @@ export function LeDossierDeBourse({ branchId, moi, nomMaison, surOuvre }: {
       <Field key={cle} label={<>{d.libelle}{d.aide ? <small className="bou-aide"> · {d.aide}</small> : null}</>}>
         {d.type === 'choix' ? (
           <Select value={v[cle] ?? d.defaut ?? ''} onChange={(e) => change(cle, e.target.value)}>
+            {/* Sans défaut (les classes, 10 octobre 2026), un choix vide : sinon la liste montrerait la première classe sans l'avoir gardée. */}
+            {!d.defaut && <option value="">À choisir…</option>}
             {(d.choix ?? []).map((x) => <option key={x} value={x}>{x}</option>)}
           </Select>
         ) : (
@@ -180,7 +182,8 @@ export function LeDossierDeBourse({ branchId, moi, nomMaison, surOuvre }: {
       <div className="bou-tete">
         <div>
           <div className="bou-tete__sur">Campagne {c.cle} · revenus de {c.reference}</div>
-          <div className="bou-tete__titre">Famille AHOUANSOU · BOYA</div>
+          {/* Le nom vient du dossier privé, jamais du code (10 octobre 2026). */}
+          <div className="bou-tete__titre">{lis(v, 'famille').startsWith('[') ? 'Le dossier de la famille' : `Famille ${lis(v, 'famille')}`}</div>
           <div className="bou-tete__dit">
             {[1, 2, 3].map((n) => `${lis(v, `e${n}Prenom`).startsWith('[') ? `Enfant ${n}` : lis(v, `e${n}Prenom`)} en ${classeA(lis(v, `e${n}Classe2027`), c.rentree)}`).join(' · ')}
           </div>

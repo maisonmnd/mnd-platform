@@ -2,13 +2,13 @@ import { useCallback, useEffect, useState } from 'react';
 import { Button, toast } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { supabase } from '../../../../shared/supabase';
-import { useStore, uid } from '../../../../shared/store';
+import { useStore } from '../../../../shared/store';
 import { vitrineConfigStore } from '../../../../shared/bridges';
 import { sameName } from '../../../../shared/text';
 import { fmtMoney } from '../../../../shared/currency';
 import { TABLE_DEMANDES, type DemandeAcademie, type StatutDeLaDemande } from '../../../../shared/academie-demandes';
 import { useFormations } from './data';
-import { newEnrollment, setEnrollment, enrollmentsStore } from './academy';
+import { inscriptionDepuisDemande, setEnrollment, enrollmentsStore } from './academy';
 import { Pill } from './ui';
 
 /* ══ LES DEMANDES VENUES DU SITE — 17 septembre 2026 ═══════════════════
@@ -64,38 +64,56 @@ export default function AcademieDemandes() {
 
   useEffect(() => { void relire(); }, [relire]);
 
-  const poser = async (d: DemandeAcademie, patch: Partial<DemandeAcademie>) => {
-    if (!supabase) return;
-    setOccupe(true);
+  /** Écrit la demande ; rend `true` si la base l'a prise. */
+  const ecris = async (d: DemandeAcademie, patch: Partial<DemandeAcademie>): Promise<boolean> => {
+    if (!supabase) return false;
     const suite: DemandeAcademie = { ...d, ...patch, traiteLe: new Date().toISOString() };
     const { error } = await supabase.from(TABLE_DEMANDES).update({ data: suite }).eq('id', d.id);
-    setOccupe(false);
-    if (error) { toast('La demande n’a pas pu être mise à jour.'); return; }
+    if (error) return false;
     setDemandes((prev) => (prev ?? []).map((x) => (x.id === d.id ? suite : x)));
+    return true;
+  };
+  const poser = async (d: DemandeAcademie, patch: Partial<DemandeAcademie>) => {
+    setOccupe(true);
+    const ok = await ecris(d, patch);
+    setOccupe(false);
+    if (!ok) toast('La demande n’a pas pu être mise à jour.');
   };
 
   /* EN FAIRE UNE CANDIDATURE : l'inscription s'ouvre déjà remplie. On relie
      le parcours du site à la formation de l'Académie PAR SON NOM — le site
      porte l'identifiant de la semence, le Suivi celui de la formation
-     vivante, et les deux ne sont pas les mêmes. */
-  const inscrire = async (d: DemandeAcademie) => {
-    const fo = formations.find((f) => sameName(f.name, d.parcoursTitre));
+     vivante, et les deux ne sont pas les mêmes.
+     10 octobre 2026 (revue) : la ligne est RELUE au clic (un acompte
+     confirmé après l'ouverture de la file entre au dossier), la demande est
+     marquée « inscrite » AVANT que l'inscription naisse (un échec d'écriture
+     ne laisse pas un dossier orphelin qu'un second clic doublerait), et les
+     boutons restent tenus tout du long. */
+  const inscrire = async (d0: DemandeAcademie) => {
+    if (!supabase) return;
+    const fo = formations.find((f) => sameName(f.name, d0.parcoursTitre));
     if (!fo) {
-      toast(`Aucune formation ne porte le nom « ${d.parcoursTitre} » dans l’Académie. Créez-la, puis reprenez.`);
+      toast(`Aucune formation ne porte le nom « ${d0.parcoursTitre} » dans l’Académie. Créez-la, puis reprenez.`);
       return;
     }
-    const e = newEnrollment({
-      learnerName: d.nom,
-      formationId: fo.id,
-      priceXof: d.prixXof,
-      ...(d.acompteConfirme
-        ? { payments: [{ id: `pay-${uid()}`, amountXof: d.acompteVerseXof ?? d.acompteXof, date: (d.payeLe ?? '').slice(0, 10), method: 'KkiaPay' }] }
-        : {}),
-    });
-    enrollmentsStore.set((prev) => [e, ...prev]);
-    setEnrollment(e.id, {});
-    await poser(d, { statut: 'inscrite', enrollmentId: e.id });
-    toast(`${d.nom} est inscrite. Son dossier est ouvert dans le Suivi.`);
+    setOccupe(true);
+    try {
+      const { data, error } = await supabase.from(TABLE_DEMANDES).select('data').eq('id', d0.id).maybeSingle();
+      const d = (data as { data?: DemandeAcademie } | null)?.data;
+      if (error || !d) { toast('La demande n’a pas pu être relue. Reprenez dans un instant.'); return; }
+      setDemandes((prev) => (prev ?? []).map((x) => (x.id === d.id ? d : x)));
+      const r = inscriptionDepuisDemande(d, fo.id);
+      if (!r.ok) { toast(r.raison); return; }
+      if (!(await ecris(d, { statut: 'inscrite', enrollmentId: r.inscription.id }))) {
+        toast('La demande n’a pas pu être mise à jour : rien n’est inscrit. Reprenez.');
+        return;
+      }
+      enrollmentsStore.set((prev) => [r.inscription, ...prev]);
+      setEnrollment(r.inscription.id, {});
+      toast(`${d.nom} est inscrite. Son dossier est ouvert dans le Suivi.`);
+    } finally {
+      setOccupe(false);
+    }
   };
 
   if (demandes === null) return <div className="mnd-muted" style={{ fontSize: 12.5 }}>La file se lit…</div>;

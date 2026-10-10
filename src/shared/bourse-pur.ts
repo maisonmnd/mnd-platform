@@ -38,10 +38,17 @@ export const CLASSES = ['PS', 'MS', 'GS', 'CP', 'CE1', 'CE2', 'CM1', 'CM2', '6e'
    de naissance, aucune adresse de la famille n'est écrite ici. Elles vivent
    dans le dossier privé (ligne `bourse-famille`, direction seule), remplies
    depuis les documents de Yéman par un script posé sur son bureau, jamais
-   versé au dépôt. */
+   versé au dépôt.
+   AUCUN NOM NON PLUS (10 octobre 2026, revue) : le demandeur, le second
+   parent, le nom des enfants, leurs classes, l'école et la gérante de NYM
+   SARL étaient écrits ici en valeurs par défaut et dans des phrases figées ;
+   ensemble, ils identifiaient trois mineurs. Ce sont désormais des champs,
+   remplis par le même script privé ; vides, ils s'écrivent entre crochets
+   et le document ne se signe pas. */
 export const CHAMPS: Champ[] = [
   /* Le demandeur */
-  { cle: 'demandeur', libelle: 'Nom et prénom du demandeur', groupe: 'demandeur', defaut: 'BOYA épouse AHOUANSOU Yéman' },
+  { cle: 'demandeur', libelle: 'Nom et prénom du demandeur', groupe: 'demandeur', aide: 'Comme sur le formulaire : le nom, puis le prénom' },
+  { cle: 'demandeurPhrase', libelle: 'Le demandeur dans les phrases', groupe: 'demandeur', aide: 'Civilité, prénom puis nom, comme dans les attestations' },
   { cle: 'naissanceDemandeur', libelle: 'Date de naissance', groupe: 'demandeur', type: 'date' },
   { cle: 'lieuDemandeur', libelle: 'Lieu et pays de naissance', groupe: 'demandeur', defaut: 'Cotonou, Bénin' },
   { cle: 'numic', libelle: 'N° d’inscription au registre des Français (NUMIC)', groupe: 'demandeur', aide: 'Sur la carte consulaire' },
@@ -55,9 +62,10 @@ export const CHAMPS: Champ[] = [
   { cle: 'caf', libelle: 'N° d’allocataire CAF · organisme payeur', groupe: 'demandeur', defaut: 'néant' },
   { cle: 'poste', libelle: 'Votre poste chez NYM SARL', groupe: 'demandeur' },
   { cle: 'entree', libelle: 'Date d’entrée chez NYM SARL', groupe: 'demandeur', type: 'date' },
+  { cle: 'gerante', libelle: 'Gérante de NYM SARL', groupe: 'demandeur', aide: 'Avec Mme : le formulaire demande le lien avec l’employeur' },
   /* Le second parent */
-  { cle: 'p2Nom', libelle: 'Nom', groupe: 'parent2', defaut: 'AHOUANSOU' },
-  { cle: 'p2Prenoms', libelle: 'Prénoms', groupe: 'parent2', defaut: 'Brice Ariel Laurent' },
+  { cle: 'p2Nom', libelle: 'Nom', groupe: 'parent2' },
+  { cle: 'p2Prenoms', libelle: 'Prénoms', groupe: 'parent2', aide: 'Le premier sert aux quittances : « M. et Mme Prénom NOM »' },
   { cle: 'p2Naissance', libelle: 'Date de naissance', groupe: 'parent2', type: 'date' },
   { cle: 'p2Lieu', libelle: 'Lieu et pays de naissance', groupe: 'parent2' },
   { cle: 'p2Profession', libelle: 'Profession', groupe: 'parent2' },
@@ -67,10 +75,11 @@ export const CHAMPS: Champ[] = [
     { cle: `e${n}Prenom`, libelle: `Enfant ${n} · prénom(s)`, groupe: 'enfants' as const },
     { cle: `e${n}Naissance`, libelle: `Enfant ${n} · date de naissance`, groupe: 'enfants' as const, type: 'date' as const },
     { cle: `e${n}Immat`, libelle: `Enfant ${n} · n° d’immatriculation consulaire`, groupe: 'enfants' as const },
-    { cle: `e${n}Classe2027`, libelle: `Enfant ${n} · classe à la rentrée 2027`, groupe: 'enfants' as const, type: 'choix' as const, choix: CLASSES,
-      defaut: ['CE2', 'CM2', '4e'][n - 1] },
+    { cle: `e${n}Classe2027`, libelle: `Enfant ${n} · classe à la rentrée 2027`, groupe: 'enfants' as const, type: 'choix' as const, choix: CLASSES },
   ]),
-  { cle: 'ecole', libelle: 'Établissement', groupe: 'enfants', defaut: 'École française Montaigne, Cotonou' },
+  { cle: 'nomEnfants', libelle: 'Nom de famille des enfants', groupe: 'enfants', aide: 'Il suit chaque prénom dans les documents' },
+  { cle: 'famille', libelle: 'Nom de la famille, en tête du dossier', groupe: 'enfants', aide: 'Il ouvre le bordereau : un nom, ou les deux noms des parents' },
+  { cle: 'ecole', libelle: 'Établissement', groupe: 'enfants', aide: 'Son nom et sa ville, écrits pour « scolarisés à l’… »' },
   { cle: 'cases', libelle: 'Bourses demandées (cases)', groupe: 'enfants', defaut: 'S' , aide: 'S, SA, D, V, E… comme sur le formulaire' },
   { cle: 'raisons', libelle: 'Raisons des frais parascolaires', groupe: 'enfants', aide: 'Obligatoire si D ou V : travail des parents, éloignement' },
   /* Le foyer */
@@ -109,21 +118,35 @@ export const CHAMPS: Champ[] = [
 export const champ = (cle: string): Champ | undefined => CHAMPS.find((c) => c.cle === cle);
 
 /* LES ANCIENS NOMS DES CHAMPS (avant le 7 octobre au soir) : une valeur
-   gardée sous l'un d'eux reprend son nom d'aujourd'hui, sans rien perdre. */
-const ANCIENS_NOMS: Record<string, string> = {
-  thomasAdresse: 'hebergeantAdresse', thomasTel: 'hebergeantTel', thomasDepuis: 'hebergeDepuis', thomasSigne: 'hebergeantSigne',
-};
+   gardée sous l'un d'eux reprend son nom d'aujourd'hui, sans rien perdre.
+   Les anciennes clés portaient le prénom de l'hébergeant. Elles se
+   reconnaissent à leur FORME, jamais à ce prénom (10 octobre 2026, reprise
+   de la revue) : le composer en morceaux le republiait aussi sûrement que
+   l'écrire. Une ancienne clé = un mot en minuscules suivi de Adresse, Tel,
+   Depuis ou Signe, qui n'est pas un champ d'aujourd'hui ; côté membres, un
+   mot en minuscules qui n'est pas un membre d'aujourd'hui. */
+const ANCIENNE_CLE = /^[a-z]+(Adresse|Tel|Depuis|Signe)$/;
+const NOM_NEUF: Record<string, string> = { Adresse: 'hebergeantAdresse', Tel: 'hebergeantTel', Depuis: 'hebergeDepuis', Signe: 'hebergeantSigne' };
+const MEMBRES: readonly string[] = ['yeman', 'brice', 'e1', 'e2', 'e3', 'hebergeant'] satisfies (keyof Membres)[];
 export function aJour(v: Valeurs): Valeurs {
   const out: Valeurs = { ...v };
-  for (const [ancien, neuf] of Object.entries(ANCIENS_NOMS)) {
-    if (out[ancien] !== undefined && !(out[neuf] ?? '').trim()) out[neuf] = out[ancien];
+  for (const ancien of Object.keys(v)) {
+    const forme = ANCIENNE_CLE.exec(ancien);
+    if (!forme || champ(ancien)) continue;
+    const neuf = NOM_NEUF[forme[1]];
+    if (!(out[neuf] ?? '').trim()) out[neuf] = out[ancien];
     delete out[ancien];
   }
   return out;
 }
 export function membresAJour(m: Membres & Record<string, string | undefined>): Membres {
-  const { thomas: ancien, ...reste } = m;
-  return { ...reste, hebergeant: reste.hebergeant ?? ancien };
+  const out: Record<string, string | undefined> = {};
+  let ancien: string | undefined;
+  for (const [cle, val] of Object.entries(m)) {
+    if (MEMBRES.includes(cle) || !/^[a-z]+$/.test(cle)) out[cle] = val;
+    else ancien ??= val;
+  }
+  return { ...out, hebergeant: out.hebergeant ?? ancien } as Membres;
 }
 
 /** « au lot 12 » → « lot 12 » : l'adresse écrite pour la phrase, rendue à l'enveloppe. */
@@ -383,9 +406,18 @@ export type TexteDuDocument = { cle: string; titre: string; objet: string; desti
 
 const SECTION = 'Monsieur le Consul\nSection consulaire de l’Ambassade de France au Bénin\nCotonou';
 
+/** « Prénom NOM » d'un enfant : le nom de famille est un champ, jamais écrit ici. */
+const enfantNomme = (v: Valeurs, n: number): string => `${lis(v, `e${n}Prenom`)} ${lis(v, 'nomEnfants')}`;
+
+/** « M. et Mme Prénom NOM » : le premier prénom et le nom du second parent, saisis. */
+export const lesParents = (v: Valeurs): string => `M. et Mme ${lis(v, 'p2Prenoms').split(/\s+/)[0]} ${lis(v, 'p2Nom')}`;
+
+/** Le numéro RCCM lu dans les mentions de la fiche NYM SARL (« … · RCCM X · IFU … » → « X »). */
+export const rccmDe = (mentions: string | undefined): string => (/RCCM\s+([^·]+?)\s*(?:·|$)/.exec(mentions ?? '')?.[1] ?? '').trim();
+
 export function enfantsEnLigne(v: Valeurs, c: Campagne, avecNaissance: boolean): string[] {
   return [1, 2, 3].map((n) => {
-    const nom = `${lis(v, `e${n}Prenom`)} AHOUANSOU`;
+    const nom = enfantNomme(v, n);
     const ne = avecNaissance ? `, né(e) le ${dateEnLettres(lis(v, `e${n}Naissance`))}` : '';
     return `${nom}${ne}, en ${classeA(lis(v, `e${n}Classe2027`), c.rentree)}`;
   });
@@ -408,21 +440,22 @@ export function lettreDeDemande(v: Valeurs, c: Campagne): TexteDuDocument {
   };
 }
 
-/** 04 · L'attestation de l'employeur NYM SARL, signée par un mandataire. */
-export function attestationEmployeur(v: Valeurs, c: Campagne, signataire: string): TexteDuDocument {
+/** 04 · L'attestation de l'employeur NYM SARL, signée par un mandataire.
+    Le RCCM vient de la fiche NYM SARL du Secrétariat (10 octobre 2026). */
+export function attestationEmployeur(v: Valeurs, c: Campagne, signataire: string, rccm = ''): TexteDuDocument {
   const brut = montant(v, 'brut');
   const net = montant(v, 'net');
-  const prenoms = [1, 2, 3].map((n) => `${lis(v, `e${n}Prenom`)} AHOUANSOU`).join(', ');
+  const prenoms = [1, 2, 3].map((n) => enfantNomme(v, n)).join(', ');
   return {
     cle: '04', titre: 'Attestation de l’employeur',
     objet: 'Participation aux dépenses de scolarisation et rémunération annuelle',
     destinataire: '', appel: '',
     corps: [
-      `Je soussigné(e), ${signataire}, agissant pour le compte de la société NYM SARL, immatriculée au registre du commerce et du crédit mobilier de Cotonou sous le numéro RB/COT/09 B 4639 (ancien n° 14.205-B), atteste par la présente que :`,
-      `· Mme Yéman BOYA épouse AHOUANSOU, née le ${dateEnLettres(lis(v, 'naissanceDemandeur'))} à Cotonou, est employée au sein de notre société en qualité de ${lis(v, 'poste')} depuis le ${dateEnLettres(lis(v, 'entree'))} ;`,
+      `Je soussigné(e), ${signataire}, agissant pour le compte de la société NYM SARL, immatriculée au registre du commerce et du crédit mobilier de Cotonou sous le numéro ${rccm.trim() || '[numéro RCCM de NYM SARL]'}, atteste par la présente que :`,
+      `· ${lis(v, 'demandeurPhrase')}, née le ${dateEnLettres(lis(v, 'naissanceDemandeur'))} à Cotonou, est employée au sein de notre société en qualité de ${lis(v, 'poste')} depuis le ${dateEnLettres(lis(v, 'entree'))} ;`,
       `· sa rémunération au titre de l’année ${c.reference} s’est élevée à ${brut !== null ? `${enLettres(brut)} (${enChiffres(brut)})` : '[salaire brut annuel]'} brut et ${net !== null ? `${enLettres(net)} (${enChiffres(net)})` : '[salaire net annuel]'} net, versée mensuellement ;`,
       `· la société NYM SARL ne participe à aucune dépense de scolarisation de ses enfants, ${prenoms}.`,
-      'Le formulaire de demande le requérant, il est précisé que l’intéressée est la fille de la gérante de la société, Mme Praxede BOYA : le lien familial entre l’employée et la société est ainsi porté à la connaissance de l’administration.',
+      `Le formulaire de demande le requérant, il est précisé que l’intéressée est la fille de la gérante de la société, ${lis(v, 'gerante')} : le lien familial entre l’employée et la société est ainsi porté à la connaissance de l’administration.`,
       'La présente attestation est délivrée à l’intéressée, à sa demande, pour servir et valoir ce que de droit auprès du Conseil consulaire des bourses scolaires de l’Ambassade de France au Bénin.',
     ].join('\n\n'),
     cloture: '',
@@ -439,13 +472,13 @@ export const signeHebergeant = (v: Valeurs): string => {
 /** 05 · L'attestation d'hébergement à titre gracieux. */
 export function attestationHebergement(v: Valeurs, c: Campagne): TexteDuDocument {
   const vl = montant(v, 'valeurLocative');
-  const enfants = [1, 2, 3].map((n) => `${lis(v, `e${n}Prenom`)} AHOUANSOU, né(e) le ${dateEnLettres(lis(v, `e${n}Naissance`))}`).join(' ; ');
+  const enfants = [1, 2, 3].map((n) => `${enfantNomme(v, n)}, né(e) le ${dateEnLettres(lis(v, `e${n}Naissance`))}`).join(' ; ');
   return {
     cle: '05', titre: 'Attestation d’hébergement à titre gracieux',
     objet: '', destinataire: '', appel: '',
     corps: [
       `Je soussigné(e), ${lis(v, 'hebergeant')}, demeurant ${lis(v, 'hebergeantAdresse')}, certifie sur l’honneur héberger à titre gracieux, depuis ${lis(v, 'hebergeDepuis')}, dans le logement dont je suis propriétaire, situé ${lis(v, 'logement')} :`,
-      `· Mme Yéman BOYA épouse AHOUANSOU, née le ${dateEnLettres(lis(v, 'naissanceDemandeur'))} à Cotonou ;\n· son époux, M. ${lis(v, 'p2Prenoms')} ${lis(v, 'p2Nom')}, né le ${dateEnLettres(lis(v, 'p2Naissance'))} ;\n· ainsi que leurs enfants : ${enfants}.`,
+      `· ${lis(v, 'demandeurPhrase')}, née le ${dateEnLettres(lis(v, 'naissanceDemandeur'))} à Cotonou ;\n· son époux, M. ${lis(v, 'p2Prenoms')} ${lis(v, 'p2Nom')}, né le ${dateEnLettres(lis(v, 'p2Naissance'))} ;\n· ainsi que leurs enfants : ${enfants}.`,
       `Ce logement est mis à leur disposition sans contrepartie de loyer ; les occupants s’acquittent des seules charges courantes, dont les quittances sont jointes au dossier. Sa valeur locative est estimée à ${vl !== null ? enChiffres(vl) : '[valeur locative par mois]'} par mois, soit ${vl !== null ? enChiffres(vl * 12) : '[valeur locative par an]'} par an, montant déclaré au titre des avantages en nature pour l’année ${c.reference}.`,
       'En foi de quoi, la présente attestation leur est délivrée pour servir et valoir ce que de droit.',
       'Pièces jointes : copie de ma pièce d’identité ; une facture d’électricité ou d’eau de moins de trois mois établie à mon nom.',
@@ -460,9 +493,9 @@ export function quittance(v: Valeurs, mois: string, n: string): TexteDuDocument 
   const somme = ch !== null ? `${enLettres(ch)} (${enChiffres(ch)})` : '[montant des charges]';
   return {
     cle: n, titre: `Quittance des charges · ${nomDuMois(mois)}`,
-    objet: '', destinataire: `M. et Mme Brice AHOUANSOU\n${sansPreposition(lis(v, 'logement'))}\nHébergés à titre gracieux`, appel: '',
+    objet: '', destinataire: `${lesParents(v)}\n${sansPreposition(lis(v, 'logement'))}\nHébergés à titre gracieux`, appel: '',
     corps: [
-      `Je soussigné(e), ${lis(v, 'hebergeant')}, propriétaire du logement situé ${lis(v, 'logement')}, déclare avoir reçu de M. et Mme Brice AHOUANSOU, occupants de ce logement, la somme de ${somme} au titre des charges courantes (eau, électricité, entretien) pour la période du 1er ${nomDuMois(mois).replace(/ \d{4}$/, '')} au ${dernierJour(mois)} ${nomDuMois(mois)}.`,
+      `Je soussigné(e), ${lis(v, 'hebergeant')}, propriétaire du logement situé ${lis(v, 'logement')}, déclare avoir reçu de ${lesParents(v)}, occupants de ce logement, la somme de ${somme} au titre des charges courantes (eau, électricité, entretien) pour la période du 1er ${nomDuMois(mois).replace(/ \d{4}$/, '')} au ${dernierJour(mois)} ${nomDuMois(mois)}.`,
       `Loyer : néant, hébergement à titre gracieux.\nCharges courantes : ${ch !== null ? enChiffres(ch) : '[montant]'}.\nTotal reçu : ${ch !== null ? enChiffres(ch) : '[montant]'}.`,
       'Cette quittance est délivrée sous réserve d’encaissement et ne vaut pas reçu des périodes antérieures.',
     ].join('\n\n'),
@@ -471,13 +504,13 @@ export function quittance(v: Valeurs, mois: string, n: string): TexteDuDocument 
 }
 
 /** Les six documents signés d'une campagne, avec leur date. */
-export function documentsDeLaCampagne(v: Valeurs, c: Campagne, signataireNym: string): (TexteDuDocument & { date: string; qui: 'parents' | 'nym' | 'hebergeant' })[] {
+export function documentsDeLaCampagne(v: Valeurs, c: Campagne, signataireNym: string, rccmNym = ''): (TexteDuDocument & { date: string; qui: 'parents' | 'nym' | 'hebergeant' })[] {
   const depot = c.depot;
   const avant = (d: string) => (d < depot ? d : ajouteJours(depot, -2));
   const qs = moisDesQuittances(depot);
   return [
     { ...lettreDeDemande(v, c), date: avant(ajouteJours(depot, -3)), qui: 'parents' },
-    { ...attestationEmployeur(v, c, signataireNym), date: avant(ajouteJours(depot, -3)), qui: 'nym' },
+    { ...attestationEmployeur(v, c, signataireNym, rccmNym), date: avant(ajouteJours(depot, -3)), qui: 'nym' },
     { ...attestationHebergement(v, c), date: avant(ajouteJours(depot, -3)), qui: 'hebergeant' },
     ...qs.map((mo, i) => ({ ...quittance(v, mo, `0${6 + i}`), date: dateDeLaQuittance(mo, depot), qui: 'hebergeant' as const })),
   ];
@@ -510,9 +543,9 @@ export function lignesDuBordereau(c: Campagne): { n: string; piece: string; qui:
 export function reponsesAuFormulaire(v: Valeurs, c: Campagne): { page: string; lignes: [string, string][] }[] {
   const vl = montant(v, 'valeurLocative');
   const enfant = (n: number): [string, string] => [`Enfant ${n}`,
-    `AHOUANSOU ${lis(v, `e${n}Prenom`)} · ${dateCourte(lis(v, `e${n}Naissance`))} · française · Cotonou · ${lis(v, `e${n}Immat`)}`];
+    `${lis(v, 'nomEnfants')} ${lis(v, `e${n}Prenom`)} · ${dateCourte(lis(v, `e${n}Naissance`))} · française · Cotonou · ${lis(v, `e${n}Immat`)}`];
   const boursier = (n: number): [string, string] => [`Enfant ${n}`,
-    `AHOUANSOU ${lis(v, `e${n}Prenom`)} · ${lis(v, 'ecole')} · ${classeA(lis(v, `e${n}Classe2027`), c.rentree)} · cases : ${lis(v, 'cases')}`];
+    `${lis(v, 'nomEnfants')} ${lis(v, `e${n}Prenom`)} · ${lis(v, 'ecole')} · ${classeA(lis(v, `e${n}Classe2027`), c.rentree)} · cases : ${lis(v, 'cases')}`];
   const m = (cle: string) => { const x = montant(v, cle); return x !== null ? enChiffres(x) : lis({}, cle); };
   return [
     { page: 'Page 1 · le demandeur', lignes: [
@@ -539,7 +572,7 @@ export function reponsesAuFormulaire(v: Valeurs, c: Campagne): { page: string; l
       ['Superficie · pièces · occupants', `${lis(v, 'superficie')} m² · ${lis(v, 'pieces')} pièces · ${lis(v, 'occupants')} personnes`],
       ['Profession · employeur, parent 1', `${lis(v, 'poste')} · NYM SARL`],
       ['Profession · employeur, parent 2', `${lis(v, 'p2Profession')} · ${lis(v, 'p2Employeur')}`],
-      ['Lien avec l’employeur ?', 'Oui, familial : NYM SARL est gérée par Mme Praxede BOYA, mère de la demanderesse'],
+      ['Lien avec l’employeur ?', `Oui, familial : NYM SARL est gérée par ${lis(v, 'gerante')}, mère de la demanderesse`],
       ['Avantages en nature (à chiffrer)', `Logement mis à disposition par la famille : ${vl !== null ? enChiffres(vl * 12) : '[valeur locative annuelle]'} par an. Autres lignes : néant`],
       ['Véhicules personnels', `${lis(v, 'vehicule')} · moto, bateau, autre : néant`],
       ['Autre aide à la scolarisation', lis(v, 'autreAide')],

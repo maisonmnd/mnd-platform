@@ -755,10 +755,14 @@ export function runTotals(run: PayrollRun): RunTotals {
 export type BulletinLink = {
   nom: string; poste?: string; matricule?: string; cnssnum?: string;
   periode: string; // AAAA-MM
-  base: number; hs?: number; prime?: number; pourboires?: number; commission?: number;
+  base: number; hs?: number; prime?: number; pourboires?: number; commission?: number; indemnites?: number;
   avance?: number; retenue?: number; paiement?: string;
   /** Le remboursement de prêt du mois, et ce qui reste dû après lui. */
   pret?: number; pretReste?: number;
+  /** LA RETENUE DU COMPTE COURANT D'ASSOCIÉ — 10 octobre 2026 (revue). Le
+      run la déduit du net ; sans elle, la page imprimait un net plus haut
+      que celui versé. Les indemnités, même raison, côté gains. */
+  cc?: number;
   /** Taux salarial CNSS à appliquer — 0 quand la cotisation est éteinte.
       SANS LUI, LA PAGE RETOMBE SUR SES 3,6 % PAR DÉFAUT et imprime un net
       inférieur à celui que l'ERP a calculé et que l'employé a reçu. */
@@ -784,12 +788,14 @@ export function bulletinHref(base: string, b: BulletinLink): string {
   if (b.prime) q.set('prime', String(b.prime));
   if (b.pourboires) q.set('pourboires', String(b.pourboires));
   if (b.commission) q.set('commission', String(b.commission));
+  if (b.indemnites) q.set('indemnites', String(b.indemnites));
   if (b.avance) q.set('avance', String(b.avance));
   if (b.retenue) q.set('retenue', String(b.retenue));
   if (b.pret) {
     q.set('pret', String(b.pret));
     if (b.pretReste != null) q.set('pretreste', String(b.pretReste));
   }
+  if (b.cc) q.set('cc', String(b.cc));
   if (b.paiement) q.set('paiement', b.paiement);
   /* `!= null` et non `if (b.cnssPct)` : zéro est précisément la valeur qu'il
      faut transmettre — c'est elle qui éteint la retenue sur le bulletin. */

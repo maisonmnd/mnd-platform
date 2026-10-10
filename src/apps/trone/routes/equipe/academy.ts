@@ -2,6 +2,7 @@ import { createStore, useStore, uid } from '../../../../shared/store';
 import { type SignatureTracee } from '../../../../shared/contrats';
 import { bindCollection } from '../../../../shared/sync';
 import type { Formation, Payment } from './data';
+import type { DemandeAcademie } from '../../../../shared/academie-demandes';
 
 /* ═══════════════════════════════════════════════════════════════════════════
    Académie MND — Suivi & Certification de l'apprenant.
@@ -202,13 +203,24 @@ export type Enrollment = {
    ON SUIT LE NOM. Un module retiré laisse sa séance sans module, et sa note
    hors de tout rang (-1) : elle ne compte plus pour la certification, mais
    elle reste lisible, on n'efface pas une note. Un rang hors de l'ancien
-   parcours (une donnée déjà cassée) reste tel quel : on ne devine pas. */
+   parcours (une donnée déjà cassée) reste tel quel : on ne devine pas.
+
+   UN RENOMMAGE N'EST PAS UN RETRAIT — 10 octobre 2026 (revue). Suivre le
+   seul nom faisait d'un nom corrigé un module retiré : ses séances perdaient
+   leur module, ses notes passaient à -1, et le jury était refusé ; remettre
+   l'ancien nom ne rattachait rien. Le formulaire garde donc, ligne par
+   ligne, le rang d'ORIGINE du module (`origines[j]` = son ancien rang, absent
+   pour une ligne neuve). Avec lui, on suit la LIGNE : renommer garde le rang,
+   seule une ligne supprimée détache. Sans lui (appel d'avant), on suit le nom. */
 export function realigneLesModules(
   e: Enrollment, anciens: readonly string[], nouveaux: readonly string[],
+  origines?: readonly (number | undefined)[],
 ): Enrollment {
+  const table = origines ? rangsDepuisLesOrigines(anciens.length, origines) : null;
   const rangNeuf = (i: number): number | 'retire' | 'inconnu' => {
     const nom = anciens[i];
     if (nom === undefined) return 'inconnu';
+    if (table) return table[i];
     const j = nouveaux.indexOf(nom);
     return j >= 0 ? j : 'retire';
   };
@@ -229,6 +241,21 @@ export function realigneLesModules(
   });
   return change ? { ...e, sessions, evaluations } : e;
 }
+
+/** Ancien rang → nouveau rang, ou « retire » si sa ligne a été supprimée.
+    Une origine hors de l'ancien parcours compte pour une ligne neuve. */
+export function rangsDepuisLesOrigines(nbAnciens: number, origines: readonly (number | undefined)[]): (number | 'retire')[] {
+  const table: (number | 'retire')[] = Array.from({ length: nbAnciens }, () => 'retire' as const);
+  origines.forEach((o, j) => {
+    if (o != null && Number.isInteger(o) && o >= 0 && o < nbAnciens && table[o] === 'retire') table[o] = j;
+  });
+  return table;
+}
+
+/** Les cases cochées suivent leur ligne comme les séances : un module renommé
+    reste fait, une ligne neuve part décochée. */
+export const modulesFaitsSuivent = (faits: readonly boolean[], nbAnciens: number, origines: readonly (number | undefined)[]): boolean[] =>
+  origines.map((o) => (o != null && o >= 0 && o < nbAnciens ? !!faits[o] : false));
 
 /* ---------- Magasins ---------- */
 export const academyApplicationsStore = createStore<AcademyApplication[]>('mnd_academy_applications', []);
@@ -321,6 +348,27 @@ export const newEnrollment = (init: Pick<Enrollment, 'learnerName' | 'formationI
   evaluations: [],
   ...init,
 });
+
+/* UNE DEMANDE DU SITE DEVIENT UNE INSCRIPTION — 10 octobre 2026 (revue).
+   On la bâtit sur la ligne RELUE au moment du clic, jamais sur la copie lue
+   à l'ouverture de la file : un acompte confirmé entre-temps par
+   `kkiapay-verify` entre ainsi au dossier. Une demande déjà inscrite (statut
+   ou inscription liée) est refusée : un second clic ne fait pas un second
+   dossier. */
+export function inscriptionDepuisDemande(d: DemandeAcademie, formationId: string): { ok: true; inscription: Enrollment } | { ok: false; raison: string } {
+  if (d.statut === 'inscrite' || d.enrollmentId) return { ok: false, raison: `${d.nom} est déjà inscrite : son dossier est dans le Suivi.` };
+  return {
+    ok: true,
+    inscription: newEnrollment({
+      learnerName: d.nom,
+      formationId,
+      priceXof: d.prixXof,
+      ...(d.acompteConfirme
+        ? { payments: [{ id: `pay-${uid()}`, amountXof: d.acompteVerseXof ?? d.acompteXof, date: (d.payeLe ?? '').slice(0, 10), method: 'KkiaPay' }] }
+        : {}),
+    }),
+  };
+}
 
 /* ---------- Formation (suivi manuel) ----------
    `priceXof` = NET convenu (ce qui est dû). Repli sur le prix catalogue de la

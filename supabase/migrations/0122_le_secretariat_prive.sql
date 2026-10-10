@@ -4,11 +4,13 @@
 -- À COLLER TEL QUEL dans Supabase → SQL Editor, puis Run. Un seul bloc.
 --
 -- Le dossier de bourse scolaire (onglet « Bourse » du Secrétariat) prépare
--- des pièces au nom de NYM SARL et de M. Thomas BOYA : une attestation qui
+-- des pièces au nom de NYM SARL et de l'hébergeant : une attestation qui
 -- dit un salaire, des noms et dates de naissance d'enfants. Une pièce
 -- d'entreprise se lisait de tout le personnel (0116) ; seule une lettre
 -- personnelle était réservée à la direction. Désormais, une ligne marquée
 -- `prive: true` l'est aussi, quelle que soit son entité.
+-- (10 octobre 2026 : le dépôt est public, aucun particulier n'y est nommé ;
+-- ce commentaire seul a changé, le bloc est celui qui a été passé.)
 --
 -- Le reste de 0116 ne change pas : signé figé, chacun sa signature,
 -- effacer réservé à la direction.

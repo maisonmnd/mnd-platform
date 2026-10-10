@@ -3,7 +3,7 @@ import {
 } from './secretariat';
 import { rangeDansLeCadre, type DossierBourse, type Entreprise, type LigneSecretariat, type Piece } from './secretariat-pur';
 import {
-  documentsDeLaCampagne, hebergeantSaisi, lignesDuBordereau, lis, reponsesAuFormulaire, sansPreposition, signeHebergeant, moisDesReleves, type Campagne, type Membres, type Valeurs,
+  documentsDeLaCampagne, hebergeantSaisi, lignesDuBordereau, lis, rccmDe, reponsesAuFormulaire, sansPreposition, signeHebergeant, moisDesReleves, type Campagne, type Membres, type Valeurs,
 } from './bourse-pur';
 import { octetsDUnePage } from './papiers';
 import { texteDeLaMarque, titreDuPapier, type Papier } from './papiers-pur';
@@ -81,7 +81,7 @@ export function prepareLesDocuments(o: { branchId: string; moi: string; c: Campa
   const nomNym = nym.signataire?.trim() || '[nom du mandataire]';
   const existants = documentsDuDossier(lignes, o.c);
   const r: Preparation = { crees: 0, repris: 0, laisses: 0, sansHebergeant: !hebergeant };
-  for (const doc of documentsDeLaCampagne(o.v, o.c, nomNym.replace(/,.*$/, ''))) {
+  for (const doc of documentsDeLaCampagne(o.v, o.c, nomNym.replace(/,.*$/, ''), rccmDe(nym.mentions))) {
     const cle = cleDuDocument(o.c, doc.cle);
     const deja = existants.find((p) => p.dossier === cle);
     if (deja && deja.etat !== 'brouillon') { r.laisses++; continue; }
@@ -161,7 +161,8 @@ export async function bordereauPdf(v: Valeurs, c: Campagne): Promise<Uint8Array>
   k.w.y -= 4;
   k.texte('Bordereau du dossier de demande de bourses scolaires', { taille: 18, font: k.gras });
   k.w.y -= 2;
-  k.texte(`Famille AHOUANSOU · BOYA, Cotonou. Trois enfants scolarisés à l’${lis(v, 'ecole')} pour l’année ${c.cle}. Ce bordereau ouvre le dossier déposé à la section consulaire : les pièces suivent dans cet ordre, numérotées.`, { taille: 11, couleur: k.doux });
+  /* Le nom de la famille est un champ du dossier privé, jamais écrit ici (10 octobre 2026). */
+  k.texte(`Famille ${lis(v, 'famille')}, Cotonou. Trois enfants scolarisés à l’${lis(v, 'ecole')} pour l’année ${c.cle}. Ce bordereau ouvre le dossier déposé à la section consulaire : les pièces suivent dans cet ordre, numérotées.`, { taille: 11, couleur: k.doux });
   k.w.y -= 10;
   const cols = [k.marge, k.marge + 34, k.marge + 330];
   k.place(20);

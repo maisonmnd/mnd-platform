@@ -234,6 +234,20 @@ export async function retireUnePersonne(p: Personne): Promise<{ ok: boolean; err
 
 /* ══ LE DOSSIER À REMETTRE : un seul PDF, marqué ═════════════════════ */
 
+/** Une page du compartiment n'a pas pu être lue (réseau, fichier retiré). */
+export class PageIllisible extends Error {
+  readonly page: string;
+  constructor(page: string) { super(`Page illisible : ${page}`); this.name = 'PageIllisible'; this.page = page; }
+}
+
+/** Ce que l'écran dit d'un dossier refusé (10 octobre 2026, reprise de la
+    revue) : la pièce et la page en cause quand c'est une page illisible,
+    sinon le refus seul. Sans le nom, la direction devait rouvrir chaque
+    papier coché pour trouver quelle page redéposer. */
+export const motDuRefus = (e: unknown): string => (e instanceof PageIllisible
+  ? `Le dossier n’a pas pu être assemblé : la page ${e.page} est illisible. Redéposez-la dans son papier, puis recommencez.`
+  : 'Le dossier n’a pas pu être assemblé.');
+
 /** Assemble les pièces en un PDF : une page de garde (à qui, quand, quoi),
     puis chaque page de chaque pièce, la marque en travers de chacune. */
 export async function assembleLeDossier(o: {
@@ -264,11 +278,15 @@ export async function assembleLeDossier(o: {
     y -= 18;
   });
 
-  /* Les pages de chaque pièce */
-  for (const { papier } of o.pieces) {
+  /* Les pages de chaque pièce. UNE PAGE ILLISIBLE ARRÊTE TOUT (10 octobre
+     2026, revue) : la page de garde l'a déjà annoncée, un dossier qui
+     l'omettrait mentirait au destinataire, et l'écran noterait « remise » au
+     journal. On lève : chaque appel de l'écran attrape, dit « une page est
+     peut-être illisible » et ne trace rien. */
+  for (const { papier, titulaireNom } of o.pieces) {
     for (const page of papier.pages) {
       const octets = await lis(page.chemin);
-      if (!octets) continue;
+      if (!octets) throw new PageIllisible(`${titreDuPapier(papier)} · ${titulaireNom} · ${page.nom}`);
       if (page.type === 'application/pdf') {
         const source = await PDFDocument.load(octets, { ignoreEncryption: true });
         const copiees = await doc.copyPages(source, source.getPageIndices());

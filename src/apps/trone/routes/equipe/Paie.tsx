@@ -671,8 +671,11 @@ function RunDetail({ run, orphanMasters = [], onClose }: { run: PayrollRun; orph
   const bulletinFor = (l: PayrollLine) => bulletinHref(asset('/bulletin.html'), {
     nom: l.name, poste: l.poste, matricule: l.matricule, cnssnum: l.cnssNum, periode: run.period,
     base: l.gains.base, hs: l.gains.heuresSup, prime: l.gains.prime, pourboires: l.gains.pourboires,
-    commission: l.gains.commission, avance: l.deductions.avance, retenue: l.deductions.autresRetenues,
+    commission: l.gains.commission, indemnites: l.gains.indemnites, avance: l.deductions.avance, retenue: l.deductions.autresRetenues,
     pret: l.deductions.retenuePret,
+    /* Le compte courant d'associé voyage aussi (10 octobre 2026) : sans lui,
+       le bulletin papier d'un associé imprimait un net plus haut que le virement. */
+    cc: l.deductions.retenueCompteCourant,
     pretReste: l.pret ? Math.max(0, l.pret.resteAvantXof - (l.deductions.retenuePret ?? 0)) : undefined,
     paiement: l.paiement,
     /* LE TAUX SUIT LE BULLETIN. La page refait le calcul de son côté et

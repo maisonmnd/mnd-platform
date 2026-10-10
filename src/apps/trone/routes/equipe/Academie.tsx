@@ -26,7 +26,7 @@ import { parcoursAPoser, completeLaFiche, PUBLIC_LABEL, PARCOURS_MND, dureeDite,
 import { useManuel, manuelStore, lisLeManuel, peutEcrireLeManuel } from '../../../../shared/manuel';
 import ManuelEditeur from './ManuelEditeur';
 import { useStaff as useMonProfil } from '../../../../shared/auth';
-import { useEnrollments, depositAmountFor, realigneLesModules } from './academy';
+import { useEnrollments, depositAmountFor, modulesFaitsSuivent, realigneLesModules } from './academy';
 import { sameName } from '../../../../shared/text';
 import CopieAuDossier from './CopieAuDossier';
 import { ChampDeDate } from '../../../../ds/dates';
@@ -44,7 +44,10 @@ const payTone = (p: Apprenant['pay']): 'ok' | 'warn' | 'error' => (p === 'À jou
    (dans le composant), non plus à l'import de ce module. */
 /* UN MODULE, TEL QU'ON LE SAISIT (13 septembre 2026) : son nom, que le Suivi
    évalue, ses séances et ce qu'on y apprend. */
-type ModuleForm = { nom: string; seances: string; contenu: string };
+/* `origine` (10 octobre 2026) : le rang du module à l'ouverture du
+   formulaire, absent sur une ligne neuve. Il suit la ligne quand on la
+   déplace ou la renomme : séances, notes et cases cochées la suivent par lui. */
+type ModuleForm = { nom: string; seances: string; contenu: string; origine?: number };
 type FormationForm = {
   name: string; niveau: string; description: string; sessions: string; demarrage: string; places: string;
   price: string; duree: string; deposit: string; modules: ModuleForm[]; featured: boolean;
@@ -250,7 +253,7 @@ export default function Academie() {
       depositMode: (f.depositXof ?? 0) > 0 ? 'xof' : 'pct', depositXof: (f.depositXof ?? 0) > 0 ? String(f.depositXof) : '',
       modules: noms.map((nom, i) => {
         const ligne = f.modules && f.modules.length ? f.programme?.[i] : undefined;
-        return { nom, seances: ligne?.seances ? String(ligne.seances) : '', contenu: ligne?.contenu ?? '' };
+        return { nom, seances: ligne?.seances ? String(ligne.seances) : '', contenu: ligne?.contenu ?? '', origine: i };
       }),
       featured: !!f.featured,
       public: f.public ?? '', accroche: f.accroche ?? '', pourQui: f.pourQui ?? '', pourEntrer: f.pourEntrer ?? '',
@@ -270,9 +273,10 @@ export default function Academie() {
     /* Une ligne sans nom tombe, et sa séance et son contenu avec elle : le
        programme reste aligné sur les modules, index pour index. */
     const lignes = foForm.modules
-      .map((m) => ({ nom: m.nom.trim(), seances: parseInt(m.seances.replace(/[^0-9]/g, ''), 10) || 0, contenu: m.contenu.trim() }))
+      .map((m) => ({ nom: m.nom.trim(), seances: parseInt(m.seances.replace(/[^0-9]/g, ''), 10) || 0, contenu: m.contenu.trim(), origine: m.origine }))
       .filter((m) => m.nom);
     const modules = lignes.map((m) => m.nom);
+    const origines = lignes.map((m) => m.origine);
     const contenu = {
       public: foForm.public || undefined,
       accroche: foForm.accroche.trim() || undefined,
@@ -289,20 +293,20 @@ export default function Academie() {
       setFormations((prev) => prev.map((f) => (f.id === foEditId
         ? { ...f, name: foForm.name.trim(), niveau: foForm.niveau, description: foForm.description.trim() || undefined, sessions, demarrage: foForm.demarrage.trim(), places: foForm.places.trim(), priceXof, dureeSemaines, depositPct, depositXof: acompteFixe, modules, featured, ...contenu }
         : (featured ? { ...f, featured: false } : f))));
-      /* Réaligne la progression des apprenant·e·s inscrit·e·s par NOM de module : ajout,
-         retrait ou réordonnancement ne décalent plus les cases cochées (un renommage
-         repart de zéro pour ce module). */
-      const modulesChanged = oldNames.length !== modules.length || oldNames.some((nm, i) => nm !== modules[i]);
+      /* Réaligne la progression des apprenant·e·s inscrit·e·s par LIGNE de module
+         (son rang d'origine, 10 octobre 2026) : ajout, retrait, réordonnancement
+         et RENOMMAGE ne décalent ni n'effacent plus les cases cochées. */
+      const modulesChanged = oldNames.length !== modules.length || oldNames.some((nm, i) => nm !== modules[i] || origines[i] !== i);
       if (modulesChanged) {
         setApprenants((prev) => prev.map((a) => {
           if (a.formationId !== foEditId) return a;
-          const done = new Map(oldNames.map((nm, i) => [nm, !!a.modulesDone[i]]));
-          return { ...a, modulesDone: modules.map((nm) => done.get(nm) ?? false) };
+          return { ...a, modulesDone: modulesFaitsSuivent(a.modulesDone, oldNames.length, origines) };
         }));
-        /* ET LES DOSSIERS DE SÉANCES SUIVENT AUSSI, par le nom du module :
+        /* ET LES DOSSIERS DE SÉANCES SUIVENT AUSSI, par la ligne du module :
            une séance ou une note ne doit pas glisser vers le module d'à côté
-           parce qu'on en a déplacé un (voir `realigneLesModules`). */
-        setEnrollments((prev) => prev.map((e) => (e.formationId === foEditId ? realigneLesModules(e, oldNames, modules) : e)));
+           parce qu'on en a déplacé un, ni se détacher parce qu'on l'a
+           renommé (voir `realigneLesModules`). */
+        setEnrollments((prev) => prev.map((e) => (e.formationId === foEditId ? realigneLesModules(e, oldNames, modules, origines) : e)));
       }
     } else {
       setFormations((prev) => [

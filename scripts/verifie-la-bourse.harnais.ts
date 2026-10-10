@@ -11,7 +11,9 @@
    5. RIEN NE S'INVENTE : un champ vide s'écrit entre crochets, et le
       Secrétariat refuse de signer un document entre crochets.
    6. LES TEXTES : ni tiret long, ni « salon », l'année toujours écrite,
-      Mme Praxede BOYA (jamais « Praxeder »), un mandataire pour NYM SARL.
+      la gérante telle que saisie, un mandataire pour NYM SARL. AUCUN NOM DE
+      LA FAMILLE dans le code (10 octobre 2026) : les valeurs d'essai
+      ci-dessous sont fictives, les vraies vivent dans le dossier privé.
    7. LE PRIVÉ : chaque document préparé porte `prive`, la fiche de
       l'hébergeant aussi, NOMMÉ PAR LA DIRECTION (aucun nom dans le code ;
       sans nom, son attestation et ses quittances attendent) ; la base le garde (0122). Reprendre les documents ne touche pas
@@ -47,8 +49,11 @@ dit('mars 2027 : encore 2027-2028 ; juin 2027 : 2028-2029', ['2027-2028', '2028-
 dit('le depot saisi l emporte', '2027-01-22', campagneDe('2026-10-07', '2027-01-22').depot);
 
 /* ── 2. LES CLASSES ── */
-dit('les classes avancent d un cran par rentree', ['CE2', 'CM1', '6e', '3e', 'études supérieures'],
-  [classeA('CE2', 2027), classeA('CE2', 2028), classeA('CM2', 2028), classeA('4e', 2028), classeA('Tle', 2028)]);
+/* Des classes d'essai (10 octobre 2026, reprise de la revue) : l'ancien trio
+   était celui des trois enfants, donc leur âge. Le passage du CM2 en 6e reste
+   éprouvé, seul. */
+dit('les classes avancent d un cran par rentree', ['CP', 'CE1', '6e', '2de', 'études supérieures'],
+  [classeA('CP', 2027), classeA('CP', 2028), classeA('CM2', 2028), classeA('3e', 2028), classeA('Tle', 2028)]);
 
 /* ── 3. LES DATES ── */
 dit('quittances : novembre, decembre, janvier pour un depot au 30 janvier', ['2026-11', '2026-12', '2027-01'], moisDesQuittances('2027-01-30'));
@@ -63,8 +68,9 @@ dit('montants en lettres', ['soixante mille', 'soixante-et-onze', 'quatre-vingts
 
 /* ── 5. RIEN NE S'INVENTE ── */
 dit('un champ vide s ecrit entre crochets, les sigles gardes', ['[n° d’inscription au registre des Français (NUMIC)]', '[votre poste chez NYM SARL]'], [lis({}, 'numic'), lis({}, 'poste')]);
-dit('un defaut connu se reprend tel quel', 'BOYA épouse AHOUANSOU Yéman', lis({}, 'demandeur'));
-dit('ce qui reste a saisir ignore les champs a defaut', false, aSaisir({}).some((x) => x.cle === 'demandeur'));
+dit('un defaut connu se reprend tel quel', 'néant', lis({}, 'adresseFrance'));
+dit('le demandeur n a plus de defaut : il s ecrit entre crochets', '[nom et prénom du demandeur]', lis({}, 'demandeur'));
+dit('ce qui reste a saisir ignore les champs a defaut', [false, true], [aSaisir({}).some((x) => x.cle === 'adresseFrance'), aSaisir({}).some((x) => x.cle === 'demandeur')]);
 const docsVides = documentsDeLaCampagne({}, c, '[nom du mandataire]');
 dit('six documents par campagne', ['03', '04', '05', '06', '07', '08'], docsVides.map((d) => d.cle));
 dit('sans les donnees, l attestation NYM SARL garde ses crochets (elle ne se signera pas)', true, compteLesACompleter(docsVides[1].corps) > 0);
@@ -72,8 +78,12 @@ const v = {
   poste: 'assistante de direction', entree: '2015-03-01', brut: '4800000', net: '4200000', valeurLocative: '150000', hebergeDepuis: '2012',
   naissanceDemandeur: '1990-06-15', p2Naissance: '1989-02-02', logement: 'au lot 12, Cotonou', hebergeantAdresse: 'au lot 3, Cotonou',
   e1Prenom: 'Aïna', e1Naissance: '2019-05-02', e2Prenom: 'Élie', e2Naissance: '2017-08-14', e3Prenom: 'Noa', e3Naissance: '2014-01-20',
+  /* Fictifs (10 octobre 2026) : les noms et les classes ne sont plus des défauts du code. */
+  demandeur: 'ESSAI épouse TEST Ada', demandeurPhrase: 'Mme Ada ESSAI épouse TEST', gerante: 'Mme R. ESSAI',
+  p2Nom: 'TEST', p2Prenoms: 'Jean Paul', nomEnfants: 'TEST', famille: 'TEST · ESSAI', ecole: 'École d’essai, Cotonou',
+  e1Classe2027: 'CP', e2Classe2027: 'CM1', e3Classe2027: '5e',
 };
-const pleins = documentsDeLaCampagne(v, c, 'M. X');
+const pleins = documentsDeLaCampagne(v, c, 'M. X', 'RB/COT/00 B 0000');
 dit('avec les donnees : plus aucun crochet dans l attestation NYM SARL', 0, compteLesACompleter(pleins[1].corps));
 dit('l attestation dit le brut en lettres et en chiffres', true, pleins[1].corps.includes('quatre millions huit cent mille'));
 dit('la quittance dit soixante mille', true, pleins[3].corps.includes('soixante mille'));
@@ -91,15 +101,16 @@ dit('ni tiret long ni « salon »', [false, false], [tousLesTextes.includes('—
    dans le code (elles vivent dans le dossier privé). */
 const sources = ['src/shared/bourse-pur.ts', 'src/shared/bourse.ts', 'src/apps/trone/routes/pilotage/secretariat/Bourse.tsx'].map((f) => readFileSync(f, 'utf8')).join('\n');
 dit('aucune date de naissance ni adresse de la famille dans le code', [false, false], [/\b19[5-9]\d-\d{2}-\d{2}\b/.test(sources), /\bQIP\b/.test(sources)]);
-dit('Mme Praxede BOYA, jamais Praxeder', [true, false], [tousLesTextes.includes('Praxede BOYA'), tousLesTextes.includes('Praxeder')]);
+dit('la gerante est celle saisie, a l attestation et au formulaire', [true, true],
+  [pleins[1].corps.includes('gérante de la société, Mme R. ESSAI'), reponsesAuFormulaire(v, c).some((b) => b.lignes.some(([, r]) => r.includes('gérée par Mme R. ESSAI')))]);
 dit('l attestation NYM SARL est signee par un mandataire, sans « ma fille »', [true, false], [pleins[1].corps.includes('agissant pour le compte de la société NYM SARL'), pleins[1].corps.includes('ma fille')]);
-dit('la lettre nomme la campagne et les classes de la rentree', [true, true], [pleins[0].objet.includes('2027-2028'), pleins[0].corps.includes('en CE2')]);
+dit('la lettre nomme la campagne et les classes de la rentree', [true, true], [pleins[0].objet.includes('2027-2028'), pleins[0].corps.includes('Aïna TEST, en CP')]);
 dit('les quittances avant le depot', true, pleins.slice(3).every((d) => d.date < c.depot));
 dit('les dates sont ecrites avec l annee', true, /\d{1,2}(er)? [a-zéû]+ \d{4}/.test(pleins[1].corps));
 
 /* ── 7. LE PRIVÉ, avec le vrai magasin ── */
 const branchId = 'br-essai';
-creeEntreprise({ branchId, nom: 'NYM SARL', mentions: 'RCCM RB/COT/09 B 4639 · IFU 3200700011313 · Cotonou, Bénin', telephone: '', signataire: 'M. X, mandataire' });
+creeEntreprise({ branchId, nom: 'NYM SARL', mentions: 'Société à responsabilité limitée · RCCM RB/COT/00 B 0000 (ancien n° 0.000-B) · IFU 0000000000000 · Cotonou, Bénin', telephone: '', signataire: 'M. X, mandataire' });
 const r0 = prepareLesDocuments({ branchId, moi: 'u-yeman', c, v });
 dit('sans le nom de l hebergeant : seuls la lettre et l attestation NYM SARL se preparent', [2, true], [r0.crees, r0.sansHebergeant]);
 const vh = { ...v, hebergeant: 'Mme Z. ESSAI' };
@@ -116,13 +127,21 @@ dit('l attestation d hebergement et la quittance le nomment', [true, true],
 prepareLesDocuments({ branchId, moi: 'u-yeman', c, v: { ...vh, hebergeant: 'M. W. ESSAI', hebergeantSigne: 'Lui-même' } });
 dit('changer le nom renomme LA MEME fiche, et « lui-meme » retire le P/O', [1, 'M. W. ESSAI', 'M. W. ESSAI'], [fiches().length, fiches()[0]?.nom, fiches()[0]?.signataire]);
 prepareLesDocuments({ branchId, moi: 'u-yeman', c, v: vh });
-const modules = ['src/shared/bourse-pur.ts', 'src/shared/bourse.ts', 'src/apps/trone/routes/pilotage/secretariat/Bourse.tsx', 'src/apps/trone/routes/pilotage/secretariat/RappelDeLaBourse.tsx']
-  .map((f) => readFileSync(f, 'utf8')).join('\n');
-dit('aucun hebergeant nomme dans le code', false, /Thomas/.test(modules));
-dit('les valeurs gardees sous les anciens noms reprennent les leurs', [{ hebergeantTel: 'neuf', hebergeantAdresse: 'au lot 3' }, 't1'],
-  [aJour({ ['tho' + 'masAdresse']: 'au lot 3', ['tho' + 'masTel']: 'vieux', hebergeantTel: 'neuf' }), membresAJour({ ['tho' + 'mas']: 't1' }).hebergeant]);
+/* Le prénom de l'hébergeant n'est plus écrit ici, ni en clair ni en morceaux
+   (10 octobre 2026, reprise de la revue) : son absence se vérifie avec la
+   liste privée, hors dépôt (verifie-revue-equipe-docs). Ici, la FORME : aucun
+   mot recomposé de morceaux de chaînes pour échapper à une recherche. */
+const modulesSansCommentaires = ['src/shared/bourse-pur.ts', 'src/shared/bourse.ts', 'src/apps/trone/routes/pilotage/secretariat/Bourse.tsx', 'src/apps/trone/routes/pilotage/secretariat/RappelDeLaBourse.tsx']
+  .map(sansCommentaires).join('\n');
+dit('aucun mot recompose de morceaux dans le code du dossier', false, /(['`])[A-Za-z]+\1\s*\+\s*(['`])[A-Za-z]+\2/.test(modulesSansCommentaires));
+dit('les valeurs gardees sous les anciens noms reprennent les leurs, reconnues a leur forme',
+  [{ hebergeantTel: 'neuf', hebergeantAdresse: 'au lot 3', hebergeDepuis: '2012' }, 't1', 'y1'],
+  [aJour({ oncleAdresse: 'au lot 3', oncleTel: 'vieux', hebergeantTel: 'neuf', oncleDepuis: '2012' }), membresAJour({ oncle: 't1', yeman: 'y1' }).hebergeant, membresAJour({ oncle: 't1', yeman: 'y1' }).yeman]);
+dit('un champ d aujourd hui n est jamais pris pour une ancienne cle', { hebergeantAdresse: 'au lot 3', adresse: 'au lot 12' },
+  aJour({ hebergeantAdresse: 'au lot 3', adresse: 'au lot 12' }));
 const nymDoc = prepares.find((p) => p.dossier?.endsWith(':04'))!;
 dit('l attestation NYM SARL porte le cachet commercial et le signataire de l entreprise', ['auto-cachet', 'entreprise'], [nymDoc.tampon, nymDoc.signataires[0]?.userId]);
+dit('l attestation NYM SARL lit son RCCM dans la fiche de l entreprise', true, nymDoc.corps.includes('sous le numéro RB/COT/00 B 0000 (ancien n° 0.000-B), atteste'));
 signeLaPiece(nymDoc, 'entreprise', 'data:image/png;base64,AAA');
 const r2 = prepareLesDocuments({ branchId, moi: 'u-yeman', c, v: { ...vh, brut: '5000000' } });
 dit('reprendre : cinq repris, le signe laisse tel quel', [0, 5, 1], [r2.crees, r2.repris, r2.laisses]);

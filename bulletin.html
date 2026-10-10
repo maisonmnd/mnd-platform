@@ -7,7 +7,7 @@
      document personnel n a rien a faire dans Google. Le robots.txt de
      /trone/ ne comptait pas, seul celui de la racine est lu. -->
 <meta name="robots" content="noindex" />
-<title>Bulletin de Paie — Maison MND</title>
+<title>Bulletin de Paie · Maison MND</title>
     <!-- ══ LA CARTE DE LIEN — 7 septembre 2026 ═════════════════════════
          « Quand j'envoie le lien de MND, ça doit se présenter comme celui de
          Claude » (Yéman) : la carte compacte, vignette à gauche, titre et
@@ -322,9 +322,15 @@
         <input id="g-pourboires" type="number" value="12000" min="0" step="500">
       </div>
     </div>
-    <div class="field">
-      <label for="g-commission">Commission sur prestations</label>
-      <input id="g-commission" type="number" value="46000" min="0" step="500">
+    <div class="grid2">
+      <div class="field">
+        <label for="g-commission">Commission sur prestations</label>
+        <input id="g-commission" type="number" value="46000" min="0" step="500">
+      </div>
+      <div class="field">
+        <label for="g-indemnites">Indemnités</label>
+        <input id="g-indemnites" type="number" value="0" min="0" step="500">
+      </div>
     </div>
 
     <p class="p-section">Retenues (FCFA)</p>
@@ -341,6 +347,10 @@
         <label for="r-pret">Remboursement de prêt</label>
         <input id="r-pret" type="number" value="0" min="0" step="500">
         <input id="r-pretreste" type="hidden" value="">
+      </div>
+      <div class="field">
+        <label for="r-cc">Compte courant d’associé</label>
+        <input id="r-cc" type="number" value="0" min="0" step="500">
       </div>
     </div>
 
@@ -414,6 +424,7 @@
           <tr id="l-prime"><td class="lib">Prime</td><td class="det">du mois</td><td class="mnt" id="m-prime"></td></tr>
           <tr id="l-pourboires"><td class="lib">Pourboires</td><td class="det">part collectée</td><td class="mnt" id="m-pourboires"></td></tr>
           <tr id="l-commission"><td class="lib">Commission sur prestations</td><td class="det">encaissées</td><td class="mnt" id="m-commission"></td></tr>
+          <tr id="l-indemnites"><td class="lib">Indemnités</td><td class="det"></td><td class="mnt" id="m-indemnites"></td></tr>
           <tr class="subtotal"><td class="lib">Salaire brut</td><td class="det"></td><td class="mnt" id="m-brut"></td></tr>
         </table>
       </section>
@@ -425,11 +436,12 @@
           <div class="s-line" aria-hidden="true"></div>
         </div>
         <table class="lignes">
-          <tr><td class="lib">CNSS — part salariale</td><td class="det" id="d-tauxcnss">3,6 % du brut</td><td class="mnt" id="m-cnssv"></td></tr>
-          <tr><td class="lib">ITS — impôt sur les traitements et salaires</td><td class="det" id="d-detits">barème progressif</td><td class="mnt" id="m-its"></td></tr>
+          <tr><td class="lib">CNSS, part salariale</td><td class="det" id="d-tauxcnss">3,6 % du brut</td><td class="mnt" id="m-cnssv"></td></tr>
+          <tr><td class="lib">ITS, impôt sur les traitements et salaires</td><td class="det" id="d-detits">barème progressif</td><td class="mnt" id="m-its"></td></tr>
           <tr id="l-avance"><td class="lib">Avance sur salaire</td><td class="det">remboursement</td><td class="mnt" id="m-avance"></td></tr>
           <tr id="l-autre"><td class="lib">Autre retenue</td><td class="det"></td><td class="mnt" id="m-autre"></td></tr>
           <tr id="l-pret"><td class="lib">Remboursement de prêt</td><td class="det" id="d-pret">prêt sans intérêt</td><td class="mnt" id="m-pret"></td></tr>
+          <tr id="l-cc"><td class="lib">Compte courant d’associé</td><td class="det">remboursement à la Maison</td><td class="mnt" id="m-cc"></td></tr>
           <tr class="subtotal"><td class="lib">Total des retenues</td><td class="det"></td><td class="mnt" id="m-retenues"></td></tr>
         </table>
       </section>
@@ -540,14 +552,16 @@
 
     // Gains
     var base = num('g-base'), hs = num('g-hs'), prime = num('g-prime'),
-        pourboires = num('g-pourboires'), commission = num('g-commission');
-    var brut = base + hs + prime + pourboires + commission;
+        pourboires = num('g-pourboires'), commission = num('g-commission'),
+        indemnites = num('g-indemnites');
+    var brut = base + hs + prime + pourboires + commission + indemnites;
 
     set('m-base', fcfa(base)); 
     set('m-hs', fcfa(hs)); row('l-hs', hs);
     set('m-prime', fcfa(prime)); row('l-prime', prime);
     set('m-pourboires', fcfa(pourboires)); row('l-pourboires', pourboires);
     set('m-commission', fcfa(commission)); row('l-commission', commission);
+    set('m-indemnites', fcfa(indemnites)); row('l-indemnites', indemnites);
     set('m-brut', fcfa(brut));
 
     // Retenues
@@ -559,20 +573,25 @@
     // dit ce qui rembourse un pret, et ce qui reste du apres ce mois.
     var pret = num('r-pret');
     var pretReste = document.getElementById('r-pretreste').value;
-    var retenues = cnss + its + avance + autre + pret;
+    // La retenue du compte courant d'associe a sa ligne (10 octobre 2026) :
+    // le run la deduit du net ; sans elle, le bulletin imprimait un net plus
+    // haut que celui verse.
+    var cc = num('r-cc');
+    var retenues = cnss + its + avance + autre + pret + cc;
 
     // Le bulletin DIT ce qui n'a pas ete applique : un zero sans explication se
     // lit comme un oubli, et l'employe doit pouvoir verifier son net.
-    set('d-detits', ITS_ACTIF ? 'barème progressif' : 'suspendu — non appliqué');
+    set('d-detits', ITS_ACTIF ? 'barème progressif' : 'suspendu, non appliqué');
     set('d-tauxcnss', tauxCnss > 0
       ? String(num('p-cnss')).replace('.',',') + ' % du brut'
-      : 'suspendue — non appliquée');
+      : 'suspendue, non appliquée');
     set('m-cnssv', fcfa(cnss));
     set('m-its', fcfa(its));
     set('m-avance', fcfa(avance)); row('l-avance', avance);
     set('m-autre', fcfa(autre)); row('l-autre', autre);
     set('m-pret', fcfa(pret)); row('l-pret', pret);
     set('d-pret', pretReste !== '' ? 'reste dû après : ' + fcfa(Number(pretReste)) : 'prêt sans intérêt');
+    set('m-cc', fcfa(cc)); row('l-cc', cc);
     set('m-retenues', fcfa(retenues));
 
     // Net + employeur
@@ -592,20 +611,31 @@
 
   // ── Pré-remplissage ERP par l'URL ───────────────
   // bulletin.html?nom=…&poste=…&matricule=…&cnssnum=…&periode=AAAA-MM
-  //   &base=…&hs=…&prime=…&pourboires=…&commission=…&avance=…&retenue=…&paiement=…
+  //   &base=…&hs=…&prime=…&pourboires=…&commission=…&indemnites=…&avance=…&retenue=…
+  //   &pret=…&pretreste=…&cc=…&paiement=…&cnss=…&its=…
   (function(){
     var q = new URLSearchParams(location.search);
     var map = {
       nom:'f-nom', poste:'f-poste', matricule:'f-matricule', cnssnum:'f-cnss',
       periode:'f-periode', base:'g-base', hs:'g-hs', prime:'g-prime',
-      pourboires:'g-pourboires', commission:'g-commission',
+      pourboires:'g-pourboires', commission:'g-commission', indemnites:'g-indemnites',
       avance:'r-avance', retenue:'r-autre', paiement:'p-paiement',
-      pret:'r-pret', pretreste:'r-pretreste',
+      pret:'r-pret', pretreste:'r-pretreste', cc:'r-cc',
       // Le taux CNSS vient de l'ERP : tant que personne n'est declare, il vaut
       // 0 et la retenue s'eteint. Sans ce parametre la page gardait ses 3,6 %
       // et imprimait un net inferieur a celui reellement verse.
       cnss:'p-cnss'
     };
+    // UN BULLETIN DE L'ERP PART DE ZERO (10 octobre 2026, revue). L'ERP
+    // n'ecrit un montant que s'il n'est pas nul : la page gardait alors ses
+    // valeurs d'exemple (prime 25 000, pourboires 12 000, commission 46 000,
+    // avance 30 000) et imprimait un autre net que celui du run.
+    if (q.has('base')) {
+      ['g-hs', 'g-prime', 'g-pourboires', 'g-commission', 'g-indemnites',
+       'r-avance', 'r-autre', 'r-pret', 'r-cc'].forEach(function(id){
+        document.getElementById(id).value = '0';
+      });
+    }
     Object.keys(map).forEach(function(k){
       if (q.has(k)) document.getElementById(map[k]).value = q.get(k);
     });
@@ -616,7 +646,7 @@
 
   // ── Partage ─────────────────────────────────────
   function resume(){
-    return 'Maison MND — Bulletin de paie de ' + txt('f-nom')
+    return 'Maison MND · Bulletin de paie de ' + txt('f-nom')
       + ' (' + document.getElementById('d-periode').textContent + '). '
       + 'Net à payer : ' + document.getElementById('m-net').textContent + ' FCFA, réglé par ' + txt('p-paiement') + '.';
   }
@@ -624,7 +654,7 @@
     window.open('https://wa.me/?text=' + encodeURIComponent(resume()), '_blank');
   }
   function shareEmail(){
-    location.href = 'mailto:?subject=' + encodeURIComponent('Votre bulletin de paie — Maison MND')
+    location.href = 'mailto:?subject=' + encodeURIComponent('Votre bulletin de paie · Maison MND')
       + '&body=' + encodeURIComponent(resume());
   }
 </script>
