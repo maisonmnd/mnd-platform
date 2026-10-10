@@ -9,7 +9,7 @@ import {
   signatairesDe, signeLaPiece, useSecretariat, versLePdf, type DocumentResolu,
 } from '../../../../../shared/secretariat';
 import {
-  annulable, APPELS, clotures, modifiable, supprimable, peutSigner, rangeDansLeCadre, restentASigner, type Cadre, type Piece, type Pose,
+  annulable, APPELS, clotures, modifiable, supprimable, peutSigner, rangeDansLeCadre, restentASigner, signaturesRetirables, corrigeable, type Cadre, type Piece, type Pose,
 } from '../../../../../shared/secretariat-pur';
 import { aCompleter, modeleDe, remplisDepuisEquipe } from '../../../../../shared/secretariat-modeles';
 import { TAMPON_A_DATER, tamponsDe } from '../../../../../shared/secretariat-tampons';
@@ -246,8 +246,8 @@ export function Editeur({ pieceId, direction, onClose, surOuvre }: {
             <Button variant="ghost" onClick={() => void pdf('apercu')} disabled={!!occupe || !r}>Imprimer</Button>
             <Button variant="ghost" onClick={() => void pdf('telecharge')} disabled={!!occupe || !r}>Télécharger le PDF</Button>
             <Button variant="ghost" onClick={() => surOuvre(duplique(p, { auteurId: moi }).id)}>Dupliquer</Button>
-            {p.etat === 'signe' && <Button variant="ghost" onClick={() => surOuvre(duplique(p, { auteurId: moi, remplace: true }).id)}>Corriger (nouveau numéro)</Button>}
-            {direction && (p.etat === 'a-signer' || p.etat === 'signe') && <Button variant="ghost" onClick={() => { annuleLesSignatures(p); toast('Signatures retirées : le document redevient un brouillon.'); }}>Annuler les signatures</Button>}
+            {corrigeable(p) && <Button variant="ghost" onClick={() => surOuvre(duplique(p, { auteurId: moi, remplace: true }).id)}>Corriger (nouveau numéro)</Button>}
+            {direction && signaturesRetirables(p) && <Button variant="ghost" onClick={() => { annuleLesSignatures(p); toast('Signatures retirées : le document redevient un brouillon.'); }}>Annuler les signatures</Button>}
             {direction && supprimable(p) && <Button variant="ghost" onClick={() => { if (effaceLaPiece(p)) onClose(); }}>Supprimer le brouillon</Button>}
             {direction && annulable(p) && (
               annuler

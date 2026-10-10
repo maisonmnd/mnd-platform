@@ -365,7 +365,7 @@ export default function Predictions() {
                     key={m.mot}
                     type="button"
                     className="trv-minibtn trp-glisse__marque"
-                    title={`${l.nom} ${m.question.replace(' ?', '')} — ne plus prédire son retour`}
+                    title={`${l.nom} ${m.question.replace(' ?', '')}, ne plus prédire son retour`}
                     onClick={() => marquer(l.clientId, l.nom, m)}
                   >
                     {m.mot}
@@ -567,7 +567,7 @@ export default function Predictions() {
               depuis la première échéance.
             </li>
             <li>
-              <b>Jamais un jour fermé</b> — {joursFermes} jour{joursFermes > 1 ? 's' : ''} par semaine
+              <b>Jamais un jour fermé</b> : {joursFermes} jour{joursFermes > 1 ? 's' : ''} par semaine
               dans vos réglages, journées exceptionnelles comprises. Et si la fiche dit
               « elle ne vient que le samedi », l’estimation se pose sur son jour.
             </li>

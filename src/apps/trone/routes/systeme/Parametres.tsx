@@ -669,6 +669,16 @@ function SauvegardeCard() {
    Le remède existait — vider `mnd_*` et recharger — mais il demandait la
    console du navigateur, ce qui le rendait inutilisable sur un Mac au
    comptoir. Il est ici, avec le diagnostic qui dit laquelle des trois. */
+/* LE POIDS DE LA MÉMOIRE se lit au tic de cinq secondes et à l'ouverture,
+   jamais dans le corps du rendu (relecture du 10 octobre 2026) : relire tout
+   le localStorage à chaque signal de synchro ou de fiche coûtait une copie
+   de plusieurs Mo par rendu, pour une mesure qui n'a pas changé. */
+const litLaMemoire = () => {
+  try {
+    return resumeDeLaMemoire(Object.keys(localStorage).map((k) => [k, localStorage.getItem(k) ?? ''] as const), 3);
+  } catch { return null; }
+};
+
 function CetAppareil() {
   const { session } = useAuth();
   const { branch } = useBranch();
@@ -679,16 +689,11 @@ function CetAppareil() {
   /* LE POIDS ET LE TRAFIC SE RELISENT TOUTES LES CINQ SECONDES (1er octobre
      2026). Ils ne tiennent à aucun magasin : sans cette horloge, le panneau
      afficherait la mesure du moment où on l'a ouvert. */
-  const [, relis] = useState(0);
+  const [memoire, setMemoire] = useState(litLaMemoire);
   useEffect(() => {
-    const t = window.setInterval(() => relis((n) => n + 1), 5000);
+    const t = window.setInterval(() => setMemoire(litLaMemoire()), 5000);
     return () => window.clearInterval(t);
   }, []);
-  const memoire = (() => {
-    try {
-      return resumeDeLaMemoire(Object.keys(localStorage).map((k) => [k, localStorage.getItem(k) ?? ''] as const), 3);
-    } catch { return null; }
-  })();
   const recues = ecrituresRecues();
   const recuesEnTout = recues.reduce((n, r) => n + r.n, 0);
 
@@ -777,7 +782,7 @@ function CetAppareil() {
           <div className="sys-appareil__row">
             <span className="sys-appareil__lab">Refus du serveur</span>
             <span className="sys-appareil__val">
-              {sync.failedWhy.map((f) => `${f.table} · ${f.raison}`).join(' — ')}
+              {sync.failedWhy.map((f) => `${f.table} · ${f.raison}`).join(' ; ')}
             </span>
           </div>
         )}

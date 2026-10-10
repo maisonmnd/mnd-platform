@@ -13,6 +13,7 @@ import {
 import {
   ajouteUnePersonne, assembleLeDossier, chargeLeClasseur, retireUnePersonne, copieEnMemoire, deposeLesPages, effaceUnPapier, enDataUrl, gardeUnPapier,
   lienDUnePage, modifieUnPapier, noteAuJournal, oublieLeClasseur, papiersDe, personnesDe, remplaceUnPapier, useClasseur,
+  motDuRefus,
 } from '../../../../../shared/papiers';
 
 /* LES PAPIERS — l'onglet du secrétariat (maquette FBNmp7Q5PPrS9gpd1r613D).
@@ -473,7 +474,7 @@ function RemettreUnDossier({ papiers, titulaires, qui, branchId, depart, onClose
       setTimeout(() => URL.revokeObjectURL(url), 5000);
       await trace('téléchargé');
       toast('Dossier prêt.');
-    } catch { toast('Le dossier n’a pas pu être assemblé : une page est peut-être illisible.'); } finally { setOccupe(''); }
+    } catch (e) { toast(motDuRefus(e)); } finally { setOccupe(''); }
   };
   /* WHATSAPP · L'APP : la feuille de partage, le dossier déjà joint. */
   const parLApp = async () => {
@@ -492,7 +493,7 @@ function RemettreUnDossier({ papiers, titulaires, qui, branchId, depart, onClose
       if (r !== 'annule' && r !== 'relance') await trace('WhatsApp · l’app');
       const mot = ditLePartage(r);
       if (mot) toast(mot, 7000);
-    } catch { toast('Le dossier n’a pas pu être assemblé.'); } finally { setOccupe(''); }
+    } catch (e) { toast(motDuRefus(e)); } finally { setOccupe(''); }
   };
   const whatsapp = async () => {
     if (!numeroWa.trim()) { toast('Le numéro WhatsApp du destinataire.'); return; }
@@ -506,7 +507,7 @@ function RemettreUnDossier({ papiers, titulaires, qui, branchId, depart, onClose
       });
       if (res.ok) { await trace('WhatsApp'); toast(res.enAttente ? 'Hors ligne : le dossier partira au retour du réseau.' : 'Dossier envoyé sur WhatsApp.'); }
       else toast(`Le dossier n’est pas parti : ${res.erreur}`);
-    } catch { toast('Le dossier n’a pas pu être assemblé.'); } finally { setOccupe(''); }
+    } catch (e) { toast(motDuRefus(e)); } finally { setOccupe(''); }
   };
 
   return createPortal(

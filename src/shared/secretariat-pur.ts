@@ -145,7 +145,7 @@ export type DossierBourse = {
   prive: true;
   valeurs: Record<string, string>;
   /** Les membres reliés aux personnes du classeur des Papiers. */
-  membres: { yeman?: string; brice?: string; e1?: string; e2?: string; e3?: string; thomas?: string };
+  membres: { yeman?: string; brice?: string; e1?: string; e2?: string; e3?: string; hebergeant?: string };
   majLe: string;
 };
 
@@ -357,6 +357,27 @@ export function signe(p: Piece, userId: string, image: string, quand: string): P
 /** Un document sans signataire se finalise sans signature (une note). */
 export const finalisableSansSignature = (p: Pick<Piece, 'signataires' | 'etat'>): boolean =>
   p.signataires.length === 0 && p.etat === 'brouillon';
+
+/** QUI PEUT ENCORE PERDRE SES SIGNATURES (relecture du 10 octobre 2026) :
+    une pièce EN SIGNATURE seulement, jamais une pièce signée. Retirer les
+    signatures efface le numéro (`retireLesSignatures`), et la série
+    reprend au plus haut : A, signé MND-DOC-2026-005, imprimé, remis, puis
+    « désigné » rendait son 005 au suivant, et deux papiers réels portaient
+    le même numéro. Une pièce signée a ses deux gestes, dans l'ordre que
+    l'on veut : la corriger (nouveau numéro qui dit lequel il remplace,
+    `corrigeable`) et l'annuler (barrée au registre avec son numéro). */
+export const signaturesRetirables = (p: Pick<Piece, 'etat' | 'numero'>): boolean =>
+  p.etat === 'a-signer' && !p.numero;
+
+/** QUI SE CORRIGE (reprise de la relecture, 10 octobre 2026) : toute pièce
+    qui porte un numéro, signée OU déjà annulée. Avant, « Corriger » ne
+    s'offrait qu'à une pièce signée : qui l'annulait d'abord ne trouvait
+    plus que « Dupliquer », qui ne dit pas quel numéro la copie remplace, et
+    le registre perdait le lien entre le papier barré et celui qui le
+    remplace. La correction est un brouillon neuf : elle ne touche jamais à
+    la pièce barrée, qui garde son numéro. */
+export const corrigeable = (p: Pick<Piece, 'etat' | 'numero'>): boolean =>
+  (p.etat === 'signe' || p.etat === 'annule') && !!p.numero;
 
 /** Annuler les signatures : le document redevient un brouillon, sans images. */
 export const retireLesSignatures = (p: Piece): Piece => ({

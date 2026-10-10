@@ -5,11 +5,11 @@ import { Button, ChampTelephone, Field, Input, Modal, Select, Textarea, toast, a
 import { numeroTelReel } from '../../../../shared/geo';
 import { signeLeMessage } from '../../../../shared/identite';
 import { useBranch } from '../../../../shared/branches';
-import { RYTHMES_ABO, cadenceObservee, diraLeJourFavori, litSonJour, diraPourquoiPasDeJour } from '../../../../shared/cadence';
+import { RYTHMES_ABO, cadenceObservee, diraLeJourFavori, litSonJour, diraPourquoiPasDeJour, rythmeDeReprise } from '../../../../shared/cadence';
 import { fmtMoney } from '../../../../shared/currency';
-import { maisonNom, maisonRaison, maisonVille } from '../../../../shared/identite';
+import { maisonNom, maisonRaison, maisonRaisonDuPdfAu, maisonVille } from '../../../../shared/identite';
 import { invoicePdf } from '../../../../shared/pdf';
-import { aAccorde, clientsStore, segmentsStore, useSegments, usePersonas, useFamilies, ensureInitiePersona, estDePassage, estDiaspora, estCouronnee, estVisiteur, estDeLaMaison, sortiesDeLaMaison, MOIS_AVANT_SORTIE, joursAvantAnniversaire, remiseFamillePct, aUnPrixConvenu, depuisQuandALaMaison, joursDeLaTete, type Client, type Family, poseUnComptage, retireUnComptage } from '../../../../shared/clients';
+import { aAccorde, aDefaitSesLocks, clientsStore, segmentsStore, useSegments, usePersonas, useFamilies, ensureInitiePersona, estDePassage, estDiaspora, estCouronnee, estVisiteur, estDeLaMaison, sortiesDeLaMaison, MOIS_AVANT_SORTIE, joursAvantAnniversaire, remiseFamillePct, aUnPrixConvenu, depuisQuandALaMaison, joursDeLaTete, type Client, type Family, poseUnComptage, retireUnComptage } from '../../../../shared/clients';
 import { useCredits, creditBalanceOf } from '../../../../shared/finance';
 import { holderOf, payerClientIdOf, statutFidelite } from '../../../../shared/accounts';
 import { appointmentsStore, apptPayeurId, venuesHonorees, tetesVenues, type Appointment, estampilleLaPose, noteDeLaMaison } from '../../../../shared/agenda';
@@ -473,7 +473,7 @@ function FusionModal({ client, onClose, onDone }: {
                 : ', celle que vous tenez ouverte.'}
               <br />
               Fiche fondue : <b style={{ fontWeight: 600 }}>{paire.absorbee.name}</b>
-              {nRdv > 0 ? `, ses ${nRdv} rendez-vous suivent,` : ' —'} son téléphone, sa famille et
+              {nRdv > 0 ? `, ses ${nRdv} rendez-vous suivent,` : ','} son téléphone, sa famille et
               son histoire passent sur la fiche gardée, puis elle s’efface.
             </div>
           </div>
@@ -635,9 +635,10 @@ export default function Customers() {
      sans qu'une main l'ait relu : c'est un brouillon, pas un envoi. La devise
      est posée PAR LE CODE (`signeLeMessage`), jamais retapée. */
   const proposerLeStudio = (c: Client) => {
-    const prenom = c.name.trim().split(/\s+/)[0] || '';
+    /* « Madame Naffi » (relecture du 10 octobre 2026) : le brouillon part
+       vers elle, il dit sa civilité comme tout message de la Maison. */
     const texte = signeLeMessage(
-      `Bonjour ${prenom},\n\n`
+      `Bonjour ${appelDe(c)},\n\n`
       + 'Vos cheveux sont libres, et c’est une belle saison qui commence. Profitez-en pleinement.\n\n'
       + 'La Maison reste à vos côtés pour eux : les soins du cheveu afro, les twists, '
       + 'les extensions et les coiffures des grands jours.\n\n'
@@ -1770,7 +1771,7 @@ function PanneauCompte({
             })()}
             <WaLien
               phone={client.phone}
-              message={`Bonjour ${prenom}, la Maison MND revient vers vous : il reste ${fmtMoney(doit ? totalDu : duFoyer, currency)} à régler sur votre compte. Nous restons à votre écoute.`}
+              message={`Bonjour ${appelDe(client)}, la Maison MND revient vers vous : il reste ${fmtMoney(doit ? totalDu : duFoyer, currency)} à régler sur votre compte. Nous restons à votre écoute.`}
               style={{
                 fontFamily: 'var(--font-sans)', fontSize: 12.5, fontWeight: 500, letterSpacing: '.04em',
                 padding: '9px 17px', borderRadius: 3, border: '1px solid var(--copper-600)',
@@ -2183,7 +2184,20 @@ function Customer360({
      que la reprise et la prédiction ; un rythme posé à la main garde le
      dernier mot. */
   const cadenceObs = useMemo(() => cadenceObservee(appts, client.id), [appts, client.id]);
-  const repriseActive = !client.sansRepriseAuto && (!!client.rythmeSemaines || !!cadenceObs);
+  /* LA FICHE DIT CE QUE LA CLÔTURE FERA (relecture du 10 octobre 2026).
+     Elle annonçait « reprise à la clôture » dès qu'une cadence se lisait,
+     diaspora, tête de passage et locks défaits compris ; la clôture, elle,
+     refusait (`poseLaReprise`) et le comptoir l'apprenait par un bandeau, après
+     avoir lu le contraire sur la fiche. Le même juge que la clôture,
+     `rythmeDeReprise`, décide ici ; quand il refuse alors qu'une cadence se
+     lit, la fiche dit pourquoi, avec les motifs de la clôture. */
+  const rythme = useMemo(() => rythmeDeReprise(client, appts), [client, appts]);
+  const repriseActive = !client.sansRepriseAuto && !!rythme;
+  const sansRepriseCar = client.sansRepriseAuto || rythme ? null
+    : estDePassage(client) ? { court: 'tête de passage', dit: 'c’est une tête de passage, pas de reprise sans rythme posé' }
+      : estDiaspora(client) ? { court: 'diaspora', dit: 'elle vit à l’étranger, pas de reprise sans rythme posé' }
+        : aDefaitSesLocks(client) ? { court: 'locks défaits', dit: 'elle a défait ses locks' }
+          : null;
   /* LA PASTILLE DE SA SEMAINE S'ALLUME, observée comprise : « mets en
      indigo, en évidence, les semaines de chacun » (Yéman). La main allumée
      reste la main ; cliquer la pastille observée la fige en rythme posé. */
@@ -2613,6 +2627,12 @@ function Customer360({
      RITUELS, et son prix unitaire est ce qu'il en reste à payer. */
   const releveDeCompte = async () => {
     if (!owing.length) return;
+    /* LA LIGNE LÉGALE, COMME SUR LES FACTURES (10 octobre 2026) : un relevé
+       qui réclame de l'argent nomme la Maison qui le réclame, RCCM et IFU.
+       Le jour du relevé décide, par le même juge que la facture
+       (`maisonRaisonDuPdfAu`) : un seul jour pour le numéro, la date, la note
+       et la ligne, jamais deux lectures de l'horloge. */
+    const jour = todayISO();
     const lignes = owing.map((a) => {
       /* Le compte se prend sur les prestations RETROUVÉES au catalogue, comme
          le résumé : une prestation retirée du catalogue ne doit pas faire
@@ -2628,9 +2648,9 @@ function Customer360({
     });
     await invoicePdf({
       kind: 'releve',
-      number: `${todayISO().replace(/-/g, '')}-${client.id.slice(-4).toUpperCase()}`,
+      number: `${jour.replace(/-/g, '')}-${client.id.slice(-4).toUpperCase()}`,
       houseName: maisonNom(),
-      date: todayISO(),
+      date: jour,
       clientName: client.name,
       clientPhone: client.phone,
       lines: lignes,
@@ -2638,7 +2658,8 @@ function Customer360({
       total: fmtMoney(due, currency),
       reste: fmtMoney(due, currency),
       status: 'à régler',
-      note: `Relevé arrêté au ${frLong(todayISO())} · ${owing.length} rituel${owing.length > 1 ? 's' : ''} non soldé${owing.length > 1 ? 's' : ''}.`,
+      note: `Relevé arrêté au ${frLong(jour)} · ${owing.length} rituel${owing.length > 1 ? 's' : ''} non soldé${owing.length > 1 ? 's' : ''}.`,
+      legal: maisonRaisonDuPdfAu(jour),
     });
   };
 
@@ -3077,7 +3098,7 @@ function Customer360({
                   <b>{totalDuComptage(comptageRecent.comptage)} locks</b>
                   <span>
                     {comptageEnClair(comptageRecent.comptage)}
-                    {' — '}compté par {comptageRecent.auteurNom}, {comptageRecent.at.slice(0, 10).split('-').reverse().join('/')}
+                    {', '}compté par {comptageRecent.auteurNom}, {comptageRecent.at.slice(0, 10).split('-').reverse().join('/')}
                   </span>
                   {totalDuComptage(comptageRecent.comptage) !== (client.lockCount ?? 0) && (
                     <button
@@ -3186,14 +3207,14 @@ function Customer360({
                 <div className="trc-finrow" style={{ display: 'block' }}>
                   {offertsAElle.length > 0 && (
                     <div className="trc-sub" style={{ lineHeight: 1.55 }}>
-                      {offertsAElle.length === 1 ? 'Un rituel lui a été offert' : `${offertsAElle.length} rituels lui ont été offerts`} —{' '}
+                      {offertsAElle.length === 1 ? 'Un rituel lui a été offert' : `${offertsAElle.length} rituels lui ont été offerts`} :{' '}
                       {offertsAElle.map((a) => `${nomTete(a.offertPar)} · ${frShortAn(a.date)}`).join(' · ')}.
                       Ces montants comptent dans la dépense de qui les a réglés, pas dans la sienne.
                     </div>
                   )}
                   {offertsParElle.length > 0 && (
                     <div className="trc-sub" style={{ lineHeight: 1.55, marginTop: offertsAElle.length > 0 ? 6 : 0 }}>
-                      Elle a offert {offertsParElle.length === 1 ? 'une séance' : `${offertsParElle.length} séances`} —{' '}
+                      Elle a offert {offertsParElle.length === 1 ? 'une séance' : `${offertsParElle.length} séances`} :{' '}
                       {offertsParElle.map((a) => `${nomTete(a.clientId)} · ${frShortAn(a.date)}`).join(' · ')}.
                       Compté dans sa dépense et ses points.
                     </div>
@@ -3339,10 +3360,12 @@ function Customer360({
             </span>
             <span className="trc-bande__s">
               {repriseActive
-                ? (client.rythmeSemaines ? 'reprise à la clôture' : 'observée · reprise à la clôture')
+                ? (rythme?.observe ? 'observée · reprise à la clôture' : 'reprise à la clôture')
                 : client.sansRepriseAuto
                   ? 'reprise coupée'
-                  : 'en observation'}
+                  : sansRepriseCar
+                    ? `pas de reprise · ${sansRepriseCar.court}`
+                    : 'en observation'}
             </span>
           </button>
           <button
@@ -3670,7 +3693,7 @@ function Customer360({
           {panEdite !== 'decide' && (
             <>
               <div className="trc-v"><u>Cadence</u><span className={`is-fort ${client.rythmeSemaines || cadenceObs ? '' : 'is-vide'}`}>{client.rythmeSemaines ? `${client.rythmeSemaines} sem.` : cadenceObs ? `≈ ${cadenceObs.semaines} sem. · observée` : 'en observation'}</span></div>
-              <div className="trc-v"><u>Reprise</u><span className={repriseActive ? '' : 'is-vide'}>{repriseActive ? 'à la clôture' : client.sansRepriseAuto ? 'coupée à la main' : 'dès que la cadence se lira'}</span></div>
+              <div className="trc-v"><u>Reprise</u><span className={repriseActive ? '' : 'is-vide'}>{repriseActive ? 'à la clôture' : client.sansRepriseAuto ? 'coupée à la main' : sansRepriseCar ? `aucune · ${sansRepriseCar.court}` : 'dès que la cadence se lira'}</span></div>
               <div className="trc-v"><u>{sesJours.length > 1 ? 'Ses jours favoris' : 'Son jour favori'}</u>
                 <span className={sesJours.length === 0 ? 'is-vide' : ''}>
                   {sesJours.length === 0
@@ -3796,9 +3819,11 @@ function Customer360({
                 <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 6, lineHeight: 1.55 }}>
                   {client.sansRepriseAuto
                     ? <>Coupée pour elle : la Maison n’écrira aucun rendez-vous à sa place.</>
-                    : (client.rythmeSemaines || cadenceObs)
-                      ? <>Le prochain rendez-vous se posera <b>{client.rythmeSemaines ?? cadenceObs!.semaines} semaines</b> après le rituel honoré, sur son jour favori et une porte ouverte. Rien ne se pose si elle en a déjà un à venir.</>
-                      : <>Elle s’armera toute seule dès que deux venues honorées donneront une cadence. Jamais pour une tête de passage ni une diaspora sans rythme posé.</>}
+                    : rythme
+                      ? <>Le prochain rendez-vous se posera <b>{rythme.semaines} semaines</b> après le rituel honoré, sur son jour favori et une porte ouverte. Rien ne se pose si elle en a déjà un à venir.</>
+                      : sansRepriseCar
+                        ? <>Aucune reprise ne se posera : {sansRepriseCar.dit}. Un rythme posé à la main ci-dessus l’armera.</>
+                        : <>Elle s’armera toute seule dès que deux venues honorées donneront une cadence. Jamais pour une tête de passage ni une diaspora sans rythme posé.</>}
                 </div>
               </Field>
               <Field label="Produit recommandé · son Carnet de Suivi">
@@ -4164,7 +4189,7 @@ function Customer360({
                     ? `Du Cercle · ${(client.loyaltyPoints ?? 0).toLocaleString('fr-FR')} points.`
                     : `Cercle à sa ${seuilCercle}ᵉ venue, elle en a ${venuesCercle}.`}
               {statut.foyer && !statut.dependant && (
-                <> Foyer : {fmtMoney(statut.depenseFoyer, currency)} cumulés{palierFoyer ? <> — sceau « {tousServices.find((s) => s.id === palierFoyer.serviceId)?.name ?? 'soin'} » à offrir à la maisonnée.</> : '.'}</>
+                <> Foyer : {fmtMoney(statut.depenseFoyer, currency)} cumulés{palierFoyer ? <>, sceau « {tousServices.find((s) => s.id === palierFoyer.serviceId)?.name ?? 'soin'} » à offrir à la maisonnée.</> : '.'}</>
               )}
             </div>
 
@@ -4686,7 +4711,7 @@ function Customer360({
                   onChange={(e) => setCptCm(e.target.value.replace(/[^0-9,.]/g, ''))}
                   placeholder="cm"
                   aria-label="Longueur de la mèche témoin, en centimètres"
-                  title="La mèche témoin, en centimètres — facultatif, c'est elle qui trace la pousse"
+                  title="La mèche témoin, en centimètres, facultatif : c'est elle qui trace la pousse"
                   style={{ width: 78, textAlign: 'right', flex: 'none' }}
                 />
                 {/* LA NOTE SE DÉPLIE — elle sert une fois sur dix et prenait la
