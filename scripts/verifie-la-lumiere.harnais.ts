@@ -251,7 +251,8 @@ const regles: Regle[] = [
       if (!e.feuille.includes(':is(section.sombre, .communaute:not(.communaute--claire)) + :is(.vt-offres, .ingredients, .univers, .journal) { --bord-haut: var(--chaude); }')) ecarts.push('la regle du haut franc manque');
       if (!e.feuille.includes(':is(.vt-offres, .ingredients, .univers, .journal):has(+ :not(section.sombre, .communaute:not(.communaute--claire))) { --bord-bas: transparent; }')) ecarts.push('la regle du bas adouci manque ou est collee a l autre');
       const accueil = page(e, '/');
-      for (const cls of ['journal', 'vt-offres']) {
+      /* La section des offres a quitté l'accueil le 11 octobre 2026 (Yéman). */
+      for (const cls of ['journal']) {
         const i = accueil.indexOf(`<section class="${cls}"`);
         if (i < 0) { ecarts.push(`accueil : pas de section ${cls}`); continue; }
         const avant = accueil.slice(0, i).trimEnd();

@@ -1140,17 +1140,11 @@ function rendAccueil(articles) {
         <div class="tete"><p class="sur">${echappe(a.diagnostic.sur)}</p><h2>${echappe(a.diagnostic.titre)}</h2><p class="ligne">${echappe(a.diagnostic.ligne)}</p><p class="note">${echappe(a.diagnostic.note)}</p></div>
         <div class="diag__quiz" data-ilot="triage" data-genre="accueil">${questionDuDiagnostic()}</div>
       </div></section>
-      <section class="vt-offres" id="offres"><div class="conteneur">
-        <div class="tete"><p class="sur">${echappe(a.offres.sur)}</p><h2>${echappe(a.offres.titre)}</h2></div>
-        <div data-ilot="offres" data-genre="accueil">${offresDansLaPage('accueil')}</div>
-      </div></section>
-      <!-- LA CARTE CADEAU AVANT L'HISTOIRE — 28 septembre 2026 (Yéman). -->
-      <section class="offrir-teaser sombre" id="offrir"><div class="conteneur">
-        <div><p class="sur">${echappe(a.offrir.sur)}</p><h2>${echappe(a.offrir.titre)}</h2><p class="ligne">${echappe(a.offrir.ligne)}</p></div>
-        <div class="rangee">${bouton(a.offrir.bouton, 'btn')}</div>
-      </div></section>
-      <!-- LE PARRAINAGE, À CÔTÉ DE LA CARTE CADEAU — 28 septembre 2026. -->
-      ${sectionParrainage(true)}
+      <!-- L'ACCUEIL ALLÉGÉ, 11 octobre 2026 (Yéman) : « ça alourdit les pages, garder
+           juste la remise qui vient avec ». La section des offres et celle du
+           parrainage (De main en main) quittent l'accueil ; la remise qui revient
+           au défilement porte l'offre du moment, et les pages /les-offres/ et
+           /parrainage/ restent. La carte cadeau descend après les avis. -->
       <section class="fondateurs" id="maison"><div class="conteneur">
         ${image(a.fondateurs.image, 'Brice et Yéman Ahouansou')}
         <div><p class="sur">${echappe(a.fondateurs.sur)}</p><h2 style="margin-top:10px">${echappe(a.fondateurs.titre)}</h2><p class="ligne" style="margin-top:12px">${echappe(a.fondateurs.ligne)}</p>
@@ -1169,6 +1163,13 @@ function rendAccueil(articles) {
       <section class="avis" id="avis">
         <div data-ilot="avis"><div class="conteneur"><div><p class="sur">Avis Google</p><h2 style="margin-top:10px">Ce que disent nos clientes</h2><p class="legende" style="margin-top:12px">Les avis de la Maison se lisent sur sa fiche Google.</p></div></div></div>
       </section>
+      <!-- LA CARTE CADEAU APRÈS LES AVIS, 11 octobre 2026 (Yéman, au sélecteur) :
+           elle vient quand la visiteuse a lu ce que disent les clientes, et
+           l'indigo alterne toujours (avis ivoire, carte indigo, ingrédients argile). -->
+      <section class="offrir-teaser sombre" id="offrir"><div class="conteneur">
+        <div><p class="sur">${echappe(a.offrir.sur)}</p><h2>${echappe(a.offrir.titre)}</h2><p class="ligne">${echappe(a.offrir.ligne)}</p></div>
+        <div class="rangee">${bouton(a.offrir.bouton, 'btn')}</div>
+      </div></section>
       <!-- LA COMMUNAUTÉ MND — 28 septembre 2026 : l'avant / après (s'il y a
            des paires), les ingrédients, les trois cartes, puis le Journal. -->
       ${sectionAvantApres()}

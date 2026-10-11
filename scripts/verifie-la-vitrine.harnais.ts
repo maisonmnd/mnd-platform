@@ -349,9 +349,16 @@ dit('… et chaque vignette de cliente sert bien quelque part', [],
 /* LES PROMESSES SONT PARTIES LE 27 SEPTEMBRE 2026 avec l'épure. Le
    diagnostic se joue sur l'accueil, entre les portes et les offres. */
 dit('le diagnostic se monte sur l’accueil', true, accueil.includes('data-ilot="triage" data-genre="accueil"'));
-dit('… entre les portes et les offres', true,
-  accueil.indexOf('id="portes"') < accueil.indexOf('id="diagnostic"') && accueil.indexOf('id="diagnostic"') < accueil.indexOf('id="offres"'));
-dit('les offres se montent sur l’accueil, en genre accueil', true, accueil.includes('data-ilot="offres" data-genre="accueil"'));
+/* L'ACCUEIL ALLÉGÉ — 11 octobre 2026 (Yéman) : « ça alourdit les pages, garder
+   juste la remise qui vient avec ». Les offres et le parrainage quittent
+   l'accueil (leurs pages restent), la carte cadeau descend après les avis. */
+dit('… entre les portes et la Maison', true,
+  accueil.indexOf('id="portes"') < accueil.indexOf('id="diagnostic"') && accueil.indexOf('id="diagnostic"') < accueil.indexOf('id="maison"'));
+dit('ni la section des offres ni celle du parrainage ne vivent sur l’accueil', [false, false, false],
+  [accueil.includes('data-ilot="offres"'), accueil.includes('id="offres"'), accueil.includes('id="parrainage"')]);
+dit('… et leurs pages restent', [true, true], [pages.has('/les-offres/'), pages.has('/parrainage/')]);
+dit('la carte cadeau vient après les avis, avant les ingrédients', true,
+  accueil.indexOf('id="avis"') > -1 && accueil.indexOf('id="avis"') < accueil.indexOf('id="offrir"') && accueil.indexOf('id="offrir"') < accueil.indexOf('id="ingredients"'));
 /* AUCUN ÎLOT NE POSE UN LIEN RELATIF — 24 septembre 2026.
 
    « Quand on appuie le bouton J'en profite ce n'est branché à rien » (Yéman).
@@ -593,12 +600,13 @@ if (initialesBrutes === undefined) {
   const aVenir = initiales.filter((o) => etatDeLOffre(o) === 'venir');
   const cartes = (h: string) => (h.match(/<article class="offre-site/g) ?? []).length;
   dit('la page des offres écrit ses cartes dans le HTML : en cours, sinon à venir', enCours.length || aVenir.length, cartes(pageOffres));
-  dit('… l’accueil écrit les offres en cours, sans onglets', enCours.length, cartes(accueil));
+  /* Depuis le 11 octobre 2026, l'accueil n'écrit plus de carte d'offre : la remise qui revient la porte. */
+  dit('… l’accueil n’écrit plus de carte d’offre', 0, cartes(accueil));
   dit('… et n’y pose aucun onglet', false, accueil.includes('role="tablist"'));
   const montrees = enCours.length ? enCours : aVenir;
   dit('… chaque carte écrit son code en toutes lettres', [], montrees.filter((o) => o.code && !pageOffres.includes(`<b>${o.code}</b>`)).map((o) => o.code));
   dit('… le JSON ne peut pas fermer son script', false, /<\/|<script/i.test(initialesBrutes));
-  dit('… et l’accueil porte les mêmes données', true, accueil.includes(`<script type="application/json" data-initiales>${initialesBrutes}</script>`));
+  dit('… ni leurs données', false, accueil.includes(`<script type="application/json" data-initiales>${initialesBrutes}</script>`));
 }
 
 /* ══ LA MAISON REVISITÉE — 27 septembre 2026, maquette validée ══════════

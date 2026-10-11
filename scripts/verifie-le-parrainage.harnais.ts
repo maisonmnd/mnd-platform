@@ -123,11 +123,13 @@ dit('chaque ingrédient a sa page', [], INGREDIENTS.filter((i) => !lit(`/ingredi
 const plan = lit('/plan-du-site/');
 dit('… et sa place au plan du site', [], INGREDIENTS.filter((i) => !plan.includes(`/ingredients/${i.slug}/`)).map((i) => i.slug));
 const accueil = lit('/');
-dit('l’accueil porte la communauté, le parrainage et les ingrédients', [true, true, true],
+/* L'ACCUEIL ALLÉGÉ — 11 octobre 2026 (Yéman) : le parrainage quitte l'accueil,
+   sa page /parrainage/ reste ; la carte cadeau descend après les avis. */
+dit('l’accueil porte la communauté et les ingrédients, plus le parrainage', [true, false, true],
   ['id="communaute"', 'id="parrainage"', 'id="ingredients"'].map((x) => accueil.includes(x)));
-dit('… dans l’ordre voulu : parrainage après la carte cadeau, communauté avant le Journal', true,
-  accueil.indexOf('id="offrir"') < accueil.indexOf('id="parrainage"')
-  && accueil.indexOf('id="parrainage"') < accueil.indexOf('id="maison"')
+dit('… dans l’ordre voulu : la carte cadeau après les avis, communauté avant le Journal', true,
+  accueil.indexOf('id="avis"') < accueil.indexOf('id="offrir"')
+  && accueil.indexOf('id="offrir"') < accueil.indexOf('id="ingredients"')
   && accueil.indexOf('id="communaute"') < accueil.indexOf('id="journal"'));
 dit('l’avant / après ne sort pas tant qu’il n’a pas de paires', AVANT_APRES.length > 0, accueil.includes('id="avant-apres"'));
 dit('chaque carte de la communauté mène à une page écrite', [], COMMUNAUTE.cartes.filter((c) => !lit(c.vers)).map((c) => c.vers));
