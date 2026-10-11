@@ -288,6 +288,9 @@ export const ACCUEIL: Accueil = {
     { texte: 'Faire mon diagnostic', vers: '/mon-parcours/' },
     { texte: 'Réserver', vers: '/reserver/' },
   ],
+  /* 11 OCTOBRE 2026, maquette de l'accueil à trois entrées validée par
+     Yéman : l'accroche reste la sienne, cette phrase la porte. */
+  appui: 'Des locks pensées pour durer. Des soins qui commencent par vous.',
   /* LA LIGNE DU MÉTIER EST PARTIE DU PREMIER ÉCRAN le 27 septembre 2026 au
      soir (Yéman) : la ligne sous l'accroche dit déjà les locks et Cotonou. */
   /* TROIS PROMESSES, TOUTES TENUES PAR LE SITE AUJOURD'HUI, vérifiées dans
@@ -312,10 +315,10 @@ export const ACCUEIL: Accueil = {
       { titre: 'Faire durer', ligne: "Des locks qu'on garde des années, pas des mois. C'est cela, le vrai luxe." },
       { titre: 'Transmettre', ligne: 'Une Académie, pour que la méthode voyage plus loin que nos mains.' },
     ],
-    suite: {
-      ligne: "Il y a cinq façons d'entrer dans la Maison. La vôtre dépend d'où en est votre couronne.",
-      bouton: { texte: 'Voir les cinq portes', vers: '#portes' },
-    },
+    /* LE PASSAGE VERS LES PORTES EST PARTI le 11 octobre 2026 : les trois
+       entrées passent AU-DESSUS de la Maison (maquette validée), la phrase
+       qui y menait n'a plus rien à annoncer. Le premier pilier, « un
+       diagnostic avant tout geste », mène au diagnostic qui suit. */
   },
   diagnostic: {
     sur: 'Le diagnostic locks',
@@ -379,10 +382,18 @@ export const ACCUEIL: Accueil = {
      photos), et les figures n'ont pas de texte de remplacement : la ligne
      ci-dessous les couvre toutes les deux, et rien dans ces images n'est
      nommable séparément sans nommer une femme. */
+  /* TROIS ENTRÉES JUSTE APRÈS LE PREMIER ÉCRAN — 11 octobre 2026, maquette
+     validée par Yéman au sélecteur (canevas « Accueil à trois entrées ») :
+     Créer, Réparer, Entretenir, chacune avec son mot en grand, son accroche
+     et son bouton vers le calendrier de son parcours ; les Soins et MND Kids
+     restent sur l'accueil, en petites cartes sous « Et aussi ». La carte
+     n'est jamais un seul grand lien : le mot (et sa photo) mène à la page,
+     le bouton réserve, et rien ne s'imbrique. */
   portes: {
     sur: 'Par où entrer',
-    titre: 'Cinq portes, une méthode.',
-    ligne: "Cinq parcours qui ne commencent pas au même endroit et ne se déroulent pas pareil. Trouvez le vôtre à sa situation de départ.",
+    titre: 'Trois chemins, une méthode.',
+    ligne: 'Ils ne commencent pas au même endroit. Choisissez celui de votre point de départ : chacun mène à sa page et à son rendez-vous.',
+    aussi: 'Et aussi',
     /* LES CINQ PORTES DE LA MAQUETTE VALIDÉE (27 septembre 2026) : la
        Première Couronne, la Réparation, l'Entretien, les Soins, MND Kids. La
        formation garde sa page et son entrée au pied ; sur l'accueil, on ne
@@ -391,14 +402,14 @@ export const ACCUEIL: Accueil = {
        la remet pas ici), le regard sur la réparation, l'entretien, l'attention
        sur les soins, la mère et l'enfant sur MND Kids. */
     cartes: [
-      { titre: 'Première Couronne', pour: "Je n'ai pas encore de locks", ligne: 'Vos premières locks, préparées puis posées.', comment: 'Consultation · Préparation · Création · Premier suivi', suite: 'Découvrir', vers: '/premiere-couronne/', image: 'portrait-accueil.jpg' },
-      { titre: 'Réparation', pour: 'Mes locks m’inquiètent', ligne: "Casse, amincissement, racines : on regarde d'abord.", comment: 'Diagnostic zone par zone · Devis · Réparation', suite: 'Découvrir', vers: '/reparation-locks/', image: 'regard.jpg' },
-      { titre: 'Entretien', pour: 'Mes locks vont bien', ligne: 'Leur rendez-vous, au rythme de votre couronne.', comment: 'Se réserve directement · Lavage · Resserrage · Hydratation', suite: 'Découvrir', vers: '/entretien-locks/', image: 'entretien.jpg' },
-      { titre: 'Soins', pour: 'Cuir chevelu et longueurs', ligne: 'En profondeur, selon la saison.', comment: 'Purifier · Nourrir · Sceller · Couronner', suite: 'Découvrir', vers: '/soins-locks/', image: 'attention.jpg' },
-      { titre: 'MND Kids', pour: 'Pour mon enfant', ligne: 'Tout va plus doucement.', comment: 'Un échange avec vous · Une séance courte · Le temps qu’il faut', suite: 'Découvrir', vers: '/mnd-kids/', image: 'mnd-kids.jpg' },
+      { titre: 'Première Couronne', mot: 'Créer', pour: "Je n'ai pas encore de locks", accroche: 'Donner vie à votre première couronne.', ligne: 'Vos premières locks, préparées puis posées.', comment: 'Consultation · Préparation · Création · Premier suivi', reserver: 'Réserver ma consultation', porte: 'Commence par une consultation, réservée en ligne.', suite: 'La Première Couronne', vers: '/premiere-couronne/', image: 'portrait-accueil.jpg' },
+      { titre: 'Réparation', mot: 'Réparer', pour: 'Mes locks m’inquiètent', accroche: 'Rendre à vos locks leur force et leur équilibre.', ligne: "Casse, amincissement, racines : on regarde d'abord, zone par zone.", comment: 'Diagnostic zone par zone · Devis · Réparation', reserver: 'Réserver ma consultation', porte: 'Commence par une consultation, réservée en ligne.', suite: 'La réparation', vers: '/reparation-locks/', image: 'regard.jpg' },
+      { titre: 'Entretien', mot: 'Entretenir', pour: 'Mes locks vont bien', accroche: 'Garder leur beauté, saison après saison.', ligne: 'Leur rendez-vous, au rythme de votre couronne.', comment: 'Lavage · Resserrage · Hydratation', reserver: 'Réserver mon entretien', porte: 'Se réserve directement, sans consultation.', suite: 'L’entretien', vers: '/entretien-locks/', image: 'entretien.jpg' },
+      { titre: 'Soins', pour: 'Cuir chevelu et longueurs', ligne: 'En profondeur, selon la saison.', comment: 'Purifier · Nourrir · Sceller · Couronner', suite: 'Les soins', vers: '/soins-locks/', image: 'attention.jpg' },
+      { titre: 'MND Kids', pour: 'Pour mon enfant', ligne: 'Tout va plus doucement.', comment: 'Un échange avec vous · Une séance courte · Le temps qu’il faut', suite: 'MND Kids', vers: '/mnd-kids/', image: 'mnd-kids.jpg' },
     ],
-    repli: 'Vous hésitez entre deux portes ?',
-    repliNote: 'Cinq questions, et la Maison vous dit la vôtre, avec votre routine.',
+    repli: 'Vous hésitez entre deux chemins ?',
+    repliNote: 'Cinq questions, et la Maison vous dit le vôtre, avec votre routine.',
     repliBouton: { texte: 'Faire mon diagnostic', vers: '/mon-parcours/' },
   },
   confiance: {

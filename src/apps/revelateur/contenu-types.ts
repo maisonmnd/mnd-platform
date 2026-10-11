@@ -110,6 +110,10 @@ export type Accueil = {
      le harnais le lit ici. */
   bande: string[];
   boutons: Lien[];
+  /** LA PHRASE SOUS L'ACCROCHE — 11 octobre 2026, maquette de l'accueil à
+      trois entrées validée par Yéman : ce que la Maison promet, en deux
+      phrases courtes, entre le titre et les deux gestes. */
+  appui?: string;
   /** LE MÉTIER, DIT AU PREMIER ÉCRAN — 22 septembre 2026. Ni « locks » ni
       « dreadlocks » n'apparaissaient avant de faire défiler : il fallait déjà
       savoir que « couronne » veut dire locks. Une ligne au-dessus du titre. */
@@ -141,7 +145,12 @@ export type Accueil = {
      que ce sont vraiment différents parcours » (Yéman). Chaque porte dit
      POUR QUI elle est (`pour`, la situation de départ) et COMMENT elle se
      passe (`comment`, ses temps, séparés par des points médians). */
-  portes: { sur: string; titre: string; ligne?: string; cartes: { titre: string; pour: string; ligne: string; comment: string; suite: string; vers: string; image?: string }[]; repli: string; repliNote?: string; repliBouton: Lien };
+  /** LES PORTES DE L'ACCUEIL. Une carte qui porte un `mot` est une des
+      trois GRANDES ENTRÉES (11 octobre 2026) : le mot en grand sur sa photo,
+      son `accroche`, et un bouton `reserver` vers le calendrier de son
+      parcours, dont `porte` dit ce qui commence. Les autres se rangent sous
+      `aussi`, en petites cartes. */
+  portes: { sur: string; titre: string; ligne?: string; cartes: { titre: string; pour: string; ligne: string; comment: string; suite: string; vers: string; image?: string; mot?: string; accroche?: string; reserver?: string; porte?: string }[]; aussi?: string; repli: string; repliNote?: string; repliBouton: Lien };
   confiance: { sur: string; citation: string; gages: { titre: string; ligne: string }[] };
   fondateurs: { sur: string; titre: string; ligne: string; message: string; legende?: string; trois: string[]; image: string };
   journal: { sur: string; titre: string };

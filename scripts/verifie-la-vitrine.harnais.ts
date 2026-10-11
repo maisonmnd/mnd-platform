@@ -128,20 +128,36 @@ dit('le premier écran porte les cauris', true, /<img class="hero-plein__photo" 
    Facebook coupent un portrait vertical au milieu, et le visage sort du cadre. */
 dit('… et l’image de partage est le paysage taillé dedans, avec ses dimensions', true,
   /og:image" content="[^"]*photos\/site\/partage-accueil\.jpg"/.test(accueil) && accueil.includes('og:image:width" content="800"'));
-/* LES CINQ PORTES DE LA MAQUETTE VALIDÉE (27 septembre 2026), dans l'ordre
-   et chacune avec sa photo. Par rang et non par parcours : les Soins et
-   l'Entretien partagent le même besoin. */
-const photosDesPortes = [...(accueil.split('id="portes"')[1] ?? '').split('id="diagnostic"')[0]
-  .matchAll(/<a class="porte"[\s\S]*?<img src="[^"]*photos\/site\/([^"]+)"/g)].map((m) => m[1]);
-dit('les portes portent chacune leur photo, dans l’ordre de la maquette',
-  ['portrait-accueil.jpg', 'regard.jpg', 'entretien.jpg', 'attention.jpg', 'mnd-kids.jpg'], photosDesPortes);
+/* LES TROIS ENTRÉES ET LES DEUX PETITES PORTES — 11 octobre 2026, maquette
+   validée par Yéman : Créer, Réparer, Entretenir avec leur photo, dans
+   l'ordre ; les Soins et MND Kids en petites cartes dessous. Par rang et non
+   par parcours : les Soins et l'Entretien partagent le même besoin. */
+const blocDesPortes = (accueil.split('id="portes"')[1] ?? '').split('id="objectif"')[0];
+dit('les trois entrées portent chacune leur photo, dans l’ordre de la maquette',
+  ['portrait-accueil.jpg', 'regard.jpg', 'entretien.jpg'],
+  [...blocDesPortes.matchAll(/<div class="entree__photo">[\s\S]*?<img src="[^"]*photos\/site\/([^"]+)"/g)].map((m) => m[1]));
+dit('… et les deux petites portes aussi', ['attention.jpg', 'mnd-kids.jpg'],
+  [...blocDesPortes.matchAll(/<div class="petite">[\s\S]*?<img src="[^"]*photos\/site\/([^"]+)"/g)].map((m) => m[1]));
+/* UNE ENTRÉE N'EST JAMAIS UN SEUL GRAND LIEN (brief du 11 octobre : une
+   carte entière cliquable avale les contrôles qu'elle contient). Le mot mène
+   à la page, le bouton réserve dans le calendrier de SON parcours (la
+   création et la réparation commencent par une consultation, l'entretien se
+   réserve directement : porteDuBesoin), et aucun lien n'en contient un
+   autre. */
+const entrees = [...blocDesPortes.matchAll(/<article class="entree">([\s\S]*?)<\/article>/g)].map((m) => m[1]);
+dit('trois entrées, et aucun lien n’en contient un autre', [],
+  entrees.length === 3 ? entrees.filter((e) => /<a [^>]*>(?:(?!<\/a>)[\s\S])*<a /.test(e)).map(() => 'lien dans un lien') : ['pas trois entrées']);
+dit('chaque bouton réserve dans le calendrier de son parcours', ['creation', 'reparation', 'entretien'],
+  entrees.map((e) => e.match(/class="btn btn--fort" href="[^"]*\/reserver\/\?besoin=([a-z]+)"/)?.[1] ?? null));
+dit('… et dit ce qui commence', ['consultation', 'consultation', 'directement'],
+  entrees.map((e) => /class="entree__porte">Commence par une consultation/.test(e) ? 'consultation' : /class="entree__porte">Se réserve directement/.test(e) ? 'directement' : null));
 /* LA MÊME PHOTO DE LA PORTE À SA PAGE — 28 septembre 2026 : « quand on appuie
    Première Couronne et Réparation, on tombe sur une autre photo. Garder la
    même » (Yéman). On ne change pas de visage entre la carte et la page
    qu'elle ouvre. */
 dit('chaque porte ouvre une page qui porte sa photo', [],
   ACCUEIL.portes.cartes.filter((c) => c.image && PAGES.find((p) => p.chemin === c.vers)?.image !== c.image).map((c) => c.vers));
-dit('… et aucune ne dit « photo à venir »', false, (accueil.split('class="portes"')[1] ?? '').split('</section>')[0].includes('Photo de la séance à venir'));
+dit('… et aucune ne dit « photo à venir »', false, blocDesPortes.includes('Photo de la séance à venir'));
 /* LES VISAGES DE LA MAISON (23 septembre 2026) : la paire au-dessus des avis,
    et les vignettes du Journal. Ces vérifications portent la RÈGLE, jamais le
    nombre : le soir du 23, cinq portraits sont devenus deux, et un harnais qui

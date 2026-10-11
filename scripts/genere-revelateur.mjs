@@ -921,25 +921,41 @@ function rendAccueil(articles) {
      tête, le titre, le déroulé en temps, et la photo en arche (la forme du
      pictogramme de la Maison) au pied. Le numéro ne classe pas : il compte,
      et fait lire cinq chemins distincts plutôt qu'une rangée de cartes. */
-  const cartes = a.portes.cartes.map((c, i) => {
+  /* TROIS ENTRÉES, PUIS « ET AUSSI » — 11 octobre 2026, maquette validée.
+     Une carte qui porte un `mot` est une grande entrée : la photo et le mot
+     mènent à la page (le lien du mot couvre la photo, et rien d'autre ne vit
+     dans la photo), le bouton réserve dans le calendrier du parcours, la
+     suite nomme la page. Jamais un lien dans un lien. Les autres cartes se
+     rangent en petites cartes : leur ligne et leur déroulé en une phrase. */
+  const suite = (c, p) => `<a class="suite" href="${attr(lien(c.vers))}" data-mesure="parcours_choisi" data-parcours="${attr(p?.besoin ?? 'inconnu')}">${echappe(c.suite)} <svg><use href="#i-fleche"/></svg></a>`;
+  const entrees = a.portes.cartes.filter((c) => c.mot).map((c, i) => {
     const p = PAGES.find((x) => x.chemin === c.vers);
     const temps = c.comment.split('·').map((t) => t.trim()).filter(Boolean);
-    /* LA SITUATION SORT DU CADRE — 28 septembre 2026 (Yéman) : « Je n'ai pas
-       encore de locks » se lit AU-DESSUS de la carte, comme une étiquette sur
-       la colonne, et la carte ne porte que le parcours. Les photos sont
-       redevenues rectangulaires, le même jour. */
-    return `<div class="parcours">
-          <p class="porte__pour">${echappe(c.pour)}</p>
-          <a class="porte" href="${attr(lien(c.vers))}" data-mesure="parcours_choisi" data-parcours="${attr(p?.besoin ?? 'inconnu')}">
-          <span class="porte__rang" aria-hidden="true">${String(i + 1).padStart(2, '0')}</span>
-          <div class="porte-corps">
-            <h3>${echappe(c.titre)}</h3>
-            <p>${echappe(c.ligne)}</p>
-            <ol class="porte__temps">${temps.map((t) => `<li>${echappe(t)}</li>`).join('')}</ol>
+    return `<article class="entree">
+          <div class="entree__photo">
+            ${image(c.image)}
+            <span class="entree__rang" aria-hidden="true">${String(i + 1).padStart(2, '0')}</span>
+            <div class="entree__sur"><p class="entree__pour">${echappe(c.pour)}</p><h3 class="entree__mot"><a href="${attr(lien(c.vers))}" data-mesure="parcours_choisi" data-parcours="${attr(p?.besoin ?? 'inconnu')}">${echappe(c.mot)}</a></h3></div>
           </div>
-          ${c.image ? image(c.image) : `<div class="tuile">${echappe(c.titre.length > 18 ? p?.court ?? c.titre : c.titre)}<small>Photo de la séance à venir</small></div>`}
-          <span class="suite">${echappe(c.suite)} <svg><use href="#i-fleche"/></svg></span>
-          </a>
+          <div class="entree__corps">
+            <p class="entree__accroche">${echappe(c.accroche)}</p>
+            <p class="entree__detail">${echappe(c.ligne)}</p>
+            <ol class="porte__temps">${temps.map((t) => `<li>${echappe(t)}</li>`).join('')}</ol>
+            <div class="entree__geste">
+              <a class="btn btn--fort" href="${attr(versLaReservation(p?.besoin))}" data-mesure="parcours_choisi" data-parcours="${attr(p?.besoin ?? 'inconnu')}" data-sortie="entree">${echappe(c.reserver)}</a>
+              <p class="entree__porte">${echappe(c.porte)}</p>
+              ${suite(c, p)}
+            </div>
+          </div>
+        </article>`;
+  }).join('\n        ');
+  const petites = a.portes.cartes.filter((c) => !c.mot).map((c) => {
+    const p = PAGES.find((x) => x.chemin === c.vers);
+    const temps = c.comment.split('·').map((t) => t.trim()).filter(Boolean);
+    const phrase = `${c.ligne.replace(/\.$/, '')} : ${temps.map((t) => t.charAt(0).toLowerCase() + t.slice(1)).join(', ')}.`;
+    return `<div class="petite">
+          ${image(c.image)}
+          <div class="petite__texte"><p class="petite__pour">${echappe(c.pour)}</p><h3>${echappe(c.titre)}</h3><p>${echappe(phrase)}</p>${suite(c, p)}</div>
         </div>`;
   }).join('\n        ');
   const journal = articles.slice(0, 3).map(carteDArticle).join('\n        ');
@@ -947,7 +963,8 @@ function rendAccueil(articles) {
       <!-- L'ACCUEIL REVISITÉ — 27 septembre 2026, maquette validée par Yéman.
            « Épure-moi complètement le site et fais de la Maison MND une marque
            de luxe. » Dans l'ordre : le premier écran avec la devise en fon en
-           signature au-dessus de l'accroche, l'objectif, les cinq portes, le
+           signature au-dessus de l'accroche, les trois entrées et leurs deux
+           petites portes (depuis le 11 octobre 2026), l'objectif, le
            diagnostic joué sur la page, les offres, l'histoire, l'univers, les
            marques qui défilent, la carte cadeau, quatre photos vers la
            galerie (celle d'hier, gardée telle quelle), les
@@ -960,6 +977,7 @@ function rendAccueil(articles) {
           <p class="devise devise--grande">${echappe(a.devise.fon)}<small>${echappe(a.devise.sens)}</small></p>
           <h1>${echappe(a.h1)}</h1>
           <div class="hero-plein__geste">
+            ${a.appui ? `<p class="hero-plein__appui">${echappe(a.appui)}</p>` : ''}
             <div class="rangee">${a.boutons.map((b, i) => bouton(b, i === 0 ? 'btn' : 'btn btn--plein')).join('')}</div>
           </div>
         </div>
@@ -970,19 +988,24 @@ function rendAccueil(articles) {
           <div class="bande__piste">${[false, true].map((muette) => a.bande.map((m) => `<span class="bande__mot"${muette ? ' aria-hidden="true"' : ''}><img class="bande__picto" src="/assets/photos/site/mono-copper.png" alt="" width="240" height="198" loading="lazy">${echappe(m)}</span>`).join('')).join('')}</div>
         </div>
       </section>
+      <!-- LES TROIS ENTRÉES JUSTE APRÈS LE PREMIER ÉCRAN, la Maison ensuite
+           (11 octobre 2026, maquette validée). -->
+      <section id="portes"><div class="conteneur">
+        <div class="tete"><p class="sur">${echappe(a.portes.sur)}</p><h2>${echappe(a.portes.titre)}</h2>${a.portes.ligne ? `<p class="ligne">${echappe(a.portes.ligne)}</p>` : ''}</div>
+        <div class="entrees">
+        ${entrees}
+        </div>
+        ${petites ? `<div class="aussi">${a.portes.aussi ? `<p class="sur aussi__titre">${echappe(a.portes.aussi)}</p>` : ''}
+        ${petites}
+        </div>` : ''}
+        <div class="repli"><p>${echappe(a.portes.repli)}</p>${bouton(a.portes.repliBouton, 'btn btn--fort')}${a.portes.repliNote ? `<small>${echappe(a.portes.repliNote)}</small>` : ''}</div>
+      </div></section>
       <section class="objectif" id="objectif"><div class="conteneur">
         <p class="sur">${echappe(a.objectif.sur)}</p>
         <h2>${echappe(a.objectif.titre)}</h2>
         <p class="ligne">${echappe(a.objectif.ligne)}</p>
         <div class="piliers">${a.objectif.piliers.map((p) => `<div><h3>${echappe(p.titre)}</h3><p>${echappe(p.ligne)}</p></div>`).join('')}</div>
         ${a.objectif.suite ? `<div class="passage"><p>${echappe(a.objectif.suite.ligne)}</p>${bouton(a.objectif.suite.bouton, 'btn btn--lien')}</div>` : ''}
-      </div></section>
-      <section id="portes"><div class="conteneur">
-        <div class="tete"><p class="sur">${echappe(a.portes.sur)}</p><h2>${echappe(a.portes.titre)}</h2>${a.portes.ligne ? `<p class="ligne">${echappe(a.portes.ligne)}</p>` : ''}</div>
-        <div class="portes">
-        ${cartes}
-        </div>
-        <div class="repli"><p>${echappe(a.portes.repli)}</p>${bouton(a.portes.repliBouton, 'btn btn--fort')}${a.portes.repliNote ? `<small>${echappe(a.portes.repliNote)}</small>` : ''}</div>
       </div></section>
       <!-- LE DIAGNOSTIC SE JOUE SUR L'ACCUEIL : le même îlot que /mon-parcours/,
            dans une carte ivoire sur l'indigo. Sans script, la carte mène à la

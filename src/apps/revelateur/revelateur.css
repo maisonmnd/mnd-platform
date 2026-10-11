@@ -9,6 +9,7 @@
 :root {
   --accent: #B97A4A; --accent-clair: #FAF1E9; --accent-profond: #7C4C2C; --accent-voile: rgba(185, 122, 74, .14);
   --accent-sombre: #D6A06F;
+  --plein: #9A6036;  /* le cuivre qui porte un texte ivoire (boutons pleins, heure choisie, bandeau) : 4,55:1, lisible ; --accent reste le cuivre des filets et des points. Choisi par Yéman le 11 oct. 2026. */
   --fond: #F6F1E7; --fond-2: #EEE6D6; --carte: #FFFDF9;
   --texte: #2A2722; --texte-doux: #5E5750; --titre: #1E2150;
   --sombre: #1E2150; --sombre-2: #15173A; --filet: rgba(20, 20, 27, .14);
@@ -107,8 +108,8 @@ section.serre { padding-top: 0; }
 a, button, label, input, select, textarea, summary, [role="button"] {
   -webkit-tap-highlight-color: transparent; }
 .btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-.btn--plein { background: var(--accent); border-color: var(--accent); color: var(--plein-texte); }
-.btn--plein:hover { filter: brightness(1.06); background: var(--accent); }
+.btn--plein { background: var(--plein); border-color: var(--plein); color: var(--plein-texte); }
+.btn--plein:hover { filter: brightness(1.06); background: var(--plein); }
 .btn--fort { background: var(--fort); border-color: var(--fort); color: var(--fort-texte); }
 .btn--fort:hover { background: var(--fort); filter: brightness(1.12); }
 .btn--lien { border-color: transparent; padding-inline: 0; min-height: 0; padding-block: 4px; border-radius: 0; color: var(--accent-profond); border-bottom: 1px solid transparent; }
@@ -118,7 +119,7 @@ a, button, label, input, select, textarea, summary, [role="button"] {
 .sombre .btn:hover { border-color: #F6F1E7; background: rgba(246, 241, 231, .08); }
 .sombre .btn--fort { background: #F6F1E7; border-color: #F6F1E7; color: var(--titre); }
 .sombre .btn--fort:hover { background: #fff; filter: none; }
-.sombre .btn--plein { background: var(--accent); border-color: var(--accent); color: var(--plein-texte); }
+.sombre .btn--plein { background: var(--plein); border-color: var(--plein); color: var(--plein-texte); }
 .sombre .btn--lien { color: var(--accent-sombre); border-color: transparent; }
 .sombre .btn--lien:hover { border-bottom-color: var(--accent-sombre); }
 .btn svg { width: 15px; height: 15px; flex: none; }
@@ -278,7 +279,7 @@ a.carte-porte:hover { box-shadow: var(--ombre); }
    l'indigo sur un fond clair. Le titre suit le fond, jamais la teinte. */
 .carte-porte--or .carte-porte__tete { background: var(--sombre); color: #F6F1E7; }
 .carte-porte--cuivre .carte-porte__tete { background: var(--fond-2); color: var(--titre); }
-.carte-porte--ivoire .carte-porte__tete { background: var(--accent); color: #F6F1E7; }
+.carte-porte--ivoire .carte-porte__tete { background: var(--plein); color: #F6F1E7; }
 .carte-porte--indigo .carte-porte__tete { background: var(--accent-clair); color: var(--titre); }
 /* Le rang se lit sans jamais prendre le pas sur le nom de la porte. */
 .carte-porte--cuivre .carte-porte__rang,
@@ -469,7 +470,7 @@ footer .logo img { height: 34px; }
 .sortie .sur { color: var(--accent-sombre); }
 .sortie .rangee { margin-top: 8px; }
 .sortie .btn { color: var(--accent-sombre); border-color: var(--accent-sombre); }
-.sortie .btn--plein { background: var(--accent); border-color: var(--accent); color: var(--plein-texte); }
+.sortie .btn--plein { background: var(--plein); border-color: var(--plein); color: var(--plein-texte); }
 .sortie .btn--lien { color: #F6F1E7; border-color: transparent; }
 @keyframes venir { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
 .venir { animation: venir .3s ease both; }
@@ -538,7 +539,7 @@ footer .logo img { height: 34px; }
 .pas-reservation li::before { counter-increment: pr; content: counter(pr); display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; border: 1px solid var(--filet); font-size: 11px; letter-spacing: 0; }
 .pas-reservation li.ici { color: var(--titre); }
 .pas-reservation li.ici::before { border-color: var(--accent); color: var(--accent-profond); }
-.pas-reservation li.fait::before { background: var(--accent); border-color: var(--accent); color: var(--plein-texte); content: '\2713'; }
+.pas-reservation li.fait::before { background: var(--plein); border-color: var(--plein); color: var(--plein-texte); content: '\2713'; }
 .bloc-reservation { background: var(--carte); border: 1px solid var(--filet); border-radius: 4px; padding: clamp(18px, 3vw, 26px); }
 .bloc-reservation h3 { margin-block: 4px 14px; }
 .gestes { display: grid; gap: 10px; }
@@ -567,7 +568,7 @@ footer .logo img { height: 34px; }
 .heures { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
 .heure { cursor: pointer; font: inherit; font-size: 15px; color: var(--titre); background: var(--fond); border: 1px solid var(--filet); border-radius: 4px; padding: 12px 16px; min-height: 46px; transition: border-color var(--t), background var(--t); }
 .heure:hover { border-color: var(--accent); background: var(--accent-clair); }
-.heure.est-choisie { border-color: var(--accent); background: var(--accent); color: var(--plein-texte); }
+.heure.est-choisie { border-color: var(--plein); background: var(--plein); color: var(--plein-texte); }
 .geste-choix:focus-visible, .jour:focus-visible, .heure:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 /* LA RESERVATION EN TRENTE SECONDES — 29 septembre 2026. Les formules en
@@ -597,7 +598,7 @@ footer .logo img { height: 34px; }
 .place:hover { border-color: var(--accent); background: var(--accent-clair); }
 .place span { font-size: 12.5px; color: var(--texte-doux); }
 .place b { font-weight: 500; font-size: 17px; font-variant-numeric: tabular-nums; }
-.place.est-choisie { background: var(--accent); border-color: var(--accent); color: var(--plein-texte); }
+.place.est-choisie { background: var(--plein); border-color: var(--plein); color: var(--plein-texte); }
 .place.est-choisie span { color: var(--plein-texte); }
 .places + p { margin-top: 12px; }
 .bon-retour { border-color: var(--accent); }
@@ -714,7 +715,7 @@ footer .logo img { height: 34px; }
 .offres-onglet:hover { background: var(--accent-voile); }
 .offres-onglet.est-choisi { background: var(--carte); color: var(--titre); font-weight: 500; }
 .offres-onglet:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
-.offres-onglet small { display: inline-block; margin-left: 7px; padding: 1px 7px; border-radius: 999px; background: var(--accent); color: var(--plein-texte); font-size: 11px; letter-spacing: 0; }
+.offres-onglet small { display: inline-block; margin-left: 7px; padding: 1px 7px; border-radius: 999px; background: var(--plein); color: var(--plein-texte); font-size: 11px; letter-spacing: 0; }
 .offres-volet { display: grid; gap: 22px; min-width: 0; margin-top: 22px; }
 .offres-volet > * { min-width: 0; }
 .offres-vide { color: var(--texte-doux); font-style: italic; }
@@ -734,7 +735,7 @@ footer .logo img { height: 34px; }
    le grand ecran et les portes. Elle n'existe dans la page que si une offre
    court : aucune hauteur n'est reservee, donc aucun trou les jours sans
    offre. min-width: 0 a chaque niveau, il ne se transmet pas. */
-.bandeau-offre { background: var(--accent); color: var(--plein-texte); }
+.bandeau-offre { background: var(--plein); color: var(--plein-texte); }
 .bandeau-offre__dedans { display: flex; align-items: center; justify-content: space-between; gap: 18px; flex-wrap: wrap; min-width: 0; padding-block: 16px; }
 .bandeau-offre__dedans > * { min-width: 0; }
 .bandeau-offre__dire { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; min-width: 0; margin: 0; }
@@ -1035,7 +1036,7 @@ footer li svg { width: 15px; height: 15px; flex: none; }
 .offre-site__sceau .offre-site__deal-sous { display: block; margin-top: 8px; font-family: var(--sans); font-size: 12.5px; letter-spacing: .04em; text-transform: none; color: rgba(246, 241, 231, .7); }
 .offre-site.est-moment .offre-site__sceau { background: var(--accent-profond); }
 .offre-site.est-moment .offre-site__sceau span { color: var(--plein-texte); }
-.offre-site__moment { position: absolute; top: 14px; right: 14px; background: var(--accent); color: var(--plein-texte); font-size: 10px; letter-spacing: .16em; text-transform: uppercase; padding: 6px 12px; border-radius: 999px; }
+.offre-site__moment { position: absolute; top: 14px; right: 14px; background: var(--plein); color: var(--plein-texte); font-size: 10px; letter-spacing: .16em; text-transform: uppercase; padding: 6px 12px; border-radius: 999px; }
 .offre-site { position: relative; }
 .offre-site__dire { padding: 18px 22px 20px; display: flex; flex-direction: column; gap: 10px; }
 .offre-site__dire h3 { margin: 0; font-size: 23px; }
@@ -1056,7 +1057,7 @@ footer li svg { width: 15px; height: 15px; flex: none; }
    sur téléphone, jamais au-dessus du pied (elle s'efface quand il paraît). */
 .joindre { position: fixed; right: 16px; bottom: calc(16px + env(safe-area-inset-bottom, 0px)); z-index: 31; display: flex; flex-direction: column; align-items: flex-end; gap: 10px; transition: transform var(--t); }
 .joindre.est-cachee { transform: translateY(140%); }
-.joindre__bouton { display: inline-flex; align-items: center; gap: 10px; background: var(--accent); color: var(--plein-texte); border: 0; border-radius: 999px; padding: 0 18px 0 0; height: 56px; cursor: pointer; box-shadow: var(--ombre); font-family: var(--sans); font-size: 12.5px; letter-spacing: .12em; text-transform: uppercase; }
+.joindre__bouton { display: inline-flex; align-items: center; gap: 10px; background: var(--plein); color: var(--plein-texte); border: 0; border-radius: 999px; padding: 0 18px 0 0; height: 56px; cursor: pointer; box-shadow: var(--ombre); font-family: var(--sans); font-size: 12.5px; letter-spacing: .12em; text-transform: uppercase; }
 .joindre__bouton i { width: 56px; height: 56px; border-radius: 999px; display: grid; place-items: center; background: var(--accent-profond); }
 .joindre__bouton i svg { width: 22px; height: 22px; }
 .joindre__bouton:hover { background: var(--accent-profond); }
@@ -1372,7 +1373,7 @@ body.galerie-plein { scroll-behavior: smooth; }
 .routine b { font-weight: 500; font-size: 11px; letter-spacing: .2em; text-transform: uppercase; color: var(--accent-sombre); }
 .routine p { font-size: 14px; line-height: 1.5; max-width: none; }
 .sortie .maison { padding: 12px 16px; border-left: 2px solid var(--accent); font-size: 15px; }
-.sortie .btn--plein { background: var(--accent); border-color: var(--accent); color: var(--plein-texte); }
+.sortie .btn--plein { background: var(--plein); border-color: var(--plein); color: var(--plein-texte); }
 .formulaire.garder { display: grid; gap: 14px; }
 .formulaire.garder .btn { width: auto; justify-self: start; }
 @media (max-width: 620px) { .routine { grid-template-columns: 1fr; } }
@@ -1551,7 +1552,7 @@ body.galerie-plein { scroll-behavior: smooth; }
 .diag__quiz .btn:hover { border-color: var(--titre); background: rgba(30, 33, 80, .05); }
 .diag__quiz .btn--fort { background: var(--fort); border-color: var(--fort); color: var(--fort-texte); }
 .diag__quiz .btn--fort:hover { background: var(--fort); filter: brightness(1.12); }
-.diag__quiz .btn--plein { background: var(--accent); border-color: var(--accent); color: var(--plein-texte); }
+.diag__quiz .btn--plein { background: var(--plein); border-color: var(--plein); color: var(--plein-texte); }
 .diag__quiz .btn--lien { color: var(--accent-profond); border-color: transparent; }
 .diag__quiz .sortie .btn { color: #F6F1E7; border-color: rgba(246, 241, 231, .4); }
 .diag__quiz .sortie .btn--lien { color: var(--accent-sombre); }
@@ -1970,16 +1971,18 @@ html.js [data-voile].vu--net, html.js [data-voile]:focus-within { opacity: 1; tr
    elle n'a pas été faite pour le parrainage, notre histoire et la galerie :
    tout vient brutalement. Même chose entre La Maison et les cinq portes. »
    (Yéman). Chaque section de l'accueil prend sa couleur, aucune ne répète sa
-   voisine : ivoire (La Maison), argile (les portes), indigo (diagnostic),
-   indigo pâle (offres), indigo (carte cadeau), indigo pâle (parrainage),
-   argile (notre histoire), indigo (galerie), ivoire (avis). La couleur dit
-   la famille, comme les toiles des pages : l'argile mène aux parcours, la
-   tuile froide porte ce qui s'offre (« pourquoi les offres de la Maison ne
-   sont pas construites avec la tuile froide ? », Yéman). Entre deux clairs,
-   un fondu sur une plume ; contre l'indigo, la coupe reste franche. */
+   voisine. Depuis le 11 octobre (les entrées passées au-dessus de la
+   Maison) : indigo (premier écran), argile (les trois entrées, franche
+   contre l'indigo), ivoire (La Maison), indigo (diagnostic), indigo pâle
+   (offres), indigo (carte cadeau), indigo pâle (parrainage), argile (notre
+   histoire), indigo (galerie), ivoire (avis). La couleur dit la famille,
+   comme les toiles des pages : l'argile mène aux parcours, la tuile froide
+   porte ce qui s'offre (« pourquoi les offres de la Maison ne sont pas
+   construites avec la tuile froide ? », Yéman). Entre deux clairs, un fondu
+   sur une plume ; contre l'indigo, la coupe reste franche. Les fonds de
+   #portes et de .objectif sont écrits au bloc des trois entrées, en fin de
+   feuille. */
 .accueil-plein .vt-offres { --chaude: var(--indigo-pale); }
-.accueil-plein #portes { padding-block: var(--air);
-  background: linear-gradient(180deg, transparent 0, var(--chaude) var(--plume), var(--chaude) 100%); }
 .accueil-plein .parrain { padding-block: var(--air); background: var(--indigo-pale); }
 .accueil-plein .fondateurs { padding-block: var(--air);
   background: linear-gradient(180deg, var(--indigo-pale) 0, var(--chaude) var(--plume), var(--chaude) 100%); }
@@ -2041,3 +2044,70 @@ html.js [data-voile].vu--net, html.js [data-voile]:focus-within { opacity: 1; tr
 .porte-rdv__rappel a { color: var(--titre); text-decoration: underline; text-underline-offset: 3px; }
 /* La première question écrite dans la page : des liens au dessin des réponses. */
 a.reponse { text-decoration: none; }
+
+/* ══ L'ACCUEIL À TROIS ENTRÉES · 11 octobre 2026, maquette validée ═══════
+   Juste après le premier écran : Créer, Réparer, Entretenir, chacune sa
+   photo, son mot en grand, son accroche et son bouton vers le calendrier de
+   son parcours ; les Soins et MND Kids en petites cartes sous « Et aussi ».
+   La Maison vient ensuite. Le rythme des couleurs tient : indigo (premier
+   écran), argile (les entrées, franche contre l'indigo), ivoire (la Maison,
+   fondue depuis l'argile sur une plume), indigo (le diagnostic). */
+.hero-plein__appui { font-size: 18px; line-height: 1.55; color: rgba(246, 241, 231, .84); max-width: 36ch; }
+.accueil-plein #portes { padding-block: var(--air) clamp(16px, 2vw, 28px); background: var(--chaude); }
+.accueil-plein .objectif { padding-block: calc(var(--plume) + 28px) var(--air); background: linear-gradient(180deg, var(--chaude) 0, var(--jour) var(--plume), var(--jour) 100%); }
+.entrees { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: clamp(18px, 2.4vw, 32px); }
+.entree { display: flex; flex-direction: column; min-width: 0; background: var(--carte); border-radius: var(--r); overflow: hidden; box-shadow: 0 18px 50px rgba(30, 33, 80, .10); }
+/* La photo et son mot. Le lien du mot s'étend sur toute la photo (son
+   ::after, ancré à la photo : rien entre les deux n'est positionné), et
+   aucun autre lien ne vit dans la photo. */
+.entree__photo { position: relative; isolation: isolate; display: flex; flex-direction: column; justify-content: flex-end; aspect-ratio: 4 / 5; overflow: hidden; }
+/* `picture` est en display: contents (l. 52) : c'est l'image qui se pose. */
+.entree__photo img { position: absolute; inset: 0; display: block; width: 100%; height: 100%; max-width: none; object-fit: cover; object-position: 50% 15%; }
+.entree__photo::after { content: ''; position: absolute; inset: 0; z-index: 1; background: linear-gradient(0deg, rgba(21, 23, 58, .9) 0%, rgba(21, 23, 58, .66) 26%, rgba(21, 23, 58, .22) 46%, rgba(21, 23, 58, 0) 62%); pointer-events: none; }
+.entree__rang { position: absolute; z-index: 2; top: 18px; right: 22px; font-family: var(--serif); font-size: 15px; letter-spacing: .2em; color: rgba(246, 241, 231, .9); }
+.entree__sur { z-index: 2; display: grid; gap: 8px; padding: 0 26px 24px; }
+.entree__pour { font-weight: 400; font-size: 11px; letter-spacing: .22em; text-transform: uppercase; color: var(--accent-sombre); }
+.entree__mot { font-size: clamp(28px, 2.8vw, 40px); letter-spacing: .06em; text-transform: uppercase; line-height: 1; color: #F6F1E7; }
+.entree__mot a { color: #F6F1E7; text-decoration: none; text-underline-offset: 8px; text-decoration-thickness: 1px; }
+.entree__mot a::after { content: ''; position: absolute; inset: 0; z-index: 3; }
+.entree__mot a:hover { text-decoration: underline; }
+.entree__mot a:focus-visible { outline: 2px solid #F6F1E7; outline-offset: 4px; }
+.entree__corps { display: flex; flex-direction: column; gap: 14px; padding: 24px 26px 26px; flex: 1; }
+.entree__accroche { font-family: var(--serif); font-size: 25px; line-height: 1.2; color: var(--titre); }
+.entree__detail { font-size: 15px; line-height: 1.55; color: var(--texte-doux); }
+.entree .porte__temps { margin: 0; gap: 6px 14px; font-size: 13px; color: var(--accent-profond); }
+.entree__geste { display: grid; gap: 8px; margin-top: auto; padding-top: 8px; }
+.entree__geste .btn { width: 100%; }
+.entree__porte { font-size: 12.5px; color: var(--texte-doux); text-align: center; }
+.entree .suite, .petite .suite { display: inline-flex; align-items: center; justify-content: center; gap: 10px; min-height: 44px; font-size: 12px; letter-spacing: .18em; text-transform: uppercase; font-weight: 400; color: var(--accent-profond); }
+.entree .suite:hover, .petite .suite:hover { color: var(--titre); }
+.entree .suite svg, .petite .suite svg { width: 14px; height: 14px; }
+.aussi { margin-top: clamp(28px, 4vw, 48px); display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px clamp(18px, 2.4vw, 32px); }
+.aussi__titre { grid-column: 1 / -1; }
+.petite { display: grid; grid-template-columns: 112px minmax(0, 1fr); gap: 22px; align-items: center; min-width: 0; background: rgba(246, 241, 231, .7); border: 1px solid var(--filet-cuivre); border-radius: var(--r); padding: 12px 22px 8px 12px; }
+.petite picture, .petite img { display: block; width: 112px; height: 112px; }
+.petite img { object-fit: cover; object-position: 50% 15%; border-radius: 2px; }
+.petite__texte { display: grid; gap: 4px; justify-items: start; min-width: 0; }
+.petite__pour { font-weight: 400; font-size: 11px; letter-spacing: .22em; text-transform: uppercase; color: var(--accent-profond); }
+.petite h3 { font-size: 28px; }
+.petite p { font-size: 15px; line-height: 1.5; color: var(--texte-doux); }
+@media (prefers-reduced-motion: no-preference) {
+  .entree__photo img { transition: transform .9s cubic-bezier(.2, .7, .2, 1); }
+  .entree:hover .entree__photo img, .entree:focus-within .entree__photo img { transform: scale(1.035); }
+}
+@media (max-width: 900px) {
+  .entrees, .aussi { grid-template-columns: 1fr; }
+  .entree__photo { aspect-ratio: 16 / 10; }
+  .entree__mot { font-size: 42px; }
+}
+@media (max-width: 720px) {
+  .hero-plein__appui { font-size: 14.5px; line-height: 1.45; }
+  .entree__sur { padding: 0 20px 16px; gap: 6px; }
+  .entree__corps { padding: 20px 20px 18px; gap: 12px; }
+  .entree__accroche { font-size: 23px; }
+  .entree__detail { font-size: 14.5px; }
+  .petite { grid-template-columns: 84px minmax(0, 1fr); gap: 16px; padding: 12px 14px 6px 12px; }
+  .petite picture, .petite img { width: 84px; height: 84px; }
+  .petite h3 { font-size: 25px; }
+  .petite p { font-size: 14px; }
+}
