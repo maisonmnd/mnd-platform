@@ -56,7 +56,9 @@ dit('un coffre vide ne rend rien', [], copiesTriees('ins-42', []));
      on le retire avant d'effacer les commentaires (leçon du 6 octobre). */
   const sansCommentaires = (f: string) => readFileSync(f, 'utf8').replace(/image\/\*/g, 'image').replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '').replace(/\{\/\*[\s\S]*?\*\/\}/g, '');
   const ecran = sansCommentaires('src/apps/certificat/App.tsx');
-  const pdf = readFileSync('src/shared/pdf.ts', 'utf8');
+  /* Les fins de ligne de Windows ne changent pas le code (11 octobre 2026) :
+     une copie de travail neuve les porte, et `'\n}\n'` ne s'y trouvait plus. */
+  const pdf = readFileSync('src/shared/pdf.ts', 'utf8').replace(/\r\n/g, '\n');
   const debut = pdf.indexOf('export async function certificatEnPiece');
   const leCertificatPdf = pdf.slice(debut, pdf.indexOf('\n}\n', debut)).replace(/\/\*[\s\S]*?\*\//g, '');
 

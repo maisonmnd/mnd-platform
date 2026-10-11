@@ -989,13 +989,20 @@ const regles: Regle[] = [
     eprouve: () => {
       const { ecarts, vaut, vrai } = juge();
       const reserver = sansCommentaires(lit(RESERVER));
-      vaut('les deux portes de la consultation emportent le code', 2, (reserver.match(/href=\{`\$\{base\}\/rappel\/\?besoin=(?:creation|reparation)\$\{suiteDuCode\}`\}/g) ?? []).length);
+      /* LA RÉSERVATION SANS FRICTION (11 octobre 2026) : la création et la
+         réparation réservent leur consultation en ligne ; le rappel reste
+         offert par UN lien, sous la porte. La promesse ne change pas : tout
+         lien vers le rappel emporte le code de l'amie. */
+      const versLeRappel = reserver.split('${base}/rappel/').slice(1).map((suite) => suite.slice(0, 90));
+      vaut('chaque lien vers le rappel emporte le code (et il y en a un)', [true, true], [versLeRappel.length > 0, versLeRappel.every((l) => l.includes('suiteDuCode'))]);
       vrai('... lu dans l adresse', /const suiteDuCode = \(\(\) => \{ const c = codeDeLAdresse\(\); return c \? `&code=\$\{encodeURIComponent\(c\)\}` : ''; \}\)\(\);/.test(reserver));
       const rappel = sansCommentaires(lit(RAPPEL));
       vrai('la demande de rappel envoie le code d une amie', /\.\.\.\(codeAmie \? \{ codeAmie \} : \{\}\),/.test(rappel) && /useState\(codeDAmieDeLAdresse\)/.test(rappel) && /FORME_DU_CODE\.test\(c\) \? c : ''/.test(rappel));
       const edge = sansCommentaires(lf(lit(EDGE)));
       vrai('l Edge resout le code d une demande sans place, sans remise', /\} else if \(FORME_DU_CODE\.test\(codeNormalise\(codeEcrit\)\)\) \{\s*const code = codeNormalise\(codeEcrit\);\s*duCode = \(await verdictDuParrainage\(code, telephone\)\.catch\(\(\) => null\)\) \?\? \{ code, raison: 'inconnu' \};/.test(edge));
-      vrai('... et la marraine n est prevenue que d une place posee (aucun envoi neuf)', /if \(apptId && duCode\.raison === 'parrainage' && duCode\.marraineTelephone\) \{/.test(edge));
+      /* Depuis demande-submit 2026-10-11-a, une place DEJA posee (le doublon)
+         ne previent pas la marraine une seconde fois : la promesse se resserre. */
+      vrai('... et la marraine n est prevenue que d une place posee (aucun envoi neuf)', /if \(apptId && (?:!dejaPosee && )?duCode\.raison === 'parrainage' && duCode\.marraineTelephone\) \{/.test(edge));
       /* Le Trone : la demande de rappel rejoint sa fiche a la conversion. */
       const ficheA = [
         fiche({ id: 'awa', name: 'Awa H', graine: graineDe('AWA-7KQ'), codeParrain: 'AWA-7KQ' }),
