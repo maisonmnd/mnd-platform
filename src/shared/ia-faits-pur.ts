@@ -23,6 +23,8 @@ export type FaitsDuJour = {
   validationsEnAttente: number;
   tachesEnRetard: number;
   missionsOuvertes: number;
+  /** L'atelier des contenus (phase 2) : ce qui attend une relecture, ce qui sort aujourd'hui. */
+  contenus?: { aRelire: number; aujourdHui: number };
   /** Pour les rapports de la semaine et du mois : la période qu'ils couvrent. */
   periode?: { du: string; au: string; rdv: number; honores: number; annules: number; demandes: number };
 };
@@ -93,6 +95,8 @@ export function briefingDeBase(f: FaitsDuJour): { titre: string; points: string[
   }
   for (const o of f.offres.slice(0, 2)) points.push(`L’offre « ${o.titre} » (${o.remise}) court${o.jusquau ? ` jusqu’au ${jourEnClair(o.jusquau).replace(/^\S+ /, '')}` : ''}.`);
   if (f.periode) points.push(`Du ${jourEnClair(f.periode.du).replace(/^\S+ /, '')} au ${jourEnClair(f.periode.au).replace(/^\S+ /, '')} : ${pluriel(f.periode.rdv, 'rendez-vous', 'rendez-vous')}, dont ${f.periode.honores} honorés et ${f.periode.annules} annulés ; ${pluriel(f.periode.demandes, 'demande', 'demandes')} du site.`);
+  if (f.contenus && f.contenus.aRelire > 0) points.push(`${pluriel(f.contenus.aRelire, 'publication attend', 'publications attendent')} votre relecture dans l’atelier des contenus.`);
+  if (f.contenus && f.contenus.aujourdHui > 0) points.push(`${pluriel(f.contenus.aujourdHui, 'publication est prévue', 'publications sont prévues')} aujourd’hui sur les réseaux.`);
   if (f.missionsOuvertes > 0) points.push(`${pluriel(f.missionsOuvertes, 'mission est ouverte', 'missions sont ouvertes')}.`);
   return { titre: `Le briefing du ${jourEnClair(f.jour)}`, points };
 }

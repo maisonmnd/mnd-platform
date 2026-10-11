@@ -134,7 +134,7 @@ const regles: Regle[] = [
     eprouve: (e) => {
       const { ecarts } = copiesAJour(e.fonction, (p: string) => readFileSync(p, 'utf8')) as { ecarts: string[] };
       const blocs = (e.fonction.match(/DÉBUT DE LA COPIE/g) ?? []).length;
-      return [...ecarts.map((p) => `copie périmée : ${p}`), ...(blocs === 8 ? [] : [`${blocs} blocs au lieu de 8`])];
+      return [...ecarts.map((p) => `copie périmée : ${p}`), ...(blocs === 11 ? [] : [`${blocs} blocs au lieu de 11`])];
     },
     pannes: [
       { nom: 'une copie retouchée à la main', mute: (e) => ({ ...e, fonction: e.fonction.replace("contrat: 'humain',", "contrat: 'auto',") }) },
@@ -175,7 +175,7 @@ const regles: Regle[] = [
       return x;
     },
     pannes: [
-      { nom: 'l’écran ouvert à tous', mute: (e) => ({ ...e, routes: e.routes.replace(", '/centre-de-commande'];", '];') }) },
+      { nom: 'l’écran ouvert à tous', mute: (e) => ({ ...e, routes: e.routes.replace(/(export const ROUTES_SOUVERAIN = \[[^\]]*?), '\/centre-de-commande'/, '$1') }) },
     ],
   },
   {

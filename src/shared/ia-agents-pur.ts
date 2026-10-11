@@ -63,7 +63,7 @@ export const AGENTS: readonly Agent[] = [
     mission: 'Tient la présence de la Maison : piliers, calendrier, légendes, accroches, formats, séries.',
     lit: ['Plans des réseaux déjà validés', 'Offres en cours', 'Mémoire de la Maison'],
     produit: ['Calendrier éditorial', 'Légendes et accroches', 'Séries'],
-    niveau: 'relecture', consigne: null,
+    niveau: 'relecture', consigne: 'MND_RESEAUX_CALENDRIER_v1',
     gardeFous: ['Jamais de prix en campagne', 'Ne publie rien sans validation'],
   },
   {
@@ -71,7 +71,7 @@ export const AGENTS: readonly Agent[] = [
     mission: 'Fonctionne comme une rédaction : idée, angle, recherche, plan, rédaction, vérification, édition, validation.',
     lit: ['Articles déjà publiés', 'Voix du site', 'Registre des photos'],
     produit: ['Sujets', 'Articles', 'Portraits', 'Dossiers'],
-    niveau: 'relecture', consigne: null,
+    niveau: 'relecture', consigne: 'MND_JOURNAL_ARTICLE_v1',
     gardeFous: ['Aucun fait inventé', 'Aucune cliente sur un article qui nomme un défaut'],
   },
   {
@@ -79,12 +79,12 @@ export const AGENTS: readonly Agent[] = [
     mission: 'Prépare chaque séance : brief, concept, modèle, tenue, décor, lumière, liste des prises par format.',
     lit: ['Direction photo du site', 'Registre des accords'],
     produit: ['Brief de séance', 'Liste des prises'],
-    niveau: 'relecture', consigne: null,
+    niveau: 'relecture', consigne: 'MND_PHOTO_SEANCE_v1',
     gardeFous: ['Pas de photo publiée sans accord inscrit au registre', 'Aucun visage d’enfant sans l’accord du parent'],
   },
   {
     id: 'direction-artistique', nom: 'Direction artistique', phase: 2,
-    mission: 'Tient la cohérence visuelle : couleurs, composition, lumière, tenues, typographie, planches de tendance.',
+    mission: 'Tient la cohérence visuelle et écrite : ses règles relisent chaque texte de l’atelier, sans Claude (le gardien de la marque), et bloquent ce qui ne peut pas sortir.',
     lit: ['Palette indigo, cuivre, ivoire', 'Verrou et motifs', 'Charte'],
     produit: ['Planches', 'Avis de cohérence'],
     niveau: 'relecture', consigne: null,
@@ -95,7 +95,7 @@ export const AGENTS: readonly Agent[] = [
     mission: 'Concepts, scripts, découpages : accroche, histoire, valeur, émotion, appel.',
     lit: ['Mémoire de la Maison', 'Séances photo'],
     produit: ['Scripts', 'Découpages', 'Textes à l’écran'],
-    niveau: 'relecture', consigne: null,
+    niveau: 'relecture', consigne: 'MND_VIDEO_SCRIPT_v1',
     gardeFous: ['Ne publie rien sans validation'],
   },
   {
@@ -103,7 +103,7 @@ export const AGENTS: readonly Agent[] = [
     mission: 'Tire d’un seul contenu tout ce qu’il peut donner : posts, stories, articles, messages.',
     lit: ['Contenus validés'],
     produit: ['Déclinaisons par format'],
-    niveau: 'relecture', consigne: null,
+    niveau: 'relecture', consigne: 'MND_USINE_DECLINAISONS_v1',
     gardeFous: ['Chaque déclinaison repasse par la validation'],
   },
   {
@@ -169,10 +169,16 @@ export const agentDe = (id: string): Agent | undefined => AGENTS.find((a) => a.i
 /** Les identifiants qu'une mission peut confier : tout agent nommé. */
 export const IDS_DES_AGENTS: readonly string[] = AGENTS.map((a) => a.id);
 
-/** En service, prêt, ou prévu : un agent de phase 1 est en service quand la
-    fonction de l'orchestrateur répond ; avant, il est prêt. */
+/** Les phases construites : la fondation (11 octobre 2026), puis le contenu
+    (le même jour, « construis la phase suivante »). */
+export const PHASES_CONSTRUITES: readonly Phase[] = [1, 2];
+
+/** En service, prêt, ou prévu : un agent d'une phase construite est en
+    service quand la fonction de l'orchestrateur répond ; avant, il est prêt
+    (ses outils marchent à la main). La mémoire et la direction artistique,
+    qui ne demandent pas Claude, sont toujours en service. */
 export function etatDeLAgent(a: Agent, fonctionPosee: boolean): 'en-service' | 'pret' | 'prevu' {
-  if (a.phase > 1) return 'prevu';
-  if (a.id === 'memoire') return 'en-service';
+  if (!PHASES_CONSTRUITES.includes(a.phase)) return 'prevu';
+  if (a.id === 'memoire' || a.id === 'direction-artistique') return 'en-service';
   return fonctionPosee ? 'en-service' : 'pret';
 }

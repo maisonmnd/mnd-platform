@@ -11,7 +11,7 @@ import { useOffers } from '../../../../shared/offers';
 import { attendEncore } from '../../../../shared/salle-des-envois';
 import { useApprenants, useEnvois, useSubscribers } from '../equipe/data';
 import { addDaysISO, revenuDuMois, revenusProjetesDuMois, todayISO, useBranchAppointments, useServicesById } from '../clients/_shared';
-import { AGENTS, PHASES, etatDeLAgent, type Phase } from '../../../../shared/ia-agents-pur';
+import { AGENTS, PHASES, PHASES_CONSTRUITES, etatDeLAgent, type Phase } from '../../../../shared/ia-agents-pur';
 import { MEMOIRE } from '../../../../shared/ia-memoire-pur';
 import { briefingDeBase, comptesDesMissions, francs, heureEnClair, jourEnClair, type FaitsDuJour } from '../../../../shared/ia-faits-pur';
 import { CONSIGNES, TITRE_DU_GENRE, type GenreDeBriefing } from '../../../../shared/ia-prompts-pur';
@@ -24,6 +24,7 @@ import {
   type EtatDeLaFonction, type Mission, type Tache,
 } from '../../../../shared/ia-centre';
 import { objetPourClaude, type Personne } from '../../../../shared/ia-anonymise-pur';
+import { useArticles, useContenus, useScripts, useSeances } from '../../../../shared/ia-atelier';
 import './centre.css';
 
 /* ══ LE CENTRE DE COMMANDE — 11 octobre 2026 ══════════════════════════════
@@ -107,6 +108,10 @@ export default function CentreDeCommande() {
   const expenses = useDepensesComptees();
   const [missions] = useMissions();
   const [clients] = useClients();
+  const [contenus] = useContenus();
+  const [seances] = useSeances();
+  const [scripts] = useScripts();
+  const [articles] = useArticles();
 
   const faits: FaitsDuJour = useMemo(() => {
     const duJour = appts.filter((a) => a.date === today && a.status !== 'annulé').map((a) => a.time).filter(Boolean).sort();
@@ -133,8 +138,12 @@ export default function CentreDeCommande() {
       validationsEnAttente: comptes.validations,
       tachesEnRetard: comptes.retard,
       missionsOuvertes: comptes.ouvertes,
+      contenus: {
+        aRelire: contenus.filter((c) => c.statut === 'a-relire').length,
+        aujourdHui: contenus.filter((c) => c.date === today && (c.statut === 'valide' || c.statut === 'programme')).length,
+      },
     };
-  }, [appts, today, demandes, envois, offres, invoices, byId, apprenants, abonnes, expenses, missions, branch.id]);
+  }, [appts, today, demandes, envois, offres, invoices, byId, apprenants, abonnes, expenses, missions, contenus, branch.id]);
 
   /* LE RELEVÉ POUR LE MATIN : la fonction ne recompte pas l'argent, elle
      reprend celui-ci, avec son heure (au plus une écriture par heure). */
@@ -171,6 +180,16 @@ export default function CentreDeCommande() {
 
   /* ── Les validations ── */
   const aValider = missions.flatMap((m) => m.taches.filter((t) => t.statut === 'a-valider' && !t.validation).map((t) => ({ m, t })));
+  /* L'ATELIER DES CONTENUS (phase 2) : ce qui attend une relecture se tranche
+     là-bas, pièce par pièce, avec le gardien de la marque ; ici on le compte. */
+  const aRelireAtelier = [
+    { n: contenus.filter((c) => c.statut === 'a-relire').length, un: 'publication', plusieurs: 'publications' },
+    { n: seances.filter((x) => x.statut === 'a-relire').length, un: 'brief de séance photo', plusieurs: 'briefs de séance photo' },
+    { n: scripts.filter((x) => x.statut === 'a-relire').length, un: 'script vidéo', plusieurs: 'scripts vidéo' },
+    { n: articles.filter((a) => a.etape === 'validation' && !a.validation).length, un: 'article du Journal', plusieurs: 'articles du Journal' },
+  ].filter((x) => x.n > 0);
+  const nAtelier = aRelireAtelier.reduce((t, x) => t + x.n, 0);
+  const aVenir = ([2, 3, 4, 5] as Phase[]).filter((ph) => !PHASES_CONSTRUITES.includes(ph));
   const [mots, setMots] = useState<Record<string, string>>({});
   const tranche = (m: Mission, t: Tache, verdict: 'oui' | 'non') => {
     const r = valideLaTache(m.id, t.id, verdict, staff ? { user_id: staff.user_id, name: staff.name ?? 'Fondateur', role: staff.role } : null, mots[t.id]);
@@ -247,7 +266,7 @@ export default function CentreDeCommande() {
             <span className="cc-tuile__sous">à traiter</span>
           </button>
           <button type="button" className="cc-tuile" onClick={() => setOuvert('validations')}>
-            <span className="cc-tuile__chiffre">{faits.validationsEnAttente}</span>
+            <span className="cc-tuile__chiffre">{faits.validationsEnAttente + nAtelier}</span>
             <span className="cc-tuile__nom">Validations</span>
             <span className="cc-tuile__sous">vous attendent</span>
           </button>
@@ -298,8 +317,17 @@ export default function CentreDeCommande() {
 
       <div className="cc-groupes">
         <Groupe id="validations" nom="Validations" ouvert={ouvert === 'validations'} bascule={bascule}
-          resume={aValider.length ? `${pl(aValider.length, 'tâche attend', 'tâches attendent')} Yéman ou Brice` : 'Rien n’attend de décision'}>
-          {aValider.length === 0 ? <p className="cc-vide">Aucune tâche n’attend de validation. Les tâches à relire et les décisions humaines arrivent ici.</p> : (
+          resume={aValider.length || nAtelier ? [aValider.length ? pl(aValider.length, 'tâche', 'tâches') : '', nAtelier ? `${nAtelier} à l’atelier des contenus` : ''].filter(Boolean).join(' · ') + ' pour Yéman ou Brice' : 'Rien n’attend de décision'}>
+          {nAtelier > 0 && (
+            <div className="cc-validation">
+              <div className="cc-validation__dire">
+                <b>L’atelier des contenus attend votre relecture</b>
+                <small>{aRelireAtelier.map((x) => pl(x.n, x.un, x.plusieurs)).join(', ')}</small>
+              </div>
+              <div className="cc-actions"><Button size="sm" onClick={() => navigate('/atelier-des-contenus')}>Ouvrir l’atelier</Button></div>
+            </div>
+          )}
+          {aValider.length === 0 ? (nAtelier ? null : <p className="cc-vide">Aucune tâche n’attend de validation. Les tâches à relire et les décisions humaines arrivent ici.</p>) : (
             <div className="cc-liste">
               {aValider.map(({ m, t }) => (
                 <div key={t.id} className="cc-validation">
@@ -452,8 +480,14 @@ export default function CentreDeCommande() {
         </Groupe>
 
         <Groupe id="suite" nom="La suite du Centre" ouvert={ouvert === 'suite'} bascule={bascule}
-          resume="Contenu, automatisation, gestion, intelligence : quatre phases à venir">
-          {([2, 3, 4, 5] as Phase[]).map((ph) => (
+          resume={`${aVenir.map((ph) => PHASES[ph].nom.toLowerCase()).join(', ').replace(/^./, (c) => c.toUpperCase())} : ${pl(aVenir.length, 'phase à venir', 'phases à venir')}`}>
+          {PHASES_CONSTRUITES.includes(2) && (
+            <div className="cc-noteligne">
+              <span><b>Phase 2 · {PHASES[2].nom}, construite.</b> {PHASES[2].dit} Elle vit dans l’atelier des contenus.</span>
+              <Button size="sm" variant="ghost" onClick={() => navigate('/atelier-des-contenus')}>Ouvrir</Button>
+            </div>
+          )}
+          {aVenir.map((ph) => (
             <div key={ph} className="cc-noteligne"><span><b>Phase {ph} · {PHASES[ph].nom}.</b> {PHASES[ph].dit}</span></div>
           ))}
           <p className="cc-note">Les réseaux sociaux ne sont pas encore reliés : tant que Meta n’a pas ouvert l’accès, la publication reste à la main. Aucune intégration n’est simulée.</p>

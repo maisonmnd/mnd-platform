@@ -277,7 +277,8 @@ async function messageDeLaFonction(e: unknown): Promise<string> {
   return detail ? `L’orchestrateur n’a pas répondu : ${detail}` : 'L’orchestrateur n’a pas répondu, réessayez dans un instant.';
 }
 
-async function appelle<T>(corps: Record<string, unknown>): Promise<T> {
+/** L'appel à la fonction `centre-de-commande`, pour le Centre et l'atelier des contenus. */
+export async function appelle<T>(corps: Record<string, unknown>): Promise<T> {
   if (!supabase) throw new Error('Le Centre demande le serveur de la Maison.');
   if (typeof navigator !== 'undefined' && navigator.onLine === false) throw new Error('Hors ligne : l’orchestrateur demande le réseau.');
   const { data, error } = await supabase.functions.invoke('centre-de-commande', { body: corps });

@@ -12,6 +12,7 @@
 //   { mode: 'etat' }                         fondateur ou clé service : version et dépense du mois, sans Claude.
 //   { mode: 'briefing', genre }              clé service (cron) ou fondateur (clic) ; genre = matin | lundi | vendredi | mois.
 //   { mode: 'mission', objectif }            fondateur : l'objectif découpé en tâches, rendu au Trône qui le range « à relire ».
+//   { mode: 'contenu', genre, ... }          fondateur : calendrier, declinaisons, article, seance, video (phase 2), rendus « à relire ».
 //
 // DÉPLOIEMENT : Supabase → Edge Functions → New function → nom
 // « centre-de-commande » → coller CE FICHIER ENTIER → Deploy. Les secrets
@@ -34,7 +35,7 @@ import { createClient } from 'npm:@supabase/supabase-js@2';
 import webpush from 'npm:web-push@3.6.7';
 
 /** La version de ce fichier, rendue dans chaque réponse. */
-const VERSION = '2026-10-11-a';
+const VERSION = '2026-10-11-b';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SERVICE_KEY = (Deno.env.get('CLE_SERVICE') ?? Deno.env.get('SERVICE_KEY') ?? Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '').trim();
@@ -429,7 +430,7 @@ export const AGENTS: readonly Agent[] = [
     mission: 'Tient la présence de la Maison : piliers, calendrier, légendes, accroches, formats, séries.',
     lit: ['Plans des réseaux déjà validés', 'Offres en cours', 'Mémoire de la Maison'],
     produit: ['Calendrier éditorial', 'Légendes et accroches', 'Séries'],
-    niveau: 'relecture', consigne: null,
+    niveau: 'relecture', consigne: 'MND_RESEAUX_CALENDRIER_v1',
     gardeFous: ['Jamais de prix en campagne', 'Ne publie rien sans validation'],
   },
   {
@@ -437,7 +438,7 @@ export const AGENTS: readonly Agent[] = [
     mission: 'Fonctionne comme une rédaction : idée, angle, recherche, plan, rédaction, vérification, édition, validation.',
     lit: ['Articles déjà publiés', 'Voix du site', 'Registre des photos'],
     produit: ['Sujets', 'Articles', 'Portraits', 'Dossiers'],
-    niveau: 'relecture', consigne: null,
+    niveau: 'relecture', consigne: 'MND_JOURNAL_ARTICLE_v1',
     gardeFous: ['Aucun fait inventé', 'Aucune cliente sur un article qui nomme un défaut'],
   },
   {
@@ -445,12 +446,12 @@ export const AGENTS: readonly Agent[] = [
     mission: 'Prépare chaque séance : brief, concept, modèle, tenue, décor, lumière, liste des prises par format.',
     lit: ['Direction photo du site', 'Registre des accords'],
     produit: ['Brief de séance', 'Liste des prises'],
-    niveau: 'relecture', consigne: null,
+    niveau: 'relecture', consigne: 'MND_PHOTO_SEANCE_v1',
     gardeFous: ['Pas de photo publiée sans accord inscrit au registre', 'Aucun visage d’enfant sans l’accord du parent'],
   },
   {
     id: 'direction-artistique', nom: 'Direction artistique', phase: 2,
-    mission: 'Tient la cohérence visuelle : couleurs, composition, lumière, tenues, typographie, planches de tendance.',
+    mission: 'Tient la cohérence visuelle et écrite : ses règles relisent chaque texte de l’atelier, sans Claude (le gardien de la marque), et bloquent ce qui ne peut pas sortir.',
     lit: ['Palette indigo, cuivre, ivoire', 'Verrou et motifs', 'Charte'],
     produit: ['Planches', 'Avis de cohérence'],
     niveau: 'relecture', consigne: null,
@@ -461,7 +462,7 @@ export const AGENTS: readonly Agent[] = [
     mission: 'Concepts, scripts, découpages : accroche, histoire, valeur, émotion, appel.',
     lit: ['Mémoire de la Maison', 'Séances photo'],
     produit: ['Scripts', 'Découpages', 'Textes à l’écran'],
-    niveau: 'relecture', consigne: null,
+    niveau: 'relecture', consigne: 'MND_VIDEO_SCRIPT_v1',
     gardeFous: ['Ne publie rien sans validation'],
   },
   {
@@ -469,7 +470,7 @@ export const AGENTS: readonly Agent[] = [
     mission: 'Tire d’un seul contenu tout ce qu’il peut donner : posts, stories, articles, messages.',
     lit: ['Contenus validés'],
     produit: ['Déclinaisons par format'],
-    niveau: 'relecture', consigne: null,
+    niveau: 'relecture', consigne: 'MND_USINE_DECLINAISONS_v1',
     gardeFous: ['Chaque déclinaison repasse par la validation'],
   },
   {
@@ -535,11 +536,17 @@ export const agentDe = (id: string): Agent | undefined => AGENTS.find((a) => a.i
 /** Les identifiants qu'une mission peut confier : tout agent nommé. */
 export const IDS_DES_AGENTS: readonly string[] = AGENTS.map((a) => a.id);
 
-/** En service, prêt, ou prévu : un agent de phase 1 est en service quand la
-    fonction de l'orchestrateur répond ; avant, il est prêt. */
+/** Les phases construites : la fondation (11 octobre 2026), puis le contenu
+    (le même jour, « construis la phase suivante »). */
+export const PHASES_CONSTRUITES: readonly Phase[] = [1, 2];
+
+/** En service, prêt, ou prévu : un agent d'une phase construite est en
+    service quand la fonction de l'orchestrateur répond ; avant, il est prêt
+    (ses outils marchent à la main). La mémoire et la direction artistique,
+    qui ne demandent pas Claude, sont toujours en service. */
 export function etatDeLAgent(a: Agent, fonctionPosee: boolean): 'en-service' | 'pret' | 'prevu' {
-  if (a.phase > 1) return 'prevu';
-  if (a.id === 'memoire') return 'en-service';
+  if (!PHASES_CONSTRUITES.includes(a.phase)) return 'prevu';
+  if (a.id === 'memoire' || a.id === 'direction-artistique') return 'en-service';
   return fonctionPosee ? 'en-service' : 'pret';
 }
 // ── FIN DE LA COPIE ──
@@ -694,6 +701,8 @@ export type FaitsDuJour = {
   validationsEnAttente: number;
   tachesEnRetard: number;
   missionsOuvertes: number;
+  /** L'atelier des contenus (phase 2) : ce qui attend une relecture, ce qui sort aujourd'hui. */
+  contenus?: { aRelire: number; aujourdHui: number };
   /** Pour les rapports de la semaine et du mois : la période qu'ils couvrent. */
   periode?: { du: string; au: string; rdv: number; honores: number; annules: number; demandes: number };
 };
@@ -764,6 +773,8 @@ export function briefingDeBase(f: FaitsDuJour): { titre: string; points: string[
   }
   for (const o of f.offres.slice(0, 2)) points.push(`L’offre « ${o.titre} » (${o.remise}) court${o.jusquau ? ` jusqu’au ${jourEnClair(o.jusquau).replace(/^\S+ /, '')}` : ''}.`);
   if (f.periode) points.push(`Du ${jourEnClair(f.periode.du).replace(/^\S+ /, '')} au ${jourEnClair(f.periode.au).replace(/^\S+ /, '')} : ${pluriel(f.periode.rdv, 'rendez-vous', 'rendez-vous')}, dont ${f.periode.honores} honorés et ${f.periode.annules} annulés ; ${pluriel(f.periode.demandes, 'demande', 'demandes')} du site.`);
+  if (f.contenus && f.contenus.aRelire > 0) points.push(`${pluriel(f.contenus.aRelire, 'publication attend', 'publications attendent')} votre relecture dans l’atelier des contenus.`);
+  if (f.contenus && f.contenus.aujourdHui > 0) points.push(`${pluriel(f.contenus.aujourdHui, 'publication est prévue', 'publications sont prévues')} aujourd’hui sur les réseaux.`);
   if (f.missionsOuvertes > 0) points.push(`${pluriel(f.missionsOuvertes, 'mission est ouverte', 'missions sont ouvertes')}.`);
   return { titre: `Le briefing du ${jourEnClair(f.jour)}`, points };
 }
@@ -855,6 +866,92 @@ export const CONSIGNES: Record<string, Consigne> = {
     ],
     validation: 'Une mission découpée entre au Centre « à relire » ; ses tâches gardent le niveau le plus exigeant entre celui proposé et celui de leur genre.',
   },
+
+  /* ── PHASE 2, LE CONTENU — 11 octobre 2026 ── */
+  MND_RESEAUX_CALENDRIER_v1: {
+    id: 'MND_RESEAUX_CALENDRIER_v1',
+    agent: 'reseaux',
+    version: 1,
+    role: 'Vous êtes l’agent des réseaux sociaux de la Maison MND : vous proposez des publications pour une période, sur les réseaux demandés, dans la voix de la Maison.',
+    objectifs: [
+      'Proposer des publications datées dans la période, au rythme léger de la Maison : deux publications et une vidéo par semaine au plus et par réseau, des stories en plus.',
+      'Varier les piliers ; ne pas répéter un sujet déjà prévu (la liste des sujets prévus est donnée).',
+      'Pour chacune : date, heure, réseaux, format, pilier, objectif, sujet, accroche (la première ligne), légende complète, appel et consigne de visuel.',
+    ],
+    contraintes: [
+      ...CONTRAINTES_COMMUNES,
+      'Jamais de prix dans une publication : le prix se lit à la réservation, sur maisonmnd.com.',
+      'Aucun témoignage ni avis inventé ; une cliente ne paraît que si sa photo est au registre, et seulement par son prénom et son initiale.',
+      'Le visuel se décrit avec les photos et les couleurs de la Maison : indigo, cuivre, ivoire ; jamais de noir.',
+      'Les légendes finissent par les mots-dièse de la Maison, au plus cinq, dont #MaisonMND.',
+    ],
+    validation: 'Chaque publication proposée entre au calendrier « à relire » ; un fondateur la valide avant qu’elle soit programmée.',
+  },
+  MND_JOURNAL_ARTICLE_v1: {
+    id: 'MND_JOURNAL_ARTICLE_v1',
+    agent: 'journal',
+    version: 1,
+    role: 'Vous êtes la rédaction du Journal Maison MND : vous écrivez un article de conseil sur les locks, utile, exact, dans la voix de la Maison.',
+    objectifs: [
+      'Un titre en question, comme les articles du Journal ; une description de 120 à 160 signes pour Google ; cinq à sept mots-clés.',
+      'Un angle, un plan, puis le texte en Markdown : des parties en « ## », une partie « Trois questions qu’on nous pose », et une dernière partie « ## Et maintenant » de deux phrases.',
+      'La liste des faits à vérifier avant publication : chaque chiffre, chaque affirmation de santé, chaque durée.',
+    ],
+    contraintes: [
+      ...CONTRAINTES_COMMUNES,
+      'Aucun prix chiffré. Aucun conseil médical : un cuir chevelu irrité se montre à un dermatologue.',
+      'Les gestes s’écrivent avec leur nom (le SÍNSIN™, le DÀNDÀN™, le KLƆKLƆ™) seulement s’ils sont dans la mémoire.',
+      'Entre 700 et 1 200 mots.',
+    ],
+    validation: 'L’article reste dans la rédaction ; il ne paraît sur le site qu’après la validation d’un fondateur et une publication du site.',
+  },
+  MND_PHOTO_SEANCE_v1: {
+    id: 'MND_PHOTO_SEANCE_v1',
+    agent: 'photo',
+    version: 1,
+    role: 'Vous êtes l’agent photo de la Maison MND : vous préparez le brief d’une séance et la liste des prises.',
+    objectifs: [
+      'Remplir le brief : objectif, concept, histoire, coiffure, tenue, accessoires, décor, lumière, cadrage, poses, expressions, détails.',
+      'Écrire de dix à seize prises numérotées, chacune avec son nom, sa consigne précise et son format.',
+    ],
+    contraintes: [
+      ...CONTRAINTES_COMMUNES,
+      'La Maison à la lumière du jour, ivoire et indigo, cuivre en accent ; jamais de fond noir.',
+      'Le modèle se dit par son prénom et son initiale ; un enfant demande l’accord écrit de son parent.',
+    ],
+    validation: 'Le brief se relit et se valide avant la séance.',
+  },
+  MND_VIDEO_SCRIPT_v1: {
+    id: 'MND_VIDEO_SCRIPT_v1',
+    agent: 'video',
+    version: 1,
+    role: 'Vous êtes l’agent vidéo de la Maison MND : vous écrivez le script d’une vidéo courte ou longue.',
+    objectifs: [
+      'Dans l’ordre : accroche (deux secondes), histoire, valeur, émotion, appel.',
+      'Des plans numérotés, chacun avec l’image, le texte à l’écran et sa durée en secondes ; leur somme fait la durée demandée.',
+      'Les transitions, une musique suggérée (une ambiance, jamais un titre protégé), la miniature et la légende.',
+    ],
+    contraintes: [
+      ...CONTRAINTES_COMMUNES,
+      'Jamais de prix. Les sous-titres sont toujours prévus.',
+    ],
+    validation: 'Le script se valide avant le tournage.',
+  },
+  MND_USINE_DECLINAISONS_v1: {
+    id: 'MND_USINE_DECLINAISONS_v1',
+    agent: 'usine',
+    version: 1,
+    role: 'Vous êtes l’usine à contenus de la Maison MND : d’une source (une séance, une vidéo, un article), vous écrivez chacune des déclinaisons demandées.',
+    objectifs: [
+      'Pour chaque déclinaison donnée (format, réseaux, pilier, sujet, date), écrire l’accroche, la légende, l’appel et la consigne de visuel.',
+      'Que chaque déclinaison se suffise : une personne qui ne voit qu’elle comprend.',
+    ],
+    contraintes: [
+      ...CONTRAINTES_COMMUNES,
+      'Jamais de prix. Aucun témoignage inventé.',
+    ],
+    validation: 'Chaque déclinaison entre au calendrier « à relire ».',
+  },
 };
 
 /** Les genres de rapport que l'orchestrateur écrit. */
@@ -944,6 +1041,500 @@ export function schemaDeLaMission(agents: readonly string[], genres: readonly st
     },
   };
 }
+
+/* ── Les schémas de la phase 2 : les listes fermées arrivent en paramètre. ── */
+export type ListesDuContenu = { plateformes: readonly string[]; formats: readonly string[]; piliers: readonly string[]; parcours: readonly string[] };
+
+const publication = (l: ListesDuContenu) => ({
+  type: 'object', additionalProperties: false,
+  required: ['date', 'heure', 'plateformes', 'format', 'pilier', 'objectif', 'sujet', 'accroche', 'legende', 'appel', 'visuel'],
+  properties: {
+    date: { type: 'string', description: 'AAAA-MM-JJ, dans la période.' },
+    heure: { type: 'string', description: 'HH:MM, heure de Cotonou.' },
+    plateformes: { type: 'array', items: { type: 'string', enum: [...l.plateformes] } },
+    format: { type: 'string', enum: [...l.formats] },
+    pilier: { type: 'string', enum: [...l.piliers] },
+    objectif: texte(160),
+    sujet: texte(140),
+    accroche: texte(160),
+    legende: texte(1500),
+    appel: texte(140),
+    visuel: texte(400),
+  },
+});
+
+export const schemaDuCalendrier = (l: ListesDuContenu) => ({
+  type: 'object', additionalProperties: false, required: ['publications'],
+  properties: { publications: { type: 'array', description: 'Au plus vingt et une.', items: publication(l) } },
+});
+
+export const schemaDesDeclinaisons = (l: ListesDuContenu) => schemaDuCalendrier(l);
+
+export const schemaDeLArticle = (l: ListesDuContenu) => ({
+  type: 'object', additionalProperties: false,
+  required: ['titre', 'description', 'motsCles', 'parcours', 'angle', 'plan', 'corps', 'aVerifier'],
+  properties: {
+    titre: texte(110),
+    description: texte(170),
+    motsCles: { type: 'array', description: 'De cinq à sept.', items: texte(60) },
+    parcours: { type: 'string', enum: [...l.parcours] },
+    angle: texte(300),
+    plan: { type: 'array', items: texte(120) },
+    corps: texte(9000),
+    aVerifier: { type: 'array', items: texte(240) },
+  },
+});
+
+export const schemaDeLaSeance = () => ({
+  type: 'object', additionalProperties: false,
+  required: ['objectif', 'concept', 'histoire', 'coiffure', 'tenue', 'accessoires', 'decor', 'lumiere', 'cadrage', 'poses', 'expressions', 'details', 'prises'],
+  properties: {
+    objectif: texte(300), concept: texte(400), histoire: texte(500), coiffure: texte(300), tenue: texte(300), accessoires: texte(200),
+    decor: texte(300), lumiere: texte(200), cadrage: texte(300), poses: texte(400), expressions: texte(300), details: texte(400),
+    prises: {
+      type: 'array', description: 'De dix à seize.',
+      items: { type: 'object', additionalProperties: false, required: ['nom', 'consigne', 'format'], properties: { nom: texte(60), consigne: texte(240), format: texte(60) } },
+    },
+  },
+});
+
+export const schemaDuScript = () => ({
+  type: 'object', additionalProperties: false,
+  required: ['accroche', 'histoire', 'valeur', 'emotion', 'appel', 'plans', 'transitions', 'musique', 'miniature', 'legende'],
+  properties: {
+    accroche: texte(200), histoire: texte(600), valeur: texte(600), emotion: texte(400), appel: texte(200),
+    plans: {
+      type: 'array', description: 'De quatre à douze plans.',
+      items: { type: 'object', additionalProperties: false, required: ['image', 'texteEcran', 'duree'], properties: { image: texte(240), texteEcran: texte(120), duree: { type: 'integer', description: 'En secondes.' } } },
+    },
+    transitions: texte(240), musique: texte(160), miniature: texte(200), legende: texte(1200),
+  },
+});
+// ── FIN DE LA COPIE ──
+
+// ── DÉBUT DE LA COPIE : src/shared/ia-marque-pur.ts ──
+/* LE GARDIEN DE LA MARQUE — 11 octobre 2026 (phase 2, « Contenu »).
+
+   Cahier « Maison MND AI Operating System », § 13 : la direction artistique
+   « contrôle » ce qui sort. Ses règles écrites se vérifient sans Claude,
+   à chaque frappe, sur chaque texte de l'atelier des contenus (légende,
+   accroche, article, script) et sur chaque réponse d'un agent.
+
+   DEUX GRAVITÉS. « Bloque » : le contenu ne se valide pas tant que la faute
+   reste (un prix dans une campagne, un tiret cadratin, « Kolétan »).
+   « Attention » : un fondateur tranche (le mot « salon », « MND » seul, une
+   date sans année, un emoji, une couleur hors palette).
+
+   Les règles viennent de la Maison, pas du cahier : jamais de prix en
+   campagne ni « Kolétan » en publicité (le récit, 3 octobre), jamais
+   « salon », pas de tiret cadratin, l'année sur les dates, « Maison MND » en
+   entier, aucun emoji, indigo et jamais l'obsidienne.
+
+   MODULE PUR ET SANS IMPORT : copié entre repères dans la fonction. */
+
+export type Gravite = 'bloque' | 'attention';
+export type Remarque = { regle: string; gravite: Gravite; dit: string; extrait: string };
+
+const MOIS_DITS = 'janvier|février|mars|avril|mai|juin|juillet|août|septembre|octobre|novembre|décembre';
+const PRIX = /\b\d{1,3}(?:[ .  ]?\d{3})*\s?(?:F\b|FCFA\b|F CFA\b|XOF\b|francs?\b)/gi;
+const DATE_SANS_ANNEE = new RegExp(`\\b(?:1er|\\d{1,2})\\s+(?:${MOIS_DITS})\\b(?!\\s+\\d{4})`, 'gi');
+const MND_SEUL = /(?<![\p{L}#@])(?<!Maison\s)(?<!Académie\s)MND\b(?!\s*(?:Kids|229)\b)/gu;
+/* ™, © et ® sont « pictographiques » pour Unicode, mais la Maison les écrit
+   (DÀNDÀN™, SÍNSIN™) : ce ne sont pas des emoji. */
+const EMOJI = /(?![™©®])\p{Extended_Pictographic}/gu;
+
+function trouve(texte: string, re: RegExp): string[] {
+  return [...texte.matchAll(re)].map((m) => m[0]);
+}
+
+/** Les remarques d'un texte. `campagne` : un texte qui part dehors (réseaux,
+    WhatsApp, affiche) ; un prix y bloque. `visuel` : une consigne d'image ;
+    la palette y est relue. */
+export function relisLaMarque(texte: string, o: { campagne?: boolean; visuel?: boolean } = {}): Remarque[] {
+  const t = String(texte ?? '');
+  const r: Remarque[] = [];
+  const ajoute = (regle: string, gravite: Gravite, dit: string, extraits: string[]) => {
+    if (extraits.length) r.push({ regle, gravite, dit, extrait: [...new Set(extraits)].slice(0, 3).join(' · ') });
+  };
+  ajoute('tiret', 'bloque', 'Pas de tiret cadratin : une virgule à la place.', trouve(t, /—/g));
+  ajoute('koletan', 'bloque', 'Jamais « Kolétan » en publicité.', trouve(t, /kol[ée]tan/gi));
+  if (o.campagne) ajoute('prix', 'bloque', 'Jamais de prix dans une campagne : le prix se lit à la réservation.', trouve(t, PRIX));
+  ajoute('salon', 'attention', 'La Maison ne dit pas « salon » ; une phrase qui le refuse peut rester, c’est à vous de juger.', trouve(t, /\bsalons?\b/gi));
+  ajoute('nom', 'attention', 'Le nom est « Maison MND », en entier.', trouve(t, MND_SEUL));
+  ajoute('formation', 'attention', 'On dit « Académie MND », plus « MND Formation ».', trouve(t, /MND\s+Formation/g));
+  ajoute('annee', 'attention', 'Une date donnée à une cliente porte son année.', trouve(t, DATE_SANS_ANNEE));
+  ajoute('emoji', 'attention', 'La Maison n’écrit pas d’emoji.', trouve(t, EMOJI));
+  if (o.visuel) ajoute('palette', 'attention', 'Indigo, cuivre, ivoire : jamais l’obsidienne ni le noir profond.', trouve(t, /\b(?:obsidienne|noir profond|noir intense|fond noir)\b/gi));
+  return r;
+}
+
+export const bloquant = (rs: readonly Remarque[]): boolean => rs.some((x) => x.gravite === 'bloque');
+
+/** Les remarques de plusieurs champs d'un même contenu, sans doublon. */
+export function relisLesChamps(champs: readonly { texte?: string; campagne?: boolean; visuel?: boolean }[]): Remarque[] {
+  const vues = new Set<string>();
+  const out: Remarque[] = [];
+  for (const c of champs) {
+    for (const x of relisLaMarque(c.texte ?? '', c)) {
+      const cle = `${x.regle}|${x.extrait}`;
+      if (!vues.has(cle)) { vues.add(cle); out.push(x); }
+    }
+  }
+  return out;
+}
+
+/** Un article de défaut ne porte pas de cliente (registre des photos) : la
+    vignette d'une cliente ne va pas sur un article qui nomme un défaut. */
+export const NOMME_UN_DEFAUT = /abîm|cass|trop lourd|fine|perdue|néglig|chute|pellicule|moisi|odeur|créées ailleurs/i;
+// ── FIN DE LA COPIE ──
+
+// ── DÉBUT DE LA COPIE : src/shared/ia-contenu-pur.ts ──
+/* L'ATELIER DES CONTENUS, LES RÈGLES — 11 octobre 2026 (phase 2).
+
+   Cahier « Maison MND AI Operating System », § 9 à 16 : un calendrier
+   éditorial (date, plateforme, objectif, pilier, sujet, format, accroche,
+   légende, appel, visuel, statut, publication, résultat), dix piliers, et
+   des statuts qui ne sautent jamais la validation :
+   brouillon › à relire › validé › programmé › publié › analysé › optimisé.
+
+   CE QUI N'EST PAS RELIÉ SE FAIT À LA MAIN, ET SE DIT. Meta n'est pas relié :
+   « programmé » veut dire « date et heure arrêtées », « publié » se coche
+   après l'avoir fait, avec le lien. Aucune publication automatique.
+
+   MODULE PUR. */
+
+export type Plateforme = 'instagram' | 'facebook' | 'tiktok' | 'youtube' | 'whatsapp' | 'linkedin' | 'site' | 'journal';
+export const PLATEFORMES: Record<Plateforme, string> = {
+  instagram: 'Instagram', facebook: 'Facebook', tiktok: 'TikTok', youtube: 'YouTube', whatsapp: 'WhatsApp', linkedin: 'LinkedIn', site: 'Site', journal: 'Journal',
+};
+
+export type Format = 'post' | 'carrousel' | 'reel' | 'story' | 'video-longue' | 'document' | 'article' | 'statut-whatsapp' | 'newsletter' | 'bilan';
+export const FORMATS: Record<Format, string> = {
+  post: 'Publication', carrousel: 'Carrousel', reel: 'Reel', story: 'Story', 'video-longue': 'Vidéo longue', document: 'Document',
+  article: 'Article', 'statut-whatsapp': 'Statut WhatsApp', newsletter: 'Lettre', bilan: 'Revue des chiffres',
+};
+
+/* ── Les dix piliers (cahier § 10) ───────────────────────────────────────── */
+export type PilierId = 'expertise' | 'beaute' | 'histoire' | 'culture' | 'clientes' | 'coulisses' | 'education' | 'lifestyle' | 'offres' | 'journal';
+export type Pilier = { id: PilierId; nom: string; dit: string; garde?: string };
+export const PILIERS: readonly Pilier[] = [
+  { id: 'expertise', nom: 'Expertise', dit: 'Dreadlocks, entretien, transformation, cheveux afro, erreurs à éviter, conseils.' },
+  { id: 'beaute', nom: 'Beauté', dit: 'Avant et après, transformations, détails, gestes, textures, résultats.', garde: 'Une photo de cliente demande son accord inscrit au registre.' },
+  { id: 'histoire', nom: 'Histoire', dit: 'La Maison, Brice, Yéman, l’origine, l’évolution, la transmission.', garde: 'Le récit se lit sur « Notre histoire » ; jamais « Kolétan » en publicité.' },
+  { id: 'culture', nom: 'Culture', dit: 'Le Bénin, la langue fon, l’identité, la beauté africaine, l’héritage.' },
+  { id: 'clientes', nom: 'Clientes', dit: 'Témoignages, histoires, parcours, transformations.', garde: 'Accord écrit, prénom et initiale ; aucun témoignage inventé.' },
+  { id: 'coulisses', nom: 'Coulisses', dit: 'L’équipe, la préparation, les séances photo, la création, l’organisation.' },
+  { id: 'education', nom: 'Éducation', dit: 'Conseils pratiques, idées reçues, pédagogie.' },
+  { id: 'lifestyle', nom: 'Art de vivre', dit: 'Beauté, confiance, féminité, élégance, entrepreneuriat.' },
+  { id: 'offres', nom: 'Offres', dit: 'Services, diagnostic, ateliers, rendez-vous, nouveautés.', garde: 'Jamais de prix en campagne.' },
+  { id: 'journal', nom: 'Le Journal', dit: 'Les articles du Journal Maison MND, relayés.' },
+];
+
+/* ── Une publication du calendrier ───────────────────────────────────────── */
+export type Resultats = {
+  portee?: number; impressions?: number; vues?: number; likes?: number; commentaires?: number; partages?: number;
+  sauvegardes?: number; clics?: number; abonnes?: number; rendezVous?: number; note?: string;
+};
+export const CHAMPS_DE_RESULTAT: readonly (keyof Omit<Resultats, 'note'>)[] = ['portee', 'impressions', 'vues', 'likes', 'commentaires', 'partages', 'sauvegardes', 'clics', 'abonnes', 'rendezVous'];
+export const RESULTAT_DIT: Record<keyof Omit<Resultats, 'note'>, string> = {
+  portee: 'Portée', impressions: 'Impressions', vues: 'Vues', likes: 'J’aime', commentaires: 'Commentaires', partages: 'Partages',
+  sauvegardes: 'Enregistrements', clics: 'Clics', abonnes: 'Nouveaux abonnés', rendezVous: 'Rendez-vous venus',
+};
+
+export type Contenu = {
+  id: string;
+  date: string;
+  heure?: string;
+  plateformes: Plateforme[];
+  format: Format;
+  pilier?: PilierId | '';
+  serie?: string;
+  objectif?: string;
+  sujet: string;
+  description?: string;
+  accroche?: string;
+  legende?: string;
+  appel?: string;
+  visuel?: string;
+  note?: string;
+  statut: StatutDeContenu;
+  relectureExigee?: boolean;
+  validation?: Validation;
+  publieLe?: string;
+  lien?: string;
+  resultats?: Resultats;
+  retenu?: string;
+  source: 'plan' | 'main' | 'agent' | 'usine';
+  plan?: string;
+  origine?: string;
+  consigne?: string;
+  creeLe: string;
+};
+
+/** Les remarques de marque d'une publication : tout ce qui part dehors. */
+export const remarquesDuContenu = (c: Pick<Contenu, 'sujet' | 'accroche' | 'legende' | 'appel' | 'visuel' | 'format'>): Remarque[] =>
+  relisLesChamps([
+    { texte: c.sujet, campagne: c.format !== 'bilan' },
+    { texte: c.accroche, campagne: true },
+    { texte: c.legende, campagne: true },
+    { texte: c.appel, campagne: true },
+    { texte: c.visuel, visuel: true },
+  ]);
+
+export type Verdict = { ok: true } | { ok: false; pourquoi: string };
+
+/** Peut-on mener ce contenu à ce statut ? Les pas permis du Centre, plus
+    les règles de l'atelier : seul un fondateur valide ; une faute qui bloque
+    empêche la validation ; « programmé » demande une date ; « publié » vient
+    d'un contenu programmé ; « analysé » demande au moins un chiffre ;
+    « optimisé » demande ce qu'on en retient. */
+export function peutPasser(c: Contenu, vers: StatutDeContenu, role?: string): Verdict {
+  if (!pasPermis(c.statut, vers)) return { ok: false, pourquoi: 'Ce pas n’est pas permis : la validation ne se saute pas.' };
+  if (vers === 'valide') {
+    if (!peutValider(role)) return { ok: false, pourquoi: 'Seuls Yéman et Brice valident.' };
+    const r = remarquesDuContenu(c);
+    if (bloquant(r)) return { ok: false, pourquoi: `À corriger d’abord : ${r.filter((x) => x.gravite === 'bloque').map((x) => x.dit).join(' ')}` };
+  }
+  if (vers === 'programme' && !/^\d{4}-\d{2}-\d{2}$/.test(c.date)) return { ok: false, pourquoi: 'Une date d’abord.' };
+  if (vers === 'analyse' && !CHAMPS_DE_RESULTAT.some((k) => typeof c.resultats?.[k] === 'number')) return { ok: false, pourquoi: 'Au moins un chiffre relevé d’abord.' };
+  if (vers === 'optimise' && !(c.retenu ?? '').trim()) return { ok: false, pourquoi: 'Ce qu’on en retient d’abord.' };
+  return { ok: true };
+}
+
+/* ── L'import des plans déjà préparés ───────────────────────────────────── */
+export type EntreeImportable = { id: string; plan: string; date: string; plateformes: string[]; format: string; serie: string; sujet: string; description: string; accroche: string; legende: string; visuel: string; note: string };
+
+const enPlateformes = (xs: readonly string[]): Plateforme[] => xs.filter((x): x is Plateforme => x in PLATEFORMES);
+const enFormat = (x: string): Format => (x in FORMATS ? (x as Format) : 'post');
+
+/** Une entrée d'un plan devient une publication « à relire » : les plans ont
+    été montrés, mais une validation se donne publication par publication,
+    ou d'un geste pour tout un plan. Rien n'est réputé publié. */
+export function contenuDuPlan(e: EntreeImportable, maintenant: string): Contenu {
+  return {
+    id: `plan-${e.id}`,
+    date: e.date,
+    plateformes: enPlateformes(e.plateformes),
+    format: enFormat(e.format),
+    pilier: '',
+    serie: e.serie,
+    sujet: e.sujet,
+    description: e.description,
+    accroche: e.accroche,
+    legende: e.legende,
+    visuel: e.visuel,
+    note: e.note,
+    statut: 'a-relire',
+    source: 'plan',
+    plan: e.plan,
+    creeLe: maintenant,
+  };
+}
+
+/** L'import ne double jamais : une entrée déjà présente (même identifiant)
+    garde ce qu'on en a fait. */
+export function importeLesPlans(present: readonly Contenu[], entrees: readonly EntreeImportable[], maintenant: string): { contenus: Contenu[]; ajoutes: number } {
+  const ids = new Set(present.map((c) => c.id));
+  const neufs = entrees.map((e) => contenuDuPlan(e, maintenant)).filter((c) => !ids.has(c.id));
+  return { contenus: [...present, ...neufs], ajoutes: neufs.length };
+}
+
+/* ── L'usine à contenus (cahier § 15) ───────────────────────────────────── */
+export type SourceDeLUsine = { genre: 'seance' | 'video' | 'article' | 'contenu'; titre: string; date: string; id: string };
+export type Declinaison = { format: Format; plateformes: Plateforme[]; pilier: PilierId; sujet: string; decalageJours: number };
+
+/** Ce qu'une source peut donner, d'après l'exemple du cahier (une séance :
+    des posts, des Reels, des stories, un article, une lettre, des citations,
+    une vidéo longue, un message WhatsApp), au rythme léger de la Maison :
+    deux publications et une vidéo par semaine sur Instagram. Chaque déclinaison est un brouillon. */
+export function declinaisonsDe(s: SourceDeLUsine): Declinaison[] {
+  const t = s.titre.trim() || 'la source';
+  const ig: Plateforme[] = ['instagram', 'facebook'];
+  if (s.genre === 'seance') {
+    return [
+      { format: 'post', plateformes: ig, pilier: 'beaute', sujet: `Le portrait de la séance « ${t} »`, decalageJours: 2 },
+      { format: 'carrousel', plateformes: ig, pilier: 'expertise', sujet: `Les détails de la couronne, en carrousel (« ${t} »)`, decalageJours: 4 },
+      { format: 'reel', plateformes: ['instagram', 'tiktok'], pilier: 'coulisses', sujet: `Les coulisses de la séance « ${t} »`, decalageJours: 7 },
+      { format: 'story', plateformes: ['instagram'], pilier: 'coulisses', sujet: `Trois stories pendant la séance « ${t} »`, decalageJours: 0 },
+      { format: 'post', plateformes: ig, pilier: 'education', sujet: `Un conseil tiré de la séance « ${t} »`, decalageJours: 9 },
+      { format: 'post', plateformes: ig, pilier: 'lifestyle', sujet: `Une citation de la séance « ${t} »`, decalageJours: 11 },
+      { format: 'reel', plateformes: ['instagram', 'tiktok'], pilier: 'beaute', sujet: `La transformation, en trente secondes (« ${t} »)`, decalageJours: 14 },
+      { format: 'article', plateformes: ['journal'], pilier: 'journal', sujet: `Un article du Journal à partir de « ${t} »`, decalageJours: 16 },
+      { format: 'statut-whatsapp', plateformes: ['whatsapp'], pilier: 'offres', sujet: `Le statut WhatsApp de la semaine (« ${t} »)`, decalageJours: 3 },
+      { format: 'newsletter', plateformes: ['site'], pilier: 'journal', sujet: `La lettre du mois reprend « ${t} »`, decalageJours: 21 },
+    ];
+  }
+  if (s.genre === 'video') {
+    return [
+      { format: 'reel', plateformes: ['instagram', 'tiktok'], pilier: 'expertise', sujet: `« ${t} » en Reel`, decalageJours: 1 },
+      { format: 'video-longue', plateformes: ['youtube'], pilier: 'expertise', sujet: `« ${t} » en version longue`, decalageJours: 3 },
+      { format: 'story', plateformes: ['instagram'], pilier: 'coulisses', sujet: `Trois stories autour de « ${t} »`, decalageJours: 1 },
+      { format: 'post', plateformes: ig, pilier: 'education', sujet: `La phrase à retenir de « ${t} »`, decalageJours: 5 },
+      { format: 'statut-whatsapp', plateformes: ['whatsapp'], pilier: 'offres', sujet: `« ${t} » en statut WhatsApp`, decalageJours: 2 },
+    ];
+  }
+  if (s.genre === 'article') {
+    return [
+      { format: 'carrousel', plateformes: ig, pilier: 'education', sujet: `L’article « ${t} » en cinq images`, decalageJours: 1 },
+      { format: 'post', plateformes: ['linkedin'], pilier: 'journal', sujet: `L’article « ${t} » sur LinkedIn`, decalageJours: 2 },
+      { format: 'story', plateformes: ['instagram'], pilier: 'journal', sujet: `Une story qui mène à « ${t} »`, decalageJours: 0 },
+      { format: 'reel', plateformes: ['instagram', 'tiktok'], pilier: 'education', sujet: `Le conseil de « ${t} » en trente secondes`, decalageJours: 6 },
+      { format: 'statut-whatsapp', plateformes: ['whatsapp'], pilier: 'journal', sujet: `Le lien de « ${t} » en statut`, decalageJours: 1 },
+    ];
+  }
+  return [
+    { format: 'story', plateformes: ['instagram'], pilier: 'coulisses', sujet: `Une story qui relaie « ${t} »`, decalageJours: 1 },
+    { format: 'statut-whatsapp', plateformes: ['whatsapp'], pilier: 'offres', sujet: `« ${t} » en statut WhatsApp`, decalageJours: 1 },
+    { format: 'post', plateformes: ['linkedin'], pilier: 'histoire', sujet: `« ${t} » raconté sur LinkedIn`, decalageJours: 3 },
+  ];
+}
+
+/** Combien de contenus prévus par pilier sur une période : l'équilibre se lit
+    avant de publier, pas après. */
+export function equilibreDesPiliers(cs: readonly Contenu[], du: string, au: string): Record<PilierId | 'sans', number> {
+  const out = Object.fromEntries([...PILIERS.map((p) => [p.id, 0]), ['sans', 0]]) as Record<PilierId | 'sans', number>;
+  for (const c of cs) {
+    if (c.date < du || c.date > au || c.format === 'bilan') continue;
+    out[c.pilier || 'sans'] += 1;
+  }
+  return out;
+}
+// ── FIN DE LA COPIE ──
+
+// ── DÉBUT DE LA COPIE : src/shared/ia-journal-pur.ts ──
+/* LE JOURNAL MAISON MND, LA RÉDACTION — 11 octobre 2026 (phase 2).
+
+   Cahier § 11 : le Journal fonctionne comme une rédaction. Idée, angle,
+   recherche, plan, rédaction, vérification des faits, édition, direction
+   artistique, validation, publication.
+
+   UN ARTICLE DE L'ATELIER S'ÉCRIT DANS LA FORME EXACTE DU SITE : l'en-tête
+   (titre, slug, date, description, parcours, image, portrait, mots-clés), le
+   titre en « # », les parties en « ## », la dernière partie « Et
+   maintenant », et la dernière ligne, le bouton. Le générateur du site le
+   lit tel quel (`litArticle`, scripts/genere-revelateur.mjs). La mise en
+   ligne passe par une publication du site : l'atelier rend le texte prêt,
+   il ne publie rien.
+
+   MODULE PUR. */
+
+export type Etape = 'idee' | 'angle' | 'recherche' | 'plan' | 'redaction' | 'verification' | 'edition' | 'direction-artistique' | 'validation' | 'publication';
+
+export const ETAPES: readonly { id: Etape; nom: string; dit: string }[] = [
+  { id: 'idee', nom: 'Idée', dit: 'Le sujet, en une phrase.' },
+  { id: 'angle', nom: 'Angle', dit: 'Ce que l’article dit que les autres ne disent pas.' },
+  { id: 'recherche', nom: 'Recherche', dit: 'Ce que la Maison sait, et ce qu’il faut vérifier.' },
+  { id: 'plan', nom: 'Plan', dit: 'Les parties, dans l’ordre où on les lit.' },
+  { id: 'redaction', nom: 'Rédaction', dit: 'Le texte, dans la voix de la Maison.' },
+  { id: 'verification', nom: 'Vérification', dit: 'Chaque fait relu, chaque chiffre sourcé.' },
+  { id: 'edition', nom: 'Édition', dit: 'Plus court, plus clair, sans tiret cadratin.' },
+  { id: 'direction-artistique', nom: 'Direction artistique', dit: 'La photo, la vignette, l’accord inscrit.' },
+  { id: 'validation', nom: 'Validation', dit: 'Yéman ou Brice.' },
+  { id: 'publication', nom: 'Publication', dit: 'Le texte prêt pour le site.' },
+];
+
+export type Parcours = 'premiere-couronne' | 'reparation' | 'entretien' | 'mnd-kids';
+export const PARCOURS: Record<Parcours, { nom: string; bouton: string }> = {
+  'premiere-couronne': { nom: 'Première Couronne', bouton: 'Réserver ma consultation' },
+  reparation: { nom: 'Réparation', bouton: 'Diagnostiquer ma couronne' },
+  entretien: { nom: 'Entretien', bouton: 'Réserver mon entretien' },
+  'mnd-kids': { nom: 'MND Kids', bouton: 'Organiser notre visite' },
+};
+
+export type Article = {
+  id: string;
+  etape: Etape;
+  titre: string;
+  slug: string;
+  description: string;
+  parcours: Parcours;
+  motsCles: string[];
+  image: string;
+  portrait: string;
+  angle: string;
+  plan: string[];
+  corps: string;
+  aVerifier: { fait: string; verifie: boolean }[];
+  validation?: Validation;
+  consigne?: string;
+  creeLe: string;
+};
+
+/** « Comment laver ses locks ? » → « comment-laver-ses-locks ». */
+export function slugDe(titre: string): string {
+  return String(titre ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60).replace(/-+$/, '');
+}
+
+export function nouvelArticle(o: { id: string; titre: string; maintenant: string }): Article {
+  return {
+    id: o.id, etape: 'idee', titre: o.titre.trim(), slug: slugDe(o.titre), description: '', parcours: 'entretien', motsCles: [],
+    image: '', portrait: '', angle: '', plan: [], corps: '', aVerifier: [], creeLe: o.maintenant,
+  };
+}
+
+/** Le texte de l'article tel que le site le lit, dans la forme exacte des
+    fichiers de docs/site-revelateur/journal/. */
+export function articleEnMarkdown(a: Article, date: string): string {
+  const guillemets = (t: string) => `"${t.replace(/"/g, '\'')}"`;
+  const tete = [
+    '---',
+    `titre: ${guillemets(a.titre)}`,
+    `slug: ${a.slug || slugDe(a.titre)}`,
+    `date: ${date}`,
+    `description: ${guillemets(a.description)}`,
+    `parcours: ${a.parcours}`,
+    `image: ${a.image}`,
+    ...(a.portrait ? [`portrait: ${a.portrait}`] : []),
+    'motsCles:',
+    ...a.motsCles.map((m) => `  - ${m}`),
+    '---',
+  ];
+  const corps = a.corps.trim().replace(/^# .*\n+/, '');
+  const fin = /\n## Et maintenant\n/.test(`\n${corps}\n`) ? '' : `\n\n## Et maintenant\n\nLe parcours qui correspond à cet article vous attend.\n\n${PARCOURS[a.parcours].bouton}`;
+  return `${tete.join('\n')}\n\n# ${a.titre}\n\n${corps}${fin}\n`;
+}
+
+/** Ce qui manque à un article pour passer à la validation. */
+export function avantLaValidation(a: Article): string[] {
+  const manque: string[] = [];
+  if (!a.titre.trim()) manque.push('Un titre.');
+  if (a.description.trim().length < 60) manque.push('Une description d’au moins 60 signes (elle sert à Google).');
+  if (a.motsCles.length < 3) manque.push('Au moins trois mots-clés.');
+  if (!a.image) manque.push('Une image, inscrite au registre des photos.');
+  if (a.corps.trim().split(/\s+/).length < 300) manque.push('Un texte d’au moins 300 mots.');
+  if (a.aVerifier.some((f) => !f.verifie)) manque.push('Des faits restent à vérifier.');
+  if (a.portrait && NOMME_UN_DEFAUT.test(a.titre)) manque.push('Une cliente ne va pas sur un article qui nomme un défaut : retirer le portrait.');
+  return manque;
+}
+
+/** Un article est une page du site : aucun prix chiffré n'y figure (décision
+    du 11 octobre 2026, les prix restent à la réservation). */
+export const remarquesDeLArticle = (a: Pick<Article, 'titre' | 'description' | 'corps'>): Remarque[] =>
+  relisLesChamps([{ texte: a.titre, campagne: true }, { texte: a.description, campagne: true }, { texte: a.corps, campagne: true }]);
+
+/** Valider un article : un fondateur, à l'étape de la validation, rien ne
+    manque, aucune faute qui bloque. L'écran grise le bouton ; la règle tient
+    aussi sans l'écran. */
+export function peutValiderLArticle(a: Article, role?: string): { ok: true } | { ok: false; pourquoi: string } {
+  if (!peutValider(role)) return { ok: false, pourquoi: 'Seuls Yéman et Brice valident.' };
+  if (a.etape !== 'validation') return { ok: false, pourquoi: 'L’article arrive à l’étape de la validation d’abord.' };
+  const manque = avantLaValidation(a);
+  if (manque.length) return { ok: false, pourquoi: `Il manque : ${manque.join(' ')}` };
+  const r = remarquesDeLArticle(a);
+  if (bloquant(r)) return { ok: false, pourquoi: `À corriger d’abord : ${r.filter((x) => x.gravite === 'bloque').map((x) => x.dit).join(' ')}` };
+  return { ok: true };
+}
+
+/** Ce que le site affiche d'un article : un article validé dont l'un de ces
+    champs change revient à l'étape de la validation, sans sa validation. */
+export const CHAMPS_DE_L_ARTICLE: readonly (keyof Article)[] = ['titre', 'slug', 'description', 'parcours', 'motsCles', 'image', 'portrait', 'corps'];
+
+export function articleApresLeChangement(avant: Article, champs: Partial<Article>): Article {
+  const touche = CHAMPS_DE_L_ARTICLE.some((k) => k in champs && JSON.stringify(champs[k]) !== JSON.stringify(avant[k]));
+  const revient = avant.validation?.verdict === 'oui' && !('etape' in champs) && touche;
+  return { ...avant, ...champs, ...(revient ? { etape: 'validation' as Etape, validation: undefined } : {}) };
+}
 // ── FIN DE LA COPIE ──
 
 // ── DÉBUT DE LA COPIE : src/shared/ia-relecture-pur.ts ──
@@ -1023,6 +1614,104 @@ export function relisLaMission(brut: unknown, agents: readonly string[], genres:
       };
     }).filter((t) => t.titre),
     questions: liste(b.questions).slice(0, 3).map((q) => propre(q, 240)).filter(Boolean),
+  };
+}
+
+/* ── PHASE 2, LE CONTENU — 11 octobre 2026 ─────────────────────────────────
+   Les mêmes garde-fous, sur des textes qui gardent leurs lignes (une légende,
+   un article) : pas de tiret cadratin, aucune coordonnée, des listes fermées,
+   des dates dans la période. */
+const propreLong = (v: unknown, max: number): string =>
+  sansCoordonnees(String(v ?? ''))
+    .replace(/[ \t]*—[ \t]*/g, ', ')
+    .split('\n').map((l) => l.replace(/[ \t]+/g, ' ').trim()).join('\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim()
+    .slice(0, max);
+
+const dansLaListe = (v: unknown, liste: readonly string[], defaut: string): string => (liste.includes(String(v)) ? String(v) : defaut);
+
+export type PublicationRelue = {
+  date: string; heure: string; plateformes: string[]; format: string; pilier: string;
+  objectif: string; sujet: string; accroche: string; legende: string; appel: string; visuel: string;
+};
+
+/** Les publications proposées, gardées dans la période et dans les listes. */
+export function relisLeCalendrier(brut: unknown, du: string, au: string, l: { plateformes: readonly string[]; formats: readonly string[]; piliers: readonly string[] }): PublicationRelue[] {
+  const b = (brut ?? {}) as Record<string, unknown>;
+  return liste(b.publications).slice(0, 21).map((p) => {
+    const x = (p ?? {}) as Record<string, unknown>;
+    const date = /^\d{4}-\d{2}-\d{2}$/.test(String(x.date)) ? String(x.date) : '';
+    return {
+      date,
+      heure: /^\d{1,2}:\d{2}$/.test(String(x.heure)) ? String(x.heure).padStart(5, '0') : '',
+      plateformes: liste(x.plateformes).map(String).filter((v) => l.plateformes.includes(v)),
+      format: dansLaListe(x.format, l.formats, 'post'),
+      pilier: dansLaListe(x.pilier, l.piliers, ''),
+      objectif: propre(x.objectif, 160),
+      sujet: propre(x.sujet, 140),
+      accroche: propre(x.accroche, 160),
+      legende: propreLong(x.legende, 1500),
+      appel: propre(x.appel, 140),
+      visuel: propre(x.visuel, 400),
+    };
+  }).filter((p) => p.sujet && p.date && p.date >= du && p.date <= au && p.plateformes.length > 0);
+}
+
+export type ArticleRelu = { titre: string; description: string; motsCles: string[]; parcours: string; angle: string; plan: string[]; corps: string; aVerifier: string[] };
+
+export function relisLArticle(brut: unknown, parcours: readonly string[]): ArticleRelu {
+  const b = (brut ?? {}) as Record<string, unknown>;
+  return {
+    titre: propre(b.titre, 110),
+    description: propre(b.description, 170),
+    motsCles: liste(b.motsCles).slice(0, 7).map((m) => propre(m, 60)).filter(Boolean),
+    parcours: dansLaListe(b.parcours, parcours, 'entretien'),
+    angle: propre(b.angle, 300),
+    plan: liste(b.plan).slice(0, 12).map((p) => propre(p, 120)).filter(Boolean),
+    /* Le titre vient de l'en-tête : un « # » en tête du corps est retiré. */
+    corps: propreLong(b.corps, 9000).replace(/^# .*\n+/, ''),
+    aVerifier: liste(b.aVerifier).slice(0, 20).map((f) => propre(f, 240)).filter(Boolean),
+  };
+}
+
+export type SeanceRelue = {
+  objectif: string; concept: string; histoire: string; coiffure: string; tenue: string; accessoires: string; decor: string;
+  lumiere: string; cadrage: string; poses: string; expressions: string; details: string;
+  prises: { num: number; nom: string; consigne: string; format: string }[];
+};
+
+export function relisLaSeance(brut: unknown): SeanceRelue {
+  const b = (brut ?? {}) as Record<string, unknown>;
+  const champ = (k: string, max: number) => propre(b[k], max);
+  return {
+    objectif: champ('objectif', 300), concept: champ('concept', 400), histoire: champ('histoire', 500), coiffure: champ('coiffure', 300),
+    tenue: champ('tenue', 300), accessoires: champ('accessoires', 200), decor: champ('decor', 300), lumiere: champ('lumiere', 200),
+    cadrage: champ('cadrage', 300), poses: champ('poses', 400), expressions: champ('expressions', 300), details: champ('details', 400),
+    prises: liste(b.prises).slice(0, 16).map((p) => {
+      const x = (p ?? {}) as Record<string, unknown>;
+      return { nom: propre(x.nom, 60), consigne: propre(x.consigne, 240), format: propre(x.format, 60) };
+    }).filter((p) => p.nom).map((p, i) => ({ num: i + 1, ...p })),
+  };
+}
+
+export type ScriptRelu = {
+  accroche: string; histoire: string; valeur: string; emotion: string; appel: string;
+  plans: { num: number; image: string; texteEcran: string; duree: number }[];
+  transitions: string; musique: string; miniature: string; legende: string;
+};
+
+export function relisLeScript(brut: unknown): ScriptRelu {
+  const b = (brut ?? {}) as Record<string, unknown>;
+  return {
+    accroche: propre(b.accroche, 200), histoire: propre(b.histoire, 600), valeur: propre(b.valeur, 600),
+    emotion: propre(b.emotion, 400), appel: propre(b.appel, 200),
+    plans: liste(b.plans).slice(0, 12).map((p) => {
+      const x = (p ?? {}) as Record<string, unknown>;
+      const d = Math.round(Number(x.duree));
+      return { image: propre(x.image, 240), texteEcran: propre(x.texteEcran, 120), duree: Number.isFinite(d) ? Math.min(60, Math.max(1, d)) : 5 };
+    }).filter((p) => p.image).map((p, i) => ({ num: i + 1, ...p })),
+    transitions: propre(b.transitions, 240), musique: propre(b.musique, 160), miniature: propre(b.miniature, 200), legende: propreLong(b.legende, 1200),
   };
 }
 // ── FIN DE LA COPIE ──
@@ -1131,6 +1820,8 @@ async function lesFaits(jour: string, genre: GenreDeBriefing): Promise<FaitsDuJo
 
   const missions = await lisLeDocument<MissionResumee[]>('mnd_ia_missions', []);
   const comptes = comptesDesMissions(Array.isArray(missions) ? missions : [], jour);
+  const contenus = await lisLeDocument<{ date?: string; statut?: string }[]>('mnd_ia_contenus', []);
+  const lesContenus = Array.isArray(contenus) ? contenus : [];
 
   /* L'ARGENT SE LIT, IL NE SE RECALCULE PAS : le Trône note l'encaissé du
      mois quand un fondateur ouvre le Centre ; on le reprend tel quel, avec
@@ -1151,6 +1842,10 @@ async function lesFaits(jour: string, genre: GenreDeBriefing): Promise<FaitsDuJo
     validationsEnAttente: comptes.validations,
     tachesEnRetard: comptes.retard,
     missionsOuvertes: comptes.ouvertes,
+    contenus: {
+      aRelire: lesContenus.filter((c) => c && c.statut === 'a-relire').length,
+      aujourdHui: lesContenus.filter((c) => c && c.date === jour && (c.statut === 'valide' || c.statut === 'programme')).length,
+    },
   };
 
   /* La période d'un rapport : la semaine qui vient le lundi, la semaine
@@ -1176,7 +1871,7 @@ type Reglages = { plafondUsd?: number; automatique?: boolean; notifier?: boolean
 
 class Plafond extends Error {}
 
-async function demandeAClaude(systeme: string, message: string, schema: unknown): Promise<{ brut: unknown; modele: string; cout: number }> {
+async function demandeAClaude(systeme: string, message: string, schema: unknown, maximum = 4000): Promise<{ brut: unknown; modele: string; cout: number }> {
   const reglages = await lisLeDocument<Reglages>('mnd_ia_reglages', {});
   const mois = moisACotonou();
   const compteur = await lisLeDocument<Compteur>('mnd_ia_compteur', {});
@@ -1189,7 +1884,7 @@ async function demandeAClaude(systeme: string, message: string, schema: unknown)
     try {
       const reponse = await anthropic.messages.create({
         model: modele,
-        max_tokens: 4000,
+        max_tokens: maximum,
         system: systeme,
         output_config: { format: { type: 'json_schema', schema } },
         messages: [{ role: 'user', content: message }],
@@ -1209,6 +1904,132 @@ async function demandeAClaude(systeme: string, message: string, schema: unknown)
     }
   }
   throw new Error(derniere || 'Aucun modèle disponible.');
+}
+
+/* ── PHASE 2, LE CONTENU (11 octobre 2026) ──────────────────────────────────
+   Un fondateur demande, un agent propose, la relecture tient les listes et la
+   marque, et tout revient au Trône « à relire » : la fonction n'écrit aucun
+   contenu, elle rend des propositions. */
+const LISTES_DU_CONTENU = {
+  plateformes: Object.keys(PLATEFORMES),
+  formats: Object.keys(FORMATS),
+  piliers: PILIERS.map((p) => p.id as string),
+  parcours: Object.keys(PARCOURS),
+};
+const estUnJour = (v: unknown): v is string => typeof v === 'string' && /^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(v);
+const propreCourt = (v: unknown, max = 400): string => sansCoordonnees(String(v ?? '')).slice(0, max).trim();
+
+async function offresDuJour(jour: string): Promise<{ titre: string; remise: string; jusquau?: string }[]> {
+  type OffreBrute = { title?: string; deal?: string; active?: boolean; du?: string; au?: string };
+  const brutes = await lisLeDocument<OffreBrute[]>('mnd_offers', []);
+  return (Array.isArray(brutes) ? brutes : [])
+    .filter((o) => o && o.active && (o.du || o.au) && (!o.du || jour >= o.du) && (!o.au || jour <= o.au))
+    .map((o) => ({ titre: sansCoordonnees(String(o.title ?? '')), remise: String(o.deal ?? ''), jusquau: o.au }));
+}
+
+async function leContenu(genre: string, corps: Record<string, unknown>, qui: string): Promise<Response> {
+  const jour = jourDeCotonou();
+  const notes = await lisLeDocument<{ rubrique?: string; texte?: string }[]>('mnd_ia_memoire', []);
+  const memoire = memoireEnTexte((Array.isArray(notes) ? notes : []).map((n) => ({ rubrique: n.rubrique, texte: sansCoordonnees(String(n.texte ?? '')) })));
+  const listes = LISTES_DU_CONTENU;
+  const piliers = PILIERS.map((p) => `- ${p.id} (${p.nom}) : ${p.dit}${p.garde ? ` ${p.garde}` : ''}`);
+  let consigne: Consigne;
+  let schema: unknown;
+  let message: string;
+  let maximum = 4000;
+  let relis: (brut: unknown) => Record<string, unknown>;
+
+  if (genre === 'calendrier' || genre === 'declinaisons') {
+    const du = estUnJour(corps.du) ? corps.du : jour;
+    const auVoulu = estUnJour(corps.au) ? corps.au : decaleLeJour(du, 13);
+    const au = auVoulu > decaleLeJour(du, 62) ? decaleLeJour(du, 62) : auVoulu;
+    const prevus = (await lisLeDocument<{ date?: string; sujet?: string }[]>('mnd_ia_contenus', []))
+      .filter((c) => c && typeof c.date === 'string' && c.date >= du && c.date <= au)
+      .map((c) => `- ${c.date} : ${sansCoordonnees(String(c.sujet ?? ''))}`).slice(0, 80);
+    const offres = await offresDuJour(jour);
+    maximum = 12000;
+    schema = schemaDuCalendrier(listes);
+    if (genre === 'calendrier') {
+      consigne = CONSIGNES.MND_RESEAUX_CALENDRIER_v1;
+      const reseaux = (Array.isArray(corps.plateformes) ? corps.plateformes : []).map(String).filter((p) => listes.plateformes.includes(p));
+      message = [
+        `Période : du ${jourEnClair(du)} au ${jourEnClair(au)}.`,
+        `Réseaux : ${(reseaux.length ? reseaux : ['instagram', 'facebook']).join(', ')}.`,
+        `Objectif donné : ${propreCourt(corps.objectif) || 'faire réserver des entretiens et des soins'}.`,
+        '',
+        'Les piliers :', ...piliers,
+        '',
+        'Les offres qui courent (sans prix dans le texte) :', ...(offres.length ? offres.map((o) => `- ${o.titre} (${o.remise}) jusqu’au ${o.jusquau ?? 'sans date'}`) : ['- aucune']),
+        '',
+        'Déjà prévu dans la période (ne pas répéter) :', ...(prevus.length ? prevus : ['- rien']),
+        '',
+        'Proposez les publications.',
+      ].join('\n');
+      relis = (brut) => ({ publications: relisLeCalendrier(brut, du, au, listes) });
+    } else {
+      consigne = CONSIGNES.MND_USINE_DECLINAISONS_v1;
+      const source = (corps.source ?? {}) as Record<string, unknown>;
+      const demandees = (Array.isArray(corps.declinaisons) ? corps.declinaisons : []).slice(0, 12).map((d) => d as Record<string, unknown>);
+      const dates = demandees.map((d) => String(d.date)).filter(estUnJour).sort();
+      message = [
+        `La source : ${propreCourt(source.genre, 20)} « ${propreCourt(source.titre, 140)} ».`,
+        `Ce qu’elle contient : ${propreCourt(source.resume, 1200) || 'non précisé'}.`,
+        '',
+        'Les déclinaisons à écrire (format, réseaux, pilier, sujet, date) :',
+        ...demandees.map((d) => `- ${propreCourt(d.format, 30)} | ${(Array.isArray(d.plateformes) ? d.plateformes : []).map(String).join(', ')} | ${propreCourt(d.pilier, 30)} | ${propreCourt(d.sujet, 160)} | ${propreCourt(d.date, 10)}`),
+        '',
+        'Écrivez chacune, à sa date.',
+      ].join('\n');
+      relis = (brut) => ({ publications: relisLeCalendrier(brut, dates[0] ?? jour, dates[dates.length - 1] ?? jour, listes) });
+    }
+  } else if (genre === 'article') {
+    consigne = CONSIGNES.MND_JOURNAL_ARTICLE_v1;
+    maximum = 9000;
+    schema = schemaDeLArticle(listes);
+    message = [
+      `Sujet : ${propreCourt(corps.sujet, 200)}.`,
+      `Parcours : ${listes.parcours.includes(String(corps.parcours)) ? String(corps.parcours) : 'entretien'}.`,
+      `Angle voulu : ${propreCourt(corps.angle, 300) || 'à proposer'}.`,
+      '',
+      'Écrivez l’article.',
+    ].join('\n');
+    relis = (brut) => ({ article: relisLArticle(brut, listes.parcours) });
+  } else if (genre === 'seance') {
+    consigne = CONSIGNES.MND_PHOTO_SEANCE_v1;
+    schema = schemaDeLaSeance();
+    message = [
+      `Séance : « ${propreCourt(corps.titre, 140)} ».`,
+      `Objectif : ${propreCourt(corps.objectif) || 'à proposer'}. Concept : ${propreCourt(corps.concept) || 'à proposer'}. Campagne : ${propreCourt(corps.campagne) || 'aucune'}.`,
+      `Modèle : ${propreCourt(corps.modele, 40) || 'à choisir'}.`,
+      '',
+      'Préparez le brief et la liste des prises.',
+    ].join('\n');
+    relis = (brut) => ({ seance: relisLaSeance(brut) });
+  } else if (genre === 'video') {
+    consigne = CONSIGNES.MND_VIDEO_SCRIPT_v1;
+    schema = schemaDuScript();
+    const duree = Math.min(600, Math.max(10, Math.round(Number(corps.duree)) || 30));
+    message = [
+      `Vidéo : « ${propreCourt(corps.titre, 140)} », pour ${propreCourt(corps.plateforme, 20) || 'instagram'}, ${duree} secondes.`,
+      `Ce qu’elle montre : ${propreCourt(corps.sujet, 600) || 'à proposer'}.`,
+      '',
+      'Écrivez le script.',
+    ].join('\n');
+    relis = (brut) => ({ script: relisLeScript(brut) });
+  } else {
+    return json({ error: 'bad request', detail: 'Genre de contenu inconnu.' }, 400);
+  }
+
+  try {
+    const { brut, modele, cout } = await demandeAClaude(systemePour(consigne, memoire), message, schema, maximum);
+    const rendu = relis(brut);
+    await journalise({ qui, quoi: `Agent ${consigne.agent} : proposition rendue`, entree: message.slice(0, 300), sortie: `${modele}, ${cout} $`, statut: 'ok' });
+    return json({ ok: true, ...rendu, consigne: consigne.id });
+  } catch (e) {
+    const m = e instanceof Error ? e.message : String(e);
+    await journalise({ qui, quoi: `Agent ${genre} : pas de proposition`, statut: e instanceof Plafond ? 'refus' : 'erreur', erreur: m });
+    return json({ error: e instanceof Plafond ? 'plafond' : 'upstream', detail: m }, e instanceof Plafond ? 429 : 502);
+  }
 }
 
 /* ── Les modes ──────────────────────────────────────────────────────────── */
@@ -1315,6 +2136,11 @@ Deno.serve(async (req) => {
     if (mode === 'briefing') {
       const genre = (GENRES_DE_BRIEFING as readonly string[]).includes(String(corps.genre)) ? (String(corps.genre) as GenreDeBriefing) : 'matin';
       return await leBriefing(genre, service ? 'auto' : 'clic', service ? 'orchestrateur' : fondateur!.nom);
+    }
+    if (mode === 'contenu') {
+      /* Un contenu se demande d'un clic, par un fondateur : le cron n'en écrit pas. */
+      if (!fondateur) return json({ error: 'forbidden' }, 403);
+      return await leContenu(String(corps.genre ?? ''), corps as Record<string, unknown>, fondateur.nom);
     }
     if (mode === 'mission') {
       /* Une mission se demande d'un clic, par un fondateur : le cron n'en lance pas. */

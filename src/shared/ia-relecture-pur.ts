@@ -79,3 +79,101 @@ export function relisLaMission(brut: unknown, agents: readonly string[], genres:
     questions: liste(b.questions).slice(0, 3).map((q) => propre(q, 240)).filter(Boolean),
   };
 }
+
+/* ── PHASE 2, LE CONTENU — 11 octobre 2026 ─────────────────────────────────
+   Les mêmes garde-fous, sur des textes qui gardent leurs lignes (une légende,
+   un article) : pas de tiret cadratin, aucune coordonnée, des listes fermées,
+   des dates dans la période. */
+const propreLong = (v: unknown, max: number): string =>
+  sansCoordonnees(String(v ?? ''))
+    .replace(/[ \t]*—[ \t]*/g, ', ')
+    .split('\n').map((l) => l.replace(/[ \t]+/g, ' ').trim()).join('\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim()
+    .slice(0, max);
+
+const dansLaListe = (v: unknown, liste: readonly string[], defaut: string): string => (liste.includes(String(v)) ? String(v) : defaut);
+
+export type PublicationRelue = {
+  date: string; heure: string; plateformes: string[]; format: string; pilier: string;
+  objectif: string; sujet: string; accroche: string; legende: string; appel: string; visuel: string;
+};
+
+/** Les publications proposées, gardées dans la période et dans les listes. */
+export function relisLeCalendrier(brut: unknown, du: string, au: string, l: { plateformes: readonly string[]; formats: readonly string[]; piliers: readonly string[] }): PublicationRelue[] {
+  const b = (brut ?? {}) as Record<string, unknown>;
+  return liste(b.publications).slice(0, 21).map((p) => {
+    const x = (p ?? {}) as Record<string, unknown>;
+    const date = /^\d{4}-\d{2}-\d{2}$/.test(String(x.date)) ? String(x.date) : '';
+    return {
+      date,
+      heure: /^\d{1,2}:\d{2}$/.test(String(x.heure)) ? String(x.heure).padStart(5, '0') : '',
+      plateformes: liste(x.plateformes).map(String).filter((v) => l.plateformes.includes(v)),
+      format: dansLaListe(x.format, l.formats, 'post'),
+      pilier: dansLaListe(x.pilier, l.piliers, ''),
+      objectif: propre(x.objectif, 160),
+      sujet: propre(x.sujet, 140),
+      accroche: propre(x.accroche, 160),
+      legende: propreLong(x.legende, 1500),
+      appel: propre(x.appel, 140),
+      visuel: propre(x.visuel, 400),
+    };
+  }).filter((p) => p.sujet && p.date && p.date >= du && p.date <= au && p.plateformes.length > 0);
+}
+
+export type ArticleRelu = { titre: string; description: string; motsCles: string[]; parcours: string; angle: string; plan: string[]; corps: string; aVerifier: string[] };
+
+export function relisLArticle(brut: unknown, parcours: readonly string[]): ArticleRelu {
+  const b = (brut ?? {}) as Record<string, unknown>;
+  return {
+    titre: propre(b.titre, 110),
+    description: propre(b.description, 170),
+    motsCles: liste(b.motsCles).slice(0, 7).map((m) => propre(m, 60)).filter(Boolean),
+    parcours: dansLaListe(b.parcours, parcours, 'entretien'),
+    angle: propre(b.angle, 300),
+    plan: liste(b.plan).slice(0, 12).map((p) => propre(p, 120)).filter(Boolean),
+    /* Le titre vient de l'en-tête : un « # » en tête du corps est retiré. */
+    corps: propreLong(b.corps, 9000).replace(/^# .*\n+/, ''),
+    aVerifier: liste(b.aVerifier).slice(0, 20).map((f) => propre(f, 240)).filter(Boolean),
+  };
+}
+
+export type SeanceRelue = {
+  objectif: string; concept: string; histoire: string; coiffure: string; tenue: string; accessoires: string; decor: string;
+  lumiere: string; cadrage: string; poses: string; expressions: string; details: string;
+  prises: { num: number; nom: string; consigne: string; format: string }[];
+};
+
+export function relisLaSeance(brut: unknown): SeanceRelue {
+  const b = (brut ?? {}) as Record<string, unknown>;
+  const champ = (k: string, max: number) => propre(b[k], max);
+  return {
+    objectif: champ('objectif', 300), concept: champ('concept', 400), histoire: champ('histoire', 500), coiffure: champ('coiffure', 300),
+    tenue: champ('tenue', 300), accessoires: champ('accessoires', 200), decor: champ('decor', 300), lumiere: champ('lumiere', 200),
+    cadrage: champ('cadrage', 300), poses: champ('poses', 400), expressions: champ('expressions', 300), details: champ('details', 400),
+    prises: liste(b.prises).slice(0, 16).map((p) => {
+      const x = (p ?? {}) as Record<string, unknown>;
+      return { nom: propre(x.nom, 60), consigne: propre(x.consigne, 240), format: propre(x.format, 60) };
+    }).filter((p) => p.nom).map((p, i) => ({ num: i + 1, ...p })),
+  };
+}
+
+export type ScriptRelu = {
+  accroche: string; histoire: string; valeur: string; emotion: string; appel: string;
+  plans: { num: number; image: string; texteEcran: string; duree: number }[];
+  transitions: string; musique: string; miniature: string; legende: string;
+};
+
+export function relisLeScript(brut: unknown): ScriptRelu {
+  const b = (brut ?? {}) as Record<string, unknown>;
+  return {
+    accroche: propre(b.accroche, 200), histoire: propre(b.histoire, 600), valeur: propre(b.valeur, 600),
+    emotion: propre(b.emotion, 400), appel: propre(b.appel, 200),
+    plans: liste(b.plans).slice(0, 12).map((p) => {
+      const x = (p ?? {}) as Record<string, unknown>;
+      const d = Math.round(Number(x.duree));
+      return { image: propre(x.image, 240), texteEcran: propre(x.texteEcran, 120), duree: Number.isFinite(d) ? Math.min(60, Math.max(1, d)) : 5 };
+    }).filter((p) => p.image).map((p, i) => ({ num: i + 1, ...p })),
+    transitions: propre(b.transitions, 240), musique: propre(b.musique, 160), miniature: propre(b.miniature, 200), legende: propreLong(b.legende, 1200),
+  };
+}

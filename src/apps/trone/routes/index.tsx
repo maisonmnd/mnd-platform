@@ -1,5 +1,5 @@
 import { lazy, type LazyExoticComponent, type ComponentType } from 'react';
-import { Compass, Activity, BadgeCheck, HeartHandshake, BarChart3, BookOpen, CalendarDays, ClipboardList, Crown, Drama, FileSignature, FileText, FlaskConical, Gift, GraduationCap, Hammer, HandCoins, Handshake, Handshake as PoigneeDeMain, Inbox, KeyRound, Landmark, LayoutDashboard, Lightbulb, LineChart, ListChecks, MapPin, Megaphone, MessageSquare, MessagesSquare, MonitorPlay, NotebookPen, Palette, PhoneIncoming, PieChart, PiggyBank, QrCode, ReceiptText, Repeat, Scale, ScrollText, Settings, ShieldCheck, ShoppingBag, SquareKanban, Store, Users, UsersRound, Wallet, type LucideIcon } from 'lucide-react';
+import { Compass, Clapperboard, Activity, BadgeCheck, HeartHandshake, BarChart3, BookOpen, CalendarDays, ClipboardList, Crown, Drama, FileSignature, FileText, FlaskConical, Gift, GraduationCap, Hammer, HandCoins, Handshake, Handshake as PoigneeDeMain, Inbox, KeyRound, Landmark, LayoutDashboard, Lightbulb, LineChart, ListChecks, MapPin, Megaphone, MessageSquare, MessagesSquare, MonitorPlay, NotebookPen, Palette, PhoneIncoming, PieChart, PiggyBank, QrCode, ReceiptText, Repeat, Scale, ScrollText, Settings, ShieldCheck, ShoppingBag, SquareKanban, Store, Users, UsersRound, Wallet, type LucideIcon } from 'lucide-react';
 
 /* Registre des routes du Trône, groupées par DÉPARTEMENT.
    Le module d'un écran (routes/<dossier>/) dit d'où il vient, pas où il se range :
@@ -148,6 +148,9 @@ export const NAV: TroneGroup[] = [
     group: 'Marketing & Fidélité',
     items: [
       { path: '/marketing', label: 'Marketing', icon: Megaphone, Component: lazy(() => import('./equipe/Marketing')) },
+      /* L'ATELIER DES CONTENUS — 11 octobre 2026 : la phase 2 du système
+         d'agents (réseaux, Journal, photo, vidéo, usine). Fondateurs seuls. */
+      { path: '/atelier-des-contenus', label: 'Atelier des contenus', icon: Clapperboard, Component: lazy(() => import('./equipe/AtelierDesContenus')) },
       /* LE CERCLE RÉUNI — 29 septembre 2026 : le Cercle et les ambassadrices,
          un seul écran à deux onglets. */
       { path: '/cercle', label: 'Le Cercle MND', icon: Crown, Component: lazy(() => import('./equipe/Cercle')) },
@@ -318,7 +321,7 @@ export const ANCIENS_DOMAINES: Record<string, string[]> = {
    un : la table ci-dessus ne se met pas à jour. Il s'ouvre par son
    département seul. On les NOMME ici, pour que la barre et la photographie
    restent vérifiables : un écran absent des deux listes est un oubli. */
-export const ECRANS_NES_APRES_LES_DEPARTEMENTS: readonly string[] = ['/compte-courant', '/parrainages', '/cartes-cadeaux', '/secretariat', '/centre-de-commande'];
+export const ECRANS_NES_APRES_LES_DEPARTEMENTS: readonly string[] = ['/compte-courant', '/parrainages', '/cartes-cadeaux', '/secretariat', '/centre-de-commande', '/atelier-des-contenus'];
 
 /** L'ancien domaine d'un écran, celui d'avant les départements. */
 export const ancienDomaineDe = (path: string): string | undefined =>
@@ -348,8 +351,9 @@ const ouvertParSonGroupe = (path: string, acces: Record<string, boolean>): boole
    lire le budget maison de Brice et Yéman. Ceci n'est qu'une garde d'écran ;
    la vraie barrière est la RLS (`is_souverain()`, migration 0038). */
 /* LE CENTRE DE COMMANDE AUSSI (11 octobre 2026) : Yéman ou Brice valident,
-   il porte les chiffres du mois et les décisions de la Maison. */
-export const ROUTES_SOUVERAIN = ['/salon-foyer', '/centre-de-commande'];
+   il porte les chiffres du mois et les décisions de la Maison. L'atelier des
+   contenus de même : ce qui part au nom de la Maison passe par eux. */
+export const ROUTES_SOUVERAIN = ['/salon-foyer', '/centre-de-commande', '/atelier-des-contenus'];
 
 /* Le journal dit qui fait quoi : le rendre lisible de tous changerait le
    climat de la Maison — on ne travaille pas pareil quand chaque geste est
