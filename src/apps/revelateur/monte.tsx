@@ -48,5 +48,11 @@ document.querySelectorAll<HTMLElement>('[data-ilot]').forEach((el) => {
         <Ilot {...props} />
       </StrictMode>,
     );
+    /* LE PLANCHER NE VAUT QUE JUSQU'AU MONTAGE — 11 octobre 2026 (revue des
+       pages) : la feuille réserve à chaque emplacement la hauteur que l'îlot
+       prendra (mesurée au banc), pour que la page ne saute pas ; une fois
+       monté, l'îlot fait sa hauteur, et un écran court (un merci) ne laisse
+       pas de vide. */
+    el.classList.add('est-monte');
   }).catch(() => { /* le code n'est pas venu : la page garde ce qu'elle a écrit */ });
 });

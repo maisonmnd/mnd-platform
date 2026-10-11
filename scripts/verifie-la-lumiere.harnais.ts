@@ -19,7 +19,7 @@ import path from 'node:path';
 const DIST = 'dist-sites/revelateur';
 const SOURCES = ['src/apps/revelateur/revelateur.css', 'scripts/genere-revelateur.mjs', 'src/apps/revelateur/main.ts', 'src/apps/revelateur/tons.ts', 'src/apps/revelateur/contenu.ts'];
 
-type Entrees = { feuille: string; pages: Map<string, string>; gen: string; mainTs: string; tonsTs: string; ilots?: Record<string, number> };
+type Entrees = { feuille: string; pages: Map<string, string>; gen: string; mainTs: string; tonsTs: string; monteTsx: string; ilots?: Record<string, number> };
 type Regle = { nom: string; eprouve: (e: Entrees) => string[]; pannes: { nom: string; mute: (e: Entrees) => Entrees }[] };
 
 let ko = 0;
@@ -52,6 +52,7 @@ function lisLesEntrees(): Entrees {
     gen: readFileSync('scripts/genere-revelateur.mjs', 'utf8'),
     mainTs: readFileSync('src/apps/revelateur/main.ts', 'utf8'),
     tonsTs: readFileSync('src/apps/revelateur/tons.ts', 'utf8'),
+    monteTsx: readFileSync('src/apps/revelateur/monte.tsx', 'utf8'),
     ilots: existsSync(ilotsFichier) ? JSON.parse(readFileSync(ilotsFichier, 'utf8')) : undefined,
   };
 }
@@ -294,7 +295,9 @@ const regles: Regle[] = [
            forme visible, la promesse reste la même. */
         const signature = pied.replace(/<span class="oa">ɔ<\/span>/g, 'ɔ́').indexOf('<p class="pied-signature">mi nyɔ́ ɖɛkpɛ, votre beauté est déjà là</p>');
         if (accueil) { if (signature >= 0) ecarts.push('accueil : deux devises en grand'); if (!html.includes('class="devise-bande sombre"')) ecarts.push('accueil : pas de devise-bande'); }
-        else if (signature < 0 || signature > pied.indexOf('<h4>')) ecarts.push(`${chemin} : la signature manque avant les colonnes du pied`);
+        /* Les titres des colonnes du pied sont des h3 depuis le 11 octobre
+           2026 (revue des pages : un h4 sous un h2 sautait un niveau). */
+        else if (signature < 0 || signature > pied.indexOf('<h3>')) ecarts.push(`${chemin} : la signature manque avant les colonnes du pied`);
         if (/pied-bas[\s\S]{0,200}<span class="devise">/.test(pied)) ecarts.push(`${chemin} : la petite devise traine encore dans pied-bas`);
       }
       return ecarts;
@@ -476,12 +479,21 @@ const regles: Regle[] = [
     ],
   },
   {
-    nom: 'les ilots gardent une hauteur : au moins 240 px, jamais plus haute que le montage mesure',
+    /* LE PLANCHER TIENT JUSQU'AU MONTAGE, PAS APRÈS — 11 octobre 2026 (revue
+       des pages) : un îlot monté fait sa hauteur, et un écran court (un merci)
+       ne laisse plus 700 px de vide sous lui. La règle d'un îlot porte donc
+       :not(.est-monte), aucune règle nue ne lui donne de plancher, et
+       monte.tsx pose la classe après le rendu. */
+    nom: 'les ilots gardent une hauteur jusqu au montage : au moins 240 px, jamais plus haute que le montage mesure, relachee une fois montes',
     eprouve: (e) => {
       const ecarts: string[] = [];
+      if (!/createRoot\(el\)\.render\([\s\S]*?\);[\s\S]{0,700}?el\.classList\.add\('est-monte'\)/.test(e.monteTsx)) ecarts.push('monte.tsx ne pose pas est-monte apres le rendu');
       for (const sel of ['[data-ilot="reserver"]', '[data-ilot="offres"]', '[data-ilot="offrir"]', '[data-ilot="joindre"]', '.diag__quiz']) {
-        const m = new RegExp(`${sel.replace(/[[\]"]/g, (c) => '\\' + c).replace('.', '\\.')} \\{[^}]*min-height: (\\d+)px`).exec(e.feuille);
-        if (!m) { ecarts.push(`${sel} : pas de min-height`); continue; }
+        const echappe = sel.replace(/[[\]"]/g, (c) => '\\' + c).replace('.', '\\.');
+        const estIlot = sel.startsWith('[data-ilot');
+        if (estIlot && new RegExp(`${echappe} \\{[^}]*min-height`).test(e.feuille)) ecarts.push(`${sel} : un plancher sans :not(.est-monte) survit au montage`);
+        const m = new RegExp(`${echappe}${estIlot ? ':not\\(\\.est-monte\\)' : ''} \\{[^}]*min-height: (\\d+)px`).exec(e.feuille);
+        if (!m) { ecarts.push(`${sel} : pas de min-height${estIlot ? ' garde par :not(.est-monte)' : ''}`); continue; }
         const h = +m[1];
         if (h < 240) ecarts.push(`${sel} : ${h}px < 240`);
         const mesure = e.ilots?.[sel];
@@ -490,7 +502,9 @@ const regles: Regle[] = [
       return ecarts;
     },
     pannes: [
-      { nom: 'reserver sans min-height', mute: (e) => ({ ...copie(e), feuille: e.feuille.replace('[data-ilot="reserver"] { min-height: 420px; }', '') }) },
+      { nom: 'reserver sans min-height', mute: (e) => ({ ...copie(e), feuille: e.feuille.replace('[data-ilot="reserver"]:not(.est-monte) { min-height: 420px; }', '') }) },
+      { nom: 'le plancher qui survit au montage', mute: (e) => ({ ...copie(e), feuille: e.feuille.replace('[data-ilot="offrir"]:not(.est-monte) { min-height: 700px; }', '[data-ilot="offrir"] { min-height: 700px; }') }) },
+      { nom: 'monte.tsx qui oublie la classe', mute: (e) => ({ ...copie(e), monteTsx: e.monteTsx.replace("el.classList.add('est-monte');", '') }) },
       { nom: 'plus haut que la mesure', mute: (e) => ({ ...copie(e), ilots: { '[data-ilot="reserver"]': 300 } }) },
     ],
   },

@@ -516,9 +516,11 @@ const deshtml = (t: string) => t.replace(/&amp;/g, '&').replace(/&lt;/g, '<')
   .replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'");
 /* LA COLONNE « NOUS SUIVRE » SEULE — 11 octobre 2026 : depuis que l'adresse
    de la porte s'écrit au pied, reliée à la fiche Google, le pied porte un
-   lien de plus en nouvel onglet ; ce n'est pas un compte. */
+   lien de plus en nouvel onglet ; ce n'est pas un compte. Les titres des
+   colonnes sont des h3 depuis la revue des pages (un h4 sous un h2 sautait
+   un niveau). */
 dit('… le pied du site les porte, dans le même ordre, en nouvel onglet', comptes,
-  [...((accueil.split('<footer>')[1] ?? '').split('<h4>Nous suivre</h4>')[1]?.split('</ul>')[0] ?? '').matchAll(/<a href="([^"]+)" target="_blank" rel="noopener">/g)]
+  [...((accueil.split('<footer>')[1] ?? '').split('<h3>Nous suivre</h3>')[1]?.split('</ul>')[0] ?? '').matchAll(/<a href="([^"]+)" target="_blank" rel="noopener">/g)]
     .map((m) => deshtml(m[1])));
 /* LA PORTE ET SES HEURES AU PIED DE CHAQUE PAGE — 11 octobre 2026 : l'adresse
    entière, reliée à la fiche Google ; la semaine quand la Maison l'a

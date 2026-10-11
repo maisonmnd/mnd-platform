@@ -66,7 +66,7 @@ const PORTES: Record<string, Porte> = {
   reparation: { besoin: 'reparation', sur: 'Réparation', titre: 'Regardons d’abord.', texte: 'Une réparation se décide après avoir vu, zone par zone, jamais avant.', vers: '/reparation-locks/', bouton: 'Voir la Réparation', image: 'regard.jpg' },
   entretien: { besoin: 'entretien', sur: 'Entretien', titre: 'Vos locks ont juste besoin de leur rendez-vous.', texte: 'Lavage, resserrage, hydratation, à votre rythme. Pas de consultation : choisissez votre geste et votre créneau.', vers: '/entretien-locks/', bouton: 'Voir l’entretien', image: 'entretien.jpg' },
   kids: { besoin: 'enfant', sur: 'MND Kids', titre: 'Pour votre enfant, tout va plus doucement.', texte: 'Une séance courte, des gestes légers, et le temps qu’il faut. On commence par un échange avec vous.', vers: '/mnd-kids/', bouton: 'Voir MND Kids', image: 'mnd-kids.jpg' },
-  formation: { besoin: 'formation', sur: 'Académie MND', titre: 'Apprendre à faire, et à bien faire.', texte: 'La méthode, les gestes, la tenue d’une couronne puis d’un salon.', vers: '/formations/', bouton: 'Voir les formations', image: 'attention.jpg' },
+  formation: { besoin: 'formation', sur: 'Académie MND', titre: 'Apprendre à faire, et à bien faire.', texte: 'La méthode, les gestes, la tenue d’une couronne puis d’une Maison.', vers: '/formations/', bouton: 'Voir les formations', image: 'attention.jpg' },
 };
 
 type Routine = { porte: Porte; semaine: string[]; mois: string[]; saison: string[]; maison: string };

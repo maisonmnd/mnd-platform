@@ -457,7 +457,8 @@ const generateur = readFileSync('scripts/genere-revelateur.mjs', 'utf8');
 const formeCopiee = /const FORME_DU_CODE_COURT = '([^']+)';/.exec(generateur);
 dit('la page /m/ reconnaît le code avec la MÊME forme que le parrainage', FORME_DU_CODE.source, formeCopiee?.[1]);
 dit('… la page /m/ est écrite, hors des moteurs, hors du plan', [true, true, false], [
-  /writeFileSync\(path\.join\(SORTIE, 'm', 'index\.html'\), page\(\{\s*chemin: '\/m\/'/.test(generateur),
+  /* pageAccentuee depuis la revue des pages : la même page, l'accent du ɔ de la devise dessiné. */
+  /writeFileSync\(path\.join\(SORTIE, 'm', 'index\.html'\), page(Accentuee)?\(\{\s*chemin: '\/m\/'/.test(generateur),
   /chemin: '\/m\/'[\s\S]{0,2500}\.replace\('<link rel="canonical"', '<meta name="robots" content="noindex" \/><link rel="canonical"'\)\);/.test(generateur),
   /pagesEcrites\.push\('\/m\/'\)/.test(generateur),
 ]);

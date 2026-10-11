@@ -106,7 +106,13 @@ if (barre && document.body.classList.contains('accueil-plein')) {
   suit();
   addEventListener('scroll', suit, { passive: true });
 }
-void quandReactEstLa.then(() => maison()).then((m) => { if (m?.whatsapp) relieWhatsApp(m.whatsapp); }).catch(() => { /* le numéro du registre est déjà écrit */ });
+/* SEULES LES PAGES À ÎLOT LISENT LA BASE AU DÉMARRAGE — 11 octobre 2026
+   (revue des pages) : une vingtaine de pages chargeaient la bibliothèque
+   (214 Ko) pour relire un numéro de WhatsApp déjà écrit dans leur HTML. Le
+   pied lit l'état du jour à part, quand il approche. */
+if (monteEnRoute) {
+  void quandReactEstLa.then(() => maison()).then((m) => { if (m?.whatsapp) relieWhatsApp(m.whatsapp); }).catch(() => { /* le numéro du registre est déjà écrit */ });
+}
 /* L'ÉTAT DU JOUR AU PIED — 11 octobre 2026 : « Ouvert jusqu'à 19h00 », lu
    quand le pied approche de l'écran (une requête, pas avant), avec les
    fermetures exceptionnelles. Sans heures connues, la ligne reste cachée. */

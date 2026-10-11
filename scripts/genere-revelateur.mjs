@@ -372,17 +372,44 @@ function piedDeLaMaison() {
   return `<div class="pied-maison"><p class="pied-adresse">${adresse}</p>${heures}<p class="pied-etat" data-etat-maison hidden></p></div>`;
 }
 
+/* LES DIMENSIONS DE L'IMAGE DE PARTAGE — 11 octobre 2026 (revue des pages) :
+   elles n'étaient écrites que pour l'image générique ; WhatsApp et Facebook
+   les lisent pour tailler l'aperçu. Lues dans l'en-tête du JPEG, jamais
+   recopiées à la main. */
+function tailleDuJpeg(nom) {
+  try {
+    const f = path.join(racine, 'public/assets/photos/site', nom);
+    if (!existsSync(f)) return null;
+    const b = readFileSync(f);
+    let i = 2;
+    while (i < b.length - 9) {
+      if (b[i] !== 0xFF) { i += 1; continue; }
+      const m = b[i + 1];
+      if (m >= 0xC0 && m <= 0xCF && m !== 0xC4 && m !== 0xC8 && m !== 0xCC) return { h: b.readUInt16BE(i + 5), w: b.readUInt16BE(i + 7) };
+      i += 2 + b.readUInt16BE(i + 2);
+    }
+  } catch { /* sans dimensions */ }
+  return null;
+}
+const dimsOg = (og) => {
+  const t = og && !photoEnLigne(og) ? tailleDuJpeg(og) : (og ? null : { w: 800, h: 420 });
+  return t ? `<meta property="og:image:width" content="${t.w}" />\n    <meta property="og:image:height" content="${t.h}" />` : '';
+};
 function page({ chemin, titre, description, corps, noeuds, image: og, classeBody = '', precharge = '', ton = 'maison', transition = true }) {
   const canon = `${SITE}${chemin.replace(/^\//, '')}`;
+  /* LE GRAPHE NE POINTE PAS DANS LE VIDE — 11 octobre 2026 : `publisher` ne
+     nomme #maison que sur les pages qui émettent le nœud de la Maison. */
+  const aLaMaison = noeuds.some((n) => n && n['@id'] === `${SITE}#maison`);
+  const noeudsDits = aLaMaison ? noeuds : noeuds.map((n) => (n && n.publisher ? Object.fromEntries(Object.entries(n).filter(([k]) => k !== 'publisher')) : n));
   /* LA COULEUR DU HAUT DU TÉLÉPHONE est celle de la toile, sauf sur l'accueil
      dont le premier écran est indigo (main.ts la rend ivoire dès que la barre
      est pleine). */
   const couleurDuHaut = classeBody === 'accueil-plein' ? '#1E2150' : TONS[ton];
   const nav = COMMUN.nav.map((l) => `<a href="${attr(lien(l.vers))}">${echappe(l.texte)}</a>`).join('\n      ');
   const suivre = comptesPublics().length
-    ? `\n    <div><h4>Nous suivre</h4><ul>${comptesPublics().map((c) => `<li><a href="${attr(c.url)}" target="_blank" rel="noopener">${echappe(c.nom)}</a></li>`).join('')}</ul></div>`
+    ? `\n    <div><h3>Nous suivre</h3><ul>${comptesPublics().map((c) => `<li><a href="${attr(c.url)}" target="_blank" rel="noopener">${echappe(c.nom)}</a></li>`).join('')}</ul></div>`
     : '';
-  const colonnes = COMMUN.pied.colonnes.map((c) => `<div><h4>${echappe(c.titre)}</h4><ul>${c.liens.map((l) => `<li>${bouton(l, '')}</li>`).join('')}</ul></div>`).join('\n    ') + suivre;
+  const colonnes = COMMUN.pied.colonnes.map((c) => `<div><h3>${echappe(c.titre)}</h3><ul>${c.liens.map((l) => `<li>${bouton(l, '')}</li>`).join('')}</ul></div>`).join('\n    ') + suivre;
   /* LES MENTIONS EN LISTE — 18 septembre 2026. « Il faut espacer les
      mentions, les CGU, le plan du site, trop condensé » (Yéman). Jointes par
      des points dans une seule ligne de texte, elles ne pouvaient pas
@@ -411,10 +438,10 @@ function page({ chemin, titre, description, corps, noeuds, image: og, classeBody
     <meta property="og:description" content="${attr(description)}" />
     <meta property="og:url" content="${canon}" />
     <meta property="og:image" content="${attr(photoEnLigne(og) ? og : `${SITE}assets/photos/site/${og || 'partage-accueil.jpg'}`)}" />
-    ${og ? '' : '<meta property="og:image:width" content="800" />\n    <meta property="og:image:height" content="420" />'}
+    ${dimsOg(og)}
     <meta name="twitter:card" content="summary_large_image" />
     ${precharge ? (estPhoto(precharge) ? `<link rel="preload" as="image" href="${attr(webp(precharge))}" type="image/webp" fetchpriority="high" />` : `<link rel="preload" as="image" href="${attr(precharge)}" fetchpriority="high" />`) : ''}
-    ${jsonld(noeuds)}
+    ${jsonld(noeudsDits)}
   </head>
   <body data-surface="revelateur" data-ton="${ton}"${classeBody ? ` class="${classeBody}"` : ''}>
     <a class="evitement" href="#contenu">Aller au contenu</a>
@@ -609,17 +636,28 @@ function bulle(chemin) {
   /* « JE VEUX… » — 28 septembre 2026. Sur une page qui a son parcours, le
      message de la page ; sur l'accueil et les autres, six envies, chacune
      son message déjà écrit : la cliente choisit ce qui lui convient. */
-  const ligneWa = `<a class="joindre__ligne" data-wa="${attr(besoin)}" data-sortie="flottant" href="https://wa.me/${NUMERO_WA}?text=${encodeURIComponent(COMMUN.messages[besoin] ?? COMMUN.messages.inconnu)}" target="_blank" rel="noopener"><i aria-hidden="true"><svg><use href="#i-wa"/></svg></i><span>Écrire sur WhatsApp<small>Le message de cette page est déjà écrit.</small></span></a>`;
+  /* LA LIGNE « RÉSERVER » DIT LA VRAIE PORTE — 11 octobre 2026 (revue des
+     pages) : elle promettait « une consultation par rappel » sur 28 pages
+     alors que la création et la réparation réservent leur consultation en
+     ligne ; et sur /formations/, elle envoyait une future élève réserver un
+     entretien de locks. Une page dont le parcours ne se réserve pas offre le
+     rappel. Le message WhatsApp est celui de la page quand elle en écrit un. */
+  const pageDIci = PAGES.find((x) => x.chemin === chemin);
+  const texteWa = pageDIci?.cta?.vers?.startsWith('message:') ? pageDIci.cta.vers.split(':').slice(2).join(':') : (COMMUN.messages[besoin] ?? COMMUN.messages.inconnu);
+  const ligneReserver = RESERVABLES.has(besoin) || besoin === 'inconnu'
+    ? `<a class="joindre__ligne" href="${attr(versLaReservation(besoin))}" data-mesure="parcours_choisi" data-parcours="${attr(besoin)}" data-sortie="flottant"><i aria-hidden="true"><svg><use href="#i-cal"/></svg></i><span>Réserver<small>${besoin === 'entretien' ? 'Votre heure en ligne, en trois pas.' : besoin === 'creation' || besoin === 'reparation' ? 'Sa consultation en ligne, puis le devis.' : besoin === 'enfant' ? 'Un échange avec vous, d’abord.' : 'Un entretien en trois pas ; une création ou une réparation, par sa consultation en ligne.'}</small></span></a>`
+    : `<a class="joindre__ligne" href="${attr(versLeRappel(besoin))}" data-mesure="parcours_choisi" data-parcours="${attr(besoin)}" data-sortie="flottant"><i aria-hidden="true"><svg><use href="#i-cal"/></svg></i><span>Me faire rappeler<small>La Maison vous appelle pendant ses heures d’ouverture.</small></span></a>`;
+  const ligneWa = `<a class="joindre__ligne" data-wa="${attr(besoin)}" data-sortie="flottant" href="https://wa.me/${NUMERO_WA}?text=${encodeURIComponent(texteWa)}" target="_blank" rel="noopener"><i aria-hidden="true"><svg><use href="#i-wa"/></svg></i><span>Écrire sur WhatsApp<small>Le message de cette page est déjà écrit.</small></span></a>`;
   const envies = `<div class="joindre__envies" role="group" aria-labelledby="joindre-envies"><p class="joindre__ligne joindre__ligne--titre" id="joindre-envies"><i aria-hidden="true"><svg><use href="#i-wa"/></svg></i><span>Écrire sur WhatsApp<small>Dites-nous ce que vous voulez, le message s’écrit tout seul.</small></span></p><div class="joindre__choix">${COMMUN.envies.map((e) => `<a class="joindre__envie" data-wa="${attr(e.besoin)}" data-sortie="flottant" data-mesure="whatsapp_clique" data-parcours="${attr(e.besoin)}" href="https://wa.me/${NUMERO_WA}?text=${encodeURIComponent(e.message)}" target="_blank" rel="noopener">${echappe(e.texte)}</a>`).join('')}</div></div>`;
   return `    <div class="joindre" id="joindre">
       <div class="joindre__volet" id="joindre-volet" role="group" aria-labelledby="joindre-titre" hidden>
         <div class="joindre__tete"><b id="joindre-titre">Nous joindre</b><button type="button" class="joindre__fermer" aria-label="Fermer">×</button></div>
-        <a class="joindre__ligne" href="${attr(versLaReservation(besoin))}" data-mesure="parcours_choisi" data-parcours="${attr(besoin)}" data-sortie="flottant"><i aria-hidden="true"><svg><use href="#i-cal"/></svg></i><span>Réserver<small>Un entretien en trois pas, une consultation par rappel.</small></span></a>
+        ${ligneReserver}
         ${besoin === 'inconnu' ? envies : ligneWa}
         <a class="joindre__ligne" href="tel:${attr(tel.replace(/\s/g, ''))}" aria-label="Appeler la Maison au ${attr(tel)}" data-mesure="appel_clique" data-sortie="flottant"><i aria-hidden="true"><svg><use href="#i-tel"/></svg></i><span>Appeler<small>${echappe(tel)}</small></span></a>
         <p class="joindre__pied">Nous répondons pendant les heures d’ouverture de la Maison.</p>
       </div>
-      <button type="button" class="joindre__bouton" id="joindre-bouton" aria-expanded="false" aria-controls="joindre-volet"><i aria-hidden="true"><svg><use href="#i-wa"/></svg></i><span>Nous joindre</span></button>
+      <button type="button" class="joindre__bouton" id="joindre-bouton" aria-label="Nous joindre" aria-expanded="false" aria-controls="joindre-volet"><i aria-hidden="true"><svg><use href="#i-wa"/></svg></i><span>Nous joindre</span></button>
     </div>
     <script>
     (function () {
@@ -774,7 +812,7 @@ function rendIngredient(i) {
         <div class="ing-bloc__texte">${FLECHE_DESSINEE}<h2>${echappe(titre).replace(/(\S+-\S+)/g, '<span class="insecable">$1</span>')}</h2><span class="ing-filet"></span>${texte}</div>
       </div></section>`;
   return `
-      <nav aria-label="Fil d’Ariane" class="conteneur"><ol class="fil"><li><a href="${BASE}">Accueil</a></li><li>·</li><li><a href="${attr(lien('/ingredients/'))}">Ingrédients</a></li><li>·</li><li>${echappe(i.nom)}</li></ol></nav>
+      <nav aria-label="Fil d’Ariane" class="conteneur"><ol class="fil"><li><a href="${BASE}">Accueil</a></li><li aria-hidden="true">·</li><li><a href="${attr(lien('/ingredients/'))}">Ingrédients</a></li><li aria-hidden="true">·</li><li aria-current="page">${echappe(i.nom)}</li></ol></nav>
       <section class="ing-hero" style="--teinte:${attr(i.teinte)}"><div class="conteneur">
         <div class="ing-hero__encadre">
           <p class="sur">Nos ingrédients</p>
@@ -922,7 +960,7 @@ function rendService(p) {
   const appel = `<section class="appel"><div class="conteneur"><div><h2>${echappe(p.cta?.texte ?? p.h1)}</h2>${p.ligne ? `<p class="ligne" style="margin-top:8px">${echappe(p.cta?.note ?? '')}</p>` : ''}</div><div class="rangee">${cta}${reservable ? secondaire : ''}</div></div></section>`;
   const mobile = p.cta ? `<div class="barre-mobile">${cta}${reservable ? bouton({ texte: 'WhatsApp', vers: `whatsapp:${p.besoin ?? 'inconnu'}` }, 'btn') : `<a class="btn" href="${attr(versLeRappel(p.besoin))}">Me faire rappeler</a>`}</div>` : '';
   return `
-      <nav aria-label="Fil d’Ariane" class="conteneur"><ol class="fil"><li><a href="${BASE}">Accueil</a></li><li>·</li><li><a href="${BASE}#portes">Services</a></li><li>·</li><li>${echappe(p.court)}</li></ol></nav>
+      <nav aria-label="Fil d’Ariane" class="conteneur"><ol class="fil"><li><a href="${BASE}">Accueil</a></li><li aria-hidden="true">·</li><li><a href="${BASE}#portes">Services</a></li><li aria-hidden="true">·</li><li aria-current="page">${echappe(p.court)}</li></ol></nav>
       <section class="page-hero"><div class="conteneur">
         <div>${p.sur ? `<p class="sur">${echappe(p.sur)}</p>` : ''}<h1>${echappe(p.h1)}</h1>${p.ligne ? `<p class="ligne">${echappe(p.ligne)}</p>` : ''}
           ${p.cta ? `<div class="rangee" style="margin-top:22px">${cta}${reservable ? secondaire : `<a class="btn btn--lien" href="${attr(versLeRappel(p.besoin))}">Me faire rappeler</a>`}</div>` : ''}
@@ -951,7 +989,8 @@ function rendLibre(p, supplement = '') {
     || p.ilot === 'parrainer' || p.ilot === 'ingredients' || p.ilot === 'engagements'
     /* La réservation et le rappel SONT la page (11 octobre 2026). */
     || p.ilot === 'reserver' || p.ilot === 'demande';
-  const visuel = p.image ? `<div>${image(p.image)}</div>` : '';
+  /* La première image de la page part en priorité, comme sur les pages de service (11 octobre 2026). */
+  const visuel = p.image ? `<div>${image(p.image, '', ' fetchpriority="high"').replace(' loading="lazy"', '')}</div>` : '';
   /* L'OUVERTURE PLEIN ÉCRAN (1er octobre 2026) : le surtitre, le titre, la ligne, un
      trait qui invite à descendre, et rien d'autre. Le fil d'Ariane reste déclaré aux
      moteurs par la page, il ne s'affiche pas. */
@@ -960,7 +999,7 @@ function rendLibre(p, supplement = '') {
 ${sections}
 ${supplement}`;
   return `
-      <nav aria-label="Fil d’Ariane" class="conteneur"><ol class="fil"><li><a href="${BASE}">Accueil</a></li><li>·</li><li>${echappe(p.court)}</li></ol></nav>
+      <nav aria-label="Fil d’Ariane" class="conteneur"><ol class="fil"><li><a href="${BASE}">Accueil</a></li><li aria-hidden="true">·</li><li aria-current="page">${echappe(p.court)}</li></ol></nav>
       <section class="page-hero${visuel ? '' : ' page-hero--simple'}"><div class="conteneur">
         <div>${p.sur ? `<p class="sur">${echappe(p.sur)}</p>` : ''}<h1>${echappe(p.h1)}</h1>${p.ligne ? `<p class="ligne">${echappe(p.ligne)}</p>` : ''}
           ${p.cta ? `<div class="rangee" style="margin-top:22px">${bouton({ texte: p.cta.texte, vers: `whatsapp:${p.besoin ?? 'inconnu'}` }, 'btn btn--plein')}</div>` : ''}
@@ -1231,7 +1270,7 @@ function rendArticle(art) {
      la page visée au lieu de la reconstruire. */
   const cta = bouton({ texte: appel || 'Trouver mon parcours', vers: `whatsapp:${p.besoin}` }, 'btn btn--plein');
   return `
-      <nav aria-label="Fil d’Ariane" class="conteneur"><ol class="fil"><li><a href="${BASE}">Accueil</a></li><li>·</li><li><a href="${lien('/journal/')}">Journal</a></li><li>·</li><li>${echappe(art.titre)}</li></ol></nav>
+      <nav aria-label="Fil d’Ariane" class="conteneur"><ol class="fil"><li><a href="${BASE}">Accueil</a></li><li aria-hidden="true">·</li><li><a href="${lien('/journal/')}">Journal</a></li><li aria-hidden="true">·</li><li aria-current="page">${echappe(art.titre)}</li></ol></nav>
       <!-- TEXTE + PHOTO — 1er octobre 2026 : « quand on ouvre l'article remet la photo en grand. La page est trop vide » (Yéman). -->
       <section class="page-hero"><div class="conteneur"><div><p class="sur">Le Journal MND</p><h1>${echappe(art.titre)}</h1><p class="ligne">${echappe(art.description)}</p></div><div>${image(art.portrait || art.image, '', ' fetchpriority="high"').replace(' loading="lazy"', '')}</div></div></section>
       <section class="serre"><div class="conteneur"><div class="prose">${html}</div></div></section>
@@ -1283,6 +1322,8 @@ function accentsFon(html) {
   return html.slice(0, i) + corps;
 }
 
+/* La 404 et /m/ ne passent pas par ecrit() : elles prennent l'accent de la devise ici (11 octobre 2026). */
+const pageAccentuee = (o) => accentsFon(page(o));
 const ecrit = (chemin, html) => {
   const dossier = path.join(SORTIE, chemin.replace(/^\//, ''));
   mkdirSync(dossier, { recursive: true });
@@ -1497,7 +1538,7 @@ for (const p of PAGES) {
   if (p.chemin === '/journal/') {
     corps = rendLibre(p, `<section class="serre"><div class="conteneur">${grilleDuJournal(articles)}</div></section>`);
   } else corps = estService ? rendService(p) : rendLibre(p);
-  const noeuds = [noeudSite(), filAriane([['Accueil', '/'], [p.court, p.chemin]])];
+  const noeuds = [noeudSite(), filAriane(estService ? [['Accueil', '/'], ['Services', '/#portes'], [p.court, p.chemin]] : [['Accueil', '/'], [p.court, p.chemin]])];
   if (p.jsonld === 'maison') noeuds.unshift(noeudMaison());
   if (p.jsonld === 'service') noeuds.push({ '@type': 'Service', name: p.h1, description: p.description, provider: { '@id': `${SITE}#maison` }, areaServed: `${COMMUN.ville}, Bénin`, url: `${SITE}${p.chemin.replace(/^\//, '')}` });
   if (p.jsonld === 'course') noeuds.push({ '@type': 'Course', name: p.h1, description: p.description, provider: { '@type': 'Organization', name: COMMUN.nom, '@id': `${SITE}#maison` } });
@@ -1536,7 +1577,7 @@ for (const l of LEGALES) {
   ecrit(l.chemin, page({
     chemin: l.chemin, titre: l.titre, description: l.description,
     corps: `
-      <nav aria-label="Fil d’Ariane" class="conteneur"><ol class="fil"><li><a href="${BASE}">Accueil</a></li><li>·</li><li>${echappe(l.court)}</li></ol></nav>
+      <nav aria-label="Fil d’Ariane" class="conteneur"><ol class="fil"><li><a href="${BASE}">Accueil</a></li><li aria-hidden="true">·</li><li aria-current="page">${echappe(l.court)}</li></ol></nav>
       <section class="page-hero page-hero--simple"><div class="conteneur"><div><h1>${echappe(l.h1)}</h1></div></div></section>
       <section class="serre"><div class="conteneur"><div class="corps">${l.corps}</div></div></section>`,
     noeuds: [noeudSite(), filAriane([['Accueil', '/'], [l.court, l.chemin]])],
@@ -1545,7 +1586,7 @@ for (const l of LEGALES) {
 }
 
 /* La page 404 n'est qu'une page d'erreur : jamais un routeur. */
-writeFileSync(path.join(SORTIE, '404.html'), page({
+writeFileSync(path.join(SORTIE, '404.html'), pageAccentuee({
   chemin: '/404.html', transition: false, titre: 'Page introuvable · Maison MND', description: 'Cette page n’existe pas ou plus. Retrouvez votre parcours depuis l’accueil de la Maison MND.',
   corps: `<section class="page-hero page-hero--simple"><div class="conteneur"><div><p class="sur">Page introuvable</p><h1>Cette page n’existe pas.</h1><p class="ligne">Reprenez depuis l’accueil, ou trouvez votre parcours en trois questions.</p><div class="rangee" style="margin-top:22px"><a class="btn btn--plein" href="${BASE}">Retour à l’accueil</a><a class="btn" href="${lien('/mon-parcours/')}">Trouver mon parcours</a></div></div></div></section>`,
   noeuds: [noeudSite()],
@@ -1567,7 +1608,7 @@ writeFileSync(path.join(SORTIE, '404.html'), page({
    neutres ; la redirection, elle, ne change pas. */
 const FORME_DU_CODE_COURT = '^[A-Z]{1,6}-[ABCDEFGHJKMNPQRSTUVWXYZ23456789]{3}$';
 mkdirSync(path.join(SORTIE, 'm'), { recursive: true });
-writeFileSync(path.join(SORTIE, 'm', 'index.html'), page({
+writeFileSync(path.join(SORTIE, 'm', 'index.html'), pageAccentuee({
   chemin: '/m/', transition: false, titre: 'La Maison vous attend · Maison MND',
   description: 'Une amie vous ouvre la porte de la Maison MND : la réservation s’ouvre, son code déjà posé.',
   corps: `<section class="page-hero page-hero--simple"><div class="conteneur"><div><p class="sur">De la part d’une amie</p><h1>La Maison vous attend.</h1><p class="ligne">La réservation s’ouvre, le code de votre amie déjà posé.</p><div class="rangee" style="margin-top:22px"><a class="btn btn--plein" id="vers-la-reservation" href="${attr(lien('/reserver/'))}">Réserver ma place</a></div></div></div></section>
@@ -1595,10 +1636,10 @@ ecrit(PLAN, page({
   titre: 'Plan du site · Maison MND',
   description: 'Toutes les pages de la Maison MND en un coup d’œil : les parcours, la Maison, le Journal et les mentions.',
   corps: `
-      <nav aria-label="Fil d’Ariane" class="conteneur"><ol class="fil"><li><a href="${BASE}">Accueil</a></li><li>·</li><li>Plan du site</li></ol></nav>
+      <nav aria-label="Fil d’Ariane" class="conteneur"><ol class="fil"><li><a href="${BASE}">Accueil</a></li><li aria-hidden="true">·</li><li aria-current="page">Plan du site</li></ol></nav>
       <section class="page-hero page-hero--simple"><div class="conteneur"><div><h1>Plan du site</h1><p class="ligne">Toutes les pages de la Maison, rassemblées.</p></div></div></section>
       <section class="serre"><div class="conteneur"><div class="plan">
-        ${lignesDuPlan('Les parcours et la Maison', [['Accueil', '/'], ...PAGES.filter((p) => !p.enAttente).map((p) => [p.court, p.chemin])])}
+        ${lignesDuPlan('Les parcours et la Maison', [['Accueil', '/'], ...PAGES.filter((p) => !p.enAttente).map((p) => [p.court, p.chemin]), ['Galerie', '/galerie/']])}
         ${INGREDIENTS.length ? lignesDuPlan('Nos ingrédients', INGREDIENTS.map((i) => [i.nom, cheminIngredient(i)])) : ''}
         ${articles.length ? lignesDuPlan('Le Journal', articles.map((a) => [a.titre, `/journal/${a.slug}/`])) : ''}
         ${lignesDuPlan('Les mentions', [...LEGALES.map((l) => [l.court, l.chemin]), ['Plan du site', PLAN]])}

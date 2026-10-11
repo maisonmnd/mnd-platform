@@ -33,15 +33,17 @@ const numeroWa = (m: Maison | null): string =>
    porte un autre. Un seul affiché sous « Téléphone et WhatsApp » aurait
    promis que le bouton ouvre CE numéro là, ce qui est faux. Quand les deux
    coïncident, une seule ligne ; quand ils diffèrent, chacun est nommé. */
-const numeros = (m: Maison | null): { numero: string; quoi: string }[] => {
+/* LE NUMÉRO DIT « CELUI DU BOUTON » EST CELUI DU BOUTON — 11 octobre 2026
+   (revue des pages) : la carte affichait le téléphone de la branche sous ce
+   libellé, alors que le bouton ouvre `numeroWa`, et le posait en lien tel:.
+   Une seule source par canal : la ligne WhatsApp ouvre wa.me, la ligne
+   Téléphone compose. */
+const numeros = (m: Maison | null): { numero: string; quoi: string; wa?: string }[] => {
   const registre = COMMUN.editeur.telephone;
-  const branche = m?.telephone?.trim();
-  if (!branche) return [{ numero: registre, quoi: 'Téléphone et WhatsApp' }];
-  if (branche.replace(/\D/g, '') === registre.replace(/\D/g, '')) {
-    return [{ numero: registre, quoi: 'Téléphone et WhatsApp' }];
-  }
+  const wa = numeroWa(m);
+  if (wa === registre.replace(/\D/g, '')) return [{ numero: registre, quoi: 'Téléphone et WhatsApp', wa }];
   return [
-    { numero: numeroDit(branche), quoi: 'WhatsApp, celui du bouton' },
+    { numero: numeroDit(`+${wa}`), quoi: 'WhatsApp, celui du bouton', wa },
     { numero: registre, quoi: 'Téléphone' },
   ];
 };
@@ -64,7 +66,9 @@ function Ecrire({ m }: { m: Maison | null }) {
       </div>
       {numeros(m).map((n) => (
         <div className="jo-lien" key={n.quoi}>
-          <a href={`tel:${n.numero.replace(/\s/g, '')}`}>{n.numero}</a>
+          {n.wa
+            ? <a href={`https://wa.me/${n.wa}`} target="_blank" rel="noopener">{n.numero}</a>
+            : <a href={`tel:${n.numero.replace(/\s/g, '')}`}>{n.numero}</a>}
           <small>{n.quoi}</small>
         </div>
       ))}

@@ -339,7 +339,7 @@ export const ACCUEIL: Accueil = {
        le site », section 4) : la Maison dit ce qu'elle est, sans se vanter. */
     sur: 'La Maison',
     titre: 'Une maison de famille pour les locks. Depuis 2010, à Cotonou.',
-    ligne: "On ne vient pas ici pour une coiffure. On vient s'asseoir, déposer ce que l'on porte, et repartir avec sa couronne. Ce savoir-faire est né sur une terrasse d'Akpakpa. Il voyage aujourd'hui avec notre Académie, nos produits et nos autres adresses, sans jamais quitter ses racines.",
+    ligne: "On ne vient pas ici pour une coiffure. On vient s'asseoir, déposer ce que l'on porte, et repartir avec sa couronne. Ce savoir-faire est né sur une terrasse d'Akpakpa. Il voyage aujourd'hui avec notre Académie et nos produits, sans jamais quitter ses racines.",
     piliers: [
       { titre: "Regarder d'abord", ligne: "Un diagnostic avant tout geste. On ne resserre pas ce qu'on n'a pas vu." },
       { titre: 'Faire durer', ligne: "Des locks qu'on garde des années, pas des mois. C'est cela, le vrai luxe." },
@@ -359,7 +359,7 @@ export const ACCUEIL: Accueil = {
   marques: {
     sur: 'Les marques que nous choisissons',
     titre: 'Ce que nous avons éprouvé sur nos propres couronnes.',
-    ligne: "À la Maison et à la Boutique MND, rien n'entre sans avoir été essayé sur des locks, longtemps.",
+    ligne: "À la Maison, et bientôt à la Boutique MND, rien n'entre sans avoir été essayé sur des locks, longtemps.",
   },
   offrir: {
     sur: 'La carte cadeau',
@@ -537,7 +537,7 @@ export const PAGES: Page[] = [
           { titre: 'Mes locks me préoccupent', texte: "Regardons d'abord : une réparation commence par un diagnostic.", vers: '/reparation-locks/', suite: 'La Réparation' },
           { titre: 'Mes locks vont bien', texte: 'Pas de consultation : choisissez votre geste et votre créneau.', vers: '/entretien-locks/', suite: 'Entretien et soins' },
           { titre: "C'est pour mon enfant", texte: 'Pour votre enfant, tout va plus doucement.', vers: '/mnd-kids/', suite: 'MND Kids' },
-          { titre: 'Je veux en faire mon métier', texte: 'Apprendre à faire, et à bien faire.', vers: '/formations/', suite: 'MND Formation' },
+          { titre: 'Je veux en faire mon métier', texte: 'Apprendre à faire, et à bien faire.', vers: '/formations/', suite: 'Académie MND' },
         ],
       },
     ],
@@ -572,7 +572,7 @@ export const PAGES: Page[] = [
     faq: [
       ["J'ai les cheveux fins. Puis-je avoir des locks ?", "Cela dépend de vos cheveux, pas d'une règle. C'est ce que la consultation permet de voir."],
       ['Combien de temps dure une création ?', 'Quelques heures ou une journée, selon la méthode et vos cheveux. Vous le saurez avec votre devis.'],
-      ['Pourquoi les prix sont-ils sur devis ?', 'Deux couronnes ne demandent jamais la même chose. Le devis suit la consultation, par écrit.'],
+      ['Pourquoi certains prix sont-ils sur devis ?', 'Une création ou une réparation se chiffre après la consultation, par écrit ; un entretien ou un soin se réserve au prix de la carte, visible au moment de réserver.'],
     ],
     jsonld: 'service',
     court: 'Première Couronne',
@@ -749,7 +749,7 @@ export const PAGES: Page[] = [
         titre: "L'abonnement n'est pas une obligation.",
         ligne: 'Nous vous le proposons quand il a du sens pour vous. Les formules vous sont expliquées de vive voix.',
         boutons: [
-          { texte: 'Découvrir les abonnements', vers: 'whatsapp:entretien' },
+          { texte: 'Découvrir les abonnements', vers: 'message:entretien:Bonjour MND, je souhaite en savoir plus sur les abonnements.' },
           { texte: 'Trouver mon parcours', vers: '/mon-parcours/' },
         ],
       },
@@ -775,7 +775,7 @@ export const PAGES: Page[] = [
         type: 'texte',
         sur: 'La Maison',
         titre: 'Une maison de famille pour les locks. Depuis 2010, à Cotonou.',
-        corps: "On ne vient pas ici pour une coiffure. On vient s'asseoir, déposer ce que l'on porte, et repartir avec sa couronne. Ce savoir-faire est né sur une terrasse d'Akpakpa. Il voyage aujourd'hui avec notre Académie, nos produits et nos autres adresses, sans jamais quitter ses racines.",
+        corps: "On ne vient pas ici pour une coiffure. On vient s'asseoir, déposer ce que l'on porte, et repartir avec sa couronne. Ce savoir-faire est né sur une terrasse d'Akpakpa. Il voyage aujourd'hui avec notre Académie et nos produits, sans jamais quitter ses racines.",
         image: 'regard.jpg',
       },
       {
@@ -806,7 +806,7 @@ export const PAGES: Page[] = [
         type: 'marques',
         sur: 'Les marques que nous choisissons',
         titre: 'Ce que nous avons éprouvé sur nos propres couronnes.',
-        ligne: "À la Maison et à la Boutique MND, rien n'entre sans avoir été essayé sur des locks, longtemps.",
+        ligne: "À la Maison, et bientôt à la Boutique MND, rien n'entre sans avoir été essayé sur des locks, longtemps.",
       },
       {
         type: 'citation',
@@ -840,7 +840,7 @@ export const PAGES: Page[] = [
     description: 'Rencontrez Brice et Yéman, les fondateurs de la Maison MND à Cotonou : leur parcours, leur méthode et leur regard sur le soin des dreadlocks afro.',
     h1: 'Brice et Yéman',
     sur: 'Derrière MND',
-    besoin: 'creation',
+    besoin: 'inconnu',
     sections: [
       {
         type: 'texte',
@@ -869,7 +869,7 @@ export const PAGES: Page[] = [
         titre: 'Votre couronne commence ici.',
         ligne: 'Une création débute par une consultation. Rien d\'autre à décider aujourd\'hui.',
         boutons: [
-          { texte: 'Réserver ma consultation', vers: 'whatsapp:creation' },
+          { texte: 'Réserver', vers: '/reserver/' },
           { texte: 'Lire notre histoire', vers: '/notre-histoire/' },
           { texte: 'Trouver mon parcours', vers: '/mon-parcours/' },
         ],
@@ -1261,7 +1261,7 @@ export const PAGES: Page[] = [
        et c'est cette page qui conduit à l'Académie. On garde ainsi la page
        indexée et sa fiche de cours déclarée à Google, et la visiteuse lit ce
        que la Maison forme avant d'aller s'inscrire. */
-    cta: { texte: 'Voir le programme et s’inscrire', note: 'Le programme, les dates et l’inscription vous attendent à l’Académie.', vers: 'soeur:academie' },
+    cta: { texte: 'Voir le programme et s’inscrire', note: 'Le programme et l’inscription vous attendent à l’Académie ; une session s’ouvre quand le groupe est constitué.', vers: 'soeur:academie' },
     geste: 'Trois paliers : <b>Fondation</b>, <b>Élévation</b>, <b>Souveraineté</b>.',
     pas: {
       sur: 'Les portes',
@@ -1309,14 +1309,14 @@ export const PAGES: Page[] = [
           ["J'ai les cheveux fins. Puis-je avoir des locks ?", "Cela dépend de vos cheveux, pas d'une règle générale. La consultation sert justement à voir ce qui est possible et quelle méthode convient."],
           ['À partir de quel âge un enfant peut-il avoir des locks ?', "Il n'y a pas d'âge fixe : cela dépend de l'enfant, de ses cheveux et de son envie. Nous en parlons d'abord avec vous, et l'enfant reste libre de dire non."],
           ['Combien de temps dure une création ?', 'Quelques heures ou une journée entière, selon la méthode, la longueur et la densité de vos cheveux. Vous connaîtrez la durée prévue avec votre devis.'],
-          ['Pourquoi les prix sont-ils sur devis ?', 'Parce que deux couronnes ne demandent jamais la même chose. Le devis suit la consultation et vous parvient par écrit avant toute intervention.'],
+          ['Pourquoi certains prix sont-ils sur devis ?', 'Parce que deux couronnes ne demandent jamais la même chose : une création ou une réparation se chiffre après la consultation, par écrit, avant toute intervention. Un entretien ou un soin se réserve au prix de la carte, visible au moment de réserver.'],
           ["Comment se passe l'hygiène à la Maison ?", 'Outils désinfectés entre chaque personne, linge propre pour chacune, espace nettoyé chaque jour. Nous en parlons volontiers si vous avez des questions.'],
           ['Quelle méthode utilisez-vous ?', "La méthode MND suit quatre temps : Purifier, Nourrir, Sceller, Couronner. Chaque geste porte un nom en fon : VÈKPÈ™ la création, SÍNSIN™ le resserrage, FÍNFÍN™ la restauration, YÈKPÈ™ la couleur végétale, GBÀTÀ™ le défaisage, DÀNDÀN™ l'hydratation, KLƆKLƆ™ le lavage."],
           ['La consultation est-elle obligatoire ?', 'Pour une création ou une réparation, oui : nous ne faisons pas de geste important sans avoir regardé. Pour un entretien simple, non, vous réservez directement.'],
-          ['Que se passe-t-il si je dois annuler ?', 'Prévenez-nous dès que possible, sur WhatsApp ou par téléphone, et nous déplaçons votre rendez-vous. Les délais exacts figurent dans nos conditions de réservation.'],
+          ['Que se passe-t-il si je dois annuler ?', 'Prévenez-nous dès que possible, sur WhatsApp ou par téléphone, et nous déplaçons votre rendez-vous.'],
           ['À quelle fréquence entretenir mes locks ?', "Votre couronne a son propre rythme, selon vos cheveux, votre quotidien et l'âge de vos locks. Nous vous conseillons la fréquence qui lui convient après l'avoir vue."],
           ['Proposez-vous la coloration végétale ?', "Oui, avec YÈKPÈ™, notre couleur végétale, qui demande une couronne saine. Parlez-en lors d'un entretien ou d'une consultation."],
-          ['Puis-je me former chez MND ?', "Oui : MND Formation s'adresse à celles et ceux qui débutent comme aux professionnels qui veulent se spécialiser. Écrivez-nous pour connaître les prochaines sessions."],
+          ['Puis-je me former chez MND ?', "Oui : l'Académie MND s'adresse à celles et ceux qui débutent comme aux professionnels qui veulent se spécialiser. Écrivez-nous pour connaître les prochaines sessions."],
         ],
       },
       {
@@ -1335,7 +1335,7 @@ export const PAGES: Page[] = [
   {
     chemin: '/contact/',
     titre: 'Contacter la Maison MND à Cotonou',
-    description: 'Écrivez à la Maison MND à Cotonou par WhatsApp ou par le formulaire, et préparez votre visite : où nous trouver, quand venir, comment réserver.',
+    description: 'Écrivez à la Maison MND à Cotonou par WhatsApp ou en demandant un rappel, et préparez votre visite : où nous trouver, quand venir, comment réserver.',
     h1: 'Nous écrire, nous trouver',
     ligne: 'La Maison vous reçoit à Cotonou. Écrivez sur WhatsApp, appelez, ou venez nous voir pendant les heures d’ouverture.',
     sur: 'Contact',

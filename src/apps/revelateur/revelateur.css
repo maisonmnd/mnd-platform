@@ -442,7 +442,7 @@ footer { background: var(--sombre-2); color: rgba(246, 241, 231, .72); padding-b
 footer .conteneur { display: grid; grid-template-columns: 1.2fr repeat(4, 1fr); gap: 26px; }
 @media (max-width: 860px) { footer .conteneur { grid-template-columns: 1fr 1fr; } }
 @media (max-width: 480px) { footer .conteneur { grid-template-columns: 1fr; } }
-footer h4 { font-family: var(--sans); font-weight: 400; font-size: 11px; letter-spacing: .22em; text-transform: uppercase; color: var(--accent-sombre); margin: 0 0 10px; }
+footer h3, footer h4 { font-family: var(--sans); font-weight: 400; font-size: 11px; letter-spacing: .22em; text-transform: uppercase; color: var(--accent-sombre); margin: 0 0 10px; }
 footer ul { list-style: none; padding: 0; margin: 0; display: grid; gap: 6px; }
 footer a { color: rgba(246, 241, 231, .78); }
 footer a:hover { color: var(--accent-sombre); }
@@ -1905,10 +1905,26 @@ main:has(> .recit-fin:last-child) + footer { border-top-color: transparent; }
    finirait sur une grille qui reflue. PLANCHERS PROVISOIRES : le banc mesure
    la plus petite hauteur montée (390 px compris) et l'intégrateur pose cette
    valeur avant de publier. .diag__quiz a déjà 320 px (l. 1359). */
-[data-ilot="reserver"] { min-height: 420px; }
-[data-ilot="offres"] { min-height: 320px; }
-[data-ilot="offrir"] { min-height: 360px; }
-[data-ilot="joindre"] { min-height: 260px; }
+/* LES PLANCHERS, MESURÉS AU BANC (planchers.mjs, 11 octobre 2026) et valables
+   tant que l'îlot n'est pas monté (monte.tsx pose .est-monte) : la colonne
+   « ensuite » du rappel, les cartes du contact (« Quand venir » arrive de la
+   base), la carte cadeau et le parrainage sautaient au montage. Ordinateur
+   d'abord, téléphone ensuite ; un merci court ne laisse plus de vide. */
+[data-ilot="reserver"]:not(.est-monte) { min-height: 420px; }
+[data-ilot="offres"]:not(.est-monte) { min-height: 320px; }
+[data-ilot="offrir"]:not(.est-monte) { min-height: 700px; }
+[data-ilot="joindre"]:not(.est-monte) { min-height: 480px; }
+[data-ilot="demande"]:not(.est-monte) { min-height: 520px; }
+[data-ilot="contact"]:not(.est-monte) { min-height: 290px; }
+[data-ilot="parrainer"]:not(.est-monte) { min-height: 330px; }
+[data-ilot="triage"]:not(.est-monte) { min-height: 460px; }
+@media (max-width: 760px) {
+  [data-ilot="offrir"]:not(.est-monte) { min-height: 1180px; }
+  [data-ilot="joindre"]:not(.est-monte) { min-height: 1250px; }
+  [data-ilot="demande"]:not(.est-monte) { min-height: 680px; }
+  [data-ilot="contact"]:not(.est-monte) { min-height: 330px; }
+  [data-ilot="parrainer"]:not(.est-monte) { min-height: 380px; }
+}
 
 /* ── 9 · Le passage d'une page à l'autre ───────────────────────────────────
    Un fondu d'une demi-seconde avec un léger glissement : la page qui part
@@ -2146,3 +2162,30 @@ body[data-ton="reservation"] .geste, body[data-ton="reservation"] .merci, body[d
 body.est-reserve .appel { display: none; }
 /* « +229 Bénin » tient en entier dans le sélecteur fermé (il coupait à « Béni »). */
 @media (max-width: 560px) { .numero { grid-template-columns: 138px minmax(0, 1fr); } }
+
+/* ══ LA REVUE DES PAGES · 11 octobre 2026 ═══════════════════════════════
+   Trente pages relues au crible du brief, chaque constat vérifié deux fois ;
+   ici ce qui tient en un geste de feuille. */
+/* La bulle « Nous joindre » se rangeait à 6 px du bas, dans la barre collante
+   de 70 à 80 px, et volait le toucher du bouton WhatsApp dès que le pied
+   paraissait (sept pages de service). Elle descend plus bas qu'elle, et ne
+   reçoit plus aucun toucher une fois cachée. */
+@media (max-width: 760px) {
+  body.a-barre-mobile .joindre.est-cachee { transform: translateY(calc(100% + 110px)); }
+}
+.joindre.est-cachee { pointer-events: none; }
+/* Les cibles tactiles : le bouton de la barre, les liens du fil, du pied. */
+.barre .btn { min-height: 44px; }
+/* Le fil : la liste perdait 40 px à gauche (le retrait par défaut d’une
+   liste, présent avant la revue), et les éléments s’alignent au milieu
+   depuis que les liens ont leur hauteur de toucher. Le texte reste où il était. */
+.fil { padding-inline-start: 0; padding-top: 10px; align-items: center; }
+.fil a { display: inline-block; padding-block: 10px; }
+footer ul { gap: 12px; }
+/* Trois titres sur dix du Journal se coupaient en plein mot sur ordinateur. */
+.article h3 { -webkit-line-clamp: 3; overflow-wrap: anywhere; }
+/* Les tuiles d'ingrédients : la légende à 12 px, et le nom lisible sur la tuile claire du karité. */
+.ingr__cadre small { font-size: 12px; }
+.ingr__cadre b { text-shadow: 0 1px 12px rgba(21, 23, 58, .55); }
+/* Le défilé des marques se pose aussi au clavier. */
+.defile:focus-within .defile__piste { animation-play-state: paused; }
