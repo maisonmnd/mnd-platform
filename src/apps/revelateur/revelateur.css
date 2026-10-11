@@ -2144,4 +2144,5 @@ body[data-ton="reservation"] .geste, body[data-ton="reservation"] .merci, body[d
 .merci .merci__attend p { color: rgba(246, 241, 231, .82); }
 /* Après une place tenue, la bande de fin ne redit pas « Réserver ». */
 body.est-reserve .appel { display: none; }
-@media (max-width: 560px) { .numero { grid-template-columns: 118px minmax(0, 1fr); } }
+/* « +229 Bénin » tient en entier dans le sélecteur fermé (il coupait à « Béni »). */
+@media (max-width: 560px) { .numero { grid-template-columns: 138px minmax(0, 1fr); } }
