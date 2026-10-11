@@ -242,11 +242,16 @@ export const COMMUN: Commun = {
     /* POUR QUI — deux têtes du même numéro à la même heure sont deux venues. */
     pourQui: [['moi', 'Moi'], ['enfant', 'Mon enfant'], ['autre', 'Quelqu’un d’autre']],
     pourQuiAide: 'Son prénom dans le mot, et le vôtre ci-dessous : c’est vous que la Maison appelle.',
-    /* AVANT DE VENIR, UNE LIGNE PAR PORTE, ÉCRITE PAR LA MAISON — jamais
-       inventée : tant qu'une porte n'a pas la sienne, la ligne ne paraît pas.
-       À remplir avec Yéman (ce qu'il faut apporter, comment arriver, combien
-       de temps rester). */
-    avantDeVenir: {} as Partial<Record<'creation' | 'reparation' | 'entretien' | 'enfant' | 'formation' | 'inconnu', string>>,
+    /* AVANT DE VENIR, UNE LIGNE PAR PORTE — 11 octobre 2026, validées par
+       Yéman au sélecteur, telles quelles. Chaque phrase ne dit que ce que le
+       site affirme ailleurs (les lavages clarifiants avant une pose, le
+       diagnostic zone par zone, le devis écrit, le règlement à la Maison,
+       prévenir en cas d'empêchement). Une porte sans ligne ne montre rien. */
+    avantDeVenir: {
+      entretien: 'Rien à apporter. Venez à l’heure dite, la durée affichée est celle de votre venue, comptée sur place ; le règlement se fait à la Maison. Un empêchement ? Un mot sur WhatsApp suffit.',
+      creation: 'Venez avec vos cheveux tels qu’ils sont, sans tresses ni extensions si possible, pour que la Maison les voie. La pose, elle, se prépare par deux ou trois lavages clarifiants, sans produit lourd : vous le saurez avec votre devis, écrit avant tout geste.',
+      reparation: 'Venez avec vos locks telles qu’elles sont, sans les resserrer avant : la Maison les regarde zone par zone, puis écrit le devis. Rien ne commence sans votre oui.',
+    } as Partial<Record<'creation' | 'reparation' | 'entretien' | 'enfant' | 'formation' | 'inconnu', string>>,
   },
 };
 
