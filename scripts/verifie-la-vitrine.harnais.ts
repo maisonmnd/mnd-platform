@@ -498,9 +498,21 @@ dit('la fiche structurée relie exactement les comptes que le contenu nomme', co
    jour, et le défaut dormait là depuis le début. */
 const deshtml = (t: string) => t.replace(/&amp;/g, '&').replace(/&lt;/g, '<')
   .replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'");
+/* LA COLONNE « NOUS SUIVRE » SEULE — 11 octobre 2026 : depuis que l'adresse
+   de la porte s'écrit au pied, reliée à la fiche Google, le pied porte un
+   lien de plus en nouvel onglet ; ce n'est pas un compte. */
 dit('… le pied du site les porte, dans le même ordre, en nouvel onglet', comptes,
-  [...(accueil.split('<footer>')[1] ?? '').matchAll(/<a href="([^"]+)" target="_blank" rel="noopener">/g)]
+  [...((accueil.split('<footer>')[1] ?? '').split('<h4>Nous suivre</h4>')[1]?.split('</ul>')[0] ?? '').matchAll(/<a href="([^"]+)" target="_blank" rel="noopener">/g)]
     .map((m) => deshtml(m[1])));
+/* LA PORTE ET SES HEURES AU PIED DE CHAQUE PAGE — 11 octobre 2026 : l'adresse
+   entière, reliée à la fiche Google ; la semaine quand la Maison l'a
+   descendue ; la ligne de l'état du jour, cachée jusqu'à sa lecture. */
+const piedDe = (html: string) => html.split('<footer>')[1] ?? '';
+const lesPages = [...pages.values()];
+dit('chaque page porte l adresse de la porte au pied, reliee a la fiche', true,
+  lesPages.every((h) => piedDe(h).includes(`<p class="pied-adresse"><a href="${COMMUN.comptes?.google?.replace(/&/g, '&amp;')}" target="_blank" rel="noopener">${COMMUN.editeur.adresseComplete}</a></p>`)));
+dit('… et la ligne de l etat du jour, cachee jusqu a sa lecture', true,
+  lesPages.every((h) => /<p class="pied-etat" data-etat-maison hidden><\/p>/.test(piedDe(h))));
 dit('… la position seulement si le contenu la connaît', COMMUN.position ?? null,
   fiche.geo ? { latitude: fiche.geo.latitude, longitude: fiche.geo.longitude } : null);
 dit('… la fiche Google est la carte', COMMUN.comptes?.google ?? null, fiche.hasMap ?? null);

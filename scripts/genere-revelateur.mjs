@@ -120,6 +120,9 @@ async function documentsPublics(cles) {
 const documents = statique ? await documentsPublics(['mnd_offers', 'mnd_settings']) : null;
 const OFFRES = documents ? statique.offresDuTrottoir(documents.mnd_offers) : null;
 const HORAIRES = documents ? statique.horairesStructures(documents.mnd_settings?.hours) : [];
+/* LA SEMAINE DITE AU PIED DE CHAQUE PAGE (11 octobre 2026) : les mêmes
+   heures que la fiche Google, en deux ou trois lignes. Sans base, rien. */
+const SEMAINE_DITE = documents && Array.isArray(documents.mnd_settings?.hours) ? statique.semaineResumee(documents.mnd_settings.hours) : [];
 if (documents) console.log(`  écrites dans la page : ${OFFRES.length} offre(s), ${HORAIRES.length} règle(s) d'horaires`);
 /* UN LIEN WHATSAPP PORTE UN NUMÉRO DÈS LA CONSTRUCTION — 22 septembre 2026.
    Il partait « wa.me/?text=… » et n'obtenait le numéro de la branche qu'une
@@ -301,6 +304,23 @@ function voile(corps, classeBody) {
 const finitBien = (corps) => { const i = corps.lastIndexOf('<section'); return i >= 0 && /^<section class="(appel|recit-fin|devise-bande)[ "]/.test(corps.slice(i)); };
 const appelDeFin = () => `<section class="appel"><div class="conteneur"><div><h2>Votre couronne, à votre tour.</h2><p class="ligne" style="margin-top:8px">La Maison vous attend à Cotonou : un diagnostic, un rendez-vous, ou simplement un mot.</p></div><div class="rangee"><a class="btn btn--fort" href="${lien('/reserver/')}">Réserver</a>${bouton({ texte: 'Écrire sur WhatsApp', vers: 'whatsapp:inconnu' }, 'btn')}</div></div></section>`;
 
+/* LA PORTE ET SES HEURES, AU PIED DE CHAQUE PAGE — 11 octobre 2026. Le pied
+   disait la Maison sans dire où la trouver ni quand : l'adresse vivait sur
+   /contact/ seulement. Elle s'écrit ici en entier (numéro de maison et
+   portail compris : c'est elle qu'on donne à une cliente qui cherche la
+   porte), reliée à la fiche Google ; la semaine suit, et l'état du jour
+   (« Ouvert jusqu'à 19h00 ») se pose au chargement quand la Maison a
+   descendu ses heures. Sans heures connues, on ne dit rien. */
+function piedDeLaMaison() {
+  const e = COMMUN.editeur;
+  const fiche = COMMUN.comptes?.google;
+  const adresse = fiche
+    ? `<a href="${attr(fiche)}" target="_blank" rel="noopener">${echappe(e.adresseComplete)}</a>`
+    : echappe(e.adresseComplete);
+  const heures = SEMAINE_DITE.length ? `<ul class="pied-heures">${SEMAINE_DITE.map((l) => `<li>${echappe(l)}</li>`).join('')}</ul>` : '';
+  return `<div class="pied-maison"><p class="pied-adresse">${adresse}</p>${heures}<p class="pied-etat" data-etat-maison hidden></p></div>`;
+}
+
 function page({ chemin, titre, description, corps, noeuds, image: og, classeBody = '', precharge = '', ton = 'maison', transition = true }) {
   const canon = `${SITE}${chemin.replace(/^\//, '')}`;
   /* LA COULEUR DU HAUT DU TÉLÉPHONE est celle de la toile, sauf sur l'accueil
@@ -369,6 +389,7 @@ ${voile(transition && !finitBien(corps) ? corps + appelDeFin() : corps, classeBo
         <div>
           <a class="logo" href="${BASE}" aria-label="${attr(COMMUN.nom)}"><img src="/assets/photos/site/mono-ivoire.png" alt="MND" width="240" height="198"></a>
           <p style="margin-top:14px; max-width:32ch">${echappe(COMMUN.pied.phrase)}</p>
+          ${piedDeLaMaison()}
         </div>
     ${colonnes}
         <div class="pied-bas">
@@ -724,20 +745,36 @@ function rendIngredient(i) {
       ${SCRIPT_COMMUNAUTE}`;
 }
 
+/* LA PREMIÈRE QUESTION DU DIAGNOSTIC, ÉCRITE DANS LA PAGE — 11 octobre 2026.
+   La page du diagnostic montrait une courte liste, puis le quiz, plus haut,
+   la remplaçait en montant : tout le reste de la page sautait (CLS mesuré à
+   0,54 sur téléphone, « mauvais » au-delà de 0,25). La question s'écrit
+   désormais ici, au même dessin que l'îlot : rien ne bouge quand il prend la
+   main. Sans script, chaque réponse mène à la page qui lui répond ; aucun
+   bouton n'y fait semblant. */
+const SANS_SCRIPT = { aucune: '/premiere-couronne/', jeunes: '/entretien-locks/', mures: '/entretien-locks/', anciennes: '/entretien-locks/', enfant: '/mnd-kids/' };
+function questionDuDiagnostic() {
+  const qs = statique.QUESTIONS_DU_DIAGNOSTIC;
+  const q = qs[0];
+  const reponses = q.reponses.map(([v, texte]) => `<a class="reponse" href="${attr(lien(SANS_SCRIPT[v] ?? '/mon-parcours/'))}"><i aria-hidden="true"></i><span>${echappe(texte)}</span></a>`).join('');
+  return `<div class="triage"><div class="etapes">${qs.map(() => '<span></span>').join('')}</div><div class="question"><p class="sur">Question 1 sur ${qs.length}</p><h2 tabindex="-1">${echappe(q.titre)}</h2><div class="reponses">${reponses}</div><div class="rangee" style="margin-top:18px;justify-content:space-between"><span></span></div></div></div>`;
+}
+
 function ilot(nom, p) {
   if (nom === 'triage') {
     const repli = PAGES.filter((x) => x.besoin && x.chemin !== p.chemin).slice(0, 5)
       .map((x) => `<li><a href="${attr(lien(x.chemin))}">${echappe(x.h1)}</a></li>`).join('');
-    return `<section class="serre"><div class="conteneur"><div data-ilot="triage"><p class="ligne">Cinq questions, et votre routine.</p><ul class="corps" style="margin-top:12px">${repli}</ul></div></div></section>`;
+    void repli;
+    return `<section class="serre"><div class="conteneur"><div data-ilot="triage">${questionDuDiagnostic()}</div></div></section>`;
   }
   if (nom === 'demande' || nom === 'reserver') {
     const f = COMMUN.formulaire;
-    const titre = nom === 'reserver' ? 'Choisissez votre place.' : echappe(f.titre);
-    const ligne = nom === 'reserver'
-      ? 'Le geste, le jour, l\u2019heure. Votre numéro pour confirmer, et rien de plus.'
-      : echappe(f.ligne);
+    /* LA QUESTION D'ABORD — 11 octobre 2026. Le titre de la page dit déjà
+       « Choisissez votre place » (ou « Vous préférez qu'on vous rappelle ? ») :
+       la section ne le répète plus, et sur un téléphone la première question
+       paraît dès le premier écran au lieu de quatre titres empilés. */
     return `<section class="reserver serre"><div class="conteneur">
-      <div><div class="tete"><p class="sur">Réserver</p><h2>${titre}</h2><p class="ligne">${ligne}</p></div>
+      <div>
         <div data-ilot="${nom}" data-genre="rdv"><p class="corps">Le calendrier se charge. Vous pouvez aussi nous écrire sur WhatsApp.</p><p style="margin-top:12px">${bouton({ texte: 'Parler à MND sur WhatsApp', vers: 'whatsapp:inconnu' }, 'btn btn--plein')}</p></div>
       </div>
       <aside class="ensuite">
@@ -852,7 +889,9 @@ function rendLibre(p, supplement = '') {
      page, et les trois cartes du contact, qui répondent aux questions qu'on
      vient poser. Les autres (formulaire, calendrier, offres) ferment la page. */
   const enTete = p.ilot === 'triage' || p.ilot === 'joindre' || p.ilot === 'offrir'
-    || p.ilot === 'parrainer' || p.ilot === 'ingredients' || p.ilot === 'engagements';
+    || p.ilot === 'parrainer' || p.ilot === 'ingredients' || p.ilot === 'engagements'
+    /* La réservation et le rappel SONT la page (11 octobre 2026). */
+    || p.ilot === 'reserver' || p.ilot === 'demande';
   const visuel = p.image ? `<div>${image(p.image)}</div>` : '';
   /* L'OUVERTURE PLEIN ÉCRAN (1er octobre 2026) : le surtitre, le titre, la ligne, un
      trait qui invite à descendre, et rien d'autre. Le fil d'Ariane reste déclaré aux
@@ -950,7 +989,7 @@ function rendAccueil(articles) {
            page du diagnostic. -->
       <section class="diag sombre" id="diagnostic"><div class="conteneur">
         <div class="tete"><p class="sur">${echappe(a.diagnostic.sur)}</p><h2>${echappe(a.diagnostic.titre)}</h2><p class="ligne">${echappe(a.diagnostic.ligne)}</p><p class="note">${echappe(a.diagnostic.note)}</p></div>
-        <div class="diag__quiz" data-ilot="triage" data-genre="accueil"><p class="ligne">Cinq questions, et votre routine.</p><p style="margin-top:12px"><a class="btn btn--fort" href="${lien('/mon-parcours/')}">Faire mon diagnostic</a></p></div>
+        <div class="diag__quiz" data-ilot="triage" data-genre="accueil">${questionDuDiagnostic()}</div>
       </div></section>
       <section class="vt-offres" id="offres"><div class="conteneur">
         <div class="tete"><p class="sur">${echappe(a.offres.sur)}</p><h2>${echappe(a.offres.titre)}</h2></div>
@@ -1145,10 +1184,27 @@ const LEGALES = [
 
 /* ── On écrit ────────────────────────────────────────────────────────── */
 rmSync(SORTIE, { recursive: true, force: true });
+/* L'ACCENT DE « nyɔ́ » POSÉ SUR LE ɔ — 11 octobre 2026. La police des lettres
+   fon (`devise-fon.woff2`) porte l'accent flottant U+0301 mais ne sait pas
+   l'accrocher : à l'écran il tombait à droite du ɔ, en grand dans le premier
+   écran et dans la bande de fin. Les affiches de l'Écrin l'avaient réglé en
+   dessinant l'accent au-dessus de la lettre ; le site fait de même, dans le
+   TEXTE VISIBLE seulement : ni le titre de l'onglet, ni les balises meta, ni
+   les données structurées, ni les scripts, qui gardent le vrai caractère. */
+const OA = '\u0254\u0301';
+function accentsFon(html) {
+  if (!html.includes(OA)) return html;
+  const i = html.indexOf('<body');
+  if (i < 0) return html;
+  const corps = html.slice(i).split(/(<script[\s\S]*?<\/script>|<style[\s\S]*?<\/style>|<[^>]+>)/)
+    .map((m, k) => (k % 2 === 1 ? m : m.split(OA).join('<span class="oa">\u0254</span>'))).join('');
+  return html.slice(0, i) + corps;
+}
+
 const ecrit = (chemin, html) => {
   const dossier = path.join(SORTIE, chemin.replace(/^\//, ''));
   mkdirSync(dossier, { recursive: true });
-  writeFileSync(path.join(dossier, 'index.html'), html);
+  writeFileSync(path.join(dossier, 'index.html'), accentsFon(html));
 };
 
 const articles = litLeJournal();

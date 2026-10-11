@@ -11,6 +11,8 @@ import type { OffreDuSite } from './maison';
 
 export { offresDuTrottoir } from '../../shared/offres-pur';
 export { horairesStructures } from './schema-pur';
+export { semaineResumee } from './heures';
+export { QUESTIONS as QUESTIONS_DU_DIAGNOSTIC } from './ilots/Triage';
 
 export function rendsLesOffres(offres: OffreDuSite[], genre?: string): string {
   return renderToString(<Offres genre={genre} initiales={offres} />);

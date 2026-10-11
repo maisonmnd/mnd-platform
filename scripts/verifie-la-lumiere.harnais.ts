@@ -288,7 +288,10 @@ const regles: Regle[] = [
       for (const [chemin, html] of e.pages) {
         const accueil = /<body [^>]*class="accueil-plein"/.test(html);
         const pied = html.slice(html.indexOf('<footer>'));
-        const signature = pied.indexOf('<p class="pied-signature">mi nyɔ́ ɖɛkpɛ, votre beauté est déjà là</p>');
+        /* L'accent de « nyɔ́ » est dessiné au-dessus du ɔ depuis le 11 octobre
+           2026 (le générateur pose un span) : la signature se lit sous sa
+           forme visible, la promesse reste la même. */
+        const signature = pied.replace(/<span class="oa">ɔ<\/span>/g, 'ɔ́').indexOf('<p class="pied-signature">mi nyɔ́ ɖɛkpɛ, votre beauté est déjà là</p>');
         if (accueil) { if (signature >= 0) ecarts.push('accueil : deux devises en grand'); if (!html.includes('class="devise-bande sombre"')) ecarts.push('accueil : pas de devise-bande'); }
         else if (signature < 0 || signature > pied.indexOf('<h4>')) ecarts.push(`${chemin} : la signature manque avant les colonnes du pied`);
         if (/pied-bas[\s\S]{0,200}<span class="devise">/.test(pied)) ecarts.push(`${chemin} : la petite devise traine encore dans pied-bas`);
@@ -297,7 +300,7 @@ const regles: Regle[] = [
     },
     pannes: [
       { nom: 'le journal en indigo profond', mute: (e) => ({ ...copie(e), feuille: e.feuille + '\n.journal { background: var(--sombre-2); }\n' }) },
-      { nom: 'la signature retiree d une page', mute: (e) => { const c = copie(e); c.pages.set('/soins-locks/', page(e, '/soins-locks/').replace('<p class="pied-signature">mi nyɔ́ ɖɛkpɛ, votre beauté est déjà là</p>', '')); return c; } },
+      { nom: 'la signature retiree d une page', mute: (e) => { const c = copie(e); c.pages.set('/soins-locks/', page(e, '/soins-locks/').replace(/<p class="pied-signature">[^<]*(?:<span class="oa">ɔ<\/span>[^<]*)?<\/p>/, '')); return c; } },
       { nom: 'la signature aussi sur l accueil', mute: (e) => { const c = copie(e); c.pages.set('/', page(e, '/').replace('<footer>\n      <div class="conteneur">', '<footer>\n      <div class="conteneur"><p class="pied-signature">mi nyɔ́ ɖɛkpɛ, votre beauté est déjà là</p>')); return c; } },
     ],
   },

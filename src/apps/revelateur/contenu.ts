@@ -1428,16 +1428,13 @@ export const PAGES: Page[] = [
     chemin: '/reserver/',
     titre: 'Réserver une consultation ou un entretien · Maison MND',
     description: 'Réservez votre entretien à la Maison MND à Cotonou en moins de trente secondes : votre venue, votre place, votre numéro. La confirmation arrive sur WhatsApp.',
-    h1: 'Réserver',
+    /* LA QUESTION D'ABORD — 11 octobre 2026 : un seul titre, une seule ligne,
+       puis la question. « Réserver » se lit dans le surtitre et le bouton. */
+    h1: 'Choisissez votre place.',
     sur: 'Réserver',
+    ligne: 'Le geste, le jour, l\u2019heure, et votre numéro pour confirmer. Aucun compte à créer, rien à payer aujourd\u2019hui.',
     besoin: 'inconnu',
     ilot: 'reserver',
-    sections: [
-      {
-        type: 'texte',
-        corps: 'Votre venue, votre place, votre numéro. Aucun compte à créer, rien à payer aujourd\u2019hui : c\u2019est réservé, et la confirmation arrive sur WhatsApp.',
-      },
-    ],
     jsonld: 'aucun',
     court: 'Réserver',
   },

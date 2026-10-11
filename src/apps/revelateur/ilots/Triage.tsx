@@ -1,9 +1,10 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent, type RefObject } from 'react';
 import { COMMUN } from '../contenu';
 import { client, lienWhatsApp, maison } from '../maison';
 import { mesure } from '../mesure';
 import { raisonDuRefus } from '../refus-du-serveur';
 import type { Besoin } from '../../../shared/qualification';
+import { gardeLeDiagnostic } from '../diagnostic-garde';
 
 /* LE DIAGNOSTIC LOCKS — 27 septembre 2026, maquette validée. « J'aime
    beaucoup le quiz hair, on peut avoir une forme de quiz pour notre style de
@@ -33,7 +34,9 @@ type Question = { cle: Cle; titre: string; multi?: boolean; exclusif?: string; r
 type Reponses = { etat?: string; cheveu?: string; cuir?: string[]; soucis?: string[]; rythme?: string };
 type Porte = { besoin: Besoin; sur: string; titre: string; texte: string; vers: string; bouton: string; image: string };
 
-const QUESTIONS: Question[] = [
+/* Exportées pour la construction : la première question s'écrit dans la page
+   avant que le script ne monte (voir `questionDuDiagnostic`, genere-revelateur). */
+export const QUESTIONS: Question[] = [
   { cle: 'etat', titre: 'Où en êtes-vous ?', reponses: [
     ['aucune', 'Pas encore de locks'], ['jeunes', 'Des locks de moins d’un an'], ['mures', 'Des locks de un à cinq ans'],
     ['anciennes', 'Des locks de plus de cinq ans'], ['enfant', 'C’est pour mon enfant'],
@@ -86,7 +89,7 @@ export function composeLaRoutine(r: Reponses): Routine {
     sec: 'Brumisez le cuir chevelu d’eau puis d’une huile légère, sans charger les longueurs.',
     gras: 'Un lavage doux par semaine, clarifiant et sans résidu, et pas d’huile sur le cuir chevelu.',
     ok: 'Un lavage doux tous les sept à dix jours, une brume d’eau les autres jours.',
-    sensible: 'Un lavage apaisant, sans sulfates ni parfum, puis quelques gouttes d’un sérum calmant sur le cuir chevelu.',
+    sensible: 'Un lavage apaisant, sans sulfates ni parfum, puis quelques gouttes d’un sérum calmant sur le cuir chevelu. Une irritation qui dure se montre à un dermatologue : la Maison adapte ensuite ses gestes.',
   };
   for (const k of r.cuir ?? []) if (parCuir[k]) semaine.push(parCuir[k]);
   semaine.push('Dormez sous un foulard ou une taie en satin : c’est la moitié de l’hydratation.');
@@ -136,6 +139,22 @@ function routineEnTexte(r: Reponses, t: Routine): string {
   ].filter(Boolean).join('\n');
 }
 
+/* LE RÉSUMÉ QUI ACCOMPAGNE LA RÉSERVATION — 11 octobre 2026 : les réponses,
+   en une phrase, pour que la Maison sache d'où vient la visiteuse avant de
+   la recevoir. Elle le voit dans « Un mot » et peut le retirer. */
+export function resumeDuDiagnostic(r: Reponses, t: Routine): string {
+  const mot = (cle: Cle, v?: string) => QUESTIONS.find((q) => q.cle === cle)?.reponses.find(([k]) => k === v)?.[1] ?? '';
+  const liste = (cle: Cle, vs?: string[]) => (vs ?? []).map((v) => mot(cle, v).toLowerCase()).filter(Boolean).join(', ');
+  return [
+    `Mon diagnostic sur le site : ${mot('etat', r.etat) || 'non dit'}.`,
+    r.cheveu ? `Cheveu : ${mot('cheveu', r.cheveu).toLowerCase()}.` : '',
+    r.cuir?.length ? `Cuir chevelu : ${liste('cuir', r.cuir)}.` : '',
+    r.soucis?.length ? `Ce qui me préoccupe : ${liste('soucis', r.soucis)}.` : '',
+    r.rythme ? `Rythme : ${mot('rythme', r.rythme).toLowerCase()}.` : '',
+    `Porte conseillée : ${t.porte.sur}.`,
+  ].filter(Boolean).join(' ');
+}
+
 const base = (chemin: string): string => import.meta.env.BASE_URL.replace(/\/$/, '') + chemin;
 const RESERVABLES = new Set<Besoin>(['creation', 'reparation', 'entretien', 'enfant']);
 
@@ -147,8 +166,20 @@ export default function Triage() {
 
   const fini = etape >= QUESTIONS.length;
   const routine = fini ? composeLaRoutine(rep) : null;
+  /* LE FOCUS SUIT LA QUESTION — 11 octobre 2026 : la question change sous le
+     doigt, le lecteur d'écran l'annonce. Jamais au chargement (le diagnostic
+     vit aussi au milieu de l'accueil) : seulement après un geste. */
+  const titre = useRef<HTMLHeadingElement>(null);
+  const aBouge = useRef(false);
+  useEffect(() => { if (aBouge.current) titre.current?.focus(); }, [etape]);
+  const termine = (r: Reponses) => {
+    const t = composeLaRoutine(r);
+    mesure('triage_termine', { sortie: t.porte.besoin, parcours: t.porte.besoin });
+    gardeLeDiagnostic(t.porte.besoin, resumeDuDiagnostic(r, t));
+  };
 
   const repond = (q: Question, v: string) => {
+    aBouge.current = true;
     if (etape === 0) mesure('triage_commence');
     if (q.multi) {
       const choisis = new Set((rep[q.cle] as string[] | undefined) ?? []);
@@ -159,35 +190,32 @@ export default function Triage() {
     }
     const suivant = { ...rep, [q.cle]: v };
     setRep(suivant);
-    if (etape + 1 >= QUESTIONS.length) {
-      const t = composeLaRoutine(suivant);
-      mesure('triage_termine', { sortie: t.porte.besoin, parcours: t.porte.besoin });
-    }
+    if (etape + 1 >= QUESTIONS.length) termine(suivant);
     setEtape(etape + 1);
   };
   const continueMulti = (q: Question) => {
+    aBouge.current = true;
     const deja = (rep[q.cle] as string[] | undefined) ?? [];
     const suivant = deja.length || !q.exclusif ? rep : { ...rep, [q.cle]: [q.exclusif] };
     setRep(suivant);
-    if (etape + 1 >= QUESTIONS.length) {
-      const t = composeLaRoutine(suivant);
-      mesure('triage_termine', { sortie: t.porte.besoin, parcours: t.porte.besoin });
-    }
+    if (etape + 1 >= QUESTIONS.length) termine(suivant);
     setEtape(etape + 1);
   };
-  const recommence = () => { setRep({}); setEtape(0); };
+  const recommence = () => { aBouge.current = true; setRep({}); setEtape(0); };
 
   if (fini && routine) {
-    return <Resultat rep={rep} routine={routine} numero={numero} recommence={recommence} />;
+    return <Resultat rep={rep} routine={routine} numero={numero} recommence={recommence} titre={titre} />;
   }
   const q = QUESTIONS[etape];
   const choisis = new Set(q.multi ? ((rep[q.cle] as string[] | undefined) ?? []) : []);
   return (
     <div className="triage">
       <div className="etapes">{QUESTIONS.map((x, i) => <span key={x.cle} className={i < etape ? 'fait' : ''} />)}</div>
-      <div className="question venir" key={q.cle}>
+      {/* La première question est déjà écrite dans la page : elle ne refait pas
+          son entrée en montant, sinon elle clignoterait. */}
+      <div className={`question${aBouge.current ? ' venir' : ''}`} key={q.cle}>
         <p className="sur">Question {etape + 1} sur {QUESTIONS.length}{q.multi ? ' · plusieurs réponses possibles' : ''}</p>
-        <h2>{q.titre}</h2>
+        <h2 ref={titre} tabIndex={-1}>{q.titre}</h2>
         <div className="reponses">
           {q.reponses.map(([v, texte]) => (
             <button type="button" className={`reponse${q.multi ? ' reponse--case' : ''}`} key={v} aria-pressed={q.multi ? choisis.has(v) : undefined} onClick={() => repond(q, v)}>
@@ -196,7 +224,7 @@ export default function Triage() {
           ))}
         </div>
         <div className="rangee" style={{ marginTop: 18, justifyContent: 'space-between' }}>
-          {etape > 0 ? <button type="button" className="btn btn--lien retour" onClick={() => setEtape(etape - 1)}>Revenir</button> : <span />}
+          {etape > 0 ? <button type="button" className="btn btn--lien retour" onClick={() => { aBouge.current = true; setEtape(etape - 1); }}>Revenir</button> : <span />}
           {q.multi && <button type="button" className="btn btn--fort" onClick={() => continueMulti(q)}>Continuer{choisis.size > 0 ? ` (${choisis.size})` : ''}</button>}
         </div>
       </div>
@@ -204,7 +232,7 @@ export default function Triage() {
   );
 }
 
-function Resultat({ rep, routine, numero, recommence }: { rep: Reponses; routine: Routine; numero: string; recommence: () => void }) {
+function Resultat({ rep, routine, numero, recommence, titre }: { rep: Reponses; routine: Routine; numero: string; recommence: () => void; titre: RefObject<HTMLHeadingElement | null> }) {
   const { porte } = routine;
   const texte = routineEnTexte(rep, routine);
   const [prenom, setPrenom] = useState('');
@@ -268,7 +296,7 @@ function Resultat({ rep, routine, numero, recommence }: { rep: Reponses; routine
         <p className="sur">Votre porte</p>
         <div className="porte-r">
           <img src={`/assets/photos/site/${porte.image}`} alt="" width="800" height="1000" loading="lazy" />
-          <div><h2>{porte.sur}</h2><p>{porte.texte}</p></div>
+          <div><h2 ref={titre} tabIndex={-1}>{porte.sur}</h2><p>{porte.texte}</p></div>
         </div>
         <p className="sur" style={{ marginTop: 10 }}>Votre guide, en trois temps</p>
         <p className="guide__note">Chaque ligne est un geste à suivre chez vous. Gardez le guide : sur WhatsApp, copié, ou à votre fiche.</p>
@@ -278,15 +306,25 @@ function Resultat({ rep, routine, numero, recommence }: { rep: Reponses; routine
           <div><b>Chaque saison</b><ol>{routine.saison.map((t) => <li key={t}>{t}</li>)}</ol></div>
         </div>
         {routine.maison && <p className="maison">{routine.maison}</p>}
-        <div className="rangee">
-          {porte.besoin === 'formation' ? (
-            <a className="btn btn--plein" href={base(porte.vers)} onClick={() => mesure('parcours_choisi', { parcours: porte.besoin })}>{porte.bouton}</a>
-          ) : (
-            <a className="btn btn--plein" href={base(RESERVABLES.has(porte.besoin) ? `/reserver/?besoin=${porte.besoin}` : `/rappel/?besoin=${porte.besoin}`)} onClick={() => mesure('parcours_choisi', { parcours: porte.besoin })}>Réserver ce parcours</a>
-          )}
-          <a className="btn" href={lienWhatsApp(numero, texte)} target="_blank" rel="noopener" onClick={() => mesure('whatsapp_clique', { parcours: porte.besoin })}>Recevoir ma routine sur WhatsApp</a>
-          <button type="button" className="btn" onClick={() => void copier()}>{copie ? 'Routine copiée' : 'Copier ma routine'}</button>
-          {porte.besoin !== 'formation' && <a className="btn btn--lien" href={base(porte.vers)}>{porte.bouton}</a>}
+        {/* UN GESTE PRINCIPAL — 11 octobre 2026 : quatre boutons de même poids
+            disaient quatre choses à la fois au moment où il faut décider. La
+            suite d'abord ; garder sa routine ensuite, en plus discret. */}
+        <div className="sortie__suite">
+          <div className="rangee">
+            {porte.besoin === 'formation' ? (
+              <a className="btn btn--plein" href={base(porte.vers)} onClick={() => mesure('parcours_choisi', { parcours: porte.besoin })}>{porte.bouton}</a>
+            ) : (
+              <a className="btn btn--plein" href={base(RESERVABLES.has(porte.besoin) ? `/reserver/?besoin=${porte.besoin}` : `/rappel/?besoin=${porte.besoin}`)} onClick={() => mesure('parcours_choisi', { parcours: porte.besoin })}>Réserver ce parcours</a>
+            )}
+            {porte.besoin !== 'formation' && <a className="btn btn--lien" href={base(porte.vers)}>{porte.bouton}</a>}
+          </div>
+          {RESERVABLES.has(porte.besoin) && <p className="legende">Votre heure en ligne, la confirmation sur WhatsApp. Vos réponses accompagnent la demande, vous pourrez les retirer.</p>}
+        </div>
+        <div className="sortie__garder">
+          <span>Garder ma routine :</span>
+          <a className="btn btn--lien" href={lienWhatsApp(numero, texte)} target="_blank" rel="noopener" onClick={() => mesure('whatsapp_clique', { parcours: porte.besoin })}>sur WhatsApp</a>
+          <button type="button" className="btn btn--lien" onClick={() => void copier()}>{copie ? 'routine copiée' : 'la copier'}</button>
+          {!garde && <a className="btn btn--lien" href="#diag-garder">à ma fiche</a>}
         </div>
       </div>
       {garde ? (
@@ -296,7 +334,7 @@ function Resultat({ rep, routine, numero, recommence }: { rep: Reponses; routine
           <p>La Maison la retrouve à votre prochain rendez-vous, et vous écrit sur WhatsApp pendant ses heures d’ouverture.</p>
         </div>
       ) : (
-        <form className="formulaire garder" onSubmit={(e) => void garder(e)} noValidate style={{ marginTop: 18 }}>
+        <form id="diag-garder" className="formulaire garder" onSubmit={(e) => void garder(e)} noValidate style={{ marginTop: 18 }}>
           <p className="sur">Garder ma routine à ma fiche</p>
           <div className="deux-champs">
             <div className="champ"><label htmlFor="diag-prenom">{f.prenom}</label><input id="diag-prenom" name="prenom" autoComplete="given-name" value={prenom} onChange={(e) => setPrenom(e.target.value)} /></div>

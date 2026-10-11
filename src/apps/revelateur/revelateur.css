@@ -1984,3 +1984,60 @@ html.js [data-voile].vu--net, html.js [data-voile]:focus-within { opacity: 1; tr
 .accueil-plein .fondateurs { padding-block: var(--air);
   background: linear-gradient(180deg, var(--indigo-pale) 0, var(--chaude) var(--plume), var(--chaude) 100%); }
 .accueil-plein .galerie-bande { padding-block: var(--air); }
+
+/* ══ LA PASSE DU 11 OCTOBRE 2026 : L'ACCUEIL, LE DIAGNOSTIC, LA RÉSERVATION ══ */
+
+/* L'accent de « nyɔ́ » dessiné au-dessus du ɔ (le générateur pose le span). */
+.oa { position: relative; display: inline-block; }
+.oa::after { content: '\00B4'; position: absolute; left: 50%; top: -.1em; transform: translateX(-12%); font-family: 'Cormorant Garamond', serif; font-style: normal; font-weight: 400; pointer-events: none; }
+/* La devise en italique (premier écran, bande de fin) : l'accent penche avec elle. */
+.devise--grande .oa::after, .devise--bande .oa::after { font-style: italic; transform: translateX(4%); }
+
+/* Le premier écran entre en douceur : la devise, le titre, les gestes, l'un
+   après l'autre ; la photo se pose. Fondu, sans rebond ; rien pour qui
+   préfère moins de mouvement. */
+@media (prefers-reduced-motion: no-preference) {
+  .js .hero-plein__texte > * { animation: hero-entree .8s cubic-bezier(.2, .7, .2, 1) both; }
+  .js .hero-plein__texte > :nth-child(2) { animation-delay: .1s; }
+  .js .hero-plein__texte > :nth-child(3) { animation-delay: .2s; }
+  .js img.hero-plein__photo { animation: hero-photo 2.4s cubic-bezier(.2, .7, .2, 1) both; }
+}
+@keyframes hero-entree { from { opacity: 0; transform: translateY(14px); } }
+@keyframes hero-photo { from { transform: scale(1.04); } }
+
+/* Une offre seule ne flotte plus dans une grille faite pour trois : elle se
+   pose en largeur, le sceau à gauche, le texte à droite. */
+@media (min-width: 761px) {
+  .vt-offres .offres-volet:has(> .offre-site:only-child) { grid-template-columns: minmax(0, 1fr); max-width: 880px; }
+  .vt-offres .offres-volet > .offre-site:only-child { grid-template-columns: minmax(0, 340px) minmax(0, 1fr); }
+  .vt-offres .offres-volet > .offre-site:only-child .offre-site__sceau { min-height: 100%; }
+  .vt-offres .offres-volet > .offre-site:only-child .offre-site__dire { padding: 30px 32px; justify-content: center; }
+  .vt-offres .offres-volet > .offre-site:only-child .offre-site__dire .btn { width: auto; align-self: flex-start; margin-top: 6px; }
+}
+
+/* Les avis : le titre et la note accompagnent la lecture au lieu de laisser
+   une colonne vide à côté des cartes. */
+@media (min-width: 861px) {
+  .avis .conteneur:not(.couronnes) > :first-child { position: sticky; top: calc(var(--barre-h, 72px) + 28px); }
+}
+
+/* La porte et ses heures, au pied. */
+.pied-maison { margin-top: 18px; display: grid; gap: 8px; max-width: 34ch; font-size: 14px; }
+.pied-adresse a { color: inherit; text-decoration: underline; text-decoration-color: rgba(246, 241, 231, .35); text-underline-offset: 3px; }
+.pied-adresse a:hover { text-decoration-color: var(--accent-sombre); }
+.pied-heures { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; color: rgba(246, 241, 231, .78); }
+.pied-etat { margin: 0; font-size: 12.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--accent-sombre); }
+.pied-etat.est-ouvert::before { content: ''; display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--accent-sombre); margin-right: 8px; vertical-align: 1px; }
+
+/* Le résultat du diagnostic : un geste principal, puis les façons de garder
+   sa routine, plus discrètes. */
+.sortie__suite { display: grid; gap: 8px; margin-top: 6px; }
+.sortie__suite .legende { margin: 0; }
+.sortie__garder { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 18px; margin-top: 14px; font-size: 14px; color: var(--texte-doux); }
+.sortie__garder .btn--lien { padding-inline: 0; }
+.diag-joint { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 6px 14px; }
+.diag-joint .btn--lien, .formulaire .diag-joint .btn { width: auto; padding: 0; font-size: 13px; min-height: 0; }
+.porte-rdv__rappel { margin: 6px 2px 0; font-size: 14px; color: var(--texte-doux); }
+.porte-rdv__rappel a { color: var(--titre); text-decoration: underline; text-underline-offset: 3px; }
+/* La première question écrite dans la page : des liens au dessin des réponses. */
+a.reponse { text-decoration: none; }

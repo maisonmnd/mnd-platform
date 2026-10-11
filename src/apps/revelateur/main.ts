@@ -102,6 +102,25 @@ if (barre && document.body.classList.contains('accueil-plein')) {
   addEventListener('scroll', suit, { passive: true });
 }
 void maison().then((m) => { if (m?.whatsapp) relieWhatsApp(m.whatsapp); });
+/* L'ÉTAT DU JOUR AU PIED — 11 octobre 2026 : « Ouvert jusqu'à 19h00 », lu
+   quand le pied approche de l'écran (une requête, pas avant), avec les
+   fermetures exceptionnelles. Sans heures connues, la ligne reste cachée. */
+const etatAuPied = document.querySelector<HTMLElement>('[data-etat-maison]');
+if (etatAuPied && 'IntersectionObserver' in window) {
+  const guet = new IntersectionObserver((vus) => {
+    if (!vus.some((v) => v.isIntersecting)) return;
+    guet.disconnect();
+    void Promise.all([import('./maison'), import('./heures')]).then(async ([{ heuresDeLaMaison }, { etatDeLaMaison }]) => {
+      const h = await heuresDeLaMaison();
+      const etat = etatDeLaMaison(h.semaine, h.exceptions, new Date());
+      if (!etat) return;
+      etatAuPied.textContent = etat.texte;
+      etatAuPied.classList.toggle('est-ouvert', etat.ouvert);
+      etatAuPied.hidden = false;
+    }).catch(() => { /* la semaine écrite suffit */ });
+  }, { rootMargin: '400px 0px' });
+  guet.observe(etatAuPied.closest('footer') ?? etatAuPied.parentElement ?? etatAuPied);
+}
 /* LE CALENDRIER SE CHARGE PENDANT QUE SON CODE ARRIVE — 28 septembre 2026 :
    sur une page qui porte la réservation, les données partent dès l'ouverture,
    en parallèle du téléchargement de l'îlot (voir calendrierDuSite). */

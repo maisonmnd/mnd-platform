@@ -88,6 +88,33 @@ export function semaineDite(
   });
 }
 
+/** LA SEMAINE EN DEUX OU TROIS LIGNES, pour le pied de chaque page (11
+    octobre 2026). Les jours qui se suivent avec la même fenêtre se disent
+    ensemble : « Du lundi au vendredi · 09h00 à 19h00 ». Sans exception ni
+    « aujourd'hui » : la page est écrite à la construction, et ce qui change
+    le jour même se dit à part, par l'état de la Maison. Semaine vide : rien. */
+export function semaineResumee(semaine: readonly HeureDeLaSemaine[]): string[] {
+  if (!semaine.length) return [];
+  const fenetre = (clef: string): string => {
+    const j = semaine.find((h) => h.key === clef);
+    return sansHeure(j) ? 'fermé' : `${deMinutes(hourToMin(j!.open))} à ${deMinutes(hourToMin(j!.close))}`;
+  };
+  const groupes: { de: (typeof ORDRE)[number]; a: (typeof ORDRE)[number]; texte: string }[] = [];
+  for (const clef of ORDRE) {
+    const texte = fenetre(clef);
+    const dernier = groupes[groupes.length - 1];
+    if (dernier && dernier.texte === texte) dernier.a = clef;
+    else groupes.push({ de: clef, a: clef, texte });
+  }
+  const capitale = (m: string): string => m.charAt(0).toUpperCase() + m.slice(1);
+  return groupes.map((g) => {
+    const jours = g.de === g.a ? capitale(NOMS[g.de])
+      : ORDRE.indexOf(g.a) - ORDRE.indexOf(g.de) === 1 ? `${capitale(NOMS[g.de])} et ${NOMS[g.a]}`
+        : `Du ${NOMS[g.de]} au ${NOMS[g.a]}`;
+    return `${jours} · ${g.texte}`;
+  });
+}
+
 export type EtatDeLaMaison = { ouvert: boolean; texte: string };
 
 /** Ce qu'on cherche vraiment en arrivant sur la page : est-ce ouvert, là,

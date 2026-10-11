@@ -15,6 +15,7 @@ import {
 } from '../../../shared/offres-pur';
 import Demande from './Demande';
 import { raisonDuRefus } from '../refus-du-serveur';
+import { diagnosticGarde, oublieLeDiagnostic } from '../diagnostic-garde';
 import { lienLu } from '../../../shared/lien-reservation';
 import { FORME_DU_CODE } from '../../../shared/parrainage-pur';
 import {
@@ -272,7 +273,10 @@ function Calendrier({ besoin: besoinInitial }: Props) {
   const [heure, setHeure] = useState<{ heure: string; maitre: string } | null>(null);
   const [prenom, setPrenom] = useState('');
   const [numero, setNumero] = useState('');
-  const [mot, setMot] = useState('');
+  /* LE DIAGNOSTIC DE LA VISITEUSE, s'il vient de cette porte (11 octobre
+     2026) : il se pose dans « Un mot », visible, et se retire d'un geste. */
+  const [diag] = useState(() => diagnosticGarde(besoin));
+  const [mot, setMot] = useState(() => diag?.resume ?? '');
   /* PLUS DE CASE À COCHER (maquette validée) : la phrase sous le bouton dit
      ce que « Réserver » autorise, et le bouton vaut accord. Le mot, lui, se
      replie : il sert une fois sur dix. */
@@ -475,6 +479,7 @@ function Calendrier({ besoin: besoinInitial }: Props) {
     setAutreJour(false);
   };
   const prendreLaPlace = (iso: string, h: { heure: string; maitre: string }) => {
+    setErreur(null);
     setJour(iso);
     setHeure(h);
   };
@@ -588,6 +593,8 @@ function Calendrier({ besoin: besoinInitial }: Props) {
       /* Le téléphone la retient pour la prochaine fois : prénom, numéro,
          gestes, calibre. Jamais le maître, jamais le code. */
       retiensLaCliente({ prenom, numero, serviceIds, calibreId, besoin });
+      /* Le diagnostic a fait son travail : il ne suit plus. */
+      oublieLeDiagnostic();
       mesure('reservation_demandee', { parcours: besoin, genre: 'rdv', chemin: retour ? 'retour' : composer ? 'composer' : 'formule' });
     } catch {
       setErreur('L’envoi n’a pas abouti. Écrivez-nous sur WhatsApp, nous vous répondons.');
@@ -1043,6 +1050,10 @@ function Calendrier({ besoin: besoinInitial }: Props) {
         <div className="bloc-reservation venir">
           <p className="sur">Le jour</p>
           <h3>Quand ?</h3>
+          {/* L'HEURE PRISE SE DIT ICI — 11 octobre 2026. Le refus du serveur
+              efface l'heure choisie, donc le formulaire et le message qu'il
+              portait : la visiteuse voyait la liste revenir sans un mot. */}
+          {erreur && !heure && <p className="erreur" role="alert">{erreur}</p>}
           {jours.length === 0
             ? (
               <p className="corps">
@@ -1086,7 +1097,7 @@ function Calendrier({ besoin: besoinInitial }: Props) {
                   <div className="heures venir">
                     <p className="legende" style={{ width: '100%' }}>{jourDit(jour)}</p>
                     {heuresDuJour.map((h) => (
-                      <button type="button" key={h.heure} className={`heure${heure?.heure === h.heure ? ' est-choisie' : ''}`} onClick={() => setHeure(h)}>
+                      <button type="button" key={h.heure} className={`heure${heure?.heure === h.heure ? ' est-choisie' : ''}`} onClick={() => { setErreur(null); setHeure(h); }}>
                         {h.heure}
                       </button>
                     ))}
@@ -1119,7 +1130,17 @@ function Calendrier({ besoin: besoinInitial }: Props) {
           </div>
           {court && (code || codeOuvert) && <div className="bloc-code">{blocDuCode}</div>}
           {motOuvert || mot
-            ? <div className="champ"><label htmlFor="res-mot">Un mot, si vous voulez</label><textarea id="res-mot" name="mot" rows={2} value={mot} onChange={(e) => setMot(e.target.value)} /></div>
+            ? (
+              <div className="champ">
+                {diag && mot === diag.resume ? (
+                  <div className="diag-joint">
+                    <label htmlFor="res-mot">Votre diagnostic, joint à la demande</label>
+                    <button type="button" className="btn btn--lien" onClick={() => { setMot(''); oublieLeDiagnostic(); }}>Retirer</button>
+                  </div>
+                ) : <label htmlFor="res-mot">Un mot, si vous voulez</label>}
+                <textarea id="res-mot" name="mot" rows={diag && mot === diag.resume ? 3 : 2} value={mot} onChange={(e) => setMot(e.target.value)} />
+              </div>
+            )
             : null}
           {(!motOuvert && !mot) || (court && !code && !codeOuvert) ? (
             <p className="ajouts">
@@ -1207,7 +1228,6 @@ export default function Reserver({ besoin: besoinInitial }: Props) {
     <>
     <BanniereDInvitation />
     <div className="porte-rdv" role="group" aria-labelledby="porte-rdv-titre">
-      <p className="sur">Prendre rendez-vous</p>
       <h3 id="porte-rdv-titre">Vous avez déjà des locks ?</h3>
       <button type="button" className="porte-rdv__choix" onClick={() => choisit('entretien')}>
         <span>Oui, elles ont besoin de leur entretien</span>
@@ -1217,10 +1237,16 @@ export default function Reserver({ besoin: besoinInitial }: Props) {
         <span>Oui, mais elles ont besoin de soin, ou j’ai un doute</span>
         <small>Une consultation d’abord. Laissez votre numéro, la Maison vous rappelle.</small>
       </a>
-      <a className="porte-rdv__choix" href={`${base}/rappel/?besoin=creation${suiteDuCode}`}>
+      {/* LA CONSULTATION DE CRÉATION SE RÉSERVE EN LIGNE — 11 octobre 2026.
+          « Est-ce possible de tomber directement sur les consultations et
+          réserver directement sans passer par un message ? » (Yéman, 17
+          septembre) : le diagnostic y menait déjà, ce bouton menait au rappel.
+          Le rappel reste offert, juste en dessous. */}
+      <button type="button" className="porte-rdv__choix" onClick={() => choisit('creation')}>
         <span>Je veux créer ma couronne</span>
-        <small>Une création commence par une consultation. La Maison vous rappelle.</small>
-      </a>
+        <small>Une création commence par une consultation : choisissez son heure en ligne.</small>
+      </button>
+      <p className="porte-rdv__rappel">Vous préférez qu’on vous rappelle ? <a href={`${base}/rappel/?besoin=creation${suiteDuCode}`}>Laissez votre numéro</a>, la Maison vous appelle.</p>
     </div>
     </>
   );
