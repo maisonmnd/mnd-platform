@@ -604,7 +604,7 @@ export const PAGES: Page[] = [
     faq: [
       ['Mes locks ont été créées ailleurs. Puis-je venir ?', 'Oui, bienvenue quand même. Nous prenons votre couronne là où elle en est.'],
       ['La consultation est-elle obligatoire ?', 'Pour une réparation, oui : nous ne faisons pas de geste important sans avoir regardé.'],
-      ['Que se passe-t-il si je dois annuler ?', 'Prévenez-nous dès que possible, nous déplaçons votre rendez-vous.'],
+      ['Que se passe-t-il si je dois annuler ?', 'Prévenez-nous au moins 24 heures avant, et nous déplaçons votre rendez-vous sans frais.'],
     ],
     jsonld: 'service',
     court: 'Réparation',
@@ -1313,7 +1313,7 @@ export const PAGES: Page[] = [
           ["Comment se passe l'hygiène à la Maison ?", 'Outils désinfectés entre chaque personne, linge propre pour chacune, espace nettoyé chaque jour. Nous en parlons volontiers si vous avez des questions.'],
           ['Quelle méthode utilisez-vous ?', "La méthode MND suit quatre temps : Purifier, Nourrir, Sceller, Couronner. Chaque geste porte un nom en fon : VÈKPÈ™ la création, SÍNSIN™ le resserrage, FÍNFÍN™ la restauration, YÈKPÈ™ la couleur végétale, GBÀTÀ™ le défaisage, DÀNDÀN™ l'hydratation, KLƆKLƆ™ le lavage."],
           ['La consultation est-elle obligatoire ?', 'Pour une création ou une réparation, oui : nous ne faisons pas de geste important sans avoir regardé. Pour un entretien simple, non, vous réservez directement.'],
-          ['Que se passe-t-il si je dois annuler ?', 'Prévenez-nous dès que possible, sur WhatsApp ou par téléphone, et nous déplaçons votre rendez-vous.'],
+          ['Que se passe-t-il si je dois annuler ?', 'Prévenez-nous au moins 24 heures avant, sur WhatsApp ou par téléphone, et nous déplaçons votre rendez-vous sans frais. Passé ce délai, un acompte déjà versé reste à la Maison.'],
           ['À quelle fréquence entretenir mes locks ?', "Votre couronne a son propre rythme, selon vos cheveux, votre quotidien et l'âge de vos locks. Nous vous conseillons la fréquence qui lui convient après l'avoir vue."],
           ['Proposez-vous la coloration végétale ?', "Oui, avec YÈKPÈ™, notre couleur végétale, qui demande une couronne saine. Parlez-en lors d'un entretien ou d'une consultation."],
           ['Puis-je me former chez MND ?', "Oui : l'Académie MND s'adresse à celles et ceux qui débutent comme aux professionnels qui veulent se spécialiser. Écrivez-nous pour connaître les prochaines sessions."],
