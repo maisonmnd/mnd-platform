@@ -220,5 +220,13 @@ export type Commun = {
     besoins: { valeur: Besoin; texte: string }[]; profils: string[];
     erreurNumero: string; merci: { titre: string; texte: string };
     suite: [string, string][];
+    /** La suite propre au rappel (11 octobre 2026) : rien n'y est réservé. */
+    suiteRappel: [string, string][];
+    /** Le numéro avec son indicatif, et l'aide sous le champ. */
+    numeroExemple: string; numeroAide: string;
+    /** « Pour qui ? » : moi, mon enfant, quelqu'un d'autre. */
+    pourQui: [string, string][]; pourQuiAide: string;
+    /** « Avant de venir », une ligne par porte, écrite par la Maison ; absente tant qu'elle n'est pas écrite. */
+    avantDeVenir: Partial<Record<Besoin, string>>;
   };
 };

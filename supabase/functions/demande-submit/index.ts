@@ -181,7 +181,23 @@ const admin = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: 
 /** La version de ce fichier : ouvrir l'adresse de la fonction la dit (405),
     pour ne jamais chercher une panne dans un fichier qui n'est pas celui
     qu'on croit déployé. */
-const VERSION = '2026-10-09-a';
+const VERSION = '2026-10-11-a · repond des la place posee, dit l accuse, pour qui, un doublon qui tient';
+
+/** `EdgeRuntime.waitUntil`, s'il existe (la même garde que le webhook) : ce
+    qui n'a pas besoin d'être attendu continue après la réponse. Sans lui, la
+    promesse court toute seule et la réponse part sans l'attendre. */
+function enTacheDeFond(p: Promise<unknown>): void {
+  const er = (globalThis as { EdgeRuntime?: { waitUntil?: (p: Promise<unknown>) => void } }).EdgeRuntime;
+  try { er?.waitUntil?.(p); } catch { /* sans tâche de fond */ }
+  p.catch(() => { /* déjà journalisé par l'appelant */ });
+}
+/** Au plus `ms` : la valeur si elle vient à temps, sinon `sinon`, et la
+    promesse continue en tâche de fond. */
+async function auPlus<T>(p: Promise<T>, ms: number, sinon: T): Promise<T> {
+  const r = await Promise.race([p, new Promise<T>((res) => setTimeout(() => res(sinon), ms))]);
+  if (r === sinon) enTacheDeFond(p);
+  return r;
+}
 
 const CORS: Record<string, string> = {
   'Access-Control-Allow-Origin': '*',
@@ -231,7 +247,10 @@ function telephoneNormalise(brut: string, dial = '+229'): string {
   /* Huit chiffres à l'ancienne : tout numéro béninois en a dix depuis 2024,
      le 01 s'ajoute, comme le fait `numeroWa` côté Maison. */
   if (indicatif === '229' && chiffres.length === 8) return `+22901${chiffres}`;
-  return `+${indicatif}${chiffres}`;
+  /* HORS BÉNIN, LE ZÉRO DE TÊTE TOMBE — 11 octobre 2026 : « 06 12 34 56 78 »
+     avec +33 doit donner +33612345678, pas +330612345678. Au Bénin, le 01
+     fait partie du numéro depuis 2024. */
+  return `+${indicatif}${indicatif === '229' ? chiffres : chiffres.replace(/^0/, '')}`;
 }
 
 const GENRES = new Set(['prospect', 'rdv']);
@@ -1675,12 +1694,32 @@ Deno.serve(async (req) => {
 
   /* Le doublon : la MÊME PLACE pour le même numéro, ou le même besoin dans
      les 24 h. On rend l'identifiant connu, la Maison n'a qu'une ligne. */
+  /* POUR QUI — 11 octobre 2026 (maquette de la réservation validée) : « moi »,
+     « enfant » ou « autre ». Deux têtes du même numéro à la même heure (une
+     mère et sa fille) sont deux demandes ; la même personne deux fois, un
+     doublon. Une valeur inconnue vaut « moi ». */
+  const pourQui = (['moi', 'enfant', 'autre'] as const).find((q) => q === String(d.pourQui ?? 'moi')) ?? 'moi';
   const depuis = new Date(Date.now() - 24 * 3_600_000).toISOString();
-  const deja = admin.from('demandes').select('id, data').eq('data->>telephone', telephone).limit(1);
+  const deja = admin.from('demandes').select('id, data').eq('data->>telephone', telephone).limit(5);
   const { data: memes } = avecPlace
     ? await deja.eq('data->>date', date).eq('data->>time', time)
     : await deja.eq('data->>besoin', besoin).gte('updated_at', depuis);
-  if (memes && memes.length > 0) return json({ ok: true, id: memes[0].id, deja: true });
+  const meme = ((memes ?? []) as { id: string; data?: { pourQui?: string; apptId?: string } }[])
+    .find((m) => (m.data?.pourQui ?? 'moi') === pourQui);
+  /* UN DOUBLON D'UNE PLACE DÉJÀ TENUE RÉPOND « C'EST RÉSERVÉ » — 11 octobre
+     2026. Il répondait « demandée », sans apptId ni confirme, pour une place
+     que la cliente tenait depuis son premier envoi (elle avait fermé pendant
+     l'attente, puis recommencé) ; et si cette première pose avait été refusée
+     par le verrou, la seconde tentative n'était jamais rejouée. Désormais :
+     une demande connue AVEC rendez-vous répond le rendez-vous ; une demande
+     connue SANS rendez-vous laisse la pose se retenter. Sans place, la règle
+     des 24 h ne change pas. */
+  if (meme && (!avecPlace || meme.data?.apptId)) {
+    return json({
+      ok: true, id: meme.id, deja: true,
+      ...(meme.data?.apptId ? { apptId: meme.data.apptId, confirme: true, accuse: 'deja' } : {}),
+    });
+  }
 
   const id = `dem-${crypto.randomUUID()}`;
   const now = new Date().toISOString();
@@ -1742,6 +1781,7 @@ Deno.serve(async (req) => {
     telephone,
     ...(email ? { email } : {}),
     besoin,
+    ...(pourQui !== 'moi' ? { pourQui } : {}),
     ...(d.profil ? { profil: texte(d.profil, 80) } : {}),
     ...(d.mot ? { mot: texte(d.mot, 1000) } : {}),
     ...(lockCount ? { lockCount, ...(calibre ? { calibre } : {}) } : {}),
@@ -1776,6 +1816,7 @@ Deno.serve(async (req) => {
     const texteDuFil = [
       `${genre === 'rdv' ? 'Demande de rendez-vous' : 'Demande'} depuis le site${d.page ? ` · ${texte(d.page, 120)}` : ''}`,
       `${BESOIN_DIT[besoin] ?? besoin}${d.profil ? ` · ${texte(d.profil, 80)}` : ''}`,
+      pourQui === 'enfant' ? 'Pour son enfant' : pourQui === 'autre' ? 'Pour quelqu’un d’autre' : '',
       lockCount ? `Calibre annoncé : ${calibre || `${lockCount} locks`}` : '',
       avecPlace ? `${nomsDesGestes.join(', ')} · le ${jourEnClair(date)} à ${heureLisible(time)}` : '',
       d.mot ? `« ${texte(d.mot, 1000)} »` : '',
@@ -1800,13 +1841,19 @@ Deno.serve(async (req) => {
      n'est lisible QUE par le personnel : un clientId vide n'appartient à
      aucune session. */
   let apptId: string | undefined;
+  /* La place que cette personne tenait déjà à cette heure (verdict du verrou). */
+  let dejaPosee = false;
   if (avecPlace) {
     const candidat = `rdv-${crypto.randomUUID()}`;
+    /* LE MOT ENTIER — 11 octobre 2026 : coupé à 300, le diagnostic joint par
+       la cliente arrivait tronqué au calendrier du Trône ; la demande et le
+       fil le gardaient à 1 000. Même mesure partout. */
     const note = [
       'Réservé depuis le site',
+      pourQui === 'enfant' ? 'Pour son enfant' : pourQui === 'autre' ? 'Pour quelqu’un d’autre' : '',
       lockCount ? `Calibre annoncé : ${calibre || `${lockCount} locks`}` : '',
       raisonEnClair(duCode),
-      d.mot ? texte(d.mot, 300) : '',
+      d.mot ? texte(d.mot, 1000) : '',
     ].filter(Boolean).join(' · ');
     const appt = {
       id: candidat,
@@ -1839,7 +1886,16 @@ Deno.serve(async (req) => {
        d'insertion directe : deux poses au même instant ne passent plus. */
     const { data: pose, error: errPose } = await admin.rpc('pose_si_libre', { p_rdv: appt, p_maitres: maitresLibres });
     const posee = (pose ?? null) as { ok?: boolean; verdict?: string; id?: string; master?: string; raison?: string } | null;
-    if (!errPose && posee?.ok === true && posee.id === candidat) {
+    /* « DEJA_POSE » EST UNE PLACE POSÉE — 11 octobre 2026. Le verrou rend ok
+       avec l'identifiant du rendez-vous que cette personne tient déjà à cette
+       heure ; on le prenait pour une non-pose : demande en doublon, accusé
+       « demande reçue », écran « demandée ». La place est tenue, on le dit, et
+       aucun accusé ne repart. */
+    if (!errPose && posee?.ok === true && posee.verdict === 'deja_pose' && posee.id) {
+      apptId = posee.id;
+      dejaPosee = true;
+      await admin.from('demandes').update({ data: { ...demande, apptId, master: posee.master ?? master, dejaPosee: true } }).eq('id', id);
+    } else if (!errPose && posee?.ok === true && posee.id === candidat) {
       apptId = candidat;
       /* L'USAGE SE POSE ICI, ET NULLE PART AILLEURS : le code n'est consommé
          qu'une fois le rendez-vous réellement inscrit avec sa remise. Un
@@ -1855,25 +1911,32 @@ Deno.serve(async (req) => {
 
   /* L'ACCUSÉ — pour une place réellement posée, jamais pour une question.
      Un échec ne défait rien : la place est prise, le journal le dira. */
-  const accuse = await envoieLAccuse({
+  /* LA RÉPONSE N'ATTEND PLUS META — 11 octobre 2026. La place est posée, et
+     la visiteuse attendait jusqu'à 8 s de plus que l'accusé parte avant de
+     lire « c'est réservé ». On lui laisse 2,5 s : si l'accusé est parti,
+     la page le dit ; sinon il continue en tâche de fond, et la page dit
+     « votre place est tenue, la Maison vous écrit », avec le bouton WhatsApp
+     devant. Une place déjà tenue (deja_pose) ne reçoit pas de second accusé. */
+  const envoiDeLAccuse = dejaPosee ? Promise.resolve('deja') : envoieLAccuse({
     apptId, demandeId: id, branchId, prenom, telephone,
     quand: apptId ? `${jourEnClair(date)} à ${heureLisible(time)}` : quandDeLaDemande(genre, texte(d.profil, 80)),
     ...(apptId ? { date, time } : {}),
   }).catch((e) => { console.error('demande-submit: accusé', String(e)); return 'échec'; });
+  const accuse = await auPlus(envoiDeLAccuse, 2500, 'en-cours');
 
-  if (apptId && duCode.raison === 'parrainage' && duCode.marraineTelephone) {
-    await previensLaMarraine({
+  if (apptId && !dejaPosee && duCode.raison === 'parrainage' && duCode.marraineTelephone) {
+    enTacheDeFond(previensLaMarraine({
       demandeId: id, branchId, prenomMarraine: duCode.marraine ?? '', prenomAmie: premierMot(prenom),
       telephone: duCode.marraineTelephone, clientId: duCode.marraineClientId,
-    }).catch((err) => { console.error('demande-submit: marraine', String(err)); return 'échec'; });
+    }).catch((err) => { console.error('demande-submit: marraine', String(err)); return 'échec'; }));
   }
 
   const quand = avecPlace ? ` · ${date} à ${time}` : '';
-  const sent = await alerteLePersonnel(
+  const sent = dejaPosee ? 0 : await auPlus(alerteLePersonnel(
     apptId ? 'Réservé depuis le site' : (genre === 'rdv' ? 'Demande de rendez-vous depuis le site' : 'Nouvelle demande depuis le site'),
     `${prenom || 'Une visiteuse'} · ${besoin}${quand}`,
     apptId ? '/trone/#/calendrier' : '/trone/#/demandes',
-  ).catch(() => 0);
+  ).catch(() => 0), 1500, 0);
   /* LA RAISON REMONTE À LA PAGE : « déjà utilisé » se dit au clic, pas au
      comptoir. `codeApplique` dit si la remise a réellement porté. */
   return json({

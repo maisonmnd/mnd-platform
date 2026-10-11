@@ -13,6 +13,9 @@ export { offresDuTrottoir } from '../../shared/offres-pur';
 export { horairesStructures } from './schema-pur';
 export { semaineResumee } from './heures';
 export { QUESTIONS as QUESTIONS_DU_DIAGNOSTIC } from './ilots/Triage';
+/* L'AGENDA ÉCRIT DANS LA PAGE DE RÉSERVATION — 11 octobre 2026 : la même
+   règle d'assemblage que le navigateur, sans réseau, et l'élagage pour la page. */
+export { assembleLAgenda, elagueLAgenda } from './agenda-assemble';
 
 export function rendsLesOffres(offres: OffreDuSite[], genre?: string): string {
   return renderToString(<Offres genre={genre} initiales={offres} />);

@@ -178,6 +178,38 @@ for (const site of SITES) {
   writeFileSync(path.join(dist, '.nojekyll'), '');
   writeFileSync(path.join(dist, 'version.json'), JSON.stringify({ build: BUILD_ID }));
 
+  /* LES MORCEAUX DU CALENDRIER SE PRÉCHARGENT — 11 octobre 2026 (la vitesse de
+     la réservation). Un `import()` part en priorité basse : sur un téléphone
+     lent, React (le plus gros morceau) arrivait après les polices, la feuille
+     et la bibliothèque de la base, et les gestes paraissaient à 4,9 s. Un
+     `modulepreload` dans la page le demande en priorité haute, dès la lecture
+     du HTML. Vite nomme ses morceaux après coup : on les retrouve ici, et seule
+     la page qui monte le calendrier les reçoit. */
+  {
+    const assets = path.join(dist, 'assets');
+    /* Le plus court des noms qui commencent par le préfixe : « agenda- » ne doit pas attraper « agenda-pur- ». */
+    const morceau = (prefixe) => (existsSync(assets) ? readdirSync(assets).filter((f) => f.startsWith(`${prefixe}-`) && f.endsWith('.js')).sort((x, y) => x.length - y.length)[0] : undefined);
+    /* ET CE DONT CES MORCEAUX DÉPENDENT (lu dans leur code construit, jamais
+       nommé à la main) : l'îlot importait Demande, refus-du-serveur et
+       diagnostic-garde, demandés seulement quand son code s'exécutait, soit
+       un aller-retour de plus après tout le reste. */
+    const dependances = (f) => (f ? [...readFileSync(path.join(assets, f), 'utf8').matchAll(/(?:from|import)"\.\/([^"]+\.js)"/g)].map((m) => m[1]) : []);
+    const racines = ['monte', 'Reserver', 'agenda', 'agenda-pur'].map(morceau).filter(Boolean);
+    const tous = [...new Set([...racines, ...racines.flatMap(dependances)])].filter((f) => existsSync(path.join(assets, f)));
+    const liens = tous.map((f) => `<link rel="modulepreload" crossorigin href="${site.base}assets/${f}" />`).join('\n    ');
+    const pages = [];
+    const marche = (d) => { for (const e of readdirSync(d, { withFileTypes: true })) { const p = path.join(d, e.name); if (e.isDirectory()) marche(p); else if (e.name === 'index.html') pages.push(p); } };
+    if (liens) marche(dist);
+    let prechargees = 0;
+    for (const p of pages) {
+      const h = readFileSync(p, 'utf8');
+      if (!h.includes('data-ilot="reserver"') || h.includes('data-calendrier-precharge')) continue;
+      writeFileSync(p, h.replace('</head>', `    <!-- data-calendrier-precharge -->\n    ${liens}\n  </head>`));
+      prechargees += 1;
+    }
+    if (prechargees) console.log(`  calendrier préchargé sur ${prechargees} page(s)`);
+  }
+
   /* L'APPLICATION RESTE SUR LE TÉLÉPHONE — 4 octobre 2026, maquette « Le
      Trône hors ligne », temps 2. Le service (`sw.js`, recopié de `public/`)
      reçoit ici l'empreinte de CETTE construction et la liste de ce qu'il doit

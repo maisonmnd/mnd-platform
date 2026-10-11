@@ -102,8 +102,9 @@ function finDeLElement(html: string, debut: number): number {
 }
 
 /* ── Les regles ──────────────────────────────────────────────────────────── */
-const TONS = { maison: '#F6F1E7', parcours: '#E7D7C2', offres: '#EDEEF4' } as const;
-const PALETTE_CLAIRE = ['#F6F1E7', '#EEE6D6', '#FFFDF9', '#FAF1E9', '#E7D7C2', '#EDEEF4'];
+/* La réservation porte l'indigo clair depuis le 11 octobre 2026 (choisi par Yéman) : une seule page. */
+const TONS = { maison: '#F6F1E7', parcours: '#E7D7C2', offres: '#EDEEF4', reservation: '#D3D5E5' } as const;
+const PALETTE_CLAIRE = ['#F6F1E7', '#EEE6D6', '#FFFDF9', '#FAF1E9', '#E7D7C2', '#EDEEF4', '#D3D5E5'];
 const JETONS_SOMBRES = ['var(--sombre)', 'var(--sombre-2)', '#1E2150', '#15173A', '#272B6C', '#23265E', 'rgba(30, 33, 80', 'rgba(21, 23, 58'];
 const JETONS_CLAIRS = ['var(--fond)', 'var(--fond-2)', 'var(--carte)', 'var(--accent-clair)', 'var(--jour)', 'var(--chaude)', 'var(--sable-cuivre)', 'var(--indigo-pale)', '#F6F1E7', '#EEE6D6', '#FFFDF9', '#FAF1E9', '#E7D7C2', '#EDEEF4'];
 const LIGNE_JS = `<script>if(!matchMedia('(prefers-reduced-motion: reduce)').matches)document.documentElement.classList.add('js')</script>`;
@@ -500,9 +501,9 @@ const regles: Regle[] = [
       const i = e.feuille.indexOf(BLOC);
       if (i < 0) return ['le bloc « LA LUMIERE ET LA FIN » manque'];
       const bloc = sansCommentaires(e.feuille.slice(e.feuille.lastIndexOf('/*', i)));
-      const permis = new Set(['#F6F1E7', '#EEE6D6', '#FFFDF9', '#FAF1E9', '#E7D7C2', '#EDEEF4', '#1E2150', '#15173A', '#272B6C', '#B97A4A', '#D6A06F', '#7C4C2C', '#2A2722', '#5E5750']);
+      const permis = new Set(['#F6F1E7', '#EEE6D6', '#FFFDF9', '#FAF1E9', '#E7D7C2', '#EDEEF4', '#D3D5E5', '#1E2150', '#15173A', '#272B6C', '#B97A4A', '#D6A06F', '#7C4C2C', '#2A2722', '#5E5750']);
       for (const h of bloc.match(/#[0-9A-Fa-f]{3,6}\b/g) ?? []) if (!permis.has(h.toUpperCase())) ecarts.push(`${h} hors palette dans le bloc`);
-      for (const r of bloc.match(/rgba\([^)]*\)/g) ?? []) if (!/^rgba\((246, 241, 231|30, 33, 80|214, 160, 111|21, 23, 58|250, 241, 233|238, 230, 214|231, 215, 194|237, 238, 244)/.test(r)) ecarts.push(`${r} : un rgba hors palette`);
+      for (const r of bloc.match(/rgba\([^)]*\)/g) ?? []) if (!/^rgba\((246, 241, 231|30, 33, 80|214, 160, 111|21, 23, 58|250, 241, 233|238, 230, 214|231, 215, 194|237, 238, 244|211, 213, 229)/.test(r)) ecarts.push(`${r} : un rgba hors palette`);
       const apres = e.feuille.slice(e.feuille.indexOf('LA COMMUNAUTÉ MND'));
       if (/radial-gradient\(circle/.test(apres)) ecarts.push('un radial-gradient(circle apres la communaute (le harnais du parrainage le refuse)');
       if (/:hover[^{]*\{[^}]*transform: translate/.test(bloc)) ecarts.push('un survol qui deplace');

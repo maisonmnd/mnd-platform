@@ -45,7 +45,12 @@ function marqueLaPageCourante() {
 
 compte();
 marqueLaPageCourante();
-if (document.querySelector('[data-ilot]')) void import('./monte');
+/* REACT PART D'ABORD, ET LA PAGE DE RÉSERVATION LE SAIT — 11 octobre 2026
+   (vitesse) : sur cette page, la bibliothèque Supabase (210 Ko) et l'agenda
+   attendent que React soit là, pour que le calendrier paraisse avant. */
+const monteEnRoute = document.querySelector('[data-ilot]') ? import('./monte') : null;
+const pageDeReservation = document.querySelector<HTMLElement>('[data-ilot="reserver"]');
+const quandReactEstLa: Promise<unknown> = pageDeReservation && monteEnRoute ? monteEnRoute.catch(() => undefined) : Promise.resolve(undefined);
 
 /* LE MENU DERRIÈRE SON BOUTON, ET LA BARRE DE L'ACCUEIL — 23 septembre 2026.
    Le bouton ouvre les liens (sur téléphone partout, sur l'accueil aussi en
@@ -101,7 +106,7 @@ if (barre && document.body.classList.contains('accueil-plein')) {
   suit();
   addEventListener('scroll', suit, { passive: true });
 }
-void maison().then((m) => { if (m?.whatsapp) relieWhatsApp(m.whatsapp); });
+void quandReactEstLa.then(() => maison()).then((m) => { if (m?.whatsapp) relieWhatsApp(m.whatsapp); }).catch(() => { /* le numéro du registre est déjà écrit */ });
 /* L'ÉTAT DU JOUR AU PIED — 11 octobre 2026 : « Ouvert jusqu'à 19h00 », lu
    quand le pied approche de l'écran (une requête, pas avant), avec les
    fermetures exceptionnelles. Sans heures connues, la ligne reste cachée. */
@@ -124,10 +129,25 @@ if (etatAuPied && 'IntersectionObserver' in window) {
 /* LE CALENDRIER SE CHARGE PENDANT QUE SON CODE ARRIVE — 28 septembre 2026 :
    sur une page qui porte la réservation, les données partent dès l'ouverture,
    en parallèle du téléchargement de l'îlot (voir calendrierDuSite). */
-if (document.querySelector('[data-ilot="reserver"]')) {
-  void import('./agenda').then(({ calendrierDuSite, prochainsJours, JOURS_DU_CALENDRIER }) => {
+if (pageDeReservation) {
+  /* LE CODE DU CALENDRIER PART EN MÊME TEMPS QUE REACT — 11 octobre 2026
+     (vitesse) : il ne se demandait qu'une fois React arrivé et exécuté, deux
+     allers-retours de plus sur un téléphone lent. Le montage (monte.tsx)
+     retrouve le même module, déjà en route. */
+  void import('./ilots/Reserver').catch(() => { /* le montage réessaiera */ });
+  /* LA BRANCHE EST ÉCRITE DANS LA PAGE (agenda pré-écrit) : les créneaux pris
+     partent tout de suite, par un simple fetch ; le reste de l'agenda, qui
+     passe par la bibliothèque, attend React. */
+  const brancheDeLaPage = (() => {
+    try {
+      const brut = pageDeReservation.querySelector('script[data-initiales]')?.textContent;
+      return brut ? String((JSON.parse(brut) as { branchId?: string }).branchId ?? '') : '';
+    } catch { return ''; }
+  })();
+  void import('./agenda').then(({ calendrierDuSite, prechargeLesOccupes, prochainsJours, JOURS_DU_CALENDRIER }) => {
     const jours = prochainsJours(JOURS_DU_CALENDRIER);
-    void calendrierDuSite(jours[0], jours[jours.length - 1]).catch(() => { /* l'îlot réessaiera */ });
+    if (brancheDeLaPage) prechargeLesOccupes(brancheDeLaPage, jours[0], jours[jours.length - 1]).catch(() => { /* l'îlot le dira */ });
+    void quandReactEstLa.then(() => calendrierDuSite(jours[0], jours[jours.length - 1], brancheDeLaPage)).catch(() => { /* l'îlot réessaiera */ });
   });
 }
 /* L'ÉCLAIRCISSEMENT AU DÉFILEMENT, 8 octobre 2026. « On n'apparaît pas, on

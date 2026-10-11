@@ -653,4 +653,31 @@ dit('aucune page ne dit « salon » pour la Maison (le Journal peut nommer ceux 
   [...pages].filter(([c, h]) => !c.startsWith('/journal/') && ditSalon(h)).map(([c]) => c));
 
 console.log(ko === 0 ? '\nTout est juste.' : `\n${ko} vérification(s) en échec.`);
+/* L'AGENDA ÉCRIT DANS LA PAGE DE RÉSERVATION — 11 octobre 2026 (la vitesse du
+   calendrier). Quand la construction a lu la base, /reserver/ porte l'agenda
+   assemblé par la même règle que le navigateur, élagué : sa branche, ses
+   prestations sans description, sa semaine, et JAMAIS les murs ni les
+   créneaux pris, qui se lisent en vif. Sans base, la page le dit, et le
+   calendrier lira la base : rien à éprouver ici. */
+{
+  const reserverHtml = pages.get('/reserver/') ?? '';
+  if (/data-initiales-agenda="non"/.test(reserverHtml)) {
+    console.log('—     l’agenda n’est pas écrit dans /reserver/ (base non lue à la génération) : le calendrier lira la base.');
+  } else {
+    const bloc = reserverHtml.match(/<div data-ilot="reserver"[^>]*><script type="application\/json" data-initiales>([\s\S]*?)<\/script>/);
+    dit('la page de réservation porte l’agenda pré-écrit, avant son repli', true, !!bloc);
+    let agendaEcrit: { branchId?: string; services?: Record<string, unknown>[]; semaine?: unknown[]; murs?: unknown[]; formules?: unknown[] } = {};
+    try { agendaEcrit = JSON.parse(bloc?.[1] ?? '{}'); } catch { /* le harnais le dira */ }
+    dit('… avec sa branche, des prestations et la semaine', true,
+      !!agendaEcrit.branchId && (agendaEcrit.services?.length ?? 0) > 0 && Array.isArray(agendaEcrit.semaine) && agendaEcrit.semaine.length > 0);
+    dit('… sans les murs, qui se lisent en vif', [], agendaEcrit.murs ?? ['absents']);
+    dit('… élagué : aucune description, aucun champ du Trône dans une prestation', [],
+      (agendaEcrit.services ?? []).flatMap((s) => Object.keys(s)).filter((k, i, a) => a.indexOf(k) === i && !['id', 'name', 'categoryId', 'durationMin', 'scalesWithModel', 'priceFloors', 'bandId', 'bandIds', 'ratePerLock', 'tarifMode', 'prixParLongueur', 'paliersDeLocks', 'priceXof', 'priceMode', 'hidePrice', 'consultationAvant', 'enabled', 'archived', 'master'].includes(k)));
+  }
+}
+/* LA SUITE DU RAPPEL N'EST PAS CELLE DE LA RÉSERVATION (11 octobre 2026). */
+dit('la page du rappel ne dit plus « C’est réservé » ni « Le calendrier se charge »', [],
+  ['C’est réservé', 'Le calendrier se charge'].filter((m) => (pages.get('/rappel/') ?? '').includes(m)));
+dit('… et aucune page ne promet la confirmation « dans la seconde »', [],
+  [...pages.entries()].filter(([, h]) => /Dans la seconde/i.test(h)).map(([c]) => c));
 process.exit(ko === 0 ? 0 : 1);

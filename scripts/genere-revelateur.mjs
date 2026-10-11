@@ -117,7 +117,58 @@ async function documentsPublics(cles) {
     return null;
   }
 }
+/* LA BASE SE PRÉ-CONNECTE — 11 octobre 2026 (vitesse du calendrier). Toute
+   page lit la base dès l'ouverture (maison(), l'agenda) : la poignée de main
+   TLS vers supabase.co coûtait 0,3 à 0,45 s sur un téléphone lent, après le
+   premier script. Le navigateur la fait maintenant pendant qu'il lit la
+   page. Sans adresse connue à la construction, rien. */
+const PRECONNEXION = process.env.VITE_SUPABASE_URL
+  ? `<link rel="preconnect" href="${process.env.VITE_SUPABASE_URL.replace(/\/$/, '').replace(/"/g, '&quot;')}" crossorigin />`
+  : '';
 const documents = statique ? await documentsPublics(['mnd_offers', 'mnd_settings']) : null;
+
+/* ── L'AGENDA ÉCRIT DANS LA PAGE DE RÉSERVATION — 11 octobre 2026 ────────
+   La vitesse du calendrier (maquette validée) : mesuré à 4,9 s sur un
+   téléphone lent avant que les gestes paraissent, le temps que React, la
+   bibliothèque Supabase et cinq lectures arrivent. La construction lit les
+   MÊMES tables avec la MÊME clef publique, les assemble par la MÊME règle
+   (agenda-assemble.ts) et les écrit, élaguées, dans la page : l'îlot repart
+   de là, puis relit la base, et le serveur reste seul juge à l'envoi. Les
+   murs et les créneaux pris ne s'écrivent jamais ici. Sans clef, sans
+   réseau : la page sort sans agenda, l'îlot lit la base, et on le dit. */
+async function tablePublique(table, select) {
+  const url = process.env.VITE_SUPABASE_URL, clef = process.env.VITE_SUPABASE_ANON_KEY;
+  if (!url || !clef) return null;
+  try {
+    const r = await fetch(`${url.replace(/\/$/, '')}/rest/v1/${table}?select=${select}`, {
+      headers: { apikey: clef, Authorization: `Bearer ${clef}` }, signal: AbortSignal.timeout(8000),
+    });
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    const lignes = await r.json();
+    return Array.isArray(lignes) ? lignes : null;
+  } catch (e) {
+    console.warn(`  ${table} non lue à la construction (${e.message})`);
+    return null;
+  }
+}
+let AGENDA_PAGE = null;
+if (statique) {
+  const [services, categories, docsAgenda, branches] = await Promise.all([
+    tablePublique('catalog_services', 'id,data'),
+    tablePublique('catalog_categories', 'id,data'),
+    tablePublique('documents', 'key,data&key=in.(mnd_settings,mnd_horaires_exceptions,mnd_vitrine_config,mnd_model_bands,mnd_model_band_sets)'),
+    tablePublique('branches', 'id,data'),
+  ]);
+  if (services && categories && docsAgenda && branches) {
+    const a = statique.assembleLAgenda({ services, categories, docs: docsAgenda, blocages: [], branches });
+    AGENDA_PAGE = a ? statique.elagueLAgenda(a) : null;
+  }
+  console.log(AGENDA_PAGE
+    ? `  agenda écrit dans la page de réservation : ${AGENDA_PAGE.services.length} prestation(s), ${(AGENDA_PAGE.formules ?? []).length} formule(s), ${AGENDA_PAGE.semaine.length} jour(s) d'horaires`
+    : '  agenda non écrit dans la page de réservation (base non lue) : le calendrier lira la base');
+}
+const AGENDA_ECRIT = !!AGENDA_PAGE;
+const agendaDansLaPage = () => (AGENDA_PAGE ? `<script type="application/json" data-initiales>${statique.jsonPourLaPage(AGENDA_PAGE)}</script>` : '');
 const OFFRES = documents ? statique.offresDuTrottoir(documents.mnd_offers) : null;
 const HORAIRES = documents ? statique.horairesStructures(documents.mnd_settings?.hours) : [];
 /* LA SEMAINE DITE AU PIED DE CHAQUE PAGE (11 octobre 2026) : les mêmes
@@ -349,6 +400,7 @@ function page({ chemin, titre, description, corps, noeuds, image: og, classeBody
     <link rel="icon" type="image/png" sizes="192x192" href="/assets/icones/icone-192.png" />
     <link rel="apple-touch-icon" sizes="180x180" href="/assets/icones/icone-180.png" />
     <link rel="manifest" href="/assets/vitrine.webmanifest" />
+    ${PRECONNEXION}
     <title>${echappe(titre)}</title>
     <meta name="description" content="${attr(description)}" />
     <link rel="canonical" href="${canon}" />
@@ -773,13 +825,20 @@ function ilot(nom, p) {
        « Choisissez votre place » (ou « Vous préférez qu'on vous rappelle ? ») :
        la section ne le répète plus, et sur un téléphone la première question
        paraît dès le premier écran au lieu de quatre titres empilés. */
+    /* LA SUITE DU RAPPEL N'EST PAS CELLE DE LA RÉSERVATION — 11 octobre 2026
+       (revue des pages) : /rappel/ servait « C'est réservé » et « Le
+       calendrier se charge » alors qu'aucune place n'y existe. Chacune a sa
+       suite et son repli ; la carte « Plus direct » y est courte. */
+    const rappel = nom === 'demande';
+    const suite = rappel ? f.suiteRappel : f.suite;
+    const repli = rappel ? 'Le formulaire se charge.' : 'Le calendrier se charge.';
     return `<section class="reserver serre"><div class="conteneur">
       <div>
-        <div data-ilot="${nom}" data-genre="rdv"><p class="corps">Le calendrier se charge. Vous pouvez aussi nous écrire sur WhatsApp.</p><p style="margin-top:12px">${bouton({ texte: 'Parler à MND sur WhatsApp', vers: 'whatsapp:inconnu' }, 'btn btn--plein')}</p></div>
+        <div data-ilot="${nom}" data-genre="rdv"${rappel ? '' : ` data-initiales-agenda="${attr(AGENDA_ECRIT ? 'oui' : 'non')}"`}>${rappel ? '' : agendaDansLaPage()}<p class="corps">${repli} Vous pouvez aussi nous écrire sur WhatsApp.</p><p style="margin-top:12px">${bouton({ texte: 'Parler à MND sur WhatsApp', vers: 'whatsapp:inconnu' }, 'btn btn--plein')}</p></div>
       </div>
       <aside class="ensuite">
-        <div><p class="sur">Ce qui se passe ensuite</p><ol>${f.suite.map(([t, l]) => `<li><div><b>${echappe(t)}</b><p>${echappe(l)}</p></div></li>`).join('')}</ol></div>
-        <div data-ilot="contact"></div>
+        <div><p class="sur">Ce qui se passe ensuite</p><ol>${suite.map(([t, l]) => `<li><div><b>${echappe(t)}</b><p>${echappe(l)}</p></div></li>`).join('')}</ol></div>
+        <div data-ilot="contact" data-genre="court"></div>
         <p class="compte">Aucun compte à créer, rien à payer aujourd’hui.</p>
       </aside>
     </div></section>`;

@@ -9,6 +9,7 @@ import { ATELIERS_RESERVABLES, CONSULTATION_PAR_PARCOURS, reservableSurLeSite } 
 import type { Bande } from './prix-calibre';
 import { client } from './maison';
 import { litToutesLesPages } from '../../shared/lecture-entiere';
+import { assembleLAgenda, type LigneLue } from './agenda-assemble';
 
 /* LE CALENDRIER DU SITE, SANS COMPTE — 17 septembre 2026.
 
@@ -127,48 +128,15 @@ export function agendaDeLaMaison(branchIdDonne?: string): Promise<AgendaDeLaMais
     ]);
     const panne = services.error ?? categories.error ?? docs.error ?? blocages.error ?? branches.error;
     if (panne) throw new Error(`agenda illisible : ${panne.message}`);
-    const lignes = <T,>(r: { data: unknown }): T[] =>
-      ((r.data ?? []) as { data?: T }[]).map((x) => x.data).filter(Boolean) as T[];
-
-    const reglages = ((docs.data ?? []) as Doc<{ hours?: HeureDeLaSemaine[]; maxRdvParJourMaison?: number; maxRdvParJourMaitre?: number; baremeSuspendu?: boolean }>[])
-      .find((d) => d.key === 'mnd_settings')?.data ?? {};
-    const bandes = ((docs.data ?? []) as Doc<Bande[]>[]).find((d) => d.key === 'mnd_model_bands')?.data;
-    const bandSets = ((docs.data ?? []) as Doc<Record<string, Bande[]>>[]).find((d) => d.key === 'mnd_model_band_sets')?.data;
-    const exceptions = ((docs.data ?? []) as Doc<ExceptionDHoraire[]>[])
-      .find((d) => d.key === 'mnd_horaires_exceptions')?.data ?? [];
-    type LigneBranche = { id: string; data?: { masters?: string[]; seats?: number; flagship?: boolean; status?: string } };
-    const toutes = (branches.data ?? []) as LigneBranche[];
-    const branche = branchIdDonne
-      ? toutes.find((b) => b.id === branchIdDonne)
-      : toutes.find((b) => b.data?.flagship && b.data?.status !== 'paused') ?? toutes[0];
-    if (!branche) return null;
-    const branchId = branche.id;
-    const vitrine = ((docs.data ?? []) as Doc<{ siteMasques?: MasquesDuSite; formulesRapides?: FormuleRapide[] }>[])
-      .find((d) => d.key === 'mnd_vitrine_config')?.data;
-    const masques = vitrine?.siteMasques ?? {};
-    const formules = (Array.isArray(vitrine?.formulesRapides) ? vitrine.formulesRapides : [])
-      .filter((f) => f && Array.isArray(f.serviceIds) && f.serviceIds.length > 0);
-
-    return {
-      branchId,
-      maitres: (branche?.data?.masters ?? []).filter(Boolean),
-      services: lignes<PrestationPublique>(services).filter((s) => s.enabled !== false && !s.archived),
-      categories: lignes<CategoriePublique>(categories),
-      /* Sans horaires descendus, la semaine reste VIDE et chaque jour se dit
-         fermé : mieux vaut ne rien proposer que d'ouvrir un jour que la
-         Maison ferme (la leçon du lundi 12 octobre, 5 septembre). */
-      semaine: Array.isArray(reglages.hours) ? reglages.hours : [],
-      exceptions: Array.isArray(exceptions) ? exceptions : [],
-      murs: lignes<MurPose>(blocages),
-      capMaison: Number(reglages.maxRdvParJourMaison ?? 0),
-      capMaitre: Number(reglages.maxRdvParJourMaitre ?? 0),
-      sieges: Math.max(0, Number(branche?.data?.seats ?? 0)),
-      masques,
-      bandes: Array.isArray(bandes) ? bandes.filter((b) => b && b.id && b.name) : [],
-      bandSets: bandSets && typeof bandSets === 'object' ? bandSets : {},
-      baremeSuspendu: reglages.baremeSuspendu === true,
-      formules,
-    };
+    /* L'ASSEMBLAGE VIT DANS agenda-assemble.ts (11 octobre 2026) : la même règle
+       sert à la construction, qui écrit l'agenda dans la page. */
+    return assembleLAgenda({
+      services: (services.data ?? []) as LigneLue[],
+      categories: (categories.data ?? []) as LigneLue[],
+      docs: (docs.data ?? []) as LigneLue[],
+      blocages: (blocages.data ?? []) as LigneLue[],
+      branches: (branches.data ?? []) as LigneLue[],
+    }, branchIdDonne);
   })();
   promesse = p;
   p.catch(() => { if (promesse === p) promesse = null; });
@@ -203,13 +171,27 @@ export function agendaEnCache(): AgendaDeLaMaison | null {
   } catch { return null; }
 }
 
+/* LES CRÉNEAUX PRIS PARTENT DÈS L'OUVERTURE — 11 octobre 2026 (vitesse). La
+   page de réservation écrit sa branche (agenda-assemble, dans la page) :
+   main.ts lance cette lecture avant tout le reste, par un simple fetch, et
+   calendrierDuSite la retrouve ici au lieu de la refaire. */
+let occupesEnRoute: { cle: string; promesse: Promise<CreneauOccupe[]> } | null = null;
+export function prechargeLesOccupes(branchId: string, du: string, au: string): Promise<CreneauOccupe[]> {
+  const cle = `${branchId}|${du}|${au}`;
+  if (occupesEnRoute?.cle === cle) return occupesEnRoute.promesse;
+  const promesse = creneauxOccupes(branchId, du, au);
+  occupesEnRoute = { cle, promesse };
+  promesse.catch(() => { if (occupesEnRoute?.promesse === promesse) occupesEnRoute = null; });
+  return promesse;
+}
+
 let calendrier: Promise<{ agenda: AgendaDeLaMaison | null; occupes: CreneauOccupe[] }> | null = null;
-export function calendrierDuSite(du: string, au: string): Promise<{ agenda: AgendaDeLaMaison | null; occupes: CreneauOccupe[] }> {
+export function calendrierDuSite(du: string, au: string, brancheConnue?: string): Promise<{ agenda: AgendaDeLaMaison | null; occupes: CreneauOccupe[] }> {
   if (calendrier) return calendrier;
   const c = (async () => {
-    let devine = '';
-    try { devine = localStorage.getItem(CLE_BRANCHE) ?? ''; } catch { /* pas de stockage */ }
-    const pris = devine ? creneauxOccupes(devine, du, au) : null;
+    let devine = brancheConnue ?? '';
+    if (!devine) { try { devine = localStorage.getItem(CLE_BRANCHE) ?? ''; } catch { /* pas de stockage */ } }
+    const pris = devine ? prechargeLesOccupes(devine, du, au) : null;
     const agenda = await agendaDeLaMaison();
     if (!agenda) return { agenda: null, occupes: [] };
     try {
@@ -227,11 +209,32 @@ export function calendrierDuSite(du: string, au: string): Promise<{ agenda: Agen
 }
 export const JOURS_DU_CALENDRIER = JOURS_DU_SITE;
 
+/* PAR UN SIMPLE FETCH — 11 octobre 2026 (vitesse) : un appel de fonction
+   anonyme n'a pas besoin de la bibliothèque Supabase (210 Ko), qui arrivait
+   après tout le reste sur un téléphone lent. La même adresse, la même clef
+   publique. ET ELLE ÉCHOUE FERMÉ désormais : une liste vide sur une panne
+   montrait toutes les heures libres (un faux affichage, que le serveur
+   refusait ensuite) ; une panne REJETTE, et l'écran dit que les places ne
+   se chargent pas, WhatsApp à côté. Sans adresse connue, le client, comme
+   avant. */
+const ADRESSE_DE_LA_BASE = (import.meta.env.VITE_SUPABASE_URL as string | undefined)?.replace(/\/$/, '');
+const CLEF_PUBLIQUE = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
 export async function creneauxOccupes(branchId: string, du: string, au: string): Promise<CreneauOccupe[]> {
+  if (ADRESSE_DE_LA_BASE && CLEF_PUBLIQUE) {
+    const r = await fetch(`${ADRESSE_DE_LA_BASE}/rest/v1/rpc/creneaux_occupes`, {
+      method: 'POST',
+      headers: { apikey: CLEF_PUBLIQUE, Authorization: `Bearer ${CLEF_PUBLIQUE}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ p_branch: branchId, p_du: du, p_au: au }),
+    });
+    if (!r.ok) throw new Error(`creneaux_occupes : HTTP ${r.status}`);
+    const data: unknown = await r.json();
+    return Array.isArray(data) ? (data as CreneauOccupe[]) : [];
+  }
   const supabase = await client();
-  if (!supabase) return [];
+  if (!supabase) throw new Error('creneaux_occupes : sans client');
   const { data, error } = await supabase.rpc('creneaux_occupes', { p_branch: branchId, p_du: du, p_au: au });
-  return error ? [] : ((data ?? []) as CreneauOccupe[]);
+  if (error) throw new Error(`creneaux_occupes : ${error.message}`);
+  return (data ?? []) as CreneauOccupe[];
 }
 
 /** Les heures libres d'un jour, pour un rituel donné. Le maître est celui de

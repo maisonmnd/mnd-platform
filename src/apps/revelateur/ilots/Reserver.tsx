@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import { Fragment, useEffect, useMemo, useState, type FormEvent } from 'react';
 import { COMMUN } from '../contenu';
 import { client, lienWhatsApp, maison, offresDuSite, type OffreDuSite } from '../maison';
 import { campagne, mesure } from '../mesure';
@@ -84,7 +84,10 @@ export const questionPour = (titre: string): string =>
 export const ordonneParLeSoin = <T extends { titre: string }>(groupes: readonly T[]): T[] =>
   groupes.map((g, i) => ({ g, i })).sort((a, b) => (rangDuSoin(a.g.titre) - rangDuSoin(b.g.titre)) || (a.i - b.i)).map(({ g }) => g);
 
-type Props = { besoin?: Besoin };
+/** `initiales` : l'agenda écrit dans la page à la construction (11 octobre
+    2026, vitesse) ; `surLaPorte` : revenir à la question « Vous avez déjà des
+    locks ? » sans recharger. */
+type Props = { besoin?: Besoin; initiales?: AgendaDeLaMaison; surLaPorte?: () => void };
 /* La demande, écrite pour WhatsApp : ce que la cliente envoie elle-même à la
    Maison depuis l'écran « Demande reçue ». Le même contenu que ce que le
    serveur a posé dans son fil. */
@@ -112,17 +115,53 @@ const oublieLaCliente = (): void => {
 
 /** « Aujourd'hui », « Demain », sinon « jeu. 2 » : la place se dit comme on
     la dit au téléphone. */
+/* LE MOIS SUR CHAQUE PLACE — 11 octobre 2026 (maquette validée) : sur vingt
+   et un jours à cheval sur deux mois, « mar 3 » et « mar 27 » se lisaient
+   sans repère. Et le jour se compte à Cotonou, comme le calendrier
+   (prochainsJours) : « Demain » à Paris entre minuit et une heure n'est pas
+   demain pour la Maison. */
+const MOIS_COURTS = ['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.'];
+const MOIS_LONGS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
+export const moisCourt = (iso: string): string => MOIS_COURTS[Number(iso.slice(5, 7)) - 1] ?? '';
+const moisEtAnnee = (iso: string): string => `${MOIS_LONGS[Number(iso.slice(5, 7)) - 1] ?? ''} ${iso.slice(0, 4)}`;
+const jourDeCotonou = (ms: number): string => new Date(ms + 3_600_000).toISOString().slice(0, 10);
 const jourProche = (iso: string): string => {
-  const auj = new Date();
-  const cle = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-  if (iso === cle(auj)) return 'Aujourd’hui';
-  const dem = new Date(auj); dem.setDate(auj.getDate() + 1);
-  if (iso === cle(dem)) return 'Demain';
+  if (iso === jourDeCotonou(Date.now())) return 'Aujourd’hui';
+  if (iso === jourDeCotonou(Date.now() + 86_400_000)) return 'Demain';
   const c = jourCourt(iso);
-  return `${c.lettre} ${c.chiffre}`;
+  return `${c.lettre} ${c.chiffre} ${moisCourt(iso)}`;
+};
+/* L'HEURE DE COTONOU, dite à qui n'y est pas (UTC+1 toute l'année) : « jeu 15
+   14:00 » se lisait comme 14 h locales à Paris. */
+const aLEtranger = (): boolean => { try { return new Date().getTimezoneOffset() !== -60; } catch { return false; } };
+/* LE NUMÉRO MASQUÉ — sur un téléphone prêté ou un poste partagé, le numéro de
+   la précédente ne se lit plus en clair dans « Bon retour ». */
+const numeroMasque = (n: string): string => { const c = n.replace(/\D/g, ''); return c.length >= 4 ? `… ${c.slice(-4, -2)} ${c.slice(-2)}` : '…'; };
+/* L'AGENDA DU TÉLÉPHONE : un fichier .ics, à l'heure de Cotonou, sans rien
+   de plus que ce que l'écran dit. */
+const fichierAgenda = (o: { date: string; heure: string; dureeMin: number; titre: string; note: string }): string => {
+  const [h, m] = o.heure.split(':').map(Number);
+  const debut = new Date(Date.UTC(Number(o.date.slice(0, 4)), Number(o.date.slice(5, 7)) - 1, Number(o.date.slice(8, 10)), h, m));
+  const fin = new Date(debut.getTime() + Math.max(60, o.dureeMin || 60) * 60_000);
+  const t = (d: Date) => `${d.toISOString().slice(0, 10).replace(/-/g, '')}T${d.toISOString().slice(11, 16).replace(':', '')}00`;
+  const texte = (s: string) => s.replace(/[\\;,]/g, (c) => `\\${c}`).replace(/\n/g, '\\n');
+  return `data:text/calendar;charset=utf-8,${encodeURIComponent([
+    'BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Maison MND//site//FR', 'BEGIN:VEVENT',
+    `UID:${o.date}-${o.heure.replace(':', '')}@maisonmnd.com`,
+    `DTSTART;TZID=Africa/Porto-Novo:${t(debut)}`, `DTEND;TZID=Africa/Porto-Novo:${t(fin)}`,
+    `SUMMARY:${texte(o.titre)}`, 'LOCATION:Maison MND · Cotonou', `DESCRIPTION:${texte(o.note)}`,
+    'END:VEVENT', 'END:VCALENDAR',
+  ].join('\r\n'))}`;
 };
 
 const JOURS_PROPOSES = 21;
+/* LES INDICATIFS PROPOSÉS : le Bénin d'abord, les voisins, puis d'où viennent
+   les clientes de passage. Le serveur lit `dial` tel quel. */
+const INDICATIFS: readonly [string, string][] = [
+  ['+229', 'Bénin'], ['+228', 'Togo'], ['+225', 'Côte d’Ivoire'], ['+234', 'Nigeria'], ['+221', 'Sénégal'], ['+233', 'Ghana'],
+  ['+226', 'Burkina Faso'], ['+237', 'Cameroun'], ['+33', 'France'], ['+32', 'Belgique'], ['+41', 'Suisse'], ['+1', 'Canada et États-Unis'],
+  ['+44', 'Royaume-Uni'], ['+49', 'Allemagne'],
+];
 
 /** Ce que la porte ouvre d'emblée, dit à la visiteuse. Seul l'entretien a
     des familles prioritaires aujourd'hui (voir `FAMILLES_DABORD`). */
@@ -240,16 +279,25 @@ const dit = (min?: number): string => {
   return m ? `${h} h ${String(m).padStart(2, '0')}` : `${h} h`;
 };
 
-function Calendrier({ besoin: besoinInitial }: Props) {
+function Calendrier({ besoin: besoinInitial, initiales, surLaPorte }: Props) {
   const f = COMMUN.formulaire;
   /* `||` et non `??` : l'adresse rend une chaîne VIDE quand elle ne porte
      aucun parcours, et `??` la laisserait passer pour une réponse. */
   const besoin: Besoin = besoinInitial || besoinDeLAdresse() || 'inconnu';
   const consultation = porteDuBesoin(besoin) === 'consultation';
 
-  /* L'agenda de la dernière visite s'affiche tout de suite, le frais le remplace (voir calendrierDuSite). */
-  const [agenda, setAgenda] = useState<AgendaDeLaMaison | null | undefined>(() => agendaEnCache() ?? undefined);
+  /* L'AGENDA ÉCRIT DANS LA PAGE D'ABORD (11 octobre 2026), sinon celui de la
+     dernière visite ; le frais remplace l'un comme l'autre (calendrierDuSite).
+     Les gestes paraissent ainsi sans attendre la base. */
+  const [agenda, setAgenda] = useState<AgendaDeLaMaison | null | undefined>(() => initiales ?? agendaEnCache() ?? undefined);
   const [occupes, setOccupes] = useState<CreneauOccupe[]>([]);
+  /* LES PLACES ATTENDENT LES CRÉNEAUX PRIS — 11 octobre 2026. Avec un agenda
+     déjà là et des gestes déjà cochés (bon retour, lien préparé, page
+     pré-écrite), toutes les heures ouvertes paraissaient libres le temps que
+     les occupés arrivent : un faux affichage, que le serveur refusait ensuite.
+     'attente' : rien ne se propose encore ; 'frais' : les places sont vraies ;
+     'panne' : on le dit, et WhatsApp reste. */
+  const [occupesEtat, setOccupesEtat] = useState<'attente' | 'frais' | 'panne'>('attente');
   const [whatsapp, setWhatsapp] = useState('');
   const [devise, setDevise] = useState('XOF');
   const [serviceIds, setServiceIds] = useState<string[]>([]);
@@ -273,6 +321,11 @@ function Calendrier({ besoin: besoinInitial }: Props) {
   const [heure, setHeure] = useState<{ heure: string; maitre: string } | null>(null);
   const [prenom, setPrenom] = useState('');
   const [numero, setNumero] = useState('');
+  /* L'INDICATIF, +229 par défaut et modifiable ; POUR QUI ; le numéro refusé
+     se signale au champ (11 octobre 2026, maquette validée). */
+  const [indicatif, setIndicatif] = useState('+229');
+  const [pourQui, setPourQui] = useState<'moi' | 'enfant' | 'autre'>('moi');
+  const [numeroInvalide, setNumeroInvalide] = useState(false);
   /* LE DIAGNOSTIC DE LA VISITEUSE, s'il vient de cette porte (11 octobre
      2026) : il se pose dans « Un mot », visible, et se retire d'un geste. */
   const [diag] = useState(() => diagnosticGarde(besoin));
@@ -306,7 +359,20 @@ function Calendrier({ besoin: besoinInitial }: Props) {
     marraine?: string; cadeau?: string;
     /** La place est-elle tenue (le serveur l'a posée confirmée) ? */
     confirme?: boolean;
+    /** L'ACCUSÉ WHATSAPP, TEL QUE LE SERVEUR LE DIT (11 octobre 2026) :
+        'envoyé', 'en-cours' (il part en tâche de fond), 'échec', 'sans-cles',
+        'sans-numero', 'deja' (place déjà tenue, rien ne repart). La page ne
+        promet « la confirmation est partie » que sur 'envoyé'. */
+    accuse?: string;
+    /** La durée et le prix, redits à l'écran de succès. */
+    resume?: string;
+    dureeMin?: number;
   } | null>(null);
+  /* LA BANDE DE FIN NE REDIT PAS « RÉSERVER » après une place tenue : le corps
+     de la page porte la classe, la feuille cache l'appel. */
+  useEffect(() => {
+    try { document.body.classList.toggle('est-reserve', !!recu?.confirme); } catch { /* sans document */ }
+  }, [recu]);
 
   useEffect(() => {
     let vivant = true;
@@ -316,14 +382,15 @@ function Calendrier({ besoin: besoinInitial }: Props) {
       setDevise(m?.devise ?? 'XOF');
     }).catch(() => { /* le numéro garde celui du registre */ });
     const jours = prochainsJours(JOURS_PROPOSES);
-    void calendrierDuSite(jours[0], jours[jours.length - 1]).then(({ agenda: a, occupes: pris }) => {
+    void calendrierDuSite(jours[0], jours[jours.length - 1], initiales?.branchId).then(({ agenda: a, occupes: pris }) => {
       if (!vivant) return;
       /* Un agenda absent ne remplace pas celui de la dernière visite : il
          rendait « La réservation en ligne n'est pas disponible » par-dessus
          un calendrier qui s'affichait (10 octobre 2026). */
       setAgenda((prec) => a ?? prec ?? null);
       setOccupes(pris);
-    }).catch(() => { if (vivant) setAgenda((prec) => prec ?? null); });
+      setOccupesEtat('frais');
+    }).catch(() => { if (vivant) { setAgenda((prec) => prec ?? null); setOccupesEtat('panne'); } });
     return () => { vivant = false; };
   }, []);
 
@@ -371,6 +438,16 @@ function Calendrier({ besoin: besoinInitial }: Props) {
     else setCalibreId('inconnu');
     setRetour(true);
   }, [agenda, retourPose, preparee, moi, consultation, prepare, prestations, bandes]);
+  /* LA CONSULTATION UNIQUE EST DÉJÀ CHOISIE — 11 octobre 2026 (maquette
+     validée) : une case seule ne disait pas « touchez ici pour voir les
+     heures », et un grand vide précédait la suite. Une fois : si elle la
+     décoche, on ne la recoche pas. */
+  const [consultationPosee, setConsultationPosee] = useState(false);
+  useEffect(() => {
+    if (!consultation || consultationPosee || !agenda || prestations.length !== 1) return;
+    setConsultationPosee(true);
+    if (serviceIds.length === 0) setServiceIds([prestations[0].id]);
+  }, [consultation, consultationPosee, agenda, prestations, serviceIds.length]);
   const bandeChoisie = bandes.find((b) => b.id === calibreId);
   const ctx = useMemo<ContexteDuCalibre | undefined>(
     () => (agenda && bandeChoisie
@@ -445,11 +522,11 @@ function Calendrier({ besoin: besoinInitial }: Props) {
 
   /* Les jours qui ont au moins une heure libre pour TOUS les gestes cochés. */
   const jours = useMemo(() => {
-    if (!agenda || serviceIds.length === 0) return [];
+    if (!agenda || serviceIds.length === 0 || occupesEtat !== 'frais') return [];
     return prochainsJours(JOURS_PROPOSES)
       .map((iso) => ({ iso, heures: heuresLibres({ agenda, dateIso: iso, serviceIds, occupes }) }))
       .filter((j) => j.heures.length > 0);
-  }, [agenda, serviceIds, occupes]);
+  }, [agenda, serviceIds, occupes, occupesEtat]);
 
   const heuresDuJour = jours.find((j) => j.iso === jour)?.heures ?? [];
   /* LES SIX PROCHAINES PLACES, tous jours confondus : la cliente pressée
@@ -492,12 +569,16 @@ function Calendrier({ besoin: besoinInitial }: Props) {
     setHeure(null);
     setAutreJour(false);
   };
+  /* « CE N'EST PAS MOI » ROUVRE LA PORTE — 11 octobre 2026 : une autre
+     personne sur le même téléphone ne sortait de l'entretien qu'en retapant
+     l'adresse. */
   const pasMoi = () => {
     oublieLaCliente();
     setMoi(null);
     setPrenom('');
     setNumero('');
     autreChose();
+    surLaPorte?.();
   };
   const wa = lienWhatsApp(whatsapp, COMMUN.messages[besoin] ?? COMMUN.messages.inconnu);
 
@@ -521,7 +602,13 @@ function Calendrier({ besoin: besoinInitial }: Props) {
   const envoyer = async (e: FormEvent) => {
     e.preventDefault();
     if (envoi || !heure || !jour || serviceIds.length === 0) return;
-    if (numero.replace(/\D/g, '').length < 8) { setErreur(f.erreurNumero); return; }
+    if (numero.replace(/\D/g, '').length < 8) {
+      setErreur(f.erreurNumero);
+      setNumeroInvalide(true);
+      try { document.getElementById('res-numero')?.focus(); } catch { /* sans focus */ }
+      return;
+    }
+    setNumeroInvalide(false);
     setErreur(null);
     setEnvoi(true);
     try {
@@ -552,6 +639,10 @@ function Calendrier({ besoin: besoinInitial }: Props) {
               : FORME_DU_CODE.test(codeNormalise(code)) ? { codeAmie: codeNormalise(code) } : {}),
             serviceIds, date: jour, time: heure.heure, master: heure.maitre,
             ...(bandeChoisie ? { lockCount: lockCountAnnonce, calibre: bandeChoisie.name } : {}),
+            /* L'INDICATIF ET POUR QUI voyagent (11 octobre 2026) : le serveur
+               lit `dial` depuis le 9 octobre, la page ne l'envoyait pas, et un
+               numéro français devenait un numéro béninois. */
+            dial: indicatif, pourQui,
             page: location.pathname, campagne: campagne() || undefined, consentement: true,
           },
         },
@@ -561,7 +652,7 @@ function Calendrier({ besoin: besoinInitial }: Props) {
         code?: string; codeApplique?: boolean;
         codeRaison?: 'inconnu' | 'sans-effet' | 'deja-utilise' | 'cadeau'
           | 'parrainage' | 'parrainage-soi-meme' | 'parrainage-deja-cliente' | 'parrainage-deja-utilise';
-        marraine?: string; cadeau?: string; confirme?: boolean;
+        marraine?: string; cadeau?: string; confirme?: boolean; accuse?: string;
       };
       if (error || !r.ok) {
         /* La raison est dans le corps de la réponse refusée, pas dans `data`
@@ -580,6 +671,7 @@ function Calendrier({ besoin: besoinInitial }: Props) {
           setErreur('Un des gestes choisis ne se réserve plus en ligne. Retirez-le, ou écrivez-nous sur WhatsApp.');
         } else if (code.includes('telephone')) {
           setErreur(f.erreurNumero);
+          setNumeroInvalide(true);
         } else {
           setErreur('L’envoi n’a pas abouti. Écrivez-nous sur WhatsApp, nous vous répondons.');
         }
@@ -589,6 +681,9 @@ function Calendrier({ besoin: besoinInitial }: Props) {
         date: jour, heure: heure.heure, gestes: choisies.map((s) => s.name),
         code: r.code, codeApplique: r.codeApplique, codeRaison: r.codeRaison,
         marraine: r.marraine, cadeau: r.cadeau, confirme: r.confirme === true,
+        accuse: typeof r.accuse === 'string' ? r.accuse : undefined,
+        resume: [dit(dureeTotale), prixTotal > 0 ? `${prixFlou ? 'à partir de ' : ''}${fmtMoney(prixTotal, devise)}, à régler à la Maison` : ''].filter(Boolean).join(' · '),
+        dureeMin: dureeTotale,
       });
       /* Le téléphone la retient pour la prochaine fois : prénom, numéro,
          gestes, calibre. Jamais le maître, jamais le code. */
@@ -613,12 +708,24 @@ function Calendrier({ besoin: besoinInitial }: Props) {
             demande vit quand même et la Maison rappelle : on le dit. */}
         <p className="sur">{recu.confirme ? 'Réservé' : 'Demande reçue'}</p>
         <h2>{recu.confirme ? `C’est réservé${prenom.trim() ? `, ${prenom.trim().split(' ')[0]}` : ''}.` : 'Votre place est demandée.'}</h2>
-        <p>
-          {jourDit(recu.date)}, à {recu.heure}.{' '}
-          {recu.confirme
-            ? 'La confirmation arrive sur WhatsApp. La Maison choisit qui s’occupe de vous, et vous attend.'
-            : 'La Maison vous confirme sur WhatsApp ou par téléphone, pendant ses heures d’ouverture.'}
-        </p>
+        <p className="merci__place">{jourDit(recu.date)}, à {recu.heure}.</p>
+        {recu.resume && <p className="merci__resume">{recu.resume}</p>}
+        {/* CE QUE LE SERVEUR A VRAIMENT FAIT — 11 octobre 2026. « La confirmation
+            arrive sur WhatsApp » se lisait même quand l'accusé n'était pas parti
+            (sans clés, échec Meta, numéro hors WhatsApp) : la page lit `accuse`
+            et ne promet que ce qui est fait. */}
+        {recu.confirme ? (
+          recu.accuse === 'envoyé'
+            ? <p className="merci__etat est-partie"><b>La confirmation est partie sur WhatsApp</b>, au {indicatif} {numeroMasque(numero)}. La Maison choisit qui s’occupe de vous, et vous attend.</p>
+            : recu.accuse === 'deja'
+              ? <p className="merci__etat"><b>Votre place était déjà tenue</b> : rien n’a changé. La Maison vous attend.</p>
+              : <p className="merci__etat est-tenue"><b>Votre place est tenue.</b> La Maison vous écrit sur WhatsApp pendant ses heures d’ouverture. Si rien n’arrive d’ici là, écrivez-lui : le bouton est juste dessous.</p>
+        ) : (
+          <p>La Maison vous confirme sur WhatsApp ou par téléphone, pendant ses heures d’ouverture.</p>
+        )}
+        {f.avantDeVenir[besoin] && (
+          <div className="avant-de-venir"><b>Avant de venir</b><p>{f.avantDeVenir[besoin]}</p></div>
+        )}
         {recu.gestes.length > 0 && (
           <ul className="panier">
             {recu.gestes.map((n) => <li key={n} className="panier__ligne"><span className="panier__quoi">{n}</span></li>)}
@@ -665,9 +772,17 @@ function Calendrier({ besoin: besoinInitial }: Props) {
             répond dedans. « Une cliente doit être autonome du début à la
             fin » (Yéman). */}
         <div className="rangee">
-          <a className={`btn ${recu.confirme ? '' : 'btn--fort'}`} href={lienWhatsApp(whatsapp, texteDeLaDemande(recu, prenom, mot))} target="_blank" rel="noopener" onClick={() => mesure('whatsapp_clique', { parcours: besoin })}>{recu.confirme ? 'Écrire à la Maison sur WhatsApp' : 'Envoyer ma demande sur WhatsApp'}</a>
+          <a className={`btn ${recu.confirme && recu.accuse === 'envoyé' ? '' : 'btn--fort'}`} href={lienWhatsApp(whatsapp, texteDeLaDemande(recu, prenom, mot))} target="_blank" rel="noopener" onClick={() => mesure('whatsapp_clique', { parcours: besoin })}>{recu.confirme ? 'Écrire à la Maison sur WhatsApp' : 'Envoyer ma demande sur WhatsApp'}</a>
+          {/* L'AGENDA DU TÉLÉPHONE — un fichier .ics, à l'heure de Cotonou. */}
+          {recu.confirme && (
+            <a className="btn" href={fichierAgenda({ date: recu.date, heure: recu.heure, dureeMin: recu.dureeMin ?? 60, titre: `Maison MND · ${recu.gestes.join(', ') || 'votre venue'}`, note: 'Réservé depuis maisonmnd.com. Pour déplacer ou annuler, un mot sur WhatsApp suffit.' })} download={`maison-mnd-${recu.date}.ics`}>Ajouter à mon agenda</a>
+          )}
         </div>
-        <p className="legende">{recu.confirme ? 'Pour une question, ou pour déplacer votre venue.' : 'La Maison vous répond dans cette conversation.'}</p>
+        <p className="legende">{recu.confirme ? 'Pour une question, pour déplacer ou annuler votre venue : un mot sur WhatsApp suffit.' : 'La Maison vous répond dans cette conversation.'}</p>
+        <p className="merci__liens"><a className="btn btn--lien" href={import.meta.env.BASE_URL}>Retour à l’accueil</a></p>
+        {recu.confirme && (
+          <div className="merci__attend"><h3>Nous vous attendons.</h3><p>Votre espace Ma Couronne s’ouvre à votre premier rendez-vous : vos venues, votre suivi, vos formules.</p></div>
+        )}
       </div>
     );
   }
@@ -734,7 +849,7 @@ function Calendrier({ besoin: besoinInitial }: Props) {
           {s.durationMin && prixDit(s, devise, ctx) ? ' · ' : ''}
           {prixDit(s, devise, ctx)
             ? <span className="prix">{prixDit(s, devise, ctx)}</span>
-            : <span className="au-salon">prix à la Maison</span>}
+            : <span className="a-la-maison">prix à la Maison</span>}
         </small>
       </button>
     );
@@ -747,6 +862,9 @@ function Calendrier({ besoin: besoinInitial }: Props) {
         {familleEnCours.items.some((x) => serviceIds.includes(x.id))
           ? <button type="button" className="btn btn--fort" onClick={suivant}>Continuer</button>
           : <button type="button" className="btn" onClick={suivant}>Non, pas cette fois</button>}
+        {/* « C'EST TOUT » — 11 octobre 2026 : celle qui ne veut qu'un shampoing
+            traversait toutes les familles en répétant « Non, pas cette fois ». */}
+        {choisi && rang + 1 < familles.length && <button type="button" className="btn btn--lien" onClick={() => setRepondu(true)}>C’est tout, passer au jour</button>}
       </div>
     </div>
   ) : null;
@@ -858,7 +976,9 @@ function Calendrier({ besoin: besoinInitial }: Props) {
         {bandes.map((b) => (
           <button type="button" key={b.id} className={`calibre${calibreId === b.id ? ' est-choisi' : ''}`} aria-pressed={calibreId === b.id} onClick={() => setCalibreId(b.id)} title={etendueDeLaBande(b, bandes)}>{b.name}</button>
         ))}
-        <button type="button" className={`calibre${!bandeChoisie ? ' est-choisi' : ''}`} aria-pressed={!bandeChoisie} onClick={() => setCalibreId('inconnu')}>Je ne sais pas</button>
+        {/* RIEN N'EST PRÉ-MARQUÉ — 11 octobre 2026 : « Je ne sais pas » paraissait
+            choisi avant qu'elle ait rien dit. */}
+        <button type="button" className={`calibre${calibreId === 'inconnu' ? ' est-choisi' : ''}`} aria-pressed={calibreId === 'inconnu'} onClick={() => setCalibreId('inconnu')}>Je ne sais pas</button>
       </div>
     </div>
   ) : null;
@@ -866,20 +986,14 @@ function Calendrier({ besoin: besoinInitial }: Props) {
   /* ── Les trois pas ────────────────────────────────────────────────── */
   return (
     <div className="reservation">
-      {court ? (
-        <ol className="pas-reservation">
-          <li className={choisi ? 'fait' : 'ici'}>Quoi</li>
-          <li className={heure ? 'fait' : choisi ? 'ici' : ''}>Quand</li>
-          <li className={heure ? 'ici' : ''}>Votre numéro</li>
-        </ol>
-      ) : (
+      {/* TROIS PAS, TROIS MOTS, UNE LIGNE — 11 octobre 2026 : « La consultation ·
+          Le jour et l'heure · Votre numéro » se cassait sur deux lignes à 390 px. */}
       <ol className="pas-reservation">
-        {!consultation && bandes.length > 0 && <li className={calibreId ? 'fait' : 'ici'}>Vos locks</li>}
-        <li className={choisi ? 'fait' : (consultation || calibreId) ? 'ici' : ''}>{consultation ? 'La consultation' : 'Vos gestes'}</li>
-        <li className={heure ? 'fait' : choisi ? 'ici' : ''}>Le jour et l’heure</li>
-        <li className={heure ? 'ici' : ''}>Votre numéro</li>
+        <li className={pret ? 'fait' : 'ici'}>Quoi</li>
+        <li className={heure ? 'fait' : pret ? 'ici' : ''}>Quand</li>
+        <li className={heure ? 'ici' : ''}>Vous</li>
       </ol>
-      )}
+      {surLaPorte && <p className="changer-porte"><button type="button" className="btn btn--lien" onClick={surLaPorte}>Changer de porte</button></p>}
 
       {retour && choisi ? (
         /* BON RETOUR : sa dernière venue, cochée ; elle touche une place. */
@@ -887,6 +1001,7 @@ function Calendrier({ besoin: besoinInitial }: Props) {
           <p className="sur">Bon retour</p>
           <h3>{moi?.prenom ? `Bon retour, ${moi.prenom.split(' ')[0]}.` : 'Bon retour.'}</h3>
           <p className="corps">Refaire votre dernière venue ? <b>{recapitulatif}</b></p>
+          {moi?.numero && <p className="legende">Votre numéro : <b>{numeroMasque(moi.numero)}</b>, en entier une fois votre place choisie.</p>}
           <p className="bon-retour__liens">
             <button type="button" className="btn btn--lien" onClick={autreChose}>Autre chose</button>
             <button type="button" className="btn btn--lien" onClick={pasMoi}>Ce n’est pas moi</button>
@@ -894,6 +1009,10 @@ function Calendrier({ besoin: besoinInitial }: Props) {
         </div>
       ) : express && !choisi ? (
         <div className="bloc-reservation">
+          {/* LE CALIBRE AVANT LES FORMULES — 11 octobre 2026 : les prix des
+              cartes suivent ce qu'elle dit de ses locks ; tant qu'elle n'a rien
+              dit, ils disent « selon votre calibre ». */}
+          {lesCalibres}
           <p className="sur">Vos gestes</p>
           <h3>Que souhaitez-vous ?</h3>
           <div className="formules">
@@ -907,13 +1026,12 @@ function Calendrier({ besoin: besoinInitial }: Props) {
                 <button type="button" key={gs.map((x) => x.id).join('|')} className={`formule${i === 0 ? ' formule--premiere' : ''}`} onClick={() => choisirLaFormule(gs)}>
                   <b>{principal.name}</b>
                   <span className="formule__avec">{autres.length > 0 ? `avec ${autres.join(', ')}` : 'seul, sans autre geste'}</span>
-                  <small>{[dit(duree), prix > 0 ? `${flou ? 'dès ' : ''}${fmtMoney(prix, devise)}` : ''].filter(Boolean).join(' · ')}</small>
+                  <small>{[dit(duree), calibreId === '' ? 'prix selon votre calibre' : prix > 0 ? `${flou ? 'à partir de ' : ''}${fmtMoney(prix, devise)}${calibreId === 'inconnu' ? ', compté au fauteuil' : ''}` : ''].filter(Boolean).join(' · ')}</small>
                 </button>
               );
             })}
           </div>
-          {lesCalibres}
-          <p><button type="button" className="btn btn--lien" onClick={() => { setComposer(true); setRepondu(false); setRang(0); }}>Composer moi-même</button></p>
+          <p><button type="button" className="btn btn--lien" onClick={() => { setComposer(true); setRepondu(false); setRang(0); }}>Composer moi-même, geste par geste</button></p>
         </div>
       ) : express && choisi ? (
         <div className="bloc-reservation">
@@ -946,7 +1064,7 @@ function Calendrier({ besoin: besoinInitial }: Props) {
         {!consultation && calibreId && (
           <p className="legende" style={{ marginBottom: 10 }}>
             {bandeChoisie ? `Calibre ${bandeChoisie.name} · ${etendueDeLaBande(bandeChoisie, bandes)}` : 'Calibre à compter au fauteuil'}
-            {' · '}<button type="button" className="tre-link-btn btn--lien" style={{ font: 'inherit', background: 'none', border: 0, padding: 0, color: 'var(--accent-profond)', cursor: 'pointer' }} onClick={() => { setCalibreId(''); setServiceIds([]); setJour(''); setHeure(null); }}>modifier</button>
+            {' · '}<button type="button" className="tre-link-btn btn--lien" style={{ font: 'inherit', background: 'none', border: 0, padding: 0, color: 'var(--accent-profond)', cursor: 'pointer' }} onClick={() => { /* LES GESTES RESTENT (11 octobre 2026) : corriger son calibre effaçait tout ce qu'elle avait coché. */ setCalibreId(''); setJour(''); setHeure(null); }}>modifier</button>
           </p>
         )}
         <p className="sur">
@@ -1054,7 +1172,11 @@ function Calendrier({ besoin: besoinInitial }: Props) {
               efface l'heure choisie, donc le formulaire et le message qu'il
               portait : la visiteuse voyait la liste revenir sans un mot. */}
           {erreur && !heure && <p className="erreur" role="alert">{erreur}</p>}
-          {jours.length === 0
+          {occupesEtat === 'attente'
+            ? <p className="legende" aria-live="polite">Les places se chargent.</p>
+            : occupesEtat === 'panne'
+            ? <p className="corps">Les places ne se chargent pas pour l’instant. Écrivez-nous, nous trouvons l’heure ensemble.<br /><a className="btn btn--plein" style={{ marginTop: 12 }} href={wa} target="_blank" rel="noopener">Parler à MND sur WhatsApp</a></p>
+            : jours.length === 0
             ? (
               <p className="corps">
                 {serviceIds.length > 1
@@ -1073,6 +1195,7 @@ function Calendrier({ besoin: besoinInitial }: Props) {
                       type="button"
                       key={`${iso}-${place.heure}`}
                       className={`place${jour === iso && heure?.heure === place.heure ? ' est-choisie' : ''}`}
+                      aria-pressed={jour === iso && heure?.heure === place.heure}
                       onClick={() => prendreLaPlace(iso, place)}
                     >
                       <span>{jourProche(iso)}</span><b>{place.heure}</b>
@@ -1084,12 +1207,17 @@ function Calendrier({ besoin: besoinInitial }: Props) {
                 ) : (
                 <>
                 <div className="jours">
-                  {jours.map((j) => {
+                  {jours.map((j, i) => {
                     const c = jourCourt(j.iso);
+                    /* LE MOIS EN TÊTE DE BANDE quand il change (11 octobre 2026). */
+                    const nouveauMois = i === 0 || j.iso.slice(0, 7) !== jours[i - 1].iso.slice(0, 7);
                     return (
-                      <button type="button" key={j.iso} className={`jour${jour === j.iso ? ' est-choisi' : ''}`} onClick={() => { setJour(j.iso); setHeure(null); }}>
-                        <span>{c.lettre}</span><b>{c.chiffre}</b>
-                      </button>
+                      <Fragment key={j.iso}>
+                        {nouveauMois && <span className="jours__mois">{moisEtAnnee(j.iso)}</span>}
+                        <button type="button" className={`jour${jour === j.iso ? ' est-choisi' : ''}`} aria-pressed={jour === j.iso} onClick={() => { setJour(j.iso); setHeure(null); }}>
+                          <span>{c.lettre}</span><b>{c.chiffre}</b>
+                        </button>
+                      </Fragment>
                     );
                   })}
                 </div>
@@ -1097,7 +1225,7 @@ function Calendrier({ besoin: besoinInitial }: Props) {
                   <div className="heures venir">
                     <p className="legende" style={{ width: '100%' }}>{jourDit(jour)}</p>
                     {heuresDuJour.map((h) => (
-                      <button type="button" key={h.heure} className={`heure${heure?.heure === h.heure ? ' est-choisie' : ''}`} onClick={() => { setErreur(null); setHeure(h); }}>
+                      <button type="button" key={h.heure} className={`heure${heure?.heure === h.heure ? ' est-choisie' : ''}`} aria-pressed={heure?.heure === h.heure} onClick={() => { setErreur(null); setHeure(h); }}>
                         {h.heure}
                       </button>
                     ))}
@@ -1107,7 +1235,8 @@ function Calendrier({ besoin: besoinInitial }: Props) {
                 )}
                 {jour && (
                   <p className="legende" style={{ marginTop: 12 }}>
-                    Ces heures tiennent compte de {dit(dureeTotale)} sur place.
+                    {dureeTotale > 0 ? `Ces heures tiennent compte de ${dit(dureeTotale)} sur place.` : ''}
+                    {aLEtranger() ? ' Heure de Cotonou.' : ''}
                   </p>
                 )}
               </>
@@ -1124,9 +1253,35 @@ function Calendrier({ besoin: besoinInitial }: Props) {
             {dit(dureeTotale)}
             {prixTotal > 0 ? ` · ${prixFlou ? 'à partir de ' : ''}${fmtMoney(prixTotal, devise)}` : ''}
           </p>
+          {f.avantDeVenir[besoin] && (
+            <div className="avant-de-venir"><b>Avant de venir</b><p>{f.avantDeVenir[besoin]}</p></div>
+          )}
+          {/* POUR QUI — 11 octobre 2026 : deux têtes du même numéro à la même
+              heure (une mère et sa fille) sont deux venues, pas un doublon. */}
+          <div className="champ">
+            <span className="champ__titre" id="res-pourqui">Pour qui ?</span>
+            <div className="calibres__choix" role="group" aria-labelledby="res-pourqui">
+              {f.pourQui.map(([v, t]) => (
+                <button type="button" key={v} className={`calibre${pourQui === v ? ' est-choisi' : ''}`} aria-pressed={pourQui === v} onClick={() => setPourQui(v as 'moi' | 'enfant' | 'autre')}>{t}</button>
+              ))}
+            </div>
+            {pourQui !== 'moi' && <small>{f.pourQuiAide}</small>}
+          </div>
           <div className="deux-champs">
             <div className="champ"><label htmlFor="res-prenom">{f.prenom}</label><input id="res-prenom" name="prenom" autoComplete="given-name" value={prenom} onChange={(e) => setPrenom(e.target.value)} /></div>
-            <div className="champ"><label htmlFor="res-numero">{f.numero}</label><input id="res-numero" name="numero" inputMode="tel" autoComplete="tel" value={numero} onChange={(e) => setNumero(e.target.value)} required /></div>
+            <div className="champ">
+              <label htmlFor="res-numero">{f.numero}</label>
+              {/* L'INDICATIF, +229 par défaut et modifiable — 11 octobre 2026 : un
+                  numéro français tapé sans indicatif devenait un faux numéro
+                  béninois, et la confirmation partait vers personne. */}
+              <div className="numero">
+                <select className="indicatif" aria-label="Indicatif du pays" value={indicatif} onChange={(e) => setIndicatif(e.target.value)}>
+                  {INDICATIFS.map(([code, pays]) => <option key={code} value={code}>{code} {pays}</option>)}
+                </select>
+                <input id="res-numero" name="numero" inputMode="tel" autoComplete="tel-national" placeholder={f.numeroExemple} value={numero} onChange={(e) => { setNumero(e.target.value); setNumeroInvalide(false); }} required aria-invalid={numeroInvalide || undefined} aria-describedby={numeroInvalide ? 'res-erreur' : 'res-numero-aide'} />
+              </div>
+              <small id="res-numero-aide">{f.numeroAide}</small>
+            </div>
           </div>
           {court && (code || codeOuvert) && <div className="bloc-code">{blocDuCode}</div>}
           {motOuvert || mot
@@ -1152,7 +1307,7 @@ function Calendrier({ besoin: besoinInitial }: Props) {
           {/* LA PHRASE VAUT LA CASE (maquette validée le 29 septembre) : le
               bouton dit ce qu'il autorise, et rien d'autre. */}
           <p className="legende">En réservant, vous acceptez que la Maison vous écrive sur WhatsApp pour ce rendez-vous. Rien à payer aujourd’hui, le règlement se fait à la Maison.</p>
-          {erreur && <p className="erreur" role="alert">{erreur}</p>}
+          {erreur && <p className="erreur" id="res-erreur" role="alert">{erreur}</p>}
         </form>
       )}
     </div>
@@ -1203,11 +1358,19 @@ const besoinDeLaMemoire = (): Besoin | '' => {
   return m && m.besoin === 'entretien' ? 'entretien' : '';
 };
 
-export default function Reserver({ besoin: besoinInitial }: Props) {
+export default function Reserver({ besoin: besoinInitial, initiales }: Props) {
   const [besoin, setBesoin] = useState<Besoin | ''>(
     (besoinInitial && besoinInitial !== 'inconnu' ? besoinInitial : '') || besoinDeLAdresse() || besoinDeLaMemoire() || besoinInitial || '',
   );
-  if (besoin && besoin !== 'inconnu') return <><BanniereDInvitation /><Calendrier besoin={besoin} /></>;
+  /* CHANGER DE PORTE — 11 octobre 2026 : une fois le chemin choisi, rien ne
+     ramenait à la question sans retaper l'adresse. L'adresse perd son
+     parcours, garde le code. */
+  const surLaPorte = () => {
+    const codePose = codeDeLAdresse();
+    try { history.replaceState(null, '', `${location.pathname}${codePose ? `?code=${encodeURIComponent(codePose)}` : ''}`); } catch { /* sans histoire */ }
+    setBesoin('');
+  };
+  if (besoin && besoin !== 'inconnu') return <><BanniereDInvitation /><Calendrier besoin={besoin} initiales={initiales} surLaPorte={surLaPorte} /></>;
   const base = import.meta.env.BASE_URL.replace(/\/$/, '');
   /* LE CODE PASSE LA PORTE — 9 octobre 2026. L'amie qui arrive de /m/ porte
      `?code=` sans parcours ; « entretien » réécrivait l'adresse en
@@ -1231,12 +1394,17 @@ export default function Reserver({ besoin: besoinInitial }: Props) {
       <h3 id="porte-rdv-titre">Vous avez déjà des locks ?</h3>
       <button type="button" className="porte-rdv__choix" onClick={() => choisit('entretien')}>
         <span>Oui, elles ont besoin de leur entretien</span>
-        <small>Vous choisissez votre heure en ligne, en trois pas.</small>
+        <small>Lavage, reprise des racines, soin, couleur : vous choisissez votre heure en ligne, en trois pas.</small>
       </button>
-      <a className="porte-rdv__choix" href={`${base}/rappel/?besoin=reparation${suiteDuCode}`}>
-        <span>Oui, mais elles ont besoin de soin, ou j’ai un doute</span>
-        <small>Une consultation d’abord. Laissez votre numéro, la Maison vous rappelle.</small>
-      </a>
+      {/* LA RÉPARATION RÉSERVE SA CONSULTATION EN LIGNE — 11 octobre 2026
+          (maquette validée). Cette porte menait au rappel alors que le
+          diagnostic et l'accueil réservaient la même consultation en ligne ;
+          et « besoin de soin » attirait les clientes d'entretien, dont le
+          catalogue est fait de soins. Le rappel reste offert dessous. */}
+      <button type="button" className="porte-rdv__choix" onClick={() => choisit('reparation')}>
+        <span>Oui, mais elles sont abîmées, cassent ou s’amincissent</span>
+        <small>Une consultation d’abord, son heure en ligne. Le devis vient après, et vous décidez ensuite.</small>
+      </button>
       {/* LA CONSULTATION DE CRÉATION SE RÉSERVE EN LIGNE — 11 octobre 2026.
           « Est-ce possible de tomber directement sur les consultations et
           réserver directement sans passer par un message ? » (Yéman, 17
@@ -1246,7 +1414,7 @@ export default function Reserver({ besoin: besoinInitial }: Props) {
         <span>Je veux créer ma couronne</span>
         <small>Une création commence par une consultation : choisissez son heure en ligne.</small>
       </button>
-      <p className="porte-rdv__rappel">Vous préférez qu’on vous rappelle ? <a href={`${base}/rappel/?besoin=creation${suiteDuCode}`}>Laissez votre numéro</a>, la Maison vous appelle.</p>
+      <p className="porte-rdv__rappel">Pour votre enfant, ou si vous préférez qu’on vous appelle : <a href={`${base}/rappel/${suiteDuCode ? `?${suiteDuCode.slice(1)}` : ''}`}>laissez votre numéro</a>, la Maison vous rappelle.</p>
     </div>
     </>
   );

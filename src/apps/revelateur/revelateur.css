@@ -668,7 +668,7 @@ footer .logo img { height: 34px; }
 .geste-choix .case { flex: 0 0 auto; align-self: center; position: relative; width: 17px; height: 17px; border: 1px solid var(--texte-doux); border-radius: 2px; background: var(--carte); transition: background var(--t), border-color var(--t); }
 .geste-choix.est-choisi .case { background: var(--accent); border-color: var(--accent); }
 .geste-choix.est-choisi .case::after { content: ''; position: absolute; left: 5px; top: 1px; width: 4px; height: 9px; border-right: 1.5px solid var(--plein-texte); border-bottom: 1.5px solid var(--plein-texte); transform: rotate(42deg); }
-.geste-choix .au-salon { color: var(--texte-doux); font-style: italic; }
+.geste-choix .a-la-maison { color: var(--texte-doux); font-style: italic; }
 /* Au septieme geste, le serveur refuserait : on le dit au lieu de le subir. */
 .geste-choix.est-ferme { opacity: .45; cursor: not-allowed; }
 .geste-choix.est-ferme:hover { border-color: var(--filet); background: var(--fond); }
@@ -2111,3 +2111,37 @@ a.reponse { text-decoration: none; }
   .petite h3 { font-size: 25px; }
   .petite p { font-size: 14px; }
 }
+
+/* ══ LA RÉSERVATION SANS FRICTION · 11 octobre 2026, maquette validée ════
+   La toile de la page de réservation est l'indigo clair (tons.ts) ; les liens
+   ont l'air de liens ; le calibre avant les formules ; le mois sur chaque
+   place ; « pour qui » et l'indicatif au formulaire ; l'écran de succès dit ce
+   que le serveur a fait. */
+body[data-ton="reservation"] { --jour: #D3D5E5; --jour-barre: rgba(211, 213, 229, .94); --chaude: var(--carte); }
+body[data-ton="reservation"] .geste, body[data-ton="reservation"] .merci, body[data-ton="reservation"] .rassure, body[data-ton="reservation"] .appel:not(:last-of-type) { background: var(--carte); }
+/* « Retirer », « J'ai un code », « Un autre jour » se lisaient comme des
+   étiquettes : casse normale, soulignement cuivre. */
+.btn--lien { text-transform: none; letter-spacing: 0; font-size: 15px; color: var(--titre); text-decoration: underline; text-decoration-color: var(--accent); text-underline-offset: 4px; border-bottom: 0; }
+.btn--lien:hover { color: var(--accent-profond); text-decoration-color: var(--accent-profond); border-bottom: 0; }
+.changer-porte { margin: -6px 0 0; }
+.calibres:first-child { margin-top: 0; margin-bottom: 18px; }
+.jours__mois { flex: 0 0 auto; align-self: center; font-family: var(--serif); font-size: 18px; color: var(--titre); padding-right: 4px; }
+.champ__titre { font-size: 11px; letter-spacing: .2em; text-transform: uppercase; font-weight: 400; color: var(--accent-profond); }
+.numero { display: grid; grid-template-columns: minmax(112px, auto) minmax(0, 1fr); gap: 8px; }
+.indicatif { font: inherit; font-size: 15px; color: var(--titre); background: var(--fond); border: 1px solid var(--filet); border-radius: 4px; padding: 0 10px; min-height: 48px; max-width: 170px; }
+.indicatif:focus { outline: 2px solid var(--accent); outline-offset: 1px; border-color: var(--accent); }
+.avant-de-venir { display: grid; gap: 4px; padding: 12px 14px; border-left: 2px solid var(--accent); background: var(--fond); border-radius: 0 4px 4px 0; }
+.avant-de-venir b { font-size: 11px; letter-spacing: .2em; text-transform: uppercase; font-weight: 400; color: var(--accent-profond); }
+.avant-de-venir p { font-size: 14.5px; color: var(--texte); margin: 0; max-width: none; }
+.merci .merci__place { font-family: var(--serif); font-size: 24px; color: var(--titre); }
+.merci .merci__resume { font-size: 15px; }
+.merci .merci__etat { padding: 12px 14px; border-radius: 4px; background: var(--carte); border: 1px solid var(--filet); color: var(--texte); max-width: none; }
+.merci .merci__etat b { font-weight: 500; color: var(--titre); }
+.merci .merci__etat.est-partie { border-color: var(--accent); }
+.merci .merci__liens { margin: 0; }
+.merci__attend { margin-top: 10px; padding: 18px 20px; background: var(--sombre); color: #F6F1E7; border-radius: 4px; display: grid; gap: 6px; }
+.merci__attend h3 { color: #F6F1E7; font-size: 24px; }
+.merci .merci__attend p { color: rgba(246, 241, 231, .82); }
+/* Après une place tenue, la bande de fin ne redit pas « Réserver ». */
+body.est-reserve .appel { display: none; }
+@media (max-width: 560px) { .numero { grid-template-columns: 118px minmax(0, 1fr); } }

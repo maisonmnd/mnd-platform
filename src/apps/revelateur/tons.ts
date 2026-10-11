@@ -7,7 +7,10 @@
    sous le voile cuivre) et l'indigo pâle (indigo-50 des jetons). Le harnais
    verifie-la-lumiere garde SA propre table : il ne déduit pas son attente
    d'ici. */
-export const TONS = { maison: '#F6F1E7', parcours: '#E7D7C2', offres: '#EDEEF4' } as const;
+/* LA TOILE DE LA RÉSERVATION — 11 octobre 2026 : l'indigo clair (indigo-100
+   des jetons), « plus fraîche, plus vivante » que l'argile, demandé et
+   confirmé par Yéman sur la maquette ; une seule page la porte. */
+export const TONS = { maison: '#F6F1E7', parcours: '#E7D7C2', offres: '#EDEEF4', reservation: '#D3D5E5' } as const;
 export type Ton = keyof typeof TONS;
 
 /** Les îlots d'action prolongent le parcours (lin) ; ceux de la vente et du

@@ -217,11 +217,36 @@ export const COMMUN: Commun = {
        elles ouvraient sur « Nous vous rappelons », alors que la visiteuse
        vient de choisir son geste, son jour et son heure. Le rappel n'est
        plus le premier geste de la Maison, c'est le deuxième. */
+    /* PLUS « DANS LA SECONDE » — 11 octobre 2026 (maquette de la réservation
+       validée). La confirmation part quand Meta l'accepte : presque toujours
+       tout de suite, pas toujours. La page ne promet que ce que le serveur
+       lui dit avoir fait (voir `accuse` dans Reserver.tsx). */
     suite: [
       ['C’est réservé', "Le créneau est à votre nom dès l'envoi : la Maison a vérifié qu'il était libre."],
-      ['La confirmation arrive sur WhatsApp', "Dans la seconde. La Maison choisit qui s'occupe de vous."],
+      ['La confirmation arrive sur WhatsApp', "La Maison choisit qui s'occupe de vous."],
       ['Vous venez', 'Votre espace Ma Couronne s’ouvre à votre premier rendez-vous.'],
     ],
+    /* LA SUITE DU RAPPEL, À PART — 11 octobre 2026. La page du rappel servait
+       la suite de la réservation (« C'est réservé », « Le calendrier se
+       charge ») alors qu'aucune place n'y existe. */
+    suiteRappel: [
+      ['Votre demande est reçue', 'Elle arrive à la Maison dès l’envoi, avec votre prénom et votre numéro.'],
+      ['La Maison vous rappelle', 'Sur WhatsApp ou par téléphone, pendant ses heures d’ouverture.'],
+      ['Vous fixez l’heure ensemble', 'Et votre espace Ma Couronne s’ouvre à votre premier rendez-vous.'],
+    ],
+    /* LE NUMÉRO, AVEC SON INDICATIF — 11 octobre 2026. Un numéro étranger tapé
+       sans indicatif devenait un faux numéro béninois : la confirmation partait
+       vers personne. +229 par défaut, modifiable, et un exemple. */
+    numeroExemple: '01 51 99 77 99',
+    numeroAide: 'WhatsApp de préférence : la confirmation y arrive. Hors Bénin, changez l’indicatif.',
+    /* POUR QUI — deux têtes du même numéro à la même heure sont deux venues. */
+    pourQui: [['moi', 'Moi'], ['enfant', 'Mon enfant'], ['autre', 'Quelqu’un d’autre']],
+    pourQuiAide: 'Son prénom dans le mot, et le vôtre ci-dessous : c’est vous que la Maison appelle.',
+    /* AVANT DE VENIR, UNE LIGNE PAR PORTE, ÉCRITE PAR LA MAISON — jamais
+       inventée : tant qu'une porte n'a pas la sienne, la ligne ne paraît pas.
+       À remplir avec Yéman (ce qu'il faut apporter, comment arriver, combien
+       de temps rester). */
+    avantDeVenir: {} as Partial<Record<'creation' | 'reparation' | 'entretien' | 'enfant' | 'formation' | 'inconnu', string>>,
   },
 };
 
@@ -1446,6 +1471,9 @@ export const PAGES: Page[] = [
     ligne: 'Le geste, le jour, l\u2019heure, et votre numéro pour confirmer. Aucun compte à créer, rien à payer aujourd\u2019hui.',
     besoin: 'inconnu',
     ilot: 'reserver',
+    /* LA TOILE INDIGO CLAIR (tons.ts) : « plus fraîche, plus vivante », demandée
+       et confirmée par Yéman sur la maquette du 11 octobre 2026. */
+    ton: 'reservation',
     jsonld: 'aucun',
     court: 'Réserver',
   },
