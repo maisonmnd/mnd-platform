@@ -113,6 +113,13 @@ if (barre && document.body.classList.contains('accueil-plein')) {
 if (monteEnRoute) {
   void quandReactEstLa.then(() => maison()).then((m) => { if (m?.whatsapp) relieWhatsApp(m.whatsapp); }).catch(() => { /* le numéro du registre est déjà écrit */ });
 }
+/* LA REMISE QUI REVIENT — 11 octobre 2026 : sur une page qui porte des
+   remises écrites, le module part quand le navigateur souffle (la pastille
+   et la fenêtre ne servent qu'après la lecture du premier écran). */
+if (document.getElementById('remises')) {
+  const lanceLaRemise = () => { void import('./remise').then((m) => m.monte()).catch(() => { /* le bandeau écrit suffit */ }); };
+  if ('requestIdleCallback' in window) requestIdleCallback(lanceLaRemise, { timeout: 2500 }); else setTimeout(lanceLaRemise, 1200);
+}
 /* L'ÉTAT DU JOUR AU PIED — 11 octobre 2026 : « Ouvert jusqu'à 19h00 », lu
    quand le pied approche de l'écran (une requête, pas avant), avec les
    fermetures exceptionnelles. Sans heures connues, la ligne reste cachée. */

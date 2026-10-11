@@ -376,8 +376,11 @@ const liensRelatifs = readdirSync(ILOTS).filter((f) => f.endsWith('.tsx')).flatM
   .filter((l) => /['"`]\.\.\//.test(l) && !/\bfrom\s*['"]\.\./.test(l) && !l.trim().startsWith('//'))
   .map((l) => `${f} · ${l.trim().slice(0, 52)}`));
 dit('aucun îlot ne pose un lien relatif', [], liensRelatifs);
+/* La porte d'une offre vit dans offre-porte.ts depuis le 11 octobre 2026 :
+   la carte des offres et la remise qui revient la lisent toutes deux. */
 dit('… et l’îlot des offres bâtit ses portes depuis la base du site', true,
-  readFileSync(join(ILOTS, 'Offres.tsx'), 'utf8').includes("import.meta.env.BASE_URL"));
+  readFileSync(join(ILOTS, '..', 'offre-porte.ts'), 'utf8').includes("import.meta.env.BASE_URL")
+  && /from '\.\.\/offre-porte'/.test(readFileSync(join(ILOTS, 'Offres.tsx'), 'utf8')));
 
 /* ── L'ACCUEIL ÉPURÉ, ET DES MOTS QUI AFFIRMENT — 22 septembre 2026 ────
    « Le salon existe depuis 2010 », « épure-moi cette page », « évite les

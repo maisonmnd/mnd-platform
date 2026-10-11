@@ -170,6 +170,23 @@ if (statique) {
 const AGENDA_ECRIT = !!AGENDA_PAGE;
 const agendaDansLaPage = () => (AGENDA_PAGE ? `<script type="application/json" data-initiales>${statique.jsonPourLaPage(AGENDA_PAGE)}</script>` : '');
 const OFFRES = documents ? statique.offresDuTrottoir(documents.mnd_offers) : null;
+
+/* LA REMISE QUI REVIENT AU DÉFILEMENT — 11 octobre 2026 (maquette validée,
+   « construis », Yéman ; inspirée de Scentbird). Les offres DATÉES du
+   trottoir s'écrivent dans chaque page, par la règle de remise-pure.ts, et
+   une ligne en ligne pose le bandeau du jour AVANT la barre, pendant que le
+   navigateur lit la page : rien ne saute. remise.ts fait le reste (pastille,
+   fenêtre à mi-page, rappel de fin) et relit le Trône. Rien sur la
+   réservation, le rappel, les pages légales et la page des offres ; pas de
+   fenêtre d'elle-même sur les pages à formulaire. Sans base à la
+   construction, aucune remise écrite : rien ne revient, et c'est juste. */
+const REMISES = documents && statique?.remisesAEcrire ? statique.remisesAEcrire(documents.mnd_offers, statique.jourACotonou()) : [];
+const BANDEAU_EN_LIGNE = `(function(){try{var s=document.currentScript,d=JSON.parse(document.getElementById("remises").textContent),j;try{j=new Intl.DateTimeFormat("en-CA",{timeZone:"Africa/Porto-Novo",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date())}catch(e){j=new Date().toISOString().slice(0,10)}var r=null;for(var i=0;i<d.length;i++){var o=d[i];if((!o.du||j>=o.du)&&(!o.au||j<=o.au)){r=o;break}}if(!r)return;var b=document.createElement("aside");b.className="remise-bande";b.setAttribute("aria-label","L’offre du moment");b.setAttribute("data-remise-bande",r.id);var a=document.createElement("a");a.className="remise-bande__lien";a.href=r.porte;a.setAttribute("data-mesure","parcours_choisi");a.setAttribute("data-parcours",r.parcours);a.setAttribute("data-sortie","remise-haut");var t=function(g,x){var e=document.createElement(g);e.textContent=x;a.appendChild(e)},n=function(x){a.appendChild(document.createTextNode(x))};t("span",r.titre);n(" · ");t("b",r.deal);if(r.court)n(" "+r.court);if(r.code){n(" · ");t("b",r.code)}var f=document.createElement("span");f.className="remise-bande__fleche";f.setAttribute("aria-hidden","true");f.textContent="›";a.appendChild(f);b.appendChild(a);s.parentNode.insertBefore(b,s.nextSibling)}catch(e){}})();`;
+function remisesDeLaPage(chemin) {
+  if (!REMISES.length || statique.REMISE_EXCLUE.has(chemin)) return '';
+  const fenetre = statique.FENETRE_RETENUE.has(chemin) ? 'non' : 'oui';
+  return `<script type="application/json" id="remises" data-fenetre="${fenetre}">${statique.jsonPourLaPage(REMISES)}</script><script>${BANDEAU_EN_LIGNE}</script>`;
+}
 const HORAIRES = documents ? statique.horairesStructures(documents.mnd_settings?.hours) : [];
 /* LA SEMAINE DITE AU PIED DE CHAQUE PAGE (11 octobre 2026) : les mêmes
    heures que la fiche Google, en deux ou trois lignes. Sans base, rien. */
@@ -446,6 +463,7 @@ function page({ chemin, titre, description, corps, noeuds, image: og, classeBody
   <body data-surface="revelateur" data-ton="${ton}"${classeBody ? ` class="${classeBody}"` : ''}>
     <a class="evitement" href="#contenu">Aller au contenu</a>
     ${ICONES}
+    ${remisesDeLaPage(chemin)}
     <header class="barre">
       <div class="conteneur">
         <input class="menu-etat cache" type="checkbox" id="menu-etat" aria-label="Menu" aria-controls="nav-principale">

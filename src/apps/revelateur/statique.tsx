@@ -16,6 +16,8 @@ export { QUESTIONS as QUESTIONS_DU_DIAGNOSTIC } from './ilots/Triage';
 /* L'AGENDA ÉCRIT DANS LA PAGE DE RÉSERVATION — 11 octobre 2026 : la même
    règle d'assemblage que le navigateur, sans réseau, et l'élagage pour la page. */
 export { assembleLAgenda, elagueLAgenda } from './agenda-assemble';
+/* La remise qui revient (11 octobre 2026) : la construction écrit les remises par la même règle que le navigateur. */
+export { remisesAEcrire, REMISE_EXCLUE, FENETRE_RETENUE, jourACotonou } from './remise-pure';
 
 export function rendsLesOffres(offres: OffreDuSite[], genre?: string): string {
   return renderToString(<Offres genre={genre} initiales={offres} />);
