@@ -1198,7 +1198,8 @@ function rendAccueil(articles) {
    catégorie, son titre, sa date. Les catégories SONT les parcours que les
    articles portent déjà ; le filtre tient sans script (des cases radio et la
    feuille), et sans filtre tout se lit. La date vient de l'en-tête de
-   l'article (`date:`), posée le jour où il est entré. */
+   l'article (`date:`). Depuis le 11 octobre 2026, une date par article, du
+   17 septembre au 8 octobre, mardi, jeudi et samedi (Yéman). */
 const NOMS_DU_JOURNAL = {
   'premiere-couronne': 'Première Couronne',
   reparation: 'Réparation',
@@ -1210,7 +1211,8 @@ const MOIS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 
 const dateDite = (iso) => {
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso ?? '');
   if (!m) return '';
-  return `${Number(m[3])} ${MOIS[Number(m[2]) - 1]} ${m[1]}`;
+  /* « 1er octobre », jamais « 1 octobre » (11 octobre 2026). */
+  return `${Number(m[3]) === 1 ? '1er' : Number(m[3])} ${MOIS[Number(m[2]) - 1]} ${m[1]}`;
 };
 function carteDArticle(art) {
   const cat = art.parcours ?? '';
@@ -1283,8 +1285,12 @@ function markdownEnHtml(corps) {
 
 function litLeJournal() {
   if (!existsSync(JOURNAL_MD)) return [];
+  /* LE PLUS RÉCENT D'ABORD — 11 octobre 2026 : chaque article a sa date (Yéman :
+     « choisis des dates différentes pour chaque article »), la grille et les
+     trois cartes de l'accueil vont du plus récent au plus ancien. */
   return readdirSync(JOURNAL_MD).filter((f) => f.endsWith('.md') && f !== 'index.md')
-    .map((f) => litArticle(path.join(JOURNAL_MD, f))).filter(Boolean);
+    .map((f) => litArticle(path.join(JOURNAL_MD, f))).filter(Boolean)
+    .sort((x, y) => String(y.date ?? '').localeCompare(String(x.date ?? '')) || String(x.slug).localeCompare(String(y.slug)));
 }
 
 function rendArticle(art) {

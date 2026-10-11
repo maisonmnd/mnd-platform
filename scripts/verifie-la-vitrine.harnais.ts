@@ -319,9 +319,24 @@ const articlesDuJournal = readdirSync('docs/site-revelateur/journal')
   .map((f) => {
     const tete = readFileSync(join('docs/site-revelateur/journal', f), 'utf8').replace(/\r\n/g, '\n').split('\n---\n')[0];
     const champ = (c: string) => tete.match(new RegExp(`^${c}:\\s*"?(.*?)"?\\s*$`, 'm'))?.[1] ?? '';
-    return { fichier: f, slug: champ('slug'), titre: champ('titre'), image: champ('image'), portrait: champ('portrait') };
+    return { fichier: f, slug: champ('slug'), titre: champ('titre'), image: champ('image'), portrait: champ('portrait'), date: champ('date') };
   });
 dit('le Journal a ses dix articles', 10, articlesDuJournal.length);
+/* UNE DATE PAR ARTICLE — 11 octobre 2026 (Yéman : « tous les articles ont été
+   écrits le 17 septembre, choisis des dates différentes ») : jamais deux le
+   même jour, jamais avant la naissance du site (17 septembre 2026), jamais
+   après le jour de la construction ; la grille et l'accueil, du plus récent
+   au plus ancien. */
+const datesDuJournal = articlesDuJournal.map((a) => a.date);
+const leJourDuSite = new Date(statSync(join('revelateur', 'index.html')).mtime).toISOString().slice(0, 10);
+dit('… chacun a sa date, et deux articles ne partagent pas un jour', 10, new Set(datesDuJournal.filter((d) => /^\d{4}-\d{2}-\d{2}$/.test(d))).size);
+dit('… aucune avant le 17 septembre 2026, aucune après la construction', [], articlesDuJournal.filter((a) => a.date < '2026-09-17' || a.date > leJourDuSite).map((a) => `${a.slug} ${a.date}`));
+const tempsDe = (html: string) => [...html.matchAll(/<time datetime="(\d{4}-\d{2}-\d{2})">/g)].map((m) => m[1]);
+const duPlusRecent = [...datesDuJournal].sort().reverse();
+dit('… la grille du Journal va du plus récent au plus ancien', duPlusRecent, tempsDe(pages.get('/journal/') ?? ''));
+dit('… et l’accueil montre les trois plus récents', duPlusRecent.slice(0, 3), tempsDe(accueil));
+dit('le premier du mois se dit « 1er », sur toute page servie', [],
+  [...pages].filter(([, h]) => />1 (janvier|février|mars|avril|mai|juin|juillet|août|septembre|octobre|novembre|décembre) \d{4}/.test(h)).map(([c]) => c));
 dit('… et chacun NOMME sa vignette, au lieu de la tirer au sort', [], articlesDuJournal.filter((a) => !a.image).map((a) => a.fichier));
 dit('… chaque vignette existe dans le dossier des photos', [], articlesDuJournal.filter((a) => !existsSync(`public/assets/photos/site/${a.image}`)).map((a) => a.image));
 dit('… et chaque vignette est inscrite au registre des accords', [], articlesDuJournal.filter((a) => !inscriteAuRegistre(a.image)).map((a) => a.image));
@@ -329,8 +344,10 @@ const vignettesServies = [...(pages.get('/journal/') ?? '')
   /* Depuis le 28 septembre 2026 la carte porte aussi sa catégorie (`data-cat`) après le lien. */
   .matchAll(/class="article" href="[^"]*\/journal\/([^/"]+)\/"[^>]*>(?:<picture><source [^>]*>)?<img src="[^"]*photos\/site\/([^"]+)"/g)]
   .map((m) => `${m[1]} · ${m[2]}`);
+/* La paire article · vignette compte, pas l'ordre : depuis le 11 octobre 2026
+   la grille va du plus récent au plus ancien (vérifié plus haut). */
 dit('… et la page servie pose bien celle-là sur cet article-là',
-  articlesDuJournal.map((a) => `${a.slug} · ${a.image}`), vignettesServies);
+  articlesDuJournal.map((a) => `${a.slug} · ${a.image}`).sort(), [...vignettesServies].sort());
 dit('AUCUNE CLIENTE n’illustre un article qui nomme un défaut', [],
   articlesDuJournal.filter((a) => VIGNETTES_DE_CLIENTES.includes(a.image) && NOMME_UN_DEFAUT.test(a.titre))
     .map((a) => `${a.image} sur « ${a.titre} »`));

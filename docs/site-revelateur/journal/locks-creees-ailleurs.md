@@ -1,7 +1,7 @@
 ---
 titre: "Peut-on entretenir des locks créées ailleurs ?"
 slug: locks-creees-ailleurs
-date: 2026-09-17
+date: 2026-10-06
 description: "Vos locks ont été créées dans un autre salon, à l'étranger ou par vous-même ? Elles sont les bienvenues chez MND. Ce qui change, et ce qui ne change pas."
 parcours: entretien
 image: journal-12.jpg
