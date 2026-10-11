@@ -644,7 +644,11 @@ function bulle(chemin) {
      rappel. Le message WhatsApp est celui de la page quand elle en écrit un. */
   const pageDIci = PAGES.find((x) => x.chemin === chemin);
   const texteWa = pageDIci?.cta?.vers?.startsWith('message:') ? pageDIci.cta.vers.split(':').slice(2).join(':') : (COMMUN.messages[besoin] ?? COMMUN.messages.inconnu);
-  const ligneReserver = RESERVABLES.has(besoin) || besoin === 'inconnu'
+  /* Une page qui se demande par message (la Couronne à domicile : « une
+     demande sur WhatsApp, un rappel de la Maison ») n'offre pas l'heure en
+     ligne, qui réserverait une visite à la Maison : elle offre le rappel. */
+  const parMessage = Boolean(pageDIci?.cta?.vers?.startsWith('message:'));
+  const ligneReserver = (RESERVABLES.has(besoin) || besoin === 'inconnu') && !parMessage
     ? `<a class="joindre__ligne" href="${attr(versLaReservation(besoin))}" data-mesure="parcours_choisi" data-parcours="${attr(besoin)}" data-sortie="flottant"><i aria-hidden="true"><svg><use href="#i-cal"/></svg></i><span>Réserver<small>${besoin === 'entretien' ? 'Votre heure en ligne, en trois pas.' : besoin === 'creation' || besoin === 'reparation' ? 'Sa consultation en ligne, puis le devis.' : besoin === 'enfant' ? 'Un échange avec vous, d’abord.' : 'Un entretien en trois pas ; une création ou une réparation, par sa consultation en ligne.'}</small></span></a>`
     : `<a class="joindre__ligne" href="${attr(versLeRappel(besoin))}" data-mesure="parcours_choisi" data-parcours="${attr(besoin)}" data-sortie="flottant"><i aria-hidden="true"><svg><use href="#i-cal"/></svg></i><span>Me faire rappeler<small>La Maison vous appelle pendant ses heures d’ouverture.</small></span></a>`;
   const ligneWa = `<a class="joindre__ligne" data-wa="${attr(besoin)}" data-sortie="flottant" href="https://wa.me/${NUMERO_WA}?text=${encodeURIComponent(texteWa)}" target="_blank" rel="noopener"><i aria-hidden="true"><svg><use href="#i-wa"/></svg></i><span>Écrire sur WhatsApp<small>Le message de cette page est déjà écrit.</small></span></a>`;
@@ -930,6 +934,12 @@ function ilot(nom, p) {
 /* ── Une page de service ─────────────────────────────────────────────── */
 function rendService(p) {
   const reservable = RESERVABLES.has(p.besoin ?? '');
+  /* LE SECOND GESTE SUIT LE PREMIER — 11 octobre 2026 (revue des pages) :
+     quand le bouton principal a sa propre destination (la Couronne à
+     domicile, par message), la page ne se prend pas au calendrier ; un
+     second WhatsApp y doublait le premier avec le message de l'Entretien.
+     Le second geste y est le rappel, comme sur les pages non réservables. */
+  const auCalendrier = reservable && !p.cta?.vers;
   /* LA DESTINATION DU CTA L'EMPORTE MÊME SUR UNE PAGE RÉSERVABLE — 30
      septembre 2026 : la Couronne à domicile est un entretien qui ne se
      prend pas au calendrier. Avec `vers`, on passe par `bouton()`. */
@@ -957,13 +967,13 @@ function rendService(p) {
     ${bandeauDeLaMaison(p.chemin).map(([f, alt, dit]) => `<figure>${image(f, alt)}<figcaption>${echappe(dit)}</figcaption></figure>`).join('\n    ')}
   </div></div></section>`;
   const sections = (p.sections ?? []).map(rendSection).join('\n');
-  const appel = `<section class="appel"><div class="conteneur"><div><h2>${echappe(p.cta?.texte ?? p.h1)}</h2>${p.ligne ? `<p class="ligne" style="margin-top:8px">${echappe(p.cta?.note ?? '')}</p>` : ''}</div><div class="rangee">${cta}${reservable ? secondaire : ''}</div></div></section>`;
-  const mobile = p.cta ? `<div class="barre-mobile">${cta}${reservable ? bouton({ texte: 'WhatsApp', vers: `whatsapp:${p.besoin ?? 'inconnu'}` }, 'btn') : `<a class="btn" href="${attr(versLeRappel(p.besoin))}">Me faire rappeler</a>`}</div>` : '';
+  const appel = `<section class="appel"><div class="conteneur"><div><h2>${echappe(p.cta?.texte ?? p.h1)}</h2>${p.ligne ? `<p class="ligne" style="margin-top:8px">${echappe(p.cta?.note ?? '')}</p>` : ''}</div><div class="rangee">${cta}${auCalendrier ? secondaire : ''}</div></div></section>`;
+  const mobile = p.cta ? `<div class="barre-mobile">${cta}${auCalendrier ? bouton({ texte: 'WhatsApp', vers: `whatsapp:${p.besoin ?? 'inconnu'}` }, 'btn') : `<a class="btn" href="${attr(versLeRappel(p.besoin))}">Me faire rappeler</a>`}</div>` : '';
   return `
       <nav aria-label="Fil d’Ariane" class="conteneur"><ol class="fil"><li><a href="${BASE}">Accueil</a></li><li aria-hidden="true">·</li><li><a href="${BASE}#portes">Services</a></li><li aria-hidden="true">·</li><li aria-current="page">${echappe(p.court)}</li></ol></nav>
       <section class="page-hero"><div class="conteneur">
         <div>${p.sur ? `<p class="sur">${echappe(p.sur)}</p>` : ''}<h1>${echappe(p.h1)}</h1>${p.ligne ? `<p class="ligne">${echappe(p.ligne)}</p>` : ''}
-          ${p.cta ? `<div class="rangee" style="margin-top:22px">${cta}${reservable ? secondaire : `<a class="btn btn--lien" href="${attr(versLeRappel(p.besoin))}">Me faire rappeler</a>`}</div>` : ''}
+          ${p.cta ? `<div class="rangee" style="margin-top:22px">${cta}${auCalendrier ? secondaire : `<a class="btn btn--lien" href="${attr(versLeRappel(p.besoin))}">Me faire rappeler</a>`}</div>` : ''}
           ${p.cta?.note ? `<p class="legende" style="margin-top:10px">${echappe(p.cta.note)}</p>` : ''}
         </div>
         <div>${visuel}</div>
