@@ -1482,8 +1482,10 @@ export default function Conversations() {
                 })()}
                 {/* LA MAISON A ÉCRIT À CE NUMÉRO DEPUIS MOINS D'UNE SEMAINE (13 octobre
                     2026) : l'automate la laisse mener, et rien ne le disait. Le premier
-                    essai de Yéman est tombé là. On le dit, et on peut le rendre. */}
-                {(!fil.automate || fil.automate.tenue === 'aucun') && !estReserve(fil.tiroir) && (() => {
+                    essai de Yéman est tombé là. On le dit, et on peut le rendre. Un fil
+                    de l'équipe aussi : en essai, la direction est servie si elle est
+                    listée ; seuls les prestataires ne le sont jamais. */}
+                {(!fil.automate || fil.automate.tenue === 'aucun') && fil.tiroir !== 'prestataires' && (() => {
                   const sorties = fil.messages.filter((m) => m.sens === 'sortant').map((m) => Date.parse(m.quand)).filter(Number.isFinite);
                   const le = sorties.length ? Math.max(...sorties) : NaN;
                   const rendue = Date.parse(automates.get(fil.numero)?.main?.rendueLe ?? '');
