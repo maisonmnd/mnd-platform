@@ -88,7 +88,7 @@ import { createClient, type SupabaseClient } from 'npm:@supabase/supabase-js@2';
 
 /** LA VERSION DE CE FICHIER, dite par le contrôle de santé. Sans elle on ne
     sait pas quel code tourne vraiment. À incrémenter à chaque déploiement. */
-const VERSION = '2026-10-13-c · rendre le fil apres un rendez-vous pose, le plafond compte depuis la main rendue, les vrais noms du catalogue';
+const VERSION = '2026-10-13-d · la confirmation porte le lien Google Maps de la Maison';
 
 /** « En train d'écrire », puis on attend : deux messages envoyés coup sur
     coup font un seul tour, celui du dernier. */
@@ -1646,7 +1646,8 @@ type ContexteLeger = {
 };
 
 type ContexteDuTour = ContexteLeger & {
-  maison: { nom: string; itineraire?: string };
+  /** `carte` : le lien Google Maps de la branche ou des Paramètres. */
+  maison: { nom: string; itineraire?: string; carte?: string };
   agenda?: AgendaDuTour;
 };
 
@@ -1936,6 +1937,30 @@ const gesteDitEnFrancaisWa = (nom: string): string => {
   return g ? `${g.long} (${nom})` : nom;
 };
 const gestesDitsEnFrancaisWa = (noms: readonly string[]): string => gestesDitsWa(noms.map(gesteDitEnFrancaisWa));
+
+/** LE LIEN GOOGLE MAPS DE LA MAISON (13 octobre 2026) : « rajoute le lien de
+    Google Maps sur l'itinéraire qu'on envoie aux clients » (Yéman). Le
+    premier lien valable des candidats : celui de la branche (Système ›
+    Branches, `mapsUrl`), puis celui des Paramètres (`mapsLink`). Seul un lien
+    https de Google Maps passe ; le paramètre de partage `g_st` est ôté, rien
+    d'autre n'est réécrit. Aucun : chaîne vide. */
+function lienMapsWa(...candidats: unknown[]): string {
+  const google = /^https:\/\/(?:maps\.app\.goo\.gl|goo\.gl\/maps|(?:www\.)?google\.(?:com|[a-z]{2}|com?\.[a-z]{2})\/maps|maps\.google\.(?:com|[a-z]{2}|com?\.[a-z]{2}))(?:[/?#]|$)/i;
+  for (const c of candidats) {
+    const brut = String(c ?? '').trim();
+    if (!google.test(brut)) continue;
+    try {
+      const u = new URL(brut);
+      if (!u.searchParams.has('g_st')) return brut;
+      u.searchParams.delete('g_st');
+      return u.toString();
+    } catch { continue; }
+  }
+  return '';
+}
+
+/** La ligne du lien, telle que la cliente la lit. */
+const ligneGoogleMapsWa = (lien: string): string => (lien ? `Itinéraire sur Google Maps : ${lien}` : '');
 
 /** La consultation nommée dans une phrase : « la consultation Origine
     (KÒKÒ™ Origine) » ; sans mot français, « le Conseil et diagnostic ». */
@@ -2540,6 +2565,7 @@ function atelierDuTour(ancien: EtatDuFil | null | undefined, tour: TourDeLaClien
       const corps = [
         `C'est confirmé, ${appel()} : ${de} est retenu le ${quandDuPanier()}. Nous vous attendons. Merci de nous prévenir en cas d'empêchement.`,
         itineraire && texteSain(itineraire).length === 0 ? coupeWa(itineraire, 600) : '',
+        ligneGoogleMapsWa(lienMapsWa(ctx.maison.carte)),
         DEVISE,
       ].filter(Boolean).join('\n\n');
       return sortie([texte('confirme', corps)], alerteDeLAutomate({
@@ -3288,6 +3314,8 @@ async function servirLeNumero(sb: Sb, o: Appel): Promise<Reponse> {
   const maison = {
     nom: String(docs.get('mnd_house_identity')?.nom ?? '').trim() || 'Maison MND',
     itineraire: typeof cfg?.itineraire === 'string' ? cfg.itineraire : '',
+    /* Le lien des Paramètres ; celui de la branche passe devant au tour. */
+    carte: typeof cfg?.mapsLink === 'string' ? cfg.mapsLink : '',
   };
   for (let essai = 0; essai < 2; essai += 1) {
     const r = await unTour(sb, o, docs, reglage, maison, essai);
@@ -3299,7 +3327,7 @@ async function servirLeNumero(sb: Sb, o: Appel): Promise<Reponse> {
 
 async function unTour(
   // deno-lint-ignore no-explicit-any
-  sb: Sb, o: Appel, docs: Map<string, any>, reglage: ReglageDeLAutomate, maison: { nom: string; itineraire: string }, essai: number,
+  sb: Sb, o: Appel, docs: Map<string, any>, reglage: ReglageDeLAutomate, maison: { nom: string; itineraire: string; carte: string }, essai: number,
 ): Promise<Reponse | 'rejoue'> {
   const debut = Date.now();
   const ms = debut;
@@ -3359,7 +3387,9 @@ async function unTour(
 
   /* ⑧ LE TOUR, puis la pose s'il y en a une. */
   const vue = agenda ? agendaDuTourWa(agenda, ms, reglage.horizonJours) : null;
-  const ctx: ContexteDuTour = { ...ctxLeger, maison, ...(vue ? { agenda: vue.agenda } : {}) };
+  /* Le lien Google Maps de la branche du tour, sinon celui des Paramètres (13 octobre 2026). */
+  const carte = lienMapsWa(agenda?.lignes.branche.data?.mapsUrl, maison.carte);
+  const ctx: ContexteDuTour = { ...ctxLeger, maison: { ...maison, carte }, ...(vue ? { agenda: vue.agenda } : {}) };
   let sortie = etapeSuivante(fil, tour, ctx);
   if (!sortie.pris) return { pris: false };
   let posee: string | null = null;

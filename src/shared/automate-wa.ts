@@ -852,7 +852,8 @@ type ContexteLeger = {
 };
 
 type ContexteDuTour = ContexteLeger & {
-  maison: { nom: string; itineraire?: string };
+  /** `carte` : le lien Google Maps de la branche ou des Paramètres. */
+  maison: { nom: string; itineraire?: string; carte?: string };
   agenda?: AgendaDuTour;
 };
 
@@ -1142,6 +1143,30 @@ const gesteDitEnFrancaisWa = (nom: string): string => {
   return g ? `${g.long} (${nom})` : nom;
 };
 const gestesDitsEnFrancaisWa = (noms: readonly string[]): string => gestesDitsWa(noms.map(gesteDitEnFrancaisWa));
+
+/** LE LIEN GOOGLE MAPS DE LA MAISON (13 octobre 2026) : « rajoute le lien de
+    Google Maps sur l'itinéraire qu'on envoie aux clients » (Yéman). Le
+    premier lien valable des candidats : celui de la branche (Système ›
+    Branches, `mapsUrl`), puis celui des Paramètres (`mapsLink`). Seul un lien
+    https de Google Maps passe ; le paramètre de partage `g_st` est ôté, rien
+    d'autre n'est réécrit. Aucun : chaîne vide. */
+function lienMapsWa(...candidats: unknown[]): string {
+  const google = /^https:\/\/(?:maps\.app\.goo\.gl|goo\.gl\/maps|(?:www\.)?google\.(?:com|[a-z]{2}|com?\.[a-z]{2})\/maps|maps\.google\.(?:com|[a-z]{2}|com?\.[a-z]{2}))(?:[/?#]|$)/i;
+  for (const c of candidats) {
+    const brut = String(c ?? '').trim();
+    if (!google.test(brut)) continue;
+    try {
+      const u = new URL(brut);
+      if (!u.searchParams.has('g_st')) return brut;
+      u.searchParams.delete('g_st');
+      return u.toString();
+    } catch { continue; }
+  }
+  return '';
+}
+
+/** La ligne du lien, telle que la cliente la lit. */
+const ligneGoogleMapsWa = (lien: string): string => (lien ? `Itinéraire sur Google Maps : ${lien}` : '');
 
 /** La consultation nommée dans une phrase : « la consultation Origine
     (KÒKÒ™ Origine) » ; sans mot français, « le Conseil et diagnostic ». */
@@ -1746,6 +1771,7 @@ function atelierDuTour(ancien: EtatDuFil | null | undefined, tour: TourDeLaClien
       const corps = [
         `C'est confirmé, ${appel()} : ${de} est retenu le ${quandDuPanier()}. Nous vous attendons. Merci de nous prévenir en cas d'empêchement.`,
         itineraire && texteSain(itineraire).length === 0 ? coupeWa(itineraire, 600) : '',
+        ligneGoogleMapsWa(lienMapsWa(ctx.maison.carte)),
         DEVISE,
       ].filter(Boolean).join('\n\n');
       return sortie([texte('confirme', corps)], alerteDeLAutomate({
@@ -2033,7 +2059,7 @@ function mainApresCoup(etat: EtatDuFil, motif: MotifDeLaMain, ctx: ContexteDuTou
 export {
   REGLAGE_LIVRE, PLAFOND_DE_L_AUTOMATE, ECARTS_AVANT_LA_MAIN, PLACES_PROPOSEES, JOURS_PROPOSES,
   PARCOURS_PERIME_MS, TOUR_PERIME_MS, TOUR_EN_COURS_MS, ETAPES_EN_COURS, ETAPE_DITE, MOTIF_DIT, PIED, DEVISE,
-  reglageDeLAutomate, cleWa, titreEnFrancaisWa, gesteDitEnFrancaisWa, dureeDiteWa, envoisQuiComptent, numeroServi, pauseActive, etapeCourante, tenuParLAutomate, vueDeLAutomate, silenceDeLAlarme,
+  reglageDeLAutomate, cleWa, lienMapsWa, ligneGoogleMapsWa, titreEnFrancaisWa, gesteDitEnFrancaisWa, dureeDiteWa, envoisQuiComptent, numeroServi, pauseActive, etapeCourante, tenuParLAutomate, vueDeLAutomate, silenceDeLAlarme,
   LA_MAISON_A_PARLE_MS, mineureWa, fichesServies, titulaireDuNumero, laMaisonAParle, confirmeValide,
   renvoieAUnRdv, uneQuestionAutre, civiliteLue,
   motsReconnus, intentionDeReserver, tourDeLaCliente, lisLeChoix, idDeChoix, instantACotonou,

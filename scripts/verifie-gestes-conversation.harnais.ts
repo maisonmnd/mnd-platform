@@ -224,6 +224,7 @@ const ctx = (o: Partial<ContexteDesGestes> = {}): ContexteDesGestes => ({
   enFrancs: francs,
   lienDePaiement: (x) => `https://exemple/payer?montant=${x}`,
   itineraire: 'Rue 12.34, Suru-Léré, Cotonou',
+  carte: 'https://maps.app.goo.gl/AbCdEf12345?g_st=ac',
   pieces, appts: [...carnet, ...honores], bilans: [], photos: 4,
   codesVivants: [],
   ...o,
@@ -248,8 +249,14 @@ dit('la facture voyage en pièce jointe',
   { quoi: 'facture', invoiceId: 'i2', nom: 'Facture FA-2026-0412' }, gesteDit(g, 'facture')?.piece);
 dit('le bilan de la séance la plus fraîche', 'à remettre', gesteDit(g, 'bilan')?.attend);
 dit('l’itinéraire est le même pour tout le monde',
-  'Madame Akouavi, voici comment nous rejoindre : Rue 12.34, Suru-Léré, Cotonou',
+  'Madame Akouavi, voici comment nous rejoindre : Rue 12.34, Suru-Léré, Cotonou\n\nItinéraire sur Google Maps : https://maps.app.goo.gl/AbCdEf12345',
   gesteDit(g, 'itineraire')?.compose);
+dit('sans chemin écrit, le lien Google Maps seul',
+  'Madame Akouavi, voici comment nous rejoindre sur Google Maps : https://maps.app.goo.gl/AbCdEf12345',
+  gesteDit(lesGestes(ctx({ itineraire: '  ' })), 'itineraire')?.compose);
+dit('un lien qui n’est pas Google Maps ne part pas',
+  'Madame Akouavi, voici comment nous rejoindre : Rue 12.34, Suru-Léré, Cotonou',
+  gesteDit(lesGestes(ctx({ carte: 'https://exemple.com/piege' })), 'itineraire')?.compose);
 dit('le rendez-vous du soir, pas celui de ce matin',
   'Madame Akouavi, nous vous attendons lundi 14 septembre 2026 à 17 h.', gesteDit(g, 'rendezvous')?.compose);
 
@@ -268,7 +275,7 @@ dit('aucun rendez-vous', 'Aucun rendez-vous à venir.', gesteDit(sansRien, 'rend
 dit('pas abonnée', 'Elle n’est pas abonnée.', gesteDit(sansRien, 'abonnement')?.eteint);
 dit('aucun foyer', 'Elle n’appartient à aucun compte de famille.', gesteDit(sansRien, 'foyer')?.eteint);
 dit('pas d’itinéraire réglé', 'Le chemin du salon n’est pas écrit dans les Paramètres.',
-  gesteDit(lesGestes(ctx({ itineraire: '  ' })), 'itineraire')?.eteint);
+  gesteDit(lesGestes(ctx({ itineraire: '  ', carte: '' })), 'itineraire')?.eteint);
 
 /* ── LA FENÊTRE FERMÉE ÉTEINT TOUT ───────────────────────────────── */
 const ferme = lesGestes(ctx({ fenetreOuverte: false }));

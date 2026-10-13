@@ -29,6 +29,7 @@ import { lienPaiementMomo, useAutoConfig } from '../equipe/data';
 import { laFenetreSePaie, REPONSES_GRATUITES_DU_MOIS } from '../../../../shared/conversations';
 import { todayISO } from './_shared';
 import { appelDe } from '../../../../shared/civilite';
+import { lienMapsWa } from '../../../../shared/automate-wa';
 
 /* ═══════════════════════════════════════════════════════════════════
    LA BARRE D'OUTILS D'UNE CONVERSATION — maquette
@@ -160,6 +161,7 @@ export function useGestesDuFil(fil: FilOutille | null): {
       enFrancs: (x) => fmtMoney(x, currency),
       lienDePaiement: (x) => lienPaiementMomo(x),
       itineraire: (auto as { itineraire?: string }).itineraire ?? '',
+      carte: lienMapsWa(branch.mapsUrl, (auto as { mapsLink?: string }).mapsLink),
       pieces, appts: carnet, bilans,
       photos: tete?.photo ? 1 : 0,
       abonnement, foyer, codesVivants,
@@ -168,7 +170,7 @@ export function useGestesDuFil(fil: FilOutille | null): {
     return { gestes, codesVivants, foyer };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fil?.clientId, fil?.fenetreOuverte, clients, familles, invoices, appts, bilans,
-    credits, subs, plans, services, codes, auto, branch.id, currency, aujourdhui]);
+    credits, subs, plans, services, codes, auto, branch.id, branch.mapsUrl, currency, aujourdhui]);
 }
 
 /* ══ RÉSOUDRE UNE PIÈCE EN OCTETS ════════════════════════════════════

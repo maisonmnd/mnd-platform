@@ -4,6 +4,7 @@ import type { Appointment } from './agenda';
 import type { Bilan } from './bilans';
 import type { CodePromo } from './promos';
 import { appelDe } from './civilite';
+import { lienMapsWa, ligneGoogleMapsWa } from './automate-wa';
 
 /* ══ LES GESTES D'UNE CONVERSATION — 14 septembre 2026 ════════════════
 
@@ -355,6 +356,8 @@ export type ContexteDesGestes = {
   lienDePaiement: (xof: number) => string | null;
   /** Le chemin du salon, tel que les Paramètres le portent. */
   itineraire: string;
+  /** Le lien Google Maps de la branche (sinon des Paramètres), 13 octobre 2026. */
+  carte?: string;
   pieces: readonly PieceDuGeste[];
   appts: readonly Appointment[];
   bilans: readonly Pick<Bilan, 'apptId'>[];
@@ -562,14 +565,17 @@ export function lesGestes(ctx: ContexteDesGestes): Geste[] {
       : undefined,
   });
 
-  /* ⑨ L'ITINÉRAIRE — le même pour tout le monde. */
+  /* ⑨ L'ITINÉRAIRE — le même pour tout le monde, suivi du lien Google Maps
+        de la Maison (13 octobre 2026). */
+  const chemin = ctx.itineraire.trim();
+  const carte = lienMapsWa(ctx.carte);
   g.push({
     cle: 'itineraire',
     mot: 'Itinéraire',
-    eteint: barre(ctx.itineraire.trim() ? null : 'Le chemin du salon n’est pas écrit dans les Paramètres.'),
-    compose: ctx.itineraire.trim()
-      ? `${prenom}, voici comment nous rejoindre : ${ctx.itineraire.trim()}`
-      : undefined,
+    eteint: barre(chemin || carte ? null : 'Le chemin du salon n’est pas écrit dans les Paramètres.'),
+    compose: chemin
+      ? [`${prenom}, voici comment nous rejoindre : ${chemin}`, ligneGoogleMapsWa(carte)].filter(Boolean).join('\n\n')
+      : carte ? `${prenom}, voici comment nous rejoindre sur Google Maps : ${carte}` : undefined,
   });
 
   /* ⑩ LA PROMOTION — elle OUVRE un panneau, elle ne compose pas. Un avantage

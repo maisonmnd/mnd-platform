@@ -5,7 +5,7 @@ import { createHmac } from 'node:crypto';
 import { pathToFileURL } from 'node:url';
 import {
   DEVISE, PIED, REGLAGE_LIVRE, etapeSuivante, suiteDeLaPose, tourDeLaCliente, respecteMeta, texteSain,
-  reglageDeLAutomate, cleWa, titreEnFrancaisWa, dureeDiteWa, envoisQuiComptent, numeroServi, tenuParLAutomate, silenceDeLAlarme, titreDePlace, chargeGraph, cleCourte,
+  reglageDeLAutomate, cleWa, lienMapsWa, titreEnFrancaisWa, dureeDiteWa, envoisQuiComptent, numeroServi, tenuParLAutomate, silenceDeLAlarme, titreDePlace, chargeGraph, cleCourte,
   intentionDeReserver, jourDitAvecAnnee, quiParle, motsReconnus, civiliteLue, prenomLu, renvoieAUnRdv, uneQuestionAutre,
   type AgendaDuTour, type ContexteDuTour, type EtatDuFil, type FicheDuNumero, type MessageSortant,
   type PrestationDuTour, type ReglageDeLAutomate, type SortieDuTour, type MainDuFil, type VerdictDeLaPose,
@@ -159,7 +159,7 @@ type Parcours = {
   etat: EtatDuFil | null; main: MainDuFil | null; envoyes: MessageSortant[]; poses: EcritureDuTour[];
   /** Le geste du toucher qui a produit chaque écriture. */
   gestesDesPoses: string[];
-  premier: boolean; n: number; prises: Set<string>; itineraire: string; agenda: Partial<AgendaDuTour>; journal: string[];
+  premier: boolean; n: number; prises: Set<string>; itineraire: string; carte?: string; agenda: Partial<AgendaDuTour>; journal: string[];
 };
 const parcours = (moteur: Moteur, numero: string, fiches: FicheDuNumero[], reglage: ReglageDeLAutomate = OUVERT): Parcours => ({
   moteur, numero, fiches, reglage, tiroir: 'clientes', etat: null, main: null, envoyes: [], poses: [], gestesDesPoses: [],
@@ -196,7 +196,7 @@ const agendaDe = (p: Parcours, ms: number): AgendaDuTour => ({
 const ctxDe = (p: Parcours, ms: number): ContexteDuTour => ({
   maintenantMs: ms, numero: p.numero, tiroir: p.tiroir, reglage: p.reglage,
   fiches: p.fiches, premierMessage: p.premier, main: p.main,
-  maison: { nom: 'Maison MND', itineraire: p.itineraire },
+  maison: { nom: 'Maison MND', itineraire: p.itineraire, ...(p.carte !== undefined ? { carte: p.carte } : {}) },
   agenda: agendaDe(p, ms),
 });
 
@@ -947,7 +947,7 @@ function remetsLaBase(automateWa: Any, plus: Any = {}) {
         { key: 'mnd_auto_config', data: { itineraire: 'Nous sommes à Akpakpa, face à la pharmacie.', ...(automateWa ? { automateWa } : {}) } },
         ...(plus.documents ?? []),
       ], 'key'),
-      branches: indexe([{ id: 'maison', data: { flagship: true, status: 'active', masters: MAITRES, seats: 2 } }]),
+      branches: indexe([{ id: 'maison', data: { flagship: true, status: 'active', masters: MAITRES, seats: 2, mapsUrl: 'https://maps.app.goo.gl/AbCdEf12345?g_st=ac' } }]),
       catalog_services: indexe([
         { id: 'sv-klk-ess', data: { name: 'KLƆKLƆ™ Essentiel', categoryId: 'cat-lavage', durationMin: 60, priceMode: 'fixe', priceXof: 5000 } },
         { id: 'sv-sinsin-ess', data: { name: 'SÍNSIN™ Essentiel', categoryId: 'cat-racines', durationMin: 90, priceMode: 'fixe', priceXof: 15000 } },
@@ -1867,6 +1867,7 @@ const regles: Regle[] = [
         vaut('banc : ... la Maison attribue : les maitres libres du juge, le premier pris par le verrou', [['Team', 'Expert'], 'Team'], [B().poses[0]?.p_maitres, rdv?.data.master]);
         const b4 = dernierA(NAFFI_E);
         vrai('banc : la confirmation en texte, l annee, l itineraire, la devise', b4?.type === 'text' && /^C'est confirmé, Madame Naffi/.test(corpsDe(b4)) && /2026 à/.test(corpsDe(b4)) && /Akpakpa/.test(corpsDe(b4)) && corpsDe(b4).endsWith(DEVISE), corpsDe(b4));
+        vrai('banc : le lien Google Maps de la branche suit l itineraire, sans le parametre de partage', corpsDe(b4).includes('face à la pharmacie.\n\nItinéraire sur Google Maps : https://maps.app.goo.gl/AbCdEf12345\n\n'), corpsDe(b4));
         const ligne = T('envois').get(`conf-${rdv?.id}-whatsapp`)?.data;
         vrai('banc : la ligne de confirmation passe a envoye, avec l identifiant de Meta', ligne?.statut === 'envoyé' && /^wamid\.out-/.test(ligne?.waMessageId ?? ''), ligne);
         vrai('banc : la seule alerte, le rendez-vous pose, au prenom seul', pushsDepuis(p0).length === 2 && pushsDepuis(p0).every((x: Any) => x.title === 'Nouveau rendez-vous par WhatsApp' && /^Naffi, /.test(x.body) && /2026/.test(x.body)), pushsDepuis(p0));
@@ -2568,6 +2569,39 @@ const regles: Regle[] = [
       { nom: 'un fil confirme ne se rend pas', mute: [P(AUTO, "    if (Number.isFinite(rendue) && Number.isFinite(maj) && rendue >= maj) return 'repos';\n", '')] },
       { nom: 'le plafond compte les messages d avant la main rendue', mute: [P(AUTO, '    return ms - t < JOUR_WA && !(Number.isFinite(rendue) && t <= rendue);', '    return ms - t < JOUR_WA;')] },
       { nom: 'le Trone n offre pas Rendre a l automate apres la pose', mute: [P('src/apps/trone/routes/clients/Conversations.tsx', '{/* rendre après la pose */}<Button variant="ghost" size="sm" onClick={surRendre}>Rendre à l’automate</Button>', '')] },
+    ],
+  },
+  /* ══ R34 · le lien Google Maps de la Maison, 13 octobre 2026 ═══════════ */
+  {
+    id: 'R34', nom: 'R34 la confirmation porte le lien Google Maps de la Maison, sans le parametre de partage, et jamais un lien etranger',
+    eprouve: () => {
+      const { ecarts, vaut, vrai } = juge();
+      const confirme = (carte?: string): string => {
+        const a = parcours(ORIGINAL, NUM_NAFFI, [NAFFI]);
+        if (carte !== undefined) a.carte = carte;
+        const t0 = cotonou('2026-10-09', '11:00');
+        elle(a, t0, { texte: 'Je voudrais un rendez-vous' });
+        elle(a, t0 + 1000, { touche: 'La même chose' });
+        elle(a, t0 + 2000, { touche: 'Sam. 10 oct. 2026 · 9 h' });
+        return corps(elle(a, t0 + 3000, { touche: 'Je confirme' }));
+      };
+      const c = confirme('https://maps.app.goo.gl/AbCdEf12345?g_st=ac');
+      vrai('le lien suit l itineraire, avant la devise, sans g_st', c.includes('derrière la pharmacie.\n\nItinéraire sur Google Maps : https://maps.app.goo.gl/AbCdEf12345\n\n' + DEVISE), c);
+      vrai('sans lien, aucune ligne', !confirme().includes('Google Maps'));
+      vrai('un lien qui n est pas Google Maps ne part jamais', !confirme('https://exemple.com/piege').includes('exemple.com'));
+      vaut('lienMapsWa : la branche d abord, puis les Parametres ; un lien sans g_st reste tel quel ; http et le reste refuses',
+        ['https://maps.app.goo.gl/X1', 'https://www.google.com/maps/search/?api=1&query=6.37,2.46', '', 'https://maps.app.goo.gl/X2', ''],
+        [lienMapsWa('https://maps.app.goo.gl/X1?g_st=ac', 'https://maps.app.goo.gl/X2'), lienMapsWa('https://www.google.com/maps/search/?api=1&query=6.37,2.46'),
+          lienMapsWa('http://maps.app.goo.gl/X1', 'javascript:alert(1)'), lienMapsWa('', 'https://maps.app.goo.gl/X2'), lienMapsWa('https://maps.app.goo.gl.exemple.com/X')]);
+      vrai('la fonction prend le lien de la branche du tour, puis celui des Parametres', lit(F_AUTO).includes('const carte = lienMapsWa(agenda?.lignes.branche.data?.mapsUrl, maison.carte);')
+        && lit(F_AUTO).includes("carte: typeof cfg?.mapsLink === 'string' ? cfg.mapsLink : '',"));
+      return ecarts;
+    },
+    pannes: [
+      { nom: 'le lien Google Maps ne part pas', mute: [P(AUTO, '        ligneGoogleMapsWa(lienMapsWa(ctx.maison.carte)),\n', '')] },
+      { nom: 'le parametre de partage reste', mute: [P(AUTO, "      if (!u.searchParams.has('g_st')) return brut;", '      return brut;')] },
+      { nom: 'un lien etranger passe', mute: [P(AUTO, '    if (!google.test(brut)) continue;', '    if (!brut) continue;')] },
+      { nom: 'la fonction ignore le lien de la branche', mute: [P(F_AUTO, 'const carte = lienMapsWa(agenda?.lignes.branche.data?.mapsUrl, maison.carte);', 'const carte = lienMapsWa(maison.carte);')] },
     ],
   },
 ];
