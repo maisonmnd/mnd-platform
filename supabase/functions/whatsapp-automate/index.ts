@@ -88,7 +88,7 @@ import { createClient, type SupabaseClient } from 'npm:@supabase/supabase-js@2';
 
 /** LA VERSION DE CE FICHIER, dite par le contrôle de santé. Sans elle on ne
     sait pas quel code tourne vraiment. À incrémenter à chaque déploiement. */
-const VERSION = '2026-10-13-d · la confirmation porte le lien Google Maps de la Maison';
+const VERSION = '2026-10-13-e · le prenom seul quand la civilite est inconnue, jamais Madame suppose';
 
 /** « En train d'écrire », puis on attend : deux messages envoyés coup sur
     coup font un seul tour, celui du dernier. */
@@ -848,9 +848,11 @@ export function prochainesPlaces<H extends { heure: string }>(
    Edge ne lit rien du dépôt) ; `verifie-civilite` tient la copie. */
 const appelDe = (d: { name?: unknown; civilite?: unknown; auMasculin?: unknown } | null | undefined, repli?: unknown): string => {
   const civ = d?.civilite === 'monsieur' || d?.civilite === 'mademoiselle' || d?.civilite === 'madame'
-    ? d.civilite : d?.auMasculin === true ? 'monsieur' : 'madame';
-  const mot = civ === 'monsieur' ? 'Monsieur' : civ === 'mademoiselle' ? 'Mademoiselle' : 'Madame';
+    ? d.civilite : d?.auMasculin === true ? 'monsieur' : '';
   const prenom = String(d?.name ?? repli ?? '').trim().split(/\s+/)[0] ?? '';
+  /* La civilité inconnue ne se suppose plus (13 octobre 2026) : le prénom seul. */
+  if (!civ) return prenom || 'Madame, Monsieur';
+  const mot = civ === 'monsieur' ? 'Monsieur' : civ === 'mademoiselle' ? 'Mademoiselle' : 'Madame';
   return prenom ? `${mot} ${prenom}` : mot;
 };
 
@@ -1959,6 +1961,14 @@ function lienMapsWa(...candidats: unknown[]): string {
   return '';
 }
 
+/** UN APPEL VIDE NE LAISSE PAS DE TRACE (13 octobre 2026). */
+const sansAppelVide = (t: string): string => t
+  .replace(/ +,/g, ',')
+  .replace(/,(?:\s*,)+/g, ',')
+  .replace(/,[ \t]*([?!:;])/g, ' $1')
+  .replace(/,[ \t]*\./g, '.')
+  .replace(/ {2,}/g, ' ');
+
 /** La ligne du lien, telle que la cliente la lit. */
 const ligneGoogleMapsWa = (lien: string): string => (lien ? `Itinéraire sur Google Maps : ${lien}` : '');
 
@@ -2045,7 +2055,9 @@ function atelierDuTour(ancien: EtatDuFil | null | undefined, tour: TourDeLaClien
   const appel = (): string => {
     if (titulaire) return appelDe({ name: titulaire.nom, civilite: titulaire.civilite, auMasculin: titulaire.auMasculin });
     if (base.panier.civilite) return appelDe({ name: base.panier.prenom ?? '', civilite: base.panier.civilite });
-    return appelDe(null);
+    /* PERSONNE DE CONNU (13 octobre 2026) : ni fiche ni civilité choisie. On
+       ne suppose plus Madame : la phrase se dit sans appel (`sansAppelVide`). */
+    return '';
   };
   const ficheChoisie = (): FicheDuNumero | undefined => fiches.find((f) => f.id === base.panier.clientId);
   const prenomPourAlerte = (): string =>
@@ -2060,11 +2072,15 @@ function atelierDuTour(ancien: EtatDuFil | null | undefined, tour: TourDeLaClien
   /* ── Les briques des messages ── */
   const choix = (geste: string, argument?: string): string => idDeChoix(version, geste, argument);
   const sortieMaison = { id: choix('maison'), titre: 'Parler à la Maison' };
-  const texte = (etape: EtapeDuFil, corps: string): MessageSortant => ({ forme: 'texte', etape, corps });
+  /** Sans appel, la phrase ne garde pas de trace : « Quel rituel souhaitez-vous,
+      ? » devient « Quel rituel souhaitez-vous ? », « Bonjour , bienvenue »
+      devient « Bonjour, bienvenue ». Une phrase avec un appel ne change pas. */
+  const propre = (corps: string): string => (appel() ? corps : sansAppelVide(corps));
+  const texte = (etape: EtapeDuFil, corps: string): MessageSortant => ({ forme: 'texte', etape, corps: propre(corps) });
   const boutons = (etape: EtapeDuFil, corps: string, liste: { id: string; titre: string }[]): MessageSortant =>
-    ({ forme: 'boutons', etape, corps, pied: PIED, boutons: [...liste, sortieMaison].slice(0, 3) });
+    ({ forme: 'boutons', etape, corps: propre(corps), pied: PIED, boutons: [...liste, sortieMaison].slice(0, 3) });
   const liste = (etape: EtapeDuFil, corps: string, bouton: string, lignes: { id: string; titre: string; description?: string }[]): MessageSortant =>
-    ({ forme: 'liste', etape, corps, pied: PIED, bouton, lignes: [...lignes.slice(0, 9), sortieMaison] });
+    ({ forme: 'liste', etape, corps: propre(corps), pied: PIED, bouton, lignes: [...lignes.slice(0, 9), sortieMaison] });
   const relanceDite = (): string => `Touchez l'un des choix ci-dessous, ${appel()}, ou Parler à la Maison.`;
 
   const passe = (etape: EtapeDuFil): void => {

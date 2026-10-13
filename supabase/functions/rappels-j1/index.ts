@@ -34,7 +34,7 @@ const TZ = 'Africa/Porto-Novo'; // le fuseau du salon — pas celui du serveur
     vraiment évite de chercher une panne dans un fichier qui n'est pas celui
     qu'on croit déployé. 10 octobre 2026 : le passage du soir ne dépose plus
     un rappel que les heures calmes retiendraient jusqu'au jour même. */
-const VERSION = '2026-10-10-a';
+const VERSION = '2026-10-13-a · le prenom seul quand la civilite est inconnue';
 
 type Rdv = {
   id: string;
@@ -70,9 +70,11 @@ const numeroIntl = (brut: string | undefined): string | null => {
    Edge ne lit rien du dépôt) ; `verifie-civilite` tient la copie. */
 const appelDe = (d: { name?: unknown; civilite?: unknown; auMasculin?: unknown } | null | undefined, repli?: unknown): string => {
   const civ = d?.civilite === 'monsieur' || d?.civilite === 'mademoiselle' || d?.civilite === 'madame'
-    ? d.civilite : d?.auMasculin === true ? 'monsieur' : 'madame';
-  const mot = civ === 'monsieur' ? 'Monsieur' : civ === 'mademoiselle' ? 'Mademoiselle' : 'Madame';
+    ? d.civilite : d?.auMasculin === true ? 'monsieur' : '';
   const prenom = String(d?.name ?? repli ?? '').trim().split(/\s+/)[0] ?? '';
+  /* La civilité inconnue ne se suppose plus (13 octobre 2026) : le prénom seul. */
+  if (!civ) return prenom || 'Madame, Monsieur';
+  const mot = civ === 'monsieur' ? 'Monsieur' : civ === 'mademoiselle' ? 'Mademoiselle' : 'Madame';
   return prenom ? `${mot} ${prenom}` : mot;
 };
 

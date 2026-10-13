@@ -37,10 +37,18 @@ export const prenomSeul = (nom: string | null | undefined): string => (nom ?? ''
 
 /** COMMENT LA MAISON S'ADRESSE À ELLE : « Madame Naffi ». Sans nom, la
     civilité seule, jamais un blanc. `repli` sert quand la fiche manque mais
-    qu'un nom est connu ailleurs (le rendez-vous, la demande du site). */
+    qu'un nom est connu ailleurs (le rendez-vous, la demande du site).
+
+    LA CIVILITÉ INCONNUE NE SE SUPPOSE PLUS (13 octobre 2026) : « revoir la
+    dénomination des clients », un monsieur recevait « Madame » (Yéman,
+    au sélecteur : le prénom seul quand la civilité est inconnue). Une
+    fiche muette dit « Ola » ; rien de connu du tout, « Madame, Monsieur ».
+    `civiliteDe` garde Madame pour les cartes, qui veulent un genre. */
 export const appelDe = (c: Porteur, repli?: string | null): string => {
-  const mot = DIT[civiliteDe(c)];
   const prenom = prenomSeul(c?.name ?? repli);
+  const connue = (!!c?.civilite && !!DIT[c.civilite]) || !!c?.auMasculin;
+  if (!connue) return prenom || 'Madame, Monsieur';
+  const mot = DIT[civiliteDe(c)];
   return prenom ? `${mot} ${prenom}` : mot;
 };
 

@@ -1165,6 +1165,14 @@ function lienMapsWa(...candidats: unknown[]): string {
   return '';
 }
 
+/** UN APPEL VIDE NE LAISSE PAS DE TRACE (13 octobre 2026). */
+const sansAppelVide = (t: string): string => t
+  .replace(/ +,/g, ',')
+  .replace(/,(?:\s*,)+/g, ',')
+  .replace(/,[ \t]*([?!:;])/g, ' $1')
+  .replace(/,[ \t]*\./g, '.')
+  .replace(/ {2,}/g, ' ');
+
 /** La ligne du lien, telle que la cliente la lit. */
 const ligneGoogleMapsWa = (lien: string): string => (lien ? `Itinéraire sur Google Maps : ${lien}` : '');
 
@@ -1251,7 +1259,9 @@ function atelierDuTour(ancien: EtatDuFil | null | undefined, tour: TourDeLaClien
   const appel = (): string => {
     if (titulaire) return appelDe({ name: titulaire.nom, civilite: titulaire.civilite, auMasculin: titulaire.auMasculin });
     if (base.panier.civilite) return appelDe({ name: base.panier.prenom ?? '', civilite: base.panier.civilite });
-    return appelDe(null);
+    /* PERSONNE DE CONNU (13 octobre 2026) : ni fiche ni civilité choisie. On
+       ne suppose plus Madame : la phrase se dit sans appel (`sansAppelVide`). */
+    return '';
   };
   const ficheChoisie = (): FicheDuNumero | undefined => fiches.find((f) => f.id === base.panier.clientId);
   const prenomPourAlerte = (): string =>
@@ -1266,11 +1276,15 @@ function atelierDuTour(ancien: EtatDuFil | null | undefined, tour: TourDeLaClien
   /* ── Les briques des messages ── */
   const choix = (geste: string, argument?: string): string => idDeChoix(version, geste, argument);
   const sortieMaison = { id: choix('maison'), titre: 'Parler à la Maison' };
-  const texte = (etape: EtapeDuFil, corps: string): MessageSortant => ({ forme: 'texte', etape, corps });
+  /** Sans appel, la phrase ne garde pas de trace : « Quel rituel souhaitez-vous,
+      ? » devient « Quel rituel souhaitez-vous ? », « Bonjour , bienvenue »
+      devient « Bonjour, bienvenue ». Une phrase avec un appel ne change pas. */
+  const propre = (corps: string): string => (appel() ? corps : sansAppelVide(corps));
+  const texte = (etape: EtapeDuFil, corps: string): MessageSortant => ({ forme: 'texte', etape, corps: propre(corps) });
   const boutons = (etape: EtapeDuFil, corps: string, liste: { id: string; titre: string }[]): MessageSortant =>
-    ({ forme: 'boutons', etape, corps, pied: PIED, boutons: [...liste, sortieMaison].slice(0, 3) });
+    ({ forme: 'boutons', etape, corps: propre(corps), pied: PIED, boutons: [...liste, sortieMaison].slice(0, 3) });
   const liste = (etape: EtapeDuFil, corps: string, bouton: string, lignes: { id: string; titre: string; description?: string }[]): MessageSortant =>
-    ({ forme: 'liste', etape, corps, pied: PIED, bouton, lignes: [...lignes.slice(0, 9), sortieMaison] });
+    ({ forme: 'liste', etape, corps: propre(corps), pied: PIED, bouton, lignes: [...lignes.slice(0, 9), sortieMaison] });
   const relanceDite = (): string => `Touchez l'un des choix ci-dessous, ${appel()}, ou Parler à la Maison.`;
 
   const passe = (etape: EtapeDuFil): void => {
@@ -2059,7 +2073,7 @@ function mainApresCoup(etat: EtatDuFil, motif: MotifDeLaMain, ctx: ContexteDuTou
 export {
   REGLAGE_LIVRE, PLAFOND_DE_L_AUTOMATE, ECARTS_AVANT_LA_MAIN, PLACES_PROPOSEES, JOURS_PROPOSES,
   PARCOURS_PERIME_MS, TOUR_PERIME_MS, TOUR_EN_COURS_MS, ETAPES_EN_COURS, ETAPE_DITE, MOTIF_DIT, PIED, DEVISE,
-  reglageDeLAutomate, cleWa, lienMapsWa, ligneGoogleMapsWa, titreEnFrancaisWa, gesteDitEnFrancaisWa, dureeDiteWa, envoisQuiComptent, numeroServi, pauseActive, etapeCourante, tenuParLAutomate, vueDeLAutomate, silenceDeLAlarme,
+  reglageDeLAutomate, cleWa, sansAppelVide, lienMapsWa, ligneGoogleMapsWa, titreEnFrancaisWa, gesteDitEnFrancaisWa, dureeDiteWa, envoisQuiComptent, numeroServi, pauseActive, etapeCourante, tenuParLAutomate, vueDeLAutomate, silenceDeLAlarme,
   LA_MAISON_A_PARLE_MS, mineureWa, fichesServies, titulaireDuNumero, laMaisonAParle, confirmeValide,
   renvoieAUnRdv, uneQuestionAutre, civiliteLue,
   motsReconnus, intentionDeReserver, tourDeLaCliente, lisLeChoix, idDeChoix, instantACotonou,

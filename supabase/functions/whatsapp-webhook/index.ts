@@ -127,7 +127,7 @@ import webpush from 'npm:web-push@3.6.7';
 
 /** LA VERSION DE CE FICHIER, dite par le contrôle de santé. Sans elle on ne
     sait pas quel code tourne vraiment. À incrémenter à chaque déploiement. */
-const VERSION = '2026-10-13-a · la cle du numero : la fiche ecrite 01 97 00 00 99 est bien celle de 229 97 00 00 99';
+const VERSION = '2026-10-13-b · le prenom seul quand la civilite est inconnue';
 
 /** LE POIDS QU'UNE PIÈCE REÇUE PEUT FAIRE : le plafond du compartiment
     `whatsapp` (0102). Au-delà, le fichier reste chez Meta et le fil le dit. */
@@ -375,9 +375,11 @@ const jourDeLaReprise = (iso: string): string => {
    9 octobre 2026, la reprise disait encore « C'est noté, Naffi ». */
 const appelDe = (d: { name?: unknown; civilite?: unknown; auMasculin?: unknown } | null | undefined, repli?: unknown): string => {
   const civ = d?.civilite === 'monsieur' || d?.civilite === 'mademoiselle' || d?.civilite === 'madame'
-    ? d.civilite : d?.auMasculin === true ? 'monsieur' : 'madame';
-  const mot = civ === 'monsieur' ? 'Monsieur' : civ === 'mademoiselle' ? 'Mademoiselle' : 'Madame';
+    ? d.civilite : d?.auMasculin === true ? 'monsieur' : '';
   const prenom = String(d?.name ?? repli ?? '').trim().split(/\s+/)[0] ?? '';
+  /* La civilité inconnue ne se suppose plus (13 octobre 2026) : le prénom seul. */
+  if (!civ) return prenom || 'Madame, Monsieur';
+  const mot = civ === 'monsieur' ? 'Monsieur' : civ === 'mademoiselle' ? 'Mademoiselle' : 'Madame';
   return prenom ? `${mot} ${prenom}` : mot;
 };
 const heureDeLaReprise = (hhmm: string | undefined): string => {

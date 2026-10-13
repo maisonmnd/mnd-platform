@@ -219,7 +219,7 @@ dit('un paquet entièrement consommé se dit sans reproche',
 /* ══ LES DIX GESTES ═════════════════════════════════════════════════ */
 const ctx = (o: Partial<ContexteDesGestes> = {}): ContexteDesGestes => ({
   branchId: 'b1', maison: 'Maison MND',
-  tete: { id: 'c1', name: 'Akouavi K.', familyId: 'f1' },
+  tete: { id: 'c1', name: 'Akouavi K.', familyId: 'f1', civilite: 'madame' },
   fenetreOuverte: true, aujourdhui: AUJ, heure: '14:00',
   enFrancs: francs,
   lienDePaiement: (x) => `https://exemple/payer?montant=${x}`,

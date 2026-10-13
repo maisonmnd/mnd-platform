@@ -166,9 +166,9 @@ const paquet = (o: Partial<FinDePaquet>): FinDePaquet => ({
 dit('n74 n75 un abonne marque Monsieur, un paquet qui finit l an prochain',
   ['Monsieur K.', '1 séance', 'Prolongement 6 soins', 'valable jusqu’au 12 janvier 2027'],
   variablesDeLaFinDePaquet(paquet({}), { name: 'K. K.', civilite: 'monsieur' }));
-dit('n75 une fiche muette est une dame', 'Madame R.',
+dit('n75 une fiche muette : le prenom seul (13 octobre 2026)', 'R.',
   variablesDeLaFinDePaquet(paquet({ nom: 'R. A.' }), { name: 'R. A.' })[0]);
-dit('n75 sans fiche, le nom du contrat et Madame', 'Madame R.',
+dit('n75 sans fiche, le nom du contrat seul', 'R.',
   variablesDeLaFinDePaquet(paquet({ nom: 'R. A.' }))[0]);
 dit('n74 n75 la phrase du fil suit',
   'Bonjour Monsieur K., il vous reste 1 séance sur votre Prolongement 6 soins, valable jusqu’au 12 janvier 2027. Pensez à réserver : nous vous gardons votre place.',
@@ -177,10 +177,10 @@ dit('n74 n75 la phrase du fil suit',
 /* ── n76 · LE RAPPEL D'UNE DEMANDE, AVEC SA CIVILITÉ ──────────────────── */
 dit('n76 une demande ou il a choisi Monsieur', true,
   messageDeRappel({ prenom: 'K.', besoin: 'creation', civilite: 'monsieur' }).startsWith('Bonjour Monsieur K., ici la Maison MND.'));
-dit('n76 une demande du site sans civilite', true,
-  messageDeRappel({ prenom: 'A.', besoin: 'inconnu' }).startsWith('Bonjour Madame A., ici la Maison MND.'));
-dit('n76 sans prenom, Madame seul', true,
-  messageDeRappel({ prenom: ' ', besoin: 'inconnu' }).startsWith('Bonjour Madame, ici'));
+dit('n76 une demande du site sans civilite : le prenom seul', true,
+  messageDeRappel({ prenom: 'A.', besoin: 'inconnu' }).startsWith('Bonjour A., ici la Maison MND.'));
+dit('n76 sans prenom ni civilite, Madame, Monsieur', true,
+  messageDeRappel({ prenom: ' ', besoin: 'inconnu' }).startsWith('Bonjour Madame, Monsieur, ici'));
 
 /* ── n80 · LE CODE DE PROMOTION : L'ANNÉE ET SA CIVILITÉ ──────────────── */
 dit('n80 l instant porte l annee', 'vendredi 16 octobre 2026 à 14 h', instantDit('2026-10-16T13:00:00Z'));
@@ -192,7 +192,7 @@ dit('n80 ... et l appel vient de appelDe sur sa fiche', true,
 /* ── n86 · LE BILAN DE SÉANCE DIT L'ANNÉE ─────────────────────────────── */
 const bilan = { id: 'b1', branchId: 'b1', clientId: 'c1', numero: 'MND-BS-2026-0001', date: '2026-10-04',
   jauges: [], points: [], rituel: [], remisLe: '2026-10-04' } as unknown as Bilan;
-const awa = { name: 'Awa K.' };
+const awa = { name: 'Awa K.', civilite: 'madame' as const };
 dit('n86 le mot du bilan porte l annee', true,
   messageDuBilan(bilan, awa).includes('voici le bilan de votre séance du 4 octobre 2026,'));
 dit('n86 les variables du modele Meta', ['Madame Awa', '4 octobre 2026'], variablesDuModeleBilan(bilan, awa));

@@ -5,7 +5,7 @@ import { createHmac } from 'node:crypto';
 import { pathToFileURL } from 'node:url';
 import {
   DEVISE, PIED, REGLAGE_LIVRE, etapeSuivante, suiteDeLaPose, tourDeLaCliente, respecteMeta, texteSain,
-  reglageDeLAutomate, cleWa, lienMapsWa, titreEnFrancaisWa, dureeDiteWa, envoisQuiComptent, numeroServi, tenuParLAutomate, silenceDeLAlarme, titreDePlace, chargeGraph, cleCourte,
+  reglageDeLAutomate, cleWa, sansAppelVide, lienMapsWa, titreEnFrancaisWa, dureeDiteWa, envoisQuiComptent, numeroServi, tenuParLAutomate, silenceDeLAlarme, titreDePlace, chargeGraph, cleCourte,
   intentionDeReserver, jourDitAvecAnnee, quiParle, motsReconnus, civiliteLue, prenomLu, renvoieAUnRdv, uneQuestionAutre,
   type AgendaDuTour, type ContexteDuTour, type EtatDuFil, type FicheDuNumero, type MessageSortant,
   type PrestationDuTour, type ReglageDeLAutomate, type SortieDuTour, type MainDuFil, type VerdictDeLaPose,
@@ -538,6 +538,7 @@ const DATE_SANS_ANNEE = new RegExp(`\\b(\\d{1,2}|1er) (${MOIS})(?! \\d{4})`, 'i'
 /* « 17/10 » sans son année ; jamais le « 01/20 » du milieu de « 30/01/2027 »
    (relecture du 9 octobre 2026 : le juge criait sur les titres de fin janvier). */
 const DATE_CHIFFRES_SANS_ANNEE = /(?<![\d/])\d{2}\/\d{2}(?!\/\d{4})/;
+const TRACE_D_APPEL_VIDE = / ,|,[ \t]*[?!:;.]|,[ \t]*,/;
 const textesDe = (m: MessageSortant): string[] => [m.corps, m.pied ?? '', m.bouton ?? '', ...(m.boutons ?? []).map((b) => b.titre), ...(m.lignes ?? []).flatMap((l) => [l.titre, l.description ?? ''])];
 function fautesDesTextes(messages: readonly MessageSortant[]): string[] {
   const fautes: string[] = [];
@@ -549,8 +550,10 @@ function fautesDesTextes(messages: readonly MessageSortant[]): string[] {
       if (DATE_CHIFFRES_SANS_ANNEE.test(t)) fautes.push(`date chiffree sans annee : « ${t} »`);
       for (const mt of MAITRES) if (new RegExp(`\\b${mt}\\b`).test(t)) fautes.push(`nom de maitre dans « ${t} »`);
     }
-    const civ = /\b(Madame|Mademoiselle|Monsieur)\b/.test(m.corps) || (m.lignes ?? []).some((l) => /^(Madame|Mademoiselle|Monsieur)$/.test(l.titre));
-    if (!civ) fautes.push(`sans civilite : « ${m.corps} »`);
+    /* JAMAIS MADAME SUPPOSÉ (13 octobre 2026) : un message peut ne nommer
+       personne (une inconnue avant sa civilité) ; il ne garde alors aucune
+       trace de l'appel absent. */
+    if (TRACE_D_APPEL_VIDE.test(m.corps)) fautes.push(`trace d un appel vide : « ${m.corps} »`);
     const devise = m.corps.includes(DEVISE);
     if (devise !== (m.etape === 'confirme')) fautes.push(`devise ${devise ? 'hors de' : 'absente de'} la confirmation : « ${m.corps} »`);
     if (m.forme !== 'texte' && m.pied !== PIED) fautes.push('pied absent');
@@ -961,7 +964,7 @@ function remetsLaBase(automateWa: Any, plus: Any = {}) {
         { id: 'koko', data: { label: 'KÒKÒ' } },
         { id: 'atl-i-vekpe', data: { label: 'Naissance' } },
       ]),
-      clients: indexe(plus.clients ?? [{ id: 'cli-naffi', data: { name: 'Naffi Morou', phone: '+229 01 97 00 00 01', branchId: 'maison' } }]),
+      clients: indexe(plus.clients ?? [{ id: 'cli-naffi', data: { name: 'Naffi Morou', civilite: 'madame', phone: '+229 01 97 00 00 01', branchId: 'maison' } }]),
       appointments: indexe([
         { id: 'rdv-old-1', branch_id: 'maison', data: { id: 'rdv-old-1', clientId: 'cli-naffi', branchId: 'maison', date: '2026-09-12', time: '10:00', status: 'honoré', serviceIds: ['sv-klk-ess', 'sv-sinsin-ess'] } },
         ...(plus.rdvs ?? []),
@@ -1040,7 +1043,7 @@ function fautesDuBanc(num: string): string[] {
     if (t.includes(String.fromCharCode(0x2014))) fautes.push('un tiret cadratin');
     if (/\d[\d\s.,]*\s?(fcfa|cfa|xof|francs?|f)(?![\p{L}])/iu.test(t)) fautes.push(`un prix : ${t.slice(0, 60)}`);
     if (/\b(Team|Expert)\b/.test(t)) fautes.push('le nom d un maitre');
-    if (!/\b(Madame|Mademoiselle|Monsieur)\b/.test(t)) fautes.push(`sans civilite : ${corpsDe(b).slice(0, 60)}`);
+    if (TRACE_D_APPEL_VIDE.test(corpsDe(b))) fautes.push(`trace d un appel vide : ${corpsDe(b).slice(0, 60)}`);
     for (const ligne of t.split('\n')) if (MOIS_RE.test(ligne) && !/20\d\d|\d{2}\/\d{2}\/20\d\d/.test(ligne)) fautes.push(`une date sans annee : ${ligne.slice(0, 60)}`);
     if (b.type === 'interactive') {
       const c = choixDe(b);
@@ -1095,7 +1098,7 @@ const regles: Regle[] = [
         { n: a.p.poses.length, clientId: a.p.poses[0]?.rdv.clientId, status: a.p.poses[0]?.rdv.status, source: a.p.poses[0]?.rdv.source, dureeMin: a.p.poses[0]?.rdv.dureeMin, date: a.p.poses[0]?.rdv.date, time: a.p.poses[0]?.rdv.time, demande: !!a.p.poses[0]?.demande });
       vrai('A  jamais le maitre : la Maison attribue (aucun champ master)', !a.p.poses.some((x) => 'master' in x.rdv));
       const b = scnInconnue(ORIGINAL);
-      vaut('B1 bienvenue, comment prendre soin de votre couronne', 'Bonjour Madame, bienvenue à la Maison MND. Comment pouvons-nous prendre soin de votre couronne ?', corps(b.s1));
+      vaut('B1 bienvenue, comment prendre soin de votre couronne', 'Bonjour, bienvenue à la Maison MND. Comment pouvons-nous prendre soin de votre couronne ?', corps(b.s1));
       vaut('B1 ... les quatre besoins et la Maison', ['Entretenir mes locks', 'Créer mes locks', 'Réparer mes locks', 'Pour mon enfant', 'Parler à la Maison'], lignesDe(b.s1));
       vaut('B2 quel rituel : les formules reservables, en francais d abord, Autre soin, la Maison', ['Lavage · Essentiel', 'Lavage · Essentiel + 1', 'Autre soin', 'Parler à la Maison'], lignesDe(b.s2));
       vrai('B3 un rituel choisi : un autre soin le meme jour ?', b.s3.messages[0]?.etape === 'encore' && boutonsDe(b.s3).join(' | ') === "Ajouter un soin | Non, c'est tout | Parler à la Maison", `${corps(b.s3)} ${boutonsDe(b.s3).join(' | ')}`);
@@ -1220,16 +1223,16 @@ const regles: Regle[] = [
     eprouve: () => {
       const { ecarts, vaut, vrai } = juge();
       const e = scnCreation(ORIGINAL);
-      vaut('une premiere couronne : le KOKO Origine et ses places', 'Une première couronne commence toujours par une consultation, Madame : la consultation Origine (KÒKÒ™ Origine). Nous y étudions votre texture et votre cuir chevelu, et choisissons ensemble votre calibre. Voici les prochaines places.', corps(e.s2));
-      vrai('elle insiste : la creation se decide apres la consultation', corps(e.s3) === 'La création se décide après la consultation, Madame. Une personne de la Maison peut vous en dire plus.'
+      vaut('une premiere couronne : le KOKO Origine et ses places', 'Une première couronne commence toujours par une consultation : la consultation Origine (KÒKÒ™ Origine). Nous y étudions votre texture et votre cuir chevelu, et choisissons ensemble votre calibre. Voici les prochaines places.', corps(e.s2));
+      vrai('elle insiste : la creation se decide apres la consultation', corps(e.s3) === 'La création se décide après la consultation. Une personne de la Maison peut vous en dire plus.'
         && j(boutonsDe(e.s3)) === j(['Voir les places', 'Parler à la Maison']), corps(e.s3));
       vaut('la pose ne porte que la consultation', [['sv-koko-ori'], 'creation'], [e.p.poses[0]?.rdv.serviceIds, e.p.poses[0]?.demande?.besoin]);
       const f = scnEnfant(ORIGINAL);
-      vaut('pour un enfant : la consultation MND Kids, Conseil et diagnostic', 'Pour un enfant, tout commence par un échange avec ses parents, Madame : le Conseil et diagnostic. Voici les prochaines places.', corps(f.s2));
+      vaut('pour un enfant : la consultation MND Kids, Conseil et diagnostic', 'Pour un enfant, tout commence par un échange avec ses parents : le Conseil et diagnostic. Voici les prochaines places.', corps(f.s2));
       vaut('... et c est elle qui se pose', [['svc-doto-conseil'], 'enfant'], [f.p.poses[0]?.rdv.serviceIds, f.p.poses[0]?.demande?.besoin]);
       const r = scnPorte(ORIGINAL);
       vaut('des formules qui nomment creation, restauration ou devis ne sont jamais proposees', ['Lavage · Essentiel', 'Autre soin', 'Parler à la Maison'], lignesDe(r.s2));
-      vrai('une consultation renommee : toutes les consultations, jamais la creation', corps(r.s3) === 'Quelle consultation souhaitez-vous, Madame ?'
+      vrai('une consultation renommee : toutes les consultations, jamais la creation', corps(r.s3) === 'Quelle consultation souhaitez-vous ?'
         && j(lignesDe(r.s3)) === j(['Consultation · Origine', 'Consultation · Suivi', 'Conseil et diagnostic', 'Parler à la Maison']), `${corps(r.s3)} ${lignesDe(r.s3).join(' | ')}`);
       vaut('... et la pose est la consultation choisie', ['sv-koko-ori'], r.q.poses[0]?.rdv.serviceIds);
       vrai('une derniere venue de creation : jamais La meme chose', r.s4.messages[0]?.etape === 'besoin', corps(r.s4));
@@ -1469,14 +1472,13 @@ const regles: Regle[] = [
         { id: 'MND:1:a', titre: 'Un titre beaucoup trop long' }, { id: 'MND:1:b', titre: 'b' }, { id: 'MND:1:c', titre: 'c' }, { id: 'MND:1:d', titre: 'd' }] };
       vrai('respecteMeta crie : quatre boutons, un titre trop long, pas de sortie', respecteMeta(faux).length >= 3, respecteMeta(faux));
       vrai('le juge des dates crie sur « le 12 septembre » et se tait avec l annee', DATE_SANS_ANNEE.test('le 12 septembre.') && !DATE_SANS_ANNEE.test('le 12 septembre 2026') && DATE_SANS_ANNEE.test('Sam. 17 oct. · 9 h') && DATE_CHIFFRES_SANS_ANNEE.test('17/10 · 9 h'));
-      vrai('le juge de la civilite crie sur un message sans Madame', fautesDesTextes([{ forme: 'texte', etape: 'recap', corps: 'Voici votre rendez-vous, Naffi.' }]).some((f) => f.startsWith('sans civilite')));
+      vrai('le juge crie sur la trace d un appel vide', fautesDesTextes([{ forme: 'texte', etape: 'recap', corps: 'Quel rituel souhaitez-vous,  ?' }]).some((f) => f.startsWith('trace d un appel vide')));
       return ecarts;
     },
     pannes: [
       { nom: 'le mot banni dans la bienvenue', mute: [P(AUTO, 'bienvenue à la ${maisonNomWa}.', `bienvenue au ${BANNI} \${maisonNomWa}.`)] },
       { nom: 'une date sans son annee', mute: [P(AUTO, '${MOIS_LONGS_WA[d.getUTCMonth()]} ${d.getUTCFullYear()}`', '${MOIS_LONGS_WA[d.getUTCMonth()]}`')] },
-      { nom: 'la civilite perdue (le prenom seul)', mute: [P(AUTO, '    if (titulaire) return appelDe({ name: titulaire.nom, civilite: titulaire.civilite, auMasculin: titulaire.auMasculin });', '    if (titulaire) return prenomDuNomWa(titulaire.nom);')] },
-      { nom: 'la devise sur tous les textes', mute: [P(AUTO, "  const texte = (etape: EtapeDuFil, corps: string): MessageSortant => ({ forme: 'texte', etape, corps });", "  const texte = (etape: EtapeDuFil, corps: string): MessageSortant => ({ forme: 'texte', etape, corps: [corps, DEVISE].join(' ') });")] },
+      { nom: 'la devise sur tous les textes', mute: [P(AUTO, "  const texte = (etape: EtapeDuFil, corps: string): MessageSortant => ({ forme: 'texte', etape, corps: propre(corps) });", "  const texte = (etape: EtapeDuFil, corps: string): MessageSortant => ({ forme: 'texte', etape, corps: [propre(corps), DEVISE].join(' ') });")] },
       { nom: 'un titre de place trop long', mute: [P(AUTO, '  if (a.length <= 24) return a;', '  return a;')] },
       { nom: 'l itineraire part sans les juges', mute: [P(AUTO, "        itineraire && texteSain(itineraire).length === 0 ? coupeWa(itineraire, 600) : '',", "        itineraire ? coupeWa(itineraire, 600) : '',")] },
       { nom: 'le juge ne voit plus le tiret cadratin', mute: [P(AUTO, "  if (s.includes(String.fromCharCode(0x2014))) fautes.push('un tiret cadratin');", '')] },
@@ -1954,7 +1956,7 @@ const regles: Regle[] = [
       const m = parcours(ORIGINAL, NUM_NAFFI, [KEMI_SEULE]);
       const s1 = elle(m, t0, { texte: 'Bonjour, je voudrais un rendez-vous pour moi' });
       vrai('une mineure seule sur le numero : Pour qui, sans son nom ni sa derniere venue', s1.messages[0]?.etape === 'qui'
-        && corps(s1) === 'Bonjour Madame, merci de votre message. Pour qui est ce rendez-vous ?', corps(s1));
+        && corps(s1) === 'Bonjour, merci de votre message. Pour qui est ce rendez-vous ?', corps(s1));
       vaut('... Pour Kemi, Pour moi, Une autre personne, la Maison', ['Pour Kemi', 'Pour moi', 'Une autre personne', 'Parler à la Maison'], lignesDe(s1));
       const s2 = elle(m, t0 + 1000, { touche: 'Pour moi' });
       vrai('Pour moi : le parcours d une inconnue', s2.messages[0]?.etape === 'besoin', corps(s2));
@@ -1971,7 +1973,7 @@ const regles: Regle[] = [
       const k = parcours(ORIGINAL, NUM_NAFFI, [KEMI_SEULE]);
       elle(k, t0, { texte: 'Bonjour, je voudrais un rendez-vous' });
       const k2 = elle(k, t0 + 1000, { touche: 'Pour Kemi' });
-      vaut('Pour Kemi : sa derniere venue, dite d elle', 'La dernière venue de Kemi, Madame : Lavage rituel (KLƆKLƆ™ Essentiel), le samedi 12 septembre 2026. Souhaitez-vous la même chose ?', corps(k2));
+      vaut('Pour Kemi : sa derniere venue, dite d elle', 'La dernière venue de Kemi : Lavage rituel (KLƆKLƆ™ Essentiel), le samedi 12 septembre 2026. Souhaitez-vous la même chose ?', corps(k2));
       /* Le mari d Awa ecrit du numero range en second numero sur sa fiche. */
       const AWA: FicheDuNumero = { id: 'c-awa', nom: 'Awa Sossa', civilite: 'madame', parPhone: false, numeros: ['2290196000000', NUM_NAFFI], derniereVenue: { date: '2026-09-12', serviceIds: ['plt-05'] } };
       const a = parcours(ORIGINAL, NUM_NAFFI, [AWA]);
@@ -2398,7 +2400,7 @@ const regles: Regle[] = [
       const c = jusquALaCivilite('M. Koffi');
       vrai('« M. Koffi » : Monsieur Koffi', corps(c.s).startsWith('Voici votre rendez-vous, Monsieur Koffi'), corps(c.s));
       const d = jusquALaCivilite('euh');
-      vrai('un texte qui n est pas une civilite reste un ecart', corps(d.s) === "Touchez l'un des choix ci-dessous, Madame, ou Parler à la Maison." && d.p.etat?.ecarts === 1, corps(d.s));
+      vrai('un texte qui n est pas une civilite reste un ecart', corps(d.s) === "Touchez l'un des choix ci-dessous, ou Parler à la Maison." && d.p.etat?.ecarts === 1, corps(d.s));
       return ecarts;
     },
     pannes: [
@@ -2468,12 +2470,12 @@ const regles: Regle[] = [
       const lignes = tousLesParcours(ORIGINAL).flatMap((p) => p.envoyes).flatMap((m) => m.lignes ?? []);
       vrai('dans tous les parcours, chaque titre tient en 24 signes et chaque description en 72', lignes.length > 20 && lignes.every((l) => l.titre.length <= 24 && (l.description ?? '').length <= 72),
         lignes.filter((l) => l.titre.length > 24 || (l.description ?? '').length > 72).map((l) => `${l.titre} / ${l.description ?? ''}`).join(' | '));
-      vrai('un rituel choisi : un autre soin le meme jour ?', b.s3.messages[0]?.etape === 'encore' && corps(b.s3) === 'Souhaitez-vous ajouter un autre soin le même jour, Madame ?', corps(b.s3));
+      vrai('un rituel choisi : un autre soin le meme jour ?', b.s3.messages[0]?.etape === 'encore' && corps(b.s3) === 'Souhaitez-vous ajouter un autre soin le même jour ?', corps(b.s3));
       vaut('... Ajouter un soin, Non c est tout, la Maison', ['Ajouter un soin', "Non, c'est tout", 'Parler à la Maison'], boutonsDe(b.s3));
       vrai('Non, c est tout : les places', b.s3b.messages[0]?.etape === 'places', corps(b.s3b));
       vaut('le prenom se repond en message, et c est dit', 'Et votre prénom, Mademoiselle ? Écrivez-le simplement dans un message, en réponse.', corps(b.s5));
       const d = scnTroisSoins(ORIGINAL);
-      vrai('Ajouter un soin : quel soin ajouter, les soins restants en francais, jamais celui deja pris', corps(d.s4) === 'Quel soin ajouter, Madame ?'
+      vrai('Ajouter un soin : quel soin ajouter, les soins restants en francais, jamais celui deja pris', corps(d.s4) === 'Quel soin ajouter ?'
         && j(lignesDe(d.s4)) === j(['Resserrage · Essentiel', 'Hydratation · Essentiel', 'Lavage · Intégral', 'Autre soin', 'Parler à la Maison']), `${corps(d.s4)} ${lignesDe(d.s4).join(' | ')}`);
       vrai('le second soin s ajoute au premier : la question revient', d.s5.messages[0]?.etape === 'encore', corps(d.s5));
       vaut('le troisieme soin ferme le panier : droit aux places, sans question', 'places', d.s7.messages[0]?.etape);
@@ -2494,7 +2496,7 @@ const regles: Regle[] = [
       elle(o, t0 + 1000, { touche: 'Entretenir mes locks' });
       elle(o, t0 + 2000, { touche: 'Lavage · Essentiel' });
       const oui = elle(o, t0 + 3000, { texte: 'Oui' });
-      vrai('« Oui » ecrit : les soins a ajouter', oui.messages[0]?.etape === 'rituel' && corps(oui) === 'Quel soin ajouter, Madame ?', corps(oui));
+      vrai('« Oui » ecrit : les soins a ajouter', oui.messages[0]?.etape === 'rituel' && corps(oui) === 'Quel soin ajouter ?', corps(oui));
       return ecarts;
     },
     pannes: [
@@ -2602,6 +2604,33 @@ const regles: Regle[] = [
       { nom: 'le parametre de partage reste', mute: [P(AUTO, "      if (!u.searchParams.has('g_st')) return brut;", '      return brut;')] },
       { nom: 'un lien etranger passe', mute: [P(AUTO, '    if (!google.test(brut)) continue;', '    if (!brut) continue;')] },
       { nom: 'la fonction ignore le lien de la branche', mute: [P(F_AUTO, 'const carte = lienMapsWa(agenda?.lignes.branche.data?.mapsUrl, maison.carte);', 'const carte = lienMapsWa(maison.carte);')] },
+    ],
+  },
+  /* ══ R35 · jamais Madame supposé, 13 octobre 2026 ══════════════════════ */
+  {
+    id: 'R35', nom: 'R35 jamais Madame suppose : une inconnue n est appelee de rien avant sa civilite, une fiche muette par son prenom seul, sans trace',
+    eprouve: () => {
+      const { ecarts, vaut, vrai } = juge();
+      const b = scnInconnue(ORIGINAL);
+      vaut('une inconnue : bonjour, sans Madame', 'Bonjour, bienvenue à la Maison MND. Comment pouvons-nous prendre soin de votre couronne ?', corps(b.s1));
+      vaut('... quel rituel, sans Madame', 'Quel rituel souhaitez-vous ?', corps(b.s2));
+      vrai('... la civilite choisie, elle est dite (Mademoiselle Awa au recapitulatif)', corps(b.s6).startsWith('Voici votre rendez-vous, Mademoiselle Awa :'), corps(b.s6));
+      const muette: FicheDuNumero = { ...NAFFI, civilite: undefined };
+      const p = parcours(ORIGINAL, NUM_NAFFI, [muette]);
+      const t0 = cotonou('2026-10-09', '11:00');
+      const s1 = elle(p, t0, { texte: 'Je voudrais un rendez-vous' });
+      vrai('une fiche muette : son prenom seul, jamais Madame', corps(s1).startsWith('Bonjour Naffi, merci de votre message.') && !/Madame/.test(corps(s1)), corps(s1));
+      const c = scnConnue(ORIGINAL);
+      vrai('une fiche dite Madame : sa civilite est dite, Madame Naffi', corps(c.s1).startsWith('Bonsoir Madame Naffi, merci de votre message.'), corps(c.s1));
+      vaut('sansAppelVide : virgules et espaces sans appel', ['Quel rituel souhaitez-vous ?', 'Bonjour, merci.', "C'est confirmé : retenu.", 'Voici les places.', 'Touchez, ou Parler.'],
+        ['Quel rituel souhaitez-vous,  ?', 'Bonjour , merci.', "C'est confirmé,  : retenu.", 'Voici les places, .', 'Touchez, , ou Parler.'].map(sansAppelVide));
+      return ecarts;
+    },
+    pannes: [
+      { nom: 'la civilite perdue (le prenom seul)', mute: [P(AUTO, '    if (titulaire) return appelDe({ name: titulaire.nom, civilite: titulaire.civilite, auMasculin: titulaire.auMasculin });', '    if (titulaire) return prenomDuNomWa(titulaire.nom);')] },
+      { nom: 'une inconnue redevient Madame', mute: [P(AUTO, "       ne suppose plus Madame : la phrase se dit sans appel (`sansAppelVide`). */\n    return '';", "       ne suppose plus Madame : la phrase se dit sans appel (`sansAppelVide`). */\n    return appelDe(null);")] },
+      { nom: 'l appel vide laisse sa trace', mute: [P(AUTO, '  const propre = (corps: string): string => (appel() ? corps : sansAppelVide(corps));', '  const propre = (corps: string): string => corps;')] },
+      { nom: 'une fiche muette redevient Madame', mute: [P('src/shared/civilite.ts', "  if (!connue) return prenom || 'Madame, Monsieur';", "  if (!connue) return prenom ? `Madame ${prenom}` : 'Madame';")] },
     ],
   },
 ];
