@@ -6,6 +6,7 @@ import { staffAccessStore } from '../routes/equipe/data';
 import { createStore, useStore } from '../../../shared/store';
 import NotificationsBell from './Notifications';
 import Trouver from './Trouver';
+import Recherche from './Recherche';
 import BarreEquipe from './BarreEquipe';
 import { AppelRecuModal } from './AppelRecuModal';
 import { AppelQuiSonne } from './AppelQuiSonne';
@@ -836,6 +837,8 @@ export default function Shell() {
           </div>
           {/* Trouver — la recherche globale (Ctrl K), chantier ② de la refonte. */}
           <Trouver />
+          {/* Rechercher (13 octobre 2026) : Claude ou ChatGPT à côté du Trône, sur l'abonnement de la personne ; fondateurs seuls. */}
+          <Recherche />
           <SyncDot />
           <PastilleDeLaSalle />
           <BanniereDeVersion />
