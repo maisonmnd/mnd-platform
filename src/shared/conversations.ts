@@ -1374,14 +1374,18 @@ export function poseLaMain(
 export function rendsALAutomate(
   numero: string,
   o: { maintenant?: number; mainPasseeLe?: string; branchId?: string } = {},
-): boolean {
+): string | null {
   const n = numeroWa(numero);
-  if (!n) return false;
+  if (!n) return null;
   const id = `main-${n}`;
   const maintenant = o.maintenant ?? Date.now();
+  /* L'instant rendu, rendu à l'appelant (13 octobre 2026) : la reprise
+     demandée à la fonction attend que la base le porte. */
+  let rendueLe: string | null = null;
   filsAutomateStore.set((prev) => {
     const avant = prev.find((l) => l.id === id);
     const rendue = Math.max(maintenant, instantDuFil(avant?.pauseLe), instantDuFil(o.mainPasseeLe));
+    rendueLe = new Date(rendue).toISOString();
     const ligne: LigneDesFilsAutomate = {
       ...(avant ?? {}),
       id,
@@ -1391,7 +1395,7 @@ export function rendsALAutomate(
     };
     return avant ? prev.map((l) => (l.id === id ? ligne : l)) : [...prev, ligne];
   });
-  return true;
+  return rendueLe;
 }
 
 /* LA SYNCHRO — la table `messages_wa` (0086). Le fil vit dans la Maison, pas

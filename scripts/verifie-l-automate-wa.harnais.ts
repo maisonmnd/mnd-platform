@@ -4,7 +4,7 @@ import path from 'node:path';
 import { createHmac } from 'node:crypto';
 import { pathToFileURL } from 'node:url';
 import {
-  DEVISE, PIED, REGLAGE_LIVRE, etapeSuivante, suiteDeLaPose, tourDeLaCliente, respecteMeta, texteSain,
+  DEVISE, PIED, REGLAGE_LIVRE, etapeSuivante, suiteDeLaPose, tourDeLaCliente, respecteMeta, texteSain, repriseDuFil,
   reglageDeLAutomate, cleWa, sansAppelVide, lienMapsWa, titreEnFrancaisWa, dureeDiteWa, envoisQuiComptent, numeroServi, tenuParLAutomate, silenceDeLAlarme, titreDePlace, chargeGraph, cleCourte,
   intentionDeReserver, jourDitAvecAnnee, quiParle, motsReconnus, civiliteLue, prenomLu, renvoieAUnRdv, uneQuestionAutre,
   type AgendaDuTour, type ContexteDuTour, type EtatDuFil, type FicheDuNumero, type MessageSortant,
@@ -2695,6 +2695,52 @@ const regles: Regle[] = [
       { nom: 'la reparation ne se joint pas', mute: [P(AUTO, '    const liste = [...soinsAAjouter(), ...(r ? [[r]] : [])];', '    const liste = [...soinsAAjouter()];')] },
       { nom: 'les versions Kids entrent dans la liste des soins', mute: [P(AUTO, "&& !/\\bkids\\b|avec votre produit/i.test(s.name))", '&& true)')] },
       { nom: 'le sous-titre se colle au geste', mute: [P(AUTO, '    : sansNiveau ? [`${g.court} · ${variante}`, g.long, g.court]\n', '    : sansNiveau ? [`${g.court} · ${variante}`, `${g.court} ${variante}`, g.long, g.court]\n')] },
+    ],
+  },
+  /* ══ R37 · rendre à l'automate le fait reprendre tout de suite, 13 octobre 2026 ═══ */
+  {
+    id: 'R37', nom: 'R37 rendu a l automate, il reprend tout de suite l etape ou il etait ; jamais sans main rendue, ni pendant une pause, ni apres une pose ; seul le personnel le demande, fenetre de 24 h ouverte',
+    eprouve: () => {
+      const { ecarts, vaut, vrai } = juge();
+      const t0 = cotonou('2026-10-09', '10:12');
+      const p = parcours(ORIGINAL, NUM_INCONNUE, []);
+      elle(p, t0, { texte: 'Bonjour, je voudrais prendre rendez-vous' });
+      elle(p, t0 + 1000, { touche: 'Entretenir mes locks' });
+      elle(p, t0 + 2000, { touche: 'Lavage · Essentiel' });
+      elle(p, t0 + 3000, { touche: "Non, c'est tout" });
+      elle(p, t0 + 4000, { touche: 'Parler à la Maison' });
+      vaut('Parler a la Maison : la main passe', 'main', p.etat?.etape);
+      const ms1 = t0 + 60000;
+      vrai('sans main rendue, la reprise ne dit rien', !repriseDuFil(p.etat, ctxDe(p, ms1)).pris);
+      /* Un fil EN COURS dont l'équipe a pris la main (« Reprendre la main ») : rien. */
+      const q = parcours(ORIGINAL, NUM_INCONNUE, []);
+      elle(q, t0, { texte: 'Bonjour, je voudrais prendre rendez-vous' });
+      elle(q, t0 + 1000, { touche: 'Entretenir mes locks' });
+      q.main = { pauseLe: isoDe(t0 + 2000), jusqua: isoDe(t0 + 24 * 3600000) };
+      vrai('pendant une pause de l equipe sur un fil en cours, rien', q.etat?.etape === 'rituel' && !repriseDuFil(q.etat, ctxDe(q, t0 + 5000)).pris);
+      p.main = { rendueLe: isoDe(t0 + 50000) };
+      const r = repriseDuFil(p.etat, ctxDe(p, ms1));
+      vrai('rendue : il renvoie les places, a neuf, pas la relance', r.pris && r.messages[0]?.etape === 'places' && corps(r) === 'Voici les prochaines places.', `${r.pris} ${corps(r)}`);
+      p.etat = r.etat;
+      p.envoyes.push(...r.messages);
+      const suite = elle(p, ms1 + 60000, { touche: 'Mar. 13 oct. 2026 · 9 h' });
+      vaut('la liste renvoyee se touche : la civilite vient', 'civilite', suite.messages[0]?.etape);
+      const b = scnInconnue(ORIGINAL);
+      b.p.main = { rendueLe: isoDe(b.t0 + 3600000) };
+      vrai('apres une pose, rien a reprendre', !repriseDuFil(b.p.etat, ctxDe(b.p, b.t0 + 3600000 + 60000)).pris);
+      const fn = lit(F_AUTO);
+      vrai('la fonction : seul le personnel demande la reprise (is_staff, refus sinon)', /if \(demande\?\.reprise && service && urlBase && anon && recue\) \{[\s\S]{0,300}commeAppelant\.rpc\('is_staff'\);\s*if \(errStaff \|\| estPersonnel !== true\) return jsonCors\(\{ repris: false, erreur: 'réservé au personnel' \}, 403\);/.test(fn));
+      vrai('la fonction : la fenetre de 24 heures fermee, rien ne part', fn.includes("if (!Number.isFinite(quand) || ms - quand >= JOUR_WA) return { repris: false, raison: 'fenetre' };"));
+      vrai('la fonction : elle attend la main rendue par le Trone', fn.includes('if (Number.isFinite(voulue) && Number.isFinite(rendue) && rendue >= voulue) break;'));
+      vrai('le Trone demande la reprise en rendant', lit(ECRAN_CONV).includes("supabase.functions.invoke('whatsapp-automate', { body: { reprise: { numero: fil.numero, tiroir: fil.tiroir, rendueLe } } })"));
+      return ecarts;
+    },
+    pannes: [
+      { nom: 'la reprise ne lit pas la main rendue', mute: [P(AUTO, "  const courante = tour || reprise ? etapeCourante(ancien, ctx.main, ms, pauseH) : (ancien?.etape ?? 'repos');", "  const courante = tour ? etapeCourante(ancien, ctx.main, ms, pauseH) : (ancien?.etape ?? 'repos');")] },
+      { nom: 'la reprise passe pendant une pause', mute: [P(AUTO, '  if (!numeroServi(ctx.reglage, ctx.numero, ctx.tiroir) || pauseActive(ctx.main, ctx.maintenantMs)) return rien(ancien);', '  if (!numeroServi(ctx.reglage, ctx.numero, ctx.tiroir)) return rien(ancien);')] },
+      { nom: 'n importe quel jeton demande la reprise', mute: [P(F_AUTO, "      if (errStaff || estPersonnel !== true) return jsonCors({ repris: false, erreur: 'réservé au personnel' }, 403);\n", '')] },
+      { nom: 'la reprise ecrit hors de la fenetre', mute: [P(F_AUTO, "  if (!Number.isFinite(quand) || ms - quand >= JOUR_WA) return { repris: false, raison: 'fenetre' };\n", '')] },
+      { nom: 'le Trone ne demande pas la reprise', mute: [P(ECRAN_CONV, "    void supabase.functions.invoke('whatsapp-automate', { body: { reprise: { numero: fil.numero, tiroir: fil.tiroir, rendueLe } } })\n", '    void Promise.resolve({ data: {} })\n')] },
     ],
   },
 ];

@@ -1179,12 +1179,12 @@ const MARQUES_DES_SOINS: readonly string[] = ['DÀNDÀN', 'VÍVÍVÓ', 'WÈWÈ',
    Toutes les étapes se fabriquent ici, autour d'un état de travail `base`.
    `etapeSuivante` y joue un tour ; `suiteDeLaPose` y dit le verdict du
    verrou, sans faire monter la version (une seule écriture par tour). */
-function atelierDuTour(ancien: EtatDuFil | null | undefined, tour: TourDeLaCliente | null, ctx: ContexteDuTour, memeVersion: boolean) {
+function atelierDuTour(ancien: EtatDuFil | null | undefined, tour: TourDeLaCliente | null, ctx: ContexteDuTour, memeVersion: boolean, reprise = false) {
   const ms = ctx.maintenantMs;
   const maintenant = isoWa(ms);
   const pauseH = ctx.reglage.pauseHeures;
   const aujourdhui = instantACotonou(ms).iso;
-  const courante = tour ? etapeCourante(ancien, ctx.main, ms, pauseH) : (ancien?.etape ?? 'repos');
+  const courante = tour || reprise ? etapeCourante(ancien, ctx.main, ms, pauseH) : (ancien?.etape ?? 'repos');
   const version = (ancien?.version ?? 0) + (memeVersion ? 0 : 1);
 
   const base: EtatDuFil = ancien
@@ -2026,7 +2026,10 @@ function atelierDuTour(ancien: EtatDuFil | null | undefined, tour: TourDeLaClien
     return ecart();
   };
 
-  return { base, joue, laMain, ditLeVerdict };
+  /** La reprise : l'étape où il en était, dite à neuf (pas la relance). */
+  const reprend = (): SortieDuTour => renvoie(base.etape, false);
+
+  return { base, joue, laMain, ditLeVerdict, reprend };
 }
 
 /** LE PRÉNOM QU'ELLE ÉCRIT : « Awa », « je m'appelle Awa », « moi c'est
@@ -2064,6 +2067,21 @@ function civiliteLue(brut: string): { civilite: CiviliteDuFil; prenom?: string }
     « Je confirme » seulement), et l'alerte au personnel. `pris: false` : ce
     tour n'est pas à lui, rien ne s'écrit et le webhook prévient comme
     d'habitude. */
+/** LA REPRISE TOUT DE SUITE (13 octobre 2026) : « quand je débloque en
+    rendant à l'automate, pourquoi ne prend-il pas immédiatement la
+    relève ? » (Yéman). L'équipe vient de lui rendre le fil : il renvoie
+    l'étape où il s'était arrêté, sans attendre un message d'elle. Rien ne
+    part si rien n'est en cours (repos, rendez-vous posé, parcours
+    périmé), si la main de l'équipe tient encore, ou si le numéro n'est pas
+    servi. La fenêtre de 24 heures se juge dans la fonction. */
+function repriseDuFil(ancien: EtatDuFil | null | undefined, ctx: ContexteDuTour): SortieDuTour {
+  const rien = (etat: EtatDuFil): SortieDuTour => ({ messages: [], etat, ecritures: [], pris: false });
+  if (!ancien) return rien(etatNeufDuFil(ctx.numero, isoWa(ctx.maintenantMs)));
+  if (!numeroServi(ctx.reglage, ctx.numero, ctx.tiroir) || pauseActive(ctx.main, ctx.maintenantMs)) return rien(ancien);
+  if (!ETAPES_EN_COURS.includes(etapeCourante(ancien, ctx.main, ctx.maintenantMs, ctx.reglage.pauseHeures))) return rien(ancien);
+  return atelierDuTour(ancien, null, ctx, false, true).reprend();
+}
+
 function etapeSuivante(ancien: EtatDuFil | null, tour: TourDeLaCliente, ctx: ContexteDuTour): SortieDuTour {
   const juge = jugeLaParole(ancien, tour, ctx);
   if (juge.parole === 'silence') {
@@ -2101,7 +2119,7 @@ export {
   motsReconnus, intentionDeReserver, tourDeLaCliente, lisLeChoix, idDeChoix, instantACotonou,
   heureDite, jourDitAvecAnnee, titreDePlace, titreDuJour, prochaineOuvertureDite,
   choixDuMessage, chargeGraph, respecteMeta, texteSain, alerteDeLAutomate, cleCourte, prenomLu,
-  quiParle, jugeLaParole, etapeSuivante, suiteDeLaPose, mainApresCoup,
+  quiParle, jugeLaParole, etapeSuivante, suiteDeLaPose, mainApresCoup, repriseDuFil,
 };
 export type {
   ModeDeLAutomate, ReglageDeLAutomate, TiroirDuNumero, EtapeDuFil, MotifDeLaMain, CiviliteDuFil, PlaceLibre,

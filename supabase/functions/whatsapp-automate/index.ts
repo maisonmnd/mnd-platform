@@ -88,7 +88,7 @@ import { createClient, type SupabaseClient } from 'npm:@supabase/supabase-js@2';
 
 /** LA VERSION DE CE FICHIER, dite par le contrôle de santé. Sans elle on ne
     sait pas quel code tourne vraiment. À incrémenter à chaque déploiement. */
-const VERSION = '2026-10-13-f · Autre soin ouvre les soins du cheveu, la reparation se joint a l entretien';
+const VERSION = '2026-10-13-g · Rendre a l automate le fait reprendre tout de suite ; Autre soin ouvre les soins';
 
 /** « En train d'écrire », puis on attend : deux messages envoyés coup sur
     coup font un seul tour, celui du dernier. */
@@ -2055,12 +2055,12 @@ const MARQUES_DES_SOINS: readonly string[] = ['DÀNDÀN', 'VÍVÍVÓ', 'WÈWÈ',
    Toutes les étapes se fabriquent ici, autour d'un état de travail `base`.
    `etapeSuivante` y joue un tour ; `suiteDeLaPose` y dit le verdict du
    verrou, sans faire monter la version (une seule écriture par tour). */
-function atelierDuTour(ancien: EtatDuFil | null | undefined, tour: TourDeLaCliente | null, ctx: ContexteDuTour, memeVersion: boolean) {
+function atelierDuTour(ancien: EtatDuFil | null | undefined, tour: TourDeLaCliente | null, ctx: ContexteDuTour, memeVersion: boolean, reprise = false) {
   const ms = ctx.maintenantMs;
   const maintenant = isoWa(ms);
   const pauseH = ctx.reglage.pauseHeures;
   const aujourdhui = instantACotonou(ms).iso;
-  const courante = tour ? etapeCourante(ancien, ctx.main, ms, pauseH) : (ancien?.etape ?? 'repos');
+  const courante = tour || reprise ? etapeCourante(ancien, ctx.main, ms, pauseH) : (ancien?.etape ?? 'repos');
   const version = (ancien?.version ?? 0) + (memeVersion ? 0 : 1);
 
   const base: EtatDuFil = ancien
@@ -2902,7 +2902,10 @@ function atelierDuTour(ancien: EtatDuFil | null | undefined, tour: TourDeLaClien
     return ecart();
   };
 
-  return { base, joue, laMain, ditLeVerdict };
+  /** La reprise : l'étape où il en était, dite à neuf (pas la relance). */
+  const reprend = (): SortieDuTour => renvoie(base.etape, false);
+
+  return { base, joue, laMain, ditLeVerdict, reprend };
 }
 
 /** LE PRÉNOM QU'ELLE ÉCRIT : « Awa », « je m'appelle Awa », « moi c'est
@@ -2940,6 +2943,21 @@ function civiliteLue(brut: string): { civilite: CiviliteDuFil; prenom?: string }
     « Je confirme » seulement), et l'alerte au personnel. `pris: false` : ce
     tour n'est pas à lui, rien ne s'écrit et le webhook prévient comme
     d'habitude. */
+/** LA REPRISE TOUT DE SUITE (13 octobre 2026) : « quand je débloque en
+    rendant à l'automate, pourquoi ne prend-il pas immédiatement la
+    relève ? » (Yéman). L'équipe vient de lui rendre le fil : il renvoie
+    l'étape où il s'était arrêté, sans attendre un message d'elle. Rien ne
+    part si rien n'est en cours (repos, rendez-vous posé, parcours
+    périmé), si la main de l'équipe tient encore, ou si le numéro n'est pas
+    servi. La fenêtre de 24 heures se juge dans la fonction. */
+function repriseDuFil(ancien: EtatDuFil | null | undefined, ctx: ContexteDuTour): SortieDuTour {
+  const rien = (etat: EtatDuFil): SortieDuTour => ({ messages: [], etat, ecritures: [], pris: false });
+  if (!ancien) return rien(etatNeufDuFil(ctx.numero, isoWa(ctx.maintenantMs)));
+  if (!numeroServi(ctx.reglage, ctx.numero, ctx.tiroir) || pauseActive(ctx.main, ctx.maintenantMs)) return rien(ancien);
+  if (!ETAPES_EN_COURS.includes(etapeCourante(ancien, ctx.main, ctx.maintenantMs, ctx.reglage.pauseHeures))) return rien(ancien);
+  return atelierDuTour(ancien, null, ctx, false, true).reprend();
+}
+
 function etapeSuivante(ancien: EtatDuFil | null, tour: TourDeLaCliente, ctx: ContexteDuTour): SortieDuTour {
   const juge = jugeLaParole(ancien, tour, ctx);
   if (juge.parole === 'silence') {
@@ -3640,6 +3658,91 @@ async function rattrapeLeRefus(sb: Sb, numero: string, tiroir: TiroirDuNumero): 
   return { pris: true, ...(apres.alerte ? { alerte: apres.alerte } : {}) };
 }
 
+/* ══ LA REPRISE DEMANDÉE PAR LE TRÔNE · 13 octobre 2026 ═════════════════
+   « Rendre à l'automate » : le Trône écrit la main rendue, puis demande la
+   reprise. La main rendue arrive à la base un instant après : on l'attend,
+   huit secondes au plus. Puis la fenêtre de WhatsApp : sans message d'elle
+   depuis 24 heures, un message libre ne part pas, il attendra le sien. */
+async function reprendLeFil(
+  sb: Sb, o: { numero: string; tiroir: TiroirDuNumero; rendueLe: string; jeton: string; phoneId: string },
+): Promise<{ repris: boolean; raison?: string; etape?: string }> {
+  const docs = await litLesDocuments(sb);
+  if (!docs) return { repris: false, raison: 'base illisible' };
+  const cfg = docs.get('mnd_auto_config') ?? {};
+  const reglage = reglageDeLAutomate(cfg?.automateWa);
+  if (!numeroServi(reglage, o.numero, o.tiroir)) return { repris: false, raison: 'numero non servi' };
+  if (!o.jeton || !o.phoneId) return { repris: false, raison: 'cles Meta absentes' };
+
+  const voulue = msWa(o.rendueLe);
+  let lignes: Ligne[] = [];
+  for (let essai = 0; essai < 9; essai += 1) {
+    const { data, error } = await sb.from('fils_automate').select('id, data').in('id', [`fil-${o.numero}`, `main-${o.numero}`]);
+    if (error) return { repris: false, raison: 'fils illisibles' };
+    lignes = (data ?? []) as Ligne[];
+    const rendue = msWa(lignes.find((l) => l.id === `main-${o.numero}`)?.data?.rendueLe);
+    if (Number.isFinite(voulue) && Number.isFinite(rendue) && rendue >= voulue) break;
+    if (essai === 8) return { repris: false, raison: 'main pas encore rendue' };
+    await attends(1000);
+  }
+  const ms = Date.now();
+  const brutDuFil = lignes.find((l) => l.id === `fil-${o.numero}`)?.data;
+  const fil = etatLuWa(brutDuFil, o.numero, ms);
+  const versionLue = Number(brutDuFil?.version ?? 0) || 0;
+  const main = (lignes.find((l) => l.id === `main-${o.numero}`)?.data ?? null) as MainDuFil | null;
+
+  /* LA FENÊTRE DE 24 HEURES, depuis son dernier message. */
+  const { data: derniers, error: errDernier } = await sb.from('messages_wa').select('data')
+    .eq('data->>numero', o.numero).eq('data->>sens', 'entrant').order('data->>quand', { ascending: false }).limit(1);
+  if (errDernier) return { repris: false, raison: 'messages illisibles' };
+  const quand = msWa(((derniers ?? []) as Ligne[])[0]?.data?.quand);
+  if (!Number.isFinite(quand) || ms - quand >= JOUR_WA) return { repris: false, raison: 'fenetre' };
+
+  const fiches = (await lesFichesDuNumero(sb, o.numero)) ?? [];
+  const titulaire = fiches.find((f) => f.parPhone) ?? fiches[0];
+  const agenda = await litLAgenda(sb, docs, titulaire?.branchId, instantACotonou(ms).iso, reglage.horizonJours);
+  const vue = agenda ? agendaDuTourWa(agenda, ms, reglage.horizonJours) : null;
+  const maison = {
+    nom: String(docs.get('mnd_house_identity')?.nom ?? '').trim() || 'Maison MND',
+    itineraire: typeof cfg?.itineraire === 'string' ? cfg.itineraire : '',
+    carte: lienMapsWa(agenda?.lignes.branche.data?.mapsUrl, typeof cfg?.mapsLink === 'string' ? cfg.mapsLink : ''),
+  };
+  const ctx: ContexteDuTour = {
+    maintenantMs: ms, numero: o.numero, tiroir: o.tiroir, reglage, fiches, premierMessage: false, main, maison,
+    ...(vue ? { agenda: vue.agenda } : {}),
+  };
+  const sortie = repriseDuFil(fil, ctx);
+  if (!sortie.pris || sortie.messages.length === 0) return { repris: false, raison: 'rien a reprendre' };
+
+  const branchId = agenda?.agenda.branchId ?? titulaire?.branchId ?? null;
+  const { data: version, error: errAvance } = await sb.rpc('avance_le_fil', {
+    p_numero: o.numero, p_version: versionLue, p_data: sortie.etat, p_branch: branchId,
+  });
+  if (errAvance || typeof version !== 'number') return { repris: false, raison: 'fil en mouvement' };
+
+  const clientId = sortie.etat.panier.clientId ?? titulaire?.id;
+  for (const m of sortie.messages) {
+    if ([...respecteMeta(m), ...texteSain(toutLeTexteWa(m))].length > 0) return { repris: false, raison: 'message retenu par les juges' };
+    const rendu = await envoieAGraph(o.jeton, o.phoneId, chargeGraph(m, o.numero));
+    await laisseLaTrace(sb, { numero: o.numero, m, rendu, ...(branchId ? { branchId } : {}), ...(clientId ? { clientId } : {}) });
+    if (!rendu.waId) {
+      const apres = mainApresCoup({ ...sortie.etat, version }, 'envoi-refuse', ctx);
+      await sb.rpc('avance_le_fil', { p_numero: o.numero, p_version: version, p_data: apres.etat, p_branch: branchId });
+      return { repris: false, raison: 'Meta refuse' };
+    }
+  }
+  return { repris: true, etape: sortie.etat.etape };
+}
+
+/* Le Trône appelle depuis le navigateur : chaque réponse porte de quoi
+   être lue (voir whatsapp-envoi, 14 septembre 2026). */
+const CORS: Record<string, string> = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
+};
+const jsonCors = (o: unknown, status = 200) =>
+  new Response(JSON.stringify(o), { status, headers: { ...CORS, 'content-type': 'application/json' } });
+
 /* ══ LA PORTE ══════════════════════════════════════════════════════════
    Comparaison à temps constant : comparer deux secrets avec `===` laisse
    fuir, caractère par caractère, où l'on s'est arrêté. */
@@ -3669,19 +3772,47 @@ Deno.serve(async (req) => {
         WA_TOKEN: lg('WA_TOKEN') || 'ABSENT : la Maison répond elle-même',
         WA_PHONE_ID: lg('WA_PHONE_ID') || 'ABSENT : la Maison répond elle-même',
       },
-      porte: 'POST seulement, Authorization: Bearer <CLE_SERVICE> (le webhook)',
+      porte: 'POST : Bearer <CLE_SERVICE> (le webhook), ou une session du personnel pour la reprise (le Trône)',
       reglageLivre: 'essai, aucun numéro : personne n est servi tant que la direction n a pas saisi ses numéros',
       jwt: 'décoché, sinon vous ne liriez pas ceci',
     });
   }
+  if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
   if (req.method !== 'POST') return json({ erreur: 'POST seulement' }, 405);
 
   const service = (Deno.env.get('CLE_SERVICE') ?? Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '').trim();
   const urlBase = Deno.env.get('SUPABASE_URL') ?? '';
   const recue = (req.headers.get('authorization') ?? '').replace(/^Bearer\s+/i, '').trim();
   if (!service || !memeCle(recue, service)) {
+    /* LA REPRISE DEMANDÉE PAR LE TRÔNE (13 octobre 2026) : une session du
+       personnel, et rien d'autre. On ne se fie pas au jeton présenté : on
+       demande à la base ce qu'elle en pense (`is_staff`). */
+    // deno-lint-ignore no-explicit-any
+    let demande: Record<string, any> = {};
+    try { demande = await req.json(); } catch { /* pas une reprise */ }
+    const anon = (Deno.env.get('SUPABASE_ANON_KEY') ?? '').trim();
+    if (demande?.reprise && service && urlBase && anon && recue) {
+      const commeAppelant = createClient(urlBase, anon, { global: { headers: { authorization: `Bearer ${recue}` } } });
+      const { data: estPersonnel, error: errStaff } = await commeAppelant.rpc('is_staff');
+      if (errStaff || estPersonnel !== true) return jsonCors({ repris: false, erreur: 'réservé au personnel' }, 403);
+      const numero = numeroWa(String(demande.reprise.numero ?? ''));
+      if (numero.length < 8) return jsonCors({ repris: false, erreur: 'numéro' }, 400);
+      const t = demande.reprise.tiroir;
+      const tiroir: TiroirDuNumero = t === 'equipe' ? 'equipe' : t === 'prestataires' ? 'prestataires' : 'clientes';
+      try {
+        const r = await reprendLeFil(createClient(urlBase, service), {
+          numero, tiroir, rendueLe: String(demande.reprise.rendueLe ?? ''),
+          jeton: (Deno.env.get('WA_TOKEN') ?? '').trim(), phoneId: (Deno.env.get('WA_PHONE_ID') ?? '').trim(),
+        });
+        dis('reprise', r);
+        return jsonCors({ ...r, version: VERSION });
+      } catch (e) {
+        dis('echec de la reprise', { motif: String(e).slice(0, 160) });
+        return jsonCors({ repris: false, raison: 'erreur', version: VERSION });
+      }
+    }
     /* LES LONGUEURS SEULES, JAMAIS LES VALEURS. */
-    return json({ erreur: 'réservé au webhook', attendueLg: service.length, recueLg: recue.length }, 401);
+    return jsonCors({ erreur: 'réservé au webhook', attendueLg: service.length, recueLg: recue.length }, 401);
   }
   if (!urlBase) return json({ pris: false, erreur: 'SUPABASE_URL manque' }, 500);
 

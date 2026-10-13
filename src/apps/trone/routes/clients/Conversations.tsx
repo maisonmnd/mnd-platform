@@ -502,8 +502,19 @@ export default function Conversations() {
   const rendsLaMain = (): void => {
     if (!fil?.automate) return;
     mainPriseLe.current.delete(fil.numero);
-    rendsALAutomate(fil.numero, { mainPasseeLe: automates.get(fil.numero)?.fil?.mainPasseeLe, branchId: branch.id });
-    toast('Rendu à l’automate. Il reprendra au prochain message de la cliente, sans rien lui écrire d’ici là.');
+    const rendueLe = rendsALAutomate(fil.numero, { mainPasseeLe: automates.get(fil.numero)?.fil?.mainPasseeLe, branchId: branch.id });
+    /* IL REPREND TOUT DE SUITE (13 octobre 2026) : la fonction renvoie l'étape
+       où il en était, si la fenêtre de 24 heures est ouverte. */
+    const attendre = 'Rendu à l’automate. Il reprendra au prochain message de la cliente, sans rien lui écrire d’ici là.';
+    if (!supabase || !rendueLe) { toast(attendre); return; }
+    toast('Rendu à l’automate : il reprend où il en était…');
+    void supabase.functions.invoke('whatsapp-automate', { body: { reprise: { numero: fil.numero, tiroir: fil.tiroir, rendueLe } } })
+      .then(({ data }) => {
+        const r = (data ?? {}) as { repris?: boolean; raison?: string; etape?: string };
+        if (r.repris) toast(`L’automate a repris : il a renvoyé « ${etapeDite(r.etape)} ».`);
+        else if (r.raison === 'fenetre') toast('Rendu à l’automate. Elle n’a pas écrit depuis plus de 24 h : WhatsApp l’empêche d’écrire le premier, il reprendra à son prochain message.');
+        else toast(attendre);
+      }, () => toast(attendre));
   };
   /* LE RENDEZ-VOUS SE POSE À LA MAIN, depuis le fil. Pré-rempli du panier
      quand l'automate en a un ; jamais de maître choisi d'avance, la Maison
