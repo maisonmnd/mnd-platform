@@ -2607,6 +2607,17 @@
   min-height: 520px;
 }
 .trc-convs > * { min-width: 0; }
+/* ⚠ CE SEUIL ET CELUI DU TRAITEMENT TÉLÉPHONE SONT LE MÊME NOMBRE, et doivent
+   le rester : 900 px ici, 900 px dans les cinq blocs qui suivent. Ils ont
+   divergé du 21 septembre au 13 octobre 2026 (une colonne à 900, une seule
+   chose à la fois à 760), et entre les deux la liste et le fil s'EMPILAIENT :
+   on ouvrait une conversation, le fil naissait sous toute la liste, hors de
+   l'écran, et il ne se passait rien de visible. C'est la largeur d'un
+   téléphone COUCHÉ (844 px) et d'une tablette debout (810, 820). Mesuré le
+   13 octobre : le fil commençait à 581 px de haut sur un écran de 390.
+   « Je me perds entre la liste et le fil » (Yéman), quatrième demande.
+   La règle, elle, est simple : là où la grille n'a qu'une colonne, on ne
+   montre qu'UNE chose. `banc-du-telephone` l'éprouve debout ET couché. */
 @media (max-width: 900px) { .trc-convs { grid-template-columns: minmax(0, 1fr); } }
 /* ══ LES CONVERSATIONS SUR UN TÉLÉPHONE — 21 septembre 2026 ═════════
    « Make conversation page responsive on mobile phone » (Yéman).
@@ -2623,7 +2634,7 @@
   padding: 5px 12px; font: inherit; font-size: 12px; color: var(--color-indigo);
   cursor: pointer; margin-bottom: 2px;
 }
-@media (max-width: 760px) {
+@media (max-width: 900px) {
   .trc-convs { gap: 0; min-height: 0; }
   .trc-convs__boite { max-height: none; }
   .trc-convs.a-fil .trc-convs__boite { display: none; }
@@ -2928,7 +2939,7 @@
    qui faisait zoomer l'iPhone (texte sous 16 px). Désormais, fil ouvert :
    la tête reste en haut, les bulles défilent seules au milieu, la saisie
    reste sous le pouce, comme dans WhatsApp. */
-@media (max-width: 760px) {
+@media (max-width: 900px) {
   .trc-page-convs.a-fil .tr-page-head,
   .trc-page-convs.a-fil .trc-passage-banner { display: none; }
   /* La liste : les boutons de la page passent à la ligne plutôt que de
@@ -3010,7 +3021,7 @@
 
 /* « NOUVELLE CONVERSATION » AU POUCE, comme le bouton rond de WhatsApp :
    sur un téléphone, il flotte en bas à droite de la liste. */
-@media (max-width: 760px) {
+@media (max-width: 900px) {
   .trc-page-convs:not(.a-fil) .trc-nouveau {
     position: fixed; right: 16px; bottom: calc(18px + env(safe-area-inset-bottom, 0px)); z-index: 110;
     box-shadow: 0 10px 24px -8px rgb(20 20 27 / 45%); padding: 13px 18px;
@@ -3030,7 +3041,7 @@
   padding: 12px 16px;
 }
 .trc-envoi__geste { text-align: right; }
-@media (max-width: 760px) {
+@media (max-width: 900px) {
   .trc-envoi { grid-template-columns: 56px minmax(0, 1fr); row-gap: 8px; }
   .trc-envoi__etat { grid-column: 2; }
   .trc-envoi__geste { grid-column: 2; text-align: left; }
@@ -3091,7 +3102,7 @@
   border: 1px solid var(--copper-300); background: var(--copper-50); color: var(--copper-700);
 }
 
-@media (max-width: 760px) {
+@media (max-width: 900px) {
   .trc-automate { padding: 7px 9px; margin-bottom: 7px; font-size: 12.5px; gap: 6px 8px; }
   .trc-automate__dit { flex-basis: 100%; }
   .trc-automate__gestes { width: 100%; }

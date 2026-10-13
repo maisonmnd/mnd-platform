@@ -11,7 +11,7 @@ import { ErreurDEcran } from './shell/ErreurDEcran';
 import { NAV } from './routes/index';
 import { AuthGate } from './auth/AuthGate';
 import { applyPendingReplace } from './backup';
-import { migreLaRaisonDeLaMaison, migreLeNomDeLaBranche, migreLeNomDeLaMaison } from '../../shared/identite';
+import { migreLEmployeurDeLEquipe, migreLaRaisonDeLaMaison, migreLeNomDeLaBranche, migreLeNomDeLaMaison } from '../../shared/identite';
 import { registerSW } from '../../shared/push';
 import { migreLesFormulesAZero } from '../../shared/abonnements';
 import { migreLaNouvelleGrille } from '../../shared/nouvelle-grille';
@@ -30,11 +30,16 @@ void registerSW();
 migreLeNomDeLaMaison();
 migreLeNomDeLaBranche();
 /* LE REGISTRE DE LA MAISON — 10 octobre 2026. La raison stockée qui dit
-   encore ACIA 1 passe au registre de Maison MND ; l'employeur garde ACIA 1.
+   encore ACIA 1 passe au registre de Maison MND.
    Une fois, depuis le Trône seul, morte fin 2026. Les mentions du
    Secrétariat, elles, se corrigent à l'ouverture du Secrétariat : charger
    ici sa table, signatures comprises, alourdirait chaque démarrage. */
 migreLaRaisonDeLaMaison();
+/* L'EMPLOYEUR DE L'ÉQUIPE — 13 octobre 2026 (« plus d'ACIA 1 »). L'employeur
+   stocké passe à son tour à Maison MND : règlement intérieur, lettres du prêt
+   et pièces d'employeur du Secrétariat suivent. Les pièces déjà signées
+   gardent leur entité. */
+migreLEmployeurDeLEquipe();
 /* LES SIX FORMULES À 0 F — 10 octobre 2026 (la genèse des prix, « Fermer
    aujourd'hui ») : fermées à la vente une fois, depuis le Trône seul, jamais
    effacées ; leurs contrats en cours les lisent toujours. */

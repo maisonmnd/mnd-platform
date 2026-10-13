@@ -51,12 +51,24 @@ export const DEFAULT_IDENTITY: HouseIdentity = {
   /* 10 octobre 2026 : la Maison a SON registre (immatriculée le 9 au greffe
      de Cotonou, entreprise individuelle, « Maison MND » enseigne et nom
      commercial). Feu vert de la direction le 10, puis « juste Maison MND » :
-     aucun nom de personne dans la raison. L'employeur, lui, reste ACIA 1
-     tant que le comptable n'a rien décidé : il a désormais son propre champ,
-     sinon changer la raison aurait changé l'employeur du règlement et des
-     lettres du prêt. */
+     aucun nom de personne dans la raison. */
   raison: RAISON_MAISON_MND,
-  employeur: RAISON_ACIA_1,
+  /* 13 octobre 2026 : « change à Maison MND tout ce qui touche l'équipe, plus
+     d'ACIA 1, sur les factures, les documents et tout le reste » (Yéman).
+     L'employeur avait son champ à part depuis le 10 précisément pour pouvoir
+     basculer sans toucher à la raison : c'est ce jour-là. L'équipe est donc
+     employée par la Maison, au règlement intérieur, aux lettres du prêt et
+     aux pièces d'employeur du Secrétariat.
+
+     CE QUI NE BOUGE PAS : les pièces DÉJÀ écrites. Chacune garde l'entité
+     sous laquelle elle a été signée (`Piece.entite`), et un document daté
+     d'avant la bascule se réimprime avec la raison de ce jour-là
+     (`raisonAvant`). On ne réécrit pas un contrat signé.
+
+     ACIA 1 n'est pas effacé pour autant : c'est un AUTRE établissement, qui
+     existe toujours et garde son entité au Secrétariat, ses numéros et ses
+     papiers. Il n'emploie simplement plus l'équipe. */
+  employeur: RAISON_MAISON_MND,
   ville: 'Cotonou',
   fuseau: 'Cotonou · GMT+1',
   dureeRituel: '2 h 30',
@@ -69,10 +81,10 @@ export const useHouseIdentity = () => useStore(houseIdentityStore);
 /** Le nom, jamais vide — un réglage effacé ne doit pas signer des factures en blanc. */
 export const maisonNom = (): string => houseIdentityStore.get().nom.trim() || DEFAULT_IDENTITY.nom;
 export const maisonRaison = (): string => houseIdentityStore.get().raison.trim() || DEFAULT_IDENTITY.raison;
-/** L'employeur de l'équipe (règlement intérieur, lettres du prêt). ACIA 1 tant
-    qu'il n'a pas été réglé autrement : la bascule du 10 octobre 2026 ne le
-    touche pas. */
-export const maisonEmployeur = (): string => (houseIdentityStore.get().employeur ?? '').trim() || RAISON_ACIA_1;
+/** L'employeur de l'équipe (règlement intérieur, lettres du prêt, pièces
+    d'employeur). La Maison depuis le 13 octobre 2026 ; le champ reste réglable
+    aux Paramètres, le code ne contredit pas une décision du comptable. */
+export const maisonEmployeur = (): string => (houseIdentityStore.get().employeur ?? '').trim() || RAISON_MAISON_MND;
 /** LA RAISON QUE MONTRAIENT LES DOCUMENTS AVANT LA BASCULE (relecture du
     10 octobre 2026). Pas une constante : la raison stockée a pu être une
     variante (« Ets ACIA1 », l'IFU en plus…), et une pièce ancienne doit se
@@ -307,12 +319,20 @@ const RAISON_ACIA = /^\s*(?:ets\.?\s+)?acia\s*1\s*(?:[·,]\s*rccm\s*(?:n°\s*)?r
 /** La raison corrigée, ou null : seule une raison ACIA 1 connue se remplace. */
 export const corrigeLaRaisonACIA = (raison: unknown): string | null =>
   RAISON_ACIA.test(String(raison ?? '')) ? RAISON_MAISON_MND : null;
-/** L'identité migrée, ou null s'il n'y a rien à faire. */
+/** L'identité migrée, ou null s'il n'y a rien à faire.
+
+    13 OCTOBRE 2026 : CETTE MIGRATION NE SÈME PLUS L'EMPLOYEUR. Le 10, elle
+    posait l'ancienne raison comme employeur, parce que l'équipe restait alors
+    employée par ACIA 1. La direction a tranché depuis : l'employeur est la
+    Maison. Continuer à semer ACIA 1 ici le ferait revenir sur tout poste qui
+    n'a pas encore joué la migration du 10, et la bascule de l'employeur
+    (ci-dessous) devrait le défaire derrière. `raisonAvant`, lui, reste : il
+    ne sert pas l'équipe mais la réimpression des documents d'avant. */
 export const migreLIdentite = (i: HouseIdentity): HouseIdentity | null => {
   const raison = corrigeLaRaisonACIA(i.raison);
   if (!raison) return null;
   const ancienne = String(i.raison).trim();
-  return { ...i, raison, employeur: (i.employeur ?? '').trim() || ancienne, raisonAvant: (i.raisonAvant ?? '').trim() || ancienne };
+  return { ...i, raison, raisonAvant: (i.raisonAvant ?? '').trim() || ancienne };
 };
 const MARQUEUR_RAISON = 'mnd_raison_maison_2026_10';
 const remplaceLaRaison = (): boolean => {
@@ -332,6 +352,54 @@ export function migreLaRaisonDeLaMaison(): void {
       setTimeout(() => { if (remplaceLaRaison()) { marqueMigre(MARQUEUR_RAISON); arret(); } }, 0);
     });
     const fin = setTimeout(() => { arret(); marqueMigre(MARQUEUR_RAISON); }, 60_000);
+    arret = () => { off(); clearTimeout(fin); };
+  });
+}
+
+/* ── L'EMPLOYEUR DE L'ÉQUIPE — 13 octobre 2026 ─────────────────────────
+   « Change à Maison MND tout ce qui touche l'équipe, plus d'ACIA 1, sur les
+   factures, les documents et tout le reste » (Yéman).
+
+   Le document stocké `mnd_house_identity` dit encore ACIA 1 : le défaut du
+   code ne suffit pas, à l'hydratation le serveur gagne. Même geste que pour
+   le nom (23 septembre) et la raison (10 octobre) : une fois, daté, depuis le
+   Trône seulement, mort au 31 décembre 2026.
+
+   SEUL UN EMPLOYEUR ACIA 1 CONNU SE REMPLACE — le même lexique que la raison
+   (« ACIA 1 », « ACIA1 », « Ets ACIA1 », avec ou sans RCCM, avec ou sans IFU).
+   Un texte que la direction aurait tapé elle-même reste tel quel : le jour où
+   le comptable nommera un autre employeur, le code ne le contredira pas.
+
+   LES PIÈCES DÉJÀ ÉCRITES NE BOUGENT PAS. Chacune porte l'entité sous
+   laquelle elle a été signée ; cette bascule ne règle que ce qui s'écrira
+   désormais. */
+/** L'employeur corrigé, ou null : seul un ACIA 1 connu se remplace. */
+export const corrigeLEmployeurACIA = (employeur: unknown): string | null =>
+  RAISON_ACIA.test(String(employeur ?? '')) ? RAISON_MAISON_MND : null;
+/** L'identité dont l'employeur a basculé, ou null s'il n'y a rien à faire. */
+export const migreLEmployeur = (i: HouseIdentity): HouseIdentity | null => {
+  const employeur = corrigeLEmployeurACIA(i.employeur ?? '');
+  if (!employeur) return null;
+  return { ...i, employeur };
+};
+const MARQUEUR_EMPLOYEUR = 'mnd_employeur_maison_2026_10';
+const remplaceLEmployeur = (): boolean => {
+  const suite = migreLEmployeur(houseIdentityStore.get());
+  if (!suite) return false;
+  houseIdentityStore.set(suite);
+  return true;
+};
+/** À appeler une fois, au démarrage du Trône seulement. */
+export function migreLEmployeurDeLEquipe(): void {
+  if (Date.now() > EXPIRE_LE) return;
+  if (dejaMigre(MARQUEUR_EMPLOYEUR)) return;
+  void quandDocumentDescendu('mnd_house_identity').then(() => {
+    if (remplaceLEmployeur()) { marqueMigre(MARQUEUR_EMPLOYEUR); return; }
+    let arret: () => void = () => {};
+    const off = houseIdentityStore.subscribe(() => {
+      setTimeout(() => { if (remplaceLEmployeur()) { marqueMigre(MARQUEUR_EMPLOYEUR); arret(); } }, 0);
+    });
+    const fin = setTimeout(() => { arret(); marqueMigre(MARQUEUR_EMPLOYEUR); }, 60_000);
     arret = () => { off(); clearTimeout(fin); };
   });
 }

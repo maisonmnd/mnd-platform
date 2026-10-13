@@ -328,7 +328,8 @@ export default function Prets() {
     if (!membreDuPret) throw new Error('aucun membre');
     const rangees = await identiteDuPersonnel(membreDuPret.id);
     const identite = rangees && rangees[0] ? await imageDuCoffre(rangees[0].chemin) : null;
-    /* Une pièce EMPLOYEUR (10 octobre 2026) : ACIA 1 tant que rien n'est décidé. */
+    /* Une pièce EMPLOYEUR (10 octobre 2026), donc l'employeur et non la
+       raison : la Maison depuis le 13 octobre 2026. */
     const raison = maisonEmployeur();
     const motif = fPret.motif.trim();
     return lettresDuPretPdf({

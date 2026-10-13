@@ -15847,6 +15847,75 @@ Le chantier n° 1 de la liste du matin, bouclé le soir même :
   nominative est au contrôle, pas ici (dépôt public). À réparer au comptoir :
   fiche → anniversaire, au fil des passages.
 
+## Les Conversations au téléphone COUCHÉ — corrigé le 13 octobre 2026
+
+**Quatrième demande** (21 sept., 28 sept., 2 oct., 13 oct.) : « je me perds
+entre la liste et le fil ». Les trois premières fois, la mise en page a été
+retouchée pour un téléphone DEBOUT, et elle y était juste : `banc-du-telephone`
+passait ses treize contrôles à 390 × 844.
+
+**La cause tenait en deux nombres qui devaient être égaux et ne l'étaient pas.**
+La grille des Conversations passe à UNE colonne sous **900 px** ; le traitement
+téléphone (fil en plein écran, flèche de retour, champs à 16 px) ne commençait
+qu'à **760 px**. Entre les deux, la liste et le fil s'EMPILAIENT : on ouvrait une
+conversation et le fil naissait sous toute la liste, hors de l'écran. Mesuré :
+le fil commençait à **581 px de haut sur un écran haut de 390**, « Envoyer » à
+1112. Ouvrir une conversation ne faisait donc rien de visible.
+
+Cette bande, c'est le téléphone **couché** (844 px) et la tablette debout
+(810, 820). On ne tourne pas son téléphone pour écrire, mais on le tourne pour
+lire.
+
+**Correction :** les cinq blocs du traitement téléphone passent à 900 px, comme
+la grille. La règle est écrite au-dessus de la grille : *là où la grille n'a
+qu'une colonne, on ne montre qu'UNE chose.*
+
+**Le banc ne regardait qu'une largeur, c'est pourquoi il a laissé passer.** Il
+éprouve désormais trois tailles — debout, couché, tablette — et porte un
+contrôle de plus : « la liste s'efface derrière le fil » tant que la grille n'a
+qu'une colonne. Panne remise pour vérifier qu'il crie : quatre échecs au seuil
+760, aucun au seuil 900.
+
+## L'équipe est employée par la Maison — 13 octobre 2026
+
+« Change à Maison MND tout ce qui touche l'équipe, plus d'ACIA 1, sur les
+factures, les documents et tout le reste » (Yéman). Le champ `employeur` avait
+été séparé de la `raison` le 10 octobre précisément pour permettre cette
+bascule sans toucher aux factures : c'est ce jour-là.
+
+Suivent : le règlement intérieur, les lettres du prêt, et les pièces d'employeur
+du Secrétariat (convocation, avertissement, félicitations, certificat de fin de
+contrat, acceptation de démission, attestation et contrat de travail) — elles
+cessent d'être aiguillées vers ACIA 1, puisque `entiteDeLaPiece` lit l'employeur.
+
+**Une migration datée de plus**, même forme que le nom (23 sept.) et la raison
+(10 oct.) : `migreLEmployeurDeLEquipe`, une fois, depuis le Trône seul, morte au
+31 décembre 2026. Seul un ACIA 1 CONNU se remplace (« ACIA 1 », « ACIA1 »,
+« Ets ACIA1 », avec ou sans RCCM, avec ou sans IFU) : un employeur tapé à la main
+reste tel quel, le jour où le comptable en nommera un autre.
+
+**La migration de la RAISON ne sème plus l'employeur.** Elle le posait à ACIA 1 ;
+sur un poste qui n'a pas encore joué celle du 10, elle l'aurait fait revenir et
+la bascule aurait dû le défaire derrière.
+
+**CE QUI NE BOUGE PAS :**
+- les pièces DÉJÀ signées gardent leur entité (`Piece.entite`) ;
+- un document daté d'avant le 10 octobre se réimprime avec la raison de ce
+  jour-là (`raisonAvant`) ;
+- **ACIA 1 n'est pas effacé** : autre établissement, toujours vivant, il garde
+  son entité au Secrétariat, ses numéros et ses papiers. Il n'emploie plus
+  l'équipe, c'est tout.
+
+**RESTE EN SUSPENS, non touché volontairement :** `MOMO_MARCHAND_DEFAUT` vaut
+encore `Ets ACIA1` (equipe/data.ts). C'est le nom du compte MARCHAND Mobile
+Money, celui que l'opérateur affiche sur le téléphone de la cliente quand elle
+paie. Le changer dans le code ne le change pas chez MTN ni Moov : le reçu
+annoncerait un nom que la cliente ne verrait pas. À basculer le jour où le
+compte marchand sera lui-même au nom de Maison MND.
+
+Harnais : `verifie-l-identite-de-la-maison` (108 contrôles) porte la nouvelle
+règle, section D.
+
 ## Publier : `node scripts/publie.mjs` — jamais à la main
 
 `dist-sites/` vit dans OneDrive, **qui verrouille un fichier le temps de le

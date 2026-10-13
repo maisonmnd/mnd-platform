@@ -13,6 +13,7 @@ import { useBranch } from '../../../../shared/branches';
 import { currencyByCode } from '../../../../shared/geo';
 import { useSettings, type DayHours } from '../../../../shared/settings';
 import { seuilsPropres, type SeuilsDePalier } from '../../../../shared/paliers';
+import { RAISON_MAISON_MND } from '../../../../shared/registre';
 import { useSegments, renameSegment, clientsStore, useClients } from '../../../../shared/clients';
 import { bilanDesPhotos, enVignette, photoTropLourde, poidsLisible } from '../../../../shared/photo';
 import { useServices, servicesStore } from '../../../../shared/catalog';
@@ -1565,14 +1566,15 @@ export default function Parametres() {
               aria-label="Raison sociale"
             />
           </EditRow>
-          {/* L'EMPLOYEUR, SÉPARÉ DE LA RAISON — 10 octobre 2026. La raison est
-              passée au registre de Maison MND ; l'employeur de l'équipe n'a
-              pas changé, c'est au comptable d'en décider. */}
-          <EditRow l="Employeur de l’équipe" sub="Nommé au règlement intérieur, aux lettres du prêt et aux pièces d’employeur du Secrétariat. Il reste ACIA 1 tant que le comptable n’a rien décidé.">
+          {/* L'EMPLOYEUR, SÉPARÉ DE LA RAISON — champ ouvert le 10 octobre 2026
+              précisément pour pouvoir basculer sans toucher à la raison, puis
+              basculé le 13 : l'équipe est employée par la Maison. Le champ
+              reste libre, le code ne contredira pas le comptable. */}
+          <EditRow l="Employeur de l’équipe" sub="Nommé au règlement intérieur, aux lettres du prêt et aux pièces d’employeur du Secrétariat. Les pièces déjà signées gardent l’employeur de leur jour.">
             <input
               className="sys-input"
               value={identity.employeur ?? ''}
-              placeholder="ACIA 1 · RCCM RB/COT/12 A 14509"
+              placeholder={RAISON_MAISON_MND}
               onChange={(e) => setIdent('employeur', e.target.value)}
               aria-label="Employeur de l’équipe"
             />

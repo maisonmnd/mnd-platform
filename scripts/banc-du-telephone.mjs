@@ -30,7 +30,26 @@ if (!existsSync(path.join(construit, 'trone.html'))) {
   console.error(`Pas de Trone construit dans ${construit}. Voir l'en-tete du script.`);
   process.exit(2);
 }
-const L = 390, H = 844;
+/* LES TAILLES ÉPROUVÉES — le couché ajouté le 13 octobre 2026.
+
+   Ce banc ne regardait qu'un téléphone DEBOUT, et c'est pourquoi il a laissé
+   passer la quatrième demande de Yéman : « je me perds entre la liste et le
+   fil ». Un téléphone COUCHÉ fait 844 px de large, une tablette debout 810 ou
+   820 — au-dessus du seuil de 760 px où s'arrêtait le traitement téléphone,
+   en dessous des 900 px où la grille passe à une colonne. Dans cette bande,
+   la liste et le fil s'EMPILAIENT : le fil naissait à 581 px de haut sur un
+   écran de 390, donc hors de l'écran, et ouvrir une conversation ne faisait
+   rien de visible.
+
+   On ne tourne pas le téléphone pour écrire, mais on le tourne pour LIRE, et
+   une tablette se tient debout : un écran qu'on ne peut pas éprouver couché
+   est un écran dont on ignore la moitié des largeurs. */
+const TAILLES = [
+  { cle: 'debout', nom: 'telephone debout', L: 390, H: 844 },
+  { cle: 'couche', nom: 'telephone couche', L: 844, H: 390 },
+  { cle: 'tablette', nom: 'tablette debout', L: 820, H: 1180 },
+];
+let L = TAILLES[0].L, H = TAILLES[0].H;
 
 /* Une Maison factice : des fiches, et des fils WhatsApp de chaque sorte. */
 const ilYA = (min) => new Date(Date.now() - min * 60000).toISOString();
@@ -86,7 +105,7 @@ ws.addEventListener('message', (e) => {
 const cdp = (method, params = {}) => new Promise((r) => { const n = ++id; enCours.set(n, r); ws.send(JSON.stringify({ id: n, method, params })); });
 const evalue = async (expr) => (await cdp('Runtime.evaluate', { expression: expr, returnByValue: true, awaitPromise: true })).result?.result?.value;
 await cdp('Runtime.enable');
-await cdp('Emulation.setDeviceMetricsOverride', { width: L, height: H, deviceScaleFactor: 2, mobile: true });
+/* La taille se pose taille par taille, plus bas : elle change à chaque passe. */
 await cdp('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 5 });
 await cdp('Emulation.setEmulatedMedia', { features: [{ name: 'hover', value: 'none' }, { name: 'pointer', value: 'coarse' }] });
 
@@ -113,6 +132,10 @@ const RELEVE = `(() => {
   const boite = (s) => { const e = document.querySelector(s); if (!e || !visible(e)) return null; const r = e.getBoundingClientRect(); return { haut: Math.round(r.top), bas: Math.round(r.bottom), gauche: Math.round(r.left), droite: Math.round(r.right) }; };
   return { largeur: document.documentElement.scrollWidth, dehors,
     fil: boite('.trc-convs.a-fil .trc-convs__fil'), saisie: boite('.trc-convs.a-fil .trc-saisie'),
+    /* La mesure rend null quand l'element est masque : c'est ce qu'on attend
+       de la liste tant qu'un fil est ouvert sur une colonne unique.
+       (Pas d'accent grave ici : on est dans un litteral a accents graves.) */
+    boite: boite('.trc-convs.a-fil .trc-convs__boite'),
     envoyer: (() => { const b = [...document.querySelectorAll('.trc-saisie button')].find((x) => /envoyer|envoi/i.test(x.textContent)); if (!b) return null; const r = b.getBoundingClientRect(); return { haut: Math.round(r.top), bas: Math.round(r.bottom), gauche: Math.round(r.left), droite: Math.round(r.right) }; })(),
     nouveau: boite('.trc-nouveau') };
 })()`;
@@ -130,24 +153,40 @@ const ECRANS = [
   { route: 'conversations?n=2290151000001', nom: 'un fil a la fenetre ouverte', fil: true, envoyer: true },
   { route: 'conversations?n=2290151000002', nom: 'un fil a la fenetre fermee', fil: true },
 ];
-await cdp('Page.navigate', { url: `http://127.0.0.1:${port}/trone.html#/${ECRANS[0].route}` });
-await attend(7000);
-for (const [i, e] of ECRANS.entries()) {
-  if (i > 0) { await evalue(`location.hash = '#/${e.route}'`); await attend(2500); }
-  const r = await evalue(RELEVE);
-  if (!r) { dit(`${e.nom} : l ecran se lit`, false, 'aucun releve'); continue; }
-  dit(`${e.nom} : la page ne glisse pas de cote`, r.largeur <= L, `${r.largeur} px pour ${L}`);
-  dit(`${e.nom} : rien ne depasse a droite`, r.dehors.length === 0, r.dehors.join(', ') || 'rien');
-  if (e.fil) {
-    dit(`${e.nom} : le fil tient dans l ecran`, dedans(r.fil), dire(r.fil));
-    dit(`${e.nom} : la saisie aussi`, dedans(r.saisie), dire(r.saisie));
-  } else {
-    dit(`${e.nom} : « Nouvelle conversation » est a l ecran`, dedans(r.nouveau), dire(r.nouveau));
-  }
-  if (e.envoyer) dit(`${e.nom} : « Envoyer » est a l ecran`, dedans(r.envoyer), dire(r.envoyer));
-  if (capture) {
-    const img = await cdp('Page.captureScreenshot', { format: 'png' });
-    writeFileSync(`${capture}-${i}.png`, Buffer.from(img.result.data, 'base64'));
+let premier = true;
+for (const t of TAILLES) {
+  L = t.L; H = t.H;
+  await cdp('Emulation.setDeviceMetricsOverride', { width: L, height: H, deviceScaleFactor: 2, mobile: true });
+  /* On recharge à chaque taille : la page se remet en place comme si on
+     l'ouvrait à cette largeur, plutôt que de garder l'état de la précédente.
+     La Maison factice n'est semée qu'au premier chargement, elle tient dans
+     le localStorage du profil pour les suivants. */
+  await cdp('Page.navigate', { url: `http://127.0.0.1:${port}/trone.html#/${ECRANS[0].route}` });
+  await attend(premier ? 7000 : 4000);
+  premier = false;
+  for (const [i, e] of ECRANS.entries()) {
+    if (i > 0) { await evalue(`location.hash = '#/${e.route}'`); await attend(2500); }
+    const nom = `${t.nom} · ${e.nom}`;
+    const r = await evalue(RELEVE);
+    if (!r) { dit(`${nom} : l ecran se lit`, false, 'aucun releve'); continue; }
+    dit(`${nom} : la page ne glisse pas de cote`, r.largeur <= L, `${r.largeur} px pour ${L}`);
+    dit(`${nom} : rien ne depasse a droite`, r.dehors.length === 0, r.dehors.join(', ') || 'rien');
+    if (e.fil) {
+      dit(`${nom} : le fil tient dans l ecran`, dedans(r.fil), dire(r.fil));
+      dit(`${nom} : la saisie aussi`, dedans(r.saisie), dire(r.saisie));
+      /* LA LISTE ET LE FIL NE COHABITENT PAS quand la grille n'a qu'une
+         colonne : c'est la panne du 13 octobre, et c'est elle qu'on garde
+         sous surveillance. Au-delà de 900 px, les deux colonnes sont la
+         bonne réponse et la boîte doit rester là. */
+      if (L <= 900) dit(`${nom} : la liste s efface derriere le fil`, r.boite === null, dire(r.boite));
+    } else {
+      dit(`${nom} : « Nouvelle conversation » est a l ecran`, dedans(r.nouveau), dire(r.nouveau));
+    }
+    if (e.envoyer) dit(`${nom} : « Envoyer » est a l ecran`, dedans(r.envoyer), dire(r.envoyer));
+    if (capture) {
+      const img = await cdp('Page.captureScreenshot', { format: 'png' });
+      writeFileSync(`${capture}-${t.cle}-${i}.png`, Buffer.from(img.result.data, 'base64'));
+    }
   }
 }
 dit('aucune erreur dans la page', erreurs.length === 0, erreurs.slice(0, 3).join(' | ') || 'aucune');

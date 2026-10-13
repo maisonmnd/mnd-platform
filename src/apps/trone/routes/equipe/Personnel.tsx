@@ -1945,8 +1945,10 @@ export default function Personnel() {
           qualiteSignataire="Reçu un exemplaire, lu et approuvé :"
           fichier={`reglement-interieur-${reglementFor.name.split(' ')[0].toLowerCase()}.pdf`}
           contrat={texteReglementInterieur({
-            /* L'EMPLOYEUR, pas la raison des factures (10 octobre 2026) : il
-               reste ACIA 1 tant que le comptable n'a rien décidé. */
+            /* L'EMPLOYEUR, pas la raison des factures (10 octobre 2026) :
+               depuis le 13 octobre, c'est la Maison. Les deux restent deux
+               champs : la raison signe les pièces de vente, l'employeur les
+               pièces de l'équipe, et rien n'oblige à les confondre. */
             maison: maisonNom(), raison: maisonEmployeur(), ville: maisonVille(),
             nom: reglementFor.name, fonction: reglementFor.role,
             jourIso: new Date().toISOString().slice(0, 10),

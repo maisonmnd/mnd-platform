@@ -28,7 +28,7 @@ import { createHash } from 'node:crypto';
 import { readFileSync, existsSync } from 'node:fs';
 import path from 'node:path';
 import {
-  corrigeLaRaisonACIA, DEFAULT_IDENTITY, houseIdentityStore, maisonEmployeur, maisonRaisonAu, maisonRaisonDuPdfAu, migreLaRaisonDeLaMaison, migreLIdentite,
+  corrigeLaRaisonACIA, corrigeLEmployeurACIA, DEFAULT_IDENTITY, houseIdentityStore, maisonEmployeur, maisonRaisonAu, maisonRaisonDuPdfAu, migreLaRaisonDeLaMaison, migreLEmployeur, migreLEmployeurDeLEquipe, migreLIdentite,
   type HouseIdentity,
 } from '../src/shared/identite';
 import { ACIA, corrigeLesMentionsMND, enTeteDe } from '../src/shared/secretariat-pur';
@@ -187,7 +187,11 @@ for (const v of [NOUVELLE, 'MND SARL', 'ACIA 10', 'ACIA 1 Group', 'ACIA 1 · RCC
   dit(`B. « ${String(v)} » reste`, null, corrigeLaRaisonACIA(v));
 }
 const fiche: HouseIdentity = { ...DEFAULT_IDENTITY, raison: ANCIENNE, employeur: undefined };
-dit('B. la raison migree, l employeur garde l ancienne a la lettre', [NOUVELLE, ANCIENNE],
+/* 13 octobre 2026 : la migration de la RAISON ne seme plus l employeur. Elle
+   le posait a ACIA 1 quand l equipe y etait encore employee ; depuis la
+   bascule de l employeur, le semer le ferait revenir sur tout poste qui n a
+   pas encore joue celle du 10, et la bascule devrait le defaire derriere. */
+dit('B. la raison migree ne touche plus a l employeur', [NOUVELLE, undefined],
   (() => { const m = migreLIdentite(fiche); return [m?.raison, m?.employeur]; })());
 dit('B. un employeur deja pose est garde', 'NYM SARL', migreLIdentite({ ...fiche, employeur: 'NYM SARL' })?.employeur);
 const VARIANTE = 'Ets ACIA1 · RCCM RB/COT/12 A 14509 · IFU 3 2012 0054 8614';
@@ -235,10 +239,25 @@ dit('C. Maison MND garde l ancien cachet et gagne celui du registre', [true, tru
 ]);
 
 /* ══ D. L'EMPLOYEUR, ET LES DOCUMENTS D'AVANT ═════════════════════════ */
-dit('D. l employeur par defaut reste ACIA 1', ANCIENNE, maisonEmployeur());
+/* 13 OCTOBRE 2026 : « plus d ACIA 1 » (Yeman). L equipe est employee par la
+   Maison. Le champ reste libre aux Parametres : le code ne contredira pas le
+   comptable le jour ou il nommera autre chose. */
+dit('D. l employeur par defaut est la Maison', NOUVELLE, maisonEmployeur());
 houseIdentityStore.set({ ...DEFAULT_IDENTITY, employeur: undefined });
-dit('D. une fiche sans employeur dit ACIA 1', ANCIENNE, maisonEmployeur());
+dit('D. une fiche sans employeur dit la Maison', NOUVELLE, maisonEmployeur());
+houseIdentityStore.set({ ...DEFAULT_IDENTITY, employeur: 'NYM SARL' });
+dit('D. un employeur pose a la main est servi tel quel', 'NYM SARL', maisonEmployeur());
 houseIdentityStore.set({ ...DEFAULT_IDENTITY });
+/* La bascule de l employeur : seul un ACIA 1 CONNU se remplace. */
+for (const v of [ANCIENNE, 'ACIA 1', 'ACIA1', 'Ets ACIA1', 'Ets. ACIA 1 · RCCM RB/COT/12 A 14509 · IFU 3 2012 0054 8614']) {
+  dit(`D. l employeur « ${v} » bascule`, NOUVELLE, corrigeLEmployeurACIA(v));
+}
+for (const v of [NOUVELLE, 'NYM SARL', 'ACIA 10', 'ACIA 1 Group', 'ACIA 1 · RCCM RB/COT/12 A 99999', '', null, undefined]) {
+  dit(`D. l employeur « ${String(v)} » reste`, null, corrigeLEmployeurACIA(v));
+}
+dit('D. la bascule ne touche que l employeur', [NOUVELLE, NOUVELLE, ANCIENNE],
+  (() => { const m = migreLEmployeur({ ...DEFAULT_IDENTITY, employeur: ANCIENNE, raisonAvant: ANCIENNE }); return [m?.employeur, m?.raison, m?.raisonAvant]; })());
+dit('D. une fiche deja basculee ne rebascule pas', null, migreLEmployeur({ ...DEFAULT_IDENTITY }));
 for (const rel of ['src/apps/trone/routes/equipe/Personnel.tsx', 'src/apps/trone/routes/finances/Prets.tsx', 'src/apps/trone/routes/finances/lettres-du-pret.ts']) {
   const s = sansCommentaires(rel);
   dit(`D. ${path.basename(rel)} nomme l employeur, pas la raison`, [true, false], [s.includes('maisonEmployeur()'), s.includes('maisonRaison(')]);
@@ -319,12 +338,28 @@ houseIdentityStore.set({ ...DEFAULT_IDENTITY, raison: ANCIENNE, employeur: undef
 migreLaRaisonDeLaMaison();
 await new Promise((r) => setTimeout(r, 5600));
 const apres = houseIdentityStore.get();
-dit('B. au demarrage, la fiche ACIA 1 passe au registre, l employeur garde ACIA 1', [NOUVELLE, ANCIENNE, true],
+/* 13 octobre 2026 : la migration de la raison laisse l employeur intact (il
+   bascule par la sienne, ci-dessous). Une fiche sans employeur dit donc la
+   Maison, par le repli de `maisonEmployeur`. */
+dit('B. au demarrage, la fiche ACIA 1 passe au registre, sans toucher l employeur', [NOUVELLE, undefined, true],
   [apres.raison, apres.employeur, !!localStorage.getItem('mnd_raison_maison_2026_10')]);
 houseIdentityStore.set({ ...DEFAULT_IDENTITY, raison: ANCIENNE });
 migreLaRaisonDeLaMaison();
 await new Promise((r) => setTimeout(r, 300));
 dit('B. une fois marque, le poste ne rejoue plus la migration', ANCIENNE, houseIdentityStore.get().raison);
+
+/* La bascule de l EMPLOYEUR au demarrage — 13 octobre 2026. Meme forme : une
+   fois, marquee, et le second passage ne rejoue rien. */
+houseIdentityStore.set({ ...DEFAULT_IDENTITY, employeur: ANCIENNE });
+migreLEmployeurDeLEquipe();
+await new Promise((r) => setTimeout(r, 5600));
+const apresEmp = houseIdentityStore.get();
+dit('D. au demarrage, l employeur ACIA 1 passe a la Maison', [NOUVELLE, NOUVELLE, true],
+  [apresEmp.employeur, apresEmp.raison, !!localStorage.getItem('mnd_employeur_maison_2026_10')]);
+houseIdentityStore.set({ ...DEFAULT_IDENTITY, employeur: ANCIENNE });
+migreLEmployeurDeLEquipe();
+await new Promise((r) => setTimeout(r, 300));
+dit('D. une fois marque, le poste ne rebascule plus l employeur', ANCIENNE, houseIdentityStore.get().employeur);
 
 console.log(ko === 0 ? '\nL identite de la Maison tient.' : `\n${ko} ECHEC(S).`);
 process.exit(ko === 0 ? 0 : 1);
