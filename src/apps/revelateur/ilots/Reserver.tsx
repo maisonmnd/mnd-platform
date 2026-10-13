@@ -8,6 +8,7 @@ import {
   type AgendaDeLaMaison, type PrestationPublique,
 } from '../agenda';
 import { porteDuBesoin, type Besoin } from '../../../shared/qualification';
+import { CIVILITES, type Civilite } from '../../../shared/civilite';
 import { fmtMoney } from '../../../shared/currency';
 import type { CreneauOccupe } from '../../../shared/agenda-pur';
 import {
@@ -325,6 +326,10 @@ function Calendrier({ besoin: besoinInitial, initiales, surLaPorte }: Props) {
      se signale au champ (11 octobre 2026, maquette validée). */
   const [indicatif, setIndicatif] = useState('+229');
   const [pourQui, setPourQui] = useState<'moi' | 'enfant' | 'autre'>('moi');
+  /* LA CIVILITÉ — 13 octobre 2026 : rien de choisi d'avance, la Maison ne
+     suppose plus Madame. */
+  const [civilite, setCivilite] = useState<Civilite | ''>('');
+  const [civiliteManque, setCiviliteManque] = useState(false);
   const [numeroInvalide, setNumeroInvalide] = useState(false);
   /* LE DIAGNOSTIC DE LA VISITEUSE, s'il vient de cette porte (11 octobre
      2026) : il se pose dans « Un mot », visible, et se retire d'un geste. */
@@ -428,6 +433,7 @@ function Calendrier({ besoin: besoinInitial, initiales, surLaPorte }: Props) {
     setRetourPose(true);
     if (!moi) return;
     setPrenom((p) => p || moi.prenom);
+    setCivilite((c) => c || moi.civilite || '');
     setNumero((n) => n || moi.numero);
     if (consultation || prepare.gestes.length > 0) return;
     const ok = moi.serviceIds.every((id) => prestations.some((x) => x.id === id));
@@ -576,6 +582,7 @@ function Calendrier({ besoin: besoinInitial, initiales, surLaPorte }: Props) {
     oublieLaCliente();
     setMoi(null);
     setPrenom('');
+    setCivilite('');
     setNumero('');
     autreChose();
     surLaPorte?.();
@@ -602,6 +609,12 @@ function Calendrier({ besoin: besoinInitial, initiales, surLaPorte }: Props) {
   const envoyer = async (e: FormEvent) => {
     e.preventDefault();
     if (envoi || !heure || !jour || serviceIds.length === 0) return;
+    if (!civilite) {
+      setErreur(f.erreurCivilite);
+      setCiviliteManque(true);
+      try { (document.querySelector('#res-civilite + .calibres__choix button') as HTMLButtonElement | null)?.focus(); } catch { /* sans focus */ }
+      return;
+    }
     if (numero.replace(/\D/g, '').length < 8) {
       setErreur(f.erreurNumero);
       setNumeroInvalide(true);
@@ -618,7 +631,7 @@ function Calendrier({ besoin: besoinInitial, initiales, surLaPorte }: Props) {
         body: {
           genre: 'rdv',
           data: {
-            prenom, telephone: numero, besoin, mot,
+            prenom, civilite, telephone: numero, besoin, mot,
             /* LE CODE VOYAGE, LE POURCENTAGE NON : c'est au serveur de
                résoudre le code contre les offres de la Maison. Un
                navigateur à qui l'on demanderait sa propre remise
@@ -687,7 +700,7 @@ function Calendrier({ besoin: besoinInitial, initiales, surLaPorte }: Props) {
       });
       /* Le téléphone la retient pour la prochaine fois : prénom, numéro,
          gestes, calibre. Jamais le maître, jamais le code. */
-      retiensLaCliente({ prenom, numero, serviceIds, calibreId, besoin });
+      retiensLaCliente({ prenom, ...(civilite ? { civilite } : {}), numero, serviceIds, calibreId, besoin });
       /* Le diagnostic a fait son travail : il ne suit plus. */
       oublieLeDiagnostic();
       mesure('reservation_demandee', { parcours: besoin, genre: 'rdv', chemin: retour ? 'retour' : composer ? 'composer' : 'formule' });
@@ -1266,6 +1279,19 @@ function Calendrier({ besoin: besoinInitial, initiales, surLaPorte }: Props) {
               ))}
             </div>
             {pourQui !== 'moi' && <small>{f.pourQuiAide}</small>}
+          </div>
+          {/* LA CIVILITÉ — 13 octobre 2026 : « la réservation du site suppose
+              que tout le monde est Madame » (Yéman). La sienne, celle de qui
+              écrit le prénom ci-dessous ; la Maison écrit « Monsieur … ». */}
+          <div className="champ">
+            <span className="champ__titre" id="res-civilite">{f.civilite}</span>
+            <div className="calibres__choix" role="group" aria-labelledby="res-civilite">
+              {CIVILITES.map(({ cle, dit: mot }) => (
+                <button type="button" key={cle} className={`calibre${civilite === cle ? ' est-choisi' : ''}`} aria-pressed={civilite === cle}
+                  onClick={() => { setCivilite(cle); if (civiliteManque) { setCiviliteManque(false); setErreur(null); } }}>{mot}</button>
+              ))}
+            </div>
+            {civiliteManque && <small role="alert">{f.erreurCivilite}</small>}
           </div>
           <div className="deux-champs">
             <div className="champ"><label htmlFor="res-prenom">{f.prenom}</label><input id="res-prenom" name="prenom" autoComplete="given-name" value={prenom} onChange={(e) => setPrenom(e.target.value)} /></div>

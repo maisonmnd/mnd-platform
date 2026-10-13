@@ -299,6 +299,20 @@ const memePrenom = (nom: string | undefined, prenom: string | undefined): boolea
   return a !== '' && a === premier(prenom);
 };
 
+/** LA CIVILITÉ CHOISIE SUR LE SITE VA À UNE FICHE MUETTE (13 octobre 2026),
+    si le prénom est le sien : une fiche qui dit déjà Madame ou Monsieur
+    garde ce que la Maison y a mis, et la fiche d'une mère ne devient pas
+    celle du fils qui a réservé de son téléphone. `null` : rien à poser. */
+export function civiliteAPoser(
+  fiche: (Pick<Client, 'name'> & Partial<Pick<Client, 'civilite' | 'auMasculin'>>) | undefined,
+  demande: Pick<Demande, 'prenom' | 'civilite'>,
+): Civilite | null {
+  const civ = demande.civilite;
+  if (!fiche || !civ || !CIVILITES.some((c) => c.cle === civ)) return null;
+  if (fiche.civilite || fiche.auMasculin) return null;
+  return memePrenom(fiche.name, demande.prenom) ? civ : null;
+}
+
 export function rattachementsAFaire(
   appts: readonly { id: string; status: string; clientId?: string }[],
   demandes: readonly Demande[],

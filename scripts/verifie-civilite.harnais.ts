@@ -87,5 +87,22 @@ return appelDe;`)() as any;
     /onClick=\{\(\) => patch\(ficheAvecCivilite\(x\.cle\)\)\}/.test(fiche) && /\.\.\.ficheAvecCivilite\(civilite\),/.test(fiche));
 }
 
+/* ── 4. La reservation du site (13 octobre 2026) : « on suppose que tout le
+   monde est Madame ». La civilite se choisit, rien d'avance, et voyage. ── */
+{
+  const lit2 = (f: string) => readFileSync(f, 'utf8').replace(/\r\n/g, '\n');
+  const page = lit2('src/apps/revelateur/ilots/Reserver.tsx');
+  const fn = lit2('supabase/functions/demande-submit/index.ts');
+  const crochet = lit2('src/apps/trone/shell/useRattacheLesReservations.ts');
+  dit('le site : rien de choisi d avance, Madame, Mademoiselle, Monsieur, et l envoi l exige', [true, true, true],
+    [/useState<Civilite \| ''>\(''\)/.test(page), /CIVILITES\.map\(\(\{ cle, dit: mot \}\)/.test(page), /if \(!civilite\) \{\n\s*setErreur\(f\.erreurCivilite\);/.test(page)]);
+  dit('le site envoie la civilite avec le prenom', true, /prenom, civilite, telephone: numero/.test(page));
+  dit('la fonction lit trois valeurs seulement, la garde sur la demande, et l accuse la dit', [true, true, true],
+    [fn.includes("const civilite = d.civilite === 'madame' || d.civilite === 'mademoiselle' || d.civilite === 'monsieur' ? String(d.civilite) : '';"),
+      fn.includes('    prenom,\n    ...(civilite ? { civilite } : {}),\n'), fn.includes('const prenom = appelDe(o.civilite ? { civilite: o.civilite } : null, o.prenom);')]);
+  dit('... et l accuse la recoit', true, fn.includes('apptId, demandeId: id, branchId, prenom, telephone, ...(civilite ? { civilite } : {}),'));
+  dit('le Trone pose la civilite choisie sur une fiche muette du meme prenom', true, /civiliteAPoser\(fiche, r\.demande\)/.test(crochet) && /\.\.\.ficheAvecCivilite\(civ\)/.test(crochet));
+}
+
 console.log(ko === 0 ? '\nLa Maison dit Madame Naffi.' : `\n${ko} controle(s) en echec.`);
 process.exit(ko === 0 ? 0 : 1);

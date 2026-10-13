@@ -1,7 +1,8 @@
 import { useEffect } from 'react';
 import { useAppointments, appointmentsStore } from '../../../shared/agenda';
 import { useClients, clientsStore, ensureInitiePersona } from '../../../shared/clients';
-import { useDemandes, demandesStore, rattachementsAFaire, ficheDepuisLaDemande } from '../../../shared/demandes';
+import { useDemandes, demandesStore, rattachementsAFaire, ficheDepuisLaDemande, civiliteAPoser } from '../../../shared/demandes';
+import { ficheAvecCivilite, type Civilite } from '../../../shared/civilite';
 import { useAuth } from '../../../shared/auth';
 import { tablePrete } from '../../../shared/sync';
 import { supabase } from '../../../shared/supabase';
@@ -56,6 +57,21 @@ export function useRattacheLesReservations(): void {
           const add = aCreer.filter((f) => !have.has(f.id));
           return add.length ? [...prev, ...add] : prev;
         });
+      }
+      /* UNE FICHE MUETTE PREND LA CIVILITÉ CHOISIE SUR LE SITE (13 octobre
+         2026), si le prénom est le sien ; une main qui l'a réglée entre-temps
+         a le dernier mot. */
+      const aRegler = new Map<string, Civilite>();
+      for (const r of aFaire) {
+        const fiche = r.ficheExistante ? clients.find((c) => c.id === r.ficheExistante!.id) : undefined;
+        const civ = civiliteAPoser(fiche, r.demande);
+        if (fiche && civ) aRegler.set(fiche.id, civ);
+      }
+      if (aRegler.size > 0) {
+        gardeLEcriture('réservations', clientsStore).set((prev) => prev.map((c) => {
+          const civ = aRegler.get(c.id);
+          return civ && !c.civilite && !c.auMasculin ? { ...c, ...ficheAvecCivilite(civ) } : c;
+        }));
       }
       const ficheDe = new Map(aFaire.map((r) => [
         r.apptId,

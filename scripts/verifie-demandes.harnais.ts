@@ -11,7 +11,7 @@
 import { readFileSync } from 'node:fs';
 import {
   telephoneNormalise, telephoneMasque, demandesTriees, doublonDe, messageDeRappel,
-  ficheDepuisLaDemande, ditLeBesoin, depuisQuand, rattachementsAFaire, genreEnBase, dansLeFiltre, type Demande,
+  ficheDepuisLaDemande, ditLeBesoin, depuisQuand, rattachementsAFaire, genreEnBase, dansLeFiltre, civiliteAPoser, type Demande,
 } from '../src/shared/demandes';
 import { porteLaDevise, signeLeMessage, DEVISE_COMPLETE } from '../src/shared/identite';
 
@@ -193,6 +193,18 @@ dit('supprimer demande confirmation, et efface la demande seule', true,
 
 /* LE VERDICT EN DERNIER (4 octobre 2026) : il tombait avant le genre, et un
    échec dans ce qui suivait sortait quand même en succès. */
+/* ── LA CIVILITÉ CHOISIE SUR LE SITE (13 octobre 2026) ───────────────
+   « On suppose que tout le monde est Madame » : un monsieur réserve, sa
+   fiche née de la demande dit Monsieur ; une fiche muette du même prénom
+   le devient ; une fiche déjà réglée, ou celle d'un autre prénom, non. */
+dit('une fiche née d’une réservation du site porte la civilité choisie', { civilite: 'monsieur', auMasculin: true },
+  (({ civilite, auMasculin }) => ({ civilite, auMasculin }))(ficheDepuisLaDemande(demande({ prenom: 'Koffi', civilite: 'monsieur' }), 'p-initie')));
+dit('une fiche muette du même prénom prend la civilité', 'monsieur', civiliteAPoser({ name: 'Koffi Adjovi' }, { prenom: 'koffi', civilite: 'monsieur' }));
+dit('une fiche déjà réglée garde la sienne', null, civiliteAPoser({ name: 'Koffi Adjovi', civilite: 'madame' }, { prenom: 'Koffi', civilite: 'monsieur' }));
+dit('une fiche marquée au masculin aussi', null, civiliteAPoser({ name: 'Koffi Adjovi', auMasculin: true }, { prenom: 'Koffi', civilite: 'mademoiselle' }));
+dit('la fiche d’un autre prénom (la mère du même téléphone) ne change pas', null, civiliteAPoser({ name: 'Awa Adjovi' }, { prenom: 'Koffi', civilite: 'monsieur' }));
+dit('rien de choisi, rien de posé', null, civiliteAPoser({ name: 'Koffi Adjovi' }, { prenom: 'Koffi' }));
+
 if (ko) {
   console.error(`\n${ko} vérification(s) en échec.`);
   process.exit(1);

@@ -242,6 +242,10 @@ export const COMMUN: Commun = {
     /* POUR QUI — deux têtes du même numéro à la même heure sont deux venues. */
     pourQui: [['moi', 'Moi'], ['enfant', 'Mon enfant'], ['autre', 'Quelqu’un d’autre']],
     pourQuiAide: 'Son prénom dans le mot, et le vôtre ci-dessous : c’est vous que la Maison appelle.',
+    /* LA CIVILITÉ — 13 octobre 2026 : la Maison écrivait « Madame » à tout le
+       monde, un monsieur compris. Elle se choisit, comme au Trône. */
+    civilite: 'Civilité',
+    erreurCivilite: 'Dites-nous comment vous appeler : Madame, Mademoiselle ou Monsieur.',
     /* AVANT DE VENIR, UNE LIGNE PAR PORTE — 11 octobre 2026, validées par
        Yéman au sélecteur, telles quelles. Chaque phrase ne dit que ce que le
        site affirme ailleurs (les lavages clarifiants avant une pose, le

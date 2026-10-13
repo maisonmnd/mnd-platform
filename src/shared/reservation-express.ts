@@ -125,6 +125,8 @@ export const CLE_MEMOIRE_DU_SITE = 'mnd_site_moi';
 
 export type MemoireDuSite = {
   prenom: string;
+  /** Retenue depuis le 13 octobre 2026 ; absente d'une mémoire plus ancienne. */
+  civilite?: 'madame' | 'mademoiselle' | 'monsieur';
   numero: string;
   serviceIds: string[];
   calibreId: string;
@@ -142,6 +144,7 @@ export function memoireLue(brut: string | null | undefined): MemoireDuSite | nul
     if (numero.replace(/\D/g, '').length < 8 || ids.length === 0) return null;
     return {
       prenom: String(m.prenom ?? '').slice(0, 60),
+      ...(m.civilite === 'madame' || m.civilite === 'mademoiselle' || m.civilite === 'monsieur' ? { civilite: m.civilite } : {}),
       numero: numero.slice(0, 30),
       serviceIds: ids.slice(0, 6),
       calibreId: String(m.calibreId ?? ''),
@@ -153,6 +156,7 @@ export function memoireLue(brut: string | null | undefined): MemoireDuSite | nul
 /** Ce qui s'écrit, et seulement cela : pas de maître, pas de code, pas de mot. */
 export const memoireAEcrire = (m: MemoireDuSite): string => JSON.stringify({
   prenom: m.prenom.trim().slice(0, 60),
+  ...(m.civilite ? { civilite: m.civilite } : {}),
   numero: m.numero.trim().slice(0, 30),
   serviceIds: m.serviceIds.slice(0, 6),
   calibreId: m.calibreId,

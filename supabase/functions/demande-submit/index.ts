@@ -181,7 +181,7 @@ const admin = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: 
 /** La version de ce fichier : ouvrir l'adresse de la fonction la dit (405),
     pour ne jamais chercher une panne dans un fichier qui n'est pas celui
     qu'on croit déployé. */
-const VERSION = '2026-10-11-a · repond des la place posee, dit l accuse, pour qui, un doublon qui tient';
+const VERSION = '2026-10-13-a · la civilite choisie sur le site : plus jamais Madame d office';
 
 /** `EdgeRuntime.waitUntil`, s'il existe (la même garde que le webhook) : ce
     qui n'a pas besoin d'être attendu continue après la réponse. Sans lui, la
@@ -1556,6 +1556,8 @@ const jourEnClair = (iso: string): string => {
 async function envoieLAccuse(o: {
   apptId?: string; demandeId: string; branchId: string; prenom: string; telephone: string;
   quand: string; date?: string; time?: string;
+  /** La civilité qu'elle a choisie sur le site (13 octobre 2026). */
+  civilite?: string;
 }): Promise<string> {
   const WA_TOKEN = Deno.env.get('WA_TOKEN');
   const WA_PHONE_ID = Deno.env.get('WA_PHONE_ID');
@@ -1566,8 +1568,10 @@ async function envoieLAccuse(o: {
      en E.164 (telephoneNormalise). */
   const tel = o.telephone.replace(/\D/g, '');
   if (!tel) return 'sans-numero';
-  /* Une visiteuse du site n'a pas de fiche : Madame, comme toute fiche muette. */
-  const prenom = appelDe(null, o.prenom);
+  /* LA CIVILITÉ QU'ELLE A CHOISIE (13 octobre 2026) : « ce n'est pas une
+     Madame, c'est un Monsieur » (Yéman). Rien de choisi (une ancienne
+     page) : Madame, comme toute fiche muette. */
+  const prenom = appelDe(o.civilite ? { civilite: o.civilite } : null, o.prenom);
   const quand = o.quand;
 
   let statut = 'échec';
@@ -1681,6 +1685,9 @@ Deno.serve(async (req) => {
   const lockCount = Math.max(0, Math.min(2000, Math.round(Number(d.lockCount) || 0)));
   const calibre = texte(d.calibre, 30);
   const prenom = texte(d.prenom, 60);
+  /* LA CIVILITÉ CHOISIE SUR LE SITE — 13 octobre 2026. Trois valeurs, rien
+     d'autre ; une ancienne page qui ne l'envoie pas : rien, Madame. */
+  const civilite = d.civilite === 'madame' || d.civilite === 'mademoiselle' || d.civilite === 'monsieur' ? String(d.civilite) : '';
   const email = texte(d.email, 120).toLowerCase();
   if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return json({ error: 'email' }, 400);
 
@@ -1778,6 +1785,7 @@ Deno.serve(async (req) => {
     createdAt: now,
     branchId,
     prenom,
+    ...(civilite ? { civilite } : {}),
     telephone,
     ...(email ? { email } : {}),
     besoin,
@@ -1918,7 +1926,7 @@ Deno.serve(async (req) => {
      « votre place est tenue, la Maison vous écrit », avec le bouton WhatsApp
      devant. Une place déjà tenue (deja_pose) ne reçoit pas de second accusé. */
   const envoiDeLAccuse = dejaPosee ? Promise.resolve('deja') : envoieLAccuse({
-    apptId, demandeId: id, branchId, prenom, telephone,
+    apptId, demandeId: id, branchId, prenom, telephone, ...(civilite ? { civilite } : {}),
     quand: apptId ? `${jourEnClair(date)} à ${heureLisible(time)}` : quandDeLaDemande(genre, texte(d.profil, 80)),
     ...(apptId ? { date, time } : {}),
   }).catch((e) => { console.error('demande-submit: accusé', String(e)); return 'échec'; });

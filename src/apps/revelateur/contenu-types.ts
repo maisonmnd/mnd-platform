@@ -226,6 +226,8 @@ export type Commun = {
     numeroExemple: string; numeroAide: string;
     /** « Pour qui ? » : moi, mon enfant, quelqu'un d'autre. */
     pourQui: [string, string][]; pourQuiAide: string;
+    /** La civilité (13 octobre 2026) : le titre du choix, et ce qu'on dit s'il manque. */
+    civilite: string; erreurCivilite: string;
     /** « Avant de venir », une ligne par porte, écrite par la Maison ; absente tant qu'elle n'est pas écrite. */
     avantDeVenir: Partial<Record<Besoin, string>>;
   };
