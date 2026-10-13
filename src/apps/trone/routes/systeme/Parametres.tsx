@@ -48,7 +48,7 @@ type ToggleRow = { k: string; l: string; sub: string };
    partagée. Même clé (`mnd_house_identity`) : rien à migrer. */
 import { useHouseIdentity, type HouseIdentity } from '../../../../shared/identite';
 import { ChampDeDate } from '../../../../ds/dates';
-import { reglageDeLAutomate, type ModeDeLAutomate, type ReglageDeLAutomate } from '../../../../shared/automate-wa';
+import { cleWa, reglageDeLAutomate, type ModeDeLAutomate, type ReglageDeLAutomate } from '../../../../shared/automate-wa';
 import { numeroWa } from '../../../../shared/conversations';
 import { useEstDirection } from '../_vie';
 
@@ -1134,7 +1134,7 @@ function LaMaisonRepondSurWhatsApp({ brut, ecris }: {
   const ajoute = () => {
     const n = numeroWa(saisi);
     if (n.length < 8) { toast('Ce numéro n’est pas lisible. Huit chiffres, ou le numéro complet avec son indicatif.'); return; }
-    if (r.numerosEssai.includes(n)) { toast('Ce numéro est déjà servi en essai.'); setSaisi(''); return; }
+    if (r.numerosEssai.some((x) => cleWa(x) === cleWa(n))) { toast('Ce numéro est déjà servi en essai.'); setSaisi(''); return; }
     if (r.numerosEssai.length >= 20) { toast('Vingt numéros d’essai au plus.'); return; }
     change({ numerosEssai: [...r.numerosEssai, n] });
     setSaisi('');

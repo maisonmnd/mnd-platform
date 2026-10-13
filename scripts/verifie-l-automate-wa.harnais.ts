@@ -5,7 +5,7 @@ import { createHmac } from 'node:crypto';
 import { pathToFileURL } from 'node:url';
 import {
   DEVISE, PIED, REGLAGE_LIVRE, etapeSuivante, suiteDeLaPose, tourDeLaCliente, respecteMeta, texteSain,
-  reglageDeLAutomate, numeroServi, tenuParLAutomate, silenceDeLAlarme, titreDePlace, chargeGraph, cleCourte,
+  reglageDeLAutomate, cleWa, numeroServi, tenuParLAutomate, silenceDeLAlarme, titreDePlace, chargeGraph, cleCourte,
   intentionDeReserver, jourDitAvecAnnee, quiParle, motsReconnus, civiliteLue, prenomLu, renvoieAUnRdv, uneQuestionAutre,
   type AgendaDuTour, type ContexteDuTour, type EtatDuFil, type FicheDuNumero, type MessageSortant,
   type PrestationDuTour, type ReglageDeLAutomate, type SortieDuTour, type MainDuFil, type VerdictDeLaPose,
@@ -538,6 +538,8 @@ const numeroWaF = (brut: unknown): string => {
   if (d.length === 8) return `22901${d}`;
   return d;
 };
+/* La clé pour comparer, comme `cle_du_numero_wa` (0128). */
+const cleWaF = (brut: unknown): string => { const d = numeroWaF(brut); return d.length === 13 && d.startsWith('22901') ? `229${d.slice(5)}` : d; };
 const CLE_TABLE: Record<string, string> = { documents: 'key', staff: 'user_id', push_subscriptions: 'endpoint' };
 const cleDeTable = (t: string): string => CLE_TABLE[t] ?? 'id';
 const table = (nom: string): Map<string, Any> => {
@@ -645,16 +647,16 @@ const dureeDuRdvF = (a: Any): number => {
 };
 const jourDeCotonouF = (plus = 0): string => new Date(Date.now() + 3600000 + plus * 86400000).toISOString().slice(0, 10);
 const RPC: Record<string, (a: Any, client: Any) => Any> = {
-  tete_du_numero: ({ n }) => B().tetes[numeroWaF(n)] ?? { tiroir: 'clientes' },
-  tiroir_du_numero: ({ n }) => (B().tetes[numeroWaF(n)] ?? { tiroir: 'clientes' }).tiroir,
+  tete_du_numero: ({ n }) => B().tetes[numeroWaF(n)] ?? B().tetes[cleWaF(n)] ?? { tiroir: 'clientes' },
+  tiroir_du_numero: ({ n }) => (B().tetes[numeroWaF(n)] ?? B().tetes[cleWaF(n)] ?? { tiroir: 'clientes' }).tiroir,
   is_staff: (_a, client) => /^Bearer staff/.test(client.auth ?? ''),
   est_direction: (_a, client) => /^Bearer staff-direction/.test(client.auth ?? ''),
   fiches_du_numero: ({ n }) => {
-    const num = numeroWaF(n);
+    const num = cleWaF(n);
     if (num.length < 8) return [];
     const vivants = [...table('clients').values()].filter((c) => String(c.data?.archived ?? '') !== 'true');
-    const trouvees = vivants.filter((c) => numeroWaF(c.data?.phone) === num || numeroWaF(c.data?.phone2) === num)
-      .map((c) => ({ c, parPhone: numeroWaF(c.data?.phone) === num, parFamille: false }));
+    const trouvees = vivants.filter((c) => cleWaF(c.data?.phone) === num || cleWaF(c.data?.phone2) === num)
+      .map((c) => ({ c, parPhone: cleWaF(c.data?.phone) === num, parFamille: false }));
     const fams = new Set(trouvees.map((t) => t.c.data?.familyId).filter(Boolean));
     const famille = vivants.filter((c) => fams.has(c.data?.familyId) && !trouvees.some((t) => t.c.id === c.id))
       .map((c) => ({ c, parPhone: false, parFamille: true }));
@@ -1783,7 +1785,7 @@ const regles: Regle[] = [
       { nom: 'pas de notification de repli', mute: [P(F_HOOK, '    await alerteLePersonnel(sb, repli);', '')] },
       { nom: 'l en-tete oublie que Pas de robot a change', mute: [P(F_HOOK, '   « PAS DE ROBOT » A VALU JUSQU\'À CE JOUR. Depuis, pour les CLIENTES', '   Depuis, pour les CLIENTES')] },
       { nom: 'l en-tete ne dit plus que l annulation n est jamais automatique', mute: [P(F_HOOK, "     · L'ANNULATION N'EST JAMAIS AUTOMATIQUE : elle se transmet à l'équipe ;\n", '')] },
-      { nom: 'la version du webhook n est pas celle du 9 octobre', mute: [P(F_HOOK, "const VERSION = '2026-10-10-", "const VERSION = '2026-10-08-")] },
+      { nom: 'la version du webhook n est pas celle du 9 octobre', mute: [P(F_HOOK, "const VERSION = '2026-10-13-", "const VERSION = '2026-10-08-")] },
     ],
   },
 
@@ -1884,7 +1886,7 @@ const regles: Regle[] = [
         const mauvaise = await automate(new Request(url, { method: 'POST', headers: { authorization: 'Bearer cle-service-du-banX' }, body: '{}' }));
         vrai('banc : sans la cle de service, ou avec une autre : 401, les longueurs seules', sans.status === 401 && mauvaise.status === 401 && !j(await mauvaise.json()).includes('cle-service'));
         const sante = await (await automate(new Request(url, { method: 'GET' }))).json();
-        vrai('banc : le controle de sante dit la version du 9 octobre et des longueurs, jamais le secret', /^2026-10-09/.test(sante.version) && sante.secrets?.CLE_SERVICE === ENV.CLE_SERVICE.length && !j(sante).includes(ENV.CLE_SERVICE), sante);
+        vrai('banc : le controle de sante dit sa version datee (9 octobre 2026 ou apres) et des longueurs, jamais le secret', ((/^(\d{4}-\d{2}-\d{2})/.exec(String(sante.version ?? ''))?.[1] ?? '') >= '2026-10-09') && sante.secrets?.CLE_SERVICE === ENV.CLE_SERVICE.length && !j(sante).includes(ENV.CLE_SERVICE), sante);
       });
       return ecarts;
     },
@@ -2378,6 +2380,31 @@ const regles: Regle[] = [
     pannes: [
       { nom: 'le second numero capte encore', mute: [P('src/shared/demandes.ts', "      ? clients.find((c) => !c.archived && telephoneNormalise(c.phone ?? '') === numero\n", "      ? clients.find((c) => !c.archived && (telephoneNormalise(c.phone ?? '') === numero || telephoneNormalise(c.phone2 ?? '') === numero)\n")] },
       { nom: 'sur WhatsApp, le numero suffit (sans le prenom)', mute: [P('src/shared/demandes.ts', "        && (demande.source !== 'whatsapp' || memePrenom(c.name, demande.prenom)))", '        )')] },
+    ],
+  },
+  /* ══ R31 · la clé du numéro, 13 octobre 2026 ═════════════════════════ */
+  {
+    id: 'R31', nom: 'R31 la cle du numero : 229 97 00 00 99 (Meta) et 229 01 97 00 00 99 (la fiche, la liste d essai) sont le meme numero, partout',
+    eprouve: () => {
+      const { ecarts, vaut, vrai } = juge();
+      const essai: ReglageDeLAutomate = { ...REGLAGE_LIVRE, numerosEssai: ['2290197000099'] };
+      vaut('cleWa reunit les deux formes, et laisse un numero etranger', ['22997000099', '22997000099', '22997000099', '33612345678'],
+        [cleWa('22997000099'), cleWa('+229 01 97 00 00 99'), cleWa('97000099'), cleWa('+33 6 12 34 56 78')]);
+      vaut('listee au plan de 2024, servie sous l ancien numero de Meta (le premier essai de Yeman)', [true, true, false],
+        [numeroServi(essai, '22997000099', 'clientes'), numeroServi(essai, '2290197000099', 'equipe'), numeroServi(essai, '22997000098', 'clientes')]);
+      const auto = lit(F_AUTO), hook = lit(F_HOOK), conv = lit(CONV), sql = lit('supabase/migrations/0128_la_cle_du_numero.sql');
+      vrai('la fonction rattache la fiche du numero par cle', auto.includes("(f.numeros ?? []).some((x) => cleWa(x) === cleWa(o.numero))"));
+      vrai('le webhook lit les fiches par cle quand la RPC manque', hook.includes('f.numeros.some((x) => cleWa(x) === cle)'));
+      vrai('le Trone trouve la tete d un numero par cle', conv.includes('cleDuNumeroWa(t.phone) !== n && cleDuNumeroWa(t.phone2) !== n'));
+      vrai('la base compare les fiches, la tete et la reserve par cle (0128)', sql.includes("public.cle_du_numero_wa(c.data->>'phone') = (select v from num) as par_phone") && sql.includes("and (public.cle_du_numero_wa(c.data->>'phone') = (select v from num)") && /cle_du_numero_wa\(t\.data->>'phone'\)/.test(sql) && /cle_du_numero_wa\(m\.data->>'numero'\)/.test(sql));
+      vrai('la base garde numero_wa tel quel : les envois et les fils ne changent pas', !/create or replace function public\.numero_wa/.test(sql));
+      return ecarts;
+    },
+    pannes: [
+      { nom: 'l essai compare les chiffres a l egal', mute: [P(AUTO, "  if (reglage.numerosEssai.some((x) => cleWa(x) === n)) return true;", "  if (reglage.numerosEssai.includes(String(numero ?? '').replace(/\\D/g, ''))) return true;")] },
+      { nom: 'la fonction rattache la fiche a l egal', mute: [P(F_AUTO, "(f.numeros ?? []).some((x) => cleWa(x) === cleWa(o.numero))", "(f.numeros ?? []).includes(o.numero)")] },
+      { nom: 'le Trone cherche la tete a l egal', mute: [P(CONV, 'cleDuNumeroWa(t.phone) !== n && cleDuNumeroWa(t.phone2) !== n', 'numeroWa(t.phone) !== n && numeroWa(t.phone2) !== n')] },
+      { nom: 'la base compare les fiches a l egal', mute: [P('supabase/migrations/0128_la_cle_du_numero.sql', "public.cle_du_numero_wa(c.data->>'phone') = (select v from num) as par_phone", "public.numero_wa(c.data->>'phone') = (select v from num) as par_phone")] },
     ],
   },
 ];

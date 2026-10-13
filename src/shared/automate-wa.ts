@@ -97,15 +97,29 @@ function reglageDeLAutomate(brut: unknown): ReglageDeLAutomate {
   };
 }
 
+/** LA CLÉ D'UN NUMÉRO POUR LE COMPARER (13 octobre 2026). Meta identifie
+    une Béninoise par son ancien numéro à huit chiffres (229 97 00 00 99)
+    quand le Trône l'écrit au plan de 2024 (229 01 97 00 00 99) : le premier
+    essai de Yéman est resté sans réponse, son numéro listé en Essai n'étant
+    « pas le même ». Les deux formes se réduisent à la même clé. Rien d'autre
+    ne change : les envois et les fils gardent le numéro tel que Meta le dit. */
+function cleWa(brut: unknown): string {
+  const d = String(brut ?? '').replace(/\D/g, '');
+  if (d.length === 13 && d.startsWith('22901')) return `229${d.slice(5)}`;
+  if (d.length === 10 && d.startsWith('01')) return `229${d.slice(2)}`;
+  if (d.length === 8) return `229${d}`;
+  return d;
+}
+
 type TiroirDuNumero = 'clientes' | 'equipe' | 'prestataires';
 
 /** QUI EST SERVI. Éteint : personne. Essai : les numéros listés seulement,
     même rangés dans Équipe (la direction y est). Ouvert : le tiroir Clientes,
     et toujours les numéros listés. Les prestataires, jamais. */
 function numeroServi(reglage: ReglageDeLAutomate, numero: string, tiroir: TiroirDuNumero | undefined): boolean {
-  const n = String(numero ?? '').replace(/\D/g, '');
+  const n = cleWa(numero);
   if (!n || tiroir === 'prestataires' || reglage.mode === 'eteint') return false;
-  if (reglage.numerosEssai.includes(n)) return true;
+  if (reglage.numerosEssai.some((x) => cleWa(x) === n)) return true;
   return reglage.mode === 'ouvert' && (tiroir ?? 'clientes') === 'clientes';
 }
 
@@ -1842,7 +1856,7 @@ function mainApresCoup(etat: EtatDuFil, motif: MotifDeLaMain, ctx: ContexteDuTou
 export {
   REGLAGE_LIVRE, PLAFOND_DE_L_AUTOMATE, ECARTS_AVANT_LA_MAIN, PLACES_PROPOSEES, JOURS_PROPOSES,
   PARCOURS_PERIME_MS, TOUR_PERIME_MS, TOUR_EN_COURS_MS, ETAPES_EN_COURS, ETAPE_DITE, MOTIF_DIT, PIED, DEVISE,
-  reglageDeLAutomate, numeroServi, pauseActive, etapeCourante, tenuParLAutomate, vueDeLAutomate, silenceDeLAlarme,
+  reglageDeLAutomate, cleWa, numeroServi, pauseActive, etapeCourante, tenuParLAutomate, vueDeLAutomate, silenceDeLAlarme,
   LA_MAISON_A_PARLE_MS, mineureWa, fichesServies, titulaireDuNumero, laMaisonAParle, confirmeValide,
   renvoieAUnRdv, uneQuestionAutre, civiliteLue,
   motsReconnus, intentionDeReserver, tourDeLaCliente, lisLeChoix, idDeChoix, instantACotonou,

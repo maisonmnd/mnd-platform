@@ -127,7 +127,7 @@ import webpush from 'npm:web-push@3.6.7';
 
 /** LA VERSION DE CE FICHIER, dite par le contrôle de santé. Sans elle on ne
     sait pas quel code tourne vraiment. À incrémenter à chaque déploiement. */
-const VERSION = '2026-10-10-a · Meta borne dans le temps, un seul accuse, les boutons ne se rejouent plus';
+const VERSION = '2026-10-13-a · la cle du numero : la fiche ecrite 01 97 00 00 99 est bien celle de 229 97 00 00 99';
 
 /** LE POIDS QU'UNE PIÈCE REÇUE PEUT FAIRE : le plafond du compartiment
     `whatsapp` (0102). Au-delà, le fichier reste chez Meta et le fil le dit. */
@@ -158,6 +158,13 @@ const numeroWa = (brut: string | undefined): string => {
   if (d.length === 10 && d.startsWith('01')) return `229${d}`;
   if (d.length === 8) return `22901${d}`;
   return d;
+};
+/** LA CLÉ POUR COMPARER (13 octobre 2026) : 229 97 00 00 99 (Meta) et
+    229 01 97 00 00 99 (la fiche) sont le même numéro. Même règle que `cleWa`
+    de l'automate et `cle_du_numero_wa` en base. */
+const cleWa = (brut: unknown): string => {
+  const d = numeroWa(String(brut ?? ''));
+  return d.length === 13 && d.startsWith('22901') ? `229${d.slice(5)}` : d;
 };
 
 /** LA SIGNATURE DE META, sur le corps BRUT — jamais sur le JSON reparsé :
@@ -785,8 +792,9 @@ function lecteurDesFiches(sb: SupabaseClient): (n: string) => Promise<FicheDuNum
         dis('fiches_du_numero · echec, lecture par pages', { motif: String(e).slice(0, 120) });
       }
       /* Celles qui le portent en premier numéro d'abord, comme la RPC. */
-      const portent = (await toutes()).filter((f) => f.numeros.includes(n));
-      return [...portent.filter((f) => f.premier === n), ...portent.filter((f) => f.premier !== n)]
+      const cle = cleWa(n);
+      const portent = (await toutes()).filter((f) => f.numeros.some((x) => cleWa(x) === cle));
+      return [...portent.filter((f) => cleWa(f.premier) === cle), ...portent.filter((f) => cleWa(f.premier) !== cle)]
         .map(({ premier: _premier, ...f }) => f);
     })();
     vus.set(n, lu);

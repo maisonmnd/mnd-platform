@@ -19,7 +19,7 @@ import {
   sonnentApresLAutomate, type VueDeLaSonnette, partEnFermant, rattachementDuNumero,
 } from '../../../../shared/conversations';
 import {
-  ETAPE_DITE, MOTIF_DIT, ETAPES_EN_COURS, reglageDeLAutomate, jourDitAvecAnnee, heureDite,
+  ETAPE_DITE, MOTIF_DIT, ETAPES_EN_COURS, reglageDeLAutomate, jourDitAvecAnnee, heureDite, LA_MAISON_A_PARLE_MS,
   type EtapeDuFil, type EtatDuFil, type MainDuFil, type VueDeLAutomate,
 } from '../../../../shared/automate-wa';
 import { appointmentsStore, useAppointments, type Appointment } from '../../../../shared/agenda';
@@ -1478,6 +1478,30 @@ export default function Conversations() {
                       surPoser={posable ? () => poseUnRendezVous(true) : undefined}
                       surOuvrirRdv={rdv ? () => setRdvOuvert(rdv) : undefined}
                     />
+                  );
+                })()}
+                {/* LA MAISON A ÉCRIT À CE NUMÉRO DEPUIS MOINS D'UNE SEMAINE (13 octobre
+                    2026) : l'automate la laisse mener, et rien ne le disait. Le premier
+                    essai de Yéman est tombé là. On le dit, et on peut le rendre. */}
+                {(!fil.automate || fil.automate.tenue === 'aucun') && !estReserve(fil.tiroir) && (() => {
+                  const sorties = fil.messages.filter((m) => m.sens === 'sortant').map((m) => Date.parse(m.quand)).filter(Number.isFinite);
+                  const le = sorties.length ? Math.max(...sorties) : NaN;
+                  const rendue = Date.parse(automates.get(fil.numero)?.main?.rendueLe ?? '');
+                  if (!Number.isFinite(le) || Date.now() - le >= LA_MAISON_A_PARLE_MS || (Number.isFinite(rendue) && rendue >= le)) return null;
+                  const fin = new Date(le + LA_MAISON_A_PARLE_MS).toISOString();
+                  return (
+                    <div className="trc-automate trc-automate--pause" role="status">
+                      <span className="trc-automate__dit">
+                        La Maison a écrit à ce numéro {quandDuBandeau(new Date(le).toISOString())} : l’automate la laisse mener {finDuBandeau(fin)}.
+                      </span>
+                      <span className="trc-automate__gestes">
+                        <Button variant="ghost" size="sm" onClick={() => {
+                          mainPriseLe.current.delete(fil.numero);
+                          rendsALAutomate(fil.numero, { branchId: branch.id });
+                          toast('Rendu à l’automate : il répondra au prochain message de ce numéro.');
+                        }}>Rendre à l’automate</Button>
+                      </span>
+                    </div>
                   );
                 })()}
                 <div className="trc-saisie__q">

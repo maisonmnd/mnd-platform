@@ -10,7 +10,7 @@
    cliente dans « inconnu » à côté de sa propre fiche, et lui répondre comme
    à une étrangère alors qu'on a vingt de ses rituels au carnet. */
 import {
-  numeroWa, fenetreDe, resteEnClair, filsDeLaMaison, pourquoiLEnvoiEstImpossible,
+  numeroWa, cleDuNumeroWa, fenetreDe, resteEnClair, filsDeLaMaison, pourquoiLEnvoiEstImpossible,
   estArchive, archiveLeFil, desarchiveLeFil, filsQuiAttendent,
   tetesDeLaMaison, teteDuNumero, filNeuf, estReserve,
   FENETRE_MS, type MessageWa, type TeteConnue, lienDuFil,
@@ -52,6 +52,15 @@ dit('un numéro vide ne rend rien', '', numeroWa(undefined));
 /* UN NUMÉRO ÉTRANGER SE GARDE TEL QUEL. Le forcer au plan béninois enverrait
    le message à quelqu'un d'autre, ce qui est pire que de ne pas l'envoyer. */
 dit('un numéro étranger reste intact', '33612345678', numeroWa('+33 6 12 34 56 78'));
+
+/* LA CLÉ DU NUMÉRO (13 octobre 2026) : Meta dit « 22997000099 » pour la fiche
+   écrite « 01 97 00 00 99 » ; les deux se comparent par la même clé. */
+dit('la clé : l’ancien numéro de Meta et le plan de 2024 sont le même', cleDuNumeroWa('22997000099'), cleDuNumeroWa('+229 01 97 00 00 99'));
+dit('la clé est l’ancienne forme, à huit chiffres', '22997000099', cleDuNumeroWa('0197000099'));
+dit('la clé d’un numéro étranger est le numéro', '33612345678', cleDuNumeroWa('+33 6 12 34 56 78'));
+dit('numeroWa, lui, ne bouge pas', '2290197000099', numeroWa('0197000099'));
+dit('la tête d’un numéro de Meta se trouve dans une fiche écrite au plan de 2024', 'c-yems',
+  teteDuNumero('22997000099', [t({ id: 'c-autre', phone: '0197000088' }), t({ id: 'c-yems', phone: '01 97 00 00 99' })])?.id);
 
 /* ── ② LA FENÊTRE DE 24 HEURES ─────────────────────────────────────
    Elle se compte sur SON dernier message à elle, jamais sur le nôtre. C'est

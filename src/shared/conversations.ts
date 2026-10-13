@@ -42,6 +42,15 @@ export const numeroWa = (brut: string | undefined): string => {
   return d;
 };
 
+/** LA CLÉ D'UN NUMÉRO POUR LE COMPARER (13 octobre 2026) : Meta dit
+    229 97 00 00 99 quand la fiche porte 229 01 97 00 00 99. Même règle que
+    `cleWa` de l'automate et `cle_du_numero_wa` en base. Les clés des fils,
+    des archives et des envois restent `numeroWa`. */
+export const cleDuNumeroWa = (brut: string | undefined): string => {
+  const d = numeroWa(brut);
+  return d.length === 13 && d.startsWith('22901') ? `229${d.slice(5)}` : d;
+};
+
 export type SensDuMessage = 'entrant' | 'sortant';
 
 /** L'état d'un message SORTANT, tel que Meta le rapporte au fil de l'eau.
@@ -486,11 +495,11 @@ export function tetesDeLaMaison(o: {
 
 /** LA TÊTE D'UN NUMÉRO, l'équipe d'abord. `undefined` pour un inconnu. */
 export function teteDuNumero(numero: string | undefined, tetes: readonly TeteConnue[]): TeteConnue | undefined {
-  const n = numeroWa(numero);
+  const n = cleDuNumeroWa(numero);
   if (!n) return undefined;
   let trouvee: TeteConnue | undefined;
   for (const t of tetes) {
-    if (numeroWa(t.phone) !== n && numeroWa(t.phone2) !== n) continue;
+    if (cleDuNumeroWa(t.phone) !== n && cleDuNumeroWa(t.phone2) !== n) continue;
     if (!trouvee || RANG_DU_TIROIR[t.tiroir ?? 'clientes'] < RANG_DU_TIROIR[trouvee.tiroir ?? 'clientes']) trouvee = t;
   }
   return trouvee;
