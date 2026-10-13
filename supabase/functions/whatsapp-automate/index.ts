@@ -88,7 +88,7 @@ import { createClient, type SupabaseClient } from 'npm:@supabase/supabase-js@2';
 
 /** LA VERSION DE CE FICHIER, dite par le contrôle de santé. Sans elle on ne
     sait pas quel code tourne vraiment. À incrémenter à chaque déploiement. */
-const VERSION = '2026-10-13-b · plusieurs soins le meme jour, le francais d abord, le prenom en message';
+const VERSION = '2026-10-13-c · rendre le fil apres un rendez-vous pose, le plafond compte depuis la main rendue, les vrais noms du catalogue';
 
 /** « En train d'écrire », puis on attend : deux messages envoyés coup sur
     coup font un seul tour, celui du dernier. */
@@ -958,6 +958,9 @@ type PanierDuFil = {
   /** Elle ajoute un soin : le prochain choix s'ajoute au panier au lieu
       de le remplacer. */
   enAjout?: boolean;
+  /** Les messages de « un autre soin ? » et de sa liste : ils s'ajoutent
+      au plafond, choisir trois soins ne mange pas la marge des détours. */
+  horsPlafond?: number;
   /** Les places proposées, pour mémoire. */
   places?: PlaceLibre[];
   date?: string;
@@ -1111,6 +1114,12 @@ function etapeCourante(
     return Number.isFinite(maj) && maintenantMs - maj < PARCOURS_PERIME_MS ? etat.etape : 'repos';
   }
   if (etat.etape === 'confirme') {
+    /* RENDU APRÈS UN RENDEZ-VOUS POSÉ (13 octobre 2026) : l'automate laisse
+       la Maison répondre `pauseHeures` après la pose (un « merci », une
+       question) ; l'équipe peut le lui rendre, il reprend au repos. Le
+       second essai de Yéman est tombé là, sans bouton pour le lever. */
+    const rendue = msWa(main?.rendueLe);
+    if (Number.isFinite(rendue) && Number.isFinite(maj) && rendue >= maj) return 'repos';
     return Number.isFinite(maj) && maintenantMs - maj < pauseHeures * HEURE_WA ? 'confirme' : 'repos';
   }
   return 'repos';
@@ -1697,6 +1706,23 @@ function confirmeValide(etat: EtatDuFil | null | undefined, tour: TourDeLaClient
     n'écrit rien, l'équipe répond comme aujourd'hui. `main-silencieuse` : il
     passe la main sans un mot (un prix, un vocal, une photo, le plafond).
     `parle` : il répond. */
+/** LES MESSAGES QUI COMPTENT POUR LE PLAFOND : ceux des dernières 24
+    heures, depuis que l'équipe a rendu le fil (13 octobre 2026). Sans quoi
+    un fil rendu après un plafond ou après une pose se taisait aussitôt. */
+function envoisQuiComptent(envois: readonly string[], main: MainDuFil | null | undefined, ms: number): number {
+  const rendue = msWa(main?.rendueLe);
+  return envois.filter((e) => {
+    const t = msWa(e);
+    return ms - t < JOUR_WA && !(Number.isFinite(rendue) && t <= rendue);
+  }).length;
+}
+
+/** LE PLAFOND DU FIL : dix messages, plus ceux de « un autre soin ? » et
+    de sa liste (quatre au plus, 13 octobre 2026). */
+function plafondDuFil(etat: EtatDuFil | null | undefined): number {
+  return PLAFOND_DE_L_AUTOMATE + Math.min(4, Math.max(0, etat?.panier?.horsPlafond ?? 0));
+}
+
 function jugeLaParole(
   etat: EtatDuFil | null | undefined, tour: TourDeLaCliente, ctx: ContexteLeger,
 ): { parole: ParoleDuTour; motif?: MotifDeLaMain } {
@@ -1736,8 +1762,8 @@ function jugeLaParole(
     parle = true;
   }
   if (!parle) return { parole: 'silence' };
-  const envois = (etat?.envois ?? []).filter((e) => ms - msWa(e) < JOUR_WA).length;
-  if (envois >= PLAFOND_DE_L_AUTOMATE && !confirmeValide(etat, tour, courante)) return { parole: 'main-silencieuse', motif: 'plafond' };
+  const envois = envoisQuiComptent(etat?.envois ?? [], ctx.main, ms);
+  if (envois >= plafondDuFil(etat) && !confirmeValide(etat, tour, courante)) return { parole: 'main-silencieuse', motif: 'plafond' };
   return { parole: 'parle' };
 }
 
@@ -1877,28 +1903,30 @@ const GESTES_EN_FRANCAIS: Record<string, { court: string; long: string }> = {
 };
 
 /** « SÍNSIN™ Essentiel · « Le Souffle » » : la marque « SÍNSIN », la
-    variante « Essentiel » (le premier segment après la marque). */
+    variante « Essentiel » (le premier segment après la marque). Un nom sans
+    niveau, « DÀNDÀN™ · Le Soin Hydratant », a pour variante son sous-titre,
+    sans le point qui le précède (revue du 13 octobre 2026). */
 const litLaMarqueWa = (nom: string): { marque: string; variante: string } => {
   const s = String(nom ?? '').replace(/\s+/g, ' ').trim();
   const m = /^([^\s™®]+)(?:™|®)?\s*(.*)$/u.exec(s);
   const marque = (m?.[1] ?? '').normalize('NFC');
-  const variante = (m?.[2] ?? '').split(' · ')[0]?.trim() ?? '';
+  const reste = (m?.[2] ?? '').replace(/^[·:–-]\s*/u, '');
+  const variante = reste.split(' · ')[0]?.trim() ?? '';
   return { marque, variante };
 };
 
-/** Le titre d'une ligne de liste (24 signes) : « Resserrage · Essentiel »,
-    « Création de locks » quand la variante répète le geste. Sans mot
-    français, le nom du catalogue. */
-const titreEnFrancaisWa = (nom: string): string => {
+/** Le titre d'une ligne de liste, dans `place` signes (24, ou moins devant
+    « + 1 ») : « Resserrage · Essentiel », sinon « Resserrage Essentiel »,
+    sinon le geste seul, « Hydratation ». Jamais de mot coupé quand le geste
+    tient. Sans mot français, le nom du catalogue. */
+const titreEnFrancaisWa = (nom: string, place = 24): string => {
   const { marque, variante } = litLaMarqueWa(nom);
   const g = GESTES_EN_FRANCAIS[marque];
-  if (!g) return coupeWa(nom, 24);
+  if (!g) return coupeWa(nom, place);
   const v = variante.toLowerCase();
-  if (!v || v === g.court.toLowerCase() || v === g.long.toLowerCase()) return coupeWa(g.long, 24);
-  const avecPoint = `${g.court} · ${variante}`;
-  if (avecPoint.length <= 24) return avecPoint;
-  const sansPoint = `${g.court} ${variante}`;
-  return sansPoint.length <= 24 ? sansPoint : coupeWa(avecPoint, 24);
+  const repete = !v || v === g.court.toLowerCase() || v === g.long.toLowerCase();
+  const essais = repete ? [g.long, g.court] : [`${g.court} · ${variante}`, `${g.court} ${variante}`, g.long, g.court];
+  return essais.find((x) => x.length <= place) ?? coupeWa(g.court, place);
 };
 
 /** Le geste en toutes lettres : « Resserrage des racines (SÍNSIN™
@@ -1908,6 +1936,14 @@ const gesteDitEnFrancaisWa = (nom: string): string => {
   return g ? `${g.long} (${nom})` : nom;
 };
 const gestesDitsEnFrancaisWa = (noms: readonly string[]): string => gestesDitsWa(noms.map(gesteDitEnFrancaisWa));
+
+/** La consultation nommée dans une phrase : « la consultation Origine
+    (KÒKÒ™ Origine) » ; sans mot français, « le Conseil et diagnostic ». */
+const laConsultationDiteWa = (nom: string): string => {
+  const { marque, variante } = litLaMarqueWa(nom);
+  const g = GESTES_EN_FRANCAIS[marque];
+  return g ? `la ${g.long.toLowerCase()}${variante ? ` ${variante}` : ''} (${nom})` : `le ${nom}`;
+};
 
 /** La durée, dite : 45 → « 45 min », 60 → « 1 h », 105 → « 1 h 45 ». */
 const dureeDiteWa = (min: number): string => {
@@ -2223,14 +2259,15 @@ function atelierDuTour(ancien: EtatDuFil | null | undefined, tour: TourDeLaClien
     const noms = nomsDe(ids);
     if (noms.length <= 1) return titreEnFrancaisWa(noms[0] ?? '');
     const suite = ` + ${noms.length - 1}`;
-    return `${coupeWa(titreEnFrancaisWa(noms[0]), 24 - suite.length)}${suite}`;
+    return `${titreEnFrancaisWa(noms[0], 24 - suite.length)}${suite}`;
   };
-  /** Sous le titre : la marque fon et la durée, « KLƆKLƆ™ Essentiel · 45 min ». */
+  /** Sous le titre : la marque fon et la durée RÉSERVÉE (une heure au
+      moins, comme l'agenda), « SÍNSIN™ Essentiel · 1 h ». Les noms se
+      coupent, la durée reste (revue du 13 octobre 2026). */
   const descriptionDesGestes = (ids: readonly string[]): string => {
-    const minutes = ids.reduce((s, id) => s + (prestation(id)?.durationMin ?? 60), 0);
-    const duree = dureeDiteWa(minutes);
-    const noms = gestesDitsWa(nomsDe(ids));
-    return coupeWa(duree ? `${noms} · ${duree}` : noms, 72);
+    const duree = dureeDiteWa(dureeDesPrestations(ids, agenda?.prestations ?? []));
+    const suite = duree ? ` · ${duree}` : '';
+    return `${coupeWa(gestesDitsWa(nomsDe(ids)), 72 - suite.length)}${suite}`;
   };
 
   const sontDesConsultations = (offres: readonly string[][]): boolean =>
@@ -2241,8 +2278,9 @@ function atelierDuTour(ancien: EtatDuFil | null | undefined, tour: TourDeLaClien
     if (valables.length === 0) return null;
     passe('rituel');
     base.panier.rituels = valables.map((ids) => [...ids]);
-    if (!ajout) base.panier.offerts = offres.map((ids) => [...ids]);
+    if (!ajout) base.panier.offerts = valables.map((ids) => [...ids]);
     base.panier.enAjout = ajout;
+    if (ajout && !relance) base.panier.horsPlafond = (base.panier.horsPlafond ?? 0) + 1;
     const consultations = sontDesConsultations(valables);
     const corps = relance ? relanceDite()
       : ajout ? `Quel soin ajouter, ${appel()} ?`
@@ -2266,11 +2304,12 @@ function atelierDuTour(ancien: EtatDuFil | null | undefined, tour: TourDeLaClien
     return (base.panier.offerts ?? [])
       .map((ids) => ids.filter((id) => !pris.includes(id)))
       .filter((ids) => ids.length > 0 && pris.length + ids.length <= SOINS_PAR_RENDEZ_VOUS && ids.every((id) => directe(prestation(id))))
-      .filter((ids) => { const cle = ids.join('+'); if (vus.has(cle)) return false; vus.add(cle); return true; });
+      .filter((ids) => { const cle = [...ids].sort().join('+'); if (vus.has(cle)) return false; vus.add(cle); return true; });
   };
 
   const msgEncore = (relance: boolean): MessageSortant => {
     passe('encore');
+    if (!relance) base.panier.horsPlafond = (base.panier.horsPlafond ?? 0) + 1;
     return boutons('encore', relance ? relanceDite() : `Souhaitez-vous ajouter un autre soin le même jour, ${appel()} ?`, [
       { id: choix('encore'), titre: 'Ajouter un soin' },
       { id: choix('suffit'), titre: "Non, c'est tout" },
@@ -2281,6 +2320,10 @@ function atelierDuTour(ancien: EtatDuFil | null | undefined, tour: TourDeLaClien
       ajouter : droit aux places. */
   const apresLeRituel = (): SortieDuTour =>
     ((base.panier.serviceIds ?? []).length >= SOINS_PAR_RENDEZ_VOUS || soinsAAjouter().length === 0 ? dire(msgPlaces({})) : dire(msgEncore(false)));
+
+  /** « Ajouter un soin » : la liste de ce qui reste ; plus rien, les places. */
+  const ajouteUnSoin = (relance: boolean): SortieDuTour =>
+    dire(msgRituel(relance, soinsAAjouter(), true) ?? msgPlaces({}));
 
   const msgCivilite = (relance: boolean): MessageSortant => {
     passe('civilite');
@@ -2322,7 +2365,7 @@ function atelierDuTour(ancien: EtatDuFil | null | undefined, tour: TourDeLaClien
       case 'besoin': return dire(msgBesoin(relance, false));
       case 'meme': return dire(msgMeme(relance, false) ?? msgBesoin(relance, false));
       case 'rituel': return base.panier.enAjout
-        ? dire(msgRituel(relance, soinsAAjouter(), true) ?? msgPlaces({}))
+        ? ajouteUnSoin(relance)
         : dire(msgRituel(relance, base.panier.rituels ?? []), 'autre-soin');
       case 'encore': return dire(msgEncore(relance));
       case 'places': return dire(msgPlaces({ relance }));
@@ -2367,10 +2410,10 @@ function atelierDuTour(ancien: EtatDuFil | null | undefined, tour: TourDeLaClien
   };
 
   const introDeLaConsultation = (b: Besoin, nom: string): string => {
-    if (base.panier.pourQui) return `Cela commence toujours par une consultation, ${appel()} : le ${nom}. Voici les prochaines places.`;
-    if (b === 'creation') return `Une première couronne commence toujours par une consultation, ${appel()} : le ${nom}. Nous y étudions votre texture et votre cuir chevelu, et choisissons ensemble votre calibre. Voici les prochaines places.`;
-    if (b === 'reparation') return `Une réparation commence toujours par une consultation, ${appel()} : le ${nom}. Nous y regardons vos locks et décidons ensemble du soin. Voici les prochaines places.`;
-    return `Pour un enfant, tout commence par un échange avec ses parents, ${appel()} : le ${nom}. Voici les prochaines places.`;
+    if (base.panier.pourQui) return `Cela commence toujours par une consultation, ${appel()} : ${laConsultationDiteWa(nom)}. Voici les prochaines places.`;
+    if (b === 'creation') return `Une première couronne commence toujours par une consultation, ${appel()} : ${laConsultationDiteWa(nom)}. Nous y étudions votre texture et votre cuir chevelu, et choisissons ensemble votre calibre. Voici les prochaines places.`;
+    if (b === 'reparation') return `Une réparation commence toujours par une consultation, ${appel()} : ${laConsultationDiteWa(nom)}. Nous y regardons vos locks et décidons ensemble du soin. Voici les prochaines places.`;
+    return `Pour un enfant, tout commence par un échange avec ses parents, ${appel()} : ${laConsultationDiteWa(nom)}. Voici les prochaines places.`;
   };
 
   /** La consultation du parcours si elle existe encore, sinon toutes : on
@@ -2518,7 +2561,7 @@ function atelierDuTour(ancien: EtatDuFil | null | undefined, tour: TourDeLaClien
     /* « Je confirme » du récapitulatif en cours passe même au-delà du
        plafond : elle a confirmé, elle reçoit sa confirmation. */
     const confirme = base.etape === 'recap' && ch?.geste === 'oui' && ch.version >= base.versionDeLEtape && ch.version < version;
-    if (base.envois.length >= PLAFOND_DE_L_AUTOMATE && !confirme) return laMain('plafond', false);
+    if (envoisQuiComptent(base.envois, ctx.main, ms) >= plafondDuFil(base) && !confirme) return laMain('plafond', false);
     if (enCours && t.media) return laMain('media', false);
     if (enCours && mots.prix) return laMain('prix', false);
     if (ch?.geste === 'maison') return laMain('demande', true);
@@ -2589,7 +2632,7 @@ function atelierDuTour(ancien: EtatDuFil | null | undefined, tour: TourDeLaClien
           break;
         }
         case 'encore': {
-          if (g === 'encore') return dire(msgRituel(false, soinsAAjouter(), true) ?? msgPlaces({}));
+          if (g === 'encore') return ajouteUnSoin(false);
           if (g === 'suffit') return dire(msgPlaces({}));
           break;
         }
@@ -2683,10 +2726,15 @@ function atelierDuTour(ancien: EtatDuFil | null | undefined, tour: TourDeLaClien
         break;
       }
       case 'encore': {
-        /* « non », « c'est tout », « oui », « ajouter » : écrits au lieu d'être touchés (13 octobre 2026). */
+        /* ÉCRIT AU LIEU D'ÊTRE TOUCHÉ (13 octobre 2026) : « Merci, c'est
+           tout », « Non merci, plutôt samedi matin » (le jour se garde),
+           « Oui », « Je voudrais aussi un resserrage ». */
         const mot = sansAccentsWa(t.texte);
-        if (/^(non|nan|c'est tout|ca suffit|rien|merci non|non merci|suffit)\b/.test(mot)) return dire(msgPlaces({}));
-        if (/^(oui|ajouter|encore|aussi|un autre)\b/.test(mot)) return dire(msgRituel(false, soinsAAjouter(), true) ?? msgPlaces({}));
+        if (/\b(non|nan)\b|c'est tout|c'est bon|ca suffit|ca ira|rien d'autre|pas d'autre|pas besoin|\bsuffit\b/.test(mot)) {
+          if (desMots) retiensLesMots();
+          return dire(msgPlaces({}));
+        }
+        if (/^(oui|ouais)\b|\b(ajout\w*|rajout\w*|aussi|encore|un autre|une autre|un deuxieme|un second|en plus)\b/.test(mot)) return ajouteUnSoin(false);
         if (desMots) return retiensLesMots() ? renvoie(base.etape, false) : ecart();
         break;
       }

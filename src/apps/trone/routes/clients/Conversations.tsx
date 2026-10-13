@@ -200,7 +200,7 @@ const etapeDite = (e: string | undefined): string =>
   (e && e in ETAPE_DITE ? ETAPE_DITE[e as EtapeDuFil] : e ?? '');
 
 function BandeauDeLAutomate({
-  vue, etat, main, rdv, gestesDuRdv, surReprendre, surRendre, surPoser, surOuvrirRdv,
+  vue, etat, main, rdv, gestesDuRdv, surReprendre, surRendre, surPoser, surOuvrirRdv, pauseHeures,
 }: {
   vue: VueDeLAutomate;
   etat: EtatDuFil | null;
@@ -213,6 +213,8 @@ function BandeauDeLAutomate({
   /** Absent : le panier ne porte encore aucun geste à poser. */
   surPoser?: () => void;
   surOuvrirRdv?: () => void;
+  /** Le temps où l'automate laisse la Maison répondre après une pose. */
+  pauseHeures: number;
 }) {
   const etape = etapeDite(vue.etape);
   if (vue.tenue === 'tenu') {
@@ -259,6 +261,10 @@ function BandeauDeLAutomate({
     );
   }
   if (vue.tenue === 'fini' && vue.etape === 'confirme') {
+    /* APRÈS LA POSE (13 octobre 2026) : il laisse la Maison répondre
+       `pauseHeures` ; on le dit, et on peut le lui rendre. */
+    const pose = Date.parse(etat?.majLe ?? '');
+    const fin = Number.isFinite(pose) ? new Date(pose + pauseHeures * 3_600_000).toISOString() : undefined;
     return (
       <div className="trc-automate trc-automate--pose" role="status">
         <span className="trc-automate__dit">
@@ -267,12 +273,12 @@ function BandeauDeLAutomate({
             ? <> · {jourDitAvecAnnee(rdv.date)} à {heureDite(rdv.time)}{gestesDuRdv ? ` · ${gestesDuRdv}` : ''} · « Pris sur WhatsApp, réponse automatique »
                 {rdv.status === 'annulé' ? ' · annulé depuis par la Maison' : ''}</>
             : ' par la réponse automatique. Il paraîtra au calendrier dès qu’il arrive sur ce poste.'}
+          {' '}L’automate laisse la Maison répondre{fin ? ` ${finDuBandeau(fin)}` : ''}.
         </span>
-        {rdv && surOuvrirRdv && (
-          <span className="trc-automate__gestes">
-            <Button variant="ghost" size="sm" onClick={surOuvrirRdv}>Ouvrir le rendez-vous</Button>
-          </span>
-        )}
+        <span className="trc-automate__gestes">
+          {rdv && surOuvrirRdv && <Button variant="ghost" size="sm" onClick={surOuvrirRdv}>Ouvrir le rendez-vous</Button>}
+          {/* rendre après la pose */}<Button variant="ghost" size="sm" onClick={surRendre}>Rendre à l’automate</Button>
+        </span>
       </div>
     );
   }
@@ -1477,6 +1483,7 @@ export default function Conversations() {
                       surRendre={rendsLaMain}
                       surPoser={posable ? () => poseUnRendezVous(true) : undefined}
                       surOuvrirRdv={rdv ? () => setRdvOuvert(rdv) : undefined}
+                      pauseHeures={reglageAutomate.pauseHeures}
                     />
                   );
                 })()}
