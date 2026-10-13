@@ -129,7 +129,7 @@ function numeroServi(reglage: ReglageDeLAutomate, numero: string, tiroir: Tiroir
    `main-<numero>` (la main de l'équipe, écrite par le Trône ou par
    `pause_le_fil`). */
 type EtapeDuFil =
-  | 'repos' | 'qui' | 'besoin' | 'meme' | 'rituel' | 'places' | 'jours'
+  | 'repos' | 'qui' | 'besoin' | 'meme' | 'rituel' | 'encore' | 'places' | 'jours'
   | 'civilite' | 'prenom' | 'recap' | 'confirme' | 'main' | 'clos';
 
 type MotifDeLaMain =
@@ -158,6 +158,12 @@ type PanierDuFil = {
   jourChoisi?: string;
   /** Les rituels ou consultations proposés, dans l'ordre de la liste. */
   rituels?: string[][];
+  /** Les rituels offerts au premier choix : « Ajouter un soin » y puise
+      ceux qui restent (13 octobre 2026). */
+  offerts?: string[][];
+  /** Elle ajoute un soin : le prochain choix s'ajoute au panier au lieu
+      de le remplacer. */
+  enAjout?: boolean;
   /** Les places proposées, pour mémoire. */
   places?: PlaceLibre[];
   date?: string;
@@ -231,7 +237,7 @@ const TOUR_EN_COURS_MS = MINUTE_WA;
     parcours neuf (relecture du 9 octobre 2026). */
 const LA_MAISON_A_PARLE_MS = 7 * JOUR_WA;
 
-const ETAPES_EN_COURS: readonly EtapeDuFil[] = ['qui', 'besoin', 'meme', 'rituel', 'places', 'jours', 'civilite', 'prenom', 'recap'];
+const ETAPES_EN_COURS: readonly EtapeDuFil[] = ['qui', 'besoin', 'meme', 'rituel', 'encore', 'places', 'jours', 'civilite', 'prenom', 'recap'];
 
 const ETAPE_DITE: Record<EtapeDuFil, string> = {
   repos: 'au repos',
@@ -239,6 +245,7 @@ const ETAPE_DITE: Record<EtapeDuFil, string> = {
   besoin: 'le besoin',
   meme: 'la même chose ?',
   rituel: 'le rituel',
+  encore: 'un autre soin ?',
   places: "choix de l'heure",
   jours: 'choix du jour',
   civilite: 'la civilité',
@@ -1055,6 +1062,74 @@ function cleCourte(brut: string): string {
 const gestesDitsWa = (noms: readonly string[]): string =>
   (noms.length <= 1 ? (noms[0] ?? '') : `${noms.slice(0, -1).join(', ')} et ${noms[noms.length - 1]}`);
 
+/* ── 9 bis. LES GESTES DITS EN FRANÇAIS (13 octobre 2026) ───────────────
+   Les clientes ne lisent pas les marques fon : « SÍNSIN™ Essentiel » ne dit
+   rien à qui ne connaît pas encore la Maison. Dans les listes, le français
+   vient d'abord (« Resserrage · Essentiel »), la marque et la durée en
+   dessous ; dans le récapitulatif, le français puis la marque entre
+   parenthèses. Mots donnés par Yéman ; une marque absente d'ici garde son
+   nom tel quel. */
+const GESTES_EN_FRANCAIS: Record<string, { court: string; long: string }> = {
+  'VÈKPÈ': { court: 'Création', long: 'Création de locks' },
+  'SÍNSIN': { court: 'Resserrage', long: 'Resserrage des racines' },
+  'FÍNFÍN': { court: 'Restauration', long: 'Restauration' },
+  'YÈKPÈ': { court: 'Couleur', long: 'Couleur végétale' },
+  'GBÀTÀ': { court: 'Défaisage', long: 'Défaisage' },
+  'DÀNDÀN': { court: 'Hydratation', long: 'Hydratation' },
+  'KLƆKLƆ': { court: 'Lavage', long: 'Lavage rituel' },
+  'KÒKÒ': { court: 'Consultation', long: 'Consultation' },
+  'GBÌGBÌ': { court: 'Reconstruction', long: 'Reconstruction' },
+  'GBÈJÍ': { court: 'Entretien', long: 'Entretien suivi' },
+};
+
+/** « SÍNSIN™ Essentiel · « Le Souffle » » : la marque « SÍNSIN », la
+    variante « Essentiel » (le premier segment après la marque). */
+const litLaMarqueWa = (nom: string): { marque: string; variante: string } => {
+  const s = String(nom ?? '').replace(/\s+/g, ' ').trim();
+  const m = /^([^\s™®]+)(?:™|®)?\s*(.*)$/u.exec(s);
+  const marque = (m?.[1] ?? '').normalize('NFC');
+  const variante = (m?.[2] ?? '').split(' · ')[0]?.trim() ?? '';
+  return { marque, variante };
+};
+
+/** Le titre d'une ligne de liste (24 signes) : « Resserrage · Essentiel »,
+    « Création de locks » quand la variante répète le geste. Sans mot
+    français, le nom du catalogue. */
+const titreEnFrancaisWa = (nom: string): string => {
+  const { marque, variante } = litLaMarqueWa(nom);
+  const g = GESTES_EN_FRANCAIS[marque];
+  if (!g) return coupeWa(nom, 24);
+  const v = variante.toLowerCase();
+  if (!v || v === g.court.toLowerCase() || v === g.long.toLowerCase()) return coupeWa(g.long, 24);
+  const avecPoint = `${g.court} · ${variante}`;
+  if (avecPoint.length <= 24) return avecPoint;
+  const sansPoint = `${g.court} ${variante}`;
+  return sansPoint.length <= 24 ? sansPoint : coupeWa(avecPoint, 24);
+};
+
+/** Le geste en toutes lettres : « Resserrage des racines (SÍNSIN™
+    Essentiel) » ; sans mot français, le nom tel quel. */
+const gesteDitEnFrancaisWa = (nom: string): string => {
+  const g = GESTES_EN_FRANCAIS[litLaMarqueWa(nom).marque];
+  return g ? `${g.long} (${nom})` : nom;
+};
+const gestesDitsEnFrancaisWa = (noms: readonly string[]): string => gestesDitsWa(noms.map(gesteDitEnFrancaisWa));
+
+/** La durée, dite : 45 → « 45 min », 60 → « 1 h », 105 → « 1 h 45 ». */
+const dureeDiteWa = (min: number): string => {
+  const n = Math.max(0, Math.round(Number(min) || 0));
+  if (!n) return '';
+  if (n < 60) return `${n} min`;
+  const h = Math.floor(n / 60);
+  const r = n % 60;
+  return r ? `${h} h ${String(r).padStart(2, '0')}` : `${h} h`;
+};
+
+/** PLUSIEURS SOINS LE MÊME JOUR (13 octobre 2026) : après un rituel
+    choisi, « Souhaitez-vous ajouter un autre soin ? », trois soins au plus
+    dans un rendez-vous. */
+const SOINS_PAR_RENDEZ_VOUS = 3;
+
 /* ── 10. L'ATELIER DU TOUR ──────────────────────────────────────────────
    Toutes les étapes se fabriquent ici, autour d'un état de travail `base`.
    `etapeSuivante` y joue un tour ; `suiteDeLaPose` y dit le verdict du
@@ -1337,7 +1412,7 @@ function atelierDuTour(ancien: EtatDuFil | null | undefined, tour: TourDeLaClien
     const v = venueReprenable(ficheChoisie());
     if (!v) return null;
     passe('meme');
-    const gestes = gestesDitsWa(nomsDe(v.serviceIds));
+    const gestes = gestesDitsEnFrancaisWa(nomsDe(v.serviceIds));
     const quand = jourDitAvecAnnee(v.date);
     const pourQui = base.panier.pourQui;
     const corps = relance ? relanceDite()
@@ -1352,31 +1427,66 @@ function atelierDuTour(ancien: EtatDuFil | null | undefined, tour: TourDeLaClien
 
   const titreDesGestes = (ids: readonly string[]): string => {
     const noms = nomsDe(ids);
-    if (noms.length <= 1) return coupeWa(noms[0] ?? '', 24);
+    if (noms.length <= 1) return titreEnFrancaisWa(noms[0] ?? '');
     const suite = ` + ${noms.length - 1}`;
-    return `${coupeWa(noms[0], 24 - suite.length)}${suite}`;
+    return `${coupeWa(titreEnFrancaisWa(noms[0]), 24 - suite.length)}${suite}`;
+  };
+  /** Sous le titre : la marque fon et la durée, « KLƆKLƆ™ Essentiel · 45 min ». */
+  const descriptionDesGestes = (ids: readonly string[]): string => {
+    const minutes = ids.reduce((s, id) => s + (prestation(id)?.durationMin ?? 60), 0);
+    const duree = dureeDiteWa(minutes);
+    const noms = gestesDitsWa(nomsDe(ids));
+    return coupeWa(duree ? `${noms} · ${duree}` : noms, 72);
   };
 
   const sontDesConsultations = (offres: readonly string[][]): boolean =>
     offres.length > 0 && offres.every((ids) => ids.length === 1 && !!prestation(ids[0]) && estUneConsultation(prestation(ids[0])!, cats));
 
-  const msgRituel = (relance: boolean, offres: string[][]): MessageSortant | null => {
+  const msgRituel = (relance: boolean, offres: string[][], ajout = false): MessageSortant | null => {
     const valables = offres.filter((ids) => ids.length > 0 && ids.every((id) => reservableWa(prestation(id)))).slice(0, 8);
     if (valables.length === 0) return null;
     passe('rituel');
     base.panier.rituels = valables.map((ids) => [...ids]);
+    if (!ajout) base.panier.offerts = offres.map((ids) => [...ids]);
+    base.panier.enAjout = ajout;
     const consultations = sontDesConsultations(valables);
     const corps = relance ? relanceDite()
-      : consultations ? `Quelle consultation souhaitez-vous, ${appel()} ?` : `Quel rituel souhaitez-vous, ${appel()} ?`;
+      : ajout ? `Quel soin ajouter, ${appel()} ?`
+        : consultations ? `Quelle consultation souhaitez-vous, ${appel()} ?` : `Quel rituel souhaitez-vous, ${appel()} ?`;
     return liste('rituel', corps, 'Choisir', [
       ...valables.map((ids, i) => ({
         id: choix('rituel', String(i)),
         titre: titreDesGestes(ids),
-        description: coupeWa(gestesDitsWa(nomsDe(ids)), 72),
+        description: descriptionDesGestes(ids),
       })),
       ...(consultations ? [] : [{ id: choix('autre-soin'), titre: 'Autre soin', description: 'une personne de la Maison vous répond' }]),
     ]);
   };
+
+  /** LES SOINS QU'ELLE PEUT ENCORE AJOUTER : les offres du premier choix,
+      moins ce qu'elle a déjà pris (une formule dont elle a pris un geste
+      offre le reste), sans dépasser trois soins, sans doublon. */
+  const soinsAAjouter = (): string[][] => {
+    const pris = base.panier.serviceIds ?? [];
+    const vus = new Set<string>();
+    return (base.panier.offerts ?? [])
+      .map((ids) => ids.filter((id) => !pris.includes(id)))
+      .filter((ids) => ids.length > 0 && pris.length + ids.length <= SOINS_PAR_RENDEZ_VOUS && ids.every((id) => directe(prestation(id))))
+      .filter((ids) => { const cle = ids.join('+'); if (vus.has(cle)) return false; vus.add(cle); return true; });
+  };
+
+  const msgEncore = (relance: boolean): MessageSortant => {
+    passe('encore');
+    return boutons('encore', relance ? relanceDite() : `Souhaitez-vous ajouter un autre soin le même jour, ${appel()} ?`, [
+      { id: choix('encore'), titre: 'Ajouter un soin' },
+      { id: choix('suffit'), titre: "Non, c'est tout" },
+    ]);
+  };
+
+  /** Un rituel choisi : un autre soin ? Trois soins, ou plus rien à
+      ajouter : droit aux places. */
+  const apresLeRituel = (): SortieDuTour =>
+    ((base.panier.serviceIds ?? []).length >= SOINS_PAR_RENDEZ_VOUS || soinsAAjouter().length === 0 ? dire(msgPlaces({})) : dire(msgEncore(false)));
 
   const msgCivilite = (relance: boolean): MessageSortant => {
     passe('civilite');
@@ -1392,7 +1502,7 @@ function atelierDuTour(ancien: EtatDuFil | null | undefined, tour: TourDeLaClien
     const civ = appelDe({ civilite: base.panier.civilite });
     return boutons('prenom', relance
       ? `Écrivez simplement votre prénom, ${civ}, ou touchez Parler à la Maison.`
-      : `Et votre prénom, ${civ} ?`, []);
+      : `Et votre prénom, ${civ} ? Écrivez-le simplement dans un message, en réponse.`, []);
   };
 
   const quandDuPanier = (): string =>
@@ -1402,7 +1512,7 @@ function atelierDuTour(ancien: EtatDuFil | null | undefined, tour: TourDeLaClien
     const p = base.panier;
     if (!p.date || !p.time || !p.serviceIds?.length) return null;
     passe('recap');
-    const gestes = gestesDitsWa(nomsDe(p.serviceIds));
+    const gestes = gestesDitsEnFrancaisWa(nomsDe(p.serviceIds));
     const de = p.pourQui ? `le rendez-vous de ${p.pourQui}` : 'votre rendez-vous';
     const corps = relance ? relanceDite()
       : `Voici ${de}, ${appel()} : ${gestes}, ${quandDuPanier()}, à la ${maisonNomWa}. Nous le posons ?`;
@@ -1417,7 +1527,10 @@ function atelierDuTour(ancien: EtatDuFil | null | undefined, tour: TourDeLaClien
       case 'qui': return dire(msgQui(relance, false));
       case 'besoin': return dire(msgBesoin(relance, false));
       case 'meme': return dire(msgMeme(relance, false) ?? msgBesoin(relance, false));
-      case 'rituel': return dire(msgRituel(relance, base.panier.rituels ?? []), 'autre-soin');
+      case 'rituel': return base.panier.enAjout
+        ? dire(msgRituel(relance, soinsAAjouter(), true) ?? msgPlaces({}))
+        : dire(msgRituel(relance, base.panier.rituels ?? []), 'autre-soin');
+      case 'encore': return dire(msgEncore(relance));
       case 'places': return dire(msgPlaces({ relance }));
       case 'jours': return dire(msgJours(relance));
       case 'civilite': return dire(msgCivilite(relance));
@@ -1670,12 +1783,20 @@ function atelierDuTour(ancien: EtatDuFil | null | undefined, tour: TourDeLaClien
           if (g === 'rituel') {
             const ids = base.panier.rituels?.[Number(arg)];
             if (!ids || !ids.every((id) => reservableWa(prestation(id)))) return renvoie('rituel', false);
-            base.panier.serviceIds = [...ids];
+            const deja = base.panier.enAjout ? (base.panier.serviceIds ?? []) : [];
+            base.panier.serviceIds = [...deja, ...ids.filter((id) => !deja.includes(id))];
+            base.panier.enAjout = false;
             const unique = ids.length === 1 ? prestation(ids[0]) : undefined;
             const consultation = unique && estUneConsultation(unique, cats);
-            return dire(msgPlaces(consultation && base.panier.besoin ? { intro: introDeLaConsultation(base.panier.besoin, unique.name) } : {}));
+            if (consultation) return dire(msgPlaces(base.panier.besoin ? { intro: introDeLaConsultation(base.panier.besoin, unique.name) } : {}));
+            return apresLeRituel();
           }
           if (g === 'autre-soin') return laMain('autre-soin', true);
+          break;
+        }
+        case 'encore': {
+          if (g === 'encore') return dire(msgRituel(false, soinsAAjouter(), true) ?? msgPlaces({}));
+          if (g === 'suffit') return dire(msgPlaces({}));
           break;
         }
         case 'places': {
@@ -1764,6 +1885,14 @@ function atelierDuTour(ancien: EtatDuFil | null | undefined, tour: TourDeLaClien
           if (c.prenom) base.panier.prenom = c.prenom;
           return dire(base.panier.prenom ? (msgRecap(false) ?? msgPlaces({})) : msgPrenom(false));
         }
+        if (desMots) return retiensLesMots() ? renvoie(base.etape, false) : ecart();
+        break;
+      }
+      case 'encore': {
+        /* « non », « c'est tout », « oui », « ajouter » : écrits au lieu d'être touchés (13 octobre 2026). */
+        const mot = sansAccentsWa(t.texte);
+        if (/^(non|nan|c'est tout|ca suffit|rien|merci non|non merci|suffit)\b/.test(mot)) return dire(msgPlaces({}));
+        if (/^(oui|ajouter|encore|aussi|un autre)\b/.test(mot)) return dire(msgRituel(false, soinsAAjouter(), true) ?? msgPlaces({}));
         if (desMots) return retiensLesMots() ? renvoie(base.etape, false) : ecart();
         break;
       }

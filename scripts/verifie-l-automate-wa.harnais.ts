@@ -121,6 +121,8 @@ const isoDe = (ms: number): string => new Date(ms).toISOString();
 const PRESTATIONS: PrestationDuTour[] = [
   { id: 'plt-05', name: 'KLƆKLƆ™ Essentiel', categoryId: 'plt-05', durationMin: 45, reservable: true },
   { id: 'sinsin-ess', name: 'SÍNSIN™ Essentiel', categoryId: 'atl-ii-gbeji', durationMin: 60, reservable: true },
+  { id: 'dandan-ess', name: 'DÀNDÀN™ Essentiel', categoryId: 'plt-10', durationMin: 30, reservable: true },
+  { id: 'klk-int', name: 'KLƆKLƆ™ Intégral', categoryId: 'plt-05', durationMin: 60, reservable: true },
   { id: 'sv-koko-ori', name: 'KÒKÒ™ Origine', categoryId: 'koko', durationMin: 45, reservable: true },
   { id: 'sv-koko-sui', name: 'KÒKÒ™ Suivi', categoryId: 'koko', durationMin: 45, reservable: true },
   { id: 'svc-doto-conseil', name: 'Conseil et diagnostic', categoryId: 'doto', durationMin: 30, reservable: true },
@@ -249,12 +251,32 @@ function scnInconnue(m: Moteur) {
   const t0 = cotonou('2026-10-09', '10:12');
   const s1 = elle(p, t0, { texte: 'Bonjour, je voudrais prendre rendez-vous' });
   const s2 = elle(p, t0 + 30000, { touche: 'Entretenir mes locks' });
-  const s3 = elle(p, t0 + 60000, { touche: 'KLƆKLƆ™ Essentiel' });
+  const s3 = elle(p, t0 + 60000, { touche: 'Lavage · Essentiel' });
+  const s3b = elle(p, t0 + 75000, { touche: "Non, c'est tout" });
   const s4 = elle(p, t0 + 90000, { touche: 'Mar. 13 oct. 2026 · 9 h' });
   const s5 = elle(p, t0 + 100000, { touche: 'Mademoiselle' });
   const s6 = elle(p, t0 + 110000, { texte: 'awa' });
   const s7 = elle(p, t0 + 120000, { touche: 'Je confirme' });
-  return { p, t0, s1, s2, s3, s4, s5, s6, s7 };
+  return { p, t0, s1, s2, s3, s3b, s4, s5, s6, s7 };
+}
+/* Trois soins le même jour (13 octobre 2026) : Lavage, puis Resserrage,
+   puis Hydratation ; le troisième ferme le panier. Dix messages pile. */
+function scnTroisSoins(m: Moteur) {
+  const p = parcours(m, NUM_INCONNUE, []);
+  p.agenda = { formules: [{ serviceIds: ['plt-05'] }, { serviceIds: ['sinsin-ess'] }, { serviceIds: ['dandan-ess'] }, { serviceIds: ['klk-int'] }, { serviceIds: ['plt-05', 'sinsin-ess'] }] };
+  const t0 = cotonou('2026-10-09', '10:12');
+  elle(p, t0, { texte: 'Bonjour, je voudrais prendre rendez-vous' });
+  const s2 = elle(p, t0 + 1000, { touche: 'Entretenir mes locks' });
+  const s3 = elle(p, t0 + 2000, { touche: 'Lavage · Essentiel' });
+  const s4 = elle(p, t0 + 3000, { touche: 'Ajouter un soin' });
+  const s5 = elle(p, t0 + 4000, { touche: 'Resserrage · Essentiel' });
+  const s6 = elle(p, t0 + 5000, { touche: 'Ajouter un soin' });
+  const s7 = elle(p, t0 + 6000, { touche: 'Hydratation · Essentiel' });
+  const s8 = elle(p, t0 + 7000, { touche: 'Mar. 13 oct. 2026 · 9 h' });
+  const s9 = elle(p, t0 + 8000, { touche: 'Madame' });
+  const recap = elle(p, t0 + 9000, { texte: 'Afi' });
+  const oui = elle(p, t0 + 10000, { touche: 'Je confirme' });
+  return { p, s2, s3, s4, s5, s6, s7, s8, s9, recap, oui };
 }
 function scnPlacePrise(m: Moteur) {
   const p = parcours(m, NUM_NAFFI, [NAFFI]);
@@ -321,7 +343,8 @@ function scnFamille(m: Moteur) {
   const s1 = elle(p, t0, { texte: 'Bonjour je voudrais un rdv' });
   const s2 = elle(p, t0 + 10000, { touche: 'Pour Kemi' });
   elle(p, t0 + 20000, { touche: 'Entretenir ses locks' });
-  elle(p, t0 + 30000, { touche: 'KLƆKLƆ™ Essentiel' });
+  elle(p, t0 + 30000, { touche: 'Lavage · Essentiel' });
+  elle(p, t0 + 35000, { touche: "Non, c'est tout" });
   const s5 = elle(p, t0 + 40000, { touche: 'Mar. 13 oct. 2026 · 14 h' });
   const s6 = elle(p, t0 + 50000, { touche: 'Je confirme' });
   const q = parcours(m, NUM_NAFFI, [NAFFI, KEMI]);
@@ -406,7 +429,7 @@ function scnPorte(m: Moteur) {
   q.agenda = { consultationParParcours: { creation: 'sv-koko-ancienne' } };
   elle(q, t0, { texte: 'Bonjour' });
   const s3 = elle(q, t0 + 10000, { touche: 'Créer mes locks' });
-  elle(q, t0 + 20000, { touche: 'KÒKÒ™ Origine' });
+  elle(q, t0 + 20000, { touche: 'Consultation · Origine' });
   elle(q, t0 + 30000, { touche: 'Mar. 13 oct. 2026 · 9 h' });
   elle(q, t0 + 40000, { touche: 'Madame' });
   elle(q, t0 + 50000, { texte: 'Afi' });
@@ -486,7 +509,7 @@ function tousLesParcours(m: Moteur): Parcours[] {
   return [
     scnConnue(m).p, scnInconnue(m).p, scnPlacePrise(m).p, scnEcarts(m).p, scnCreation(m).p, scnEnfant(m).p,
     f.p, f.q, ...scnRien(m).parcours, ...scnNuit(m).parcours, ...scnAnnulations(m).parcours, ...scnPorte(m).parcours,
-    scnPlafond(m).p, scnVieuxToucher(m).o, scnOuiTape(m).p, scnDiaspora(m).p,
+    scnPlafond(m).p, scnVieuxToucher(m).o, scnOuiTape(m).p, scnDiaspora(m).p, scnTroisSoins(m).p,
   ];
 }
 
@@ -1036,12 +1059,12 @@ const regles: Regle[] = [
       const { ecarts, vaut, vrai } = juge();
       const a = scnConnue(ORIGINAL);
       vrai('A1 la meme chose ? Bonsoir, la civilite, la derniere venue avec son annee', a.s1.messages[0]?.etape === 'meme'
-        && corps(a.s1).startsWith('Bonsoir Madame Naffi, merci de votre message. Votre dernière venue : KLƆKLƆ™ Essentiel et SÍNSIN™ Essentiel, le samedi 12 septembre 2026.'), corps(a.s1));
+        && corps(a.s1).startsWith('Bonsoir Madame Naffi, merci de votre message. Votre dernière venue : Lavage rituel (KLƆKLƆ™ Essentiel) et Resserrage des racines (SÍNSIN™ Essentiel), le samedi 12 septembre 2026.'), corps(a.s1));
       vaut('A1 ... ses trois boutons', ['La même chose', 'Autre chose', 'Parler à la Maison'], boutonsDe(a.s1));
       vrai('A2 les places : le samedi voulu d abord, deux par jour, l annee dans le titre', a.s2.messages[0]?.etape === 'places'
         && lignesDe(a.s2)[0] === 'Sam. 10 oct. 2026 · 9 h' && lignesDe(a.s2)[1] === 'Sam. 10 oct. 2026 · 14 h' && (lignesDe(a.s2)[2] ?? '').startsWith('Sam. 17 oct. 2026'), lignesDe(a.s2).join(' | '));
       vrai('A2 ... sept places au plus, puis Un autre jour et Parler a la Maison', lignesDe(a.s2).length <= 9 && lignesDe(a.s2).at(-2) === 'Un autre jour' && lignesDe(a.s2).at(-1) === 'Parler à la Maison');
-      vaut('A3 le recapitulatif', 'Voici votre rendez-vous, Madame Naffi : KLƆKLƆ™ Essentiel et SÍNSIN™ Essentiel, samedi 10 octobre 2026 à 9 h, à la Maison MND. Nous le posons ?', corps(a.s3));
+      vaut('A3 le recapitulatif', 'Voici votre rendez-vous, Madame Naffi : Lavage rituel (KLƆKLƆ™ Essentiel) et Resserrage des racines (SÍNSIN™ Essentiel), samedi 10 octobre 2026 à 9 h, à la Maison MND. Nous le posons ?', corps(a.s3));
       vaut('A3 ... Je confirme, Une autre heure, Parler a la Maison', ['Je confirme', 'Une autre heure', 'Parler à la Maison'], boutonsDe(a.s3));
       vrai('A4 c est confirme, avec la devise', a.s4.messages[0]?.etape === 'confirme'
         && corps(a.s4).startsWith("C'est confirmé, Madame Naffi : votre rendez-vous est retenu le samedi 10 octobre 2026 à 9 h. Nous vous attendons. Merci de nous prévenir en cas d'empêchement.")
@@ -1055,13 +1078,14 @@ const regles: Regle[] = [
       const b = scnInconnue(ORIGINAL);
       vaut('B1 bienvenue, comment prendre soin de votre couronne', 'Bonjour Madame, bienvenue à la Maison MND. Comment pouvons-nous prendre soin de votre couronne ?', corps(b.s1));
       vaut('B1 ... les quatre besoins et la Maison', ['Entretenir mes locks', 'Créer mes locks', 'Réparer mes locks', 'Pour mon enfant', 'Parler à la Maison'], lignesDe(b.s1));
-      vaut('B2 quel rituel : les formules reservables, Autre soin, la Maison', ['KLƆKLƆ™ Essentiel', 'KLƆKLƆ™ Essentiel + 1', 'Autre soin', 'Parler à la Maison'], lignesDe(b.s2));
+      vaut('B2 quel rituel : les formules reservables, en francais d abord, Autre soin, la Maison', ['Lavage · Essentiel', 'Lavage · Essentiel + 1', 'Autre soin', 'Parler à la Maison'], lignesDe(b.s2));
+      vrai('B3 un rituel choisi : un autre soin le meme jour ?', b.s3.messages[0]?.etape === 'encore' && boutonsDe(b.s3).join(' | ') === "Ajouter un soin | Non, c'est tout | Parler à la Maison", `${corps(b.s3)} ${boutonsDe(b.s3).join(' | ')}`);
       vrai('B4 la civilite, en liste', b.s4.messages[0]?.etape === 'civilite' && b.s4.messages[0]?.forme === 'liste'
         && corps(b.s4) === 'Pour inscrire votre rendez-vous, comment devons-nous vous appeler ?', corps(b.s4));
-      vaut('B5 et votre prenom, Mademoiselle', 'Et votre prénom, Mademoiselle ?', corps(b.s5));
-      vaut('B6 le recapitulatif dit Mademoiselle Awa', 'Voici votre rendez-vous, Mademoiselle Awa : KLƆKLƆ™ Essentiel, mardi 13 octobre 2026 à 9 h, à la Maison MND. Nous le posons ?', corps(b.s6));
+      vaut('B5 et votre prenom, Mademoiselle, a ecrire en message', 'Et votre prénom, Mademoiselle ? Écrivez-le simplement dans un message, en réponse.', corps(b.s5));
+      vaut('B6 le recapitulatif dit Mademoiselle Awa', 'Voici votre rendez-vous, Mademoiselle Awa : Lavage rituel (KLƆKLƆ™ Essentiel), mardi 13 octobre 2026 à 9 h, à la Maison MND. Nous le posons ?', corps(b.s6));
       vrai('B7 c est confirme, Mademoiselle Awa', corps(b.s7).startsWith("C'est confirmé, Mademoiselle Awa : votre rendez-vous est retenu le mardi 13 octobre 2026 à 9 h."), corps(b.s7));
-      vaut('B  sept messages de la Maison', 7, b.p.envoyes.length);
+      vaut('B  huit messages de la Maison', 8, b.p.envoyes.length);
       const d = b.p.poses[0]?.demande;
       vaut('B  la demande : whatsapp, rdv, sa civilite, son prenom, +229, le consentement a l heure du Je confirme, sans fiche',
         { source: 'whatsapp', genre: 'rdv', civilite: 'mademoiselle', prenom: 'Awa', telephone: `+${NUM_INCONNUE}`, consentementLe: isoDe(b.t0 + 120000), besoin: 'entretien', clientId: '', clientName: 'Awa', apptId: b.p.poses[0]?.rdv.id },
@@ -1111,7 +1135,7 @@ const regles: Regle[] = [
       vaut('le rendez-vous, la ligne d envoi : tires du waId du Je confirme', { rdv: `rdv-wa-${cle}`, envoi: `conf-rdv-wa-${cle}-whatsapp`, statut: 'en cours', apptId: `rdv-wa-${cle}` },
         { rdv: pose?.rdv.id, envoi: pose?.envoi.id, statut: pose?.envoi.statut, apptId: pose?.envoi.apptId });
       const b = scnInconnue(ORIGINAL);
-      const cleB = cleCourte(`wamid.${NUM_INCONNUE}.7`);
+      const cleB = cleCourte(`wamid.${NUM_INCONNUE}.8`);
       vaut('la demande d une inconnue porte la meme cle', { rdv: `rdv-wa-${cleB}`, demande: `dem-wa-${cleB}` }, { rdv: b.p.poses[0]?.rdv.id, demande: b.p.poses[0]?.demande?.id });
       vrai('la cle est stable, courte, et deux messages font deux cles (2000 essais)', (() => {
         const vues = new Set<string>();
@@ -1185,9 +1209,9 @@ const regles: Regle[] = [
       vaut('pour un enfant : la consultation MND Kids, Conseil et diagnostic', 'Pour un enfant, tout commence par un échange avec ses parents, Madame : le Conseil et diagnostic. Voici les prochaines places.', corps(f.s2));
       vaut('... et c est elle qui se pose', [['svc-doto-conseil'], 'enfant'], [f.p.poses[0]?.rdv.serviceIds, f.p.poses[0]?.demande?.besoin]);
       const r = scnPorte(ORIGINAL);
-      vaut('des formules qui nomment creation, restauration ou devis ne sont jamais proposees', ['KLƆKLƆ™ Essentiel', 'Autre soin', 'Parler à la Maison'], lignesDe(r.s2));
+      vaut('des formules qui nomment creation, restauration ou devis ne sont jamais proposees', ['Lavage · Essentiel', 'Autre soin', 'Parler à la Maison'], lignesDe(r.s2));
       vrai('une consultation renommee : toutes les consultations, jamais la creation', corps(r.s3) === 'Quelle consultation souhaitez-vous, Madame ?'
-        && j(lignesDe(r.s3)) === j(['KÒKÒ™ Origine', 'KÒKÒ™ Suivi', 'Conseil et diagnostic', 'Parler à la Maison']), `${corps(r.s3)} ${lignesDe(r.s3).join(' | ')}`);
+        && j(lignesDe(r.s3)) === j(['Consultation · Origine', 'Consultation · Suivi', 'Conseil et diagnostic', 'Parler à la Maison']), `${corps(r.s3)} ${lignesDe(r.s3).join(' | ')}`);
       vaut('... et la pose est la consultation choisie', ['sv-koko-ori'], r.q.poses[0]?.rdv.serviceIds);
       vrai('une derniere venue de creation : jamais La meme chose', r.s4.messages[0]?.etape === 'besoin', corps(r.s4));
       const toutes = tousLesParcours(ORIGINAL).flatMap((p) => p.poses);
@@ -1915,7 +1939,8 @@ const regles: Regle[] = [
       const s2 = elle(m, t0 + 1000, { touche: 'Pour moi' });
       vrai('Pour moi : le parcours d une inconnue', s2.messages[0]?.etape === 'besoin', corps(s2));
       elle(m, t0 + 2000, { touche: 'Entretenir mes locks' });
-      elle(m, t0 + 3000, { touche: 'KLƆKLƆ™ Essentiel' });
+      elle(m, t0 + 3000, { touche: 'Lavage · Essentiel' });
+      elle(m, t0 + 3500, { touche: "Non, c'est tout" });
       elle(m, t0 + 4000, { touche: 'Mar. 13 oct. 2026 · 9 h' });
       elle(m, t0 + 5000, { touche: 'Madame' });
       elle(m, t0 + 6000, { texte: 'Grâce' });
@@ -1926,7 +1951,7 @@ const regles: Regle[] = [
       const k = parcours(ORIGINAL, NUM_NAFFI, [KEMI_SEULE]);
       elle(k, t0, { texte: 'Bonjour, je voudrais un rendez-vous' });
       const k2 = elle(k, t0 + 1000, { touche: 'Pour Kemi' });
-      vaut('Pour Kemi : sa derniere venue, dite d elle', 'La dernière venue de Kemi, Madame : KLƆKLƆ™ Essentiel, le samedi 12 septembre 2026. Souhaitez-vous la même chose ?', corps(k2));
+      vaut('Pour Kemi : sa derniere venue, dite d elle', 'La dernière venue de Kemi, Madame : Lavage rituel (KLƆKLƆ™ Essentiel), le samedi 12 septembre 2026. Souhaitez-vous la même chose ?', corps(k2));
       /* Le mari d Awa ecrit du numero range en second numero sur sa fiche. */
       const AWA: FicheDuNumero = { id: 'c-awa', nom: 'Awa Sossa', civilite: 'madame', parPhone: false, numeros: ['2290196000000', NUM_NAFFI], derniereVenue: { date: '2026-09-12', serviceIds: ['plt-05'] } };
       const a = parcours(ORIGINAL, NUM_NAFFI, [AWA]);
@@ -1944,7 +1969,8 @@ const regles: Regle[] = [
       const e1 = elle(e, t0, { texte: 'Je voudrais un rendez-vous' });
       vrai('en essai, une fiche du second numero ou de la famille n est jamais proposee', e1.messages[0]?.etape === 'besoin' && !lignesDe(e1).some((x) => /Awa|Kemi/.test(x)), `${corps(e1)} ${lignesDe(e1).join(' | ')}`);
       elle(e, t0 + 1000, { touche: 'Entretenir mes locks' });
-      elle(e, t0 + 2000, { touche: 'KLƆKLƆ™ Essentiel' });
+      elle(e, t0 + 2000, { touche: 'Lavage · Essentiel' });
+      elle(e, t0 + 2500, { touche: "Non, c'est tout" });
       elle(e, t0 + 3000, { touche: 'Mar. 13 oct. 2026 · 9 h' });
       elle(e, t0 + 4000, { touche: 'Madame' });
       elle(e, t0 + 5000, { texte: 'Yeman' });
@@ -2262,21 +2288,21 @@ const regles: Regle[] = [
       const p = parcours(ORIGINAL, NUM_INCONNUE, []);
       elle(p, t0, { texte: 'Bonjour, je voudrais prendre rendez-vous' });
       elle(p, t0 + 1000, { touche: 'Entretenir mes locks' });
-      elle(p, t0 + 2000, { touche: 'KLƆKLƆ™ Essentiel' });
+      elle(p, t0 + 2000, { touche: 'Lavage · Essentiel' });
+      elle(p, t0 + 2500, { touche: "Non, c'est tout" });
       elle(p, t0 + 3000, { touche: 'Un autre jour' });
       elle(p, t0 + 4000, { touche: 'Mardi 13 oct. 2026' });
-      elle(p, t0 + 5000, { touche: 'Un autre jour' });
-      elle(p, t0 + 6000, { touche: 'Mercredi 14 oct. 2026' });
-      elle(p, t0 + 7000, { touche: 'Mer. 14 oct. 2026 · 9 h' });
+      elle(p, t0 + 5000, { texte: 'hmm' });
+      elle(p, t0 + 7000, { touche: 'Mar. 13 oct. 2026 · 9 h' });
       elle(p, t0 + 8000, { touche: 'Madame' });
       const recap = elle(p, t0 + 9000, { texte: 'Awa' });
       vaut('le recapitulatif est son dixieme message', [10, 'recap'], [p.envoyes.length, recap.messages[0]?.etape]);
       const oui = elle(p, t0 + 10000, { touche: 'Je confirme' });
       vrai('Je confirme pose et confirme quand meme', p.poses.length === 1 && oui.messages[0]?.etape === 'confirme' && corps(oui).startsWith("C'est confirmé, Madame Awa"), corps(oui));
       const q = parcours(ORIGINAL, NUM_INCONNUE, []);
-      for (const [i, x] of [[0, { texte: 'Bonjour, je voudrais prendre rendez-vous' }], [1, { touche: 'Entretenir mes locks' }], [2, { touche: 'KLƆKLƆ™ Essentiel' }],
-        [3, { touche: 'Un autre jour' }], [4, { touche: 'Mardi 13 oct. 2026' }], [5, { touche: 'Un autre jour' }], [6, { touche: 'Mercredi 14 oct. 2026' }],
-        [7, { touche: 'Mer. 14 oct. 2026 · 9 h' }], [8, { touche: 'Madame' }], [9, { texte: 'Awa' }]] as const) elle(q, t0 + i * 1000, x);
+      for (const [i, x] of [[0, { texte: 'Bonjour, je voudrais prendre rendez-vous' }], [1, { touche: 'Entretenir mes locks' }], [2, { touche: 'Lavage · Essentiel' }],
+        [2.5, { touche: "Non, c'est tout" }], [3, { touche: 'Un autre jour' }], [4, { touche: 'Mardi 13 oct. 2026' }], [5, { texte: 'hmm' }],
+        [7, { touche: 'Mar. 13 oct. 2026 · 9 h' }], [8, { touche: 'Madame' }], [9, { texte: 'Awa' }]] as const) elle(q, t0 + i * 1000, x);
       const autre = elle(q, t0 + 10000, { touche: 'Une autre heure' });
       vrai('... un autre toucher, lui, reste sous le plafond : la main passe sans un mot', autre.pris && autre.messages.length === 0 && q.etat?.motifMain === 'plafond' && q.poses.length === 0);
       return ecarts;
@@ -2336,12 +2362,13 @@ const regles: Regle[] = [
         const t0 = cotonou('2026-10-09', '10:12');
         elle(p, t0, { texte: 'Bonjour, je voudrais prendre rendez-vous' });
         elle(p, t0 + 1000, { touche: 'Entretenir mes locks' });
-        elle(p, t0 + 2000, { touche: 'KLƆKLƆ™ Essentiel' });
+        elle(p, t0 + 2000, { touche: 'Lavage · Essentiel' });
+        elle(p, t0 + 2500, { touche: "Non, c'est tout" });
         elle(p, t0 + 3000, { touche: 'Mar. 13 oct. 2026 · 9 h' });
         return { p, s: elle(p, t0 + 4000, { texte }), t0 };
       };
       const a = jusquALaCivilite('Madame');
-      vaut('« Madame » ecrit a la civilite : et votre prenom, Madame', 'Et votre prénom, Madame ?', corps(a.s));
+      vaut('« Madame » ecrit a la civilite : et votre prenom, Madame', 'Et votre prénom, Madame ? Écrivez-le simplement dans un message, en réponse.', corps(a.s));
       const a2 = elle(a.p, a.t0 + 5000, { texte: 'Je m appelle Grace' });
       vrai('... « Je m appelle Grace » : le recapitulatif de Madame Grace', a2.messages[0]?.etape === 'recap' && corps(a2).startsWith('Voici votre rendez-vous, Madame Grace'), corps(a2));
       const b = jusquALaCivilite('Mme Grace');
@@ -2405,6 +2432,56 @@ const regles: Regle[] = [
       { nom: 'la fonction rattache la fiche a l egal', mute: [P(F_AUTO, "(f.numeros ?? []).some((x) => cleWa(x) === cleWa(o.numero))", "(f.numeros ?? []).includes(o.numero)")] },
       { nom: 'le Trone cherche la tete a l egal', mute: [P(CONV, 'cleDuNumeroWa(t.phone) !== n && cleDuNumeroWa(t.phone2) !== n', 'numeroWa(t.phone) !== n && numeroWa(t.phone2) !== n')] },
       { nom: 'la base compare les fiches a l egal', mute: [P('supabase/migrations/0128_la_cle_du_numero.sql', "public.cle_du_numero_wa(c.data->>'phone') = (select v from num) as par_phone", "public.numero_wa(c.data->>'phone') = (select v from num) as par_phone")] },
+    ],
+  },
+  /* ══ R32 · plusieurs soins, le français d'abord, le prénom en message (13 octobre 2026) ═══ */
+  {
+    id: 'R32', nom: 'R32 la cliente lit le francais d abord, ajoute jusqu a trois soins le meme jour, et sait qu elle repond son prenom en message',
+    eprouve: () => {
+      const { ecarts, vaut, vrai } = juge();
+      const b = scnInconnue(ORIGINAL);
+      vaut('la liste dit le geste en francais : Lavage · Essentiel', ['Lavage · Essentiel', 'Lavage · Essentiel + 1', 'Autre soin', 'Parler à la Maison'], lignesDe(b.s2));
+      vaut('... et dessous, la marque fon et la duree', ['KLƆKLƆ™ Essentiel · 45 min', 'KLƆKLƆ™ Essentiel et SÍNSIN™ Essentiel · 1 h 45'],
+        (b.s2.messages[0]?.lignes ?? []).slice(0, 2).map((l) => l.description));
+      const lignes = tousLesParcours(ORIGINAL).flatMap((p) => p.envoyes).flatMap((m) => m.lignes ?? []);
+      vrai('dans tous les parcours, chaque titre tient en 24 signes et chaque description en 72', lignes.length > 20 && lignes.every((l) => l.titre.length <= 24 && (l.description ?? '').length <= 72),
+        lignes.filter((l) => l.titre.length > 24 || (l.description ?? '').length > 72).map((l) => `${l.titre} / ${l.description ?? ''}`).join(' | '));
+      vrai('un rituel choisi : un autre soin le meme jour ?', b.s3.messages[0]?.etape === 'encore' && corps(b.s3) === 'Souhaitez-vous ajouter un autre soin le même jour, Madame ?', corps(b.s3));
+      vaut('... Ajouter un soin, Non c est tout, la Maison', ['Ajouter un soin', "Non, c'est tout", 'Parler à la Maison'], boutonsDe(b.s3));
+      vrai('Non, c est tout : les places', b.s3b.messages[0]?.etape === 'places', corps(b.s3b));
+      vaut('le prenom se repond en message, et c est dit', 'Et votre prénom, Mademoiselle ? Écrivez-le simplement dans un message, en réponse.', corps(b.s5));
+      const d = scnTroisSoins(ORIGINAL);
+      vrai('Ajouter un soin : quel soin ajouter, les soins restants en francais, jamais celui deja pris', corps(d.s4) === 'Quel soin ajouter, Madame ?'
+        && j(lignesDe(d.s4)) === j(['Resserrage · Essentiel', 'Hydratation · Essentiel', 'Lavage · Intégral', 'Autre soin', 'Parler à la Maison']), `${corps(d.s4)} ${lignesDe(d.s4).join(' | ')}`);
+      vrai('le second soin s ajoute au premier : la question revient', d.s5.messages[0]?.etape === 'encore', corps(d.s5));
+      vaut('le troisieme soin ferme le panier : droit aux places, sans question', 'places', d.s7.messages[0]?.etape);
+      vaut('le recapitulatif dit les trois soins, en francais puis la marque',
+        'Voici votre rendez-vous, Madame Afi : Lavage rituel (KLƆKLƆ™ Essentiel), Resserrage des racines (SÍNSIN™ Essentiel) et Hydratation (DÀNDÀN™ Essentiel), mardi 13 octobre 2026 à 9 h, à la Maison MND. Nous le posons ?', corps(d.recap));
+      vaut('la pose porte les trois soins, dans l ordre choisi, et leur duree', [['plt-05', 'sinsin-ess', 'dandan-ess'], 135, 'confirme'],
+        [d.p.poses[0]?.rdv.serviceIds, d.p.poses[0]?.rdv.dureeMin, d.oui.messages[0]?.etape]);
+      /* Ecrit au lieu de touche : « non » file aux places, « oui » ouvre les soins. */
+      const n = parcours(ORIGINAL, NUM_INCONNUE, []);
+      const t0 = cotonou('2026-10-09', '10:12');
+      elle(n, t0, { texte: 'Bonjour, je voudrais prendre rendez-vous' });
+      elle(n, t0 + 1000, { touche: 'Entretenir mes locks' });
+      elle(n, t0 + 2000, { touche: 'Lavage · Essentiel' });
+      const non = elle(n, t0 + 3000, { texte: 'Non merci' });
+      vaut('« Non merci » ecrit : les places', 'places', non.messages[0]?.etape);
+      const o = parcours(ORIGINAL, NUM_INCONNUE, []);
+      elle(o, t0, { texte: 'Bonjour, je voudrais prendre rendez-vous' });
+      elle(o, t0 + 1000, { touche: 'Entretenir mes locks' });
+      elle(o, t0 + 2000, { touche: 'Lavage · Essentiel' });
+      const oui = elle(o, t0 + 3000, { texte: 'Oui' });
+      vrai('« Oui » ecrit : les soins a ajouter', oui.messages[0]?.etape === 'rituel' && corps(oui) === 'Quel soin ajouter, Madame ?', corps(oui));
+      return ecarts;
+    },
+    pannes: [
+      { nom: 'la liste revient aux marques fon', mute: [P(AUTO, "    if (noms.length <= 1) return titreEnFrancaisWa(noms[0] ?? '');", "    if (noms.length <= 1) return coupeWa(noms[0] ?? '', 24);")] },
+      { nom: 'un rituel choisi file aux places sans proposer un autre soin', mute: [P(AUTO, '            return apresLeRituel();', '            return dire(msgPlaces({}));')] },
+      { nom: 'le second soin remplace le premier', mute: [P(AUTO, '            const deja = base.panier.enAjout ? (base.panier.serviceIds ?? []) : [];', '            const deja: string[] = [];')] },
+      { nom: 'le panier n a plus de plafond : un quatrieme soin se propose', mute: [P(AUTO, 'const SOINS_PAR_RENDEZ_VOUS = 3;', 'const SOINS_PAR_RENDEZ_VOUS = 9;')] },
+      { nom: 'le prenom ne dit plus qu il se repond en message', mute: [P(AUTO, '      : `Et votre prénom, ${civ} ? Écrivez-le simplement dans un message, en réponse.`, []);', '      : `Et votre prénom, ${civ} ?`, []);')] },
+      { nom: 'le recapitulatif ne dit plus le francais', mute: [P(AUTO, '    const gestes = gestesDitsEnFrancaisWa(nomsDe(p.serviceIds));', '    const gestes = gestesDitsWa(nomsDe(p.serviceIds));')] },
     ],
   },
 ];
