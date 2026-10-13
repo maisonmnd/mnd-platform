@@ -88,7 +88,7 @@ import { createClient, type SupabaseClient } from 'npm:@supabase/supabase-js@2';
 
 /** LA VERSION DE CE FICHIER, dite par le contrôle de santé. Sans elle on ne
     sait pas quel code tourne vraiment. À incrémenter à chaque déploiement. */
-const VERSION = '2026-10-13-e · le prenom seul quand la civilite est inconnue, jamais Madame suppose';
+const VERSION = '2026-10-13-f · Autre soin ouvre les soins du cheveu, la reparation se joint a l entretien';
 
 /** « En train d'écrire », puis on attend : deux messages envoyés coup sur
     coup font un seul tour, celui du dernier. */
@@ -875,19 +875,23 @@ const GESTES_EN_FRANCAIS: Record<string, { court: string; long: string }> = {
   'KÒKÒ': { court: 'Consultation', long: 'Consultation' },
   'GBÌGBÌ': { court: 'Reconstruction', long: 'Reconstruction' },
   'GBÈJÍ': { court: 'Entretien', long: 'Entretien suivi' },
+  /* Les noms du catalogue, choisis par Yéman au sélecteur le 13 octobre 2026. */
+  'VÍVÍVÓ': { court: 'Activateur', long: 'Activateur de pousse' },
+  'WÈWÈ': { court: 'Purification', long: 'Purification' },
 };
 
 /** « SÍNSIN™ Essentiel · « Le Souffle » » : la marque « SÍNSIN », la
     variante « Essentiel » (le premier segment après la marque). Un nom sans
     niveau, « DÀNDÀN™ · Le Soin Hydratant », a pour variante son sous-titre,
     sans le point qui le précède (revue du 13 octobre 2026). */
-const litLaMarqueWa = (nom: string): { marque: string; variante: string } => {
+const litLaMarqueWa = (nom: string): { marque: string; variante: string; sansNiveau: boolean } => {
   const s = String(nom ?? '').replace(/\s+/g, ' ').trim();
   const m = /^([^\s™®]+)(?:™|®)?\s*(.*)$/u.exec(s);
   const marque = (m?.[1] ?? '').normalize('NFC');
-  const reste = (m?.[2] ?? '').replace(/^[·:–-]\s*/u, '');
+  const brutDuReste = m?.[2] ?? '';
+  const reste = brutDuReste.replace(/^[·:–-]\s*/u, '');
   const variante = reste.split(' · ')[0]?.trim() ?? '';
-  return { marque, variante };
+  return { marque, variante, sansNiveau: /^[·:–-]/u.test(brutDuReste) };
 };
 
 /** Le geste en toutes lettres : « Resserrage des racines (SÍNSIN™
@@ -1040,6 +1044,9 @@ type PanierDuFil = {
   /** Les messages de « un autre soin ? » et de sa liste : ils s'ajoutent
       au plafond, choisir trois soins ne mange pas la marge des détours. */
   horsPlafond?: number;
+  /** La liste à l'écran est celle des soins (« Autre soin ») : son propre
+      « Autre soin » passe la main (13 octobre 2026). */
+  dansLesSoins?: boolean;
   /** Les places proposées, pour mémoire. */
   places?: PlaceLibre[];
   date?: string;
@@ -1797,10 +1804,10 @@ function envoisQuiComptent(envois: readonly string[], main: MainDuFil | null | u
   }).length;
 }
 
-/** LE PLAFOND DU FIL : dix messages, plus ceux de « un autre soin ? » et
-    de sa liste (quatre au plus, 13 octobre 2026). */
+/** LE PLAFOND DU FIL : dix messages, plus ceux de « un autre soin ? », de
+    sa liste et de la liste des soins (six au plus, 13 octobre 2026). */
 function plafondDuFil(etat: EtatDuFil | null | undefined): number {
-  return PLAFOND_DE_L_AUTOMATE + Math.min(4, Math.max(0, etat?.panier?.horsPlafond ?? 0));
+  return PLAFOND_DE_L_AUTOMATE + Math.min(6, Math.max(0, etat?.panier?.horsPlafond ?? 0));
 }
 
 function jugeLaParole(
@@ -1970,12 +1977,17 @@ const gestesDitsWa = (noms: readonly string[]): string =>
     sinon le geste seul, « Hydratation ». Jamais de mot coupé quand le geste
     tient. Sans mot français, le nom du catalogue. */
 const titreEnFrancaisWa = (nom: string, place = 24): string => {
-  const { marque, variante } = litLaMarqueWa(nom);
+  const { marque, variante, sansNiveau } = litLaMarqueWa(nom);
   const g = GESTES_EN_FRANCAIS[marque];
   if (!g) return coupeWa(nom, place);
   const v = variante.toLowerCase();
-  const repete = !v || v === g.court.toLowerCase() || v === g.long.toLowerCase();
-  const essais = repete ? [g.long, g.court] : [`${g.court} · ${variante}`, `${g.court} ${variante}`, g.long, g.court];
+  const repete = !v || v === g.court.toLowerCase() || v === g.long.toLowerCase()
+    || (sansNiveau && (v.includes(g.court.toLowerCase()) || v.includes(g.long.toLowerCase())));
+  /* Un sous-titre (« VÍVÍVÓ™ · Le Vivifiant ») ne se colle pas au geste
+     sans point : « Activateur Le Vivifiant » ne se lit pas. */
+  const essais = repete ? [g.long, g.court]
+    : sansNiveau ? [`${g.court} · ${variante}`, g.long, g.court]
+      : [`${g.court} · ${variante}`, `${g.court} ${variante}`, g.long, g.court];
   return essais.find((x) => x.length <= place) ?? coupeWa(g.court, place);
 };
 
@@ -2035,6 +2047,9 @@ const dureeDiteWa = (min: number): string => {
     choisi, « Souhaitez-vous ajouter un autre soin ? », trois soins au plus
     dans un rendez-vous. */
 const SOINS_PAR_RENDEZ_VOUS = 3;
+
+/** Les marques des soins du cheveu, dans l'ordre où la liste les montre. */
+const MARQUES_DES_SOINS: readonly string[] = ['DÀNDÀN', 'VÍVÍVÓ', 'WÈWÈ', 'GBÌGBÌ'];
 
 /* ── 10. L'ATELIER DU TOUR ──────────────────────────────────────────────
    Toutes les étapes se fabriquent ici, autour d'un état de travail `base`.
@@ -2352,28 +2367,57 @@ function atelierDuTour(ancien: EtatDuFil | null | undefined, tour: TourDeLaClien
     return `${coupeWa(gestesDitsWa(nomsDe(ids)), 72 - suite.length)}${suite}`;
   };
 
+  /** LES SOINS DU CHEVEU (13 octobre 2026) : « dans Autre soin j'aimerais
+      les soins DÀNDÀN, VÍVÍVÓ… » (Yéman). Ceux qui se réservent ici,
+      reconnus à leur marque, sans les versions Kids ni « avec votre
+      produit » ; en ajout, jamais un soin déjà pris ni au-delà de trois. */
+  const soinsDuCheveu = (): string[][] => {
+    const pris = base.panier.enAjout ? (base.panier.serviceIds ?? []) : [];
+    if (pris.length >= SOINS_PAR_RENDEZ_VOUS) return [];
+    const rang = (s: PrestationDuTour): number => MARQUES_DES_SOINS.indexOf(litLaMarqueWa(s.name).marque);
+    return (agenda?.prestations ?? [])
+      .filter((s) => directe(s) && rang(s) >= 0 && !pris.includes(s.id) && !/\bkids\b|avec votre produit/i.test(s.name))
+      .sort((a, b) => rang(a) - rang(b) || a.name.localeCompare(b.name, 'fr'))
+      .slice(0, 8).map((s) => [s.id]);
+  };
+  /** LA CONSULTATION DE RÉPARATION, à ajouter le même jour (13 octobre
+      2026, « entretenir ET réparer ») : celle que la Maison a désignée
+      pour la réparation, jamais une autre devinée. */
+  const reparationAAjouter = (): string | null => {
+    const id = agenda?.consultationParParcours?.reparation;
+    const pris = base.panier.serviceIds ?? [];
+    if (!id || pris.includes(id) || pris.length >= SOINS_PAR_RENDEZ_VOUS) return null;
+    return reservableWa(prestation(id)) ? id : null;
+  };
+
   const sontDesConsultations = (offres: readonly string[][]): boolean =>
     offres.length > 0 && offres.every((ids) => ids.length === 1 && !!prestation(ids[0]) && estUneConsultation(prestation(ids[0])!, cats));
 
-  const msgRituel = (relance: boolean, offres: string[][], ajout = false): MessageSortant | null => {
+  const msgRituel = (relance: boolean, offres: string[][], ajout = false, soins = false): MessageSortant | null => {
     const valables = offres.filter((ids) => ids.length > 0 && ids.every((id) => reservableWa(prestation(id)))).slice(0, 8);
     if (valables.length === 0) return null;
     passe('rituel');
     base.panier.rituels = valables.map((ids) => [...ids]);
-    if (!ajout) base.panier.offerts = valables.map((ids) => [...ids]);
+    if (!ajout && !soins) base.panier.offerts = valables.map((ids) => [...ids]);
     base.panier.enAjout = ajout;
-    if (ajout && !relance) base.panier.horsPlafond = (base.panier.horsPlafond ?? 0) + 1;
+    base.panier.dansLesSoins = soins;
+    if ((ajout || soins) && !relance) base.panier.horsPlafond = (base.panier.horsPlafond ?? 0) + 1;
     const consultations = sontDesConsultations(valables);
     const corps = relance ? relanceDite()
       : ajout ? `Quel soin ajouter, ${appel()} ?`
-        : consultations ? `Quelle consultation souhaitez-vous, ${appel()} ?` : `Quel rituel souhaitez-vous, ${appel()} ?`;
+        : soins ? `Quel soin souhaitez-vous, ${appel()} ?`
+          : consultations ? `Quelle consultation souhaitez-vous, ${appel()} ?` : `Quel rituel souhaitez-vous, ${appel()} ?`;
+    const reparation = agenda?.consultationParParcours?.reparation;
+    /* « Autre soin » ouvre la liste des soins, s'il y en a et qu'on n'y est
+       pas déjà ; sinon il passe la main, comme avant. */
+    const desSoins = !soins && soinsDuCheveu().length > 0;
+    const quels = [...new Set(soinsDuCheveu().map((ids) => GESTES_EN_FRANCAIS[litLaMarqueWa(prestation(ids[0])?.name ?? '').marque]?.long ?? '').filter(Boolean))];
     return liste('rituel', corps, 'Choisir', [
-      ...valables.map((ids, i) => ({
-        id: choix('rituel', String(i)),
-        titre: titreDesGestes(ids),
-        description: descriptionDesGestes(ids),
-      })),
-      ...(consultations ? [] : [{ id: choix('autre-soin'), titre: 'Autre soin', description: 'une personne de la Maison vous répond' }]),
+      ...valables.map((ids, i) => (ids.length === 1 && ids[0] === reparation && ajout
+        ? { id: choix('rituel', String(i)), titre: 'Réparer mes locks', description: coupeWa(`consultation d'abord · ${descriptionDesGestes(ids)}`, 72) }
+        : { id: choix('rituel', String(i)), titre: titreDesGestes(ids), description: descriptionDesGestes(ids) })),
+      ...(consultations ? [] : [{ id: choix('autre-soin'), titre: 'Autre soin',
+        description: desSoins ? coupeWa(gestesDitsWa(quels), 72) : 'une personne de la Maison vous répond' }]),
     ]);
   };
 
@@ -2401,11 +2445,19 @@ function atelierDuTour(ancien: EtatDuFil | null | undefined, tour: TourDeLaClien
   /** Un rituel choisi : un autre soin ? Trois soins, ou plus rien à
       ajouter : droit aux places. */
   const apresLeRituel = (): SortieDuTour =>
-    ((base.panier.serviceIds ?? []).length >= SOINS_PAR_RENDEZ_VOUS || soinsAAjouter().length === 0 ? dire(msgPlaces({})) : dire(msgEncore(false)));
+    ((base.panier.serviceIds ?? []).length >= SOINS_PAR_RENDEZ_VOUS || aAjouter().length === 0 ? dire(msgPlaces({})) : dire(msgEncore(false)));
+
+  /** CE QU'ELLE PEUT AJOUTER : les formules qui restent, puis la consultation
+      de réparation ; à défaut, les soins du cheveu (13 octobre 2026). */
+  const aAjouter = (): string[][] => {
+    const r = reparationAAjouter();
+    const liste = [...soinsAAjouter(), ...(r ? [[r]] : [])];
+    return liste.length > 0 ? liste : soinsDuCheveu();
+  };
 
   /** « Ajouter un soin » : la liste de ce qui reste ; plus rien, les places. */
   const ajouteUnSoin = (relance: boolean): SortieDuTour =>
-    dire(msgRituel(relance, soinsAAjouter(), true) ?? msgPlaces({}));
+    dire(msgRituel(relance, aAjouter(), true) ?? msgPlaces({}));
 
   const msgCivilite = (relance: boolean): MessageSortant => {
     passe('civilite');
@@ -2446,7 +2498,9 @@ function atelierDuTour(ancien: EtatDuFil | null | undefined, tour: TourDeLaClien
       case 'qui': return dire(msgQui(relance, false));
       case 'besoin': return dire(msgBesoin(relance, false));
       case 'meme': return dire(msgMeme(relance, false) ?? msgBesoin(relance, false));
-      case 'rituel': return base.panier.enAjout
+      case 'rituel': return base.panier.dansLesSoins
+        ? dire(msgRituel(relance, soinsDuCheveu(), !!base.panier.enAjout, true) ?? msgPlaces({}))
+        : base.panier.enAjout
         ? ajouteUnSoin(relance)
         : dire(msgRituel(relance, base.panier.rituels ?? []), 'autre-soin');
       case 'encore': return dire(msgEncore(relance));
@@ -2705,13 +2759,20 @@ function atelierDuTour(ancien: EtatDuFil | null | undefined, tour: TourDeLaClien
             if (!ids || !ids.every((id) => reservableWa(prestation(id)))) return renvoie('rituel', false);
             const deja = base.panier.enAjout ? (base.panier.serviceIds ?? []) : [];
             base.panier.serviceIds = [...deja, ...ids.filter((id) => !deja.includes(id))];
+            const ajoutee = !!base.panier.enAjout;
             base.panier.enAjout = false;
+            base.panier.dansLesSoins = false;
             const unique = ids.length === 1 ? prestation(ids[0]) : undefined;
             const consultation = unique && estUneConsultation(unique, cats);
-            if (consultation) return dire(msgPlaces(base.panier.besoin ? { intro: introDeLaConsultation(base.panier.besoin, unique.name) } : {}));
+            if (consultation && !ajoutee) return dire(msgPlaces(base.panier.besoin ? { intro: introDeLaConsultation(base.panier.besoin, unique.name) } : {}));
             return apresLeRituel();
           }
-          if (g === 'autre-soin') return laMain('autre-soin', true);
+          if (g === 'autre-soin') {
+            /* Depuis une liste de rituels : les soins du cheveu ; depuis la
+               liste des soins elle-même : une personne de la Maison. */
+            if (!base.panier.dansLesSoins && soinsDuCheveu().length > 0) return dire(msgRituel(false, soinsDuCheveu(), !!base.panier.enAjout, true) ?? msgPlaces({}));
+            return laMain('autre-soin', true);
+          }
           break;
         }
         case 'encore': {

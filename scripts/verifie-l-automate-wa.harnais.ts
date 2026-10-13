@@ -127,6 +127,12 @@ const PRESTATIONS: PrestationDuTour[] = [
   { id: 'dandan-soin', name: 'DÀNDÀN™ · Le Soin Hydratant', categoryId: 'plt-10', durationMin: 30, reservable: true },
   { id: 'klk-souffle', name: 'KLƆKLƆ™ Essentiel · « Le Souffle » · Court', categoryId: 'plt-05', durationMin: 45, reservable: true },
   { id: 'sinsin-reprise', name: 'SÍNSIN™ Essentiel · La Reprise · Court', categoryId: 'atl-ii-gbeji', durationMin: 60, reservable: true },
+  /* Les soins du cheveu (13 octobre 2026), avec une version Kids et une « avec votre produit » que la liste écarte. */
+  { id: 'vivivo', name: 'VÍVÍVÓ™ · Le Vivifiant', categoryId: 'plt-30', durationMin: 30, reservable: true },
+  { id: 'wewe', name: 'WÈWÈ™ · La Purification', categoryId: 'plt-20', durationMin: 30, reservable: true },
+  { id: 'wewe-produit', name: 'WÈWÈ™ avec votre produit · masque apporté', categoryId: 'plt-20', durationMin: 30, reservable: true },
+  { id: 'gbigbi', name: 'GBÌGBÌ™ · Le Renfort', categoryId: 'plt-40', durationMin: 45, reservable: true },
+  { id: 'gbigbi-kids', name: 'GBÌGBÌ™ Kids · Le Renfort', categoryId: 'plt-40', durationMin: 30, reservable: true },
   { id: 'sv-koko-ori', name: 'KÒKÒ™ Origine', categoryId: 'koko', durationMin: 45, reservable: true },
   { id: 'sv-koko-sui', name: 'KÒKÒ™ Suivi', categoryId: 'koko', durationMin: 45, reservable: true },
   { id: 'svc-doto-conseil', name: 'Conseil et diagnostic', categoryId: 'doto', durationMin: 30, reservable: true },
@@ -2334,7 +2340,7 @@ const regles: Regle[] = [
     pannes: [
       { nom: 'le plafond avale Je confirme (le tour)', mute: [P(AUTO, "    if (envoisQuiComptent(base.envois, ctx.main, ms) >= plafondDuFil(base) && !confirme) return laMain('plafond', false);", "    if (envoisQuiComptent(base.envois, ctx.main, ms) >= plafondDuFil(base)) return laMain('plafond', false);")] },
       { nom: 'le plafond avale Je confirme (la porte)', mute: [P(AUTO, '  if (envois >= plafondDuFil(etat) && !confirmeValide(etat, tour, courante))', '  if (envois >= plafondDuFil(etat))')] },
-      { nom: 'la question d un autre soin mange la marge du plafond', mute: [P(AUTO, '  return PLAFOND_DE_L_AUTOMATE + Math.min(4, Math.max(0, etat?.panier?.horsPlafond ?? 0));', '  return PLAFOND_DE_L_AUTOMATE;')] },
+      { nom: 'la question d un autre soin mange la marge du plafond', mute: [P(AUTO, '  return PLAFOND_DE_L_AUTOMATE + Math.min(6, Math.max(0, etat?.panier?.horsPlafond ?? 0));', '  return PLAFOND_DE_L_AUTOMATE;')] },
     ],
   },
 
@@ -2477,7 +2483,7 @@ const regles: Regle[] = [
       vaut('le prenom se repond en message, et c est dit', 'Et votre prénom, Mademoiselle ? Écrivez-le simplement dans un message, en réponse.', corps(b.s5));
       const d = scnTroisSoins(ORIGINAL);
       vrai('Ajouter un soin : quel soin ajouter, les soins restants en francais, jamais celui deja pris', corps(d.s4) === 'Quel soin ajouter ?'
-        && j(lignesDe(d.s4)) === j(['Resserrage · Essentiel', 'Hydratation · Essentiel', 'Lavage · Intégral', 'Autre soin', 'Parler à la Maison']), `${corps(d.s4)} ${lignesDe(d.s4).join(' | ')}`);
+        && j(lignesDe(d.s4)) === j(['Resserrage · Essentiel', 'Hydratation · Essentiel', 'Lavage · Intégral', 'Réparer mes locks', 'Autre soin', 'Parler à la Maison']), `${corps(d.s4)} ${lignesDe(d.s4).join(' | ')}`);
       vrai('le second soin s ajoute au premier : la question revient', d.s5.messages[0]?.etape === 'encore', corps(d.s5));
       vaut('le troisieme soin ferme le panier : droit aux places, sans question', 'places', d.s7.messages[0]?.etape);
       vaut('le recapitulatif dit les trois soins, en francais puis la marque',
@@ -2566,7 +2572,7 @@ const regles: Regle[] = [
       return ecarts;
     },
     pannes: [
-      { nom: 'le point du sous-titre reste en tete de la variante', mute: [P(AUTO, "  const reste = (m?.[2] ?? '').replace(/^[·:–-]\\s*/u, '');", "  const reste = m?.[2] ?? '';")] },
+      { nom: 'le point du sous-titre reste en tete de la variante', mute: [P('src/shared/gestes-en-francais.ts', "  const reste = brutDuReste.replace(/^[·:–-]\\s*/u, '');", '  const reste = brutDuReste;')] },
       { nom: 'la duree tombe a la coupe', mute: [P(AUTO, '    return `${coupeWa(gestesDitsWa(nomsDe(ids)), 72 - suite.length)}${suite}`;', '    return coupeWa(`${gestesDitsWa(nomsDe(ids))}${suite}`, 72);')] },
       { nom: 'non merci oublie le mercredi', mute: [P(AUTO, '          if (desMots) retiensLesMots();\n          return dire(msgPlaces({}));', '          return dire(msgPlaces({}));')] },
       { nom: 'un fil confirme ne se rend pas', mute: [P(AUTO, "    if (Number.isFinite(rendue) && Number.isFinite(maj) && rendue >= maj) return 'repos';\n", '')] },
@@ -2632,6 +2638,63 @@ const regles: Regle[] = [
       { nom: 'une inconnue redevient Madame', mute: [P(AUTO, "       ne suppose plus Madame : la phrase se dit sans appel (`sansAppelVide`). */\n    return '';", "       ne suppose plus Madame : la phrase se dit sans appel (`sansAppelVide`). */\n    return appelDe(null);")] },
       { nom: 'l appel vide laisse sa trace', mute: [P(AUTO, '  const propre = (corps: string): string => (appel() ? corps : sansAppelVide(corps));', '  const propre = (corps: string): string => corps;')] },
       { nom: 'une fiche muette redevient Madame', mute: [P('src/shared/civilite.ts', "  if (!connue) return prenom || 'Madame, Monsieur';", "  if (!connue) return prenom ? `Madame ${prenom}` : 'Madame';")] },
+    ],
+  },
+  /* ══ R36 · Autre soin ouvre les soins du cheveu ; la réparation se joint à l'entretien, 13 octobre 2026 ═══ */
+  {
+    id: 'R36', nom: 'R36 Autre soin ouvre les soins du cheveu (DANDAN, VIVIVO, WEWE, GBIGBI) en francais ; la reparation se joint a l entretien le meme jour',
+    eprouve: () => {
+      const { ecarts, vaut, vrai } = juge();
+      const t0 = cotonou('2026-10-09', '10:12');
+      const p = parcours(ORIGINAL, NUM_INCONNUE, []);
+      elle(p, t0, { texte: 'Bonjour, je voudrais prendre rendez-vous' });
+      const r1 = elle(p, t0 + 1000, { touche: 'Entretenir mes locks' });
+      const autre = (r1.messages[0]?.lignes ?? []).find((l) => l.titre === 'Autre soin');
+      vaut('Autre soin dit les soins qu il ouvre', 'Hydratation, Activateur de pousse, Purification et Reconstruction', autre?.description);
+      const s = elle(p, t0 + 2000, { touche: 'Autre soin' });
+      vrai('Autre soin : la liste des soins, en francais, sans Kids ni « avec votre produit »', corps(s) === 'Quel soin souhaitez-vous ?'
+        && j(lignesDe(s)) === j(['Hydratation', 'Hydratation · Essentiel', 'Activateur de pousse', 'Purification', 'Reconstruction', 'Autre soin', 'Parler à la Maison']), `${corps(s)} ${lignesDe(s).join(' | ')}`);
+      const v = elle(p, t0 + 3000, { touche: 'Activateur de pousse' });
+      vaut('un soin choisi : un autre soin ?', 'encore', v.messages[0]?.etape);
+      elle(p, t0 + 4000, { touche: "Non, c'est tout" });
+      elle(p, t0 + 5000, { touche: 'Mar. 13 oct. 2026 · 9 h' });
+      elle(p, t0 + 6000, { touche: 'Madame' });
+      const recap = elle(p, t0 + 7000, { texte: 'Afi' });
+      vrai('le recapitulatif dit le soin en francais', corps(recap).includes('Activateur de pousse (VÍVÍVÓ™ · Le Vivifiant)'), corps(recap));
+      elle(p, t0 + 8000, { touche: 'Je confirme' });
+      vaut('la pose porte le soin choisi', [['vivivo']], p.poses.map((x) => x.rdv.serviceIds));
+      /* Dans la liste des soins, Autre soin passe la main. */
+      const q = parcours(ORIGINAL, NUM_INCONNUE, []);
+      elle(q, t0, { texte: 'Bonjour, je voudrais prendre rendez-vous' });
+      elle(q, t0 + 1000, { touche: 'Entretenir mes locks' });
+      elle(q, t0 + 2000, { touche: 'Autre soin' });
+      const main = elle(q, t0 + 3000, { touche: 'Autre soin' });
+      vrai('depuis la liste des soins, Autre soin : une personne de la Maison', q.etat?.etape === 'main' && q.etat?.motifMain === 'autre-soin', corps(main));
+      /* Entretenir ET reparer : la consultation de reparation dans Ajouter un soin. */
+      const e = parcours(ORIGINAL, NUM_INCONNUE, []);
+      elle(e, t0, { texte: 'Bonjour, je voudrais prendre rendez-vous' });
+      elle(e, t0 + 1000, { touche: 'Entretenir mes locks' });
+      elle(e, t0 + 2000, { touche: 'Lavage · Essentiel' });
+      const aj = elle(e, t0 + 3000, { touche: 'Ajouter un soin' });
+      const rep = (aj.messages[0]?.lignes ?? []).find((l) => l.titre === 'Réparer mes locks');
+      vrai('Ajouter un soin propose la reparation, consultation d abord', !!rep && (rep.description ?? '').startsWith("consultation d'abord · KÒKÒ™ Suivi"), j(rep));
+      const r2 = elle(e, t0 + 4000, { touche: 'Réparer mes locks' });
+      vaut('la reparation ajoutee : un autre soin ?', 'encore', r2.messages[0]?.etape);
+      elle(e, t0 + 5000, { touche: "Non, c'est tout" });
+      elle(e, t0 + 6000, { touche: 'Mar. 13 oct. 2026 · 9 h' });
+      elle(e, t0 + 7000, { touche: 'Madame' });
+      const re = elle(e, t0 + 8000, { texte: 'Afi' });
+      vrai('le recapitulatif dit l entretien et la consultation', corps(re).includes('Lavage rituel (KLƆKLƆ™ Essentiel) et Consultation (KÒKÒ™ Suivi)'), corps(re));
+      elle(e, t0 + 9000, { touche: 'Je confirme' });
+      vaut('la pose porte les deux', [['plt-05', 'sv-koko-sui']], e.poses.map((x) => x.rdv.serviceIds));
+      vaut('un sous-titre ne se colle pas au geste sans point', ['Activateur de pousse', 'Reconstruction · Protéiné'], [titreEnFrancaisWa('VÍVÍVÓ™ · Le Vivifiant'), titreEnFrancaisWa('GBÌGBÌ™ Protéiné · Le Soin', 26)]);
+      return ecarts;
+    },
+    pannes: [
+      { nom: 'Autre soin passe toujours la main', mute: [P(AUTO, "            if (!base.panier.dansLesSoins && soinsDuCheveu().length > 0) return dire(msgRituel(false, soinsDuCheveu(), !!base.panier.enAjout, true) ?? msgPlaces({}));\n", '')] },
+      { nom: 'la reparation ne se joint pas', mute: [P(AUTO, '    const liste = [...soinsAAjouter(), ...(r ? [[r]] : [])];', '    const liste = [...soinsAAjouter()];')] },
+      { nom: 'les versions Kids entrent dans la liste des soins', mute: [P(AUTO, "&& !/\\bkids\\b|avec votre produit/i.test(s.name))", '&& true)')] },
+      { nom: 'le sous-titre se colle au geste', mute: [P(AUTO, '    : sansNiveau ? [`${g.court} · ${variante}`, g.long, g.court]\n', '    : sansNiveau ? [`${g.court} · ${variante}`, `${g.court} ${variante}`, g.long, g.court]\n')] },
     ],
   },
 ];

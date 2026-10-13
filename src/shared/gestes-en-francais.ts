@@ -28,19 +28,23 @@ const GESTES_EN_FRANCAIS: Record<string, { court: string; long: string }> = {
   'KÒKÒ': { court: 'Consultation', long: 'Consultation' },
   'GBÌGBÌ': { court: 'Reconstruction', long: 'Reconstruction' },
   'GBÈJÍ': { court: 'Entretien', long: 'Entretien suivi' },
+  /* Les noms du catalogue, choisis par Yéman au sélecteur le 13 octobre 2026. */
+  'VÍVÍVÓ': { court: 'Activateur', long: 'Activateur de pousse' },
+  'WÈWÈ': { court: 'Purification', long: 'Purification' },
 };
 
 /** « SÍNSIN™ Essentiel · « Le Souffle » » : la marque « SÍNSIN », la
     variante « Essentiel » (le premier segment après la marque). Un nom sans
     niveau, « DÀNDÀN™ · Le Soin Hydratant », a pour variante son sous-titre,
     sans le point qui le précède (revue du 13 octobre 2026). */
-const litLaMarqueWa = (nom: string): { marque: string; variante: string } => {
+const litLaMarqueWa = (nom: string): { marque: string; variante: string; sansNiveau: boolean } => {
   const s = String(nom ?? '').replace(/\s+/g, ' ').trim();
   const m = /^([^\s™®]+)(?:™|®)?\s*(.*)$/u.exec(s);
   const marque = (m?.[1] ?? '').normalize('NFC');
-  const reste = (m?.[2] ?? '').replace(/^[·:–-]\s*/u, '');
+  const brutDuReste = m?.[2] ?? '';
+  const reste = brutDuReste.replace(/^[·:–-]\s*/u, '');
   const variante = reste.split(' · ')[0]?.trim() ?? '';
-  return { marque, variante };
+  return { marque, variante, sansNiveau: /^[·:–-]/u.test(brutDuReste) };
 };
 
 /** Le geste en toutes lettres : « Resserrage des racines (SÍNSIN™
