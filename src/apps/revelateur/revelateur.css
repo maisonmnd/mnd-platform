@@ -553,6 +553,10 @@ footer .logo img { height: 34px; }
 .geste-choix.est-choisi { border-color: var(--accent); background: var(--accent-clair); box-shadow: inset 2px 0 0 var(--accent); }
 .geste-choix b { font-family: var(--serif); font-weight: 400; font-size: 19px; min-width: 0; overflow-wrap: anywhere; }
 .geste-choix small { margin-left: auto; font-size: 12.5px; color: var(--texte-doux); white-space: nowrap; }
+/* LE FRANÇAIS D'ABORD, LE FON DESSOUS — 13 octobre 2026. */
+.geste-nom { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.geste-fon { display: block; font-size: 12px; letter-spacing: .02em; color: var(--texte-doux); overflow-wrap: anywhere; }
+.panier__quoi .geste-fon { margin-top: 1px; }
 /* LE PRIX SE LIT D'UN COUP D'OEIL, sans crier : il est ce que la visiteuse
    cherche en second, juste apres le nom du geste. */
 .geste-choix .prix { color: var(--titre); font-weight: 500; }
@@ -581,6 +585,8 @@ footer .logo img { height: 34px; }
 .formule:hover { border-color: var(--accent); background: var(--accent-clair); }
 .formule b { font-family: var(--serif); font-weight: 400; font-size: 21px; line-height: 1.1; overflow-wrap: anywhere; }
 .formule__avec { font-size: 13px; color: var(--texte-doux); line-height: 1.35; }
+.formule__fon { font-size: 12px; letter-spacing: .02em; color: var(--texte-doux); margin-top: -2px; }
+.formule--premiere .formule__fon { color: rgba(246, 241, 231, .7); }
 .formule small { font-size: 12.5px; color: var(--accent-profond); }
 .formule--premiere { background: var(--sombre); border-color: var(--sombre); color: var(--fort-texte); }
 .formule--premiere:hover { background: var(--sombre-2); border-color: var(--sombre-2); }
@@ -592,6 +598,9 @@ footer .logo img { height: 34px; }
 .calibres__choix { display: flex; flex-wrap: wrap; gap: 6px; }
 .calibre { cursor: pointer; font: inherit; font-size: 14px; color: var(--titre); background: var(--carte); border: 1px solid var(--filet); border-radius: 999px; padding: 8px 14px; min-height: 40px; }
 .calibre.est-choisi { background: var(--sombre); border-color: var(--sombre); color: var(--fort-texte); }
+/* LE NOMBRE DE LOCKS DANS LA PASTILLE — 13 octobre 2026 : « Jumbo, Mini,
+   Micro… mettre le nombre pour bien se situer » (Yéman). */
+.calibre__nombre { font-size: 12px; opacity: .72; white-space: nowrap; }
 .places { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
 @media (max-width: 520px) { .places { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 .place { display: grid; gap: 2px; place-items: center; cursor: pointer; font: inherit; color: var(--titre); background: var(--fond); border: 1px solid var(--filet); border-radius: 6px; padding: 10px 8px; min-height: 64px; transition: border-color var(--t), background var(--t); }

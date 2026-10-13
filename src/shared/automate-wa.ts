@@ -55,6 +55,7 @@
    caractère pour caractère. */
 
 import { appelDe } from './civilite';
+import { GESTES_EN_FRANCAIS, gesteDitEnFrancaisWa, litLaMarqueWa } from './gestes-en-francais';
 import { dureeDesPrestations, ouvertureDuJour, type ExceptionDHoraire, type HeureDeLaSemaine } from './agenda-pur';
 import { estUneConsultation, priceModeOf, type PriceMode } from './catalogue-pur';
 import { exigeConsultation, type Besoin } from './qualification';
@@ -1089,39 +1090,9 @@ function cleCourte(brut: string): string {
 const gestesDitsWa = (noms: readonly string[]): string =>
   (noms.length <= 1 ? (noms[0] ?? '') : `${noms.slice(0, -1).join(', ')} et ${noms[noms.length - 1]}`);
 
-/* ── 9 bis. LES GESTES DITS EN FRANÇAIS (13 octobre 2026) ───────────────
-   Les clientes ne lisent pas les marques fon : « SÍNSIN™ Essentiel » ne dit
-   rien à qui ne connaît pas encore la Maison. Dans les listes, le français
-   vient d'abord (« Resserrage · Essentiel »), la marque et la durée en
-   dessous ; dans le récapitulatif, le français puis la marque entre
-   parenthèses. Mots donnés par Yéman ; une marque absente d'ici garde son
-   nom tel quel. */
-const GESTES_EN_FRANCAIS: Record<string, { court: string; long: string }> = {
-  'VÈKPÈ': { court: 'Création', long: 'Création de locks' },
-  'SÍNSIN': { court: 'Resserrage', long: 'Resserrage des racines' },
-  'FÍNFÍN': { court: 'Restauration', long: 'Restauration' },
-  'YÈKPÈ': { court: 'Couleur', long: 'Couleur végétale' },
-  'GBÀTÀ': { court: 'Défaisage', long: 'Défaisage' },
-  'DÀNDÀN': { court: 'Hydratation', long: 'Hydratation' },
-  'KLƆKLƆ': { court: 'Lavage', long: 'Lavage rituel' },
-  'KÒKÒ': { court: 'Consultation', long: 'Consultation' },
-  'GBÌGBÌ': { court: 'Reconstruction', long: 'Reconstruction' },
-  'GBÈJÍ': { court: 'Entretien', long: 'Entretien suivi' },
-};
-
-/** « SÍNSIN™ Essentiel · « Le Souffle » » : la marque « SÍNSIN », la
-    variante « Essentiel » (le premier segment après la marque). Un nom sans
-    niveau, « DÀNDÀN™ · Le Soin Hydratant », a pour variante son sous-titre,
-    sans le point qui le précède (revue du 13 octobre 2026). */
-const litLaMarqueWa = (nom: string): { marque: string; variante: string } => {
-  const s = String(nom ?? '').replace(/\s+/g, ' ').trim();
-  const m = /^([^\s™®]+)(?:™|®)?\s*(.*)$/u.exec(s);
-  const marque = (m?.[1] ?? '').normalize('NFC');
-  const reste = (m?.[2] ?? '').replace(/^[·:–-]\s*/u, '');
-  const variante = reste.split(' · ')[0]?.trim() ?? '';
-  return { marque, variante };
-};
-
+/* ── 9 bis. LES GESTES DITS EN FRANÇAIS : le dictionnaire, la marque et le
+   geste en toutes lettres vivent dans `gestes-en-francais.ts` (13 octobre
+   2026), partagés avec le site. */
 /** Le titre d'une ligne de liste, dans `place` signes (24, ou moins devant
     « + 1 ») : « Resserrage · Essentiel », sinon « Resserrage Essentiel »,
     sinon le geste seul, « Hydratation ». Jamais de mot coupé quand le geste
@@ -1136,12 +1107,6 @@ const titreEnFrancaisWa = (nom: string, place = 24): string => {
   return essais.find((x) => x.length <= place) ?? coupeWa(g.court, place);
 };
 
-/** Le geste en toutes lettres : « Resserrage des racines (SÍNSIN™
-    Essentiel) » ; sans mot français, le nom tel quel. */
-const gesteDitEnFrancaisWa = (nom: string): string => {
-  const g = GESTES_EN_FRANCAIS[litLaMarqueWa(nom).marque];
-  return g ? `${g.long} (${nom})` : nom;
-};
 const gestesDitsEnFrancaisWa = (noms: readonly string[]): string => gestesDitsWa(noms.map(gesteDitEnFrancaisWa));
 
 /** LE LIEN GOOGLE MAPS DE LA MAISON (13 octobre 2026) : « rajoute le lien de

@@ -9,6 +9,8 @@ import {
 } from '../agenda';
 import { porteDuBesoin, type Besoin } from '../../../shared/qualification';
 import { CIVILITES, type Civilite } from '../../../shared/civilite';
+import { gesteDitEnFrancaisWa, nomEnFrancaisWa } from '../../../shared/gestes-en-francais';
+import { TELEPHONE_MONDE, TELEPHONE_PAYS } from '../../../shared/geo';
 import { fmtMoney } from '../../../shared/currency';
 import type { CreneauOccupe } from '../../../shared/agenda-pur';
 import {
@@ -94,7 +96,7 @@ type Props = { besoin?: Besoin; initiales?: AgendaDeLaMaison; surLaPorte?: () =>
    serveur a posé dans son fil. */
 const texteDeLaDemande = (r: { date: string; heure: string; gestes: string[] }, prenom: string, mot: string): string => [
   `Bonjour MND, je viens de réserver depuis le site${prenom.trim() ? ` (${prenom.trim()})` : ''} :`,
-  `${r.gestes.join(', ')}${r.gestes.length ? ', ' : ''}le ${jourDit(r.date)} à ${r.heure}.`,
+  `${r.gestes.map(gesteDitEnFrancaisWa).join(', ')}${r.gestes.length ? ', ' : ''}le ${jourDit(r.date)} à ${r.heure}.`,
   mot.trim() ? mot.trim() : '',
   'À bientôt.',
 ].filter(Boolean).join('\n');
@@ -156,13 +158,14 @@ const fichierAgenda = (o: { date: string; heure: string; dureeMin: number; titre
 };
 
 const JOURS_PROPOSES = 21;
-/* LES INDICATIFS PROPOSÉS : le Bénin d'abord, les voisins, puis d'où viennent
-   les clientes de passage. Le serveur lit `dial` tel quel. */
-const INDICATIFS: readonly [string, string][] = [
-  ['+229', 'Bénin'], ['+228', 'Togo'], ['+225', 'Côte d’Ivoire'], ['+234', 'Nigeria'], ['+221', 'Sénégal'], ['+233', 'Ghana'],
-  ['+226', 'Burkina Faso'], ['+237', 'Cameroun'], ['+33', 'France'], ['+32', 'Belgique'], ['+41', 'Suisse'], ['+1', 'Canada et États-Unis'],
-  ['+44', 'Royaume-Uni'], ['+49', 'Allemagne'],
-];
+/* TOUS LES INDICATIFS DU MONDE — 13 octobre 2026 : « le numéro de tél. ne
+   montre pas tous les indicatifs de tous les pays du monde » (Yéman). La
+   même liste que le Trône (shared/geo) : les fréquents d'abord, le Bénin en
+   tête, puis chaque pays par ordre alphabétique. Le choix se garde par le
+   NOM du pays (+1 sert treize pays) ; le serveur lit `dial` tel quel. */
+const FREQUENTS = TELEPHONE_MONDE.slice(0, TELEPHONE_PAYS.length);
+const AUTRES_PAYS = TELEPHONE_MONDE.slice(TELEPHONE_PAYS.length);
+const dialDuPays = (nom: string): string => TELEPHONE_MONDE.find((p) => p.name === nom)?.dial ?? '+229';
 
 /** Ce que la porte ouvre d'emblée, dit à la visiteuse. Seul l'entretien a
     des familles prioritaires aujourd'hui (voir `FAMILLES_DABORD`). */
@@ -324,7 +327,8 @@ function Calendrier({ besoin: besoinInitial, initiales, surLaPorte }: Props) {
   const [numero, setNumero] = useState('');
   /* L'INDICATIF, +229 par défaut et modifiable ; POUR QUI ; le numéro refusé
      se signale au champ (11 octobre 2026, maquette validée). */
-  const [indicatif, setIndicatif] = useState('+229');
+  const [pays, setPays] = useState('Bénin');
+  const indicatif = dialDuPays(pays);
   const [pourQui, setPourQui] = useState<'moi' | 'enfant' | 'autre'>('moi');
   /* LA CIVILITÉ — 13 octobre 2026 : rien de choisi d'avance, la Maison ne
      suppose plus Madame. */
@@ -741,7 +745,7 @@ function Calendrier({ besoin: besoinInitial, initiales, surLaPorte }: Props) {
         )}
         {recu.gestes.length > 0 && (
           <ul className="panier">
-            {recu.gestes.map((n) => <li key={n} className="panier__ligne"><span className="panier__quoi">{n}</span></li>)}
+            {recu.gestes.map((n) => <li key={n} className="panier__ligne"><span className="panier__quoi">{nomEnFrancaisWa(n).francais}{nomEnFrancaisWa(n).fon && <small className="geste-fon">{nomEnFrancaisWa(n).fon}</small>}</span></li>)}
           </ul>
         )}
         {/* LE SORT DU CODE, DIT AU CLIC. Trois raisons possibles, et chacune
@@ -788,7 +792,7 @@ function Calendrier({ besoin: besoinInitial, initiales, surLaPorte }: Props) {
           <a className={`btn ${recu.confirme && recu.accuse === 'envoyé' ? '' : 'btn--fort'}`} href={lienWhatsApp(whatsapp, texteDeLaDemande(recu, prenom, mot))} target="_blank" rel="noopener" onClick={() => mesure('whatsapp_clique', { parcours: besoin })}>{recu.confirme ? 'Écrire à la Maison sur WhatsApp' : 'Envoyer ma demande sur WhatsApp'}</a>
           {/* L'AGENDA DU TÉLÉPHONE — un fichier .ics, à l'heure de Cotonou. */}
           {recu.confirme && (
-            <a className="btn" href={fichierAgenda({ date: recu.date, heure: recu.heure, dureeMin: recu.dureeMin ?? 60, titre: `Maison MND · ${recu.gestes.join(', ') || 'votre venue'}`, note: 'Réservé depuis maisonmnd.com. Pour déplacer ou annuler, un mot sur WhatsApp suffit.' })} download={`maison-mnd-${recu.date}.ics`}>Ajouter à mon agenda</a>
+            <a className="btn" href={fichierAgenda({ date: recu.date, heure: recu.heure, dureeMin: recu.dureeMin ?? 60, titre: `Maison MND · ${recu.gestes.map((n) => nomEnFrancaisWa(n).francais).join(', ') || 'votre venue'}`, note: 'Réservé depuis maisonmnd.com. Pour déplacer ou annuler, un mot sur WhatsApp suffit.' })} download={`maison-mnd-${recu.date}.ics`}>Ajouter à mon agenda</a>
           )}
         </div>
         <p className="legende">{recu.confirme ? 'Pour une question, pour déplacer ou annuler votre venue : un mot sur WhatsApp suffit.' : 'La Maison vous répond dans cette conversation.'}</p>
@@ -856,7 +860,7 @@ function Calendrier({ besoin: besoinInitial, initiales, surLaPorte }: Props) {
         onClick={() => { if (!ferme) basculerLeGeste(s.id); }}
       >
         <span className="case" aria-hidden="true" />
-        <b>{s.name}</b>
+        <span className="geste-nom"><b>{nomEnFrancaisWa(s.name).francais}</b>{nomEnFrancaisWa(s.name).fon && <span className="geste-fon">{nomEnFrancaisWa(s.name).fon}</span>}</span>
         <small>
           {s.durationMin ? dit(s.durationMin) : ''}
           {s.durationMin && prixDit(s, devise, ctx) ? ' · ' : ''}
@@ -891,7 +895,7 @@ function Calendrier({ besoin: besoinInitial, initiales, surLaPorte }: Props) {
         return (
           <div key={g.id} className="assistant__ligne">
             <span className="assistant__famille">{g.titre}</span>
-            <span>{pris.length ? pris.map((x) => x.name).join(', ') : 'Non, pas cette fois'}</span>
+            <span>{pris.length ? pris.map((x) => nomEnFrancaisWa(x.name).francais).join(', ') : 'Non, pas cette fois'}</span>
           </div>
         );
       })}
@@ -981,13 +985,13 @@ function Calendrier({ besoin: besoinInitial, initiales, surLaPorte }: Props) {
      consultation et hors lien préparé par la Maison (elle a déjà choisi). */
   const express = !consultation && !composer && formules.length > 0 && prepare.gestes.length === 0;
   const court = express || retour;
-  const recapitulatif = `${choisies.map((x) => x.name).join(' · ')}${dureeTotale ? ` · ${dit(dureeTotale)}` : ''}${prixTotal > 0 ? ` · ${prixFlou ? 'à partir de ' : ''}${fmtMoney(prixTotal, devise)}` : ''}`;
+  const recapitulatif = `${choisies.map((x) => nomEnFrancaisWa(x.name).francais).join(' · ')}${dureeTotale ? ` · ${dit(dureeTotale)}` : ''}${prixTotal > 0 ? ` · ${prixFlou ? 'à partir de ' : ''}${fmtMoney(prixTotal, devise)}` : ''}`;
   const lesCalibres = !consultation && bandes.length > 0 ? (
     <div className="calibres" role="group" aria-label="Vos locks">
       <span className="calibres__titre">Vos locks</span>
       <div className="calibres__choix">
         {bandes.map((b) => (
-          <button type="button" key={b.id} className={`calibre${calibreId === b.id ? ' est-choisi' : ''}`} aria-pressed={calibreId === b.id} onClick={() => setCalibreId(b.id)} title={etendueDeLaBande(b, bandes)}>{b.name}</button>
+          <button type="button" key={b.id} className={`calibre${calibreId === b.id ? ' est-choisi' : ''}`} aria-pressed={calibreId === b.id} onClick={() => setCalibreId(b.id)} title={etendueDeLaBande(b, bandes)}>{b.name} <span className="calibre__nombre">{etendueDeLaBande(b, bandes)}</span></button>
         ))}
         {/* RIEN N'EST PRÉ-MARQUÉ — 11 octobre 2026 : « Je ne sais pas » paraissait
             choisi avant qu'elle ait rien dit. */}
@@ -1031,13 +1035,14 @@ function Calendrier({ besoin: besoinInitial, initiales, surLaPorte }: Props) {
           <div className="formules">
             {formules.map((gs, i) => {
               const principal = gs.reduce((m, x) => (Number(x.durationMin ?? 0) > Number(m.durationMin ?? 0) ? x : m), gs[0]);
-              const autres = gs.filter((x) => x !== principal).map((x) => x.name);
+              const autres = gs.filter((x) => x !== principal).map((x) => nomEnFrancaisWa(x.name).francais);
               const duree = gs.reduce((t, x) => t + Number(x.durationMin ?? 0), 0);
               const prix = gs.reduce((t, x) => t + prixFerme(x, ctx), 0);
               const flou = gs.some((x) => !prixFerme(x, ctx) || x.priceMode === 'variable');
               return (
                 <button type="button" key={gs.map((x) => x.id).join('|')} className={`formule${i === 0 ? ' formule--premiere' : ''}`} onClick={() => choisirLaFormule(gs)}>
-                  <b>{principal.name}</b>
+                  <b>{nomEnFrancaisWa(principal.name).francais}</b>
+                  {nomEnFrancaisWa(principal.name).fon && <span className="formule__fon">{nomEnFrancaisWa(principal.name).fon}</span>}
                   <span className="formule__avec">{autres.length > 0 ? `avec ${autres.join(', ')}` : 'seul, sans autre geste'}</span>
                   <small>{[dit(duree), calibreId === '' ? 'prix selon votre calibre' : prix > 0 ? `${flou ? 'à partir de ' : ''}${fmtMoney(prix, devise)}${calibreId === 'inconnu' ? ', compté au fauteuil' : ''}` : ''].filter(Boolean).join(' · ')}</small>
                 </button>
@@ -1135,7 +1140,7 @@ function Calendrier({ besoin: besoinInitial, initiales, surLaPorte }: Props) {
           <ul className="panier">
             {choisies.map((s) => (
               <li key={s.id} className="panier__ligne">
-                <span className="panier__quoi">{s.name}</span>
+                <span className="panier__quoi">{nomEnFrancaisWa(s.name).francais}{nomEnFrancaisWa(s.name).fon && <small className="geste-fon">{nomEnFrancaisWa(s.name).fon}</small>}</span>
                 <span className="panier__combien">
                   {s.durationMin ? dit(s.durationMin) : ''}
                   {s.durationMin && prixDit(s, devise, ctx) ? ' · ' : ''}
@@ -1156,7 +1161,7 @@ function Calendrier({ besoin: besoinInitial, initiales, surLaPorte }: Props) {
                 <button
                   type="button"
                   className="panier__oter"
-                  aria-label={`Retirer ${s.name}`}
+                  aria-label={`Retirer ${nomEnFrancaisWa(s.name).francais}`}
                   onClick={() => basculerLeGeste(s.id)}
                 >
                   ×
@@ -1301,8 +1306,13 @@ function Calendrier({ besoin: besoinInitial, initiales, surLaPorte }: Props) {
                   numéro français tapé sans indicatif devenait un faux numéro
                   béninois, et la confirmation partait vers personne. */}
               <div className="numero">
-                <select className="indicatif" aria-label="Indicatif du pays" value={indicatif} onChange={(e) => setIndicatif(e.target.value)}>
-                  {INDICATIFS.map(([code, pays]) => <option key={code} value={code}>{code} {pays}</option>)}
+                <select className="indicatif" aria-label="Indicatif du pays" value={pays} onChange={(e) => setPays(e.target.value)}>
+                  <optgroup label="Les plus fréquents">
+                    {FREQUENTS.map((p) => <option key={p.name} value={p.name}>{p.dial} {p.name}</option>)}
+                  </optgroup>
+                  <optgroup label="Tous les pays">
+                    {AUTRES_PAYS.map((p) => <option key={p.name} value={p.name}>{p.dial} {p.name}</option>)}
+                  </optgroup>
                 </select>
                 <input id="res-numero" name="numero" inputMode="tel" autoComplete="tel-national" placeholder={f.numeroExemple} value={numero} onChange={(e) => { setNumero(e.target.value); setNumeroInvalide(false); }} required aria-invalid={numeroInvalide || undefined} aria-describedby={numeroInvalide ? 'res-erreur' : 'res-numero-aide'} />
               </div>

@@ -1514,11 +1514,12 @@ const regles: Regle[] = [
     eprouve: async () => {
       const { ecarts, vaut, vrai } = juge();
       const edge = lf(lit(F_AUTO));
-      const ORDRE = ['lecture-entiere', 'agenda-pur', 'catalogue-pur', 'qualification', 'place-du-serveur', 'prochaines-places', 'automate-wa'];
+      const ORDRE = ['lecture-entiere', 'agenda-pur', 'catalogue-pur', 'qualification', 'place-du-serveur', 'prochaines-places', 'gestes-en-francais', 'automate-wa'];
       const ORIGINAUX: Record<string, { fichier: string; extrait: (s: string) => string | null }> = {
         'lecture-entiere': { fichier: 'src/shared/lecture-entiere.ts', extrait: (s) => { const i = s.indexOf('export const PAGE_DE_LECTURE'); return i < 0 ? null : s.slice(i).trimEnd(); } },
         'agenda-pur': { fichier: 'src/shared/agenda-pur.ts', extrait: (s) => entre(s, 'agenda-pur') },
         'catalogue-pur': { fichier: 'src/shared/catalogue-pur.ts', extrait: (s) => entre(s, 'catalogue-pur') },
+        'gestes-en-francais': { fichier: 'src/shared/gestes-en-francais.ts', extrait: (s) => entre(s, 'gestes-en-francais') },
         qualification: { fichier: 'src/shared/qualification.ts', extrait: (s) => entre(s, 'qualification') },
         'place-du-serveur': { fichier: 'src/shared/place-du-serveur.ts', extrait: (s) => entre(s, 'place-du-serveur') },
         'prochaines-places': { fichier: RESA, extrait: (s) => entre(s, 'prochaines-places') },
