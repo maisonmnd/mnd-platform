@@ -1206,7 +1206,15 @@ export async function contratPdf(o: {
   doc.setFontSize(8);
   doc.setTextColor(SOFT);
   doc.text('Pour la Maison :', W - M - 40, y, { align: 'center' });
-  await tamponDeLaMaison(doc, W - M - 40 - 17, y + 2, 34, {
+  /* LE SCEAU DENTELÉ SUR LES CONTRATS — 13 octobre 2026. « Change le tampon
+     du droit d'image. Je veux un autre » (Yéman), puis, au sélecteur : le
+     sceau dentelé (n° 2 des tampons de la Maison), sur tous les contrats
+     que ce papier fabrique (droit à l'image, contrats, décharges). Le même
+     PNG que le secrétariat. S'il ne se charge pas, le tampon dessiné : un
+     contrat ne sort jamais sans la marque de la Maison. */
+  const sceau = await chargeImageDuSite(SCEAU_DES_CONTRATS);
+  if (sceau) poseTransparente(doc, sceau, W - M - 40 - 17, y + 2, 34, 34, 0.92);
+  else await tamponDeLaMaison(doc, W - M - 40 - 17, y + 2, 34, {
     nom: o.houseName, ville: o.villeDuSiege ?? o.ville,
   });
   y += 30;
@@ -2251,6 +2259,8 @@ const VERT_SAVOIR = '#2F5D50';
 const VERROU_ACADEMIE = { chemin: '/assets/academie/verrou-couche.png', ratio: 2048 / 641 };
 const PICTO_ACADEMIE = { chemin: '/assets/academie/pictogramme.png', ratio: 2048 / 1691 };
 const SCEAU_ACADEMIE = '/assets/tampons/academie-dentele.png';
+/** Le tampon des contrats de la Maison (13 octobre 2026) : le sceau dentelé. */
+const SCEAU_DES_CONTRATS = '/assets/tampons/mnd-6-dentele.png';
 export const SIGNATURE_ACADEMIE_PDF = 'Former. Transmettre. Affirmer.';
 
 const IMAGES_DU_SITE: Record<string, Promise<string | null>> = {};

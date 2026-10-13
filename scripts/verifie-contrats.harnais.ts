@@ -282,5 +282,21 @@ dit('… et le prestataire porte ses deux nombres',
   [MOIS_NON_DEMARCHAGE, JOURS_DE_REGLEMENT],
   [PRESTATAIRE_V1.moisNonDemarchage, PRESTATAIRE_V1.joursDeReglement]);
 
+/* ── LE TAMPON DES CONTRATS (13 octobre 2026) ────────────────────────
+   « Change le tampon du droit d'image » : le sceau dentelé, sur tous les
+   contrats que contratPdf fabrique, le tampon dessiné seulement en repli. */
+{
+  const { readFileSync, existsSync } = await import('node:fs');
+  const pdf = readFileSync('src/shared/pdf.ts', 'utf8').replace(/\r\n/g, '\n');
+  const debut = pdf.indexOf('export async function contratPdf(');
+  const fin = pdf.indexOf('\nexport async function', debut + 10);
+  const contrat = pdf.slice(debut, fin);
+  dit('le contrat pose le sceau dentele, le tampon dessine en repli seulement', [true, true, true],
+    [pdf.includes("const SCEAU_DES_CONTRATS = '/assets/tampons/mnd-6-dentele.png';"),
+      /const sceau = await chargeImageDuSite\(SCEAU_DES_CONTRATS\);\n\s*if \(sceau\) poseTransparente\(doc, sceau,/.test(contrat),
+      /else await tamponDeLaMaison\(/.test(contrat)]);
+  dit('le fichier du sceau est servi par le site', true, existsSync('public/assets/tampons/mnd-6-dentele.png'));
+}
+
 console.log(ko === 0 ? '\nTout passe.' : `\n${ko} ÉCHEC(S).`);
 process.exit(ko === 0 ? 0 : 1);
