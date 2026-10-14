@@ -5,7 +5,7 @@ import { toast } from '../../../../../ds/components';
 import {
   chargeLEquipe, chargeLesTitulaires, deposeLesFichiers, lienDuFichier, prendsLesFichiers, retouche, useEquipeDuSecretariat, useTitulaires,
 } from '../../../../../shared/secretariat-admin';
-import { rappelDit, type Fichier, type LigneAdministrative, type Qui } from '../../../../../shared/secretariat-admin-pur';
+import { rappelDit, recuLeDe, type Courrier, type Fichier, type LigneAdministrative, type Qui } from '../../../../../shared/secretariat-admin-pur';
 
 /* LES PIÈCES COMMUNES DES ONGLETS DU SECRÉTARIAT ADMINISTRATIF — 14 octobre 2026.
    Les lignes se replient (résumé sur la ligne, un seul panneau ouvert), comme
@@ -85,7 +85,9 @@ export function LesFichiers<L extends LigneAdministrative & { fichiers: Fichier[
     setEnvoi(true);
     const pris = await prendsLesFichiers(liste);
     if (pris.erreur) { toast(pris.erreur, 7000); setEnvoi(false); return; }
-    const r = await deposeLesFichiers(ligne.id, pris.fichiers, ligne.fichiers.length);
+    /* Une photo ajoutée à un courrier arrivé reçoit aussi son tampon « REÇU LE ». */
+    const recuLe = ligne.genre === 'courrier' ? recuLeDe(ligne as unknown as Courrier) : undefined;
+    const r = await deposeLesFichiers(ligne.id, pris.fichiers, ligne.fichiers.length, recuLe);
     if (r.fichiers.length) retouche(ligne, { fichiers: [...ligne.fichiers, ...r.fichiers] } as Partial<L>);
     if (r.erreur) toast(r.erreur, 7000); else toast(r.fichiers.length > 1 ? 'Fichiers gardés.' : 'Fichier gardé.');
     setEnvoi(false);

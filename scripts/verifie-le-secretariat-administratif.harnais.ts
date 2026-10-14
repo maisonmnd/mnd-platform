@@ -11,7 +11,7 @@
 import { readFileSync } from 'node:fs';
 import {
   ajouteJours, ajouteMois, anneesCloses, aRevoir, attendMaSignature, ceQuiTombe, dateCourte, ecartEnJours, estFige, JOURS_DE_NOTIFICATION,
-  marqueFaite, montantDit, peutEcrire, prochainNumeroDuCourrier, rappelDit, sousTrenteJours, voit,
+  marqueFaite, montantDit, peutEcrire, placeDuRecu, prochainNumeroDuCourrier, rappelDit, recuLeDe, sousTrenteJours, voit,
   type Contrat, type Courrier, type Echeance, type Qui,
 } from '../src/shared/secretariat-admin-pur';
 
@@ -95,6 +95,24 @@ const closes = anneesCloses([{ genre: 'cloture', annee: 2026 }, { genre: 'contac
 dit('2026 close : le courrier est fige, sauf pour la direction', [[2026], true, false], [closes, estFige(courrier, closes, false), estFige(courrier, closes, true)]);
 dit('un document attend ma signature tant que je ne l ai pas posee', [true, false],
   [attendMaSignature({ etat: 'brouillon', signataires: [{ userId: 'u' }], poses: [] }, 'u'), attendMaSignature({ etat: 'brouillon', signataires: [{ userId: 'u' }], poses: [{ cle: 'sig:u', image: 'x' }] }, 'u')]);
+
+/* ── 6 bis. LE TAMPON « REÇU LE » SUR LA PHOTO (maquette, lot 1) ── */
+dit('un courrier arrive se tamponne a sa date ; un depart, une date illisible, non', ['2026-10-14', undefined, undefined],
+  [recuLeDe({ sens: 'arrive', date: '2026-10-14' }), recuLeDe({ sens: 'depart', date: '2026-10-14' }), recuLeDe({ sens: 'arrive', date: '' })]);
+const dans = (w: number, h: number) => { const p = placeDuRecu(w, h, 1.5); return p.x > 0 && p.y > 0 && p.x + p.l < w && p.y + p.h < h && p.x > w / 2 && p.y + p.h <= h / 4 + p.y; };
+dit('le tampon tient dans la photo, en haut a droite : A4 debout, couchee, ticket etroit', [true, true, true], [dans(1555, 2200), dans(2200, 1555), dans(2200, 300)]);
+dit('sur une feuille A4 il fait un quart de la largeur, environ 5 cm', [404, 269], (({ l, h }) => [l, h])(placeDuRecu(1555, 2200, 1.5)));
+dit('sur un ticket etroit il ne passe pas le quart de la hauteur', 75, placeDuRecu(2200, 300, 1.5).h);
+const adm = sansCommentaires('src/shared/secretariat-admin.ts');
+dit('la photo est tamponnee avant de partir ; un PDF part tel quel ; un tampon qui manque ne perd pas la lettre', [true, true, true], [
+  adm.includes('if (recuLe) corps = await tamponneLaPhoto(corps, recuLe);'),
+  adm.includes("if (!photo.type.startsWith('image/')) return photo;"),
+  /\} catch \{\s+return photo;\s+\}/.test(adm),
+]);
+dit('le courrier neuf et la photo ajoutee passent la date d arrivee', [true, true], [
+  sansCommentaires('src/apps/trone/routes/pilotage/secretariat/Courrier.tsx').includes('await deposeLesFichiers(c.id, fichiers, 0, recuLeDe(c));'),
+  sansCommentaires('src/apps/trone/routes/pilotage/secretariat/_admin.tsx').includes('deposeLesFichiers(ligne.id, pris.fichiers, ligne.fichiers.length, recuLe);'),
+]);
 
 /* ── 7. LE MÊME CALCUL À L'ÉCRAN ET DANS LA NOTIFICATION ── */
 const bloc = (f: string) => { const s = lis(f); const a = s.indexOf('/* ⟨ce-qui-tombe⟩ */'); const b = s.indexOf('/* ⟨/ce-qui-tombe⟩ */'); return a >= 0 && b > a ? s.slice(a, b) : `ABSENT de ${f}`; };

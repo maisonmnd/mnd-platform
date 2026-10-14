@@ -281,6 +281,23 @@ export function prochainNumeroDuCourrier(sens: Sens, annee: number, numeros: rea
   return `${prefixe}${String(max + 1).padStart(3, '0')}`;
 }
 
+/* LE TAMPON « REÇU LE » SUR LA PHOTO (maquette, lot 1). La photo d'un
+   courrier arrivé reçoit le tampon de la Maison, daté du jour d'arrivée, en
+   haut à droite, là où l'on tamponne la marge d'une lettre : un quart de la
+   largeur (environ 5 cm sur une feuille A4), jamais plus haut que le quart
+   de la photo. Un départ ne se tamponne pas ; un PDF part tel quel. */
+export const recuLeDe = (c: Pick<Courrier, 'sens' | 'date'>): string | undefined =>
+  c.sens === 'arrive' && /^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(c.date) ? c.date : undefined;
+
+export function placeDuRecu(largeur: number, hauteur: number, ratio: number): { x: number; y: number; l: number; h: number } {
+  let l = Math.round(largeur * 0.26);
+  let h = Math.round(l / ratio);
+  const hMax = Math.round(hauteur * 0.25);
+  if (h > hMax) { h = hMax; l = Math.round(h * ratio); }
+  const marge = Math.round(Math.min(largeur, hauteur) * 0.03);
+  return { x: largeur - l - marge, y: marge, l, h };
+}
+
 /** Un contrat à revoir : son préavis ou sa fin tombe sous 60 jours, ou sa
     fin est passée alors qu'il est encore « en cours ». */
 export function aRevoir(c: Contrat, jour: string): boolean {

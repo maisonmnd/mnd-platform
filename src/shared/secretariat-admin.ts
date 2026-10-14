@@ -3,8 +3,10 @@ import { supabase } from './supabase';
 import { ecris, secretariatStore, useSecretariat } from './secretariat';
 import { allege, copieEnMemoire, ESSAIS_D_ENVOI } from './papiers';
 import { TAILLE_MAX, typeDuFichier } from './papiers-pur';
+import { asset } from './asset';
+import { dateSurLeRecu, TAMPON_A_DATER, tamponParCle } from './secretariat-tampons';
 import {
-  marqueFaite, prochainNumeroDuCourrier,
+  marqueFaite, placeDuRecu, prochainNumeroDuCourrier,
   type Cloture, type Contact, type Contrat, type Courrier, type Demarche, type Echeance, type Fichier, type LigneAdministrative, type Sens,
 } from './secretariat-admin-pur';
 import type { LigneSecretariat } from './secretariat-pur';
@@ -141,8 +143,58 @@ export async function prendsLesFichiers(liste: FileList | readonly File[]): Prom
   return { fichiers };
 }
 
-/** Déposer des fichiers sous une ligne ; rend ceux qui sont partis. */
-export async function deposeLesFichiers(ligneId: string, fichiers: readonly File[], deja = 0): Promise<{ fichiers: Fichier[]; erreur?: string }> {
+const chargeLImage = (src: string): Promise<HTMLImageElement> => new Promise((ok, ko) => {
+  const i = new Image();
+  i.onload = () => ok(i);
+  i.onerror = () => ko(new Error('image'));
+  i.src = src;
+});
+const enDataUrl = (b: Blob): Promise<string | null> => new Promise((ok) => {
+  const f = new FileReader();
+  f.onloadend = () => ok(typeof f.result === 'string' ? f.result : null);
+  f.onerror = () => ok(null);
+  f.readAsDataURL(b);
+});
+
+/** La photo d'un courrier arrivé reçoit le tampon « REÇU LE », daté du jour
+    d'arrivée (placeDuRecu). Si le tampon ne se charge pas, la photo part
+    telle quelle : mieux vaut une lettre sans tampon qu'une lettre perdue. */
+export async function tamponneLaPhoto(photo: Blob, recuLe: string): Promise<Blob> {
+  if (!photo.type.startsWith('image/')) return photo;
+  const def = tamponParCle(TAMPON_A_DATER);
+  if (!def) return photo;
+  const url = URL.createObjectURL(photo);
+  try {
+    const r = await fetch(asset(`/assets/tampons/${def.fichier}`));
+    if (!r.ok) return photo;
+    const brut = await enDataUrl(await r.blob());
+    const date = brut ? await dateSurLeRecu(brut, recuLe) : null;
+    if (!date) return photo;
+    const [tampon, image] = await Promise.all([chargeLImage(date), chargeLImage(url)]);
+    const c = document.createElement('canvas');
+    c.width = image.naturalWidth; c.height = image.naturalHeight;
+    const ctx = c.getContext('2d');
+    if (!ctx) return photo;
+    ctx.drawImage(image, 0, 0);
+    const p = placeDuRecu(c.width, c.height, def.ratio);
+    /* L'encre se pose SUR le papier : le blanc du papier reste, comme un vrai
+       tampon ; une légère inclinaison, comme une main. */
+    ctx.globalCompositeOperation = 'multiply';
+    ctx.translate(p.x + p.l / 2, p.y + p.h / 2);
+    ctx.rotate((-3 * Math.PI) / 180);
+    ctx.drawImage(tampon, -p.l / 2, -p.h / 2, p.l, p.h);
+    const sortie = await new Promise<Blob | null>((ok) => c.toBlob(ok, 'image/jpeg', 0.9));
+    return sortie ?? photo;
+  } catch {
+    return photo;
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
+
+/** Déposer des fichiers sous une ligne ; rend ceux qui sont partis.
+    `recuLe` : la date d'arrivée d'un courrier, et ses photos sont tamponnées. */
+export async function deposeLesFichiers(ligneId: string, fichiers: readonly File[], deja = 0, recuLe?: string): Promise<{ fichiers: Fichier[]; erreur?: string }> {
   if (!supabase) return { fichiers: [], erreur: 'Pas de connexion à la Maison.' };
   const partis: Fichier[] = [];
   const t0 = Date.now();
@@ -151,6 +203,7 @@ export async function deposeLesFichiers(ligneId: string, fichiers: readonly File
     if (!typeDuFichier(f.name, f.type)) return { fichiers: partis, erreur: `« ${f.name} » : seuls les PDF et les photos sont acceptés.` };
     let corps: Blob;
     try { corps = await allege(f); } catch { return { fichiers: partis, erreur: `« ${f.name} » : cette photo ne s’ouvre pas sur ce téléphone.` }; }
+    if (recuLe) corps = await tamponneLaPhoto(corps, recuLe);
     if (corps.size > TAILLE_MAX) return { fichiers: partis, erreur: `« ${f.name} » dépasse 10 Mo.` };
     const type = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'].includes(corps.type) ? corps.type : 'image/jpeg';
     const chemin = `${ligneId}/${deja + i + 1}-${t0}.${type === 'application/pdf' ? 'pdf' : 'jpg'}`;

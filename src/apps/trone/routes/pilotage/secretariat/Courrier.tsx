@@ -7,7 +7,7 @@ import {
   aujourdhui, contactsDe, courriersDe, demarchesDe, deposeLesFichiers, effaceLaLigne, nouveauCourrier, prendsLesFichiers, retouche,
 } from '../../../../../shared/secretariat-admin';
 import {
-  anneesCloses, dateCourte, ETATS_ARRIVE, ETATS_DEPART, estFige, MOYENS, peutEcrire, tientLeSecretariat, voit,
+  anneesCloses, dateCourte, ETATS_ARRIVE, ETATS_DEPART, estFige, MOYENS, peutEcrire, recuLeDe, tientLeSecretariat, voit,
   type Courrier as LeCourrier, type Moyen, type Qui, type Sens,
 } from '../../../../../shared/secretariat-admin-pur';
 import { CasePrivee, ChoixDuCompte, LesFichiers, rappel, Repliee, useNomDuCompte } from './_admin';
@@ -148,7 +148,7 @@ function FicheDuCourrier({ qui, branchId, sens, courrier, onClose }: { qui: Qui;
     setEnvoi(true);
     const c = nouveauCourrier({ branchId, par: qui.moi, sens, ...champs, prive });
     if (fichiers.length) {
-      const r = await deposeLesFichiers(c.id, fichiers);
+      const r = await deposeLesFichiers(c.id, fichiers, 0, recuLeDe(c));
       if (r.fichiers.length) retouche(c, { fichiers: r.fichiers });
       if (r.erreur) toast(r.erreur, 7000);
     }
@@ -195,6 +195,7 @@ function FicheDuCourrier({ qui, branchId, sens, courrier, onClose }: { qui: Qui;
               if (r.erreur) toast(r.erreur, 7000);
               setFichiers(r.fichiers);
             }} />
+            {sens === 'arrive' && <p className="sad-doux" style={{ margin: '6px 0 0' }}>Chaque photo reçoit le tampon « REÇU LE », daté du jour d’arrivée. Un PDF garde sa forme.</p>}
           </Field>
         )}
         <CasePrivee qui={qui} value={prive} onChange={setPrive} />
