@@ -1,0 +1,524 @@
+<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head><body><title>Composer ma couronne</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,400&family=Jost:wght@300;400;500&display=swap">
+<style>
+/* La maquette suit le Trône : ivoire et indigo, cuivre en accent, Cormorant pour les titres, Jost pour le texte et les prix.
+   Mise en page : l'atelier de composition. La couronne dessinée reste sous les yeux pendant qu'on choisit, comme un miroir. */
+:root { --fond:#F6F1E7; --carte:#FFFDF9; --ecran:#FBF8F2; --encre:#1E2150; --texte:#2A2722; --doux:#5E5750; --filet:#E3DACB; --cuivre:#9A6036; --cuivre-clair:#F3E6D8; --puce:#EFE6D6; --vert:#2F6B4F; --vert-clair:#E3F0E8; --rouge:#8F3B30; --rouge-clair:#F7E7E3; --barre:#1E2150; --barre-texte:#F6F1E7; color-scheme: light; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --fond:#15173A; --carte:#1E2150; --ecran:#1A1C45; --encre:#F6F1E7; --texte:#E9E3D7; --doux:#B9B4C9; --filet:#2E3266; --cuivre:#D6A06F; --cuivre-clair:#3A2E3A; --puce:#272B6C; --vert:#8FD1AE; --vert-clair:#1F3B3A; --rouge:#E7A193; --rouge-clair:#3B2433; --barre:#0F1130; --barre-texte:#F6F1E7; color-scheme: dark; } }
+:root[data-theme="dark"] { --fond:#15173A; --carte:#1E2150; --ecran:#1A1C45; --encre:#F6F1E7; --texte:#E9E3D7; --doux:#B9B4C9; --filet:#2E3266; --cuivre:#D6A06F; --cuivre-clair:#3A2E3A; --puce:#272B6C; --vert:#8FD1AE; --vert-clair:#1F3B3A; --rouge:#E7A193; --rouge-clair:#3B2433; --barre:#0F1130; --barre-texte:#F6F1E7; color-scheme: dark; }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--fond); color: var(--texte); font: 300 16px/1.6 "Jost", system-ui, sans-serif; padding-block: 32px 96px; padding-inline: 16px; }
+.page { max-width: 1160px; margin: 0 auto; display: grid; grid-template-columns: minmax(0, 1fr); gap: 40px; }
+.page > * { min-width: 0; }
+.n { font: 400 .72em "Jost", sans-serif; color: var(--cuivre); margin-right: 8px; vertical-align: 2px; }
+.sur { font-size: 11.5px; letter-spacing: .18em; text-transform: uppercase; color: var(--cuivre); margin: 0; font-weight: 400; }
+h1 { font: 300 clamp(38px, 6.5vw, 62px)/1.02 "Cormorant Garamond", Georgia, serif; color: var(--encre); margin: 6px 0 0; text-wrap: balance; }
+h2 { font: 400 32px/1.15 "Cormorant Garamond", Georgia, serif; color: var(--encre); margin: 10px 0 0; text-wrap: balance; }
+h3 { font: 400 22px/1.2 "Cormorant Garamond", Georgia, serif; color: var(--encre); margin: 0; }
+.chapeau { color: var(--doux); max-width: 70ch; margin: 12px 0 0; }
+.dit { color: var(--doux); margin: 4px 0 0; max-width: 70ch; }
+.note { font-size: 13.5px; color: var(--doux); margin: 0; }
+.ex, .manque { font-size: 11px; letter-spacing: .06em; text-transform: uppercase; border-radius: 3px; padding: 0 5px; margin-left: 6px; vertical-align: 1px; white-space: nowrap; }
+.ex { color: var(--doux); border: 1px solid var(--filet); }
+.manque { color: var(--cuivre); border: 1px dashed var(--cuivre); }
+
+/* ── L'atelier de composition ── */
+.atelier { display: grid; grid-template-columns: minmax(0, 420px) minmax(0, 1fr); gap: 28px; align-items: start; }
+@media (max-width: 880px) { .atelier { grid-template-columns: minmax(0, 1fr); } }
+.miroir { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 16px); display: grid; gap: 10px; }
+@media (max-width: 880px) { .miroir { position: static; } }
+.miroir canvas { width: 100%; max-width: 100%; height: auto; display: block; border-radius: 14px; border: 1px solid var(--filet); }
+.fiche-courte { background: var(--carte); border: 1px solid var(--filet); border-radius: 10px; padding: 12px 14px; display: grid; gap: 4px; font-size: 14px; }
+.fiche-courte b { font: 400 20px/1.2 "Cormorant Garamond", serif; color: var(--encre); }
+.etapes { display: grid; gap: 14px; }
+.etape { background: var(--carte); border: 1px solid var(--filet); border-radius: 10px; padding: 14px 16px; display: grid; gap: 10px; min-width: 0; }
+.etape > legend, .etape-titre { font: 400 21px/1.2 "Cormorant Garamond", serif; color: var(--encre); padding: 0; margin: 0; }
+fieldset.etape { margin: 0; }
+fieldset.etape > legend { float: left; width: 100%; }
+fieldset.etape > legend + * { clear: both; }
+.etape .aide { font-size: 13.5px; color: var(--doux); margin: 0; }
+.pastilles { display: flex; flex-wrap: wrap; gap: 6px; }
+.pastille { font: 400 14px "Jost", sans-serif; border: 1px solid var(--filet); background: var(--fond); color: var(--texte); border-radius: 999px; padding: 6px 14px; cursor: pointer; display: inline-flex; align-items: center; gap: 7px; }
+.pastille[aria-pressed="true"] { background: var(--encre); color: var(--fond); border-color: var(--encre); }
+.pastille i { width: 14px; height: 14px; border-radius: 50%; border: 1px solid rgba(0,0,0,.15); flex: none; }
+.pastille:focus-visible, .calibre:focus-visible, .bouton:focus-visible, .choix input:focus-visible { outline: 2px solid var(--cuivre); outline-offset: 2px; }
+.calibres { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 170px), 1fr)); gap: 8px; }
+.calibre { text-align: left; font: inherit; color: inherit; background: var(--fond); border: 1px solid var(--filet); border-radius: 8px; padding: 10px 12px; cursor: pointer; display: grid; gap: 2px; }
+.calibre[aria-pressed="true"] { border-color: var(--cuivre); background: var(--cuivre-clair); }
+.calibre b { font: 400 19px/1.15 "Cormorant Garamond", serif; color: var(--encre); }
+.calibre span { font-size: 12.5px; color: var(--doux); }
+.calibre .prix { font-size: 13.5px; color: var(--encre); font-variant-numeric: lining-nums tabular-nums; }
+.palier { justify-self: start; font-size: 11px; letter-spacing: .06em; border-radius: 999px; padding: 0 8px; background: var(--puce); color: var(--encre); }
+.avis { font-size: 13.5px; border-radius: 6px; padding: 8px 12px; background: var(--cuivre-clair); margin: 0; }
+.avis b { color: var(--encre); font-weight: 500; }
+.avis[hidden] { display: none; }
+.entretien { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 210px), 1fr)); gap: 8px; }
+.entretien div { border: 1px solid var(--filet); border-radius: 8px; padding: 10px 12px; background: var(--fond); display: grid; gap: 2px; font-size: 13.5px; }
+.entretien b { font-weight: 400; color: var(--encre); }
+.entretien .prix { font: 300 22px/1.2 "Jost", sans-serif; color: var(--encre); font-variant-numeric: lining-nums tabular-nums; }
+
+/* Le récapitulatif */
+.recap { background: var(--carte); border: 1px solid var(--cuivre); border-radius: 12px; padding: 16px 18px; display: grid; gap: 10px; }
+.lignes { display: grid; gap: 0; font-size: 14.5px; }
+.lignes div { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; padding: 7px 0; border-bottom: 1px dashed var(--filet); align-items: baseline; }
+.lignes div:last-child { border-bottom: 0; }
+.lignes small { display: block; font-size: 12.5px; color: var(--doux); }
+.lignes .m { font-variant-numeric: lining-nums tabular-nums; color: var(--encre); white-space: nowrap; }
+.total { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; border-top: 1px solid var(--filet); padding-top: 10px; }
+.total span { font-size: 12px; letter-spacing: .12em; text-transform: uppercase; color: var(--doux); }
+.total b { font: 300 32px/1.1 "Jost", sans-serif; color: var(--encre); font-variant-numeric: lining-nums tabular-nums; }
+.actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.bouton { font: 400 14px "Jost", sans-serif; border-radius: 6px; padding: 9px 16px; border: 1px solid var(--filet); background: var(--carte); color: var(--encre); cursor: pointer; }
+.bouton.cuivre { background: var(--cuivre); border-color: var(--cuivre); color: var(--carte); }
+.bouton.plein { background: var(--encre); border-color: var(--encre); color: var(--fond); }
+.dit-bouton { font-size: 13px; color: var(--vert); min-height: 1.3em; margin: 0; }
+/* Au téléphone, le prix suit la cliente pendant qu'elle choisit. */
+.barre-prix { display: none; }
+@media (max-width: 880px) {
+  .barre-prix { display: flex; position: sticky; bottom: 0; z-index: 2; margin-inline: -16px; padding: 10px 16px calc(10px + env(safe-area-inset-bottom, 0px)); background: var(--barre); color: var(--barre-texte); justify-content: space-between; align-items: center; gap: 10px; font-size: 14px; }
+  .barre-prix b { font: 300 20px/1.1 "Jost", sans-serif; font-variant-numeric: lining-nums tabular-nums; }
+  .barre-prix a { color: var(--barre-texte); font-size: 13px; }
+}
+
+/* Le reste de la maquette */
+.regles { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap: 12px; margin-top: 14px; }
+.bloc { background: var(--carte); border: 1px solid var(--filet); border-radius: 6px; padding: 16px 18px; font-size: 14.5px; display: grid; gap: 6px; align-content: start; }
+.bloc p { margin: 0; }
+.bloc ul { margin: 4px 0 0; padding-left: 20px; display: grid; gap: 5px; }
+.bloc.manques { border: 1px dashed var(--cuivre); }
+.ecran { background: var(--ecran); border: 1px solid var(--filet); border-radius: 10px; overflow: clip; margin-top: 14px; }
+.ecran-barre { background: var(--barre); color: var(--barre-texte); padding: 10px 16px; font-size: 13px; letter-spacing: .04em; display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.vue { padding: 16px; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 14px; font-size: 14.5px; }
+.vue > div { background: var(--carte); border: 1px solid var(--filet); border-radius: 8px; padding: 12px 14px; display: grid; gap: 6px; align-content: start; }
+.vue h4 { margin: 0; font: 400 11.5px "Jost", sans-serif; letter-spacing: .14em; text-transform: uppercase; color: var(--cuivre); }
+.vue p { margin: 0; }
+.garde { list-style: none; margin: 14px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); gap: 10px; }
+.garde li { background: var(--carte); border: 1px solid var(--filet); border-left: 3px solid var(--encre); border-radius: 6px; padding: 10px 14px; font-size: 14.5px; }
+.garde b { color: var(--encre); font-weight: 500; }
+.arbitrage { background: var(--carte); border: 1px solid var(--filet); border-radius: 6px; padding: 16px 18px; display: grid; gap: 10px; }
+.arbitrage fieldset { border: 0; margin: 0; padding: 0; display: grid; gap: 8px; min-width: 0; }
+.arbitrage legend { font: 400 21px/1.25 "Cormorant Garamond", serif; color: var(--encre); margin-bottom: 4px; padding: 0; }
+.choix { display: flex; gap: 10px; align-items: flex-start; border: 1px solid var(--filet); border-radius: 6px; padding: 9px 12px; cursor: pointer; font-size: 14.5px; }
+.choix:has(input:checked) { border-color: var(--cuivre); background: var(--cuivre-clair); }
+.choix input { accent-color: var(--cuivre); margin-top: 4px; flex: none; }
+.choix b { color: var(--encre); font-weight: 500; }
+.choix em { font-style: normal; color: var(--cuivre); font-size: 12.5px; letter-spacing: .04em; margin-left: 6px; }
+.etat-choix { font-size: 13px; color: var(--vert); min-height: 1.4em; margin: 0; }
+.lots { display: grid; gap: 10px; margin-top: 14px; }
+.lot { background: var(--carte); border: 1px solid var(--filet); border-left: 3px solid var(--cuivre); border-radius: 6px; padding: 12px 16px; font-size: 14.5px; }
+@media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
+</style>
+
+<div class="page">
+<header>
+<p class="sur">Maison MND · Maquette à valider · 14 octobre 2026</p>
+<h1>Composer ma couronne</h1>
+<p class="chapeau">Le configurateur de dreadlocks de la Maison MND, et d’elle seule. On y compose sa couronne avec ce que la Maison crée vraiment : le calibre VÈKPÈ™, la couleur végétale YÈKPÈ™, la coiffure de sortie, puis l’entretien qui la fait vivre. Chaque choix vient de la carte, avec son prix d’entrée. La composition part ensuite avec la réservation de la consultation Origine. Rien n’est construit avant votre validation.</p>
+</header>
+
+<section aria-labelledby="t-atelier">
+<h2 id="t-atelier">L’atelier, à essayer</h2>
+<p class="dit">Touchez les choix : la couronne se redessine. Prix de la carte du 10 octobre 2026 ; la vraie version lit le catalogue du jour, et la carte change le 1er janvier 2027.</p>
+<div class="atelier" style="margin-top:14px">
+<div class="miroir">
+<canvas id="couronne" width="420" height="500" aria-label="La couronne composée, dessinée"></canvas>
+<div class="fiche-courte" aria-live="polite"><b id="fiche-titre"></b><span id="fiche-ligne"></span></div>
+</div>
+<div class="etapes">
+<fieldset class="etape"><legend><span class="n">1</span>Vos cheveux aujourd’hui</legend>
+<p class="aide">La couronne naît à la longueur de vos cheveux. La longueur règle aussi le prix de la couleur, de la coiffure et de l’entretien.</p>
+<div class="pastilles" data-groupe="longueur">
+<button type="button" class="pastille" data-v="0" aria-pressed="true">Courts</button>
+<button type="button" class="pastille" data-v="1" aria-pressed="false">Mi-longs</button>
+<button type="button" class="pastille" data-v="2" aria-pressed="false">Longs</button>
+</div>
+<div class="pastilles" data-groupe="peau" aria-label="Teinte de peau, pour le dessin">
+<span class="aide" style="align-self:center">Pour le dessin :</span>
+<button type="button" class="pastille" data-v="0" aria-pressed="false" aria-label="Teinte 1"><i style="background:#3B2219"></i></button>
+<button type="button" class="pastille" data-v="1" aria-pressed="true" aria-label="Teinte 2"><i style="background:#5A3726"></i></button>
+<button type="button" class="pastille" data-v="2" aria-pressed="false" aria-label="Teinte 3"><i style="background:#7A4A33"></i></button>
+<button type="button" class="pastille" data-v="3" aria-pressed="false" aria-label="Teinte 4"><i style="background:#94603F"></i></button>
+<button type="button" class="pastille" data-v="4" aria-pressed="false" aria-label="Teinte 5"><i style="background:#AD7650"></i></button>
+</div>
+</fieldset>
+
+<fieldset class="etape"><legend><span class="n">2</span>Le calibre · VÈKPÈ™, la naissance</legend>
+<p class="aide">Plus le calibre est fin, plus il y a de locks, plus la pose est longue. La méthode (crochet ou torsion) se choisit en consultation, selon votre texture.</p>
+<div class="calibres" id="calibres"></div>
+<p class="avis" id="avis-calibre"></p>
+</fieldset>
+
+<fieldset class="etape"><legend><span class="n">3</span>La couleur · YÈKPÈ™, la lumière</legend>
+<p class="aide">100 % végétale : henné, indigo, plantes africaines, sans ammoniaque. Test sur mèche obligatoire. <span class="ex">teintes d’exemple</span></p>
+<div class="pastilles" data-groupe="couleur">
+<button type="button" class="pastille" data-v="naturel" aria-pressed="true"><i style="background:#1B1411"></i>Naturel</button>
+<button type="button" class="pastille" data-v="cuivre" aria-pressed="false"><i style="background:#8A3A1C"></i>Cuivré au henné</button>
+<button type="button" class="pastille" data-v="brun" aria-pressed="false"><i style="background:#4A2A1E"></i>Brun henné et indigo</button>
+<button type="button" class="pastille" data-v="indigo" aria-pressed="false"><i style="background:#141626"></i>Noir indigo</button>
+</div>
+<div class="pastilles" data-groupe="lumiere">
+<button type="button" class="pastille" data-v="non" aria-pressed="true">Sans brillance</button>
+<button type="button" class="pastille" data-v="oui" aria-pressed="false">YÈKPÈ™ Lumière · effet miroir</button>
+</div>
+<p class="avis" id="avis-couleur" hidden><b>À confirmer en consultation.</b> La couleur demande une couronne saine : le délai après la création reste à fixer par la Maison.</p>
+</fieldset>
+
+<fieldset class="etape"><legend><span class="n">4</span>La coiffure de sortie</legend>
+<p class="aide">Le styling de sortie : chignon, demi-attache ou détaché. Pour un jour à part, la Coiffure Signature Événement, avec son ornement.</p>
+<div class="pastilles" data-groupe="coiffure">
+<button type="button" class="pastille" data-v="libres" aria-pressed="true">Détaché</button>
+<button type="button" class="pastille" data-v="demi" aria-pressed="false">Demi-attache</button>
+<button type="button" class="pastille" data-v="chignon" aria-pressed="false">Chignon</button>
+<button type="button" class="pastille" data-v="evenement" aria-pressed="false">Signature Événement</button>
+</div>
+<div class="pastilles" data-groupe="ornement" id="ornements" hidden>
+<button type="button" class="pastille" data-v="dorures" aria-pressed="true">Dorures</button>
+<button type="button" class="pastille" data-v="perles" aria-pressed="false">Perles</button>
+<button type="button" class="pastille" data-v="foulard" aria-pressed="false">Foulard</button>
+</div>
+</fieldset>
+
+<fieldset class="etape"><legend><span class="n">5</span>L’entretien qui la fait vivre</legend>
+<p class="aide">Une couronne se tient venue après venue. Le prix de l’entretien suit le calibre : c’est la vraie différence entre un Medium et un Nano, et elle se dit avant de choisir.</p>
+<div class="entretien" id="entretien"></div>
+</fieldset>
+
+<div class="recap" aria-live="polite">
+<h3>Votre couronne</h3>
+<div class="lignes" id="lignes"></div>
+<div class="total"><span>La création, à partir de</span><b id="total"></b></div>
+<p class="note" id="paiement"></p>
+<p class="note">Le devis exact suit le nombre de locks (1 100 F le lock au-delà du prix d’entrée), fixé en consultation, par écrit, avant toute intervention.</p>
+<div class="actions">
+<button type="button" class="bouton cuivre" data-dit="La composition part avec la réservation de la consultation Origine.">Réserver ma consultation Origine</button>
+<button type="button" class="bouton" data-dit="La composition part sur WhatsApp, au registre de la Maison, avec son image.">L’envoyer à la Maison</button>
+<button type="button" class="bouton" data-dit="L’essayage sur sa propre photo : voir la maquette du diagnostic par photo.">Voir sur ma photo</button>
+</div>
+<p class="dit-bouton" id="dit-bouton" aria-live="polite"></p>
+</div>
+<div class="barre-prix"><span>Création à partir de <b id="total-barre"></b></span><a href="#t-atelier">Revoir</a></div>
+</div>
+</div>
+</section>
+
+<section aria-labelledby="t-recoit">
+<h2 id="t-recoit">Ce que la Maison reçoit</h2>
+<p class="dit">La composition arrive avec la réservation. Le maître sait, avant la séance, ce qu’elle imagine ; la consultation dit ce que ses cheveux permettent.</p>
+<div class="ecran">
+<div class="ecran-barre"><span>Clientèle › Consultations · rendez-vous du samedi 17 octobre 2026, 10 h 00</span><span>Maquette : exemple</span></div>
+<div class="vue">
+<div><h4>Sa composition</h4><p>VÈKPÈ™ Micro · cheveux mi-longs · YÈKPÈ™ cuivré au henné, avec Lumière · demi-attache.</p><p class="note">Composée le mercredi 14 octobre 2026 à 21 h 12, depuis le site.</p></div>
+<div><h4>À vérifier en séance</h4><p>Micro : réservé aux clientes diagnostiquées aptes au KÒKÒ™ Origine ; densité à confirmer.</p><p>La couleur : délai après la création.</p></div>
+<div><h4>Ce qui se compte</h4><p>Les compositions par calibre et par couleur, et les consultations réservées après une composition. On saura ce qui fait rêver, et ce qui fait venir.</p></div>
+</div>
+</div>
+</section>
+
+<section aria-labelledby="t-maison">
+<h2 id="t-maison">Uniquement la Maison</h2>
+<div class="regles">
+<div class="bloc"><h3>La carte, et rien d’autre</h3><p>Chaque choix est une prestation du catalogue du Trône : les créations VÈKPÈ™, les couleurs YÈKPÈ™, le styling et la Coiffure Signature Événement, les formules en lunes. Une prestation retirée du catalogue disparaît du configurateur ; un prix changé au Trône change ici le même jour.</p></div>
+<div class="bloc"><h3>Le vocabulaire de la Maison</h3><p>Le français d’abord, le fon dessous : « Micro · la haute précision, VÈKPÈ™ ». Les paliers (Fondation, Élévation, Souveraineté), les lunes, la couronne. Jamais le mot d’un autre lieu.</p></div>
+<div class="bloc"><h3>Un dessin, pas une promesse</h3><p>La couronne dessinée montre une allure, pas un résultat. Chaque image porte « Composer ma couronne · Maison MND ». Ce qui demande un diagnostic le dit : aptitude au KÒKÒ™ Origine, couronne saine pour la couleur, densité pour les calibres fins.</p></div>
+</div>
+<ul class="garde">
+<li><b>Proposer un style d’ailleurs</b>, une couleur chimique, une extension que la Maison ne pose pas.</li>
+<li><b>Afficher un prix final.</b> Il montre le prix d’entrée ; le devis vient de la consultation, par écrit.</li>
+<li><b>Cacher l’entretien.</b> Le coût des venues suit toujours le choix du calibre.</li>
+<li><b>Demander une photo.</b> Le dessin suffit ; la photo n’entre que par l’essayage, avec son accord à part.</li>
+</ul>
+</section>
+
+<section aria-labelledby="t-ou">
+<h2 id="t-ou">Où il vit, ce qu’il coûte</h2>
+<div class="regles">
+<div class="bloc"><h3>Sur le site</h3><p>Une page maisonmnd.com, ouverte à toutes, reliée à « Première couronne » et à la réservation. Le dessin se fait dans le téléphone : 0 F, et aucune donnée ne part tant qu’elle ne réserve pas.</p></div>
+<div class="bloc"><h3>Dans La Consultation et Ma Couronne</h3><p>À l’étape « Vision » de La Consultation, à la place des seules vignettes d’inspiration ; dans Ma Couronne, pour une cliente qui veut changer de calibre ou de couleur.</p></div>
+<div class="bloc"><h3>Au comptoir, en consultation</h3><p>Le maître le montre sur une tablette, avec la cliente : on compose ensemble, et la composition entre dans sa fiche.</p></div>
+</div>
+<p class="note" style="margin-top:10px">Le configurateur dessiné ne coûte rien. Le voir sur sa propre photo passe par une IA d’image d’un autre fournisseur, environ 25 F l’image : c’est l’essayage de la maquette du diagnostic par photo, en option.</p>
+</section>
+
+<section aria-labelledby="t-choix">
+<h2 id="t-choix">Cinq choix à faire</h2>
+<p class="dit">Ma proposition est marquée. Vos choix s’enregistrent d’un toucher : je les lis avant de construire.</p>
+<div class="regles">
+<form class="arbitrage" data-cle="nom"><fieldset><legend><span class="n">1</span> Son nom</legend>
+<label class="choix"><input type="radio" name="nom" value="composer"><span><b>Composer ma couronne</b><em>ma proposition</em><br>Les mots de la Maison : on compose, et c’est une couronne.</span></label>
+<label class="choix"><input type="radio" name="nom" value="configurateur"><span><b>Le configurateur MND</b><br>Le mot que tout le monde comprend.</span></label>
+<label class="choix"><input type="radio" name="nom" value="fon"><span><b>Un nom en fon, donné par vous</b><br>Comme chaque geste de la Maison.</span></label>
+</fieldset><p class="etat-choix" aria-live="polite"></p></form>
+<form class="arbitrage" data-cle="ou"><fieldset><legend><span class="n">2</span> Où il vit</legend>
+<label class="choix"><input type="radio" name="ou" value="partout"><span><b>Le site, La Consultation, Ma Couronne et le comptoir</b><em>ma proposition</em><br>Le même configurateur, quatre portes.</span></label>
+<label class="choix"><input type="radio" name="ou" value="site"><span><b>Le site seulement, d’abord</b><br>Pour attirer les nouvelles venues.</span></label>
+<label class="choix"><input type="radio" name="ou" value="interne"><span><b>La Consultation et le comptoir seulement</b><br>Il reste un outil de la séance.</span></label>
+</fieldset><p class="etat-choix" aria-live="polite"></p></form>
+<form class="arbitrage" data-cle="prix"><fieldset><legend><span class="n">3</span> Les prix affichés</legend>
+<label class="choix"><input type="radio" name="prix" value="entree"><span><b>Le prix d’entrée de chaque choix, et le devis en consultation</b><em>ma proposition</em><br>Comme dans cette maquette.</span></label>
+<label class="choix"><input type="radio" name="prix" value="fourchette"><span><b>Une fourchette selon le nombre de locks</b><br>Par exemple Medium : de 150 000 à 198 000 F.</span></label>
+<label class="choix"><input type="radio" name="prix" value="aucun"><span><b>Aucun prix</b><br>Tout se chiffre en consultation, comme le dit la page Questions du site.</span></label>
+</fieldset><p class="etat-choix" aria-live="polite"></p></form>
+<form class="arbitrage" data-cle="image"><fieldset><legend><span class="n">4</span> L’image</legend>
+<label class="choix"><input type="radio" name="image" value="dessin-et-photo"><span><b>Le dessin, et « sur ma photo » en option</b><em>ma proposition</em><br>Le dessin à 0 F pour toutes ; la photo quand l’essayage sera ouvert.</span></label>
+<label class="choix"><input type="radio" name="image" value="illustratrice"><span><b>Des illustrations dessinées par une illustratrice</b><br>Plus belles que le dessin calculé, une par calibre, couleur et coiffure ; une commande à passer.</span></label>
+<label class="choix"><input type="radio" name="image" value="photos"><span><b>Des photos de la Maison à la place du dessin</b><br>Une couronne réelle par choix, avec l’accord des personnes.</span></label>
+</fieldset><p class="etat-choix" aria-live="polite"></p></form>
+<form class="arbitrage" data-cle="part"><fieldset><legend><span class="n">5</span> Ce qui part avec elle</legend>
+<label class="choix"><input type="radio" name="part" value="reservation"><span><b>La composition part avec la réservation, et l’image se partage</b><em>ma proposition</em><br>Marquée « Maison MND », envoyée à une amie, elle porte la Maison.</span></label>
+<label class="choix"><input type="radio" name="part" value="reservation-seule"><span><b>La composition part avec la réservation, sans partage</b><br>L’image reste dans l’échange avec la Maison.</span></label>
+</fieldset><p class="etat-choix" aria-live="polite"></p></form>
+</div>
+</section>
+
+<section aria-labelledby="t-manque">
+<h2 id="t-manque">Ce qu’il me manque</h2>
+<div class="bloc manques" style="margin-top:14px"><ul>
+<li>Les teintes YÈKPÈ™ que la Maison propose vraiment, et le délai entre une création et une première couleur.</li>
+<li>Le nombre de locks à afficher : les fiches de création disent « Micro, 250 à 400 locks », le barème des calibres dit « Micro, jusqu’à 350 ». Lequel fait foi ?</li>
+<li>Le calibre Pico : il existe au barème et dans les formules en lunes, mais aucune création ne porte son nom. Le montrer, ou non ?</li>
+<li>La longueur minimale pour chaque calibre, s’il y en a une, et si la Maison pose des extensions.</li>
+<li>Les ornements de la Coiffure Signature Événement : dorures, foulard, perles, ou d’autres.</li>
+</ul></div>
+</section>
+
+<section aria-labelledby="t-lots">
+<h2 id="t-lots">La construction</h2>
+<div class="lots">
+<div class="lot"><b>Lot 1, le configurateur.</b> Le calcul pur, lu au catalogue du Trône (prestations, calibres, formules en lunes, échéancier), le dessin, la page du site, et la composition jointe à la réservation de la consultation Origine. 0 F.</div>
+<div class="lot"><b>Lot 2, les autres portes.</b> L’étape « Vision » de La Consultation, Ma Couronne, le comptoir ; la composition dans la fiche et dans le dossier de consultation ; les compteurs.</div>
+<div class="lot"><b>Lot 3, sur ma photo.</b> Quand l’essayage du diagnostic par photo sera ouvert.</div>
+<p class="note">Un banc le prouve, pannes plantées : chaque prix affiché est celui du catalogue, une prestation retirée disparaît, l’entretien suit le calibre, aucun choix ne vient d’ailleurs que de la carte.</p>
+</div>
+</section>
+</div>
+
+<script>
+(function () {
+  /* ── La carte du 10 octobre 2026, recopiée du catalogue (catalog-v6, formules en lunes) ── */
+  var CAL = [
+    { k: 'jumbo', nom: 'Jumbo', fon: 'La Racine Libre', locks: '50 à 100 locks', duree: '3 à 4 h', palier: 'Fondation', prix: 80000, venue: 28000, coiffure: 'payante', apte: false, dessin: [24, 11] },
+    { k: 'medium', nom: 'Medium', fon: 'La Naissance Classique', locks: '100 à 180 locks', duree: '4 h à 5 h 30', palier: 'Fondation', prix: 150000, venue: 28000, coiffure: 'styling', apte: false, dessin: [36, 7.5] },
+    { k: 'mini', nom: 'Mini', fon: 'La Naissance Fine', locks: '180 à 250 locks', duree: '5 h 30 à 7 h', palier: 'Élévation', prix: 200000, venue: 28000, coiffure: 'styling', apte: false, dessin: [52, 5.4] },
+    { k: 'micro', nom: 'Micro', fon: 'La Haute Précision', locks: '250 à 400 locks', duree: 'deux jours', palier: 'Élévation', prix: 350000, venue: 38000, coiffure: 'signature', apte: true, dessin: [72, 4] },
+    { k: 'nano', nom: 'Nano', fon: 'La Couronne KPÒKPÒ™', locks: '400 à 600 locks', duree: 'deux jours', palier: 'Souveraineté', prix: 500000, venue: 48000, coiffure: 'signature', apte: true, dessin: [98, 3] },
+    { k: 'galaxy', nom: 'Galaxy', fon: 'au-delà de 600 locks', locks: 'plus de 600 locks', duree: 'deux jours', palier: 'Souveraineté', prix: 660000, venue: 68000, coiffure: 'signature', apte: true, dessin: [130, 2.2] }
+  ];
+  var LONGUEURS = ['cheveux courts', 'cheveux mi-longs', 'cheveux longs'];
+  var COULEUR_PRIX = [35000, 65000, 100000], LUMIERE_PRIX = [25000, 40000, 55000], EVENEMENT_PRIX = [18000, 24000, 30000];
+  var VENUE_LONGUEUR = [0, 2000, 4000], LUNE_LONGUEUR = [0, 5000, 10000];
+  var LUNE = { jumbo: 37500, medium: 37500, mini: 37500, micro: 47500, nano: 57500, galaxy: 77500 };
+  var PEAUX = ['#3B2219', '#5A3726', '#7A4A33', '#94603F', '#AD7650'];
+  var TEINTES = { naturel: ['#1B1411', '#33261F'], cuivre: ['#6A2812', '#B2582A'], brun: ['#3A2018', '#6E3E28'], indigo: ['#0E1020', '#2A2F52'] };
+  var NOMS_COULEUR = { naturel: 'naturel', cuivre: 'YÈKPÈ™ cuivré au henné', brun: 'YÈKPÈ™ brun henné et indigo', indigo: 'YÈKPÈ™ noir indigo' };
+  var NOMS_COIFFURE = { libres: 'détaché', demi: 'demi-attache', chignon: 'chignon', evenement: 'Coiffure Signature Événement' };
+
+  var etat = { longueur: 0, peau: 1, calibre: 'medium', couleur: 'naturel', lumiere: 'non', coiffure: 'libres', ornement: 'dorures' };
+  var F = function (n) { return Math.round(n).toLocaleString('fr-FR').replace(/ | /g, ' ') + ' F'; };
+  var cal = function () { for (var i = 0; i < CAL.length; i += 1) if (CAL[i].k === etat.calibre) return CAL[i]; return CAL[1]; };
+
+  /* ── Les calibres, en cartes ── */
+  var boite = document.getElementById('calibres');
+  CAL.forEach(function (c) {
+    var b = document.createElement('button');
+    b.type = 'button'; b.className = 'calibre'; b.setAttribute('data-v', c.k); b.setAttribute('aria-pressed', c.k === etat.calibre ? 'true' : 'false');
+    var t = document.createElement('b'); t.textContent = c.nom; b.appendChild(t);
+    var s1 = document.createElement('span'); s1.textContent = c.locks + ' · ' + c.duree; b.appendChild(s1);
+    var p = document.createElement('span'); p.className = 'palier'; p.textContent = c.palier; b.appendChild(p);
+    var px = document.createElement('span'); px.className = 'prix'; px.textContent = 'dès ' + F(c.prix); b.appendChild(px);
+    b.addEventListener('click', function () { etat.calibre = c.k; boite.querySelectorAll('.calibre').forEach(function (x) { x.setAttribute('aria-pressed', x === b ? 'true' : 'false'); }); tout(); });
+    boite.appendChild(b);
+  });
+
+  /* ── Les pastilles ── */
+  document.querySelectorAll('.pastilles[data-groupe]').forEach(function (grp) {
+    grp.addEventListener('click', function (e) {
+      var bt = e.target.closest('.pastille'); if (!bt) return;
+      grp.querySelectorAll('.pastille').forEach(function (x) { x.setAttribute('aria-pressed', x === bt ? 'true' : 'false'); });
+      var k = grp.getAttribute('data-groupe'), v = bt.getAttribute('data-v');
+      etat[k] = (k === 'longueur' || k === 'peau') ? Number(v) : v;
+      tout();
+    });
+  });
+  document.querySelectorAll('.actions .bouton').forEach(function (b) {
+    b.addEventListener('click', function () { document.getElementById('dit-bouton').textContent = 'Maquette : ' + b.getAttribute('data-dit'); });
+  });
+
+  /* ── Le dessin ── */
+  function alea(seed) { var x = seed; return function () { x = (x * 9301 + 49297) % 233280; return x / 233280; }; }
+  function dessine() {
+    var cv = document.getElementById('couronne'), g = cv.getContext('2d');
+    if (!g) return;
+    var W = cv.width, H = cv.height, c = cal(), t = TEINTES[etat.couleur], r = alea(23), peau = PEAUX[etat.peau];
+    var fond = g.createLinearGradient(0, 0, 0, H); fond.addColorStop(0, '#F4EDE0'); fond.addColorStop(1, '#E9DFCD');
+    g.fillStyle = fond; g.fillRect(0, 0, W, H);
+    var cx = W / 2, cy = H * 0.37, rx = W * 0.17, ry = H * 0.155;
+    var fin = [H * 0.6, H * 0.74, H * 0.9][etat.longueur];
+    var attache = etat.coiffure === 'chignon' || etat.coiffure === 'evenement';
+    var demi = etat.coiffure === 'demi';
+    var chignonY = attache ? H * 0.1 : H * 0.17;
+    function corps() {
+      g.fillStyle = peau;
+      g.beginPath(); g.ellipse(cx, H * 0.99, W * 0.42, H * 0.27, 0, Math.PI, 0); g.fill();
+      g.fillRect(cx - W * 0.075, H * 0.52, W * 0.15, H * 0.22);
+    }
+    function visage() {
+      var v = g.createRadialGradient(cx - rx * 0.3, cy + ry * 0.2, 6, cx, cy + ry * 0.35, rx * 1.4);
+      v.addColorStop(0, peau); v.addColorStop(1, 'rgba(0,0,0,0.18)');
+      g.fillStyle = peau; g.beginPath(); g.ellipse(cx, cy + ry * 0.38, rx * 0.86, ry * 1.02, 0, 0, Math.PI * 2); g.fill();
+      g.fillStyle = v; g.beginPath(); g.ellipse(cx, cy + ry * 0.38, rx * 0.86, ry * 1.02, 0, 0, Math.PI * 2); g.fill();
+    }
+    function meche(x0, y0, x1, y1, xc, yc, l) {
+      var grad = g.createLinearGradient(x0, y0, x1, y1);
+      grad.addColorStop(0, t[0]); grad.addColorStop(0.5 + r() * 0.35, t[1]); grad.addColorStop(1, t[0]);
+      g.strokeStyle = grad; g.lineWidth = l;
+      g.beginPath(); g.moveTo(x0, y0); g.quadraticCurveTo(xc, yc, x1, y1); g.stroke();
+      if (etat.lumiere === 'oui') {
+        g.strokeStyle = 'rgba(255,240,220,0.35)'; g.lineWidth = Math.max(0.8, l * 0.25);
+        g.beginPath(); g.moveTo(x0 + l * 0.2, y0); g.quadraticCurveTo(xc + l * 0.2, yc, x1 + l * 0.2, y1); g.stroke();
+      }
+    }
+    if (!attache) corps();
+    g.fillStyle = t[0];
+    g.beginPath(); g.ellipse(cx, cy, rx * 1.08, ry * 1.05, 0, 0, Math.PI * 2); g.fill();
+    g.lineCap = 'round';
+    var n = c.dessin[0], l = c.dessin[1];
+    var hautes = [];
+    for (var i = 0; i < n; i += 1) {
+      var u = i / (n - 1), a = Math.PI * (1.0 + u);
+      var x0 = cx + Math.cos(a) * rx, y0 = cy + Math.sin(a) * ry * 0.95;
+      var largeur = l * (0.85 + r() * 0.3);
+      var monte = attache || (demi && u > 0.3 && u < 0.7);
+      if (monte) { hautes.push([x0, y0, largeur]); continue; }
+      var cote = x0 < cx ? -1 : 1;
+      var x1 = x0 + cote * (W * 0.06 + r() * W * 0.05), y1 = fin - r() * H * 0.05;
+      meche(x0, y0, x1, y1, x0 + cote * (W * 0.09 + r() * 10), y0 + (y1 - y0) * 0.35, largeur);
+    }
+    if (attache) corps();
+    hautes.forEach(function (h) {
+      var bx = cx + (r() - 0.5) * W * 0.06;
+      meche(h[0], h[1], bx, chignonY + H * 0.02, h[0] + (h[0] - cx) * 0.3, (h[1] + chignonY) / 2, h[2]);
+    });
+    if (attache || demi) {
+      var rb = attache ? W * 0.11 : W * 0.065, hb = attache ? H * 0.075 : H * 0.045;
+      var gb = g.createRadialGradient(cx - rb * 0.3, chignonY - hb * 0.3, 2, cx, chignonY, rb * 1.1);
+      gb.addColorStop(0, t[1]); gb.addColorStop(1, t[0]);
+      g.fillStyle = gb; g.beginPath(); g.ellipse(cx, chignonY, rb, hb, 0, 0, Math.PI * 2); g.fill();
+      g.strokeStyle = 'rgba(0,0,0,0.25)'; g.lineWidth = 1;
+      for (var k = 1; k < 5; k += 1) { g.beginPath(); g.ellipse(cx, chignonY, rb * k / 5, hb * k / 5, 0, Math.PI * 1.1, Math.PI * 1.9); g.stroke(); }
+      if (etat.coiffure === 'evenement') {
+        if (etat.ornement === 'foulard') {
+          var bande = g.createLinearGradient(cx - rb, 0, cx + rb, 0);
+          bande.addColorStop(0, '#1E2150'); bande.addColorStop(0.25, '#9A6036'); bande.addColorStop(0.5, '#1E2150'); bande.addColorStop(0.75, '#9A6036'); bande.addColorStop(1, '#1E2150');
+          g.fillStyle = bande; g.beginPath(); g.ellipse(cx, chignonY + hb * 0.75, rb * 1.08, hb * 0.38, 0, 0, Math.PI * 2); g.fill();
+        } else {
+          for (var o = 0; o < 14; o += 1) {
+            var oa = Math.PI * (1.05 + (o / 13) * 0.9), ox = cx + Math.cos(oa) * rb * 1.02, oy = chignonY + Math.sin(oa) * hb * 1.02;
+            if (etat.ornement === 'dorures') { g.fillStyle = '#C9A24A'; g.fillRect(ox - 3, oy - 4, 6, 8); }
+            else { g.fillStyle = '#F7F1E6'; g.beginPath(); g.arc(ox, oy, 3.4, 0, Math.PI * 2); g.fill(); }
+          }
+        }
+      }
+    }
+    visage();
+    g.fillStyle = 'rgba(30,33,80,.82)'; g.fillRect(0, H - 28, W, 28);
+    g.fillStyle = '#F6F1E7'; g.font = '400 12.5px Jost, sans-serif'; g.textAlign = 'right';
+    g.fillText('Composer ma couronne · Maison MND', W - 12, H - 10);
+  }
+
+  /* ── Le récapitulatif ── */
+  function tout() {
+    var c = cal(), L = etat.longueur;
+    document.getElementById('ornements').hidden = etat.coiffure !== 'evenement';
+    var av = document.getElementById('avis-calibre');
+    av.textContent = '';
+    var b = document.createElement('b'); b.textContent = c.nom + ', ' + c.fon + '. ';
+    av.appendChild(b);
+    av.appendChild(document.createTextNode(c.apte
+      ? 'Réservé aux clientes diagnostiquées aptes au KÒKÒ™ Origine ; travail sur deux jours. La densité de vos cheveux se vérifie en consultation.'
+      : c.k === 'jumbo' ? 'Le format le plus rapide, idéal pour une première couronne.' : c.k === 'medium' ? 'L’équilibre entre volume et facilité d’entretien : le choix le plus fréquent.' : 'Pose de précision, lock par lock ; un SÍNSIN™ Essentiel offert à six semaines.'));
+    document.getElementById('avis-couleur').hidden = etat.couleur === 'naturel' && etat.lumiere === 'non';
+
+    var lignes = [];
+    lignes.push(['Consultation Origine · KÒKÒ™ Origine', 'Analyse, calibre recommandé, fiche d’orientation ; déduite de la création si elle a lieu sous 45 jours.', F(15000)]);
+    lignes.push(['Création · VÈKPÈ™ ' + c.nom, c.locks + ', ' + c.duree + ', palier ' + c.palier + '.', 'dès ' + F(c.prix)]);
+    var total = c.prix;
+    if (etat.couleur !== 'naturel') { lignes.push(['YÈKPÈ™ Couleur · ' + NOMS_COULEUR[etat.couleur].replace('YÈKPÈ™ ', ''), LONGUEURS[L] + ' ; test sur mèche obligatoire.', F(COULEUR_PRIX[L])]); total += COULEUR_PRIX[L]; }
+    if (etat.lumiere === 'oui') { lignes.push(['YÈKPÈ™ Lumière · effet miroir', 'tenue de trois à quatre semaines.', F(LUMIERE_PRIX[L])]); total += LUMIERE_PRIX[L]; }
+    if (etat.coiffure === 'evenement') { lignes.push(['Coiffure Signature Événement', 'ornement : ' + etat.ornement + '.', F(EVENEMENT_PRIX[L])]); total += EVENEMENT_PRIX[L]; }
+    else if (c.coiffure === 'payante' && etat.coiffure !== 'libres') { lignes.push(['Styling · sortie soignée', NOMS_COIFFURE[etat.coiffure] + '.', F(2000)]); total += 2000; }
+    else { lignes.push(['Coiffure de sortie · ' + NOMS_COIFFURE[etat.coiffure], c.coiffure === 'signature' ? 'coiffure signature de sortie incluse dans la création.' : c.coiffure === 'styling' ? 'styling signature de sortie inclus.' : 'détaché, sans supplément.', 'incluse']); }
+    var box = document.getElementById('lignes'); box.textContent = '';
+    lignes.forEach(function (x) {
+      var d = document.createElement('div'), s = document.createElement('span'), m = document.createElement('span'), sm = document.createElement('small');
+      s.textContent = x[0]; sm.textContent = x[1]; s.appendChild(sm); m.className = 'm'; m.textContent = x[2];
+      d.appendChild(s); d.appendChild(m); box.appendChild(d);
+    });
+    document.getElementById('total').textContent = F(total);
+    document.getElementById('total-barre').textContent = F(total);
+    document.getElementById('paiement').textContent = total >= 200000 ? 'Payable en trois fois (dès 200 000 F), comme toute création de la Maison.' : total >= 100000 ? 'Payable en deux fois (dès 100 000 F).' : 'Réglée en une fois (sous 100 000 F).';
+
+    var pl = (c.venue + VENUE_LONGUEUR[L]) * 3, lune = LUNE[c.k] + LUNE_LONGUEUR[L];
+    var e = document.getElementById('entretien'); e.textContent = '';
+    [['Une venue d’entretien', 'GBÈJÍ™ Essentiel au calibre ' + c.nom + ', ' + LONGUEURS[L], F(c.venue + VENUE_LONGUEUR[L])],
+     ['VÈKPÈ™ · Les Premières Lunes', 'Quatre venues aux semaines 6, 12, 18 et 24, la quatrième offerte', F(pl)],
+     ['GBÈJÍ™ · Chaque Lune, ensuite', 'Une venue et le soin de la lune, réglés lune par lune', F(lune) + ' / lune']].forEach(function (x) {
+      var d = document.createElement('div'), t1 = document.createElement('b'), t2 = document.createElement('span'), t3 = document.createElement('span');
+      t1.textContent = x[0]; t2.textContent = x[1]; t3.className = 'prix'; t3.textContent = x[2];
+      d.appendChild(t1); d.appendChild(t3); d.appendChild(t2); e.appendChild(d);
+    });
+    document.getElementById('fiche-titre').textContent = 'VÈKPÈ™ ' + c.nom + ' · ' + c.fon;
+    document.getElementById('fiche-ligne').textContent = LONGUEURS[L] + ' · ' + NOMS_COULEUR[etat.couleur] + (etat.lumiere === 'oui' ? ', avec Lumière' : '') + ' · ' + NOMS_COIFFURE[etat.coiffure] + (etat.coiffure === 'evenement' ? ' (' + etat.ornement + ')' : '');
+    dessine();
+  }
+  tout();
+
+  /* ── Les cinq choix, gardés sur ce poste et dans la base partagée de la maquette ── */
+  var NOMS = ['nom', 'ou', 'prix', 'image', 'part'];
+  var CLE_CHOIX = 'composer-couronne-maquette-choix';
+  function lis(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+  function ecris(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+  var choix = {};
+  try { choix = JSON.parse(lis(CLE_CHOIX) || '{}') || {}; } catch (e) { choix = {}; }
+  var docRef = null, file = Promise.resolve();
+  function applique() {
+    NOMS.forEach(function (k) {
+      if (!choix[k]) return;
+      var i = document.querySelector('input[name="' + k + '"][value="' + choix[k] + '"]');
+      if (i) i.checked = true;
+    });
+  }
+  function dis(k, t) { var p = document.querySelector('form[data-cle="' + k + '"] .etat-choix'); if (p) p.textContent = t; }
+  applique();
+  document.querySelectorAll('form.arbitrage').forEach(function (f) { f.addEventListener('submit', function (e) { e.preventDefault(); }); });
+  document.querySelectorAll('form.arbitrage input').forEach(function (i) {
+    i.addEventListener('change', function () {
+      choix[i.name] = i.value;
+      ecris(CLE_CHOIX, JSON.stringify(choix));
+      if (!docRef) { dis(i.name, 'Gardé sur ce poste.'); return; }
+      dis(i.name, 'Enregistrement…');
+      var corps = {};
+      NOMS.forEach(function (k) { if (choix[k]) corps[k] = choix[k]; });
+      corps.quand = new Date().toISOString();
+      file = file.then(function () { return docRef.set(corps); }).then(
+        function () { dis(i.name, 'Choix enregistré.'); },
+        function () { dis(i.name, 'Gardé sur ce poste ; l’enregistrement partagé a échoué.'); });
+    });
+  });
+  if (window.claude && typeof window.claude.use === 'function') {
+    window.claude.use('db').then(function (db) {
+      if (!db) return;
+      docRef = db.doc('maquette/arbitrages');
+      return docRef.get().then(function (s) {
+        if (!s.exists) return;
+        var v = s.data() || {};
+        NOMS.forEach(function (k) { if (typeof v[k] === 'string') choix[k] = v[k]; });
+        ecris(CLE_CHOIX, JSON.stringify(choix));
+        applique();
+      });
+    }).catch(function () {});
+  }
+})();
+</script>
+
+</body></html>

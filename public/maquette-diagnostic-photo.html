@@ -92,6 +92,25 @@ h3 { font: 400 22px/1.2 "Cormorant Garamond", Georgia, serif; color: var(--encre
 .trone-carte p { margin: 0; }
 .trone-carte.alerte { border-color: var(--rouge); background: var(--rouge-clair); }
 
+/* L'essayage : avant, après */
+.essai { display: grid; grid-template-columns: minmax(0, 360px) minmax(0, 1fr); gap: 22px; align-items: start; margin-top: 16px; }
+@media (max-width: 820px) { .essai { grid-template-columns: minmax(0, 1fr); } }
+.comparer { display: grid; gap: 8px; justify-items: center; width: 100%; }
+.comparer canvas { width: 100%; max-width: 360px; height: auto; border-radius: 10px; border: 1px solid var(--filet); display: block; }
+.comparer input[type=range] { width: 100%; max-width: 360px; accent-color: var(--cuivre); }
+.comparer .legende-ab { width: 100%; max-width: 360px; display: flex; justify-content: space-between; font-size: 12px; color: var(--doux); letter-spacing: .08em; text-transform: uppercase; }
+.reglages { display: grid; gap: 12px; }
+.reglage { display: grid; gap: 6px; }
+.reglage > span { font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--doux); }
+.pastilles { display: flex; flex-wrap: wrap; gap: 6px; }
+.pastille { font: 400 13.5px "Jost", sans-serif; border: 1px solid var(--filet); background: var(--carte); color: var(--texte); border-radius: 999px; padding: 4px 12px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
+.pastille[aria-pressed="true"] { background: var(--encre); color: var(--fond); border-color: var(--encre); }
+.pastille:focus-visible, .comparer input:focus-visible { outline: 2px solid var(--cuivre); outline-offset: 2px; }
+.pastille i { width: 12px; height: 12px; border-radius: 50%; border: 1px solid var(--filet); }
+.avis { font-size: 13.5px; border-radius: 6px; padding: 8px 12px; background: var(--cuivre-clair); color: var(--texte); }
+.avis b { color: var(--encre); font-weight: 500; }
+.tel-corps canvas { width: 100%; max-width: 100%; height: auto; border-radius: 8px; display: block; }
+
 /* Les correspondances validées */
 .cadre { overflow-x: auto; border: 1px solid var(--filet); border-radius: 6px; background: var(--carte); margin-top: 14px; }
 table { border-collapse: collapse; width: 100%; font-size: 14px; min-width: 720px; }
@@ -130,7 +149,7 @@ tr.rouge td { background: var(--rouge-clair); }
 <header>
 <p class="sur">Maison MND · Maquette à valider · 14 octobre 2026</p>
 <h1>Diagnostic Capillaire par Photo</h1>
-<p class="chapeau">Une personne qui veut commencer ses locks, ou dont les locks souffrent, photographie son cuir chevelu et ses pointes. La Maison lit ce que la photo montre (sécheresse visible, casse, résidus, racines), lui conseille le rituel qui convient et, au plus, deux produits de la boutique. Ce que la photo ne peut pas dire, la Maison le dit aussi. Rien n’est construit avant votre validation.</p>
+<p class="chapeau">Une personne qui veut commencer ses locks, ou dont les locks souffrent, photographie son cuir chevelu et ses pointes. La Maison lit ce que la photo montre (sécheresse visible, casse, résidus, racines), lui conseille le rituel qui convient et, au plus, deux produits de la boutique. Ce que la photo ne peut pas dire, la Maison le dit aussi. Et elle peut essayer, sur sa propre photo, un modèle, une couleur ou une coiffure de la Maison, avant et après. Rien n’est construit avant votre validation.</p>
 </header>
 
 <section aria-labelledby="t-existe">
@@ -171,6 +190,7 @@ tr.rouge td { background: var(--rouge-clair); }
 <button type="button" class="scene-btn" data-scene="photos" aria-pressed="false">2 · Les photos</button>
 <button type="button" class="scene-btn" data-scene="questions" aria-pressed="false">3 · Deux questions</button>
 <button type="button" class="scene-btn" data-scene="resultat" aria-pressed="false">4 · Le résultat</button>
+<button type="button" class="scene-btn" data-scene="essai" aria-pressed="false">5 · Essayer un style</button>
 <button type="button" class="scene-btn" data-scene="sante" aria-pressed="false">Si le cuir chevelu inquiète</button>
 </div>
 <div class="scene">
@@ -186,6 +206,7 @@ tr.rouge td { background: var(--rouge-clair); }
 <p>Ce diagnostic n’est pas un examen médical.</p>
 <div class="case coche"><i></i><span>J’accepte que mes photos soient lues pour mon diagnostic.</span></div>
 <div class="case"><i></i><span>Garder mes photos dans mon dossier, pour suivre ma couronne.</span></div>
+<div class="case"><i></i><span>Pour l’essayage seulement : j’accepte qu’une photo de mon visage serve à la simulation.</span></div>
 <div class="cta">Continuer</div>
 </template>
 <template id="trone-accord">
@@ -242,6 +263,21 @@ tr.rouge td { background: var(--rouge-clair); }
 <div class="trone-carte"><h4>Le produit mis de côté</h4><p>Il s’ajoute à la Gamme de son prochain rendez-vous : il est prêt à la caisse quand elle arrive, et compté dans les ventes nées d’un diagnostic.</p></div>
 </template>
 
+<template id="tel-essai">
+<span class="eyebrow">Essayer avant de choisir</span>
+<h4>Votre photo, avec une création de la Maison</h4>
+<canvas class="mini-essai" width="320" height="360" aria-label="Avant à gauche, simulation à droite"></canvas>
+<p class="conseil-photo">VÈKPÈ™ Micro · YÈKPÈ™ cuivré au henné · locks libres. Glissez pour comparer.</p>
+<p class="conseil-photo">Simulation : votre couronne dépendra de vos cheveux. La consultation dit ce qui est possible.</p>
+<div class="cta cuivre">Réserver la consultation Origine</div>
+<div class="cta leger">Ce n’est pas moi : retirer l’image</div>
+</template>
+<template id="trone-essai">
+<div class="trone-carte"><h4>Au dossier de la consultation</h4><p>« Elle a essayé : Micro, YÈKPÈ™ cuivré, coiffure signature. » Le maître arrive à la séance en sachant ce qu’elle imagine, et peut dire tout de suite ce que ses cheveux permettent.</p></div>
+<div class="trone-carte"><h4>Ce qui se compte</h4><p>Les essais par modèle et par couleur, et les consultations réservées après un essai. On saura ce qui fait envie, et ce qui fait venir.</p></div>
+<div class="trone-carte alerte"><h4>« Ce n’est pas moi »</h4><p>Si la simulation change son visage ou la teinte de sa peau, elle la retire d’un toucher. L’image s’efface et l’équipe est prévenue : ce défaut se corrige avant tout le reste.</p></div>
+</template>
+
 <template id="tel-sante">
 <span class="eyebrow">Votre diagnostic</span>
 <h4>Votre cuir chevelu demande un regard de près</h4>
@@ -253,6 +289,45 @@ tr.rouge td { background: var(--rouge-clair); }
 <div class="trone-carte alerte"><h4>Signalé à l’équipe</h4><p>Le diagnostic arrive marqué « cuir chevelu ». Le maître rappelle la cliente ; aucune vente n’est proposée dans ce fil.</p></div>
 <div class="trone-carte"><h4>Les deux portes vers cet écran</h4><p>Sa réponse « démangeaisons fortes, douleur ou plaques », ou ce que Claude voit sur la photo : plaques, rougeurs, croûtes, zones sans cheveux. Dans le doute, la photo prend ce chemin.</p></div>
 </template>
+</section>
+
+<section aria-labelledby="t-essai">
+<h2 id="t-essai">L’essayage : avant, après</h2>
+<p class="dit">Elle choisit un modèle, une couleur, une coiffure de la Maison, et voit sa propre photo avant et après, en glissant au milieu. Ici, une illustration tient lieu de photo : touchez les choix et faites glisser.</p>
+<div class="essai">
+<div class="comparer">
+<canvas id="essai-canvas" width="360" height="420" aria-label="Illustration : avant à gauche, après à droite"></canvas>
+<input type="range" id="essai-curseur" min="0" max="100" value="50" aria-label="Comparer avant et après">
+<div class="legende-ab"><span>Avant</span><span>Après · simulation</span></div>
+</div>
+<div class="reglages">
+<div class="reglage"><span>Le modèle · calibre VÈKPÈ™</span><div class="pastilles" data-groupe="calibre">
+<button type="button" class="pastille" data-v="jumbo" aria-pressed="false">Jumbo</button>
+<button type="button" class="pastille" data-v="medium" aria-pressed="false">Medium</button>
+<button type="button" class="pastille" data-v="mini" aria-pressed="false">Mini</button>
+<button type="button" class="pastille" data-v="micro" aria-pressed="true">Micro</button>
+<button type="button" class="pastille" data-v="nano" aria-pressed="false">Nano</button>
+<button type="button" class="pastille" data-v="galaxy" aria-pressed="false">Galaxy</button>
+</div></div>
+<div class="reglage"><span>La couleur · YÈKPÈ™ végétale <span class="ex">teintes d’exemple</span></span><div class="pastilles" data-groupe="couleur">
+<button type="button" class="pastille" data-v="naturel" aria-pressed="false"><i style="background:#1E1714"></i>Naturel</button>
+<button type="button" class="pastille" data-v="cuivre" aria-pressed="true"><i style="background:#8A3A1C"></i>Cuivré au henné</button>
+<button type="button" class="pastille" data-v="brun" aria-pressed="false"><i style="background:#4A2A1E"></i>Brun henné et indigo</button>
+<button type="button" class="pastille" data-v="indigo" aria-pressed="false"><i style="background:#141626"></i>Noir indigo</button>
+</div></div>
+<div class="reglage"><span>La coiffure</span><div class="pastilles" data-groupe="coiffure">
+<button type="button" class="pastille" data-v="libres" aria-pressed="true">Locks libres</button>
+<button type="button" class="pastille" data-v="signature" aria-pressed="false">Coiffure Signature</button>
+</div></div>
+<p class="avis" id="essai-avis"></p>
+<p class="note">Une illustration de maquette, dessinée ici. La vraie simulation part de sa photo de face, et ne propose que les modèles, les couleurs et les coiffures de la Maison MND.</p>
+</div>
+</div>
+<div class="regles">
+<div class="bloc"><h3>Uniquement la Maison</h3><p>Chaque choix vient du catalogue : les calibres VÈKPÈ™ (de Jumbo à Galaxy), les couleurs YÈKPÈ™ que vous proposez vraiment, les Coiffures Signature, les styles du Studio ACƆ™. Chacun s’appuie sur une photo de référence de la Maison, avec l’accord de la personne pour cet usage. Aucun style d’ailleurs, aucune couleur chimique.</p></div>
+<div class="bloc"><h3>Une simulation, pas une promesse</h3><p>Une création naît à la longueur de ses cheveux ; un calibre très fin demande une densité suffisante ; la couleur YÈKPÈ™ demande une couronne saine. Ce que son diagnostic déconseille s’affiche avec « à confirmer en consultation », et chaque image porte la mention « Simulation · Maison MND ».</p></div>
+<div class="bloc alerte"><h3>Son visage ne change pas</h3><p>Les outils qui créent des images peuvent éclaircir une peau ou modifier des traits. Avant d’ouvrir, l’essayage s’éprouve sur vingt photos avec accord, regardées une à une. Ensuite, « Ce n’est pas moi » retire toute image douteuse et nous alerte.</p></div>
+</div>
 </section>
 
 <section aria-labelledby="t-table">
@@ -281,6 +356,8 @@ tr.rouge td { background: var(--rouge-clair); }
 <li><b>Promettre une mesure.</b> Ce qui n’est pas bien visible s’écrit « à confirmer en séance ».</li>
 <li><b>Garder une photo sans accord</b>, la montrer ailleurs, ou la publier.</li>
 <li><b>Lire une photo douteuse.</b> Floue, sombre, sans cheveux visibles : elle est redemandée.</li>
+<li><b>Simuler un style d’ailleurs</b>, une couleur chimique, ou le visage d’une mineure.</li>
+<li><b>Changer son visage ou sa peau.</b> Une simulation qui le fait est retirée, et l’équipe prévenue.</li>
 <li><b>Écrire un prix de prestation.</b> Le rituel se réserve, et son prix se lit au moment de réserver, comme sur le site.</li>
 </ul>
 </section>
@@ -291,13 +368,15 @@ tr.rouge td { background: var(--rouge-clair); }
 <div class="couts">
 <div class="cout zero"><h3>Un maître lit seul</h3><div class="prix">0 F</div><p>Les photos arrivent au Trône ; un maître écrit le diagnostic dans la journée. Rien d’instantané, et du temps d’équipe.</p></div>
 <div class="cout"><h3>Claude lit, modèle Sonnet</h3><div class="prix">≈ 20 F <small>par diagnostic</small></div><p>Environ 2 000 F pour 100 diagnostics, 10 000 F pour 500. La lecture d’image la plus fiable des deux.</p></div>
+<div class="cout"><h3>L’essayage, la couleur seule</h3><div class="prix">0 F</div><p>Le téléphone repère les cheveux sur la photo et les teinte lui-même. La photo ne part pas. Les calibres et les coiffures, en revanche, ne se dessinent pas ainsi.</p></div>
+<div class="cout"><h3>L’essayage complet</h3><div class="prix">≈ 25 F <small>par image</small></div><p>Modèle, couleur et coiffure dessinés par une IA d’image : Claude ne crée pas d’images, c’est un autre fournisseur (Google ou OpenAI), un compte à ouvrir chez lui et facturé à part. Six essais au plus par cliente, soit 150 F au plus.</p></div>
 <div class="cout"><h3>Claude lit, modèle Haiku</h3><div class="prix">≈ 6 F <small>par diagnostic</small></div><p>Trois fois moins cher, mais moins fin sur une photo. Je ne le propose pas pour lire des cheveux.</p></div>
 </div>
 <p class="note" style="margin-top:10px">Estimations pour trois photos réduites, au taux d’environ 600 F pour 1 $, relevées vers le haut. Sur le site ouvert à tous, une borne journalière protégerait le crédit contre les envois en série ; dans La Consultation et Ma Couronne, chaque diagnostic a une personne connue derrière lui.</p>
 </section>
 
 <section aria-labelledby="t-choix">
-<h2 id="t-choix">Cinq choix à faire</h2>
+<h2 id="t-choix">Sept choix à faire</h2>
 <p class="dit">Ma proposition est marquée. Vos choix s’enregistrent d’un toucher : je les lis avant de construire.</p>
 <div class="regles">
 <form class="arbitrage" data-cle="ou"><fieldset><legend><span class="n">1</span> Où il vit</legend>
@@ -325,6 +404,16 @@ tr.rouge td { background: var(--rouge-clair); }
 <label class="choix"><input type="radio" name="modele" value="haiku"><span><b>Haiku, environ 6 F par diagnostic</b><br>Moins cher, moins sûr sur une image.</span></label>
 <label class="choix"><input type="radio" name="modele" value="aucun"><span><b>Aucun : un maître lit seul</b><br>Va avec « un maître seul » au choix n° 2.</span></label>
 </fieldset><p class="etat-choix" aria-live="polite"></p></form>
+<form class="arbitrage" data-cle="essai"><fieldset><legend><span class="n">6</span> L’essayage</legend>
+<label class="choix"><input type="radio" name="essai" value="couleur-puis-ia"><span><b>La couleur tout de suite, les modèles après un essai sur vingt photos</b><em>ma proposition</em><br>À 0 F d’abord ; l’essayage complet (environ 25 F l’image) s’ouvre quand vous avez vu les vingt résultats.</span></label>
+<label class="choix"><input type="radio" name="essai" value="ia"><span><b>Modèles, couleurs et coiffures par IA dès l’ouverture</b><br>Environ 25 F l’image, six essais au plus par cliente. L’essai sur vingt photos reste fait avant.</span></label>
+<label class="choix"><input type="radio" name="essai" value="couleur"><span><b>La couleur seule, à 0 F</b><br>Les calibres et les coiffures se montrent par des photos de la Maison.</span></label>
+<label class="choix"><input type="radio" name="essai" value="vrais"><span><b>Pas de simulation : les vrais avant-après de la Maison</b><br>Choisis selon son type de cheveux, avec l’accord des personnes.</span></label>
+</fieldset><p class="etat-choix" aria-live="polite"></p></form>
+<form class="arbitrage" data-cle="marque"><fieldset><legend><span class="n">7</span> L’image d’après</legend>
+<label class="choix"><input type="radio" name="marque" value="partage"><span><b>Marquée « Simulation · Maison MND », elle peut la partager</b><em>ma proposition</em><br>Envoyée à une amie, elle porte la Maison avec elle.</span></label>
+<label class="choix"><input type="radio" name="marque" value="privee"><span><b>Marquée, visible seulement dans son espace</b><br>Ni téléchargement, ni partage.</span></label>
+</fieldset><p class="etat-choix" aria-live="polite"></p></form>
 </div>
 </section>
 
@@ -335,6 +424,7 @@ tr.rouge td { background: var(--rouge-clair); }
 <li>La table des correspondances, corrigée par vous ligne par ligne.</li>
 <li>Une vingtaine de photos de cheveux, avec l’accord des personnes, pour éprouver la lecture avant d’ouvrir.</li>
 <li>Le maître, ou les maîtres, qui relisent les diagnostics.</li>
+<li>Pour l’essayage : les teintes YÈKPÈ™ que vous proposez vraiment, et une photo de référence par calibre, couleur et coiffure, avec l’accord de la personne pour servir de modèle à une simulation.</li>
 </ul></div>
 </section>
 
@@ -345,7 +435,8 @@ tr.rouge td { background: var(--rouge-clair); }
 <div class="lot"><b>Lot 1, les photos qui partent.</b> L’accord, l’envoi des photos réduites dans un espace privé (protégé dès sa création, effacement automatique), l’écran « Diagnostics photo » au Trône, la relecture du maître. Utilisable à 0 F, maître seul.</div>
 <div class="lot"><b>Lot 2, Claude lit.</b> La fonction qui lit les photos, la table des correspondances, l’écran « peau qui inquiète », la page Confidentialité mise à jour. Une fonction et une migration à coller, avec la marche à suivre cochable.</div>
 <div class="lot"><b>Lot 3, les produits.</b> La fiche produit complétée (ce qu’il soigne, ses ingrédients), le produit mis de côté dans la Gamme du rendez-vous, et le compteur des ventes nées d’un diagnostic.</div>
-<p class="note">Un banc le prouve, pannes plantées : jamais de produit quand la peau inquiète, jamais un produit absent ou en rupture, jamais plus de deux, jamais une photo gardée sans accord, jamais un résultat sans la mention de ce qui reste à confirmer.</p>
+<div class="lot"><b>Lot 4, l’essayage.</b> La couleur dans le téléphone d’abord (0 F, la photo ne part pas), puis l’essai des modèles sur vingt photos avec accord, puis l’essayage complet si vous l’ouvrez. Les choix viennent du catalogue de la Maison, et seulement de lui.</div>
+<p class="note">Un banc le prouve, pannes plantées : jamais de produit quand la peau inquiète, jamais un produit absent ou en rupture, jamais plus de deux, jamais une photo gardée sans accord, jamais un résultat sans la mention de ce qui reste à confirmer, jamais un style hors du catalogue, jamais une simulation sans sa mention.</p>
 </div>
 </section>
 </div>
@@ -363,10 +454,119 @@ tr.rouge td { background: var(--rouge-clair); }
     document.querySelectorAll('.scene-btn').forEach(function (x) { x.setAttribute('aria-pressed', x.getAttribute('data-scene') === nom ? 'true' : 'false'); });
   }
   document.querySelectorAll('.scene-btn').forEach(function (x) { x.addEventListener('click', function () { montre(x.getAttribute('data-scene')); }); });
+
+  /* ── L'illustration de l'essayage : une silhouette, avant à gauche, après à droite ── */
+  var CALIBRES = { jumbo: [22, 10], medium: [36, 6.5], mini: [52, 4.6], micro: [74, 3.4], nano: [104, 2.5], galaxy: [140, 1.8] };
+  var COULEURS = { naturel: ['#1E1714', '#3A2A22'], cuivre: ['#6E2A14', '#B0582A'], brun: ['#3A2018', '#6A3A26'], indigo: ['#101220', '#2C3150'] };
+  function alea(seed) { var x = seed; return function () { x = (x * 9301 + 49297) % 233280; return x / 233280; }; }
+  function silhouette(g, W, H) {
+    g.fillStyle = '#6B4A3A';
+    g.beginPath(); g.ellipse(W / 2, H * 0.98, W * 0.42, H * 0.2, 0, Math.PI, 0); g.fill();
+    g.fillRect(W / 2 - W * 0.07, H * 0.6, W * 0.14, H * 0.2);
+  }
+  function visage(g, W, H) {
+    g.fillStyle = '#7A5442';
+    g.beginPath(); g.ellipse(W / 2, H * 0.45, W * 0.17, H * 0.19, 0, 0, Math.PI * 2); g.fill();
+  }
+  function avant(g, W, H) {
+    g.fillStyle = '#F2EBDD'; g.fillRect(0, 0, W, H);
+    silhouette(g, W, H);
+    var r = alea(7);
+    g.fillStyle = '#1E1714';
+    g.beginPath(); g.ellipse(W / 2, H * 0.38, W * 0.25, H * 0.21, 0, 0, Math.PI * 2); g.fill();
+    for (var i = 0; i < 420; i += 1) {
+      var a = Math.PI + r() * Math.PI * 1.05 - 0.05, d = 0.85 + r() * 0.22;
+      g.fillStyle = r() < 0.5 ? '#2A201B' : '#151010';
+      g.beginPath(); g.arc(W / 2 + Math.cos(a) * W * 0.25 * d, H * 0.38 + Math.sin(a) * H * 0.21 * d, 2 + r() * 2.5, 0, Math.PI * 2); g.fill();
+    }
+    visage(g, W, H);
+  }
+  function apres(g, W, H, o) {
+    g.fillStyle = '#F2EBDD'; g.fillRect(0, 0, W, H);
+    var cal = CALIBRES[o.calibre], col = COULEURS[o.couleur], r = alea(11);
+    var cx = W / 2, cy = H * 0.4, rx = W * 0.2, ry = H * 0.18;
+    var signature = o.coiffure === 'signature';
+    if (!signature) silhouette(g, W, H);
+    /* La base de la couronne : les racines couvrent tout le crâne, les locks en partent. */
+    g.fillStyle = col[0];
+    g.beginPath(); g.ellipse(cx, cy - ry * 0.05, rx * 1.12, ry * 1.12, 0, 0, Math.PI * 2); g.fill();
+    g.lineCap = 'round';
+    for (var i = 0; i < cal[0]; i += 1) {
+      var t = i / (cal[0] - 1), a = Math.PI * (1.02 + t * 0.96);
+      var x0 = cx + Math.cos(a) * rx, y0 = cy + Math.sin(a) * ry;
+      var grad = g.createLinearGradient(x0, y0, x0, H);
+      grad.addColorStop(0, col[0]); grad.addColorStop(0.55 + r() * 0.3, col[1]); grad.addColorStop(1, col[0]);
+      g.strokeStyle = grad; g.lineWidth = cal[1] * (0.85 + r() * 0.3);
+      g.beginPath(); g.moveTo(x0, y0);
+      if (signature) {
+        var bx = cx + (r() - 0.5) * 18, by = H * 0.12 + r() * 10;
+        g.quadraticCurveTo(x0 + (x0 - cx) * 0.25, (y0 + by) / 2, bx, by);
+      } else {
+        var cote = x0 < cx ? -1 : 1, sx = x0 + cote * (W * 0.07 + r() * 12), ey = H * (0.74 + r() * 0.12);
+        g.bezierCurveTo(sx, y0 + 10, sx + cote * 6, ey * 0.75, sx + cote * (r() * 10), ey);
+      }
+      g.stroke();
+    }
+    if (signature) {
+      silhouette(g, W, H);
+      var gb = g.createRadialGradient(cx - 8, H * 0.11, 4, cx, H * 0.13, W * 0.13);
+      gb.addColorStop(0, col[1]); gb.addColorStop(1, col[0]);
+      g.fillStyle = gb; g.beginPath(); g.ellipse(cx, H * 0.13, W * 0.12, H * 0.08, 0, 0, Math.PI * 2); g.fill();
+    }
+    visage(g, W, H);
+    g.fillStyle = 'rgba(30,33,80,.78)'; g.fillRect(0, H - 26, W, 26);
+    g.fillStyle = '#F6F1E7'; g.font = '400 12px Jost, sans-serif'; g.textAlign = 'right';
+    g.fillText('Simulation · Maison MND', W - 10, H - 9);
+  }
+  function dessine(canvas, o, part) {
+    var W = canvas.width, H = canvas.height, g = canvas.getContext('2d');
+    if (!g) return;
+    var a = document.createElement('canvas'), b = document.createElement('canvas');
+    a.width = b.width = W; a.height = b.height = H;
+    avant(a.getContext('2d'), W, H); apres(b.getContext('2d'), W, H, o);
+    var x = Math.round(W * part);
+    g.clearRect(0, 0, W, H);
+    g.drawImage(b, 0, 0);
+    g.drawImage(a, 0, 0, x, H, 0, 0, x, H);
+    g.fillStyle = '#F6F1E7'; g.fillRect(x - 1, 0, 2, H);
+    g.beginPath(); g.arc(x, H / 2, 13, 0, Math.PI * 2); g.fill();
+    g.fillStyle = '#9A6036'; g.font = '400 13px Jost, sans-serif'; g.textAlign = 'center'; g.fillText('‹ ›', x, H / 2 + 4);
+  }
+  var essai = { calibre: 'micro', couleur: 'cuivre', coiffure: 'libres' };
+  var toile = document.getElementById('essai-canvas'), curseur = document.getElementById('essai-curseur'), avis = document.getElementById('essai-avis');
+  var AVIS = {
+    jumbo: 'Jumbo : peu de locks, épaisses. Tient sur presque toutes les densités.',
+    medium: 'Medium : l’équilibre de la Maison, facile à vivre.',
+    mini: 'Mini : plus fines, plus nombreuses ; un entretien plus suivi.',
+    micro: 'Micro : la finesse. La consultation vérifie la densité avant tout.',
+    nano: 'Nano : très fines, très nombreuses. Seulement après la consultation Origine.',
+    galaxy: 'Galaxy : le sommet de la finesse, sur deux jours. Seulement après la consultation Origine.'
+  };
+  function rafraichit() {
+    if (toile) dessine(toile, essai, Number(curseur.value) / 100);
+    if (avis) {
+      avis.textContent = '';
+      var b = document.createElement('b'); b.textContent = 'À confirmer en consultation. ';
+      avis.appendChild(b); avis.appendChild(document.createTextNode(AVIS[essai.calibre] + (essai.couleur !== 'naturel' ? ' La couleur YÈKPÈ™ demande une couronne saine.' : '')));
+    }
+  }
+  document.querySelectorAll('.pastilles').forEach(function (grp) {
+    grp.addEventListener('click', function (e) {
+      var bt = e.target.closest('.pastille'); if (!bt) return;
+      grp.querySelectorAll('.pastille').forEach(function (x) { x.setAttribute('aria-pressed', x === bt ? 'true' : 'false'); });
+      essai[grp.getAttribute('data-groupe')] = bt.getAttribute('data-v');
+      rafraichit();
+    });
+  });
+  if (curseur) curseur.addEventListener('input', rafraichit);
+  rafraichit();
+  /* L'onglet « Essayer » du téléphone reçoit la même illustration, figée au milieu. */
+  var montreAvant = montre;
+  montre = function (nom) { montreAvant(nom); var c = tel.querySelector('canvas.mini-essai'); if (c) dessine(c, { calibre: 'micro', couleur: 'cuivre', coiffure: 'libres' }, 0.5); };
   montre('accord');
 
   /* ── Les cinq choix, gardés sur ce poste et dans la base partagée de la maquette ── */
-  var NOMS = ['ou', 'lecture', 'produits', 'photos', 'modele'];
+  var NOMS = ['ou', 'lecture', 'produits', 'photos', 'modele', 'essai', 'marque'];
   var CLE_CHOIX = 'diagnostic-photo-maquette-choix';
   function lis(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
   function ecris(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
