@@ -1,0 +1,446 @@
+<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head><body><title>Prendre RDV &amp; Conseil Locks</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,400&family=Jost:wght@300;400;500&display=swap">
+<style>
+/* La maquette suit le Trône : ivoire et indigo, cuivre en accent, Cormorant pour les titres, Jost pour le texte.
+   Mise en page : une colonne de lecture, le téléphone de la cliente à gauche de l'écran du Trône quand la largeur le permet. */
+:root { --fond:#F6F1E7; --carte:#FFFDF9; --ecran:#FBF8F2; --encre:#1E2150; --texte:#2A2722; --doux:#5E5750; --filet:#E3DACB; --cuivre:#9A6036; --cuivre-clair:#F3E6D8; --puce:#EFE6D6; --vert:#2F6B4F; --vert-clair:#E3F0E8; --rouge:#8F3B30; --rouge-clair:#F7E7E3; --barre:#1E2150; --barre-texte:#F6F1E7; --fil:#EDE6D8; --bulle-maison:#FFFDF9; --bulle-elle:#E6E8F4; color-scheme: light; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --fond:#15173A; --carte:#1E2150; --ecran:#1A1C45; --encre:#F6F1E7; --texte:#E9E3D7; --doux:#B9B4C9; --filet:#2E3266; --cuivre:#D6A06F; --cuivre-clair:#3A2E3A; --puce:#272B6C; --vert:#8FD1AE; --vert-clair:#1F3B3A; --rouge:#E7A193; --rouge-clair:#3B2433; --barre:#0F1130; --barre-texte:#F6F1E7; --fil:#121433; --bulle-maison:#23275C; --bulle-elle:#33386F; color-scheme: dark; } }
+:root[data-theme="dark"] { --fond:#15173A; --carte:#1E2150; --ecran:#1A1C45; --encre:#F6F1E7; --texte:#E9E3D7; --doux:#B9B4C9; --filet:#2E3266; --cuivre:#D6A06F; --cuivre-clair:#3A2E3A; --puce:#272B6C; --vert:#8FD1AE; --vert-clair:#1F3B3A; --rouge:#E7A193; --rouge-clair:#3B2433; --barre:#0F1130; --barre-texte:#F6F1E7; --fil:#121433; --bulle-maison:#23275C; --bulle-elle:#33386F; color-scheme: dark; }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--fond); color: var(--texte); font: 300 16px/1.6 "Jost", system-ui, sans-serif; padding-block: 32px 80px; padding-inline: 16px; }
+.page { max-width: 1120px; margin: 0 auto; display: grid; grid-template-columns: minmax(0, 1fr); gap: 38px; }
+.page > * { min-width: 0; }
+a { color: var(--cuivre); }
+.n { font: 400 .72em "Jost", sans-serif; color: var(--cuivre); margin-right: 8px; vertical-align: 2px; }
+.sur { font-size: 11.5px; letter-spacing: .18em; text-transform: uppercase; color: var(--cuivre); margin: 0; font-weight: 400; }
+h1 { font: 300 clamp(36px, 6vw, 56px)/1.05 "Cormorant Garamond", Georgia, serif; color: var(--encre); margin: 6px 0 0; text-wrap: balance; }
+h2 { font: 400 32px/1.15 "Cormorant Garamond", Georgia, serif; color: var(--encre); margin: 10px 0 0; text-wrap: balance; }
+h3 { font: 400 22px/1.2 "Cormorant Garamond", Georgia, serif; color: var(--encre); margin: 0; }
+.chapeau { color: var(--doux); max-width: 70ch; margin: 12px 0 0; }
+.dit { color: var(--doux); margin: 4px 0 0; max-width: 70ch; }
+.note { font-size: 13.5px; color: var(--doux); margin: 0; }
+.vrai, .ex, .manque { font-size: 11px; letter-spacing: .06em; text-transform: uppercase; border-radius: 3px; padding: 0 5px; margin-left: 6px; vertical-align: 1px; white-space: nowrap; }
+.vrai { color: var(--vert); border: 1px solid var(--vert); }
+.ex { color: var(--doux); border: 1px solid var(--filet); }
+.manque { color: var(--cuivre); border: 1px dashed var(--cuivre); }
+
+/* Ce qui existe, ce qui s'ajoute */
+.regles { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap: 12px; margin-top: 14px; }
+.bloc { background: var(--carte); border: 1px solid var(--filet); border-radius: 6px; padding: 16px 18px; font-size: 14.5px; display: grid; gap: 6px; align-content: start; }
+.bloc p { margin: 0; }
+.bloc ul, .bloc ol { margin: 4px 0 0; padding-left: 20px; display: grid; gap: 5px; }
+.bloc.indigo { background: var(--encre); color: var(--fond); border-color: var(--encre); }
+.bloc.indigo h3 { color: var(--fond); }
+.bloc.indigo .note { color: var(--fond); opacity: .8; }
+.bloc.manques { border: 1px dashed var(--cuivre); }
+.etat { justify-self: start; font-size: 12px; letter-spacing: .04em; border-radius: 999px; padding: 2px 10px; }
+.etat.place { background: var(--vert-clair); color: var(--vert); }
+.etat.relier { background: var(--cuivre-clair); color: var(--cuivre); }
+.etat.neuf { border: 1px solid var(--cuivre); color: var(--cuivre); }
+.trou { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 2px 12px; font-size: 14px; }
+.trou dt { color: var(--encre); font-weight: 400; }
+.trou dd { margin: 0; color: var(--doux); }
+
+/* Les scènes : le téléphone de la cliente, et ce que le Trône en voit */
+.scenes { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 14px; }
+.scene-btn { font: 400 14px "Jost", sans-serif; border: 1px solid var(--filet); background: var(--carte); color: var(--texte); border-radius: 999px; padding: 6px 14px; cursor: pointer; }
+.scene-btn[aria-pressed="true"] { background: var(--encre); color: var(--fond); border-color: var(--encre); }
+.scene-btn:focus-visible, .wa-btn:focus-visible, .choix input:focus-visible { outline: 2px solid var(--cuivre); outline-offset: 2px; }
+.scene { display: grid; grid-template-columns: minmax(0, 380px) minmax(0, 1fr); gap: 22px; align-items: start; margin-top: 16px; }
+@media (max-width: 820px) { .scene { grid-template-columns: minmax(0, 1fr); } }
+.tel { width: 100%; max-width: 380px; justify-self: center; border: 1px solid var(--filet); border-radius: 28px; overflow: clip; background: var(--fil); }
+.tel-tete { background: var(--barre); color: var(--barre-texte); padding: 12px 16px; display: grid; gap: 0; }
+.tel-tete b { font: 400 18px/1.2 "Cormorant Garamond", serif; }
+.tel-tete span { font-size: 11.5px; opacity: .8; }
+.fil { padding: 14px 12px 18px; display: grid; gap: 8px; min-height: 420px; align-content: start; }
+.jour { justify-self: center; font-size: 11.5px; color: var(--doux); background: var(--carte); border-radius: 999px; padding: 1px 10px; }
+.bulle { max-width: 86%; border-radius: 10px; padding: 8px 10px 6px; font-size: 14px; line-height: 1.45; display: grid; gap: 4px; box-shadow: 0 1px 0 rgba(0,0,0,.04); }
+.bulle.elle { justify-self: end; background: var(--bulle-elle); color: var(--texte); border-top-right-radius: 3px; }
+.bulle.maison { justify-self: start; background: var(--bulle-maison); color: var(--texte); border-top-left-radius: 3px; border: 1px solid var(--filet); }
+.bulle .h { justify-self: end; font-size: 10.5px; color: var(--doux); font-variant-numeric: lining-nums tabular-nums; }
+.bulle .pied { font-size: 11px; color: var(--doux); }
+.bulle.vide { border: 1px dashed var(--cuivre); background: var(--cuivre-clair); color: var(--cuivre); }
+.wa-btns { display: grid; gap: 1px; margin: 4px -10px -6px; border-top: 1px solid var(--filet); }
+.wa-btn { font: 400 14px "Jost", sans-serif; color: var(--cuivre); background: none; border: 0; padding: 8px 10px; text-align: center; cursor: default; }
+.wa-btn + .wa-btn { border-top: 1px solid var(--filet); }
+.wa-btn.touche { background: var(--cuivre-clair); }
+.wa-liste { display: grid; margin: 4px -10px -6px; border-top: 1px solid var(--filet); font-size: 13.5px; }
+.wa-liste div { padding: 6px 12px; border-bottom: 1px solid var(--filet); display: grid; }
+.wa-liste div:last-child { border-bottom: 0; }
+.wa-liste b { font-weight: 400; color: var(--encre); }
+.wa-liste small { color: var(--doux); font-size: 12px; }
+.wa-liste div.touche { background: var(--cuivre-clair); }
+.photos { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.photo { aspect-ratio: 4 / 5; border-radius: 6px; max-width: 100%; display: grid; align-content: end; padding: 6px; font-size: 11px; color: #FFFDF9; background: linear-gradient(160deg, #6E4A33, #2B1E18 70%); }
+.photo.b { background: linear-gradient(160deg, #3A3F7A, #15173A 70%); }
+.trone { display: grid; gap: 12px; }
+.trone-carte { background: var(--carte); border: 1px solid var(--filet); border-radius: 8px; padding: 14px 16px; display: grid; gap: 6px; font-size: 14.5px; }
+.trone-carte h4 { margin: 0; font: 400 11.5px "Jost", sans-serif; letter-spacing: .14em; text-transform: uppercase; color: var(--cuivre); }
+.trone-carte p { margin: 0; }
+.trone-carte.alerte { border-color: var(--cuivre); background: var(--cuivre-clair); }
+.trone-carte ul { margin: 0; padding-left: 18px; display: grid; gap: 4px; }
+
+/* L'écran du Trône : les réponses de la Maison */
+.ecran { background: var(--ecran); border: 1px solid var(--filet); border-radius: 10px; overflow: clip; margin-top: 14px; }
+.ecran-barre { background: var(--barre); color: var(--barre-texte); padding: 10px 16px; font-size: 13px; letter-spacing: .04em; display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.vue { padding: 16px; display: grid; gap: 14px; }
+.vue > * { min-width: 0; }
+.compteurs { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 160px), 1fr)); gap: 10px; }
+.compteur { background: var(--carte); border: 1px solid var(--filet); border-radius: 6px; padding: 10px 12px; }
+.compteur b { display: block; font: 300 28px/1.15 "Jost", sans-serif; color: var(--encre); font-variant-numeric: lining-nums tabular-nums; }
+.compteur span { font-size: 13px; color: var(--doux); }
+.cadre { overflow-x: auto; border: 1px solid var(--filet); border-radius: 6px; background: var(--carte); }
+table { border-collapse: collapse; width: 100%; font-size: 14px; min-width: 760px; }
+th { text-align: left; font-weight: 400; font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--doux); padding: 9px 12px; border-bottom: 1px solid var(--filet); white-space: nowrap; }
+td { padding: 9px 12px; border-bottom: 1px solid var(--filet); vertical-align: top; }
+tr:last-child td { border-bottom: 0; }
+td.q { color: var(--encre); }
+td.mots { font-size: 12.5px; color: var(--doux); }
+td.num { font-variant-numeric: lining-nums tabular-nums; white-space: nowrap; text-align: right; }
+.badge { font-size: 12px; border-radius: 999px; padding: 1px 9px; white-space: nowrap; background: var(--puce); color: var(--encre); }
+.badge.fait { background: var(--vert-clair); color: var(--vert); }
+.badge.alerte { background: var(--cuivre-clair); color: var(--cuivre); }
+.badge.auto { border: 1px solid var(--filet); background: none; color: var(--doux); }
+.attente { display: grid; gap: 6px; }
+.attente div { background: var(--carte); border: 1px solid var(--filet); border-radius: 6px; padding: 8px 12px; display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; font-size: 14px; }
+.attente small { color: var(--doux); }
+.bouton { font: 400 13.5px "Jost", sans-serif; border-radius: 6px; padding: 5px 12px; border: 1px solid var(--cuivre); background: none; color: var(--cuivre); white-space: nowrap; }
+
+/* Garde-fous */
+.garde { list-style: none; margin: 14px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); gap: 10px; }
+.garde li { background: var(--carte); border: 1px solid var(--filet); border-left: 3px solid var(--encre); border-radius: 6px; padding: 10px 14px; font-size: 14.5px; }
+.garde b { color: var(--encre); font-weight: 500; }
+
+/* Le coût, dit en francs avant tout */
+.couts { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 250px), 1fr)); gap: 12px; margin-top: 14px; }
+.cout { background: var(--carte); border: 1px solid var(--filet); border-radius: 6px; padding: 14px 16px; display: grid; gap: 6px; align-content: start; font-size: 14.5px; }
+.cout .prix { font: 300 30px/1.1 "Jost", sans-serif; color: var(--encre); font-variant-numeric: lining-nums tabular-nums; }
+.cout .prix small { font-size: 14px; color: var(--doux); }
+.cout p { margin: 0; }
+.cout.zero { border-color: var(--vert); }
+
+/* Les choix */
+.arbitrage { background: var(--carte); border: 1px solid var(--filet); border-radius: 6px; padding: 16px 18px; display: grid; gap: 10px; }
+.arbitrage fieldset { border: 0; margin: 0; padding: 0; display: grid; gap: 8px; min-width: 0; }
+.arbitrage legend { font: 400 21px/1.25 "Cormorant Garamond", serif; color: var(--encre); margin-bottom: 4px; padding: 0; }
+.choix { display: flex; gap: 10px; align-items: flex-start; border: 1px solid var(--filet); border-radius: 6px; padding: 9px 12px; cursor: pointer; font-size: 14.5px; }
+.choix:has(input:checked) { border-color: var(--cuivre); background: var(--cuivre-clair); }
+.choix input { accent-color: var(--cuivre); margin-top: 4px; flex: none; }
+.choix b { color: var(--encre); font-weight: 500; }
+.choix em { font-style: normal; color: var(--cuivre); font-size: 12.5px; letter-spacing: .04em; margin-left: 6px; }
+.etat-choix { font-size: 13px; color: var(--vert); min-height: 1.4em; margin: 0; }
+.lots { display: grid; gap: 10px; margin-top: 14px; }
+.lot { background: var(--carte); border: 1px solid var(--filet); border-left: 3px solid var(--cuivre); border-radius: 6px; padding: 12px 16px; font-size: 14.5px; }
+.lot.avant { border-left-color: var(--vert); }
+@media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
+</style>
+
+<div class="page">
+<header>
+<p class="sur">Maison MND · Maquette à valider · 14 octobre 2026</p>
+<h1>Prendre RDV &amp; Conseil Locks</h1>
+<p class="chapeau">Sur WhatsApp, la Maison répond aux questions qui reviennent avant le premier rendez-vous (« ma longueur suffit-elle ? », « combien pour des microlocks ? »), montre des modèles en photo et mène jusqu’à la réservation, le soir et le week-end compris. Elle ne part pas de rien : l’automate qui réserve sur WhatsApp existe depuis le 9 octobre 2026. Cette maquette lui ajoute le conseil. Rien n’est construit avant votre validation.</p>
+</header>
+
+<section aria-labelledby="t-existe">
+<h2 id="t-existe">Ce qui existe déjà</h2>
+<p class="dit">Trois pièces sont en place. Le conseil se branche dessus, il ne les remplace pas.</p>
+<div class="regles">
+<div class="bloc"><span class="etat relier">en essai, pas encore ouvert</span><h3>L’automate qui réserve</h3><p>Il propose de vraies places du calendrier par boutons et listes, et pose le rendez-vous dans le Trône, à toute heure. Il parle quand on lui parle de rendez-vous, et au premier message d’un numéro inconnu.</p><p class="note">Reste à faire : coller la version du 13 octobre 2026 (« autre soin et reprise »), faire l’essai complet, puis le passer sur « Ouvert ».</p></div>
+<div class="bloc"><span class="etat place">en ligne</span><h3>Les réponses du site</h3><p>La page Questions de maisonmnd.com répond déjà à douze questions : la consultation, la durée d’une création, les locks créées ailleurs, les cheveux fins, les enfants, l’annulation… Elles servent de premier brouillon.</p></div>
+<div class="bloc"><span class="etat place">en ligne</span><h3>Les photos avec accord</h3><p>Le registre des photos du site dit, image par image, l’accord de la personne. Seules ces photos-là peuvent partir sur WhatsApp sans nouvelle autorisation.</p></div>
+</div>
+<div class="bloc manques" style="margin-top:12px">
+<h3>Ce que l’automate fait aujourd’hui devant une question</h3>
+<dl class="trou">
+<dt>« C’est combien ? »</dt><dd>Il se tait et passe la main : sa règle du 9 octobre 2026 est « jamais de prix ».</dd>
+<dt>« Ma longueur suffit ? »</dt><dd>Toute question qui n’est pas de réserver passe la main.</dd>
+<dt>Une photo, un vocal</dt><dd>La main passe aussi.</dd>
+<dt>Le soir, le week-end</dt><dd>Il écrit « La Maison vous répond demain dès 9 h ». La cliente est prévenue, mais sans réponse jusqu’au matin.</dd>
+</dl>
+</div>
+</section>
+
+<section aria-labelledby="t-scenes">
+<h2 id="t-scenes">Quatre conversations</h2>
+<p class="dit">Le téléphone de la cliente, et ce que l’équipe en voit au Trône. Les prix sont des exemples relevés au catalogue de juillet 2026 : l’automate lira toujours le catalogue du jour.</p>
+<div class="scenes" role="group" aria-label="Choisir une conversation">
+<button type="button" class="scene-btn" data-scene="prix" aria-pressed="true">Le prix des microlocks</button>
+<button type="button" class="scene-btn" data-scene="longueur" aria-pressed="false">Ma longueur suffit-elle ?</button>
+<button type="button" class="scene-btn" data-scene="nuit" aria-pressed="false">Une question imprévue, la nuit</button>
+<button type="button" class="scene-btn" data-scene="sante" aria-pressed="false">Le cuir chevelu qui gratte</button>
+</div>
+<div class="scene">
+<div class="tel" aria-live="polite">
+<div class="tel-tete"><b>Maison MND</b><span>Compte professionnel · répond à toute heure</span></div>
+<div class="fil" id="fil"></div>
+</div>
+<div class="trone" id="trone"></div>
+</div>
+</section>
+
+<section aria-labelledby="t-ecran">
+<h2 id="t-ecran">Au Trône : les réponses de la Maison</h2>
+<p class="dit">Chaque réponse est écrite et validée par la direction avant de partir. L’automate n’invente rien : il reconnaît la question et envoie la réponse validée, mot pour mot. Les questions qu’il n’a pas su lire reviennent ici pour devenir de nouvelles réponses.</p>
+<div class="ecran">
+<div class="ecran-barre"><span>Clientèle › Conversations › Réponses de la Maison</span><span>Maquette : chiffres d’exemple</span></div>
+<div class="vue">
+<div class="compteurs">
+<div class="compteur"><b>38</b><span>fils menés seuls, ce mois <span class="ex">exemple</span></span></div>
+<div class="compteur"><b>61</b><span>réponses envoyées</span></div>
+<div class="compteur"><b>9</b><span>questions passées à l’équipe</span></div>
+<div class="compteur"><b>14</b><span>rendez-vous posés après une réponse</span></div>
+</div>
+<div class="cadre"><table>
+<thead><tr><th>Question</th><th>Elle la reconnaît à</th><th>Réponse envoyée</th><th>État</th><th class="num">Ce mois</th></tr></thead>
+<tbody>
+<tr><td class="q">Combien coûte une création ?</td><td class="mots">prix, combien, tarif, microlocks, création, devis</td><td>Le devis après la consultation, et le prix de la consultation lu au catalogue.</td><td><span class="badge alerte">brouillon du site</span></td><td class="num">17</td></tr>
+<tr><td class="q">Combien coûte un entretien ?</td><td class="mots">resserrage, entretien, racines, prix</td><td>Le prix de la carte, lu au catalogue du jour, puis « Réserver ».</td><td><span class="badge auto">automatique</span></td><td class="num">11</td></tr>
+<tr><td class="q">Ma longueur suffit-elle ?</td><td class="mots">longueur, court, cm, assez long, commencer</td><td><span class="manque">à écrire par vous</span></td><td><span class="badge">à écrire</span></td><td class="num">8</td></tr>
+<tr><td class="q">Combien de temps dure une création ?</td><td class="mots">combien de temps, durée, heures, journée</td><td>Quelques heures ou une journée entière, selon la méthode, la longueur et la densité…</td><td><span class="badge alerte">brouillon du site</span></td><td class="num">6</td></tr>
+<tr><td class="q">La consultation est-elle obligatoire ?</td><td class="mots">consultation, obligatoire, diagnostic</td><td>Pour une création ou une réparation, oui ; pour un entretien simple, non.</td><td><span class="badge fait">validée</span></td><td class="num">5</td></tr>
+<tr><td class="q">Mes locks ont été créées ailleurs</td><td class="mots">ailleurs, autre coiffeuse, reprendre</td><td>Bienvenue quand même : un entretien se réserve, une inquiétude passe par la consultation Réparation.</td><td><span class="badge alerte">brouillon du site</span></td><td class="num">4</td></tr>
+<tr><td class="q">J’ai les cheveux fins</td><td class="mots">fins, clairsemés, peu de cheveux</td><td>Cela dépend de vos cheveux : la consultation voit ce qui est possible…</td><td><span class="badge alerte">brouillon du site</span></td><td class="num">3</td></tr>
+<tr><td class="q">Des locks pour mon enfant</td><td class="mots">enfant, fille, garçon, âge</td><td>Pas d’âge fixe ; nous en parlons d’abord avec vous, et l’enfant reste libre de dire non.</td><td><span class="badge alerte">brouillon du site</span></td><td class="num">2</td></tr>
+<tr><td class="q">Voir des modèles</td><td class="mots">photo, modèle, style, exemple, voir</td><td>Deux photos du registre, choisies par style.</td><td><span class="badge auto">automatique</span></td><td class="num">12</td></tr>
+<tr><td class="q">Où êtes-vous ?</td><td class="mots">adresse, où, itinéraire, localisation</td><td>L’adresse et le lien Google Maps de la branche.</td><td><span class="badge auto">automatique</span></td><td class="num">7</td></tr>
+</tbody>
+</table></div>
+<h3>Restées sans réponse cette semaine</h3>
+<div class="attente">
+<div><span>« Vous faites aussi les tissages ? » <small>· vendredi 16 octobre 2026, 23 h 15</small></span><button type="button" class="bouton" tabindex="-1">En faire une réponse</button></div>
+<div><span>« Les locks au crochet tiennent combien de temps ? » <small>· samedi 17 octobre 2026, 19 h 02</small></span><button type="button" class="bouton" tabindex="-1">En faire une réponse</button></div>
+</div>
+<p class="note">Une réponse validée part telle quelle. La modifier la renvoie en brouillon : elle ne part plus jusqu’à la nouvelle validation.</p>
+</div>
+</div>
+</section>
+
+<section aria-labelledby="t-garde">
+<h2 id="t-garde">Ce qu’elle ne fera jamais</h2>
+<ul class="garde">
+<li><b>Inventer une réponse.</b> Ce qui n’est pas dans les réponses validées passe à l’équipe, avec l’heure à laquelle la Maison répondra.</li>
+<li><b>Dire un prix qui n’est pas au catalogue du jour.</b> Une création ou une réparation se chiffre après la consultation, comme le dit le site.</li>
+<li><b>Conseiller sur une gêne du cuir chevelu.</b> Démangeaisons, plaques, plaies, chute par endroits : elle ne donne aucun soin à distance, propose la consultation et passe la main.</li>
+<li><b>Envoyer une photo sans accord.</b> Seules les photos du registre, avec l’accord écrit de la personne, et jamais le prénom d’un enfant.</li>
+<li><b>Annuler ou déplacer un rendez-vous.</b> Comme aujourd’hui, elle transmet à l’équipe.</li>
+<li><b>Nommer un maître.</b> La Maison attribue. Et toute date se dit avec son année.</li>
+</ul>
+</section>
+
+<section aria-labelledby="t-cout">
+<h2 id="t-cout">Ce que cela coûte, en francs</h2>
+<p class="dit">Répondre sur WhatsApp à quelqu’un qui vient d’écrire ne coûte rien chez Meta : ces réponses sont gratuites pendant les 24 heures qui suivent son message, photos comprises. La seule dépense possible est l’intelligence artificielle pour lire les questions écrites librement. Elle se paie à part, sur le crédit de l’API Anthropic : votre abonnement Claude ne la couvre pas.</p>
+<div class="couts">
+<div class="cout zero"><h3>Sans IA</h3><div class="prix">0 F <small>par mois</small></div><p>Le menu « Une question ? » et la reconnaissance par mots. Une phrase qu’elle ne reconnaît pas passe à l’équipe.</p></div>
+<div class="cout"><h3>Claude reconnaît la question</h3><div class="prix">≈ 600 F <small>pour 1 000 messages</small></div><p>Claude lit la phrase et choisit laquelle des réponses validées convient, ou aucune. Il n’écrit rien : le texte envoyé reste le vôtre. Environ 1 $ pour 1 000 messages (modèle Haiku).</p></div>
+<div class="cout"><h3>Claude rédige la réponse</h3><div class="prix">≈ 2 600 F <small>pour 1 000 messages</small></div><p>Plus naturel, mais chaque phrase est neuve : le risque d’écart revient, la relecture aussi. Environ 4 $ pour 1 000 messages. Je ne le propose pas pour commencer.</p></div>
+</div>
+<p class="note" style="margin-top:10px">Estimations au taux d’environ 600 F pour 1 $, relevées vers le haut. Les vrais chiffres se lisent ensuite au Trône, message par message.</p>
+</section>
+
+<section aria-labelledby="t-choix">
+<h2 id="t-choix">Cinq choix à faire</h2>
+<p class="dit">Ma proposition est marquée. Vos choix s’enregistrent d’un toucher : je les lis avant de construire.</p>
+<div class="regles">
+<form class="arbitrage" data-cle="ia"><fieldset><legend><span class="n">1</span> Lire les questions écrites librement</legend>
+<label class="choix"><input type="radio" name="ia" value="sans"><span><b>Sans IA, à 0 F</b><em>ma proposition</em><br>Le menu « Une question ? » et les mots. Au bout de deux semaines, le Trône compte les questions passées à l’équipe ; on décide alors s’il faut Claude.</span></label>
+<label class="choix"><input type="radio" name="ia" value="reconnait"><span><b>Claude reconnaît la question, dès le départ</b><br>Environ 600 F pour 1 000 messages. Il choisit une réponse validée, il n’écrit rien.</span></label>
+<label class="choix"><input type="radio" name="ia" value="redige"><span><b>Claude rédige les réponses</b><br>Environ 2 600 F pour 1 000 messages, et une relecture des réponses à prévoir.</span></label>
+</fieldset><p class="etat-choix" aria-live="polite"></p></form>
+<form class="arbitrage" data-cle="prix"><fieldset><legend><span class="n">2</span> Les prix sur WhatsApp</legend>
+<label class="choix"><input type="radio" name="prix" value="site"><span><b>Comme le site</b><em>ma proposition</em><br>Entretien et soins au prix de la carte ; création et réparation sur devis après la consultation, dont on dit le prix.</span></label>
+<label class="choix"><input type="radio" name="prix" value="apartir"><span><b>Comme le site, plus un « à partir de »</b><br>Pour une création : « VÈKPÈ™ Essentiel, jusqu’à 150 locks, à partir de 135 000 F » (prix d’exemple), le devis restant la règle.</span></label>
+<label class="choix"><input type="radio" name="prix" value="jamais"><span><b>Jamais de prix, comme aujourd’hui</b><br>Une question de prix passe à l’équipe.</span></label>
+</fieldset><p class="etat-choix" aria-live="polite"></p></form>
+<form class="arbitrage" data-cle="photos"><fieldset><legend><span class="n">3</span> Les photos de modèles</legend>
+<label class="choix"><input type="radio" name="photos" value="registre"><span><b>Les photos du registre, rangées par style</b><em>ma proposition</em><br>Celles qui ont déjà l’accord écrit pour le site. Je propose le rangement par style, vous le validez.</span></label>
+<label class="choix"><input type="radio" name="photos" value="galerie"><span><b>Un lien vers la galerie du site</b><br>Aucune photo n’est envoyée dans la conversation.</span></label>
+<label class="choix"><input type="radio" name="photos" value="avant-apres"><span><b>Aussi des avant-après</b><br>Seulement après un nouvel accord écrit de chaque personne, pour cet usage.</span></label>
+</fieldset><p class="etat-choix" aria-live="polite"></p></form>
+<form class="arbitrage" data-cle="redaction"><fieldset><legend><span class="n">4</span> Qui écrit les réponses</legend>
+<label class="choix"><input type="radio" name="redaction" value="brouillons"><span><b>Je prépare les brouillons, vous validez</b><em>ma proposition</em><br>À partir de la page Questions et des pages du site. Rien ne part sans votre validation.</span></label>
+<label class="choix"><input type="radio" name="redaction" value="vous"><span><b>Vous les écrivez vous-même</b><br>L’écran part vide, avec la liste des questions à couvrir.</span></label>
+</fieldset><p class="etat-choix" aria-live="polite"></p></form>
+<form class="arbitrage" data-cle="ou"><fieldset><legend><span class="n">5</span> Où vivent les réponses au Trône</legend>
+<label class="choix"><input type="radio" name="ou" value="conversations"><span><b>Un onglet des Conversations</b><em>ma proposition</em><br>Là où l’équipe lit WhatsApp : une question restée sans réponse y devient une réponse.</span></label>
+<label class="choix"><input type="radio" name="ou" value="parametres"><span><b>Dans Système › Paramètres</b><br>À côté du réglage de l’automate (éteint, essai, ouvert).</span></label>
+</fieldset><p class="etat-choix" aria-live="polite"></p></form>
+</div>
+</section>
+
+<section aria-labelledby="t-manque">
+<h2 id="t-manque">Ce qu’il me manque</h2>
+<div class="bloc manques" style="margin-top:14px"><ul>
+<li>Ce que vous répondez à « ma longueur suffit-elle ? », méthode par méthode. C’est un savoir de la Maison : je ne l’écris pas à votre place.</li>
+<li>Les questions que l’équipe reçoit le plus souvent et qui ne sont pas dans la liste.</li>
+<li>Si la Maison propose des extensions ou des tissages, et ce qu’il faut répondre sinon.</li>
+<li>Le style de chaque photo du registre (microlocks, fines, traditionnelles, au crochet…), à valider.</li>
+</ul></div>
+</section>
+
+<section aria-labelledby="t-lots">
+<h2 id="t-lots">La construction</h2>
+<div class="lots">
+<div class="lot avant"><b>Avant tout : ouvrir l’automate qui réserve.</b> Coller sa version du 13 octobre 2026, faire l’essai complet, le passer sur « Ouvert ». Le conseil peut se construire en même temps ; il ne s’allume qu’après.</div>
+<div class="lot"><b>Lot 1, à 0 F.</b> « Une question ? » dans le premier menu, la liste des questions, les réponses validées et leurs mots, l’écran « Réponses de la Maison », les questions restées sans réponse, les compteurs. Une table neuve pour les réponses, protégée dès sa création ; une fonction et une migration à coller, avec la marche à suivre cochable.</div>
+<div class="lot"><b>Lot 2, les modèles en photo.</b> Le rangement des photos du registre par style, et leur envoi dans la conversation.</div>
+<div class="lot"><b>Lot 3, seulement si vous le choisissez.</b> Claude pour les phrases que les mots ne lisent pas.</div>
+<p class="note">Un banc le prouve, pannes plantées : jamais une réponse non validée, jamais un prix absent du catalogue, une gêne du cuir chevelu passe toujours la main, jamais une photo hors registre.</p>
+</div>
+</section>
+</div>
+
+<script>
+(function () {
+  /* ── Les quatre conversations. « elle » : la cliente ; « maison » : la réponse automatique. ── */
+  var PIED = 'Réponse automatique · Parler à la Maison à tout moment';
+  var SCENES = {
+    prix: {
+      jour: 'vendredi 16 octobre 2026',
+      fil: [
+        { de: 'elle', h: '21:40', t: 'Bonsoir, c’est combien pour des microlocks ?' },
+        { de: 'maison', h: '21:40', t: 'Bonsoir Madame, Monsieur, bienvenue à la Maison MND. Une création de microlocks se chiffre après la consultation Origine (KÒKÒ™ Origine, 15 000 F) : nous regardons vos cheveux, puis le devis vous est remis par écrit, avant toute intervention.', btns: ['Réserver la consultation', 'Voir des modèles', 'Parler à la Maison'], touche: 1 },
+        { de: 'maison', h: '21:41', t: 'Quel style vous inspire ?', liste: [['Microlocks', 'sur mesure'], ['VÈKPÈ™ Prestige', 'jusqu’à 350 locks'], ['VÈKPÈ™ Signature', 'jusqu’à 250 locks'], ['VÈKPÈ™ Essentiel', 'jusqu’à 150 locks'], ['Traditionnelles', ''], ['Parler à la Maison', '']], touche: 1 },
+        { de: 'maison', h: '21:41', photos: ['VÈKPÈ™ Prestige', 'VÈKPÈ™ Signature'], t: 'Deux couronnes de la Maison, photos publiées avec l’accord de chacune.', btns: ['Réserver la consultation', 'Une autre question', 'Parler à la Maison'], touche: 0 },
+        { de: 'maison', h: '21:42', t: 'Voici les prochaines places pour la consultation Origine, Madame, Monsieur.', liste: [['Samedi 17 octobre 2026', '10 h 00'], ['Samedi 17 octobre 2026', '14 h 30'], ['Mardi 20 octobre 2026', '9 h 30'], ['Un autre jour', 'les prochains jours ouverts']] }
+      ],
+      trone: [
+        { h: 'Conversations', p: 'Le fil porte la pastille « automate ». Rien à faire pour l’équipe : la réservation suit son cours habituel.' },
+        { h: 'Réponses de la Maison', p: 'Deux réponses comptées : « Combien coûte une création ? » et « Voir des modèles ».' },
+        { h: 'Ce que règle votre choix n° 2', p: 'Avec « à partir de », la réponse ajouterait : « À titre de repère, VÈKPÈ™ Essentiel, jusqu’à 150 locks, commence à 135 000 F. » Avec « jamais de prix », la main passerait à l’équipe.' }
+      ]
+    },
+    longueur: {
+      jour: 'dimanche 18 octobre 2026',
+      fil: [
+        { de: 'elle', h: '10:12', t: 'Bonjour, mes cheveux font à peu près 5 cm. Est-ce que c’est assez long pour commencer des locks ?' },
+        { de: 'vide', h: '10:12', t: 'Ici part votre réponse validée à « Ma longueur suffit-elle ? ». Elle est à écrire par vous : la longueur qui suffit, méthode par méthode.' },
+        { de: 'maison', h: '10:12', t: 'Pour être sûre de la méthode qui tiendra sur vos cheveux, la consultation Origine les regarde avec vous, Madame, Monsieur.', btns: ['Réserver la consultation', 'Une autre question', 'Parler à la Maison'] }
+      ],
+      trone: [
+        { h: 'Pourquoi c’est vous qui l’écrivez', p: 'La longueur qui suffit dépend de la méthode : bouclettes, vanilles, au crochet… C’est le savoir des maîtres. Une réponse inventée ici engagerait la Maison.' },
+        { h: 'Reconnue par les mots', p: '« longueur », « cm », « assez long », « commencer » : sans IA, cette phrase est reconnue. Une tournure plus rare passerait à l’équipe, ou à Claude selon votre choix n° 1.' }
+      ]
+    },
+    nuit: {
+      jour: 'vendredi 16 octobre 2026',
+      fil: [
+        { de: 'elle', h: '23:15', t: 'Vous faites aussi les tissages ?' },
+        { de: 'maison', h: '23:15', t: 'Merci de votre message, Madame, Monsieur. Une personne de la Maison vous répond demain dès 9 h.', liste: [['Réserver un rendez-vous', 'les vraies places du calendrier'], ['Questions fréquentes', 'prix, durée, consultation…'], ['Parler à la Maison', '']] }
+      ],
+      trone: [
+        { h: 'Conversations, samedi 17 octobre 2026 à 9 h', p: 'Le fil attend en tête, motif « une question à lire ». Une personne de l’équipe répond.', alerte: true },
+        { h: 'Réponses de la Maison', p: 'La question rejoint « Restées sans réponse ». Un toucher sur « En faire une réponse » l’ajoute à la liste ; validée, elle partira seule la prochaine fois.' },
+        { h: 'Avec Claude (choix n° 1)', p: 'Il aurait lu la phrase, vu qu’aucune réponse validée ne parle de tissage, et répondu exactement la même chose. Il ne comble jamais un trou par une invention.' }
+      ]
+    },
+    sante: {
+      jour: 'jeudi 15 octobre 2026',
+      fil: [
+        { de: 'elle', h: '20:05', t: 'Bonsoir, j’ai des plaques et ça gratte beaucoup sous mes locks. Je mets quoi ?' },
+        { de: 'maison', h: '20:05', t: 'Merci de nous le dire, Madame, Monsieur. Des démangeaisons avec des plaques se regardent de près : la Maison ne conseille pas de soin à distance. Une personne de la Maison vous répond demain dès 9 h. Si la gêne est forte ou s’étend, un médecin ou un dermatologue saura vous examiner.', btns: ['Réserver une consultation', 'Parler à la Maison'] }
+      ],
+      trone: [
+        { h: 'Conversations', p: 'La main passe aussitôt, motif « le cuir chevelu », et la sonnette prévient l’équipe dès l’ouverture.', alerte: true },
+        { h: 'Pourquoi aucun conseil', p: 'Une plaque qui gratte peut être une affaire de peau à soigner. Un shampoing conseillé à distance pourrait masquer ce qu’un médecin doit voir. Les mots qui la déclenchent (gratte, plaque, plaie, croûte, chute, trou…) sont fixés par vous.' }
+      ]
+    }
+  };
+
+  var fil = document.getElementById('fil');
+  var trone = document.getElementById('trone');
+  function el(tag, cls, txt) { var e = document.createElement(tag); if (cls) e.className = cls; if (txt !== undefined) e.textContent = txt; return e; }
+  function montre(nom) {
+    var s = SCENES[nom];
+    fil.textContent = '';
+    fil.appendChild(el('span', 'jour', s.jour));
+    s.fil.forEach(function (m) {
+      var b = el('div', 'bulle ' + (m.de === 'elle' ? 'elle' : m.de === 'vide' ? 'maison vide' : 'maison'));
+      if (m.photos) {
+        var g = el('div', 'photos');
+        m.photos.forEach(function (p, i) { g.appendChild(el('div', 'photo' + (i ? ' b' : ''), p + ' · photo du registre')); });
+        b.appendChild(g);
+      }
+      if (m.t) b.appendChild(el('div', '', m.t));
+      if (m.de === 'maison' && (m.btns || m.liste)) b.appendChild(el('div', 'pied', PIED));
+      b.appendChild(el('span', 'h', m.h));
+      if (m.btns) {
+        var w = el('div', 'wa-btns');
+        m.btns.forEach(function (x, i) { w.appendChild(el('span', 'wa-btn' + (m.touche === i ? ' touche' : ''), x)); });
+        b.appendChild(w);
+      }
+      if (m.liste) {
+        var l = el('div', 'wa-liste');
+        m.liste.forEach(function (x, i) {
+          var r = el('div', m.touche === i ? 'touche' : '');
+          r.appendChild(el('b', '', x[0]));
+          if (x[1]) r.appendChild(el('small', '', x[1]));
+          l.appendChild(r);
+        });
+        b.appendChild(l);
+      }
+      fil.appendChild(b);
+    });
+    trone.textContent = '';
+    s.trone.forEach(function (c) {
+      var d = el('div', 'trone-carte' + (c.alerte ? ' alerte' : ''));
+      d.appendChild(el('h4', '', c.h));
+      d.appendChild(el('p', '', c.p));
+      trone.appendChild(d);
+    });
+    document.querySelectorAll('.scene-btn').forEach(function (x) { x.setAttribute('aria-pressed', x.getAttribute('data-scene') === nom ? 'true' : 'false'); });
+  }
+  document.querySelectorAll('.scene-btn').forEach(function (x) { x.addEventListener('click', function () { montre(x.getAttribute('data-scene')); }); });
+  montre('prix');
+
+  /* ── Les cinq choix, gardés sur ce poste et dans la base partagée de la maquette ── */
+  var NOMS = ['ia', 'prix', 'photos', 'redaction', 'ou'];
+  var CLE_CHOIX = 'conseil-locks-maquette-choix';
+  function lis(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+  function ecris(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+  var choix = {};
+  try { choix = JSON.parse(lis(CLE_CHOIX) || '{}') || {}; } catch (e) { choix = {}; }
+  var docRef = null, file = Promise.resolve();
+  function applique() {
+    NOMS.forEach(function (k) {
+      if (!choix[k]) return;
+      var i = document.querySelector('input[name="' + k + '"][value="' + choix[k] + '"]');
+      if (i) i.checked = true;
+    });
+  }
+  function dis(k, t) { var p = document.querySelector('form[data-cle="' + k + '"] .etat-choix'); if (p) p.textContent = t; }
+  applique();
+  document.querySelectorAll('form.arbitrage').forEach(function (f) { f.addEventListener('submit', function (e) { e.preventDefault(); }); });
+  document.querySelectorAll('form.arbitrage input').forEach(function (i) {
+    i.addEventListener('change', function () {
+      choix[i.name] = i.value;
+      ecris(CLE_CHOIX, JSON.stringify(choix));
+      if (!docRef) { dis(i.name, 'Gardé sur ce poste.'); return; }
+      dis(i.name, 'Enregistrement…');
+      var corps = {};
+      NOMS.forEach(function (k) { if (choix[k]) corps[k] = choix[k]; });
+      corps.quand = new Date().toISOString();
+      file = file.then(function () { return docRef.set(corps); }).then(
+        function () { dis(i.name, 'Choix enregistré.'); },
+        function () { dis(i.name, 'Gardé sur ce poste ; l’enregistrement partagé a échoué.'); });
+    });
+  });
+  if (window.claude && typeof window.claude.use === 'function') {
+    window.claude.use('db').then(function (db) {
+      if (!db) return;
+      docRef = db.doc('maquette/arbitrages');
+      return docRef.get().then(function (s) {
+        if (!s.exists) return;
+        var v = s.data() || {};
+        NOMS.forEach(function (k) { if (typeof v[k] === 'string') choix[k] = v[k]; });
+        ecris(CLE_CHOIX, JSON.stringify(choix));
+        applique();
+      });
+    }).catch(function () {});
+  }
+})();
+</script>
+
+</body></html>
