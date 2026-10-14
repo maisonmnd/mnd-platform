@@ -19,6 +19,7 @@ from enseignes import Atelier
 from formes import ENCRES, cmjn, logo, rvb
 from oeuvres import OEUVRES, svg
 from pieces import PIECES, HYPOTHESES, CLIENTES_JOUR, ROTATION
+import serie2  # noqa: F401  la série 2 s'inscrit dans PIECES et OEUVRES
 
 SORTIE, CATALOGUE, VESTIAIRE = sys.argv[1], sys.argv[2], sys.argv[3]
 FICHIERS = os.path.join(SORTIE, 'Fichiers 1-1 (SVG)')
@@ -33,6 +34,15 @@ def lie_les_unites(page):
     """Le nombre reste avec son unité, dans le TEXTE seulement : une espace
     insécable dans les données d'un chemin SVG casserait le dessin."""
     return _re.sub('>([^<]+)<', lambda m: '>' + _UNITES.sub(lambda u: u.group(1) + chr(160) + u.group(2), m.group(1)) + '<', page)
+
+
+def image_ref(chemin, cote):
+    """Une photo de référence réduite, en JPEG dans la page."""
+    im = Image.open(chemin).convert('RGB')
+    im.thumbnail((cote, cote))
+    tampon = io.BytesIO()
+    im.save(tampon, 'JPEG', quality=82, optimize=True)
+    return 'data:image/jpeg;base64,' + base64.b64encode(tampon.getvalue()).decode()
 
 
 # ══ 1. LES FICHIERS 1:1 ═════════════════════════════════════════════════
@@ -57,6 +67,7 @@ DEFS = ('<svg width="0" height="0" style="position:absolute" aria-hidden="true">
         + '<pattern id="bouclette" width="7" height="7" patternUnits="userSpaceOnUse"><circle cx="3.5" cy="3.5" r="1.7" fill="#FFFFFF" opacity=".16"/></pattern>'
           '<linearGradient id="miroir" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#E4EAEF"/><stop offset=".45" stop-color="#B9C5CF"/>'
           '<stop offset=".7" stop-color="#D3DCE3"/><stop offset="1" stop-color="#A9B6C2"/></linearGradient>'
+          '<linearGradient id="inox" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#E9C3A1"/><stop offset=".5" stop-color="#C08A5E"/><stop offset="1" stop-color="#9C6A44"/></linearGradient>'
           '<linearGradient id="marbre" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#F4F0E9"/><stop offset="1" stop-color="#DED5C7"/></linearGradient>'
           '<filter id="ombre" x="-20%" y="-20%" width="140%" height="150%"><feGaussianBlur in="SourceAlpha" stdDeviation="14"/><feOffset dy="16"/>'
           '<feComponentTransfer><feFuncA type="linear" slope=".28"/></feComponentTransfer><feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge></filter>'
@@ -89,11 +100,15 @@ def rendu(p):
 # ══ 3. LES FICHES ANGLAISES, UNE PAR FOURNISSEUR ════════════════════════
 COTES = {'A1': ('700 mm', '900 mm + straps'), 'A2': ('750 mm', '1000 mm + neck strap'), 'A3': ('600 mm + ties', '450 mm'),
          'F1': ('front and back views, 650 mm each', '830–930 mm'), 'F2': ('≈ 1750 mm', '≈ 1000 mm'), 'F4': ('Ø 460 mm seat', '520–720 mm'),
-         'M3': ('800 mm (base 880)', '2000 mm'), 'M4': ('glass side and back, Ø 220 mm each', '350 mm with handle'), 'S2': ('650 mm', '250 mm')}
+         'M3': ('800 mm (base 880)', '2000 mm'),
+         **{k: ('side view (see size)', '≈ 950 mm') for k in ('L1', 'L2', 'L3', 'L4')},
+         **{k: ('front and back views, 660 mm each', 'height adjustable') for k in ('C1', 'C2', 'C3', 'C4')},
+         'C5': ('side view (reclined position dashed) and back view', 'height adjustable'), 'M4': ('glass side and back, Ø 220 mm each', '350 mm with handle'), 'S2': ('650 mm', '250 mm')}
 NOMS_EN = {'indigo': 'Indigo', 'indigo-profond': 'Deep indigo', 'cuivre': 'Copper', 'ivoire': 'Ivory', 'sable': 'Sand', 'argile': 'Clay'}
 FAMILLES = [('textile', 'Aprons, cape and towels', ('Tabliers', 'Linge')),
             ('fauteuils', 'Chairs and shampoo units', ('Fauteuils',)),
-            ('miroirs', 'Mirrors', ('Miroirs',))]
+             ('miroirs', 'Mirrors', ('Miroirs',)),
+            ('serie2', 'Shampoo units and salon chairs, series 2', ('Bacs, série 2', 'Fauteuils, série 2'))]
 
 
 def encres_de(*textes):
@@ -167,7 +182,10 @@ for cle, titre_en, familles in FAMILLES:
         en = p['en']
         fichiers = LISTE[p['id']]
         serie = ''.join(f'<div><div class="mini">{vignette(w, h, c)}</div><small>{html.escape(n)}</small></div>' for n, w, h, c in fichiers)
-        qte = f"{p['qte']} pcs (proposed, to confirm)" if p['qte'] else 'Optional (quote 2 pcs)'
+        qte = ('Model to be chosen: please quote the unit price for 1, 2 and 4 pcs' if p.get('choix') else
+               f"{p['qte']} pcs (proposed, to confirm)" if p['qte'] else 'Optional (quote 2 pcs)')
+        if p.get('reference'):
+            serie = f'<div><div class="mini"><img src="{image_ref(p["reference"], 360)}" alt="" style="width:100%;height:100%;object-fit:contain"></div><small>Reference photo (style only)</small></div>' + serie
         lignes = [('Item', f"{p['id']} · {html.escape(p['name'])}"), ('Quantity', qte), ('Size', html.escape(p['dims_en'])),
                   ('Material', html.escape(en['material'])), ('Branding', '<b>' + html.escape(en['branding']) + '</b>'),
                   ('Care', html.escape(en['care']))]
@@ -227,6 +245,7 @@ th { font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: v
 td.num { font-variant-numeric: tabular-nums; white-space: nowrap; font-weight: 500; color: var(--encre); }
 .tees { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 250px), 1fr)); gap: 14px; }
 .tee { background: var(--carte); border: 1px solid var(--filet); border-radius: 6px; padding: 10px 12px 14px; display: grid; gap: 4px; }
+img.ref { width: 100%; max-width: 240px; height: auto; display: block; border-radius: 4px; border: 1px solid var(--filet); background: #fff; }
 .tee img { width: 100%; height: auto; display: block; background: #EDE6DA; border-radius: 4px; }
 .tee b { font: 400 20px/1.2 "Cormorant Garamond", Georgia, serif; color: var(--encre); }
 .tee small { color: var(--doux); font-size: 13px; }
@@ -261,9 +280,11 @@ ESC = html.escape
 def carte(p):
     fr = p['fr']
     qte = f"{p['qte']} · {ESC(p['qte_fr'])}" if p['qte'] else ESC(p['qte_fr'])
+    ref = (f'<dt>Référence</dt><dd><img class="ref" src="{image_ref(p["reference"], 420)}" alt="La photo envoyée pour {ESC(p["nom"])}" loading="lazy"></dd>'
+           if p.get('reference') else '')
     rangs = [('Taille', ESC(p['dims_fr'])), ('Matière', ESC(fr['matiere'])), ('Marquage', ESC(fr['marquage'])),
              ('Entretien', ESC(fr['entretien'])), ('Quantité', qte), ('Où', ESC(p['source_fr'])), ('Pourquoi', ESC(fr['pourquoi']))]
-    dl = ''.join(f'<dt>{k}</dt><dd>{v}</dd>' for k, v in rangs)
+    dl = ref + ''.join(f'<dt>{k}</dt><dd>{v}</dd>' for k, v in rangs)
     fichiers = len(LISTE[p['id']])
     return (f'<article class="carte" id="{p["id"]}"><div class="rendu">{rendu(p)}</div><div class="texte">'
             f'<p class="haut"><span class="code">{p["id"]}</span><span class="puce">{fichiers} fichier{"s" if fichiers > 1 else ""} 1:1</span></p>'
@@ -273,7 +294,9 @@ def carte(p):
 SECTIONS = [('tabliers', 'Les tabliers', 'Tabliers', 'La toile indigo pour l’équipe, l’enduit pour les couleurs, l’ivoire pour l’accueil.'),
             ('linge', 'Le linge et la cape', 'Linge', 'Tout ce qui touche l’eau est indigo : ni l’eau colorée ni les teintures végétales n’y marquent.'),
             ('fauteuils', 'Les fauteuils', 'Fauteuils', 'Les modèles de base viennent du catalogue Sulin d’avril, déjà dans le Drive. On change la couleur, l’embase et le marquage.'),
-            ('miroirs', 'Les miroirs', 'Miroirs', 'L’arche des miroirs du catalogue est celle du pictogramme. La devise y est sablée : la cliente la lit dans son reflet.')]
+            ('miroirs', 'Les miroirs', 'Miroirs', 'L’arche des miroirs du catalogue est celle du pictogramme. La devise y est sablée : la cliente la lit dans son reflet.'),
+            ('bacs2', 'Les bacs, série 2', 'Bacs, série 2', 'Les quatre bacs des photos envoyées, aux couleurs de la Maison. Sur chacun, le motif gaufré sur le flanc et le nom brodé au pied.'),
+            ('fauteuils2', 'Les fauteuils, série 2', 'Fauteuils, série 2', 'Les cinq fauteuils des photos envoyées. Le motif au dos du dossier, le nom au dos de l’appui-tête : rien d’écrit ne fait face au miroir.')]
 
 
 def image_tee(ident):
@@ -346,9 +369,13 @@ PROGRAMME = f'''<h2 class="section" id="tenues">Les tenues de séance</h2>
 <li>Tabliers, cape et linge : la fiche « Aprons, cape and towels » (7 pages) et ses fichiers A1 à S3.</li>
 <li>Fauteuils : la fiche « Chairs and shampoo units » (5 pages), à Guangzhou Sulin, et ses fichiers F1 à F5.</li>
 <li>Miroirs : la fiche « Mirrors » (4 pages), au fournisseur du catalogue des miroirs, et ses fichiers M1 à M4.</li>
+<li>Série 2 : la fiche « Shampoo units and salon chairs, series 2 » (9 pages) et ses trois fichiers, aux fabricants retenus ci-dessus.</li>
 <li>Avec chaque fiche, la demande de devis en anglais, déjà écrite.</li></ol>
 <p style="margin:10px 0 0">Tout est rangé dans le Drive : <code>Maison MND › 09 · Achats et fournisseurs › Tabliers, linge, fauteuils et miroirs · 14-10-2026</code>.</p></div>
 '''
+
+from fabricants import section_html
+FABRICANTS = section_html()
 
 ETAPES = [
     'Corriger les quatre hypothèses (postes, bacs, maîtres, clientes par jour) : les quantités en découlent.',
@@ -357,7 +384,8 @@ ETAPES = [
     'Envoyer la fiche textile et ses fichiers à un fabricant de tabliers et de linge, avec la demande de devis.',
     'Envoyer la fiche fauteuils à Guangzhou Sulin, avec la demande de devis.',
     'Envoyer la fiche miroirs au fournisseur du catalogue des miroirs, avec la demande de devis.',
-    'Demander les échantillons : fil cuivre, simili indigo, plaqué or rose, carré de verre sablé rétroéclairé.',
+    'Choisir les modèles de la série 2 (bacs et fauteuils), puis envoyer leur fiche aux fabricants retenus.',
+    'Demander les échantillons : fil cuivre, simili indigo, plaqué or rose, carré de verre sablé rétroéclairé, et un carré de cuir gaufré au motif.',
     'Valider chaque épreuve avant de payer le solde.',
     'Valider la maquette du Trône avant qu’on construise le vestiaire.',
 ]
@@ -371,8 +399,8 @@ MARCHE = ('<h2 class="section" id="marche">La marche à suivre</h2><div class="b
 
 ENTETE = f'''<header><p class="sur">Maison MND · Équipement · 14 octobre 2026</p>
 <h1>Tabliers, linge, fauteuils et miroirs</h1>
-<p class="chapeau">Seize pièces aux couleurs de la Maison, chacune avec son rendu, son cahier des charges en anglais pour le fabricant et ses fichiers à l’échelle 1:1. Puis les tenues que les clientes portent pendant le lavage, et la façon de les prêter.</p></header>
-<nav class="sommaire" aria-label="Sommaire">{"".join(f'<a href="#{a}">{t}</a>' for a, t, *_ in SECTIONS)}<a href="#tenues">Les tenues de séance</a><a href="#pret">Le prêt</a><a href="#marche">La marche à suivre</a></nav>
+<p class="chapeau">{len(PIECES)} pièces aux couleurs de la Maison, chacune avec son rendu, son cahier des charges en anglais pour le fabricant et ses fichiers à l’échelle 1:1 : seize d’abord, puis la série 2, les neuf bacs et fauteuils des photos envoyées. Ensuite les tenues que les clientes portent pendant le lavage, la façon de les prêter, et les fabricants en Chine.</p></header>
+<nav class="sommaire" aria-label="Sommaire">{"".join(f'<a href="#{a}">{t}</a>' for a, t, *_ in SECTIONS)}<a href="#tenues">Les tenues de séance</a><a href="#pret">Le prêt</a><a href="#fabricants">Les fabricants en Chine</a><a href="#marche">La marche à suivre</a></nav>
 <section class="regles" aria-label="Les règles appliquées">
 <div class="regle"><b>L’indigo là où passe l’eau</b>Tabliers, capes, serviettes : ni l’eau colorée ni les teintures végétales n’y marquent. Jamais de noir.</div>
 <div class="regle"><b>Le cuivre en fil, en métal, en gravure</b>Broderies, embases, cadres et gravures prennent le cuivre #B97A4A, à faire valider sur échantillon.</div>
@@ -385,7 +413,7 @@ ENTETE = f'''<header><p class="sur">Maison MND · Équipement · 14 octobre 2026
 PAGE = ('<title>Équipement de la Maison</title>\n'
         '<link rel="preconnect" href="https://fonts.googleapis.com">\n'
         '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,400&family=Jost:wght@300;400;500&display=swap">\n'
-        + CSS + DEFS + '<div class="page">' + ENTETE + corps_sections + PROGRAMME + MARCHE + '</div>')
+        + CSS + DEFS + '<div class="page">' + ENTETE + corps_sections + PROGRAMME + FABRICANTS + MARCHE + '</div>')
 PAGE = lie_les_unites(PAGE)
 io.open(os.path.join(CATALOGUE, 'catalogue.html'), 'w', encoding='utf-8').write(PAGE)
 print('ok :', sum(len(v) for v in LISTE.values()), 'fichiers 1:1,', len(PIECES), 'pièces,', MODELES, 't-shirts de séance,', STOCK, 'en stock ; page', len(PAGE.encode('utf-8')) // 1024, 'Ko')
