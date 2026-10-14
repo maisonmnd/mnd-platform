@@ -32,10 +32,12 @@
        second numéro, une mineure, deux adultes sur un même numéro passent
        par « Pour qui ? », et rien de personne n'est dit avant le choix ;
        en essai, seule la fiche dont c'est le premier numéro est servie ;
-     · il se tait quand elle parle d'un rendez-vous qu'elle a déjà, quand sa
-       fiche en porte un à venir, quand la Maison lui a écrit dans la
-       semaine, et devant une question qui n'est pas de réserver (en plein
-       parcours, la main passe, dite) ;
+     · il se tait quand elle parle d'un rendez-vous qu'elle a déjà (sauf une
+       question que le conseil reconnaît), et devant une question qui n'est
+       pas de réserver (en plein parcours, la main passe, dite). Il se
+       taisait aussi une semaine quand la Maison avait écrit, et quand sa
+       fiche portait un rendez-vous à venir : levé le 14 octobre 2026 (« I
+       need the automation to take the lead all the time ») ;
      · « pas samedi » écarte samedi ; les mêmes mots deux fois sont un écart ;
      · la civilité et le prénom écrits se lisent ; « Je confirme » passe le
        plafond ; février n'est pas un prix.
@@ -1149,16 +1151,23 @@ function jugeLaParole(
     parle = true;
   } else if (tour.media || mots.retard) {
     parle = false;
-  } else if (laMaisonAParle(ctx)) {
-    /* La Maison vient d'écrire (sa main, un rappel, une reprise) : sa
-       réponse est pour la Maison, jamais un parcours neuf. */
-    parle = false;
+    /* LA RÈGLE DES SEPT JOURS EST LEVÉE · 14 octobre 2026, décision de la
+       direction : « I need the automation to take the lead all the time ».
+       Un rappel, une reprise, une confirmation ou un message de l'équipe ne
+       font plus taire l'automate une semaine. Ce qui reste : la main de
+       l'équipe quand une personne écrit (la pause, `pauseHeures`), un
+       rendez-vous qu'elle a déjà, et les questions qu'il ne sait pas. */
   } else if (mots.deplacer || mots.annuler) {
     /* Un prix dans la même phrase : la Maison le lit elle-même, comme avant. */
     parle = !mots.prix;
-  } else if (renvoieAUnRdv(tour.texte) || fiches.some((f) => !f.parFamille && !!f.prochainRdv)) {
-    /* Un rendez-vous qu'elle a déjà : la Maison répond elle-même. */
-    parle = false;
+  } else if (renvoieAUnRdv(tour.texte)) {
+    /* ELLE PARLE D'UN RENDEZ-VOUS QU'ELLE A DÉJÀ (« je confirme », « à quelle
+       heure ? ») : l'automate ne sait ni le confirmer ni le déplacer, la
+       Maison répond elle-même. Depuis le 14 octobre 2026 (« le faire
+       répondre »), il répond si le conseil reconnaît une question dans son
+       message ; et un rendez-vous à venir sur sa fiche ne le fait plus
+       taire : elle peut en réserver un autre. */
+    parle = leConseilParle(tour.texte, ctx.conseil);
   } else if (leConseilParle(tour.texte, ctx.conseil)) {
     /* LE CONSEIL (14 octobre 2026) : une question qu'une réponse validée
        reconnaît, ou le cuir chevelu qui inquiète. */

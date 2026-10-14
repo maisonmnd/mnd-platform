@@ -88,7 +88,7 @@ import { createClient, type SupabaseClient } from 'npm:@supabase/supabase-js@2';
 
 /** LA VERSION DE CE FICHIER, dite par le contrôle de santé. Sans elle on ne
     sait pas quel code tourne vraiment. À incrémenter à chaque déploiement. */
-const VERSION = '2026-10-14-a · Le conseil : Une question ?, les reponses validees, les prix du catalogue, le cuir chevelu';
+const VERSION = '2026-10-14-b · l automate mene toujours : ni la parole de la Maison ni un rendez-vous a venir ne le font taire (la main de l equipe reste)';
 
 /** « En train d'écrire », puis on attend : deux messages envoyés coup sur
     coup font un seul tour, celui du dernier. */
@@ -2025,16 +2025,23 @@ function jugeLaParole(
     parle = true;
   } else if (tour.media || mots.retard) {
     parle = false;
-  } else if (laMaisonAParle(ctx)) {
-    /* La Maison vient d'écrire (sa main, un rappel, une reprise) : sa
-       réponse est pour la Maison, jamais un parcours neuf. */
-    parle = false;
+    /* LA RÈGLE DES SEPT JOURS EST LEVÉE · 14 octobre 2026, décision de la
+       direction : « I need the automation to take the lead all the time ».
+       Un rappel, une reprise, une confirmation ou un message de l'équipe ne
+       font plus taire l'automate une semaine. Ce qui reste : la main de
+       l'équipe quand une personne écrit (la pause, `pauseHeures`), un
+       rendez-vous qu'elle a déjà, et les questions qu'il ne sait pas. */
   } else if (mots.deplacer || mots.annuler) {
     /* Un prix dans la même phrase : la Maison le lit elle-même, comme avant. */
     parle = !mots.prix;
-  } else if (renvoieAUnRdv(tour.texte) || fiches.some((f) => !f.parFamille && !!f.prochainRdv)) {
-    /* Un rendez-vous qu'elle a déjà : la Maison répond elle-même. */
-    parle = false;
+  } else if (renvoieAUnRdv(tour.texte)) {
+    /* ELLE PARLE D'UN RENDEZ-VOUS QU'ELLE A DÉJÀ (« je confirme », « à quelle
+       heure ? ») : l'automate ne sait ni le confirmer ni le déplacer, la
+       Maison répond elle-même. Depuis le 14 octobre 2026 (« le faire
+       répondre »), il répond si le conseil reconnaît une question dans son
+       message ; et un rendez-vous à venir sur sa fiche ne le fait plus
+       taire : elle peut en réserver un autre. */
+    parle = leConseilParle(tour.texte, ctx.conseil);
   } else if (leConseilParle(tour.texte, ctx.conseil)) {
     /* LE CONSEIL (14 octobre 2026) : une question qu'une réponse validée
        reconnaît, ou le cuir chevelu qui inquiète. */
@@ -3529,24 +3536,6 @@ async function lesFichesDuNumero(sb: Sb, numero: string): Promise<FicheDuNumero[
   });
 }
 
-/** LA DERNIÈRE PAROLE DE LA MAISON À CE NUMÉRO, dans la semaine
-    (relecture du 9 octobre 2026) : un message sortant que l'automate n'a
-    pas écrit, de la main de l'équipe ou d'un envoi du Trône (rappel,
-    reprise, confirmation, accusé). Elle mène alors la conversation, et
-    l'automate n'en fait pas un parcours neuf. Cent lignes au plus : dix
-    messages de l'automate par jour, sur sept jours, n'y suffisent pas à
-    cacher la sienne. `null` : la base ne répond pas. */
-async function laDerniereParoleDeLaMaison(sb: Sb, numero: string, ms: number): Promise<string | undefined | null> {
-  const depuis = new Date(ms - LA_MAISON_A_PARLE_MS).toISOString();
-  const { data, error } = await sb.from('messages_wa').select('id, data')
-    .eq('data->>numero', numero).eq('data->>sens', 'sortant').gte('data->>quand', depuis)
-    .order('data->>quand', { ascending: false }).limit(100);
-  if (error) { dis('paroles de la Maison illisibles', { motif: error.message.slice(0, 120) }); return null; }
-  const sienne = ((data ?? []) as Ligne[]).map((l) => l.data ?? {})
-    .find((d) => d.auto !== 'automate' && typeof d.quand === 'string' && d.quand);
-  return sienne ? String(sienne.quand) : undefined;
-}
-
 /** A-T-ELLE DÉJÀ ÉCRIT, OU LA MAISON LUI A-T-ELLE DÉJÀ ÉCRIT ? Aucun message
     de ce numéro hors de ce tour : c'est un premier message. `null` : la
     base ne répond pas. */
@@ -3815,15 +3804,12 @@ async function unTour(
   if (!fiches) return { pris: false };
   const premierMessage = await estUnPremierMessage(sb, o.numero, tour);
   if (premierMessage === null) return { pris: false };
-  /* La Maison a-t-elle écrit cette semaine (sa main, un rappel, une
-     reprise) ? Elle mène alors la conversation (relecture du 9 octobre). */
-  const parole = await laDerniereParoleDeLaMaison(sb, o.numero, ms);
-  if (parole === null) return { pris: false };
+  /* La parole de la Maison ne se lit plus : la règle des sept jours est
+     levée (14 octobre 2026), l'automate mène toujours. */
 
   /* ⑤ QUI PARLE, avant toute lecture de l'agenda. */
   const ctxLeger: ContexteLeger = {
     maintenantMs: ms, numero: o.numero, tiroir: o.tiroir, reglage, fiches, premierMessage, main,
-    ...(parole ? { derniereParoleDeLaMaison: parole } : {}),
     /* Les réponses de la Maison (le conseil, 14 octobre 2026). */
     conseil: conseilDeLaMaison(docs.get('mnd_reponses_maison')),
   };

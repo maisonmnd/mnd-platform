@@ -2043,7 +2043,7 @@ const regles: Regle[] = [
 
   /* ══ R21 · relecture du 9 octobre 2026 ═══════════════════════════════ */
   {
-    id: 'R21', nom: 'R21 un rendez-vous qu elle a deja, une Maison qui vient d ecrire : il se tait, l equipe repond (et une vraie demande parle toujours)',
+    id: 'R21', nom: 'R21 elle parle d un rendez-vous qu elle a deja : il se tait, l equipe repond (et une vraie demande parle toujours) ; un rendez-vous a venir ou une Maison qui a ecrit ne le font plus taire (14 octobre 2026)',
     eprouve: async () => {
       const { ecarts, vaut, vrai } = juge();
       const t0 = cotonou('2026-10-09', '11:00');
@@ -2059,15 +2059,15 @@ const regles: Regle[] = [
       vrai('renvoieAUnRdv crie sur chacune, se tait sur une demande neuve', existants.every((x) => renvoieAUnRdv(x)) && !renvoieAUnRdv('Bonjour, je voudrais prendre rendez-vous samedi'));
       const neufs = ['Bonjour, je voudrais prendre rendez-vous', 'Je voudrais un rendez-vous samedi', 'Est-ce que je peux passer jeudi ?', 'Bonjour, une place cette semaine ?'];
       vaut('... une vraie demande parle toujours', neufs.map(() => 'parle'), neufs.map((x) => dit(x)));
-      vaut('sa fiche porte un rendez-vous a venir : silence ; celui de la famille ne compte pas', ['silence', 'parle'],
+      vaut('un rendez-vous a venir, sur sa fiche ou dans la famille : il parle (14 octobre 2026)', ['parle', 'parle'],
         [dit('Je voudrais un rendez-vous', { fiches: [{ ...NAFFI, prochainRdv: { date: '2026-10-17', time: '09:00' } }] }),
           dit('Je voudrais un rendez-vous', { fiches: [NAFFI, { ...KEMI, prochainRdv: { date: '2026-10-17' } }] })]);
       const rendue: MainDuFil = { pauseLe: isoDe(t0 - 2 * 86400000), jusqua: isoDe(t0 - 86400000), rendueLe: isoDe(t0 - 3600000) };
-      vaut('la Maison a ecrit il y a deux jours : silence ; huit jours : il parle ; rendue depuis : il parle', ['silence', 'parle', 'parle'],
+      vaut('la Maison a ecrit il y a deux jours, huit jours, ou rendue depuis : il parle toujours', ['parle', 'parle', 'parle'],
         [dit('Je voudrais un rendez-vous', { derniereParoleDeLaMaison: isoDe(t0 - 2 * 86400000) }),
           dit('Je voudrais un rendez-vous', { derniereParoleDeLaMaison: isoDe(t0 - 8 * 86400000) }),
           dit('Je voudrais un rendez-vous', { derniereParoleDeLaMaison: isoDe(t0 - 2 * 86400000), main: rendue })]);
-      vaut('... meme une annulation : la Maison mene, il se tait', 'silence', dit('Je dois annuler mon rendez-vous', { derniereParoleDeLaMaison: isoDe(t0 - 3600000) }));
+      vaut('... une annulation aussi : il la transmet', 'parle', dit('Je dois annuler mon rendez-vous', { derniereParoleDeLaMaison: isoDe(t0 - 3600000) }));
       const sql = sqlSans(lit(M0125));
       vrai('0125 : fiches_du_numero rend le prochain rendez-vous (confirme ou en attente, d aujourd hui a Cotonou), pas pour la famille',
         /'prochainRdv', case when not r\.par_famille then/.test(sql) && /coalesce\(a\.data->>'status', ''\) in \('confirmé', 'en attente'\)\s+and a\.data->>'date' >= to_char\(now\(\) at time zone 'Africa\/Porto-Novo', 'YYYY-MM-DD'\)/.test(sql));
@@ -2078,26 +2078,23 @@ const regles: Regle[] = [
         const hier = new Date(Date.now() - 86400000).toISOString();
         T('messages_wa').set('wa-equipe', { id: 'wa-equipe', data: { id: 'wa-equipe', sens: 'sortant', numero: NAFFI_E, texte: 'Je vous propose samedi 10 h.', quand: hier, parQui: 'Y. B.' } });
         await ecrit(NAFFI_E, 'Oui je voudrais un rendez-vous samedi 10h');
-        vrai('banc : la Maison a ecrit hier : l automate ne prend pas, la notification habituelle part', appelsAutomate === 1 && ecritsA(NAFFI_E).length === 0 && !fil(NAFFI_E)
-          && B().pushs.length === 2 && B().pushs[0].title === 'Naffi vous écrit sur WhatsApp', B().pushs);
+        vrai('banc : la Maison a ecrit hier : l automate prend quand meme (14 octobre 2026)', appelsAutomate === 1 && ecritsA(NAFFI_E).length === 1 && fil(NAFFI_E)?.etape === 'meme', { ecrits: ecritsA(NAFFI_E).length, etape: fil(NAFFI_E)?.etape });
         /* Ses propres messages ne comptent pas : l automate d hier n empeche rien. */
         remetsLaBase({ mode: 'ouvert', numerosEssai: [] });
         T('messages_wa').set('wa-auto', { id: 'wa-auto', data: { id: 'wa-auto', sens: 'sortant', numero: NAFFI_E, texte: 'Bonjour Madame Naffi', quand: hier, parQui: 'Le Trône', auto: 'automate' } });
         await ecrit(NAFFI_E, 'Je voudrais un rendez-vous samedi');
         vrai('banc : un message de l automate d hier n empeche rien', ecritsA(NAFFI_E).length === 1 && fil(NAFFI_E)?.etape === 'meme');
-        /* Un rendez-vous a venir sur sa fiche : il se tait. */
+        /* Un rendez-vous a venir sur sa fiche : il prend quand meme (14 octobre 2026). */
         remetsLaBase({ mode: 'ouvert', numerosEssai: [] }, { rdvs: [{ id: 'rdv-avenir', branch_id: 'maison', data: { id: 'rdv-avenir', clientId: 'cli-naffi', branchId: 'maison', date: '2026-10-20', time: '10:00', status: 'confirmé', serviceIds: ['sv-klk-ess'] } }] });
         await ecrit(NAFFI_E, 'Je voudrais un rendez-vous samedi');
-        vrai('banc : un rendez-vous a venir : l automate ne prend pas, la notification part', ecritsA(NAFFI_E).length === 0 && !fil(NAFFI_E) && B().pushs.length === 2, B().pushs);
+        vrai('banc : un rendez-vous a venir : l automate prend quand meme', ecritsA(NAFFI_E).length === 1 && fil(NAFFI_E)?.etape === 'meme', { ecrits: ecritsA(NAFFI_E).length, etape: fil(NAFFI_E)?.etape });
       });
       return ecarts;
     },
     pannes: [
       { nom: 'un rendez-vous existant passe pour une envie de reserver', mute: [P(AUTO, 'function renvoieAUnRdv(texte: string): boolean {\n', 'function renvoieAUnRdv(texte: string): boolean {\n  if (texte) return false;\n')] },
-      { nom: 'le prochain rendez-vous ne compte pas', mute: [P(AUTO, ' || fiches.some((f) => !f.parFamille && !!f.prochainRdv)', '')] },
-      { nom: 'la parole de la Maison ne compte pas', mute: [P(AUTO, '  if (!Number.isFinite(le) || ctx.maintenantMs - le >= LA_MAISON_A_PARLE_MS) return false;', '  return false;')] },
-      { nom: 'la fonction ne lit pas la parole de la Maison', mute: [P(F_AUTO, '    ...(parole ? { derniereParoleDeLaMaison: parole } : {}),\n', '')] },
-      { nom: 'la fonction perd le prochain rendez-vous des fiches', mute: [P(F_AUTO, '      ...(prochain ? { prochainRdv: prochain } : {}),\n', '')] },
+      { nom: 'un rendez-vous a venir fait de nouveau taire', mute: [P(AUTO, '  } else if (renvoieAUnRdv(tour.texte)) {', '  } else if (renvoieAUnRdv(tour.texte) || fiches.some((f) => !f.parFamille && !!f.prochainRdv)) {')] },
+      { nom: 'la regle des sept jours revient', mute: [P(AUTO, '  } else if (mots.deplacer || mots.annuler) {\n    /* Un prix dans la même phrase', '  } else if (laMaisonAParle(ctx)) {\n    parle = false;\n  } else if (mots.deplacer || mots.annuler) {\n    /* Un prix dans la même phrase')] },
       { nom: '0125 ne rend plus le prochain rendez-vous', mute: [P(M0125, "           'prochainRdv', case when not r.par_famille then", "           'prochainRdvOublie', case when not r.par_famille then")] },
     ],
   },
@@ -2805,7 +2802,7 @@ const regles: Regle[] = [
   },
   /* ══ R39 · le conseil lit les questions écrites, et se tait où il doit, 14 octobre 2026 ═══ */
   {
-    id: 'R39', nom: 'R39 le conseil lit une question ecrite au repos (et salue une inconnue), propose la liste a egalite, se tait quand la Maison a ecrit ou qu un rendez-vous attend, et la nuit seulement accuse une question qu il ne sait pas',
+    id: 'R39', nom: 'R39 le conseil lit une question ecrite au repos (et salue une inconnue), propose la liste a egalite, repond meme quand la Maison a ecrit ou qu un rendez-vous attend, se tait sur un rendez-vous existant sans question reconnue, et la nuit seulement accuse une question qu il ne sait pas',
     eprouve: () => {
       const { ecarts, vaut, vrai } = juge();
       const jour = cotonou('2026-10-09', '10:12');
@@ -2822,9 +2819,16 @@ const regles: Regle[] = [
       vrai('la liste dit pourquoi', corps(sc).includes('plusieurs sujets'), corps(sc));
       const d = avecConseil(parcours(ORIGINAL, NUM_NAFFI, [NAFFI]));
       d.parole = isoDe(jour - 2 * 3600000);
-      vrai('la Maison a ecrit cette semaine : il se tait, meme reconnue', !elle(d, jour, { texte: 'Combien pour des microlocks ?' }).pris);
+      const sd = elle(d, jour, { texte: 'Combien pour des microlocks ?' });
+      vrai('la Maison a ecrit cette semaine : il repond quand meme (14 octobre 2026)', sd.pris && sd.messages[0]?.reponseId === 'r-prix-creation');
       const e = avecConseil(parcours(ORIGINAL, NUM_NAFFI, [{ ...NAFFI, prochainRdv: { date: '2026-10-17', time: '10:00' } }]));
-      vrai('un rendez-vous attend : il se tait, meme reconnue', !elle(e, jour, { texte: 'Combien pour des microlocks ?' }).pris);
+      const se = elle(e, jour, { texte: 'Combien pour des microlocks ?' });
+      vrai('un rendez-vous attend : il repond quand meme (14 octobre 2026)', se.pris && se.messages[0]?.reponseId === 'r-prix-creation');
+      const k = avecConseil(parcours(ORIGINAL, NUM_NAFFI, [NAFFI]));
+      vrai('elle parle de son rendez-vous sans question reconnue : la Maison repond, pas de parcours', !elle(k, jour, { texte: 'Je confirme mon rendez-vous de samedi' }).pris);
+      const k2 = avecConseil(parcours(ORIGINAL, NUM_NAFFI, [NAFFI]));
+      const sk2 = elle(k2, jour, { texte: 'Je confirme mon rendez-vous de samedi, et combien pour des microlocks ?' });
+      vrai('... avec une question reconnue : il y repond', sk2.pris && sk2.messages[0]?.reponseId === 'r-prix-creation', corps(sk2));
       const f = avecConseil(parcours(ORIGINAL, NUM_INCONNUE, []));
       const sf = elle(f, nuit, { texte: 'Vous faites aussi les tissages ?' });
       vrai('la nuit, une question qu il ne sait pas : l accuse, la main passe', sf.pris && f.etat?.etape === 'main' && f.etat?.motifMain === 'question' && corps(sf).includes('vous répond'), `${sf.pris} ${f.etat?.etape} ${corps(sf)}`);
@@ -2836,9 +2840,11 @@ const regles: Regle[] = [
     },
     pannes: [
       { nom: 'le conseil ne parle jamais au repos', mute: [P(AUTO, '  } else if (leConseilParle(tour.texte, ctx.conseil)) {', '  } else if (false) {')] },
-      { nom: 'le conseil passe devant la Maison qui a ecrit', mute: [P(AUTO, '  } else if (laMaisonAParle(ctx)) {', '  } else if (false && laMaisonAParle(ctx)) {')] },
+      { nom: 'la Maison qui a ecrit fait de nouveau taire le conseil', mute: [P(AUTO, '  } else if (mots.deplacer || mots.annuler) {\n    /* Un prix dans la même phrase', '  } else if (laMaisonAParle(ctx)) {\n    parle = false;\n  } else if (mots.deplacer || mots.annuler) {\n    /* Un prix dans la même phrase')] },
       { nom: 'la nuit, la question inconnue reste sans accuse', mute: [P(AUTO, '          if (quand === null) return silence();\n          base.prisLe = maintenant;\n          return laMain', '          return silence();\n          base.prisLe = maintenant;\n          return laMain')] },
       { nom: 'le jour, la question inconnue recoit l accuse', mute: [P(AUTO, '          if (quand === null) return silence();\n', '')] },
+      { nom: 'sur un rendez-vous existant, la question reconnue reste sans reponse', mute: [P(AUTO, '    parle = leConseilParle(tour.texte, ctx.conseil);\n', '    parle = false;\n')] },
+      { nom: 'sur je confirme, il ouvre un parcours', mute: [P(AUTO, '    parle = leConseilParle(tour.texte, ctx.conseil);\n', '    parle = true;\n')] },
       { nom: 'a egalite, il choisit seul', mute: [P(AUTO, "    if (trouvees.length > 1) return dire(msgQuestions(0, trouvees, avecSalut), 'question');", '    if (trouvees.length > 1) return dire(msgReponse(trouvees[0], avecSalut));')] },
     ],
   },
