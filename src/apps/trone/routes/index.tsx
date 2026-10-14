@@ -126,6 +126,10 @@ export const NAV: TroneGroup[] = [
          se lisait rituel par rituel dans le Carnet : on savait qu'on attendait
          de l'argent, jamais depuis quand ni de qui d'abord. */
       { path: '/creances', label: 'Les créances', icon: HandCoins, Component: lazy(() => import('./finances/Creances')) },
+      /* LE CHIFFRE DES PRESTATIONS (14 octobre 2026, maquette EvcUQJUB…) : chaque
+         prestation, famille ou maison, sur la période choisie ; direction et
+         département Finances. */
+      { path: '/chiffre-des-prestations', label: 'Le chiffre des prestations', icon: BarChart3, Component: lazy(() => import('./finances/ChiffreDesPrestations')) },
       /* LES PRÊTS ONT LEUR ÉCRAN — 23 août 2026. Ils vivaient sous
          « Comptes & Avoirs » : un avoir est de l'argent que la Maison DOIT à
          une cliente, un prêt de l'argent qu'on lui doit, et l'emprunteur n'est
@@ -321,7 +325,7 @@ export const ANCIENS_DOMAINES: Record<string, string[]> = {
    un : la table ci-dessus ne se met pas à jour. Il s'ouvre par son
    département seul. On les NOMME ici, pour que la barre et la photographie
    restent vérifiables : un écran absent des deux listes est un oubli. */
-export const ECRANS_NES_APRES_LES_DEPARTEMENTS: readonly string[] = ['/compte-courant', '/parrainages', '/cartes-cadeaux', '/secretariat', '/centre-de-commande', '/atelier-des-contenus'];
+export const ECRANS_NES_APRES_LES_DEPARTEMENTS: readonly string[] = ['/compte-courant', '/parrainages', '/cartes-cadeaux', '/secretariat', '/centre-de-commande', '/atelier-des-contenus', '/chiffre-des-prestations'];
 
 /** L'ancien domaine d'un écran, celui d'avant les départements. */
 export const ancienDomaineDe = (path: string): string | undefined =>

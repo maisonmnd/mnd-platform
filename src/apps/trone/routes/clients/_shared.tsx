@@ -4814,7 +4814,7 @@ export function DrillModal({ drill, onClose }: { drill: Drill; onClose: () => vo
                       {fmtMoney(r.amount, currency)}
                     </div>
                   )}
-                  {r.date && <div className="mnd-muted" style={{ fontSize: 11 }}>{frShort(r.date)}</div>}
+                  {r.date && <div className="mnd-muted" style={{ fontSize: 11, whiteSpace: 'nowrap' }}>{frShortAn(r.date)}</div>}
                 </div>
               </>
             );

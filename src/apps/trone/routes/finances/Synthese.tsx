@@ -1,4 +1,5 @@
 import { useMemo, useState, type CSSProperties } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Eyebrow, Modal } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney, convertFromXof } from '../../../../shared/currency';
@@ -49,6 +50,7 @@ const MIX_FILLS = [
 ];
 
 export default function Synthese() {
+  const navigate = useNavigate();
   const { branch, currency } = useBranch();
   const [invoices] = useInvoices();
   /* CE QUI ATTEND UN OUI N'EST PAS ENCORE UNE DÉPENSE — 31 août 2026.
@@ -734,7 +736,11 @@ export default function Synthese() {
       {/* Le podium du mois — prestations, clientes, mix des paiements */}
       <div className="tr-grid tr-grid--3" style={{ marginTop: 18, alignItems: 'start' }}>
         <div className="trf-panel">
-          <div className="trf-panel__title">Top prestations · {monthName}</div>
+          <div className="trf-panel__title" style={{ display: 'flex', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
+            <span>Top prestations · {monthName}</span>
+            {/* Le tableau complet, toute période (14 octobre 2026). */}
+            <button type="button" className="tre-link-btn" onClick={() => navigate('/chiffre-des-prestations')}>Toutes les prestations</button>
+          </div>
           {topServices.length === 0 && <div className="trf-empty">Aucun rituel honoré en {monthName}, le classement attend ses lauréates.</div>}
           {topServices.map((s, i) => (
             <div
