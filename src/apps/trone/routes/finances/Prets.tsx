@@ -17,7 +17,7 @@
    le montrer, dans l'ordre de l'urgence. */
 
 import { useMemo, useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, useLocation, useSearchParams } from 'react-router-dom';
 import { PageHead } from '../_ui';
 import { Button, Card, Field, Input, Modal, Select, toast } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
@@ -130,15 +130,27 @@ export default function Prets() {
   };
 
   const [prets, setPrets] = usePrets();
+  /* LES PRÊTS SE COUPENT EN DEUX — 14 octobre 2026, décision de la direction.
+     Ceux de l'équipe se lisent aux Ressources humaines (`/prets-personnel`, à
+     côté de la paie qui les rembourse) ; les Finances gardent les associés,
+     les tiers, les clientes et le foyer. Un seul magasin : seule la lecture se
+     partage. Une ligne d'avant sans genre suit son nom (un membre de l'équipe
+     de la branche, ou non). */
+  const duPersonnel = useLocation().pathname === '/prets-personnel';
+  const lesMiens = useMemo(() => {
+    const estDuPersonnel = (p: Pret): boolean => p.genre === 'equipe'
+      || (!p.genre && staff.some((m) => m.branchId === p.branchId && m.name.trim().toLowerCase() === String(p.associe ?? '').trim().toLowerCase()));
+    return prets.filter((p) => estDuPersonnel(p) === duPersonnel);
+  }, [prets, staff, duPersonnel]);
   /* LE SALAIRE DE CHACUN, pour chiffrer la part retenue (18 septembre). Le
      module des prêts ne lit pas l'équipe : c'est l'écran qui la lui prête. */
   const etats = useMemo(
-    () => etatsDesEmprunteurs(prets, branch.id, aujourdhui, ({ personneId, nom }) =>
+    () => etatsDesEmprunteurs(lesMiens, branch.id, aujourdhui, ({ personneId, nom }) =>
       staff.find((m) => m.id === personneId || m.name.trim().toLowerCase() === nom.toLowerCase())?.salaireXof ?? 0,
     ).sort(parUrgence),
-    [prets, branch.id, aujourdhui, staff],
+    [lesMiens, branch.id, aujourdhui, staff],
   );
-  const dette = detteEnCours(prets, branch.id);
+  const dette = detteEnCours(lesMiens, branch.id);
   const [emprunts] = useEmprunts();
   const notreDette = detteDeLaMaison(emprunts, branch.id);
 
@@ -175,11 +187,11 @@ export default function Prets() {
   const [moyensPose] = usePaymentMethods();
   const [fPret, setFPret] = useState({
     type: 'pret' as 'pret' | 'remboursement',
-    genre: 'equipe' as GenreEmprunteur,
+    genre: (duPersonnel ? 'equipe' : 'tiers') as GenreEmprunteur,
     nom: '', personneId: '', motif: '', montant: '',
     cashbox: '', method: 'Espèces', date: todayISO(), enDevise: '',
     /* « Quand doit-il revenir ? » — le champ qui manquait. */
-    retour: 'salaire' as 'sans' | 'une' | 'plusieurs' | 'salaire',
+    retour: (duPersonnel ? 'salaire' : 'sans') as 'sans' | 'une' | 'plusieurs' | 'salaire',
     echeance: '', nombre: '3', premier: '',
     retenue: '',
     /* LA RETENUE EN PART DU SALAIRE — 18 septembre 2026. On règle un levier,
@@ -670,8 +682,8 @@ export default function Prets() {
   return (
     <div className="mnd-rise">
       <PageHead
-        eyebrow="Finances"
-        title="Les prêts."
+        eyebrow={duPersonnel ? 'Ressources humaines' : 'Finances'}
+        title={duPersonnel ? 'Les prêts au personnel.' : 'Les prêts.'}
         sub="Prêté, remboursé, jamais dupliqué."
         actions={(
           <>
@@ -685,7 +697,7 @@ export default function Prets() {
 
       {/* Les deux registres — ce qu’on nous doit d’un côté, ce qu’on prépare
           de l’autre. Deux figures proches, jamais additionnées. */}
-      <div style={{ display: 'flex', gap: 26, borderBottom: '1px solid var(--hairline)', margin: '0 0 18px' }}>
+      {!duPersonnel && <div style={{ display: 'flex', gap: 26, borderBottom: '1px solid var(--hairline)', margin: '0 0 18px' }}>
         {([
           ['prets' as const, 'Ce qu’on nous doit', fmtMoney(dette, currency)],
           /* CE QUE LA MAISON DOIT — 11 septembre 2026. Le miroir du premier
@@ -713,9 +725,9 @@ export default function Prets() {
             {n ? <span className="mnd-muted" style={{ fontSize: 12 }}>{n}</span> : null}
           </button>
         ))}
-      </div>
+      </div>}
 
-      {registre === 'doit' ? <CeQueLaMaisonDoit /> : registre === 'objectifs' ? <LesObjectifs /> : (
+      {!duPersonnel && registre === 'doit' ? <CeQueLaMaisonDoit /> : !duPersonnel && registre === 'objectifs' ? <LesObjectifs /> : (
       <>
       {etats.length === 0 ? (
         <Card style={{ padding: 22 }}>
@@ -847,7 +859,7 @@ export default function Prets() {
 
             <Field label="À qui">
               <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap', marginBottom: 9 }}>
-                {(['equipe', 'cliente', 'tiers', 'associe', 'foyer'] as GenreEmprunteur[]).map((g) => (
+                {((duPersonnel ? ['equipe'] : ['cliente', 'tiers', 'associe', 'foyer']) as GenreEmprunteur[]).map((g) => (
                   <button
                     key={g}
                     type="button"

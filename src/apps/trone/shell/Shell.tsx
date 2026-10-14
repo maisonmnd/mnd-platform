@@ -1,7 +1,7 @@
 import { Suspense, useEffect, useState, useSyncExternalStore } from 'react';
 import { NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { ChevronDown, Gem, LogOut, Menu, X } from 'lucide-react';
-import { NAV, peutVoir, accueilDe, premierEcranVisible, gestesRapides, type TroneRoute } from '../routes/index';
+import { NAV, peutVoir, accueilDe, premierEcranVisible, gestesRapides, cheminOuvert, reunionDe, type TroneRoute } from '../routes/index';
 import { staffAccessStore } from '../routes/equipe/data';
 import { createStore, useStore } from '../../../shared/store';
 import NotificationsBell from './Notifications';
@@ -584,10 +584,13 @@ export default function Shell() {
     [chemins[index], chemins[cible]] = [chemins[cible], chemins[index]];
     setOrdreNav((prev) => ({ ...prev, [cle]: chemins }));
   };
-  const visibles = NAV.map((g) => ({ ...g, items: g.items.filter((it) => !it.horsMenu && peutVoir(role, it.path, mesDomaines)) }))
+  /* LA BARRE RÉUNIE (14 octobre 2026) : une rubrique réunie se montre dès
+     qu'un de ses onglets s'ouvre à la personne. */
+  const visibles = NAV.map((g) => ({ ...g, items: g.items.filter((it) => !it.horsMenu && cheminOuvert(role, it.path, mesDomaines) !== null) }))
     .filter((g) => g.items.length > 0);
   const deuxEtages = visibles.reduce((s, g) => s + g.items.length, 0) > 8;
-  const quotidien = selonLaMain(ordreNav['Le quotidien'], quotidienPerso
+  /* Un écran absorbé, rangé au quotidien avant la réunion, y suit sa rubrique. */
+  const quotidien = selonLaMain(ordreNav['Le quotidien'], [...new Set(quotidienPerso.map((p) => reunionDe(p)?.hote ?? p))]
     .map((p) => visibles.flatMap((g) => g.items).find((it) => it.path === p))
     .filter((it): it is TroneRoute => !!it));
   const [filTous] = useFil();
@@ -603,7 +606,13 @@ export default function Shell() {
      Fil : on la croise en allant ailleurs, et c'est là qu'elle sert. */
   const demandesQuiAttendent = mesDemandes(filTous, branch.id, monMailShell, factures).length;
   const lien = (it: TroneRoute) => (
-    <NavLink key={it.path} to={it.path} end={it.path === '/'} className="tr-nav__item" onClick={closeSide}>
+    <NavLink
+      key={it.path}
+      to={cheminOuvert(role, it.path, mesDomaines) ?? it.path}
+      end={it.path === '/'}
+      className={({ isActive }) => `tr-nav__item${isActive || (reunionDe(emplacement.pathname)?.hote === it.path) ? ' active' : ''}`}
+      onClick={closeSide}
+    >
       <it.icon />
       {it.label}
       {it.path === '/fil' && demandesQuiAttendent > 0 && (

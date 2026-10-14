@@ -32,7 +32,7 @@ export type TroneGroup = { group: string; items: TroneRoute[] };
    dettes, charges. Les écrans sont placés d'après ce qu'ils FONT, lu dans
    leur code, pas d'après leur ancien dossier : les chemins et les modules ne
    bougent pas, seule la barre les range autrement. */
-export const NAV: TroneGroup[] = [
+const NAV_DES_ECRANS: TroneGroup[] = [
   {
     /* CE QUI SE LIT POUR DÉCIDER. Le Juste Prix est une analyse de prix, pas
        une écriture ; À faire dit où mettre son temps, en nombres et en
@@ -177,6 +177,12 @@ export const NAV: TroneGroup[] = [
       { path: '/tableau', label: 'Le Tableau', icon: SquareKanban, Component: lazy(() => import('./equipe/Tableau')) },
       { path: '/mon-mois', label: 'Mon mois', icon: BadgeCheck, Component: lazy(() => import('./equipe/MonMois')) },
       { path: '/personnel', label: 'Ressources humaines', icon: UsersRound, Component: lazy(() => import('./equipe/Personnel')) },
+      /* LES PRÊTS AU PERSONNEL — 14 octobre 2026, décision de la direction :
+         les prêts consentis à l'équipe vivent aux Ressources humaines, à côté
+         de la paie qui les rembourse ; le même écran des prêts, lu pour
+         l'équipe seule. La direction et le département Finances y gardent
+         l'accès (`peutVoir`). */
+      { path: '/prets-personnel', horsMenu: true, label: 'Les prêts au personnel', icon: PoigneeDeMain, Component: lazy(() => import('./finances/Prets')) },
       { path: '/prestataires', label: 'Prestataires', icon: Handshake, Component: lazy(() => import('./equipe/Prestataires')) },
     ],
   },
@@ -211,6 +217,71 @@ export const NAV: TroneGroup[] = [
     ],
   },
 ];
+
+/* ══ LA BARRE RÉUNIE — 14 octobre 2026 ═══════════════════════════════════
+   « Il y a certaines rubriques dans la barre qui peuvent être fusionnées »
+   (Yéman). Analyse 7tZF49MT…, quatorze fusions cochées sur quinze (les
+   vitrines et les QR codes restent séparés), et les prêts au personnel aux
+   Ressources humaines : 53 rubriques deviennent 39.
+
+   UN ÉCRAN RÉUNI EST UNE BARRE D'ONGLETS AU-DESSUS DES ÉCRANS D'AVANT,
+   inchangés. Chaque onglet garde SON adresse : les liens, les alertes, les
+   notifications et les fonctions qui menaient à `/tableau` ou `/consultations`
+   y mènent toujours, et la garde d'écran (`peutVoir`) juge chaque onglet comme
+   elle jugeait l'écran. D'où le choix de la direction, tenu sans rien
+   ajouter : chacun garde exactement ce qu'il voyait, onglet par onglet.
+
+   La rubrique de la barre prend le titre de la réunion et mène au premier
+   onglet que la personne peut ouvrir (`cheminOuvert`). Les écrans absorbés
+   restent dans NAV, hors de la barre : un ancien domaine ne cite jamais un
+   écran disparu (verifie-porte). Les Recommandations, vides depuis toujours,
+   quittent seulement la barre. */
+export type Reunion = { hote: string; titre: string; onglets: { path: string; label: string }[] };
+export const REUNIONS: readonly Reunion[] = [
+  { hote: '/centre-de-commande', titre: 'Centre de commande', onglets: [{ path: '/centre-de-commande', label: 'Le centre' }, { path: '/atelier-des-contenus', label: 'Les contenus' }] },
+  { hote: '/synthese', titre: 'Synthèse & bilan', onglets: [{ path: '/synthese', label: 'Le résultat' }, { path: '/bilan-mensuel', label: 'Le mois jour par jour' }] },
+  { hote: '/analytics', titre: 'Les tendances', onglets: [{ path: '/analytics', label: 'L’analyse' }, { path: '/cadence', label: 'La cadence' }] },
+  { hote: '/conversations', titre: 'Conversations', onglets: [{ path: '/conversations', label: 'WhatsApp' }, { path: '/appels', label: 'Les appels' }] },
+  { hote: '/demandes', titre: 'Demandes & consultations', onglets: [{ path: '/demandes', label: 'Les demandes' }, { path: '/consultations', label: 'Les consultations' }] },
+  { hote: '/home-rituals', titre: 'Stock & Achats', onglets: [{ path: '/home-rituals', label: 'Stock & achats' }, { path: '/fournisseurs', label: 'Les fournisseurs' }] },
+  { hote: '/comptes', titre: 'Avoirs & cartes cadeaux', onglets: [{ path: '/comptes', label: 'Comptes & avoirs' }, { path: '/cartes-cadeaux', label: 'Les cartes cadeaux' }] },
+  { hote: '/caisses', titre: 'Caisses & coffre', onglets: [{ path: '/caisses', label: 'Les caisses' }, { path: '/coffre', label: 'Le coffre' }] },
+  { hote: '/prets', titre: 'Prêts & compte courant', onglets: [{ path: '/prets', label: 'Les prêts' }, { path: '/compte-courant', label: 'Le compte courant' }] },
+  { hote: '/marketing', titre: 'Marketing', onglets: [{ path: '/marketing', label: 'Le marketing' }, { path: '/personas', label: 'Les personas' }] },
+  { hote: '/fil', titre: 'Le Fil', onglets: [{ path: '/fil', label: 'Le fil' }, { path: '/tableau', label: 'Le tableau' }] },
+  { hote: '/personnel', titre: 'Ressources humaines', onglets: [{ path: '/personnel', label: 'Ressources humaines' }, { path: '/prets-personnel', label: 'Les prêts au personnel' }] },
+  { hote: '/parametres', titre: 'Paramètres', onglets: [{ path: '/parametres', label: 'Les réglages' }, { path: '/marque', label: 'La marque et le thème' }, { path: '/branches', label: 'Les branches' }] },
+];
+/** Hors de la barre sans réunion : l'adresse reste, l'écran aussi. */
+export const RETIRES_DE_LA_BARRE: readonly string[] = ['/recommandations'];
+
+/* Les écrans d'avant, gardés pour l'écran réuni qui les montre en onglets. */
+const ECRANS_D_AVANT = new Map<string, LazyExoticComponent<ComponentType>>();
+const EcranReuni = lazy(() => import('./_reuni'));
+
+function reunisLaBarre(nav: TroneGroup[]): TroneGroup[] {
+  const reunionDuChemin = new Map<string, Reunion>();
+  for (const r of REUNIONS) for (const o of r.onglets) reunionDuChemin.set(o.path, r);
+  return nav.map((g) => ({
+    ...g,
+    items: g.items.map((it) => {
+      if (RETIRES_DE_LA_BARRE.includes(it.path)) return { ...it, horsMenu: true };
+      const r = reunionDuChemin.get(it.path);
+      if (!r) return it;
+      ECRANS_D_AVANT.set(it.path, it.Component);
+      return r.hote === it.path
+        ? { ...it, label: r.titre, Component: EcranReuni }
+        : { ...it, horsMenu: true, Component: EcranReuni };
+    }),
+  }));
+}
+
+export const NAV: TroneGroup[] = reunisLaBarre(NAV_DES_ECRANS);
+
+/** L'écran d'avant d'un chemin réuni (l'écran réuni le montre en onglet). */
+export const ecranDAvant = (path: string): LazyExoticComponent<ComponentType> | undefined => ECRANS_D_AVANT.get(path);
+/** La réunion dont ce chemin est un onglet, s'il l'est. */
+export const reunionDe = (path: string): Reunion | undefined => REUNIONS.find((r) => r.onglets.some((o) => o.path === path));
 
 /* ── CE QU'UN RÔLE OUVRE ────────────────────────────────────────────────
    La barre affichait les vingt-cinq écrans à quiconque se connectait. Le
@@ -325,7 +396,7 @@ export const ANCIENS_DOMAINES: Record<string, string[]> = {
    un : la table ci-dessus ne se met pas à jour. Il s'ouvre par son
    département seul. On les NOMME ici, pour que la barre et la photographie
    restent vérifiables : un écran absent des deux listes est un oubli. */
-export const ECRANS_NES_APRES_LES_DEPARTEMENTS: readonly string[] = ['/compte-courant', '/parrainages', '/cartes-cadeaux', '/secretariat', '/centre-de-commande', '/atelier-des-contenus', '/chiffre-des-prestations'];
+export const ECRANS_NES_APRES_LES_DEPARTEMENTS: readonly string[] = ['/compte-courant', '/parrainages', '/cartes-cadeaux', '/secretariat', '/centre-de-commande', '/atelier-des-contenus', '/chiffre-des-prestations', '/prets-personnel'];
 
 /** L'ancien domaine d'un écran, celui d'avant les départements. */
 export const ancienDomaineDe = (path: string): string | undefined =>
@@ -373,6 +444,10 @@ export const peutVoir = (
   path: string,
   acces: Record<string, boolean> = {},
 ): boolean => {
+  /* LES PRÊTS AU PERSONNEL (14 octobre 2026) s'ouvrent à qui ouvre les prêts :
+     la direction et le département Finances, même si le reste des RH leur
+     est fermé. */
+  if (path === '/prets-personnel') return peutVoir(role, '/prets', acces);
   if (ROUTES_SOUVERAIN.includes(path)) return role === 'souverain';
   if (ROUTES_DIRECTION.includes(path)) return role === 'souverain' || role === 'gerant';
   if (role !== 'maitre') return true;
@@ -432,8 +507,22 @@ export const premierEcranVisible = (
   if (peutVoir(role, accueil, acces)) return accueil;
   for (const g of NAV) {
     for (const it of g.items) {
-      if (!it.horsMenu && peutVoir(role, it.path, acces)) return it.path;
+      const ou = it.horsMenu ? null : cheminOuvert(role, it.path, acces);
+      if (ou) return ou;
     }
   }
   return null;
+};
+
+/** OÙ MÈNE UNE RUBRIQUE DE LA BARRE (14 octobre 2026) : son chemin s'il est
+    ouvert ; pour un écran réuni, le premier onglet que la personne peut
+    ouvrir ; `null` si aucun. */
+export const cheminOuvert = (
+  role: string | undefined,
+  path: string,
+  acces: Record<string, boolean> = {},
+): string | null => {
+  const r = REUNIONS.find((x) => x.hote === path);
+  if (!r) return peutVoir(role, path, acces) ? path : null;
+  return r.onglets.find((o) => peutVoir(role, o.path, acces))?.path ?? null;
 };
