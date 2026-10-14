@@ -1,0 +1,506 @@
+<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head><body><title>Le chiffre des prestations</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,400&family=Jost:wght@300;400;500&display=swap">
+<style>
+/* La maquette suit le Trône : ivoire et indigo, cuivre en accent, Cormorant pour les titres, Jost pour le texte et les chiffres. */
+:root { --fond:#F6F1E7; --carte:#FFFDF9; --ecran:#FBF8F2; --encre:#1E2150; --texte:#2A2722; --doux:#5E5750; --filet:#E3DACB; --cuivre:#9A6036; --cuivre-clair:#F3E6D8; --puce:#EFE6D6; --vert:#2F6B4F; --vert-clair:#E3F0E8; --rouge:#8F3B30; --rouge-clair:#F7E7E3; --barre:#1E2150; --barre-texte:#F6F1E7; color-scheme: light; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --fond:#15173A; --carte:#1E2150; --ecran:#1A1C45; --encre:#F6F1E7; --texte:#E9E3D7; --doux:#B9B4C9; --filet:#2E3266; --cuivre:#D6A06F; --cuivre-clair:#3A2E3A; --puce:#272B6C; --vert:#8FD1AE; --vert-clair:#1F3B3A; --rouge:#E7A193; --rouge-clair:#3B2433; --barre:#0F1130; --barre-texte:#F6F1E7; color-scheme: dark; } }
+:root[data-theme="dark"] { --fond:#15173A; --carte:#1E2150; --ecran:#1A1C45; --encre:#F6F1E7; --texte:#E9E3D7; --doux:#B9B4C9; --filet:#2E3266; --cuivre:#D6A06F; --cuivre-clair:#3A2E3A; --puce:#272B6C; --vert:#8FD1AE; --vert-clair:#1F3B3A; --rouge:#E7A193; --rouge-clair:#3B2433; --barre:#0F1130; --barre-texte:#F6F1E7; color-scheme: dark; }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--fond); color: var(--texte); font: 300 16px/1.6 "Jost", system-ui, sans-serif; padding-block: 32px 80px; padding-inline: 16px; }
+.page { max-width: 1120px; margin: 0 auto; display: grid; grid-template-columns: minmax(0, 1fr); gap: 34px; }
+.page > * { min-width: 0; }
+a { color: var(--cuivre); }
+h1, h2, h3, legend, .compteur b { font-variant-numeric: lining-nums tabular-nums; }
+.n { font: 400 .72em "Jost", sans-serif; color: var(--cuivre); margin-right: 8px; vertical-align: 2px; }
+.sur { font-size: 11.5px; letter-spacing: .18em; text-transform: uppercase; color: var(--cuivre); margin: 0; font-weight: 400; }
+h1 { font: 300 clamp(36px, 6vw, 56px)/1.05 "Cormorant Garamond", Georgia, serif; color: var(--encre); margin: 6px 0 0; text-wrap: balance; }
+h2 { font: 400 32px/1.15 "Cormorant Garamond", Georgia, serif; color: var(--encre); margin: 10px 0 0; text-wrap: balance; }
+h3 { font: 400 22px/1.2 "Cormorant Garamond", Georgia, serif; color: var(--encre); margin: 0; }
+.chapeau { color: var(--doux); max-width: 70ch; margin: 12px 0 0; }
+.dit { color: var(--doux); margin: 4px 0 0; max-width: 70ch; }
+.carte-mod { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 250px), 1fr)); gap: 12px; margin-top: 14px; }
+.mod { background: var(--carte); border: 1px solid var(--filet); border-radius: 6px; padding: 14px 16px; display: grid; gap: 6px; align-content: start; text-align: left; font: inherit; color: inherit; cursor: pointer; }
+.mod:hover, .mod:focus-visible { border-color: var(--cuivre); outline: none; }
+.mod h3 { font-size: 21px; }
+.mod p { margin: 0; font-size: 14px; color: var(--doux); }
+.etat { justify-self: start; font-size: 12px; letter-spacing: .04em; border-radius: 999px; padding: 2px 10px; }
+.etat.place { background: var(--vert-clair); color: var(--vert); }
+.etat.relier { background: var(--cuivre-clair); color: var(--cuivre); }
+.etat.neuf { border: 1px solid var(--cuivre); color: var(--cuivre); }
+.legende { display: flex; flex-wrap: wrap; gap: 8px 16px; font-size: 13px; color: var(--doux); margin-top: 10px; align-items: center; }
+
+/* Le parcours d'une personne : une vraie suite, donc numérotée. */
+.parcours { list-style: none; margin: 16px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 128px), 1fr)); gap: 0; counter-reset: pas; border: 1px solid var(--filet); border-radius: 8px; overflow: clip; background: var(--carte); }
+.parcours li { counter-increment: pas; padding: 12px 14px 14px; border-right: 1px solid var(--filet); display: grid; gap: 4px; align-content: start; }
+.parcours li:last-child { border-right: 0; }
+.parcours li::before { content: counter(pas); font: 400 12px "Jost", sans-serif; color: var(--cuivre); letter-spacing: .1em; }
+.parcours b { font: 400 18px/1.2 "Cormorant Garamond", serif; color: var(--encre); }
+.parcours span { font-size: 13px; color: var(--doux); }
+.parcours li.vie { background: var(--cuivre-clair); }
+@media (max-width: 700px) { .parcours li { border-right: 0; border-bottom: 1px solid var(--filet); } .parcours li:last-child { border-bottom: 0; } }
+
+/* Les fuites : ce qui se ferme avant tout le reste. */
+.fuites { display: grid; gap: 10px; margin-top: 14px; }
+.fuite { background: var(--rouge-clair); border: 1px solid var(--rouge); border-radius: 6px; padding: 12px 16px; display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 4px 14px; font-size: 14.5px; }
+.fuite .k { font: 400 26px/1 "Cormorant Garamond", serif; color: var(--rouge); grid-row: span 2; }
+.fuite b { color: var(--encre); font-weight: 500; }
+.fuite span { color: var(--doux); }
+
+/* L'écran */
+.ecran { background: var(--ecran); border: 1px solid var(--filet); border-radius: 10px; overflow: clip; margin-top: 14px; }
+.ecran-barre { background: var(--barre); color: var(--barre-texte); padding: 10px 16px; font-size: 13px; letter-spacing: .04em; display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.onglets { display: flex; gap: 4px; overflow-x: auto; padding: 10px 12px 0; border-bottom: 1px solid var(--filet); scrollbar-width: thin; }
+.onglet { font: 400 14px "Jost", sans-serif; color: var(--doux); background: none; border: 0; border-bottom: 2px solid transparent; padding: 8px 12px; white-space: nowrap; cursor: pointer; }
+.onglet[aria-selected="true"] { color: var(--encre); border-bottom-color: var(--cuivre); }
+.onglet small { font-size: 11px; color: var(--vert); margin-left: 4px; }
+.onglet:focus-visible, .bouton:focus-visible, .ligne > button:focus-visible { outline: 2px solid var(--cuivre); outline-offset: 2px; }
+.vue { padding: 16px; display: grid; gap: 14px; }
+.vue[hidden] { display: none; }
+.vue > * { min-width: 0; }
+.outils { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: space-between; }
+.bouton { font: 400 14px "Jost", sans-serif; border-radius: 6px; padding: 7px 14px; border: 1px solid var(--filet); background: var(--carte); color: var(--encre); cursor: pointer; }
+.bouton.plein { background: var(--encre); color: var(--fond); border-color: var(--encre); }
+.bouton.cuivre { background: var(--cuivre); color: var(--carte); border-color: var(--cuivre); }
+.compteurs { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+.compteur { background: var(--carte); border: 1px solid var(--filet); border-radius: 6px; padding: 10px 12px; }
+.compteur b { display: block; font: 300 28px/1.15 "Jost", sans-serif; color: var(--encre); font-variant-numeric: lining-nums tabular-nums; }
+.compteur span { font-size: 13px; color: var(--doux); }
+.compteur.alerte { border-color: var(--cuivre); }
+.lignes { display: grid; gap: 6px; }
+.ligne { background: var(--carte); border: 1px solid var(--filet); border-radius: 6px; }
+.ligne > button { width: 100%; text-align: left; font: inherit; color: inherit; background: none; border: 0; padding: 10px 14px; display: grid; grid-template-columns: 150px minmax(0, 1fr) auto; gap: 4px 14px; align-items: baseline; cursor: pointer; }
+.ligne > button .num { font-variant-numeric: lining-nums tabular-nums; color: var(--cuivre); font-weight: 400; font-size: 14px; }
+.ligne > button .quoi { color: var(--encre); }
+.ligne > button .quoi small { display: block; color: var(--doux); font-size: 13px; }
+.ligne .detail { border-top: 1px dashed var(--filet); padding: 10px 14px 14px; font-size: 14px; display: grid; gap: 8px; }
+.ligne .detail[hidden] { display: none; }
+.ligne .gestes { display: flex; flex-wrap: wrap; gap: 6px; }
+.badge { font-size: 12px; border-radius: 999px; padding: 1px 9px; white-space: nowrap; background: var(--puce); color: var(--encre); }
+.badge.alerte { background: var(--cuivre-clair); color: var(--cuivre); }
+.badge.fait { background: var(--vert-clair); color: var(--vert); }
+.badge.rouge { background: var(--rouge-clair); color: var(--rouge); }
+.vrai, .ex, .manque { font-size: 11px; letter-spacing: .06em; text-transform: uppercase; border-radius: 3px; padding: 0 5px; margin-left: 6px; vertical-align: 1px; white-space: nowrap; }
+.vrai { color: var(--vert); border: 1px solid var(--vert); }
+.ex { color: var(--doux); border: 1px solid var(--filet); }
+.manque { color: var(--cuivre); border: 1px dashed var(--cuivre); }
+.mois { font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: var(--doux); margin: 6px 0 0; }
+.note { font-size: 13.5px; color: var(--doux); margin: 0; }
+.sous-titre { font: 400 19px/1.25 "Cormorant Garamond", serif; color: var(--encre); margin: 6px 0 0; }
+
+/* Tableaux : listes de cases, grilles de compétences, planning. Chacun glisse dans son cadre, jamais la page. */
+.cadre { overflow-x: auto; border: 1px solid var(--filet); border-radius: 6px; background: var(--carte); }
+table { border-collapse: collapse; width: 100%; font-size: 14px; }
+th { text-align: left; font-weight: 400; font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--doux); padding: 9px 12px; border-bottom: 1px solid var(--filet); white-space: nowrap; }
+td { padding: 9px 12px; border-bottom: 1px solid var(--filet); vertical-align: top; }
+tr:last-child td { border-bottom: 0; }
+td.qui { color: var(--encre); white-space: nowrap; }
+td.num { font-variant-numeric: lining-nums tabular-nums; white-space: nowrap; }
+.grille td.niv { text-align: center; white-space: nowrap; font-size: 13px; }
+.niv i { display: inline-block; width: 12px; height: 12px; border-radius: 50%; border: 1px solid var(--cuivre); vertical-align: -1px; margin-right: 5px; }
+.niv.forme i { background: linear-gradient(90deg, var(--cuivre) 50%, transparent 50%); }
+.niv.auto i { background: var(--cuivre); }
+.niv.ref i { background: var(--encre); border-color: var(--encre); }
+.niv.rien { color: var(--doux); }
+.planning td.jour { font-size: 12.5px; text-align: center; white-space: nowrap; }
+.planning .p-f { background: var(--cuivre-clair); color: var(--cuivre); }
+.planning .p-a { background: var(--puce); color: var(--encre); }
+.planning .p-r { color: var(--doux); }
+.planning .p-c { background: var(--vert-clair); color: var(--vert); }
+.coches { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; font-size: 14px; }
+.coches li { display: grid; grid-template-columns: 20px minmax(0, 1fr) auto; gap: 8px; align-items: baseline; }
+.coches li::before { content: ""; width: 14px; height: 14px; border: 1px solid var(--filet); border-radius: 3px; translate: 0 2px; }
+.coches li.ok::before { background: var(--vert); border-color: var(--vert); }
+.coches li.non::before { border-color: var(--cuivre); border-style: dashed; }
+.etapes { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 230px), 1fr)); gap: 10px; }
+.etape { background: var(--carte); border: 1px solid var(--filet); border-radius: 6px; padding: 12px 14px; display: grid; gap: 8px; align-content: start; }
+.etape h4 { margin: 0; font: 400 12px "Jost", sans-serif; letter-spacing: .14em; text-transform: uppercase; color: var(--cuivre); }
+.colonnes { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr)); gap: 10px; }
+.colonne { background: var(--carte); border: 1px solid var(--filet); border-radius: 6px; padding: 10px 12px; display: grid; gap: 8px; align-content: start; }
+.colonne h4 { margin: 0; font: 400 12px "Jost", sans-serif; letter-spacing: .12em; text-transform: uppercase; color: var(--doux); display: flex; justify-content: space-between; }
+.fichette { border: 1px solid var(--filet); border-radius: 5px; padding: 8px 10px; font-size: 13.5px; background: var(--ecran); display: grid; gap: 2px; }
+.fichette b { color: var(--encre); font-weight: 400; }
+.fichette small { color: var(--doux); font-size: 12.5px; }
+
+/* Mon espace : l'écran tel que le téléphone d'une employée le montre. */
+.tel { max-width: 360px; justify-self: center; width: 100%; border: 1px solid var(--filet); border-radius: 26px; padding: 18px 14px 22px; background: var(--fond); display: grid; gap: 10px; }
+.tel .bonjour { font: 400 24px/1.1 "Cormorant Garamond", serif; color: var(--encre); margin: 0; }
+.tel .tuile { background: var(--carte); border: 1px solid var(--filet); border-radius: 10px; padding: 10px 12px; display: grid; gap: 4px; font-size: 14px; }
+.tel .tuile b { font: 300 26px/1.1 "Jost", sans-serif; color: var(--encre); font-variant-numeric: lining-nums tabular-nums; }
+.tel .tuile span { color: var(--doux); font-size: 13px; }
+.cote { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+@media (max-width: 760px) { .cote { grid-template-columns: minmax(0, 1fr); } }
+
+.regles { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap: 12px; margin-top: 14px; }
+.bloc { background: var(--carte); border: 1px solid var(--filet); border-radius: 6px; padding: 16px 18px; font-size: 14.5px; }
+.bloc.indigo { background: var(--encre); color: var(--fond); border-color: var(--encre); }
+.bloc.indigo h3 { color: var(--fond); }
+.bloc ul, .bloc ol { margin: 8px 0 0; padding-left: 20px; display: grid; gap: 5px; }
+.bloc.manques { border: 1px dashed var(--cuivre); }
+.arbitrage { background: var(--carte); border: 1px solid var(--filet); border-radius: 6px; padding: 16px 18px; display: grid; gap: 10px; }
+.arbitrage fieldset { border: 0; margin: 0; padding: 0; display: grid; gap: 8px; }
+.arbitrage legend { font: 400 21px/1.25 "Cormorant Garamond", serif; color: var(--encre); margin-bottom: 4px; padding: 0; }
+.choix { display: flex; gap: 10px; align-items: flex-start; border: 1px solid var(--filet); border-radius: 6px; padding: 9px 12px; cursor: pointer; font-size: 14.5px; }
+.choix:has(input:checked) { border-color: var(--cuivre); background: var(--cuivre-clair); }
+.choix input { accent-color: var(--cuivre); margin-top: 4px; flex: none; }
+.choix b { color: var(--encre); font-weight: 500; }
+.choix em { font-style: normal; color: var(--cuivre); font-size: 12.5px; letter-spacing: .04em; margin-left: 6px; }
+.etat-choix { font-size: 13px; color: var(--vert); min-height: 1.4em; margin: 0; }
+.lots { display: grid; gap: 10px; margin-top: 14px; }
+.lot { background: var(--carte); border: 1px solid var(--filet); border-left: 3px solid var(--cuivre); border-radius: 6px; padding: 12px 16px; font-size: 14.5px; }
+.sources { font-size: 12.5px; color: var(--doux); margin: 8px 0 0; }
+@media (max-width: 560px) { .ligne > button { grid-template-columns: minmax(0, 1fr) auto; } .ligne > button .num { grid-column: 1 / -1; } }
+@media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
+@media print { body { padding: 0; } .onglets, .bouton { display: none; } .vue[hidden] { display: grid !important; } .ligne .detail[hidden] { display: grid !important; } .arbitrage, .bloc, .mod, .lot, .fuite, .etape { break-inside: avoid; } }
+/* ── L'écran du chiffre ── */
+.filtres { display: grid; gap: 10px; }
+.filtre { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.filtre > span { font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--doux); min-width: 92px; }
+.puce { font: 400 13.5px "Jost", sans-serif; border: 1px solid var(--filet); background: var(--carte); color: var(--texte); border-radius: 999px; padding: 4px 12px; cursor: pointer; }
+.puce[aria-pressed="true"] { background: var(--encre); color: var(--fond); border-color: var(--encre); }
+.puce:focus-visible, .chercher:focus-visible, .rang:focus-visible { outline: 2px solid var(--cuivre); outline-offset: 2px; }
+.chercher { font: 300 14px "Jost", sans-serif; border: 1px solid var(--filet); background: var(--carte); color: var(--texte); border-radius: 6px; padding: 7px 10px; flex: 1 1 220px; min-width: 0; max-width: 360px; }
+.resume { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 170px), 1fr)); gap: 10px; }
+.resume div { background: var(--carte); border: 1px solid var(--filet); border-radius: 6px; padding: 10px 12px; display: grid; gap: 2px; }
+.resume b { font: 300 24px/1.15 "Jost", sans-serif; color: var(--encre); font-variant-numeric: lining-nums tabular-nums; }
+.resume span { font-size: 12.5px; color: var(--doux); }
+.tableau { width: 100%; border-collapse: collapse; font-size: 13.5px; min-width: 760px; }
+.tableau th { text-align: left; font-weight: 400; font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--doux); padding: 8px 10px; border-bottom: 1px solid var(--filet); white-space: nowrap; }
+.tableau th.n, .tableau td.n { text-align: right; }
+.tableau td { padding: 8px 10px; border-bottom: 1px solid var(--filet); vertical-align: middle; font-variant-numeric: lining-nums tabular-nums; }
+.tableau tbody tr { cursor: pointer; }
+.tableau tbody tr:hover, .tableau tbody tr.choisie { background: var(--cuivre-clair); }
+.tableau td.nom b { color: var(--encre); font-weight: 400; display: block; }
+.tableau td.nom small { color: var(--doux); font-size: 12px; }
+.tableau tfoot td { font-weight: 500; color: var(--encre); border-bottom: 0; }
+.part { display: flex; align-items: center; gap: 8px; min-width: 120px; }
+.part i { display: block; height: 7px; border-radius: 999px; background: var(--cuivre); }
+.part span { font-size: 12.5px; color: var(--doux); min-width: 38px; text-align: right; }
+.monte { color: var(--vert); }
+.baisse { color: var(--rouge); }
+.detail-ligne { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 16px; }
+.detail-ligne > div { background: var(--carte); border: 1px solid var(--filet); border-radius: 6px; padding: 12px 14px; min-width: 0; }
+.graphe { width: 100%; height: auto; display: block; }
+.graphe text { font: 400 10.5px "Jost", sans-serif; fill: var(--doux); }
+.graphe .barre { fill: var(--cuivre); }
+.graphe .barre.periode { fill: var(--encre); }
+.graphe .grille { stroke: var(--filet); stroke-width: 1; }
+.rituels { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 4px; font-size: 13px; }
+.rituels li { display: flex; justify-content: space-between; gap: 10px; border-bottom: 1px dashed var(--filet); padding-bottom: 4px; }
+.rituels li span:last-child { font-variant-numeric: lining-nums tabular-nums; color: var(--encre); white-space: nowrap; }
+@media (max-width: 760px) { .detail-ligne { grid-template-columns: minmax(0, 1fr); } .filtre > span { min-width: 0; width: 100%; } }
+</style>
+<div class="page">
+<header>
+<p class="sur">Maison MND · Maquette à valider · 14 octobre 2026</p>
+<h1>Le chiffre des prestations</h1>
+<p class="chapeau">Interroger le catalogue : choisir une période, une ou plusieurs prestations, une famille ou une maison, et voir ce qu’elles ont rapporté, combien de fois elles ont été faites, à quel prix réel, et ce qui en est déjà encaissé. Deux écrans le disent déjà en partie ; celui-ci répond à toutes les questions au même endroit. Rien n’est construit avant votre validation.</p>
+</header>
+
+<section aria-labelledby="t-existe">
+<h2 id="t-existe">Ce qui existe déjà</h2>
+<div class="regles">
+<div class="bloc"><h3>Vente &amp; Caisse › Catalogue</h3><p class="note" style="margin-top:6px">Sous chaque prestation : « ◈ 12 honorés · 3 à venir · 450 000 F générés », et le détail en un toucher <span class="vrai">vrai</span>. Mais depuis toujours, toutes branches confondues : pas de période, pas de comparaison, pas de classement.</p></div>
+<div class="bloc"><h3>Finances › Synthèse &amp; résultat</h3><p class="note" style="margin-top:6px">« Top prestations » du mois choisi, et le chiffre de l’Atelier et du Studio <span class="vrai">vrai</span>. Mais cinq prestations seulement, mois par mois, pour la branche ouverte.</p></div>
+</div>
+</section>
+
+<section aria-labelledby="t-ecran" id="ecran">
+<h2 id="t-ecran">L’écran, tel qu’il serait dans le Trône</h2>
+<p class="dit">Les noms des gestes sont ceux de la Maison <span class="vrai">vrai</span>. Les prix, les nombres de rituels et les montants sont inventés pour montrer la forme <span class="ex">exemple</span> : ce ne sont pas vos chiffres. Tout ici se touche.</p>
+<div class="ecran">
+<div class="ecran-barre"><span>Finances › Le chiffre des prestations</span><span>Maquette : chiffres d’exemple, l’export ne fait rien</span></div>
+<div class="vue">
+<div class="filtres">
+<div class="filtre" role="group" aria-label="Période"><span>Période</span>
+<button class="puce" data-periode="mois" aria-pressed="true">Octobre 2026</button>
+<button class="puce" data-periode="moisPrec" aria-pressed="false">Septembre 2026</button>
+<button class="puce" data-periode="trois" aria-pressed="false">3 derniers mois</button>
+<button class="puce" data-periode="annee" aria-pressed="false">Année 2026</button>
+<button class="puce" data-periode="douze" aria-pressed="false">12 derniers mois</button>
+</div>
+<div class="filtre" role="group" aria-label="Regrouper"><span>Regrouper</span>
+<button class="puce" data-groupe="prestation" aria-pressed="true">Par prestation</button>
+<button class="puce" data-groupe="famille" aria-pressed="false">Par famille</button>
+<button class="puce" data-groupe="maison" aria-pressed="false">Par maison</button>
+</div>
+<div class="filtre"><span>Chercher</span><input id="chercher" class="chercher" type="search" placeholder="Resserrage, DÀNDÀN, tresses…" aria-label="Chercher une prestation"><button class="bouton" type="button">Exporter (CSV)</button></div>
+</div>
+<div class="resume" id="resume"></div>
+<div class="cadre"><table class="tableau" id="tableau"><thead><tr><th>#</th><th>Prestation</th><th class="n">Rituels</th><th class="n">Chiffre</th><th>Part du total</th><th class="n">Prix réel moyen</th><th class="n">Remise</th><th class="n">Évolution</th><th class="n">Dont encaissé</th></tr></thead><tbody></tbody><tfoot></tfoot></table></div>
+<p class="note" id="note-tableau"></p>
+<div class="detail-ligne" id="detail" hidden>
+<div><p class="sous-titre" id="detail-titre" style="margin:0"></p><p class="note" id="detail-sous"></p><svg class="graphe" id="graphe" viewBox="0 0 520 190" role="img" aria-label="Chiffre mois par mois"></svg></div>
+<div><p class="sous-titre" style="margin:0">Les derniers rituels</p><ul class="rituels" id="rituels"></ul><p class="note" style="margin-top:8px">Chaque ligne s’ouvre sur sa facture ou son rendez-vous, comme aujourd’hui dans le Catalogue.</p></div>
+</div>
+</div>
+</div>
+</section>
+
+<section aria-labelledby="t-regle">
+<h2 id="t-regle">Comment le chiffre se compte</h2>
+<p class="dit">Les règles du Trône d’aujourd’hui, reprises telles quelles : le même chiffre ici, au Catalogue et à la Synthèse.</p>
+<div class="regles">
+<div class="bloc"><h3>Un rituel honoré, après remise</h3><p class="note" style="margin-top:6px">Le chiffre d’une prestation est la valeur des rituels honorés qui la portent, remise déduite. Un rendez-vous annulé ne compte pas ; un rendez-vous à venir se compte à part, sans montant <span class="vrai">vrai</span>.</p></div>
+<div class="bloc"><h3>Un rituel à plusieurs gestes</h3><p class="note" style="margin-top:6px">Son montant se partage entre ses prestations au prorata de leurs prix de carte : la somme des parts est toujours le montant du rituel. Une visite qui enchaîne un resserrage et des tresses nourrit l’Atelier et le Studio <span class="vrai">vrai</span>.</p></div>
+<div class="bloc"><h3>Une série, une formule</h3><p class="note" style="margin-top:6px">Les séances 2 et suivantes d’une série valent 0 F : jamais deux fois le même argent <span class="vrai">vrai</span>. Une formule se compte à sa vente ; comment la montrer est le choix 2 ci-dessous.</p></div>
+<div class="bloc"><h3>Le chiffre et l’argent</h3><p class="note" style="margin-top:6px">Un rituel honoré mais pas encore réglé compte dans le chiffre, pas dans « dont encaissé ». L’écart des deux colonnes dit ce qui reste à faire payer. Les revenus du mois, eux, ne comptent que l’argent reçu (Synthèse).</p></div>
+</div>
+</section>
+
+<section aria-labelledby="t-fera">
+<h2 id="t-fera">Ce qu’il fera, ce qu’il ne fera pas</h2>
+<div class="regles">
+<div class="bloc indigo"><h3>La règle à retenir</h3><p style="margin:8px 0 0">Un chiffre qu’on ne peut pas ouvrir n’est pas un chiffre. Chaque montant de cet écran s’ouvre sur les rituels qui le font : qui, quand, combien.</p></div>
+<div class="bloc"><h3>Il ne fera pas</h3><ul>
+<li>Toucher aux prix de la carte : il les lit.</li>
+<li>Prévoir ou deviner : il compte ce qui a eu lieu, et dit à part ce qui est réservé.</li>
+<li>Remplacer la Synthèse ni le Bilan : le résultat du mois reste là-bas.</li>
+<li>Montrer ce que chaque main a gagné : la production de chacune reste aux Ressources humaines.</li>
+</ul></div>
+<div class="bloc"><h3>Les questions qu’il permet</h3><ul>
+<li>Combien a rapporté le resserrage cette année, et à quel prix réel ?</li>
+<li>Quelle famille de gestes a le plus progressé sur trois mois ?</li>
+<li>Quelle part du chiffre vient du Studio ?</li>
+<li>Quelle prestation est souvent remisée ?</li>
+<li>Qu’est-ce qui n’est pas encore encaissé ?</li>
+</ul></div>
+</div>
+</section>
+
+<section aria-labelledby="t-choix">
+<h2 id="t-choix">Quatre choix à faire</h2>
+<p class="dit">Ma proposition est marquée. Vos choix s’enregistrent d’un toucher : je les lis avant de construire.</p>
+<div class="regles">
+<form class="arbitrage" data-cle="chiffre"><fieldset><legend><span class="n">1</span> Le chiffre qui fait foi</legend>
+<label class="choix"><input type="radio" name="chiffre" value="honore"><span><b>Les rituels honorés, avec « dont encaissé »</b><em>ma proposition</em><br>Le même chiffre qu’au Catalogue et à la Synthèse, et à côté ce qui en est déjà payé.</span></label>
+<label class="choix"><input type="radio" name="chiffre" value="encaisse"><span><b>L’argent encaissé seulement</b><br>Ce qui est entré dans les caisses pour chaque prestation, rien d’autre.</span></label>
+<label class="choix"><input type="radio" name="chiffre" value="deux"><span><b>Les deux, côte à côte, à égalité</b><br>Deux colonnes de même poids ; le classement suit l’une ou l’autre.</span></label>
+</fieldset><p class="etat-choix" aria-live="polite"></p></form>
+<form class="arbitrage" data-cle="formules"><fieldset><legend><span class="n">2</span> Les formules</legend>
+<label class="choix"><input type="radio" name="formules" value="ligne"><span><b>Une ligne à part, à la vente</b><em>ma proposition</em><br>La formule compte quand elle est vendue ; ses séances comptent en nombre, sans argent, sous leurs prestations.</span></label>
+<label class="choix"><input type="radio" name="formules" value="reparti"><span><b>Répartie sur les séances</b><br>Le prix de la formule se partage sur les séances faites ; le chiffre d’une prestation inclut sa part.</span></label>
+</fieldset><p class="etat-choix" aria-live="polite"></p></form>
+<form class="arbitrage" data-cle="ou"><fieldset><legend><span class="n">3</span> Où il vit</legend>
+<label class="choix"><input type="radio" name="ou" value="finances"><span><b>Finances › Le chiffre des prestations</b><em>ma proposition</em><br>Un écran à lui, à côté de la Synthèse : on y vient pour comprendre ce qui a rapporté.</span></label>
+<label class="choix"><input type="radio" name="ou" value="catalogue"><span><b>Un onglet du Catalogue</b><br>Là où l’on règle les prestations, sous « Vente &amp; Caisse ».</span></label>
+<label class="choix"><input type="radio" name="ou" value="synthese"><span><b>Dans la Synthèse</b><br>Le top 5 s’ouvre en tableau complet, mois par mois.</span></label>
+</fieldset><p class="etat-choix" aria-live="polite"></p></form>
+<form class="arbitrage" data-cle="qui"><fieldset><legend><span class="n">4</span> Qui le voit</legend>
+<label class="choix"><input type="radio" name="qui" value="finances"><span><b>La direction et qui tient les Finances</b><em>ma proposition</em><br>Comme la Synthèse : le département Finances, donné dans Accès &amp; rôles.</span></label>
+<label class="choix"><input type="radio" name="qui" value="direction"><span><b>La direction seule</b><br>Le souverain, comme la paie et les ressources humaines.</span></label>
+</fieldset><p class="etat-choix" aria-live="polite"></p></form>
+</div>
+</section>
+
+<section aria-labelledby="t-manque">
+<h2 id="t-manque">Ce qu’il me manque</h2>
+<div class="bloc manques" style="margin-top:14px"><ul>
+<li>Rien d’indispensable : les rendez-vous, les factures, les prix et les familles du catalogue sont déjà dans le Trône.</li>
+<li>Les questions que vous vous posez le plus souvent, pour que l’écran s’ouvre dessus (par exemple : « le resserrage, cette année »).</li>
+</ul></div>
+</section>
+
+<section aria-labelledby="t-lots">
+<h2 id="t-lots">La construction</h2>
+<div class="lots">
+<div class="lot"><b>Un seul lot.</b> Le calcul pur (période, regroupement, prorata, séries, formules, encaissé), le même que celui du Catalogue et de la Synthèse ; l’écran ; le détail qui s’ouvre ; l’export en CSV. Aucune table neuve : il lit ce qui existe.</div>
+<p class="note">Un banc le prouve, pannes plantées : la somme des parts égale le montant de chaque rituel, une séance de série ne compte jamais deux fois, et le chiffre de l’écran est celui du Catalogue sur la même période.</p>
+</div>
+</section>
+</div>
+
+<script>
+(function () {
+  /* ── Les chiffres d'exemple : douze mois, de novembre 2025 à octobre 2026 ── */
+  var MOIS = ['2025-11', '2025-12', '2026-01', '2026-02', '2026-03', '2026-04', '2026-05', '2026-06', '2026-07', '2026-08', '2026-09', '2026-10'];
+  var MOIS_DITS = ['nov.', 'déc.', 'janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.'];
+  var S = [
+    { id: 'sinsin', nom: 'Resserrage des racines', fon: 'SÍNSIN™', famille: 'Entretien', maison: 'Atelier', prix: 25000, f: 38 },
+    { id: 'kloklo', nom: 'Lavage rituel', fon: 'KLƆKLƆ™', famille: 'Entretien', maison: 'Atelier', prix: 8000, f: 30 },
+    { id: 'vekpe', nom: 'Création de locks', fon: 'VÈKPÈ™', famille: 'Création', maison: 'Atelier', prix: 150000, f: 2.2 },
+    { id: 'dandan', nom: 'Hydratation', fon: 'DÀNDÀN™', famille: 'Soins du cheveu', maison: 'Atelier', prix: 15000, f: 14 },
+    { id: 'koko', nom: 'Consultation', fon: 'KÒKÒ™', famille: 'Consultation', maison: 'Atelier', prix: 10000, f: 9 },
+    { id: 'finfin', nom: 'Restauration', fon: 'FÍNFÍN™', famille: 'Réparation', maison: 'Atelier', prix: 40000, f: 5 },
+    { id: 'gbigbi', nom: 'Reconstruction', fon: 'GBÌGBÌ™', famille: 'Réparation', maison: 'Atelier', prix: 35000, f: 3 },
+    { id: 'vivivo', nom: 'Activateur de pousse', fon: 'VÍVÍVÓ™', famille: 'Soins du cheveu', maison: 'Atelier', prix: 20000, f: 6 },
+    { id: 'wewe', nom: 'Purification', fon: 'WÈWÈ™', famille: 'Soins du cheveu', maison: 'Atelier', prix: 18000, f: 5 },
+    { id: 'yekpe', nom: 'Couleur végétale', fon: 'YÈKPÈ™', famille: 'Soins du cheveu', maison: 'Atelier', prix: 30000, f: 4 },
+    { id: 'gbata', nom: 'Défaisage', fon: 'GBÀTÀ™', famille: 'Défaisage', maison: 'Atelier', prix: 60000, f: 1.2 },
+    { id: 'tresses', nom: 'Tresses Jumbo', fon: '', famille: 'Coiffure', maison: 'Studio', prix: 25000, f: 7 },
+    { id: 'formule', nom: 'Formule de trois lunes', fon: '', famille: 'Formules', maison: 'Atelier', prix: 70000, f: 4 }
+  ];
+  var graine = 20261014;
+  function hasard() { graine = (graine * 1103515245 + 12345) % 2147483648; return graine / 2147483648; }
+  var saison = [1, 1.3, 0.9, 0.95, 1, 1.05, 1, 1, 1.05, 0.85, 1.05, 0.55];
+  var D = {};
+  S.forEach(function (s) {
+    D[s.id] = MOIS.map(function (m, i) {
+      var n = Math.max(0, Math.round(s.f * (0.75 + 0.5 * hasard()) * saison[i]));
+      var remise = Math.round(hasard() * (s.id === 'formule' ? 0 : 12));
+      var valeur = Math.round(n * s.prix * (1 - remise / 100) / 100) * 100;
+      var paye = i === 11 ? 0.78 : 0.96;
+      return { n: n, valeur: valeur, remise: remise, encaisse: Math.round(valeur * paye / 100) * 100 };
+    });
+  });
+  var PERIODES = {
+    mois: { de: 11, a: 11, dit: 'octobre 2026, jusqu’au 14' },
+    moisPrec: { de: 10, a: 10, dit: 'septembre 2026' },
+    trois: { de: 9, a: 11, dit: 'août à octobre 2026' },
+    annee: { de: 2, a: 11, dit: 'janvier à octobre 2026' },
+    douze: { de: 0, a: 11, dit: 'novembre 2025 à octobre 2026' }
+  };
+  var etat = { periode: 'mois', groupe: 'prestation', q: '', choisie: null };
+  var fmt = function (x) { return Math.round(x).toLocaleString('fr-FR').replace(/ | /g, ' ') + ' F'; };
+  function somme(ids, de, a) {
+    var r = { n: 0, valeur: 0, carte: 0, encaisse: 0 };
+    ids.forEach(function (id) {
+      var s = S.filter(function (x) { return x.id === id; })[0];
+      for (var i = de; i <= a; i++) { var m = D[id][i]; r.n += m.n; r.valeur += m.valeur; r.carte += m.n * s.prix; r.encaisse += m.encaisse; }
+    });
+    return r;
+  }
+  function groupes() {
+    var q = etat.q.trim().toLowerCase();
+    var garde = S.filter(function (s) { return !q || (s.nom + ' ' + s.fon + ' ' + s.famille + ' ' + s.maison).toLowerCase().indexOf(q) >= 0; });
+    if (etat.groupe === 'prestation') return garde.map(function (s) { return { cle: s.id, nom: s.nom, sous: [s.fon, s.maison === 'Studio' ? 'Studio' : ''].filter(Boolean).join(' · '), ids: [s.id] }; });
+    var champ = etat.groupe === 'famille' ? 'famille' : 'maison';
+    var m = {};
+    garde.forEach(function (s) { (m[s[champ]] = m[s[champ]] || []).push(s); });
+    return Object.keys(m).map(function (k) { return { cle: k, nom: k, sous: m[k].length + ' prestation' + (m[k].length > 1 ? 's' : ''), ids: m[k].map(function (s) { return s.id; }) }; });
+  }
+  function rends() {
+    var p = PERIODES[etat.periode];
+    var long = p.a - p.de + 1;
+    var precDe = p.de - long, precA = p.de - 1;
+    var lignes = groupes().map(function (g) {
+      var r = somme(g.ids, p.de, p.a);
+      var prec = precDe >= 0 ? somme(g.ids, precDe, precA).valeur : null;
+      return { g: g, r: r, prec: prec };
+    }).sort(function (a, b) { return b.r.valeur - a.r.valeur; });
+    var total = lignes.reduce(function (t, l) { return t + l.r.valeur; }, 0);
+    var tEnc = lignes.reduce(function (t, l) { return t + l.r.encaisse; }, 0);
+    var tN = lignes.reduce(function (t, l) { return t + l.r.n; }, 0);
+    document.getElementById('resume').innerHTML =
+      '<div><b>' + fmt(total) + '</b><span>chiffre, ' + p.dit + '</span></div>' +
+      '<div><b>' + tN + '</b><span>rituels honorés</span></div>' +
+      '<div><b>' + fmt(tEnc) + '</b><span>dont encaissé</span></div>' +
+      '<div><b>' + fmt(total - tEnc) + '</b><span>reste à faire payer</span></div>';
+    var max = lignes.length ? Math.max.apply(null, lignes.map(function (l) { return l.r.valeur; })) || 1 : 1;
+    var corps = lignes.map(function (l, i) {
+      var part = total ? l.r.valeur / total : 0;
+      var evo = l.prec === null ? '·' : l.prec === 0 ? 'neuf' : (function () { var v = Math.round((l.r.valeur - l.prec) / l.prec * 100); return '<span class="' + (v >= 0 ? 'monte' : 'baisse') + '">' + (v >= 0 ? '+' : '') + v + ' %</span>'; })();
+      var reel = l.r.n ? l.r.valeur / l.r.n : 0;
+      var remise = l.r.carte ? Math.round((1 - l.r.valeur / l.r.carte) * 100) : 0;
+      return '<tr tabindex="0" data-cle="' + l.g.cle + '"' + (etat.choisie === l.g.cle ? ' class="choisie"' : '') + '><td>' + (i + 1) + '</td><td class="nom"><b>' + l.g.nom + '</b><small>' + l.g.sous + '</small></td><td class="n">' + l.r.n + '</td><td class="n">' + fmt(l.r.valeur) + '</td><td><div class="part"><i style="width:' + Math.round(l.r.valeur / max * 100) + 'px"></i><span>' + Math.round(part * 1000) / 10 + ' %</span></div></td><td class="n">' + (l.r.n ? fmt(reel) : '·') + '</td><td class="n">' + (remise > 0 ? remise + ' %' : '·') + '</td><td class="n">' + evo + '</td><td class="n">' + fmt(l.r.encaisse) + '</td></tr>';
+    }).join('');
+    var t = document.getElementById('tableau');
+    t.querySelector('thead th:nth-child(2)').textContent = etat.groupe === 'prestation' ? 'Prestation' : etat.groupe === 'famille' ? 'Famille' : 'Maison';
+    t.querySelector('tbody').innerHTML = corps || '<tr><td colspan="9" class="note">Aucune prestation ne répond à cette recherche.</td></tr>';
+    t.querySelector('tfoot').innerHTML = '<tr><td></td><td>Total</td><td class="n">' + tN + '</td><td class="n">' + fmt(total) + '</td><td></td><td></td><td></td><td></td><td class="n">' + fmt(tEnc) + '</td></tr>';
+    document.getElementById('note-tableau').textContent = (precDe >= 0 ? 'Évolution : par rapport à la période d’avant, de même longueur. ' : 'Évolution : pas de période d’avant dans les chiffres d’exemple. ') + 'Touchez une ligne pour l’ouvrir.';
+    t.querySelectorAll('tbody tr[data-cle]').forEach(function (tr) {
+      var ouvre = function () { etat.choisie = tr.getAttribute('data-cle'); rends(); document.getElementById('detail').scrollIntoView({ behavior: 'smooth', block: 'nearest' }); };
+      tr.addEventListener('click', ouvre);
+      tr.addEventListener('keydown', function (e) { if (e.key === 'Enter') ouvre(); });
+    });
+    rendsLeDetail(lignes, p);
+  }
+  function rendsLeDetail(lignes, p) {
+    var d = document.getElementById('detail');
+    var l = lignes.filter(function (x) { return x.g.cle === etat.choisie; })[0];
+    if (!l) { d.hidden = true; return; }
+    d.hidden = false;
+    document.getElementById('detail-titre').textContent = l.g.nom;
+    document.getElementById('detail-sous').textContent = l.r.n + ' rituel' + (l.r.n > 1 ? 's' : '') + ' · ' + fmt(l.r.valeur) + ' · ' + p.dit + '. En foncé, la période choisie.';
+    var parMois = MOIS.map(function (_, i) { return somme(l.g.ids, i, i).valeur; });
+    var max = Math.max.apply(null, parMois) || 1;
+    var haut = 140, base = 160, gauche = 46, pas = (520 - gauche - 6) / 12;
+    var echelle = Math.ceil(max / 100000) * 100000 || 100000;
+    var svg = '';
+    [0, 0.5, 1].forEach(function (k) {
+      var y = base - haut * k;
+      svg += '<line class="grille" x1="' + gauche + '" x2="514" y1="' + y + '" y2="' + y + '"></line><text x="' + (gauche - 6) + '" y="' + (y + 3) + '" text-anchor="end">' + Math.round(echelle * k / 1000) + ' k</text>';
+    });
+    parMois.forEach(function (v, i) {
+      var h = haut * v / echelle;
+      var x = gauche + i * pas + 4;
+      svg += '<rect class="barre' + (i >= p.de && i <= p.a ? ' periode' : '') + '" x="' + x + '" y="' + (base - h) + '" width="' + (pas - 8) + '" height="' + h + '"><title>' + MOIS_DITS[i] + ' : ' + fmt(v) + '</title></rect>';
+      svg += '<text x="' + (x + (pas - 8) / 2) + '" y="' + (base + 16) + '" text-anchor="middle">' + MOIS_DITS[i] + '</text>';
+    });
+    document.getElementById('graphe').innerHTML = svg;
+    var qui = ['A. K.', 'E. D.', 'F. T.', 'N. H.', 'C. B.', 'L. O.'];
+    var lignesR = [];
+    for (var j = 0; j < 5; j++) {
+      var s = S.filter(function (x) { return x.id === l.g.ids[j % l.g.ids.length]; })[0];
+      var jour = 13 - j * 2;
+      lignesR.push('<li><span>' + jour + ' oct. 2026 · ' + qui[j] + (l.g.ids.length > 1 ? ' · ' + s.nom : '') + '</span><span>' + fmt(s.prix * (j === 2 ? 0.9 : 1)) + '</span></li>');
+    }
+    document.getElementById('rituels').innerHTML = lignesR.join('');
+  }
+  document.querySelectorAll('[data-periode]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      etat.periode = b.getAttribute('data-periode');
+      document.querySelectorAll('[data-periode]').forEach(function (x) { x.setAttribute('aria-pressed', x === b ? 'true' : 'false'); });
+      rends();
+    });
+  });
+  document.querySelectorAll('[data-groupe]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      etat.groupe = b.getAttribute('data-groupe'); etat.choisie = null;
+      document.querySelectorAll('[data-groupe]').forEach(function (x) { x.setAttribute('aria-pressed', x === b ? 'true' : 'false'); });
+      rends();
+    });
+  });
+  document.getElementById('chercher').addEventListener('input', function (e) { etat.q = e.target.value; rends(); });
+  etat.choisie = 'sinsin';
+  rends();
+
+  /* ── Les quatre choix, gardés dans la page (comme les maquettes d'avant) ── */
+  var CLE_CHOIX = 'chiffre-prestations-maquette-choix';
+  var NOMS = ['chiffre', 'formules', 'ou', 'qui'];
+  function lis(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+  function ecris(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+  var choix = {};
+  try { choix = JSON.parse(lis(CLE_CHOIX) || '{}') || {}; } catch (e) { choix = {}; }
+  var docRef = null, file = Promise.resolve();
+  function applique() {
+    NOMS.forEach(function (k) {
+      if (!choix[k]) return;
+      var i = document.querySelector('input[name="' + k + '"][value="' + choix[k] + '"]');
+      if (i) i.checked = true;
+    });
+  }
+  function dis(k, t) { var p = document.querySelector('form[data-cle="' + k + '"] .etat-choix'); if (p) p.textContent = t; }
+  applique();
+  document.querySelectorAll('form.arbitrage').forEach(function (f) { f.addEventListener('submit', function (e) { e.preventDefault(); }); });
+  document.querySelectorAll('form.arbitrage input').forEach(function (i) {
+    i.addEventListener('change', function () {
+      choix[i.name] = i.value;
+      ecris(CLE_CHOIX, JSON.stringify(choix));
+      if (!docRef) { dis(i.name, 'Gardé sur ce poste.'); return; }
+      dis(i.name, 'Enregistrement…');
+      var corps = {};
+      NOMS.forEach(function (k) { if (choix[k]) corps[k] = choix[k]; });
+      corps.quand = new Date().toISOString();
+      file = file.then(function () { return docRef.set(corps); }).then(
+        function () { dis(i.name, 'Choix enregistré.'); },
+        function () { dis(i.name, 'Gardé sur ce poste ; l’enregistrement partagé a échoué.'); });
+    });
+  });
+  if (window.claude && typeof window.claude.use === 'function') {
+    window.claude.use('db').then(function (db) {
+      if (!db) return;
+      docRef = db.doc('maquette/arbitrages');
+      return docRef.get().then(function (s) {
+        if (!s.exists) return;
+        var v = s.data() || {};
+        NOMS.forEach(function (k) { if (typeof v[k] === 'string') choix[k] = v[k]; });
+        ecris(CLE_CHOIX, JSON.stringify(choix));
+        applique();
+      });
+    }).catch(function () {});
+  }
+})();
+</script>
+</body></html>
