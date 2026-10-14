@@ -2,7 +2,11 @@ import { asset } from '../../../../shared/asset';
 import { useEffect, useMemo, useState } from 'react';
 import { normName, sameName } from '../../../../shared/text';
 import { Button, Card, Field, Input, Modal, Select, toast, alerte, demande } from '../../../../ds/components';
-import { pushNotifyStaff } from '../../../../shared/push';
+import { pushNotifyDirection } from '../../../../shared/push';
+import { useTips } from '../../../../shared/tips';
+import { useSettings } from '../../../../shared/settings';
+import { bulletinsStore, type BulletinPublie } from '../../../../shared/rh';
+import { usePrimes, useRetenues, variablesDuMois } from './variables-du-mois';
 import { todayISO } from '../clients/_shared';
 import { retenuePrevueDuCompteCourant, retenueApplicable, appliqueLaRetenue } from '../../../../shared/compte-courant';
 import { staffStore } from './data';
@@ -24,7 +28,8 @@ import { useBranchAppointments, useServicesById, apptNetXof, commissionDetaillee
 import { Pill, Tabs } from './ui';
 import {
   payrollRunsStore, payrollParametersStore, usePayrollRuns, useAdvances, usePayrollParameters, useAttendance, useCommRates,
-  parametersFor, asArray, healPayrollStores, computePay, recomputeLine, runTotals, bulletinHref, bulletinNumber,
+  parametersFor, asArray, healPayrollStores, computePay, recomputeLine, runTotals, ouvreLeBulletin, bulletinNumber,
+  useBaremePoints, useExceptionsHoraires, horaireEffectif, primeDePointsDuMois, type BulletinLink,
   cnssEstActive, tauxCnssSalarial, itsEstActif, chargeSalaireId, chargeSalaire, SALAIRES_CATEGORIE,
   RUN_STATUS_LABEL, PAYROLL_PARAMETERS_SEED, ligneDePrestataire, parametresDeLaLigne,
   ligneEstPayee, resteAVerserXof, dejaVerseXof, avancementDuRun, runEntierementVerse, plafondDeLaRetenue,
@@ -90,6 +95,15 @@ export function PaieRuns() {
   const [invoices] = useInvoices();
   const [rates] = useCommRates();
   const [factures] = useFacturesPrestataires();
+  /* LES VARIABLES DU MOIS — 14 octobre 2026 : primes inscrites, prime de
+     points, pourboires et retenues arrivent seuls dans le run. */
+  const [primes] = usePrimes();
+  const [retenues] = useRetenues();
+  const [tips] = useTips();
+  const [pointages] = useAttendance();
+  const [bareme] = useBaremePoints();
+  const [reglages] = useSettings();
+  const [exceptions] = useExceptionsHoraires();
   const [creating, setCreating] = useState(false);
   const [openId, setOpenId] = useState<string | null>(null);
 
@@ -135,10 +149,20 @@ export function PaieRuns() {
      dans `retenuePrevueDuMois` (shared/foyer), éprouvé par verifie-foyer. */
   const [lesPrets] = usePrets();
 
+  /* L'horaire du jour, comme « Mon mois » le lit : les heures des
+     Paramètres, l'exception du jour par-dessus. */
+  const semaine = useMemo(() => {
+    const m: Record<string, { open: string; close: string; closed: boolean }> = {};
+    for (const d of asArray<{ key: string; open: string; close: string; closed: boolean }>(reglages.hours)) m[d.key] = { open: d.open, close: d.close, closed: d.closed };
+    return m;
+  }, [reglages.hours]);
+  const jourDe = (d: string) => ['dim', 'lun', 'mar', 'mer', 'jeu', 'ven', 'sam'][new Date(`${d}T00:00:00`).getDay()];
+
   const createRun = (period: string, atelier: string) => {
    try {
     const p = parametersFor(period, params);
-    const team = asArray(staff).filter((m) => m && m.branchId === branch.id);
+    /* Une ancienne partie avant le mois du run n'y a pas de ligne (14 octobre 2026). */
+    const team = asArray(staff).filter((m) => m && m.branchId === branch.id && (!m.archiveeLe || m.archiveeLe >= `${period}-01`));
     const lines: PayrollLine[] = team.map((s) => {
       const avance = asArray(advances)
         .filter((a) => a && a.employeeId === s.id && a.period === period)
@@ -154,8 +178,15 @@ export function PaieRuns() {
         appts: asArray(appts), invoices: asArray(invoices), byId, team, branchId: branch.id, rates,
       });
       const commission = (cd.presta + cd.produit) || ((s.commPrestaXof ?? 0) + (s.commProduitXof ?? 0));
+      /* CE QUI A ÉTÉ INSCRIT DANS LE MOIS, avec sa provenance. Les heures
+         supplémentaires n'ont pas de taux réglé : elles restent à la main. */
+      const points = primeDePointsDuMois({
+        pointages: asArray(pointages), staffId: s.id, period, bareme,
+        horaireDe: (d) => horaireEffectif(d, s.id, semaine, asArray(exceptions), jourDe),
+      });
+      const v = variablesDuMois({ staffId: s.id, period, primes, retenues, tips: asArray(tips), primeDePointsXof: points.primeXof });
       const gains: PayGains = {
-        base: s.salaireXof ?? 0, heuresSup: 0, prime: s.primeXof ?? 0, pourboires: 0,
+        base: s.salaireXof ?? 0, heuresSup: 0, prime: (s.primeXof ?? 0) + v.prime, pourboires: v.pourboires,
         commission, indemnites: 0,
       };
       /* LA RETENUE D’UN PRÊT EST PROPOSÉE, JAMAIS IMPOSÉE — 23 août 2026,
@@ -171,7 +202,7 @@ export function PaieRuns() {
          perdu : le reste dû baisse moins, et le prêt dure d’autant (③). Elle
          se corrige ligne à ligne et ne s’inscrit qu’au règlement. */
       const prevu = retenuePrevueDuMois(lesPrets, branch.id, { id: s.id, nom: s.name, baseXof: s.salaireXof ?? 0 }, period);
-      const plafond = prevu ? plafondDeLaRetenue(computePay(gains, { avance, autresRetenues: 0 }, p).net, p) : null;
+      const plafond = prevu ? plafondDeLaRetenue(computePay(gains, { avance, autresRetenues: v.retenues }, p).net, p) : null;
       const retenuePret = prevu ? Math.min(prevu.prevuXof, plafond ?? prevu.prevuXof) : 0;
       /* LE COMPTE COURANT D'ASSOCIÉ — 27 septembre 2026 au soir. La retenue
          posée depuis le relevé pour cette période arrive ici, bornée par le
@@ -179,13 +210,14 @@ export function PaieRuns() {
          ce qu'on retient d'un salaire, prêt et compte courant ensemble. Ce
          que le plafond ne laisse pas passer se reporte au règlement. */
       const prevueCC = retenuePrevueDuCompteCourant(s.retenuesCompteCourant ?? [], period);
-      const plafondCC = prevueCC > 0 ? plafondDeLaRetenue(computePay(gains, { avance, autresRetenues: 0 }, p).net, p) : null;
+      const plafondCC = prevueCC > 0 ? plafondDeLaRetenue(computePay(gains, { avance, autresRetenues: v.retenues }, p).net, p) : null;
       const retenueCompteCourant = retenueApplicable(prevueCC, plafondCC, retenuePret);
-      const deductions: PayDeductions = { avance, autresRetenues: 0, retenuePret, ...(retenueCompteCourant > 0 ? { retenueCompteCourant } : {}) };
+      const deductions: PayDeductions = { avance, autresRetenues: v.retenues, retenuePret, ...(retenueCompteCourant > 0 ? { retenueCompteCourant } : {}) };
       const ligne: PayrollLine = {
         employeeId: s.id, name: s.name, poste: s.role, matricule: s.matricule,
         cnssNum: s.cnssNum, paiement: s.paiement,
         gains, deductions, result: computePay(gains, deductions, p),
+        ...(v.origines.length ? { origines: v.origines } : {}),
         ...(prevu ? {
           pret: {
             prevuXof: prevu.prevuXof, resteAvantXof: prevu.resteXof,
@@ -657,18 +689,33 @@ function RunDetail({ run, orphanMasters = [], onClose }: { run: PayrollRun; orph
     /* LA NOTIFICATION PART À LA VALIDATION, pas au paiement : c'est le seul
        moment où une décision est attendue. Elle ne va qu'au personnel, jamais
        à une cliente, et elle dit un total, jamais un salaire nominatif. */
+    /* À LA DIRECTION SEULE (14 octobre 2026, fuite 2) : elle partait à tout
+       le personnel, avec le total net. */
     if (next === 'valide') {
-      void pushNotifyStaff(
+      void pushNotifyDirection(
         `La paie de ${frPeriod(run.period)} attend votre oui`,
         `${lines.length} salaire${lines.length > 1 ? 's' : ''} · ${fmtMoney(lignesAJour ? runTotals({ ...run, lines: lignesAJour }).net : t.net, currency)} net à verser.`,
-        '/personnel',
+        '/trone/#/personnel',
       );
     }
+    /* LES BULLETINS, À CHACUNE LE SIEN (Mon espace) : publiés quand l'argent
+       est parti, repris à la clôture. Une prestataire a une facture, pas de
+       bulletin. */
+    if (next === 'paye' || next === 'cloture') publieLesBulletins();
+  };
+  const publieLesBulletins = () => {
+    const publies: BulletinPublie[] = lines.filter((l) => !l.prestataire).map((l) => ({
+      id: `${run.id}:${l.employeeId}`, branchId: run.branchId ?? branch.id, runId: run.id, period: run.period,
+      employeeId: l.employeeId, name: l.name, netXof: l.result.net, publieLe: nowStamp(),
+      lien: bulletinFor(l) as unknown as BulletinPublie['lien'],
+    }));
+    const ids = new Set(publies.map((b) => b.id));
+    bulletinsStore.set((prev) => [...publies, ...asArray<BulletinPublie>(prev).filter((b) => !ids.has(b.id))]);
   };
   const nextStatus: Record<RunStatus, RunStatus | null> = { brouillon: 'valide', valide: 'paye', paye: 'cloture', cloture: null };
   const next = nextStatus[run.status];
 
-  const bulletinFor = (l: PayrollLine) => bulletinHref(asset('/bulletin.html'), {
+  const bulletinFor = (l: PayrollLine): BulletinLink => ({
     nom: l.name, poste: l.poste, matricule: l.matricule, cnssnum: l.cnssNum, periode: run.period,
     base: l.gains.base, hs: l.gains.heuresSup, prime: l.gains.prime, pourboires: l.gains.pourboires,
     commission: l.gains.commission, indemnites: l.gains.indemnites, avance: l.deductions.avance, retenue: l.deductions.autresRetenues,
@@ -998,7 +1045,7 @@ function RunDetail({ run, orphanMasters = [], onClose }: { run: PayrollRun; orph
                       Facture
                     </button>
                   ) : (
-                    <a className="tre-link-btn" style={{ marginLeft: 12 }} href={bulletinFor(l)} target="_blank" rel="noreferrer" title={`Bulletin ${bulletinNumber(run.period, l.matricule ?? '')}`}>Bulletin</a>
+                    <button type="button" className="tre-link-btn" style={{ marginLeft: 12 }} onClick={() => ouvreLeBulletin(asset('/bulletin.html'), bulletinFor(l))} title={`Bulletin ${bulletinNumber(run.period, l.matricule ?? '')}`}>Bulletin</button>
                   )}
                 </td>
               </tr>
@@ -1070,6 +1117,17 @@ function LineEditor({ line, bareme, onClose, onSave }: { line: PayrollLine; bare
   return (
     <Modal title={`Ligne · ${line.name}`} onClose={onClose} width={560}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+        {/* D'OÙ VIENNENT LES CHIFFRES (14 octobre 2026) : ce que le run a repris
+            seul. Corriger un montant ici ne touche pas à ce qui a été inscrit. */}
+        {(line.origines?.length ?? 0) > 0 && (
+          <div className="mnd-muted" style={{ fontSize: 13, display: 'grid', gap: 2 }}>
+            <div className="tre-sec-label">Repris seul dans le run</div>
+            {line.origines?.map((o, i) => (
+              <div key={i}>{o.quoi === 'retenue' ? '− ' : '+ '}{o.libelle} · {fmtMoney(o.montantXof, currency)}</div>
+            ))}
+            <div>Heures supplémentaires : à saisir ici, aucun taux n’est réglé.</div>
+          </div>
+        )}
         <div className="tre-sec-label">Gains (F CFA)</div>
         <div className="tr-grid tr-grid--3">
           {F('Salaire de base', 'base')}{F('Heures sup.', 'heuresSup')}{F('Prime', 'prime')}

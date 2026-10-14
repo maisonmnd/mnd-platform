@@ -276,7 +276,7 @@ export function MaFacture({ moi, auteurId, rattacheeParAdresse, estDirection }: 
           <span className="mark">!</span>
           <span>
             Votre facture ne pourra pas s’enregistrer : l’adresse de votre compte n’est pas inscrite sur votre fiche.
-            Demandez au gérant de l’écrire dans Personnel &amp; paie, « E-mail de connexion ».
+            Demandez au gérant de l’écrire dans Ressources humaines, « E-mail de connexion ».
           </span>
         </div>
       )}

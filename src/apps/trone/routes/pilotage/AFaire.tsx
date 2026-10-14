@@ -4,6 +4,7 @@ import { useEstDirection } from '../_vie';
 import { RappelDesPapiers } from './secretariat/RappelDesPapiers';
 import { RappelDeLaBourse } from './secretariat/RappelDeLaBourse';
 import { RappelDuSecretariat } from './secretariat/RappelDuSecretariat';
+import RappelDesRh from '../equipe/rh/RappelDesRh';
 import { PageHead, WaLien } from '../_ui';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
@@ -261,6 +262,8 @@ export default function AFaire() {
       {/* Le secrétariat administratif (14 octobre 2026) : ce qui tombe sous
           30 jours pour qui le tient, le courrier confié pour les autres. */}
       <RappelDuSecretariat />
+      {/* Les ressources humaines (14 octobre 2026) : le souverain seul. */}
+      <RappelDesRh />
 
       {/* ── L'en-tête daté et ses pastilles-chiffres, qui mènent ── */}
       <div className="trp-af-head">

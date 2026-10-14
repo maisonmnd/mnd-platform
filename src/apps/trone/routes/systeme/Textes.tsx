@@ -233,7 +233,7 @@ function OngletFiches() {
             fonction « {nomEnregistre} » sur leur fiche de personnel. Une fiche de poste se trouve par
             ce nom : renommée ici seulement, elle cesserait de leur répondre, et leur entretien dirait
             « aucune fiche n’existe pour ce poste ». Ajoutez « {nomEnregistre} » aux autres écritures
-            ci-dessous, ou renommez aussi leur fonction dans Personnel & paie.
+            ci-dessous, ou renommez aussi leur fonction dans Ressources humaines.
           </div>
         )}
 

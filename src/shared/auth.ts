@@ -193,6 +193,8 @@ export async function signUpEmail(
 const SENSITIVE_KEYS = [
   'mnd_payroll_runs', 'mnd_salary_advances', 'mnd_payroll_advances', 'mnd_attendance', 'mnd_leave_requests',
   'mnd_staff', 'mnd_tips_v2', 'mnd_tips',
+  /* La direction des RH (14 octobre 2026) : dossiers, registre, bulletins. */
+  'mnd_team_dossiers', 'mnd_rh', 'mnd_bulletins',
   'mnd_primes', 'mnd_retenues', 'mnd_commission_rates', 'mnd_paie_overrides', 'mnd_paie_confirm',
   'mnd_access_codes',
   /* Les factures des prestataires : IFU, téléphone, ce qu'on gagne. */

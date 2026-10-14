@@ -30,6 +30,9 @@ import { jourAn, jourCourtAn, jourEnLettres } from '../../../../shared/calendrie
 import { ChampDeDate } from '../../../../ds/dates';
 import { catalogueDeLaTete, masqueesParLAge, compositionDuForfait, gainDuForfait, detailDuForfait, pourQui } from '../../../../shared/kids';
 import { useSubscribers, usePlans, activeSubscriberOf, contratPourLaDate, coveredRemaining, inclusVendus, useStaff, ordonneEquipe, type StaffMember } from '../equipe/data';
+import { avertissementDeLaGrille, avertissementDuPlanning } from '../../../../shared/rh-pur';
+import { usePlanning } from '../../../../shared/rh';
+import { familleDe } from '../equipe/rh/familles';
 import { enPause } from '../../../../shared/formules-en-lunes-pur';
 import { regardADeduire, remiseAvecLeRegard, type RegardADeduire } from '../../../../shared/regard-deduit-pur';
 import { useEstDirection, useVieDuRendezVous, TamponDeNaissance, SaVie, nombreDeGestes } from '../_vie';
@@ -2541,6 +2544,26 @@ export function RdvModal({
     ];
     return avertissementDHabilitation({ acte, mains: lesMains.map((m) => ({ nom: m.name, palier: m.palier ?? null })) });
   }, [chosen, mains, master, equipe]);
+  /* LA GRILLE DES COMPÉTENCES ET LE PLANNING AVERTISSENT AUSSI — 14 octobre
+     2026 (direction des RH, choix : la grille avertit, elle ne bloque pas).
+     Mêmes mains que l'habilitation ; une main sans grille posée n'avertit
+     jamais. Un rendez-vous posé sur une main en repos ou en congé se dit. */
+  const [planningRh] = usePlanning();
+  const avertRh = useMemo(() => {
+    const ids = new Set(mains.flat());
+    const lesMains = [
+      ...equipe.filter((m) => sameName(m.name, master)),
+      ...equipe.filter((m) => ids.has(m.id) && !sameName(m.name, master)),
+    ];
+    const lesCats = Array.isArray(cats) ? cats : [];
+    const grille = avertissementDeLaGrille({
+      familles: chosen.map((sv) => familleDe(sv.categoryId, lesCats)),
+      mains: lesMains.map((m) => ({ nom: m.name, competences: m.competences })),
+      nomDeLaFamille: (id) => { const c = lesCats.find((x) => x.id === id); return c?.label || c?.fon || 'Ce geste'; },
+    });
+    const auPlanning = avertissementDuPlanning({ planning: planningRh, date, mains: lesMains.map((m) => ({ id: m.id, nom: m.name })) });
+    return [grille, auPlanning].filter((t): t is string => !!t);
+  }, [chosen, mains, master, equipe, cats, planningRh, date]);
 
   const save = (chosenStatus: Appointment['status']): boolean => {
     if (!clientId) {
@@ -3097,6 +3120,11 @@ export function RdvModal({
               {avertHabilitation.texte}
             </div>
           )}
+          {avertRh.map((t) => (
+            <div key={t} style={{ marginTop: 8, padding: '9px 12px', borderRadius: 3, fontSize: 12.5, lineHeight: 1.5, border: '1px solid var(--copper-300)', borderLeft: '3px solid var(--color-copper)', background: 'var(--copper-50)', color: 'var(--ink)' }}>
+              {t}
+            </div>
+          ))}
           {/* SES HABITUDES, À UN CLIC — À LA CRÉATION COMME À LA RELECTURE.
               Demande de Yéman, 17 août : ouvrir un rituel existant doit aussi
               montrer ses combinaisons. Elles servent alors à comparer autant
@@ -3434,11 +3462,11 @@ export function RdvModal({
                   </div>
                 );
               })()}
-              {ordonneEquipe(equipe.filter((m) => m.branchId === branch.id && m.auFauteuil)).length > 0 && (() => {
+              {ordonneEquipe(equipe.filter((m) => m.branchId === branch.id && m.auFauteuil && (!m.archiveeLe || m.archiveeLe > date))).length > 0 && (() => {
                 const pos = serviceIds.indexOf(sv.id);
                 const desMains = mainsDe(pos);
                 const ouvert = desMains.length > 0 || mainsOuvertes.includes(sv.id);
-                const equipeAuFauteuil = ordonneEquipe(equipe.filter((m) => m.branchId === branch.id && m.auFauteuil));
+                const equipeAuFauteuil = ordonneEquipe(equipe.filter((m) => m.branchId === branch.id && m.auFauteuil && (!m.archiveeLe || m.archiveeLe > date)));
                 return (
                   <div style={{ marginTop: 9, paddingTop: 9, borderTop: '1px solid var(--hairline)' }}>
                     <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>

@@ -76,7 +76,14 @@ const conv = readFileSync('src/apps/trone/routes/clients/Conversations.tsx', 'ut
 dit('Conversations envoie par la file, meme en fermant l onglet hors ligne', true,
   /appelleOuGarde\('whatsapp-envoi', corps/.test(conv) && /navigator\.onLine === false\) \{ gardeUnAppel\('whatsapp-envoi'/.test(conv));
 const push = readFileSync('src/shared/push.ts', 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
-dit('les notifications passent par la file', 4, (push.match(/appelleOuGarde/g) ?? []).length - 1);
+/* LA RÈGLE, PAS LE COMPTE (14 octobre 2026) : le contrôle attendait « 4 », le
+   nombre de notifications du jour ; la cinquième (la direction) le faisait
+   tomber alors qu'elle passe bien par la file. Chaque appel de push-notify
+   passe par la file, et aucun ne s'en passe. */
+const versPush = (push.match(/'push-notify'/g) ?? []).length;
+const parLaFile = (push.match(/appelleOuGarde(?:<[^>]*>)?\('push-notify'/g) ?? []).length;
+dit('les notifications passent par la file : chaque appel de push-notify, aucun direct', [true, true],
+  [versPush > 0 && parLaFile === versPush, !/functions\.invoke\(/.test(push)]);
 const version = readFileSync('src/shared/version.ts', 'utf8');
 const shell = readFileSync('src/apps/trone/shell/Shell.tsx', 'utf8');
 dit('une nouvelle version s annonce sans recharger sous la main', true,

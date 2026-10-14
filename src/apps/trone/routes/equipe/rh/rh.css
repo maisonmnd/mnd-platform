@@ -1,0 +1,43 @@
+/* ══ LA DIRECTION DES RESSOURCES HUMAINES — 14 octobre 2026 ══════════════
+   Les lignes reprennent les classes du secrétariat (`.sad-*`, pilotage.css) ;
+   ici, seulement ce qui est propre aux RH. */
+
+.rh-onglets { overflow-x: auto; scrollbar-width: thin; flex-wrap: nowrap; }
+.rh-onglets button { white-space: nowrap; flex: none; }
+.rh-coche { display: grid; grid-template-columns: 18px minmax(0, 1fr); gap: 8px; align-items: baseline; cursor: pointer; font-size: 13.5px; }
+.rh-coche input { accent-color: var(--color-copper); margin: 0; }
+.rh-coche small { color: var(--ink-soft); font-size: 12px; }
+.rh-coche__aide { display: block; }
+.rh-coches { display: grid; gap: 6px; }
+.rh-etapes { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 230px), 1fr)); gap: 10px; }
+.rh-etape { border: 1px solid var(--hairline); border-radius: var(--radius-md); background: var(--surface-card); padding: 12px 14px; display: grid; gap: 8px; align-content: start; }
+.rh-etape h4 { margin: 0; font: 600 11.5px var(--font-sans, 'Jost', sans-serif); letter-spacing: .14em; text-transform: uppercase; color: var(--copper-700); }
+.rh-alerte { border-color: var(--copper-600) !important; }
+.rh-a-confirmer { color: var(--copper-700); border-bottom: 1px dashed var(--copper-600); }
+.rh-colonnes { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr)); gap: 10px; }
+.rh-colonne { border: 1px solid var(--hairline); border-radius: var(--radius-md); background: var(--surface-card); padding: 10px 12px; display: grid; gap: 8px; align-content: start; }
+.rh-colonne h4 { margin: 0; font: 600 11.5px var(--font-sans, 'Jost', sans-serif); letter-spacing: .12em; text-transform: uppercase; color: var(--ink-soft); display: flex; justify-content: space-between; }
+.rh-fichette { border: 1px solid var(--hairline); border-radius: 6px; padding: 8px 10px; font: inherit; font-size: 13.5px; text-align: left; background: var(--surface-page, transparent); color: inherit; display: grid; gap: 2px; cursor: pointer; }
+.rh-fichette:hover { border-color: var(--copper-300); }
+.rh-fichette small { color: var(--ink-soft); font-size: 12px; }
+.rh-grille { border-collapse: collapse; width: 100%; font-size: 13px; }
+.rh-grille th { text-align: left; font-weight: 600; font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-soft); padding: 8px 10px; border-bottom: 1px solid var(--hairline); white-space: nowrap; }
+.rh-grille td { padding: 6px 10px; border-bottom: 1px solid var(--hairline); white-space: nowrap; }
+.rh-grille select { font: inherit; font-size: 12.5px; padding: 3px 6px; border: 1px solid var(--hairline); border-radius: 5px; background: var(--surface-card); color: inherit; }
+.rh-grille td.qui { color: var(--color-indigo); }
+.rh-planning td.jour { text-align: center; padding: 4px; }
+.rh-planning select { min-width: 92px; }
+.rh-planning .s-fauteuil { background: var(--copper-50); }
+.rh-planning .s-conge { background: color-mix(in srgb, var(--color-indigo) 8%, transparent); }
+.rh-cadre { overflow-x: auto; border: 1px solid var(--hairline); border-radius: var(--radius-md); background: var(--surface-card); }
+.rh-espace { display: grid; gap: 10px; max-width: 520px; }
+.rh-tuile { border: 1px solid var(--hairline); border-radius: var(--radius-md); background: var(--surface-card); padding: 10px 12px; display: grid; gap: 4px; }
+.rh-tuile b { font-size: 24px; font-weight: 300; color: var(--color-indigo); font-variant-numeric: lining-nums tabular-nums; }
+.rh-tuile span { color: var(--ink-soft); font-size: 12.5px; }
+.rh-garde { border-left: 2px solid var(--color-copper); background: var(--copper-50); padding: 10px 14px; border-radius: 0 6px 6px 0; font-size: 13.5px; }
+.rh-indigo { background: var(--color-indigo); color: var(--color-ivoire); border-radius: var(--radius-md); padding: 14px 16px; }
+@media (max-width: 560px) {
+  .sad-ligne__tete { grid-template-columns: minmax(0, 1fr) auto; }
+  .sad-ligne__num { grid-column: 1 / -1; }
+  .sad-fiche { grid-template-columns: minmax(0, 1fr); }
+}

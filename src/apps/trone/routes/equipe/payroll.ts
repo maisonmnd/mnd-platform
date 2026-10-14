@@ -1,4 +1,5 @@
 import { createStore, useStore } from '../../../../shared/store';
+import type { Origine } from './variables-du-mois';
 import { bindCollection, bindDocument } from '../../../../shared/sync';
 import type { Expense } from '../../../../shared/finance';
 
@@ -519,6 +520,23 @@ export const pointsDuJour = (
   return { total: pointage + ponctualite + ptsSup, pointage, ponctualite, heuresSup, ptsSup };
 };
 
+/** LES POINTS D'UN MOIS, ET LA PRIME QU'ILS OUVRENT — 14 octobre 2026. Le
+    même calcul que « Mon mois » (pointsDuJour, horaire du jour), repris par
+    le run de paie : une prime acquise à l'écran arrive sur le bulletin. */
+export function primeDePointsDuMois(o: {
+  pointages: readonly Attendance[];
+  staffId: string;
+  period: string;
+  horaireDe: (date: string) => { open: string; close: string; closed: boolean } | undefined;
+  bareme: BaremePoints;
+}): { total: number; primeXof: number } {
+  const total = o.pointages
+    .filter((a) => a && a.employeeId === o.staffId && (a.date ?? '').slice(0, 7) === o.period)
+    .reduce((n, a) => n + pointsDuJour(a, o.horaireDe(a.date), o.bareme).total, 0);
+  const acquise = o.bareme.seuilPrime > 0 && total >= o.bareme.seuilPrime;
+  return { total, primeXof: acquise ? o.bareme.primeXof : 0 };
+}
+
 export type LeaveType = 'conge' | 'maladie';
 export type LeaveStatus = 'demande' | 'approuve' | 'refuse';
 export const LEAVE_STATUS_LABEL: Record<LeaveStatus, string> = { demande: 'En attente', approuve: 'Approuvé', refuse: 'Refusé' };
@@ -636,6 +654,11 @@ export type PayrollLine = {
       reste de la ligne : de quoi dire « reste dû après » et « écart reporté
       à la fin » sans rien recalculer d'un prêt qui a pu bouger depuis. */
   pret?: { prevuXof: number; resteAvantXof: number; plafondXof?: number; partPct?: number };
+
+  /** D'OÙ VIENNENT LES CHIFFRES — 14 octobre 2026. Les primes inscrites, la
+      prime de points, les pourboires et les retenues du mois arrivent seuls
+      dans le run ; chacun garde ici sa provenance, que l'écran montre. */
+  origines?: Origine[];
 };
 export type PayrollRun = {
   id: string;
@@ -802,6 +825,25 @@ export function bulletinHref(base: string, b: BulletinLink): string {
   if (b.cnssPct != null) q.set('cnss', String(b.cnssPct));
   if (b.itsActif != null) q.set('its', b.itsActif ? '1' : '0');
   return `${base}?${q.toString()}`;
+}
+
+/* ══ LE BULLETIN S'OUVRE SANS SES MONTANTS DANS L'ADRESSE — 14 octobre 2026
+   L'adresse d'une page reste dans l'historique du navigateur, et le poste de
+   l'accueil est partagé. Les montants se déposent sur l'appareil, la page
+   s'ouvre avec la seule clé du dépôt et les lit (bulletin.html) ; un dépôt
+   de plus d'un jour s'efface à l'ouverture suivante. */
+export const DEPOT_DU_BULLETIN = 'mnd_bulletin_';
+export function ouvreLeBulletin(base: string, b: BulletinLink): void {
+  const q = bulletinHref('', b).replace(/^\?/, '');
+  const cle = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
+  try {
+    localStorage.setItem(DEPOT_DU_BULLETIN + cle, JSON.stringify({ at: Date.now(), q }));
+    window.open(`${base}?b=${cle}`, '_blank', 'noopener');
+  } catch {
+    /* Un navigateur qui refuse son stockage : l'adresse porte les montants,
+       comme avant, plutôt que pas de bulletin du tout. */
+    window.open(`${base}?${q}`, '_blank', 'noopener');
+  }
 }
 
 /** Échéance de règlement : le 5 du mois suivant la période « AAAA-MM ». */

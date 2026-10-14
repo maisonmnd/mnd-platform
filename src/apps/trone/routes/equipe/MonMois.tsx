@@ -25,6 +25,7 @@ import { useServices } from '../../../../shared/catalog';
 import { MaFacture } from './FacturePrestataire';
 import { estPrestataire } from './facture';
 import './equipe.css';
+import MonEspace from './rh/MonEspace';
 
 /* MON MOIS — l'écran que chacun ouvre pour soi.
 
@@ -120,7 +121,8 @@ export default function MonMois() {
   const [services] = useServices();
   const svcById = useMemo(() => new Map(services.map((sv) => [sv.id, sv])), [services]);
 
-  const equipe = useMemo(() => ordonneEquipe(team.filter((m) => m.branchId === branch.id)), [team, branch.id]);
+  /* Les anciennes de la Maison (archivées, 14 octobre 2026) ne pointent plus. */
+  const equipe = useMemo(() => ordonneEquipe(team.filter((m) => m.branchId === branch.id && (!m.archiveeLe || m.archiveeLe > new Date().toISOString().slice(0, 10)))), [team, branch.id]);
   /* QUI SUIS-JE dans l'équipe. Le compte du Trône et la fiche du personnel
      sont deux registres distincts ; il faut les rapprocher.
 
@@ -358,19 +360,23 @@ export default function MonMois() {
       <PageHead
         eyebrow="Équipe & Croissance"
         title="Mon mois."
-        sub="Pointage · points · prime."
+        sub="Pointage · points · prime · mon espace."
       />
 
       {!moi && (
         <Card style={{ padding: '18px 20px' }}>
           <div className="tre-rates__title">Ce compte n’est rattaché à aucune fiche du personnel</div>
           <div className="mnd-muted" style={{ fontSize: 12.5, marginTop: 8, lineHeight: 1.6, maxWidth: '62ch' }}>
-            Le pointage se rattache à une fiche de l’équipe, retrouvée par l’adresse e-mail, ou à
-            défaut par le nom. Demande au gérant d’inscrire l’adresse de ton compte sur ta fiche
-            dans Personnel &amp; paie, ou d’y écrire exactement le même nom.
+            Le pointage et ton espace se rattachent à une fiche de l’équipe par l’adresse e-mail de
+            ton compte. Demande à la direction d’inscrire cette adresse sur ta fiche (Ressources
+            humaines, Le personnel, Modifier).
           </div>
         </Card>
       )}
+
+      {/* MON ESPACE — 14 octobre 2026 : relié par l'adresse, comme la base le
+          lit (est_ma_fiche, 0130) ; le nom ne suffit plus. */}
+      <MonEspace moi={moi} relie={!!moi && !!monMail && adresseDe(moi) === monMail} />
 
       {moi && monBilan && (
         <>

@@ -133,6 +133,15 @@ export async function pushNotifyStaff(title: string, body: string, url?: string)
   await appelleOuGarde('push-notify', { mode: 'staff', title, body, url }, `Alerte de l’équipe · ${title}`);
 }
 
+/** NOTIFIE LA DIRECTION SEULE — 14 octobre 2026 (direction des RH, fuite 2).
+    « La paie attend votre oui » partait à tout le personnel, avec le total
+    net. Elle ne va plus qu'au souverain, qui valide ; la fonction vérifie que
+    l'appel vient d'un compte du personnel. */
+export async function pushNotifyDirection(title: string, body: string, url?: string): Promise<void> {
+  if (!supabase) return;
+  await appelleOuGarde('push-notify', { mode: 'direction', title, body, url }, `Alerte de la direction · ${title}`);
+}
+
 /** Notifie UNE cliente précise depuis Le Trône (ex. cadeau anniversaire).
     Réservé au personnel (la fonction Edge vérifie le JWT). Renvoie le nombre d'envois. */
 export async function pushToClient(clientId: string, title: string, body: string, url?: string, email?: string): Promise<number> {

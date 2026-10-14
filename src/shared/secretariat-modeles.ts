@@ -119,6 +119,18 @@ export const MODELES: Modele[] = [
     appel: 0, cloture: 0, aRelire: true, depuisEquipe: true,
     corps: `Le ${A}, ${A}.\n\nCe comportement est contraire à ${A}, et nous ne pouvons l’accepter.\n\nNous vous adressons par la présente un avertissement, qui sera versé à votre dossier. Nous vous demandons de veiller à ce que cela ne se reproduise pas.`,
   },
+  /* LA DEMANDE D'EXPLICATION — 14 octobre 2026 (direction des RH) : la
+     deuxième étape de la procédure, avant toute décision. */
+  {
+    cle: 'demande-explication', famille: 'equipe', titre: 'Demande d’explication', objet: 'Demande d’explication', destinataire: `[NOM]
+[POSTE]`,
+    appel: 0, cloture: 0, aRelire: true, depuisEquipe: true,
+    corps: `Le ${A}, ${A}.
+
+Nous vous demandons de nous faire connaître par écrit vos explications sur ces faits, au plus tard le ${A}.
+
+Votre réponse sera versée à votre dossier avec la présente lettre. Sans réponse dans ce délai, la direction statuera au vu des seuls éléments dont elle dispose.`,
+  },
   {
     cle: 'felicitations', famille: 'equipe', titre: 'Lettre de félicitations', objet: 'Félicitations', destinataire: `[NOM]\n[POSTE]`,
     appel: 7, cloture: 5, depuisEquipe: true,

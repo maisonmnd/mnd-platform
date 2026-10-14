@@ -1,0 +1,226 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Poser la direction des RH</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400&family=Jost:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --indigo:#1E2150; --cuivre:#B97A4A; --cuivre-profond:#7C4C2C; --cuivre-voile:rgba(185,122,74,.13);
+  --cuivre-clair:#FAF1E9; --fond:#F6F1E7; --carte:#FFFDF9; --fond-2:#EEE6D6;
+  --encre:#2A2722; --encre-doux:#5E5750; --filet:rgba(20,20,27,.13); --alerte:#8F3B30;
+  --serif:'Cormorant Garamond',Georgia,serif; --sans:'Jost',system-ui,sans-serif;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--fond);color:var(--encre);font-family:var(--sans);font-weight:300;font-size:15px;line-height:1.6}
+h1,h2,h3{font-family:var(--serif);font-weight:300;color:var(--indigo);margin:0;line-height:1.1;text-wrap:balance}
+p{margin:0}
+.wrap{max-width:900px;margin:0 auto;padding:0 clamp(16px,4vw,32px) 70px}
+.sur{font-size:10.5px;letter-spacing:.22em;text-transform:uppercase;color:var(--cuivre-profond)}
+
+.tete{padding:40px 0 14px;border-bottom:1px solid var(--filet)}
+.tete h1{font-size:clamp(30px,5vw,44px);margin-top:8px}
+.tete .ligne{font-size:16.5px;color:var(--encre-doux);margin-top:14px;max-width:60ch}
+/* LE VERROU COUCHÉ DE LA MAISON (25 septembre 2026) : le fichier livré, jamais
+   redessiné. 1335 x 418, on ne donne que la largeur, la hauteur suit. */
+.verrou{display:block;width:176px;height:auto;margin:0 0 22px}
+
+.jauge{display:flex;gap:8px;align-items:center;margin:26px 0 6px;flex-wrap:wrap}
+.jauge b{font-family:var(--sans);font-size:28px;color:var(--indigo);font-weight:400;font-variant-numeric:lining-nums tabular-nums}
+.jauge span{font-size:13.5px;color:var(--encre-doux)}
+.pastilles{display:flex;gap:5px;margin-left:auto}
+.pastilles i{width:26px;height:9px;border-radius:999px;background:var(--fond-2);border:1px solid var(--filet);display:block}
+.pastilles i.prise{background:var(--indigo);border-color:var(--indigo)}
+
+h2{font-size:clamp(21px,3vw,27px);margin-top:42px}
+h2 + .cap{font-size:13.5px;color:var(--encre-doux);margin-top:7px;max-width:66ch}
+
+table{width:100%;border-collapse:collapse;margin-top:16px;font-size:14px}
+th{text-align:left;font-weight:400;font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--encre-doux);padding:0 10px 7px;border-bottom:1px solid var(--filet)}
+td{padding:11px 10px;border-bottom:1px solid var(--filet);vertical-align:top}
+tr:last-child td{border-bottom:0}
+td.quoi{color:var(--indigo);font-weight:400}
+td.val{font-variant-numeric:lining-nums tabular-nums;white-space:nowrap}
+.atrouver{color:var(--cuivre-profond);border-bottom:1px dashed var(--cuivre);padding-bottom:1px}
+
+ol.pas{list-style:none;margin:18px 0 0;padding:0;counter-reset:pas}
+ol.pas li{counter-increment:pas;position:relative;padding:14px 46px 14px 58px;background:var(--carte);border:1px solid var(--filet);border-radius:4px;margin-bottom:8px;transition:.18s ease}
+ol.pas li::before{content:counter(pas);position:absolute;left:16px;top:13px;width:26px;height:26px;border-radius:999px;background:var(--indigo);color:#F6F1E7;display:grid;place-items:center;font-size:13px;font-weight:400}
+ol.pas li b{display:block;font-weight:500;color:var(--indigo);font-size:15px}
+ol.pas li p{font-size:13.5px;color:var(--encre-doux);margin-top:5px}
+ol.pas li p b{display:inline;font-size:inherit;font-weight:500}
+ol.pas li.fait{opacity:.5}
+ol.pas li.fait > b{text-decoration:line-through}
+ol.pas li.fait::before{background:var(--cuivre)}
+.coche{position:absolute;right:14px;top:14px;width:22px;height:22px;border:1px solid var(--filet);border-radius:4px;background:var(--fond);cursor:pointer;display:grid;place-items:center;color:transparent;font-size:13px;padding:0}
+.coche:hover{border-color:var(--cuivre)}
+li.fait .coche{background:var(--cuivre);border-color:var(--cuivre);color:#fff}
+kbd{font-family:var(--sans);font-size:12.5px;background:var(--fond-2);border:1px solid var(--filet);border-radius:3px;padding:1px 6px;color:var(--indigo);overflow-wrap:anywhere}
+
+.controle{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 16px;margin-top:10px;font-size:13px;background:var(--fond);border:1px solid var(--filet);border-radius:4px;padding:10px 12px}
+.controle span{overflow-wrap:anywhere;color:var(--encre-doux)}
+.controle em{font-style:normal;color:var(--indigo);font-weight:500;font-variant-numeric:lining-nums tabular-nums;text-align:right}
+
+.garde{border-left:2px solid var(--cuivre);background:var(--cuivre-clair);padding:16px 18px;margin-top:20px;border-radius:0 4px 4px 0}
+.garde b{display:block;color:var(--cuivre-profond);font-weight:500;font-size:13.5px;letter-spacing:.02em}
+.garde p{font-size:13.5px;color:var(--encre-doux);margin-top:6px}
+.garde p + p{margin-top:8px}
+.garde.mur{border-left-color:var(--alerte);background:#FBF0EE}
+.garde.mur b{color:var(--alerte)}
+.regle{background:var(--indigo);color:#F6F1E7;padding:20px 22px;border-radius:4px;margin-top:20px}
+.regle p{font-family:var(--serif);font-size:19px;line-height:1.45}
+.regle p + p{margin-top:10px}
+.regle small{display:block;font-family:var(--sans);font-size:12.5px;color:rgba(246,241,231,.68);margin-top:14px;line-height:1.6}
+
+.pied{margin-top:48px;padding-top:18px;border-top:1px solid var(--filet);font-size:12px;color:var(--encre-doux);display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
+
+@media (max-width:640px){
+  table, thead, tbody, tr, td, th{display:block}
+  thead{display:none}
+  tr{border:1px solid var(--filet);border-radius:4px;margin-bottom:8px;padding:6px 4px;background:var(--carte)}
+  td{border:0;padding:5px 10px}
+  td.val{white-space:normal}
+  .qvq td:nth-child(n+2)::before{display:block;margin-bottom:1px;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--encre-doux)}
+  .qvq td:nth-child(2)::before{content:'Direction'}
+  .qvq td:nth-child(3)::before{content:'Tient le secrétariat'}
+  .qvq td:nth-child(4)::before{content:"Le reste de l'équipe"}
+  ol.pas li{padding:14px 42px 14px 50px}
+  ol.pas li::before{left:12px}
+}
+@media print{
+  body{background:#fff;font-size:11.5px}
+  .wrap{max-width:none;padding:0}
+  .coche,.pastilles,.jauge{display:none}
+  ol.pas li{break-inside:avoid;background:#fff;padding-right:14px}
+  h2{break-after:avoid;margin-top:22px}
+  .garde,.regle,table{break-inside:avoid}
+  .regle{background:#fff;color:var(--indigo);border:1.5px solid var(--indigo)}
+  .regle small{color:var(--encre-doux)}
+  @page{margin:14mm}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+<style>@media (max-width:640px){.fx td:nth-child(n+2)::before{display:block;margin-bottom:1px;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--encre-doux)}.fx td:nth-child(2)::before{content:"Avant"}.fx td:nth-child(3)::before{content:"Maintenant"}}</style>
+
+  <header class="tete">
+    <img class="verrou" src="assets/verrous/verrou-couche-indigo.png" width="1335" height="418" alt="Maison MND">
+    <p class="sur">Maison MND · Supabase &amp; Le Trône</p>
+    <h1>Poser la direction des ressources humaines</h1>
+    <p class="ligne">Les dix onglets et « Mon espace » sont construits et éprouvés. Il reste à vérifier les adresses des fiches, à coller deux fichiers dans Supabase, à publier le Trône, puis un premier essai. Sept gestes, dans cet ordre.</p>
+  </header>
+
+  <div class="jauge">
+    <b id="compte">0 / 7</b>
+    <span>gestes faits. Comptez une demi-heure.</span>
+    <span class="pastilles" id="pastilles"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
+  </div>
+
+  <h2>Vos quatre choix, tels qu'ils sont construits</h2>
+  <p class="cap">Donnés au sélecteur le 14 octobre 2026.</p>
+  <table>
+    <thead><tr><th>Question</th><th>Votre choix</th><th>Ce que le Trône en fait</th></tr></thead>
+    <tbody>
+      <tr><td class="quoi">Qui tient les RH</td><td>La direction seule</td><td>Le souverain, dans la base comme à l'écran, comme la paie depuis août. « Ressources humaines » ne s'ouvre plus pour les autres comptes.</td></tr>
+      <tr><td class="quoi">L'espace de chacune</td><td>Complet</td><td>Dans « Mon mois » : son solde et sa demande de congé, sa semaine, ses bulletins, ses documents signés, son prêt, ses entretiens. Rien sur les autres.</td></tr>
+      <tr><td class="quoi">La grille des compétences</td><td>Elle avertit</td><td>Un rendez-vous donné à une main pas encore autonome sur ce geste se signale, comme le palier ; il ne se refuse pas. Une main en repos au planning se signale aussi.</td></tr>
+      <tr><td class="quoi">L'ordre</td><td>Tout d'un coup</td><td>Une seule mise en ligne : les quatre fuites, la paie reliée, le dossier, les arrivées et départs, le planning, le recrutement, la grille, les entretiens, la discipline, les obligations.</td></tr>
+    </tbody>
+  </table>
+
+  <h2>À faire, dans cet ordre</h2>
+  <p class="cap">Les deux fichiers sont sur le bureau, dossier <kbd>A recoller - direction des RH</kbd>. Chaque fichier se colle en entier.</p>
+  <ol class="pas" id="pas">
+    <li><b>Vérifier les adresses des fiches, avant tout</b><p>Dans le Trône d'aujourd'hui, Personnel &amp; paie : ouvrez chaque fiche. L'<b>e-mail de connexion</b> doit être l'adresse avec laquelle la personne entre dans le Trône. Dès la 0130 collée, une fiche sans cette adresse ne pointe plus et ne voit pas son espace : la base ne relie plus un compte à une fiche par le nom.</p></li>
+    <li><b>Coller la 0130</b><p>SQL Editor, <b>New query</b>, collez tout <kbd>1-migration-0130.sql</kbd>, puis Run. Une seule ligne s'affiche ; elle doit dire :</p>
+      <div class="controle">
+        <span>dossiers</span><em>protégée</em>
+        <span>regles_dossiers</span><em>4</em>
+        <span>fiches_avec_champ_prive</span><em>0</em>
+        <span>regles_documents</span><em>4</em>
+        <span>ancienne_regle_partie</span><em>true</em>
+        <span>registres</span><em>bulletins protégée, rh protégée</em>
+        <span>regles_conges</span><em>4</em>
+        <span>regles_pointage</span><em>4</em>
+        <span>pret_lu_par_elle</span><em>true</em>
+        <span>compartiment_ouvert_au_public</span><em>false</em>
+        <span>regles_compartiment</span><em>4</em>
+        <span>direct</span><em>3</em>
+      </div>
+      <p>Une case qui dit autre chose : on s'arrête là, et vous me la donnez. Les salaires déjà écrits passent dans les dossiers privés pendant ce Run : rien ne se perd.</p></li>
+    <li><b>Recoller push-notify</b><p>Edge Functions, ouvrez <kbd>push-notify</kbd>, remplacez tout le code par <kbd>2-push-notify.ts</kbd>, puis Deploy. Ne touchez pas à « Verify JWT ».</p><p>Contrôle : bouton <b>Test</b>, méthode POST, corps <kbd>{"mode":"staff-cron"}</kbd>, Send. On doit lire <kbd>"version":"2026-10-14-b"</kbd>. Il remplace celui du dossier du secrétariat, s'il n'était pas encore collé.</p></li>
+    <li><b>Me dire « publie »</b><p>Je publie le Trône et je vérifie ce qui est servi, octet pour octet. Puis <b>Ctrl + F5</b> sur chaque poste : un Trône resté ouvert garde l'ancienne version dix minutes.</p></li>
+    <li><b>Ouvrir « Ressources humaines »</b><p>Équipe, <b>Ressources humaines</b>. « Le personnel » montre <b>sans compte</b> à côté d'une fiche sans adresse : à corriger aussitôt. Le bouton <b>Dossier</b> de chaque fiche dit ce qui manque (contrat, aptitude, contact d'urgence, CNSS).</p></li>
+    <li><b>Donner les réglages du droit au comptable</b><p>Onglet <b>Obligations</b> : les dates de la CNSS et de l'ITS, la période d'essai et le préavis par fonction, le délai d'une demande d'explication, le temps après lequel une sanction sort du dossier. Tant qu'un réglage est vide, le Trône dit « à confirmer » et ne devine rien.</p></li>
+    <li><b>Faire un premier essai</b><p>Une employée demande un congé depuis <b>Mon mois, Mon espace</b>. Il paraît dans <b>Aujourd'hui</b> et dans « À faire ». Accordez-le : il se pose au planning. Au prochain run de paie marqué « payé », son bulletin paraît dans son espace.</p></li>
+  </ol>
+
+  <div class="garde mur">
+    <b>Ce qui change pour l'équipe, à dire avant</b>
+    <p>« Personnel &amp; paie » s'appelle « Ressources humaines » et ne s'ouvre plus qu'à la direction. Un compte gérant qui l'ouvrait ne la voit plus ; il corrige toujours un pointage dans « Mon mois ».</p>
+    <p>Chacune pointe pour elle seule, depuis son propre compte. La notification « la paie attend votre oui » ne part plus qu'à la direction.</p>
+  </div>
+
+  <h2>Les quatre fuites, fermées</h2>
+  <table class="fx">
+    <thead><tr><th>Fuite</th><th>Avant</th><th>Maintenant</th></tr></thead>
+    <tbody>
+      <tr><td class="quoi">Le salaire dans la liste</td><td>Colonne « Salaire · base » pour qui ouvrait Personnel</td><td>Plus dans la liste ; dans le dossier, pour la direction</td></tr>
+      <tr><td class="quoi">« La paie attend votre oui »</td><td>À tout le personnel, avec le total net</td><td>À la direction seule ; la fonction exige un compte du personnel</td></tr>
+      <tr><td class="quoi">Les fiches dans la base</td><td>Salaires, contrats, primes et retenues lisibles de tout compte</td><td>Dossiers et primes au souverain ; chacune lit le sien</td></tr>
+      <tr><td class="quoi">Le pointage</td><td>Modifiable par n'importe quel compte</td><td>Chacune le sien ; la direction corrige, tracé</td></tr>
+    </tbody>
+  </table>
+
+  <h2>La règle, pour la suite</h2>
+  <div class="regle">
+    <p>Chaque personne a un dossier complet, daté, qu'elle lit pour ce qui la concerne.</p>
+    <p>Rien ne se décide sur elle sans trace écrite, et rien ne s'efface à son départ : la fiche s'archive.</p>
+    <small>Tenu par le banc verifie-la-direction-des-rh (48 contrôles, pannes plantées) et par la base elle-même (0130, éprouvée sous PGlite : 57 contrôles, cinq pannes plantées qui crient).</small>
+  </div>
+
+  <div class="pied">
+    <span>Maison MND · Le Trône</span>
+    <span>Document de travail, 14 octobre 2026.</span>
+  </div>
+
+</div>
+
+<script>
+/* Les cases cochées vivent sur CE poste. Si le navigateur refuse son stockage,
+   la page marche quand même : on coche, ça ne se garde simplement pas. */
+const CLE = 'mnd_poser_la_direction_rh_pas_faits';
+const items = [...document.querySelectorAll('#pas li')];
+const pastilles = [...document.querySelectorAll('#pastilles i')];
+const compte = document.getElementById('compte');
+let faits = [];
+try { faits = JSON.parse(localStorage.getItem(CLE) || '[]'); } catch { faits = []; }
+const dit = () => {
+  const n = items.filter((x) => x.classList.contains('fait')).length;
+  compte.textContent = n + ' / ' + items.length;
+  pastilles.forEach((p, i) => p.classList.toggle('prise', i < n));
+};
+items.forEach((li, i) => {
+  const b = document.createElement('button');
+  b.className = 'coche';
+  b.type = 'button';
+  b.setAttribute('aria-label', 'Marquer cette étape comme faite');
+  b.textContent = '✓';
+  b.onclick = () => {
+    li.classList.toggle('fait');
+    const cochees = items.map((x, j) => (x.classList.contains('fait') ? j : -1)).filter((j) => j >= 0);
+    try { localStorage.setItem(CLE, JSON.stringify(cochees)); } catch { /* tant pis */ }
+    dit();
+  };
+  li.appendChild(b);
+  if (faits.includes(i)) li.classList.add('fait');
+});
+dit();
+</script>
+</body>
+</html>

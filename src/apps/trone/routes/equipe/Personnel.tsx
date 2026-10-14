@@ -43,10 +43,28 @@ import TempsAbsences from './TempsAbsences';
 import { createStore, uid, useStore } from '../../../../shared/store';
 import { bindDocument } from '../../../../shared/sync';
 import { useTips, importLegacyTips, type Tip } from '../../../../shared/tips';
+import {
+  useOverrides, usePrimes, useConfirm, useRetenues, PRIME_LABEL, PRIME_TYPES, RETENUE_LABEL, RETENUE_TYPES,
+  type Prime, type PrimeType, type Retenue, type RetenueType, type PaieOverride, type PayConfirm,
+} from './variables-du-mois';
 import './equipe.css';
 import { ChampDeDate } from '../../../../ds/dates';
+import { estPartie, estReliee, piecesManquantes, type FicheRh, type OngletRh, type PieceDuDossier } from '../../../../shared/rh-pur';
+import { useRegistreRh } from '../../../../shared/rh';
+import RhAujourdhui from './rh/Aujourdhui';
+import RhRecrutement from './rh/Recrutement';
+import RhArriveesDeparts from './rh/ArriveesDeparts';
+import RhCompetences from './rh/Competences';
+import RhEntretiens from './rh/Entretiens';
+import RhDiscipline from './rh/Discipline';
+import RhObligations from './rh/Obligations';
+import { DossierModal } from './rh/Dossier';
 
-type Tab = 'equipe' | 'production' | 'temps' | 'paie' | 'parametres' | 'retention';
+/* LA DIRECTION DES RESSOURCES HUMAINES — 14 octobre 2026 : dix onglets ; la
+   paie garde ses quatre volets (runs, variables du mois, production et primes
+   de seuil, paramètres). « Rétention et bien-être », jamais tenu, est retiré. */
+type Tab = OngletRh;
+type SousPaie = 'runs' | 'variables' | 'production' | 'parametres';
 
 /* ── UN SEUL REGISTRE D AVANCES — réparé le 23 août 2026 ───────────
    « Comment régulariser les avances sur salaire avec leur contrepartie ? »
@@ -64,24 +82,8 @@ type Tab = 'equipe' | 'production' | 'temps' | 'paie' | 'parametres' | 'retentio
 /* Taux de commission par palier : `CommRates`, `commRatesStore` et `useCommRates`
    vivent désormais dans `./payroll` (partagés avec le run de Paie). */
 
-/* Ajustements manuels des commissions par mois + maître : `${AAAA-MM}:${staffId}`. */
-type PaieOverride = { commPresta?: number; commProduit?: number };
-const overridesStore = createStore<Record<string, PaieOverride>>('mnd_paie_overrides', {});
-bindDocument(overridesStore, 'mnd_paie_overrides');
-const useOverrides = () => useStore(overridesStore);
-
-/* Primes typées — staffId → liste. Chaque prime est datée (donc rattachée à un mois). */
-type PrimeType = 'fin_annee' | 'performance' | 'nuit' | 'autre';
-type Prime = { id: string; type: PrimeType; label?: string; amountXof: number; date: string; note?: string };
-const primesStore = createStore<Record<string, Prime[]>>('mnd_primes', {});
-bindDocument(primesStore, 'mnd_primes');
-const usePrimes = () => useStore(primesStore);
-const PRIME_LABEL: Record<PrimeType, string> = {
-  fin_annee: 'Fin d’année', performance: 'Performance', nuit: 'Nuit', autre: 'Autre',
-};
-const PRIME_TYPES: [PrimeType, string][] = [
-  ['performance', 'Performance'], ['nuit', 'Nuit'], ['fin_annee', 'Fin d’année'], ['autre', 'Autre'],
-];
+/* Primes, retenues, ajustements et confirmations : `./variables-du-mois`
+   (14 octobre 2026), lus aussi par le run de paie. */
 
 /* ── LE BARÈME DE SEUILS ────────────────────────────────────────────────
    Une prime qui récompense le VOLUME, là où la commission récompense le
@@ -121,30 +123,7 @@ export const primeDeSeuil = (regle: ReglePrime, compte: number): { seuil: number
    Le magasin est partagé (`shared/tips.ts`) afin d'être alimenté aussi à
    l'encaissement d'un RDV (pourboire pour le maître officiant). */
 
-/* Confirmation de règlement (la « signature ») — clé `${AAAA-MM}:${staffId}`.
-   Enregistre qui a confirmé le paiement et quand : preuve datée, infalsifiable côté
-   usage (réservée au personnel autorisé), pour ne jamais contester un versement. */
-type PayConfirm = { paidAt: string; byId: string; byName: string; method?: string; amountXof: number; expenseId?: string };
 const SALAIRE_CATEGORY = 'Salaires';
-const confirmStore = createStore<Record<string, PayConfirm>>('mnd_paie_confirm', {});
-bindDocument(confirmStore, 'mnd_paie_confirm');
-const useConfirm = () => useStore(confirmStore);
-
-/* Retenues sur salaire — staffId → liste, datées. Diminuent le net à verser.
-   Motifs : absence non rémunérée (maladie sans maintien, sabbatique, congé sans
-   solde), mise à pied (conservatoire/disciplinaire), absence injustifiée
-   (déduction stricte du temps non travaillé), autre. */
-type RetenueType = 'absence_non_rem' | 'mise_a_pied' | 'absence_injustifiee' | 'autre';
-type Retenue = { id: string; type: RetenueType; amountXof: number; date: string; days?: number; note?: string };
-const retenuesStore = createStore<Record<string, Retenue[]>>('mnd_retenues', {});
-bindDocument(retenuesStore, 'mnd_retenues');
-const useRetenues = () => useStore(retenuesStore);
-const RETENUE_LABEL: Record<RetenueType, string> = {
-  absence_non_rem: 'Absence non rémunérée', mise_a_pied: 'Mise à pied', absence_injustifiee: 'Absence injustifiée', autre: 'Autre retenue',
-};
-const RETENUE_TYPES: [RetenueType, string][] = [
-  ['absence_non_rem', 'Absence non rémunérée'], ['mise_a_pied', 'Mise à pied'], ['absence_injustifiee', 'Absence injustifiée'], ['autre', 'Autre'],
-];
 /** Jours ouvrables de référence pour le salaire journalier (retenue au prorata). */
 const JOURS_OUVRABLES = 26;
 
@@ -243,11 +222,14 @@ export default function Personnel() {
   const [staff, setStaff] = useStaff();
   const [advances, setAdvances] = useAdvances();
   const [payrollParams] = usePayrollParameters();
-  const [tab, setTab] = useState<Tab>('equipe');
+  const [tab, setTab] = useState<Tab>('jour');
+  const [sousPaie, setSousPaie] = useState<SousPaie>('runs');
+  const [dossierFor, setDossierFor] = useState<StaffMember | null>(null);
+  const [voirAnciennes, setVoirAnciennes] = useState(false);
+  const registreRh = useRegistreRh();
   const [modalOpen, setModalOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState<StaffForm>(() => emptyForm(branch.id));
-  const [paieLancee, setPaieLancee] = useState(false);
   const [avanceFor, setAvanceFor] = useState<StaffMember | null>(null);
   /* SON RÈGLEMENT, à remettre contre décharge. */
   const navigate = useNavigate();
@@ -305,7 +287,10 @@ export default function Personnel() {
   const [bareme, setBareme] = useBaremePoints();
   const [factures] = useFacturesPrestataires();
 
-  const team = useMemo(() => ordonneEquipe(staff.filter((m) => m.branchId === branch.id)), [staff, branch.id]);
+  /* LES ANCIENNES S'ARCHIVENT (14 octobre 2026) : elles quittent les listes
+     du jour, et se retrouvent d'un geste. */
+  const jourRh = new Date().toISOString().slice(0, 10);
+  const team = useMemo(() => ordonneEquipe(staff.filter((m) => m.branchId === branch.id && (voirAnciennes || !estPartie(m, jourRh)))), [staff, branch.id, voirAnciennes, jourRh]);
 
   /* L'ORDRE DES MEMBRES, décidé ici et respecté partout ailleurs.
 
@@ -885,16 +870,23 @@ export default function Personnel() {
   const stats = useMemo(() => {
     const n = team.length;
     const avgYears = n ? team.reduce((a, m) => a + ancienneteYears(m.since), 0) / n : 0;
-    const avgSat = n ? team.reduce((a, m) => a + m.satisfaction, 0) / n : 0;
-    const risky = team.filter((m) => m.risk === 'élevé').length;
-    return { n, avgYears, avgSat, risky };
-  }, [team]);
+    const pieces = registreRh.filter((l): l is PieceDuDossier => l.genre === 'piece');
+    const incomplets = team.filter((m) => piecesManquantes(m as unknown as FicheRh, pieces).length > 0).length;
+    const nonReliees = team.filter((m) => !estReliee(m)).length;
+    return { n, avgYears, incomplets, nonReliees };
+  }, [team, registreRh]);
 
   const payrollTotal = team.reduce((a, m) => a + netApresAvances(m), 0);
   const advancesTotal = team.reduce((a, m) => a + advancesTotalMonth(m.id, M), 0);
   const retenuesTotal = team.reduce((a, m) => a + retenueTotalMonth(m.id, M), 0);
 
   const openNew = () => { setEditId(null); setForm({ ...emptyForm(branch.id), matricule: nextMatricule(staff), atelier: branch.city }); setModalOpen(true); };
+  /* UNE CANDIDATE RETENUE : sa place se prépare, nom et numéro déjà écrits. */
+  const preparerUneArrivee = (nom: string, telephone?: string) => {
+    setTab('personnel'); setEditId(null);
+    setForm({ ...emptyForm(branch.id), name: nom, phone: telephone || '+229 ', matricule: nextMatricule(staff), atelier: branch.city });
+    setModalOpen(true);
+  };
   const openEdit = (m: StaffMember) => {
     setEditId(m.id);
     setForm({
@@ -973,12 +965,23 @@ export default function Personnel() {
     }
   };
 
+  /* LA DIRECTION SEULE (choix du 14 octobre 2026) : le souverain, comme la
+     paie. La base le tient aussi (0130) ; l'écran ne fait pas semblant. */
+  if (!isSouverain) {
+    return (
+      <div className="mnd-rise">
+        <PageHead eyebrow="Équipe · direction des ressources humaines" title="Les ressources humaines." sub="Réservées à la direction." />
+        <Card className="tre-empty"><div className="tre-empty__title">Cet écran est tenu par la direction seule.</div><div className="tre-empty__sub">Votre planning, vos congés, vos bulletins et vos documents signés sont dans « Mon mois », section « Mon espace ».</div></Card>
+      </div>
+    );
+  }
+
   return (
     <div className="mnd-rise">
       <PageHead
-        eyebrow="Équipe & Croissance · les Maîtres"
-        title="L’équipe."
-        sub={`${branch.name} · celles et ceux qui couronnent.`}
+        eyebrow="Équipe · direction des ressources humaines"
+        title="Les ressources humaines."
+        sub={`${branch.name} · celles et ceux qui font la Maison.`}
         actions={(
           <>
             {/* UN ÉCRAN QU'ON NE TROUVE PAS N'EXISTE PAS. Les fiches et le
@@ -990,15 +993,35 @@ export default function Personnel() {
         )}
       />
 
-      <RhDashboard />
+      <div className="rh-onglets" style={{ display: 'flex' }}>
+        <Tabs<Tab>
+          tabs={[
+            { k: 'jour', l: 'Aujourd’hui' }, { k: 'personnel', l: 'Le personnel' }, { k: 'recrutement', l: 'Recrutement' },
+            { k: 'arrivees', l: 'Arrivées et départs' }, { k: 'temps', l: 'Temps et congés' }, { k: 'paie', l: 'La paie' },
+            { k: 'competences', l: 'Compétences' }, { k: 'entretiens', l: 'Entretiens' }, { k: 'discipline', l: 'Discipline' },
+            { k: 'obligations', l: 'Obligations' },
+          ]}
+          value={tab}
+          onChange={setTab}
+        />
+      </div>
 
-      <Tabs<Tab>
-        tabs={[{ k: 'equipe', l: 'Équipe' }, { k: 'production', l: 'Production & primes de seuil' }, { k: 'temps', l: 'Temps & absences' }, { k: 'paie', l: 'Paie' }, { k: 'parametres', l: 'Paramètres de paie' }, { k: 'retention', l: 'Rétention & bien-être' }]}
-        value={tab}
-        onChange={setTab}
-      />
+      {tab === 'jour' && <RhAujourdhui va={setTab} />}
+      {tab === 'recrutement' && <RhRecrutement preparerUneArrivee={preparerUneArrivee} />}
+      {tab === 'arrivees' && <RhArriveesDeparts />}
+      {tab === 'competences' && <RhCompetences />}
+      {tab === 'entretiens' && <RhEntretiens />}
+      {tab === 'discipline' && <RhDiscipline />}
+      {tab === 'obligations' && <RhObligations />}
+      {tab === 'paie' && (
+        <div className="trc-tabs" style={{ marginBottom: 18 }}>
+          {([['runs', 'Les runs'], ['variables', 'Variables du mois'], ['production', 'Production et primes de seuil'], ['parametres', 'Paramètres de paie']] as [SousPaie, string][]).map(([k, l]) => (
+            <button key={k} className={`trc-tab ${sousPaie === k ? 'is-active' : ''}`} onClick={() => setSousPaie(k)}>{l}</button>
+          ))}
+        </div>
+      )}
 
-      {tab === 'equipe' && (
+      {tab === 'personnel' && (
         <div>
           <div className="tr-grid tr-grid--4">
             <Card filet="copper" style={{ padding: 18 }}>
@@ -1014,14 +1037,14 @@ export default function Personnel() {
               <div className="mnd-muted" style={{ fontSize: 11, marginTop: 6 }}>fidélité de l’équipe</div>
             </Card>
             <Card filet="indigo" style={{ padding: 18 }}>
-              <div className="mnd-stat__label">Satisfaction clientes</div>
-              <div className="mnd-stat__value" style={{ fontSize: 32 }}>{stats.avgSat ? stats.avgSat.toFixed(1).replace('.', ',') : '—'}</div>
-              <div className="mnd-muted" style={{ fontSize: 11, marginTop: 6 }}>sur 5 · retours des têtes couronnées</div>
+              <div className="mnd-stat__label">Dossiers incomplets</div>
+              <div className="mnd-stat__value" style={{ fontSize: 32 }}>{stats.incomplets}</div>
+              <div className="mnd-muted" style={{ fontSize: 11, marginTop: 6 }}>contrat, aptitude, urgence, CNSS</div>
             </Card>
             <Card filet="copper" style={{ padding: 18 }}>
-              <div className="mnd-stat__label">Risque de départ</div>
-              <div className="mnd-stat__value" style={{ fontSize: 32 }}>{stats.risky}</div>
-              <div className="mnd-muted" style={{ fontSize: 11, marginTop: 6 }}>{stats.risky === 0 ? 'aucune alerte à suivre' : 'alerte à traiter cette semaine'}</div>
+              <div className="mnd-stat__label">Fiches sans compte</div>
+              <div className="mnd-stat__value" style={{ fontSize: 32 }}>{stats.nonReliees}</div>
+              <div className="mnd-muted" style={{ fontSize: 11, marginTop: 6 }}>{stats.nonReliees === 0 ? 'chacune pointe et voit son espace' : 'sans adresse : ni pointage, ni espace'}</div>
             </Card>
           </div>
 
@@ -1035,7 +1058,7 @@ export default function Personnel() {
               <table className="tre-table">
                 <thead>
                   <tr>
-                    <th style={{ width: 62 }}>Ordre</th><th>Membre</th><th>Rôle</th><th>Branche</th><th>Au fauteuil</th><th>Ancienneté</th><th>Salaire · base</th><th>Statut</th><th></th>
+                    <th style={{ width: 62 }}>Ordre</th><th>Membre</th><th>Rôle</th><th>Branche</th><th>Au fauteuil</th><th>Ancienneté</th><th>Contrat</th><th>Statut</th><th></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1084,7 +1107,14 @@ export default function Personnel() {
                       <td className="mnd-muted">{branch.name}</td>
                       <td>{m.auFauteuil ? <Badge tone="copper">Au fauteuil</Badge> : <Badge>Hors fauteuil</Badge>}</td>
                       <td className="num">{anciennete(m.since)}</td>
-                      <td className="num">{fmtMoney(m.salaireXof, currency)}</td>
+                      {/* PLUS DE SALAIRE DANS LA LISTE (14 octobre 2026, fuite 1) : il
+                          reste dans la fiche. Ici, ce qui se suit. */}
+                      <td className="mnd-muted">
+                        {estPartie(m, jourRh) ? `partie le ${m.archiveeLe?.split('-').reverse().join('/')}` : (m.contractType ?? '·')}
+                        {m.contractType === 'CDD' && m.finContrat ? ` au ${m.finContrat.split('-').reverse().join('/')}` : ''}
+                        {m.finEssai && m.finEssai >= jourRh ? <span className="mnd-muted"> · à l’essai</span> : null}
+                        {!estReliee(m) ? <span className="tre-link-btn--danger"> · sans compte</span> : null}
+                      </td>
                       <td><Pill tone={m.statut === 'Présent' ? 'ok' : 'muted'}>{m.statut}</Pill></td>
                       <td style={{ whiteSpace: 'nowrap', textAlign: 'right' }}>
                         <button
@@ -1102,6 +1132,7 @@ export default function Personnel() {
                             les règles. Les deux se remettent à l'embauche, et
                             c'est ici qu'on y pense — sur la ligne de la
                             personne, pas dans un dossier à part. */}
+                        <button className="tre-link-btn" style={{ marginLeft: 12 }} onClick={(e) => { e.stopPropagation(); setDossierFor(m); }}>Dossier</button>
                         <button
                           className="tre-link-btn" style={{ marginLeft: 12 }}
                           title={`La fiche du poste « ${m.role} », et l’entretien qui s’appuie dessus`}
@@ -1129,13 +1160,16 @@ export default function Personnel() {
                           {motDeLEtat(ouEnEst(m.reglement, reglementDuJour.version))}
                         </button>
                         <button className="tre-link-btn" style={{ marginLeft: 12 }} onClick={(e) => { e.stopPropagation(); openAvance(m); }}>Avance sur salaire</button>
+                        {/* UN DÉPART S'ARCHIVE (14 octobre 2026) ; « Effacer » ne vaut
+                            plus que pour une fiche créée par erreur. */}
+                        <button className="tre-link-btn" style={{ marginLeft: 12 }} onClick={(e) => { e.stopPropagation(); setTab('arrivees'); toast(`« + Préparer un départ » pour ${m.name}.`); }}>Départ</button>
                         <button
                           className="tre-link-btn tre-link-btn--danger"
                           style={{ marginLeft: 12 }}
-                          title={estDirection ? 'Retire la fiche et efface sa pièce d’identité du coffre' : 'Retire la fiche'}
+                          title="Pour une fiche créée par erreur : efface la fiche, son dossier et sa pièce d’identité. Un départ, lui, s’archive."
                           onClick={(e) => { e.stopPropagation(); if (aRetirer === m.id) remove(m.id); else setARetirer(m.id); }}
                         >
-                          {aRetirer === m.id ? 'Confirmer le retrait' : 'Retirer'}
+                          {aRetirer === m.id ? 'Confirmer l’effacement' : 'Effacer (erreur)'}
                         </button>
                       </td>
                     </tr>
@@ -1147,30 +1181,24 @@ export default function Personnel() {
               </table>
             </div>
           </Card>
+          {staff.some((m) => m.branchId === branch.id && estPartie(m, jourRh)) && (
+            <button type="button" className="tre-link-btn" style={{ marginTop: 10 }} onClick={() => setVoirAnciennes(!voirAnciennes)}>
+              {voirAnciennes ? 'Cacher les anciennes de la Maison' : 'Voir aussi les anciennes de la Maison'}
+            </button>
+          )}
 
         </div>
       )}
 
-      {/* Ancien onglet « Paie & commissions » — remplacé par le module de runs
-          (PaieRuns). Conservé désactivé le temps de la reprise complète. */}
-      {false && tab === 'paie' && (
+      {/* LES VARIABLES DU MOIS — rallumées le 14 octobre 2026 : primes, pourboires,
+          avances et retenues de chacune, que le run de paie reprend seul. Les
+          fenêtres « + Prime », « + Retenue », « Détail annuel » et « Ajuster
+          comm. » ne s'ouvraient plus que depuis ce bloc éteint. */}
+      {tab === 'paie' && sousPaie === 'variables' && (
         <div>
-          <DeepNote
-            eyebrow={`Masse salariale · ${monthLabel()}`}
-            actions={
-              <Button variant="copper" onClick={() => setPaieLancee(true)}>
-                Lancer la paie · Mobile Money
-              </Button>
-            }
-          >
-            <span style={{ fontSize: 34 }}>{fmtMoney(payrollTotal, currency)}</span>
-          </DeepNote>
-          {paieLancee && (
-            <div className="tre-inline-note" style={{ marginBottom: 16 }}>
-              <span className="mark">✦</span>
-              <span>Paie de {monthLabel()} lancée, {team.length} virements Mobile Money programmés.</span>
-            </div>
-          )}
+          <div className="mnd-muted" style={{ fontSize: 12, marginBottom: 10 }}>
+            {monthLabel()} · ce qui s’inscrit ici arrive seul dans le run du mois, avec sa provenance. Le net de cette page est une estimation ; le run fait foi.
+          </div>
 
           <Card style={{ overflow: 'hidden' }}>
             <div className="mnd-scroll-x">
@@ -1309,7 +1337,7 @@ export default function Personnel() {
         </div>
       )}
 
-      {tab === 'production' && (
+      {tab === 'paie' && sousPaie === 'production' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
           {/* ── LES SEUILS ─────────────────────────────────────────────
               Ce qui déclenche un versement passe avant ce qui l'explique. */}
@@ -1438,8 +1466,8 @@ export default function Personnel() {
       )}
 
       {tab === 'temps' && <TempsAbsences />}
-      {tab === 'paie' && <PaieRuns />}
-      {tab === 'parametres' && (
+      {tab === 'paie' && sousPaie === 'runs' && (<><RhDashboard /><PaieRuns /></>)}
+      {tab === 'paie' && sousPaie === 'parametres' && (
         <div>
           {/* LE BAREME DE COMMISSION EST UN PARAMETRE DE PAIE. Il vivait dans
               l'onglet Equipe, sous l'effectif : on ne l'y trouvait pas, parce
@@ -1620,57 +1648,11 @@ export default function Personnel() {
         </div>
       )}
 
-      {tab === 'retention' && (
-        <div>
-          <div className="tre-quote" style={{ marginBottom: 18 }}>
-            « On ne retient pas un Maître par le salaire seul, mais par la charge juste, la croissance visible et la reconnaissance. La maison veille sur ceux qui couronnent. »
-          </div>
-          {team.length === 0 && (
-            <Card className="tre-empty">
-              <div className="tre-empty__title">Personne à veiller pour l’instant.</div>
-              <div className="tre-empty__sub">Ajoutez un membre à l’équipe, bien-être, charge et reconnaissance se suivront ici.</div>
-            </Card>
-          )}
-          <div className="tr-grid tr-grid--2">
-            {team.map((m) => (
-              <Card key={m.id} style={{ padding: '18px 20px', borderLeft: `3px solid ${m.risk === 'élevé' ? '#8f3b30' : m.risk === 'modéré' ? '#c9a227' : 'var(--color-copper)'}` }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                  <span className="tre-avatar" style={{ width: 42, height: 42, fontSize: 17 }}>{m.name.slice(0, 1)}</span>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontFamily: 'var(--font-serif)', fontSize: 19, color: 'var(--color-indigo)' }}>{m.name}</div>
-                    <div className="mnd-muted" style={{ fontSize: 11 }}>{anciennete(m.since)} d’ancienneté · {m.role}</div>
-                  </div>
-                  <Pill tone={riskTone(m.risk)}>Risque {m.risk}</Pill>
-                </div>
+      {/* « Rétention et bien-être » retiré le 14 octobre 2026 : ses jauges étaient
+          posées à la création et jamais tenues. Ses mots à elle vivent dans les
+          entretiens. */}
 
-                <div style={{ display: 'flex', gap: 18, marginTop: 16, alignItems: 'flex-start' }}>
-                  <Gauge value={m.wellbeing} label="Bien-être" />
-                  <Gauge value={Math.round(m.satisfaction * 20)} label={`Satisfaction ${m.satisfaction ? m.satisfaction.toFixed(1).replace('.', ',') : '—'} / 5`} />
-                  <div style={{ flex: 1 }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'var(--ink-soft)' }}>
-                      <span>Charge / capacité</span><span>{m.charge} %</span>
-                    </div>
-                    <div style={{ marginTop: 5 }}><Bar pct={m.charge} fill={m.charge > 90 ? '#c9a227' : 'var(--color-copper)'} /></div>
-                    <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 8, lineHeight: 1.4, fontWeight: 300 }}>{m.riskDrivers}</div>
-                  </div>
-                </div>
-
-                <div style={{ marginTop: 14, paddingTop: 13, borderTop: '1px solid var(--hairline)', display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  <div style={{ display: 'flex', gap: 9, alignItems: 'baseline' }}>
-                    <span style={{ fontSize: 9, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--copper-600)', flex: 'none', width: 96 }}>Croissance</span>
-                    <span style={{ fontSize: 12.5 }}>{m.nextStep}</span>
-                  </div>
-                  <div style={{ display: 'flex', gap: 9, alignItems: 'baseline' }}>
-                    <span style={{ fontSize: 9, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--copper-600)', flex: 'none', width: 96 }}>Reconnaissance</span>
-                    <span style={{ fontSize: 12.5 }}>{m.recognition}</span>
-                  </div>
-                </div>
-              </Card>
-            ))}
-          </div>
-        </div>
-      )}
-
+      {dossierFor && <DossierModal fiche={staff.find((x) => x.id === dossierFor.id) ?? dossierFor} onClose={() => setDossierFor(null)} />}
       {modalOpen && (
         <Modal title={editId ? 'Paramètres du membre.' : 'Nouveau membre.'} onClose={() => setModalOpen(false)} width={560}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>

@@ -24,7 +24,7 @@ const TZ = 'Africa/Porto-Novo';
     date en clair avec l'année ; le rappel de 21 h ne compte plus les caisses
     hors bilan et voit les mouvements hors activité. 14 octobre 2026 : le
     passage de 8 h du secrétariat administratif (J-7 et la veille). */
-const VERSION = '2026-10-14-a';
+const VERSION = '2026-10-14-b';
 
 /* LA DATE ET L'HEURE TELLES QU'ON LES DIT — 10 octobre 2026 (revue de nuit).
    Le rappel disait « Rendez-vous le 2026-10-11 à 09:00 », puis un tiret
@@ -602,6 +602,27 @@ Deno.serve(async (req) => {
       body: (body.body as string) ?? '',
       url: (body.url as string) ?? '/trone/',
       tag: 'mnd-staff',
+    }) });
+  }
+
+  /* LA DIRECTION SEULE — 14 octobre 2026 (direction des RH, fuite 2). « La paie
+     attend votre oui » partait à tout le personnel avec le total net : elle
+     ne va plus qu'au souverain, qui valide. L'appel doit venir d'un compte du
+     personnel (JWT), jamais d'une page publique. */
+  if (body.mode === 'direction') {
+    if (!parLeService(req)) {
+      const jwt = (req.headers.get('Authorization') ?? '').replace('Bearer ', '');
+      const { data: userData } = await admin.auth.getUser(jwt);
+      const uid = userData?.user?.id;
+      if (!uid) return json({ error: 'forbidden' }, 403);
+      const { data: staffRow } = await admin.from('staff').select('user_id').eq('user_id', uid).maybeSingle();
+      if (!staffRow) return json({ error: 'forbidden' }, 403);
+    }
+    return json({ version: VERSION, sent: await sendToDirection({
+      title: (body.title as string) || 'Maison MND',
+      body: (body.body as string) ?? '',
+      url: (body.url as string) ?? '/trone/',
+      tag: 'mnd-direction',
     }) });
   }
 

@@ -14,6 +14,9 @@ import {
   type AttendanceStatus, type LeaveType, type LeaveRequest,
 } from './payroll';
 import { ChampDeDate } from '../../../../ds/dates';
+import { planningStore } from '../../../../shared/rh';
+import { poseLeConge } from '../../../../shared/rh-pur';
+import RhPlanning from './rh/Planning';
 
 /* Temps & absences — pointage journalier + congés/maladie avec validation direction.
    Le planning des praticiens reste au slot engine ; ici, présence et absences. */
@@ -25,17 +28,18 @@ const frDate = (iso?: string) => {
   return m ? `${m[3]}/${m[2]}/${m[1]}` : iso;
 };
 
-type Tab = 'pointage' | 'conges';
+type Tab = 'planning' | 'pointage' | 'conges';
 
 export default function TempsAbsences() {
-  const [tab, setTab] = useState<Tab>('pointage');
+  const [tab, setTab] = useState<Tab>('planning');
   return (
     <div>
       <div className="trc-tabs" style={{ marginBottom: 18 }}>
+        <button className={`trc-tab ${tab === 'planning' ? 'is-active' : ''}`} onClick={() => setTab('planning')}>Le planning</button>
         <button className={`trc-tab ${tab === 'pointage' ? 'is-active' : ''}`} onClick={() => setTab('pointage')}>Pointage du jour</button>
         <button className={`trc-tab ${tab === 'conges' ? 'is-active' : ''}`} onClick={() => setTab('conges')}>Congés & absences</button>
       </div>
-      {tab === 'pointage' ? <Pointage /> : <Conges />}
+      {tab === 'planning' ? <RhPlanning /> : tab === 'pointage' ? <Pointage /> : <Conges />}
     </div>
   );
 }
@@ -166,6 +170,9 @@ function Conges() {
   const decide = (id: string, status: 'approuve' | 'refuse') => {
     const l = leaves.find((x) => x.id === id);
     leaveStore.set((prev) => prev.map((x) => (x.id === id ? { ...x, status, decidedBy: me?.name ?? 'Direction', decidedAt: new Date().toISOString() } : x)));
+    /* ACCORDÉ, IL SE POSE AU PLANNING (14 octobre 2026) : l'équipe voit qui
+       est absent, sans le motif ; l'agenda le signale. */
+    if (l && status === 'approuve') planningStore.set((p) => poseLeConge(p, l.employeeId, l.startDate, l.endDate));
     if (l) void previens(l, status);
   };
   const remove = (id: string) => leaveStore.set((prev) => prev.filter((l) => l.id !== id));

@@ -1,4 +1,6 @@
-import { createStore, useStore, HOUSE_BLANK } from '../../../../shared/store';
+import { createStore, useStore, HOUSE_BLANK, type Store } from '../../../../shared/store';
+import { memeContenu } from '../../../../shared/meme-contenu';
+import type { Competence, Depart } from '../../../../shared/rh-pur';
 import type { RetenueCompteCourant } from '../../../../shared/compte-courant';
 import { DEVISE_COMPLETE } from '../../../../shared/identite';
 import type { PaymentMethod } from '../../../../shared/finance';
@@ -204,6 +206,29 @@ export type StaffMember = {
       que monter). Absente = pas encore posée : le rendez-vous n'avertit pas,
       on ne devine pas. Voir `shared/paliers.ts`. */
   palier?: 'Fondation' | 'Élévation' | 'Souveraineté';
+
+  /* ══ LA DIRECTION DES RESSOURCES HUMAINES — 14 octobre 2026 (0130) ══════
+     Maquette QLU1EoT6… validée. Les champs privés (salaire, contrat, dossier
+     de paie, entretiens, aptitude, départ) ne vivent plus dans `team` mais
+     dans `team_dossiers`, que le souverain lit et que chacune lit pour elle.
+     La fiche garde sa forme à l'écran : voir la façade `staffStore` plus bas. */
+  /** Fin d'un CDD, AAAA-MM-JJ. */
+  finContrat?: string;
+  /** Fin de la période d'essai, AAAA-MM-JJ. */
+  finEssai?: string;
+  /** Apte ou non, et sa date. Jamais un diagnostic. */
+  aptitude?: { apte: boolean; le: string };
+  /** Qui prévenir en cas d'urgence. */
+  urgence?: { nom: string; telephone: string; lien?: string };
+  /** La liste du premier mois : étape → jour où elle a été faite. */
+  integration?: Record<string, string>;
+  /** Son départ, en cours ou fait. */
+  depart?: Depart;
+  /** PUBLIC : ce qu'elle sait faire, par famille du catalogue. L'agenda le lit
+      pour avertir (choix du 14 octobre : la grille avertit, ne bloque pas). */
+  competences?: Record<string, Competence>;
+  /** PUBLIC : partie ce jour-là. La fiche s'archive, elle ne s'efface plus. */
+  archiveeLe?: string;
 };
 
 /* Maison neuve — aucune donnée de démonstration ; tout naît de l’usage. */
@@ -247,7 +272,116 @@ export const ajouteUneFonction = (nom: string): void => {
     : [...prev, propre]));
 };
 
-export const staffStore = createStore<StaffMember[]>('mnd_staff', STAFF_SEED);
+/* ══ LA FICHE PUBLIQUE ET SON DOSSIER — 14 octobre 2026 (0130) ══════════
+
+   Jusqu'ici la fiche entière, salaire compris, se lisait par tout compte du
+   personnel en passant par la base. Elle est désormais rangée en deux :
+   `team` (le nom, la fonction, l'ordre, le palier, la grille des gestes) et
+   `team_dossiers` (CHAMPS_DU_DOSSIER), que le souverain lit et que chacune
+   lit pour elle seule.
+
+   UNE FAÇADE, PAS UNE FUSION DANS LE MAGASIN. Fusionner le dossier dans le
+   magasin lié à `team` ferait revenir du serveur une ligne différente de la
+   nôtre (sans salaire), que la synchronisation appliquerait, puis que la
+   fusion compléterait, puis repousserait : la boucle du 2 octobre 2026. Ici,
+   chaque table a son magasin ; `staffStore` les lit ensemble et, à
+   l'écriture, rend à chacun sa part. Une ligne inchangée garde son objet :
+   rien ne repart pour rien. La même liste vit dans la base
+   (`champs_du_dossier()`, 0130) : le banc les compare. */
+export const CHAMPS_DU_DOSSIER = [
+  'salaireXof', 'commPrestaXof', 'commProduitXof', 'primeXof',
+  'cnssNum', 'ifu', 'contractType', 'paiement',
+  'commissionPct', 'commissionTauxPct', 'commissionne', 'grille',
+  'retenuesCompteCourant', 'evaluations',
+  'satisfaction', 'wellbeing', 'charge', 'risk', 'riskDrivers', 'nextStep', 'recognition',
+  'finContrat', 'finEssai', 'aptitude', 'urgence', 'integration', 'depart',
+] as const;
+type ChampDuDossier = (typeof CHAMPS_DU_DOSSIER)[number];
+export type DossierDuPersonnel = { id: string; branchId: string } & Partial<Pick<StaffMember, ChampDuDossier>>;
+
+const fichesPubliquesStore = createStore<StaffMember[]>('mnd_staff', STAFF_SEED);
+export const dossiersDuPersonnelStore = createStore<DossierDuPersonnel[]>('mnd_team_dossiers', []);
+
+const enListe = <T,>(v: unknown): T[] => (Array.isArray(v) ? (v as T[]).filter((x) => x && typeof x === 'object') : []);
+const sansLePrive = (m: StaffMember): StaffMember => {
+  const o = { ...m } as Record<string, unknown>;
+  for (const k of CHAMPS_DU_DOSSIER) delete o[k];
+  return o as StaffMember;
+};
+const lePrive = (m: object): Record<string, unknown> => {
+  const o: Record<string, unknown> = {};
+  for (const k of CHAMPS_DU_DOSSIER) {
+    const v = (m as Record<string, unknown>)[k];
+    if (v !== undefined) o[k] = v;
+  }
+  return o;
+};
+
+let memoire: { pub: unknown; dos: unknown; out: StaffMember[] } | null = null;
+const lesFichesEntieres = (): StaffMember[] => {
+  const pub = fichesPubliquesStore.get();
+  const dos = dossiersDuPersonnelStore.get();
+  if (memoire && memoire.pub === pub && memoire.dos === dos) return memoire.out;
+  const parId = new Map(enListe<DossierDuPersonnel>(dos).map((d) => [d.id, d]));
+  const out = enListe<StaffMember>(pub).map((m) => {
+    const d = parId.get(m.id);
+    return d ? ({ ...m, ...lePrive(d) } as StaffMember) : m;
+  });
+  memoire = { pub, dos, out };
+  return out;
+};
+
+const rendsAChacunSaPart = (next: StaffMember[]): void => {
+  const avant = lesFichesEntieres();
+  const avantParId = new Map(avant.map((m) => [m.id, m]));
+  const pubAvant = enListe<StaffMember>(fichesPubliquesStore.get());
+  const pubParId = new Map(pubAvant.map((m) => [m.id, m]));
+  const dosAvant = enListe<DossierDuPersonnel>(dossiersDuPersonnelStore.get());
+  const dosParId = new Map(dosAvant.map((d) => [d.id, d]));
+  const liste = enListe<StaffMember>(next);
+
+  const pubApres = liste.map((m) => {
+    const vieux = pubParId.get(m.id);
+    if (vieux && avantParId.get(m.id) === m) return vieux;
+    const p = sansLePrive(m);
+    return vieux && memeContenu(vieux, p) ? vieux : p;
+  });
+  if (pubApres.length !== pubAvant.length || pubApres.some((x, i) => x !== pubAvant[i])) fichesPubliquesStore.set(pubApres);
+
+  /* Le privé ne s'écrit que s'il change ; un dossier sans fiche (arrivé
+     avant elle du serveur) se garde, il ne s'efface qu'avec sa fiche. */
+  const ids = new Set(liste.map((m) => m.id));
+  let change = false;
+  const dosApres: DossierDuPersonnel[] = dosAvant.filter((d) => {
+    if (ids.has(d.id)) return true;
+    if (avantParId.has(d.id)) { change = true; return false; }
+    return true;
+  });
+  const indexDe = new Map(dosApres.map((d, i) => [d.id, i]));
+  for (const m of liste) {
+    if (avantParId.get(m.id) === m) continue;
+    const prive = lePrive(m);
+    const d0 = dosParId.get(m.id);
+    if (memeContenu(prive, d0 ? lePrive(d0) : {})) continue;
+    if (!d0 && Object.keys(prive).length === 0) continue;
+    change = true;
+    const neuf = { id: m.id, branchId: m.branchId, ...prive } as DossierDuPersonnel;
+    const i = indexDe.get(m.id);
+    if (i === undefined) { indexDe.set(m.id, dosApres.length); dosApres.push(neuf); } else dosApres[i] = neuf;
+  }
+  if (change) dossiersDuPersonnelStore.set(dosApres);
+};
+
+export const staffStore: Store<StaffMember[]> = {
+  key: 'mnd_staff',
+  get: lesFichesEntieres,
+  set: (next) => rendsAChacunSaPart(typeof next === 'function' ? next(lesFichesEntieres()) : next),
+  subscribe: (fn) => {
+    const a = fichesPubliquesStore.subscribe(fn);
+    const b = dossiersDuPersonnelStore.subscribe(fn);
+    return () => { a(); b(); };
+  },
+};
 export const useStaff = () => useStore(staffStore);
 
 /** L'ADRESSE QUI FAIT FOI pour une fiche — celle du COMPTE d'abord, celle de
@@ -1286,7 +1420,9 @@ export const useTheme = () => useStore(themeStore);
    Rien de local : équipe, marketing, abonnements, académie, paramètres maison,
    thème et accès du personnel remontent en base (collections + documents). */
 import { bindCollection, bindDocument } from '../../../../shared/sync';
-bindCollection(staffStore, 'team');
+bindCollection(fichesPubliquesStore, 'team');
+/* Le dossier de chaque fiche (0130) : le souverain lit tout, chacune le sien. */
+bindCollection(dossiersDuPersonnelStore, 'team_dossiers');
 bindCollection(campaignsStore, 'campaigns');
 bindCollection(formationsStore, 'formations');
 bindCollection(apprenantsStore, 'apprenants');

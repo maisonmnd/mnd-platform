@@ -172,7 +172,7 @@ export const NAV: TroneGroup[] = [
       { path: '/fil', label: 'Le Fil', icon: MessageSquare, Component: lazy(() => import('./equipe/Fil')) },
       { path: '/tableau', label: 'Le Tableau', icon: SquareKanban, Component: lazy(() => import('./equipe/Tableau')) },
       { path: '/mon-mois', label: 'Mon mois', icon: BadgeCheck, Component: lazy(() => import('./equipe/MonMois')) },
-      { path: '/personnel', label: 'Personnel & paie', icon: UsersRound, Component: lazy(() => import('./equipe/Personnel')) },
+      { path: '/personnel', label: 'Ressources humaines', icon: UsersRound, Component: lazy(() => import('./equipe/Personnel')) },
       { path: '/prestataires', label: 'Prestataires', icon: Handshake, Component: lazy(() => import('./equipe/Prestataires')) },
     ],
   },

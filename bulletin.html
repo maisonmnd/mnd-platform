@@ -614,7 +614,24 @@
   //   &base=…&hs=…&prime=…&pourboires=…&commission=…&indemnites=…&avance=…&retenue=…
   //   &pret=…&pretreste=…&cc=…&paiement=…&cnss=…&its=…
   (function(){
-    var q = new URLSearchParams(location.search);
+    // Les montants ne passent plus par l'adresse (14 octobre 2026) : le Trône
+    // les dépose sur l'appareil (mnd_bulletin_<clé>), la page les lit par sa clé.
+    // Un dépôt de plus d'un jour s'efface ici. Sans clé, l'adresse fait foi.
+    var q = (function(){
+      var s = new URLSearchParams(location.search), k = s.get('b');
+      try {
+        var t = Date.now();
+        for (var i = localStorage.length - 1; i >= 0; i--) {
+          var c = localStorage.key(i);
+          if (c && c.indexOf('mnd_bulletin_') === 0) {
+            var v = JSON.parse(localStorage.getItem(c) || '{}');
+            if (!v.at || t - v.at > 86400000) localStorage.removeItem(c);
+          }
+        }
+        if (k) { var d = JSON.parse(localStorage.getItem('mnd_bulletin_' + k) || 'null'); if (d && d.q) return new URLSearchParams(d.q); }
+      } catch (e) {}
+      return s;
+    })();
     var map = {
       nom:'f-nom', poste:'f-poste', matricule:'f-matricule', cnssnum:'f-cnss',
       periode:'f-periode', base:'g-base', hs:'g-hs', prime:'g-prime',

@@ -322,7 +322,7 @@ export default function Encaissements() {
     /* SANS ÉQUIPE, ON NE TOUCHE À RIEN. Effacer d'abord et repartager entre
        personne aurait vidé « Mon mois » de tout le monde sans rien rendre. */
     if (equipe.filter((m) => m.part > 0).length === 0) {
-      alerte('Aucune fiche du personnel dans cette branche (Personnel & paie), rien n’a été touché : le repartage n’aurait crédité personne.');
+      alerte('Aucune fiche du personnel dans cette branche (Ressources humaines), rien n’a été touché : le repartage n’aurait crédité personne.');
       return;
     }
     const factures = invoices.filter((i) => i.branchId === branch.id && i.kind === 'facture' && (i.tipXof ?? 0) > 0);

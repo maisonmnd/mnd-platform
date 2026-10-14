@@ -98,6 +98,10 @@ export default function Secretariat() {
   useEffect(() => {
     const voulu = (location.state as { onglet?: string } | null)?.onglet;
     if (voulu) setChoisi(voulu as Onglet);
+    /* UNE LETTRE PRÉPARÉE AILLEURS S'OUVRE ICI (direction des RH, 14 octobre
+       2026) : certificat de travail, avertissement, demande d'explication. */
+    const aOuvrir = (location.state as { ouvre?: string } | null)?.ouvre;
+    if (aOuvrir) setOuvert(aOuvrir);
   }, [location.state]);
   const va = (o: string) => { setChoisi(o as Onglet); window.scrollTo({ top: 0, behavior: 'smooth' }); };
   const vueDesPapiers = onglet === 'papiers' && direction;

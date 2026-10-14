@@ -452,9 +452,9 @@ export default function Fil() {
               type="button"
               className="trf-fil__canal"
               style={{ opacity: 0.55 }}
-              title="Sa fiche n'a pas d'adresse e-mail, un tête-à-tête est un fil entre deux adresses. Renseignez-la dans Personnel & paie."
+              title="Sa fiche n'a pas d'adresse e-mail, un tête-à-tête est un fil entre deux adresses. Renseignez-la dans Ressources humaines."
               onClick={() => {
-                toast(`${m.name} n'a pas d'adresse e-mail sur sa fiche, renseignez-la dans Personnel & paie pour ouvrir son tête-à-tête.`);
+                toast(`${m.name} n'a pas d'adresse e-mail sur sa fiche, renseignez-la dans Ressources humaines pour ouvrir son tête-à-tête.`);
                 navigate('/personnel');
               }}
             >
