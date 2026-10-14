@@ -8,6 +8,7 @@ import { adresseDArrivee, etatDeLArrivee, seRessemblent } from '../../../../shar
 import { ANCIENS_DOMAINES, NAV, ROUTES_MAITRE, ROUTES_MAITRE_FERMABLES, ancienDomaineDe, domaineDe } from '../index';
 import { useClients } from '../../../../shared/clients';
 import { useStore } from '../../../../shared/store';
+import { chargeLesTitulaires, donneLeRole, useTitulaires } from '../../../../shared/secretariat-admin';
 import './systeme.css';
 
 /* Accès & personnel — le souverain autorise les comptes connectés à entrer dans
@@ -52,6 +53,19 @@ export default function Acces() {
      commande desormais la barre de navigation. Clef : l'identifiant de compte,
      le seul qui ne bouge pas quand un nom se corrige. */
   const [acces, setAcces] = useStore(staffAccessStore);
+  /* LE RÔLE « SECRÉTARIAT » — 14 octobre 2026 (maquette TChByryY…). Une case
+     par maître : elle écrit dans `secretariat_titulaires` (0129), que la base
+     réserve à la direction, et ouvre l'écran du Secrétariat à la personne. */
+  const [titulaires] = useTitulaires();
+  useEffect(() => { void chargeLesTitulaires(); }, []);
+  const basculeLeSecretariat = async (userId: string, oui: boolean, nom: string) => {
+    setBusy(userId); setMsg(null);
+    const r = await donneLeRole(userId, oui, myId ?? '');
+    setBusy(null);
+    if (!r.ok) { setMsg({ kind: 'err', text: r.erreur ?? 'Le rôle n’a pas pu changer.' }); return; }
+    if (oui) setAcces((prev) => ({ ...prev, [userId]: { ...(prev[userId] ?? {}), '/secretariat': true } }));
+    setMsg({ kind: 'ok', text: oui ? `${nom} tient désormais le secrétariat.` : `${nom} ne tient plus le secrétariat.` });
+  };
   /* ── UNE PERSONNE À LA FOIS — 22 septembre 2026 ────────────────────────
      « Too congested. Je ne sais plus sur quel membre je suis quand je fais
      défiler » (Yéman). L'écran dépliait les quarante-quatre écrans de chaque
@@ -654,6 +668,14 @@ export default function Acces() {
                           </div>
                         ) : (
                           <>
+                            <div className="sys-acc-note">
+                              <label style={{ display: 'inline-flex', gap: 8, alignItems: 'baseline', cursor: 'pointer' }}>
+                                <input type="checkbox" checked={titulaires.includes(m.user_id)} disabled={busy === m.user_id}
+                                  onChange={(e) => void basculeLeSecretariat(m.user_id, e.target.checked, m.name || m.email || 'Ce compte')} />
+                                <b>Tient le secrétariat</b>
+                              </label>
+                              {' '}Courrier, échéancier, contrats, démarches, contacts et archives. Le privé, les papiers et la bourse restent à la direction.
+                            </div>
                             {NAV.map((g) => {
                               const ecrans = ecransDuGroupe(g.items);
                               if (!ecrans.length) return null;

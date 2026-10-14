@@ -18,6 +18,16 @@ import { LesPapiers } from './secretariat/Papiers';
 import { LeDossierDeBourse } from './secretariat/Bourse';
 import { MARQUE_HEBERGEANT } from '../../../../shared/bourse';
 import { REGISTRE_MAISON_MND } from '../../../../shared/registre';
+import { courriersDe } from '../../../../shared/secretariat-admin';
+import { tientLeSecretariat } from '../../../../shared/secretariat-admin-pur';
+import { useQui } from './secretariat/_admin';
+import { Aujourdhui } from './secretariat/Aujourdhui';
+import { LeCourrierDeLaMaison } from './secretariat/Courrier';
+import { LEcheancier } from './secretariat/Echeancier';
+import { LesContrats } from './secretariat/Contrats';
+import { LesDemarches } from './secretariat/Demarches';
+import { LesContacts } from './secretariat/Contacts';
+import { LesArchives } from './secretariat/Archives';
 import './pilotage.css';
 
 /* ══ LE SECRÉTARIAT — 6 octobre 2026 (maquette StpDQGL3HE1nHyyjSRNU9r validée) ══
@@ -37,6 +47,7 @@ import './pilotage.css';
    relire » ; les lettres personnelles ne sont vues que de la direction. */
 
 type Filtre = 'tous' | 'mnd' | 'acia' | 'autre' | 'perso' | 'brouillons' | 'signes';
+type Onglet = 'jour' | 'courrier' | 'echeances' | 'contrats' | 'demarches' | 'contacts' | 'documents' | 'papiers' | 'bourse' | 'archives';
 
 const ETAT: Record<Piece['etat'], string> = { brouillon: 'Brouillon', 'a-signer': 'En signature', signe: 'Signé', annule: 'Annulé' };
 
@@ -66,11 +77,29 @@ export default function Secretariat() {
   /* LES PAPIERS, SECOND ONGLET (6 octobre 2026) : la direction seule, comme
      la base le veut (0117). On y arrive aussi depuis À faire. */
   const location = useLocation();
-  const [onglet, setOnglet] = useState<'documents' | 'papiers' | 'bourse'>('documents');
+  /* LE SECRÉTARIAT ADMINISTRATIF (14 octobre 2026, maquette TChByryY…) :
+     dix onglets, montrés selon qui l'on est. Qui tient le secrétariat (la
+     direction, ou le rôle donné dans Accès & rôles) ouvre sur « Aujourd'hui » ;
+     les autres gardent les documents, les contacts, et le courrier qui leur
+     est confié. La base tient la même règle (0129). */
+  const qui = useQui();
+  const tient = tientLeSecretariat(qui);
+  const confie = courriersDe(lignes).some((c) => !!moi && c.traitePar === moi);
+  const ONGLETS: { k: Onglet; l: string; si: boolean }[] = [
+    { k: 'jour', l: 'Aujourd’hui', si: tient }, { k: 'courrier', l: 'Le courrier', si: tient || confie },
+    { k: 'echeances', l: 'L’échéancier', si: tient }, { k: 'contrats', l: 'Contrats', si: tient },
+    { k: 'demarches', l: 'Démarches', si: tient }, { k: 'contacts', l: 'Contacts', si: true },
+    { k: 'documents', l: 'Les documents', si: true }, { k: 'papiers', l: 'Les papiers', si: direction },
+    { k: 'bourse', l: 'Bourse scolaire', si: direction }, { k: 'archives', l: 'Archives', si: tient },
+  ];
+  const ongletsVus = ONGLETS.filter((o) => o.si);
+  const [choisi, setChoisi] = useState<Onglet | null>(null);
+  const onglet: Onglet = choisi && ongletsVus.some((o) => o.k === choisi) ? choisi : tient ? 'jour' : 'documents';
   useEffect(() => {
     const voulu = (location.state as { onglet?: string } | null)?.onglet;
-    if ((voulu === 'papiers' || voulu === 'bourse') && direction) setOnglet(voulu);
-  }, [location.state, direction]);
+    if (voulu) setChoisi(voulu as Onglet);
+  }, [location.state]);
+  const va = (o: string) => { setChoisi(o as Onglet); window.scrollTo({ top: 0, behavior: 'smooth' }); };
   const vueDesPapiers = onglet === 'papiers' && direction;
   /* LE DOSSIER DE BOURSE, TROISIÈME ONGLET (7 octobre 2026) : la direction seule. */
   const vueDeLaBourse = onglet === 'bourse' && direction;
@@ -111,8 +140,10 @@ export default function Secretariat() {
       <PageHead
         eyebrow="Direction"
         title="Le secrétariat"
-        sub="Lettres, attestations, notes, contrats : tout ce qui sort sur papier à en-tête, numéroté et signé."
-        actions={vueDesPapiers || vueDeLaBourse ? undefined : (
+        sub={onglet === 'documents'
+          ? 'Lettres, attestations, notes, contrats : tout ce qui sort sur papier à en-tête, numéroté et signé.'
+          : 'Le courrier, les dates à tenir, les contrats, les démarches et les papiers de la Maison, au même endroit.'}
+        actions={onglet !== 'documents' ? undefined : (
           <>
             {direction && <Button variant="ghost" onClick={() => setMentions(true)}>Mentions de l’en-tête</Button>}
             <Button variant="ghost" onClick={() => setSignature(true)}>{aSaSignature ? 'Ma signature' : 'Déposer ma signature'}</Button>
@@ -121,15 +152,22 @@ export default function Secretariat() {
         )}
       />
 
-      {direction && (
-        <div className="sec-onglets" role="tablist" aria-label="Le secrétariat">
-          <button type="button" role="tab" aria-selected={!vueDesPapiers && !vueDeLaBourse} className={`sec-onglet${!vueDesPapiers && !vueDeLaBourse ? ' sec-onglet--on' : ''}`} onClick={() => setOnglet('documents')}>Les documents</button>
-          <button type="button" role="tab" aria-selected={vueDesPapiers} className={`sec-onglet${vueDesPapiers ? ' sec-onglet--on' : ''}`} onClick={() => setOnglet('papiers')}>Les papiers</button>
-          <button type="button" role="tab" aria-selected={vueDeLaBourse} className={`sec-onglet${vueDeLaBourse ? ' sec-onglet--on' : ''}`} onClick={() => setOnglet('bourse')}>Bourse scolaire</button>
+      {ongletsVus.length > 1 && (
+        <div className="sec-onglets sad-onglets" role="tablist" aria-label="Le secrétariat">
+          {ongletsVus.map((o) => (
+            <button key={o.k} type="button" role="tab" aria-selected={onglet === o.k} className={`sec-onglet${onglet === o.k ? ' sec-onglet--on' : ''}`} onClick={() => setChoisi(o.k)}>{o.l}</button>
+          ))}
         </div>
       )}
 
-      {vueDeLaBourse ? (
+      {onglet === 'jour' ? <Aujourdhui qui={qui} va={va} ouvreUnDocument={setOuvert} />
+      : onglet === 'courrier' ? <LeCourrierDeLaMaison qui={qui} branchId={branch.id} ouvreUnDocument={setOuvert} />
+      : onglet === 'echeances' ? <LEcheancier qui={qui} branchId={branch.id} va={va} />
+      : onglet === 'contrats' ? <LesContrats qui={qui} branchId={branch.id} ouvreUnDocument={setOuvert} />
+      : onglet === 'demarches' ? <LesDemarches qui={qui} branchId={branch.id} ouvreUnDocument={setOuvert} />
+      : onglet === 'contacts' ? <LesContacts qui={qui} branchId={branch.id} />
+      : onglet === 'archives' ? <LesArchives qui={qui} branchId={branch.id} />
+      : vueDeLaBourse ? (
         <LeDossierDeBourse branchId={branch.id} moi={moi} nomMaison={maisonNom()} surOuvre={setOuvert} />
       ) : vueDesPapiers ? (
         <LesPapiers

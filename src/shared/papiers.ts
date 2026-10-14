@@ -104,7 +104,7 @@ export async function copieEnMemoire(f: File): Promise<{ fichier?: File; erreur?
 /** Une photo s'allège avant de partir : 2 200 px au plus, en JPEG (une photo
     HEIC d'iPhone y est convertie). Elle reste lisible à l'impression ; un PDF
     part tel quel. */
-async function allege(f: File): Promise<Blob> {
+export async function allege(f: File): Promise<Blob> {
   if (f.type === 'application/pdf') return f;
   const url = URL.createObjectURL(f);
   try {

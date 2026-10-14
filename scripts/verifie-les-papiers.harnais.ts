@@ -111,7 +111,10 @@ dit('le service hors ligne ne garde rien d une autre origine', true, /if \(url\.
 const page = sansCommentaires('src/apps/trone/routes/pilotage/Secretariat.tsx');
 dit('l onglet des papiers est a la direction seule', [true, true], [
   page.includes("const vueDesPapiers = onglet === 'papiers' && direction;"),
-  /\{direction && \(\s*<div className="sec-onglets"/.test(page),
+  /* Depuis le 14 octobre 2026, la barre a dix onglets montrés selon qui l'on
+     est (secrétariat administratif) : l'onglet des papiers, lui, reste à la
+     direction seule. */
+  page.includes("{ k: 'papiers', l: 'Les papiers', si: direction }"),
 ]);
 const ecran = sansCommentaires('src/apps/trone/routes/pilotage/secretariat/Papiers.tsx');
 dit('la marque ne se decoche pas quand elle est obligatoire, et part avec le dossier', [true, true, true], [

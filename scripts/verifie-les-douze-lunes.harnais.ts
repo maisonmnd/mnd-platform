@@ -608,6 +608,10 @@ const regles: Regle[] = [
            du site, et le dialogue entier, recopiés dans whatsapp-automate. */
         'prochaines-places': { fichier: 'src/shared/reservation-express.ts', extrait: (s) => entre(s, 'prochaines-places') },
         'automate-wa': { fichier: 'src/shared/automate-wa.ts', extrait: (s) => entre(s, 'automate-wa') },
+        /* Les gestes dits en francais (13 octobre 2026), recopies dans whatsapp-automate. */
+        'gestes-en-francais': { fichier: 'src/shared/gestes-en-francais.ts', extrait: (s) => entre(s, 'gestes-en-francais') },
+        /* Le secretariat administratif (14 octobre 2026) : ce qui tombe, recopie dans push-notify. */
+        'ce-qui-tombe': { fichier: 'src/shared/secretariat-admin-pur.ts', extrait: (s) => entre(s, 'ce-qui-tombe') },
       };
       const fonctions: string[] = [];
       const marche = (d: string) => { for (const n of readdirSync(d)) { const p = `${d}/${n}`; if (statSync(p).isDirectory()) marche(p); else if (/\.(ts|js)$/.test(n)) fonctions.push(p); } };
@@ -645,6 +649,7 @@ const regles: Regle[] = [
       { nom: 'la forme du code change dans l Edge', mute: [P(EDGE, 'const FORME_DU_CODE = /^[A-Z]{1,6}-', 'const FORME_DU_CODE = /^[A-Z]{1,7}-')] },
       { nom: 'un caractere change dans la copie automate-wa de whatsapp-automate', mute: [P('supabase/functions/whatsapp-automate/index.ts', 'const PLAFOND_DE_L_AUTOMATE = 10;', 'const PLAFOND_DE_L_AUTOMATE = 11;')] },
       { nom: 'l original de prochaines-places change seul', mute: [P('src/shared/reservation-express.ts', 'export const PLACES_PAR_JOUR = 2;', 'export const PLACES_PAR_JOUR = 3;')] },
+      { nom: 'un caractere change dans la copie ce-qui-tombe de push-notify', mute: [P('supabase/functions/push-notify/index.ts', 'const JOURS_DE_NOTIFICATION = [7, 1];', 'const JOURS_DE_NOTIFICATION = [7, 2];')] },
     ],
   },
 
@@ -1023,7 +1028,7 @@ const regles: Regle[] = [
       return ecarts;
     },
     pannes: [
-      { nom: 'le code se perd a la porte de la creation', mute: [P(RESERVER, '/rappel/?besoin=creation${suiteDuCode}', '/rappel/?besoin=creation')] },
+      { nom: 'le code se perd sur le lien du rappel', mute: [P(RESERVER, "/rappel/${suiteDuCode ? `?${suiteDuCode.slice(1)}` : ''}", '/rappel/')] },
       { nom: 'la demande de rappel n envoie pas le code', mute: [P(RAPPEL, '            ...(codeAmie ? { codeAmie } : {}),\n', '')] },
       { nom: 'l Edge ignore le code sans place', mute: [P(EDGE, '} else if (FORME_DU_CODE.test(codeNormalise(codeEcrit))) {', '} else if (false) {')] },
       { nom: 'la lignee ignore la fiche de la conversion', mute: [P(MOTEUR, ': !d.apptId && d.clientId && parId.has(d.clientId) ? d.clientId : undefined;', ': undefined;')] },

@@ -23,8 +23,10 @@
      pages. */
 import { REGISTRE_MAISON_MND } from './registre';
 
+import type { LigneAdministrative } from './secretariat-admin-pur';
+
 export type Entite = 'mnd' | 'acia' | 'autre' | 'perso';
-export type Genre = 'piece' | 'entreprise' | 'signataire' | 'profil' | 'mentions' | 'bourse';
+export type Genre = 'piece' | 'entreprise' | 'signataire' | 'profil' | 'mentions' | 'bourse' | LigneAdministrative['genre'];
 export type EtatPiece = 'brouillon' | 'a-signer' | 'signe' | 'annule';
 export type Cadre = 'libre' | 'droite' | 'centre' | 'gauche';
 
@@ -149,7 +151,9 @@ export type DossierBourse = {
   majLe: string;
 };
 
-export type LigneSecretariat = Piece | Entreprise | Signataire | Profil | Mentions | DossierBourse;
+/* Le secrétariat administratif (14 octobre 2026, 0129) : courrier,
+   échéances, contrats, démarches, contacts, clôtures, dans la même table. */
+export type LigneSecretariat = Piece | Entreprise | Signataire | Profil | Mentions | DossierBourse | LigneAdministrative;
 
 /** « RCCM … · IFU … », sans ce qui manque ; vide si rien n'est donné. */
 export function ligneDesMentions(m: Partial<MentionsLegales> | undefined): string {

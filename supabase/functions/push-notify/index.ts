@@ -22,8 +22,9 @@ const TZ = 'Africa/Porto-Novo';
     vraiment évite de chercher une panne dans un fichier qui n'est pas celui
     qu'on croit déployé. 10 octobre 2026 (revue de nuit) : le rappel dit la
     date en clair avec l'année ; le rappel de 21 h ne compte plus les caisses
-    hors bilan et voit les mouvements hors activité. */
-const VERSION = '2026-10-10-a';
+    hors bilan et voit les mouvements hors activité. 14 octobre 2026 : le
+    passage de 8 h du secrétariat administratif (J-7 et la veille). */
+const VERSION = '2026-10-14-a';
 
 /* LA DATE ET L'HEURE TELLES QU'ON LES DIT — 10 octobre 2026 (revue de nuit).
    Le rappel disait « Rendez-vous le 2026-10-11 à 09:00 », puis un tiret
@@ -367,6 +368,128 @@ const parLeService = (req: Request): boolean => {
     .some((cle) => !!cle && cle.trim().length === recu.length && cle.trim() === recu);
 };
 
+/* ⟨ce-qui-tombe⟩ */
+/** Une date ISO décalée de n jours, à midi UTC : aucun fuseau ne fait sauter le jour. */
+export const ajouteJours = (iso: string, n: number): string => {
+  const d = new Date(`${iso.slice(0, 10)}T12:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + n);
+  return d.toISOString().slice(0, 10);
+};
+/** Le nombre de jours de `de` à `a` (négatif si `a` est passé). */
+export const ecartEnJours = (de: string, a: string): number =>
+  Math.round((Date.parse(`${a.slice(0, 10)}T12:00:00Z`) - Date.parse(`${de.slice(0, 10)}T12:00:00Z`)) / 86_400_000);
+export type Tombe = { cle: string; genre: string; id: string; titre: string; date: string; prive: boolean; traitePar?: string };
+type Brut = { [k: string]: unknown };
+const texteDe = (v: unknown): string => (typeof v === 'string' ? v.trim() : '');
+const dateDe = (v: unknown): string => (typeof v === 'string' && /^[0-9]{4}-[0-9]{2}-[0-9]{2}/.test(v) ? v.slice(0, 10) : '');
+/** Tout ce qui a une date à tenir : les échéances, les réponses attendues,
+    la prochaine action d'une démarche, le préavis et la fin d'un contrat. */
+export function ceQuiTombe(lignes: readonly Brut[]): Tombe[] {
+  const out: Tombe[] = [];
+  for (const l of lignes) {
+    const id = texteDe(l.id);
+    const genre = texteDe(l.genre);
+    const prive = l.prive === true;
+    const traitePar = texteDe(l.traitePar) || undefined;
+    const pousse = (suffixe: string, titre: string, date: string): void => {
+      if (date) out.push({ cle: `${id}:${suffixe}:${date}`, genre, id, titre, date, prive, traitePar });
+    };
+    if (genre === 'echeance' && l.terminee !== true) {
+      pousse('date', texteDe(l.titre) || 'Une échéance', dateDe(l.date));
+    } else if (genre === 'courrier' && l.sens === 'arrive' && l.etat === 'a-traiter') {
+      pousse('reponse', `Répondre à ${texteDe(l.correspondant) || 'un courrier'} (${texteDe(l.numero)})`, dateDe(l.reponseAvant));
+    } else if (genre === 'demarche' && (l.etat === 'en-cours' || l.etat === 'en-attente')) {
+      pousse('prochaine', `${texteDe(l.titre) || 'Une démarche'} : ${texteDe(l.prochaine) || 'la prochaine étape'}`, dateDe(l.prochaineLe));
+    } else if (genre === 'contrat' && l.etat === 'en-cours') {
+      const fin = dateDe(l.fin);
+      const preavis = typeof l.preavisJours === 'number' && l.preavisJours > 0 ? Math.round(l.preavisJours) : 0;
+      const titre = texteDe(l.titre) || 'un contrat';
+      if (fin && preavis) pousse('preavis', `Dernier jour du préavis : ${titre}`, ajouteJours(fin, -preavis));
+      if (fin) pousse('fin', `${l.renouvellement === 'tacite' ? 'Renouvellement' : 'Fin'} : ${titre}`, fin);
+    }
+  }
+  return out.sort((a, b) => a.date.localeCompare(b.date) || a.titre.localeCompare(b.titre));
+}
+/** Les deux rappels envoyés par notification (choix du 14 octobre) : J-7 et J-1. */
+export const JOURS_DE_NOTIFICATION = [7, 1];
+/* ⟨/ce-qui-tombe⟩ */
+
+/* ══ LE SECRÉTARIAT, À 8 H — 14 octobre 2026 ══════════════════════════
+   Maquette TChByryY… (choix « À faire et notification ») : sept jours avant
+   une date à tenir, et la veille, une notification part. Une échéance, la
+   réponse attendue d'un courrier, la prochaine action d'une démarche, le
+   préavis et la fin d'un contrat : le bloc ⟨ce-qui-tombe⟩ ci-dessus, recopié
+   à l'identique de l'écran (shared/secretariat-admin-pur.ts, le banc y veille).
+   À qui : la personne à qui c'est confié ; sinon qui tient le secrétariat
+   (titulaires et direction). Le privé : la direction seule, et le texte ne
+   dit rien de lui (une notification se lit sur un écran verrouillé). Une
+   fois par date et par rappel (journal push_reminders) ; vingt au plus par
+   passage ; seul le passage de 8 h agit. On juge la DATE de la ligne,
+   jamais sa dernière écriture. */
+const SECRETARIAT_MAX_PAR_PASSAGE = 20;
+
+async function sendToUsers(ids: string[], payload: Payload): Promise<number> {
+  if (ids.length === 0) return 0;
+  const { data: subs } = await admin.from('push_subscriptions').select('endpoint,p256dh,auth,client_id').in('client_id', ids);
+  if (!subs || subs.length === 0) return 0;
+  let n = 0;
+  for (const s of subs) {
+    try {
+      await webpush.sendNotification(
+        { endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } },
+        JSON.stringify({ url: '/trone/', ...payload }),
+      );
+      n++;
+    } catch (e) {
+      const code = (e as { statusCode?: number })?.statusCode;
+      if (code === 404 || code === 410) await admin.from('push_subscriptions').delete().eq('endpoint', s.endpoint);
+    }
+  }
+  return n;
+}
+
+async function rappelDuSecretariat(): Promise<number> {
+  const decalageMin = (() => {
+    const m = /^([+-])([0-9]{2}):([0-9]{2})$/.exec(TZ_OFFSET);
+    return m ? (m[1] === '-' ? -1 : 1) * (Number(m[2]) * 60 + Number(m[3])) : 60;
+  })();
+  const ici = new Date(Date.now() + decalageMin * 60_000);
+  if (ici.getUTCHours() !== 8) return 0;
+  const jour = ici.toISOString().slice(0, 10);
+  /* Sans la table des titulaires (0129 pas encore passée), rien ne part. */
+  const { data: tit, error: sansTable } = await admin.from('secretariat_titulaires').select('user_id');
+  if (sansTable) return 0;
+  const { data: dir } = await admin.from('staff').select('user_id,role').in('role', ['souverain', 'gerant']);
+  const direction = (dir ?? []).map((r: { user_id: string }) => r.user_id);
+  const tiennent = [...new Set([...direction, ...(tit ?? []).map((r: { user_id: string }) => r.user_id)])];
+  // deno-lint-ignore no-explicit-any
+  const lignes = (await toutes('secretariat', 'id,data')).map((r: any) => ({ ...(r.data ?? {}), id: r.id }));
+  let envoyes = 0;
+  let faits = 0;
+  for (const t of ceQuiTombe(lignes)) {
+    if (faits >= SECRETARIAT_MAX_PAR_PASSAGE) break;
+    const n = ecartEnJours(jour, t.date);
+    if (!JOURS_DE_NOTIFICATION.includes(n)) continue;
+    const cle = `sec:${t.cle}`;
+    const kind = `secretariat-j${n}`;
+    const { data: deja } = await admin.from('push_reminders').select('appointment_id').eq('appointment_id', cle).eq('kind', kind).maybeSingle();
+    if (deja) continue;
+    const pour = t.prive ? direction
+      : t.traitePar && (t.genre === 'courrier' || tiennent.includes(t.traitePar)) ? [t.traitePar]
+        : tiennent;
+    const quand = n === 1 ? 'demain' : `dans ${n} jours`;
+    envoyes += await sendToUsers(pour, {
+      title: `Secrétariat · ${quand}`,
+      body: t.prive ? `Une date privée tombe ${quand} : ouvrez le secrétariat.` : `${t.titre} · ${jourEnClair(t.date)}`,
+      url: '/trone/#/secretariat',
+      tag: `sec-${t.cle}`,
+    });
+    await admin.from('push_reminders').insert({ appointment_id: cle, kind });
+    faits += 1;
+  }
+  return envoyes;
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
   const body = await req.json().catch(() => ({} as Record<string, unknown>));
@@ -375,7 +498,7 @@ Deno.serve(async (req) => {
   // la passerelle exige déjà la clé publishable, et ces balayages sont idempotents
   // (journal push_reminders + fenêtre horaire) — les rejouer est sans effet.
   if (body.mode === 'reminders') return json({ version: VERSION, sent: await runReminders() });
-  if (body.mode === 'staff-cron') return json({ version: VERSION, sent: await runStaffCron(), tiroirs: await rappelDesTiroirs() });
+  if (body.mode === 'staff-cron') return json({ version: VERSION, sent: await runStaffCron(), tiroirs: await rappelDesTiroirs(), secretariat: await rappelDuSecretariat() });
 
   // Mode diffusion — annonce (offre/promo) à TOUTES les clientes. Réservé au personnel.
   if (body.mode === 'broadcast') {
