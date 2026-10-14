@@ -28,6 +28,7 @@ h3 { font: 400 22px/1.2 "Cormorant Garamond", Georgia, serif; color: var(--encre
 .etat.place { background: var(--vert-clair); color: var(--vert); }
 .etat.relier { background: var(--cuivre-clair); color: var(--cuivre); }
 .etat.neuf { border: 1px solid var(--cuivre); color: var(--cuivre); }
+.etat.fait { background: var(--cuivre-clair); color: var(--cuivre); border: 1px solid var(--cuivre); }
 .legende { display: flex; flex-wrap: wrap; gap: 8px 16px; font-size: 13px; color: var(--doux); margin-top: 10px; align-items: center; }
 
 /* Le parcours d'une personne : une vraie suite, donc numérotée. */
@@ -157,25 +158,25 @@ td.num { font-variant-numeric: lining-nums tabular-nums; white-space: nowrap; }
 <header>
 <p class="sur">Maison MND · Maquette à valider · 14 octobre 2026</p>
 <h1>La direction des ressources humaines</h1>
-<p class="chapeau">Tout ce qui touche aux personnes qui font la Maison, de la première candidature au certificat de travail, au même endroit du Trône. Une bonne part existe déjà, éparpillée entre Équipe, Finances, Système et le Secrétariat : la fiche, la paie béninoise, le pointage, les congés, les prêts, l’entretien annuel, le règlement signé, l’arrivée d’une recrue. Cette direction le rassemble, ferme quatre fuites, relie la paie à ce qu’elle ignore encore, et ajoute ce qui manque. Rien n’est construit avant votre validation.</p>
+<p class="chapeau">Tout ce qui touche aux personnes qui font la Maison, de la première candidature au certificat de travail, au même endroit du Trône. Une bonne part existe déjà, éparpillée entre Équipe, Finances, Système et le Secrétariat : la fiche, la paie béninoise, le pointage, les congés, les prêts, l’entretien annuel, le règlement signé, l’arrivée d’une recrue. Cette direction le rassemble, ferme quatre fuites, relie la paie à ce qu’elle ignore encore, et ajoute ce qui manque. Construite le 14 octobre 2026 avec vos quatre choix ; elle attend d’être mise en ligne (la 0130 et push-notify à coller, puis la publication).</p>
 </header>
 
 <section aria-labelledby="t-carte">
 <h2 id="t-carte">Ce que la direction des RH tient</h2>
 <p class="dit">Touchez une case pour voir son écran plus bas.</p>
-<div class="legende"><span class="etat place">en place</span> déjà dans le Trône <span class="etat relier">à relier</span> existe, mais en morceaux ou incomplet <span class="etat neuf">à construire</span> n’existe pas</div>
+<div class="legende"><span class="etat fait">construit</span> construit le 14 octobre 2026, à mettre en ligne</div>
 <div class="carte-mod">
-<button class="mod" data-va="jour"><span class="etat neuf">à construire</span><h3>Aujourd’hui</h3><p>Le matin de la direction : qui est là, qui manque, ce qui expire, ce qui attend une décision.</p></button>
-<button class="mod" data-va="personnel"><span class="etat relier">à relier</span><h3>Le personnel</h3><p>La fiche existe (matricule MND-EMP, CNSS, IFU, contrat). Il manque la fin d’un CDD, la période d’essai et le dossier des pièces.</p></button>
-<button class="mod" data-va="recrutement"><span class="etat neuf">à construire</span><h3>Le recrutement</h3><p>Un poste ouvert, les candidatures (WhatsApp, Académie MND, recommandation), l’essai pratique sur modèle, la décision.</p></button>
-<button class="mod" data-va="arrivees"><span class="etat relier">à relier</span><h3>Arrivées et départs</h3><p>La place préparée existe. Il manque la liste d’intégration, et un vrai départ : aujourd’hui « Retirer » efface la fiche.</p></button>
-<button class="mod" data-va="temps"><span class="etat relier">à relier</span><h3>Temps, planning et congés</h3><p>Pointage et congés en place. Il manque le planning de la semaine et la demande faite par l’employée elle-même.</p></button>
-<button class="mod" data-va="paie"><span class="etat place">en place</span><h3>La paie</h3><p>Runs, bulletins, bordereau, CNSS, ITS, prêts. À relier : primes, pourboires et absences n’entrent pas encore dans le run.</p></button>
-<button class="mod" data-va="competences"><span class="etat relier">à relier</span><h3>Compétences et formation</h3><p>Les trois paliers existent. Il manque la grille geste par geste et le plan de formation interne.</p></button>
-<button class="mod" data-va="entretiens"><span class="etat relier">à relier</span><h3>Entretiens</h3><p>L’entretien annuel et la fiche de poste signés existent. Il manque la fin d’essai, le point à 30 jours, le retour et le départ.</p></button>
-<button class="mod" data-va="discipline"><span class="etat relier">à relier</span><h3>Discipline</h3><p>Règlement signé et lettres en place. Il manque le registre des sanctions et la procédure en étapes datées.</p></button>
-<button class="mod" data-va="obligations"><span class="etat neuf">à construire</span><h3>Obligations et santé</h3><p>Le calendrier légal (CNSS, ITS, registre, affichages), l’aptitude médicale, les accidents du travail.</p></button>
-<button class="mod" data-va="espace"><span class="etat neuf">à construire</span><h3>Mon espace</h3><p>Côté employée : son solde, sa demande de congé, ses bulletins, ses documents signés, son planning.</p></button>
+<button class="mod" data-va="jour"><span class="etat fait">construit</span><h3>Aujourd’hui</h3><p>Le matin de la direction : qui est là, qui manque, ce qui expire, ce qui attend une décision.</p></button>
+<button class="mod" data-va="personnel"><span class="etat fait">construit</span><h3>Le personnel</h3><p>La fiche existe (matricule MND-EMP, CNSS, IFU, contrat). Il manque la fin d’un CDD, la période d’essai et le dossier des pièces.</p></button>
+<button class="mod" data-va="recrutement"><span class="etat fait">construit</span><h3>Le recrutement</h3><p>Un poste ouvert, les candidatures (WhatsApp, Académie MND, recommandation), l’essai pratique sur modèle, la décision.</p></button>
+<button class="mod" data-va="arrivees"><span class="etat fait">construit</span><h3>Arrivées et départs</h3><p>La place préparée existe. Il manque la liste d’intégration, et un vrai départ : aujourd’hui « Retirer » efface la fiche.</p></button>
+<button class="mod" data-va="temps"><span class="etat fait">construit</span><h3>Temps, planning et congés</h3><p>Pointage et congés en place. Il manque le planning de la semaine et la demande faite par l’employée elle-même.</p></button>
+<button class="mod" data-va="paie"><span class="etat fait">reliée</span><h3>La paie</h3><p>Runs, bulletins, bordereau, CNSS, ITS, prêts. À relier : primes, pourboires et absences n’entrent pas encore dans le run.</p></button>
+<button class="mod" data-va="competences"><span class="etat fait">construit</span><h3>Compétences et formation</h3><p>Les trois paliers existent. Il manque la grille geste par geste et le plan de formation interne.</p></button>
+<button class="mod" data-va="entretiens"><span class="etat fait">construit</span><h3>Entretiens</h3><p>L’entretien annuel et la fiche de poste signés existent. Il manque la fin d’essai, le point à 30 jours, le retour et le départ.</p></button>
+<button class="mod" data-va="discipline"><span class="etat fait">construit</span><h3>Discipline</h3><p>Règlement signé et lettres en place. Il manque le registre des sanctions et la procédure en étapes datées.</p></button>
+<button class="mod" data-va="obligations"><span class="etat fait">construit</span><h3>Obligations et santé</h3><p>Le calendrier légal (CNSS, ITS, registre, affichages), l’aptitude médicale, les accidents du travail.</p></button>
+<button class="mod" data-va="espace"><span class="etat fait">construit</span><h3>Mon espace</h3><p>Côté employée : son solde, sa demande de congé, ses bulletins, ses documents signés, son planning.</p></button>
 </div>
 </section>
 
@@ -519,17 +520,17 @@ td.num { font-variant-numeric: lining-nums tabular-nums; white-space: nowrap; }
 
 <section aria-labelledby="t-voit">
 <h2 id="t-voit">Qui voit quoi</h2>
-<p class="dit">Proposition, qui suit le premier choix ci-dessous. La base tient ces règles, pas seulement l’écran.</p>
+<p class="dit">Votre choix : la direction seule, c’est-à-dire le souverain, dans la base comme à l’écran. Un compte gérant ne lit pas les dossiers ; il corrige toujours un pointage.</p>
 <div class="cadre" style="margin-top:14px"><table>
-<thead><tr><th>Ce qui se lit</th><th>Direction (Y. et B.)</th><th>Rôle « Ressources humaines »</th><th>La personne elle-même</th><th>Le reste de l’équipe</th></tr></thead>
+<thead><tr><th>Ce qui se lit</th><th>Direction (Y. et B.)</th><th>La personne elle-même</th><th>Le reste de l’équipe</th></tr></thead>
 <tbody>
-<tr><td class="qui">Noms, fonctions, planning</td><td>Tout</td><td>Tout</td><td>Le sien</td><td>Noms et planning</td></tr>
-<tr><td class="qui">Congés et absences</td><td>Tout</td><td>Tout</td><td>Les siens, et demander</td><td>Qui est absent, sans le motif</td></tr>
-<tr><td class="qui">Salaire, contrat, paie</td><td>Tout ; la paie au souverain</td><td>Rien</td><td>Les siens</td><td>Rien</td></tr>
-<tr><td class="qui">Dossier, pièces, aptitude</td><td>Tout</td><td>Les pièces, pas l’aptitude</td><td>Le sien</td><td>Rien</td></tr>
-<tr><td class="qui">Discipline, entretiens</td><td>Tout</td><td>Rien</td><td>Les siens, signés</td><td>Rien</td></tr>
-<tr><td class="qui">Recrutement</td><td>Tout</td><td>Tout</td><td>Rien</td><td>Rien</td></tr>
-<tr><td class="qui">Grille des compétences</td><td>Tout</td><td>Tout</td><td>La sienne</td><td>Qui sait faire quoi</td></tr>
+<tr><td class="qui">Noms, fonctions, planning</td><td>Tout</td><td>Le sien</td><td>Noms et planning</td></tr>
+<tr><td class="qui">Congés et absences</td><td>Tout</td><td>Les siens, et demander</td><td>Qui est absent, sans le motif</td></tr>
+<tr><td class="qui">Salaire, contrat, paie</td><td>Tout ; la paie au souverain</td><td>Les siens</td><td>Rien</td></tr>
+<tr><td class="qui">Dossier, pièces, aptitude</td><td>Tout</td><td>Le sien</td><td>Rien</td></tr>
+<tr><td class="qui">Discipline, entretiens</td><td>Tout</td><td>Les siens, signés</td><td>Rien</td></tr>
+<tr><td class="qui">Recrutement</td><td>Tout</td><td>Rien</td><td>Rien</td></tr>
+<tr><td class="qui">Grille des compétences</td><td>Tout</td><td>La sienne</td><td>Qui sait faire quoi</td></tr>
 </tbody></table></div>
 </section>
 
@@ -588,14 +589,15 @@ td.num { font-variant-numeric: lining-nums tabular-nums; white-space: nowrap; }
 </section>
 
 <section aria-labelledby="t-lots">
-<h2 id="t-lots">La construction, en cinq lots</h2>
+<h2 id="t-lots">La construction, faite le 14 octobre 2026, en une fois</h2>
 <div class="lots">
 <div class="lot"><b>Lot 1 · Fermer les fuites et relier la paie.</b> Le compte rattaché à sa fiche dans la base ; salaire, contrat et paie lisibles de la direction seule ; la notification de paie à qui valide ; le run prérempli par les primes, pourboires et absences ; les fenêtres éteintes rallumées.</div>
 <div class="lot"><b>Lot 2 · Le dossier, l’arrivée et le départ.</b> Fin du CDD et de l’essai, pièces du dossier, liste du premier mois par fonction, départ qui archive au lieu d’effacer, solde de tout compte, certificat de travail.</div>
 <div class="lot"><b>Lot 3 · Le planning, les congés et Mon espace.</b> La semaine de chacune, lue par l’agenda ; la demande de congé depuis Mon espace ; les bulletins et les documents signés à leur place.</div>
 <div class="lot"><b>Lot 4 · Le recrutement et les compétences.</b> Postes, candidatures, essai pratique, la grille geste par geste et le plan de formation.</div>
 <div class="lot"><b>Lot 5 · Entretiens, discipline, obligations, Aujourd’hui.</b> Les quatre entretiens, la procédure et le registre, le calendrier légal, et l’accueil du matin.</div>
-<p class="note">Chaque lot arrive avec ses règles d’accès dans la base et un banc qui les prouve, pannes plantées, comme le secrétariat du 14 octobre 2026.</p>
+<p class="note">Vos choix : la direction seule, l’espace complet, la grille qui avertit, tout en une fois. Les règles d’accès sont dans la base (0130, éprouvée sous PGlite : 57 contrôles) et un banc les prouve (49 contrôles, douze pannes plantées toutes vues).</p>
+<div class="lot"><b>Ce qui diffère de la maquette.</b> Pas de rôle « Ressources humaines » : la direction seule, comme vous l’avez choisi. L’annonce d’un poste se rédige et se copie ; elle ne part pas seule sur WhatsApp ni sur le site. Une candidature non retenue se propose à l’effacement après la durée de garde, rien ne part seul ; de même, une sanction sort du dossier par un geste de la direction, le délai passé. Les heures supplémentaires restent à saisir dans le run : aucun taux n’est réglé. Mon espace montre le reste dû du prêt, pas la retenue du mois. Un départ archive la fiche ; « Effacer » ne vaut plus que pour une fiche créée par erreur.</div>
 </div>
 </section>
 </div>
