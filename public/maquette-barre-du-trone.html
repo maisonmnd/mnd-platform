@@ -79,7 +79,7 @@ p { margin: 0; }
 <div class="chiffres">
 <div class="chiffre"><b id="n-avant">53</b><span>rubriques dans la barre aujourd’hui</span></div>
 <div class="chiffre apres"><b id="n-apres">53</b><span>avec les fusions choisies</span></div>
-<div class="chiffre"><b id="n-choisies">0</b><span>fusions retenues sur 14</span></div>
+<div class="chiffre"><b id="n-choisies">0</b><span>fusions retenues sur 15</span></div>
 <div class="chiffre"><b>47</b><span>avec mes six évidentes</span></div>
 </div>
 </header>
@@ -101,6 +101,7 @@ p { margin: 0; }
 <div class="bloc"><h3>Caisse POS et Les caisses</h3><p>Votre règle : la vente et l’encaissement d’un côté, la trésorerie de l’autre. La caisse vend ; Les caisses comptent les tiroirs.</p></div>
 <div class="bloc"><h3>Le chiffre des prestations</h3><p>Vous l’avez voulu aux Finances, en écran à part, aujourd’hui même. La Synthèse y mène déjà par « Toutes les prestations ».</p></div>
 <div class="bloc"><h3>Fournisseurs dans les Dépenses</h3><p>La règle les mettrait aux Finances, mais vous les avez voulus à l’Atelier. Je propose plutôt de les ranger avec les achats (proposition 11).</p></div>
+<div class="bloc"><h3>Les prêts et Comptes & Avoirs</h3><p>Séparés le 23 août à votre demande : un avoir, c’est la Maison qui doit à une cliente ; un prêt, c’est qu’on doit à la Maison. Et Salon & Foyer, qui lit les mêmes prêts, reste au souverain seul.</p></div>
 <div class="bloc"><h3>Les engagements et Prestataires</h3><p>Une commande à une personne, et l’annuaire des personnes : deux départements, deux accès.</p></div>
 <div class="bloc"><h3>Salon & Foyer</h3><p>Réservé au souverain. Le fondre avec les prêts ou le compte courant fermerait ces écrans au gérant et au département Finances.</p></div>
 </div>
@@ -181,6 +182,9 @@ p { margin: 0; }
     { id: 'fournisseurs', fort: false, dept: 'Atelier', part: ['Fournisseurs'], dans: 'Stock & Achats', devient: 'Stock & Achats', onglets: 'un septième onglet : les fournisseurs',
       pourquoi: 'On achète chez eux : ils vont avec les achats, dans le même département.',
       preuve: 'Attention : deux registres de fournisseurs existent (celui du stock, celui des dépenses). L’écran se réunit ; les registres, plus tard.' },
+    { id: 'prets', fort: false, dept: 'Finances', part: ['Compte courant'], dans: 'Les prêts', devient: 'Prêts & compte courant', onglets: 'quatre onglets : ce qu’on nous doit, ce que la Maison doit, le compte courant des associés, les objectifs',
+      pourquoi: 'Deux registres de dettes entre la Maison et des personnes : ce qu’on lui doit, ce qu’elle doit, et ce que les associés lui avancent.',
+      preuve: 'Les deux lisent les retenues sur bulletin ; « Ce que la Maison doit » est déjà un onglet des prêts. À savoir : le code d’accès des prêts protégerait aussi le compte courant.' },
     { id: 'appels', fort: false, dept: 'Clientèle', part: ['Les Appels'], dans: 'Conversations', devient: 'Conversations', onglets: 'une vue de plus : les appels, à côté de WhatsApp',
       pourquoi: 'Ce qu’elles nous écrivent et ce qu’elles nous disent au téléphone : le même accueil.',
       preuve: 'Les appels « à traiter » vivent déjà en haut du Tableau de bord ; Les Appels renvoient aux Conversations.' },
