@@ -19,7 +19,7 @@ import {
   sonnentApresLAutomate, type VueDeLaSonnette, partEnFermant, rattachementDuNumero,
 } from '../../../../shared/conversations';
 import {
-  ETAPE_DITE, MOTIF_DIT, ETAPES_EN_COURS, reglageDeLAutomate, jourDitAvecAnnee, heureDite,
+  ETAPE_DITE, MOTIF_DIT, ETAPES_EN_COURS, reglageDeLAutomate, jourDitAvecAnnee, heureDite, numeroServi, pauseActive,
   type EtapeDuFil, type EtatDuFil, type MainDuFil, type VueDeLAutomate,
 } from '../../../../shared/automate-wa';
 import { appointmentsStore, useAppointments, type Appointment } from '../../../../shared/agenda';
@@ -1517,6 +1517,41 @@ export default function Conversations() {
                       pauseHeures={reglageAutomate.pauseHeures}
                     />
                   );
+                })()}
+                {/* POURQUOI L'AUTOMATE SE TAIT SUR CE FIL (14 octobre 2026). Un numéro
+                    qu'il n'a jamais mené n'avait ni bandeau ni bouton : l'essai sur le
+                    numéro de Brice est resté muet sans que rien le dise. La main de
+                    l'équipe (la pause posée quand une personne écrit) se lève ici ;
+                    un numéro qu'il ne sert pas le dit, avec le réglage à toucher. */}
+                {(!fil.automate || fil.automate.tenue === 'aucun') && fil.tiroir !== 'prestataires' && (() => {
+                  const mainDuFil = automates.get(fil.numero)?.main ?? null;
+                  if (pauseActive(mainDuFil, Date.now())) {
+                    return (
+                      <div className="trc-automate trc-automate--pause" role="status">
+                        <span className="trc-automate__dit">
+                          L’équipe a la main{mainDuFil?.jusqua ? ` ${finDuBandeau(mainDuFil.jusqua)}` : ''} : l’automate se tait sur ce fil.
+                        </span>
+                        <span className="trc-automate__gestes">
+                          <Button variant="ghost" size="sm" onClick={() => {
+                            mainPriseLe.current.delete(fil.numero);
+                            rendsALAutomate(fil.numero, { branchId: branch.id });
+                            toast('Rendu à l’automate : il répondra au prochain message de ce numéro.');
+                          }}>Rendre à l’automate</Button>
+                        </span>
+                      </div>
+                    );
+                  }
+                  if (!numeroServi(reglageAutomate, fil.numero, fil.tiroir)) {
+                    const pourquoi = reglageAutomate.mode === 'eteint' ? 'il est éteint'
+                      : reglageAutomate.mode === 'essai' ? 'il est en Essai, et ce numéro n’est pas dans sa liste'
+                      : 'il est Ouvert, mais ne sert que les clientes et les numéros de sa liste';
+                    return (
+                      <div className="trc-automate trc-automate--pause" role="status">
+                        <span className="trc-automate__dit">L’automate ne répond pas à ce numéro : {pourquoi} (Système › Paramètres).</span>
+                      </div>
+                    );
+                  }
+                  return null;
                 })()}
                 <div className="trc-saisie__q">
                   {fil.fenetre.ouverte ? (

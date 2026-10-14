@@ -2922,7 +2922,7 @@ const regles: Regle[] = [
   },
   /* ══ R42 · au Trône : les brouillons, la validation de la direction, 14 octobre 2026 ═══ */
   {
-    id: 'R42', nom: 'R42 au Trone : les brouillons de depart sont des brouillons lisibles et sans faute de la Maison ; toucher au sens d une reponse validee la renvoie en brouillon ; la direction seule valide, jamais une reponse fautive',
+    id: 'R42', nom: 'R42 au Trone : les brouillons de depart sont des brouillons lisibles et sans faute de la Maison ; toucher au sens d une reponse validee la renvoie en brouillon ; la direction seule valide, jamais une reponse fautive ; un fil dit pourquoi l automate se tait',
     eprouve: () => {
       const { ecarts, vaut, vrai } = juge();
       const lus = conseilDeLaMaison({ reponses: BROUILLONS_DU_CONSEIL });
@@ -2943,12 +2943,17 @@ const regles: Regle[] = [
       vrai('la direction seule voit Valider', ecran.includes("{direction && r.etat !== 'validee' && ("));
       vrai('Valider se refuse a une reponse fautive', ecran.includes('variant="copper" size="sm" disabled={fautes.length > 0}'));
       vrai('l onglet vit dans les Conversations', lf(lit(ECRAN_CONV)).includes('<ReponsesDeLaMaison'));
+      const conv = lf(lit(ECRAN_CONV));
+      vrai('un fil qu il n a jamais mene dit la main de l equipe, et la rend', conv.includes('if (pauseActive(mainDuFil, Date.now())) {') && conv.includes('rendsALAutomate(fil.numero, { branchId: branch.id });'));
+      vrai('un numero que l automate ne sert pas le dit, avec le reglage', conv.includes('if (!numeroServi(reglageAutomate, fil.numero, fil.tiroir)) {') && conv.includes('L’automate ne répond pas à ce numéro'));
       return ecarts;
     },
     pannes: [
       { nom: 'toucher une reponse validee la laisse validee', mute: [P('src/shared/conseil-wa.ts', "      if (!sensChange || r.etat !== 'validee') return neuve;", '      return neuve;')] },
       { nom: 'tout le personnel valide', mute: [P('src/apps/trone/routes/clients/ReponsesDeLaMaison.tsx', "{direction && r.etat !== 'validee' && (", "{r.etat !== 'validee' && (")] },
       { nom: 'une reponse fautive se valide', mute: [P('src/apps/trone/routes/clients/ReponsesDeLaMaison.tsx', 'variant="copper" size="sm" disabled={fautes.length > 0}', 'variant="copper" size="sm" disabled={false}')] },
+      { nom: 'la main de l equipe redevient invisible', mute: [P(ECRAN_CONV, 'if (pauseActive(mainDuFil, Date.now())) {', 'if (false) {')] },
+      { nom: 'un numero non servi ne se dit plus', mute: [P(ECRAN_CONV, 'if (!numeroServi(reglageAutomate, fil.numero, fil.tiroir)) {', 'if (false) {')] },
       { nom: 'un brouillon livre deja valide', mute: [P('src/shared/conseil-wa.ts', "  id, titre, ...(description ? { description } : {}), mots, texte, etat: 'brouillon',", "  id, titre, ...(description ? { description } : {}), mots, texte, etat: 'validee',")] },
     ],
   },
