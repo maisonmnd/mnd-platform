@@ -93,6 +93,13 @@ p { margin: 0; }
 </div>
 </section>
 
+<section aria-labelledby="t-decide">
+<h2 id="t-decide">Déjà décidé</h2>
+<div class="regles">
+<div class="bloc"><h3>Les prêts au personnel, aux Ressources humaines</h3><p>Votre choix du 14 octobre 2026 : les prêts consentis à un membre de l’équipe deviennent un onglet des Ressources humaines, à côté de la paie et de ses retenues. La direction et le département Finances y gardent l’accès, même si le reste des RH leur est fermé. Les prêts aux associés, aux tiers et au foyer, ce que la Maison doit et les objectifs restent aux Finances.</p></div>
+</div>
+</section>
+
 <section aria-labelledby="t-garder">
 <h2 id="t-garder">Ce que je ne propose pas de fusionner</h2>
 <p class="dit">Des écrans se ressemblent, mais leur séparation tient à une décision ou à un accès.</p>
@@ -182,8 +189,8 @@ p { margin: 0; }
     { id: 'fournisseurs', fort: false, dept: 'Atelier', part: ['Fournisseurs'], dans: 'Stock & Achats', devient: 'Stock & Achats', onglets: 'un septième onglet : les fournisseurs',
       pourquoi: 'On achète chez eux : ils vont avec les achats, dans le même département.',
       preuve: 'Attention : deux registres de fournisseurs existent (celui du stock, celui des dépenses). L’écran se réunit ; les registres, plus tard.' },
-    { id: 'prets', fort: false, dept: 'Finances', part: ['Compte courant'], dans: 'Les prêts', devient: 'Prêts & compte courant', onglets: 'quatre onglets : ce qu’on nous doit, ce que la Maison doit, le compte courant des associés, les objectifs',
-      pourquoi: 'Deux registres de dettes entre la Maison et des personnes : ce qu’on lui doit, ce qu’elle doit, et ce que les associés lui avancent.',
+    { id: 'prets', fort: false, dept: 'Finances', part: ['Compte courant'], dans: 'Les prêts', devient: 'Prêts & compte courant', onglets: 'trois onglets : ce que les associés, les tiers et le foyer doivent, ce que la Maison doit, le compte courant des associés (les objectifs suivent)',
+      pourquoi: 'Ce qui reste des prêts aux Finances, une fois ceux du personnel partis aux Ressources humaines (votre décision), est fait de dettes entre la Maison et ses associés, des tiers ou le foyer : le compte courant des associés en est la suite.',
       preuve: 'Les deux lisent les retenues sur bulletin ; « Ce que la Maison doit » est déjà un onglet des prêts. À savoir : le code d’accès des prêts protégerait aussi le compte courant.' },
     { id: 'appels', fort: false, dept: 'Clientèle', part: ['Les Appels'], dans: 'Conversations', devient: 'Conversations', onglets: 'une vue de plus : les appels, à côté de WhatsApp',
       pourquoi: 'Ce qu’elles nous écrivent et ce qu’elles nous disent au téléphone : le même accueil.',
