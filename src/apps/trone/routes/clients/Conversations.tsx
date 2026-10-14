@@ -44,6 +44,7 @@ import {
 import './clients.css';
 import { LienDeReservation } from './LienDeReservation';
 import { appelDe } from '../../../../shared/civilite';
+import ReponsesDeLaMaison from './ReponsesDeLaMaison';
 
 /* ═══════════════════════════════════════════════════════════════════
    LES CONVERSATIONS — maquette `public/maquette-les-conversations.html`,
@@ -306,7 +307,9 @@ export default function Conversations() {
      qu'on l'ouvre. Les fils restent montés pendant qu'on lit le journal :
      y revenir retrouve la conversation là où on l'avait laissée. */
   /* La pastille de la salle d'attente mène ici par `?envois=1` (2 octobre 2026). */
-  const [vue, setVue] = useState<'fils' | 'envois'>(() => (params.get('envois') === '1' ? 'envois' : 'fils'));
+  /* LES RÉPONSES DE LA MAISON (14 octobre 2026) : le troisième volet, à côté
+     des fils et des envois ; ce que l'automate répond aux questions. */
+  const [vue, setVue] = useState<'fils' | 'envois' | 'reponses'>(() => (params.get('envois') === '1' ? 'envois' : params.get('reponses') === '1' ? 'reponses' : 'fils'));
   const demandeLesEnvois = params.get('envois') === '1';
   useEffect(() => { if (demandeLesEnvois) setVue('envois'); }, [demandeLesEnvois]);
   const [lesEnvois] = useEnvois();
@@ -1029,6 +1032,9 @@ export default function Conversations() {
             <Button variant="ghost" size="sm" onClick={() => navigate('/customers')}>
               Les clientes
             </Button>
+            <Button variant={vue === 'reponses' ? 'copper' : 'ghost'} size="sm" onClick={() => setVue((v) => (v === 'reponses' ? 'fils' : 'reponses'))}>
+              {vue === 'reponses' ? 'Revenir aux conversations' : 'Réponses de la Maison'}
+            </Button>
             <Button variant={vue === 'envois' ? 'copper' : 'ghost'} size="sm" onClick={() => setVue((v) => (v === 'envois' ? 'fils' : 'envois'))}>
               {vue === 'envois'
                 ? 'Revenir aux conversations'
@@ -1058,14 +1064,18 @@ export default function Conversations() {
                 )}
               </span>
             )}
-            <Button className="trc-nouveau" variant="copper" size="sm" onClick={() => { setCommencer(true); setNumeroNeuf(''); }}>
-              Nouvelle conversation
-            </Button>
+            {/* Sur les fils seulement : au téléphone, le bouton flotte et couvrait
+                les réponses de la Maison (14 octobre 2026). */}
+            {vue === 'fils' && (
+              <Button className="trc-nouveau" variant="copper" size="sm" onClick={() => { setCommencer(true); setNumeroNeuf(''); }}>
+                Nouvelle conversation
+              </Button>
+            )}
           </div>
         }
       />
 
-      {messages.length === 0 && vue !== 'envois' && (
+      {messages.length === 0 && vue === 'fils' && (
         <div className="trc-passage-banner">
           Aucune conversation pour l’instant. Le Trône n’entend que depuis que l’oreille est posée :
           <b> Meta ne livre rien du passé</b>, le fil commence au premier message reçu. Si vos clientes
@@ -1078,6 +1088,16 @@ export default function Conversations() {
           <b>Ce fil est réservé à la direction</b> : c’est le numéro d’une personne de l’équipe ou d’un
           prestataire. Ce qui s’y dit ne se lit pas ici.
         </div>
+      )}
+
+      {vue === 'reponses' && (
+        <ReponsesDeLaMaison
+          onOuvrirLeFil={(numero) => {
+            const n = numeroWa(numero);
+            setVue('fils');
+            if (n) setParams({ n });
+          }}
+        />
       )}
 
       {vue === 'envois' && (
@@ -1098,7 +1118,7 @@ export default function Conversations() {
           change : les deux colonnes restent côte à côte. */}
       <div
         className={`trc-convs${fil ? ' a-fil' : ''}`}
-        style={vue === 'envois' ? { display: 'none' } : undefined}
+        style={vue !== 'fils' ? { display: 'none' } : undefined}
       >
         {/* ── LA BOÎTE ── */}
         <div className="trc-convs__boite">

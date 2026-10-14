@@ -191,6 +191,9 @@ export type MessageWa = {
       la Maison (la règle d'alarme le saute). */
   etape?: EtapeDuFil;
   choix?: string[];
+  /** La réponse de la Maison que ce message portait (le conseil, 14 octobre
+      2026) : les compteurs de l'onglet « Réponses de la Maison » la lisent. */
+  reponse?: string;
   /** UNE PIÈCE REÇUE D'UN PRESTATAIRE, RANGÉE DANS SON DOSSIER — l'identifiant
       de l'engagement. Absent avec une pièce : elle attend « à ranger ». */
   rangeDans?: string;

@@ -88,7 +88,7 @@ import { createClient, type SupabaseClient } from 'npm:@supabase/supabase-js@2';
 
 /** LA VERSION DE CE FICHIER, dite par le contrôle de santé. Sans elle on ne
     sait pas quel code tourne vraiment. À incrémenter à chaque déploiement. */
-const VERSION = '2026-10-13-g · Rendre a l automate le fait reprendre tout de suite ; Autre soin ouvre les soins';
+const VERSION = '2026-10-14-a · Le conseil : Une question ?, les reponses validees, les prix du catalogue, le cuir chevelu';
 
 /** « En train d'écrire », puis on attend : deux messages envoyés coup sur
     coup font un seul tour, celui du dernier. */
@@ -103,7 +103,7 @@ const TRANCHE_JOURS = 7;
     est peut-être coupée, on ne s'y fie pas. */
 const PLAFOND_DE_LIGNES = 1000;
 /** Les réglages que lit un tour, en une requête. */
-const DOCUMENTS_DU_TOUR = ['mnd_auto_config', 'mnd_settings', 'mnd_horaires_exceptions', 'mnd_vitrine_config', 'mnd_house_identity'];
+const DOCUMENTS_DU_TOUR = ['mnd_auto_config', 'mnd_settings', 'mnd_horaires_exceptions', 'mnd_vitrine_config', 'mnd_house_identity', 'mnd_reponses_maison'];
 
 /* LE JOURNAL : des genres, des comptes, des étapes. JAMAIS un numéro,
    jamais un texte, jamais un jeton : un journal qui recopierait le message
@@ -1007,11 +1007,13 @@ function numeroServi(reglage: ReglageDeLAutomate, numero: string, tiroir: Tiroir
    `pause_le_fil`). */
 type EtapeDuFil =
   | 'repos' | 'qui' | 'besoin' | 'meme' | 'rituel' | 'encore' | 'places' | 'jours'
-  | 'civilite' | 'prenom' | 'recap' | 'confirme' | 'main' | 'clos';
+  | 'civilite' | 'prenom' | 'recap' | 'confirme' | 'main' | 'clos'
+  /* Le conseil (14 octobre 2026) : la liste des questions, puis une réponse. */
+  | 'questions' | 'reponse';
 
 type MotifDeLaMain =
   | 'demande' | 'ecarts' | 'prix' | 'media' | 'jour-meme' | 'autre-soin' | 'autre-personne'
-  | 'sans-place' | 'plafond' | 'erreur' | 'envoi-refuse' | 'annulation' | 'question';
+  | 'sans-place' | 'plafond' | 'erreur' | 'envoi-refuse' | 'annulation' | 'question' | 'sante';
 
 type CiviliteDuFil = 'madame' | 'mademoiselle' | 'monsieur';
 
@@ -1054,6 +1056,9 @@ type PanierDuFil = {
   dureeMin?: number;
   civilite?: CiviliteDuFil;
   prenom?: string;
+  /** L'étape du parcours où elle a posé sa question : « Continuer » l'y
+      ramène (le conseil, 14 octobre 2026). */
+  reprendre?: EtapeDuFil;
 };
 
 type EtatDuFil = {
@@ -1120,7 +1125,7 @@ const TOUR_EN_COURS_MS = MINUTE_WA;
     parcours neuf (relecture du 9 octobre 2026). */
 const LA_MAISON_A_PARLE_MS = 7 * JOUR_WA;
 
-const ETAPES_EN_COURS: readonly EtapeDuFil[] = ['qui', 'besoin', 'meme', 'rituel', 'encore', 'places', 'jours', 'civilite', 'prenom', 'recap'];
+const ETAPES_EN_COURS: readonly EtapeDuFil[] = ['qui', 'besoin', 'meme', 'rituel', 'encore', 'places', 'jours', 'civilite', 'prenom', 'recap', 'questions', 'reponse'];
 
 const ETAPE_DITE: Record<EtapeDuFil, string> = {
   repos: 'au repos',
@@ -1134,6 +1139,8 @@ const ETAPE_DITE: Record<EtapeDuFil, string> = {
   civilite: 'la civilité',
   prenom: 'le prénom',
   recap: 'le récapitulatif',
+  questions: 'les questions',
+  reponse: 'une réponse de la Maison',
   confirme: 'rendez-vous posé',
   main: 'main passée',
   clos: 'parcours arrêté',
@@ -1153,6 +1160,7 @@ const MOTIF_DIT: Record<MotifDeLaMain, string> = {
   'envoi-refuse': 'un message refusé par Meta',
   annulation: 'une annulation ou un report',
   question: 'une question à lire',
+  sante: 'le cuir chevelu, à regarder',
 };
 
 const msWa = (iso: string | undefined | null): number => {
@@ -1566,6 +1574,12 @@ type MessageSortant = {
   boutons?: { id: string; titre: string }[];
   bouton?: string;
   lignes?: { id: string; titre: string; description?: string }[];
+  /** Une réponse de la Maison (le conseil) : son identifiant, pour la trace
+      et les compteurs du Trône. */
+  reponseId?: string;
+  /** Ses prix viennent du catalogue du jour, par jetons : le juge de la
+      Maison les laisse passer, et eux seuls. */
+  prixDuCatalogue?: boolean;
 };
 
 const coupeWa = (t: string, n: number): string => {
@@ -1652,7 +1666,7 @@ function respecteMeta(m: MessageSortant): string[] {
     liste vide = sain. Les deux premiers s'écrivent ici sans leur forme
     littérale, pour qu'une recherche dans les textes du bloc ne trouve que
     les vraies fautes. */
-function texteSain(t: string): string[] {
+function texteSain(t: string, prixPermis = false): string[] {
   const fautes: string[] = [];
   const s = String(t ?? '');
   if (/sal(?:on)/i.test(s)) fautes.push('le mot banni (s-a-l-o-n)');
@@ -1660,9 +1674,182 @@ function texteSain(t: string): string[] {
   /* L'UNITÉ ENTIÈRE, suivie d'autre chose qu'une lettre (relecture du 9
      octobre 2026) : sans le drapeau u, « \b » passait entre le f et le é, et
      « 5 février 2026 » se lisait comme un prix. */
-  if (/\d[\d\s.,]*\s?(fcfa|cfa|xof|francs?|f)(?![\p{L}])/iu.test(s)) fautes.push('un prix');
+  if (!prixPermis && /\d[\d\s.,]*\s?(fcfa|cfa|xof|francs?|f)(?![\p{L}])/iu.test(s)) fautes.push('un prix');
   return fautes;
 }
+
+/* ── 7 bis. LE CONSEIL : LES RÉPONSES DE LA MAISON · 14 octobre 2026 ────
+   Maquette « Prendre RDV & Conseil Locks » (MwRLSQ3e…), cinq choix de la
+   direction : sans modèle de langue ; les prix comme le site, plus un
+   « à partir de » pour une création ; les photos du registre (plus tard) ;
+   des brouillons préparés, validés par la direction ; un onglet des
+   Conversations.
+
+   CE QUE L'AUTOMATE ENVOIE EST LE TEXTE VALIDÉ, MOT POUR MOT. Il ne
+   rédige rien : il reconnaît une question à ses mots, et envoie la réponse
+   que la direction a validée. Un brouillon ne part jamais.
+
+   LES PRIX S'ÉCRIVENT EN JETONS, « {prix:sv-koko-ori} » : l'automate les
+   remplace par le prix du catalogue du jour. Un prix tapé à la main
+   vieillirait le jour où la carte change (le 1er janvier 2027) : le juge le
+   refuse. Un jeton introuvable (une prestation retirée, un prix masqué, un
+   devis) retient la réponse, et la Maison répond elle-même.
+
+   LE CUIR CHEVELU NE SE SOIGNE PAS À DISTANCE : une démangeaison, une
+   plaque, une chute par endroits, et la Maison le dit, propose la
+   consultation, nomme le médecin, et passe la main. Aucun produit.
+
+   SANS RÉPONSE VALIDÉE, RIEN NE CHANGE : l'automate se conduit comme avant
+   le conseil, mot pour mot (le banc le rejoue). */
+type EtatDeLaReponse = 'brouillon' | 'validee';
+type ReponseDeLaMaison = {
+  id: string;
+  /** Le titre de la ligne dans la liste de WhatsApp : 24 signes au plus. */
+  titre: string;
+  /** La ligne grise sous le titre : 72 signes au plus. */
+  description?: string;
+  /** Les mots qui la reconnaissent, sans accents ni majuscules. */
+  mots: string[];
+  /** Ce que la Maison répond, 900 signes au plus, prix en jetons. */
+  texte: string;
+  etat: EtatDeLaReponse;
+  /** Où mène « Réserver » sous la réponse : un parcours, ou le menu. */
+  mene?: Besoin;
+  ordre: number;
+  valideeLe?: string;
+  valideePar?: string;
+};
+type ConseilDeLaMaison = { reponses: ReponseDeLaMaison[]; motsSante: string[] };
+
+/** LES MOTS DU CUIR CHEVELU, quand la direction n'en a pas écrit d'autres. */
+const MOTS_SANTE_LIVRES: readonly string[] = [
+  'gratte', 'grattent', 'demange', 'demangent', 'demangeaison', 'plaque', 'plaie', 'croute', 'rougeur',
+  'chute', 'tombent', 'perds mes cheveux', 'trou', 'teigne', 'saigne', 'douleur', 'douloureux', 'brule',
+  'brulure', 'infection', 'pus', 'irrite', 'irritation',
+];
+const TEXTE_DE_REPONSE_MAX = 900;
+const BESOINS_DU_CONSEIL: readonly Besoin[] = ['entretien', 'creation', 'reparation', 'enfant'];
+const JETON_DE_PRIX = /\{prix:([^}]{1,80})\}/g;
+
+const echappeWa = (t: string): string => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+/** LE CONSEIL TEL QUE LA BASE LE REND, remis en forme : une réponse sans
+    identifiant propre ou en double tombe ; les mots se lisent sans accents. */
+function conseilDeLaMaison(brut: unknown): ConseilDeLaMaison {
+  const b = (brut && typeof brut === 'object' ? brut : {}) as Record<string, unknown>;
+  const reponses: ReponseDeLaMaison[] = [];
+  const vus = new Set<string>();
+  for (const x of Array.isArray(b.reponses) ? b.reponses : []) {
+    if (!x || typeof x !== 'object') continue;
+    const r = x as Record<string, unknown>;
+    const id = String(r.id ?? '').trim();
+    if (!/^[a-z0-9-]{1,60}$/.test(id) || vus.has(id)) continue;
+    vus.add(id);
+    const description = String(r.description ?? '').trim();
+    const mene = BESOINS_DU_CONSEIL.includes(r.mene as Besoin) ? (r.mene as Besoin) : undefined;
+    const ordre = Number(r.ordre);
+    reponses.push({
+      id,
+      titre: String(r.titre ?? '').trim(),
+      ...(description ? { description } : {}),
+      mots: [...new Set((Array.isArray(r.mots) ? r.mots : []).map((m) => sansAccentsWa(String(m ?? ''))).filter((m) => m.length >= 2))].slice(0, 40),
+      texte: String(r.texte ?? '').trim(),
+      etat: r.etat === 'validee' ? 'validee' : 'brouillon',
+      ...(mene ? { mene } : {}),
+      ordre: Number.isFinite(ordre) ? ordre : 999,
+      ...(typeof r.valideeLe === 'string' ? { valideeLe: r.valideeLe } : {}),
+      ...(typeof r.valideePar === 'string' ? { valideePar: r.valideePar } : {}),
+    });
+  }
+  const sante = [...new Set((Array.isArray(b.motsSante) ? b.motsSante : []).map((m) => sansAccentsWa(String(m ?? ''))).filter((m) => m.length >= 3))];
+  return { reponses, motsSante: sante.length > 0 ? sante : [...MOTS_SANTE_LIVRES] };
+}
+
+/** LE CONSEIL PARLE dès qu'une réponse est validée. Sans elle, l'automate
+    se conduit exactement comme avant le conseil. */
+const conseilActif = (c: ConseilDeLaMaison | undefined): boolean => !!c && c.reponses.some((r) => r.etat === 'validee');
+
+/** LES PRIX DU CATALOGUE DU JOUR, par identifiant et par code : un prix
+    positif, ni masqué, ni sur devis. Les lignes telles que la base les rend. */
+function prixDuCatalogue(lignes: readonly { id: string; data?: Record<string, unknown> | null }[]): Record<string, number> {
+  const out: Record<string, number> = {};
+  for (const l of lignes) {
+    const d = (l?.data ?? {}) as Record<string, unknown>;
+    const p = Math.round(Number(d.priceXof));
+    if (!Number.isFinite(p) || p <= 0 || d.hidePrice === true || d.priceMode === 'devis' || d.archived === true) continue;
+    out[l.id] = p;
+    if (typeof d.code === 'string' && d.code.trim()) out[d.code.trim()] = p;
+  }
+  return out;
+}
+
+/** « 135 000 F » : une espace simple entre les milliers, partout pareil. */
+const prixDitWa = (n: number): string => `${String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, ' ')} F`;
+
+/** CE QUI EMPÊCHE UNE RÉPONSE DE PARTIR. Une liste vide = elle peut partir
+    (si elle est validée). Sans `prix`, les jetons ne se vérifient pas. */
+function fautesDeLaReponse(r: ReponseDeLaMaison, prix?: Readonly<Record<string, number>>): string[] {
+  const f: string[] = [];
+  if (!r.titre || r.titre.length > 24) f.push('un titre de 1 à 24 signes');
+  if (r.description && r.description.length > 72) f.push('une ligne grise de 72 signes au plus');
+  if (!r.texte) f.push('le texte de la réponse');
+  if (r.texte.length > TEXTE_DE_REPONSE_MAX) f.push(`un texte de ${TEXTE_DE_REPONSE_MAX} signes au plus`);
+  if (r.mots.length === 0) f.push('au moins un mot pour la reconnaître');
+  const sansJetons = r.texte.replace(JETON_DE_PRIX, '');
+  for (const x of texteSain(sansJetons)) f.push(x === 'un prix' ? 'un prix écrit à la main (insérez-le depuis le catalogue)' : x);
+  if (/[{}]/.test(sansJetons)) f.push('une accolade qui n’est pas un prix');
+  if (prix) {
+    for (const m of r.texte.matchAll(JETON_DE_PRIX)) {
+      const ref = m[1].trim();
+      if (!((prix[ref] ?? 0) > 0)) f.push(`un prix introuvable au catalogue (${ref})`);
+    }
+  }
+  return f;
+}
+
+/** LE TEXTE QUI PART : validée, sans faute, chaque jeton remplacé par le prix
+    du jour. `null` sinon : elle ne part pas. */
+function texteDeLaReponse(r: ReponseDeLaMaison, prix?: Readonly<Record<string, number>>): string | null {
+  if (r.etat !== 'validee') return null;
+  const aDesJetons = /\{prix:/.test(r.texte);
+  if (aDesJetons && !prix) return null;
+  if (fautesDeLaReponse(r, prix).length > 0) return null;
+  return r.texte.replace(JETON_DE_PRIX, (_t, ref: string) => prixDitWa((prix ?? {})[ref.trim()] ?? 0));
+}
+
+/** LES RÉPONSES QUI PEUVENT PARTIR, dans l'ordre de la direction. */
+function reponsesEnvoyables(
+  conseil: ConseilDeLaMaison | undefined, prix: Readonly<Record<string, number>> | undefined,
+): { r: ReponseDeLaMaison; texte: string }[] {
+  const out: { r: ReponseDeLaMaison; texte: string }[] = [];
+  for (const r of conseil?.reponses ?? []) {
+    const texte = texteDeLaReponse(r, prix);
+    if (texte) out.push({ r, texte });
+  }
+  return out.sort((a, b) => a.r.ordre - b.r.ordre || a.r.titre.localeCompare(b.r.titre, 'fr'));
+}
+
+/** CE QUE LE CONSEIL LIT DANS UN TEXTE : le cuir chevelu, et les réponses
+    validées dont elle a dit le plus de mots (toutes, à égalité). Un mot se
+    lit entier, au pluriel aussi (« plaques », « cheveux »). */
+function lisLeConseil(texte: string, conseil: ConseilDeLaMaison | undefined): { sante: boolean; ids: string[] } {
+  if (!conseilActif(conseil)) return { sante: false, ids: [] };
+  const t = ` ${sansAccentsWa(texte).replace(/[^a-z0-9' ]/g, ' ').replace(/\s+/g, ' ')} `;
+  const dit = (mot: string): boolean => new RegExp(`(^|[^a-z0-9])${echappeWa(mot)}(s|x)?(?=[^a-z0-9]|$)`).test(t);
+  const sante = conseil!.motsSante.some(dit);
+  const scores = conseil!.reponses
+    .filter((r) => r.etat === 'validee')
+    .map((r) => ({ id: r.id, n: r.mots.filter(dit).length }))
+    .filter((x) => x.n > 0);
+  const max = scores.reduce((m, x) => Math.max(m, x.n), 0);
+  return { sante, ids: max > 0 ? scores.filter((x) => x.n === max).map((x) => x.id) : [] };
+}
+
+/** LE CONSEIL A-T-IL QUELQUE CHOSE À DIRE à ce texte ? */
+const leConseilParle = (texte: string, conseil: ConseilDeLaMaison | undefined): boolean => {
+  const lu = lisLeConseil(texte, conseil);
+  return lu.sante || lu.ids.length > 0;
+};
 
 /* ── 8. LA PORTE DU TOUR ────────────────────────────────────────────────── */
 type FicheDuNumero = {
@@ -1729,12 +1916,16 @@ type ContexteLeger = {
   /** L'instant du dernier message que la Maison a écrit à ce numéro, de sa
       main ou par un de ses envois (jamais un message de l'automate). */
   derniereParoleDeLaMaison?: string;
+  /** Les réponses de la Maison (`mnd_reponses_maison`, le conseil). */
+  conseil?: ConseilDeLaMaison;
 };
 
 type ContexteDuTour = ContexteLeger & {
   /** `carte` : le lien Google Maps de la branche ou des Paramètres. */
   maison: { nom: string; itineraire?: string; carte?: string };
   agenda?: AgendaDuTour;
+  /** Les prix du catalogue du jour (`prixDuCatalogue`), pour les jetons du conseil. */
+  prix?: Readonly<Record<string, number>>;
 };
 
 type ParoleDuTour = 'silence' | 'main-silencieuse' | 'parle';
@@ -1826,23 +2017,35 @@ function jugeLaParole(
   let parle = false;
   if (ETAPES_EN_COURS.includes(courante)) {
     if (tour.media) return { parole: 'main-silencieuse', motif: 'media' };
-    if (mots.prix) return { parole: 'main-silencieuse', motif: 'prix' };
+    /* Une question de prix en plein parcours : la réponse validée si le
+       conseil en a une, sinon la main passe, comme avant (14 octobre 2026). */
+    if (mots.prix && !leConseilParle(tour.texte, ctx.conseil)) return { parole: 'main-silencieuse', motif: 'prix' };
     parle = true;
   } else if (tour.choix && lisLeChoix(tour.choix.id)) {
     parle = true;
-  } else if (tour.media || mots.prix || mots.retard) {
+  } else if (tour.media || mots.retard) {
     parle = false;
   } else if (laMaisonAParle(ctx)) {
     /* La Maison vient d'écrire (sa main, un rappel, une reprise) : sa
        réponse est pour la Maison, jamais un parcours neuf. */
     parle = false;
   } else if (mots.deplacer || mots.annuler) {
-    parle = true;
+    /* Un prix dans la même phrase : la Maison le lit elle-même, comme avant. */
+    parle = !mots.prix;
   } else if (renvoieAUnRdv(tour.texte) || fiches.some((f) => !f.parFamille && !!f.prochainRdv)) {
     /* Un rendez-vous qu'elle a déjà : la Maison répond elle-même. */
     parle = false;
-  } else if (uneQuestionAutre(tour.texte, ms)) {
+  } else if (leConseilParle(tour.texte, ctx.conseil)) {
+    /* LE CONSEIL (14 octobre 2026) : une question qu'une réponse validée
+       reconnaît, ou le cuir chevelu qui inquiète. */
+    parle = true;
+  } else if (mots.prix) {
     parle = false;
+  } else if (uneQuestionAutre(tour.texte, ms)) {
+    /* Une question que la Maison n'a pas écrite : avec le conseil, la nuit,
+       un accusé (« la Maison vous répond demain dès 9 h ») ; le jour, la
+       Maison la lit elle-même, comme avant. */
+    parle = conseilActif(ctx.conseil);
   } else if (intentionDeReserver(tour.texte)) {
     parle = true;
   } else if (ctx.premierMessage && fiches.length === 0) {
@@ -2177,6 +2380,61 @@ function atelierDuTour(ancien: EtatDuFil | null | undefined, tour: TourDeLaClien
   };
   const dire = (m: MessageSortant | null, motifSiRien: MotifDeLaMain = 'sans-place'): SortieDuTour =>
     (m ? sortie([m]) : laMain(motifSiRien, true));
+  /** Ce tour n'est pas pour lui : rien ne s'écrit, la Maison le lit. */
+  const silence = (): SortieDuTour => ({ messages: [], etat: ancien ?? base, ecritures: [], pris: false });
+
+  /* ── Le conseil (14 octobre 2026) ── */
+  const envoyables = (): { r: ReponseDeLaMaison; texte: string }[] => reponsesEnvoyables(ctx.conseil, ctx.prix);
+  /** L'étape où « Continuer » la ramène : un parcours commencé, jamais le
+      menu (de là, « Réserver » suit la réponse), ni le conseil lui-même. */
+  const retiensOuReprendre = (): void => {
+    if (base.etape === 'questions' || base.etape === 'reponse') return;
+    base.panier.reprendre = ETAPES_EN_COURS.includes(base.etape) && base.etape !== 'besoin' ? base.etape : undefined;
+  };
+  const salutDuConseil = (avecSalut: boolean): string =>
+    (avecSalut ? `${salut()} ${appel()}, bienvenue à la ${maisonNomWa}.\n\n` : '');
+  const msgQuestions = (page: number, choisies?: readonly { r: ReponseDeLaMaison; texte: string }[], avecSalut = false): MessageSortant | null => {
+    const toutes = choisies ?? envoyables();
+    if (toutes.length === 0) return null;
+    retiensOuReprendre();
+    passe('questions');
+    const par = toutes.length > 9 ? 8 : 9;
+    const p = Math.max(0, Math.floor(page) || 0);
+    const debut = p * par < toutes.length ? p * par : 0;
+    const tranche = toutes.slice(debut, debut + par);
+    const plus = !choisies && debut + par < toutes.length;
+    const corps = choisies
+      ? `Votre message touche plusieurs sujets, ${appel()}. Lequel voulez-vous lire ?`
+      : `Voici les questions qu'on nous pose le plus, ${appel()}. Touchez la vôtre.`;
+    return liste('questions', `${salutDuConseil(avecSalut)}${corps}`, 'Les questions', [
+      ...tranche.map((e) => ({ id: choix('reponse', e.r.id), titre: e.r.titre, ...(e.r.description ? { description: e.r.description } : {}) })),
+      ...(plus ? [{ id: choix('plus', String(p + 1)), titre: 'Plus de questions' }] : []),
+    ]);
+  };
+  const msgReponse = (e: { r: ReponseDeLaMaison; texte: string }, avecSalut: boolean): MessageSortant => {
+    retiensOuReprendre();
+    passe('reponse');
+    const suite = base.panier.reprendre
+      ? [{ id: choix('reprendre'), titre: 'Continuer' }, { id: choix('questions'), titre: 'Une autre question' }]
+      : [{ id: choix('reserver', e.r.mene), titre: 'Réserver' }, { id: choix('questions'), titre: 'Une autre question' }];
+    return { ...boutons('reponse', `${salutDuConseil(avecSalut)}${e.texte}`, suite), reponseId: e.r.id, prixDuCatalogue: true };
+  };
+  /** LE CONSEIL RÉPOND À SON TEXTE, ou `null` s'il n'a rien à dire. */
+  const questionDuTour = (texteDuTour: string, avecSalut: boolean): SortieDuTour | null => {
+    const lu = lisLeConseil(texteDuTour, ctx.conseil);
+    if (lu.sante) {
+      const quand = prochaineOuvertureDite(ms, agenda?.semaine ?? [], agenda?.exceptions ?? []);
+      const qui = quand === null ? 'Une personne de la Maison vous répond ici.' : `La Maison vous répond ${quand}.`;
+      return laMain('sante', true, `Merci de nous le dire, ${appel()}. Ce que vous décrivez se regarde de près : la Maison ne conseille pas de soin à distance. ${qui} Si la gêne est forte ou s'étend, un médecin ou un dermatologue saura vous examiner.`);
+    }
+    if (lu.ids.length === 0) return null;
+    const trouvees = envoyables().filter((e) => lu.ids.includes(e.r.id));
+    if (trouvees.length === 1) return dire(msgReponse(trouvees[0], avecSalut));
+    if (trouvees.length > 1) return dire(msgQuestions(0, trouvees, avecSalut), 'question');
+    /* Reconnue, mais elle ne peut pas partir (un prix introuvable au
+       catalogue du jour) : la Maison répond elle-même. */
+    return laMain('question', true);
+  };
 
   /* ── Les places ── */
   const tempsDe = (p: PlaceLibre): number => msWa(`${p.iso}T${p.heure}:00Z`);
@@ -2326,6 +2584,7 @@ function atelierDuTour(ancien: EtatDuFil | null | undefined, tour: TourDeLaClien
       { id: choix('besoin', 'creation'), titre: `Créer ${ses} locks` },
       { id: choix('besoin', 'reparation'), titre: `Réparer ${ses} locks` },
       ...(pourQui ? [] : [{ id: choix('besoin', 'enfant'), titre: 'Pour mon enfant' }]),
+      ...(envoyables().length > 0 ? [{ id: choix('questions'), titre: 'Une question ?' }] : []),
     ]);
   };
 
@@ -2509,6 +2768,8 @@ function atelierDuTour(ancien: EtatDuFil | null | undefined, tour: TourDeLaClien
       case 'civilite': return dire(msgCivilite(relance));
       case 'prenom': return dire(msgPrenom(relance));
       case 'recap': return dire(msgRecap(relance) ?? msgPlaces({}));
+      case 'questions':
+      case 'reponse': return dire(msgQuestions(0), 'question');
       default: return laMain('erreur', true);
     }
   };
@@ -2700,7 +2961,12 @@ function atelierDuTour(ancien: EtatDuFil | null | undefined, tour: TourDeLaClien
     const confirme = base.etape === 'recap' && ch?.geste === 'oui' && ch.version >= base.versionDeLEtape && ch.version < version;
     if (envoisQuiComptent(base.envois, ctx.main, ms) >= plafondDuFil(base) && !confirme) return laMain('plafond', false);
     if (enCours && t.media) return laMain('media', false);
-    if (enCours && mots.prix) return laMain('prix', false);
+    if (enCours && mots.prix && !ch) {
+      /* Le conseil a peut-être la réponse (14 octobre 2026). */
+      const q = questionDuTour(t.texte, false);
+      if (q) return q;
+      return laMain('prix', false);
+    }
     if (ch?.geste === 'maison') return laMain('demande', true);
     /* LE JOUR MÊME ne se réserve jamais ici : la Maison répond elle-même
        (la nuit, elle dit quand). */
@@ -2716,7 +2982,28 @@ function atelierDuTour(ancien: EtatDuFil | null | undefined, tour: TourDeLaClien
       passe('clos');
       return sortie([texte('clos', `C'est noté, ${appel()} : rien n'est réservé. Écrivez-nous quand vous le souhaitez.`)]);
     }
-    if (!enCours) return accueil(mots);
+    if (!enCours) {
+      /* LE CONSEIL AU REPOS (14 octobre 2026) : une question qu'il reconnaît,
+         le cuir chevelu, ou, la nuit, une question qu'il ne sait pas. */
+      if (!ch && conseilActif(ctx.conseil)) {
+        const neuve = ctx.premierMessage && fiches.length === 0;
+        const q = questionDuTour(t.texte, neuve);
+        if (q) {
+          /* Un parcours neuf : rien de l'ancien panier ne suit la réponse. */
+          base.panier = {};
+          base.prisLe = maintenant;
+          base.rdvId = undefined;
+          return q;
+        }
+        if (uneQuestionAutre(t.texte, ms) && !intentionDeReserver(t.texte)) {
+          const quand = prochaineOuvertureDite(ms, agenda?.semaine ?? [], agenda?.exceptions ?? []);
+          if (quand === null) return silence();
+          base.prisLe = maintenant;
+          return laMain('question', true);
+        }
+      }
+      return accueil(mots);
+    }
     if (!agenda) return laMain('erreur', true);
 
     if (ch) {
@@ -2741,7 +3028,35 @@ function atelierDuTour(ancien: EtatDuFil | null | undefined, tour: TourDeLaClien
           if (g === 'besoin' && (arg === 'entretien' || arg === 'creation' || arg === 'reparation' || arg === 'enfant')) {
             return choisisLeBesoin(arg);
           }
+          if (g === 'questions') return dire(msgQuestions(0), 'question');
           break;
+        case 'questions': {
+          if (g === 'reponse') {
+            const e = envoyables().find((x) => x.r.id === arg);
+            if (e) return dire(msgReponse(e, false));
+            return laMain('question', true);
+          }
+          if (g === 'plus') return dire(msgQuestions(Number(arg) || 0), 'question');
+          break;
+        }
+        case 'reponse': {
+          if (g === 'questions') return dire(msgQuestions(0), 'question');
+          if (g === 'reserver') {
+            base.panier.reprendre = undefined;
+            if (arg === 'entretien' || arg === 'creation' || arg === 'reparation' || arg === 'enfant') return choisisLeBesoin(arg);
+            return dire(msgBesoin(false, false));
+          }
+          if (g === 'reprendre') {
+            const e = base.panier.reprendre;
+            base.panier.reprendre = undefined;
+            if (e && ETAPES_EN_COURS.includes(e) && e !== 'questions' && e !== 'reponse') {
+              passe(e);
+              return renvoie(e, false);
+            }
+            return dire(msgBesoin(false, false));
+          }
+          break;
+        }
         case 'meme': {
           if (g === 'meme') {
             const v = venueReprenable(ficheChoisie());
@@ -2818,6 +3133,16 @@ function atelierDuTour(ancien: EtatDuFil | null | undefined, tour: TourDeLaClien
       return renvoie(base.etape, false);
     }
 
+    /* LE CONSEIL D'ABORD (14 octobre 2026) : une question qu'une réponse
+       validée reconnaît, ou le cuir chevelu, en plein parcours aussi. */
+    const qDuTour = questionDuTour(t.texte, false);
+    if (qDuTour) return qDuTour;
+    /* Après une réponse, ou devant la liste : une envie de réserver ouvre le
+       parcours ; le reste (« merci », une autre phrase), la Maison le lit. */
+    if (base.etape === 'questions' || base.etape === 'reponse') {
+      if (intentionDeReserver(t.texte) || mots.jourVoulu || mots.moment) return accueil(mots);
+      return silence();
+    }
     /* UNE QUESTION QUI N'EST PAS DE RÉSERVER ne s'avale jamais : la main
        passe, dite, et l'équipe la lit (relecture du 9 octobre 2026). */
     if (uneQuestionAutre(t.texte, ms)) return laMain('question', true);
@@ -3344,6 +3669,8 @@ async function laisseLaTrace(
       auto: 'automate',
       etape: o.m.etape,
       choix: choixDuMessage(o.m),
+      /* La réponse de la Maison envoyée (le conseil) : les compteurs du Trône la lisent. */
+      ...(o.m.reponseId ? { reponse: o.m.reponseId } : {}),
     },
   }, { onConflict: 'id' });
   if (error) dis('trace refusee', { motif: error.message.slice(0, 120) });
@@ -3497,6 +3824,8 @@ async function unTour(
   const ctxLeger: ContexteLeger = {
     maintenantMs: ms, numero: o.numero, tiroir: o.tiroir, reglage, fiches, premierMessage, main,
     ...(parole ? { derniereParoleDeLaMaison: parole } : {}),
+    /* Les réponses de la Maison (le conseil, 14 octobre 2026). */
+    conseil: conseilDeLaMaison(docs.get('mnd_reponses_maison')),
   };
   const juge = jugeLaParole(fil, tour, ctxLeger);
   if (juge.parole === 'silence') return { pris: false };
@@ -3525,7 +3854,11 @@ async function unTour(
   const vue = agenda ? agendaDuTourWa(agenda, ms, reglage.horizonJours) : null;
   /* Le lien Google Maps de la branche du tour, sinon celui des Paramètres (13 octobre 2026). */
   const carte = lienMapsWa(agenda?.lignes.branche.data?.mapsUrl, maison.carte);
-  const ctx: ContexteDuTour = { ...ctxLeger, maison: { ...maison, carte }, ...(vue ? { agenda: vue.agenda } : {}) };
+  const ctx: ContexteDuTour = {
+    ...ctxLeger, maison: { ...maison, carte }, ...(vue ? { agenda: vue.agenda } : {}),
+    /* Les prix du catalogue du jour, pour les jetons du conseil. */
+    ...(agenda ? { prix: prixDuCatalogue(agenda.lignes.services) } : {}),
+  };
   let sortie = etapeSuivante(fil, tour, ctx);
   if (!sortie.pris) return { pris: false };
   let posee: string | null = null;
@@ -3575,7 +3908,7 @@ async function unTour(
   let refus: MotifDeLaMain | null = null;
   let laConfirmation: Rendu | null = null;
   for (const m of sortie.messages) {
-    const fautes = [...respecteMeta(m), ...texteSain(toutLeTexteWa(m))];
+    const fautes = [...respecteMeta(m), ...texteSain(toutLeTexteWa(m), m.prixDuCatalogue === true)];
     if (fautes.length > 0) {
       dis('message retenu par les juges de la Maison', { etape: m.etape, fautes: fautes.length });
       if (m.etape === 'confirme') laConfirmation = { detail: 'message retenu par les juges de la Maison' };
@@ -3644,6 +3977,7 @@ async function rattrapeLeRefus(sb: Sb, numero: string, tiroir: TiroirDuNumero): 
   const ctx: ContexteDuTour = {
     maintenantMs: ms, numero, tiroir, reglage, fiches, premierMessage: false, main,
     maison: { nom: String(docs.get('mnd_house_identity')?.nom ?? '').trim() || 'Maison MND' },
+    conseil: conseilDeLaMaison(docs.get('mnd_reponses_maison')),
   };
   const apres = mainApresCoup(fil, 'envoi-refuse', ctx);
   const branchId = (fiches.find((f) => f.parPhone) ?? fiches[0])?.branchId ?? null;
@@ -3709,6 +4043,8 @@ async function reprendLeFil(
   const ctx: ContexteDuTour = {
     maintenantMs: ms, numero: o.numero, tiroir: o.tiroir, reglage, fiches, premierMessage: false, main, maison,
     ...(vue ? { agenda: vue.agenda } : {}),
+    conseil: conseilDeLaMaison(docs.get('mnd_reponses_maison')),
+    ...(agenda ? { prix: prixDuCatalogue(agenda.lignes.services) } : {}),
   };
   const sortie = repriseDuFil(fil, ctx);
   if (!sortie.pris || sortie.messages.length === 0) return { repris: false, raison: 'rien a reprendre' };
@@ -3721,7 +4057,7 @@ async function reprendLeFil(
 
   const clientId = sortie.etat.panier.clientId ?? titulaire?.id;
   for (const m of sortie.messages) {
-    if ([...respecteMeta(m), ...texteSain(toutLeTexteWa(m))].length > 0) return { repris: false, raison: 'message retenu par les juges' };
+    if ([...respecteMeta(m), ...texteSain(toutLeTexteWa(m), m.prixDuCatalogue === true)].length > 0) return { repris: false, raison: 'message retenu par les juges' };
     const rendu = await envoieAGraph(o.jeton, o.phoneId, chargeGraph(m, o.numero));
     await laisseLaTrace(sb, { numero: o.numero, m, rendu, ...(branchId ? { branchId } : {}), ...(clientId ? { clientId } : {}) });
     if (!rendu.waId) {

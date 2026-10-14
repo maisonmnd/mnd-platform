@@ -7,6 +7,7 @@ import {
   DEVISE, PIED, REGLAGE_LIVRE, etapeSuivante, suiteDeLaPose, tourDeLaCliente, respecteMeta, texteSain, repriseDuFil,
   reglageDeLAutomate, cleWa, sansAppelVide, lienMapsWa, titreEnFrancaisWa, dureeDiteWa, envoisQuiComptent, numeroServi, tenuParLAutomate, silenceDeLAlarme, titreDePlace, chargeGraph, cleCourte,
   intentionDeReserver, jourDitAvecAnnee, quiParle, motsReconnus, civiliteLue, prenomLu, renvoieAUnRdv, uneQuestionAutre,
+  conseilDeLaMaison, fautesDeLaReponse, texteDeLaReponse, type ConseilDeLaMaison,
   type AgendaDuTour, type ContexteDuTour, type EtatDuFil, type FicheDuNumero, type MessageSortant,
   type PrestationDuTour, type ReglageDeLAutomate, type SortieDuTour, type MainDuFil, type VerdictDeLaPose,
   type TiroirDuNumero, type EcritureDuTour,
@@ -16,6 +17,7 @@ import {
   rendsALAutomate, filsSansReponse, sonnentApresLAutomate, type MessageWa, type TeteConnue, type LigneDesFilsAutomate,
 } from '../src/shared/conversations';
 import { rattachementsAFaire, type Demande } from '../src/shared/demandes';
+import { BROUILLONS_DU_CONSEIL, modifieLaReponse, valideLaReponse } from '../src/shared/conseil-wa';
 import { sansCommentaires } from './un-geste-par-passage';
 
 /* LA MAISON RÉPOND ET RÉSERVE SUR WHATSAPP, ÉPROUVÉE · 9 octobre 2026.
@@ -166,6 +168,8 @@ type Parcours = {
   /** Le geste du toucher qui a produit chaque écriture. */
   gestesDesPoses: string[];
   premier: boolean; n: number; prises: Set<string>; itineraire: string; carte?: string; agenda: Partial<AgendaDuTour>; journal: string[];
+  /** Le conseil (14 octobre 2026) : les réponses, les prix du jour, la dernière parole de la Maison. */
+  conseil?: ConseilDeLaMaison; prix?: Record<string, number>; parole?: string;
 };
 const parcours = (moteur: Moteur, numero: string, fiches: FicheDuNumero[], reglage: ReglageDeLAutomate = OUVERT): Parcours => ({
   moteur, numero, fiches, reglage, tiroir: 'clientes', etat: null, main: null, envoyes: [], poses: [], gestesDesPoses: [],
@@ -204,7 +208,29 @@ const ctxDe = (p: Parcours, ms: number): ContexteDuTour => ({
   fiches: p.fiches, premierMessage: p.premier, main: p.main,
   maison: { nom: 'Maison MND', itineraire: p.itineraire, ...(p.carte !== undefined ? { carte: p.carte } : {}) },
   agenda: agendaDe(p, ms),
+  ...(p.conseil ? { conseil: p.conseil } : {}),
+  ...(p.prix ? { prix: p.prix } : {}),
+  ...(p.parole ? { derniereParoleDeLaMaison: p.parole } : {}),
 });
+
+/* LE CONSEIL DU BANC (14 octobre 2026) : trois réponses validées, et trois
+   qui ne doivent jamais partir (un brouillon, un prix tapé, un prix parti). */
+const CONSEIL_DU_BANC = {
+  reponses: [
+    { id: 'r-prix-creation', titre: 'Prix d’une création', mots: ['prix', 'combien', 'tarif', 'création', 'microlocks', 'devis'], texte: 'Une création se chiffre après la consultation Origine ({prix:sv-koko-ori}). À titre de repère, une création commence à {prix:vekpe-crea}.', etat: 'validee', mene: 'creation', ordre: 1 },
+    { id: 'r-prix-entretien', titre: 'Prix d’un entretien', mots: ['resserrage', 'entretien', 'racines', 'combien', 'prix'], texte: 'Le resserrage est à {prix:sinsin-ess} pour un Medium.', etat: 'validee', mene: 'entretien', ordre: 2 },
+    { id: 'r-duree', titre: 'Durée d’une création', mots: ['combien de temps', 'durée'], texte: 'Quelques heures ou deux jours, selon la méthode.', etat: 'validee', ordre: 3 },
+    { id: 'r-brouillon', titre: 'Les extensions', mots: ['extension'], texte: 'Oui, nous posons des extensions.', etat: 'brouillon', ordre: 4 },
+    { id: 'r-prix-main', titre: 'Un prix tapé', mots: ['tresses'], texte: 'Les tresses sont à 20 000 F.', etat: 'validee', ordre: 5 },
+    { id: 'r-introuvable', titre: 'Une prestation partie', mots: ['coloration'], texte: 'La coloration est à {prix:retiree}.', etat: 'validee', ordre: 6 },
+  ],
+};
+const PRIX_DU_BANC: Record<string, number> = { 'sv-koko-ori': 15000, 'vekpe-crea': 80000, 'sinsin-ess': 25000 };
+const avecConseil = (p: Parcours, brut: unknown = CONSEIL_DU_BANC): Parcours => {
+  p.conseil = conseilDeLaMaison(brut);
+  p.prix = PRIX_DU_BANC;
+  return p;
+};
 
 /** Elle écrit (`texte`), touche un choix du dernier message (`touche`, son
     titre) ou un identifiant précis (`id`, un vieux bouton). */
@@ -2106,7 +2132,7 @@ const regles: Regle[] = [
     },
     pannes: [
       { nom: 'une question d autre chose est un ecart', mute: [P(AUTO, "    if (uneQuestionAutre(t.texte, ms)) return laMain('question', true);\n", '')] },
-      { nom: 'au repos, une question d autre chose lance un parcours', mute: [P(AUTO, '  } else if (uneQuestionAutre(tour.texte, ms)) {\n    parle = false;\n', '')] },
+      { nom: 'au repos, une question d autre chose lance un parcours', mute: [P(AUTO, '    parle = conseilActif(ctx.conseil);\n', '    parle = true;\n')] },
       { nom: 'le juge des questions ne voit plus rien', mute: [P(AUTO, '    if (!intentionDeReserver(phrase) && !m.jourVoulu && !m.jourEvite && !m.moment && !m.jourMeme) return true;', '')] },
     ],
   },
@@ -2146,8 +2172,8 @@ const regles: Regle[] = [
       return ecarts;
     },
     pannes: [
-      { nom: 'le juge du prix d avant (le f de fevrier)', mute: [P(AUTO, "  if (/\\d[\\d\\s.,]*\\s?(fcfa|cfa|xof|francs?|f)(?![\\p{L}])/iu.test(s)) fautes.push('un prix');", "  if (/\\d[\\d\\s.,]*\\s?(f|fcfa|cfa|xof|francs?)\\b/i.test(s)) fautes.push('un prix');")] },
-      { nom: 'le juge du prix ne voit plus les francs', mute: [P(AUTO, "  if (/\\d[\\d\\s.,]*\\s?(fcfa|cfa|xof|francs?|f)(?![\\p{L}])/iu.test(s)) fautes.push('un prix');", '')] },
+      { nom: 'le juge du prix d avant (le f de fevrier)', mute: [P(AUTO, "  if (!prixPermis && /\\d[\\d\\s.,]*\\s?(fcfa|cfa|xof|francs?|f)(?![\\p{L}])/iu.test(s)) fautes.push('un prix');", "  if (!prixPermis && /\\d[\\d\\s.,]*\\s?(f|fcfa|cfa|xof|francs?)\\b/i.test(s)) fautes.push('un prix');")] },
+      { nom: 'le juge du prix ne voit plus les francs', mute: [P(AUTO, "  if (!prixPermis && /\\d[\\d\\s.,]*\\s?(fcfa|cfa|xof|francs?|f)(?![\\p{L}])/iu.test(s)) fautes.push('un prix');", '')] },
     ],
   },
 
@@ -2741,6 +2767,183 @@ const regles: Regle[] = [
       { nom: 'n importe quel jeton demande la reprise', mute: [P(F_AUTO, "      if (errStaff || estPersonnel !== true) return jsonCors({ repris: false, erreur: 'réservé au personnel' }, 403);\n", '')] },
       { nom: 'la reprise ecrit hors de la fenetre', mute: [P(F_AUTO, "  if (!Number.isFinite(quand) || ms - quand >= JOUR_WA) return { repris: false, raison: 'fenetre' };\n", '')] },
       { nom: 'le Trone ne demande pas la reprise', mute: [P(ECRAN_CONV, "    void supabase.functions.invoke('whatsapp-automate', { body: { reprise: { numero: fil.numero, tiroir: fil.tiroir, rendueLe } } })\n", '    void Promise.resolve({ data: {} })\n')] },
+    ],
+  },
+  /* ══ R38 · le conseil : « Une question ? », les réponses validées, mot pour mot, 14 octobre 2026 ═══ */
+  {
+    id: 'R38', nom: 'R38 le conseil : Une question ? n offre que les reponses validees et sans faute, chacune part mot pour mot avec les prix du catalogue du jour, et Reserver mene ou la direction l a dit',
+    eprouve: () => {
+      const { ecarts, vaut, vrai } = juge();
+      const t0 = cotonou('2026-10-09', '10:12');
+      const sans = parcours(ORIGINAL, NUM_INCONNUE, []);
+      const b0 = elle(sans, t0, { texte: 'Bonjour, je voudrais prendre rendez-vous' });
+      vrai('sans conseil, le menu reste celui d avant', !lignesDe(b0).includes('Une question ?'), lignesDe(b0));
+      const p = avecConseil(parcours(ORIGINAL, NUM_INCONNUE, []));
+      const s1 = elle(p, t0, { texte: 'Bonjour, je voudrais prendre rendez-vous' });
+      vrai('le menu offre Une question ?', lignesDe(s1).includes('Une question ?'), lignesDe(s1));
+      const s2 = elle(p, t0 + 1000, { touche: 'Une question ?' });
+      vaut('la liste : les seules reponses validees, sans prix tape, sans prix introuvable', ['Prix d’une création', 'Prix d’un entretien', 'Durée d’une création', 'Parler à la Maison'], lignesDe(s2));
+      const s3 = elle(p, t0 + 2000, { touche: 'Prix d’une création' });
+      vaut('la reponse part mot pour mot, les jetons remplaces par le catalogue du jour', 'Une création se chiffre après la consultation Origine (15 000 F). À titre de repère, une création commence à 80 000 F.', corps(s3));
+      vaut('sous la reponse : Reserver, Une autre question, la Maison', ['Réserver', 'Une autre question', 'Parler à la Maison'], boutonsDe(s3));
+      const m3 = s3.messages[0];
+      vrai('le message porte sa reponse et ses prix du catalogue', !!m3 && m3.reponseId === 'r-prix-creation' && m3.prixDuCatalogue === true);
+      vrai('Meta l accepte, et le juge ne le laisse passer que parce que ses prix viennent du catalogue', !!m3 && respecteMeta(m3).length === 0 && texteSain(m3.corps, true).length === 0 && texteSain(m3.corps).length > 0);
+      const s4 = elle(p, t0 + 3000, { touche: 'Réserver' });
+      vaut('Reserver mene ou la direction l a dit : la consultation de creation, ses places', 'places', s4.messages[0]?.etape);
+      vrai('une reponse sans jeton part aussi sans les prix du jour', texteDeLaReponse(conseilDeLaMaison(CONSEIL_DU_BANC).reponses[2]) === 'Quelques heures ou deux jours, selon la méthode.');
+      return ecarts;
+    },
+    pannes: [
+      { nom: 'un brouillon part', mute: [P(AUTO, "  if (r.etat !== 'validee') return null;\n  const aDesJetons", '  const aDesJetons')] },
+      { nom: 'un prix tape a la main passe', mute: [P(AUTO, '  for (const x of texteSain(sansJetons)) f.push(', '  for (const x of texteSain(sansJetons, true)) f.push(')] },
+      { nom: 'un prix introuvable passe', mute: [P(AUTO, "      if (!((prix[ref] ?? 0) > 0)) f.push(`un prix introuvable au catalogue (${ref})`);\n", '')] },
+      { nom: 'le menu oublie Une question ?', mute: [P(AUTO, "      ...(envoyables().length > 0 ? [{ id: choix('questions'), titre: 'Une question ?' }] : []),\n", '')] },
+      { nom: 'la reponse part sans ses prix', mute: [P(AUTO, '`${salutDuConseil(avecSalut)}${e.texte}`', '`${salutDuConseil(avecSalut)}${e.r.texte}`')] },
+      { nom: 'Reserver ne mene plus ou la direction l a dit', mute: [P(AUTO, "            if (arg === 'entretien' || arg === 'creation' || arg === 'reparation' || arg === 'enfant') return choisisLeBesoin(arg);\n", '')] },
+    ],
+  },
+  /* ══ R39 · le conseil lit les questions écrites, et se tait où il doit, 14 octobre 2026 ═══ */
+  {
+    id: 'R39', nom: 'R39 le conseil lit une question ecrite au repos (et salue une inconnue), propose la liste a egalite, se tait quand la Maison a ecrit ou qu un rendez-vous attend, et la nuit seulement accuse une question qu il ne sait pas',
+    eprouve: () => {
+      const { ecarts, vaut, vrai } = juge();
+      const jour = cotonou('2026-10-09', '10:12');
+      const nuit = cotonou('2026-10-09', '23:15');
+      const a = avecConseil(parcours(ORIGINAL, NUM_NAFFI, [NAFFI]));
+      const sa = elle(a, jour, { texte: 'Bonjour, combien pour des microlocks ?' });
+      vrai('une cliente connue : la reponse validee, tout de suite', sa.pris && sa.messages[0]?.reponseId === 'r-prix-creation', corps(sa));
+      const b = avecConseil(parcours(ORIGINAL, NUM_INCONNUE, []));
+      const sb2 = elle(b, nuit, { texte: 'Bonsoir, c’est combien pour des microlocks ?' });
+      vrai('une inconnue, la nuit : saluee, puis la reponse', corps(sb2).startsWith('Bonsoir, bienvenue à la Maison MND.\n\nUne création se chiffre'), corps(sb2));
+      const c = avecConseil(parcours(ORIGINAL, NUM_NAFFI, [NAFFI]));
+      const sc = elle(c, jour, { texte: 'C’est combien ?' });
+      vaut('deux reponses a egalite : la liste des deux', ['Prix d’une création', 'Prix d’un entretien', 'Parler à la Maison'], lignesDe(sc));
+      vrai('la liste dit pourquoi', corps(sc).includes('plusieurs sujets'), corps(sc));
+      const d = avecConseil(parcours(ORIGINAL, NUM_NAFFI, [NAFFI]));
+      d.parole = isoDe(jour - 2 * 3600000);
+      vrai('la Maison a ecrit cette semaine : il se tait, meme reconnue', !elle(d, jour, { texte: 'Combien pour des microlocks ?' }).pris);
+      const e = avecConseil(parcours(ORIGINAL, NUM_NAFFI, [{ ...NAFFI, prochainRdv: { date: '2026-10-17', time: '10:00' } }]));
+      vrai('un rendez-vous attend : il se tait, meme reconnue', !elle(e, jour, { texte: 'Combien pour des microlocks ?' }).pris);
+      const f = avecConseil(parcours(ORIGINAL, NUM_INCONNUE, []));
+      const sf = elle(f, nuit, { texte: 'Vous faites aussi les tissages ?' });
+      vrai('la nuit, une question qu il ne sait pas : l accuse, la main passe', sf.pris && f.etat?.etape === 'main' && f.etat?.motifMain === 'question' && corps(sf).includes('vous répond'), `${sf.pris} ${f.etat?.etape} ${corps(sf)}`);
+      const g = avecConseil(parcours(ORIGINAL, NUM_NAFFI, [NAFFI]));
+      vrai('le jour, une question qu il ne sait pas : la Maison la lit, comme avant', !elle(g, jour, { texte: 'Vous faites aussi les tissages ?' }).pris);
+      const h = parcours(ORIGINAL, NUM_INCONNUE, []);
+      vrai('sans conseil, la nuit, rien ne change : il se tait', !elle(h, nuit, { texte: 'Vous faites aussi les tissages ?' }).pris);
+      return ecarts;
+    },
+    pannes: [
+      { nom: 'le conseil ne parle jamais au repos', mute: [P(AUTO, '  } else if (leConseilParle(tour.texte, ctx.conseil)) {', '  } else if (false) {')] },
+      { nom: 'le conseil passe devant la Maison qui a ecrit', mute: [P(AUTO, '  } else if (laMaisonAParle(ctx)) {', '  } else if (false && laMaisonAParle(ctx)) {')] },
+      { nom: 'la nuit, la question inconnue reste sans accuse', mute: [P(AUTO, '          if (quand === null) return silence();\n          base.prisLe = maintenant;\n          return laMain', '          return silence();\n          base.prisLe = maintenant;\n          return laMain')] },
+      { nom: 'le jour, la question inconnue recoit l accuse', mute: [P(AUTO, '          if (quand === null) return silence();\n', '')] },
+      { nom: 'a egalite, il choisit seul', mute: [P(AUTO, "    if (trouvees.length > 1) return dire(msgQuestions(0, trouvees, avecSalut), 'question');", '    if (trouvees.length > 1) return dire(msgReponse(trouvees[0], avecSalut));')] },
+    ],
+  },
+  /* ══ R40 · le cuir chevelu ne se soigne pas à distance, 14 octobre 2026 ═══ */
+  {
+    id: 'R40', nom: 'R40 le cuir chevelu : aucun conseil, ni produit ; la consultation, le medecin, et la main passe, au repos comme en plein parcours ; les mots de la direction font foi',
+    eprouve: () => {
+      const { ecarts, vrai } = juge();
+      const t0 = cotonou('2026-10-09', '10:12');
+      const a = avecConseil(parcours(ORIGINAL, NUM_NAFFI, [NAFFI]));
+      const sa = elle(a, t0, { texte: 'Bonjour, j’ai des plaques et ça gratte beaucoup sous mes locks, je mets quoi ?' });
+      vrai('au repos : la main passe, motif cuir chevelu', a.etat?.etape === 'main' && a.etat?.motifMain === 'sante', `${a.etat?.etape} ${a.etat?.motifMain}`);
+      vrai('elle lit : pas de soin a distance, le medecin ou le dermatologue', corps(sa).includes('ne conseille pas de soin à distance') && corps(sa).includes('dermatologue'), corps(sa));
+      vrai('aucune reponse de la Maison, aucun prix', !sa.messages[0]?.reponseId && !sa.messages[0]?.prixDuCatalogue);
+      const b = avecConseil(parcours(ORIGINAL, NUM_INCONNUE, []));
+      elle(b, t0, { texte: 'Bonjour, je voudrais prendre rendez-vous' });
+      elle(b, t0 + 1000, { touche: 'Entretenir mes locks' });
+      elle(b, t0 + 2000, { texte: 'mon cuir chevelu me démange' });
+      vrai('en plein parcours aussi', b.etat?.etape === 'main' && b.etat?.motifMain === 'sante', `${b.etat?.etape} ${b.etat?.motifMain}`);
+      const c = avecConseil(parcours(ORIGINAL, NUM_NAFFI, [NAFFI]));
+      elle(c, t0, { texte: 'Combien pour un resserrage ? ça me gratte beaucoup' });
+      vrai('le cuir chevelu passe devant une reponse reconnue', c.etat?.motifMain === 'sante', c.etat?.motifMain);
+      const d = avecConseil(parcours(ORIGINAL, NUM_NAFFI, [NAFFI]), { ...CONSEIL_DU_BANC, motsSante: ['pellicules'] });
+      elle(d, t0, { texte: 'J’ai des pellicules partout' });
+      vrai('les mots ecrits par la direction font foi', d.etat?.motifMain === 'sante', d.etat?.motifMain);
+      return ecarts;
+    },
+    pannes: [
+      { nom: 'le cuir chevelu est ignore', mute: [P(AUTO, '    if (lu.sante) {', '    if (false) {')] },
+      { nom: 'le medecin n est plus nomme', mute: [P(AUTO, " Si la gêne est forte ou s'étend, un médecin ou un dermatologue saura vous examiner.", '')] },
+      { nom: 'les mots de la direction sont ignores', mute: [P(AUTO, '  return { reponses, motsSante: sante.length > 0 ? sante : [...MOTS_SANTE_LIVRES] };', '  return { reponses, motsSante: [...MOTS_SANTE_LIVRES] };')] },
+    ],
+  },
+  /* ══ R41 · en plein parcours, et après une réponse, 14 octobre 2026 ═══ */
+  {
+    id: 'R41', nom: 'R41 une question de prix en plein parcours recoit sa reponse et Continuer reprend l etape ; sans conseil la main passe comme avant ; merci ne relance rien ; la fonction lit le conseil, juge le prix du catalogue et trace la reponse',
+    eprouve: () => {
+      const { ecarts, vaut, vrai } = juge();
+      const t0 = cotonou('2026-10-09', '10:12');
+      const p = avecConseil(parcours(ORIGINAL, NUM_INCONNUE, []));
+      elle(p, t0, { texte: 'Bonjour, je voudrais prendre rendez-vous' });
+      elle(p, t0 + 1000, { touche: 'Entretenir mes locks' });
+      const s3 = elle(p, t0 + 2000, { texte: 'c’est combien le resserrage ?' });
+      vaut('la reponse du resserrage, au prix du jour', 'Le resserrage est à 25 000 F pour un Medium.', corps(s3));
+      vaut('Continuer, plutot que Reserver', ['Continuer', 'Une autre question', 'Parler à la Maison'], boutonsDe(s3));
+      const s4 = elle(p, t0 + 3000, { touche: 'Continuer' });
+      vaut('Continuer : la liste des rituels revient', 'rituel', s4.messages[0]?.etape);
+      const q = parcours(ORIGINAL, NUM_INCONNUE, []);
+      elle(q, t0, { texte: 'Bonjour, je voudrais prendre rendez-vous' });
+      elle(q, t0 + 1000, { touche: 'Entretenir mes locks' });
+      const q3 = elle(q, t0 + 2000, { texte: 'c’est combien le resserrage ?' });
+      vrai('sans conseil, comme avant : la main passe sans un mot', q3.messages.length === 0 && q.etat?.etape === 'main' && q.etat?.motifMain === 'prix', `${q3.messages.length} ${q.etat?.etape} ${q.etat?.motifMain}`);
+      const r = avecConseil(parcours(ORIGINAL, NUM_NAFFI, [NAFFI]));
+      elle(r, t0, { texte: 'Combien pour des microlocks ?' });
+      const avant = r.envoyes.length;
+      const merci = elle(r, t0 + 60000, { texte: 'Merci beaucoup !' });
+      vrai('merci apres une reponse : rien ne repart, la Maison le lit', !merci.pris && r.envoyes.length === avant);
+      const resa = elle(r, t0 + 120000, { texte: 'Je voudrais réserver samedi' });
+      vrai('une envie de reserver apres une reponse ouvre le parcours', ['meme', 'besoin'].includes(resa.messages[0]?.etape ?? ''), resa.messages[0]?.etape);
+      const fn = lf(lit(F_AUTO));
+      vrai('la fonction lit les reponses de la Maison', fn.includes("'mnd_house_identity', 'mnd_reponses_maison']") && fn.includes("conseil: conseilDeLaMaison(docs.get('mnd_reponses_maison')),"));
+      vrai('la fonction donne les prix du catalogue du jour au tour', fn.includes('...(agenda ? { prix: prixDuCatalogue(agenda.lignes.services) } : {}),'));
+      vrai('le juge de la fonction ne laisse passer un prix que venu du catalogue', (fn.match(/texteSain\(toutLeTexteWa\(m\), m\.prixDuCatalogue === true\)/g) ?? []).length === 2 && !/texteSain\(toutLeTexteWa\(m\)\)/.test(fn));
+      vrai('la trace porte la reponse envoyee', fn.includes('...(o.m.reponseId ? { reponse: o.m.reponseId } : {}),'));
+      return ecarts;
+    },
+    pannes: [
+      { nom: 'Continuer est perdu', mute: [P(AUTO, '    const suite = base.panier.reprendre\n', '    const suite = false && base.panier.reprendre\n')] },
+      { nom: 'en plein parcours, le prix passe la main malgre le conseil', mute: [P(AUTO, '    if (mots.prix && !leConseilParle(tour.texte, ctx.conseil)) return', '    if (mots.prix) return')] },
+      { nom: 'merci relance', mute: [P(AUTO, "      return silence();\n    }\n    /* UNE QUESTION QUI N'EST PAS", "      return ecart();\n    }\n    /* UNE QUESTION QUI N'EST PAS")] },
+      { nom: 'le juge de la fonction oublie le catalogue', mute: [P(F_AUTO, 'texteSain(toutLeTexteWa(m), m.prixDuCatalogue === true)', 'texteSain(toutLeTexteWa(m))')] },
+      { nom: 'la trace oublie la reponse', mute: [P(F_AUTO, '      ...(o.m.reponseId ? { reponse: o.m.reponseId } : {}),\n', '')] },
+      { nom: 'la fonction ne lit pas le conseil', mute: [P(F_AUTO, "'mnd_house_identity', 'mnd_reponses_maison']", "'mnd_house_identity']")] },
+    ],
+  },
+  /* ══ R42 · au Trône : les brouillons, la validation de la direction, 14 octobre 2026 ═══ */
+  {
+    id: 'R42', nom: 'R42 au Trone : les brouillons de depart sont des brouillons lisibles et sans faute de la Maison ; toucher au sens d une reponse validee la renvoie en brouillon ; la direction seule valide, jamais une reponse fautive',
+    eprouve: () => {
+      const { ecarts, vaut, vrai } = juge();
+      const lus = conseilDeLaMaison({ reponses: BROUILLONS_DU_CONSEIL });
+      vaut('les treize brouillons se lisent tous', 13, lus.reponses.length);
+      vrai('tous en brouillon : rien ne part avant la validation', BROUILLONS_DU_CONSEIL.every((r) => r.etat === 'brouillon'));
+      const prixDesJetons: Record<string, number> = {};
+      for (const r of BROUILLONS_DU_CONSEIL) for (const m of r.texte.matchAll(/\{prix:([^}]+)\}/g)) prixDesJetons[m[1]] = 1000;
+      const fautifs = lus.reponses.filter((r) => fautesDeLaReponse(r, prixDesJetons).length > 0).map((r) => r.id);
+      vaut('seule la longueur reste a ecrire par la Maison', ['r-longueur'], fautifs);
+      const c0 = { reponses: [{ ...BROUILLONS_DU_CONSEIL[4] }] };
+      const c1 = valideLaReponse(c0, 'r-consultation', 'direction', '2026-10-14T10:00:00Z');
+      vaut('valider pose la date et la main', ['validee', '2026-10-14T10:00:00Z'], [c1.reponses[0].etat, c1.reponses[0].valideeLe]);
+      const c2 = modifieLaReponse(c1, 'r-consultation', { texte: 'Pour une création, oui.' });
+      vrai('changer le texte d une reponse validee la renvoie en brouillon, sans sa date', c2.reponses[0].etat === 'brouillon' && !c2.reponses[0].valideeLe);
+      const c3 = modifieLaReponse(c1, 'r-consultation', { ordre: 7 });
+      vrai('changer son rang ne la devalide pas', c3.reponses[0].etat === 'validee');
+      const ecran = lf(lit('src/apps/trone/routes/clients/ReponsesDeLaMaison.tsx'));
+      vrai('la direction seule voit Valider', ecran.includes("{direction && r.etat !== 'validee' && ("));
+      vrai('Valider se refuse a une reponse fautive', ecran.includes('variant="copper" size="sm" disabled={fautes.length > 0}'));
+      vrai('l onglet vit dans les Conversations', lf(lit(ECRAN_CONV)).includes('<ReponsesDeLaMaison'));
+      return ecarts;
+    },
+    pannes: [
+      { nom: 'toucher une reponse validee la laisse validee', mute: [P('src/shared/conseil-wa.ts', "      if (!sensChange || r.etat !== 'validee') return neuve;", '      return neuve;')] },
+      { nom: 'tout le personnel valide', mute: [P('src/apps/trone/routes/clients/ReponsesDeLaMaison.tsx', "{direction && r.etat !== 'validee' && (", "{r.etat !== 'validee' && (")] },
+      { nom: 'une reponse fautive se valide', mute: [P('src/apps/trone/routes/clients/ReponsesDeLaMaison.tsx', 'variant="copper" size="sm" disabled={fautes.length > 0}', 'variant="copper" size="sm" disabled={false}')] },
+      { nom: 'un brouillon livre deja valide', mute: [P('src/shared/conseil-wa.ts', "  id, titre, ...(description ? { description } : {}), mots, texte, etat: 'brouillon',", "  id, titre, ...(description ? { description } : {}), mots, texte, etat: 'validee',")] },
     ],
   },
 ];
