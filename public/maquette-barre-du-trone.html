@@ -1,0 +1,295 @@
+<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head><body><title>La barre du Trône</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500&family=Jost:wght@300;400;500&display=swap">
+<style>
+/* La maquette suit le Trône : la barre indigo à gauche, l'ivoire pour lire, le cuivre pour ce qu'on décide.
+   Mise en page : les propositions à lire et trancher ; à côté, la barre telle qu'elle deviendrait, mise à jour à chaque choix. */
+:root { --fond:#F6F1E7; --carte:#FFFDF9; --encre:#1E2150; --texte:#2A2722; --doux:#5E5750; --filet:#E3DACB; --cuivre:#9A6036; --cuivre-clair:#F3E6D8; --vert:#2F6B4F; --vert-clair:#E3F0E8; --barre:#1E2150; --barre-texte:#E9E6F2; --barre-doux:#9EA3C8; --barre-cuivre:#D6A06F; color-scheme: light; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --fond:#15173A; --carte:#1E2150; --encre:#F6F1E7; --texte:#E9E3D7; --doux:#B9B4C9; --filet:#2E3266; --cuivre:#D6A06F; --cuivre-clair:#3A2E3A; --vert:#8FD1AE; --vert-clair:#1F3B3A; --barre:#0F1130; color-scheme: dark; } }
+:root[data-theme="dark"] { --fond:#15173A; --carte:#1E2150; --encre:#F6F1E7; --texte:#E9E3D7; --doux:#B9B4C9; --filet:#2E3266; --cuivre:#D6A06F; --cuivre-clair:#3A2E3A; --vert:#8FD1AE; --vert-clair:#1F3B3A; --barre:#0F1130; color-scheme: dark; }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--fond); color: var(--texte); font: 300 16px/1.6 "Jost", system-ui, sans-serif; padding-block: 32px 80px; padding-inline: 16px; }
+.page { max-width: 1180px; margin: 0 auto; display: grid; gap: 34px; }
+.page > * { min-width: 0; }
+.sur { font-size: 11.5px; letter-spacing: .18em; text-transform: uppercase; color: var(--cuivre); margin: 0; font-weight: 400; }
+h1 { font: 300 clamp(36px, 6vw, 56px)/1.05 "Cormorant Garamond", Georgia, serif; color: var(--encre); margin: 6px 0 0; text-wrap: balance; }
+h2 { font: 400 30px/1.15 "Cormorant Garamond", Georgia, serif; color: var(--encre); margin: 8px 0 0; text-wrap: balance; }
+h3 { font: 400 21px/1.2 "Cormorant Garamond", Georgia, serif; color: var(--encre); margin: 0; }
+p { margin: 0; }
+.chapeau { color: var(--doux); max-width: 72ch; margin-top: 12px; }
+.dit { color: var(--doux); max-width: 72ch; margin-top: 4px; }
+.chiffres { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; }
+.chiffre { background: var(--carte); border: 1px solid var(--filet); border-radius: 8px; padding: 10px 14px; min-width: 150px; }
+.chiffre b { display: block; font: 300 32px/1.1 "Jost", sans-serif; color: var(--encre); font-variant-numeric: lining-nums tabular-nums; }
+.chiffre span { font-size: 13px; color: var(--doux); }
+.chiffre.apres b { color: var(--cuivre); }
+
+.atelier { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 24px; align-items: start; margin-top: 16px; }
+@media (max-width: 900px) { .atelier { grid-template-columns: minmax(0, 1fr); } }
+.propositions { display: grid; gap: 12px; }
+.niveau { font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: var(--doux); margin: 10px 0 0; }
+.prop { background: var(--carte); border: 1px solid var(--filet); border-left: 3px solid var(--filet); border-radius: 8px; padding: 14px 16px; display: grid; gap: 8px; }
+.prop.oui { border-left-color: var(--cuivre); }
+.prop.non { opacity: .78; }
+.prop .tete { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; align-items: baseline; }
+.prop .dept { font-size: 12px; color: var(--cuivre); letter-spacing: .06em; }
+.fusion { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; font-size: 14px; }
+.fusion .avant { border: 1px solid var(--filet); border-radius: 999px; padding: 1px 10px; background: var(--fond); }
+.fusion .fleche { color: var(--doux); }
+.fusion .apres { border-radius: 999px; padding: 1px 10px; background: var(--encre); color: var(--fond); }
+.prop p { font-size: 14.5px; }
+.preuve { font-size: 13.5px; color: var(--doux); }
+.preuve i { font-style: normal; color: var(--texte); }
+.attention { font-size: 13.5px; background: var(--cuivre-clair); border-radius: 6px; padding: 6px 10px; }
+.bascule { display: inline-flex; border: 1px solid var(--filet); border-radius: 999px; overflow: clip; }
+.bascule button { font: 400 13.5px "Jost", sans-serif; border: 0; background: var(--fond); color: var(--texte); padding: 5px 14px; cursor: pointer; }
+.bascule button[aria-pressed="true"] { background: var(--encre); color: var(--fond); }
+.bascule button:focus-visible, .choix input:focus-visible { outline: 2px solid var(--cuivre); outline-offset: 2px; }
+.etat { font-size: 12.5px; color: var(--vert); min-height: 1.2em; }
+
+/* La barre, comme au Trône */
+.barre { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 12px); background: var(--barre); color: var(--barre-texte); border-radius: 12px; padding: 14px 10px 16px; max-height: calc(100vh - 40px); overflow-y: auto; }
+@media (max-width: 900px) { .barre { position: static; max-height: none; } }
+.barre h3 { color: var(--barre-texte); font-size: 19px; padding: 0 8px 6px; }
+.barre .compte { font-size: 12.5px; color: var(--barre-doux); padding: 0 8px 10px; }
+.groupe { padding: 6px 8px 0; font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--barre-doux); }
+.entree { padding: 4px 8px 4px 14px; font-size: 14px; border-radius: 6px; display: flex; justify-content: space-between; gap: 8px; }
+.entree.neuve { color: var(--barre-cuivre); }
+.entree small { font-size: 11px; color: var(--barre-doux); }
+
+.regles { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap: 12px; margin-top: 14px; }
+.bloc { background: var(--carte); border: 1px solid var(--filet); border-radius: 8px; padding: 14px 16px; font-size: 14.5px; display: grid; gap: 6px; align-content: start; }
+.bloc ul { margin: 0; padding-left: 18px; display: grid; gap: 5px; }
+.arbitrage { background: var(--carte); border: 1px solid var(--filet); border-radius: 8px; padding: 16px 18px; display: grid; gap: 10px; margin-top: 14px; }
+.arbitrage fieldset { border: 0; margin: 0; padding: 0; display: grid; gap: 8px; min-width: 0; }
+.arbitrage legend { font: 400 21px/1.25 "Cormorant Garamond", serif; color: var(--encre); margin-bottom: 4px; padding: 0; }
+.choix { display: flex; gap: 10px; align-items: flex-start; border: 1px solid var(--filet); border-radius: 6px; padding: 9px 12px; cursor: pointer; font-size: 14.5px; }
+.choix:has(input:checked) { border-color: var(--cuivre); background: var(--cuivre-clair); }
+.choix input { accent-color: var(--cuivre); margin-top: 4px; flex: none; }
+.choix b { color: var(--encre); font-weight: 500; }
+.choix em { font-style: normal; color: var(--cuivre); font-size: 12.5px; margin-left: 6px; }
+@media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
+</style>
+
+<div class="page">
+<header>
+<p class="sur">Maison MND · Analyse à trancher · 14 octobre 2026</p>
+<h1>La barre du Trône</h1>
+<p class="chapeau">J’ai relu les 56 écrans du Trône, un par un : ce que chacun fait, ce qu’il lit, à quoi il renvoie. Voici les rubriques qui font le même travail, ou dont l’une n’est qu’une vue de l’autre. Chaque fusion garde l’ancienne adresse (les liens, les alertes et les notifications continuent d’y mener) et ne retire à personne un écran qu’il voyait. Rien n’est changé avant votre choix.</p>
+<div class="chiffres">
+<div class="chiffre"><b id="n-avant">53</b><span>rubriques dans la barre aujourd’hui</span></div>
+<div class="chiffre apres"><b id="n-apres">53</b><span>avec les fusions choisies</span></div>
+<div class="chiffre"><b id="n-choisies">0</b><span>fusions retenues sur 14</span></div>
+<div class="chiffre"><b>47</b><span>avec mes six évidentes</span></div>
+</div>
+</header>
+
+<section aria-labelledby="t-props">
+<h2 id="t-props">Les propositions</h2>
+<p class="dit">Ma proposition est marquée pour chacune. Un toucher sur « Fusionner » ou « Garder » : la barre à côté se redessine, et votre choix s’enregistre.</p>
+<div class="atelier">
+<div class="propositions" id="props"></div>
+<aside class="barre" aria-label="La barre avec les fusions choisies"><h3>La barre, après</h3><div class="compte" id="compte-barre"></div><div id="barre"></div></aside>
+</div>
+</section>
+
+<section aria-labelledby="t-garder">
+<h2 id="t-garder">Ce que je ne propose pas de fusionner</h2>
+<p class="dit">Des écrans se ressemblent, mais leur séparation tient à une décision ou à un accès.</p>
+<div class="regles">
+<div class="bloc"><h3>Calendrier et Le Carnet</h3><p>Le même registre de rendez-vous, mais deux métiers : l’agenda du jour, ouvert aux maîtres sans les prix, et le registre avec l’argent. Les réunir montrerait les prix à qui ne doit pas les voir.</p></div>
+<div class="bloc"><h3>Caisse POS et Les caisses</h3><p>Votre règle : la vente et l’encaissement d’un côté, la trésorerie de l’autre. La caisse vend ; Les caisses comptent les tiroirs.</p></div>
+<div class="bloc"><h3>Le chiffre des prestations</h3><p>Vous l’avez voulu aux Finances, en écran à part, aujourd’hui même. La Synthèse y mène déjà par « Toutes les prestations ».</p></div>
+<div class="bloc"><h3>Fournisseurs dans les Dépenses</h3><p>La règle les mettrait aux Finances, mais vous les avez voulus à l’Atelier. Je propose plutôt de les ranger avec les achats (proposition 11).</p></div>
+<div class="bloc"><h3>Les engagements et Prestataires</h3><p>Une commande à une personne, et l’annuaire des personnes : deux départements, deux accès.</p></div>
+<div class="bloc"><h3>Salon & Foyer</h3><p>Réservé au souverain. Le fondre avec les prêts ou le compte courant fermerait ces écrans au gérant et au département Finances.</p></div>
+</div>
+</section>
+
+<section aria-labelledby="t-acces">
+<h2 id="t-acces">Les accès, une fois fusionnés</h2>
+<form class="arbitrage" data-cle="acces"><fieldset><legend>Qui voit l’écran réuni</legend>
+<label class="choix"><input type="radio" name="acces" value="onglet"><span><b>Chacun garde exactement ce qu’il voyait, onglet par onglet</b><em>ma proposition</em><br>Quelqu’un qui voyait Les demandes mais pas Consultations ne voit que l’onglet des demandes. Rien ne s’ouvre sans décision.</span></label>
+<label class="choix"><input type="radio" name="acces" value="tout"><span><b>Qui voyait l’un voit tout l’écran réuni</b><br>Plus simple, mais un accès s’élargit sans que personne l’ait décidé.</span></label>
+</fieldset><p class="etat" aria-live="polite"></p></form>
+</section>
+
+<section aria-labelledby="t-suite">
+<h2 id="t-suite">Ce que je ferai, une fois tranché</h2>
+<div class="regles">
+<div class="bloc"><h3>Rien ne se perd</h3><ul>
+<li>L’ancienne adresse reste et mène au bon onglet (les alertes, les notifications, les liens du site et des fonctions).</li>
+<li>Les écrans rangés en « quotidien » ou réordonnés sur un poste suivent leur nouvel écran.</li>
+<li>Les accès cochés dans Accès & rôles restent valables.</li>
+</ul></div>
+<div class="bloc"><h3>Prouvé avant la mise en ligne</h3><ul>
+<li>Le banc des accès (verifie-porte) et les bancs de chaque écran touché sont mis à jour, pannes plantées.</li>
+<li>Le Trône hors ligne ouvre chaque écran, ancien et nouveau.</li>
+<li>Une fusion à la fois, publiée sur votre oui.</li>
+</ul></div>
+<div class="bloc"><h3>Un écart à ranger, au passage</h3><p>Il existe deux registres de fournisseurs (celui du stock, celui des dépenses) et un annuaire des prestataires. Les écrans peuvent se réunir sans eux ; les registres se réunissent dans un second temps, avec vous.</p></div>
+</div>
+</section>
+</div>
+
+<script>
+(function () {
+  /* ── La barre d'aujourd'hui (routes/index.tsx, 14 octobre 2026) ── */
+  var BARRE = [
+    ['Direction', ['Tableau de bord', 'Centre de commande', 'Bilan mensuel', 'Synthèse & résultat', 'Analytics', 'La Cadence', 'À faire', 'Recommandations IA', 'Le Juste Prix', 'Le secrétariat']],
+    ['Clientèle', ['Calendrier', 'Clientes', 'Le Carnet', 'Les Appels', 'Conversations', 'Les demandes', 'Consultations']],
+    ['Atelier', ['Catalogue', 'Le Laboratoire', 'Stock & Achats', 'Fournisseurs']],
+    ['Vente & Caisse', ['Caisse POS', 'Factures & devis', 'Cartes cadeaux', 'Encaissements', 'Comptes & Avoirs', 'Abonnements']],
+    ['Finances', ['Les caisses', 'Coffre-fort', 'Les créances', 'Le chiffre des prestations', 'Les prêts', 'Compte courant', 'Les engagements', 'Dépenses', 'Salon & Foyer']],
+    ['Marketing & Fidélité', ['Marketing', 'Atelier des contenus', 'Le Cercle MND', 'Personas', 'Les vitrines', 'QR Codes']],
+    ['Équipe', ['Le Fil', 'Le Tableau', 'Mon mois', 'Ressources humaines', 'Prestataires']],
+    ['Académie', ['Académie']],
+    ['Système', ['Paramètres', 'Accès & rôles', 'Journal des gestes', 'Branches', 'Marque & thème']],
+  ];
+  /* ── Les fusions : ce qui part, où ça va, pourquoi (lu dans le code de chaque écran) ── */
+  var FUSIONS = [
+    { id: 'fil', fort: true, dept: 'Équipe', part: ['Le Tableau'], dans: 'Le Fil', devient: 'Le Fil', onglets: 'deux vues : le fil, le tableau',
+      pourquoi: 'Le même registre vu deux fois : chaque carte du Tableau est une demande du Fil.',
+      preuve: 'Le code le dit : <i>« Le Tableau n’a pas de table à lui : une carte EST une demande du Fil »</i>. Les deux lisent le même magasin.' },
+    { id: 'reco', fort: true, dept: 'Direction', part: ['Recommandations IA'], dans: 'Centre de commande', devient: 'Centre de commande', onglets: 'l’écran vide quitte la barre, et son adresse mène au Centre de commande',
+      pourquoi: 'L’écran est vide depuis toujours : sa liste de recommandations n’a jamais été remplie.',
+      preuve: 'Sa source est une liste vide dans le code ; il affiche toujours « rien à recommander ». Le Centre de commande fait aujourd’hui ce travail.' },
+    { id: 'vitrine', fort: true, dept: 'Marketing & Fidélité', part: ['QR Codes'], dans: 'Les vitrines', devient: 'Les vitrines', onglets: 'quatre onglets : le site, Ma Couronne, le comptoir, les QR codes',
+      pourquoi: 'Les QR codes sont les portes des vitrines ; les deux écrans se renvoient l’un à l’autre.',
+      preuve: 'Les QR Codes ont été rassemblés <i>« depuis la Vitrine, les Paramètres et le Comptoir »</i> ; Les vitrines ont un bouton « Reprendre le réseau des QR Codes ».' },
+    { id: 'synthese', fort: true, dept: 'Direction', part: ['Bilan mensuel'], dans: 'Synthèse & résultat', devient: 'Synthèse & bilan', onglets: 'trois onglets : le résultat, le mois jour par jour, le carnet du mois',
+      pourquoi: 'Deux lectures du même mois, sur les mêmes chiffres : le classement des clientes et des prestations s’y trouve deux fois.',
+      preuve: 'L’en-tête du Bilan : <i>« Même base que la Synthèse (source de vérité du CA), donc mêmes chiffres »</i>.' },
+    { id: 'demandes', fort: true, dept: 'Clientèle', part: ['Consultations'], dans: 'Les demandes', devient: 'Demandes & consultations', onglets: 'quatre onglets : les demandes du site, les consultations en ligne, les dossiers, les formulaires',
+      pourquoi: 'Ce qui arrive du site et de La Consultation attend la même chose : qu’on rappelle et qu’on ouvre une fiche.',
+      preuve: 'L’en-tête des demandes : <i>« Elles arrivent ICI, à côté des Consultations, parce que c’est la même chose »</i>.' },
+    { id: 'marque', fort: true, dept: 'Système', part: ['Marque & thème'], dans: 'Paramètres', devient: 'Paramètres', onglets: 'une famille de plus dans la page : la marque et le thème',
+      pourquoi: 'Un petit écran de réglage (la couleur, le monogramme), à côté de la page qui règle tout le reste.',
+      preuve: 'Les Paramètres sont déjà une page à familles ancrées, dont « La Maison », qui écrit la même identité.' },
+    { id: 'tendances', fort: false, dept: 'Direction', part: ['La Cadence'], dans: 'Analytics', devient: 'Les tendances', onglets: 'deux onglets : l’analyse, la cadence',
+      pourquoi: 'Deux regards vers l’avant : la tendance du chiffre et qui doit revenir quand.',
+      preuve: 'La prévision d’Analytics recoupe la Cadence et les « revenus projetés » du Tableau de bord.' },
+    { id: 'caisses', fort: false, dept: 'Finances', part: ['Coffre-fort'], dans: 'Les caisses', devient: 'Caisses & coffre', onglets: 'deux onglets : les tiroirs, le coffre',
+      pourquoi: 'Là où dort l’argent de la Maison : les tiroirs et le coffre, côte à côte.',
+      preuve: 'Les deux lisent les caisses et les factures ; le coffre n’a qu’une sortie, un virement, et ses objectifs vivent déjà dans Les prêts.' },
+    { id: 'avoirs', fort: false, dept: 'Vente & Caisse', part: ['Cartes cadeaux'], dans: 'Comptes & Avoirs', devient: 'Avoirs & cartes cadeaux', onglets: 'trois onglets : les foyers, les avoirs, les cartes cadeaux',
+      pourquoi: 'Une carte cadeau remise devient un avoir : c’est la même monnaie de la Maison.',
+      preuve: 'Comptes & Avoirs renvoie déjà les porteuses de carte vers Cartes cadeaux.' },
+    { id: 'personas', fort: false, dept: 'Marketing & Fidélité', part: ['Personas'], dans: 'Marketing', devient: 'Marketing', onglets: 'un cinquième onglet : les personas',
+      pourquoi: 'Les personas servent à viser une campagne ; Marketing a déjà son onglet Audience.',
+      preuve: 'Personas, l’Audience de Marketing et les segments des Clientes découpent la même clientèle.' },
+    { id: 'fournisseurs', fort: false, dept: 'Atelier', part: ['Fournisseurs'], dans: 'Stock & Achats', devient: 'Stock & Achats', onglets: 'un septième onglet : les fournisseurs',
+      pourquoi: 'On achète chez eux : ils vont avec les achats, dans le même département.',
+      preuve: 'Attention : deux registres de fournisseurs existent (celui du stock, celui des dépenses). L’écran se réunit ; les registres, plus tard.' },
+    { id: 'appels', fort: false, dept: 'Clientèle', part: ['Les Appels'], dans: 'Conversations', devient: 'Conversations', onglets: 'une vue de plus : les appels, à côté de WhatsApp',
+      pourquoi: 'Ce qu’elles nous écrivent et ce qu’elles nous disent au téléphone : le même accueil.',
+      preuve: 'Les appels « à traiter » vivent déjà en haut du Tableau de bord ; Les Appels renvoient aux Conversations.' },
+    { id: 'contenus', fort: false, dept: 'Direction', part: ['Atelier des contenus'], dans: 'Centre de commande', devient: 'Centre de commande', onglets: 'une partie de plus : le contenu',
+      pourquoi: 'Deux phases du même système d’IA, réservées aux fondateurs, qui partagent leurs registres.',
+      preuve: 'Le Centre renvoie à l’Atelier des contenus ; tous deux sont « réservés aux fondateurs ». Marketing perdrait une rubrique qu’il ne voit pas.' },
+    { id: 'branches', fort: false, dept: 'Système', part: ['Branches'], dans: 'Paramètres', devient: 'Paramètres', onglets: 'une famille de plus : les branches',
+      pourquoi: 'Créer une branche et choisir l’active : un réglage rare, à sa place dans les Paramètres.',
+      preuve: 'L’écran est court et ne renvoie nulle part.' },
+  ];
+
+  var choix = {};
+  var CLE = 'barre-du-trone-choix';
+  try { var vu = JSON.parse(localStorage.getItem(CLE) || '{}') || {}; Object.keys(vu).forEach(function (k) { choix[k] = vu[k]; }); } catch (e) {}
+  var docRef = null, file = Promise.resolve();
+  function garde() {
+    try { localStorage.setItem(CLE, JSON.stringify(choix)); } catch (e) {}
+    if (!docRef) return;
+    var corps = {}; Object.keys(choix).forEach(function (k) { if (choix[k]) corps[k] = choix[k]; });
+    corps.quand = new Date().toISOString();
+    file = file.then(function () { return docRef.set(corps); }).catch(function () {});
+  }
+  function el(tag, cls, html) { var e = document.createElement(tag); if (cls) e.className = cls; if (html !== undefined) e.innerHTML = html; return e; }
+  function txt(tag, cls, t) { var e = document.createElement(tag); if (cls) e.className = cls; e.textContent = t; return e; }
+
+  var boite = document.getElementById('props');
+  function dessineProps() {
+    boite.textContent = '';
+    [['fort', 'Les évidentes'], ['moyen', 'À juger']].forEach(function (niv) {
+      boite.appendChild(txt('p', 'niveau', niv[1]));
+      FUSIONS.filter(function (f) { return (niv[0] === 'fort') === f.fort; }).forEach(function (f, i) {
+        var c = el('article', 'prop ' + (choix[f.id] === 'oui' ? 'oui' : choix[f.id] === 'non' ? 'non' : ''));
+        var tete = el('div', 'tete');
+        var gauche = el('div');
+        gauche.appendChild(txt('span', 'dept', f.dept));
+        gauche.appendChild(txt('h3', '', f.devient));
+        tete.appendChild(gauche);
+        var b = el('div', 'bascule');
+        b.setAttribute('role', 'group'); b.setAttribute('aria-label', 'Fusionner ou garder : ' + f.devient);
+        [['oui', 'Fusionner'], ['non', 'Garder séparé']].forEach(function (o) {
+          var bt = txt('button', '', o[1]);
+          bt.type = 'button'; bt.setAttribute('aria-pressed', choix[f.id] === o[0] ? 'true' : 'false');
+          bt.addEventListener('click', function () { choix[f.id] = o[0]; garde(); tout(); });
+          b.appendChild(bt);
+        });
+        tete.appendChild(b);
+        c.appendChild(tete);
+        var fu = el('div', 'fusion');
+        [f.dans].concat(f.part).forEach(function (x) { fu.appendChild(txt('span', 'avant', x)); });
+        fu.appendChild(txt('span', 'fleche', '→'));
+        fu.appendChild(txt('span', 'apres', f.devient));
+        c.appendChild(fu);
+        c.appendChild(txt('p', '', f.pourquoi + ' Une fois réuni : ' + f.onglets + '.'));
+        c.appendChild(el('p', 'preuve', f.preuve));
+        c.appendChild(txt('p', 'etat', choix[f.id] === 'oui' ? 'Retenue.' : choix[f.id] === 'non' ? 'Gardé séparé.' : 'Ma proposition : ' + (f.fort ? 'fusionner.' : 'à votre jugement.')));
+        boite.appendChild(c);
+      });
+    });
+  }
+  function dessineBarre() {
+    var partis = {}, renommes = {};
+    FUSIONS.forEach(function (f) {
+      if (choix[f.id] !== 'oui') return;
+      f.part.forEach(function (p) { partis[p] = true; });
+      renommes[f.dans] = f.devient;
+    });
+    var zone = document.getElementById('barre'); zone.textContent = '';
+    var n = 0, avant = 0;
+    BARRE.forEach(function (g) {
+      zone.appendChild(txt('div', 'groupe', g[0]));
+      g[1].forEach(function (x) {
+        avant += 1;
+        if (partis[x]) return;
+        n += 1;
+        var e = el('div', 'entree' + (renommes[x] && renommes[x] !== x ? ' neuve' : ''));
+        e.appendChild(txt('span', '', renommes[x] || x));
+        zone.appendChild(e);
+      });
+    });
+    document.getElementById('n-avant').textContent = avant;
+    document.getElementById('n-apres').textContent = n;
+    document.getElementById('compte-barre').textContent = n + ' rubriques, au lieu de ' + avant;
+    document.getElementById('n-choisies').textContent = FUSIONS.filter(function (f) { return choix[f.id] === 'oui'; }).length;
+  }
+  function tout() { dessineProps(); dessineBarre(); }
+  tout();
+
+  /* ── Le choix des accès ── */
+  var accesForm = document.querySelector('form[data-cle="acces"]');
+  accesForm.addEventListener('submit', function (e) { e.preventDefault(); });
+  function appliqueAcces() { if (choix.acces) { var i = accesForm.querySelector('input[value="' + choix.acces + '"]'); if (i) i.checked = true; } }
+  appliqueAcces();
+  accesForm.querySelectorAll('input').forEach(function (i) {
+    i.addEventListener('change', function () { choix.acces = i.value; garde(); accesForm.querySelector('.etat').textContent = 'Choix enregistré.'; });
+  });
+
+  if (window.claude && typeof window.claude.use === 'function') {
+    window.claude.use('db').then(function (db) {
+      if (!db) return;
+      docRef = db.doc('maquette/arbitrages');
+      return docRef.get().then(function (s) {
+        if (!s.exists) return;
+        var v = s.data() || {};
+        Object.keys(v).forEach(function (k) { if (k !== 'quand' && typeof v[k] === 'string') choix[k] = v[k]; });
+        tout(); appliqueAcces();
+      });
+    }).catch(function () {});
+  }
+})();
+</script>
+
+</body></html>
