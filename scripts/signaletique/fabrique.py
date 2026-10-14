@@ -50,6 +50,16 @@ def encres_de(svg):
     return [n for n, hx in ENCRES.items() if hx.lower() in svg.lower()]
 
 
+import re as _re
+_UNITES = _re.compile('([0-9]) (K|mm|cm|USD|V|°C|g|pièces?|feuilles|clientes)(?![A-Za-z])')
+
+
+def lie_les_unites(page):
+    """Le nombre reste avec son unité, dans le TEXTE seulement : une espace
+    insécable dans les données d'un chemin SVG casserait le dessin."""
+    return _re.sub('>([^<]+)<', lambda m: '>' + _UNITES.sub(lambda u: u.group(1) + chr(160) + u.group(2), m.group(1)) + '<', page)
+
+
 # ══ 1. LES FICHIERS DU FABRICANT ═══════════════════════════════════════
 def svg_fabricant(e, ident, dessin):
     corps = dessin(Atelier(False))
@@ -419,6 +429,6 @@ MARCHE = ('<section class="envoi marche"><h2 class="section" style="margin:0">La
           + ' c.addEventListener("change", function () { etat[c.dataset.k] = c.checked;'
           + ' try { localStorage.setItem(CLE, JSON.stringify(etat)); } catch (e) {} }); }); })();</script>')
 PAGE = PAGE[:PAGE.rindex('</div>')] + MARCHE + '</div>'
-PAGE = re.sub('([0-9]) (K|mm|cm|USD|V|pièces?|feuilles)(?![A-Za-z])', lambda m: m.group(1) + chr(160) + m.group(2), PAGE)  # le nombre reste avec son unité
+PAGE = lie_les_unites(PAGE)
 io.open(os.path.join(CATALOGUE, 'catalogue.html'), 'w', encoding='utf-8').write(PAGE)
 print('catalogue :', len(PAGE.encode('utf-8')) // 1024, 'Ko')
