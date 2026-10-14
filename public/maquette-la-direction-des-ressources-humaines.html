@@ -1,0 +1,678 @@
+<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head><body><title>Direction des ressources humaines</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,400&family=Jost:wght@300;400;500&display=swap">
+<style>
+/* La maquette suit le Trône : ivoire et indigo, cuivre en accent, Cormorant pour les titres, Jost pour le texte et les chiffres. */
+:root { --fond:#F6F1E7; --carte:#FFFDF9; --ecran:#FBF8F2; --encre:#1E2150; --texte:#2A2722; --doux:#5E5750; --filet:#E3DACB; --cuivre:#9A6036; --cuivre-clair:#F3E6D8; --puce:#EFE6D6; --vert:#2F6B4F; --vert-clair:#E3F0E8; --rouge:#8F3B30; --rouge-clair:#F7E7E3; --barre:#1E2150; --barre-texte:#F6F1E7; color-scheme: light; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --fond:#15173A; --carte:#1E2150; --ecran:#1A1C45; --encre:#F6F1E7; --texte:#E9E3D7; --doux:#B9B4C9; --filet:#2E3266; --cuivre:#D6A06F; --cuivre-clair:#3A2E3A; --puce:#272B6C; --vert:#8FD1AE; --vert-clair:#1F3B3A; --rouge:#E7A193; --rouge-clair:#3B2433; --barre:#0F1130; --barre-texte:#F6F1E7; color-scheme: dark; } }
+:root[data-theme="dark"] { --fond:#15173A; --carte:#1E2150; --ecran:#1A1C45; --encre:#F6F1E7; --texte:#E9E3D7; --doux:#B9B4C9; --filet:#2E3266; --cuivre:#D6A06F; --cuivre-clair:#3A2E3A; --puce:#272B6C; --vert:#8FD1AE; --vert-clair:#1F3B3A; --rouge:#E7A193; --rouge-clair:#3B2433; --barre:#0F1130; --barre-texte:#F6F1E7; color-scheme: dark; }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--fond); color: var(--texte); font: 300 16px/1.6 "Jost", system-ui, sans-serif; padding-block: 32px 80px; padding-inline: 16px; }
+.page { max-width: 1120px; margin: 0 auto; display: grid; grid-template-columns: minmax(0, 1fr); gap: 34px; }
+.page > * { min-width: 0; }
+a { color: var(--cuivre); }
+h1, h2, h3, legend, .compteur b { font-variant-numeric: lining-nums tabular-nums; }
+.n { font: 400 .72em "Jost", sans-serif; color: var(--cuivre); margin-right: 8px; vertical-align: 2px; }
+.sur { font-size: 11.5px; letter-spacing: .18em; text-transform: uppercase; color: var(--cuivre); margin: 0; font-weight: 400; }
+h1 { font: 300 clamp(36px, 6vw, 56px)/1.05 "Cormorant Garamond", Georgia, serif; color: var(--encre); margin: 6px 0 0; text-wrap: balance; }
+h2 { font: 400 32px/1.15 "Cormorant Garamond", Georgia, serif; color: var(--encre); margin: 10px 0 0; text-wrap: balance; }
+h3 { font: 400 22px/1.2 "Cormorant Garamond", Georgia, serif; color: var(--encre); margin: 0; }
+.chapeau { color: var(--doux); max-width: 70ch; margin: 12px 0 0; }
+.dit { color: var(--doux); margin: 4px 0 0; max-width: 70ch; }
+.carte-mod { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 250px), 1fr)); gap: 12px; margin-top: 14px; }
+.mod { background: var(--carte); border: 1px solid var(--filet); border-radius: 6px; padding: 14px 16px; display: grid; gap: 6px; align-content: start; text-align: left; font: inherit; color: inherit; cursor: pointer; }
+.mod:hover, .mod:focus-visible { border-color: var(--cuivre); outline: none; }
+.mod h3 { font-size: 21px; }
+.mod p { margin: 0; font-size: 14px; color: var(--doux); }
+.etat { justify-self: start; font-size: 12px; letter-spacing: .04em; border-radius: 999px; padding: 2px 10px; }
+.etat.place { background: var(--vert-clair); color: var(--vert); }
+.etat.relier { background: var(--cuivre-clair); color: var(--cuivre); }
+.etat.neuf { border: 1px solid var(--cuivre); color: var(--cuivre); }
+.legende { display: flex; flex-wrap: wrap; gap: 8px 16px; font-size: 13px; color: var(--doux); margin-top: 10px; align-items: center; }
+
+/* Le parcours d'une personne : une vraie suite, donc numérotée. */
+.parcours { list-style: none; margin: 16px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 128px), 1fr)); gap: 0; counter-reset: pas; border: 1px solid var(--filet); border-radius: 8px; overflow: clip; background: var(--carte); }
+.parcours li { counter-increment: pas; padding: 12px 14px 14px; border-right: 1px solid var(--filet); display: grid; gap: 4px; align-content: start; }
+.parcours li:last-child { border-right: 0; }
+.parcours li::before { content: counter(pas); font: 400 12px "Jost", sans-serif; color: var(--cuivre); letter-spacing: .1em; }
+.parcours b { font: 400 18px/1.2 "Cormorant Garamond", serif; color: var(--encre); }
+.parcours span { font-size: 13px; color: var(--doux); }
+.parcours li.vie { background: var(--cuivre-clair); }
+@media (max-width: 700px) { .parcours li { border-right: 0; border-bottom: 1px solid var(--filet); } .parcours li:last-child { border-bottom: 0; } }
+
+/* Les fuites : ce qui se ferme avant tout le reste. */
+.fuites { display: grid; gap: 10px; margin-top: 14px; }
+.fuite { background: var(--rouge-clair); border: 1px solid var(--rouge); border-radius: 6px; padding: 12px 16px; display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 4px 14px; font-size: 14.5px; }
+.fuite .k { font: 400 26px/1 "Cormorant Garamond", serif; color: var(--rouge); grid-row: span 2; }
+.fuite b { color: var(--encre); font-weight: 500; }
+.fuite span { color: var(--doux); }
+
+/* L'écran */
+.ecran { background: var(--ecran); border: 1px solid var(--filet); border-radius: 10px; overflow: clip; margin-top: 14px; }
+.ecran-barre { background: var(--barre); color: var(--barre-texte); padding: 10px 16px; font-size: 13px; letter-spacing: .04em; display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.onglets { display: flex; gap: 4px; overflow-x: auto; padding: 10px 12px 0; border-bottom: 1px solid var(--filet); scrollbar-width: thin; }
+.onglet { font: 400 14px "Jost", sans-serif; color: var(--doux); background: none; border: 0; border-bottom: 2px solid transparent; padding: 8px 12px; white-space: nowrap; cursor: pointer; }
+.onglet[aria-selected="true"] { color: var(--encre); border-bottom-color: var(--cuivre); }
+.onglet small { font-size: 11px; color: var(--vert); margin-left: 4px; }
+.onglet:focus-visible, .bouton:focus-visible, .ligne > button:focus-visible { outline: 2px solid var(--cuivre); outline-offset: 2px; }
+.vue { padding: 16px; display: grid; gap: 14px; }
+.vue[hidden] { display: none; }
+.vue > * { min-width: 0; }
+.outils { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: space-between; }
+.bouton { font: 400 14px "Jost", sans-serif; border-radius: 6px; padding: 7px 14px; border: 1px solid var(--filet); background: var(--carte); color: var(--encre); cursor: pointer; }
+.bouton.plein { background: var(--encre); color: var(--fond); border-color: var(--encre); }
+.bouton.cuivre { background: var(--cuivre); color: var(--carte); border-color: var(--cuivre); }
+.compteurs { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+.compteur { background: var(--carte); border: 1px solid var(--filet); border-radius: 6px; padding: 10px 12px; }
+.compteur b { display: block; font: 300 28px/1.15 "Jost", sans-serif; color: var(--encre); font-variant-numeric: lining-nums tabular-nums; }
+.compteur span { font-size: 13px; color: var(--doux); }
+.compteur.alerte { border-color: var(--cuivre); }
+.lignes { display: grid; gap: 6px; }
+.ligne { background: var(--carte); border: 1px solid var(--filet); border-radius: 6px; }
+.ligne > button { width: 100%; text-align: left; font: inherit; color: inherit; background: none; border: 0; padding: 10px 14px; display: grid; grid-template-columns: 150px minmax(0, 1fr) auto; gap: 4px 14px; align-items: baseline; cursor: pointer; }
+.ligne > button .num { font-variant-numeric: lining-nums tabular-nums; color: var(--cuivre); font-weight: 400; font-size: 14px; }
+.ligne > button .quoi { color: var(--encre); }
+.ligne > button .quoi small { display: block; color: var(--doux); font-size: 13px; }
+.ligne .detail { border-top: 1px dashed var(--filet); padding: 10px 14px 14px; font-size: 14px; display: grid; gap: 8px; }
+.ligne .detail[hidden] { display: none; }
+.ligne .gestes { display: flex; flex-wrap: wrap; gap: 6px; }
+.badge { font-size: 12px; border-radius: 999px; padding: 1px 9px; white-space: nowrap; background: var(--puce); color: var(--encre); }
+.badge.alerte { background: var(--cuivre-clair); color: var(--cuivre); }
+.badge.fait { background: var(--vert-clair); color: var(--vert); }
+.badge.rouge { background: var(--rouge-clair); color: var(--rouge); }
+.vrai, .ex, .manque { font-size: 11px; letter-spacing: .06em; text-transform: uppercase; border-radius: 3px; padding: 0 5px; margin-left: 6px; vertical-align: 1px; white-space: nowrap; }
+.vrai { color: var(--vert); border: 1px solid var(--vert); }
+.ex { color: var(--doux); border: 1px solid var(--filet); }
+.manque { color: var(--cuivre); border: 1px dashed var(--cuivre); }
+.mois { font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: var(--doux); margin: 6px 0 0; }
+.note { font-size: 13.5px; color: var(--doux); margin: 0; }
+.sous-titre { font: 400 19px/1.25 "Cormorant Garamond", serif; color: var(--encre); margin: 6px 0 0; }
+
+/* Tableaux : listes de cases, grilles de compétences, planning. Chacun glisse dans son cadre, jamais la page. */
+.cadre { overflow-x: auto; border: 1px solid var(--filet); border-radius: 6px; background: var(--carte); }
+table { border-collapse: collapse; width: 100%; font-size: 14px; }
+th { text-align: left; font-weight: 400; font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--doux); padding: 9px 12px; border-bottom: 1px solid var(--filet); white-space: nowrap; }
+td { padding: 9px 12px; border-bottom: 1px solid var(--filet); vertical-align: top; }
+tr:last-child td { border-bottom: 0; }
+td.qui { color: var(--encre); white-space: nowrap; }
+td.num { font-variant-numeric: lining-nums tabular-nums; white-space: nowrap; }
+.grille td.niv { text-align: center; white-space: nowrap; font-size: 13px; }
+.niv i { display: inline-block; width: 12px; height: 12px; border-radius: 50%; border: 1px solid var(--cuivre); vertical-align: -1px; margin-right: 5px; }
+.niv.forme i { background: linear-gradient(90deg, var(--cuivre) 50%, transparent 50%); }
+.niv.auto i { background: var(--cuivre); }
+.niv.ref i { background: var(--encre); border-color: var(--encre); }
+.niv.rien { color: var(--doux); }
+.planning td.jour { font-size: 12.5px; text-align: center; white-space: nowrap; }
+.planning .p-f { background: var(--cuivre-clair); color: var(--cuivre); }
+.planning .p-a { background: var(--puce); color: var(--encre); }
+.planning .p-r { color: var(--doux); }
+.planning .p-c { background: var(--vert-clair); color: var(--vert); }
+.coches { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; font-size: 14px; }
+.coches li { display: grid; grid-template-columns: 20px minmax(0, 1fr) auto; gap: 8px; align-items: baseline; }
+.coches li::before { content: ""; width: 14px; height: 14px; border: 1px solid var(--filet); border-radius: 3px; translate: 0 2px; }
+.coches li.ok::before { background: var(--vert); border-color: var(--vert); }
+.coches li.non::before { border-color: var(--cuivre); border-style: dashed; }
+.etapes { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 230px), 1fr)); gap: 10px; }
+.etape { background: var(--carte); border: 1px solid var(--filet); border-radius: 6px; padding: 12px 14px; display: grid; gap: 8px; align-content: start; }
+.etape h4 { margin: 0; font: 400 12px "Jost", sans-serif; letter-spacing: .14em; text-transform: uppercase; color: var(--cuivre); }
+.colonnes { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr)); gap: 10px; }
+.colonne { background: var(--carte); border: 1px solid var(--filet); border-radius: 6px; padding: 10px 12px; display: grid; gap: 8px; align-content: start; }
+.colonne h4 { margin: 0; font: 400 12px "Jost", sans-serif; letter-spacing: .12em; text-transform: uppercase; color: var(--doux); display: flex; justify-content: space-between; }
+.fichette { border: 1px solid var(--filet); border-radius: 5px; padding: 8px 10px; font-size: 13.5px; background: var(--ecran); display: grid; gap: 2px; }
+.fichette b { color: var(--encre); font-weight: 400; }
+.fichette small { color: var(--doux); font-size: 12.5px; }
+
+/* Mon espace : l'écran tel que le téléphone d'une employée le montre. */
+.tel { max-width: 360px; justify-self: center; width: 100%; border: 1px solid var(--filet); border-radius: 26px; padding: 18px 14px 22px; background: var(--fond); display: grid; gap: 10px; }
+.tel .bonjour { font: 400 24px/1.1 "Cormorant Garamond", serif; color: var(--encre); margin: 0; }
+.tel .tuile { background: var(--carte); border: 1px solid var(--filet); border-radius: 10px; padding: 10px 12px; display: grid; gap: 4px; font-size: 14px; }
+.tel .tuile b { font: 300 26px/1.1 "Jost", sans-serif; color: var(--encre); font-variant-numeric: lining-nums tabular-nums; }
+.tel .tuile span { color: var(--doux); font-size: 13px; }
+.cote { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+@media (max-width: 760px) { .cote { grid-template-columns: minmax(0, 1fr); } }
+
+.regles { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap: 12px; margin-top: 14px; }
+.bloc { background: var(--carte); border: 1px solid var(--filet); border-radius: 6px; padding: 16px 18px; font-size: 14.5px; }
+.bloc.indigo { background: var(--encre); color: var(--fond); border-color: var(--encre); }
+.bloc.indigo h3 { color: var(--fond); }
+.bloc ul, .bloc ol { margin: 8px 0 0; padding-left: 20px; display: grid; gap: 5px; }
+.bloc.manques { border: 1px dashed var(--cuivre); }
+.arbitrage { background: var(--carte); border: 1px solid var(--filet); border-radius: 6px; padding: 16px 18px; display: grid; gap: 10px; }
+.arbitrage fieldset { border: 0; margin: 0; padding: 0; display: grid; gap: 8px; }
+.arbitrage legend { font: 400 21px/1.25 "Cormorant Garamond", serif; color: var(--encre); margin-bottom: 4px; padding: 0; }
+.choix { display: flex; gap: 10px; align-items: flex-start; border: 1px solid var(--filet); border-radius: 6px; padding: 9px 12px; cursor: pointer; font-size: 14.5px; }
+.choix:has(input:checked) { border-color: var(--cuivre); background: var(--cuivre-clair); }
+.choix input { accent-color: var(--cuivre); margin-top: 4px; flex: none; }
+.choix b { color: var(--encre); font-weight: 500; }
+.choix em { font-style: normal; color: var(--cuivre); font-size: 12.5px; letter-spacing: .04em; margin-left: 6px; }
+.etat-choix { font-size: 13px; color: var(--vert); min-height: 1.4em; margin: 0; }
+.lots { display: grid; gap: 10px; margin-top: 14px; }
+.lot { background: var(--carte); border: 1px solid var(--filet); border-left: 3px solid var(--cuivre); border-radius: 6px; padding: 12px 16px; font-size: 14.5px; }
+.sources { font-size: 12.5px; color: var(--doux); margin: 8px 0 0; }
+@media (max-width: 560px) { .ligne > button { grid-template-columns: minmax(0, 1fr) auto; } .ligne > button .num { grid-column: 1 / -1; } }
+@media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
+@media print { body { padding: 0; } .onglets, .bouton { display: none; } .vue[hidden] { display: grid !important; } .ligne .detail[hidden] { display: grid !important; } .arbitrage, .bloc, .mod, .lot, .fuite, .etape { break-inside: avoid; } }
+</style>
+<div class="page">
+<header>
+<p class="sur">Maison MND · Maquette à valider · 14 octobre 2026</p>
+<h1>La direction des ressources humaines</h1>
+<p class="chapeau">Tout ce qui touche aux personnes qui font la Maison, de la première candidature au certificat de travail, au même endroit du Trône. Une bonne part existe déjà, éparpillée entre Équipe, Finances, Système et le Secrétariat : la fiche, la paie béninoise, le pointage, les congés, les prêts, l’entretien annuel, le règlement signé, l’arrivée d’une recrue. Cette direction le rassemble, ferme quatre fuites, relie la paie à ce qu’elle ignore encore, et ajoute ce qui manque. Rien n’est construit avant votre validation.</p>
+</header>
+
+<section aria-labelledby="t-carte">
+<h2 id="t-carte">Ce que la direction des RH tient</h2>
+<p class="dit">Touchez une case pour voir son écran plus bas.</p>
+<div class="legende"><span class="etat place">en place</span> déjà dans le Trône <span class="etat relier">à relier</span> existe, mais en morceaux ou incomplet <span class="etat neuf">à construire</span> n’existe pas</div>
+<div class="carte-mod">
+<button class="mod" data-va="jour"><span class="etat neuf">à construire</span><h3>Aujourd’hui</h3><p>Le matin de la direction : qui est là, qui manque, ce qui expire, ce qui attend une décision.</p></button>
+<button class="mod" data-va="personnel"><span class="etat relier">à relier</span><h3>Le personnel</h3><p>La fiche existe (matricule MND-EMP, CNSS, IFU, contrat). Il manque la fin d’un CDD, la période d’essai et le dossier des pièces.</p></button>
+<button class="mod" data-va="recrutement"><span class="etat neuf">à construire</span><h3>Le recrutement</h3><p>Un poste ouvert, les candidatures (WhatsApp, Académie MND, recommandation), l’essai pratique sur modèle, la décision.</p></button>
+<button class="mod" data-va="arrivees"><span class="etat relier">à relier</span><h3>Arrivées et départs</h3><p>La place préparée existe. Il manque la liste d’intégration, et un vrai départ : aujourd’hui « Retirer » efface la fiche.</p></button>
+<button class="mod" data-va="temps"><span class="etat relier">à relier</span><h3>Temps, planning et congés</h3><p>Pointage et congés en place. Il manque le planning de la semaine et la demande faite par l’employée elle-même.</p></button>
+<button class="mod" data-va="paie"><span class="etat place">en place</span><h3>La paie</h3><p>Runs, bulletins, bordereau, CNSS, ITS, prêts. À relier : primes, pourboires et absences n’entrent pas encore dans le run.</p></button>
+<button class="mod" data-va="competences"><span class="etat relier">à relier</span><h3>Compétences et formation</h3><p>Les trois paliers existent. Il manque la grille geste par geste et le plan de formation interne.</p></button>
+<button class="mod" data-va="entretiens"><span class="etat relier">à relier</span><h3>Entretiens</h3><p>L’entretien annuel et la fiche de poste signés existent. Il manque la fin d’essai, le point à 30 jours, le retour et le départ.</p></button>
+<button class="mod" data-va="discipline"><span class="etat relier">à relier</span><h3>Discipline</h3><p>Règlement signé et lettres en place. Il manque le registre des sanctions et la procédure en étapes datées.</p></button>
+<button class="mod" data-va="obligations"><span class="etat neuf">à construire</span><h3>Obligations et santé</h3><p>Le calendrier légal (CNSS, ITS, registre, affichages), l’aptitude médicale, les accidents du travail.</p></button>
+<button class="mod" data-va="espace"><span class="etat neuf">à construire</span><h3>Mon espace</h3><p>Côté employée : son solde, sa demande de congé, ses bulletins, ses documents signés, son planning.</p></button>
+</div>
+</section>
+
+<section aria-labelledby="t-parcours">
+<h2 id="t-parcours">Le parcours d’une personne</h2>
+<p class="dit">Chaque étape laisse une trace datée sur la fiche, et rien ne s’efface au départ : la fiche s’archive.</p>
+<ol class="parcours">
+<li><b>Candidature</b><span>WhatsApp, Académie MND, recommandation</span></li>
+<li><b>Essai pratique</b><span>un geste sur modèle, noté sur la grille</span></li>
+<li><b>Contrat</b><span>rédigé au Secrétariat, signé, rangé</span></li>
+<li><b>Arrivée</b><span>place préparée, liste du premier mois</span></li>
+<li><b>Période d’essai</b><span>point à 30 jours, entretien de fin</span></li>
+<li class="vie"><b>La vie à la Maison</b><span>planning, congés, paie, formation, entretiens</span></li>
+<li><b>Départ</b><span>préavis, solde, certificat de travail</span></li>
+<li><b>Archive</b><span>gardée le temps voulu, jamais effacée seule</span></li>
+</ol>
+</section>
+
+<section aria-labelledby="t-fuites">
+<h2 id="t-fuites">Quatre fuites à fermer d’abord</h2>
+<p class="dit">Relevées dans le code le 14 octobre 2026, avant tout le reste. Aucune n’a été exploitée à ma connaissance ; chacune laisse lire ou changer ce qui ne devrait pas l’être.</p>
+<div class="fuites">
+<div class="fuite"><span class="k">1</span><b>Le salaire de base s’affiche dans la liste de l’équipe</b><span>À toute personne qui ouvre Personnel (colonne « Salaire · base »). Il quitte la liste et ne reste que dans la fiche, pour la direction.</span></div>
+<div class="fuite"><span class="k">2</span><b>« La paie attend votre oui » part à tout le personnel, avec le total net</b><span>La notification de validation ne partira plus qu’à qui valide la paie.</span></div>
+<div class="fuite"><span class="k">3</span><b>Les fiches de l’équipe, salaires compris, se lisent par tout compte du personnel</b><span>En passant par la base, pas par l’écran. Le salaire, le contrat, la santé et la discipline passent dans une partie que seule la direction lit ; chacune lit la sienne.</span></div>
+<div class="fuite"><span class="k">4</span><b>Le pointage d’une autre se modifie par n’importe quel compte</b><span>Parce que la base ne sait pas quel compte est quelle fiche (le lien se fait par le nom). Le compte se rattache à sa fiche dans la base ; chacune pointe pour elle, la direction corrige, et la correction est tracée.</span></div>
+</div>
+</section>
+
+<section aria-labelledby="t-ecran" id="ecran">
+<h2 id="t-ecran">L’écran, tel qu’il serait dans le Trône</h2>
+<p class="dit">Les personnes et les dates sont des exemples, en initiales <span class="ex">exemple</span>. Ce qui vient de la Maison est marqué <span class="vrai">vrai</span>, ce qui attend votre réponse <span class="manque">à me donner</span>, une règle de droit pas encore vérifiée <span class="manque">à confirmer</span>.</p>
+<div class="ecran">
+<div class="ecran-barre"><span>Équipe › Ressources humaines</span><span>Maquette : les boutons ne font rien</span></div>
+<div class="onglets" role="tablist" aria-label="Onglets des ressources humaines">
+<button class="onglet" role="tab" data-vue="jour" aria-selected="true">Aujourd’hui</button>
+<button class="onglet" role="tab" data-vue="personnel" aria-selected="false">Le personnel</button>
+<button class="onglet" role="tab" data-vue="recrutement" aria-selected="false">Recrutement</button>
+<button class="onglet" role="tab" data-vue="arrivees" aria-selected="false">Arrivées et départs</button>
+<button class="onglet" role="tab" data-vue="temps" aria-selected="false">Temps et congés</button>
+<button class="onglet" role="tab" data-vue="paie" aria-selected="false">La paie<small>en place</small></button>
+<button class="onglet" role="tab" data-vue="competences" aria-selected="false">Compétences</button>
+<button class="onglet" role="tab" data-vue="entretiens" aria-selected="false">Entretiens</button>
+<button class="onglet" role="tab" data-vue="discipline" aria-selected="false">Discipline</button>
+<button class="onglet" role="tab" data-vue="obligations" aria-selected="false">Obligations</button>
+<button class="onglet" role="tab" data-vue="espace" aria-selected="false">Mon espace</button>
+</div>
+
+<div class="vue" data-vue="jour">
+<div class="compteurs">
+<div class="compteur"><b>6 / 7</b><span>présents ce matin</span></div>
+<div class="compteur"><b>1</b><span>en congé cette semaine</span></div>
+<div class="compteur alerte"><b>9 j</b><span>avant une fin de période d’essai</span></div>
+<div class="compteur alerte"><b>24 j</b><span>avant la fin d’un CDD</span></div>
+<div class="compteur"><b>3</b><span>pièces manquantes aux dossiers</span></div>
+<div class="compteur"><b>30 oct.</b><span>paie d’octobre 2026 à valider</span></div>
+</div>
+<p class="note">Les compteurs sont un exemple. Chacun ouvre sa liste, et la même liste nourrit « À faire » de la direction, comme le secrétariat.</p>
+<div class="lignes">
+<div class="ligne"><button><span class="num">23 oct. 2026</span><span class="quoi">Fin de période d’essai · A. K., praticienne<span class="ex">exemple</span><small>Entrée le 23 sept. 2026, CDI, essai d’un mois</small></span><span class="badge alerte">dans 9 jours</span></button>
+<div class="detail" hidden><p class="note">L’entretien de fin d’essai se prépare ici : ce qui a été vu au fauteuil, la grille des gestes, l’avis de qui l’a accompagnée. La décision (confirmer, renouveler une fois si le contrat le prévoit, ou rompre) se signe, et sa lettre part du Secrétariat avec un numéro de départ.</p><div class="gestes"><span class="bouton plein">Préparer l’entretien</span><span class="bouton">Ouvrir la fiche</span></div></div></div>
+<div class="ligne"><button><span class="num">2 au 6 nov. 2026</span><span class="quoi">Congé demandé · E. D., accueil<span class="ex">exemple</span><small>Demandé depuis Mon espace le 13 oct. 2026 · solde 7 jours</small></span><span class="badge">à décider</span></button>
+<div class="detail" hidden><p class="note">Le planning montre qui reste ces jours-là. Un jour sans personne à l’accueil se dit avant d’accorder, pas après. Accordé, le congé part au planning, au solde, et à E. D. par notification.</p><div class="gestes"><span class="bouton plein">Accorder</span><span class="bouton">Proposer d’autres dates</span><span class="bouton">Refuser, avec un mot</span></div></div></div>
+<div class="ligne"><button><span class="num">7 nov. 2026</span><span class="quoi">CDD à son terme · M. A., praticien<span class="ex">exemple</span><small>Troisième contrat, entré le 8 mai 2026</small></span><span class="badge alerte">dans 24 jours</span></button>
+<div class="detail" hidden><p class="note">Renouveler, passer en CDI ou ne pas renouveler : chaque choix a sa lettre au Secrétariat. Le délai pour prévenir est un réglage, à confirmer avec le comptable <span class="manque">à confirmer</span>.</p><div class="gestes"><span class="bouton plein">Renouveler</span><span class="bouton">Passer en CDI</span><span class="bouton">Ne pas renouveler</span></div></div></div>
+<div class="ligne"><button><span class="num">Dossiers</span><span class="quoi">Pièces manquantes · 2 personnes<span class="ex">exemple</span><small>Aptitude médicale (2), contact à prévenir en cas d’urgence (1)</small></span><span class="badge alerte">3 pièces</span></button>
+<div class="detail" hidden><p class="note">Une pièce se demande d’un geste : un message WhatsApp part à la personne, et la pièce reçue se range sur sa fiche, lisible de la direction seule.</p></div></div>
+<div class="ligne"><button><span class="num">30 oct. 2026</span><span class="quoi">Paie d’octobre 2026<small>Primes de seuil, pourboires et absences déjà repris dans le run</small></span><span class="badge">brouillon</span></button>
+<div class="detail" hidden><p class="note">Le run existe déjà. Ce qui change : chaque ligne arrive préremplie, et dit d’où vient chaque chiffre (« prime de seuil inscrite le 28 oct. 2026 », « 1 jour d’absence non rémunérée le 9 oct. 2026 »).</p></div></div>
+</div>
+</div>
+
+<div class="vue" data-vue="personnel" hidden>
+<div class="outils"><span class="badge">7 personnes · 2 prestataires à part</span><span class="bouton plein">+ Préparer une arrivée</span></div>
+<div class="cadre"><table>
+<thead><tr><th>Matricule</th><th>Personne</th><th>Fonction</th><th>Contrat</th><th>Depuis</th><th>À suivre</th></tr></thead>
+<tbody>
+<tr><td class="num">MND-EMP-003</td><td class="qui">F. T.<span class="ex">exemple</span></td><td>Maîtresse · Souveraineté</td><td>CDI</td><td class="num">mars 2024</td><td><span class="badge fait">dossier complet</span></td></tr>
+<tr><td class="num">MND-EMP-005</td><td class="qui">M. A.<span class="ex">exemple</span></td><td>Praticien · Élévation</td><td>CDD au 7 nov. 2026</td><td class="num">mai 2026</td><td><span class="badge alerte">terme dans 24 j</span></td></tr>
+<tr><td class="num">MND-EMP-006</td><td class="qui">E. D.<span class="ex">exemple</span></td><td>Accueil</td><td>CDI</td><td class="num">juin 2026</td><td><span class="badge">congé à décider</span></td></tr>
+<tr><td class="num">MND-EMP-007</td><td class="qui">A. K.<span class="ex">exemple</span></td><td>Praticienne · Fondation</td><td>CDI, à l’essai</td><td class="num">sept. 2026</td><td><span class="badge alerte">essai au 23 oct.</span></td></tr>
+<tr><td class="num">MND-EMP-008</td><td class="qui">R. S.<span class="ex">exemple</span></td><td>Agent d’entretien</td><td>CDD au 31 mars 2027</td><td class="num">oct. 2026</td><td><span class="badge alerte">2 pièces</span></td></tr>
+</tbody></table></div>
+<p class="note">Plus de colonne « Salaire » ici (fuite 1). Le matricule MND-EMP, le n° CNSS, l’IFU et le type de contrat existent déjà sur la fiche <span class="vrai">vrai</span> ; la fin du CDD et la fin de l’essai sont nouvelles.</p>
+<p class="sous-titre">La fiche de A. K., ouverte</p>
+<div class="cote">
+<div class="etape"><h4>Le dossier</h4>
+<ul class="coches">
+<li class="ok"><span>Contrat de travail signé</span><span class="badge">Secrétariat</span></li>
+<li class="ok"><span>Pièce d’identité</span><span class="badge fait">en place</span></li>
+<li class="ok"><span>Règlement intérieur signé, version en vigueur</span><span class="badge fait">en place</span></li>
+<li class="ok"><span>Fiche de poste remise et signée</span><span class="badge fait">en place</span></li>
+<li class="ok"><span>Coordonnées de paiement (MoMo ou banque)</span><span class="badge fait">en place</span></li>
+<li class="non"><span>Aptitude médicale (apte, avec sa date ; rien d’autre)</span><span class="badge alerte">manque</span></li>
+<li class="non"><span>Numéro CNSS reçu après la déclaration d’embauche</span><span class="badge alerte">attendu</span></li>
+<li class="ok"><span>Contact à prévenir en cas d’urgence</span><span></span></li>
+</ul></div>
+<div class="etape"><h4>Son histoire à la Maison</h4>
+<ul class="coches">
+<li class="ok"><span>15 sept. 2026 · candidature par WhatsApp, recommandée par F. T.</span><span></span></li>
+<li class="ok"><span>18 sept. 2026 · essai pratique : resserrage sur modèle, autonome</span><span></span></li>
+<li class="ok"><span>23 sept. 2026 · arrivée, CDI, essai d’un mois</span><span></span></li>
+<li class="ok"><span>23 oct. 2026 · point à 30 jours</span><span></span></li>
+<li><span>23 oct. 2026 · entretien de fin d’essai</span><span class="badge alerte">à venir</span></li>
+</ul>
+<p class="note">Ce que seule la direction lit sur la fiche : le salaire, le contrat, l’aptitude médicale, la discipline. Le reste de l’équipe voit le nom, la fonction et le planning.</p></div>
+</div>
+</div>
+
+<div class="vue" data-vue="recrutement" hidden>
+<div class="outils"><span class="badge">1 poste ouvert</span><span class="bouton plein">+ Ouvrir un poste</span></div>
+<div class="ligne"><button><span class="num">Depuis le 1 oct. 2026</span><span class="quoi">Praticienne au fauteuil · Cotonou<span class="ex">exemple</span><small>CDI · palier Fondation au moins · disponible le samedi</small></span><span class="badge">5 candidatures</span></button>
+<div class="detail" hidden><p class="note">L’annonce se rédige ici, part sur WhatsApp et sur le site, et chaque réponse arrive dans la colonne « Reçue ». Le texte de l’annonce dit le salaire de départ ou la fourchette, jamais un prix de la carte.</p></div></div>
+<div class="colonnes">
+<div class="colonne"><h4>Reçue <span>2</span></h4><div class="fichette"><b>N. H.<span class="ex">exemple</span></b><small>WhatsApp, 12 oct. 2026 · photos de ses poses</small></div><div class="fichette"><b>C. B.<span class="ex">exemple</span></b><small>Recommandée par E. D. · 13 oct. 2026</small></div></div>
+<div class="colonne"><h4>Appel <span>1</span></h4><div class="fichette"><b>J. Z.<span class="ex">exemple</span></b><small>Appel prévu le 15 oct. 2026 à 10 h</small></div></div>
+<div class="colonne"><h4>Essai pratique <span>1</span></h4><div class="fichette"><b>L. O.<span class="ex">exemple</span></b><small>Académie MND, certifiée en juin 2026 · resserrage sur modèle le 17 oct. 2026</small></div></div>
+<div class="colonne"><h4>Décision <span>1</span></h4><div class="fichette"><b>P. G.<span class="ex">exemple</span></b><small>Essai noté : autonome en création, en formation en réparation</small></div></div>
+</div>
+<div class="regles" style="margin-top:0">
+<div class="bloc"><h3>L’essai pratique</h3><p class="note" style="margin-top:6px">Un vrai geste sur un modèle volontaire, noté sur la même grille que les compétences de l’équipe : la recrue arrive avec sa grille déjà remplie. Le modèle sait d’avance que c’est un essai, et une maîtresse de la Maison reprend la main si besoin.</p></div>
+<div class="bloc"><h3>L’Académie MND, le vivier</h3><p class="note" style="margin-top:6px">Une apprenante certifiée entre dans le recrutement d’un geste, avec son certificat et ses notes. Le lien existe déjà dans l’autre sens : un certificat fait monter le palier d’une fiche <span class="vrai">vrai</span>.</p></div>
+<div class="bloc"><h3>Une réponse à chacune</h3><p class="note" style="margin-top:6px">Une candidature non retenue reçoit un message, puis s’efface après six mois (réglable). On ne garde pas les photos et les numéros de personnes qui ne travaillent pas à la Maison.</p></div>
+</div>
+</div>
+
+<div class="vue" data-vue="arrivees" hidden>
+<p class="sous-titre">L’arrivée de A. K. <span class="ex">exemple</span> · le premier mois, coché au fil des jours</p>
+<div class="etapes">
+<div class="etape"><h4>Avant le premier jour</h4><ul class="coches">
+<li class="ok"><span>Place préparée dans le Trône ; elle se rattache seule à sa première connexion</span><span class="badge fait">en place</span></li>
+<li class="ok"><span>Contrat rédigé au Secrétariat, modèle « contrat de travail »</span><span class="badge fait">en place</span></li>
+<li class="ok"><span>Tenue et tablier à sa taille, au Vestiaire</span><span></span></li>
+<li class="ok"><span>Planning de sa première semaine</span><span></span></li>
+</ul></div>
+<div class="etape"><h4>Le premier jour</h4><ul class="coches">
+<li class="ok"><span>Contrat signé, un exemplaire pour elle</span><span></span></li>
+<li class="ok"><span>Règlement intérieur remis contre décharge</span><span class="badge fait">en place</span></li>
+<li class="ok"><span>Fiche de poste remise</span><span class="badge fait">en place</span></li>
+<li class="ok"><span>Visite, casier, consignes d’hygiène des outils</span><span></span></li>
+<li class="ok"><span>Une maîtresse qui l’accompagne le premier mois</span><span></span></li>
+</ul></div>
+<div class="etape"><h4>La première semaine</h4><ul class="coches">
+<li class="non"><span>Déclaration d’embauche à la CNSS (délai à confirmer)</span><span class="badge alerte">à faire</span></li>
+<li class="ok"><span>Les protocoles du manuel des formatrices, lus</span><span class="badge fait">en place</span></li>
+<li class="non"><span>Aptitude médicale</span><span class="badge alerte">manque</span></li>
+</ul></div>
+<div class="etape"><h4>Le premier mois</h4><ul class="coches">
+<li><span>Point à 30 jours, avec la maîtresse qui l’accompagne</span><span></span></li>
+<li><span>Entretien de fin d’essai, décision signée</span><span></span></li>
+</ul></div>
+</div>
+<p class="note">Aujourd’hui, seul le libellé « Parcours d’intégration » existe sur la fiche. La liste devient un vrai modèle, réglable par fonction : l’accueil n’a pas l’essai pratique, l’entretien n’a pas les protocoles.</p>
+<p class="sous-titre">Un départ</p>
+<div class="ligne"><button><span class="num">dernier jour 30 nov. 2026</span><span class="quoi">Démission de R. S., agent d’entretien<span class="ex">exemple</span><small>Lettre reçue le 31 oct. 2026, courrier A-2026-021 au Secrétariat</small></span><span class="badge alerte">préavis en cours</span></button>
+<div class="detail" hidden><ul class="coches">
+<li class="ok"><span>Lettre reçue, enregistrée au courrier, acceptée par écrit (modèle « acceptation de démission »)</span><span class="badge fait">en place</span></li>
+<li class="ok"><span>Préavis calculé selon la fonction et l’ancienneté (réglage à confirmer)</span><span></span></li>
+<li><span>Solde de tout compte : salaire du mois, congés non pris, reste du prêt selon l’engagement signé</span><span></span></li>
+<li><span>Certificat de travail (modèle en place, obligatoire)</span><span></span></li>
+<li><span>Tenue, clés et matériel rendus</span><span></span></li>
+<li><span>Accès au Trône coupé le dernier jour, à la fermeture</span><span></span></li>
+<li><span>Entretien de départ : ce qu’elle dit de la Maison, gardé tel quel</span><span></span></li>
+<li><span>Fiche archivée, avec tout son dossier</span><span></span></li>
+</ul>
+<p class="note">Aujourd’hui « Retirer » efface la fiche, la pièce d’identité et les lettres de prêt. Un départ les archive : un ancien employé peut demander une attestation des années plus tard.</p></div></div>
+</div>
+
+<div class="vue" data-vue="temps" hidden>
+<div class="outils"><span class="sous-titre" style="margin:0">Semaine du 19 au 24 octobre 2026 <span class="ex">exemple</span></span><span class="bouton">Copier la semaine précédente</span></div>
+<div class="cadre"><table class="planning">
+<thead><tr><th>Personne</th><th>Lun. 19</th><th>Mar. 20</th><th>Mer. 21</th><th>Jeu. 22</th><th>Ven. 23</th><th>Sam. 24</th></tr></thead>
+<tbody>
+<tr><td class="qui">F. T.</td><td class="jour p-f">fauteuil</td><td class="jour p-f">fauteuil</td><td class="jour p-r">repos</td><td class="jour p-f">fauteuil</td><td class="jour p-a">Académie</td><td class="jour p-f">fauteuil</td></tr>
+<tr><td class="qui">M. A.</td><td class="jour p-r">repos</td><td class="jour p-f">fauteuil</td><td class="jour p-f">fauteuil</td><td class="jour p-f">fauteuil</td><td class="jour p-f">fauteuil</td><td class="jour p-f">fauteuil</td></tr>
+<tr><td class="qui">E. D.</td><td class="jour p-a">accueil</td><td class="jour p-a">accueil</td><td class="jour p-a">accueil</td><td class="jour p-r">repos</td><td class="jour p-a">accueil</td><td class="jour p-a">accueil</td></tr>
+<tr><td class="qui">A. K.</td><td class="jour p-f">fauteuil</td><td class="jour p-f">fauteuil</td><td class="jour p-f">fauteuil</td><td class="jour p-f">fauteuil</td><td class="jour p-r">repos</td><td class="jour p-f">fauteuil</td></tr>
+<tr><td class="qui">R. S.</td><td class="jour p-c">congé</td><td class="jour p-c">congé</td><td class="jour p-a">entretien</td><td class="jour p-a">entretien</td><td class="jour p-a">entretien</td><td class="jour p-r">repos</td></tr>
+</tbody></table></div>
+<p class="note">Le planning dit qui est au fauteuil chaque jour ; l’agenda des rendez-vous le lit, et un rendez-vous posé sur une maîtresse en repos se signale. Les horaires de la Maison et les exceptions par personne existent déjà dans les Paramètres <span class="vrai">vrai</span>.</p>
+<div class="cote">
+<div><p class="sous-titre">Les congés</p>
+<div class="cadre" style="margin-top:8px"><table>
+<thead><tr><th>Personne</th><th>Acquis</th><th>Pris</th><th>Reste</th></tr></thead>
+<tbody>
+<tr><td class="qui">F. T.</td><td class="num">20</td><td class="num">12</td><td class="num">8</td></tr>
+<tr><td class="qui">M. A.</td><td class="num">10</td><td class="num">0</td><td class="num">10</td></tr>
+<tr><td class="qui">E. D.</td><td class="num">8</td><td class="num">1</td><td class="num">7</td></tr>
+</tbody></table></div>
+<p class="note" style="margin-top:8px">Calcul en place : 2 jours par mois de service, réglable dans les paramètres de paie <span class="vrai">vrai</span>. Certaines sources disent 2,5 : à trancher avec le comptable <span class="manque">à confirmer</span>.</p></div>
+<div><p class="sous-titre">Les absences</p>
+<ul class="coches" style="margin-top:8px">
+<li class="ok"><span>Maladie : justificatif photographié, rien de plus sur la santé</span><span></span></li>
+<li class="ok"><span>Permission exceptionnelle : mariage, naissance, décès (durées réglables)</span><span></span></li>
+<li class="ok"><span>Retards : comptés au mois, sans commentaire automatique</span><span></span></li>
+<li class="non"><span>Absence injustifiée : elle ouvre une demande d’explication, jamais une sanction toute seule</span><span></span></li>
+</ul>
+<p class="note" style="margin-top:8px">Le pointage d’arrivée et de départ (Mon mois, preuve par code du jour ou position) est en place <span class="vrai">vrai</span>. Ce qui change : chacune pointe pour elle seule, et la correction par la direction reste tracée (fuite 4).</p></div>
+</div>
+</div>
+
+<div class="vue" data-vue="paie" hidden>
+<div class="regles" style="margin-top:0">
+<div class="bloc"><h3>En place</h3><ul>
+<li>Un run par mois et par atelier : brouillon, validé, payé, clôturé.</li>
+<li>CNSS et ITS par tranches, barèmes provisoires à faire valider par le comptable <span class="vrai">vrai</span>.</li>
+<li>Bulletins (bulletin.html), envoi en PDF par WhatsApp, livre de paie en CSV.</li>
+<li>Bordereau du versement, pointé ligne par ligne.</li>
+<li>Avances, prêts et retenue en part du salaire, lettres signées au coffre.</li>
+<li>Commissions par palier, prime au seuil, pourboires notés dans Mon mois.</li>
+<li>Une prestataire n’est payée que sur facture acceptée.</li>
+</ul></div>
+<div class="bloc"><h3>À relier</h3><ul>
+<li>Le run reprend seul les primes de seuil inscrites, la prime de points, les pourboires, les heures supplémentaires et les absences non rémunérées ; aujourd’hui il les ignore, sauf saisie à la main.</li>
+<li>Chaque chiffre dit d’où il vient, et reste corrigeable à la main avec une trace.</li>
+<li>Les fenêtres « prime à la main », « retenue typée » et « détail de l’année » reviennent : elles vivent dans un ancien bloc éteint.</li>
+<li>« La paie attend votre oui » ne part plus qu’à qui valide (fuite 2).</li>
+<li>Les montants ne voyagent plus dans l’adresse du bulletin, qui reste dans l’historique du navigateur.</li>
+</ul></div>
+</div>
+<p class="note">La paie reste au souverain dans la base, comme aujourd’hui. Qui d’autre la lit dépend du choix 1 ci-dessous.</p>
+</div>
+
+<div class="vue" data-vue="competences" hidden>
+<p class="note">Qui sait faire quoi, geste par geste. Les trois paliers (Fondation, Élévation, Souveraineté) restent ce qu’ils sont <span class="vrai">vrai</span> ; la grille les détaille.</p>
+<div class="cadre"><table class="grille">
+<thead><tr><th>Personne</th><th>Création</th><th>Resserrage</th><th>Réparation</th><th>Soins du cheveu</th><th>Coiffage</th><th>Enfants</th><th>Consultation</th></tr></thead>
+<tbody>
+<tr><td class="qui">F. T.</td><td class="niv ref"><i></i>référente</td><td class="niv ref"><i></i>référente</td><td class="niv auto"><i></i>autonome</td><td class="niv auto"><i></i>autonome</td><td class="niv auto"><i></i>autonome</td><td class="niv auto"><i></i>autonome</td><td class="niv ref"><i></i>référente</td></tr>
+<tr><td class="qui">M. A.</td><td class="niv auto"><i></i>autonome</td><td class="niv auto"><i></i>autonome</td><td class="niv forme"><i></i>en formation</td><td class="niv auto"><i></i>autonome</td><td class="niv rien">non</td><td class="niv rien">non</td><td class="niv rien">non</td></tr>
+<tr><td class="qui">A. K.</td><td class="niv forme"><i></i>en formation</td><td class="niv auto"><i></i>autonome</td><td class="niv rien">non</td><td class="niv forme"><i></i>en formation</td><td class="niv auto"><i></i>autonome</td><td class="niv rien">non</td><td class="niv rien">non</td></tr>
+</tbody></table></div>
+<p class="note">Personnes et niveaux en exemple <span class="ex">exemple</span>. Un niveau monte par un geste vu et signé par une référente, ou par un certificat de l’Académie MND ; il garde sa date et qui l’a validé.</p>
+<div class="regles" style="margin-top:0">
+<div class="bloc"><h3>Le plan de formation interne</h3><ul>
+<li>A. K. · création, accompagnée par F. T., deux séances par mois jusqu’en janvier 2027 <span class="ex">exemple</span></li>
+<li>M. A. · réparation, sur modèle, objectif autonome en mars 2027 <span class="ex">exemple</span></li>
+<li>Toute l’équipe · hygiène des outils, une fois par an</li>
+</ul><p class="note" style="margin-top:8px">Les protocoles se lisent dans le manuel des formatrices, déjà en place <span class="vrai">vrai</span>. Une séance faite se coche, avec qui l’a donnée.</p></div>
+<div class="bloc"><h3>Ce que la grille ne fait pas</h3><ul>
+<li>Elle ne note pas une personne : elle dit un geste, et un niveau.</li>
+<li>Elle ne compare pas les membres entre eux.</li>
+<li>Elle ne touche pas au salaire seule : un changement de palier reste une décision de la direction.</li>
+</ul></div>
+</div>
+</div>
+
+<div class="vue" data-vue="entretiens" hidden>
+<div class="lignes">
+<div class="ligne"><button><span class="num">23 oct. 2026</span><span class="quoi">Fin d’essai · A. K.<span class="ex">exemple</span><small>Avec F. T., qui l’a accompagnée</small></span><span class="badge alerte">à préparer</span></button>
+<div class="detail" hidden><p class="note">Trois questions, deux colonnes (elle, la Maison), comme l’entretien annuel déjà en place : ce qui va, ce qui manque, la suite. La décision et sa lettre partent d’ici.</p></div></div>
+<div class="ligne"><button><span class="num">janv. 2027</span><span class="quoi">Entretiens annuels · toute l’équipe<small>Fiche de poste et entretien sur le même écran, signature au doigt</small></span><span class="badge fait">en place</span></button>
+<div class="detail" hidden><p class="note">Déjà construit. Ce qui change : la date de chacun se pose dans le calendrier des entretiens, et le compte rendu signé se range dans le dossier.</p></div></div>
+<div class="ligne"><button><span class="num">à la reprise</span><span class="quoi">Entretien de retour<small>Après un congé de maternité, une longue maladie, plus d’un mois d’absence</small></span><span class="badge">nouveau</span></button>
+<div class="detail" hidden><p class="note">Ce qui a changé pendant l’absence (planning, carte, clientes), ce dont elle a besoin pour reprendre.</p></div></div>
+<div class="ligne"><button><span class="num">au départ</span><span class="quoi">Entretien de départ<small>Ses mots, gardés tels quels, lus par la direction seule</small></span><span class="badge">nouveau</span></button>
+<div class="detail" hidden><p class="note">Pourquoi elle part, ce qu’elle garderait, ce qu’elle changerait. Rien de ce qui s’y dit ne change son solde de tout compte ni son certificat.</p></div></div>
+</div>
+<p class="note">L’onglet « Rétention et bien-être » de Personnel montre des jauges posées à la création de la fiche, jamais mises à jour. Elles disparaissent : ce qui en tient lieu, ce sont les mots de la personne, dits en entretien.</p>
+</div>
+
+<div class="vue" data-vue="discipline" hidden>
+<div class="bloc indigo"><p style="margin:0;font:400 20px/1.4 'Cormorant Garamond',serif">« Un écart déclaré est une erreur ; un écart découvert est une faute. »</p><p class="note" style="color:inherit;opacity:.75;margin-top:6px">Le règlement intérieur de la Maison <span class="vrai" style="color:inherit;border-color:currentColor">vrai</span></p></div>
+<p class="sous-titre">Une procédure, en étapes datées</p>
+<div class="etapes">
+<div class="etape"><h4>1 · Les faits</h4><p class="note">Ce qui s’est passé, quand, qui l’a vu. Écrits par la direction le jour même.</p></div>
+<div class="etape"><h4>2 · La demande d’explication</h4><p class="note">Une lettre (modèle au Secrétariat), un délai de réponse réglable. La personne répond par écrit.</p></div>
+<div class="etape"><h4>3 · La décision</h4><p class="note">Pas de suite, rappel, avertissement, mise à pied ou rupture, selon l’échelle de votre règlement intérieur <span class="manque">à confirmer</span>.</p></div>
+<div class="etape"><h4>4 · La lettre et le registre</h4><p class="note">La lettre part avec un numéro de départ ; la décision entre au registre, lisible de la direction seule.</p></div>
+</div>
+<div class="cadre"><table>
+<thead><tr><th>Date</th><th>Personne</th><th>Faits</th><th>Décision</th><th>Efface le</th></tr></thead>
+<tbody>
+<tr><td class="num">12 août 2026</td><td class="qui">M. A.<span class="ex">exemple</span></td><td>Trois retards non prévenus en juillet</td><td>Avertissement écrit, D-2026-004</td><td class="num">12 août 2027</td></tr>
+</tbody></table></div>
+<p class="note">Une sanction ancienne sort du dossier après un délai réglable <span class="manque">à confirmer</span>. Le modèle d’avertissement et la convocation à un entretien existent déjà au Secrétariat <span class="vrai">vrai</span>.</p>
+</div>
+
+<div class="vue" data-vue="obligations" hidden>
+<div class="lignes">
+<div class="ligne"><button><span class="num">chaque mois</span><span class="quoi">Déclaration et versement des cotisations CNSS<small>Le livre de paie et le récapitulatif CNSS sortent déjà du run</small></span><span class="badge alerte">date à confirmer</span></button>
+<div class="detail" hidden><p class="note">La déclaration se fait sur le site de la CNSS ; le Trône rappelle la date et garde la preuve du dépôt et du versement.</p></div></div>
+<div class="ligne"><button><span class="num">chaque mois</span><span class="quoi">ITS retenu sur les salaires, à reverser<small>Calculé par tranches dans le run</small></span><span class="badge alerte">date à confirmer</span></button>
+<div class="detail" hidden><p class="note">Même principe : la date vient du comptable, le Trône rappelle et garde la preuve.</p></div></div>
+<div class="ligne"><button><span class="num">à chaque arrivée</span><span class="quoi">Déclaration d’embauche et registre de l’employeur<small>Le registre se tient à jour seul à partir des fiches, et s’imprime</small></span><span class="badge alerte">forme à confirmer</span></button>
+<div class="detail" hidden><p class="note">Délai de la déclaration et forme du registre exigée par l’inspection du travail : à vérifier avec le comptable.</p></div></div>
+<div class="ligne"><button><span class="num">en permanence</span><span class="quoi">Affichages dans les locaux<small>Horaires, règlement intérieur, adresse de l’inspection du travail</small></span><span class="badge alerte">liste à confirmer</span></button>
+<div class="detail" hidden><p class="note">La liste exacte se vérifie une fois ; ensuite une affiche par sujet, imprimée depuis le Trône aux couleurs de la Maison.</p></div></div>
+</div>
+<div class="regles" style="margin-top:0">
+<div class="bloc"><h3>L’employeur</h3><p class="note" style="margin-top:6px">L’établissement MAISON MND, immatriculé le 9 octobre 2026 (RCCM RB/COT/26 A 120676) <span class="vrai">vrai</span>. Son numéro employeur à la CNSS <span class="manque">à me donner</span>. Qui emploie aujourd’hui l’équipe, cet établissement ou ACIA 1 en attendant le rapprochement <span class="manque">à me donner</span>.</p></div>
+<div class="bloc"><h3>Santé et sécurité</h3><ul>
+<li>Aptitude médicale : apte ou pas, et sa date. Jamais un diagnostic.</li>
+<li>Accident du travail : déclaré à la CNSS dans le délai légal <span class="manque">à confirmer</span>, gardé au registre.</li>
+<li>Trousse de secours vérifiée chaque mois, fiches des produits utilisés aux postes.</li>
+<li>Séances longues : une création tient des heures au fauteuil ; une pause se note au planning, au seuil que vous fixerez <span class="manque">à me donner</span>.</li>
+</ul></div>
+</div>
+</div>
+
+<div class="vue" data-vue="espace" hidden>
+<div class="cote">
+<div class="tel" aria-label="Mon espace, sur le téléphone de E. D.">
+<p class="sur">Mon espace</p>
+<p class="bonjour">Bonjour E.</p>
+<div class="tuile"><span>Congés qui me restent</span><b>7 jours</b><span>Demande du 2 au 6 nov. 2026 : en attente</span></div>
+<span class="bouton cuivre" style="text-align:center">Demander un congé</span>
+<div class="tuile"><span>Ma semaine</span><span style="color:var(--texte)">Lun. accueil · Mar. accueil · Mer. accueil · Jeu. repos · Ven. accueil · Sam. accueil</span></div>
+<div class="tuile"><span>Mes bulletins</span><span style="color:var(--texte)">Septembre 2026 · Août 2026 · Juillet 2026</span></div>
+<div class="tuile"><span>Mes documents signés</span><span style="color:var(--texte)">Contrat · Règlement intérieur · Fiche de poste</span></div>
+<div class="tuile"><span>Mon prêt</span><b>45 000 F</b><span>restent, 15 000 F retenus par mois</span></div>
+</div>
+<div class="bloc"><h3>Ce que l’employée y voit, et rien d’autre</h3><ul>
+<li>Son solde de congés, sa demande, la réponse.</li>
+<li>Son planning de la semaine.</li>
+<li>Ses bulletins, ses documents signés, son prêt.</li>
+<li>Ses entretiens signés.</li>
+</ul><p class="note" style="margin-top:8px">Rien sur les autres : ni salaire, ni congé, ni sanction. Mon mois garde ce qu’il fait déjà (pointer, ses points, ses pourboires). La demande de congé par WhatsApp, déjà construite, reste possible.</p>
+<p class="note" style="margin-top:8px">Exemple <span class="ex">exemple</span>. Cet espace demande que la base sache quel compte est quelle fiche : c’est la même réparation que la fuite 4.</p></div>
+</div>
+</div>
+
+</div>
+</section>
+
+<section aria-labelledby="t-droit">
+<h2 id="t-droit">Le droit béninois, en réglages</h2>
+<p class="dit">Le Trône ne tranche jamais une règle de droit. Chaque durée et chaque taux est un réglage, saisi une fois sur avis du comptable ou d’un juriste, comme les barèmes de paie aujourd’hui. Voici ce que disent les sources, qui ne sont pas toutes d’accord.</p>
+<div class="cadre" style="margin-top:14px"><table>
+<thead><tr><th>Règle</th><th>Ce que disent les sources</th><th>Dans le Trône</th><th>État</th></tr></thead>
+<tbody>
+<tr><td class="qui">Salaire minimum (SMIG)</td><td>52 000 F par mois depuis le 1er janvier 2023 (décret de décembre 2022). Les sources concordent sur le montant, pas sur le numéro du décret.</td><td>Un salaire de base sous ce seuil se signale sur la fiche.</td><td><span class="badge fait">concordant</span></td></tr>
+<tr><td class="qui">Congés payés</td><td>2 jours ouvrables par mois de service selon certaines, 2,5 selon d’autres (article 143 du Code du travail, loi n° 98-004 du 27 janvier 1998).</td><td>2 jours par mois, réglage déjà en place.</td><td><span class="badge alerte">à confirmer</span></td></tr>
+<tr><td class="qui">Période d’essai</td><td>Selon la catégorie : de 15 jours à 3 mois dans la convention collective générale, renouvelable une fois ; d’autres guides donnent d’autres durées.</td><td>Une durée par fonction, réglable.</td><td><span class="badge alerte">à confirmer</span></td></tr>
+<tr><td class="qui">CDD et renouvellement</td><td>La loi n° 2017-05 du 29 août 2017 ouvrirait le renouvellement sans limite ; la Cour constitutionnelle a été saisie (décision DCC 17-179). L’ancienne règle disait deux ans, renouvelable une fois.</td><td>Alerte 30 jours avant le terme, quel que soit le droit retenu.</td><td><span class="badge alerte">à confirmer</span></td></tr>
+<tr><td class="qui">CNSS</td><td>3,6 % salarié ; 6,4 %, 9 % et 2 % employeur : taux provisoires saisis à la construction de la paie.</td><td>En place, dans les paramètres de paie.</td><td><span class="badge alerte">à valider</span></td></tr>
+<tr><td class="qui">Préavis, déclaration d’embauche, accident du travail</td><td>Durées et délais non vérifiés.</td><td>Réglages vides tant qu’ils ne sont pas donnés : rien n’est inventé.</td><td><span class="badge alerte">à confirmer</span></td></tr>
+</tbody></table></div>
+<p class="sources">Sources lues le 14 octobre 2026 : <a href="https://wageindicator.org/fr-bj/travail-au-benin/convention-collective/benin---convention-collective-generale-du-travail">convention collective générale (WageIndicator)</a> · <a href="https://africarrieres.com/benin/fr/guide/droit-du-travail/types-de-contrats">Africarrières</a> · <a href="https://rivermate.com/fr/guides/benin/conge">Rivermate</a> · <a href="https://wageindicator.org/salary/minimum-wage/minimum-wages-news/2023/minimum-wage-revised-in-benin-from-01-january-2023-june-23-2023">SMIG 2023 (WageIndicator)</a> · <a href="https://wageindicator.org/fr-bj/travail-au-benin/droit-du-travail/contrats-et-licenciements">contrats et licenciements (WageIndicator)</a> · <a href="https://courconstitutionnelle.bj/files/decisions/DCC17-179_10_aout_2017.pdf">Cour constitutionnelle, DCC 17-179</a>. Aucune n’est le texte officiel : le comptable ou un juriste tranche.</p>
+</section>
+
+<section aria-labelledby="t-voit">
+<h2 id="t-voit">Qui voit quoi</h2>
+<p class="dit">Proposition, qui suit le premier choix ci-dessous. La base tient ces règles, pas seulement l’écran.</p>
+<div class="cadre" style="margin-top:14px"><table>
+<thead><tr><th>Ce qui se lit</th><th>Direction (Y. et B.)</th><th>Rôle « Ressources humaines »</th><th>La personne elle-même</th><th>Le reste de l’équipe</th></tr></thead>
+<tbody>
+<tr><td class="qui">Noms, fonctions, planning</td><td>Tout</td><td>Tout</td><td>Le sien</td><td>Noms et planning</td></tr>
+<tr><td class="qui">Congés et absences</td><td>Tout</td><td>Tout</td><td>Les siens, et demander</td><td>Qui est absent, sans le motif</td></tr>
+<tr><td class="qui">Salaire, contrat, paie</td><td>Tout ; la paie au souverain</td><td>Rien</td><td>Les siens</td><td>Rien</td></tr>
+<tr><td class="qui">Dossier, pièces, aptitude</td><td>Tout</td><td>Les pièces, pas l’aptitude</td><td>Le sien</td><td>Rien</td></tr>
+<tr><td class="qui">Discipline, entretiens</td><td>Tout</td><td>Rien</td><td>Les siens, signés</td><td>Rien</td></tr>
+<tr><td class="qui">Recrutement</td><td>Tout</td><td>Tout</td><td>Rien</td><td>Rien</td></tr>
+<tr><td class="qui">Grille des compétences</td><td>Tout</td><td>Tout</td><td>La sienne</td><td>Qui sait faire quoi</td></tr>
+</tbody></table></div>
+</section>
+
+<section aria-labelledby="t-fera">
+<h2 id="t-fera">Ce qu’il fera, ce qu’il ne fera pas</h2>
+<div class="regles">
+<div class="bloc indigo"><h3>La règle à retenir</h3><p style="margin:8px 0 0">Chaque personne a un dossier complet, daté et à jour, qu’elle peut lire pour ce qui la concerne. Rien ne se décide sur elle sans trace écrite, et rien ne s’efface à son départ.</p></div>
+<div class="bloc"><h3>Il ne fera pas</h3><ul>
+<li>Télédéclarer à la CNSS ou aux impôts : il prépare, rappelle, garde la preuve.</li>
+<li>Surveiller : aucune position suivie, aucune caméra ; la preuve de présence ne regarde que l’instant du pointage.</li>
+<li>Noter les personnes, ni par une IA ni par un classement entre collègues.</li>
+<li>Garder des données de santé : apte ou pas, et la date, rien d’autre.</li>
+<li>Trancher une règle de droit : il applique les réglages que vous donnez.</li>
+<li>Sanctionner seul : une absence ouvre une question, jamais une sanction.</li>
+</ul></div>
+<div class="bloc"><h3>Pourquoi pas un logiciel RH du commerce</h3><p class="note" style="margin-top:6px">La paie béninoise, les commissions, les pourboires, les prêts, l’agenda et l’Académie MND sont déjà dans le Trône ; un outil à part les recopierait à la main chaque mois. Il n’y a aucun abonnement de plus, et qui voit quoi reste tenu par la base de la Maison.</p></div>
+</div>
+</section>
+
+<section aria-labelledby="t-choix">
+<h2 id="t-choix">Quatre choix à faire</h2>
+<p class="dit">Ma proposition est marquée. Vos choix s’enregistrent d’un toucher : je les lis avant de construire.</p>
+<div class="regles">
+<form class="arbitrage" data-cle="qui"><fieldset><legend><span class="n">1</span> Qui tient les ressources humaines ?</legend>
+<label class="choix"><input type="radio" name="qui" value="role"><span><b>Un rôle « Ressources humaines », sans la paie</b><em>ma proposition</em><br>Donné depuis Accès &amp; rôles. Il tient le registre, le recrutement, les arrivées et départs, le planning, les congés et les compétences. La paie reste au souverain ; la discipline, les entretiens et l’aptitude à la direction.</span></label>
+<label class="choix"><input type="radio" name="qui" value="direction"><span><b>La direction seule</b><br>Y. et B. tiennent tout ; un rôle s’ouvrira plus tard.</span></label>
+<label class="choix"><input type="radio" name="qui" value="gerant"><span><b>Le gérant tient tout, paie comprise</b><br>La paie s’ouvre au gérant dans la base ; aujourd’hui ses écrans de paie restent vides.</span></label>
+</fieldset><p class="etat-choix" aria-live="polite"></p></form>
+<form class="arbitrage" data-cle="espace"><fieldset><legend><span class="n">2</span> L’espace de chaque employée</legend>
+<label class="choix"><input type="radio" name="espace" value="complet"><span><b>Mon espace complet</b><em>ma proposition</em><br>Son solde et sa demande de congé, son planning, ses bulletins, ses documents signés, son prêt, ses entretiens.</span></label>
+<label class="choix"><input type="radio" name="espace" value="leger"><span><b>Le planning et le solde seulement</b><br>Les bulletins continuent de partir en PDF par WhatsApp, comme aujourd’hui.</span></label>
+<label class="choix"><input type="radio" name="espace" value="rien"><span><b>Rien de plus qu’aujourd’hui</b><br>Mon mois reste au pointage, aux points et aux pourboires.</span></label>
+</fieldset><p class="etat-choix" aria-live="polite"></p></form>
+<form class="arbitrage" data-cle="grille"><fieldset><legend><span class="n">3</span> La grille des compétences et l’agenda</legend>
+<label class="choix"><input type="radio" name="grille" value="avertit"><span><b>Elle avertit</b><em>ma proposition</em><br>Un rendez-vous donné à quelqu’un qui n’est pas autonome sur ce geste se signale ; on peut passer outre, et c’est noté.</span></label>
+<label class="choix"><input type="radio" name="grille" value="bloque"><span><b>Elle décide</b><br>L’agenda refuse de donner un geste à qui n’est pas autonome.</span></label>
+<label class="choix"><input type="radio" name="grille" value="apart"><span><b>Elle reste à part</b><br>Elle sert à la formation, l’agenda ne la lit pas.</span></label>
+</fieldset><p class="etat-choix" aria-live="polite"></p></form>
+<form class="arbitrage" data-cle="ordre"><fieldset><legend><span class="n">4</span> L’ordre de construction</legend>
+<label class="choix"><input type="radio" name="ordre" value="fuites"><span><b>Les fuites et la paie d’abord</b><em>ma proposition</em><br>Puis le dossier, l’arrivée et le départ ; puis le planning, les congés et Mon espace ; puis le reste.</span></label>
+<label class="choix"><input type="radio" name="ordre" value="planning"><span><b>Le planning et les congés d’abord</b><br>Ce que l’équipe sent tous les jours, avant le reste. Les fuites se ferment quand même en premier.</span></label>
+<label class="choix"><input type="radio" name="ordre" value="tout"><span><b>Tout d’un coup</b><br>Une seule mise en ligne, plus longue à venir.</span></label>
+</fieldset><p class="etat-choix" aria-live="polite"></p></form>
+</div>
+</section>
+
+<section aria-labelledby="t-manque">
+<h2 id="t-manque">Ce qu’il me manque</h2>
+<div class="bloc manques" style="margin-top:14px"><ul>
+<li>Qui emploie aujourd’hui l’équipe : l’établissement MAISON MND ou ACIA 1, et le numéro employeur à la CNSS.</li>
+<li>Le comptable ou un juriste pour les réglages : congés, période d’essai par fonction, CDD, préavis, dates de la CNSS et de l’ITS.</li>
+<li>L’échelle des sanctions de votre règlement intérieur, et le délai après lequel une sanction sort du dossier.</li>
+<li>Les jours d’ouverture de la semaine, pour le planning.</li>
+<li>Si vous choisissez le rôle : qui le tiendra.</li>
+</ul><p class="note" style="margin-top:10px">Rien de tout cela n’est nécessaire pour construire : les fiches, les contrats et les congés réels sont déjà dans le Trône, et chaque réglage se remplit le jour où l’information arrive.</p></div>
+</section>
+
+<section aria-labelledby="t-lots">
+<h2 id="t-lots">La construction, en cinq lots</h2>
+<div class="lots">
+<div class="lot"><b>Lot 1 · Fermer les fuites et relier la paie.</b> Le compte rattaché à sa fiche dans la base ; salaire, contrat et paie lisibles de la direction seule ; la notification de paie à qui valide ; le run prérempli par les primes, pourboires et absences ; les fenêtres éteintes rallumées.</div>
+<div class="lot"><b>Lot 2 · Le dossier, l’arrivée et le départ.</b> Fin du CDD et de l’essai, pièces du dossier, liste du premier mois par fonction, départ qui archive au lieu d’effacer, solde de tout compte, certificat de travail.</div>
+<div class="lot"><b>Lot 3 · Le planning, les congés et Mon espace.</b> La semaine de chacune, lue par l’agenda ; la demande de congé depuis Mon espace ; les bulletins et les documents signés à leur place.</div>
+<div class="lot"><b>Lot 4 · Le recrutement et les compétences.</b> Postes, candidatures, essai pratique, la grille geste par geste et le plan de formation.</div>
+<div class="lot"><b>Lot 5 · Entretiens, discipline, obligations, Aujourd’hui.</b> Les quatre entretiens, la procédure et le registre, le calendrier légal, et l’accueil du matin.</div>
+<p class="note">Chaque lot arrive avec ses règles d’accès dans la base et un banc qui les prouve, pannes plantées, comme le secrétariat du 14 octobre 2026.</p>
+</div>
+</section>
+</div>
+<script>
+(function () {
+  var CLE_ONGLET = 'rh-maquette-onglet', CLE_CHOIX = 'rh-maquette-choix';
+  var NOMS = ['qui', 'espace', 'grille', 'ordre'];
+  function lis(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+  function ecris(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+  var onglets = Array.prototype.slice.call(document.querySelectorAll('.onglet'));
+  var vues = Array.prototype.slice.call(document.querySelectorAll('.vue'));
+  function montre(nom) {
+    onglets.forEach(function (o) { o.setAttribute('aria-selected', o.dataset.vue === nom ? 'true' : 'false'); });
+    vues.forEach(function (v) { v.hidden = v.dataset.vue !== nom; });
+    ecris(CLE_ONGLET, nom);
+  }
+  onglets.forEach(function (o) { o.addEventListener('click', function () { montre(o.dataset.vue); }); });
+  document.querySelectorAll('.mod').forEach(function (m) {
+    m.addEventListener('click', function () { montre(m.dataset.va); document.getElementById('ecran').scrollIntoView({ behavior: 'smooth', block: 'start' }); });
+  });
+  var depart = lis(CLE_ONGLET);
+  if (depart && vues.some(function (v) { return v.dataset.vue === depart; })) montre(depart);
+
+  document.querySelectorAll('.ligne > button').forEach(function (b) {
+    var d = b.parentElement.querySelector('.detail');
+    var plein = d && d.innerHTML.trim() !== '';
+    b.setAttribute('aria-expanded', 'false');
+    if (!plein) { b.style.cursor = 'default'; return; }
+    b.addEventListener('click', function () {
+      var ouvrir = d.hidden;
+      var vue = b.closest('.vue');
+      vue.querySelectorAll('.ligne .detail').forEach(function (x) { x.hidden = true; });
+      vue.querySelectorAll('.ligne > button').forEach(function (x) { x.setAttribute('aria-expanded', 'false'); });
+      if (ouvrir) { d.hidden = false; b.setAttribute('aria-expanded', 'true'); }
+    });
+  });
+
+  var choix = {};
+  try { choix = JSON.parse(lis(CLE_CHOIX) || '{}') || {}; } catch (e) { choix = {}; }
+  var docRef = null, file = Promise.resolve();
+  function applique() {
+    NOMS.forEach(function (k) {
+      if (!choix[k]) return;
+      var i = document.querySelector('input[name="' + k + '"][value="' + choix[k] + '"]');
+      if (i) i.checked = true;
+    });
+  }
+  function dis(k, t) { var p = document.querySelector('form[data-cle="' + k + '"] .etat-choix'); if (p) p.textContent = t; }
+  applique();
+  document.querySelectorAll('form.arbitrage').forEach(function (f) { f.addEventListener('submit', function (e) { e.preventDefault(); }); });
+  document.querySelectorAll('form.arbitrage input').forEach(function (i) {
+    i.addEventListener('change', function () {
+      choix[i.name] = i.value;
+      ecris(CLE_CHOIX, JSON.stringify(choix));
+      if (!docRef) { dis(i.name, 'Gardé sur ce poste.'); return; }
+      dis(i.name, 'Enregistrement…');
+      var corps = {};
+      NOMS.forEach(function (k) { if (choix[k]) corps[k] = choix[k]; });
+      corps.quand = new Date().toISOString();
+      file = file.then(function () { return docRef.set(corps); }).then(
+        function () { dis(i.name, 'Choix enregistré.'); },
+        function () { dis(i.name, 'Gardé sur ce poste ; l’enregistrement partagé a échoué.'); });
+    });
+  });
+  if (window.claude && typeof window.claude.use === 'function') {
+    window.claude.use('db').then(function (db) {
+      if (!db) return;
+      docRef = db.doc('maquette/arbitrages');
+      return docRef.get().then(function (s) {
+        if (!s.exists) return;
+        var v = s.data() || {};
+        NOMS.forEach(function (k) { if (typeof v[k] === 'string') choix[k] = v[k]; });
+        ecris(CLE_CHOIX, JSON.stringify(choix));
+        applique();
+      });
+    }).catch(function () {});
+  }
+})();
+</script>
+</body></html>
