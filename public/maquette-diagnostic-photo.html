@@ -1,0 +1,416 @@
+<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head><body><title>Diagnostic Capillaire par Photo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,400&family=Jost:wght@300;400;500&display=swap">
+<style>
+/* La maquette suit le Trône : ivoire et indigo, cuivre en accent, Cormorant pour les titres, Jost pour le texte.
+   Mise en page : une colonne de lecture ; le téléphone de la cliente à côté de ce que le Trône en voit. */
+:root { --fond:#F6F1E7; --carte:#FFFDF9; --ecran:#FBF8F2; --encre:#1E2150; --texte:#2A2722; --doux:#5E5750; --filet:#E3DACB; --cuivre:#9A6036; --cuivre-clair:#F3E6D8; --puce:#EFE6D6; --vert:#2F6B4F; --vert-clair:#E3F0E8; --rouge:#8F3B30; --rouge-clair:#F7E7E3; --barre:#1E2150; --barre-texte:#F6F1E7; color-scheme: light; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --fond:#15173A; --carte:#1E2150; --ecran:#1A1C45; --encre:#F6F1E7; --texte:#E9E3D7; --doux:#B9B4C9; --filet:#2E3266; --cuivre:#D6A06F; --cuivre-clair:#3A2E3A; --puce:#272B6C; --vert:#8FD1AE; --vert-clair:#1F3B3A; --rouge:#E7A193; --rouge-clair:#3B2433; --barre:#0F1130; --barre-texte:#F6F1E7; color-scheme: dark; } }
+:root[data-theme="dark"] { --fond:#15173A; --carte:#1E2150; --ecran:#1A1C45; --encre:#F6F1E7; --texte:#E9E3D7; --doux:#B9B4C9; --filet:#2E3266; --cuivre:#D6A06F; --cuivre-clair:#3A2E3A; --puce:#272B6C; --vert:#8FD1AE; --vert-clair:#1F3B3A; --rouge:#E7A193; --rouge-clair:#3B2433; --barre:#0F1130; --barre-texte:#F6F1E7; color-scheme: dark; }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--fond); color: var(--texte); font: 300 16px/1.6 "Jost", system-ui, sans-serif; padding-block: 32px 80px; padding-inline: 16px; }
+.page { max-width: 1120px; margin: 0 auto; display: grid; grid-template-columns: minmax(0, 1fr); gap: 38px; }
+.page > * { min-width: 0; }
+a { color: var(--cuivre); }
+.n { font: 400 .72em "Jost", sans-serif; color: var(--cuivre); margin-right: 8px; vertical-align: 2px; }
+.sur { font-size: 11.5px; letter-spacing: .18em; text-transform: uppercase; color: var(--cuivre); margin: 0; font-weight: 400; }
+h1 { font: 300 clamp(36px, 6vw, 56px)/1.05 "Cormorant Garamond", Georgia, serif; color: var(--encre); margin: 6px 0 0; text-wrap: balance; }
+h2 { font: 400 32px/1.15 "Cormorant Garamond", Georgia, serif; color: var(--encre); margin: 10px 0 0; text-wrap: balance; }
+h3 { font: 400 22px/1.2 "Cormorant Garamond", Georgia, serif; color: var(--encre); margin: 0; }
+.chapeau { color: var(--doux); max-width: 70ch; margin: 12px 0 0; }
+.dit { color: var(--doux); margin: 4px 0 0; max-width: 70ch; }
+.note { font-size: 13.5px; color: var(--doux); margin: 0; }
+.ex, .manque { font-size: 11px; letter-spacing: .06em; text-transform: uppercase; border-radius: 3px; padding: 0 5px; margin-left: 6px; vertical-align: 1px; white-space: nowrap; }
+.ex { color: var(--doux); border: 1px solid var(--filet); }
+.manque { color: var(--cuivre); border: 1px dashed var(--cuivre); }
+.regles { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap: 12px; margin-top: 14px; }
+.bloc { background: var(--carte); border: 1px solid var(--filet); border-radius: 6px; padding: 16px 18px; font-size: 14.5px; display: grid; gap: 6px; align-content: start; }
+.bloc p { margin: 0; }
+.bloc ul { margin: 4px 0 0; padding-left: 20px; display: grid; gap: 5px; }
+.bloc.alerte { border-color: var(--rouge); background: var(--rouge-clair); }
+.bloc.alerte h3 { color: var(--rouge); }
+.bloc.manques { border: 1px dashed var(--cuivre); }
+.etat { justify-self: start; font-size: 12px; letter-spacing: .04em; border-radius: 999px; padding: 2px 10px; }
+.etat.place { background: var(--vert-clair); color: var(--vert); }
+.etat.relier { background: var(--cuivre-clair); color: var(--cuivre); }
+.etat.faux { background: var(--rouge-clair); color: var(--rouge); }
+
+/* Ce qu'une photo dit, et ce qu'elle tait */
+.deux { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); gap: 12px; margin-top: 14px; }
+.liste-voit { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; font-size: 14.5px; }
+.liste-voit li { display: grid; grid-template-columns: 18px minmax(0, 1fr); gap: 8px; }
+.liste-voit li::before { content: ""; width: 10px; height: 10px; border-radius: 50%; translate: 0 7px; background: var(--vert); }
+.liste-voit.non li::before { background: none; border: 1.5px solid var(--rouge); }
+
+/* Les écrans */
+.scenes { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 14px; }
+.scene-btn { font: 400 14px "Jost", sans-serif; border: 1px solid var(--filet); background: var(--carte); color: var(--texte); border-radius: 999px; padding: 6px 14px; cursor: pointer; }
+.scene-btn[aria-pressed="true"] { background: var(--encre); color: var(--fond); border-color: var(--encre); }
+.scene-btn:focus-visible, .choix input:focus-visible { outline: 2px solid var(--cuivre); outline-offset: 2px; }
+.scene { display: grid; grid-template-columns: minmax(0, 380px) minmax(0, 1fr); gap: 22px; align-items: start; margin-top: 16px; }
+@media (max-width: 820px) { .scene { grid-template-columns: minmax(0, 1fr); } }
+.tel { width: 100%; max-width: 380px; justify-self: center; border: 1px solid var(--filet); border-radius: 28px; overflow: clip; background: var(--fond); }
+.tel-tete { background: var(--barre); color: var(--barre-texte); padding: 12px 16px; display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.tel-tete b { font: 400 18px/1.2 "Cormorant Garamond", serif; }
+.tel-tete span { font-size: 11.5px; opacity: .8; }
+.tel-corps { padding: 16px 14px 20px; display: grid; gap: 10px; min-height: 460px; align-content: start; font-size: 14px; }
+.tel-corps h4 { margin: 0; font: 400 24px/1.15 "Cormorant Garamond", serif; color: var(--encre); }
+.tel-corps p { margin: 0; }
+.eyebrow { font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--cuivre); }
+.case { display: flex; gap: 8px; align-items: flex-start; border: 1px solid var(--filet); border-radius: 8px; padding: 8px 10px; background: var(--carte); font-size: 13.5px; }
+.case i { flex: none; width: 16px; height: 16px; border: 1.5px solid var(--cuivre); border-radius: 3px; translate: 0 2px; }
+.case.coche i { background: var(--cuivre); }
+.cta { font: 400 14px "Jost", sans-serif; text-align: center; border-radius: 6px; padding: 10px 14px; background: var(--encre); color: var(--fond); }
+.cta.cuivre { background: var(--cuivre); color: var(--carte); }
+.cta.leger { background: none; color: var(--encre); border: 1px solid var(--filet); }
+.cadres { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.cadre-photo { aspect-ratio: 3 / 4; border-radius: 8px; max-width: 100%; display: grid; align-content: end; padding: 6px; font-size: 11px; line-height: 1.25; color: #FFFDF9; background: linear-gradient(160deg, #6E4A33, #2B1E18 75%); }
+.cadre-photo.vide { background: var(--carte); color: var(--doux); border: 1px dashed var(--filet); align-content: center; text-align: center; }
+.conseil-photo { font-size: 12.5px; color: var(--doux); }
+.question { border: 1px solid var(--filet); border-radius: 8px; padding: 10px; background: var(--carte); display: grid; gap: 6px; }
+.question b { font-weight: 400; color: var(--encre); }
+.puces { display: flex; flex-wrap: wrap; gap: 6px; }
+.puce { font-size: 13px; border: 1px solid var(--filet); border-radius: 999px; padding: 3px 10px; background: var(--fond); }
+.puce.on { background: var(--encre); color: var(--fond); border-color: var(--encre); }
+.vu { display: grid; gap: 6px; }
+.vu div { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: baseline; border-bottom: 1px dashed var(--filet); padding-bottom: 5px; }
+.vu small { font-size: 11.5px; border-radius: 999px; padding: 0 8px; white-space: nowrap; }
+.vu small.sur { background: var(--vert-clair); color: var(--vert); letter-spacing: 0; text-transform: none; }
+.vu small.peut { background: var(--cuivre-clair); color: var(--cuivre); }
+.reco { border: 1px solid var(--filet); border-radius: 8px; background: var(--carte); padding: 10px; display: grid; gap: 6px; }
+.produit { display: grid; grid-template-columns: 44px minmax(0, 1fr) auto; gap: 10px; align-items: center; }
+.produit .fiole { width: 44px; height: 56px; border-radius: 10px 10px 6px 6px; background: linear-gradient(180deg, var(--cuivre-clair), var(--cuivre)); }
+.produit b { font-weight: 400; color: var(--encre); display: block; }
+.produit small { color: var(--doux); font-size: 12px; }
+.produit .prix { font-variant-numeric: lining-nums tabular-nums; color: var(--encre); white-space: nowrap; }
+.relu { font-size: 12.5px; color: var(--vert); background: var(--vert-clair); border-radius: 6px; padding: 6px 10px; }
+.sante { border: 1px solid var(--rouge); background: var(--rouge-clair); border-radius: 8px; padding: 10px; display: grid; gap: 6px; }
+.sante b { color: var(--rouge); font-weight: 500; }
+.trone { display: grid; gap: 12px; }
+.trone-carte { background: var(--carte); border: 1px solid var(--filet); border-radius: 8px; padding: 14px 16px; display: grid; gap: 6px; font-size: 14.5px; }
+.trone-carte h4 { margin: 0; font: 400 11.5px "Jost", sans-serif; letter-spacing: .14em; text-transform: uppercase; color: var(--cuivre); }
+.trone-carte p { margin: 0; }
+.trone-carte.alerte { border-color: var(--rouge); background: var(--rouge-clair); }
+
+/* Les correspondances validées */
+.cadre { overflow-x: auto; border: 1px solid var(--filet); border-radius: 6px; background: var(--carte); margin-top: 14px; }
+table { border-collapse: collapse; width: 100%; font-size: 14px; min-width: 720px; }
+th { text-align: left; font-weight: 400; font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--doux); padding: 9px 12px; border-bottom: 1px solid var(--filet); white-space: nowrap; }
+td { padding: 9px 12px; border-bottom: 1px solid var(--filet); vertical-align: top; }
+tr:last-child td { border-bottom: 0; }
+td.q { color: var(--encre); }
+tr.rouge td { background: var(--rouge-clair); }
+
+/* Garde-fous, coûts, choix */
+.garde { list-style: none; margin: 14px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); gap: 10px; }
+.garde li { background: var(--carte); border: 1px solid var(--filet); border-left: 3px solid var(--encre); border-radius: 6px; padding: 10px 14px; font-size: 14.5px; }
+.garde b { color: var(--encre); font-weight: 500; }
+.couts { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 250px), 1fr)); gap: 12px; margin-top: 14px; }
+.cout { background: var(--carte); border: 1px solid var(--filet); border-radius: 6px; padding: 14px 16px; display: grid; gap: 6px; align-content: start; font-size: 14.5px; }
+.cout .prix { font: 300 30px/1.1 "Jost", sans-serif; color: var(--encre); font-variant-numeric: lining-nums tabular-nums; }
+.cout .prix small { font-size: 14px; color: var(--doux); }
+.cout p { margin: 0; }
+.cout.zero { border-color: var(--vert); }
+.arbitrage { background: var(--carte); border: 1px solid var(--filet); border-radius: 6px; padding: 16px 18px; display: grid; gap: 10px; }
+.arbitrage fieldset { border: 0; margin: 0; padding: 0; display: grid; gap: 8px; min-width: 0; }
+.arbitrage legend { font: 400 21px/1.25 "Cormorant Garamond", serif; color: var(--encre); margin-bottom: 4px; padding: 0; }
+.choix { display: flex; gap: 10px; align-items: flex-start; border: 1px solid var(--filet); border-radius: 6px; padding: 9px 12px; cursor: pointer; font-size: 14.5px; }
+.choix:has(input:checked) { border-color: var(--cuivre); background: var(--cuivre-clair); }
+.choix input { accent-color: var(--cuivre); margin-top: 4px; flex: none; }
+.choix b { color: var(--encre); font-weight: 500; }
+.choix em { font-style: normal; color: var(--cuivre); font-size: 12.5px; letter-spacing: .04em; margin-left: 6px; }
+.etat-choix { font-size: 13px; color: var(--vert); min-height: 1.4em; margin: 0; }
+.lots { display: grid; gap: 10px; margin-top: 14px; }
+.lot { background: var(--carte); border: 1px solid var(--filet); border-left: 3px solid var(--cuivre); border-radius: 6px; padding: 12px 16px; font-size: 14.5px; }
+.lot.fait { border-left-color: var(--vert); }
+@media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
+</style>
+
+<div class="page">
+<header>
+<p class="sur">Maison MND · Maquette à valider · 14 octobre 2026</p>
+<h1>Diagnostic Capillaire par Photo</h1>
+<p class="chapeau">Une personne qui veut commencer ses locks, ou dont les locks souffrent, photographie son cuir chevelu et ses pointes. La Maison lit ce que la photo montre (sécheresse visible, casse, résidus, racines), lui conseille le rituel qui convient et, au plus, deux produits de la boutique. Ce que la photo ne peut pas dire, la Maison le dit aussi. Rien n’est construit avant votre validation.</p>
+</header>
+
+<section aria-labelledby="t-existe">
+<h2 id="t-existe">D’où l’on part</h2>
+<div class="regles">
+<div class="bloc"><span class="etat faux">texte corrigé le 14 octobre 2026, à mettre en ligne</span><h3>La Consultation</h3><p>Le rite payant (15 000 F) demande déjà trois photos. Il annonçait que « l’intelligence de la Maison lit votre couronne » ; en vérité, son diagnostic ne lisait que le questionnaire, et les photos restaient sur le téléphone. Le texte corrigé dit la vérité ; il part en ligne sur votre oui. Ce module rendrait la lecture des photos réelle.</p></div>
+<div class="bloc"><span class="etat place">en ligne</span><h3>Ma Couronne</h3><p>L’espace des clientes connaît leur fiche, leurs rendez-vous et leurs bilans. Un diagnostic y resterait attaché à sa fiche, et le maître le verrait avant la séance.</p></div>
+<div class="bloc"><span class="etat relier">à compléter</span><h3>La boutique au Trône</h3><p>Chaque produit n’y porte que son nom, son prix et son stock. Pour conseiller juste, il faut écrire ce que chacun soigne et ce qu’il contient. Les sept pages « ingrédients » du site (aloès, hibiscus, baobab, karité, neem, moringa, avocat) donnent la base.</p></div>
+</div>
+</section>
+
+<section aria-labelledby="t-photo">
+<h2 id="t-photo">Ce qu’une photo dit, et ce qu’elle tait</h2>
+<p class="dit">C’est la limite à poser avant tout : elle décide de ce que la Maison peut promettre.</p>
+<div class="deux">
+<div class="bloc"><h3>Visible sur une bonne photo</h3><ul class="liste-voit">
+<li>Des longueurs ternes, des pointes rêches : une sécheresse probable.</li>
+<li>Des pointes amincies, des mèches qui cassent.</li>
+<li>Des résidus de produit, des peluches dans les locks.</li>
+<li>Des racines qui ont poussé, un relâchement à reprendre.</li>
+<li>Des locks qui fusionnent ou se dédoublent.</li>
+<li>Un cuir chevelu qui pèle légèrement.</li>
+</ul></div>
+<div class="bloc"><h3>Invisible, ou hors de notre métier</h3><ul class="liste-voit non">
+<li>La porosité : elle se teste à l’eau et au toucher. Une question la remplace, et le résultat reste « à confirmer ».</li>
+<li>La densité exacte, la solidité réelle de la fibre.</li>
+<li>Une maladie du cuir chevelu : plaques, rougeurs, croûtes, chute par zones. La Maison ne la nomme pas ; elle oriente vers un médecin ou un dermatologue.</li>
+<li>Ce qu’une photo floue, prise de nuit ou avec un filtre empêche de voir : la Maison redemande une photo plutôt que de deviner.</li>
+</ul></div>
+</div>
+</section>
+
+<section aria-labelledby="t-ecrans">
+<h2 id="t-ecrans">Le parcours, écran par écran</h2>
+<p class="dit">Le téléphone de la cliente, et ce que l’équipe en voit au Trône. Produits et prix d’exemple : la boutique réelle se lira au catalogue.</p>
+<div class="scenes" role="group" aria-label="Choisir un écran">
+<button type="button" class="scene-btn" data-scene="accord" aria-pressed="true">1 · L’accord</button>
+<button type="button" class="scene-btn" data-scene="photos" aria-pressed="false">2 · Les photos</button>
+<button type="button" class="scene-btn" data-scene="questions" aria-pressed="false">3 · Deux questions</button>
+<button type="button" class="scene-btn" data-scene="resultat" aria-pressed="false">4 · Le résultat</button>
+<button type="button" class="scene-btn" data-scene="sante" aria-pressed="false">Si le cuir chevelu inquiète</button>
+</div>
+<div class="scene">
+<div class="tel"><div class="tel-tete"><b>Ma Couronne</b><span>Diagnostic par photo</span></div><div class="tel-corps" id="tel"></div></div>
+<div class="trone" id="trone"></div>
+</div>
+
+<template id="tel-accord">
+<span class="eyebrow">Avant les photos</span>
+<h4>Ce que la Maison fait de vos photos</h4>
+<p>Elles servent à votre diagnostic, et à rien d’autre. Une intelligence artificielle les lit, puis un maître de la Maison relit ce qu’elle en dit.</p>
+<p>Elles sont gardées 90 jours, puis effacées, sauf si vous choisissez de les garder dans votre dossier. Elles ne sont jamais publiées.</p>
+<p>Ce diagnostic n’est pas un examen médical.</p>
+<div class="case coche"><i></i><span>J’accepte que mes photos soient lues pour mon diagnostic.</span></div>
+<div class="case"><i></i><span>Garder mes photos dans mon dossier, pour suivre ma couronne.</span></div>
+<div class="cta">Continuer</div>
+</template>
+<template id="trone-accord">
+<div class="trone-carte"><h4>Pourquoi un accord à part</h4><p>Une photo de la tête est une donnée personnelle. L’accord dit à quoi elle sert, combien de temps elle reste, et qui la lit : c’est ce que demande la loi béninoise sur les données (Code du numérique), et ce que la page Confidentialité du site devra dire aussi.</p></div>
+<div class="trone-carte"><h4>Une mineure</h4><p>Pour une enfant, c’est le parent qui donne l’accord, depuis son propre compte, comme pour les rendez-vous de MND Kids.</p></div>
+</template>
+
+<template id="tel-photos">
+<span class="eyebrow">Étape 1 sur 3</span>
+<h4>Trois photos de votre couronne</h4>
+<div class="cadres">
+<div class="cadre-photo">Vue du dessus, sur une raie</div>
+<div class="cadre-photo">Les pointes, de près</div>
+<div class="cadre-photo vide">La nuque<br>Ajouter</div>
+</div>
+<p class="conseil-photo">À la lumière du jour, sans filtre, sans le visage. Si une photo est trop sombre ou floue, la Maison vous le dira tout de suite.</p>
+<div class="cta">Continuer</div>
+</template>
+<template id="trone-photos">
+<div class="trone-carte"><h4>Les mêmes trois angles que La Consultation</h4><p>Vue du dessus pour le cuir chevelu et les racines, les pointes pour la casse et la sécheresse, la nuque pour la tenue. Les photos sont réduites sur le téléphone avant l’envoi : moins de données mobiles, et une lecture moins chère.</p></div>
+<div class="trone-carte"><h4>Une photo qui ne se lit pas</h4><p>Trop sombre, floue, sans cheveux visibles : elle est refusée avec la raison, et la cliente la reprend. Aucun diagnostic sur une image douteuse.</p></div>
+</template>
+
+<template id="tel-questions">
+<span class="eyebrow">Étape 2 sur 3</span>
+<h4>Deux choses que la photo ne dit pas</h4>
+<div class="question"><b>Après un lavage, vos locks sèchent en…</b><div class="puces"><span class="puce">moins d’une heure</span><span class="puce on">quelques heures</span><span class="puce">plus d’une journée</span><span class="puce">je ne sais pas</span></div></div>
+<div class="question"><b>Ressentez-vous une gêne au cuir chevelu ?</b><div class="puces"><span class="puce on">aucune</span><span class="puce">ça gratte un peu</span><span class="puce">démangeaisons fortes, douleur ou plaques</span></div></div>
+<div class="cta">Voir mon diagnostic</div>
+</template>
+<template id="trone-questions">
+<div class="trone-carte"><h4>La porosité, estimée et dite comme telle</h4><p>Le temps de séchage donne une indication, jamais une mesure. Le résultat écrit « à confirmer en séance ».</p></div>
+<div class="trone-carte alerte"><h4>La gêne forte change tout le parcours</h4><p>« Démangeaisons fortes, douleur ou plaques » : aucun produit n’est conseillé, la cliente voit l’écran « Si le cuir chevelu inquiète », et l’équipe est prévenue.</p></div>
+</template>
+
+<template id="tel-resultat">
+<span class="eyebrow">Votre diagnostic · mercredi 14 octobre 2026</span>
+<h4>Ce que nous voyons</h4>
+<div class="vu">
+<div><span>Des pointes sèches et rêches sur la nuque</span><small class="sur">bien visible</small></div>
+<div><span>Des racines qui ont poussé de 2 à 3 cm</span><small class="sur">bien visible</small></div>
+<div><span>Quelques résidus de produit sur le dessus</span><small class="peut">à confirmer</small></div>
+<div><span>Porosité plutôt haute, d’après votre séchage</span><small class="peut">à confirmer</small></div>
+</div>
+<div class="reco"><span class="eyebrow">Le rituel conseillé</span><b style="font-weight:400;color:var(--encre)">Hydratation (DÀNDÀN™), puis un resserrage des racines (SÍNSIN™)</b><div class="cta cuivre">Réserver</div></div>
+<div class="reco"><span class="eyebrow">À la maison, d’ici là</span>
+<div class="produit"><span class="fiole"></span><span><b>Huile Couronne</b><small>Sceller · brillance et protection des pointes</small></span><span class="prix">12 000 F</span></div>
+<div class="cta leger">La mettre de côté pour mon rendez-vous</div></div>
+<p class="relu">Relu par un maître de la Maison le mercredi 14 octobre 2026 à 15 h 20.</p>
+</template>
+<template id="trone-resultat">
+<div class="trone-carte"><h4>Clientèle › Diagnostics photo</h4><p>La lecture arrive en « à relire » : les photos, ce que Claude en dit, le rituel et le produit proposés. Le maître corrige d’un geste, puis valide. Avec le choix n° 2 « instantané », la cliente voit déjà le résultat ; la mention « relu » s’ajoute à la validation.</p></div>
+<div class="trone-carte"><h4>Rien hors de la liste</h4><p>Claude ne choisit le rituel et le produit que dans la table des correspondances que vous validez (plus bas). Un produit en rupture de stock n’est jamais proposé.</p></div>
+<div class="trone-carte"><h4>Le produit mis de côté</h4><p>Il s’ajoute à la Gamme de son prochain rendez-vous : il est prêt à la caisse quand elle arrive, et compté dans les ventes nées d’un diagnostic.</p></div>
+</template>
+
+<template id="tel-sante">
+<span class="eyebrow">Votre diagnostic</span>
+<h4>Votre cuir chevelu demande un regard de près</h4>
+<div class="sante"><b>Nous ne conseillons aucun produit à distance.</b><p>Ce que vous décrivez, ou ce que montre la photo, peut relever d’un soin de la peau. Un médecin ou un dermatologue saura l’examiner. La Maison vous reçoit volontiers ensuite, ou avant, pour une consultation.</p></div>
+<div class="cta">Réserver une consultation</div>
+<div class="cta leger">Parler à la Maison sur WhatsApp</div>
+</template>
+<template id="trone-sante">
+<div class="trone-carte alerte"><h4>Signalé à l’équipe</h4><p>Le diagnostic arrive marqué « cuir chevelu ». Le maître rappelle la cliente ; aucune vente n’est proposée dans ce fil.</p></div>
+<div class="trone-carte"><h4>Les deux portes vers cet écran</h4><p>Sa réponse « démangeaisons fortes, douleur ou plaques », ou ce que Claude voit sur la photo : plaques, rougeurs, croûtes, zones sans cheveux. Dans le doute, la photo prend ce chemin.</p></div>
+</template>
+</section>
+
+<section aria-labelledby="t-table">
+<h2 id="t-table">Les correspondances, validées par vous</h2>
+<p class="dit">Le cœur du conseil. Claude repère ce que la photo montre ; c’est cette table, écrite par la Maison, qui dit quoi proposer. Ma proposition de départ, à corriger ligne par ligne.</p>
+<div class="cadre"><table>
+<thead><tr><th>Ce que la photo montre</th><th>Le rituel proposé</th><th>À la maison</th></tr></thead>
+<tbody>
+<tr><td class="q">Sécheresse visible, pointes rêches</td><td>Hydratation · DÀNDÀN™</td><td>Huile Couronne <span class="ex">exemple</span></td></tr>
+<tr><td class="q">Résidus, peluches, accumulation</td><td>Purification · WÈWÈ™</td><td>Shampoing (moringa, romarin) <span class="ex">exemple</span></td></tr>
+<tr><td class="q">Racines poussées, relâchement</td><td>Resserrage des racines · SÍNSIN™</td><td>Beurre Locks <span class="ex">exemple</span></td></tr>
+<tr><td class="q">Pointes amincies, casse</td><td>Consultation Réparation, avant tout geste</td><td><span class="manque">à décider</span></td></tr>
+<tr><td class="q">Locks qui fusionnent ou se dédoublent</td><td>Consultation Réparation</td><td>aucun produit</td></tr>
+<tr><td class="q">Cuir chevelu qui pèle légèrement, sans gêne</td><td><span class="manque">à décider</span></td><td><span class="manque">à décider</span></td></tr>
+<tr class="rouge"><td class="q">Plaques, rougeurs, croûtes, zones sans cheveux, gêne forte</td><td>Médecin ou dermatologue ; consultation de la Maison</td><td>jamais de produit</td></tr>
+<tr><td class="q">Cheveux libres, envie de commencer ses locks</td><td>Consultation Origine (KÒKÒ™ Origine)</td><td>aucun produit</td></tr>
+</tbody>
+</table></div>
+</section>
+
+<section aria-labelledby="t-garde">
+<h2 id="t-garde">Ce qu’il ne fera jamais</h2>
+<ul class="garde">
+<li><b>Nommer une maladie</b>, ni conseiller un produit quand la peau inquiète.</li>
+<li><b>Proposer un produit hors de la boutique</b>, ou en rupture de stock, ou plus de deux à la fois.</li>
+<li><b>Promettre une mesure.</b> Ce qui n’est pas bien visible s’écrit « à confirmer en séance ».</li>
+<li><b>Garder une photo sans accord</b>, la montrer ailleurs, ou la publier.</li>
+<li><b>Lire une photo douteuse.</b> Floue, sombre, sans cheveux visibles : elle est redemandée.</li>
+<li><b>Écrire un prix de prestation.</b> Le rituel se réserve, et son prix se lit au moment de réserver, comme sur le site.</li>
+</ul>
+</section>
+
+<section aria-labelledby="t-cout">
+<h2 id="t-cout">Ce que cela coûte, en francs</h2>
+<p class="dit">Lire une photo demande l’intelligence artificielle, payée à part sur le crédit de l’API Anthropic : votre abonnement Claude ne la couvre pas. Il existe une voie sans elle.</p>
+<div class="couts">
+<div class="cout zero"><h3>Un maître lit seul</h3><div class="prix">0 F</div><p>Les photos arrivent au Trône ; un maître écrit le diagnostic dans la journée. Rien d’instantané, et du temps d’équipe.</p></div>
+<div class="cout"><h3>Claude lit, modèle Sonnet</h3><div class="prix">≈ 20 F <small>par diagnostic</small></div><p>Environ 2 000 F pour 100 diagnostics, 10 000 F pour 500. La lecture d’image la plus fiable des deux.</p></div>
+<div class="cout"><h3>Claude lit, modèle Haiku</h3><div class="prix">≈ 6 F <small>par diagnostic</small></div><p>Trois fois moins cher, mais moins fin sur une photo. Je ne le propose pas pour lire des cheveux.</p></div>
+</div>
+<p class="note" style="margin-top:10px">Estimations pour trois photos réduites, au taux d’environ 600 F pour 1 $, relevées vers le haut. Sur le site ouvert à tous, une borne journalière protégerait le crédit contre les envois en série ; dans La Consultation et Ma Couronne, chaque diagnostic a une personne connue derrière lui.</p>
+</section>
+
+<section aria-labelledby="t-choix">
+<h2 id="t-choix">Cinq choix à faire</h2>
+<p class="dit">Ma proposition est marquée. Vos choix s’enregistrent d’un toucher : je les lis avant de construire.</p>
+<div class="regles">
+<form class="arbitrage" data-cle="ou"><fieldset><legend><span class="n">1</span> Où il vit</legend>
+<label class="choix"><input type="radio" name="ou" value="consultation-couronne"><span><b>Dans La Consultation et Ma Couronne</b><em>ma proposition</em><br>Les nouvelles venues par La Consultation, les clientes par Ma Couronne. Chaque diagnostic a un nom, une fiche, un maître qui le lit.</span></label>
+<label class="choix"><input type="radio" name="ou" value="site"><span><b>Aussi sur le site, gratuit pour tous</b><br>Plus de monde touché, mais un diagnostic gratuit fait concurrence à la consultation payante, et il faut une borne contre les abus.</span></label>
+<label class="choix"><input type="radio" name="ou" value="couronne"><span><b>Ma Couronne seulement</b><br>Pour les clientes déjà connues de la Maison.</span></label>
+</fieldset><p class="etat-choix" aria-live="polite"></p></form>
+<form class="arbitrage" data-cle="lecture"><fieldset><legend><span class="n">2</span> Qui lit, et quand elle le voit</legend>
+<label class="choix"><input type="radio" name="lecture" value="instantane"><span><b>Claude lit, elle voit tout de suite ; un maître relit dans la journée</b><em>ma proposition</em><br>L’instantané que vous voulez, et un regard de la Maison derrière. La peau qui inquiète passe toujours par l’équipe d’abord.</span></label>
+<label class="choix"><input type="radio" name="lecture" value="valide"><span><b>Claude propose, un maître valide avant qu’elle le voie</b><br>Plus sûr, mais quelques heures d’attente.</span></label>
+<label class="choix"><input type="radio" name="lecture" value="maitre"><span><b>Un maître seul, à 0 F</b><br>Aucune dépense d’IA, réponse dans la journée.</span></label>
+</fieldset><p class="etat-choix" aria-live="polite"></p></form>
+<form class="arbitrage" data-cle="produits"><fieldset><legend><span class="n">3</span> Les produits</legend>
+<label class="choix"><input type="radio" name="produits" value="de-cote"><span><b>Deux au plus, mis de côté pour son rendez-vous</b><em>ma proposition</em><br>Ils rejoignent la Gamme de son prochain rendez-vous ; elle paie à la caisse.</span></label>
+<label class="choix"><input type="radio" name="produits" value="kkiapay"><span><b>Payés tout de suite par KkiaPay, retirés à la Maison</b><br>Comme la carte cadeau. Une vente ferme, mais un geste de plus pour elle.</span></label>
+<label class="choix"><input type="radio" name="produits" value="aucun"><span><b>Aucun produit, seulement le rituel</b><br>Le conseil reste un conseil ; la vente se fait en séance.</span></label>
+</fieldset><p class="etat-choix" aria-live="polite"></p></form>
+<form class="arbitrage" data-cle="photos"><fieldset><legend><span class="n">4</span> Les photos, ensuite</legend>
+<label class="choix"><input type="radio" name="photos" value="90j"><span><b>Effacées après 90 jours, sauf si elle les garde</b><em>ma proposition</em><br>Le temps de la relecture et de la séance ; gardées dans son dossier seulement si elle coche la case.</span></label>
+<label class="choix"><input type="radio" name="photos" value="lecture"><span><b>Effacées dès la lecture</b><br>Le maître ne voit plus que le texte du diagnostic.</span></label>
+<label class="choix"><input type="radio" name="photos" value="dossier"><span><b>Toujours gardées dans son dossier</b><br>Pour comparer avant et après, au fil des mois.</span></label>
+</fieldset><p class="etat-choix" aria-live="polite"></p></form>
+<form class="arbitrage" data-cle="modele"><fieldset><legend><span class="n">5</span> Le modèle qui lit</legend>
+<label class="choix"><input type="radio" name="modele" value="sonnet"><span><b>Sonnet, environ 20 F par diagnostic</b><em>ma proposition</em><br>La lecture la plus fine des deux pour une photo de cheveux.</span></label>
+<label class="choix"><input type="radio" name="modele" value="haiku"><span><b>Haiku, environ 6 F par diagnostic</b><br>Moins cher, moins sûr sur une image.</span></label>
+<label class="choix"><input type="radio" name="modele" value="aucun"><span><b>Aucun : un maître lit seul</b><br>Va avec « un maître seul » au choix n° 2.</span></label>
+</fieldset><p class="etat-choix" aria-live="polite"></p></form>
+</div>
+</section>
+
+<section aria-labelledby="t-manque">
+<h2 id="t-manque">Ce qu’il me manque</h2>
+<div class="bloc manques" style="margin-top:14px"><ul>
+<li>La liste réelle des produits de la boutique, et pour chacun ce qu’il soigne et ses ingrédients. Je ne connais que quatre noms vus dans Ma Couronne (Huile Couronne, Shampoing, Beurre Locks, Sérum Racines) : vendus aujourd’hui ?</li>
+<li>La table des correspondances, corrigée par vous ligne par ligne.</li>
+<li>Une vingtaine de photos de cheveux, avec l’accord des personnes, pour éprouver la lecture avant d’ouvrir.</li>
+<li>Le maître, ou les maîtres, qui relisent les diagnostics.</li>
+</ul></div>
+</section>
+
+<section aria-labelledby="t-lots">
+<h2 id="t-lots">La construction</h2>
+<div class="lots">
+<div class="lot fait"><b>Fait le 14 octobre 2026, à mettre en ligne : La Consultation dit la vérité.</b> Elle n’annonce plus une lecture des photos qu’elle ne fait pas ; un banc refuse ces phrases tant que les photos ne partent pas.</div>
+<div class="lot"><b>Lot 1, les photos qui partent.</b> L’accord, l’envoi des photos réduites dans un espace privé (protégé dès sa création, effacement automatique), l’écran « Diagnostics photo » au Trône, la relecture du maître. Utilisable à 0 F, maître seul.</div>
+<div class="lot"><b>Lot 2, Claude lit.</b> La fonction qui lit les photos, la table des correspondances, l’écran « peau qui inquiète », la page Confidentialité mise à jour. Une fonction et une migration à coller, avec la marche à suivre cochable.</div>
+<div class="lot"><b>Lot 3, les produits.</b> La fiche produit complétée (ce qu’il soigne, ses ingrédients), le produit mis de côté dans la Gamme du rendez-vous, et le compteur des ventes nées d’un diagnostic.</div>
+<p class="note">Un banc le prouve, pannes plantées : jamais de produit quand la peau inquiète, jamais un produit absent ou en rupture, jamais plus de deux, jamais une photo gardée sans accord, jamais un résultat sans la mention de ce qui reste à confirmer.</p>
+</div>
+</section>
+</div>
+
+<script>
+(function () {
+  /* ── Les écrans : chaque onglet pose son téléphone et sa colonne du Trône ── */
+  var tel = document.getElementById('tel');
+  var trone = document.getElementById('trone');
+  function montre(nom) {
+    var t = document.getElementById('tel-' + nom), c = document.getElementById('trone-' + nom);
+    tel.textContent = ''; trone.textContent = '';
+    if (t) tel.appendChild(t.content.cloneNode(true));
+    if (c) trone.appendChild(c.content.cloneNode(true));
+    document.querySelectorAll('.scene-btn').forEach(function (x) { x.setAttribute('aria-pressed', x.getAttribute('data-scene') === nom ? 'true' : 'false'); });
+  }
+  document.querySelectorAll('.scene-btn').forEach(function (x) { x.addEventListener('click', function () { montre(x.getAttribute('data-scene')); }); });
+  montre('accord');
+
+  /* ── Les cinq choix, gardés sur ce poste et dans la base partagée de la maquette ── */
+  var NOMS = ['ou', 'lecture', 'produits', 'photos', 'modele'];
+  var CLE_CHOIX = 'diagnostic-photo-maquette-choix';
+  function lis(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+  function ecris(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+  var choix = {};
+  try { choix = JSON.parse(lis(CLE_CHOIX) || '{}') || {}; } catch (e) { choix = {}; }
+  var docRef = null, file = Promise.resolve();
+  function applique() {
+    NOMS.forEach(function (k) {
+      if (!choix[k]) return;
+      var i = document.querySelector('input[name="' + k + '"][value="' + choix[k] + '"]');
+      if (i) i.checked = true;
+    });
+  }
+  function dis(k, t) { var p = document.querySelector('form[data-cle="' + k + '"] .etat-choix'); if (p) p.textContent = t; }
+  applique();
+  document.querySelectorAll('form.arbitrage').forEach(function (f) { f.addEventListener('submit', function (e) { e.preventDefault(); }); });
+  document.querySelectorAll('form.arbitrage input').forEach(function (i) {
+    i.addEventListener('change', function () {
+      choix[i.name] = i.value;
+      ecris(CLE_CHOIX, JSON.stringify(choix));
+      if (!docRef) { dis(i.name, 'Gardé sur ce poste.'); return; }
+      dis(i.name, 'Enregistrement…');
+      var corps = {};
+      NOMS.forEach(function (k) { if (choix[k]) corps[k] = choix[k]; });
+      corps.quand = new Date().toISOString();
+      file = file.then(function () { return docRef.set(corps); }).then(
+        function () { dis(i.name, 'Choix enregistré.'); },
+        function () { dis(i.name, 'Gardé sur ce poste ; l’enregistrement partagé a échoué.'); });
+    });
+  });
+  if (window.claude && typeof window.claude.use === 'function') {
+    window.claude.use('db').then(function (db) {
+      if (!db) return;
+      docRef = db.doc('maquette/arbitrages');
+      return docRef.get().then(function (s) {
+        if (!s.exists) return;
+        var v = s.data() || {};
+        NOMS.forEach(function (k) { if (typeof v[k] === 'string') choix[k] = v[k]; });
+        ecris(CLE_CHOIX, JSON.stringify(choix));
+        applique();
+      });
+    }).catch(function () {});
+  }
+})();
+</script>
+
+</body></html>

@@ -164,18 +164,23 @@ export const HORIZON_CHIPS: string[] = ['Au plus vite', 'D’ici 6 mois', 'D’i
 
 /* ---------- Analyse ---------- */
 
+/* CE QUE L'ANALYSE DIT, ELLE LE FAIT — 14 octobre 2026. Elle annonçait
+   « Lecture des images… » et « Elle mesure l'intégrité de la fibre » : les
+   photos ne quittent jamais le téléphone, et `computeDiag` ne lit que le
+   questionnaire. Elle dit désormais ce qu'elle lit. Le diagnostic par photo
+   viendra après sa maquette ; ce texte changera avec lui, pas avant. */
 export const ANALYSE_LINES = [
-  'Elle observe la densité, mèche après mèche.',
-  'Elle lit la santé du cuir chevelu.',
-  'Elle mesure l’intégrité de la fibre.',
+  'Elle relit vos réponses, une à une.',
+  'Elle pèse vos habitudes de lavage et de nuit.',
+  'Elle tient compte des traitements passés.',
   'Elle croise vos habitudes et votre climat.',
   'Elle compose votre protocole souverain.',
 ];
 
 export const ANALYSE_STEPS = [
-  'Lecture des images…',
-  'Cartographie du cuir chevelu…',
-  'Analyse de l’intégrité…',
+  'Lecture de vos réponses…',
+  'Habitudes de soin…',
+  'Historique des traitements…',
   'Croisement du mode de vie…',
   'Composition du protocole…',
 ];

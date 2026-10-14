@@ -565,8 +565,9 @@ export default function App() {
               <h1 className="lc-display">Avant le rituel,<br />le diagnostic.</h1>
               <p className="lc-lead">
                 La première rencontre avec la Maison se fait ici, où que vous soyez dans le monde.
-                Quelques photos, vos habitudes, votre vision, et l’intelligence de la Maison lit votre
-                couronne, projette son avenir, et compose votre protocole.{' '}
+                Vos habitudes, votre vision, l’état de votre couronne tel que vous le décrivez : la Maison en tire
+                un premier diagnostic, projette son avenir et compose votre protocole. Le Maître le confirme en
+                vous voyant.{' '}
                 <span className="lc-strong">Puis vous franchissez la porte de la Maison, déjà attendue.</span>
               </p>
 
@@ -828,8 +829,9 @@ export default function App() {
             <div className="lc-eyebrow">{pathLabel} · Étape 2 sur 8</div>
             <h2 className="lc-h2">Montrez votre couronne.</h2>
             <p className="lc-intro" style={{ maxWidth: 560 }}>
-              Trois angles suffisent à l’intelligence pour lire la densité, la santé du cuir chevelu et l’état
-              des pointes. Vos images restent privées, elles ne servent qu’à votre diagnostic.
+              Trois angles pour montrer votre couronne au Maître : la densité, le cuir chevelu, les pointes.
+              Vos photos restent sur votre téléphone, rien n’est envoyé ; le premier diagnostic se calcule à
+              partir de vos réponses. Gardez-les pour votre rendez-vous, ou envoyez-les à la Maison sur WhatsApp.
             </p>
             <div className="lc-pill-hint"><span className="lc-dot lc-dot--copper" />Déposez une image sur chaque cadre</div>
 
@@ -1034,7 +1036,7 @@ export default function App() {
               <div className="lc-analyse__ring-arc" />
               <div className="lc-analyse__seal"><Seal color="copper" size={46} /></div>
             </div>
-            <div className="lc-analyse__eyebrow">L’intelligence de la Maison lit votre couronne</div>
+            <div className="lc-analyse__eyebrow">La Maison compose votre premier diagnostic</div>
             <div className="lc-analyse__line">{ANALYSE_LINES[Math.min(4, Math.floor(analysePct / 20))]}</div>
             <div className="lc-analyse__bar">
               <div className="lc-analyse__fill" style={{ width: `${analysePct}%` }} />
@@ -1049,7 +1051,7 @@ export default function App() {
             <div className="lc-diag__head">
               <div>
                 <div className="lc-eyebrow">Le diagnostic · {prenom || 'votre couronne'} · Étape 5 sur 8</div>
-                <h2 className="lc-h2">Ce que lit la Maison.</h2>
+                <h2 className="lc-h2">Ce que disent vos réponses.</h2>
               </div>
               {/* LES DEUX PALIERS, SÉPARÉS — 16 septembre 2026 : ce que sa
                   couronne dit d'elle, et ce que l'acte proposé exige. */}
@@ -1063,12 +1065,11 @@ export default function App() {
 
             <div className="lc-diag__grid">
               <div className="lc-panel">
-                <div className="lc-label lc-panel__title">L’état de votre couronne</div>
+                <div className="lc-label lc-panel__title">L’état de votre couronne, d’après vos réponses</div>
                 <Gauges scores={[
                   ['Hydratation', diag.scores.hydratation],
                   ['Santé du cuir chevelu', diag.scores.cuir],
                   ['Intégrité de la fibre', diag.scores.integrite],
-                  ['Densité', diag.scores.densite],
                   ['Maturité des locks', diag.scores.maturite],
                 ]} />
               </div>
@@ -1419,7 +1420,7 @@ export default function App() {
               <div className="lc-fin__steps">
                 {[
                   { no: '1', t: 'Votre dossier arrive', s: 'Diagnostic, projection et protocole, sur le Trône du Maître.' },
-                  { no: '2', t: 'La Maison vous rappelle', s: 'Sur WhatsApp, pour confirmer votre créneau.' },
+                  { no: '2', t: 'La Maison vous rappelle', s: 'Sur WhatsApp, pour confirmer votre créneau. Vous pouvez y envoyer vos photos.' },
                   { no: '3', t: 'Vous entrez', s: `${mode === 'visio' ? 'En visio' : 'Cotonou · Flagship'} · déjà attendue, déjà lue.` },
                 ].map((n) => (
                   <div key={n.no} className="lc-fin__step">
