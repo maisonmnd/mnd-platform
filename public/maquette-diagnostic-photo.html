@@ -269,12 +269,13 @@ tr.rouge td { background: var(--rouge-clair); }
 <canvas class="mini-essai" width="320" height="360" aria-label="Avant à gauche, simulation à droite"></canvas>
 <p class="conseil-photo">VÈKPÈ™ Micro · YÈKPÈ™ cuivré au henné · locks libres. Glissez pour comparer.</p>
 <p class="conseil-photo">Simulation : votre couronne dépendra de vos cheveux. La consultation dit ce qui est possible.</p>
+<p class="relu">Il vous reste 4 essais sur 5.</p>
 <div class="cta cuivre">Réserver la consultation Origine</div>
 <div class="cta leger">Ce n’est pas moi : retirer l’image</div>
 </template>
 <template id="trone-essai">
 <div class="trone-carte"><h4>Au dossier de la consultation</h4><p>« Elle a essayé : Micro, YÈKPÈ™ cuivré, coiffure signature. » Le maître arrive à la séance en sachant ce qu’elle imagine, et peut dire tout de suite ce que ses cheveux permettent.</p></div>
-<div class="trone-carte"><h4>Ce qui se compte</h4><p>Les essais par modèle et par couleur, et les consultations réservées après un essai. On saura ce qui fait envie, et ce qui fait venir.</p></div>
+<div class="trone-carte"><h4>Ce qui se compte</h4><p>Les essais par modèle et par couleur, et les consultations réservées après un essai. Sur sa fiche : « 1 essai sur 5 », et « Rendre des essais », réservé à la direction.</p></div>
 <div class="trone-carte alerte"><h4>« Ce n’est pas moi »</h4><p>Si la simulation change son visage ou la teinte de sa peau, elle la retire d’un toucher. L’image s’efface et l’équipe est prévenue : ce défaut se corrige avant tout le reste.</p></div>
 </template>
 
@@ -327,6 +328,7 @@ tr.rouge td { background: var(--rouge-clair); }
 <div class="bloc"><h3>Uniquement la Maison</h3><p>Chaque choix vient du catalogue : les calibres VÈKPÈ™ (de Jumbo à Galaxy), les couleurs YÈKPÈ™ que vous proposez vraiment, les Coiffures Signature, les styles du Studio ACƆ™. Chacun s’appuie sur une photo de référence de la Maison, avec l’accord de la personne pour cet usage. Aucun style d’ailleurs, aucune couleur chimique.</p></div>
 <div class="bloc"><h3>Une simulation, pas une promesse</h3><p>Une création naît à la longueur de ses cheveux ; un calibre très fin demande une densité suffisante ; la couleur YÈKPÈ™ demande une couronne saine. Ce que son diagnostic déconseille s’affiche avec « à confirmer en consultation », et chaque image porte la mention « Simulation · Maison MND ».</p></div>
 <div class="bloc alerte"><h3>Son visage ne change pas</h3><p>Les outils qui créent des images peuvent éclaircir une peau ou modifier des traits. Avant d’ouvrir, l’essayage s’éprouve sur vingt photos avec accord, regardées une à une. Ensuite, « Ce n’est pas moi » retire toute image douteuse et nous alerte.</p></div>
+<div class="bloc"><h3>Cinq essais par personne</h3><p>Comptés sur son compte Ma Couronne ou son numéro, jamais sur un téléphone. Les photos de référence viennent de la bibliothèque des coiffures du Trône, celles dont l’accord autorise l’usage « modèle de simulation ».</p></div>
 </div>
 </section>
 
@@ -369,7 +371,7 @@ tr.rouge td { background: var(--rouge-clair); }
 <div class="cout zero"><h3>Un maître lit seul</h3><div class="prix">0 F</div><p>Les photos arrivent au Trône ; un maître écrit le diagnostic dans la journée. Rien d’instantané, et du temps d’équipe.</p></div>
 <div class="cout"><h3>Claude lit, modèle Sonnet</h3><div class="prix">≈ 20 F <small>par diagnostic</small></div><p>Environ 2 000 F pour 100 diagnostics, 10 000 F pour 500. La lecture d’image la plus fiable des deux.</p></div>
 <div class="cout"><h3>L’essayage, la couleur seule</h3><div class="prix">0 F</div><p>Le téléphone repère les cheveux sur la photo et les teinte lui-même. La photo ne part pas. Les calibres et les coiffures, en revanche, ne se dessinent pas ainsi.</p></div>
-<div class="cout"><h3>L’essayage complet</h3><div class="prix">≈ 25 F <small>par image</small></div><p>Modèle, couleur et coiffure dessinés par une IA d’image : Claude ne crée pas d’images, c’est un autre fournisseur (Google ou OpenAI), un compte à ouvrir chez lui et facturé à part. Six essais au plus par cliente, soit 150 F au plus.</p></div>
+<div class="cout"><h3>L’essayage complet</h3><div class="prix">≈ 25 F <small>par image</small></div><p>Modèle, couleur et coiffure dessinés par une IA d’image : Claude ne crée pas d’images, c’est un autre fournisseur (Google ou OpenAI), un compte à ouvrir chez lui et facturé à part. Cinq essais au plus par personne, soit 125 F au plus.</p></div>
 <div class="cout"><h3>Claude lit, modèle Haiku</h3><div class="prix">≈ 6 F <small>par diagnostic</small></div><p>Trois fois moins cher, mais moins fin sur une photo. Je ne le propose pas pour lire des cheveux.</p></div>
 </div>
 <p class="note" style="margin-top:10px">Estimations pour trois photos réduites, au taux d’environ 600 F pour 1 $, relevées vers le haut. Sur le site ouvert à tous, une borne journalière protégerait le crédit contre les envois en série ; dans La Consultation et Ma Couronne, chaque diagnostic a une personne connue derrière lui.</p>
@@ -406,7 +408,7 @@ tr.rouge td { background: var(--rouge-clair); }
 </fieldset><p class="etat-choix" aria-live="polite"></p></form>
 <form class="arbitrage" data-cle="essai"><fieldset><legend><span class="n">6</span> L’essayage</legend>
 <label class="choix"><input type="radio" name="essai" value="couleur-puis-ia"><span><b>La couleur tout de suite, les modèles après un essai sur vingt photos</b><em>ma proposition</em><br>À 0 F d’abord ; l’essayage complet (environ 25 F l’image) s’ouvre quand vous avez vu les vingt résultats.</span></label>
-<label class="choix"><input type="radio" name="essai" value="ia"><span><b>Modèles, couleurs et coiffures par IA dès l’ouverture</b><br>Environ 25 F l’image, six essais au plus par cliente. L’essai sur vingt photos reste fait avant.</span></label>
+<label class="choix"><input type="radio" name="essai" value="ia"><span><b>Modèles, couleurs et coiffures par IA dès l’ouverture</b><br>Environ 25 F l’image, cinq essais au plus par personne. L’essai sur vingt photos reste fait avant.</span></label>
 <label class="choix"><input type="radio" name="essai" value="couleur"><span><b>La couleur seule, à 0 F</b><br>Les calibres et les coiffures se montrent par des photos de la Maison.</span></label>
 <label class="choix"><input type="radio" name="essai" value="vrais"><span><b>Pas de simulation : les vrais avant-après de la Maison</b><br>Choisis selon son type de cheveux, avec l’accord des personnes.</span></label>
 </fieldset><p class="etat-choix" aria-live="polite"></p></form>

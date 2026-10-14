@@ -106,6 +106,52 @@ fieldset.etape > legend + * { clear: both; }
 .choix em { font-style: normal; color: var(--cuivre); font-size: 12.5px; letter-spacing: .04em; margin-left: 6px; }
 .etat-choix { font-size: 13px; color: var(--vert); min-height: 1.4em; margin: 0; }
 .lots { display: grid; gap: 10px; margin-top: 14px; }
+/* Les couronnes de la Maison sous le dessin */
+.semblables { display: grid; gap: 6px; }
+.semblables > span { font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--doux); }
+.vignettes { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.vignette { aspect-ratio: 4 / 5; max-width: 100%; border-radius: 8px; display: grid; align-content: end; padding: 6px; font-size: 11px; line-height: 1.25; color: #FFFDF9; background: linear-gradient(160deg, #6E4A33, #2B1E18 75%); }
+.vignette.b { background: linear-gradient(160deg, #3A3F7A, #15173A 75%); }
+.vignette.c { background: linear-gradient(160deg, #8A5A3A, #3A2418 75%); }
+/* La bibliothèque au Trône */
+.depot { border: 1.5px dashed var(--cuivre); border-radius: 10px; padding: 16px; display: grid; gap: 8px; justify-items: center; text-align: center; background: var(--carte); }
+.depot.survol { background: var(--cuivre-clair); }
+.depot label { font: 400 14px "Jost", sans-serif; border-radius: 6px; padding: 8px 16px; background: var(--encre); color: var(--fond); cursor: pointer; }
+.depot input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.depot label:focus-within { outline: 2px solid var(--cuivre); outline-offset: 2px; }
+.biblio { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 150px), 1fr)); gap: 10px; }
+.vue > .biblio { background: none; border: 0; padding: 0; }
+.fiche-photo { background: var(--carte); border: 1px solid var(--filet); border-radius: 10px; overflow: clip; display: grid; }
+.fiche-photo .img { aspect-ratio: 4 / 5; max-width: 100%; background: linear-gradient(160deg, #6E4A33, #2B1E18 75%); display: grid; align-content: end; padding: 6px; color: #FFFDF9; font-size: 11px; }
+.fiche-photo img { width: 100%; aspect-ratio: 4 / 5; object-fit: cover; display: block; }
+.fiche-photo .corps { padding: 10px 12px; display: grid; gap: 6px; font-size: 13px; }
+.fiche-photo select { font: 300 13px "Jost", sans-serif; border: 1px solid var(--filet); background: var(--fond); color: var(--texte); border-radius: 5px; padding: 3px 6px; width: 100%; }
+.fiche-photo .rangs { display: grid; grid-template-columns: minmax(0, 1fr); gap: 4px; }
+.usage { display: flex; gap: 6px; align-items: center; }
+.usage input { accent-color: var(--cuivre); }
+.usage.off { color: var(--doux); }
+.accord { font-size: 12px; border-radius: 999px; padding: 1px 9px; justify-self: start; }
+.accord.ok { background: var(--vert-clair); color: var(--vert); }
+.accord.non { background: var(--rouge-clair); color: var(--rouge); }
+.essais { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 12px; margin-top: 14px; }
+.compteur-essais { display: flex; gap: 6px; }
+.compteur-essais i { width: 22px; height: 22px; border-radius: 50%; border: 1.5px solid var(--cuivre); }
+.compteur-essais i.fait { background: var(--cuivre); }
+/* Vos photos de chaque création VÈKPÈ™, pour tester */
+.bascule { display: inline-flex; border: 1px solid var(--filet); border-radius: 999px; overflow: clip; justify-self: start; }
+.bascule button { font: 400 13.5px "Jost", sans-serif; border: 0; background: var(--carte); color: var(--texte); padding: 5px 14px; cursor: pointer; }
+.bascule button[aria-pressed="true"] { background: var(--encre); color: var(--fond); }
+.bascule button:disabled { color: var(--doux); cursor: not-allowed; }
+.bascule button:focus-visible, .vignette:focus-visible, .mes-photos label:focus-within { outline: 2px solid var(--cuivre); outline-offset: 2px; }
+#grande { width: 100%; max-width: 100%; aspect-ratio: 420 / 500; object-fit: cover; display: block; border-radius: 14px; border: 1px solid var(--filet); }
+.vignette { background-size: cover; background-position: center; }
+.vignette.photo { cursor: pointer; }
+.mes-photos { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; border-top: 1px dashed var(--filet); padding-top: 10px; }
+.mes-photos > span { font-size: 14px; color: var(--encre); margin-right: auto; }
+.mes-photos label { position: relative; }
+.mes-photos input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.mes-photos .note { flex-basis: 100%; }
+.calibre .compte { font-size: 12px; color: var(--vert); }
 .lot { background: var(--carte); border: 1px solid var(--filet); border-left: 3px solid var(--cuivre); border-radius: 6px; padding: 12px 16px; font-size: 14.5px; }
 @media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
 </style>
@@ -114,16 +160,21 @@ fieldset.etape > legend + * { clear: both; }
 <header>
 <p class="sur">Maison MND · Maquette à valider · 14 octobre 2026</p>
 <h1>Composer ma couronne</h1>
-<p class="chapeau">Le configurateur de dreadlocks de la Maison MND, et d’elle seule. On y compose sa couronne avec ce que la Maison crée vraiment : le calibre VÈKPÈ™, la couleur végétale YÈKPÈ™, la coiffure de sortie, puis l’entretien qui la fait vivre. Chaque choix vient de la carte, avec son prix d’entrée. La composition part ensuite avec la réservation de la consultation Origine. Rien n’est construit avant votre validation.</p>
+<p class="chapeau">Le configurateur de dreadlocks de la Maison MND, et d’elle seule. On y compose sa couronne avec ce que la Maison crée vraiment : le calibre VÈKPÈ™, la couleur végétale YÈKPÈ™, la coiffure de sortie, puis l’entretien qui la fait vivre. Chaque choix vient de la carte, avec son prix d’entrée. La composition part ensuite avec la réservation de la consultation Origine. Les photos de coiffures se téléversent au Trône, dans une bibliothèque de la Maison ; l’essai sur sa propre photo se limite à cinq par personne. Rien n’est construit avant votre validation.</p>
 </header>
 
 <section aria-labelledby="t-atelier">
 <h2 id="t-atelier">L’atelier, à essayer</h2>
-<p class="dit">Touchez les choix : la couronne se redessine. Prix de la carte du 10 octobre 2026 ; la vraie version lit le catalogue du jour, et la carte change le 1er janvier 2027.</p>
+<p class="dit">Touchez les choix : la couronne se redessine. Ajoutez vos propres photos à chaque création VÈKPÈ™ pour tester avec vos images. Prix de la carte du 10 octobre 2026 ; la vraie version lit le catalogue du jour, et la carte change le 1er janvier 2027.</p>
 <div class="atelier" style="margin-top:14px">
 <div class="miroir">
+<div class="bascule" role="group" aria-label="Ce que montre le miroir"><button type="button" data-vue="dessin" aria-pressed="true">Le dessin</button><button type="button" data-vue="photo" aria-pressed="false" disabled>Vos photos</button></div>
 <canvas id="couronne" width="420" height="500" aria-label="La couronne composée, dessinée"></canvas>
+<img id="grande" alt="Votre photo de cette création" hidden>
 <div class="fiche-courte" aria-live="polite"><b id="fiche-titre"></b><span id="fiche-ligne"></span></div>
+<div class="semblables"><span id="semblables-titre">Des couronnes de la Maison comme la vôtre</span>
+<div class="vignettes"><div class="vignette" id="v1"></div><div class="vignette b" id="v2"></div><div class="vignette c" id="v3"></div></div>
+<p class="note">Photos de la bibliothèque de la Maison, choisies selon votre composition, avec l’accord des personnes.</p></div>
 </div>
 <div class="etapes">
 <fieldset class="etape"><legend><span class="n">1</span>Vos cheveux aujourd’hui</legend>
@@ -147,6 +198,12 @@ fieldset.etape > legend + * { clear: both; }
 <p class="aide">Plus le calibre est fin, plus il y a de locks, plus la pose est longue. La méthode (crochet ou torsion) se choisit en consultation, selon votre texture.</p>
 <div class="calibres" id="calibres"></div>
 <p class="avis" id="avis-calibre"></p>
+<div class="mes-photos">
+<span id="mes-photos-titre">Vos photos de VÈKPÈ™ Medium</span>
+<label class="bouton">Ajouter des photos<input type="file" id="photos-calibre" accept="image/*" multiple></label>
+<button type="button" class="bouton" id="retirer-calibre" disabled>Retirer celles de ce calibre</button>
+<p class="note" id="mes-photos-dit">Pour tester avec vos propres images, déposez des photos de chaque création. Elles restent sur cet appareil : rien n’est envoyé.</p>
+</div>
 </fieldset>
 
 <fieldset class="etape"><legend><span class="n">3</span>La couleur · YÈKPÈ™, la lumière</legend>
@@ -193,8 +250,9 @@ fieldset.etape > legend + * { clear: both; }
 <div class="actions">
 <button type="button" class="bouton cuivre" data-dit="La composition part avec la réservation de la consultation Origine.">Réserver ma consultation Origine</button>
 <button type="button" class="bouton" data-dit="La composition part sur WhatsApp, au registre de la Maison, avec son image.">L’envoyer à la Maison</button>
-<button type="button" class="bouton" data-dit="L’essayage sur sa propre photo : voir la maquette du diagnostic par photo.">Voir sur ma photo</button>
+<button type="button" class="bouton" data-dit="L’essayage sur sa propre photo : cinq essais par personne, comptés sur son compte Ma Couronne ou son numéro.">Voir sur ma photo</button>
 </div>
+<p class="note">Voir sur ma photo : cinq essais par personne.</p>
 <p class="dit-bouton" id="dit-bouton" aria-live="polite"></p>
 </div>
 <div class="barre-prix"><span>Création à partir de <b id="total-barre"></b></span><a href="#t-atelier">Revoir</a></div>
@@ -215,6 +273,37 @@ fieldset.etape > legend + * { clear: both; }
 </div>
 </section>
 
+<section aria-labelledby="t-biblio">
+<h2 id="t-biblio">La bibliothèque des coiffures, au Trône</h2>
+<p class="dit">Vous y téléversez vos photos de coiffures, vous les rangez par calibre, couleur et coiffure, et vous dites pour chacune où elle peut servir. Une photo sans accord signé de la personne ne sort jamais du Trône. Essayez : déposez une image de votre appareil, elle reste sur votre appareil.</p>
+<div class="ecran">
+<div class="ecran-barre"><span>Vitrines › Les coiffures de la Maison</span><span>Maquette : rien n’est envoyé</span></div>
+<div class="vue" style="grid-template-columns: minmax(0, 1fr); background: var(--ecran)">
+<div class="depot" id="depot" style="border-style: dashed">
+<p style="margin:0">Glissez des photos ici, ou</p>
+<label>Choisir des photos<input type="file" id="fichiers" accept="image/*" multiple></label>
+<p class="note">Plusieurs à la fois. Les photos d’iPhone sont acceptées. Chacune est réduite et nettoyée de sa position GPS avant d’être rangée.</p>
+</div>
+<div class="biblio" id="biblio"></div>
+</div>
+</div>
+<div class="regles">
+<div class="bloc"><h3>Trois usages, cochés photo par photo</h3><p><b>Configurateur</b> : montrée sous la couronne dessinée, quand la composition lui ressemble. <b>WhatsApp</b> : envoyée en modèle par l’automate. <b>Modèle de simulation</b> : sert d’exemple à l’IA qui dessine l’essayage, donc transmise à son fournisseur.</p></div>
+<div class="bloc"><h3>L’accord d’abord</h3><p>Chaque photo dit qui elle montre (prénom et initiale, ou « modèle de la Maison ») et où est son accord signé : le droit à l’image de sa fiche au Trône. Sans accord, les trois usages restent fermés. Jamais le prénom d’un enfant.</p></div>
+<div class="bloc"><h3>Rangée une fois, servie partout</h3><p>La même photo nourrit le configurateur, les modèles du conseil WhatsApp et l’essayage. La retirer ici la retire de partout, le jour même.</p></div>
+</div>
+</section>
+
+<section aria-labelledby="t-essais">
+<h2 id="t-essais">Cinq essais de simulation par personne</h2>
+<p class="dit">Le dessin du configurateur reste libre et gratuit. Ce qui se compte, c’est l’essai sur sa propre photo, qui coûte environ 25 F l’image : cinq au plus par personne, soit 125 F au plus.</p>
+<div class="essais">
+<div class="bloc"><h3>Ce qu’elle voit</h3><div class="compteur-essais" aria-label="Deux essais faits sur cinq"><i class="fait"></i><i class="fait"></i><i></i><i></i><i></i></div><p>« Il vous reste 3 essais sur 5. » Au cinquième : « Vos cinq essais sont faits. La Maison vous en offre d’autres en consultation, si vous le souhaitez. »</p></div>
+<div class="bloc"><h3>Une personne, pas un téléphone</h3><p>Les essais se comptent sur son compte Ma Couronne, ou sur son numéro dans La Consultation. Sur le site ouvert à toutes, l’essai demande d’abord son numéro WhatsApp et le code reçu : changer de téléphone ou vider le navigateur ne rend pas d’essais.</p></div>
+<div class="bloc"><h3>Au Trône</h3><p>Sur sa fiche : « 5 essais sur 5 », la liste de ce qu’elle a essayé, et « Rendre des essais », réservé à la direction, pour une cliente en consultation.</p></div>
+</div>
+</section>
+
 <section aria-labelledby="t-maison">
 <h2 id="t-maison">Uniquement la Maison</h2>
 <div class="regles">
@@ -226,7 +315,7 @@ fieldset.etape > legend + * { clear: both; }
 <li><b>Proposer un style d’ailleurs</b>, une couleur chimique, une extension que la Maison ne pose pas.</li>
 <li><b>Afficher un prix final.</b> Il montre le prix d’entrée ; le devis vient de la consultation, par écrit.</li>
 <li><b>Cacher l’entretien.</b> Le coût des venues suit toujours le choix du calibre.</li>
-<li><b>Demander une photo.</b> Le dessin suffit ; la photo n’entre que par l’essayage, avec son accord à part.</li>
+<li><b>Demander une photo à la cliente.</b> Le dessin suffit ; sa photo n’entre que par l’essayage, avec son accord à part.</li>
 </ul>
 </section>
 
@@ -241,7 +330,7 @@ fieldset.etape > legend + * { clear: both; }
 </section>
 
 <section aria-labelledby="t-choix">
-<h2 id="t-choix">Cinq choix à faire</h2>
+<h2 id="t-choix">Sept choix à faire</h2>
 <p class="dit">Ma proposition est marquée. Vos choix s’enregistrent d’un toucher : je les lis avant de construire.</p>
 <div class="regles">
 <form class="arbitrage" data-cle="nom"><fieldset><legend><span class="n">1</span> Son nom</legend>
@@ -268,6 +357,15 @@ fieldset.etape > legend + * { clear: both; }
 <label class="choix"><input type="radio" name="part" value="reservation"><span><b>La composition part avec la réservation, et l’image se partage</b><em>ma proposition</em><br>Marquée « Maison MND », envoyée à une amie, elle porte la Maison.</span></label>
 <label class="choix"><input type="radio" name="part" value="reservation-seule"><span><b>La composition part avec la réservation, sans partage</b><br>L’image reste dans l’échange avec la Maison.</span></label>
 </fieldset><p class="etat-choix" aria-live="polite"></p></form>
+<form class="arbitrage" data-cle="biblio"><fieldset><legend><span class="n">6</span> Où vit la bibliothèque des coiffures</legend>
+<label class="choix"><input type="radio" name="biblio" value="vitrines"><span><b>Vitrines › Les coiffures de la Maison</b><em>ma proposition</em><br>À côté du site public et de Ma Couronne, qu’elle nourrit.</span></label>
+<label class="choix"><input type="radio" name="biblio" value="catalogue"><span><b>Sur chaque prestation du Catalogue</b><br>Les photos d’un Micro rangées sur la fiche de VÈKPÈ™ Micro.</span></label>
+</fieldset><p class="etat-choix" aria-live="polite"></p></form>
+<form class="arbitrage" data-cle="essais"><fieldset><legend><span class="n">7</span> Les cinq essais</legend>
+<label class="choix"><input type="radio" name="essais" value="total"><span><b>Cinq au total ; la direction peut en rendre</b><em>ma proposition</em><br>Pour une cliente en consultation, d’un geste sur sa fiche.</span></label>
+<label class="choix"><input type="radio" name="essais" value="mois"><span><b>Cinq par mois</b><br>Le compteur revient à cinq le premier du mois.</span></label>
+<label class="choix"><input type="radio" name="essais" value="consultation"><span><b>Cinq, puis cinq de plus à chaque consultation réservée</b><br>L’essai devient une raison de réserver.</span></label>
+</fieldset><p class="etat-choix" aria-live="polite"></p></form>
 </div>
 </section>
 
@@ -279,16 +377,18 @@ fieldset.etape > legend + * { clear: both; }
 <li>Le calibre Pico : il existe au barème et dans les formules en lunes, mais aucune création ne porte son nom. Le montrer, ou non ?</li>
 <li>La longueur minimale pour chaque calibre, s’il y en a une, et si la Maison pose des extensions.</li>
 <li>Les ornements de la Coiffure Signature Événement : dorures, foulard, perles, ou d’autres.</li>
+<li>Les photos de coiffures à téléverser, et pour chacune l’accord signé de la personne : qui peut les ranger au Trône (la direction, le département Marketing &amp; Fidélité ?).</li>
 </ul></div>
 </section>
 
 <section aria-labelledby="t-lots">
 <h2 id="t-lots">La construction</h2>
 <div class="lots">
+<div class="lot"><b>Lot 0, la bibliothèque des coiffures.</b> Le téléversement au Trône (photos réduites, sans position GPS), le rangement par calibre, couleur et coiffure, les trois usages, l’accord de chaque photo, un espace de stockage protégé dès sa création. Elle sert les trois maquettes : le conseil WhatsApp, le diagnostic, le configurateur.</div>
 <div class="lot"><b>Lot 1, le configurateur.</b> Le calcul pur, lu au catalogue du Trône (prestations, calibres, formules en lunes, échéancier), le dessin, la page du site, et la composition jointe à la réservation de la consultation Origine. 0 F.</div>
 <div class="lot"><b>Lot 2, les autres portes.</b> L’étape « Vision » de La Consultation, Ma Couronne, le comptoir ; la composition dans la fiche et dans le dossier de consultation ; les compteurs.</div>
-<div class="lot"><b>Lot 3, sur ma photo.</b> Quand l’essayage du diagnostic par photo sera ouvert.</div>
-<p class="note">Un banc le prouve, pannes plantées : chaque prix affiché est celui du catalogue, une prestation retirée disparaît, l’entretien suit le calibre, aucun choix ne vient d’ailleurs que de la carte.</p>
+<div class="lot"><b>Lot 3, sur ma photo.</b> Quand l’essayage du diagnostic par photo sera ouvert, avec le compteur des cinq essais par personne et « Rendre des essais » au Trône.</div>
+<p class="note">Un banc le prouve, pannes plantées : chaque prix affiché est celui du catalogue, une prestation retirée disparaît, l’entretien suit le calibre, aucun choix ne vient d’ailleurs que de la carte, aucune photo sans accord ne sort, jamais un sixième essai sans un geste de la direction.</p>
 </div>
 </section>
 </div>
@@ -326,6 +426,7 @@ fieldset.etape > legend + * { clear: both; }
     var s1 = document.createElement('span'); s1.textContent = c.locks + ' · ' + c.duree; b.appendChild(s1);
     var p = document.createElement('span'); p.className = 'palier'; p.textContent = c.palier; b.appendChild(p);
     var px = document.createElement('span'); px.className = 'prix'; px.textContent = 'dès ' + F(c.prix); b.appendChild(px);
+    var cp = document.createElement('span'); cp.className = 'compte'; b.appendChild(cp);
     b.addEventListener('click', function () { etat.calibre = c.k; boite.querySelectorAll('.calibre').forEach(function (x) { x.setAttribute('aria-pressed', x === b ? 'true' : 'false'); }); tout(); });
     boite.appendChild(b);
   });
@@ -467,14 +568,150 @@ fieldset.etape > legend + * { clear: both; }
       t1.textContent = x[0]; t2.textContent = x[1]; t3.className = 'prix'; t3.textContent = x[2];
       d.appendChild(t1); d.appendChild(t3); d.appendChild(t2); e.appendChild(d);
     });
+    montrePhotos(c);
+    var court = c.nom + (etat.couleur !== 'naturel' ? ' · ' + NOMS_COULEUR[etat.couleur].replace('YÈKPÈ™ ', '') : '');
+    document.getElementById('semblables-titre').textContent = 'Des couronnes de la Maison · ' + court;
+    ['v1', 'v2', 'v3'].forEach(function (id, i) { document.getElementById(id).textContent = ['photo de la bibliothèque', 'avec accord', NOMS_COIFFURE[etat.coiffure]][i]; });
     document.getElementById('fiche-titre').textContent = 'VÈKPÈ™ ' + c.nom + ' · ' + c.fon;
     document.getElementById('fiche-ligne').textContent = LONGUEURS[L] + ' · ' + NOMS_COULEUR[etat.couleur] + (etat.lumiere === 'oui' ? ', avec Lumière' : '') + ' · ' + NOMS_COIFFURE[etat.coiffure] + (etat.coiffure === 'evenement' ? ' (' + etat.ornement + ')' : '');
     dessine();
   }
+  /* ── Vos photos de chaque création VÈKPÈ™ : pour tester la maquette avec vos images.
+     Elles vivent dans ce navigateur (IndexedDB) et ne quittent jamais l'appareil. ── */
+  var PHOTOS = {}, vue = 'dessin', choisie = 0;
+  CAL.forEach(function (c) { PHOTOS[c.k] = []; });
+  function base() {
+    return new Promise(function (ok) {
+      try {
+        var q = indexedDB.open('composer-couronne-photos', 1);
+        q.onupgradeneeded = function () { q.result.createObjectStore('photos', { keyPath: 'id' }); };
+        q.onsuccess = function () { ok(q.result); };
+        q.onerror = function () { ok(null); };
+      } catch (e) { ok(null); }
+    });
+  }
+  function range(rec) {
+    var url = URL.createObjectURL(rec.blob);
+    PHOTOS[rec.calibre] = PHOTOS[rec.calibre] || [];
+    PHOTOS[rec.calibre].push({ id: rec.id, url: url, nom: rec.nom });
+    if (typeof fiche === 'function' && biblio) {
+      var nomCal = (CAL.filter(function (x) { return x.k === rec.calibre; })[0] || {}).nom;
+      biblio.insertBefore(fiche(url, rec.nom, nomCal, 'Naturel', 'Détaché', '', [0, 0, 0]), biblio.firstChild);
+    }
+  }
+  function montrePhotos(c) {
+    var lot = PHOTOS[c.k] || [];
+    if (choisie >= lot.length) choisie = 0;
+    document.getElementById('mes-photos-titre').textContent = 'Vos photos de VÈKPÈ™ ' + c.nom + (lot.length ? ' · ' + lot.length : '');
+    document.getElementById('retirer-calibre').disabled = !lot.length;
+    var bp = document.querySelector('.bascule [data-vue="photo"]');
+    bp.disabled = !lot.length;
+    if (!lot.length && vue === 'photo') vue = 'dessin';
+    document.querySelectorAll('.bascule button').forEach(function (x) { x.setAttribute('aria-pressed', x.getAttribute('data-vue') === vue ? 'true' : 'false'); });
+    var g = document.getElementById('grande'), cv = document.getElementById('couronne');
+    g.hidden = vue !== 'photo'; cv.hidden = vue === 'photo';
+    if (vue === 'photo' && lot[choisie]) g.src = lot[choisie].url;
+    ['v1', 'v2', 'v3'].forEach(function (id, i) {
+      var v = document.getElementById(id), ph = lot[i];
+      v.style.backgroundImage = ph ? 'url("' + ph.url + '")' : '';
+      v.classList.toggle('photo', !!ph);
+      if (ph) { v.setAttribute('role', 'button'); v.setAttribute('tabindex', '0'); v.setAttribute('aria-label', 'Voir ' + ph.nom); }
+      else { v.removeAttribute('role'); v.removeAttribute('tabindex'); v.removeAttribute('aria-label'); }
+      v.setAttribute('data-i', String(i));
+    });
+    boite.querySelectorAll('.calibre').forEach(function (b) {
+      var n = (PHOTOS[b.getAttribute('data-v')] || []).length;
+      b.querySelector('.compte').textContent = n ? n + ' photo' + (n > 1 ? 's' : '') + ' à vous' : '';
+    });
+  }
+  var depotBase = base();
+  document.getElementById('photos-calibre').addEventListener('change', function (e) {
+    var c = cal(), files = Array.prototype.slice.call(e.target.files || []).filter(function (f) { return /^image\//.test(f.type); });
+    e.target.value = '';
+    depotBase.then(function (db) {
+      files.forEach(function (f, i) {
+        var rec = { id: c.k + '-' + Date.now() + '-' + i, calibre: c.k, nom: f.name, blob: f };
+        if (db) { try { db.transaction('photos', 'readwrite').objectStore('photos').put(rec); } catch (er) {} }
+        range(rec);
+      });
+      document.getElementById('mes-photos-dit').textContent = files.length + ' photo' + (files.length > 1 ? 's' : '') + ' ajoutée' + (files.length > 1 ? 's' : '') + ' à ' + c.nom + (db ? ', gardée' + (files.length > 1 ? 's' : '') + ' sur cet appareil.' : ' pour cette visite (ce navigateur ne garde rien).');
+      if (files.length) { vue = 'photo'; choisie = PHOTOS[c.k].length - 1; }
+      tout();
+    });
+  });
+  document.getElementById('retirer-calibre').addEventListener('click', function () {
+    var c = cal(), lot = PHOTOS[c.k] || [];
+    depotBase.then(function (db) {
+      lot.forEach(function (ph) {
+        if (db) { try { db.transaction('photos', 'readwrite').objectStore('photos').delete(ph.id); } catch (er) {} }
+        URL.revokeObjectURL(ph.url);
+        biblio.querySelectorAll('img').forEach(function (im) { if (im.src === ph.url) im.closest('.fiche-photo').remove(); });
+      });
+      PHOTOS[c.k] = []; vue = 'dessin';
+      document.getElementById('mes-photos-dit').textContent = 'Les photos de ' + c.nom + ' sont retirées de cet appareil.';
+      tout();
+    });
+  });
+  document.querySelectorAll('.bascule button').forEach(function (b) {
+    b.addEventListener('click', function () { if (b.disabled) return; vue = b.getAttribute('data-vue'); tout(); });
+  });
+  ['v1', 'v2', 'v3'].forEach(function (id) {
+    var v = document.getElementById(id);
+    function ouvre() { if (!v.classList.contains('photo')) return; choisie = Number(v.getAttribute('data-i')); vue = 'photo'; tout(); }
+    v.addEventListener('click', ouvre);
+    v.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); ouvre(); } });
+  });
+  depotBase.then(function (db) {
+    if (!db) return;
+    try {
+      var q = db.transaction('photos', 'readonly').objectStore('photos').getAll();
+      q.onsuccess = function () { (q.result || []).forEach(range); tout(); };
+    } catch (e) {}
+  });
+
   tout();
 
-  /* ── Les cinq choix, gardés sur ce poste et dans la base partagée de la maquette ── */
-  var NOMS = ['nom', 'ou', 'prix', 'image', 'part'];
+  /* ── La bibliothèque : quatre exemples, puis ce qu'on dépose (reste sur l'appareil) ── */
+  var biblio = document.getElementById('biblio');
+  var OPT_CAL = ['Jumbo', 'Medium', 'Mini', 'Micro', 'Nano', 'Galaxy'], OPT_COUL = ['Naturel', 'Cuivré', 'Brun', 'Noir indigo'], OPT_COIF = ['Détaché', 'Demi-attache', 'Chignon', 'Événement'];
+  function liste(opts, v) { var s = document.createElement('select'); opts.forEach(function (o) { var x = document.createElement('option'); x.textContent = o; if (o === v) x.selected = true; s.appendChild(x); }); return s; }
+  function fiche(src, legende, cal0, coul0, coif0, accord, usages) {
+    var f = document.createElement('div'); f.className = 'fiche-photo';
+    if (src) { var im = document.createElement('img'); im.src = src; im.alt = legende; f.appendChild(im); }
+    else { var ph = document.createElement('div'); ph.className = 'img'; ph.textContent = legende; f.appendChild(ph); }
+    var c = document.createElement('div'); c.className = 'corps';
+    var r = document.createElement('div'); r.className = 'rangs';
+    r.appendChild(liste(OPT_CAL, cal0)); r.appendChild(liste(OPT_COUL, coul0)); r.appendChild(liste(OPT_COIF, coif0));
+    c.appendChild(r);
+    var a = document.createElement('span'); a.className = 'accord ' + (accord ? 'ok' : 'non'); a.textContent = accord ? 'Accord signé · ' + accord : 'Accord à demander : rien ne sort';
+    c.appendChild(a);
+    ['Configurateur', 'WhatsApp', 'Modèle de simulation'].forEach(function (u, i) {
+      var l = document.createElement('label'); l.className = 'usage' + (accord ? '' : ' off');
+      var cb = document.createElement('input'); cb.type = 'checkbox'; cb.checked = !!accord && !!usages[i]; cb.disabled = !accord;
+      l.appendChild(cb); l.appendChild(document.createTextNode(u)); c.appendChild(l);
+    });
+    f.appendChild(c);
+    return f;
+  }
+  [['Micro, cuivré', 'Micro', 'Cuivré', 'Demi-attache', 'A. K., 3 oct. 2026', [1, 1, 1]],
+   ['Medium, naturel', 'Medium', 'Naturel', 'Détaché', 'modèle de la Maison, 1 oct. 2026', [1, 1, 0]],
+   ['Nano, Événement', 'Nano', 'Noir indigo', 'Événement', 'E. D., 28 sept. 2026', [1, 0, 0]],
+   ['Jumbo, chignon', 'Jumbo', 'Naturel', 'Chignon', '', [0, 0, 0]]].forEach(function (x) { biblio.appendChild(fiche(null, x[0] + ' · exemple', x[1], x[2], x[3], x[4], x[5])); });
+  function ajoute(files) {
+    Array.prototype.slice.call(files || []).forEach(function (fl) {
+      if (!/^image\//.test(fl.type)) return;
+      var url = URL.createObjectURL(fl);
+      biblio.insertBefore(fiche(url, fl.name, 'Medium', 'Naturel', 'Détaché', '', [0, 0, 0]), biblio.firstChild);
+    });
+  }
+  var depot = document.getElementById('depot');
+  document.getElementById('fichiers').addEventListener('change', function (e) { ajoute(e.target.files); e.target.value = ''; });
+  ['dragenter', 'dragover'].forEach(function (ev) { depot.addEventListener(ev, function (e) { e.preventDefault(); depot.classList.add('survol'); }); });
+  ['dragleave', 'drop'].forEach(function (ev) { depot.addEventListener(ev, function (e) { e.preventDefault(); depot.classList.remove('survol'); }); });
+  depot.addEventListener('drop', function (e) { ajoute(e.dataTransfer && e.dataTransfer.files); });
+
+  /* ── Les sept choix, gardés sur ce poste et dans la base partagée de la maquette ── */
+  var NOMS = ['nom', 'ou', 'prix', 'image', 'part', 'biblio', 'essais'];
   var CLE_CHOIX = 'composer-couronne-maquette-choix';
   function lis(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
   function ecris(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
