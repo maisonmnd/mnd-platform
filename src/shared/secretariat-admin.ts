@@ -6,7 +6,7 @@ import { TAILLE_MAX, typeDuFichier } from './papiers-pur';
 import { asset } from './asset';
 import { dateSurLeRecu, TAMPON_A_DATER, tamponParCle } from './secretariat-tampons';
 import {
-  marqueFaite, placeDuRecu, prochainNumeroDuCourrier,
+  courrierRepondu, marqueFaite, placeDuRecu, prochainNumeroDuCourrier,
   type Cloture, type Contact, type Contrat, type Courrier, type Demarche, type Echeance, type Fichier, type LigneAdministrative, type Sens,
 } from './secretariat-admin-pur';
 import type { LigneSecretariat } from './secretariat-pur';
@@ -77,6 +77,14 @@ export function nouvelleEcheance(o: Omit<Echeance, 'id' | 'genre' | 'entite' | '
   return e;
 }
 export const faitLEcheance = (e: Echeance, par: string): Echeance => retouche(e, marqueFaite(e, maintenant(), par));
+
+/** Un départ part : sa date devient celle de l'envoi, et le courrier auquel
+    il répond passe à « répondu » (courrierRepondu). */
+export function envoieLeDepart(c: Courrier, lignes: readonly LigneSecretariat[], jour: string): void {
+  retouche(c, { etat: 'envoye', date: jour });
+  const origine = courrierRepondu(c, courriersDe(lignes));
+  if (origine) retouche(origine, { etat: 'repondu' });
+}
 
 /* ══ LES CONTRATS ════════════════════════════════════════════════════ */
 

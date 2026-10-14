@@ -4,13 +4,14 @@ import { Button, Field, Input, Modal, Segs, Textarea, toast } from '../../../../
 import { metsAJour, nouvellePiece, pieces, signatairesDe, useSecretariat } from '../../../../../shared/secretariat';
 import { dateDite } from '../../../../../shared/secretariat-pur';
 import {
-  aujourdhui, contactsDe, courriersDe, demarchesDe, deposeLesFichiers, effaceLaLigne, nouveauCourrier, prendsLesFichiers, retouche,
+  aujourdhui, contactsDe, courriersDe, demarchesDe, deposeLesFichiers, echeancesDe, effaceLaLigne, envoieLeDepart, nouveauCourrier, prendsLesFichiers, retouche,
 } from '../../../../../shared/secretariat-admin';
 import {
   anneesCloses, dateCourte, ETATS_ARRIVE, ETATS_DEPART, estFige, MOYENS, peutEcrire, recuLeDe, tientLeSecretariat, voit,
   type Courrier as LeCourrier, type Moyen, type Qui, type Sens,
 } from '../../../../../shared/secretariat-admin-pur';
 import { CasePrivee, ChoixDuCompte, LesFichiers, rappel, Repliee, useNomDuCompte } from './_admin';
+import { FicheDeLEcheance } from './Echeancier';
 
 /* ══ LE COURRIER — 14 octobre 2026 (maquette TChByryY…, choix « photo et classeur ») ══
    Ce qui arrive et ce qui part, numéroté A-2026-001 et D-2026-001. Le numéro
@@ -25,12 +26,14 @@ export function LeCourrierDeLaMaison({ qui, branchId, ouvreUnDocument }: { qui: 
   const [cherche, setCherche] = useState('');
   const [ouvert, setOuvert] = useState<string | null>(null);
   const [edite, setEdite] = useState<LeCourrier | 'neuf' | null>(null);
+  const [echeancePour, setEcheancePour] = useState<LeCourrier | null>(null);
   const nomDe = useNomDuCompte();
   const jour = aujourdhui();
   const tient = tientLeSecretariat(qui);
   const closes = anneesCloses(lignes as { genre: string; annee?: unknown }[]);
   const docs = pieces(lignes);
   const demarches = demarchesDe(lignes);
+  const echeances = echeancesDe(lignes);
   const q = cherche.trim().toLowerCase();
   const liste = useMemo(() => courriersDe(lignes)
     .filter((c) => c.sens === sens && voit(c, qui))
@@ -75,6 +78,7 @@ export function LeCourrierDeLaMaison({ qui, branchId, ouvreUnDocument }: { qui: 
             const fige = estFige(c, closes, qui.direction);
             const ecrit = peutEcrire(c, qui, false) && !fige;
             const piece = c.pieceId ? docs.find((p) => p.id === c.pieceId) : undefined;
+            const sesEcheances = echeances.filter((e) => e.courrierId === c.id && voit(e, qui));
             return (
               <Repliee
                 key={c.id} ouverte={ouvert === c.id} surBascule={() => setOuvert(ouvert === c.id ? null : c.id)}
@@ -89,6 +93,7 @@ export function LeCourrierDeLaMaison({ qui, branchId, ouvreUnDocument }: { qui: 
                   {c.moyen && <><dt>Moyen</dt><dd>{MOYENS[c.moyen]}</dd></>}
                   {c.demarcheId && <><dt>Démarche</dt><dd>{demarches.find((d) => d.id === c.demarcheId)?.titre ?? 'une démarche'}</dd></>}
                   {piece && <><dt>Lettre</dt><dd><button type="button" className="sad-lien" onClick={() => ouvreUnDocument(piece.id)}>{piece.numero ?? `Brouillon : ${piece.titre}`}</button></dd></>}
+                  {sesEcheances.length > 0 && <><dt>Échéance</dt><dd>{sesEcheances.map((e) => <div key={e.id}>{e.titre} · {e.date ? dateCourte(e.date) : 'à dater'}{e.terminee ? ' · faite' : ''}</div>)}</dd></>}
                   {c.note && <><dt>Note</dt><dd>{c.note}</dd></>}
                   {c.sens === 'arrive' && <><dt>Original</dt><dd>
                     {tient ? (
@@ -101,8 +106,9 @@ export function LeCourrierDeLaMaison({ qui, branchId, ouvreUnDocument }: { qui: 
                 <div className="sec-actions">
                   {c.sens === 'arrive' && tient && ecrit && !c.pieceId && c.etat === 'a-traiter' && <Button size="sm" variant="copper" onClick={() => repond(c)}>Répondre</Button>}
                   {c.sens === 'arrive' && ecrit && c.etat === 'a-traiter' && <Button size="sm" variant="ghost" onClick={() => retouche(c, { etat: 'repondu' })}>Marquer répondu</Button>}
+                  {c.sens === 'arrive' && tient && ecrit && <Button size="sm" variant="ghost" onClick={() => setEcheancePour(c)}>Créer une échéance</Button>}
                   {c.sens === 'arrive' && tient && ecrit && c.etat !== 'classe' && <Button size="sm" variant="ghost" onClick={() => retouche(c, { etat: 'classe' })}>Classer</Button>}
-                  {c.sens === 'depart' && tient && ecrit && c.etat === 'prepare' && <Button size="sm" variant="copper" onClick={() => retouche(c, { etat: 'envoye', date: jour })}>C’est envoyé</Button>}
+                  {c.sens === 'depart' && tient && ecrit && c.etat === 'prepare' && <Button size="sm" variant="copper" onClick={() => { envoieLeDepart(c, lignes, jour); if (c.repondA) toast('Envoyé ; le courrier auquel il répond passe à « répondu ».'); }}>C’est envoyé</Button>}
                   {c.sens === 'depart' && tient && ecrit && c.etat === 'envoye' && <Button size="sm" variant="ghost" onClick={() => retouche(c, { etat: 'accuse' })}>Accusé reçu</Button>}
                   {tient && ecrit && <Button size="sm" variant="ghost" onClick={() => setEdite(c)}>Modifier</Button>}
                   {qui.direction && <Button size="sm" variant="ghost" onClick={() => { effaceLaLigne(c); setOuvert(null); toast(`${c.numero} effacé.`); }}>Effacer</Button>}
@@ -111,6 +117,18 @@ export function LeCourrierDeLaMaison({ qui, branchId, ouvreUnDocument }: { qui: 
             );
           })}
         </div>
+      )}
+      {echeancePour && (
+        <FicheDeLEcheance
+          qui={qui} branchId={branchId} onClose={() => setEcheancePour(null)}
+          modele={{
+            titre: `${echeancePour.correspondant}${echeancePour.objet ? ` · ${echeancePour.objet}` : ''}`,
+            type: /imp[oô]t|fisc|dgi/i.test(`${echeancePour.correspondant} ${echeancePour.objet}`) ? 'impots' : /cnss/i.test(`${echeancePour.correspondant} ${echeancePour.objet}`) ? 'social' : 'autre',
+            date: echeancePour.reponseAvant, traitePar: echeancePour.traitePar, prive: echeancePour.prive,
+            note: `D’après le courrier ${echeancePour.numero}, reçu le ${dateCourte(echeancePour.date)}.`,
+            courrierId: echeancePour.id, demarcheId: echeancePour.demarcheId,
+          }}
+        />
       )}
       {edite && <FicheDuCourrier qui={qui} branchId={branchId} sens={edite === 'neuf' ? sens : edite.sens} courrier={edite === 'neuf' ? undefined : edite} onClose={() => setEdite(null)} />}
     </div>

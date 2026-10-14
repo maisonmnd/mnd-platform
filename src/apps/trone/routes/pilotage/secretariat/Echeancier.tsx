@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { useNavigate } from 'react-router-dom';
 import { Button, Field, Input, Modal, Textarea, toast } from '../../../../../ds/components';
 import { useSecretariat } from '../../../../../shared/secretariat';
 import { aujourdhui, echeancesDe, effaceLaLigne, faitLEcheance, nouvelleEcheance, retouche } from '../../../../../shared/secretariat-admin';
@@ -30,7 +31,12 @@ const VIENT: Record<string, { mot: string; onglet: string }> = {
 
 type Rang = { cle: string; date?: string; titre: string; echeance?: Echeance; tombe?: Tombe & { vient: string } };
 
+/* Ce qui se paie (maquette : « payé, il se coche ici et s'inscrit aux
+   Finances ») : la dépense reste aux Finances, l'échéance y mène. */
+const QUI_SE_PAIENT: TypeEcheance[] = ['impots', 'social', 'loyer', 'contrat'];
+
 export function LEcheancier({ qui, branchId, va }: { qui: Qui; branchId: string; va: (onglet: string) => void }) {
+  const navigate = useNavigate();
   const [lignes] = useSecretariat();
   const classeur = useClasseur();
   const [ouvert, setOuvert] = useState<string | null>(null);
@@ -98,9 +104,11 @@ export function LEcheancier({ qui, branchId, va }: { qui: Qui; branchId: string;
                         <div className="sec-actions">
                           <Button size="sm" variant="copper" onClick={() => {
                             const suite = faitLEcheance(e, qui.moi);
-                            toast(suite.terminee ? 'Échéance faite.' : `Faite ; la suivante est posée au ${dateCourte(suite.date)}.`);
+                            const paye = QUI_SE_PAIENT.includes(e.type) ? ' Si elle a coûté, la dépense s’inscrit aux Finances.' : '';
+                            toast((suite.terminee ? 'Échéance faite.' : `Faite ; la suivante est posée au ${dateCourte(suite.date)}.`) + paye, 6000);
                             setOuvert(null);
                           }}>C’est fait</Button>
+                          {QUI_SE_PAIENT.includes(e.type) && <Button size="sm" variant="ghost" onClick={() => navigate('/depenses')}>Aux dépenses</Button>}
                           <Button size="sm" variant="ghost" onClick={() => setEdite(e)}>Modifier</Button>
                           {qui.direction && <Button size="sm" variant="ghost" onClick={() => { effaceLaLigne(e); toast('Échéance effacée.'); }}>Effacer</Button>}
                         </div>
@@ -123,19 +131,25 @@ export function LEcheancier({ qui, branchId, va }: { qui: Qui; branchId: string;
   );
 }
 
-function FicheDeLEcheance({ qui, branchId, echeance, onClose }: { qui: Qui; branchId: string; echeance?: Echeance; onClose: () => void }) {
-  const [titre, setTitre] = useState(echeance?.titre ?? '');
-  const [type, setType] = useState<TypeEcheance>(echeance?.type ?? 'autre');
-  const [date, setDate] = useState(echeance?.date ?? '');
+/** `modele` : une échéance neuve préremplie (depuis un courrier : son
+    correspondant, sa date de réponse, à qui il est confié, et le lien). */
+export function FicheDeLEcheance({ qui, branchId, echeance, modele, onClose }: {
+  qui: Qui; branchId: string; echeance?: Echeance;
+  modele?: Partial<Pick<Echeance, 'titre' | 'type' | 'date' | 'traitePar' | 'note' | 'prive' | 'courrierId' | 'demarcheId'>>; onClose: () => void;
+}) {
+  const depart = echeance ?? modele;
+  const [titre, setTitre] = useState(depart?.titre ?? '');
+  const [type, setType] = useState<TypeEcheance>(depart?.type ?? 'autre');
+  const [date, setDate] = useState(depart?.date ?? '');
   const [recurrence, setRecurrence] = useState<Recurrence>(echeance?.recurrence ?? 'aucune');
-  const [traitePar, setTraitePar] = useState<string | undefined>(echeance?.traitePar);
-  const [note, setNote] = useState(echeance?.note ?? '');
-  const [prive, setPrive] = useState(!!echeance?.prive);
+  const [traitePar, setTraitePar] = useState<string | undefined>(depart?.traitePar);
+  const [note, setNote] = useState(depart?.note ?? '');
+  const [prive, setPrive] = useState(!!depart?.prive);
   const garde = () => {
     if (!titre.trim()) { toast('Que faut-il faire à cette date ?'); return; }
     const champs = { titre: titre.trim(), type, date: date || undefined, recurrence, traitePar, note: note.trim() || undefined };
     if (echeance) retouche(echeance, { ...champs, prive: prive || undefined });
-    else nouvelleEcheance({ branchId, par: qui.moi, ...champs, prive });
+    else nouvelleEcheance({ branchId, par: qui.moi, ...champs, courrierId: modele?.courrierId, demarcheId: modele?.demarcheId, prive });
     onClose();
   };
   return createPortal(

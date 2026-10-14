@@ -11,7 +11,7 @@
 import { readFileSync } from 'node:fs';
 import {
   ajouteJours, ajouteMois, anneesCloses, aRevoir, attendMaSignature, ceQuiTombe, dateCourte, ecartEnJours, estFige, JOURS_DE_NOTIFICATION,
-  marqueFaite, montantDit, peutEcrire, placeDuRecu, prochainNumeroDuCourrier, rappelDit, recuLeDe, sousTrenteJours, voit,
+  courrierRepondu, enAttenteDUneReponse, marqueFaite, montantDit, peutEcrire, placeDuRecu, prochainNumeroDuCourrier, rappelDit, recuLeDe, sousTrenteJours, voit,
   type Contrat, type Courrier, type Echeance, type Qui,
 } from '../src/shared/secretariat-admin-pur';
 
@@ -113,6 +113,28 @@ dit('le courrier neuf et la photo ajoutee passent la date d arrivee', [true, tru
   sansCommentaires('src/apps/trone/routes/pilotage/secretariat/Courrier.tsx').includes('await deposeLesFichiers(c.id, fichiers, 0, recuLeDe(c));'),
   sansCommentaires('src/apps/trone/routes/pilotage/secretariat/_admin.tsx').includes('deposeLesFichiers(ligne.id, pris.fichiers, ligne.fichiers.length, recuLe);'),
 ]);
+
+/* ── 6 ter. CE QUE LA MAQUETTE A PROMIS AUTOUR DU COURRIER ── */
+const arrive = (id: string, etat: string) => ({ ...base, id, genre: 'courrier', sens: 'arrive', numero: 'A-2026-00' + id, date: '2026-10-01', correspondant: 'X', objet: '', etat, fichiers: [] }) as Courrier;
+const arrives = [arrive('1', 'a-traiter'), arrive('2', 'classe')];
+dit('la reponse part : son courrier a traiter passe a repondu ; un classe ne bouge pas ; sans lien, rien', ['1', undefined, undefined], [
+  courrierRepondu({ sens: 'depart', repondA: '1' }, arrives)?.id, courrierRepondu({ sens: 'depart', repondA: '2' }, arrives)?.id, courrierRepondu({ sens: 'depart' }, arrives)?.id,
+]);
+dit('une demarche envoyee attend, et sa relance se pose a J+7', { etat: 'en-attente', prochaine: 'Relancer', prochaineLe: '2026-10-21' }, enAttenteDUneReponse({}, '2026-10-14'));
+dit('une action deja datee plus tard reste la sienne ; une date passee devient la relance', ['2026-11-30', '2026-10-21'], [
+  enAttenteDUneReponse({ prochaine: 'Deposer', prochaineLe: '2026-11-30' }, '2026-10-14').prochaineLe, enAttenteDUneReponse({ prochaine: 'Deposer', prochaineLe: '2026-10-01' }, '2026-10-14').prochaineLe,
+]);
+const cou2 = sansCommentaires('src/apps/trone/routes/pilotage/secretariat/Courrier.tsx');
+const ech2 = sansCommentaires('src/apps/trone/routes/pilotage/secretariat/Echeancier.tsx');
+dit('C est envoye passe par envoieLeDepart ; un courrier cree son echeance, liee', [true, true, true], [
+  cou2.includes('envoieLeDepart(c, lignes, jour);'), cou2.includes('onClick={() => setEcheancePour(c)}>Créer une échéance</Button>'),
+  ech2.includes('courrierId: modele?.courrierId, demarcheId: modele?.demarcheId'),
+]);
+dit('une echeance qui se paie mene aux depenses, sans rien y ecrire', [true, false], [
+  ech2.includes("const QUI_SE_PAIENT: TypeEcheance[] = ['impots', 'social', 'loyer', 'contrat'];") && ech2.includes("navigate('/depenses')"),
+  ech2.includes('depensesStore'),
+]);
+dit('la demarche envoyee passe par enAttenteDUneReponse', true, sansCommentaires('src/apps/trone/routes/pilotage/secretariat/Demarches.tsx').includes('const p = enAttenteDUneReponse(d, jour);'));
 
 /* ── 7. LE MÊME CALCUL À L'ÉCRAN ET DANS LA NOTIFICATION ── */
 const bloc = (f: string) => { const s = lis(f); const a = s.indexOf('/* ⟨ce-qui-tombe⟩ */'); const b = s.indexOf('/* ⟨/ce-qui-tombe⟩ */'); return a >= 0 && b > a ? s.slice(a, b) : `ABSENT de ${f}`; };

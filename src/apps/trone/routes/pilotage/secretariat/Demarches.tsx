@@ -8,7 +8,7 @@ import {
   aujourdhui, basculeEtape, contactsDe, courriersDe, demarchesDe, effaceLaLigne, nouvelleDemarche, retouche, termineLaDemarche,
 } from '../../../../../shared/secretariat-admin';
 import {
-  anneesCloses, dateCourte, estFige, ETATS_DEMARCHE, montantDit, tientLeSecretariat, TYPES_DEMARCHE, voit,
+  anneesCloses, dateCourte, enAttenteDUneReponse, estFige, ETATS_DEMARCHE, montantDit, tientLeSecretariat, TYPES_DEMARCHE, voit,
   type Demarche, type Devise, type Qui, type TypeDemarche,
 } from '../../../../../shared/secretariat-admin-pur';
 import { CasePrivee, LesFichiers, rappel, Repliee } from './_admin';
@@ -123,7 +123,11 @@ export function LesDemarches({ qui, branchId, ouvreUnDocument }: { qui: Qui; bra
               {fige && <p className="sad-doux">Son année est close : cette démarche ne bouge plus.</p>}
               {ecrit && (
                 <div className="sec-actions">
-                  {d.etat === 'en-cours' && <Button size="sm" variant="ghost" onClick={() => retouche(d, { etat: 'en-attente' })}>En attente d’une réponse</Button>}
+                  {d.etat === 'en-cours' && <Button size="sm" variant="ghost" onClick={() => {
+                    const p = enAttenteDUneReponse(d, jour);
+                    retouche(d, p);
+                    toast(`En attente d’une réponse ; ${p.prochaine ?? 'la suite'} le ${dateCourte(p.prochaineLe)}.`, 6000);
+                  }}>C’est envoyé, en attente</Button>}
                   {d.etat === 'en-attente' && <Button size="sm" variant="ghost" onClick={() => retouche(d, { etat: 'en-cours' })}>Reprendre</Button>}
                   {(d.etat === 'en-cours' || d.etat === 'en-attente') && <Button size="sm" variant="copper" onClick={() => { termineLaDemarche(d); toast('Démarche terminée.'); setOuvert(null); }}>Terminée</Button>}
                   {(d.etat === 'en-cours' || d.etat === 'en-attente') && <Button size="sm" variant="ghost" onClick={() => retouche(d, { etat: 'abandonnee' })}>Abandonnée</Button>}

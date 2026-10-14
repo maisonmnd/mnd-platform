@@ -70,6 +70,8 @@ export type Echeance = Base & {
   traitePar?: string;
   contratId?: string;
   demarcheId?: string;
+  /** Le courrier d'où elle vient (« Créer une échéance » sur un avis). */
+  courrierId?: string;
   note?: string;
   faites: Faite[];
   terminee?: boolean;
@@ -296,6 +298,24 @@ export function placeDuRecu(largeur: number, hauteur: number, ratio: number): { 
   if (h > hMax) { h = hMax; l = Math.round(h * ratio); }
   const marge = Math.round(Math.min(largeur, hauteur) * 0.03);
   return { x: largeur - l - marge, y: marge, l, h };
+}
+
+/** La réponse part (maquette : « signée, elle part et le courrier passe à
+    répondu ») : le courrier arrivé auquel elle répond, s'il est encore à
+    traiter. Un courrier déjà classé ne bouge pas. */
+export const courrierRepondu = (depart: Pick<Courrier, 'sens' | 'repondA'>, courriers: readonly Courrier[]): Courrier | undefined =>
+  depart.sens === 'depart' && depart.repondA
+    ? courriers.find((x) => x.id === depart.repondA && x.sens === 'arrive' && x.etat === 'a-traiter')
+    : undefined;
+
+/* UNE DÉMARCHE QUI ATTEND UNE RÉPONSE (maquette : « une fois envoyé, la
+   démarche passe en attente, et une relance se pose à J+7 »). La relance est
+   sa prochaine action, datée : elle monte dans l'échéancier et la cloche
+   comme les autres. Une action déjà datée plus tard reste la sienne. */
+export const JOURS_AVANT_RELANCE = 7;
+export function enAttenteDUneReponse(d: Pick<Demarche, 'prochaine' | 'prochaineLe'>, jour: string): Pick<Demarche, 'etat' | 'prochaine' | 'prochaineLe'> {
+  if (d.prochaineLe && d.prochaineLe > jour) return { etat: 'en-attente', prochaine: d.prochaine, prochaineLe: d.prochaineLe };
+  return { etat: 'en-attente', prochaine: 'Relancer', prochaineLe: ajouteJours(jour, JOURS_AVANT_RELANCE) };
 }
 
 /** Un contrat à revoir : son préavis ou sa fin tombe sous 60 jours, ou sa
