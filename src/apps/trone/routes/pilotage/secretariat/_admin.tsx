@@ -1,9 +1,9 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { Suspense, lazy, useEffect, useState, type ReactNode } from 'react';
 import { useAuth } from '../../../../../shared/auth';
 import { useEstDirection } from '../../_vie';
 import { toast } from '../../../../../ds/components';
 import {
-  chargeLEquipe, chargeLesTitulaires, deposeLesFichiers, lienDuFichier, prendsLesFichiers, retouche, useEquipeDuSecretariat, useTitulaires,
+  chargeLEquipe, chargeLesTitulaires, deposeLesFichiers, lienDuFichier, octetsDuFichier, prendsLesFichiers, retouche, useEquipeDuSecretariat, useTitulaires,
 } from '../../../../../shared/secretariat-admin';
 import { rappelDit, recuLeDe, type Courrier, type Fichier, type LigneAdministrative, type Qui } from '../../../../../shared/secretariat-admin-pur';
 
@@ -72,9 +72,30 @@ export function rappel(date: string | undefined, jour: string): { badge?: string
   return { badge: r.mot, urgent: r.urgent };
 }
 
-/** Les fichiers d'une ligne : les voir (lien d'une minute), en ajouter. */
+/* L'ATELIER « SIGNER UN PDF » (15 octobre 2026) ne se charge qu'à l'ouverture :
+   pdf.js pèse, et le Secrétariat s'ouvre sans lui. */
+const SignerUnPdf = lazy(() => import('./SignerUnPdf').then((m) => ({ default: m.SignerUnPdf })));
+export type OuvertureDuPdf = { octets: Uint8Array; nom: string; ligne?: LigneAdministrative & { fichiers: Fichier[] }; source?: Fichier };
+/** L'atelier, prêt à s'ouvrir sur un PDF. */
+export function AtelierDuPdf({ ouverture, onClose }: { ouverture: OuvertureDuPdf | null; onClose: () => void }) {
+  if (!ouverture) return null;
+  return <Suspense fallback={null}><SignerUnPdf ouverture={ouverture} onClose={onClose} /></Suspense>;
+}
+const signeLeDit = (iso: string): string => {
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime()) ? '' : d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
+};
+
+/** Les fichiers d'une ligne : les voir (lien d'une minute), en ajouter, et
+    signer un PDF (une copie signée vient se ranger à côté de l'original). */
 export function LesFichiers<L extends LigneAdministrative & { fichiers: Fichier[] }>({ ligne, peutAjouter }: { ligne: L; peutAjouter: boolean }) {
   const [envoi, setEnvoi] = useState(false);
+  const [signer, setSigner] = useState<OuvertureDuPdf | null>(null);
+  const ouvreEtSigne = async (f: Fichier) => {
+    const octets = await octetsDuFichier(f.chemin);
+    if (!octets) { toast('Ce PDF ne s’ouvre qu’en ligne.'); return; }
+    setSigner({ octets, nom: f.nom, ligne, source: f });
+  };
   const ouvre = async (f: Fichier) => {
     const url = await lienDuFichier(f.chemin);
     if (url) window.open(url, '_blank', 'noopener');
@@ -95,8 +116,13 @@ export function LesFichiers<L extends LigneAdministrative & { fichiers: Fichier[
   return (
     <div className="sad-fichiers">
       {ligne.fichiers.map((f) => (
-        <button key={f.chemin} type="button" className="sec-puce" onClick={() => void ouvre(f)}>{f.type === 'application/pdf' ? 'PDF' : 'Photo'} · {f.nom}</button>
+        <span key={f.chemin} className="sad-fichier">
+          <button type="button" className="sec-puce" onClick={() => void ouvre(f)}>{f.type === 'application/pdf' ? 'PDF' : 'Photo'} · {f.nom}</button>
+          {(f.type === 'application/pdf' || /\.pdf$/i.test(f.nom)) && peutAjouter && <button type="button" className="sec-puce" onClick={() => void ouvreEtSigne(f)}>Ouvrir et signer</button>}
+          {f.signeLe && <small className="sad-doux">signé le {signeLeDit(f.signeLe)}{f.signePar ? ` par ${f.signePar}` : ''}{f.contenu?.length ? ` · ${f.contenu.join(', ')}` : ''}</small>}
+        </span>
       ))}
+      <AtelierDuPdf ouverture={signer} onClose={() => setSigner(null)} />
       {ligne.fichiers.length === 0 && <span className="sad-doux">Aucun fichier.</span>}
       {peutAjouter && (
         <label className="sec-puce sad-ajout">

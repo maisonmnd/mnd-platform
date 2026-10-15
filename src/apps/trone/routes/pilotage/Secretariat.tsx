@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { createPortal } from 'react-dom';
 import { PageHead } from '../_ui';
@@ -20,7 +20,7 @@ import { MARQUE_HEBERGEANT } from '../../../../shared/bourse';
 import { REGISTRE_MAISON_MND } from '../../../../shared/registre';
 import { courriersDe } from '../../../../shared/secretariat-admin';
 import { tientLeSecretariat } from '../../../../shared/secretariat-admin-pur';
-import { useQui } from './secretariat/_admin';
+import { AtelierDuPdf, useQui, type OuvertureDuPdf } from './secretariat/_admin';
 import { Aujourdhui } from './secretariat/Aujourdhui';
 import { LeCourrierDeLaMaison } from './secretariat/Courrier';
 import { LEcheancier } from './secretariat/Echeancier';
@@ -138,6 +138,17 @@ export default function Secretariat() {
   }
 
   const aSaSignature = signatairesDe(lignes).some((s) => s.userId === moi && s.aSaSignature);
+  /* SIGNER UN PDF DE L'ORDINATEUR (15 octobre 2026) : reçu par e-mail, on le
+     signe ici, puis la copie se range sur la ligne qui convient. */
+  const [pdfASigner, setPdfASigner] = useState<OuvertureDuPdf | null>(null);
+  const champPdf = useRef<HTMLInputElement>(null);
+  const ouvreUnPdf = async (f: File | undefined) => {
+    if (!f) return;
+    if (f.type !== 'application/pdf' && !/\.pdf$/i.test(f.name)) { toast('Choisissez un PDF.'); return; }
+    if (f.size > 10 * 1024 * 1024) { toast('Ce PDF dépasse 10 Mo.'); return; }
+    setPdfASigner({ octets: new Uint8Array(await f.arrayBuffer()), nom: f.name });
+  };
+  const peutSignerUnPdf = qui.direction || qui.titulaire;
 
   return (
     <div className="mnd-rise">
@@ -147,11 +158,15 @@ export default function Secretariat() {
         sub={onglet === 'documents'
           ? 'Lettres, attestations, notes, contrats : tout ce qui sort sur papier à en-tête, numéroté et signé.'
           : 'Le courrier, les dates à tenir, les contrats, les démarches et les papiers de la Maison, au même endroit.'}
-        actions={onglet !== 'documents' ? undefined : (
+        actions={(
           <>
+            {peutSignerUnPdf && <Button variant="ghost" onClick={() => champPdf.current?.click()}>Signer un PDF</Button>}
+            {peutSignerUnPdf && <input ref={champPdf} type="file" accept="application/pdf,.pdf" hidden onChange={(e) => { void ouvreUnPdf(e.target.files?.[0]); e.target.value = ''; }} />}
+            {onglet === 'documents' && <>
             {direction && <Button variant="ghost" onClick={() => setMentions(true)}>Mentions de l’en-tête</Button>}
             <Button variant="ghost" onClick={() => setSignature(true)}>{aSaSignature ? 'Ma signature' : 'Déposer ma signature'}</Button>
             <Button variant="copper" onClick={() => setNouveau(true)}>+ Nouveau document</Button>
+            </>}
           </>
         )}
       />
@@ -250,6 +265,7 @@ export default function Secretariat() {
       {signature && moi && (
         <MaSignature userId={moi} branchId={branch.id} nomParDefaut={tete?.name ?? ''} direction={direction} onClose={() => setSignature(false)} />
       )}
+      <AtelierDuPdf ouverture={pdfASigner} onClose={() => setPdfASigner(null)} />
     </div>
   );
 }

@@ -218,6 +218,31 @@ export async function chargeMaSignature(userId: string): Promise<string | null> 
   });
 }
 
+/* MON PARAPHE — 15 octobre 2026 (Signer un PDF, choix « chacun dépose son
+   paraphe »). Rangé à côté de la signature, dans le même dossier privé : la
+   règle de la base (0116) ne laisse lire que son titulaire. */
+const cheminDeMonParaphe = (userId: string) => `${userId}/paraphe.png`;
+export async function chargeMonParaphe(userId: string): Promise<string | null> {
+  if (!supabase || !userId) return null;
+  const lecture = supabase.storage.from('signatures').download(cheminDeMonParaphe(userId));
+  const delai = new Promise<{ data: null; error: Error }>((ok) => setTimeout(() => ok({ data: null, error: new Error('délai') }), 8000));
+  const { data, error } = await Promise.race([lecture, delai]);
+  if (error || !data) return null;
+  return await new Promise<string | null>((ok) => {
+    const r = new FileReader();
+    r.onloadend = () => ok(typeof r.result === 'string' ? r.result : null);
+    r.onerror = () => ok(null);
+    r.readAsDataURL(data);
+  });
+}
+export async function deposeMonParaphe(userId: string, png: string): Promise<boolean> {
+  if (!supabase || !userId) return false;
+  const blob = await (await fetch(png)).blob();
+  const { error } = await supabase.storage.from('signatures').upload(cheminDeMonParaphe(userId), blob, { contentType: 'image/png', upsert: true });
+  if (error) { console.warn('[mnd-secretariat] paraphe refusé :', error.message); return false; }
+  return true;
+}
+
 export async function deposeMaSignature(userId: string, png: string): Promise<boolean> {
   if (!supabase || !userId) return false;
   const blob = await (await fetch(png)).blob();

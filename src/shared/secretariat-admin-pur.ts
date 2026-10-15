@@ -11,7 +11,15 @@
    bouton que la base refuserait. Rien ici ne lit le réseau ni l'horloge :
    tout reçoit « aujourd'hui » en paramètre, et se prouve au banc. */
 
-export type Fichier = { chemin: string; nom: string; type: string; taille: number };
+export type Fichier = {
+  chemin: string; nom: string; type: string; taille: number;
+  /* UNE COPIE SIGNÉE (15 octobre 2026, Signer un PDF) dit d'où elle vient, quand
+     et par qui, et ce qu'elle porte. L'original, lui, ne bouge jamais. */
+  copieDe?: string;
+  signeLe?: string;
+  signePar?: string;
+  contenu?: string[];
+};
 
 type Base = {
   id: string;

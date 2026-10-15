@@ -229,6 +229,14 @@ export async function deposeLesFichiers(ligneId: string, fichiers: readonly File
   return { fichiers: partis };
 }
 
+/** Les octets d'un fichier, pour l'ouvrir dans l'atelier (Signer un PDF). */
+export async function octetsDuFichier(chemin: string): Promise<Uint8Array | null> {
+  if (!supabase) return null;
+  const { data, error } = await supabase.storage.from(COMPARTIMENT).download(chemin);
+  if (error || !data) return null;
+  return new Uint8Array(await data.arrayBuffer());
+}
+
 /** Un lien qui expire en une minute : une capture du lien ne mène nulle part. */
 export async function lienDuFichier(chemin: string): Promise<string | null> {
   if (!supabase) return null;
