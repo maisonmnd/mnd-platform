@@ -1,0 +1,473 @@
+<title>Signer un PDF</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,400&family=Jost:wght@300;400;500&display=swap">
+<style>
+/* Une maquette à lire puis à trancher : le marché, la réponse de la Maison, la sélection, le questionnaire tel qu'il sera sur le site, le contrat, et les décisions.
+   Ivoire pour lire, indigo pour la Maison, cuivre pour ce qu'on décide ; jamais obsidienne. */
+:root {
+  --fond:#F6F1E7; --carte:#FFFDF9; --encre:#1E2150; --texte:#2A2722; --doux:#5E5750; --filet:#E3DACB;
+  --cuivre:#9A6036; --cuivre-clair:#F3E6D8; --vert:#2F6B4F; --vert-clair:#E3F0E8; --rouge:#8E2F2F; --rouge-clair:#F6E3E0;
+  --indigo-plein:#1E2150; --sur-indigo:#F6F1E7; --sur-indigo-doux:#C9C6DD;
+  --serif:"Cormorant Garamond", Georgia, "Times New Roman", serif; --sans:"Jost", system-ui, -apple-system, "Segoe UI", sans-serif;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --fond:#15173A; --carte:#1E2150; --encre:#F6F1E7; --texte:#E9E3D7; --doux:#B9B4C9; --filet:#2E3266;
+  --cuivre:#D6A06F; --cuivre-clair:#3A2E3A; --vert:#8FD1AE; --vert-clair:#1F3B3A; --rouge:#E7A1A1; --rouge-clair:#3B2433;
+  --indigo-plein:#0F1130; --sur-indigo:#F6F1E7; --sur-indigo-doux:#B9B4C9; color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --fond:#15173A; --carte:#1E2150; --encre:#F6F1E7; --texte:#E9E3D7; --doux:#B9B4C9; --filet:#2E3266;
+  --cuivre:#D6A06F; --cuivre-clair:#3A2E3A; --vert:#8FD1AE; --vert-clair:#1F3B3A; --rouge:#E7A1A1; --rouge-clair:#3B2433;
+  --indigo-plein:#0F1130; --sur-indigo:#F6F1E7; --sur-indigo-doux:#B9B4C9; color-scheme: dark; }
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { margin: 0; background: var(--fond); color: var(--texte); font: 300 16px/1.65 var(--sans);
+  padding-block: 28px 90px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.page { max-width: 900px; margin: 0 auto; display: grid; gap: 56px; }
+.page > * { min-width: 0; }
+section { display: grid; gap: 18px; scroll-margin-top: 16px; }
+section > * { min-width: 0; }
+.sur { font-size: 11.5px; letter-spacing: .18em; text-transform: uppercase; color: var(--cuivre); margin: 0; font-weight: 400; }
+h1 { font: 300 clamp(40px, 7vw, 66px)/1.02 var(--serif); color: var(--encre); margin: 8px 0 0; text-wrap: balance; }
+h2 { font: 400 clamp(28px, 4.4vw, 36px)/1.12 var(--serif); color: var(--encre); margin: 4px 0 0; text-wrap: balance; }
+h3 { font: 500 21px/1.22 var(--serif); color: var(--encre); margin: 0; text-wrap: balance; }
+p { margin: 0; }
+.chapeau { color: var(--doux); max-width: 68ch; margin-top: 14px; font-size: 17px; }
+.lu { max-width: 68ch; }
+.doux { color: var(--doux); }
+.petit { font-size: 14px; }
+a { color: var(--encre); text-underline-offset: 3px; text-decoration-color: var(--cuivre); }
+.sommaire { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 20px; }
+.sommaire a { font-size: 14px; text-decoration: none; border: 1px solid var(--filet); border-radius: 999px; padding: 4px 13px; background: var(--carte); }
+.sommaire a:hover { border-color: var(--cuivre); }
+.bandeau { background: var(--cuivre-clair); border-radius: 8px; padding: 10px 14px; font-size: 14.5px; }
+.bandeau b { font-weight: 500; }
+
+/* Le parcours d'aujourd'hui : une frise, parce que c'est une suite réelle d'années */
+.frise { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 0; border-top: 2px solid var(--filet); margin-top: 6px; }
+@media (max-width: 720px) { .frise { grid-template-columns: minmax(0, 1fr); border-top: 0; border-left: 2px solid var(--filet); } }
+.etape { padding: 14px 14px 0 0; position: relative; }
+.etape::before { content: ""; position: absolute; top: -7px; left: 0; width: 12px; height: 12px; border-radius: 50%; background: var(--fond); border: 2px solid var(--cuivre); }
+@media (max-width: 720px) { .etape { padding: 0 0 18px 18px; } .etape::before { top: 4px; left: -7px; } }
+.etape b { display: block; font: 500 13px/1.3 var(--sans); letter-spacing: .08em; text-transform: uppercase; color: var(--cuivre); }
+.etape span { display: block; font-size: 14.5px; margin-top: 4px; }
+
+.chiffres { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 190px), 1fr)); gap: 10px; }
+.chiffre { background: var(--carte); border: 1px solid var(--filet); border-radius: 8px; padding: 12px 14px; display: grid; gap: 2px; align-content: start; }
+.chiffre b { font: 300 34px/1.05 var(--sans); color: var(--encre); font-variant-numeric: lining-nums tabular-nums; }
+.chiffre span { font-size: 13.5px; color: var(--doux); }
+.chiffre small { font-size: 12px; color: var(--cuivre); }
+.lecture { border-left: 3px solid var(--cuivre); padding: 4px 0 4px 16px; font: 400 21px/1.35 var(--serif); color: var(--encre); max-width: 60ch; }
+.lecture small { display: block; font: 300 13px/1.5 var(--sans); color: var(--doux); margin-top: 6px; }
+
+.problemes { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 12px; }
+.probleme { background: var(--carte); border: 1px solid var(--filet); border-radius: 8px; padding: 14px 16px; display: grid; gap: 6px; align-content: start; }
+.probleme h3 { font-size: 19px; }
+.probleme p { font-size: 14.5px; color: var(--doux); }
+.probleme .suite { font-size: 13.5px; color: var(--texte); border-top: 1px solid var(--filet); padding-top: 6px; margin-top: 2px; }
+
+/* La réponse : avant / avec la Maison, ligne à ligne */
+.inverse { display: grid; gap: 0; border: 1px solid var(--filet); border-radius: 8px; overflow: clip; background: var(--carte); }
+.inverse .ligne { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr); border-top: 1px solid var(--filet); }
+.inverse .ligne:first-child { border-top: 0; }
+.inverse .ligne > div { padding: 11px 14px; font-size: 14.5px; }
+.inverse .ligne > div:first-child { color: var(--doux); text-decoration: line-through; text-decoration-color: color-mix(in srgb, var(--rouge) 55%, transparent); }
+.inverse .ligne > div:last-child { border-left: 1px solid var(--filet); }
+.inverse .tete > div { font-size: 11.5px; letter-spacing: .14em; text-transform: uppercase; text-decoration: none !important; color: var(--cuivre) !important; padding-block: 8px; }
+@media (max-width: 600px) { .inverse .ligne { grid-template-columns: minmax(0, 1fr); } .inverse .ligne > div:last-child { border-left: 0; padding-top: 0; } .inverse .tete { display: none; } }
+
+.programme { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr)); gap: 10px; }
+.semestre { background: var(--carte); border: 1px solid var(--filet); border-radius: 8px; padding: 12px 14px; display: grid; gap: 6px; align-content: start; }
+.semestre .quand { font-size: 12px; letter-spacing: .12em; text-transform: uppercase; color: var(--cuivre); }
+.semestre ul { margin: 0; padding-left: 18px; font-size: 14px; }
+.semestre li { margin: 2px 0; }
+.fon { font-variant: small-caps; letter-spacing: .04em; color: var(--doux); }
+.semestre.trois { border-style: dashed; }
+.legende { font-size: 13px; color: var(--doux); }
+
+/* La sélection */
+.etapes-sel { display: grid; gap: 8px; counter-reset: sel; }
+.sel { display: grid; grid-template-columns: 34px minmax(0, 1fr) auto; gap: 4px 12px; align-items: start; background: var(--carte); border: 1px solid var(--filet); border-radius: 8px; padding: 11px 14px; counter-increment: sel; }
+.sel::before { content: counter(sel); font: 400 24px/1 var(--serif); color: var(--cuivre); grid-row: span 2; }
+.sel b { font-weight: 500; color: var(--encre); }
+.sel .pts { font-size: 13px; color: var(--doux); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.sel p { grid-column: 2 / 4; font-size: 14px; color: var(--doux); }
+.criteres { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 12px; }
+.critere { border-top: 2px solid var(--encre); padding-top: 8px; display: grid; gap: 4px; }
+.critere b { font-weight: 500; color: var(--encre); }
+.critere span { font-size: 14px; color: var(--doux); }
+.elimine { background: var(--rouge-clair); border-radius: 8px; padding: 10px 14px; font-size: 14.5px; }
+.elimine b { font-weight: 500; color: var(--rouge); }
+.juriste { border: 1px solid var(--cuivre); border-radius: 8px; padding: 12px 14px; font-size: 14.5px; display: grid; gap: 6px; background: var(--carte); }
+.juriste b { color: var(--cuivre); font-weight: 500; }
+
+/* Le questionnaire, tel qu'il paraîtra sur maisonmnd.com */
+.ecran { border: 1px solid var(--filet); border-radius: 14px; overflow: clip; background: var(--carte); }
+.ecran-barre { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 9px 14px; background: var(--indigo-plein); color: var(--sur-indigo); font-size: 13px; flex-wrap: wrap; }
+.ecran-barre span { color: var(--sur-indigo-doux); }
+.ecran-corps { padding: 22px clamp(16px, 4vw, 34px) 28px; display: grid; gap: 18px; }
+.maquette-note { font-size: 12.5px; color: var(--cuivre); letter-spacing: .04em; }
+.pas { display: flex; gap: 6px; flex-wrap: wrap; }
+.pas span { font-size: 12.5px; border-radius: 999px; padding: 2px 10px; border: 1px solid var(--filet); color: var(--doux); }
+.pas span.fait { background: var(--vert-clair); border-color: var(--vert); color: var(--texte); }
+.pas span.ici { background: var(--encre); border-color: var(--encre); color: var(--fond); }
+form.questionnaire { display: grid; gap: 16px; }
+.etape-form { display: grid; gap: 14px; }
+.etape-form h3 { font-size: 26px; font-weight: 400; }
+.etape-form .aide { font-size: 14.5px; color: var(--doux); margin-top: -6px; }
+.champs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+@media (max-width: 560px) { .champs { grid-template-columns: minmax(0, 1fr); } }
+.champ { display: grid; gap: 5px; min-width: 0; }
+.champ label, .champ .titre { font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: var(--cuivre); }
+.champ small { font-size: 13px; color: var(--doux); }
+input[type="text"], input[type="tel"], input[type="email"], input[type="date"], select, textarea {
+  width: 100%; font: 300 16px/1.4 var(--sans); color: var(--texte); background: var(--fond); border: 1px solid var(--filet); border-radius: 6px; padding: 11px 12px; }
+textarea { resize: vertical; min-height: 96px; }
+textarea.lettre { min-height: 220px; }
+input:focus, select:focus, textarea:focus, button:focus-visible, .choix-ligne input:focus-visible { outline: 2px solid var(--cuivre); outline-offset: 2px; }
+.cases { display: flex; flex-wrap: wrap; gap: 8px; }
+.case { display: inline-flex; gap: 7px; align-items: center; border: 1px solid var(--filet); border-radius: 999px; padding: 5px 12px; font-size: 14.5px; cursor: pointer; background: var(--fond); }
+.case:has(input:checked) { border-color: var(--encre); background: var(--encre); color: var(--fond); }
+.case input { accent-color: var(--cuivre); margin: 0; }
+.compteur { font-size: 13px; color: var(--doux); font-variant-numeric: tabular-nums; }
+.compteur.ok { color: var(--vert); }
+.engagement { display: grid; grid-template-columns: 20px minmax(0, 1fr); gap: 10px; font-size: 14.5px; align-items: start; }
+.engagement input { margin-top: 4px; accent-color: var(--cuivre); width: 17px; height: 17px; }
+.avis { font-size: 14px; border-radius: 6px; padding: 8px 12px; background: var(--cuivre-clair); }
+.erreur { font-size: 14px; color: var(--rouge); }
+.boutons { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.btn { font: 400 14px var(--sans); letter-spacing: .14em; text-transform: uppercase; border-radius: 999px; padding: 12px 26px; border: 1px solid var(--cuivre); cursor: pointer; }
+.btn-plein { background: var(--cuivre); color: #FFFDF9; }
+.btn-lien { background: transparent; color: var(--encre); border-color: transparent; text-decoration: underline; text-underline-offset: 4px; text-decoration-color: var(--cuivre); padding-inline: 4px; }
+.recap { display: grid; gap: 8px; font-size: 14.5px; }
+.recap div { display: grid; grid-template-columns: minmax(110px, 30%) minmax(0, 1fr); gap: 10px; border-bottom: 1px solid var(--filet); padding-bottom: 6px; }
+.recap dt, .recap span:first-child { color: var(--doux); }
+.recu { display: grid; gap: 14px; text-align: left; }
+.recu ol { margin: 0; padding-left: 20px; display: grid; gap: 6px; font-size: 15px; }
+
+/* Au Trône */
+.trone { display: grid; grid-template-columns: 180px minmax(0, 1fr); border: 1px solid var(--filet); border-radius: 12px; overflow: clip; background: var(--carte); }
+@media (max-width: 680px) { .trone { grid-template-columns: minmax(0, 1fr); } .trone .nav { display: none; } }
+.trone .nav { background: var(--indigo-plein); color: var(--sur-indigo-doux); padding: 14px 10px; font-size: 13px; display: grid; gap: 4px; align-content: start; }
+.trone .nav b { color: var(--sur-indigo); font-weight: 400; background: color-mix(in srgb, var(--sur-indigo) 14%, transparent); border-radius: 6px; padding: 3px 8px; }
+.trone .nav span { padding: 3px 8px; }
+.trone .nav .g { font-size: 10.5px; letter-spacing: .14em; text-transform: uppercase; padding-top: 8px; }
+.trone .contenu { padding: 16px; display: grid; gap: 12px; }
+.onglets { display: flex; gap: 6px; flex-wrap: wrap; font-size: 13.5px; }
+.onglets span { border-bottom: 2px solid transparent; padding: 2px 4px; color: var(--doux); }
+.onglets span.actif { border-color: var(--cuivre); color: var(--encre); }
+.colonnes { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+@media (max-width: 680px) { .colonnes { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.colonne { background: var(--fond); border-radius: 8px; padding: 8px; display: grid; gap: 6px; align-content: start; min-height: 90px; }
+.colonne > span { font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--doux); }
+.carte-cand { background: var(--carte); border: 1px solid var(--filet); border-radius: 6px; padding: 7px 8px; font-size: 13px; display: grid; gap: 2px; }
+.carte-cand b { font-weight: 500; color: var(--encre); }
+.carte-cand small { color: var(--doux); font-size: 12px; }
+.carte-cand.ouverte { border-color: var(--cuivre); }
+.fiche { border: 1px solid var(--cuivre); border-radius: 8px; padding: 12px 14px; display: grid; gap: 10px; }
+.grille { width: 100%; border-collapse: collapse; font-size: 13.5px; font-variant-numeric: tabular-nums; }
+.grille th, .grille td { text-align: left; padding: 5px 6px; border-bottom: 1px solid var(--filet); }
+.grille th { font-weight: 400; color: var(--doux); font-size: 12px; letter-spacing: .08em; text-transform: uppercase; }
+.grille td.n { text-align: right; }
+.grille tr.total td { font-weight: 500; color: var(--encre); border-bottom: 0; }
+.tableau-defile { overflow-x: auto; }
+.pastille { display: inline-block; font-size: 12px; border-radius: 999px; padding: 1px 9px; background: var(--vert-clair); color: var(--vert); }
+
+/* Le contrat */
+.contrat { background: var(--carte); border: 1px solid var(--filet); border-radius: 8px; padding: clamp(16px, 4vw, 34px); display: grid; gap: 12px; font-size: 15px; }
+.contrat .entete { text-align: center; display: grid; gap: 4px; }
+.contrat .entete b { font: 500 22px/1.2 var(--serif); color: var(--encre); letter-spacing: .02em; }
+.contrat .entete span { font-size: 13px; color: var(--doux); }
+.contrat details { border-top: 1px solid var(--filet); padding-top: 8px; }
+.contrat summary { cursor: pointer; font: 500 17px/1.3 var(--serif); color: var(--encre); list-style-position: outside; }
+.contrat details > div { display: grid; gap: 8px; padding: 8px 0 4px; }
+.contrat .ref { font-size: 12.5px; color: var(--cuivre); }
+.v { border-radius: 4px; padding: 0 4px; -webkit-box-decoration-break: clone; box-decoration-break: clone; }
+.v.q { background: var(--vert-clair); }
+.v.s { background: var(--cuivre-clair); }
+.v.d { background: color-mix(in srgb, var(--encre) 12%, transparent); }
+.cles { display: flex; flex-wrap: wrap; gap: 8px 16px; font-size: 13px; color: var(--doux); }
+.pieces { display: grid; gap: 4px; font-size: 14.5px; padding-left: 20px; margin: 0; }
+
+/* Les décisions */
+.decisions { display: grid; gap: 12px; }
+.decision { background: var(--carte); border: 1px solid var(--filet); border-left: 3px solid var(--filet); border-radius: 8px; padding: 14px 16px; display: grid; gap: 8px; }
+.decision.tranchee { border-left-color: var(--cuivre); }
+.decision p.pq { font-size: 14px; color: var(--doux); }
+.choix-ligne { display: grid; grid-template-columns: 20px minmax(0, 1fr); gap: 8px; align-items: start; font-size: 14.5px; cursor: pointer; padding: 4px 0; }
+.choix-ligne input { margin-top: 4px; accent-color: var(--cuivre); width: 16px; height: 16px; }
+.choix-ligne em { font-style: normal; font-size: 12.5px; color: var(--cuivre); }
+.choix-ligne small { display: block; font-size: 13px; color: var(--doux); }
+.etat { font-size: 12.5px; color: var(--vert); min-height: 1.2em; }
+.cout { font-size: 13.5px; background: var(--fond); border-radius: 6px; padding: 8px 10px; font-variant-numeric: tabular-nums; }
+.sources { font-size: 13.5px; color: var(--doux); display: grid; gap: 6px; padding-left: 20px; margin: 0; }
+.avancee { display: flex; align-items: center; gap: 12px; font-size: 14px; color: var(--doux); }
+.avancee i { flex: 1; height: 6px; border-radius: 999px; background: var(--filet); overflow: hidden; display: block; }
+.avancee i b { display: block; height: 100%; background: var(--cuivre); width: 0; transition: width .2s; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+
+/* L'atelier : les outils à gauche, les pages au centre. Une feuille garde le format A4 (1 / 1,414). */
+.atelier { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 16px; align-items: start; }
+@media (max-width: 720px) { .atelier { grid-template-columns: minmax(0, 1fr); } }
+.outils { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 12px); background: var(--carte); border: 1px solid var(--filet); border-radius: 8px; padding: 10px; display: grid; gap: 6px; }
+@media (max-width: 720px) { .outils { position: static; grid-template-columns: repeat(2, minmax(0, 1fr)); } .outils-titre, .aide, .pose-active { grid-column: 1 / -1; } }
+.outils-titre { margin: 6px 0 0; font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--cuivre); }
+.outil { font: 400 14px var(--sans); text-align: left; border: 1px solid var(--filet); background: var(--fond); color: var(--texte); border-radius: 6px; padding: 7px 10px; cursor: pointer; display: grid; gap: 1px; }
+.outil small { font-size: 11.5px; color: var(--doux); }
+.outil.est-actif { border-color: var(--encre); background: var(--encre); color: var(--fond); }
+.outil.est-actif small { color: var(--fond); opacity: .8; }
+.outil--doux { color: var(--rouge); }
+.outil:focus-visible { outline: 2px solid var(--cuivre); outline-offset: 2px; }
+.pose-active { display: grid; gap: 6px; }
+.aide { font-size: 12.5px; color: var(--doux); margin: 4px 0 0; }
+.pages { display: grid; gap: 18px; justify-items: center; }
+.feuille { position: relative; width: min(100%, 560px); aspect-ratio: 1 / 1.414; max-width: 100%; background: #FFFFFF; color: #222; border: 1px solid var(--filet); box-shadow: 0 2px 10px rgba(0, 0, 0, .08); padding: 8% 9%; font: 12px/1.6 Georgia, serif; overflow: hidden; touch-action: none; }
+.feuille-titre { font-size: 16px; text-align: center; margin: 0 0 14px; letter-spacing: .04em; }
+.feuille-ligne { margin: 0 0 6px; }
+.feuille-num { position: absolute; bottom: 3%; right: 5%; font-size: 10px; color: #777; }
+.posee { position: absolute; cursor: grab; color: #1E2150; user-select: none; touch-action: none; transform: translate(-10%, -30%); padding: 2px; border-radius: 4px; }
+.posee--tampon, .posee--recu { color: #9A3B2F; opacity: .9; }
+.posee span { font: 13px/1.3 "Jost", sans-serif; color: #1E2150; white-space: nowrap; outline: none; }
+.posee.est-choisie { box-shadow: 0 0 0 2px #9A6036; }
+.barre-bas { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; position: sticky; bottom: calc(env(safe-area-inset-bottom, 0px) + 8px); background: var(--carte); border: 1px solid var(--filet); border-radius: 8px; padding: 10px 14px; }
+.toast { background: var(--encre); color: var(--fond); border-radius: 8px; padding: 10px 14px; font-size: 14px; }
+</style>
+
+<div class="page">
+
+<header>
+  <p class="sur">Maison MND · Secrétariat · Maquette à valider · 15 octobre 2026</p>
+  <h1>Signer un PDF</h1>
+  <p class="chapeau">Un contrat reçu, un bon de commande, une attestation à renvoyer : ouvrir le PDF dans le Trône, y écrire ce qu’il faut, poser sa signature et le tampon de la Maison sur une page ou sur toutes, et garder la copie signée à côté de l’original. Rien n’est construit : essayez l’atelier ci-dessous, puis faites vos choix en bas de page.</p>
+  <nav class="sommaire" aria-label="Sommaire">
+    <a href="#atelier">L’atelier</a><a href="#ou">D’où on l’ouvre</a><a href="#regles">Les règles</a><a href="#decider">À décider</a>
+  </nav>
+</header>
+
+<section id="atelier" aria-labelledby="t-atelier">
+  <p class="sur">L’atelier, à essayer</p>
+  <h2 id="t-atelier">Touchez un outil, puis la page</h2>
+  <p class="lu doux petit">Exemple : un contrat de trois pages reçu par courrier. Une pièce posée se déplace au doigt ou à la souris ; touchez-la pour la retirer ou la répéter sur toutes les pages.</p>
+  <div class="atelier">
+    <aside class="outils" aria-label="Les outils">
+      <p class="outils-titre">Poser</p>
+      <button type="button" class="outil" data-outil="signature">Ma signature<small>Yéman A., Directrice</small></button>
+      <button type="button" class="outil" data-outil="paraphe">Mon paraphe<small>Y. A.</small></button>
+      <button type="button" class="outil" data-outil="tampon">Tampon de la Maison<small>Maison MND</small></button>
+      <button type="button" class="outil" data-outil="recu">Tampon « Reçu le »<small>daté du jour</small></button>
+      <p class="outils-titre">Écrire</p>
+      <button type="button" class="outil" data-outil="texte">Un texte<small>où vous voulez</small></button>
+      <button type="button" class="outil" data-outil="date">La date du jour<small>15 octobre 2026</small></button>
+      <button type="button" class="outil" data-outil="lu">« Lu et approuvé »</button>
+      <button type="button" class="outil" data-outil="coche">Une coche ✓</button>
+      <div class="pose-active" id="pose-active" hidden>
+        <p class="outils-titre">La pièce choisie</p>
+        <button type="button" class="outil" id="sur-toutes">Sur toutes les pages</button>
+        <button type="button" class="outil outil--doux" id="retirer">Retirer</button>
+      </div>
+      <p class="aide" id="aide">Choisissez un outil.</p>
+    </aside>
+    <div class="pages" id="pages" aria-label="Le document"></div>
+  </div>
+  <div class="barre-bas">
+    <span class="doux petit" id="compte-poses">Rien de posé.</span>
+    <button type="button" class="btn btn-plein" id="garder">Garder une copie signée</button>
+  </div>
+  <p class="toast" id="toast" role="status" hidden></p>
+</section>
+
+<section id="ou" aria-labelledby="t-ou">
+  <p class="sur">D’où on l’ouvre</p>
+  <h2 id="t-ou">Depuis chaque PDF du Secrétariat, ou depuis l’ordinateur</h2>
+  <div class="problemes">
+    <article class="probleme"><h3>Le courrier</h3><p>Un courrier arrivé avec son PDF : « Ouvrir et signer » à côté de la pièce jointe. La copie signée part avec la réponse.</p></article>
+    <article class="probleme"><h3>Les contrats</h3><p>Le contrat d’un fournisseur ou d’un bailleur : on le signe, la copie signée devient « la pièce signée » du contrat.</p></article>
+    <article class="probleme"><h3>Les démarches</h3><p>Un formulaire d’une administration, à remplir et signer avant de le déposer.</p></article>
+    <article class="probleme"><h3>Un PDF de l’ordinateur</h3><p>Reçu par e-mail : « Ouvrir un PDF », on le signe, puis on le range sur la ligne qui convient.</p></article>
+  </div>
+</section>
+
+<section id="regles" aria-labelledby="t-regles">
+  <p class="sur">Les règles</p>
+  <h2 id="t-regles">Ce qui protège la Maison</h2>
+  <div class="criteres">
+    <div class="critere"><b>Chacun sa signature</b><span>Comme aujourd’hui : on ne pose que la sienne. Un document à deux signatures s’ouvre une seconde fois, par l’autre.</span></div>
+    <div class="critere"><b>L’original ne bouge jamais</b><span>La copie signée se garde à côté, nommée « … · signé le 15 octobre 2026 ». On peut toujours revenir à l’original.</span></div>
+    <div class="critere"><b>Tout se trace</b><span>Le journal de la ligne dit qui a signé, quoi, et quand. Une copie signée ne se retouche plus : on repart de l’original.</span></div>
+    <div class="critere"><b>On ajoute, on n’efface pas</b><span>Écrire, cocher, signer, tamponner : oui. Masquer ou effacer un texte du PDF reçu : non, ce serait altérer la pièce d’un autre.</span></div>
+    <div class="critere"><b>Le tampon de la bonne entité</b><span>Maison MND ou ACIA, selon le document ; le « Reçu le » porte la date du jour, modifiable.</span></div>
+    <div class="critere"><b>Privé si la ligne l’est</b><span>Une copie signée d’une ligne privée reste réservée à la direction.</span></div>
+  </div>
+</section>
+
+<section id="decider" aria-labelledby="t-decider">
+  <p class="sur">À décider</p>
+  <h2 id="t-decider">Vos choix, avant que je construise</h2>
+  <p class="lu doux">Chaque choix s’enregistre tout seul. Rien ne se construit avant votre « construis ».</p>
+  <div class="avancee"><i><b id="barre-decisions"></b></i><span id="compte-decisions"></span></div>
+  <div class="decisions" id="decisions"></div>
+  <div class="decision"><h3>Un mot de plus</h3><p class="pq">Un outil qui manque, un cas à prévoir.</p><textarea id="d-note" rows="3" aria-label="Votre mot"></textarea><span class="etat" id="d-note-etat"></span></div>
+</section>
+
+</div>
+
+<script>
+(function () {
+  'use strict';
+  /* ── L'atelier ── */
+  var PAGES = [
+    { titre: 'Contrat de prestation', lignes: ['Entre la société Exemple SARL, ci-après « le Prestataire »,', 'et la Maison MND, ci-après « le Client »,', 'il a été convenu ce qui suit.', '', 'Article 1. Objet. Le Prestataire fournit au Client…', 'Article 2. Durée. Douze mois à compter du…', 'Article 3. Prix. Le prix est fixé à…'] },
+    { titre: '', lignes: ['Article 4. Obligations des parties…', 'Article 5. Résiliation. Chaque partie peut…', 'Article 6. Confidentialité…', 'Article 7. Litiges. À défaut d’accord amiable…'] },
+    { titre: '', lignes: ['Fait à Cotonou, le ……………………, en deux exemplaires.', '', 'Pour le Prestataire', '', '', 'Pour le Client'] },
+  ];
+  var SVG = {
+    signature: '<svg viewBox="0 0 160 60" width="150" height="56" aria-hidden="true"><path d="M8 42 C 22 10, 34 52, 46 28 S 70 12, 78 38 S 104 50, 118 22 S 146 30, 154 18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>',
+    paraphe: '<svg viewBox="0 0 60 40" width="48" height="32" aria-hidden="true"><path d="M6 30 C 14 6, 22 34, 30 16 S 46 10, 54 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>',
+    tampon: '<svg viewBox="0 0 120 120" width="96" height="96" aria-hidden="true"><circle cx="60" cy="60" r="54" fill="none" stroke="currentColor" stroke-width="3"/><circle cx="60" cy="60" r="44" fill="none" stroke="currentColor" stroke-width="1.5"/><text x="60" y="56" text-anchor="middle" font-size="15" font-family="Georgia, serif" fill="currentColor">MAISON</text><text x="60" y="76" text-anchor="middle" font-size="20" font-family="Georgia, serif" fill="currentColor">MND</text></svg>',
+    recu: '<svg viewBox="0 0 170 70" width="150" height="62" aria-hidden="true"><rect x="3" y="3" width="164" height="64" rx="6" fill="none" stroke="currentColor" stroke-width="2.5"/><text x="85" y="28" text-anchor="middle" font-size="16" font-family="Georgia, serif" fill="currentColor">REÇU LE</text><text x="85" y="52" text-anchor="middle" font-size="15" font-family="Georgia, serif" fill="currentColor">15 / 10 / 2026</text></svg>',
+  };
+  var TEXTES = { date: '15 octobre 2026', lu: 'Lu et approuvé', coche: '✓', texte: 'Votre texte' };
+  var outil = null, poses = [], choisie = null, n = 0;
+  var zone = document.getElementById('pages');
+  function txt(tag, cls, t) { var e = document.createElement(tag); if (cls) e.className = cls; if (t !== undefined) e.textContent = t; return e; }
+  PAGES.forEach(function (p, i) {
+    var pg = txt('div', 'feuille'); pg.dataset.page = String(i);
+    pg.setAttribute('aria-label', 'Page ' + (i + 1));
+    if (p.titre) pg.appendChild(txt('p', 'feuille-titre', p.titre));
+    p.lignes.forEach(function (l) { pg.appendChild(txt('p', 'feuille-ligne', l || ' ')); });
+    pg.appendChild(txt('span', 'feuille-num', (i + 1) + ' / ' + PAGES.length));
+    pg.addEventListener('click', function (e) {
+      if (!outil || e.target.closest('.posee')) return;
+      var r = pg.getBoundingClientRect();
+      pose(i, outil, (e.clientX - r.left) / r.width, (e.clientY - r.top) / r.height);
+    });
+    zone.appendChild(pg);
+  });
+  function pose(page, type, x, y) {
+    var id = 'p' + (++n);
+    poses.push({ id: id, page: page, type: type, x: Math.min(.9, Math.max(0, x)), y: Math.min(.95, Math.max(0, y)) });
+    choisis(id); dessine();
+  }
+  function choisis(id) { choisie = id; document.getElementById('pose-active').hidden = !id; }
+  function dessine() {
+    zone.querySelectorAll('.posee').forEach(function (e) { e.remove(); });
+    poses.forEach(function (p) {
+      var pg = zone.querySelector('[data-page="' + p.page + '"]');
+      var el = txt('div', 'posee posee--' + p.type + (p.id === choisie ? ' est-choisie' : ''));
+      el.style.left = (p.x * 100) + '%'; el.style.top = (p.y * 100) + '%';
+      if (SVG[p.type]) el.innerHTML = SVG[p.type];
+      else { var s = txt('span', '', TEXTES[p.type]); if (p.type === 'texte') { s.contentEditable = 'true'; s.spellcheck = false; } el.appendChild(s); }
+      el.tabIndex = 0;
+      el.addEventListener('pointerdown', function (e) {
+        if (e.target.isContentEditable) { choisis(p.id); return; }
+        e.preventDefault(); choisis(p.id); dessine();
+        var r = pg.getBoundingClientRect(), dx = e.clientX - (r.left + p.x * r.width), dy = e.clientY - (r.top + p.y * r.height);
+        function bouge(ev) { p.x = Math.min(.9, Math.max(0, (ev.clientX - dx - r.left) / r.width)); p.y = Math.min(.95, Math.max(0, (ev.clientY - dy - r.top) / r.height)); var x = zone.querySelector('.est-choisie'); if (x) { x.style.left = (p.x * 100) + '%'; x.style.top = (p.y * 100) + '%'; } }
+        function lache() { window.removeEventListener('pointermove', bouge); window.removeEventListener('pointerup', lache); }
+        window.addEventListener('pointermove', bouge); window.addEventListener('pointerup', lache);
+      });
+      pg.appendChild(el);
+    });
+    var nb = poses.length, pagesTouchees = new Set(poses.map(function (p) { return p.page; })).size;
+    document.getElementById('compte-poses').textContent = nb ? nb + ' pièce' + (nb > 1 ? 's' : '') + ' posée' + (nb > 1 ? 's' : '') + ' sur ' + pagesTouchees + ' page' + (pagesTouchees > 1 ? 's' : '') + '.' : 'Rien de posé.';
+  }
+  document.querySelectorAll('.outil[data-outil]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      outil = b.dataset.outil;
+      document.querySelectorAll('.outil[data-outil]').forEach(function (x) { x.classList.toggle('est-actif', x === b); x.setAttribute('aria-pressed', x === b ? 'true' : 'false'); });
+      document.getElementById('aide').textContent = 'Touchez la page à l’endroit voulu.';
+    });
+  });
+  document.getElementById('sur-toutes').addEventListener('click', function () {
+    var p = poses.find(function (x) { return x.id === choisie; }); if (!p) return;
+    PAGES.forEach(function (_, i) { if (i !== p.page && !poses.some(function (q) { return q.page === i && q.type === p.type && Math.abs(q.x - p.x) < .02 && Math.abs(q.y - p.y) < .02; })) poses.push({ id: 'p' + (++n), page: i, type: p.type, x: p.x, y: p.y }); });
+    dessine(); dit('Posé au même endroit sur les ' + PAGES.length + ' pages.');
+  });
+  document.getElementById('retirer').addEventListener('click', function () { poses = poses.filter(function (x) { return x.id !== choisie; }); choisis(null); dessine(); });
+  document.getElementById('garder').addEventListener('click', function () {
+    dit(poses.length ? 'Ici, la copie se garderait : « Contrat de prestation · signé le 15 octobre 2026.pdf », à côté de l’original, et le journal le dirait.' : 'Posez d’abord une signature, un tampon ou un texte.');
+  });
+  function dit(m) { var t = document.getElementById('toast'); t.textContent = m; t.hidden = false; clearTimeout(dit.m); dit.m = setTimeout(function () { t.hidden = true; }, 4200); }
+
+  /* ── Les décisions ── */
+  var DECISIONS = [
+    { id: 'ou', titre: 'D’où on l’ouvre', pq: 'Les PDF déjà au Secrétariat, et ceux de l’ordinateur.', options: [
+      ['partout', 'Depuis chaque PDF du courrier, des contrats, des démarches, et « Ouvrir un PDF » de l’ordinateur', 'le plus simple au quotidien', true],
+      ['secretariat', 'Seulement les PDF déjà rangés au Secrétariat', 'on dépose d’abord, on signe ensuite'] ] },
+    { id: 'copie', titre: 'Le document signé', pq: 'Ce que devient l’original.', options: [
+      ['copie', 'Une copie signée à côté de l’original', 'l’original reste, on peut y revenir', true],
+      ['remplace', 'La copie signée remplace l’original', 'moins de fichiers, mais l’original se perd'] ] },
+    { id: 'outils', titre: 'Les outils d’écriture', pq: '« Éditer le document » : ce qu’on peut y écrire.', options: [
+      ['ajouter', 'Texte libre, date du jour, « Lu et approuvé », coche', 'on ajoute, on n’efface jamais ce qui est imprimé', true],
+      ['masquer', 'Les mêmes, plus « masquer une zone »', 'à éviter : c’est altérer la pièce d’un autre'] ] },
+    { id: 'paraphe', titre: 'Le paraphe', pq: 'Les initiales qu’on pose en bas de chaque page.', options: [
+      ['depose', 'Chacun dépose son paraphe, comme sa signature', 'dessiné une fois, gardé dans le compartiment privé', true],
+      ['reduite', 'La signature, en petit, sert de paraphe', 'rien de plus à déposer'] ] },
+    { id: 'pages', titre: 'Les pages', pq: 'Sur combien de pages une pièce se pose.', options: [
+      ['choix', 'Cette page, toutes les pages, ou une sélection (1, 3-5)', 'le plus souple', true],
+      ['toutes', 'Cette page ou toutes les pages', 'plus simple'] ] },
+    { id: 'pages-edit', titre: 'Retourner ou retirer des pages', pq: 'Une page scannée à l’envers, une page en trop.', options: [
+      ['oui', 'Oui, retourner et retirer une page (dans la copie seulement)', 'l’original ne bouge pas', true],
+      ['non', 'Non : on ne touche qu’au contenu', 'plus prudent'] ] },
+    { id: 'telephone', titre: 'Sur le téléphone', pq: 'Signer en déplacement.', options: [
+      ['oui', 'Oui : toucher pour poser, glisser pour déplacer', 'l’écran est petit, mais ça dépanne', true],
+      ['non', 'Ordinateur et tablette seulement', 'plus précis'] ] },
+  ];
+  var choix = {};
+  var CLE = 'pdf-signes-choix';
+  try { var vu = JSON.parse(localStorage.getItem(CLE) || '{}') || {}; Object.keys(vu).forEach(function (k) { choix[k] = vu[k]; }); } catch (e) { /* sans mémoire */ }
+  var docRef = null, file = Promise.resolve();
+  function garde() {
+    try { localStorage.setItem(CLE, JSON.stringify(choix)); } catch (e) { /* sans mémoire */ }
+    if (!docRef) return;
+    var corps = {}; Object.keys(choix).forEach(function (k) { if (choix[k]) corps[k] = choix[k]; });
+    corps.quand = new Date().toISOString();
+    file = file.then(function () { return docRef.set(corps); }).catch(function () { /* hors ligne */ });
+  }
+  var boite = document.getElementById('decisions');
+  function dessineDecisions() {
+    boite.textContent = '';
+    DECISIONS.forEach(function (d) {
+      var c = txt('div', 'decision' + (choix[d.id] ? ' tranchee' : ''));
+      c.appendChild(txt('h3', '', d.titre));
+      c.appendChild(txt('p', 'pq', d.pq));
+      var g = document.createElement('div'); g.setAttribute('role', 'radiogroup'); g.setAttribute('aria-label', d.titre);
+      d.options.forEach(function (o) {
+        var l = txt('label', 'choix-ligne');
+        var i = document.createElement('input'); i.type = 'radio'; i.name = 'd-' + d.id; i.id = 'd-' + d.id + '-' + o[0]; i.value = o[0]; i.checked = choix[d.id] === o[0];
+        i.addEventListener('change', function () { choix[d.id] = o[0]; garde(); dessineDecisions(); });
+        var s = document.createElement('span');
+        s.appendChild(document.createTextNode(o[1]));
+        if (o[3]) { s.appendChild(document.createTextNode(' ')); s.appendChild(txt('em', '', 'ma proposition')); }
+        s.appendChild(txt('small', '', o[2]));
+        l.appendChild(i); l.appendChild(s); g.appendChild(l);
+      });
+      c.appendChild(g);
+      c.appendChild(txt('span', 'etat', choix[d.id] ? 'Choix enregistré.' : ''));
+      boite.appendChild(c);
+    });
+    var k = DECISIONS.filter(function (d) { return choix[d.id]; }).length;
+    document.getElementById('compte-decisions').textContent = k + ' sur ' + DECISIONS.length + ' tranchées';
+    document.getElementById('barre-decisions').style.width = Math.round((k / DECISIONS.length) * 100) + '%';
+  }
+  var note = document.getElementById('d-note');
+  if (choix.note) note.value = choix.note;
+  var minuterie = null;
+  note.addEventListener('input', function () { clearTimeout(minuterie); minuterie = setTimeout(function () { choix.note = note.value.trim(); garde(); document.getElementById('d-note-etat').textContent = 'Mot enregistré.'; }, 600); });
+  dessine(); dessineDecisions();
+  if (window.claude && typeof window.claude.use === 'function') {
+    window.claude.use('db').then(function (db) {
+      if (!db) return;
+      docRef = db.doc('maquette/pdf-signes');
+      return docRef.get().then(function (s) {
+        if (!s || !s.exists) return;
+        var v = s.data() || {};
+        Object.keys(v).forEach(function (k) { if (k !== 'quand' && typeof v[k] === 'string') choix[k] = v[k]; });
+        if (choix.note) note.value = choix.note;
+        dessineDecisions();
+      });
+    }).catch(function () { /* sans base : les choix restent sur cet appareil */ });
+  }
+})();
+</script>
