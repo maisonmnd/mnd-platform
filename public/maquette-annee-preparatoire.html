@@ -1,0 +1,410 @@
+<title>L’année préparatoire</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,400&family=Jost:wght@300;400;500&display=swap">
+<style>
+/* Une maquette à lire puis à trancher : le marché, la réponse de la Maison, la sélection, le questionnaire tel qu'il sera sur le site, le contrat, et les décisions.
+   Ivoire pour lire, indigo pour la Maison, cuivre pour ce qu'on décide ; jamais obsidienne. */
+:root {
+  --fond:#F6F1E7; --carte:#FFFDF9; --encre:#1E2150; --texte:#2A2722; --doux:#5E5750; --filet:#E3DACB;
+  --cuivre:#9A6036; --cuivre-clair:#F3E6D8; --vert:#2F6B4F; --vert-clair:#E3F0E8; --rouge:#8E2F2F; --rouge-clair:#F6E3E0;
+  --indigo-plein:#1E2150; --sur-indigo:#F6F1E7; --sur-indigo-doux:#C9C6DD;
+  --serif:"Cormorant Garamond", Georgia, "Times New Roman", serif; --sans:"Jost", system-ui, -apple-system, "Segoe UI", sans-serif;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --fond:#15173A; --carte:#1E2150; --encre:#F6F1E7; --texte:#E9E3D7; --doux:#B9B4C9; --filet:#2E3266;
+  --cuivre:#D6A06F; --cuivre-clair:#3A2E3A; --vert:#8FD1AE; --vert-clair:#1F3B3A; --rouge:#E7A1A1; --rouge-clair:#3B2433;
+  --indigo-plein:#0F1130; --sur-indigo:#F6F1E7; --sur-indigo-doux:#B9B4C9; color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --fond:#15173A; --carte:#1E2150; --encre:#F6F1E7; --texte:#E9E3D7; --doux:#B9B4C9; --filet:#2E3266;
+  --cuivre:#D6A06F; --cuivre-clair:#3A2E3A; --vert:#8FD1AE; --vert-clair:#1F3B3A; --rouge:#E7A1A1; --rouge-clair:#3B2433;
+  --indigo-plein:#0F1130; --sur-indigo:#F6F1E7; --sur-indigo-doux:#B9B4C9; color-scheme: dark; }
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { margin: 0; background: var(--fond); color: var(--texte); font: 300 16px/1.65 var(--sans);
+  padding-block: 28px 90px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.page { max-width: 900px; margin: 0 auto; display: grid; gap: 56px; }
+.page > * { min-width: 0; }
+section { display: grid; gap: 18px; scroll-margin-top: 16px; }
+section > * { min-width: 0; }
+.sur { font-size: 11.5px; letter-spacing: .18em; text-transform: uppercase; color: var(--cuivre); margin: 0; font-weight: 400; }
+h1 { font: 300 clamp(40px, 7vw, 66px)/1.02 var(--serif); color: var(--encre); margin: 8px 0 0; text-wrap: balance; }
+h2 { font: 400 clamp(28px, 4.4vw, 36px)/1.12 var(--serif); color: var(--encre); margin: 4px 0 0; text-wrap: balance; }
+h3 { font: 500 21px/1.22 var(--serif); color: var(--encre); margin: 0; text-wrap: balance; }
+p { margin: 0; }
+.chapeau { color: var(--doux); max-width: 68ch; margin-top: 14px; font-size: 17px; }
+.lu { max-width: 68ch; }
+.doux { color: var(--doux); }
+.petit { font-size: 14px; }
+a { color: var(--encre); text-underline-offset: 3px; text-decoration-color: var(--cuivre); }
+.sommaire { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 20px; }
+.sommaire a { font-size: 14px; text-decoration: none; border: 1px solid var(--filet); border-radius: 999px; padding: 4px 13px; background: var(--carte); }
+.sommaire a:hover { border-color: var(--cuivre); }
+.bandeau { background: var(--cuivre-clair); border-radius: 8px; padding: 10px 14px; font-size: 14.5px; }
+.bandeau b { font-weight: 500; }
+
+/* Le parcours d'aujourd'hui : une frise, parce que c'est une suite réelle d'années */
+.frise { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 0; border-top: 2px solid var(--filet); margin-top: 6px; }
+@media (max-width: 720px) { .frise { grid-template-columns: minmax(0, 1fr); border-top: 0; border-left: 2px solid var(--filet); } }
+.etape { padding: 14px 14px 0 0; position: relative; }
+.etape::before { content: ""; position: absolute; top: -7px; left: 0; width: 12px; height: 12px; border-radius: 50%; background: var(--fond); border: 2px solid var(--cuivre); }
+@media (max-width: 720px) { .etape { padding: 0 0 18px 18px; } .etape::before { top: 4px; left: -7px; } }
+.etape b { display: block; font: 500 13px/1.3 var(--sans); letter-spacing: .08em; text-transform: uppercase; color: var(--cuivre); }
+.etape span { display: block; font-size: 14.5px; margin-top: 4px; }
+
+.chiffres { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 190px), 1fr)); gap: 10px; }
+.chiffre { background: var(--carte); border: 1px solid var(--filet); border-radius: 8px; padding: 12px 14px; display: grid; gap: 2px; align-content: start; }
+.chiffre b { font: 300 34px/1.05 var(--sans); color: var(--encre); font-variant-numeric: lining-nums tabular-nums; }
+.chiffre span { font-size: 13.5px; color: var(--doux); }
+.chiffre small { font-size: 12px; color: var(--cuivre); }
+.lecture { border-left: 3px solid var(--cuivre); padding: 4px 0 4px 16px; font: 400 21px/1.35 var(--serif); color: var(--encre); max-width: 60ch; }
+.lecture small { display: block; font: 300 13px/1.5 var(--sans); color: var(--doux); margin-top: 6px; }
+
+.problemes { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 12px; }
+.probleme { background: var(--carte); border: 1px solid var(--filet); border-radius: 8px; padding: 14px 16px; display: grid; gap: 6px; align-content: start; }
+.probleme h3 { font-size: 19px; }
+.probleme p { font-size: 14.5px; color: var(--doux); }
+.probleme .suite { font-size: 13.5px; color: var(--texte); border-top: 1px solid var(--filet); padding-top: 6px; margin-top: 2px; }
+
+/* La réponse : avant / avec la Maison, ligne à ligne */
+.inverse { display: grid; gap: 0; border: 1px solid var(--filet); border-radius: 8px; overflow: clip; background: var(--carte); }
+.inverse .ligne { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr); border-top: 1px solid var(--filet); }
+.inverse .ligne:first-child { border-top: 0; }
+.inverse .ligne > div { padding: 11px 14px; font-size: 14.5px; }
+.inverse .ligne > div:first-child { color: var(--doux); text-decoration: line-through; text-decoration-color: color-mix(in srgb, var(--rouge) 55%, transparent); }
+.inverse .ligne > div:last-child { border-left: 1px solid var(--filet); }
+.inverse .tete > div { font-size: 11.5px; letter-spacing: .14em; text-transform: uppercase; text-decoration: none !important; color: var(--cuivre) !important; padding-block: 8px; }
+@media (max-width: 600px) { .inverse .ligne { grid-template-columns: minmax(0, 1fr); } .inverse .ligne > div:last-child { border-left: 0; padding-top: 0; } .inverse .tete { display: none; } }
+
+.programme { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 230px), 1fr)); gap: 10px; }
+.semestre { background: var(--carte); border: 1px solid var(--filet); border-radius: 8px; padding: 12px 14px; display: grid; gap: 6px; align-content: start; }
+.semestre .quand { font-size: 12px; letter-spacing: .12em; text-transform: uppercase; color: var(--cuivre); }
+.semestre ul { margin: 0; padding-left: 18px; font-size: 14px; }
+.semestre li { margin: 2px 0; }
+.fon { font-variant: small-caps; letter-spacing: .04em; color: var(--doux); }
+.semestre.trois { border-style: dashed; }
+.legende { font-size: 13px; color: var(--doux); }
+
+/* La sélection */
+.etapes-sel { display: grid; gap: 8px; counter-reset: sel; }
+.sel { display: grid; grid-template-columns: 34px minmax(0, 1fr) auto; gap: 4px 12px; align-items: start; background: var(--carte); border: 1px solid var(--filet); border-radius: 8px; padding: 11px 14px; counter-increment: sel; }
+.sel::before { content: counter(sel); font: 400 24px/1 var(--serif); color: var(--cuivre); grid-row: span 2; }
+.sel b { font-weight: 500; color: var(--encre); }
+.sel .pts { font-size: 13px; color: var(--doux); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.sel p { grid-column: 2 / 4; font-size: 14px; color: var(--doux); }
+.criteres { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 12px; }
+.critere { border-top: 2px solid var(--encre); padding-top: 8px; display: grid; gap: 4px; }
+.critere b { font-weight: 500; color: var(--encre); }
+.critere span { font-size: 14px; color: var(--doux); }
+.elimine { background: var(--rouge-clair); border-radius: 8px; padding: 10px 14px; font-size: 14.5px; }
+.elimine b { font-weight: 500; color: var(--rouge); }
+.juriste { border: 1px solid var(--cuivre); border-radius: 8px; padding: 12px 14px; font-size: 14.5px; display: grid; gap: 6px; background: var(--carte); }
+.juriste b { color: var(--cuivre); font-weight: 500; }
+
+/* Le questionnaire, tel qu'il paraîtra sur maisonmnd.com */
+.ecran { border: 1px solid var(--filet); border-radius: 14px; overflow: clip; background: var(--carte); }
+.ecran-barre { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 9px 14px; background: var(--indigo-plein); color: var(--sur-indigo); font-size: 13px; flex-wrap: wrap; }
+.ecran-barre span { color: var(--sur-indigo-doux); }
+.ecran-corps { padding: 22px clamp(16px, 4vw, 34px) 28px; display: grid; gap: 18px; }
+.maquette-note { font-size: 12.5px; color: var(--cuivre); letter-spacing: .04em; }
+.pas { display: flex; gap: 6px; flex-wrap: wrap; }
+.pas span { font-size: 12.5px; border-radius: 999px; padding: 2px 10px; border: 1px solid var(--filet); color: var(--doux); }
+.pas span.fait { background: var(--vert-clair); border-color: var(--vert); color: var(--texte); }
+.pas span.ici { background: var(--encre); border-color: var(--encre); color: var(--fond); }
+form.questionnaire { display: grid; gap: 16px; }
+.etape-form { display: grid; gap: 14px; }
+.etape-form h3 { font-size: 26px; font-weight: 400; }
+.etape-form .aide { font-size: 14.5px; color: var(--doux); margin-top: -6px; }
+.champs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+@media (max-width: 560px) { .champs { grid-template-columns: minmax(0, 1fr); } }
+.champ { display: grid; gap: 5px; min-width: 0; }
+.champ label, .champ .titre { font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: var(--cuivre); }
+.champ small { font-size: 13px; color: var(--doux); }
+input:disabled, textarea:disabled { opacity: .75; }
+input[type="text"], input[type="tel"], input[type="email"], input[type="date"], select, textarea {
+  width: 100%; font: 300 16px/1.4 var(--sans); color: var(--texte); background: var(--fond); border: 1px solid var(--filet); border-radius: 6px; padding: 11px 12px; }
+textarea { resize: vertical; min-height: 96px; }
+textarea.lettre { min-height: 220px; }
+input:focus, select:focus, textarea:focus, button:focus-visible, .choix-ligne input:focus-visible { outline: 2px solid var(--cuivre); outline-offset: 2px; }
+.cases { display: flex; flex-wrap: wrap; gap: 8px; }
+.case { display: inline-flex; gap: 7px; align-items: center; border: 1px solid var(--filet); border-radius: 999px; padding: 5px 12px; font-size: 14.5px; cursor: pointer; background: var(--fond); }
+.case:has(input:checked) { border-color: var(--encre); background: var(--encre); color: var(--fond); }
+.case input { accent-color: var(--cuivre); margin: 0; }
+.compteur { font-size: 13px; color: var(--doux); font-variant-numeric: tabular-nums; }
+.compteur.ok { color: var(--vert); }
+.engagement { display: grid; grid-template-columns: 20px minmax(0, 1fr); gap: 10px; font-size: 14.5px; align-items: start; }
+.engagement input { margin-top: 4px; accent-color: var(--cuivre); width: 17px; height: 17px; }
+.avis { font-size: 14px; border-radius: 6px; padding: 8px 12px; background: var(--cuivre-clair); }
+.erreur { font-size: 14px; color: var(--rouge); }
+.boutons { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.btn { font: 400 14px var(--sans); letter-spacing: .14em; text-transform: uppercase; border-radius: 999px; padding: 12px 26px; border: 1px solid var(--cuivre); cursor: pointer; }
+.btn-plein { background: var(--cuivre); color: #FFFDF9; }
+.btn-lien { background: transparent; color: var(--encre); border-color: transparent; text-decoration: underline; text-underline-offset: 4px; text-decoration-color: var(--cuivre); padding-inline: 4px; }
+.recap { display: grid; gap: 8px; font-size: 14.5px; }
+.recap div { display: grid; grid-template-columns: minmax(110px, 30%) minmax(0, 1fr); gap: 10px; border-bottom: 1px solid var(--filet); padding-bottom: 6px; }
+.recap dt, .recap span:first-child { color: var(--doux); }
+.recu { display: grid; gap: 14px; text-align: left; }
+.recu ol { margin: 0; padding-left: 20px; display: grid; gap: 6px; font-size: 15px; }
+
+/* Au Trône */
+.trone { display: grid; grid-template-columns: 180px minmax(0, 1fr); border: 1px solid var(--filet); border-radius: 12px; overflow: clip; background: var(--carte); }
+@media (max-width: 680px) { .trone { grid-template-columns: minmax(0, 1fr); } .trone .nav { display: none; } }
+.trone .nav { background: var(--indigo-plein); color: var(--sur-indigo-doux); padding: 14px 10px; font-size: 13px; display: grid; gap: 4px; align-content: start; }
+.trone .nav b { color: var(--sur-indigo); font-weight: 400; background: color-mix(in srgb, var(--sur-indigo) 14%, transparent); border-radius: 6px; padding: 3px 8px; }
+.trone .nav span { padding: 3px 8px; }
+.trone .nav .g { font-size: 10.5px; letter-spacing: .14em; text-transform: uppercase; padding-top: 8px; }
+.trone .contenu { padding: 16px; display: grid; gap: 12px; }
+.onglets { display: flex; gap: 6px; flex-wrap: wrap; font-size: 13.5px; }
+.onglets span { border-bottom: 2px solid transparent; padding: 2px 4px; color: var(--doux); }
+.onglets span.actif { border-color: var(--cuivre); color: var(--encre); }
+.colonnes { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+@media (max-width: 680px) { .colonnes { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.colonne { background: var(--fond); border-radius: 8px; padding: 8px; display: grid; gap: 6px; align-content: start; min-height: 90px; }
+.colonne > span { font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--doux); }
+.carte-cand { background: var(--carte); border: 1px solid var(--filet); border-radius: 6px; padding: 7px 8px; font-size: 13px; display: grid; gap: 2px; }
+.carte-cand b { font-weight: 500; color: var(--encre); }
+.carte-cand small { color: var(--doux); font-size: 12px; }
+.carte-cand.ouverte { border-color: var(--cuivre); }
+.fiche { border: 1px solid var(--cuivre); border-radius: 8px; padding: 12px 14px; display: grid; gap: 10px; }
+.grille { width: 100%; border-collapse: collapse; font-size: 13.5px; font-variant-numeric: tabular-nums; }
+.grille th, .grille td { text-align: left; padding: 5px 6px; border-bottom: 1px solid var(--filet); }
+.grille th { font-weight: 400; color: var(--doux); font-size: 12px; letter-spacing: .08em; text-transform: uppercase; }
+.grille td.n { text-align: right; }
+.grille tr.total td { font-weight: 500; color: var(--encre); border-bottom: 0; }
+.tableau-defile { overflow-x: auto; }
+.pastille { display: inline-block; font-size: 12px; border-radius: 999px; padding: 1px 9px; background: var(--vert-clair); color: var(--vert); }
+
+/* Le contrat */
+.contrat { background: var(--carte); border: 1px solid var(--filet); border-radius: 8px; padding: clamp(16px, 4vw, 34px); display: grid; gap: 12px; font-size: 15px; }
+.contrat .entete { text-align: center; display: grid; gap: 4px; }
+.contrat .entete b { font: 500 22px/1.2 var(--serif); color: var(--encre); letter-spacing: .02em; }
+.contrat .entete span { font-size: 13px; color: var(--doux); }
+.contrat details { border-top: 1px solid var(--filet); padding-top: 8px; }
+.contrat summary { cursor: pointer; font: 500 17px/1.3 var(--serif); color: var(--encre); list-style-position: outside; }
+.contrat details > div { display: grid; gap: 8px; padding: 8px 0 4px; }
+.contrat .ref { font-size: 12.5px; color: var(--cuivre); }
+.v { border-radius: 4px; padding: 0 4px; -webkit-box-decoration-break: clone; box-decoration-break: clone; }
+.v.q { background: var(--vert-clair); }
+.v.s { background: var(--cuivre-clair); }
+.v.d { background: color-mix(in srgb, var(--encre) 12%, transparent); }
+.cles { display: flex; flex-wrap: wrap; gap: 8px 16px; font-size: 13px; color: var(--doux); }
+.pieces { display: grid; gap: 4px; font-size: 14.5px; padding-left: 20px; margin: 0; }
+
+/* Les décisions */
+.decisions { display: grid; gap: 12px; }
+.decision { background: var(--carte); border: 1px solid var(--filet); border-left: 3px solid var(--filet); border-radius: 8px; padding: 14px 16px; display: grid; gap: 8px; }
+.decision.tranchee { border-left-color: var(--cuivre); }
+.decision p.pq { font-size: 14px; color: var(--doux); }
+.choix-ligne { display: grid; grid-template-columns: 20px minmax(0, 1fr); gap: 8px; align-items: start; font-size: 14.5px; cursor: pointer; padding: 4px 0; }
+.choix-ligne input { margin-top: 4px; accent-color: var(--cuivre); width: 16px; height: 16px; }
+.choix-ligne em { font-style: normal; font-size: 12.5px; color: var(--cuivre); }
+.choix-ligne small { display: block; font-size: 13px; color: var(--doux); }
+.etat { font-size: 12.5px; color: var(--vert); min-height: 1.2em; }
+.cout { font-size: 13.5px; background: var(--fond); border-radius: 6px; padding: 8px 10px; font-variant-numeric: tabular-nums; }
+.sources { font-size: 13.5px; color: var(--doux); display: grid; gap: 6px; padding-left: 20px; margin: 0; }
+.avancee { display: flex; align-items: center; gap: 12px; font-size: 14px; color: var(--doux); }
+.avancee i { flex: 1; height: 6px; border-radius: 999px; background: var(--filet); overflow: hidden; display: block; }
+.avancee i b { display: block; height: 100%; background: var(--cuivre); width: 0; transition: width .2s; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div class="page">
+
+<header>
+  <p class="sur">Académie MND · Maquette à valider · 15 octobre 2026</p>
+  <h1>L’année préparatoire</h1>
+  <p class="chapeau">Pour les jeunes de 15 à 17 ans qui ont quitté l’école et veulent apprendre le métier à la Maison. Une année d’école payante, avec les parents, qui prépare à La Relève : les gestes de base, le français et le calcul pour obtenir le CEP, et la tenue de la Maison. Rien n’est construit : vos choix, en bas de page, décident.</p>
+  <nav class="sommaire" aria-label="Sommaire">
+    <a href="#pourquoi">Pourquoi une année à part</a><a href="#annee">L’année</a><a href="#protection">La protection</a><a href="#inscription">L’inscription</a><a href="#passerelle">La passerelle</a><a href="#decider">À décider</a>
+  </nav>
+</header>
+
+<section id="pourquoi" aria-labelledby="t-pourquoi">
+  <p class="sur">Pourquoi une année à part</p>
+  <h2 id="t-pourquoi">Elles sont nombreuses, et La Relève ne peut pas les prendre</h2>
+  <div class="problemes">
+    <article class="probleme"><h3>Elles sont mineures</h3><p>La loi permet l’apprentissage dès 14 ans (art. 66), mais une mineure ne travaille ni le soir ni avec des produits dangereux, et ses parents signent pour elle (art. 68).</p><p class="suite">Une formation, pas un emploi : la Maison ne les fait pas travailler.</p></article>
+    <article class="probleme"><h3>Beaucoup n’ont pas le CEP</h3><p>La Relève demande le CEP au moins. À 15 ans, sorties de l’école en 6e ou avant, beaucoup ne l’ont pas.</p><p class="suite">L’année prépare le CEP en candidate libre.</p></article>
+    <article class="probleme"><h3>Sinon, l’atelier du quartier</h3><p>Sans autre porte, elles entrent chez une patronne pour trois à cinq ans, et on connaît la suite.</p><p class="suite">La Maison peut leur donner une vraie première année.</p></article>
+  </div>
+</section>
+
+<section id="annee" aria-labelledby="t-annee">
+  <p class="sur">L’année</p>
+  <h2 id="t-annee">Trois trimestres, d’octobre à juin</h2>
+  <p class="lu doux petit">Le rythme se choisit en bas de page. Les gestes se font sur des têtes d’étude et entre élèves, jamais seules sur une cliente.</p>
+  <div class="programme">
+    <div class="semestre"><span class="quand">Trimestre 1</span><h3>Tenir sa place</h3><ul><li>La tenue, l’heure, la discrétion, la parole</li><li>L’hygiène des outils et du poste</li><li>Le cheveu afro, la racine, le cuir chevelu</li><li>Français : lire une fiche, écrire un message</li></ul></div>
+    <div class="semestre"><span class="quand">Trimestre 2</span><h3>Le soin</h3><ul><li>Le Lavage Rituel <span class="fon">klɔklɔ</span>, sur tête d’étude</li><li>Le Soin Hydratant <span class="fon">dàndàn</span>, sans produit chimique</li><li>Le styling de sortie</li><li>Calcul : doser, rendre la monnaie, lire un prix</li></ul></div>
+    <div class="semestre"><span class="quand">Trimestre 3</span><h3>Le CEP et la passerelle</h3><ul><li>Préparer le CEP en candidate libre</li><li>Assister un maître, observer un rituel complet</li><li>Un écrit et un pratique de fin d’année</li><li>Le bilan avec les parents</li></ul></div>
+  </div>
+  <p class="legende">Le français et le calcul : par un enseignant que l’Académie engage, ou par une association partenaire (à décider). Le CEP en candidate libre est à vérifier auprès de la circonscription scolaire.</p>
+</section>
+
+<section id="protection" aria-labelledby="t-protection">
+  <p class="sur">La protection</p>
+  <h2 id="t-protection">Des mineures : les règles de la Maison</h2>
+  <div class="criteres">
+    <div class="critere"><b>Les parents d’abord</b><span>L’inscription se fait par un parent ou un tuteur, qui signe la convention de formation et vient à chaque bilan.</span></div>
+    <div class="critere"><b>Jamais le soir</b><span>Les cours finissent avant 17 h. Personne ne reste seule à la fermeture.</span></div>
+    <div class="critere"><b>Aucun produit chimique</b><span>Ni défrisant, ni coloration, ni produit irritant avant 18 ans. Les soins de la Maison sont végétaux.</span></div>
+    <div class="critere"><b>Jamais seule sur une cliente</b><span>Des têtes d’étude, des exercices entre élèves, et l’observation des maîtres.</span></div>
+    <div class="critere"><b>Pas de travail, pas de « petites mains »</b><span>Elles ne balaient pas l’atelier, ne servent pas les clientes : elles apprennent.</span></div>
+    <div class="critere"><b>Leurs données, à leurs parents</b><span>Le formulaire est rempli par le parent, et le dossier se garde le temps de l’année, puis s’efface.</span></div>
+  </div>
+</section>
+
+<section id="inscription" aria-labelledby="t-inscription">
+  <p class="sur">L’inscription</p>
+  <h2 id="t-inscription">Par les parents, sur le site de l’Académie</h2>
+  <div class="ecran">
+    <div class="ecran-barre">maisonmnd.com<span>/academie/#annee-preparatoire</span></div>
+    <div class="ecran-corps">
+      <p class="maquette-note">Maquette · aperçu, rien ne part</p>
+      <h3 style="font-size:clamp(26px,5vw,36px);font-weight:300">Inscrire ma fille à l’année préparatoire.</h3>
+      <p class="doux">Pour les 15 à 17 ans qui ont quitté l’école. Un formulaire rempli par le parent ou le tuteur, puis un entretien à la Maison avec la jeune et son parent.</p>
+      <div class="champs">
+        <div class="champ"><span class="titre">Le parent ou tuteur</span><input type="text" id="p-parent" placeholder="Prénom et nom" disabled></div>
+        <div class="champ"><span class="titre">Son WhatsApp</span><input type="tel" id="p-tel" placeholder="+229 01 00 00 00 00" disabled></div>
+        <div class="champ"><span class="titre">La jeune : prénom et nom</span><input type="text" id="p-jeune" disabled></div>
+        <div class="champ"><span class="titre">Sa date de naissance</span><input type="text" id="p-naissance" placeholder="15 à 17 ans à la rentrée" disabled></div>
+        <div class="champ"><span class="titre">Sa dernière classe</span><input type="text" id="p-classe" disabled></div>
+        <div class="champ"><span class="titre">Ce qu’elle aime faire de ses mains</span><input type="text" id="p-mains" disabled></div>
+      </div>
+      <div class="champ"><span class="titre">Pourquoi ce métier, en quelques phrases (écrites par elle)</span><textarea id="p-pourquoi" rows="3" disabled></textarea></div>
+      <p class="doux petit">Je suis son parent ou son tuteur, j’inscris ma fille et j’accepte que la Maison MND garde ce dossier le temps de l’année.</p>
+      <div class="boutons"><button type="button" class="btn btn-plein" disabled>Demander l’inscription</button></div>
+    </div>
+  </div>
+  <p class="doux petit">Comme pour La Relève : une boîte que le public remplit sans la relire, que la direction vide au Trône. L’année se paie comme une école : <span data-v="prix-dit">le prix choisi en bas de page</span>.</p>
+</section>
+
+<section id="passerelle" aria-labelledby="t-passerelle">
+  <p class="sur">La passerelle</p>
+  <h2 id="t-passerelle">Et après, La Relève</h2>
+  <div class="inverse" role="table" aria-label="Après l’année préparatoire">
+    <div class="ligne tete" role="row"><div role="columnheader">À la fin de l’année</div><div role="columnheader">Ce qui l’attend</div></div>
+    <div class="ligne" role="row"><div role="cell">Elle a 18 ans et le CEP</div><div role="cell"><span data-v="passerelle">Elle passe directement à l’entretien de La Relève</span></div></div>
+    <div class="ligne" role="row"><div role="cell">Elle a moins de 18 ans</div><div role="cell">Une deuxième année de perfectionnement, au même rythme, jusqu’à ses 18 ans</div></div>
+    <div class="ligne" role="row"><div role="cell">Elle n’a pas le CEP</div><div role="cell">Elle le repasse en candidate libre ; La Relève l’attend</div></div>
+  </div>
+</section>
+
+<section id="decider" aria-labelledby="t-decider">
+  <p class="sur">À décider</p>
+  <h2 id="t-decider">Vos choix, avant que je construise</h2>
+  <p class="lu doux">Chaque choix s’enregistre tout seul. Rien ne se construit avant votre « construis ».</p>
+  <div class="avancee"><i><b id="barre-decisions"></b></i><span id="compte-decisions"></span></div>
+  <div class="decisions" id="decisions"></div>
+  <div class="decision"><h3>Un mot de plus</h3><p class="pq">Une question, une règle à ajouter.</p><textarea id="d-note" rows="3" aria-label="Votre mot"></textarea><span class="etat" id="d-note-etat"></span></div>
+</section>
+
+</div>
+
+<script>
+(function () {
+  'use strict';
+  var DECISIONS = [
+    { id: 'nom', titre: 'Le nom', pq: 'Il paraît sur le site de l’Académie et sur la convention.', options: [
+      ['preparatoire', 'L’année préparatoire', 'dit ce que c’est', true],
+      ['graines', 'Les Graines de La Relève', 'dit où elle mène'],
+      ['eveil', 'L’Éveil MND', 'plus doux'] ] },
+    { id: 'rythme', titre: 'Le rythme', pq: 'Une formation, pas un emploi : jamais le soir.', options: [
+      ['trois', 'Trois demi-journées par semaine', 'le reste du temps pour le CEP et la famille', true],
+      ['cinq', 'Cinq matinées par semaine', 'plus intense'],
+      ['deux', 'Deux journées par semaine', 'moins de déplacements'] ] },
+    { id: 'prix', titre: 'Le prix', pq: 'Comme une école : une inscription, puis un montant par mois, d’octobre à juin (neuf mois).', cout: true, options: [
+      ['a', '25 000 F d’inscription, puis 15 000 F par mois', 'l’année : 160 000 F'],
+      ['b', '25 000 F d’inscription, puis 25 000 F par mois', 'l’année : 250 000 F'],
+      ['c', '25 000 F d’inscription, puis 35 000 F par mois', 'l’année : 340 000 F'] ] },
+    { id: 'classe', titre: 'La taille de la classe', pq: 'Combien d’élèves par année.', options: [
+      ['huit', 'Huit', 'un maître pour huit', true],
+      ['douze', 'Douze', 'deux maîtres'],
+      ['seize', 'Seize', 'deux groupes'] ] },
+    { id: 'cep', titre: 'Le français et le calcul', pq: 'Pour le CEP en candidate libre.', options: [
+      ['enseignant', 'Un enseignant engagé par l’Académie', 'deux séances par semaine', true],
+      ['association', 'Une association partenaire', 'à trouver'],
+      ['sans', 'Sans cours : seulement le métier', 'le CEP reste à leur charge'] ] },
+    { id: 'passerelle', titre: 'La passerelle vers La Relève', pq: 'Ce que l’année donne à 18 ans.', options: [
+      ['entretien', 'L’entretien de La Relève directement', 'dossier et appel sautés', true],
+      ['fondation', 'L’entretien direct, et la Fondation à moitié prix', 'l’année compte comme une partie de la Fondation'],
+      ['rien', 'Aucun avantage : elle candidate comme les autres', 'la même barre pour toutes'] ] },
+    { id: 'rentree', titre: 'La première rentrée', pq: 'Une année scolaire.', options: [
+      ['novembre2026', 'Novembre 2026', 'tout de suite, en rattrapant octobre'],
+      ['janvier2027', 'Janvier 2027', 'une année de janvier à septembre'],
+      ['octobre2027', 'Octobre 2027', 'avec l’année scolaire', true] ] },
+  ];
+  var choix = {};
+  var CLE = 'annee-preparatoire-choix';
+  try { var vu = JSON.parse(localStorage.getItem(CLE) || '{}') || {}; Object.keys(vu).forEach(function (k) { choix[k] = vu[k]; }); } catch (e) { /* sans mémoire */ }
+  var docRef = null, file = Promise.resolve();
+  function garde() {
+    try { localStorage.setItem(CLE, JSON.stringify(choix)); } catch (e) { /* sans mémoire */ }
+    if (!docRef) return;
+    var corps = {}; Object.keys(choix).forEach(function (k) { if (choix[k]) corps[k] = choix[k]; });
+    corps.quand = new Date().toISOString();
+    file = file.then(function () { return docRef.set(corps); }).catch(function () { /* hors ligne */ });
+  }
+  function txt(tag, cls, t) { var e = document.createElement(tag); if (cls) e.className = cls; if (t !== undefined) e.textContent = t; return e; }
+  var PRIX = { a: [25000, 15000], b: [25000, 25000], c: [25000, 35000] };
+  var F = function (n) { return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ' ') + ' F'; };
+  function cout() {
+    var p = PRIX[choix.prix || 'b'];
+    var n = choix.classe === 'douze' ? 12 : choix.classe === 'seize' ? 16 : 8;
+    var an = p[0] + p[1] * 9;
+    return 'Par élève : ' + F(an) + ' l’année. Pour ' + n + ' élèves, la recette de l’année : ' + F(an * n) + ', avant le coût de l’enseignant et des têtes d’étude.';
+  }
+  var boite = document.getElementById('decisions');
+  function dessine() {
+    boite.textContent = '';
+    DECISIONS.forEach(function (d) {
+      var c = txt('div', 'decision' + (choix[d.id] ? ' tranchee' : ''));
+      c.appendChild(txt('h3', '', d.titre));
+      c.appendChild(txt('p', 'pq', d.pq));
+      var g = document.createElement('div'); g.setAttribute('role', 'radiogroup'); g.setAttribute('aria-label', d.titre);
+      d.options.forEach(function (o) {
+        var l = txt('label', 'choix-ligne');
+        var i = document.createElement('input'); i.type = 'radio'; i.name = 'd-' + d.id; i.id = 'd-' + d.id + '-' + o[0]; i.value = o[0]; i.checked = choix[d.id] === o[0];
+        i.addEventListener('change', function () { choix[d.id] = o[0]; garde(); dessine(); applique(); });
+        var s = document.createElement('span');
+        s.appendChild(document.createTextNode(o[1]));
+        if (o[3]) { s.appendChild(document.createTextNode(' ')); s.appendChild(txt('em', '', 'ma proposition')); }
+        s.appendChild(txt('small', '', o[2]));
+        l.appendChild(i); l.appendChild(s); g.appendChild(l);
+      });
+      c.appendChild(g);
+      if (d.cout) c.appendChild(txt('p', 'cout', cout()));
+      c.appendChild(txt('span', 'etat', choix[d.id] ? 'Choix enregistré.' : ''));
+      boite.appendChild(c);
+    });
+    var n = DECISIONS.filter(function (d) { return choix[d.id]; }).length;
+    document.getElementById('compte-decisions').textContent = n + ' sur ' + DECISIONS.length + ' tranchées';
+    document.getElementById('barre-decisions').style.width = Math.round((n / DECISIONS.length) * 100) + '%';
+  }
+  function pose(cle, texte) { document.querySelectorAll('[data-v="' + cle + '"]').forEach(function (e) { e.textContent = texte; }); }
+  function applique() {
+    var p = PRIX[choix.prix];
+    pose('prix-dit', p ? F(p[0]) + ' d’inscription, puis ' + F(p[1]) + ' par mois' : 'le prix choisi en bas de page');
+    pose('passerelle', choix.passerelle === 'fondation' ? 'Elle passe directement à l’entretien de La Relève, et la Fondation lui coûte moitié moins' : choix.passerelle === 'rien' ? 'Elle candidate à La Relève comme les autres' : 'Elle passe directement à l’entretien de La Relève');
+  }
+  var note = document.getElementById('d-note');
+  if (choix.note) note.value = choix.note;
+  var minuterie = null;
+  note.addEventListener('input', function () { clearTimeout(minuterie); minuterie = setTimeout(function () { choix.note = note.value.trim(); garde(); document.getElementById('d-note-etat').textContent = 'Mot enregistré.'; }, 600); });
+  dessine(); applique();
+  if (window.claude && typeof window.claude.use === 'function') {
+    window.claude.use('db').then(function (db) {
+      if (!db) return;
+      docRef = db.doc('maquette/preparatoire');
+      return docRef.get().then(function (s) {
+        if (!s || !s.exists) return;
+        var v = s.data() || {};
+        Object.keys(v).forEach(function (k) { if (k !== 'quand' && typeof v[k] === 'string') choix[k] = v[k]; });
+        if (choix.note) note.value = choix.note;
+        dessine(); applique();
+      });
+    }).catch(function () { /* sans base : les choix restent sur cet appareil */ });
+  }
+})();
+</script>

@@ -1,0 +1,518 @@
+<title>Entre deux séances</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,400&family=Jost:wght@300;400;500&display=swap">
+<style>
+/* Une maquette à lire puis à trancher : le marché, la réponse de la Maison, la sélection, le questionnaire tel qu'il sera sur le site, le contrat, et les décisions.
+   Ivoire pour lire, indigo pour la Maison, cuivre pour ce qu'on décide ; jamais obsidienne. */
+:root {
+  --fond:#F6F1E7; --carte:#FFFDF9; --encre:#1E2150; --texte:#2A2722; --doux:#5E5750; --filet:#E3DACB;
+  --cuivre:#9A6036; --cuivre-clair:#F3E6D8; --vert:#2F6B4F; --vert-clair:#E3F0E8; --rouge:#8E2F2F; --rouge-clair:#F6E3E0;
+  --indigo-plein:#1E2150; --sur-indigo:#F6F1E7; --sur-indigo-doux:#C9C6DD;
+  --serif:"Cormorant Garamond", Georgia, "Times New Roman", serif; --sans:"Jost", system-ui, -apple-system, "Segoe UI", sans-serif;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --fond:#15173A; --carte:#1E2150; --encre:#F6F1E7; --texte:#E9E3D7; --doux:#B9B4C9; --filet:#2E3266;
+  --cuivre:#D6A06F; --cuivre-clair:#3A2E3A; --vert:#8FD1AE; --vert-clair:#1F3B3A; --rouge:#E7A1A1; --rouge-clair:#3B2433;
+  --indigo-plein:#0F1130; --sur-indigo:#F6F1E7; --sur-indigo-doux:#B9B4C9; color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --fond:#15173A; --carte:#1E2150; --encre:#F6F1E7; --texte:#E9E3D7; --doux:#B9B4C9; --filet:#2E3266;
+  --cuivre:#D6A06F; --cuivre-clair:#3A2E3A; --vert:#8FD1AE; --vert-clair:#1F3B3A; --rouge:#E7A1A1; --rouge-clair:#3B2433;
+  --indigo-plein:#0F1130; --sur-indigo:#F6F1E7; --sur-indigo-doux:#B9B4C9; color-scheme: dark; }
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { margin: 0; background: var(--fond); color: var(--texte); font: 300 16px/1.65 var(--sans);
+  padding-block: 28px 90px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.page { max-width: 900px; margin: 0 auto; display: grid; gap: 56px; }
+.page > * { min-width: 0; }
+section { display: grid; gap: 18px; scroll-margin-top: 16px; }
+section > * { min-width: 0; }
+.sur { font-size: 11.5px; letter-spacing: .18em; text-transform: uppercase; color: var(--cuivre); margin: 0; font-weight: 400; }
+h1 { font: 300 clamp(40px, 7vw, 66px)/1.02 var(--serif); color: var(--encre); margin: 8px 0 0; text-wrap: balance; }
+h2 { font: 400 clamp(28px, 4.4vw, 36px)/1.12 var(--serif); color: var(--encre); margin: 4px 0 0; text-wrap: balance; }
+h3 { font: 500 21px/1.22 var(--serif); color: var(--encre); margin: 0; text-wrap: balance; }
+p { margin: 0; }
+.chapeau { color: var(--doux); max-width: 68ch; margin-top: 14px; font-size: 17px; }
+.lu { max-width: 68ch; }
+.doux { color: var(--doux); }
+.petit { font-size: 14px; }
+a { color: var(--encre); text-underline-offset: 3px; text-decoration-color: var(--cuivre); }
+.sommaire { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 20px; }
+.sommaire a { font-size: 14px; text-decoration: none; border: 1px solid var(--filet); border-radius: 999px; padding: 4px 13px; background: var(--carte); }
+.sommaire a:hover { border-color: var(--cuivre); }
+.bandeau { background: var(--cuivre-clair); border-radius: 8px; padding: 10px 14px; font-size: 14.5px; }
+.bandeau b { font-weight: 500; }
+
+/* Le parcours d'aujourd'hui : une frise, parce que c'est une suite réelle d'années */
+.frise { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 0; border-top: 2px solid var(--filet); margin-top: 6px; }
+@media (max-width: 720px) { .frise { grid-template-columns: minmax(0, 1fr); border-top: 0; border-left: 2px solid var(--filet); } }
+.etape { padding: 14px 14px 0 0; position: relative; }
+.etape::before { content: ""; position: absolute; top: -7px; left: 0; width: 12px; height: 12px; border-radius: 50%; background: var(--fond); border: 2px solid var(--cuivre); }
+@media (max-width: 720px) { .etape { padding: 0 0 18px 18px; } .etape::before { top: 4px; left: -7px; } }
+.etape b { display: block; font: 500 13px/1.3 var(--sans); letter-spacing: .08em; text-transform: uppercase; color: var(--cuivre); }
+.etape span { display: block; font-size: 14.5px; margin-top: 4px; }
+
+.chiffres { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 190px), 1fr)); gap: 10px; }
+.chiffre { background: var(--carte); border: 1px solid var(--filet); border-radius: 8px; padding: 12px 14px; display: grid; gap: 2px; align-content: start; }
+.chiffre b { font: 300 34px/1.05 var(--sans); color: var(--encre); font-variant-numeric: lining-nums tabular-nums; }
+.chiffre span { font-size: 13.5px; color: var(--doux); }
+.chiffre small { font-size: 12px; color: var(--cuivre); }
+.lecture { border-left: 3px solid var(--cuivre); padding: 4px 0 4px 16px; font: 400 21px/1.35 var(--serif); color: var(--encre); max-width: 60ch; }
+.lecture small { display: block; font: 300 13px/1.5 var(--sans); color: var(--doux); margin-top: 6px; }
+
+.problemes { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 12px; }
+.probleme { background: var(--carte); border: 1px solid var(--filet); border-radius: 8px; padding: 14px 16px; display: grid; gap: 6px; align-content: start; }
+.probleme h3 { font-size: 19px; }
+.probleme p { font-size: 14.5px; color: var(--doux); }
+.probleme .suite { font-size: 13.5px; color: var(--texte); border-top: 1px solid var(--filet); padding-top: 6px; margin-top: 2px; }
+
+/* La réponse : avant / avec la Maison, ligne à ligne */
+.inverse { display: grid; gap: 0; border: 1px solid var(--filet); border-radius: 8px; overflow: clip; background: var(--carte); }
+.inverse .ligne { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr); border-top: 1px solid var(--filet); }
+.inverse .ligne:first-child { border-top: 0; }
+.inverse .ligne > div { padding: 11px 14px; font-size: 14.5px; }
+.inverse .ligne > div:first-child { color: var(--doux); text-decoration: line-through; text-decoration-color: color-mix(in srgb, var(--rouge) 55%, transparent); }
+.inverse .ligne > div:last-child { border-left: 1px solid var(--filet); }
+.inverse .tete > div { font-size: 11.5px; letter-spacing: .14em; text-transform: uppercase; text-decoration: none !important; color: var(--cuivre) !important; padding-block: 8px; }
+@media (max-width: 600px) { .inverse .ligne { grid-template-columns: minmax(0, 1fr); } .inverse .ligne > div:last-child { border-left: 0; padding-top: 0; } .inverse .tete { display: none; } }
+
+.programme { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr)); gap: 10px; }
+.semestre { background: var(--carte); border: 1px solid var(--filet); border-radius: 8px; padding: 12px 14px; display: grid; gap: 6px; align-content: start; }
+.semestre .quand { font-size: 12px; letter-spacing: .12em; text-transform: uppercase; color: var(--cuivre); }
+.semestre ul { margin: 0; padding-left: 18px; font-size: 14px; }
+.semestre li { margin: 2px 0; }
+.fon { font-variant: small-caps; letter-spacing: .04em; color: var(--doux); }
+.semestre.trois { border-style: dashed; }
+.legende { font-size: 13px; color: var(--doux); }
+
+/* La sélection */
+.etapes-sel { display: grid; gap: 8px; counter-reset: sel; }
+.sel { display: grid; grid-template-columns: 34px minmax(0, 1fr) auto; gap: 4px 12px; align-items: start; background: var(--carte); border: 1px solid var(--filet); border-radius: 8px; padding: 11px 14px; counter-increment: sel; }
+.sel::before { content: counter(sel); font: 400 24px/1 var(--serif); color: var(--cuivre); grid-row: span 2; }
+.sel b { font-weight: 500; color: var(--encre); }
+.sel .pts { font-size: 13px; color: var(--doux); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.sel p { grid-column: 2 / 4; font-size: 14px; color: var(--doux); }
+.criteres { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 12px; }
+.critere { border-top: 2px solid var(--encre); padding-top: 8px; display: grid; gap: 4px; }
+.critere b { font-weight: 500; color: var(--encre); }
+.critere span { font-size: 14px; color: var(--doux); }
+.elimine { background: var(--rouge-clair); border-radius: 8px; padding: 10px 14px; font-size: 14.5px; }
+.elimine b { font-weight: 500; color: var(--rouge); }
+.juriste { border: 1px solid var(--cuivre); border-radius: 8px; padding: 12px 14px; font-size: 14.5px; display: grid; gap: 6px; background: var(--carte); }
+.juriste b { color: var(--cuivre); font-weight: 500; }
+
+/* Le questionnaire, tel qu'il paraîtra sur maisonmnd.com */
+.ecran { border: 1px solid var(--filet); border-radius: 14px; overflow: clip; background: var(--carte); }
+.ecran-barre { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 9px 14px; background: var(--indigo-plein); color: var(--sur-indigo); font-size: 13px; flex-wrap: wrap; }
+.ecran-barre span { color: var(--sur-indigo-doux); }
+.ecran-corps { padding: 22px clamp(16px, 4vw, 34px) 28px; display: grid; gap: 18px; }
+.maquette-note { font-size: 12.5px; color: var(--cuivre); letter-spacing: .04em; }
+.pas { display: flex; gap: 6px; flex-wrap: wrap; }
+.pas span { font-size: 12.5px; border-radius: 999px; padding: 2px 10px; border: 1px solid var(--filet); color: var(--doux); }
+.pas span.fait { background: var(--vert-clair); border-color: var(--vert); color: var(--texte); }
+.pas span.ici { background: var(--encre); border-color: var(--encre); color: var(--fond); }
+form.questionnaire { display: grid; gap: 16px; }
+.etape-form { display: grid; gap: 14px; }
+.etape-form h3 { font-size: 26px; font-weight: 400; }
+.etape-form .aide { font-size: 14.5px; color: var(--doux); margin-top: -6px; }
+.champs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+@media (max-width: 560px) { .champs { grid-template-columns: minmax(0, 1fr); } }
+.champ { display: grid; gap: 5px; min-width: 0; }
+.champ label, .champ .titre { font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: var(--cuivre); }
+.champ small { font-size: 13px; color: var(--doux); }
+input[type="text"], input[type="tel"], input[type="email"], input[type="date"], select, textarea {
+  width: 100%; font: 300 16px/1.4 var(--sans); color: var(--texte); background: var(--fond); border: 1px solid var(--filet); border-radius: 6px; padding: 11px 12px; }
+textarea { resize: vertical; min-height: 96px; }
+textarea.lettre { min-height: 220px; }
+input:focus, select:focus, textarea:focus, button:focus-visible, .choix-ligne input:focus-visible { outline: 2px solid var(--cuivre); outline-offset: 2px; }
+.cases { display: flex; flex-wrap: wrap; gap: 8px; }
+.case { display: inline-flex; gap: 7px; align-items: center; border: 1px solid var(--filet); border-radius: 999px; padding: 5px 12px; font-size: 14.5px; cursor: pointer; background: var(--fond); }
+.case:has(input:checked) { border-color: var(--encre); background: var(--encre); color: var(--fond); }
+.case input { accent-color: var(--cuivre); margin: 0; }
+.compteur { font-size: 13px; color: var(--doux); font-variant-numeric: tabular-nums; }
+.compteur.ok { color: var(--vert); }
+.engagement { display: grid; grid-template-columns: 20px minmax(0, 1fr); gap: 10px; font-size: 14.5px; align-items: start; }
+.engagement input { margin-top: 4px; accent-color: var(--cuivre); width: 17px; height: 17px; }
+.avis { font-size: 14px; border-radius: 6px; padding: 8px 12px; background: var(--cuivre-clair); }
+.erreur { font-size: 14px; color: var(--rouge); }
+.boutons { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.btn { font: 400 14px var(--sans); letter-spacing: .14em; text-transform: uppercase; border-radius: 999px; padding: 12px 26px; border: 1px solid var(--cuivre); cursor: pointer; }
+.btn-plein { background: var(--cuivre); color: #FFFDF9; }
+.btn-lien { background: transparent; color: var(--encre); border-color: transparent; text-decoration: underline; text-underline-offset: 4px; text-decoration-color: var(--cuivre); padding-inline: 4px; }
+.recap { display: grid; gap: 8px; font-size: 14.5px; }
+.recap div { display: grid; grid-template-columns: minmax(110px, 30%) minmax(0, 1fr); gap: 10px; border-bottom: 1px solid var(--filet); padding-bottom: 6px; }
+.recap dt, .recap span:first-child { color: var(--doux); }
+.recu { display: grid; gap: 14px; text-align: left; }
+.recu ol { margin: 0; padding-left: 20px; display: grid; gap: 6px; font-size: 15px; }
+
+/* Au Trône */
+.trone { display: grid; grid-template-columns: 180px minmax(0, 1fr); border: 1px solid var(--filet); border-radius: 12px; overflow: clip; background: var(--carte); }
+@media (max-width: 680px) { .trone { grid-template-columns: minmax(0, 1fr); } .trone .nav { display: none; } }
+.trone .nav { background: var(--indigo-plein); color: var(--sur-indigo-doux); padding: 14px 10px; font-size: 13px; display: grid; gap: 4px; align-content: start; }
+.trone .nav b { color: var(--sur-indigo); font-weight: 400; background: color-mix(in srgb, var(--sur-indigo) 14%, transparent); border-radius: 6px; padding: 3px 8px; }
+.trone .nav span { padding: 3px 8px; }
+.trone .nav .g { font-size: 10.5px; letter-spacing: .14em; text-transform: uppercase; padding-top: 8px; }
+.trone .contenu { padding: 16px; display: grid; gap: 12px; }
+.onglets { display: flex; gap: 6px; flex-wrap: wrap; font-size: 13.5px; }
+.onglets span { border-bottom: 2px solid transparent; padding: 2px 4px; color: var(--doux); }
+.onglets span.actif { border-color: var(--cuivre); color: var(--encre); }
+.colonnes { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+@media (max-width: 680px) { .colonnes { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.colonne { background: var(--fond); border-radius: 8px; padding: 8px; display: grid; gap: 6px; align-content: start; min-height: 90px; }
+.colonne > span { font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--doux); }
+.carte-cand { background: var(--carte); border: 1px solid var(--filet); border-radius: 6px; padding: 7px 8px; font-size: 13px; display: grid; gap: 2px; }
+.carte-cand b { font-weight: 500; color: var(--encre); }
+.carte-cand small { color: var(--doux); font-size: 12px; }
+.carte-cand.ouverte { border-color: var(--cuivre); }
+.fiche { border: 1px solid var(--cuivre); border-radius: 8px; padding: 12px 14px; display: grid; gap: 10px; }
+.grille { width: 100%; border-collapse: collapse; font-size: 13.5px; font-variant-numeric: tabular-nums; }
+.grille th, .grille td { text-align: left; padding: 5px 6px; border-bottom: 1px solid var(--filet); }
+.grille th { font-weight: 400; color: var(--doux); font-size: 12px; letter-spacing: .08em; text-transform: uppercase; }
+.grille td.n { text-align: right; }
+.grille tr.total td { font-weight: 500; color: var(--encre); border-bottom: 0; }
+.tableau-defile { overflow-x: auto; }
+.pastille { display: inline-block; font-size: 12px; border-radius: 999px; padding: 1px 9px; background: var(--vert-clair); color: var(--vert); }
+
+/* Le contrat */
+.contrat { background: var(--carte); border: 1px solid var(--filet); border-radius: 8px; padding: clamp(16px, 4vw, 34px); display: grid; gap: 12px; font-size: 15px; }
+.contrat .entete { text-align: center; display: grid; gap: 4px; }
+.contrat .entete b { font: 500 22px/1.2 var(--serif); color: var(--encre); letter-spacing: .02em; }
+.contrat .entete span { font-size: 13px; color: var(--doux); }
+.contrat details { border-top: 1px solid var(--filet); padding-top: 8px; }
+.contrat summary { cursor: pointer; font: 500 17px/1.3 var(--serif); color: var(--encre); list-style-position: outside; }
+.contrat details > div { display: grid; gap: 8px; padding: 8px 0 4px; }
+.contrat .ref { font-size: 12.5px; color: var(--cuivre); }
+.v { border-radius: 4px; padding: 0 4px; -webkit-box-decoration-break: clone; box-decoration-break: clone; }
+.v.q { background: var(--vert-clair); }
+.v.s { background: var(--cuivre-clair); }
+.v.d { background: color-mix(in srgb, var(--encre) 12%, transparent); }
+.cles { display: flex; flex-wrap: wrap; gap: 8px 16px; font-size: 13px; color: var(--doux); }
+.pieces { display: grid; gap: 4px; font-size: 14.5px; padding-left: 20px; margin: 0; }
+
+/* Les décisions */
+.decisions { display: grid; gap: 12px; }
+.decision { background: var(--carte); border: 1px solid var(--filet); border-left: 3px solid var(--filet); border-radius: 8px; padding: 14px 16px; display: grid; gap: 8px; }
+.decision.tranchee { border-left-color: var(--cuivre); }
+.decision p.pq { font-size: 14px; color: var(--doux); }
+.choix-ligne { display: grid; grid-template-columns: 20px minmax(0, 1fr); gap: 8px; align-items: start; font-size: 14.5px; cursor: pointer; padding: 4px 0; }
+.choix-ligne input { margin-top: 4px; accent-color: var(--cuivre); width: 16px; height: 16px; }
+.choix-ligne em { font-style: normal; font-size: 12.5px; color: var(--cuivre); }
+.choix-ligne small { display: block; font-size: 13px; color: var(--doux); }
+.etat { font-size: 12.5px; color: var(--vert); min-height: 1.2em; }
+.cout { font-size: 13.5px; background: var(--fond); border-radius: 6px; padding: 8px 10px; font-variant-numeric: tabular-nums; }
+.sources { font-size: 13.5px; color: var(--doux); display: grid; gap: 6px; padding-left: 20px; margin: 0; }
+.avancee { display: flex; align-items: center; gap: 12px; font-size: 14px; color: var(--doux); }
+.avancee i { flex: 1; height: 6px; border-radius: 999px; background: var(--filet); overflow: hidden; display: block; }
+.avancee i b { display: block; height: 100%; background: var(--cuivre); width: 0; transition: width .2s; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+
+/* Entre deux séances : la règle en tableau, le téléphone de Ma Couronne, WhatsApp. */
+.regle { width: 100%; border-collapse: collapse; font-size: 14px; background: var(--carte); border: 1px solid var(--filet); border-radius: 8px; }
+.regle th, .regle td { text-align: left; vertical-align: top; padding: 9px 10px; border-bottom: 1px solid var(--filet); }
+.regle th { font-weight: 400; font-size: 11.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--cuivre); }
+.regle td:first-child { font-weight: 500; color: var(--encre); min-width: 140px; }
+.regle td.doux { color: var(--doux); }
+.tableau-defile { overflow-x: auto; }
+.niveau { display: inline-block; font-size: 12px; border-radius: 999px; padding: 1px 10px; white-space: nowrap; }
+.niveau--conseil { background: var(--vert-clair); color: var(--vert); }
+.niveau--voir { background: var(--cuivre-clair); color: var(--cuivre); }
+.niveau--sante { background: var(--rouge-clair); color: var(--rouge); }
+.deux-ecrans { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; align-items: start; }
+@media (max-width: 720px) { .deux-ecrans { grid-template-columns: minmax(0, 1fr); } }
+.telephone, .whatsapp { border: 1px solid var(--filet); border-radius: 22px; overflow: clip; background: var(--carte); max-width: 380px; width: 100%; justify-self: center; }
+.tel-barre, .wa-barre { padding: 10px 16px; font-size: 13px; background: var(--indigo-plein); color: var(--sur-indigo); }
+.wa-barre { background: #1F4E45; color: #F6F1E7; }
+.tel-corps { padding: 16px; display: grid; gap: 10px; }
+.tel-sur { font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--cuivre); margin: 0; }
+.tel-titre { font-size: 24px; font-weight: 400; }
+.tel-doux { font-size: 13.5px; color: var(--doux); margin: 0; }
+.puces { display: flex; flex-wrap: wrap; gap: 7px; }
+.puce { font: 400 13.5px var(--sans); border: 1px solid var(--filet); background: var(--fond); color: var(--texte); border-radius: 999px; padding: 6px 12px; cursor: pointer; text-align: left; }
+.puce.est-prise { background: var(--encre); border-color: var(--encre); color: var(--fond); }
+.puce:focus-visible { outline: 2px solid var(--cuivre); outline-offset: 2px; }
+.tel-reponse { border-top: 1px solid var(--filet); padding-top: 10px; display: grid; gap: 8px; font-size: 14px; }
+.tel-reponse p { margin: 0; }
+.petit-btn { padding: 9px 16px; font-size: 12px; justify-self: start; }
+.wa-corps { padding: 14px; display: grid; gap: 8px; background: color-mix(in srgb, var(--fond) 70%, var(--vert-clair)); }
+.bulle-wa { max-width: 86%; border-radius: 10px; padding: 8px 11px; font-size: 13.5px; line-height: 1.45; }
+.bulle-wa small { display: block; font-size: 11px; color: var(--doux); margin-top: 4px; }
+.bulle-wa.sortante { background: var(--carte); justify-self: start; border: 1px solid var(--filet); }
+.bulle-wa.entrante { background: var(--vert-clair); justify-self: end; }
+.wa-boutons { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 6px; }
+.wa-boutons span { font-size: 12.5px; color: var(--vert); border: 1px solid var(--filet); border-radius: 6px; padding: 3px 8px; background: var(--fond); }
+.pastille--sante { background: var(--rouge-clair); color: var(--rouge); }
+@media (max-width: 600px) {
+  .regle thead { display: none; }
+  .regle, .regle tbody, .regle tr, .regle td { display: block; width: 100%; }
+  .regle tr { border-bottom: 1px solid var(--filet); padding: 8px 0; }
+  .regle td { border: 0; padding: 3px 12px; min-width: 0; }
+}
+</style>
+
+<div class="page">
+
+<header>
+  <p class="sur">Maison MND · Maquette à valider · 15 octobre 2026</p>
+  <h1>Entre deux séances</h1>
+  <p class="chapeau">Entre deux rendez-vous, une couronne vit six à dix semaines sans la Maison. Ses locks sèchent, cassent, se défont, la racine gratte, et la Maison ne l’apprend qu’au fauteuil, trop tard. Voici un système pour l’entendre à temps, répondre juste, et arriver à la séance suivante en sachant déjà. Rien n’est construit : vos choix, en bas de page, décident.</p>
+  <nav class="sommaire" aria-label="Sommaire">
+    <a href="#existe">Ce qui existe</a><a href="#parcours">Le parcours</a><a href="#regle">La règle</a><a href="#portes">Les deux portes</a><a href="#trone">Au Trône</a><a href="#decider">À décider</a>
+  </nav>
+</header>
+
+<section id="existe" aria-labelledby="t-existe">
+  <p class="sur">Ce qui existe déjà</p>
+  <h2 id="t-existe">La Maison dit déjà quoi faire. Elle n’écoute pas encore ce qui arrive.</h2>
+  <div class="problemes">
+    <article class="probleme"><h3>Le bilan de séance</h3><p>Les quatre jauges, les quatre temps du rituel à la maison avec leur cadence, les soins proposés : la cliente les lit dans Ma Couronne.</p><p class="suite">C’est la base : le suivi part de là.</p></article>
+    <article class="probleme"><h3>Ma Couronne, onglet Suivi</h3><p>Sa pente, son protocole, son prochain rendez-vous, et une cloche de notifications.</p><p class="suite">Il lui manque un bouton : « ça ne va pas ».</p></article>
+    <article class="probleme"><h3>WhatsApp</h3><p>L’automate répond aux questions validées et passe la main à l’équipe sur les mots de santé : démangeaisons, plaques, chute.</p><p class="suite">Il ne range rien : la question se perd dans le fil.</p></article>
+    <article class="probleme"><h3>Les envois</h3><p>Le rappel de la veille, la reprise à trois jours, l’avis Google, la fin de paquet.</p><p class="suite">Aucun ne demande : « comment vont vos locks ? »</p></article>
+  </div>
+</section>
+
+<section id="parcours" aria-labelledby="t-parcours">
+  <p class="sur">Le parcours</p>
+  <h2 id="t-parcours">Six semaines, quatre rendez-vous avec elle</h2>
+  <div class="frise" role="list">
+    <div class="etape" role="listitem"><b>La séance</b><span>Le bilan, son rituel, et ce qu’il faut surveiller pour cette tête.</span></div>
+    <div class="etape" role="listitem"><b><span data-v="j1">Une semaine après</span></b><span>« Comment vont vos locks ? » Une touche pour répondre.</span></div>
+    <div class="etape" role="listitem"><b>À tout moment</b><span>Elle signale un souci, depuis Ma Couronne ou WhatsApp.</span></div>
+    <div class="etape" role="listitem"><b><span data-v="j2">Une semaine avant</span></b><span>Le rituel rappelé, et « quelque chose à nous dire avant de venir ? »</span></div>
+    <div class="etape" role="listitem"><b>La séance suivante</b><span>La maîtresse voit tout ce qui a été dit depuis, avant de commencer.</span></div>
+  </div>
+</section>
+
+<section id="regle" aria-labelledby="t-regle">
+  <p class="sur">La règle</p>
+  <h2 id="t-regle">À chaque souci, une réponse de la Maison et un délai</h2>
+  <p class="lu doux">Trois niveaux. <b>Conseil</b> : la réponse validée de la Maison part tout de suite, et la Maison regarde dans la semaine. <b>À voir</b> : la maîtresse rappelle sous <span data-v="delai-voir">48 heures</span>. <b>Santé</b> : aucun conseil n’est donné, la direction rappelle sous <span data-v="delai-sante">24 heures</span>, et oriente vers un médecin si besoin.</p>
+  <div class="tableau-defile">
+    <table class="regle">
+      <thead><tr><th>Ce qu’elle signale</th><th>Niveau</th><th>Ce que la Maison répond</th><th>Ce qui peut suivre</th></tr></thead>
+      <tbody id="regle-corps"></tbody>
+    </table>
+  </div>
+  <p class="legende">Les réponses sont des brouillons : comme pour le conseil sur WhatsApp, rien ne part tant que vous ne les avez pas validées au Trône. Aucune ne promet un résultat, aucune ne pose un diagnostic médical.</p>
+</section>
+
+<section id="portes" aria-labelledby="t-portes">
+  <p class="sur">Les deux portes</p>
+  <h2 id="t-portes">Elle le dit où elle veut</h2>
+  <div class="deux-ecrans">
+    <div class="telephone" aria-label="Aperçu de Ma Couronne">
+      <div class="tel-barre">Ma Couronne · Suivi</div>
+      <div class="tel-corps">
+        <p class="tel-sur">Depuis votre séance du 6 octobre 2026</p>
+        <h3 class="tel-titre">Comment vont vos locks ?</h3>
+        <p class="tel-doux">Touchez ce qui vous arrive. Vous pouvez en choisir plusieurs.</p>
+        <div class="puces" id="puces" role="group" aria-label="Ce qui vous arrive"></div>
+        <div class="tel-reponse" id="tel-reponse" aria-live="polite">
+          <p class="tel-doux">Essayez : touchez « Sèches ».</p>
+        </div>
+        <p class="tel-doux petit">Photo possible (<span data-v="photo">facultative</span>). Votre maîtresse voit ce que vous écrivez.</p>
+      </div>
+    </div>
+    <div class="whatsapp" aria-label="Aperçu WhatsApp">
+      <div class="wa-barre">Maison MND</div>
+      <div class="wa-corps">
+        <div class="bulle-wa sortante">Bonjour Madame A., une semaine après votre séance du 6 octobre 2026 : comment vont vos locks ?<div class="wa-boutons"><span>Tout va bien</span><span>J’ai un souci</span></div><small>mi nyɔ́ ɖɛkpɛ, votre beauté est déjà là</small></div>
+        <div class="bulle-wa entrante">J’ai un souci</div>
+        <div class="bulle-wa sortante">Dites-nous ce qui vous arrive :<div class="wa-boutons"><span>Sèches</span><span>Cassantes</span><span>Inégales</span><span>Ça gratte</span><span>Autre</span></div></div>
+        <div class="bulle-wa entrante">Ça gratte</div>
+        <div class="bulle-wa sortante">Merci de nous l’avoir dit. Votre maîtresse vous rappelle aujourd’hui même. En attendant, ne grattez pas et ne mettez aucun produit nouveau.</div>
+      </div>
+    </div>
+  </div>
+  <div class="criteres" style="margin-top:6px">
+    <div class="critere"><b>Ma Couronne : 0 F</b><span>Une notification sur son téléphone, un bouton dans l’onglet Suivi. Pour celles qui ont l’app.</span></div>
+    <div class="critere"><b>Quand elle écrit sur WhatsApp : 0 F</b><span>L’automate reconnaît ses mots (sèches, cassent, gratte…) et applique la même règle.</span></div>
+    <div class="critere"><b>Quand la Maison écrit la première : payant</b><span>Un modèle Meta « utilitaire » par message, à faire approuver. Le prix par message se lit dans WhatsApp Manager (région « reste de l’Afrique »).</span></div>
+  </div>
+</section>
+
+<section id="trone" aria-labelledby="t-trone">
+  <p class="sur">Au Trône</p>
+  <h2 id="t-trone">Une file, rangée par urgence</h2>
+  <div class="trone" aria-label="Aperçu du Trône">
+    <div class="nav"><span class="g">Clientèle</span><span>Conversations</span><b>Entre deux séances</b><span>Clientes</span><span class="g">Agenda</span><span>Calendrier</span></div>
+    <div class="contenu">
+      <div class="colonnes">
+        <div class="colonne"><span>Santé · 1</span><div class="carte-cand ouverte"><b>Exemple : A. K.</b><small>Ça gratte · il y a 2 h</small><small>à rappeler avant 15 h</small></div></div>
+        <div class="colonne"><span>À voir · 2</span><div class="carte-cand"><b>Exemple : F. D.</b><small>Cassantes · hier</small></div><div class="carte-cand"><b>Exemple : G. H.</b><small>Inégales · photo</small></div></div>
+        <div class="colonne"><span>Conseil donné · 3</span><div class="carte-cand"><b>Exemple : M. A.</b><small>Sèches · conseil parti</small></div></div>
+        <div class="colonne"><span>Traité</span></div>
+      </div>
+      <div class="fiche">
+        <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:baseline"><h3>Exemple : A. K. · ça gratte</h3><span class="pastille pastille--sante">Santé · avant 15 h</span></div>
+        <p class="petit doux">Séance du 6 octobre 2026 (SÍNSIN, maître B.) · prochaine le 17 novembre 2026 · dernier bilan : cuir chevelu 3 sur 5, « un peu irrité ».</p>
+        <p class="petit">« Depuis hier ça gratte beaucoup à l’arrière. »</p>
+        <div class="boutons"><button type="button" class="btn btn-lien" disabled>Appeler, écrire sur WhatsApp</button><button type="button" class="btn btn-lien" disabled>Avancer le rendez-vous</button><button type="button" class="btn btn-lien" disabled>Proposer un soin</button><button type="button" class="btn btn-lien" disabled>Noter et clore</button></div>
+      </div>
+      <p class="petit doux">À la séance suivante, le bilan s’ouvre sur « Depuis la dernière séance » : ce qu’elle a signalé, ce que la Maison a répondu.</p>
+    </div>
+  </div>
+  <p class="petit doux">Les cartes sont des exemples, aux initiales. Un souci « Santé » s’annonce aussi en haut du Tableau de bord, et par une notification à la direction.</p>
+</section>
+
+<section id="decider" aria-labelledby="t-decider">
+  <p class="sur">À décider</p>
+  <h2 id="t-decider">Vos choix, avant que je construise</h2>
+  <p class="lu doux">Chaque choix s’enregistre tout seul. Rien ne se construit avant votre « construis ».</p>
+  <div class="avancee"><i><b id="barre-decisions"></b></i><span id="compte-decisions"></span></div>
+  <div class="decisions" id="decisions"></div>
+  <div class="decision"><h3>Un mot de plus</h3><p class="pq">Un souci à ajouter, une réponse à changer.</p><textarea id="d-note" rows="3" aria-label="Votre mot"></textarea><span class="etat" id="d-note-etat"></span></div>
+</section>
+
+</div>
+
+<script>
+(function () {
+  'use strict';
+  var SOUCIS = [
+    { id: 'seches', dit: 'Sèches', niveau: 'conseil', reponse: 'Nourrir : quelques gouttes d’huile légère sur le cuir chevelu, deux fois par semaine, en massage lent. Sécher entièrement après chaque lavage.', suite: 'Le Soin Hydratant DÀNDÀN à la prochaine séance' },
+    { id: 'cassantes', dit: 'Cassantes, qui s’amincissent', niveau: 'voir', reponse: 'Votre maîtresse vous rappelle. En attendant : pas d’attache serrée, foulard en satin la nuit.', suite: 'Un diagnostic KÒKÒ, une reconstruction GBÌGBÌ' },
+    { id: 'inegales', dit: 'Inégales, racines qui s’emmêlent', niveau: 'voir', reponse: 'Votre maîtresse regarde votre photo et vous rappelle. Ne séparez pas les racines vous-même.', suite: 'Avancer la reprise, une reprise frontale' },
+    { id: 'pousse', dit: 'Racines qui ont trop poussé', niveau: 'conseil', reponse: 'C’est le signe que la reprise approche. Voulez-vous avancer votre rendez-vous ?', suite: 'Avancer le rendez-vous' },
+    { id: 'odeur', dit: 'Odeur, séchage long', niveau: 'conseil', reponse: 'Sceller : séchez entièrement avant de nouer, jamais de couronne humide sous le foulard.', suite: 'La Purification WÈWÈ si cela dure' },
+    { id: 'gratte', dit: 'Ça gratte, plaques, rougeurs', niveau: 'sante', reponse: 'Merci de nous l’avoir dit. Votre maîtresse vous rappelle. En attendant, ne grattez pas et ne mettez aucun produit nouveau.', suite: 'Un médecin si besoin ; aucun conseil écrit' },
+    { id: 'chute', dit: 'Chute, trous, douleur', niveau: 'sante', reponse: 'Merci de nous l’avoir dit. La Maison vous rappelle très vite.', suite: 'Un médecin si besoin ; aucun conseil écrit' },
+    { id: 'autre', dit: 'Autre chose', niveau: 'voir', reponse: 'Écrivez-nous en quelques mots : votre maîtresse vous répond.', suite: 'Selon ce qu’elle dit' },
+  ];
+  var NIVEAU = { conseil: 'Conseil', voir: 'À voir', sante: 'Santé' };
+  var DECISIONS = [
+    { id: 'nom', titre: 'Le nom', pq: 'Au Trône, dans Ma Couronne et dans les messages.', options: [
+      ['entre-deux', 'Entre deux séances', 'dit ce que c’est', true],
+      ['veille', 'La veille de la couronne', 'reprend « la maison veille »'],
+      ['carnet', 'Le carnet de la couronne', 'comme un carnet de santé'] ] },
+    { id: 'canal', titre: 'Qui écrit la première', pq: 'Le point d’étape après la séance.', options: [
+      ['couronne', 'Ma Couronne seulement : 0 F', 'notification et bouton ; WhatsApp quand elle écrit', true],
+      ['les-deux', 'Ma Couronne, et WhatsApp pour celles qui n’ont pas l’app', 'un modèle Meta payant par message envoyé'],
+      ['whatsapp', 'WhatsApp pour toutes', 'le plus vu, le plus coûteux'] ] },
+    { id: 'moments', titre: 'Les points d’étape', pq: 'Quand la Maison demande « comment vont vos locks ? ».', options: [
+      ['j7-j7', 'Une semaine après, et une semaine avant la suivante', 'deux fois par intervalle', true],
+      ['j3-mi-j7', 'Trois jours après, à mi-chemin, une semaine avant', 'trois fois'],
+      ['j7', 'Une semaine après seulement', 'une fois'] ] },
+    { id: 'qui', titre: 'Qui répond', pq: 'La file du Trône se range par maîtresse.', options: [
+      ['maitresse', 'La maîtresse de la dernière séance', 'elle connaît la tête', true],
+      ['accueil', 'L’accueil, qui transmet', 'une seule personne au téléphone'],
+      ['direction', 'La direction', 'vous deux'] ] },
+    { id: 'delais', titre: 'Les délais de réponse', pq: 'Ce que la file compte, et ce qui s’alarme.', options: [
+      ['24-48', 'Santé sous 24 heures, À voir sous 48 heures', 'proposé', true],
+      ['24-24', 'Tout sous 24 heures', 'plus exigeant'],
+      ['48-72', 'Santé sous 48 heures, À voir sous 72 heures', 'plus souple'] ] },
+    { id: 'photo', titre: 'La photo', pq: 'Une photo dit plus qu’une phrase pour des locks inégales.', options: [
+      ['facultative', 'Oui, facultative', 'gardée dans le dossier de la cliente', true],
+      ['non', 'Non, on en parle au téléphone', 'plus simple'] ] },
+    { id: 'avancer', titre: 'Avancer le rendez-vous', pq: 'Quand le souci appelle une séance plus tôt.', options: [
+      ['proposer', 'La Maison propose, elle choisit l’heure', 'depuis Ma Couronne ou WhatsApp', true],
+      ['maison', 'La Maison décide et prévient', 'plus rapide'],
+      ['jamais', 'Jamais : on attend la séance prévue', 'le conseil seulement'] ] },
+    { id: 'reponses', titre: 'Les réponses à chaque souci', pq: 'Le texte que la cliente reçoit.', options: [
+      ['brouillons', 'J’écris les brouillons, vous les validez au Trône', 'comme le conseil sur WhatsApp', true],
+      ['vous', 'Vous les écrivez vous-même', 'votre voix d’abord'] ] },
+  ];
+  var choix = {};
+  var CLE = 'entre-deux-seances-choix';
+  try { var vu = JSON.parse(localStorage.getItem(CLE) || '{}') || {}; Object.keys(vu).forEach(function (k) { choix[k] = vu[k]; }); } catch (e) { /* sans mémoire */ }
+  var docRef = null, file = Promise.resolve();
+  function garde() {
+    try { localStorage.setItem(CLE, JSON.stringify(choix)); } catch (e) { /* sans mémoire */ }
+    if (!docRef) return;
+    var corps = {}; Object.keys(choix).forEach(function (k) { if (choix[k]) corps[k] = choix[k]; });
+    corps.quand = new Date().toISOString();
+    file = file.then(function () { return docRef.set(corps); }).catch(function () { /* hors ligne */ });
+  }
+  function txt(tag, cls, t) { var e = document.createElement(tag); if (cls) e.className = cls; if (t !== undefined) e.textContent = t; return e; }
+
+  /* La règle, en tableau */
+  var corps = document.getElementById('regle-corps');
+  SOUCIS.forEach(function (s) {
+    var tr = document.createElement('tr');
+    tr.appendChild(txt('td', '', s.dit));
+    var td = document.createElement('td'); td.appendChild(txt('span', 'niveau niveau--' + s.niveau, NIVEAU[s.niveau])); tr.appendChild(td);
+    tr.appendChild(txt('td', '', s.reponse));
+    tr.appendChild(txt('td', 'doux', s.suite));
+    corps.appendChild(tr);
+  });
+  /* Ma Couronne, qu'on touche */
+  var puces = document.getElementById('puces'); var rep = document.getElementById('tel-reponse'); var pris = {};
+  function dessinePuces() {
+    puces.textContent = '';
+    SOUCIS.forEach(function (s) {
+      var b = txt('button', 'puce' + (pris[s.id] ? ' est-prise' : ''), s.dit);
+      b.type = 'button'; b.setAttribute('aria-pressed', pris[s.id] ? 'true' : 'false');
+      b.addEventListener('click', function () { pris[s.id] = !pris[s.id]; dessinePuces(); dessineReponse(); });
+      puces.appendChild(b);
+    });
+  }
+  function dessineReponse() {
+    rep.textContent = '';
+    var choisis = SOUCIS.filter(function (s) { return pris[s.id]; });
+    if (!choisis.length) { rep.appendChild(txt('p', 'tel-doux', 'Essayez : touchez « Sèches ».')); return; }
+    var sante = choisis.some(function (s) { return s.niveau === 'sante'; });
+    var voir = choisis.some(function (s) { return s.niveau === 'voir'; });
+    var niveau = sante ? 'sante' : voir ? 'voir' : 'conseil';
+    rep.appendChild(txt('span', 'niveau niveau--' + niveau, NIVEAU[niveau]));
+    if (sante) rep.appendChild(txt('p', '', 'Merci de nous l’avoir dit. Votre maîtresse vous rappelle ' + (choix.delais === '48-72' ? 'sous 48 heures' : 'aujourd’hui même') + '. En attendant, ne mettez aucun produit nouveau.'));
+    else choisis.forEach(function (s) { rep.appendChild(txt('p', '', s.reponse)); });
+    rep.appendChild(txt('button', 'btn btn-plein petit-btn', 'Envoyer à ma maîtresse'));
+  }
+  dessinePuces();
+
+  var boite = document.getElementById('decisions');
+  function dessine() {
+    boite.textContent = '';
+    DECISIONS.forEach(function (d) {
+      var c = txt('div', 'decision' + (choix[d.id] ? ' tranchee' : ''));
+      c.appendChild(txt('h3', '', d.titre));
+      c.appendChild(txt('p', 'pq', d.pq));
+      var g = document.createElement('div'); g.setAttribute('role', 'radiogroup'); g.setAttribute('aria-label', d.titre);
+      d.options.forEach(function (o) {
+        var l = txt('label', 'choix-ligne');
+        var i = document.createElement('input'); i.type = 'radio'; i.name = 'd-' + d.id; i.id = 'd-' + d.id + '-' + o[0]; i.value = o[0]; i.checked = choix[d.id] === o[0];
+        i.addEventListener('change', function () { choix[d.id] = o[0]; garde(); dessine(); applique(); });
+        var s = document.createElement('span');
+        s.appendChild(document.createTextNode(o[1]));
+        if (o[3]) { s.appendChild(document.createTextNode(' ')); s.appendChild(txt('em', '', 'ma proposition')); }
+        s.appendChild(txt('small', '', o[2]));
+        l.appendChild(i); l.appendChild(s); g.appendChild(l);
+      });
+      c.appendChild(g);
+      c.appendChild(txt('span', 'etat', choix[d.id] ? 'Choix enregistré.' : ''));
+      boite.appendChild(c);
+    });
+    var n = DECISIONS.filter(function (d) { return choix[d.id]; }).length;
+    document.getElementById('compte-decisions').textContent = n + ' sur ' + DECISIONS.length + ' tranchées';
+    document.getElementById('barre-decisions').style.width = Math.round((n / DECISIONS.length) * 100) + '%';
+  }
+  function pose(cle, texte) { document.querySelectorAll('[data-v="' + cle + '"]').forEach(function (e) { e.textContent = texte; }); }
+  function applique() {
+    pose('j1', choix.moments === 'j3-mi-j7' ? 'Trois jours après' : 'Une semaine après');
+    pose('j2', choix.moments === 'j7' ? 'Plus rien avant le rappel' : 'Une semaine avant');
+    pose('delai-voir', choix.delais === '24-24' ? '24 heures' : choix.delais === '48-72' ? '72 heures' : '48 heures');
+    pose('delai-sante', choix.delais === '48-72' ? '48 heures' : '24 heures');
+    pose('photo', choix.photo === 'non' ? 'non retenue' : 'facultative');
+    dessineReponse();
+  }
+  var note = document.getElementById('d-note');
+  if (choix.note) note.value = choix.note;
+  var minuterie = null;
+  note.addEventListener('input', function () { clearTimeout(minuterie); minuterie = setTimeout(function () { choix.note = note.value.trim(); garde(); document.getElementById('d-note-etat').textContent = 'Mot enregistré.'; }, 600); });
+  dessine(); applique();
+  if (window.claude && typeof window.claude.use === 'function') {
+    window.claude.use('db').then(function (db) {
+      if (!db) return;
+      docRef = db.doc('maquette/entre-deux');
+      return docRef.get().then(function (s) {
+        if (!s || !s.exists) return;
+        var v = s.data() || {};
+        Object.keys(v).forEach(function (k) { if (k !== 'quand' && typeof v[k] === 'string') choix[k] = v[k]; });
+        if (choix.note) note.value = choix.note;
+        dessine(); applique();
+      });
+    }).catch(function () { /* sans base : les choix restent sur cet appareil */ });
+  }
+})();
+</script>
