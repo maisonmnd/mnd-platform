@@ -13,6 +13,7 @@ import { nouvelleLigneRh, retoucheRh, reglagesRhStore, useRegistreRh, useReglage
 import { fmtMoney } from '../../../../../shared/currency';
 import { ordonneEquipe, useFonctions, useStaff, type StaffMember } from '../data';
 import { aujourdhuiRh, useQuiEcrit } from './_ui';
+import { ALLOCATIONS_PROPOSEES, NOM_DE_LA_RELEVE, SEUIL_DE_LA_RELEVE, allocationsDe } from '../../../../../shared/releve-pur';
 
 /* ══ LES OBLIGATIONS ET LA SANTÉ — 14 octobre 2026 ════════════════════
    Le calendrier légal, les réglages du droit, l'aptitude et les accidents.
@@ -119,6 +120,27 @@ export default function RhObligations() {
         <Field label="Délai d’une demande d’explication (jours)"><Input inputMode="numeric" value={r.delaiExplicationJours === undefined ? '' : String(r.delaiExplicationJours)} onChange={(e) => regle({ delaiExplicationJours: nombreOuRien(e.target.value) })} placeholder="à confirmer" /></Field>
         <Field label="Une sanction sort du dossier après (mois)"><Input inputMode="numeric" value={r.sanctionSortApresMois === undefined ? '' : String(r.sanctionSortApresMois)} onChange={(e) => regle({ sanctionSortApresMois: nombreOuRien(e.target.value) })} placeholder="à confirmer" /></Field>
         <Field label={`Une candidature non retenue s’efface après (mois, proposé : ${GARDE_DES_CANDIDATURES_MOIS})`}><Input inputMode="numeric" value={r.candidatureGardeeMois === undefined ? '' : String(r.candidatureGardeeMois)} onChange={(e) => regle({ candidatureGardeeMois: nombreOuRien(e.target.value) })} placeholder={String(GARDE_DES_CANDIDATURES_MOIS)} /></Field>
+      </div>
+      {/* LA RELÈVE MND (15 octobre 2026) : l'allocation par année et le seuil
+          de la grille de sélection. Vide : la proposition validée. */}
+      <div className="tr-grid tr-grid--3" style={{ gap: 12 }}>
+        {(['la première', 'la deuxième', 'la troisième'] as const).map((annee, k) => (
+          <Field key={annee} label={`${NOM_DE_LA_RELEVE} : allocation ${annee} année (F par mois)`}>
+            <Input
+              inputMode="numeric" placeholder={String(ALLOCATIONS_PROPOSEES[k])}
+              value={Array.isArray(r.releve?.allocations) && r.releve?.allocations?.[k] !== undefined ? String(r.releve.allocations[k]) : ''}
+              onChange={(e) => {
+                const n = nombreOuRien(e.target.value);
+                const base = allocationsDe(r.releve);
+                const a = [...base]; a[k] = n ?? ALLOCATIONS_PROPOSEES[k];
+                regle({ releve: { ...(r.releve ?? {}), allocations: a } });
+              }}
+            />
+          </Field>
+        ))}
+        <Field label={`${NOM_DE_LA_RELEVE} : seuil de la grille (sur 100)`}>
+          <Input inputMode="numeric" placeholder={String(SEUIL_DE_LA_RELEVE)} value={r.releve?.seuil === undefined ? '' : String(r.releve.seuil)} onChange={(e) => regle({ releve: { ...(r.releve ?? {}), seuil: nombreOuRien(e.target.value) } })} />
+        </Field>
       </div>
       <div className="tr-grid tr-grid--2" style={{ gap: 12 }}>
         <Field label="Une pause se note au planning au-delà de (heures au fauteuil)"><Input inputMode="numeric" value={r.seuilPauseHeures === undefined ? '' : String(r.seuilPauseHeures)} onChange={(e) => regle({ seuilPauseHeures: nombreOuRien(e.target.value) })} placeholder="à donner" /></Field>

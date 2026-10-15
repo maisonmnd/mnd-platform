@@ -71,6 +71,7 @@ const selonLaMain = <T extends { path: string }>(voulu: string[] | undefined, it
 };
 import { useReconcileClients } from './useReconcileClients';
 import { useRattacheLesReservations } from './useRattacheLesReservations';
+import { useLaReleveArrive } from './useLaReleveArrive';
 import { useParrainageVivant } from './useParrainageVivant';
 import { useFormulesRapides } from './useFormulesRapides';
 import { usePersonaVivant } from './usePersonaVivant';
@@ -515,6 +516,8 @@ export default function Shell() {
   useReconcileClients();
   /* La réservation du site confirmée trouve sa fiche (18 septembre). */
   useRattacheLesReservations();
+  /* Les dossiers de La Relève, déposés sur le site de l'Académie, entrent au Recrutement (15 octobre 2026). */
+  useLaReleveArrive();
   /* Chaque cliente a sa carte de marraine, et ses soins offerts (28 septembre). */
   useParrainageVivant();
   /* Les formules rapides du site, tirées des venues honorées (29 septembre). */

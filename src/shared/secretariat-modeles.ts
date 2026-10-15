@@ -40,7 +40,7 @@ export const FAMILLES: { cle: Famille; titre: string; dit: string }[] = [
   { cle: 'administration', titre: 'Administration et banque', dit: 'Ouverture de compte, attestation fiscale ou CNSS, changement d’adresse ou de gérance, autorisation' },
   { cle: 'attestations', titre: 'Attestations', dit: 'Travail, stage, formation, paiement' },
   { cle: 'notes', titre: 'Notes et comptes rendus', dit: 'Note interne, procès-verbal, règlement' },
-  { cle: 'contrats', titre: 'Contrats', dit: 'Prestation, travail, avenant' },
+  { cle: 'contrats', titre: 'Contrats', dit: 'Prestation, travail, apprentissage, avenant' },
   { cle: 'oapi', titre: 'Dossier OAPI', dit: 'Lettre de dépôt, pouvoir au mandataire' },
   { cle: 'juridiques', titre: 'Juridiques', dit: 'Procuration, mise en demeure, attestation sur l’honneur' },
   { cle: 'perso', titre: 'Lettre personnelle', dit: 'En votre nom, pas celui de l’entreprise' },
@@ -214,6 +214,47 @@ Votre réponse sera versée à votre dossier avec la présente lettre. Sans rép
     cle: 'contrat-travail', famille: 'contrats', titre: 'Contrat de travail', objet: 'Contrat de travail à durée [DÉTERMINÉE ou INDÉTERMINÉE]', destinataire: '',
     appel: -1, cloture: -1, aRelire: true, depuisEquipe: true,
     corps: `Entre {entreprise}, représentée par {signataire}, {qualite}, ci-après « l’Employeur »,\n\nEt [NOM], ci-après « le Salarié »,\n\nIl a été convenu ce qui suit, conformément au Code du travail de la République du Bénin.\n\nArticle 1. Engagement. Le Salarié est engagé en qualité de [POSTE] à compter du [DATE D’ENTRÉE].\n\nArticle 2. Période d’essai. ${A}.\n\nArticle 3. Rémunération. Le Salarié perçoit un salaire mensuel brut de ${A} F CFA.\n\nArticle 4. Lieu et horaires. ${A}.\n\nArticle 5. Obligations. Le Salarié respecte le règlement intérieur et la confidentialité des informations de la Maison.\n\nArticle 6. Rupture. ${A}.\n\nFait à {ville}, en deux exemplaires originaux.`,
+  },
+  {
+    cle: 'contrat-apprentissage', famille: 'contrats', titre: 'Contrat d’apprentissage (La Relève MND)', objet: 'Contrat d’apprentissage', destinataire: '',
+    appel: -1, cloture: -1, aRelire: true,
+    /* LA RELÈVE MND — 15 octobre 2026 (maquette DPakEb4g… validée). Code du travail, art. 64 à 70 : écrit à peine de
+       nullité, en français, en quatre exemplaires, visé ; durée de quatre ans au plus ; identité des parents ou du tuteur ;
+       rémunération dite ; rupture seulement avec l'autorisation de l'inspecteur. Rempli depuis le dossier par
+       `remplisLeContratDApprentissage` (releve-pur) : nom, naissance, domicile, durée, allocation. */
+    corps: `Entre {entreprise}, représentée par {signataire}, {qualite}, ci-après « la Maison »,
+
+Et [NOM ET PRÉNOMS DE L’APPRENTIE], née le [DATE DE NAISSANCE], demeurant à [DOMICILE DE L’APPRENTIE], ci-après « l’apprentie »,
+
+Père, mère ou tuteur de l’apprentie : [NOM, PRÉNOMS, PROFESSION, ÂGE ET DOMICILE DU PÈRE, DE LA MÈRE OU DU TUTEUR].
+
+Il a été convenu ce qui suit, conformément aux articles 64 à 70 de la loi n° 98-004 du 27 janvier 1998 portant Code du travail.
+
+Article 1. Objet. La Maison s’engage à donner à l’apprentie une formation professionnelle méthodique et complète au métier de coiffeuse spécialiste des locks, selon le programme annexé. L’apprentie s’engage à se conformer aux instructions reçues et à exécuter les ouvrages qui lui sont confiés dans le cadre de son apprentissage.
+
+Article 2. Durée. Le présent contrat est conclu pour [DURÉE], du [DATE DE DÉBUT] au [DATE DE FIN]. Les deux premiers mois valent période d’essai [À CONFIRMER AU DÉCRET N° 2008-423].
+
+Article 3. Lieu et temps. L’apprentissage se déroule à la Maison MND, [ADRESSE], quarante heures par semaine, dont une journée de cours à l’Académie MND. Le planning est donné une semaine à l’avance.
+
+Article 4. Programme et évaluations. Le programme annexé fixe les gestes de chaque semestre. Chaque geste se note sur la grille de la Maison : en formation, autonome, référente. Un écrit et un pratique ferment chaque semestre ; le carnet de suivi est signé par les deux parties.
+
+Article 5. Engagements de la Maison. La Maison forme l’apprentie elle-même ou par ses maîtres, lui fait suivre les cours de l’Académie MND, fournit la tenue, le matériel et les produits, veille à son hygiène et à sa sécurité, la présente au Certificat de Qualification aux Métiers en prenant les frais d’examen à sa charge, et lui délivre le certificat de l’Académie MND si elle réussit l’évaluation finale. Pendant le présent contrat, la Maison ne demande aucun frais de formation, d’examen ou de libération.
+
+Article 6. Engagements de l’apprentie. L’apprentie est assidue et ponctuelle, respecte le règlement intérieur et la tenue de la Maison, prend soin du matériel, garde la discrétion sur les clientes, les prix, les méthodes et les recettes de la Maison, pendant et après le contrat, et ne coiffe pas pour son compte ou pour autrui pendant le contrat.
+
+Article 7. Allocation et congés. La Maison verse à l’apprentie une allocation mensuelle de [ALLOCATION], le [JOUR DU VERSEMENT] de chaque mois. L’apprentie a droit à deux jours ouvrables de congé par mois de service.
+
+Article 8. Santé. L’apprentie présente un certificat médical d’aptitude délivré par un médecin agréé. Sa protection en cas d’accident : [DÉCLARATION CNSS, À VÉRIFIER AVEC LE COMPTABLE].
+
+Article 9. Fin de l’apprentissage. Une évaluation finale, écrite et pratique, clôt l’apprentissage. En cas de réussite, l’apprentie reçoit le certificat de l’Académie MND. La Maison peut lui proposer un contrat de travail ; ni l’une ni l’autre n’y est tenue.
+
+Article 10. Rupture. Toute rupture du présent contrat est subordonnée à l’autorisation préalable de l’inspecteur du travail territorialement compétent. Peuvent la motiver un manquement grave, ou une insuffisance constatée à deux évaluations de suite [MOTIFS À CONFIRMER AU DÉCRET N° 2008-423].
+
+Article 11. Visa. Le présent contrat est rédigé en français en quatre exemplaires et soumis par la Maison au visa des services du ministère chargé du travail. Il est exempt de tout droit de timbre et d’enregistrement. Sont annexés à la demande de visa : l’extrait du casier judiciaire du maître d’apprentissage de moins de trois mois, l’acte de naissance de l’apprentie, son certificat médical d’aptitude, et les quatre exemplaires signés.
+
+Fait à {ville}, en quatre exemplaires originaux.
+
+L’apprentie, signature précédée de la mention « lu et approuvé » :`,
   },
   {
     cle: 'avenant', famille: 'contrats', titre: 'Avenant au contrat', objet: `Avenant n° ${A} au contrat du ${A}`, destinataire: '',

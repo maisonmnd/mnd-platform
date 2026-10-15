@@ -1,3 +1,4 @@
+import type { ReleveDeLaCandidature } from './releve-pur';
 /* ══ LA DIRECTION DES RESSOURCES HUMAINES, SES RÈGLES — 14 octobre 2026 ══
 
    Maquette QLU1EoT6… validée (« construis »), quatre choix : la direction
@@ -53,6 +54,8 @@ export type ReglagesRh = {
   sanctionSortApresMois?: number;
   /** Une candidature non retenue s'efface après tant de mois (proposition : 6). */
   candidatureGardeeMois?: number;
+  /** La Relève (15 octobre 2026) : l'allocation par année (F par mois) et le seuil de la grille sur 100. */
+  releve?: { allocations?: number[]; seuil?: number };
   /** Le jour du mois des déclarations CNSS et ITS. */
   cnssJour?: number;
   itsJour?: number;
@@ -308,12 +311,16 @@ export type SourceDeCandidature = 'whatsapp' | 'academie' | 'recommandation' | '
 export const SOURCES: Record<SourceDeCandidature, string> = {
   whatsapp: 'WhatsApp', academie: 'Académie MND', recommandation: 'Recommandation', site: 'Le site', autre: 'Autre',
 };
-export type Poste = Base & { genre: 'poste'; titre: string; fonction: string; contrat?: string; ouvertLe: string; fermeLe?: string; annonce?: string; fourchette?: string };
+export type Poste = Base & { genre: 'poste'; titre: string; fonction: string; contrat?: string; ouvertLe: string; fermeLe?: string; annonce?: string; fourchette?: string;
+  /** La promotion de La Relève que ce poste reçoit (15 octobre 2026), ex. « 2027-04 ». */
+  releve?: string };
 export type Candidature = Base & {
   genre: 'candidature'; posteId?: string; nom: string; telephone?: string; source: SourceDeCandidature; recommandeePar?: string;
   recueLe: string; etape: EtapeDeCandidature; prochainLe?: string;
   essai?: { le?: string; famille?: string; niveau?: Niveau; note?: string };
   reponduLe?: string; note?: string;
+  /** Le dossier venu du site de l'Académie, sa grille, son contrat (La Relève, 15 octobre 2026). */
+  releve?: ReleveDeLaCandidature;
 };
 export type TypeDEntretien = 'trente-jours' | 'fin-essai' | 'annuel' | 'retour' | 'depart';
 export const TYPES_D_ENTRETIEN: Record<TypeDEntretien, string> = {

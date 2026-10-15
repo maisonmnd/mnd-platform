@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { createPortal } from 'react-dom';
+import { useNavigate } from 'react-router-dom';
 import { Button, Field, Input, Modal, Select, Textarea, toast } from '../../../../../ds/components';
 import { useBranch } from '../../../../../shared/branches';
 import { lienWaMe } from '../../../../../shared/conversations';
@@ -13,6 +14,12 @@ import { effaceLaLigneRh, nouvelleLigneRh, retoucheRh, useRegistreRh, useReglage
 import { useFonctions } from '../data';
 import { aujourdhuiRh, useQuiEcrit } from './_ui';
 import { useFamillesDesGestes } from './familles';
+import {
+  GRILLE, PIECES_DU_VISA, PROMOTION, ageALaRentree, allocationsDe, contratPossible, dateLongue, grilleComplete, motsDe,
+  parcoursPropose, resumeDeLaReleve, seuilDe, totalDeLaGrille,
+  type CleDePiece, type Notes, type ReleveDeLaCandidature,
+} from '../../../../../shared/releve-pur';
+import { prepareLeContratDApprentissage } from './contrat-releve';
 
 /* ══ LE RECRUTEMENT — 14 octobre 2026 ═════════════════════════════════
    Un poste ouvert, les candidatures en colonnes (reçue, appel, essai
@@ -62,6 +69,7 @@ export default function RhRecrutement({ preparerUneArrivee }: { preparerUneArriv
               {ici.map((c) => (
                 <button key={c.id} type="button" className="rh-fichette" onClick={() => setCand(c)}>
                   <b>{c.nom}</b>
+                  {c.releve ? <small>{resumeDeLaReleve(c.releve)}</small> : null}
                   <small>{SOURCES[c.source]}{c.recommandeePar ? ` (${c.recommandeePar})` : ''} · {dateDite(c.recueLe)}</small>
                   {c.prochainLe ? <small>suite le {dateDite(c.prochainLe)}</small> : null}
                 </button>
@@ -142,11 +150,24 @@ function FicheDeCandidature({ c, postes, onClose, branchId, par, preparerUneArri
   const [essaiNiveau, setEssaiNiveau] = useState<Niveau | ''>(c?.essai?.niveau ?? '');
   const [essaiNote, setEssaiNote] = useState(c?.essai?.note ?? '');
   const [note, setNote] = useState(c?.note ?? '');
+  /* LA RELÈVE (15 octobre 2026) : le dossier venu du site, la grille sur
+     100, le parcours de deux ou trois ans, les pièces du visa, le contrat. */
+  const releve = c?.releve;
+  const [reglages] = useReglagesRh();
+  const navigate = useNavigate();
+  const [notes, setNotes] = useState<Notes>(releve?.notes ?? {});
+  const [duree, setDuree] = useState<2 | 3>(releve?.duree ?? (releve ? parcoursPropose(releve.dossier) : 3));
+  const [pieces, setPieces] = useState<Partial<Record<CleDePiece, boolean>>>(releve?.pieces ?? {});
+  const [deposeLe, setDeposeLe] = useState(releve?.deposeLe ?? '');
+  const [viseLe, setViseLe] = useState(releve?.viseLe ?? '');
+  const seuil = seuilDe(reglages?.releve);
+  const possible = !!releve && contratPossible(notes, seuil);
   const champs = (): Omit<Candidature, 'id' | 'creeLe' | 'creePar' | 'genre' | 'branchId' | 'recueLe'> => ({
     nom: nom.trim(), telephone: telephone.trim() || undefined, source, recommandeePar: recommandeePar.trim() || undefined,
     posteId: posteId || undefined, etape, prochainLe: prochainLe || undefined,
     essai: essaiLe || essaiFamille || essaiNiveau || essaiNote ? { le: essaiLe || undefined, famille: essaiFamille || undefined, niveau: essaiNiveau || undefined, note: essaiNote.trim() || undefined } : undefined,
     note: note.trim() || undefined,
+    ...(releve ? { releve: { ...releve, notes, duree, pieces, deposeLe: deposeLe || undefined, viseLe: viseLe || undefined } } : {}),
   });
   const garde = (patch?: Partial<Candidature>) => {
     if (!nom.trim()) { toast('Son nom ?'); return null; }
@@ -160,6 +181,16 @@ function FicheDeCandidature({ c, postes, onClose, branchId, par, preparerUneArri
     const lien = lienWaMe(telephone, msg);
     if (lien) window.open(lien, '_blank', 'noopener'); else toast('Réponse notée. Pas de numéro : prévenez-la de vive voix.');
     onClose();
+  };
+  /* Le contrat ne se prépare qu'une grille complète, au seuil : il s'ouvre
+     au Secrétariat, privé, rempli depuis le dossier. */
+  const preparerLeContrat = () => {
+    const l = garde();
+    if (!l || !l.releve) return;
+    const id = prepareLeContratDApprentissage({ c: l, branchId, moi: par, duree, allocations: allocationsDe(reglages?.releve) });
+    retoucheRh(l, { releve: { ...l.releve, contratId: id } });
+    onClose();
+    navigate('/secretariat', { state: { onglet: 'documents', ouvre: id } });
   };
   const retenue = () => {
     const l = garde({ etape: 'retenue', reponduLe: aujourdhuiRh() });
@@ -183,6 +214,55 @@ function FicheDeCandidature({ c, postes, onClose, branchId, par, preparerUneArri
           <Field label="Où elle en est"><Select value={etape} onChange={(e) => setEtape(e.target.value as EtapeDeCandidature)}>{COLONNES_DU_RECRUTEMENT.map((e) => <option key={e} value={e}>{ETAPES_DE_CANDIDATURE[e]}</option>)}</Select></Field>
           <Field label="Suite prévue le"><Input type="date" value={prochainLe} onChange={(e) => setProchainLe(e.target.value)} /></Field>
         </div>
+        {releve && <DossierDeLaReleve releve={releve} />}
+        {releve && (
+          <>
+            <div className="tre-sec-label">La grille de La Relève, sur 100</div>
+            <div className="tr-grid tr-grid--3" style={{ gap: 12 }}>
+              {GRILLE.map((g) => (
+                <Field key={g.cle} label={`${g.dit} (sur ${g.sur})`}>
+                  <Input
+                    inputMode="decimal" placeholder="pas encore"
+                    value={notes[g.cle] === undefined ? '' : String(notes[g.cle])}
+                    onChange={(e) => {
+                      const v = e.target.value.trim().replace(',', '.');
+                      setNotes((n) => {
+                        const x = { ...n };
+                        if (v === '') delete x[g.cle]; else x[g.cle] = Math.min(g.sur, Math.max(0, Number(v) || 0));
+                        return x;
+                      });
+                    }}
+                  />
+                </Field>
+              ))}
+              <Field label="Le parcours">
+                <Select value={String(duree)} onChange={(e) => setDuree(e.target.value === '2' ? 2 : 3)}>
+                  <option value="2">Deux ans</option><option value="3">Trois ans</option>
+                </Select>
+              </Field>
+            </div>
+            <p className="sad-doux">
+              Total : <b>{totalDeLaGrille(notes)}</b> sur 100, seuil {seuil}.{' '}
+              {grilleComplete(notes) ? (possible ? 'Au seuil : le contrat peut se préparer.' : 'Sous le seuil.') : 'La grille n’est pas complète.'}{' '}
+              D’après le dossier, parcours proposé : {parcoursPropose(releve.dossier) === 2 ? 'deux ans' : 'trois ans'}.
+            </p>
+            <div className="tre-sec-label">Le visa du contrat (Code du travail, art. 68)</div>
+            {PIECES_DU_VISA.map((p) => (
+              <label key={p.cle} className="rh-coche">
+                <input type="checkbox" checked={!!pieces[p.cle]} onChange={() => setPieces((x) => ({ ...x, [p.cle]: !x[p.cle] }))} />
+                <span>{p.dit}</span>
+              </label>
+            ))}
+            <div className="tr-grid tr-grid--2" style={{ gap: 12 }}>
+              <Field label="Déposé au ministère le"><Input type="date" value={deposeLe} onChange={(e) => setDeposeLe(e.target.value)} /></Field>
+              <Field label="Visé le"><Input type="date" value={viseLe} onChange={(e) => setViseLe(e.target.value)} /></Field>
+            </div>
+            <p className="sad-doux">
+              Sans réponse trente jours après le dépôt, le visa est réputé accordé (art. 14).
+              {releve.contratId ? ' Un contrat a déjà été préparé : Secrétariat, Documents.' : ''}
+            </p>
+          </>
+        )}
         <div className="tre-sec-label">L’essai pratique</div>
         <div className="tr-grid tr-grid--3" style={{ gap: 12 }}>
           <Field label="Le"><Input type="date" value={essaiLe} onChange={(e) => setEssaiLe(e.target.value)} /></Field>
@@ -193,6 +273,11 @@ function FicheDeCandidature({ c, postes, onClose, branchId, par, preparerUneArri
         <Field label="Note"><Textarea rows={2} value={note} onChange={(e) => setNote(e.target.value)} /></Field>
         <p className="sad-doux">Le modèle sait d’avance que c’est un essai, et une maîtresse de la Maison reprend la main si besoin.</p>
         <div className="sec-actions" style={{ justifyContent: 'flex-end' }}>
+          {releve && (
+            <Button variant={possible ? 'copper' : 'ghost'} disabled={!possible} onClick={preparerLeContrat}>
+              {releve.contratId ? 'Préparer un nouveau contrat' : 'Préparer le contrat d’apprentissage'}
+            </Button>
+          )}
           {c && <Button variant="ghost" onClick={nonRetenue}>Non retenue, lui répondre</Button>}
           {c && <Button variant="ghost" onClick={retenue}>Retenue, préparer sa place</Button>}
           <Button variant="copper" onClick={() => { if (garde()) onClose(); }}>Garder</Button>
@@ -200,5 +285,59 @@ function FicheDeCandidature({ c, postes, onClose, branchId, par, preparerUneArri
       </div>
     </Modal>,
     document.body,
+  );
+}
+
+/* LE DOSSIER DE LA RELÈVE, tel que la candidate l'a écrit sur le site de
+   l'Académie (15 octobre 2026). Lu seulement : un dossier ne se réécrit pas. */
+const DEJA_DIT: Record<string, string> = { non: 'Jamais appris chez une coiffeuse', 'en-cours': 'Encore apprentie', termine: 'Apprentissage terminé' };
+const DISPO_DIT: Record<string, string> = { 'deux-ans': 'Disponible pour deux ans', 'trois-ans': 'Disponible pour trois ans' };
+function DossierDeLaReleve({ releve }: { releve: ReleveDeLaCandidature }) {
+  const d = releve.dossier;
+  const age = ageALaRentree(d.naissance);
+  const lignes: [string, string | undefined][] = [
+    ['Née le', d.naissance ? `${dateLongue(d.naissance)}${age !== null ? `, ${age} ans à la rentrée` : ''}` : undefined],
+    ['Habite', d.quartier],
+    ['WhatsApp', d.telephone],
+    ['E-mail', d.email],
+    ['Nous a connues par', d.source],
+    ['École', [d.classe, d.diplome, d.arretLe ? `arrêtée en ${d.arretLe}` : ''].filter(Boolean).join(' · ')],
+    ['Langues', d.langues.join(', ')],
+    ['Expérience', [DEJA_DIT[d.deja] ?? '', d.dureeExperience ?? '', d.ou ?? ''].filter(Boolean).join(' · ')],
+    ['Gestes déjà faits', d.gestes.join(', ')],
+    ['Disponibilité', DISPO_DIT[d.disponibilite]],
+  ];
+  const textes: [string, string | undefined][] = [
+    ['Pourquoi l’école s’est arrêtée', d.pourquoiArret],
+    ['Autre travail', d.autreTravail],
+    ['Pourquoi la coiffure, et les locks', d.motivations.coiffure],
+    ['Pourquoi la Maison MND', d.motivations.maison],
+    ['Dans cinq ans', d.motivations.cinqAns],
+    ['Une qualité, une preuve', d.raisons.qualite],
+    ['Une difficulté surmontée', d.raisons.difficulte],
+  ];
+  return (
+    <>
+      <div className="tre-sec-label">Le dossier de La Relève · promotion {releve.promotion === PROMOTION.cle ? PROMOTION.dit : releve.promotion}</div>
+      <div style={{ display: 'grid', gap: 4, fontSize: 13.5 }}>
+        {lignes.filter(([, v]) => !!v).map(([k, v]) => (
+          <div key={k} style={{ display: 'grid', gridTemplateColumns: 'minmax(120px, 34%) minmax(0, 1fr)', gap: 10 }}>
+            <span className="sad-doux">{k}</span><span>{v}</span>
+          </div>
+        ))}
+      </div>
+      <details>
+        <summary>Ses réponses</summary>
+        <div style={{ display: 'grid', gap: 10, marginTop: 8, fontSize: 13.5 }}>
+          {textes.filter(([, v]) => !!v).map(([k, v]) => (
+            <div key={k}><div className="sad-doux">{k}</div><p style={{ margin: 0, whiteSpace: 'pre-wrap' }}>{v}</p></div>
+          ))}
+        </div>
+      </details>
+      <details>
+        <summary>Sa lettre · {motsDe(d.lettre)} mots</summary>
+        <p style={{ margin: '8px 0 0', whiteSpace: 'pre-wrap', fontSize: 13.5 }}>{d.lettre}</p>
+      </details>
+    </>
   );
 }
