@@ -11,6 +11,8 @@ import { nombreEnChiffres } from '../../shared/lettres';
 import { PARCOURS_MND, PUBLIC_LABEL, type ParcoursMND, type PublicDeFormation } from '../../shared/parcours';
 import { NOM_DE_LA_RELEVE, PROMOTION, dateLongue } from '../../shared/releve-pur';
 import LaReleve from './LaReleve';
+import Preparatoire from './Preparatoire';
+import { ANNEE, AGE_DE_LA_PREPARATOIRE, NOM_DE_LA_PREPARATOIRE } from '../../shared/preparatoire-pur';
 
 /* ══ MND ACADÉMIE — LA VITRINE ════════════════════════════════════════
    « Il nous faut absolument un système marketing comme notre catalogue, ou
@@ -76,20 +78,26 @@ const rangDuParcours = (p: ParcoursMND): 0 | 1 | 2 => {
 type EtatDeLaDemande = '' | 'envoi' | 'recue' | 'paiement' | 'a-verifier' | 'payee' | 'refus';
 
 /* LA RELÈVE A SON ADRESSE — 15 octobre 2026 : /academie/#la-releve ouvre la
-   page de l'apprentissage, et le lien se partage tel quel. */
+   page de l'apprentissage, et le lien se partage tel quel. L'année
+   préparatoire a la sienne : /academie/#annee-preparatoire. */
 const ANCRE_DE_LA_RELEVE = '#la-releve';
-const vueDeLAdresse = (): 'accueil' | 'releve' => {
-  try { return location.hash === ANCRE_DE_LA_RELEVE ? 'releve' : 'accueil'; } catch { return 'accueil'; }
+const ANCRE_DE_LA_PREPARATOIRE = '#annee-preparatoire';
+type Vue = 'accueil' | 'releve' | 'preparatoire';
+const vueDeLAdresse = (): Vue => {
+  try {
+    return location.hash === ANCRE_DE_LA_RELEVE ? 'releve' : location.hash === ANCRE_DE_LA_PREPARATOIRE ? 'preparatoire' : 'accueil';
+  } catch { return 'accueil'; }
 };
 
 export default function App() {
-  const [vue, setVue] = useState<'accueil' | 'releve'>(vueDeLAdresse);
+  const [vue, setVue] = useState<Vue>(vueDeLAdresse);
   useEffect(() => {
     const suit = () => { setVue(vueDeLAdresse()); window.scrollTo(0, 0); };
     window.addEventListener('hashchange', suit);
     return () => window.removeEventListener('hashchange', suit);
   }, []);
   const versLaReleve = () => { location.hash = ANCRE_DE_LA_RELEVE; };
+  const versLaPreparatoire = () => { location.hash = ANCRE_DE_LA_PREPARATOIRE; };
   const versLAccueil = () => { history.pushState(null, '', location.pathname); setVue('accueil'); window.scrollTo(0, 0); };
   const [porte, setPorte] = useState<PublicDeFormation | 'tous'>('debutante');
   const [ouvert, setOuvert] = useState<string | null>(null);
@@ -203,7 +211,7 @@ export default function App() {
 
   /* Depuis La Relève, la barre ramène d'abord à l'accueil, puis à sa section. */
   const vers = (id: string) => {
-    if (vue === 'releve') { versLAccueil(); setTimeout(() => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' }), 80); return; }
+    if (vue !== 'accueil') { versLAccueil(); setTimeout(() => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' }), 80); return; }
     document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' });
   };
   const versLesParcours = () => vers('les-parcours');
@@ -219,6 +227,7 @@ export default function App() {
         </a>
         <nav className="ac-nav">
           <button type="button" onClick={versLaReleve}>{NOM_DE_LA_RELEVE}</button>
+          <button type="button" onClick={versLaPreparatoire}>{NOM_DE_LA_PREPARATOIRE}</button>
           <button type="button" onClick={versLesParcours}>Les parcours</button>
           <button type="button" onClick={() => vers('la-methode')}>La méthode</button>
           <button type="button" onClick={() => vers('qui-enseigne')}>Qui enseigne</button>
@@ -226,7 +235,8 @@ export default function App() {
         <button type="button" className="ac-btn ac-btn--plein" onClick={versEcrire}>Réserver ma place</button>
       </header>
 
-      {vue === 'releve' ? <LaReleve branchId={branchId} onRetour={versLAccueil} /> : (
+      {vue === 'releve' ? <LaReleve branchId={branchId} onRetour={versLAccueil} />
+        : vue === 'preparatoire' ? <Preparatoire branchId={branchId} onRetour={versLAccueil} versLaReleve={versLaReleve} /> : (
       <main id="haut">
         {/* ── L'OUVERTURE ────────────────────────────────────────────── */}
         <section className="ac-ouverture">
@@ -368,6 +378,18 @@ export default function App() {
             </p>
           </div>
           <button type="button" className="ac-btn ac-btn--plein" onClick={versLaReleve}>Découvrir {NOM_DE_LA_RELEVE}</button>
+        </section>
+
+        {/* ── L'ANNÉE PRÉPARATOIRE (15 octobre 2026) ───────────────────── */}
+        <section id="annonce-de-la-preparatoire" className="rl-annonce">
+          <div>
+            <p className="ac-eyebrow">{NOM_DE_LA_PREPARATOIRE} · {AGE_DE_LA_PREPARATOIRE.min} à {AGE_DE_LA_PREPARATOIRE.max} ans</p>
+            <h2>Avant 18 ans, une année pour apprendre le métier.</h2>
+            <p className="ac-intro">
+              Pour les jeunes filles qui ont quitté l’école : le matin, de janvier à {ANNEE.finDit}, une classe de {ANNEE.places}, inscrite par ses parents. À 18 ans, l’entretien de {NOM_DE_LA_RELEVE} directement.
+            </p>
+          </div>
+          <button type="button" className="ac-btn" onClick={versLaPreparatoire}>Découvrir l’année</button>
         </section>
 
         {/* ── RÉSERVER SA PLACE ─────────────────────────────── */}

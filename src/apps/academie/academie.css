@@ -284,3 +284,9 @@
 .rl-engagement input { margin-top: 3px; width: 16px; height: 16px; accent-color: var(--ac-vert); }
 .rl-recu { max-width: 640px; display: flex; flex-direction: column; gap: 10px; }
 .rl-recu ol { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 6px; font-size: 14.5px; }
+
+/* L'année préparatoire (15 octobre 2026) : trois temps au lieu de cinq, et un lien dans une phrase. */
+.rl-semestres--trois { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+@media (max-width: 760px) { .rl-semestres--trois { grid-template-columns: 1fr; } }
+.rl-lien { background: none; border: 0; padding: 0; font: inherit; color: var(--ac-vert); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.rl-lien:focus-visible { outline: 2px solid var(--color-copper); outline-offset: 2px; }

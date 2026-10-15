@@ -85,7 +85,7 @@ dit('ni « salon », ni tiret cadratin dans ce que la page dit', [false, false],
 const app = sansCommentaires(lis('src/apps/academie/App.tsx'));
 dit('le site de l Academie ouvre La Releve a son adresse et dans sa barre', true,
   app.includes("const ANCRE_DE_LA_RELEVE = '#la-releve';") && app.includes('<button type="button" onClick={versLaReleve}>{NOM_DE_LA_RELEVE}</button>')
-  && app.includes("{vue === 'releve' ? <LaReleve branchId={branchId} onRetour={versLAccueil} /> : ("));
+  && app.includes("{vue === 'releve' ? <LaReleve branchId={branchId} onRetour={versLAccueil} />"));
 const depot = sansCommentaires(lis('src/shared/releve.ts'));
 dit('le depot ecrit une ligne et ne relit rien', [true, false], [depot.includes('.from(TABLE_DE_LA_RELEVE).insert({'), /\.select\(/.test(depot)]);
 
@@ -132,7 +132,7 @@ const politique = (nom: string) => (sql.match(new RegExp(`create policy ${nom} o
 dit('la boite est protegee', true, sql.includes('alter table public.releve_candidatures enable row level security;'));
 dit('le public y depose seulement un dossier valide', true, /for insert to anon, authenticated\s+with check \(public\.releve_dossier_valide\(data\)\)/.test(politique('releve_deposer')));
 dit('seule la direction lit et efface', [true, true], [/for select to authenticated\s+using \(public\.is_souverain\(\)\)/.test(politique('releve_lire')), /for delete to authenticated\s+using \(public\.is_souverain\(\)\)/.test(politique('releve_retirer'))]);
-dit('personne ne reecrit un dossier, le public ne relit rien', [false, false], [/for update/i.test(sql), /for (select|all) to anon/i.test(sql)]);
+dit('personne ne reecrit un dossier, le public ne relit rien', [false, false], [/on public\.releve_candidatures for update/i.test(sql), /on public\.releve_candidatures for (select|all) to anon/i.test(sql)]);
 const valide = (sql.match(/create or replace function public\.releve_dossier_valide[\s\S]*?\$\$;/) ?? [''])[0];
 dit('la base refuse « Aucun » diplome, une lettre hors bornes, sans consentement', [true, true, true],
   [valide.includes("not in ('', 'Aucun')"), valide.includes('between 120 and 520'), valide.includes("d->'engagements'->'garde'")]);

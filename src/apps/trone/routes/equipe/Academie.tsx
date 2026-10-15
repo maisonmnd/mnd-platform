@@ -19,6 +19,7 @@ import type { Store } from '../../../../shared/store';
 import { Bar, Pill, Tabs } from './ui';
 import AcademieSuivi from './AcademieSuivi';
 import AcademieDemandes from './AcademieDemandes';
+import AcademiePreparatoire from './AcademiePreparatoire';
 import './equipe.css';
 import './equipe.css';
 import { frShortAn } from '../clients/_shared';
@@ -35,7 +36,7 @@ import { ChampDeDate } from '../../../../ds/dates';
    Inscription d'apprenants, suivi d'avancement, certificats scellés MND (le rendu du
    certificat lui-même vit dans l'app `certificat` — ici on le déclenche, on ne le rebâtit pas). */
 
-type Tab = 'formations' | 'suivi' | 'demandes' | 'apprenants' | 'certifications' | 'referentiel';
+type Tab = 'formations' | 'suivi' | 'demandes' | 'preparatoire' | 'apprenants' | 'certifications' | 'referentiel';
 
 const payTone = (p: Apprenant['pay']): 'ok' | 'warn' | 'error' => (p === 'À jour' ? 'ok' : p === 'Échéance' ? 'warn' : 'error');
 
@@ -510,6 +511,8 @@ export default function Academie() {
           /* LES DEMANDES VENUES DU SITE — 17 septembre 2026. Elles se posent
              juste après le Suivi : c'est là qu'on les transforme. */
           { k: 'demandes', l: 'Demandes du site' },
+          /* L'ANNÉE PRÉPARATOIRE (15 octobre 2026) : les 15 à 17 ans, inscrites par leurs parents. */
+          { k: 'preparatoire', l: 'Année préparatoire' },
           { k: 'apprenants', l: 'Apprenants' },
           { k: 'certifications', l: 'Certifications' },
           { k: 'referentiel', l: 'Référentiel méthode' },
@@ -534,6 +537,7 @@ export default function Academie() {
       {/* ===== SUIVI & CERTIFICATION ===== */}
       {tab === 'suivi' && <AcademieSuivi />}
       {tab === 'demandes' && <AcademieDemandes />}
+      {tab === 'preparatoire' && <AcademiePreparatoire />}
 
       {/* ===== FORMATIONS ===== */}
       {tab === 'formations' && (
