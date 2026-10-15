@@ -154,7 +154,12 @@ dit('le site pose le rendez-vous confirme', [true, false], [
 dit('... et envoie LA confirmation sous l identifiant du balayage', [true, true, true], [
   submit.includes('`conf-${o.apptId}-whatsapp`'),
   conf.includes('id: `conf-${a.id}-${canal}`'),
-  submit.includes("Deno.env.get('WA_TEMPLATE_CONF') ?? 'confirmation_rdv'") && conf.includes("Deno.env.get('WA_TEMPLATE_CONF') ?? 'confirmation_rdv'"),
+  /* Depuis le 15 octobre 2026, le site choisit son modele par
+     `modeleDeLAccuse` (accuse-du-site, recopie dans demande-submit) : la
+     promesse est la meme, le modele de la confirmation-rdv. */
+  submit.includes("conf: Deno.env.get('WA_TEMPLATE_CONF'),")
+    && submit.includes("genre === 'confirmation' ? (secrets.conf || 'confirmation_rdv')")
+    && conf.includes("Deno.env.get('WA_TEMPLATE_CONF') ?? 'confirmation_rdv'"),
 ]);
 dit('... le balayage ne verrouille que sur un envoi reussi (un echec du site se retente)', true,
   /* Depuis la salle d'attente (2 octobre 2026), deux verdicts se retentent :

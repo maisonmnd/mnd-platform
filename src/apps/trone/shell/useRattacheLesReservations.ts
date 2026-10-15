@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { useAppointments, appointmentsStore } from '../../../shared/agenda';
 import { useClients, clientsStore, ensureInitiePersona } from '../../../shared/clients';
-import { useDemandes, demandesStore, rattachementsAFaire, ficheDepuisLaDemande, civiliteAPoser } from '../../../shared/demandes';
+import { useDemandes, demandesStore, rattachementsAFaire, ficheDepuisLaDemande, civiliteAPoser, nomDeLaDemande } from '../../../shared/demandes';
 import { ficheAvecCivilite, type Civilite } from '../../../shared/civilite';
 import { useAuth } from '../../../shared/auth';
 import { tablePrete } from '../../../shared/sync';
@@ -75,7 +75,7 @@ export function useRattacheLesReservations(): void {
       }
       const ficheDe = new Map(aFaire.map((r) => [
         r.apptId,
-        { id: r.ficheExistante?.id ?? `prospect-${r.demande.id}`, prenom: r.demande.prenom, demandeId: r.demande.id },
+        { id: r.ficheExistante?.id ?? `prospect-${r.demande.id}`, prenom: nomDeLaDemande(r.demande), demandeId: r.demande.id },
       ]));
       /* Le rendez-vous ne se rattache que s'il est TOUJOURS sans fiche :
          une main a pu le rattacher entre-temps, elle a le dernier mot. */

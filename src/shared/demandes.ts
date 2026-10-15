@@ -49,6 +49,8 @@ export type Demande = {
   createdAt: string;          // ISO
   branchId: string;
   prenom: string;
+  /** Le nom, dans sa case à la réservation du site (15 octobre 2026). */
+  nom?: string;
   telephone: string;          // E.164, posé par le serveur (+229…)
   email?: string;
   besoin: BesoinDeLaDemande;
@@ -137,6 +139,12 @@ const BESOIN_DIT: Record<BesoinDeLaDemande, string> = {
 };
 
 export const ditLeBesoin = (b: BesoinDeLaDemande): string => BESOIN_DIT[b] ?? BESOIN_DIT.inconnu;
+
+/** LE NOM ENTIER D'UNE DEMANDE — 15 octobre 2026 : le prénom, puis le nom
+    que la réservation du site demande dans sa propre case. Une demande plus
+    ancienne n'a que son prénom. */
+export const nomDeLaDemande = (d: Pick<Demande, 'prenom' | 'nom'>): string =>
+  [d.prenom, d.nom].map((s) => String(s ?? '').trim()).filter(Boolean).join(' ');
 
 export const ditLeGenre = (g: GenreDeDemande): string =>
   g === 'rdv' ? 'Demande de rendez-vous' : 'Prospect';
@@ -228,7 +236,7 @@ export function ficheDepuisLaDemande(d: Demande, persona: string): Client {
   const fiche: Client = {
     id: `prospect-${d.id}`,
     branchId: d.branchId,
-    name: d.prenom.trim(),
+    name: nomDeLaDemande(d),
     phone: d.telephone,
     city: '',
     persona,

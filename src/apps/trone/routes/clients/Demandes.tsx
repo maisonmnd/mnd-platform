@@ -8,7 +8,7 @@ import { clientsStore, ensureInitiePersona } from '../../../../shared/clients';
 import { appointmentsStore } from '../../../../shared/agenda';
 import {
   useDemandes, demandesTriees, ditLeBesoin, ditLeGenre, messageDeRappel, ficheDepuisLaDemande,
-  telephoneMasque, telephoneNormalise, depuisQuand, BESOINS, dansLeFiltre,
+  telephoneMasque, telephoneNormalise, depuisQuand, BESOINS, dansLeFiltre, nomDeLaDemande,
   type Demande, type BesoinDeLaDemande, type StatutDeLaDemande, type FiltreDesDemandes,
 } from '../../../../shared/demandes';
 import './clients.css';
@@ -165,7 +165,7 @@ export default function Demandes() {
        carnet garderait « Cliente de passage » sur une tête qu'on connaît. */
     if (d.apptId) {
       appointmentsStore.set((prev) => prev.map((a) =>
-        (a.id === d.apptId ? { ...a, clientId: id, clientName: d.prenom || a.clientName } : a)));
+        (a.id === d.apptId ? { ...a, clientId: id, clientName: nomDeLaDemande(d) || a.clientName } : a)));
     }
     poser(d, { statut: 'convertie', clientId: id });
     navigate(`/customers?id=${id}`);
@@ -239,7 +239,7 @@ export default function Demandes() {
             >
               <header style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
                 <span style={{ fontFamily: 'var(--font-serif)', fontSize: 20, color: 'var(--color-indigo)', lineHeight: 1.1 }}>
-                  {d.prenom}
+                  {nomDeLaDemande(d)}
                 </span>
                 <span className={`trc-pill ${STATUT_DIT[d.statut].classe}`}>{STATUT_DIT[d.statut].mot}</span>
                 <span className={`trc-src${d.genre === 'rdv' ? '' : ' trc-src--indigo'}`}>{ditLeGenre(d.genre)}</span>

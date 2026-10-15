@@ -324,6 +324,8 @@ function Calendrier({ besoin: besoinInitial, initiales, surLaPorte }: Props) {
   const [jour, setJour] = useState('');
   const [heure, setHeure] = useState<{ heure: string; maitre: string } | null>(null);
   const [prenom, setPrenom] = useState('');
+  /* LE NOM, DANS SA CASE — 15 octobre 2026 (Yéman). */
+  const [nom, setNom] = useState('');
   const [numero, setNumero] = useState('');
   /* L'INDICATIF, +229 par défaut et modifiable ; POUR QUI ; le numéro refusé
      se signale au champ (11 octobre 2026, maquette validée). */
@@ -437,6 +439,7 @@ function Calendrier({ besoin: besoinInitial, initiales, surLaPorte }: Props) {
     setRetourPose(true);
     if (!moi) return;
     setPrenom((p) => p || moi.prenom);
+    setNom((n) => n || moi.nom || '');
     setCivilite((c) => c || moi.civilite || '');
     setNumero((n) => n || moi.numero);
     if (consultation || prepare.gestes.length > 0) return;
@@ -586,6 +589,7 @@ function Calendrier({ besoin: besoinInitial, initiales, surLaPorte }: Props) {
     oublieLaCliente();
     setMoi(null);
     setPrenom('');
+    setNom('');
     setCivilite('');
     setNumero('');
     autreChose();
@@ -636,6 +640,9 @@ function Calendrier({ besoin: besoinInitial, initiales, surLaPorte }: Props) {
           genre: 'rdv',
           data: {
             prenom, civilite, telephone: numero, besoin, mot,
+            /* LE NOM VOYAGE À PART (15 octobre 2026) : le prénom reste seul
+               dans `prenom`, celui des messages (« Bonjour Madame A. »). */
+            ...(nom.trim() ? { nom: nom.trim() } : {}),
             /* LE CODE VOYAGE, LE POURCENTAGE NON : c'est au serveur de
                résoudre le code contre les offres de la Maison. Un
                navigateur à qui l'on demanderait sa propre remise
@@ -704,7 +711,7 @@ function Calendrier({ besoin: besoinInitial, initiales, surLaPorte }: Props) {
       });
       /* Le téléphone la retient pour la prochaine fois : prénom, numéro,
          gestes, calibre. Jamais le maître, jamais le code. */
-      retiensLaCliente({ prenom, ...(civilite ? { civilite } : {}), numero, serviceIds, calibreId, besoin });
+      retiensLaCliente({ prenom, ...(nom.trim() ? { nom } : {}), ...(civilite ? { civilite } : {}), numero, serviceIds, calibreId, besoin });
       /* Le diagnostic a fait son travail : il ne suit plus. */
       oublieLeDiagnostic();
       mesure('reservation_demandee', { parcours: besoin, genre: 'rdv', chemin: retour ? 'retour' : composer ? 'composer' : 'formule' });
@@ -789,7 +796,7 @@ function Calendrier({ besoin: besoinInitial, initiales, surLaPorte }: Props) {
             répond dedans. « Une cliente doit être autonome du début à la
             fin » (Yéman). */}
         <div className="rangee">
-          <a className={`btn ${recu.confirme && recu.accuse === 'envoyé' ? '' : 'btn--fort'}`} href={lienWhatsApp(whatsapp, texteDeLaDemande(recu, prenom, mot))} target="_blank" rel="noopener" onClick={() => mesure('whatsapp_clique', { parcours: besoin })}>{recu.confirme ? 'Écrire à la Maison sur WhatsApp' : 'Envoyer ma demande sur WhatsApp'}</a>
+          <a className={`btn ${recu.confirme && recu.accuse === 'envoyé' ? '' : 'btn--fort'}`} href={lienWhatsApp(whatsapp, texteDeLaDemande(recu, `${prenom.trim()} ${nom.trim()}`, mot))} target="_blank" rel="noopener" onClick={() => mesure('whatsapp_clique', { parcours: besoin })}>{recu.confirme ? 'Écrire à la Maison sur WhatsApp' : 'Envoyer ma demande sur WhatsApp'}</a>
           {/* L'AGENDA DU TÉLÉPHONE — un fichier .ics, à l'heure de Cotonou. */}
           {recu.confirme && (
             <a className="btn" href={fichierAgenda({ date: recu.date, heure: recu.heure, dureeMin: recu.dureeMin ?? 60, titre: `Maison MND · ${recu.gestes.map((n) => nomEnFrancaisWa(n).francais).join(', ') || 'votre venue'}`, note: 'Réservé depuis maisonmnd.com. Pour déplacer ou annuler, un mot sur WhatsApp suffit.' })} download={`maison-mnd-${recu.date}.ics`}>Ajouter à mon agenda</a>
@@ -1298,26 +1305,30 @@ function Calendrier({ besoin: besoinInitial, initiales, surLaPorte }: Props) {
             </div>
             {civiliteManque && <small role="alert">{f.erreurCivilite}</small>}
           </div>
+          {/* LE PRÉNOM ET LE NOM, CHACUN SA CASE — 15 octobre 2026 : « créer
+              des cases séparées pour le nom et le prénom » (Yéman). Le numéro
+              passe dessous, sur toute la largeur. */}
           <div className="deux-champs">
             <div className="champ"><label htmlFor="res-prenom">{f.prenom}</label><input id="res-prenom" name="prenom" autoComplete="given-name" value={prenom} onChange={(e) => setPrenom(e.target.value)} /></div>
-            <div className="champ">
-              <label htmlFor="res-numero">{f.numero}</label>
-              {/* L'INDICATIF, +229 par défaut et modifiable — 11 octobre 2026 : un
-                  numéro français tapé sans indicatif devenait un faux numéro
-                  béninois, et la confirmation partait vers personne. */}
-              <div className="numero">
-                <select className="indicatif" aria-label="Indicatif du pays" value={pays} onChange={(e) => setPays(e.target.value)}>
-                  <optgroup label="Les plus fréquents">
-                    {FREQUENTS.map((p) => <option key={p.name} value={p.name}>{p.dial} {p.name}</option>)}
-                  </optgroup>
-                  <optgroup label="Tous les pays">
-                    {AUTRES_PAYS.map((p) => <option key={p.name} value={p.name}>{p.dial} {p.name}</option>)}
-                  </optgroup>
-                </select>
-                <input id="res-numero" name="numero" inputMode="tel" autoComplete="tel-national" placeholder={f.numeroExemple} value={numero} onChange={(e) => { setNumero(e.target.value); setNumeroInvalide(false); }} required aria-invalid={numeroInvalide || undefined} aria-describedby={numeroInvalide ? 'res-erreur' : 'res-numero-aide'} />
-              </div>
-              <small id="res-numero-aide">{f.numeroAide}</small>
+            <div className="champ"><label htmlFor="res-nom">{f.nom}</label><input id="res-nom" name="nom" autoComplete="family-name" value={nom} onChange={(e) => setNom(e.target.value)} /></div>
+          </div>
+          <div className="champ">
+            <label htmlFor="res-numero">{f.numero}</label>
+            {/* L'INDICATIF, +229 par défaut et modifiable — 11 octobre 2026 : un
+                numéro français tapé sans indicatif devenait un faux numéro
+                béninois, et la confirmation partait vers personne. */}
+            <div className="numero">
+              <select className="indicatif" aria-label="Indicatif du pays" value={pays} onChange={(e) => setPays(e.target.value)}>
+                <optgroup label="Les plus fréquents">
+                  {FREQUENTS.map((p) => <option key={p.name} value={p.name}>{p.dial} {p.name}</option>)}
+                </optgroup>
+                <optgroup label="Tous les pays">
+                  {AUTRES_PAYS.map((p) => <option key={p.name} value={p.name}>{p.dial} {p.name}</option>)}
+                </optgroup>
+              </select>
+              <input id="res-numero" name="numero" inputMode="tel" autoComplete="tel-national" placeholder={f.numeroExemple} value={numero} onChange={(e) => { setNumero(e.target.value); setNumeroInvalide(false); }} required aria-invalid={numeroInvalide || undefined} aria-describedby={numeroInvalide ? 'res-erreur' : 'res-numero-aide'} />
             </div>
+            <small id="res-numero-aide">{f.numeroAide}</small>
           </div>
           {court && (code || codeOuvert) && <div className="bloc-code">{blocDuCode}</div>}
           {motOuvert || mot
@@ -1407,7 +1418,6 @@ export default function Reserver({ besoin: besoinInitial, initiales }: Props) {
     setBesoin('');
   };
   if (besoin && besoin !== 'inconnu') return <><BanniereDInvitation /><Calendrier besoin={besoin} initiales={initiales} surLaPorte={surLaPorte} /></>;
-  const base = import.meta.env.BASE_URL.replace(/\/$/, '');
   /* LE CODE PASSE LA PORTE — 9 octobre 2026. L'amie qui arrive de /m/ porte
      `?code=` sans parcours ; « entretien » réécrivait l'adresse en
      `?besoin=` seul, et le calendrier, qui relit l'adresse en montant, ne
@@ -1418,11 +1428,10 @@ export default function Reserver({ besoin: besoinInitial, initiales }: Props) {
     try { history.replaceState(null, '', `${location.pathname}?besoin=${b}${codePose ? `&code=${encodeURIComponent(codePose)}` : ''}`); } catch { /* sans histoire, tant pis */ }
     setBesoin(b);
   };
-  /* LE CODE SUIT AUSSI LA CONSULTATION ET LA CRÉATION — 9 octobre 2026 au
-     soir. Une amie qui n'a pas encore de locks touche « créer ma couronne » :
-     c'est le cas le plus courant d'une filleule, et la page du rappel
-     recevait l'adresse sans le code que la bannière disait « déjà posé ». */
-  const suiteDuCode = (() => { const c = codeDeLAdresse(); return c ? `&code=${encodeURIComponent(c)}` : ''; })();
+  /* PLUS DE RAPPEL SOUS LA PORTE — 15 octobre 2026. « Pour votre enfant, ou
+     si vous préférez qu'on vous appelle : laissez votre numéro » : « retirer
+     cette phrase » (Yéman). L'enfant se dit dans « Pour qui ? », au moment
+     de la place ; le rappel garde sa page, ouverte par « Me faire rappeler ». */
   return (
     <>
     <BanniereDInvitation />
@@ -1436,7 +1445,7 @@ export default function Reserver({ besoin: besoinInitial, initiales }: Props) {
           (maquette validée). Cette porte menait au rappel alors que le
           diagnostic et l'accueil réservaient la même consultation en ligne ;
           et « besoin de soin » attirait les clientes d'entretien, dont le
-          catalogue est fait de soins. Le rappel reste offert dessous. */}
+          catalogue est fait de soins. */}
       <button type="button" className="porte-rdv__choix" onClick={() => choisit('reparation')}>
         <span>Oui, mais elles sont abîmées, cassent ou s’amincissent</span>
         <small>Une consultation d’abord, son heure en ligne. Le devis vient après, et vous décidez ensuite.</small>
@@ -1444,13 +1453,11 @@ export default function Reserver({ besoin: besoinInitial, initiales }: Props) {
       {/* LA CONSULTATION DE CRÉATION SE RÉSERVE EN LIGNE — 11 octobre 2026.
           « Est-ce possible de tomber directement sur les consultations et
           réserver directement sans passer par un message ? » (Yéman, 17
-          septembre) : le diagnostic y menait déjà, ce bouton menait au rappel.
-          Le rappel reste offert, juste en dessous. */}
+          septembre) : le diagnostic y menait déjà, ce bouton menait au rappel. */}
       <button type="button" className="porte-rdv__choix" onClick={() => choisit('creation')}>
         <span>Je veux créer ma couronne</span>
         <small>Une création commence par une consultation : choisissez son heure en ligne.</small>
       </button>
-      <p className="porte-rdv__rappel">Pour votre enfant, ou si vous préférez qu’on vous appelle : <a href={`${base}/rappel/${suiteDuCode ? `?${suiteDuCode.slice(1)}` : ''}`}>laissez votre numéro</a>, la Maison vous rappelle.</p>
     </div>
     </>
   );

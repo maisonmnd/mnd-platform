@@ -2065,8 +2065,6 @@ html.js [data-voile].vu--net, html.js [data-voile]:focus-within { opacity: 1; tr
 .sortie__garder .btn--lien { padding-inline: 0; }
 .diag-joint { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 6px 14px; }
 .diag-joint .btn--lien, .formulaire .diag-joint .btn { width: auto; padding: 0; font-size: 13px; min-height: 0; }
-.porte-rdv__rappel { margin: 6px 2px 0; font-size: 14px; color: var(--texte-doux); }
-.porte-rdv__rappel a { color: var(--titre); text-decoration: underline; text-underline-offset: 3px; }
 /* La première question écrite dans la page : des liens au dessin des réponses. */
 a.reponse { text-decoration: none; }
 

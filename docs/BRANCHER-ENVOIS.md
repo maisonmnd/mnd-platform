@@ -203,8 +203,18 @@ Nom : `demande_recue_simple`, catégorie **UTILITY**, français.
 ({{1}} = prénom, {{2}} = ce qu'elle a demandé : « un rappel de la Maison »,
 « votre routine locks », « une carte cadeau ».)
 
-Puis poser le secret `WA_TEMPLATE_ACCUSE_SIMPLE=demande_recue_simple`. Tant
-qu'il n'est pas posé, le premier modèle sert pour tout.
+Puis poser le secret `WA_TEMPLATE_ACCUSE_SIMPLE=demande_recue_simple`.
+
+**Depuis le 15 octobre 2026 (demande-submit 2026-10-15-a), tant qu'il n'est
+pas posé, RIEN NE PART pour une demande sans place.** Avant, le premier modèle
+servait pour tout, et une demande de rappel recevait « votre demande de
+rendez-vous pour le un rendez-vous… votre créneau » (le texte approuvé chez
+Meta porte « pour le {{2}} »). Le {{2}} dit maintenant ce qu'elle a demandé :
+« un rappel pour votre enfant », « un rappel pour créer votre couronne »,
+« un rappel de la Maison », « une carte cadeau », « votre routine locks »,
+« votre inscription comme testeuse ». La règle vit dans
+`src/shared/accuse-du-site.ts`, recopiée dans la fonction, éprouvée par
+`verifie-l-accuse-du-site`.
 
 Aucun nouveau secret : `WA_TOKEN` et `WA_PHONE_ID` sont déjà posés pour toutes
 les fonctions. `WA_TEMPLATE_ACCUSE` n'est à poser que si le modèle porte un

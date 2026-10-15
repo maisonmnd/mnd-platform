@@ -612,6 +612,8 @@ const regles: Regle[] = [
         'gestes-en-francais': { fichier: 'src/shared/gestes-en-francais.ts', extrait: (s) => entre(s, 'gestes-en-francais') },
         /* Le secretariat administratif (14 octobre 2026) : ce qui tombe, recopie dans push-notify. */
         'ce-qui-tombe': { fichier: 'src/shared/secretariat-admin-pur.ts', extrait: (s) => entre(s, 'ce-qui-tombe') },
+        /* L'accuse d'une demande du site (15 octobre 2026), recopie dans demande-submit. */
+        'accuse-du-site': { fichier: 'src/shared/accuse-du-site.ts', extrait: (s) => entre(s, 'accuse-du-site') },
       };
       const fonctions: string[] = [];
       const marche = (d: string) => { for (const n of readdirSync(d)) { const p = `${d}/${n}`; if (statSync(p).isDirectory()) marche(p); else if (/\.(ts|js)$/.test(n)) fonctions.push(p); } };
@@ -998,9 +1000,12 @@ const regles: Regle[] = [
          réparation réservent leur consultation en ligne ; le rappel reste
          offert par UN lien, sous la porte. La promesse ne change pas : tout
          lien vers le rappel emporte le code de l'amie. */
-      const versLeRappel = reserver.split('${base}/rappel/').slice(1).map((suite) => suite.slice(0, 90));
-      vaut('chaque lien vers le rappel emporte le code (et il y en a un)', [true, true], [versLeRappel.length > 0, versLeRappel.every((l) => l.includes('suiteDuCode'))]);
-      vrai('... lu dans l adresse', /const suiteDuCode = \(\(\) => \{ const c = codeDeLAdresse\(\); return c \? `&code=\$\{encodeURIComponent\(c\)\}` : ''; \}\)\(\);/.test(reserver));
+      /* PLUS DE RAPPEL SOUS LA PORTE (15 octobre 2026, « retirer cette
+         phrase », Yéman) : la promesse du jour est qu'il n'y en a plus ; la
+         regle demeure, un lien qui reviendrait emporterait le code. */
+      const versLeRappel = reserver.split('/rappel/').slice(1).map((suite) => suite.slice(0, 90));
+      vaut('la porte ne renvoie plus au rappel (15 octobre 2026)', 0, versLeRappel.length);
+      vrai('... et tout lien vers le rappel qui reviendrait emporte le code', versLeRappel.every((l) => /code/.test(l)));
       const rappel = sansCommentaires(lit(RAPPEL));
       vrai('la demande de rappel envoie le code d une amie', /\.\.\.\(codeAmie \? \{ codeAmie \} : \{\}\),/.test(rappel) && /useState\(codeDAmieDeLAdresse\)/.test(rappel) && /FORME_DU_CODE\.test\(c\) \? c : ''/.test(rappel));
       const edge = sansCommentaires(lf(lit(EDGE)));
@@ -1028,7 +1033,7 @@ const regles: Regle[] = [
       return ecarts;
     },
     pannes: [
-      { nom: 'le code se perd sur le lien du rappel', mute: [P(RESERVER, "/rappel/${suiteDuCode ? `?${suiteDuCode.slice(1)}` : ''}", '/rappel/')] },
+      { nom: 'le rappel revient sous la porte', mute: [P(RESERVER, '        <small>Une création commence par une consultation : choisissez son heure en ligne.</small>\n      </button>\n', '        <small>Une création commence par une consultation : choisissez son heure en ligne.</small>\n      </button>\n      <p>Pour votre enfant : <a href="/rappel/">laissez votre numéro</a>.</p>\n')] },
       { nom: 'la demande de rappel n envoie pas le code', mute: [P(RAPPEL, '            ...(codeAmie ? { codeAmie } : {}),\n', '')] },
       { nom: 'l Edge ignore le code sans place', mute: [P(EDGE, '} else if (FORME_DU_CODE.test(codeNormalise(codeEcrit))) {', '} else if (false) {')] },
       { nom: 'la lignee ignore la fiche de la conversion', mute: [P(MOTEUR, ': !d.apptId && d.clientId && parId.has(d.clientId) ? d.clientId : undefined;', ': undefined;')] },

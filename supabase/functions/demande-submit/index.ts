@@ -181,7 +181,7 @@ const admin = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: 
 /** La version de ce fichier : ouvrir l'adresse de la fonction la dit (405),
     pour ne jamais chercher une panne dans un fichier qui n'est pas celui
     qu'on croit déployé. */
-const VERSION = '2026-10-13-b · la civilite choisie sur le site, le prenom seul quand elle est inconnue';
+const VERSION = '2026-10-15-a · l accuse dit la demande (un rappel), le nom dans sa case';
 
 /** `EdgeRuntime.waitUntil`, s'il existe (la même garde que le webhook) : ce
     qui n'a pas besoin d'être attendu continue après la réponse. Sans lui, la
@@ -259,12 +259,46 @@ const BESOIN_DIT: Record<string, string> = {
   creation: 'Créer ma couronne', reparation: 'Réparer ma couronne', entretien: 'Entretenir ma couronne',
   enfant: 'Pour mon enfant', formation: 'Apprendre le métier', inconnu: 'Ne sait pas encore',
 };
-/* Le {{2}} de l'accusé quand il n'y a pas de place : ce que la cliente a
-   demandé, en clair, dans la phrase du modèle. */
-const quandDeLaDemande = (genre: string, profil: string): string =>
+/* L'ACCUSÉ, SES MODÈLES ET SES MOTS — 15 octobre 2026. Bloc RECOPIÉ tel quel
+   de `src/shared/accuse-du-site.ts` (pourquoi, et la règle des trois
+   accusés, y sont écrits) ; `verifie-l-accuse-du-site` confronte les deux.
+   NE RIEN RETOUCHER ENTRE LES REPÈRES. */
+/* ⟨accuse-du-site⟩ */
+/** Le {{2}} d'une demande sans place : ce qu'elle a demandé, dit à elle. */
+export const POUR_LE_RAPPEL: Record<string, string> = {
+  creation: 'un rappel pour créer votre couronne',
+  reparation: 'un rappel pour réparer votre couronne',
+  entretien: 'un rappel pour entretenir votre couronne',
+  enfant: 'un rappel pour votre enfant',
+  formation: 'un rappel pour apprendre le métier',
+};
+export const quandDeLaDemande = (profil: string, besoin: string): string =>
   profil === 'Carte cadeau' ? 'une carte cadeau'
     : profil === 'Diagnostic locks' ? 'votre routine locks'
-      : genre === 'rdv' ? 'un rendez-vous' : 'un rappel de la Maison';
+      : profil === 'Testeuse' ? 'votre inscription comme testeuse'
+        : POUR_LE_RAPPEL[besoin] ?? 'un rappel de la Maison';
+
+export type GenreDAccuse = 'confirmation' | 'demande-de-place' | 'rappel';
+export const genreDAccuse = (o: { pose: boolean; avecPlace: boolean }): GenreDAccuse =>
+  o.pose ? 'confirmation' : o.avecPlace ? 'demande-de-place' : 'rappel';
+
+/** Le modèle Meta de chaque accusé. '' : aucun modèle juste, rien ne part. */
+export const modeleDeLAccuse = (
+  genre: GenreDAccuse,
+  secrets: { conf?: string; accuse?: string; simple?: string },
+): string =>
+  genre === 'confirmation' ? (secrets.conf || 'confirmation_rdv')
+    : genre === 'demande-de-place' ? (secrets.accuse || 'demande_recue')
+      : (secrets.simple || '');
+
+/** Ce que le fil des Conversations montre : le texte du modèle, rempli. */
+export const texteDeLAccuse = (genre: GenreDAccuse, appel: string, quand: string): string =>
+  genre === 'confirmation'
+    ? `Bonjour ${appel}, c'est confirmé : votre rendez-vous est retenu ${quand}. Nous vous attendons. Merci de nous prévenir en cas d'empêchement.`
+    : genre === 'demande-de-place'
+      ? `Bonjour ${appel}, la Maison MND a bien reçu votre demande de rendez-vous pour le ${quand}. Nous vous confirmerons très prochainement votre créneau sur ce même numéro.`
+      : `Bonjour ${appel}, la Maison MND a bien reçu votre demande (${quand}). Nous vous répondons très vite, sur ce numéro.`;
+/* ⟨/accuse-du-site⟩ */
 const texte = (v: unknown, max: number): string => String(v ?? '').replace(/\s+/g, ' ').trim().slice(0, max);
 
 /* La branche rend aussi SA LIGNE (9 octobre 2026) : le juge des places y
@@ -1547,7 +1581,9 @@ const jourEnClair = (iso: string): string => {
    salon, et la conversation existe dès lors des deux côtés. Le modèle : celui
    du rendez-vous quand il y a une place (« votre demande de rendez-vous pour
    {{2}} »), sinon `WA_TEMPLATE_ACCUSE_SIMPLE` (« votre demande ({{2}}) ») s'il
-   est posé et approuvé, à défaut le même modèle avec un {{2}} qui se lit. */
+   est posé et approuvé. Le « à défaut, le même modèle » de ce jour-là
+   écrivait « pour le un rendez-vous » : depuis le 15 octobre, à défaut,
+   rien ne part (accuse-du-site). */
 /* ══ UNE PLACE POSÉE REÇOIT « C'EST CONFIRMÉ » — 29 septembre 2026 ══════
    La place naît confirmée : on n'envoie plus « nous confirmons très vite »
    pour la confirmer dix minutes plus tard. C'est le modèle de la
@@ -1558,13 +1594,25 @@ const jourEnClair = (iso: string): string => {
 async function envoieLAccuse(o: {
   apptId?: string; demandeId: string; branchId: string; prenom: string; telephone: string;
   quand: string; date?: string; time?: string;
+  /** Une place était demandée (posée ou non) : 15 octobre 2026. */
+  avecPlace: boolean;
   /** La civilité qu'elle a choisie sur le site (13 octobre 2026). */
   civilite?: string;
 }): Promise<string> {
   const WA_TOKEN = Deno.env.get('WA_TOKEN');
   const WA_PHONE_ID = Deno.env.get('WA_PHONE_ID');
-  const MODELE_RDV = Deno.env.get('WA_TEMPLATE_CONF') ?? 'confirmation_rdv';
-  const MODELE = o.apptId ? MODELE_RDV : (Deno.env.get('WA_TEMPLATE_ACCUSE_SIMPLE') ?? Deno.env.get('WA_TEMPLATE_ACCUSE') ?? 'demande_recue');
+  /* LE MODÈLE DE CE QU'ELLE A DEMANDÉ — 15 octobre 2026 (accuse-du-site) :
+     une demande sans place ne prend plus jamais le modèle d'une place. */
+  const genreAccuse = genreDAccuse({ pose: !!o.apptId, avecPlace: o.avecPlace });
+  const MODELE = modeleDeLAccuse(genreAccuse, {
+    conf: Deno.env.get('WA_TEMPLATE_CONF'),
+    accuse: Deno.env.get('WA_TEMPLATE_ACCUSE'),
+    simple: Deno.env.get('WA_TEMPLATE_ACCUSE_SIMPLE'),
+  });
+  if (!MODELE) {
+    console.log('demande-submit: accusé retenu, WA_TEMPLATE_ACCUSE_SIMPLE n est pas posé');
+    return 'sans-modele';
+  }
   if (!WA_TOKEN || !WA_PHONE_ID) return 'sans-cles';
   /* Meta veut le numéro international sans « + » ; le serveur l'a déjà mis
      en E.164 (telephoneNormalise). */
@@ -1641,9 +1689,7 @@ async function envoieLAccuse(o: {
       branch_id: o.branchId,
       data: {
         id: idFil, waId, branchId: o.branchId, sens: 'sortant', numero: tel, clientId: '',
-        texte: o.apptId
-          ? `Bonjour ${prenom}, c'est confirmé : votre rendez-vous est retenu ${quand}. Nous vous attendons. Merci de nous prévenir en cas d'empêchement.`
-          : `Bonjour ${prenom}, la Maison MND a bien reçu votre demande (${quand}). Nous vous répondons très vite, sur ce numéro.`,
+        texte: texteDeLAccuse(genreAccuse, prenom, quand),
         type: 'text', quand: maintenant, etat: 'en-route', modele: MODELE, parQui: 'Le Trône',
       },
     }, { onConflict: 'id' });
@@ -1687,6 +1733,11 @@ Deno.serve(async (req) => {
   const lockCount = Math.max(0, Math.min(2000, Math.round(Number(d.lockCount) || 0)));
   const calibre = texte(d.calibre, 30);
   const prenom = texte(d.prenom, 60);
+  /* LE NOM, DANS SA CASE — 15 octobre 2026 : « créer des cases séparées pour
+     le nom et le prénom lors de la prise de RDV » (Yéman). Le prénom reste
+     celui des messages ; le nom entier va au rendez-vous, au fil, à la fiche. */
+  const nom = texte(d.nom, 60);
+  const nomEntier = [prenom, nom].filter(Boolean).join(' ');
   /* LA CIVILITÉ CHOISIE SUR LE SITE — 13 octobre 2026. Trois valeurs, rien
      d'autre ; une ancienne page qui ne l'envoie pas : rien, Madame. */
   const civilite = d.civilite === 'madame' || d.civilite === 'mademoiselle' || d.civilite === 'monsieur' ? String(d.civilite) : '';
@@ -1788,6 +1839,7 @@ Deno.serve(async (req) => {
     branchId,
     prenom,
     ...(civilite ? { civilite } : {}),
+    ...(nom ? { nom } : {}),
     telephone,
     ...(email ? { email } : {}),
     besoin,
@@ -1836,7 +1888,7 @@ Deno.serve(async (req) => {
       branch_id: branchId,
       data: {
         id: idFil, branchId, sens: 'entrant', canal: 'site', numero: tel, clientId: '',
-        ...(prenom ? { nomProfil: prenom } : {}), texte: texteDuFil, type: 'text', quand: now, demandeId: id,
+        ...(nomEntier ? { nomProfil: nomEntier } : {}), texte: texteDuFil, type: 'text', quand: now, demandeId: id,
       },
     }, { onConflict: 'id' });
     if (errFil) console.error('demande-submit: fil du site', errFil.message);
@@ -1869,7 +1921,7 @@ Deno.serve(async (req) => {
       id: candidat,
       branchId,
       clientId: '',
-      clientName: prenom || 'Demande du site',
+      clientName: nomEntier || 'Demande du site',
       serviceIds,
       date,
       time,
@@ -1927,10 +1979,13 @@ Deno.serve(async (req) => {
      la page le dit ; sinon il continue en tâche de fond, et la page dit
      « votre place est tenue, la Maison vous écrit », avec le bouton WhatsApp
      devant. Une place déjà tenue (deja_pose) ne reçoit pas de second accusé. */
+  /* UNE PLACE NON POSÉE SE DIT AVEC SON JOUR, UNE DEMANDE SANS PLACE AVEC CE
+     QU'ELLE A DEMANDÉ (15 octobre 2026, accuse-du-site). */
   const envoiDeLAccuse = dejaPosee ? Promise.resolve('deja') : envoieLAccuse({
     apptId, demandeId: id, branchId, prenom, telephone, ...(civilite ? { civilite } : {}),
-    quand: apptId ? `${jourEnClair(date)} à ${heureLisible(time)}` : quandDeLaDemande(genre, texte(d.profil, 80)),
-    ...(apptId ? { date, time } : {}),
+    avecPlace,
+    quand: avecPlace ? `${jourEnClair(date)} à ${heureLisible(time)}` : quandDeLaDemande(texte(d.profil, 80), besoin),
+    ...(avecPlace ? { date, time } : {}),
   }).catch((e) => { console.error('demande-submit: accusé', String(e)); return 'échec'; });
   const accuse = await auPlus(envoiDeLAccuse, 2500, 'en-cours');
 
@@ -1944,7 +1999,7 @@ Deno.serve(async (req) => {
   const quand = avecPlace ? ` · ${date} à ${time}` : '';
   const sent = dejaPosee ? 0 : await auPlus(alerteLePersonnel(
     apptId ? 'Réservé depuis le site' : (genre === 'rdv' ? 'Demande de rendez-vous depuis le site' : 'Nouvelle demande depuis le site'),
-    `${prenom || 'Une visiteuse'} · ${besoin}${quand}`,
+    `${nomEntier || 'Une visiteuse'} · ${besoin}${quand}`,
     apptId ? '/trone/#/calendrier' : '/trone/#/demandes',
   ).catch(() => 0), 1500, 0);
   /* LA RAISON REMONTE À LA PAGE : « déjà utilisé » se dit au clic, pas au

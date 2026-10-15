@@ -42,7 +42,7 @@ import { revenuDuJour } from '../../../../shared/caisse-du-soir-pur';
 import { ChampDeDate } from '../../../../ds/dates';
 import { cheminDeLaConversation } from '../../../../shared/conversations';
 import AlarmeWhatsApp from './AlarmeWhatsApp';
-import { useDemandes, demandesTriees, ditLeBesoin, ditLeGenre, depuisQuand, telephoneMasque } from '../../../../shared/demandes';
+import { useDemandes, demandesTriees, ditLeBesoin, ditLeGenre, depuisQuand, telephoneMasque, nomDeLaDemande } from '../../../../shared/demandes';
 import { appelDe } from '../../../../shared/civilite';
 import {
   useEngagements, useDevisRecus, useVersementsEngagement, litLesDossiers, bilanDesEngagements, restesDits,
@@ -937,7 +937,7 @@ export default function Dashboard() {
               style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '9px 0', borderTop: i === 0 ? 'none' : '1px solid var(--hairline)', flexWrap: 'wrap' }}
             >
               <div style={{ minWidth: 0 }}>
-                <span style={{ fontWeight: 500 }}>{d.prenom || 'Sans prénom'}</span>
+                <span style={{ fontWeight: 500 }}>{nomDeLaDemande(d) || 'Sans prénom'}</span>
                 <span className="mnd-muted" style={{ marginLeft: 10, fontSize: 12 }}>
                   {ditLeGenre(d.genre)} · {ditLeBesoin(d.besoin)}
                   {/* L'année aussi (10 octobre 2026) : une demande de décembre pour

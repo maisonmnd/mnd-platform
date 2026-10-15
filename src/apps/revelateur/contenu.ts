@@ -185,6 +185,9 @@ export const COMMUN: Commun = {
     titre: 'Un prénom, un numéro. Nous vous rappelons.',
     ligne: 'Dites-nous simplement où vous en êtes. Nous vous répondons personnellement.',
     prenom: 'Votre prénom',
+    /* LE NOM, DANS SA CASE — 15 octobre 2026 : « créer des cases séparées
+       pour le nom et le prénom lors de la prise de RDV » (Yéman). */
+    nom: 'Votre nom',
     numero: 'Votre WhatsApp ou téléphone',
     besoin: 'Ce dont vous avez besoin',
     profil: 'Vous êtes',

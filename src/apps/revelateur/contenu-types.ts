@@ -217,6 +217,8 @@ export type Commun = {
   formulaire: {
     titre: string; ligne: string;
     prenom: string; numero: string; besoin: string; profil: string; consentement: string; bouton: string;
+    /** Le nom, dans sa case à lui à la réservation (15 octobre 2026). */
+    nom: string;
     besoins: { valeur: Besoin; texte: string }[]; profils: string[];
     erreurNumero: string; merci: { titre: string; texte: string };
     suite: [string, string][];
