@@ -1,0 +1,773 @@
+<title>Les apprenties de la Maison</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,400&family=Jost:wght@300;400;500&display=swap">
+<style>
+/* Une maquette à lire puis à trancher : le marché, la réponse de la Maison, la sélection, le questionnaire tel qu'il sera sur le site, le contrat, et les décisions.
+   Ivoire pour lire, indigo pour la Maison, cuivre pour ce qu'on décide ; jamais obsidienne. */
+:root {
+  --fond:#F6F1E7; --carte:#FFFDF9; --encre:#1E2150; --texte:#2A2722; --doux:#5E5750; --filet:#E3DACB;
+  --cuivre:#9A6036; --cuivre-clair:#F3E6D8; --vert:#2F6B4F; --vert-clair:#E3F0E8; --rouge:#8E2F2F; --rouge-clair:#F6E3E0;
+  --indigo-plein:#1E2150; --sur-indigo:#F6F1E7; --sur-indigo-doux:#C9C6DD;
+  --serif:"Cormorant Garamond", Georgia, "Times New Roman", serif; --sans:"Jost", system-ui, -apple-system, "Segoe UI", sans-serif;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --fond:#15173A; --carte:#1E2150; --encre:#F6F1E7; --texte:#E9E3D7; --doux:#B9B4C9; --filet:#2E3266;
+  --cuivre:#D6A06F; --cuivre-clair:#3A2E3A; --vert:#8FD1AE; --vert-clair:#1F3B3A; --rouge:#E7A1A1; --rouge-clair:#3B2433;
+  --indigo-plein:#0F1130; --sur-indigo:#F6F1E7; --sur-indigo-doux:#B9B4C9; color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --fond:#15173A; --carte:#1E2150; --encre:#F6F1E7; --texte:#E9E3D7; --doux:#B9B4C9; --filet:#2E3266;
+  --cuivre:#D6A06F; --cuivre-clair:#3A2E3A; --vert:#8FD1AE; --vert-clair:#1F3B3A; --rouge:#E7A1A1; --rouge-clair:#3B2433;
+  --indigo-plein:#0F1130; --sur-indigo:#F6F1E7; --sur-indigo-doux:#B9B4C9; color-scheme: dark; }
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { margin: 0; background: var(--fond); color: var(--texte); font: 300 16px/1.65 var(--sans);
+  padding-block: 28px 90px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.page { max-width: 900px; margin: 0 auto; display: grid; gap: 56px; }
+.page > * { min-width: 0; }
+section { display: grid; gap: 18px; scroll-margin-top: 16px; }
+section > * { min-width: 0; }
+.sur { font-size: 11.5px; letter-spacing: .18em; text-transform: uppercase; color: var(--cuivre); margin: 0; font-weight: 400; }
+h1 { font: 300 clamp(40px, 7vw, 66px)/1.02 var(--serif); color: var(--encre); margin: 8px 0 0; text-wrap: balance; }
+h2 { font: 400 clamp(28px, 4.4vw, 36px)/1.12 var(--serif); color: var(--encre); margin: 4px 0 0; text-wrap: balance; }
+h3 { font: 500 21px/1.22 var(--serif); color: var(--encre); margin: 0; text-wrap: balance; }
+p { margin: 0; }
+.chapeau { color: var(--doux); max-width: 68ch; margin-top: 14px; font-size: 17px; }
+.lu { max-width: 68ch; }
+.doux { color: var(--doux); }
+.petit { font-size: 14px; }
+a { color: var(--encre); text-underline-offset: 3px; text-decoration-color: var(--cuivre); }
+.sommaire { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 20px; }
+.sommaire a { font-size: 14px; text-decoration: none; border: 1px solid var(--filet); border-radius: 999px; padding: 4px 13px; background: var(--carte); }
+.sommaire a:hover { border-color: var(--cuivre); }
+.bandeau { background: var(--cuivre-clair); border-radius: 8px; padding: 10px 14px; font-size: 14.5px; }
+.bandeau b { font-weight: 500; }
+
+/* Le parcours d'aujourd'hui : une frise, parce que c'est une suite réelle d'années */
+.frise { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 0; border-top: 2px solid var(--filet); margin-top: 6px; }
+@media (max-width: 720px) { .frise { grid-template-columns: minmax(0, 1fr); border-top: 0; border-left: 2px solid var(--filet); } }
+.etape { padding: 14px 14px 0 0; position: relative; }
+.etape::before { content: ""; position: absolute; top: -7px; left: 0; width: 12px; height: 12px; border-radius: 50%; background: var(--fond); border: 2px solid var(--cuivre); }
+@media (max-width: 720px) { .etape { padding: 0 0 18px 18px; } .etape::before { top: 4px; left: -7px; } }
+.etape b { display: block; font: 500 13px/1.3 var(--sans); letter-spacing: .08em; text-transform: uppercase; color: var(--cuivre); }
+.etape span { display: block; font-size: 14.5px; margin-top: 4px; }
+
+.chiffres { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 190px), 1fr)); gap: 10px; }
+.chiffre { background: var(--carte); border: 1px solid var(--filet); border-radius: 8px; padding: 12px 14px; display: grid; gap: 2px; align-content: start; }
+.chiffre b { font: 300 34px/1.05 var(--sans); color: var(--encre); font-variant-numeric: lining-nums tabular-nums; }
+.chiffre span { font-size: 13.5px; color: var(--doux); }
+.chiffre small { font-size: 12px; color: var(--cuivre); }
+.lecture { border-left: 3px solid var(--cuivre); padding: 4px 0 4px 16px; font: 400 21px/1.35 var(--serif); color: var(--encre); max-width: 60ch; }
+.lecture small { display: block; font: 300 13px/1.5 var(--sans); color: var(--doux); margin-top: 6px; }
+
+.problemes { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 12px; }
+.probleme { background: var(--carte); border: 1px solid var(--filet); border-radius: 8px; padding: 14px 16px; display: grid; gap: 6px; align-content: start; }
+.probleme h3 { font-size: 19px; }
+.probleme p { font-size: 14.5px; color: var(--doux); }
+.probleme .suite { font-size: 13.5px; color: var(--texte); border-top: 1px solid var(--filet); padding-top: 6px; margin-top: 2px; }
+
+/* La réponse : avant / avec la Maison, ligne à ligne */
+.inverse { display: grid; gap: 0; border: 1px solid var(--filet); border-radius: 8px; overflow: clip; background: var(--carte); }
+.inverse .ligne { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr); border-top: 1px solid var(--filet); }
+.inverse .ligne:first-child { border-top: 0; }
+.inverse .ligne > div { padding: 11px 14px; font-size: 14.5px; }
+.inverse .ligne > div:first-child { color: var(--doux); text-decoration: line-through; text-decoration-color: color-mix(in srgb, var(--rouge) 55%, transparent); }
+.inverse .ligne > div:last-child { border-left: 1px solid var(--filet); }
+.inverse .tete > div { font-size: 11.5px; letter-spacing: .14em; text-transform: uppercase; text-decoration: none !important; color: var(--cuivre) !important; padding-block: 8px; }
+@media (max-width: 600px) { .inverse .ligne { grid-template-columns: minmax(0, 1fr); } .inverse .ligne > div:last-child { border-left: 0; padding-top: 0; } .inverse .tete { display: none; } }
+
+.programme { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr)); gap: 10px; }
+.semestre { background: var(--carte); border: 1px solid var(--filet); border-radius: 8px; padding: 12px 14px; display: grid; gap: 6px; align-content: start; }
+.semestre .quand { font-size: 12px; letter-spacing: .12em; text-transform: uppercase; color: var(--cuivre); }
+.semestre ul { margin: 0; padding-left: 18px; font-size: 14px; }
+.semestre li { margin: 2px 0; }
+.fon { font-variant: small-caps; letter-spacing: .04em; color: var(--doux); }
+.semestre.trois { border-style: dashed; }
+.legende { font-size: 13px; color: var(--doux); }
+
+/* La sélection */
+.etapes-sel { display: grid; gap: 8px; counter-reset: sel; }
+.sel { display: grid; grid-template-columns: 34px minmax(0, 1fr) auto; gap: 4px 12px; align-items: start; background: var(--carte); border: 1px solid var(--filet); border-radius: 8px; padding: 11px 14px; counter-increment: sel; }
+.sel::before { content: counter(sel); font: 400 24px/1 var(--serif); color: var(--cuivre); grid-row: span 2; }
+.sel b { font-weight: 500; color: var(--encre); }
+.sel .pts { font-size: 13px; color: var(--doux); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.sel p { grid-column: 2 / 4; font-size: 14px; color: var(--doux); }
+.criteres { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 12px; }
+.critere { border-top: 2px solid var(--encre); padding-top: 8px; display: grid; gap: 4px; }
+.critere b { font-weight: 500; color: var(--encre); }
+.critere span { font-size: 14px; color: var(--doux); }
+.elimine { background: var(--rouge-clair); border-radius: 8px; padding: 10px 14px; font-size: 14.5px; }
+.elimine b { font-weight: 500; color: var(--rouge); }
+.juriste { border: 1px solid var(--cuivre); border-radius: 8px; padding: 12px 14px; font-size: 14.5px; display: grid; gap: 6px; background: var(--carte); }
+.juriste b { color: var(--cuivre); font-weight: 500; }
+
+/* Le questionnaire, tel qu'il paraîtra sur maisonmnd.com */
+.ecran { border: 1px solid var(--filet); border-radius: 14px; overflow: clip; background: var(--carte); }
+.ecran-barre { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 9px 14px; background: var(--indigo-plein); color: var(--sur-indigo); font-size: 13px; flex-wrap: wrap; }
+.ecran-barre span { color: var(--sur-indigo-doux); }
+.ecran-corps { padding: 22px clamp(16px, 4vw, 34px) 28px; display: grid; gap: 18px; }
+.maquette-note { font-size: 12.5px; color: var(--cuivre); letter-spacing: .04em; }
+.pas { display: flex; gap: 6px; flex-wrap: wrap; }
+.pas span { font-size: 12.5px; border-radius: 999px; padding: 2px 10px; border: 1px solid var(--filet); color: var(--doux); }
+.pas span.fait { background: var(--vert-clair); border-color: var(--vert); color: var(--texte); }
+.pas span.ici { background: var(--encre); border-color: var(--encre); color: var(--fond); }
+form.questionnaire { display: grid; gap: 16px; }
+.etape-form { display: grid; gap: 14px; }
+.etape-form h3 { font-size: 26px; font-weight: 400; }
+.etape-form .aide { font-size: 14.5px; color: var(--doux); margin-top: -6px; }
+.champs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+@media (max-width: 560px) { .champs { grid-template-columns: minmax(0, 1fr); } }
+.champ { display: grid; gap: 5px; min-width: 0; }
+.champ label, .champ .titre { font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: var(--cuivre); }
+.champ small { font-size: 13px; color: var(--doux); }
+input[type="text"], input[type="tel"], input[type="email"], input[type="date"], select, textarea {
+  width: 100%; font: 300 16px/1.4 var(--sans); color: var(--texte); background: var(--fond); border: 1px solid var(--filet); border-radius: 6px; padding: 11px 12px; }
+textarea { resize: vertical; min-height: 96px; }
+textarea.lettre { min-height: 220px; }
+input:focus, select:focus, textarea:focus, button:focus-visible, .choix-ligne input:focus-visible { outline: 2px solid var(--cuivre); outline-offset: 2px; }
+.cases { display: flex; flex-wrap: wrap; gap: 8px; }
+.case { display: inline-flex; gap: 7px; align-items: center; border: 1px solid var(--filet); border-radius: 999px; padding: 5px 12px; font-size: 14.5px; cursor: pointer; background: var(--fond); }
+.case:has(input:checked) { border-color: var(--encre); background: var(--encre); color: var(--fond); }
+.case input { accent-color: var(--cuivre); margin: 0; }
+.compteur { font-size: 13px; color: var(--doux); font-variant-numeric: tabular-nums; }
+.compteur.ok { color: var(--vert); }
+.engagement { display: grid; grid-template-columns: 20px minmax(0, 1fr); gap: 10px; font-size: 14.5px; align-items: start; }
+.engagement input { margin-top: 4px; accent-color: var(--cuivre); width: 17px; height: 17px; }
+.avis { font-size: 14px; border-radius: 6px; padding: 8px 12px; background: var(--cuivre-clair); }
+.erreur { font-size: 14px; color: var(--rouge); }
+.boutons { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.btn { font: 400 14px var(--sans); letter-spacing: .14em; text-transform: uppercase; border-radius: 999px; padding: 12px 26px; border: 1px solid var(--cuivre); cursor: pointer; }
+.btn-plein { background: var(--cuivre); color: #FFFDF9; }
+.btn-lien { background: transparent; color: var(--encre); border-color: transparent; text-decoration: underline; text-underline-offset: 4px; text-decoration-color: var(--cuivre); padding-inline: 4px; }
+.recap { display: grid; gap: 8px; font-size: 14.5px; }
+.recap div { display: grid; grid-template-columns: minmax(110px, 30%) minmax(0, 1fr); gap: 10px; border-bottom: 1px solid var(--filet); padding-bottom: 6px; }
+.recap dt, .recap span:first-child { color: var(--doux); }
+.recu { display: grid; gap: 14px; text-align: left; }
+.recu ol { margin: 0; padding-left: 20px; display: grid; gap: 6px; font-size: 15px; }
+
+/* Au Trône */
+.trone { display: grid; grid-template-columns: 180px minmax(0, 1fr); border: 1px solid var(--filet); border-radius: 12px; overflow: clip; background: var(--carte); }
+@media (max-width: 680px) { .trone { grid-template-columns: minmax(0, 1fr); } .trone .nav { display: none; } }
+.trone .nav { background: var(--indigo-plein); color: var(--sur-indigo-doux); padding: 14px 10px; font-size: 13px; display: grid; gap: 4px; align-content: start; }
+.trone .nav b { color: var(--sur-indigo); font-weight: 400; background: color-mix(in srgb, var(--sur-indigo) 14%, transparent); border-radius: 6px; padding: 3px 8px; }
+.trone .nav span { padding: 3px 8px; }
+.trone .nav .g { font-size: 10.5px; letter-spacing: .14em; text-transform: uppercase; padding-top: 8px; }
+.trone .contenu { padding: 16px; display: grid; gap: 12px; }
+.onglets { display: flex; gap: 6px; flex-wrap: wrap; font-size: 13.5px; }
+.onglets span { border-bottom: 2px solid transparent; padding: 2px 4px; color: var(--doux); }
+.onglets span.actif { border-color: var(--cuivre); color: var(--encre); }
+.colonnes { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+@media (max-width: 680px) { .colonnes { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.colonne { background: var(--fond); border-radius: 8px; padding: 8px; display: grid; gap: 6px; align-content: start; min-height: 90px; }
+.colonne > span { font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--doux); }
+.carte-cand { background: var(--carte); border: 1px solid var(--filet); border-radius: 6px; padding: 7px 8px; font-size: 13px; display: grid; gap: 2px; }
+.carte-cand b { font-weight: 500; color: var(--encre); }
+.carte-cand small { color: var(--doux); font-size: 12px; }
+.carte-cand.ouverte { border-color: var(--cuivre); }
+.fiche { border: 1px solid var(--cuivre); border-radius: 8px; padding: 12px 14px; display: grid; gap: 10px; }
+.grille { width: 100%; border-collapse: collapse; font-size: 13.5px; font-variant-numeric: tabular-nums; }
+.grille th, .grille td { text-align: left; padding: 5px 6px; border-bottom: 1px solid var(--filet); }
+.grille th { font-weight: 400; color: var(--doux); font-size: 12px; letter-spacing: .08em; text-transform: uppercase; }
+.grille td.n { text-align: right; }
+.grille tr.total td { font-weight: 500; color: var(--encre); border-bottom: 0; }
+.tableau-defile { overflow-x: auto; }
+.pastille { display: inline-block; font-size: 12px; border-radius: 999px; padding: 1px 9px; background: var(--vert-clair); color: var(--vert); }
+
+/* Le contrat */
+.contrat { background: var(--carte); border: 1px solid var(--filet); border-radius: 8px; padding: clamp(16px, 4vw, 34px); display: grid; gap: 12px; font-size: 15px; }
+.contrat .entete { text-align: center; display: grid; gap: 4px; }
+.contrat .entete b { font: 500 22px/1.2 var(--serif); color: var(--encre); letter-spacing: .02em; }
+.contrat .entete span { font-size: 13px; color: var(--doux); }
+.contrat details { border-top: 1px solid var(--filet); padding-top: 8px; }
+.contrat summary { cursor: pointer; font: 500 17px/1.3 var(--serif); color: var(--encre); list-style-position: outside; }
+.contrat details > div { display: grid; gap: 8px; padding: 8px 0 4px; }
+.contrat .ref { font-size: 12.5px; color: var(--cuivre); }
+.v { border-radius: 4px; padding: 0 4px; -webkit-box-decoration-break: clone; box-decoration-break: clone; }
+.v.q { background: var(--vert-clair); }
+.v.s { background: var(--cuivre-clair); }
+.v.d { background: color-mix(in srgb, var(--encre) 12%, transparent); }
+.cles { display: flex; flex-wrap: wrap; gap: 8px 16px; font-size: 13px; color: var(--doux); }
+.pieces { display: grid; gap: 4px; font-size: 14.5px; padding-left: 20px; margin: 0; }
+
+/* Les décisions */
+.decisions { display: grid; gap: 12px; }
+.decision { background: var(--carte); border: 1px solid var(--filet); border-left: 3px solid var(--filet); border-radius: 8px; padding: 14px 16px; display: grid; gap: 8px; }
+.decision.tranchee { border-left-color: var(--cuivre); }
+.decision p.pq { font-size: 14px; color: var(--doux); }
+.choix-ligne { display: grid; grid-template-columns: 20px minmax(0, 1fr); gap: 8px; align-items: start; font-size: 14.5px; cursor: pointer; padding: 4px 0; }
+.choix-ligne input { margin-top: 4px; accent-color: var(--cuivre); width: 16px; height: 16px; }
+.choix-ligne em { font-style: normal; font-size: 12.5px; color: var(--cuivre); }
+.choix-ligne small { display: block; font-size: 13px; color: var(--doux); }
+.etat { font-size: 12.5px; color: var(--vert); min-height: 1.2em; }
+.cout { font-size: 13.5px; background: var(--fond); border-radius: 6px; padding: 8px 10px; font-variant-numeric: tabular-nums; }
+.sources { font-size: 13.5px; color: var(--doux); display: grid; gap: 6px; padding-left: 20px; margin: 0; }
+.avancee { display: flex; align-items: center; gap: 12px; font-size: 14px; color: var(--doux); }
+.avancee i { flex: 1; height: 6px; border-radius: 999px; background: var(--filet); overflow: hidden; display: block; }
+.avancee i b { display: block; height: 100%; background: var(--cuivre); width: 0; transition: width .2s; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div class="page">
+
+<header>
+  <p class="sur">Maison MND · Maquette à valider · 15 octobre 2026</p>
+  <h1>Les apprenties de la Maison</h1>
+  <p class="chapeau">Un apprentissage de deux ou trois ans pour former nos élites. Le marché d’aujourd’hui, ce qui ne va pas, ce que la Maison fait autrement, puis le questionnaire tel qu’il paraîtra sur le site, la façon dont il arrive au Trône, et le contrat qu’il prépare. Rien n’est construit : vos choix, en bas de page, décident de ce que je construis.</p>
+  <nav class="sommaire" aria-label="Sommaire">
+    <a href="#marche">Le marché</a><a href="#problemes">Les problèmes</a><a href="#reponse">Notre réponse</a><a href="#selection">La sélection</a><a href="#questionnaire">Le questionnaire</a><a href="#trone">Au Trône</a><a href="#contrat">Le contrat</a><a href="#decider">À décider</a>
+  </nav>
+</header>
+
+<section id="marche" aria-labelledby="t-marche">
+  <p class="sur">Le marché</p>
+  <h2 id="t-marche">Cinq ans d’atelier, un diplôme, et toujours pas le métier</h2>
+  <p class="lu">Ce que vous voyez chaque jour à Cotonou, mis bout à bout :</p>
+  <div class="frise" role="list">
+    <div class="etape" role="listitem"><b>12 à 15 ans</b><span>Elle quitte l’école en 6e ou en 4e.</span></div>
+    <div class="etape" role="listitem"><b>L’entrée</b><span>Chez une patronne du quartier, souvent en payant des frais d’entrée.</span></div>
+    <div class="etape" role="listitem"><b>3 à 5 ans</b><span>Elle lave, balaie, tient la tête, regarde. La durée suit les besoins de l’atelier.</span></div>
+    <div class="etape" role="listitem"><b>La libération</b><span>Cérémonie, dot, frais : on paie pour partir.</span></div>
+    <div class="etape" role="listitem"><b>Le diplôme</b><span>Le CQM, puis un petit atelier ou du travail à la tâche.</span></div>
+  </div>
+  <div class="chiffres">
+    <div class="chiffre"><b>96 %</b><span>des candidats au CQM admis, de 2013 à 2020 (120 658 sur 127 840)</span><small>OIT, contribution du Bénin, 2025</small></div>
+    <div class="chiffre"><b>15 000</b><span>« jeunes qualifiés » par an par le CQM, tous métiers confondus</span><small>même source</small></div>
+    <div class="chiffre"><b>4 ans</b><span>durée maximale d’un contrat d’apprentissage</span><small>Code du travail, art. 65</small></div>
+    <div class="chiffre"><b>12 500 F</b><span>les frais d’examen du CQM, payés en ligne</span><small>Chambre des Métiers, 2025</small></div>
+  </div>
+  <p class="lecture">Un examen que presque toutes réussissent ne sépare pas celles qui savent de celles qui ont seulement duré.<small>Notre lecture des chiffres. Le texte de l’OIT le dit lui-même : le CQM a été « conçu pour répondre au besoin de reconnaissance sociale » des artisans. Avant lui, la patronne formait et diplômait seule : « il dansait et s’applaudissait en même temps ».</small></p>
+  <p class="lu doux petit">La loi existe pourtant : le contrat d’apprentissage doit être écrit, en français, en quatre exemplaires, et visé par les services du ministère du Travail, à peine de nullité (art. 65). Dans les ateliers, il reste presque toujours oral. Et en avril 2026 encore, l’administration a dû interdire aux maîtres d’exiger des apprentis d’autres frais que l’examen.</p>
+</section>
+
+<section id="problemes" aria-labelledby="t-problemes">
+  <p class="sur">Les problèmes</p>
+  <h2 id="t-problemes">Pourquoi elles restent incompétentes</h2>
+  <div class="problemes">
+    <article class="probleme"><h3>L’école s’est arrêtée trop tôt</h3><p>Lire une notice, doser un produit, rendre la monnaie, écrire à une cliente : à 13 ans, ces bases ne sont pas acquises, et l’atelier ne les rattrape jamais.</p><p class="suite">Une cliente premium le voit en une phrase.</p></article>
+    <article class="probleme"><h3>Le temps sert l’atelier</h3><p>Les premières années, l’apprentie est une main-d’œuvre gratuite. Sa durée se fixe sur les besoins de la patronne, pas sur ce qu’elle sait faire.</p><p class="suite">Cinq ans de présence ne font pas cinq ans d’apprentissage.</p></article>
+    <article class="probleme"><h3>Personne n’enseigne</h3><p>Pas de programme écrit, pas d’étapes, pas de notes. On apprend en regardant. La patronne garde ses meilleurs gestes : elle forme sa future concurrente.</p><p class="suite">Le savoir s’arrête là où commence la peur.</p></article>
+    <article class="probleme"><h3>Elle paie pour apprendre</h3><p>Frais d’entrée, frais de formation, dot et cérémonie de libération : des pratiques que les artisans eux-mêmes ont voulu supprimer, et qui durent.</p><p class="suite">Elle sort endettée, sa famille aussi.</p></article>
+    <article class="probleme"><h3>Le diplôme ne mesure pas le niveau</h3><p>96 % de réussite au CQM. L’examen certifie un parcours, pas une maîtrise : celle qui n’a jamais créé une couronne a le même papier que celle qui excelle.</p><p class="suite">Le recruteur ne peut pas s’y fier.</p></article>
+    <article class="probleme"><h3>Hygiène, produits, cuir chevelu</h3><p>La propreté des outils, les produits, la traction, ce qu’on ne fait pas sur un cuir chevelu irrité : rien n’est expliqué, tout se répète.</p><p class="suite">Les erreurs se transmettent comme des gestes.</p></article>
+    <article class="probleme"><h3>Le service premium ne s’apprend nulle part</h3><p>L’accueil, l’heure tenue, la discrétion, le conseil, le prix annoncé, le suivi : ce qu’une cliente exigeante paie, aucun atelier ne l’enseigne.</p><p class="suite">C’est pourtant notre métier.</p></article>
+    <article class="probleme"><h3>Les locks sont un métier à part</h3><p>Créer, entretenir, réparer, lire un calibre : les ateliers forment surtout aux tresses et aux tissages. La spécialiste des locks n’existe presque pas.</p><p class="suite">La Maison ne la trouve pas : elle doit la former.</p></article>
+  </div>
+</section>
+
+<section id="reponse" aria-labelledby="t-reponse">
+  <p class="sur">Notre réponse</p>
+  <h2 id="t-reponse"><span data-v="nom-programme">L’apprentissage MND</span> : tout l’inverse, ligne à ligne</h2>
+  <div class="inverse" role="table" aria-label="Le marché et la Maison">
+    <div class="ligne tete" role="row"><div role="columnheader">Ailleurs</div><div role="columnheader">À la Maison MND</div></div>
+    <div class="ligne" role="row"><div role="cell">Tout le monde entre</div><div role="cell">Une sélection en six étapes, une promotion de <span data-v="promotion">4</span> par an</div></div>
+    <div class="ligne" role="row"><div role="cell">L’apprentie paie la patronne</div><div role="cell">La Maison paie l’apprentie : une allocation qui monte chaque année. Aucun frais, aucune libération, jamais</div></div>
+    <div class="ligne" role="row"><div role="cell">Un contrat oral</div><div role="cell">Un contrat écrit, en quatre exemplaires, visé par le ministère du Travail (art. 65)</div></div>
+    <div class="ligne" role="row"><div role="cell">On apprend en regardant</div><div role="cell">Un programme écrit par semestre, sur les vrais gestes de la carte, et une journée de cours par semaine à l’Académie MND</div></div>
+    <div class="ligne" role="row"><div role="cell">La durée suit l’atelier</div><div role="cell"><span data-v="duree">Deux ans avec une expérience, trois ans pour une débutante</span>, et chaque semestre s’évalue</div></div>
+    <div class="ligne" role="row"><div role="cell">Un diplôme que presque toutes ont</div><div role="cell">Le certificat de l’Académie MND, qu’on ne donne pas, puis la présentation au CQM pour le titre national</div></div>
+    <div class="ligne" role="row"><div role="cell">À la sortie, un petit atelier sans moyens</div><div role="cell">Les meilleures restent à la Maison ; les autres partent avec un vrai métier et une vraie référence</div></div>
+  </div>
+
+  <h3>Le programme, semestre par semestre</h3>
+  <p class="lu doux petit">Chaque geste se valide sur la grille des compétences du Trône : en formation, autonome, référente. Les noms sont ceux de la carte de la Maison.</p>
+  <div class="programme">
+    <div class="semestre"><span class="quand">Semestre 1</span><h3>L’accueil et le soin</h3><ul><li>Accueil, tenue, heure, discrétion</li><li>Hygiène des outils et du poste</li><li>Le Lavage Rituel <span class="fon">klɔklɔ</span></li><li>Le Soin Hydratant <span class="fon">dàndàn</span>, La Purification <span class="fon">wèwè</span></li><li>Observer le Diagnostic <span class="fon">kòkò</span></li></ul></div>
+    <div class="semestre"><span class="quand">Semestre 2</span><h3>La vie des locks</h3><ul><li>La Vie <span class="fon">gbèjí</span> : l’entretien, la reprise des racines</li><li>La Reprise Frontale</li><li>Le styling signature</li><li>Tenir la fiche de la cliente au Trône</li></ul></div>
+    <div class="semestre"><span class="quand">Semestre 3</span><h3>La naissance</h3><ul><li>La Naissance <span class="fon">vèkpè</span> : créer une couronne</li><li>Lire et respecter un calibre</li><li>Assister au Diagnostic, puis le mener à deux</li></ul></div>
+    <div class="semestre"><span class="quand">Semestre 4</span><h3>La lumière et la renaissance</h3><ul><li>La Lumière <span class="fon">yèkpè</span></li><li>La Renaissance <span class="fon">fínfín</span>, la reconstruction <span class="fon">gbìgbì</span></li><li>Le Défaisage <span class="fon">gbàtà</span></li><li>Fin du parcours en deux ans</li></ul></div>
+    <div class="semestre trois"><span class="quand">Semestres 5 et 6</span><h3>L’autonomie</h3><ul><li>Le Diagnostic seule</li><li>Ses propres clientes, sous l’œil d’une référente</li><li>Former la promotion suivante</li><li>Présentation au CQM</li></ul></div>
+  </div>
+  <p class="legende">En pointillé : le parcours de trois ans seulement. À l’Académie, chaque semaine : le français et le calcul du métier, les produits et le cuir chevelu, l’hygiène, l’accueil premium, la carte et les rituels de la Maison. Un écrit et un pratique à la fin de chaque semestre.</p>
+</section>
+
+<section id="selection" aria-labelledby="t-selection">
+  <p class="sur">La sélection</p>
+  <h2 id="t-selection">La barre haute, et dite d’avance</h2>
+  <div class="criteres">
+    <div class="critere"><b>Lire, écrire, compter en français</b><span>Pas forcément un diplôme : une page lue à voix haute, un dosage calculé, un message écrit à une cliente, à l’entretien.</span></div>
+    <div class="critere"><b>Une vraie motivation, écrite par elle</b><span>Le questionnaire et la lettre. Une lettre copiée ou écrite par une autre se voit à l’entretien, où elle en écrit une page à la main.</span></div>
+    <div class="critere"><b>Des mains et un œil</b><span>L’essai pratique sur une tête d’étude, noté sur la grille de la Maison. Aucune expérience exigée : on regarde le soin, la patience, la régularité.</span></div>
+    <div class="critere"><b>La tenue et l’heure</b><span>À l’entretien, l’heure se tient. La présentation, la parole, l’écoute comptent autant que le geste.</span></div>
+    <div class="critere"><b>La disponibilité entière</b><span>Deux ou trois ans à temps plein, cinq jours sur sept, et habiter à portée de la Maison.</span></div>
+    <div class="critere"><b>Le public visé</b><span>Les jeunes femmes de 18 à 23 ans, comme vous l’avez voulu. Voir l’encadré juste dessous.</span></div>
+  </div>
+  <div class="juriste">
+    <b>À faire valider par un juriste avant la mise en ligne</b>
+    <p>L’article 4 du Code du travail interdit à un employeur de tenir compte du sexe ou de l’âge pour l’embauche et la formation professionnelle, et l’article 1 l’applique aux apprentis. Écrire « jeunes femmes de 18 à 23 ans » comme public visé, dans l’annonce, est une chose ; refuser d’office un dossier pour son âge ou son sexe en est une autre. Je propose : la page s’adresse à elles, le questionnaire n’écarte personne seul, et la sélection juge le niveau. Votre choix est en bas de page.</p>
+  </div>
+  <h3>Six étapes, notées sur 100</h3>
+  <div class="etapes-sel">
+    <div class="sel"><b>Le dossier en ligne</b><span class="pts">20 points</span><p>Le questionnaire et la lettre. Réponse à chacune sous dix jours, retenue ou non.</p></div>
+    <div class="sel"><b>L’appel</b><span class="pts">10 points</span><p>Quinze minutes au téléphone : la voix, la clarté, les disponibilités.</p></div>
+    <div class="sel"><b>L’entretien et l’écrit</b><span class="pts">25 points</span><p>Une heure trente à la Maison : lire une notice de produit, calculer un dosage et une monnaie, écrire une page à la main, parler de soi.</p></div>
+    <div class="sel"><b>L’essai pratique</b><span class="pts">25 points</span><p>Une heure sur une tête d’étude, noté sur la grille de la Maison par deux maîtres.</p></div>
+    <div class="sel"><b>La semaine d’immersion</b><span class="pts">20 points</span><p>Cinq jours dans la Maison, au côté des maîtres : l’heure, l’attitude, l’envie d’apprendre, la place dans l’équipe.</p></div>
+    <div class="sel"><b>Le comité et le contrat</b><span class="pts">seuil 70 / 100</span><p>Yéman et Brice décident. Puis la visite médicale, la signature en quatre exemplaires, et le visa du ministère.</p></div>
+  </div>
+  <p class="elimine"><b>Éliminatoire, à toute étape :</b> une absence sans prévenir, un retard sans un mot, une lettre qui n’est pas d’elle, un mensonge sur le parcours.</p>
+</section>
+
+<section id="questionnaire" aria-labelledby="t-questionnaire">
+  <p class="sur">Le questionnaire</p>
+  <h2 id="t-questionnaire">Sur le site, en six pas</h2>
+  <p class="lu doux">Essayez-le : il marche comme il marchera sur maisonmnd.com. Ici, rien ne part.</p>
+  <div class="ecran">
+    <div class="ecran-barre">maisonmnd.com<span>/apprentissage/candidature/</span></div>
+    <div class="ecran-corps">
+      <p class="maquette-note">Maquette · aucune donnée n’est envoyée</p>
+      <div>
+        <p class="sur">Candidature · <span data-v="nom-programme">L’apprentissage MND</span></p>
+        <h3 style="font-size:clamp(28px,5vw,40px);font-weight:300;margin-top:6px">Devenir apprentie de la Maison MND.</h3>
+        <p class="doux" style="margin-top:8px;max-width:60ch">Une promotion de <span data-v="promotion">4</span> par an. <span data-v="duree-court">Deux ou trois ans</span>, une allocation chaque mois, aucun frais à payer. Nous lisons chaque dossier. Prenez le temps : vingt minutes environ.</p>
+      </div>
+      <div class="pas" id="pas" aria-label="Les étapes du questionnaire"></div>
+      <form class="questionnaire" id="questionnaire" novalidate>
+        <div class="etape-form" data-pas="0">
+          <h3>Vous</h3>
+          <p class="aide">Écrivez comme sur votre pièce d’identité.</p>
+          <div class="champs">
+            <div class="champ"><label for="q-prenom">Prénom</label><input type="text" id="q-prenom" autocomplete="given-name" required></div>
+            <div class="champ"><label for="q-nom">Nom</label><input type="text" id="q-nom" autocomplete="family-name" required></div>
+            <div class="champ"><label for="q-naissance">Date de naissance</label><input type="date" id="q-naissance" required><small id="q-age"></small></div>
+            <div class="champ"><label for="q-quartier">Quartier et commune</label><input type="text" id="q-quartier" placeholder="Fidjrossè, Cotonou" required></div>
+            <div class="champ"><label for="q-tel">WhatsApp</label><input type="tel" id="q-tel" inputmode="tel" autocomplete="tel" placeholder="+229 01 00 00 00 00" required></div>
+            <div class="champ"><label for="q-mail">E-mail <span style="text-transform:none;letter-spacing:0">(si vous en avez un)</span></label><input type="email" id="q-mail" autocomplete="email"></div>
+          </div>
+          <div class="champ"><span class="titre">Comment nous avez-vous connue ?</span>
+            <div class="cases" role="group" aria-label="Comment nous avez-vous connue ?">
+              <label class="case"><input type="radio" name="q-source" value="Instagram">Instagram</label>
+              <label class="case"><input type="radio" name="q-source" value="Facebook">Facebook</label>
+              <label class="case"><input type="radio" name="q-source" value="Une cliente">Une cliente</label>
+              <label class="case"><input type="radio" name="q-source" value="Une personne de la Maison">Une personne de la Maison</label>
+              <label class="case"><input type="radio" name="q-source" value="Autre">Autre</label>
+            </div></div>
+        </div>
+
+        <div class="etape-form" data-pas="1" hidden>
+          <h3>Votre parcours scolaire</h3>
+          <p class="aide">Une scolarité courte n’empêche pas de candidater. Dites-la telle qu’elle est.</p>
+          <div class="champs">
+            <div class="champ"><label for="q-classe">Dernière classe suivie</label>
+              <select id="q-classe" required><option value="">Choisir</option><option>CI à CM2</option><option>6e</option><option>5e</option><option>4e</option><option>3e</option><option>2nde</option><option>1ère</option><option>Terminale</option><option>Université</option><option>Formation professionnelle</option><option>Jamais scolarisée</option></select></div>
+            <div class="champ"><label for="q-diplome">Diplôme le plus haut</label>
+              <select id="q-diplome" required><option value="">Choisir</option><option>Aucun</option><option>CEP</option><option>BEPC</option><option>BAC</option><option>Licence ou plus</option><option>CQM ou CQP</option><option>Autre</option></select></div>
+            <div class="champ"><label for="q-annee">L’année où vous avez arrêté</label><input type="text" id="q-annee" inputmode="numeric" placeholder="2019"></div>
+            <div class="champ"><span class="titre">Les langues que vous parlez</span>
+              <div class="cases" role="group" aria-label="Langues parlées">
+                <label class="case"><input type="checkbox" name="q-langues" value="Français">Français</label>
+                <label class="case"><input type="checkbox" name="q-langues" value="Fon">Fon</label>
+                <label class="case"><input type="checkbox" name="q-langues" value="Yoruba">Yoruba</label>
+                <label class="case"><input type="checkbox" name="q-langues" value="Mina">Mina</label>
+                <label class="case"><input type="checkbox" name="q-langues" value="Anglais">Anglais</label>
+              </div></div>
+          </div>
+          <div class="champ"><label for="q-pourquoi-arret">Pourquoi l’école s’est-elle arrêtée ? <span style="text-transform:none;letter-spacing:0">(facultatif)</span></label><textarea id="q-pourquoi-arret" rows="3"></textarea></div>
+        </div>
+
+        <div class="etape-form" data-pas="2" hidden>
+          <h3>Votre expérience</h3>
+          <p class="aide">Aucune expérience n’est exigée : nous formons. Mais dites-nous ce que vous savez déjà.</p>
+          <div class="champ"><span class="titre">Avez-vous déjà appris chez une coiffeuse ?</span>
+            <div class="cases" role="group" aria-label="Apprentissage déjà suivi">
+              <label class="case"><input type="radio" name="q-deja" value="non">Non, jamais</label>
+              <label class="case"><input type="radio" name="q-deja" value="en-cours">Oui, je suis encore apprentie</label>
+              <label class="case"><input type="radio" name="q-deja" value="termine">Oui, j’ai terminé</label>
+            </div></div>
+          <div class="champs">
+            <div class="champ"><label for="q-duree-exp">Combien de temps ?</label><input type="text" id="q-duree-exp" placeholder="2 ans et demi"></div>
+            <div class="champ"><label for="q-ou">Où, et chez qui ? <span style="text-transform:none;letter-spacing:0">(facultatif)</span></label><input type="text" id="q-ou"></div>
+          </div>
+          <div class="champ"><span class="titre">Les gestes que vous savez déjà faire</span>
+            <div class="cases" role="group" aria-label="Gestes déjà pratiqués">
+              <label class="case"><input type="checkbox" name="q-gestes" value="Shampoing et soins">Shampoing et soins</label>
+              <label class="case"><input type="checkbox" name="q-gestes" value="Tresses et nattes">Tresses et nattes</label>
+              <label class="case"><input type="checkbox" name="q-gestes" value="Tissage">Tissage</label>
+              <label class="case"><input type="checkbox" name="q-gestes" value="Entretien de locks">Entretien de locks</label>
+              <label class="case"><input type="checkbox" name="q-gestes" value="Création de locks">Création de locks</label>
+              <label class="case"><input type="checkbox" name="q-gestes" value="Coloration">Coloration</label>
+              <label class="case"><input type="checkbox" name="q-gestes" value="Rien encore">Rien encore</label>
+            </div></div>
+          <div class="champ"><label for="q-autre-travail">Avez-vous travaillé ailleurs ? Commerce, couture, garde d’enfants, études… <span style="text-transform:none;letter-spacing:0">(facultatif)</span></label><textarea id="q-autre-travail" rows="3"></textarea></div>
+        </div>
+
+        <div class="etape-form" data-pas="3" hidden>
+          <h3>Vos motivations</h3>
+          <p class="aide">Quelques phrases pour chacune. Nous cherchons votre voix, pas de belles formules.</p>
+          <div class="champ"><label for="q-m1">Pourquoi la coiffure, et pourquoi les locks ?</label><textarea id="q-m1" rows="3" data-min="80" required></textarea><span class="compteur" data-pour="q-m1"></span></div>
+          <div class="champ"><label for="q-m2">Pourquoi la Maison MND, et pas une autre ?</label><textarea id="q-m2" rows="3" data-min="80" required></textarea><span class="compteur" data-pour="q-m2"></span></div>
+          <div class="champ"><label for="q-m3">Où vous voyez-vous dans cinq ans ?</label><textarea id="q-m3" rows="3" data-min="60" required></textarea><span class="compteur" data-pour="q-m3"></span></div>
+        </div>
+
+        <div class="etape-form" data-pas="4" hidden>
+          <h3>Pourquoi vous retenir</h3>
+          <p class="aide">La Maison forme peu de personnes. Dites-nous pourquoi vous.</p>
+          <div class="champ"><label for="q-r1">Une qualité que vous avez, et une preuve</label><textarea id="q-r1" rows="3" data-min="60" required></textarea><span class="compteur" data-pour="q-r1"></span></div>
+          <div class="champ"><label for="q-r2">Une difficulté que vous avez surmontée</label><textarea id="q-r2" rows="3" data-min="60" required></textarea><span class="compteur" data-pour="q-r2"></span></div>
+          <div class="champ"><span class="titre">Votre disponibilité</span>
+            <div class="cases" role="group" aria-label="Disponibilité">
+              <label class="case"><input type="radio" name="q-dispo" value="entiere">Entière, cinq jours sur sept, pour deux ou trois ans</label>
+              <label class="case"><input type="radio" name="q-dispo" value="partielle">Pas entière pour l’instant</label>
+            </div><small id="q-dispo-dit"></small></div>
+          <label class="engagement"><input type="checkbox" id="q-e1"><span>Je m’engage, si je suis retenue, à tenir l’heure, la tenue et la discrétion de la Maison.</span></label>
+        </div>
+
+        <div class="etape-form" data-pas="5" hidden>
+          <h3>Votre lettre</h3>
+          <p class="aide">À la Maison MND, en vos mots : qui vous êtes, ce que vous voulez apprendre, ce que vous apporterez. Entre 150 et 400 mots. À l’entretien, vous en écrirez une page à la main.</p>
+          <div class="champ"><label for="q-lettre">Lettre de motivation</label><textarea id="q-lettre" class="lettre" required></textarea><span class="compteur" id="q-mots"></span></div>
+          <label class="engagement"><input type="checkbox" id="q-e2"><span>Cette lettre est de moi. Je sais qu’une lettre écrite par une autre personne écarte ma candidature.</span></label>
+          <label class="engagement"><input type="checkbox" id="q-e3"><span>La Maison MND peut garder ma candidature <span data-v="garde">douze mois</span> pour l’étudier et me répondre, puis l’efface. Rien d’autre.</span></label>
+          <div class="recap" id="recap" aria-label="Récapitulatif"></div>
+        </div>
+
+        <div class="recu" id="recu" hidden>
+          <p class="sur">Candidature reçue</p>
+          <h3 style="font-size:32px;font-weight:300" id="recu-titre">Merci. Nous lisons votre dossier.</h3>
+          <ol>
+            <li>Sous dix jours, la Maison vous répond sur WhatsApp, retenue ou non.</li>
+            <li>Si votre dossier est retenu : un appel de quinze minutes.</li>
+            <li>Puis l’entretien et l’écrit à la Maison, l’essai pratique, la semaine d’immersion.</li>
+            <li>La décision, et pour les retenues, le contrat.</li>
+          </ol>
+          <p class="doux petit">Aucun frais ne vous sera jamais demandé, à aucune étape.</p>
+          <div class="boutons"><button type="button" class="btn btn-lien" id="recommencer">Recommencer la maquette</button></div>
+        </div>
+
+        <p class="erreur" id="q-erreur" role="alert"></p>
+        <div class="boutons" id="q-boutons">
+          <button type="button" class="btn btn-lien" id="q-retour">Retour</button>
+          <button type="submit" class="btn btn-plein" id="q-suite">Continuer</button>
+          <button type="button" class="btn btn-lien" id="q-exemple">Remplir un exemple</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</section>
+
+<section id="trone" aria-labelledby="t-trone">
+  <p class="sur">Au Trône</p>
+  <h2 id="t-trone">Le dossier arrive dans le recrutement, déjà classé</h2>
+  <p class="lu doux">L’écran existe depuis le 14 octobre 2026 : Ressources humaines › Recrutement, avec ses colonnes Reçue, Appel, Essai pratique, Décision. La candidature du site y entre seule, sur le poste « Apprentie · promotion <span data-v="annee">2027</span> », avec tout son dossier. J’y ajoute la grille de sélection sur 100 et le bouton qui prépare le contrat.</p>
+  <div class="trone" aria-label="Aperçu du Trône">
+    <div class="nav"><span class="g">Ressources humaines</span><b>Recrutement</b><span>Personnel</span><span>Les prêts au personnel</span><span class="g">Administration</span><span>Secrétariat</span></div>
+    <div class="contenu">
+      <div class="onglets"><span class="actif">Apprentie · promotion <span data-v="annee">2027</span></span><span>Coiffeuse confirmée</span></div>
+      <div class="colonnes">
+        <div class="colonne"><span>Reçue · 3</span><div class="carte-cand ouverte"><b>Exemple : A. K.</b><small>21 ans · BEPC · 18 points</small></div><div class="carte-cand"><b>Exemple : F. D.</b><small>19 ans · 4e · 15 points</small></div></div>
+        <div class="colonne"><span>Appel · 1</span><div class="carte-cand"><b>Exemple : G. H.</b><small>22 ans · BAC · appel jeudi</small></div></div>
+        <div class="colonne"><span>Essai pratique · 1</span><div class="carte-cand"><b>Exemple : M. A.</b><small>20 ans · 61 points</small></div></div>
+        <div class="colonne"><span>Décision</span></div>
+      </div>
+      <div class="fiche">
+        <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:baseline"><h3>Exemple : A. K., 21 ans</h3><span class="pastille">Dossier complet</span></div>
+        <div class="onglets"><span class="actif">La grille</span><span>Le dossier</span><span>La lettre</span><span>Les messages</span></div>
+        <div class="tableau-defile">
+          <table class="grille">
+            <thead><tr><th>Étape</th><th>Note</th><th>Sur</th><th>Par</th></tr></thead>
+            <tbody>
+              <tr><td>Le dossier en ligne</td><td class="n">18</td><td class="n">20</td><td>Yéman</td></tr>
+              <tr><td>L’appel</td><td class="n">·</td><td class="n">10</td><td></td></tr>
+              <tr><td>L’entretien et l’écrit</td><td class="n">·</td><td class="n">25</td><td></td></tr>
+              <tr><td>L’essai pratique</td><td class="n">·</td><td class="n">25</td><td></td></tr>
+              <tr><td>La semaine d’immersion</td><td class="n">·</td><td class="n">20</td><td></td></tr>
+              <tr class="total"><td>Total, seuil 70</td><td class="n">18</td><td class="n">100</td><td></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="boutons"><button type="button" class="btn btn-lien" disabled>Préparer le contrat d’apprentissage</button><span class="doux petit">s’ouvre quand le total atteint le seuil et que le comité a dit oui</span></div>
+      </div>
+    </div>
+  </div>
+  <p class="doux petit">Les cartes sont des exemples, aux initiales. La réponse à chacune part sur WhatsApp depuis la fiche, retenue ou non, comme pour toute candidature du recrutement. Les dossiers non retenus se proposent à l’effacement après la durée de garde.</p>
+</section>
+
+<section id="contrat" aria-labelledby="t-contrat">
+  <p class="sur">Le contrat</p>
+  <h2 id="t-contrat">Le contrat d’apprentissage, prérempli depuis le dossier</h2>
+  <p class="bandeau"><b>Projet à faire relire</b> par un juriste ou l’inspection du travail avant la première signature : le décret d’application (n° 2008-423) précise des points que le Code laisse ouverts, comme la période d’essai et les motifs de rupture. Le modèle vivra au Secrétariat, famille Contrats, marqué « à faire relire » comme les autres contrats.</p>
+  <div class="cles"><span><span class="v q">vert</span> vient du questionnaire</span><span><span class="v d">indigo</span> vient de vos décisions</span><span><span class="v s">cuivre</span> se remplit à la signature</span></div>
+  <div class="contrat">
+    <div class="entete"><b>Contrat d’apprentissage</b><span>Loi n° 98-004 du 27 janvier 1998 portant Code du travail, articles 64 à 70</span></div>
+    <p><b>Entre</b> <span class="v s">la Maison : dénomination, RCCM, IFU, adresse, selon l’identité choisie au Trône</span>, représentée par <span class="v s">nom et qualité</span>, ci-après « la Maison » ;</p>
+    <p><b>Et</b> <span class="v q">Prénom NOM</span>, née le <span class="v q">date de naissance</span>, demeurant à <span class="v q">quartier et commune</span>, ci-après « l’apprentie » ;</p>
+    <p>Père, mère ou tuteur de l’apprentie : <span class="v s">nom, prénoms, profession, âge et domicile</span> (art. 65, 3°).</p>
+    <details open><summary>Article 1 · Objet</summary><div><p>La Maison s’engage à donner à l’apprentie une formation professionnelle méthodique et complète au métier de coiffeuse spécialiste des locks, selon le programme annexé. L’apprentie s’engage à se conformer aux instructions reçues et à exécuter les ouvrages qui lui sont confiés dans le cadre de son apprentissage.</p><p class="ref">Art. 64 et 65, 4°</p></div></details>
+    <details><summary>Article 2 · Durée</summary><div><p>Le contrat est conclu pour <span class="v d" data-v="duree-contrat">deux ans ou trois ans, selon le parcours retenu</span>, du <span class="v s">date de début</span> au <span class="v s">date de fin</span>. Les deux premiers mois valent période d’essai <span class="v s">à confirmer au décret</span>.</p><p class="ref">Art. 65, 5° : la durée ne peut excéder quatre ans</p></div></details>
+    <details><summary>Article 3 · Lieu et temps</summary><div><p>L’apprentissage se déroule à la Maison MND, <span class="v s">adresse</span>, quarante heures par semaine, dont une journée de cours à l’Académie MND. Le planning se donne une semaine à l’avance.</p><p class="ref">Art. 142 : quarante heures ; art. 65, 6° : les cours professionnels</p></div></details>
+    <details><summary>Article 4 · Programme et évaluations</summary><div><p>Le programme annexé fixe les gestes de chaque semestre. Chaque geste se note sur la grille de la Maison (en formation, autonome, référente). Un écrit et un pratique ferment chaque semestre ; le carnet de suivi est signé par les deux parties.</p></div></details>
+    <details><summary>Article 5 · Engagements de la Maison</summary><div><p>Former l’apprentie elle-même ou par ses maîtres ; lui faire suivre les cours de l’Académie MND ; fournir la tenue, le matériel et les produits ; veiller à son hygiène et à sa sécurité ; la présenter au CQM, frais d’examen à sa charge ; lui délivrer le certificat de l’Académie MND si elle réussit l’évaluation finale. La Maison ne demande aucun frais d’entrée, de formation, d’examen ou de libération.</p></div></details>
+    <details><summary>Article 6 · Engagements de l’apprentie</summary><div><p>Assiduité et ponctualité ; respect du règlement intérieur ; tenue de la Maison ; soin du matériel ; discrétion sur les clientes, les prix, les méthodes et les recettes de la Maison, pendant et après le contrat ; ne pas coiffer pour son compte ou pour autrui pendant le contrat.</p></div></details>
+    <details><summary>Article 7 · Allocation et avantages</summary><div><p>La Maison verse une allocation mensuelle de <span class="v d" data-v="allocation-contrat">montant choisi par année</span>, le <span class="v s">jour</span> de chaque mois. <span data-v="avantages-contrat"></span> L’apprentie a droit à deux jours ouvrables de congé par mois de service.</p><p class="ref">Art. 65, 7° : rémunération, nourriture, logement ; art. 158 : le congé</p></div></details>
+    <details><summary>Article 8 · Santé</summary><div><p>L’apprentie présente un certificat médical d’aptitude délivré par un médecin agréé. Sa protection en cas d’accident <span class="v s">à vérifier avec le comptable : déclaration CNSS</span>.</p><p class="ref">Art. 68, 3°</p></div></details>
+    <details><summary>Article 9 · Fin de l’apprentissage</summary><div><p>Une évaluation finale, écrite et pratique. En cas de réussite, le certificat de l’Académie MND. <span data-v="apres-contrat"></span></p></div></details>
+    <details><summary>Article 10 · Rupture</summary><div><p>Toute rupture du contrat est subordonnée à l’autorisation préalable de l’inspecteur du travail. Peuvent la motiver : un manquement grave, ou une insuffisance constatée à deux évaluations de suite <span class="v s">motifs à confirmer au décret</span>.</p><p class="ref">Art. 69</p></div></details>
+    <details><summary>Article 11 · Visa</summary><div><p>Le contrat est rédigé en français en quatre exemplaires et soumis par la Maison au visa des services du ministère chargé du travail. Il est exempt de timbre et d’enregistrement. Sans réponse sous trente jours, le visa est réputé accordé.</p><p class="ref">Art. 65 et 14</p></div></details>
+    <p>Fait à Cotonou, le <span class="v s">date</span>, en quatre exemplaires.</p>
+    <p class="doux petit">Signent : la Maison ; l’apprentie, « lu et approuvé ». Les parents ou le tuteur signent seulement si l’apprentie est mineure (art. 68, 4°) : à 18 ans, elle signe seule.</p>
+  </div>
+  <h3>Les pièces jointes à la demande de visa</h3>
+  <ul class="pieces">
+    <li>Un extrait du casier judiciaire du maître d’apprentissage, de moins de trois mois</li>
+    <li>L’acte de naissance de l’apprentie, ou le jugement supplétif</li>
+    <li>Le certificat médical d’aptitude de l’apprentie</li>
+    <li>Les quatre exemplaires signés</li>
+  </ul>
+  <p class="doux petit">Article 68. Le Trône tiendra cette liste à cocher sur la fiche de l’apprentie, avec la date du dépôt et celle du visa.</p>
+</section>
+
+<section id="decider" aria-labelledby="t-decider">
+  <p class="sur">À décider</p>
+  <h2 id="t-decider">Vos choix, avant que je construise</h2>
+  <p class="lu doux">Chaque choix s’enregistre tout seul. Rien ne se construit avant votre « construis ».</p>
+  <div class="avancee"><i><b id="barre-decisions"></b></i><span id="compte-decisions"></span></div>
+  <div class="decisions" id="decisions"></div>
+  <div class="decision"><h3>Un mot de plus</h3><p class="pq">Une question, une règle à ajouter, un critère à changer.</p><textarea id="d-note" rows="3" aria-label="Votre mot"></textarea><span class="etat" id="d-note-etat"></span></div>
+</section>
+
+<section aria-labelledby="t-sources">
+  <p class="sur">Sources</p>
+  <h2 id="t-sources" style="font-size:24px">D’où viennent les chiffres et les articles</h2>
+  <ul class="sources">
+    <li>Loi n° 98-004 du 27 janvier 1998 portant Code du travail, art. 1, 4, 14, 64 à 70, 142, 158 : <a href="https://ansr.gouv.bj/wp-content/uploads/2021/05/code_travail-BENIN.pdf" target="_blank" rel="noopener">texte (ANSR)</a></li>
+    <li>OIT, contribution du Bénin à l’atelier régional sur l’apprentissage, 2025 (CQM, CQP, pratiques de libération) : <a href="https://www.ilo.org/sites/default/files/2025-01/Contributions_Benin_atelier_regional_apprentissage_version_definitive.pdf" target="_blank" rel="noopener">document</a></li>
+    <li>Chambre des Métiers et de l’Artisanat du Bénin, CQM session d’avril 2025 : <a href="https://cmabenin.bj/blog/show/01951281-8131-706f-9938-d92488736801" target="_blank" rel="noopener">page</a> ; <a href="https://service-public.bj/public/services/service/PS00201" target="_blank" rel="noopener">service-public.bj</a></li>
+    <li>Les frais illégaux interdits, avril 2026 : <a href="https://www.primenewsmonde.bj/2026/04/20/examen-du-certificat-de-qualification-aux-metiers-letat-met-fin-aux-frais-illegaux-les-apprentis-restent-otages-des-traditions/" target="_blank" rel="noopener">Prime News Monde</a></li>
+    <li>Swisscontact, la formation professionnelle artisane au Bénin : <a href="https://www.swisscontact.org/_Resources/Persistent/b/3/8/a/b38a49ed220400222386dd342c4110197704404c/Brochure_FP_Benin.pdf" target="_blank" rel="noopener">brochure</a> ; AFD, la coiffure parmi les métiers du CQP : <a href="https://www.afd.fr/sites/default/files/2020-03-10-21-10/etude-capitalisation-projet-appui-developpement-formation-apprentissage-benin-mauritanie-pafpa.pdf" target="_blank" rel="noopener">étude</a></li>
+    <li>Le parcours en cinq temps (quitter l’école en 6e ou 4e, trois à cinq ans d’atelier) : votre observation du marché, que les sources confirment sans chiffre propre à la coiffure.</li>
+  </ul>
+</section>
+
+</div>
+
+<script>
+(function () {
+  'use strict';
+  /* ── Les décisions ── */
+  var DECISIONS = [
+    { id: 'nom', titre: 'Le nom du programme', pq: 'Il paraît sur le site, au Trône et sur le contrat.', options: [
+      ['apprentissage', 'L’apprentissage MND', 'simple, dit ce que c’est', true],
+      ['apprenties', 'Les Apprenties de la Maison', 'plus chaleureux'],
+      ['releve', 'La Relève MND', 'dit l’ambition : former celles qui tiendront la Maison'] ] },
+    { id: 'ou', titre: 'Où vit le questionnaire', pq: 'Le site principal reçoit les visites ; l’Académie, les élèves.', options: [
+      ['site', 'maisonmnd.com/apprentissage/', 'avec un lien depuis la page Formations et le pied de page', true],
+      ['academie', 'Le site de l’Académie MND', 'à côté des formations pour particulières'] ] },
+    { id: 'duree', titre: 'La durée', pq: 'Vous avez dit deux ou trois ans.', options: [
+      ['selon', 'Deux ans avec une expérience ou un CQM, trois ans pour une débutante', 'la sélection décide du parcours', true],
+      ['trois', 'Trois ans pour toutes', 'une seule promotion, un seul rythme'],
+      ['deux', 'Deux ans pour toutes', 'plus court, plus dense'] ] },
+    { id: 'public', titre: 'Le public, 18 à 23 ans, jeunes femmes', pq: 'Voir l’encadré de la sélection : l’article 4 du Code du travail.', options: [
+      ['annonce', 'Dit dans l’annonce, la sélection juge le niveau, avis d’un juriste', 'le questionnaire n’écarte personne seul', true],
+      ['strict', 'Critère strict, refus d’office hors 18 à 23 ans et pour un homme', 'seulement si le juriste le confirme'],
+      ['ouvert', 'Ouvert à toutes et tous dès 18 ans', 'aucun risque, le public visé reste dit dans les images et le ton'] ] },
+    { id: 'ecole', titre: 'La scolarité minimale', pq: 'Le marché que vous décrivez s’arrête en 6e ou en 4e.', options: [
+      ['ecrit', 'Aucun diplôme exigé : lire, écrire et compter, éprouvé à l’entretien', 'on ne perd pas un talent pour un papier', true],
+      ['cep', 'Le CEP au moins', 'la fin du primaire, comme le CQP'],
+      ['bepc', 'Le BEPC au moins', 'plus sélectif, moins de candidates'] ] },
+    { id: 'allocation', titre: 'L’allocation mensuelle', pq: 'Le SMIG est de 52 000 F par mois ; un contrat d’apprentissage peut rester dessous. À votre jugement.', cout: true, options: [
+      ['a', '15 000 F, puis 25 000 F, puis 35 000 F', 'par année d’apprentissage'],
+      ['b', '25 000 F, puis 35 000 F, puis 45 000 F', 'par année d’apprentissage'],
+      ['c', 'La première année sans argent, repas et transport payés, puis 25 000 F et 35 000 F', 'le coût des repas et du transport reste à chiffrer'] ] },
+    { id: 'promotion', titre: 'La taille de la promotion', pq: 'Combien d’apprenties par an.', cout: true, options: [
+      ['2', 'Deux par an', 'une élite très resserrée'],
+      ['4', 'Quatre par an', 'une par maître, ou presque', true],
+      ['6', 'Six par an', 'demande plus de maîtres pour former'] ] },
+    { id: 'rentree', titre: 'La première rentrée', pq: 'Il faut environ deux mois de sélection.', options: [
+      ['janvier', 'Janvier 2027', 'candidatures jusqu’au 30 novembre 2026'],
+      ['avril', 'Avril 2027', 'candidatures jusqu’au 31 janvier 2027', true],
+      ['septembre', 'Septembre 2027', 'candidatures jusqu’au 30 juin 2027'] ] },
+    { id: 'apres', titre: 'Après l’apprentissage', pq: 'Ce que dit l’article 9 du contrat.', options: [
+      ['proposition', 'Une proposition d’embauche aux meilleures, sans obligation de part et d’autre', 'simple et sûr', true],
+      ['servir', 'Un engagement à servir douze mois à la Maison', 'à faire valider par le juriste'],
+      ['concurrence', 'Une clause de non-concurrence limitée', 'à faire valider par le juriste, souvent contestée'] ] },
+    { id: 'photos', titre: 'Les photos de travaux dans le questionnaire', pq: 'Des photos se truquent ; l’essai pratique, non.', options: [
+      ['non', 'Pas de photos : on juge à l’essai', 'plus simple, plus juste', true],
+      ['trois', 'Jusqu’à trois photos, facultatives', 'il faut alors un stockage de fichiers'] ] },
+  ];
+  var ALLOC = { a: [15000, 25000, 35000], b: [25000, 35000, 45000], c: [0, 25000, 35000] };
+  var choix = {};
+  var CLE = 'apprenties-maison-choix';
+  try { var vu = JSON.parse(localStorage.getItem(CLE) || '{}') || {}; Object.keys(vu).forEach(function (k) { choix[k] = vu[k]; }); } catch (e) { /* sans mémoire */ }
+  var docRef = null, file = Promise.resolve();
+  function garde() {
+    try { localStorage.setItem(CLE, JSON.stringify(choix)); } catch (e) { /* sans mémoire */ }
+    if (!docRef) return;
+    var corps = {}; Object.keys(choix).forEach(function (k) { if (choix[k]) corps[k] = choix[k]; });
+    corps.quand = new Date().toISOString();
+    file = file.then(function () { return docRef.set(corps); }).catch(function () { /* hors ligne */ });
+  }
+  function txt(tag, cls, t) { var e = document.createElement(tag); if (cls) e.className = cls; if (t !== undefined) e.textContent = t; return e; }
+  var F = function (n) { return n.toLocaleString('fr-FR').replace(/ | /g, ' ') + ' F'; };
+  function cout() {
+    var a = ALLOC[choix.allocation || 'b'] ? ALLOC[choix.allocation || 'b'] : ALLOC.b;
+    var n = Number(choix.promotion || 4);
+    var an1 = a[0] * 12 * n;
+    var parApprentie = a[0] * 12 + a[1] * 12 + a[2] * 12;
+    return 'Avec ' + (choix.allocation ? 'ce choix' : 'la deuxième grille') + ' et ' + n + ' apprenties : la première année coûte ' + F(an1) + ' en allocations ; une apprentie sur trois ans, ' + F(parApprentie) + (choix.allocation === 'c' ? ', plus les repas et le transport de la première année.' : '.');
+  }
+  var boite = document.getElementById('decisions');
+  function dessine() {
+    boite.textContent = '';
+    DECISIONS.forEach(function (d) {
+      var c = txt('div', 'decision' + (choix[d.id] ? ' tranchee' : ''));
+      c.appendChild(txt('h3', '', d.titre));
+      c.appendChild(txt('p', 'pq', d.pq));
+      var g = document.createElement('div'); g.setAttribute('role', 'radiogroup'); g.setAttribute('aria-label', d.titre);
+      d.options.forEach(function (o) {
+        var l = txt('label', 'choix-ligne');
+        var i = document.createElement('input'); i.type = 'radio'; i.name = 'd-' + d.id; i.id = 'd-' + d.id + '-' + o[0]; i.value = o[0]; i.checked = choix[d.id] === o[0];
+        i.addEventListener('change', function () { choix[d.id] = o[0]; garde(); dessine(); applique(); });
+        var s = document.createElement('span');
+        s.appendChild(document.createTextNode(o[1]));
+        if (o[3]) { s.appendChild(document.createTextNode(' ')); s.appendChild(txt('em', '', 'ma proposition')); }
+        s.appendChild(txt('small', '', o[2]));
+        l.appendChild(i); l.appendChild(s); g.appendChild(l);
+      });
+      c.appendChild(g);
+      if (d.cout) c.appendChild(txt('p', 'cout', cout()));
+      c.appendChild(txt('span', 'etat', choix[d.id] ? 'Choix enregistré.' : ''));
+      boite.appendChild(c);
+    });
+    var n = DECISIONS.filter(function (d) { return choix[d.id]; }).length;
+    document.getElementById('compte-decisions').textContent = n + ' sur ' + DECISIONS.length + ' tranchées';
+    document.getElementById('barre-decisions').style.width = Math.round((n / DECISIONS.length) * 100) + '%';
+  }
+  function libelle(id) { var d = DECISIONS.filter(function (x) { return x.id === id; })[0]; var o = d && d.options.filter(function (x) { return x[0] === choix[id]; })[0]; return o ? o[1] : ''; }
+  function pose(cle, texte) { document.querySelectorAll('[data-v="' + cle + '"]').forEach(function (e) { e.textContent = texte; }); }
+  function applique() {
+    pose('nom-programme', choix.nom ? libelle('nom') : 'L’apprentissage MND');
+    pose('promotion', String(Number(choix.promotion || 4)));
+    var dur = choix.duree === 'trois' ? ['Trois ans pour toutes', 'Trois ans', 'trois ans'] : choix.duree === 'deux' ? ['Deux ans pour toutes', 'Deux ans', 'deux ans'] : ['Deux ans avec une expérience, trois ans pour une débutante', 'Deux ou trois ans', 'deux ans ou trois ans, selon le parcours retenu'];
+    pose('duree', dur[0]); pose('duree-court', dur[1]); pose('duree-contrat', dur[2]);
+    pose('annee', '2027');
+    var a = ALLOC[choix.allocation] || null;
+    pose('allocation-contrat', a ? (a[0] ? F(a[0]) + ' la première année' : 'aucune la première année') + ', ' + F(a[1]) + ' la deuxième, ' + F(a[2]) + ' la troisième' : 'montant choisi par année');
+    pose('avantages-contrat', choix.allocation === 'c' ? 'La première année, la Maison prend en charge les repas et le transport de l’apprentie.' : '');
+    pose('apres-contrat', choix.apres === 'servir' ? 'L’apprentie s’engage à servir douze mois à la Maison après son apprentissage, aux conditions d’un contrat de travail (clause à faire valider).' : choix.apres === 'concurrence' ? 'Une clause de non-concurrence limitée s’applique après le contrat (clause à faire valider).' : 'La Maison peut lui proposer un contrat de travail ; ni l’une ni l’autre n’y est tenue.');
+    ageDit();
+  }
+  /* ── Le questionnaire ── */
+  var NOMS_PAS = ['Vous', 'Parcours', 'Expérience', 'Motivations', 'Pourquoi vous', 'Lettre'];
+  var etapes = Array.prototype.slice.call(document.querySelectorAll('.etape-form'));
+  var ici = 0;
+  var form = document.getElementById('questionnaire');
+  var erreur = document.getElementById('q-erreur');
+  function val(id) { var e = document.getElementById(id); return e ? String(e.value || '').trim() : ''; }
+  function coche(name) { var e = form.querySelector('input[name="' + name + '"]:checked'); return e ? e.value : ''; }
+  function coches(name) { return Array.prototype.map.call(form.querySelectorAll('input[name="' + name + '"]:checked'), function (e) { return e.value; }); }
+  function mots(t) { return (t.match(/[A-Za-zÀ-ÿœŒ0-9’'-]+/g) || []).length; }
+  function rentree() { return choix.rentree === 'janvier' ? new Date(2027, 0, 4) : choix.rentree === 'septembre' ? new Date(2027, 8, 6) : new Date(2027, 3, 5); }
+  function moisDit(d) { return ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'][d.getMonth()] + ' ' + d.getFullYear(); }
+  function ageA(naiss, d) { var a = d.getFullYear() - naiss.getFullYear(); var m = d.getMonth() - naiss.getMonth(); if (m < 0 || (m === 0 && d.getDate() < naiss.getDate())) a -= 1; return a; }
+  function ageDit() {
+    var v = val('q-naissance'); var s = document.getElementById('q-age');
+    if (!v) { s.textContent = ''; return; }
+    var n = new Date(v + 'T12:00:00'); if (isNaN(n.getTime())) { s.textContent = ''; return; }
+    var r = rentree(); var a = ageA(n, r);
+    if (a >= 18 && a <= 23) s.textContent = 'Vous aurez ' + a + ' ans à la rentrée de ' + moisDit(r) + '.';
+    else if (choix.public === 'strict') s.textContent = 'Vous aurez ' + a + ' ans à la rentrée de ' + moisDit(r) + ' : le programme est réservé aux 18 à 23 ans.';
+    else s.textContent = 'Vous aurez ' + a + ' ans à la rentrée de ' + moisDit(r) + '. Le programme s’adresse surtout aux 18 à 23 ans ; votre dossier sera lu.';
+  }
+  document.getElementById('q-naissance').addEventListener('input', ageDit);
+  function compteurs() {
+    document.querySelectorAll('.compteur[data-pour]').forEach(function (c) {
+      var t = document.getElementById(c.getAttribute('data-pour')); var min = Number(t.getAttribute('data-min') || 0); var n = t.value.trim().length;
+      c.textContent = n >= min ? n + ' signes · c’est bien' : n + ' signes, ' + (min - n) + ' de plus au moins';
+      c.className = 'compteur' + (n >= min ? ' ok' : '');
+    });
+    var m = mots(val('q-lettre')); var c2 = document.getElementById('q-mots');
+    c2.textContent = m + ' mots · entre 150 et 400'; c2.className = 'compteur' + (m >= 150 && m <= 400 ? ' ok' : '');
+  }
+  form.addEventListener('input', compteurs);
+  form.querySelectorAll('input[name="q-dispo"]').forEach(function (i) { i.addEventListener('change', function () { document.getElementById('q-dispo-dit').textContent = i.value === 'partielle' ? 'Le programme demande une présence entière. Dites-nous dans votre lettre quand elle le sera.' : ''; }); });
+  function manque() {
+    if (ici === 0) {
+      if (!val('q-prenom') || !val('q-nom')) return 'Écrivez votre prénom et votre nom.';
+      if (!val('q-naissance')) return 'Il nous faut votre date de naissance.';
+      if (choix.public === 'strict') { var n = new Date(val('q-naissance') + 'T12:00:00'); var a = ageA(n, rentree()); if (a < 18 || a > 23) return 'Le programme est réservé aux 18 à 23 ans à la rentrée.'; }
+      if (!val('q-quartier')) return 'Dites-nous où vous habitez.';
+      if (val('q-tel').replace(/\D/g, '').length < 8) return 'Il nous faut votre numéro WhatsApp pour vous répondre.';
+    }
+    if (ici === 1 && (!val('q-classe') || !val('q-diplome'))) return 'Choisissez votre dernière classe et votre diplôme, même « Aucun ».';
+    if (ici === 2 && !coche('q-deja')) return 'Dites-nous si vous avez déjà appris chez une coiffeuse.';
+    if (ici === 3 || ici === 4) {
+      var court = Array.prototype.filter.call(etapes[ici].querySelectorAll('textarea[data-min]'), function (t) { return t.value.trim().length < Number(t.getAttribute('data-min')); });
+      if (court.length) return 'Une réponse est encore trop courte : quelques phrases pour chacune.';
+      if (ici === 4 && !coche('q-dispo')) return 'Dites-nous votre disponibilité.';
+      if (ici === 4 && !document.getElementById('q-e1').checked) return 'Cochez l’engagement pour continuer.';
+    }
+    if (ici === 5) {
+      var m = mots(val('q-lettre'));
+      if (m < 150) return 'Votre lettre fait ' + m + ' mots : 150 au moins.';
+      if (m > 400) return 'Votre lettre fait ' + m + ' mots : 400 au plus.';
+      if (!document.getElementById('q-e2').checked || !document.getElementById('q-e3').checked) return 'Cochez les deux cases pour envoyer.';
+    }
+    return '';
+  }
+  function recap() {
+    var r = document.getElementById('recap'); r.textContent = '';
+    [['Vous', (val('q-prenom') + ' ' + val('q-nom')).trim()], ['Parcours', [val('q-classe'), val('q-diplome')].filter(Boolean).join(' · ')], ['Expérience', coche('q-deja') === 'non' ? 'Aucun apprentissage' : coche('q-deja') === 'en-cours' ? 'Encore apprentie' : coche('q-deja') ? 'Apprentissage terminé' : ''], ['Gestes', coches('q-gestes').join(', ')], ['Disponibilité', coche('q-dispo') === 'entiere' ? 'Entière' : coche('q-dispo') ? 'Pas entière' : '']].forEach(function (x) {
+      if (!x[1]) return; var l = document.createElement('div'); l.appendChild(txt('span', '', x[0])); l.appendChild(txt('span', '', x[1])); r.appendChild(l);
+    });
+  }
+  function montre() {
+    etapes.forEach(function (e, i) { e.hidden = i !== ici; });
+    var p = document.getElementById('pas'); p.textContent = '';
+    NOMS_PAS.forEach(function (n, i) { p.appendChild(txt('span', i < ici ? 'fait' : i === ici ? 'ici' : '', (i + 1) + ' · ' + n)); });
+    document.getElementById('q-retour').hidden = ici === 0;
+    document.getElementById('q-suite').textContent = ici === etapes.length - 1 ? 'Envoyer ma candidature' : 'Continuer';
+    if (ici === etapes.length - 1) recap();
+    erreur.textContent = '';
+    compteurs();
+  }
+  form.addEventListener('submit', function (e) {
+    e.preventDefault();
+    var m = manque(); if (m) { erreur.textContent = m; return; }
+    if (ici < etapes.length - 1) { ici += 1; montre(); document.getElementById('pas').scrollIntoView({ block: 'nearest' }); return; }
+    etapes.forEach(function (x) { x.hidden = true; });
+    document.getElementById('q-boutons').hidden = true; erreur.textContent = '';
+    document.getElementById('pas').textContent = '';
+    document.getElementById('recu').hidden = false;
+    document.getElementById('recu-titre').textContent = 'Merci, ' + (val('q-prenom') || 'nous lisons votre dossier') + '. Nous lisons votre dossier.';
+  });
+  document.getElementById('q-retour').addEventListener('click', function () { if (ici > 0) { ici -= 1; montre(); } });
+  document.getElementById('recommencer').addEventListener('click', function () { form.reset(); ici = 0; document.getElementById('recu').hidden = true; document.getElementById('q-boutons').hidden = false; ageDit(); montre(); });
+  document.getElementById('q-exemple').addEventListener('click', function () {
+    var EX = { 'q-prenom': 'Exemple', 'q-nom': 'A. K.', 'q-naissance': '2005-03-14', 'q-quartier': 'Fidjrossè, Cotonou', 'q-tel': '+229 01 00 00 00 00', 'q-classe': '3e', 'q-diplome': 'BEPC', 'q-annee': '2021', 'q-duree-exp': '2 ans', 'q-ou': 'Chez une coiffeuse de Cadjèhoun',
+      'q-m1': 'Depuis petite je tresse mes sœurs. Les locks me plaisent parce qu’elles demandent de la patience et qu’elles accompagnent une personne pendant des années.',
+      'q-m2': 'J’ai vu une cliente sortir de la Maison MND. Je veux apprendre là où le travail est fait avec soin et où l’on m’apprendra vraiment.',
+      'q-m3': 'Référente des locks à la Maison, capable de faire un diagnostic seule et de former une apprentie à mon tour.',
+      'q-r1': 'Je suis régulière : pendant deux ans j’ai ouvert la boutique de ma tante à 7 h chaque matin, sans un retard.',
+      'q-r2': 'J’ai dû arrêter l’école après le BEPC pour aider ma mère. J’ai continué à lire le soir et j’ai appris la couture seule.' };
+    Object.keys(EX).forEach(function (k) { var e = document.getElementById(k); if (e) e.value = EX[k]; });
+    [['q-source', 'Instagram'], ['q-deja', 'termine'], ['q-dispo', 'entiere']].forEach(function (x) { var e = form.querySelector('input[name="' + x[0] + '"][value="' + x[1] + '"]'); if (e) e.checked = true; });
+    ['Français', 'Fon'].forEach(function (v) { var e = form.querySelector('input[name="q-langues"][value="' + v + '"]'); if (e) e.checked = true; });
+    ['Shampoing et soins', 'Tresses et nattes', 'Entretien de locks'].forEach(function (v) { var e = form.querySelector('input[name="q-gestes"][value="' + v + '"]'); if (e) e.checked = true; });
+    document.getElementById('q-e1').checked = true;
+    var phrase = 'Je m’appelle Exemple et je veux devenir une vraie spécialiste des locks. ';
+    var lettre = 'Madame, Monsieur, je vous écris pour devenir apprentie de la Maison MND. ' + new Array(12).join(phrase) + 'J’ai appris chez une coiffeuse pendant deux ans, mais j’ai surtout lavé et balayé. Je veux apprendre avec un programme, être évaluée et mériter ma place. Je serai à l’heure, discrète et patiente. Je vous remercie de lire ma candidature.';
+    document.getElementById('q-lettre').value = lettre;
+    ageDit(); compteurs(); erreur.textContent = 'Exemple rempli : avancez avec « Continuer ».';
+  });
+  /* ── Le mot ── */
+  var note = document.getElementById('d-note');
+  if (choix.note) note.value = choix.note;
+  var minuterie = null;
+  note.addEventListener('input', function () { clearTimeout(minuterie); minuterie = setTimeout(function () { choix.note = note.value.trim(); garde(); document.getElementById('d-note-etat').textContent = 'Mot enregistré.'; }, 600); });
+
+  dessine(); applique(); montre();
+  if (window.claude && typeof window.claude.use === 'function') {
+    window.claude.use('db').then(function (db) {
+      if (!db) return;
+      docRef = db.doc('maquette/apprenties');
+      return docRef.get().then(function (s) {
+        if (!s || !s.exists) return;
+        var v = s.data() || {};
+        Object.keys(v).forEach(function (k) { if (k !== 'quand' && typeof v[k] === 'string') choix[k] = v[k]; });
+        if (choix.note) note.value = choix.note;
+        dessine(); applique();
+      });
+    }).catch(function () { /* sans base : les choix restent sur cet appareil */ });
+  }
+})();
+</script>
