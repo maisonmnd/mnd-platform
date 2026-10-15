@@ -44,6 +44,8 @@ import { cheminDeLaConversation } from '../../../../shared/conversations';
 import AlarmeWhatsApp from './AlarmeWhatsApp';
 import { useDemandes, demandesTriees, ditLeBesoin, ditLeGenre, depuisQuand, telephoneMasque, nomDeLaDemande } from '../../../../shared/demandes';
 import { appelDe } from '../../../../shared/civilite';
+import { useSignalements } from '../../../../shared/entre-deux';
+import { enRetard, fileRangee, niveauDe } from '../../../../shared/entre-deux-pur';
 import {
   useEngagements, useDevisRecus, useVersementsEngagement, litLesDossiers, bilanDesEngagements, restesDits,
 } from '../../../../shared/engagements';
@@ -452,7 +454,21 @@ export default function Dashboard() {
       .sort((a, b) => b.declareLe.localeCompare(a.declareLe));
   }, [declares, enfantsVus, branch.id]);
 
+  /* ENTRE DEUX SÉANCES (15 octobre 2026) : un souci Santé, ou un souci en
+     retard, remonte ici, en tête, comme la maquette l'a promis. */
+  const signalements = useSignalements();
+  const fileEntreDeux = fileRangee(signalements);
+  const santeOuverte = fileEntreDeux.filter((s) => niveauDe(s.soucis) === 'sante').length;
+  const entreDeuxEnRetard = fileEntreDeux.filter((s) => enRetard(s, new Date().toISOString())).length;
   const presseRows = [
+    ...(santeOuverte > 0 || entreDeuxEnRetard > 0 ? [{
+      k: 'entre-deux',
+      label: santeOuverte > 0
+        ? `${santeOuverte} souci${santeOuverte > 1 ? 's' : ''} santé à rappeler`
+        : `${entreDeuxEnRetard} souci${entreDeuxEnRetard > 1 ? 's' : ''} entre deux séances en retard`,
+      sub: santeOuverte > 0 && entreDeuxEnRetard > 0 ? `dont ${entreDeuxEnRetard} en retard · Entre deux séances` : 'Entre deux séances',
+      action: 'Voir', go: () => navigate('/entre-deux'),
+    }] : []),
     ...(aRecevoir.length > 0 ? [{
       k: 'attente',
       label: `${aRecevoir.length} réservation${aRecevoir.length > 1 ? 's' : ''} à recevoir`,

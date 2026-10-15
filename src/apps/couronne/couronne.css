@@ -3242,3 +3242,27 @@
 .mc-place:hover { border-color: var(--mc-encre); }
 .mc-place.is-on { background: var(--accent); border-color: var(--accent); color: var(--color-ivoire); }
 .mc-place--autre { color: var(--mc-cuivre-texte); }
+
+/* ══ ENTRE DEUX SÉANCES — 15 octobre 2026 ══════════════════════════════
+   « Comment vont vos locks ? » dans l'onglet Suivi. Les couleurs viennent du
+   thème (clair et sombre) : aucune en dur. */
+.mc-ed { margin: 22px 0 6px; display: flex; flex-direction: column; gap: 10px; }
+.mc-ed-carte { background: var(--surface-card); border: 1px solid var(--hairline); border-radius: 4px; padding: 16px; display: flex; flex-direction: column; gap: 10px; }
+.mc-ed-titre { font-family: var(--font-serif); font-size: 22px; color: var(--mc-encre); margin: 0; }
+.mc-ed-doux { font-size: 13px; color: var(--mc-doux); margin: 0; }
+.mc-ed-texte { font-size: 14px; color: var(--mc-encre); margin: 0; line-height: 1.55; }
+.mc-ed-deux { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.mc-ed-puces { display: flex; flex-wrap: wrap; gap: 7px; }
+.mc-ed-puce { font: inherit; font-size: 13px; text-align: left; cursor: pointer; border: 1px solid var(--hairline); background: var(--surface-card); color: var(--mc-encre); border-radius: 999px; padding: 7px 12px; }
+.mc-ed-puce.est-prise { background: var(--mc-plein); border-color: var(--mc-plein); color: var(--mc-sur-plein); }
+.mc-ed-puce:focus-visible, .mc-ed-lien:focus-visible { outline: 2px solid var(--mc-cuivre-texte); outline-offset: 2px; }
+.mc-ed-champ { display: flex; flex-direction: column; gap: 5px; font-size: 12px; color: var(--mc-doux); }
+.mc-ed-champ textarea { font: inherit; font-size: 14px; color: var(--mc-encre); background: var(--surface-card); border: 1px solid var(--hairline); border-radius: 4px; padding: 10px; resize: vertical; }
+.mc-ed-champ input[type="file"] { font-size: 13px; color: var(--mc-doux); }
+.mc-ed-erreur { font-size: 13px; color: var(--mc-error); margin: 0; }
+.mc-ed-lien { font: inherit; font-size: 13.5px; text-align: left; background: none; border: 0; padding: 4px 0; color: var(--mc-cuivre-texte); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.mc-ed-histoire { display: flex; flex-direction: column; gap: 6px; }
+.mc-ed-ligne { display: grid; grid-template-columns: minmax(0, 1fr); gap: 2px; padding: 8px 0; border-bottom: 1px solid var(--hairline); font-size: 13.5px; color: var(--mc-encre); }
+.mc-ed-date { font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--mc-doux); }
+.mc-ed-etat { font-size: 12.5px; color: var(--mc-cuivre-texte); }
+.mc-ed-etat.est-traite { color: var(--mc-ok-texte); }

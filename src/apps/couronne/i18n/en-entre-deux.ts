@@ -1,0 +1,38 @@
+/* ENTRE DEUX SÉANCES — 15 octobre 2026 : « Comment vont vos locks ? », les
+   soucis à toucher, la réponse de la Maison. « Maîtresse » se dit « your
+   artisan », comme ailleurs dans l'app. */
+export const EN_ENTRE_DEUX: Record<string, string> = {
+  'Comment vont vos locks ?': 'How are your locks?',
+  'Une touche pour le dire à votre maîtresse.': 'One tap to tell your artisan.',
+  'Merci ! Bonne nouvelle. À votre prochaine séance.': 'Thank you! Good news. See you at your next session.',
+  'Votre maîtresse l’a reçu': 'Your artisan has received it',
+  'Avancer mon rendez-vous': 'Bring my appointment forward',
+  'Fermer': 'Close',
+  'Touchez ce qui vous arrive. Vous pouvez en choisir plusieurs.': 'Tap what is happening. You can choose several.',
+  'Ce qui vous arrive': 'What is happening',
+  'Sèches': 'Dry',
+  'Cassantes, qui s’amincissent': 'Breaking, getting thinner',
+  'Inégales, racines qui s’emmêlent': 'Uneven, roots tangling',
+  'Racines qui ont trop poussé': 'Roots have grown out',
+  'Odeur, séchage long': 'Smell, slow to dry',
+  'Ça gratte, plaques, rougeurs': 'Itching, patches, redness',
+  'Chute, trous, douleur': 'Hair loss, gaps, pain',
+  'Autre chose': 'Something else',
+  'Un mot, si vous voulez': 'A few words, if you like',
+  'Une photo, si vous voulez': 'A photo, if you like',
+  'Votre message n’est pas parti. Réessayez dans un moment.': 'Your message was not sent. Please try again in a moment.',
+  'Envoi en cours': 'Sending',
+  'Envoyer à ma maîtresse': 'Send to my artisan',
+  'Plus tard': 'Later',
+  'Depuis votre séance du {date}': 'Since your session on {date}',
+  'Avant votre séance du {date}': 'Before your session on {date}',
+  'Tout va bien': 'All is well',
+  'J’ai un souci': 'I have a concern',
+  'Un souci avec vos locks ? Dites-le à votre maîtresse.': 'A concern with your locks? Tell your artisan.',
+  'Ce que vous nous avez dit': 'What you told us',
+  'La Maison vous a répondu': 'The Maison has answered you',
+  'Votre maîtresse vous répond': 'Your artisan will answer you',
+  'Merci de nous l’avoir dit. Votre maîtresse vous répond.': 'Thank you for telling us. Your artisan will answer you.',
+  'Merci de nous l’avoir dit. Votre maîtresse vous rappelle. En attendant, ne mettez aucun produit nouveau.':
+    'Thank you for telling us. Your artisan will call you back. In the meantime, do not use any new product.',
+};

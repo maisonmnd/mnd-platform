@@ -14,6 +14,9 @@ import {
 import { redigeLeBilan, type DemandeAuBilan, type ListesDeLaMaison } from '../../../../shared/bilan-assistant';
 import { dateDite } from '../../../../shared/bilan-document';
 import { BilanModal } from './BilanModal';
+import { useAppointments } from '../../../../shared/agenda';
+import { useSignalements } from '../../../../shared/entre-deux';
+import { NIVEAUX, depuisLaDerniereSeance, niveauDe, souciDe } from '../../../../shared/entre-deux-pur';
 
 /* LE BILAN DE LA SÉANCE, DANS LE RENDEZ-VOUS — 4 octobre 2026.
 
@@ -154,6 +157,7 @@ export function LeBilanDeLaSeance({ appt, client, byId }: {
 
       {ouvert && (
         <div style={{ display: 'grid', gap: 12, padding: '0 12px 12px' }}>
+          <DepuisLaDerniereSeance appt={appt} />
           {bilan && (
             <div className="mnd-muted" style={{ fontSize: 12.5, lineHeight: 1.5 }}>
               Le bilan {bilan.numero} a été signé par {bilan.praticien ?? 'la Maison'} le {dateDite(bilan.remisLe)}.
@@ -248,6 +252,33 @@ export function LeBilanDeLaSeance({ appt, client, byId }: {
           onClose={() => setFiche(null)}
         />
       )}
+    </div>
+  );
+}
+
+/* DEPUIS LA DERNIÈRE SÉANCE — 15 octobre 2026 (Entre deux séances). Ce que
+   la cliente a signalé entre sa séance d'avant et celle-ci, et ce que la
+   Maison en a fait : la maîtresse le lit avant de commencer. */
+function DepuisLaDerniereSeance({ appt }: { appt: Appointment }) {
+  const [appts] = useAppointments();
+  const signalements = useSignalements();
+  const avant = appts
+    .filter((a) => a.clientId === appt.clientId && a.id !== appt.id && a.status === 'honoré' && a.date < appt.date)
+    .sort((a, b) => b.date.localeCompare(a.date))[0];
+  const dits = depuisLaDerniereSeance(signalements, appt.clientId, avant?.date, appt.date);
+  const soucis = dits.filter((s) => !s.bien);
+  if (dits.length === 0) return null;
+  return (
+    <div style={{ display: 'grid', gap: 6, background: 'var(--surface-sunken, transparent)', border: '1px solid var(--hairline)', borderRadius: 6, padding: '8px 10px' }}>
+      <span style={{ fontSize: 11.5, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--color-copper)' }}>Depuis la dernière séance{avant ? ` (${dateDite(avant.date)})` : ''}</span>
+      {soucis.length === 0 && <span className="mnd-muted" style={{ fontSize: 13 }}>Elle a répondu « tout va bien ».</span>}
+      {soucis.map((s) => (
+        <div key={s.id} style={{ fontSize: 13, lineHeight: 1.45 }}>
+          <b>{dateDite(s.quand.slice(0, 10))}</b> · {NIVEAUX[niveauDe(s.soucis)]} · {s.soucis.map((k) => souciDe(k)?.dit ?? k).join(', ')}
+          {s.texte ? <> · « {s.texte} »</> : null}
+          <span className="mnd-muted"> · {s.etat === 'traite' ? `traité${s.note ? ` : ${s.note}` : ''}` : 'encore ouvert'}</span>
+        </div>
+      ))}
     </div>
   );
 }

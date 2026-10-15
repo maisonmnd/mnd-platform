@@ -1,4 +1,5 @@
 import { asset } from '../../shared/asset';
+import { EntreDeux } from './EntreDeux';
 import { DEVISE_MAISON } from '../../shared/identite';
 import { CarteDeMarraine } from '../../ds/CarteDeMarraine';
 import { graineDansDite, MonAmbassade, useMaCarte, useMaGraine, visitesDites } from './MaCarte';
@@ -1125,6 +1126,11 @@ export function SuiviTab({ regard, onOpenBooking, onOpenRdv, onOpenOrders, goGam
         <div className="mc-metric"><div className="mc-metric__v">{lockDays}</div><div className="mc-metric__l">{t('Jours de locks')}</div></div>
         <div className="mc-metric"><div className="mc-metric__v">{honored.length}</div><div className="mc-metric__l">{t('Rituels honorés')}</div></div>
       </div>
+
+      {/* ENTRE DEUX SÉANCES (15 octobre 2026) : « Comment vont vos locks ? »,
+          une semaine après la séance et une semaine avant la suivante ; et à
+          tout moment, un souci à dire à sa maîtresse. */}
+      {client && <EntreDeux client={client} appts={clientAppts} onAvancer={() => onOpenBooking({ pourId: regard?.id })} />}
 
       {/* prescription de la maison — produit choisi sur la fiche, au Trône.
           Pas pour un mineur : la Gamme n'est pas à son nom (9 août). */}

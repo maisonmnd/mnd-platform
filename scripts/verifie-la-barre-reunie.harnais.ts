@@ -24,7 +24,10 @@ const item = (p: string) => items.find((it) => it.path === p);
 const dansLaBarre = items.filter((it) => !it.horsMenu);
 
 /* ── 1. CE QUE LA BARRE MONTRE ── */
-dit('la barre montre 39 rubriques (53, moins quatorze)', 39, dansLaBarre.length);
+/* 40 depuis le 15 octobre 2026 : « Entre deux séances » (maquette EfhgzxjA…
+   validée) s'ajoute à la Clientèle ; les quatorze réunions ne bougent pas. */
+dit('la barre montre 40 rubriques (54, moins quatorze)', 40, dansLaBarre.length);
+dit('... dont Entre deux seances, dans la Clientele', ['Clientèle', false], [item('/entre-deux')?.groupe, !!item('/entre-deux')?.horsMenu]);
 const absorbes = ['/tableau', '/recommandations', '/bilan-mensuel', '/consultations', '/marque', '/cadence', '/coffre', '/cartes-cadeaux', '/personas', '/fournisseurs', '/compte-courant', '/appels', '/atelier-des-contenus', '/branches'];
 dit('les quatorze ecrans absorbes ont quitte la barre', absorbes, absorbes.filter((p) => item(p)?.horsMenu === true));
 dit('... et restent joignables : chacun garde son adresse', absorbes.length, absorbes.filter((p) => !!item(p)).length);
