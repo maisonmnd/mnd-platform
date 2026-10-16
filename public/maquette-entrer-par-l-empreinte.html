@@ -1,0 +1,454 @@
+<title>Entrer par l'empreinte</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,400&family=Jost:wght@300;400;500&display=swap">
+<style>
+/* Une maquette à essayer au doigt (le téléphone, ses quatre moments), puis à trancher.
+   Ivoire pour lire, indigo pour l'écran du Trône, cuivre pour l'empreinte et ce qu'on décide ; jamais obsidienne. */
+:root {
+  --fond:#F6F1E7; --carte:#FFFDF9; --encre:#1E2150; --texte:#2A2722; --doux:#5E5750; --filet:#E3DACB;
+  --cuivre:#9A6036; --cuivre-clair:#F3E6D8; --vert:#2F6B4F; --vert-clair:#E3F0E8; --rouge:#8E2F2F;
+  --ecran:#1E2150; --ecran-carte:#F5EFE6; --ecran-texte:#1E2150; --ecran-doux:#6A6478; --systeme:#FFFFFF; --systeme-texte:#1B1B1F; --systeme-doux:#5F6068;
+  --serif:"Cormorant Garamond", Georgia, "Times New Roman", serif; --sans:"Jost", system-ui, -apple-system, "Segoe UI", sans-serif;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --fond:#15173A; --carte:#1E2150; --encre:#F6F1E7; --texte:#E9E3D7; --doux:#B9B4C9; --filet:#2E3266;
+  --cuivre:#D6A06F; --cuivre-clair:#3A2E3A; --vert:#8FD1AE; --vert-clair:#1F3B3A; --rouge:#E7A1A1;
+  --systeme:#2B2C31; --systeme-texte:#F1F1F4; --systeme-doux:#B7B8C0; color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --fond:#15173A; --carte:#1E2150; --encre:#F6F1E7; --texte:#E9E3D7; --doux:#B9B4C9; --filet:#2E3266;
+  --cuivre:#D6A06F; --cuivre-clair:#3A2E3A; --vert:#8FD1AE; --vert-clair:#1F3B3A; --rouge:#E7A1A1;
+  --systeme:#2B2C31; --systeme-texte:#F1F1F4; --systeme-doux:#B7B8C0; color-scheme: dark; }
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { margin: 0; background: var(--fond); color: var(--texte); font: 300 16px/1.65 var(--sans);
+  padding-block: 28px 90px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.page { max-width: 960px; margin: 0 auto; display: grid; gap: 56px; }
+.page > * { min-width: 0; }
+section { display: grid; gap: 18px; }
+section > * { min-width: 0; }
+.sur { font-size: 11.5px; letter-spacing: .18em; text-transform: uppercase; color: var(--cuivre); margin: 0; font-weight: 400; }
+h1 { font: 300 clamp(40px, 7vw, 64px)/1.02 var(--serif); color: var(--encre); margin: 8px 0 0; text-wrap: balance; }
+h2 { font: 400 clamp(28px, 4.4vw, 36px)/1.12 var(--serif); color: var(--encre); margin: 4px 0 0; text-wrap: balance; }
+h3 { font: 500 21px/1.22 var(--serif); color: var(--encre); margin: 0; text-wrap: balance; }
+p { margin: 0; }
+.chapeau { color: var(--doux); max-width: 66ch; margin-top: 14px; font-size: 17px; }
+.lu { max-width: 66ch; }
+.doux { color: var(--doux); }
+.petit { font-size: 14px; }
+.bandeau { background: var(--cuivre-clair); border-radius: 8px; padding: 10px 14px; font-size: 14.5px; max-width: 72ch; }
+.bandeau b { font-weight: 500; }
+
+/* ── L'ESSAI : les moments à gauche, le téléphone à droite ── */
+.essai { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 28px; align-items: start; }
+@media (max-width: 760px) { .essai { grid-template-columns: minmax(0, 1fr); justify-items: center; } }
+.moments { display: grid; gap: 8px; align-content: start; width: 100%; }
+.moment { all: unset; box-sizing: border-box; cursor: pointer; display: grid; gap: 2px; padding: 12px 14px; border: 1px solid var(--filet); border-radius: 8px; background: var(--carte); }
+.moment b { font: 500 15px/1.3 var(--sans); color: var(--encre); }
+.moment span { font-size: 13.5px; color: var(--doux); }
+.moment[aria-pressed="true"] { border-color: var(--cuivre); box-shadow: inset 3px 0 0 var(--cuivre); }
+.moment:focus-visible { outline: 2px solid var(--cuivre); outline-offset: 2px; }
+.raconte { font-size: 14px; color: var(--doux); border-left: 2px solid var(--filet); padding-left: 12px; min-height: 3em; }
+
+.telephone { width: 300px; max-width: 100%; aspect-ratio: 300 / 620; border-radius: 38px; padding: 10px; background: #0E0F1F; box-shadow: 0 18px 44px rgba(15, 17, 48, .28); position: relative; }
+.ecran { position: relative; width: 100%; height: 100%; border-radius: 30px; overflow: hidden; background: var(--ecran); color: var(--ecran-texte); font-family: var(--sans); }
+.barre-etat { height: 26px; display: flex; justify-content: space-between; align-items: center; padding: 0 18px; font-size: 11px; color: #E9E5F4; font-variant-numeric: tabular-nums; }
+.vue { position: absolute; inset: 26px 0 0; display: grid; align-content: start; padding: 18px 16px; overflow: auto; }
+
+/* La carte de connexion, comme le Trône aujourd'hui */
+.carte-co { background: var(--ecran-carte); border-radius: 10px; border-top: 3px solid #B97A4A; padding: 18px 16px 16px; display: grid; gap: 11px; margin-top: 18px; }
+.marque { display: grid; grid-template-columns: auto 1fr; gap: 10px; align-items: center; }
+.marque svg { width: 30px; height: 18px; color: #B97A4A; }
+.marque small { display: block; font-size: 9.5px; letter-spacing: .26em; color: #B97A4A; text-transform: uppercase; }
+.marque strong { display: block; font: 400 24px/1 var(--serif); color: #1E2150; }
+.bonjour { font-size: 13.5px; color: var(--ecran-doux); }
+.compte { display: grid; grid-template-columns: auto 1fr auto; gap: 9px; align-items: center; background: #FFFFFF; border: 1px solid #DDD3C2; border-radius: 8px; padding: 8px 10px; }
+.initiale { width: 30px; height: 30px; border-radius: 50%; background: #1E2150; color: #F5EFE6; display: grid; place-items: center; font: 400 15px/1 var(--serif); }
+.compte b { display: block; font: 500 13px/1.25 var(--sans); color: #1E2150; }
+.compte span { display: block; font-size: 11.5px; color: #6A6478; font-variant-numeric: tabular-nums; }
+.compte button { all: unset; cursor: pointer; font-size: 11px; color: #9A6036; text-decoration: underline; text-underline-offset: 2px; }
+.champ { display: grid; gap: 4px; }
+.champ label { font-size: 9.5px; letter-spacing: .2em; text-transform: uppercase; color: #3C3A4A; font-weight: 500; }
+.champ input { font: 400 13px var(--sans); color: #1E2150; background: #FFFFFF; border: 1px solid #D6CCBA; border-radius: 6px; padding: 8px 9px; width: 100%; }
+.btn-co { all: unset; box-sizing: border-box; cursor: pointer; text-align: center; background: #1E2150; color: #F5EFE6; border-radius: 6px; padding: 10px; font: 500 11.5px/1 var(--sans); letter-spacing: .24em; text-transform: uppercase; }
+.ou { display: grid; grid-template-columns: 1fr auto 1fr; gap: 8px; align-items: center; font-size: 11px; color: #6A6478; }
+.ou::before, .ou::after { content: ""; height: 1px; background: #DDD3C2; }
+.empreinte { all: unset; cursor: pointer; justify-self: center; display: grid; justify-items: center; gap: 6px; }
+.empreinte .rond { width: 62px; height: 62px; border-radius: 50%; display: grid; place-items: center; background: #FFFFFF; border: 2px solid #B97A4A; color: #1E2150; box-shadow: 0 4px 14px rgba(185, 122, 74, .25); }
+.empreinte .rond svg { width: 34px; height: 34px; }
+.empreinte span { font-size: 12px; color: #1E2150; font-weight: 500; }
+.empreinte:focus-visible .rond { outline: 2px solid #B97A4A; outline-offset: 3px; }
+.liens { display: flex; justify-content: space-between; font-size: 11px; color: #6A6478; }
+.liens span { text-decoration: underline; text-underline-offset: 2px; }
+
+/* La feuille du téléphone (Android, iPhone) : sobre, à part de la Maison */
+.voile { position: absolute; inset: 0; background: rgba(8, 9, 24, .45); display: grid; align-items: end; }
+.feuille { background: var(--systeme); color: var(--systeme-texte); border-radius: 18px 18px 0 0; padding: 18px 18px 22px; display: grid; gap: 10px; justify-items: center; text-align: center; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+.feuille small { font-size: 11px; color: var(--systeme-doux); }
+.feuille b { font-size: 15px; font-weight: 600; }
+.feuille .capteur { all: unset; cursor: pointer; width: 64px; height: 64px; border-radius: 50%; display: grid; place-items: center; color: #2C6BED; background: rgba(44, 107, 237, .1); transition: background .2s, color .2s; }
+.feuille .capteur svg { width: 38px; height: 38px; }
+.feuille .capteur.reussi { color: #1E8E55; background: rgba(30, 142, 85, .12); }
+.feuille .capteur:focus-visible { outline: 2px solid #2C6BED; outline-offset: 3px; }
+.feuille .secours { font-size: 12px; color: #2C6BED; }
+.feuille .annuler { all: unset; cursor: pointer; font-size: 13px; color: var(--systeme-doux); padding: 4px 10px; }
+
+/* La proposition de la Maison, après le mot de passe */
+.proposition { background: var(--ecran-carte); color: #1E2150; border-radius: 18px 18px 0 0; padding: 20px 18px 22px; display: grid; gap: 10px; }
+.proposition h4 { margin: 0; font: 400 22px/1.15 var(--serif); }
+.proposition p { font-size: 12.5px; color: #4A4658; }
+.proposition .duo { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 4px; }
+.btn-doux { all: unset; box-sizing: border-box; cursor: pointer; text-align: center; border: 1px solid #CFC4B1; border-radius: 6px; padding: 10px; font: 500 12px/1 var(--sans); color: #1E2150; }
+.btn-cuivre { all: unset; box-sizing: border-box; cursor: pointer; text-align: center; background: #9A6036; color: #FFFDF9; border-radius: 6px; padding: 10px; font: 500 12px/1 var(--sans); }
+
+/* Le Trône ouvert, et les écrans de réglage (fond ivoire) */
+.vue.claire { background: #F5EFE6; color: #1E2150; }
+.tete-trone { display: flex; justify-content: space-between; align-items: center; font-size: 10px; letter-spacing: .22em; text-transform: uppercase; color: #9A6036; }
+.salut { font: 300 26px/1.1 var(--serif); margin: 14px 0 4px; color: #1E2150; }
+.tuiles { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px; }
+.tuile { background: #FFFFFF; border: 1px solid #E3DACB; border-radius: 8px; padding: 9px; display: grid; gap: 2px; }
+.tuile b { font: 300 20px/1 var(--sans); font-variant-numeric: tabular-nums; color: #1E2150; }
+.tuile span { font-size: 10.5px; color: #6A6478; }
+.reglage { background: #FFFFFF; border: 1px solid #E3DACB; border-radius: 10px; padding: 12px; display: grid; gap: 8px; margin-top: 12px; }
+.reglage h5 { margin: 0; font: 500 13.5px/1.3 var(--sans); color: #1E2150; }
+.reglage p { font-size: 11.5px; color: #6A6478; }
+.inter { display: flex; justify-content: space-between; align-items: center; gap: 10px; font-size: 12.5px; }
+.bascule { width: 38px; height: 22px; border-radius: 999px; background: #2F6B4F; position: relative; flex: none; }
+.bascule::after { content: ""; position: absolute; top: 3px; right: 3px; width: 16px; height: 16px; border-radius: 50%; background: #FFFFFF; }
+.cle { display: grid; grid-template-columns: 1fr auto; gap: 6px; align-items: center; border-top: 1px solid #EEE6D8; padding-top: 8px; }
+.cle b { display: block; font: 500 12px/1.3 var(--sans); color: #1E2150; }
+.cle span { display: block; font-size: 10.5px; color: #6A6478; font-variant-numeric: tabular-nums; }
+.retirer { all: unset; cursor: pointer; font-size: 11px; color: #8E2F2F; border: 1px solid #E3C9C5; border-radius: 6px; padding: 4px 8px; }
+.retiree { opacity: .45; text-decoration: line-through; }
+.titre-ecran { font: 400 22px/1.15 var(--serif); color: #1E2150; margin-top: 8px; }
+.toast { position: absolute; left: 12px; right: 12px; bottom: 14px; background: #1E2150; color: #F5EFE6; border-radius: 8px; padding: 9px 11px; font-size: 12px; }
+
+/* ── LA PROTECTION ── */
+.protections { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 250px), 1fr)); gap: 12px; }
+.protection { background: var(--carte); border: 1px solid var(--filet); border-radius: 8px; padding: 14px 16px; display: grid; gap: 6px; align-content: start; }
+.protection h3 { font-size: 19px; }
+.protection p { font-size: 14.5px; color: var(--doux); }
+
+/* ── CE QU'IL VOUS RESTE À FAIRE ── */
+.a-faire { display: grid; gap: 0; border: 1px solid var(--filet); border-radius: 8px; background: var(--carte); overflow: clip; }
+.a-faire div { display: grid; grid-template-columns: 9rem minmax(0, 1fr); gap: 12px; padding: 11px 14px; border-top: 1px solid var(--filet); font-size: 14.5px; }
+.a-faire div:first-child { border-top: 0; }
+.a-faire b { font-weight: 500; color: var(--encre); }
+@media (max-width: 560px) { .a-faire div { grid-template-columns: minmax(0, 1fr); gap: 2px; } }
+
+/* ── LES DÉCISIONS ── */
+.avance { display: grid; gap: 6px; }
+.avance .jauge { height: 6px; border-radius: 999px; background: var(--filet); overflow: hidden; }
+.avance .jauge span { display: block; height: 100%; width: 0; background: var(--cuivre); transition: width .3s; }
+#decisions { display: grid; gap: 12px; }
+.decision { background: var(--carte); border: 1px solid var(--filet); border-radius: 8px; padding: 14px 16px; display: grid; gap: 8px; }
+.decision.tranchee { border-color: var(--cuivre); }
+.decision .pq { font-size: 14px; color: var(--doux); }
+.choix-ligne { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 10px; align-items: start; padding: 8px 0; border-top: 1px solid var(--filet); cursor: pointer; font-size: 15px; }
+.choix-ligne:first-of-type { border-top: 0; }
+.choix-ligne input { margin-top: 5px; accent-color: var(--cuivre); }
+.choix-ligne em { font-style: normal; font-size: 12px; color: var(--cuivre); border: 1px solid var(--cuivre); border-radius: 999px; padding: 0 7px; margin-left: 4px; white-space: nowrap; }
+.choix-ligne small { display: block; font-size: 13px; color: var(--doux); }
+.decision .etat { font-size: 12.5px; color: var(--vert); min-height: 1em; }
+.mot { display: grid; gap: 6px; }
+.mot textarea { font: 300 15px/1.5 var(--sans); color: var(--texte); background: var(--carte); border: 1px solid var(--filet); border-radius: 8px; padding: 10px 12px; min-height: 90px; resize: vertical; }
+.mot textarea:focus-visible, .choix-ligne input:focus-visible { outline: 2px solid var(--cuivre); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div class="page">
+  <header>
+    <p class="sur">Le Trône au téléphone · maquette du 16 octobre 2026, à valider</p>
+    <h1>Entrer d’un doigt</h1>
+    <p class="chapeau">Comme Ecobank et BIIC : on donne son mot de passe une fois sur ce téléphone, puis l’empreinte (ou le visage) suffit pour entrer dans le Trône. L’empreinte ne quitte jamais le téléphone ; la Maison ne la voit pas.</p>
+  </header>
+
+  <p class="bandeau"><b>Ce qui est sous le capot.</b> Une « clé d’accès » : le téléphone garde une clé que seule votre empreinte déverrouille, et le serveur de connexion de la Maison la vérifie à chaque entrée. C’est le même système que les banques et Google. Il est déjà dans les outils du Trône et coûte 0 F ; il reste un interrupteur à allumer.</p>
+
+  <section aria-labelledby="t-essai">
+    <p class="sur">Essayez</p>
+    <h2 id="t-essai">Les quatre moments, au doigt</h2>
+    <div class="essai">
+      <div class="moments" role="group" aria-label="Les moments">
+        <button type="button" class="moment" data-moment="entrer" aria-pressed="true"><b>1 · Entrer d’un doigt</b><span>Le téléphone se souvient de vous : touchez l’empreinte.</span></button>
+        <button type="button" class="moment" data-moment="activer" aria-pressed="false"><b>2 · L’activer, la première fois</b><span>Après le mot de passe, le Trône le propose.</span></button>
+        <button type="button" class="moment" data-moment="appareil" aria-pressed="false"><b>3 · Vos clés d’accès</b><span>Voir ses téléphones, en retirer un.</span></button>
+        <button type="button" class="moment" data-moment="equipe" aria-pressed="false"><b>4 · Un téléphone perdu</b><span>La direction retire la clé d’un membre de l’équipe.</span></button>
+        <p class="raconte" id="raconte" aria-live="polite"></p>
+      </div>
+      <div class="telephone" aria-label="Le téléphone, à essayer">
+        <div class="ecran" id="ecran">
+          <div class="barre-etat"><span>9:41</span><span>5G · 82 %</span></div>
+          <div id="vue" class="vue"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section aria-labelledby="t-protege">
+    <p class="sur">Ce qui protège</p>
+    <h2 id="t-protege">Plus sûr qu’un mot de passe, plus simple aussi</h2>
+    <div class="protections">
+      <div class="protection"><h3>L’empreinte reste dans le téléphone</h3><p>Le Trône ne reçoit jamais votre empreinte ni votre visage : seulement la preuve, signée par le téléphone, que c’est bien vous.</p></div>
+      <div class="protection"><h3>Chaque téléphone a sa clé</h3><p>Une clé par téléphone, nommée (« Galaxy A54 »). Un téléphone perdu se retire en un geste : sa clé ne marche plus, nulle part.</p></div>
+      <div class="protection"><h3>Le mot de passe reste la porte de secours</h3><p>Empreinte refusée, capteur abîmé, nouveau téléphone : le mot de passe ouvre toujours, et propose de recréer la clé.</p></div>
+      <div class="protection"><h3>Rien ne s’imite</h3><p>La clé n’est valable que pour maisonmnd.com : un faux site qui imiterait le Trône ne pourrait pas s’en servir.</p></div>
+      <div class="protection"><h3>Sans réseau</h3><p>Hors ligne, l’empreinte rouvre le Trône gardé sur le téléphone, sept jours au plus, comme aujourd’hui avec le mot de passe.</p></div>
+    </div>
+  </section>
+
+  <section aria-labelledby="t-faire">
+    <p class="sur">Ce qu’il faudra faire</p>
+    <h2 id="t-faire">Un interrupteur, puis le premier essai</h2>
+    <div class="a-faire">
+      <div><b>Vous, 2 minutes</b><span>Allumer les « Passkeys » dans Supabase (Authentication) et y écrire le domaine maisonmnd.com. Je vous donnerai la marche à suivre à cocher.</span></div>
+      <div><b>Moi</b><span>L’écran de connexion qui se souvient de vous, le bouton d’empreinte, la proposition après le mot de passe, vos clés dans « Cet appareil », celles de l’équipe pour la direction, et les bancs dans un vrai navigateur.</span></div>
+      <div><b>Le coût</b><span>0 F. Android (empreinte, visage), iPhone (Touch ID, Face ID), et Windows Hello sur l’ordinateur.</span></div>
+      <div><b>À savoir</b><span>Notre fournisseur de connexion range encore les clés d’accès parmi ses fonctions « en essai » : elles marchent, et un banc surveillera qu’elles continuent de marcher.</span></div>
+    </div>
+  </section>
+
+  <section aria-labelledby="t-decisions">
+    <p class="sur">À trancher</p>
+    <h2 id="t-decisions">Vos choix</h2>
+    <p class="lu doux">Mes propositions sont marquées. Vos choix s’enregistrent ici ; je les relis avant de construire.</p>
+    <div class="avance"><span class="petit" id="compte-decisions">0 sur 6 tranchées</span><div class="jauge"><span id="barre-decisions"></span></div></div>
+    <div id="decisions"></div>
+    <div class="mot">
+      <label for="d-note"><h3>Un mot, si besoin</h3></label>
+      <textarea id="d-note" placeholder="Ce que la maquette ne dit pas, ou ce que vous voulez autrement."></textarea>
+      <span class="petit doux" id="d-note-etat"></span>
+    </div>
+  </section>
+</div>
+
+<script>
+(function () {
+  var EMPREINTE = '<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M13 19.5a11 11 0 0 1 22 0v3"/><path d="M9 27v-7.5a15 15 0 0 1 30 0v1.5"/><path d="M18 31v-11a6 6 0 0 1 12 0v6.5c0 4.5-1.2 8.5-3.4 11.8"/><path d="M24 20.5v8c0 5.3-2 9.8-5.3 13"/><path d="M35 28.5c0 4.4-1 8.4-2.8 11.6"/><path d="M13.5 31c0 3.2-1 6.2-2.8 8.6"/></svg>';
+  var VERROU = '<svg viewBox="0 0 30 18" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M2 16h26"/><path d="M5 16V11a10 10 0 0 1 20 0v5"/><path d="M15 6v10"/></svg>';
+  var vue = document.getElementById('vue');
+  var ecran = document.getElementById('ecran');
+  var raconte = document.getElementById('raconte');
+  var minuteries = [];
+  function plus_tard(f, ms) { minuteries.push(setTimeout(f, ms)); }
+  function efface() { minuteries.forEach(clearTimeout); minuteries = []; Array.prototype.slice.call(ecran.querySelectorAll('.voile, .toast')).forEach(function (n) { n.remove(); }); vue.className = 'vue'; }
+  function el(tag, cls, html) { var e = document.createElement(tag); if (cls) e.className = cls; if (html !== undefined) e.innerHTML = html; return e; }
+  function dit(m) { raconte.textContent = m; }
+  function toast(m) { var t = el('div', 'toast'); t.textContent = m; ecran.appendChild(t); plus_tard(function () { t.remove(); }, 3600); }
+
+  /* La feuille du système : on touche le capteur, il devient vert, puis la suite. */
+  function feuilleSysteme(titre, sousTitre, suite) {
+    var voile = el('div', 'voile');
+    var f = el('div', 'feuille');
+    f.appendChild(el('small', '', 'Le Trône · Maison MND'));
+    f.appendChild(el('b', '', titre));
+    var c = el('button', 'capteur', EMPREINTE); c.type = 'button'; c.setAttribute('aria-label', 'Toucher le capteur d’empreinte');
+    f.appendChild(c);
+    var l = el('small', '', sousTitre); f.appendChild(l);
+    f.appendChild(el('span', 'secours', 'Utiliser le code du téléphone'));
+    var a = el('button', 'annuler', 'Annuler'); a.type = 'button';
+    f.appendChild(a); voile.appendChild(f); ecran.appendChild(voile);
+    c.focus();
+    a.addEventListener('click', function () { voile.remove(); dit('Annulé : le mot de passe reste possible.'); });
+    c.addEventListener('click', function () {
+      c.classList.add('reussi');
+      c.innerHTML = '<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 25l7 7 15-16"/></svg>';
+      l.textContent = 'Empreinte reconnue';
+      plus_tard(function () { voile.remove(); suite(); }, 650);
+    });
+  }
+
+  function carteConnexion(reconnu) {
+    var c = el('div', 'carte-co');
+    c.appendChild(el('div', 'marque', VERROU + '<div><small>Le Trône</small><strong>Maison MND</strong></div>'));
+    if (reconnu) {
+      c.appendChild(el('p', 'bonjour', 'Bon retour, Yéman.'));
+      var compte = el('div', 'compte', '<span class="initiale">Y</span><div><b>Yéman B.</b><span>y•••••@gmail.com</span></div>');
+      var changer = el('button', '', 'Changer'); changer.type = 'button';
+      changer.addEventListener('click', function () { dit('« Changer » oublie le compte sur ce téléphone : on retape son e-mail, et l’empreinte de ce compte ne s’y propose plus.'); });
+      compte.appendChild(changer); c.appendChild(compte);
+    } else {
+      c.appendChild(el('p', 'bonjour', 'Entrez dans la salle du conseil.'));
+      c.appendChild(el('div', 'champ', '<label for="m-mail">E-mail</label><input id="m-mail" value="yeman@exemple.bj" autocomplete="off">'));
+    }
+    c.appendChild(el('div', 'champ', '<label for="m-mdp">Mot de passe</label><input id="m-mdp" type="password" value="motdepasse" autocomplete="off">'));
+    var co = el('button', 'btn-co', 'Se connecter'); co.type = 'button'; c.appendChild(co);
+    if (reconnu) {
+      c.appendChild(el('div', 'ou', 'ou'));
+      var e = el('button', 'empreinte', '<span class="rond">' + EMPREINTE + '</span><span>Entrer avec l’empreinte</span>'); e.type = 'button';
+      c.appendChild(e);
+      e.addEventListener('click', function () {
+        dit('Le Trône demande au téléphone de confirmer : touchez le capteur dans la feuille qui s’ouvre.');
+        feuilleSysteme('Confirmez que c’est vous', 'Touchez le capteur d’empreinte', function () { tronOuvert('Entré d’un doigt, sans mot de passe.'); });
+      });
+    }
+    c.appendChild(el('div', 'liens', '<span>Mot de passe oublié ?</span><span>' + (reconnu ? 'Ce n’est pas vous ?' : 'Créer un compte') + '</span>'));
+    return { carte: c, co: co };
+  }
+
+  function tronOuvert(message) {
+    efface();
+    vue.className = 'vue claire';
+    vue.appendChild(el('div', 'tete-trone', '<span>Le Trône</span><span>Ven. 16 oct. 2026</span>'));
+    vue.appendChild(el('p', 'salut', 'Bonjour Yéman.'));
+    vue.appendChild(el('p', 'bonjour', 'Le tableau de bord du jour (exemple).'));
+    vue.appendChild(el('div', 'tuiles', '<div class="tuile"><b>7</b><span>rendez-vous aujourd’hui</span></div><div class="tuile"><b>2</b><span>demandes du site</span></div><div class="tuile"><b>1</b><span>soin à rappeler</span></div><div class="tuile"><b>3</b><span>messages</span></div>'));
+    toast(message);
+    dit(message + ' Après 5 minutes hors du Trône, l’écran se reverrouille : un doigt pour reprendre (à trancher plus bas).');
+  }
+
+  var MOMENTS = {
+    entrer: function () {
+      var c = carteConnexion(true);
+      vue.appendChild(c.carte);
+      c.co.addEventListener('click', function () { tronOuvert('Entré avec le mot de passe : il reste toujours possible.'); });
+      dit('Le téléphone se souvient du compte (le prénom, l’e-mail masqué, comme BIIC). Touchez « Entrer avec l’empreinte ».');
+    },
+    activer: function () {
+      var c = carteConnexion(false);
+      vue.appendChild(c.carte);
+      dit('Un téléphone neuf : on entre une fois avec l’e-mail et le mot de passe. Touchez « Se connecter ».');
+      c.co.addEventListener('click', function () {
+        var voile = el('div', 'voile');
+        var p = el('div', 'proposition');
+        p.appendChild(el('h4', '', 'Entrer d’un doigt la prochaine fois ?'));
+        p.appendChild(el('p', '', 'Sur ce téléphone, votre empreinte ou votre visage remplacera le mot de passe. Ils ne quittent jamais le téléphone.'));
+        var duo = el('div', 'duo');
+        var tard = el('button', 'btn-doux', 'Plus tard'); tard.type = 'button';
+        var oui = el('button', 'btn-cuivre', 'Activer'); oui.type = 'button';
+        duo.appendChild(tard); duo.appendChild(oui); p.appendChild(duo);
+        voile.appendChild(p); ecran.appendChild(voile); oui.focus();
+        dit('Le Trône propose l’empreinte, une seule fois par téléphone. « Plus tard » : la proposition revient dans « Cet appareil ».');
+        tard.addEventListener('click', function () { voile.remove(); tronOuvert('Entré avec le mot de passe. L’empreinte reste à activer dans « Cet appareil ».'); });
+        oui.addEventListener('click', function () {
+          voile.remove();
+          feuilleSysteme('Créer une clé d’accès pour maisonmnd.com', 'Touchez le capteur pour la créer', function () { tronOuvert('C’est fait : la prochaine fois, un doigt suffit sur ce téléphone.'); });
+          dit('Le téléphone crée la clé, rangée avec vos mots de passe Google (ou iCloud) : touchez le capteur.');
+        });
+      });
+    },
+    appareil: function () {
+      vue.className = 'vue claire';
+      vue.appendChild(el('div', 'tete-trone', '<span>Cet appareil</span><span>Réglages</span>'));
+      vue.appendChild(el('p', 'titre-ecran', 'Entrer par l’empreinte'));
+      var r = el('div', 'reglage');
+      r.appendChild(el('div', 'inter', '<span>Sur ce téléphone</span><span class="bascule" role="img" aria-label="Activée"></span>'));
+      r.appendChild(el('p', '', 'Le Trône demande votre empreinte à l’ouverture, et après 5 minutes hors du Trône.'));
+      vue.appendChild(r);
+      var k = el('div', 'reglage');
+      k.appendChild(el('h5', '', 'Vos clés d’accès'));
+      [['Galaxy A54', 'ce téléphone · créée le 16 octobre 2026 · utilisée aujourd’hui'], ['Ordinateur du bureau', 'Windows Hello · créée le 16 octobre 2026 · utilisée le 15 octobre 2026']].forEach(function (d) {
+        var ligne = el('div', 'cle', '<div><b>' + d[0] + '</b><span>' + d[1] + '</span></div>');
+        var b = el('button', 'retirer', 'Retirer'); b.type = 'button';
+        b.addEventListener('click', function () { ligne.firstChild.classList.add('retiree'); b.disabled = true; b.textContent = 'Retirée'; toast('Clé retirée : « ' + d[0] + ' » n’entre plus par l’empreinte.'); });
+        ligne.appendChild(b); k.appendChild(ligne);
+      });
+      vue.appendChild(k);
+      dit('Chacun voit ses clés : un téléphone par ligne. « Retirer » coupe la clé partout, aussitôt.');
+    },
+    equipe: function () {
+      vue.className = 'vue claire';
+      vue.appendChild(el('div', 'tete-trone', '<span>Direction des RH</span><span>Accès</span>'));
+      vue.appendChild(el('p', 'titre-ecran', 'Les clés de l’équipe'));
+      var k = el('div', 'reglage');
+      k.appendChild(el('p', '', 'Exemples. Un téléphone perdu ou volé : on retire sa clé, et son mot de passe se change ensuite.'));
+      [['Brice', 'iPhone 13 · créée le 16 octobre 2026'], ['L’accueil (exemple)', 'Galaxy A14 · créée le 17 octobre 2026'], ['Une maîtresse (exemple)', 'Redmi Note 12 · créée le 18 octobre 2026']].forEach(function (d) {
+        var ligne = el('div', 'cle', '<div><b>' + d[0] + '</b><span>' + d[1] + '</span></div>');
+        var b = el('button', 'retirer', 'Retirer'); b.type = 'button';
+        b.addEventListener('click', function () { ligne.firstChild.classList.add('retiree'); b.disabled = true; b.textContent = 'Retirée'; toast('La clé de « ' + d[0] + ' » est retirée.'); });
+        ligne.appendChild(b); k.appendChild(ligne);
+      });
+      vue.appendChild(k);
+      dit('La direction voit les clés de chacun et peut en retirer une (à trancher plus bas).');
+    },
+  };
+  var boutons = Array.prototype.slice.call(document.querySelectorAll('.moment'));
+  function montre(nom) {
+    efface(); vue.textContent = '';
+    boutons.forEach(function (b) { b.setAttribute('aria-pressed', b.dataset.moment === nom ? 'true' : 'false'); });
+    MOMENTS[nom]();
+  }
+  boutons.forEach(function (b) { b.addEventListener('click', function () { montre(b.dataset.moment); }); });
+  montre('entrer');
+
+  /* ── Les décisions ── */
+  var DECISIONS = [
+    { id: 'qui', titre: 'Qui peut entrer par l’empreinte', pq: 'Chacun sur son propre téléphone.', options: [
+      ['equipe', 'Toute l’équipe qui a un compte du Trône', 'chacun active la sienne, sur son téléphone', true],
+      ['direction', 'La direction d’abord, l’équipe ensuite', 'pour essayer entre vous avant'] ] },
+    { id: 'quand', titre: 'Quand le Trône redemande l’empreinte', pq: 'Le verrou du téléphone, comme la banque.', options: [
+      ['banque', 'À chaque ouverture, et après 5 minutes hors du Trône', 'comme Ecobank et BIIC : un téléphone posé ne reste pas ouvert', true],
+      ['ouverture', 'À chaque ouverture seulement', 'moins de gestes dans la journée'],
+      ['session', 'Seulement quand la connexion a expiré', 'le moins de gestes, le moins protégé'] ] },
+    { id: 'souvenir', titre: 'Se souvenir du compte', pq: 'Ce que l’écran de connexion montre sur ce téléphone.', options: [
+      ['nom', 'Le prénom et l’e-mail masqué, comme BIIC', 'on ne retape plus son e-mail ; « Changer » l’oublie', true],
+      ['rien', 'Rien : on retape son e-mail à chaque fois', 'rien ne se lit sur un téléphone posé'] ] },
+    { id: 'code', titre: 'Un code en plus ?', pq: 'Ecobank ajoute un code à chiffres.', options: [
+      ['non', 'Non : l’empreinte, ou le mot de passe en secours', 'rien de plus à retenir', true],
+      ['code', 'Un code à 6 chiffres pour les téléphones sans empreinte', 'utile pour un vieux téléphone de l’équipe'] ] },
+    { id: 'perdu', titre: 'Un téléphone perdu', pq: 'Qui retire une clé.', options: [
+      ['chacun-direction', 'Chacun retire les siennes, et la direction celles de l’équipe', 'un départ ou un vol se règle sans attendre', true],
+      ['chacun', 'Chacun seulement', 'la direction passe par le mot de passe'] ] },
+    { id: 'ordinateur', titre: 'Et l’ordinateur ?', pq: 'Le même système marche avec Windows Hello.', options: [
+      ['aussi', 'Le téléphone d’abord, et l’ordinateur aussi (Windows Hello)', 'le même geste partout', true],
+      ['telephone', 'Le téléphone seulement', 'l’ordinateur garde le mot de passe'] ] },
+  ];
+  var choix = {};
+  var CLE = 'entrer-par-l-empreinte-choix';
+  try { var vu = JSON.parse(localStorage.getItem(CLE) || '{}') || {}; Object.keys(vu).forEach(function (k) { choix[k] = vu[k]; }); } catch (e) { /* sans mémoire */ }
+  var docRef = null, file = Promise.resolve();
+  function garde() {
+    try { localStorage.setItem(CLE, JSON.stringify(choix)); } catch (e) { /* sans mémoire */ }
+    if (!docRef) return;
+    var corps = {}; Object.keys(choix).forEach(function (k) { if (choix[k]) corps[k] = choix[k]; });
+    corps.quand = new Date().toISOString();
+    file = file.then(function () { return docRef.set(corps); }).catch(function () { /* hors ligne */ });
+  }
+  function txt(tag, cls, t) { var e = document.createElement(tag); if (cls) e.className = cls; if (t !== undefined) e.textContent = t; return e; }
+  var boite = document.getElementById('decisions');
+  function dessineDecisions() {
+    boite.textContent = '';
+    DECISIONS.forEach(function (d) {
+      var c = txt('div', 'decision' + (choix[d.id] ? ' tranchee' : ''));
+      c.appendChild(txt('h3', '', d.titre));
+      c.appendChild(txt('p', 'pq', d.pq));
+      var g = document.createElement('div'); g.setAttribute('role', 'radiogroup'); g.setAttribute('aria-label', d.titre);
+      d.options.forEach(function (o) {
+        var l = txt('label', 'choix-ligne');
+        var i = document.createElement('input'); i.type = 'radio'; i.name = 'd-' + d.id; i.id = 'd-' + d.id + '-' + o[0]; i.value = o[0]; i.checked = choix[d.id] === o[0];
+        i.addEventListener('change', function () { choix[d.id] = o[0]; garde(); dessineDecisions(); });
+        var s = document.createElement('span');
+        s.appendChild(document.createTextNode(o[1]));
+        if (o[3]) { s.appendChild(document.createTextNode(' ')); s.appendChild(txt('em', '', 'ma proposition')); }
+        s.appendChild(txt('small', '', o[2]));
+        l.appendChild(i); l.appendChild(s); g.appendChild(l);
+      });
+      c.appendChild(g);
+      c.appendChild(txt('span', 'etat', choix[d.id] ? 'Choix enregistré.' : ''));
+      boite.appendChild(c);
+    });
+    var k = DECISIONS.filter(function (d) { return choix[d.id]; }).length;
+    document.getElementById('compte-decisions').textContent = k + ' sur ' + DECISIONS.length + ' tranchées';
+    document.getElementById('barre-decisions').style.width = Math.round((k / DECISIONS.length) * 100) + '%';
+  }
+  var note = document.getElementById('d-note');
+  if (choix.note) note.value = choix.note;
+  var minuterie = null;
+  note.addEventListener('input', function () { clearTimeout(minuterie); minuterie = setTimeout(function () { choix.note = note.value.trim(); garde(); document.getElementById('d-note-etat').textContent = 'Mot enregistré.'; }, 600); });
+  dessineDecisions();
+  if (window.claude && typeof window.claude.use === 'function') {
+    window.claude.use('db').then(function (db) {
+      if (!db) return;
+      docRef = db.doc('maquette/empreinte');
+      return docRef.get().then(function (s) {
+        if (!s || !s.exists) return;
+        var v = s.data() || {};
+        Object.keys(v).forEach(function (k) { if (k !== 'quand' && typeof v[k] === 'string') choix[k] = v[k]; });
+        if (choix.note) note.value = choix.note;
+        dessineDecisions();
+      });
+    }).catch(function () { /* sans base : les choix restent sur cet appareil */ });
+  }
+})();
+</script>
