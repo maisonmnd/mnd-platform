@@ -306,10 +306,40 @@ try {
   dit('... « Pleine largeur » la remet a la largeur de l ecran', !!retour);
   const sousLaMolette = await ou('.spdf-feuille', 0.5, 0.3);
   await cdp('Input.dispatchMouseEvent', { type: 'mouseWheel', x: sousLaMolette.x, y: sousLaMolette.y, deltaX: 0, deltaY: -100, modifiers: 2 });
-  const molette = await jusqua(`document.querySelector('.spdf-loupe-taux').textContent === '125 %'`, 4000);
-  dit('... Ctrl + molette zoome aussi (125 %)', !!molette, await evalue(`document.querySelector('.spdf-loupe-taux').textContent`));
+  /* Un cran de molette : un zoom doux (Chrome rend le pas en pixels CSS, divisé par la densité de l'écran). */
+  const molette = await jusqua(`(() => { const t = parseInt(document.querySelector('.spdf-loupe-taux').textContent, 10); return t >= 104 && t <= 125 ? t : null; })()`, 4000);
+  dit('... Ctrl + molette zoome aussi, doucement (un cran : entre 104 et 125 %)', !!molette, await evalue(`document.querySelector('.spdf-loupe-taux').textContent`));
   await bouton('Pleine largeur');
   await jusqua(`document.querySelector('.spdf-loupe-taux').textContent === '100 %'`, 4000);
+
+  /* 3 sexies bis. SUR UN ORDINATEUR (1 536 x 864, comme le sien) : on pince
+     le pavé tactile sur une pièce (20 petits pas) ; le zoom monte doucement
+     et la pièce RESTE sous le doigt (le 16 octobre, la page grandissait depuis
+     son coin et le tableau de la facture sortait de l'écran). */
+  await cdp('Emulation.setDeviceMetricsOverride', { width: 1536, height: 864, deviceScaleFactor: 1.25, mobile: false });
+  await attend(1200);
+  const piece = await evalue(`(() => { const e = document.querySelector('.spdf-pose--texte'); e.scrollIntoView({ block: 'center', inline: 'center' }); const r = e.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; })()`);
+  await attend(300);
+  const sous = await evalue(`(() => { const r = document.querySelector('.spdf-pose--texte').getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; })()`);
+  /* Le point DE LA PAGE sous le doigt, en fractions de la feuille. */
+  const pointDeLaPage = await evalue(`(() => { const r = document.querySelector('.spdf-feuille').getBoundingClientRect(); return { fx: (${sous.x} - r.left) / r.width, fy: (${sous.y} - r.top) / r.height }; })()`);
+  for (let k = 0; k < 20; k += 1) await cdp('Input.dispatchMouseEvent', { type: 'mouseWheel', x: sous.x, y: sous.y, deltaX: 0, deltaY: -5, modifiers: 2 });
+  await attend(500);
+  const apresPince = await evalue(`(() => { const r = document.querySelector('.spdf-feuille').getBoundingClientRect(); return { taux: document.querySelector('.spdf-loupe-taux').textContent, x: r.left + ${pointDeLaPage.fx} * r.width, y: r.top + ${pointDeLaPage.fy} * r.height }; })()`);
+  const tauxPince = parseInt(apresPince.taux, 10);
+  dit('3 sexies bis. ordinateur : pincer doucement zoome doucement (20 petits pas : entre 104 et 130 %, pas 400 %)', tauxPince >= 104 && tauxPince <= 130, apresPince.taux);
+  dit('... et le point de la page sous le doigt y reste (a 3 px pres)', Math.hypot(apresPince.x - sous.x, apresPince.y - sous.y) < 3,
+    `doigt ${sous.x.toFixed(1)},${sous.y.toFixed(1)} · le meme point de la page ${apresPince.x.toFixed(1)},${apresPince.y.toFixed(1)} (piece avant ${piece.x.toFixed(0)},${piece.y.toFixed(0)})`);
+  for (const [k, code, attendu] of [['=', 'Equal', '125 %'], ['-', 'Minus', '100 %']]) {
+    await cdp('Input.dispatchKeyEvent', { type: 'keyDown', key: k, code, modifiers: 2, windowsVirtualKeyCode: k === '=' ? 187 : 189 });
+    await cdp('Input.dispatchKeyEvent', { type: 'keyUp', key: k, code, modifiers: 2, windowsVirtualKeyCode: k === '=' ? 187 : 189 });
+    const t = await jusqua(`document.querySelector('.spdf-loupe-taux').textContent === ${JSON.stringify(attendu)} ? true : null`, 3000);
+    dit(`... Ctrl + « ${k === '=' ? '+' : '−'} » au clavier zoome le PDF (${attendu})`, !!t, await evalue(`document.querySelector('.spdf-loupe-taux').textContent`));
+  }
+  await bouton('Pleine largeur');
+  await jusqua(`document.querySelector('.spdf-loupe-taux').textContent === '100 %'`, 4000);
+  await cdp('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 2, mobile: true });
+  await attend(1200);
 
   /* 3 septies. L'ENVOYER : sans numéro, la Maison le demande ; par l'app, la
      feuille de partage reçoit la COPIE (un vrai PDF, nommée « signé le … »).

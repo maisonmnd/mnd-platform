@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { PDFDocumentProxy } from 'pdfjs-dist/legacy/build/pdf.mjs';
 import { Button, Modal, Select, toast } from '../../../../../ds/components';
@@ -10,7 +10,7 @@ import type { Fichier, LigneAdministrative } from '../../../../../shared/secreta
 import { TAMPONS, TAMPON_A_DATER, dateSurLeRecu, type Tampon } from '../../../../../shared/secretariat-tampons';
 import {
   LARGEUR_DE_DEPART, TAILLE_DU_TEXTE, contenuDeLaCopie, dateLongueDuJour, enBase64, estUneImage, genreDeLImage, tailleApresLeCoin, tailleDite,
-  cadreApresLeCoin, champDeLAnnotation, couleursDeLaZone, densiteDuDessin, estUnCache, lignesDuTexte, nombreDeChamps, zoomVoisin,
+  cadreApresLeCoin, champDeLAnnotation, couleursDeLaZone, densiteDuDessin, estUnCache, lignesDuTexte, nombreDeChamps, zoomDeLaMolette, zoomVoisin,
   type AnnotationLue, type ChampDuPdf, type Famille, type LigneImprimee, type MorceauDeTexte, nomDeLaCopie, pagesDeLaSelection,
   repeteSurLesPages, resteDesPages, retoucheVide, tourFinal, type GenreDePose, type PoseSurPdf, type RetoucheDesPages,
 } from '../../../../../shared/pdf-signe-pur';
@@ -89,6 +89,18 @@ async function premierePageEnImage(f: File): Promise<string | null> {
 }
 /** Ce que la fonction d'envoi de la Maison accepte au plus (whatsapp-envoi, TAILLE_MAX). */
 const ENVOI_MAISON_MAX = 5 * 1024 * 1024;
+/** Le premier parent qui défile de haut en bas (le panneau de l'atelier, ou la fenêtre). */
+function defilementVertical(el: HTMLElement): HTMLElement | null {
+  for (let n = el.parentElement; n; n = n.parentElement) {
+    const o = getComputedStyle(n).overflowY;
+    if ((o === 'auto' || o === 'scroll') && n.scrollHeight > n.clientHeight + 1) return n;
+  }
+  return null;
+}
+const intersection = (a: DOMRect, b: DOMRect): DOMRect => {
+  const l = Math.max(a.left, b.left), t = Math.max(a.top, b.top), r = Math.min(a.right, b.right), d = Math.min(a.bottom, b.bottom);
+  return r > l && d > t ? new DOMRect(l, t, r - l, d - t) : a;
+};
 const FAMILLE_CSS: Record<Famille, string> = { sans: 'Helvetica, Arial, sans-serif', serif: '"Times New Roman", Times, serif', mono: '"Courier New", Courier, monospace' };
 const libelleDeLaLigne = (l: LigneAdministrative): string => {
   const x = l as unknown as { genre: string; numero?: string; correspondant?: string; objet?: string; titre?: string };
@@ -111,17 +123,73 @@ export function SignerUnPdf({ ouverture, onClose }: { ouverture: Ouverture; onCl
   /* LE ZOOM : 1 = pleine largeur. Ctrl + molette zoome aussi, comme dans Acrobat. */
   const [zoom, setZoom] = useState(1);
   const centre = useRef<HTMLDivElement>(null);
+  /* LE POINT QU'ON REGARDE RESTE SOUS LES YEUX (16 octobre 2026) : sans lui,
+     la page grandissait depuis son coin haut-gauche et ce qu'on voulait lire
+     (le nom d'un passager, au milieu d'un tableau) sortait de l'écran. On note
+     le point de la page sous le doigt (ou au centre de ce qu'on voit), on
+     zoome, puis l'on fait défiler pour le remettre au même endroit. */
+  const zoomVise = useRef(1);
+  const ancre = useRef<{ page: number; fx: number; fy: number; x: number; y: number } | null>(null);
+  /* UN GESTE CONTINU (un pincement, des crans de molette rapprochés, au même
+     endroit) garde le point de la page mesuré à son DÉBUT : le remesurer à
+     chaque pas laissait s'additionner les arrondis du défilement au pixel
+     (12 px de dérive sur un pincement, vu au banc). */
+  const geste = useRef<{ t: number; page: number; fx: number; fy: number; x: number; y: number } | null>(null);
+  const zoomeEn = useCallback((nouveau: number, x?: number, y?: number, continu = false) => {
+    const el = centre.current;
+    const pages = el?.querySelector<HTMLElement>('.spdf-pages');
+    const g = geste.current;
+    const maintenant = performance.now();
+    if (continu && g && x !== undefined && y !== undefined && maintenant - g.t < 400 && Math.abs(g.x - x) < 4 && Math.abs(g.y - y) < 4) {
+      ancre.current = { page: g.page, fx: g.fx, fy: g.fy, x: g.x, y: g.y };
+      geste.current = { ...g, t: maintenant };
+    } else if (el && pages) {
+      const defile = defilementVertical(pages);
+      const vu = intersection(pages.getBoundingClientRect(), defile ? defile.getBoundingClientRect() : new DOMRect(0, 0, window.innerWidth, window.innerHeight));
+      const px = x ?? vu.left + vu.width / 2, py = y ?? vu.top + vu.height / 2;
+      const feuilles = [...pages.querySelectorAll<HTMLElement>('.spdf-feuille')];
+      const rects = feuilles.map((f) => f.getBoundingClientRect());
+      let i = rects.findIndex((r) => py >= r.top && py <= r.bottom);
+      if (i < 0) i = rects.reduce((m, r, k) => (Math.abs(r.top + r.height / 2 - py) < Math.abs(rects[m].top + rects[m].height / 2 - py) ? k : m), 0);
+      const r = rects[i];
+      if (r && r.width > 0 && r.height > 0) ancre.current = { page: i, fx: (px - r.left) / r.width, fy: (py - r.top) / r.height, x: px, y: py };
+      geste.current = continu && ancre.current ? { ...ancre.current, t: maintenant } : null;
+    }
+    zoomVise.current = nouveau;
+    setZoom(nouveau);
+  }, []);
+  useLayoutEffect(() => {
+    const a = ancre.current;
+    ancre.current = null;
+    const pages = centre.current?.querySelector<HTMLElement>('.spdf-pages');
+    const f = pages?.querySelectorAll<HTMLElement>('.spdf-feuille')[a?.page ?? -1];
+    if (!a || !pages || !f) return;
+    const r = f.getBoundingClientRect();
+    pages.scrollLeft += r.left + a.fx * r.width - a.x;
+    const defile = defilementVertical(pages);
+    const dy = r.top + a.fy * r.height - a.y;
+    if (defile) defile.scrollTop += dy; else window.scrollBy(0, dy);
+  }, [zoom]);
   useEffect(() => {
     const el = centre.current;
     if (!el) return;
+    /* Ctrl + molette, et le pincement d'un pavé tactile : continu, autour du doigt. */
     const molette = (e: WheelEvent) => {
       if (!e.ctrlKey && !e.metaKey) return;
       e.preventDefault();
-      setZoom((z) => zoomVoisin(z, e.deltaY < 0 ? 1 : -1));
+      zoomeEn(zoomDeLaMolette(zoomVise.current, e.deltaY, e.deltaMode), e.clientX, e.clientY, true);
+    };
+    /* Ctrl + « + », « − », « 0 » : le PDF zoome, pas toute la page du Trône. */
+    const touche = (e: KeyboardEvent) => {
+      if (!(e.ctrlKey || e.metaKey) || e.altKey) return;
+      if (e.key === '+' || e.key === '=') { e.preventDefault(); zoomeEn(zoomVoisin(zoomVise.current, 1)); }
+      else if (e.key === '-' || e.key === '_') { e.preventDefault(); zoomeEn(zoomVoisin(zoomVise.current, -1)); }
+      else if (e.key === '0') { e.preventDefault(); zoomeEn(1); }
     };
     el.addEventListener('wheel', molette, { passive: false });
-    return () => el.removeEventListener('wheel', molette);
-  }, []);
+    window.addEventListener('keydown', touche);
+    return () => { el.removeEventListener('wheel', molette); window.removeEventListener('keydown', touche); };
+  }, [zoomeEn]);
   const [outil, setOutil] = useState<GenreDePose | null>(null);
   const [images, setImages] = useState<Record<string, ImageVue>>({});
   const [tampon, setTampon] = useState<string>('mnd-6-dentele');
@@ -395,10 +463,10 @@ export function SignerUnPdf({ ouverture, onClose }: { ouverture: Ouverture; onCl
         </aside>
         <div className="spdf-centre" ref={centre}>
         <div className="spdf-loupe" role="toolbar" aria-label="Le zoom">
-          <button type="button" className="spdf-outil" aria-label="Réduire la page" disabled={zoom <= 0.5} onClick={() => setZoom((z) => zoomVoisin(z, -1))}>−</button>
+          <button type="button" className="spdf-outil" aria-label="Réduire la page" disabled={zoom <= 0.5} onClick={() => zoomeEn(zoomVoisin(zoom, -1))}>−</button>
           <span className="spdf-loupe-taux" aria-live="polite">{Math.round(zoom * 100)} %</span>
-          <button type="button" className="spdf-outil" aria-label="Agrandir la page" disabled={zoom >= 4} onClick={() => setZoom((z) => zoomVoisin(z, 1))}>+</button>
-          <button type="button" className="spdf-outil" disabled={zoom === 1} onClick={() => setZoom(1)}>Pleine largeur</button>
+          <button type="button" className="spdf-outil" aria-label="Agrandir la page" disabled={zoom >= 4} onClick={() => zoomeEn(zoomVoisin(zoom, 1))}>+</button>
+          <button type="button" className="spdf-outil" disabled={zoom === 1} onClick={() => zoomeEn(1)}>Pleine largeur</button>
         </div>
         <div className={`spdf-pages${zoom > 1 ? ' spdf-pages--loupe' : ''}`}>
           {!pdf && !erreur && <p className="sad-doux">Le PDF s’ouvre…</p>}
@@ -468,6 +536,10 @@ function PageDuPdf({
   const [largeurPx, setLargeurPx] = useState(0);
   const [ratio, setRatio] = useState(1.414);
   const [vueUn, setVueUn] = useState<VueUn | null>(null);
+  /* Pendant qu'on pince, la page s'étire aussitôt (CSS) ; elle ne se REDESSINE
+     en détail qu'une fois le geste posé, pas à chacun de ses petits pas. */
+  const [zoomRendu, setZoomRendu] = useState(zoom);
+  useEffect(() => { const t = setTimeout(() => setZoomRendu(zoom), 180); return () => clearTimeout(t); }, [zoom]);
   /* La page suit la fenêtre : la taille des textes posés aussi. */
   useEffect(() => {
     const el = boite.current;
@@ -501,7 +573,7 @@ function PageDuPdf({
       await t.promise.catch(() => undefined);
     })();
     return () => { vivant = false; tache?.cancel(); };
-  }, [pdf, index, tour, aDesChamps, zoom]);
+  }, [pdf, index, tour, aDesChamps, zoomRendu]);
 
   /* LES LIGNES IMPRIMÉES, lues quand « Modifier le texte » est pris. */
   const [lignes, setLignes] = useState<LigneImprimee[] | null>(null);

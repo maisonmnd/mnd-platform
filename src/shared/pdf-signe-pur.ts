@@ -327,6 +327,15 @@ export function zoomVoisin(zoom: number, sens: 1 | -1): number {
   if (sens > 0) return ZOOMS.find((z) => z > zoom + 1e-6) ?? ZOOMS[ZOOMS.length - 1];
   return [...ZOOMS].reverse().find((z) => z < zoom - 1e-6) ?? ZOOMS[0];
 }
+/** Ctrl + molette, ou le PINCEMENT d'un pavé tactile (qui envoie des dizaines
+    de petits pas « Ctrl + molette ») : un zoom CONTINU. Un cran par
+    évènement faisait bondir la page de 100 % à 400 % d'un seul geste
+    (16 octobre 2026). Une molette de souris (100 par cran) zoome d'environ
+    16 % ; `mode` dit si le pas est en pixels (0), en lignes (1) ou en pages (2). */
+export function zoomDeLaMolette(zoom: number, deltaY: number, mode = 0): number {
+  const pas = mode === 1 ? deltaY * 16 : mode === 2 ? deltaY * 400 : deltaY;
+  return Math.min(4, Math.max(0.5, zoom * Math.exp(-pas * 0.0015)));
+}
 /** Une page dessinée ne dépasse pas 4 096 points de large ni 16 millions de points en tout (la mémoire d'un téléphone). */
 export function densiteDuDessin(largeurPx: number, ratio: number, dpr: number): number {
   const l = Math.max(1, largeurPx);

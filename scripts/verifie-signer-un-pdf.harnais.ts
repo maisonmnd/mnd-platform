@@ -24,7 +24,7 @@ import {
   GENRES_IMAGES, contenuDeLaCopie, genreDeLImage, nomDeLaCopie, pagesDeLaSelection, repeteSurLesPages, resteDesPages,
   tailleApresLeCoin, tailleDite, tourFinal, type PoseSurPdf,
   cadreApresLeCoin, champDeLAnnotation, couleurLue, couleursDeLaZone, lignesDuTexte, nombreDeChamps, type AnnotationLue, type MorceauDeTexte,
-  densiteDuDessin, enBase64, zoomVoisin,
+  densiteDuDessin, enBase64, zoomDeLaMolette, zoomVoisin,
 } from '../src/shared/pdf-signe-pur';
 import { facteurDuCoin } from '../src/shared/secretariat-pur';
 import { PdfProtege, ecritLaCopie } from '../src/shared/pdf-signe';
@@ -211,6 +211,16 @@ await lu.destroy();
 }
 
 /* ── LE ZOOM (16 octobre 2026) : « je veux zoomer et dézoomer le fichier ». */
+/* Le pincement d'un pavé tactile envoie des dizaines de petits pas : le 16
+   octobre, un cran par pas faisait bondir la page de 100 % à 400 %. Le zoom
+   suit la SOMME du geste : 20 pas de 5 valent un cran de molette (100). */
+{
+  let z = 1;
+  for (let k = 0; k < 20; k += 1) z = zoomDeLaMolette(z, -5);
+  dit('pincer : 20 petits pas = un cran de molette (x 1,16), pas un bond a 400 %', [1.16, 1.16], [Number(z.toFixed(2)), Number(zoomDeLaMolette(1, -100).toFixed(2))]);
+  dit('... dans l autre sens, autant ; en lignes (souris de Windows) comme en pixels ; bornes 50 % et 400 %', [0.86, 1.07, 0.5, 4],
+    [Number(zoomDeLaMolette(1, 100).toFixed(2)), Number(zoomDeLaMolette(1, -3, 1).toFixed(2)), zoomDeLaMolette(0.52, 400), zoomDeLaMolette(3.9, -400)]);
+}
 dit('les crans du zoom : 100 % -> 125 % -> 150 %, et 100 % -> 90 % ; bornes 50 % et 400 %', [1.25, 1.5, 0.9, 0.5, 4],
   [zoomVoisin(1, 1), zoomVoisin(1.25, 1), zoomVoisin(1, -1), zoomVoisin(0.5, -1), zoomVoisin(4, 1)]);
 /* La promesse : une page de 700 px garde la finesse de l'écran (x 2) ; une page
@@ -448,7 +458,14 @@ dit('... l encre d une ligne est lue sur la ligne REDESSINEE EN GRAND (48 pixels
 dit('... et l on peut choisir l encre : comme l imprime, noir, bleu nuit', true, /\['Comme l’imprimé', pose\.encreLue\], \['Noir', '#000000'\], \['Bleu nuit', '#1e2150'\]/.test(atelier));
 dit('le zoom : de 50 % a 400 % par crans, boutons et Ctrl + molette, la page se redessine a chaque cran', true,
   /aria-label="Réduire la page"/.test(atelier) && /aria-label="Agrandir la page"/.test(atelier) && /Pleine largeur/.test(atelier)
-  && /addEventListener\('wheel', molette, \{ passive: false \}\)/.test(atelier) && /\}, \[pdf, index, tour, aDesChamps, zoom\]\);/.test(atelier));
+  && /addEventListener\('wheel', molette, \{ passive: false \}\)/.test(atelier) && /\}, \[pdf, index, tour, aDesChamps, zoomRendu\]\);/.test(atelier));
+dit('... le point regarde reste sous les yeux : boutons, molette et clavier passent tous par le zoom ancre', true,
+  (atelier.match(/onClick=\{\(\) => zoomeEn\(/g) ?? []).length === 3 && /zoomeEn\(zoomDeLaMolette\(zoomVise\.current, e\.deltaY, e\.deltaMode\), e\.clientX, e\.clientY, true\)/.test(atelier)
+  /* Un pincement garde le point de la page mesuré à son début (sinon les arrondis du défilement s'additionnent). */
+  && /maintenant - g\.t < 400 && Math\.abs\(g\.x - x\) < 4 && Math\.abs\(g\.y - y\) < 4\) \{\s*ancre\.current = \{ page: g\.page, fx: g\.fx, fy: g\.fy/.test(atelier)
+  && /useLayoutEffect\(\(\) => \{[\s\S]{0,500}pages\.scrollLeft \+= r\.left \+ a\.fx \* r\.width - a\.x;/.test(atelier) && !/setZoom\(\(z\) =>/.test(atelier));
+dit('... Ctrl + « + », « − », « 0 » zooment le PDF (pas toute la page du Trone)', true,
+  /if \(e\.key === '\+' \|\| e\.key === '='\) \{ e\.preventDefault\(\); zoomeEn\(zoomVoisin\(zoomVise\.current, 1\)\); \}/.test(atelier) && /else if \(e\.key === '0'\) \{ e\.preventDefault\(\); zoomeEn\(1\); \}/.test(atelier));
 dit('... une page modifiee ne se tourne plus (le cache est cale sur la page vue)', true, /if \(poses\.some\(\(p\) => p\.page === i && estUnCache\(p\.genre\)\)\) \{ toast\(/.test(atelier));
 dit('le formulaire : la page se dessine sans ses champs, les cases a remplir se posent par-dessus', true,
   /annotationMode: aDesChamps \? 2 : 1/.test(atelier) && /champDeLAnnotation\(a, i - 1\)/.test(atelier) && /ecritLaCopie\(ouverture\.octets, poses, pagesRetouchees, pourEcrire, valeurs\)/.test(atelier));
