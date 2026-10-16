@@ -19,10 +19,11 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { deflateSync } from 'node:zlib';
-import { PDFDocument, PDFName, degrees } from 'pdf-lib';
+import { PDFDocument, PDFName, StandardFonts, degrees, rgb } from 'pdf-lib';
 import {
   GENRES_IMAGES, contenuDeLaCopie, genreDeLImage, nomDeLaCopie, pagesDeLaSelection, repeteSurLesPages, resteDesPages,
   tailleApresLeCoin, tailleDite, tourFinal, type PoseSurPdf,
+  cadreApresLeCoin, champDeLAnnotation, couleurLue, couleursDeLaZone, lignesDuTexte, nombreDeChamps, type AnnotationLue, type MorceauDeTexte,
 } from '../src/shared/pdf-signe-pur';
 import { facteurDuCoin } from '../src/shared/secretariat-pur';
 import { PdfProtege, ecritLaCopie } from '../src/shared/pdf-signe';
@@ -228,6 +229,146 @@ dit('un texte de 11 pt tire a x 1,5 fait 16,5 pt ; de 6 a 40 pt au plus', [16.5,
 dit('en tirant, la poignee dit « 150 % » d un tampon, « 14 pt » d un texte', ['150 %', '14 pt'], [tailleDite({ genre: 'tampon', largeur: 0.3 }), tailleDite({ genre: 'texte', largeur: 0, taille: 14 })]);
 dit('le journal compte les images posees', ['1 image'], contenuDeLaCopie([{ id: 'i', page: 0, genre: 'image', x: 0, y: 0, largeur: 0.4, image: 'image:a' }], { tours: {}, retirees: [] }, 1));
 
+/* ── 4 ter. REMPLIR ET MODIFIER (16 octobre 2026) ──
+   « Quand j'appuie éditer le texte, ça écrit par-dessus ; je veux pouvoir
+   effacer ce qui est écrit et écrire le mien, remplir comme voulu, comme dans
+   Acrobat » ; « je veux remplir le document et compléter le formulaire »
+   (Yéman). Attentes à la main ; les copies sont RENDUES en image (pdf.js et
+   un canevas) et l'on regarde les pixels : l'ancien texte ne se voit plus. */
+{
+  const vue = { transform: [1, 0, 0, -1, 0, 842], width: 595, height: 842 };
+  const m = (str: string, t: number[], width: number, fontName = 'f0'): MorceauDeTexte => ({ str, transform: t, width, fontName });
+  const lignes = lignesDuTexte([
+    m('Nom :', [12, 0, 0, 12, 100, 700], 30), m('Yéman', [12, 0, 0, 12, 133, 700], 36), m('Date', [12, 0, 0, 12, 400, 700], 24),
+    m('Adresse', [10, 0, 0, 10, 100, 680], 35, 'f1'), m('VERTICAL', [0, 12, -12, 0, 50, 400], 60), m('   ', [12, 0, 0, 12, 300, 600], 9),
+  ], vue, { f0: 'sans-serif', f1: 'serif' });
+  const r4 = (n: number) => Number(n.toFixed(4));
+  dit('les lignes imprimees : les morceaux proches se recousent (« Nom : Yeman »), une colonne lointaine reste a part, le texte vertical est laisse',
+    ['Nom : Yéman', 'Date', 'Adresse'], lignes.map((l) => l.texte));
+  dit('... la boite de « Nom : Yeman » : de 0,9 taille au-dessus de la ligne de base a 0,25 au-dessous, 1 pt de marge de chaque cote',
+    [r4(99 / 595), r4((142 - 10.8) / 842), r4(71 / 595), r4(13.8 / 842), 12, 'sans'],
+    [r4(lignes[0].x), r4(lignes[0].y), r4(lignes[0].largeur), r4(lignes[0].hauteur), lignes[0].taille, lignes[0].famille]);
+  dit('... la famille de lettres d origine est gardee (serif)', 'serif', lignes[2].famille);
+
+  const zone = (l: number, h: number, fond: number[], encre: number[], dedans: (x: number, y: number) => boolean) => {
+    const px: number[] = [];
+    for (let y = 0; y < h; y += 1) for (let x = 0; x < l; x += 1) px.push(...(dedans(x, y) ? encre : fond), 255);
+    return px;
+  };
+  dit('les couleurs sous une ligne : le papier jaune d une bande reste jaune, l encre est lue', { fond: '#ffe699', encre: '#141428' },
+    couleursDeLaZone(zone(10, 4, [255, 230, 153], [20, 20, 40], (x, y) => x > 1 && x < 8 && y > 0 && y < 3), 10, 4));
+  dit('... une zone toute blanche : papier blanc, encre noire par defaut', { fond: '#ffffff', encre: '#141414' }, couleursDeLaZone(zone(6, 3, [255, 255, 255], [0, 0, 0], () => false), 6, 3));
+  dit('... « #ffe699 » se lit en couleur du PDF (0 a 1)', [1, 0.902, 0.6], couleurLue('#ffe699', [0, 0, 0]).map((v) => Number(v.toFixed(3))));
+  dit('tirer le coin d une zone effacee : la largeur et la hauteur suivent le doigt, sans sortir de la page', { largeur: 0.35, hauteur: 0.1 },
+    (({ largeur, hauteur }) => ({ largeur: Number(largeur.toFixed(4)), hauteur: Number((hauteur ?? 0).toFixed(4)) }))(cadreApresLeCoin({ x: 0.5, y: 0.9, largeur: 0.25, hauteur: 0.03 }, 0.1, 0.2)));
+
+  const w = (o: Partial<AnnotationLue>): AnnotationLue => ({ subtype: 'Widget', fieldName: 'f', rect: [0, 0, 10, 10], ...o });
+  dit('les champs d un formulaire : texte, case cochee ou non, bouton radio, liste ; lecture seule et boutons-poussoirs laisses',
+    [['texte', 'Y'], ['case', true], ['case', false], ['radio', 'b'], ['liste', 'Porto-Novo'], null, null, null],
+    [
+      w({ fieldType: 'Tx', fieldValue: 'Y' }), w({ fieldType: 'Btn', checkBox: true, fieldValue: 'Oui', exportValue: 'Oui' }),
+      w({ fieldType: 'Btn', checkBox: true, fieldValue: 'Off', exportValue: 'Oui' }), w({ fieldType: 'Btn', radioButton: true, fieldValue: 'b', buttonValue: 'a' }),
+      w({ fieldType: 'Ch', fieldValue: ['Porto-Novo'], options: [{ exportValue: 'Cotonou', displayValue: 'Cotonou' }] }),
+      w({ fieldType: 'Tx', readOnly: true }), w({ fieldType: 'Btn', pushButton: true }), { subtype: 'Link', rect: [0, 0, 1, 1] },
+    ].map((a) => { const c = champDeLAnnotation(a, 0); return c ? [c.genre, c.valeur] : null; }));
+  dit('... un meme champ sur deux pages ne compte qu une fois', 2, nombreDeChamps([
+    { nom: 'a', page: 0, genre: 'texte', rect: [], valeur: '' }, { nom: 'a', page: 1, genre: 'texte', rect: [], valeur: '' }, { nom: 'b', page: 1, genre: 'case', rect: [], valeur: false },
+  ]));
+  dit('le journal dit ce qui a ete modifie, efface, rempli', ['1 texte imprimé modifié', '2 zones effacées', '3 champs du formulaire remplis'],
+    contenuDeLaCopie([
+      { id: 'r', page: 0, genre: 'remplace', x: 0, y: 0, largeur: 0.1, hauteur: 0.01, texte: 'A' },
+      { id: 'e1', page: 0, genre: 'efface', x: 0, y: 0, largeur: 0.1, hauteur: 0.01 }, { id: 'e2', page: 0, genre: 'efface', x: 0.5, y: 0, largeur: 0.1, hauteur: 0.01 },
+    ], { tours: {}, retirees: [] }, 1, 3));
+
+  /* LES COPIES RENDUES. Une page jaune en bandeau, une ligne imprimée, un formulaire. */
+  const { createCanvas } = await import(pathToFileURL(path.join(racine, 'node_modules/@napi-rs/canvas/index.js')).href);
+  /* Le faux « window » du banc (pour d'autres modules) n'a pas de requestAnimationFrame, que pdf.js prend pour rythmer son dessin. */
+  const fenetre = (globalThis as unknown as { window?: Record<string, unknown> }).window;
+  if (fenetre && typeof fenetre.requestAnimationFrame !== 'function') fenetre.requestAnimationFrame = (f: () => void) => setTimeout(f, 0);
+  const rends = async (octets: Uint8Array, n = 1) => {
+    /* Les polices standard (Helvetica…) ne sont pas dans le PDF : pdf.js les lit dans son dossier, sinon il ne dessine aucun texte. */
+    const d = await pdfjs.getDocument({ data: octets.slice(), verbosity: 0, standardFontDataUrl: path.join(racine, 'node_modules/pdfjs-dist/standard_fonts') + path.sep }).promise;
+    const pg = await d.getPage(n);
+    const v = pg.getViewport({ scale: 2 });
+    const c = createCanvas(Math.floor(v.width), Math.floor(v.height));
+    const ctx = c.getContext('2d');
+    await pg.render({ canvasContext: ctx, viewport: v }).promise;
+    const texte = (await pg.getTextContent()).items.map((it: { str?: string }) => it.str ?? '').join(' ');
+    const img = ctx.getImageData(0, 0, c.width, c.height);
+    await d.destroy();
+    /* Les points d'encre (sombres) dans une boîte donnée en points de la page vue (haut-gauche). */
+    const encreDans = (x: number, y: number, l: number, h: number) => {
+      let n2 = 0;
+      for (let yy = Math.floor(y * 2); yy < Math.ceil((y + h) * 2); yy += 1) for (let xx = Math.floor(x * 2); xx < Math.ceil((x + l) * 2); xx += 1) {
+        const i = (yy * img.width + xx) * 4; if (img.data[i] + img.data[i + 1] + img.data[i + 2] < 300) n2 += 1;
+      }
+      return n2;
+    };
+    const couleur = (x: number, y: number) => { const i = (Math.floor(y * 2) * img.width + Math.floor(x * 2)) * 4; return [img.data[i], img.data[i + 1], img.data[i + 2]]; };
+    return { texte, encreDans, couleur, canevas: { px: img.data, l: img.width, h: img.height } };
+  };
+  const d0 = await PDFDocument.create();
+  const p0 = d0.addPage([595, 842]);
+  const hv = await d0.embedFont(StandardFonts.Helvetica);
+  p0.drawRectangle({ x: 50, y: 680, width: 495, height: 40, color: rgb(1, 230 / 255, 153 / 255) });
+  p0.drawText('ANCIEN TEXTE IMPRIME 123', { x: 100, y: 695, size: 14, font: hv, color: rgb(0.1, 0.1, 0.1) });
+  p0.drawText('Une ligne a effacer entierement', { x: 100, y: 600, size: 12, font: hv });
+  const form = d0.getForm();
+  form.createTextField('nom_du_client').addToPage(p0, { x: 100, y: 500, width: 200, height: 20 });
+  form.createCheckBox('accepte').addToPage(p0, { x: 100, y: 460, width: 16, height: 16 });
+  const ville = form.createDropdown('ville'); ville.addOptions(['Cotonou', 'Porto-Novo']); ville.addToPage(p0, { x: 320, y: 500, width: 120, height: 20 });
+  const brut = await d0.save();
+
+  /* Les lignes, telles que l'atelier les lit (pdf.js, viewport à l'échelle 1). */
+  const lu0 = await pdfjs.getDocument({ data: brut.slice(), verbosity: 0 }).promise;
+  const pg0 = await lu0.getPage(1);
+  const v0 = pg0.getViewport({ scale: 1 });
+  const contenu0 = await pg0.getTextContent();
+  const fam0: Record<string, string> = {};
+  for (const [k, st] of Object.entries(contenu0.styles ?? {})) fam0[k] = String((st as { fontFamily?: string }).fontFamily ?? '');
+  const lignes0 = lignesDuTexte((contenu0.items as MorceauDeTexte[]).filter((it) => typeof it.str === 'string'), v0, fam0);
+  const champs0 = ((await pg0.getAnnotations()) as AnnotationLue[]).map((a) => champDeLAnnotation(a, 0)).filter(Boolean);
+  await lu0.destroy();
+  const ancienne = lignes0.find((l) => l.texte === 'ANCIEN TEXTE IMPRIME 123');
+  const aEffacer = lignes0.find((l) => l.texte.startsWith('Une ligne a effacer'));
+  dit('la ligne imprimee est trouvee, a sa taille (14 pt)', [true, 14], [!!ancienne, ancienne?.taille]);
+  dit('les trois champs du formulaire sont trouves', ['case accepte', 'liste ville', 'texte nom_du_client'], champs0.map((c) => `${c!.genre} ${c!.nom}`).sort());
+  /* Les couleurs, lues sur la page rendue comme le fait l'atelier. */
+  const r0 = await rends(brut);
+  const sous = (z: { x: number; y: number; largeur: number; hauteur: number }) => {
+    const x = Math.floor(z.x * r0.canevas.l), y = Math.floor(z.y * r0.canevas.h), l = Math.ceil(z.largeur * r0.canevas.l), h = Math.ceil(z.hauteur * r0.canevas.h);
+    const px: number[] = [];
+    for (let yy = y; yy < y + h; yy += 1) for (let xx = x; xx < x + l; xx += 1) { const i = (yy * r0.canevas.l + xx) * 4; px.push(r0.canevas.px[i], r0.canevas.px[i + 1], r0.canevas.px[i + 2], r0.canevas.px[i + 3]); }
+    return couleursDeLaZone(px, l, h);
+  };
+  const c0 = sous(ancienne!);
+  dit('... sous la ligne : papier jaune de la bande, encre presque noire', true, c0.fond === '#ffe699' && parseInt(c0.encre.slice(1, 3), 16) < 60);
+  const poses4: PoseSurPdf[] = [
+    { id: 'r', page: 0, genre: 'remplace', x: ancienne!.x, y: ancienne!.y, largeur: ancienne!.largeur, hauteur: ancienne!.hauteur, texte: 'Bail', ancien: ancienne!.texte, taille: ancienne!.taille, famille: ancienne!.famille, fond: c0.fond, encre: c0.encre },
+    { id: 'e', page: 0, genre: 'efface', x: aEffacer!.x, y: aEffacer!.y, largeur: aEffacer!.largeur, hauteur: aEffacer!.hauteur, fond: '#ffffff' },
+    /* Un texte posé AVANT la zone effacée, au même endroit : il doit rester visible (les caches passent d'abord). */
+    { id: 't', page: 0, genre: 'texte', x: aEffacer!.x, y: aEffacer!.y, largeur: 0, texte: 'Nouveau', taille: 12 },
+  ];
+  poses4.push(poses4.splice(1, 1)[0]);
+  const copie4 = await ecritLaCopie(brut, poses4, { tours: {}, retirees: [] }, {}, { nom_du_client: 'Yéman B.', accepte: true, ville: 'Porto-Novo' });
+  const r4c = await rends(copie4);
+  const W = 595, H = 842;
+  const bx = ancienne!.x * W, by = ancienne!.y * H, bl = ancienne!.largeur * W, bh = ancienne!.hauteur * H;
+  /* « Bail » en Helvetica 14 fait ~27 pt : au-delà de 40 pt dans la boîte, plus une goutte d'encre. */
+  dit('MODIFIER LE TEXTE : l ancienne ligne ne se voit plus (aucune encre au-dela du nouveau mot)', 0, r4c.encreDans(bx + 40, by + 1, bl - 41, bh - 2));
+  dit('... le nouveau mot est la, sur la ligne de base d origine', true, r4c.encreDans(bx + 1, by + 1, 30, bh - 2) > 20 && /Bail/.test(r4c.texte));
+  dit('... et la bande garde son jaune (le cache prend la couleur du papier)', [255, 230, 153], r4c.couleur(bx + bl - 5, by + bh / 2));
+  dit('EFFACER UNE ZONE : la ligne effacee ne se voit plus, sauf le texte pose par-dessus', true,
+    r4c.encreDans(aEffacer!.x * W + 60, aEffacer!.y * H + 1, aEffacer!.largeur * W - 61, aEffacer!.hauteur * H - 2) === 0
+    && r4c.encreDans(aEffacer!.x * W + 1, aEffacer!.y * H - 4, 55, aEffacer!.hauteur * H + 6) > 20);
+  const relu4 = await PDFDocument.load(copie4, { updateMetadata: false });
+  dit('LE FORMULAIRE : les valeurs sont dans la copie, et le formulaire y est fige (plus de champs)', [true, true, 0],
+    [/Yéman B\./.test(r4c.texte), /Porto-Novo/.test(r4c.texte), relu4.getForm().getFields().length]);
+  dit('... la case cochee se voit', true, r4c.encreDans(100 + 2, 842 - 476 + 2, 12, 12) > 10);
+  /* L'original n'a pas bougé : rendu, sa ligne est toujours là. */
+  dit('... et l original, rendu, montre toujours sa ligne et ses champs vides', true, r0.encreDans(bx + 40, by + 1, bl - 41, bh - 2) > 50 && !/Yéman B\./.test(r0.texte));
+}
+
 /* ── 5. LE CÂBLAGE ── */
 const atelier = sansCommentaires(lis('src/apps/trone/routes/pilotage/secretariat/SignerUnPdf.tsx'));
 const ecriture = sansCommentaires(lis('src/shared/pdf-signe.ts'));
@@ -242,16 +383,21 @@ dit('... et que SON paraphe', ['chargeMonParaphe(moi)'], [...new Set(atelier.mat
 dit('... il ne lit aucune autre signature (pas de liste des signataires a poser)', false, /signaturesDe|chargeLaSignatureDe|\.download\(/.test(atelier));
 dit('le paraphe vit dans le dossier prive de chacun, a cote de sa signature', true,
   /cheminDeMonParaphe\s*=\s*\(userId: string\)\s*=>\s*`\$\{userId\}\/paraphe\.png`/.test(secretariat) && /from\('signatures'\)\.upload\(cheminDeMonParaphe\(userId\)/.test(secretariat));
-/* Neuf depuis le 16 octobre : « Une image » demandée par Yéman ; toujours aucun outil pour masquer. */
-dit('on ajoute, on n efface jamais : neuf outils, aucun pour masquer', ['signature', 'paraphe', 'tampon', 'recu', 'image', 'texte', 'date', 'lu', 'coche'],
+/* Le 16 octobre, Yéman revient sur « on n'efface jamais » : « je veux pouvoir
+   effacer ce qui est écrit et écrire le mien, comme dans Acrobat ». Onze
+   outils : « Une image », puis « Modifier le texte » et « Effacer une zone ». */
+dit('les outils : poser, ecrire, et depuis le 16 octobre modifier et effacer', ['signature', 'paraphe', 'tampon', 'recu', 'image', 'texte', 'date', 'lu', 'coche', 'remplace', 'efface'],
   [...(/export type GenreDePose = ([^;]+);/.exec(pur)?.[1] ?? '').matchAll(/'([a-z]+)'/g)].map((m) => m[1]));
-dit('... ni rectangle blanc ni cache dans l ecriture de la copie', false, /drawRectangle|drawSvgPath|masqu|blanc|white/i.test(ecriture));
+dit('... un seul cache dans l ecriture de la copie, celui des pieces qui couvrent, et il passe avant tout le reste', true,
+  (ecriture.match(/drawRectangle/g) ?? []).length === 1 && /if \(etape === 'cache'\) \{[\s\S]{0,400}drawRectangle/.test(ecriture)
+  && /\.\.\.poses\.filter\(\(p\) => estUnCache\(p\.genre\)\)\.map[\s\S]{0,300}\.\.\.poses\.filter\(\(p\) => !estUnCache\(p\.genre\)\)/.test(ecriture));
+dit('... l original, lui, ne bouge jamais : la copie part de ses octets et s ecrit a cote', true, /PDFDocument\.load\(original/.test(ecriture) && !/original\.set\(|original\[/.test(ecriture));
 dit('... les cinq outils d image : ceux de la maquette, plus « Une image »', ['signature', 'paraphe', 'tampon', 'recu', 'image'], [...GENRES_IMAGES]);
 dit('« Une image » prend une photo, une capture ou un PDF (sa premiere page, rendue par pdf.js)', true,
   /accept="image\/png,image\/jpeg,image\/webp,image\/gif,application\/pdf,\.pdf"/.test(atelier) && /premierePageEnImage\(f\)/.test(atelier) && /await doc\.getPage\(1\)/.test(atelier));
 dit('... une grande photo est ramenee a 2 000 px (la copie reste legere)', true, /Math\.min\(1, 2000 \/ Math\.max\(/.test(atelier));
 dit('le rond cuivre n apparait que sur la piece choisie, et agrandit par la regle commune', true,
-  /const poignee = \(p: PoseSurPdf\) => p\.id === choisie && !retiree && \(/.test(atelier) && /tailleApresLeCoin\(p, facteurDuCoin\(/.test(atelier) && (atelier.match(/\{poignee\(p\)\}/g) ?? []).length === 2);
+  /const poignee = \(p: PoseSurPdf\) => p\.id === choisie && !retiree && \(/.test(atelier) && /tailleApresLeCoin\(p, facteurDuCoin\(/.test(atelier) && (atelier.match(/\{poignee\(p\)\}/g) ?? []).length === 3);
 dit('la copie se range A COTE de l original : la liste des fichiers s allonge', true, /fichiers: \[\.\.\.ligne\.fichiers, f\]/.test(atelier) && /deposeLesFichiers\(ligne\.id,/.test(atelier));
 dit('... jamais a sa place : l atelier n efface ni ne remplace aucun fichier', false,
   /storage|effaceLaLigne|upsert|fichiers: \[f\]|fichiers\.filter|fichiers: r\.fichiers/.test(atelier));
@@ -269,6 +415,12 @@ dit('chaque PDF du Secretariat s ouvre dans l atelier (« Ouvrir et signer »)',
 dit('... et un PDF de l ordinateur aussi (« Signer un PDF »), jusqu a 10 Mo', true,
   /Signer un PDF/.test(page) && /accept="application\/pdf,\.pdf"/.test(page) && /10 \* 1024 \* 1024/.test(page) && /<AtelierDuPdf ouverture=\{pdfASigner\}/.test(page));
 dit('... une copie ouverte de l ordinateur demande sur quelle ligne se ranger', true, /!ouverture\.ligne && \(\s*<Select value=\{rangerSur\}/.test(atelier));
+dit('modifier le texte : la ligne touchee devient un champ deja rempli et SELECTIONNE (on tape, l ancien s efface)', true,
+  /autoFocus onFocus=\{\(e\) => e\.currentTarget\.select\(\)\}/.test(atelier) && /texte: l\.texte, ancien: l\.texte/.test(atelier));
+dit('... la couleur du papier et de l encre sont lues sur la page dessinee', true, /surRemplace\(l, echantillon\(l\)\)/.test(atelier) && /couleursDeLaZone\(ctx\.getImageData\(/.test(atelier));
+dit('... une page modifiee ne se tourne plus (le cache est cale sur la page vue)', true, /if \(poses\.some\(\(p\) => p\.page === i && estUnCache\(p\.genre\)\)\) \{ toast\(/.test(atelier));
+dit('le formulaire : la page se dessine sans ses champs, les cases a remplir se posent par-dessus', true,
+  /annotationMode: aDesChamps \? 2 : 1/.test(atelier) && /champDeLAnnotation\(a, i - 1\)/.test(atelier) && /ecritLaCopie\(ouverture\.octets, poses, pagesRetouchees, pourEcrire, valeurs\)/.test(atelier));
 dit('tourner et retirer une page, dans la copie seulement', true, /Tourner/.test(atelier) && /Retirer cette page/.test(atelier) && /Remettre la page/.test(atelier));
 dit('« sur toutes les pages » et une selection « 1, 3-5 »', true, /Sur toutes les pages/.test(atelier) && /pagesDeLaSelection\(selection, nbPages\)/.test(atelier));
 const css = lis('src/apps/trone/routes/pilotage/pilotage.css');

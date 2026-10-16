@@ -9,7 +9,9 @@ import { deposeLesFichiers, retouche as retoucheLaLigne } from '../../../../../s
 import type { Fichier, LigneAdministrative } from '../../../../../shared/secretariat-admin-pur';
 import { TAMPONS, TAMPON_A_DATER, dateSurLeRecu, type Tampon } from '../../../../../shared/secretariat-tampons';
 import {
-  LARGEUR_DE_DEPART, TAILLE_DU_TEXTE, contenuDeLaCopie, dateLongueDuJour, estUneImage, genreDeLImage, tailleApresLeCoin, tailleDite, nomDeLaCopie, pagesDeLaSelection,
+  LARGEUR_DE_DEPART, TAILLE_DU_TEXTE, contenuDeLaCopie, dateLongueDuJour, estUneImage, genreDeLImage, tailleApresLeCoin, tailleDite,
+  cadreApresLeCoin, champDeLAnnotation, couleursDeLaZone, estUnCache, lignesDuTexte, nombreDeChamps,
+  type AnnotationLue, type ChampDuPdf, type Famille, type LigneImprimee, type MorceauDeTexte, nomDeLaCopie, pagesDeLaSelection,
   repeteSurLesPages, resteDesPages, retoucheVide, tourFinal, type GenreDePose, type PoseSurPdf, type RetoucheDesPages,
 } from '../../../../../shared/pdf-signe-pur';
 import { PdfProtege, ecritLaCopie, type ImageDePose } from '../../../../../shared/pdf-signe';
@@ -82,6 +84,7 @@ async function premierePageEnImage(f: File): Promise<string | null> {
     return c.toDataURL('image/jpeg', 0.9);
   } finally { void doc.destroy(); }
 }
+const FAMILLE_CSS: Record<Famille, string> = { sans: 'Helvetica, Arial, sans-serif', serif: '"Times New Roman", Times, serif', mono: '"Courier New", Courier, monospace' };
 const libelleDeLaLigne = (l: LigneAdministrative): string => {
   const x = l as unknown as { genre: string; numero?: string; correspondant?: string; objet?: string; titre?: string };
   return x.genre === 'courrier' ? `Courrier ${x.numero ?? ''} · ${x.correspondant ?? ''}${x.objet ? ` · ${x.objet}` : ''}` : `${x.genre === 'contrat' ? 'Contrat' : 'Démarche'} · ${x.titre ?? ''}`;
@@ -110,6 +113,10 @@ export function SignerUnPdf({ ouverture, onClose }: { ouverture: Ouverture; onCl
   const [rangerSur, setRangerSur] = useState('');
   const champImage = useRef<HTMLInputElement>(null);
   const [imageAPoser, setImageAPoser] = useState<string | null>(null);
+  /* LE FORMULAIRE (16 octobre 2026) : les champs du PDF, et ce qu'on y écrit. */
+  const [champs, setChamps] = useState<ChampDuPdf[]>([]);
+  const [valeurs, setValeurs] = useState<Record<string, string | boolean>>({});
+  const surValeur = (nom: string, v: string | boolean) => setValeurs((x) => ({ ...x, [nom]: v }));
   /* UNE IMAGE (16 octobre 2026) : une photo, une capture, ou la première page
      d'un PDF ; on la choisit, puis on touche la page. */
   const prendsUneImage = async (f: File | undefined) => {
@@ -141,8 +148,15 @@ export function SignerUnPdf({ ouverture, onClose }: { ouverture: Ouverture; onCl
         pdfjs.GlobalWorkerOptions.workerSrc = travailleur.default;
         const doc = await pdfjs.getDocument({ data: ouverture.octets.slice() }).promise;
         const tours: number[] = [];
-        for (let i = 1; i <= doc.numPages; i += 1) tours.push((await doc.getPage(i)).rotate);
-        if (vivant) { setPdf(doc); setToursDOrigine(tours); }
+        const trouves: ChampDuPdf[] = [];
+        for (let i = 1; i <= doc.numPages; i += 1) {
+          const pg = await doc.getPage(i);
+          tours.push(pg.rotate);
+          try {
+            for (const a of (await pg.getAnnotations()) as AnnotationLue[]) { const c = champDeLAnnotation(a, i - 1); if (c) trouves.push(c); }
+          } catch { /* une page sans annotations lisibles : rien à remplir */ }
+        }
+        if (vivant) { setPdf(doc); setToursDOrigine(tours); setChamps(trouves); }
       } catch (e) {
         if (vivant) setErreur(/password/i.test(String(e)) ? 'Ce PDF est protégé par un mot de passe : il ne se signe pas ici.' : 'Ce PDF ne s’ouvre pas. Est-ce bien un PDF ?');
       }
@@ -171,8 +185,13 @@ export function SignerUnPdf({ ouverture, onClose }: { ouverture: Ouverture; onCl
   const pose = poses.find((p) => p.id === choisie);
   const tampons = useMemo(() => [...TAMPONS.mnd, ...TAMPONS.acia].filter((t) => t.cle !== TAMPON_A_DATER), []);
 
-  const poseIci = async (page: number, fx: number, fy: number) => {
-    if (!outil) return;
+  const poseIci = async (page: number, fx: number, fy: number, fond?: string) => {
+    if (!outil || outil === 'remplace') return;
+    if (outil === 'efface') {
+      const p: PoseSurPdf = { id: nouvelId(), page, genre: 'efface', x: Math.min(0.95, Math.max(0, fx)), y: Math.min(0.97, Math.max(0, fy)), largeur: LARGEUR_DE_DEPART.efface, hauteur: 0.03, fond: fond ?? '#ffffff' };
+      setPoses((x) => [...x, p]); setChoisie(p.id); setOutil(null);
+      return;
+    }
     let image: string | undefined;
     if (outil === 'signature') { if (!images.signature) { toast('Déposez d’abord votre signature : Secrétariat, Documents, « Ma signature ».', 6000); return; } image = 'signature'; }
     if (outil === 'paraphe') { if (!images.paraphe) { setPaveParaphe(true); return; } image = 'paraphe'; }
@@ -189,6 +208,16 @@ export function SignerUnPdf({ ouverture, onClose }: { ouverture: Ouverture; onCl
     setOutil(null);
   };
   const change = (id: string, patch: Partial<PoseSurPdf>) => setPoses((x) => x.map((p) => (p.id === id ? { ...p, ...patch } : p)));
+  /* MODIFIER LE TEXTE : la ligne touchée devient une pièce qui la couvre (de
+     la couleur du papier dessous) et réécrit son texte, qu'on change. */
+  const remplaceLaLigne = (page: number, l: LigneImprimee, c: { fond: string; encre: string }) => {
+    const p: PoseSurPdf = {
+      id: nouvelId(), page, genre: 'remplace', x: l.x, y: l.y, largeur: l.largeur, hauteur: l.hauteur,
+      texte: l.texte, ancien: l.texte, taille: l.taille, famille: l.famille, fond: c.fond, encre: c.encre,
+    };
+    setPoses((x) => [...x, p]);
+    setChoisie(p.id);
+  };
   const surPages = (pages: number[]) => {
     if (!pose) return;
     const neuves = repeteSurLesPages(pose, pages, poses, nouvelId);
@@ -197,7 +226,7 @@ export function SignerUnPdf({ ouverture, onClose }: { ouverture: Ouverture; onCl
   };
 
   const ecrit = async (): Promise<{ octets: Uint8Array; nom: string } | null> => {
-    if (!poses.length && !Object.keys(pagesRetouchees.tours).length && !pagesRetouchees.retirees.length) { toast('Rien n’a été posé ni retouché.'); return null; }
+    if (!poses.length && !Object.keys(valeurs).length && !Object.keys(pagesRetouchees.tours).length && !pagesRetouchees.retirees.length) { toast('Rien n’a été posé, rempli ni retouché.'); return null; }
     if (resteDesPages(pagesRetouchees, nbPages) < 1) { toast('Une copie garde au moins une page.'); return null; }
     const pourEcrire: Record<string, ImageDePose> = {};
     for (const [cle, im] of Object.entries(images)) {
@@ -208,7 +237,7 @@ export function SignerUnPdf({ ouverture, onClose }: { ouverture: Ouverture; onCl
     const illisible = poses.find((p) => p.image && !pourEcrire[p.image]);
     if (illisible) { toast('Une image posée ne se lit pas (ni PNG ni JPEG) : retirez-la, puis réessayez.', 7000); return null; }
     try {
-      return { octets: await ecritLaCopie(ouverture.octets, poses, pagesRetouchees, pourEcrire), nom: nomDeLaCopie(ouverture.nom, aujourdhui()) };
+      return { octets: await ecritLaCopie(ouverture.octets, poses, pagesRetouchees, pourEcrire, valeurs), nom: nomDeLaCopie(ouverture.nom, aujourdhui()) };
     } catch (e) {
       toast(e instanceof PdfProtege ? e.message : 'La copie n’a pas pu s’écrire. Le PDF est peut-être abîmé.', 7000);
       return null;
@@ -236,7 +265,7 @@ export function SignerUnPdf({ ouverture, onClose }: { ouverture: Ouverture; onCl
     if (!r.fichiers[0]) { toast(r.erreur ?? 'La copie n’est pas partie.', 7000); return; }
     const f: Fichier = {
       ...r.fichiers[0], ...(ouverture.source ? { copieDe: ouverture.source.chemin } : {}),
-      signeLe: new Date().toISOString(), signePar: monNom, contenu: contenuDeLaCopie(poses, pagesRetouchees, nbPages),
+      signeLe: new Date().toISOString(), signePar: monNom, contenu: contenuDeLaCopie(poses, pagesRetouchees, nbPages, Object.keys(valeurs).length),
     };
     retoucheLaLigne(ligne, { fichiers: [...ligne.fichiers, f] } as Partial<LigneAvecFichiers>);
     toast(`Copie gardée : « ${c.nom} ». L’original est intact.`, 6000);
@@ -248,6 +277,11 @@ export function SignerUnPdf({ ouverture, onClose }: { ouverture: Ouverture; onCl
       <div className="spdf">
         {erreur && <p className="sad-doux" role="alert">{erreur}</p>}
         <aside className="spdf-outils" aria-label="Les outils">
+          {champs.length > 0 && (
+            <p className="spdf-aide spdf-aide--champs">
+              Ce PDF est un formulaire : {nombreDeChamps(champs)} champ{nombreDeChamps(champs) > 1 ? 's' : ''} à remplir directement sur la page (les cases bleues).
+            </p>
+          )}
           <span className="spdf-titre">Poser</span>
           {([['signature', 'Ma signature'], ['paraphe', 'Mon paraphe'], ['tampon', 'Un tampon'], ['recu', '« Reçu le »'], ['image', 'Une image']] as [GenreDePose, string][]).map(([g, l]) => (
             <button key={g} type="button" className={`spdf-outil${outil === g ? ' est-actif' : ''}`} aria-pressed={outil === g} onClick={() => (g === 'image' ? champImage.current?.click() : setOutil(g))}>
@@ -262,21 +296,33 @@ export function SignerUnPdf({ ouverture, onClose }: { ouverture: Ouverture; onCl
           {([['texte', 'Un texte'], ['date', 'La date du jour'], ['lu', '« Lu et approuvé »'], ['coche', 'Une coche ✓']] as [GenreDePose, string][]).map(([g, l]) => (
             <button key={g} type="button" className={`spdf-outil${outil === g ? ' est-actif' : ''}`} aria-pressed={outil === g} onClick={() => setOutil(g)}>{l}</button>
           ))}
-          <p className="spdf-aide">{outil ? 'Touchez la page à l’endroit voulu.' : 'Choisissez un outil, puis touchez la page. Tirez le rond cuivre d’une pièce pour l’agrandir ou la réduire.'}</p>
+          <span className="spdf-titre">Modifier</span>
+          {([['remplace', 'Modifier le texte'], ['efface', 'Effacer une zone']] as [GenreDePose, string][]).map(([g, l]) => (
+            <button key={g} type="button" className={`spdf-outil${outil === g ? ' est-actif' : ''}`} aria-pressed={outil === g} onClick={() => setOutil(outil === g ? null : g)}>{l}</button>
+          ))}
+          <p className="spdf-aide">{
+            outil === 'remplace' ? 'Touchez une ligne imprimée (encadrée de cuivre) : elle devient modifiable. Effacez-la, écrivez la vôtre. Touchez encore « Modifier le texte » pour finir.'
+              : outil === 'efface' ? 'Touchez l’endroit à effacer, puis tirez le rond cuivre pour couvrir toute la zone.'
+                : outil ? 'Touchez la page à l’endroit voulu.'
+                  : 'Choisissez un outil, puis touchez la page. Tirez le rond cuivre d’une pièce pour l’agrandir ou la réduire.'
+          }</p>
           {pose && (
             <div className="spdf-choisie">
               <span className="spdf-titre">La pièce choisie</span>
-              {(pose.genre === 'texte') && <input className="spdf-texte" value={pose.texte ?? ''} onChange={(e) => change(pose.id, { texte: e.target.value })} aria-label="Le texte" />}
-              <div className="spdf-deux">
+              {(pose.genre === 'texte' || pose.genre === 'remplace') && <input className="spdf-texte" value={pose.texte ?? ''} onChange={(e) => change(pose.id, { texte: e.target.value })} aria-label="Le texte" />}
+              {pose.genre === 'remplace' && pose.ancien && <span className="spdf-aide">Imprimé d’origine : « {pose.ancien} »</span>}
+              {pose.genre !== 'efface' && <div className="spdf-deux">
                 <button type="button" className="spdf-outil" onClick={() => change(pose.id, estUneImage(pose.genre) ? { largeur: Math.max(0.04, pose.largeur / 1.15) } : { taille: Math.max(6, (pose.taille ?? TAILLE_DU_TEXTE) - 1) })}>Plus petit</button>
                 <button type="button" className="spdf-outil" onClick={() => change(pose.id, estUneImage(pose.genre) ? { largeur: Math.min(0.9, pose.largeur * 1.15) } : { taille: Math.min(40, (pose.taille ?? TAILLE_DU_TEXTE) + 1) })}>Plus grand</button>
-              </div>
+              </div>}
+              {pose.genre !== 'remplace' && <>
               <button type="button" className="spdf-outil" onClick={() => surPages(Array.from({ length: nbPages }, (_, i) => i))}>Sur toutes les pages</button>
               <div className="spdf-deux">
                 <input className="spdf-texte" value={selection} onChange={(e) => setSelection(e.target.value)} placeholder="Pages : 1, 3-5" aria-label="Les pages" />
                 <button type="button" className="spdf-outil" onClick={() => { const p = pagesDeLaSelection(selection, nbPages); if (!p.length) { toast('Écrivez des pages : 1, 3-5'); return; } surPages(p); }}>Poser</button>
               </div>
-              <button type="button" className="spdf-outil spdf-outil--rouge" onClick={() => { setPoses((x) => x.filter((p) => p.id !== pose.id)); setChoisie(null); }}>Retirer</button>
+              </>}
+              <button type="button" className="spdf-outil spdf-outil--rouge" onClick={() => { setPoses((x) => x.filter((p) => p.id !== pose.id)); setChoisie(null); }}>{pose.genre === 'remplace' ? 'Remettre le texte d’origine' : pose.genre === 'efface' ? 'Ne plus effacer' : 'Retirer'}</button>
             </div>
           )}
         </aside>
@@ -287,7 +333,13 @@ export function SignerUnPdf({ ouverture, onClose }: { ouverture: Ouverture; onCl
               key={i} pdf={pdf} index={i} tour={tourFinal(toursDOrigine[i] ?? 0, pagesRetouchees.tours[i])} retiree={pagesRetouchees.retirees.includes(i)}
               poses={poses.filter((p) => p.page === i)} images={images} choisie={choisie} outil={outil}
               surPose={poseIci} surChoix={setChoisie} surBouge={(id, x, y) => change(id, { x, y })} surTaille={change}
-              surTourne={() => setPagesRetouchees((r) => ({ ...r, tours: { ...r.tours, [i]: ((r.tours[i] ?? 0) + 1) % 4 } }))}
+              champs={champs.filter((c) => c.page === i)} aDesChamps={champs.some((c) => c.page === i)} valeurs={valeurs} surValeur={surValeur}
+              surRemplace={(l, c) => remplaceLaLigne(i, l, c)}
+              surTourne={() => {
+                /* Ce qui couvre l'imprimé est calé sur la page telle qu'on la voit : on tourne d'abord, on modifie ensuite. */
+                if (poses.some((p) => p.page === i && estUnCache(p.genre))) { toast('Cette page a du texte modifié ou effacé : tournez-la avant de la modifier.', 6000); return; }
+                setPagesRetouchees((r) => ({ ...r, tours: { ...r.tours, [i]: ((r.tours[i] ?? 0) + 1) % 4 } }));
+              }}
               surRetire={() => setPagesRetouchees((r) => ({ ...r, retirees: r.retirees.includes(i) ? r.retirees.filter((x) => x !== i) : [...r.retirees, i] }))}
               nbPages={nbPages}
             />
@@ -295,7 +347,7 @@ export function SignerUnPdf({ ouverture, onClose }: { ouverture: Ouverture; onCl
         </div>
       </div>
       <div className="spdf-bas">
-        <span className="sad-doux">{contenuDeLaCopie(poses, pagesRetouchees, nbPages).join(' · ') || 'Rien de posé.'}</span>
+        <span className="sad-doux">{contenuDeLaCopie(poses, pagesRetouchees, nbPages, Object.keys(valeurs).length).join(' · ') || 'Rien de posé.'}</span>
         <span className="spdf-actions">
           {!ouverture.ligne && (
             <Select value={rangerSur} onChange={(e) => setRangerSur(e.target.value)} aria-label="Ranger la copie sur">
@@ -315,18 +367,25 @@ export function SignerUnPdf({ ouverture, onClose }: { ouverture: Ouverture; onCl
   );
 }
 
-function PageDuPdf({ pdf, index, tour, retiree, poses, images, choisie, outil, surPose, surChoix, surBouge, surTaille, surTourne, surRetire, nbPages }: {
+type VueUn = { width: number; height: number; transform: number[]; convertToViewportRectangle: (r: number[]) => number[] };
+function PageDuPdf({
+  pdf, index, tour, retiree, poses, images, choisie, outil, surPose, surChoix, surBouge, surTaille, surTourne, surRetire, nbPages,
+  champs, aDesChamps, valeurs, surValeur, surRemplace,
+}: {
   pdf: PDFDocumentProxy; index: number; tour: number; retiree: boolean; poses: PoseSurPdf[]; images: Record<string, ImageVue>;
   choisie: string | null; outil: GenreDePose | null; nbPages: number;
-  surPose: (page: number, fx: number, fy: number) => void; surChoix: (id: string) => void; surBouge: (id: string, x: number, y: number) => void;
+  surPose: (page: number, fx: number, fy: number, fond?: string) => void; surChoix: (id: string) => void; surBouge: (id: string, x: number, y: number) => void;
   surTaille: (id: string, patch: Partial<PoseSurPdf>) => void;
   surTourne: () => void; surRetire: () => void;
+  champs: ChampDuPdf[]; aDesChamps: boolean; valeurs: Record<string, string | boolean>; surValeur: (nom: string, v: string | boolean) => void;
+  surRemplace: (l: LigneImprimee, c: { fond: string; encre: string }) => void;
 }) {
   const toile = useRef<HTMLCanvasElement>(null);
   const boite = useRef<HTMLDivElement>(null);
   const [largeurPt, setLargeurPt] = useState(0);
   const [largeurPx, setLargeurPx] = useState(0);
   const [ratio, setRatio] = useState(1.414);
+  const [vueUn, setVueUn] = useState<VueUn | null>(null);
   /* La page suit la fenêtre : la taille des textes posés aussi. */
   useEffect(() => {
     const el = boite.current;
@@ -349,27 +408,68 @@ function PageDuPdf({ pdf, index, tour, retiree, poses, images, choisie, outil, s
       const c = toile.current;
       if (!c || !vivant) return;
       c.width = Math.floor(vue.width); c.height = Math.floor(vue.height);
-      setLargeurPt(vue1.width); setRatio(vue1.height / vue1.width);
-      const ctx = c.getContext('2d');
+      setLargeurPt(vue1.width); setRatio(vue1.height / vue1.width); setVueUn(vue1 as unknown as VueUn);
+      const ctx = c.getContext('2d', { willReadFrequently: true });
       if (!ctx) return;
-      const t = page.render({ canvasContext: ctx, viewport: vue });
+      /* Un formulaire : la page se dessine SANS ses champs (2 = AnnotationMode.ENABLE_FORMS de pdf.js) ;
+         les cases à remplir se posent par-dessus, et la copie les remplit. */
+      const t = page.render({ canvasContext: ctx, viewport: vue, annotationMode: aDesChamps ? 2 : 1 });
       tache = t;
       await t.promise.catch(() => undefined);
     })();
     return () => { vivant = false; tache?.cancel(); };
-  }, [pdf, index, tour]);
+  }, [pdf, index, tour, aDesChamps]);
+
+  /* LES LIGNES IMPRIMÉES, lues quand « Modifier le texte » est pris. */
+  const [lignes, setLignes] = useState<LigneImprimee[] | null>(null);
+  useEffect(() => { setLignes(null); }, [tour]);
+  const modifier = outil === 'remplace';
+  useEffect(() => {
+    if (!modifier || lignes) return;
+    let vivant = true;
+    void (async () => {
+      try {
+        const page = await pdf.getPage(index + 1);
+        const v = page.getViewport({ scale: 1, rotation: tour });
+        const contenu = await page.getTextContent();
+        const familles: Record<string, string> = {};
+        for (const [k, st] of Object.entries(contenu.styles ?? {})) familles[k] = String((st as { fontFamily?: string }).fontFamily ?? '');
+        const morceaux = (contenu.items as unknown[]).filter((it): it is MorceauDeTexte => typeof (it as MorceauDeTexte).str === 'string');
+        if (vivant) setLignes(lignesDuTexte(morceaux, v as unknown as VueUn, familles));
+      } catch { if (vivant) setLignes([]); }
+    })();
+    return () => { vivant = false; };
+  }, [modifier, lignes, pdf, index, tour]);
+  /* Les couleurs du papier et de l'encre sous une zone, lues sur la page dessinée. */
+  const echantillon = (z: { x: number; y: number; largeur: number; hauteur?: number }): { fond: string; encre: string } => {
+    const c = toile.current;
+    const ctx = c?.getContext('2d', { willReadFrequently: true });
+    if (!c || !ctx) return { fond: '#ffffff', encre: '#141414' };
+    const x = Math.max(0, Math.min(c.width - 1, Math.floor(z.x * c.width))), y = Math.max(0, Math.min(c.height - 1, Math.floor(z.y * c.height)));
+    const l = Math.max(1, Math.min(c.width - x, Math.ceil(z.largeur * c.width))), h = Math.max(1, Math.min(c.height - y, Math.ceil((z.hauteur ?? 0.02) * c.height)));
+    try { return couleursDeLaZone(ctx.getImageData(x, y, l, h).data, l, h); } catch { return { fond: '#ffffff', encre: '#141414' }; }
+  };
+  /* Une zone effacée qu'on vient de glisser ou d'agrandir reprend la couleur du papier sous sa nouvelle place. */
+  const [aRelire, setARelire] = useState<string | null>(null);
+  useEffect(() => {
+    if (!aRelire) return;
+    const q = poses.find((p) => p.id === aRelire);
+    setARelire(null);
+    if (q && q.genre === 'efface') { const f = echantillon(q).fond; if (f !== q.fond) surTaille(q.id, { fond: f }); }
+  }, [aRelire, poses]);
 
   const clic = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (retiree || !outil || (e.target as HTMLElement).closest('.spdf-pose')) return;
+    if (retiree || !outil || outil === 'remplace' || (e.target as HTMLElement).closest('.spdf-pose, .spdf-champ, .spdf-ligne')) return;
     const r = e.currentTarget.getBoundingClientRect();
-    surPose(index, (e.clientX - r.left) / r.width, (e.clientY - r.top) / r.height);
+    const fx = (e.clientX - r.left) / r.width, fy = (e.clientY - r.top) / r.height;
+    surPose(index, fx, fy, outil === 'efface' ? echantillon({ x: fx, y: fy, largeur: 0.25, hauteur: 0.03 }).fond : undefined);
   };
   const glisse = (p: PoseSurPdf) => (e: React.PointerEvent<HTMLElement>) => {
     e.preventDefault(); e.stopPropagation(); surChoix(p.id);
     const cadre = (e.currentTarget.parentElement as HTMLElement).getBoundingClientRect();
     const dx = e.clientX - (cadre.left + p.x * cadre.width), dy = e.clientY - (cadre.top + p.y * cadre.height);
     const bouge = (ev: PointerEvent) => surBouge(p.id, Math.min(0.97, Math.max(0, (ev.clientX - dx - cadre.left) / cadre.width)), Math.min(0.98, Math.max(0, (ev.clientY - dy - cadre.top) / cadre.height)));
-    const lache = () => { window.removeEventListener('pointermove', bouge); window.removeEventListener('pointerup', lache); };
+    const lache = () => { if (p.genre === 'efface') setARelire(p.id); window.removeEventListener('pointermove', bouge); window.removeEventListener('pointerup', lache); };
     window.addEventListener('pointermove', bouge); window.addEventListener('pointerup', lache);
   };
   /* LE ROND CUIVRE (16 octobre 2026) : on tire le coin de la pièce choisie,
@@ -378,10 +478,14 @@ function PageDuPdf({ pdf, index, tour, retiree, poses, images, choisie, outil, s
   const tire = (p: PoseSurPdf) => (e: React.PointerEvent<HTMLElement>) => {
     e.preventDefault(); e.stopPropagation(); surChoix(p.id);
     const piece = (e.currentTarget.parentElement as HTMLElement).getBoundingClientRect();
+    const feuille = (e.currentTarget.closest('.spdf-feuille') as HTMLElement).getBoundingClientRect();
     const x0 = e.clientX, y0 = e.clientY;
     setEnTaille(p.id);
-    const bouge = (ev: PointerEvent) => surTaille(p.id, tailleApresLeCoin(p, facteurDuCoin(ev.clientX - x0, ev.clientY - y0, piece.width, piece.height)));
-    const lache = () => { setEnTaille(null); window.removeEventListener('pointermove', bouge); window.removeEventListener('pointerup', lache); };
+    /* Une zone effacée suit le doigt en largeur ET en hauteur ; le reste garde sa forme. */
+    const bouge = (ev: PointerEvent) => surTaille(p.id, p.genre === 'efface'
+      ? cadreApresLeCoin(p, (ev.clientX - x0) / feuille.width, (ev.clientY - y0) / feuille.height)
+      : tailleApresLeCoin(p, facteurDuCoin(ev.clientX - x0, ev.clientY - y0, piece.width, piece.height)));
+    const lache = () => { setEnTaille(null); if (p.genre === 'efface') setARelire(p.id); window.removeEventListener('pointermove', bouge); window.removeEventListener('pointerup', lache); };
     window.addEventListener('pointermove', bouge); window.addEventListener('pointerup', lache);
   };
   const poignee = (p: PoseSurPdf) => p.id === choisie && !retiree && (
@@ -394,9 +498,59 @@ function PageDuPdf({ pdf, index, tour, retiree, poses, images, choisie, outil, s
     <div className="spdf-page" ref={boite}>
       <div className="spdf-feuille" style={{ aspectRatio: `1 / ${ratio}` }} onClick={clic} data-retiree={retiree || undefined}>
         <canvas ref={toile} aria-label={`Page ${index + 1}`} />
+        {/* Les champs du formulaire : on écrit, coche, choisit directement sur la page. */}
+        {vueUn && !retiree && champs.map((c, k) => {
+          const r = vueUn.convertToViewportRectangle(c.rect);
+          const st: React.CSSProperties = {
+            left: `${(Math.min(r[0], r[2]) / vueUn.width) * 100}%`, top: `${(Math.min(r[1], r[3]) / vueUn.height) * 100}%`,
+            width: `${(Math.abs(r[2] - r[0]) / vueUn.width) * 100}%`, height: `${(Math.abs(r[3] - r[1]) / vueUn.height) * 100}%`,
+          };
+          const v = valeurs[c.nom] ?? c.valeur;
+          const arrete = (e: React.SyntheticEvent) => e.stopPropagation();
+          if (c.genre === 'case') return <input key={k} type="checkbox" className="spdf-champ spdf-champ--case" style={st} checked={v === true} onChange={(e) => surValeur(c.nom, e.target.checked)} onClick={arrete} aria-label={c.nom} />;
+          if (c.genre === 'radio') return <input key={k} type="radio" name={`champ-${c.nom}`} className="spdf-champ spdf-champ--case" style={st} checked={!!c.exporte && v === c.exporte} onChange={() => surValeur(c.nom, c.exporte ?? '')} onClick={arrete} aria-label={`${c.nom} : ${c.exporte ?? ''}`} />;
+          if (c.genre === 'liste') {
+            return (
+              <select key={k} className="spdf-champ" style={st} value={String(v)} onChange={(e) => surValeur(c.nom, e.target.value)} onClick={arrete} aria-label={c.nom}>
+                {!(c.options ?? []).some((o) => o.valeur === String(v)) && <option value={String(v)}>{String(v)}</option>}
+                {(c.options ?? []).map((o) => <option key={o.valeur} value={o.valeur}>{o.dit}</option>)}
+              </select>
+            );
+          }
+          const fs = Math.max(8, Math.min(14, (Math.abs(r[3] - r[1]) * pxParPt) * 0.62));
+          return c.multiLigne
+            ? <textarea key={k} className="spdf-champ" style={{ ...st, fontSize: `${fs}px` }} value={String(v ?? '')} onChange={(e) => surValeur(c.nom, e.target.value)} onClick={arrete} aria-label={c.nom} />
+            : <input key={k} className="spdf-champ" style={{ ...st, fontSize: `${fs}px` }} value={String(v ?? '')} onChange={(e) => surValeur(c.nom, e.target.value)} onClick={arrete} aria-label={c.nom} />;
+        })}
+        {/* « Modifier le texte » : chaque ligne imprimée, encadrée, se touche. */}
+        {modifier && !retiree && lignes?.filter((l) => !poses.some((p) => p.genre === 'remplace' && Math.abs(p.x - l.x) < 0.004 && Math.abs(p.y - l.y) < 0.004)).map((l, k) => (
+          <button key={k} type="button" className="spdf-ligne" aria-label={`Modifier : ${l.texte}`}
+            style={{ left: `${l.x * 100}%`, top: `${l.y * 100}%`, width: `${l.largeur * 100}%`, height: `${l.hauteur * 100}%` }}
+            onClick={(e) => { e.stopPropagation(); surRemplace(l, echantillon(l)); }} />
+        ))}
+        {modifier && !retiree && lignes && lignes.length === 0 && (
+          <span className="spdf-sans-texte">Pas de texte modifiable sur cette page (c’est une image) : « Effacer une zone », puis « Un texte ».</span>
+        )}
         {poses.map((p) => {
           const style: React.CSSProperties = { left: `${p.x * 100}%`, top: `${p.y * 100}%` };
           const classe = `spdf-pose${p.id === choisie ? ' est-choisie' : ''}`;
+          if (p.genre === 'remplace') {
+            const st: React.CSSProperties = {
+              ...style, width: `${p.largeur * 100}%`, height: `${(p.hauteur ?? 0) * 100}%`, background: p.fond, color: p.encre,
+              fontSize: `${(p.taille ?? TAILLE_DU_TEXTE) * pxParPt}px`, fontFamily: FAMILLE_CSS[p.famille ?? 'sans'],
+            };
+            return p.id === choisie
+              ? <input key={p.id} className={`${classe} spdf-pose--remplace`} style={st} value={p.texte ?? ''} autoFocus onFocus={(e) => e.currentTarget.select()}
+                  onChange={(e) => surTaille(p.id, { texte: e.target.value })} onPointerDown={(e) => e.stopPropagation()} aria-label={`Le texte, à la place de « ${p.ancien ?? ''} »`} />
+              : <span key={p.id} className={`${classe} spdf-pose--remplace`} style={st} onPointerDown={(e) => { e.stopPropagation(); surChoix(p.id); }}>{p.texte}</span>;
+          }
+          if (p.genre === 'efface') {
+            return (
+              <span key={p.id} className={`${classe} spdf-pose--efface`} style={{ ...style, width: `${p.largeur * 100}%`, height: `${(p.hauteur ?? 0) * 100}%`, background: p.fond }} onPointerDown={glisse(p)}>
+                {poignee(p)}
+              </span>
+            );
+          }
           if (estUneImage(p.genre)) {
             const im = p.image ? images[p.image] : undefined;
             return im ? (

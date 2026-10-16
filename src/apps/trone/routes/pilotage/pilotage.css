@@ -1180,6 +1180,22 @@
 .spdf-pose { position: absolute; cursor: grab; user-select: none; touch-action: none; }
 .spdf-pose--texte { font-family: Helvetica, Arial, sans-serif; color: #1E2150; white-space: nowrap; line-height: 1; }
 .spdf-pose--image img { display: block; width: 100%; height: auto; pointer-events: none; }
+/* REMPLIR ET MODIFIER (16 octobre 2026). Les lignes imprimées qu'on peut
+   toucher ; le texte modifié (couvre l'imprimé, couleur du papier dessous) ;
+   la zone effacée ; les champs d'un formulaire, bleutés comme dans Acrobat. */
+.spdf-ligne { position: absolute; box-sizing: border-box; padding: 0; margin: 0; border: 1px dashed rgba(185, 122, 74, .75); background: rgba(185, 122, 74, .08); border-radius: 2px; cursor: text; }
+.spdf-ligne:hover, .spdf-ligne:focus-visible { background: rgba(185, 122, 74, .2); outline: none; }
+/* Au doigt, une ligne de 6 px se rate : sa zone de toucher déborde de 4 px en haut et en bas. */
+.spdf-ligne::before { content: ''; position: absolute; inset: -4px -2px; }
+.spdf-pose--remplace { display: block; box-sizing: border-box; margin: 0; padding: .05em 0 0; border: 0; line-height: 1; white-space: pre; overflow: visible; cursor: text; user-select: text; touch-action: auto; }
+input.spdf-pose--remplace { padding: 0; min-width: 0; outline: 2px solid #B97A4A; outline-offset: 1px; }
+.spdf-pose--efface { box-sizing: border-box; }
+.spdf-pose--efface.est-choisie { outline: 2px dashed #B97A4A; outline-offset: 0; }
+.spdf-champ { position: absolute; box-sizing: border-box; margin: 0; min-width: 0; padding: 0 3px; border: 1px solid rgba(30, 33, 80, .35); border-radius: 2px; background: rgba(204, 217, 255, .55); color: #14141B; font-family: Helvetica, Arial, sans-serif; resize: none; }
+.spdf-champ:focus { outline: 2px solid #1E2150; background: rgba(204, 217, 255, .8); }
+.spdf-champ--case { padding: 0; accent-color: #1E2150; cursor: pointer; }
+.spdf-sans-texte { position: absolute; left: 8px; right: 8px; top: 8px; padding: 6px 8px; border-radius: 4px; background: #1E2150; color: #F5EFE6; font-size: 12.5px; }
+.spdf-aide--champs { padding: 6px 8px; border-radius: 6px; background: rgba(204, 217, 255, .45); color: inherit; opacity: 1; }
 .spdf-pose.est-choisie { outline: 2px solid var(--color-copper); outline-offset: 2px; }
 .spdf-retiree { position: absolute; inset: 0; display: grid; place-items: center; font-size: 15px; color: #8E2F2F; }
 .spdf-page-pied { display: flex; gap: 14px; align-items: baseline; flex-wrap: wrap; }

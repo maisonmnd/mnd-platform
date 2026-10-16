@@ -15,6 +15,10 @@
      5. « Télécharger la copie » : la copie a deux pages, la dernière tournée,
         le texte et les deux dates y sont.
 
+   16 octobre 2026, ensuite : « Modifier le texte » (on touche une ligne
+   imprimée, on tape, l'ancienne ne se voit plus dans la copie RENDUE) et le
+   formulaire (deux champs remplis sur la page, figés dans la copie).
+
    16 octobre 2026 : on tire le rond cuivre d'une pièce pour l'agrandir ; on
    pose « Une image » (une capture), on l'agrandit, et la copie la porte à
    cette taille. Puis un DOCUMENT du Secrétariat : on agrandit son tampon
@@ -45,6 +49,9 @@ renameSync(path.join(construit, 'trone.html'), path.join(construit, 'index.html'
 
 /* Le document d'essai : trois pages A4, du texte imprimé sur chacune. */
 const essai = path.join(recus, 'Contrat d essai.pdf');
+const ANCIEN = 'Article 2 : texte imprime du contrat, a ne pas effacer.';
+const NOUVEAU = 'Article 2 : modifie par la Maison.';
+let largeurs = { ancien: 0, nouveau: 0 };
 {
   const d = await PDFDocument.create();
   const f = await d.embedFont(StandardFonts.Helvetica);
@@ -53,7 +60,12 @@ const essai = path.join(recus, 'Contrat d essai.pdf');
     p.drawText(`CONTRAT D ESSAI, PAGE ${i}`, { x: 60, y: 760, size: 18, font: f });
     for (let l = 0; l < 30; l += 1) p.drawText('Article ' + (l + 1) + ' : texte imprime du contrat, a ne pas effacer.', { x: 60, y: 720 - l * 20, size: 10, font: f });
   }
+  /* Un formulaire sur la page 1 : un champ texte et une case. */
+  const form = d.getForm();
+  form.createTextField('nom_du_client').addToPage(d.getPage(0), { x: 300, y: 795, width: 200, height: 20 });
+  form.createCheckBox('accepte').addToPage(d.getPage(0), { x: 520, y: 797, width: 16, height: 16 });
   writeFileSync(essai, await d.save());
+  largeurs = { ancien: f.widthOfTextAtSize(ANCIEN, 10), nouveau: f.widthOfTextAtSize(NOUVEAU, 10) };
 }
 
 /* Une capture d'essai : un PNG de 120 x 80, encre bleu nuit. */
@@ -239,6 +251,28 @@ try {
   dit('... et dit son pourcentage en tirant', typeof ditImage === 'string' && / %$/.test(ditImage), ditImage);
   await photo('3-image');
 
+  /* 3 quater. MODIFIER LE TEXTE : on touche la ligne « Article 2 », elle devient
+     un champ déjà rempli et sélectionné ; on tape, l'ancienne s'efface. */
+  await bouton('Modifier le texte');
+  const ligneTouchee = await jusqua(`(() => { const b = document.querySelector('.spdf-ligne[aria-label=${JSON.stringify('Modifier : ' + ANCIEN)}]'); if (!b) return false; b.scrollIntoView({ block: 'center' }); b.click(); return true; })()`, 10000);
+  dit('3 quater. « Modifier le texte » : chaque ligne imprimee se touche', !!ligneTouchee);
+  const prise = await jusqua(`(() => { const e = document.activeElement; return e && e.matches('input.spdf-pose--remplace') ? { v: e.value, debut: e.selectionStart, fin: e.selectionEnd } : null; })()`, 4000);
+  dit('... la ligne touchee devient un champ deja rempli, tout selectionne', !!prise && prise.v === ANCIEN && prise.debut === 0 && prise.fin === ANCIEN.length, JSON.stringify(prise));
+  await cdp('Input.insertText', { text: NOUVEAU });
+  const tape = await evalue(`document.activeElement?.value ?? null`);
+  dit('... on tape : l ancien texte est remplace par le sien', tape === NOUVEAU, tape);
+  await bouton('Modifier le texte');
+  await photo('3-modifie');
+
+  /* 3 quinquies. LE FORMULAIRE : le bandeau le dit, on écrit et on coche sur la page. */
+  const bandeau = await evalue(`document.querySelector('.spdf-aide--champs')?.textContent ?? ''`);
+  dit('3 quinquies. le PDF est reconnu comme formulaire (2 champs)', /2 champs/.test(bandeau), bandeau);
+  const nom = await evalue(`(() => { const e = document.querySelector('input.spdf-champ[aria-label="nom_du_client"]'); if (!e) return false; e.scrollIntoView({ block: 'center' }); e.focus(); return document.activeElement === e; })()`);
+  if (nom) await cdp('Input.insertText', { text: 'Y. B.' });
+  const coche = await evalue(`(() => { const e = document.querySelector('input.spdf-champ[aria-label="accepte"]'); if (!e) return null; e.click(); return e.checked; })()`);
+  dit('... on ecrit dans le champ et l on coche la case, sur la page', nom && coche === true && (await evalue(`document.querySelector('input.spdf-champ[aria-label="nom_du_client"]').value`)) === 'Y. B.');
+  await photo('3-formulaire');
+
   /* 4. Tourner la page 3, retirer la page 2. */
   await evalue(`(() => { const pieds = document.querySelectorAll('.spdf-page-pied'); [...pieds[2].querySelectorAll('button')].find((b) => b.textContent === 'Tourner').click(); [...pieds[1].querySelectorAll('button')].find((b) => b.textContent === 'Retirer cette page').click(); return true; })()`);
   const bas = await jusqua(`(() => { const t = document.querySelector('.spdf-bas')?.textContent ?? ''; return /1 page tournée/.test(t) && /1 page retirée sur 3/.test(t) ? t : null; })()`, 6000);
@@ -270,6 +304,31 @@ try {
     const im0 = peintes[0];
     dit('... l image est sur la page 1, a la largeur tiree a l ecran', peintes.length === 1 && Math.abs(im0.l / im0.W * 100 - largeurImage) < 0.6 && Math.abs(im0.x / im0.W - 0.15) < 0.01,
       im0 ? `${(im0.l / im0.W * 100).toFixed(1)} % (ecran ${largeurImage.toFixed(1)} %)` : 'aucune');
+    /* La copie RENDUE (pdf.js et un canevas, comme un lecteur) : l'ancienne
+       ligne ne se voit plus au-delà du nouveau texte ; l'original, rendu de
+       même, la montre toujours (le témoin qui prouve que le rendu dessine bien). */
+    const { createCanvas } = await import('@napi-rs/canvas');
+    const encreAuDela = async (octetsPdf) => {
+      const d3 = await pdfjs.getDocument({ data: new Uint8Array(octetsPdf), verbosity: 0, standardFontDataUrl: path.join(racine, 'node_modules/pdfjs-dist/standard_fonts') + path.sep }).promise;
+      const pg = await d3.getPage(1);
+      const v = pg.getViewport({ scale: 2 });
+      const c = createCanvas(Math.floor(v.width), Math.floor(v.height));
+      const ctx = c.getContext('2d');
+      await pg.render({ canvasContext: ctx, viewport: v }).promise;
+      const texte = (await pg.getTextContent()).items.map((it) => it.str).join(' ');
+      await d3.destroy();
+      const img = ctx.getImageData(0, 0, c.width, c.height);
+      /* « Article 2 » : ligne de base à y = 700, corps 10, depuis x = 60. */
+      const x0 = 60 + largeurs.nouveau + 4, x1 = 60 + largeurs.ancien, y0 = 842 - 700 - 8, y1 = 842 - 700 + 2;
+      let n = 0;
+      for (let y = y0 * 2; y < y1 * 2; y += 1) for (let x = Math.floor(x0 * 2); x < x1 * 2; x += 1) { const i = (y * img.width + x) * 4; if (img.data[i] + img.data[i + 1] + img.data[i + 2] < 300) n += 1; }
+      return { n, texte };
+    };
+    const avantRendu = await encreAuDela(readFileSync(essai));
+    const apresRendu = await encreAuDela(octets);
+    dit('... MODIFIER LE TEXTE : dans la copie rendue, l ancienne fin de ligne ne se voit plus (l original la montre)', avantRendu.n > 50 && apresRendu.n === 0, `original ${avantRendu.n} points d encre, copie ${apresRendu.n}`);
+    dit('... le nouveau texte et le champ rempli sont dans la copie', apresRendu.texte.includes(NOUVEAU) && apresRendu.texte.includes('Y. B.'), apresRendu.texte.slice(0, 120));
+    dit('... le formulaire est fige dans la copie (plus de champs a remplir)', relu.getForm().getFields().length === 0, relu.getForm().getFields().length);
   }
 
   /* 6. UN DOCUMENT DU SECRÉTARIAT : son tampon s'agrandit dans l'aperçu, et
