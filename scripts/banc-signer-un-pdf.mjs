@@ -51,6 +51,7 @@ renameSync(path.join(construit, 'trone.html'), path.join(construit, 'index.html'
 const essai = path.join(recus, 'Contrat d essai.pdf');
 const ANCIEN = 'Article 2 : texte imprime du contrat, a ne pas effacer.';
 const NOUVEAU = 'Article 2 : modifie par la Maison.';
+const PETITE = 'PASSENGER NAME YONNAN PHOENIX MR';
 let largeurs = { ancien: 0, nouveau: 0 };
 {
   const d = await PDFDocument.create();
@@ -60,6 +61,8 @@ let largeurs = { ancien: 0, nouveau: 0 };
     p.drawText(`CONTRAT D ESSAI, PAGE ${i}`, { x: 60, y: 760, size: 18, font: f });
     for (let l = 0; l < 30; l += 1) p.drawText('Article ' + (l + 1) + ' : texte imprime du contrat, a ne pas effacer.', { x: 60, y: 720 - l * 20, size: 10, font: f });
   }
+  /* Une ligne de 5 points, comme le nom du passager de la facture KLM du 16 octobre. */
+  d.getPage(0).drawText(PETITE, { x: 60, y: 60, size: 5, font: f });
   /* Un formulaire sur la page 1 : un champ texte et une case. */
   const form = d.getForm();
   form.createTextField('nom_du_client').addToPage(d.getPage(0), { x: 300, y: 795, width: 200, height: 20 });
@@ -258,7 +261,20 @@ try {
   dit('3 quater. « Modifier le texte » : chaque ligne imprimee se touche', !!ligneTouchee);
   const prise = await jusqua(`(() => { const e = document.activeElement; return e && e.matches('input.spdf-pose--remplace') ? { v: e.value, debut: e.selectionStart, fin: e.selectionEnd } : null; })()`, 4000);
   dit('... la ligne touchee devient un champ deja rempli, tout selectionne', !!prise && prise.v === ANCIEN && prise.debut === 0 && prise.fin === ANCIEN.length, JSON.stringify(prise));
+  /* Le 16 octobre, le nom du passager d'une facture KLM ressortait GRIS : à
+     390 px, une lettre de 10 points fait 5 pixels, presque tous gris. */
+  const couleurLigne = await evalue(`getComputedStyle(document.activeElement).color`);
+  const [cr, cg, cb] = (couleurLigne ?? '').match(/\d+/g)?.map(Number) ?? [255, 255, 255];
+  dit('... son encre est celle de l imprime (noir), pas le gris des bords des lettres', cr < 60 && cg < 60 && cb < 60, couleurLigne);
   await cdp('Input.insertText', { text: NOUVEAU });
+  /* La ligne de 5 points : à cette taille l'écran ne montre presque que du
+     gris d'anticrénelage ; l'encre lue doit rester celle de l'imprimé, noire. */
+  const petite = await jusqua(`(() => { const b = document.querySelector('.spdf-ligne[aria-label=${JSON.stringify('Modifier : ' + PETITE)}]'); if (!b) return false; b.scrollIntoView({ block: 'center' }); b.click(); return true; })()`, 6000);
+  const couleurPetite = petite ? await jusqua(`(() => { const e = document.activeElement; return e && e.matches('input.spdf-pose--remplace') && e.value === ${JSON.stringify(PETITE)} ? getComputedStyle(e).color : null; })()`, 6000) : null;
+  const [pr, pg, pb] = (couleurPetite ?? '').match(/\d+/g)?.map(Number) ?? [255, 255, 255];
+  dit('... une ligne de 5 points (le nom du passager KLM) garde son encre noire, pas grise', pr < 60 && pg < 60 && pb < 60, couleurPetite ?? (petite ? 'pas de champ' : 'ligne introuvable'));
+  await bouton('Remettre le texte d’origine');
+  await evalue(`(() => { const e = [...document.querySelectorAll('.spdf-pose--remplace')].find((x) => (x.value ?? x.textContent) === ${JSON.stringify(NOUVEAU)}); if (e) e.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true })); return !!e; })()`);
   const tape = await evalue(`document.activeElement?.value ?? null`);
   dit('... on tape : l ancien texte est remplace par le sien', tape === NOUVEAU, tape);
   await bouton('Modifier le texte');
@@ -272,6 +288,40 @@ try {
   const coche = await evalue(`(() => { const e = document.querySelector('input.spdf-champ[aria-label="accepte"]'); if (!e) return null; e.click(); return e.checked; })()`);
   dit('... on ecrit dans le champ et l on coche la case, sur la page', nom && coche === true && (await evalue(`document.querySelector('input.spdf-champ[aria-label="nom_du_client"]').value`)) === 'Y. B.');
   await photo('3-formulaire');
+
+  /* 3 sexies. LE ZOOM : « + » deux fois, la page grandit et se redessine en
+     détail, les pièces gardent leur place ; « Pleine largeur » ; Ctrl + molette. */
+  const avantZoom = await evalue(`(() => { const p = document.querySelector('.spdf-page'); const t = document.querySelector('.spdf-pose--texte'); return { l: p.getBoundingClientRect().width, c: p.querySelector('canvas').width, gauche: t ? t.style.left : null }; })()`);
+  await evalue(`document.querySelector('[aria-label="Agrandir la page"]').click(); true`);
+  await attend(400);
+  await evalue(`document.querySelector('[aria-label="Agrandir la page"]').click(); true`);
+  const apresZoom = await jusqua(`(() => { const p = document.querySelector('.spdf-page'); const c = p.querySelector('canvas'); return c.width > ${avantZoom.c} * 1.3 ? { l: p.getBoundingClientRect().width, c: c.width, taux: document.querySelector('.spdf-loupe-taux').textContent, gauche: document.querySelector('.spdf-pose--texte')?.style.left ?? null } : null; })()`, 8000);
+  dit('3 sexies. le zoom : « + » deux fois = 150 %, la page grandit et se redessine en detail', !!apresZoom && apresZoom.taux === '150 %' && apresZoom.l > avantZoom.l * 1.4, JSON.stringify(apresZoom));
+  dit('... les pieces gardent leur place sur la page', !!apresZoom && apresZoom.gauche === avantZoom.gauche, `${avantZoom.gauche} / ${apresZoom?.gauche}`);
+  const deCote = await evalue(`(() => { const p = document.querySelector('.spdf-pages'); return { pages: p.scrollWidth > p.clientWidth, corps: document.documentElement.scrollWidth - document.documentElement.clientWidth }; })()`);
+  dit('... plus large que l ecran, la page se parcourt de cote, sans faire deborder l ecran', deCote.pages && deCote.corps <= 0, JSON.stringify(deCote));
+  await photo('3-zoom');
+  await bouton('Pleine largeur');
+  const retour = await jusqua(`document.querySelector('.spdf-loupe-taux').textContent === '100 %' && Math.abs(document.querySelector('.spdf-page').getBoundingClientRect().width - ${avantZoom.l}) < 2`, 6000);
+  dit('... « Pleine largeur » la remet a la largeur de l ecran', !!retour);
+  const sousLaMolette = await ou('.spdf-feuille', 0.5, 0.3);
+  await cdp('Input.dispatchMouseEvent', { type: 'mouseWheel', x: sousLaMolette.x, y: sousLaMolette.y, deltaX: 0, deltaY: -100, modifiers: 2 });
+  const molette = await jusqua(`document.querySelector('.spdf-loupe-taux').textContent === '125 %'`, 4000);
+  dit('... Ctrl + molette zoome aussi (125 %)', !!molette, await evalue(`document.querySelector('.spdf-loupe-taux').textContent`));
+  await bouton('Pleine largeur');
+  await jusqua(`document.querySelector('.spdf-loupe-taux').textContent === '100 %'`, 4000);
+
+  /* 3 septies. L'ENVOYER : sans numéro, la Maison le demande ; par l'app, la
+     feuille de partage reçoit la COPIE (un vrai PDF, nommée « signé le … »).
+     La feuille de partage du système est remplacée ici par un témoin. */
+  await bouton('Envoyer par la Maison');
+  const demande = await jusqua(`[...document.querySelectorAll('[role=status], .mnd-toast, [class*=toast]')].some((t) => /numéro WhatsApp du destinataire/.test(t.textContent))`, 4000);
+  dit('3 septies. « Envoyer par la Maison » sans numero : il le demande', !!demande);
+  await evalue(`(() => { navigator.canShare = () => true; navigator.share = async (d) => { const f = d.files[0]; const o = new Uint8Array(await f.arrayBuffer()); window.__partage = { nom: f.name, type: f.type, taille: f.size, debut: String.fromCharCode(...o.subarray(0, 5)), texte: d.text }; }; return true; })()`);
+  await bouton('WhatsApp · l’app');
+  const partage = await jusqua(`window.__partage ?? null`, 15000);
+  dit('... « WhatsApp · l app » : la feuille de partage recoit la copie signee, un vrai PDF', !!partage && partage.debut === '%PDF-' && partage.type === 'application/pdf' && /· signé le \d{1,2}(er)? \S+ \d{4}\.pdf$/.test(partage.nom) && partage.taille > 1000,
+    partage ? `${partage.nom} · ${partage.taille} octets · « ${partage.texte} »` : 'rien');
 
   /* 4. Tourner la page 3, retirer la page 2. */
   await evalue(`(() => { const pieds = document.querySelectorAll('.spdf-page-pied'); [...pieds[2].querySelectorAll('button')].find((b) => b.textContent === 'Tourner').click(); [...pieds[1].querySelectorAll('button')].find((b) => b.textContent === 'Retirer cette page').click(); return true; })()`);

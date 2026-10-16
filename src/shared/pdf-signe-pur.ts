@@ -54,6 +54,8 @@ export type PoseSurPdf = {
   famille?: Famille;
   /** Le texte imprimé qu'on a remplacé (pour le journal). */
   ancien?: string;
+  /** L'encre lue sur l'imprimé (quand on en choisit une autre, on peut y revenir). */
+  encreLue?: string;
 };
 
 /** Ce qu'on fait des pages DANS LA COPIE : des quarts de tour, des pages retirées. */
@@ -300,7 +302,15 @@ export function couleursDeLaZone(px: ArrayLike<number>, l: number, h: number): {
   const lf = lum(fond[0], fond[1], fond[2]);
   const tout: number[] = [];
   for (let i = 0; i < l * h; i += 1) tout.push(i * 4);
-  const e = seaux(tout).find((s) => Math.abs(lum(s.r / s.n, s.g / s.n, s.b / s.n) - lf) > 90);
+  /* L'encre : parmi les couleurs qui tranchent sur le papier ET pèsent assez
+     (8 % au moins, pas un point isolé), la PLUS tranchée. La plus fréquente
+     ne va pas : sur un petit texte, les bords gris de l'anticrénelage sont
+     plus nombreux que le cœur noir des lettres (16 octobre 2026, le nom du
+     passager d'une facture KLM sortait gris). */
+  const ecart = (s: { n: number; r: number; g: number; b: number }) => Math.abs(lum(s.r / s.n, s.g / s.n, s.b / s.n) - lf);
+  const tranchent = seaux(tout).filter((s) => ecart(s) > 90);
+  const poids = tranchent.reduce((n, s) => n + s.n, 0);
+  const e = tranchent.filter((s) => s.n >= Math.max(2, 0.08 * poids)).sort((a, b) => ecart(b) - ecart(a))[0] ?? tranchent[0];
   const encre = e ? enHex(e.r / e.n, e.g / e.n, e.b / e.n) : lf > 128 ? '#141414' : '#ffffff';
   return { fond: enHex(fond[0], fond[1], fond[2]), encre };
 }
@@ -309,6 +319,26 @@ export function couleurLue(hex: string | undefined, sinon: [number, number, numb
   const m = /^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(hex ?? '');
   return m ? [parseInt(m[1], 16) / 255, parseInt(m[2], 16) / 255, parseInt(m[3], 16) / 255] : sinon;
 }
+
+/* ── LE ZOOM (16 octobre 2026) : « je veux zoomer et dézoomer le fichier ».
+   1 = la page à pleine largeur ; de 50 % à 400 %, par crans. */
+export const ZOOMS = [0.5, 0.67, 0.75, 0.9, 1, 1.25, 1.5, 1.75, 2, 2.5, 3, 4] as const;
+export function zoomVoisin(zoom: number, sens: 1 | -1): number {
+  if (sens > 0) return ZOOMS.find((z) => z > zoom + 1e-6) ?? ZOOMS[ZOOMS.length - 1];
+  return [...ZOOMS].reverse().find((z) => z < zoom - 1e-6) ?? ZOOMS[0];
+}
+/** Une page dessinée ne dépasse pas 4 096 points de large ni 16 millions de points en tout (la mémoire d'un téléphone). */
+export function densiteDuDessin(largeurPx: number, ratio: number, dpr: number): number {
+  const l = Math.max(1, largeurPx);
+  return Math.max(0.5, Math.min(2, dpr || 1, 4096 / l, Math.sqrt(16e6 / (l * l * Math.max(0.1, ratio)))));
+}
+
+/** Les octets en base64, par tranches de 32 Ko (un gros PDF ferait déborder un seul appel). */
+export const enBase64 = (o: Uint8Array): string => {
+  let s = '';
+  for (let i = 0; i < o.length; i += 0x8000) s += String.fromCharCode(...o.subarray(i, i + 0x8000));
+  return btoa(s);
+};
 
 /** On ne garde pas une copie vide de pages. */
 export const resteDesPages = (retouche: RetoucheDesPages, nbPages: number): number => nbPages - new Set(retouche.retirees.filter((p) => p >= 0 && p < nbPages)).size;

@@ -24,6 +24,7 @@ import {
   GENRES_IMAGES, contenuDeLaCopie, genreDeLImage, nomDeLaCopie, pagesDeLaSelection, repeteSurLesPages, resteDesPages,
   tailleApresLeCoin, tailleDite, tourFinal, type PoseSurPdf,
   cadreApresLeCoin, champDeLAnnotation, couleurLue, couleursDeLaZone, lignesDuTexte, nombreDeChamps, type AnnotationLue, type MorceauDeTexte,
+  densiteDuDessin, enBase64, zoomVoisin,
 } from '../src/shared/pdf-signe-pur';
 import { facteurDuCoin } from '../src/shared/secretariat-pur';
 import { PdfProtege, ecritLaCopie } from '../src/shared/pdf-signe';
@@ -209,6 +210,19 @@ await lu.destroy();
   await lu2.destroy();
 }
 
+/* ── LE ZOOM (16 octobre 2026) : « je veux zoomer et dézoomer le fichier ». */
+dit('les crans du zoom : 100 % -> 125 % -> 150 %, et 100 % -> 90 % ; bornes 50 % et 400 %', [1.25, 1.5, 0.9, 0.5, 4],
+  [zoomVoisin(1, 1), zoomVoisin(1.25, 1), zoomVoisin(1, -1), zoomVoisin(0.5, -1), zoomVoisin(4, 1)]);
+/* La promesse : une page de 700 px garde la finesse de l'écran (x 2) ; une page
+   zoomée à 400 % (3 040 px) se dessine en 4 096 points de large au plus et
+   16 millions de points en tout, et pas moins fine que l'écran simple. */
+{
+  const d = densiteDuDessin(3040, 1.414, 2);
+  const l = 3040 * d, h = l * 1.414;
+  dit('une page tres zoomee reste dans la memoire d un telephone : 4 096 points de large, 16 millions en tout', [2, true, true, true],
+    [densiteDuDessin(700, 1.414, 2), l <= 4096, l * h <= 16e6 + 1, d >= 1]);
+}
+
 /* ── 4 bis. TIRER LE COIN (16 octobre 2026) ──
    « Je dois pouvoir réduire ou agrandir la taille du tampon et de la
    signature » (Yéman). Attentes à la main. */
@@ -257,6 +271,18 @@ dit('le journal compte les images posees', ['1 image'], contenuDeLaCopie([{ id: 
   };
   dit('les couleurs sous une ligne : le papier jaune d une bande reste jaune, l encre est lue', { fond: '#ffe699', encre: '#141428' },
     couleursDeLaZone(zone(10, 4, [255, 230, 153], [20, 20, 40], (x, y) => x > 1 && x < 8 && y > 0 && y < 3), 10, 4));
+  /* Le 16 octobre, le nom du passager d'une facture KLM ressortait GRIS : sur
+     un petit texte, les bords gris de l'anticrénelage sont plus nombreux que
+     le cœur noir des lettres. L'encre est la couleur la plus tranchée qui
+     pèse assez, pas la plus fréquente. */
+  dit('PETIT TEXTE NOIR : 30 points gris d anticrenelage, 6 points noirs au coeur des lettres = encre noire', '#0a0a0a',
+    couleursDeLaZone(zone(20, 6, [255, 255, 255], [150, 150, 150], (x, y) => y > 0 && y < 5 && x > 2 && x < 9).map((v, i, a) => {
+      const p = Math.floor(i / 4); const x = p % 20, y = Math.floor(p / 20);
+      return i % 4 !== 3 && y > 1 && y < 4 && x > 12 && x < 16 ? 10 : v;
+    }), 20, 6).encre);
+  dit('... un texte vraiment gris reste gris', '#6e6e6e', couleursDeLaZone(zone(12, 4, [255, 255, 255], [110, 110, 110], (x, y) => y > 0 && y < 3 && x > 1 && x < 10), 12, 4).encre);
+  dit('... un point noir isole dans un texte bleu ne fait pas l encre', '#1e2150',
+    couleursDeLaZone(zone(12, 5, [255, 255, 255], [30, 33, 80], (x, y) => y > 0 && y < 4 && x > 0 && x < 11).map((v, i) => (i < 4 * (2 * 12 + 5) + 3 && i >= 4 * (2 * 12 + 5) && i % 4 !== 3 ? 0 : v)), 12, 5).encre);
   dit('... une zone toute blanche : papier blanc, encre noire par defaut', { fond: '#ffffff', encre: '#141414' }, couleursDeLaZone(zone(6, 3, [255, 255, 255], [0, 0, 0], () => false), 6, 3));
   dit('... « #ffe699 » se lit en couleur du PDF (0 a 1)', [1, 0.902, 0.6], couleurLue('#ffe699', [0, 0, 0]).map((v) => Number(v.toFixed(3))));
   dit('tirer le coin d une zone effacee : la largeur et la hauteur suivent le doigt, sans sortir de la page', { largeur: 0.35, hauteur: 0.1 },
@@ -417,10 +443,34 @@ dit('... et un PDF de l ordinateur aussi (« Signer un PDF »), jusqu a 10 Mo', 
 dit('... une copie ouverte de l ordinateur demande sur quelle ligne se ranger', true, /!ouverture\.ligne && \(\s*<Select value=\{rangerSur\}/.test(atelier));
 dit('modifier le texte : la ligne touchee devient un champ deja rempli et SELECTIONNE (on tape, l ancien s efface)', true,
   /autoFocus onFocus=\{\(e\) => e\.currentTarget\.select\(\)\}/.test(atelier) && /texte: l\.texte, ancien: l\.texte/.test(atelier));
-dit('... la couleur du papier et de l encre sont lues sur la page dessinee', true, /surRemplace\(l, echantillon\(l\)\)/.test(atelier) && /couleursDeLaZone\(ctx\.getImageData\(/.test(atelier));
+dit('... l encre d une ligne est lue sur la ligne REDESSINEE EN GRAND (48 pixels de lettre), pas sur l ecran', true,
+  /couleursDeLaLigne\(l\)\.then\(\(c\) => surRemplace\(l, c\)\)/.test(atelier) && /Math\.max\(3, 48 \/ Math\.max\(1, l\.taille\)\)/.test(atelier) && /transform: \[1, 0, 0, 1, -x, -y\]/.test(atelier));
+dit('... et l on peut choisir l encre : comme l imprime, noir, bleu nuit', true, /\['Comme l’imprimé', pose\.encreLue\], \['Noir', '#000000'\], \['Bleu nuit', '#1e2150'\]/.test(atelier));
+dit('le zoom : de 50 % a 400 % par crans, boutons et Ctrl + molette, la page se redessine a chaque cran', true,
+  /aria-label="Réduire la page"/.test(atelier) && /aria-label="Agrandir la page"/.test(atelier) && /Pleine largeur/.test(atelier)
+  && /addEventListener\('wheel', molette, \{ passive: false \}\)/.test(atelier) && /\}, \[pdf, index, tour, aDesChamps, zoom\]\);/.test(atelier));
 dit('... une page modifiee ne se tourne plus (le cache est cale sur la page vue)', true, /if \(poses\.some\(\(p\) => p\.page === i && estUnCache\(p\.genre\)\)\) \{ toast\(/.test(atelier));
 dit('le formulaire : la page se dessine sans ses champs, les cases a remplir se posent par-dessus', true,
   /annotationMode: aDesChamps \? 2 : 1/.test(atelier) && /champDeLAnnotation\(a, i - 1\)/.test(atelier) && /ecritLaCopie\(ouverture\.octets, poses, pagesRetouchees, pourEcrire, valeurs\)/.test(atelier));
+/* L'ENVOYER, LE PARTAGER (16 octobre 2026) : « quand je finis de signer un
+   document, l'envoyer ou le partager par WhatsApp ou une app » (Yéman). */
+{
+  const gros = new Uint8Array(100_000).map((_, i) => (i * 37 + 11) % 256);
+  dit('la copie part en base64 sans s abimer, meme au-dela d une tranche de 32 Ko', Buffer.from(gros).toString('base64'), enBase64(gros));
+  const fonction = lis('supabase/functions/whatsapp-envoi/index.ts');
+  const plafondFonction = /const TAILLE_MAX = ([\d\s*]+);/.exec(fonction)?.[1].replace(/\s/g, '');
+  const plafondAtelier = /const ENVOI_MAISON_MAX = ([\d\s*]+);/.exec(atelier)?.[1].replace(/\s/g, '');
+  dit('par la Maison : l atelier refuse au-dela de ce que la fonction d envoi accepte (meme plafond, dit en Mo)', [true, true],
+    [!!plafondFonction && plafondFonction === plafondAtelier, /c\.octets\.length > ENVOI_MAISON_MAX\) \{ toast\(/.test(atelier)]);
+  dit('... la copie ecrite part en piece jointe, avec la branche et le numero donne', true,
+    /donnees: `data:application\/pdf;base64,\$\{enBase64\(c\.octets\)\}`/.test(atelier) && /envoieSurWhatsApp\(\{ numero: numeroWa\.trim\(\), texte: legende\(c\.nom\), piece, branchId: branch\.id \}\)/.test(atelier)
+    && /if \(!numeroWa\.trim\(\)\) \{ toast\('Le numéro WhatsApp du destinataire\.'\); return; \}/.test(atelier));
+  dit('... par l app : la feuille de partage recoit la copie (WhatsApp, e-mail…), et une copie perimee se refait', true,
+    /ouvreWhatsAppAvecLePdf\(\{ fichier: f, numero: numeroWa\.trim\(\) \|\| undefined, texte: legende\(f\.name\) \}\)/.test(atelier)
+    && /useEffect\(\(\) => \{ setFichierPret\(null\); setGardee\(false\); \}, \[poses, valeurs, pagesRetouchees\]\);/.test(atelier));
+  dit('... garder la copie ne ferme plus l atelier : on l envoie aussitot', true, /setGardee\(true\);/.test(atelier) && !/retoucheLaLigne\([\s\S]{0,300}onClose\(\);/.test(atelier));
+  dit('... et chaque fichier d une ligne se partage aussi (WhatsApp · l app)', true, /onClick=\{\(\) => void partage\(f\)\}/.test(admin) && /ouvreWhatsAppAvecLePdf\(\{ fichier, texte:/.test(admin));
+}
 dit('tourner et retirer une page, dans la copie seulement', true, /Tourner/.test(atelier) && /Retirer cette page/.test(atelier) && /Remettre la page/.test(atelier));
 dit('« sur toutes les pages » et une selection « 1, 3-5 »', true, /Sur toutes les pages/.test(atelier) && /pagesDeLaSelection\(selection, nbPages\)/.test(atelier));
 const css = lis('src/apps/trone/routes/pilotage/pilotage.css');

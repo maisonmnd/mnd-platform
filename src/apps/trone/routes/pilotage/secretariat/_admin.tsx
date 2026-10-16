@@ -1,6 +1,7 @@
 import { Suspense, lazy, useEffect, useState, type ReactNode } from 'react';
 import { useAuth } from '../../../../../shared/auth';
 import { useEstDirection } from '../../_vie';
+import { ditLePartage, ouvreWhatsAppAvecLePdf } from '../../../../../shared/partage-whatsapp';
 import { toast } from '../../../../../ds/components';
 import {
   chargeLEquipe, chargeLesTitulaires, deposeLesFichiers, lienDuFichier, octetsDuFichier, prendsLesFichiers, retouche, useEquipeDuSecretariat, useTitulaires,
@@ -96,6 +97,21 @@ export function LesFichiers<L extends LigneAdministrative & { fichiers: Fichier[
     if (!octets) { toast('Ce PDF ne s’ouvre qu’en ligne.'); return; }
     setSigner({ octets, nom: f.nom, ligne, source: f });
   };
+  /* PARTAGER UN FICHIER (16 octobre 2026) : une copie signée, un courrier,
+     par la feuille de partage (WhatsApp, e-mail…). Le fichier préparé est
+     gardé : si le navigateur demande un second toucher, il part aussitôt. */
+  const [prets, setPrets] = useState<Record<string, File>>({});
+  const partage = async (f: Fichier) => {
+    let fichier = prets[f.chemin];
+    if (!fichier) {
+      const octets = await octetsDuFichier(f.chemin);
+      if (!octets) { toast('Ce fichier ne se partage qu’en ligne.'); return; }
+      fichier = new File([new Uint8Array(octets)], f.nom, { type: f.type || 'application/pdf' });
+      setPrets((x) => ({ ...x, [f.chemin]: fichier as File }));
+    }
+    const mot = ditLePartage(await ouvreWhatsAppAvecLePdf({ fichier, texte: `${f.nom.replace(/\.[a-z0-9]+$/i, '')}, ci-joint.` }));
+    if (mot) toast(mot, 7000);
+  };
   const ouvre = async (f: Fichier) => {
     const url = await lienDuFichier(f.chemin);
     if (url) window.open(url, '_blank', 'noopener');
@@ -119,6 +135,7 @@ export function LesFichiers<L extends LigneAdministrative & { fichiers: Fichier[
         <span key={f.chemin} className="sad-fichier">
           <button type="button" className="sec-puce" onClick={() => void ouvre(f)}>{f.type === 'application/pdf' ? 'PDF' : 'Photo'} · {f.nom}</button>
           {(f.type === 'application/pdf' || /\.pdf$/i.test(f.nom)) && peutAjouter && <button type="button" className="sec-puce" onClick={() => void ouvreEtSigne(f)}>Ouvrir et signer</button>}
+          <button type="button" className="sec-puce" onClick={() => void partage(f)} title="WhatsApp, e-mail… par votre application">WhatsApp · l’app</button>
           {f.signeLe && <small className="sad-doux">signé le {signeLeDit(f.signeLe)}{f.signePar ? ` par ${f.signePar}` : ''}{f.contenu?.length ? ` · ${f.contenu.join(', ')}` : ''}</small>}
         </span>
       ))}

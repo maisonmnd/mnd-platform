@@ -9,13 +9,16 @@ import { deposeLesFichiers, retouche as retoucheLaLigne } from '../../../../../s
 import type { Fichier, LigneAdministrative } from '../../../../../shared/secretariat-admin-pur';
 import { TAMPONS, TAMPON_A_DATER, dateSurLeRecu, type Tampon } from '../../../../../shared/secretariat-tampons';
 import {
-  LARGEUR_DE_DEPART, TAILLE_DU_TEXTE, contenuDeLaCopie, dateLongueDuJour, estUneImage, genreDeLImage, tailleApresLeCoin, tailleDite,
-  cadreApresLeCoin, champDeLAnnotation, couleursDeLaZone, estUnCache, lignesDuTexte, nombreDeChamps,
+  LARGEUR_DE_DEPART, TAILLE_DU_TEXTE, contenuDeLaCopie, dateLongueDuJour, enBase64, estUneImage, genreDeLImage, tailleApresLeCoin, tailleDite,
+  cadreApresLeCoin, champDeLAnnotation, couleursDeLaZone, densiteDuDessin, estUnCache, lignesDuTexte, nombreDeChamps, zoomVoisin,
   type AnnotationLue, type ChampDuPdf, type Famille, type LigneImprimee, type MorceauDeTexte, nomDeLaCopie, pagesDeLaSelection,
   repeteSurLesPages, resteDesPages, retoucheVide, tourFinal, type GenreDePose, type PoseSurPdf, type RetoucheDesPages,
 } from '../../../../../shared/pdf-signe-pur';
 import { PdfProtege, ecritLaCopie, type ImageDePose } from '../../../../../shared/pdf-signe';
 import { facteurDuCoin } from '../../../../../shared/secretariat-pur';
+import { useBranch } from '../../../../../shared/branches';
+import { ditLePartage, ouvreWhatsAppAvecLePdf } from '../../../../../shared/partage-whatsapp';
+import { envoieSurWhatsApp } from '../../../../../shared/whatsapp';
 import { PaveDeSignature } from './Signatures';
 
 /* ══ SIGNER UN PDF — 15 octobre 2026 ══════════════════════════════════
@@ -84,6 +87,8 @@ async function premierePageEnImage(f: File): Promise<string | null> {
     return c.toDataURL('image/jpeg', 0.9);
   } finally { void doc.destroy(); }
 }
+/** Ce que la fonction d'envoi de la Maison accepte au plus (whatsapp-envoi, TAILLE_MAX). */
+const ENVOI_MAISON_MAX = 5 * 1024 * 1024;
 const FAMILLE_CSS: Record<Famille, string> = { sans: 'Helvetica, Arial, sans-serif', serif: '"Times New Roman", Times, serif', mono: '"Courier New", Courier, monospace' };
 const libelleDeLaLigne = (l: LigneAdministrative): string => {
   const x = l as unknown as { genre: string; numero?: string; correspondant?: string; objet?: string; titre?: string };
@@ -103,6 +108,20 @@ export function SignerUnPdf({ ouverture, onClose }: { ouverture: Ouverture; onCl
   const [pagesRetouchees, setPagesRetouchees] = useState<RetoucheDesPages>(retoucheVide);
   const [poses, setPoses] = useState<PoseSurPdf[]>([]);
   const [choisie, setChoisie] = useState<string | null>(null);
+  /* LE ZOOM : 1 = pleine largeur. Ctrl + molette zoome aussi, comme dans Acrobat. */
+  const [zoom, setZoom] = useState(1);
+  const centre = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = centre.current;
+    if (!el) return;
+    const molette = (e: WheelEvent) => {
+      if (!e.ctrlKey && !e.metaKey) return;
+      e.preventDefault();
+      setZoom((z) => zoomVoisin(z, e.deltaY < 0 ? 1 : -1));
+    };
+    el.addEventListener('wheel', molette, { passive: false });
+    return () => el.removeEventListener('wheel', molette);
+  }, []);
   const [outil, setOutil] = useState<GenreDePose | null>(null);
   const [images, setImages] = useState<Record<string, ImageVue>>({});
   const [tampon, setTampon] = useState<string>('mnd-6-dentele');
@@ -111,6 +130,15 @@ export function SignerUnPdf({ ouverture, onClose }: { ouverture: Ouverture; onCl
   const [paveParaphe, setPaveParaphe] = useState(false);
   const [envoi, setEnvoi] = useState(false);
   const [rangerSur, setRangerSur] = useState('');
+  /* L'ENVOYER, LE PARTAGER (16 octobre 2026) : « quand je finis de signer un
+     document, l'envoyer ou le partager par WhatsApp ou une app » (Yéman). Par
+     la Maison (son numéro, la conversation entre dans le fil du Trône) ou par
+     la feuille de partage du téléphone ou de Windows (WhatsApp, e-mail…). */
+  const { branch } = useBranch();
+  const [numeroWa, setNumeroWa] = useState('');
+  const [partage, setPartage] = useState<'' | 'app' | 'maison'>('');
+  const [fichierPret, setFichierPret] = useState<File | null>(null);
+  const [gardee, setGardee] = useState(false);
   const champImage = useRef<HTMLInputElement>(null);
   const [imageAPoser, setImageAPoser] = useState<string | null>(null);
   /* LE FORMULAIRE (16 octobre 2026) : les champs du PDF, et ce qu'on y écrit. */
@@ -213,7 +241,7 @@ export function SignerUnPdf({ ouverture, onClose }: { ouverture: Ouverture; onCl
   const remplaceLaLigne = (page: number, l: LigneImprimee, c: { fond: string; encre: string }) => {
     const p: PoseSurPdf = {
       id: nouvelId(), page, genre: 'remplace', x: l.x, y: l.y, largeur: l.largeur, hauteur: l.hauteur,
-      texte: l.texte, ancien: l.texte, taille: l.taille, famille: l.famille, fond: c.fond, encre: c.encre,
+      texte: l.texte, ancien: l.texte, taille: l.taille, famille: l.famille, fond: c.fond, encre: c.encre, encreLue: c.encre,
     };
     setPoses((x) => [...x, p]);
     setChoisie(p.id);
@@ -243,6 +271,35 @@ export function SignerUnPdf({ ouverture, onClose }: { ouverture: Ouverture; onCl
       return null;
     }
   };
+  /* Un changement rend la copie à refaire (et à garder de nouveau). */
+  useEffect(() => { setFichierPret(null); setGardee(false); }, [poses, valeurs, pagesRetouchees]);
+  const legende = (nom: string) => `${nom.replace(/\.pdf$/i, '')}, ci-joint.`;
+  const partageParLApp = async () => {
+    setPartage('app');
+    try {
+      let f = fichierPret;
+      if (!f) {
+        const c = await ecrit();
+        if (!c) return;
+        f = new File([new Uint8Array(c.octets)], c.nom, { type: 'application/pdf' });
+        setFichierPret(f);
+      }
+      const mot = ditLePartage(await ouvreWhatsAppAvecLePdf({ fichier: f, numero: numeroWa.trim() || undefined, texte: legende(f.name) }));
+      if (mot) toast(mot, 7000);
+    } finally { setPartage(''); }
+  };
+  const envoieParLaMaison = async () => {
+    if (!numeroWa.trim()) { toast('Le numéro WhatsApp du destinataire.'); return; }
+    setPartage('maison');
+    try {
+      const c = await ecrit();
+      if (!c) return;
+      if (c.octets.length > ENVOI_MAISON_MAX) { toast(`Cette copie pèse ${(c.octets.length / 1048576).toFixed(1)} Mo : la Maison envoie 5 Mo au plus. Utilisez « WhatsApp · l’app ».`, 8000); return; }
+      const piece = { nom: c.nom, type: 'application/pdf', donnees: `data:application/pdf;base64,${enBase64(c.octets)}` };
+      const res = await envoieSurWhatsApp({ numero: numeroWa.trim(), texte: legende(c.nom), piece, branchId: branch.id });
+      toast(res.ok ? (res.enAttente ? 'Hors ligne : le document partira au retour du réseau.' : 'Document envoyé sur WhatsApp.') : `Le document n’est pas parti : ${res.erreur}`, 7000);
+    } finally { setPartage(''); }
+  };
   const telecharge = async () => {
     const c = await ecrit();
     if (!c) return;
@@ -268,8 +325,9 @@ export function SignerUnPdf({ ouverture, onClose }: { ouverture: Ouverture; onCl
       signeLe: new Date().toISOString(), signePar: monNom, contenu: contenuDeLaCopie(poses, pagesRetouchees, nbPages, Object.keys(valeurs).length),
     };
     retoucheLaLigne(ligne, { fichiers: [...ligne.fichiers, f] } as Partial<LigneAvecFichiers>);
-    toast(`Copie gardée : « ${c.nom} ». L’original est intact.`, 6000);
-    onClose();
+    /* L'atelier reste ouvert : on peut l'envoyer aussitôt. */
+    setGardee(true);
+    toast(`Copie gardée : « ${c.nom} ». L’original est intact. Vous pouvez l’envoyer ci-dessous.`, 7000);
   };
 
   return createPortal(
@@ -311,6 +369,15 @@ export function SignerUnPdf({ ouverture, onClose }: { ouverture: Ouverture; onCl
               <span className="spdf-titre">La pièce choisie</span>
               {(pose.genre === 'texte' || pose.genre === 'remplace') && <input className="spdf-texte" value={pose.texte ?? ''} onChange={(e) => change(pose.id, { texte: e.target.value })} aria-label="Le texte" />}
               {pose.genre === 'remplace' && pose.ancien && <span className="spdf-aide">Imprimé d’origine : « {pose.ancien} »</span>}
+              {pose.genre === 'remplace' && (
+                <div className="spdf-encres" role="group" aria-label="L’encre">
+                  {([['Comme l’imprimé', pose.encreLue], ['Noir', '#000000'], ['Bleu nuit', '#1e2150']] as [string, string | undefined][]).filter(([, c]) => !!c).map(([l, c]) => (
+                    <button key={l} type="button" className={`spdf-encre${pose.encre === c ? ' est-actif' : ''}`} aria-pressed={pose.encre === c} onClick={() => change(pose.id, { encre: c })}>
+                      <span className="spdf-encre-pastille" style={{ background: c }} />{l}
+                    </button>
+                  ))}
+                </div>
+              )}
               {pose.genre !== 'efface' && <div className="spdf-deux">
                 <button type="button" className="spdf-outil" onClick={() => change(pose.id, estUneImage(pose.genre) ? { largeur: Math.max(0.04, pose.largeur / 1.15) } : { taille: Math.max(6, (pose.taille ?? TAILLE_DU_TEXTE) - 1) })}>Plus petit</button>
                 <button type="button" className="spdf-outil" onClick={() => change(pose.id, estUneImage(pose.genre) ? { largeur: Math.min(0.9, pose.largeur * 1.15) } : { taille: Math.min(40, (pose.taille ?? TAILLE_DU_TEXTE) + 1) })}>Plus grand</button>
@@ -326,7 +393,14 @@ export function SignerUnPdf({ ouverture, onClose }: { ouverture: Ouverture; onCl
             </div>
           )}
         </aside>
-        <div className="spdf-pages">
+        <div className="spdf-centre" ref={centre}>
+        <div className="spdf-loupe" role="toolbar" aria-label="Le zoom">
+          <button type="button" className="spdf-outil" aria-label="Réduire la page" disabled={zoom <= 0.5} onClick={() => setZoom((z) => zoomVoisin(z, -1))}>−</button>
+          <span className="spdf-loupe-taux" aria-live="polite">{Math.round(zoom * 100)} %</span>
+          <button type="button" className="spdf-outil" aria-label="Agrandir la page" disabled={zoom >= 4} onClick={() => setZoom((z) => zoomVoisin(z, 1))}>+</button>
+          <button type="button" className="spdf-outil" disabled={zoom === 1} onClick={() => setZoom(1)}>Pleine largeur</button>
+        </div>
+        <div className={`spdf-pages${zoom > 1 ? ' spdf-pages--loupe' : ''}`}>
           {!pdf && !erreur && <p className="sad-doux">Le PDF s’ouvre…</p>}
           {pdf && Array.from({ length: nbPages }, (_, i) => (
             <PageDuPdf
@@ -341,9 +415,10 @@ export function SignerUnPdf({ ouverture, onClose }: { ouverture: Ouverture; onCl
                 setPagesRetouchees((r) => ({ ...r, tours: { ...r.tours, [i]: ((r.tours[i] ?? 0) + 1) % 4 } }));
               }}
               surRetire={() => setPagesRetouchees((r) => ({ ...r, retirees: r.retirees.includes(i) ? r.retirees.filter((x) => x !== i) : [...r.retirees, i] }))}
-              nbPages={nbPages}
+              nbPages={nbPages} zoom={zoom}
             />
           ))}
+        </div>
         </div>
       </div>
       <div className="spdf-bas">
@@ -356,8 +431,14 @@ export function SignerUnPdf({ ouverture, onClose }: { ouverture: Ouverture; onCl
             </Select>
           )}
           <Button variant="ghost" onClick={() => void telecharge()}>Télécharger la copie</Button>
-          <Button variant="copper" disabled={envoi || (!ouverture.ligne && !rangerSur)} onClick={() => void garde()}>{envoi ? 'Envoi…' : 'Garder la copie signée'}</Button>
+          <Button variant="copper" disabled={envoi || gardee || (!ouverture.ligne && !rangerSur)} onClick={() => void garde()}>{envoi ? 'Envoi…' : gardee ? 'Copie gardée ✓' : 'Garder la copie signée'}</Button>
         </span>
+        <div className="spdf-envoi">
+          <span className="spdf-titre">L’envoyer</span>
+          <input className="spdf-texte" type="tel" inputMode="tel" value={numeroWa} onChange={(e) => setNumeroWa(e.target.value)} placeholder="WhatsApp du destinataire : +229 01 …" aria-label="Le numéro WhatsApp du destinataire" />
+          <Button variant="ghost" disabled={!!partage} onClick={() => void envoieParLaMaison()} title="Par le numéro de la Maison : la conversation entre dans le fil du Trône">{partage === 'maison' ? 'Envoi…' : 'Envoyer par la Maison'}</Button>
+          <Button variant="ghost" disabled={!!partage} onClick={() => void partageParLApp()} title="Votre application : WhatsApp, e-mail… Ce qui part ainsi n’entre pas dans le fil de la Maison.">{partage === 'app' ? 'Préparation…' : 'WhatsApp · l’app'}</Button>
+        </div>
       </div>
       {paveParaphe && (
         <PoserMonParaphe moi={moi} onClose={() => setPaveParaphe(false)} surDepose={async (u) => { const r = await ratioDe(u); setImages((x) => ({ ...x, paraphe: { url: u, ratio: r } })); setPaveParaphe(false); toast('Paraphe gardé : touchez la page pour le poser.'); }} />
@@ -370,7 +451,7 @@ export function SignerUnPdf({ ouverture, onClose }: { ouverture: Ouverture; onCl
 type VueUn = { width: number; height: number; transform: number[]; convertToViewportRectangle: (r: number[]) => number[] };
 function PageDuPdf({
   pdf, index, tour, retiree, poses, images, choisie, outil, surPose, surChoix, surBouge, surTaille, surTourne, surRetire, nbPages,
-  champs, aDesChamps, valeurs, surValeur, surRemplace,
+  champs, aDesChamps, valeurs, surValeur, surRemplace, zoom,
 }: {
   pdf: PDFDocumentProxy; index: number; tour: number; retiree: boolean; poses: PoseSurPdf[]; images: Record<string, ImageVue>;
   choisie: string | null; outil: GenreDePose | null; nbPages: number;
@@ -379,6 +460,7 @@ function PageDuPdf({
   surTourne: () => void; surRetire: () => void;
   champs: ChampDuPdf[]; aDesChamps: boolean; valeurs: Record<string, string | boolean>; surValeur: (nom: string, v: string | boolean) => void;
   surRemplace: (l: LigneImprimee, c: { fond: string; encre: string }) => void;
+  zoom: number;
 }) {
   const toile = useRef<HTMLCanvasElement>(null);
   const boite = useRef<HTMLDivElement>(null);
@@ -401,9 +483,10 @@ function PageDuPdf({
     void (async () => {
       const page = await pdf.getPage(index + 1);
       const vue1 = page.getViewport({ scale: 1, rotation: tour });
-      const largeur = Math.min(boite.current?.clientWidth || 700, 760);
+      const largeur = boite.current?.clientWidth || 700;
       const echelle = largeur / vue1.width;
-      const dpr = Math.min(2, window.devicePixelRatio || 1);
+      /* Plus on zoome, plus la page se redessine en détail, dans la limite de la mémoire. */
+      const dpr = densiteDuDessin(largeur, vue1.height / vue1.width, window.devicePixelRatio || 1);
       const vue = page.getViewport({ scale: echelle * dpr, rotation: tour });
       const c = toile.current;
       if (!c || !vivant) return;
@@ -418,7 +501,7 @@ function PageDuPdf({
       await t.promise.catch(() => undefined);
     })();
     return () => { vivant = false; tache?.cancel(); };
-  }, [pdf, index, tour, aDesChamps]);
+  }, [pdf, index, tour, aDesChamps, zoom]);
 
   /* LES LIGNES IMPRIMÉES, lues quand « Modifier le texte » est pris. */
   const [lignes, setLignes] = useState<LigneImprimee[] | null>(null);
@@ -448,6 +531,24 @@ function PageDuPdf({
     const x = Math.max(0, Math.min(c.width - 1, Math.floor(z.x * c.width))), y = Math.max(0, Math.min(c.height - 1, Math.floor(z.y * c.height)));
     const l = Math.max(1, Math.min(c.width - x, Math.ceil(z.largeur * c.width))), h = Math.max(1, Math.min(c.height - y, Math.ceil((z.hauteur ?? 0.02) * c.height)));
     try { return couleursDeLaZone(ctx.getImageData(x, y, l, h).data, l, h); } catch { return { fond: '#ffffff', encre: '#141414' }; }
+  };
+  /* L'ENCRE D'UNE LIGNE : à l'écran, un texte de 5 points ne fait que quelques
+     pixels, presque tous gris d'anticrénelage. On redessine la ligne SEULE,
+     en grand (48 pixels de lettre), pour y lire sa vraie couleur. */
+  const couleursDeLaLigne = async (l: LigneImprimee): Promise<{ fond: string; encre: string }> => {
+    try {
+      const page = await pdf.getPage(index + 1);
+      const s = Math.min(12, Math.max(3, 48 / Math.max(1, l.taille)));
+      const v = page.getViewport({ scale: s, rotation: tour });
+      const x = Math.max(0, Math.floor(l.x * v.width)), y = Math.max(0, Math.floor(l.y * v.height));
+      const w = Math.max(1, Math.min(4000, Math.ceil(l.largeur * v.width))), h = Math.max(1, Math.min(1000, Math.ceil(l.hauteur * v.height)));
+      const c = document.createElement('canvas');
+      c.width = w; c.height = h;
+      const ctx = c.getContext('2d', { willReadFrequently: true });
+      if (!ctx) return echantillon(l);
+      await page.render({ canvasContext: ctx, viewport: v, transform: [1, 0, 0, 1, -x, -y], annotationMode: aDesChamps ? 2 : 1 }).promise;
+      return couleursDeLaZone(ctx.getImageData(0, 0, w, h).data, w, h);
+    } catch { return echantillon(l); }
   };
   /* Une zone effacée qu'on vient de glisser ou d'agrandir reprend la couleur du papier sous sa nouvelle place. */
   const [aRelire, setARelire] = useState<string | null>(null);
@@ -495,7 +596,7 @@ function PageDuPdf({
     </>
   );
   return (
-    <div className="spdf-page" ref={boite}>
+    <div className="spdf-page" ref={boite} style={{ width: `${zoom * 100}%`, maxWidth: `${760 * zoom}px` }}>
       <div className="spdf-feuille" style={{ aspectRatio: `1 / ${ratio}` }} onClick={clic} data-retiree={retiree || undefined}>
         <canvas ref={toile} aria-label={`Page ${index + 1}`} />
         {/* Les champs du formulaire : on écrit, coche, choisit directement sur la page. */}
@@ -526,7 +627,7 @@ function PageDuPdf({
         {modifier && !retiree && lignes?.filter((l) => !poses.some((p) => p.genre === 'remplace' && Math.abs(p.x - l.x) < 0.004 && Math.abs(p.y - l.y) < 0.004)).map((l, k) => (
           <button key={k} type="button" className="spdf-ligne" aria-label={`Modifier : ${l.texte}`}
             style={{ left: `${l.x * 100}%`, top: `${l.y * 100}%`, width: `${l.largeur * 100}%`, height: `${l.hauteur * 100}%` }}
-            onClick={(e) => { e.stopPropagation(); surRemplace(l, echantillon(l)); }} />
+            onClick={(e) => { e.stopPropagation(); void couleursDeLaLigne(l).then((c) => surRemplace(l, c)); }} />
         ))}
         {modifier && !retiree && lignes && lignes.length === 0 && (
           <span className="spdf-sans-texte">Pas de texte modifiable sur cette page (c’est une image) : « Effacer une zone », puis « Un texte ».</span>
