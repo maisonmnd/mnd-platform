@@ -402,7 +402,8 @@ p { margin: 0; }
     try { localStorage.setItem(CLE, JSON.stringify(choix)); } catch (e) { /* sans mémoire */ }
     if (!docRef) return;
     var corps = {}; Object.keys(choix).forEach(function (k) { if (choix[k]) corps[k] = choix[k]; });
-    corps.quand = new Date().toISOString();
+    /* L'heure s'appelle « enregistre » : « quand » est aussi une décision, qu'elle écrasait (16 octobre 2026). */
+    corps.enregistre = new Date().toISOString();
     file = file.then(function () { return docRef.set(corps); }).catch(function () { /* hors ligne */ });
   }
   function txt(tag, cls, t) { var e = document.createElement(tag); if (cls) e.className = cls; if (t !== undefined) e.textContent = t; return e; }
@@ -444,7 +445,7 @@ p { margin: 0; }
       return docRef.get().then(function (s) {
         if (!s || !s.exists) return;
         var v = s.data() || {};
-        Object.keys(v).forEach(function (k) { if (k !== 'quand' && typeof v[k] === 'string') choix[k] = v[k]; });
+        Object.keys(v).forEach(function (k) { if (k !== 'enregistre' && typeof v[k] === 'string' && !/^\d{4}-\d{2}-\d{2}T/.test(v[k])) choix[k] = v[k]; });
         if (choix.note) note.value = choix.note;
         dessineDecisions();
       });

@@ -30,6 +30,10 @@ export const supabase: SupabaseClient | null =
           persistSession: true,
           autoRefreshToken: true,
           ...(scope ? { storageKey: `sb-mnd-${scope}` } : {}),
+          /* LES CLÉS D'ACCÈS (16 octobre 2026, entrer par l'empreinte) : encore
+             « en essai » chez supabase-js, d'où ce drapeau ; le banc
+             verifie-l-empreinte surveille qu'il reste posé. */
+          experimental: { passkey: true },
         },
         realtime: { params: { eventsPerSecond: 5 } },
       })
@@ -58,4 +62,14 @@ export const cleDeSession: string | null = url
    `sendBeacon` ne convenait pas : il ne porte aucun en-tête, donc pas le
    jeton de session, et la porte de Supabase refuserait. */
 export const adresseDesFonctions = url ? `${url.replace(/\/$/, '')}/functions/v1` : null;
+
+/** Les réglages PUBLICS du serveur de connexion (ce qu'il sait faire) : lus avec la clé publique.
+    Entrer par l'empreinte (16 octobre 2026) y lit si les clés d'accès sont allumées. */
+export async function reglagesDeLaConnexion(): Promise<Record<string, unknown> | null> {
+  if (!url || !anonKey) return null;
+  try {
+    const r = await fetch(`${url.replace(/\/$/, '')}/auth/v1/settings`, { headers: { apikey: anonKey } });
+    return r.ok ? await r.json() as Record<string, unknown> : null;
+  } catch { return null; }
+}
 export const cleAnonyme = anonKey ?? null;

@@ -7,6 +7,7 @@ import { staffAccessStore, useStaff as useEquipe } from '../equipe/data';
 import { adresseDArrivee, etatDeLArrivee, seRessemblent } from '../../../../shared/arrivee-pure';
 import { ANCIENS_DOMAINES, NAV, ROUTES_MAITRE, ROUTES_MAITRE_FERMABLES, ancienDomaineDe, domaineDe } from '../index';
 import { useClients } from '../../../../shared/clients';
+import { LesClesDeLEquipe } from '../../auth/Empreinte';
 import { useStore } from '../../../../shared/store';
 import { chargeLesTitulaires, donneLeRole, useTitulaires } from '../../../../shared/secretariat-admin';
 import './systeme.css';
@@ -375,6 +376,13 @@ export default function Acces() {
           {msg && (
             <div className={`sys-acc-msg ${msg.kind === 'err' ? 'is-err' : 'is-ok'}`}>{msg.text}</div>
           )}
+
+          {/* LES CLÉS D'ACCÈS DE L'ÉQUIPE (16 octobre 2026, entrer par
+              l'empreinte) : un appareil perdu, volé, ou un départ se règle ici. */}
+          <Card className="sys-section">
+            <div className="sys-section__title">Les clés d’accès de l’équipe</div>
+            <LesClesDeLEquipe />
+          </Card>
 
           {/* Comptes en attente d'autorisation */}
           <Card className="sys-section">

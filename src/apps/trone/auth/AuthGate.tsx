@@ -9,6 +9,8 @@ import {
   rattacherMonCompte, PanneDAcces } from '../../../shared/auth';
 import './auth.css';
 import { teteGardee } from '../../../shared/hors-ligne';
+import { compteMemorise, empreinteDeLAppareil, entreParLEmpreinte, noteUneEntree, oublieLeCompte, oublieLEmpreinte } from '../../../shared/empreinte';
+import { BoutonEmpreinte, CompteReconnu, GardeDeLEmpreinte } from './Empreinte';
 
 /* Porte d'entrée du Trône. Tant que l'enforcement n'est pas demandé
    (`requireAuth` faux), l'application s'affiche comme aujourd'hui.
@@ -239,7 +241,9 @@ function StaffGate({ children }: { children: ReactNode }) {
       </div>
     );
   }
-  return <>{children}</>;
+  /* ENTRER PAR L'EMPREINTE (16 octobre 2026) : la garde se tient entre la
+     porte et le Trône (le compte mémorisé, le verrou, la proposition). */
+  return <GardeDeLEmpreinte>{children}</GardeDeLEmpreinte>;
 }
 
 function AuthSplash({ children }: { children: ReactNode }) {
@@ -264,7 +268,18 @@ type Mode = 'connexion' | 'fondation' | 'oubli' | 'oubli-code' | 'inscription-co
 function Login() {
   const [mode, setMode] = useState<Mode>('connexion');
   const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
+  /* LE COMPTE DONT L'APPAREIL SE SOUVIENT (16 octobre 2026, comme BIIC) : le
+     prénom et l'e-mail masqué ; « Changer » l'oublie. Avec l'empreinte
+     activée ici, un doigt suffit. */
+  const [compte, setCompte] = useState(() => compteMemorise());
+  const [email, setEmail] = useState(() => compteMemorise()?.email ?? '');
+  const empreinteIci = !!compte && !!empreinteDeLAppareil(compte.uid);
+  const entreParLEmpreinteIci = async () => {
+    setBusy(true); setError(null); setNotice(null);
+    const r = await entreParLEmpreinte({ sessionGardee: false });
+    setBusy(false);
+    if (!r.ok) { if (r.retiree && compte) oublieLEmpreinte(compte.uid); setError(r.erreur); }
+  };
   const [password, setPassword] = useState('');
   const [code, setCode] = useState('');
   const [busy, setBusy] = useState(false);
@@ -352,6 +367,7 @@ function Login() {
         }
         // Sinon, la session s'ouvre et le gate laisse entrer.
       } else {
+        noteUneEntree();
         await signInEmail(email, password);
       }
     } catch (err) {
@@ -374,7 +390,7 @@ function Login() {
 
         <p className="tra-lede mnd-muted">
           {mode === 'connexion'
-            ? 'Entrez dans la salle du conseil.'
+            ? (compte?.prenom ? `Bon retour, ${compte.prenom}.` : 'Entrez dans la salle du conseil.')
             : mode === 'fondation'
             /* LE BOUTON MENTAIT AUX SUIVANTS — 31 août 2026. Il n'y a qu'une
                fondation ; les comptes d'après attendent d'être autorisés. Le
@@ -394,7 +410,14 @@ function Login() {
           </Field>
         )}
 
-        {mode !== 'oubli-code' && mode !== 'inscription-code' && (
+        {mode === 'connexion' && compte && (
+          <CompteReconnu compte={compte} action={(
+            <button type="button" className="tra-compte__changer"
+              onClick={() => { oublieLeCompte(); setCompte(null); setEmail(''); setError(null); }}>Changer</button>
+          )} />
+        )}
+
+        {mode !== 'oubli-code' && mode !== 'inscription-code' && !(mode === 'connexion' && compte) && (
           <Field label="E-mail">
             <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required autoComplete="email" />
           </Field>
@@ -444,6 +467,13 @@ function Login() {
             : mode === 'inscription-code' ? 'Confirmer mon adresse'
             : 'Définir le mot de passe'}
         </Button>
+
+        {mode === 'connexion' && empreinteIci && (
+          <>
+            <div className="tra-ou"><span>ou</span></div>
+            <BoutonEmpreinte onClick={() => void entreParLEmpreinteIci()} occupe={busy} />
+          </>
+        )}
 
         {mode === 'connexion' && (
           <button

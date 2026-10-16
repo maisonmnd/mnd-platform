@@ -82,6 +82,7 @@ import { useBranch } from '../../../shared/branches';
 import { useHouseIdentity, fuseauIana } from '../../../shared/identite';
 import { Seal, Button, Modal, toast } from '../../../ds/components';
 import { useAuth, useMaTete, signOut } from '../../../shared/auth';
+import { BoutonDesCles } from '../auth/Empreinte';
 import { documentDescendu, quandDocumentDescendu } from '../../../shared/sync';
 import { useFil, mesDemandes } from '../../../shared/fil';
 import { subscribeSync, getSyncState, reprendsMaVersion } from '../../../shared/sync';
@@ -865,6 +866,7 @@ export default function Shell() {
           </Button>
           <Button variant="ghost" onClick={() => setRdvNouveau(true)} title="Poser un rendez-vous">+ RDV</Button>
           <Button onClick={() => navigate('/caisse')}>+ Encaisser</Button>
+          {session && <BoutonDesCles className="tr-top__bell" />}
           {session && (
             <button
               className="tr-top__bell"
