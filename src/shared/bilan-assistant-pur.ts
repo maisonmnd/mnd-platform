@@ -160,7 +160,9 @@ export type FicheMinimale = {
   auMasculin?: boolean;
   crownStyle?: string;
   longueur?: string;
-  lockCount?: number;
+  /** Le modèle et sa fourchette (« Micro, de 251 à 350 locks ») : le bilan part chez
+      la cliente, il ne dit jamais son compte exact (16 octobre 2026). */
+  modele?: string;
   crownSince?: string;
   notes?: string;
 };
@@ -180,7 +182,7 @@ export type ContexteDuBilan = {
     nature: string;
     style?: string;
     longueur?: string;
-    locks?: number;
+    modele?: string;
     couronneDepuis?: string;
     consultation?: string;
   };
@@ -211,7 +213,7 @@ export function contexteDuBilan(o: {
       nature: natureDite(o.note.nature) || 'non précisée',
       ...(f.crownStyle ? { style: f.crownStyle } : {}),
       ...(f.longueur ? { longueur: f.longueur } : {}),
-      ...(f.lockCount ? { locks: f.lockCount } : {}),
+      ...(f.modele?.trim() ? { modele: f.modele.trim() } : {}),
       ...(f.crownSince ? { couronneDepuis: f.crownSince.slice(0, 7) } : {}),
       ...(f.notes?.trim() ? { consultation: sansCoordonnees(f.notes).slice(0, 600) } : {}),
     },

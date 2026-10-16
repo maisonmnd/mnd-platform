@@ -11,7 +11,7 @@ import { declarationsDe, nomPropose, useEnfantsDeclares } from '../../../../shar
 import { useCategories, useProducts, useServices, priceModeOf, catsDansLOrdre, mondeDeCat, mondeLabel } from '../../../../shared/catalog';
 import { useTiers } from '../../../../shared/offers';
 import { bandsAbonnements } from '../../../../shared/pricing';
-import { useModelBands, useBandSets, pricingOf, personalPriceXof, personalDurationMin, scalesWithModel, bandLabel, calibreDe } from '../../../../shared/pricing';
+import { useModelBands, useBandSets, pricingOf, personalPriceXof, personalDurationMin, scalesWithModel, bandLabel, calibreDeLaTete, fourchetteDite } from '../../../../shared/pricing';
 import { vitrineConfigStore, catalogueVisiblePour, surMesureDe } from '../../../../shared/bridges';
 import { ENVIES, QUIZ_POOL, type EnvieKey } from '../../../../shared/quiz';
 import { recoPourEnvie, recoSourceLabel } from '../../../../shared/reco';
@@ -1226,7 +1226,8 @@ function CouronnePreview({ client }: { client: ReturnType<typeof useBranchClient
                 <div style={{ border: '1px solid var(--hairline)', borderLeft: '3px solid var(--color-copper)', borderRadius: 4, background: 'var(--surface-card)', padding: '12px 14px', marginTop: 12 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8 }}>
                     <span style={{ fontFamily: 'var(--font-serif)', fontSize: 16, color: 'var(--color-indigo)' }}>
-                      {(() => { const cal = calibreDe(client.lockCount, bands); return cal ? `Couronne ${cal} · ${client.lockCount} locks` : 'Votre couronne'; })()}
+                      {/* Comme Ma Couronne : le calibre et sa fourchette, jamais le compte exact (16 octobre 2026). */}
+                      {(() => { const b = calibreDeLaTete(client.lockCount, bands, client.margeCalibre); return b?.name?.trim() ? `Couronne ${b.name.trim()} · ${fourchetteDite(b, bands)}` : 'Votre couronne'; })()}
                     </span>
                     {attained.length > 0 && <span style={{ fontSize: 10, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--copper-700)', border: '1px solid var(--copper-300)', borderRadius: 999, padding: '2px 9px' }}>Palier {attained.length}</span>}
                   </div>
@@ -1278,7 +1279,8 @@ function CouronnePreview({ client }: { client: ReturnType<typeof useBranchClient
                 )}
                 <div style={{ fontSize: 10.5, color: 'var(--copper-700)', letterSpacing: '.08em', textTransform: 'uppercase', marginBottom: 10 }}>
                   {pricing.band
-                    ? `Ses prix, modèle ${client.lockCount} locks · ${bandLabel(pricing.band, bands)}`
+                    /* Le téléphone montre ce qu'elle lit : le calibre et sa fourchette, sans le compte (16 octobre 2026). */
+                    ? `Ses prix, couronne ${pricing.band.name?.trim() || 'à son modèle'} · ${fourchetteDite(pricing.band, bands)}`
                     : 'Modèle non renseigné, elle voit les prix catalogue'}
                 </div>
                 {sonApercu.cats.filter((c) => visServices.some((s) => s.categoryId === c.id)).map((cat) => (
@@ -1306,7 +1308,8 @@ function CouronnePreview({ client }: { client: ReturnType<typeof useBranchClient
             {screen === 'suivi' && (screenOff('suivi') ?? (
               <div style={{ padding: 14 }}>
                 <div style={{ display: 'flex', gap: 8 }}>
-                  {[[client.lockCount ?? '—', 'Locks'], [honoredCount, 'Rituels honorés'], [lastVisit ? frShort(lastVisit.date) : '—', 'Dernière visite']].map(([v, l]) => (
+                  {/* Comme son Suivi : le modèle et sa fourchette, et non plus le compte exact (16 octobre 2026). */}
+                  {[[pricing.band?.name?.trim() || '—', pricing.band ? fourchetteDite(pricing.band, bands) : 'À compter à la Maison'], [honoredCount, 'Rituels honorés'], [lastVisit ? frShort(lastVisit.date) : '—', 'Dernière visite']].map(([v, l]) => (
                     <div key={String(l)} style={{ flex: 1, border: '1px solid var(--hairline)', borderRadius: 4, background: 'var(--surface-card)', padding: '10px 8px', textAlign: 'center' }}>
                       <div style={{ fontFamily: 'var(--font-serif)', fontSize: 17, color: 'var(--color-indigo)' }}>{v}</div>
                       <div className="mnd-muted" style={{ fontSize: 9, letterSpacing: '.08em', textTransform: 'uppercase', marginTop: 3 }}>{l}</div>

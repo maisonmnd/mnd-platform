@@ -107,7 +107,7 @@ export const EN_BOOKING: Record<string, string> = {
   'Total': 'Total',
   'Ses prix, établis pour la couronne de {nom}': 'Prices set for {nom}’s crown',
   'Vos prix, établis pour votre couronne': 'Your prices, set for your crown',
-  ' de {n} locks': ' of {n} locks',
+  ' {calibre} ({fourchette})': ' {calibre} ({fourchette})',
   ' · longueur {longueur}': ' · length: {longueur}',
   // Les trois longueurs (shared/catalog.ts).
   'Court': 'Short',

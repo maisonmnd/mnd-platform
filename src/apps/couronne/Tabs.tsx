@@ -16,7 +16,8 @@ import { clientsStore, useClients, useFamilies, usePersonas, remiseFamillePct, r
 import { vitrineConfigStore } from '../../shared/bridges';
 import { recoPourEnvie } from '../../shared/reco';
 import { envieLabel, type EnvieKey } from '../../shared/quiz';
-import { useModelBands, useBandSets, pricingOf, personalPriceXof, estProposable, calibreDe } from '../../shared/pricing';
+import { useModelBands, useBandSets, pricingOf, personalPriceXof, estProposable, calibreDe, calibreDeLaTete } from '../../shared/pricing';
+import { fourchetteDuModele } from './fourchette';
 import { predictNextVisit, cadenceLabel } from '../../shared/cadence';
 import { dernierBilanDe, useBilans, type Bilan } from '../../shared/bilans';
 import { INGREDIENTS } from '../revelateur/communaute';
@@ -639,8 +640,9 @@ export function HomeTab({
                   comptage de la Maison. */}
               <span className="mc-crownstatus__style">
                 {(() => {
-                  const cal = calibreDe(client?.lockCount, bands);
-                  return cal ? t('Couronne {calibre} · {n} locks', { calibre: cal, n: client?.lockCount ?? '' }) : t('Votre couronne');
+                  /* La cliente lit son calibre et sa fourchette, jamais son compte exact (16 octobre 2026). */
+                  const b = calibreDeLaTete(client?.lockCount, bands, client?.margeCalibre);
+                  return b?.name?.trim() ? t('Couronne {calibre} · {fourchette}', { calibre: b.name.trim(), fourchette: fourchetteDuModele(b, bands) }) : t('Votre couronne');
                 })()}
               </span>
             </div>
@@ -889,7 +891,8 @@ export function HomeEnfant({ enfant, onOpenBooking, onRevenir, onOpenRdv }: {
   const next = useNextAppointment(enfant.id);
   const prenom = enfant.name.split(' ')[0] || enfant.name;
   const age = ageDe(enfant.birthday, todayIso());
-  const cal = calibreDe(enfant.lockCount, bands);
+  const bandeEnfant = calibreDeLaTete(enfant.lockCount, bands, enfant.margeCalibre);
+  const cal = bandeEnfant?.name?.trim() || undefined;
   /* Dernière venue honorée + reprise conseillée — le même juge de cadence que
      la fiche du Trône (shared/cadence.ts), posé sur SA tête. */
   const honores = appts.filter((a) => a.status === 'honoré');
@@ -919,7 +922,7 @@ export function HomeEnfant({ enfant, onOpenBooking, onRevenir, onOpenRdv }: {
         <span className="mc-crownstatus__filet" />
         <div className="mc-crownstatus__top">
           <span className="mc-crownstatus__style">
-            {cal ? t('Couronne {calibre} · {n} locks', { calibre: cal, n: enfant.lockCount ?? '' }) : t('Sa couronne')}
+            {cal ? t('Couronne {calibre} · {fourchette}', { calibre: cal, fourchette: fourchetteDuModele(bandeEnfant, bands) }) : t('Sa couronne')}
           </span>
         </div>
         {(derniere || reprise) && (
@@ -993,7 +996,8 @@ export function SuiviTab({ regard, onOpenBooking, onOpenRdv, onOpenOrders, goGam
   const lockDays = daysSince(client?.crownSince ?? client?.since ?? todayIso());
   /* Le calibre, déduit du comptage — le style à la main est retiré (13 août). */
   const [bandsModeles] = useModelBands();
-  const calSuivi = calibreDe(client?.lockCount, bandsModeles);
+  const bandeSuivi = calibreDeLaTete(client?.lockCount, bandsModeles, client?.margeCalibre);
+  const calSuivi = bandeSuivi?.name?.trim() || undefined;
 
   /* ══ SA PENTE, ET CE QUI L'ATTEND — 6 septembre 2026 ═══════════════
      Maquette du 5 septembre, section ⑥ : « Ma Couronne · pour fidéliser. La
@@ -1122,7 +1126,8 @@ export function SuiviTab({ regard, onOpenBooking, onOpenRdv, onOpenOrders, goGam
 
       {/* état de la couronne — chiffres réels du CRM et de l'agenda */}
       <div className="mc-metrics">
-        <div className="mc-metric"><div className="mc-metric__v">{client?.lockCount ?? '—'}</div><div className="mc-metric__l">{t('Locks')}</div></div>
+        {/* Le modèle et sa fourchette, et non plus le compte exact (16 octobre 2026). */}
+        <div className="mc-metric"><div className="mc-metric__v">{calSuivi ?? '—'}</div><div className="mc-metric__l">{bandeSuivi ? fourchetteDuModele(bandeSuivi, bandsModeles) : t('À compter à la Maison')}</div></div>
         <div className="mc-metric"><div className="mc-metric__v">{lockDays}</div><div className="mc-metric__l">{t('Jours de locks')}</div></div>
         <div className="mc-metric"><div className="mc-metric__v">{honored.length}</div><div className="mc-metric__l">{t('Rituels honorés')}</div></div>
       </div>
@@ -2283,11 +2288,11 @@ export function ProfilTab({ toast }: { toast: (m: string) => void }) {
         <div className="mc-inforow">
           <span>{t('Calibre')}</span>
           {/* Déduit du comptage de la Maison — il ne se choisit pas. */}
-          <span className="mc-inforow__v">{calibreDe(client?.lockCount, bandsProfil) ?? t('À compter à la Maison')}</span>
+          <span className="mc-inforow__v">{calibreDe(client?.lockCount, bandsProfil, client?.margeCalibre) ?? t('À compter à la Maison')}</span>
         </div>
         <div className="mc-inforow">
-          <span>{t('Nombre de locks')}</span>
-          <span className="mc-inforow__v">{client?.lockCount ?? '—'}</span>
+          <span>{t('Fourchette du modèle')}</span>
+          <span className="mc-inforow__v">{fourchetteDuModele(calibreDeLaTete(client?.lockCount, bandsProfil, client?.margeCalibre), bandsProfil) || '—'}</span>
         </div>
         {/* SON PALIER, ET LE PAS SUIVANT — lus sur ses rituels honorés. */}
         {lecturePalier?.palier && (

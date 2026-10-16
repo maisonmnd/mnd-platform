@@ -6,6 +6,7 @@ import type { Service } from '../../../../shared/catalog';
 import { useProducts } from '../../../../shared/catalog';
 import { JAUGES_SEED, RITUEL_SEED, dernierBilanDe, ecritLaNote, useBilans, useNotesDeSeance } from '../../../../shared/bilans';
 import { useFormulesLab } from '../../../../shared/formules';
+import { modeleDit, useModelBands } from '../../../../shared/pricing';
 import { LAB_FORMULAS } from '../vente/lab';
 import {
   NATURES_DU_CHEVEU, SIGNES_METISSE, SIGNES_VUS, brouillonDeLaMain, contexteDuBilan, idDeLaNote, noteVide,
@@ -45,6 +46,7 @@ export function LeBilanDeLaSeance({ appt, client, byId }: {
   const [bilans] = useBilans();
   const [produits] = useProducts();
   const [formulesLab] = useFormulesLab();
+  const [bands] = useModelBands();
   const id = idDeLaNote(appt.id);
   const enregistree = notes.find((n) => n.id === id);
   const bilan = bilans.find((b) => b.apptId === appt.id);
@@ -96,7 +98,9 @@ export function LeBilanDeLaSeance({ appt, client, byId }: {
       .filter((b) => b.clientId === client.id && b.apptId !== appt.id)
       .sort((a, b) => b.date.localeCompare(a.date));
     return contexteDuBilan({
-      fiche: client,
+      /* Le bilan part chez la cliente : il dit son modèle et sa fourchette,
+         jamais le compte exact de la Maison (16 octobre 2026). */
+      fiche: { ...client, modele: modeleDit(client.lockCount, bands, client.margeCalibre) },
       note,
       seance: {
         date: dateDite(appt.date),

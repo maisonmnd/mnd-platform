@@ -21,6 +21,7 @@ import { kkiapayEnabled, payWithKkiapay, verifyDeposit } from '../../shared/kkia
 import { useAuth } from '../../shared/auth';
 import { useCategories, useProducts, useServices, priceModeOf, longueurLabel, catsDansLOrdre, mondeDeCat, mondeLabel, type Service } from '../../shared/catalog';
 import { useModelBands, useBandSets, pricingOf, personalPriceXof, prixDansPanier, remiseGestePct, unGesteDansLePanier, personalDurationMin, isPersonalized, prixFerme, estProposable, scalesWithModel, sortedBands, bandOf, bandRange, regimeTarifaire, type ModelBand } from '../../shared/pricing';
+import { fourchetteDuModele } from './fourchette';
 import {
   DOW_LETTERS,
   MONTHS,
@@ -1546,7 +1547,8 @@ export default function Booking({ prefill, onClose, toast, onVoirRdv }: Props) {
                    couronne décrite est celle de la TÊTE servie (12 août). */
                 <div className="mc-recapcard__meta" style={{ color: 'var(--copper-700, #7C4C2C)' }}>
                   {beneficiaire ? t('Ses prix, établis pour la couronne de {nom}', { nom: beneficiaire.name }) : t('Vos prix, établis pour votre couronne')}
-                  {personalized && pricing.band && cible?.lockCount ? t(' de {n} locks', { n: cible.lockCount }) : ''}
+                  {/* Le calibre et sa fourchette, jamais le compte exact (16 octobre 2026). */}
+                  {personalized && pricing.band && cible?.lockCount ? t(' {calibre} ({fourchette})', { calibre: pricing.band.name?.trim() ?? '', fourchette: fourchetteDuModele(pricing.band, bands) }) : ''}
                   {/* Les trois longueurs viennent de shared/catalog : traduites ici. */}
                   {pricing.longueur ? t(' · longueur {longueur}', { longueur: t(longueurLabel(pricing.longueur)) }) : ''}.
                 </div>

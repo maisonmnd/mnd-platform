@@ -164,6 +164,35 @@ export const bandRange = (band: ModelBand, bands: ModelBand[]): string => {
   return prevMax === 0 ? `≤ ${band.maxLocks} locks` : `${prevMax + 1} – ${band.maxLocks} locks`;
 };
 
+/** LES BORNES D'UN MODÈLE (16 octobre 2026) : « je ne veux plus que les
+    clientes voient leur nombre précis de locks, juste la marge du modèle »
+    (Yéman). Le plancher est le plafond de la tranche du dessous, plus un ; la
+    première n'a pas de plancher, la dernière pas de plafond (null). */
+export const bornesDuModele = (band: ModelBand, bands: ModelBand[]): { min: number | null; max: number | null } => {
+  const sorted = sortedBands(bands);
+  const i = sorted.findIndex((b) => b.id === band.id);
+  const dessous = i > 0 ? sorted[i - 1].maxLocks : null;
+  return { min: dessous == null ? null : dessous + 1, max: band.maxLocks ?? null };
+};
+/** La fourchette dite en toutes lettres (le Trône, le bilan) : « de 181 à 250 locks »,
+    « jusqu’à 180 locks », « plus de 1 200 locks ». Jamais le compte de la tête. */
+export function fourchetteDite(band: ModelBand, bands: ModelBand[]): string {
+  const { min, max } = bornesDuModele(band, bands);
+  const n = (v: number) => v.toLocaleString('fr-FR');
+  if (min === null) return max === null ? '' : `jusqu’à ${n(max)} locks`;
+  if (max === null) return `plus de ${n(min - 1)} locks`;
+  return `de ${n(min)} à ${n(max)} locks`;
+}
+/** Le modèle d'une tête dit pour la cliente : « Micro, de 251 à 350 locks »,
+    marge comprise. Sans comptage, rien (le bilan ne l'invente pas). */
+export function modeleDit(lockCount: number | undefined, bands: ModelBand[], margeAccordee?: boolean): string | undefined {
+  const b = calibreDeLaTete(lockCount, bands, margeAccordee);
+  const nom = b?.name?.trim();
+  if (!b || !nom) return undefined;
+  const f = fourchetteDite(b, bands);
+  return f ? `${nom}, ${f}` : nom;
+}
+
 /** Libellé lisible — « Mini · 181 – 250 locks ». Le nom du calibre passe devant :
     c'est lui qu'on prononce au fauteuil, l'étendue n'est que sa définition. */
 export const bandLabel = (band: ModelBand, bands: ModelBand[]): string =>
