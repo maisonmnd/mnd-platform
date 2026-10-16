@@ -44,6 +44,20 @@ import './vente.css';
 import { cheminDeLaConversation } from '../../../../shared/conversations';
 import { RattacherUneCarte } from './RattacherUneCarte';
 import { leTicket, versementsDuTicket, ceQueLeRendezVousRecoit, lArgentDejaRecu, aDejaSaPiece } from './encaissement-pur';
+import { useStaff } from '../equipe/data';
+import { addTipPartage, PART_POURBOIRE_DEFAUT } from '../../../../shared/tips';
+import {
+  CAISSE_MND_PAY, MOYEN_ZELLE, moyenDeLaPiece, resteDuTicket, versementDeLaDemande, versementsDesParts,
+  type DemandeMndPay, type ReglementDuTicket,
+} from '../../../../shared/mnd-pay-pur';
+import { assureLesCaissesMndPay, mndPayOuvert } from '../../../../shared/mnd-pay';
+import { envoieLeRecu } from '../../../../shared/recu-whatsapp';
+import { PanneauMndPay } from './MndPay';
+import { JournalMndPay } from './JournalMndPay';
+
+/** La tuile MND PAY dans la grille des moyens : un moyen à part, qui ne
+    s'encaisse pas d'un bouton mais par la confirmation du prestataire. */
+const MND = 'MND PAY';
 
 /* Caisse POS — encaissement au fauteuil. Chaque encaissement crée une facture
    payée dans le registre des finances et crédite la caisse choisie. */
@@ -66,6 +80,8 @@ const PAY_SUB: Record<string, string> = {
   'PayPal': 'Diaspora',
   'Chèque': 'Bancaire',
   'Lien WhatsApp': 'Paiement à distance',
+  'Celtiis': 'Mobile Money',
+  'Zelle': 'États-Unis · noté à la main',
 };
 
 const todayIso = () => {
@@ -250,6 +266,18 @@ export default function Caisse() {
   /* Défaut = premier moyen de la liste gérée (Paramètres) — un « MTN MoMo » codé
      en dur devenait un Select vide si la maison renommait le moyen. */
   const [pay, setPay] = useState<PaymentMethod>(methods[0] ?? 'Espèces');
+  /* ══ MND PAY À LA CAISSE — 16 octobre 2026 (maquette UigU1Rr5…) ══════
+     Le ticket garde un identifiant RÉSERVÉ dès sa naissance : la demande
+     MND PAY le nomme comme sa pièce, et la pièce le prend en se fermant. Le
+     pourboire est libre (sa décision), les parts permettent plusieurs moyens
+     sur un ticket, et le reçu part seul sur son WhatsApp. */
+  const [ticketId, setTicketId] = useState(() => `inv-${uid()}`);
+  const [pourboireStr, setPourboireStr] = useState('0');
+  const [parts, setParts] = useState<ReglementDuTicket[]>([]);
+  const [partStr, setPartStr] = useState('');
+  const [envoyerRecu, setEnvoyerRecu] = useState(true);
+  const [recuHint, setRecuHint] = useState<string | null>(null);
+  const [team] = useStaff();
   const branchCashboxes = cashboxes.filter((c) => c.branchId === branch.id);
   const [cashbox, setCashbox] = useState<string>('');
   const [journalCaisse, setJournalCaisse] = useState<string>('Toutes');
@@ -286,10 +314,25 @@ export default function Caisse() {
      créditer le tiroir en euros, jamais celui de la maison. On restreint donc le
      choix — et s'il n'existe aucune caisse dans cette devise, l'encaissement est
      bloqué plutôt que versé au mauvais tiroir. */
-  const payCurrency = fxOn ? fxCode : currency;
+  /* ZELLE SE REÇOIT EN DOLLARS, sur un compte aux États-Unis (sa décision :
+     noté à la main). Le choisir ouvre la devise d'office, en USD : la caisse
+     « Zelle » est la seule qui tienne des dollars reçus ainsi. */
+  const reglagesMnd = settings.mndPay;
+  const mndOn = mndPayOuvert(reglagesMnd);
+  const zelleOn = !!reglagesMnd?.zelle?.actif;
+  const zelleChoisi = pay === MOYEN_ZELLE;
+  const fxOnEff = fxOn || zelleChoisi;
+  const fxCodeEff = zelleChoisi ? 'USD' : fxCode;
+  useEffect(() => {
+    if (mndOn || zelleOn) assureLesCaissesMndPay(branch.id, reglagesMnd);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [branch.id, mndOn, zelleOn]);
+  const payCurrency = fxOnEff ? fxCodeEff : currency;
   /* La caisse suit la date de la vente (4 octobre 2026) : en octobre, les
-     caisses d'octobre, la Terrasse en tête. */
+     caisses d'octobre, la Terrasse en tête. La caisse MND PAY ne se choisit
+     jamais à la main : seul un paiement confirmé par FedaPay y entre. */
   const eligibleBoxes = caissesPourLaDate(branchCashboxes, dateVente, cashbox)
+    .filter((c) => c.name !== CAISSE_MND_PAY)
     .filter((c) => cashboxCurrency(c) === payCurrency)
     .sort((a, b) => Number(b.role === 'terrasse') - Number(a.role === 'terrasse'));
   const activeCashbox = eligibleBoxes.some((c) => c.name === cashbox)
@@ -580,19 +623,48 @@ export default function Caisse() {
   /* Le montant en devise se DÉDUIT du COMPTANT dû (net − avoir) : c'est le XOF
      qui fait foi, jamais l'inverse — et la part réglée par avoir ne traverse
      pas le comptoir, elle n'a pas à être convertie en billets. */
+  /* LES PARTS DÉJÀ REÇUES (plusieurs moyens sur un ticket) : le moyen choisi
+     ne règle plus que le reste. */
+  const partsXof = parts.reduce((n, x) => n + x.montantXof, 0);
+  const resteApresParts = resteDuTicket(posCashDue, parts);
+  const pourboire = Math.max(0, Math.round(Number(pourboireStr) || 0));
+  const beneficiaires = team
+    .filter((s) => s.branchId === branch.id)
+    .map((s) => ({ id: s.id, part: s.partPourboire ?? PART_POURBOIRE_DEFAUT }));
   const fxRateNum = Math.max(0, Number(fxRate) || 0);
-  const fxAmount = fxOn && fxRateNum > 0 ? Math.round((posCashDue / fxRateNum) * 100) / 100 : 0;
+  const fxAmount = fxOnEff && fxRateNum > 0 ? Math.round((resteApresParts / fxRateNum) * 100) / 100 : 0;
+  const partSaisie = Math.max(0, Math.round(Number(partStr) || 0));
+  const partPossible = partSaisie > 0 && partSaisie < resteApresParts && pay !== MND && pay !== 'Lien WhatsApp' && !fxOnEff;
+  const ajouteLaPart = () => {
+    if (!partPossible) return;
+    setParts((prev) => [...prev, {
+      id: `ip-${uid()}`, methode: pay, montantXof: partSaisie,
+      ...(activeCashbox ? { caisse: activeCashbox } : {}),
+    }]);
+    setPartStr('');
+  };
 
   /* — encaissement — */
 
-  const checkout = async () => {
+  /* `mndPay` : la demande que FedaPay vient de confirmer. C'est ELLE qui ferme
+     le ticket (le panneau appelle ce geste), avec le montant réellement payé,
+     sa caisse et son moyen. Sans elle, le moyen choisi règle le reste. */
+  const checkout = async (mndPay?: DemandeMndPay) => {
     if (lines.length === 0 || devisMissing.length > 0) return;
+    if (pay === MND && !mndPay) return;
     if (submitting.current) return;
     submitting.current = true;
     try {
     const client = branchClients.find((c) => c.id === clientId);
     const grossXof = lines.reduce((s, l) => s + l.unit * l.qty, 0);
-    const piece: Invoice = nouvelleFacture({
+    const montantFinal = mndPay ? mndPay.montantXof : resteApresParts;
+    const methodeFinale: PaymentMethod = mndPay ? moyenDeLaPiece(mndPay) : pay;
+    const caisseFinale = mndPay ? CAISSE_MND_PAY : activeCashbox;
+    /* Le pourboire que FedaPay a fait payer, quand c'est lui qui ferme : la
+       case a pu changer entre la demande et le vert. */
+    const pourboireRecu = mndPay ? Math.max(0, Math.round(mndPay.pourboireXof ?? 0)) : pourboire;
+    const avecPourboire = pourboireRecu > 0 && beneficiaires.length > 0;
+    const piece: Invoice = { ...nouvelleFacture({
       branchId: branch.id,
       serie: 'MND',
       status: 'payée',
@@ -612,22 +684,25 @@ export default function Caisse() {
       globalDiscountXof: (ticket.remiseXof + ticket.remiseDuRendezVousXof + promoXof) || undefined,
       ...(promoXof > 0 && codePromo ? { discountLabel: `Promotion ${codePromo.code}` }
         : promoXof > 0 && offreCodee ? { discountLabel: `Offre ${offreCodee.title} · ${offreCodee.code ?? ''}`.trim() } : {}),
-      fx: fxOn && fxAmount > 0 ? { code: fxCode, rate: fxRateNum, amount: fxAmount } : undefined,
-      payment: posCashDue > 0 ? pay : (posAvoir > 0 ? 'Avoir' : pay),
-      cashbox: activeCashbox || undefined,
+      fx: !mndPay && fxOnEff && fxAmount > 0 ? { code: fxCodeEff, rate: fxRateNum, amount: fxAmount } : undefined,
+      payment: posCashDue > 0 ? methodeFinale : (posAvoir > 0 ? 'Avoir' : methodeFinale),
+      cashbox: caisseFinale || undefined,
       avoirXof: posAvoir > 0 ? posAvoir : undefined,
       depositCreditXof: ticket.acompteXof > 0 ? ticket.acompteXof : undefined,
-    });
+    }),
+    /* L'identifiant réservé du ticket : la demande MND PAY le nomme déjà. */
+    id: ticketId,
+    ...(avecPourboire ? { tipXof: pourboireRecu } : {}) };
     /* UN VERSEMENT PAR NATURE D'ARGENT — 10 octobre 2026, revue. Sans eux, la
        pièce s'en fabriquait un seul, du net entier, au moyen du comptant :
        50 000 F dont 10 000 F d'avoir, et le tiroir comme la clôture du soir
        attendaient 50 000 F pour 40 000 F reçus. */
-    const versements = versementsDuTicket({
+    const parNature = versementsDuTicket({
       nouvelId: () => `ip-${uid()}`,
       date: dateVente,
       time: piece.time,
       encaissePar: piece.encaissePar,
-      comptantXof: posCashDue,
+      comptantXof: mndPay ? 0 : montantFinal,
       moyen: pay,
       caisse: activeCashbox || undefined,
       fx: piece.fx,
@@ -637,8 +712,24 @@ export default function Caisse() {
       /* Chaque argent déjà reçu à son jour (10 octobre 2026, reprise). */
       dejaRecu: rituelChoisi ? lArgentDejaRecu(rituelChoisi, dateVente) : undefined,
     });
-    const inv: Invoice = versements.length > 0 ? { ...piece, payments: versements } : piece;
+    /* L'ORDRE DE L'ARGENT : ce qui était déjà reçu, les parts du comptoir,
+       ce qui ferme le ticket (le moyen choisi, ou la demande MND PAY avec
+       l'identifiant de sa demande), puis l'avoir. */
+    const versements: InvoicePayment[] = [
+      ...parNature.filter((v) => v.method === 'Acompte'),
+      ...versementsDesParts(parts, { date: dateVente, time: piece.time, encaissePar: piece.encaissePar, demandes: [] }),
+      ...(mndPay ? [versementDeLaDemande(mndPay, piece.encaissePar)] : parNature.filter((v) => v.method !== 'Acompte' && v.method !== 'Avoir')),
+      ...parNature.filter((v) => v.method === 'Avoir'),
+    ];
+    /* La pièce n'est « payée » que si l'argent la couvre : une demande MND
+       PAY faite pour un ticket qu'on a modifié ensuite peut ne pas suffire. */
+    const recuXof = versements.reduce((n, v) => n + v.amountXof, 0);
+    const pieceReglee = recuXof + 1 >= ticket.netXof;
+    const inv: Invoice = { ...piece, ...(versements.length > 0 ? { payments: versements } : {}), ...(pieceReglee ? {} : { status: 'envoyée' as const }) };
     setInvoices((prev) => [inv, ...prev]);
+    /* LE POURBOIRE SE PARTAGE ENTRE TOUTE L'ÉQUIPE, comme à l'encaissement
+       d'un rituel : une ligne par bénéficiaire, la cliente en note. */
+    if (avecPourboire) addTipPartage(beneficiaires, pourboireRecu, dateVente, client?.name ?? undefined, inv.id);
 
     /* LE CODE SE FERME ICI, ET PAS AVANT. Le consommer au moment où on le
        tape le brûlerait sur un ticket abandonné ; le consommer après
@@ -734,14 +825,22 @@ export default function Caisse() {
           ...(recu.comptantXof + recu.avoirXof > 0 ? {
             payments: [
               ...(a.payments ?? []),
-              ...(recu.comptantXof > 0 ? [{
-                id: `pay-${uid()}`,
-                amountXof: recu.comptantXof,
-                date: dateVente,
-                method: pay,
-                cashbox: activeCashbox || undefined,
-                invoiceId: inv.id,
-              }] : []),
+              /* LE COMPTANT SE VENTILE COMME LA PIÈCE (16 octobre 2026, MND
+                 PAY) : une part en espèces, le reste en Moov, chacun à sa
+                 caisse, jusqu'à ce que le rituel ait reçu le sien. */
+              ...(() => {
+                let reste = recu.comptantXof;
+                const out: { id: string; amountXof: number; date: string; method: PaymentMethod; cashbox?: string; invoiceId: string }[] = [];
+                for (const v of versements) {
+                  if (reste <= 0) break;
+                  if (v.method === 'Acompte' || v.method === 'Avoir') continue;
+                  const m = Math.min(reste, v.amountXof);
+                  if (m <= 0) continue;
+                  out.push({ id: `pay-${uid()}`, amountXof: m, date: dateVente, method: v.method, cashbox: v.cashbox || undefined, invoiceId: inv.id });
+                  reste -= m;
+                }
+                return out;
+              })(),
               ...(recu.avoirXof > 0 ? [{
                 id: `pay-${uid()}`,
                 amountXof: recu.avoirXof,
@@ -789,10 +888,14 @@ export default function Caisse() {
         kind: 'usage', amountXof: posAvoir, date: dateVente, forClientId: clientId || undefined, invoiceId: inv.id,
       }]);
     }
-    if (pay === 'Lien WhatsApp') {
-      /* Un lien wa.me ne peut PAS joindre de fichier : on télécharge d'abord le vrai
-         reçu PDF, puis on ouvre le chat pré-rempli en signalant la pièce jointe. */
-      const receipt: InvoicePdfData = {
+    /* LE REÇU, construit une fois : le PDF du « Lien WhatsApp » d'avant et
+       celui qui part seul sur son WhatsApp (MND PAY) sont le même papier.
+       Plusieurs moyens se disent tous, chacun avec sa somme. */
+    const argentDuJour = versements.filter((v) => v.method !== 'Acompte' && v.method !== 'Avoir');
+    const moyensDits = argentDuJour.length > 1
+      ? argentDuJour.map((v) => `${v.method} ${fmtMoney(v.amountXof, currency)}`).join(' · ')
+      : inv.payment;
+    const receipt: InvoicePdfData = {
         kind: 'facture',
         number: inv.number,
         houseName: branch.name,
@@ -818,9 +921,12 @@ export default function Caisse() {
            un montant en F qu'elle n'a jamais versé. */
         payment: inv.fx
           ? `${inv.payment} · ${inv.fx.amount.toLocaleString('fr-FR', { maximumFractionDigits: 2 })} ${inv.fx.code} (1 ${inv.fx.code} = ${inv.fx.rate} ${currency})`
-          : inv.payment,
-        status: 'payée',
+          : moyensDits,
+        status: inv.status === 'payée' ? 'payée' : 'envoyée',
       };
+    if (pay === 'Lien WhatsApp') {
+      /* Un lien wa.me ne peut PAS joindre de fichier : on télécharge d'abord le vrai
+         reçu PDF, puis on ouvre le chat pré-rempli en signalant la pièce jointe. */
       await invoicePdf(receipt);
       /* Le reçu disait « Réglez d'un geste » — sur une somme DÉJÀ encaissée.
          La chute est tombée avec les autres ; la devise ferme seule. */
@@ -837,6 +943,16 @@ export default function Caisse() {
     } else {
       setWaHint(null);
     }
+    /* LE REÇU PART SEUL SUR SON WHATSAPP (MND PAY, sa décision). Il ne retient
+       pas la caisse : la vente est faite, l'envoi se dit quand il revient. */
+    setRecuHint(null);
+    if (envoyerRecu && client?.phone && pay !== 'Lien WhatsApp') {
+      const montantDit = fmtMoney(argentDuJour.reduce((n, v) => n + v.amountXof, 0) || netXof, currency);
+      void envoieLeRecu({
+        client: { ...client, branchId: client.branchId }, pdf: receipt, montant: montantDit, jourIso: dateVente,
+        parQui: session?.user?.email ?? undefined,
+      }).then((r) => setRecuHint(r.ok ? (r.enAttente ? 'Reçu gardé : il partira sur son WhatsApp au retour du réseau.' : 'Reçu envoyé sur son WhatsApp.') : `Reçu non envoyé : ${r.erreur}`));
+    }
     setCart({});
     /* LA DATE REVIENT À AUJOURD'HUI. Laissée sur hier, elle ferait tomber la
        vente suivante au mauvais jour sans que personne le remarque — et c'est
@@ -846,6 +962,12 @@ export default function Caisse() {
     setGlobalDisc(0);
     setGlobalDiscXof(0);
     setAvoirStr('0');
+    /* Un ticket neuf : nouvel identifiant réservé, ni pourboire ni parts. */
+    setTicketId(`inv-${uid()}`);
+    setPourboireStr('0');
+    setParts([]);
+    setPartStr('');
+    if (pay === MND) setPay(methods[0] ?? 'Espèces');
     } finally {
       submitting.current = false;
     }
@@ -1261,6 +1383,21 @@ export default function Caisse() {
                 <span style={{ fontFamily: 'var(--font-sans)', fontSize: 11, letterSpacing: '.18em', textTransform: 'uppercase', color: 'var(--color-indigo)' }}>Net à payer</span>
                 <span className="trv-net">{fmtMoney(aPayerXof, currency)}</span>
               </div>
+              {/* LE POURBOIRE, EN MONTANT LIBRE (MND PAY, sa décision). Il
+                  n'entre ni dans la pièce ni dans le chiffre : il se partage
+                  entre toute l'équipe, comme à l'encaissement d'un rituel. */}
+              {lines.length > 0 && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 0 4px', flexWrap: 'wrap' }}>
+                  <label htmlFor="caisse-pourboire" style={{ fontFamily: 'var(--font-sans)', fontSize: 9.5, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--ink-soft)', maxWidth: 84, lineHeight: 1.3 }}>
+                    Pourboire
+                  </label>
+                  <input id="caisse-pourboire" className="mnd-input" type="number" min={0} inputMode="numeric" value={pourboireStr}
+                    onChange={(e) => setPourboireStr(e.target.value)} style={{ width: 130, textAlign: 'right' }} aria-label={`Pourboire libre en ${currency}`} />
+                  <span style={{ fontFamily: 'var(--font-sans)', fontSize: 11, color: 'var(--ink-soft)' }}>
+                    {pourboire > 0 ? (beneficiaires.length ? `pour l’équipe, en plus de ${fmtMoney(aPayerXof, currency)}` : 'aucune équipe sur cette branche : il ne sera pas noté') : 'facultatif, pour l’équipe'}
+                  </span>
+                </div>
+              )}
 
               {soinsDispo.length > 0 && (
                 <div style={{ marginTop: 12, border: '1px solid var(--copper-300)', borderRadius: 'var(--radius-md)', background: 'var(--copper-50)', padding: '10px 12px', display: 'grid', gap: 8 }}>
@@ -1318,18 +1455,48 @@ export default function Caisse() {
 
             <div style={{ padding: '8px 22px 22px' }}>
               <div className="trv-sec-label trv-sec-label--copper" style={{ margin: '6px 0 12px' }}>Paiement</div>
+              {/* MND PAY EN TÊTE quand il est ouvert : la demande au téléphone
+                  ou le QR de la carte, confirmés par FedaPay. */}
+              {mndOn && (
+                <button type="button" className={`trv-pay ${pay === MND ? 'is-active' : ''}`} style={{ width: '100%', marginBottom: 10, borderColor: 'var(--copper-300)' }}
+                  onClick={() => setPay(MND)} aria-pressed={pay === MND}>
+                  <div className="n">MND PAY</div>
+                  <div className="s">mobile money au téléphone · carte par QR · confirmé seul</div>
+                </button>
+              )}
               <div className="tr-grid tr-grid--2" style={{ gap: 10 }}>
-                {methods.map((m) => (
-                  <button key={m} className={`trv-pay ${pay === m ? 'is-active' : ''}`} onClick={() => setPay(m)}>
+                {(zelleOn && !methods.includes(MOYEN_ZELLE) ? [...methods, MOYEN_ZELLE] : methods).map((m) => (
+                  <button key={m} className={`trv-pay ${pay === m ? 'is-active' : ''}`} onClick={() => {
+                    setPay(m);
+                    if (m === MOYEN_ZELLE) setFxRate(String(rateToXof('USD') || ''));
+                  }}>
                     <div className="n">{m}</div>
                     <div className="s">{PAY_SUB[m] ?? 'Paiement'}</div>
                   </button>
                 ))}
               </div>
+              {/* ZELLE, NOTÉ À LA MAIN : rien ne le confirme seul. On donne
+                  l'adresse à la cliente, et l'on encaisse quand le relevé
+                  américain montre l'argent. */}
+              {zelleChoisi && (
+                <div style={{ marginTop: 12, border: '1px solid var(--copper-300)', borderRadius: 'var(--radius-md)', background: 'var(--copper-50)', padding: '10px 12px', fontFamily: 'var(--font-sans)', fontSize: 12.5, color: 'var(--copper-700)', lineHeight: 1.55 }}>
+                  {reglagesMnd?.zelle?.adresse
+                    ? <>À envoyer par Zelle à <b style={{ color: 'var(--color-indigo)' }}>{reglagesMnd.zelle.adresse}</b>{reglagesMnd.zelle.titulaire ? ` (${reglagesMnd.zelle.titulaire})` : ''}, en dollars.</>
+                    : <>L’adresse Zelle de la Maison n’est pas posée (Paramètres › MND PAY).</>}
+                  {' '}Encaissez seulement quand le relevé du compte américain montre l’argent.
+                </div>
+              )}
               {/* Devise étrangère — visible seulement quand la maison l'a ouvert
                   (Paramètres). La facture reste en {currency} : on ne consigne ici
                   que ce qui a été REÇU au comptoir, et à quel taux. */}
-              {settings.fxEnabled && (
+              {zelleChoisi && (
+                <div style={{ marginTop: 10, fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--copper-700)' }}>
+                  1 USD = {fxRateNum > 0 ? `${fxRateNum} ${currency}` : '…'} ·{' '}
+                  <input className="mnd-input" type="number" min={0} step="any" value={fxRate} onChange={(e) => setFxRate(e.target.value)} style={{ width: 100, textAlign: 'right' }} aria-label={`Taux : 1 USD en ${currency}`} />
+                  {' '}À recevoir : <b style={{ color: 'var(--color-indigo)' }}>{fxAmount > 0 ? `${fxAmount.toLocaleString('fr-FR', { maximumFractionDigits: 2 })} USD` : '…'}</b>
+                </div>
+              )}
+              {settings.fxEnabled && !zelleChoisi && (
                 <div style={{ marginTop: 14, border: '1px solid var(--copper-300)', borderRadius: 'var(--radius-md)', background: 'var(--copper-50)', padding: '11px 13px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
                     <span style={{ fontFamily: 'var(--font-sans)', fontSize: 9.5, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--copper-700)' }}>
@@ -1377,13 +1544,60 @@ export default function Caisse() {
                 </div>
               )}
 
-              {fxOn && !hasCashbox && (
+              {fxOnEff && !hasCashbox && (
                 <div className="trv-pdf-hint" style={{ marginTop: 10, color: 'var(--color-copper)' }}>
-                  Aucune caisse ne tient des {fxCode}, créez-la dans Dépenses (Devise détenue :
-                  {' '}{fxCode}) avant d’encaisser. Les billets étrangers ne peuvent pas rejoindre
+                  Aucune caisse ne tient des {fxCodeEff}, créez-la dans Dépenses (Devise détenue :
+                  {' '}{fxCodeEff}) avant d’encaisser. Les billets étrangers ne peuvent pas rejoindre
                   le tiroir de la maison.
                 </div>
               )}
+
+              {/* PLUSIEURS MOYENS SUR UN TICKET (MND PAY, sa décision) : une
+                  part dans le moyen choisi, puis le reste dans un autre. */}
+              {lines.length > 0 && resteApresParts > 0 && (
+                <div style={{ marginTop: 14, display: 'grid', gap: 8 }}>
+                  {parts.map((x) => (
+                    <div key={x.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, fontFamily: 'var(--font-sans)', fontSize: 12.5, color: 'var(--color-indigo)' }}>
+                      <span>{x.methode}{x.caisse ? ` · ${x.caisse}` : ''}</span>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        {fmtMoney(x.montantXof, currency)}
+                        <button type="button" className="trv-minibtn" aria-label={`Retirer la part ${x.methode}`} onClick={() => setParts((prev) => prev.filter((y) => y.id !== x.id))}>×</button>
+                      </span>
+                    </div>
+                  ))}
+                  {pay !== MND && pay !== 'Lien WhatsApp' && !fxOnEff && (
+                    <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+                      <span style={{ fontFamily: 'var(--font-sans)', fontSize: 11.5, color: 'var(--ink-soft)' }}>En plusieurs fois :</span>
+                      <input className="mnd-input" type="number" min={0} inputMode="numeric" value={partStr} onChange={(e) => setPartStr(e.target.value)}
+                        placeholder="une part" style={{ width: 120, textAlign: 'right' }} aria-label={`Montant d’une part en ${pay}`} />
+                      <button type="button" className="mnd-btn mnd-btn--ghost mnd-btn--sm" disabled={!partPossible} onClick={ajouteLaPart}>
+                        Ajouter en {pay}
+                      </button>
+                    </div>
+                  )}
+                  {partsXof > 0 && (
+                    <div style={{ fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--copper-700)' }}>
+                      Déjà reçu {fmtMoney(partsXof, currency)} · reste {fmtMoney(resteApresParts, currency)}, à régler ci-dessous
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {pay === MND ? (
+                <PanneauMndPay
+                  style={{ marginTop: 16 }}
+                  branchId={branch.id}
+                  pieceId={ticketId}
+                  clientId={posClient?.id}
+                  telephone={posClient?.phone}
+                  montantXof={resteApresParts}
+                  pourboireXof={pourboire}
+                  libelle={`${maisonNom()} · ${posClient ? posClient.name.split(' ')[0] : 'ticket du comptoir'}`}
+                  currency={currency}
+                  reglages={reglagesMnd}
+                  onPayee={(d) => void checkout(d)}
+                />
+              ) : (
               <Button
                 variant="copper"
                 size="lg"
@@ -1393,23 +1607,33 @@ export default function Caisse() {
                    caisse UNIQUEMENT en devise étrangère : verser des euros au tiroir
                    en francs fausserait les deux soldes. Et JAMAIS un sur-devis sans
                    montant : une œuvre vendue 0 F par inattention. */
-                disabled={lines.length === 0 || devisMissing.length > 0 || (fxOn && posCashDue > 0 && (!hasCashbox || fxAmount <= 0))}
+                disabled={lines.length === 0 || devisMissing.length > 0 || (fxOnEff && resteApresParts > 0 && (!hasCashbox || fxAmount <= 0))}
                 onClick={() => void checkout()}
               >
                 {posCashDue === 0 && posAvoir > 0
                   ? `Encaisser par avoir · ${fmtMoney(posAvoir, currency)}`
-                  : <>Encaisser {fxOn && fxAmount > 0
-                      ? `${fxAmount.toLocaleString('fr-FR', { maximumFractionDigits: 2 })} ${fxCode}`
-                      : fmtMoney(posCashDue, currency)}</>}
+                  : <>Encaisser {fxOnEff && fxAmount > 0
+                      ? `${fxAmount.toLocaleString('fr-FR', { maximumFractionDigits: 2 })} ${fxCodeEff}`
+                      : fmtMoney(resteApresParts, currency)}{pourboire > 0 && beneficiaires.length ? ` + pourboire ${fmtMoney(pourboire, currency)}` : ''}</>}
               </Button>
+              )}
+              {posClient?.phone && pay !== 'Lien WhatsApp' && lines.length > 0 && (
+                <label style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 10, fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--ink-soft)' }}>
+                  <input type="checkbox" checked={envoyerRecu} onChange={(e) => setEnvoyerRecu(e.target.checked)} />
+                  Envoyer le reçu sur son WhatsApp
+                </label>
+              )}
+              {recuHint && <div className="trv-pdf-hint" style={{ marginTop: 10 }}>{recuHint}</div>}
               {devisMissing.length > 0 && (
                 <div className="trv-pdf-hint" style={{ marginTop: 10, color: 'var(--copper-700)' }}>
                   Saisissez le montant convenu de « {devisMissing[0].n} » sur sa ligne du ticket avant d’encaisser.
                 </div>
               )}
               {waHint && <div className="trv-pdf-hint" style={{ marginTop: 10 }}>{waHint}</div>}
+              {/* Ce pied promettait une « réconciliation MoMo automatique » qui
+                  n'existait pas (16 octobre 2026) : il dit désormais ce qui est vrai. */}
               <div style={{ textAlign: 'center', marginTop: 10, fontFamily: 'var(--font-sans)', fontSize: 11, color: 'var(--ink-soft)' }}>
-                Reçu WhatsApp · réconciliation MoMo automatique.
+                {mndOn ? 'Reçu WhatsApp · MND PAY se rapproche seul, le code MoMo se rapproche au relevé.' : 'Reçu WhatsApp · le code MoMo se rapproche au relevé.'}
               </div>
             </div>
           </div>
@@ -1429,12 +1653,17 @@ export default function Caisse() {
                   {remisesXof > 0 ? ` · remises −${fmtMoney(remisesXof, currency)}` : ''}
                 </span>
               </div>
+              {/* MND PAY s'encaisse par la confirmation du prestataire, pas par
+                  ce bouton : il mène au panneau. */}
               <button
                 className="trv-totalbar__go"
-                disabled={lines.length === 0 || devisMissing.length > 0 || (fxOn && posCashDue > 0 && (!hasCashbox || fxAmount <= 0))}
-                onClick={() => void checkout()}
+                disabled={lines.length === 0 || devisMissing.length > 0 || (pay !== MND && fxOnEff && resteApresParts > 0 && (!hasCashbox || fxAmount <= 0))}
+                onClick={() => {
+                  if (pay === MND) { document.querySelector('[data-mnd-pay="panneau"]')?.scrollIntoView({ behavior: 'smooth', block: 'center' }); return; }
+                  void checkout();
+                }}
               >
-                Encaisser
+                {pay === MND ? 'MND PAY' : 'Encaisser'}
               </button>
             </div>
           )}
@@ -1444,6 +1673,7 @@ export default function Caisse() {
 
       {tab === 'journal' && (
         <div>
+          <JournalMndPay branchId={branch.id} jour={journalJour} currency={currency} />
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 22, gap: 16, flexWrap: 'wrap' }}>
             <div>
               <div className="trv-sec-label trv-sec-label--copper" style={{ marginBottom: 6 }}>Caisse · Journal · {journalDateLabel}</div>

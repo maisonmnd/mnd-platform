@@ -1494,3 +1494,9 @@
 .trcc-rattache__trouve span { font-size: 12.5px; color: var(--ink-soft); }
 .trcc-rattache__trouve button { justify-self: start; margin-top: 4px; }
 .trcc-rattache__refus { margin: 0; font-size: 12.5px; color: var(--color-brique, #96412E); }
+
+/* ── MND PAY (16 octobre 2026) : la roue de l'attente, cuivre sur ivoire.
+   Immobile pour qui a demandé moins de mouvement : le texte dit l'attente. */
+.mndpay-roue { width: 18px; height: 18px; border-radius: 50%; border: 2px solid var(--copper-300, #E2D0BC); border-top-color: var(--copper-700, #9A6036); animation: mndpay-tourne 1s linear infinite; flex: none; }
+@keyframes mndpay-tourne { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .mndpay-roue { animation: none; } }

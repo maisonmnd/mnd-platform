@@ -1,6 +1,6 @@
 import { sansLaVisite, pourquoiPasDeRepriseIci, prochainDejaPose } from '../../../../shared/reprise-nue';
 import { suiteImposee } from '../../../../shared/retouche-comprise-pur';
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Button, Field, Input, Modal, Select, toast, alerte, demande } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney, rateToXof } from '../../../../shared/currency';
@@ -38,6 +38,9 @@ import {
 import { cheminDeLaConversation } from '../../../../shared/conversations';
 import { appelDe } from '../../../../shared/civilite';
 import { RattacherUneCarte } from '../vente/RattacherUneCarte';
+import { PanneauMndPay } from '../vente/MndPay';
+import { CAISSE_MND_PAY, moyenDeLaPiece, type DemandeMndPay } from '../../../../shared/mnd-pay-pur';
+import { mndPayOuvert } from '../../../../shared/mnd-pay';
 
 /* Actions transverses Clients & Agenda : fidélité (points Cercle) + encaissement d'un RDV. */
 
@@ -1097,6 +1100,14 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour }: {
      soir, le tiroir des espèces ne tombait plus juste, et KkiaPay annonçait un
      argent qu'il n'avait jamais reçu. La liste part vide, et le bouton attend. */
   const [cashbox, setCashbox] = useState('');
+  /* ══ MND PAY À L'ENCAISSEMENT DU RITUEL — 16 octobre 2026 ══════════
+     Le comptant peut se DEMANDER : au vert de FedaPay, le moyen réel et la
+     caisse MND PAY se posent, puis l'encaissement d'aujourd'hui se fait,
+     inchangé. Le versement porte l'identifiant de la demande : c'est ce qui
+     le rattache (sinon l'argent paraîtrait « à rattacher » au journal). */
+  const [mndOuvert, setMndOuvert] = useState(false);
+  const [mndAFermer, setMndAFermer] = useState<DemandeMndPay | null>(null);
+  const mndPayRef = useRef<DemandeMndPay | null>(null);
   /* La facture garde la date du RITUEL (le jour de la prestation), pas celle du
      jour où l'on encaisse — modifiable au besoin. */
   const [invDate, setInvDate] = useState(appt.date || todayISO());
@@ -1192,7 +1203,10 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour }: {
   /* La caisse suit la date du versement (4 octobre 2026) : en octobre, les
      caisses d'octobre ; une correction d'avant, les anciennes. */
   const boxesDuJour = caissesPourLaDate(branchBoxes, payDate, cashbox);
-  const eligibleBoxes = boxesDuJour.filter((c) => cashboxCurrency(c) === payCurrency);
+  /* La caisse MND PAY ne se choisit jamais à la main : seule une demande
+     confirmée par FedaPay y entre. */
+  const eligibleBoxes = boxesDuJour.filter((c) => cashboxCurrency(c) === payCurrency)
+    .filter((c) => c.name !== CAISSE_MND_PAY || !!mndAFermer);
   const activeBox = eligibleBoxes.some((c) => c.name === cashbox) ? cashbox : '';
   const fxBlocked = fxOn && eligibleBoxes.length === 0;
   /* La Gamme se règle toujours en francs : ses tiroirs sont ceux de la monnaie
@@ -1413,8 +1427,10 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour }: {
       }
       if (amount > 0) {
         versements.push({
-          id: `ip-${uid()}`, date: payDate, amountXof: amount,
+          /* Le versement d'une demande MND PAY garde SON identifiant. */
+          id: mndPayRef.current?.id ?? `ip-${uid()}`, date: payDate, amountXof: amount,
           method: pay, cashbox: activeBox,
+          ...(mndPayRef.current ? { note: `MND PAY${mndPayRef.current.reference ? ` · réf. ${mndPayRef.current.reference}` : ''}${mndPayRef.current.fraisXof > 0 ? ` · frais ${mndPayRef.current.fraisXof} F payés par la cliente` : ''}` } : {}),
           time: new Date().toTimeString().slice(0, 5),
           ...(quiEncaisse() ? { encaissePar: quiEncaisse() } : {}),
           /* LA DEVISE VIT SUR LE VERSEMENT — les 100 € de Stevie A., 18 août.
@@ -1792,7 +1808,22 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour }: {
        Le report de 30 ms reste : il laisse la modale se refermer d'abord. */
     if (tip > 0 && !tipRecorded) window.setTimeout(() => alerte(msg), 30);
     else toast(msg);
+    mndPayRef.current = null;
+    setMndOuvert(false);
   };
+
+  /* LE VERT DE FEDAPAY ENCAISSE LE RITUEL. Le moyen réel, la caisse MND PAY
+     et le montant payé sont posés au rendu d'avant ; ce rendu-ci les lit, et
+     l'encaissement se fait comme si la caissière avait cliqué. */
+  const mndPret = mndOuvert && !!mndAFermer && pay === moyenDeLaPiece(mndAFermer) && activeBox === CAISSE_MND_PAY;
+  useEffect(() => {
+    if (!mndPret || !mndAFermer) return;
+    mndPayRef.current = mndAFermer;
+    setMndAFermer(null);
+    confirm(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mndPret]);
+  const mndOn = mndPayOuvert(settings.mndPay);
 
   return (
     <Modal title="Encaisser le rituel" onClose={onClose} width={440}>
@@ -2269,6 +2300,35 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour }: {
                 </Field>
               )}
             </div>
+          )}
+          {/* MND PAY : le comptant se demande au téléphone de la cliente, ou
+              par le QR de la carte, et s'encaisse seul au vert de FedaPay. */}
+          {mndOn && amount > 0 && !fxOn && (
+            mndOuvert ? (
+              <PanneauMndPay
+                style={{ marginTop: 10 }}
+                branchId={branch.id}
+                pieceId={appt.invoiceId ?? appt.id}
+                clientId={appt.clientId}
+                telephone={client?.phone}
+                montantXof={amount}
+                pourboireXof={tip}
+                libelle={`Maison MND · ${(client?.name ?? appt.clientName ?? 'rituel').split(' ')[0]}`}
+                currency={currency}
+                reglages={settings.mndPay}
+                onPayee={(d) => {
+                  setAmountStr(String(d.montantXof));
+                  setTipStr(String(d.pourboireXof ?? 0));
+                  setPay(moyenDeLaPiece(d));
+                  setCashbox(CAISSE_MND_PAY);
+                  setMndAFermer(d);
+                }}
+              />
+            ) : (
+              <button type="button" className="mnd-btn mnd-btn--ghost mnd-btn--sm" style={{ marginTop: 10 }} onClick={() => setMndOuvert(true)}>
+                Demander {fmtMoney(amount, currency)} par MND PAY
+              </button>
+            )
           )}
         </div>
 

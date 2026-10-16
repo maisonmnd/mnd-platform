@@ -178,7 +178,10 @@ const byId = new Map<string, Service>();
    la piece privee de son acompte ou de sa part avoir. Chaque argument de
    l'argent se lit ici, a sa place exacte. */
 {
-  const i = caisse.indexOf('const versements = versementsDuTicket({');
+  /* 16 octobre 2026 (MND PAY) : l'appel s'appelle `parNature`, et la pièce
+     range ensuite l'acompte, les parts du comptoir, ce qui ferme le ticket,
+     puis l'avoir. Les règles gardées ici n'ont pas bougé. */
+  const i = caisse.indexOf('const parNature = versementsDuTicket({');
   const appel = i < 0 ? '' : caisse.slice(i, caisse.indexOf('\n    });', i));
   dit(51, 'Caisse : le comptoir fait payer le reste apres l acompte, la piece et le Carnet le comptent une fois', [true, true, true, true, true, true], [
     /const posCashDue = Math\.max\(0, aPayerXof - posAvoir\);/.test(caisse),
@@ -189,14 +192,19 @@ const byId = new Map<string, Service>();
     appel.length > 100,
   ]);
   dit(53, 'Caisse : le comptant au tiroir du jour, l avoir sur son versement, sur la piece, au Carnet et au compte', [true, true, true, true, true, true, true, true], [
-    /\n\s*comptantXof: posCashDue,\n/.test(appel),
+    /* Le comptant est le RESTE après les parts du comptoir, ou rien quand la
+       demande MND PAY ferme le ticket (son versement à elle le porte). */
+    /\n\s*comptantXof: mndPay \? 0 : montantFinal,\n/.test(appel)
+      && /const montantFinal = mndPay \? mndPay\.montantXof : resteApresParts;/.test(caisse)
+      && /const resteApresParts = resteDuTicket\(posCashDue, parts\);/.test(caisse),
     /\n\s*avoirXof: posAvoir,\n/.test(appel),
     /\n\s*moyen: pay,\n/.test(appel) && /\n\s*caisse: activeCashbox \|\| undefined,\n/.test(appel) && /\n\s*date: dateVente,\n/.test(appel),
     /const posAvoir = Math\.max\(0, Math\.min\(Math\.min\(posAvoirBal, aPayerXof\), Math\.round\(Number\(avoirStr\) \|\| 0\)\)\);/.test(caisse),
     /\n\s*avoirXof: posAvoir > 0 \? posAvoir : undefined,\n/.test(caisse),
     /const recu = ceQueLeRendezVousRecoit\(\{ partNetteXof: partNette, acompteXof: acompteImpute, avoirXof: posAvoir \}\);/.test(caisse),
     /kind: 'usage', amountXof: posAvoir,/.test(caisse),
-    /payment: posCashDue > 0 \? pay : \(posAvoir > 0 \? 'Avoir' : pay\),/.test(caisse),
+    /payment: posCashDue > 0 \? methodeFinale : \(posAvoir > 0 \? 'Avoir' : methodeFinale\),/.test(caisse)
+      && /const methodeFinale: PaymentMethod = mndPay \? moyenDeLaPiece\(mndPay\) : pay;/.test(caisse),
   ]);
 }
 
@@ -238,8 +246,10 @@ const byId = new Map<string, Service>();
   dit(53, 'le rendez-vous : l avoir d abord sur le rituel, le comptant pour le reste', { comptantXof: 20_000, avoirXof: 10_000 },
     ceQueLeRendezVousRecoit({ partNetteXof: 30_000, acompteXof: 0, avoirXof: 10_000 }));
   dit(53, 'Caisse : la piece porte ses versements, le Carnet ventile', [true, true, true, false], [
-    /const inv: Invoice = versements\.length > 0 \? \{ \.\.\.piece, payments: versements \} : piece;/.test(caisse),
-    /amountXof: recu\.comptantXof,/.test(caisse),
+    /const inv: Invoice = \{ \.\.\.piece, \.\.\.\(versements\.length > 0 \? \{ payments: versements \} : \{\}\), \.\.\.\(pieceReglee \? \{\} : \{ status: 'envoyée' as const \}\) \};/.test(caisse),
+    /* Le comptant du rituel se ventile sur l'argent du jour (les parts, puis
+       ce qui ferme), jamais sur l'acompte ni l'avoir (16 octobre 2026). */
+    /let reste = recu\.comptantXof;[\s\S]{0,400}?if \(v\.method === 'Acompte' \|\| v\.method === 'Avoir'\) continue;/.test(caisse),
     /amountXof: recu\.avoirXof,\s*date: dateVente,\s*method: 'Avoir' as PaymentMethod,/.test(caisse),
     /method: posCashDue > 0 \? pay : \(posAvoir > 0 \? 'Avoir' : pay\),\s*cashbox: activeCashbox/.test(caisse),
   ]);

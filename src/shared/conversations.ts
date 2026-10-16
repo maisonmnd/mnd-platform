@@ -846,6 +846,9 @@ export const CATEGORIE_DES_MODELES: Readonly<Record<string, 'utilitaire' | 'mark
   /* LE BILAN DE SÉANCE — 4 octobre 2026, à faire approuver : il remet un
      document après une séance, il ne vend rien. */
   bilan_de_seance: 'utilitaire',
+  /* LE REÇU DE MND PAY — 16 octobre 2026, à faire approuver : il remet la
+     pièce d'un règlement, il ne vend rien (shared/recu-whatsapp). */
+  recu_de_paiement: 'utilitaire',
 };
 
 /** Le modèle de la fin de paquet, envoyé par le Trône lui-même

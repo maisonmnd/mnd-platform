@@ -1,0 +1,576 @@
+<title>MND PAY</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,400&family=Jost:wght@300;400;500&display=swap">
+<style>
+/* Le comptoir et le téléphone de la cliente, côte à côte, à essayer au doigt ; puis les choix.
+   Ivoire pour lire, indigo pour l'écran du Trône, cuivre pour MND PAY et ce qu'on décide ; jamais obsidienne. */
+:root {
+  --fond:#F6F1E7; --carte:#FFFDF9; --encre:#1E2150; --texte:#2A2722; --doux:#5E5750; --filet:#E3DACB;
+  --cuivre:#9A6036; --cuivre-clair:#F3E6D8; --vert:#2F6B4F; --vert-clair:#E3F0E8; --rouge:#8E2F2F;
+  --systeme:#FFFFFF; --systeme-texte:#1B1B1F; --systeme-doux:#5F6068;
+  --serif:"Cormorant Garamond", Georgia, "Times New Roman", serif; --sans:"Jost", system-ui, -apple-system, "Segoe UI", sans-serif;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --fond:#15173A; --carte:#1E2150; --encre:#F6F1E7; --texte:#E9E3D7; --doux:#B9B4C9; --filet:#2E3266;
+  --cuivre:#D6A06F; --cuivre-clair:#3A2E3A; --vert:#8FD1AE; --vert-clair:#1F3B3A; --rouge:#E7A1A1;
+  --systeme:#2B2C31; --systeme-texte:#F1F1F4; --systeme-doux:#B7B8C0; color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --fond:#15173A; --carte:#1E2150; --encre:#F6F1E7; --texte:#E9E3D7; --doux:#B9B4C9; --filet:#2E3266;
+  --cuivre:#D6A06F; --cuivre-clair:#3A2E3A; --vert:#8FD1AE; --vert-clair:#1F3B3A; --rouge:#E7A1A1;
+  --systeme:#2B2C31; --systeme-texte:#F1F1F4; --systeme-doux:#B7B8C0; color-scheme: dark; }
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { margin: 0; background: var(--fond); color: var(--texte); font: 300 16px/1.65 var(--sans);
+  padding-block: 28px 90px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.page { max-width: 1040px; margin: 0 auto; display: grid; gap: 56px; }
+.page > * { min-width: 0; }
+section { display: grid; gap: 18px; }
+section > * { min-width: 0; }
+.sur { font-size: 11.5px; letter-spacing: .18em; text-transform: uppercase; color: var(--cuivre); margin: 0; font-weight: 400; }
+h1 { font: 300 clamp(44px, 8vw, 72px)/1 var(--serif); color: var(--encre); margin: 8px 0 0; letter-spacing: .02em; }
+h1 b { font-weight: 500; color: var(--cuivre); }
+h2 { font: 400 clamp(28px, 4.4vw, 36px)/1.12 var(--serif); color: var(--encre); margin: 4px 0 0; text-wrap: balance; }
+h3 { font: 500 21px/1.22 var(--serif); color: var(--encre); margin: 0; text-wrap: balance; }
+p { margin: 0; }
+.chapeau { color: var(--doux); max-width: 68ch; margin-top: 14px; font-size: 17px; }
+.lu { max-width: 68ch; }
+.doux { color: var(--doux); }
+.petit { font-size: 14px; }
+.bandeau { background: var(--cuivre-clair); border-radius: 8px; padding: 10px 14px; font-size: 14.5px; max-width: 76ch; }
+.bandeau b { font-weight: 500; }
+
+/* ── L'ESSAI : les moments, puis le comptoir et le téléphone ── */
+.moments { display: flex; flex-wrap: wrap; gap: 8px; }
+.moment { all: unset; box-sizing: border-box; cursor: pointer; display: grid; gap: 1px; padding: 9px 13px; border: 1px solid var(--filet); border-radius: 8px; background: var(--carte); min-width: 0; }
+.moment b { font: 500 14.5px/1.3 var(--sans); color: var(--encre); }
+.moment span { font-size: 12.5px; color: var(--doux); }
+.moment[aria-pressed="true"] { border-color: var(--cuivre); box-shadow: inset 0 -3px 0 var(--cuivre); }
+.moment:focus-visible { outline: 2px solid var(--cuivre); outline-offset: 2px; }
+.raconte { font-size: 14.5px; color: var(--doux); border-left: 2px solid var(--cuivre); padding-left: 12px; min-height: 3.2em; max-width: 76ch; }
+.scene { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 26px; align-items: start; }
+@media (max-width: 820px) { .scene { grid-template-columns: minmax(0, 1fr); justify-items: center; } }
+.legende { font-size: 11px; letter-spacing: .16em; text-transform: uppercase; color: var(--doux); margin-bottom: 6px; text-align: center; }
+
+/* Le comptoir : la tablette du Trône */
+.tablette { width: 100%; max-width: 620px; border-radius: 22px; padding: 12px; background: #0E0F1F; box-shadow: 0 18px 44px rgba(15, 17, 48, .25); }
+.comptoir { border-radius: 12px; overflow: hidden; background: #F5EFE6; color: #1E2150; min-height: 430px; display: grid; grid-template-rows: auto 1fr; font-family: var(--sans); }
+.c-haut { background: #1E2150; color: #F5EFE6; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 16px; font-size: 12px; }
+.c-haut .titre { font: 400 19px/1 var(--serif); letter-spacing: .03em; }
+.c-haut .pay { font-size: 10px; letter-spacing: .24em; color: #E2B48A; border: 1px solid #B97A4A; border-radius: 999px; padding: 2px 9px; white-space: nowrap; }
+.c-corps { padding: 14px 16px 16px; display: grid; gap: 12px; align-content: start; }
+.c-ex { font-size: 10px; letter-spacing: .16em; text-transform: uppercase; color: #9A6036; }
+.client { display: flex; gap: 10px; align-items: center; font-size: 13px; }
+.client .rond { width: 30px; height: 30px; border-radius: 50%; background: #1E2150; color: #F5EFE6; display: grid; place-items: center; font: 400 15px/1 var(--serif); flex: none; }
+.client small { display: block; font-size: 11.5px; color: #6A6478; }
+.lignes { display: grid; background: #FFFFFF; border: 1px solid #E2D8C6; border-radius: 8px; }
+.ligne { display: flex; justify-content: space-between; gap: 10px; padding: 7px 11px; font-size: 13px; border-top: 1px solid #EFE7DA; font-variant-numeric: tabular-nums; }
+.ligne:first-child { border-top: 0; }
+.ligne span:last-child { white-space: nowrap; }
+.ligne.total { font-weight: 500; font-size: 14.5px; background: #FBF6EE; }
+.pourboire { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; font-size: 12px; color: #4A4658; }
+.puce { border: 1px solid #D6CCBA; border-radius: 999px; padding: 3px 10px; background: #FFFFFF; font-size: 12px; color: #1E2150; font-variant-numeric: tabular-nums; }
+.puce.oui { background: #1E2150; color: #F5EFE6; border-color: #1E2150; }
+.moyens { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+@media (max-width: 460px) { .moyens { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.moyen { border: 1px solid #D6CCBA; border-radius: 8px; padding: 8px 6px; text-align: center; font-size: 12px; background: #FFFFFF; color: #1E2150; }
+.moyen small { display: block; font-size: 10.5px; color: #6A6478; }
+.moyen.oui { border-color: #B97A4A; box-shadow: inset 0 0 0 1px #B97A4A; background: #FBF1E6; }
+.champ { display: grid; gap: 3px; font-size: 12px; }
+.champ label { font-size: 9.5px; letter-spacing: .2em; text-transform: uppercase; color: #3C3A4A; font-weight: 500; }
+.champ .val { background: #FFFFFF; border: 1px solid #D6CCBA; border-radius: 6px; padding: 7px 9px; font-size: 13px; font-variant-numeric: tabular-nums; }
+.btn { all: unset; box-sizing: border-box; cursor: pointer; text-align: center; background: #1E2150; color: #F5EFE6; border-radius: 7px; padding: 11px 12px; font: 500 12px/1.2 var(--sans); letter-spacing: .14em; text-transform: uppercase; }
+.btn.cuivre { background: #9A6036; color: #FFFDF9; }
+.btn.leger { background: transparent; color: #6A6478; border: 1px solid #D6CCBA; }
+.btn:focus-visible { outline: 2px solid #B97A4A; outline-offset: 2px; }
+[data-go] { animation: appel 1.8s ease-in-out infinite; }
+@keyframes appel { 0%, 100% { box-shadow: 0 0 0 0 rgba(185, 122, 74, .0); } 50% { box-shadow: 0 0 0 5px rgba(185, 122, 74, .32); } }
+.attente { display: flex; gap: 10px; align-items: center; background: #FFFFFF; border: 1px dashed #B97A4A; border-radius: 8px; padding: 11px 12px; font-size: 13px; }
+.roue { width: 18px; height: 18px; border-radius: 50%; border: 2px solid #E2D0BC; border-top-color: #9A6036; animation: tourne 1s linear infinite; flex: none; }
+@keyframes tourne { to { transform: rotate(360deg); } }
+.paye { background: #E3F0E8; border: 1px solid #9CC7AF; border-radius: 8px; padding: 12px; display: grid; gap: 6px; font-size: 13px; color: #1F4D37; }
+.paye b { font: 500 22px/1.1 var(--serif); color: #1F4D37; }
+.paye ul { margin: 0; padding-left: 18px; display: grid; gap: 2px; }
+.qr-zone { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 14px; align-items: center; background: #FFFFFF; border: 1px solid #E2D8C6; border-radius: 8px; padding: 12px; font-size: 13px; }
+.qr-zone svg { width: 112px; height: 112px; display: block; }
+.soir { display: grid; gap: 8px; }
+.soir .ligne span:first-child small { color: #6A6478; font-size: 11.5px; margin-left: 4px; }
+
+/* Le téléphone de la cliente */
+.telephone { width: 252px; max-width: 100%; aspect-ratio: 252 / 520; border-radius: 34px; padding: 9px; background: #0E0F1F; box-shadow: 0 18px 44px rgba(15, 17, 48, .28); position: relative; }
+.ecran { position: relative; width: 100%; height: 100%; border-radius: 26px; overflow: hidden; background: #2A2D4A; color: #FFFFFF; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+.barre-etat { height: 24px; display: flex; justify-content: space-between; align-items: center; padding: 0 16px; font-size: 10.5px; color: #E9E5F4; font-variant-numeric: tabular-nums; position: relative; z-index: 2; }
+.vue { position: absolute; inset: 24px 0 0; display: grid; align-content: start; padding: 14px 12px; overflow: auto; gap: 10px; }
+.repos { justify-items: center; text-align: center; padding-top: 40px; }
+.repos .heure { font: 200 52px/1 system-ui, sans-serif; letter-spacing: -.02em; }
+.repos small { font-size: 11px; color: #C9C6DA; }
+.notif { background: rgba(255, 255, 255, .92); color: #1B1B1F; border-radius: 14px; padding: 9px 11px; font-size: 11.5px; text-align: left; display: grid; gap: 2px; width: 100%; }
+.notif small { font-size: 10px; color: #5F6068; }
+.voile { position: absolute; inset: 0; background: rgba(8, 9, 24, .55); display: grid; align-items: center; padding: 14px; z-index: 3; }
+.ussd { background: var(--systeme); color: var(--systeme-texte); border-radius: 14px; padding: 16px 14px 12px; display: grid; gap: 10px; font-size: 12.5px; line-height: 1.45; }
+.ussd .op { font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: var(--systeme-doux); }
+.points { display: flex; justify-content: center; gap: 9px; padding: 4px 0; }
+.points i { width: 11px; height: 11px; border-radius: 50%; border: 1.5px solid var(--systeme-doux); }
+.points i.p { background: var(--systeme-texte); border-color: var(--systeme-texte); }
+.ussd .duo { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.ussd .duo span, .ussd .duo button { all: unset; box-sizing: border-box; text-align: center; padding: 8px; border-radius: 8px; font-size: 12.5px; font-weight: 600; cursor: pointer; }
+.ussd .duo span { color: var(--systeme-doux); }
+.ussd .duo button { background: #2C6BED; color: #FFFFFF; }
+.payer { background: #FFFDF9; color: #1E2150; border-radius: 0; position: absolute; inset: 24px 0 0; padding: 14px 13px; display: grid; gap: 9px; align-content: start; font-family: var(--sans); font-size: 12.5px; overflow: auto; }
+.payer .marque { display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #E2D8C6; padding-bottom: 8px; }
+.payer .marque strong { font: 400 19px/1 var(--serif); }
+.payer .marque small { font-size: 9.5px; letter-spacing: .2em; color: #9A6036; text-transform: uppercase; }
+.payer .montant { font: 400 30px/1.05 var(--serif); }
+.payer .sur-p { font-size: 11px; color: #6A6478; }
+.payer .choix { display: grid; gap: 6px; }
+.payer .choix span, .payer .choix button { all: unset; box-sizing: border-box; border: 1px solid #D6CCBA; border-radius: 8px; padding: 9px 10px; display: flex; justify-content: space-between; font-size: 12.5px; cursor: pointer; background: #FFFFFF; }
+.payer .verrou { font-size: 10.5px; color: #6A6478; text-align: center; }
+.code6 { display: grid; grid-template-columns: repeat(6, 1fr); gap: 5px; }
+.code6 span { border: 1px solid #D6CCBA; border-radius: 6px; text-align: center; padding: 7px 0; font: 500 15px/1 var(--sans); background: #FFFFFF; font-variant-numeric: tabular-nums; }
+.wa { position: absolute; inset: 24px 0 0; background: #ECE5DD; color: #1B1B1F; display: grid; grid-template-rows: auto 1fr; font-size: 12px; }
+.wa .tete { background: #1F5F55; color: #FFFFFF; padding: 9px 12px; font-size: 12.5px; font-weight: 600; }
+.wa .fil { padding: 12px 10px; display: grid; gap: 8px; align-content: start; }
+.bulle { background: #FFFFFF; border-radius: 9px; padding: 8px 10px; max-width: 92%; line-height: 1.45; display: grid; gap: 6px; }
+.bulle small { font-size: 9.5px; color: #6A7175; justify-self: end; }
+.bulle button { all: unset; cursor: pointer; text-align: center; color: #1F7A6C; font-weight: 600; border-top: 1px solid #E3E3E3; padding-top: 6px; }
+.camera { position: absolute; inset: 24px 0 0; background: radial-gradient(circle at 50% 45%, #3D4166, #14152A); display: grid; place-items: center; }
+.viseur { width: 150px; height: 150px; border: 2px solid rgba(255, 255, 255, .85); border-radius: 18px; display: grid; place-items: center; }
+.viseur svg { width: 96px; height: 96px; opacity: .9; }
+.lien-vu { position: absolute; bottom: 26px; left: 12px; right: 12px; background: rgba(255, 255, 255, .95); color: #1B1B1F; border-radius: 12px; padding: 9px 12px; font-size: 12px; display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.lien-vu button { all: unset; cursor: pointer; color: #2C6BED; font-weight: 600; }
+.ok-tel { justify-items: center; text-align: center; padding-top: 40px; color: #FFFFFF; }
+.ok-tel .coche { width: 58px; height: 58px; border-radius: 50%; background: #2F6B4F; display: grid; place-items: center; font-size: 28px; }
+
+/* ── AUJOURD'HUI / AVEC MND PAY ── */
+.ecarts { display: grid; grid-template-columns: repeat(auto-fit, minmax(290px, 1fr)); gap: 12px; }
+.ecart { background: var(--carte); border: 1px solid var(--filet); border-radius: 8px; padding: 14px 16px; display: grid; gap: 8px; }
+.ecart .avant { font-size: 14px; color: var(--doux); }
+.ecart .avant::before { content: "Aujourd’hui · "; font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--doux); }
+.ecart .apres { font-size: 15px; }
+.ecart .apres::before { content: "Avec MND PAY · "; font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--cuivre); }
+
+/* ── LES TROIS FAÇONS ── */
+.facons { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; }
+.facon { background: var(--carte); border: 1px solid var(--filet); border-radius: 8px; padding: 16px; display: grid; gap: 8px; align-content: start; }
+.etat { justify-self: start; font-size: 11.5px; letter-spacing: .08em; border-radius: 999px; padding: 2px 10px; border: 1px solid currentColor; }
+.etat.vert { color: var(--vert); }
+.etat.cuivre { color: var(--cuivre); }
+.etat.rouge { color: var(--rouge); }
+.facon ul { margin: 0; padding-left: 18px; display: grid; gap: 4px; font-size: 14.5px; }
+
+/* ── CE QU'IL FAUDRA FAIRE ── */
+.a-faire { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 12px; }
+.a-faire > div { border-top: 2px solid var(--cuivre); padding-top: 10px; display: grid; gap: 6px; align-content: start; }
+.a-faire b { font: 500 18px/1.2 var(--serif); color: var(--encre); }
+.a-faire span { font-size: 14.5px; }
+.lots { display: grid; gap: 8px; counter-reset: lot; }
+.lots li { list-style: none; background: var(--carte); border: 1px solid var(--filet); border-radius: 8px; padding: 10px 14px; font-size: 14.5px; display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 12px; align-items: baseline; }
+.lots li::before { counter-increment: lot; content: "Lot " counter(lot); font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--cuivre); white-space: nowrap; }
+.lots { padding: 0; margin: 0; }
+.sources { font-size: 13px; color: var(--doux); display: grid; gap: 3px; }
+.sources a { color: var(--cuivre); }
+
+/* ── LES DÉCISIONS ── */
+.avance { display: grid; gap: 6px; }
+.avance .jauge { height: 6px; border-radius: 999px; background: var(--filet); overflow: hidden; }
+.avance .jauge span { display: block; height: 100%; width: 0; background: var(--cuivre); transition: width .3s; }
+#decisions { display: grid; gap: 12px; }
+.decision { background: var(--carte); border: 1px solid var(--filet); border-radius: 8px; padding: 14px 16px; display: grid; gap: 8px; }
+.decision.tranchee { border-color: var(--cuivre); }
+.decision .pq { font-size: 14px; color: var(--doux); }
+.choix-ligne { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 10px; align-items: start; padding: 8px 0; border-top: 1px solid var(--filet); cursor: pointer; font-size: 15px; }
+.choix-ligne:first-of-type { border-top: 0; }
+.choix-ligne input { margin-top: 5px; accent-color: var(--cuivre); }
+.choix-ligne em { font-style: normal; font-size: 12px; color: var(--cuivre); border: 1px solid var(--cuivre); border-radius: 999px; padding: 0 7px; margin-left: 4px; white-space: nowrap; }
+.choix-ligne small { display: block; font-size: 13px; color: var(--doux); }
+.decision .etat-d { font-size: 12.5px; color: var(--vert); min-height: 1em; }
+.mot { display: grid; gap: 6px; }
+.mot textarea { font: 300 15px/1.5 var(--sans); color: var(--texte); background: var(--carte); border: 1px solid var(--filet); border-radius: 8px; padding: 10px 12px; min-height: 90px; resize: vertical; }
+.mot textarea:focus-visible, .choix-ligne input:focus-visible { outline: 2px solid var(--cuivre); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+</style>
+
+<div class="page">
+  <header>
+    <p class="sur">Le Trône · maquette du 16 octobre 2026, à valider</p>
+    <h1>MND <b>PAY</b></h1>
+    <p class="chapeau">Comme Fresha : une seule caisse pour tout ce que la Maison vend, et le paiement qui se confirme tout seul. La caissière demande, la cliente valide sur son propre téléphone (mobile money ou carte), et le Trône le sait dans la seconde : facture émise, pourboire réparti, reçu envoyé.</p>
+  </header>
+
+  <p class="bandeau"><b>Ce que veut dire « instantané ».</b> La confirmation, oui : quelques secondes après le code de la cliente, sans relevé à recopier. L’argent, lui, arrive sur le compte de la Maison au rythme des reversements du prestataire, à confirmer à l’ouverture du compte.</p>
+
+  <section aria-labelledby="t-essai">
+    <p class="sur">Essayez</p>
+    <h2 id="t-essai">Cinq moments, au doigt</h2>
+    <div class="moments" role="group" aria-label="Les moments">
+      <button type="button" class="moment" data-moment="momo" aria-pressed="true"><b>Mobile money</b><span>La demande arrive sur son téléphone</span></button>
+      <button type="button" class="moment" data-moment="carte" aria-pressed="false"><b>Carte</b><span>Un QR au comptoir</span></button>
+      <button type="button" class="moment" data-moment="deux" aria-pressed="false"><b>En deux fois</b><span>Espèces, puis Moov</span></button>
+      <button type="button" class="moment" data-moment="distance" aria-pressed="false"><b>À distance</b><span>Une échéance par WhatsApp</span></button>
+      <button type="button" class="moment" data-moment="soir" aria-pressed="false"><b>Le soir</b><span>Rien à rapprocher</span></button>
+    </div>
+    <p class="raconte" id="raconte" aria-live="polite"></p>
+    <div class="scene">
+      <div style="width:100%;display:grid;justify-items:center">
+        <p class="legende">Le comptoir · Trône</p>
+        <div class="tablette"><div class="comptoir"><div class="c-haut"><span class="titre">Caisse</span><span class="pay">MND PAY</span></div><div class="c-corps" id="comptoir"></div></div></div>
+      </div>
+      <div>
+        <p class="legende">Le téléphone de la cliente</p>
+        <div class="telephone"><div class="ecran" id="ecran"><div class="barre-etat"><span>14:31</span><span>4G · 76 %</span></div><div id="tel" class="vue"></div></div></div>
+      </div>
+    </div>
+    <p class="petit doux">Les touches qui battent font avancer l’essai. Le ticket est un exemple.</p>
+  </section>
+
+  <section aria-labelledby="t-change">
+    <p class="sur">Ce qui change</p>
+    <h2 id="t-change">Ce que la caisse fait aujourd’hui, et demain</h2>
+    <div class="ecarts">
+      <div class="ecart"><p class="avant">un code USSD à taper, puis le relevé MTN recopié à la main pour retrouver qui a payé.</p><p class="apres">la demande part du Trône vers son numéro ; la réponse revient seule, rattachée à son ticket.</p></div>
+      <div class="ecart"><p class="avant">un seul moyen de paiement par ticket à la caisse.</p><p class="apres">plusieurs : une part en espèces, le reste en mobile money ou par carte.</p></div>
+      <div class="ecart"><p class="avant">pas de pourboire sur le ticket de la caisse.</p><p class="apres">proposé sur le ticket, réparti à l’équipe comme aujourd’hui.</p></div>
+      <div class="ecart"><p class="avant">la carte bancaire ne passe que par KkiaPay, sur le site, pour un acompte.</p><p class="apres">la carte au comptoir (QR) et à distance (lien), pour tout ticket.</p></div>
+      <div class="ecart"><p class="avant">les échéances d’une formule se demandent par WhatsApp, code MoMo en retour.</p><p class="apres">un lien de paiement, ou le bouton « Régler » dans Ma Couronne.</p></div>
+      <div class="ecart"><p class="avant">le pied de la caisse annonce une « réconciliation MoMo automatique » qui n’existe pas encore.</p><p class="apres">elle existe : une caisse « MND PAY » au Trône, frais comptés, reversements suivis.</p></div>
+    </div>
+  </section>
+
+  <section aria-labelledby="t-facons">
+    <p class="sur">Les moyens</p>
+    <h2 id="t-facons">Ce qui se branche, et ce qui ne se branche pas</h2>
+    <div class="facons">
+      <div class="facon">
+        <span class="etat vert">Se branche</span>
+        <h3>Mobile money</h3>
+        <ul>
+          <li>MTN et Moov : la demande arrive directement sur le téléphone, la cliente tape son code. C’est écrit dans la documentation de FedaPay.</li>
+          <li>Celtiis : proposé par FedaPay, mais la demande directe n’y est pas documentée. À vérifier avec eux.</li>
+          <li>Wave : absent des prestataires du Bénin aujourd’hui.</li>
+        </ul>
+      </div>
+      <div class="facon">
+        <span class="etat cuivre">Se branche, sur son téléphone</span>
+        <h3>Carte bancaire</h3>
+        <ul>
+          <li>Visa et Mastercard, cartes de débit comprises, d’ici et de l’étranger.</li>
+          <li>Pas de terminal à poser sur le comptoir comme chez Fresha : aucun n’est proposé au Bénin par ces prestataires. La cliente paie par carte sur son propre téléphone, en scannant un QR ou par un lien.</li>
+          <li>Un terminal de votre banque reste possible à côté, sans lien avec le Trône.</li>
+        </ul>
+      </div>
+      <div class="facon">
+        <span class="etat rouge">Noté à la main</span>
+        <h3>Zelle</h3>
+        <ul>
+          <li>Zelle passe d’un compte bancaire américain à un autre, en dollars seulement. Pour le recevoir, la Maison doit avoir un compte aux États-Unis, dans une banque qui l’ouvre aux entreprises.</li>
+          <li>Aucun prestataire ne le branche pour un commerce : pas de demande depuis le Trône, pas de confirmation automatique. La cliente envoie depuis l’appli de sa banque, la caissière note « Zelle » quand le relevé américain le montre.</li>
+          <li>Le montant en dollars se note avec le cours du jour, comme les devises au comptoir aujourd’hui. Une cliente des États-Unis peut aussi payer par carte avec le lien, et là c’est instantané.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section aria-labelledby="t-faire">
+    <p class="sur">Ce qu’il faudra faire</p>
+    <h2 id="t-faire">Un compte marchand, puis quatre lots</h2>
+    <div class="a-faire">
+      <div><b>Vous</b><span>Ouvrir le compte marchand au nom de l’ETS MAISON MND (RCCM, IFU, pièce d’identité de Brice, relevé d’identité bancaire), activer MTN, Moov et la carte, puis poser les clés dans Supabase. Jamais de capture d’une clé : je vous donnerai la marche à suivre à cocher.</span></div>
+      <div><b>Moi</b><span>La caisse MND PAY, les demandes au téléphone, le QR et les liens, la confirmation par le prestataire (signée, vérifiée côté serveur), la caisse « MND PAY » au Trône, et les bancs dans un vrai navigateur.</span></div>
+      <div><b>Le coût</b><span>Pas d’abonnement : une commission par paiement. FedaPay affiche 1,8 % pour MTN et Moov au Bénin ; la carte est plus chère, son taux est à confirmer à l’ouverture.</span></div>
+      <div><b>À savoir</b><span>Le Trône hors ligne note toujours les espèces. MND PAY, lui, a besoin du réseau ; sans réseau, le code USSD d’aujourd’hui reste la porte de secours.</span></div>
+    </div>
+    <ol class="lots">
+      <li>La caisse MND PAY : plusieurs moyens par ticket, pourboire, demande mobile money au téléphone, reçu WhatsApp.</li>
+      <li>La carte : QR au comptoir, lien de paiement pour toute facture, à envoyer par WhatsApp.</li>
+      <li>Ma Couronne : échéances et acomptes réglés dans l’app, par le même prestataire.</li>
+      <li>Le soir : la caisse MND PAY rapprochée seule, frais et reversements suivis jusqu’au compte de la Maison.</li>
+    </ol>
+    <div class="sources">
+      <span>Sources lues le 16 octobre 2026 :</span>
+      <a href="https://docs.fedapay.com/api-reference/transactions/send-payment.md">FedaPay, demande de paiement sans redirection</a>
+      <a href="https://docs-v1.fedapay.com/paiements/methodes-de-paiement">FedaPay, méthodes de paiement</a>
+      <a href="https://www.fedapay.com/tarifications/?v=7516fd43adaa">FedaPay, tarifs</a>
+      <a href="https://wise.com/us/blog/zelle-business-account">Zelle pour les entreprises (comptes américains, dollars)</a>
+      <a href="https://fitsmallbusiness.com/how-to-use-zelle-for-business/">Zelle, conditions pour un commerce</a>
+      <a href="https://www.fresha.com/for-business/features/point-of-sale">Fresha, point de vente</a>
+    </div>
+  </section>
+
+  <section aria-labelledby="t-decisions">
+    <p class="sur">À trancher</p>
+    <h2 id="t-decisions">Vos choix</h2>
+    <p class="lu doux">Mes propositions sont marquées. Vos choix s’enregistrent ici ; je les relis avant de construire.</p>
+    <div class="avance"><span class="petit" id="compte-decisions">0 sur 8 tranchées</span><div class="jauge"><span id="barre-decisions"></span></div></div>
+    <div id="decisions"></div>
+    <div class="mot">
+      <label for="d-note"><h3>Un mot, si besoin</h3></label>
+      <textarea id="d-note" placeholder="Ce que la maquette ne dit pas, ou ce que vous voulez autrement."></textarea>
+      <span class="petit doux" id="d-note-etat"></span>
+    </div>
+  </section>
+</div>
+
+<script>
+(function () {
+  var F = function (n) { return n.toLocaleString('fr-FR') + ' F'; };
+  var comptoir = document.getElementById('comptoir');
+  var tel = document.getElementById('tel');
+  var ecran = document.getElementById('ecran');
+  var raconte = document.getElementById('raconte');
+  var minuteries = [];
+  function plusTard(f, ms) { minuteries.push(setTimeout(f, ms)); }
+  function efface() { minuteries.forEach(clearTimeout); minuteries = []; Array.prototype.slice.call(ecran.querySelectorAll('.voile, .payer, .wa, .camera')).forEach(function (n) { n.remove(); }); tel.className = 'vue'; tel.innerHTML = ''; }
+  function calque(cls, html) { var d = document.createElement('div'); d.className = cls; d.innerHTML = html; ecran.appendChild(d); return d; }
+
+  /* Un QR d'exemple : trois repères, un damier déterministe. */
+  function qr() {
+    var n = 21, s = '', x, y;
+    function repere(px, py) { return '<rect x="' + px + '" y="' + py + '" width="7" height="7" fill="#1E2150"/><rect x="' + (px + 1) + '" y="' + (py + 1) + '" width="5" height="5" fill="#FFFFFF"/><rect x="' + (px + 2) + '" y="' + (py + 2) + '" width="3" height="3" fill="#1E2150"/>'; }
+    for (y = 0; y < n; y++) for (x = 0; x < n; x++) {
+      var dansRepere = (x < 8 && y < 8) || (x > 12 && y < 8) || (x < 8 && y > 12);
+      if (!dansRepere && ((x * 7 + y * 13 + x * y) % 5 < 2)) s += '<rect x="' + x + '" y="' + y + '" width="1" height="1" fill="#1E2150"/>';
+    }
+    return '<svg viewBox="-1 -1 23 23" role="img" aria-label="QR code d’exemple"><rect x="-1" y="-1" width="23" height="23" fill="#FFFFFF"/>' + s + repere(0, 0) + repere(14, 0) + repere(0, 14) + '</svg>';
+  }
+
+  var LIGNES = [['SÍNSIN™ Essentiel', 30000], ['DÀNDÀN™ Soin hydratant', 12000], ['Brume d’aloès Maison MND', 5000]];
+  var POURBOIRE = 2000;
+  var TOTAL = 30000 + 12000 + 5000 + POURBOIRE;
+  function ticket(pourboire) {
+    var h = '<div class="client"><span class="rond">A</span><div>Awa D. <small>Exemple · cliente de la Maison depuis 2024</small></div></div><div class="lignes">';
+    LIGNES.forEach(function (l) { h += '<div class="ligne"><span>' + l[0] + '</span><span>' + F(l[1]) + '</span></div>'; });
+    h += '<div class="ligne"><span>Pourboire, pour l’équipe</span><span>' + F(POURBOIRE) + '</span></div>';
+    h += '<div class="ligne total"><span>À régler</span><span>' + F(TOTAL) + '</span></div></div>';
+    if (pourboire) h += '<div class="pourboire">Pourboire : <span class="puce">Aucun</span><span class="puce">1 000 F</span><span class="puce oui">2 000 F</span><span class="puce">5 000 F</span><span class="puce">Autre</span></div>';
+    return h;
+  }
+  function moyens(actif) {
+    var M = [['especes', 'Espèces', 'tiroir'], ['momo', 'Mobile money', 'MTN · Moov'], ['carte', 'Carte', 'QR ou lien'], ['lien', 'Lien', 'WhatsApp']];
+    return '<div class="moyens">' + M.map(function (m) { return '<div class="moyen' + (m[0] === actif ? ' oui' : '') + '">' + m[1] + '<small>' + m[2] + '</small></div>'; }).join('') + '</div>';
+  }
+  function attente(txt) { return '<div class="attente"><span class="roue" aria-hidden="true"></span><span>' + txt + '</span></div>'; }
+  function paye(titre, items) { return '<div class="paye"><b>' + titre + '</b><ul>' + items.map(function (i) { return '<li>' + i + '</li>'; }).join('') + '</ul></div>'; }
+  function repos(notifs) {
+    tel.className = 'vue repos';
+    tel.innerHTML = '<div class="heure">14:31</div><small>jeudi 16 octobre</small>' + (notifs || '');
+  }
+  function ussd(op, montant, suite) {
+    var v = calque('voile', '<div class="ussd"><span class="op">' + op + '</span><span>Confirmez le paiement de <b>' + montant + ' FCFA</b> à <b>MAISON MND</b>.<br>Entrez votre code secret.</span><div class="points" id="pts"><i></i><i></i><i></i><i></i><i></i></div><div class="duo"><span>Annuler</span><button type="button" data-go>Valider</button></div></div>');
+    var i = 0, pts = v.querySelectorAll('#pts i');
+    (function tape() { if (i < pts.length) { pts[i++].className = 'p'; plusTard(tape, 260); } })();
+    v.querySelector('[data-go]').addEventListener('click', suite);
+  }
+  function go(sel, f) { var b = comptoir.querySelector(sel) || ecran.querySelector(sel); if (b) b.addEventListener('click', f); }
+
+  var MOMENTS = {
+    momo: function etape0() {
+      efface();
+      comptoir.innerHTML = '<span class="c-ex">Ticket d’exemple</span>' + ticket(true) + moyens('momo') +
+        '<div class="champ"><label>Son numéro</label><div class="val">01 97 •• •• 12 · MTN, de sa fiche</div></div>' +
+        '<button type="button" class="btn cuivre" id="demander" data-go>Demander ' + F(TOTAL) + '</button>';
+      repos();
+      raconte.textContent = 'La caissière choisit « Mobile money ». Le numéro vient de la fiche de la cliente ; on peut en taper un autre (son mari, sa fille).';
+      go('#demander', function () {
+        comptoir.querySelector('#demander').outerHTML = attente('Demande envoyée au 01 97 •• •• 12. En attente de son code…') + '<button type="button" class="btn leger">Annuler la demande</button>';
+        raconte.textContent = 'Le téléphone de la cliente affiche la demande de son opérateur. Elle tape son code secret : ni la Maison ni le Trône ne le voient.';
+        ussd('MTN MoMo', '49 000', function () {
+          efface();
+          comptoir.innerHTML = '<span class="c-ex">Ticket d’exemple</span>' + ticket(false) + paye('Payé · ' + F(TOTAL), ['MTN MoMo · 14:32 · confirmé par le prestataire', 'Facture MND émise, caisse « MND PAY »', 'Pourboire de 2 000 F réparti à l’équipe', 'Reçu envoyé sur son WhatsApp']) +
+            '<button type="button" class="btn" id="encore">Nouveau ticket</button>';
+          repos('<div class="notif"><b>MTN MoMo</b>Vous avez payé 49 000 FCFA à MAISON MND.<small>maintenant</small></div><div class="notif"><b>Maison MND</b>Votre reçu : 49 000 F, réglé par MTN MoMo. Merci.<small>WhatsApp · maintenant</small></div>');
+          raconte.textContent = 'Le Trône le sait dans la seconde : rien à recopier du relevé. La facture, le pourboire et le reçu suivent seuls.';
+          go('#encore', etape0);
+        });
+      });
+    },
+
+    carte: function etape0() {
+      efface();
+      comptoir.innerHTML = '<span class="c-ex">Ticket d’exemple</span>' + ticket(false) + moyens('carte') +
+        '<div class="qr-zone">' + qr() + '<div><b style="font-weight:500">Scannez pour payer ' + F(TOTAL) + '</b><br><span style="color:#6A6478">Visa, Mastercard, débit compris. Le QR ne vaut que pour ce ticket.</span><br><span style="color:#9A6036;text-decoration:underline">ou envoyer le lien par WhatsApp</span></div></div>';
+      calque('camera', '<div class="viseur">' + qr() + '</div><div class="lien-vu"><span>maisonmnd.com/payer</span><button type="button" data-go id="ouvrir">Ouvrir</button></div>');
+      raconte.textContent = 'Au comptoir, l’écran montre un QR à la place du terminal de Fresha. La cliente le scanne avec l’appareil photo de son téléphone.';
+      go('#ouvrir', function () {
+        efface();
+        comptoir.innerHTML = '<span class="c-ex">Ticket d’exemple</span>' + ticket(false) + attente('Elle a ouvert la page de paiement…');
+        calque('payer', '<div class="marque"><strong>Maison MND</strong><small>MND PAY</small></div><span class="sur-p">À régler</span><span class="montant">49 000 F</span>' +
+          '<div class="champ"><label>Numéro de carte</label><div class="val">4970 •••• •••• 0042</div></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:6px"><div class="champ"><label>Expire</label><div class="val">08/28</div></div><div class="champ"><label>Code</label><div class="val">•••</div></div></div>' +
+          '<button type="button" class="btn cuivre" data-go id="payer">Payer 49 000 F</button><span class="verrou">Paiement sécurisé par le prestataire. La Maison ne voit jamais le numéro de la carte.</span>');
+        raconte.textContent = 'La page de paiement est celle de la Maison, servie par le prestataire. Le numéro de carte ne passe jamais par le Trône.';
+        go('#payer', function () {
+          ecran.querySelector('.payer').innerHTML = '<div class="marque"><strong>Votre banque</strong><small>vérification</small></div><span>Un code vous a été envoyé par SMS pour confirmer 49 000 F à MAISON MND.</span><div class="code6"><span>4</span><span>8</span><span>1</span><span>2</span><span>0</span><span>7</span></div><button type="button" class="btn" data-go id="conf">Confirmer</button>';
+          raconte.textContent = 'Sa banque demande une confirmation (le « 3-D Secure »), comme pour un achat en ligne.';
+          go('#conf', function () {
+            efface();
+            comptoir.innerHTML = '<span class="c-ex">Ticket d’exemple</span>' + ticket(false) + paye('Payé · ' + F(TOTAL), ['Carte Visa •• 0042 · 14:33', 'Facture MND émise, caisse « MND PAY »', 'Reçu envoyé sur son WhatsApp']) + '<button type="button" class="btn" id="encore">Nouveau ticket</button>';
+            tel.className = 'vue ok-tel'; tel.innerHTML = '<div class="coche">✓</div><b>Paiement accepté</b><small>Maison MND · 49 000 F</small>';
+            raconte.textContent = 'Le comptoir passe au vert en même temps que son téléphone.';
+            go('#encore', etape0);
+          });
+        });
+      });
+    },
+
+    deux: function etape0() {
+      efface();
+      comptoir.innerHTML = '<span class="c-ex">Ticket d’exemple</span>' + ticket(false) +
+        '<div class="lignes"><div class="ligne"><span>Espèces · Terrasse, tiroir</span><span>' + F(20000) + '</span></div><div class="ligne total"><span>Reste</span><span>' + F(TOTAL - 20000) + '</span></div></div>' + moyens('momo') +
+        '<div class="champ"><label>Son numéro</label><div class="val">01 65 •• •• 40 · Moov</div></div><button type="button" class="btn cuivre" data-go id="demander">Demander ' + F(TOTAL - 20000) + '</button>';
+      repos();
+      raconte.textContent = 'Elle donne 20 000 F en espèces. Le Trône compte le reste, et la caissière le demande en Moov sur le même ticket.';
+      go('#demander', function () {
+        comptoir.querySelector('#demander').outerHTML = attente('Demande envoyée au 01 65 •• •• 40. En attente de son code…');
+        ussd('Moov Money', '29 000', function () {
+          efface();
+          comptoir.innerHTML = '<span class="c-ex">Ticket d’exemple</span>' + ticket(false) + paye('Réglé en deux · ' + F(TOTAL), ['Espèces 20 000 F, au tiroir de la Terrasse', 'Moov 29 000 F, à la caisse « MND PAY »', 'Une seule facture, deux règlements']) + '<button type="button" class="btn" id="encore">Nouveau ticket</button>';
+          repos('<div class="notif"><b>Moov Money</b>Paiement de 29 000 FCFA à MAISON MND réussi.<small>maintenant</small></div>');
+          raconte.textContent = 'Une facture, deux règlements, chacun dans sa caisse. Le soir, le tiroir compte ses 20 000 F ; MND PAY, ses 29 000 F.';
+          go('#encore', etape0);
+        });
+      });
+    },
+
+    distance: function etape0() {
+      efface();
+      comptoir.innerHTML = '<span class="c-ex">Exemple</span><div class="client"><span class="rond">K</span><div>Kémi A. <small>Formule en trois fois · Lagos</small></div></div>' +
+        '<div class="lignes"><div class="ligne"><span>1re échéance · 16 sept. 2026</span><span>Réglée</span></div><div class="ligne total"><span>2e échéance · 16 oct. 2026</span><span>' + F(30000) + '</span></div><div class="ligne"><span>3e échéance · 15 nov. 2026</span><span>' + F(30000) + '</span></div></div>' +
+        '<button type="button" class="btn cuivre" data-go id="envoyer">Envoyer le lien par WhatsApp</button>';
+      repos();
+      raconte.textContent = 'Une cliente qui n’est pas là : une échéance de formule, un acompte, une cliente de la diaspora. Le lien vaut pour ce montant et cette pièce seulement.';
+      go('#envoyer', function () {
+        comptoir.querySelector('#envoyer').outerHTML = attente('Lien envoyé. Le Trône vous prévient quand c’est réglé.');
+        calque('wa', '<div class="tete">Maison MND</div><div class="fil"><div class="bulle"><span>Bonjour Kémi, la 2e échéance de votre formule est de 30 000 F. Vous pouvez la régler ici, par mobile money ou par carte.</span><button type="button" data-go id="lien">Payer 30 000 F</button><small>14:34</small></div></div>');
+        raconte.textContent = 'Le message part sur WhatsApp, avec le bouton de paiement.';
+        go('#lien', function () {
+          ecran.querySelector('.wa').remove();
+          calque('payer', '<div class="marque"><strong>Maison MND</strong><small>MND PAY</small></div><span class="sur-p">2e échéance de votre formule</span><span class="montant">30 000 F</span><div class="choix"><button type="button" data-go id="mtn"><span>MTN MoMo</span><span>›</span></button><span>Moov Money <span>›</span></span><span>Carte bancaire <span>›</span></span></div><span class="verrou">Paiement sécurisé par le prestataire.</span>');
+          raconte.textContent = 'Elle choisit comment payer : mobile money, ou carte si elle est à l’étranger.';
+          go('#mtn', function () {
+            ussd('MTN MoMo', '30 000', function () {
+              efface();
+              comptoir.innerHTML = '<span class="c-ex">Exemple</span>' + paye('Échéance réglée · ' + F(30000), ['Kémi A. · MTN MoMo · 14:35', 'Formule à jour : reste la 3e échéance', 'Reçu envoyé sur son WhatsApp']) + '<button type="button" class="btn" id="encore">Recommencer</button>';
+              tel.className = 'vue ok-tel'; tel.innerHTML = '<div class="coche">✓</div><b>Échéance réglée</b><small>Maison MND · 30 000 F</small>';
+              raconte.textContent = 'La formule se met à jour seule, dans le Trône et dans Ma Couronne.';
+              go('#encore', etape0);
+            });
+          });
+        });
+      });
+    },
+
+    soir: function () {
+      efface();
+      comptoir.innerHTML = '<span class="c-ex">Exemple · clôture du jeudi 16 octobre 2026</span><div class="soir"><div class="lignes">' +
+        '<div class="ligne"><span>MTN MoMo <small>9 paiements</small></span><span>' + F(312000) + '</span></div>' +
+        '<div class="ligne"><span>Moov Money <small>3 paiements</small></span><span>' + F(94000) + '</span></div>' +
+        '<div class="ligne"><span>Carte <small>1 paiement</small></span><span>' + F(49000) + '</span></div>' +
+        '<div class="ligne total"><span>MND PAY ce jour</span><span>' + F(455000) + '</span></div>' +
+        '<div class="ligne"><span>Frais du prestataire <small>selon sa grille</small></span><span>déduits</span></div>' +
+        '<div class="ligne"><span>Reversement au compte de la Maison <small>selon son calendrier</small></span><span>suivi</span></div></div>' +
+        paye('Rapproché, rien à compter', ['Chaque paiement est rattaché à sa facture', 'Le tiroir espèces se compte comme aujourd’hui']) + '</div>';
+      repos('<div class="notif"><b>Le Trône</b>Clôture : MND PAY 455 000 F, rapproché.<small>21:00</small></div>');
+      raconte.textContent = 'Le soir, MND PAY se range seul dans la clôture : ce qui est entré, les frais, et ce qui doit arriver sur le compte. Seul le tiroir des espèces se compte encore.';
+    },
+  };
+
+  var boutons = Array.prototype.slice.call(document.querySelectorAll('.moment'));
+  boutons.forEach(function (b) {
+    b.addEventListener('click', function () {
+      boutons.forEach(function (x) { x.setAttribute('aria-pressed', String(x === b)); });
+      MOMENTS[b.dataset.moment]();
+    });
+  });
+  MOMENTS.momo();
+
+  /* ── Les décisions ── */
+  var DECISIONS = [
+    { id: 'prestataire', titre: 'Quel prestataire', pq: 'Celui qui envoie la demande au téléphone et confirme le paiement.', options: [
+      ['fedapay', 'FedaPay pour tout MND PAY ; KkiaPay retiré peu à peu', 'la demande directe MTN et Moov y est documentée ; un seul compte, une seule caisse, un seul relevé', true],
+      ['deux', 'FedaPay au comptoir ; KkiaPay garde le site et Ma Couronne', 'rien ne bouge en ligne, mais deux comptes et deux relevés'],
+      ['kkiapay', 'KkiaPay seul', 'déjà branché ; la demande directe au téléphone n’est pas documentée chez eux, à vérifier avec leur équipe'] ] },
+    { id: 'frais', titre: 'Qui paie les frais', pq: 'La commission du prestataire sur chaque paiement.', options: [
+      ['maison', 'La Maison les porte', 'le prix annoncé est le prix payé, comme en espèces', true],
+      ['cliente', 'Ajoutés au montant de la cliente', 'elle voit « + frais » avant de valider'],
+      ['carte', 'La Maison pour le mobile money, la cliente pour la carte', 'la carte coûte plus cher que le mobile money'] ] },
+    { id: 'zelle', titre: 'Zelle', pq: 'Il faut un compte bancaire aux États-Unis ; rien ne le confirme automatiquement.', options: [
+      ['manuel', 'Zelle comme moyen de MND PAY, noté à la main, vers un compte de la Maison aux États-Unis', 'la caissière coche « reçu » quand le relevé américain le montre ; dites-moi quel compte le reçoit', true],
+      ['compte', 'D’abord ouvrir un compte d’entreprise aux États-Unis, puis Zelle', 'il faut une entreprise et une banque américaines qui ouvrent Zelle aux entreprises'],
+      ['carte', 'Pas de Zelle pour l’instant : aux États-Unis, la cliente paie par carte avec le lien', 'Visa et Mastercard américaines marchent par le lien, et c’est instantané'] ] },
+    { id: 'pourboire', titre: 'Le pourboire sur le ticket', pq: 'Réparti à l’équipe comme aujourd’hui.', options: [
+      ['montants', 'Proposé en montants : 1 000, 2 000, 5 000 F, ou autre', 'des montants ronds, comme on les donne ici', true],
+      ['pourcent', 'Proposé en pourcentage : 5, 10, 15 %', 'comme Fresha'],
+      ['libre', 'Montant libre seulement', 'rien de proposé à l’écran'],
+      ['non', 'Pas de pourboire à la caisse', 'il reste possible en espèces, à part'] ] },
+    { id: 'carteComptoir', titre: 'La carte au comptoir', pq: 'Il n’y a pas de terminal relié au Trône au Bénin.', options: [
+      ['qr', 'Un QR sur l’écran du comptoir, la cliente paie sur son téléphone', 'rien à acheter, rien à brancher', true],
+      ['tpe', 'Le QR, et en plus un terminal de votre banque, noté à la main', 'pour la cliente qui préfère tendre sa carte'],
+      ['non', 'Pas de carte au comptoir : les liens à distance seulement', 'le comptoir reste espèces et mobile money'] ] },
+    { id: 'recu', titre: 'Le reçu', pq: 'Ce que la cliente reçoit quand c’est payé.', options: [
+      ['whatsapp', 'Envoyé seul sur son WhatsApp, dès que c’est payé', 'le reçu PDF de la Maison, comme le bouton d’aujourd’hui', true],
+      ['demande', 'À la demande seulement', 'la caissière choisit de l’envoyer'] ] },
+    { id: 'echeances', titre: 'Dans Ma Couronne', pq: 'Les échéances de formule et les acomptes.', options: [
+      ['couronne', 'Réglés dans l’app, par MND PAY', 'fini le message pour demander le code MoMo', true],
+      ['comptoir', 'Ils restent au comptoir', 'Ma Couronne ne change pas'] ] },
+    { id: 'qui', titre: 'Qui encaisse et qui rembourse', pq: 'Les droits dans le Trône.', options: [
+      ['vente', 'Toute l’équipe Vente & Caisse encaisse ; seule la direction rembourse', 'comme les remises au-delà de la moitié du ticket', true],
+      ['direction', 'La direction seule, pour tout', 'le plus prudent, le plus lent au comptoir'] ] },
+  ];
+  var choix = {};
+  var CLE = 'mnd-pay-choix';
+  try { var vu = JSON.parse(localStorage.getItem(CLE) || '{}') || {}; Object.keys(vu).forEach(function (k) { choix[k] = vu[k]; }); } catch (e) { /* sans mémoire */ }
+  var docRef = null, file = Promise.resolve();
+  function garde() {
+    try { localStorage.setItem(CLE, JSON.stringify(choix)); } catch (e) { /* sans mémoire */ }
+    if (!docRef) return;
+    var corps = {}; Object.keys(choix).forEach(function (k) { if (choix[k]) corps[k] = choix[k]; });
+    corps.enregistre = new Date().toISOString();
+    file = file.then(function () { return docRef.set(corps); }).catch(function () { /* hors ligne */ });
+  }
+  function txt(tag, cls, t) { var e = document.createElement(tag); if (cls) e.className = cls; if (t !== undefined) e.textContent = t; return e; }
+  var boite = document.getElementById('decisions');
+  function dessineDecisions() {
+    boite.textContent = '';
+    DECISIONS.forEach(function (d) {
+      var c = txt('div', 'decision' + (choix[d.id] ? ' tranchee' : ''));
+      c.appendChild(txt('h3', '', d.titre));
+      c.appendChild(txt('p', 'pq', d.pq));
+      var g = document.createElement('div'); g.setAttribute('role', 'radiogroup'); g.setAttribute('aria-label', d.titre);
+      d.options.forEach(function (o) {
+        var l = txt('label', 'choix-ligne');
+        var i = document.createElement('input'); i.type = 'radio'; i.name = 'd-' + d.id; i.id = 'd-' + d.id + '-' + o[0]; i.value = o[0]; i.checked = choix[d.id] === o[0];
+        i.addEventListener('change', function () { choix[d.id] = o[0]; garde(); dessineDecisions(); });
+        var s = document.createElement('span');
+        s.appendChild(document.createTextNode(o[1]));
+        if (o[3]) { s.appendChild(document.createTextNode(' ')); s.appendChild(txt('em', '', 'ma proposition')); }
+        s.appendChild(txt('small', '', o[2]));
+        l.appendChild(i); l.appendChild(s); g.appendChild(l);
+      });
+      c.appendChild(g);
+      c.appendChild(txt('span', 'etat-d', choix[d.id] ? 'Choix enregistré.' : ''));
+      boite.appendChild(c);
+    });
+    var k = DECISIONS.filter(function (d) { return choix[d.id]; }).length;
+    document.getElementById('compte-decisions').textContent = k + ' sur ' + DECISIONS.length + ' tranchées';
+    document.getElementById('barre-decisions').style.width = Math.round((k / DECISIONS.length) * 100) + '%';
+  }
+  var note = document.getElementById('d-note');
+  if (choix.note) note.value = choix.note;
+  var minuterie = null;
+  note.addEventListener('input', function () { clearTimeout(minuterie); minuterie = setTimeout(function () { choix.note = note.value.trim(); garde(); document.getElementById('d-note-etat').textContent = 'Mot enregistré.'; }, 600); });
+  dessineDecisions();
+  if (window.claude && typeof window.claude.use === 'function') {
+    window.claude.use('db').then(function (db) {
+      if (!db) return;
+      docRef = db.doc('maquette/mnd-pay');
+      return docRef.get().then(function (s) {
+        if (!s || !s.exists) return;
+        var v = s.data() || {};
+        Object.keys(v).forEach(function (k) { if (k !== 'enregistre' && typeof v[k] === 'string' && !/^\d{4}-\d{2}-\d{2}T/.test(v[k])) choix[k] = v[k]; });
+        if (choix.note) note.value = choix.note;
+        dessineDecisions();
+      });
+    }).catch(function () { /* sans base : les choix restent sur cet appareil */ });
+  }
+})();
+</script>

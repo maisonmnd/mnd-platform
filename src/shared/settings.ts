@@ -1,5 +1,6 @@
 import { createStore, useStore } from './store';
 import type { Plan } from './bascule-des-caisses-pur';
+import type { ReglagesMndPay } from './mnd-pay-pur';
 
 /* Paramètres de la Maison — persistés en localStorage (clé `mnd_settings`).
    Jours & heures d'ouverture, bascules de rituel/notifications, et les liens
@@ -121,6 +122,10 @@ export type Settings = {
       ELLE, pas un barème), ni les prestations au lock ou au calibre (leur prix
       vient du comptage ou du plancher de tranche, jamais d'un coefficient). */
   baremeSuspendu?: boolean;
+  /** MND PAY — 16 octobre 2026 (maquette UigU1Rr5…) : la caisse qui demande
+      le paiement au téléphone de la cliente et le voit confirmé par FedaPay.
+      Éteint tant que le compte FedaPay n'est pas ouvert et ses clés posées. */
+  mndPay?: ReglagesMndPay;
 };
 
 /** Créneaux d'ouverture proposés — repris du prototype. */

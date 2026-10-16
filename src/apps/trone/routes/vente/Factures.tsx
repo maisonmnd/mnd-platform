@@ -18,6 +18,7 @@ import { rewindPaymentForDeletedInvoice } from '../clients/actions';
 import { detacheLesVersementsDeLaPiece } from '../../../../shared/abonnements';
 import { retirerPourboiresDesFactures, repointerPourboires } from '../../../../shared/tips';
 import { adresseDe, lienPaiementMomo, paiementMomoDeLaMaison } from '../equipe/data';
+import { LienMndPay } from './LienMndPay';
 import { filStore, nouveauMessage } from '../../../../shared/fil';
 import { useAuth } from '../../../../shared/auth';
 import { useSubscribers, usePlans, libellesInclus } from '../../../../shared/abonnements';
@@ -1737,6 +1738,20 @@ export default function Factures() {
                   </div>
                 );
               })()}
+              {/* MND PAY (16 octobre 2026) : le lien de FedaPay, carte ou mobile
+                  money, qui règle la pièce seul quand elle a payé. */}
+              {selected.kind === 'facture' && invoiceResteXof(selected) > 0 && (
+                <LienMndPay
+                  branchId={selected.branchId}
+                  pieceId={selected.id}
+                  pieceNumero={selected.number}
+                  clientId={clientOf(selected)?.id}
+                  telephone={clientOf(selected)?.phone.replace(/\D/g, '') ?? ''}
+                  appel={appelOf(selected)}
+                  resteXof={invoiceResteXof(selected)}
+                  currency={currency}
+                />
+              )}
               {/* ══ UN SEUL LIEN POUR TOUT LE FOYER ═══════════════════════════
                   Une mère ne paie pas trois fois. Le bouton ne paraît que si le
                   foyer a plus d'une pièce qui réclame : sur une seule, il ne

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useBranch } from '../../shared/branches';
 import { fmtMoney } from '../../shared/currency';
 import { useAppointments } from '../../shared/agenda';
@@ -17,6 +17,7 @@ import { libelleCouleur } from '../../shared/couleur';
 import { demandeOuverteDe, demandesFormuleStore, useDemandesFormule, formulesVisiblesPour, vitrineConfigStore } from '../../shared/bridges';
 import { uid, useStore } from '../../shared/store';
 import { useClient } from './lib';
+import { kkiapayEnabled, payWithKkiapay, saitLEcheanceSuivante, verifyDeposit, versionDeKkiapayVerify } from '../../shared/kkiapay';
 import AchatFormule from './AchatFormule';
 import { t, locale, prix } from './i18n';
 import './couronne.css';
@@ -86,6 +87,22 @@ function SaFormule({ sub, plan }: { sub: Subscriber; plan: Plan | undefined }) {
   const { currency, branch } = useBranch();
   const [appts] = useAppointments();
   const [services] = useServices();
+  /* LES ÉCHÉANCES SE RÈGLENT ICI — 16 octobre 2026 (MND PAY, sa décision :
+     « réglées dans l'app »). KkiaPay garde Ma Couronne : le serveur
+     (`kkiapay-verify`) attend la plus vieille échéance pas encore couverte,
+     jamais un montant que l'app lui dicterait. */
+  const client = useClient();
+  const [paie, setPaie] = useState<'repos' | 'en_cours' | 'ok' | 'ko'>('repos');
+  const [motPaie, setMotPaie] = useState('');
+  /* Le bouton n'existe que si le serveur sait régler l'échéance suivante. */
+  const [serveurPret, setServeurPret] = useState(false);
+  useEffect(() => {
+    if (!kkiapayEnabled()) return;
+    let vivant = true;
+    void versionDeKkiapayVerify().then((v) => { if (vivant) setServeurPret(saitLEcheanceSuivante(v)); });
+    return () => { vivant = false; };
+  }, []);
+  const enLigne = kkiapayEnabled() && serveurPret;
   const nomService = (id: string) => services.find((s) => s.id === id)?.name ?? t('Prestation retirée');
 
   const usage = useMemo(() => subServiceUsage(sub, plan, appts), [sub, plan, appts]);
@@ -105,6 +122,27 @@ function SaFormule({ sub, plan }: { sub: Subscriber; plan: Plan | undefined }) {
   /* LE BOUTON ÉCRIT À LA MAISON, il ne prélève pas. Une application qui
      prétendrait encaisser seule créerait des paiements que personne n'a vus. */
   const numero = (branch.phone ?? '').replace(/\D/g, '');
+  const reglerEnLigne = async () => {
+    if (!suivante || paie === 'en_cours') return;
+    setPaie('en_cours');
+    setMotPaie('');
+    try {
+      const { transactionId } = await payWithKkiapay({
+        amountXof: suivante.resteXof, partnerId: sub.id, branchId: branch.id,
+        clientId: client?.id, phone: client?.phone, name: client?.name, email: client?.email,
+      });
+      const v = await verifyDeposit({
+        transactionId, apptId: '', subId: sub.id, expectedXof: suivante.resteXof, branchId: branch.id, clientId: client?.id,
+      });
+      setPaie(v.ok ? 'ok' : 'ko');
+      setMotPaie(v.ok
+        ? t('Réglé : {montant}. Merci.', { montant: prix(v.amountXof, currency) })
+        : t('Le paiement n’a pas été confirmé. Réessayez, ou réglez au comptoir.'));
+    } catch (e) {
+      setPaie('ko');
+      setMotPaie(e instanceof Error && e.message ? t(e.message) : t('Paiement interrompu.'));
+    }
+  };
   const lienReglement = suivante && numero
     ? `https://wa.me/${numero}?text=${encodeURIComponent(
       `Bonjour, je souhaite régler ${fmtMoney(suivante.resteXof, currency)} sur mon abonnement « ${plan?.name ?? ''} ».`)}`
@@ -179,14 +217,21 @@ function SaFormule({ sub, plan }: { sub: Subscriber; plan: Plan | undefined }) {
             </div>
           ))}
           {suivante && (
-            lienReglement
-              ? <a className="cma-btn" href={lienReglement} target="_blank" rel="noreferrer">
-                {t('Régler {montant}', { montant: prix(suivante.resteXof, currency) })}
-              </a>
-              : <div className="cma-vide">{t('Il reste {montant} à régler au comptoir.', { montant: prix(resteDeLEcheancier(etats), currency) })}</div>
+            enLigne
+              ? <button type="button" className="cma-btn" disabled={paie === 'en_cours'} onClick={() => void reglerEnLigne()}>
+                {paie === 'en_cours' ? t('Paiement en cours…') : t('Régler {montant}', { montant: prix(suivante.resteXof, currency) })}
+              </button>
+              : lienReglement
+                ? <a className="cma-btn" href={lienReglement} target="_blank" rel="noreferrer">
+                  {t('Régler {montant}', { montant: prix(suivante.resteXof, currency) })}
+                </a>
+                : <div className="cma-vide">{t('Il reste {montant} à régler au comptoir.', { montant: prix(resteDeLEcheancier(etats), currency) })}</div>
           )}
+          {motPaie && <p className="cma-note" role="status">{motPaie}</p>}
           <p className="cma-note">
-            {t('La Maison vous envoie le code MoMo et constate votre règlement au comptoir.')}
+            {enLigne
+              ? t('Mobile money ou carte : votre règlement est confirmé en quelques secondes.')
+              : t('La Maison vous envoie le code MoMo et constate votre règlement au comptoir.')}
           </p>
         </div>
       )}

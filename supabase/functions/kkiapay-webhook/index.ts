@@ -38,7 +38,31 @@ const KKIA_VERIFY_PATH = '/api/v1/transactions/status';
     passage. 10 octobre 2026 (revue de nuit) : le filet confirme aussi
     l'acompte d'une inscription à l'Académie, et un rejeu pose l'effet sur
     SA cible ; la carte cadeau liée à sa transaction. */
-const VERSION = '2026-10-10-a';
+const VERSION = '2026-10-16-a';
+
+/* ── LA PROCHAINE ÉCHÉANCE, CE QU'IL EN RESTE — 16 octobre 2026 (MND PAY) ──
+   « Les échéances se règlent dans Ma Couronne » (sa décision). Le dû d'un
+   abonnement n'est plus seulement la PREMIÈRE échéance : c'est ce qui reste
+   de la plus vieille échéance pas encore couverte, les versements s'imputant
+   dans l'ordre (shared/echeancier.ts, règle ③). Tout réglé : zéro, et l'on
+   refuse plutôt que d'encaisser un trop-perçu. Sans échéancier, le prix
+   entier, comme avant. */
+// ── DEBUT duDeLAbonnement (éprouvé par scripts/verifie-mnd-pay)
+function duDeLAbonnement(d: { echeances?: { amountXof?: number }[]; payments?: { amountXof?: number }[]; priceXof?: number; mrrXof?: number }): number {
+  const ech = Array.isArray(d.echeances) ? d.echeances : [];
+  if (ech.length === 0) return Math.round(Number(d.priceXof ?? d.mrrXof ?? 0));
+  const verse = (Array.isArray(d.payments) ? d.payments : [])
+    .reduce((n, p) => n + Math.max(0, Math.round(Number(p?.amountXof ?? 0))), 0);
+  let cumul = 0;
+  for (const e of ech) {
+    const m = Math.max(0, Math.round(Number(e?.amountXof ?? 0)));
+    cumul += m;
+    if (cumul > verse) return Math.min(m, cumul - verse);
+  }
+  return 0;
+}
+// ── FIN duDeLAbonnement
+
 
 /** Comparaison à temps constant — une comparaison naïve fuit le secret, octet
     par octet, par le temps de réponse. */
@@ -151,10 +175,10 @@ async function applyPayment(admin: any, opts: {
   if (opts.subId) {
     const { data: sub } = await admin.from('subscribers').select('id, data').eq('id', opts.subId).maybeSingle();
     if (sub) {
-      const d = (sub.data ?? {}) as { payments?: { id?: string }[]; status?: string; echeances?: { amountXof?: number }[]; priceXof?: number; mrrXof?: number };
+      const d = (sub.data ?? {}) as { payments?: { id?: string; amountXof?: number }[]; status?: string; echeances?: { amountXof?: number }[]; priceXof?: number; mrrXof?: number };
       const deja = Array.isArray(d.payments) ? d.payments : [];
-      const premiere = Array.isArray(d.echeances) && d.echeances.length > 0 ? Math.round(Number(d.echeances[0]?.amountXof ?? 0)) : 0;
-      const du = premiere > 0 ? premiere : Math.round(Number(d.priceXof ?? d.mrrXof ?? 0));
+      /* La plus vieille échéance pas encore couverte (16 octobre 2026). */
+      const du = duDeLAbonnement(d);
       if (couvre(du) && !deja.some((x) => x?.id === opts.transactionId)) {
         await admin.from('subscribers').update({
           data: {
@@ -359,11 +383,9 @@ Deno.serve(async (req) => {
           .from('subscribers').select('data').eq('id', partnerId).maybeSingle();
         if (subDue) {
           subId = partnerId;
-          const d = (subDue.data ?? {}) as { echeances?: { amountXof?: number }[]; priceXof?: number; mrrXof?: number };
-          const premiere = Array.isArray(d.echeances) && d.echeances.length > 0
-            ? Math.round(Number(d.echeances[0]?.amountXof ?? 0))
-            : 0;
-          expected = premiere > 0 ? premiere : Math.round(Number(d.priceXof ?? d.mrrXof ?? 0));
+          const d = (subDue.data ?? {}) as { echeances?: { amountXof?: number }[]; payments?: { amountXof?: number }[]; priceXof?: number; mrrXof?: number };
+          /* La plus vieille échéance pas encore couverte (16 octobre 2026). */
+          expected = duDeLAbonnement(d);
         } else {
           const { data: dem } = await admin
             .from('academie_demandes').select('data').eq('id', partnerId).maybeSingle();

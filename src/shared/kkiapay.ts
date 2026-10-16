@@ -108,6 +108,30 @@ export async function verifyDeposit(input: {
   };
 }
 
+/* ══ LE SERVEUR SAIT-IL RÉGLER L'ÉCHÉANCE SUIVANTE ? — 16 octobre 2026 ══
+   Ma Couronne règle désormais les échéances d'une formule (MND PAY, sa
+   décision). Une version d'avant de `kkiapay-verify` n'attend QUE la première
+   échéance : une deuxième payée un franc plus bas (l'arrondi va sur la
+   première) y serait refusée, et l'argent reçu ne s'inscrirait nulle part.
+   On demande donc sa version au serveur (un appel vide qu'il refuse en la
+   disant), et le bouton n'existe qu'à partir de celle qui sait. */
+export const VERSION_ECHEANCE_SUIVANTE = '2026-10-16-a';
+let versionLue: Promise<string> | null = null;
+export function versionDeKkiapayVerify(): Promise<string> {
+  if (!supabase) return Promise.resolve('');
+  const sb = supabase;
+  versionLue ??= (async () => {
+    const { data, error } = await sb.functions.invoke('kkiapay-verify', { body: {} });
+    const lue = (data as { version?: string } | null)?.version;
+    if (lue) return String(lue);
+    const rep = (error as { context?: Response } | null)?.context;
+    try { return String(((await rep?.json()) as { version?: string } | undefined)?.version ?? ''); } catch { return ''; }
+  })().catch(() => '');
+  return versionLue;
+}
+/** Les versions de la Maison sont des dates (« 2026-10-16-a ») : elles se comparent en texte. */
+export const saitLEcheanceSuivante = (version: string): boolean => !!version && version >= VERSION_ECHEANCE_SUIVANTE;
+
 function verifyMessage(e: unknown): string {
   const raw = (e instanceof Error ? e.message : String(e ?? '')).toLowerCase();
   if (raw.includes('amount')) return 'Le montant reçu ne correspond pas à l’acompte attendu, la Maison vous contacte.';

@@ -511,6 +511,25 @@ Pied de page : « mi nyɔ́ ɖɛkpɛ, votre beauté est déjà là ».
 une séance, il ne vend rien : c'est ce qui le garde utilitaire. Tant qu'il
 n'est pas approuvé, l'envoi hors fenêtre est refusé et l'écran le dit.
 
+## Le reçu de MND PAY (16 octobre 2026)
+
+À chaque encaissement d'une cliente qui a un numéro, la Caisse envoie seule
+le reçu PDF sur son WhatsApp (sa décision, maquette UigU1Rr5…). Dans la
+fenêtre de 24 heures, il part avec un mot ; hors fenêtre, il faut ce modèle :
+
+**`recu_de_paiement`** — WhatsApp Manager → Modèles, français, catégorie
+**UTILITY**, en-tête : **Document** (un PDF d'exemple, n'importe lequel).
+Corps :
+
+> Bonjour {{1}}, nous avons bien reçu votre règlement de {{2}} le {{3}}.
+> Votre reçu est joint.
+
+Pied de page : « mi nyɔ́ ɖɛkpɛ, votre beauté est déjà là ».
+({{1}} = « Madame Awa », {{2}} = « 49 000 F », {{3}} = « 16 octobre 2026 »,
+avec l'année.) Il remet la pièce d'un règlement, il ne vend rien. Tant qu'il
+n'est pas approuvé, la Caisse dit « Reçu non envoyé » et le bouton « Lien
+WhatsApp » d'avant reste là.
+
 ## Règles de la maison
 
 - Jamais une clé dans le dépôt : les secrets vivent chez Supabase.

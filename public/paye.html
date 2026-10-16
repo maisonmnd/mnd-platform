@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Votre paiement · Maison MND</title>
+<meta name="robots" content="noindex" />
+<meta name="theme-color" content="#1E2150" />
+<!--
+  VOTRE PAIEMENT — la page où FedaPay ramène la cliente. 16 octobre 2026.
+
+  MND PAY : quand une cliente paie par la page sécurisée de FedaPay (le QR du
+  comptoir, le lien envoyé à distance), FedaPay la renvoie ici avec
+  ?id=<transaction>&status=<approved|declined|canceled>.
+
+  ELLE EST STATIQUE, ET C'EST LA GARANTIE. Elle ne lit aucune base et ne
+  décide de rien : le statut de son adresse peut être tapé par n'importe qui.
+  Seul le serveur (`mnd-pay-webhook`, qui redemande la transaction à FedaPay)
+  fait passer une pièce au vert. Cette page ne fait que remercier, ou dire
+  que le paiement n'est pas passé.
+-->
+<style>
+  :root { --fond:#F6F1E7; --encre:#1E2150; --doux:#5E5750; --cuivre:#9A6036; --vert:#2F6B4F; color-scheme: light; }
+  @media (prefers-color-scheme: dark) { :root { --fond:#15173A; --encre:#F6F1E7; --doux:#B9B4C9; --cuivre:#D6A06F; --vert:#8FD1AE; color-scheme: dark; } }
+  * { box-sizing: border-box; }
+  body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: var(--fond); color: var(--encre);
+    font: 300 17px/1.6 "Jost", system-ui, -apple-system, "Segoe UI", sans-serif; padding: 24px max(16px, env(safe-area-inset-left)); }
+  main { max-width: 420px; text-align: center; display: grid; gap: 14px; }
+  .sur { font-size: 11px; letter-spacing: .24em; text-transform: uppercase; color: var(--cuivre); margin: 0; }
+  h1 { font: 300 34px/1.1 "Cormorant Garamond", Georgia, serif; margin: 0; }
+  p { margin: 0; color: var(--doux); }
+  .rond { width: 64px; height: 64px; border-radius: 50%; margin: 0 auto; display: grid; place-items: center; font-size: 30px; color: #FFFFFF; background: var(--vert); }
+  .rond.non { background: var(--cuivre); }
+  .devise { font: italic 400 15px/1.4 "Cormorant Garamond", Georgia, serif; color: var(--cuivre); margin-top: 8px; }
+</style>
+</head>
+<body>
+<main>
+  <p class="sur">Maison MND</p>
+  <div class="rond" id="rond" aria-hidden="true">✓</div>
+  <h1 id="titre">Merci, votre paiement est reçu</h1>
+  <p id="texte">La Maison le voit à l’instant. Votre reçu arrive sur votre WhatsApp.</p>
+  <p class="devise">mi nyɔ́ ɖɛkpɛ, votre beauté est déjà là</p>
+</main>
+<script>
+  (function () {
+    var s = '';
+    try { s = (new URLSearchParams(location.search).get('status') || '').toLowerCase(); } catch (e) { s = ''; }
+    if (s && s !== 'approved' && s !== 'transferred') {
+      document.getElementById('rond').className = 'rond non';
+      document.getElementById('rond').textContent = '!';
+      document.getElementById('titre').textContent = 'Le paiement n’est pas passé';
+      document.getElementById('texte').textContent = 'Rien n’a été prélevé. Vous pouvez réessayer depuis le même lien, ou régler à la Maison.';
+    }
+  })();
+</script>
+</body>
+</html>

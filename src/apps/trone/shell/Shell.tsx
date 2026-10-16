@@ -71,6 +71,7 @@ const selonLaMain = <T extends { path: string }>(voulu: string[] | undefined, it
 };
 import { useReconcileClients } from './useReconcileClients';
 import { useRattacheLesReservations } from './useRattacheLesReservations';
+import { useMndPayRattache } from './useMndPayRattache';
 import { useLaReleveArrive } from './useLaReleveArrive';
 import { useParrainageVivant } from './useParrainageVivant';
 import { useFormulesRapides } from './useFormulesRapides';
@@ -517,6 +518,8 @@ export default function Shell() {
   useReconcileClients();
   /* La réservation du site confirmée trouve sa fiche (18 septembre). */
   useRattacheLesReservations();
+  /* MND PAY : le lien payé règle sa pièce, sur n'importe quel écran (16 octobre 2026). */
+  useMndPayRattache();
   /* Les dossiers de La Relève, déposés sur le site de l'Académie, entrent au Recrutement (15 octobre 2026). */
   useLaReleveArrive();
   /* Chaque cliente a sa carte de marraine, et ses soins offerts (28 septembre). */

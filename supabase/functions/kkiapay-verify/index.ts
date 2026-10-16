@@ -48,7 +48,31 @@ const KKIA_VERIFY_PATH = '/api/v1/transactions/status';
     qu'on croit déployé. 10 octobre 2026 : une transaction, une cible ; le
     montant attendu de CETTE cible, jamais du corps ; la carte cadeau liée à
     sa transaction (revue de nuit). */
-const VERSION = '2026-10-10-a';
+const VERSION = '2026-10-16-a';
+
+/* ── LA PROCHAINE ÉCHÉANCE, CE QU'IL EN RESTE — 16 octobre 2026 (MND PAY) ──
+   « Les échéances se règlent dans Ma Couronne » (sa décision). Le dû d'un
+   abonnement n'est plus seulement la PREMIÈRE échéance : c'est ce qui reste
+   de la plus vieille échéance pas encore couverte, les versements s'imputant
+   dans l'ordre (shared/echeancier.ts, règle ③). Tout réglé : zéro, et l'on
+   refuse plutôt que d'encaisser un trop-perçu. Sans échéancier, le prix
+   entier, comme avant. */
+// ── DEBUT duDeLAbonnement (éprouvé par scripts/verifie-mnd-pay)
+function duDeLAbonnement(d: { echeances?: { amountXof?: number }[]; payments?: { amountXof?: number }[]; priceXof?: number; mrrXof?: number }): number {
+  const ech = Array.isArray(d.echeances) ? d.echeances : [];
+  if (ech.length === 0) return Math.round(Number(d.priceXof ?? d.mrrXof ?? 0));
+  const verse = (Array.isArray(d.payments) ? d.payments : [])
+    .reduce((n, p) => n + Math.max(0, Math.round(Number(p?.amountXof ?? 0))), 0);
+  let cumul = 0;
+  for (const e of ech) {
+    const m = Math.max(0, Math.round(Number(e?.amountXof ?? 0)));
+    cumul += m;
+    if (cumul > verse) return Math.min(m, cumul - verse);
+  }
+  return 0;
+}
+// ── FIN duDeLAbonnement
+
 
 /* LA CONSULTATION EN LIGNE SE PAIE AVANT D'EXISTER — 17 septembre 2026.
    Aucune ligne à relire : la barre est celle de la Maison, tenue ICI, et
@@ -173,10 +197,10 @@ async function applyPayment(admin: any, opts: {
   if (opts.subId) {
     const { data: sub } = await admin.from('subscribers').select('id, data').eq('id', opts.subId).maybeSingle();
     if (sub) {
-      const d = (sub.data ?? {}) as { payments?: { id?: string }[]; status?: string; echeances?: { amountXof?: number }[]; priceXof?: number; mrrXof?: number };
+      const d = (sub.data ?? {}) as { payments?: { id?: string; amountXof?: number }[]; status?: string; echeances?: { amountXof?: number }[]; priceXof?: number; mrrXof?: number };
       const deja = Array.isArray(d.payments) ? d.payments : [];
-      const premiere = Array.isArray(d.echeances) && d.echeances.length > 0 ? Math.round(Number(d.echeances[0]?.amountXof ?? 0)) : 0;
-      const du = premiere > 0 ? premiere : Math.round(Number(d.priceXof ?? d.mrrXof ?? 0));
+      /* La plus vieille échéance pas encore couverte (16 octobre 2026). */
+      const du = duDeLAbonnement(d);
       if (couvre(du) && !deja.some((x) => x?.id === opts.transactionId)) {
         await admin.from('subscribers').update({
           data: {
@@ -343,12 +367,16 @@ Deno.serve(async (req) => {
     if (subId) {
       const { data: row } = await admin
         .from('subscribers').select('id, data').eq('id', String(subId)).maybeSingle();
-      const d = (row?.data ?? {}) as { echeances?: { amountXof?: number }[]; priceXof?: number; mrrXof?: number };
-      const premiere = Array.isArray(d.echeances) && d.echeances.length > 0
-        ? Math.round(Number(d.echeances[0]?.amountXof ?? 0))
-        : 0;
-      expected = premiere > 0 ? premiere : Math.round(Number(d.priceXof ?? d.mrrXof ?? 0));
-      if (!row || expected <= 0) return json({ error: 'cible_sans_montant', version: VERSION }, 404);
+      const d = (row?.data ?? {}) as { echeances?: { amountXof?: number }[]; payments?: { amountXof?: number }[]; priceXof?: number; mrrXof?: number };
+      if (!row) return json({ error: 'cible_sans_montant', version: VERSION }, 404);
+      /* DÉJÀ INSCRITE PAR LE WEBHOOK (16 octobre 2026) : le dû aurait glissé
+         sur l'échéance suivante et le contrôle du montant crierait à tort. */
+      const { data: dejaInscrite } = await admin.from('payments').select('data').eq('id', String(transactionId)).maybeSingle();
+      if (dejaInscrite && String(dejaInscrite.data?.partnerId ?? '') === String(subId)) {
+        return json({ ok: true, version: VERSION, amountXof: Math.round(Number(tx.amount ?? 0)), feesXof: Math.round(Number(tx.fees ?? 0)), method: tx.source });
+      }
+      expected = duDeLAbonnement(d);
+      if (expected <= 0) return json({ error: 'deja_regle', version: VERSION }, 409);
     }
     /* L'INSCRIPTION À L'ACADÉMIE — 17 septembre 2026. Le site dépose la
        demande AVANT d'ouvrir le widget ; l'acompte y est fixé par la base
