@@ -39,6 +39,8 @@ export type Pose = {
   image?: string; // data:image/png — gardée dans le document signé
   signeLe?: string;
   signePar?: string; // userId de qui a posé
+  /** La taille choisie à la main (16 octobre 2026) : 1 = la taille d'origine. */
+  echelle?: number;
 };
 
 export type SignataireDuDoc = { userId: string; nom: string; qualite: string };
@@ -288,12 +290,51 @@ export function rangeDansLeCadre(cadre: Cadre, cles: readonly string[]): Pose[] 
   return poses;
 }
 
-/** Une pose déplacée à la main reste dans la zone. */
-export const borneDansLaZone = (p: Pose): Pose => {
-  const w = p.cle === 'tampon' ? TAMPON_MM : SIGNATURE_MM.largeur;
-  const h = p.cle === 'tampon' ? TAMPON_MM : SIGNATURE_MM.hauteur;
+/** Une pose déplacée à la main reste dans la zone, à sa taille (le tampon
+    selon sa forme quand on la connaît). */
+export const borneDansLaZone = (p: Pose, ratioDuTampon?: number): Pose => {
+  const { l: w, h } = dimsDeLaPose(p, ratioDuTampon);
   return { ...p, x: Math.min(Math.max(0, p.x), ZONE.largeur - w), y: Math.min(Math.max(0, p.y), ZONE.hauteur - h) };
 };
+
+/* ══ LA TAILLE D'UNE POSE — 16 octobre 2026 ══════════════════════════
+   « Sur les documents à signer, je dois pouvoir réduire ou agrandir la
+   taille du tampon et de la signature » (Yéman). On tire le coin de la
+   pièce ; l'aperçu et le PDF lisent la même taille. Jamais moins de la
+   moitié, jamais plus du double, jamais plus grande que la zone. */
+export const ECHELLE_MIN = 0.5;
+export const ECHELLE_MAX = 2;
+const dimsDOrigine = (cle: string, ratioDuTampon?: number): { l: number; h: number } =>
+  cle === 'tampon' ? dimsDuTampon(ratioDuTampon ?? 1) : { l: SIGNATURE_MM.largeur, h: SIGNATURE_MM.hauteur };
+/** L'échelle permise pour cette pièce, au centième (arrondie vers le bas pour ne jamais déborder). */
+export function echelleBornee(cle: string, echelle: number | undefined, ratioDuTampon?: number): number {
+  const d = dimsDOrigine(cle, ratioDuTampon);
+  const max = Math.min(ECHELLE_MAX, ZONE.largeur / d.l, ZONE.hauteur / d.h);
+  const e = typeof echelle === 'number' && Number.isFinite(echelle) ? echelle : 1;
+  return Math.floor(Math.min(max, Math.max(ECHELLE_MIN, e)) * 100 + 1e-9) / 100;
+}
+/** La taille d'une pièce dans la zone (mm), son échelle comprise. */
+export function dimsDeLaPose(p: Pick<Pose, 'cle' | 'echelle'>, ratioDuTampon?: number): { l: number; h: number } {
+  const d = dimsDOrigine(p.cle, ratioDuTampon);
+  const e = p.echelle === undefined ? 1 : echelleBornee(p.cle, p.echelle, ratioDuTampon);
+  return { l: d.l * e, h: d.h * e };
+}
+/** Agrandir ou réduire une pièce : son échelle bornée, et elle reste dans la zone. */
+export const redimensionne = (p: Pose, echelle: number, ratioDuTampon?: number): Pose =>
+  borneDansLaZone({ ...p, echelle: echelleBornee(p.cle, echelle, ratioDuTampon) }, ratioDuTampon);
+/** Ranger de nouveau la zone (un cadre, un signataire de plus) garde la taille choisie. */
+export const gardeLesTailles = (neuves: readonly Pose[], anciennes: readonly Pose[], ratioDuTampon?: number): Pose[] =>
+  neuves.map((q) => {
+    const e = anciennes.find((a) => a.cle === q.cle)?.echelle;
+    return e === undefined ? q : redimensionne(q, e, ratioDuTampon);
+  });
+/** Tirer un coin de (dx, dy) sur une pièce de l × h : le facteur de taille,
+    lu le long de sa diagonale (le coin suit le doigt). */
+export function facteurDuCoin(dx: number, dy: number, l: number, h: number): number {
+  const d2 = l * l + h * h;
+  if (!(d2 > 0)) return 1;
+  return Math.max(0.05, 1 + (dx * l + dy * h) / d2);
+}
 
 /** Le nom du signataire, sous la zone : à gauche du cadre choisi. */
 export const xDuNom = (cadre: Cadre): number => (cadre === 'gauche' ? 2 : cadre === 'centre' ? 48 : 94);

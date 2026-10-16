@@ -9,10 +9,11 @@ import { deposeLesFichiers, retouche as retoucheLaLigne } from '../../../../../s
 import type { Fichier, LigneAdministrative } from '../../../../../shared/secretariat-admin-pur';
 import { TAMPONS, TAMPON_A_DATER, dateSurLeRecu, type Tampon } from '../../../../../shared/secretariat-tampons';
 import {
-  LARGEUR_DE_DEPART, TAILLE_DU_TEXTE, contenuDeLaCopie, dateLongueDuJour, estUneImage, genreDeLImage, nomDeLaCopie, pagesDeLaSelection,
+  LARGEUR_DE_DEPART, TAILLE_DU_TEXTE, contenuDeLaCopie, dateLongueDuJour, estUneImage, genreDeLImage, tailleApresLeCoin, tailleDite, nomDeLaCopie, pagesDeLaSelection,
   repeteSurLesPages, resteDesPages, retoucheVide, tourFinal, type GenreDePose, type PoseSurPdf, type RetoucheDesPages,
 } from '../../../../../shared/pdf-signe-pur';
 import { PdfProtege, ecritLaCopie, type ImageDePose } from '../../../../../shared/pdf-signe';
+import { facteurDuCoin } from '../../../../../shared/secretariat-pur';
 import { PaveDeSignature } from './Signatures';
 
 /* ══ SIGNER UN PDF — 15 octobre 2026 ══════════════════════════════════
@@ -41,6 +42,46 @@ const octetsDe = (url: string): Uint8Array => {
   for (let i = 0; i < b.length; i += 1) o[i] = b.charCodeAt(i);
   return o;
 };
+/** Une photo ou une capture, ramenée à 2 000 px au plus : PNG si elle en était un, JPEG sinon. */
+const imageAllegee = (f: File): Promise<string | null> => new Promise((ok) => {
+  const u = URL.createObjectURL(f);
+  const i = new Image();
+  i.onload = () => {
+    const k = Math.min(1, 2000 / Math.max(i.naturalWidth, i.naturalHeight, 1));
+    const c = document.createElement('canvas');
+    c.width = Math.max(1, Math.round(i.naturalWidth * k)); c.height = Math.max(1, Math.round(i.naturalHeight * k));
+    const x = c.getContext('2d');
+    if (!x) { URL.revokeObjectURL(u); ok(null); return; }
+    const png = f.type === 'image/png';
+    if (!png) { x.fillStyle = '#FFFFFF'; x.fillRect(0, 0, c.width, c.height); }
+    x.drawImage(i, 0, 0, c.width, c.height);
+    URL.revokeObjectURL(u);
+    ok(png ? c.toDataURL('image/png') : c.toDataURL('image/jpeg', 0.88));
+  };
+  i.onerror = () => { URL.revokeObjectURL(u); ok(null); };
+  i.src = u;
+});
+/** La première page d'un PDF, en image (un document à mettre dans le fichier). */
+async function premierePageEnImage(f: File): Promise<string | null> {
+  const [pdfjs, travailleur] = await Promise.all([
+    import('pdfjs-dist/legacy/build/pdf.mjs'),
+    import('pdfjs-dist/legacy/build/pdf.worker.min.mjs?url'),
+  ]);
+  pdfjs.GlobalWorkerOptions.workerSrc = travailleur.default;
+  const doc = await pdfjs.getDocument({ data: new Uint8Array(await f.arrayBuffer()) }).promise;
+  try {
+    const page = await doc.getPage(1);
+    const v1 = page.getViewport({ scale: 1 });
+    const vue = page.getViewport({ scale: Math.min(3, 1600 / v1.width) });
+    const c = document.createElement('canvas');
+    c.width = Math.floor(vue.width); c.height = Math.floor(vue.height);
+    const x = c.getContext('2d');
+    if (!x) return null;
+    x.fillStyle = '#FFFFFF'; x.fillRect(0, 0, c.width, c.height);
+    await page.render({ canvasContext: x, viewport: vue }).promise;
+    return c.toDataURL('image/jpeg', 0.9);
+  } finally { void doc.destroy(); }
+}
 const libelleDeLaLigne = (l: LigneAdministrative): string => {
   const x = l as unknown as { genre: string; numero?: string; correspondant?: string; objet?: string; titre?: string };
   return x.genre === 'courrier' ? `Courrier ${x.numero ?? ''} · ${x.correspondant ?? ''}${x.objet ? ` · ${x.objet}` : ''}` : `${x.genre === 'contrat' ? 'Contrat' : 'Démarche'} · ${x.titre ?? ''}`;
@@ -67,6 +108,24 @@ export function SignerUnPdf({ ouverture, onClose }: { ouverture: Ouverture; onCl
   const [paveParaphe, setPaveParaphe] = useState(false);
   const [envoi, setEnvoi] = useState(false);
   const [rangerSur, setRangerSur] = useState('');
+  const champImage = useRef<HTMLInputElement>(null);
+  const [imageAPoser, setImageAPoser] = useState<string | null>(null);
+  /* UNE IMAGE (16 octobre 2026) : une photo, une capture, ou la première page
+     d'un PDF ; on la choisit, puis on touche la page. */
+  const prendsUneImage = async (f: File | undefined) => {
+    if (!f) return;
+    if (f.size > 25 * 1024 * 1024) { toast('Ce fichier dépasse 25 Mo.'); return; }
+    const estPdf = f.type === 'application/pdf' || /\.pdf$/i.test(f.name);
+    let url: string | null = null;
+    try { url = estPdf ? await premierePageEnImage(f) : await imageAllegee(f); } catch { url = null; }
+    if (!url) { toast(estPdf ? 'Ce PDF ne s’ouvre pas.' : 'Cette image ne se lit pas ici (une photo HEIC se convertit d’abord en JPEG).', 7000); return; }
+    const cle = `image:${nouvelId()}`;
+    const r = await ratioDe(url);
+    setImages((x) => ({ ...x, [cle]: { url: url as string, ratio: r } }));
+    setImageAPoser(cle);
+    setOutil('image');
+    toast(estPdf ? 'La première page est prête : touchez la page où la poser.' : 'Image prête : touchez la page où la poser.');
+  };
 
   /* Le PDF, lu par pdf.js (chargé seulement ici). */
   useEffect(() => {
@@ -119,6 +178,7 @@ export function SignerUnPdf({ ouverture, onClose }: { ouverture: Ouverture; onCl
     if (outil === 'paraphe') { if (!images.paraphe) { setPaveParaphe(true); return; } image = 'paraphe'; }
     if (outil === 'tampon') { const t = tampons.find((x) => x.cle === tampon); const c = t ? await chargeLeTampon(t) : null; if (!c) return; image = c; }
     if (outil === 'recu') { const t = TAMPONS.mnd.find((x) => x.cle === TAMPON_A_DATER); const c = t ? await chargeLeTampon(t, dateRecu) : null; if (!c) return; image = c; }
+    if (outil === 'image') { if (!imageAPoser || !images[imageAPoser]) { champImage.current?.click(); return; } image = imageAPoser; setImageAPoser(null); }
     const texte = outil === 'date' ? dateLongueDuJour(aujourdhui()) : outil === 'lu' ? 'Lu et approuvé' : outil === 'texte' ? 'Votre texte' : undefined;
     const p: PoseSurPdf = {
       id: nouvelId(), page, genre: outil, x: Math.min(0.95, Math.max(0, fx)), y: Math.min(0.97, Math.max(0, fy)),
@@ -189,18 +249,20 @@ export function SignerUnPdf({ ouverture, onClose }: { ouverture: Ouverture; onCl
         {erreur && <p className="sad-doux" role="alert">{erreur}</p>}
         <aside className="spdf-outils" aria-label="Les outils">
           <span className="spdf-titre">Poser</span>
-          {([['signature', 'Ma signature'], ['paraphe', 'Mon paraphe'], ['tampon', 'Un tampon'], ['recu', '« Reçu le »']] as [GenreDePose, string][]).map(([g, l]) => (
-            <button key={g} type="button" className={`spdf-outil${outil === g ? ' est-actif' : ''}`} aria-pressed={outil === g} onClick={() => setOutil(g)}>
+          {([['signature', 'Ma signature'], ['paraphe', 'Mon paraphe'], ['tampon', 'Un tampon'], ['recu', '« Reçu le »'], ['image', 'Une image']] as [GenreDePose, string][]).map(([g, l]) => (
+            <button key={g} type="button" className={`spdf-outil${outil === g ? ' est-actif' : ''}`} aria-pressed={outil === g} onClick={() => (g === 'image' ? champImage.current?.click() : setOutil(g))}>
               {l}{g === 'signature' && !images.signature ? ' (à déposer)' : g === 'paraphe' && !images.paraphe ? ' (à dessiner)' : ''}
             </button>
           ))}
           {outil === 'tampon' && <Select value={tampon} onChange={(e) => setTampon(e.target.value)} aria-label="Le tampon">{tampons.map((t) => <option key={t.cle} value={t.cle}>{t.nom}</option>)}</Select>}
           {outil === 'recu' && <input type="date" className="spdf-date" value={dateRecu} onChange={(e) => setDateRecu(e.target.value || aujourdhui())} aria-label="La date du tampon" />}
+          <input ref={champImage} type="file" accept="image/png,image/jpeg,image/webp,image/gif,application/pdf,.pdf" hidden aria-label="L’image à poser"
+            onChange={(e) => { void prendsUneImage(e.target.files?.[0]); e.target.value = ''; }} />
           <span className="spdf-titre">Écrire</span>
           {([['texte', 'Un texte'], ['date', 'La date du jour'], ['lu', '« Lu et approuvé »'], ['coche', 'Une coche ✓']] as [GenreDePose, string][]).map(([g, l]) => (
             <button key={g} type="button" className={`spdf-outil${outil === g ? ' est-actif' : ''}`} aria-pressed={outil === g} onClick={() => setOutil(g)}>{l}</button>
           ))}
-          <p className="spdf-aide">{outil ? 'Touchez la page à l’endroit voulu.' : 'Choisissez un outil, puis touchez la page.'}</p>
+          <p className="spdf-aide">{outil ? 'Touchez la page à l’endroit voulu.' : 'Choisissez un outil, puis touchez la page. Tirez le rond cuivre d’une pièce pour l’agrandir ou la réduire.'}</p>
           {pose && (
             <div className="spdf-choisie">
               <span className="spdf-titre">La pièce choisie</span>
@@ -224,7 +286,7 @@ export function SignerUnPdf({ ouverture, onClose }: { ouverture: Ouverture; onCl
             <PageDuPdf
               key={i} pdf={pdf} index={i} tour={tourFinal(toursDOrigine[i] ?? 0, pagesRetouchees.tours[i])} retiree={pagesRetouchees.retirees.includes(i)}
               poses={poses.filter((p) => p.page === i)} images={images} choisie={choisie} outil={outil}
-              surPose={poseIci} surChoix={setChoisie} surBouge={(id, x, y) => change(id, { x, y })}
+              surPose={poseIci} surChoix={setChoisie} surBouge={(id, x, y) => change(id, { x, y })} surTaille={change}
               surTourne={() => setPagesRetouchees((r) => ({ ...r, tours: { ...r.tours, [i]: ((r.tours[i] ?? 0) + 1) % 4 } }))}
               surRetire={() => setPagesRetouchees((r) => ({ ...r, retirees: r.retirees.includes(i) ? r.retirees.filter((x) => x !== i) : [...r.retirees, i] }))}
               nbPages={nbPages}
@@ -253,10 +315,11 @@ export function SignerUnPdf({ ouverture, onClose }: { ouverture: Ouverture; onCl
   );
 }
 
-function PageDuPdf({ pdf, index, tour, retiree, poses, images, choisie, outil, surPose, surChoix, surBouge, surTourne, surRetire, nbPages }: {
+function PageDuPdf({ pdf, index, tour, retiree, poses, images, choisie, outil, surPose, surChoix, surBouge, surTaille, surTourne, surRetire, nbPages }: {
   pdf: PDFDocumentProxy; index: number; tour: number; retiree: boolean; poses: PoseSurPdf[]; images: Record<string, ImageVue>;
   choisie: string | null; outil: GenreDePose | null; nbPages: number;
   surPose: (page: number, fx: number, fy: number) => void; surChoix: (id: string) => void; surBouge: (id: string, x: number, y: number) => void;
+  surTaille: (id: string, patch: Partial<PoseSurPdf>) => void;
   surTourne: () => void; surRetire: () => void;
 }) {
   const toile = useRef<HTMLCanvasElement>(null);
@@ -309,6 +372,24 @@ function PageDuPdf({ pdf, index, tour, retiree, poses, images, choisie, outil, s
     const lache = () => { window.removeEventListener('pointermove', bouge); window.removeEventListener('pointerup', lache); };
     window.addEventListener('pointermove', bouge); window.addEventListener('pointerup', lache);
   };
+  /* LE ROND CUIVRE (16 octobre 2026) : on tire le coin de la pièce choisie,
+     elle grandit ou rapetisse en gardant sa forme. */
+  const [enTaille, setEnTaille] = useState<string | null>(null);
+  const tire = (p: PoseSurPdf) => (e: React.PointerEvent<HTMLElement>) => {
+    e.preventDefault(); e.stopPropagation(); surChoix(p.id);
+    const piece = (e.currentTarget.parentElement as HTMLElement).getBoundingClientRect();
+    const x0 = e.clientX, y0 = e.clientY;
+    setEnTaille(p.id);
+    const bouge = (ev: PointerEvent) => surTaille(p.id, tailleApresLeCoin(p, facteurDuCoin(ev.clientX - x0, ev.clientY - y0, piece.width, piece.height)));
+    const lache = () => { setEnTaille(null); window.removeEventListener('pointermove', bouge); window.removeEventListener('pointerup', lache); };
+    window.addEventListener('pointermove', bouge); window.addEventListener('pointerup', lache);
+  };
+  const poignee = (p: PoseSurPdf) => p.id === choisie && !retiree && (
+    <>
+      <span className="spdf-poignee" onPointerDown={tire(p)} role="slider" aria-label="Tirer pour agrandir ou réduire" aria-valuetext={tailleDite(p)} />
+      {enTaille === p.id && <span className="spdf-taille">{tailleDite(p)}</span>}
+    </>
+  );
   return (
     <div className="spdf-page" ref={boite}>
       <div className="spdf-feuille" style={{ aspectRatio: `1 / ${ratio}` }} onClick={clic} data-retiree={retiree || undefined}>
@@ -318,10 +399,15 @@ function PageDuPdf({ pdf, index, tour, retiree, poses, images, choisie, outil, s
           const classe = `spdf-pose${p.id === choisie ? ' est-choisie' : ''}`;
           if (estUneImage(p.genre)) {
             const im = p.image ? images[p.image] : undefined;
-            return im ? <img key={p.id} src={im.url} alt="" draggable={false} className={classe} style={{ ...style, width: `${p.largeur * 100}%` }} onPointerDown={glisse(p)} /> : null;
+            return im ? (
+              <span key={p.id} className={`${classe} spdf-pose--image`} style={{ ...style, width: `${p.largeur * 100}%` }} onPointerDown={glisse(p)}>
+                <img src={im.url} alt="" draggable={false} />
+                {poignee(p)}
+              </span>
+            ) : null;
           }
           const taille = (p.taille ?? TAILLE_DU_TEXTE) * pxParPt * (p.genre === 'coche' ? 1.3 : 1);
-          return <span key={p.id} className={`${classe} spdf-pose--texte`} style={{ ...style, fontSize: `${taille}px` }} onPointerDown={glisse(p)}>{p.genre === 'coche' ? '✔' : p.texte}</span>;
+          return <span key={p.id} className={`${classe} spdf-pose--texte`} style={{ ...style, fontSize: `${taille}px` }} onPointerDown={glisse(p)}>{p.genre === 'coche' ? '✔' : p.texte}{poignee(p)}</span>;
         })}
         {retiree && <span className="spdf-retiree">Retirée de la copie</span>}
       </div>

@@ -22,8 +22,9 @@ import { deflateSync } from 'node:zlib';
 import { PDFDocument, PDFName, degrees } from 'pdf-lib';
 import {
   GENRES_IMAGES, contenuDeLaCopie, genreDeLImage, nomDeLaCopie, pagesDeLaSelection, repeteSurLesPages, resteDesPages,
-  tourFinal, type PoseSurPdf,
+  tailleApresLeCoin, tailleDite, tourFinal, type PoseSurPdf,
 } from '../src/shared/pdf-signe-pur';
+import { facteurDuCoin } from '../src/shared/secretariat-pur';
 import { PdfProtege, ecritLaCopie } from '../src/shared/pdf-signe';
 
 let ko = 0;
@@ -177,6 +178,26 @@ await lu.destroy();
   try { await ecritLaCopie(protege, [], { tours: {}, retirees: [] }, {}); } catch (e) { dite = e instanceof PdfProtege ? 'protege' : String(e); }
   dit('un PDF a mot de passe est refuse avec une phrase claire', 'protege', dite);
 }
+/* UNE IMAGE (16 octobre 2026) : posée sur la page, à moitié de sa largeur,
+   elle tombe là où on l'a mise, à sa taille. */
+{
+  const d = await PDFDocument.create(); d.addPage([595, 842]);
+  const c = await ecritLaCopie(await d.save(), [{ id: 'i', page: 0, genre: 'image', x: 0.2, y: 0.3, largeur: 0.5, image: 'image:plan' }], { tours: {}, retirees: [] }, { 'image:plan': { octets: png(80, 60), type: 'png', ratio: 60 / 80 } });
+  const lu3 = await pdfjs.getDocument({ data: c.slice(), verbosity: 0 }).promise;
+  const pg = await lu3.getPage(1);
+  const vue = pg.getViewport({ scale: 1 });
+  const ops = await pg.getOperatorList();
+  let ctm: Mat = [1, 0, 0, 1, 0, 0]; const pile: Mat[] = []; let ou: { hg: { x: number; y: number }; bd: { x: number; y: number } } | null = null;
+  for (let k = 0; k < ops.fnArray.length; k += 1) {
+    const f = ops.fnArray[k], a = ops.argsArray[k];
+    if (f === pdfjs.OPS.save) pile.push(ctm); else if (f === pdfjs.OPS.restore) ctm = pile.pop() ?? [1, 0, 0, 1, 0, 0];
+    else if (f === pdfjs.OPS.transform) ctm = fois(ctm, a as Mat);
+    else if (f === pdfjs.OPS.paintImageXObject) { const e = fois(vue.transform as Mat, ctm); ou = { hg: point(e, 0, 1), bd: point(e, 1, 0) }; }
+  }
+  dit('une image posee tombe a sa place, a la moitie de la page, dans sa forme (297,5 x 223,1 pt)', true,
+    !!ou && pres(ou.hg.x, 0.2 * 595) && pres(ou.hg.y, 0.3 * 842) && pres(ou.bd.x - ou.hg.x, 297.5) && pres(ou.bd.y - ou.hg.y, 297.5 * 0.75));
+  await lu3.destroy();
+}
 /* Le texte écrit garde ses accents ; ce que la police ne sait pas écrire ne fait pas tout échouer. */
 {
   const d = await PDFDocument.create(); d.addPage([595, 842]);
@@ -186,6 +207,26 @@ await lu.destroy();
   dit('les accents et l apostrophe courbe passent, l inconnu devient « ? » sans tout faire echouer', 'Reçu à Cotonou, l’été ? ??', s);
   await lu2.destroy();
 }
+
+/* ── 4 bis. TIRER LE COIN (16 octobre 2026) ──
+   « Je dois pouvoir réduire ou agrandir la taille du tampon et de la
+   signature » (Yéman). Attentes à la main. */
+dit('tirer le coin d une moitie de la piece en diagonale : x 1,5 ; d un quart vers l interieur : x 0,75', [1.5, 0.75],
+  [Number(facteurDuCoin(50, 20, 100, 40).toFixed(2)), Number(facteurDuCoin(-25, -10, 100, 40).toFixed(2))]);
+/* Hors de la diagonale, le coin va au point de la diagonale le plus proche
+   du doigt : un pas de toute la largeur à l'horizontale sur une pièce de
+   100 x 40 = 1 + 100² / (100² + 40²) = 1,86 ; un pas de toute la hauteur à
+   la verticale = 1 + 40² / 11 600 = 1,14 (sur la diagonale seule, une
+   mauvaise lecture du coin donnerait la même chose : ces deux-là la voient). */
+dit('le doigt hors de la diagonale : x 1,86 a l horizontale, x 1,14 a la verticale', [1.86, 1.14],
+  [Number(facteurDuCoin(100, 0, 100, 40).toFixed(2)), Number(facteurDuCoin(0, 40, 100, 40).toFixed(2))]);
+dit('un tampon de 20 % de large tire a x 1,5 fait 30 %', 0.3, Number(((tailleApresLeCoin({ genre: 'tampon', x: 0.1, largeur: 0.2 }, 1.5) as { largeur: number }).largeur).toFixed(4)));
+dit('... jamais au-dela du bord droit de la page, jamais plus petit que 4 %', [0.3, 0.04],
+  [Number(((tailleApresLeCoin({ genre: 'image', x: 0.7, largeur: 0.25 }, 3) as { largeur: number }).largeur).toFixed(4)), (tailleApresLeCoin({ genre: 'signature', x: 0, largeur: 0.26 }, 0.05) as { largeur: number }).largeur]);
+dit('un texte de 11 pt tire a x 1,5 fait 16,5 pt ; de 6 a 40 pt au plus', [16.5, 40, 6],
+  [(tailleApresLeCoin({ genre: 'texte', x: 0, largeur: 0, taille: 11 }, 1.5) as { taille: number }).taille, (tailleApresLeCoin({ genre: 'lu', x: 0, largeur: 0, taille: 30 }, 2) as { taille: number }).taille, (tailleApresLeCoin({ genre: 'date', x: 0, largeur: 0 }, 0.1) as { taille: number }).taille]);
+dit('en tirant, la poignee dit « 150 % » d un tampon, « 14 pt » d un texte', ['150 %', '14 pt'], [tailleDite({ genre: 'tampon', largeur: 0.3 }), tailleDite({ genre: 'texte', largeur: 0, taille: 14 })]);
+dit('le journal compte les images posees', ['1 image'], contenuDeLaCopie([{ id: 'i', page: 0, genre: 'image', x: 0, y: 0, largeur: 0.4, image: 'image:a' }], { tours: {}, retirees: [] }, 1));
 
 /* ── 5. LE CÂBLAGE ── */
 const atelier = sansCommentaires(lis('src/apps/trone/routes/pilotage/secretariat/SignerUnPdf.tsx'));
@@ -201,10 +242,16 @@ dit('... et que SON paraphe', ['chargeMonParaphe(moi)'], [...new Set(atelier.mat
 dit('... il ne lit aucune autre signature (pas de liste des signataires a poser)', false, /signaturesDe|chargeLaSignatureDe|\.download\(/.test(atelier));
 dit('le paraphe vit dans le dossier prive de chacun, a cote de sa signature', true,
   /cheminDeMonParaphe\s*=\s*\(userId: string\)\s*=>\s*`\$\{userId\}\/paraphe\.png`/.test(secretariat) && /from\('signatures'\)\.upload\(cheminDeMonParaphe\(userId\)/.test(secretariat));
-dit('on ajoute, on n efface jamais : huit outils, aucun pour masquer', ['signature', 'paraphe', 'tampon', 'recu', 'texte', 'date', 'lu', 'coche'],
+/* Neuf depuis le 16 octobre : « Une image » demandée par Yéman ; toujours aucun outil pour masquer. */
+dit('on ajoute, on n efface jamais : neuf outils, aucun pour masquer', ['signature', 'paraphe', 'tampon', 'recu', 'image', 'texte', 'date', 'lu', 'coche'],
   [...(/export type GenreDePose = ([^;]+);/.exec(pur)?.[1] ?? '').matchAll(/'([a-z]+)'/g)].map((m) => m[1]));
 dit('... ni rectangle blanc ni cache dans l ecriture de la copie', false, /drawRectangle|drawSvgPath|masqu|blanc|white/i.test(ecriture));
-dit('... les quatre outils d image sont ceux de la maquette', ['signature', 'paraphe', 'tampon', 'recu'], [...GENRES_IMAGES]);
+dit('... les cinq outils d image : ceux de la maquette, plus « Une image »', ['signature', 'paraphe', 'tampon', 'recu', 'image'], [...GENRES_IMAGES]);
+dit('« Une image » prend une photo, une capture ou un PDF (sa premiere page, rendue par pdf.js)', true,
+  /accept="image\/png,image\/jpeg,image\/webp,image\/gif,application\/pdf,\.pdf"/.test(atelier) && /premierePageEnImage\(f\)/.test(atelier) && /await doc\.getPage\(1\)/.test(atelier));
+dit('... une grande photo est ramenee a 2 000 px (la copie reste legere)', true, /Math\.min\(1, 2000 \/ Math\.max\(/.test(atelier));
+dit('le rond cuivre n apparait que sur la piece choisie, et agrandit par la regle commune', true,
+  /const poignee = \(p: PoseSurPdf\) => p\.id === choisie && !retiree && \(/.test(atelier) && /tailleApresLeCoin\(p, facteurDuCoin\(/.test(atelier) && (atelier.match(/\{poignee\(p\)\}/g) ?? []).length === 2);
 dit('la copie se range A COTE de l original : la liste des fichiers s allonge', true, /fichiers: \[\.\.\.ligne\.fichiers, f\]/.test(atelier) && /deposeLesFichiers\(ligne\.id,/.test(atelier));
 dit('... jamais a sa place : l atelier n efface ni ne remplace aucun fichier', false,
   /storage|effaceLaLigne|upsert|fichiers: \[f\]|fichiers\.filter|fichiers: r\.fichiers/.test(atelier));

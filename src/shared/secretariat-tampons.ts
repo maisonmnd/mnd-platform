@@ -87,6 +87,9 @@ export function tamponAutoSvg(nom: string, mentions: string, telephone: string):
    reste fait l'adresse. Rectangle 2 × 1 ; la taille du texte se règle sur
    la ligne la plus longue, jamais au-delà du cadre. */
 export const RATIO_DU_CACHET = 2;
+/** La forme d'un tampon choisi (largeur / hauteur), pour sa taille dans la zone. */
+export const ratioDuTampon = (cle: string | undefined): number | undefined =>
+  cle === 'auto' ? 1 : cle === 'auto-cachet' ? RATIO_DU_CACHET : tamponParCle(cle)?.ratio;
 
 export type MorceauxDuCachet = { forme: string; adresse: string[]; legales: string; telephone: string };
 

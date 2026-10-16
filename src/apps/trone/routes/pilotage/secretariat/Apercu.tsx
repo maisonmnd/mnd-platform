@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type CSSProperties, type PointerEvent as P
 import { asset } from '../../../../../shared/asset';
 import { DEVISE_COMPLETE } from '../../../../../shared/identite';
 import {
-  borneDansLaZone, dateDite, dimsDuTampon, nomsDansLaZone, paragraphes, PAGE, SIGNATURE_MM, Y_DES_NOMS, ZONE, type Pose,
+  borneDansLaZone, dateDite, dimsDeLaPose, echelleBornee, facteurDuCoin, nomsDansLaZone, paragraphes, PAGE, redimensionne, Y_DES_NOMS, ZONE, type Pose,
 } from '../../../../../shared/secretariat-pur';
 import type { DocumentResolu } from '../../../../../shared/secretariat';
 
@@ -40,23 +40,38 @@ export function Apercu({ r, signaturesAttendues, glissable, surPoses }: {
   const corps: CSSProperties = { fontFamily: 'Arial, Helvetica, sans-serif', fontSize: pt(PAGE.corpsPt), lineHeight: px(PAGE.ligne), color: '#14141B' };
 
   const zone = useRef<HTMLDivElement>(null);
-  const glisse = useRef<{ cle: string; x0: number; y0: number; px0: number; py0: number } | null>(null);
-  const debut = (q: Pose) => (ev: PE<HTMLDivElement>) => {
+  const ratio = r.tampon?.ratio;
+  /* On GLISSE la pièce, ou l'on TIRE son coin pour l'agrandir ou la réduire
+     (16 octobre 2026) : la même taille sort sur le PDF. */
+  const glisse = useRef<{ cle: string; taille: boolean; x0: number; y0: number; px0: number; py0: number; e0: number; l0: number; h0: number } | null>(null);
+  const [enTaille, setEnTaille] = useState<string | null>(null);
+  const prends = (q: Pose, taille: boolean) => (ev: PE<HTMLElement>) => {
     if (!glissable) return;
-    glisse.current = { cle: q.cle, x0: ev.clientX, y0: ev.clientY, px0: q.x, py0: q.y };
+    ev.stopPropagation();
+    const d = dimsDeLaPose(q, ratio);
+    glisse.current = { cle: q.cle, taille, x0: ev.clientX, y0: ev.clientY, px0: q.x, py0: q.y, e0: echelleBornee(q.cle, q.echelle, ratio), l0: d.l, h0: d.h };
     ev.currentTarget.setPointerCapture(ev.pointerId);
+    if (taille) setEnTaille(q.cle);
   };
   const bouge = (ev: PE<HTMLDivElement>) => {
     const g = glisse.current;
     if (!g) return;
-    const x = g.px0 + (ev.clientX - g.x0) / mm;
-    const y = g.py0 + (ev.clientY - g.y0) / mm;
-    surPoses(p.poses.map((q) => (q.cle === g.cle ? borneDansLaZone({ ...q, x, y }) : q)));
+    const dx = (ev.clientX - g.x0) / mm;
+    const dy = (ev.clientY - g.y0) / mm;
+    surPoses(p.poses.map((q) => {
+      if (q.cle !== g.cle) return q;
+      return g.taille ? redimensionne(q, g.e0 * facteurDuCoin(dx, dy, g.l0, g.h0), ratio) : borneDansLaZone({ ...q, x: g.px0 + dx, y: g.py0 + dy }, ratio);
+    }));
   };
-  const fin = () => { glisse.current = null; };
+  const fin = () => { glisse.current = null; setEnTaille(null); };
+  const poignee = (q: Pose) => glissable && (
+    <span className="sec-poignee" onPointerDown={prends(q, true)} role="slider" aria-label="Tirer pour agrandir ou réduire"
+      aria-valuemin={50} aria-valuemax={200} aria-valuenow={Math.round(echelleBornee(q.cle, q.echelle, ratio) * 100)} />
+  );
+  const pourcent = (q: Pose) => enTaille === q.cle && <span className="sec-taille">{Math.round(echelleBornee(q.cle, q.echelle, ratio) * 100)} %</span>;
 
   const tamponPose = p.poses.find((q) => q.cle === 'tampon');
-  const dims = r.tampon ? dimsDuTampon(r.tampon.ratio) : null;
+  const dims = r.tampon && tamponPose ? dimsDeLaPose(tamponPose, ratio) : null;
   const places = nomsDansLaZone(p, r.noms);
   const dest = r.texte.destinataire.split('\n').map((l) => l.trim()).filter(Boolean);
 
@@ -108,26 +123,31 @@ export function Apercu({ r, signaturesAttendues, glissable, surPoses }: {
         {tamponPose && r.tampon && dims && (
           <div
             className="sec-pose"
-            onPointerDown={debut(tamponPose)}
+            onPointerDown={prends(tamponPose, false)}
             style={{ left: px(tamponPose.x), top: px(tamponPose.y), width: px(dims.l), height: px(dims.h), cursor: glissable ? 'grab' : 'default' }}
             aria-label="Le tampon"
           >
             <img src={r.tampon.image} alt="Tampon" style={{ width: '100%', height: '100%', objectFit: 'contain', pointerEvents: 'none' }} />
+            {poignee(tamponPose)}
+            {pourcent(tamponPose)}
           </div>
         )}
         {p.poses.filter((q) => q.cle.startsWith('sig:')).map((q) => {
           const attendue = signaturesAttendues.find((s) => s.cle === q.cle);
+          const d = dimsDeLaPose(q);
           return (
             <div
               key={q.cle}
               className="sec-pose"
-              onPointerDown={debut(q)}
-              style={{ left: px(q.x), top: px(q.y), width: px(SIGNATURE_MM.largeur), height: px(SIGNATURE_MM.hauteur), cursor: glissable ? 'grab' : 'default' }}
+              onPointerDown={prends(q, false)}
+              style={{ left: px(q.x), top: px(q.y), width: px(d.l), height: px(d.h), cursor: glissable ? 'grab' : 'default' }}
               aria-label={attendue ? `Signature attendue : ${attendue.nom}` : 'Signature'}
             >
               {q.image
                 ? <img src={q.image} alt="Signature" style={{ width: '100%', height: '100%', objectFit: 'contain', objectPosition: 'left center', pointerEvents: 'none' }} />
                 : <span className="sec-attendue" style={{ fontSize: pt(7.5) }}>Signature de {attendue?.nom ?? '…'}</span>}
+              {poignee(q)}
+              {pourcent(q)}
             </div>
           );
         })}

@@ -9,10 +9,10 @@ import {
   signatairesDe, signeLaPiece, useSecretariat, versLePdf, type DocumentResolu,
 } from '../../../../../shared/secretariat';
 import {
-  annulable, APPELS, clotures, modifiable, supprimable, peutSigner, rangeDansLeCadre, restentASigner, signaturesRetirables, corrigeable, type Cadre, type Piece, type Pose,
+  annulable, APPELS, clotures, gardeLesTailles, modifiable, supprimable, peutSigner, rangeDansLeCadre, restentASigner, signaturesRetirables, corrigeable, type Cadre, type Piece, type Pose,
 } from '../../../../../shared/secretariat-pur';
 import { aCompleter, modeleDe, remplisDepuisEquipe } from '../../../../../shared/secretariat-modeles';
-import { TAMPON_A_DATER, tamponsDe } from '../../../../../shared/secretariat-tampons';
+import { TAMPON_A_DATER, ratioDuTampon, tamponsDe } from '../../../../../shared/secretariat-tampons';
 import { useStaff as useEquipe } from '../../equipe/data';
 import { Apercu } from './Apercu';
 
@@ -78,7 +78,7 @@ export function Editeur({ pieceId, direction, onClose, surOuvre }: {
       const neuves = rangeDansLeCadre('droite', cles.filter((c) => !gardees.some((g) => g.cle === c)));
       return [...gardees, ...neuves];
     }
-    return rangeDansLeCadre(cadre, cles);
+    return gardeLesTailles(rangeDansLeCadre(cadre, cles), p.poses, ratioDuTampon(tampon));
   };
   const basculeSignataire = (s: { userId: string; nom: string; qualite: string }) => {
     const deja = p.signataires.some((x) => x.userId === s.userId);
@@ -274,7 +274,7 @@ export function Editeur({ pieceId, direction, onClose, surOuvre }: {
             />
           ) : <div className="mnd-muted">Mise en page…</div>}
           <p className="mnd-muted" style={{ fontSize: 11.5, marginTop: 6 }}>
-            {ouvert ? 'Glissez signatures et tampon dans la zone pointillée ; ils tombent au même endroit sur le PDF.' : 'Document figé : il ne se modifie plus.'}
+            {ouvert ? 'Glissez signatures et tampon dans la zone pointillée, tirez leur coin pour les agrandir ou les réduire : ils tombent au même endroit, à la même taille, sur le PDF.' : 'Document figé : il ne se modifie plus.'}
           </p>
         </div>
       </div>

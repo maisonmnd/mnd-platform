@@ -15,6 +15,11 @@
      5. « Télécharger la copie » : la copie a deux pages, la dernière tournée,
         le texte et les deux dates y sont.
 
+   16 octobre 2026 : on tire le rond cuivre d'une pièce pour l'agrandir ; on
+   pose « Une image » (une capture), on l'agrandit, et la copie la porte à
+   cette taille. Puis un DOCUMENT du Secrétariat : on agrandit son tampon
+   dans l'aperçu, et son PDF le sort à la même taille.
+
    Le Supabase est injoignable : rien ne part, rien n'est gardé. Le document
    est un exemple. */
 import { createServer } from 'node:http';
@@ -23,7 +28,8 @@ import { spawn, execSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { PDFDocument, StandardFonts, degrees } from 'pdf-lib';
+import { deflateSync } from 'node:zlib';
+import { PDFDocument, StandardFonts } from 'pdf-lib';
 
 const racine = path.resolve(import.meta.dirname, '..');
 const capture = process.argv[2] || '';
@@ -50,6 +56,32 @@ const essai = path.join(recus, 'Contrat d essai.pdf');
   writeFileSync(essai, await d.save());
 }
 
+/* Une capture d'essai : un PNG de 120 x 80, encre bleu nuit. */
+const crcT = Array.from({ length: 256 }, (_, n) => { let c = n; for (let k = 0; k < 8; k += 1) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1; return c >>> 0; });
+const crc = (b) => { let c = 0xffffffff; for (const x of b) c = crcT[(c ^ x) & 0xff] ^ (c >>> 8); return (c ^ 0xffffffff) >>> 0; };
+const morceau = (t, d) => { const tt = Buffer.from(t, 'ascii'); const l = Buffer.alloc(4); l.writeUInt32BE(d.length); const c = Buffer.alloc(4); c.writeUInt32BE(crc(Buffer.concat([tt, d]))); return Buffer.concat([l, tt, d, c]); };
+const capture_ = path.join(recus, 'plan de situation.png');
+{
+  const L = 120, H = 80; const ihdr = Buffer.alloc(13); ihdr.writeUInt32BE(L, 0); ihdr.writeUInt32BE(H, 4); ihdr[8] = 8; ihdr[9] = 2;
+  const brut = Buffer.alloc((L * 3 + 1) * H);
+  for (let y = 0; y < H; y += 1) for (let x = 0; x < L; x += 1) brut.set((x + y) % 9 ? [235, 228, 210] : [30, 33, 80], y * (L * 3 + 1) + 1 + x * 3);
+  writeFileSync(capture_, Buffer.concat([Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]), morceau('IHDR', ihdr), morceau('IDAT', deflateSync(brut)), morceau('IEND', Buffer.alloc(0))]));
+}
+/* Où une image est peinte sur une page relue par pdf.js (repère de l'écran). */
+const fois = (m, n) => [m[0] * n[0] + m[2] * n[1], m[1] * n[0] + m[3] * n[1], m[0] * n[2] + m[2] * n[3], m[1] * n[2] + m[3] * n[3], m[0] * n[4] + m[2] * n[5] + m[4], m[1] * n[4] + m[3] * n[5] + m[5]];
+const point = (m, x, y) => ({ x: m[0] * x + m[2] * y + m[4], y: m[1] * x + m[3] * y + m[5] });
+async function imagesPeintes(pdfjs, page) {
+  const vue = page.getViewport({ scale: 1 });
+  const ops = await page.getOperatorList();
+  const pile = []; let ctm = [1, 0, 0, 1, 0, 0]; const out = [];
+  for (let k = 0; k < ops.fnArray.length; k += 1) {
+    const f = ops.fnArray[k], a = ops.argsArray[k];
+    if (f === pdfjs.OPS.save) pile.push(ctm); else if (f === pdfjs.OPS.restore) ctm = pile.pop() ?? [1, 0, 0, 1, 0, 0];
+    else if (f === pdfjs.OPS.transform) ctm = fois(ctm, a);
+    else if (f === pdfjs.OPS.paintImageXObject) { const e = fois(vue.transform, ctm); const hg = point(e, 0, 1), bd = point(e, 1, 0); out.push({ x: hg.x, y: hg.y, l: bd.x - hg.x, h: bd.y - hg.y, W: vue.width }); }
+  }
+  return out;
+}
 const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.mjs': 'text/javascript', '.css': 'text/css', '.png': 'image/png', '.jpg': 'image/jpeg', '.webp': 'image/webp', '.woff2': 'font/woff2', '.svg': 'image/svg+xml', '.json': 'application/json', '.webmanifest': 'application/manifest+json' };
 const serveur = createServer((req, res) => {
   let f = path.join(construit, decodeURIComponent(new URL(req.url, 'http://x').pathname));
@@ -78,6 +110,11 @@ try {
     const m = JSON.parse(e.data);
     if (m.id && enCours.has(m.id)) { enCours.get(m.id)(m); enCours.delete(m.id); }
     if (m.method === 'Runtime.exceptionThrown') erreurs.push(m.params.exceptionDetails.exception?.description?.split('\n')[0] ?? m.params.exceptionDetails.text);
+    /* Une erreur rattrapée par l'écran (« Cet écran ne s'est pas ouvert ») ne lève rien : React la dit en console. */
+    if (m.method === 'Runtime.consoleAPICalled' && m.params.type === 'error') {
+      const t = m.params.args.map((a) => a.value ?? a.description ?? '').join(' ').split('\n').slice(0, 3).join(' / ');
+      if (/Error|rror:|Uncaught|ecran|écran/i.test(t) && !/Failed to load resource|ERR_CONNECTION|fetch|127\.0\.0\.1:9/i.test(t)) erreurs.push(t.slice(0, 300));
+    }
   });
   const cdp = (method, params = {}) => new Promise((r) => { const n = ++id; enCours.set(n, r); ws.send(JSON.stringify({ id: n, method, params })); });
   const evalue = async (expr) => (await cdp('Runtime.evaluate', { expression: expr, returnByValue: true, awaitPromise: true })).result?.result?.value;
@@ -166,6 +203,42 @@ try {
   dit('... la date du jour repetee sur les trois pages (1 texte + 3 dates)', nb === 4, await evalue(`document.querySelectorAll('.spdf-pose').length`));
   await photo('3-pose');
 
+  /* 3 bis. Le rond cuivre : la date choisie grandit quand on tire son coin. */
+  const tireLeCoin = async (sel, dx, dy) => {
+    const c = await evalue(`(() => { const e = document.querySelector(${JSON.stringify(sel)}); if (!e) return null; e.scrollIntoView({ block: 'center' }); const r = e.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; })()`);
+    if (!c) return false;
+    await cdp('Input.dispatchMouseEvent', { type: 'mousePressed', x: c.x, y: c.y, button: 'left', clickCount: 1 });
+    let pendant = null;
+    for (let k = 1; k <= 6; k += 1) {
+      await cdp('Input.dispatchMouseEvent', { type: 'mouseMoved', x: c.x + (dx * k) / 6, y: c.y + (dy * k) / 6, button: 'left', buttons: 1 });
+      if (k === 6) pendant = await evalue(`document.querySelector('.spdf-taille, .sec-taille')?.textContent ?? null`);
+    }
+    await cdp('Input.dispatchMouseEvent', { type: 'mouseReleased', x: c.x + dx, y: c.y + dy, button: 'left', clickCount: 1 });
+    return pendant ?? true;
+  };
+  const tailleAvant = await evalue(`parseFloat(document.querySelector('.spdf-pose.est-choisie').style.fontSize)`);
+  const ditEnTirant = await tireLeCoin('.spdf-pose.est-choisie .spdf-poignee', 40, 12);
+  const tailleApres = await evalue(`parseFloat(document.querySelector('.spdf-pose.est-choisie').style.fontSize)`);
+  dit('3 bis. le rond cuivre de la piece choisie l agrandit quand on le tire', tailleApres > tailleAvant * 1.2, `${tailleAvant.toFixed(1)} px -> ${tailleApres.toFixed(1)} px`);
+  dit('... et dit sa taille en tirant (en points)', typeof ditEnTirant === 'string' && / pt$/.test(ditEnTirant), ditEnTirant);
+
+  /* 3 ter. Une image (une capture du plan de situation), posée puis agrandie. */
+  const { root: racineImg } = (await cdp('DOM.getDocument', { depth: -1, pierce: true })).result;
+  const champImg = (await cdp('DOM.querySelector', { nodeId: racineImg.nodeId, selector: 'input[type=file][accept*="image/png"]' })).result?.nodeId;
+  dit('3 ter. « Une image » a son champ (photo, capture ou PDF)', !!champImg);
+  await cdp('DOM.setFileInputFiles', { nodeId: champImg, files: [capture_] });
+  const pret = await jusqua(`!!document.querySelector('.spdf-outil.est-actif') && document.querySelector('.spdf-outil.est-actif').textContent.startsWith('Une image')`, 8000);
+  dit('... l image choisie, l outil attend qu on touche la page', !!pret);
+  p = await ou('.spdf-feuille', 0.15, 0.55);
+  await touche(p.x, p.y);
+  const image = await jusqua(`(() => { const e = document.querySelector('.spdf-pose--image img'); return e && e.complete && e.naturalWidth ? parseFloat(e.parentElement.style.width) : null; })()`, 6000);
+  dit('... un toucher la pose, a 40 % de la largeur de la page', image !== null && Math.abs(image - 40) < 0.5, image);
+  const ditImage = await tireLeCoin('.spdf-pose--image .spdf-poignee', 60, 40);
+  const largeurImage = await evalue(`parseFloat(document.querySelector('.spdf-pose--image').style.width)`);
+  dit('... on tire son coin : elle grandit', largeurImage > 45, `${largeurImage.toFixed(1)} %`);
+  dit('... et dit son pourcentage en tirant', typeof ditImage === 'string' && / %$/.test(ditImage), ditImage);
+  await photo('3-image');
+
   /* 4. Tourner la page 3, retirer la page 2. */
   await evalue(`(() => { const pieds = document.querySelectorAll('.spdf-page-pied'); [...pieds[2].querySelectorAll('button')].find((b) => b.textContent === 'Tourner').click(); [...pieds[1].querySelectorAll('button')].find((b) => b.textContent === 'Retirer cette page').click(); return true; })()`);
   const bas = await jusqua(`(() => { const t = document.querySelector('.spdf-bas')?.textContent ?? ''; return /1 page tournée/.test(t) && /1 page retirée sur 3/.test(t) ? t : null; })()`, 6000);
@@ -191,6 +264,56 @@ try {
     const annee = String(new Date().getFullYear());
     dit('... le texte pose est sur la page 1, l imprime aussi', /Votre texte/.test(textes[0]) && /CONTRAT D ESSAI, PAGE 1/.test(textes[0]), textes[0].slice(0, 90));
     dit('... la date du jour, avec l annee, sur les deux pages gardees', textes.every((t) => t.includes(annee)) && /PAGE 3/.test(textes[1]), textes.map((t) => t.slice(-30)).join(' // '));
+    const doc2 = await pdfjs.getDocument({ data: new Uint8Array(octets), verbosity: 0 }).promise;
+    const peintes = await imagesPeintes(pdfjs, await doc2.getPage(1));
+    await doc2.destroy();
+    const im0 = peintes[0];
+    dit('... l image est sur la page 1, a la largeur tiree a l ecran', peintes.length === 1 && Math.abs(im0.l / im0.W * 100 - largeurImage) < 0.6 && Math.abs(im0.x / im0.W - 0.15) < 0.01,
+      im0 ? `${(im0.l / im0.W * 100).toFixed(1)} % (ecran ${largeurImage.toFixed(1)} %)` : 'aucune');
+  }
+
+  /* 6. UN DOCUMENT DU SECRÉTARIAT : son tampon s'agrandit dans l'aperçu, et
+     le PDF le sort à la même taille (34 mm à 100 %). */
+  await evalue(`document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); true`);
+  await attend(600);
+  if (await evalue(`!!document.querySelector('.spdf')`)) await bouton('Fermer');
+  await evalue(`(() => { const b = [...document.querySelectorAll('button')].find((x) => x.textContent.trim() === 'Les documents'); if (b) b.click(); return !!b; })()`);
+  const nouveau = await jusqua(`(() => { const b = [...document.querySelectorAll('button')].find((x) => x.textContent.trim() === '+ Nouveau document'); if (b) b.click(); return !!b; })()`, 8000);
+  const modele = nouveau && await jusqua(`(() => { const b = document.querySelector('.sec-modele'); if (b) b.click(); return !!b; })()`, 8000);
+  /* Un document neuf n'a pas de tampon : on choisit le sceau dentelé, comme elle le ferait. */
+  const choisi = modele && await jusqua(`(() => {
+    const s = [...document.querySelectorAll('select')].find((x) => [...x.options].some((o) => o.value === 'mnd-6-dentele'));
+    if (!s) return false;
+    Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set.call(s, 'mnd-6-dentele');
+    s.dispatchEvent(new Event('change', { bubbles: true }));
+    return true;
+  })()`, 15000);
+  dit('6. un document neuf : on lui choisit le sceau dentele', !!choisi, modele ? undefined : 'pas de modele');
+  const tamponDoc = choisi && await jusqua(`(() => { const e = document.querySelector('.sec-zone--active [aria-label="Le tampon"]'); return e && e.querySelector('.sec-poignee') ? e.getBoundingClientRect().width : null; })()`, 15000);
+  dit('... son tampon porte le rond cuivre dans la zone', !!tamponDoc, tamponDoc ? `${tamponDoc.toFixed(0)} px` : (nouveau ? (modele ? 'pas de tampon pose' : 'pas de modele') : 'pas de bouton'));
+  if (tamponDoc) {
+    await photo('6-document');
+    const ditDoc = await tireLeCoin('.sec-zone--active [aria-label="Le tampon"] .sec-poignee', -25, -25);
+    const apres = await evalue(`(() => { const e = document.querySelector('.sec-zone--active [aria-label="Le tampon"]'); const z = document.querySelector('.sec-zone--active').getBoundingClientRect(); const r = e.getBoundingClientRect(); return { l: r.width, dedans: r.left >= z.left - 1 && r.right <= z.right + 1 && r.top >= z.top - 1 && r.bottom <= z.bottom + 1, pc: Number(e.querySelector('.sec-poignee').getAttribute('aria-valuenow')) }; })()`);
+    dit('... on le tire vers l interieur : il rapetisse et reste dans la zone', apres.l < tamponDoc * 0.9 && apres.dedans, `${tamponDoc.toFixed(0)} -> ${apres.l.toFixed(0)} px, ${apres.pc} %`);
+    dit('... et dit son pourcentage en tirant', typeof ditDoc === 'string' && / %$/.test(ditDoc), ditDoc);
+    const avantDoc = new Set(readdirSync(recus));
+    await bouton('Télécharger le PDF');
+    let pdfDoc = null;
+    for (let t = 0; t < 60 && !pdfDoc; t += 1) { await attend(250); pdfDoc = readdirSync(recus).find((f) => !avantDoc.has(f) && /\.pdf$/.test(f)); }
+    dit('... le PDF du document se telecharge', !!pdfDoc, pdfDoc);
+    if (pdfDoc) {
+      const pdfjs = await import(pathToFileURL(path.join(racine, 'node_modules/pdfjs-dist/legacy/build/pdf.mjs')).href);
+      pdfjs.GlobalWorkerOptions.workerSrc = pathToFileURL(path.join(racine, 'node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs')).href;
+      const d = await pdfjs.getDocument({ data: new Uint8Array(readFileSync(path.join(recus, pdfDoc))), verbosity: 0 }).promise;
+      const toutes = [];
+      for (let i = 1; i <= d.numPages; i += 1) toutes.push(...await imagesPeintes(pdfjs, await d.getPage(i)));
+      await d.destroy();
+      /* Le tampon : l'image la plus proche d'un carré de 34 mm x pourcentage (en points). */
+      const attendu = (34 * apres.pc) / 100 * (72 / 25.4);
+      const proche = toutes.filter((x) => Math.abs(x.l - x.h) < 2).sort((a, b) => Math.abs(a.l - attendu) - Math.abs(b.l - attendu))[0];
+      dit('... le PDF sort le tampon a la taille de l apercu (34 mm x pourcentage)', !!proche && Math.abs(proche.l - attendu) < 1.5, proche ? `${proche.l.toFixed(1)} pt, attendu ${attendu.toFixed(1)} pt` : `aucune image carree (${toutes.length} images)`);
+    }
   }
   dit('aucune erreur dans la page', erreurs.length === 0, erreurs.slice(0, 3).join(' | '));
 } catch (e) {

@@ -13,8 +13,11 @@
    ses tours), en fractions de sa largeur et de sa hauteur, depuis le coin
    haut-gauche ; `versLaPage` la ramène dans le repère du PDF. */
 
-export type GenreDePose = 'signature' | 'paraphe' | 'tampon' | 'recu' | 'texte' | 'date' | 'lu' | 'coche';
-export const GENRES_IMAGES: readonly GenreDePose[] = ['signature', 'paraphe', 'tampon', 'recu'];
+/* « Une image » (16 octobre 2026) : « sur cette page j'ai besoin de rajouter
+   une image » (Yéman, le plan de situation d'un formulaire) ; une photo, une
+   capture, ou la première page d'un PDF, posée et tirée comme un tampon. */
+export type GenreDePose = 'signature' | 'paraphe' | 'tampon' | 'recu' | 'image' | 'texte' | 'date' | 'lu' | 'coche';
+export const GENRES_IMAGES: readonly GenreDePose[] = ['signature', 'paraphe', 'tampon', 'recu', 'image'];
 export const estUneImage = (g: GenreDePose): boolean => GENRES_IMAGES.includes(g);
 
 export type PoseSurPdf = {
@@ -27,7 +30,7 @@ export type PoseSurPdf = {
   y: number;
   /** La largeur, en fraction de la page vue (images). */
   largeur: number;
-  /** La clé de l'image : 'signature', 'paraphe', 'tampon:<clé>', 'recu:<AAAA-MM-JJ>'. */
+  /** La clé de l'image : 'signature', 'paraphe', 'tampon:<clé>', 'recu:<AAAA-MM-JJ>', 'image:<id>'. */
   image?: string;
   /** Le texte écrit (texte, date, « Lu et approuvé »). */
   texte?: string;
@@ -41,7 +44,7 @@ export const retoucheVide = (): RetoucheDesPages => ({ tours: {}, retirees: [] }
 
 /** Les largeurs de départ, en fraction de la page vue. */
 export const LARGEUR_DE_DEPART: Record<GenreDePose, number> = {
-  signature: 0.26, paraphe: 0.1, tampon: 0.2, recu: 0.24, texte: 0, date: 0, lu: 0, coche: 0,
+  signature: 0.26, paraphe: 0.1, tampon: 0.2, recu: 0.24, image: 0.4, texte: 0, date: 0, lu: 0, coche: 0,
 };
 export const TAILLE_DU_TEXTE = 11;
 
@@ -105,7 +108,7 @@ export function nomDeLaCopie(nom: string, iso: string): string {
   return `${base} · signé le ${dateLongueDuJour(iso)}.pdf`;
 }
 const DIT: Record<GenreDePose, [string, string]> = {
-  signature: ['signature', 'signatures'], paraphe: ['paraphe', 'paraphes'], tampon: ['tampon', 'tampons'], recu: ['tampon « Reçu le »', 'tampons « Reçu le »'],
+  signature: ['signature', 'signatures'], paraphe: ['paraphe', 'paraphes'], tampon: ['tampon', 'tampons'], recu: ['tampon « Reçu le »', 'tampons « Reçu le »'], image: ['image', 'images'],
   texte: ['texte', 'textes'], date: ['date', 'dates'], lu: ['« Lu et approuvé »', '« Lu et approuvé »'], coche: ['coche', 'coches'],
 };
 /** Ce que la copie porte, en clair, pour le journal de la ligne. */
@@ -123,6 +126,16 @@ export function contenuDeLaCopie(poses: readonly PoseSurPdf[], retouche: Retouch
   if (retouche.retirees.length) out.push(`${retouche.retirees.length} page${retouche.retirees.length > 1 ? 's' : ''} retirée${retouche.retirees.length > 1 ? 's' : ''} sur ${nbPages}`);
   return out;
 }
+/** TIRER LE COIN D'UNE PIÈCE (16 octobre 2026) : la nouvelle largeur d'une
+    image (fraction de la page vue, jamais au-delà du bord droit), ou la
+    nouvelle taille d'un texte (6 à 40 points, au demi-point). */
+export function tailleApresLeCoin(pose: Pick<PoseSurPdf, 'genre' | 'x' | 'largeur' | 'taille'>, facteur: number): Pick<PoseSurPdf, 'largeur'> | Pick<PoseSurPdf, 'taille'> {
+  if (estUneImage(pose.genre)) return { largeur: Math.min(0.95, 1 - pose.x, Math.max(0.04, pose.largeur * facteur)) };
+  return { taille: Math.min(40, Math.max(6, Math.round((pose.taille ?? TAILLE_DU_TEXTE) * facteur * 2) / 2)) };
+}
+/** Ce que la poignée affiche en tirant : « 150 % » d'une image, « 14 pt » d'un texte. */
+export const tailleDite = (pose: Pick<PoseSurPdf, 'genre' | 'largeur' | 'taille'>): string =>
+  estUneImage(pose.genre) ? `${Math.round((pose.largeur / (LARGEUR_DE_DEPART[pose.genre] || 1)) * 100)} %` : `${pose.taille ?? TAILLE_DU_TEXTE} pt`;
 /** On ne garde pas une copie vide de pages. */
 export const resteDesPages = (retouche: RetoucheDesPages, nbPages: number): number => nbPages - new Set(retouche.retirees.filter((p) => p >= 0 && p < nbPages)).size;
 /** PNG ou JPEG, lu dans les premiers octets : le type annoncé par le stockage peut mentir. */

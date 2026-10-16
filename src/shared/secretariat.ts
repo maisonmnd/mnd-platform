@@ -382,14 +382,15 @@ export async function resous(p: Piece, toutes: readonly LigneSecretariat[], nomM
 /* ══ VERS LE PDF ═════════════════════════════════════════════════════ */
 
 import type { PieceEcritePdfData } from './pdf';
-import { dateDite, dimsDuTampon, nomsDansLaZone, paragraphes, SIGNATURE_MM, ZONE } from './secretariat-pur';
+import { dateDite, dimsDeLaPose, nomsDansLaZone, paragraphes, ZONE } from './secretariat-pur';
 
 /** Ce que le PDF reçoit : les signatures POSÉES seulement (avec leur image),
     le tampon s'il est posé, les noms sous la zone. Un brouillon le dit. */
 export function versLePdf(r: DocumentResolu): PieceEcritePdfData {
   const p = r.piece;
   const tamponPose = p.poses.find((q) => q.cle === 'tampon');
-  const dims = r.tampon ? dimsDuTampon(r.tampon.ratio) : null;
+  /* La taille choisie à la main (16 octobre 2026) : celle de l'aperçu. */
+  const dims = r.tampon && tamponPose ? dimsDeLaPose(tamponPose, r.tampon.ratio) : null;
   const nomFichier = (p.numero ?? `brouillon-${p.titre}`).normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^A-Za-z0-9-]+/g, '-');
   return {
     enTete: r.enTete,
@@ -405,7 +406,7 @@ export function versLePdf(r: DocumentResolu): PieceEcritePdfData {
     zone: {
       largeur: ZONE.largeur, hauteur: ZONE.hauteur,
       signatures: p.poses.filter((q) => q.cle.startsWith('sig:') && q.image)
-        .map((q) => ({ x: q.x, y: q.y, image: q.image as string, largeur: SIGNATURE_MM.largeur, hauteurMax: SIGNATURE_MM.hauteur })),
+        .map((q) => { const d = dimsDeLaPose(q); return { x: q.x, y: q.y, image: q.image as string, largeur: d.l, hauteurMax: d.h }; }),
       tampon: tamponPose && r.tampon && dims ? { x: tamponPose.x, y: tamponPose.y, image: r.tampon.image, l: dims.l, h: dims.h } : undefined,
       ...(() => { const n = nomsDansLaZone(p, r.noms); return { noms: n.noms, colonnes: n.colonnes, xEntite: n.xEntite }; })(),
       nomEntite: p.entite === 'perso' ? undefined : r.enTete.nom,

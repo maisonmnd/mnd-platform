@@ -25,10 +25,11 @@ import { readFileSync } from 'node:fs';
 import {
   ACIA, annulable, APPELS, borneDansLaZone, ifuPlausible, ligneDesMentions, supprimable, clotures, enTeteDe, modifiable, peutSigner, prefixeDeSerie, prochainNumero,
   nomsDansLaZone, rangeDansLeCadre, restentASigner, retireLesSignatures, sigle, signe, SIGNATURE_MM, TAMPON_MM, Y_DES_NOMS, ZONE, type Piece,
+  dimsDeLaPose, echelleBornee, facteurDuCoin, gardeLesTailles, redimensionne,
 } from '../src/shared/secretariat-pur';
 import { FAMILLES, MODELES } from '../src/shared/secretariat-modeles';
 import { cachetAutoSvg, morceauxDuCachet, morceauxDuRecu, RATIO_DU_CACHET, TAMPONS, tamponAutoSvg } from '../src/shared/secretariat-tampons';
-import { resous } from '../src/shared/secretariat';
+import { resous, versLePdf, type DocumentResolu } from '../src/shared/secretariat';
 import { entiteDuFiltre } from '../src/apps/trone/routes/pilotage/Secretariat';
 import { ditLePartage, ouvreWhatsAppAvecLePdf } from '../src/shared/partage-whatsapp';
 
@@ -123,6 +124,55 @@ dit('deux signataires : signatures cote a cote, tampon jamais sur un nom, un nom
 dit('un seul signataire : le nom sous le cadre choisi', [false, 94], (() => { const n = nomsDansLaZone({ poses: rangeDansLeCadre('droite', ['sig:A']), cadre: 'droite', signataires: [base.signataires[0]] }, [{ nom: 'Y', qualite: '' }]); return [n.colonnes, n.noms[0].x]; })());
 dit('une pose glissee au-dela revient dans la zone', [{ cle: 'tampon', x: ZONE.largeur - TAMPON_MM, y: 0 }, true],
   [borneDansLaZone({ cle: 'tampon', x: 500, y: -9 }), dedans(borneDansLaZone({ cle: 'sig:A', x: -40, y: 300 }))]);
+
+/* ── 6 bis. LA TAILLE DU TAMPON ET DE LA SIGNATURE (16 octobre 2026) ──
+   « Sur les documents à signer, je dois pouvoir réduire ou agrandir la
+   taille du tampon et de la signature » (Yéman). Attentes à la main : la
+   signature fait 42 × 16 mm, le sceau 34 mm, la zone 174 × 46 mm ; de la
+   moitié au double, jamais plus grande que la zone ; le PDF sort à la
+   taille de l'aperçu ; un document sans taille choisie sort comme avant. */
+const mm2 = (n: number) => Number(n.toFixed(2));
+dit('une signature a 150 % fait 63 x 24 mm', { l: 63, h: 24 }, (({ l, h }) => ({ l: mm2(l), h: mm2(h) }))(dimsDeLaPose({ cle: 'sig:A', echelle: 1.5 })));
+dit('jamais moins de la moitie, jamais plus du double', [0.5, 2], [echelleBornee('sig:A', 0.2), echelleBornee('sig:A', 3)]);
+dit('le sceau rond ne depasse pas la hauteur de la zone : 46 / 34 = 1,35', 1.35, echelleBornee('tampon', 2, 1));
+dit('... a 1,35 il fait 45,9 mm, il tient dans les 46', true, dimsDeLaPose({ cle: 'tampon', echelle: 2 }, 1).h <= ZONE.hauteur);
+dit('le cachet en longueur (49,3 x 24,65 mm) monte a 46 / 24,65 = 1,86', 1.86, echelleBornee('tampon', 2, RATIO_DU_CACHET));
+dit('une taille illisible vaut la taille d origine', [1, 1], [echelleBornee('sig:A', Number.NaN), echelleBornee('tampon', undefined)]);
+dit('sans taille choisie, rien ne change : 42 x 16 et 34 x 34', [{ l: 42, h: 16 }, { l: 34, h: 34 }], [dimsDeLaPose({ cle: 'sig:A' }), dimsDeLaPose({ cle: 'tampon' }, 1)]);
+dit('agrandi pres du bord, le tampon recule pour rester dans la zone (44,2 mm : x 129,8, y 1,8)', [1.3, 129.8, 1.8],
+  (({ echelle, x, y }) => [echelle, mm2(x), mm2(y)])(redimensionne({ cle: 'tampon', x: 140, y: 10 }, 1.3, 1)));
+{
+  const grandes = [{ cle: 'sig:A', x: 0, y: 2, echelle: 1.5 }, { cle: 'tampon', x: 100, y: 4, echelle: 0.8 }];
+  const neuves = gardeLesTailles(rangeDansLeCadre('gauche', ['sig:A', 'sig:B', 'tampon']), grandes, 1);
+  dit('ranger de nouveau (un cadre, un signataire de plus) garde la taille choisie', [1.5, undefined, 0.8], neuves.map((q) => q.echelle));
+  dit('... et tout reste dans la zone a sa taille', true, neuves.every((q) => { const d = dimsDeLaPose(q, 1); return q.x >= 0 && q.y >= 0 && q.x + d.l <= ZONE.largeur + 1e-9 && q.y + d.h <= ZONE.hauteur + 1e-9; }));
+}
+{
+  const resolu = (poses: Piece['poses']) => ({
+    piece: { ...base, poses, etat: 'signe', numero: 'MND-2026-001' },
+    enTete: { ...enTeteDe('mnd', { nomMaison: 'Maison MND' }) },
+    texte: { destinataire: '', objet: '', appel: '', corps: 'Texte.', cloture: '' },
+    noms: [{ nom: 'Yéman', qualite: 'Cogérante' }],
+    tampon: { image: 'IMG-T', ratio: 1 },
+  }) as unknown as DocumentResolu;
+  const choisie = versLePdf(resolu([{ cle: 'sig:A', x: 2, y: 2, image: 'IMG-A', echelle: 1.5 }, { cle: 'tampon', x: 120, y: 4, echelle: 1.2 }])).zone;
+  dit('le PDF sort a la taille choisie : signature 63 x 24, tampon 40,8 mm', [63, 24, 40.8, 40.8],
+    [mm2(choisie.signatures[0].largeur), mm2(choisie.signatures[0].hauteurMax), mm2(choisie.tampon!.l), mm2(choisie.tampon!.h)]);
+  const avant = versLePdf(resolu([{ cle: 'sig:A', x: 2, y: 2, image: 'IMG-A' }, { cle: 'tampon', x: 120, y: 4 }])).zone;
+  dit('un document signe avant ce jour sort exactement comme avant', [42, 16, 34, 34],
+    [avant.signatures[0].largeur, avant.signatures[0].hauteurMax, avant.tampon!.l, avant.tampon!.h]);
+}
+dit('tirer le coin de la moitie de la piece en diagonale = 150 % ; du quart vers l interieur = 75 %', [1.5, 0.75, 1],
+  [mm2(facteurDuCoin(21, 8, 42, 16)), mm2(facteurDuCoin(-10.5, -4, 42, 16)), facteurDuCoin(0, 0, 42, 16)]);
+{
+  const apercu = sansCommentaires('src/apps/trone/routes/pilotage/secretariat/Apercu.tsx');
+  const editeurT = sansCommentaires('src/apps/trone/routes/pilotage/secretariat/Editeur.tsx');
+  dit('l apercu : un rond au coin de chaque piece, seulement quand le document est encore modifiable', true,
+    /const poignee = \(q: Pose\) => glissable && \(\s*<span className="sec-poignee"/.test(apercu) && (apercu.match(/\{poignee\((tamponPose|q)\)\}/g) ?? []).length === 2);
+  dit('... qui agrandit ou reduit par la regle commune, et l apercu prend ses tailles a la meme source que le PDF', true,
+    /redimensionne\(q, g\.e0 \* facteurDuCoin\(/.test(apercu) && /dimsDeLaPose\(tamponPose, ratio\)/.test(apercu) && /const d = dimsDeLaPose\(q\);/.test(apercu) && !/SIGNATURE_MM|dimsDuTampon/.test(apercu));
+  dit('... ranger de nouveau la zone garde les tailles', true, /gardeLesTailles\(rangeDansLeCadre\(cadre, cles\), p\.poses, ratioDuTampon\(tampon\)\)/.test(editeurT));
+}
 
 /* ── 7. LES MODÈLES ───────────────────────────────────────────────── */
 const clesModeles = MODELES.map((m) => m.cle);

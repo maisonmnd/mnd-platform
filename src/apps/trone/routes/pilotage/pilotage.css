@@ -977,6 +977,21 @@
 .sec-zone--active { outline-color: #C9B79F; background: repeating-linear-gradient(135deg, transparent 0 9px, rgba(185, 122, 74, .04) 9px 10px); }
 .sec-pose { position: absolute; touch-action: none; user-select: none; }
 .sec-zone--active .sec-pose:hover { outline: 1px solid #B97A4A; }
+/* LA POIGNÉE DE TAILLE (16 octobre 2026) : un rond cuivre posé JUSTE HORS du
+   coin de la pièce ; on le tire pour agrandir ou réduire. Sa zone de toucher
+   (32 px) déborde vers l'extérieur et ne mord sur la pièce que de 3 px : un
+   petit texte se glisse encore au doigt sans être agrandi par mégarde (vu au
+   banc dans un vrai Chrome). */
+.sec-poignee, .spdf-poignee {
+  position: absolute; right: -19px; bottom: -19px; width: 16px; height: 16px; box-sizing: border-box;
+  border-radius: 50%; background: #B97A4A; border: 2px solid #FFFFFF; box-shadow: 0 1px 3px rgba(20, 20, 27, .35);
+  cursor: nwse-resize; touch-action: none; z-index: 2;
+}
+.sec-poignee::before, .spdf-poignee::before { content: ''; position: absolute; inset: -6px -10px -10px -6px; border-radius: 50%; }
+.sec-taille, .spdf-taille {
+  position: absolute; left: 0; top: -22px; padding: 1px 6px; border-radius: 4px; white-space: nowrap; pointer-events: none;
+  background: #1E2150; color: #F5EFE6; font: 600 11px/1.5 Jost, Arial, sans-serif; z-index: 3;
+}
 .sec-attendue {
   display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; box-sizing: border-box;
   border: 1px dashed #B97A4A; color: #8A5A33; background: rgba(185, 122, 74, .06); text-align: center; font-family: Arial, Helvetica, sans-serif;
@@ -1164,6 +1179,7 @@
 .spdf-feuille[data-retiree] canvas { opacity: .25; }
 .spdf-pose { position: absolute; cursor: grab; user-select: none; touch-action: none; }
 .spdf-pose--texte { font-family: Helvetica, Arial, sans-serif; color: #1E2150; white-space: nowrap; line-height: 1; }
+.spdf-pose--image img { display: block; width: 100%; height: auto; pointer-events: none; }
 .spdf-pose.est-choisie { outline: 2px solid var(--color-copper); outline-offset: 2px; }
 .spdf-retiree { position: absolute; inset: 0; display: grid; place-items: center; font-size: 15px; color: #8E2F2F; }
 .spdf-page-pied { display: flex; gap: 14px; align-items: baseline; flex-wrap: wrap; }

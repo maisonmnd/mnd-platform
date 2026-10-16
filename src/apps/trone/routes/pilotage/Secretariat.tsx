@@ -133,15 +133,19 @@ export default function Secretariat() {
     { v: 'perso', l: 'Personnelles', si: direction }, { v: 'brouillons', l: 'Brouillons' }, { v: 'signes', l: 'Signés' },
   ];
 
+  /* SIGNER UN PDF DE L'ORDINATEUR (15 octobre 2026) : reçu par e-mail, on le
+     signe ici, puis la copie se range sur la ligne qui convient. Ses crochets
+     viennent AVANT l'ouverture d'un document (16 octobre : placés après le
+     « return <Editeur> », ils faisaient tomber l'écran à chaque document
+     ouvert, erreur React n° 300). */
+  const [pdfASigner, setPdfASigner] = useState<OuvertureDuPdf | null>(null);
+  const champPdf = useRef<HTMLInputElement>(null);
+
   if (ouvert) {
     return <Editeur pieceId={ouvert} direction={direction} onClose={() => setOuvert(null)} surOuvre={setOuvert} />;
   }
 
   const aSaSignature = signatairesDe(lignes).some((s) => s.userId === moi && s.aSaSignature);
-  /* SIGNER UN PDF DE L'ORDINATEUR (15 octobre 2026) : reçu par e-mail, on le
-     signe ici, puis la copie se range sur la ligne qui convient. */
-  const [pdfASigner, setPdfASigner] = useState<OuvertureDuPdf | null>(null);
-  const champPdf = useRef<HTMLInputElement>(null);
   const ouvreUnPdf = async (f: File | undefined) => {
     if (!f) return;
     if (f.type !== 'application/pdf' && !/\.pdf$/i.test(f.name)) { toast('Choisissez un PDF.'); return; }
