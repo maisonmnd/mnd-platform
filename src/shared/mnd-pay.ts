@@ -1,9 +1,9 @@
-import { useEffect, useSyncExternalStore } from 'react';
+import { useEffect, useState, useSyncExternalStore } from 'react';
 import { supabase } from './supabase';
 import { motifDuRefus } from './whatsapp';
 import { cashboxesStore } from './finance';
 import {
-  CAISSE_MND_PAY, CAISSE_ZELLE, compteDeLaDemande, modeFedaPay,
+  CAISSE_MND_PAY, CAISSE_ZELLE, compteDeLaDemande, modeFedaPay, saitTapGo,
   type DemandeMndPay, type MoyenMndPay, type ReglagesMndPay,
 } from './mnd-pay-pur';
 
@@ -164,6 +164,32 @@ export function assureLesCaissesMndPay(branchId: string, r: ReglagesMndPay | und
     a.push({ id: `cb-zelle-${branchId}`, branchId, name: CAISSE_ZELLE, sub: 'Compte aux États-Unis', glyph: '$', openingXof: 0, currency: 'USD' });
   }
   if (a.length) cashboxesStore.set((prev) => [...prev, ...a]);
+}
+
+/** LA VERSION DE `mnd-pay`, lue une fois par ouverture du Trône (un échec
+    ne se garde pas : on redemandera). */
+let versionLue: Promise<string> | null = null;
+export function versionDeMndPay(): Promise<string> {
+  const sb = supabase;
+  if (!sb) return Promise.resolve('');
+  if (!versionLue) {
+    versionLue = sb.functions.invoke('mnd-pay', { method: 'GET' })
+      .then(({ data, error }) => (error ? '' : String((data as { version?: string } | null)?.version ?? '')))
+      .catch(() => '')
+      .then((v) => { if (!v) versionLue = null; return v; });
+  }
+  return versionLue;
+}
+/** Tap & Go s'offre-t-il au comptoir ? Seulement quand le serveur le sait. */
+export function useSaitTapGo(actif: boolean): boolean {
+  const [version, setVersion] = useState('');
+  useEffect(() => {
+    if (!actif) return;
+    let vivant = true;
+    void versionDeMndPay().then((v) => { if (vivant) setVersion(v); });
+    return () => { vivant = false; };
+  }, [actif]);
+  return saitTapGo(version);
 }
 
 /** Relit, toutes les quelques secondes, une demande qu'on attend au

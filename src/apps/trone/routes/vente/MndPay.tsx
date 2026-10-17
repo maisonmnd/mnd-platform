@@ -5,7 +5,7 @@ import {
   codeUssdTapGo, compteDeLaDemande, ditLeStatut, estAuTelephone, moyenDeLaPiece, numeroMasque, numeroPourFedaPay,
   tapGoOuvert, type DemandeMndPay, type MoyenMndPay, type ReglagesMndPay,
 } from '../../../../shared/mnd-pay-pur';
-import { annuleLaDemande, demandeLePaiement, relisLaDemande, useDemandesMndPay, useRelecture } from '../../../../shared/mnd-pay';
+import { annuleLaDemande, demandeLePaiement, relisLaDemande, useDemandesMndPay, useRelecture, useSaitTapGo } from '../../../../shared/mnd-pay';
 
 /* ══ LE PANNEAU MND PAY — 16 octobre 2026 ═══════════════════════════════
    Maquette UigU1Rr5… : la caissière choisit le moyen, demande, et attend
@@ -80,7 +80,9 @@ export function PanneauMndPay(p: {
   style?: CSSProperties;
 }) {
   const demandes = useDemandesMndPay(p.branchId, true);
-  const moyens = MOYENS.filter((x) => x.id !== 'tapgo' || tapGoOuvert(p.reglages));
+  /* La tuile attend un serveur qui sait Tap & Go (recollé le jour venu). */
+  const tapGoPret = useSaitTapGo(tapGoOuvert(p.reglages));
+  const moyens = MOYENS.filter((x) => x.id !== 'tapgo' || (tapGoOuvert(p.reglages) && tapGoPret));
   const [moyen, setMoyen] = useState<MoyenMndPay>('mtn');
   const [tel, setTel] = useState(p.telephone ?? '');
   const [demandeId, setDemandeId] = useState<string | null>(null);

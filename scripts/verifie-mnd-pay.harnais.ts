@@ -21,7 +21,7 @@ import path from 'node:path';
 import { createHmac } from 'node:crypto';
 import { transformSync } from 'esbuild';
 import {
-  aRattacher, codeUssdTapGo, compteDeLaDemande, fraisPour, instantDe, moyenDeLaPiece, numeroMasque, numeroPourFedaPay,
+  aRattacher, codeUssdTapGo, compteDeLaDemande, saitTapGo, fraisPour, instantDe, moyenDeLaPiece, numeroMasque, numeroPourFedaPay,
   piecesReglees, rapprocheTapGo, resteDuTicket, statutDepuisFedaPay, tapGoOuvert, tauxDe, versementDeLaDemande, versementsDesParts,
   CAISSE_MND_PAY, DELAI_DU_TICKET_MS, type DemandeMndPay,
 } from '../src/shared/mnd-pay-pur';
@@ -194,6 +194,10 @@ dit('Ma Couronne : le bouton « Régler » dépend du serveur prêt, pas seuleme
 /* ── 7. TAP & GO ─────────────────────────────────────────────────────── */
 dit('le code à composer porte le code de la Maison et le montant', ['*601*14*51166*25400#', '*601*14*12345*1000#'],
   [codeUssdTapGo(25_400, undefined), codeUssdTapGo(1_000.4, { tapgo: { code: '12 345' } })]);
+dit('la tuile attend un mnd-pay qui sait Tap & Go (version comparée)', [false, false, true, true],
+  ['', '2026-10-16-a', '2026-10-17-a', '2026-11-02-a'].map(saitTapGo));
+dit('le panneau ne montre la tuile qu à un serveur prêt', true,
+  /const moyens = MOYENS\.filter\(\(x\) => x\.id !== 'tapgo' \|\| \(tapGoOuvert\(p\.reglages\) && tapGoPret\)\);/.test(lis('src/apps/trone/routes/vente/MndPay.tsx')));
 dit('Tap & Go s offre avec MND PAY, sauf éteint', [true, true, false], [tapGoOuvert(undefined), tapGoOuvert({ tapgo: {} }), tapGoOuvert({ tapgo: { actif: false } })]);
 dit('sa commission : 1,6 % par défaut, au franc supérieur, réglable', [1.6, 400, 2, 500], [tauxDe('tapgo', undefined), fraisPour(25_000, 'tapgo', undefined),
   tauxDe('tapgo', { tapgo: { tauxPct: 2 } }), fraisPour(25_000, 'tapgo', { tapgo: { tauxPct: 2 } })]);

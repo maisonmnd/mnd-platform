@@ -117,6 +117,10 @@ export const DELAI_TAPGO_MS = 30 * 60_000;
 /** Les horloges du téléphone et de FedaPay ne sont pas d'accord à la seconde. */
 export const AVANCE_TAPGO_MS = 2 * 60_000;
 
+/** LE SERVEUR SAIT-IL TAP & GO ? La tuile n'apparaît qu'une fois `mnd-pay`
+    recollé (version 2026-10-17-a ou après) : avant, la demande serait refusée
+    (« moyen inconnu »). Les versions se comparent comme des dates. */
+export const saitTapGo = (version: string | undefined): boolean => !!version && version >= '2026-10-17-a';
 /** Le code marchand posé, ou celui de la page Tap & Go de la Maison. */
 export const codeTapGo = (r: ReglagesMndPay | undefined): string => {
   const c = String(r?.tapgo?.code ?? '').replace(/\D/g, '');
