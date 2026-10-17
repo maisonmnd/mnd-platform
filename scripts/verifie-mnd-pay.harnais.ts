@@ -29,6 +29,7 @@ import {
 import type { Invoice } from '../src/shared/finance';
 import { saitLEcheanceSuivante } from '../src/shared/kkiapay';
 import { envoieLeNumeroTapGo } from '../src/shared/tapgo-whatsapp';
+import { envoieLaFactureARegler, variablesDeLaFacture, MODELE_FACTURE } from '../src/shared/facture-whatsapp';
 import type { EnvoiWhatsApp, ResultatDEnvoi } from '../src/shared/whatsapp';
 
 let ko = 0;
@@ -429,12 +430,20 @@ dit('l envoi transporte le paramètre du bouton jusqu à la fonction', true, /\.
   dit('... et une pièce sans rendez-vous ne touche aucun rendez-vous', 0, rendezVousRegles([rdv], [{ id: 'inv-r' }], [dLien], ['mp-lien']).length);
 
   dit('l attente d une facture attend un serveur 17-b', [false, false, true], ['', '2026-10-17-a', '2026-10-17-b'].map(saitLesFactures));
+  /* Le chemin partagé des envois (17 octobre 2026, vente/envoi-de-la-piece). */
+  const env = lis('src/apps/trone/routes/vente/envoi-de-la-piece.ts');
   const act = lis('src/apps/trone/routes/clients/actions.tsx');
-  dit('... et l encaissement le demande avant de la poser', true, /&& saitLesFactures\(await versionDeMndPay\(\)\)\) \{/.test(act));
-  const iAtt = act.indexOf("genre: 'lien', moyen: 'tapgo'");
-  const iEnv = act.indexOf('const r = await envoieLeRecu({');
-  dit('l encaissement envoie la facture : l argent d aujourd hui seulement, l attente posée avant le PDF', [true, true, true],
-    [/if \(idPieceEncaissee && settleTotal \+ totalGamme > 0 && payDate === todayISO\(\)\) \{\s*void envoieLaFacture\(/.test(act), iAtt > 0 && iAtt < iEnv, /pdf: buildPdfData\(piece\)/.test(act)]);
+  dit('... et le chemin des envois le demande avant de la poser', true, /&& saitLesFactures\(await versionDeMndPay\(\)\)\) \{/.test(env));
+  const iAtt = env.indexOf("genre: 'lien', moyen: 'tapgo'");
+  const iPrep = env.indexOf('const p = await preparer(pieceId);');
+  dit('les envois : l argent ou le rituel d aujourd hui seulement (jour local), l attente posée avant le PDF', [true, true, true, true],
+    [/if \(jourDuPaiement !== aujourdhui\(\) \|\| !\(montantXof > 0\)\) return;/.test(env), /if \(jourDuRituel !== aujourdhui\(\)\) return;/.test(env),
+      /const aujourdhui = \(\) => jourLocal\(new Date\(\)\.toISOString\(\)\);/.test(env), iAtt > 0 && iPrep > iAtt]);
+  dit('l encaissement passe par ce chemin, avec le jour du paiement', true,
+    /envoiDeLaPiece\.apresReglement\(pieceId, montantXof, payDate\)/.test(act) && /void envoieLaFacture\(idPieceEncaissee, settleTotal \+ totalGamme\)/.test(act));
+  dit('honorer sans encaisser envoie la facture à régler, partout (rituel, Carnet, tableau de bord)', [true, true, true],
+    ['src/apps/trone/routes/clients/actions.tsx', 'src/apps/trone/routes/clients/Carnet.tsx', 'src/apps/trone/routes/pilotage/Dashboard.tsx']
+      .map((f) => /if \(h\.facture && !h\.deja\) void envoiDeLaPiece\.aRegler\(h\.facture\.id, (appt|a)\.date\);/.test(lis(f))));
   const fac = lis('src/apps/trone/routes/vente/Factures.tsx');
   const mod = lis('src/apps/trone/routes/vente/pdf-de-la-piece.ts');
   dit('une seule fabrique de la facture en PDF, Tap & Go au pied', [true, false, true],
@@ -455,6 +464,21 @@ dit('l envoi transporte le paramètre du bouton jusqu à la fonction', true, /\.
     motif({ message: 'La création de la transaction a échoué', errors: { amount: ['Le montant ne doit pas dépasser 10000'] } }),
     motif({ message: 'Refusé', errors: ['a', 'b'] }), motif({ error: 'Erreur', errors: 'détail' }), motif({ message: 'Seule phrase' }), motif(null),
   ]);
+}
+/* ── 11. LA FACTURE À RÉGLER, MODÈLE facture_du_rituel (17 octobre 2026) ── */
+{
+  const cliente = { id: 'cl-1', name: 'Awa Dossou', civilite: 'madame' as const, phone: '0197000012', branchId: 'cot' };
+  dit('les cinq variables du modèle : son appel, le jour AVEC l année, le numéro, le montant, l état', ['facture_du_rituel', ['Madame Awa', '17 octobre 2026', 'F-2026-0737', '10 000 F', 'à régler']],
+    [MODELE_FACTURE, variablesDeLaFacture(cliente, '2026-10-17', 'F-2026-0737', '10 000 F', 'à régler')]);
+  const pdf = { kind: 'facture', number: 'F-2026-0737', houseName: 'Maison MND', date: '17 octobre 2026', clientName: 'Awa Dossou', lines: [], subtotal: '10 000 F', total: '10 000 F' } as never;
+  const appels: EnvoiWhatsApp[] = [];
+  const reponses: ResultatDEnvoi[] = [{ ok: false, erreur: 'La fenêtre de 24 heures est fermée : seul un modèle approuvé passe.' }, { ok: true, id: 'm' }];
+  const r = await envoieLaFactureARegler({ client: cliente, pdf, numero: 'F-2026-0737', montant: '10 000 F', jourIso: '2026-10-17',
+    envoie: async (e) => { appels.push(e); return reponses.shift() ?? { ok: true, id: 'x' }; } });
+  dit('dans la fenêtre d abord (le PDF et un mot), puis le modèle avec le PDF en en-tête', [true, 2, true, 'facture_du_rituel', 'document', true],
+    [r.ok, appels.length, !!appels[0].piece && (appels[0].texte ?? '').includes('F-2026-0737'), appels[1].modele, appels[1].enTete, !!appels[1].piece]);
+  const sans = await envoieLaFactureARegler({ client: { ...cliente, phone: '' }, pdf, numero: 'F', montant: '1 F', jourIso: '2026-10-17', envoie: async () => ({ ok: true, id: 'x' }) });
+  dit('sans numéro : rien ne part, et l écran le dit', false, sans.ok);
 }
 console.log(ko === 0 ? '\nMND PAY tient ses regles.' : `\n${ko} controle(s) en echec.`);
 process.exitCode = ko === 0 ? 0 : 1;

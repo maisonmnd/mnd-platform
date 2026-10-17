@@ -46,6 +46,7 @@ import { useDemandes, demandesTriees, ditLeBesoin, ditLeGenre, depuisQuand, tele
 import { appelDe } from '../../../../shared/civilite';
 import { useSignalements } from '../../../../shared/entre-deux';
 import { enRetard, fileRangee, niveauDe } from '../../../../shared/entre-deux-pur';
+import { useEnvoiDeLaPiece } from '../vente/envoi-de-la-piece';
 import {
   useEngagements, useDevisRecus, useVersementsEngagement, litLesDossiers, bilanDesEngagements, restesDits,
 } from '../../../../shared/engagements';
@@ -72,6 +73,8 @@ const payISO = (d: string): string => {
 export default function Dashboard() {
   const navigate = useNavigate();
   const { branch, currency } = useBranch();
+  /* La facture à régler part seule chez elle (17 octobre 2026). */
+  const envoiDeLaPiece = useEnvoiDeLaPiece();
   /* LES DEMANDES DU SITE SUR LE TABLEAU DE BORD — 28 septembre 2026 :
      « demande de RDV doit venir sur le tableau de bord » (Yéman). Les
      demandes NOUVELLES de la branche, rendez-vous et rappels, les plus
@@ -715,10 +718,12 @@ export default function Dashboard() {
       appointmentsStore.set((prev) => prev.map((x) => (x.id === a.id ? { ...x, status: 'confirmé' } : x)));
     } else {
       /* Honorer sans encaisser émet la facture (4 octobre 2026). */
-      honoreSansEncaisser(a, byId, tarifsDuRituel(a, {
+      const h = honoreSansEncaisser(a, byId, tarifsDuRituel(a, {
         client: clients.find((c) => c.id === a.clientId),
         bands, sets, cats: categories, byId, tousServices: [...byId.values()], produits: produitsTarif,
       }));
+      /* La facture à régler part seule chez elle (17 octobre 2026). */
+      if (h.facture && !h.deja) void envoiDeLaPiece.aRegler(h.facture.id, a.date);
     }
   };
 

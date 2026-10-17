@@ -26,6 +26,7 @@ import {
 } from './_shared';
 import { cancelAppointmentPayment, deshonoreLeRituel, factureAEnvoyer, honoreSansEncaisser, PayAppointmentModal } from './actions';
 import { SerieModal } from './SerieModal';
+import { useEnvoiDeLaPiece } from '../vente/envoi-de-la-piece';
 import { rituelDeLaRepriseEffacee } from '../../../../shared/reprise-nue';
 
 /* Le Carnet — le registre des rendez-vous : multi-services, duplication, statuts. */
@@ -136,6 +137,8 @@ export default function Carnet() {
   const [modal, setModal] = useState<{ initial?: RdvInitial; title?: string; appt?: Appointment } | null>(null);
   const [payAppt, setPayAppt] = useState<Appointment | null>(null); // encaissement (partiel / total / pourboire)
   const [menuFor, setMenuFor] = useState<string | null>(null);
+  /* La facture à régler part seule chez elle (17 octobre 2026). */
+  const envoiDeLaPiece = useEnvoiDeLaPiece();
   /* LA SAISIE EN SÉRIE vit ici, à côté de « + RDV passé » — arbitrage du
      5 septembre : c'est là qu'on va quand on pense à l'historique. */
   const [serieOuverte, setSerieOuverte] = useState(false);
@@ -627,10 +630,12 @@ export default function Carnet() {
                   <button
                     onClick={() => {
                       /* Honorer sans encaisser émet la facture (4 octobre 2026). */
-                      honoreSansEncaisser(a, byId, tarifsDuRituel(a, {
+                      const h = honoreSansEncaisser(a, byId, tarifsDuRituel(a, {
                         client: clients.find((c) => c.id === a.clientId),
                         bands, sets, cats: categories, byId, tousServices: services, produits,
                       }));
+                      /* La facture à régler part seule chez elle (17 octobre 2026). */
+                      if (h.facture && !h.deja) void envoiDeLaPiece.aRegler(h.facture.id, a.date);
                       setMenuFor(null);
                     }}
                   >
