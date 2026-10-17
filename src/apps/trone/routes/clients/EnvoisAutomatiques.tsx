@@ -44,7 +44,7 @@ const JOURS: [FiltreDuJournal['jour'], string][] = [
 const TYPES: [FiltreDuJournal['type'], string][] = [
   ['tout', 'Tous les messages'], ['confirmation', 'Confirmations'], ['rappel-j1', 'Rappels de la veille'],
   ['reprise-j3', 'Reprises proposées'], ['accuse', 'Accusés de demande'], ['avis-google', 'Avis Google'],
-  ['fin-de-paquet', 'Fins de paquet'],
+  ['fin-de-paquet', 'Fins de paquet'], ['point-apres', 'Points d’après séance'], ['point-avant', 'Points d’avant séance'],
 ];
 const PERIODE_DITE: Record<FiltreDuJournal['jour'], string> = {
   aujourdhui: 'aujourd’hui', hier: 'hier', semaine: 'ces 7 derniers jours',

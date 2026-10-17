@@ -34,7 +34,7 @@ const TZ = 'Africa/Porto-Novo'; // le fuseau du salon — pas celui du serveur
     vraiment évite de chercher une panne dans un fichier qui n'est pas celui
     qu'on croit déployé. 10 octobre 2026 : le passage du soir ne dépose plus
     un rappel que les heures calmes retiendraient jusqu'au jour même. */
-const VERSION = '2026-10-13-a · le prenom seul quand la civilite est inconnue';
+const VERSION = '2026-10-17-a · les points d etape entre deux seances';
 
 type Rdv = {
   id: string;
@@ -339,6 +339,222 @@ async function proposeLesReprises(sb: ReturnType<typeof createClient>, salleOuve
   return { reprises: parties, jour, candidates: aProposer.length };
 }
 
+/* ══ LES POINTS D'ÉTAPE, SUR WHATSAPP — 17 octobre 2026 ══════════════════
+   « Entre deux séances », lot 2. Une semaine après une séance honorée,
+   `point_apres_seance` (« comment vont vos locks ? », Tout va bien · J'ai un
+   souci) ; une semaine avant la suivante, `point_avant_seance` (« un soin,
+   une coloration, une coiffure pour une occasion, ou autre chose ? »). Pour
+   les seules clientes sans Ma Couronne : l'app pose déjà la question aux
+   autres. Le webhook lit les réponses (POINT_BIEN, POINT_SOUCI, POINT_LISTE,
+   POINT_AVANT).
+
+   LE JUGE EST RECOPIÉ de `pointsDEtape` et `recoitLePointSurWhatsApp`
+   (src/shared/entre-deux-pur.ts) ; scripts/verifie-points-d-etape confronte
+   les copies aux originaux.
+
+   RIEN NE PART SANS SON MODÈLE : WA_TEMPLATE_POINT_APRES et
+   WA_TEMPLATE_POINT_AVANT nomment les modèles approuvés. Chacun se pose seul.
+
+   LA DATE QUI JUGE EST CELLE DE LA SÉANCE, jamais une écriture : aujourd'hui
+   moins sept jours, aujourd'hui plus sept jours, au fuseau du salon. Et une
+   borne par passage : quarante messages au plus. */
+type SeancePoint = { id: string; date: string; status: string; clientId?: string; time?: string; branchId?: string; clientName?: string; master?: string };
+type FichePoint = Fiche & { authUserId?: string | null; archived?: boolean; familyId?: string };
+
+const BORNE_DES_POINTS = 40;
+
+// ── DEBUT pointsDEtape (copie de src/shared/entre-deux-pur.ts, éprouvée par scripts/verifie-points-d-etape)
+const JOURS_APRES = 7;
+const JOURS_AVANT = 7;
+const jourPlus = (iso: string, j: number): string => {
+  const d = new Date(`${iso}T12:00:00Z`); d.setUTCDate(d.getUTCDate() + j); return d.toISOString().slice(0, 10);
+};
+const ecartJours = (a: string, b: string): number => Math.round((Date.parse(`${b}T12:00:00Z`) - Date.parse(`${a}T12:00:00Z`)) / 86_400_000);
+function pointsDEtape(seances: readonly SeancePoint[], aujourdhui: string): { cle: string; type: 'apres' | 'avant'; date: string; apptId: string; seance: string }[] {
+  const derniere = seances.filter((s) => s.status === 'honoré' && s.date <= aujourdhui).sort((a, b) => b.date.localeCompare(a.date))[0];
+  const prochaine = seances.filter((s) => (s.status === 'confirmé' || s.status === 'en attente') && s.date > aujourdhui).sort((a, b) => a.date.localeCompare(b.date))[0];
+  const out: { cle: string; type: 'apres' | 'avant'; date: string; apptId: string; seance: string }[] = [];
+  if (derniere) out.push({ cle: `pe-${derniere.id}-apres`, type: 'apres', date: jourPlus(derniere.date, JOURS_APRES), apptId: derniere.id, seance: derniere.date });
+  if (prochaine && (!derniere || ecartJours(derniere.date, prochaine.date) >= JOURS_APRES + JOURS_AVANT)) {
+    out.push({ cle: `pe-${prochaine.id}-avant`, type: 'avant', date: jourPlus(prochaine.date, -JOURS_AVANT), apptId: prochaine.id, seance: prochaine.date });
+  }
+  return out;
+}
+function recoitLePointSurWhatsApp(c: { id: string; authUserId?: string | null; archived?: boolean; phone?: string; familyId?: string }, familles: readonly { id: string; payerClientId?: string }[]): boolean {
+  if (c.authUserId || c.archived || !String(c.phone ?? '').replace(/\D/g, '')) return false;
+  const fam = c.familyId ? familles.find((f) => f.id === c.familyId) : undefined;
+  return !fam?.payerClientId || fam.payerClientId === c.id;
+}
+// ── FIN pointsDEtape
+
+async function poseLesPointsDEtape(sb: ReturnType<typeof createClient>, salleOuverte: boolean, regles: ReglesDeLaSalle): Promise<Record<string, unknown>> {
+  const APRES = (Deno.env.get('WA_TEMPLATE_POINT_APRES') ?? '').trim();
+  const AVANT = (Deno.env.get('WA_TEMPLATE_POINT_AVANT') ?? '').trim();
+  const WA_TOKEN = Deno.env.get('WA_TOKEN');
+  const WA_PHONE_ID = Deno.env.get('WA_PHONE_ID');
+  if ((!APRES && !AVANT) || !WA_TOKEN || !WA_PHONE_ID) return { points: 'sans-modele' };
+
+  const aujourdhui = new Date().toLocaleDateString('en-CA', { timeZone: TZ });
+  /* Les séances qui ouvrent un point AUJOURD'HUI : honorées il y a sept jours,
+     à venir dans sept jours. Le juge recopié tranche ensuite, tête par tête. */
+  const candidates: SeancePoint[] = [];
+  if (APRES) {
+    const { data, error } = await sb.from('appointments').select('id, data')
+      .eq('data->>date', jourPlus(aujourdhui, -JOURS_APRES)).eq('data->>status', 'honoré');
+    if (error) return { points: 'lecture-refusee', motif: error.message.slice(0, 120) };
+    candidates.push(...(data ?? []).map((r) => r.data as SeancePoint));
+  }
+  if (AVANT) {
+    const { data, error } = await sb.from('appointments').select('id, data')
+      .eq('data->>date', jourPlus(aujourdhui, JOURS_AVANT)).in('data->>status', ['confirmé', 'en attente']);
+    if (error) return { points: 'lecture-refusee', motif: error.message.slice(0, 120) };
+    candidates.push(...(data ?? []).map((r) => r.data as SeancePoint));
+  }
+  const ids = [...new Set(candidates.map((a) => a.clientId).filter((x): x is string => !!x))];
+  if (ids.length === 0) return { points: 0, jour: aujourdhui };
+
+  /* TOUTES leurs séances, par pages (une lecture plafonne à mille lignes) :
+     « la dernière » et « la prochaine » se jugent sur l'histoire entière. */
+  const seances: SeancePoint[] = [];
+  for (let de = 0; ; de += 1000) {
+    const { data, error } = await sb.from('appointments').select('id, data').in('data->>clientId', ids).range(de, de + 999);
+    if (error) return { points: 'lecture-refusee', motif: error.message.slice(0, 120) };
+    seances.push(...(data ?? []).map((r) => r.data as SeancePoint));
+    if ((data ?? []).length < 1000) break;
+  }
+  const { data: cliRows } = await sb.from('clients').select('id, data').in('id', ids);
+  const fiches = new Map<string, FichePoint>((cliRows ?? []).map((r) => [r.id as string, { id: r.id, ...(r.data as object) } as FichePoint]));
+  const famIds = [...new Set([...fiches.values()].map((f) => f.familyId).filter((x): x is string => !!x))];
+  const { data: famRows } = famIds.length ? await sb.from('families').select('id, data').in('id', famIds) : { data: [] as { id: string; data: { payerClientId?: string } }[] };
+  const familles = ((famRows ?? []) as { id: string; data: { payerClientId?: string } }[]).map((r) => ({ id: r.id, payerClientId: r.data?.payerClientId }));
+
+  type APoser = { type: 'apres' | 'avant'; seance: SeancePoint; fiche: FichePoint };
+  const aPoser: APoser[] = [];
+  for (const id of ids) {
+    const fiche = fiches.get(id);
+    if (!fiche || !recoitLePointSurWhatsApp(fiche, familles)) continue;
+    for (const p of pointsDEtape(seances.filter((s) => s.clientId === id), aujourdhui)) {
+      if (p.date !== aujourdhui) continue;
+      if ((p.type === 'apres' && !APRES) || (p.type === 'avant' && !AVANT)) continue;
+      const seance = seances.find((s) => s.id === p.apptId);
+      if (seance) aPoser.push({ type: p.type, seance, fiche });
+    }
+  }
+  if (aPoser.length === 0) return { points: 0, jour: aujourdhui, candidates: candidates.length };
+
+  /* L'idempotence, comme les reprises : seul un échec se retente. */
+  const idDe = (p: APoser) => `pe-${p.seance.id}-${p.type}-whatsapp`;
+  const { data: dejaRows } = await sb.from('envois').select('id, data').in('id', aPoser.map(idDe));
+  const deja = new Set(
+    (dejaRows ?? [])
+      .filter((r) => !SE_RETENTE.has((r.data as { statut?: string } | null)?.statut ?? ''))
+      .map((r) => r.id as string),
+  );
+
+  let parties = 0;
+  let bornee = false;
+  for (const p of aPoser) {
+    const idEnvoi = idDe(p);
+    if (deja.has(idEnvoi)) continue;
+    if (parties >= BORNE_DES_POINTS) { bornee = true; break; }
+    const a = p.seance;
+    const fiche = p.fiche;
+    const tel = numeroIntl(fiche.phone);
+    const prenom = appelDe(fiche, a.clientName);
+    const jour = jourEnClair(a.date);
+    const modele = p.type === 'apres' ? APRES : AVANT;
+    const maintenant = new Date().toISOString();
+    let statut = 'échec';
+    let detail: string | undefined;
+    let waId = '';
+    /* Ce que chaque bouton rapporte au webhook : la séance visée et le geste. */
+    const composants = p.type === 'apres'
+      ? [
+        { type: 'body', parameters: [{ type: 'text', text: prenom }, { type: 'text', text: jour }] },
+        { type: 'button', sub_type: 'quick_reply', index: '0', parameters: [{ type: 'payload', payload: `POINT_BIEN:${a.id}` }] },
+        { type: 'button', sub_type: 'quick_reply', index: '1', parameters: [{ type: 'payload', payload: `POINT_SOUCI:${a.id}` }] },
+      ]
+      : [
+        { type: 'body', parameters: [{ type: 'text', text: prenom }, { type: 'text', text: jour }] },
+        { type: 'button', sub_type: 'quick_reply', index: '0', parameters: [{ type: 'payload', payload: `POINT_AVANT:${a.id}:soin` }] },
+        { type: 'button', sub_type: 'quick_reply', index: '1', parameters: [{ type: 'payload', payload: `POINT_AVANT:${a.id}:coloration` }] },
+        { type: 'button', sub_type: 'quick_reply', index: '2', parameters: [{ type: 'payload', payload: `POINT_AVANT:${a.id}:coiffure` }] },
+        { type: 'button', sub_type: 'quick_reply', index: '3', parameters: [{ type: 'payload', payload: `POINT_AVANT:${a.id}:autre` }] },
+      ];
+    const texteDuFil = p.type === 'apres'
+      ? `Bonjour ${prenom}, une semaine après votre séance du ${jour}, comment vont vos locks ? [Tout va bien] [J'ai un souci]`
+      : `Bonjour ${prenom}, votre prochaine séance est le ${jour}. Un soin, une coloration, une coiffure pour une occasion, ou autre chose ? [Un soin] [Une coloration] [Une coiffure spéciale] [Autre chose]`;
+    /* LE POINT D'APRÈS NE NOMME PAS SA SÉANCE COMME RENDEZ-VOUS : le facteur
+       jugerait « l'heure du rendez-vous est passée » et le jetterait. Elle
+       voyage sous `seanceId`. Celui d'avant garde son rendez-vous : déplacé
+       ou annulé pendant l'attente, il ne part plus. */
+    const rdvDuPoint = p.type === 'avant' ? { apptId: a.id, heure: a.time } : { apptId: '' };
+    /* EN SALLE : le facteur portera. */
+    if (salleOuverte && tel) {
+      await sb.from('envois').upsert({
+        id: idEnvoi,
+        branch_id: a.branchId ?? null,
+        data: {
+          id: idEnvoi, branchId: a.branchId, type: `point-${p.type}`, canal: 'whatsapp', ...rdvDuPoint, seanceId: a.id,
+          clientId: fiche.id, dateRdv: a.date, statut: 'en-attente', quand: maintenant,
+          ...depot(Date.now(), regles, {
+            genre: 'whatsapp', numero: tel, modele, parQui: 'la Maison, automatiquement', texteAuFil: texteDuFil, composants,
+          }, prenom),
+        },
+      }, { onConflict: 'id' });
+      parties++;
+      continue;
+    }
+    if (!tel) {
+      statut = 'sans-numero';
+    } else {
+      try {
+        const r = await fetch(`https://graph.facebook.com/v20.0/${WA_PHONE_ID}/messages`, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json', authorization: `Bearer ${WA_TOKEN}` },
+          body: JSON.stringify({
+            messaging_product: 'whatsapp', to: tel, type: 'template',
+            template: { name: modele, language: { code: 'fr' }, components: composants },
+          }),
+          signal: AbortSignal.timeout(10_000),
+        });
+        const rep = await r.json().catch(() => ({}));
+        waId = String(rep?.messages?.[0]?.id ?? '');
+        if (r.ok) { statut = 'envoyé'; if (!waId) detail = 'accepté sans identifiant Meta'; }
+        else detail = String(rep?.error?.message ?? `HTTP ${r.status}`);
+      } catch (e) {
+        detail = String(e);
+      }
+    }
+    await sb.from('envois').upsert({
+      id: idEnvoi,
+      branch_id: a.branchId ?? null,
+      data: {
+        id: idEnvoi, branchId: a.branchId, type: `point-${p.type}`, canal: 'whatsapp', ...rdvDuPoint, seanceId: a.id,
+        clientId: fiche.id, dateRdv: a.date, statut,
+        ...(detail ? { detail: detail.slice(0, 300) } : {}),
+        ...(waId ? { waMessageId: waId } : {}),
+        quand: maintenant,
+      },
+    }, { onConflict: 'id' });
+    if (statut !== 'envoyé') continue;
+    parties++;
+    if (waId && tel) {
+      const idFil = `wa-${waId}`;
+      await sb.from('messages_wa').upsert({
+        id: idFil,
+        branch_id: a.branchId ?? null,
+        data: {
+          id: idFil, waId, branchId: a.branchId, sens: 'sortant', numero: tel, clientId: fiche.id,
+          texte: texteDuFil,
+          type: 'text', quand: maintenant, etat: 'en-route', modele, parQui: 'la Maison, automatiquement',
+        },
+      }, { onConflict: 'id' });
+    }
+  }
+  return { points: parties, jour: aujourdhui, aPoser: aPoser.length, ...(bornee ? { borne: BORNE_DES_POINTS } : {}) };
+}
+
 Deno.serve(async (req) => {
   /* ══ LA CLÉ SERVICE, NOUVELLE FAMILLE — 7 septembre 2026 ═══════════
      Depuis la rotation des clés (fuite du 2 août), le projet vit sur les
@@ -384,6 +600,9 @@ Deno.serve(async (req) => {
   const salleOuverte = facteurVivant((docs?.find((d) => d.key === 'mnd_facteur')?.data as { vuLe?: string } | undefined)?.vuLe, Date.now());
 
   const reprises = await proposeLesReprises(sb, salleOuverte, regles).catch((e) => ({ reprises: 'echec', motif: String(e).slice(0, 120) }));
+  /* Les points d'étape d'Entre deux séances (17 octobre 2026) : ils ne
+     dépendent pas non plus des rendez-vous de demain. */
+  const points = await poseLesPointsDEtape(sb, salleOuverte, regles).catch((e) => ({ points: 'echec', motifPoints: String(e).slice(0, 120) }));
 
   /* ══ LE PASSAGE DU SOIR ET LES HEURES CALMES — 10 octobre 2026 (revue de nuit) ══
      Le second passage tourne à 21 h. Déposé à cette heure, un rappel attend la
@@ -406,7 +625,7 @@ Deno.serve(async (req) => {
 
   const rdvs: Rdv[] = (apptRows ?? []).map((r) => r.data as Rdv);
   if (rdvs.length === 0) {
-    return new Response(JSON.stringify({ jour: demain, rdv: 0, ...reprises }), { status: 200 });
+    return new Response(JSON.stringify({ version: VERSION, jour: demain, rdv: 0, ...reprises, ...points }), { status: 200 });
   }
 
   /* ── Les fiches (nom + téléphone), en une lecture ───────────────── */
@@ -606,7 +825,7 @@ Deno.serve(async (req) => {
   }
 
   return new Response(
-    JSON.stringify({ version: VERSION, jour: demain, rdv: rdvs.length, push: 'au job mnd-push-rappels', salle: salleOuverte, partiraitLeJourMeme, deposes: nDeposes, whatsapp: nWa, sms: nSms, ...reprises }),
+    JSON.stringify({ version: VERSION, jour: demain, rdv: rdvs.length, push: 'au job mnd-push-rappels', salle: salleOuverte, partiraitLeJourMeme, deposes: nDeposes, whatsapp: nWa, sms: nSms, ...reprises, ...points }),
     { status: 200, headers: { 'content-type': 'application/json' } },
   );
 });

@@ -1,4 +1,5 @@
 import { Fragment, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
+import { ENVIES_AVANT } from '../../../../shared/entre-deux-pur';
 import { Link, useNavigate } from 'react-router-dom';
 import { Bell, BellOff, Check } from 'lucide-react';
 import { Button, Field, Input, Modal, Select, toast, demande } from '../../../../ds/components';
@@ -2967,6 +2968,13 @@ export function RdvModal({
         <SaVie vie={vie} principal={{ table: 'appointments', id: appt.id }} />
       ) : (
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+        {/* SON ENVIE POUR CETTE SÉANCE — 17 octobre 2026 : dite sur WhatsApp sept
+            jours avant (Entre deux séances). La Maison prépare sa venue. */}
+        {appt?.envieAvantSeance && (
+          <div style={{ border: '1px solid var(--copper-300)', borderLeft: '3px solid var(--color-copper)', borderRadius: 'var(--radius-md)', background: 'var(--copper-50)', padding: '9px 12px', fontSize: 13, color: 'var(--copper-700)' }}>
+            Son envie pour cette séance : <b>{ENVIES_AVANT.find((x) => x.cle === appt.envieAvantSeance?.envie)?.dit ?? appt.envieAvantSeance.envie}</b>, dite sur WhatsApp le {frShortAn(appt.envieAvantSeance.quand.slice(0, 10))}.
+          </div>
+        )}
         {/* ═══ LE BANDEAU VIVANT (14 août) — il ne bouge jamais.
             Onze champs à la file, et le total tout en bas : on faisait défiler
             pour retrouver ce qu'on était en train d'écrire. La tête, son

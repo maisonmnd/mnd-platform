@@ -133,9 +133,14 @@ dit('rappels-j1 : trois jours, les deux boutons dans l ordre, et rien sans model
   rappels.includes("index: '1', parameters: [{ type: 'payload', payload: `REPRISE_AUTRE:${a.id}` }]"),
   rappels.includes("if (!MODELE || !WA_TOKEN || !WA_PHONE_ID) return { reprises: 'sans-modele' };"),
 ]);
-dit('... elle passe avant le retour d un soir sans rappel', true,
+/* 17 octobre 2026 : le retour d'un soir sans rappel dit aussi sa version et
+   les points d'étape d'Entre deux séances, qui passent eux aussi avant lui. */
+const retourDuSoirVide = rappels.indexOf("JSON.stringify({ version: VERSION, jour: demain, rdv: 0, ...reprises, ...points })");
+dit('... elle passe avant le retour d un soir sans rappel (les points d etape aussi)', true,
   rappels.indexOf('await proposeLesReprises(sb, salleOuverte, regles)') > 0
-  && rappels.indexOf('await proposeLesReprises(sb, salleOuverte, regles)') < rappels.indexOf("JSON.stringify({ jour: demain, rdv: 0, ...reprises })"));
+  && rappels.indexOf('await proposeLesReprises(sb, salleOuverte, regles)') < retourDuSoirVide
+  && rappels.indexOf('await poseLesPointsDEtape(sb, salleOuverte, regles)') > 0
+  && rappels.indexOf('await poseLesPointsDEtape(sb, salleOuverte, regles)') < retourDuSoirVide);
 
 const webhook = lis('supabase/functions/whatsapp-webhook/index.ts');
 dit('le webhook lit le meme bouton que le depot', true, webhook.includes(String.raw`.match(/^REPRISE_(OK|AUTRE):(.+)$/)`)

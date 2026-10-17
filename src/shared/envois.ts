@@ -12,7 +12,7 @@
 
 import { attendEncore, ECARTE, PERIME } from './salle-des-envois';
 
-export type TypeDEnvoi = 'accuse' | 'confirmation' | 'rappel-j1' | 'avis-google' | 'fin-de-paquet' | 'reprise-j3';
+export type TypeDEnvoi = 'accuse' | 'confirmation' | 'rappel-j1' | 'avis-google' | 'fin-de-paquet' | 'reprise-j3' | 'point-apres' | 'point-avant';
 
 /** Ce que le journal lit d'une ligne `envois`. Les champs viennent de
     fonctions différentes, écrites à des dates différentes : tous facultatifs
@@ -74,6 +74,9 @@ export const TYPE_DIT: Record<string, string> = {
   'avis-google': 'Demande d’avis',
   'fin-de-paquet': 'Fin de paquet',
   'reprise-j3': 'Reprise proposée',
+  /* Entre deux séances, sur WhatsApp (17 octobre 2026). */
+  'point-apres': 'Point d’après séance',
+  'point-avant': 'Point d’avant séance',
 };
 export const typeDit = (t: string): string => TYPE_DIT[t] ?? t;
 
@@ -201,5 +204,8 @@ const MODELE_DIT: Record<string, string> = {
   demande_recue: 'accusé de demande',
   avis_google: 'demande d’avis',
   bulletin_du_mois: 'bulletin de paie',
+  point_apres_seance: 'point d’après séance',
+  point_avant_seance: 'point d’avant séance',
+  recu_de_paiement: 'reçu de paiement',
 };
 export const modeleDit = (nom: string): string => MODELE_DIT[nom] ?? nom;

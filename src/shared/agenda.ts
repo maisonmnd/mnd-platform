@@ -279,6 +279,10 @@ export type Appointment = {
   /** Le message J-3 est parti (rappels-j1) : À faire le dit, et garde la
       ligne tant qu'elle n'a pas répondu. */
   repriseProposeeLe?: string;
+  /** SON ENVIE POUR CETTE SÉANCE — 17 octobre 2026 (Entre deux séances,
+      sur WhatsApp) : un soin, une coloration, une coiffure spéciale, ou autre
+      chose, dite sept jours avant. Écrite par le webhook WhatsApp. */
+  envieAvantSeance?: { envie: 'soin' | 'coloration' | 'coiffure' | 'autre'; quand: string };
   foyerId?: string;
   seriesId?: string;
   seriesIndex?: number; // n° de la séance (1..N)

@@ -344,8 +344,9 @@ reprise();
 }
 {
   /* LA REGLE : apres l'ecriture des messages, chaque boucle sur les
-     entrants teste d'abord qu'ils sont neufs. Cinq boucles : l'automate,
-     les versements, la reprise, le conge, les deux messages automatiques. */
+     entrants teste d'abord qu'ils sont neufs. Six boucles : l'automate,
+     les versements, la reprise, les points d'etape (17 octobre 2026), le
+     conge, les deux messages automatiques. */
   const src = sansCommentaires(readFileSync(path.join(racine, 'supabase/functions/whatsapp-webhook/index.ts'), 'utf8'));
   const ancre = src.indexOf(".upsert(lignes, { onConflict: 'id', ignoreDuplicates: true }).select('id');");
   const boucles: string[] = [];
@@ -355,7 +356,7 @@ reprise();
     i = src.indexOf('for (const e of entrants) {', i + 1);
   }
   const nues = boucles.filter((b) => !/^for \(const e of entrants\) \{ (if \(!estNeuf\(e\)|if \(!neufs\.has\(`wa-\$\{e\.waId\}`\))/.test(b));
-  dit('n4 chaque boucle de gestes ne joue que les messages neufs (5 boucles)', boucles.length === 5 && nues.length === 0, { boucles: boucles.length, nues });
+  dit('n4 chaque boucle de gestes ne joue que les messages neufs (6 boucles)', boucles.length === 6 && nues.length === 0, { boucles: boucles.length, nues });
 }
 
 /* ── n79 · la cle d'unicite ────────────────────────────────────────── */

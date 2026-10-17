@@ -192,7 +192,7 @@ export function SalleDesEnvois() {
             <div style={{ minWidth: 0 }}>
               <span style={{ fontWeight: 500, color: 'var(--color-indigo)' }}>{typeDit(e.type)} · {nom}</span>
               <span className="mnd-muted" style={{ display: 'block', fontSize: 12.5 }}>
-                {canalDit(e.canal)}{e.dateRdv && e.type !== 'avis-google' ? ` · rendez-vous du ${pourLeRdv(e.dateRdv, e.heure)}` : ''}
+                {canalDit(e.canal)}{e.dateRdv && e.type !== 'avis-google' ? ` · ${e.type === 'point-apres' || e.type === 'point-avant' ? 'séance' : 'rendez-vous'} du ${pourLeRdv(e.dateRdv, e.heure)}` : ''}
               </span>
             </div>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>

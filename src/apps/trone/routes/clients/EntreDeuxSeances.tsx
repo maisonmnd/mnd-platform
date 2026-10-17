@@ -106,7 +106,7 @@ function LaFile({ moi }: { moi: string }) {
       </div>
       {choisi && <LeSouci s={choisi} client={parId.get(choisi.clientId)} appts={appts} moi={moi} onClose={() => setOuvert(null)} />}
       {nouveau && <NoterUnSouci clients={clients} moi={moi} onClose={() => setNouveau(false)} />}
-      <p className="sad-doux">Les clientes qui ont Ma Couronne reçoivent la question « Comment vont vos locks ? » une semaine après la séance et une semaine avant la suivante. Les autres la recevront sur WhatsApp dès que le modèle Meta sera approuvé.</p>
+      <p className="sad-doux">Les clientes qui ont Ma Couronne reçoivent la question « Comment vont vos locks ? » une semaine après la séance et une semaine avant la suivante. Les autres la reçoivent sur WhatsApp : « Tout va bien » ou « J’ai un souci » après la séance, et avant la suivante, leur envie (un soin, une coloration, une coiffure, autre chose), notée sur le rendez-vous.</p>
     </div>
   );
 }

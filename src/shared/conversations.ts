@@ -183,7 +183,7 @@ export type MessageWa = {
   /** UN MESSAGE PARTI TOUT SEUL, et pourquoi : l'accusé d'un devis reçu, le
       formulaire de congé proposé. Deux seulement, dits d'avance dans la
       maquette. Ils portent `parQui: 'Le Trône'`. */
-  auto?: 'accuse' | 'formulaire' | 'transmis' | 'reprise-ok' | 'reprise-autre' | 'automate';
+  auto?: 'accuse' | 'formulaire' | 'transmis' | 'reprise-ok' | 'reprise-autre' | 'automate' | 'point-bien' | 'point-souci' | 'point-recu' | 'point-avant';
   /** LA RÉPONSE AUTOMATIQUE QUI RÉSERVE · 9 octobre 2026 (`shared/automate-wa`).
       Un message `auto: 'automate'` dit l'étape qu'il ouvre et les choix
       qu'il proposait, tels qu'elle les a lus : le fil du Trône les montre au
@@ -584,9 +584,15 @@ export function filsDeLaMaison(
        la dernière qui compte, et l'alarme sonne. Ce qui l'éteint, c'est le fil
        lui-même (`laReponseDeLAutomateSuffit`) : un parcours qu'il mène et dont
        il a traité le dernier mot n'attend pas la Maison. */
+    /* ══ « NOUS VOUS ÉCRIVONS » N'EST PAS UNE RÉPONSE · 17 octobre 2026 ══
+       Entre deux séances, sur WhatsApp : après une envie d'avant séance
+       (`point-avant`) ou un souci choisi dans la liste (`point-recu`), le
+       mot parti seul promet que la Maison écrit ; l'alarme reste donc
+       allumée jusqu'à ce qu'une personne le fasse. Le merci de « Tout va
+       bien » et l'envoi de la liste, eux, n'attendent rien de la Maison. */
     const dernierQuiCompte = [...liste].reverse()
       .find((x) => !(x.sens === 'sortant'
-        && ((!!x.modele && estEnvoiAutomatique(x.parQui)) || x.auto === 'automate'))) ?? dernier;
+        && ((!!x.modele && estEnvoiAutomatique(x.parQui)) || x.auto === 'automate' || x.auto === 'point-avant' || x.auto === 'point-recu'))) ?? dernier;
     const elleAttend = dernierQuiCompte.sens === 'entrant';
     const auto = automates?.get(numero);
     const vue = vueDuNumero(automates, numero, maintenant);

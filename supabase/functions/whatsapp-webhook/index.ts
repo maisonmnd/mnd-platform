@@ -127,7 +127,7 @@ import webpush from 'npm:web-push@3.6.7';
 
 /** LA VERSION DE CE FICHIER, dite par le contrôle de santé. Sans elle on ne
     sait pas quel code tourne vraiment. À incrémenter à chaque déploiement. */
-const VERSION = '2026-10-13-b · le prenom seul quand la civilite est inconnue';
+const VERSION = '2026-10-17-a · les points d etape entre deux seances';
 
 /** LE POIDS QU'UNE PIÈCE REÇUE PEUT FAIRE : le plafond du compartiment
     `whatsapp` (0102). Au-delà, le fichier reste chez Meta et le fil le dit. */
@@ -400,7 +400,7 @@ const heureDeLaReprise = (hhmm: string | undefined): string => {
 async function ditDepuisLeTrone(
   sb: ReturnType<typeof createClient>, jeton: string, phoneId: string,
   o: {
-    numero: string; texte: string; auto: 'accuse' | 'formulaire' | 'transmis' | 'reprise-ok' | 'reprise-autre';
+    numero: string; texte: string; auto: 'accuse' | 'formulaire' | 'transmis' | 'reprise-ok' | 'reprise-autre' | 'point-bien' | 'point-souci' | 'point-recu' | 'point-avant';
     branchId?: string; interactive?: Record<string, unknown>;
   },
 ): Promise<void> {
@@ -483,6 +483,66 @@ const joursInclus = (du: string, au: string): number => {
   if (!Number.isFinite(a) || !Number.isFinite(b) || b < a) return 0;
   return Math.round((b - a) / 86400000) + 1;
 };
+
+/* ══ LES POINTS D'ÉTAPE, CE QUE LES RÉPONSES VEULENT DIRE — 17 octobre 2026 ══
+   Copie marquée des règles de src/shared/entre-deux-pur.ts (une fonction
+   Edge ne lit rien du dépôt) ; scripts/verifie-points-d-etape la confronte
+   à l'original, réponse par réponse. */
+// ── DEBUT pointsDuWebhook
+type CleDeSouciWa = 'seches' | 'cassantes' | 'inegales' | 'pousse' | 'odeur' | 'gratte' | 'chute' | 'autre';
+type EnvieAvantWa = 'soin' | 'coloration' | 'coiffure' | 'autre';
+const SOUCIS_WA: readonly { cle: CleDeSouciWa; dit: string; niveau: 'conseil' | 'voir' | 'sante'; avancer?: boolean }[] = [
+  { cle: 'seches', dit: 'Sèches', niveau: 'conseil' },
+  { cle: 'cassantes', dit: 'Cassantes, qui s’amincissent', niveau: 'voir', avancer: true },
+  { cle: 'inegales', dit: 'Inégales, racines qui s’emmêlent', niveau: 'voir', avancer: true },
+  { cle: 'pousse', dit: 'Racines qui ont trop poussé', niveau: 'conseil', avancer: true },
+  { cle: 'odeur', dit: 'Odeur, séchage long', niveau: 'conseil' },
+  { cle: 'gratte', dit: 'Ça gratte, plaques, rougeurs', niveau: 'sante' },
+  { cle: 'chute', dit: 'Chute, trous, douleur', niveau: 'sante' },
+  { cle: 'autre', dit: 'Autre chose', niveau: 'voir' },
+];
+const ENVIES_AVANT_WA: readonly { cle: EnvieAvantWa; dit: string }[] = [
+  { cle: 'soin', dit: 'un soin' }, { cle: 'coloration', dit: 'une coloration' },
+  { cle: 'coiffure', dit: 'une coiffure spéciale' }, { cle: 'autre', dit: 'autre chose' },
+];
+const TITRE_COURT: Record<CleDeSouciWa, string> = {
+  seches: 'Sèches', cassantes: 'Cassantes', inegales: 'Inégales, emmêlées', pousse: 'Racines trop longues',
+  odeur: 'Odeur, séchage long', gratte: 'Ça gratte, rougeurs', chute: 'Chute, trous, douleur', autre: 'Autre chose',
+};
+const MOT_DE_LA_LISTE = 'Qu’est-ce qui se passe ? Choisissez ce qui ressemble le plus à ce que vous voyez.';
+const BOUTON_DE_LA_LISTE = 'Voir les soucis';
+const MERCI_BIEN = 'Merci ! Bonne nouvelle. À votre prochaine séance.';
+const ACCUSE_POINT = 'Merci de nous l’avoir dit. Votre maîtresse vous répond.';
+const ACCUSE_SANTE_POINT = 'Merci de nous l’avoir dit. Votre maîtresse vous rappelle. En attendant, ne mettez aucun produit nouveau.';
+type ReponseAuPointWa =
+  | { geste: 'bien' | 'souci'; apptId: string }
+  | { geste: 'liste'; apptId: string; cle: CleDeSouciWa }
+  | { geste: 'avant'; apptId: string; envie: EnvieAvantWa };
+function lisLaReponseAuPoint(id: string): ReponseAuPointWa | null {
+  const m = String(id ?? '').match(/^POINT_(BIEN|SOUCI|LISTE|AVANT):([A-Za-z0-9_-]{1,80})(?::([a-z]{1,20}))?$/);
+  if (!m) return null;
+  const [, quoi, apptId, arg] = m;
+  if (quoi === 'BIEN' || quoi === 'SOUCI') return arg ? null : { geste: quoi === 'BIEN' ? 'bien' : 'souci', apptId };
+  if (quoi === 'LISTE') return SOUCIS_WA.some((s) => s.cle === arg) ? { geste: 'liste', apptId, cle: arg as CleDeSouciWa } : null;
+  return ENVIES_AVANT_WA.some((e) => e.cle === arg) ? { geste: 'avant', apptId, envie: arg as EnvieAvantWa } : null;
+}
+const lignesDeLaListe = (apptId: string): { id: string; titre: string; description: string }[] =>
+  SOUCIS_WA.map((s) => ({ id: `POINT_LISTE:${apptId}:${s.cle}`, titre: TITRE_COURT[s.cle], description: s.dit.slice(0, 72) }));
+function reponseAuSouciDuPoint(cle: CleDeSouciWa, validees: Partial<Record<string, string>>): string[] {
+  const s = SOUCIS_WA.find((x) => x.cle === cle);
+  if (s?.niveau === 'sante') return [ACCUSE_SANTE_POINT];
+  const valide = (validees[cle] ?? '').trim();
+  const plus: string[] = [];
+  if (cle === 'autre') plus.push('Dites-nous en quelques mots ce que vous voyez, ici même.');
+  if (s?.avancer) plus.push('Si vous le souhaitez, nous pouvons avancer votre prochaine séance : dites-le-nous ici.');
+  return [valide || ACCUSE_POINT, ...plus];
+}
+function reponseAvant(appel: string, envie: EnvieAvantWa, jour: string): string {
+  if (envie === 'autre') return `Merci, ${appel} ! Dites-nous en quelques mots ce qui vous ferait plaisir pour votre séance du ${jour} : nous préparons votre venue.`;
+  const dit = ENVIES_AVANT_WA.find((e) => e.cle === envie)?.dit ?? 'votre envie';
+  return `Merci, ${appel} ! Nous notons votre envie : ${dit}. Nous vous écrivons très vite pour préparer votre séance du ${jour}.`;
+}
+// ── FIN pointsDuWebhook
 
 /* ══ LA NOTIFICATION SUR LE TELEPHONE — 18 septembre 2026 ══════════════
 
@@ -1559,6 +1619,103 @@ Deno.serve(async (req) => {
         numero: e.numero, branchId: rdv.branchId ?? fiche.branchId, auto: 'reprise-autre',
         texte: `Bien sûr, ${appel}. Choisissez votre nouveau moment dans Ma Couronne : ${couronne}\nOu répondez ici avec le jour qui vous va, la Maison vous propose une heure.`,
       });
+  }
+
+  /* ── ⑤ bis·3 LES POINTS D'ÉTAPE, SUR WHATSAPP — 17 octobre 2026 ────────
+     « Entre deux séances », lot 2. Sous les modèles que rappels-j1 envoie :
+       · « Tout va bien » (POINT_BIEN:<séance>) : un signalement « tout va
+         bien », déjà traité, et le merci de Ma Couronne ;
+       · « J'ai un souci » (POINT_SOUCI:<séance>) : la liste des soucis ;
+       · une ligne de la liste (POINT_LISTE:<séance>:<souci>) : un
+         signalement OUVERT, qui entre dans la file du Trône rangé par
+         urgence, et la réponse validée par la direction (rien d'autre :
+         en Santé, l'accusé seul, jamais un conseil écrit) ;
+       · avant la séance (POINT_AVANT:<séance>:<envie>) : son envie s'écrit
+         sur le rendez-vous, et la Maison prépare sa venue.
+     Le personnel est déjà prévenu plus haut (l'automate n'a pas pris ces
+     boutons) : chaque réponse paraît dans ses Conversations.
+
+     SEUL SON NUMÉRO RÉPOND POUR ELLE, comparé sous sa forme courte (cleWa) :
+     un ancien numéro à huit chiffres se reconnaît aussi. */
+  for (const e of entrants) {
+    if (!estNeuf(e)) continue;
+    const p = lisLaReponseAuPoint(e.bouton?.id ?? '');
+    if (!p) continue;
+    const { data: l } = await sb.from('appointments').select('id, branch_id, data').eq('id', p.apptId).limit(1);
+    const ligne = (l ?? [])[0] as { id: string; branch_id?: string; data: Record<string, unknown> } | undefined;
+    if (!ligne) { dis('point · séance introuvable'); continue; }
+    const rdv = ligne.data as { clientId?: string; clientName?: string; date?: string; branchId?: string; master?: string };
+    const fiche = fiches.find((f) => f.id === rdv.clientId);
+    if (!fiche || !fiche.numeros.some((n) => cleWa(n) === cleWa(e.numero))) { dis('point · numéro étranger à la séance'); continue; }
+    const appel = appelDe({ name: fiche.nom, civilite: fiche.civilite, auMasculin: fiche.auMasculin }, rdv.clientName);
+    const branchId = rdv.branchId ?? fiche.branchId;
+
+    if (p.geste === 'avant') {
+      const { error } = await sb.from('appointments').update({
+        data: { ...ligne.data, envieAvantSeance: { envie: p.envie, quand: e.quand } },
+      }).eq('id', ligne.id);
+      if (error) { dis('point · envie refusée', { motif: error.message.slice(0, 120) }); continue; }
+      dis('point · envie', { envie: p.envie });
+      if (jetonMeta && phoneIdMeta) {
+        await ditDepuisLeTrone(sb, jetonMeta, phoneIdMeta, {
+          numero: e.numero, branchId, auto: 'point-avant', texte: reponseAvant(appel, p.envie, jourDeLaReprise(rdv.date ?? '')),
+        });
+      }
+      continue;
+    }
+
+    if (p.geste === 'souci') {
+      dis('point · liste demandée');
+      if (jetonMeta && phoneIdMeta) {
+        await ditDepuisLeTrone(sb, jetonMeta, phoneIdMeta, {
+          numero: e.numero, branchId, auto: 'point-souci', texte: MOT_DE_LA_LISTE,
+          interactive: {
+            type: 'list',
+            body: { text: MOT_DE_LA_LISTE },
+            action: {
+              button: BOUTON_DE_LA_LISTE,
+              sections: [{ title: 'Vos locks', rows: lignesDeLaListe(ligne.id).map((r) => ({ id: r.id, title: r.titre, description: r.description })) }],
+            },
+          },
+        });
+      }
+      continue;
+    }
+
+    /* « Tout va bien », ou un souci choisi dans la liste : un signalement. */
+    const cles = p.geste === 'liste' ? [p.cle] : [];
+    const validees: Record<string, string> = {};
+    if (cles.length) {
+      const { data: rep } = await sb.from('entre_deux_reponses').select('id, data').in('id', cles);
+      for (const r of (rep ?? []) as { id: string; data?: { texteValide?: string } }[]) {
+        const t = (r.data?.texteValide ?? '').trim();
+        if (t) validees[r.id] = t;
+      }
+    }
+    const reponse = p.geste === 'liste' ? reponseAuSouciDuPoint(p.cle, validees) : [MERCI_BIEN];
+    const bien = p.geste === 'bien';
+    const idSig = `sig-wa-${cleCourte(e.waId)}`;
+    const { error } = await sb.from('signalements').upsert({
+      id: idSig,
+      branch_id: branchId ?? null,
+      data: {
+        id: idSig, branchId, clientId: rdv.clientId, soucis: cles, canal: 'whatsapp', quand: e.quand,
+        point: `pe-${ligne.id}-apres`, apptId: ligne.id,
+        ...(rdv.master ? { maitre: rdv.master } : {}),
+        ...(bien ? { bien: true } : {}),
+        etat: bien ? 'traite' : 'ouvert',
+        reponse: reponse.join('\n'),
+      },
+    }, { onConflict: 'id', ignoreDuplicates: true });
+    /* La borne de la base (dix signalements par jour et par cliente, 0132)
+       se dit au journal ; elle a parlé dans ses Conversations, la Maison le voit. */
+    if (error) { dis('point · signalement refusé', { motif: error.message.slice(0, 120) }); continue; }
+    dis('point · signalement', { bien, cles: cles.join(',') });
+    if (jetonMeta && phoneIdMeta) {
+      await ditDepuisLeTrone(sb, jetonMeta, phoneIdMeta, {
+        numero: e.numero, branchId, auto: bien ? 'point-bien' : 'point-recu', texte: reponse.join('\n'),
+      });
+    }
   }
 
   /* ── ⑤ ter LE FORMULAIRE DE CONGÉ — 15 septembre 2026 ───────────────
