@@ -41,7 +41,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
      SUPABASE_SERVICE_ROLE_KEY (ou CLE_SERVICE) : déjà posée
    ═══════════════════════════════════════════════════════════════════ */
 
-const VERSION = '2026-10-17-b';
+const VERSION = '2026-10-17-c';
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -80,11 +80,28 @@ async function fedapay(methode: 'GET' | 'POST', chemin: string, corps?: unknown)
   let lu: any = null;
   try { lu = texte ? JSON.parse(texte) : null; } catch { lu = null; }
   if (!rep.ok) {
-    const motif = lu?.message ?? lu?.error ?? (Array.isArray(lu?.errors) ? lu.errors.join(' ; ') : '') ?? '';
-    throw new Error(`FedaPay ${rep.status}${motif ? ` : ${String(motif).slice(0, 200)}` : ''}`);
+    const motif = motifDeFedaPay(lu);
+    throw new Error(`FedaPay ${rep.status}${motif ? ` : ${motif.slice(0, 300)}` : ''}`);
   }
   return lu;
 }
+
+// ── DEBUT motifDeFedaPay (relu par scripts/verifie-mnd-pay)
+/** CE QUE FEDAPAY DIT VRAIMENT — 17 octobre 2026. « La création de la
+    transaction a échoué » seul ne dit pas POURQUOI (un lien de 10 079 F
+    refusé au comptoir, sans autre mot) : le détail vit dans `errors`, un
+    objet « champ → messages ». On rend la phrase ET le détail. */
+function motifDeFedaPay(lu: any): string {
+  const phrase = String(lu?.message ?? lu?.error ?? '').trim();
+  const e = lu?.errors;
+  let detail = '';
+  if (Array.isArray(e)) detail = e.map(String).join(' ; ');
+  else if (e && typeof e === 'object') {
+    detail = Object.entries(e).map(([champ, v]) => `${champ} : ${Array.isArray(v) ? v.map(String).join(', ') : String(v)}`).join(' ; ');
+  } else if (typeof e === 'string') detail = e;
+  return [phrase, detail].filter(Boolean).join(' · ');
+}
+// ── FIN motifDeFedaPay
 
 /** La transaction dans une réponse : FedaPay l'emballe sous « v1/transaction »
     (le SDK officiel retire ce préfixe, `Util::stripApiVersion`). */

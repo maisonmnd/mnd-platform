@@ -445,5 +445,16 @@ dit('l envoi transporte le paramètre du bouton jusqu à la fonction', true, /\.
   dit('le Carnet suit la pièce dans le Trône', true, /rendezVousRegles\(appointmentsStore\.get\(\), changees, demandes, inscrits\)/.test(lis('src/apps/trone/shell/useMndPayRattache.ts')));
 }
 
+/* ── 10. CE QUE FEDAPAY DIT VRAIMENT (17 octobre 2026) ── */
+{
+  const motif = charge<(lu: unknown) => string>('supabase/functions/mnd-pay/index.ts', 'motifDeFedaPay');
+  dit('le refus de FedaPay garde sa phrase ET son détail (objet, liste, texte, rien)', [
+    'La création de la transaction a échoué · amount : Le montant ne doit pas dépasser 10000',
+    'Refusé · a ; b', 'Erreur · détail', 'Seule phrase', '',
+  ], [
+    motif({ message: 'La création de la transaction a échoué', errors: { amount: ['Le montant ne doit pas dépasser 10000'] } }),
+    motif({ message: 'Refusé', errors: ['a', 'b'] }), motif({ error: 'Erreur', errors: 'détail' }), motif({ message: 'Seule phrase' }), motif(null),
+  ]);
+}
 console.log(ko === 0 ? '\nMND PAY tient ses regles.' : `\n${ko} controle(s) en echec.`);
 process.exitCode = ko === 0 ? 0 : 1;
