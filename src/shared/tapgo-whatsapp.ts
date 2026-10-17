@@ -8,14 +8,18 @@ import { LIEN_TAPGO, MODELE_TAPGO, motTapGo, parametreTapGo, variablesTapGo, typ
    lien qui le compose part sur son WhatsApp. Même chemin que le reçu
    (`envoieLeRecu`) : dans la fenêtre de 24 heures, un mot libre avec le
    lien ; hors fenêtre, Meta n'accepte qu'un modèle approuvé,
-   `paiement_a_composer`, dont le bouton « Composer » porte le paramètre.
+   `paiement_en_attente`, dont le bouton « Composer » porte le paramètre.
    Tant que Meta ne l'a pas approuvé, le refus se dit au comptoir, et le
    numéro reste à l'écran : rien d'autre ne change.
 
    Le modèle à créer chez Meta (catégorie Utilitaire, français) :
-     corps   : « Bonjour {{1}}, pour régler {{2}} à la Maison MND, touchez
-               « Composer » : votre téléphone compose le numéro, montant
-               compris. Confirmez ensuite le paiement sur votre téléphone. »
+     corps   : « Bonjour {{1}}, suite à votre passage aujourd'hui, votre
+               paiement de {{2}} à la Maison MND est en attente. Touchez
+               « Composer » : votre téléphone compose le numéro de paiement,
+               montant compris. Confirmez ensuite sur votre téléphone pour
+               finaliser ce paiement. »
+               (Un paiement EN COURS, pas une invitation à payer : la première
+               version a été lue « Marketing » par Meta.)
      pied    : « mi nyɔ́ ɖɛkpɛ, votre beauté est déjà là »
      bouton  : URL dynamique « Composer »,
                https://maisonmnd.com/trone/payer.html?tg={{1}}

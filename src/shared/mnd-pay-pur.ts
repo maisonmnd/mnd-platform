@@ -132,11 +132,13 @@ export const codeTapGo = (r: ReglagesMndPay | undefined): string => {
    le numéro s'affiche au comptoir, un lien part sur son WhatsApp : la page
    `payer.html?tg=CODE-TOTAL` compose le numéro d'un geste (Android) ou le
    donne à copier (iPhone). Dans la fenêtre de 24 heures, un mot libre ;
-   hors fenêtre, le modèle Meta `paiement_a_composer` (Utilitaire), dont le
-   bouton « Composer » porte ce même paramètre. Le message ne contient PAS le
+   hors fenêtre, le modèle Meta `paiement_en_attente` (Utilitaire), dont le
+   bouton « Composer » porte ce même paramètre. (Le premier nom,
+   `paiement_a_composer`, a été rangé par Meta en Marketing, et Meta ne
+   change jamais la catégorie d'un modèle : d'où ce nom neuf, 17 octobre.) Le message ne contient PAS le
    numéro : WhatsApp mettrait en gras ce qui est entre deux étoiles. Et
    jamais le mot « code » (Meta le classerait en authentification). */
-export const MODELE_TAPGO = 'paiement_a_composer';
+export const MODELE_TAPGO = 'paiement_en_attente';
 export const LIEN_TAPGO = 'https://maisonmnd.com/trone/payer.html?tg=';
 /** Le paramètre du lien et du bouton : « 51166-25400 », un seul mot, que la
     fonction d'envoi accepte (lettres, chiffres, tiret). */

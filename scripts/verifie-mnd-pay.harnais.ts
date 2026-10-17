@@ -333,7 +333,7 @@ dit('le paramètre du lien : code-total, un seul mot que la fonction d envoi acc
 const MOT = motTapGo('Madame Awa', '25 400 F', `${LIEN_TAPGO}${PARAM}`);
 dit('le mot libre : le lien, le montant, ni étoile (WhatsApp les mettrait en gras) ni le mot « code »', [true, true, false, false],
   [MOT.includes('https://maisonmnd.com/trone/payer.html?tg=51166-25400'), MOT.includes('25 400 F'), MOT.includes('*'), /code/i.test(MOT)]);
-dit('le modèle Meta : paiement_a_composer, deux variables (son appel, le montant)', ['paiement_a_composer', ['Madame Awa', '25 400 F']],
+dit('le modèle Meta : paiement_en_attente (Utilitaire), deux variables (son appel, le montant)', ['paiement_en_attente', ['Madame Awa', '25 400 F']],
   [MODELE_TAPGO, variablesTapGo('Madame Awa', '25 400 F')]);
 
 /* L'envoi : un faux envoi note ce qui part. Dans la fenêtre : le mot seul. */
@@ -349,7 +349,7 @@ dit('dans la fenêtre : un seul message, libre, avec le lien, et sa clé d unici
   [r1.ok, f1.appels.length, (f1.appels[0].texte ?? '').includes('payer.html?tg=51166-25400'), f1.appels[0].modele, f1.appels[0].cleUnique]);
 const f2 = faux([{ ok: false, erreur: 'La fenêtre de 24 heures est fermée : seul un modèle approuvé passe.' }, { ok: true, id: 'm2' }]);
 const r2 = await envoieLeNumeroTapGo({ ...base, envoie: f2.envoie });
-dit('hors fenêtre : le modèle, ses variables, le paramètre du bouton, une autre clé', [true, 2, 'paiement_a_composer', ['Madame Awa', '25 400 F'], '51166-25400', 'tapgo-mp-1-modele'],
+dit('hors fenêtre : le modèle, ses variables, le paramètre du bouton, une autre clé', [true, 2, 'paiement_en_attente', ['Madame Awa', '25 400 F'], '51166-25400', 'tapgo-mp-1-modele'],
   [r2.ok, f2.appels.length, f2.appels[1].modele, f2.appels[1].variables, f2.appels[1].boutonUrl, f2.appels[1].cleUnique]);
 const f3 = faux([{ ok: false, erreur: 'Ce numéro n’est pas lisible.' }]);
 const r3 = await envoieLeNumeroTapGo({ ...base, envoie: f3.envoie });
