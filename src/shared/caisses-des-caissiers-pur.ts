@@ -32,6 +32,7 @@
    caissiers` le rejoue, pannes plantées comprises. */
 
 import type { Cashbox } from './finance';
+import { reecritLEcriture, rendsLEcriture, casesDe, type Sorte } from './bascule-des-caisses-pur';
 
 export const CAISSE_ANNEES_PASSEES = 'Années passées';
 export const CAISSE_TIROIR_COMMUN = 'Terrasse · Tiroir espèces';
@@ -77,7 +78,7 @@ export function estAnneeAnterieure(dateDuRdv: string | undefined, aujourdhui: st
 /** Le prénom, pour nommer une caisse : « Caisse de Gérard ». */
 export const prenomDe = (nom: string): string => (nom ?? '').trim().split(/\s+/)[0] ?? '';
 
-type Boite = Pick<Cashbox, 'id' | 'branchId' | 'name' | 'sub' | 'role' | 'equipe' | 'archiveeLe' | 'caissierId' | 'currency'>;
+type Boite = Pick<Cashbox, 'id' | 'branchId' | 'name' | 'sub' | 'role' | 'equipe' | 'archiveeLe' | 'caissierId' | 'currency' | 'horsEncaissement'>;
 
 /** LA CAISSE DE CE CAISSIER dans cette branche (jamais une rangée). */
 export function caisseDuCaissier<B extends Boite>(boxes: readonly B[], branchId: string, staffId: string | undefined): B | undefined {
@@ -122,6 +123,10 @@ export function caisseDesAnneesPassees(branchId: string): Cashbox {
     glyph: '◷',
     openingXof: 0,
     role: 'archive',
+    /* Elle garde tout son passé (17 octobre 2026, le soir) : sans ce drapeau,
+       le départ des caisses ne comptait que ce qui suit octobre 2026, et la
+       caisse des années passées affichait un solde vide. */
+    histoire: true,
   };
 }
 
@@ -159,7 +164,8 @@ export function caisseProposee(o: {
   enDevise?: boolean;
 }): CaisseProposee {
   const famille = familleDuMoyen(o.methode);
-  const ici = o.boxes.filter((b) => b.branchId === o.branchId && !b.archiveeLe);
+  /* Une caisse « à part » (BIIC, 17 octobre 2026) ne se propose jamais. */
+  const ici = o.boxes.filter((b) => b.branchId === o.branchId && !b.archiveeLe && !b.horsEncaissement);
   const nommee = (nom: string) => ici.find((b) => b.name === nom)?.name;
 
   if (famille === 'avoir') return { pourquoi: 'L’avoir est un crédit du compte : il ne passe par aucune caisse.' };
@@ -232,6 +238,7 @@ export function caissesAuChoix<B extends Boite>(boxes: readonly B[], o: {
   return boxes.filter((b) => {
     if (b.name === o.garder) return true;
     if (b.name === CAISSE_MND_PAY) return false;
+    if (b.horsEncaissement && !o.estDirection) return false;
     if (b.name === CAISSE_ANNEES_PASSEES) return o.anneePassee;
     if (b.caissierId && b.caissierId !== o.staffId && !o.estDirection) return false;
     return true;
@@ -241,3 +248,59 @@ export function caissesAuChoix<B extends Boite>(boxes: readonly B[], o: {
 /** Les caisses qui ne se comptent jamais le soir : celle des années passées
     (l'histoire) et MND PAY (l'argent est chez FedaPay). */
 export const HORS_CLOTURE: readonly string[] = [CAISSE_ANNEES_PASSEES, CAISSE_MND_PAY];
+
+/* ══ FONDRE UNE CAISSE DANS UNE AUTRE — 17 octobre 2026 ═════════════════
+   « Reprise 2025 » : « tout fondre dans Années passées » (sa décision). Toutes
+   les cases qui la nomment, dans les treize sortes d'écritures, passent à la
+   caisse qui la reçoit, chacune gardant son ancien nom à côté
+   (`…AvantFusion`) pour qu'on défasse la fusion sans toucher à la bascule
+   d'octobre ; son solde d'ouverture passe aussi, puis elle est rangée. */
+export const SUFFIXE_FUSION = 'AvantFusion';
+export const fusionneLEcriture = <T>(sorte: Sorte, e: T, de: string, vers: string): T =>
+  reecritLEcriture(sorte, e, (nom) => (nom === de ? vers : undefined), SUFFIXE_FUSION);
+export const defaisLaFusionDeLEcriture = <T>(sorte: Sorte, e: T, de: string): T => rendsLEcriture(sorte, e, SUFFIXE_FUSION, de);
+/** Combien de cases nomment encore la caisse. 0 : la fusion est complète. */
+export function casesQuiNomment(lots: Partial<Record<Sorte, readonly unknown[]>>, nom: string): number {
+  let n = 0;
+  for (const [sorte, liste] of Object.entries(lots) as [Sorte, readonly unknown[]][]) {
+    for (const e of liste ?? []) n += casesDe(sorte, e).filter((c) => c.nom === nom).length;
+  }
+  return n;
+}
+/** Les caisses après la fusion : celle qui reçoit existe (née au besoin),
+    prend le solde d'ouverture ; celle qui part est rangée et dit où. */
+export function caissesApresFusion<B extends Cashbox>(
+  boxes: readonly B[], branchId: string, de: string, vers: string, le: string, neuve: () => B,
+): B[] {
+  const source = boxes.find((b) => b.branchId === branchId && b.name === de && !b.archiveeLe);
+  if (!source) return [...boxes];
+  let liste: B[] = [...boxes];
+  if (!liste.some((b) => b.branchId === branchId && b.name === vers && !b.archiveeLe)) {
+    const n = neuve();
+    liste = liste.some((b) => b.id === n.id)
+      ? liste.map((b) => (b.id === n.id ? { ...b, archiveeLe: undefined } : b))
+      : [...liste, n];
+  }
+  const ouverture = source.openingXof ?? 0;
+  return liste.map((b) => {
+    if (b.id === source.id) return { ...b, archiveeLe: le, fondueDans: vers, avantLaFusion: { openingXof: ouverture }, openingXof: 0 };
+    if (b.branchId === branchId && b.name === vers && !b.archiveeLe) return { ...b, openingXof: (b.openingXof ?? 0) + ouverture };
+    return b;
+  });
+}
+/** Le retour : la caisse fondue revient, avec son ouverture ; celle qui
+    l'avait reçue la rend. */
+export function caissesApresDefaire<B extends Cashbox>(boxes: readonly B[], branchId: string, de: string): B[] {
+  const source = boxes.find((b) => b.branchId === branchId && b.name === de && !!b.fondueDans);
+  if (!source) return [...boxes];
+  const ouverture = source.avantLaFusion?.openingXof ?? 0;
+  const vers = source.fondueDans!;
+  return boxes.map((b) => {
+    if (b.id === source.id) {
+      const { fondueDans: _f, avantLaFusion: _a, archiveeLe: _r, ...reste } = b;
+      return { ...reste, openingXof: ouverture } as B;
+    }
+    if (b.branchId === branchId && b.name === vers && !b.archiveeLe) return { ...b, openingXof: (b.openingXof ?? 0) - ouverture };
+    return b;
+  });
+}

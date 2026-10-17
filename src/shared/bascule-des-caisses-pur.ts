@@ -143,19 +143,27 @@ export function manque(plan: Plan, nom: unknown, date: unknown): boolean {
 
 type Rec = Record<string, unknown>;
 
-/** Réécrit UNE case et garde son ancien nom à côté (une fois : un second
-    passage ne l'efface pas). Rend le même objet quand rien ne change. */
-function basculeLaCase<T extends Rec>(r: T, champ: string, date: unknown, plan: Plan): T {
-  const neuf = nouveauNom(plan, r[champ], date);
+/** Le nouveau nom d'une case (ou `undefined` : elle ne bouge pas). */
+export type NomPour = (nom: unknown, date: unknown) => string | undefined;
+
+/** Réécrit UNE case et garde son ancien nom à côté, sous `<champ><suffixe>`
+    (une fois : un second passage ne l'efface pas). Rend le même objet quand
+    rien ne change. La bascule note « Avant » ; une fusion de caisses
+    (17 octobre 2026) note « AvantFusion », pour qu'on défasse l'une sans
+    l'autre. */
+function reecritLaCase<T extends Rec>(r: T, champ: string, date: unknown, nomPour: NomPour, suffixe: string): T {
+  const neuf = nomPour(r[champ], date);
   if (neuf === undefined) return r;
-  const avant = `${champ}Avant`;
+  const avant = `${champ}${suffixe}`;
   return { ...r, [champ]: neuf, [avant]: r[avant] ?? r[champ] };
 }
 
-/** Le retour : la case reprend son ancien nom, la note s'efface. */
-function rendsLaCase<T extends Rec>(r: T, champ: string): T {
-  const avant = `${champ}Avant`;
+/** Le retour : la case reprend son ancien nom, la note s'efface. `seul` :
+    seulement si l'ancien nom est celui-là (défaire UNE fusion, pas toutes). */
+function rendsLaCase<T extends Rec>(r: T, champ: string, suffixe = 'Avant', seul?: string): T {
+  const avant = `${champ}${suffixe}`;
   if (typeof r[avant] !== 'string') return r;
+  if (seul !== undefined && r[avant] !== seul) return r;
   const { [avant]: ancien, ...reste } = r;
   return { ...reste, [champ]: ancien } as T;
 }
@@ -169,18 +177,19 @@ const SIMPLES: Record<Exclude<Sorte, 'factures' | 'transferts' | 'rendezVous'>, 
   remboursements: 'date', clotures: 'date', engagements: 'verseLe', prets: 'date', avances: 'date',
 };
 
-/** Bascule une écriture. Rend la même référence si rien ne change. */
-export function basculeLEcriture<T>(sorte: Sorte, ecriture: T, plan: Plan): T {
+/** Réécrit les cases d'une écriture selon `nomPour`. Rend la même
+    référence si rien ne change. */
+export function reecritLEcriture<T>(sorte: Sorte, ecriture: T, nomPour: NomPour, suffixe = 'Avant'): T {
   const r = ecriture as unknown as Rec;
   if (sorte === 'transferts') {
-    const a = basculeLaCase(r, 'de', r.date, plan);
-    return basculeLaCase(a, 'vers', r.date, plan) as unknown as T;
+    const a = reecritLaCase(r, 'de', r.date, nomPour, suffixe);
+    return reecritLaCase(a, 'vers', r.date, nomPour, suffixe) as unknown as T;
   }
   if (sorte === 'factures' || sorte === 'rendezVous') {
     const payments = Array.isArray(r.payments) ? (r.payments as Rec[]) : undefined;
     let changees = false;
     const neufs = payments?.map((p) => {
-      const q = basculeLaCase(p, 'cashbox', p.date, plan);
+      const q = reecritLaCase(p, 'cashbox', p.date, nomPour, suffixe);
       if (q !== p) changees = true;
       return q;
     });
@@ -189,25 +198,31 @@ export function basculeLEcriture<T>(sorte: Sorte, ecriture: T, plan: Plan): T {
       /* Le miroir de la pièce suit le premier versement ; une pièce d'avant le
          journal n'a que lui, daté du jour de la pièce. */
       const date = payments && payments.length ? payments[0].date : r.date;
-      out = basculeLaCase(out, 'cashbox', date, plan);
+      out = reecritLaCase(out, 'cashbox', date, nomPour, suffixe);
     }
     return out as unknown as T;
   }
-  return basculeLaCase(r, 'cashbox', r[SIMPLES[sorte]], plan) as unknown as T;
+  return reecritLaCase(r, 'cashbox', r[SIMPLES[sorte]], nomPour, suffixe) as unknown as T;
 }
 
-/** Le retour d'une écriture à son état d'avant la bascule. */
-export function rendsLEcriture<T>(sorte: Sorte, ecriture: T): T {
+/** Bascule une écriture. Rend la même référence si rien ne change. */
+export function basculeLEcriture<T>(sorte: Sorte, ecriture: T, plan: Plan): T {
+  return reecritLEcriture(sorte, ecriture, (nom, date) => nouveauNom(plan, nom, date));
+}
+
+/** Le retour d'une écriture à son état d'avant la réécriture (la bascule,
+    ou avec `suffixe` une fusion). */
+export function rendsLEcriture<T>(sorte: Sorte, ecriture: T, suffixe = 'Avant', seul?: string): T {
   const r = ecriture as unknown as Rec;
-  if (sorte === 'transferts') return rendsLaCase(rendsLaCase(r, 'de'), 'vers') as unknown as T;
+  if (sorte === 'transferts') return rendsLaCase(rendsLaCase(r, 'de', suffixe, seul), 'vers', suffixe, seul) as unknown as T;
   if (sorte === 'factures' || sorte === 'rendezVous') {
     const payments = Array.isArray(r.payments) ? (r.payments as Rec[]) : undefined;
     let changees = false;
-    const neufs = payments?.map((p) => { const q = rendsLaCase(p, 'cashbox'); if (q !== p) changees = true; return q; });
+    const neufs = payments?.map((p) => { const q = rendsLaCase(p, 'cashbox', suffixe, seul); if (q !== p) changees = true; return q; });
     const out: Rec = changees ? { ...r, payments: neufs } : r;
-    return (sorte === 'factures' ? rendsLaCase(out, 'cashbox') : out) as unknown as T;
+    return (sorte === 'factures' ? rendsLaCase(out, 'cashbox', suffixe, seul) : out) as unknown as T;
   }
-  return rendsLaCase(r, 'cashbox') as unknown as T;
+  return rendsLaCase(r, 'cashbox', suffixe, seul) as unknown as T;
 }
 
 /** Les cases d'une écriture : leur nom et leur date (pour compter et lister). */

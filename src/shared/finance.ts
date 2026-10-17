@@ -655,6 +655,27 @@ export type Cashbox = {
       encaisse y entrent d'office (`shared/caisses-des-caissiers-pur`). Rien à
       voir avec `porteur`, l'argent confié pour des achats. */
   caissierId?: string;
+  /** ── JAMAIS PROPOSÉE À L'ENCAISSEMENT — 17 octobre 2026 ─────────
+      « BIIC : un compte à part » (Yéman). La caisse vit (dépenses,
+      transferts, relevé), mais la règle des caissiers ne la propose jamais
+      pour recevoir l'argent d'un rituel ou d'une vente, et seule la
+      direction peut l'y choisir. `false` : décochée exprès (la décision
+      automatique ne repasse pas). */
+  horsEncaissement?: boolean;
+  /** ── L'HISTOIRE — 17 octobre 2026 ──────────────────────────────
+      La caisse « Années passées » : comme une ancienne, elle garde TOUT son
+      passé (le départ des caisses ne la coupe pas) et reste hors de la
+      trésorerie du mois ; mais sans date de fin, puisqu'on y range encore. */
+  histoire?: boolean;
+  /** Remplacée par les caisses des caissiers (la date de la décision) : elle
+      garde son passé, ne reçoit plus d'encaissement, et quitte l'équipe dès
+      qu'une autre caisse lui est ouverte (`equipeRetireeLe`). */
+  remplaceeLe?: string;
+  equipeRetireeLe?: string;
+  /** FONDUE dans une autre caisse (ses écritures y sont passées) : le nom de
+      la caisse qui l'a reçue, et son solde d'ouverture d'avant, pour défaire. */
+  fondueDans?: string;
+  avantLaFusion?: { openingXof: number };
   codeHash?: string;
   /** ── HORS BILAN — 22 août 2026 ──────────────────────────────────
       « J'aimerais exclure des caisses du total dans mes bilans. »
@@ -775,13 +796,22 @@ export const caisseParDefaut = (
     AUCUNE caisse d'équipe, elles restent toutes visibles. Un employé sans
     aucun tiroir ne pourrait plus rien saisir, et il chercherait la panne au
     lieu de comprendre le réglage. */
-export const caissesPourLEquipe = <T extends { equipe?: boolean }>(
-  boxes: readonly T[], voitTout: boolean,
+export const caissesPourLEquipe = <T extends { equipe?: boolean; caissierId?: string }>(
+  boxes: readonly T[], voitTout: boolean, staffId?: string,
 ): T[] => {
   if (voitTout) return boxes.slice();
   const ouvertes = boxes.filter((c) => c.equipe === true);
-  return ouvertes.length > 0 ? ouvertes : boxes.slice();
+  if (ouvertes.length === 0) return boxes.slice();
+  /* CHACUN LA SIENNE — 17 octobre 2026 (sa décision) : la caisse d'un autre
+     caissier ne s'offre pas, même ouverte à l'équipe ; la direction voit tout
+     (`voitTout`). */
+  return ouvertes.filter((c) => !c.caissierId || c.caissierId === staffId);
 };
+
+/** UNE CAISSE QUI GARDE TOUT SON PASSÉ : une ancienne (jusqu'au 30 sept.)
+    ou l'histoire (« Années passées »). Son solde compte tout, et elle reste
+    hors de la trésorerie du mois. */
+export const gardeToutSonPasse = (c: Pick<Cashbox, 'jusquAu' | 'histoire'> | undefined): boolean => !!c?.jusquAu || !!c?.histoire;
 
 export const caisseDuPorteur = (
   boxes: readonly Cashbox[], branchId: string, nom: string,

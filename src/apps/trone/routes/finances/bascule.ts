@@ -23,7 +23,8 @@ import {
 } from '../../../../shared/bascule-des-caisses-pur';
 
 type Lot = { sorte: Sorte; store: Store<unknown[]> };
-const LOTS: readonly Lot[] = [
+/* Partagés avec la fusion des caisses (17 octobre 2026) : les mêmes treize. */
+export const LOTS: readonly Lot[] = [
   { sorte: 'factures', store: invoicesStore as unknown as Store<unknown[]> },
   { sorte: 'depenses', store: expensesStore as unknown as Store<unknown[]> },
   { sorte: 'coffre', store: coffreStore as unknown as Store<unknown[]> },
@@ -40,7 +41,7 @@ const LOTS: readonly Lot[] = [
 ];
 
 /** Une écriture de la branche (celles d'avant le champ n'en portent pas). */
-const deLaBranche = (branchId: string) => (r: unknown): boolean => {
+export const deLaBranche = (branchId: string) => (r: unknown): boolean => {
   const b = (r as { branchId?: string }).branchId;
   return !b || b === branchId;
 };

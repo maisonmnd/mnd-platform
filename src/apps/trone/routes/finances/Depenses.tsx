@@ -20,7 +20,7 @@ import { expenseOccurrences,
   type ValidationDepense } from '../../../../shared/finance';
 import { CAISSE_POURBOIRES } from '../../../../shared/receipts';
 import { useStaff } from '../../../../shared/auth';
-import { staffAccessStore } from '../equipe/data';
+import { staffAccessStore, useMaFiche } from '../equipe/data';
 import { useStore } from '../../../../shared/store';
 import { usePrets } from '../../../../shared/foyer';
 import { useTransferts, transfertSurCaisse, caissesPourLaDate } from '../../../../shared/finance';
@@ -307,9 +307,12 @@ export default function Depenses() {
      pastilles du flux, le choix du formulaire et la caisse d'un remboursement
      le suivent tous sans qu'on ait à y penser. */
   const toutesLesCaisses = useMemo(() => cashboxes.filter((c) => c.branchId === branch.id), [cashboxes, branch.id]);
+  /* CHACUN LA SIENNE (17 octobre 2026, sa décision) : la caisse d'un autre
+     caissier ne s'offre pas à qui ne voit que ses dépenses. */
+  const maFiche = useMaFiche();
   const branchBoxes = useMemo(
-    () => caissesPourLEquipe(toutesLesCaisses, voitToutesLesDepenses),
-    [toutesLesCaisses, voitToutesLesDepenses],
+    () => caissesPourLEquipe(toutesLesCaisses, voitToutesLesDepenses, maFiche?.id),
+    [toutesLesCaisses, voitToutesLesDepenses, maFiche?.id],
   );
   /* CET ÉCRAN N’A JAMAIS FILTRÉ LES CAISSES EN DEVISE — 22 août 2026. Une
      dépense en francs imputée à un tiroir en dollars lui retirait des francs,

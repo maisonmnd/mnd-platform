@@ -12,6 +12,7 @@ import { advancesStore } from '../src/apps/trone/routes/equipe/payroll';
 import { settingsStore } from '../src/shared/settings';
 import { appliqueLaBascule, annuleLaBascule, resteAFaire } from '../src/apps/trone/routes/finances/bascule';
 import { planPropose } from '../src/shared/bascule-des-caisses-pur';
+import { fondsLaCaisse, defaisLaFusion, casesDeLaCaisse } from '../src/apps/trone/routes/finances/fusion';
 
 let ko = 0;
 const dit = (nom: string, attendu: unknown, obtenu: unknown) => {
@@ -90,5 +91,41 @@ dit('... les caisses reprennent noms et ouvertures', JSON.parse(caissesAvant).ma
 dit('... la Caisse du mois reste (une ecriture la nommait), les autres neuves s en vont', ['Caisse du mois'],
   rendues.filter((c) => c.creeeParLaBascule).map((c) => c.name));
 dit('... et le depart d avant revient (aucun)', [undefined, undefined], [settingsStore.get().caissesDepuis, settingsStore.get().basculeDesCaisses]);
+
+/* ── LA FUSION APPLIQUÉE AUX VRAIS MAGASINS — 17 octobre 2026 ──────
+   « Reprise 2025 » fondue dans « Années passées », puis défaite : chaque
+   magasin redevient ce qu'il était, l'autre branche ne bouge jamais. */
+cashboxesStore.set((p) => [...p,
+  { id: 'rp', branchId: B, name: 'Reprise 2025', sub: '', glyph: '◈', openingXof: 12000, jusquAu: '2026-09-30' },
+  { id: 'rp-autre', branchId: 'autre', name: 'Reprise 2025', sub: '', glyph: '◈', openingXof: 3 }]);
+invoicesStore.set((p) => [...p, as({ id: 'fr', branchId: B, kind: 'facture', number: 'F7', clientId: 'x', date: '2025-06-12', lines: [], globalDiscountPct: 0, theme: 'Rose', status: 'payée', cashbox: 'Reprise 2025',
+  payments: [{ id: 'pr', date: '2025-06-12', amountXof: 25000, method: 'Espèces', cashbox: 'Reprise 2025' }] }),
+  as({ id: 'fr-autre', branchId: 'autre', kind: 'facture', number: 'F8', clientId: 'x', date: '2025-06-12', lines: [], globalDiscountPct: 0, theme: 'Rose', status: 'payée', cashbox: 'Reprise 2025' })]);
+expensesStore.set((p) => [...p, as({ id: 'er', branchId: B, date: '2026-02-03', cashbox: 'Reprise 2025', label: 'Rendu', amountXof: 1000 })]);
+transfertsStore.set((p) => [...p, as({ id: 'tr', branchId: B, date: '2026-03-01', de: 'Reprise 2025', vers: 'Real Money', montantXof: 500 })]);
+appointmentsStore.set((p) => [...p, as({ id: 'rr', branchId: B, clientId: 'x', date: '2025-06-12', payments: [{ id: 'arp', date: '2025-06-12', amountXof: 25000, method: 'Espèces', cashbox: 'Reprise 2025' }] })]);
+const avantF = photo();
+const caissesAvantF = JSON.stringify(cashboxesStore.get());
+dit('avant la fusion : la branche nomme Reprise 2025 en 4 cases (miroir de la pièce à part)', 4, casesDeLaCaisse(B, 'Reprise 2025'));
+fondsLaCaisse(B, 'Reprise 2025', 'Années passées', '2026-10-17T12:00:00Z');
+const ap = cashboxesStore.get().find((c) => c.branchId === B && c.name === 'Années passées');
+const rp = cashboxesStore.get().find((c) => c.id === 'rp');
+dit('après : plus rien ne la nomme dans la branche', 0, casesDeLaCaisse(B, 'Reprise 2025'));
+dit('... la pièce, son miroir, la dépense, le transfert, le carnet passent aux années passées', ['Années passées', 'Années passées', 'Années passées', 'Années passées', 'Années passées'], [
+  as<{ cashbox: string }>(invoicesStore.get().find((i) => i.id === 'fr')).cashbox,
+  as<{ payments: { cashbox: string }[] }>(invoicesStore.get().find((i) => i.id === 'fr')).payments[0].cashbox,
+  as<{ cashbox: string }>(expensesStore.get().find((e) => e.id === 'er')).cashbox,
+  as<{ de: string }>(transfertsStore.get().find((t) => t.id === 'tr')).de,
+  as<{ payments: { cashbox: string }[] }>(appointmentsStore.get().find((r) => r.id === 'rr')).payments[0].cashbox]);
+dit('... la caisse des années passées naît, garde son passé, reçoit l ouverture ; Reprise 2025 rangée', [true, true, 12000, '2026-10-17T12:00:00Z', 'Années passées'],
+  [!!ap, ap?.histoire, ap?.openingXof, rp?.archiveeLe, rp?.fondueDans]);
+dit('... l autre branche ne bouge pas', ['Reprise 2025', 'Reprise 2025', undefined],
+  [as<{ cashbox: string }>(invoicesStore.get().find((i) => i.id === 'fr-autre')).cashbox, cashboxesStore.get().find((c) => c.id === 'rp-autre')?.name, cashboxesStore.get().find((c) => c.id === 'rp-autre')?.archiveeLe]);
+defaisLaFusion(B, 'Reprise 2025');
+dit('défaire : chaque magasin redevient exactement ce qu il était', avantF, photo());
+dit('... Reprise 2025 revient avec son ouverture, les années passées la rendent', [12000, undefined, 0],
+  [cashboxesStore.get().find((c) => c.id === 'rp')?.openingXof, cashboxesStore.get().find((c) => c.id === 'rp')?.archiveeLe,
+    cashboxesStore.get().find((c) => c.branchId === B && c.name === 'Années passées')?.openingXof]);
+dit('... et les caisses d avant sont là, plus la caisse des années passées', JSON.parse(caissesAvantF).length + 1, cashboxesStore.get().length);
 
 console.log(ko === 0 ? '\nAller et retour, rien ne se perd.' : `\n${ko} controle(s) en echec.`);

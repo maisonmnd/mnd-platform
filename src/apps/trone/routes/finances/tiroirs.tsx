@@ -21,7 +21,7 @@ import {
   useCashboxes, useExpenses, useDepensesComptees, enAttenteSurLaCaisse, useInvoices, useCoffre, useCredits, useTransferts,
   cashboxCurrency, expenseTotal, invoiceReglements, transfertSurCaisse,
   caisseDiscrete, empreinteDuCode, caissesHorsBilan, surLeTiroir, montantMuet,
-  useEntreesHorsActivite, horsActiviteDuTiroir, soldeHorsActiviteDuTiroir, signeSurLeTiroir, sensDe,
+  useEntreesHorsActivite, horsActiviteDuTiroir, soldeHorsActiviteDuTiroir, signeSurLeTiroir, sensDe, gardeToutSonPasse,
   type Cashbox,
   type Invoice, type Expense, type CoffreMovement, type CreditMovement,
 } from '../../../../shared/finance';
@@ -318,7 +318,7 @@ export function useCaisses(month: string) {
   const boxBalanceWhere = (name: string, keepDemande: (mk: string) => boolean) => {
     /* UNE ANCIENNE GARDE TOUT SON PASSÉ (4 octobre 2026, « Ouvrir octobre ») :
        le départ ne la coupe pas, elle sert à finir le travail d'avant. */
-    const ancienne = !!boxOf(name)?.jusquAu;
+    const ancienne = gardeToutSonPasse(boxOf(name));
     const keep = (mk: string) => keepDemande(mk) && (ancienne || dansLesComptes(mk, depuis));
     const box = boxOf(name);
     const boxCur = box ? cashboxCurrency(box) : currency;
@@ -369,7 +369,7 @@ export function useCaisses(month: string) {
   /* Les anciennes ne font pas la trésorerie d'octobre : leur argent est
      celui d'avant, en cours de mise en ordre (4 octobre 2026). */
   const treasury = branchBoxes
-    .filter((b) => cashboxCurrency(b) === currency && !b.jusquAu)
+    .filter((b) => cashboxCurrency(b) === currency && !gardeToutSonPasse(b))
     .reduce((s, b) => s + boxBalance(b.name), 0);
 
   /* Ce qu'il y a DERRIÈRE le solde d'une caisse. Mêmes règles que `boxBalance`,
@@ -562,11 +562,11 @@ export function useCaisses(month: string) {
      amputé sans explication vaudrait pire qu'un total complet. */
   const ouvertesMaintenant = useCaissesOuvertes();
   const tresorerieVisible = branchBoxes
-    .filter((b) => cashboxCurrency(b) === currency && !b.horsBilan && !b.jusquAu && soldeVisible(b, ouvertesMaintenant))
+    .filter((b) => cashboxCurrency(b) === currency && !b.horsBilan && !gardeToutSonPasse(b) && soldeVisible(b, ouvertesMaintenant))
     .reduce((s, b) => s + boxBalance(b.name), 0);
   /* Les anciennes, à part : ce qu'il reste à mettre en ordre d'avant octobre. */
   const anciennesTotal = branchBoxes
-    .filter((b) => b.jusquAu && cashboxCurrency(b) === currency && !b.horsBilan && soldeVisible(b, ouvertesMaintenant))
+    .filter((b) => gardeToutSonPasse(b) && cashboxCurrency(b) === currency && !b.horsBilan && soldeVisible(b, ouvertesMaintenant))
     .reduce((s, b) => s + boxBalance(b.name), 0);
   const horsBilan = branchBoxes.filter((b) => b.horsBilan).length;
   const discretesFermees = branchBoxes.filter((b) => caisseDiscrete(b) && !ouvertesMaintenant.has(b.id)).length;
@@ -576,7 +576,7 @@ export function useCaisses(month: string) {
       pour remettre à la même mesure le livre d'une clôture d'avant le
       10 octobre 2026 (voir `livreDeLaCloture`). */
   const horsActiviteJusquAu = (name: string, jour: string): number => {
-    const ancienne = !!boxOf(name)?.jusquAu;
+    const ancienne = gardeToutSonPasse(boxOf(name));
     return horsActiviteDuTiroir(horsActivite, branch.id, name, (mk) => ancienne || dansLesComptes(mk, depuis))
       .filter((m) => m.date.slice(0, 10) <= jour)
       .reduce((s, m) => s + signeSurLeTiroir(m, deviseDuTiroir(name), currency), 0);

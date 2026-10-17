@@ -138,7 +138,10 @@ const caissesSrc = readFileSync('src/apps/trone/routes/finances/Caisses.tsx', 'u
 dit('l ecran des caisses ouvre octobre et montre les anciennes a part', true, /<BasculeDOctobre onClose=/.test(caissesSrc) && /Anciennes caisses · jusqu’au 30 sept\. 2026/.test(caissesSrc));
 const tiroirs = readFileSync('src/apps/trone/routes/finances/tiroirs.tsx', 'utf8');
 dit('une ancienne garde tout son passe, et sort de la tresorerie', true,
-  /keepDemande\(mk\) && \(ancienne \|\| dansLesComptes\(mk, depuis\)\)/.test(tiroirs) && /!b\.horsBilan && !b\.jusquAu && soldeVisible/.test(tiroirs));
+  /* 17 octobre 2026 : « ancienne » se dit `gardeToutSonPasse` (les anciennes,
+     et l'histoire des années passées) ; la règle ne bouge pas. */
+  /keepDemande\(mk\) && \(ancienne \|\| dansLesComptes\(mk, depuis\)\)/.test(tiroirs) && /!b\.horsBilan && !gardeToutSonPasse\(b\) && soldeVisible/.test(tiroirs)
+  && /gardeToutSonPasse = \([^)]*\): boolean => !!c\?\.jusquAu \|\|/.test(readFileSync('src/shared/finance.ts', 'utf8')));
 const bascule = readFileSync('src/apps/trone/routes/finances/bascule.ts', 'utf8');
 dit('les cartes cadeaux ne sont pas reecrites (la base les fige)', false, /cartesCadeaux/.test(bascule));
 

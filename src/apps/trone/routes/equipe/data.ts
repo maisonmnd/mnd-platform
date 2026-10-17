@@ -1,5 +1,6 @@
 import { createStore, useStore, HOUSE_BLANK, type Store } from '../../../../shared/store';
 import { memeContenu } from '../../../../shared/meme-contenu';
+import { identiteCourante } from '../../../../shared/journal';
 import type { Competence, Depart } from '../../../../shared/rh-pur';
 import type { RetenueCompteCourant } from '../../../../shared/compte-courant';
 import { DEVISE_COMPLETE } from '../../../../shared/identite';
@@ -383,6 +384,15 @@ export const staffStore: Store<StaffMember[]> = {
   },
 };
 export const useStaff = () => useStore(staffStore);
+
+/** LA FICHE DU COMPTE CONNECTÉ — 17 octobre 2026. Retrouvée par l'adresse qui
+    fait foi (`adresseDe`), comme au comptoir : c'est elle qui porte la caisse
+    d'un caissier (`Cashbox.caissierId`). Sans fiche : `undefined`. */
+export const useMaFiche = (): StaffMember | undefined => {
+  const [equipe] = useStore(staffStore);
+  const mail = (identiteCourante().mail ?? '').trim().toLowerCase();
+  return mail ? equipe.find((m) => adresseDe(m) === mail) : undefined;
+};
 
 /** L'ADRESSE QUI FAIT FOI pour une fiche — celle du COMPTE d'abord, celle de
     contact en repli. Toute identité (signatures, tête-à-tête, colonnes du

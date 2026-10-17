@@ -83,6 +83,9 @@ import { useBranch } from '../../../shared/branches';
 import { useHouseIdentity, fuseauIana } from '../../../shared/identite';
 import { Seal, Button, Modal, toast } from '../../../ds/components';
 import { useAuth, useMaTete, signOut } from '../../../shared/auth';
+import { cashboxesStore, useToutesLesCaisses } from '../../../shared/finance';
+import { decisionsDesCaisses } from '../../../shared/decisions-des-caisses-pur';
+import { quandTablePrete } from '../../../shared/sync';
 import { BoutonDesCles } from '../auth/Empreinte';
 import { documentDescendu, quandDocumentDescendu } from '../../../shared/sync';
 import { useFil, mesDemandes } from '../../../shared/fil';
@@ -385,6 +388,23 @@ export default function Shell() {
   const { session } = useAuth();
   const { tete: staff, pret: teteSue } = useMaTete();
   const role = staff?.role;
+
+  /* ══ LES DÉCISIONS DU 17 OCTOBRE SUR LES AUTRES CAISSES ══════════════
+     BIIC à part, Caisse Indépendantes remplacée, l'histoire des années
+     passées (`decisionsDesCaisses`). Posées une fois, par la direction, une
+     fois la table des caisses descendue du serveur : jamais sur une copie
+     d'appareil périmée. */
+  const [lesCaisses] = useToutesLesCaisses();
+  const estDirectionDuShell = role === 'souverain' || role === 'gerant';
+  useEffect(() => {
+    if (!estDirectionDuShell) return;
+    quandTablePrete('cashboxes', () => {
+      const jour = new Date().toISOString().slice(0, 10);
+      if (decisionsDesCaisses(cashboxesStore.get(), jour)) {
+        cashboxesStore.set((prev) => decisionsDesCaisses(prev, jour) ?? prev);
+      }
+    });
+  }, [estDirectionDuShell, lesCaisses]);
 
   /* LA MATRICE DOIT ÊTRE DESCENDUE, ELLE AUSSI — 31 août 2026. Savoir QUI
      regarde ne suffit pas : tant que ses accès ne sont pas arrivés, la matrice

@@ -18,8 +18,10 @@ import type { Cashbox } from './finance';
 
 /** Les caisses que le départ peut remettre à 0 : celles de la branche, ni
     anciennes ni rangées. */
-export const toucheeParLeDepart = (c: Pick<Cashbox, 'branchId' | 'jusquAu' | 'archiveeLe'>, branchId: string): boolean =>
-  c.branchId === branchId && !c.jusquAu && !c.archiveeLe;
+export const toucheeParLeDepart = (c: Pick<Cashbox, 'branchId' | 'jusquAu' | 'archiveeLe' | 'histoire'>, branchId: string): boolean =>
+  /* L'histoire (« Années passées », 17 octobre 2026) garde son ouverture,
+     comme une ancienne : elle porte le passé. */
+  c.branchId === branchId && !c.jusquAu && !c.histoire && !c.archiveeLe;
 
 /** Celles qui ont aujourd'hui une ouverture à remettre à 0 (l'écran les nomme). */
 export const ouverturesARemettre = <C extends Cashbox>(caisses: readonly C[], branchId: string): C[] =>

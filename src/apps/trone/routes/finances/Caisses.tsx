@@ -2,6 +2,8 @@ import { useState, type CSSProperties } from 'react';
 import { ClotureDuTiroir } from './ClotureDuTiroir';
 import { DepartDesCaisses, moisEtAn } from './DepartDesCaisses';
 import { BasculeDOctobre } from './BasculeDOctobre';
+import { FusionDesCaisses } from './FusionDesCaisses';
+import { gardeToutSonPasse } from '../../../../shared/finance';
 import { useNavigate } from 'react-router-dom';
 import { Eyebrow, Modal, demande, demandeUnTexte } from '../../../../ds/components';
 import { fmtIn, fmtMoney } from '../../../../shared/currency';
@@ -39,7 +41,7 @@ import { ChampDeDate } from '../../../../ds/dates';
    qui sort. Elle a donc son écran, et Dépenses comme Encaissements y
    renvoient. Les calculs, eux, restent à une seule source (`useCaisses`). */
 
-type BoxForm = { name: string; sub: string; glyph: string; opening: string; currency: string; code: string; codeExistant: boolean; horsBilan: boolean; porteur: string; equipe: boolean };
+type BoxForm = { name: string; sub: string; glyph: string; opening: string; currency: string; code: string; codeExistant: boolean; horsBilan: boolean; porteur: string; equipe: boolean; encaissement: boolean };
 const GLYPHS = ['◈', '❖', '✦', '❈', '◆', '✧', '⬡', '❉'];
 
 export default function Caisses() {
@@ -103,7 +105,7 @@ export default function Caisses() {
   /* ── Créer, renommer, retirer une caisse ── */
   const [boxOpen, setBoxOpen] = useState(false);
   const [boxEditingId, setBoxEditingId] = useState<string | null>(null);
-  const [boxForm, setBoxForm] = useState<BoxForm>({ name: '', sub: '', glyph: '◈', opening: '', currency: '', code: '', codeExistant: false, horsBilan: false, porteur: '', equipe: false });
+  const [boxForm, setBoxForm] = useState<BoxForm>({ name: '', sub: '', glyph: '◈', opening: '', currency: '', code: '', codeExistant: false, horsBilan: false, porteur: '', equipe: false, encaissement: true });
 
   /* ── OUVRIR UNE CAISSE DISCRÈTE ── */
   /* CE QU'ON FERA UNE FOIS LA CAISSE OUVERTE — 22 août 2026. « Même quand les
@@ -131,7 +133,7 @@ export default function Caisses() {
 
   const openNewBox = () => {
     setBoxEditingId(null);
-    setBoxForm({ name: '', sub: '', glyph: '◈', opening: '', currency: '', code: '', codeExistant: false, horsBilan: false, porteur: '', equipe: false });
+    setBoxForm({ name: '', sub: '', glyph: '◈', opening: '', currency: '', code: '', codeExistant: false, horsBilan: false, porteur: '', equipe: false, encaissement: true });
     setBoxOpen(true);
   };
   const openEditBox = (c: Cashbox) => {
@@ -140,7 +142,7 @@ export default function Caisses() {
        garantit même si un autre appel apparaissait un jour. */
     if (caisseDiscrete(c) && !soldeVisible(c, ouvertes)) { demanderLeCode(c, 'modifier'); return; }
     setBoxEditingId(c.id);
-    setBoxForm({ name: c.name, sub: c.sub, glyph: c.glyph, opening: String(c.openingXof || ''), currency: c.currency ?? '', code: '', codeExistant: !!c.codeHash, horsBilan: !!c.horsBilan, porteur: c.porteur ?? '', equipe: !!c.equipe });
+    setBoxForm({ name: c.name, sub: c.sub, glyph: c.glyph, opening: String(c.openingXof || ''), currency: c.currency ?? '', code: '', codeExistant: !!c.codeHash, horsBilan: !!c.horsBilan, porteur: c.porteur ?? '', equipe: !!c.equipe, encaissement: !c.horsEncaissement });
     setBoxOpen(true);
   };
 
@@ -165,6 +167,9 @@ export default function Caisses() {
           horsBilan: boxForm.horsBilan || undefined,
           porteur: boxForm.porteur.trim() || undefined,
           equipe: boxForm.equipe || undefined,
+          /* Décochée exprès : `true` ; recochée : `false`, pour que la
+             décision du 17 octobre (BIIC) ne repasse pas par-dessus. */
+          horsEncaissement: !boxForm.encaissement ? true : (b.horsEncaissement === undefined ? undefined : false),
           codeHash: boxForm.code.trim() ? codeHash : (boxForm.codeExistant ? b.codeHash : undefined),
         }
         : b)));
@@ -200,6 +205,7 @@ export default function Caisses() {
         horsBilan: boxForm.horsBilan || undefined,
         porteur: boxForm.porteur.trim() || undefined,
         equipe: boxForm.equipe || undefined,
+        ...(boxForm.encaissement ? {} : { horsEncaissement: true }),
         codeHash,
       }]);
       /* Elle s'ouvre pour la séance où on vient de la créer : sinon on
@@ -350,6 +356,8 @@ export default function Caisses() {
           </button>
         </div>
       </div>
+
+      <FusionDesCaisses />
 
       <div className="trf-toolbar">
         <MonthNav month={month} onChange={setMonth} />
@@ -556,16 +564,19 @@ export default function Caisses() {
             /* LES ANCIENNES, À PART MAIS VISIBLES — 4 octobre 2026, « Ouvrir
                octobre » : elles servent à finir le travail jusqu'au 30
                septembre ; elles ne se mêlent ni aux pièces neuves ni au total. */
-            const anciennes = branchBoxes.filter((c) => !!c.jusquAu);
-            const auBilan = branchBoxes.filter((c) => !c.horsBilan && !c.jusquAu);
-            const ecartees = branchBoxes.filter((c) => !!c.horsBilan && !c.jusquAu);
+            /* L'histoire (« Années passées », 17 octobre 2026) se range avec
+               les anciennes : elle garde tout son passé, hors trésorerie. */
+            const anciennes = branchBoxes.filter((c) => gardeToutSonPasse(c));
+            const auBilan = branchBoxes.filter((c) => !c.horsBilan && !gardeToutSonPasse(c));
+            const ecartees = branchBoxes.filter((c) => !!c.horsBilan && !gardeToutSonPasse(c));
+            const avecLHistoire = anciennes.some((c) => c.histoire);
             return (
               <>
                 {rangees(auBilan, false)}
                 {anciennes.length > 0 && (
                   <section className="trf-hors-bloc">
                     <div className="trf-hors-bloc__tete">
-                      <span className="trf-hors-bloc__titre">Anciennes caisses · jusqu’au 30 sept. 2026</span>
+                      <span className="trf-hors-bloc__titre">Anciennes caisses · jusqu’au 30 sept. 2026{avecLHistoire ? ' · et les années passées' : ''}</span>
                       <span className="trf-hors-bloc__n">
                         {anciennes.length} caisse{anciennes.length > 1 ? 's' : ''} · {fmtMoney(anciennesTotal, currency)}
                       </span>
@@ -841,6 +852,27 @@ export default function Caisses() {
                     verront aucun autre tiroir. Tant qu’aucune caisse n’est cochée, elles leur
                     restent <b>toutes</b> visibles, pour que personne ne se retrouve sans caisse
                     où saisir.
+                  </span>
+                </span>
+              </label>
+            </div>
+
+            {/* PROPOSÉE À L'ENCAISSEMENT — 17 octobre 2026 (« BIIC : un
+                compte à part »). Décochée, la caisse vit, mais la règle des
+                caissiers ne la propose jamais ; seule la direction l'y choisit. */}
+            <div className="mnd-field">
+              <label style={{ display: 'flex', alignItems: 'flex-start', gap: 9, cursor: 'pointer' }}>
+                <input
+                  type="checkbox"
+                  checked={boxForm.encaissement}
+                  onChange={(e) => setBoxForm((f) => ({ ...f, encaissement: e.target.checked }))}
+                  style={{ marginTop: 3 }}
+                />
+                <span>
+                  <b style={{ fontFamily: 'var(--font-sans)', fontSize: 13.5, fontWeight: 500 }}>Proposée à l’encaissement</b>
+                  <span className="mnd-muted" style={{ fontSize: 10.5, display: 'block', marginTop: 3, lineHeight: 1.55 }}>
+                    Décochée, elle garde ses dépenses, ses transferts et son relevé, mais elle ne se propose jamais
+                    pour recevoir l’argent d’un rituel ou d’une vente ; seule la direction peut l’y choisir.
                   </span>
                 </span>
               </label>
