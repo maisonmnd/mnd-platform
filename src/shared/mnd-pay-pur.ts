@@ -126,6 +126,28 @@ export const codeTapGo = (r: ReglagesMndPay | undefined): string => {
   const c = String(r?.tapgo?.code ?? '').replace(/\D/g, '');
   return c || CODE_TAPGO_DEFAUT;
 };
+/* ══ LE NUMÉRO PART SUR SON WHATSAPP — 17 octobre 2026 ═════════════════
+   « Quand le code USSD s'affiche, est-ce possible de l'envoyer sur le
+   téléphone de la cliente instantanément ? » puis « automatique ». Dès que
+   le numéro s'affiche au comptoir, un lien part sur son WhatsApp : la page
+   `payer.html?tg=CODE-TOTAL` compose le numéro d'un geste (Android) ou le
+   donne à copier (iPhone). Dans la fenêtre de 24 heures, un mot libre ;
+   hors fenêtre, le modèle Meta `paiement_a_composer` (Utilitaire), dont le
+   bouton « Composer » porte ce même paramètre. Le message ne contient PAS le
+   numéro : WhatsApp mettrait en gras ce qui est entre deux étoiles. Et
+   jamais le mot « code » (Meta le classerait en authentification). */
+export const MODELE_TAPGO = 'paiement_a_composer';
+export const LIEN_TAPGO = 'https://maisonmnd.com/trone/payer.html?tg=';
+/** Le paramètre du lien et du bouton : « 51166-25400 », un seul mot, que la
+    fonction d'envoi accepte (lettres, chiffres, tiret). */
+export const parametreTapGo = (totalXof: number, r: ReglagesMndPay | undefined): string =>
+  `${codeTapGo(r)}-${Math.max(0, Math.round(Number(totalXof) || 0))}`;
+/** Les deux variables du modèle : son appel, et le montant dit. */
+export const variablesTapGo = (appel: string, montant: string): string[] => [appel, montant];
+/** Le mot libre, dans la fenêtre de 24 heures. */
+export const motTapGo = (appel: string, montant: string, lien: string): string =>
+  `Bonjour ${appel}, pour régler ${montant}, touchez ce lien : votre téléphone compose le numéro, montant compris. Confirmez ensuite le paiement sur votre téléphone.\n${lien}`;
+
 /** Tap & Go s'offre avec MND PAY, sauf s'il est éteint dans les réglages. */
 export const tapGoOuvert = (r: ReglagesMndPay | undefined): boolean => r?.tapgo?.actif !== false;
 /** LE CODE À COMPOSER, montant compris : c'est lui que la cliente tape. */

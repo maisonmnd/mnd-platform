@@ -32,6 +32,9 @@ export type EnvoiWhatsApp = {
   /** Jusqu'à trois boutons de réponse : `id` est ce que le webhook lira,
       `titre` ce qu'elle verra (vingt signes au plus). */
   boutons?: { id: string; titre: string }[];
+  /** Le mot ajouté à l'URL fixe du bouton d'un modèle (un seul mot :
+      lettres, chiffres, point, tiret). */
+  boutonUrl?: string;
   clientId?: string;
   branchId?: string;
   parQui?: string;
@@ -85,6 +88,7 @@ export async function envoieSurWhatsApp(e: EnvoiWhatsApp): Promise<ResultatDEnvo
     ...(e.enTete ? { enTete: e.enTete } : {}),
     ...(e.piece ? { piece: e.piece } : {}),
     ...(e.boutons?.length ? { boutons: e.boutons } : {}),
+    ...(e.boutonUrl ? { boutonUrl: e.boutonUrl } : {}),
     clientId: e.clientId,
     branchId: e.branchId,
     parQui: e.parQui,

@@ -6,6 +6,8 @@ import {
   tapGoOuvert, type DemandeMndPay, type MoyenMndPay, type ReglagesMndPay,
 } from '../../../../shared/mnd-pay-pur';
 import { annuleLaDemande, demandeLePaiement, relisLaDemande, useDemandesMndPay, useRelecture, useSaitTapGo } from '../../../../shared/mnd-pay';
+import { envoieLeNumeroTapGo } from '../../../../shared/tapgo-whatsapp';
+import { quiEncaisse } from '../../../../shared/finance';
 
 /* ══ LE PANNEAU MND PAY — 16 octobre 2026 ═══════════════════════════════
    Maquette UigU1Rr5… : la caissière choisit le moyen, demande, et attend
@@ -71,6 +73,9 @@ export function PanneauMndPay(p: {
   pieceNumero?: string;
   clientId?: string;
   telephone?: string;
+  /** La fiche de la cliente : son appel (civilité, prénom) dans le message
+      Tap & Go qui part sur son WhatsApp. */
+  cliente?: { id?: string; name?: string | null; civilite?: import('../../../../shared/civilite').Civilite; auMasculin?: boolean };
   montantXof: number;
   pourboireXof?: number;
   libelle: string;
@@ -88,6 +93,8 @@ export function PanneauMndPay(p: {
   const [demandeId, setDemandeId] = useState<string | null>(null);
   const [erreur, setErreur] = useState<string | null>(null);
   const [occupe, setOccupe] = useState(false);
+  /* Le lien Tap & Go envoyé sur son WhatsApp : où il en est. */
+  const [envoiTapGo, setEnvoiTapGo] = useState<{ etat: 'envoi' | 'ok' | 'ko'; dit: string } | null>(null);
   const signale = useRef<string | null>(null);
 
   /* Une autre cliente au comptoir : on repart de son numéro. */
@@ -128,8 +135,23 @@ export function PanneauMndPay(p: {
     if (!r.ok) { setErreur(r.erreur); return; }
     signale.current = null;
     setDemandeId(r.id);
+    /* TAP & GO, AUTOMATIQUE (sa décision du 17 octobre) : le numéro part sur
+       son WhatsApp à l'instant où il s'affiche. Sans numéro, il reste à
+       l'écran, et le comptoir le dit. */
+    if (moyen === 'tapgo') {
+      setEnvoiTapGo(null);
+      if (!tel.trim()) { setEnvoiTapGo({ etat: 'ko', dit: 'Pas de numéro : le lien n’est pas parti, elle lit le numéro ici.' }); return; }
+      setEnvoiTapGo({ etat: 'envoi', dit: 'Envoi du lien sur son WhatsApp…' });
+      const envoi = await envoieLeNumeroTapGo({
+        telephone: tel, cliente: p.cliente, totalXof: compte.totalXof, montantDit: m(compte.totalXof),
+        reglages: p.reglages, demandeId: r.id, branchId: p.branchId, parQui: quiEncaisse(),
+      });
+      setEnvoiTapGo(envoi.ok
+        ? { etat: 'ok', dit: `Lien envoyé sur son WhatsApp${numeroMasque(tel) ? ` (${numeroMasque(tel)})` : ''} : un geste, et son téléphone compose.` }
+        : { etat: 'ko', dit: `Le lien n’est pas parti : ${envoi.erreur}` });
+    }
   };
-  const recommencer = () => { setDemandeId(null); setErreur(null); };
+  const recommencer = () => { setDemandeId(null); setErreur(null); setEnvoiTapGo(null); };
 
   const boite: CSSProperties = { border: '1px solid var(--copper-300)', borderRadius: 'var(--radius-md)', background: 'var(--copper-50)', padding: '12px 13px', display: 'grid', gap: 10, ...p.style };
   const petit: CSSProperties = { fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--copper-700)', lineHeight: 1.5 };
@@ -152,6 +174,12 @@ export function PanneauMndPay(p: {
               </button>
             ))}
           </div>
+          {moyen === 'tapgo' && (
+            <label style={{ display: 'grid', gap: 4 }}>
+              <span style={{ fontFamily: 'var(--font-sans)', fontSize: 9.5, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--ink-soft)' }}>Son WhatsApp, le lien y part seul</span>
+              <input className="mnd-input" inputMode="tel" value={tel} onChange={(e) => setTel(e.target.value)} placeholder="01 97 00 00 00" aria-label="Numéro WhatsApp de la cliente" />
+            </label>
+          )}
           {auTel && (
             <label style={{ display: 'grid', gap: 4 }}>
               <span style={{ fontFamily: 'var(--font-sans)', fontSize: 9.5, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--ink-soft)' }}>Son numéro {moyen === 'mtn' ? 'MTN' : moyen === 'moov' ? 'Moov' : 'Celtiis'}</span>
@@ -193,6 +221,11 @@ export function PanneauMndPay(p: {
                   Copier le code
                 </button>
               </div>
+              {envoiTapGo && (
+                <div role={envoiTapGo.etat === 'ko' ? 'alert' : undefined} style={{ ...petit, color: envoiTapGo.etat === 'ko' ? 'var(--color-brique, #96412E)' : envoiTapGo.etat === 'ok' ? '#1F4D37' : 'var(--copper-700)' }}>
+                  {envoiTapGo.dit}
+                </div>
+              )}
             </>
           )}
           {demande.url && (!estAuTelephone(demande.moyen) || !!demande.raison) && (

@@ -2511,6 +2511,7 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour }: {
                       pieceId={appt.invoiceId ?? appt.id}
                       clientId={appt.clientId}
                       telephone={client?.phone}
+                      cliente={client}
                       montantXof={x}
                       pourboireXof={tip}
                       libelle={`Maison MND · ${(client?.name ?? appt.clientName ?? 'rituel').split(' ')[0]}`}

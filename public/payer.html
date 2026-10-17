@@ -27,6 +27,18 @@
 
   PAS DE QR ICI, ET C'EST VOULU : on ne scanne pas l'écran qu'on tient en main.
   Un lien reçu par téléphone se règle en composant, pas en photographiant.
+
+  TAP & GO — 17 octobre 2026 (« quand le code USSD s'affiche, l'envoyer sur
+  le téléphone de la cliente instantanément »). Le Trône envoie ce lien sur
+  son WhatsApp dès que le numéro s'affiche au comptoir :
+
+    payer.html?tg=51166-25400        le code de la Maison chez FedaPay, et le total
+
+  Le numéro composé est *601*14*<code>*<total>#, n'importe quel réseau, même
+  sans internet. Sur Android, le bouton le compose ; un iPhone refuse qu'une
+  page compose un numéro à étoiles : le bouton « Copier » le donne. Ni
+  l'affiche MoMoPay ni le marchand MTN ici : ce n'est pas MTN qui encaisse,
+  c'est FedaPay, pour la Maison.
 -->
 <style>
   :root {
@@ -113,6 +125,11 @@
     margin-top: 26px; text-align: center;
   }
   .absent { text-align: center; color: var(--doux); font-size: 14px; line-height: 1.7; padding: 40px 10px; }
+  /* Tap & Go : les couleurs de la Maison, indigo et cuivre (jamais d'obsidienne). */
+  body.tapgo { background: #1E2150; justify-content: center; }
+  body.tapgo .composer { background: #B97A4A; color: #F6F1E7; }
+  body.tapgo .pied { color: #D9B08C; }
+  .maison { font-size: 11px; letter-spacing: .32em; text-transform: uppercase; color: #D9B08C; text-align: center; margin-top: 8px; }
 </style>
 </head>
 <body>
@@ -130,18 +147,50 @@
 
 <script>
   var p = new URLSearchParams(location.search);
+  var e = function (s) { return String(s).replace(/[&<>"]/g, function (c) { return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]; }); };
+  /* TAP & GO : « tg=CODE-TOTAL », chiffres seulement, sinon rien ne se compose. */
+  var tg = (p.get('tg') || '').match(/^(\d{3,8})-(\d{1,9})$/);
+  if (p.has('tg')) {
+    document.body.classList.add('tapgo');
+    var cadre = document.querySelector('.cadre');
+    if (cadre) cadre.parentNode.removeChild(cadre);
+    document.title = 'Régler · Maison MND';
+    var blocTg = document.getElementById('bloc');
+    if (!tg) {
+      blocTg.innerHTML = '<div class="absent">Ce lien est incomplet.<br>Demandez-en un nouveau à la Maison.</div>';
+    } else {
+      var ussdTg = '*601*14*' + tg[1] + '*' + tg[2] + '#';
+      blocTg.innerHTML =
+        '<div class="maison">Maison MND</div>' +
+        '<div class="titre">À régler · ' + Number(tg[2]).toLocaleString('fr-FR') + ' F</div>' +
+        '<div class="sous">Appuyez : votre téléphone compose le numéro, montant compris. MTN, Moov ou Celtiis, même sans internet. Confirmez ensuite le paiement sur votre téléphone.</div>' +
+        '<a class="composer" href="tel:' + encodeURIComponent(ussdTg) + '">Composer' +
+          '<small>' + e(ussdTg) + '</small></a>' +
+        '<button class="copier" id="copierTg">Copier le numéro</button>' +
+        '<div class="sous" style="margin-top:14px">Sur iPhone, copiez-le puis collez-le dans le clavier d’appel.</div>' +
+        '<div class="ligne"><span>Encaissé par</span><b>FedaPay, pour la Maison MND</b></div>';
+      document.getElementById('copierTg').onclick = function () {
+        var b = this;
+        navigator.clipboard.writeText(ussdTg).then(function () {
+          b.textContent = 'Numéro copié';
+          setTimeout(function () { b.textContent = 'Copier le numéro'; }, 1800);
+        }).catch(function () { b.textContent = ussdTg; });
+      };
+    }
+  }
   var marchand = (p.get('m') || '').trim();
   var code = (p.get('c') || '').replace(/[^0-9]/g, '');
   var montant = (p.get('montant') || '').replace(/[^0-9]/g, '');
   var bloc = document.getElementById('bloc');
 
-  if (!code) {
+  if (p.has('tg')) {
+    /* Tap & Go : déjà dit plus haut. */
+  } else if (!code) {
     /* Sans code marchand, la page ne devine rien : elle le DIT plutôt que
        d'afficher un bouton qui composerait un numéro incomplet. */
     bloc.innerHTML = '<div class="absent">Ce lien est incomplet, il lui manque le code marchand.<br>Demandez-en un nouveau à la Maison.</div>';
   } else {
     var ussd = '*880*41*' + code + '*' + (montant || '') + '#';
-    var e = function (s) { return String(s).replace(/[&<>"]/g, function (c) { return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]; }); };
     bloc.innerHTML =
       '<div class="titre">' + (montant ? 'À régler · ' + Number(montant).toLocaleString('fr-FR') + ' F' : 'Régler par MoMo') + '</div>' +
       '<div class="sous">' + (montant

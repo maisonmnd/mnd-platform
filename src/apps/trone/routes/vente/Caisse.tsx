@@ -1614,6 +1614,7 @@ export default function Caisse() {
                   pieceId={ticketId}
                   clientId={posClient?.id}
                   telephone={posClient?.phone}
+                  cliente={posClient}
                   montantXof={resteApresParts}
                   pourboireXof={pourboire}
                   libelle={`${maisonNom()} · ${posClient ? posClient.name.split(' ')[0] : 'ticket du comptoir'}`}

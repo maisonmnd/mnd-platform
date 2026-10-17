@@ -21,12 +21,14 @@ import path from 'node:path';
 import { createHmac } from 'node:crypto';
 import { transformSync } from 'esbuild';
 import {
-  aRattacher, codeUssdTapGo, compteDeLaDemande, saitTapGo, fraisPour, instantDe, moyenDeLaPiece, numeroMasque, numeroPourFedaPay,
+  aRattacher, codeUssdTapGo, compteDeLaDemande, saitTapGo, parametreTapGo, motTapGo, variablesTapGo, MODELE_TAPGO, LIEN_TAPGO, fraisPour, instantDe, moyenDeLaPiece, numeroMasque, numeroPourFedaPay,
   piecesReglees, rapprocheTapGo, resteDuTicket, statutDepuisFedaPay, tapGoOuvert, tauxDe, versementDeLaDemande, versementsDesParts,
   CAISSE_MND_PAY, DELAI_DU_TICKET_MS, type DemandeMndPay,
 } from '../src/shared/mnd-pay-pur';
 import type { Invoice } from '../src/shared/finance';
 import { saitLEcheanceSuivante } from '../src/shared/kkiapay';
+import { envoieLeNumeroTapGo } from '../src/shared/tapgo-whatsapp';
+import type { EnvoiWhatsApp, ResultatDEnvoi } from '../src/shared/whatsapp';
 
 let ko = 0;
 const dit = (nom: string, attendu: unknown, obtenu: unknown) => {
@@ -321,6 +323,68 @@ dit('mnd-pay : Tap & Go n écrit qu une attente, AVANT toute transaction FedaPay
   iDemander > 0 && iDemander < corpsMndPay.indexOf("await fedapay('POST', '/transactions'"));
 dit('le webhook range la transaction inconnue après l avoir relue chez FedaPay', true,
   corpsDuWebhook.indexOf('/transactions/${fedapayId}') < corpsDuWebhook.indexOf('rangeLeTapGo(admin, tx)') && /if \(!ligne\) \{[\s\S]{0,300}rangeLeTapGo\(admin, tx\)/.test(corpsDuWebhook));
+
+
+/* ── 8. LE NUMÉRO TAP & GO PART SUR SON WHATSAPP (17 octobre 2026) ──── */
+{
+const PARAM = parametreTapGo(25_400, undefined);
+dit('le paramètre du lien : code-total, un seul mot que la fonction d envoi accepte', ['51166-25400', true],
+  [PARAM, /^[A-Za-z0-9._~-]{1,500}$/.test(PARAM)]);
+const MOT = motTapGo('Madame Awa', '25 400 F', `${LIEN_TAPGO}${PARAM}`);
+dit('le mot libre : le lien, le montant, ni étoile (WhatsApp les mettrait en gras) ni le mot « code »', [true, true, false, false],
+  [MOT.includes('https://maisonmnd.com/trone/payer.html?tg=51166-25400'), MOT.includes('25 400 F'), MOT.includes('*'), /code/i.test(MOT)]);
+dit('le modèle Meta : paiement_a_composer, deux variables (son appel, le montant)', ['paiement_a_composer', ['Madame Awa', '25 400 F']],
+  [MODELE_TAPGO, variablesTapGo('Madame Awa', '25 400 F')]);
+
+/* L'envoi : un faux envoi note ce qui part. Dans la fenêtre : le mot seul. */
+const faux = (reponses: ResultatDEnvoi[]) => {
+  const appels: EnvoiWhatsApp[] = [];
+  const envoie = async (e: EnvoiWhatsApp): Promise<ResultatDEnvoi> => { appels.push(e); return reponses.shift() ?? { ok: true, id: 'x' }; };
+  return { appels, envoie };
+};
+const base = { telephone: '0197000012', cliente: { id: 'cl-1', name: 'Awa Dossou', civilite: 'madame' as const }, totalXof: 25_400, montantDit: '25 400 F', reglages: undefined, demandeId: 'mp-1', branchId: 'cot' };
+const f1 = faux([{ ok: true, id: 'm1' }]);
+const r1 = await envoieLeNumeroTapGo({ ...base, envoie: f1.envoie });
+dit('dans la fenêtre : un seul message, libre, avec le lien, et sa clé d unicité', [true, 1, true, undefined, 'tapgo-mp-1-mot'],
+  [r1.ok, f1.appels.length, (f1.appels[0].texte ?? '').includes('payer.html?tg=51166-25400'), f1.appels[0].modele, f1.appels[0].cleUnique]);
+const f2 = faux([{ ok: false, erreur: 'La fenêtre de 24 heures est fermée : seul un modèle approuvé passe.' }, { ok: true, id: 'm2' }]);
+const r2 = await envoieLeNumeroTapGo({ ...base, envoie: f2.envoie });
+dit('hors fenêtre : le modèle, ses variables, le paramètre du bouton, une autre clé', [true, 2, 'paiement_a_composer', ['Madame Awa', '25 400 F'], '51166-25400', 'tapgo-mp-1-modele'],
+  [r2.ok, f2.appels.length, f2.appels[1].modele, f2.appels[1].variables, f2.appels[1].boutonUrl, f2.appels[1].cleUnique]);
+const f3 = faux([{ ok: false, erreur: 'Ce numéro n’est pas lisible.' }]);
+const r3 = await envoieLeNumeroTapGo({ ...base, envoie: f3.envoie });
+dit('un autre refus ne tente pas le modèle, et se dit', [false, 1], [r3.ok, f3.appels.length]);
+const f4 = faux([]);
+const r4 = await envoieLeNumeroTapGo({ ...base, telephone: '  ', envoie: f4.envoie });
+dit('sans numéro : rien ne part, et l écran le sait', [false, 0], [r4.ok, f4.appels.length]);
+dit('sans fiche : « Madame, Monsieur », jamais une civilité supposée', ['Madame, Monsieur'],
+  await (async () => { const f = faux([{ ok: false, erreur: 'fenêtre fermée' }, { ok: true, id: 'm' }]); await envoieLeNumeroTapGo({ ...base, cliente: undefined, envoie: f.envoie }); return [f.appels[1].variables?.[0]]; })());
+
+/* LA PAGE QUI COMPOSE : le vrai script de payer.html, rejoué sur une page
+   simulée. Le numéro qu'elle compose est celui que le comptoir affiche. */
+const pageSrc = lis('public/payer.html');
+const script = pageSrc.slice(pageSrc.lastIndexOf('<script>') + 8, pageSrc.lastIndexOf('</script>'));
+const rejoue = (recherche: string) => {
+  const blocs: Record<string, { innerHTML: string; textContent: string; onclick?: unknown }> = {};
+  const el = (id: string) => (blocs[id] ??= { innerHTML: '', textContent: '' });
+  const cadre = { parentNode: { removeChild() {} } };
+  const doc = { body: { classList: { add() {} } }, title: '', querySelector: () => cadre, getElementById: el };
+  // eslint-disable-next-line no-new-func
+  new Function('document', 'location', 'navigator', script)(doc, { search: recherche }, { clipboard: { writeText: async () => undefined } });
+  return blocs.bloc?.innerHTML ?? '';
+};
+const page = rejoue(`?tg=${PARAM}`);
+dit('la page compose le MÊME numéro que le comptoir affiche (tel:, dièse encodé)', true,
+  page.includes(`href="tel:${encodeURIComponent(codeUssdTapGo(25_400, undefined))}"`));
+dit('... dit le montant, et refuse un lien trafiqué', [true, true, false],
+  [page.includes('25'), rejoue('?tg=51166-25400%23').includes('incomplet'), rejoue('?tg=51166-25400%23').includes('tel:')]);
+dit('... et la page MoMoPay d avant compose toujours son numéro', true,
+  rejoue('?m=ACIA1&c=506846&montant=30000').includes(`tel:${encodeURIComponent('*880*41*506846*30000#')}`));
+const panneau = lis('src/apps/trone/routes/vente/MndPay.tsx');
+dit('le panneau envoie le lien à l instant où le numéro s affiche (Tap & Go seulement)', true,
+  /setDemandeId\(r\.id\);[\s\S]{0,400}if \(moyen === 'tapgo'\) \{[\s\S]{0,500}envoieLeNumeroTapGo\(/.test(panneau));
+dit('l envoi transporte le paramètre du bouton jusqu à la fonction', true, /\.\.\.\(e\.boutonUrl \? \{ boutonUrl: e\.boutonUrl \} : \{\}\)/.test(lis('src/shared/whatsapp.ts')));
+}
 
 console.log(ko === 0 ? '\nMND PAY tient ses regles.' : `\n${ko} controle(s) en echec.`);
 process.exitCode = ko === 0 ? 0 : 1;
