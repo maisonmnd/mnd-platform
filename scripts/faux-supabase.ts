@@ -49,7 +49,26 @@ export const sauveLaBase = (): void => {
     tables: Object.fromEntries([...faux.base].map(([t, m]) => [t, [...m.values()]])),
   }));
 };
-export const heureServeur = (): string => { faux.horloge = Math.max(faux.horloge + 1, Date.now()); return new Date(faux.horloge).toISOString(); };
+/* LE VRAI SERVEUR, EN QUATRE TRAITS (17 octobre 2026, le conflit du Wi-Fi) :
+   `FAUX_AVANCE_MS` met son horloge en avance sur celle du poste, `FAUX_ECHO_MS`
+   retarde l'écho temps réel, `FAUX_LATENCE_MS` retarde chaque réponse, et
+   `FAUX_JSONB=1` range les champs d'un document comme jsonb (par longueur,
+   puis par ordre) : notre écho revient alors avec un autre texte. */
+const env = (k: string): string | undefined => (globalThis as { process?: { env: Record<string, string | undefined> } }).process?.env[k];
+const AVANCE_MS = Number(env('FAUX_AVANCE_MS') ?? 0);
+const ECHO_MS = Number(env('FAUX_ECHO_MS') ?? 5);
+const LATENCE_MS = Number(env('FAUX_LATENCE_MS') ?? 1);
+const JSONB = env('FAUX_JSONB') === '1';
+/* `FAUX_LECTURE_TOT=1` : une lecture lit la base À LA DEMANDE et répond après
+   la latence, comme le vrai serveur ; la réponse peut alors être plus vieille
+   qu'un envoi arrivé pendant qu'elle voyageait. */
+const LECTURE_TOT = env('FAUX_LECTURE_TOT') === '1';
+const rangeCommeJsonb = (v: unknown): unknown => {
+  if (!JSONB || !v || typeof v !== 'object' || Array.isArray(v)) return v;
+  const o = v as Record<string, unknown>;
+  return Object.fromEntries(Object.keys(o).sort((a, b) => a.length - b.length || (a < b ? -1 : 1)).map((k) => [k, o[k]]));
+};
+export const heureServeur = (): string => { faux.horloge = Math.max(faux.horloge + 1, Date.now() + AVANCE_MS); return new Date(faux.horloge).toISOString(); };
 const table = (t: string): Map<string, Ligne> => {
   let m = faux.base.get(t);
   if (!m) { m = new Map(); faux.base.set(t, m); }
@@ -57,7 +76,9 @@ const table = (t: string): Map<string, Ligne> => {
 };
 /** Écrit au serveur comme le ferait un AUTRE poste (et prévient le canal). */
 export function ecritAilleurs(t: string, id: string, data: unknown): Ligne {
-  const l: Ligne = { id, data, updated_at: heureServeur(), branch_id: (data as { branchId?: string })?.branchId ?? null };
+  /* Un document porte sa clé, comme dans la vraie table : c'est elle que le
+     canal distribue. */
+  const l = { id, ...(t === 'documents' ? { key: id } : {}), data, updated_at: heureServeur(), branch_id: (data as { branchId?: string })?.branchId ?? null } as Ligne;
   table(t).set(id, l);
   sauveLaBase();
   diffuse(t, 'UPDATE', l);
@@ -65,7 +86,7 @@ export function ecritAilleurs(t: string, id: string, data: unknown): Ligne {
 }
 const diffuse = (t: string, eventType: string, l: Ligne | { id: string }): void => {
   const payload = { table: t, eventType, new: eventType === 'DELETE' ? {} : { ...l }, old: { id: l.id } };
-  setTimeout(() => { for (const f of faux.ecoutes) f(payload); }, 5);
+  setTimeout(() => { for (const f of faux.ecoutes) f(payload); }, ECHO_MS);
 };
 const horsLigne = { data: null, error: { message: 'TypeError: Failed to fetch' } };
 
@@ -90,7 +111,11 @@ class Requete {
   insert() { this.op = 'select'; this.filtres.push(['eq', '__jamais', true]); return this; }
   delete() { this.op = 'delete'; return this; }
   then<A, B>(ok?: (v: { data: unknown; error: unknown }) => A, ko?: (e: unknown) => B) {
-    return new Promise<{ data: unknown; error: unknown }>((r) => setTimeout(() => r(this.execute()), 1)).then(ok, ko);
+    if (LECTURE_TOT && this.op === 'select') {
+      const lu = this.execute();
+      return new Promise<{ data: unknown; error: unknown }>((r) => setTimeout(() => r(lu), LATENCE_MS)).then(ok, ko);
+    }
+    return new Promise<{ data: unknown; error: unknown }>((r) => setTimeout(() => r(this.execute()), LATENCE_MS)).then(ok, ko);
   }
   private garde(l: Ligne & { key?: string }): boolean {
     return this.filtres.every(([op, col, v]) => {
@@ -110,7 +135,7 @@ class Requete {
       const rows = (Array.isArray(this.charge) ? this.charge : [this.charge]) as (Ligne & { key?: string })[];
       for (const r of rows) {
         const id = r.id ?? r.key!;
-        const l = { ...r, id, updated_at: heureServeur() } as Ligne;
+        const l = { ...r, id, data: rangeCommeJsonb(r.data), updated_at: heureServeur() } as Ligne;
         m.set(id, l);
         faux.ecritures += 1;
         diffuse(this.t, 'UPDATE', l);
@@ -144,11 +169,20 @@ const canal = () => {
 };
 
 const reponse = async () => ({ data: {}, error: null });
+/* LE JETON SE RENOUVELLE (17 octobre 2026) : supabase-js annonce
+   « TOKEN_REFRESHED » toutes les heures, et chaque document se relit alors au
+   serveur. C'est pendant une de ces relectures, en pleine frappe, que le nom
+   du Wi-Fi est tombé en conflit. */
+const ecoutesDeSession = new Set<(evenement: string, session: unknown) => void>();
+export const annonceLaSession = (evenement: string): void => { for (const f of ecoutesDeSession) f(evenement, faux.session); };
 export const supabase = {
   from: (t: string) => new Requete(t),
   auth: new Proxy({
     getSession: async () => ({ data: { session: faux.session }, error: null }),
-    onAuthStateChange: () => ({ data: { subscription: { unsubscribe() {} } } }),
+    onAuthStateChange: (f: (evenement: string, session: unknown) => void) => {
+      ecoutesDeSession.add(f);
+      return { data: { subscription: { unsubscribe() { ecoutesDeSession.delete(f); } } } };
+    },
   } as Record<string, unknown>, { get: (o, k: string) => o[k] ?? reponse }),
   channel: () => canal(),
   removeChannel: async (c: { unsubscribe: () => Promise<unknown> }) => { await c.unsubscribe(); return 'ok'; },

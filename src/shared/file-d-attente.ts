@@ -274,7 +274,32 @@ function lesLignesSurLAppareil(c: Pick<Conflit, 'table'> & { magasin?: string })
 
    LA GARDE : un magasin VIDE ne prouve rien (pas encore descendu, écran
    jamais ouvert sur ce poste) : le conflit reste alors montré, comme avant. */
+/* ══ UN RÉGLAGE AUSSI SE RELIT — 17 octobre 2026 ═══════════════════════
+   Un document (les Réglages : `mnd_auto_config`, le Wi-Fi…) n'est pas une
+   liste : la règle du 6 octobre n'y trouvait aucune ligne, « on ne sait
+   pas », et son conflit restait à l'écran pour toujours, même une fois le
+   nom du Wi-Fi tapé jusqu'au bout. Le document se lit en entier : par le
+   lecteur que la synchro déclare (`documents:<clé>`), sinon dans ce que
+   l'appareil garde de son magasin (le nom noté, sinon la clé). */
+function leDocumentActuel(c: Pick<Conflit, 'id'> & { magasin?: string }): Record<string, unknown> | undefined {
+  const lire = LECTEURS.get(`documents:${c.id}`);
+  let v: unknown;
+  if (lire) v = lire()[0];
+  else {
+    try {
+      const nom = c.magasin ?? c.id;
+      const brut = localStorage.getItem(`${surface()}::${nom}`) ?? localStorage.getItem(nom);
+      v = brut ? (JSON.parse(brut) as unknown) : undefined;
+    } catch { v = undefined; }
+  }
+  return v && typeof v === 'object' && !Array.isArray(v) ? (v as Record<string, unknown>) : undefined;
+}
+
 function laLigneActuelle(c: Pick<Conflit, 'table' | 'id'> & { magasin?: string }): { connue: boolean; ligne?: Record<string, unknown> } {
+  if (c.table === 'documents') {
+    const doc = leDocumentActuel(c);
+    return doc ? { connue: true, ligne: doc } : { connue: false };
+  }
   const lire = LECTEURS.get(c.table);
   const lignes = lire ? lire() : lesLignesSurLAppareil(c);
   if (!lignes || lignes.length === 0) return { connue: false };
@@ -312,6 +337,11 @@ export const conflitQuiDiffere = (c: Pick<Conflit, 'table' | 'notre' | 'leur'>):
     l'a pas tranché depuis. */
 export const conflitUtile = (c: Pick<Conflit, 'table' | 'id' | 'notre' | 'leur'>): boolean =>
   conflitQuiDiffere(c) && !dejaTranche(c);
+
+/** Les conflits NOTÉS, avant le filtre de lecture (pour les bancs). */
+export function lisLesConflitsNotes(): Conflit[] {
+  try { return JSON.parse(localStorage.getItem(CLE_DES_CONFLITS()) || '[]') as Conflit[]; } catch { return []; }
+}
 
 export function lisLesConflits(): Conflit[] {
   try { return (JSON.parse(localStorage.getItem(CLE_DES_CONFLITS()) || '[]') as Conflit[]).filter(conflitUtile); } catch { return []; }

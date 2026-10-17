@@ -143,6 +143,47 @@ try {
   const g2 = lance(G, { FAUX_RESEAU: '1', AVANT: '0', GESTES: JSON.stringify([['touche']]) });
   dit('I : une copie perimee, prevenue sans geste, ne remplace pas le serveur', [5, 5, 0], [g2.docServeur, g2.doc, g2.conflits.length]);
 
+  /* J. LA FRAPPE DANS UN RÉGLAGE — 17 octobre 2026, « fix the conflict » :
+     « MAISON » contre « MAISON_ », deux lettres de SA frappe du nom du Wi-Fi
+     (16 octobre, 15 h 09), prises pour une dispute avec un autre poste. Le
+     vrai serveur rend le document avec ses champs rangés autrement (jsonb),
+     son écho arrive en retard, et son horloge peut avancer sur celle du
+     poste : notre propre écho passait pour plus récent que la lettre en
+     attente. Un écho de NOTRE envoi n'est jamais un conflit, et le champ ne
+     recule pas sous les doigts. */
+  const J = nouveauTelephone();
+  seanceAvec(J);
+  const j2 = lance(J, {
+    FAUX_RESEAU: '1', FAUX_JSONB: '1', FAUX_ECHO_MS: '1000', FAUX_LATENCE_MS: '300', FAUX_AVANCE_MS: '0', JETON_MS: '120',
+    GESTES: JSON.stringify([['frappe', 'MAISON_MND', '400']]), APRES: '5000',
+  });
+  dit('J : la frappe d un reglage arrive entiere, sans conflit, sans recul', ['MAISON_MND', 'MAISON_MND', 0, 0, 0],
+    [j2.wifi, j2.wifiServeur, j2.conflitsNotes, j2.reculs, j2.attente]);
+
+  /* M. LA RELECTURE PLUS VIEILLE QUE LA DERNIÈRE LETTRE : elle a lu le
+     serveur avant que la lettre y arrive, et répond après. Elle rapporte
+     NOTRE envoi d'avant : la case ne recule pas. */
+  const M = nouveauTelephone();
+  seanceAvec(M);
+  const m2 = lance(M, {
+    FAUX_RESEAU: '1', FAUX_JSONB: '1', FAUX_ECHO_MS: '1000', FAUX_LATENCE_MS: '300', FAUX_LECTURE_TOT: '1', JETON_MS: '400',
+    GESTES: JSON.stringify([['frappe', 'MAISON_MND', '400']]), APRES: '5000',
+  });
+  dit('M : une relecture plus vieille que la frappe ne fait pas reculer la case', ['MAISON_MND', 'MAISON_MND', 0, 0, 0],
+    [m2.wifi, m2.wifiServeur, m2.conflitsNotes, m2.reculs, m2.attente]);
+
+  /* L. UN RÉGLAGE CHANGÉ SUR UN AUTRE POSTE ARRIVE EN DIRECT (17 octobre
+     2026 : le canal le donnait, la distribution le perdait). */
+  const L = nouveauTelephone();
+  seanceAvec(L);
+  const l2 = seanceAvec(L, { gestes: [['docailleurs', '7']], apres: 800 });
+  dit('L : un reglage change ailleurs arrive en direct, sans relecture', [7, 0], [l2.doc, l2.conflits.length]);
+
+  /* K. LE CONFLIT DU WI-FI, DÉJÀ TRANCHÉ, NE SE DEMANDE PLUS. */
+  const k = (wifi, lecteur) => lance(nouveauTelephone(), { ETAPE: 'tranche-doc', WIFI: wifi, LECTEUR: lecteur }).montres;
+  dit('K : un reglage retape depuis (MAISON_MND) : le conflit se tait ; la version gardee encore la : il reste',
+    [0, 0, 1, 1], [k('MAISON_MND', '1'), k('MAISON_MND', '0'), k('MAISON', '1'), k('MAISON', '0')]);
+
   /* H. UN REFUS DE DROIT : le geste ne compte pas « en attente » pour toujours. */
   const H = nouveauTelephone();
   ailleurs(H, 'h1', 'H');

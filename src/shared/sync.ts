@@ -1686,7 +1686,7 @@ export const quandDocumentDescendu = (key: string): Promise<void> => {
    ligne de `documents`, il faut savoir à quel magasin elle appartient. C'est
    la CLÉ qui le dit. Une clé sans magasin est ignorée en une comparaison. */
 const abonnesAuxDocuments = new Map<string, {
-  surChangement: (row: Record<string, unknown>) => void;
+  surChangement: (payload: { new: Record<string, unknown> }) => void;
   rehydrate: () => void;
 }>();
 
@@ -1697,7 +1697,12 @@ const distribueLesDocuments: EcouteDeTable = (payload) => {
   const k = row?.key ? String(row.key) : '';
   if (!k) return;
   const abonne = abonnesAuxDocuments.get(k);
-  if (abonne && payload.new) abonne.surChangement(payload.new);
+  /* LE RÉCEPTEUR ATTEND LA CHARGE, PAS LA LIGNE — 17 octobre 2026. On lui
+     passait la ligne, il y cherchait `.new` : rien, et il se taisait. Aucun
+     réglage changé sur un autre poste n'arrivait en direct ; seules les
+     relectures (jeton renouvelé, canal rejoint) le rapportaient. Une
+     conversion de type (`as`) cachait l'écart : elle est retirée. */
+  if (abonne && payload.new) abonne.surChangement({ new: payload.new });
 };
 
 const relitTousLesDocuments = () => {
@@ -1714,6 +1719,34 @@ export function bindDocument<T>(store: Store<T>, key: string): void {
   magasinsParTable.set(`documents:${key}`, store as Store<any>); // eslint-disable-line @typescript-eslint/no-explicit-any
   /* La file d'attente du document : une seule entrée, sa clé (4 octobre 2026). */
   const attenteDoc = lisLaFile(`doc:${key}`);
+  /* ══ NOS PROPRES ENVOIS, RECONNUS À LEUR CONTENU — 17 octobre 2026 ═══
+     « Fix the conflict » (Yéman) : « MAISON » contre « MAISON_ », deux
+     lettres de SA frappe du nom du Wi-Fi (16 octobre, 15 h 09), prises pour
+     une dispute avec un autre poste. Le jeton s'est renouvelé en pleine
+     frappe, le document s'est relu au serveur, et le serveur portait
+     « MAISON » : la lettre d'avant, NOTRE envoi, arrivée là à l'heure du
+     serveur, donc plus tard que le « _ » tapé pendant qu'elle voyageait. La
+     lettre en attente est tombée en conflit, et la case a reculé.
+
+     Ce que ce poste vient d'envoyer n'est jamais « d'ailleurs ». On garde le
+     contenu de nos envois une demi-minute ; le comparer par son contenu (et
+     non par son texte, que jsonb range autrement) le reconnaît. C'est la
+     règle des collections depuis le 6 octobre (`estNotreEcho`), que les
+     documents n'avaient pas. */
+  const ECHO_DOC_MS = 30_000;
+  let nosEnvois: { val: unknown; at: number }[] = [];
+  const noteLEnvoi = (j: string): void => {
+    const n = Date.now();
+    nosEnvois = [...nosEnvois.filter((e) => n - e.at < ECHO_DOC_MS), { val: JSON.parse(j) as unknown, at: n }];
+  };
+  const estNotreEnvoi = (val: unknown): boolean => {
+    const n = Date.now();
+    nosEnvois = nosEnvois.filter((e) => n - e.at < ECHO_DOC_MS);
+    return nosEnvois.some((e) => memeContenu(e.val, val));
+  };
+  /* LA LIGNE ACTUELLE D'UN RÉGLAGE, pour qu'un conflit déjà tranché depuis
+     (on a continué à taper) ne se demande plus (voir `dejaTranche`). */
+  declareLecteurDeLigne(`documents:${key}`, () => [store.get()]);
   const sortDuDoc = (): void => { if (attenteDoc.delete(key)) ecrisLaFile(`doc:${key}`, attenteDoc); };
 
   const upsert = (val: T) => sb.from('documents').upsert({ key, data: val });
@@ -1739,10 +1772,11 @@ export function bindDocument<T>(store: Store<T>, key: string): void {
       const leur = (data as { data?: T; updated_at?: string } | null);
       if (leur?.data !== undefined && memeContenu(leur.data, notre)) {
         sortDuDoc();
-      } else if (leur?.data !== undefined && !leGesteLocalTient(enAttente, leur.updated_at)) {
+      } else if (leur?.data !== undefined && !leGesteLocalTient(enAttente, leur.updated_at) && !estNotreEnvoi(leur.data)) {
         noteLesConflits([{
           table: 'documents', id: key, notre: enAttente.j, notreAt: enAttente.at,
           leur: JSON.stringify(leur.data), leurAt: leur.updated_at ?? new Date().toISOString(), vuLe: new Date().toISOString(),
+          magasin: store.key,
         }]);
         sortDuDoc();
       } else {
@@ -1758,6 +1792,10 @@ export function bindDocument<T>(store: Store<T>, key: string): void {
         return;
       }
     }
+    /* UNE RELECTURE QUI RAPPORTE NOTRE ENVOI D'AVANT, alors que la case est
+       déjà plus loin : la frappe a continué pendant la lecture. On ne recule
+       pas sous les doigts ; l'envoi suivant porte la bonne valeur. */
+    if (data && estNotreEnvoi((data as { data: T }).data) && !memeContenu((data as { data: T }).data, store.get())) return;
     if (data) {
       applyingRemote = true;
       store.set((data as { data: T }).data);
@@ -1818,6 +1856,9 @@ export function bindDocument<T>(store: Store<T>, key: string): void {
     const val = store.get();
     const j = JSON.stringify(val);
     if (j === lastPushed) { if (attenteDoc.get(key)?.j === j) sortDuDoc(); syncMark.ok(`doc:${key}`); return; }
+    /* Noté AVANT de partir : l'écho, ou une relecture, peut arriver avant la
+       réponse. */
+    noteLEnvoi(j);
     const { error } = await upsert(val);
     /* UN REFUS DE DROIT NE SE REJOUE PAS (10 octobre 2026, revue de code),
        comme aux collections : gardé, ce geste anonyme repartait sous la
@@ -1887,7 +1928,7 @@ export function bindDocument<T>(store: Store<T>, key: string): void {
            venait d'ajouter. Le champ ecrivait alors ce qu'il voulait, et la
            pastille de synchro semblait se battre contre le clavier.
            Ce qui revient identique a ce qu'on a pousse n'apprend rien. */
-        if (j === lastPushed) return;
+        if (j === lastPushed || estNotreEnvoi(row.data)) return;
         /* UNE FRAPPE EN COURS EST PLUS RECENTE QUE LE SERVEUR. Tant qu'une
            poussee est en attente, l'etat local vaut mieux que ce qui arrive :
            on laisse la poussee partir, et l'echo suivant fera foi. */
@@ -1900,6 +1941,7 @@ export function bindDocument<T>(store: Store<T>, key: string): void {
           noteLesConflits([{
             table: 'documents', id: key, notre: enAttente.j ?? null, notreAt: enAttente.at,
             leur: j, leurAt: ((payload.new as { updated_at?: string }).updated_at) ?? new Date().toISOString(), vuLe: new Date().toISOString(),
+            magasin: store.key,
           }]);
           sortDuDoc();
         }
@@ -1914,7 +1956,7 @@ export function bindDocument<T>(store: Store<T>, key: string): void {
      commentaire long au-dessus de `bindDocument` : cinquante-sept canaux pour
      une seule table, c'est ce qui faisait dépasser le plafond de cent. */
   abonnesAuxDocuments.set(key, {
-    surChangement: surChangement as (row: Record<string, unknown>) => void,
+    surChangement,
     rehydrate: () => { void hydrate(false); },
   });
   rejoindreLeCanal = redemandeLeCanalDeLaMaison;
