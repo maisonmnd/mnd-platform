@@ -604,7 +604,9 @@ export type InvoicePdfData = {
   /** DE QUOI PAYER, au bas de la pièce : le QR porte l'IDENTIFIANT MARCHAND que
       l'app MoMo reconnaît (jamais un lien web — leçon du 25 août), le code se
       compose montant compris, et le marchand se nomme. */
-  momo?: { qr: string; code?: string; marchand?: string };
+  /** `genre: 'tapgo'` (17 octobre 2026) : le QR ouvre la page qui compose le
+      numéro Tap & Go ; il se scanne à l'appareil photo, pas dans MoMo. */
+  momo?: { qr: string; code?: string; marchand?: string; genre?: 'tapgo' };
   /** LA LIGNE LÉGALE au pied (10 octobre 2026) : la raison de la Maison, RCCM
       et IFU, comme la facture à l'écran. Seulement pour une pièce datée de
       la bascule ou après (`maisonRaisonDuPdfAu`) : le PDF d'une facture
@@ -828,7 +830,11 @@ async function construitLaFacture(d: InvoicePdfData): Promise<{ doc: any; filena
      comprise. Il ne se pose que s'il reste quelque chose à régler, et que la
      page a encore la place — une facture-fleuve le sacrifie plutôt que de
      l'écraser sur les totaux. */
-  if (d.momo && estIdentifiantMomo(d.momo.qr) && y < 238) {
+  /* TAP & GO (17 octobre 2026) : le QR porte la page qui compose le numéro,
+     montant compris ; elle se scanne à l'appareil photo, tout réseau. La
+     garde du 25 août (jamais un lien dans un QR MoMo) vaut toujours pour
+     l'ancien MoMoPay, que l'application MoMo lit, elle, sans lien. */
+  if (d.momo && (d.momo.genre === 'tapgo' || estIdentifiantMomo(d.momo.qr)) && y < 238) {
     try {
       const T = 30;
       const xQr = W - M - T;
@@ -836,7 +842,7 @@ async function construitLaFacture(d: InvoicePdfData): Promise<{ doc: any; filena
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(7);
       doc.setTextColor(SOFT);
-      doc.text('RÉGLER PAR MOBILE MONEY', xQr + T, yQr - 3, { align: 'right' });
+      doc.text(d.momo.genre === 'tapgo' ? 'RÉGLER PAR MOBILE MONEY · TOUT RÉSEAU' : 'RÉGLER PAR MOBILE MONEY', xQr + T, yQr - 3, { align: 'right' });
       dessineQrPaiement(doc, d.momo.qr, xQr, yQr, T);
       /* Le montant ne tient pas dans l'identifiant marchand : il se dit ici, en
          clair, avec le code à composer pour qui ne scanne pas. */

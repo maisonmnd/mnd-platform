@@ -12,7 +12,7 @@ import { appointmentsStore, useAppointments, apptPayeurId, apptPaidXof, venuesHo
 import { useCategories, fondeLaCouronne, servicesStore, type Service, useProducts } from '../../../../shared/catalog';
 import { aDefaitSesLocks, estDePassage as estDePassageCli, estDiaspora, joursDeLaTete } from '../../../../shared/clients';
 import { remiseDeFactureAReporter, remiseDuComptoirEcrite, remiseDuComptoirRendue } from '../../../../shared/offres-pur';
-import { invoicesStore, cashboxesStore, useCashboxes, caissesPourLaDate, invoiceTotal, ligneNetXof, usePaymentMethods, cashboxCurrency, nouvelleFacture, ligneFacture, useCredits, creditMovementsStore, creditBalanceOf, invoiceReglements, invoiceRegleXof, invoiceSoldee, useInvoices, quiEncaisse, type Invoice, type InvoiceLine, type InvoicePayment, type PaymentMethod, type CreditHolder, ligneProduit, lignesDuRituelPiece } from '../../../../shared/finance';
+import { invoicesStore, invoiceResteXof, cashboxesStore, useCashboxes, caissesPourLaDate, invoiceTotal, ligneNetXof, usePaymentMethods, cashboxCurrency, nouvelleFacture, ligneFacture, useCredits, creditMovementsStore, creditBalanceOf, invoiceReglements, invoiceRegleXof, invoiceSoldee, useInvoices, quiEncaisse, type Invoice, type InvoiceLine, type InvoicePayment, type PaymentMethod, type CreditHolder, ligneProduit, lignesDuRituelPiece } from '../../../../shared/finance';
 import { detailDuForfait } from '../../../../shared/kids';
 import { holderOf, payerClientIdOf, estDependant } from '../../../../shared/accounts';
 import { venteGamme, fichePourGamme, stockDe, useMouvementsStock } from '../../../../shared/stock';
@@ -40,7 +40,11 @@ import { appelDe } from '../../../../shared/civilite';
 import { RattacherUneCarte } from '../vente/RattacherUneCarte';
 import { PanneauMndPay } from '../vente/MndPay';
 import { CAISSE_MND_PAY, moyenDeLaPiece, type DemandeMndPay } from '../../../../shared/mnd-pay-pur';
-import { mndPayOuvert } from '../../../../shared/mnd-pay';
+import { demandeLePaiement, mndPayOuvert, versionDeMndPay } from '../../../../shared/mnd-pay';
+import { envoieLeRecu } from '../../../../shared/recu-whatsapp';
+import { useLaPieceEnPdf } from '../vente/pdf-de-la-piece';
+import { paiementTapGoDeLaPiece, saitLesFactures } from '../../../../shared/mnd-pay-pur';
+import { maisonNom } from '../../../../shared/identite';
 import {
   CAISSE_ANNEES_PASSEES, anneeDe, caisseDesAnneesPassees, caisseProposee, caissesAuChoix, estAnneeAnterieure,
   familleDuMoyen, peutChangerLaCaisse, prenomDe, type CaisseProposee,
@@ -1286,6 +1290,8 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour }: {
 
   /* Devise étrangère — exceptionnel, ouvert depuis Paramètres (comme à la Caisse). */
   const [settings] = useSettings();
+  /* La facture telle que les Factures la font (17 octobre 2026). */
+  const { buildPdfData } = useLaPieceEnPdf();
   const [fxOn, setFxOn] = useState(false);
   const [fxCode, setFxCode] = useState('EUR');
   const [fxRate, setFxRate] = useState(String(rateToXof('EUR') || ''));
@@ -1980,6 +1986,43 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour }: {
     if (tip > 0 && !tipRecorded) window.setTimeout(() => alerte(msg), 30);
     else toast(msg);
     mndPayRef.current = null;
+    /* LA FACTURE PART SEULE CHEZ ELLE — 17 octobre 2026 (« cette facture doit
+       aller instantanément chez le client »). Seulement pour l'argent reçu
+       AUJOURD'HUI : un rattrapage (une année passée, un versement daté d'un
+       autre jour) ne réveille pas une cliente avec un vieux reçu. La règle
+       des envois : une date métier, jamais l'heure de l'écriture. */
+    if (idPieceEncaissee && settleTotal + totalGamme > 0 && payDate === todayISO()) {
+      void envoieLaFacture(idPieceEncaissee, settleTotal + totalGamme);
+    }
+  };
+
+  /* L'ENVOI DE LA FACTURE APRÈS L'ENCAISSEMENT. Le reste dû se règle par le
+     QR Tap & Go imprimé dessus : on pose d'abord son attente (genre « lien »,
+     une par pièce, quarante-cinq jours), pour que le paiement, même dans
+     dix jours, revienne seul sur CETTE facture et sur son rendez-vous. Puis
+     le PDF part avec le modèle approuvé `recu_de_paiement` hors fenêtre. Un
+     envoi qui ne part pas se dit, il ne défait rien. */
+  const envoieLaFacture = async (pieceId: string, montantXof: number) => {
+    const piece = invoicesStore.get().find((i) => i.id === pieceId);
+    if (!piece) return;
+    const payeuse = clients.find((c) => c.id === piece.clientId) ?? payerClient ?? client;
+    const destinataire = payeuse?.phone?.trim() ? payeuse : client;
+    if (!destinataire?.phone?.trim()) { toast(`Facture ${piece.number} non envoyée : pas de numéro sur la fiche.`); return; }
+    const reste = invoiceResteXof(piece);
+    if (reste > 0 && mndOn && paiementTapGoDeLaPiece(reste, settings.mndPay) && saitLesFactures(await versionDeMndPay())) {
+      const attente = await demandeLePaiement({
+        branchId: branch.id, genre: 'lien', moyen: 'tapgo', montantXof: reste, pieceId: piece.id, pieceNumero: piece.number,
+        clientId: destinataire.id, libelle: `${maisonNom()} · ${piece.number}`, reglages: settings.mndPay,
+      });
+      if (!attente.ok) console.warn('[encaisser] attente Tap & Go :', attente.erreur);
+    }
+    const r = await envoieLeRecu({
+      client: { ...destinataire, branchId: destinataire.branchId }, pdf: buildPdfData(piece),
+      montant: fmtMoney(montantXof, currency), jourIso: payDate, parQui: quiEncaisse(),
+    });
+    toast(r.ok
+      ? (r.enAttente ? `Facture ${piece.number} gardée : elle partira sur son WhatsApp au retour du réseau.` : `Facture ${piece.number} envoyée sur son WhatsApp.`)
+      : `Facture ${piece.number} non envoyée : ${r.erreur}`);
   };
 
   /* LE VERT DE FEDAPAY ENCAISSE LE RITUEL. Le moyen réel, la caisse MND PAY

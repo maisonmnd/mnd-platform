@@ -21,7 +21,8 @@ import path from 'node:path';
 import { createHmac } from 'node:crypto';
 import { transformSync } from 'esbuild';
 import {
-  aRattacher, codeUssdTapGo, compteDeLaDemande, saitTapGo, parametreTapGo, motTapGo, variablesTapGo, MODELE_TAPGO, LIEN_TAPGO, fraisPour, instantDe, moyenDeLaPiece, numeroMasque, numeroPourFedaPay,
+  aRattacher, codeUssdTapGo, compteDeLaDemande, saitTapGo, parametreTapGo, motTapGo, variablesTapGo, MODELE_TAPGO, LIEN_TAPGO,
+  paiementTapGoDeLaPiece, rendezVousRegles, saitLesFactures, fraisPour, instantDe, moyenDeLaPiece, numeroMasque, numeroPourFedaPay,
   piecesReglees, rapprocheTapGo, resteDuTicket, statutDepuisFedaPay, tapGoOuvert, tauxDe, versementDeLaDemande, versementsDesParts,
   CAISSE_MND_PAY, DELAI_DU_TICKET_MS, type DemandeMndPay,
 } from '../src/shared/mnd-pay-pur';
@@ -384,6 +385,64 @@ const panneau = lis('src/apps/trone/routes/vente/MndPay.tsx');
 dit('le panneau envoie le lien à l instant où le numéro s affiche (Tap & Go seulement)', true,
   /setDemandeId\(r\.id\);[\s\S]{0,400}if \(moyen === 'tapgo'\) \{[\s\S]{0,500}envoieLeNumeroTapGo\(/.test(panneau));
 dit('l envoi transporte le paramètre du bouton jusqu à la fonction', true, /\.\.\.\(e\.boutonUrl \? \{ boutonUrl: e\.boutonUrl \} : \{\}\)/.test(lis('src/shared/whatsapp.ts')));
+}
+
+
+/* ── 9. LA FACTURE ENVOYÉE, SON QR TAP & GO, ET LE CARNET (17 octobre 2026) ── */
+{
+  const pg = paiementTapGoDeLaPiece(9_900, undefined);
+  dit('le reste de la facture : 9 900 F, frais 1,6 % ajoutés, le code et le QR de la page', {
+    resteXof: 9900, fraisXof: 159, totalXof: 10059, qr: 'https://maisonmnd.com/trone/payer.html?tg=51166-10059', code: '*601*14*51166*10059#',
+  }, pg);
+  dit('rien à régler, ou Tap & Go éteint : pas de Tap & Go sur la pièce', [null, null], [paiementTapGoDeLaPiece(0, undefined), paiementTapGoDeLaPiece(9_900, { tapgo: { actif: false } })]);
+
+  const T1 = Date.parse('2026-10-27T10:00:00.000Z');
+  const il = (jours: number, minutes = 0) => new Date(T1 - jours * 86_400_000 - minutes * 60_000).toISOString();
+  const att = (id: string, totalXof: number, creeLe: string, genre: 'comptoir' | 'lien') =>
+    ({ id, moyen: 'tapgo', statut: 'en_attente', totalXof, creeLe, genre }) as DemandeMndPay;
+  const CAS: [string, DemandeMndPay[], unknown][] = [
+    ['une facture envoyée il y a dix jours : son attente la reconnaît', [att('f', 10_059, il(10), 'lien')], { sorte: 'une', id: 'f' }],
+    ['... quarante-six jours : trop tard', [att('f', 10_059, il(46), 'lien')], { sorte: 'aucune' }],
+    ['le comptoir passe avant une facture du même montant', [att('f', 10_059, il(3), 'lien'), att('c', 10_059, il(0, 5), 'comptoir')], { sorte: 'une', id: 'c' }],
+    ['deux factures du même montant : on ne devine pas', [att('f1', 10_059, il(3), 'lien'), att('f2', 10_059, il(5), 'lien')], { sorte: 'plusieurs', ids: ['f1', 'f2'] }],
+    ['un comptoir d il y a une heure ne vaut plus, la facture si', [att('c', 10_059, il(0, 60), 'comptoir'), att('f', 10_059, il(2), 'lien')], { sorte: 'une', id: 'f' }],
+  ];
+  const paiement = { montantXof: 10_059, quandMs: T1 };
+  dit('les fenêtres : comptoir une demi-heure, facture quarante-cinq jours, le comptoir d abord', CAS.map(([, , a]) => a), CAS.map(([, at]) => rapprocheTapGo(paiement, at)));
+  for (const f of ['supabase/functions/mnd-pay/index.ts', 'supabase/functions/mnd-pay-webhook/index.ts']) {
+    const r = charge<typeof rapprocheTapGo>(f, 'rapprocheTapGo');
+    dit(`${f.split('/')[2]} : les mêmes fenêtres au serveur`, CAS.map(([, , a]) => a), CAS.map(([, at]) => r(paiement, at)));
+  }
+  const mp = lis('supabase/functions/mnd-pay/index.ts');
+  dit('mnd-pay : une facture, une attente (même total : la même ; reste changé : l ancienne s annule)', [true, true],
+    [/if \(genre === 'lien'\) \{[\s\S]{0,400}\.eq\('data->>pieceId', pieceId\)[\s\S]{0,300}if \(meme\) return json/.test(mp), /statut: 'annulee', raison: 'remplacée : le reste de la pièce a changé'/.test(mp)]);
+  dit('les deux fonctions relisent quarante-six jours d attentes', [true, true],
+    ['supabase/functions/mnd-pay/index.ts', 'supabase/functions/mnd-pay-webhook/index.ts'].map((f) => /quandMs - 46 \* 86_400_000/.test(lis(f))));
+
+  /* Le Carnet suit la pièce. */
+  const dLien = { ...base, id: 'mp-lien', genre: 'lien', moyen: 'tapgo', montantXof: 9_900, fraisXof: 159, totalXof: 10_059, pieceId: 'inv-r', statut: 'payee', modeReel: 'mtn_open', payeeLe: '2026-10-27T10:00:00.000Z' } as DemandeMndPay;
+  const rdv = { id: 'rdv-1', paidXof: 100, payments: [{ id: 'pay-1', amountXof: 100 }] };
+  const r1 = rendezVousRegles([rdv], [{ id: 'inv-r', apptId: 'rdv-1' }], [dLien], ['mp-lien']);
+  dit('le rendez-vous reçoit le même versement, sous le même identifiant, et son payé monte', [1, 10_000, 'mp-lien', 'MND PAY', 'inv-r'],
+    [r1.length, r1[0]?.paidXof, r1[0]?.payments?.[1]?.id, (r1[0]?.payments?.[1] as { cashbox?: string })?.cashbox, (r1[0]?.payments?.[1] as { invoiceId?: string })?.invoiceId]);
+  dit('... une seule fois (un second passage ne rajoute rien)', 0, rendezVousRegles(r1, [{ id: 'inv-r', apptId: 'rdv-1' }], [dLien], ['mp-lien']).length);
+  dit('... et une pièce sans rendez-vous ne touche aucun rendez-vous', 0, rendezVousRegles([rdv], [{ id: 'inv-r' }], [dLien], ['mp-lien']).length);
+
+  dit('l attente d une facture attend un serveur 17-b', [false, false, true], ['', '2026-10-17-a', '2026-10-17-b'].map(saitLesFactures));
+  const act = lis('src/apps/trone/routes/clients/actions.tsx');
+  dit('... et l encaissement le demande avant de la poser', true, /&& saitLesFactures\(await versionDeMndPay\(\)\)\) \{/.test(act));
+  const iAtt = act.indexOf("genre: 'lien', moyen: 'tapgo'");
+  const iEnv = act.indexOf('const r = await envoieLeRecu({');
+  dit('l encaissement envoie la facture : l argent d aujourd hui seulement, l attente posée avant le PDF', [true, true, true],
+    [/if \(idPieceEncaissee && settleTotal \+ totalGamme > 0 && payDate === todayISO\(\)\) \{\s*void envoieLaFacture\(/.test(act), iAtt > 0 && iAtt < iEnv, /pdf: buildPdfData\(piece\)/.test(act)]);
+  const fac = lis('src/apps/trone/routes/vente/Factures.tsx');
+  const mod = lis('src/apps/trone/routes/vente/pdf-de-la-piece.ts');
+  dit('une seule fabrique de la facture en PDF, Tap & Go au pied', [true, false, true],
+    [/= useLaPieceEnPdf\(\);/.test(fac), /const buildPdfData = /.test(fac), /paiementDeLaPiece\(invoiceResteXof\(d\), reglagesMnd\)/.test(mod)]);
+  const pdfSrc = lis('src/shared/pdf.ts');
+  dit('le PDF accepte le lien Tap & Go (et garde la règle du 25 août pour MoMoPay)', true,
+    /d\.momo\.genre === 'tapgo' \|\| estIdentifiantMomo\(d\.momo\.qr\)/.test(pdfSrc));
+  dit('le Carnet suit la pièce dans le Trône', true, /rendezVousRegles\(appointmentsStore\.get\(\), changees, demandes, inscrits\)/.test(lis('src/apps/trone/shell/useMndPayRattache.ts')));
 }
 
 console.log(ko === 0 ? '\nMND PAY tient ses regles.' : `\n${ko} controle(s) en echec.`);

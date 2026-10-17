@@ -4,7 +4,8 @@ import { useBranch } from '../../../shared/branches';
 import { useSettings } from '../../../shared/settings';
 import { invoiceResteXof, invoicesStore, useInvoices } from '../../../shared/finance';
 import { tablePrete } from '../../../shared/sync';
-import { piecesReglees } from '../../../shared/mnd-pay-pur';
+import { piecesReglees, rendezVousRegles } from '../../../shared/mnd-pay-pur';
+import { appointmentsStore } from '../../../shared/agenda';
 import { mndPayOuvert, useDemandesMndPay } from '../../../shared/mnd-pay';
 
 /* ══ LE LIEN PAYÉ RÈGLE SA PIÈCE — 16 octobre 2026 (MND PAY) ════════════
@@ -28,9 +29,18 @@ export function useMndPayRattache(): void {
 
   useEffect(() => {
     if (!actif || !tablePrete('invoices')) return;
-    const { changees } = piecesReglees(invoices, demandes, invoiceResteXof);
+    const { changees, inscrits } = piecesReglees(invoices, demandes, invoiceResteXof);
     if (changees.length === 0) return;
     const parId = new Map(changees.map((p) => [p.id, p]));
     invoicesStore.set((prev) => prev.map((p) => parId.get(p.id) ?? p));
+    /* Le Carnet suit la pièce (17 octobre 2026) : le rendez-vous du rituel
+       reçoit le même versement, sous le même identifiant. */
+    if (tablePrete('appointments')) {
+      const rdvs = rendezVousRegles(appointmentsStore.get(), changees, demandes, inscrits);
+      if (rdvs.length > 0) {
+        const rdvParId = new Map(rdvs.map((r) => [r.id, r]));
+        appointmentsStore.set((prev) => prev.map((r) => rdvParId.get(r.id) ?? r));
+      }
+    }
   }, [actif, demandes, invoices]);
 }

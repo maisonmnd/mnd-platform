@@ -37,7 +37,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
    d'arrivée › « Cliquez pour révéler »).
    ═══════════════════════════════════════════════════════════════════ */
 
-const VERSION = '2026-10-17-a';
+const VERSION = '2026-10-17-b';
 
 const json = (o: unknown, status = 200) =>
   new Response(JSON.stringify(o), { status, headers: { 'content-type': 'application/json' } });
@@ -103,23 +103,29 @@ function instantDe(s: unknown): number {
 
 // ── DEBUT rapprocheTapGo (même texte que src/shared/mnd-pay-pur.ts, relu par scripts/verifie-mnd-pay)
 /** QUELLE ATTENTE CE PAIEMENT RÈGLE-T-IL ? Une attente Tap & Go, encore en
-    attente, sans transaction, du même montant à un franc près, posée au plus
-    une demi-heure avant le paiement (deux minutes d'avance tolérées pour les
-    horloges). Une seule : c'est elle. Plusieurs : on ne choisit pas au hasard. */
+    attente, sans transaction, du même montant à un franc près. Au comptoir,
+    posée au plus une demi-heure avant le paiement ; sur une FACTURE envoyée
+    (genre « lien », 17 octobre 2026), le temps qu'elle paie : quarante-cinq
+    jours. Deux minutes d'avance tolérées pour les horloges. Le comptoir passe
+    d'abord : la cliente qui compose devant la caissière est celle qu'on
+    attend. Une seule attente : c'est elle. Plusieurs : on ne choisit pas. */
 function rapprocheTapGo(
   paiement: { montantXof: number; quandMs: number },
-  attentes: readonly { id: string; moyen?: string; statut?: string; fedapayId?: number; totalXof?: number; creeLe?: string }[],
+  attentes: readonly { id: string; moyen?: string; statut?: string; fedapayId?: number; totalXof?: number; creeLe?: string; genre?: string }[],
 ): { sorte: 'une'; id: string } | { sorte: 'aucune' } | { sorte: 'plusieurs'; ids: string[] } {
   const montant = Math.round(Number(paiement.montantXof) || 0);
   if (montant <= 0) return { sorte: 'aucune' };
-  const ids = attentes.filter((a) => {
+  const valables = attentes.filter((a) => {
     if (a.moyen !== 'tapgo' || a.statut !== 'en_attente' || a.fedapayId) return false;
     if (Math.abs(Math.round(Number(a.totalXof) || 0) - montant) > 1) return false;
     const t = Date.parse(String(a.creeLe ?? ''));
     if (!Number.isFinite(t) || !Number.isFinite(paiement.quandMs)) return false;
     const ecart = paiement.quandMs - t;
-    return ecart >= -2 * 60_000 && ecart <= 30 * 60_000;
-  }).map((a) => a.id);
+    const fenetre = a.genre === 'lien' ? 45 * 86_400_000 : 30 * 60_000;
+    return ecart >= -2 * 60_000 && ecart <= fenetre;
+  });
+  const auComptoir = valables.filter((a) => a.genre !== 'lien').map((a) => a.id);
+  const ids = auComptoir.length > 0 ? auComptoir : valables.map((a) => a.id);
   if (ids.length === 1) return { sorte: 'une', id: ids[0] };
   return ids.length === 0 ? { sorte: 'aucune' } : { sorte: 'plusieurs', ids };
 }
@@ -143,9 +149,10 @@ async function rangeLeTapGo(admin: any, tx: any): Promise<string> {
   if (!(montantXof > 0)) return 'sans montant';
   const quand = instantDe(tx?.approved_at ?? tx?.created_at);
   const quandMs = Number.isFinite(quand) ? quand : Date.now();
-  const depuis = new Date(quandMs - 2 * 3_600_000).toISOString();
+  /* Les attentes d'une facture vivent quarante-cinq jours (17 octobre 2026). */
+  const depuis = new Date(quandMs - 46 * 86_400_000).toISOString();
   const { data: lignes } = await admin.from('mnd_pay').select('id, branch_id, data')
-    .eq('data->>moyen', 'tapgo').eq('data->>statut', 'en_attente').gte('updated_at', depuis).limit(100);
+    .eq('data->>moyen', 'tapgo').eq('data->>statut', 'en_attente').gte('updated_at', depuis).limit(500);
   const attentes = (lignes ?? []).map((l: any) => ({ ...(l.data ?? {}), id: String(l.id) }));
   const choix = rapprocheTapGo({ montantXof, quandMs }, attentes);
   const commun: Record<string, unknown> = {

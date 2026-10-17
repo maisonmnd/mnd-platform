@@ -271,7 +271,10 @@ dit('D. une raison jamais migree etait deja la avant : elle reste celle d avant'
 houseIdentityStore.set({ ...DEFAULT_IDENTITY });
 dit('D. le PDF d avant la bascule n avait pas de ligne legale, celui d apres le registre', [undefined, NOUVELLE].map(String),
   [maisonRaisonDuPdfAu('2026-10-09'), maisonRaisonDuPdfAu('2026-10-10')].map(String));
-const factures = sansCommentaires('src/apps/trone/routes/vente/Factures.tsx');
+/* 17 octobre 2026 : les données du PDF de la facture vivent dans
+   pdf-de-la-piece.ts (une seule fabrique, lue aussi par l'encaissement) ; la
+   règle se lit dans les deux fichiers. */
+const factures = sansCommentaires('src/apps/trone/routes/vente/Factures.tsx') + sansCommentaires('src/apps/trone/routes/vente/pdf-de-la-piece.ts');
 dit('D. la facture : l ecran dit la raison de son jour, le PDF la ligne de son jour', [true, true, false, false],
   [factures.includes('{maisonRaisonAu(active.date)}'), factures.includes('legal: maisonRaisonDuPdfAu(d.date),'), factures.includes('legal: maisonRaisonAu('), factures.includes('maisonRaison()')]);
 dit('D. le recu-facture de la caisse aussi', true, sansCommentaires('src/apps/trone/routes/vente/Caisse.tsx').includes('legal: maisonRaisonDuPdfAu(inv.date),'));

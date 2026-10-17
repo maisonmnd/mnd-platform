@@ -121,6 +121,10 @@ export const AVANCE_TAPGO_MS = 2 * 60_000;
     recollé (version 2026-10-17-a ou après) : avant, la demande serait refusée
     (« moyen inconnu »). Les versions se comparent comme des dates. */
 export const saitTapGo = (version: string | undefined): boolean => !!version && version >= '2026-10-17-a';
+/** Le serveur sait-il garder l'attente d'une FACTURE quarante-cinq jours, une
+    par pièce ? (2026-10-17-b.) Avant, l'attente ne vivrait qu'une demi-heure
+    et chaque envoi en poserait une de plus. */
+export const saitLesFactures = (version: string | undefined): boolean => !!version && version >= '2026-10-17-b';
 /** Le code marchand posé, ou celui de la page Tap & Go de la Maison. */
 export const codeTapGo = (r: ReglagesMndPay | undefined): string => {
   const c = String(r?.tapgo?.code ?? '').replace(/\D/g, '');
@@ -150,6 +154,17 @@ export const variablesTapGo = (appel: string, montant: string): string[] => [app
 export const motTapGo = (appel: string, montant: string, lien: string): string =>
   `Bonjour ${appel}, pour régler ${montant}, touchez ce lien : votre téléphone compose le numéro, montant compris. Confirmez ensuite le paiement sur votre téléphone.\n${lien}`;
 
+/** LE PAIEMENT TAP & GO D'UNE PIÈCE (17 octobre 2026) : le reste dû, les
+    frais ajoutés pour la cliente, le total à composer, le lien du QR (la page
+    qui compose) et le numéro. `null` : rien à régler, ou Tap & Go éteint. */
+export function paiementTapGoDeLaPiece(resteXof: number, r: ReglagesMndPay | undefined): {
+  resteXof: number; fraisXof: number; totalXof: number; qr: string; code: string;
+} | null {
+  if (!(Number(resteXof) > 0) || r?.tapgo?.actif === false) return null;
+  const c = compteDeLaDemande({ montantXof: resteXof, moyen: 'tapgo', reglages: r });
+  return { resteXof: c.montantXof, fraisXof: c.fraisXof, totalXof: c.totalXof, qr: `${LIEN_TAPGO}${parametreTapGo(c.totalXof, r)}`, code: codeUssdTapGo(c.totalXof, r) };
+}
+
 /** Tap & Go s'offre avec MND PAY, sauf s'il est éteint dans les réglages. */
 export const tapGoOuvert = (r: ReglagesMndPay | undefined): boolean => r?.tapgo?.actif !== false;
 /** LE CODE À COMPOSER, montant compris : c'est lui que la cliente tape. */
@@ -173,23 +188,29 @@ export { instantDe };
 
 // ── DEBUT rapprocheTapGo (même texte dans supabase/functions/mnd-pay et mnd-pay-webhook, relu par scripts/verifie-mnd-pay)
 /** QUELLE ATTENTE CE PAIEMENT RÈGLE-T-IL ? Une attente Tap & Go, encore en
-    attente, sans transaction, du même montant à un franc près, posée au plus
-    une demi-heure avant le paiement (deux minutes d'avance tolérées pour les
-    horloges). Une seule : c'est elle. Plusieurs : on ne choisit pas au hasard. */
+    attente, sans transaction, du même montant à un franc près. Au comptoir,
+    posée au plus une demi-heure avant le paiement ; sur une FACTURE envoyée
+    (genre « lien », 17 octobre 2026), le temps qu'elle paie : quarante-cinq
+    jours. Deux minutes d'avance tolérées pour les horloges. Le comptoir passe
+    d'abord : la cliente qui compose devant la caissière est celle qu'on
+    attend. Une seule attente : c'est elle. Plusieurs : on ne choisit pas. */
 function rapprocheTapGo(
   paiement: { montantXof: number; quandMs: number },
-  attentes: readonly { id: string; moyen?: string; statut?: string; fedapayId?: number; totalXof?: number; creeLe?: string }[],
+  attentes: readonly { id: string; moyen?: string; statut?: string; fedapayId?: number; totalXof?: number; creeLe?: string; genre?: string }[],
 ): { sorte: 'une'; id: string } | { sorte: 'aucune' } | { sorte: 'plusieurs'; ids: string[] } {
   const montant = Math.round(Number(paiement.montantXof) || 0);
   if (montant <= 0) return { sorte: 'aucune' };
-  const ids = attentes.filter((a) => {
+  const valables = attentes.filter((a) => {
     if (a.moyen !== 'tapgo' || a.statut !== 'en_attente' || a.fedapayId) return false;
     if (Math.abs(Math.round(Number(a.totalXof) || 0) - montant) > 1) return false;
     const t = Date.parse(String(a.creeLe ?? ''));
     if (!Number.isFinite(t) || !Number.isFinite(paiement.quandMs)) return false;
     const ecart = paiement.quandMs - t;
-    return ecart >= -2 * 60_000 && ecart <= 30 * 60_000;
-  }).map((a) => a.id);
+    const fenetre = a.genre === 'lien' ? 45 * 86_400_000 : 30 * 60_000;
+    return ecart >= -2 * 60_000 && ecart <= fenetre;
+  });
+  const auComptoir = valables.filter((a) => a.genre !== 'lien').map((a) => a.id);
+  const ids = auComptoir.length > 0 ? auComptoir : valables.map((a) => a.id);
   if (ids.length === 1) return { sorte: 'une', id: ids[0] };
   return ids.length === 0 ? { sorte: 'aucune' } : { sorte: 'plusieurs', ids };
 }
@@ -336,6 +357,38 @@ export function piecesReglees<T extends PieceLue>(
   }
   for (const p of touchees.values()) changees.push(p);
   return { changees, inscrits };
+}
+
+/** LE CARNET SUIT LA PIÈCE — 17 octobre 2026. Un lien payé (une facture
+    envoyée, son QR Tap & Go) s'inscrivait sur la PIÈCE seule : le rendez-vous
+    du rituel gardait son ancien « payé », et le Carnet disait encore « dû ».
+    Chaque versement de demande inscrit sur une pièce de rituel (`apptId`)
+    s'inscrit aussi sur son rendez-vous, sous le MÊME identifiant (celui de la
+    demande) : deux postes n'en écrivent qu'un, et rien ne s'inscrit deux
+    fois. Rend les rendez-vous changés. */
+export function rendezVousRegles<A extends { id: string; payments?: { id: string; amountXof: number }[]; paidXof?: number }>(
+  rdvs: readonly A[],
+  pieces: readonly Pick<Invoice, 'id' | 'apptId'>[],
+  demandes: readonly DemandeMndPay[],
+  inscrits: readonly string[],
+): A[] {
+  const parPiece = new Map(pieces.map((p) => [p.id, p]));
+  const touches = new Map<string, A>();
+  for (const id of inscrits) {
+    const d = demandes.find((x) => x.id === id);
+    const piece = d ? parPiece.get(d.pieceId) : undefined;
+    if (!d || !piece?.apptId) continue;
+    const rdv = touches.get(piece.apptId) ?? rdvs.find((r) => r.id === piece.apptId);
+    if (!rdv || (rdv.payments ?? []).some((p) => p.id === d.id)) continue;
+    const v = versementDeLaDemande(d);
+    const payes = rdv.payments?.length ? rdv.payments.reduce((n, p) => n + (Number(p.amountXof) || 0), 0) : Number(rdv.paidXof) || 0;
+    touches.set(rdv.id, {
+      ...rdv,
+      paidXof: payes + v.amountXof,
+      payments: [...(rdv.payments ?? []), { id: d.id, amountXof: v.amountXof, date: v.date, method: v.method, cashbox: CAISSE_MND_PAY, invoiceId: piece.id }],
+    } as A);
+  }
+  return [...touches.values()];
 }
 
 /** CE QUI ATTEND D'ÊTRE RATTACHÉ : un argent reçu par MND PAY qu'aucune pièce
