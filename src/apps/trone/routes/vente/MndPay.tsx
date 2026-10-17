@@ -2,8 +2,8 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import qrcode from 'qrcode-generator';
 import { fmtMoney } from '../../../../shared/currency';
 import {
-  compteDeLaDemande, ditLeStatut, estAuTelephone, moyenDeLaPiece, numeroMasque, numeroPourFedaPay,
-  type DemandeMndPay, type MoyenMndPay, type ReglagesMndPay,
+  codeUssdTapGo, compteDeLaDemande, ditLeStatut, estAuTelephone, moyenDeLaPiece, numeroMasque, numeroPourFedaPay,
+  tapGoOuvert, type DemandeMndPay, type MoyenMndPay, type ReglagesMndPay,
 } from '../../../../shared/mnd-pay-pur';
 import { annuleLaDemande, demandeLePaiement, relisLaDemande, useDemandesMndPay, useRelecture } from '../../../../shared/mnd-pay';
 
@@ -17,14 +17,33 @@ import { annuleLaDemande, demandeLePaiement, relisLaDemande, useDemandesMndPay, 
    ② CARTE : un QR sur l'écran du comptoir (aucun terminal relié au Bénin) ;
      la cliente le scanne et paie sur son téléphone.
    ③ LE VERT VIENT DE FEDAPAY, jamais d'un bouton : le panneau prévient son
-     écran (`onPayee`) une seule fois, quand la demande passe « payée ». */
+     écran (`onPayee`) une seule fois, quand la demande passe « payée ».
+   ④ TAP & GO (17 octobre 2026) : le code USSD de la Maison, montant compris,
+     en grand ; la cliente le compose sur son téléphone, n'importe quel réseau,
+     même sans internet. FedaPay annonce le paiement, le serveur le reconnaît
+     au montant exact, et le vert vient pareil. */
 
 const MOYENS: { id: MoyenMndPay; nom: string; sous: string }[] = [
   { id: 'mtn', nom: 'MTN MoMo', sous: 'sur son téléphone' },
   { id: 'moov', nom: 'Moov', sous: 'sur son téléphone' },
   { id: 'celtiis', nom: 'Celtiis', sous: 'sur son téléphone' },
   { id: 'carte', nom: 'Carte', sous: 'QR au comptoir' },
+  { id: 'tapgo', nom: 'Code USSD', sous: 'Tap & Go, elle compose' },
 ];
+
+/** Le code à composer, le montant mis en valeur : c'est lui qui reconnaît
+    son paiement, il doit se lire de loin. */
+function CodeTapGo({ code, montant }: { code: string; montant: string }) {
+  const i = code.lastIndexOf(`*${montant}#`);
+  const avant = i >= 0 ? code.slice(0, i + 1) : code;
+  return (
+    <div style={{ background: '#FFFFFF', border: '1px solid var(--hairline)', borderRadius: 'var(--radius-md)', padding: '12px 10px', textAlign: 'center', overflowX: 'auto' }}>
+      <div aria-label={`Code à composer : ${code.split('').join(' ')}`} style={{ fontFamily: 'ui-monospace, Menlo, Consolas, monospace', fontSize: 22, letterSpacing: '.04em', color: 'var(--color-indigo)', whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}>
+        {avant}{i >= 0 && <b style={{ color: 'var(--copper-700)' }}>{montant}</b>}{i >= 0 && '#'}
+      </div>
+    </div>
+  );
+}
 
 /** Un QR lisible : noir sur blanc, ses quatre modules de silence. */
 function QrDuPaiement({ valeur, taille = 168 }: { valeur: string; taille?: number }) {
@@ -61,6 +80,7 @@ export function PanneauMndPay(p: {
   style?: CSSProperties;
 }) {
   const demandes = useDemandesMndPay(p.branchId, true);
+  const moyens = MOYENS.filter((x) => x.id !== 'tapgo' || tapGoOuvert(p.reglages));
   const [moyen, setMoyen] = useState<MoyenMndPay>('mtn');
   const [tel, setTel] = useState(p.telephone ?? '');
   const [demandeId, setDemandeId] = useState<string | null>(null);
@@ -73,7 +93,10 @@ export function PanneauMndPay(p: {
 
   const demande = demandeId ? demandes.find((d) => d.id === demandeId) : undefined;
   const enAttente = demande?.statut === 'en_attente';
-  useRelecture(demandeId, !!enAttente);
+  /* Tap & Go : composer le code prend plus de temps, et chaque relecture
+     interroge les dernières transactions de FedaPay. */
+  const tapgo = demande?.moyen === 'tapgo';
+  useRelecture(demandeId, !!enAttente, tapgo ? 10_000 : 4000, tapgo);
 
   useEffect(() => {
     if (demande?.statut === 'payee' && signale.current !== demande.id) {
@@ -119,7 +142,7 @@ export function PanneauMndPay(p: {
       {!demande && (
         <>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(96px, 1fr))', gap: 6 }} role="radiogroup" aria-label="Moyen MND PAY">
-            {MOYENS.map((x) => (
+            {moyens.map((x) => (
               <button key={x.id} type="button" role="radio" aria-checked={moyen === x.id}
                 className={`trv-pay ${moyen === x.id ? 'is-active' : ''}`} onClick={() => setMoyen(x.id)}>
                 <div className="n">{x.nom}</div>
@@ -141,7 +164,7 @@ export function PanneauMndPay(p: {
             {sansTauxCarte && <span style={{ display: 'block', color: 'var(--copper-700)' }}>Taux de la carte non posé : frais au taux du mobile money (Paramètres › MND PAY).</span>}
           </div>
           <button type="button" className="mnd-btn mnd-btn--copper" disabled={occupe || compte.montantXof <= 0 || (auTel && !numeroLu)} onClick={() => void demander()}>
-            {occupe ? 'Envoi…' : auTel ? `Demander ${m(compte.totalXof)}` : `Afficher le QR · ${m(compte.totalXof)}`}
+            {occupe ? 'Envoi…' : auTel ? `Demander ${m(compte.totalXof)}` : moyen === 'tapgo' ? `Afficher le code · ${m(compte.totalXof)}` : `Afficher le QR · ${m(compte.totalXof)}`}
           </button>
         </>
       )}
@@ -153,9 +176,23 @@ export function PanneauMndPay(p: {
             <span>
               {estAuTelephone(demande.moyen) && !demande.raison
                 ? `Demande envoyée au ${numeroMasque(demande.telephone ?? tel)}. En attente de son code…`
-                : `Elle scanne et paie ${m(demande.totalXof)} sur son téléphone…`}
+                : demande.moyen === 'tapgo'
+                  ? 'Elle compose ce code sur son téléphone et valide avec son code secret…'
+                  : `Elle scanne et paie ${m(demande.totalXof)} sur son téléphone…`}
             </span>
           </div>
+          {demande.moyen === 'tapgo' && (
+            <>
+              <CodeTapGo code={codeUssdTapGo(demande.totalXof, p.reglages)} montant={String(Math.round(demande.totalXof))} />
+              <div style={{ ...petit, color: 'var(--ink-soft)' }}>
+                MTN, Moov ou Celtiis, même sans internet. Le montant doit être exactement {m(demande.totalXof)} : c’est lui qui reconnaît son paiement. Le vert vient seul.
+                <button type="button" className="trv-minibtn" style={{ display: 'block', marginTop: 8 }}
+                  onClick={() => { void navigator.clipboard?.writeText(codeUssdTapGo(demande.totalXof, p.reglages)).catch(() => undefined); }}>
+                  Copier le code
+                </button>
+              </div>
+            </>
+          )}
           {demande.url && (!estAuTelephone(demande.moyen) || !!demande.raison) && (
             <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap', background: '#FFFFFF', border: '1px solid var(--hairline)', borderRadius: 'var(--radius-md)', padding: 10 }}>
               <QrDuPaiement valeur={demande.url} />
@@ -170,7 +207,7 @@ export function PanneauMndPay(p: {
             </div>
           )}
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            <button type="button" className="mnd-btn mnd-btn--ghost mnd-btn--sm" onClick={() => void relisLaDemande(demande.id)}>Relire</button>
+            <button type="button" className="mnd-btn mnd-btn--ghost mnd-btn--sm" onClick={() => void relisLaDemande(demande.id, demande.moyen === 'tapgo')}>Relire</button>
             <button type="button" className="mnd-btn mnd-btn--ghost mnd-btn--sm" onClick={() => void annuleLaDemande(demande.id)}>Annuler la demande</button>
           </div>
         </div>

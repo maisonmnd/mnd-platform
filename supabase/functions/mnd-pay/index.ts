@@ -14,7 +14,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
    la seule porte du Trône vers FedaPay : la clé secrète ne quitte jamais le
    serveur, et seul le personnel l'ouvre.
 
-   TROIS GESTES :
+   TROIS GESTES (et Tap & Go, 17 octobre 2026) :
      · `demander` : crée la transaction chez FedaPay, son jeton et sa page de
        paiement, écrit la demande dans `mnd_pay`, puis, pour MTN, Moov ou
        Celtiis, envoie la demande DIRECTEMENT sur le téléphone de la cliente.
@@ -24,6 +24,12 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
        tarde, ou n'est pas encore branché).
      · `annuler` : la caissière renonce. Si la cliente paie quand même, le
        webhook l'inscrira : un argent reçu ne se refuse jamais en silence.
+
+   TAP & GO (moyen `tapgo`) : `demander` ne crée AUCUNE transaction, la
+   cliente la fera naître en composant *601*14*<code>*<montant>#. On n'écrit
+   qu'une ATTENTE du montant. Le webhook la reconnaît au montant
+   (`rangeLeTapGo`) ; `statut` avec `chercher` relit les dernières
+   transactions de FedaPay, au cas où le webhook tarderait.
 
    LE STATUT « PAYÉE » NE VIENT QUE DE FEDAPAY, relu ici ou par
    `mnd-pay-webhook`. Personne d'autre n'écrit la table (0133).
@@ -35,7 +41,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
      SUPABASE_SERVICE_ROLE_KEY (ou CLE_SERVICE) : déjà posée
    ═══════════════════════════════════════════════════════════════════ */
 
-const VERSION = '2026-10-16-a';
+const VERSION = '2026-10-17-a';
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -54,7 +60,7 @@ const RETOUR = (Deno.env.get('MND_PAY_RETOUR') ?? 'https://maisonmnd.com/trone/p
 
 /** Au-delà, ce n'est plus une vente de comptoir : une faute de frappe. */
 const PLAFOND_XOF = 5_000_000;
-const MOYENS = ['mtn', 'moov', 'celtiis', 'carte', 'au_choix'];
+const MOYENS = ['mtn', 'moov', 'celtiis', 'carte', 'au_choix', 'tapgo'];
 const AU_TELEPHONE = ['mtn', 'moov', 'celtiis'];
 const MODES_DEFAUT: Record<string, string> = { mtn: 'mtn_open', moov: 'moov', celtiis: 'sbin' };
 
@@ -117,6 +123,106 @@ function numeroPourFedaPay(tel: unknown): { number: string; country: string } | 
   return { number: `+229${local}`, country: 'bj' };
 }
 // ── FIN numeroPourFedaPay
+
+// ── DEBUT instantDe (même texte que src/shared/mnd-pay-pur.ts, relu par scripts/verifie-mnd-pay)
+/** UN INSTANT DE FEDAPAY EN MILLISECONDES. Ses dates portent six décimales
+    (« 2026-10-17T08:12:03.000000Z ») ou un espace au lieu du T ; sans fuseau,
+    c'est l'heure universelle. NaN quand rien ne se lit. */
+function instantDe(s: unknown): number {
+  const brut = String(s ?? '').trim();
+  if (!brut) return NaN;
+  let iso = brut.replace(' ', 'T').replace(/(\.\d{3})\d+/, '$1');
+  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d+)?)?$/.test(iso)) iso += 'Z';
+  return Date.parse(iso);
+}
+// ── FIN instantDe
+
+// ── DEBUT rapprocheTapGo (même texte que src/shared/mnd-pay-pur.ts, relu par scripts/verifie-mnd-pay)
+/** QUELLE ATTENTE CE PAIEMENT RÈGLE-T-IL ? Une attente Tap & Go, encore en
+    attente, sans transaction, du même montant à un franc près, posée au plus
+    une demi-heure avant le paiement (deux minutes d'avance tolérées pour les
+    horloges). Une seule : c'est elle. Plusieurs : on ne choisit pas au hasard. */
+function rapprocheTapGo(
+  paiement: { montantXof: number; quandMs: number },
+  attentes: readonly { id: string; moyen?: string; statut?: string; fedapayId?: number; totalXof?: number; creeLe?: string }[],
+): { sorte: 'une'; id: string } | { sorte: 'aucune' } | { sorte: 'plusieurs'; ids: string[] } {
+  const montant = Math.round(Number(paiement.montantXof) || 0);
+  if (montant <= 0) return { sorte: 'aucune' };
+  const ids = attentes.filter((a) => {
+    if (a.moyen !== 'tapgo' || a.statut !== 'en_attente' || a.fedapayId) return false;
+    if (Math.abs(Math.round(Number(a.totalXof) || 0) - montant) > 1) return false;
+    const t = Date.parse(String(a.creeLe ?? ''));
+    if (!Number.isFinite(t) || !Number.isFinite(paiement.quandMs)) return false;
+    const ecart = paiement.quandMs - t;
+    return ecart >= -2 * 60_000 && ecart <= 30 * 60_000;
+  }).map((a) => a.id);
+  if (ids.length === 1) return { sorte: 'une', id: ids[0] };
+  return ids.length === 0 ? { sorte: 'aucune' } : { sorte: 'plusieurs', ids };
+}
+// ── FIN rapprocheTapGo
+
+// ── DEBUT rangeLeTapGo (même texte dans mnd-pay et mnd-pay-webhook)
+/** UN PAIEMENT QUE MND PAY N'A PAS CRÉÉ — Tap & Go, 17 octobre 2026 : la
+    cliente a composé le code USSD de la Maison. La transaction a été RELUE
+    chez FedaPay avant d'arriver ici. Seul un « payé » range quelque chose.
+    Une attente du même montant, et une seule : elle passe « payée », et le
+    comptoir qui l'attend s'encaisse seul. Aucune, ou plusieurs : la ligne
+    s'écrit « À rattacher » (identifiant tiré de la transaction : deux appels
+    simultanés n'en écrivent qu'une). */
+async function rangeLeTapGo(admin: any, tx: any): Promise<string> {
+  const fedapayId = Number(tx?.id);
+  if (!Number.isFinite(fedapayId) || fedapayId <= 0) return 'sans transaction';
+  if (statutDepuisFedaPay(tx?.status) !== 'payee') return 'pas encore payée';
+  const { data: connue } = await admin.from('mnd_pay').select('id').eq('data->>fedapayId', String(fedapayId)).limit(1);
+  if ((connue ?? []).length > 0) return 'deja';
+  const montantXof = Math.round(Number(tx?.amount ?? 0));
+  if (!(montantXof > 0)) return 'sans montant';
+  const quand = instantDe(tx?.approved_at ?? tx?.created_at);
+  const quandMs = Number.isFinite(quand) ? quand : Date.now();
+  const depuis = new Date(quandMs - 2 * 3_600_000).toISOString();
+  const { data: lignes } = await admin.from('mnd_pay').select('id, branch_id, data')
+    .eq('data->>moyen', 'tapgo').eq('data->>statut', 'en_attente').gte('updated_at', depuis).limit(100);
+  const attentes = (lignes ?? []).map((l: any) => ({ ...(l.data ?? {}), id: String(l.id) }));
+  const choix = rapprocheTapGo({ montantXof, quandMs }, attentes);
+  const commun: Record<string, unknown> = {
+    statut: 'payee',
+    fedapayId,
+    ...(tx?.reference ? { reference: String(tx.reference) } : {}),
+    ...(tx?.mode ? { modeReel: String(tx.mode) } : {}),
+    ...(Number.isFinite(Number(tx?.fees)) && Number(tx?.fees) > 0 ? { commissionXof: Math.round(Number(tx.fees)) } : {}),
+    payeeLe: new Date(quandMs).toISOString(),
+  };
+  if (choix.sorte === 'une') {
+    const ligne = (lignes ?? []).find((l: any) => String(l.id) === choix.id);
+    const { error } = await admin.from('mnd_pay').update({ data: { ...(ligne?.data ?? {}), ...commun } })
+      .eq('id', choix.id).eq('data->>statut', 'en_attente');
+    if (error) throw new Error(error.message);
+    return `rattachée à ${choix.id}`;
+  }
+  let branchId = choix.sorte === 'plusieurs'
+    ? String((lignes ?? []).find((l: any) => String(l.id) === choix.ids[0])?.branch_id ?? '')
+    : '';
+  if (!branchId) {
+    const { data: derniere } = await admin.from('mnd_pay').select('branch_id').not('branch_id', 'is', null)
+      .order('updated_at', { ascending: false }).limit(1);
+    branchId = String(derniere?.[0]?.branch_id ?? '');
+  }
+  if (!branchId) {
+    const { data: branches } = await admin.from('branches').select('id').limit(1);
+    branchId = String(branches?.[0]?.id ?? '');
+  }
+  const id = `tg-${fedapayId}`;
+  const data = {
+    id, branchId, genre: 'comptoir', moyen: 'tapgo', montantXof, fraisXof: 0, totalXof: montantXof,
+    pieceId: '', libelle: 'Tap & Go, code composé par la cliente', creeLe: new Date(quandMs).toISOString(),
+    ...commun,
+    ...(choix.sorte === 'plusieurs' ? { raison: `${choix.ids.length} tickets attendaient ce montant : à rattacher à la main` } : {}),
+  };
+  const { error } = await admin.from('mnd_pay').insert({ id, branch_id: branchId || null, data });
+  if (error && !/duplicate|unique/i.test(error.message)) throw new Error(error.message);
+  return 'à rattacher';
+}
+// ── FIN rangeLeTapGo
 
 /** LA TRANSACTION RELUE, POSÉE SUR LA DEMANDE. Un « payé » se pose même sur
     une demande annulée au comptoir : la cliente a payé, l'argent est là. Le
@@ -210,6 +316,25 @@ Deno.serve(async (req) => {
       const libelle = String(corps.libelle ?? 'Maison MND').replace(/\s+/g, ' ').trim().slice(0, 120) || 'Maison MND';
       const id = `mp-${crypto.randomUUID().replace(/-/g, '').slice(0, 20)}`;
 
+      /* TAP & GO : une attente, rien chez FedaPay. Le montant EST la clé du
+         rapprochement : c'est le total exact que la cliente composera. */
+      if (moyen === 'tapgo') {
+        const attente: Record<string, unknown> = {
+          id, branchId, genre, moyen, montantXof, fraisXof, totalXof,
+          ...(pourboireXof > 0 ? { pourboireXof } : {}),
+          pieceId,
+          ...(corps.pieceNumero ? { pieceNumero: String(corps.pieceNumero).slice(0, 40) } : {}),
+          ...(corps.clientId ? { clientId: String(corps.clientId).slice(0, 80) } : {}),
+          libelle,
+          statut: 'en_attente',
+          creeLe: new Date().toISOString(),
+          ...(parQui ? { creePar: parQui } : {}),
+        };
+        const { error: errAttente } = await admin.from('mnd_pay').insert({ id, branch_id: branchId, data: attente });
+        if (errAttente) throw new Error(errAttente.message);
+        return json({ ok: true, version: VERSION, id, url: '', directe: false });
+      }
+
       // ① La transaction, ② son jeton et sa page de paiement.
       const creee = laTransaction(await fedapay('POST', '/transactions', {
         description: libelle,
@@ -264,6 +389,22 @@ Deno.serve(async (req) => {
       const { data: ligne } = await admin.from('mnd_pay').select('id, data').eq('id', id).maybeSingle();
       if (!ligne) return refus('demande introuvable', 404);
       let d = ligne.data ?? {};
+      /* TAP & GO, LE FILET DU WEBHOOK : les dernières transactions de FedaPay,
+         celles du même montant nées dans la demi-heure de l'attente. */
+      if (d.moyen === 'tapgo' && !d.fedapayId && d.statut === 'en_attente' && corps.chercher === true) {
+        const lu = await fedapay('GET', '/transactions?per_page=30');
+        const liste: any[] = Array.isArray(lu?.['v1/transactions']) ? lu['v1/transactions']
+          : Array.isArray(lu?.transactions) ? lu.transactions : Array.isArray(lu) ? lu : [];
+        const depuis = Date.parse(String(d.creeLe ?? ''));
+        for (const tx of liste) {
+          const t = instantDe(tx?.approved_at ?? tx?.created_at);
+          if (!Number.isFinite(t) || !Number.isFinite(depuis) || t < depuis - 2 * 60_000 || t > depuis + 30 * 60_000) continue;
+          if (Math.abs(Math.round(Number(tx?.amount ?? 0)) - Math.round(Number(d.totalXof ?? 0))) > 1) continue;
+          await rangeLeTapGo(admin, tx);
+        }
+        const { data: relue } = await admin.from('mnd_pay').select('id, data').eq('id', id).maybeSingle();
+        if (relue) d = relue.data ?? d;
+      }
       if (d.fedapayId && d.statut !== 'payee') {
         const tx = laTransaction(await fedapay('GET', `/transactions/${d.fedapayId}`));
         d = await poseLaTransaction(admin, ligne, tx);

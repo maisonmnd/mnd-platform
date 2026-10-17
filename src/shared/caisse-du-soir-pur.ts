@@ -1,4 +1,5 @@
 import { EST_ACTIVITE, CAISSE_POURBOIRES, type Receipt } from './receipts';
+import { HORS_CLOTURE } from './caisses-des-caissiers-pur';
 
 /* ══ LE POINTAGE DU JOUR ET LA CAISSE DU SOIR — 3 octobre 2026 ══════════
    « Comment pointer les revenus du jour ? et faciliter le contrôle des
@@ -356,6 +357,9 @@ export function tiroirsSansCloture(o: {
   for (const m of o.horsActivite ?? []) if (m.branchId === o.branchId && m.date.slice(0, 10) === o.date && m.cashbox && m.amountXof > 0) bouge.add(m.cashbox);
   bouge.delete(CAISSE_POURBOIRES);
   bouge.delete('KkiaPay');
+  /* Ni les années passées, ni MND PAY (17 octobre 2026) : l'histoire ne se
+     compte pas au tiroir, et l'argent de MND PAY est chez FedaPay. */
+  for (const n of HORS_CLOTURE) bouge.delete(n);
   const fermes = new Set(o.clotures.filter((c) => c.branchId === o.branchId && c.date === o.date).map((c) => c.cashbox));
   return [...bouge].filter((b) => !fermes.has(b) && (!o.seComptent || o.seComptent.has(b))).sort((a, b) => a.localeCompare(b, 'fr'));
 }
@@ -367,4 +371,5 @@ export function tiroirsSansCloture(o: {
     ne laissait clôturer, et qui revenait chaque jour où le foyer avait bougé. */
 export const tiroirsQuiSeComptent = <B extends { branchId: string; name: string; horsBilan?: boolean }>(
   caisses: readonly B[], branchId: string,
-): B[] => caisses.filter((b) => b.branchId === branchId && b.name !== CAISSE_POURBOIRES && b.name !== 'KkiaPay' && !b.horsBilan);
+): B[] => caisses.filter((b) => b.branchId === branchId && b.name !== CAISSE_POURBOIRES && b.name !== 'KkiaPay' && !b.horsBilan
+  && !HORS_CLOTURE.includes(b.name));

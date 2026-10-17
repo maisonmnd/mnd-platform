@@ -28,7 +28,7 @@ export const MOYEN_ZELLE = 'Zelle';
 
 /** Ce que la caissière choisit. `au_choix` : la page de paiement de FedaPay,
     où la cliente prend mobile money ou carte (le lien envoyé à distance). */
-export type MoyenMndPay = 'mtn' | 'moov' | 'celtiis' | 'carte' | 'au_choix';
+export type MoyenMndPay = 'mtn' | 'moov' | 'celtiis' | 'carte' | 'au_choix' | 'tapgo';
 export const MOYENS_AU_TELEPHONE: readonly MoyenMndPay[] = ['mtn', 'moov', 'celtiis'];
 export const estAuTelephone = (m: MoyenMndPay): boolean => MOYENS_AU_TELEPHONE.includes(m);
 
@@ -83,9 +83,90 @@ export type ReglagesMndPay = {
   modes?: Partial<Record<'mtn' | 'moov' | 'celtiis', string>>;
   /** Zelle, noté à la main : le compte américain qui le reçoit. */
   zelle?: { actif?: boolean; adresse?: string; titulaire?: string };
+  /** TAP & GO (17 octobre 2026) : le code USSD de la Maison chez FedaPay.
+      Allumé par défaut avec MND PAY ; `code` est le code marchand à cinq
+      chiffres de la page Tap & Go, `tauxPct` sa commission. */
+  tapgo?: { actif?: boolean; code?: string; tauxPct?: number };
 };
 
 export const TAUX_MOBILE_DEFAUT = 1.8;
+/* ══ TAP & GO — 17 octobre 2026 ═════════════════════════════════════════
+   « Intègre Tap and Go de FedaPay » (Yéman, captures de sa page Tap & Go).
+   Le terminal virtuel de FedaPay : la cliente compose elle-même
+   *601*14*<code de la Maison>*<montant># sur son téléphone, n'importe quel
+   réseau, même sans internet. Aucune transaction n'est créée par MND PAY :
+   elle naît chez FedaPay quand la cliente valide.
+
+   LE COMPTOIR L'ATTEND, LE MONTANT LA RECONNAÎT. La caissière affiche le
+   code avec le montant déjà écrit dedans ; le Trône pose une attente (moyen
+   `tapgo`) ; quand FedaPay annonce un paiement que MND PAY n'a pas créé, le
+   serveur cherche l'attente du même montant, posée dans la demi-heure, et la
+   passe « payée ». Une seule attente : c'est elle. Aucune, ou plusieurs du
+   même montant : on ne devine pas, l'argent va « À rattacher », où un geste
+   lui fait sa pièce. On ne perd jamais un franc reçu.
+
+   La commission de Tap & Go est de 1,6 % sur le mobile money (FAQ FedaPay,
+   17 octobre 2026) ; les frais restent ajoutés pour la cliente, sa décision
+   du 16 octobre. Le code marchand est public par nature : FedaPay le fait
+   imprimer sur les affiches. */
+export const TAUX_TAPGO_DEFAUT = 1.6;
+export const CODE_TAPGO_DEFAUT = '51166';
+export const PREFIXE_USSD_TAPGO = '*601*14*';
+/** Une attente vit une demi-heure : au-delà, ce n'est plus le même passage. */
+export const DELAI_TAPGO_MS = 30 * 60_000;
+/** Les horloges du téléphone et de FedaPay ne sont pas d'accord à la seconde. */
+export const AVANCE_TAPGO_MS = 2 * 60_000;
+
+/** Le code marchand posé, ou celui de la page Tap & Go de la Maison. */
+export const codeTapGo = (r: ReglagesMndPay | undefined): string => {
+  const c = String(r?.tapgo?.code ?? '').replace(/\D/g, '');
+  return c || CODE_TAPGO_DEFAUT;
+};
+/** Tap & Go s'offre avec MND PAY, sauf s'il est éteint dans les réglages. */
+export const tapGoOuvert = (r: ReglagesMndPay | undefined): boolean => r?.tapgo?.actif !== false;
+/** LE CODE À COMPOSER, montant compris : c'est lui que la cliente tape. */
+export function codeUssdTapGo(totalXof: number, r: ReglagesMndPay | undefined): string {
+  return `${PREFIXE_USSD_TAPGO}${codeTapGo(r)}*${Math.max(0, Math.round(Number(totalXof) || 0))}#`;
+}
+
+// ── DEBUT instantDe (même texte dans supabase/functions/mnd-pay et mnd-pay-webhook)
+/** UN INSTANT DE FEDAPAY EN MILLISECONDES. Ses dates portent six décimales
+    (« 2026-10-17T08:12:03.000000Z ») ou un espace au lieu du T ; sans fuseau,
+    c'est l'heure universelle. NaN quand rien ne se lit. */
+function instantDe(s: unknown): number {
+  const brut = String(s ?? '').trim();
+  if (!brut) return NaN;
+  let iso = brut.replace(' ', 'T').replace(/(\.\d{3})\d+/, '$1');
+  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d+)?)?$/.test(iso)) iso += 'Z';
+  return Date.parse(iso);
+}
+// ── FIN instantDe
+export { instantDe };
+
+// ── DEBUT rapprocheTapGo (même texte dans supabase/functions/mnd-pay et mnd-pay-webhook, relu par scripts/verifie-mnd-pay)
+/** QUELLE ATTENTE CE PAIEMENT RÈGLE-T-IL ? Une attente Tap & Go, encore en
+    attente, sans transaction, du même montant à un franc près, posée au plus
+    une demi-heure avant le paiement (deux minutes d'avance tolérées pour les
+    horloges). Une seule : c'est elle. Plusieurs : on ne choisit pas au hasard. */
+function rapprocheTapGo(
+  paiement: { montantXof: number; quandMs: number },
+  attentes: readonly { id: string; moyen?: string; statut?: string; fedapayId?: number; totalXof?: number; creeLe?: string }[],
+): { sorte: 'une'; id: string } | { sorte: 'aucune' } | { sorte: 'plusieurs'; ids: string[] } {
+  const montant = Math.round(Number(paiement.montantXof) || 0);
+  if (montant <= 0) return { sorte: 'aucune' };
+  const ids = attentes.filter((a) => {
+    if (a.moyen !== 'tapgo' || a.statut !== 'en_attente' || a.fedapayId) return false;
+    if (Math.abs(Math.round(Number(a.totalXof) || 0) - montant) > 1) return false;
+    const t = Date.parse(String(a.creeLe ?? ''));
+    if (!Number.isFinite(t) || !Number.isFinite(paiement.quandMs)) return false;
+    const ecart = paiement.quandMs - t;
+    return ecart >= -2 * 60_000 && ecart <= 30 * 60_000;
+  }).map((a) => a.id);
+  if (ids.length === 1) return { sorte: 'une', id: ids[0] };
+  return ids.length === 0 ? { sorte: 'aucune' } : { sorte: 'plusieurs', ids };
+}
+// ── FIN rapprocheTapGo
+export { rapprocheTapGo };
 export const MODES_DEFAUT: Record<'mtn' | 'moov' | 'celtiis', string> = { mtn: 'mtn_open', moov: 'moov', celtiis: 'sbin' };
 
 const f = (x: number): number => Math.max(0, Math.round(Number.isFinite(x) ? x : 0));
@@ -97,6 +178,10 @@ const f = (x: number): number => Math.max(0, Math.round(Number.isFinite(x) ? x :
 export function tauxDe(moyen: MoyenMndPay, r: ReglagesMndPay | undefined): number {
   const mobile = Math.max(0, Number(r?.tauxMobilePct ?? TAUX_MOBILE_DEFAUT) || 0);
   const carte = Math.max(0, Number(r?.tauxCartePct ?? 0) || 0) || mobile;
+  if (moyen === 'tapgo') {
+    const t = Number(r?.tapgo?.tauxPct ?? TAUX_TAPGO_DEFAUT);
+    return Number.isFinite(t) && t >= 0 ? t : TAUX_TAPGO_DEFAUT;
+  }
   if (moyen === 'carte') return carte;
   if (moyen === 'au_choix') return Math.max(mobile, carte);
   return mobile;
@@ -285,7 +370,7 @@ export function ditLeStatut(d: Pick<DemandeMndPay, 'statut' | 'moyen' | 'raison'
     case 'refusee': return d.raison ? `Refusé : ${d.raison}` : 'Refusé par l’opérateur ou la banque';
     case 'annulee': return 'Annulé';
     case 'expiree': return 'Expiré sans paiement';
-    default: return estAuTelephone(d.moyen) ? 'En attente de son code…' : 'En attente du paiement…';
+    default: return estAuTelephone(d.moyen) ? 'En attente de son code…' : d.moyen === 'tapgo' ? 'Elle compose le code…' : 'En attente du paiement…';
   }
 }
 

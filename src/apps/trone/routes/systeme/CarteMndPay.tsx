@@ -3,7 +3,7 @@ import { Card } from '../../../../ds/components';
 import { Toggle } from '../equipe/ui';
 import { supabase } from '../../../../shared/supabase';
 import { useSettings } from '../../../../shared/settings';
-import { MODES_DEFAUT, TAUX_MOBILE_DEFAUT, type ReglagesMndPay } from '../../../../shared/mnd-pay-pur';
+import { CODE_TAPGO_DEFAUT, MODES_DEFAUT, TAUX_MOBILE_DEFAUT, TAUX_TAPGO_DEFAUT, codeUssdTapGo, type ReglagesMndPay } from '../../../../shared/mnd-pay-pur';
 
 /* ══ LES RÉGLAGES DE MND PAY — 16 octobre 2026 ═════════════════════════
    Maquette UigU1Rr5… : MND PAY s'allume ICI, une fois le compte FedaPay
@@ -17,6 +17,7 @@ export function CarteMndPay() {
   const r: ReglagesMndPay = settings.mndPay ?? {};
   const pose = (patch: Partial<ReglagesMndPay>) => setSettings((s) => ({ ...s, mndPay: { ...(s.mndPay ?? {}), ...patch } }));
   const poseZelle = (patch: NonNullable<ReglagesMndPay['zelle']>) => pose({ zelle: { ...(r.zelle ?? {}), ...patch } });
+  const poseTapGo = (patch: NonNullable<ReglagesMndPay['tapgo']>) => pose({ tapgo: { ...(r.tapgo ?? {}), ...patch } });
   const poseMode = (k: 'mtn' | 'moov' | 'celtiis', v: string) => pose({ modes: { ...(r.modes ?? {}), [k]: v.trim().toLowerCase() } });
   const [verdict, setVerdict] = useState<string | null>(null);
 
@@ -81,6 +82,41 @@ export function CarteMndPay() {
           <span className="sys-row__value">%</span>
         </div>
       </div>
+      <div className="sys-row">
+        <div>
+          <div className="sys-row__label">Tap & Go, le code USSD</div>
+          <div className="sys-row__sub">
+            La cliente compose le code de la Maison sur son téléphone, n’importe quel réseau, même sans internet ; le paiement se reconnaît au montant exact et s’encaisse seul.
+            Aujourd’hui à 10 000 F : {codeUssdTapGo(10000 + Math.ceil(10000 * (r.tapgo?.tauxPct ?? TAUX_TAPGO_DEFAUT) / 100 - 1e-9), r)}
+          </div>
+        </div>
+        <Toggle on={r.tapgo?.actif !== false} onToggle={() => poseTapGo({ actif: r.tapgo?.actif === false })} />
+      </div>
+      {r.tapgo?.actif !== false && (
+        <>
+          <div className="sys-row">
+            <div>
+              <div className="sys-row__label">Code marchand Tap & Go</div>
+              <div className="sys-row__sub">Les cinq chiffres de la page Tap & Go de FedaPay, entre *601*14* et *MONTANT#.</div>
+            </div>
+            <input className="sys-select" inputMode="numeric" defaultValue={r.tapgo?.code ?? CODE_TAPGO_DEFAUT}
+              onBlur={(e) => poseTapGo({ code: e.target.value.replace(/\D/g, '') || undefined })}
+              style={{ width: 100, textAlign: 'right' }} aria-label="Code marchand Tap & Go" />
+          </div>
+          <div className="sys-row">
+            <div>
+              <div className="sys-row__label">Commission de Tap & Go, ajoutée pour la cliente</div>
+              <div className="sys-row__sub">{TAUX_TAPGO_DEFAUT.toLocaleString('fr-FR')} % sur le mobile money d’après FedaPay (17 octobre 2026).</div>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <input className="sys-select" inputMode="decimal" defaultValue={String(r.tapgo?.tauxPct ?? TAUX_TAPGO_DEFAUT).replace('.', ',')}
+                onBlur={(e) => poseTapGo({ tauxPct: nombre(e.target.value) ?? TAUX_TAPGO_DEFAUT })}
+                style={{ width: 80, textAlign: 'right' }} aria-label="Commission de Tap & Go, en pourcentage" />
+              <span className="sys-row__value">%</span>
+            </div>
+          </div>
+        </>
+      )}
       <details style={{ padding: '10px 0' }}>
         <summary style={{ cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 12.5, color: 'var(--copper-700)' }}>Les codes FedaPay de la demande au téléphone</summary>
         <div className="sys-row__sub" style={{ margin: '8px 0' }}>À ne toucher que si le premier essai le demande : la documentation de FedaPay n’est pas d’accord avec elle-même.</div>

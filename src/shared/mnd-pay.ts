@@ -128,10 +128,11 @@ export async function demandeLePaiement(e: Demande): Promise<ReponseDeLaDemande>
 }
 
 /** REDEMANDER À FEDAPAY où en est une demande (le filet si le webhook
-    tarde). Rend la demande à jour, ou null. */
-export async function relisLaDemande(id: string): Promise<DemandeMndPay | null> {
+    tarde). Rend la demande à jour, ou null. `chercher` : pour une attente
+    Tap & Go, relire aussi les dernières transactions de FedaPay. */
+export async function relisLaDemande(id: string, chercher = false): Promise<DemandeMndPay | null> {
   if (!supabase) return null;
-  const { data, error } = await supabase.functions.invoke('mnd-pay', { body: { action: 'statut', id } });
+  const { data, error } = await supabase.functions.invoke('mnd-pay', { body: { action: 'statut', id, ...(chercher ? { chercher: true } : {}) } });
   if (error) return null;
   const d = (data as { demande?: DemandeMndPay })?.demande ?? null;
   pose(d);
@@ -167,7 +168,7 @@ export function assureLesCaissesMndPay(branchId: string, r: ReglagesMndPay | und
 
 /** Relit, toutes les quelques secondes, une demande qu'on attend au
     comptoir : le filet du webhook. S'arrête dès qu'elle est finie. */
-export function useRelecture(id: string | null, enAttente: boolean, toutesLesMs = 4000): void {
+export function useRelecture(id: string | null, enAttente: boolean, toutesLesMs = 4000, chercher = false): void {
   useEffect(() => {
     if (!id || !enAttente) return;
     let tours = 0;
@@ -175,8 +176,8 @@ export function useRelecture(id: string | null, enAttente: boolean, toutesLesMs 
       tours += 1;
       /* Trois minutes, puis on laisse le webhook et le bouton « Relire ». */
       if (tours > Math.ceil(180_000 / toutesLesMs)) { clearInterval(t); return; }
-      void relisLaDemande(id);
+      void relisLaDemande(id, chercher);
     }, toutesLesMs);
     return () => clearInterval(t);
-  }, [id, enAttente, toutesLesMs]);
+  }, [id, enAttente, toutesLesMs, chercher]);
 }

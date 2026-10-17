@@ -44,7 +44,9 @@ import './vente.css';
 import { cheminDeLaConversation } from '../../../../shared/conversations';
 import { RattacherUneCarte } from './RattacherUneCarte';
 import { leTicket, versementsDuTicket, ceQueLeRendezVousRecoit, lArgentDejaRecu, aDejaSaPiece } from './encaissement-pur';
-import { useStaff } from '../equipe/data';
+import { useStaff, adresseDe } from '../equipe/data';
+import { caisseProposee, caissesAuChoix, peutChangerLaCaisse } from '../../../../shared/caisses-des-caissiers-pur';
+import { identiteCourante } from '../../../../shared/journal';
 import { addTipPartage, PART_POURBOIRE_DEFAUT } from '../../../../shared/tips';
 import {
   CAISSE_MND_PAY, MOYEN_ZELLE, moyenDeLaPiece, resteDuTicket, versementDeLaDemande, versementsDesParts,
@@ -335,9 +337,26 @@ export default function Caisse() {
     .filter((c) => c.name !== CAISSE_MND_PAY)
     .filter((c) => cashboxCurrency(c) === payCurrency)
     .sort((a, b) => Number(b.role === 'terrasse') - Number(a.role === 'terrasse'));
-  const activeCashbox = eligibleBoxes.some((c) => c.name === cashbox)
+  /* ══ LA CAISSE DE QUI ENCAISSE — 17 octobre 2026 ══════════════════════
+     Même règle que l'encaissement d'un rituel (`caisseProposee`) : les
+     espèces vont dans la caisse du caissier connecté (le tiroir commun s'il
+     n'en a pas), MTN MoMoPay au compte MoMoPay, la carte et le chèque à la
+     banque. Seule la direction choisit une autre caisse ; pour un moyen sans
+     caisse attitrée, la caisse active d'avant reste, et chacun la change. */
+  const monMail = (identiteCourante().mail ?? '').trim().toLowerCase();
+  const maFiche = monMail ? team.find((m) => adresseDe(m) === monMail) : undefined;
+  const proposeePos = caisseProposee({
+    methode: pay, aujourdhui: dateVente, boxes: eligibleBoxes, branchId: branch.id, staffId: maFiche?.id, enDevise: fxOnEff,
+  });
+  const [caisseTouchee, setCaisseTouchee] = useState(false);
+  useEffect(() => { setCaisseTouchee(false); }, [pay]);
+  const peutChangerPos = peutChangerLaCaisse(estDirection, proposeePos);
+  const dansLaListe = (nom?: string) => !!nom && eligibleBoxes.some((c) => c.name === nom);
+  const activeCashbox = peutChangerPos && (caisseTouchee || !proposeePos.caisse) && dansLaListe(cashbox)
     ? cashbox
-    : eligibleBoxes[0]?.name ?? '';
+    : dansLaListe(proposeePos.caisse)
+      ? proposeePos.caisse!
+      : dansLaListe(cashbox) ? cashbox : eligibleBoxes[0]?.name ?? '';
   const hasCashbox = eligibleBoxes.length > 0;
 
   const branchClients = clients.filter((c) => c.branchId === branch.id && !c.archived);
@@ -1016,14 +1035,19 @@ export default function Caisse() {
         actions={
           <label style={{ display: 'flex', alignItems: 'center', gap: 10, fontFamily: 'var(--font-sans)', fontSize: 10, letterSpacing: '.16em', textTransform: 'uppercase', color: 'var(--ink-soft)' }}>
             Caisse active
-            {hasCashbox ? (
+            {hasCashbox && !peutChangerPos ? (
+              <span title={proposeePos.pourquoi} style={{ fontFamily: 'var(--font-serif)', fontSize: 15, color: 'var(--color-indigo)', textTransform: 'none', letterSpacing: 0 }}>
+                {activeCashbox}
+              </span>
+            ) : hasCashbox ? (
               <select
                 className="mnd-select"
                 value={activeCashbox}
-                onChange={(e) => setCashbox(e.target.value)}
+                onChange={(e) => { setCashbox(e.target.value); setCaisseTouchee(true); }}
                 style={{ fontFamily: 'var(--font-serif)', fontSize: 15, color: 'var(--color-indigo)' }}
               >
-                {eligibleBoxes.map((c) => (
+                {/* Jamais la caisse d'un autre caissier à qui n'est pas la direction. */}
+                {caissesAuChoix(eligibleBoxes, { staffId: maFiche?.id, estDirection, anneePassee: false, garder: activeCashbox }).map((c) => (
                   <option key={c.id} value={c.name}>{c.name}</option>
                 ))}
               </select>

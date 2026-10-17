@@ -48,7 +48,7 @@ export function JournalMndPay({ branchId, jour, currency }: { branchId: string; 
       clientId: d.clientId ?? '',
       clientName: d.clientId ? undefined : 'Cliente MND PAY',
       date: jourLocal(d.payeeLe ?? d.creeLe),
-      lines: [ligneFacture(`Règlement MND PAY${d.reference ? ` · réf. ${d.reference}` : ''}`, d.montantXof, 1, 0)],
+      lines: [ligneFacture(`Règlement ${d.moyen === 'tapgo' ? 'Tap & Go' : 'MND PAY'}${d.reference ? ` · réf. ${d.reference}` : ''}`, d.montantXof, 1, 0)],
       payment: moyenDeLaPiece(d),
       cashbox: CAISSE_MND_PAY,
     });
@@ -85,7 +85,7 @@ export function JournalMndPay({ branchId, jour, currency }: { branchId: string; 
               <span>
                 {nomDe(d.clientId) ?? 'Sans fiche'} · {fmtMoney(d.montantXof, currency)} · {moyenDeLaPiece(d)}
                 <span style={{ display: 'block', fontSize: 11, color: 'var(--ink-soft)' }}>
-                  {jourLocal(d.payeeLe ?? d.creeLe)}{d.reference ? ` · réf. ${d.reference}` : ''}{d.genre === 'lien' ? ' · lien dont la pièce a disparu' : ' · ticket fermé sans lui'}
+                  {jourLocal(d.payeeLe ?? d.creeLe)}{d.reference ? ` · réf. ${d.reference}` : ''}{d.genre === 'lien' ? ' · lien dont la pièce a disparu' : d.moyen === 'tapgo' && !d.pieceId ? ` · Tap & Go, aucun ticket ne l’attendait${d.raison ? ` (${d.raison})` : ''}` : ' · ticket fermé sans lui'}
                 </span>
               </span>
               <button type="button" className="mnd-btn mnd-btn--copper mnd-btn--sm" onClick={() => faisLaPiece(d.id)}>Créer sa pièce</button>

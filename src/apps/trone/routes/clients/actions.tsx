@@ -1,6 +1,6 @@
 import { sansLaVisite, pourquoiPasDeRepriseIci, prochainDejaPose } from '../../../../shared/reprise-nue';
 import { suiteImposee } from '../../../../shared/retouche-comprise-pur';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Button, Field, Input, Modal, Select, toast, alerte, demande } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney, rateToXof } from '../../../../shared/currency';
@@ -12,7 +12,7 @@ import { appointmentsStore, useAppointments, apptPayeurId, apptPaidXof, venuesHo
 import { useCategories, fondeLaCouronne, servicesStore, type Service, useProducts } from '../../../../shared/catalog';
 import { aDefaitSesLocks, estDePassage as estDePassageCli, estDiaspora, joursDeLaTete } from '../../../../shared/clients';
 import { remiseDeFactureAReporter, remiseDuComptoirEcrite, remiseDuComptoirRendue } from '../../../../shared/offres-pur';
-import { invoicesStore, useCashboxes, caissesPourLaDate, invoiceTotal, ligneNetXof, usePaymentMethods, cashboxCurrency, nouvelleFacture, ligneFacture, useCredits, creditMovementsStore, creditBalanceOf, invoiceReglements, invoiceRegleXof, invoiceSoldee, useInvoices, quiEncaisse, type Invoice, type InvoiceLine, type InvoicePayment, type PaymentMethod, type CreditHolder, ligneProduit, lignesDuRituelPiece } from '../../../../shared/finance';
+import { invoicesStore, cashboxesStore, useCashboxes, caissesPourLaDate, invoiceTotal, ligneNetXof, usePaymentMethods, cashboxCurrency, nouvelleFacture, ligneFacture, useCredits, creditMovementsStore, creditBalanceOf, invoiceReglements, invoiceRegleXof, invoiceSoldee, useInvoices, quiEncaisse, type Invoice, type InvoiceLine, type InvoicePayment, type PaymentMethod, type CreditHolder, ligneProduit, lignesDuRituelPiece } from '../../../../shared/finance';
 import { detailDuForfait } from '../../../../shared/kids';
 import { holderOf, payerClientIdOf, estDependant } from '../../../../shared/accounts';
 import { venteGamme, fichePourGamme, stockDe, useMouvementsStock } from '../../../../shared/stock';
@@ -28,7 +28,7 @@ import { autoConfigStore, automationsActiveStore, REVIEW_LINK_DEFAUT, lienPaieme
 import { signeLeMessage } from '../../../../shared/identite';
 import { consommerPourRituel, rembobinerRituel, retirerParReferences } from '../../../../shared/stock';
 import { detacherFacture } from '../../../../shared/laboratoire';
-import { useStaff } from '../equipe/data';
+import { useStaff, adresseDe } from '../equipe/data';
 import { Toggle } from '../equipe/ui';
 import '../equipe/equipe.css'; // styles du Toggle partagé (tre-toggle)
 import {
@@ -41,6 +41,12 @@ import { RattacherUneCarte } from '../vente/RattacherUneCarte';
 import { PanneauMndPay } from '../vente/MndPay';
 import { CAISSE_MND_PAY, moyenDeLaPiece, type DemandeMndPay } from '../../../../shared/mnd-pay-pur';
 import { mndPayOuvert } from '../../../../shared/mnd-pay';
+import {
+  CAISSE_ANNEES_PASSEES, anneeDe, caisseDesAnneesPassees, caisseProposee, caissesAuChoix, estAnneeAnterieure,
+  familleDuMoyen, peutChangerLaCaisse, prenomDe, type CaisseProposee,
+} from '../../../../shared/caisses-des-caissiers-pur';
+import { identiteCourante } from '../../../../shared/journal';
+import { useEstDirection } from '../_vie';
 
 /* Actions transverses Clients & Agenda : fidélité (points Cercle) + encaissement d'un RDV. */
 
@@ -744,19 +750,91 @@ export function resetAllPaidInvoices(branchId: string): { invoices: number; appt
 /* LES PALIERS DE L'ENCAISSEMENT (14 août, maquette validée par Yéman) :
    ce qu'elle doit · comment elle règle · et ensuite. L'argent se compte à voix
    haute, dans cet ordre. */
-function PalierEnc({ n, titre, aide }: { n: number; titre: string; aide?: string }) {
+/* ══ ENCAISSER EN TROIS TEMPS — 17 octobre 2026 ═════════════════════════
+   « Améliore l'UI, l'UX de cette page. Elle a besoin d'être plus structurée.
+   Les caissiers doivent se retrouver facilement » (Yéman). Maquette
+   8kpQtpQh… validée, ses choix lus en base (maquette/encaisser) : trois
+   temps dont un seul ouvert (ce qu'elle doit, replié avec son résumé ;
+   comment elle paie, ouvert ; et ensuite, replié), une barre collante en bas
+   qui dit ce qui est réglé et où va l'argent, les moyens en tuiles, plusieurs
+   moyens sur le même écran, le pourboire avec l'argent reçu. Les gestes rares
+   (lien de paiement, devise, dates, reprogrammer, honorer sans encaisser)
+   vivent dans « Et ensuite ». */
+type EtapeEncId = 'du' | 'paie' | 'suite';
+
+function EtapeEnc({ n, titre, resume, alerte, ouvert, onBascule, children }: {
+  n: number; titre: string; resume: string; alerte?: boolean; ouvert: boolean; onBascule: () => void; children: ReactNode;
+}) {
   return (
-    <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginTop: 4 }}>
-      <span style={{
-        flex: 'none', width: 21, height: 21, borderRadius: '50%', border: '1px solid var(--color-copper)',
-        color: 'var(--copper-700)', fontFamily: 'var(--font-serif)', fontSize: 11.5,
-        display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-      }}>{n}</span>
-      <span style={{ fontFamily: 'var(--font-serif)', fontSize: 17, color: 'var(--color-indigo)' }}>{titre}</span>
-      {aide && <span className="mnd-muted" style={{ fontSize: 11.5, marginLeft: 'auto' }}>{aide}</span>}
-    </div>
+    <section style={{ border: `1px solid ${ouvert ? 'var(--copper-300)' : 'var(--hairline)'}`, borderRadius: 4, background: 'var(--surface-card)' }}>
+      <button
+        type="button"
+        aria-expanded={ouvert}
+        onClick={onBascule}
+        style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%', padding: '11px 13px', background: 'none', border: 'none', cursor: 'pointer', font: 'inherit', textAlign: 'left', color: 'inherit' }}
+      >
+        <span style={{
+          flex: 'none', width: 21, height: 21, borderRadius: '50%', border: '1px solid var(--color-copper)',
+          color: 'var(--copper-700)', fontFamily: 'var(--font-serif)', fontSize: 11.5,
+          display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+        }}>{n}</span>
+        <span style={{ flex: 'none', fontFamily: 'var(--font-serif)', fontSize: 16.5, color: 'var(--color-indigo)' }}>{titre}</span>
+        {!ouvert && (
+          <span style={{ marginLeft: 'auto', minWidth: 0, fontSize: 11.5, lineHeight: 1.4, textAlign: 'right', color: alerte ? 'var(--copper-700)' : 'var(--ink-soft)', fontWeight: alerte ? 600 : 400 }}>
+            {resume}
+          </span>
+        )}
+        <span aria-hidden="true" style={{ flex: 'none', marginLeft: ouvert ? 'auto' : 0, fontSize: 15, color: 'var(--copper-700)' }}>{ouvert ? '−' : '+'}</span>
+      </button>
+      {ouvert && <div style={{ padding: '2px 13px 14px', display: 'flex', flexDirection: 'column', gap: 12 }}>{children}</div>}
+    </section>
   );
 }
+
+/** LES TUILES DE L'ENCAISSEMENT. « Écrire juste MTN MoMoPay, enlève Moov
+    MoMoPay », « rajouter chèque » (17 octobre 2026). Le reste de la liste
+    des moyens (Paramètres, la sienne) passe par « Autres ». */
+type TuileEnc = 'especes' | 'momo' | 'carte' | 'cheque' | 'mndpay' | 'avoir' | 'autre';
+const TUILES_ENC: { id: TuileEnc; nom: string; sous: string }[] = [
+  { id: 'especes', nom: 'Espèces', sous: 'au comptoir' },
+  { id: 'momo', nom: 'MTN MoMoPay', sous: 'compte de la Maison' },
+  { id: 'carte', nom: 'Carte', sous: 'à la banque' },
+  { id: 'cheque', nom: 'Chèque', sous: 'à déposer' },
+  { id: 'mndpay', nom: 'MND PAY', sous: 'confirmé par FedaPay' },
+  { id: 'avoir', nom: 'Avoir', sous: 'crédit du compte' },
+  { id: 'autre', nom: 'Autres', sous: 'les autres moyens' },
+];
+const estCarte = (m: string) => /carte|card/i.test(m);
+const estCheque = (m: string) => /ch[eè]que/i.test(m);
+/** Les moyens de sa liste qu'aucune tuile ne porte. */
+const autresMethodes = (methods: readonly string[]): string[] => methods.filter((m) => {
+  const f = familleDuMoyen(m);
+  return f !== 'especes' && f !== 'momo' && f !== 'avoir' && f !== 'mndpay' && !estCarte(m) && !estCheque(m);
+});
+/** Le nom du moyen écrit sur la pièce : celui de SA liste quand il y est. */
+function methodeDeLaTuile(t: TuileEnc, methods: readonly string[], autre?: string): string {
+  switch (t) {
+    case 'especes': return methods.find((m) => familleDuMoyen(m) === 'especes') ?? 'Espèces';
+    case 'momo': return methods.find((m) => familleDuMoyen(m) === 'momo') ?? 'MTN MoMo';
+    case 'carte': return methods.find(estCarte) ?? 'Carte';
+    case 'cheque': return methods.find(estCheque) ?? 'Chèque';
+    case 'avoir': return 'Avoir';
+    case 'mndpay': return 'MND PAY';
+    default: return autre || autresMethodes(methods)[0] || 'Virement bancaire';
+  }
+}
+const DIT_LA_TUILE: Record<TuileEnc, string> = {
+  especes: 'en espèces', momo: 'en MTN MoMoPay', carte: 'par carte', cheque: 'par chèque', mndpay: 'par MND PAY', avoir: 'sur l’avoir', autre: '',
+};
+/** UNE PART DU RÈGLEMENT : sa tuile, son montant, et la caisse qu'une main
+    de la direction a choisie à la place de celle qui se propose. `mnd` : la
+    part MND PAY payée (le vert de FedaPay est venu). */
+type PartEnc = { id: string; tuile: TuileEnc; montantStr: string; autre?: string; caisseChoisie?: string; choixOuvert?: boolean; mnd?: { id: string; methode: string } };
+const partNeuve = (tuile: TuileEnc, montant: number | ''): PartEnc =>
+  ({ id: `pt-${uid()}`, tuile, montantStr: montant === '' ? '' : String(Math.max(0, Math.round(montant))) });
+/** Où va l'argent d'une part : son moyen écrit, sa caisse, ce que la règle
+    proposait, et si la main présente peut la changer. */
+type CaisseDeLaPart = { methode: string; caisse: string; proposee: CaisseProposee; peutChanger: boolean };
 
 /** ÉMETTRE LA FACTURE D'UN RITUEL NON ENCAISSÉ (15 août) — « comment je gère
     une facture impayée ? Je dois l'envoyer au client, j'ai besoin de
@@ -1081,7 +1159,6 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour }: {
     return next;
   });
 
-  const [pay, setPay] = useState<PaymentMethod>(methods[0] ?? 'Espèces');
   /* ══ LA GAMME A SON PROPRE MOYEN — 7 septembre 2026 ═══════════════
      « J'aimerais encaisser les 60 000 F et les 30 000 F… que chaque paiement
      aille à sa place » (Yéman). Le versement de la Gamme copiait le moyen du
@@ -1090,22 +1167,19 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour }: {
      Vide = le même moyen que le rituel, le cas de presque tous les passages. */
   const [payGammeChoisi, setPayGammeChoisi] = useState<'' | PaymentMethod>('');
   const [gammeBoxChoisie, setGammeBoxChoisie] = useState('');
-  /* ══ LA CAISSE SE CHOISIT, ELLE NE SE DEVINE PAS — 13 septembre 2026 ══
-     « Je ne veux pas que la caisse KkiaPay soit présélectionnée : je dois
-     choisir une caisse avant validation » (Yéman).
-
-     LA CAISSE PROPOSÉE D'OFFICE ÉTAIT LA PREMIÈRE DE LA MONNAIE DE LA MAISON,
-     et c'était KkiaPay. Des espèces posées au comptoir partaient donc dans le
-     tiroir du paiement en ligne dès qu'on oubliait de toucher la liste : le
-     soir, le tiroir des espèces ne tombait plus juste, et KkiaPay annonçait un
-     argent qu'il n'avait jamais reçu. La liste part vide, et le bouton attend. */
-  const [cashbox, setCashbox] = useState('');
+  /* ══ LA CAISSE SE DÉDUIT, ELLE NE SE DEVINE PAS — 17 octobre 2026 ══
+     Le 13 septembre : « je ne veux pas que la caisse KkiaPay soit
+     présélectionnée » ; la première de la liste se posait d'office, et des
+     espèces partaient dans le tiroir du paiement en ligne. La liste partait
+     donc vide. Depuis le 17 octobre (maquette 8kpQtpQh…), chaque part reçoit
+     la caisse que SA décision nomme pour son moyen et pour qui encaisse
+     (`caisseProposee`) : jamais « la première venue ». La direction seule la
+     change ; quand aucune ne se nomme, chacun la choisit. */
   /* ══ MND PAY À L'ENCAISSEMENT DU RITUEL — 16 octobre 2026 ══════════
      Le comptant peut se DEMANDER : au vert de FedaPay, le moyen réel et la
      caisse MND PAY se posent, puis l'encaissement d'aujourd'hui se fait,
      inchangé. Le versement porte l'identifiant de la demande : c'est ce qui
      le rattache (sinon l'argent paraîtrait « à rattacher » au journal). */
-  const [mndOuvert, setMndOuvert] = useState(false);
   const [mndAFermer, setMndAFermer] = useState<DemandeMndPay | null>(null);
   const mndPayRef = useRef<DemandeMndPay | null>(null);
   /* La facture garde la date du RITUEL (le jour de la prestation), pas celle du
@@ -1115,7 +1189,9 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour }: {
      rituel ; l'argent, lui, entre le jour ou il est remis. Prunelle a prepaye en
      juillet un rituel du 8 aout : forcer les deux a la meme date rangeait ses
      68 000 F dans les encaissements d'aout, ou ils ne sont jamais entres. */
-  const [payDate, setPayDate] = useState(todayISO());
+  /* UNE ANNÉE ANTÉRIEURE (17 octobre 2026) : on rattrape l'histoire, l'argent
+     se date du rituel ; « Aujourd'hui » reste à un geste dans « Et ensuite ». */
+  const [payDate, setPayDate] = useState(() => (estAnneeAnterieure(appt.date, todayISO()) && appt.date ? appt.date : todayISO()));
   /* Les deux dates sont JUSTES par défaut (facture = jour du rituel, paiement =
      aujourd'hui) : elles se replient en une ligne, « Modifier » les rouvre. */
   const [datesOuvertes, setDatesOuvertes] = useState(false);
@@ -1125,12 +1201,35 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour }: {
   const jourDuRituel = appt.date || '';
   /* Avoir appliqué à ce règlement — plafonné au solde ET au reste dû. Le comptant
      ne couvre alors que ce qui reste après l'avoir. */
-  const [avoirStr, setAvoirStr] = useState('0');
-  const avoirApplied = Math.max(0, Math.min(Math.min(avoirBal, due), Math.round(Number(avoirStr) || 0)));
-  const cashMax = Math.max(0, due - avoirApplied);
-  const [amountStr, setAmountStr] = useState(String(due));
-  const amount = Math.max(0, Math.min(cashMax, Math.round(Number(amountStr) || 0)));
+  /* ══ LES PARTS DU RÈGLEMENT — 17 octobre 2026 (maquette 8kpQtpQh…) ═══
+     « + Un autre moyen » sur le même écran : une part en espèces, le reste en
+     MTN MoMoPay, une seule pièce, chaque argent dans sa caisse. L'avoir est
+     une part comme les autres (sa tuile), la seule qui ne passe par aucune
+     caisse. Elles remplacent le montant, le moyen et la caisse uniques
+     d'avant, et le champ d'avoir à part. */
+  const [etape, setEtape] = useState<EtapeEncId | null>(
+    () => ((appt.depositXof ?? 0) > 0 && !appt.depositConfirmed ? 'du' : 'paie'),
+  );
+  const [parts, setParts] = useState<PartEnc[]>(() => [partNeuve('especes', due)]);
+  const montantDe = (pt: PartEnc): number => Math.max(0, Math.round(Number(pt.montantStr) || 0));
+  const majPart = (id: string, patch: Partial<PartEnc>) =>
+    setParts((prev) => prev.map((pt) => (pt.id === id ? { ...pt, ...patch } : pt)));
+  const avoirDemande = parts.filter((pt) => pt.tuile === 'avoir').reduce((n, pt) => n + montantDe(pt), 0);
+  const avoirApplied = Math.max(0, Math.min(avoirBal, due, avoirDemande));
+  const amount = parts.filter((pt) => pt.tuile !== 'avoir').reduce((n, pt) => n + montantDe(pt), 0);
   const settleTotal = amount + avoirApplied; // ce qui solde le rituel ce coup-ci (comptant + avoir)
+  /* LES PARTS NE DÉPASSENT JAMAIS LE RESTE : l'écran le dit au lieu de
+     raboter en silence (avant, un montant trop haut était ramené au reste sans
+     un mot). Un avoir au-delà du solde se dit aussi. */
+  const partsTropHautes = amount + avoirDemande > due;
+  const avoirTropHaut = avoirDemande > avoirBal;
+  const resteAPartager = Math.max(0, due - amount - avoirDemande);
+  /* Le reste dû a bougé (acompte coché, forfait) : une seule part, au nouveau
+     reste, comme le faisait le champ unique. */
+  const recaleLesParts = (nouveauDu: number) => setParts((prev) => {
+    const base = prev[0] && prev[0].tuile !== 'mndpay' && prev[0].tuile !== 'avoir' ? prev[0] : partNeuve('especes', 0);
+    return [{ ...base, montantStr: String(Math.max(0, nouveauDu)) }];
+  });
 
   /* Toucher au forfait recale le montant proposé, comme le fait l'acompte : un
      champ qui garderait l'ancien dû ferait encaisser le mauvais montant au
@@ -1140,7 +1239,7 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour }: {
     setForfaitStr(str);
     const n = Math.max(0, Math.round(Number(String(str).replace(/[^0-9]/g, '')) || 0));
     const nouveauNet = pose && String(str).trim() !== '' ? n : apptNetXof({ ...appt, forfait: undefined }, byId);
-    setAmountStr(String(Math.max(0, nouveauNet - alreadyPaid - (depositReceived ? deposit : 0))));
+    recaleLesParts(nouveauNet - alreadyPaid - (depositReceived ? deposit : 0));
   };
   const majForfaitParPct = (v: string) => {
     const p = Math.max(0, Math.min(100, Number(String(v).replace(',', '.')) || 0));
@@ -1151,7 +1250,7 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour }: {
   const toggleDepositReceived = () =>
     setDepositReceived((v) => {
       const next = !v;
-      setAmountStr(String(Math.max(0, net - alreadyPaid - (next ? deposit : 0))));
+      recaleLesParts(net - alreadyPaid - (next ? deposit : 0));
       return next;
     });
   const [tipStr, setTipStr] = useState('0');
@@ -1202,28 +1301,75 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour }: {
   const payCurrency = fxOn ? fxCode : currency;
   /* La caisse suit la date du versement (4 octobre 2026) : en octobre, les
      caisses d'octobre ; une correction d'avant, les anciennes. */
-  const boxesDuJour = caissesPourLaDate(branchBoxes, payDate, cashbox);
-  /* La caisse MND PAY ne se choisit jamais à la main : seule une demande
-     confirmée par FedaPay y entre. */
-  const eligibleBoxes = boxesDuJour.filter((c) => cashboxCurrency(c) === payCurrency)
-    .filter((c) => c.name !== CAISSE_MND_PAY || !!mndAFermer);
-  const activeBox = eligibleBoxes.some((c) => c.name === cashbox) ? cashbox : '';
+  const boxesDuJour = caissesPourLaDate(branchBoxes, payDate);
+  /* Les caisses où cet argent PEUT entrer : la branche, la date, la devise.
+     MND PAY n'en fait pas partie à la main (seul FedaPay y fait entrer). */
+  const eligibleBoxes = boxesDuJour.filter((c) => cashboxCurrency(c) === payCurrency && c.name !== CAISSE_MND_PAY);
   const fxBlocked = fxOn && eligibleBoxes.length === 0;
-  /* La Gamme se règle toujours en francs : ses tiroirs sont ceux de la monnaie
-     de la Maison, même quand le rituel part en devise. */
-  const gammeBoxes = boxesDuJour.filter((c) => cashboxCurrency(c) === currency);
-  const payGamme: PaymentMethod = payGammeChoisi || pay;
-  /* La Gamme suit la caisse du rituel quand elle suit son moyen ; sinon elle
-     se choisit à son tour. Jamais la première de la liste. */
-  const gammeBox = gammeBoxes.some((c) => c.name === gammeBoxChoisie)
-    ? gammeBoxChoisie
-    : (payGammeChoisi === '' && gammeBoxes.some((c) => c.name === activeBox) ? activeBox : '');
-  /* Le pourboire entre aussi dans le tiroir : il réclame la caisse comme le
-     règlement. Sans aucune caisse dans la devise, rien ne se réclame (le
-     blocage de devise parle déjà). */
-  const caisseManquante = (amount > 0 || tip > 0) && eligibleBoxes.length > 0 && !activeBox;
+
+  /* ── QUI ENCAISSE, ET OÙ VA CHAQUE PART — 17 octobre 2026 ─────────────
+     Le compte connecté, retrouvé à sa fiche par l'adresse qui fait foi
+     (`adresseDe`). Sans fiche, ses espèces vont au tiroir commun. */
+  const estDirection = useEstDirection();
+  const monMail = (identiteCourante().mail ?? '').trim().toLowerCase();
+  const maFiche = monMail ? team.find((m) => adresseDe(m) === monMail) : undefined;
+  const anneePassee = estAnneeAnterieure(appt.date, todayISO());
+  const proposeePour = (methode: string, boxes: typeof eligibleBoxes, enDevise: boolean): CaisseProposee => caisseProposee({
+    methode, dateDuRdv: appt.date, aujourdhui: todayISO(), boxes, branchId: branch.id, staffId: maFiche?.id, enDevise,
+  });
+  const caisseDeLaPart = (pt: PartEnc): CaisseDeLaPart => {
+    if (pt.tuile === 'avoir') return { methode: 'Avoir', caisse: '', proposee: { pourquoi: 'L’avoir ne passe par aucune caisse.' }, peutChanger: false };
+    if (pt.tuile === 'mndpay') {
+      return {
+        methode: pt.mnd?.methode ?? 'MND PAY', caisse: pt.mnd ? CAISSE_MND_PAY : '',
+        proposee: { caisse: CAISSE_MND_PAY, pourquoi: 'L’argent est chez FedaPay jusqu’au reversement.' }, peutChanger: false,
+      };
+    }
+    const methode = methodeDeLaTuile(pt.tuile, methods, pt.autre);
+    const proposee = proposeePour(methode, eligibleBoxes, fxOn);
+    const peut = peutChangerLaCaisse(estDirection, proposee);
+    const valide = (nom?: string) => !!nom && (eligibleBoxes.some((c) => c.name === nom) || (nom === CAISSE_ANNEES_PASSEES && anneePassee));
+    const choisie = peut && valide(pt.caisseChoisie) ? pt.caisseChoisie! : '';
+    return { methode, caisse: choisie || proposee.caisse || '', proposee, peutChanger: peut };
+  };
+  const lesCaisses = parts.map(caisseDeLaPart);
+  /* LA PART QUI SIGNE LA PIÈCE : la première qui apporte de l'argent hors
+     avoir. Son moyen et sa caisse sont ceux que les écrans à un seul moyen
+     continuent de lire. */
+  const iSigne = (() => {
+    const avecArgent = parts.findIndex((pt) => pt.tuile !== 'avoir' && montantDe(pt) > 0);
+    return avecArgent >= 0 ? avecArgent : parts.findIndex((pt) => pt.tuile !== 'avoir');
+  })();
+  const especesParDefaut = methods.find((m) => familleDuMoyen(m) === 'especes') ?? 'Espèces';
+  const pay: PaymentMethod = iSigne >= 0 ? lesCaisses[iSigne].methode : especesParDefaut;
+  const activeBox = iSigne >= 0 ? lesCaisses[iSigne].caisse : '';
+  const partMnd = parts.find((pt) => pt.tuile === 'mndpay');
+  const mndEnAttente = !!partMnd && !partMnd.mnd && montantDe(partMnd) > 0;
+  /* La Gamme se règle toujours en francs, et jamais par la demande MND PAY
+     du rituel (elle ne porte que le rituel) : « comme le rituel » prend le
+     moyen de la première part hors MND PAY. */
+  const gammeBoxes = boxesDuJour.filter((c) => cashboxCurrency(c) === currency && c.name !== CAISSE_MND_PAY);
+  const payHorsMnd: PaymentMethod = (() => {
+    const i = parts.findIndex((pt) => pt.tuile !== 'avoir' && pt.tuile !== 'mndpay');
+    return i >= 0 ? lesCaisses[i].methode : especesParDefaut;
+  })();
+  const payGamme: PaymentMethod = payGammeChoisi || payHorsMnd;
+  const gammeProposee = proposeePour(payGamme, gammeBoxes, false);
+  const peutChangerGamme = peutChangerLaCaisse(estDirection, gammeProposee);
+  const gammeBox = (peutChangerGamme && gammeBoxChoisie
+    && (gammeBoxes.some((c) => c.name === gammeBoxChoisie) || (gammeBoxChoisie === CAISSE_ANNEES_PASSEES && anneePassee))
+    ? gammeBoxChoisie : '') || gammeProposee.caisse || '';
+  /* Une part d'argent réclame sa caisse ; sans aucune caisse dans la devise,
+     rien ne se réclame (le blocage de devise parle déjà). */
+  const caisseManquante = eligibleBoxes.length > 0
+    && parts.some((pt, i) => pt.tuile !== 'avoir' && pt.tuile !== 'mndpay' && montantDe(pt) > 0 && !lesCaisses[i].caisse);
   const caisseGammeManquante = totalGamme > 0 && gammeBoxes.length > 0 && !gammeBox;
   const ditLaCaisse = caisseManquante || caisseGammeManquante;
+  /* LA DEVISE NE SE DÉCOUPE PAS : un billet étranger, une seule part. */
+  const basculeLaDevise = () => {
+    if (!fxOn) setParts((prev) => [{ ...(prev.find((pt) => pt.tuile !== 'avoir' && pt.tuile !== 'mndpay') ?? partNeuve('especes', 0)), montantStr: String(Math.max(0, Math.min(due, amount))), caisseChoisie: undefined, choixOuvert: false }]);
+    setFxOn(!fxOn);
+  };
 
   /* ── UN BLOCAGE DOIT SE DIRE — 18 août 2026 ─────────────────────
      « Quand je veux encaisser les 100 euros la case est grisée » (Yéman).
@@ -1242,7 +1388,6 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour }: {
       id: `cb-${uid()}`, branchId: branch.id, name: nom, sub: `Billets en ${payCurrency}`,
       glyph: '', openingXof: 0, currency: payCurrency,
     }]);
-    setCashbox(nom);
     toast(`Caisse « ${nom} » créée, les billets en ${payCurrency} y entreront.`);
   };
 
@@ -1308,9 +1453,19 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour }: {
        repartir avec un flacon — c'était impossible, le geste sortait sans
        rien dire, et le flacon partait sans pièce. */
     if (amount <= 0 && avoirApplied <= 0 && totalGamme <= 0 && tip <= 0 && !depositJustConfirmed && !reschedule) return;
-    /* La ceinture du bouton grisé : aucun chemin n'écrit un argent sans tiroir. */
-    if (ditLaCaisse) return;
+    /* La ceinture du bouton grisé : aucun chemin n'écrit un argent sans tiroir,
+       ni des parts qui dépassent le reste, ni une part MND PAY pas encore payée. */
+    if (ditLaCaisse || partsTropHautes || avoirTropHaut || mndEnAttente) return;
     submitting.current = true;
+    /* LA CAISSE DES ANNÉES PASSÉES naît au premier argent qui y entre
+       (identifiant tiré de la branche : deux postes n'en font qu'une). */
+    if ((lesCaisses.some((c) => c.caisse === CAISSE_ANNEES_PASSEES) || (totalGamme > 0 && gammeBox === CAISSE_ANNEES_PASSEES))
+      && !branchBoxes.some((c) => c.name === CAISSE_ANNEES_PASSEES)) {
+      const neuve = caisseDesAnneesPassees(branch.id);
+      cashboxesStore.set((prev) => (prev.some((c) => c.id === neuve.id)
+        ? prev.map((c) => (c.id === neuve.id ? { ...c, archiveeLe: undefined } : c))
+        : [...prev, neuve]));
+    }
     /* La pièce que CE geste écrit — le pourboire s'y attache (19 août). */
     let idPieceEncaissee: string | undefined;
     if (settleTotal > 0 || totalGamme > 0) {
@@ -1425,12 +1580,18 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour }: {
           note: 'Acompte reçu avant le comptoir',
         });
       }
-      if (amount > 0) {
+      /* UN VERSEMENT PAR PART (17 octobre 2026) : chaque argent dans sa
+         caisse, sous le nom de qui l'a encaissé. */
+      parts.forEach((pt, i) => {
+        const x = montantDe(pt);
+        if (pt.tuile === 'avoir' || x <= 0) return;
+        const c = lesCaisses[i];
+        const mnd = pt.tuile === 'mndpay' ? mndPayRef.current : null;
         versements.push({
           /* Le versement d'une demande MND PAY garde SON identifiant. */
-          id: mndPayRef.current?.id ?? `ip-${uid()}`, date: payDate, amountXof: amount,
-          method: pay, cashbox: activeBox,
-          ...(mndPayRef.current ? { note: `MND PAY${mndPayRef.current.reference ? ` · réf. ${mndPayRef.current.reference}` : ''}${mndPayRef.current.fraisXof > 0 ? ` · frais ${mndPayRef.current.fraisXof} F payés par la cliente` : ''}` } : {}),
+          id: mnd?.id ?? `ip-${uid()}`, date: payDate, amountXof: x,
+          method: c.methode, cashbox: c.caisse || undefined,
+          ...(mnd ? { note: `${mnd.moyen === 'tapgo' ? 'MND PAY · Tap & Go' : 'MND PAY'}${mnd.reference ? ` · réf. ${mnd.reference}` : ''}${mnd.fraisXof > 0 ? ` · frais ${mnd.fraisXof} F payés par la cliente` : ''}` } : {}),
           time: new Date().toTimeString().slice(0, 5),
           ...(quiEncaisse() ? { encaissePar: quiEncaisse() } : {}),
           /* LA DEVISE VIT SUR LE VERSEMENT — les 100 € de Stevie A., 18 août.
@@ -1438,7 +1599,7 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour }: {
              s'inscrivait sur une pièce existante : tiroir EUR vide, PDF muet. */
           ...(fxOn && fxAmount > 0 ? { fx: { code: fxCode, rate: fxRateNum, amount: fxAmount } } : {}),
         });
-      }
+      });
       if (avoirApplied > 0) {
         versements.push({
           id: `ip-${uid()}`, date: payDate, amountXof: avoirApplied,
@@ -1582,6 +1743,27 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour }: {
          ne doit plus bouger.
          10 octobre 2026 : la Gamme seule fige aussi, car elle écrit la pièce
          du rituel (`prixFigeAuReglement`). */
+      /* LE CARNET GARDE SA FORME : une ligne quand une seule part apporte de
+         l'argent (le cas de presque tous les passages, comme avant) ; une
+         ligne par part sinon, l'avoir porté par la première. La pièce que ce
+         versement vient d'émettre est nommée : c'est par ce lien que le
+         registre des encaissements le datera du jour où l'argent est entré. */
+      const lignesDuCarnet = (invoiceId: string): ApptPayment[] => {
+        const payees = parts.map((pt, i) => ({ pt, c: lesCaisses[i], x: montantDe(pt) }))
+          .filter((l) => l.pt.tuile !== 'avoir' && l.x > 0);
+        if (payees.length <= 1) {
+          return [{
+            id: `pay-${uid()}`, amountXof: settleTotal, date: payDate,
+            method: amount > 0 ? pay : 'Avoir', cashbox: amount > 0 ? activeBox || undefined : undefined, invoiceId,
+            ...(avoirApplied > 0 ? { note: `dont ${avoirApplied} F par avoir` } : {}),
+          }];
+        }
+        return payees.map((l, k) => ({
+          id: `pay-${uid()}`, amountXof: l.x + (k === 0 ? avoirApplied : 0), date: payDate,
+          method: l.c.methode, cashbox: l.c.caisse || undefined, invoiceId,
+          ...(k === 0 && avoirApplied > 0 ? { note: `dont ${avoirApplied} F par avoir` } : {}),
+        }));
+      };
       const freeze = prixFigeAuReglement(appt, byId, { settleTotal, totalGamme });
       appointmentsStore.set((prev) => prev.map((a) => (a.id === appt.id
         ? {
@@ -1610,18 +1792,7 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour }: {
             ...(settleTotal > 0 ? {
               payments: [
                 ...(a.payments ?? []),
-                {
-                  id: `pay-${uid()}`,
-                  amountXof: settleTotal,
-                  date: payDate,
-                  method: pay,
-                  cashbox: activeBox || undefined,
-                  /* La piece que ce versement vient d'emettre : c'est par ce lien
-                     que le registre des encaissements la datera du jour ou
-                     l'argent est entre, et non du jour du rituel. */
-                  invoiceId: inv.id,
-                  ...(avoirApplied > 0 ? { note: `dont ${avoirApplied} F par avoir` } : {}),
-                },
+                ...lignesDuCarnet(inv.id),
               ],
             } : {}),
             /* La DATE de reconnaissance de l'acompte : c'est ce jour-là qu'il
@@ -1773,8 +1944,8 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour }: {
        au carnet entre deux moyens de paiement. */
     if (garderOuvert) {
       submitting.current = false;
-      setAmountStr('');
-      setAvoirStr('0');
+      const t0 = parts[0]?.tuile;
+      setParts([partNeuve(t0 && t0 !== 'mndpay' && t0 !== 'avoir' ? t0 : 'especes', '')]);
       setTipStr('0');
     } else {
       onClose();
@@ -1809,13 +1980,12 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour }: {
     if (tip > 0 && !tipRecorded) window.setTimeout(() => alerte(msg), 30);
     else toast(msg);
     mndPayRef.current = null;
-    setMndOuvert(false);
   };
 
   /* LE VERT DE FEDAPAY ENCAISSE LE RITUEL. Le moyen réel, la caisse MND PAY
      et le montant payé sont posés au rendu d'avant ; ce rendu-ci les lit, et
      l'encaissement se fait comme si la caissière avait cliqué. */
-  const mndPret = mndOuvert && !!mndAFermer && pay === moyenDeLaPiece(mndAFermer) && activeBox === CAISSE_MND_PAY;
+  const mndPret = !!mndAFermer && !!partMnd?.mnd && partMnd.mnd.id === mndAFermer.id;
   useEffect(() => {
     if (!mndPret || !mndAFermer) return;
     mndPayRef.current = mndAFermer;
@@ -1825,8 +1995,73 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour }: {
   }, [mndPret]);
   const mndOn = mndPayOuvert(settings.mndPay);
 
+  /* ── CE QUE LES TROIS TEMPS DISENT REPLIÉS ─────────────────────────
+     Le résumé sur la ligne : on lit sans ouvrir. Un acompte à vérifier, un
+     forfait qui a bougé, une remise à reporter se disent en cuivre. */
+  const aReporter = appt.forfait ? null : remiseDeFactureAReporter({
+    resteDuXof: due,
+    remiseDejaSurLeRdvXof: appt.discountXof ?? 0,
+    factures: toutesLesPieces.filter((i: Invoice) => i.kind === 'facture' && i.status === 'payée'
+      && (i.apptId === appt.id || i.id === appt.invoiceId || (appt.payments ?? []).some((p) => p.invoiceId === i.id))),
+  });
+  const forfaitABouge = !!appt.forfait && Math.round(appt.forfait.baseXof) !== Math.round(grossActuel);
+  const acompteAVerifier = deposit > 0 && !depositReceived;
+  const resumeDu = [
+    `Total ${fmtMoney(net, currency)}`,
+    deposit > 0 && depositReceived ? `acompte −${fmtMoney(deposit, currency)}` : '',
+    acompteAVerifier ? 'acompte à vérifier' : '',
+    alreadyPaid > 0 ? `déjà reçu −${fmtMoney(alreadyPaid, currency)}` : '',
+    totalGamme > 0 ? `+ Gamme ${fmtMoney(totalGamme, currency)}` : '',
+    forfaitABouge ? 'le forfait a bougé' : '',
+    aReporter ? 'une remise à reporter' : '',
+  ].filter(Boolean).join(' · ');
+  const lignesPayees = parts.map((p, i) => ({ p, c: lesCaisses[i], x: montantDe(p) })).filter((l) => l.x > 0);
+  const ditLaPart = (l: { p: PartEnc; c: CaisseDeLaPart; x: number }) =>
+    `${fmtMoney(l.x, currency)} ${DIT_LA_TUILE[l.p.tuile] || `en ${l.c.methode}`}${l.c.caisse ? ` → ${l.c.caisse}` : ''}`;
+  const resumePaie = lignesPayees.length > 0 ? lignesPayees.map(ditLaPart).join(' · ') : 'rien encore';
+  const resumeSuite = [
+    `facture ${frShort(invDate)}`,
+    `argent ${frShort(payDate)}`,
+    reschedule && !prochainExistant ? 'prochain RDV posé' : '',
+    fxOn ? `en ${fxCode}` : '',
+  ].filter(Boolean).join(' · ');
+  const bascule = (k: EtapeEncId) => setEtape((e) => (e === k ? null : k));
+
+  /* ── CE QUI BLOQUE, DIT DANS LA BARRE ───────────────────────────────
+     Un bouton grisé sans un mot ressemble à une panne (18 août) : la barre
+     dit la première raison, une seule, celle qu'on peut régler tout de suite. */
+  const blocage = partsTropHautes
+    ? `Les parts font ${fmtMoney(amount + avoirDemande, currency)} pour ${fmtMoney(due, currency)} dû : baissez une part.`
+    : avoirTropHaut
+      ? `L’avoir disponible n’est que de ${fmtMoney(avoirBal, currency)}.`
+      : mndEnAttente
+        ? 'La part MND PAY s’encaisse seule au vert de FedaPay : demandez-la dans « Comment elle paie ».'
+        : caisseManquante
+          ? 'Choisissez la caisse où entre cet argent.'
+          : caisseGammeManquante
+            ? 'Choisissez la caisse où entre le règlement de la Gamme.'
+            : fxBlocked
+              ? `Aucune caisse ne tient des billets en ${payCurrency} : créez-la dans « Et ensuite ».`
+              : fxOn && fxAmount <= 0
+                ? 'Indiquez le taux de la devise, dans « Et ensuite ».'
+                : '';
+  const empecheTout = partsTropHautes || avoirTropHaut || mndEnAttente || (fxOn && fxAmount <= 0) || fxBlocked || ditLaCaisse;
+  const lesAutres = autresMethodes(methods);
+  const tuilesOffertes = TUILES_ENC.filter((t) => (t.id !== 'mndpay' || (mndOn && !fxOn))
+    && (t.id !== 'avoir' || avoirBal > 0)
+    && (t.id !== 'autre' || lesAutres.length > 0));
+  const choisirTuile = (p: PartEnc, t: TuileEnc) => {
+    if (p.mnd) return;
+    majPart(p.id, {
+      tuile: t, caisseChoisie: undefined, choixOuvert: false,
+      ...(t === 'avoir' ? { montantStr: String(Math.min(avoirBal, montantDe(p) || resteAPartager)) } : {}),
+      ...(t === 'autre' && !p.autre ? { autre: lesAutres[0] } : {}),
+    });
+  };
+  const quiNom = prenomDe(quiEncaisse() ?? maFiche?.name ?? '');
+
   return (
-    <Modal title="Encaisser le rituel" onClose={onClose} width={440}>
+    <Modal title="Encaisser le rituel" onClose={onClose} width={520}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
         {/* LE CHEMIN DU RETOUR, EN HAUT — là où l'œil cherche à revenir. */}
         {onRetour && (
@@ -1843,8 +2078,9 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour }: {
         )}
         {/* ═══ LE BANDEAU VIVANT (14 août, maquette validée) — il ne bouge
             jamais. Le nombre qu'on cherche en ouvrant, c'est le RESTE À
-            ENCAISSER : il vivait au milieu de la coulée, après le total, le
-            forfait, l'acompte et les versements. Il monte en tête, en grand. */}
+            ENCAISSER. Depuis le 17 octobre, il dit aussi QUI encaisse (c'est
+            sa caisse qui reçoit les espèces) et, seulement quand c'est vrai,
+            que le rendez-vous est d'une année antérieure. */}
         <div style={{
           position: 'sticky', top: -1, zIndex: 3, margin: '-4px -2px 0',
           background: 'var(--color-indigo)', borderRadius: 3, padding: '13px 16px',
@@ -1862,33 +2098,16 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour }: {
             <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: '.2em', textTransform: 'uppercase', color: 'var(--ink-invert-soft, #C9C3DB)' }}>
               Reste à encaisser
             </span>
-            {/* LE BANDEAU COMPTE LES PRODUITS. C'est le seul nombre qu'on
-                cherche en ouvrant cette modale : il doit monter à chaque
-                flacon ajouté, sans qu'on ait à faire l'addition de tête. */}
+            {/* LE BANDEAU COMPTE LES PRODUITS : il monte à chaque flacon
+                ajouté, sans qu'on ait à faire l'addition de tête. */}
             <span style={{ fontFamily: 'var(--font-serif)', fontSize: 30, color: 'var(--copper-200)', lineHeight: 1, whiteSpace: 'nowrap' }}>
               {fmtMoney(due + totalGamme, currency)}
             </span>
           </div>
-          {/* LE LIEN DE PAIEMENT EN UN CLIC — la page payer.html au montant du
-              reste, envoyée à la PAYEUSE sur WhatsApp. Pour la cliente à
-              distance qui règle par Mobile Money avant de passer. */}
-          {due > 0 && (() => {
-            const lien = lienPaiementMomo(due);
-            const tel = (payerClient?.phone ?? client?.phone ?? '').replace(/\D/g, '');
-            if (!lien || !tel) return null;
-            const prenom = appelDe(payerClient ?? client);
-            const msg = signeLeMessage(
-              `${branch.name} · votre rituel\nBonjour ${prenom}, pour régler ${fmtMoney(due, currency)} par Mobile Money, ouvrez cette page : le code à composer s'y affiche, montant compris.\n${lien}`,
-            );
-            return (
-              <Link
-                to={cheminDeLaConversation(tel, msg) ?? '/conversations'}
-                style={{ display: 'inline-block', marginTop: 9, fontSize: 11.5, fontWeight: 600, color: 'var(--copper-200)', textDecoration: 'none' }}
-              >
-                Envoyer le lien de paiement par WhatsApp
-              </Link>
-            );
-          })()}
+          <div style={{ fontSize: 11.5, color: 'var(--ink-invert-soft, #C9C3DB)', marginTop: 8 }}>
+            {quiNom ? `Encaissé par ${quiNom}` : 'Encaissé par ce poste'}
+            {anneePassee ? ` · rendez-vous de ${anneeDe(appt.date)}, année antérieure : caisse des années passées` : ''}
+          </div>
         </div>
 
         {isFamilyPayer && (
@@ -1898,32 +2117,18 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour }: {
         )}
 
         {/* ① CE QU'ELLE DOIT — le compte du rituel, avant tout règlement. */}
-        <PalierEnc n={1} titre="Ce qu’elle doit" />
-        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-          <span className="mnd-muted">
-            {forfaitPose ? `Total · ${nomForfait}` : `Total${appt.discountPct ? ` (remise −${appt.discountPct}%)` : ''}`}
-          </span>
-          <span style={{ fontFamily: 'var(--font-serif)' }}>{fmtMoney(net, currency)}</span>
-        </div>
-
-        {/* LE FORFAIT — un total négocié pour l'ensemble des gestes. DISCRET :
-            une ligne quand il n'est pas posé (retour d'écran du 10 août — le
-            cadre permanent pesait sur chaque encaissement), le détail ne
-            s'ouvre qu'au geste. Les prestations restent entières dessous :
-            leur montant porte les mains, la production, les commissions. */}
-        {/* LE FORFAIT NE SE POSE PLUS ICI (14 août, Yéman) : « un total négocié
-            pour l'ensemble » se dit AU RENDEZ-VOUS, palier « Le prix », où le
-            geste appartient. Le redemander à l'encaissement faisait écrire deux
-            fois la même négociation — et laissait deux endroits se contredire.
-            Un forfait DÉJÀ posé reste lisible : la ligne « Total · son nom »
-            au-dessus le nomme, et la bande ci-dessous rattrape le seul cas qui
-            demande encore une main — la composition a bougé depuis la promesse. */}
-        <div>
-          {/* LA COMPOSITION A BOUGÉ DEPUIS LA PROMESSE. Le total tient — la
-              Maison a dit un prix — mais le comptoir doit le savoir, et pouvoir
-              reporter le même taux d'un geste plutôt qu'à la calculette. */}
-          {appt.forfait && Math.round(appt.forfait.baseXof) !== Math.round(grossActuel) && (
-            <div style={{ fontSize: 11.5, color: 'var(--copper-700)', background: 'var(--copper-50)', border: '1px solid var(--copper-300)', borderRadius: 'var(--radius-md)', padding: '9px 11px', lineHeight: 1.5, marginTop: 10 }}>
+        <EtapeEnc n={1} titre="Ce qu’elle doit" resume={resumeDu} alerte={acompteAVerifier || forfaitABouge || !!aReporter} ouvert={etape === 'du'} onBascule={() => bascule('du')}>
+          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+            <span className="mnd-muted">
+              {forfaitPose ? `Total · ${nomForfait}` : `Total${appt.discountPct ? ` (remise −${appt.discountPct}%)` : ''}`}
+            </span>
+            <span style={{ fontFamily: 'var(--font-serif)' }}>{fmtMoney(net, currency)}</span>
+          </div>
+          {/* LE FORFAIT NE SE POSE PLUS ICI (14 août) : il se dit au rendez-vous.
+              La bande rattrape le seul cas qui demande encore une main : la
+              composition a bougé depuis la promesse. */}
+          {forfaitABouge && appt.forfait && (
+            <div style={{ fontSize: 11.5, color: 'var(--copper-700)', background: 'var(--copper-50)', border: '1px solid var(--copper-300)', borderRadius: 'var(--radius-md)', padding: '9px 11px', lineHeight: 1.5 }}>
               Les prestations ont changé depuis ce forfait : il portait sur{' '}
               <b>{fmtMoney(appt.forfait.baseXof, currency)}</b>, le rituel en vaut{' '}
               <b>{fmtMoney(grossActuel, currency)}</b> aujourd’hui. Le total promis tient.
@@ -1939,51 +2144,34 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour }: {
               </div>
             </div>
           )}
-        </div>
-        {deposit > 0 && depositReceived && (
-          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-            <span className="mnd-muted">Acompte reçu{appt.depositConfirmed ? ' · vérifié' : ''}</span><span>−{fmtMoney(deposit, currency)}</span>
+          {deposit > 0 && depositReceived && (
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+              <span className="mnd-muted">Acompte reçu{appt.depositConfirmed ? ' · vérifié' : ''}</span><span>−{fmtMoney(deposit, currency)}</span>
+            </div>
+          )}
+          {acompteAVerifier && (
+            <div style={{ fontSize: 12, color: 'var(--copper-700)', background: 'var(--copper-50)', border: '1px solid var(--copper-300)', borderRadius: 'var(--radius-md)', padding: '9px 11px', lineHeight: 1.5 }}>
+              Acompte de <b>{fmtMoney(deposit, currency)}</b> demandé · <b>non vérifié</b>, il n’est PAS déduit
+              tant que sa réception n’est pas confirmée ci-dessous.
+            </div>
+          )}
+          {deposit > 0 && !appt.depositConfirmed && (
+            <label style={{ display: 'inline-flex', alignItems: 'flex-start', gap: 9, fontSize: 12.5, color: 'var(--ink)', cursor: 'pointer', lineHeight: 1.45 }}>
+              <input type="checkbox" checked={depositReceived} onChange={toggleDepositReceived} style={{ marginTop: 2 }} />
+              <span>Acompte reçu et vérifié (MoMo contrôlé), le déduire du reste à encaisser</span>
+            </label>
+          )}
+          {alreadyPaid > 0 && (
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+              <span className="mnd-muted">Déjà encaissé</span><span>−{fmtMoney(alreadyPaid, currency)}</span>
+            </div>
+          )}
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: 'var(--font-serif)', fontSize: 18, borderTop: '1px solid var(--hairline)', paddingTop: 9 }}>
+            <span>Total dû</span><span className="mnd-copper">{fmtMoney(due, currency)}</span>
           </div>
-        )}
-        {deposit > 0 && !depositReceived && (
-          <div style={{ fontSize: 12, color: 'var(--copper-700)', background: 'var(--copper-50)', border: '1px solid var(--copper-300)', borderRadius: 'var(--radius-md)', padding: '9px 11px', lineHeight: 1.5 }}>
-            Acompte de <b>{fmtMoney(deposit, currency)}</b> demandé · <b>non vérifié</b>, il n’est PAS déduit
-            tant que sa réception n’est pas confirmée ci-dessous.
-          </div>
-        )}
-        {deposit > 0 && !appt.depositConfirmed && (
-          <label style={{ display: 'inline-flex', alignItems: 'flex-start', gap: 9, fontSize: 12.5, color: 'var(--ink)', cursor: 'pointer', lineHeight: 1.45 }}>
-            <input type="checkbox" checked={depositReceived} onChange={toggleDepositReceived} style={{ marginTop: 2 }} />
-            <span>Acompte reçu et vérifié (MoMo contrôlé), le déduire du reste à encaisser</span>
-          </label>
-        )}
-        {alreadyPaid > 0 && (
-          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-            <span className="mnd-muted">Déjà encaissé</span><span>−{fmtMoney(alreadyPaid, currency)}</span>
-          </div>
-        )}
-        {/* Le total DÛ ferme le palier ① — le « reste à encaisser » a pris la
-            tête de l'écran, dans le bandeau. */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: 'var(--font-serif)', fontSize: 18, borderTop: '1px solid var(--hairline)', paddingTop: 9 }}>
-          <span>Total dû</span><span className="mnd-copper">{fmtMoney(due, currency)}</span>
-        </div>
-        {/* LA PIÈCE PORTE UNE REMISE QUE LE RENDEZ-VOUS N'A PAS REÇUE (2 octobre
-            2026). Un rituel encaissé au comptoir avec un code restait « devoir »
-            le montant de la remise. Le comptoir l'écrit désormais lui-même ; pour
-            les pièces d'avant, on le propose ici, d'un geste, et c'est une main
-            qui décide. Un forfait fait foi : on ne le remise pas. */}
-        {(() => {
-          /* Ce que le rendez-vous a DÉJÀ reçu se retranche (10 octobre 2026) :
-             la remise écrite par le comptoir, un report déjà fait, la remise
-             famille de la pièce ne se proposent plus une seconde fois. */
-          const aReporter = appt.forfait ? null : remiseDeFactureAReporter({
-            resteDuXof: due,
-            remiseDejaSurLeRdvXof: appt.discountXof ?? 0,
-            factures: toutesLesPieces.filter((i: Invoice) => i.kind === 'facture' && i.status === 'payée'
-              && (i.apptId === appt.id || i.id === appt.invoiceId || (appt.payments ?? []).some((p) => p.invoiceId === i.id))),
-          });
-          if (!aReporter) return null;
-          return (
+          {/* LA PIÈCE PORTE UNE REMISE QUE LE RENDEZ-VOUS N'A PAS REÇUE (2 octobre
+              2026) : on la propose ici, d'un geste, et c'est une main qui décide. */}
+          {aReporter && (
             <div style={{ fontSize: 12, color: 'var(--copper-700)', background: 'var(--copper-50)', border: '1px solid var(--copper-300)', borderRadius: 'var(--radius-md)', padding: '9px 11px', lineHeight: 1.5 }}>
               {aReporter.piece.includes(',') ? 'Les factures' : 'La facture'} <b>{aReporter.piece}</b> {aReporter.piece.includes(',') ? 'portent' : 'porte'} une remise que ce rendez-vous n’a pas reçue en entier :{' '}
               <b>{aReporter.libelle}</b>. Il lui en manque {fmtMoney(aReporter.xof, currency)}.
@@ -2002,147 +2190,115 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour }: {
                 </button>
               </div>
             </div>
-          );
-        })()}
-        {alreadyPaid > 0 && (
-          <button
-            type="button"
-            className="tre-link-btn tre-link-btn--danger"
-            style={{ alignSelf: 'flex-start', marginTop: -4 }}
-            onClick={async () => {
-              if (!await demande({
-                quoi: 'Encaissement',
-                titre: `Annuler l’encaissement de ${fmtMoney(alreadyPaid, currency)} ?`,
-                dit: 'Le rituel redevient impayé, et l’avoir consommé est rendu au compte.',
-                scelle: 'La ou les factures émises pour ce règlement sont SUPPRIMÉES : une pièce atteste un paiement, et le paiement annulé elle n’a plus d’objet.',
-                accepter: 'Annuler l’encaissement',
-                refuser: 'Garder l’encaissement',
-                dur: true,
-              })) return;
-              const r = cancelAppointmentPayment(appt);
-              const pieces = r.invoicesRemoved > 1 ? `${r.invoicesRemoved} factures supprimées` : 'facture supprimée';
-              toast(`Encaissement annulé · ${fmtMoney(alreadyPaid, currency)}${r.invoicesRemoved > 0 ? ` · ${pieces}` : ''}`);
-              onClose();
-            }}
-          >
-            Annuler l’encaissement ({fmtMoney(alreadyPaid, currency)})
-          </button>
-        )}
-        {/* Le journal vit sur la PIÈCE depuis le 17 août ; le carnet n'en garde
-            qu'un écho. Se fier à `appt.payments` cachait le bloc entier quand la
-            pièce, elle, portait bien ses versements. */}
-        {((pieceDuRituelOuverte ? invoiceReglements(pieceDuRituelOuverte).length : 0)
-          + (appt.payments ?? []).length) > 0 && (
-          <div style={{ padding: '10px 12px', background: 'var(--color-sable)', borderRadius: 4 }}>
-            <div style={{ fontFamily: 'var(--font-sans)', fontSize: 10, letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--ink-soft)', marginBottom: 6 }}>
-              Versements déjà reçus
+          )}
+          {alreadyPaid > 0 && (
+            <button
+              type="button"
+              className="tre-link-btn tre-link-btn--danger"
+              style={{ alignSelf: 'flex-start', marginTop: -4 }}
+              onClick={async () => {
+                if (!await demande({
+                  quoi: 'Encaissement',
+                  titre: `Annuler l’encaissement de ${fmtMoney(alreadyPaid, currency)} ?`,
+                  dit: 'Le rituel redevient impayé, et l’avoir consommé est rendu au compte.',
+                  scelle: 'La ou les factures émises pour ce règlement sont SUPPRIMÉES : une pièce atteste un paiement, et le paiement annulé elle n’a plus d’objet.',
+                  accepter: 'Annuler l’encaissement',
+                  refuser: 'Garder l’encaissement',
+                  dur: true,
+                })) return;
+                const r = cancelAppointmentPayment(appt);
+                const pieces = r.invoicesRemoved > 1 ? `${r.invoicesRemoved} factures supprimées` : 'facture supprimée';
+                toast(`Encaissement annulé · ${fmtMoney(alreadyPaid, currency)}${r.invoicesRemoved > 0 ? ` · ${pieces}` : ''}`);
+                onClose();
+              }}
+            >
+              Annuler l’encaissement ({fmtMoney(alreadyPaid, currency)})
+            </button>
+          )}
+          {/* Le journal vit sur la PIÈCE depuis le 17 août ; on y corrige QUAND
+              et COMMENT l'argent est entré, jamais COMBIEN (ce geste-là
+              s'appelle « Annuler l'encaissement », il le dit). */}
+          {((pieceDuRituelOuverte ? invoiceReglements(pieceDuRituelOuverte).length : 0)
+            + (appt.payments ?? []).length) > 0 && (
+            <div style={{ padding: '10px 12px', background: 'var(--color-sable)', borderRadius: 4 }}>
+              <div style={{ fontFamily: 'var(--font-sans)', fontSize: 10, letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--ink-soft)', marginBottom: 6 }}>
+                Versements déjà reçus
+              </div>
+              {pieceDuRituelOuverte && invoiceReglements(pieceDuRituelOuverte).map((v) => (
+                <div key={v.id} style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 5, flexWrap: 'wrap' }}>
+                  <ChampDeDate compact sens="arriere" value={v.date} onChange={(iso) => corrigerVersement(v.id, { date: iso || v.date })} style={{ width: 138, flex: 'none', fontSize: 12 }} ariaLabel="Jour où cet argent est entré" />
+                  <Select
+                    value={v.method}
+                    onChange={(e) => corrigerVersement(v.id, { method: e.target.value })}
+                    style={{ width: 128, flex: 'none', fontSize: 12 }}
+                    aria-label="Moyen de ce versement"
+                  >
+                    {[...new Set([v.method, ...methods, 'Avoir', 'Acompte'])].filter(Boolean).map((m) => (
+                      <option key={m} value={m}>{m}</option>
+                    ))}
+                  </Select>
+                  <Select
+                    value={v.cashbox ?? ''}
+                    onChange={(e) => corrigerVersement(v.id, { cashbox: e.target.value || undefined })}
+                    style={{ width: 118, flex: 'none', fontSize: 12 }}
+                    aria-label="Caisse créditée"
+                  >
+                    <option value="">, hors caisse</option>
+                    {branchBoxes.map((c) => (
+                      <option key={c.name} value={c.name}>{c.name}</option>
+                    ))}
+                  </Select>
+                  {/* LA DEVISE SE RÉPARE ICI : on saisit ce qui a été tendu, le
+                      taux s'en déduit ; `amountXof` reste la vérité comptable. */}
+                  {(() => {
+                    const caisse = branchBoxes.find((c) => c.name === v.cashbox);
+                    const dev = caisse ? cashboxCurrency(caisse) : currency;
+                    if (dev === currency) return null;
+                    return (
+                      <label style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontFamily: 'var(--font-sans)', fontSize: 11.5, color: 'var(--ink-soft)' }}>
+                        reçu
+                        <Input
+                          inputMode="decimal"
+                          value={v.fx?.code === dev ? String(v.fx.amount) : ''}
+                          placeholder="0"
+                          onChange={(e) => {
+                            const n = Math.max(0, Number(e.target.value.replace(',', '.')) || 0);
+                            corrigerVersement(v.id, {
+                              fx: n > 0
+                                ? { code: dev, rate: Math.round((v.amountXof / n) * 100) / 100, amount: n }
+                                : undefined,
+                            });
+                          }}
+                          style={{ width: 74, flex: 'none', fontSize: 12, textAlign: 'right' }}
+                          aria-label={`Billets reçus en ${dev}`}
+                        />
+                        {dev}
+                      </label>
+                    );
+                  })()}
+                  <span style={{ marginLeft: 'auto', fontFamily: 'var(--font-sans)', fontSize: 12.5, fontVariantNumeric: 'tabular-nums' }}>
+                    {fmtMoney(v.amountXof, currency)}
+                    {v.fx && (
+                      <span style={{ color: 'var(--copper-700)', marginLeft: 6 }}>
+                        {v.fx.amount.toLocaleString('fr-FR', { maximumFractionDigits: 2 })} {v.fx.code}
+                      </span>
+                    )}
+                  </span>
+                </div>
+              ))}
+              {!pieceDuRituelOuverte && (appt.payments ?? []).map((v) => (
+                <div key={v.id} style={{ display: 'flex', justifyContent: 'space-between', gap: 10, fontFamily: 'var(--font-sans)', fontSize: 12.5, marginBottom: 3 }}>
+                  <span>{v.date}{v.method ? ` · ${v.method}` : ''}{v.cashbox ? ` · ${v.cashbox}` : ''}</span>
+                  <span style={{ fontVariantNumeric: 'tabular-nums' }}>{fmtMoney(v.amountXof, currency)}</span>
+                </div>
+              ))}
             </div>
-            {/* CORRIGER UN VERSEMENT — 17 août 2026. On rectifie QUAND et
-                COMMENT l'argent est entré : une date saisie de travers range le
-                règlement dans le mauvais mois, un moyen erroné fausse la caisse.
-
-                LE MONTANT NE SE RETOUCHE PAS ICI, et c'est délibéré : changer
-                une somme reçue, c'est dire qu'on a encaissé autre chose que ce
-                qu'atteste la pièce. Ce geste-là existe, il s'appelle « Annuler
-                l'encaissement », il supprime la facture et le dit. Le laisser
-                passer pour une correction de frappe reviendrait à réécrire un
-                chiffre d'affaires sans trace. */}
-            {pieceDuRituelOuverte && invoiceReglements(pieceDuRituelOuverte).map((v) => (
-              <div key={v.id} style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 5, flexWrap: 'wrap' }}>
-                <ChampDeDate compact sens="arriere" value={v.date} onChange={(iso) => corrigerVersement(v.id, { date: iso || v.date })} style={{ width: 138, flex: 'none', fontSize: 12 }} ariaLabel="Jour où cet argent est entré" />
-                <Select
-                  value={v.method}
-                  onChange={(e) => corrigerVersement(v.id, { method: e.target.value })}
-                  style={{ width: 128, flex: 'none', fontSize: 12 }}
-                  aria-label="Moyen de ce versement"
-                >
-                  {[...new Set([v.method, ...methods, 'Avoir', 'Acompte'])].filter(Boolean).map((m) => (
-                    <option key={m} value={m}>{m}</option>
-                  ))}
-                </Select>
-                <Select
-                  value={v.cashbox ?? ''}
-                  onChange={(e) => corrigerVersement(v.id, { cashbox: e.target.value || undefined })}
-                  style={{ width: 118, flex: 'none', fontSize: 12 }}
-                  aria-label="Caisse créditée"
-                >
-                  <option value="">, hors caisse</option>
-                  {branchBoxes.map((c) => (
-                    <option key={c.name} value={c.name}>{c.name}</option>
-                  ))}
-                </Select>
-                {/* LA DEVISE SE RÉPARE ICI — un versement rangé dans un tiroir
-                    étranger SANS ses billets (encaissé avant le 18 août) se
-                    corrige d'un chiffre : on saisit ce qui a été tendu, le taux
-                    s'en déduit. C'est le seul champ : `amountXof` reste la
-                    vérité comptable, on ne la retouche pas. */}
-                {(() => {
-                  const caisse = branchBoxes.find((c) => c.name === v.cashbox);
-                  const dev = caisse ? cashboxCurrency(caisse) : currency;
-                  if (dev === currency) return null;
-                  return (
-                    <label style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontFamily: 'var(--font-sans)', fontSize: 11.5, color: 'var(--ink-soft)' }}>
-                      reçu
-                      <Input
-                        inputMode="decimal"
-                        value={v.fx?.code === dev ? String(v.fx.amount) : ''}
-                        placeholder="0"
-                        onChange={(e) => {
-                          const n = Math.max(0, Number(e.target.value.replace(',', '.')) || 0);
-                          corrigerVersement(v.id, {
-                            fx: n > 0
-                              ? { code: dev, rate: Math.round((v.amountXof / n) * 100) / 100, amount: n }
-                              : undefined,
-                          });
-                        }}
-                        style={{ width: 74, flex: 'none', fontSize: 12, textAlign: 'right' }}
-                        aria-label={`Billets reçus en ${dev}`}
-                      />
-                      {dev}
-                    </label>
-                  );
-                })()}
-                <span style={{ marginLeft: 'auto', fontFamily: 'var(--font-sans)', fontSize: 12.5, fontVariantNumeric: 'tabular-nums' }}>
-                  {fmtMoney(v.amountXof, currency)}
-                  {v.fx && (
-                    <span style={{ color: 'var(--copper-700)', marginLeft: 6 }}>
-                      {v.fx.amount.toLocaleString('fr-FR', { maximumFractionDigits: 2 })} {v.fx.code}
-                    </span>
-                  )}
-                </span>
-              </div>
-            ))}
-            {!pieceDuRituelOuverte && (appt.payments ?? []).map((v) => (
-              <div key={v.id} style={{ display: 'flex', justifyContent: 'space-between', gap: 10, fontFamily: 'var(--font-sans)', fontSize: 12.5, marginBottom: 3 }}>
-                <span>{v.date}{v.method ? ` · ${v.method}` : ''}{v.cashbox ? ` · ${v.cashbox}` : ''}</span>
-                <span style={{ fontVariantNumeric: 'tabular-nums' }}>{fmtMoney(v.amountXof, currency)}</span>
-              </div>
-            ))}
-          </div>
-        )}
-        {/* LES DEUX DATES, REPLIÉES EN UNE LIGNE : justes par défaut (facture =
-            jour du rituel, paiement = aujourd'hui), elles n'occupent l'écran
-            que si on les change. La règle reste vraie : c'est la date du
-            PAIEMENT qui range l'encaissement dans le bon mois. */}
-        {/* ② COMMENT ELLE RÈGLE — deux tiroirs, un seul total. L'avoir et le
-            comptant sont deux façons de payer la même somme : ils vivaient en
-            deux champs qui ne s'additionnaient jamais devant la main, et rien
-            ne disait si le compte tombait juste. Le moyen de paiement et la
-            caisse ne concernent QUE l'argent qui entre vraiment : ils se
-            rangent dans le tiroir du comptant. */}
-        {/* ══ LA GAMME AU COMPTOIR — 31 août 2026 (maquette validée) ══
-            « Sur un RDV un client achète un produit » (Yéman). Il fallait
-            quitter cette modale et refaire tout le ticket à la Caisse.
-
-            REPLIÉ TANT QU'ON N'Y TOUCHE PAS : neuf encaissements sur dix ne
-            portent aucun produit, et ce qu'on ouvre rarement ne doit pas coûter
-            de la place à ce qu'on lit toujours.
-
-            CE QUI EST DÉJÀ FACTURÉ NE SE RETOUCHE PLUS : une pièce remise à une
-            cliente ne change pas. Le bloc se ferme alors, et dit où aller. */}
-        {produitsBranche.length > 0 && (
-          pieceDuRituelOuverte ? null : (
-            <div style={{ marginTop: 4 }}>
+          )}
+          {/* ══ LA GAMME AU COMPTOIR — 31 août 2026 : ce qu'elle emporte
+              s'ajoute à ce qu'elle doit. Replié tant qu'on n'y touche pas ;
+              ce qui est déjà facturé ne se retouche plus. */}
+          {produitsBranche.length > 0 && !pieceDuRituelOuverte && (
+            <div>
               <button
                 type="button"
                 onClick={() => setGammeOuverte((v) => !v)}
@@ -2158,7 +2314,6 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour }: {
                   {totalGamme > 0 ? fmtMoney(totalGamme, currency) : (gammeOuverte ? 'Fermer' : 'Ajouter')}
                 </span>
               </button>
-
               {gammeOuverte && (
                 <div style={{ border: '1px solid var(--copper-300)', background: 'var(--copper-50)', borderRadius: 4, padding: 12, marginTop: 4 }}>
                   <Input
@@ -2184,9 +2339,6 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour }: {
                               <span style={{ display: 'block', fontSize: 13, color: 'var(--color-indigo)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                                 {pr.name}
                               </span>
-                              {/* LA RÉSERVE SE DIT AVANT LA VENTE, pas après :
-                                  en dessous de trois, c'est le moment où l'on
-                                  recommande, pas quand le rayon est vide. */}
                               <span style={{ display: 'block', fontSize: 11, marginTop: 1, color: bas ? 'var(--color-brique, #96412E)' : 'var(--ink-soft)' }}>
                                 {reste === null
                                   ? 'Pas encore à l’inventaire'
@@ -2212,9 +2364,9 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour }: {
                   </div>
                 </div>
               )}
-
-              {/* LE TOTAL SE DÉCOUPE EN DEUX LIGNES. « C'était combien le
-                  soin ? » a sa réponse sans qu'on rouvre la facture. */}
+              {/* CHAQUE PAIEMENT À SA PLACE : les flacons peuvent partir en
+                  espèces quand le rituel part en MoMo. Leur caisse se déduit
+                  comme celle du rituel ; la direction seule la change. */}
               {totalGamme > 0 && (
                 <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px solid var(--hairline)', fontFamily: 'var(--font-sans)', fontSize: 13 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, padding: '3px 0' }}>
@@ -2228,463 +2380,485 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour }: {
                     </span>
                     <b style={{ fontWeight: 500, fontVariantNumeric: 'tabular-nums' }}>{fmtMoney(totalGamme, currency)}</b>
                   </div>
-                  {/* CHAQUE PAIEMENT À SA PLACE : les flacons peuvent partir
-                      en espèces quand le rituel part en MoMo. Par défaut, le
-                      même moyen — le cas de presque tous les passages. */}
                   <div className="tr-grid tr-grid--2" style={{ gap: 10, marginTop: 8 }}>
                     <Field label="La Gamme réglée par">
-                      <Select value={payGammeChoisi} onChange={(e) => setPayGammeChoisi(e.target.value as '' | PaymentMethod)}>
-                        <option value="">Comme le rituel · {pay}</option>
+                      <Select value={payGammeChoisi} onChange={(e) => { setPayGammeChoisi(e.target.value as '' | PaymentMethod); setGammeBoxChoisie(''); }}>
+                        <option value="">Comme le rituel · {payHorsMnd}</option>
                         {methods.map((m) => <option key={m} value={m}>{m}</option>)}
                       </Select>
                     </Field>
-                    {(payGammeChoisi !== '' || amount <= 0) && gammeBoxes.length > 0 && (
-                      <Field label="Sa caisse">
+                    <Field label="Sa caisse">
+                      {peutChangerGamme && gammeBoxes.length > 0 ? (
                         <Select value={gammeBox} onChange={(e) => setGammeBoxChoisie(e.target.value)}>
                           <option value="" disabled>Choisir la caisse</option>
-                          {gammeBoxes.map((c) => <option key={c.id} value={c.name}>{c.name}</option>)}
+                          {caissesAuChoix(gammeBoxes, { staffId: maFiche?.id, estDirection, anneePassee, garder: gammeBox }).map((c) => <option key={c.id} value={c.name}>{c.name}</option>)}
+                          {gammeBox === CAISSE_ANNEES_PASSEES && !gammeBoxes.some((c) => c.name === CAISSE_ANNEES_PASSEES) && <option value={CAISSE_ANNEES_PASSEES}>{CAISSE_ANNEES_PASSEES}</option>}
                         </Select>
-                      </Field>
-                    )}
+                      ) : (
+                        <div style={{ fontSize: 12.5, color: 'var(--color-indigo)', paddingTop: 8 }}>{gammeBox || 'à choisir'}</div>
+                      )}
+                    </Field>
                   </div>
                 </div>
               )}
             </div>
-          )
-        )}
-
-        <PalierEnc n={2} titre="Comment elle règle" aide={avoirBal > 0 ? 'deux tiroirs, un seul total' : undefined} />
-
-        {avoirBal > 0 && (
-          <div className="mnd-bande" style={{ padding: '12px 13px' }}>
-            <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 10 }}>
-              <span style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--color-indigo)' }}>Sur son avoir</span>
-              <span className="mnd-muted" style={{ fontSize: 12 }}>disponible {fmtMoney(avoirBal, currency)}</span>
-            </div>
-            <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginTop: 9 }}>
-              <Input type="number" min={0} max={Math.min(avoirBal, due)} value={avoirStr} onChange={(e) => setAvoirStr(e.target.value)} style={{ textAlign: 'right', flex: 1, minWidth: 0 }} aria-label="Montant réglé par l'avoir" />
-              <button type="button" className="mnd-btn mnd-btn--ghost mnd-btn--sm" style={{ flex: 'none' }} onClick={() => { const v = Math.min(avoirBal, due); setAvoirStr(String(v)); setAmountStr(String(Math.max(0, due - v))); }}>Tout</button>
-            </div>
-            <div className="mnd-muted" style={{ fontSize: 10.5, marginTop: 6 }}>
-              Crédit prépayé du compte{account.type === 'family' ? ' famille' : ''}, déduit sans passer par la caisse.
-            </div>
-          </div>
-        )}
-
-        {/* LA CARTE CADEAU (2 octobre 2026) : rattachée ici, elle devient
-            l'avoir ci-dessus, et se dépense comme lui. */}
-        <RattacherUneCarte porteur={account} clientId={appt.clientId} nom={(client?.name ?? appt.clientName ?? '').split(' ')[0] || 'elle'} compact />
-
-        <div className="mnd-bande" style={{ padding: '12px 13px' }}>
-          <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 10 }}>
-            <span style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--color-indigo)' }}>Comptant, maintenant</span>
-            <span className="mnd-muted" style={{ fontSize: 12 }}>ce qui entre en caisse</span>
-          </div>
-          <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginTop: 9 }}>
-            <Input type="number" min={0} max={cashMax} value={amountStr} onChange={(e) => setAmountStr(e.target.value)} style={{ textAlign: 'right', flex: 1, minWidth: 0 }} aria-label="Montant encaissé comptant" />
-            <button type="button" className="mnd-btn mnd-btn--ghost mnd-btn--sm" style={{ flex: 'none' }} onClick={() => setAmountStr(String(cashMax))}>Le reste</button>
-          </div>
-          {(amount > 0 || tip > 0) && (
-            <div className="tr-grid tr-grid--2" style={{ gap: 10, marginTop: 10 }}>
-              <Field label="Moyen de paiement">
-                <Select value={pay} onChange={(e) => setPay(e.target.value as PaymentMethod)}>
-                  {methods.map((m) => <option key={m} value={m}>{m}</option>)}
-                </Select>
-              </Field>
-              {eligibleBoxes.length > 0 && (
-                <Field label="Caisse">
-                  <Select value={activeBox} onChange={(e) => setCashbox(e.target.value)}>
-                    <option value="" disabled>Choisir la caisse</option>
-                    {eligibleBoxes.map((c) => <option key={c.id} value={c.name}>{c.name}</option>)}
-                  </Select>
-                </Field>
-              )}
-            </div>
           )}
-          {/* MND PAY : le comptant se demande au téléphone de la cliente, ou
-              par le QR de la carte, et s'encaisse seul au vert de FedaPay. */}
-          {mndOn && amount > 0 && !fxOn && (
-            mndOuvert ? (
-              <PanneauMndPay
-                style={{ marginTop: 10 }}
-                branchId={branch.id}
-                pieceId={appt.invoiceId ?? appt.id}
-                clientId={appt.clientId}
-                telephone={client?.phone}
-                montantXof={amount}
-                pourboireXof={tip}
-                libelle={`Maison MND · ${(client?.name ?? appt.clientName ?? 'rituel').split(' ')[0]}`}
-                currency={currency}
-                reglages={settings.mndPay}
-                onPayee={(d) => {
-                  setAmountStr(String(d.montantXof));
-                  setTipStr(String(d.pourboireXof ?? 0));
-                  setPay(moyenDeLaPiece(d));
-                  setCashbox(CAISSE_MND_PAY);
-                  setMndAFermer(d);
-                }}
-              />
-            ) : (
-              <button type="button" className="mnd-btn mnd-btn--ghost mnd-btn--sm" style={{ marginTop: 10 }} onClick={() => setMndOuvert(true)}>
-                Demander {fmtMoney(amount, currency)} par MND PAY
-              </button>
-            )
-          )}
-        </div>
+        </EtapeEnc>
 
-        {/* LA LIGNE QUI ADDITIONNE — elle dit tout haut si le compte tombe
-            juste, ou ce qu'il manque. C'est elle qui manquait. */}
-        {due > 0 && settleTotal > 0 && (
-          <div style={{
-            display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap',
-            borderRadius: 3, padding: '10px 13px', fontSize: 13,
-            background: remainingAfter === 0 ? 'var(--color-sable)' : 'var(--copper-50)',
-            border: `1px solid ${remainingAfter === 0 ? 'var(--hairline)' : 'var(--copper-300)'}`,
-          }}>
-            <span className="mnd-muted">
-              {avoirApplied > 0 ? `${fmtMoney(avoirApplied, currency)} sur l’avoir` : ''}
-              {avoirApplied > 0 && amount > 0 ? ' + ' : ''}
-              {amount > 0 ? `${fmtMoney(amount, currency)} comptant` : ''}
-            </span>
-            <b style={{ fontFamily: 'var(--font-serif)', fontSize: 17, fontWeight: 400, color: remainingAfter === 0 ? 'var(--color-indigo)' : 'var(--copper-700)' }}>
-              {remainingAfter === 0 ? 'tout est réglé' : `il resterait ${fmtMoney(remainingAfter, currency)} dû`}
-            </b>
-          </div>
-        )}
-
-        {alerteCredit && (
-          <div style={{
-            borderRadius: 3, padding: '10px 13px', fontSize: 12.5, lineHeight: 1.6,
-            background: 'var(--copper-50)', border: '1px solid var(--copper-300)',
-          }}>
-            {/* LA PHRASE DIT LA CONSÉQUENCE, PAS LA RÈGLE. Le mot « plafond »
-                a quitté l'ERP le 26 août : il ne veut rien dire le tiroir à la
-                main. Ici comme sur la fiche, la Maison dit ce qui se passe. */}
-            {verdict.plafond === 0 ? (
-              <>
-                <b style={{ fontWeight: 600 }}>
-                  {prenomPayeur} n’est pas autorisé{' '}à partir sans payer.
-                </b>{' '}
-                {duAilleurs > 0
-                  ? `${fmtMoney(duAilleurs, currency)} sont déjà dus par ailleurs, et ${fmtMoney(remainingAfter, currency)} s’y ajouteraient.`
-                  : `${fmtMoney(remainingAfter, currency)} resteraient dus.`}
-                {' '}Pour l’autoriser, répondez à la question du crédit dans l’onglet Compte de sa fiche.
-              </>
-            ) : (
-              <>
-                <b style={{ fontWeight: 600 }}>
-                  {prenomPayeur} dépasserait de {fmtMoney(verdict.depassementXof, currency)} ce que vous l’autorisez à devoir.
-                </b>{' '}
-                Départ en devant {fmtMoney(verdict.apres, currency)}, pour une autorisation de {fmtMoney(verdict.plafond, currency)}
-                {duAilleurs > 0 ? `, dont ${fmtMoney(duAilleurs, currency)} déjà dus` : ''}.
-              </>
-            )}
-          </div>
-        )}
-
-        {/* LES DEUX DATES, REPLIÉES EN UNE LIGNE : justes par défaut (facture =
-            jour du rituel, paiement = aujourd'hui), elles n'occupent l'écran
-            que si on les change. La règle reste vraie : c'est la date du
-            PAIEMENT qui range l'encaissement dans le bon mois. */}
-        {!datesOuvertes ? (
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 10, fontFamily: 'var(--font-sans)', fontSize: 12, flexWrap: 'wrap' }}>
-            <span className="mnd-muted">
-              Facture au {frShortAn(invDate)} (jour du rituel) · argent entré le {frShortAn(payDate)}
-            </span>
-            <span style={{ display: 'flex', gap: 12, flex: 'none' }}>
-              {/* ══ RÉGLER AU JOUR DU RITUEL, EN UN GESTE — 5 septembre 2026 ═
-                  « Ça prend trop de temps d'aller chercher la date du rituel,
-                  surtout quand cela date de l'année dernière. Créer un
-                  raccourci pour effectuer le paiement à la date du rituel »
-                  (Yéman).
-
-                  RATTRAPER UN IMPAYÉ DE FÉVRIER DERNIER DEMANDAIT QUATRE
-                  GESTES : ouvrir les dates, entrer dans le calendrier,
-                  remonter douze mois, cliquer le jour. Le raccourci vit donc
-                  AVANT le détour, sur la ligne repliée : c'est là qu'on lit la
-                  date, c'est là qu'on doit pouvoir la corriger.
-
-                  IL NE PARAÎT QUE S'IL SERT. Un encaissement du jour même a
-                  déjà ses deux dates justes, et un bouton qui ne change rien
-                  laisse croire qu'il reste quelque chose à faire. */}
-              {jourDuRituel && payDate !== jourDuRituel && (
-                <button type="button" className="tre-link-btn" onClick={() => setPayDate(jourDuRituel)}>
-                  Daté du rituel
-                </button>
-              )}
-              <button type="button" className="tre-link-btn" onClick={() => setDatesOuvertes(true)}>Modifier</button>
-            </span>
-          </div>
-        ) : (
-          /* ══ LE CALENDRIER DU NAVIGATEUR QUITTE L'ENCAISSEMENT — 13 sept. 2026
-             Ces deux champs affichaient « 09/17/2026 » : le calendrier du
-             navigateur, en anglais, mois avant jour. C'est le piège réparé la
-             veille dans la fiche du rendez-vous, resté ici en pleine vue, dans
-             la fenêtre même où la secrétaire règle. La date d'un paiement
-             range l'argent dans son mois : une inversion jour/mois l'envoie
-             dans le mauvais, sans un mot.
-
-             LES DEUX REGARDENT DERRIÈRE. Un encaissement se rattrape souvent
-             (le rituel est passé, l'argent entre après) : une date passée y
-             est normale, et l'alerte des rendez-vous n'aurait rien à dire.
-             Un champ par ligne : la relecture en toutes lettres ne tient pas
-             dans une demi-colonne. */
-          <div className="tr-grid" style={{ gap: 14 }}>
-            <Field label="Facture (jour du rituel)">
-              <ChampDeDate value={invDate} onChange={setInvDate} ariaLabel="Le jour de la facture" sens="arriere" />
-            </Field>
-            <Field label="Paiement (l’argent entre)">
-              <ChampDeDate value={payDate} onChange={setPayDate} ariaLabel="Le jour du paiement" sens="arriere" />
-              {/* LES DEUX SEULES RÉPONSES QUI SERVENT VRAIMENT : le jour où
-                  l'argent est entré est soit celui du rituel (on rattrape), soit
-                  aujourd'hui (on encaisse au comptoir). Le calendrier reste là
-                  pour le reste, qui est rare. */}
-              <div style={{ display: 'flex', gap: 7, marginTop: 7, flexWrap: 'wrap' }}>
-                {jourDuRituel && (
-                  <button
-                    type="button"
-                    className={`mnd-btn mnd-btn--sm ${payDate === jourDuRituel ? 'mnd-btn--copper' : 'mnd-btn--ghost'}`}
-                    style={{ flex: 'none' }}
-                    onClick={() => setPayDate(jourDuRituel)}
-                  >
-                    Le jour du rituel
-                  </button>
+        {/* ② COMMENT ELLE PAIE — les parts, chacune sa tuile, son montant, et
+            la caisse que sa décision nomme. Le pourboire vient avec l'argent. */}
+        <EtapeEnc n={2} titre="Comment elle paie" resume={resumePaie} ouvert={etape === 'paie'} onBascule={() => bascule('paie')}>
+          {parts.map((p, i) => {
+            const c = lesCaisses[i];
+            const x = montantDe(p);
+            const auChoix = caissesAuChoix(eligibleBoxes, { staffId: maFiche?.id, estDirection, anneePassee, garder: c.caisse });
+            const montreLeChoix = c.peutChanger && (p.choixOuvert || !c.caisse);
+            return (
+              <div key={p.id} style={{ border: '1px solid var(--hairline)', borderRadius: 4, background: 'var(--color-ivoire)', padding: 10, display: 'grid', gap: 8 }}>
+                {parts.length > 1 && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8 }}>
+                    <span style={{ fontFamily: 'var(--font-sans)', fontSize: 9.5, letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--ink-soft)' }}>Part {i + 1}</span>
+                    {!p.mnd && (
+                      <button type="button" className="tre-link-btn" aria-label={`Retirer la part ${i + 1}`} onClick={() => setParts((prev) => prev.filter((q) => q.id !== p.id))}>Retirer</button>
+                    )}
+                  </div>
                 )}
-                <button
-                  type="button"
-                  className={`mnd-btn mnd-btn--sm ${payDate === todayISO() ? 'mnd-btn--copper' : 'mnd-btn--ghost'}`}
-                  style={{ flex: 'none' }}
-                  onClick={() => setPayDate(todayISO())}
-                >
-                  Aujourd’hui
-                </button>
-              </div>
-              <div className="mnd-muted" style={{ fontSize: 10.5, marginTop: 5 }}>
-                C’est elle qui range l’encaissement dans le bon mois.
-              </div>
-            </Field>
-          </div>
-        )}
-
-        {/* ③ ET ENSUITE — ce qui suit le paiement et n'entre pas dans son calcul. */}
-        <PalierEnc n={3} titre="Et ensuite" aide="facultatif" />
-        <Field label="Pourboire (F CFA), partagé entre l’équipe">
-          <Input type="number" min={0} value={tipStr} onChange={(e) => setTipStr(e.target.value)} style={{ textAlign: 'right' }} />
-        </Field>
-        {/* LE PARTAGE SE MONTRE AVANT D'ÊTRE ÉCRIT. Une règle de répartition
-            qu'on ne voit pas est une règle qu'on finit par croire fausse : le
-            détail lève le doute au comptoir, pas au bulletin de paie. */}
-        {tip > 0 && partage.length > 0 && (
-          <div style={{ marginTop: -4, padding: '9px 12px', background: 'var(--color-sable)', borderRadius: 4 }}>
-            {partage.map((p) => (
-              <div key={p.staffId} style={{ display: 'flex', justifyContent: 'space-between', gap: 10, fontFamily: 'var(--font-sans)', fontSize: 12.5, marginBottom: 2 }}>
-                <span>{nomDe(p.staffId)}</span>
-                <span style={{ fontVariantNumeric: 'tabular-nums' }}>{fmtMoney(p.amountXof, currency)}</span>
-              </div>
-            ))}
-          </div>
-        )}
-        {tip > 0 && partage.length === 0 && (
-          <div style={{ fontSize: 12, color: 'var(--trf-error, #8f3b30)', marginTop: -6 }}>
-            Aucun membre du personnel dans cette branche, le pourboire ne pourra pas être partagé.
-          </div>
-        )}
-
-        {/* Devise étrangère — le rituel reste chiffré en {currency} ; on ne note
-            ici que ce que la cliente tend au comptoir, et à quel taux. */}
-        {settings.fxEnabled && (
-          <div style={{ border: '1px solid var(--copper-300)', borderRadius: 'var(--radius-md)', background: 'var(--copper-50)', padding: '11px 13px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-              <span style={{ fontFamily: 'var(--font-sans)', fontSize: 9.5, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--copper-700)' }}>
-                Régler en devise étrangère
-              </span>
-              <Toggle on={fxOn} onToggle={() => setFxOn((v) => !v)} />
-            </div>
-            {fxOn && (
-              <>
-                <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
-                  <Select
-                    value={fxCode}
-                    onChange={(e) => { setFxCode(e.target.value); setFxRate(String(rateToXof(e.target.value) || '')); }}
-                    style={{ flex: '1 1 120px' }}
-                    aria-label="Devise reçue"
-                  >
-                    {CURRENCIES.filter((c) => c.code !== currency).map((c) => (
-                      <option key={c.code} value={c.code}>{c.code} · {c.name}</option>
-                    ))}
+                <div role="radiogroup" aria-label={`Moyen de la part ${i + 1}`} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(104px, 1fr))', gap: 6 }}>
+                  {tuilesOffertes.map((t) => {
+                    const prise = (t.id === 'mndpay' || t.id === 'avoir') && parts.some((q) => q.id !== p.id && q.tuile === t.id);
+                    return (
+                      <button
+                        key={t.id}
+                        type="button"
+                        role="radio"
+                        aria-checked={p.tuile === t.id}
+                        disabled={prise || !!p.mnd}
+                        className={`trv-pay ${p.tuile === t.id ? 'is-active' : ''}`}
+                        style={{ padding: '9px 10px', opacity: prise ? 0.45 : 1 }}
+                        onClick={() => choisirTuile(p, t.id)}
+                      >
+                        <div className="n">{t.nom}</div>
+                        <div className="s">{t.sous}</div>
+                      </button>
+                    );
+                  })}
+                </div>
+                {p.tuile === 'autre' && (
+                  <Select value={p.autre ?? lesAutres[0] ?? ''} onChange={(e) => majPart(p.id, { autre: e.target.value, caisseChoisie: undefined, choixOuvert: false })} aria-label="Le moyen">
+                    {lesAutres.map((m) => <option key={m} value={m}>{m}</option>)}
                   </Select>
+                )}
+                <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                   <Input
                     type="number"
                     min={0}
-                    step="any"
-                    value={fxRate}
-                    onChange={(e) => setFxRate(e.target.value)}
-                    placeholder="Taux"
-                    style={{ width: 104, textAlign: 'right' }}
-                    aria-label={`Taux : 1 ${fxCode} en ${currency}`}
+                    value={p.montantStr}
+                    placeholder={String(x + resteAPartager)}
+                    disabled={!!p.mnd}
+                    onChange={(e) => majPart(p.id, { montantStr: e.target.value })}
+                    style={{ textAlign: 'right', flex: 1, minWidth: 0 }}
+                    aria-label={`Montant de la part ${i + 1}`}
                   />
+                  <button
+                    type="button"
+                    className="mnd-btn mnd-btn--ghost mnd-btn--sm"
+                    style={{ flex: 'none' }}
+                    disabled={!!p.mnd}
+                    onClick={() => majPart(p.id, { montantStr: String(p.tuile === 'avoir' ? Math.min(avoirBal, x + resteAPartager) : x + resteAPartager) })}
+                  >
+                    Le reste
+                  </button>
                 </div>
-                <div style={{ fontSize: 11, color: 'var(--copper-700)', marginTop: 8, lineHeight: 1.5 }}>
-                  1 {fxCode} = {fxRateNum > 0 ? `${fxRateNum} ${currency}` : '…'} · taux du jour, à corriger si besoin
-                  {tip > 0 && ' · pourboire inclus'}
+                {/* OÙ VA L'ARGENT — la caisse se déduit de qui encaisse et du
+                    moyen ; la direction seule la change (17 octobre 2026). */}
+                {p.tuile === 'avoir' ? (
+                  <div style={{ fontSize: 11.5, color: 'var(--ink-soft)', lineHeight: 1.5 }}>
+                    Disponible {fmtMoney(avoirBal, currency)}. Crédit prépayé du compte{account.type === 'family' ? ' famille' : ''}, déduit sans passer par la caisse.
+                  </div>
+                ) : p.tuile !== 'mndpay' && (
+                  <div style={{ display: 'grid', gap: 6 }}>
+                    <div style={{ fontSize: 12, lineHeight: 1.5, color: 'var(--ink-soft)', display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'baseline' }}>
+                      <span>
+                        → <b style={{ color: c.caisse ? 'var(--color-indigo)' : 'var(--copper-700)', fontWeight: 600 }}>{c.caisse || 'caisse à choisir'}</b>
+                        {c.caisse === CAISSE_ANNEES_PASSEES && c.proposee.anneePassee ? ` · rendez-vous de ${c.proposee.anneePassee}` : ''}
+                      </span>
+                      {c.caisse && c.caisse === c.proposee.caisse && <span>{c.proposee.pourquoi}</span>}
+                      {!c.caisse && <span>{c.proposee.pourquoi}</span>}
+                      {c.peutChanger && c.caisse && !p.choixOuvert && (
+                        <button type="button" className="tre-link-btn" onClick={() => majPart(p.id, { choixOuvert: true })}>Changer</button>
+                      )}
+                    </div>
+                    {montreLeChoix && (auChoix.length > 0 || anneePassee) && (
+                      <Select value={c.caisse} onChange={(e) => majPart(p.id, { caisseChoisie: e.target.value, choixOuvert: false })} aria-label={`Caisse de la part ${i + 1}`}>
+                        <option value="" disabled>Choisir la caisse</option>
+                        {auChoix.map((b) => <option key={b.id} value={b.name}>{b.name}</option>)}
+                        {anneePassee && !auChoix.some((b) => b.name === CAISSE_ANNEES_PASSEES) && <option value={CAISSE_ANNEES_PASSEES}>{CAISSE_ANNEES_PASSEES}</option>}
+                      </Select>
+                    )}
+                  </div>
+                )}
+                {/* MND PAY : la part se demande au téléphone de la cliente (ou
+                    par le code USSD Tap & Go, ou un QR) et s'encaisse seule au
+                    vert de FedaPay, avec les autres parts. */}
+                {p.tuile === 'mndpay' && (
+                  p.mnd ? (
+                    <div style={{ background: '#E3F0E8', border: '1px solid #9CC7AF', borderRadius: 'var(--radius-md)', padding: 10, fontFamily: 'var(--font-sans)', fontSize: 13, color: '#1F4D37' }}>
+                      Payé · {fmtMoney(x, currency)} · {p.mnd.methode} → {CAISSE_MND_PAY}
+                    </div>
+                  ) : x > 0 ? (
+                    <PanneauMndPay
+                      branchId={branch.id}
+                      pieceId={appt.invoiceId ?? appt.id}
+                      clientId={appt.clientId}
+                      telephone={client?.phone}
+                      montantXof={x}
+                      pourboireXof={tip}
+                      libelle={`Maison MND · ${(client?.name ?? appt.clientName ?? 'rituel').split(' ')[0]}`}
+                      currency={currency}
+                      reglages={settings.mndPay}
+                      onPayee={(d) => {
+                        majPart(p.id, { montantStr: String(d.montantXof), mnd: { id: d.id, methode: moyenDeLaPiece(d) } });
+                        setTipStr(String(d.pourboireXof ?? 0));
+                        setMndAFermer(d);
+                      }}
+                    />
+                  ) : (
+                    <div style={{ fontSize: 11.5, color: 'var(--ink-soft)' }}>Indiquez le montant de cette part, puis demandez-le.</div>
+                  )
+                )}
+              </div>
+            );
+          })}
+          {resteAPartager > 0 && settleTotal > 0 && !fxOn && (
+            <button
+              type="button"
+              className="tre-link-btn"
+              style={{ alignSelf: 'flex-start' }}
+              onClick={() => setParts((prev) => [...prev, partNeuve(prev.some((q) => q.tuile === 'momo') ? 'especes' : 'momo', resteAPartager)])}
+            >
+              + Un autre moyen pour les {fmtMoney(resteAPartager, currency)} qui restent
+            </button>
+          )}
+
+          {/* LA CARTE CADEAU (2 octobre 2026) : rattachée ici, elle devient
+              l'avoir, et se dépense par la tuile « Avoir ». */}
+          <RattacherUneCarte porteur={account} clientId={appt.clientId} nom={(client?.name ?? appt.clientName ?? '').split(' ')[0] || 'elle'} compact />
+
+          {/* LE POURBOIRE, AVEC L'ARGENT REÇU (sa décision) : la cliente tend
+              les deux d'un bloc. Il se partage entre toute l'équipe, et le
+              partage se montre avant d'être écrit. */}
+          <Field label="Pourboire reçu avec, partagé entre l’équipe">
+            <Input type="number" min={0} value={tipStr} onChange={(e) => setTipStr(e.target.value)} style={{ textAlign: 'right' }} aria-label="Pourboire" />
+          </Field>
+          {tip > 0 && partMnd && !partMnd.mnd && (
+            <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: -6 }}>Il part avec la demande MND PAY.</div>
+          )}
+          {tip > 0 && partage.length > 0 && (
+            <div style={{ marginTop: -4, padding: '9px 12px', background: 'var(--color-sable)', borderRadius: 4 }}>
+              {partage.map((pt) => (
+                <div key={pt.staffId} style={{ display: 'flex', justifyContent: 'space-between', gap: 10, fontFamily: 'var(--font-sans)', fontSize: 12.5, marginBottom: 2 }}>
+                  <span>{nomDe(pt.staffId)}</span>
+                  <span style={{ fontVariantNumeric: 'tabular-nums' }}>{fmtMoney(pt.amountXof, currency)}</span>
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginTop: 8, paddingTop: 8, borderTop: '1px solid var(--copper-300)' }}>
-                  <span style={{ fontSize: 12, color: 'var(--copper-700)' }}>À encaisser</span>
-                  <span className="mnd-serif" style={{ fontSize: 20, color: 'var(--color-indigo)' }}>
-                    {fxAmount > 0 ? `${fxAmount.toLocaleString('fr-FR', { maximumFractionDigits: 2 })} ${fxCode}` : '—'}
-                  </span>
+              ))}
+            </div>
+          )}
+          {tip > 0 && partage.length === 0 && (
+            <div style={{ fontSize: 12, color: 'var(--trf-error, #8f3b30)', marginTop: -6 }}>
+              Aucun membre du personnel dans cette branche, le pourboire ne pourra pas être partagé.
+            </div>
+          )}
+
+          {alerteCredit && (
+            <div style={{
+              borderRadius: 3, padding: '10px 13px', fontSize: 12.5, lineHeight: 1.6,
+              background: 'var(--copper-50)', border: '1px solid var(--copper-300)',
+            }}>
+              {/* LA PHRASE DIT LA CONSÉQUENCE, PAS LA RÈGLE (26 août). */}
+              {verdict.plafond === 0 ? (
+                <>
+                  <b style={{ fontWeight: 600 }}>
+                    {prenomPayeur} n’est pas autorisé{' '}à partir sans payer.
+                  </b>{' '}
+                  {duAilleurs > 0
+                    ? `${fmtMoney(duAilleurs, currency)} sont déjà dus par ailleurs, et ${fmtMoney(remainingAfter, currency)} s’y ajouteraient.`
+                    : `${fmtMoney(remainingAfter, currency)} resteraient dus.`}
+                  {' '}Pour l’autoriser, répondez à la question du crédit dans l’onglet Compte de sa fiche.
+                </>
+              ) : (
+                <>
+                  <b style={{ fontWeight: 600 }}>
+                    {prenomPayeur} dépasserait de {fmtMoney(verdict.depassementXof, currency)} ce que vous l’autorisez à devoir.
+                  </b>{' '}
+                  Départ en devant {fmtMoney(verdict.apres, currency)}, pour une autorisation de {fmtMoney(verdict.plafond, currency)}
+                  {duAilleurs > 0 ? `, dont ${fmtMoney(duAilleurs, currency)} déjà dus` : ''}.
+                </>
+              )}
+            </div>
+          )}
+        </EtapeEnc>
+
+        {/* ③ ET ENSUITE — ce qui suit le paiement et n'entre pas dans son calcul. */}
+        <EtapeEnc n={3} titre="Et ensuite" resume={resumeSuite} ouvert={etape === 'suite'} onBascule={() => bascule('suite')}>
+          {/* LES DEUX DATES : justes par défaut (facture = jour du rituel,
+              paiement = aujourd'hui, ou le jour du rituel pour une année
+              antérieure), elles ne s'ouvrent que si on les change. C'est la
+              date du PAIEMENT qui range l'encaissement dans le bon mois. */}
+          {!datesOuvertes ? (
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 10, fontFamily: 'var(--font-sans)', fontSize: 12, flexWrap: 'wrap' }}>
+              <span className="mnd-muted">
+                Facture au {frShortAn(invDate)} (jour du rituel) · argent entré le {frShortAn(payDate)}
+              </span>
+              <span style={{ display: 'flex', gap: 12, flex: 'none' }}>
+                {/* RÉGLER AU JOUR DU RITUEL, EN UN GESTE (5 septembre) : il ne
+                    paraît que s'il sert. */}
+                {jourDuRituel && payDate !== jourDuRituel && (
+                  <button type="button" className="tre-link-btn" onClick={() => setPayDate(jourDuRituel)}>
+                    Daté du rituel
+                  </button>
+                )}
+                <button type="button" className="tre-link-btn" onClick={() => setDatesOuvertes(true)}>Modifier</button>
+              </span>
+            </div>
+          ) : (
+            /* LE CALENDRIER DE LA MAISON, en français, jour avant mois (13 sept.). */
+            <div className="tr-grid" style={{ gap: 14 }}>
+              <Field label="Facture (jour du rituel)">
+                <ChampDeDate value={invDate} onChange={setInvDate} ariaLabel="Le jour de la facture" sens="arriere" />
+              </Field>
+              <Field label="Paiement (l’argent entre)">
+                <ChampDeDate value={payDate} onChange={setPayDate} ariaLabel="Le jour du paiement" sens="arriere" />
+                <div style={{ display: 'flex', gap: 7, marginTop: 7, flexWrap: 'wrap' }}>
+                  {jourDuRituel && (
+                    <button
+                      type="button"
+                      className={`mnd-btn mnd-btn--sm ${payDate === jourDuRituel ? 'mnd-btn--copper' : 'mnd-btn--ghost'}`}
+                      style={{ flex: 'none' }}
+                      onClick={() => setPayDate(jourDuRituel)}
+                    >
+                      Le jour du rituel
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    className={`mnd-btn mnd-btn--sm ${payDate === todayISO() ? 'mnd-btn--copper' : 'mnd-btn--ghost'}`}
+                    style={{ flex: 'none' }}
+                    onClick={() => setPayDate(todayISO())}
+                  >
+                    Aujourd’hui
+                  </button>
+                </div>
+                <div className="mnd-muted" style={{ fontSize: 10.5, marginTop: 5 }}>
+                  C’est elle qui range l’encaissement dans le bon mois.
+                </div>
+              </Field>
+            </div>
+          )}
+
+          {/* LE LIEN DE PAIEMENT EN UN CLIC — la page payer.html au montant du
+              reste, envoyée à la PAYEUSE sur WhatsApp, pour la cliente à
+              distance. Un geste rare : il vit ici depuis le 17 octobre. */}
+          {due > 0 && (() => {
+            const lien = lienPaiementMomo(due);
+            const tel = (payerClient?.phone ?? client?.phone ?? '').replace(/\D/g, '');
+            if (!lien || !tel) return null;
+            const prenom = appelDe(payerClient ?? client);
+            const msg = signeLeMessage(
+              `${branch.name} · votre rituel\nBonjour ${prenom}, pour régler ${fmtMoney(due, currency)} par Mobile Money, ouvrez cette page : le code à composer s'y affiche, montant compris.\n${lien}`,
+            );
+            return (
+              <Link
+                to={cheminDeLaConversation(tel, msg) ?? '/conversations'}
+                style={{ alignSelf: 'flex-start', fontSize: 12, fontWeight: 600, color: 'var(--copper-700)', textDecoration: 'none' }}
+              >
+                Envoyer le lien de paiement par WhatsApp · {fmtMoney(due, currency)}
+              </Link>
+            );
+          })()}
+
+          {/* Devise étrangère — le rituel reste chiffré en {currency} ; on ne note
+              ici que ce que la cliente tend au comptoir, et à quel taux. Une
+              seule part : un billet étranger ne se découpe pas en moyens. */}
+          {settings.fxEnabled && (
+            <div style={{ border: '1px solid var(--copper-300)', borderRadius: 'var(--radius-md)', background: 'var(--copper-50)', padding: '11px 13px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                <span style={{ fontFamily: 'var(--font-sans)', fontSize: 9.5, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--copper-700)' }}>
+                  Régler en devise étrangère
+                </span>
+                <Toggle on={fxOn} onToggle={basculeLaDevise} />
+              </div>
+              {fxOn && (
+                <>
+                  <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
+                    <Select
+                      value={fxCode}
+                      onChange={(e) => { setFxCode(e.target.value); setFxRate(String(rateToXof(e.target.value) || '')); }}
+                      style={{ flex: '1 1 120px' }}
+                      aria-label="Devise reçue"
+                    >
+                      {CURRENCIES.filter((c) => c.code !== currency).map((c) => (
+                        <option key={c.code} value={c.code}>{c.code} · {c.name}</option>
+                      ))}
+                    </Select>
+                    <Input
+                      type="number"
+                      min={0}
+                      step="any"
+                      value={fxRate}
+                      onChange={(e) => setFxRate(e.target.value)}
+                      placeholder="Taux"
+                      style={{ width: 104, textAlign: 'right' }}
+                      aria-label={`Taux : 1 ${fxCode} en ${currency}`}
+                    />
+                  </div>
+                  <div style={{ fontSize: 11, color: 'var(--copper-700)', marginTop: 8, lineHeight: 1.5 }}>
+                    1 {fxCode} = {fxRateNum > 0 ? `${fxRateNum} ${currency}` : '…'} · taux du jour, à corriger si besoin
+                    {tip > 0 && ' · pourboire inclus'}
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginTop: 8, paddingTop: 8, borderTop: '1px solid var(--copper-300)' }}>
+                    <span style={{ fontSize: 12, color: 'var(--copper-700)' }}>À encaisser</span>
+                    <span className="mnd-serif" style={{ fontSize: 20, color: 'var(--color-indigo)' }}>
+                      {fxAmount > 0 ? `${fxAmount.toLocaleString('fr-FR', { maximumFractionDigits: 2 })} ${fxCode}` : '—'}
+                    </span>
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+          {fxBlocked && (
+            <div className="trc-alerte">
+              <div style={{ fontFamily: 'var(--font-sans)', fontSize: 12.5, lineHeight: 1.6 }}>
+                Aucune caisse ne tient des billets en <b>{payCurrency}</b>. Un billet étranger ne peut pas
+                entrer dans une caisse en {currency}, la trésorerie additionnerait des euros à des francs.
+              </div>
+              <Button variant="copper" size="sm" style={{ marginTop: 9 }} onClick={creerLaCaisseDevise}>
+                Créer la caisse « Tiroir {payCurrency} »
+              </Button>
+            </div>
+          )}
+
+          {/* Reprogrammation automatique du prochain rendez-vous. */}
+          <div style={{ border: '1px solid var(--hairline)', borderRadius: 'var(--radius-md)', padding: '11px 13px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+              <span style={{ fontFamily: 'var(--font-sans)', fontSize: 9.5, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--color-indigo)' }}>
+                Reprogrammer le prochain rendez-vous
+              </span>
+              <Toggle on={reschedule && !prochainExistant} onToggle={() => { if (!prochainExistant) setReschedule((v) => !v); }} />
+            </div>
+            {prochainExistant && (
+              <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 7, lineHeight: 1.5 }}>
+                Le prochain rendez-vous est déjà posé le {frShortAn(prochainExistant.date)}{prochainExistant.time ? ` à ${prochainExistant.time}` : ''} : rien de plus ne sera créé.
+              </div>
+            )}
+            {reschedule && !prochainExistant && (
+              <>
+                <div style={{ display: 'flex', gap: 6, marginTop: 10, flexWrap: 'wrap' }}>
+                  {/* LES RYTHMES DE LA MAISON, ÉCRITS UNE FOIS (`RYTHMES_ABO`) ;
+                      le rythme choisi se voit, la date fait foi. */}
+                  {RYTHMES_ABO.map((sem) => (
+                    <button
+                      key={sem}
+                      type="button"
+                      className={`mnd-btn mnd-btn--sm ${nextDate === dateDansSemaines(sem) ? 'mnd-btn--copper' : 'mnd-btn--ghost'}`}
+                      style={{ flex: 'none' }}
+                      onClick={() => setNextIn(sem * 7)}
+                    >
+                      {sem} sem.
+                    </button>
+                  ))}
+                </div>
+                <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                  <ChampDeDate compact sens="avant" value={nextDate} onChange={setNextDate} min={todayISO()} style={{ flex: 1, minWidth: 0 }} />
+                  <Input type="time" value={nextTime} onChange={(e) => setNextTime(e.target.value)} style={{ width: 108, flex: 'none' }} />
+                </div>
+                <div className="mnd-muted" style={{ fontSize: 10.5, marginTop: 7, lineHeight: 1.5 }}>
+                  Un RDV « confirmé » identique sera créé pour {client?.name ?? 'la cliente'}, mêmes prestations, même prix (remise comprise), même maître, à honorer et encaisser le jour venu.
                 </div>
               </>
             )}
           </div>
-        )}
 
-        {/* Reprogrammation automatique du prochain rendez-vous. */}
-        <div style={{ border: '1px solid var(--hairline)', borderRadius: 'var(--radius-md)', padding: '11px 13px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-            <span style={{ fontFamily: 'var(--font-sans)', fontSize: 9.5, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--color-indigo)' }}>
-              Reprogrammer le prochain rendez-vous
-            </span>
-            <Toggle on={reschedule && !prochainExistant} onToggle={() => { if (!prochainExistant) setReschedule((v) => !v); }} />
-          </div>
-          {prochainExistant && (
-            <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 7, lineHeight: 1.5 }}>
-              Le prochain rendez-vous est déjà posé le {frShortAn(prochainExistant.date)}{prochainExistant.time ? ` à ${prochainExistant.time}` : ''} : rien de plus ne sera créé.
-            </div>
-          )}
-          {reschedule && !prochainExistant && (
-            <>
-              <div style={{ display: 'flex', gap: 6, marginTop: 10, flexWrap: 'wrap' }}>
-                {/* LES RYTHMES DE LA MAISON, ÉCRITS UNE FOIS — 5 septembre
-                    2026 : « ajoute 5, 7 et 10 semaines » (Yéman). Ils étaient
-                    recopiés ici (4, 6, 8) et vivaient déjà dans `RYTHMES_ABO`,
-                    que La Cadence lit depuis le 3 septembre. Deux listes du
-                    même choix finissent par diverger, et c'est au comptoir
-                    qu'on s'en aperçoit : on lit la seule. */}
-                {RYTHMES_ABO.map((sem) => (
-                  <button
-                    key={sem}
-                    type="button"
-                    /* LE RYTHME CHOISI SE VOIT. Six pastilles identiques ne
-                       disent pas laquelle a été pressée, et l'on repose la
-                       date deux fois pour en être sûr. La date fait foi : la
-                       corriger à la main éteint la pastille, ce qui est juste. */
-                    className={`mnd-btn mnd-btn--sm ${nextDate === dateDansSemaines(sem) ? 'mnd-btn--copper' : 'mnd-btn--ghost'}`}
-                    style={{ flex: 'none' }}
-                    onClick={() => setNextIn(sem * 7)}
-                  >
-                    {sem} sem.
-                  </button>
-                ))}
-              </div>
-              <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-                <ChampDeDate compact sens="avant" value={nextDate} onChange={setNextDate} min={todayISO()} style={{ flex: 1, minWidth: 0 }} />
-                <Input type="time" value={nextTime} onChange={(e) => setNextTime(e.target.value)} style={{ width: 108, flex: 'none' }} />
-              </div>
-              <div className="mnd-muted" style={{ fontSize: 10.5, marginTop: 7, lineHeight: 1.5 }}>
-                Un RDV « confirmé » identique sera créé pour {client?.name ?? 'la cliente'}, mêmes prestations, même prix (remise comprise), même maître, à honorer et encaisser le jour venu.
-              </div>
-            </>
-          )}
-        </div>
-
-        {/* ENREGISTRER SANS SORTIR — le second moyen de paiement s'inscrit sur
-            LA MÊME facture. N'apparaît que s'il resterait quelque chose à
-            encaisser après ce versement : proposer « un autre règlement » sur
-            un rituel soldé n'aurait aucun sens. */}
-        {fxBlocked && (
-          <div className="trc-alerte" style={{ marginTop: 4 }}>
-            <div style={{ fontFamily: 'var(--font-sans)', fontSize: 12.5, lineHeight: 1.6 }}>
-              Aucune caisse ne tient des billets en <b>{payCurrency}</b>. Un billet étranger ne peut pas
-              entrer dans une caisse en {currency}, la trésorerie additionnerait des euros à des francs.
-            </div>
-            <Button variant="copper" size="sm" style={{ marginTop: 9 }} onClick={creerLaCaisseDevise}>
-              Créer la caisse « Tiroir {payCurrency} »
+          {/* ENREGISTRER SANS SORTIR — un second règlement, un autre jour ou
+              une autre fois, sur LA MÊME facture. Seulement s'il resterait
+              quelque chose à encaisser. */}
+          {settleTotal > 0 && remainingAfter > 0 && (
+            <Button variant="ghost" onClick={() => confirm(true)} disabled={empecheTout}>
+              Enregistrer ce règlement et en ajouter un autre
             </Button>
-          </div>
-        )}
-        {settleTotal > 0 && remainingAfter > 0 && (
-          <Button
-            variant="ghost"
-            onClick={() => confirm(true)}
-            disabled={(fxOn && fxAmount <= 0) || fxBlocked || ditLaCaisse}
-            style={{ marginTop: 4 }}
-          >
-            Enregistrer ce règlement et en ajouter un autre
-          </Button>
-        )}
-        {/* ══ HONORER, SANS QUITTER L'ENCAISSEMENT — 13 septembre 2026 ═════
-            « Est-ce possible d'avoir le bouton honorer sur la page
-            d'encaissement aussi ? » (Yéman). On règle, puis on devait fermer,
-            retrouver la ligne au carnet et ouvrir son menu pour clôturer : deux
-            écrans pour un seul rituel terminé, au comptoir, devant la cliente.
+          )}
+          {/* HONORER, SANS QUITTER L'ENCAISSEMENT (13 septembre) : le même geste
+              que le carnet. Honorer sans encaisser émet la facture (4 octobre) ;
+              un rituel à venir ne s'honore pas. */}
+          {appt.status !== 'honoré' && appt.status !== 'annulé' && appt.date <= todayISO() && (
+            <Button
+              variant="ghost"
+              onClick={() => honoreSansEncaisser(appt, byId, tarifsDuRituel(appt, {
+                client, bands, sets, cats: categories, byId, tousServices: [...byId.values()], produits: produitsCatalogue,
+              }))}
+            >
+              Honorer sans encaisser · facture à régler
+            </Button>
+          )}
+          {appt.status === 'honoré' && (
+            <div style={{ alignSelf: 'center', fontSize: 12, color: 'var(--trv-success, #41604A)', display: 'flex', gap: 10, alignItems: 'baseline', flexWrap: 'wrap', justifyContent: 'center' }}>
+              <span>Rituel honoré</span>
+              {apptPaidXof(appt) > 0 ? (
+                <span style={{ fontSize: 11, color: 'var(--ink-soft)' }}>· encaissé, il le reste</span>
+              ) : (
+                <button type="button" className="tre-link-btn tre-link-btn--danger" onClick={() => { void deshonoreLeRituel(appt, byId); }}>
+                  Dés-honorer
+                </button>
+              )}
+            </div>
+          )}
+        </EtapeEnc>
 
-            LE MÊME GESTE QUE LE CARNET, pas une copie : `honorAppointment` pose
-            le statut, les points du Cercle, la consommation du stock, la reprise
-            et la couronne. Un bouton qui n'écrirait que le statut rouvrirait la
-            faute du 11 septembre (la reprise de Befoune jamais posée).
-
-            Il ne paraît que tant que le rituel n'est ni honoré ni annulé ; une
-            fois clôturé, la ligne le dit à sa place. `appt` est relu dans le
-            magasin à chaque rendu, donc l'écran change dès le clic. */}
-        {/* HONORER SANS ENCAISSER ÉMET LA FACTURE — 4 octobre 2026 (voir
-            `honoreSansEncaisser`). Honorer ET encaisser reste le bouton
-            « Encaisser » ci-dessus. Un rituel à venir ne s'honore pas. */}
-        {appt.status !== 'honoré' && appt.status !== 'annulé' && appt.date <= todayISO() && (
-          <Button
-            variant="ghost"
-            onClick={() => honoreSansEncaisser(appt, byId, tarifsDuRituel(appt, {
-              client, bands, sets, cats: categories, byId, tousServices: [...byId.values()], produits: produitsCatalogue,
-            }))}
-            style={{ marginTop: 4 }}
-          >
-            Honorer sans encaisser · facture à régler
-          </Button>
-        )}
-        {appt.status === 'honoré' && (
-          <div style={{ alignSelf: 'center', marginTop: 4, fontSize: 12, color: 'var(--trv-success, #41604A)', display: 'flex', gap: 10, alignItems: 'baseline', flexWrap: 'wrap', justifyContent: 'center' }}>
-            <span>Rituel honoré</span>
-            {/* DÉ-HONORER, ICI AUSSI — 13 septembre 2026. Un rituel encaissé
-                reste honoré : tant qu'il porte un règlement, la ligne le dit au
-                lieu d'offrir un geste qui serait refusé. */}
-            {apptPaidXof(appt) > 0 ? (
-              <span style={{ fontSize: 11, color: 'var(--ink-soft)' }}>· encaissé, il le reste</span>
-            ) : (
-              <button type="button" className="tre-link-btn tre-link-btn--danger" onClick={() => { void deshonoreLeRituel(appt, byId); }}>
-                Dés-honorer
-              </button>
+        {/* ═══ LA BARRE COLLANTE — ce qui est réglé, où va l'argent, et le
+            bouton. Elle ne quitte jamais l'écran : la caissière lit sa phrase
+            avant d'appuyer, et ce qui bloque se dit ici, en une ligne. */}
+        <div style={{
+          position: 'sticky', bottom: -1, zIndex: 3, margin: '0 -2px', padding: '11px 2px 2px',
+          background: 'var(--color-ivoire)', borderTop: '1px solid var(--hairline)',
+          /* La seconde ombre, pleine et ivoire, couvre la marge du bas : au
+             téléphone, la fenêtre défile avec sa marge, et le texte passait
+             sous la barre. */
+          boxShadow: '0 -8px 14px -10px rgba(30, 33, 80, .18), 0 28px 0 0 var(--color-ivoire)', display: 'grid', gap: 8,
+        }}>
+          <div style={{ fontSize: 12.5, lineHeight: 1.55, color: 'var(--ink)' }}>
+            {lignesPayees.length > 0 ? lignesPayees.map(ditLaPart).join(' · ') : 'Rien d’encaissé pour l’instant.'}
+            {totalGamme > 0 && ` · Gamme ${fmtMoney(totalGamme, currency)} → ${gammeBox || 'caisse à choisir'}`}
+            {tip > 0 && ` · pourboire ${fmtMoney(tip, currency)}`}
+            {due > 0 && settleTotal > 0 && (
+              <b style={{ display: 'block', fontWeight: 600, color: remainingAfter === 0 ? 'var(--color-indigo)' : 'var(--copper-700)' }}>
+                {remainingAfter === 0 ? 'Tout est réglé.' : `Il resterait ${fmtMoney(remainingAfter, currency)} dû.`}
+              </b>
             )}
           </div>
-        )}
-        {/* UN BLOCAGE DOIT SE DIRE (18 août) : le bouton grisé sans un mot
-            ressemblait à une panne. */}
-        {ditLaCaisse && (
-          <div style={{ fontSize: 12, lineHeight: 1.5, color: 'var(--color-brique, #96412E)', borderLeft: '2px solid var(--color-brique, #96412E)', paddingLeft: 10, marginTop: 4 }}>
-            {caisseManquante ? 'Choisissez la caisse où entre cet argent.' : 'Choisissez la caisse où entre le règlement de la Gamme.'}
-          </div>
-        )}
-        <Button
-          variant="copper"
-          onClick={() => confirm()}
-          disabled={(settleTotal <= 0 && totalGamme <= 0 && (tip <= 0 || partage.length === 0) && !depositJustConfirmed && !reschedule) || (fxOn && fxAmount <= 0) || fxBlocked || ditLaCaisse}
-          style={{ marginTop: 4 }}
-        >
-          {/* LE BOUTON DIT LES DEUX MONTANTS — 7 septembre 2026. Il annonçait
-              le seul rituel pendant que le geste prenait aussi la Gamme : on
-              encaissait 90 000 F sous un bouton qui disait 60 000. Un bouton
-              qui ne dit pas ce qu'il fait apprend à ne plus le lire. */}
-          {fxOn && fxAmount > 0
-            ? `Encaisser ${fxAmount.toLocaleString('fr-FR', { maximumFractionDigits: 2 })} ${fxCode}${totalGamme > 0 ? ` + Gamme ${fmtMoney(totalGamme, currency)}` : ''}`
-            : settleTotal <= 0 && totalGamme > 0
-              ? `Encaisser la Gamme · ${fmtMoney(totalGamme, currency)}`
-              : settleTotal <= 0 && tip > 0
-                ? `Enregistrer le pourboire ${fmtMoney(tip, currency)}`
-                : settleTotal <= 0 && depositJustConfirmed
-                  ? 'Confirmer l’acompte reçu'
-                  : settleTotal <= 0 && reschedule
-                    ? 'Reprogrammer le rendez-vous'
-                    : `Encaisser ${fmtMoney(settleTotal, currency)}${totalGamme > 0 ? ` + Gamme ${fmtMoney(totalGamme, currency)}` : ''}${fullyPaid ? '' : ' (partiel)'}`}
-        </Button>
+          {blocage && (
+            <div role="alert" style={{ fontSize: 12, lineHeight: 1.5, color: 'var(--color-brique, #96412E)', borderLeft: '2px solid var(--color-brique, #96412E)', paddingLeft: 10 }}>
+              {blocage}
+            </div>
+          )}
+          <Button
+            variant="copper"
+            onClick={() => confirm()}
+            disabled={(settleTotal <= 0 && totalGamme <= 0 && (tip <= 0 || partage.length === 0) && !depositJustConfirmed && !reschedule) || empecheTout}
+          >
+            {/* LE BOUTON DIT LES DEUX MONTANTS (7 septembre) : un bouton qui ne
+                dit pas ce qu'il fait apprend à ne plus le lire. */}
+            {fxOn && fxAmount > 0
+              ? `Encaisser ${fxAmount.toLocaleString('fr-FR', { maximumFractionDigits: 2 })} ${fxCode}${totalGamme > 0 ? ` + Gamme ${fmtMoney(totalGamme, currency)}` : ''}`
+              : settleTotal <= 0 && totalGamme > 0
+                ? `Encaisser la Gamme · ${fmtMoney(totalGamme, currency)}`
+                : settleTotal <= 0 && tip > 0
+                  ? `Enregistrer le pourboire ${fmtMoney(tip, currency)}`
+                  : settleTotal <= 0 && depositJustConfirmed
+                    ? 'Confirmer l’acompte reçu'
+                    : settleTotal <= 0 && reschedule
+                      ? 'Reprogrammer le rendez-vous'
+                      : `Encaisser ${fmtMoney(settleTotal, currency)}${totalGamme > 0 ? ` + Gamme ${fmtMoney(totalGamme, currency)}` : ''}${fullyPaid ? '' : ' (partiel)'}`}
+          </Button>
+        </div>
       </div>
     </Modal>
   );

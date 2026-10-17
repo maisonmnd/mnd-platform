@@ -27,12 +27,17 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
    À DÉPLOYER SANS VÉRIFICATION DU JWT (« Verify JWT » éteint) : FedaPay ne
    présente pas de jeton Supabase. La signature tient la porte.
 
+   TAP & GO (17 octobre 2026) : une transaction que MND PAY n'a pas créée
+   (la cliente a composé le code USSD de la Maison) n'est plus ignorée. Relue
+   chez FedaPay, elle règle l'attente du même montant au comptoir, ou va
+   « À rattacher » (`rangeLeTapGo`, même texte que dans `mnd-pay`).
+
    SECRETS : FEDAPAY_SECRET_KEY, FEDAPAY_ENV (comme `mnd-pay`), et
    FEDAPAY_WEBHOOK_SECRET (FedaPay › Développeurs › Webhooks › le point
    d'arrivée › « Cliquez pour révéler »).
    ═══════════════════════════════════════════════════════════════════ */
 
-const VERSION = '2026-10-16-a';
+const VERSION = '2026-10-17-a';
 
 const json = (o: unknown, status = 200) =>
   new Response(JSON.stringify(o), { status, headers: { 'content-type': 'application/json' } });
@@ -83,6 +88,106 @@ function statutDepuisFedaPay(s: unknown): string {
 }
 // ── FIN statutDepuisFedaPay
 
+// ── DEBUT instantDe (même texte que src/shared/mnd-pay-pur.ts, relu par scripts/verifie-mnd-pay)
+/** UN INSTANT DE FEDAPAY EN MILLISECONDES. Ses dates portent six décimales
+    (« 2026-10-17T08:12:03.000000Z ») ou un espace au lieu du T ; sans fuseau,
+    c'est l'heure universelle. NaN quand rien ne se lit. */
+function instantDe(s: unknown): number {
+  const brut = String(s ?? '').trim();
+  if (!brut) return NaN;
+  let iso = brut.replace(' ', 'T').replace(/(\.\d{3})\d+/, '$1');
+  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d+)?)?$/.test(iso)) iso += 'Z';
+  return Date.parse(iso);
+}
+// ── FIN instantDe
+
+// ── DEBUT rapprocheTapGo (même texte que src/shared/mnd-pay-pur.ts, relu par scripts/verifie-mnd-pay)
+/** QUELLE ATTENTE CE PAIEMENT RÈGLE-T-IL ? Une attente Tap & Go, encore en
+    attente, sans transaction, du même montant à un franc près, posée au plus
+    une demi-heure avant le paiement (deux minutes d'avance tolérées pour les
+    horloges). Une seule : c'est elle. Plusieurs : on ne choisit pas au hasard. */
+function rapprocheTapGo(
+  paiement: { montantXof: number; quandMs: number },
+  attentes: readonly { id: string; moyen?: string; statut?: string; fedapayId?: number; totalXof?: number; creeLe?: string }[],
+): { sorte: 'une'; id: string } | { sorte: 'aucune' } | { sorte: 'plusieurs'; ids: string[] } {
+  const montant = Math.round(Number(paiement.montantXof) || 0);
+  if (montant <= 0) return { sorte: 'aucune' };
+  const ids = attentes.filter((a) => {
+    if (a.moyen !== 'tapgo' || a.statut !== 'en_attente' || a.fedapayId) return false;
+    if (Math.abs(Math.round(Number(a.totalXof) || 0) - montant) > 1) return false;
+    const t = Date.parse(String(a.creeLe ?? ''));
+    if (!Number.isFinite(t) || !Number.isFinite(paiement.quandMs)) return false;
+    const ecart = paiement.quandMs - t;
+    return ecart >= -2 * 60_000 && ecart <= 30 * 60_000;
+  }).map((a) => a.id);
+  if (ids.length === 1) return { sorte: 'une', id: ids[0] };
+  return ids.length === 0 ? { sorte: 'aucune' } : { sorte: 'plusieurs', ids };
+}
+// ── FIN rapprocheTapGo
+
+// ── DEBUT rangeLeTapGo (même texte dans mnd-pay et mnd-pay-webhook)
+/** UN PAIEMENT QUE MND PAY N'A PAS CRÉÉ — Tap & Go, 17 octobre 2026 : la
+    cliente a composé le code USSD de la Maison. La transaction a été RELUE
+    chez FedaPay avant d'arriver ici. Seul un « payé » range quelque chose.
+    Une attente du même montant, et une seule : elle passe « payée », et le
+    comptoir qui l'attend s'encaisse seul. Aucune, ou plusieurs : la ligne
+    s'écrit « À rattacher » (identifiant tiré de la transaction : deux appels
+    simultanés n'en écrivent qu'une). */
+async function rangeLeTapGo(admin: any, tx: any): Promise<string> {
+  const fedapayId = Number(tx?.id);
+  if (!Number.isFinite(fedapayId) || fedapayId <= 0) return 'sans transaction';
+  if (statutDepuisFedaPay(tx?.status) !== 'payee') return 'pas encore payée';
+  const { data: connue } = await admin.from('mnd_pay').select('id').eq('data->>fedapayId', String(fedapayId)).limit(1);
+  if ((connue ?? []).length > 0) return 'deja';
+  const montantXof = Math.round(Number(tx?.amount ?? 0));
+  if (!(montantXof > 0)) return 'sans montant';
+  const quand = instantDe(tx?.approved_at ?? tx?.created_at);
+  const quandMs = Number.isFinite(quand) ? quand : Date.now();
+  const depuis = new Date(quandMs - 2 * 3_600_000).toISOString();
+  const { data: lignes } = await admin.from('mnd_pay').select('id, branch_id, data')
+    .eq('data->>moyen', 'tapgo').eq('data->>statut', 'en_attente').gte('updated_at', depuis).limit(100);
+  const attentes = (lignes ?? []).map((l: any) => ({ ...(l.data ?? {}), id: String(l.id) }));
+  const choix = rapprocheTapGo({ montantXof, quandMs }, attentes);
+  const commun: Record<string, unknown> = {
+    statut: 'payee',
+    fedapayId,
+    ...(tx?.reference ? { reference: String(tx.reference) } : {}),
+    ...(tx?.mode ? { modeReel: String(tx.mode) } : {}),
+    ...(Number.isFinite(Number(tx?.fees)) && Number(tx?.fees) > 0 ? { commissionXof: Math.round(Number(tx.fees)) } : {}),
+    payeeLe: new Date(quandMs).toISOString(),
+  };
+  if (choix.sorte === 'une') {
+    const ligne = (lignes ?? []).find((l: any) => String(l.id) === choix.id);
+    const { error } = await admin.from('mnd_pay').update({ data: { ...(ligne?.data ?? {}), ...commun } })
+      .eq('id', choix.id).eq('data->>statut', 'en_attente');
+    if (error) throw new Error(error.message);
+    return `rattachée à ${choix.id}`;
+  }
+  let branchId = choix.sorte === 'plusieurs'
+    ? String((lignes ?? []).find((l: any) => String(l.id) === choix.ids[0])?.branch_id ?? '')
+    : '';
+  if (!branchId) {
+    const { data: derniere } = await admin.from('mnd_pay').select('branch_id').not('branch_id', 'is', null)
+      .order('updated_at', { ascending: false }).limit(1);
+    branchId = String(derniere?.[0]?.branch_id ?? '');
+  }
+  if (!branchId) {
+    const { data: branches } = await admin.from('branches').select('id').limit(1);
+    branchId = String(branches?.[0]?.id ?? '');
+  }
+  const id = `tg-${fedapayId}`;
+  const data = {
+    id, branchId, genre: 'comptoir', moyen: 'tapgo', montantXof, fraisXof: 0, totalXof: montantXof,
+    pieceId: '', libelle: 'Tap & Go, code composé par la cliente', creeLe: new Date(quandMs).toISOString(),
+    ...commun,
+    ...(choix.sorte === 'plusieurs' ? { raison: `${choix.ids.length} tickets attendaient ce montant : à rattacher à la main` } : {}),
+  };
+  const { error } = await admin.from('mnd_pay').insert({ id, branch_id: branchId || null, data });
+  if (error && !/duplicate|unique/i.test(error.message)) throw new Error(error.message);
+  return 'à rattacher';
+}
+// ── FIN rangeLeTapGo
+
 const laTransaction = (r: any): any => r?.['v1/transaction'] ?? r?.transaction ?? r;
 
 Deno.serve(async (req) => {
@@ -113,9 +218,6 @@ Deno.serve(async (req) => {
   const admin = createClient(urlBase, service, { auth: { persistSession: false } });
 
   const { data: ligne } = await admin.from('mnd_pay').select('id, data').eq('data->>fedapayId', String(fedapayId)).maybeSingle();
-  /* Une transaction que MND PAY n'a pas créée (une page de paiement faite à
-     la main chez FedaPay, par exemple) : rien à poser ici. */
-  if (!ligne) return json({ ok: true, inconnue: fedapayId, version: VERSION });
 
   // ② LA VÉRITÉ VIENT DE FEDAPAY, pas du corps reçu.
   const rep = await fetch(`${BASE}/transactions/${fedapayId}`, {
@@ -123,6 +225,18 @@ Deno.serve(async (req) => {
   });
   if (!rep.ok) return json({ erreur: `FedaPay ${rep.status}`, version: VERSION }, 502);
   const tx = laTransaction(await rep.json());
+
+  /* Une transaction que MND PAY n'a pas créée : Tap & Go (ou une page de
+     paiement faite à la main chez FedaPay). Elle se range, elle ne se perd
+     plus. */
+  if (!ligne) {
+    try {
+      const range = await rangeLeTapGo(admin, tx);
+      return json({ ok: true, inconnue: fedapayId, range, version: VERSION });
+    } catch (e) {
+      return json({ erreur: e instanceof Error ? e.message : String(e), version: VERSION }, 500);
+    }
+  }
 
   const d = ligne.data ?? {};
   if (d.statut === 'payee') return json({ ok: true, deja: 'payee', version: VERSION });

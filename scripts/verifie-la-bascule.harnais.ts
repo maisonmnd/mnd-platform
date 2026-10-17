@@ -123,7 +123,9 @@ dit('BIIC gardee comme Banque : pas de seconde « La Banque »', [false, 'banque
 
 /* 6. Le câblage. */
 const ecransDate: [string, RegExp][] = [
-  ['src/apps/trone/routes/clients/actions.tsx', /caissesPourLaDate\(branchBoxes, payDate, cashbox\)/],
+  /* 17 octobre 2026 : la caisse de chaque part se déduit (caisses des
+     caissiers) ; la liste suit toujours la date du PAIEMENT. */
+  ['src/apps/trone/routes/clients/actions.tsx', /caissesPourLaDate\(branchBoxes, payDate\)/],
   ['src/apps/trone/routes/vente/Caisse.tsx', /caissesPourLaDate\(branchCashboxes, dateVente, cashbox\)/],
   ['src/apps/trone/routes/finances/Depenses.tsx', /caissesPourLaDate\(branchBoxes, form\.date \|\| todayISO\(\), form\.cashbox\)/],
   ['src/apps/trone/routes/vente/Factures.tsx', /caissesPourLaDate\(boxesBranche, p\.date, p\.cashbox\)/],

@@ -12,14 +12,17 @@
    5. LE VRAI CODE DU SERVEUR, extrait des fichiers à coller : la signature de
       FedaPay, les statuts, les numéros, l'échéance suivante de KkiaPay.
    6. LES RÈGLES DANS LE CODE : personne au Trône n'écrit la table, une
-      demande ne part jamais en différé, le webhook vérifie avant de lire. */
+      demande ne part jamais en différé, le webhook vérifie avant de lire.
+   7. TAP & GO (17 octobre 2026) : le code USSD, montant compris ; le paiement
+      reconnu au montant exact, dans la demi-heure, une seule attente ou rien ;
+      le VRAI code du serveur rejoué contre une base simulée, de bout en bout. */
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { createHmac } from 'node:crypto';
 import { transformSync } from 'esbuild';
 import {
-  aRattacher, compteDeLaDemande, fraisPour, moyenDeLaPiece, numeroMasque, numeroPourFedaPay,
-  piecesReglees, resteDuTicket, statutDepuisFedaPay, tauxDe, versementDeLaDemande, versementsDesParts,
+  aRattacher, codeUssdTapGo, compteDeLaDemande, fraisPour, instantDe, moyenDeLaPiece, numeroMasque, numeroPourFedaPay,
+  piecesReglees, rapprocheTapGo, resteDuTicket, statutDepuisFedaPay, tapGoOuvert, tauxDe, versementDeLaDemande, versementsDesParts,
   CAISSE_MND_PAY, DELAI_DU_TICKET_MS, type DemandeMndPay,
 } from '../src/shared/mnd-pay-pur';
 import type { Invoice } from '../src/shared/finance';
@@ -173,8 +176,9 @@ const iRelue = corpsDuWebhook.indexOf('/transactions/${fedapayId}');
 dit('le webhook redemande la transaction à FedaPay avant d écrire', true,
   iRelue > 0 && iRelue < corpsDuWebhook.indexOf(".update({ data: suite })"));
 dit('la caisse MND PAY ne se choisit pas à la main (Caisse et rituel)', [true, true],
-  [/\.filter\(\(c\) => c\.name !== CAISSE_MND_PAY\)/.test(caisse), /c\.name !== CAISSE_MND_PAY \|\| !!mndAFermer/.test(actions)]);
-dit('le versement du rituel payé par MND PAY garde l identifiant de sa demande', true, /id: mndPayRef\.current\?\.id \?\? `ip-\$\{uid\(\)\}`/.test(actions));
+  [/\.filter\(\(c\) => c\.name !== CAISSE_MND_PAY\)/.test(caisse), /const eligibleBoxes = boxesDuJour\.filter\(\(c\) => [^;]*c\.name !== CAISSE_MND_PAY\);/.test(actions)]);
+dit('le versement du rituel payé par MND PAY garde l identifiant de sa demande', true,
+  /const mnd = pt\.tuile === 'mndpay' \? mndPayRef\.current : null;[\s\S]{0,200}id: mnd\?\.id \?\? `ip-\$\{uid\(\)\}`/.test(actions));
 dit('la Caisse ferme le ticket avec le versement de la demande', true, /versementDeLaDemande\(mndPay, piece\.encaissePar\)/.test(caisse));
 dit('le pied de la Caisse ne promet plus une réconciliation MoMo automatique', false, /réconciliation MoMo automatique\./.test(caisse.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\{\/\*[\s\S]*?\*\/\}/g, '')));
 
@@ -185,6 +189,134 @@ dit('l échéance suivante attend un kkiapay-verify qui la sait (version compar�
   ['2026-10-10-a', '2026-10-16-a', '', '2026-11-02-a'].map(saitLEcheanceSuivante));
 dit('Ma Couronne : le bouton « Régler » dépend du serveur prêt, pas seulement de KkiaPay', true,
   /const enLigne = kkiapayEnabled\(\) && serveurPret;/.test(maFormule) && /\{suivante && \(\s*enLigne\s*\?/.test(maFormule));
+
+
+/* ── 7. TAP & GO ─────────────────────────────────────────────────────── */
+dit('le code à composer porte le code de la Maison et le montant', ['*601*14*51166*25400#', '*601*14*12345*1000#'],
+  [codeUssdTapGo(25_400, undefined), codeUssdTapGo(1_000.4, { tapgo: { code: '12 345' } })]);
+dit('Tap & Go s offre avec MND PAY, sauf éteint', [true, true, false], [tapGoOuvert(undefined), tapGoOuvert({ tapgo: {} }), tapGoOuvert({ tapgo: { actif: false } })]);
+dit('sa commission : 1,6 % par défaut, au franc supérieur, réglable', [1.6, 400, 2, 500], [tauxDe('tapgo', undefined), fraisPour(25_000, 'tapgo', undefined),
+  tauxDe('tapgo', { tapgo: { tauxPct: 2 } }), fraisPour(25_000, 'tapgo', { tapgo: { tauxPct: 2 } })]);
+const ISO = ['2026-10-17T08:12:03.000000Z', '2026-10-17 08:12:03', '2026-10-17T08:12:03+01:00', '', 'n importe quoi'];
+dit('les instants de FedaPay (six décimales, espace, fuseau)', [Date.parse('2026-10-17T08:12:03Z'), Date.parse('2026-10-17T08:12:03Z'), Date.parse('2026-10-17T07:12:03Z'), null, null],
+  ISO.map((x) => { const n = instantDe(x); return Number.isFinite(n) ? n : null; }));
+const T0 = Date.parse('2026-10-17T10:00:00.000Z');
+const mn = (k: number) => new Date(T0 + k * 60_000).toISOString();
+const att = (id: string, totalXof: number, creeLe: string, x: Partial<DemandeMndPay> = {}) =>
+  ({ id, moyen: 'tapgo', statut: 'en_attente', totalXof, creeLe, ...x }) as DemandeMndPay;
+const CAS_TAPGO: [string, { montantXof: number; quandMs: number }, DemandeMndPay[]][] = [
+  ['une attente du même montant', { montantXof: 25_400, quandMs: T0 }, [att('a', 25_400, mn(-5))]],
+  ['un franc d écart passe, deux non', { montantXof: 25_401, quandMs: T0 }, [att('a', 25_400, mn(-5)), att('b', 25_403, mn(-5))]],
+  ['deux attentes du même montant : on ne choisit pas', { montantXof: 25_400, quandMs: T0 }, [att('a', 25_400, mn(-5)), att('b', 25_400, mn(-3))]],
+  ['posée 29 min avant : oui', { montantXof: 25_400, quandMs: T0 }, [att('a', 25_400, mn(-29))]],
+  ['posée 31 min avant : plus le même passage', { montantXof: 25_400, quandMs: T0 }, [att('a', 25_400, mn(-31))]],
+  ['une minute d avance de l horloge : oui', { montantXof: 25_400, quandMs: T0 }, [att('a', 25_400, mn(1))]],
+  ['trois minutes après le paiement : non', { montantXof: 25_400, quandMs: T0 }, [att('a', 25_400, mn(3))]],
+  ['déjà rattachée, payée, ou un autre moyen : non', { montantXof: 25_400, quandMs: T0 },
+    [att('a', 25_400, mn(-5), { fedapayId: 7 }), att('b', 25_400, mn(-5), { statut: 'payee' }), att('c', 25_400, mn(-5), { moyen: 'mtn' })]],
+  ['un paiement sans montant : rien', { montantXof: 0, quandMs: T0 }, [att('a', 0, mn(-5))]],
+];
+dit('le rapprochement au montant, cas par cas', [
+  { sorte: 'une', id: 'a' }, { sorte: 'une', id: 'a' }, { sorte: 'plusieurs', ids: ['a', 'b'] }, { sorte: 'une', id: 'a' }, { sorte: 'aucune' },
+  { sorte: 'une', id: 'a' }, { sorte: 'aucune' }, { sorte: 'aucune' }, { sorte: 'aucune' },
+], CAS_TAPGO.map(([, pmt, a]) => rapprocheTapGo(pmt, a)));
+const sansPremiere = (t: string) => sansCR(t).split('\n').slice(1).join('\n');
+for (const nom of ['instantDe', 'rapprocheTapGo']) {
+  const ici = sansPremiere(extrais('src/shared/mnd-pay-pur.ts', nom));
+  dit(`${nom} : même texte au Trône, dans mnd-pay et dans mnd-pay-webhook`, [true, true],
+    ['supabase/functions/mnd-pay/index.ts', 'supabase/functions/mnd-pay-webhook/index.ts'].map((f) => sansPremiere(extrais(f, nom)) === ici));
+}
+dit('rangeLeTapGo : même texte dans les deux fonctions', true,
+  sansCR(extrais('supabase/functions/mnd-pay/index.ts', 'rangeLeTapGo')) === sansCR(extrais('supabase/functions/mnd-pay-webhook/index.ts', 'rangeLeTapGo')));
+for (const f of ['supabase/functions/mnd-pay/index.ts', 'supabase/functions/mnd-pay-webhook/index.ts']) {
+  const r = charge<typeof rapprocheTapGo>(f, 'rapprocheTapGo');
+  dit(`${f.split('/')[2]} : le rapprochement du serveur dit la même chose`, CAS_TAPGO.map(([, pmt, a]) => rapprocheTapGo(pmt, a)), CAS_TAPGO.map(([, pmt, a]) => r(pmt, a)));
+}
+
+/* LE VRAI rangeLeTapGo CONTRE UNE BASE SIMULÉE — la couture entre FedaPay,
+   le serveur et le comptoir, de bout en bout. La base comprend juste ce que
+   la fonction lui demande : eq, gte, not, order, limit, maybeSingle, insert,
+   update. */
+type Ligne = { id: string; branch_id: string | null; data: Record<string, unknown>; updated_at: string };
+function baseSimulee(lignes: Ligne[], branches: { id: string }[]) {
+  const champ = (l: Ligne, k: string): unknown => (k.startsWith('data->>') ? (l.data[k.slice(7)] === undefined ? undefined : String(l.data[k.slice(7)])) : (l as Record<string, unknown>)[k]);
+  return {
+    lignes,
+    from(table: string) {
+      const filtres: ((l: Ligne) => boolean)[] = [];
+      let tri: { k: string; asc: boolean } | null = null;
+      let borne = Infinity;
+      let patch: Record<string, unknown> | null = null;
+      const source = () => (table === 'branches' ? (branches as unknown as Ligne[]) : lignes);
+      const resout = () => {
+        if (patch) {
+          for (const l of lignes.filter((x) => filtres.every((f) => f(x)))) Object.assign(l, patch, { updated_at: new Date().toISOString() });
+          return { data: null, error: null };
+        }
+        let r = source().filter((x) => filtres.every((f) => f(x)));
+        if (tri) { const t = tri; r = [...r].sort((a, b) => String(champ(a, t.k)).localeCompare(String(champ(b, t.k))) * (t.asc ? 1 : -1)); }
+        return { data: r.slice(0, borne), error: null };
+      };
+      const q: Record<string, unknown> = {
+        select: () => q,
+        eq: (k: string, v: unknown) => { filtres.push((l) => champ(l, k) === String(v)); return q; },
+        gte: (k: string, v: string) => { filtres.push((l) => String(champ(l, k)) >= v); return q; },
+        not: (k: string) => { filtres.push((l) => champ(l, k) != null); return q; },
+        order: (k: string, o: { ascending: boolean }) => { tri = { k, asc: o.ascending }; return q; },
+        limit: (n: number) => { borne = n; return q; },
+        maybeSingle: () => Promise.resolve({ data: (resout().data as Ligne[])[0] ?? null, error: null }),
+        update: (p: Record<string, unknown>) => { patch = p; return q; },
+        insert: (row: Ligne) => {
+          if (lignes.some((l) => l.id === row.id)) return Promise.resolve({ error: { message: 'duplicate key value violates unique constraint' } });
+          lignes.push({ ...row, updated_at: new Date().toISOString() });
+          return Promise.resolve({ error: null });
+        },
+        then: (ok: (v: unknown) => unknown, ko2?: (e: unknown) => unknown) => Promise.resolve(resout()).then(ok, ko2),
+      };
+      return q;
+    },
+  };
+}
+const ensemble = ['statutDepuisFedaPay', 'instantDe', 'rapprocheTapGo', 'rangeLeTapGo'];
+for (const f of ['supabase/functions/mnd-pay-webhook/index.ts', 'supabase/functions/mnd-pay/index.ts']) {
+  const js = transformSync(ensemble.map((n) => extrais(f, n)).join('\n'), { loader: 'ts', format: 'cjs' }).code;
+  // eslint-disable-next-line no-new-func
+  const range = new Function(`${js}; return rangeLeTapGo;`)() as (admin: unknown, tx: unknown) => Promise<string>;
+  const ilYA = (k: number) => new Date(Date.now() - k * 60_000).toISOString();
+  const lignes: Ligne[] = [
+    { id: 'mp-attente', branch_id: 'cot', updated_at: ilYA(4), data: { id: 'mp-attente', branchId: 'cot', genre: 'comptoir', moyen: 'tapgo', statut: 'en_attente', montantXof: 25_000, fraisXof: 400, totalXof: 25_400, pieceId: 'tk-1', creeLe: ilYA(4) } },
+    { id: 'mp-vieille', branch_id: 'cot', updated_at: ilYA(1), data: { id: 'mp-vieille', moyen: 'mtn', statut: 'payee', fedapayId: 111, totalXof: 5_000, creeLe: ilYA(60) } },
+  ];
+  const admin = baseSimulee(lignes, [{ id: 'cot' }]);
+  const tx = (id: number, amount: number, status = 'approved') => ({ id, amount, status, approved_at: new Date().toISOString(), mode: 'mtn_open', reference: `trx_${id}`, fees: 406 });
+  const nomF = f.split('/')[2];
+  const r1 = await range(admin, tx(9001, 25_400));
+  const attente = lignes.find((l) => l.id === 'mp-attente')!.data;
+  dit(`${nomF} : le paiement du même montant règle l attente, et le comptoir passe au vert`, ['rattachée à mp-attente', 'payee', 9001, 'mtn_open', 'trx_9001', 'tk-1'],
+    [r1, attente.statut, attente.fedapayId, attente.modeReel, attente.reference, attente.pieceId]);
+  dit(`${nomF} : le même paiement annoncé deux fois ne range rien de plus`, ['deja', 2], [await range(admin, tx(9001, 25_400)), lignes.length]);
+  dit(`${nomF} : un paiement créé mais pas encore payé ne range rien`, ['pas encore payée', 2], [await range(admin, tx(9002, 12_000, 'pending')), lignes.length]);
+  const r3 = await range(admin, tx(9003, 12_000));
+  const orpheline = lignes.find((l) => l.id === 'tg-9003');
+  dit(`${nomF} : personne ne l attendait : il s écrit à rattacher, dans la branche, sans pièce`, ['à rattacher', 'cot', 'payee', '', 12_000, 'tapgo'],
+    [r3, orpheline?.branch_id, orpheline?.data.statut, orpheline?.data.pieceId, orpheline?.data.montantXof, orpheline?.data.moyen]);
+  dit(`${nomF} : deux appels simultanés n en écrivent qu un`, ['deja', 3], [await range(admin, tx(9003, 12_000)), lignes.length]);
+  lignes.push(
+    { id: 'mp-x', branch_id: 'cot', updated_at: ilYA(2), data: { id: 'mp-x', moyen: 'tapgo', statut: 'en_attente', totalXof: 8_120, creeLe: ilYA(2) } },
+    { id: 'mp-y', branch_id: 'cot', updated_at: ilYA(1), data: { id: 'mp-y', moyen: 'tapgo', statut: 'en_attente', totalXof: 8_120, creeLe: ilYA(1) } },
+  );
+  const r4 = await range(admin, tx(9004, 8_120));
+  dit(`${nomF} : deux tickets du même montant : rien ne se devine, l argent attend une main`, ['à rattacher', 'en_attente', 'en_attente', true],
+    [r4, lignes.find((l) => l.id === 'mp-x')!.data.statut, lignes.find((l) => l.id === 'mp-y')!.data.statut, /2 tickets/.test(String(lignes.find((l) => l.id === 'tg-9004')?.data.raison))]);
+  const versLeComptoir = aRattacher(lignes.map((l) => l.data as unknown as DemandeMndPay), [], Date.now() + 6 * 60_000).map((d) => d.id).sort();
+  dit(`${nomF} : au journal, l argent sans ticket paraît « À rattacher » après le délai du ticket`, true, versLeComptoir.includes('tg-9003') && versLeComptoir.includes('tg-9004'));
+}
+const corpsMndPay = lis('supabase/functions/mnd-pay/index.ts');
+const iDemander = corpsMndPay.indexOf("if (moyen === 'tapgo') {");
+dit('mnd-pay : Tap & Go n écrit qu une attente, AVANT toute transaction FedaPay', true,
+  iDemander > 0 && iDemander < corpsMndPay.indexOf("await fedapay('POST', '/transactions'"));
+dit('le webhook range la transaction inconnue après l avoir relue chez FedaPay', true,
+  corpsDuWebhook.indexOf('/transactions/${fedapayId}') < corpsDuWebhook.indexOf('rangeLeTapGo(admin, tx)') && /if \(!ligne\) \{[\s\S]{0,300}rangeLeTapGo\(admin, tx\)/.test(corpsDuWebhook));
 
 console.log(ko === 0 ? '\nMND PAY tient ses regles.' : `\n${ko} controle(s) en echec.`);
 process.exitCode = ko === 0 ? 0 : 1;

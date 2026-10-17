@@ -649,6 +649,12 @@ export type Cashbox = {
      RESTE dans ses mains. Remis moins dépensé — c’est le solde, et le relevé
      le dit ligne à ligne. */
   porteur?: string;
+  /** ── LA CAISSE D'UN CAISSIER — 17 octobre 2026 ──────────────────
+      « Ouvre des caisses enregistreuses selon qui encaisse » (Yéman). La
+      fiche du personnel qui la tient (`StaffMember.id`) : les espèces qu'il
+      encaisse y entrent d'office (`shared/caisses-des-caissiers-pur`). Rien à
+      voir avec `porteur`, l'argent confié pour des achats. */
+  caissierId?: string;
   codeHash?: string;
   /** ── HORS BILAN — 22 août 2026 ──────────────────────────────────
       « J'aimerais exclure des caisses du total dans mes bilans. »

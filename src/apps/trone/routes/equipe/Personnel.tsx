@@ -7,7 +7,8 @@ import { Badge, Button, Card, Field, Input, Modal, Select, toast, demande, deman
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
 import { useAppointments, appointmentsStore } from '../../../../shared/agenda';
-import { useInvoices, invoiceTotal, expensesStore, expenseCategoriesStore, useCashboxes, cashboxCurrency, usePaymentMethods, moyensAOffrir } from '../../../../shared/finance';
+import { useInvoices, invoiceTotal, expensesStore, expenseCategoriesStore, useCashboxes, cashboxCurrency, cashboxesStore, usePaymentMethods, moyensAOffrir } from '../../../../shared/finance';
+import { caisseDuCaissier, caisseNeuveDuCaissier } from '../../../../shared/caisses-des-caissiers-pur';
 import { useServices, useCategories, sousArbreOf } from '../../../../shared/catalog';
 import { useStaff as useMyStaff, useAuth } from '../../../../shared/auth';
 import { summaryPdf, payslipPdf, type SummarySection, type PayslipRow } from '../../../../shared/pdf';
@@ -1748,6 +1749,42 @@ export default function Personnel() {
                   <button className={`tre-chip ${!form.auFauteuil ? 'is-on' : ''}`} onClick={() => setForm({ ...form, auFauteuil: false })}>Hors fauteuil</button>
                 </div>
               </Field>
+              {/* ══ SA CAISSE AU COMPTOIR — 17 octobre 2026 ══════════════════
+                  « Ouvre des caisses enregistreuses selon qui encaisse »
+                  (Yéman). Un geste de la direction, une fois : ensuite les
+                  espèces que cette personne encaisse entrent d'office dans sa
+                  caisse, et elle la compte le soir. Pas encore ouverte : ses
+                  espèces vont au tiroir commun. */}
+              {editId && estDirection && (() => {
+                const sienne = caisseDuCaissier(toutesLesCaisses, form.branchId, editId);
+                return (
+                  <Field label="Sa caisse au comptoir">
+                    {sienne ? (
+                      <div className="mnd-muted" style={{ fontSize: 12.5, lineHeight: 1.5 }}>
+                        <b style={{ color: 'var(--color-indigo)', fontWeight: 600 }}>{sienne.name}</b> · ouverte. Ses espèces y entrent d’office, elle se compte le soir.
+                      </div>
+                    ) : (
+                      <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+                        <button
+                          type="button"
+                          className="tre-chip"
+                          onClick={() => {
+                            const neuve = caisseNeuveDuCaissier(form.branchId, { id: editId, name: form.name || 'caissier' }, cashboxesStore.get());
+                            /* Rangée un jour, elle se rouvre avec son passé. */
+                            cashboxesStore.set((prev) => (prev.some((b) => b.id === neuve.id)
+                              ? prev.map((b) => (b.id === neuve.id ? { ...b, archiveeLe: undefined } : b))
+                              : [...prev, neuve]));
+                            toast(`« ${neuve.name} » est ouverte : ses espèces y entreront d’office.`);
+                          }}
+                        >
+                          Ouvrir sa caisse
+                        </button>
+                        <span className="mnd-muted" style={{ fontSize: 11.5 }}>Fermée : ses espèces vont au tiroir commun.</span>
+                      </div>
+                    )}
+                  </Field>
+                );
+              })()}
               {/* LA PART DE POURBOIRE. Le pourboire se partage entre TOUS, au
                   fauteuil ou non — c'est la regle de la Maison. Une part, une
                   demi-part pour le couple fondateur qui n'en compte qu'une a
