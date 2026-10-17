@@ -1,0 +1,485 @@
+<title>Encaisser, refait</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,400&family=Jost:wght@300;400;500&display=swap">
+<style>
+/* La fenêtre d'encaissement refaite, à essayer ; puis les caisses de chacun ; puis les choix.
+   Ivoire pour lire, indigo pour la tête de la fenêtre, cuivre pour ce qu'on décide ; jamais obsidienne. */
+:root {
+  --fond:#F6F1E7; --carte:#FFFDF9; --encre:#1E2150; --texte:#2A2722; --doux:#5E5750; --filet:#E3DACB;
+  --cuivre:#9A6036; --cuivre-clair:#F3E6D8; --vert:#2F6B4F; --vert-clair:#E3F0E8; --rouge:#8E2F2F;
+  --serif:"Cormorant Garamond", Georgia, "Times New Roman", serif; --sans:"Jost", system-ui, -apple-system, "Segoe UI", sans-serif;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --fond:#15173A; --carte:#1E2150; --encre:#F6F1E7; --texte:#E9E3D7; --doux:#B9B4C9; --filet:#2E3266;
+  --cuivre:#D6A06F; --cuivre-clair:#3A2E3A; --vert:#8FD1AE; --vert-clair:#1F3B3A; --rouge:#E7A1A1; color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --fond:#15173A; --carte:#1E2150; --encre:#F6F1E7; --texte:#E9E3D7; --doux:#B9B4C9; --filet:#2E3266;
+  --cuivre:#D6A06F; --cuivre-clair:#3A2E3A; --vert:#8FD1AE; --vert-clair:#1F3B3A; --rouge:#E7A1A1; color-scheme: dark; }
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { margin: 0; background: var(--fond); color: var(--texte); font: 300 16px/1.65 var(--sans);
+  padding-block: 28px 90px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.page { max-width: 1040px; margin: 0 auto; display: grid; gap: 56px; }
+.page > * { min-width: 0; }
+section { display: grid; gap: 18px; }
+section > * { min-width: 0; }
+.sur { font-size: 11.5px; letter-spacing: .18em; text-transform: uppercase; color: var(--cuivre); margin: 0; font-weight: 400; }
+h1 { font: 300 clamp(40px, 7vw, 64px)/1.02 var(--serif); color: var(--encre); margin: 8px 0 0; text-wrap: balance; }
+h2 { font: 400 clamp(28px, 4.4vw, 36px)/1.12 var(--serif); color: var(--encre); margin: 4px 0 0; text-wrap: balance; }
+h3 { font: 500 21px/1.22 var(--serif); color: var(--encre); margin: 0; text-wrap: balance; }
+p { margin: 0; }
+.chapeau { color: var(--doux); max-width: 68ch; margin-top: 14px; font-size: 17px; }
+.lu { max-width: 68ch; }
+.doux { color: var(--doux); }
+.petit { font-size: 14px; }
+
+/* ── L'ESSAI ── */
+.essai { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 470px); gap: 28px; align-items: start; }
+@media (max-width: 860px) { .essai { grid-template-columns: minmax(0, 1fr); } }
+.reglages { display: grid; gap: 16px; align-content: start; }
+.groupe { display: grid; gap: 8px; }
+.groupe > span { font-size: 11.5px; letter-spacing: .14em; text-transform: uppercase; color: var(--doux); }
+.puces { display: flex; flex-wrap: wrap; gap: 6px; }
+.puce { all: unset; cursor: pointer; border: 1px solid var(--filet); border-radius: 999px; padding: 5px 12px; font-size: 14px; background: var(--carte); color: var(--encre); }
+.puce[aria-pressed="true"] { background: var(--encre); color: var(--fond); border-color: var(--encre); }
+.puce:focus-visible { outline: 2px solid var(--cuivre); outline-offset: 2px; }
+.raconte { font-size: 14.5px; color: var(--doux); border-left: 2px solid var(--cuivre); padding-left: 12px; min-height: 4.5em; }
+
+/* La fenêtre, telle qu'au Trône (ivoire, tête indigo) */
+.fenetre { border-radius: 10px; overflow: hidden; background: #F5EFE6; color: #1E2150; box-shadow: 0 18px 44px rgba(15, 17, 48, .22); border: 1px solid #E2D8C6; display: grid; grid-template-rows: auto 1fr auto; height: 720px; max-height: 86vh; font-family: var(--sans); }
+.f-tete { background: #1E2150; color: #F5EFE6; padding: 14px 18px 12px; display: grid; gap: 6px; }
+.f-tete .qui { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+.f-tete .nom { font: 400 22px/1.15 var(--serif); }
+.f-tete .ferme { font-size: 18px; opacity: .7; }
+.f-tete .rituel { font-size: 12.5px; color: #CFCBE0; }
+.f-tete .reste { display: flex; justify-content: space-between; align-items: baseline; border-top: 1px solid rgba(255,255,255,.15); padding-top: 8px; }
+.f-tete .reste span { font-size: 10.5px; letter-spacing: .18em; text-transform: uppercase; color: #CFCBE0; }
+.f-tete .reste b { font: 400 30px/1 var(--serif); }
+.f-tete .caissier { font-size: 11.5px; color: #E2B48A; }
+.f-corps { overflow: auto; padding: 4px 18px 18px; display: grid; gap: 4px; align-content: start; }
+.temps { border-bottom: 1px solid #E2D8C6; padding: 12px 0; display: grid; gap: 10px; }
+.temps:last-child { border-bottom: 0; }
+.t-tete { all: unset; box-sizing: border-box; cursor: pointer; display: grid; grid-template-columns: 24px minmax(0, 1fr) auto; gap: 10px; align-items: center; width: 100%; }
+.t-tete .n { width: 22px; height: 22px; border-radius: 50%; border: 1px solid #B97A4A; color: #9A6036; display: grid; place-items: center; font-size: 12px; }
+.t-tete .titre { font: 400 19px/1.2 var(--serif); }
+.t-tete .resume { font-size: 12.5px; color: #6A6478; text-align: right; }
+.t-tete:focus-visible { outline: 2px solid #B97A4A; outline-offset: 2px; }
+.lignes { display: grid; background: #FFFFFF; border: 1px solid #E2D8C6; border-radius: 8px; font-size: 13px; }
+.lignes div { display: flex; justify-content: space-between; gap: 10px; padding: 7px 11px; border-top: 1px solid #EFE7DA; font-variant-numeric: tabular-nums; }
+.lignes div:first-child { border-top: 0; }
+.tuiles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.tuile { all: unset; box-sizing: border-box; cursor: pointer; border: 1px solid #D6CCBA; border-radius: 8px; padding: 8px 6px; text-align: center; background: #FFFFFF; font-size: 13px; color: #1E2150; display: grid; gap: 1px; }
+.tuile small { font-size: 10.5px; color: #6A6478; }
+.tuile[aria-pressed="true"] { border-color: #9A6036; box-shadow: inset 0 0 0 1px #9A6036; background: #FBF1E6; }
+.tuile.pay { border-color: #E2B48A; }
+.tuile:focus-visible { outline: 2px solid #B97A4A; outline-offset: 2px; }
+.part { display: grid; gap: 6px; background: #FFFFFF; border: 1px solid #E2D8C6; border-radius: 8px; padding: 10px; }
+.part .ligne1 { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 6px; align-items: center; }
+.part input { font: 400 15px var(--sans); color: #1E2150; border: 1px solid #D6CCBA; border-radius: 6px; padding: 7px 9px; text-align: right; width: 100%; background: #FFFFFF; font-variant-numeric: tabular-nums; }
+.part .moyen { font-size: 13px; font-weight: 500; }
+.mini { all: unset; cursor: pointer; font-size: 11px; letter-spacing: .12em; text-transform: uppercase; border: 1px solid #D6CCBA; border-radius: 6px; padding: 7px 9px; color: #1E2150; background: #FFFFFF; }
+.mini:focus-visible { outline: 2px solid #B97A4A; outline-offset: 2px; }
+.caisse { display: flex; align-items: center; gap: 6px; font-size: 12.5px; color: #2F6B4F; }
+.caisse b { font-weight: 500; }
+.caisse .changer { all: unset; cursor: pointer; color: #9A6036; text-decoration: underline; text-underline-offset: 2px; font-size: 12px; }
+.caisse.manque { color: #8E2F2F; }
+.ajoute { all: unset; cursor: pointer; font-size: 13px; color: #9A6036; justify-self: start; }
+.ajoute:focus-visible { outline: 2px solid #B97A4A; outline-offset: 2px; }
+.option { display: flex; justify-content: space-between; align-items: center; gap: 10px; font-size: 13px; padding: 6px 0; }
+.bascule { width: 34px; height: 20px; border-radius: 999px; background: #D6CCBA; position: relative; flex: none; }
+.bascule::after { content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: #FFFFFF; }
+.lien { color: #9A6036; font-size: 13px; text-decoration: underline; text-underline-offset: 2px; }
+.f-pied { border-top: 1px solid #E2D8C6; background: #FBF7F0; padding: 10px 18px 14px; display: grid; gap: 8px; }
+.f-pied .dit { font-size: 12.5px; color: #4A4658; display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.f-pied .dit b { color: #1E2150; font-weight: 500; }
+.f-pied .ok { color: #2F6B4F; }
+.f-pied .manque { color: #8E2F2F; }
+.go { all: unset; box-sizing: border-box; cursor: pointer; text-align: center; background: #9A6036; color: #FFFDF9; border-radius: 7px; padding: 13px; font: 500 12.5px/1 var(--sans); letter-spacing: .2em; text-transform: uppercase; }
+.go[aria-disabled="true"] { background: #D6CCBA; color: #FFFFFF; cursor: not-allowed; }
+.go:focus-visible { outline: 2px solid #1E2150; outline-offset: 2px; }
+.fini { display: grid; gap: 8px; place-items: center; text-align: center; padding: 40px 10px; }
+.fini .coche { width: 56px; height: 56px; border-radius: 50%; background: #2F6B4F; color: #FFFFFF; display: grid; place-items: center; font-size: 26px; }
+.fini b { font: 400 24px/1.2 var(--serif); }
+
+/* ── CE QUI CHANGE ── */
+.ecarts { display: grid; grid-template-columns: repeat(auto-fit, minmax(290px, 1fr)); gap: 12px; }
+.ecart { background: var(--carte); border: 1px solid var(--filet); border-radius: 8px; padding: 14px 16px; display: grid; gap: 8px; }
+.ecart .avant { font-size: 14px; color: var(--doux); }
+.ecart .avant::before { content: "Aujourd’hui · "; font-size: 11px; letter-spacing: .14em; text-transform: uppercase; }
+.ecart .apres { font-size: 15px; }
+.ecart .apres::before { content: "Demain · "; font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--cuivre); }
+
+/* ── LES CAISSES DU JOUR ── */
+.journee { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+.jtemps { border-top: 2px solid var(--cuivre); padding-top: 10px; display: grid; gap: 6px; align-content: start; }
+.jtemps b { font: 500 18px/1.2 var(--serif); color: var(--encre); }
+.jtemps span { font-size: 14.5px; }
+.tableau { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 12px; }
+.caissette { background: var(--carte); border: 1px solid var(--filet); border-radius: 8px; padding: 14px 16px; display: grid; gap: 6px; }
+.caissette.perso { border-left: 3px solid var(--cuivre); }
+.caissette h3 { font-size: 19px; }
+.caissette .l { display: flex; justify-content: space-between; font-size: 13.5px; font-variant-numeric: tabular-nums; }
+.caissette .l.total { border-top: 1px solid var(--filet); padding-top: 6px; font-weight: 500; color: var(--encre); }
+.caissette .etat { font-size: 12px; color: var(--vert); }
+.caissette .etat.attente { color: var(--cuivre); }
+
+/* ── LES DÉCISIONS ── */
+.avance { display: grid; gap: 6px; }
+.avance .jauge { height: 6px; border-radius: 999px; background: var(--filet); overflow: hidden; }
+.avance .jauge span { display: block; height: 100%; width: 0; background: var(--cuivre); transition: width .3s; }
+#decisions { display: grid; gap: 12px; }
+.decision { background: var(--carte); border: 1px solid var(--filet); border-radius: 8px; padding: 14px 16px; display: grid; gap: 8px; }
+.decision.tranchee { border-color: var(--cuivre); }
+.decision .pq { font-size: 14px; color: var(--doux); }
+.choix-ligne { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 10px; align-items: start; padding: 8px 0; border-top: 1px solid var(--filet); cursor: pointer; font-size: 15px; }
+.choix-ligne:first-of-type { border-top: 0; }
+.choix-ligne input { margin-top: 5px; accent-color: var(--cuivre); }
+.choix-ligne em { font-style: normal; font-size: 12px; color: var(--cuivre); border: 1px solid var(--cuivre); border-radius: 999px; padding: 0 7px; margin-left: 4px; white-space: nowrap; }
+.choix-ligne small { display: block; font-size: 13px; color: var(--doux); }
+.decision .etat-d { font-size: 12.5px; color: var(--vert); min-height: 1em; }
+.mot { display: grid; gap: 6px; }
+.mot textarea { font: 300 15px/1.5 var(--sans); color: var(--texte); background: var(--carte); border: 1px solid var(--filet); border-radius: 8px; padding: 10px 12px; min-height: 90px; resize: vertical; }
+.mot textarea:focus-visible, .choix-ligne input:focus-visible { outline: 2px solid var(--cuivre); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div class="page">
+  <header>
+    <p class="sur">Le Trône · maquette du 17 octobre 2026, à valider</p>
+    <h1>Encaisser, refait</h1>
+    <p class="chapeau">La fenêtre « Encaisser le rituel » remise en ordre pour qu’une caissière s’y retrouve du premier coup : trois temps, la somme toujours sous les yeux, le bouton toujours à portée. Et une caisse par personne qui encaisse : l’argent de Gérard dans la caisse de Gérard, celui de Brice dans la sienne, sans rien choisir.</p>
+  </header>
+
+  <section aria-labelledby="t-essai">
+    <p class="sur">Essayez</p>
+    <h2 id="t-essai">La fenêtre, au doigt</h2>
+    <div class="essai">
+      <div class="reglages">
+        <div class="groupe"><span>Qui encaisse</span>
+          <div class="puces" role="group" aria-label="Qui encaisse" id="caissiers"></div>
+        </div>
+        <div class="groupe"><span>Le rituel</span>
+          <div class="puces" role="group" aria-label="Le rituel" id="cas"></div>
+        </div>
+        <div class="groupe"><span>L’année du rendez-vous</span>
+          <div class="puces" role="group" aria-label="L’année du rendez-vous" id="annees"></div>
+        </div>
+        <p class="raconte" id="raconte" aria-live="polite"></p>
+        <p class="petit doux">Le nom, le rituel et les montants sont des exemples. La caissière connectée est celle du Trône : chacun entre avec son compte (l’empreinte rend le passage rapide sur la tablette du comptoir).</p>
+      </div>
+      <div class="fenetre" aria-label="La fenêtre Encaisser le rituel, refaite">
+        <div class="f-tete" id="tete"></div>
+        <div class="f-corps" id="corps"></div>
+        <div class="f-pied" id="pied"></div>
+      </div>
+    </div>
+  </section>
+
+  <section aria-labelledby="t-change">
+    <p class="sur">Ce qui change</p>
+    <h2 id="t-change">Ce que la fenêtre fait aujourd’hui, et demain</h2>
+    <div class="ecarts">
+      <div class="ecart"><p class="avant">« Choisir la caisse » à chaque encaissement, et le refus tout en bas si on l’oublie.</p><p class="apres">la caisse suit qui encaisse : les espèces vont dans la sienne, MTN MoMoPay et MND PAY à leur caisse.</p></div>
+      <div class="ecart"><p class="avant">le moyen de paiement dans une liste déroulante de dix lignes.</p><p class="apres">des tuiles : Espèces, MTN MoMoPay, Carte, Chèque, MND PAY, Avoir. Le reste sous « Autres ».</p></div>
+      <div class="ecart"><p class="avant">un deuxième moyen : enregistrer, puis recommencer sur la même pièce.</p><p class="apres">« + Un autre moyen » sur le même écran ; le reste se recalcule à chaque part.</p></div>
+      <div class="ecart"><p class="avant">le pourboire après « tout est réglé », mêlé à la devise et à la reprogrammation.</p><p class="apres">le pourboire avec l’argent reçu, au moment où on le reçoit.</p></div>
+      <div class="ecart"><p class="avant">« Honorer sans encaisser » aussi gros qu’« Encaisser », juste au-dessus.</p><p class="apres">rangé dans « Et ensuite », avec le lien de paiement, la devise, les dates et la reprogrammation.</p></div>
+      <div class="ecart"><p class="avant">le bouton tout en bas, après tout le défilement ; le bandeau du haut cache ce qu’on écrit.</p><p class="apres">une barre en bas, toujours visible, qui dit ce qu’on règle et où va l’argent ; un bandeau du haut plus court.</p></div>
+    </div>
+  </section>
+
+  <section aria-labelledby="t-caisses">
+    <p class="sur">Une caisse par caissier</p>
+    <h2 id="t-caisses">Chacun sa caisse, du matin au soir</h2>
+    <div class="journee">
+      <div class="jtemps"><b>Le matin</b><span>Elle ouvre sa caisse avec le fond compté (la monnaie de départ). Le Trône le note, à son nom et à l’heure.</span></div>
+      <div class="jtemps"><b>La journée</b><span>Tout ce qu’elle encaisse en espèces entre dans sa caisse, d’office. MTN MoMoPay, la carte et MND PAY vont à leur caisse, avec son nom sur chaque ligne.</span></div>
+      <div class="jtemps"><b>Le soir</b><span>Chacun compte sa caisse. Le Trône dit l’attendu (fond, plus encaissé, moins dépenses), l’écart se dit avec un mot, et le surplus part au coffre.</span></div>
+      <div class="jtemps"><b>Les années passées</b><span>Un rendez-vous fixé dans une année antérieure (2025, 2024, 2023, 2022…) se reconnaît seul, à sa date, et s’encaisse dans la caisse « Années passées ». Elle n’apparaît que pour lui : jamais pour un rendez-vous de l’année, ni le soir à la clôture.</span></div>
+      <div class="jtemps"><b>La direction</b><span>Voit toutes les caisses en même temps, qui est ouverte, qui est comptée, et reprend une caisse oubliée.</span></div>
+    </div>
+    <p class="sur" style="margin-top:6px">Les caisses du jour · exemple</p>
+    <div class="tableau">
+      <div class="caissette perso"><h3>Caisse de Gérard</h3><div class="l"><span>Fond du matin</span><span>10 000 F</span></div><div class="l"><span>Espèces encaissées · 6</span><span>47 000 F</span></div><div class="l"><span>Dépense · coursier</span><span>−3 500 F</span></div><div class="l total"><span>À compter ce soir</span><span>53 500 F</span></div><span class="etat attente">Ouverte depuis 8 h 40</span></div>
+      <div class="caissette perso"><h3>Caisse de Brice</h3><div class="l"><span>Fond du matin</span><span>10 000 F</span></div><div class="l"><span>Espèces encaissées · 3</span><span>25 000 F</span></div><div class="l total"><span>À compter ce soir</span><span>35 000 F</span></div><span class="etat attente">Ouverte depuis 9 h 05</span></div>
+      <div class="caissette perso"><h3>Caisse de Yéman</h3><div class="l"><span>Fond du matin</span><span>0 F</span></div><div class="l"><span>Espèces encaissées · 1</span><span>2 000 F</span></div><div class="l total"><span>Comptée à 19 h 10</span><span>2 000 F</span></div><span class="etat">Clôturée, juste</span></div>
+      <div class="caissette"><h3>MTN MoMoPay</h3><div class="l"><span>Gérard · 4</span><span>92 000 F</span></div><div class="l"><span>Brice · 2</span><span>45 000 F</span></div><div class="l total"><span>À pointer au relevé</span><span>137 000 F</span></div></div>
+      <div class="caissette"><h3>MND PAY</h3><div class="l"><span>Gérard · 2</span><span>79 000 F</span></div><div class="l total"><span>Rapproché seul</span><span>79 000 F</span></div></div>
+      <div class="caissette"><h3>Années passées</h3><div class="l"><span>Rendez-vous de 2025 · 3</span><span>75 000 F</span></div><div class="l"><span>Rendez-vous de 2024 · 1</span><span>20 000 F</span></div><div class="l"><span>Rendez-vous de 2023 · 1</span><span>15 000 F</span></div><div class="l total"><span>Hors caisses du jour</span><span>110 000 F</span></div><span class="etat attente">Ne paraît que pour une année antérieure</span></div>
+    </div>
+  </section>
+
+  <section aria-labelledby="t-decisions">
+    <p class="sur">À trancher</p>
+    <h2 id="t-decisions">Vos choix</h2>
+    <p class="lu doux">Mes propositions sont marquées. Vos choix s’enregistrent ici ; je les relis avant de construire.</p>
+    <div class="avance"><span class="petit" id="compte-decisions">0 sur 10 tranchées</span><div class="jauge"><span id="barre-decisions"></span></div></div>
+    <div id="decisions"></div>
+    <div class="mot">
+      <label for="d-note"><h3>Un mot, si besoin</h3></label>
+      <textarea id="d-note" placeholder="Ce que la maquette ne dit pas, ou ce que vous voulez autrement."></textarea>
+      <span class="petit doux" id="d-note-etat"></span>
+    </div>
+  </section>
+</div>
+
+<script>
+(function () {
+  var F = function (n) { return n.toLocaleString('fr-FR') + ' F'; };
+  var CAISSIERS = ['Gérard', 'Brice', 'Yéman'];
+  var CAS = [
+    { id: 'simple', nom: 'Rituel à 2 000 F', cliente: 'Awa D.', rituel: 'La sortie soignée · coiffure quotidien · 17 oct. {annee}', lignes: [['La sortie soignée', 2000]], remise: 0, acompte: 0 },
+    { id: 'acompte', nom: 'Rituel à 45 000 F, acompte versé', cliente: 'Kémi A.', rituel: 'SÍNSIN™ Signature · Renfort · 20 oct. {annee}', lignes: [['SÍNSIN™ Signature', 35000], ['Renfort', 10000]], remise: 0, acompte: 15000 },
+    { id: 'reprise', nom: 'Une reprise à 25 000 F', cliente: 'Fifamè H.', rituel: 'Reprise SÍNSIN™ · 12 juin {annee}', lignes: [['Reprise SÍNSIN™', 25000]], remise: 0, acompte: 0 },
+  ];
+  var MOYENS = [
+    { id: 'especes', nom: 'Espèces', sous: 'sa caisse' },
+    { id: 'mtn', nom: 'MTN MoMoPay', sous: 'compte de la Maison' },
+    { id: 'carte', nom: 'Carte', sous: 'terminal' },
+    { id: 'cheque', nom: 'Chèque', sous: 'à déposer' },
+    { id: 'mndpay', nom: 'MND PAY', sous: 'au téléphone', pay: true },
+    { id: 'avoir', nom: 'Avoir', sous: 'carte cadeau' },
+  ];
+  var etat = { caissier: 'Gérard', cas: 'simple', annee: new Date().getFullYear(), ouvert: { du: false, suite: false }, parts: [], pourboire: false, pourboireXof: 0, fini: false };
+  function cas() { return CAS.filter(function (c) { return c.id === etat.cas; })[0]; }
+  function du() { var c = cas(); var t = c.lignes.reduce(function (n, l) { return n + l[1]; }, 0); return t - c.remise - c.acompte; }
+  /* Un rendez-vous de 2024 ou 2025 : son argent va dans la caisse des années
+     passées, quel que soit le moyen (sauf MND PAY, confirmé chez FedaPay, et
+     l'avoir, hors caisse). Les caisses du jour n'en voient rien. */
+  var ANNEE = new Date().getFullYear();
+  function passe() { return etat.annee < ANNEE; }
+  function caisseDe(moyen) {
+    if (passe() && moyen !== 'mndpay' && moyen !== 'avoir') return 'Années passées · rendez-vous de ' + etat.annee;
+    if (moyen === 'especes') return 'Caisse de ' + etat.caissier;
+    if (moyen === 'mtn') return 'MTN MoMoPay';
+    if (moyen === 'mndpay') return 'MND PAY, confirmé par FedaPay';
+    if (moyen === 'carte') return 'Terminal de la banque';
+    if (moyen === 'cheque') return 'La Banque, chèque à déposer';
+    return 'Avoir de son compte, hors caisse';
+  }
+  function nomDuMoyen(id) { return MOYENS.filter(function (m) { return m.id === id; })[0].nom; }
+  function regle() { return etat.parts.reduce(function (n, p) { return n + (p.xof || 0); }, 0); }
+  function reste() { return Math.max(0, du() - regle()); }
+  function reinit() { etat.parts = [{ moyen: 'especes', xof: du() }]; etat.pourboire = false; etat.pourboireXof = 0; etat.fini = false; etat.ouvert = { du: false, suite: false }; }
+
+  var tete = document.getElementById('tete');
+  var corps = document.getElementById('corps');
+  var pied = document.getElementById('pied');
+  var raconte = document.getElementById('raconte');
+  function el(tag, cls, html) { var e = document.createElement(tag); if (cls) e.className = cls; if (html !== undefined) e.innerHTML = html; return e; }
+
+  function dessine() {
+    var c = cas();
+    tete.innerHTML = '<div class="qui"><span class="nom">Encaisser · ' + c.cliente + '</span><span class="ferme" aria-hidden="true">×</span></div>' +
+      '<span class="rituel">' + c.rituel.replace('{annee}', String(etat.annee)) + '</span>' +
+      '<div class="reste"><span>Reste à encaisser</span><b>' + F(du()) + '</b></div>' +
+      '<span class="caissier">Encaissé par ' + etat.caissier + (passe() ? ' · rendez-vous de ' + etat.annee + ', année antérieure : caisse des années passées' : '') + '</span>';
+    corps.textContent = '';
+    if (etat.fini) {
+      var p = etat.parts.filter(function (x) { return x.xof > 0; });
+      corps.appendChild(el('div', 'fini', '<div class="coche">✓</div><b>Encaissé · ' + F(regle()) + '</b><span>' + p.map(function (x) { return nomDuMoyen(x.moyen) + ' ' + F(x.xof) + ' → ' + caisseDe(x.moyen); }).join('<br>') + (etat.pourboireXof ? '<br>Pourboire ' + F(etat.pourboireXof) + ', partagé à l’équipe' : '') + '<br>Reçu envoyé sur son WhatsApp</span><button type="button" class="mini" id="encore">Recommencer</button>'));
+      corps.querySelector('#encore').addEventListener('click', function () { reinit(); dessine(); });
+      pied.innerHTML = '';
+      return;
+    }
+
+    /* ① Ce qu'elle doit, replié : le résumé sur la ligne */
+    var t1 = el('div', 'temps');
+    var resume1 = F(c.lignes.reduce(function (n, l) { return n + l[1]; }, 0)) + (c.acompte ? ' · acompte −' + F(c.acompte) : ' · sans remise');
+    var b1 = el('button', 't-tete', '<span class="n">1</span><span class="titre">Ce qu’elle doit</span><span class="resume">' + resume1 + ' ' + (etat.ouvert.du ? '▴' : '▾') + '</span>');
+    b1.type = 'button'; b1.setAttribute('aria-expanded', String(etat.ouvert.du));
+    b1.addEventListener('click', function () { etat.ouvert.du = !etat.ouvert.du; etat.ouvert.suite = false; dessine(); dit('« Ce qu’elle doit » se replie sur une ligne : on l’ouvre seulement pour un forfait, une remise, un produit de la Gamme. Un seul panneau ouvert à la fois.'); });
+    t1.appendChild(b1);
+    if (etat.ouvert.du) {
+      var l1 = el('div', 'lignes');
+      c.lignes.forEach(function (l) { l1.appendChild(el('div', '', '<span>' + l[0] + '</span><span>' + F(l[1]) + '</span>')); });
+      if (c.acompte) l1.appendChild(el('div', '', '<span>Acompte reçu le 2 oct. 2026</span><span>−' + F(c.acompte) + '</span>'));
+      l1.appendChild(el('div', '', '<span><b>Total dû</b></span><span><b>' + F(du()) + '</b></span>'));
+      t1.appendChild(l1);
+      t1.appendChild(el('span', 'lien', '+ Un produit de la Gamme · un forfait · un code'));
+    }
+    corps.appendChild(t1);
+
+    /* ② Comment elle paie, toujours ouvert */
+    var t2 = el('div', 'temps');
+    t2.appendChild(el('div', 't-tete', '<span class="n">2</span><span class="titre">Comment elle paie</span><span class="resume">' + (reste() > 0 ? 'reste ' + F(reste()) : 'tout est réglé') + '</span>'));
+    etat.parts.forEach(function (p, i) {
+      var part = el('div', 'part');
+      var tuiles = el('div', 'tuiles'); tuiles.setAttribute('role', 'radiogroup'); tuiles.setAttribute('aria-label', 'Moyen de la part ' + (i + 1));
+      MOYENS.forEach(function (m) {
+        var b = el('button', 'tuile' + (m.pay ? ' pay' : ''), m.nom + '<small>' + m.sous + '</small>');
+        b.type = 'button'; b.setAttribute('role', 'radio'); b.setAttribute('aria-pressed', String(p.moyen === m.id));
+        b.addEventListener('click', function () { p.moyen = m.id; dessine(); dit(m.id === 'especes' ? 'Espèces : l’argent entre dans la caisse de ' + etat.caissier + ', sans rien choisir.' : m.id === 'mndpay' ? 'MND PAY : la demande part sur son téléphone ; le vert de FedaPay encaisse seul.' : m.nom + ' : la caisse suit le moyen, et la ligne porte le nom de ' + etat.caissier + '.'); });
+        tuiles.appendChild(b);
+      });
+      part.appendChild(tuiles);
+      var l1 = el('div', 'ligne1');
+      var inp = document.createElement('input'); inp.type = 'number'; inp.min = '0'; inp.value = String(p.xof); inp.setAttribute('aria-label', 'Montant de la part ' + (i + 1));
+      inp.addEventListener('change', function () { p.xof = Math.max(0, Math.round(Number(inp.value) || 0)); dessine(); });
+      l1.appendChild(inp);
+      var rst = el('button', 'mini', 'Le reste'); rst.type = 'button';
+      rst.addEventListener('click', function () { p.xof = p.xof + reste(); dessine(); });
+      l1.appendChild(rst);
+      if (i > 0) { var x = el('button', 'mini', '×'); x.type = 'button'; x.setAttribute('aria-label', 'Retirer cette part'); x.addEventListener('click', function () { etat.parts.splice(i, 1); dessine(); }); l1.appendChild(x); }
+      else l1.appendChild(el('span', '', ''));
+      part.appendChild(l1);
+      part.appendChild(el('div', 'caisse', '→ <b>' + caisseDe(p.moyen) + '</b>' + (p.moyen === 'especes' && !passe() ? ' <span class="changer" title="La direction seule">changer</span>' : '')));
+      t2.appendChild(part);
+    });
+    if (reste() > 0) {
+      var aj = el('button', 'ajoute', '+ Un autre moyen pour les ' + F(reste()) + ' qui restent'); aj.type = 'button';
+      aj.addEventListener('click', function () { etat.parts.push({ moyen: 'mtn', xof: reste() }); dessine(); dit('Une part en espèces, le reste en MTN MoMoPay : sur le même écran, une seule facture, chaque argent dans sa caisse.'); });
+      t2.appendChild(aj);
+    }
+    var pb = el('div', 'option', '<span>Elle laisse un pourboire ?</span>');
+    if (etat.pourboire) {
+      var pi = document.createElement('input'); pi.type = 'number'; pi.min = '0'; pi.value = String(etat.pourboireXof || ''); pi.placeholder = 'montant'; pi.setAttribute('aria-label', 'Pourboire');
+      pi.style.cssText = 'width:120px;font:400 14px var(--sans);border:1px solid #D6CCBA;border-radius:6px;padding:6px 8px;text-align:right;color:#1E2150;background:#FFFFFF';
+      pi.addEventListener('change', function () { etat.pourboireXof = Math.max(0, Math.round(Number(pi.value) || 0)); dessine(); });
+      pb.appendChild(pi);
+    } else {
+      var pbb = el('button', 'ajoute', '+ Ajouter'); pbb.type = 'button';
+      pbb.addEventListener('click', function () { etat.pourboire = true; dessine(); dit('Le pourboire se dit avec l’argent reçu, au moment où on le reçoit ; il se partage entre toute l’équipe, hors facture.'); });
+      pb.appendChild(pbb);
+    }
+    t2.appendChild(pb);
+    corps.appendChild(t2);
+
+    /* ③ Et ensuite, replié */
+    var t3 = el('div', 'temps');
+    var b3 = el('button', 't-tete', '<span class="n">3</span><span class="titre">Et ensuite</span><span class="resume">facultatif ' + (etat.ouvert.suite ? '▴' : '▾') + '</span>');
+    b3.type = 'button'; b3.setAttribute('aria-expanded', String(etat.ouvert.suite));
+    b3.addEventListener('click', function () { etat.ouvert.suite = !etat.ouvert.suite; etat.ouvert.du = false; dessine(); dit('« Et ensuite » range ce qui sert rarement : il ne gêne plus le geste de tous les jours.'); });
+    t3.appendChild(b3);
+    if (etat.ouvert.suite) {
+      ['Reprogrammer le prochain rendez-vous', 'Régler en devise étrangère'].forEach(function (o) { t3.appendChild(el('div', 'option', '<span>' + o + '</span><span class="bascule" aria-hidden="true"></span>')); });
+      t3.appendChild(el('div', 'option', '<span>Facture au sam. 17 oct. 2026 · argent entré le sam. 17 oct. 2026</span><span class="lien">Modifier</span>'));
+      t3.appendChild(el('div', 'option', '<span>Elle n’est pas là pour payer</span><span class="lien">Envoyer le lien de paiement</span>'));
+      t3.appendChild(el('div', 'option', '<span>Le rituel est fait, elle paiera plus tard</span><span class="lien">Honorer sans encaisser</span>'));
+    }
+    corps.appendChild(t3);
+
+    /* La barre du bas : ce qu'on règle, où va l'argent, le bouton */
+    var parts = etat.parts.filter(function (x) { return x.xof > 0; });
+    var trop = regle() > du();
+    var ok = reste() === 0 && !trop && parts.length > 0;
+    var ditBarre = parts.map(function (x) { return F(x.xof) + ' ' + (x.moyen === 'especes' ? 'en espèces' : nomDuMoyen(x.moyen)) + ' → ' + caisseDe(x.moyen).replace(', confirmé par FedaPay', ''); }).join(' · ');
+    pied.innerHTML = '<div class="dit"><b>' + (ditBarre || 'Aucun montant') + '</b><span class="' + (ok ? 'ok' : 'manque') + '">' + (trop ? 'plus que le dû : vérifiez' : ok ? 'tout est réglé' : 'il resterait ' + F(reste()) + ' dû') + '</span></div>';
+    var go = el('button', 'go', etat.parts.some(function (x) { return x.moyen === 'mndpay' && x.xof > 0; }) ? 'Demander par MND PAY' : 'Encaisser ' + F(regle()) + (etat.pourboireXof ? ' + ' + F(etat.pourboireXof) : ''));
+    go.type = 'button'; if (!parts.length || trop) go.setAttribute('aria-disabled', 'true');
+    go.addEventListener('click', function () { if (go.getAttribute('aria-disabled') === 'true') return; etat.fini = true; dessine(); dit(ok ? 'Encaissé, chaque argent dans sa caisse, au nom de ' + etat.caissier + '.' : 'Paiement partiel : la pièce garde le reste dû, et le Carnet le montre.'); });
+    pied.appendChild(go);
+  }
+  function dit(m) { raconte.textContent = m; }
+
+  function puces(id, liste, cle, nom, apres) {
+    var b = document.getElementById(id);
+    b.textContent = '';
+    liste.forEach(function (x) {
+      var v = typeof x === 'string' ? x : x.id;
+      var p = el('button', 'puce', typeof x === 'string' ? x : x.nom); p.type = 'button'; p.setAttribute('aria-pressed', String(etat[cle] === v));
+      p.addEventListener('click', function () { etat[cle] = v; puces(id, liste, cle, nom, apres); apres(); });
+      b.appendChild(p);
+    });
+  }
+  puces('caissiers', CAISSIERS, 'caissier', '', function () { etat.fini = false; dessine(); dit('Changez de caissier : la caisse des espèces suit, sans qu’on touche à rien.'); });
+  puces('cas', CAS, 'cas', '', function () { reinit(); dessine(); dit('Le reste à encaisser se lit en haut ; l’acompte déjà versé est déjà retiré.'); });
+  var ANNEES = [0, 1, 2, 3, 4].map(function (k) { return { id: ANNEE - k, nom: String(ANNEE - k) }; });
+  puces('annees', ANNEES, 'annee', '', function () { etat.fini = false; dessine(); dit(passe() ? 'Rendez-vous fixé en ' + etat.annee + ' : le Trône voit seul que c’est une année antérieure, et l’argent va dans la caisse des années passées, quel que soit le caissier. Rien ne l’annonce pour un rendez-vous de l’année.' : 'Un rendez-vous de l’année : la caisse suit qui encaisse ; « années passées » n’apparaît nulle part.'); });
+  reinit();
+  dessine();
+  dit('Trois temps : ce qu’elle doit (replié), comment elle paie (ouvert), et ensuite (replié). La barre du bas dit ce qu’on règle et où va l’argent.');
+
+  /* ── Les décisions ── */
+  var DECISIONS = [
+    { id: 'structure', titre: 'La fenêtre', pq: 'Comment elle se range.', options: [
+      ['trois-temps', 'Trois temps, un seul ouvert à la fois, et une barre en bas toujours visible', 'ce qu’elle doit · comment elle paie · et ensuite', true],
+      ['tout-ouvert', 'Tout ouvert, dans le même ordre, avec la barre en bas', 'plus long à faire défiler, rien à ouvrir'] ] },
+    { id: 'moyens', titre: 'Le moyen de paiement', pq: 'Comment on le choisit.', options: [
+      ['tuiles', 'Des tuiles : Espèces, MTN MoMoPay, Carte, Chèque, MND PAY, Avoir ; le reste sous « Autres »', 'un toucher, sans dérouler', true],
+      ['liste', 'La liste déroulante d’aujourd’hui', 'rien ne change pour l’équipe'] ] },
+    { id: 'parts', titre: 'Plusieurs moyens', pq: 'Une part en espèces, le reste en MTN MoMoPay.', options: [
+      ['meme-ecran', '« + Un autre moyen » sur le même écran', 'une seule facture, chaque argent dans sa caisse', true],
+      ['deux-fois', 'Enregistrer, puis recommencer, comme aujourd’hui', 'le geste actuel'] ] },
+    { id: 'pourboire', titre: 'Le pourboire', pq: 'Où il se dit.', options: [
+      ['avec-argent', 'Avec l’argent reçu, dans « Comment elle paie »', 'au moment où on le reçoit', true],
+      ['ensuite', 'Dans « Et ensuite »', 'il ne se voit que si on l’ouvre'] ] },
+    { id: 'qui', titre: 'Qui a une caisse', pq: 'Une caisse enregistreuse par personne qui encaisse.', options: [
+      ['chacun', 'Chaque personne qui encaisse a la sienne, ouverte d’un geste depuis l’Équipe', 'Gérard, Brice, Yéman, et toute nouvelle caissière', true],
+      ['choisis', 'Seulement celles et ceux que la direction désigne', 'les autres encaissent dans la caisse commune'] ] },
+    { id: 'defaut', titre: 'Où vont les espèces', pq: 'La caisse proposée à l’encaissement.', options: [
+      ['la-sienne', 'Dans la caisse de qui encaisse, d’office ; MTN MoMoPay, la carte et MND PAY à leur caisse', 'plus de « Choisir la caisse »', true],
+      ['choisir', 'Toujours choisir la caisse, comme aujourd’hui', 'rien d’office'] ] },
+    { id: 'autrui', titre: 'Encaisser dans la caisse d’un autre', pq: 'Le lien « changer » sous la caisse.', options: [
+      ['direction', 'La direction seule', 'une caisse se tient par une seule main', true],
+      ['tous', 'Tout le monde', 'plus souple, moins sûr le soir'] ] },
+    { id: 'matin', titre: 'Le matin', pq: 'L’ouverture de la caisse.', options: [
+      ['fond', 'Chacun ouvre sa caisse avec le fond compté', 'l’attendu du soir part d’un chiffre vrai', true],
+      ['sans', 'Pas d’ouverture : on compte le soir seulement', 'un geste de moins le matin'] ] },
+    { id: 'commune', titre: 'La caisse commune d’aujourd’hui', pq: '« Terrasse · Tiroir espèces ».', options: [
+      ['repli', 'Elle reste, pour qui n’a pas encore de caisse', 'rien ne se perd pendant le passage', true],
+      ['rangee', 'Elle est rangée : chacun a la sienne', 'plus de tiroir commun'] ] },
+    { id: 'passees', titre: 'Les rendez-vous des années antérieures', pq: 'Reconnus seuls à leur date, quelle que soit l’année (2025, 2023, 2022…) : la caisse « Années passées ».', options: [
+      ['tout', 'Tout l’argent d’un rendez-vous d’une année antérieure y va, quel que soit le moyen (sauf MND PAY et l’avoir)', 'les caisses du jour et la clôture du soir n’en voient rien', true],
+      ['apres-coup', 'Seulement ce qu’on saisit après coup ; l’argent remis aujourd’hui va dans la caisse du jour', 'si une cliente règle aujourd’hui en espèces une vieille séance'] ] },
+  ];
+  var choix = {};
+  var CLE = 'encaisser-refait-choix';
+  try { var vu = JSON.parse(localStorage.getItem(CLE) || '{}') || {}; Object.keys(vu).forEach(function (k) { choix[k] = vu[k]; }); } catch (e) { /* sans mémoire */ }
+  var docRef = null, file = Promise.resolve();
+  function garde() {
+    try { localStorage.setItem(CLE, JSON.stringify(choix)); } catch (e) { /* sans mémoire */ }
+    if (!docRef) return;
+    var corpsDoc = {}; Object.keys(choix).forEach(function (k) { if (choix[k]) corpsDoc[k] = choix[k]; });
+    corpsDoc.enregistre = new Date().toISOString();
+    file = file.then(function () { return docRef.set(corpsDoc); }).catch(function () { /* hors ligne */ });
+  }
+  function txt(tag, cls, t) { var e = document.createElement(tag); if (cls) e.className = cls; if (t !== undefined) e.textContent = t; return e; }
+  var boite = document.getElementById('decisions');
+  function dessineDecisions() {
+    boite.textContent = '';
+    DECISIONS.forEach(function (d) {
+      var c = txt('div', 'decision' + (choix[d.id] ? ' tranchee' : ''));
+      c.appendChild(txt('h3', '', d.titre));
+      c.appendChild(txt('p', 'pq', d.pq));
+      var g = document.createElement('div'); g.setAttribute('role', 'radiogroup'); g.setAttribute('aria-label', d.titre);
+      d.options.forEach(function (o) {
+        var l = txt('label', 'choix-ligne');
+        var i = document.createElement('input'); i.type = 'radio'; i.name = 'd-' + d.id; i.id = 'd-' + d.id + '-' + o[0]; i.value = o[0]; i.checked = choix[d.id] === o[0];
+        i.addEventListener('change', function () { choix[d.id] = o[0]; garde(); dessineDecisions(); });
+        var s = document.createElement('span');
+        s.appendChild(document.createTextNode(o[1]));
+        if (o[3]) { s.appendChild(document.createTextNode(' ')); s.appendChild(txt('em', '', 'ma proposition')); }
+        s.appendChild(txt('small', '', o[2]));
+        l.appendChild(i); l.appendChild(s); g.appendChild(l);
+      });
+      c.appendChild(g);
+      c.appendChild(txt('span', 'etat-d', choix[d.id] ? 'Choix enregistré.' : ''));
+      boite.appendChild(c);
+    });
+    var k = DECISIONS.filter(function (d) { return choix[d.id]; }).length;
+    document.getElementById('compte-decisions').textContent = k + ' sur ' + DECISIONS.length + ' tranchées';
+    document.getElementById('barre-decisions').style.width = Math.round((k / DECISIONS.length) * 100) + '%';
+  }
+  var note = document.getElementById('d-note');
+  if (choix.note) note.value = choix.note;
+  var minuterie = null;
+  note.addEventListener('input', function () { clearTimeout(minuterie); minuterie = setTimeout(function () { choix.note = note.value.trim(); garde(); document.getElementById('d-note-etat').textContent = 'Mot enregistré.'; }, 600); });
+  dessineDecisions();
+  if (window.claude && typeof window.claude.use === 'function') {
+    window.claude.use('db').then(function (db) {
+      if (!db) return;
+      docRef = db.doc('maquette/encaisser');
+      return docRef.get().then(function (s) {
+        if (!s || !s.exists) return;
+        var v = s.data() || {};
+        Object.keys(v).forEach(function (k) { if (k !== 'enregistre' && typeof v[k] === 'string' && !/^\d{4}-\d{2}-\d{2}T/.test(v[k])) choix[k] = v[k]; });
+        if (choix.note) note.value = choix.note;
+        dessineDecisions();
+      });
+    }).catch(function () { /* sans base : les choix restent sur cet appareil */ });
+  }
+})();
+</script>
