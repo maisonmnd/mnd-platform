@@ -231,12 +231,24 @@ dit('le chèque s encaisse', await clique('.mnd-modal button', 'Encaisser 30'));
 await attend(2500);
 const pche = ((await lis('trone::mnd_invoices')) ?? []).find((x) => x.apptId === 'rdv-che');
 const vche = (pche?.payments ?? []).map((x) => [x.method, x.amountXof, x.cashbox, x.trace?.banque, x.trace?.numero]);
-dit('le versement porte sa trace : chèque, BOA Bénin, n° 1234567, à la banque', JSON.stringify(vche) === JSON.stringify([['Chèque', 30000, 'La Banque', 'BOA Bénin', '1234567']]), JSON.stringify(vche));
+/* « Une caisse « Chèques à déposer » » (18 octobre 2026, sa décision) : le chèque y attend son dépôt. */
+dit('le versement porte sa trace : chèque, BOA Bénin, n° 1234567, dans « Chèques à déposer »', JSON.stringify(vche) === JSON.stringify([['Chèque', 30000, 'Chèques à déposer', 'BOA Bénin', '1234567']]), JSON.stringify(vche));
+const cbChe = ((await lis('trone::mnd_cashboxes')) ?? []).filter((x) => x.name === 'Chèques à déposer');
+dit('la caisse « Chèques à déposer » existe, une seule, dans la branche', cbChe.length === 1 && cbChe[0].branchId === 'maison', JSON.stringify(cbChe.map((x) => [x.id, x.branchId])));
 
 await cdp('Page.navigate', { url: `http://127.0.0.1:${port}/trone.html#/caisses` });
 await attend(4500);
 const depot = await evalue(String.raw`(document.querySelector('[data-cheques-a-deposer]')?.innerText || '').replace(/\s+/g, ' ')`);
 dit('Caisses : le chèque attend son dépôt, avec sa banque et son numéro', /Chèques à déposer/.test(depot) && /Chloé Banc · BOA Bénin · n° 1234567/.test(depot), depot.slice(0, 120));
+const compteDuDepot = await evalue(`(document.querySelector('[data-cheques-a-deposer] select[aria-label="Le compte qui reçoit le dépôt"]') || {}).value || ''`);
+dit('le compte qui reçoit le dépôt : La Banque d office', compteDuDepot === 'La Banque', compteDuDepot);
+dit('« Marquer déposés » se clique', await clique('[data-cheques-a-deposer] button', 'Marquer déposés'));
+await attend(1200);
+const vir = ((await lis('trone::mnd_transferts_caisse')) ?? []).map((x) => [x.de, x.vers, x.amountXof]);
+dit('le dépôt vire 30 000 F de « Chèques à déposer » à La Banque, une fois', JSON.stringify(vir) === JSON.stringify([['Chèques à déposer', 'La Banque', 30000]]), JSON.stringify(vir));
+const pdep = ((await lis('trone::mnd_invoices')) ?? []).find((x) => x.apptId === 'rdv-che');
+dit('le chèque porte son jour de dépôt', (pdep?.payments ?? [])[0]?.trace?.deposeLe === AUJ, JSON.stringify((pdep?.payments ?? [])[0]?.trace));
+dit('il ne paraît plus dans les chèques à déposer', !(await evalue(`!!document.querySelector('[data-cheques-a-deposer]')`)));
 
 /* Le rituel du jour ne voit jamais les années passées, même la caisse née. */
 await cdp('Page.navigate', { url: `http://127.0.0.1:${port}/trone.html#/carnet?q=Awa` });

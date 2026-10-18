@@ -46,7 +46,7 @@ import { argentHorsDuCarnet, versementsAInscrireAuCarnet } from '../../../../sha
 import { ditCeQuiManque, familleDeTrace, traceAEcrire, traceSuffit, type TraceDuMoyen } from '../../../../shared/trace-du-moyen-pur';
 import { ChampsDeLaTrace } from '../vente/TraceDuMoyen';
 import {
-  CAISSE_ANNEES_PASSEES, anneeDe, caisseDesAnneesPassees, caisseProposee, caissesAuChoix, estAnneeAnterieure,
+  CAISSE_ANNEES_PASSEES, anneeDe, caisseDesAnneesPassees, caisseProposee, caissesAuChoix, estAnneeAnterieure, CAISSE_CHEQUES, caisseDesCheques,
   familleDuMoyen, peutChangerLaCaisse, prenomDe, type CaisseProposee,
 } from '../../../../shared/caisses-des-caissiers-pur';
 import { identiteCourante } from '../../../../shared/journal';
@@ -1502,6 +1502,11 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour }: {
       cashboxesStore.set((prev) => (prev.some((c) => c.id === neuve.id)
         ? prev.map((c) => (c.id === neuve.id ? { ...c, archiveeLe: undefined } : c))
         : [...prev, neuve]));
+    }
+    /* LA CAISSE DES CHÈQUES À DÉPOSER naît au premier chèque (18 octobre 2026). */
+    if (lesCaisses.some((c) => c.caisse === CAISSE_CHEQUES) && !branchBoxes.some((c) => c.name === CAISSE_CHEQUES)) {
+      const neuve = caisseDesCheques(branch.id);
+      cashboxesStore.set((prev) => (prev.some((c) => c.id === neuve.id) ? prev : [...prev, neuve]));
     }
     /* La pièce que CE geste écrit — le pourboire s'y attache (19 août). */
     let idPieceEncaissee: string | undefined;

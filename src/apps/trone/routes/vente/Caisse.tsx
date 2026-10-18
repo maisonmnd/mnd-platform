@@ -23,7 +23,7 @@ import { ClotureDuTiroir } from '../finances/ClotureDuTiroir';
 import { jourPropose } from '../../../../shared/caisse-du-soir-pur';
 /** La veille d'un jour ISO, en heure locale. */
 const veilleIso = (iso: string): string => { const d = new Date(`${iso}T12:00:00`); d.setDate(d.getDate() - 1); return d.toISOString().slice(0, 10); };
-import { useInvoices, useCashboxes, caissesPourLaDate, usePaymentMethods, invoiceTotal, invoiceReglements, cashboxCurrency, nouvelleFacture, ligneFacture, useCredits, creditMovementsStore, creditBalanceOf, type Invoice, type InvoicePayment, type PaymentMethod, type CreditHolder, caisseParDefaut } from '../../../../shared/finance';
+import { useInvoices, useCashboxes, cashboxesStore, caissesPourLaDate, usePaymentMethods, invoiceTotal, invoiceReglements, cashboxCurrency, nouvelleFacture, ligneFacture, useCredits, creditMovementsStore, creditBalanceOf, type Invoice, type InvoicePayment, type PaymentMethod, type CreditHolder, caisseParDefaut } from '../../../../shared/finance';
 import { holderOf, payerClientIdOf } from '../../../../shared/accounts';
 import { invoicePdf, type InvoicePdfData } from '../../../../shared/pdf';
 import {
@@ -47,7 +47,7 @@ import { leTicket, versementsDuTicket, ceQueLeRendezVousRecoit, lArgentDejaRecu,
 import { ditCeQuiManque, familleDeTrace, traceAEcrire, traceSuffit, type TraceDuMoyen } from '../../../../shared/trace-du-moyen-pur';
 import { ChampsDeLaTrace } from './TraceDuMoyen';
 import { useStaff, adresseDe } from '../equipe/data';
-import { caisseProposee, caissesAuChoix, peutChangerLaCaisse } from '../../../../shared/caisses-des-caissiers-pur';
+import { caisseProposee, caissesAuChoix, peutChangerLaCaisse, CAISSE_CHEQUES, caisseDesCheques } from '../../../../shared/caisses-des-caissiers-pur';
 import { identiteCourante } from '../../../../shared/journal';
 import { addTipPartage, PART_POURBOIRE_DEFAUT } from '../../../../shared/tips';
 import {
@@ -356,7 +356,12 @@ export default function Caisse() {
   useEffect(() => { setCaisseTouchee(false); }, [pay]);
   const peutChangerPos = peutChangerLaCaisse(estDirection, proposeePos);
   const dansLaListe = (nom?: string) => !!nom && eligibleBoxes.some((c) => c.name === nom);
-  const activeCashbox = peutChangerPos && (caisseTouchee || !proposeePos.caisse) && dansLaListe(cashbox)
+  /* Le chèque attend son dépôt dans sa caisse (18 octobre 2026), même si elle
+     n'est pas encore née : elle naît à l'encaissement. */
+  const chequeVaASaCaisse = proposeePos.caisse === CAISSE_CHEQUES && !(peutChangerPos && caisseTouchee && dansLaListe(cashbox));
+  const activeCashbox = chequeVaASaCaisse
+    ? CAISSE_CHEQUES
+    : peutChangerPos && (caisseTouchee || !proposeePos.caisse) && dansLaListe(cashbox)
     ? cashbox
     : dansLaListe(proposeePos.caisse)
       ? proposeePos.caisse!
@@ -684,6 +689,11 @@ export default function Caisse() {
     if (pay === MND && !mndPay) return;
     if (!mndPay && resteApresParts > 0 && !traceDuMoyenOk) return;
     if (submitting.current) return;
+    /* La caisse des chèques naît au premier chèque. */
+    if ((activeCashbox === CAISSE_CHEQUES || parts.some((x) => x.caisse === CAISSE_CHEQUES)) && !cashboxes.some((c) => c.branchId === branch.id && c.name === CAISSE_CHEQUES)) {
+      const neuve = caisseDesCheques(branch.id);
+      cashboxesStore.set((prev) => (prev.some((c) => c.id === neuve.id) ? prev : [...prev, neuve]));
+    }
     submitting.current = true;
     try {
     const client = branchClients.find((c) => c.id === clientId);

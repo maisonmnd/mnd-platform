@@ -103,11 +103,11 @@ export const cheminDeLaPhoto = (branchId: string, compte: string, jeton: string)
 export const peutVoirLaPhoto = (chemin: string, o: { estDirection: boolean; compte?: string }): boolean =>
   o.estDirection || (!!o.compte && chemin.split('/')[1] === o.compte);
 
-export type ChequeADeposer = { invoiceId: string; paymentId: string; date: string; montantXof: number; client: string; trace: TraceDuMoyen };
+export type ChequeADeposer = { invoiceId: string; paymentId: string; date: string; montantXof: number; client: string; trace: TraceDuMoyen; cashbox?: string };
 
 /** LES CHÈQUES À DÉPOSER : ceux qui portent leur trace et ne sont pas encore portés à la banque. */
 export function chequesADeposer(
-  pieces: readonly { id: string; branchId?: string; clientName?: string; clientId?: string; payments?: readonly { id: string; date: string; amountXof: number; method: string; trace?: TraceDuMoyen }[] }[],
+  pieces: readonly { id: string; branchId?: string; clientName?: string; clientId?: string; payments?: readonly { id: string; date: string; amountXof: number; method: string; cashbox?: string; trace?: TraceDuMoyen }[] }[],
   branchId: string, nomDe: (clientId?: string, repli?: string) => string,
 ): ChequeADeposer[] {
   const out: ChequeADeposer[] = [];
@@ -115,8 +115,24 @@ export function chequesADeposer(
     if (p.branchId && p.branchId !== branchId) continue;
     for (const v of p.payments ?? []) {
       if (familleDeTrace(v.method) !== 'cheque' || !v.trace || v.trace.deposeLe || !(v.amountXof > 0)) continue;
-      out.push({ invoiceId: p.id, paymentId: v.id, date: v.date, montantXof: v.amountXof, client: nomDe(p.clientId, p.clientName), trace: v.trace });
+      out.push({ invoiceId: p.id, paymentId: v.id, date: v.date, montantXof: v.amountXof, client: nomDe(p.clientId, p.clientName), trace: v.trace, ...(v.cashbox ? { cashbox: v.cashbox } : {}) });
     }
   }
   return out.sort((a, b) => a.date.localeCompare(b.date));
+}
+
+/** LE VIREMENT DU DÉPÔT (18 octobre 2026, sa décision) : les chèques entrés
+    dans la caisse « Chèques à déposer » en sortent vers le compte choisi,
+    leur total en une ligne. Un chèque encaissé ailleurs (avant cette caisse)
+    se marque déposé sans rien virer. Rend null quand il n'y a rien à virer. */
+export function virementDuDepot(o: {
+  cheques: readonly ChequeADeposer[]; caisseDesCheques: string; vers: string; jour: string; branchId: string; id: string;
+}): { id: string; branchId: string; date: string; de: string; vers: string; amountXof: number; note: string } | null {
+  const viennent = o.cheques.filter((c) => c.cashbox === o.caisseDesCheques);
+  const total = viennent.reduce((n, c) => n + c.montantXof, 0);
+  if (!o.vers || o.vers === o.caisseDesCheques || !(total > 0)) return null;
+  return {
+    id: o.id, branchId: o.branchId, date: o.jour, de: o.caisseDesCheques, vers: o.vers, amountXof: total,
+    note: `Dépôt de ${viennent.length} chèque${viennent.length > 1 ? 's' : ''} à la banque`,
+  };
 }

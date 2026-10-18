@@ -35,6 +35,9 @@ import type { Cashbox } from './finance';
 import { reecritLEcriture, rendsLEcriture, casesDe, type Sorte } from './bascule-des-caisses-pur';
 
 export const CAISSE_ANNEES_PASSEES = 'Années passées';
+/* LA CAISSE DES CHÈQUES À DÉPOSER — 18 octobre 2026, sa décision : le chèque
+   y attend son dépôt ; « Marquer déposés » le vire au compte de la banque. */
+export const CAISSE_CHEQUES = 'Chèques à déposer';
 export const CAISSE_TIROIR_COMMUN = 'Terrasse · Tiroir espèces';
 const CAISSE_MND_PAY = 'MND PAY';
 const CAISSE_ZELLE = 'Zelle';
@@ -130,6 +133,21 @@ export function caisseDesAnneesPassees(branchId: string): Cashbox {
   };
 }
 
+/** LA CAISSE DES CHÈQUES de la branche, idempotente (identifiant tiré de la
+    branche). Rôle « banque » : c'est de l'argent en route vers la banque ;
+    la carte et le virement ne la prennent jamais pour la banque. */
+export function caisseDesCheques(branchId: string): Cashbox {
+  return {
+    id: `cb-cheques-${branchId}`,
+    branchId,
+    name: CAISSE_CHEQUES,
+    sub: 'Chèques encaissés, pas encore portés à la banque',
+    glyph: '▤',
+    openingXof: 0,
+    role: 'banque',
+  };
+}
+
 const textes = (b: Boite): string => plat(`${b.name} ${b.sub ?? ''}`);
 
 /** Le tiroir commun des espèces : son nom d'abord, puis une Terrasse ouverte à
@@ -206,8 +224,18 @@ export function caisseProposee(o: {
     return c ? { caisse: c.name, pourquoi: 'MTN MoMoPay arrive sur le compte MoMoPay de la Maison.' } : { pourquoi: 'Aucune caisse MoMoPay : choisissez la caisse.' };
   }
   if (famille === 'banque') {
-    const c = ici.find((b) => b.role === 'banque') ?? ici.find((b) => !b.caissierId && /banque|bank/.test(plat(b.name)));
+    /* Le chèque attend son dépôt dans sa caisse (18 octobre 2026). Rangée ou
+       mise à part à la main, elle ne reçoit plus rien : la banque reprend. */
     const cheque = /cheque/.test(plat(o.methode));
+    const chequesRangee = !nommee(CAISSE_CHEQUES) && o.boxes.some((b) => b.branchId === o.branchId && b.name === CAISSE_CHEQUES);
+    if (cheque && !chequesRangee) {
+      return {
+        caisse: CAISSE_CHEQUES, pourquoi: 'Le chèque attend son dépôt dans « Chèques à déposer ».',
+        ...(nommee(CAISSE_CHEQUES) ? {} : { aCreer: true }),
+      };
+    }
+    const c = ici.find((b) => b.role === 'banque' && b.name !== CAISSE_CHEQUES)
+      ?? ici.find((b) => !b.caissierId && b.name !== CAISSE_CHEQUES && /banque|bank/.test(plat(b.name)));
     return c
       ? { caisse: c.name, pourquoi: cheque ? 'Le chèque se dépose à la banque.' : 'La carte et le virement arrivent à la banque.' }
       : { pourquoi: 'Aucune caisse de banque : choisissez la caisse.' };
@@ -246,8 +274,9 @@ export function caissesAuChoix<B extends Boite>(boxes: readonly B[], o: {
 }
 
 /** Les caisses qui ne se comptent jamais le soir : celle des années passées
-    (l'histoire) et MND PAY (l'argent est chez FedaPay). */
-export const HORS_CLOTURE: readonly string[] = [CAISSE_ANNEES_PASSEES, CAISSE_MND_PAY];
+    (l'histoire), MND PAY (l'argent est chez FedaPay) et les chèques à
+    déposer (des chèques, pas des billets). */
+export const HORS_CLOTURE: readonly string[] = [CAISSE_ANNEES_PASSEES, CAISSE_MND_PAY, CAISSE_CHEQUES];
 
 /* ══ FONDRE UNE CAISSE DANS UNE AUTRE — 17 octobre 2026 ═════════════════
    « Reprise 2025 » : « tout fondre dans Années passées » (sa décision). Toutes

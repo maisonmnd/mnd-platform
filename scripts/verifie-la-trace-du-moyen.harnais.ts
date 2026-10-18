@@ -8,8 +8,9 @@
    attentes viennent de ses choix, jamais du code. */
 import { readFileSync } from 'node:fs';
 import {
-  AUTRE_BANQUE, BANQUES_DU_BENIN, chequesADeposer, cheminDeLaPhoto, familleDeTrace, peutVoirLaPhoto, traceAEcrire, traceDite, traceSuffit,
+  AUTRE_BANQUE, BANQUES_DU_BENIN, chequesADeposer, cheminDeLaPhoto, familleDeTrace, peutVoirLaPhoto, traceAEcrire, traceDite, traceSuffit, virementDuDepot,
 } from '../src/shared/trace-du-moyen-pur';
+import { CAISSE_CHEQUES } from '../src/shared/caisses-des-caissiers-pur';
 import { soldeDeLaPiece, versementsDuTicket } from '../src/apps/trone/routes/vente/encaissement-pur';
 import { versementsDesParts } from '../src/shared/mnd-pay-pur';
 import type { Invoice } from '../src/shared/finance';
@@ -55,6 +56,27 @@ dit('la photo vit sous le compte qui l a prise ; la direction la voit, qui l a p
     chequesADeposer(pieces, 'b', () => 'X').map((c) => c.paymentId));
 }
 
+/* ── 1 bis. LE DÉPÔT VIRE LA CAISSE DES CHÈQUES (18 octobre 2026, sa décision :
+   « Une caisse « Chèques à déposer » » ; « Marquer déposés » vire au compte choisi) ── */
+{
+  const pieces = [
+    { id: 'i1', branchId: 'b', clientId: 'c1', payments: [
+      { id: 'p1', date: '2026-10-18', amountXof: 30000, method: 'Chèque', cashbox: CAISSE_CHEQUES, trace: { banque: 'BOA Bénin', numero: '1234567' } },
+      { id: 'p2', date: '2026-10-18', amountXof: 12000, method: 'Chèque', cashbox: CAISSE_CHEQUES, trace: { photo } }] },
+    /* encaissé à La Banque avant la caisse des chèques : il se marque déposé, il ne se vire pas */
+    { id: 'i2', branchId: 'b', clientId: 'c2', payments: [{ id: 'p3', date: '2026-10-18', amountXof: 8000, method: 'Chèque', cashbox: 'La Banque', trace: { banque: 'Ecobank Bénin', numero: '98211' } }] },
+  ];
+  const liste = chequesADeposer(pieces, 'b', () => 'X');
+  dit('la liste dit dans quelle caisse chaque chèque attend', [CAISSE_CHEQUES, CAISSE_CHEQUES, 'La Banque'], liste.map((c) => c.cashbox));
+  const v = virementDuDepot({ cheques: liste, caisseDesCheques: CAISSE_CHEQUES, vers: 'La Banque', jour: '2026-10-19', branchId: 'b', id: 'trf-1' });
+  dit('le dépôt vire le total des chèques de « Chèques à déposer » au compte choisi, en une ligne, ce jour-là',
+    { id: 'trf-1', branchId: 'b', date: '2026-10-19', de: CAISSE_CHEQUES, vers: 'La Banque', amountXof: 42000, note: 'Dépôt de 2 chèques à la banque' }, v);
+  dit('rien à virer : sans compte, vers elle-même, ou seulement des chèques d ailleurs', [null, null, null], [
+    virementDuDepot({ cheques: liste, caisseDesCheques: CAISSE_CHEQUES, vers: '', jour: '2026-10-19', branchId: 'b', id: 't' }),
+    virementDuDepot({ cheques: liste, caisseDesCheques: CAISSE_CHEQUES, vers: CAISSE_CHEQUES, jour: '2026-10-19', branchId: 'b', id: 't' }),
+    virementDuDepot({ cheques: liste.slice(2), caisseDesCheques: CAISSE_CHEQUES, vers: 'La Banque', jour: '2026-10-19', branchId: 'b', id: 't' })]);
+}
+
 /* ── 2. LES VERSEMENTS PORTENT LA TRACE ── */
 {
   const trace = { banque: 'BOA Bénin', numero: '1234567' };
@@ -94,6 +116,16 @@ dit('la photo vit sous le compte qui l a prise ; la direction la voit, qui l a p
   dit('la facture remise à la cliente ne dit ni banque ni numéro (sa décision)', false, /traceDite|trace\??\.(banque|numero|autorisation|quatre|auNomDe)/.test(versLaPiece));
   const caisses = lis('src/apps/trone/routes/finances/Caisses.tsx');
   dit('Caisses montre les chèques à déposer', true, /<ChequesADeposer \/>/.test(caisses));
+  const depot = sansCommentaires(lis('src/apps/trone/routes/finances/ChequesADeposer.tsx'));
+  dit('« Marquer déposés » écrit le virement, attend le compte, et le choix exclut caissiers, devises, années passées et MND PAY', [true, true, true, true],
+    [/if \(virement\) transfertsStore\.set\(\(prev\) => \[\.\.\.prev, virement\]\);/.test(depot),
+      /disabled=\{choisis\.length === 0 \|\| \(aVirer && !virement\)\}/.test(depot),
+      /!c\.caissierId && !c\.horsBilan[\s\S]{0,80}\(!c\.currency \|\| c\.currency === currency\)/.test(depot),
+      /!\[CAISSE_CHEQUES, CAISSE_ANNEES_PASSEES, CAISSE_MND_PAY\]\.includes\(c\.name\)/.test(depot)]);
+  dit('la caisse des chèques naît au premier chèque : au rituel, à la Caisse ; Marquer payée la prend d office', [true, true, true],
+    [/if \(lesCaisses\.some\(\(c\) => c\.caisse === CAISSE_CHEQUES\) && !branchBoxes\.some\(\(c\) => c\.name === CAISSE_CHEQUES\)\)/.test(act),
+      /const chequeVaASaCaisse = proposeePos\.caisse === CAISSE_CHEQUES/.test(caisse) && /caisseDesCheques\(branch\.id\)/.test(caisse),
+      /familleDeTrace\(e\.target\.value\) === 'cheque' && boxesBranche\.some\(\(c\) => c\.name === CAISSE_CHEQUES\)\) setPayCaisse\(CAISSE_CHEQUES\)/.test(fac)]);
   const sql = lis('supabase/migrations/0134_la_trace_des_cheques.sql');
   dit('le coffre des photos est privé ; on n y dépose que dans son dossier ; la direction et qui a pris la photo la lisent', [true, true, true, true],
     [/'traces-privees', 'traces-privees', false,/.test(sql),

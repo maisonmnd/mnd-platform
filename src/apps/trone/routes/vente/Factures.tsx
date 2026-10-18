@@ -38,6 +38,7 @@ import { appelDe } from '../../../../shared/civilite';
 import { aligneLeRituel, corrigeLeVersement, estLieALaPiece, sansTiroir, type CorrectionDeVersement } from '../../../../shared/caisse-du-versement';
 import { soldeDeLaPiece, caisseManquante } from './encaissement-pur';
 import { familleDeTrace, traceAEcrire, traceDite, traceSuffit, type TraceDuMoyen } from '../../../../shared/trace-du-moyen-pur';
+import { CAISSE_CHEQUES } from '../../../../shared/caisses-des-caissiers-pur';
 import { ChampsDeLaTrace, VoirLaPhoto } from './TraceDuMoyen';
 
 /* Factures & devis — documents de marque à âme. Six thèmes émotionnels,
@@ -1690,7 +1691,11 @@ export default function Factures() {
                 ) : (
                 <>
                 <div className="trv-doc-actions__row" style={{ display: 'flex', gap: 8 }}>
-                  <Select value={payChoice} onChange={(e) => { setPayChoice(e.target.value as PaymentMethod); setTraceSolde({}); }} style={{ flex: 1, fontSize: 12 }}>
+                  <Select value={payChoice} onChange={(e) => {
+                    setPayChoice(e.target.value as PaymentMethod); setTraceSolde({});
+                    /* Le chèque attend son dépôt dans sa caisse (18 octobre 2026). */
+                    if (familleDeTrace(e.target.value) === 'cheque' && boxesBranche.some((c) => c.name === CAISSE_CHEQUES)) setPayCaisse(CAISSE_CHEQUES);
+                  }} style={{ flex: 1, fontSize: 12 }}>
                     {methods.map((p) => (
                       <option key={p} value={p}>{p}</option>
                     ))}
