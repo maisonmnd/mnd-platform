@@ -17,7 +17,7 @@ import { useLaPieceEnPdf } from './pdf-de-la-piece';
      · APRÈS UN RÈGLEMENT (encaisser le rituel) : le reçu, modèle
        `recu_de_paiement`, la facture en pièce jointe ;
      · UNE FACTURE À RÉGLER (honorer sans encaisser, au Carnet, au tableau de
-       bord, à l'écran d'encaissement) : modèle `facture_a_regler` (le PDF et
+       bord, à l'écran d'encaissement) : modèle `facture_du_rituel` réécrit (le PDF et
        un bouton « Régler »), et tant que Meta ne l'a pas approuvé, le lien de
        paiement `paiement_en_attente` (18 octobre 2026, sa décision).
    Dans les deux cas, LA DATE MÉTIER DÉCIDE : seulement pour l'argent reçu

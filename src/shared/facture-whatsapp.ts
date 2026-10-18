@@ -15,12 +15,18 @@ import type { InvoicePdfData } from './pdf';
    18 OCTOBRE, AU COMPTOIR : « (#132000) Number of parameters does not
    match ». Le modèle `facture_du_rituel` (rédigé le 2 octobre) a QUATRE
    variables et dit « réglée » EN DUR : il ne sert qu'à une facture payée,
-   jamais à une facture à régler. Sa décision : un modèle neuf,
-   `facture_a_regler`, et en attendant que Meta l'approuve, le lien de
+   jamais à une facture à régler. Sa décision : le modèle réécrit pour la
+   facture à régler, et en attendant que Meta l'approuve, le lien de
    paiement (`paiement_en_attente`, déjà approuvé), sans le PDF. Le Trône
    bascule seul le jour où Meta l'approuve : rien à republier.
 
-   Le modèle à créer chez Meta (catégorie Utilitaire, français) :
+   Le même jour, elle a MODIFIÉ `facture_du_rituel` chez Meta (au lieu d'en
+   créer un neuf, `facture_a_regler`) : le nom reste, le contenu devient
+   celui-ci. Pendant la revue, l'ancienne version (« réglée », sans bouton)
+   ne peut pas partir : le Trône envoie le bouton, qu'elle n'a pas, Meta
+   refuse, et c'est le lien de paiement qui part.
+
+   Le modèle, tel que soumis le 18 octobre (catégorie Utilitaire, français) :
      en-tête : Document
      corps   : « Bonjour {{1}}, merci de votre visite du {{2}}. Voici votre
                facture {{3}}, reste à régler : {{4}}. Touchez « Régler » :
@@ -31,7 +37,7 @@ import type { InvoicePdfData } from './pdf';
    {{1}} son appel, {{2}} le jour AVEC l'année (règle de la Maison sur
    toute date qu'une cliente lit), {{3}} le numéro, {{4}} le reste dû. */
 
-export const MODELE_FACTURE = 'facture_a_regler';
+export const MODELE_FACTURE = 'facture_du_rituel';
 
 /** Un refus de Meta qui tient au MODÈLE (inconnu, pas encore approuvé, en
     pause, variables qui ne collent pas) : les erreurs #132xxx. */

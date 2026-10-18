@@ -467,12 +467,13 @@ dit('l envoi transporte le paramètre du bouton jusqu à la fonction', true, /\.
 }
 /* ── 11. LA FACTURE À RÉGLER (17 et 18 octobre 2026) ──
    18 octobre au comptoir : « (#132000) Number of parameters does not match ».
-   facture_du_rituel a quatre variables et dit « réglée » en dur : jamais pour
-   une facture à régler. Sa décision : facture_a_regler (PDF + bouton
-   « Régler »), et en attendant son approbation, le lien de paiement. */
+   facture_du_rituel avait quatre variables et disait « réglée » en dur. Sa
+   décision : le réécrire pour la facture à régler (PDF + bouton « Régler »,
+   elle l'a MODIFIÉ chez Meta sous le même nom), et en attendant son
+   approbation, le lien de paiement. */
 {
   const cliente = { id: 'cl-1', name: 'Awa Dossou', civilite: 'madame' as const, phone: '0197000012', branchId: 'cot' };
-  dit('le modèle de la facture à régler : facture_a_regler, jamais facture_du_rituel (« réglée » en dur)', 'facture_a_regler', MODELE_FACTURE);
+  dit('le modèle de la facture à régler : facture_du_rituel, réécrit et resoumis le 18 octobre (elle l a modifié, pas créé facture_a_regler)', 'facture_du_rituel', MODELE_FACTURE);
   dit('ses QUATRE variables : son appel, le jour AVEC l année, le numéro, le reste dû', ['Madame Awa', '17 octobre 2026', 'F-2026-0737', '10 000 F'],
     variablesDeLaFacture(cliente, '2026-10-17', 'F-2026-0737', '10 000 F'));
   dit('un refus qui tient au modèle (#132xxx) se reconnaît ; la fenêtre et un numéro injoignable, non', [true, true, true, false, false],
@@ -497,7 +498,7 @@ dit('l envoi transporte le paramètre du bouton jusqu à la fonction', true, /\.
 
   /* B. Hors fenêtre, modèle approuvé : le PDF en en-tête et le bouton. */
   const B = await joue([FENETRE, { ok: true, id: 'm' }]);
-  dit('hors fenêtre : facture_a_regler, PDF en en-tête, quatre variables, le bouton porte code et total', [true, undefined, 2, 'facture_a_regler', 'document', true, 4, '51166-10160'],
+  dit('hors fenêtre : facture_du_rituel, PDF en en-tête, quatre variables, le bouton porte code et total', [true, undefined, 2, 'facture_du_rituel', 'document', true, 4, '51166-10160'],
     [B.r.ok, (B.r as { repli?: string }).repli, B.appels.length, B.appels[1].modele, B.appels[1].enTete, !!B.appels[1].piece, B.appels[1].variables?.length, B.appels[1].boutonUrl]);
 
   /* C. Le modèle pas encore approuvé (ou ses variables refusées) : le lien de paiement, sans PDF. */
