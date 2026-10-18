@@ -5,7 +5,7 @@ import {
   codeUssdTapGo, compteDeLaDemande, ditLeStatut, estAuTelephone, moyenDeLaPiece, numeroMasque, numeroPourFedaPay,
   tapGoOuvert, type DemandeMndPay, type MoyenMndPay, type ReglagesMndPay,
 } from '../../../../shared/mnd-pay-pur';
-import { annuleLaDemande, demandeLePaiement, relisLaDemande, useDemandesMndPay, useRelecture, useSaitTapGo } from '../../../../shared/mnd-pay';
+import { annuleLaDemande, demandeLePaiement, relisLaDemande, useDemandesMndPay, useRelecture, useSaitLesFraisOfferts, useSaitTapGo } from '../../../../shared/mnd-pay';
 import { envoieLeNumeroTapGo } from '../../../../shared/tapgo-whatsapp';
 import { quiEncaisse } from '../../../../shared/finance';
 
@@ -95,6 +95,10 @@ export function PanneauMndPay(p: {
   const [occupe, setOccupe] = useState(false);
   /* Le lien Tap & Go envoyé sur son WhatsApp : où il en est. */
   const [envoiTapGo, setEnvoiTapGo] = useState<{ etat: 'envoi' | 'ok' | 'ko'; dit: string } | null>(null);
+  /* LA CLIENTE REFUSE LES FRAIS (18 octobre 2026, sa décision : la caissière
+     les offre, la direction voit qui et combien, une dépense les inscrit). */
+  const [offerts, setOfferts] = useState(false);
+  const peutOffrir = useSaitLesFraisOfferts(true);
   const signale = useRef<string | null>(null);
 
   /* Une autre cliente au comptoir : on repart de son numéro. */
@@ -115,7 +119,9 @@ export function PanneauMndPay(p: {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [demande?.statut, demande?.id]);
 
-  const compte = compteDeLaDemande({ montantXof: p.montantXof, pourboireXof: p.pourboireXof, moyen, reglages: p.reglages });
+  const dus = compteDeLaDemande({ montantXof: p.montantXof, pourboireXof: p.pourboireXof, moyen, reglages: p.reglages }).fraisXof;
+  const offre = peutOffrir && offerts && dus > 0;
+  const compte = compteDeLaDemande({ montantXof: p.montantXof, pourboireXof: p.pourboireXof, moyen, reglages: p.reglages, fraisOfferts: offre });
   const auTel = estAuTelephone(moyen);
   const numeroLu = numeroPourFedaPay(tel);
   const sansTauxCarte = moyen === 'carte' && !(Number(p.reglages?.tauxCartePct) > 0);
@@ -130,6 +136,7 @@ export function PanneauMndPay(p: {
       branchId: p.branchId, genre: 'comptoir', moyen, montantXof: p.montantXof, pourboireXof: p.pourboireXof,
       pieceId: p.pieceId, pieceNumero: p.pieceNumero, clientId: p.clientId,
       telephone: auTel ? tel : undefined, libelle: p.libelle, reglages: p.reglages,
+      ...(offre ? { fraisOfferts: true, offertsPar: quiEncaisse() } : {}),
     });
     setOccupe(false);
     if (!r.ok) { setErreur(r.erreur); return; }
@@ -189,10 +196,16 @@ export function PanneauMndPay(p: {
           <div style={{ ...petit, color: 'var(--ink-soft)' }}>
             {m(compte.montantXof)}
             {compte.pourboireXof > 0 ? ` + pourboire ${m(compte.pourboireXof)}` : ''}
-            {` + frais ${m(compte.fraisXof)}`}
+            {offre ? ` · frais ${m(compte.fraisOffertsXof ?? 0)} offerts par la Maison` : ` + frais ${m(compte.fraisXof)}`}
             {' = '}<b style={{ color: 'var(--color-indigo)' }}>{m(compte.totalXof)}</b>
             {sansTauxCarte && <span style={{ display: 'block', color: 'var(--copper-700)' }}>Taux de la carte non posé : frais au taux du mobile money (Paramètres › MND PAY).</span>}
           </div>
+          {peutOffrir && dus > 0 && (
+            <label style={{ display: 'flex', gap: 8, alignItems: 'center', ...petit }}>
+              <input type="checkbox" checked={offerts} onChange={(e) => setOfferts(e.target.checked)} aria-label="Offrir les frais" />
+              <span>Offrir les frais <span style={{ color: 'var(--ink-soft)' }}>(la cliente refuse : la Maison prend {m(dus)}, la direction le voit)</span></span>
+            </label>
+          )}
           <button type="button" className="mnd-btn mnd-btn--copper" disabled={occupe || compte.montantXof <= 0 || (auTel && !numeroLu)} onClick={() => void demander()}>
             {occupe ? 'Envoi…' : auTel ? `Demander ${m(compte.totalXof)}` : moyen === 'tapgo' ? `Afficher le code · ${m(compte.totalXof)}` : `Afficher le QR · ${m(compte.totalXof)}`}
           </button>

@@ -25,6 +25,7 @@ import {
   paiementTapGoDeLaPiece, rendezVousRegles, saitLesFactures, fraisPour, instantDe, moyenDeLaPiece, numeroMasque, numeroPourFedaPay,
   piecesReglees, rapprocheTapGo, resteDuTicket, statutDepuisFedaPay, tapGoOuvert, tauxDe, versementDeLaDemande, versementsDesParts,
   CAISSE_MND_PAY, DELAI_DU_TICKET_MS, type DemandeMndPay,
+  depensesDesFraisOfferts, idDesFraisOfferts, saitLesFraisOfferts,
 } from '../src/shared/mnd-pay-pur';
 import type { Invoice } from '../src/shared/finance';
 import { saitLEcheanceSuivante } from '../src/shared/kkiapay';
@@ -54,6 +55,29 @@ dit('sans réglages, 1,8 % par défaut', 882, fraisPour(49_000, 'mtn', undefined
 dit('un montant nul ne paie rien', 0, fraisPour(0, 'mtn', R));
 dit('le pourboire traverse le même tuyau : frais sur 51 000 F', { montantXof: 49000, pourboireXof: 2000, fraisXof: 918, totalXof: 51918 },
   compteDeLaDemande({ montantXof: 49_000, pourboireXof: 2_000, moyen: 'mtn', reglages: R }));
+
+/* ── 1 bis. LES FRAIS OFFERTS (18 octobre 2026, ses choix : « La caissière »
+   offre, « Une dépense écrite seule ») ── */
+dit('offerts : la cliente paie le montant et le pourboire, la Maison prend les frais qu elle aurait payés',
+  { montantXof: 49000, pourboireXof: 2000, fraisXof: 0, totalXof: 51000, fraisOffertsXof: 918 },
+  compteDeLaDemande({ montantXof: 49_000, pourboireXof: 2_000, moyen: 'mtn', reglages: R, fraisOfferts: true }));
+dit('sans frais à payer (taux à 0), rien n est offert', { montantXof: 10000, pourboireXof: 0, fraisXof: 0, totalXof: 10000 },
+  compteDeLaDemande({ montantXof: 10_000, moyen: 'mtn', reglages: { tauxMobilePct: 0 }, fraisOfferts: true }));
+dit('Tap & Go offert : le code compose le montant tout rond', 30000, compteDeLaDemande({ montantXof: 30_000, moyen: 'tapgo', reglages: R, fraisOfferts: true }).totalXof);
+dit('la case attend le serveur 2026-10-18-a', [false, false, true, true], ['', '2026-10-17-c', '2026-10-18-a', '2026-10-19-a'].map(saitLesFraisOfferts));
+{
+  const payeeOfferte: DemandeMndPay = {
+    id: 'mp-off', branchId: 'b1', genre: 'comptoir', moyen: 'mtn', montantXof: 30_000, fraisXof: 0, fraisOffertsXof: 540, fraisOffertsPar: 'Gérard',
+    totalXof: 30_000, pieceId: 'inv-9', clientId: 'cl-a', libelle: 'Maison MND', statut: 'payee', creeLe: '2026-10-18T09:00:00.000Z', payeeLe: '2026-10-18T09:02:00.000Z',
+  };
+  const deps = depensesDesFraisOfferts([payeeOfferte, { ...payeeOfferte, id: 'mp-att', statut: 'en_attente' }, { ...payeeOfferte, id: 'mp-sans', fraisOffertsXof: undefined, fraisXof: 540 }], [], () => 'Awa A.');
+  dit('une demande payée sans ses frais écrit sa dépense dans MND PAY : qui a offert, à qui, combien (en attente ou frais payés : rien)', [{
+    id: 'dep-frais-mp-off', branchId: 'b1', label: 'Frais MND PAY offerts par Gérard · Awa A.', amountXof: 540, date: '2026-10-18',
+    cashbox: CAISSE_MND_PAY, category: 'Frais bancaires', subcategory: 'Commissions Mobile Money' }], deps);
+  dit('une seule fois : la dépense déjà là ne se réécrit pas', [], depensesDesFraisOfferts([payeeOfferte], [{ id: idDesFraisOfferts('mp-off') }]));
+  dit('la commission dite par FedaPay prime sur le calcul', 556, depensesDesFraisOfferts([{ ...payeeOfferte, commissionXof: 556 }], [])[0]?.amountXof);
+  dit('le versement dit que la Maison a offert les frais', true, /frais offerts par la Maison/.test(versementDeLaDemande(payeeOfferte).note ?? ''));
+}
 
 /* ── 2. LE MOYEN ET LE VERSEMENT ─────────────────────────────────────── */
 const base: DemandeMndPay = {
@@ -159,6 +183,31 @@ dit('l échéance due : la 1re, la 2e, le reste de la 1re, rien quand tout est r
   du({ echeances: ech, payments: [] }), du({ echeances: ech, payments: [{ amountXof: 30_000 }] }),
   du({ echeances: ech, payments: [{ amountXof: 20_000 }] }), du({ echeances: ech, payments: [{ amountXof: 90_000 }] }),
   du({ priceXof: 45_000 })]);
+
+/* ── 5 bis. LES FRAIS OFFERTS DANS LE CODE ── */
+{
+  const srv = lis('supabase/functions/mnd-pay/index.ts');
+  dit('le serveur 2026-10-18-a garde l offre, seulement quand aucun frais n est payé, jamais plus d un dixième', [true, true, true, true],
+    [(srv.match(/const VERSION = '([^']+)'/)?.[1] ?? '') >= '2026-10-18-a',
+      /const fraisOffertsXof = fraisXof === 0 \? Math\.min\(offertsLus, Math\.ceil\(\(montantXof \+ pourboireXof\) \/ 10\)\) : 0;/.test(srv),
+      /id, branchId, genre, moyen, montantXof, fraisXof, \.\.\.offre, totalXof,[\s\S]{0,2000}id, branchId, genre, moyen, montantXof, fraisXof, \.\.\.offre, totalXof,/.test(srv),
+      /String\(corps\.fraisOffertsPar\)\.replace\(\/\\s\+\/g, ' '\)\.trim\(\)\.slice\(0, 80\)/.test(srv)]);
+  const pan = lis('src/apps/trone/routes/vente/MndPay.tsx');
+  const lien = lis('src/apps/trone/routes/vente/LienMndPay.tsx');
+  dit('la case « Offrir les frais » : au comptoir et sur le lien, seulement quand le serveur sait, et la demande dit qui offre', [true, true, true, true],
+    [/const offre = peutOffrir && offerts && dus > 0;/.test(pan) && /const offre = peutOffrir && offerts && dus > 0;/.test(lien),
+      /\.\.\.\(offre \? \{ fraisOfferts: true, offertsPar: quiEncaisse\(\) \} : \{\}\),/.test(pan),
+      /\.\.\.\(offre \? \{ fraisOfferts: true, offertsPar: quiEncaisse\(\) \} : \{\}\),/.test(lien),
+      /\{peutOffrir && dus > 0 && \(/.test(pan) && /\{peutOffrir && dus > 0 && \(/.test(lien)]);
+  const accroche = lis('src/apps/trone/shell/useMndPayRattache.ts');
+  dit('la dépense s écrit seule, une fois, jamais avant la première lecture des dépenses', [true, true],
+    [/quandTablePrete\('expenses', \(\) => \{\s*if \(!vivant\) return;\s*const neuves = depensesDesFraisOfferts\(demandes, expensesStore\.get\(\)/.test(accroche),
+      /neuves\.filter\(\(n\) => !prev\.some\(\(x\) => x\.id === n\.id\)\)/.test(accroche)]);
+  const fac = lis('src/apps/trone/routes/vente/Factures.tsx');
+  /* « Seul le PDF garde son numéro de pièce » (18 octobre 2026). */
+  dit('les liens de paiement envoyés à la cliente ne portent aucun numéro de pièce', [false, false],
+    [/Référence \$\{pieceNumero\}/.test(lien) || /\$\{r\.url\}\\n` \+/.test(lien), /Référence \$\{selected\.number\}/.test(fac)]);
+}
 
 /* ── 6. LES RÈGLES DANS LE CODE ──────────────────────────────────────── */
 const migration = lis('supabase/migrations/0133_mnd_pay.sql').replace(/--.*$/gm, '');

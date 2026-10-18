@@ -1584,13 +1584,12 @@ export default function Factures() {
                    l'affiche en bleu et tapable. La cliente lisait d'abord une
                    référence qu'elle ne peut ni composer ni comprendre.
 
-                   LE MONTANT ET LE LIEN D'ABORD, la référence en pied de
-                   message : elle sert à retrouver la pièce si l'on écrit à la
-                   Maison, jamais à décider quoi que ce soit. */
+                   LE MONTANT ET LE LIEN D'ABORD. Puis, le 18 octobre 2026 :
+                   « seul le PDF garde son numéro de pièce » (Yéman) ; la
+                   référence a quitté le message. */
                 const msg = signeLeMessage(
                   `${maisonNom()}\n` +
-                  `Bonjour ${appelOf(selected)}, pour régler ${fmtMoney(invoiceResteXof(selected), currency)} par Mobile Money, ouvrez cette page : le code à composer s'y affiche, montant compris.\n${lien}\n` +
-                  `Référence ${selected.number}`,
+                  `Bonjour ${appelOf(selected)}, pour régler ${fmtMoney(invoiceResteXof(selected), currency)} par Mobile Money, ouvrez cette page : le code à composer s'y affiche, montant compris.\n${lien}`,
                 );
                 const versLApp = lienWaMe(tel, msg);
                 return (

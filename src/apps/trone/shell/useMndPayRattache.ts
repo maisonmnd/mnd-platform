@@ -2,9 +2,10 @@ import { useEffect } from 'react';
 import { useAuth } from '../../../shared/auth';
 import { useBranch } from '../../../shared/branches';
 import { useSettings } from '../../../shared/settings';
-import { invoiceResteXof, invoicesStore, useInvoices } from '../../../shared/finance';
-import { tablePrete } from '../../../shared/sync';
-import { piecesReglees, rendezVousRegles } from '../../../shared/mnd-pay-pur';
+import { expensesStore, invoiceResteXof, invoicesStore, useInvoices, type Expense } from '../../../shared/finance';
+import { clientsStore } from '../../../shared/clients';
+import { quandTablePrete, tablePrete } from '../../../shared/sync';
+import { depensesDesFraisOfferts, piecesReglees, rendezVousRegles } from '../../../shared/mnd-pay-pur';
 import { appointmentsStore } from '../../../shared/agenda';
 import { mndPayOuvert, useDemandesMndPay } from '../../../shared/mnd-pay';
 
@@ -26,6 +27,22 @@ export function useMndPayRattache(): void {
   const actif = !!session && mndPayOuvert(settings.mndPay);
   const demandes = useDemandesMndPay(branch.id, actif);
   const [invoices] = useInvoices();
+
+  /* LES FRAIS OFFERTS (18 octobre 2026, « Une dépense écrite seule ») : la
+     demande payée sans ses frais écrit sa dépense dans la caisse MND PAY,
+     une fois (identifiant tiré de la demande), jamais avant que les dépenses
+     soient lues : on attend leur première lecture, puis on écrit. */
+  useEffect(() => {
+    if (!actif) return;
+    let vivant = true;
+    quandTablePrete('expenses', () => {
+      if (!vivant) return;
+      const neuves = depensesDesFraisOfferts(demandes, expensesStore.get(), (id) => clientsStore.get().find((c) => c.id === id)?.name);
+      if (neuves.length === 0) return;
+      expensesStore.set((prev) => [...prev, ...neuves.filter((n) => !prev.some((x) => x.id === n.id)) as Expense[]]);
+    });
+    return () => { vivant = false; };
+  }, [actif, demandes]);
 
   useEffect(() => {
     if (!actif || !tablePrete('invoices')) return;

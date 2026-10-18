@@ -41,7 +41,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
      SUPABASE_SERVICE_ROLE_KEY (ou CLE_SERVICE) : déjà posée
    ═══════════════════════════════════════════════════════════════════ */
 
-const VERSION = '2026-10-17-c';
+const VERSION = '2026-10-18-a';
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -322,6 +322,10 @@ Deno.serve(async (req) => {
       const montantXof = entier(corps.montantXof);
       const pourboireXof = Math.max(0, entier(corps.pourboireXof ?? 0) || 0);
       const fraisXof = Math.max(0, entier(corps.fraisXof ?? 0) || 0);
+      /* LES FRAIS OFFERTS (18 octobre 2026) : la cliente paie sans les frais,
+         la Maison les prend. Gardés sur la demande pour la dépense du Trône,
+         jamais plus d'un dixième de ce qui passe (une commission, pas un don). */
+      const offertsLus = Math.max(0, entier(corps.fraisOffertsXof ?? 0) || 0);
       const moyen = String(corps.moyen ?? '');
       const genre = corps.genre === 'lien' ? 'lien' : 'comptoir';
       const branchId = String(corps.branchId ?? '').trim();
@@ -330,6 +334,10 @@ Deno.serve(async (req) => {
       if (!Number.isFinite(montantXof) || montantXof <= 0) return refus('le montant doit être positif');
       if (!branchId || !pieceId) return refus('la branche et la pièce sont requises');
       const totalXof = montantXof + pourboireXof + fraisXof;
+      const fraisOffertsXof = fraisXof === 0 ? Math.min(offertsLus, Math.ceil((montantXof + pourboireXof) / 10)) : 0;
+      const offre: Record<string, unknown> = fraisOffertsXof > 0
+        ? { fraisOffertsXof, ...(corps.fraisOffertsPar ? { fraisOffertsPar: String(corps.fraisOffertsPar).replace(/\s+/g, ' ').trim().slice(0, 80) } : {}) }
+        : {};
       if (totalXof > PLAFOND_XOF) return refus(`au-delà de ${PLAFOND_XOF.toLocaleString('fr-FR')} F, vérifiez le montant`);
       const auTelephone = AU_TELEPHONE.includes(moyen);
       const numero = numeroPourFedaPay(corps.telephone);
@@ -357,7 +365,7 @@ Deno.serve(async (req) => {
           }
         }
         const attente: Record<string, unknown> = {
-          id, branchId, genre, moyen, montantXof, fraisXof, totalXof,
+          id, branchId, genre, moyen, montantXof, fraisXof, ...offre, totalXof,
           ...(pourboireXof > 0 ? { pourboireXof } : {}),
           pieceId,
           ...(corps.pieceNumero ? { pieceNumero: String(corps.pieceNumero).slice(0, 40) } : {}),
@@ -386,7 +394,7 @@ Deno.serve(async (req) => {
       const url = String(jetonTx?.url ?? '');
 
       const data: Record<string, unknown> = {
-        id, branchId, genre, moyen, montantXof, fraisXof, totalXof,
+        id, branchId, genre, moyen, montantXof, fraisXof, ...offre, totalXof,
         ...(pourboireXof > 0 ? { pourboireXof } : {}),
         pieceId,
         ...(corps.pieceNumero ? { pieceNumero: String(corps.pieceNumero).slice(0, 40) } : {}),

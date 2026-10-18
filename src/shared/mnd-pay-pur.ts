@@ -64,6 +64,13 @@ export type DemandeMndPay = {
   modeReel?: string;
   /** La commission que FedaPay retient, quand elle la dit. */
   commissionXof?: number;
+  /** LES FRAIS OFFERTS (18 octobre 2026, sa décision) : la cliente qui refuse
+      les frais paie le montant seul ; la caissière coche « Offrir les
+      frais », la Maison les prend. Ce qu'ils auraient coûté, et qui les a
+      offerts ; une dépense « Frais MND PAY offerts » les inscrit à la caisse
+      MND PAY quand la demande est payée (`depensesDesFraisOfferts`). */
+  fraisOffertsXof?: number;
+  fraisOffertsPar?: string;
   creeLe: string;
   creePar?: string;
   payeeLe?: string;
@@ -125,6 +132,9 @@ export const saitTapGo = (version: string | undefined): boolean => !!version && 
     par pièce ? (2026-10-17-b.) Avant, l'attente ne vivrait qu'une demi-heure
     et chaque envoi en poserait une de plus. */
 export const saitLesFactures = (version: string | undefined): boolean => !!version && version >= '2026-10-17-b';
+/** Le serveur garde-t-il les frais offerts sur la demande ? (2026-10-18-a.)
+    Avant, la case ne s'offre pas : la dépense ne saurait pas s'écrire. */
+export const saitLesFraisOfferts = (version: string | undefined): boolean => !!version && version >= '2026-10-18-a';
 /** Le code marchand posé, ou celui de la page Tap & Go de la Maison. */
 export const codeTapGo = (r: ReglagesMndPay | undefined): string => {
   const c = String(r?.tapgo?.code ?? '').replace(/\D/g, '');
@@ -246,16 +256,20 @@ export function fraisPour(baseXof: number, moyen: MoyenMndPay, r: ReglagesMndPay
   return pct > 0 ? Math.ceil((base * pct) / 100 - 1e-9) : 0;
 }
 
-/** Ce que la cliente paie, et ce que chaque part devient. */
-export function compteDeLaDemande(e: { montantXof: number; pourboireXof?: number; moyen: MoyenMndPay; reglages?: ReglagesMndPay }): {
-  montantXof: number; pourboireXof: number; fraisXof: number; totalXof: number;
+/** Ce que la cliente paie, et ce que chaque part devient. `fraisOfferts`
+    (18 octobre 2026) : la cliente paie sans les frais, et le compte dit ce
+    que la Maison prend (`fraisOffertsXof`). */
+export function compteDeLaDemande(e: { montantXof: number; pourboireXof?: number; moyen: MoyenMndPay; reglages?: ReglagesMndPay; fraisOfferts?: boolean }): {
+  montantXof: number; pourboireXof: number; fraisXof: number; totalXof: number; fraisOffertsXof?: number;
 } {
   const montantXof = f(e.montantXof);
   const pourboireXof = f(e.pourboireXof ?? 0);
   /* Les frais portent sur tout ce qui passe chez FedaPay, pourboire compris :
      il traverse le même tuyau, il en paie la même commission. */
-  const fraisXof = fraisPour(montantXof + pourboireXof, e.moyen, e.reglages);
-  return { montantXof, pourboireXof, fraisXof, totalXof: montantXof + pourboireXof + fraisXof };
+  const dus = fraisPour(montantXof + pourboireXof, e.moyen, e.reglages);
+  const offerts = !!e.fraisOfferts && dus > 0;
+  const fraisXof = offerts ? 0 : dus;
+  return { montantXof, pourboireXof, fraisXof, totalXof: montantXof + pourboireXof + fraisXof, ...(offerts ? { fraisOffertsXof: dus } : {}) };
 }
 
 /** Le code FedaPay de la demande directe au téléphone. */
@@ -309,7 +323,7 @@ export function versementDeLaDemande(d: DemandeMndPay, encaissePar?: string): In
     ...(heure && !Number.isNaN(heure.getTime())
       ? { time: `${String(heure.getHours()).padStart(2, '0')}:${String(heure.getMinutes()).padStart(2, '0')}` }
       : {}),
-    note: `MND PAY${d.reference ? ` · réf. ${d.reference}` : ''}${d.fraisXof > 0 ? ` · frais ${f(d.fraisXof)} F payés par la cliente` : ''}`,
+    note: `MND PAY${d.reference ? ` · réf. ${d.reference}` : ''}${d.fraisXof > 0 ? ` · frais ${f(d.fraisXof)} F payés par la cliente` : ''}${f(d.fraisOffertsXof ?? 0) > 0 ? ` · frais offerts par la Maison` : ''}`,
     ...(encaissePar ? { encaissePar } : {}),
   };
 }
@@ -494,4 +508,46 @@ export function versementsDesParts(
       ...(p.trace ? { trace: p.trace } : {}),
     };
   });
+}
+
+/* ══ LES FRAIS OFFERTS DEVIENNENT UNE DÉPENSE — 18 octobre 2026 ══════════
+   Ses choix : « La caissière » offre, « Une dépense écrite seule ». FedaPay
+   retient sa commission sur ce que la cliente a payé : la caisse MND PAY
+   compte le montant entier, le reversement arrive amputé. La dépense
+   « Frais MND PAY offerts » rend la caisse juste, et le mois dit combien la
+   Maison a offert. Une par demande payée (identifiant tiré de la demande :
+   deux postes écrivent la même ligne) ; la commission dite par FedaPay
+   prime sur le calcul. */
+export const CATEGORIE_FRAIS_OFFERTS = 'Frais bancaires';
+export const SOUS_CATEGORIE_FRAIS_OFFERTS = 'Commissions Mobile Money';
+export const idDesFraisOfferts = (demandeId: string): string => `dep-frais-${demandeId}`;
+export type DepenseDesFraisOfferts = {
+  id: string; branchId: string; label: string; amountXof: number; date: string; cashbox: string; category: string; subcategory: string;
+};
+export function depensesDesFraisOfferts(
+  demandes: readonly DemandeMndPay[],
+  depenses: readonly { id: string }[],
+  nomDe: (clientId?: string) => string | undefined = () => undefined,
+): DepenseDesFraisOfferts[] {
+  const deja = new Set(depenses.map((x) => x.id));
+  const out: DepenseDesFraisOfferts[] = [];
+  for (const d of demandes) {
+    const offerts = f(d.fraisOffertsXof ?? 0);
+    if (d.statut !== 'payee' || !(offerts > 0)) continue;
+    const id = idDesFraisOfferts(d.id);
+    if (deja.has(id)) continue;
+    deja.add(id);
+    const commission = f(d.commissionXof ?? 0);
+    const qui = (d.fraisOffertsPar ?? '').trim();
+    const cliente = nomDe(d.clientId);
+    out.push({
+      id, branchId: d.branchId,
+      label: `Frais MND PAY offerts${qui ? ` par ${qui}` : ''}${cliente ? ` · ${cliente}` : ''}`,
+      amountXof: commission > 0 ? commission : offerts,
+      date: jourLocal(d.payeeLe ?? d.creeLe),
+      cashbox: CAISSE_MND_PAY,
+      category: CATEGORIE_FRAIS_OFFERTS, subcategory: SOUS_CATEGORIE_FRAIS_OFFERTS,
+    });
+  }
+  return out;
 }

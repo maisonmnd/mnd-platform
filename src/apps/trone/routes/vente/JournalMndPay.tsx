@@ -35,6 +35,8 @@ export function JournalMndPay({ branchId, jour, currency }: { branchId: string; 
   }
   const total = payees.reduce((n, d) => n + d.montantXof, 0);
   const frais = payees.reduce((n, d) => n + d.fraisXof, 0);
+  const offerts = payees.filter((d) => (d.fraisOffertsXof ?? 0) > 0);
+  const fraisOfferts = offerts.reduce((n, d) => n + (d.commissionXof && d.commissionXof > 0 ? d.commissionXof : (d.fraisOffertsXof ?? 0)), 0);
   const pourboires = payees.reduce((n, d) => n + (d.pourboireXof ?? 0), 0);
   const commission = payees.reduce((n, d) => n + (d.commissionXof ?? 0), 0);
   const orphelines = aRattacher(demandes, invoices, Date.now());
@@ -73,6 +75,12 @@ export function JournalMndPay({ branchId, jour, currency }: { branchId: string; 
           <div style={{ ...ligne, fontWeight: 600 }}><span>Pour les pièces</span><span>{fmtMoney(total, currency)}</span></div>
           {pourboires > 0 && <div style={ligne}><span>Pourboires reçus avec</span><span>{fmtMoney(pourboires, currency)}</span></div>}
           <div style={ligne}><span>Frais payés par les clientes</span><span>{fmtMoney(frais, currency)}</span></div>
+          {offerts.length > 0 && (
+            <div style={ligne} data-frais-offerts={offerts.length}>
+              <span>Frais offerts par la Maison <span style={{ color: 'var(--ink-soft)', fontSize: 11.5 }}>{[...new Set(offerts.map((d) => d.fraisOffertsPar).filter(Boolean))].join(', ') || 'sans nom'}</span></span>
+              <span>−{fmtMoney(fraisOfferts, currency)}</span>
+            </div>
+          )}
           {commission > 0 && <div style={ligne}><span>Commission dite par FedaPay</span><span>−{fmtMoney(commission, currency)}</span></div>}
           {enAttente > 0 && <div style={{ ...ligne, color: 'var(--copper-700)' }}><span>Encore en attente</span><span>{enAttente}</span></div>}
         </>

@@ -3,7 +3,7 @@ import { supabase } from './supabase';
 import { motifDuRefus } from './whatsapp';
 import { cashboxesStore } from './finance';
 import {
-  CAISSE_MND_PAY, CAISSE_ZELLE, compteDeLaDemande, modeFedaPay, saitTapGo,
+  CAISSE_MND_PAY, CAISSE_ZELLE, compteDeLaDemande, modeFedaPay, saitLesFraisOfferts, saitTapGo,
   type DemandeMndPay, type MoyenMndPay, type ReglagesMndPay,
 } from './mnd-pay-pur';
 
@@ -84,6 +84,10 @@ export type Demande = {
   telephone?: string;
   libelle: string;
   reglages: ReglagesMndPay | undefined;
+  /** La cliente refuse les frais : la Maison les offre (18 octobre 2026). */
+  fraisOfferts?: boolean;
+  /** Qui les offre (la caissière), pour la direction. */
+  offertsPar?: string;
 };
 
 export type ReponseDeLaDemande =
@@ -98,13 +102,14 @@ export async function demandeLePaiement(e: Demande): Promise<ReponseDeLaDemande>
   if (typeof navigator !== 'undefined' && navigator.onLine === false) {
     return { ok: false, erreur: 'Pas de réseau : une demande de paiement ne part pas en différé. Encaissez autrement.' };
   }
-  const c = compteDeLaDemande({ montantXof: e.montantXof, pourboireXof: e.pourboireXof, moyen: e.moyen, reglages: e.reglages });
+  const c = compteDeLaDemande({ montantXof: e.montantXof, pourboireXof: e.pourboireXof, moyen: e.moyen, reglages: e.reglages, fraisOfferts: e.fraisOfferts });
+  const offre = c.fraisOffertsXof ? { fraisOffertsXof: c.fraisOffertsXof, ...(e.offertsPar ? { fraisOffertsPar: e.offertsPar } : {}) } : {};
   const auTel = e.moyen === 'mtn' || e.moyen === 'moov' || e.moyen === 'celtiis';
   const { data, error } = await supabase.functions.invoke('mnd-pay', {
     body: {
       action: 'demander',
       branchId: e.branchId, genre: e.genre, moyen: e.moyen,
-      montantXof: c.montantXof, pourboireXof: c.pourboireXof, fraisXof: c.fraisXof,
+      montantXof: c.montantXof, pourboireXof: c.pourboireXof, fraisXof: c.fraisXof, ...offre,
       pieceId: e.pieceId, pieceNumero: e.pieceNumero, clientId: e.clientId,
       telephone: e.telephone, libelle: e.libelle,
       ...(auTel ? { mode: modeFedaPay(e.moyen as 'mtn' | 'moov' | 'celtiis', e.reglages) } : {}),
@@ -117,7 +122,7 @@ export async function demandeLePaiement(e: Demande): Promise<ReponseDeLaDemande>
   const provisoire: DemandeMndPay = {
     id: r.id, branchId: e.branchId, genre: e.genre, moyen: e.moyen,
     montantXof: c.montantXof, ...(c.pourboireXof ? { pourboireXof: c.pourboireXof } : {}),
-    fraisXof: c.fraisXof, totalXof: c.totalXof, pieceId: e.pieceId, pieceNumero: e.pieceNumero,
+    fraisXof: c.fraisXof, ...offre, totalXof: c.totalXof, pieceId: e.pieceId, pieceNumero: e.pieceNumero,
     clientId: e.clientId, libelle: e.libelle, statut: 'en_attente', url: r.url,
     creeLe: new Date().toISOString(),
     ...(r.raison ? { raison: `envoi au téléphone refusé (${r.raison}) : faites scanner le QR` } : {}),
@@ -190,6 +195,18 @@ export function useSaitTapGo(actif: boolean): boolean {
     return () => { vivant = false; };
   }, [actif]);
   return saitTapGo(version);
+}
+/** « Offrir les frais » s'offre-t-il ? Seulement quand le serveur garde
+    l'offre sur la demande (sinon la dépense ne saurait pas s'écrire). */
+export function useSaitLesFraisOfferts(actif: boolean): boolean {
+  const [version, setVersion] = useState('');
+  useEffect(() => {
+    if (!actif) return;
+    let vivant = true;
+    void versionDeMndPay().then((v) => { if (vivant) setVersion(v); });
+    return () => { vivant = false; };
+  }, [actif]);
+  return saitLesFraisOfferts(version);
 }
 
 /** Relit, toutes les quelques secondes, une demande qu'on attend au
