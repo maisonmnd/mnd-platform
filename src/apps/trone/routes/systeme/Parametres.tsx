@@ -35,6 +35,7 @@ import {
 } from '../../../../shared/pricing';
 import './systeme.css';
 import { CarteMndPay } from './CarteMndPay';
+import { CarteRelances } from './CarteRelances';
 
 /* Système · Paramètres — jours & heures d'ouverture, accès ERP du personnel par
    rubrique de domaine (codes d'accès envoyables), et les liens d'automatisation. */
@@ -2196,6 +2197,8 @@ export default function Parametres() {
 
       {/* MND PAY — 16 octobre 2026 : la caisse qui demande le paiement. */}
       <CarteMndPay />
+      {/* LES RELANCES DES FACTURES (18 octobre 2026) : leur interrupteur et le rattrapage. */}
+      <CarteRelances />
 
       {/* ══ L'ÉQUIPE ════════════════════════════════════════════════ */}
       <Intertitre id="fam-equipe">L’équipe</Intertitre>

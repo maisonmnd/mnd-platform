@@ -607,7 +607,7 @@ export type Envoi = {
   /** « confirmation » (confirmation-rdv) et « accuse » (demande-submit, 18
       septembre) rejoignent le journal ; « fin-de-paquet » y vivait déjà sans
       être déclaré. Le journal les lit tous (`shared/envois`). */
-  type: 'rappel-j1' | 'avis-google' | 'confirmation' | 'accuse' | 'fin-de-paquet' | 'reprise-j3' | 'point-apres' | 'point-avant';
+  type: 'rappel-j1' | 'avis-google' | 'confirmation' | 'accuse' | 'fin-de-paquet' | 'reprise-j3' | 'point-apres' | 'point-avant' | 'relance-facture';
   canal: 'push' | 'whatsapp' | 'sms' | 'wa-main';
   apptId: string;
   /** Le numéro et le prénom, quand il n'y a pas encore de fiche : l'accusé

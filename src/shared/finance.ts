@@ -174,6 +174,10 @@ export type Invoice = {
   master?: string;
   /** RDV créé automatiquement à l’acceptation d’un devis (évite les doublons). */
   apptId?: string;
+  /** LES RELANCES EN PAUSE (18 octobre 2026) : « elle passe régler samedi ».
+      Posée au comptoir par toute personne qui encaisse ; la tournée du
+      serveur ne relance plus cette facture tant qu'elle est là. */
+  relancesPause?: { le: string; par?: string };
   /** Pourboire encaissé dans la caisse (traçabilité POS) — HORS chiffre d'affaires,
       reversé au maître. Ne compte jamais dans invoiceTotal. */
   tipXof?: number;

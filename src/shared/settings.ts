@@ -1,6 +1,7 @@
 import { createStore, useStore } from './store';
 import type { Plan } from './bascule-des-caisses-pur';
 import type { ReglagesMndPay } from './mnd-pay-pur';
+import type { ReglagesRelances } from './relances-pur';
 
 /* Paramètres de la Maison — persistés en localStorage (clé `mnd_settings`).
    Jours & heures d'ouverture, bascules de rituel/notifications, et les liens
@@ -126,6 +127,10 @@ export type Settings = {
       le paiement au téléphone de la cliente et le voit confirmé par FedaPay.
       Éteint tant que le compte FedaPay n'est pas ouvert et ses clés posées. */
   mndPay?: ReglagesMndPay;
+  /** LES RELANCES DES FACTURES — 18 octobre 2026 (maquette 4Hn8FWmp…) :
+      allumées par la direction, le jour du lancement, et le rattrapage des
+      trente jours d'avant validé une fois. La tournée du serveur les lit. */
+  relances?: ReglagesRelances;
 };
 
 /** Créneaux d'ouverture proposés — repris du prototype. */

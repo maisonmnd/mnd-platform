@@ -24,6 +24,11 @@ import { addDaysISO, apptDueXof, apptLabel, frJourAn, todayISO, useBranchAppoint
 import './pilotage.css';
 import { cheminDeLaConversation } from '../../../../shared/conversations';
 import { appelDe } from '../../../../shared/civilite';
+import { invoiceResteXof, useInvoices } from '../../../../shared/finance';
+import { useSettings } from '../../../../shared/settings';
+import { jourDuSalon } from '../../../../shared/envois';
+import { aAppeler, departDesRelances, etatDesRelances, seRelance } from '../../../../shared/relances-pur';
+import { useEnvois } from '../equipe/data';
 /** LES GESTES QUI SE LISENT TÊTE PAR TÊTE. Les mains, le prix d'achat et les
     impayés ne concernent pas une tête : ils vivent sur un rituel ou une fiche
     de stock, et leur liste est ailleurs. */
@@ -102,6 +107,26 @@ export default function AFaire() {
   const estDirection = useEstDirection();
   /* Les restes dus se lisent au tarif de la tête (10 octobre 2026). */
   const clefDuTarif = useClefDuTarif();
+
+  /* ══ À APPELER, APRÈS LA QUATRIÈME RELANCE — 18 octobre 2026 ══════════
+     Maquette « Les relances » : rien n'est réglé le lendemain de la
+     dernière relance, la voix prend le relais. La direction seule voit la
+     liste ; une pause posée au comptoir la retire. */
+  const [factures] = useInvoices();
+  const [envoisDuJournal] = useEnvois();
+  const [reglagesMaison] = useSettings();
+  const aAppelerListe = useMemo(() => {
+    const auj = todayISO();
+    return factures.filter((f) => {
+      if (f.branchId !== branch.id || !seRelance(f)) return false;
+      const depart = departDesRelances(f, reglagesMaison.relances);
+      const reste = invoiceResteXof(f);
+      if (!depart || !(reste > 0)) return false;
+      const enPause = !!f.relancesPause;
+      const e = etatDesRelances({ factureId: f.id, depart, journal: envoisDuJournal, resteXof: reste, enPause, aujourdhui: auj, jourDe: jourDuSalon });
+      return aAppeler(e, { resteXof: reste, enPause, aujourdhui: auj });
+    });
+  }, [factures, envoisDuJournal, reglagesMaison.relances, branch.id]);
 
   const travail = useMemo(() => leTravail({
     branchId: branch.id,
@@ -281,6 +306,11 @@ export default function AFaire() {
               <b>{aRelancer.length}</b> à relancer · 3 jours
             </button>
           )}
+          {estDirection && aAppelerListe.length > 0 && (
+            <button type="button" className="trp-af-pill trp-af-pill--feu" onClick={() => versAncre('a-appeler')}>
+              <b>{aAppelerListe.length}</b> à appeler · factures
+            </button>
+          )}
           <button type="button" className="trp-af-pill" onClick={() => versAncre('relances')}>
             <b>{duMois.length}</b> retenue{duMois.length > 1 ? 's' : ''} ce mois
           </button>
@@ -289,6 +319,38 @@ export default function AFaire() {
           </button>
         </div>
       </div>
+
+      {/* ── À appeler : les factures que quatre relances n'ont pas réglées ── */}
+      {estDirection && aAppelerListe.length > 0 && (
+        <section id="a-appeler" className="trp-af-bloc">
+          <div className="trp-af-bloc__t">
+            <b>À appeler</b>
+            <span>Quatre relances sont parties sur WhatsApp, rien n’est réglé : la voix prend le relais.</span>
+          </div>
+          {aAppelerListe.map((f) => {
+            const fiche = clients.find((c) => c.id === f.clientId);
+            const nom = fiche?.name || f.clientName || 'Cliente';
+            const tel = (fiche?.phone ?? '').trim();
+            return (
+              <div key={f.id} className="trp-af-tete">
+                <span className="trp-af-av">
+                  {nom.split(/\s+/).map((m) => m.charAt(0)).slice(0, 2).join('').toUpperCase() || '·'}
+                </span>
+                <span className="trp-af-tete__n"><b>{nom}</b></span>
+                <span className="trp-af-tete__vient">
+                  facture du {frJourAn(f.date)} · reste {fmtMoney(invoiceResteXof(f), currency)}{tel ? ` · ${tel}` : ''}
+                </span>
+                <span className="trp-af-micro">
+                  {tel && <a className="trp-af-mbtn" href={`tel:${tel.replace(/[^\d+]/g, '')}`}>Appeler</a>}
+                  <button type="button" className="trp-af-mbtn" onClick={() => navigate(`/factures?id=${f.id}`)}>
+                    La facture
+                  </button>
+                </span>
+              </div>
+            );
+          })}
+        </section>
+      )}
 
       {/* ── Strate 1 · le mois retenu ── */}
       <section id="relances" className="trp-af-bloc">

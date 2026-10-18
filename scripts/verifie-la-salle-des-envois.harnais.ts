@@ -178,7 +178,7 @@ dit('le soir du 2, elles finissent le 3 a 8 h', iso(salon('2026-10-03', '08:00')
   };
   const egalise = (f: string) => readFileSync(f, 'utf8').replace(/\r\n/g, '\n').replace(/\s+/g, ' ');
   const DEPOSENT = ['reglesDepuis', 'heureDuSalon', 'dansLesHeuresCalmes', 'finDesHeuresCalmes', 'heureDeDepart', 'facteurVivant'];
-  for (const f of ['confirmation-rdv', 'rappels-j1', 'avis-google']) {
+  for (const f of ['confirmation-rdv', 'rappels-j1', 'avis-google', 'relances-factures']) {
     const texte = egalise(`supabase/functions/${f}/index.ts`);
     dit(`${f} porte le calcul du depot, a l identique`, [], DEPOSENT.filter((n) => !texte.includes(duDepot(n))));
     dit(`${f} ne depose que si la salle est ouverte, et envoie comme avant sinon`, true, /salleOuverte/.test(texte) && /facteurVivant\(\(docs\?\.find\(\(d\) => d\.key === 'mnd_facteur'\)/.test(texte));
@@ -191,6 +191,8 @@ dit('le soir du 2, elles finissent le 3 a 8 h', iso(salon('2026-10-03', '08:00')
     'confirmation-rdv': [/consigne\('push', a, 'en-attente', undefined, undefined, undefined, depot\(/, /consigne\('whatsapp', a, 'en-attente', undefined, undefined, undefined, depot\(/],
     'rappels-j1': [/consigne\('whatsapp', a, 'en-attente', undefined, undefined, depot\(/, /consigne\('sms', a, 'en-attente', undefined, undefined, depot\(/, /statut: 'en-attente', quand: maintenant, \.\.\.depot\(/],
     'avis-google': [/consigne\(p, 'en-attente', undefined, depot\(/],
+    /* Les relances des factures (18 octobre 2026). */
+    'relances-factures': [/\.\.\.commun, statut: 'en-attente', \.\.\.depot\(/],
   };
   for (const [f, motifs] of Object.entries(DEPOTS)) {
     const texte = egalise(`supabase/functions/${f}/index.ts`);

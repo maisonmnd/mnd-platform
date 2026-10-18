@@ -19,6 +19,7 @@ import { detacheLesVersementsDeLaPiece } from '../../../../shared/abonnements';
 import { retirerPourboiresDesFactures, repointerPourboires } from '../../../../shared/tips';
 import { adresseDe, lienPaiementMomo } from '../equipe/data';
 import { LienMndPay } from './LienMndPay';
+import { BlocRelances } from './BlocRelances';
 import { fmtDateFr, useLaPieceEnPdf } from './pdf-de-la-piece';
 import { filStore, nouveauMessage } from '../../../../shared/fil';
 import { useAuth } from '../../../../shared/auth';
@@ -1618,6 +1619,11 @@ export default function Factures() {
                   resteXof={invoiceResteXof(selected)}
                   currency={currency}
                 />
+              )}
+              {/* LES RELANCES (18 octobre 2026) : où elles en sont, et la pause
+                  que toute personne qui encaisse peut poser. */}
+              {selected.kind === 'facture' && invoiceResteXof(selected) > 0 && (
+                <BlocRelances facture={selected} qui={monNomFil} pose={patchSelected} />
               )}
               {/* ══ UN SEUL LIEN POUR TOUT LE FOYER ═══════════════════════════
                   Une mère ne paie pas trois fois. Le bouton ne paraît que si le

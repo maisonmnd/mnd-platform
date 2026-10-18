@@ -42,7 +42,7 @@ dit('poser Madame retire la marque', { civilite: 'madame', auMasculin: undefined
   };
   /* 9 octobre 2026 : la reprise du webhook dit « Madame Naffi », et la
      réponse automatique (whatsapp-automate) parle à chaque cliente. */
-  const FONCTIONS = ['confirmation-rdv', 'rappels-j1', 'avis-google', 'demande-submit', 'whatsapp-webhook', 'whatsapp-automate'];
+  const FONCTIONS = ['confirmation-rdv', 'rappels-j1', 'avis-google', 'demande-submit', 'whatsapp-webhook', 'whatsapp-automate', 'relances-factures'];
   const copies = FONCTIONS.map(copie);
   dit('chaque fonction porte appelDe', [], FONCTIONS.filter((_, i) => !copies[i]));
   dit('... la meme, mot pour mot', 1, new Set(copies).size);
