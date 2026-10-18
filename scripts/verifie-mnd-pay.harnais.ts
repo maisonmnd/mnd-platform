@@ -183,7 +183,7 @@ dit('le webhook redemande la transaction à FedaPay avant d écrire', true,
 dit('la caisse MND PAY ne se choisit pas à la main (Caisse et rituel)', [true, true],
   [/\.filter\(\(c\) => c\.name !== CAISSE_MND_PAY\)/.test(caisse), /const eligibleBoxes = boxesDuJour\.filter\(\(c\) => [^;]*c\.name !== CAISSE_MND_PAY\);/.test(actions)]);
 dit('le versement du rituel payé par MND PAY garde l identifiant de sa demande', true,
-  /const mnd = pt\.tuile === 'mndpay' \? mndPayRef\.current : null;[\s\S]{0,200}id: mnd\?\.id \?\? `ip-\$\{uid\(\)\}`/.test(actions));
+  /const mnd = pt\.tuile === 'mndpay' \? mndPayRef\.current : null;[\s\S]{0,500}id: mnd\?\.id \?\? `ip-\$\{uid\(\)\}`/.test(actions));
 dit('la Caisse ferme le ticket avec le versement de la demande', true, /versementDeLaDemande\(mndPay, piece\.encaissePar\)/.test(caisse));
 dit('le pied de la Caisse ne promet plus une réconciliation MoMo automatique', false, /réconciliation MoMo automatique\./.test(caisse.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\{\/\*[\s\S]*?\*\/\}/g, '')));
 

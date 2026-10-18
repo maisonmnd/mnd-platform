@@ -156,7 +156,7 @@ const personnel = sansCommentaires(lis2('src/apps/trone/routes/equipe/Personnel.
 dit('le rituel déduit la caisse par la règle, jamais par la première de la liste', [true, false],
   [/caisseProposee\(\{/.test(actions), /eligibleBoxes\[0\]/.test(actions)]);
 dit('le choix de la caisse ne s ouvre qu à qui peut la changer', true, /const montreLeChoix = c\.peutChanger && /.test(actions));
-dit('un versement par part, chacun avec sa caisse', true, /parts\.forEach\(\(pt, i\) => \{[\s\S]{0,400}cashbox: c\.caisse \|\| undefined/.test(actions));
+dit('un versement par part, chacun avec sa caisse', true, /parts\.forEach\(\(pt, i\) => \{[\s\S]{0,800}cashbox: c\.caisse \|\| undefined/.test(actions));
 const iConfirm = actions.indexOf('const confirm = (garderOuvert = false) =>');
 const iCree = actions.indexOf('caisseDesAnneesPassees(branch.id)', iConfirm);
 const iEcrit = actions.indexOf('invoicesStore.set(', iConfirm);

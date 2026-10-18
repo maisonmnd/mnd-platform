@@ -37,6 +37,8 @@ import { cheminDeLaConversation, lienWaMe } from '../../../../shared/conversatio
 import { appelDe } from '../../../../shared/civilite';
 import { aligneLeRituel, corrigeLeVersement, estLieALaPiece, sansTiroir, type CorrectionDeVersement } from '../../../../shared/caisse-du-versement';
 import { soldeDeLaPiece, caisseManquante } from './encaissement-pur';
+import { familleDeTrace, traceAEcrire, traceDite, traceSuffit, type TraceDuMoyen } from '../../../../shared/trace-du-moyen-pur';
+import { ChampsDeLaTrace, VoirLaPhoto } from './TraceDuMoyen';
 
 /* Factures & devis — documents de marque à âme. Six thèmes émotionnels,
    remises par ligne et globale, conversion devis → facture, impression.
@@ -158,6 +160,9 @@ export default function Factures() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params, invoices]);
   const [payChoice, setPayChoice] = useState<PaymentMethod>('MTN MoMo');
+  /* La trace d'un chèque ou d'une carte marqués payés ici (18 octobre 2026). */
+  const [traceSolde, setTraceSolde] = useState<TraceDuMoyen>({});
+  const famSolde = familleDeTrace(payChoice);
   /* La caisse du « Marquer payée » : jamais la première de la liste, on la dit. */
   const [payCaisse, setPayCaisse] = useState('');
   /* Elle se redit à chaque pièce (10 octobre 2026, revue) : gardée d'une
@@ -1683,8 +1688,9 @@ export default function Factures() {
                     Solder · rien à encaisser
                   </Button>
                 ) : (
+                <>
                 <div className="trv-doc-actions__row" style={{ display: 'flex', gap: 8 }}>
-                  <Select value={payChoice} onChange={(e) => setPayChoice(e.target.value as PaymentMethod)} style={{ flex: 1, fontSize: 12 }}>
+                  <Select value={payChoice} onChange={(e) => { setPayChoice(e.target.value as PaymentMethod); setTraceSolde({}); }} style={{ flex: 1, fontSize: 12 }}>
                     {methods.map((p) => (
                       <option key={p} value={p}>{p}</option>
                     ))}
@@ -1707,19 +1713,28 @@ export default function Factures() {
                   <Button
                     variant="copper"
                     size="sm"
-                    disabled={caisseManquante(payCaisse, boxesBranche.length)}
+                    disabled={caisseManquante(payCaisse, boxesBranche.length) || (!!famSolde && !traceSuffit(famSolde, traceSolde))}
                     title={caisseManquante(payCaisse, boxesBranche.length) ? 'Choisissez la caisse qui reçoit l’argent' : undefined}
-                    onClick={() => patchSelected(soldeDeLaPiece(selected, {
-                      id: `ip-${uid()}`,
-                      jour: jourLocalIso(),
-                      moyen: payChoice,
-                      caisse: payCaisse || undefined,
-                      time: new Date().toTimeString().slice(0, 5),
-                    }))}
+                    onClick={() => {
+                      const trace = famSolde ? traceAEcrire(famSolde, traceSolde) : undefined;
+                      patchSelected(soldeDeLaPiece(selected, {
+                        id: `ip-${uid()}`,
+                        jour: jourLocalIso(),
+                        moyen: payChoice,
+                        caisse: payCaisse || undefined,
+                        time: new Date().toTimeString().slice(0, 5),
+                        ...(trace ? { trace } : {}),
+                      }));
+                      setTraceSolde({});
+                    }}
                   >
                     Marquer payée
                   </Button>
                 </div>
+                {famSolde && (
+                  <ChampsDeLaTrace famille={famSolde} valeur={traceSolde} onChange={setTraceSolde} branchId={selected.branchId} />
+                )}
+                </>
                 )
               ) : (
                 <div style={{ fontFamily: 'var(--font-sans)', fontSize: 11, color: 'var(--trv-success)', textAlign: 'center' }}>
@@ -1747,6 +1762,9 @@ export default function Factures() {
                           ? <b style={{ fontWeight: 500, color: 'var(--color-indigo)' }}>{p.cashbox}</b>
                           : <em style={{ fontStyle: 'normal', color: 'var(--copper-700)' }}>caisse non dite</em>}
                         {' · '}{frDay(p.date)}
+                        {p.trace && traceDite(p.trace) && <> · {traceDite(p.trace)}</>}
+                        {p.trace?.deposeLe && <> · déposé le {frDay(p.trace.deposeLe)}</>}
+                        {p.trace?.photo?.chemin && <> · <VoirLaPhoto chemin={p.trace.photo.chemin} /></>}
                       </span>
                     ))}
                   </div>

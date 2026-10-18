@@ -466,6 +466,8 @@ export type ReglementDuTicket = {
   mndPayId?: string;
   note?: string;
   fx?: { code: string; rate: number; amount: number };
+  /** La trace d'une part en chèque ou en carte (18 octobre 2026). */
+  trace?: import('./trace-du-moyen-pur').TraceDuMoyen;
 };
 export function resteDuTicket(aPayerXof: number, reglements: readonly ReglementDuTicket[]): number {
   return Math.max(0, f(aPayerXof) - reglements.reduce((n, r) => n + f(r.montantXof), 0));
@@ -489,6 +491,7 @@ export function versementsDesParts(
       ...(v.encaissePar ? { encaissePar: v.encaissePar } : {}),
       ...(p.note ? { note: p.note } : {}),
       ...(p.fx ? { fx: p.fx } : {}),
+      ...(p.trace ? { trace: p.trace } : {}),
     };
   });
 }

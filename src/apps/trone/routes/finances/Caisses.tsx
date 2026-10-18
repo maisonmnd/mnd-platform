@@ -3,6 +3,7 @@ import { ClotureDuTiroir } from './ClotureDuTiroir';
 import { DepartDesCaisses, moisEtAn } from './DepartDesCaisses';
 import { BasculeDOctobre } from './BasculeDOctobre';
 import { FusionDesCaisses } from './FusionDesCaisses';
+import { ChequesADeposer } from './ChequesADeposer';
 import { gardeToutSonPasse } from '../../../../shared/finance';
 import { useNavigate } from 'react-router-dom';
 import { Eyebrow, Modal, demande, demandeUnTexte } from '../../../../ds/components';
@@ -358,6 +359,8 @@ export default function Caisses() {
       </div>
 
       <FusionDesCaisses />
+      {/* LES CHÈQUES À DÉPOSER (18 octobre 2026, maquette « Chèque et carte »). */}
+      <ChequesADeposer />
 
       <div className="trf-toolbar">
         <MonthNav month={month} onChange={setMonth} />

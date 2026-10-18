@@ -26,6 +26,7 @@ import {
   type Invoice, type InvoicePayment, type PaymentMethod,
 } from '../../../../shared/finance';
 import type { Appointment } from '../../../../shared/agenda';
+import type { TraceDuMoyen } from '../../../../shared/trace-du-moyen-pur';
 
 const f = (x: number): number => Math.max(0, Math.round(Number.isFinite(x) ? x : 0));
 
@@ -152,6 +153,8 @@ export function versementsDuTicket(v: {
   moyen: PaymentMethod;
   caisse?: string;
   fx?: { code: string; rate: number; amount: number };
+  /** La trace du chèque ou de la carte qui ferme le ticket (18 octobre 2026). */
+  trace?: TraceDuMoyen;
   avoirXof: number;
   acompteXof: number;
   acompteDate?: string;
@@ -187,6 +190,7 @@ export function versementsDuTicket(v: {
       ...(v.time ? { time: v.time } : {}),
       ...(v.encaissePar ? { encaissePar: v.encaissePar } : {}),
       ...(v.fx ? { fx: v.fx } : {}),
+      ...(v.trace ? { trace: v.trace } : {}),
     });
   }
   if (f(v.avoirXof) > 0) {
@@ -212,7 +216,7 @@ export function ceQueLeRendezVousRecoit(e: { partNetteXof: number; acompteXof: n
     versements déjà reçus restent tels quels. */
 export function soldeDeLaPiece(
   inv: Invoice,
-  v: { id: string; jour: string; moyen: PaymentMethod; caisse?: string; time?: string; encaissePar?: string },
+  v: { id: string; jour: string; moyen: PaymentMethod; caisse?: string; time?: string; encaissePar?: string; trace?: TraceDuMoyen },
 ): Pick<Invoice, 'status' | 'payment' | 'payments'> {
   const deja = invoiceReglements(inv);
   const reste = invoiceResteXof(inv);
@@ -222,6 +226,7 @@ export function soldeDeLaPiece(
       ...(v.caisse ? { cashbox: v.caisse } : {}),
       ...(v.time ? { time: v.time } : {}),
       ...(v.encaissePar ? { encaissePar: v.encaissePar } : {}),
+      ...(v.trace ? { trace: v.trace } : {}),
     }]
     : deja;
   return { status: 'payée', payment: v.moyen, payments };

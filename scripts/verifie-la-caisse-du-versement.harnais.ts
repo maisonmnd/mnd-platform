@@ -123,7 +123,7 @@ dit('le detail du Trone les nomme', true, /trv-caisses-du-doc[\s\S]{0,900}p\.cas
   dit('la fenêtre d encaissement s arrête, le dit, et propose d inscrire au carnet', [true, true, true, true],
     [/const horsCarnet = due > 0 \? argentHorsDuCarnet\(appt, pieceDuRituelOuverte\) : 0;/.test(act),
       /const empecheTout = horsCarnet > 0 \|\|/.test(act),
-      /if \(ditLaCaisse \|\| partsTropHautes \|\| avoirTropHaut \|\| mndEnAttente \|\| horsCarnet > 0\) return;/.test(act),
+      /if \(ditLaCaisse \|\| partsTropHautes \|\| avoirTropHaut \|\| mndEnAttente \|\| horsCarnet > 0( \|\| traceQuiManque)?\) return;/.test(act),
       /<Button variant="ghost" onClick=\{inscrisAuCarnet\}/.test(act)]);
 }
 

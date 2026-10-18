@@ -111,12 +111,15 @@ const SEMENCE = {
     { id: 'cl-awa', branchId: 'maison', name: 'Awa Banc', phone: '', city: '', persona: '', since: AUJ, segments: [] },
     { id: 'cl-fif', branchId: 'maison', name: 'Fifamè Banc', phone: '', city: '', persona: '', since: JOUR_PASSE, segments: [] },
     { id: 'cl-ann', branchId: 'maison', name: 'Annick Banc', phone: '', city: '', persona: '', since: AUJ, segments: [] },
+    { id: 'cl-che', branchId: 'maison', name: 'Chloé Banc', phone: '', city: '', persona: '', since: AUJ, segments: [] },
   ],
   'trone::mnd_appointments': [
     { id: 'rdv-awa', branchId: 'maison', clientId: 'cl-awa', clientName: 'Awa Banc', serviceIds: ['sv-banc'], master: 'Aïcha Banc', date: AUJ, time: '10:00', status: 'confirmé' },
     { id: 'rdv-fif', branchId: 'maison', clientId: 'cl-fif', clientName: 'Fifamè Banc', serviceIds: ['sv-banc'], master: 'Aïcha Banc', date: JOUR_PASSE, time: '10:00', status: 'confirmé' },
     /* LE RITUEL D'ANNICK A. (18 octobre 2026) : son versement perdu au carnet, gardé par la facture. */
     { id: 'rdv-ann', branchId: 'maison', clientId: 'cl-ann', clientName: 'Annick Banc', serviceIds: ['sv-banc'], master: 'Aïcha Banc', date: AUJ, time: '11:00', status: 'confirmé' },
+    /* LE CHÈQUE (18 octobre 2026, maquette « Chèque et carte ») */
+    { id: 'rdv-che', branchId: 'maison', clientId: 'cl-che', clientName: 'Chloé Banc', serviceIds: ['sv-banc'], master: 'Aïcha Banc', date: AUJ, time: '12:00', status: 'confirmé' },
   ],
   'trone::mnd_invoices': [
     { id: 'inv-ann', branchId: 'maison', kind: 'facture', number: 'F-BANC-0732', clientId: 'cl-ann', clientName: 'Annick Banc', date: AUJ, apptId: 'rdv-ann',
@@ -208,6 +211,32 @@ dit('le carnet porte le versement de la facture, sous son identifiant', JSON.str
 dit('le reste dû devient le vrai reste, et l alerte se tait', !/que le carnet ne connaît pas/.test(t) && /20\s000\sF/.test(t));
 await cdp('Page.reload', { ignoreCache: false });
 await attend(3000);
+
+/* ── D. UN CHÈQUE NE S'ENCAISSE PAS SANS SA TRACE ── */
+dit('le Carnet ouvre l encaissement de Chloé', await ouvreLEncaissement('Chloé'));
+dit('la tuile Chèque se choisit', await clique('.mnd-modal button', 'Chèque'));
+await attend(500);
+const boutonChe = () => evalue(`(() => { const b = [...document.querySelectorAll('.mnd-modal button')].find((x) => /^Encaisser [0-9]/.test(x.textContent.trim())); return b ? b.disabled : null; })()`);
+t = await texteModale();
+dit('sans banque ni numéro ni photo, le bouton attend et l écran dit pourquoi', (await boutonChe()) === true && /Renseignez la banque et le numéro du chèque, ou prenez-le en photo/.test(t));
+await evalue(`(() => { const s = document.querySelector('.mnd-modal select[aria-label^="Banque du chèque"]'); if (!s) return false;
+  Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set.call(s, 'BOA Bénin'); s.dispatchEvent(new Event('change', { bubbles: true })); return true; })()`);
+await attend(300);
+dit('la banque seule ne suffit pas', (await boutonChe()) === true);
+await evalue(`(() => { const i = document.querySelector('.mnd-modal input[aria-label^="Numéro du chèque"]'); if (!i) return false;
+  Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(i, '1234567'); i.dispatchEvent(new Event('input', { bubbles: true })); return true; })()`);
+await attend(400);
+dit('la banque et le numéro ouvrent le bouton', (await boutonChe()) === false);
+dit('le chèque s encaisse', await clique('.mnd-modal button', 'Encaisser 30'));
+await attend(2500);
+const pche = ((await lis('trone::mnd_invoices')) ?? []).find((x) => x.apptId === 'rdv-che');
+const vche = (pche?.payments ?? []).map((x) => [x.method, x.amountXof, x.cashbox, x.trace?.banque, x.trace?.numero]);
+dit('le versement porte sa trace : chèque, BOA Bénin, n° 1234567, à la banque', JSON.stringify(vche) === JSON.stringify([['Chèque', 30000, 'La Banque', 'BOA Bénin', '1234567']]), JSON.stringify(vche));
+
+await cdp('Page.navigate', { url: `http://127.0.0.1:${port}/trone.html#/caisses` });
+await attend(4500);
+const depot = await evalue(String.raw`(document.querySelector('[data-cheques-a-deposer]')?.innerText || '').replace(/\s+/g, ' ')`);
+dit('Caisses : le chèque attend son dépôt, avec sa banque et son numéro', /Chèques à déposer/.test(depot) && /Chloé Banc · BOA Bénin · n° 1234567/.test(depot), depot.slice(0, 120));
 
 /* Le rituel du jour ne voit jamais les années passées, même la caisse née. */
 await cdp('Page.navigate', { url: `http://127.0.0.1:${port}/trone.html#/carnet?q=Awa` });

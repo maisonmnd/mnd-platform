@@ -44,6 +44,8 @@ import './vente.css';
 import { cheminDeLaConversation } from '../../../../shared/conversations';
 import { RattacherUneCarte } from './RattacherUneCarte';
 import { leTicket, versementsDuTicket, ceQueLeRendezVousRecoit, lArgentDejaRecu, aDejaSaPiece } from './encaissement-pur';
+import { ditCeQuiManque, familleDeTrace, traceAEcrire, traceSuffit, type TraceDuMoyen } from '../../../../shared/trace-du-moyen-pur';
+import { ChampsDeLaTrace } from './TraceDuMoyen';
 import { useStaff, adresseDe } from '../equipe/data';
 import { caisseProposee, caissesAuChoix, peutChangerLaCaisse } from '../../../../shared/caisses-des-caissiers-pur';
 import { identiteCourante } from '../../../../shared/journal';
@@ -277,6 +279,8 @@ export default function Caisse() {
   const [pourboireStr, setPourboireStr] = useState('0');
   const [parts, setParts] = useState<ReglementDuTicket[]>([]);
   const [partStr, setPartStr] = useState('');
+  /* La trace du chèque ou de la carte en cours (18 octobre 2026). */
+  const [traceCaisse, setTraceCaisse] = useState<TraceDuMoyen>({});
   const [envoyerRecu, setEnvoyerRecu] = useState(true);
   const [recuHint, setRecuHint] = useState<string | null>(null);
   const [team] = useStaff();
@@ -653,14 +657,21 @@ export default function Caisse() {
   const fxRateNum = Math.max(0, Number(fxRate) || 0);
   const fxAmount = fxOnEff && fxRateNum > 0 ? Math.round((resteApresParts / fxRateNum) * 100) / 100 : 0;
   const partSaisie = Math.max(0, Math.round(Number(partStr) || 0));
-  const partPossible = partSaisie > 0 && partSaisie < resteApresParts && pay !== MND && pay !== 'Lien WhatsApp' && !fxOnEff;
+  /* LA TRACE (maquette « Chèque et carte ») : un chèque ou une carte ne
+     s'encaisse pas sans elle, ni en part ni pour le reste. */
+  const famPay = pay === MND ? null : familleDeTrace(pay);
+  const traceDuMoyenOk = !famPay || traceSuffit(famPay, traceCaisse);
+  const partPossible = partSaisie > 0 && partSaisie < resteApresParts && pay !== MND && pay !== 'Lien WhatsApp' && !fxOnEff && traceDuMoyenOk;
   const ajouteLaPart = () => {
     if (!partPossible) return;
+    const trace = famPay ? traceAEcrire(famPay, traceCaisse) : undefined;
     setParts((prev) => [...prev, {
       id: `ip-${uid()}`, methode: pay, montantXof: partSaisie,
       ...(activeCashbox ? { caisse: activeCashbox } : {}),
+      ...(trace ? { trace } : {}),
     }]);
     setPartStr('');
+    setTraceCaisse({});
   };
 
   /* — encaissement — */
@@ -671,6 +682,7 @@ export default function Caisse() {
   const checkout = async (mndPay?: DemandeMndPay) => {
     if (lines.length === 0 || devisMissing.length > 0) return;
     if (pay === MND && !mndPay) return;
+    if (!mndPay && resteApresParts > 0 && !traceDuMoyenOk) return;
     if (submitting.current) return;
     submitting.current = true;
     try {
@@ -724,6 +736,7 @@ export default function Caisse() {
       comptantXof: mndPay ? 0 : montantFinal,
       moyen: pay,
       caisse: activeCashbox || undefined,
+      ...(!mndPay && famPay ? { trace: traceAEcrire(famPay, traceCaisse) } : {}),
       fx: piece.fx,
       avoirXof: posAvoir,
       acompteXof: ticket.acompteXof,
@@ -980,6 +993,7 @@ export default function Caisse() {
       }).then((r) => setRecuHint(r.ok ? (r.enAttente ? 'Reçu gardé : il partira sur son WhatsApp au retour du réseau.' : 'Reçu envoyé sur son WhatsApp.') : `Reçu non envoyé : ${r.erreur}`));
     }
     setCart({});
+    setTraceCaisse({});
     /* LA DATE REVIENT À AUJOURD'HUI. Laissée sur hier, elle ferait tomber la
        vente suivante au mauvais jour sans que personne le remarque — et c'est
        précisément la faute qu'on vient de corriger. */
@@ -1498,6 +1512,7 @@ export default function Caisse() {
               <div className="tr-grid tr-grid--2" style={{ gap: 10 }}>
                 {(zelleOn && !methods.includes(MOYEN_ZELLE) ? [...methods, MOYEN_ZELLE] : methods).map((m) => (
                   <button key={m} className={`trv-pay ${pay === m ? 'is-active' : ''}`} onClick={() => {
+                    if (m !== pay) setTraceCaisse({});
                     setPay(m);
                     if (m === MOYEN_ZELLE) setFxRate(String(rateToXof('USD') || ''));
                   }}>
@@ -1583,6 +1598,12 @@ export default function Caisse() {
                 </div>
               )}
 
+              {/* LA TRACE DU CHÈQUE OU DE LA CARTE (18 octobre 2026). */}
+              {famPay && lines.length > 0 && resteApresParts > 0 && (
+                <div style={{ marginTop: 12 }}>
+                  <ChampsDeLaTrace famille={famPay} valeur={traceCaisse} onChange={setTraceCaisse} branchId={branch.id} />
+                </div>
+              )}
               {/* PLUSIEURS MOYENS SUR UN TICKET (MND PAY, sa décision) : une
                   part dans le moyen choisi, puis le reste dans un autre. */}
               {lines.length > 0 && resteApresParts > 0 && (
@@ -1639,7 +1660,8 @@ export default function Caisse() {
                    caisse UNIQUEMENT en devise étrangère : verser des euros au tiroir
                    en francs fausserait les deux soldes. Et JAMAIS un sur-devis sans
                    montant : une œuvre vendue 0 F par inattention. */
-                disabled={lines.length === 0 || devisMissing.length > 0 || (fxOnEff && resteApresParts > 0 && (!hasCashbox || fxAmount <= 0))}
+                disabled={lines.length === 0 || devisMissing.length > 0 || (fxOnEff && resteApresParts > 0 && (!hasCashbox || fxAmount <= 0)) || (resteApresParts > 0 && !traceDuMoyenOk)}
+                title={resteApresParts > 0 && !traceDuMoyenOk && famPay ? ditCeQuiManque(famPay) : undefined}
                 onClick={() => void checkout()}
               >
                 {posCashDue === 0 && posAvoir > 0

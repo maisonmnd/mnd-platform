@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { createStore, useStore, uid, type Store } from './store';
 import { sameName } from './text';
 import { identiteCourante } from './journal';
+import type { TraceDuMoyen } from './trace-du-moyen-pur';
 
 /* Finances — factures/devis, dépenses, caisses. Montants stockés en XOF. */
 
@@ -83,6 +84,10 @@ export type InvoicePayment = {
       Absent sur tout ce qui précède : le registre se tait plutôt que de
       deviner. */
   encaissePar?: string;
+  /** LA TRACE D'UN CHÈQUE OU D'UNE CARTE (18 octobre 2026) : banque et
+      numéro, n° d'autorisation, photo privée, jour du dépôt. Au Trône
+      seulement : le document remis à la cliente dit « Chèque », sans plus. */
+  trace?: TraceDuMoyen;
 };
 
 export type InvoiceLine = {

@@ -43,6 +43,8 @@ import { CAISSE_MND_PAY, moyenDeLaPiece, type DemandeMndPay } from '../../../../
 import { mndPayOuvert } from '../../../../shared/mnd-pay';
 import { useEnvoiDeLaPiece } from '../vente/envoi-de-la-piece';
 import { argentHorsDuCarnet, versementsAInscrireAuCarnet } from '../../../../shared/caisse-du-versement';
+import { ditCeQuiManque, familleDeTrace, traceAEcrire, traceSuffit, type TraceDuMoyen } from '../../../../shared/trace-du-moyen-pur';
+import { ChampsDeLaTrace } from '../vente/TraceDuMoyen';
 import {
   CAISSE_ANNEES_PASSEES, anneeDe, caisseDesAnneesPassees, caisseProposee, caissesAuChoix, estAnneeAnterieure,
   familleDuMoyen, peutChangerLaCaisse, prenomDe, type CaisseProposee,
@@ -831,7 +833,7 @@ const DIT_LA_TUILE: Record<TuileEnc, string> = {
 /** UNE PART DU RÈGLEMENT : sa tuile, son montant, et la caisse qu'une main
     de la direction a choisie à la place de celle qui se propose. `mnd` : la
     part MND PAY payée (le vert de FedaPay est venu). */
-type PartEnc = { id: string; tuile: TuileEnc; montantStr: string; autre?: string; caisseChoisie?: string; choixOuvert?: boolean; mnd?: { id: string; methode: string } };
+type PartEnc = { id: string; tuile: TuileEnc; montantStr: string; autre?: string; caisseChoisie?: string; choixOuvert?: boolean; mnd?: { id: string; methode: string }; trace?: TraceDuMoyen };
 const partNeuve = (tuile: TuileEnc, montant: number | ''): PartEnc =>
   ({ id: `pt-${uid()}`, tuile, montantStr: montant === '' ? '' : String(Math.max(0, Math.round(montant))) });
 /** Où va l'argent d'une part : son moyen écrit, sa caisse, ce que la règle
@@ -1337,6 +1339,13 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour }: {
     return { methode, caisse: choisie || proposee.caisse || '', proposee, peutChanger: peut };
   };
   const lesCaisses = parts.map(caisseDeLaPart);
+  /* LA TRACE DU CHÈQUE ET DE LA CARTE (18 octobre 2026, maquette « Chèque et
+     carte ») : banque et numéro, ou photo ; n° d'autorisation, ou photo. Une
+     part qui n'a pas la sienne retient l'encaissement. */
+  const traceQuiManque = parts.map((pt, i) => {
+    const fam = familleDeTrace(lesCaisses[i]?.methode);
+    return fam && Math.max(0, Math.round(Number(pt.montantStr) || 0)) > 0 && !traceSuffit(fam, pt.trace) ? fam : null;
+  }).find((f) => f !== null) ?? null;
   /* LA PART QUI SIGNE LA PIÈCE : la première qui apporte de l'argent hors
      avoir. Son moyen et sa caisse sont ceux que les écrans à un seul moyen
      continuent de lire. */
@@ -1483,7 +1492,7 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour }: {
     if (amount <= 0 && avoirApplied <= 0 && totalGamme <= 0 && tip <= 0 && !depositJustConfirmed && !reschedule) return;
     /* La ceinture du bouton grisé : aucun chemin n'écrit un argent sans tiroir,
        ni des parts qui dépassent le reste, ni une part MND PAY pas encore payée. */
-    if (ditLaCaisse || partsTropHautes || avoirTropHaut || mndEnAttente || horsCarnet > 0) return;
+    if (ditLaCaisse || partsTropHautes || avoirTropHaut || mndEnAttente || horsCarnet > 0 || traceQuiManque) return;
     submitting.current = true;
     /* LA CAISSE DES ANNÉES PASSÉES naît au premier argent qui y entre
        (identifiant tiré de la branche : deux postes n'en font qu'une). */
@@ -1615,10 +1624,13 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour }: {
         if (pt.tuile === 'avoir' || x <= 0) return;
         const c = lesCaisses[i];
         const mnd = pt.tuile === 'mndpay' ? mndPayRef.current : null;
+        const famTrace = familleDeTrace(c.methode);
+        const trace = famTrace ? traceAEcrire(famTrace, pt.trace) : undefined;
         versements.push({
           /* Le versement d'une demande MND PAY garde SON identifiant. */
           id: mnd?.id ?? `ip-${uid()}`, date: payDate, amountXof: x,
           method: c.methode, cashbox: c.caisse || undefined,
+          ...(trace ? { trace } : {}),
           ...(mnd ? { note: `${mnd.moyen === 'tapgo' ? 'MND PAY · Tap & Go' : 'MND PAY'}${mnd.reference ? ` · réf. ${mnd.reference}` : ''}${mnd.fraisXof > 0 ? ` · frais ${mnd.fraisXof} F payés par la cliente` : ''}` } : {}),
           time: new Date().toTimeString().slice(0, 5),
           ...(quiEncaisse() ? { encaissePar: quiEncaisse() } : {}),
@@ -2075,6 +2087,8 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour }: {
      dit la première raison, une seule, celle qu'on peut régler tout de suite. */
   const blocage = horsCarnet > 0
     ? `La facture ${pieceDuRituelOuverte?.number ?? ''} porte déjà ${fmtMoney(horsCarnet, currency)} que le carnet ne connaît pas. Encaisser ici les compterait deux fois : inscrivez-les d’abord au carnet.`
+    : traceQuiManque
+    ? ditCeQuiManque(traceQuiManque)
     : partsTropHautes
     ? `Les parts font ${fmtMoney(amount + avoirDemande, currency)} pour ${fmtMoney(due, currency)} dû : baissez une part.`
     : avoirTropHaut
@@ -2090,7 +2104,7 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour }: {
               : fxOn && fxAmount <= 0
                 ? 'Indiquez le taux de la devise, dans « Et ensuite ».'
                 : '';
-  const empecheTout = horsCarnet > 0 || partsTropHautes || avoirTropHaut || mndEnAttente || (fxOn && fxAmount <= 0) || fxBlocked || ditLaCaisse;
+  const empecheTout = horsCarnet > 0 || !!traceQuiManque || partsTropHautes || avoirTropHaut || mndEnAttente || (fxOn && fxAmount <= 0) || fxBlocked || ditLaCaisse;
   const lesAutres = autresMethodes(methods);
   const tuilesOffertes = TUILES_ENC.filter((t) => (t.id !== 'mndpay' || (mndOn && !fxOn))
     && (t.id !== 'avoir' || avoirBal > 0)
@@ -2541,6 +2555,15 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour }: {
                       </Select>
                     )}
                   </div>
+                )}
+                {familleDeTrace(c.methode) && x > 0 && (
+                  <ChampsDeLaTrace
+                    famille={familleDeTrace(c.methode)!}
+                    valeur={p.trace}
+                    onChange={(t) => majPart(p.id, { trace: t })}
+                    branchId={branch.id}
+                    etiquette={parts.length > 1 ? `Part ${i + 1}` : undefined}
+                  />
                 )}
                 {/* MND PAY : la part se demande au téléphone de la cliente (ou
                     par le code USSD Tap & Go, ou un QR) et s'encaisse seule au
