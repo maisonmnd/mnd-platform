@@ -34,6 +34,7 @@ dit('chèque : banque ET numéro, ou une photo ; « Autre banque » sans son nom
 dit('carte : le n° d autorisation du ticket, ou une photo', [true, false, true, false], [traceSuffit('carte', { autorisation: '4F7A21' }), traceSuffit('carte', {}), traceSuffit('carte', { photo }), traceSuffit('carte', { autorisation: 'ab' })]);
 dit('les autres moyens ne demandent rien', true, traceSuffit(null, undefined));
 dit('la liste des banques finit par « Autre banque » (proposée à part)', [true, false], [BANQUES_DU_BENIN.length >= 8, BANQUES_DU_BENIN.includes(AUTRE_BANQUE)]);
+dit('la Société Générale est dans la liste (18 octobre 2026, sa demande)', true, BANQUES_DU_BENIN.includes('Société Générale Bénin'));
 dit('la trace se nettoie avant de s écrire (espaces, majuscules, rien de vide)', [{ banque: 'BOA Bénin', numero: '1234567' }, { autorisation: '4F7A21', quatre: '1234' }, undefined],
   [traceAEcrire('cheque', { banque: ' BOA  Bénin ', numero: '123 4567', auNomDe: ' ' }), traceAEcrire('carte', { autorisation: '4f7a21', quatre: '1234' }), traceAEcrire('cheque', {})]);
 dit('la trace se dit au Trône', ['BOA Bénin · n° 1234567 · au nom de K. Agossou', 'autorisation 4F7A21 · •••• 1234 · photo jointe'],

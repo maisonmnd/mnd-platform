@@ -44,7 +44,7 @@ export function familleDeTrace(methode: string | undefined): FamilleDeTrace | nu
 /** Les banques du Bénin proposées (liste à vérifier par la Maison) ; « Autre banque » en dernier. */
 export const BANQUES_DU_BENIN: readonly string[] = [
   'BOA Bénin', 'Ecobank Bénin', 'Orabank Bénin', 'BIIC', 'UBA Bénin', 'NSIA Banque Bénin', 'Coris Bank Bénin',
-  'BGFIBank Bénin', 'Banque Atlantique Bénin', 'CCEI Bank Bénin', 'BSIC Bénin',
+  'BGFIBank Bénin', 'Banque Atlantique Bénin', 'CCEI Bank Bénin', 'BSIC Bénin', 'Société Générale Bénin',
 ];
 export const AUTRE_BANQUE = 'Autre banque';
 
