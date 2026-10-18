@@ -291,7 +291,11 @@ Deno.serve(async (req) => {
   const toutes: Piece[] = invRows.map((r) => r.data as Piece);
   const fraiches = toutes.filter((p) => {
     const j = jourDuSolde(p);
-    return (j === aujourdhui || j === hier) && (p.clientId ?? '') !== '' && regleXof(p) > 0;
+    /* LE PASSAGE AUSSI DOIT ÊTRE FRAIS — 18 octobre 2026 : « ne pas faire voir
+       mon retard aux clients » (Yéman). Un rituel d'un jour passé réglé ce
+       matin ne reçoit pas de « merci pour votre passage » : la pièce elle-même
+       doit dater d'aujourd'hui ou d'hier. */
+    return (j === aujourdhui || j === hier) && (p.date === aujourdhui || p.date === hier) && (p.clientId ?? '') !== '' && regleXof(p) > 0;
   });
   if (fraiches.length === 0) {
     return new Response(JSON.stringify({ actif: true, jour: aujourdhui, candidates: 0 }), { status: 200 });

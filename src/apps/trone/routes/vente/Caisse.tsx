@@ -53,7 +53,7 @@ import {
   type DemandeMndPay, type ReglementDuTicket,
 } from '../../../../shared/mnd-pay-pur';
 import { assureLesCaissesMndPay, mndPayOuvert } from '../../../../shared/mnd-pay';
-import { envoieLeRecu } from '../../../../shared/recu-whatsapp';
+import { envoieLeRecu, recuAEnvoyer } from '../../../../shared/recu-whatsapp';
 import { PanneauMndPay } from './MndPay';
 import { JournalMndPay } from './JournalMndPay';
 
@@ -965,7 +965,14 @@ export default function Caisse() {
     /* LE REÇU PART SEUL SUR SON WHATSAPP (MND PAY, sa décision). Il ne retient
        pas la caisse : la vente est faite, l'envoi se dit quand il revient. */
     setRecuHint(null);
-    if (envoyerRecu && client?.phone && pay !== 'Lien WhatsApp') {
+    /* JAMAIS DE REÇU POUR UN RATTRAPAGE (18 octobre 2026) : une vente datée
+       d'un jour passé, ou le règlement d'un rituel passé, ne prévient pas la
+       cliente. */
+    const recuPermis = recuAEnvoyer({ jourDuPaiement: dateVente, jourDuRituel: rituelChoisi?.date, aujourdhui: todayIso() });
+    if (envoyerRecu && client?.phone && pay !== 'Lien WhatsApp' && !recuPermis) {
+      setRecuHint('Reçu non envoyé : un rattrapage d’un jour passé ne prévient pas la cliente.');
+    }
+    if (envoyerRecu && client?.phone && pay !== 'Lien WhatsApp' && recuPermis) {
       const montantDit = fmtMoney(argentDuJour.reduce((n, v) => n + v.amountXof, 0) || netXof, currency);
       void envoieLeRecu({
         client: { ...client, branchId: client.branchId }, pdf: receipt, montant: montantDit, jourIso: dateVente,

@@ -30,7 +30,7 @@ import type { Invoice } from '../src/shared/finance';
 import { saitLEcheanceSuivante } from '../src/shared/kkiapay';
 import { envoieLeNumeroTapGo } from '../src/shared/tapgo-whatsapp';
 import { envoieLaFactureARegler, variablesDeLaFacture, MODELE_FACTURE, refusDuModele } from '../src/shared/facture-whatsapp';
-import { motDuRecu } from '../src/shared/recu-whatsapp';
+import { motDuRecu, recuAEnvoyer } from '../src/shared/recu-whatsapp';
 import type { EnvoiWhatsApp, ResultatDEnvoi } from '../src/shared/whatsapp';
 
 let ko = 0;
@@ -437,11 +437,26 @@ dit('l envoi transporte le paramètre du bouton jusqu à la fonction', true, /\.
   dit('... et le chemin des envois le demande avant de la poser', true, /&& saitLesFactures\(await versionDeMndPay\(\)\)\) \{/.test(env));
   const iAtt = env.indexOf("genre: 'lien', moyen: 'tapgo'");
   const iPrep = env.indexOf('const p = await preparer(pieceId);');
-  dit('les envois : l argent ou le rituel d aujourd hui seulement (jour local), l attente posée avant le PDF', [true, true, true, true],
-    [/if \(jourDuPaiement !== aujourdhui\(\) \|\| !\(montantXof > 0\)\) return;/.test(env), /if \(jourDuRituel !== aujourdhui\(\)\) return;/.test(env),
+  /* 18 octobre 2026 : « toutes les régularisations de versement des RDV du passé ne doivent en
+     aucun cas recevoir un message de reçu de paiement. Juste les versements du jour et ceux qui
+     sont prépayés. Ne pas faire voir mon retard aux clients. » */
+  const J = '2026-10-18';
+  dit('le reçu : l argent du jour pour le rituel du jour ou à venir (prépayé) ; jamais un rituel passé, même réglé ce matin', [true, true, false, false, true, false],
+    [recuAEnvoyer({ jourDuPaiement: J, jourDuRituel: J, aujourdhui: J }), recuAEnvoyer({ jourDuPaiement: J, jourDuRituel: '2026-10-25', aujourdhui: J }),
+      recuAEnvoyer({ jourDuPaiement: J, jourDuRituel: '2026-10-12', aujourdhui: J }), recuAEnvoyer({ jourDuPaiement: '2026-10-12', jourDuRituel: '2026-10-12', aujourdhui: J }),
+      recuAEnvoyer({ jourDuPaiement: J, aujourdhui: J }), recuAEnvoyer({ jourDuPaiement: '2026-10-17', aujourdhui: J })]);
+  dit('les envois : la règle du reçu, le rituel d aujourd hui seulement pour la facture à régler (jour local), l attente posée avant le PDF', [true, true, true, true],
+    [/if \(!recuAEnvoyer\(\{ jourDuPaiement, jourDuRituel, aujourdhui: aujourdhui\(\) \}\) \|\| !\(montantXof > 0\)\) return;/.test(env), /if \(jourDuRituel !== aujourdhui\(\)\) return;/.test(env),
       /const aujourdhui = \(\) => jourLocal\(new Date\(\)\.toISOString\(\)\);/.test(env), iAtt > 0 && iPrep > iAtt]);
-  dit('l encaissement passe par ce chemin, avec le jour du paiement', true,
-    /envoiDeLaPiece\.apresReglement\(pieceId, montantXof, payDate\)/.test(act) && /void envoieLaFacture\(idPieceEncaissee, settleTotal \+ totalGamme\)/.test(act));
+  dit('l encaissement passe par ce chemin, avec le jour du paiement ET celui du rituel', true,
+    /envoiDeLaPiece\.apresReglement\(pieceId, montantXof, payDate, appt\.date\)/.test(act) && /void envoieLaFacture\(idPieceEncaissee, settleTotal \+ totalGamme\)/.test(act));
+  const caisse = lis('src/apps/trone/routes/vente/Caisse.tsx');
+  const avis = lis('supabase/functions/avis-google/index.ts');
+  dit('la Caisse, la demande d avis du comptoir et celle du serveur ne font pas voir le retard', [true, true, true, true],
+    [/const recuPermis = recuAEnvoyer\(\{ jourDuPaiement: dateVente, jourDuRituel: rituelChoisi\?\.date, aujourdhui: todayIso\(\) \}\);/.test(caisse),
+      /if \(envoyerRecu && client\?\.phone && pay !== 'Lien WhatsApp' && recuPermis\) \{/.test(caisse),
+      /autoConfigStore\.get\(\)\.avisAuto !== true && appt\.date >= addDaysISO\(todayISO\(\), -1\)\) \{/.test(act),
+      /\(j === aujourdhui \|\| j === hier\) && \(p\.date === aujourdhui \|\| p\.date === hier\)/.test(avis)]);
   dit('honorer sans encaisser envoie la facture à régler, partout (rituel, Carnet, tableau de bord)', [true, true, true],
     ['src/apps/trone/routes/clients/actions.tsx', 'src/apps/trone/routes/clients/Carnet.tsx', 'src/apps/trone/routes/pilotage/Dashboard.tsx']
       .map((f) => /if \(h\.facture && !h\.deja\) void envoiDeLaPiece\.aRegler\(h\.facture\.id, (appt|a)\.date\);/.test(lis(f))));

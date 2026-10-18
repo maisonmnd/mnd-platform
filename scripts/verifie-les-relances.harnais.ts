@@ -41,12 +41,20 @@ const SERVEUR = 'supabase/functions/relances-factures/index.ts';
 {
   const r: ReglagesRelances = { actives: true, depuis: '2026-10-18' };
   dit('la cadence de sa décision : J+1, J+3, J+7, J+14', [1, 3, 7, 14], [...CADENCE_DES_RELANCES]);
+  const jd = (iso: string) => iso.slice(0, 10);
+  const du = (date: string, creeeLe = `${date}T10:00:00Z`) => ({ id: 'a', date, creeeLe });
   dit('le départ : éteintes rien ; du lancement et après, sa date ; d avant, rien ; rattrapée, le jour de la validation ; plus de 30 jours avant, rien',
     [null, '2026-10-20', null, '2026-10-25', null],
-    [departDesRelances({ id: 'a', date: '2026-10-20' }, { depuis: '2026-10-18' }), departDesRelances({ id: 'a', date: '2026-10-20' }, r),
-      departDesRelances({ id: 'b', date: '2026-10-10' }, r),
-      departDesRelances({ id: 'b', date: '2026-10-10' }, { ...r, rattrapage: { valideLe: '2026-10-25', ids: ['b'] } }),
-      departDesRelances({ id: 'c', date: '2026-09-01' }, { ...r, rattrapage: { valideLe: '2026-10-25', ids: ['c'] } })]);
+    [departDesRelances(du('2026-10-20'), { depuis: '2026-10-18' }, jd), departDesRelances(du('2026-10-20'), r, jd),
+      departDesRelances({ ...du('2026-10-10'), id: 'b' }, r, jd),
+      departDesRelances({ ...du('2026-10-10'), id: 'b' }, { ...r, rattrapage: { valideLe: '2026-10-25', ids: ['b'] } }, jd),
+      departDesRelances({ ...du('2026-09-01'), id: 'c' }, { ...r, rattrapage: { valideLe: '2026-10-25', ids: ['c'] } }, jd)]);
+  /* 18 octobre 2026 : « ne pas faire voir mon retard aux clients ». */
+  dit('une pièce écrite après son jour (un rattrapage du comptoir) ne se relance pas seule ; sans date d écriture non plus ; prépayée oui ; cochée au rattrapage oui',
+    [null, null, '2026-10-25', '2026-10-28'],
+    [departDesRelances(du('2026-10-20', '2026-10-22T09:00:00Z'), r, jd), departDesRelances({ id: 'a', date: '2026-10-20' }, r, jd),
+      departDesRelances(du('2026-10-25', '2026-10-20T09:00:00Z'), r, jd),
+      departDesRelances({ id: 'x', date: '2026-10-01', creeeLe: '2026-10-27T09:00:00Z' }, { ...r, rattrapage: { valideLe: '2026-10-28', ids: ['x'] } }, jd)]);
   const base = { depart: '2026-10-18', parties: 0, aujourdhui: '2026-10-18', resteXof: 2000, enPause: false, aRepondu: false };
   const jour = (j: string, parties: number, derniereLe?: string) => relanceDuJour({ ...base, aujourdhui: j, parties, derniereLe });
   dit('le jour même rien ; J+1 la 1re ; J+2 rien ; J+3 la 2e ; J+7 la 3e ; J+14 la 4e ; puis plus rien', [null, 1, null, 2, 3, 4, null],
@@ -157,7 +165,7 @@ const MAINTENANT = Date.parse('2026-10-19T09:00:00Z'); // 10 h au salon, J+1 d'u
 const fiche = (id: string, phone: string, extra: Record<string, unknown> = {}): Ligne => ({ id, data: { name: 'Awa Dossou', civilite: 'madame', phone, ...extra } });
 const facture = (id: string, extra: Record<string, unknown> = {}): Ligne => ({
   id, branch_id: 'b1',
-  data: { kind: 'facture', status: 'envoyée', date: '2026-10-18', number: 'MND-2026-0160', branchId: 'b1', clientId: 'c1', clientName: 'Awa Dossou', lines: [{ qty: 1, unitXof: 2000, discountPct: 0 }], globalDiscountPct: 0, payments: [], ...extra },
+  data: { kind: 'facture', status: 'envoyée', date: '2026-10-18', creeeLe: '2026-10-18T11:00:00Z', number: 'MND-2026-0160', branchId: 'b1', clientId: 'c1', clientName: 'Awa Dossou', lines: [{ qty: 1, unitXof: 2000, discountPct: 0 }], globalDiscountPct: 0, payments: [], ...extra },
 });
 const reglages = (rel: ReglagesRelances | undefined, mndPay: Record<string, unknown> = { actif: true }) => ({ key: 'mnd_settings', data: { relances: rel, mndPay } });
 const facteur = (vivant = true, ms = MAINTENANT): Ligne => ({ key: 'mnd_facteur', data: { vuLe: new Date(ms - (vivant ? 60_000 : 3_600_000)).toISOString() } });
@@ -249,6 +257,10 @@ const ordinaire = () => ({ documents: [reglages(ALLUMEES), facteur()], invoices:
   const N = await joue({ ...ordinaire(), envois: [{ id: 'rl-inv-1-1-whatsapp', data: { id: 'rl-inv-1-1-whatsapp', type: 'relance-facture', statut: 'échec', numero: '2290197000012', quand: '2026-10-19T08:00:00Z' } }] });
   dit('un échec du matin se retente : la 1re repart', [1, 'en-attente'], [N.r.relances, N.lignes('envois').find((x) => x.id === 'rl-inv-1-1-whatsapp')?.data?.statut]);
 
+  /* P. Le rituel du 18 saisi le 19 au matin : la cliente a peut-être payé ce jour-là. */
+  const P = await joue({ ...ordinaire(), invoices: [facture('inv-1', { creeeLe: '2026-10-19T07:30:00Z' })] });
+  dit('une pièce écrite le lendemain de son rituel ne reçoit pas de relance', [0, 0], [P.r.relances, P.lignes('envois').length]);
+
   /* O. Le reste a changé : l ancienne attente est annulée, une nouvelle au bon total. */
   const O = await joue({ ...ordinaire(), mnd_pay: [{ id: 'mp-v', data: { pieceId: 'inv-1', genre: 'lien', moyen: 'tapgo', statut: 'en_attente', totalXof: 5080, creeLe: '2026-10-18T10:00:00Z' } }] });
   dit('reste changé : l ancienne attente annulée, une nouvelle au total du bouton', ['annulee', 2032],
@@ -271,7 +283,7 @@ const ordinaire = () => ({ documents: [reglages(ALLUMEES), facteur()], invoices:
   dit('la facture montre ses relances, et toute personne qui encaisse pose ou lève la pause', [true, true, true, false],
     [/<BlocRelances facture=\{selected\} qui=\{monNomFil\} pose=\{patchSelected\} \/>/.test(fac),
       /pose\(enPause \? \{ relancesPause: undefined \} : \{ relancesPause: \{ le: new Date\(\)\.toISOString\(\)/.test(bloc),
-      /departDesRelances\(facture, settings\.relances\)/.test(bloc), /useEstDirection/.test(bloc)]);
+      /departDesRelances\(facture, settings\.relances, jourDuSalon\)/.test(bloc), /useEstDirection/.test(bloc)]);
   const af = lis('src/apps/trone/routes/pilotage/AFaire.tsx');
   dit('À faire : « À appeler » pour la direction, après la quatrième relance', [true, true],
     [/return aAppeler\(e, \{ resteXof: reste, enPause, aujourdhui: auj \}\);/.test(af), /\{estDirection && aAppelerListe\.length > 0 && \(\s*<section id="a-appeler"/.test(af)]);
@@ -280,6 +292,9 @@ const ordinaire = () => ({ documents: [reglages(ALLUMEES), facteur()], invoices:
   dit('Paramètres : la carte, l interrupteur à la direction, le jour du lancement écrit, le rattrapage validé une fois', [true, true, true, true],
     [/<CarteRelances \/>/.test(param), /if \(!estDirection\) \{ toast\('Ce réglage appartient à la direction\.'\); return; \}\s*if \(r\.actives\)/.test(carte),
       /pose\(\{ actives: true, depuis: r\.depuis \?\? aujourdhui \}\)/.test(carte), /pose\(\{ rattrapage: \{ valideLe: aujourdhui, ids/.test(carte)]);
+  const fin = lis('src/shared/finance.ts');
+  const constructeur = fin.slice(fin.indexOf('export function nouvelleFacture('), fin.indexOf('export function nouvelleFacture(') + 4000);
+  dit('toute pièce neuve dit quand elle a été écrite (sinon aucune ne se relancerait)', true, /theme: f\.theme \?\? 'Aube',\s*status,\s*creeeLe: new Date\(\)\.toISOString\(\),/.test(constructeur));
   const envois = lis('src/shared/envois.ts');
   const auto = lis('src/apps/trone/routes/clients/EnvoisAutomatiques.tsx');
   dit('le journal des envois les nomme', [true, true, true],

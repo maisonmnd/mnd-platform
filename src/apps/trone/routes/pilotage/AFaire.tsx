@@ -119,7 +119,7 @@ export default function AFaire() {
     const auj = todayISO();
     return factures.filter((f) => {
       if (f.branchId !== branch.id || !seRelance(f)) return false;
-      const depart = departDesRelances(f, reglagesMaison.relances);
+      const depart = departDesRelances(f, reglagesMaison.relances, jourDuSalon);
       const reste = invoiceResteXof(f);
       if (!depart || !(reste > 0)) return false;
       const enPause = !!f.relancesPause;

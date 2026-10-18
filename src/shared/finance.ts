@@ -178,6 +178,11 @@ export type Invoice = {
       Posée au comptoir par toute personne qui encaisse ; la tournée du
       serveur ne relance plus cette facture tant qu'elle est là. */
   relancesPause?: { le: string; par?: string };
+  /** L'INSTANT OÙ LA PIÈCE A ÉTÉ ÉCRITE (18 octobre 2026). Une pièce écrite
+      après son jour est un rattrapage du comptoir : elle ne se relance pas
+      seule, la cliente a peut-être payé ce jour-là. Absent sur les pièces
+      d'avant. */
+  creeeLe?: string;
   /** Pourboire encaissé dans la caisse (traçabilité POS) — HORS chiffre d'affaires,
       reversé au maître. Ne compte jamais dans invoiceTotal. */
   tipXof?: number;
@@ -1122,6 +1127,7 @@ export function nouvelleFacture(f: FactureNeuve): Invoice {
     globalDiscountPct: f.globalDiscountPct ?? 0,
     theme: f.theme ?? 'Aube',
     status,
+    creeeLe: new Date().toISOString(),
     /* L'heure n'a de sens que sur un encaissement — c'est le journal de caisse. */
     ...(status === 'payée' ? { time: new Date().toTimeString().slice(0, 5) } : {}),
     ...(status === 'payée' && quiEncaisse() ? { encaissePar: quiEncaisse() } : {}),

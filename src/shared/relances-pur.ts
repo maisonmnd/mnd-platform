@@ -49,15 +49,21 @@ export const idDeLaRelance = (factureId: string, n: number): string => `rl-${fac
 export const seRelance = (f: { kind?: string; status?: string }): boolean =>
   f.kind === 'facture' && f.status !== 'brouillon';
 
-/** LE JOUR D'OÙ SE COMPTENT SES RELANCES, ou null si elle n'en a pas. */
-export function departDesRelances(f: { id: string; date: string }, r: ReglagesRelances | undefined): string | null {
+/** LE JOUR D'OÙ SE COMPTENT SES RELANCES, ou null si elle n'en a pas.
+    18 OCTOBRE 2026, « ne pas faire voir mon retard aux clients » (Yéman) :
+    une pièce écrite APRÈS son jour (le rituel d'hier saisi ce matin) ne se
+    relance pas seule ; la cliente a peut-être payé ce jour-là, et la
+    relancer ferait voir le retard. Seules se relancent seules les pièces
+    écrites le jour même (ou avant, un rituel prépayé), et celles que la
+    direction a cochées au rattrapage. `jourDe` rend le jour local d'un instant. */
+export function departDesRelances(f: { id: string; date: string; creeeLe?: string }, r: ReglagesRelances | undefined, jourDe: (iso: string) => string): string | null {
   const depuis = r?.depuis ?? '';
   if (!r?.actives || !/^\d{4}-\d{2}-\d{2}$/.test(depuis)) return null;
-  if (f.date >= depuis) return f.date;
   const rt = r.rattrapage;
   if (rt && /^\d{4}-\d{2}-\d{2}$/.test(rt.valideLe) && rt.ids.includes(f.id) && f.date >= jourPlusR(depuis, -JOURS_DE_RATTRAPAGE)) {
     return rt.valideLe > f.date ? rt.valideLe : f.date;
   }
+  if (f.date >= depuis && !!f.creeeLe && jourDe(f.creeeLe) <= f.date) return f.date;
   return null;
 }
 

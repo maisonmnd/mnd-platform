@@ -6,7 +6,7 @@ import { maisonNom } from '../../../../shared/identite';
 import { invoiceResteXof, invoicesStore, quiEncaisse } from '../../../../shared/finance';
 import { demandeLePaiement, mndPayOuvert, versionDeMndPay } from '../../../../shared/mnd-pay';
 import { jourLocal, paiementTapGoDeLaPiece, parametreTapGo, saitLesFactures } from '../../../../shared/mnd-pay-pur';
-import { envoieLeRecu } from '../../../../shared/recu-whatsapp';
+import { envoieLeRecu, recuAEnvoyer } from '../../../../shared/recu-whatsapp';
 import { envoieLaFactureARegler, MODELE_FACTURE, type ResultatDeLaFacture } from '../../../../shared/facture-whatsapp';
 import { toast } from '../../../../ds/components';
 import { useLaPieceEnPdf } from './pdf-de-la-piece';
@@ -58,9 +58,11 @@ export function useEnvoiDeLaPiece() {
         : `Facture ${numero} envoyée sur son WhatsApp.`)
     : `Facture ${numero} non envoyée : ${r.erreur}`);
 
-  /** Après un règlement reçu `jourDuPaiement` : seulement s'il est d'aujourd'hui. */
-  const apresReglement = async (pieceId: string, montantXof: number, jourDuPaiement: string) => {
-    if (jourDuPaiement !== aujourdhui() || !(montantXof > 0)) return;
+  /** Après un règlement reçu `jourDuPaiement` pour le rituel de `jourDuRituel` :
+      seulement l'argent d'aujourd'hui, pour un rituel d'aujourd'hui ou à venir.
+      Jamais pour la régularisation d'un rituel passé (18 octobre 2026). */
+  const apresReglement = async (pieceId: string, montantXof: number, jourDuPaiement: string, jourDuRituel: string) => {
+    if (!recuAEnvoyer({ jourDuPaiement, jourDuRituel, aujourdhui: aujourdhui() }) || !(montantXof > 0)) return;
     const p = await preparer(pieceId);
     if (!p) return;
     const r = await envoieLeRecu({

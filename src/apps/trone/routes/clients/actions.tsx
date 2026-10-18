@@ -32,7 +32,7 @@ import { useStaff, adresseDe } from '../equipe/data';
 import { Toggle } from '../equipe/ui';
 import '../equipe/equipe.css'; // styles du Toggle partagé (tre-toggle)
 import {
-  apptLabel, apptServices, apptNetXof, apptTotalXof, apptDueXof, svcPriceForAppt, remiseDeLigne, forfaitTauxPct, frShort, todayISO, useServicesById,
+  apptLabel, apptServices, apptNetXof, apptTotalXof, apptDueXof, svcPriceForAppt, remiseDeLigne, forfaitTauxPct, frShort, todayISO, useServicesById, addDaysISO,
   ChampDeDate, frShortAn, tarifsDuRituel, prixAFiger, rituelDeshonore, remiseFamilleQuiSuit,
 } from './_shared';
 import { cheminDeLaConversation } from '../../../../shared/conversations';
@@ -1952,7 +1952,10 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour }: {
          des Paramètres est allumé, c'est la fonction planifiée `avis-google`
          qui écrit à la cliente (API Meta). Ouvrir WhatsApp ici en plus, ce
          serait la relancer deux fois pour le même passage. */
-      if (tel && lien && dejaReglees === 0 && autoConfigStore.get().avisAuto !== true) {
+      /* Pas de demande d'avis pour un rituel d'avant-hier ou plus vieux : un
+         « merci pour votre passage » arrivé des jours après ferait voir le
+         retard (18 octobre 2026). */
+      if (tel && lien && dejaReglees === 0 && autoConfigStore.get().avisAuto !== true && appt.date >= addDaysISO(todayISO(), -1)) {
         const prenom = (tete?.name ?? '').trim().split(/\s+/)[0];
         const mot = `Merci pour votre passage à la Maison MND${prenom ? `, ${prenom}` : ''}. `
           + `Si le cœur vous en dit, un avis nous aiderait beaucoup : ${lien}`;
@@ -2020,7 +2023,7 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour }: {
 
   /* L'ENVOI DE LA FACTURE APRÈS L'ENCAISSEMENT (17 octobre 2026) : le chemin
      partagé avec le Carnet et le tableau de bord (`useEnvoiDeLaPiece`). */
-  const envoieLaFacture = (pieceId: string, montantXof: number) => envoiDeLaPiece.apresReglement(pieceId, montantXof, payDate);
+  const envoieLaFacture = (pieceId: string, montantXof: number) => envoiDeLaPiece.apresReglement(pieceId, montantXof, payDate, appt.date);
 
   /* LE VERT DE FEDAPAY ENCAISSE LE RITUEL. Le moyen réel, la caisse MND PAY
      et le montant payé sont posés au rendu d'avant ; ce rendu-ci les lit, et

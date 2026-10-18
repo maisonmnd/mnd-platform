@@ -4,6 +4,20 @@ import { maisonNom, signeLeMessage } from './identite';
 import { envoieSurWhatsApp, type ResultatDEnvoi } from './whatsapp';
 import type { InvoicePdfData } from './pdf';
 
+/* ══ JAMAIS DE REÇU POUR UN RATTRAPAGE — 18 octobre 2026 ═══════════════
+   « Toutes les régularisations de versement des RDV du passé ne doivent en
+   aucun cas recevoir un message de reçu de paiement. Juste les versements du
+   jour et ceux qui sont prépayés. Je suis seule à travailler et j'accuse
+   beaucoup de retard. Ne pas faire voir mon retard aux clients. » (Yéman)
+
+   Le reçu part seulement pour l'argent reçu AUJOURD'HUI, pour un rituel
+   d'aujourd'hui ou à venir (prépayé). Un rituel d'un jour passé, réglé ce
+   matin ou daté de son jour, ne réveille personne : c'est la date du
+   RITUEL qui juge, pas celle de la saisie. Une vente sans rituel juge sur
+   son seul jour. */
+export const recuAEnvoyer = (o: { jourDuPaiement: string; jourDuRituel?: string; aujourdhui: string }): boolean =>
+  o.jourDuPaiement === o.aujourdhui && (!o.jourDuRituel || o.jourDuRituel >= o.aujourdhui);
+
 /* ══ LE REÇU PART SEUL SUR SON WHATSAPP — 16 octobre 2026 ═══════════════
    MND PAY, sa décision : « envoyé seul sur son WhatsApp, dès que c'est
    payé ». Même chemin que le bilan de séance (`envoieLeBilan`) : dans la

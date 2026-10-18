@@ -20,7 +20,7 @@ export function BlocRelances({ facture, qui, pose }: {
 }) {
   const [settings] = useSettings();
   const [envois] = useEnvois();
-  const depart = departDesRelances(facture, settings.relances);
+  const depart = departDesRelances(facture, settings.relances, jourDuSalon);
   const reste = invoiceResteXof(facture);
   if (!depart || facture.kind !== 'facture' || facture.status === 'brouillon' || !(reste > 0)) return null;
   const enPause = !!facture.relancesPause;

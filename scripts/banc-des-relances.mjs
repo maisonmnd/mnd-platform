@@ -88,7 +88,7 @@ const AUJ = j(0);
 const DEPUIS = j(-5);
 const hier = new Date(Date.now() - 86_400_000).toISOString();
 const facture = (id, date, clientId, extra = {}) => ({
-  id, branchId: 'maison', kind: 'facture', status: 'envoyée', number: `MND-BANC-${id}`, date, clientId, clientName: '',
+  id, branchId: 'maison', kind: 'facture', status: 'envoyée', number: `MND-BANC-${id}`, date, creeeLe: `${date}T10:00:00`, clientId, clientName: '',
   lines: [{ id: `l-${id}`, label: 'Rituel du banc', qty: 1, unitXof: 2000, discountPct: 0 }], globalDiscountPct: 0, theme: 'Aube', payments: [], ...extra,
 });
 const SEMENCE = {

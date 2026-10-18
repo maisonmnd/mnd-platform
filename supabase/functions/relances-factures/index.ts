@@ -45,7 +45,7 @@ import { createClient } from 'npm:@supabase/supabase-js@2';
 const TZ = 'Africa/Porto-Novo'; // le fuseau du salon, pas celui du serveur
 
 /** La version de ce fichier, rendue dans chaque réponse. */
-const VERSION = '2026-10-18-a · les relances des factures';
+const VERSION = '2026-10-18-b · jamais de relance pour un rattrapage';
 
 /** Numéro béninois → format international sans « + » (copie de rappels-j1). */
 const numeroIntl = (brut: string | undefined): string | null => {
@@ -157,15 +157,21 @@ export const idDeLaRelance = (factureId: string, n: number): string => `rl-${fac
 export const seRelance = (f: { kind?: string; status?: string }): boolean =>
   f.kind === 'facture' && f.status !== 'brouillon';
 
-/** LE JOUR D'OÙ SE COMPTENT SES RELANCES, ou null si elle n'en a pas. */
-export function departDesRelances(f: { id: string; date: string }, r: ReglagesRelances | undefined): string | null {
+/** LE JOUR D'OÙ SE COMPTENT SES RELANCES, ou null si elle n'en a pas.
+    18 OCTOBRE 2026, « ne pas faire voir mon retard aux clients » (Yéman) :
+    une pièce écrite APRÈS son jour (le rituel d'hier saisi ce matin) ne se
+    relance pas seule ; la cliente a peut-être payé ce jour-là, et la
+    relancer ferait voir le retard. Seules se relancent seules les pièces
+    écrites le jour même (ou avant, un rituel prépayé), et celles que la
+    direction a cochées au rattrapage. `jourDe` rend le jour local d'un instant. */
+export function departDesRelances(f: { id: string; date: string; creeeLe?: string }, r: ReglagesRelances | undefined, jourDe: (iso: string) => string): string | null {
   const depuis = r?.depuis ?? '';
   if (!r?.actives || !/^\d{4}-\d{2}-\d{2}$/.test(depuis)) return null;
-  if (f.date >= depuis) return f.date;
   const rt = r.rattrapage;
   if (rt && /^\d{4}-\d{2}-\d{2}$/.test(rt.valideLe) && rt.ids.includes(f.id) && f.date >= jourPlusR(depuis, -JOURS_DE_RATTRAPAGE)) {
     return rt.valideLe > f.date ? rt.valideLe : f.date;
   }
+  if (f.date >= depuis && !!f.creeeLe && jourDe(f.creeeLe) <= f.date) return f.date;
   return null;
 }
 
@@ -196,6 +202,7 @@ type FactureLue = {
   lines: LigneLue[]; globalDiscountPct: number; globalDiscountXof?: number;
   payments?: { id: string; amountXof: number }[];
   relancesPause?: { le: string; par?: string };
+  creeeLe?: string;
 };
 const ligneNetXof = (l: LigneLue): number =>
   Math.max(0, l.qty * l.unitXof * (1 - l.discountPct / 100) - (l.discountXof ?? 0));
@@ -275,7 +282,7 @@ async function tournee(sb: any, o: { maintenantMs: number; MODELE: string; WA_TO
       factures.push(...(data ?? []).map((l) => ({ ...(l.data as FactureLue), id: l.id as string })));
     }
   }
-  const enLice = factures.filter((f) => seRelance(f) && !f.relancesPause && departDesRelances(f, r) !== null && resteDeLaFacture(f) > 0);
+  const enLice = factures.filter((f) => seRelance(f) && !f.relancesPause && departDesRelances(f, r, jourDuSalon) !== null && resteDeLaFacture(f) > 0);
   if (enLice.length === 0) return { version: VERSION, relances: 0, jour: aujourdhui, lues: factures.length };
 
   /* ④ LES LIENS DÉJÀ PAYÉS que personne n'a encore inscrits (aucun Trône
@@ -316,7 +323,7 @@ async function tournee(sb: any, o: { maintenantMs: number; MODELE: string; WA_TO
 
   for (const f of enLice) {
     if (parties >= BORNE_DES_RELANCES) { bornee = true; break; }
-    const depart = departDesRelances(f, r);
+    const depart = departDesRelances(f, r, jourDuSalon);
     const reste = Math.max(0, resteDeLaFacture(f) - (payeParPiece.get(f.id) ?? 0));
     const payeuse = fiches.get(f.clientId);
     const soignee = fiches.get(f.forClientId ?? f.clientId);
