@@ -29,8 +29,10 @@ export const variablesDuRecu = (c: Porteuse, montant: string, jourIso: string): 
   [appelDe(c), montant, dateDite(jourIso)];
 
 /** Le mot qui accompagne le PDF dans la fenêtre. */
-export const motDuRecu = (c: Porteuse, montant: string, jourIso: string, numero: string): string =>
-  signeLeMessage(`${maisonNom()} · reçu\nBonjour ${appelDe(c)}, nous avons bien reçu votre règlement de ${montant} le ${dateDite(jourIso)}. Votre reçu ${numero} est joint.`);
+/* Sans le numéro de la pièce (18 octobre 2026) : WhatsApp prenait
+   « 2026-0160 » pour un téléphone. Il vit dans le nom du PDF joint. */
+export const motDuRecu = (c: Porteuse, montant: string, jourIso: string): string =>
+  signeLeMessage(`${maisonNom()} · reçu\nBonjour ${appelDe(c)}, nous avons bien reçu votre règlement de ${montant} le ${dateDite(jourIso)}. Votre reçu est joint.`);
 
 /** ENVOIE LE REÇU. Jamais d'exception : la vente est faite, un reçu qui ne
     part pas se dit à l'écran, il ne défait rien. */
@@ -46,7 +48,7 @@ export async function envoieLeRecu(o: {
   const { invoiceEnPiece } = await import('./pdf');
   const piece = await invoiceEnPiece(o.pdf);
   const base = { numero: tel, piece, clientId: o.client.id, branchId: o.client.branchId, parQui: o.parQui };
-  let r = await envoieSurWhatsApp({ ...base, texte: motDuRecu(o.client, o.montant, o.jourIso, o.pdf.number) });
+  let r = await envoieSurWhatsApp({ ...base, texte: motDuRecu(o.client, o.montant, o.jourIso) });
   if (!r.ok && /fenêtre/i.test(r.erreur)) {
     r = await envoieSurWhatsApp({
       ...base, modele: MODELE_RECU, variables: variablesDuRecu(o.client, o.montant, o.jourIso), enTete: 'document',

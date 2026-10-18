@@ -30,6 +30,7 @@ import type { Invoice } from '../src/shared/finance';
 import { saitLEcheanceSuivante } from '../src/shared/kkiapay';
 import { envoieLeNumeroTapGo } from '../src/shared/tapgo-whatsapp';
 import { envoieLaFactureARegler, variablesDeLaFacture, MODELE_FACTURE, refusDuModele } from '../src/shared/facture-whatsapp';
+import { motDuRecu } from '../src/shared/recu-whatsapp';
 import type { EnvoiWhatsApp, ResultatDEnvoi } from '../src/shared/whatsapp';
 
 let ko = 0;
@@ -474,8 +475,8 @@ dit('l envoi transporte le paramètre du bouton jusqu à la fonction', true, /\.
 {
   const cliente = { id: 'cl-1', name: 'Awa Dossou', civilite: 'madame' as const, phone: '0197000012', branchId: 'cot' };
   dit('le modèle de la facture à régler : facture_du_rituel, réécrit et resoumis le 18 octobre (elle l a modifié, pas créé facture_a_regler)', 'facture_du_rituel', MODELE_FACTURE);
-  dit('ses QUATRE variables : son appel, le jour AVEC l année, le numéro, le reste dû', ['Madame Awa', '17 octobre 2026', 'F-2026-0737', '10 000 F'],
-    variablesDeLaFacture(cliente, '2026-10-17', 'F-2026-0737', '10 000 F'));
+  dit('ses QUATRE variables : son appel, le jour AVEC l année, « ci-jointe » (jamais le numéro), le reste dû', ['Madame Awa', '17 octobre 2026', 'ci-jointe', '10 000 F'],
+    variablesDeLaFacture(cliente, '2026-10-17', '10 000 F'));
   dit('un refus qui tient au modèle (#132xxx) se reconnaît ; la fenêtre et un numéro injoignable, non', [true, true, true, false, false],
     ['(#132000) Number of parameters does not match the expected number of params', '(#132001) Template name does not exist in the translation',
       'Meta : (#132015) Template is paused', '(#131026) Message undeliverable', 'La fenêtre de 24 heures est fermée.'].map(refusDuModele));
@@ -485,7 +486,7 @@ dit('l envoi transporte le paramètre du bouton jusqu à la fonction', true, /\.
   const FENETRE: ResultatDEnvoi = { ok: false, erreur: 'La fenêtre de 24 heures est fermée. WhatsApp n’accepte plus qu’un modèle approuvé.' };
   const joue = async (reponses: ResultatDEnvoi[], avecTapGo = true) => {
     const appels: EnvoiWhatsApp[] = [];
-    const r = await envoieLaFactureARegler({ client: cliente, pdf, numero: 'F-2026-0737', resteDit: '10 000 F', jourIso: '2026-10-17', cle: 'inv-9',
+    const r = await envoieLaFactureARegler({ client: cliente, pdf, resteDit: '10 000 F', jourIso: '2026-10-17', cle: 'inv-9',
       tapgo: avecTapGo ? tapgo : undefined, envoie: async (e) => { appels.push(e); return reponses.shift() ?? { ok: true, id: 'x' }; } });
     return { r, appels };
   };
@@ -520,8 +521,22 @@ dit('l envoi transporte le paramètre du bouton jusqu à la fonction', true, /\.
   dit('une clé d unicité par pièce et par étape (deux postes n envoient pas deux fois)', ['facture-inv-9-mot', 'facture-inv-9-modele', 'facture-inv-9-lien'],
     C.appels.map((x) => x.cleUnique));
 
-  const sans = await envoieLaFactureARegler({ client: { ...cliente, phone: '' }, pdf, numero: 'F', resteDit: '1 F', jourIso: '2026-10-17', envoie: async () => ({ ok: true, id: 'x' }) });
+  const sans = await envoieLaFactureARegler({ client: { ...cliente, phone: '' }, pdf, resteDit: '1 F', jourIso: '2026-10-17', envoie: async () => ({ ok: true, id: 'x' }) });
   dit('sans numéro : rien ne part, et l écran le dit', false, sans.ok);
+
+  /* 18 octobre 2026, la première facture reçue : WhatsApp prenait « 2026-0160 » pour un téléphone
+     (« Composer le +229 20 26 01 60 »). Sa décision : aucun numéro de pièce dans un message à une
+     cliente ; il vit dans le nom du PDF. */
+  /* Une adresse entière (le lien qui compose) se lit comme un lien, pas comme un téléphone. */
+  const aUnNumero = (t: string) => /\d{4}-\d{3,}/.test(t.replace(/https?:\/\/\S+/g, ''));
+  const motFacture = A.appels[0].texte ?? '';
+  const motRecu = motDuRecu(cliente, '2 000 F', '2026-10-18');
+  const sansLeNumero = (f: string, motif: RegExp) => !motif.test(lis(f));
+  dit('aucun numéro de pièce dans un message à une cliente (mot de la facture, mot du reçu, Factures, Conversations)', [false, true, false, true, true, true],
+    [aUnNumero(motFacture), motFacture.includes('Voici votre facture ci-jointe, reste à régler'), aUnNumero(motRecu),
+      sansLeNumero('src/apps/trone/routes/vente/Factures.tsx', /Votre \$\{doc\.kind === 'devis' \? 'devis' : 'facture'\} \$\{doc\.number\}/),
+      sansLeNumero('src/shared/gestes-conversation.ts', /voici votre facture \$\{facture\.number\}/),
+      /Votre \$\{doc\.kind === 'devis' \? 'devis' : 'facture'\} est en pièce jointe\./.test(lis('src/apps/trone/routes/vente/Factures.tsx'))]);
 
   const env = lis('src/apps/trone/routes/vente/envoi-de-la-piece.ts');
   dit('honorer sans encaisser : le reste dû, et le même Tap & Go que le pied du PDF', [true, true, true],

@@ -238,12 +238,12 @@ dit('dix gestes, dans l’ordre où ils servent',
 dit('le lien de paiement porte ce qui reste dû, pas le total',
   'Madame Akouavi, il reste 37 000 F sur votre rituel. Voici le lien pour régler par Mobile Money : https://exemple/payer?montant=37000',
   gesteDit(g, 'paiement')?.compose);
-dit('le devis dit son numéro et son total',
-  'Madame Akouavi, voici le devis DV-2026-0088 du samedi 12 septembre 2026, pour 45 000 F. Dites-nous simplement oui et nous posons le rendez-vous.',
+dit('le devis dit son jour et son total, sans son numéro (WhatsApp le prend pour un téléphone)',
+  'Madame Akouavi, voici le devis du samedi 12 septembre 2026, pour 45 000 F. Dites-nous simplement oui et nous posons le rendez-vous.',
   gesteDit(g, 'devis')?.compose);
 dit('le devis attend un oui', 'attend un oui', gesteDit(g, 'devis')?.attend);
 dit('la facture dit ce qui reste',
-  'Madame Akouavi, voici votre facture FA-2026-0412 du dimanche 6 septembre 2026, pour 17 000 F. Il reste 15 000 F à régler.',
+  'Madame Akouavi, voici votre facture du dimanche 6 septembre 2026, pour 17 000 F. Il reste 15 000 F à régler.',
   gesteDit(g, 'facture')?.compose);
 dit('la facture voyage en pièce jointe',
   { quoi: 'facture', invoiceId: 'i2', nom: 'Facture FA-2026-0412' }, gesteDit(g, 'facture')?.piece);

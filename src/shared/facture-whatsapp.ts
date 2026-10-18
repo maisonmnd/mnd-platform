@@ -35,7 +35,13 @@ import type { InvoicePdfData } from './pdf';
      bouton  : URL dynamique « Régler »,
                https://maisonmnd.com/trone/payer.html?tg={{1}}
    {{1}} son appel, {{2}} le jour AVEC l'année (règle de la Maison sur
-   toute date qu'une cliente lit), {{3}} le numéro, {{4}} le reste dû. */
+   toute date qu'une cliente lit), {{3}} « ci-jointe », {{4}} le reste dû.
+
+   POURQUOI « ci-jointe » ET PAS LE NUMÉRO (18 octobre 2026, première facture
+   reçue) : WhatsApp prenait « 2026-0160 » pour un numéro de téléphone, le
+   soulignait, et l'ouvrait en « Composer le +229 20 26 01 60 ». Sa décision :
+   plus de numéro de pièce dans un message, il vit dans le nom du PDF
+   (Facture-MND-2026-0160.pdf), qu'on touche pour l'ouvrir. */
 
 export const MODELE_FACTURE = 'facture_du_rituel';
 
@@ -45,13 +51,16 @@ export const refusDuModele = (erreur: string): boolean => /#132\d{3}\b/.test(err
 
 type Porteuse = Parameters<typeof appelDe>[0] & { id: string; phone?: string; branchId?: string };
 
+/** {{3}} : jamais le numéro de la pièce (WhatsApp le prend pour un téléphone). */
+export const FACTURE_JOINTE = 'ci-jointe';
+
 /** Les quatre variables du modèle, dans son ordre. */
-export const variablesDeLaFacture = (c: Porteuse, jourIso: string, numero: string, resteDit: string): string[] =>
-  [appelDe(c), dateDite(jourIso), numero, resteDit];
+export const variablesDeLaFacture = (c: Porteuse, jourIso: string, resteDit: string): string[] =>
+  [appelDe(c), dateDite(jourIso), FACTURE_JOINTE, resteDit];
 
 /** Le mot qui accompagne le PDF dans la fenêtre. */
-export const motDeLaFacture = (c: Porteuse, jourIso: string, numero: string, resteDit: string, lien?: string): string =>
-  signeLeMessage(`${maisonNom()} · facture\nBonjour ${appelDe(c)}, merci de votre visite du ${dateDite(jourIso)}. Voici votre facture ${numero}, reste à régler : ${resteDit}.${lien
+export const motDeLaFacture = (c: Porteuse, jourIso: string, resteDit: string, lien?: string): string =>
+  signeLeMessage(`${maisonNom()} · facture\nBonjour ${appelDe(c)}, merci de votre visite du ${dateDite(jourIso)}. Voici votre facture ${FACTURE_JOINTE}, reste à régler : ${resteDit}.${lien
     ? `\nPour régler par mobile money, tout réseau, touchez ce lien : votre téléphone compose le numéro de paiement, frais compris.\n${lien}`
     : ''}`);
 
@@ -62,7 +71,6 @@ export type ResultatDeLaFacture = ResultatDEnvoi & { repli?: 'lien' };
 export async function envoieLaFactureARegler(o: {
   client: Porteuse;
   pdf: InvoicePdfData;
-  numero: string;
   /** Le reste dû, tel qu'elle le lit (« 2 000 F »). */
   resteDit: string;
   jourIso: string;
@@ -84,13 +92,13 @@ export async function envoieLaFactureARegler(o: {
   const base = { numero: tel, clientId: o.client.id, branchId: o.client.branchId, parQui: o.parQui };
   const cle = (etape: string) => (o.cle ? { cleUnique: `facture-${o.cle}-${etape}` } : {});
 
-  const r = await envoie({ ...base, piece, texte: motDeLaFacture(o.client, o.jourIso, o.numero, o.resteDit, o.tapgo?.lien), ...cle('mot') });
+  const r = await envoie({ ...base, piece, texte: motDeLaFacture(o.client, o.jourIso, o.resteDit, o.tapgo?.lien), ...cle('mot') });
   if (r.ok || !/fenêtre/i.test(r.erreur)) return r;
   if (!o.tapgo) return { ok: false, erreur: 'la fenêtre de 24 heures est fermée et Tap & Go est éteint : le modèle de la facture a besoin de son bouton de paiement.' };
 
   const m = await envoie({
     ...base, piece, enTete: 'document', modele: MODELE_FACTURE,
-    variables: variablesDeLaFacture(o.client, o.jourIso, o.numero, o.resteDit), boutonUrl: o.tapgo.parametre, ...cle('modele'),
+    variables: variablesDeLaFacture(o.client, o.jourIso, o.resteDit), boutonUrl: o.tapgo.parametre, ...cle('modele'),
   });
   if (m.ok || !refusDuModele(m.erreur)) return m;
 

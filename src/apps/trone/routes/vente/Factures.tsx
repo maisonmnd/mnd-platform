@@ -800,11 +800,14 @@ export default function Factures() {
        paraissait DEUX FOIS, dont une en première ligne où elle prend la place du
        montant, et où WhatsApp la colore en la prenant pour un numéro de
        téléphone. Le corps la dit déjà, à l'endroit où elle sert : le nom de la
-       pièce jointe. */
+       pièce jointe.
+       18 OCTOBRE 2026 : plus du tout de numéro dans le message. WhatsApp
+       prend « 2026-0160 » pour un téléphone et l'ouvre en « Composer » ; il
+       vit dans le nom du PDF joint (sa décision : « ci-jointe »). */
     return signeLeMessage(
       `${maisonNom()} · ${label}\n` +
       `Pour ${appelOf(doc)}, total ${fmtMoney(invoiceTotal(doc), currency)}.\n` +
-      `Votre ${doc.kind === 'devis' ? 'devis' : 'facture'} ${doc.number} est en pièce jointe.\n` +
+      `Votre ${doc.kind === 'devis' ? 'devis' : 'facture'} est en pièce jointe.\n` +
       `${(doc.note?.trim() || defaultNoteFor(doc))}`,
     );
   };

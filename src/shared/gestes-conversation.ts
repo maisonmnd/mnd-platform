@@ -461,7 +461,7 @@ export function lesGestes(ctx: ContexteDesGestes): Geste[] {
     attend: devis ? 'attend un oui' : undefined,
     eteint: barre(!tete ? sansFiche : (devis ? null : 'Aucun devis n’attend de réponse.')),
     compose: devis
-      ? `${prenom}, voici le devis ${devis.number} du ${jourDit(devis.date)}, pour ${ctx.enFrancs(devis.totalXof)}. Dites-nous simplement oui et nous posons le rendez-vous.`
+      ? `${prenom}, voici le devis du ${jourDit(devis.date)}, pour ${ctx.enFrancs(devis.totalXof)}. Dites-nous simplement oui et nous posons le rendez-vous.`
       : undefined,
     piece: devis ? { quoi: 'devis', invoiceId: devis.id, nom: `Devis ${devis.number}` } : undefined,
   });
@@ -474,7 +474,8 @@ export function lesGestes(ctx: ContexteDesGestes): Geste[] {
     dit: facture?.number,
     eteint: barre(!tete ? sansFiche : (facture ? null : 'Aucune facture à son nom.')),
     compose: facture
-      ? `${prenom}, voici votre facture ${facture.number} du ${jourDit(facture.date)}, pour ${ctx.enFrancs(facture.totalXof)}.${facture.resteXof > 0 ? ` Il reste ${ctx.enFrancs(facture.resteXof)} à régler.` : ' Elle est soldée, merci.'}`
+      /* Sans son numéro (18 octobre 2026) : WhatsApp le prend pour un téléphone. */
+      ? `${prenom}, voici votre facture du ${jourDit(facture.date)}, pour ${ctx.enFrancs(facture.totalXof)}.${facture.resteXof > 0 ? ` Il reste ${ctx.enFrancs(facture.resteXof)} à régler.` : ' Elle est soldée, merci.'}`
       : undefined,
     piece: facture ? { quoi: 'facture', invoiceId: facture.id, nom: `Facture ${facture.number}` } : undefined,
   });

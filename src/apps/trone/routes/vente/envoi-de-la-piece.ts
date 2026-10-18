@@ -80,7 +80,7 @@ export function useEnvoiDeLaPiece() {
     const tg = paiementTapGoDeLaPiece(reste, settings.mndPay);
     const r = await envoieLaFactureARegler({
       client: { ...p.destinataire, branchId: p.destinataire.branchId }, pdf: buildPdfData(p.piece),
-      numero: p.piece.number, resteDit: fmtMoney(reste, currency), jourIso: jourDuRituel, parQui: quiEncaisse(), cle: p.piece.id,
+      resteDit: fmtMoney(reste, currency), jourIso: jourDuRituel, parQui: quiEncaisse(), cle: p.piece.id,
       tapgo: tg ? { parametre: parametreTapGo(tg.totalXof, settings.mndPay), lien: tg.qr, totalDit: fmtMoney(tg.totalXof, currency) } : undefined,
     });
     dit(p.piece.number, r);
