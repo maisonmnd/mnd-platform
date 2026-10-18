@@ -2,63 +2,95 @@ import { appelDe } from './civilite';
 import { dateDite } from './bilan-document';
 import { maisonNom, signeLeMessage } from './identite';
 import { envoieSurWhatsApp, type ResultatDEnvoi } from './whatsapp';
+import { MODELE_TAPGO, variablesTapGo } from './mnd-pay-pur';
 import type { InvoicePdfData } from './pdf';
 
 /* ══ LA FACTURE À RÉGLER PART SEULE SUR SON WHATSAPP — 17 octobre 2026 ══
    « Une facture sans aucun paiement (Honorer sans encaisser) ne part pas
-   encore seule » : Yéman a donné le modèle approuvé le 2 octobre (capture de
-   WhatsApp Manager). Même chemin que le reçu : dans la fenêtre de 24 heures,
-   le PDF part avec un mot ; hors fenêtre, le modèle `facture_du_rituel`, qui
-   porte le PDF en en-tête.
+   encore seule ». Même chemin que le reçu : dans la fenêtre de 24 heures,
+   le PDF part avec un mot (et le lien qui compose le paiement : elle ne peut
+   pas scanner le QR de l'écran qu'elle tient) ; hors fenêtre, un modèle
+   approuvé, qui porte le PDF en en-tête.
 
-   Le modèle, tel que Meta l'a approuvé (Utilitaire, français) :
+   18 OCTOBRE, AU COMPTOIR : « (#132000) Number of parameters does not
+   match ». Le modèle `facture_du_rituel` (rédigé le 2 octobre) a QUATRE
+   variables et dit « réglée » EN DUR : il ne sert qu'à une facture payée,
+   jamais à une facture à régler. Sa décision : un modèle neuf,
+   `facture_a_regler`, et en attendant que Meta l'approuve, le lien de
+   paiement (`paiement_en_attente`, déjà approuvé), sans le PDF. Le Trône
+   bascule seul le jour où Meta l'approuve : rien à republier.
+
+   Le modèle à créer chez Meta (catégorie Utilitaire, français) :
      en-tête : Document
      corps   : « Bonjour {{1}}, merci de votre visite du {{2}}. Voici votre
-               facture {{3}}, d'un montant de {{4}}, {{5}}. Nous serons
-               heureux de vous revoir. »
+               facture {{3}}, reste à régler : {{4}}. Touchez « Régler » :
+               votre téléphone compose le numéro de paiement, frais compris. »
      pied    : « mi nyɔ́ ɖɛkpɛ, votre beauté est déjà là »
-   Les CINQ variables sont lues sur son exemple (« Yéman », « 2 octobre »,
-   « MND-0412 », « 68 000 F », « réglée ») : son appel, le jour de la visite
-   (AVEC l'année, règle de la Maison sur toute date qu'une cliente lit), le
-   numéro, le montant, l'état (« à régler »). Si Meta refuse le nombre, son
-   refus se dit au comptoir tel quel. */
+     bouton  : URL dynamique « Régler »,
+               https://maisonmnd.com/trone/payer.html?tg={{1}}
+   {{1}} son appel, {{2}} le jour AVEC l'année (règle de la Maison sur
+   toute date qu'une cliente lit), {{3}} le numéro, {{4}} le reste dû. */
 
-export const MODELE_FACTURE = 'facture_du_rituel';
+export const MODELE_FACTURE = 'facture_a_regler';
+
+/** Un refus de Meta qui tient au MODÈLE (inconnu, pas encore approuvé, en
+    pause, variables qui ne collent pas) : les erreurs #132xxx. */
+export const refusDuModele = (erreur: string): boolean => /#132\d{3}\b/.test(erreur);
 
 type Porteuse = Parameters<typeof appelDe>[0] & { id: string; phone?: string; branchId?: string };
 
-/** Les cinq variables du modèle, dans son ordre. */
-export const variablesDeLaFacture = (c: Porteuse, jourIso: string, numero: string, montant: string, etat: string): string[] =>
-  [appelDe(c), dateDite(jourIso), numero, montant, etat];
+/** Les quatre variables du modèle, dans son ordre. */
+export const variablesDeLaFacture = (c: Porteuse, jourIso: string, numero: string, resteDit: string): string[] =>
+  [appelDe(c), dateDite(jourIso), numero, resteDit];
 
 /** Le mot qui accompagne le PDF dans la fenêtre. */
-export const motDeLaFacture = (c: Porteuse, jourIso: string, numero: string, montant: string, etat: string): string =>
-  signeLeMessage(`${maisonNom()} · facture\nBonjour ${appelDe(c)}, merci de votre visite du ${dateDite(jourIso)}. Voici votre facture ${numero}, d'un montant de ${montant}, ${etat}. Le QR au bas de la facture se règle par mobile money, tout réseau.`);
+export const motDeLaFacture = (c: Porteuse, jourIso: string, numero: string, resteDit: string, lien?: string): string =>
+  signeLeMessage(`${maisonNom()} · facture\nBonjour ${appelDe(c)}, merci de votre visite du ${dateDite(jourIso)}. Voici votre facture ${numero}, reste à régler : ${resteDit}.${lien
+    ? `\nPour régler par mobile money, tout réseau, touchez ce lien : votre téléphone compose le numéro de paiement, frais compris.\n${lien}`
+    : ''}`);
 
-/** ENVOIE LA FACTURE. Jamais d'exception : un envoi qui ne part pas se dit. */
+/** `repli: 'lien'` : le modèle de la facture n'est pas (encore) approuvé, le lien de paiement est parti seul. */
+export type ResultatDeLaFacture = ResultatDEnvoi & { repli?: 'lien' };
+
+/** ENVOIE LA FACTURE À RÉGLER. Jamais d'exception : un envoi qui ne part pas se dit. */
 export async function envoieLaFactureARegler(o: {
   client: Porteuse;
   pdf: InvoicePdfData;
   numero: string;
-  montant: string;
+  /** Le reste dû, tel qu'elle le lit (« 2 000 F »). */
+  resteDit: string;
   jourIso: string;
-  etat?: string;
+  /** Tap & Go : le paramètre du bouton (« 51166-2032 »), le lien entier, le
+      total frais compris dit. Sans lui, pas de bouton, donc pas de modèle. */
+  tapgo?: { parametre: string; lien: string; totalDit: string };
+  /** L'identifiant de la pièce : une clé d'unicité par étape, pour que deux
+      postes n'envoient pas deux fois la même facture. */
+  cle?: string;
   parQui?: string;
   /** L'envoi (le vrai par défaut ; le banc en passe un faux). */
   envoie?: typeof envoieSurWhatsApp;
-}): Promise<ResultatDEnvoi> {
+}): Promise<ResultatDeLaFacture> {
   const envoie = o.envoie ?? envoieSurWhatsApp;
   const tel = (o.client.phone ?? '').trim();
   if (!tel) return { ok: false, erreur: 'Pas de numéro sur sa fiche : la facture n’est pas partie.' };
-  const etat = o.etat ?? 'à régler';
   const { invoiceEnPiece } = await import('./pdf');
   const piece = await invoiceEnPiece(o.pdf);
-  const base = { numero: tel, piece, clientId: o.client.id, branchId: o.client.branchId, parQui: o.parQui };
-  let r = await envoie({ ...base, texte: motDeLaFacture(o.client, o.jourIso, o.numero, o.montant, etat) });
-  if (!r.ok && /fenêtre/i.test(r.erreur)) {
-    r = await envoie({
-      ...base, modele: MODELE_FACTURE, variables: variablesDeLaFacture(o.client, o.jourIso, o.numero, o.montant, etat), enTete: 'document',
-    });
-  }
-  return r;
+  const base = { numero: tel, clientId: o.client.id, branchId: o.client.branchId, parQui: o.parQui };
+  const cle = (etape: string) => (o.cle ? { cleUnique: `facture-${o.cle}-${etape}` } : {});
+
+  const r = await envoie({ ...base, piece, texte: motDeLaFacture(o.client, o.jourIso, o.numero, o.resteDit, o.tapgo?.lien), ...cle('mot') });
+  if (r.ok || !/fenêtre/i.test(r.erreur)) return r;
+  if (!o.tapgo) return { ok: false, erreur: 'la fenêtre de 24 heures est fermée et Tap & Go est éteint : le modèle de la facture a besoin de son bouton de paiement.' };
+
+  const m = await envoie({
+    ...base, piece, enTete: 'document', modele: MODELE_FACTURE,
+    variables: variablesDeLaFacture(o.client, o.jourIso, o.numero, o.resteDit), boutonUrl: o.tapgo.parametre, ...cle('modele'),
+  });
+  if (m.ok || !refusDuModele(m.erreur)) return m;
+
+  /* Le modèle neuf n'est pas (encore) approuvé : le lien de paiement, sans le PDF. */
+  const l = await envoie({
+    ...base, modele: MODELE_TAPGO, variables: variablesTapGo(appelDe(o.client), o.tapgo.totalDit), boutonUrl: o.tapgo.parametre, ...cle('lien'),
+  });
+  return l.ok ? { ...l, repli: 'lien' } : { ok: false, erreur: `${l.erreur} (et « ${MODELE_FACTURE} » : ${m.erreur})` };
 }

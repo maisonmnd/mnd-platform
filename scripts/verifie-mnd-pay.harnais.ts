@@ -29,7 +29,7 @@ import {
 import type { Invoice } from '../src/shared/finance';
 import { saitLEcheanceSuivante } from '../src/shared/kkiapay';
 import { envoieLeNumeroTapGo } from '../src/shared/tapgo-whatsapp';
-import { envoieLaFactureARegler, variablesDeLaFacture, MODELE_FACTURE } from '../src/shared/facture-whatsapp';
+import { envoieLaFactureARegler, variablesDeLaFacture, MODELE_FACTURE, refusDuModele } from '../src/shared/facture-whatsapp';
 import type { EnvoiWhatsApp, ResultatDEnvoi } from '../src/shared/whatsapp';
 
 let ko = 0;
@@ -465,20 +465,67 @@ dit('l envoi transporte le paramètre du bouton jusqu à la fonction', true, /\.
     motif({ message: 'Refusé', errors: ['a', 'b'] }), motif({ error: 'Erreur', errors: 'détail' }), motif({ message: 'Seule phrase' }), motif(null),
   ]);
 }
-/* ── 11. LA FACTURE À RÉGLER, MODÈLE facture_du_rituel (17 octobre 2026) ── */
+/* ── 11. LA FACTURE À RÉGLER (17 et 18 octobre 2026) ──
+   18 octobre au comptoir : « (#132000) Number of parameters does not match ».
+   facture_du_rituel a quatre variables et dit « réglée » en dur : jamais pour
+   une facture à régler. Sa décision : facture_a_regler (PDF + bouton
+   « Régler »), et en attendant son approbation, le lien de paiement. */
 {
   const cliente = { id: 'cl-1', name: 'Awa Dossou', civilite: 'madame' as const, phone: '0197000012', branchId: 'cot' };
-  dit('les cinq variables du modèle : son appel, le jour AVEC l année, le numéro, le montant, l état', ['facture_du_rituel', ['Madame Awa', '17 octobre 2026', 'F-2026-0737', '10 000 F', 'à régler']],
-    [MODELE_FACTURE, variablesDeLaFacture(cliente, '2026-10-17', 'F-2026-0737', '10 000 F', 'à régler')]);
+  dit('le modèle de la facture à régler : facture_a_regler, jamais facture_du_rituel (« réglée » en dur)', 'facture_a_regler', MODELE_FACTURE);
+  dit('ses QUATRE variables : son appel, le jour AVEC l année, le numéro, le reste dû', ['Madame Awa', '17 octobre 2026', 'F-2026-0737', '10 000 F'],
+    variablesDeLaFacture(cliente, '2026-10-17', 'F-2026-0737', '10 000 F'));
+  dit('un refus qui tient au modèle (#132xxx) se reconnaît ; la fenêtre et un numéro injoignable, non', [true, true, true, false, false],
+    ['(#132000) Number of parameters does not match the expected number of params', '(#132001) Template name does not exist in the translation',
+      'Meta : (#132015) Template is paused', '(#131026) Message undeliverable', 'La fenêtre de 24 heures est fermée.'].map(refusDuModele));
+
   const pdf = { kind: 'facture', number: 'F-2026-0737', houseName: 'Maison MND', date: '17 octobre 2026', clientName: 'Awa Dossou', lines: [], subtotal: '10 000 F', total: '10 000 F' } as never;
-  const appels: EnvoiWhatsApp[] = [];
-  const reponses: ResultatDEnvoi[] = [{ ok: false, erreur: 'La fenêtre de 24 heures est fermée : seul un modèle approuvé passe.' }, { ok: true, id: 'm' }];
-  const r = await envoieLaFactureARegler({ client: cliente, pdf, numero: 'F-2026-0737', montant: '10 000 F', jourIso: '2026-10-17',
-    envoie: async (e) => { appels.push(e); return reponses.shift() ?? { ok: true, id: 'x' }; } });
-  dit('dans la fenêtre d abord (le PDF et un mot), puis le modèle avec le PDF en en-tête', [true, 2, true, 'facture_du_rituel', 'document', true],
-    [r.ok, appels.length, !!appels[0].piece && (appels[0].texte ?? '').includes('F-2026-0737'), appels[1].modele, appels[1].enTete, !!appels[1].piece]);
-  const sans = await envoieLaFactureARegler({ client: { ...cliente, phone: '' }, pdf, numero: 'F', montant: '1 F', jourIso: '2026-10-17', envoie: async () => ({ ok: true, id: 'x' }) });
+  const tapgo = { parametre: '51166-10160', lien: 'https://maisonmnd.com/trone/payer.html?tg=51166-10160', totalDit: '10 160 F' };
+  const FENETRE: ResultatDEnvoi = { ok: false, erreur: 'La fenêtre de 24 heures est fermée. WhatsApp n’accepte plus qu’un modèle approuvé.' };
+  const joue = async (reponses: ResultatDEnvoi[], avecTapGo = true) => {
+    const appels: EnvoiWhatsApp[] = [];
+    const r = await envoieLaFactureARegler({ client: cliente, pdf, numero: 'F-2026-0737', resteDit: '10 000 F', jourIso: '2026-10-17', cle: 'inv-9',
+      tapgo: avecTapGo ? tapgo : undefined, envoie: async (e) => { appels.push(e); return reponses.shift() ?? { ok: true, id: 'x' }; } });
+    return { r, appels };
+  };
+
+  /* A. Dans la fenêtre : le PDF, un mot qui dit le reste, l année, et le lien (elle ne peut pas scanner son propre écran). */
+  const A = await joue([{ ok: true, id: 'm' }]);
+  dit('dans la fenêtre : un seul envoi, le PDF, le reste, la date avec l année, le lien qui compose', [true, 1, true, true, true, true],
+    [A.r.ok, A.appels.length, !!A.appels[0].piece, (A.appels[0].texte ?? '').includes('reste à régler : 10 000 F'),
+      (A.appels[0].texte ?? '').includes('17 octobre 2026'), (A.appels[0].texte ?? '').includes(tapgo.lien)]);
+
+  /* B. Hors fenêtre, modèle approuvé : le PDF en en-tête et le bouton. */
+  const B = await joue([FENETRE, { ok: true, id: 'm' }]);
+  dit('hors fenêtre : facture_a_regler, PDF en en-tête, quatre variables, le bouton porte code et total', [true, undefined, 2, 'facture_a_regler', 'document', true, 4, '51166-10160'],
+    [B.r.ok, (B.r as { repli?: string }).repli, B.appels.length, B.appels[1].modele, B.appels[1].enTete, !!B.appels[1].piece, B.appels[1].variables?.length, B.appels[1].boutonUrl]);
+
+  /* C. Le modèle pas encore approuvé (ou ses variables refusées) : le lien de paiement, sans PDF. */
+  const C = await joue([FENETRE, { ok: false, erreur: '(#132001) Template name does not exist in the translation' }, { ok: true, id: 'l' }]);
+  dit('modèle pas encore approuvé : paiement_en_attente part, sans PDF, total frais compris, même bouton, et l écran le dit', [true, 'lien', 3, 'paiement_en_attente', false, ['Madame Awa', '10 160 F'], '51166-10160'],
+    [C.r.ok, (C.r as { repli?: string }).repli, C.appels.length, C.appels[2].modele, !!C.appels[2].piece, C.appels[2].variables, C.appels[2].boutonUrl]);
+  const C2 = await joue([FENETRE, { ok: false, erreur: '(#132000) Number of parameters does not match the expected number of params' }, { ok: true, id: 'l' }]);
+  dit('... le refus du 18 octobre (#132000) bascule lui aussi sur le lien', [true, 'lien'], [C2.r.ok, (C2.r as { repli?: string }).repli]);
+
+  /* D. Un refus qui ne tient pas au modèle ne déclenche aucun second message. */
+  const D = await joue([FENETRE, { ok: false, erreur: '(#131026) Message undeliverable' }]);
+  dit('numéro injoignable : pas de lien en plus, le refus se dit', [false, 2], [D.r.ok, D.appels.length]);
+
+  /* E. Tap & Go éteint : pas de bouton, donc pas de modèle ; rien ne part hors fenêtre, et l écran dit pourquoi. */
+  const E = await joue([FENETRE], false);
+  dit('Tap & Go éteint, hors fenêtre : un seul essai, refus dit avec sa raison', [false, 1, true],
+    [E.r.ok, E.appels.length, !E.r.ok && /Tap & Go/.test(E.r.erreur)]);
+
+  dit('une clé d unicité par pièce et par étape (deux postes n envoient pas deux fois)', ['facture-inv-9-mot', 'facture-inv-9-modele', 'facture-inv-9-lien'],
+    C.appels.map((x) => x.cleUnique));
+
+  const sans = await envoieLaFactureARegler({ client: { ...cliente, phone: '' }, pdf, numero: 'F', resteDit: '1 F', jourIso: '2026-10-17', envoie: async () => ({ ok: true, id: 'x' }) });
   dit('sans numéro : rien ne part, et l écran le dit', false, sans.ok);
+
+  const env = lis('src/apps/trone/routes/vente/envoi-de-la-piece.ts');
+  dit('honorer sans encaisser : le reste dû, et le même Tap & Go que le pied du PDF', [true, true, true],
+    [/const tg = paiementTapGoDeLaPiece\(reste, settings\.mndPay\);/.test(env), /resteDit: fmtMoney\(reste, currency\)/.test(env),
+      /tapgo: tg \? \{ parametre: parametreTapGo\(tg\.totalXof, settings\.mndPay\), lien: tg\.qr, totalDit: fmtMoney\(tg\.totalXof, currency\) \} : undefined/.test(env)]);
 }
 console.log(ko === 0 ? '\nMND PAY tient ses regles.' : `\n${ko} controle(s) en echec.`);
 process.exitCode = ko === 0 ? 0 : 1;

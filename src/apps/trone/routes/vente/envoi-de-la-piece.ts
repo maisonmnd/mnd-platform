@@ -3,11 +3,11 @@ import { fmtMoney } from '../../../../shared/currency';
 import { useClients } from '../../../../shared/clients';
 import { useSettings } from '../../../../shared/settings';
 import { maisonNom } from '../../../../shared/identite';
-import { invoiceResteXof, invoiceTotal, invoicesStore, quiEncaisse } from '../../../../shared/finance';
+import { invoiceResteXof, invoicesStore, quiEncaisse } from '../../../../shared/finance';
 import { demandeLePaiement, mndPayOuvert, versionDeMndPay } from '../../../../shared/mnd-pay';
-import { jourLocal, paiementTapGoDeLaPiece, saitLesFactures } from '../../../../shared/mnd-pay-pur';
+import { jourLocal, paiementTapGoDeLaPiece, parametreTapGo, saitLesFactures } from '../../../../shared/mnd-pay-pur';
 import { envoieLeRecu } from '../../../../shared/recu-whatsapp';
-import { envoieLaFactureARegler } from '../../../../shared/facture-whatsapp';
+import { envoieLaFactureARegler, MODELE_FACTURE, type ResultatDeLaFacture } from '../../../../shared/facture-whatsapp';
 import { toast } from '../../../../ds/components';
 import { useLaPieceEnPdf } from './pdf-de-la-piece';
 
@@ -17,7 +17,9 @@ import { useLaPieceEnPdf } from './pdf-de-la-piece';
      · APRÈS UN RÈGLEMENT (encaisser le rituel) : le reçu, modèle
        `recu_de_paiement`, la facture en pièce jointe ;
      · UNE FACTURE À RÉGLER (honorer sans encaisser, au Carnet, au tableau de
-       bord, à l'écran d'encaissement) : modèle `facture_du_rituel`.
+       bord, à l'écran d'encaissement) : modèle `facture_a_regler` (le PDF et
+       un bouton « Régler »), et tant que Meta ne l'a pas approuvé, le lien de
+       paiement `paiement_en_attente` (18 octobre 2026, sa décision).
    Dans les deux cas, LA DATE MÉTIER DÉCIDE : seulement pour l'argent reçu
    aujourd'hui, ou le rituel d'aujourd'hui. Un rattrapage (une année passée,
    un rituel d'hier honoré ce matin) ne réveille pas une cliente avec un
@@ -50,8 +52,10 @@ export function useEnvoiDeLaPiece() {
     return { piece, destinataire };
   };
 
-  const dit = (numero: string, r: { ok: true; enAttente?: true } | { ok: false; erreur: string }) => toast(r.ok
-    ? (r.enAttente ? `Facture ${numero} gardée : elle partira sur son WhatsApp au retour du réseau.` : `Facture ${numero} envoyée sur son WhatsApp.`)
+  const dit = (numero: string, r: ResultatDeLaFacture) => toast(r.ok
+    ? (r.enAttente ? `Facture ${numero} gardée : elle partira sur son WhatsApp au retour du réseau.`
+      : r.repli === 'lien' ? `Facture ${numero} : le lien de paiement est parti sur son WhatsApp, sans le PDF tant que Meta n’a pas approuvé « ${MODELE_FACTURE} ».`
+        : `Facture ${numero} envoyée sur son WhatsApp.`)
     : `Facture ${numero} non envoyée : ${r.erreur}`);
 
   /** Après un règlement reçu `jourDuPaiement` : seulement s'il est d'aujourd'hui. */
@@ -71,9 +75,13 @@ export function useEnvoiDeLaPiece() {
     if (jourDuRituel !== aujourdhui()) return;
     const p = await preparer(pieceId);
     if (!p) return;
+    /* Le même Tap & Go que le pied du PDF : le reste, frais ajoutés. */
+    const reste = invoiceResteXof(p.piece);
+    const tg = paiementTapGoDeLaPiece(reste, settings.mndPay);
     const r = await envoieLaFactureARegler({
       client: { ...p.destinataire, branchId: p.destinataire.branchId }, pdf: buildPdfData(p.piece),
-      numero: p.piece.number, montant: fmtMoney(invoiceTotal(p.piece), currency), jourIso: jourDuRituel, parQui: quiEncaisse(),
+      numero: p.piece.number, resteDit: fmtMoney(reste, currency), jourIso: jourDuRituel, parQui: quiEncaisse(), cle: p.piece.id,
+      tapgo: tg ? { parametre: parametreTapGo(tg.totalXof, settings.mndPay), lien: tg.qr, totalDit: fmtMoney(tg.totalXof, currency) } : undefined,
     });
     dit(p.piece.number, r);
   };
