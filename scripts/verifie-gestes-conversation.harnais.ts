@@ -9,6 +9,7 @@
    bouton qui reste allumé sans rien derrière fait perdre le comptoir. Un
    relevé de foyer qui oublie l'avoir réclame de l'argent déjà versé. Les
    trois fautes se lisent ici. */
+import { readFileSync } from 'node:fs';
 import type { Appointment } from '../src/shared/agenda';
 import type { Family } from '../src/shared/clients';
 import {
@@ -306,6 +307,21 @@ dit('le suivi avertit avant d’envoyer un compteur douteux',
   gesteDit(douteux, 'abonnement')?.avertit);
 dit('un compteur sain n’avertit de rien', undefined,
   gesteDit(lesGestes(ctx({ abonnement: pack })), 'abonnement')?.avertit);
+
+/* ── LA PIÈCE DU GESTE SE JOINT POUR DE VRAI (18 octobre 2026) ──
+   « Sa facture sur ce message n'attache pas la facture en PDF » (Yéman) : le
+   geste écrivait le texte et laissait la pièce de côté. La surface lit la
+   pièce du geste, fabrique le PDF des Factures et le pose dans la zone. */
+{
+  const brut = readFileSync('src/apps/trone/routes/clients/Conversations.tsx', 'utf8');
+  const src = brut.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+  const pose = src.slice(src.indexOf('const poseLeGeste = (g: Geste) => {'), src.indexOf('const delaiMs ='));
+  dit('le geste Sa facture / Son devis joint le PDF des Factures (fabriqué, posé dans la zone)', [true, true, true, true],
+    [/if \(g\.piece && \(g\.piece\.quoi === 'facture' \|\| g\.piece\.quoi === 'devis'\)\) \{/.test(pose),
+      /invoicesStore\.get\(\)\.find\(\(i\) => i\.id === id\)/.test(pose),
+      /setPiece\(await invoiceEnPiece\(buildPdfData\(doc\)\)\)/.test(pose),
+      /const \{ buildPdfData \} = useLaPieceEnPdf\(\);/.test(src)]);
+}
 
 if (ko) {
   console.error(`\n${ko} vérification(s) en échec.`);

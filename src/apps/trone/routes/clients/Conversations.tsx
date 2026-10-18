@@ -45,6 +45,8 @@ import './clients.css';
 import { LienDeReservation } from './LienDeReservation';
 import { appelDe } from '../../../../shared/civilite';
 import ReponsesDeLaMaison from './ReponsesDeLaMaison';
+import { invoicesStore } from '../../../../shared/finance';
+import { useLaPieceEnPdf } from '../vente/pdf-de-la-piece';
 
 /* ═══════════════════════════════════════════════════════════════════
    LES CONVERSATIONS — maquette `public/maquette-les-conversations.html`,
@@ -330,6 +332,8 @@ export default function Conversations() {
   /* LA PIÈCE EN ATTENTE — choisie, pas encore envoyée. Elle se relit comme
      le texte : on doit pouvoir la retirer avant d'appuyer. */
   const [piece, setPiece] = useState<PieceRendue | null>(null);
+  /* La facture ou le devis d'un geste, tel que les Factures le font (18 octobre 2026). */
+  const { buildPdfData } = useLaPieceEnPdf();
   const [promoOuverte, setPromoOuverte] = useState(false);
   const estDirection = useEstDirection();
   const [reglages] = useSettings();
@@ -625,7 +629,25 @@ export default function Conversations() {
     prendsLaMain('geste');
     if (g.compose) setTexte(g.compose);
     if (g.avertit) toast(g.avertit);
-    if (g.piece && g.piece.quoi !== 'facture' && g.piece.quoi !== 'devis') {
+    /* LA FACTURE ET LE DEVIS SE JOIGNENT POUR DE VRAI — 18 octobre 2026.
+       « Sa facture sur ce message n'attache pas la facture en PDF » (Yéman) :
+       le geste écrivait le texte et laissait la pièce de côté. Le PDF est
+       celui des Factures (numéro, QR Tap & Go du reste), posé comme une pièce
+       choisie à la main : il se relit, se retire, et part avec le texte. */
+    if (g.piece && (g.piece.quoi === 'facture' || g.piece.quoi === 'devis')) {
+      const id = g.piece.invoiceId;
+      const nom = g.piece.nom;
+      const doc = invoicesStore.get().find((i) => i.id === id);
+      if (!doc) { toast(`${nom} introuvable : le texte est prêt, sans la pièce.`); return; }
+      void (async () => {
+        try {
+          const { invoiceEnPiece } = await import('../../../../shared/pdf');
+          setPiece(await invoiceEnPiece(buildPdfData(doc)));
+        } catch {
+          toast(`${nom} : le PDF n’a pas pu se faire. Joignez-le avec « + Pièce jointe ».`);
+        }
+      })();
+    } else if (g.piece) {
       /* ON NE PROMET PAS UN FICHIER QU'ON N'A PAS. Le bilan vit dans une page
          imprimable, les photos de séance n'ont pas encore de logement : le
          message part seul, et l'écran le dit plutôt que d'annoncer une pièce
