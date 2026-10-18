@@ -69,6 +69,9 @@ const reglages = {
   lectureLente: null as string | null,
   delaiLent: 400,
   suppressionCoupee: null as string | null,
+  /* Un envoi qui traîne (18 octobre 2026, le téléphone de Brice) : les
+     prochains envois de cette table arrivent après ces délais, dans l'ordre. */
+  upsertsLents: null as { table: string; delais: number[] } | null,
 };
 const ecrits: { table: string; lignes: unknown[] }[] = [];
 const HORS_LIGNE = { data: null, error: { message: 'TypeError: Failed to fetch' } };
@@ -84,6 +87,11 @@ sb.from = (t: string) => {
       if (q.op === 'upsert') return rend({ data: null, error: { message: 'new row violates row-level security policy' } });
       if (q.op === 'delete') return rend({ data: null, error: null });
       return rend({ data: q.seul ? null : [], error: null });
+    }
+    if (q.op === 'upsert' && reglages.upsertsLents?.table === t && reglages.upsertsLents.delais.length > 0) {
+      const ms = reglages.upsertsLents.delais.shift()!;
+      /* L'écriture n'atteint le serveur qu'au bout du délai, comme sur un réseau lent. */
+      return new Promise((r) => setTimeout(() => r(q.execute()), ms)).then(ok, ko2);
     }
     if (q.op === 'delete' && reglages.suppressionCoupee === t) { reglages.suppressionCoupee = null; return rend(HORS_LIGNE); }
     if (q.op === 'select' && q.cols === 'id,data' && reglages.lectureRatee === t) return rend(HORS_LIGNE);
@@ -298,6 +306,39 @@ if (scene === 'relecture-depassee') {
   await attend(1500);
   dit('35 la lecture lente est bien partie avant la poussee', null, reglages.lectureLente);
   dit('35 la lecture d avant la poussee ne remet pas l ancienne version', ['B', 'B'], [local(s).r1, serveur('essais').r1]);
+  fin();
+}
+
+/* ═════ 85 · L'ORDRE DES ENVOIS (18 octobre 2026) ════════════════════════
+   Le rituel d'Annick A. : sur le téléphone de Brice, l'envoi du rendez-vous
+   d'avant l'encaissement est arrivé au serveur APRÈS celui d'après, et l'a
+   écrasé. Le versement a disparu, l'encaissement a été refait. */
+if (scene === 'ordre-des-envois') {
+  faux.session = SESSION;
+  poseAuServeur('essais', 'r1', ligne('r1', 'A'));
+  const s = createStore<Ligne[]>('mnd_essais', []);
+  bindCollection(s, 'essais');
+  await attend(900);
+  reglages.upsertsLents = { table: 'essais', delais: [1200] };
+  s.set([ligne('r1', 'B')]);
+  await attend(500);
+  s.set([ligne('r1', 'C')]);
+  await attend(3000);
+  dit('85 collection : le dernier geste gagne au serveur, le vieil envoi en retard ne l ecrase pas', ['C', 'C'], [local(s).r1, serveur('essais').r1]);
+
+  faux.base.get('documents')?.delete('mnd_doc_essai');
+  if (!faux.base.has('documents')) faux.base.set('documents', new Map());
+  faux.base.get('documents')!.set('mnd_doc_essai', { id: 'mnd_doc_essai', key: 'mnd_doc_essai', data: { v: 'A' }, branch_id: null, updated_at: new Date(Date.now() - 60_000).toISOString() } as never);
+  const d = createStore<{ v: string }>('mnd_doc_essai', { v: '?' });
+  bindDocument(d, 'mnd_doc_essai');
+  await attend(900);
+  reglages.upsertsLents = { table: 'documents', delais: [1200] };
+  d.set({ v: 'B' });
+  await attend(500);
+  d.set({ v: 'C' });
+  await attend(3000);
+  const auServeur = (faux.base.get('documents')?.get('mnd_doc_essai')?.data as { v?: string } | undefined)?.v;
+  dit('85 document : le dernier geste gagne au serveur', ['C', 'C'], [d.get().v, auServeur]);
   fin();
 }
 

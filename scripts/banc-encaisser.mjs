@@ -110,12 +110,19 @@ const SEMENCE = {
   'trone::mnd_clients': [
     { id: 'cl-awa', branchId: 'maison', name: 'Awa Banc', phone: '', city: '', persona: '', since: AUJ, segments: [] },
     { id: 'cl-fif', branchId: 'maison', name: 'Fifamè Banc', phone: '', city: '', persona: '', since: JOUR_PASSE, segments: [] },
+    { id: 'cl-ann', branchId: 'maison', name: 'Annick Banc', phone: '', city: '', persona: '', since: AUJ, segments: [] },
   ],
   'trone::mnd_appointments': [
     { id: 'rdv-awa', branchId: 'maison', clientId: 'cl-awa', clientName: 'Awa Banc', serviceIds: ['sv-banc'], master: 'Aïcha Banc', date: AUJ, time: '10:00', status: 'confirmé' },
     { id: 'rdv-fif', branchId: 'maison', clientId: 'cl-fif', clientName: 'Fifamè Banc', serviceIds: ['sv-banc'], master: 'Aïcha Banc', date: JOUR_PASSE, time: '10:00', status: 'confirmé' },
+    /* LE RITUEL D'ANNICK A. (18 octobre 2026) : son versement perdu au carnet, gardé par la facture. */
+    { id: 'rdv-ann', branchId: 'maison', clientId: 'cl-ann', clientName: 'Annick Banc', serviceIds: ['sv-banc'], master: 'Aïcha Banc', date: AUJ, time: '11:00', status: 'confirmé' },
   ],
-  'trone::mnd_invoices': [],
+  'trone::mnd_invoices': [
+    { id: 'inv-ann', branchId: 'maison', kind: 'facture', number: 'F-BANC-0732', clientId: 'cl-ann', clientName: 'Annick Banc', date: AUJ, apptId: 'rdv-ann',
+      lines: [{ id: 'l-ann', label: 'Rituel du banc', qty: 1, unitXof: 30000, discountPct: 0 }], globalDiscountPct: 0, theme: 'Rose', status: 'envoyée',
+      payments: [{ id: 'ip-ann', date: AUJ, amountXof: 10000, method: 'Espèces', cashbox: 'Terrasse · Tiroir espèces' }] },
+  ],
   'trone::mnd_payment_methods': ['MTN MoMo', 'Moov', 'Celtis', 'Wave', 'Espèces', 'Carte', 'Virement bancaire', 'PayPal', 'Chèque', 'Lien WhatsApp'],
 };
 await cdp('Page.addScriptToEvaluateOnNewDocument', { source: `try { if (!sessionStorage.getItem('banc_seme')) { sessionStorage.setItem('banc_seme', '1'); localStorage.setItem('mnd_reset_v5', '1'); for (const [k, v] of Object.entries(${JSON.stringify(SEMENCE)})) localStorage.setItem(k, JSON.stringify(v)); } } catch (e) {}` });
@@ -185,6 +192,22 @@ dit('la caisse « Années passées » est née', boites.includes('Années passé
 const pf = ((await lis('trone::mnd_invoices')) ?? []).find((x) => x.apptId === 'rdv-fif');
 const vf = (pf?.payments ?? []).map((x) => [x.amountXof, x.cashbox, x.date]);
 dit('le versement est aux années passées, daté du jour du rituel', JSON.stringify(vf) === JSON.stringify([[30000, 'Années passées', JOUR_PASSE]]), JSON.stringify(vf));
+
+/* ── C. LE CAS D'ANNICK : LA FACTURE PORTE UN VERSEMENT QUE LE CARNET A PERDU ── */
+dit('le Carnet ouvre l encaissement d Annick', await ouvreLEncaissement('Annick'));
+t = await texteModale();
+dit('la fenêtre dit que la facture porte déjà 10 000 F que le carnet ne connaît pas', /F-BANC-0732 porte déjà 10\s000\sF que le carnet ne connaît pas/.test(t), t.match(/La facture[^.]*\./)?.[0]);
+const bloqueAnn = await evalue(`(() => { const b = [...document.querySelectorAll('.mnd-modal button')].find((x) => /^Encaisser [0-9]/.test(x.textContent.trim())); return b ? b.disabled : null; })()`);
+dit('… et le bouton d encaissement attend', bloqueAnn === true, String(bloqueAnn));
+dit('« Inscrire au carnet » existe', await clique('button', 'Inscrire au carnet', modale));
+await attend(900);
+t = await texteModale();
+const rdvAnn = ((await lis('trone::mnd_appointments')) ?? []).find((x) => x.id === 'rdv-ann');
+dit('le carnet porte le versement de la facture, sous son identifiant', JSON.stringify((rdvAnn?.payments ?? []).map((x) => [x.id, x.amountXof])) === JSON.stringify([['ip-ann', 10000]]) && rdvAnn?.paidXof === 10000,
+  JSON.stringify(rdvAnn?.payments));
+dit('le reste dû devient le vrai reste, et l alerte se tait', !/que le carnet ne connaît pas/.test(t) && /20\s000\sF/.test(t));
+await cdp('Page.reload', { ignoreCache: false });
+await attend(3000);
 
 /* Le rituel du jour ne voit jamais les années passées, même la caisse née. */
 await cdp('Page.navigate', { url: `http://127.0.0.1:${port}/trone.html#/carnet?q=Awa` });

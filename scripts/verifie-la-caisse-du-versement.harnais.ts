@@ -9,7 +9,7 @@
      - la pièce imprimée ne nomme pas les tiroirs (« au Trône seulement »).
    Les noms et montants sont des exemples. */
 import { readFileSync } from 'node:fs';
-import { aligneLeRituel, corrigeLeVersement, estLieALaPiece } from '../src/shared/caisse-du-versement';
+import { aligneLeRituel, corrigeLeVersement, estLieALaPiece, argentHorsDuCarnet, versementsAInscrireAuCarnet } from '../src/shared/caisse-du-versement';
 import type { Invoice } from '../src/shared/finance';
 import type { Appointment } from '../src/shared/agenda';
 
@@ -89,5 +89,42 @@ dit('l enregistrement realigne le rendez-vous', true, /estLieALaPiece\(a, avant\
 const imprime = src.slice(src.indexOf("{journal.length > 1 ? 'Règlements' : 'Réglé par'}"), src.indexOf('Reste dû ·'));
 dit('la piece imprimee ne nomme pas les caisses', true, imprime.length > 200 && !/cashbox/.test(imprime));
 dit('le detail du Trone les nomme', true, /trv-caisses-du-doc[\s\S]{0,900}p\.cashbox/.test(src));
+
+/* ── L'ARGENT DE LA PIÈCE QUE LE CARNET NE CONNAÎT PAS (18 octobre 2026) ──
+   Le rituel d'Annick A., 16 octobre, téléphone de Brice : un vieil état du
+   rendez-vous, arrivé au serveur après le récent, a effacé le versement du
+   carnet ; la facture l'a gardé ; l'encaissement refait l'a doublé. */
+{
+  const pieceA = {
+    id: 'inv-6ydb5s4izn', number: 'F-2026-0732', kind: 'facture', status: 'payée', date: '2026-10-15', clientId: 'c',
+    lines: [{ id: 'l', label: 'x', qty: 1, unitXof: 10000, discountPct: 0 }], globalDiscountPct: 0, theme: 'Rose',
+    payments: [{ id: 'ip-cckyb74izh', date: '2026-10-15', amountXof: 10000, method: 'Espèces', cashbox: 'ACIA1' }],
+  } as unknown as Invoice;
+  const rdvPerdu = { id: 'd41wem7ixp', date: '2026-10-15', status: 'confirmé', invoiceId: undefined, payments: undefined, paidXof: undefined } as unknown as Appointment;
+  dit('le cas d Annick : la facture porte 10 000 F que le carnet a perdus', 10000, argentHorsDuCarnet(rdvPerdu, pieceA));
+  dit('… à inscrire au carnet sous leur identifiant', ['ip-cckyb74izh'], versementsAInscrireAuCarnet(rdvPerdu, pieceA).map((p) => p.id));
+  const rdvJuste = { ...rdvPerdu, paidXof: 10000, payments: [{ id: 'pay-x', amountXof: 10000, date: '2026-10-15', method: 'Espèces', cashbox: 'ACIA1', invoiceId: pieceA.id }] } as unknown as Appointment;
+  dit('le carnet et la facture d accord (identifiants différents, même montant le même jour) : rien', [0, 0], [argentHorsDuCarnet(rdvJuste, pieceA), versementsAInscrireAuCarnet(rdvJuste, pieceA).length]);
+  const avecAvoir = { ...pieceA, payments: [
+    { id: 'ip-1', date: '2026-10-15', amountXof: 7000, method: 'Espèces' }, { id: 'ip-2', date: '2026-10-15', amountXof: 3000, method: 'Avoir' }] } as unknown as Invoice;
+  const rdvAvoir = { ...rdvPerdu, paidXof: 10000, payments: [{ id: 'pay-y', amountXof: 10000, date: '2026-10-15', method: 'Espèces', invoiceId: pieceA.id }] } as unknown as Appointment;
+  dit('un règlement en partie par avoir (une ligne au carnet, deux sur la pièce) : rien', 0, argentHorsDuCarnet(rdvAvoir, avecAvoir));
+  const avecAcompteEtGamme = { ...pieceA, payments: [
+    { id: 'ip-a', date: '2026-10-10', amountXof: 5000, method: 'Acompte', note: 'Acompte reçu avant le comptoir' },
+    { id: 'ip-b', date: '2026-10-15', amountXof: 5000, method: 'Espèces' },
+    { id: 'ip-g', date: '2026-10-15', amountXof: 8000, method: 'Espèces', note: 'Gamme, produits emportés' }] } as unknown as Invoice;
+  const rdvAcompte = { ...rdvPerdu, paidXof: 5000, payments: [{ id: 'pay-z', amountXof: 5000, date: '2026-10-15', method: 'Espèces', invoiceId: pieceA.id }] } as unknown as Appointment;
+  dit('l acompte d avant et la Gamme ne comptent pas : rien', 0, argentHorsDuCarnet(rdvAcompte, avecAcompteEtGamme));
+  const rdvAncien = { ...rdvPerdu, paidXof: 10000, payments: undefined } as unknown as Appointment;
+  dit('un rendez-vous d avant le journal (sa somme seule) : rien', 0, argentHorsDuCarnet(rdvAncien, pieceA));
+  dit('une pièce sans journal (d avant le 17 août) : rien', 0, argentHorsDuCarnet(rdvPerdu, { ...pieceA, payments: undefined } as unknown as Invoice));
+
+  const act = readFileSync('src/apps/trone/routes/clients/actions.tsx', 'utf8');
+  dit('la fenêtre d encaissement s arrête, le dit, et propose d inscrire au carnet', [true, true, true, true],
+    [/const horsCarnet = due > 0 \? argentHorsDuCarnet\(appt, pieceDuRituelOuverte\) : 0;/.test(act),
+      /const empecheTout = horsCarnet > 0 \|\|/.test(act),
+      /if \(ditLaCaisse \|\| partsTropHautes \|\| avoirTropHaut \|\| mndEnAttente \|\| horsCarnet > 0\) return;/.test(act),
+      /<Button variant="ghost" onClick=\{inscrisAuCarnet\}/.test(act)]);
+}
 
 console.log(ko === 0 ? '\nLa caisse du versement se corrige, et le rendez-vous suit.' : `\n${ko} controle(s) en echec.`);

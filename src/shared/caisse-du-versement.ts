@@ -66,3 +66,40 @@ export function aligneLeRituel(appt: Appointment, avant: Invoice, apres: Invoice
 /** Les rendez-vous liés à la pièce, par l'un des trois liens. */
 export const estLieALaPiece = (a: Appointment, inv: Invoice): boolean =>
   a.id === inv.apptId || a.invoiceId === inv.id || (a.payments ?? []).some((p) => p.invoiceId === inv.id);
+
+/* ══ L'ARGENT DE LA PIÈCE QUE LE CARNET NE CONNAÎT PAS — 18 octobre 2026 ══
+   Le rituel d'Annick A. : un envoi perdu (un vieil état du rendez-vous arrivé
+   au serveur après le récent) a effacé le versement du CARNET, pas celui de
+   la FACTURE. Le Carnet disait « dû », l'encaissement a été refait, et la
+   facture a porté deux fois 10 000 F. La fenêtre d'encaissement le voit
+   désormais AVANT : ce que la pièce porte au-delà de ce que le rendez-vous
+   sait avoir reçu ne s'encaisse pas une seconde fois, il s'inscrit au carnet.
+
+   On ne compte ni l'acompte reçu avant le comptoir (le rendez-vous le tient à
+   part), ni la Gamme (les produits ont leur propre versement), et le rendez-
+   vous compte pour le plus grand de son journal et de son `paidXof` (les
+   journaux d'avant le 17 août n'ont que la somme). */
+const horsDuRituel = (p: InvoicePayment): boolean => p.method === 'Acompte' || /^Gamme\b/.test(p.note ?? '');
+
+export function argentHorsDuCarnet(appt: Appointment, piece: Invoice | undefined): number {
+  if (!piece?.payments?.length) return 0;
+  const surLaPiece = piece.payments.filter((p) => !horsDuRituel(p)).reduce((s, p) => s + (p.amountXof || 0), 0);
+  const auCarnet = (appt.payments ?? []).filter((v) => v.invoiceId === piece.id).reduce((s, v) => s + (v.amountXof || 0), 0);
+  return Math.max(0, surLaPiece - Math.max(auCarnet, appt.paidXof ?? 0));
+}
+
+/** Les versements de la pièce à recopier au carnet, sous LEUR identifiant :
+    ceux qui n'y ont pas de jumeau (même identifiant, ou même montant le même
+    jour). */
+export function versementsAInscrireAuCarnet(appt: Appointment, piece: Invoice): InvoicePayment[] {
+  const carnet = (appt.payments ?? []).filter((v) => !v.invoiceId || v.invoiceId === piece.id);
+  const pris = new Set<number>();
+  const out: InvoicePayment[] = [];
+  for (const p of piece.payments ?? []) {
+    if (horsDuRituel(p)) continue;
+    const k = carnet.findIndex((v, i) => !pris.has(i) && (v.id === p.id || (v.amountXof === p.amountXof && v.date === p.date)));
+    if (k >= 0) { pris.add(k); continue; }
+    out.push(p);
+  }
+  return out;
+}

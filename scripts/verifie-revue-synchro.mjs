@@ -28,7 +28,9 @@ const dossier = mkdtempSync(path.join(tmpdir(), 'verifie-revue-synchro-'));
 const SCENES = ['appels', 'purge', 'purge-hors-ligne', 'relecture-ratee', 'laissez-passer', 'realignement-faux',
   'relecture-depassee', 'supprimee-ailleurs', 'remise-a-blanc', 'traces', 'merci', 'tirets',
   /* La reprise apres relecture (10 octobre 2026). */
-  'verrou-hors-ligne', 'reprise-sans-session', 'poussee-sans-geste', 'conflit-supprime'];
+  'verrou-hors-ligne', 'reprise-sans-session', 'poussee-sans-geste', 'conflit-supprime',
+  /* L'ordre des envois (18 octobre 2026). */
+  'ordre-des-envois'];
 
 const LOT = [
   'src/shared/appels-en-attente.ts', 'src/shared/sync.ts', 'src/shared/store.ts', 'src/shared/file-d-attente.ts',
@@ -40,6 +42,12 @@ const LOT = [
 /* LES FAUTES, UNE PAR CORRECTION : le code d'avant, remis a sa place.
    `disque` : le controle lit la source sur le disque. */
 const FAUTES = [
+  { n: 85, nom: 'deux envois d une meme table volent ensemble', fichier: 'src/shared/sync.ts', scenes: ['ordre-des-envois'], subs: [
+    ['    if (pousseesEnVol > 0) { pousseeRedemandee = true; return; }\n', ''],
+  ] },
+  { n: 85, nom: 'deux envois d un meme document volent ensemble', fichier: 'src/shared/sync.ts', scenes: ['ordre-des-envois'], subs: [
+    ['    if (envoiEnVol) { envoiRedemande = true; return; }\n', ''],
+  ] },
   { n: 5, nom: 'vidage d avant (sans verrou, retrait apres l envoi, file lue une fois)', fichier: 'src/shared/appels-en-attente.ts', scenes: ['appels'], subs: [
     ['verrous && typeof verrous.request === \'function\' ? await verrous.request(VERROU(), videSousVerrou) : await videSousVerrou()', 'await videSousVerrou()'],
     ['  for (;;) {\n    const a = lisLesAppels()[0];\n    if (!a || vus.has(a.id)) break;\n    vus.add(a.id);\n    ecris(lisLesAppels().filter((x) => x.id !== a.id));\n', '  for (const a of lisLesAppels()) {\n'],

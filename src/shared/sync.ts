@@ -1223,9 +1223,23 @@ export function bindCollection<T extends WithId>(
          et TOUS les rattrapages — focus, retour d'onglet, changement de session —
          sortaient sans rien faire. Le filet de fraicheur n'existait plus. */
       timer = undefined;
-      const items = store.get();
-      void pousse(lastPushed, snapshot(items), items);
+      lanceLaPoussee();
     }, PUSH_DEBOUNCE_MS);
+  };
+  /* ══ UN ENVOI À LA FOIS, PAR TABLE — 18 octobre 2026 ═════════════════
+     Le rituel d'Annick A., le 16 octobre, sur le téléphone de Brice : deux
+     envois de la même table volaient ensemble. Sur un réseau lent, le plus
+     VIEUX (le rendez-vous d'avant l'encaissement) est arrivé au serveur
+     quatre secondes APRÈS le plus récent et l'a écrasé ; le poste a relu,
+     le versement a disparu du Carnet, l'encaissement a été refait, et la
+     facture a porté deux versements. Un envoi attend désormais le retour du
+     précédent ; celui qui part ensuite porte l'état du moment, jamais une
+     vieille photo. */
+  let pousseeRedemandee = false;
+  const lanceLaPoussee = (): void => {
+    if (pousseesEnVol > 0) { pousseeRedemandee = true; return; }
+    const items = store.get();
+    void pousse(lastPushed, snapshot(items), items);
   };
   /* On n'avance le repere qu'APRES un envoi reussi. En l'avancant avant, une
      poussee en echec (hors ligne, RLS, reseau) sortait ses lignes de tout
@@ -1243,7 +1257,9 @@ export function bindCollection<T extends WithId>(
       }
     } finally {
       pousseesEnVol -= 1;
-      if (pousseesEnVol === 0 && relectureDue) { relectureDue = false; setTimeout(() => void refetch(true), 0); }
+      /* Ce qui a changé pendant le vol part maintenant, dans l'ordre. */
+      if (pousseesEnVol === 0 && pousseeRedemandee) { pousseeRedemandee = false; lanceLaPoussee(); }
+      else if (pousseesEnVol === 0 && relectureDue) { relectureDue = false; setTimeout(() => void refetch(true), 0); }
     }
   };
   /* LA REPRISE REPASSE PAR LE MÊME CHEMIN QU'UNE ÉCRITURE : le diff se
@@ -1424,8 +1440,7 @@ export function bindCollection<T extends WithId>(
     /* Jamais lu (ouvert sans réseau) : la première lecture rejoue la file.
        Lu et rien en attente : on pousse simplement ce qui reste. */
     if (lu && attente.size === 0) {
-      const items = store.get();
-      void pousse(lastPushed, snapshot(items), items);
+      lanceLaPoussee();
       return;
     }
     void attendsLaPorte().then(() => refetch(true));
@@ -1848,11 +1863,25 @@ export function bindDocument<T>(store: Store<T>, key: string): void {
 
   // 2. Poussée locale (coalescée).
   let timer: ReturnType<typeof setTimeout> | undefined;
+  /* UN ENVOI À LA FOIS (18 octobre 2026) : comme aux collections, un vieil
+     envoi arrivé après le récent l'écrasait au serveur. */
+  let envoiEnVol = false;
+  let envoiRedemande = false;
   const envoie = async () => {
     /* LE GARDE SE REARME. Sans cette remise a zero, `timer` reste verite a
        vie apres la premiere ecriture, et la garde de frappe ci-dessous ne
        laisserait plus JAMAIS passer une mise a jour distante. */
     timer = undefined;
+    if (envoiEnVol) { envoiRedemande = true; return; }
+    envoiEnVol = true;
+    try {
+      await envoieUneFois();
+    } finally {
+      envoiEnVol = false;
+      if (envoiRedemande) { envoiRedemande = false; void envoie(); }
+    }
+  };
+  const envoieUneFois = async () => {
     const val = store.get();
     const j = JSON.stringify(val);
     if (j === lastPushed) { if (attenteDoc.get(key)?.j === j) sortDuDoc(); syncMark.ok(`doc:${key}`); return; }

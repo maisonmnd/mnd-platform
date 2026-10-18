@@ -42,6 +42,7 @@ import { PanneauMndPay } from '../vente/MndPay';
 import { CAISSE_MND_PAY, moyenDeLaPiece, type DemandeMndPay } from '../../../../shared/mnd-pay-pur';
 import { mndPayOuvert } from '../../../../shared/mnd-pay';
 import { useEnvoiDeLaPiece } from '../vente/envoi-de-la-piece';
+import { argentHorsDuCarnet, versementsAInscrireAuCarnet } from '../../../../shared/caisse-du-versement';
 import {
   CAISSE_ANNEES_PASSEES, anneeDe, caisseDesAnneesPassees, caisseProposee, caissesAuChoix, estAnneeAnterieure,
   familleDuMoyen, peutChangerLaCaisse, prenomDe, type CaisseProposee,
@@ -1432,6 +1433,30 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour }: {
     && (i.apptId === appt.id || i.id === appt.invoiceId
         || (appt.payments ?? []).some((p) => p.invoiceId === i.id)));
 
+  /* L'ARGENT QUE LA PIÈCE PORTE ET QUE LE CARNET IGNORE (18 octobre 2026,
+     le rituel d'Annick A.) : on ne l'encaisse pas une seconde fois, on
+     l'inscrit au carnet d'un geste. */
+  const horsCarnet = due > 0 ? argentHorsDuCarnet(appt, pieceDuRituelOuverte) : 0;
+  const inscrisAuCarnet = () => {
+    if (!pieceDuRituelOuverte) return;
+    const piece = pieceDuRituelOuverte;
+    const aInscrire = versementsAInscrireAuCarnet(appt, piece);
+    if (aInscrire.length === 0) return;
+    const somme = aInscrire.reduce((s, p) => s + p.amountXof, 0);
+    appointmentsStore.set((prev) => prev.map((a) => (a.id === appt.id
+      ? {
+          ...a,
+          invoiceId: a.invoiceId ?? piece.id,
+          paidXof: (a.paidXof ?? 0) + somme,
+          payments: [...(a.payments ?? []), ...aInscrire.map((p) => ({
+            id: p.id, amountXof: p.amountXof, date: p.date, method: p.method,
+            ...(p.cashbox ? { cashbox: p.cashbox } : {}), invoiceId: piece.id,
+          }))],
+        }
+      : a)));
+    toast(`${fmtMoney(somme, currency)} inscrits au carnet : la facture ${piece.number} et le rendez-vous disent maintenant la même chose.`);
+  };
+
   /* Corriger QUAND et COMMENT — jamais COMBIEN. La correction va sur la pièce
      (la vérité de l'argent) ET sur le carnet quand il porte le même versement,
      pour que les deux registres ne divergent pas. */
@@ -1458,7 +1483,7 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour }: {
     if (amount <= 0 && avoirApplied <= 0 && totalGamme <= 0 && tip <= 0 && !depositJustConfirmed && !reschedule) return;
     /* La ceinture du bouton grisé : aucun chemin n'écrit un argent sans tiroir,
        ni des parts qui dépassent le reste, ni une part MND PAY pas encore payée. */
-    if (ditLaCaisse || partsTropHautes || avoirTropHaut || mndEnAttente) return;
+    if (ditLaCaisse || partsTropHautes || avoirTropHaut || mndEnAttente || horsCarnet > 0) return;
     submitting.current = true;
     /* LA CAISSE DES ANNÉES PASSÉES naît au premier argent qui y entre
        (identifiant tiré de la branche : deux postes n'en font qu'une). */
@@ -2045,7 +2070,9 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour }: {
   /* ── CE QUI BLOQUE, DIT DANS LA BARRE ───────────────────────────────
      Un bouton grisé sans un mot ressemble à une panne (18 août) : la barre
      dit la première raison, une seule, celle qu'on peut régler tout de suite. */
-  const blocage = partsTropHautes
+  const blocage = horsCarnet > 0
+    ? `La facture ${pieceDuRituelOuverte?.number ?? ''} porte déjà ${fmtMoney(horsCarnet, currency)} que le carnet ne connaît pas. Encaisser ici les compterait deux fois : inscrivez-les d’abord au carnet.`
+    : partsTropHautes
     ? `Les parts font ${fmtMoney(amount + avoirDemande, currency)} pour ${fmtMoney(due, currency)} dû : baissez une part.`
     : avoirTropHaut
       ? `L’avoir disponible n’est que de ${fmtMoney(avoirBal, currency)}.`
@@ -2060,7 +2087,7 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour }: {
               : fxOn && fxAmount <= 0
                 ? 'Indiquez le taux de la devise, dans « Et ensuite ».'
                 : '';
-  const empecheTout = partsTropHautes || avoirTropHaut || mndEnAttente || (fxOn && fxAmount <= 0) || fxBlocked || ditLaCaisse;
+  const empecheTout = horsCarnet > 0 || partsTropHautes || avoirTropHaut || mndEnAttente || (fxOn && fxAmount <= 0) || fxBlocked || ditLaCaisse;
   const lesAutres = autresMethodes(methods);
   const tuilesOffertes = TUILES_ENC.filter((t) => (t.id !== 'mndpay' || (mndOn && !fxOn))
     && (t.id !== 'avoir' || avoirBal > 0)
@@ -2858,6 +2885,11 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour }: {
             <div role="alert" style={{ fontSize: 12, lineHeight: 1.5, color: 'var(--color-brique, #96412E)', borderLeft: '2px solid var(--color-brique, #96412E)', paddingLeft: 10 }}>
               {blocage}
             </div>
+          )}
+          {horsCarnet > 0 && (
+            <Button variant="ghost" onClick={inscrisAuCarnet} data-hors-carnet={horsCarnet}>
+              Inscrire au carnet les {fmtMoney(horsCarnet, currency)} déjà sur la facture
+            </Button>
           )}
           <Button
             variant="copper"
