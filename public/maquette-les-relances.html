@@ -1,0 +1,415 @@
+<title>Les relances</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,400&family=Jost:wght@300;400;500&display=swap">
+<style>
+/* Une page à lire de haut en bas : le parcours d'une facture, le message, le suivi, puis les choix.
+   Ivoire pour lire, indigo pour l'écran du Trône, cuivre pour ce qu'on décide ; jamais obsidienne. */
+:root {
+  --fond:#F6F1E7; --carte:#FFFDF9; --encre:#1E2150; --texte:#2A2722; --doux:#5E5750; --filet:#E3DACB;
+  --cuivre:#9A6036; --cuivre-clair:#F3E6D8; --vert:#2F6B4F; --vert-clair:#E3F0E8; --rouge:#8E2F2F;
+  --wa-fond:#EFE7DC; --wa-bulle:#FFFFFF; --wa-texte:#1F2421; --wa-doux:#6B726E; --wa-lien:#127C5A;
+  --serif:"Cormorant Garamond", Georgia, "Times New Roman", serif; --sans:"Jost", system-ui, -apple-system, "Segoe UI", sans-serif;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --fond:#15173A; --carte:#1E2150; --encre:#F6F1E7; --texte:#E9E3D7; --doux:#B9B4C9; --filet:#2E3266;
+  --cuivre:#D6A06F; --cuivre-clair:#3A2E3A; --vert:#8FD1AE; --vert-clair:#1F3B3A; --rouge:#E7A1A1;
+  --wa-fond:#0F1A1C; --wa-bulle:#1F2C2E; --wa-texte:#E8ECEA; --wa-doux:#9AA5A1; --wa-lien:#5FD0A4; color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --fond:#15173A; --carte:#1E2150; --encre:#F6F1E7; --texte:#E9E3D7; --doux:#B9B4C9; --filet:#2E3266;
+  --cuivre:#D6A06F; --cuivre-clair:#3A2E3A; --vert:#8FD1AE; --vert-clair:#1F3B3A; --rouge:#E7A1A1;
+  --wa-fond:#0F1A1C; --wa-bulle:#1F2C2E; --wa-texte:#E8ECEA; --wa-doux:#9AA5A1; --wa-lien:#5FD0A4; color-scheme: dark; }
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { margin: 0; background: var(--fond); color: var(--texte); font: 300 16px/1.65 var(--sans);
+  padding-block: 28px 90px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.page { max-width: 1040px; margin: 0 auto; display: grid; gap: 56px; }
+.page > * { min-width: 0; }
+section, header { display: grid; gap: 18px; }
+section > *, header > * { min-width: 0; }
+.sur { font-size: 11.5px; letter-spacing: .18em; text-transform: uppercase; color: var(--cuivre); margin: 0; font-weight: 400; }
+h1 { font: 300 clamp(40px, 7vw, 64px)/1.02 var(--serif); color: var(--encre); margin: 8px 0 0; text-wrap: balance; }
+h2 { font: 400 clamp(26px, 4.2vw, 34px)/1.12 var(--serif); color: var(--encre); margin: 4px 0 0; text-wrap: balance; }
+h3 { font: 500 20px/1.22 var(--serif); color: var(--encre); margin: 0; text-wrap: balance; }
+p { margin: 0; }
+.chapeau { color: var(--doux); max-width: 68ch; margin-top: 14px; font-size: 17px; }
+.lu { max-width: 68ch; }
+.doux { color: var(--doux); }
+.petit { font-size: 14px; }
+
+/* Les réglages de l'essai */
+.essai { display: grid; grid-template-columns: minmax(0, 300px) minmax(0, 1fr); gap: 32px; align-items: start; }
+@media (max-width: 820px) { .essai { grid-template-columns: minmax(0, 1fr); } }
+.reglages { display: grid; gap: 16px; align-content: start; }
+.groupe { display: grid; gap: 8px; }
+.groupe > span { font-size: 11.5px; letter-spacing: .14em; text-transform: uppercase; color: var(--doux); }
+.puces { display: flex; flex-wrap: wrap; gap: 6px; }
+.puce { all: unset; cursor: pointer; border: 1px solid var(--filet); border-radius: 999px; padding: 5px 12px; font-size: 14px; background: var(--carte); color: var(--encre); }
+.puce[aria-pressed="true"] { background: var(--encre); color: var(--fond); border-color: var(--encre); }
+.puce:focus-visible { outline: 2px solid var(--cuivre); outline-offset: 2px; }
+.raconte { font-size: 14.5px; color: var(--doux); border-left: 2px solid var(--cuivre); padding-left: 12px; }
+
+/* Le parcours : une ligne par jour, la date à gauche */
+.parcours { list-style: none; margin: 0; padding: 0; display: grid; }
+.etape { display: grid; grid-template-columns: minmax(0, 190px) 18px minmax(0, 1fr); gap: 12px; align-items: start; position: relative; padding-bottom: 18px; }
+.etape:last-child { padding-bottom: 0; }
+.etape .quand { font-size: 13.5px; color: var(--doux); text-align: right; font-variant-numeric: tabular-nums; padding-top: 1px; }
+.etape .quand b { display: block; color: var(--encre); font-weight: 500; font-size: 12px; letter-spacing: .12em; text-transform: uppercase; }
+.etape .point { width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--cuivre); background: var(--fond); margin-top: 5px; position: relative; z-index: 1; }
+.etape:not(:last-child)::before { content: ""; position: absolute; left: calc(min(190px, 100%) + 12px + 6px); top: 20px; bottom: 0; width: 2px; background: var(--filet); }
+.etape .quoi { font-size: 15px; display: grid; gap: 3px; }
+.etape .quoi small { font-size: 13px; color: var(--doux); }
+.etape.fait .point { background: var(--encre); border-color: var(--encre); }
+.etape.ok .point { background: var(--vert); border-color: var(--vert); }
+.etape.ok .quoi { color: var(--vert); }
+.etape.annulee .quoi { color: var(--doux); text-decoration: line-through; text-decoration-color: var(--doux); }
+.etape.annulee .point { border-color: var(--filet); }
+.etape.tache .point { background: var(--cuivre); }
+.etape.tache .quoi { color: var(--cuivre); }
+@media (max-width: 520px) {
+  .etape { grid-template-columns: 18px minmax(0, 1fr); }
+  .etape .quand { grid-column: 2; text-align: left; order: -1; }
+  .etape .point { grid-row: 1 / span 2; }
+  .etape:not(:last-child)::before { left: 6px; }
+}
+
+/* Le message, tel que dans WhatsApp */
+.message { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 380px); gap: 32px; align-items: start; }
+@media (max-width: 820px) { .message { grid-template-columns: minmax(0, 1fr); } }
+.tel { background: var(--wa-fond); border-radius: 18px; padding: 18px 14px; border: 1px solid var(--filet); }
+.bulle { background: var(--wa-bulle); color: var(--wa-texte); border-radius: 10px; box-shadow: 0 1px 1px rgba(0,0,0,.08); font: 400 15px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; overflow: hidden; }
+.bulle .corps { padding: 10px 12px 4px; display: grid; gap: 6px; }
+.bulle .pied { color: var(--wa-doux); font-size: 13px; }
+.bulle .heure { color: var(--wa-doux); font-size: 11.5px; text-align: right; padding: 0 12px 6px; }
+.bulle .bouton { border-top: 1px solid var(--filet); color: var(--wa-lien); text-align: center; padding: 10px; font-weight: 500; }
+.var { background: var(--cuivre-clair); color: var(--wa-texte); border-radius: 4px; padding: 0 3px; }
+.fiche-modele { display: grid; gap: 10px; }
+.fiche-modele dl { display: grid; grid-template-columns: minmax(0, 150px) minmax(0, 1fr); gap: 6px 14px; margin: 0; font-size: 14.5px; }
+.fiche-modele dt { color: var(--doux); }
+.fiche-modele dd { margin: 0; }
+code { font: 400 13.5px/1.4 ui-monospace, "Cascadia Mono", Consolas, monospace; background: var(--cuivre-clair); padding: 1px 5px; border-radius: 4px; color: var(--texte); }
+
+/* Le suivi au Trône : un fragment d'écran, ivoire, tête indigo */
+.trone { border-radius: 10px; overflow: hidden; border: 1px solid #E2D8C6; background: #F5EFE6; color: #1E2150; box-shadow: 0 14px 36px rgba(15,17,48,.18); }
+.trone .t-tete { background: #1E2150; color: #F5EFE6; padding: 10px 16px; font-size: 11.5px; letter-spacing: .18em; text-transform: uppercase; }
+.trone .ligne { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 14px 16px; border-top: 1px solid #E2D8C6; background: #FFFDF9; }
+.trone .ligne:first-of-type { border-top: 0; }
+@media (max-width: 640px) { .trone .ligne { grid-template-columns: minmax(0, 1fr); } }
+.trone .qui b { font: 400 19px/1.2 var(--serif); display: block; }
+.trone .qui span { font-size: 12.5px; color: #6A6478; }
+.trone .etat { display: grid; gap: 4px; font-size: 13px; }
+.chip { justify-self: start; font-size: 10.5px; letter-spacing: .14em; text-transform: uppercase; border: 1px solid #B97A4A; color: #9A6036; border-radius: 4px; padding: 2px 7px; }
+.chip.pause { border-color: #6A6478; color: #6A6478; }
+.trone .gestes { display: flex; gap: 6px; flex-wrap: wrap; }
+.mini { all: unset; cursor: pointer; font-size: 11px; letter-spacing: .12em; text-transform: uppercase; border: 1px solid #D6CCBA; border-radius: 6px; padding: 7px 9px; color: #1E2150; background: #FFFFFF; }
+.mini.cuivre { background: #9A6036; border-color: #9A6036; color: #FFFDF9; }
+.mini:focus-visible { outline: 2px solid #B97A4A; outline-offset: 2px; }
+.ailleurs { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+.ailleurs div { border-top: 2px solid var(--cuivre); padding-top: 10px; font-size: 14.5px; display: grid; gap: 4px; }
+.ailleurs b { font: 500 18px/1.2 var(--serif); color: var(--encre); }
+
+/* Les choix */
+.avance { display: grid; gap: 6px; }
+.avance .jauge { height: 6px; border-radius: 999px; background: var(--filet); overflow: hidden; }
+.avance .jauge span { display: block; height: 100%; width: 0; background: var(--cuivre); transition: width .3s; }
+#decisions { display: grid; gap: 12px; }
+.decision { background: var(--carte); border: 1px solid var(--filet); border-radius: 8px; padding: 14px 16px; display: grid; gap: 8px; }
+.decision.tranchee { border-color: var(--cuivre); }
+.decision .pq { font-size: 14px; color: var(--doux); }
+.choix-ligne { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 10px; align-items: start; padding: 8px 0; border-top: 1px solid var(--filet); cursor: pointer; font-size: 15px; }
+.choix-ligne:first-of-type { border-top: 0; }
+.choix-ligne input { margin-top: 5px; accent-color: var(--cuivre); }
+.choix-ligne em { font-style: normal; font-size: 12px; color: var(--cuivre); border: 1px solid var(--cuivre); border-radius: 999px; padding: 0 7px; margin-left: 4px; white-space: nowrap; }
+.choix-ligne small { display: block; font-size: 13px; color: var(--doux); }
+.etat-d { font-size: 12.5px; color: var(--vert); min-height: 1em; }
+textarea { width: 100%; min-height: 90px; font: 300 15px/1.5 var(--sans); color: var(--texte); background: var(--carte); border: 1px solid var(--filet); border-radius: 8px; padding: 10px 12px; }
+textarea:focus-visible { outline: 2px solid var(--cuivre); outline-offset: 1px; }
+.garde { border: 1px solid var(--cuivre); background: var(--cuivre-clair); border-radius: 8px; padding: 12px 14px; font-size: 14.5px; }
+.suite { margin: 0; padding-left: 20px; display: grid; gap: 8px; max-width: 68ch; }
+@media (prefers-reduced-motion: reduce) { .avance .jauge span { transition: none; } }
+</style>
+
+<main class="page">
+  <header>
+    <p class="sur">Maquette à valider · 18 octobre 2026</p>
+    <h1>Les relances</h1>
+    <p class="chapeau">Une facture reste à régler. Le Trône la rappelle seul à la cliente, sur WhatsApp, jusqu’à ce qu’elle paie, puis s’arrête de lui-même. Essayez le parcours, lisez le message, puis tranchez les choix en bas. Rien n’est construit avant votre accord.</p>
+  </header>
+
+  <section aria-labelledby="t-parcours">
+    <p class="sur">Le parcours</p>
+    <h2 id="t-parcours">Une facture de 2 000 F, honorée sans encaisser le dimanche 18 octobre 2026</h2>
+    <p class="doux petit">Exemple avec une cliente fictive, Awa D. Changez la cadence et le moment où elle paie.</p>
+    <div class="essai">
+      <div class="reglages">
+        <div class="groupe"><span>La cadence</span><div class="puces" id="p-cadence"></div></div>
+        <div class="groupe"><span>Elle paie</span><div class="puces" id="p-paie"></div></div>
+        <p class="raconte" id="raconte" aria-live="polite"></p>
+      </div>
+      <ol class="parcours" id="parcours"></ol>
+    </div>
+  </section>
+
+  <section aria-labelledby="t-message">
+    <p class="sur">Le message</p>
+    <h2 id="t-message">Ce qu’elle lit sur son téléphone</h2>
+    <div class="message">
+      <div class="fiche-modele">
+        <div class="groupe"><span>Le ton</span><div class="puces" id="p-ton"></div></div>
+        <p class="lu">Un modèle Meta à créer, qui porte le bouton « Régler ». Le PDF est déjà dans son premier message ; la relance rappelle et fait payer d’un toucher.</p>
+        <dl>
+          <dt>Nom</dt><dd><code>rappel_de_reglement</code></dd>
+          <dt>Catégorie</dt><dd>Utilitaire</dd>
+          <dt>Variables</dt><dd>son nom d’appel, le jour de la facture avec l’année, le reste dû</dd>
+          <dt>Bouton</dt><dd>« Régler » : son téléphone compose le paiement Tap &amp; Go, frais compris</dd>
+          <dt>Dans la fenêtre</dt><dd>si elle vous a écrit dans les 24 heures, le même texte part en mot libre, avec le lien</dd>
+        </dl>
+      </div>
+      <div class="tel">
+        <div class="bulle">
+          <div class="corps">
+            <p id="bulle-texte"></p>
+            <p class="pied">mi nyɔ́ ɖɛkpɛ, votre beauté est déjà là</p>
+          </div>
+          <p class="heure">10:00</p>
+          <p class="bouton">↗ Régler</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section aria-labelledby="t-suivi">
+    <p class="sur">Où vous la suivez</p>
+    <h2 id="t-suivi">Au Trône, sans rien chercher</h2>
+    <div class="trone" role="img" aria-label="Exemple de ligne dans Factures et devis : la facture, la relance en cours, la prochaine date, et les gestes Mettre en pause et Relancer maintenant.">
+      <div class="t-tete">Factures &amp; devis · à régler</div>
+      <div class="ligne">
+        <div class="qui"><b>Awa D.</b><span>MND-2026-0160 · reste 2 000 F</span></div>
+        <div class="etat"><span class="chip">Relance 1 sur 3 partie</span><span id="prochaine">prochaine le dimanche 25 octobre 2026 à 10 h</span></div>
+        <div class="gestes"><span class="mini">Mettre en pause</span><span class="mini cuivre">Relancer maintenant</span></div>
+      </div>
+      <div class="ligne">
+        <div class="qui"><b>Mariam K.</b><span>MND-2026-0154 · reste 6 500 F</span></div>
+        <div class="etat"><span class="chip pause">En pause</span><span>« passe régler samedi », mis par Gérard</span></div>
+        <div class="gestes"><span class="mini">Reprendre</span></div>
+      </div>
+    </div>
+    <div class="ailleurs">
+      <div><b>Sur sa fiche</b><span>Les relances de chacune de ses factures, et le bouton pause.</span></div>
+      <div><b>Envois automatiques</b><span>Dans Conversations, chaque relance partie, à son heure, comme les rappels.</span></div>
+      <div><b>À faire</b><span>« Appeler » après la dernière relance, si rien n’est réglé.</span></div>
+    </div>
+  </section>
+
+  <section aria-labelledby="t-choix">
+    <p class="sur">Vos choix</p>
+    <h2 id="t-choix">Dix décisions, et j’ai coché ma proposition</h2>
+    <div class="avance">
+      <span class="petit doux" id="compte-decisions">0 sur 10 tranchées</span>
+      <div class="jauge"><span id="barre-decisions"></span></div>
+    </div>
+    <p class="garde">Garde-fous déjà prévus, quels que soient vos choix : jamais entre 20 h et 8 h, jamais deux relances le même jour à la même cliente, plus rien dès qu’elle a payé, et rien ne part avant que Meta ait approuvé le modèle.</p>
+    <div id="decisions"></div>
+    <div class="groupe">
+      <span>Un mot pour moi</span>
+      <textarea id="d-note" placeholder="Une exception, une cliente à ne jamais relancer, une autre idée…"></textarea>
+      <span class="etat-d" id="d-note-etat"></span>
+    </div>
+  </section>
+
+  <section aria-labelledby="t-suite">
+    <p class="sur">Après vos choix</p>
+    <h2 id="t-suite">Ce qui se passera</h2>
+    <ol class="suite">
+      <li>Je construis les relances, avec les garde-fous ci-dessus, et je les éprouve avant de vous demander de publier.</li>
+      <li>Je vous donne le modèle Meta à créer, champ par champ, comme pour la facture.</li>
+      <li>Une fonction à recoller sur Supabase, dans un dossier du bureau.</li>
+      <li>Chaque relance hors fenêtre est un modèle facturé par Meta, comme le reçu : le compteur du mois le montre dans Conversations.</li>
+    </ol>
+  </section>
+</main>
+
+<script>
+(function () {
+  var MOIS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
+  var JOURS = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'];
+  var DEPART = Date.UTC(2026, 9, 18);
+  function jour(n) { var d = new Date(DEPART + n * 86400000); return JOURS[d.getUTCDay()] + ' ' + d.getUTCDate() + ' ' + MOIS[d.getUTCMonth()] + ' ' + d.getUTCFullYear(); }
+  function el(tag, cls, t) { var e = document.createElement(tag); if (cls) e.className = cls; if (t !== undefined) e.textContent = t; return e; }
+
+  var CADENCES = [
+    { id: 'j2-7-14', nom: 'J+2, J+7, J+14', jours: [2, 7, 14] },
+    { id: 'j3-10', nom: 'J+3, J+10', jours: [3, 10] },
+    { id: 'j1-3-7-14', nom: 'J+1, J+3, J+7, J+14', jours: [1, 3, 7, 14] },
+    { id: 'hebdo', nom: 'Chaque semaine, 4 fois', jours: [7, 14, 21, 28] },
+  ];
+  var PAIE = [
+    { id: 'non', nom: 'Pas encore' },
+    { id: 'apres1', nom: 'Après la 1re relance' },
+    { id: 'jour', nom: 'Le jour même' },
+  ];
+  var TONS = [
+    { id: 'doux', nom: 'Doux' },
+    { id: 'net', nom: 'Net' },
+  ];
+  var etat = { cadence: 'j2-7-14', paie: 'non', ton: 'doux' };
+
+  function puces(id, liste, cle, apres) {
+    var b = document.getElementById(id); b.textContent = '';
+    liste.forEach(function (x) {
+      var p = el('button', 'puce', x.nom); p.type = 'button'; p.setAttribute('aria-pressed', String(etat[cle] === x.id));
+      p.addEventListener('click', function () { etat[cle] = x.id; puces(id, liste, cle, apres); apres(); });
+      b.appendChild(p);
+    });
+  }
+
+  function etape(cls, quand, sous, quoi, petit) {
+    var li = el('li', 'etape ' + cls);
+    var q = el('div', 'quand'); q.appendChild(el('b', '', sous)); q.appendChild(document.createTextNode(quand)); li.appendChild(q);
+    li.appendChild(el('span', 'point'));
+    var t = el('div', 'quoi'); t.appendChild(el('span', '', quoi)); if (petit) t.appendChild(el('small', '', petit)); li.appendChild(t);
+    return li;
+  }
+
+  function dessineParcours() {
+    var c = CADENCES.filter(function (x) { return x.id === etat.cadence; })[0];
+    var n = c.jours.length;
+    var ol = document.getElementById('parcours'); ol.textContent = '';
+    ol.appendChild(etape('fait', jour(0), 'J', 'La facture part seule : le PDF et le bouton « Régler ».', 'En ligne depuis aujourd’hui.'));
+    var payeLe = etat.paie === 'jour' ? 0 : etat.paie === 'apres1' ? c.jours[0] + 1 : null;
+    if (payeLe === 0) {
+      ol.appendChild(etape('ok', jour(0), 'J', 'Elle règle par « Régler » le jour même.', 'La facture et le rendez-vous passent payés seuls. Aucune relance ne part.'));
+    }
+    c.jours.forEach(function (j, k) {
+      var apresPaiement = payeLe !== null && j >= payeLe;
+      if (payeLe !== null && k === 0 && payeLe !== 0) {
+        ol.appendChild(etape('', jour(j), 'J+' + j, 'Relance 1 sur ' + n + ', à 10 h.', '« Bonjour Madame Awa, un petit rappel de la Maison MND… »'));
+        ol.appendChild(etape('ok', jour(payeLe), 'J+' + payeLe, 'Elle règle par « Régler ».', 'La facture et le rendez-vous passent payés seuls ; les relances s’arrêtent.'));
+        return;
+      }
+      if (apresPaiement) { ol.appendChild(etape('annulee', jour(j), 'J+' + j, 'Relance ' + (k + 1) + ' sur ' + n + ' : annulée, elle a payé.')); return; }
+      ol.appendChild(etape('', jour(j), 'J+' + j, 'Relance ' + (k + 1) + ' sur ' + n + ', à 10 h.', k === 0 ? '« Bonjour Madame Awa, un petit rappel de la Maison MND… »' : 'Le même message, avec le reste du jour.'));
+    });
+    if (payeLe === null) {
+      var der = c.jours[n - 1] + 1;
+      ol.appendChild(etape('tache', jour(der), 'J+' + der, '« Appeler Awa D. » s’ajoute dans À faire, pour la direction.', 'La voix prend le relais ; la facture reste dans les impayés.'));
+    }
+    document.getElementById('prochaine').textContent = 'prochaine le ' + jour(c.jours[1] !== undefined ? c.jours[1] : c.jours[0]) + ' à 10 h';
+    var r = document.getElementById('raconte');
+    r.textContent = payeLe === null
+      ? n + ' relances au plus, puis la direction reprend la main. Une pause sur la facture suspend tout, d’un geste.'
+      : payeLe === 0 ? 'Payée le jour même : le Trône le voit seul, rien ne part.' : 'Le paiement revient seul sur la facture : les relances suivantes ne partent jamais.';
+  }
+
+  var TEXTES = {
+    doux: ['Bonjour ', 'Madame Awa', ', un petit rappel de la Maison MND : votre facture du ', '18 octobre 2026', ' attend encore son règlement, reste ', '2 000 F', '. Touchez « Régler » : votre téléphone compose le numéro de paiement, frais compris. Si c’est déjà fait, merci, et ne tenez pas compte de ce message.'],
+    net: ['Bonjour ', 'Madame Awa', ', votre facture du ', '18 octobre 2026', ' n’est pas encore réglée : reste ', '2 000 F', '. Touchez « Régler » pour la payer par mobile money, tout réseau, frais compris.'],
+  };
+  function dessineBulle() {
+    var p = document.getElementById('bulle-texte'); p.textContent = '';
+    TEXTES[etat.ton].forEach(function (morceau, i) {
+      if (i % 2 === 1) p.appendChild(el('span', 'var', morceau)); else p.appendChild(document.createTextNode(morceau));
+    });
+  }
+
+  puces('p-cadence', CADENCES, 'cadence', dessineParcours);
+  puces('p-paie', PAIE, 'paie', dessineParcours);
+  puces('p-ton', TONS, 'ton', dessineBulle);
+  dessineParcours();
+  dessineBulle();
+
+  /* ── Les décisions ── */
+  var DECISIONS = [
+    { id: 'cadence', titre: 'La cadence', pq: 'Quand partent les relances, comptées depuis la facture.', options: [
+      ['j2-7-14', 'J+2, J+7, J+14 : trois relances sur deux semaines', 'assez tôt pour qu’elle s’en souvienne, assez espacé pour ne pas lasser', true],
+      ['j3-10', 'J+3 et J+10 : deux relances', 'plus discret'],
+      ['j1-3-7-14', 'J+1, J+3, J+7, J+14 : quatre relances', 'plus insistant'],
+      ['hebdo', 'Chaque semaine, quatre fois', 'un rythme fixe sur un mois'] ] },
+    { id: 'heure', titre: 'L’heure', pq: 'L’heure de départ, le jour dit.', options: [
+      ['10h', 'À 10 h', 'la Maison est ouverte, on peut lui répondre tout de suite', true],
+      ['12h', 'À midi', 'la pause de midi'],
+      ['18h', 'À 18 h', 'après sa journée de travail'] ] },
+    { id: 'factures', titre: 'Quelles factures', pq: 'Lesquelles se relancent seules.', options: [
+      ['toutes', 'Toute facture qui reste à régler', 'dès le premier franc', true],
+      ['seuil', 'Seulement à partir de 5 000 F', 'les petits restes se règlent à la prochaine venue'],
+      ['cochees', 'Seulement celles que vous marquez « à relancer »', 'rien d’office'] ] },
+    { id: 'depart', titre: 'Le premier jour', pq: 'Les factures déjà impayées avant le lancement.', options: [
+      ['nouvelles', 'Seulement les factures émises à partir du lancement', 'aucune vague de messages le premier jour', true],
+      ['trente', 'Aussi celles des 30 derniers jours, après une liste que vous validez une fois', 'on rattrape le mois, sous vos yeux'] ] },
+    { id: 'reponse', titre: 'Quand elle répond', pq: 'Elle écrit à la Maison pendant les relances.', options: [
+      ['arrete', 'Les relances s’arrêtent, et la conversation passe à l’équipe', 'elle a peut-être payé autrement, ou elle pose une question', true],
+      ['continue', 'Seul le paiement les arrête', 'même si elle répond'] ] },
+    { id: 'validation', titre: 'Qui les fait partir', pq: 'Seules, ou après un regard.', options: [
+      ['seules', 'Elles partent seules, à l’heure choisie', 'vous gardez « Mettre en pause » sur chaque facture', true],
+      ['file', 'Chaque matin, une liste « À relancer » à valider d’un geste', 'rien ne part sans un toucher'] ] },
+    { id: 'apres', titre: 'Après la dernière', pq: 'Rien n’est réglé après la dernière relance.', options: [
+      ['appeler', '« Appeler » s’ajoute dans À faire, pour la direction', 'la voix prend le relais', true],
+      ['rien', 'Rien de plus', 'la facture reste dans les impayés'] ] },
+    { id: 'ton', titre: 'Le ton', pq: 'Le texte du modèle Meta.', options: [
+      ['doux', 'Doux : « un petit rappel… si c’est déjà fait, merci »', 'celui de la Maison', true],
+      ['net', 'Net : « n’est pas encore réglée »', 'plus court'] ] },
+    { id: 'piece', titre: 'Le PDF', pq: 'La relance porte-t-elle la facture ?', options: [
+      ['sans-pdf', 'Sans le PDF, avec le bouton « Régler »', 'part seule à l’heure dite, même si aucun poste du Trône n’est ouvert ; le PDF est dans son premier message', true],
+      ['avec-pdf', 'Avec le PDF', 'attend qu’un poste du Trône soit ouvert pour le fabriquer : l’heure peut glisser'] ] },
+    { id: 'pause', titre: 'Qui peut mettre en pause', pq: 'Elle a promis de passer régler samedi.', options: [
+      ['equipe', 'Toute personne qui encaisse', 'un geste sans risque, il se reprend d’un toucher', true],
+      ['direction', 'La direction seule', 'une seule main décide'] ] },
+  ];
+  var choix = {};
+  var CLE = 'relances-choix';
+  try { var vu = JSON.parse(localStorage.getItem(CLE) || '{}') || {}; Object.keys(vu).forEach(function (k) { choix[k] = vu[k]; }); } catch (e) { /* sans mémoire */ }
+  var docRef = null, file = Promise.resolve();
+  function garde() {
+    try { localStorage.setItem(CLE, JSON.stringify(choix)); } catch (e) { /* sans mémoire */ }
+    if (!docRef) return;
+    var corpsDoc = {}; Object.keys(choix).forEach(function (k) { if (choix[k]) corpsDoc[k] = choix[k]; });
+    corpsDoc.enregistre = new Date().toISOString();
+    file = file.then(function () { return docRef.set(corpsDoc); }).catch(function () { /* hors ligne */ });
+  }
+  var boite = document.getElementById('decisions');
+  function dessineDecisions() {
+    boite.textContent = '';
+    DECISIONS.forEach(function (d) {
+      var c = el('div', 'decision' + (choix[d.id] ? ' tranchee' : ''));
+      c.appendChild(el('h3', '', d.titre));
+      c.appendChild(el('p', 'pq', d.pq));
+      var g = document.createElement('div'); g.setAttribute('role', 'radiogroup'); g.setAttribute('aria-label', d.titre);
+      d.options.forEach(function (o) {
+        var l = el('label', 'choix-ligne');
+        var i = document.createElement('input'); i.type = 'radio'; i.name = 'd-' + d.id; i.id = 'd-' + d.id + '-' + o[0]; i.value = o[0]; i.checked = choix[d.id] === o[0];
+        i.addEventListener('change', function () { choix[d.id] = o[0]; garde(); dessineDecisions(); });
+        var s = document.createElement('span');
+        s.appendChild(document.createTextNode(o[1]));
+        if (o[3]) { s.appendChild(document.createTextNode(' ')); s.appendChild(el('em', '', 'ma proposition')); }
+        s.appendChild(el('small', '', o[2]));
+        l.appendChild(i); l.appendChild(s); g.appendChild(l);
+      });
+      c.appendChild(g);
+      c.appendChild(el('span', 'etat-d', choix[d.id] ? 'Choix enregistré.' : ''));
+      boite.appendChild(c);
+    });
+    var k = DECISIONS.filter(function (d) { return choix[d.id]; }).length;
+    document.getElementById('compte-decisions').textContent = k + ' sur ' + DECISIONS.length + ' tranchées';
+    document.getElementById('barre-decisions').style.width = Math.round((k / DECISIONS.length) * 100) + '%';
+  }
+  var note = document.getElementById('d-note');
+  if (choix.note) note.value = choix.note;
+  var minuterie = null;
+  note.addEventListener('input', function () { clearTimeout(minuterie); minuterie = setTimeout(function () { choix.note = note.value.trim(); garde(); document.getElementById('d-note-etat').textContent = 'Mot enregistré.'; }, 600); });
+  dessineDecisions();
+  if (window.claude && typeof window.claude.use === 'function') {
+    window.claude.use('db').then(function (db) {
+      if (!db) return;
+      docRef = db.doc('maquette/relances');
+      return docRef.get().then(function (s) {
+        if (!s || !s.exists) return;
+        var v = s.data() || {};
+        Object.keys(v).forEach(function (k) { if (k !== 'enregistre' && typeof v[k] === 'string' && !/^\d{4}-\d{2}-\d{2}T/.test(v[k])) choix[k] = v[k]; });
+        if (choix.note) note.value = choix.note;
+        dessineDecisions();
+      });
+    }).catch(function () { /* sans base : les choix restent sur cet appareil */ });
+  }
+})();
+</script>
