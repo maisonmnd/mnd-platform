@@ -1,0 +1,137 @@
+<title>Poser les relances</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500&family=Jost:wght@300;400;500&display=swap">
+<style>
+/* Une marche à suivre : cinq étapes cochées à mesure, les valeurs à copier en blocs. */
+:root {
+  --fond:#F6F1E7; --carte:#FFFDF9; --encre:#1E2150; --texte:#2A2722; --doux:#5E5750; --filet:#E3DACB;
+  --cuivre:#9A6036; --cuivre-clair:#F3E6D8; --vert:#2F6B4F;
+  --serif:"Cormorant Garamond", Georgia, serif; --sans:"Jost", system-ui, -apple-system, "Segoe UI", sans-serif;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --fond:#15173A; --carte:#1E2150; --encre:#F6F1E7; --texte:#E9E3D7; --doux:#B9B4C9; --filet:#2E3266;
+  --cuivre:#D6A06F; --cuivre-clair:#3A2E3A; --vert:#8FD1AE; color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --fond:#15173A; --carte:#1E2150; --encre:#F6F1E7; --texte:#E9E3D7; --doux:#B9B4C9; --filet:#2E3266;
+  --cuivre:#D6A06F; --cuivre-clair:#3A2E3A; --vert:#8FD1AE; color-scheme: dark; }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--fond); color: var(--texte); font: 300 16px/1.6 var(--sans);
+  padding-block: 28px 80px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.page { max-width: 820px; margin: 0 auto; display: grid; gap: 22px; }
+.page > * { min-width: 0; }
+.sur { font-size: 11.5px; letter-spacing: .18em; text-transform: uppercase; color: var(--cuivre); margin: 0; }
+h1 { font: 300 clamp(36px, 6vw, 54px)/1.05 var(--serif); color: var(--encre); margin: 6px 0 0; }
+p { margin: 0; }
+.doux { color: var(--doux); }
+.compteur { display: grid; gap: 6px; }
+.jauge { height: 6px; border-radius: 999px; background: var(--filet); overflow: hidden; }
+.jauge span { display: block; height: 100%; width: 0; background: var(--cuivre); transition: width .3s; }
+.etape { background: var(--carte); border: 1px solid var(--filet); border-radius: 10px; padding: 16px 18px; display: grid; gap: 10px; }
+.etape.faite { border-color: var(--vert); }
+.etape > label { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 12px; align-items: start; cursor: pointer; }
+.etape input[type="checkbox"] { width: 20px; height: 20px; margin-top: 4px; accent-color: var(--vert); }
+.etape h2 { font: 400 23px/1.2 var(--serif); color: var(--encre); margin: 0; }
+.etape h2 small { display: block; font: 400 11.5px/1.4 var(--sans); letter-spacing: .16em; text-transform: uppercase; color: var(--cuivre); }
+.etape ul { margin: 0; padding-left: 20px; display: grid; gap: 4px; font-size: 15px; }
+.valeur { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: start; background: var(--cuivre-clair); border-radius: 8px; padding: 10px 12px; }
+.valeur code { font: 400 14px/1.5 ui-monospace, Consolas, monospace; white-space: pre-wrap; word-break: break-word; color: var(--texte); }
+.valeur span.nom { grid-column: 1 / -1; font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--doux); }
+.copie { all: unset; cursor: pointer; font-size: 11px; letter-spacing: .12em; text-transform: uppercase; border: 1px solid var(--cuivre); color: var(--cuivre); border-radius: 6px; padding: 6px 9px; }
+.copie:focus-visible, .etape input:focus-visible { outline: 2px solid var(--cuivre); outline-offset: 2px; }
+.garde { border: 1px solid var(--cuivre); border-radius: 8px; padding: 12px 14px; font-size: 14.5px; }
+@media (prefers-reduced-motion: reduce) { .jauge span { transition: none; } }
+</style>
+
+<main class="page">
+  <header>
+    <p class="sur">Marche à suivre · 18 octobre 2026</p>
+    <h1>Poser les relances</h1>
+    <p class="doux" style="margin-top:10px">Cinq étapes, dans l’ordre. Le fichier de la fonction est sur le bureau, dans « A recoller - relances ». Rien ne part avant la dernière.</p>
+  </header>
+  <div class="compteur"><span class="doux" id="compte">0 sur 5 faites</span><div class="jauge"><span id="barre"></span></div></div>
+
+  <section class="etape" data-n="1">
+    <label><input type="checkbox" id="e1"><h2><small>Meta · WhatsApp Manager</small>Créer le modèle de relance</h2></label>
+    <ul><li>Créer un modèle : catégorie <b>Utility</b>, langue <b>French</b>, type de variable <b>Number</b>, pas d’en-tête.</li></ul>
+    <div class="valeur"><span class="nom">Nom</span><code>rappel_de_reglement</code><button class="copie" type="button">Copier</button></div>
+    <div class="valeur"><span class="nom">Corps</span><code>Bonjour {{1}}, un petit rappel de la Maison MND : votre facture du {{2}} attend encore son règlement, reste {{3}}. Touchez « Régler » : votre téléphone compose le numéro de paiement, frais compris. Si c’est déjà fait, merci, et ne tenez pas compte de ce message.</code><button class="copie" type="button">Copier</button></div>
+    <ul><li>Exemples : {{1}} Yéman · {{2}} 18 octobre 2026 · {{3}} 2 000 F</li></ul>
+    <div class="valeur"><span class="nom">Pied de page</span><code>mi nyɔ́ ɖɛkpɛ, votre beauté est déjà là</code><button class="copie" type="button">Copier</button></div>
+    <ul><li>Bouton : Call to action › Visit website · texte « Régler » · URL type <b>Dynamic</b>.</li></ul>
+    <div class="valeur"><span class="nom">URL du bouton (Meta ajoute {{1}})</span><code>https://maisonmnd.com/trone/payer.html?tg=</code><button class="copie" type="button">Copier</button></div>
+    <div class="valeur"><span class="nom">Exemple d’URL</span><code>https://maisonmnd.com/trone/payer.html?tg=51166-2032</code><button class="copie" type="button">Copier</button></div>
+  </section>
+
+  <section class="etape" data-n="2">
+    <label><input type="checkbox" id="e2"><h2><small>Supabase · Edge Functions</small>Poser la fonction</h2></label>
+    <ul>
+      <li>Deploy a new function, nom ci-dessous ; coller le fichier entier <b>relances-factures.ts</b> du dossier du bureau ; Deploy.</li>
+      <li>Dans ses réglages : <b>Verify JWT désactivé</b> (comme envois-partent).</li>
+    </ul>
+    <div class="valeur"><span class="nom">Nom de la fonction</span><code>relances-factures</code><button class="copie" type="button">Copier</button></div>
+  </section>
+
+  <section class="etape" data-n="3">
+    <label><input type="checkbox" id="e3"><h2><small>Supabase · Edge Functions › Secrets</small>Nommer le modèle</h2></label>
+    <div class="valeur"><span class="nom">Nom du secret</span><code>WA_TEMPLATE_RELANCE</code><button class="copie" type="button">Copier</button></div>
+    <div class="valeur"><span class="nom">Valeur</span><code>rappel_de_reglement</code><button class="copie" type="button">Copier</button></div>
+  </section>
+
+  <section class="etape" data-n="4">
+    <label><input type="checkbox" id="e4"><h2><small>Supabase · Integrations › Cron</small>Créer le réveil de 10 h</h2></label>
+    <ul><li>Create job · nom « relances-factures » · type <b>SQL Snippet</b>.</li></ul>
+    <div class="valeur"><span class="nom">Schedule (9 h à Greenwich = 10 h au salon)</span><code>0 9 * * *</code><button class="copie" type="button">Copier</button></div>
+    <div class="valeur"><span class="nom">SQL Snippet</span><code>select public.appelle_fonction_edge('relances-factures');</code><button class="copie" type="button">Copier</button></div>
+  </section>
+
+  <section class="etape" data-n="5">
+    <label><input type="checkbox" id="e5"><h2><small>Le Trône · Paramètres</small>Allumer, puis valider le rattrapage</h2></label>
+    <ul>
+      <li>« Relances des factures » › <b>Allumer les relances</b> : le jour du lancement s’écrit.</li>
+      <li>La liste des trente jours d’avant : décochez celles à épargner, puis « Relancer ces … factures ».</li>
+      <li>« Vérifier » doit dire : relances-factures 2026-10-18-a répond, le modèle est nommé.</li>
+    </ul>
+  </section>
+
+  <p class="garde">MND PAY et Tap &amp; Go doivent rester allumés : le bouton « Régler » en a besoin. Tant que le compte FedaPay n’est pas validé, un paiement au-delà de 5 000 F est refusé par FedaPay.</p>
+</main>
+
+<script>
+(function () {
+  var CLE = 'poser-les-relances';
+  var faites = {};
+  try { faites = JSON.parse(localStorage.getItem(CLE) || '{}') || {}; } catch (e) { faites = {}; }
+  var cases = document.querySelectorAll('.etape input[type="checkbox"]');
+  function compte() {
+    var n = 0;
+    cases.forEach(function (c) { c.closest('.etape').classList.toggle('faite', c.checked); if (c.checked) n++; });
+    document.getElementById('compte').textContent = n + ' sur ' + cases.length + ' faites';
+    document.getElementById('barre').style.width = Math.round((n / cases.length) * 100) + '%';
+  }
+  cases.forEach(function (c) {
+    c.checked = !!faites[c.id];
+    c.addEventListener('change', function () {
+      faites[c.id] = c.checked;
+      try { localStorage.setItem(CLE, JSON.stringify(faites)); } catch (e) { /* sans mémoire */ }
+      compte();
+    });
+  });
+  compte();
+  document.querySelectorAll('.copie').forEach(function (b) {
+    b.addEventListener('click', function () {
+      var code = b.parentNode.querySelector('code');
+      var t = code.textContent;
+      var fini = function () { b.textContent = 'Copié'; setTimeout(function () { b.textContent = 'Copier'; }, 1500); };
+      try {
+        navigator.clipboard.writeText(t).then(fini, function () { selectionne(code); });
+      } catch (e) { selectionne(code); }
+    });
+  });
+  function selectionne(el) {
+    var r = document.createRange(); r.selectNodeContents(el);
+    var s = window.getSelection(); s.removeAllRanges(); s.addRange(r);
+  }
+})();
+</script>
