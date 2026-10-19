@@ -66,7 +66,8 @@ dit('… sans tiret cadratin dans ses mots', false, (accueil.split('class="joind
 const laBulle = (accueil.split('class="joindre"')[1] ?? '').split('</script>')[0];
 dit('la bulle de l’accueil propose les envies, toutes', COMMUN.envies.length, (laBulle.match(/class="joindre__envie"/g) ?? []).length);
 dit('… chacune avec son message déjà écrit', [], COMMUN.envies.filter((e) => !laBulle.includes(encodeURIComponent(e.message))).map((e) => e.texte));
-dit('… et une page qui a son parcours garde son seul message', true, (pages.get('/entretien-locks/') ?? '').includes('class="joindre__ligne" data-wa="entretien"') && !(pages.get('/entretien-locks/') ?? '').includes('joindre__envie'));
+/* La bulle façon FedaPay (19 octobre 2026) : le message de la page vit dans le rond « WhatsApp ». */
+dit('… et une page qui a son parcours garde son seul message', true, (pages.get('/entretien-locks/') ?? '').includes('class="joindre__rond" data-wa="entretien"') && !(pages.get('/entretien-locks/') ?? '').includes('joindre__envie'));
 
 /* ── LE PREMIER ÉCRAN DIT LE MÉTIER, ET TROIS PROMESSES SUIVENT ───── */
 /* La ligne du métier est partie du premier écran le 27 septembre 2026 au

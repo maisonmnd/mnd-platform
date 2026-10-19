@@ -295,6 +295,8 @@ const ICONES = `<svg width="0" height="0" style="position:absolute" aria-hidden=
   <symbol id="i-tel" viewBox="0 0 24 24"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2z" fill="none" stroke="currentColor" stroke-width="1.7"/></symbol>
   <symbol id="i-cal" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M3 10h18M8 3v4M16 3v4" fill="none" stroke="currentColor" stroke-width="1.7"/></symbol>
   <symbol id="i-fleche" viewBox="0 0 24 24"><path d="M5 12h13m-5-5 5 5-5 5" fill="none" stroke="currentColor" stroke-width="1.6"/></symbol>
+  <symbol id="i-bulle" viewBox="0 0 24 24"><path d="M4 5h16v11H9l-5 4z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></symbol>
+  <symbol id="i-micro" viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></symbol>
 </svg>`;
 
 /* ── Le balisage structuré ───────────────────────────────────────────── */
@@ -669,27 +671,77 @@ function bulle(chemin) {
   const ligneReserver = (RESERVABLES.has(besoin) || besoin === 'inconnu') && !parMessage
     ? `<a class="joindre__ligne" href="${attr(versLaReservation(besoin))}" data-mesure="parcours_choisi" data-parcours="${attr(besoin)}" data-sortie="flottant"><i aria-hidden="true"><svg><use href="#i-cal"/></svg></i><span>Réserver<small>${besoin === 'entretien' ? 'Votre heure en ligne, en trois pas.' : besoin === 'creation' || besoin === 'reparation' ? 'Sa consultation en ligne, puis le devis.' : besoin === 'enfant' ? 'Un échange avec vous, d’abord.' : 'Un entretien en trois pas ; une création ou une réparation, par sa consultation en ligne.'}</small></span></a>`
     : `<a class="joindre__ligne" href="${attr(versLeRappel(besoin))}" data-mesure="parcours_choisi" data-parcours="${attr(besoin)}" data-sortie="flottant"><i aria-hidden="true"><svg><use href="#i-cal"/></svg></i><span>Me faire rappeler<small>La Maison vous appelle pendant ses heures d’ouverture.</small></span></a>`;
-  const ligneWa = `<a class="joindre__ligne" data-wa="${attr(besoin)}" data-sortie="flottant" href="https://wa.me/${NUMERO_WA}?text=${encodeURIComponent(texteWa)}" target="_blank" rel="noopener"><i aria-hidden="true"><svg><use href="#i-wa"/></svg></i><span>Écrire sur WhatsApp<small>Le message de cette page est déjà écrit.</small></span></a>`;
-  const envies = `<div class="joindre__envies" role="group" aria-labelledby="joindre-envies"><p class="joindre__ligne joindre__ligne--titre" id="joindre-envies"><i aria-hidden="true"><svg><use href="#i-wa"/></svg></i><span>Écrire sur WhatsApp<small>Dites-nous ce que vous voulez, le message s’écrit tout seul.</small></span></p><div class="joindre__choix">${COMMUN.envies.map((e) => `<a class="joindre__envie" data-wa="${attr(e.besoin)}" data-sortie="flottant" data-mesure="whatsapp_clique" data-parcours="${attr(e.besoin)}" href="https://wa.me/${NUMERO_WA}?text=${encodeURIComponent(e.message)}" target="_blank" rel="noopener">${echappe(e.texte)}</a>`).join('')}</div></div>`;
+  const envies = `<div class="joindre__envies" id="joindre-envies" role="group" aria-label="Écrire sur WhatsApp" hidden><p class="joindre__note">Dites-nous ce que vous voulez, le message s’écrit tout seul.</p><div class="joindre__choix">${COMMUN.envies.map((e) => `<a class="joindre__envie" data-wa="${attr(e.besoin)}" data-sortie="flottant" data-mesure="whatsapp_clique" data-parcours="${attr(e.besoin)}" href="https://wa.me/${NUMERO_WA}?text=${encodeURIComponent(e.message)}" target="_blank" rel="noopener">${echappe(e.texte)}</a>`).join('')}</div></div>`;
+  /* LA BULLE FAÇON FEDAPAY — 19 octobre 2026 (maquette BPWmpyyw… validée,
+     « construis ») : l'accueil indigo, le monogramme, « Nous sommes là pour
+     vous », puis quatre ronds. Discuter (le chat de la Maison, nouveau),
+     Appeler, WhatsApp (le message de la page, ou les six envies sur une page
+     sans parcours), Vocal (le message vocal de /rappel/, entré dans la
+     bulle). Réserver reste dessous, comme avant. Le chat et le vocal ne se
+     chargent qu'au toucher : main.ts les monte dans la vue de la bulle.
+     « En ligne » se lit à l'ouverture, jamais avant (main.ts). */
+  const rondWa = besoin === 'inconnu'
+    ? `<button type="button" class="joindre__rond" data-joindre="envies" aria-expanded="false" aria-controls="joindre-envies"><i aria-hidden="true"><svg><use href="#i-wa"/></svg></i><span>WhatsApp</span></button>`
+    : `<a class="joindre__rond" data-wa="${attr(besoin)}" data-sortie="flottant" href="https://wa.me/${NUMERO_WA}?text=${encodeURIComponent(texteWa)}" target="_blank" rel="noopener"><i aria-hidden="true"><svg><use href="#i-wa"/></svg></i><span>WhatsApp</span></a>`;
   return `    <div class="joindre" id="joindre">
       <div class="joindre__volet" id="joindre-volet" role="group" aria-labelledby="joindre-titre" hidden>
-        <div class="joindre__tete"><b id="joindre-titre">Nous joindre</b><button type="button" class="joindre__fermer" aria-label="Fermer">×</button></div>
-        ${ligneReserver}
-        ${besoin === 'inconnu' ? envies : ligneWa}
-        <a class="joindre__ligne" href="tel:${attr(tel.replace(/\s/g, ''))}" aria-label="Appeler la Maison au ${attr(tel)}" data-mesure="appel_clique" data-sortie="flottant"><i aria-hidden="true"><svg><use href="#i-tel"/></svg></i><span>Appeler<small>${echappe(tel)}</small></span></a>
-        <p class="joindre__pied">Nous répondons pendant les heures d’ouverture de la Maison.</p>
+        <div class="joindre__accueil" id="joindre-accueil">
+          <div class="joindre__entete">
+            <button type="button" class="joindre__fermer" aria-label="Fermer">×</button>
+            <span class="joindre__avatar" aria-hidden="true"><img src="/assets/photos/site/mono-indigo.png" alt="" width="240" height="198" loading="lazy"></span>
+            <b id="joindre-titre">Maison MND</b>
+            <p>Nous sommes là pour vous. Écrivez-nous en direct, appelez, ou laissez un message.</p>
+            <span class="joindre__etat" id="joindre-etat" hidden><i aria-hidden="true"></i><span></span></span>
+          </div>
+          <div class="joindre__ronds">
+            <button type="button" class="joindre__rond joindre__rond--chat" data-joindre="chat"><i aria-hidden="true"><svg><use href="#i-bulle"/></svg></i><span>Discuter</span></button>
+            <a class="joindre__rond" href="tel:${attr(tel.replace(/\s/g, ''))}" aria-label="Appeler la Maison au ${attr(tel)}" data-mesure="appel_clique" data-sortie="flottant"><i aria-hidden="true"><svg><use href="#i-tel"/></svg></i><span>Appeler</span></a>
+            ${rondWa}
+            <button type="button" class="joindre__rond" data-joindre="vocal"><i aria-hidden="true"><svg><use href="#i-micro"/></svg></i><span>Vocal</span></button>
+          </div>
+          ${besoin === 'inconnu' ? envies : ''}
+          ${ligneReserver}
+          <p class="joindre__pied">Nous répondons pendant les heures d’ouverture de la Maison.</p>
+        </div>
+        <div class="joindre__vue" id="joindre-vue" hidden>
+          <div class="joindre__barre"><button type="button" class="joindre__retour" aria-label="Revenir à l’accueil">‹</button><b id="joindre-vue-titre"></b><button type="button" class="joindre__fermer" aria-label="Fermer">×</button></div>
+          <div class="joindre__ilot" id="joindre-ilot-chat" data-genre="bulle" hidden></div>
+          <div class="joindre__ilot" id="joindre-ilot-vocal" data-genre="bulle" hidden></div>
+        </div>
       </div>
-      <button type="button" class="joindre__bouton" id="joindre-bouton" aria-label="Nous joindre" aria-expanded="false" aria-controls="joindre-volet"><i aria-hidden="true"><svg><use href="#i-wa"/></svg></i><span>Nous joindre</span></button>
+      <button type="button" class="joindre__bouton" id="joindre-bouton" aria-label="Nous joindre" aria-expanded="false" aria-controls="joindre-volet"><i aria-hidden="true"><svg><use href="#i-bulle"/></svg></i><span>Nous joindre</span></button>
     </div>
     <script>
     (function () {
       var j = document.getElementById('joindre'), v = document.getElementById('joindre-volet'), b = document.getElementById('joindre-bouton');
       if (!j || !v || !b) return;
-      var ouvre = function (o) { v.hidden = !o; b.setAttribute('aria-expanded', String(o)); if (o) { var l = v.querySelector('.joindre__ligne:last-of-type'); if (l) l.focus(); } else { b.focus(); } };
+      var accueil = document.getElementById('joindre-accueil'), vue = document.getElementById('joindre-vue'), titre = document.getElementById('joindre-vue-titre');
+      var TITRES = { chat: 'Discuter avec la Maison', vocal: 'Un message vocal' };
+      var montre = function (quoi) {
+        accueil.hidden = !!quoi; vue.hidden = !quoi;
+        ['chat', 'vocal'].forEach(function (k) { var el = document.getElementById('joindre-ilot-' + k); if (el) el.hidden = k !== quoi; });
+        if (quoi) { titre.textContent = TITRES[quoi]; document.dispatchEvent(new CustomEvent('mnd:joindre-vue', { detail: { vue: quoi } })); }
+      };
+      var ouvre = function (o) {
+        v.hidden = !o; b.setAttribute('aria-expanded', String(o)); j.classList.toggle('est-ouverte', o);
+        if (o) { document.dispatchEvent(new CustomEvent('mnd:joindre-ouvert')); var l = v.querySelector('.joindre__rond'); if (l && accueil && !accueil.hidden) l.focus(); } else { b.focus(); }
+      };
       b.addEventListener('click', function () { ouvre(v.hidden); });
-      v.querySelector('.joindre__fermer').addEventListener('click', function () { ouvre(false); });
+      Array.prototype.forEach.call(v.querySelectorAll('.joindre__fermer'), function (f) { f.addEventListener('click', function () { ouvre(false); }); });
+      Array.prototype.forEach.call(v.querySelectorAll('[data-joindre]'), function (r) {
+        r.addEventListener('click', function () {
+          var quoi = r.getAttribute('data-joindre');
+          if (quoi === 'envies') { var e = document.getElementById('joindre-envies'); if (e) { e.hidden = !e.hidden; r.setAttribute('aria-expanded', String(!e.hidden)); } return; }
+          montre(quoi);
+        });
+      });
+      var retour = v.querySelector('.joindre__retour');
+      if (retour) retour.addEventListener('click', function () { montre(null); });
       document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !v.hidden) ouvre(false); });
-      document.addEventListener('click', function (e) { if (!v.hidden && !j.contains(e.target)) ouvre(false); });
+      /* Le chemin du clic, pris À L'INSTANT du clic : un îlot qui se redessine
+         sous le doigt (« Commencer ») retire sa cible de la page, et un
+         simple contains() la croirait dehors. */
+      document.addEventListener('click', function (e) { if (v.hidden) return; var p = e.composedPath ? e.composedPath() : []; if (p.indexOf(j) < 0 && !j.contains(e.target)) ouvre(false); });
       var pied = document.querySelector('footer');
       if (pied && 'IntersectionObserver' in window) {
         new IntersectionObserver(function (es) { es.forEach(function (en) { j.classList.toggle('est-cachee', en.isIntersecting); }); }, { threshold: 0.05 }).observe(pied);
@@ -1329,7 +1381,7 @@ const LEGALES = [
      dire ce qu'il transmet, a quoi cela sert, et ce qui n'est jamais recu.
      Le meme jour, « de vive voix au salon » devient « a la Maison » : la
      Maison ne dit jamais « salon ». */
-  { chemin: '/confidentialite/', court: 'Politique de données', titre: 'Politique de gestion des données personnelles · Maison MND', description: 'Découvrez ce que la Maison MND reçoit quand vous réservez en ligne, pourquoi, qui le lit, combien de temps et comment demander l’effacement.', h1: 'Politique de gestion des données personnelles', corps: `<p><b>Ce que nous recevons, exactement.</b> Quand vous réservez ou nous laissez vos coordonnées : votre prénom, votre numéro de téléphone, le parcours qui vous amène, le mot que vous nous laissez si vous en écrivez un, la page depuis laquelle vous nous écrivez, et la date à laquelle vous avez coché la case d’accord. Le site ne demande NI e-mail, NI adresse, NI date de naissance, et une réservation ne demande aucun paiement en ligne.</p><p><b>La carte cadeau réglée en ligne.</b> Le paiement passe par KkiaPay, qui reçoit le numéro avec lequel vous payez. La Maison reçoit la référence de la transaction, son montant et son moyen (Mobile Money ou carte), jamais votre numéro de carte bancaire ni votre code secret. Le prénom de la personne à qui vous offrez la carte et votre mot sont gardés avec la carte, pour la lui remettre.</p><p><b>Le message vocal.</b> Si vous nous laissez un message vocal depuis la page Contact ou « Être rappelée », nous recevons votre voix avec votre civilité, votre prénom, votre nom et votre numéro. La voix est gardée dans un espace privé, écoutée par le personnel de la Maison seul pour vous répondre, puis effacée au bout de 90 jours ; votre demande, elle, reste. Aucune machine ne la transcrit.</p><p><b>Pourquoi.</b> Pour vous rappeler, confirmer votre place et prendre soin de votre couronne. Rien d’autre : pas de revente, pas de liste partagée, pas de publicité ciblée.</p><p><b>Qui les lit.</b> Le personnel de la Maison, seul, depuis son outil interne. Une réservation prise sur le site n’ouvre aucun compte et n’est visible que par la Maison.</p><p><b>Votre numéro sert aussi à ne pas vous inscrire deux fois.</b> Quand une demande arrive, nous vérifions qu’une demande identique n’a pas déjà été posée avec le même numéro, pour ne pas vous appeler en double.</p><p><b>Ma Couronne, votre espace cliente.</b> Si vous y ouvrez un compte, nous recevons votre nom et votre adresse e-mail. Si vous entrez par « Continuer avec Google », Google nous transmet votre nom, votre adresse e-mail et votre photo de profil : le nom et l’adresse servent à ouvrir votre compte et à vous reconnaître, la photo n’est pas utilisée. Nous ne recevons jamais votre mot de passe Google, ni vos courriers, ni vos contacts. Ces informations sont conservées chez notre prestataire de base de données, à accès restreint, et ne sont transmises à personne d’autre. Ce que Ma Couronne garde ensuite pour vous (vos rendez-vous, votre suivi, votre foyer) est décrit dans <a href="/couronne/confidentialite.html">ses règles de confidentialité</a>.</p>
+  { chemin: '/confidentialite/', court: 'Politique de données', titre: 'Politique de gestion des données personnelles · Maison MND', description: 'Découvrez ce que la Maison MND reçoit quand vous réservez en ligne, pourquoi, qui le lit, combien de temps et comment demander l’effacement.', h1: 'Politique de gestion des données personnelles', corps: `<p><b>Ce que nous recevons, exactement.</b> Quand vous réservez ou nous laissez vos coordonnées : votre prénom, votre numéro de téléphone, le parcours qui vous amène, le mot que vous nous laissez si vous en écrivez un, la page depuis laquelle vous nous écrivez, et la date à laquelle vous avez coché la case d’accord. Le site ne demande NI e-mail, NI adresse, NI date de naissance, et une réservation ne demande aucun paiement en ligne.</p><p><b>La carte cadeau réglée en ligne.</b> Le paiement passe par KkiaPay, qui reçoit le numéro avec lequel vous payez. La Maison reçoit la référence de la transaction, son montant et son moyen (Mobile Money ou carte), jamais votre numéro de carte bancaire ni votre code secret. Le prénom de la personne à qui vous offrez la carte et votre mot sont gardés avec la carte, pour la lui remettre.</p><p><b>Le message vocal.</b> Si vous nous laissez un message vocal depuis la page Contact ou « Être rappelée », nous recevons votre voix avec votre civilité, votre prénom, votre nom et votre numéro. La voix est gardée dans un espace privé, écoutée par le personnel de la Maison seul pour vous répondre, puis effacée au bout de 90 jours ; votre demande, elle, reste. Aucune machine ne la transcrit.</p><p><b>La discussion en direct.</b> Si vous nous écrivez dans la bulle du site ou sur la page Contact, nous recevons votre civilité, votre prénom, votre nom, votre numéro WhatsApp, la page d’où vous écrivez et vos messages. Le personnel de la Maison les lit pour vous répondre. Quand personne de l’équipe n’est disponible, une réponse automatique rédigée par une intelligence artificielle (Claude, du prestataire Anthropic) peut vous répondre : elle reçoit alors vos messages et votre civilité avec votre prénom, jamais votre numéro, et ne donne ni prix ni rendez-vous. La discussion est effacée 90 jours après votre dernier message.</p><p><b>Pourquoi.</b> Pour vous rappeler, confirmer votre place et prendre soin de votre couronne. Rien d’autre : pas de revente, pas de liste partagée, pas de publicité ciblée.</p><p><b>Qui les lit.</b> Le personnel de la Maison, seul, depuis son outil interne. Une réservation prise sur le site n’ouvre aucun compte et n’est visible que par la Maison.</p><p><b>Votre numéro sert aussi à ne pas vous inscrire deux fois.</b> Quand une demande arrive, nous vérifions qu’une demande identique n’a pas déjà été posée avec le même numéro, pour ne pas vous appeler en double.</p><p><b>Ma Couronne, votre espace cliente.</b> Si vous y ouvrez un compte, nous recevons votre nom et votre adresse e-mail. Si vous entrez par « Continuer avec Google », Google nous transmet votre nom, votre adresse e-mail et votre photo de profil : le nom et l’adresse servent à ouvrir votre compte et à vous reconnaître, la photo n’est pas utilisée. Nous ne recevons jamais votre mot de passe Google, ni vos courriers, ni vos contacts. Ces informations sont conservées chez notre prestataire de base de données, à accès restreint, et ne sont transmises à personne d’autre. Ce que Ma Couronne garde ensuite pour vous (vos rendez-vous, votre suivi, votre foyer) est décrit dans <a href="/couronne/confidentialite.html">ses règles de confidentialité</a>.</p>
 <p><b>Combien de temps.</b> Une demande restée sans suite est effacée deux ans après le dernier échange. Si vous devenez cliente, votre fiche est gardée tant que vous venez à la Maison, puis cinq ans après votre dernière venue. Les factures sont gardées dix ans, comme l’exige la loi comptable (OHADA).</p><p><b>Vos droits.</b> Vous pouvez demander à voir, à corriger ou à effacer ce que nous avons, à tout moment, par WhatsApp ou de vive voix à la Maison. Nous donnons suite sans avoir à vous en demander la raison.</p><p><b>La mesure d’audience.</b> Elle compte les pages vues et les parcours choisis, sans nom ni numéro.</p><p><b>Sur votre téléphone.</b> Après une réservation, votre prénom, votre numéro et les gestes choisis restent sur l’appareil qui a réservé, pour que la prochaine fois se fasse en une touche. Ils ne quittent pas cet appareil. Le lien « Ce n’est pas moi », sur la page de réservation, les efface.</p><p><b>Hébergement.</b> Les pages du site sont servies par GitHub Pages ; vos demandes et votre compte Ma Couronne sont enregistrés chez notre prestataire de base de données, à accès restreint.</p><p><em>En vigueur au 11 octobre 2026.</em></p>` },
   /* LE DÉLAI ET LA DURÉE, CHIFFRÉS — 11 octobre 2026 (Yéman, au sélecteur) :
      prévenir 24 heures avant, sans frais ; une demande sans suite effacée

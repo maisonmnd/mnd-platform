@@ -1,5 +1,5 @@
 import { lazy, type LazyExoticComponent, type ComponentType } from 'react';
-import { Compass, Clapperboard, Activity, BadgeCheck, HeartHandshake, BarChart3, BookOpen, CalendarDays, ClipboardList, Crown, Drama, FileSignature, FileText, FlaskConical, Gift, GraduationCap, Hammer, HandCoins, Handshake, Handshake as PoigneeDeMain, HeartPulse, Inbox, KeyRound, Landmark, LayoutDashboard, Lightbulb, LineChart, ListChecks, MapPin, Megaphone, MessageSquare, MessagesSquare, MonitorPlay, NotebookPen, Palette, PhoneIncoming, PieChart, PiggyBank, QrCode, ReceiptText, Repeat, Scale, ScrollText, Settings, ShieldCheck, ShoppingBag, SquareKanban, Store, Users, UsersRound, Wallet, type LucideIcon } from 'lucide-react';
+import { Compass, Clapperboard, Activity, BadgeCheck, HeartHandshake, BarChart3, BookOpen, CalendarDays, ClipboardList, Crown, Drama, FileSignature, FileText, FlaskConical, Gift, GraduationCap, Hammer, HandCoins, Handshake, MessageCircle, Handshake as PoigneeDeMain, HeartPulse, Inbox, KeyRound, Landmark, LayoutDashboard, Lightbulb, LineChart, ListChecks, MapPin, Megaphone, MessageSquare, MessagesSquare, MonitorPlay, NotebookPen, Palette, PhoneIncoming, PieChart, PiggyBank, QrCode, ReceiptText, Repeat, Scale, ScrollText, Settings, ShieldCheck, ShoppingBag, SquareKanban, Store, Users, UsersRound, Wallet, type LucideIcon } from 'lucide-react';
 
 /* Registre des routes du Trône, groupées par DÉPARTEMENT.
    Le module d'un écran (routes/<dossier>/) dit d'où il vient, pas où il se range :
@@ -76,6 +76,8 @@ const NAV_DES_ECRANS: TroneGroup[] = [
       { path: '/carnet', label: 'Le Carnet', icon: NotebookPen, Component: lazy(() => import('./clients/Carnet')) },
       { path: '/appels', label: 'Les Appels', icon: PhoneIncoming, Component: lazy(() => import('./clients/Appels')) },
       { path: '/conversations', label: 'Conversations', icon: MessagesSquare, Component: lazy(() => import('./clients/Conversations')) },
+      /* LE CHAT DU SITE (19 octobre 2026, maquette BPWmpyyw… validée) : la bulle de maisonmnd.com, à qui l'on répond en direct. */
+      { path: '/discussions', label: 'Discussions', icon: MessageCircle, Component: lazy(() => import('./clients/Discussions')) },
       /* ENTRE DEUX SÉANCES (15 octobre 2026, maquette EfhgzxjA… validée) : ce que les clientes disent de leurs locks jusqu'au prochain rendez-vous. */
       { path: '/entre-deux', label: 'Entre deux séances', icon: HeartPulse, Component: lazy(() => import('./clients/EntreDeuxSeances')) },
       { path: '/demandes', label: 'Les demandes', icon: Inbox, Component: lazy(() => import('./clients/Demandes')) },
@@ -243,7 +245,8 @@ export const REUNIONS: readonly Reunion[] = [
   { hote: '/centre-de-commande', titre: 'Centre de commande', onglets: [{ path: '/centre-de-commande', label: 'Le centre' }, { path: '/atelier-des-contenus', label: 'Les contenus' }] },
   { hote: '/synthese', titre: 'Synthèse & bilan', onglets: [{ path: '/synthese', label: 'Le résultat' }, { path: '/bilan-mensuel', label: 'Le mois jour par jour' }] },
   { hote: '/analytics', titre: 'Les tendances', onglets: [{ path: '/analytics', label: 'L’analyse' }, { path: '/cadence', label: 'La cadence' }] },
-  { hote: '/conversations', titre: 'Conversations', onglets: [{ path: '/conversations', label: 'WhatsApp' }, { path: '/appels', label: 'Les appels' }] },
+  /* LE CHAT DU SITE (19 octobre 2026) entre dans Conversations, sans rubrique de plus : tout ce que les clientes écrivent au même endroit. */
+  { hote: '/conversations', titre: 'Conversations', onglets: [{ path: '/conversations', label: 'WhatsApp' }, { path: '/discussions', label: 'Le chat du site' }, { path: '/appels', label: 'Les appels' }] },
   { hote: '/demandes', titre: 'Demandes & consultations', onglets: [{ path: '/demandes', label: 'Les demandes' }, { path: '/consultations', label: 'Les consultations' }] },
   { hote: '/home-rituals', titre: 'Stock & Achats', onglets: [{ path: '/home-rituals', label: 'Stock & achats' }, { path: '/fournisseurs', label: 'Les fournisseurs' }] },
   { hote: '/comptes', titre: 'Avoirs & cartes cadeaux', onglets: [{ path: '/comptes', label: 'Comptes & avoirs' }, { path: '/cartes-cadeaux', label: 'Les cartes cadeaux' }] },
@@ -398,7 +401,7 @@ export const ANCIENS_DOMAINES: Record<string, string[]> = {
    un : la table ci-dessus ne se met pas à jour. Il s'ouvre par son
    département seul. On les NOMME ici, pour que la barre et la photographie
    restent vérifiables : un écran absent des deux listes est un oubli. */
-export const ECRANS_NES_APRES_LES_DEPARTEMENTS: readonly string[] = ['/compte-courant', '/parrainages', '/cartes-cadeaux', '/secretariat', '/centre-de-commande', '/atelier-des-contenus', '/chiffre-des-prestations', '/prets-personnel', '/entre-deux'];
+export const ECRANS_NES_APRES_LES_DEPARTEMENTS: readonly string[] = ['/compte-courant', '/parrainages', '/cartes-cadeaux', '/secretariat', '/centre-de-commande', '/atelier-des-contenus', '/chiffre-des-prestations', '/prets-personnel', '/entre-deux', '/discussions'];
 
 /** L'ancien domaine d'un écran, celui d'avant les départements. */
 export const ancienDomaineDe = (path: string): string | undefined =>

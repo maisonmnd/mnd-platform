@@ -23,7 +23,10 @@ export type Evenement =
   | 'cadeau_paiement_ouvert'
   | 'cadeau_regle'
   /* Le message vocal laissé sur le site (19 octobre 2026). */
-  | 'vocal_depose';
+  | 'vocal_depose'
+  /* Le chat de la Maison (19 octobre 2026) : une discussion ouverte, un message écrit. */
+  | 'chat_ouvert'
+  | 'chat_message';
 
 export type Parametres = { parcours?: string; page?: string; sortie?: string; genre?: string; chemin?: string };
 

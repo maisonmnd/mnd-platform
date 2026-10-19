@@ -52,6 +52,34 @@ const monteEnRoute = document.querySelector('[data-ilot]') ? import('./monte') :
 const pageDeReservation = document.querySelector<HTMLElement>('[data-ilot="reserver"]');
 const quandReactEstLa: Promise<unknown> = pageDeReservation && monteEnRoute ? monteEnRoute.catch(() => undefined) : Promise.resolve(undefined);
 
+/* LA BULLE « NOUS JOINDRE » S'ANIME — 19 octobre 2026 (maquette BPWmpyyw…).
+   Son balisage et ses gestes simples (ouvrir, revenir, fermer) sont écrits
+   dans la page ; ici, ce qui demande le serveur ou React, et seulement
+   quand on le touche : « En ligne » se lit à l'ouverture, le chat et le
+   message vocal se montent au premier toucher de leur rond. */
+if (document.getElementById('joindre')) {
+  let etatLu = false;
+  document.addEventListener('mnd:joindre-ouvert', () => {
+    if (etatLu) return;
+    etatLu = true;
+    void import('./chat').then(({ quelquUnEstLa }) => quelquUnEstLa()).then((la) => {
+      const e = document.getElementById('joindre-etat');
+      /* Le serveur n'a rien dit : on ne dit rien plutôt que de mentir. */
+      if (!e || la === null) return;
+      e.hidden = false;
+      e.classList.toggle('est-la', la);
+      const t = e.querySelector('span');
+      if (t) t.textContent = la ? 'En ligne' : 'Réponse automatique, puis WhatsApp';
+    }).catch(() => undefined);
+  });
+  document.addEventListener('mnd:joindre-vue', (ev) => {
+    const vue = (ev as CustomEvent<{ vue?: string }>).detail?.vue;
+    if (vue !== 'chat' && vue !== 'vocal') return;
+    const el = document.getElementById(`joindre-ilot-${vue}`);
+    if (el) void import('./monte').then((m) => m.monteIci(el, vue)).catch(() => undefined);
+  });
+}
+
 /* LE MENU DERRIÈRE SON BOUTON, ET LA BARRE DE L'ACCUEIL — 23 septembre 2026.
    Le bouton ouvre les liens (sur téléphone partout, sur l'accueil aussi en
    grand) ; un clic ailleurs ou Échap referme. Sur l'accueil, la barre est

@@ -5,6 +5,7 @@ import { heuresDeLaMaison, lienWhatsApp, maison, type Maison } from '../maison';
 import { mesure } from '../mesure';
 import { numeroDit } from '../numero';
 import MessageVocal from './MessageVocal';
+import ChatDuSite from './ChatDuSite';
 
 /* NOUS ÉCRIRE, NOUS TROUVER, QUAND VENIR — 21 septembre 2026.
 
@@ -77,6 +78,9 @@ function Ecrire({ m }: { m: Maison | null }) {
         <a href={`mailto:${COMMUN.editeur.email}`}>{COMMUN.editeur.email}</a>
         <small>Pour les devis et les partenariats</small>
       </div>
+      {/* EN DIRECT (19 octobre 2026) : la bulle n'est pas sur cette page, le
+          chat de la Maison s'ouvre donc ici, dans la carte. */}
+      <ChatDuSite genre="contact" />
       {/* PLUTÔT PARLER (19 octobre 2026, sa décision : la page Contact et
           « Être rappelée ») : le message vocal s'ouvre dans la carte. */}
       <MessageVocal />

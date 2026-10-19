@@ -1063,30 +1063,62 @@ footer li svg { width: 15px; height: 15px; flex: none; }
 .offre-site__cond p { margin-top: 6px; line-height: 1.5; font-size: 12.5px; }
 
 /* LA BULLE « NOUS JOINDRE » : en bas à droite, au-dessus de la barre du bas
-   sur téléphone, jamais au-dessus du pied (elle s'efface quand il paraît). */
+   sur téléphone, jamais au-dessus du pied (elle s'efface quand il paraît,
+   sauf ouverte : on ne retire pas une discussion de sous les doigts).
+   FAÇON FEDAPAY depuis le 19 octobre 2026 (maquette BPWmpyyw… validée) :
+   l'accueil indigo et le monogramme, puis quatre ronds ; la vue du chat ou
+   du vocal prend la place de l'accueil, « ‹ » y ramène. */
 .joindre { position: fixed; right: 16px; bottom: calc(16px + env(safe-area-inset-bottom, 0px)); z-index: 31; display: flex; flex-direction: column; align-items: flex-end; gap: 10px; transition: transform var(--t); }
-.joindre.est-cachee { transform: translateY(140%); }
+.joindre.est-cachee:not(.est-ouverte) { transform: translateY(140%); }
 .joindre__bouton { display: inline-flex; align-items: center; gap: 10px; background: var(--plein); color: var(--plein-texte); border: 0; border-radius: 999px; padding: 0 18px 0 0; height: 56px; cursor: pointer; box-shadow: var(--ombre); font-family: var(--sans); font-size: 12.5px; letter-spacing: .12em; text-transform: uppercase; }
 .joindre__bouton i { width: 56px; height: 56px; border-radius: 999px; display: grid; place-items: center; background: var(--accent-profond); }
 .joindre__bouton i svg { width: 22px; height: 22px; }
 .joindre__bouton:hover { background: var(--accent-profond); }
 .joindre__bouton:focus-visible { outline: 2px solid var(--titre); outline-offset: 3px; }
-.joindre__volet { background: var(--carte); border: 1px solid var(--filet); border-radius: 8px; box-shadow: var(--ombre); width: min(320px, calc(100vw - 32px)); padding: 14px 14px 10px; }
-.joindre__volet[hidden] { display: none; }
-.joindre__tete { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 0 4px 10px; }
-.joindre__tete b { font-family: var(--serif); font-size: 20px; font-weight: 400; color: var(--titre); }
+.joindre__volet { background: var(--carte); border: 1px solid var(--filet); border-radius: 14px; box-shadow: var(--ombre); width: min(360px, calc(100vw - 32px)); max-height: min(640px, calc(100dvh - 110px)); overflow: hidden; display: flex; flex-direction: column; }
+.joindre__volet[hidden], .joindre__accueil[hidden], .joindre__vue[hidden], .joindre__ilot[hidden], .joindre__envies[hidden] { display: none; }
+.joindre__accueil { display: flex; flex-direction: column; overflow-y: auto; min-height: 0; }
+.joindre__entete { position: relative; background: var(--sombre); color: var(--fort-texte); padding: 18px 22px 20px; display: grid; justify-items: center; gap: 7px; text-align: center; }
+.joindre__entete b { font-family: var(--serif); font-size: 24px; font-weight: 400; line-height: 1.1; }
+.joindre__entete p { font-size: 13.5px; line-height: 1.5; color: rgba(246, 241, 231, .8); max-width: 30ch; }
+.joindre__avatar { width: 68px; height: 68px; border-radius: 50%; background: var(--fond); border: 2px solid var(--accent-sombre); display: grid; place-items: center; }
+.joindre__avatar img { width: 44px; height: auto; }
+.joindre__etat { display: inline-flex; align-items: center; gap: 7px; font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--fort-texte); background: rgba(246, 241, 231, .12); border-radius: 999px; padding: 5px 12px; }
+.joindre__etat[hidden] { display: none; }
+.joindre__etat i { width: 7px; height: 7px; border-radius: 50%; background: var(--accent-sombre); }
+.joindre__etat.est-la i { background: var(--fond); box-shadow: 0 0 0 3px rgba(246, 241, 231, .3); }
 .joindre__fermer { width: 44px; height: 44px; border: 0; background: transparent; color: var(--texte-doux); font-size: 22px; cursor: pointer; border-radius: 999px; }
 .joindre__fermer:hover { background: var(--accent-voile); color: var(--accent-profond); }
-.joindre__ligne { display: flex; align-items: center; gap: 12px; min-height: 52px; padding: 6px 8px; border-radius: 6px; color: var(--titre); font-size: 15px; }
+.joindre__entete .joindre__fermer { position: absolute; top: 6px; right: 6px; color: var(--accent-sombre); }
+.joindre__entete .joindre__fermer:hover { background: rgba(246, 241, 231, .12); color: var(--fort-texte); }
+.joindre__fermer:focus-visible, .joindre__retour:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.joindre__ronds { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px; padding: 16px 10px 10px; }
+.joindre__rond { display: grid; justify-items: center; gap: 7px; padding: 4px 0; border: 0; background: transparent; cursor: pointer; font: inherit; font-size: 12.5px; color: var(--titre); text-align: center; border-radius: 10px; }
+.joindre__rond i { width: 50px; height: 50px; border-radius: 50%; display: grid; place-items: center; background: var(--sombre); color: var(--fort-texte); }
+.joindre__rond--chat i { background: var(--plein); color: var(--plein-texte); }
+.joindre__rond svg { width: 21px; height: 21px; }
+.joindre__rond:hover i { filter: brightness(1.15); }
+.joindre__rond:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.joindre__envies { padding: 0 14px 8px; display: grid; gap: 8px; }
+.joindre__note { font-size: 12.5px; color: var(--texte-doux); }
+.joindre__ligne { display: flex; align-items: center; gap: 12px; min-height: 52px; margin: 2px 12px 0; padding: 6px 8px; border-top: 1px solid var(--filet); color: var(--titre); font-size: 15px; }
 .joindre__ligne:hover { background: var(--accent-voile); }
 .joindre__ligne i { width: 34px; height: 34px; border-radius: 999px; background: var(--accent-voile); color: var(--accent-profond); display: grid; place-items: center; flex: none; }
 .joindre__ligne i svg { width: 15px; height: 15px; }
 .joindre__ligne small { display: block; font-size: 12px; color: var(--texte-doux); }
-.joindre__pied { font-size: 11.5px; color: var(--texte-doux); padding: 8px 8px 2px; border-top: 1px solid var(--filet); margin-top: 4px; }
+.joindre__pied { font-size: 11.5px; color: var(--texte-doux); padding: 8px 20px 14px; }
+.joindre__vue { display: flex; flex-direction: column; min-height: 0; flex: 1; }
+.joindre__barre { display: flex; align-items: center; gap: 6px; padding: 4px 6px; background: var(--sombre); color: var(--fort-texte); }
+.joindre__barre b { flex: 1; font-family: var(--serif); font-size: 19px; font-weight: 400; }
+.joindre__barre .joindre__fermer { color: var(--accent-sombre); }
+.joindre__retour { width: 44px; height: 44px; border: 0; background: transparent; color: var(--accent-sombre); font-size: 26px; line-height: 1; cursor: pointer; border-radius: 999px; }
+.joindre__retour:hover, .joindre__barre .joindre__fermer:hover { background: rgba(246, 241, 231, .12); color: var(--fort-texte); }
+.joindre__ilot { padding: 14px; overflow-y: auto; min-height: 0; flex: 1; }
 @media (max-width: 760px) {
   body.a-barre-mobile .joindre { bottom: calc(84px + env(safe-area-inset-bottom, 0px)); }
   .joindre__bouton span { display: none; }
   .joindre__bouton { padding: 0; }
+  body.a-barre-mobile .joindre__volet { max-height: calc(100dvh - 180px); }
 }
 
 /* LA PORTE AVANT LE CALENDRIER : « Prendre rendez-vous » sans parcours
@@ -2297,3 +2329,52 @@ footer ul { gap: 12px; }
 .vocal-trio .btn--plein { flex: 1 1 100%; }
 .vocal-refus { display: grid; gap: 10px; font-size: 14px; color: var(--texte-doux); }
 .vocal-merci { background: var(--accent-clair); border: 1px solid var(--accent); border-radius: 4px; padding: 16px 18px; display: grid; gap: 10px; color: var(--titre); }
+
+/* LE CHAT DE LA MAISON — 19 octobre 2026 (maquette BPWmpyyw… validée). Dans
+   la vue « Discuter » de la bulle, et dans la carte « Nous écrire » de la page
+   Contact. La visiteuse à droite en indigo, la Maison à gauche sur la carte,
+   la réponse automatique en pointillé cuivre, les mots du chat au milieu. */
+.chat { display: grid; gap: 12px; min-width: 0; }
+.chat--contact { margin-top: 4px; }
+.chat-qui { display: grid; gap: 12px; min-width: 0; }
+.chat-qui .deux-champs { min-width: 0; }
+@media (max-width: 520px) { .chat-qui .deux-champs { grid-template-columns: 1fr; } }
+.joindre__ilot .chat-qui .deux-champs { grid-template-columns: 1fr; }
+.chat-note { font-size: 13.5px; color: var(--texte-doux); }
+.chat-mention { font-size: 12px; line-height: 1.5; color: var(--texte-doux); }
+.chat-mention a { color: var(--accent-profond); text-decoration: underline; text-underline-offset: 3px; }
+.chat-etat { display: inline-flex; align-items: center; gap: 7px; font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--accent-profond); background: var(--accent-clair); border-radius: 999px; padding: 5px 12px; justify-self: start; }
+.chat-etat i { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); display: block; }
+.chat-etat--la { color: var(--titre); background: var(--indigo-pale); }
+.chat-etat--la i { background: var(--sombre); }
+.chat-fil-entete:empty { display: none; }
+.chat-fil { display: flex; flex-direction: column; gap: 8px; max-height: 340px; min-height: 160px; overflow-y: auto; padding: 10px; border-radius: 10px; background: var(--fond); border: 1px solid var(--filet); overscroll-behavior: contain; }
+.joindre__ilot .chat-fil { max-height: none; min-height: 200px; height: min(46dvh, 360px); }
+.chat-msg { max-width: 84%; padding: 8px 12px; border-radius: 14px; font-size: 14.5px; line-height: 1.45; white-space: pre-wrap; overflow-wrap: anywhere; }
+.chat-msg small { display: block; margin-top: 3px; font-size: 11px; letter-spacing: .02em; color: var(--texte-doux); }
+.chat-msg--maison, .chat-msg--auto { align-self: flex-start; background: var(--carte); border: 1px solid var(--filet); color: var(--texte); border-bottom-left-radius: 4px; }
+.chat-msg--auto { border-style: dashed; border-color: var(--accent); }
+.chat-msg--visiteuse { align-self: flex-end; background: var(--sombre); color: var(--fort-texte); border-bottom-right-radius: 4px; }
+.chat-msg--visiteuse small { color: rgba(246, 241, 231, .7); }
+.chat-msg--envoi { opacity: .7; }
+.chat-msg--systeme { align-self: center; max-width: 94%; background: var(--accent-clair); color: var(--accent-profond); font-size: 13px; text-align: center; border-radius: 10px; }
+.chat-ecrit { align-self: flex-start; display: flex; gap: 4px; padding: 10px 12px; }
+.chat-ecrit i { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); opacity: .6; display: block; }
+@keyframes chat-ecrit { 0%, 100% { opacity: .25; transform: translateY(0); } 50% { opacity: 1; transform: translateY(-3px); } }
+/* Les trois points ne bougent que pour qui accepte le mouvement (l'opt-in de la Maison). */
+@media (prefers-reduced-motion: no-preference) {
+  .chat-ecrit i { animation: chat-ecrit 1s ease-in-out infinite; }
+  .chat-ecrit i:nth-child(2) { animation-delay: .15s; }
+  .chat-ecrit i:nth-child(3) { animation-delay: .3s; }
+}
+.chat-saisie { display: flex; gap: 8px; align-items: center; }
+.chat-saisie input { flex: 1; min-width: 0; font: inherit; font-size: 16px; color: var(--titre); background: var(--carte); border: 1px solid var(--filet); border-radius: 999px; padding: 11px 16px; min-height: 46px; }
+.chat-saisie input:focus { outline: 2px solid var(--accent); outline-offset: 1px; border-color: var(--accent); }
+.chat-envoi { width: 46px; height: 46px; flex: none; border-radius: 50%; border: 0; cursor: pointer; display: grid; place-items: center; background: var(--plein); color: var(--plein-texte); }
+.chat-envoi svg { width: 19px; height: 19px; }
+.chat-envoi:disabled { opacity: .45; cursor: default; }
+.chat-envoi:focus-visible { outline: 2px solid var(--titre); outline-offset: 2px; }
+.chat-pied { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; font-size: 12.5px; }
+.chat-pied a, .chat-lien { color: var(--accent-profond); text-decoration: underline; text-underline-offset: 3px; background: none; border: 0; padding: 0; font: inherit; cursor: pointer; }
+.joindre__ilot .vocal-panneau .deux-champs { grid-template-columns: 1fr; }
+.joindre__envies .joindre__choix { padding: 0; }

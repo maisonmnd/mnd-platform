@@ -15,12 +15,14 @@ import { DUREE_MAX_DE_LA_VOIX_S, dureeDite, formatDEnregistrement, quandOnRappel
    Trône. Le micro refusé n'arrête personne : WhatsApp prend le relais.
 
    `genre="carte"` : la carte de la colonne de /rappel/ ; sans genre : le
-   bouton qui s'ouvre dans la carte « Nous écrire » de la page Contact. */
+   bouton qui s'ouvre dans la carte « Nous écrire » de la page Contact ;
+   `genre="bulle"` (19 octobre 2026) : la vue « Vocal » de la bulle du site,
+   ouverte d'emblée, puisqu'on vient de toucher le rond. */
 
 type Etape = 'pret' | 'parle' | 'fini' | 'envoi' | 'recu';
 
 export default function MessageVocal({ genre }: { genre?: string }) {
-  const [ouvert, setOuvert] = useState(false);
+  const [ouvert, setOuvert] = useState(genre === 'bulle');
   const [civilite, setCivilite] = useState<Civilite | ''>('');
   const [prenom, setPrenom] = useState('');
   const [nom, setNom] = useState('');

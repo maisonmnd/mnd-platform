@@ -616,6 +616,8 @@ const regles: Regle[] = [
         'accuse-du-site': { fichier: 'src/shared/accuse-du-site.ts', extrait: (s) => entre(s, 'accuse-du-site') },
         /* Le message vocal du site (19 octobre 2026), recopie dans demande-submit. */
         'message-vocal': { fichier: 'src/shared/message-vocal-pur.ts', extrait: (s) => entre(s, 'message-vocal') },
+        /* Le chat de la Maison (19 octobre 2026), recopie dans discussion. */
+        'chat-du-site': { fichier: 'src/shared/chat-du-site-pur.ts', extrait: (s) => entre(s, 'chat-du-site') },
       };
       const fonctions: string[] = [];
       const marche = (d: string) => { for (const n of readdirSync(d)) { const p = `${d}/${n}`; if (statSync(p).isDirectory()) marche(p); else if (/\.(ts|js)$/.test(n)) fonctions.push(p); } };

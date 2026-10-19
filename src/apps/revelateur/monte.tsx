@@ -27,9 +27,24 @@ const ILOTS: Record<string, Chargeur> = {
   parrainer: () => import('./ilots/Parrainer') as unknown as ReturnType<Chargeur>,
   /* Le message vocal (19 octobre 2026) : la colonne de /rappel/. */
   vocal: () => import('./ilots/MessageVocal') as unknown as ReturnType<Chargeur>,
+  /* Le chat de la Maison (19 octobre 2026) : la bulle, et la page Contact. */
+  chat: () => import('./ilots/ChatDuSite') as unknown as ReturnType<Chargeur>,
 };
 
-document.querySelectorAll<HTMLElement>('[data-ilot]').forEach((el) => {
+/* MONTER UN ÎLOT À LA DEMANDE — 19 octobre 2026. La bulle « Nous joindre »
+   vit sur toutes les pages ; son chat et son message vocal ne se chargent
+   qu'au toucher de « Discuter » ou « Vocal » (main.ts appelle ici). Le même
+   chemin que les îlots écrits dans la page. */
+export function monteIci(el: HTMLElement, nom: string): void {
+  if (el.classList.contains('est-monte') || el.dataset.monteEnCours) return;
+  el.dataset.ilot = nom;
+  el.dataset.monteEnCours = '1';
+  monte(el);
+}
+
+document.querySelectorAll<HTMLElement>('[data-ilot]').forEach(monte);
+
+function monte(el: HTMLElement): void {
   const charge = ILOTS[el.dataset.ilot ?? ''];
   if (!charge) return;
   const props: Record<string, unknown> = {};
@@ -57,4 +72,4 @@ document.querySelectorAll<HTMLElement>('[data-ilot]').forEach((el) => {
        pas de vide. */
     el.classList.add('est-monte');
   }).catch(() => { /* le code n'est pas venu : la page garde ce qu'elle a écrit */ });
-});
+}
