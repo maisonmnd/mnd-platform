@@ -1,0 +1,17 @@
+/* LE SECRÉTARIAT QUI RÉDIGE — 19 octobre 2026.
+   Le champ « Rédiger d'une phrase » dans Nouveau document, et la teinte
+   cuivre « à vérifier » des champs qu'une proposition de Claude a remplis,
+   tant que le brouillon n'est pas signé. Indigo et cuivre, jamais obsidienne. */
+.sec-rediger { display: grid; gap: 8px; padding: 12px 14px; border: 1px dashed var(--copper-300); border-radius: var(--radius-md); background: var(--copper-50); color: var(--ink); }
+.sec-rediger__titre { font-size: 12.5px; font-weight: 600; color: var(--copper-700); letter-spacing: 0.02em; }
+.sec-rediger__ligne { display: flex; gap: 8px; align-items: flex-start; flex-wrap: wrap; }
+.sec-rediger__ligne .mnd-textarea { flex: 1 1 260px; min-width: 0; }
+.sec-rediger__mot { font-size: 12.5px; color: var(--copper-700); margin: 0; }
+.sec-rediger__doux { font-size: 12px; color: var(--ink-soft); margin: 0; }
+
+/* Les champs remplis par Claude, à vérifier : bordure et fond cuivre. */
+.sec-a-verifier .mnd-input, .sec-a-verifier .mnd-textarea, .sec-a-verifier .mnd-select { border-color: var(--copper-500); background: var(--copper-50); }
+
+/* Le bandeau de la proposition dans l'éditeur : le mot, et « Une autre ». */
+.sec-bandeau--proposition { display: flex; gap: 10px; align-items: center; justify-content: space-between; flex-wrap: wrap; border-color: var(--copper-500); }
+.sec-bandeau--proposition > span { flex: 1 1 260px; min-width: 0; }

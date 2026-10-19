@@ -28,6 +28,8 @@ import { LesContrats } from './secretariat/Contrats';
 import { LesDemarches } from './secretariat/Demarches';
 import { LesContacts } from './secretariat/Contacts';
 import { LesArchives } from './secretariat/Archives';
+import { RedigerDUnePhrase, remplisLaPiece } from './secretariat/RedigerDUnePhrase';
+import type { LettreProposee } from '../../../../shared/ia-lettre-pur';
 import './pilotage.css';
 
 /* ══ LE SECRÉTARIAT — 6 octobre 2026 (maquette StpDQGL3HE1nHyyjSRNU9r validée) ══
@@ -301,7 +303,10 @@ function NouveauDocument({ direction, branchId, moi, nomParDefaut, entreprisesCo
   const familleVue = familles.some((f) => f.cle === famille) ? famille : familles[0].cle;
   const modeles = MODELES.filter((m) => m.famille === familleVue);
 
-  const choisis = (modele: string) => {
+  /* RÉDIGÉE D'UNE PHRASE (19 octobre 2026) : la proposition de Claude passe
+     par ce même chemin (nouvellePiece, au registre qu'elle a choisi), puis
+     remplit le brouillon ; l'éditeur la montre cuivre « à vérifier ». */
+  const choisis = (modele: string, proposition?: { lettre: LettreProposee; phrase: string }) => {
     if (!moi) { toast('Connectez-vous pour écrire un document.'); return; }
     const fiche = signatairesDe(lignes).find((s) => s.userId === moi);
     const profil = profils(lignes).find((x) => x.userId === moi);
@@ -320,8 +325,11 @@ function NouveauDocument({ direction, branchId, moi, nomParDefaut, entreprisesCo
     const auNomDe = entiteDeLaPiece(entite, modele, maisonEmployeur());
     if (auNomDe !== entite) toast(`Pièce d’employeur : faite au nom de ${ACIA.nom}, l’employeur de l’équipe tant que le comptable n’a rien décidé.`);
     const p = nouvellePiece({ branchId, entite: auNomDe, entrepriseId: auNomDe === 'autre' ? entrepriseId : undefined, modele, auteurId: moi, signataires });
+    if (proposition) remplisLaPiece(p, proposition.lettre, proposition.phrase);
     surCree(p.id);
   };
+  const entrepriseChoisie = entreprisesConnues.find((e) => e.id === entrepriseId);
+  const nomAuNomDe = entite === 'mnd' ? maisonNom() : entite === 'acia' ? ACIA.nom : (entrepriseChoisie?.nom ?? 'l’entreprise');
 
   const ENTITES: { v: Entite; l: string; si?: boolean }[] = [
     { v: 'mnd', l: maisonNom() }, { v: 'acia', l: ACIA.nom }, { v: 'autre', l: 'Autre entreprise' }, { v: 'perso', l: 'Personnelle', si: direction },
@@ -353,6 +361,11 @@ function NouveauDocument({ direction, branchId, moi, nomParDefaut, entreprisesCo
             {entite === 'perso' && 'À votre nom, sans en-tête d’entreprise ni tampon : elle n’engage pas l’entreprise. Vue de la direction seule.'}
           </p>
         </div>
+
+        {/* Pas pour une lettre personnelle : elle n'est pas au nom de la Maison.
+            Pour une autre entreprise, une fois choisie : sinon la lettre
+            rédigée (et payée) ne trouverait pas où se poser. */}
+        {entite !== 'perso' && (entite !== 'autre' || !!entrepriseChoisie) && <RedigerDUnePhrase auNomDe={nomAuNomDe} surLettre={(lettre, phrase) => choisis(lettre.registre, { lettre, phrase })} />}
 
         <div className="sec-choix">
           <div className="sec-choix__familles">

@@ -15,6 +15,7 @@ import { aCompleter, modeleDe, remplisDepuisEquipe } from '../../../../../shared
 import { TAMPON_A_DATER, ratioDuTampon, tamponsDe } from '../../../../../shared/secretariat-tampons';
 import { useStaff as useEquipe } from '../../equipe/data';
 import { Apercu } from './Apercu';
+import { BandeauDeLaProposition } from './RedigerDUnePhrase';
 
 /* L'ÉDITEUR — à gauche ce qu'on écrit, à droite la page A4 telle qu'elle
    sortira (maquette, écran 3). Le texte se garde à chaque frappe. Dès la
@@ -154,10 +155,12 @@ export function Editeur({ pieceId, direction, onClose, surOuvre }: {
       {reste > 0 && ouvert && (
         <div className="sec-bandeau">Il reste {reste} élément{reste > 1 ? 's' : ''} entre crochets [à compléter] : le document ne se signe pas avant.</div>
       )}
+      {/* Rédigée d'une phrase par Claude (19 octobre 2026) : le bandeau et la teinte cuivre, tant que c'est un brouillon. */}
+      <BandeauDeLaProposition p={p} auNomDe={r?.enTete.nom ?? maisonNom()} ville={r?.enTete.ville} surEcarte={onClose} />
 
       <div className="sec-editeur__corps">
         <div className="sec-editeur__form">
-          <fieldset disabled={!ouvert} style={{ border: 0, padding: 0, margin: 0, display: 'grid', gap: 12, minWidth: 0 }}>
+          <fieldset disabled={!ouvert} className={p.proposition && ouvert ? 'sec-a-verifier' : undefined} style={{ border: 0, padding: 0, margin: 0, display: 'grid', gap: 12, minWidth: 0 }}>
             {p.entite !== 'autre' && (
               <Field label="Qui signe">
                 <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
