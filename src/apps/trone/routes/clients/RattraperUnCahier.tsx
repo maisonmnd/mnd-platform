@@ -75,6 +75,10 @@ export function RattraperUnCahier({ onClose }: { onClose: () => void }) {
   const [erreur, setErreur] = useState('');
   const [bilan, setBilan] = useState<{ n: number; pieces: number; recu: number; reste: number; caisse: string; fiches: number } | null>(null);
   const champFichier = useRef<HTMLInputElement>(null);
+  /* UN SEUL « INSCRIRE » PAR PAGE : deux clics rapides poseraient la page
+     deux fois, et le rapprochement ne voit pas ce qui n'est pas encore au
+     magasin. */
+  const dejaInscrite = useRef(false);
   const aujourdhui = todayISO();
 
   /* LE RAPPROCHEMENT SE REFAIT QUAND LA DATE CHANGE : « déjà au Trône » dépend
@@ -122,17 +126,19 @@ export function RattraperUnCahier({ onClose }: { onClose: () => void }) {
     setDatePage(lue.date ?? '');
     setDecisions({});
     setRattache('');
+    dejaInscrite.current = false;
     setEtape('tableau');
   };
 
   const pageSuivante = () => {
     setImage(null); setPage(null); setDatePage(''); setDecisions({}); setRattache(''); setErreur(''); setBilan(null);
+    dejaInscrite.current = false;
     setEtape('photo');
   };
 
   /* ══ LE SEUL ENDROIT QUI ÉCRIT ═══════════════════════════════════════ */
   const inscrire = () => {
-    if (!page) return;
+    if (!page || dejaInscrite.current) return;
     const marque = marqueDeLaSerie(uid());
     const p = inscriptionDeLaPage({
       datePage, aujourdhui, branchId: branch.id, boxes: caisses, lignes, decisions,
@@ -140,6 +146,7 @@ export function RattraperUnCahier({ onClose }: { onClose: () => void }) {
     });
     if (!p.ok) { alerte(p.refus); return; }
     if (p.rendezVous.length === 0) { toast('Rien à inscrire sur cette page.'); return; }
+    dejaInscrite.current = true;
     /* La caisse du rattrapage, née au besoin ; rangée, elle revient par son
        identifiant plutôt que de naître en double. */
     for (const n of p.caissesACreer) {
@@ -244,6 +251,11 @@ export function RattraperUnCahier({ onClose }: { onClose: () => void }) {
               </div>
             )}
 
+            {lignes.length > 0 && (
+              <div style={{ alignSelf: 'flex-start', fontSize: 11.5, letterSpacing: '.02em', padding: '4px 10px', borderRadius: 3, border: '1px solid var(--copper-300)', background: 'var(--copper-50, #F9EFE7)', color: 'var(--copper-700)' }}>
+                Ce que Claude a lu, à vérifier ligne à ligne : tout se corrige ici avant d’inscrire.
+              </div>
+            )}
             {lignes.length === 0 ? (
               <div className="mnd-muted" style={{ fontSize: 12.5 }}>Aucune ligne lisible sur cette page.</div>
             ) : (
@@ -377,9 +389,17 @@ export function RattraperUnCahier({ onClose }: { onClose: () => void }) {
                                 <Input
                                   inputMode="numeric"
                                   aria-label="L’argent reçu ce jour-là"
-                                  disabled={estompee}
+                                  /* L'argent illisible se tape même ligne décochée : la taper
+                                     coche la ligne d'une cliente reconnue (une inconnue attend
+                                     toujours son geste). */
+                                  disabled={l.etat === 'deja' || (ecartee && !l.ligne.illisible)}
                                   value={String(montant)}
-                                  onChange={(e) => pose(l.cle, { montant: Math.max(0, parseInt(e.target.value.replace(/[^0-9]/g, ''), 10) || 0) }, l)}
+                                  onChange={(e) => {
+                                    const v = Math.max(0, parseInt(e.target.value.replace(/[^0-9]/g, ''), 10) || 0);
+                                    pose(l.cle, l.ligne.illisible && ecartee && l.cliente && d.montant === undefined
+                                      ? { montant: v, geste: 'fiche', clienteId: l.cliente.id }
+                                      : { montant: v }, l);
+                                  }}
                                   style={{ width: 104, textAlign: 'right', padding: '4px 8px', fontSize: 12, borderColor: 'var(--copper-300)', background: 'var(--copper-50, #F9EFE7)' }}
                                 />
                                 {(l.ligne.avance || total !== undefined) && (
@@ -400,6 +420,9 @@ export function RattraperUnCahier({ onClose }: { onClose: () => void }) {
                                     {reste > 0 && <span>reste {fmtMoney(reste, currency)}</span>}
                                     {l.ligne.avance && total === undefined && <span>avance, prix à préciser</span>}
                                   </span>
+                                )}
+                                {l.ligne.illisible && d.montant === undefined && (
+                                  <span style={{ fontSize: 11, color: 'var(--copper-700)', textAlign: 'right' }}>argent illisible : tapez-le pour inscrire la ligne</span>
                                 )}
                                 {l.ligne.note && <span className="mnd-muted" style={{ fontSize: 11, textAlign: 'right' }}>{l.ligne.note}</span>}
                                 {l.voisin && l.etat !== 'deja' && (
@@ -453,7 +476,7 @@ export function RattraperUnCahier({ onClose }: { onClose: () => void }) {
               <b>{bilan.n} rituel{bilan.n > 1 ? 's' : ''}</b> inscrit{bilan.n > 1 ? 's' : ''} au {frJourAn(datePage)}, honoré{bilan.n > 1 ? 's' : ''}, {bilan.pieces} pièce{bilan.pieces > 1 ? 's' : ''} émise{bilan.pieces > 1 ? 's' : ''}.<br />
               {fmtMoney(bilan.recu, currency)} dans « {bilan.caisse} »{bilan.reste > 0 ? <> · <b>{fmtMoney(bilan.reste, currency)}</b> restent dus, visibles au Carnet</> : ''}.
               {bilan.fiches > 0 && <><br />{bilan.fiches} fiche{bilan.fiches > 1 ? 's' : ''} ouverte{bilan.fiches > 1 ? 's' : ''} au carnet (segment Prospect, à compléter).</>}
-              <br />Aucun message n’est parti. La page se retire d’un geste dans « Saisir en série › Les séries posées ».
+              <br />Aucun message n’est parti. La page se retire d’un geste dans « Saisir en série › Les séries posées » (un rituel sans argent reçu se retire à la main).
             </div>
             <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
               <Button variant="ghost" onClick={onClose}>Fermer</Button>

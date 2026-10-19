@@ -26,11 +26,21 @@
    (`caisses-des-caissiers-pur`) : une année antérieure → « Années passées » ;
    une page de 2026 d'avant octobre → une caisse d'avant la bascule (l'archive
    si elle existe, sinon une ancienne), jamais une pièce du mois ni la caisse
-   d'un caissier ; une page d'octobre 2026 ou après se REFUSE : ce mois-là se
-   compte au comptoir, le cahier n'y a plus sa place. C'est aussi ce qui tient
-   la promesse « aucun message ne part » : un rituel daté d'avant hier ne
-   réveille ni reçu, ni avis, ni relance (la date du rituel juge, mémoire
-   « retard invisible aux clientes »).
+   d'un caissier ; une page d'octobre 2026 ou après se REFUSE, QUELLE QUE SOIT
+   L'ANNÉE où on la rattrape : depuis le départ des caisses, le Trône tient le
+   registre au jour le jour, et le cahier n'y a plus sa place.
+
+   C'EST AUSSI CE QUI TIENT LA PROMESSE « AUCUN MESSAGE NE PART » (19 octobre
+   2026, la reprise du chantier). La date du rituel juge partout (mémoire
+   « retard invisible aux clientes ») : le reçu veut l'argent du jour, l'avis
+   une pièce du jour ou de la veille, la relance une pièce écrite le jour même
+   et datée du lancement ou après, le merci de la marraine une venue d'après
+   son lancement (9 octobre 2026), le point d'après séance une séance d'il y
+   a sept jours tout juste. Une page d'avant le 1er octobre 2026, rattrapée
+   à partir du 19, n'en réveille aucun ; une page de décembre 2026 rattrapée
+   en janvier 2027 en réveillerait deux (le merci, le point). D'où la borne
+   fixe, et non « l'année en cours ». Éprouvé contre les vrais juges par le
+   banc.
 
    RIEN NE S'ÉCRIT ICI : ce module calcule, l'écran inscrit après
    « Inscrire N lignes ». Éprouvé par `scripts/verifie-le-cahier-rattrape`. */
@@ -40,6 +50,7 @@ import type { Client } from './clients';
 import type { Cashbox } from './finance';
 import { CAISSE_ANNEES_PASSEES, anneeDe, caisseDesAnneesPassees, estAnneeAnterieure } from './caisses-des-caissiers-pur';
 import { ARCHIVE, JOUR_DE_DEPART } from './bascule-des-caisses-pur';
+import { sansCoordonnees } from './ia-anonymise-pur';
 
 /* ── LES BORNES ─────────────────────────────────────────────────────────── */
 /** Une page de cahier tient rarement plus de trente lignes ; au-delà de
@@ -78,13 +89,16 @@ export const MOYEN_DIT: Record<MoyenDuCahier, string> = {
 };
 
 /* ── LA CONSIGNE ────────────────────────────────────────────────────────── */
-/** Ce que Claude lit, et comment il le rend. Aucune cliente nommée : il ne
-    connaît personne, il lit la page. `aujourdhui` borne la date. */
+/** Ce que Claude lit, et comment il le rend. AUCUN PRÉNOM EN EXEMPLE (19
+    octobre 2026, la reprise) : la première écriture citait cinq prénoms,
+    dont deux de vraies clientes de la Maison ; un exemple est déjà une liste.
+    Il ne connaît personne, il lit la page. `aujourdhui` borne la date. */
 export function consigneDuCahier(o: { aujourdhui: string }): string {
   return [
     'Tu lis la photo d’UNE page de cahier manuscrite : le registre d’une maison de soins des locks à Cotonou (Bénin).',
-    'La page est écrite en français, souvent vite, avec des prénoms béninois et français (Ola, Naffi, Adjaratou, Clarisse, Sèna…) et les abréviations du métier et de l’argent.',
+    'La page est écrite en français, souvent vite, avec des prénoms béninois (fon, yoruba, mina, goun) ou français, et les abréviations du métier et de l’argent.',
     'Tu ne connais aucune cliente de cette maison : tu lis ce qui est écrit, c’est tout. Le rapprochement avec les fiches se fait ailleurs.',
+    'UN NUMÉRO DE TÉLÉPHONE écrit sur la page ne se recopie JAMAIS, ni dans un champ, ni dans la note, ni comme montant : tu l’ignores.',
     '',
     'CE QUE TU RENDS : la date de la page, puis une ligne par venue écrite.',
     `LA DATE DE LA PAGE, en ISO AAAA-MM-JJ, AVEC L’ANNÉE. Si la page ne dit pas l’année, déduis-la des indices (un en-tête, le jour de la semaine écrit à côté) ; si rien ne permet de la connaître, laisse la date vide plutôt que d’inventer. Une date après aujourd’hui (${o.aujourdhui}) est forcément mal lue : laisse-la vide.`,
@@ -92,7 +106,7 @@ export function consigneDuCahier(o: { aujourdhui: string }): string {
     'CHAQUE LIGNE :',
     '· prenom : tel qu’écrit, sans corriger l’orthographe ;',
     '· nom : si la page le donne (un nom, ou une initiale comme « D. »), sinon rien ;',
-    '· mention : ce qui précise la personne (« la sœur de Naffi », « Mme », un surnom), sinon rien ;',
+    '· mention : ce qui précise la personne (« la sœur de … », « Mme », un surnom), sinon rien ;',
     '· rituel : ce qui a été fait, tel qu’écrit : « retwist », « départ micro », « resserrage », « soin », « shampoing », « défaisage », « couleur »… ;',
     '· montant : l’argent REÇU ce jour-là, en francs CFA, nombre entier (« 15 000 », « 15k », « 15.000 » valent 15000 ; rien d’écrit vaut 0) ;',
     '· moyen : especes, momo, carte, virement, cheque ou inconnu (« esp. », « cash », « liquide » = especes ; « momo », « MTN », « mobile money », « MoMoPay » = momo ; rien d’écrit = inconnu) ;',
@@ -149,6 +163,10 @@ export type LigneLue = {
   /** Le prix du rituel quand il dépasse ce qui a été reçu ; absent sinon. */
   total?: number;
   note?: string;
+  /** Le chiffre n'a pas été lu (zéro, et la note dit « illisible ») : la
+      ligne attend qu'on tape l'argent avant d'être cochée, sans quoi un
+      rituel payé s'inscrirait offert. */
+  illisible?: boolean;
 };
 export type PageLue = {
   /** La date de la page ; `null` quand elle n'est pas lue ou pas plausible :
@@ -161,6 +179,10 @@ export type PageLue = {
 };
 
 const texte = (v: unknown, max = SIGNES_MAX): string => (typeof v === 'string' ? v.replace(/\s+/g, ' ').trim().slice(0, max) : '');
+/** Un texte lu par Claude, sans coordonnées : un numéro recopié malgré la
+    consigne devient « [numéro] », puis on le retire d'un nom. */
+const lu = (v: unknown, max = SIGNES_MAX): string => texte(typeof v === 'string' ? sansCoordonnees(v) : v, max);
+const nomSansNumero = (v: unknown): string => lu(v).replace(/\[(numéro|adresse)\]/g, ' ').replace(/\s+/g, ' ').trim();
 
 /** Un entier de francs, ou `null` : « 15 000 » et « 15.000 » passent, 12,5,
     −5, « abc » et 1 000 000 000 non. */
@@ -201,8 +223,8 @@ export function lectureDeLaPage(brut: unknown, aujourdhui: string): PageLue | nu
     const n = i + 1;
     if (!l || typeof l !== 'object' || Array.isArray(l)) { defauts.push(`ligne ${n} illisible`); return; }
     const r = l as Record<string, unknown>;
-    const prenom = texte(r.prenom);
-    if (!prenom) { defauts.push(`ligne ${n} sans prénom, ignorée`); return; }
+    const prenom = nomSansNumero(r.prenom);
+    if (!prenom || !/\p{L}/u.test(prenom)) { defauts.push(`ligne ${n} sans prénom, ignorée`); return; }
     const montant = entierDeFrancs(r.montant);
     if (montant === null) { defauts.push(`ligne ${n} (${prenom}) : montant abîmé, ignorée`); return; }
     let total: number | undefined;
@@ -215,22 +237,25 @@ export function lectureDeLaPage(brut: unknown, aujourdhui: string): PageLue | nu
     const moyenBrut = texte(r.moyen, 20).toLowerCase();
     const moyen: MoyenDuCahier = (MOYENS_DU_CAHIER as readonly string[]).includes(moyenBrut) ? (moyenBrut as MoyenDuCahier) : 'inconnu';
     if (moyen === 'inconnu' && moyenBrut && moyenBrut !== 'inconnu') defauts.push(`ligne ${n} (${prenom}) : moyen « ${moyenBrut} » non reconnu, à préciser`);
-    const nom = texte(r.nom) || undefined;
-    const mention = texte(r.mention) || undefined;
-    const note = texte(r.note, 160) || undefined;
+    const nom = nomSansNumero(r.nom) || undefined;
+    const mention = lu(r.mention) || undefined;
+    const note = lu(r.note, 160) || undefined;
+    const illisible = montant === 0 && /illisible/i.test(note ?? '');
+    if (illisible) defauts.push(`ligne ${n} (${prenom}) : argent illisible, à taper avant d’inscrire`);
     lignes.push({
       prenom,
       ...(nom ? { nom } : {}),
       ...(mention ? { mention } : {}),
-      rituel: texte(r.rituel) || 'rituel non lu',
+      rituel: lu(r.rituel) || 'rituel non lu',
       montant,
       moyen,
       avance: r.avance === true || total !== undefined,
       ...(total !== undefined ? { total } : {}),
       ...(note ? { note } : {}),
+      ...(illisible ? { illisible: true } : {}),
     });
   });
-  const remarque = texte(o.remarque, 200);
+  const remarque = lu(o.remarque, 200);
   return { date, lignes, defauts, ...(remarque ? { remarque } : {}) };
 }
 
@@ -297,7 +322,12 @@ export function trouveLaCliente(l: Pick<LigneLue, 'prenom' | 'nom' | 'mention'>,
   const r2 = rend(surnoms, 'surnom'); if (r2) return r2;
 
   if (/^\p{L}$/u.test(nom)) {
-    const parInitiale = vivantes.filter((f) => { const m = mots(f.name); return m[0] === prenom && m.slice(1).some((x) => x.startsWith(nom)); });
+    /* Le prénom où qu'il soit dans la fiche : « Dossou Awa » s'écrit aussi
+       nom d'abord. L'initiale se cherche dans les AUTRES mots. */
+    const parInitiale = vivantes.filter((f) => {
+      const m = mots(f.name); const i = m.indexOf(prenom);
+      return i >= 0 && m.some((x, j) => j !== i && x.startsWith(nom));
+    });
     const r3 = rend(parInitiale, 'initiale'); if (r3) return r3;
   }
 
@@ -307,10 +337,25 @@ export function trouveLaCliente(l: Pick<LigneLue, 'prenom' | 'nom' | 'mention'>,
   } else {
     const nomProche = vivantes.filter((f) => { const m = mots(f.name); return m.includes(prenom) && m.some((x) => x.length >= 3 && distance(x, nom) <= 1); });
     const r5 = rend(nomProche, 'proche'); if (r5) return r5;
+    /* UNE FICHE QUI N'A QU'UN PRÉNOM (« Awa ») répond à « Awa Dossou » : la
+       fiche ne dit pas de nom, elle ne contredit pas celui de la page. */
+    const sansNom = vivantes.filter((f) => plat(f.name) === prenom);
+    const r5b = rend(sansNom, 'prenom'); if (r5b) return r5b;
   }
 
+  /* UNE LETTRE DE TRAVERS DANS LE PRÉNOM (« Clarise » pour Clarisse), mais
+     JAMAIS CONTRE LE NOM DE LA PAGE (19 octobre 2026, la reprise) : « Clarise
+     Houngbo » ne désigne pas Clarisse Adjovi. Le nom lu doit se retrouver
+     dans la fiche (son initiale, ou à une lettre près), ou la fiche n'en
+     porter aucun. */
+  const nomTient = (f: FicheConnue): boolean => {
+    if (!nom) return true;
+    const autres = mots(f.name).filter((x) => !(x.length >= 5 && distance(x, prenom) <= 1));
+    if (autres.length === 0) return true;
+    return /^\p{L}$/u.test(nom) ? autres.some((x) => x.startsWith(nom)) : autres.some((x) => x.length >= 3 && distance(x, nom) <= 1);
+  };
   if (prenom.length >= 5) {
-    const proches = vivantes.filter((f) => mots(f.name).some((x) => x.length >= 5 && distance(x, prenom) <= 1));
+    const proches = vivantes.filter((f) => mots(f.name).some((x) => x.length >= 5 && distance(x, prenom) <= 1) && nomTient(f));
     const r6 = rend(proches, 'proche'); if (r6) return r6;
   }
   return { candidats: [] };
@@ -319,12 +364,24 @@ export function trouveLaCliente(l: Pick<LigneLue, 'prenom' | 'nom' | 'mention'>,
 /** Le nom lu sur la page, entier : « Awa Dossou », ou « Awa » seul. */
 export const nomLu = (l: Pick<LigneLue, 'prenom' | 'nom'>): string => [l.prenom, l.nom].filter(Boolean).join(' ').replace(/\s+/g, ' ').trim();
 
+/** CE NOM-LÀ EST-IL UN AUTRE NOM DE LA FICHE, à retenir ? Pas son nom, pas un
+    surnom déjà retenu, et PAS UN MORCEAU DE SON NOM (19 octobre 2026, la
+    reprise) : choisir Awa Dossou pour une ligne « Awa » parmi deux Awa ne
+    fait pas de « Awa » son surnom, sinon la page suivante choisirait seule
+    celle que la Maison n'a choisie qu'une fois. */
+export function estUnAutreNom(c: { name: string; aussiDit?: readonly string[] }, dit: string): boolean {
+  const d = plat(dit);
+  if (!d || d === plat(c.name) || (c.aussiDit ?? []).some((x) => plat(x) === d)) return false;
+  const siens = mots(c.name);
+  /* « Awa D. » non plus : l'initiale est celle d'un de ses mots. */
+  return !mots(dit).every((m) => siens.includes(m) || (m.length === 1 && siens.some((s) => s.startsWith(m))));
+}
+
 /** LA FICHE RETIENT CE NOM-LÀ. Quand la Maison rattache « Steph » à Stéphanie,
-    la page suivante la reconnaîtra seule. Le nom de la fiche et un surnom déjà
-    retenu ne s'ajoutent pas. */
+    la page suivante la reconnaîtra seule. */
 export function ficheAvecLeSurnom<C extends { name: string; aussiDit?: string[] }>(c: C, dit: string): C {
   const d = dit.replace(/\s+/g, ' ').trim();
-  if (!d || plat(d) === plat(c.name) || (c.aussiDit ?? []).some((x) => plat(x) === plat(d))) return c;
+  if (!estUnAutreNom(c, d)) return c;
   return { ...c, aussiDit: [...(c.aussiDit ?? []), d] };
 }
 
@@ -478,12 +535,28 @@ export type CaisseDuCahier =
       sinon une caisse ancienne (« jusqu'au 30 sept. ») qui couvre ce jour,
       de préférence celle du moyen, sinon l'archive naît ; jamais une pièce
       du mois, jamais la caisse d'un caissier ;
-    · octobre 2026 ou après → refus : ce mois-là se compte au comptoir. */
+    · octobre 2026 ou après → refus, quelle que soit l'année d'aujourd'hui :
+      depuis le départ des caisses, le registre se tient au comptoir, et les
+      envois automatiques jugent ces dates-là (voir l'en-tête). */
 export function caisseDuRattrapage(o: {
   datePage: string; aujourdhui: string; boxes: readonly Cashbox[]; branchId: string; moyen?: MoyenDuCahier;
 }): CaisseDuCahier {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(o.datePage)) return { ok: false, refus: 'La date de la page manque : indiquez-la avant d’inscrire.' };
-  const ici = o.boxes.filter((b) => b.branchId === o.branchId && !b.archiveeLe);
+  if (o.datePage > o.aujourdhui) return { ok: false, refus: 'La date de la page est dans l’avenir : un cahier ne parle que du passé.' };
+  if (o.datePage >= JOUR_DE_DEPART) {
+    return {
+      ok: false,
+      refus: `Une page du ${o.datePage} ne se rattrape pas ici : depuis le 1er octobre 2026, le registre se tient au jour le jour. Passez par « + RDV passé » au Carnet.`,
+    };
+  }
+  const deLaBranche = o.boxes.filter((b) => b.branchId === o.branchId);
+  const ici = deLaBranche.filter((b) => !b.archiveeLe);
+  /* Rangée, une caisse revient par son identifiant plutôt que de naître en
+     double sous le même nom (l'écran la rouvre). */
+  const rangee = (nom: string): Cashbox | undefined => {
+    const r = deLaBranche.find((b) => b.name === nom && !!b.archiveeLe);
+    return r ? { ...r, archiveeLe: undefined } : undefined;
+  };
   if (estAnneeAnterieure(o.datePage, o.aujourdhui)) {
     const annee = anneeDe(o.datePage);
     const existe = ici.some((b) => b.name === CAISSE_ANNEES_PASSEES);
@@ -491,33 +564,30 @@ export function caisseDuRattrapage(o: {
       ok: true,
       caisse: CAISSE_ANNEES_PASSEES,
       pourquoi: `Page de ${annee}, une année antérieure : tout son argent va aux années passées.`,
-      ...(existe ? {} : { aCreer: caisseDesAnneesPassees(o.branchId) }),
+      ...(existe ? {} : { aCreer: rangee(CAISSE_ANNEES_PASSEES) ?? caisseDesAnneesPassees(o.branchId) }),
     };
   }
-  if (o.datePage < JOUR_DE_DEPART) {
-    const archive = ici.find((b) => b.name === ARCHIVE) ?? ici.find((b) => b.role === 'archive' && b.name !== CAISSE_ANNEES_PASSEES);
-    if (archive) return { ok: true, caisse: archive.name, pourquoi: 'Page de 2026 d’avant octobre : son argent rejoint l’archive d’avant la bascule, jamais une caisse du mois.' };
-    const anciennes = ici.filter((b) => !!b.jusquAu && o.datePage <= b.jusquAu && !b.caissierId && !b.horsBilan && !b.horsEncaissement);
-    const famille: Record<MoyenDuCahier, RegExp> = {
-      especes: /espece|tiroir|principale|cash|liquide/, inconnu: /espece|tiroir|principale|cash|liquide/,
-      momo: /momo|mtn|mobile/, carte: /banque|bank|carte/, virement: /banque|bank|virement/, cheque: /banque|bank|cheque/,
-    };
-    const duMoyen = anciennes.find((b) => famille[o.moyen ?? 'inconnu'].test(plat(`${b.name} ${b.sub ?? ''}`)));
-    const ancienne = duMoyen ?? anciennes.find((b) => /principale|espece|tiroir/.test(plat(`${b.name} ${b.sub ?? ''}`))) ?? anciennes[0];
-    if (ancienne) return { ok: true, caisse: ancienne.name, pourquoi: `Page de 2026 d’avant octobre : son argent rejoint « ${ancienne.name} », une caisse d’avant la bascule, jamais une caisse du mois.` };
-    return {
-      ok: true,
-      caisse: ARCHIVE,
-      pourquoi: 'Page de 2026 d’avant octobre : aucune caisse d’avant la bascule n’est ouverte, l’archive naît pour la recevoir.',
-      aCreer: {
-        id: `cb-archive-cahier-${o.branchId}`, branchId: o.branchId, name: ARCHIVE,
-        sub: 'Tout ce qui précède le 1er octobre 2026', glyph: '▣', openingXof: 0, role: 'archive', jusquAu: '2026-09-30',
-      },
-    };
-  }
+  /* 2026, D'AVANT OCTOBRE. L'archive d'abord (son nom, ou une caisse
+     d'archive qui couvre ce jour, jamais celle des années passées). */
+  const archive = ici.find((b) => b.name === ARCHIVE)
+    ?? ici.find((b) => b.role === 'archive' && b.name !== CAISSE_ANNEES_PASSEES && !!b.jusquAu && o.datePage <= b.jusquAu);
+  if (archive) return { ok: true, caisse: archive.name, pourquoi: 'Page de 2026 d’avant octobre : son argent rejoint l’archive d’avant la bascule, jamais une caisse du mois.' };
+  const anciennes = ici.filter((b) => !!b.jusquAu && o.datePage <= b.jusquAu && !b.caissierId && !b.horsBilan && !b.horsEncaissement);
+  const famille: Record<MoyenDuCahier, RegExp> = {
+    especes: /espece|tiroir|principale|cash|liquide/, inconnu: /espece|tiroir|principale|cash|liquide/,
+    momo: /momo|mtn|mobile/, carte: /banque|bank|carte/, virement: /banque|bank|virement/, cheque: /banque|bank|cheque/,
+  };
+  const duMoyen = anciennes.find((b) => famille[o.moyen ?? 'inconnu'].test(plat(`${b.name} ${b.sub ?? ''}`)));
+  const ancienne = duMoyen ?? anciennes.find((b) => /principale|espece|tiroir/.test(plat(`${b.name} ${b.sub ?? ''}`))) ?? anciennes[0];
+  if (ancienne) return { ok: true, caisse: ancienne.name, pourquoi: `Page de 2026 d’avant octobre : son argent rejoint « ${ancienne.name} », une caisse d’avant la bascule, jamais une caisse du mois.` };
   return {
-    ok: false,
-    refus: `Une page du ${o.datePage} ne se rattrape pas ici : depuis le 1er octobre 2026, les caisses du mois se tiennent au jour le jour. Passez par « + RDV passé » au Carnet.`,
+    ok: true,
+    caisse: ARCHIVE,
+    pourquoi: 'Page de 2026 d’avant octobre : aucune caisse d’avant la bascule n’est ouverte, l’archive naît pour la recevoir.',
+    aCreer: rangee(ARCHIVE) ?? {
+      id: `cb-archive-cahier-${o.branchId}`, branchId: o.branchId, name: ARCHIVE,
+      sub: 'Tout ce qui précède le 1er octobre 2026', glyph: '▣', openingXof: 0, role: 'archive', jusquAu: '2026-09-30',
+    },
   };
 }
 
@@ -553,11 +623,13 @@ export type ProjetDInscription =
 
 /** La décision qui vaut sans que la Maison ait touché la ligne : la fiche
     reconnue s'inscrit ; une inconnue attend un geste ; un doublon dans la page
-    est écarté ; une ligne déjà au Trône ne s'inscrit jamais. */
+    est écarté ; une ligne déjà au Trône ne s'inscrit jamais ; une ligne à
+    l'argent illisible attend qu'on le tape, puis qu'on la coche. */
 export const decisionParDefaut = (l: LigneRapprochee): DecisionDeLigne => {
   if (l.etat === 'deja') return { geste: 'ecarter' };
   if (l.etat === 'inconnue' || !l.cliente) return { geste: 'ecarter' };
   if (l.doublonDansLaPage) return { geste: 'ecarter' };
+  if (l.ligne.illisible) return { geste: 'ecarter' };
   return { geste: 'fiche', clienteId: l.cliente.id };
 };
 
@@ -573,7 +645,7 @@ export function inscriptionDeLaPage(o: {
   boxes: readonly Cashbox[];
   lignes: readonly LigneRapprochee[];
   decisions: Readonly<Record<string, DecisionDeLigne | undefined>>;
-  fiches: readonly Pick<Client, 'id' | 'name'>[];
+  fiches: readonly Pick<Client, 'id' | 'name' | 'aussiDit'>[];
   services: readonly RituelDuCatalogue[];
   persona: string;
   /** La marque portée par chaque versement : la page se retire d'un geste
@@ -595,6 +667,9 @@ export function inscriptionDeLaPage(o: {
   let totalRecu = 0;
   let totalReste = 0;
   const nomDe = (id: string): string | undefined => o.fiches.find((f) => f.id === id)?.name ?? fiches.find((f) => f.id === id)?.name;
+  /* DEUX LIGNES, UNE INCONNUE : la même personne venue pour deux gestes,
+     ou écrite deux fois. « Créer sa fiche » sur les deux n'en ouvre qu'une. */
+  const neuvesParNom = new Map<string, Client>();
 
   for (const l of o.lignes) {
     if (l.etat === 'deja') { dejaLa += 1; continue; }
@@ -614,10 +689,13 @@ export function inscriptionDeLaPage(o: {
       clientId = id;
       clientName = nomDe(id) ?? lu;
       /* RATTACHÉE À LA MAIN (la ligne ne la reconnaissait pas, ou pas elle) :
-         la fiche retient le nom du cahier. */
-      if (!l.cliente || l.cliente.id !== id) surnoms.push({ clienteId: id, dit: lu });
+         la fiche retient le nom du cahier, s'il en est un autre que le sien. */
+      const sienne = o.fiches.find((f) => f.id === id);
+      if ((!l.cliente || l.cliente.id !== id) && sienne && estUnAutreNom(sienne, lu)
+        && !surnoms.some((s) => s.clienteId === id && plat(s.dit) === plat(lu))) surnoms.push({ clienteId: id, dit: lu });
     } else if (d.geste === 'nouvelle') {
-      const fiche: Client = {
+      const deja = neuvesParNom.get(plat(lu));
+      const fiche: Client = deja ?? {
         id: `cl-${o.nouvelId()}`,
         branchId: o.branchId,
         name: lu,
@@ -633,7 +711,7 @@ export function inscriptionDeLaPage(o: {
         source: 'maison',
         notes: `Fiche ouverte depuis un cahier rattrapé (page du ${o.datePage}).`,
       };
-      fiches.push(fiche);
+      if (!deja) { fiches.push(fiche); neuvesParNom.set(plat(lu), fiche); }
       clientId = fiche.id;
       clientName = fiche.name;
     }
