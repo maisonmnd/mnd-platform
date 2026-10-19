@@ -52,9 +52,8 @@ import {
 } from '../../../../shared/caisses-des-caissiers-pur';
 import { identiteCourante } from '../../../../shared/journal';
 import { useEstDirection } from '../_vie';
-import { methodeDuMoyenLu, type MoyenLu } from '../../../../shared/ia-capture-pur';
+import { methodeDuMoyenLu, noteDeLaCapture, type MoyenLu } from '../../../../shared/ia-capture-pur';
 import { DeposerUneCapture } from '../vente/DeposerUneCapture';
-import { useDettesDeLaCliente } from './dettes-de-la-cliente';
 
 /* Actions transverses Clients & Agenda : fidélité (points Cercle) + encaissement d'un RDV. */
 
@@ -842,15 +841,16 @@ const partNeuve = (tuile: TuileEnc, montant: number | ''): PartEnc =>
   ({ id: `pt-${uid()}`, tuile, montantStr: montant === '' ? '' : String(Math.max(0, Math.round(montant))) });
 /** LA CAPTURE LUE PRÉREMPLIT L'ÉCRAN (19 octobre 2026, chantier `capture`) :
     le montant lu, le moyen lu (MTN → la tuile MoMoPay, dont la caisse de la
-    Maison se propose ; Moov, Celtiis, virement → « Autres », on choisit la
-    caisse), le jour du transfert comme jour du versement, la référence en
-    note du versement. L'écran garde ses règles : rien n'est écrit d'avance. */
+    Maison se propose ; Moov, Celtiis, virement → « Autres », le moyen de sa
+    liste qui lui ressemble, et on choisit la caisse), le jour du transfert
+    comme jour du versement, la référence en note du versement (c'est elle
+    qui reconnaît ensuite une capture déjà inscrite). L'écran garde ses
+    règles : rien n'est écrit d'avance. */
 export type PreremplissageEnc = { montantXof: number; moyen: MoyenLu; jourDuPaiement: string; reference?: string };
-const partDeLaLecture = (l: PreremplissageEnc, methods: readonly string[]): PartEnc => ({
-  ...partNeuve(l.moyen === 'mtn' ? 'momo' : 'autre', l.montantXof),
-  ...(l.moyen === 'mtn' ? {} : { autre: methodeDuMoyenLu(l.moyen, methods) }),
-  ...(l.reference ? { note: `Capture lue · réf. ${l.reference}` } : { note: 'Capture lue' }),
-});
+const partDeLaLecture = (l: PreremplissageEnc, methods: readonly string[]): PartEnc => {
+  const autre = l.moyen === 'mtn' ? undefined : methodeDuMoyenLu(l.moyen, methods);
+  return { ...partNeuve(l.moyen === 'mtn' ? 'momo' : 'autre', l.montantXof), ...(autre ? { autre } : {}), note: noteDeLaCapture(l.reference) };
+};
 /** Où va l'argent d'une part : son moyen écrit, sa caisse, ce que la règle
     proposait, et si la main présente peut la changer. */
 type CaisseDeLaPart = { methode: string; caisse: string; proposee: CaisseProposee; peutChanger: boolean };
@@ -1215,9 +1215,10 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour, init
      68 000 F dans les encaissements d'aout, ou ils ne sont jamais entres. */
   /* UNE ANNÉE ANTÉRIEURE (17 octobre 2026) : on rattrape l'histoire, l'argent
      se date du rituel ; « Aujourd'hui » reste à un geste dans « Et ensuite ». */
-  const [payDate, setPayDate] = useState(() => initial?.jourDuPaiement || (estAnneeAnterieure(appt.date, todayISO()) && appt.date ? appt.date : todayISO()));
-  /* Ce qu'elle doit, pour la consigne d'une capture déposée ici (19 octobre 2026). */
-  const dettesPourLaCapture = useDettesDeLaCliente(appt.clientId);
+  /* UNE CAPTURE LUE (19 octobre 2026) date l'argent du jour du transfert ;
+     la règle de l'année antérieure passe d'abord : tout son argent se date
+     du rituel. */
+  const [payDate, setPayDate] = useState(() => (estAnneeAnterieure(appt.date, todayISO()) && appt.date ? appt.date : initial?.jourDuPaiement || todayISO()));
   /* Les deux dates sont JUSTES par défaut (facture = jour du rituel, paiement =
      aujourd'hui) : elles se replient en une ligne, « Modifier » les rouvre. */
   const [datesOuvertes, setDatesOuvertes] = useState(false);
@@ -2629,7 +2630,7 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour, init
             );
           })}
           {/* La capture du transfert remplit les cases (19 octobre 2026) : une seule part, au montant lu. */}
-          {!fxOn && <DeposerUneCapture dettes={dettesPourLaCapture} onLecture={(l) => { setParts([partDeLaLecture({ montantXof: l.montantXof, moyen: l.moyen, jourDuPaiement: l.jour, reference: l.reference }, methods)]); setPayDate(l.jour); }} />}
+          {!fxOn && <DeposerUneCapture clientId={appt.clientId} onLecture={(l) => { setParts([partDeLaLecture({ montantXof: l.montantXof, moyen: l.moyen, jourDuPaiement: l.jour, reference: l.reference }, methods)]); setPayDate(estAnneeAnterieure(appt.date, todayISO()) && appt.date ? appt.date : l.jour); }} />}
           {resteAPartager > 0 && settleTotal > 0 && !fxOn && (
             <button
               type="button"

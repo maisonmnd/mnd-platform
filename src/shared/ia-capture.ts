@@ -3,7 +3,8 @@ import { bindDocument } from './sync';
 import { demandeAClaude, photoPourClaude } from './ia-maison';
 import {
   CHANTIER_CAPTURE, CLE_DES_CAPTURES, MESSAGE_DE_LA_CAPTURE, SCHEMA_DE_LA_CAPTURE, USAGE_CAPTURE, VERROU_MS,
-  captureApresLecture, consigneDeLaCapture, imagesALire, lectureDeLaCapture, rapprochement, verrouTient,
+  captureApresLecture, coffreDeLaPiece, consigneDeLaCapture, elagueLesCaptures, imagesALire, lectureDeLaCapture,
+  rapprochement, suiteDuRefus, verrouTient,
   type CaptureLue, type Captures, type Dette, type LectureDeLaCapture, type MessageImage,
 } from './ia-capture-pur';
 
@@ -19,8 +20,11 @@ import {
    le bouton « Inscrire au Carnet », qui emprunte l'écran d'encaissement du
    Carnet tel qu'il est. */
 
-export const capturesStore = createStore<Captures>(CLE_DES_CAPTURES, {});
-bindDocument(capturesStore, CLE_DES_CAPTURES);
+/* La clé en clair (le banc des clés uniques ne lit que les littéraux) ;
+   `CLE_DES_CAPTURES` la dit aux autres modules, et le banc du chantier
+   vérifie que les deux disent la même chose. */
+export const capturesStore = createStore<Captures>('mnd_ia_captures', {});
+bindDocument(capturesStore, 'mnd_ia_captures');
 export const useCapturesLues = () => useStore(capturesStore);
 
 const maintenant = () => new Date().toISOString();
@@ -41,9 +45,17 @@ export function corrigeLaCapture(id: string, lecture: LectureDeLaCapture, dettes
   });
 }
 
-/** « Inscrire au Carnet » a abouti : l'écran d'encaissement a écrit le versement. */
-export function marqueInscrite(id: string, apptId: string): void {
-  pose(id, { statut: 'inscrite', inscriteLe: maintenant(), apptId });
+/** « Inscrire au Carnet » a abouti : l'écran d'encaissement a écrit le
+    versement. Ou « Déjà inscrite » : la main l'a encaissée ailleurs (la
+    facture, l'abonnement, le comptoir). Rien d'autre ne s'écrit ici. */
+export function marqueInscrite(id: string, inscriteSur?: string): void {
+  pose(id, { statut: 'inscrite', inscriteLe: maintenant(), ...(inscriteSur ? { inscriteSur } : {}) });
+}
+
+/** « Relire » : Claude n'avait pas répondu ; l'image redevient à lire, et
+    le prochain passage la reprend (une seule fois, comme les autres). */
+export function oublieLaCapture(id: string): void {
+  capturesStore.set((prev) => { if (!prev[id]) return prev; const { [id]: _o, ...reste } = prev; return reste; });
 }
 
 /** « Ce n'est pas un paiement » : écartée, par la main. */
@@ -78,6 +90,9 @@ export async function litLesCaptures(o: {
   if (passageEnCours || t < silenceJusqua) return { lues: 0 };
   passageEnCours = true;
   try {
+    /* Les lectures réglées depuis soixante jours s'effacent d'abord. */
+    const elague = elagueLesCaptures(capturesStore.get(), t);
+    if (elague !== capturesStore.get()) capturesStore.set(elague);
     const dettesParCliente = new Map<string, Dette[]>();
     const dettes = (clientId: string) => {
       let d = dettesParCliente.get(clientId);
@@ -101,19 +116,21 @@ export async function litLesCaptures(o: {
         chantier: CHANTIER_CAPTURE, usage: USAGE_CAPTURE,
         systeme: consigneDeLaCapture({ dettes: lesDettes, aujourdhui: aujourdhuiLocal() }),
         messages: [{ role: 'user', content: MESSAGE_DE_LA_CAPTURE }],
-        images: [{ coffre: m.piece!.coffre!, chemin: m.piece!.chemin! }],
+        images: [{ coffre: coffreDeLaPiece(m.piece!), chemin: m.piece!.chemin! }],
         schema: SCHEMA_DE_LA_CAPTURE, maxTokens: 400,
       });
       if (!r.ok) {
-        /* Une panne de réseau rend l'image à lire plus tard (le verrou
-           s'efface) ; un refus de la fonction la range comme non lue, et
-           le passage s'arrête. */
-        if (r.erreur === 'reseau' || r.erreur === 'hors-ligne') {
-          capturesStore.set((prev) => { const { [m.id]: _o, ...reste } = prev; return reste; });
-          return { lues, refus: r.message };
+        /* Le passage s'arrête. Réseau, budget, version, équipe : la faute
+           n'est pas à l'image, son verrou s'efface et elle se relira plus
+           tard ; une image refusée pour elle-même s'écarte, avec sa raison
+           (la carte offre « Relire »). Règle pure : `suiteDuRefus`. */
+        const suite = suiteDuRefus(r.erreur);
+        if (suite === 'ecarter') {
+          capturesStore.set((prev) => ({ ...prev, [m.id]: { ...ouverte, enCours: undefined, statut: 'ecartee', motif: 'claude', detail: r.message, ecarteeLe: maintenant() } }));
+        } else {
+          oublieLaCapture(m.id);
+          if (suite === 'oublier-et-se-taire') silenceJusqua = Date.now() + SILENCE_MS;
         }
-        capturesStore.set((prev) => ({ ...prev, [m.id]: { ...ouverte, enCours: undefined, statut: 'ecartee', motif: 'claude', detail: r.message, ecarteeLe: maintenant() } }));
-        if (r.erreur === 'budget' || r.erreur === 'version' || r.erreur === 'equipe') silenceJusqua = Date.now() + SILENCE_MS;
         return { lues, refus: r.message };
       }
       const apres = captureApresLecture(ouverte, r.data, { dettes: lesDettes, aujourdhui: aujourdhuiLocal(), maintenant: maintenant(), coutUsd: r.coutUsd });

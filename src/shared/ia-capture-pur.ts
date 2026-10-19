@@ -30,7 +30,7 @@
    `scripts/verifie-la-capture-qui-s-encaisse` rejoue tout, pannes comprises. */
 
 import { CAISSE_MOMOPAY_MAISON, familleDuMoyen } from './caisses-des-caissiers-pur';
-import type { ChantierIa, UsageIa } from './ia-maison-pur';
+import { peutDemander, type ChantierIa, type ReponseIa, type UsageIa } from './ia-maison-pur';
 
 export const CHANTIER_CAPTURE: ChantierIa = 'capture';
 export const USAGE_CAPTURE: UsageIa = 'image';
@@ -50,6 +50,25 @@ export const TOLERANCE_PCT = 2;
 export const MONTANT_MAX_XOF = 50_000_000;
 /** Une capture d'un transfert de plus de quatorze mois ne tient pas. */
 export const JOURS_DE_PASSE_MAX = 425;
+/** Une lecture réglée (inscrite, écartée) se garde soixante jours, puis
+    s'efface du document : son image a passé l'âge d'être lue depuis
+    longtemps, et le document ne grossit pas sans fin. Celles qui attendent
+    un oui restent, quel que soit leur âge. */
+export const GARDE_DES_CAPTURES_JOURS = 60;
+/** Le seul compartiment où le webhook range les images des clientes ; celui
+    des engagements tient les devis des prestataires, qu'on ne lit pas. */
+export const COFFRE_DES_CLIENTES = 'whatsapp';
+
+/* ── QUI LIT SEUL, QUI VOIT LA CARTE ─────────────────────────────────────
+   La carte et « Déposer une capture » : ceux que le chantier ouvre (la
+   direction, la Clientèle, la Vente, les Finances : `peutDemander`). La
+   lecture qui part SEULE, sans un geste : seulement depuis le Trône de la
+   direction ou de la Clientèle (sa fiche du 19 octobre 2026), pour qu'un
+   poste de caisse ouvert toute la journée ne lise pas à leur place. */
+export function peutLireSeule(role: string | undefined, acces: Record<string, boolean> | undefined): boolean {
+  if (!role || !peutDemander(role, 'capture', acces)) return false;
+  return role === 'souverain' || role === 'gerant' || acces?.['dept-clientele'] === true;
+}
 
 /* ── LE MOYEN, ÉNUMÉRATION FERMÉE ─────────────────────────────────────── */
 export const MOYENS_LUS = ['mtn', 'moov', 'celtiis', 'virement', 'autre'] as const;
@@ -59,15 +78,17 @@ export const MOYEN_DIT: Record<MoyenLu, string> = {
 };
 
 /** Le moyen de SA liste (Paramètres) qui porte ce moyen lu : la famille
-    `momo` pour MTN ; pour les autres, un nom qui se ressemble, sinon le nom
-    par défaut de la Maison. */
-export function methodeDuMoyenLu(moyen: MoyenLu, methods: readonly string[]): string {
+    `momo` pour MTN ; pour les autres, un nom qui se ressemble. Jamais un nom
+    hors de sa liste : un moyen qui n'y est pas (ou « autre ») rend
+    `undefined`, et l'écran laisse la main choisir. Un nom inventé ici
+    s'afficherait d'un côté et s'écrirait d'un autre. */
+export function methodeDuMoyenLu(moyen: MoyenLu, methods: readonly string[]): string | undefined {
   const plat = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
-  if (moyen === 'mtn') return methods.find((m) => familleDuMoyen(m) === 'momo') ?? 'MTN MoMo';
-  if (moyen === 'moov') return methods.find((m) => /moov/.test(plat(m))) ?? 'Moov';
-  if (moyen === 'celtiis') return methods.find((m) => /celti/.test(plat(m))) ?? 'Celtis';
-  if (moyen === 'virement') return methods.find((m) => /virement/.test(plat(m))) ?? 'Virement bancaire';
-  return methods.find((m) => familleDuMoyen(m) === 'autre') ?? 'Autre';
+  if (moyen === 'mtn') return methods.find((m) => familleDuMoyen(m) === 'momo');
+  if (moyen === 'moov') return methods.find((m) => /moov/.test(plat(m)));
+  if (moyen === 'celtiis') return methods.find((m) => /celti/.test(plat(m)));
+  if (moyen === 'virement') return methods.find((m) => /virement/.test(plat(m)));
+  return undefined;
 }
 
 /** LA CAISSE QUE SA DÉCISION IMPOSE : MTN MoMoPay va au compte MoMoPay de la
@@ -98,10 +119,10 @@ const jourValide = (iso: string): boolean => {
 };
 const joursEntre = (deIso: string, aIso: string): number =>
   Math.round((Date.parse(`${aIso}T12:00:00Z`) - Date.parse(`${deIso}T12:00:00Z`)) / 86_400_000);
-const entier = (x: unknown): number | null => {
-  const n = typeof x === 'string' ? Number(x.replace(/[\s ]/g, '')) : x;
-  return typeof n === 'number' && Number.isFinite(n) && Number.isInteger(n) ? n : null;
-};
+/** Un entier, et seulement un nombre : le schéma demande un `integer`, un
+    texte (« 15 000 », « 15k ») est une lecture qui n'a pas suivi la forme. */
+const entier = (x: unknown): number | null =>
+  (typeof x === 'number' && Number.isFinite(x) && Number.isInteger(x) ? x : null);
 
 /** CE QUE LA CLIENTE DOIT, en trois genres. Les rendez-vous annulés ne
     doivent rien ; une pièce qui atteste un rituel déjà listé ne compte pas
@@ -302,11 +323,62 @@ export type CaptureLue = {
   detail?: string;
   inscriteLe?: string;
   ecarteeLe?: string;
-  /** Le rendez-vous sur lequel l'argent a été inscrit. */
-  apptId?: string;
+  /** Ce sur quoi l'argent a été inscrit : le rendez-vous, la pièce, l'échéance. */
+  inscriteSur?: string;
   coutUsd?: number;
 };
 export type Captures = Record<string, CaptureLue>;
+
+/** LA NOTE DU VERSEMENT, écrite par l'écran d'encaissement : c'est elle qui
+    reconnaît une capture déjà inscrite (voir `dejaInscriteParSaReference`). */
+export const noteDeLaCapture = (reference?: string): string =>
+  (reference?.trim() ? `Capture lue · réf. ${reference.trim()}` : 'Capture lue');
+
+/** UNE CAPTURE DÉJÀ INSCRITE, RECONNUE À SA RÉFÉRENCE. Le document des
+    captures se réécrit en entier : deux Trônes qui l'écrivent dans la même
+    seconde peuvent rendre « à vérifier » une capture déjà inscrite. Le
+    versement, lui, est dans les pièces ; si l'un d'eux porte la note de
+    cette référence, l'argent est déjà entré, et le bouton se tait (un
+    double encaissement est arrivé le 18 octobre 2026, A. A.). Sans
+    référence lue, on ne sait pas : la carte reste. */
+export function dejaInscriteParSaReference(reference: string | undefined, notes: readonly (string | undefined)[]): boolean {
+  const ref = reference?.trim().toLowerCase();
+  if (!ref) return false;
+  const cherche = noteDeLaCapture(ref).toLowerCase();
+  /* La note entière, ou la note suivie d'autre chose (« · … ») : jamais une
+     référence qui en prolonge une autre (ABC n'est pas ABCD). */
+  return notes.some((n) => {
+    const x = (n ?? '').trim().toLowerCase();
+    return x === cherche || x.startsWith(`${cherche} `);
+  });
+}
+
+/** QUE FAIRE QUAND LA FONCTION REFUSE. Le réseau, le budget, la version,
+    l'équipe : la faute n'est pas à l'image, on l'oublie pour la relire plus
+    tard (et après un refus de budget, de version ou d'équipe, on se tait une
+    heure). Une image refusée pour elle-même (format, trop grosse) ou un
+    Claude qui n'a pas su : on l'écarte, la main peut la faire relire. */
+export function suiteDuRefus(erreur: Extract<ReponseIa, { ok: false }>['erreur']): 'oublier' | 'oublier-et-se-taire' | 'ecarter' {
+  if (erreur === 'reseau' || erreur === 'hors-ligne') return 'oublier';
+  if (erreur === 'budget' || erreur === 'version' || erreur === 'equipe') return 'oublier-et-se-taire';
+  return 'ecarter';
+}
+
+/** LE DOCUMENT NE GROSSIT PAS SANS FIN : une lecture réglée depuis plus de
+    soixante jours s'efface ; une lecture qui attend un oui reste. Rend le
+    même objet quand rien ne part (pas d'écriture pour rien). */
+export function elagueLesCaptures(captures: Captures, maintenant: number): Captures {
+  const limite = maintenant - GARDE_DES_CAPTURES_JOURS * 86_400_000;
+  let change = false;
+  const out: Captures = {};
+  for (const [id, c] of Object.entries(captures)) {
+    const regleeLe = c.statut === 'inscrite' ? c.inscriteLe : c.statut === 'ecartee' ? (c.ecarteeLe ?? c.luLe) : undefined;
+    const t = regleeLe ? Date.parse(regleeLe) : NaN;
+    if (Number.isFinite(t) && t < limite) { change = true; continue; }
+    out[id] = c;
+  }
+  return change ? out : captures;
+}
 
 /** Le verrou tient tant qu'il n'a pas trois minutes. */
 export const verrouTient = (c: Pick<CaptureLue, 'statut' | 'enCours'> | undefined, maintenant: number): boolean =>
@@ -322,14 +394,20 @@ export type MessageImage = {
   numero: string;
   clientId?: string;
   quand: string;
+  /** Le genre que Meta donne : `image`, `document`, `sticker`… */
+  type?: string;
   piece?: { type: string; coffre?: string; chemin?: string; tropLourde?: boolean };
 };
 
-/** LES IMAGES À LIRE, DANS L'ORDRE : entrantes, une image rangée dans un
-    coffre, de moins de quatorze jours, d'une cliente connue qui doit de
-    l'argent, jamais lue ni en cours de lecture ailleurs, dix au plus, les
-    plus récentes d'abord. Les photos de locks d'une cliente qui ne doit rien
-    ne sont jamais lues. */
+/** Où l'image est rangée : le coffre des clientes quand rien ne le dit
+    (les pièces d'avant le champ `coffre`). */
+export const coffreDeLaPiece = (p: { coffre?: string }): string => p.coffre || COFFRE_DES_CLIENTES;
+
+/** LES IMAGES À LIRE, DANS L'ORDRE : entrantes, une image rangée dans le
+    coffre des clientes (jamais un autocollant), de moins de quatorze jours,
+    d'une cliente connue qui doit de l'argent, jamais lue ni en cours de
+    lecture ailleurs, dix au plus, les plus récentes d'abord. Les photos de
+    locks d'une cliente qui ne doit rien ne sont jamais lues. */
 export function imagesALire(o: {
   messages: readonly MessageImage[];
   captures: Captures;
@@ -342,8 +420,9 @@ export function imagesALire(o: {
   const out: (MessageImage & { clientId: string })[] = [];
   const tries = [...o.messages].sort((a, b) => b.quand.localeCompare(a.quand));
   for (const m of tries) {
-    if (m.sens !== 'entrant' || !m.piece) continue;
-    if (!m.piece.type?.startsWith('image/') || !m.piece.coffre || !m.piece.chemin || m.piece.tropLourde) continue;
+    if (m.sens !== 'entrant' || !m.piece || m.type === 'sticker') continue;
+    if (!m.piece.type?.startsWith('image/') || !m.piece.chemin || m.piece.tropLourde) continue;
+    if (coffreDeLaPiece(m.piece) !== COFFRE_DES_CLIENTES) continue;
     const t = Date.parse(m.quand);
     if (!Number.isFinite(t) || t < limite) continue;
     const deja = o.captures[m.id];
