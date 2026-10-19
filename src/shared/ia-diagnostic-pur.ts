@@ -114,19 +114,26 @@ export type Lecture = {
    (une repousse se reprend au fauteuil, elle ne s'achète pas). */
 export type LigneDeLaTable = { observation: Observation; rituel: string[]; produits: string[] };
 export const MOTS_DE_PRODUIT: readonly string[] = ['huile', 'shampoing', 'beurre', 'sérum'];
+/* « soin » seul reconnaissait aussi les soins annexes et la reconstruction
+   (reprise du 19 octobre) : la sécheresse et les pointes appellent le soin
+   HYDRATANT, DÀNDÀN™. */
 export const TABLE_PAR_DEFAUT: readonly LigneDeLaTable[] = [
-  { observation: 'secheresse', rituel: ['hydratant', 'soin', 'dandan'], produits: ['huile', 'beurre'] },
+  { observation: 'secheresse', rituel: ['hydratant', 'dandan'], produits: ['huile', 'beurre'] },
   { observation: 'frisottis', rituel: ['reprise', 'resserrage', 'sinsin', 'racines'], produits: [] },
   { observation: 'racines-laches', rituel: ['reprise', 'resserrage', 'sinsin'], produits: [] },
   { observation: 'amincissement', rituel: ['reconstruction', 'gbigbi', 'renfor'], produits: ['sérum'] },
   { observation: 'pellicules', rituel: ['purification', 'wewe', 'lavage', 'kloklo'], produits: ['shampoing'] },
   { observation: 'residus', rituel: ['purification', 'wewe', 'lavage', 'kloklo'], produits: ['shampoing'] },
-  { observation: 'pointes-abimees', rituel: ['hydratant', 'soin', 'pointes'], produits: ['huile', 'beurre'] },
+  { observation: 'pointes-abimees', rituel: ['hydratant', 'dandan', 'pointes'], produits: ['huile', 'beurre'] },
   { observation: 'casse', rituel: ['reconstruction', 'gbigbi', 'restauration', 'finfin'], produits: ['sérum', 'huile'] },
 ];
 /** Ce qu'un diagnostic ne propose jamais comme rituel : une consultation
-    (la lecture y renvoie déjà), le défaisage, l'Académie. */
-const CATEGORIES_HORS_RITUEL: readonly string[] = ['doto', 'koko', 'plt-45', 'cat-defaisage'];
+    (la lecture y renvoie déjà), le défaisage, l'Académie (`aca-…`) ; et,
+    depuis la reprise du 19 octobre, le Studio (`stu-…`, il ne touche jamais
+    aux locks), le droit de service et les suppléments, qui ne sont pas des
+    rituels. */
+const CATEGORIES_HORS_RITUEL: readonly string[] = ['doto', 'koko', 'plt-45', 'cat-defaisage', 'dds', 'sup'];
+const PREFIXES_HORS_RITUEL: readonly string[] = ['aca-', 'stu-'];
 
 export const MOT_A_CONFIRMER = 'À confirmer en consultation.';
 export const MOT_RELU = 'Relu par la Maison.';
@@ -138,9 +145,11 @@ const estParmi = <T extends string>(liste: readonly { cle: T }[], v: unknown): v
 const estUne = <T extends string>(liste: readonly T[], v: unknown): v is T => (liste as readonly unknown[]).includes(v);
 const ditDe = (liste: readonly { cle: string; dit: string }[], cle: string): string =>
   liste.find((x) => x.cle === cle)?.dit ?? cle;
-/** Sans accents ni majuscules, pour reconnaître un mot dans un nom. */
+/** Sans accents ni majuscules, pour reconnaître un mot dans un nom. Les
+    lettres du fon se lisent aussi (« KLƆKLƆ » se reconnaît par « kloklo »). */
 export const motSimple = (s: unknown): string =>
-  String(s ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
+  String(s ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
+    .replace(/ɔ/g, 'o').replace(/ɛ/g, 'e').replace(/ɖ/g, 'd').trim();
 const motsPropres = (brut: unknown, max: number): string[] =>
   (Array.isArray(brut) ? brut : typeof brut === 'string' ? brut.split(/[,;]/) : [])
     .map((m) => String(m ?? '').trim().slice(0, 40)).filter((m) => m.length >= 3).slice(0, max);
@@ -222,8 +231,8 @@ export function recommande(lecture: Lecture, table: readonly LigneDeLaTable[], c
   };
   const horsRituel = (categoryId?: string): boolean => {
     let cur = catalogue.categories.find((c) => c.id === categoryId);
-    if (CATEGORIES_HORS_RITUEL.includes(categoryId ?? '')) return true;
-    for (let i = 0; cur && i < 8; i += 1) { if (CATEGORIES_HORS_RITUEL.includes(cur.id) || cur.id.startsWith('aca-')) return true; cur = catalogue.categories.find((c) => c.id === cur!.parentId); }
+    if (CATEGORIES_HORS_RITUEL.includes(categoryId ?? '') || PREFIXES_HORS_RITUEL.some((p) => (categoryId ?? '').startsWith(p))) return true;
+    for (let i = 0; cur && i < 8; i += 1) { if (CATEGORIES_HORS_RITUEL.includes(cur.id) || PREFIXES_HORS_RITUEL.some((p) => cur!.id.startsWith(p))) return true; cur = catalogue.categories.find((c) => c.id === cur!.parentId); }
     return false;
   };
   const rituels: Recommandation['rituels'] = [];
