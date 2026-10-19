@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { Fragment, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
@@ -9,6 +9,7 @@ import { useDemandes } from '../../../../shared/demandes';
 import { supabase } from '../../../../shared/supabase';
 import { jourCourtAn } from '../../../../shared/calendrier';
 import { EditeurDuSite } from './EditeurDuSite';
+import { EnTeteDesReponses, ReponseAUnAvis } from './ReponseAUnAvis';
 import { useBrouillonDuSite, changementsEnAttente } from '../../../../shared/site-retouches-store';
 import { useStore } from '../../../../shared/store';
 import { poseLesAvisChoisis, vitrineConfigStore } from '../../../../shared/bridges';
@@ -109,16 +110,18 @@ function usePagesDuSite(): string[] {
 
 /** Les avis Google relevés pour le site, avec la liste du moment (10 octobre
     2026 : la Maison y choisit ceux que le site montre). */
-function useAvisGoogle(): { note: number; nombre: number; le?: string; avis: UnAvisGoogle[] } | null {
-  const [avis, setAvis] = useState<{ note: number; nombre: number; le?: string; avis: UnAvisGoogle[] } | null>(null);
+function useAvisGoogle(): { note: number; nombre: number; le?: string; fiche?: string; avis: UnAvisGoogle[] } | null {
+  const [avis, setAvis] = useState<{ note: number; nombre: number; le?: string; fiche?: string; avis: UnAvisGoogle[] } | null>(null);
   useEffect(() => {
     let vivant = true;
     if (!supabase) return;
     void supabase.from('documents').select('data,updated_at').eq('key', 'mnd_avis_google').maybeSingle()
       .then(({ data }) => {
-        const d = (data as { data?: { note?: number; nombre?: number; avis?: UnAvisGoogle[] }; updated_at?: string } | null);
+        const d = (data as { data?: { note?: number; nombre?: number; avis?: UnAvisGoogle[]; fiche?: string }; updated_at?: string } | null);
         const liste = Array.isArray(d?.data?.avis) ? d.data.avis.filter((a) => a && typeof a.auteur === 'string' && typeof a.texte === 'string') : [];
-        if (vivant && d?.data && Number(d.data.note) > 0) setAvis({ note: Number(d.data.note), nombre: Number(d.data.nombre) || 0, le: d.updated_at, avis: liste });
+        /* 19 octobre 2026 : le lien de la fiche, pour « Ouvrir l'avis sur Google ». */
+        const fiche = typeof d?.data?.fiche === 'string' ? d.data.fiche : undefined;
+        if (vivant && d?.data && Number(d.data.note) > 0) setAvis({ note: Number(d.data.note), nombre: Number(d.data.nombre) || 0, le: d.updated_at, fiche, avis: liste });
       });
     return () => { vivant = false; };
   }, []);
@@ -131,7 +134,7 @@ function useAvisGoogle(): { note: number; nombre: number; le?: string; avis: UnA
    moment (cinq au plus, relus deux fois par jour) ; rien de coché, le site
    montre ceux de Google. Le juge et la mention vivent dans
    shared/avis-google-pur, le même module que le site. */
-function ChoixDesAvis({ avis }: { avis: UnAvisGoogle[] | null }) {
+function ChoixDesAvis({ avis, fiche }: { avis: UnAvisGoogle[] | null; fiche?: string }) {
   const [cfg] = useStore(vitrineConfigStore);
   const choisis = cfg.avisChoisis ?? [];
   const pose = (liste: string[]) => poseLesAvisChoisis(liste);
@@ -146,28 +149,34 @@ function ChoixDesAvis({ avis }: { avis: UnAvisGoogle[] | null }) {
   return (
     <Bloc titre="Les avis Google du site" ou="Cochez ceux que le site montre, dans l’ordre de votre choix. Google en renvoie cinq au plus, relus deux fois par jour : un avis qu’il ne renvoie plus quitte le site, même coché. Rien de coché : le site montre ceux de Google.">
       {!avis && <span className="mnd-muted" style={{ fontSize: 12.5 }}>Les avis ne sont pas encore relevés.</span>}
+      {/* 19 octobre 2026 : « N sans réponse », et les brouillons de Claude préparés à l'ouverture. */}
+      <EnTeteDesReponses avis={avis} />
       {rangs.map(({ a, cle, rang }) => (
-        <div key={cle} style={{ display: 'flex', gap: 10, alignItems: 'flex-start', borderTop: '1px solid var(--hairline)', paddingTop: 7 }}>
-          <input type="checkbox" checked={rang >= 0} onChange={() => pose(basculeLeChoix(choisis, cle))}
-            aria-label={`Montrer l’avis de ${a.auteur} sur le site`} style={{ marginTop: 3, flex: 'none' }} />
-          <span style={{ flex: 1, minWidth: 0, fontSize: 13 }}>
-            <span style={{ color: 'var(--color-copper)' }}>{'★'.repeat(Math.max(0, Math.min(5, Math.round(a.note))))}</span>{' '}
-            <b style={{ fontWeight: 600 }}>{a.auteur || 'Sans nom'}</b>
-            {a.quand ? <span className="mnd-muted"> · {a.quand}</span> : null}
-            <span className="mnd-muted" style={{ display: 'block', fontSize: 12, lineHeight: 1.45, marginTop: 2 }}>
-              {a.texte.length > 180 ? `${a.texte.slice(0, 177).trimEnd()}…` : a.texte}
+        <Fragment key={cle}>
+          <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start', borderTop: '1px solid var(--hairline)', paddingTop: 7 }}>
+            <input type="checkbox" checked={rang >= 0} onChange={() => pose(basculeLeChoix(choisis, cle))}
+              aria-label={`Montrer l’avis de ${a.auteur} sur le site`} style={{ marginTop: 3, flex: 'none' }} />
+            <span style={{ flex: 1, minWidth: 0, fontSize: 13 }}>
+              <span style={{ color: 'var(--color-copper)' }}>{'★'.repeat(Math.max(0, Math.min(5, Math.round(a.note))))}</span>{' '}
+              <b style={{ fontWeight: 600 }}>{a.auteur || 'Sans nom'}</b>
+              {a.quand ? <span className="mnd-muted"> · {a.quand}</span> : null}
+              <span className="mnd-muted" style={{ display: 'block', fontSize: 12, lineHeight: 1.45, marginTop: 2 }}>
+                {a.texte.length > 180 ? `${a.texte.slice(0, 177).trimEnd()}…` : a.texte}
+              </span>
             </span>
-          </span>
-          {rang >= 0 && (
-            <span style={{ display: 'flex', gap: 4, alignItems: 'center', flex: 'none' }}>
-              <span className="mnd-muted" style={{ fontSize: 11.5, minWidth: 14, textAlign: 'right' }}>{rang + 1}</span>
-              <button type="button" className="trc-c360-linkbtn" disabled={rang === 0} aria-label="Monter"
-                onClick={() => pose(deplaceLeChoix(choisis, cle, -1))}>↑</button>
-              <button type="button" className="trc-c360-linkbtn" disabled={rang === choisis.length - 1} aria-label="Descendre"
-                onClick={() => pose(deplaceLeChoix(choisis, cle, 1))}>↓</button>
-            </span>
-          )}
-        </div>
+            {rang >= 0 && (
+              <span style={{ display: 'flex', gap: 4, alignItems: 'center', flex: 'none' }}>
+                <span className="mnd-muted" style={{ fontSize: 11.5, minWidth: 14, textAlign: 'right' }}>{rang + 1}</span>
+                <button type="button" className="trc-c360-linkbtn" disabled={rang === 0} aria-label="Monter"
+                  onClick={() => pose(deplaceLeChoix(choisis, cle, -1))}>↑</button>
+                <button type="button" className="trc-c360-linkbtn" disabled={rang === choisis.length - 1} aria-label="Descendre"
+                  onClick={() => pose(deplaceLeChoix(choisis, cle, 1))}>↓</button>
+              </span>
+            )}
+          </div>
+          {/* 19 octobre 2026 : la réponse proposée par Claude, sous l'avis sans réponse. */}
+          <ReponseAUnAvis avis={a} fiche={fiche} />
+        </Fragment>
       ))}
       {disparus.length > 0 && (
         <Ligne gauche={disparus.length > 1 ? `${disparus.length} avis cochés que Google ne renvoie plus` : '1 avis coché que Google ne renvoie plus'}
@@ -258,7 +267,7 @@ export function VitrineSite({ catalogue }: { catalogue: ReactNode }) {
           <Ligne gauche="Cartes cadeaux payées en ligne" sous="KkiaPay" droite={<Lien vers="/cartes-cadeaux">Les cartes →</Lien>} />
         </Bloc>
 
-        <ChoixDesAvis avis={avis ? avis.avis : null} />
+        <ChoixDesAvis avis={avis ? avis.avis : null} fiche={avis?.fiche} />
 
         <Bloc titre="Les pages du site" ou="Lues dans le plan du site. Pour changer un texte ou une photo : « Modifier les textes et photos », en haut.">
           {pages.length === 0 && <span className="mnd-muted" style={{ fontSize: 12.5 }}>Le plan du site n’a pas pu être lu (hors ligne ?).</span>}
