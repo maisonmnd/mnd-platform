@@ -682,6 +682,9 @@ export type Cashbox = {
   avantLeTri?: { le: string; name: string; sub: string; role?: Cashbox['role']; equipe?: boolean; horsEncaissement?: boolean };
   /** Rangée par le tri après que son solde est passé ailleurs (l'instant). */
   rangeeAuTri?: string;
+  /** L'ancienne caisse MoMoPay d'ACIA 1, vidée dans celle de la Maison puis
+      rangée (19 octobre 2026) : l'instant. */
+  rangeeAuMomopay?: string;
   /** ── L'HISTOIRE — 17 octobre 2026 ──────────────────────────────
       La caisse « Années passées » : comme une ancienne, elle garde TOUT son
       passé (le départ des caisses ne la coupe pas) et reste hors de la

@@ -58,16 +58,20 @@ const CAISSES: Cashbox[] = [
   { ...cb('cb-annees-passees-br-maison', 'Années passées'), role: 'archive', histoire: true },
   /* Une autre branche qui a aussi une « Real Money » : elle ne bouge pas. */
   { ...cb('autre-rm', 'Real Money'), branchId: 'autre' },
+  /* Le MoMoPay de la Maison (19 octobre 2026, code 909099) : la caisse neuve. */
+  { id: 'cb-momopay-br-maison', branchId: B, name: 'MoMoPay Maison MND', sub: 'MTN MoMoPay · code 909099', glyph: '◉', openingXof: 0, role: 'terrasse' },
 ];
 
 /* ── 1. LA RÈGLE ──────────────────────────────────────────────────────── */
-dit('les renommages de ses choix : Real Money devient « Tiroir espèces », ACIA1 « MTN MoMoPay »',
-  [{ de: 'Real Money', vers: 'Tiroir espèces' }, { de: 'ACIA1', vers: 'MTN MoMoPay' }], renommagesDuPlan(CAISSES, B));
+/* ACIA1 n'est plus renommée (19 octobre 2026) : la Maison a son propre compte,
+   l'ancienne caisse s'y vide (verifie-le-momopay). */
+dit('les renommages de ses choix : Real Money devient « Tiroir espèces » ; ACIA1 ne se renomme plus',
+  [{ de: 'Real Money', vers: 'Tiroir espèces' }], renommagesDuPlan(CAISSES, B));
 {
   const apres = caissesApresLesRetouches(CAISSES, B);
   const de = (id: string) => apres.find((x) => x.id === id && x.branchId === B)!;
-  dit('le tiroir commun : rôle Terrasse, ouvert à l équipe ; le compte MoMoPay : rôle Terrasse', [['Tiroir espèces', 'terrasse', true], ['MTN MoMoPay', 'terrasse']],
-    [[de('ytb0sweqjt').name, de('ytb0sweqjt').role, de('ytb0sweqjt').equipe], [de('2b0gyen3wq').name, de('2b0gyen3wq').role]]);
+  dit('le tiroir commun : rôle Terrasse, ouvert à l équipe ; ACIA1 reste ACIA1 (elle se videra dans le MoMoPay de la Maison)', [['Tiroir espèces', 'terrasse', true], ['ACIA1', null]],
+    [[de('ytb0sweqjt').name, de('ytb0sweqjt').role, de('ytb0sweqjt').equipe], [de('2b0gyen3wq').name, de('2b0gyen3wq').role ?? null]]);
   dit('l épargne et les comptes à l étranger : jamais au comptoir (les sept)', [true, true, true, true, true, true, true],
     ['b8rgpuq4zm', 'dkg7qprz84', 'n0mgl8d1vz', 'hhcoqafioq', 'bvgh5pun9g', 'n0y0j52n73', 'kns3vlxy3c'].map((id) => de(id).horsEncaissement === true));
   dit('KkiaPay, le tiroir des euros, MND PAY ne bougent pas', [CAISSES[13], CAISSES[12], CAISSES[14]],
@@ -82,12 +86,12 @@ dit('les renommages de ses choix : Real Money devient « Tiroir espèces », ACI
     caisseProposee({ methode, dateDuRdv: '2026-10-19', aujourdhui: '2026-10-19', boxes, branchId: B, staffId }).caisse ?? null;
   const avecGerard = [...ici, cb('cb-caissier-g1', 'Caisse de Gérard', { role: 'terrasse', equipe: true, caissierId: 'g1' })];
   dit('au RDV : espèces → la caisse de qui encaisse, sinon le tiroir commun', ['Caisse de Gérard', 'Tiroir espèces'], [P('Espèces', 'g1', avecGerard), P('Espèces', 'y1', avecGerard)]);
-  dit('au RDV : MTN MoMoPay → « MTN MoMoPay » ; la carte et le virement : on choisit ; le chèque : Chèques à déposer', ['MTN MoMoPay', 'MTN MoMoPay', null, null, 'Chèques à déposer'],
+  dit('au RDV : MTN MoMoPay → le MoMoPay de la Maison ; la carte et le virement : on choisit ; le chèque : Chèques à déposer', ['MoMoPay Maison MND', 'MoMoPay Maison MND', null, null, 'Chèques à déposer'],
     [P('MTN MoMo'), P('Momopay'), P('Carte'), P('Virement bancaire'), P('Chèque')]);
   const auChoixDir = caissesAuChoix(ici, { estDirection: true, anneePassee: false }).map((x) => x.name);
   dit('au choix, même pour la direction : aucune caisse d épargne ni à l étranger ; le comptoir reste', [false, true, true, true],
     [auChoixDir.some((n) => ['BIIC', 'Épargne A', 'Épargne B', 'Épargne C', 'Compte D', 'Compte E', 'Compte F'].includes(n)),
-      auChoixDir.includes('Tiroir espèces'), auChoixDir.includes('MTN MoMoPay'), auChoixDir.includes('KkiaPay')]);
+      auChoixDir.includes('Tiroir espèces'), auChoixDir.includes('MoMoPay Maison MND'), auChoixDir.includes('KkiaPay')]);
   dit('corriger un versement : le comptoir seulement, et la caisse qu il porte reste', [false, true, true],
     [caissesPourCorriger(ici).some((x) => x.name === 'BIIC'), caissesPourCorriger(ici).some((x) => x.name === 'Tiroir espèces'),
       caissesPourCorriger(ici, 'BIIC').some((x) => x.name === 'BIIC')]);
@@ -101,7 +105,7 @@ dit('les renommages de ses choix : Real Money devient « Tiroir espèces », ACI
   dit('le virement porte l identifiant de sa caisse (deux postes écrivent la même ligne)', [idDuVirementDuTri('3gecxx1oyf'), idDuVirementDuTri('dz2b3w0bye')], v.map((t) => t.id));
 }
 dit('un nom déjà porté par une caisse refuse le tri', ['Tiroir espèces'], nomsDejaPris([...CAISSES, cb('x', 'Tiroir espèces', { archiveeLe: '2026-01-01' })], {}, B));
-dit('... ou par une écriture', ['MTN MoMoPay'], nomsDejaPris(CAISSES, { depenses: [{ cashbox: 'MTN MoMoPay', date: '2026-05-01' }] }, B));
+dit('... ou par une écriture', ['Tiroir espèces'], nomsDejaPris(CAISSES, { depenses: [{ cashbox: 'Tiroir espèces', date: '2026-05-01' }] }, B));
 
 /* ── 2. LES VRAIS MAGASINS, ALLER ET RETOUR ─────────────────────────── */
 cashboxesStore.set(CAISSES);
@@ -134,7 +138,7 @@ dit('le tri s applique', true, r.ok);
 const box = (id: string) => cashboxesStore.get().find((x) => x.id === id)!;
 const paiement = (fid: string) => as<{ payments: { cashbox: string; cashboxAvantFusion?: string }[]; cashbox: string }>(invoicesStore.get().find((i) => i.id === fid));
 dit('après : plus aucune écriture de la branche ne nomme Real Money, ACIA1 ni Caisse Principale', 0, resteDuTri(B));
-dit('... les écritures suivent les noms : le tiroir, le MoMoPay, le carnet du RDV', ['Tiroir espèces', 'Tiroir espèces', 'MTN MoMoPay', 'MTN MoMoPay', 'Tiroir espèces'],
+dit('... les écritures suivent les noms : le tiroir ; celles d ACIA1 gardent le sien', ['Tiroir espèces', 'Tiroir espèces', 'ACIA1', 'ACIA1', 'Tiroir espèces'],
   [paiement('f-rm').payments[0].cashbox, paiement('f-rm').cashbox, paiement('f-mo').payments[0].cashbox,
     as<{ payments: { cashbox: string }[] }>(appointmentsStore.get().find((x) => x.id === 'r-mo')).payments[0].cashbox,
     as<{ cashbox: string }>(expensesStore.get().find((e) => e.id === 'e-rm')).cashbox]);
@@ -162,7 +166,7 @@ expensesStore.set((p) => p.filter((e) => e.id !== 'e-apres'));
 defaisLaFusion(B, 'Reprise 2025');
 dit('... et une fois Reprise 2025 défaite aussi, chaque magasin redevient exactement ce qu il était', avant, photo());
 dit('un nom pris refuse le tri sans rien toucher', [false, true],
-  (() => { expensesStore.set((p) => [...p, as({ id: 'e-pris', branchId: B, date: '2026-05-01', cashbox: 'MTN MoMoPay', label: 'x', amountXof: 1 })]);
+  (() => { expensesStore.set((p) => [...p, as({ id: 'e-pris', branchId: B, date: '2026-05-01', cashbox: 'Tiroir espèces', label: 'x', amountXof: 1 })]);
     const av = photo(); const res = appliqueLeTri(B, () => 0, '2026-10-19'); return [res.ok, av === photo()]; })());
 void lisLesLots;
 

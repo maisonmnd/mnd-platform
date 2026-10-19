@@ -4,7 +4,7 @@
    jamais un nom ni une année en dur. Éprouvées par
    `scripts/verifie-caisses-des-caissiers`. */
 import type { Cashbox } from './finance';
-import { CAISSE_ANNEES_PASSEES, caisseDesCheques } from './caisses-des-caissiers-pur';
+import { CAISSE_ANNEES_PASSEES, caisseDesCheques, caisseMomopayDeLaMaison } from './caisses-des-caissiers-pur';
 
 /* ══ LES DÉCISIONS DU 17 OCTOBRE SUR LES AUTRES CAISSES ═════════════════
    « Que fait-on des autres caisses ? Caisses indépendantes, BIIC… » (Yéman),
@@ -40,10 +40,12 @@ export function decisionsDesCaisses<B extends Cashbox>(boxes: readonly B[], aujo
      pas : on la cherche parmi TOUTES les caisses, rangées comprises. */
   const branches = [...new Set(boxes.map((b) => b.branchId).filter((x): x is string => !!x))];
   for (const br of branches) {
-    const neuve = caisseDesCheques(br);
-    if (boxes.some((b) => b.id === neuve.id)) continue;
-    out.push(neuve as B);
-    change = true;
+    /* Et la caisse MoMoPay de la Maison (19 octobre 2026), de la même façon. */
+    for (const neuve of [caisseDesCheques(br), caisseMomopayDeLaMaison(br)]) {
+      if (boxes.some((b) => b.id === neuve.id)) continue;
+      out.push(neuve as B);
+      change = true;
+    }
   }
   return change ? out : null;
 }

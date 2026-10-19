@@ -38,6 +38,9 @@ export const CAISSE_ANNEES_PASSEES = 'Années passées';
 /* LA CAISSE DES CHÈQUES À DÉPOSER — 18 octobre 2026, sa décision : le chèque
    y attend son dépôt ; « Marquer déposés » le vire au compte de la banque. */
 export const CAISSE_CHEQUES = 'Chèques à déposer';
+/* LE MOMOPAY DE LA MAISON — 19 octobre 2026, sa décision : « une caisse
+   neuve » pour le compte MAISON MND (code 909099) ; celle d'ACIA 1 s'y vide. */
+export const CAISSE_MOMOPAY_MAISON = 'MoMoPay Maison MND';
 export const CAISSE_TIROIR_COMMUN = 'Terrasse · Tiroir espèces';
 const CAISSE_MND_PAY = 'MND PAY';
 const CAISSE_ZELLE = 'Zelle';
@@ -148,6 +151,19 @@ export function caisseDesCheques(branchId: string): Cashbox {
   };
 }
 
+/** LA CAISSE MOMOPAY DE LA MAISON, une par branche, idempotente. */
+export function caisseMomopayDeLaMaison(branchId: string): Cashbox {
+  return {
+    id: `cb-momopay-${branchId}`,
+    branchId,
+    name: CAISSE_MOMOPAY_MAISON,
+    sub: 'MTN MoMoPay · code 909099',
+    glyph: '◉',
+    openingXof: 0,
+    role: 'terrasse',
+  };
+}
+
 const textes = (b: Boite): string => plat(`${b.name} ${b.sub ?? ''}`);
 
 /** Le tiroir commun des espèces : son nom d'abord, puis une Terrasse ouverte à
@@ -219,6 +235,9 @@ export function caisseProposee(o: {
       : { pourquoi: 'Aucun tiroir des espèces : choisissez la caisse.' };
   }
   if (famille === 'momo') {
+    /* Le compte de la Maison d'abord (19 octobre 2026) ; l'ancien d'ACIA 1 en repli. */
+    const maison = nommee(CAISSE_MOMOPAY_MAISON);
+    if (maison) return { caisse: maison, pourquoi: 'MTN MoMoPay arrive sur le compte MoMoPay de la Maison (code 909099).' };
     const c = ici.find((b) => !b.caissierId && /momo ?pay/.test(textes(b)))
       ?? ici.find((b) => !b.caissierId && b.role === 'terrasse' && /momo|mtn/.test(textes(b)));
     return c ? { caisse: c.name, pourquoi: 'MTN MoMoPay arrive sur le compte MoMoPay de la Maison.' } : { pourquoi: 'Aucune caisse MoMoPay : choisissez la caisse.' };

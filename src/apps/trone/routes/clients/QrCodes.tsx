@@ -8,6 +8,7 @@ import { PageHead } from '../_ui';
 import { useStore } from '../../../../shared/store';
 import { maisonNom, DEVISE_COMPLETE, signeLeMessage, estLaMaisonMND } from '../../../../shared/identite';
 import { autoConfigStore, MOMO_QR_DEFAUT, REVIEW_LINK_DEFAUT, MOMO_USSD_DEFAUT, MOMO_MARCHAND_DEFAUT } from '../equipe/data';
+import { CODE_MOMOPAY } from '../../../../shared/momopay-de-la-maison-pur';
 import { usePointageConfig } from '../equipe/payroll';
 import { QrSvg, qrMatrice, lienDuJour } from '../equipe/Comptoir';
 import { imprimeCarteCouronne, lienMaCouronne } from './Vitrine';
@@ -339,40 +340,16 @@ function AuComptoir({ g, onClose }: { g: Grand; onClose: () => void }) {
         {g.phrase}
       </div>
       {g.affiche ? (
-        /* L'AFFICHE, SON CADRE MARCHAND CORRIGÉ — 18 août 2026.
-           « Là où il y a mon Nom Marchand il faut mettre le QR code de Mobile
-           Money de la maison avec le nom ACIA1 » (Yéman).
-
-           Le JPEG porte « YEMAN » gravé dans ses pixels ; je ne peux pas le
-           repeindre. On RECOUVRE donc son cadre noir par un panneau qui dit
-           juste — le carré à scanner et le vrai nom du marchand. Le cadre du
-           dessous ne se voit plus, mais il est toujours là : la correction
-           durable est une affiche ré-exportée par qui l'a dessinée.
-
-           Les proportions sont en POURCENTAGES de l'image, pas en pixels :
-           l'affiche se redimensionne avec l'écran, le panneau la suit. */
-        <div style={{ position: 'relative', margin: '22px 0 14px', lineHeight: 0 }}>
-          <img
-            src={asset(g.affiche)}
-            alt=""
-            style={{ height: 'min(66vh, 96vw)', width: 'auto', borderRadius: 4, boxShadow: '0 2px 18px rgba(30,33,80,.13)', display: 'block' }}
-          />
-          <div
-            style={{
-              position: 'absolute', left: '6.2%', top: '62.6%', width: '36.4%', height: '19.6%',
-              background: '#0B0D24', border: '1px solid rgba(242,183,5,.55)', borderRadius: '3.2%',
-              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5%', padding: '2.4%',
-            }}
-          >
-            <div style={{ height: '86%', aspectRatio: '1 / 1', background: '#fff', padding: '3%', borderRadius: 2, flex: 'none' }}>
-              <QrSvg valeur={g.valeur} style={{ width: '100%', height: '100%', display: 'block' }} />
-            </div>
-            <div style={{ lineHeight: 1.25, minWidth: 0 }}>
-              <div style={{ color: '#F2B705', fontSize: 'clamp(8px, 1.15vh, 15px)', letterSpacing: '.06em' }}>Nom Marchand</div>
-              <div style={{ color: '#fff', fontWeight: 700, fontSize: 'clamp(11px, 1.7vh, 24px)', letterSpacing: '.02em' }}>ACIA1</div>
-            </div>
-          </div>
-        </div>
+        /* L'AFFICHE DE LA MAISON — 19 octobre 2026. « Recrée un poster, épuré
+           et avec les couleurs de la charte » (Yéman) : le compte MoMoPay de
+           MAISON MND (code 909099), ivoire, indigo et cuivre, le QR dedans.
+           L'ancienne (noir et or, « YEMAN » gravé, recouvert d'un panneau
+           ACIA1) est rangée au Drive, 99 · Archives › Anciennes affiches. */
+        <img
+          src={asset(g.affiche)}
+          alt={`Régler par MTN MoMo, code marchand ${CODE_MOMOPAY}, MAISON MND`}
+          style={{ height: 'min(66vh, 96vw)', width: 'auto', borderRadius: 4, boxShadow: '0 2px 18px rgba(30,33,80,.13)', display: 'block', margin: '22px 0 14px' }}
+        />
       ) : (
         <div style={{ width: 'min(64vw, 56vh)', height: 'min(64vw, 56vh)', margin: '26px 0 14px' }}>
           <QrSvg valeur={g.valeur} style={{ width: '100%', height: '100%', display: 'block' }} />
@@ -419,7 +396,7 @@ export default function QrCodes() {
   const lienAbsolu = (chemin: string) => new URL(asset(chemin), window.location.href).href;
   /* LE CODE MARCHAND SE LIT DANS LE CODE USSD — il n'a pas de champ à lui, et
      lui en inventer un ferait deux vérités à tenir d'accord. Dans
-     « *880*41*506846*montant# », c'est le dernier groupe de chiffres : le
+     « *880*41*909099*montant# », c'est le dernier groupe de chiffres : le
      préfixe de l'opérateur passe avant, le montant vient après. */
   const codeMarchand = (momoUssd.match(/\d{4,}/g) ?? []).slice(-1)[0] ?? '';
   const lienMomo = () => {
@@ -646,7 +623,7 @@ export default function QrCodes() {
         champ: { lab: 'Marchand', val: <b style={{ color: 'var(--copper-700)', fontWeight: 600 }}>{momoMarchand}</b>, lab2: 'ou composez', val2: momoUssd },
         gestes: [
           { ...afficheMomo, texte: 'Afficher le QR seul' },
-          { texte: 'L’affiche', faire: () => setGrand({ titre: 'Régler par MoMo.', phrase: `Marchand ${momoMarchand}, le montant en francs.`, valeur: momoQr, affiche: 'momopay-affiche.jpg' }) },
+          { texte: 'L’affiche', faire: () => setGrand({ titre: 'Régler par MoMo.', phrase: `Marchand ${momoMarchand}, le montant en francs.`, valeur: momoQr, affiche: 'momopay-affiche.png' }) },
           { texte: 'Carte A5', faire: imprimerMomo },
           { texte: 'Copier le lien', faire: () => copier(lienMomo(), 'de paiement'), empeche: codeMarchand ? undefined : 'Renseignez le code MoMo dans Paramètres › L’encaissement' },
         ],

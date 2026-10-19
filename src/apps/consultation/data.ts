@@ -8,8 +8,9 @@ import { palierParAgeDeCouronne, type Palier } from '../../shared/paliers';
 export type Parcours = 'creation' | 'sos';
 
 export const FEE_XOF = 15000;
-export const MOMO_USSD = '*880*41*506846*15000#';
-export const MOMO_ACCOUNT = '506846';
+/* Le compte MoMoPay de MAISON MND depuis le 19 octobre 2026 (l'ancien, 506846, était celui d'ACIA 1). */
+export const MOMO_USSD = '*880*41*909099*15000#';
+export const MOMO_ACCOUNT = '909099';
 
 /** Devises offertes à la diaspora — pivot XOF. */
 export const CURRENCY_CHOICES = ['XOF', 'USD', 'CAD', 'EUR'] as const;

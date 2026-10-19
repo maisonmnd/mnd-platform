@@ -103,8 +103,14 @@ const semence = {
     cb('b8rgpuq4zm', 'BIIC', { horsBilan: true }),
     cb('dkg7qprz84', 'Épargne A', { horsBilan: true }),
     cb('cb-kkiapay', 'KkiaPay', { sub: 'Paiements en ligne' }),
+    /* Le MoMoPay de la Maison (19 octobre 2026, code 909099) : la caisse neuve. */
+    cb(`cb-momopay-${B}`, 'MoMoPay Maison MND', { sub: 'MTN MoMoPay · code 909099', role: 'terrasse' }),
   ],
   'trone::mnd_invoices': [
+    /* ACIA1 tient 30 000 F : ils passent dans le MoMoPay de la Maison. */
+    { id: 'inv-mo', branchId: B, kind: 'facture', number: 'F-BANC-0003', clientName: 'Passage', date: AUJ,
+      lines: [{ id: 'l-mo', label: 'Vente', qty: 1, unitXof: 30000, discountPct: 0 }], globalDiscountPct: 0, theme: 'Rose', status: 'payée', cashbox: 'ACIA1',
+      payments: [{ id: 'ip-mo', date: AUJ, amountXof: 30000, method: 'MTN MoMo', cashbox: 'ACIA1' }] },
     { id: 'inv-new', branchId: B, kind: 'facture', number: 'F-BANC-0001', clientName: 'Passage', date: AUJ,
       lines: [{ id: 'l-new', label: 'Vente', qty: 1, unitXof: 76000, discountPct: 0 }], globalDiscountPct: 0, theme: 'Rose', status: 'payée', cashbox: 'MND NEW',
       payments: [{ id: 'ip-new', date: AUJ, amountXof: 76000, method: 'Espèces', cashbox: 'MND NEW' }] },
@@ -122,7 +128,7 @@ dit('Les caisses, comme la direction : le panneau du tri paraît', !!vu);
 if (!vu) await photo('0-caisses');
 
 const tri = await texte('[data-tri="a-faire"]');
-dit('il dit ce qui change, sous les noms de la Maison', /« Real Money » devient « Tiroir espèces »/.test(tri) && /« ACIA1 » devient « MTN MoMoPay »/.test(tri)
+dit('il dit ce qui change, sous les noms de la Maison (ACIA1 ne se renomme plus)', /« Real Money » devient « Tiroir espèces »/.test(tri) && !/« ACIA1 » devient/.test(tri)
   && /« MND NEW » passe son solde \(76/.test(tri) && /« Caisse Principale » se fond dans « Tiroir espèces »/.test(tri) && /« BIIC »/.test(tri) && /« Épargne A »/.test(tri), tri.slice(0, 300));
 const boutonTri = () => evalue(`(() => { const b = [...document.querySelectorAll('[data-tri] button')].find((x) => x.textContent.includes('Appliquer le tri')); return b ? b.disabled : null; })()`);
 dit('« Appliquer » attend la sauvegarde', (await boutonTri()) === true);
@@ -134,10 +140,10 @@ dit('le tri s applique d un geste', await clique('[data-tri] button', '2. Appliq
 await attend(1500);
 const cbTri = (await lis('trone::mnd_cashboxes')) ?? [];
 const de = (id) => cbTri.find((x) => x.id === id) ?? {};
-dit('après : Tiroir espèces (Terrasse, équipe), MTN MoMoPay, BIIC et l épargne hors comptoir, MND NEW rangée, Principale fondue dans le tiroir',
+dit('après : Tiroir espèces (Terrasse, équipe), ACIA1 inchangée, BIIC et l épargne hors comptoir, MND NEW rangée, Principale fondue dans le tiroir',
   JSON.stringify([de('ytb0sweqjt').name, de('ytb0sweqjt').role, de('ytb0sweqjt').equipe, de('2b0gyen3wq').name, de('b8rgpuq4zm').horsEncaissement, de('dkg7qprz84').horsEncaissement,
     !!de('3gecxx1oyf').archiveeLe, de('uhhu3j8pbz').fondueDans])
-    === JSON.stringify(['Tiroir espèces', 'terrasse', true, 'MTN MoMoPay', true, true, true, 'Tiroir espèces']),
+    === JSON.stringify(['Tiroir espèces', 'terrasse', true, 'ACIA1', true, true, true, 'Tiroir espèces']),
   JSON.stringify(cbTri.map((x) => [x.name, x.horsEncaissement ?? '', x.archiveeLe ? 'rangée' : '', x.fondueDans ?? ''])));
 const virTri = ((await lis('trone::mnd_transferts_caisse')) ?? []).filter((x) => String(x.id).startsWith('trf-tri-')).map((x) => [x.de, x.vers, x.amountXof]);
 dit('les 76 000 F de MND NEW passent (par Principale) au tiroir', JSON.stringify(virTri) === JSON.stringify([['MND NEW', 'Tiroir espèces', 76000]]), JSON.stringify(virTri));
@@ -158,6 +164,23 @@ dit('défait : les noms et les caisses d avant reviennent, l épargne aussi, le 
     ((await lis('trone::mnd_transferts_caisse')) ?? []).filter((x) => String(x.id).startsWith('trf-tri-')).length])
     === JSON.stringify(['Real Money', null, 'ACIA1', null, false, false, 0]),
   JSON.stringify(cbRetour.map((x) => [x.name, x.role ?? '', x.horsEncaissement ?? '', x.archiveeLe ? 'rangée' : ''])));
+/* ── LE NOUVEAU MOMOPAY (19 octobre 2026) : l'ancienne caisse d'ACIA1 se vide dans celle de la Maison, puis se range ── */
+const momo = await texte('[data-ancien-momopay="a-faire"]');
+dit('le panneau du nouveau MoMoPay dit le code, la caisse neuve et le solde d ACIA1', /909099/.test(momo) && /MoMoPay Maison MND/.test(momo) && /30[  .]?000/.test(momo), momo.slice(0, 200));
+dit('« Virer … et ranger « ACIA1 » » se clique', await clique('[data-ancien-momopay] button', 'Virer'));
+await attend(1200);
+const virMo = ((await lis('trone::mnd_transferts_caisse')) ?? []).filter((x) => String(x.id).startsWith('trf-momopay-')).map((x) => [x.de, x.vers, x.amountXof]);
+const acia = ((await lis('trone::mnd_cashboxes')) ?? []).find((x) => x.id === '2b0gyen3wq') ?? {};
+dit('les 30 000 F d ACIA1 passent dans le MoMoPay de la Maison, et ACIA1 est rangée', JSON.stringify(virMo) === JSON.stringify([['ACIA1', 'MoMoPay Maison MND', 30000]]) && !!acia.archiveeLe && !!acia.rangeeAuMomopay,
+  JSON.stringify(virMo) + ' ' + JSON.stringify({ archiveeLe: acia.archiveeLe, rangeeAuMomopay: acia.rangeeAuMomopay }));
+dit('le panneau dit « rangée » et offre le retour', /est vidée/.test(await texte('[data-ancien-momopay="fait"]')));
+dit('« Défaire » se clique', await clique('[data-ancien-momopay="fait"] button', 'Défaire'));
+await attend(800);
+dit('... et se confirme', await clique('button', 'Faire revenir', `document.querySelector('[role="alertdialog"]') || document.createElement('div')`));
+await attend(1200);
+const aciaRetour = ((await lis('trone::mnd_cashboxes')) ?? []).find((x) => x.id === '2b0gyen3wq') ?? {};
+dit('ACIA1 revient, le virement s efface', !aciaRetour.archiveeLe && !aciaRetour.rangeeAuMomopay
+  && ((await lis('trone::mnd_transferts_caisse')) ?? []).filter((x) => String(x.id).startsWith('trf-momopay-')).length === 0);
 dit('aucune erreur dans la page', erreurs.length === 0, erreurs.slice(0, 3).join(' | ') || 'aucune');
 
 ws.close(); chrome.kill(); serveur.close();

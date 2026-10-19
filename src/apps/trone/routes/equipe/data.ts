@@ -1,3 +1,4 @@
+import { MARCHAND_MOMOPAY, QR_MOMOPAY, USSD_MOMOPAY } from '../../../../shared/momopay-de-la-maison-pur';
 import { createStore, useStore, HOUSE_BLANK, type Store } from '../../../../shared/store';
 import { memeContenu } from '../../../../shared/meme-contenu';
 import { identiteCourante } from '../../../../shared/journal';
@@ -551,10 +552,12 @@ export type AutoConfig = {
   automateWa?: Partial<ReglageDeLAutomate>;
 };
 
-/** Défauts du compte marchand — relevés du document MoMo de la Maison. */
-export const MOMO_QR_DEFAUT = '506846@momopay';
-export const MOMO_USSD_DEFAUT = '*880*41*506846*montant#';
-export const MOMO_MARCHAND_DEFAUT = 'Ets ACIA1';
+/** Défauts du compte marchand. Depuis le 19 octobre 2026, celui de MAISON MND
+    (code 909099) : l'ancien (506846) était celui d'ACIA 1. Voir
+    `shared/momopay-de-la-maison-pur.ts`. */
+export const MOMO_QR_DEFAUT = QR_MOMOPAY;
+export const MOMO_USSD_DEFAUT = USSD_MOMOPAY;
+export const MOMO_MARCHAND_DEFAUT = MARCHAND_MOMOPAY;
 
 /** CE QU'IL FAUT POUR PAYER, tel que la facture doit l'imprimer : l'identifiant
     marchand (le QR que l'app MoMo reconnaît — le même que l'affiche du comptoir),

@@ -430,8 +430,11 @@ dit('la page compose le MÊME numéro que le comptoir affiche (tel:, dièse enco
   page.includes(`href="tel:${encodeURIComponent(codeUssdTapGo(25_400, undefined))}"`));
 dit('... dit le montant, et refuse un lien trafiqué', [true, true, false],
   [page.includes('25'), rejoue('?tg=51166-25400%23').includes('incomplet'), rejoue('?tg=51166-25400%23').includes('tel:')]);
-dit('... et la page MoMoPay d avant compose toujours son numéro', true,
-  rejoue('?m=ACIA1&c=506846&montant=30000').includes(`tel:${encodeURIComponent('*880*41*506846*30000#')}`));
+/* Le 19 octobre 2026, la Maison a son propre compte (909099) : un lien d'avant
+   (c=506846, le compte d'ACIA 1) compose désormais celui de la Maison. */
+dit('... et un lien MoMoPay d avant compose le compte de la Maison', [true, false],
+  [rejoue('?m=ACIA1&c=506846&montant=30000').includes(`tel:${encodeURIComponent('*880*41*909099*30000#')}`),
+    rejoue('?m=ACIA1&c=506846&montant=30000').includes('506846')]);
 const panneau = lis('src/apps/trone/routes/vente/MndPay.tsx');
 dit('le panneau envoie le lien à l instant où le numéro s affiche (Tap & Go seulement)', true,
   /setDemandeId\(r\.id\);[\s\S]{0,400}if \(moyen === 'tapgo'\) \{[\s\S]{0,500}envoieLeNumeroTapGo\(/.test(panneau));

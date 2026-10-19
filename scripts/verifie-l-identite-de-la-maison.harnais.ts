@@ -324,11 +324,17 @@ dit('D. une piece d employeur demandee sous Maison MND se fait au nom d ACIA 1, 
 dit('D. les ecrans de l identite ne disent pas « societe » (entreprise individuelle)', [false, false],
   ['src/apps/trone/routes/systeme/Textes.tsx', 'src/apps/trone/routes/systeme/Parametres.tsx'].map((f) => /soci[ée]t[ée]/i.test(sansCommentaires(f))));
 
-/* ══ E. CE QUI ATTEND UNE DÉCISION ═══════════════════════════════════ */
-dit('E. le marchand Mobile Money garde son nom chez l operateur', [true, true, true], [
-  sansCommentaires('src/apps/trone/routes/equipe/data.ts').includes("export const MOMO_MARCHAND_DEFAUT = 'Ets ACIA1';"),
-  htmlSansCommentaires('public/payer.html').includes('<b id="nomMarchand">ACIA1</b>')
-    && htmlSansCommentaires('public/payer.html').includes("textContent = marchand || 'ACIA1';"),
+/* ══ E. LA DÉCISION EST PRISE — 19 octobre 2026 ═══════════════════════
+   Le marchand Mobile Money gardait le nom d'ACIA 1 « en attendant une
+   décision ». Elle est venue : MAISON MND a son propre compte MoMoPay
+   (code 909099), et son nom chez l'opérateur est « MAISON MND » (sélecteur).
+   Le défaut du Trône, la page de paiement et l'écran QR le disent ; plus
+   aucun « ACIA1 » n'y est écrit. */
+dit('E. le marchand Mobile Money porte le nom de la Maison', [true, true, false, false], [
+  sansCommentaires('src/apps/trone/routes/equipe/data.ts').includes('export const MOMO_MARCHAND_DEFAUT = MARCHAND_MOMOPAY;')
+    && readFileSync('src/shared/momopay-de-la-maison-pur.ts', 'utf8').includes("export const MARCHAND_MOMOPAY = 'MAISON MND';"),
+  htmlSansCommentaires('public/payer.html').includes("e(marchand || 'MAISON MND')"),
+  /ACIA1/.test(htmlSansCommentaires('public/payer.html').replace(/<head>[\s\S]*<\/head>/, '')),
   sansCommentaires('src/apps/trone/routes/clients/QrCodes.tsx').includes('>ACIA1</div>'),
 ]);
 

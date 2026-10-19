@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Régler par MoMo · Maison MND</title>
 <meta name="robots" content="noindex" />
-<meta name="theme-color" content="#0E1030" />
+<meta name="theme-color" content="#F6F1E7" />
 <!--
   RÉGLER PAR MoMo — la page qu'on envoie à une cliente. 18 août 2026.
 
@@ -18,8 +18,15 @@
   session : elle ne sait que ce que son adresse lui dit. Il n'existe donc rien
   à en extraire — ni une cliente, ni un chiffre, ni un mot de passe.
 
-    payer.html?m=YEMAN&c=506846            le marchand et son code
-    payer.html?m=YEMAN&c=506846&montant=30000   … et la somme attendue
+    payer.html?m=MAISON%20MND&c=909099            le marchand et son code
+    payer.html?m=MAISON%20MND&c=909099&montant=30000   … et la somme attendue
+
+  LE COMPTE DE LA MAISON — 19 octobre 2026. MAISON MND a son propre compte
+  MoMoPay, code 909099 ; l'ancien, 506846, était celui d'ACIA 1. Un lien
+  envoyé avant porte encore c=506846 : il mène désormais au compte de la
+  Maison (la règle est `codeDuLien`, shared/momopay-de-la-maison-pur.ts).
+  La page prend les couleurs de la charte, épurée comme les nouvelles
+  affiches : ivoire, indigo, cuivre ; plus d'image noir et or.
 
   Le montant, quand il est là, entre directement dans le code à composer : la
   cliente appuie, son téléphone compose, elle n'a plus qu'à valider. C'est le
@@ -41,40 +48,34 @@
   c'est FedaPay, pour la Maison.
 -->
 <style>
+  /* La charte : ivoire pour le fond, indigo pour l'encre, cuivre pour le geste. */
   :root {
-    --nuit: #0E1030;
-    --or: #F2B705;
     --ivoire: #F6F1E7;
-    --doux: #B8B8C4;
+    --carte: #FFFDF9;
+    --indigo: #1E2150;
+    --cuivre: #9A6036;
+    --cuivre-clair: #B97A4A;
+    --filet: #E7D7C2;
+    --doux: #5E5750;
   }
   * { box-sizing: border-box; }
   body {
     margin: 0;
-    background: var(--nuit);
-    color: var(--ivoire);
+    background: var(--ivoire);
+    color: var(--indigo);
     font-family: 'Jost', 'Century Gothic', 'Futura', system-ui, -apple-system, 'Segoe UI', sans-serif;
     display: flex;
     flex-direction: column;
     align-items: center;
-    padding: 22px 18px 40px;
+    padding: 28px 18px 40px;
     min-height: 100vh;
   }
-  .cadre { position: relative; width: min(100%, 420px); line-height: 0; }
-  .affiche { width: 100%; height: auto; border-radius: 6px; display: block; box-shadow: 0 4px 26px rgba(0, 0, 0, .45); }
-  /* LE CADRE MARCHAND, CORRIGÉ — l'affiche porte « YEMAN » gravé dans ses
-     pixels, et le vrai marchand est ACIA1. On le recouvre plutôt que de
-     laisser une page publique annoncer un nom que la cliente ne verra pas
-     s'afficher sur son téléphone au moment de valider — c'est exactement le
-     moment où un nom qui ne correspond pas fait renoncer à payer.
-     Pas de QR ici : on ne scanne pas l'écran qu'on tient en main. */
-  .marchand {
-    position: absolute; left: 6.2%; top: 62.6%; width: 36.4%; height: 19.6%;
-    background: #0B0D24; border: 1px solid rgba(242, 183, 5, .55); border-radius: 3.2%;
-    display: flex; flex-direction: column; justify-content: center; gap: 2%;
-    padding: 3% 5%; line-height: 1.25;
-  }
-  .marchand i { font-style: normal; color: var(--or); font-size: clamp(7px, 2.2vw, 11px); letter-spacing: .05em; }
-  .marchand b { color: #fff; font-size: clamp(11px, 3.6vw, 19px); letter-spacing: .02em; }
+  /* La tête : le verrou de la Maison, et ce qu'on règle. Pas de QR ici : on
+     ne scanne pas l'écran qu'on tient en main. */
+  .tete { width: min(100%, 420px); display: grid; justify-items: center; gap: 10px; text-align: center; }
+  .verrou { width: 170px; height: auto; display: block; }
+  .sur { margin: 10px 0 0; font-size: 11px; letter-spacing: .32em; text-transform: uppercase; color: var(--cuivre); }
+  .tete h1 { margin: 0; font-family: 'Cormorant Garamond', Georgia, 'Times New Roman', serif; font-weight: 300; font-size: 38px; line-height: 1.05; }
   .bloc { width: min(100%, 420px); }
   .titre {
     font-family: 'Cormorant Garamond', Georgia, 'Times New Roman', serif;
@@ -90,8 +91,8 @@
     width: 100%;
     text-align: center;
     text-decoration: none;
-    background: var(--or);
-    color: #1A1400;
+    background: var(--cuivre);
+    color: var(--ivoire);
     font-weight: 600;
     font-size: 17px;
     letter-spacing: .02em;
@@ -104,8 +105,8 @@
     display: block;
     width: 100%;
     background: transparent;
-    color: var(--ivoire);
-    border: 1px solid rgba(246, 241, 231, .32);
+    color: var(--indigo);
+    border: 1px solid var(--filet);
     border-radius: 4px;
     padding: 13px 18px;
     font: inherit;
@@ -114,31 +115,32 @@
   }
   .ligne {
     display: flex; justify-content: space-between; gap: 14px;
-    padding: 11px 0; border-bottom: 1px solid rgba(246, 241, 231, .12);
+    padding: 11px 0; border-bottom: 1px solid var(--filet);
     font-size: 14px;
   }
   .ligne span:first-child { color: var(--doux); font-size: 12px; letter-spacing: .12em; text-transform: uppercase; }
   .ligne b { font-weight: 600; letter-spacing: .04em; }
   .pied {
     font-family: 'Cormorant Garamond', Georgia, serif;
-    font-style: italic; font-size: 13.5px; color: var(--or);
+    font-style: italic; font-size: 13.5px; color: var(--cuivre);
     margin-top: 26px; text-align: center;
   }
   .absent { text-align: center; color: var(--doux); font-size: 14px; line-height: 1.7; padding: 40px 10px; }
   /* Tap & Go : les couleurs de la Maison, indigo et cuivre (jamais d'obsidienne). */
-  body.tapgo { background: #1E2150; justify-content: center; }
+  body.tapgo { background: #1E2150; color: #F6F1E7; justify-content: center; }
+  body.tapgo .sous, body.tapgo .ligne span:first-child { color: #B8B8C4; }
+  body.tapgo .copier { color: #F6F1E7; border-color: rgba(246, 241, 231, .32); }
+  body.tapgo .ligne { border-bottom-color: rgba(246, 241, 231, .12); }
   body.tapgo .composer { background: #B97A4A; color: #F6F1E7; }
   body.tapgo .pied { color: #D9B08C; }
   .maison { font-size: 11px; letter-spacing: .32em; text-transform: uppercase; color: #D9B08C; text-align: center; margin-top: 8px; }
 </style>
 </head>
 <body>
-  <div class="cadre">
-    <img class="affiche" src="momopay-affiche.jpg" alt="Payez facilement avec MTN MoMo Pay, Maison MND" />
-    <div class="marchand">
-      <i>Nom Marchand</i><b id="nomMarchand">ACIA1</b>
-      <i>Code Marchand</i><b id="codeMarchand">·</b>
-    </div>
+  <div class="tete" id="tete">
+    <img class="verrou" src="assets/vectoriel/verrou-couche-indigo.svg" alt="Maison MND" />
+    <p class="sur">Régler votre rituel</p>
+    <h1>Par MTN MoMo</h1>
   </div>
 
   <div class="bloc" id="bloc"></div>
@@ -152,8 +154,8 @@
   var tg = (p.get('tg') || '').match(/^(\d{3,8})-(\d{1,9})$/);
   if (p.has('tg')) {
     document.body.classList.add('tapgo');
-    var cadre = document.querySelector('.cadre');
-    if (cadre) cadre.parentNode.removeChild(cadre);
+    var tete = document.getElementById('tete');
+    if (tete && tete.parentNode) tete.parentNode.removeChild(tete);
     document.title = 'Régler · Maison MND';
     var blocTg = document.getElementById('bloc');
     if (!tg) {
@@ -180,6 +182,9 @@
   }
   var marchand = (p.get('m') || '').trim();
   var code = (p.get('c') || '').replace(/[^0-9]/g, '');
+  /* UN LIEN D'AVANT LE 19 OCTOBRE 2026 (l'ancien compte d'ACIA 1, 506846)
+     mène au compte de la Maison : même règle que `codeDuLien`. */
+  if (code === '506846') { code = '909099'; marchand = 'MAISON MND'; }
   var montant = (p.get('montant') || '').replace(/[^0-9]/g, '');
   var bloc = document.getElementById('bloc');
 
@@ -199,13 +204,8 @@
       '<a class="composer" href="tel:' + encodeURIComponent(ussd) + '">Composer le code' +
         '<small>' + e(ussd) + '</small></a>' +
       '<button class="copier" id="copier">Copier le code</button>' +
-      '<div class="ligne"><span>Marchand</span><b>' + e(marchand || 'ACIA1') + '</b></div>' +
+      '<div class="ligne"><span>Marchand</span><b>' + e(marchand || 'MAISON MND') + '</b></div>' +
       '<div class="ligne"><span>Code marchand</span><b>' + e(code) + '</b></div>';
-
-    /* Le cadre de l'affiche dit la même chose que la page — une seule vérité,
-       affichée deux fois, jamais deux vérités. */
-    document.getElementById('nomMarchand').textContent = marchand || 'ACIA1';
-    document.getElementById('codeMarchand').textContent = code;
 
     document.getElementById('copier').onclick = function () {
       var b = this;

@@ -24,7 +24,7 @@ import {
   CAISSE_ANNEES_PASSEES, caisseDuCaissier, caisseNeuveDuCaissier, caisseProposee, caissesAuChoix,
   estAnneeAnterieure, familleDuMoyen, peutChangerLaCaisse, caisseDesAnneesPassees,
   fusionneLEcriture, defaisLaFusionDeLEcriture, casesQuiNomment, caissesApresFusion, caissesApresDefaire,
-  CAISSE_CHEQUES, caisseDesCheques, HORS_CLOTURE,
+  CAISSE_CHEQUES, caisseDesCheques, HORS_CLOTURE, caisseMomopayDeLaMaison,
 } from '../src/shared/caisses-des-caissiers-pur';
 import { decisionsDesCaisses, FUSION_DECIDEE } from '../src/shared/decisions-des-caisses-pur';
 import { caissesPourLEquipe, gardeToutSonPasse } from '../src/shared/finance';
@@ -230,7 +230,8 @@ dit('les décisions : BIIC à part ; Indépendantes remplacée, sans encaissemen
 });
 dit('une seconde fois : rien ne change (une décision ne s applique qu une fois)', null, decisionsDesCaisses(APRES!, '2026-10-18'));
 {
-  const recochee = decisionsDesCaisses([b('BIIC', { horsEncaissement: false }), caisseDesCheques('cot')], '2026-10-18');
+  /* Les caisses nées seules (chèques, MoMoPay de la Maison) sont là : seule la décision sur BIIC est en jeu. */
+  const recochee = decisionsDesCaisses([b('BIIC', { horsEncaissement: false }), caisseDesCheques('cot'), caisseMomopayDeLaMaison('cot')], '2026-10-18');
   dit('BIIC recochée à la main (false) : la décision ne repasse pas', null, recochee);
 }
 /* La caisse des chèques naît une fois par branche ; rangée à la main, elle ne revient pas. */
@@ -239,7 +240,7 @@ dit('une seconde fois : rien ne change (une décision ne s applique qu une fois)
   dit('les décisions créent « Chèques à déposer » une fois par branche, sans toucher au reste', [['cb-cheques-cot', 'cb-cheques-pn'], false],
     [(deux ?? []).filter((x) => x.name === CAISSE_CHEQUES).map((x) => x.id).sort(), lis(deux, 'BIIC')?.horsEncaissement]);
   dit('... une seconde fois, rien', null, decisionsDesCaisses(deux!, '2026-10-19'));
-  dit('rangée à la main, elle ne revient pas', null, decisionsDesCaisses([b('BIIC', { horsEncaissement: false }), { ...caisseDesCheques('cot'), archiveeLe: '2026-10-20' }], '2026-10-21'));
+  dit('rangée à la main, elle ne revient pas', null, decisionsDesCaisses([b('BIIC', { horsEncaissement: false }), { ...caisseDesCheques('cot'), archiveeLe: '2026-10-20' }, caisseMomopayDeLaMaison('cot')], '2026-10-21'));
   dit('dans les décisions d avant (BIIC, Indépendantes), elle naît aussi', true, !!lis(APRES, CAISSE_CHEQUES));
 }
 const seule = decisionsDesCaisses([b('Caisse Indépendantes', { equipe: true }), b('Wells Fargo')], '2026-10-17');

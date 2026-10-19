@@ -55,7 +55,8 @@ export const TRI_DU_19_OCTOBRE: PlanDuTri = {
   le: '2026-10-19',
   retouches: [
     { id: 'ytb0sweqjt', nom: 'Tiroir espèces', sub: 'Espèces du comptoir', role: 'terrasse', equipe: true },
-    { id: '2b0gyen3wq', nom: 'MTN MoMoPay', sub: 'MoMoPay · code 506846', role: 'terrasse' },
+    /* ACIA1 n'est plus renommée : le 19 octobre 2026, la Maison a son propre
+       compte (909099) ; l'ancienne caisse s'y vide (`momopay-de-la-maison-pur`). */
     /* L'épargne et les comptes à l'étranger : jamais au comptoir. */
     { id: 'b8rgpuq4zm', horsEncaissement: true },
     { id: 'dkg7qprz84', horsEncaissement: true },

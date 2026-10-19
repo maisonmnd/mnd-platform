@@ -2465,7 +2465,7 @@ export default function Parametres() {
               </label>
               <div className="mnd-muted" style={{ fontSize: 11.5, lineHeight: 1.55 }}>
                 Dans le code USSD, « montant » se remplace par la somme en francs, 15 000 F se
-                compose *880*41*506846*15000#. Ne touche à la donnée du QR que si MTN te remet
+                compose *880*41*909099*15000#. Ne touche à la donnée du QR que si MTN te remet
                 un nouveau document marchand.
               </div>
             </div>

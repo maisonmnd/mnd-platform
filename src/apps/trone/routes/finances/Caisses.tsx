@@ -4,6 +4,7 @@ import { DepartDesCaisses, moisEtAn } from './DepartDesCaisses';
 import { BasculeDOctobre } from './BasculeDOctobre';
 import { FusionDesCaisses } from './FusionDesCaisses';
 import { TriDesCaisses } from './TriDesCaisses';
+import { AncienMomopay } from './AncienMomopay';
 import { ChequesADeposer } from './ChequesADeposer';
 import { gardeToutSonPasse } from '../../../../shared/finance';
 import { useNavigate } from 'react-router-dom';
@@ -361,6 +362,8 @@ export default function Caisses() {
 
       {/* LE TRI DES CAISSES (19 octobre 2026, ses choix sur la page de tri). */}
       <TriDesCaisses />
+      {/* LE NOUVEAU MOMOPAY DE LA MAISON (19 octobre 2026, code 909099). */}
+      <AncienMomopay />
       <FusionDesCaisses />
       {/* LES CHÈQUES À DÉPOSER (18 octobre 2026, maquette « Chèque et carte »). */}
       <ChequesADeposer />

@@ -85,6 +85,8 @@ import { Seal, Button, Modal, toast } from '../../../ds/components';
 import { useAuth, useMaTete, signOut } from '../../../shared/auth';
 import { cashboxesStore, useToutesLesCaisses } from '../../../shared/finance';
 import { decisionsDesCaisses } from '../../../shared/decisions-des-caisses-pur';
+import { basculeDuMomopay } from '../../../shared/momopay-de-la-maison-pur';
+import { autoConfigStore } from '../routes/equipe/data';
 import { quandTablePrete } from '../../../shared/sync';
 import { BoutonDesCles } from '../auth/Empreinte';
 import { documentDescendu, quandDocumentDescendu } from '../../../shared/sync';
@@ -405,6 +407,21 @@ export default function Shell() {
       }
     });
   }, [estDirectionDuShell, lesCaisses]);
+
+  /* LE MOMOPAY DE LA MAISON — 19 octobre 2026 (code 909099, MAISON MND) : les
+     réglages qui portent encore l'ancien compte d'ACIA 1 basculent, une fois,
+     par la direction, une fois le document descendu du serveur. Une valeur
+     tapée autrement à la main ne bouge pas. */
+  useEffect(() => {
+    if (!estDirectionDuShell) return;
+    let vivant = true;
+    void quandDocumentDescendu('mnd_auto_config').then(() => {
+      if (!vivant) return;
+      const patch = basculeDuMomopay(autoConfigStore.get() as { momoQr?: string; momoUssd?: string; momoMarchand?: string });
+      if (patch) autoConfigStore.set((prev) => ({ ...prev, ...patch }));
+    });
+    return () => { vivant = false; };
+  }, [estDirectionDuShell]);
 
   /* LA MATRICE DOIT ÊTRE DESCENDUE, ELLE AUSSI — 31 août 2026. Savoir QUI
      regarde ne suffit pas : tant que ses accès ne sont pas arrivés, la matrice
