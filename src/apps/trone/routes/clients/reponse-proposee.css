@@ -1,0 +1,17 @@
+/* « PROPOSER UNE RÉPONSE » — 19 octobre 2026 (chantier 4 des huit).
+   Tant que la zone de saisie porte mot pour mot ce que Claude a écrit, elle
+   se teinte cuivre : c'est une proposition, « à vérifier ». Le premier mot
+   changé la rend à la main, et la teinte s'en va. */
+.trc-saisie:has(.trc-reponse-proposee[data-reponse-proposee="a-verifier"]) > .trc-saisie__texte {
+  border-color: var(--copper-300, #E3C9AE);
+  background: var(--copper-50, #F9EFE7);
+}
+.trc-reponse-proposee { display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.trc-reponse-proposee__dit { font-size: 11px; }
+
+/* Au téléphone, le composeur range ses boutons en colonne à côté du texte :
+   les nôtres s'y empilent, et la teinte de la zone suffit à dire « à vérifier ». */
+@media (max-width: 900px) {
+  .trc-reponse-proposee { flex-direction: column; align-items: stretch; gap: 6px; }
+  .trc-reponse-proposee__dit { display: none; }
+}

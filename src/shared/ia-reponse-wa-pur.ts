@@ -20,7 +20,11 @@ import type { PriceMode } from './catalogue-pur';
        d'abord) : une seule règle des prix dans la Maison, pas une seconde ;
      · chez Claude, prénom et initiale, la civilité dite comme on l'appelle
        (« Madame Clarisse », `appelDe`), JAMAIS un numéro ; le fil se borne
-       aux douze derniers messages, textes seulement, passés par `pourClaude` ;
+       aux douze derniers messages, leurs mots passés par `pourClaude` (une
+       photo, un vocal se disent par leur nature) ; seuls les fils des
+       clientes s'ouvrent à Claude, jamais l'équipe ni un fil marqué privé ;
+     · ce qu'elle doit se dit à Claude, qui n'en parle que si elle en parle
+       (« ne pas faire voir mon retard aux clients », 18 octobre 2026) ;
      · l'agenda : les places se disent dans l'ordre du site (`prochainesPlaces`,
        deux par jour d'abord) quand on les a ; sans agenda, Claude n'en promet
        aucune et renvoie à la réservation en ligne. Le Trône ne calcule pas
@@ -46,7 +50,7 @@ export const LIGNES_DE_CATALOGUE_MAX = 40;
 /** Les places dites, comme sur le site : six. */
 export const PLACES_DITES = 6;
 
-export type MessageDuFilPourClaude = { sens: 'entrant' | 'sortant'; texte: string; type?: string };
+export type MessageDuFilPourClaude = { sens: 'entrant' | 'sortant'; texte: string; type?: string; etat?: string };
 export type FichePourClaude = { name?: string | null; civilite?: 'madame' | 'mademoiselle' | 'monsieur'; auMasculin?: boolean } | null | undefined;
 export type RdvPourClaude = { date: string; time?: string; gestes?: readonly string[] };
 export type JourDePlaces = { iso: string; heures: readonly { heure: string }[] };
@@ -115,7 +119,12 @@ export function derniereVenueDe(appts: readonly RdvLisible[], clientId: string, 
     la porte est la consultation, le prix se dit « à partir de », choix du
     14 octobre 2026), « … : sur devis, après consultation ». Masquée,
     archivée : rien. Les prix sont ceux de `prixDuCatalogue`, les mêmes que
-    l'automate envoie. */
+    l'automate envoie.
+
+    UN PRIX « VARIABLE » SE DIT AUSSI « À PARTIR DE » (reprise du 19 octobre
+    2026) : c'est ce que le Catalogue promet (« affiché "à partir de",
+    montant fixé au fauteuil ») et ce que Ma Couronne affiche. L'écrire comme
+    un prix fixe ferait dire à Claude un montant que le fauteuil corrigera. */
 export function lignesDuCataloguePourClaude(
   services: readonly PrestationPourClaude[],
   categories: readonly { id: string; parentId?: string }[],
@@ -127,18 +136,66 @@ export function lignesDuCataloguePourClaude(
     if (s.archived === true || s.hidePrice === true || !s.name?.trim()) continue;
     const nom = s.name.trim();
     const p = prix[s.id];
-    const consultationDAbord = porteDe(s, cats) === 'consultation';
-    if (p > 0) out.push(`${nom} : ${consultationDAbord ? 'à partir de ' : ''}${prixDitWa(p)}`);
+    const aPartirDe = porteDe(s, cats) === 'consultation' || s.priceMode === 'variable';
+    if (p > 0) out.push(`${nom} : ${aPartirDe ? 'à partir de ' : ''}${prixDitWa(p)}`);
     else if (s.priceMode === 'devis') out.push(`${nom} : sur devis, après consultation`);
     if (out.length >= LIGNES_DE_CATALOGUE_MAX) break;
   }
   return out;
 }
 
+/* ── LA ZONE DE SAISIE, ENTRE CLAUDE ET LA MAIN ─────────────────────────
+   Reprise du 19 octobre 2026. La proposition REMPLIT la zone où l'on écrit :
+     · « proposee » tant que la zone porte mot pour mot ce que Claude a
+       écrit : elle se teinte cuivre, « à vérifier » ;
+     · « retouchee » dès qu'un mot a changé : c'est désormais la sienne ;
+     · « a-la-main » quand elle a écrit seule, « vide » sinon.
+   Une proposition ne remplace JAMAIS en silence ce que la main a écrit ou
+   retouché : on le lui demande d'abord. */
+export type EtatDeLaZone = 'vide' | 'proposee' | 'retouchee' | 'a-la-main';
+export function etatDeLaZone(texte: string | null | undefined, derniere: string | null | undefined): EtatDeLaZone {
+  const t = String(texte ?? '').trim();
+  if (!t) return 'vide';
+  const d = String(derniere ?? '').trim();
+  if (!d) return 'a-la-main';
+  return t === d ? 'proposee' : 'retouchee';
+}
+export const zoneAProteger = (texte: string | null | undefined, derniere: string | null | undefined): boolean => {
+  const e = etatDeLaZone(texte, derniere);
+  return e === 'retouchee' || e === 'a-la-main';
+};
+
+/* ── QUELS FILS CLAUDE PEUT LIRE ───────────────────────────────────────
+   Reprise du 19 octobre 2026 : le chantier est celui des réponses aux
+   CLIENTES (département Clientèle). Le tiroir de l'équipe et celui des
+   prestataires portent la paie, les congés, les prêts : rien de cela ne part
+   chez Claude. Un fil qu'elle a marqué privé non plus : le drapeau ferme
+   l'écran, il ferme aussi la porte vers Claude. */
+export const filOuvertAClaude = (f: { tiroir?: string; prive?: boolean } | null | undefined): boolean =>
+  !!f && (f.tiroir ?? 'clientes') === 'clientes' && f.prive !== true;
+
 /* ── LE CONTEXTE, ANONYMISÉ ────────────────────────────────────────────── */
+/** Le prénom d'abord, comme le Trône l'écrit. SAUF « DOSSOU Clarisse » (reprise
+    du 19 octobre 2026) : un premier mot tout en capitales suivi d'un mot qui
+    ne l'est pas est le nom de famille, à la façon des papiers. Le lire comme
+    un prénom l'enverrait chez Claude en entier (« DOSSOU C. »). */
+const enCapitales = (m: string): boolean => /^\p{Lu}[\p{Lu}'’-]+$/u.test(m);
 const personneDuNom = (nom: string | null | undefined): Personne => {
   const mots = String(nom ?? '').trim().split(/\s+/).filter(Boolean);
+  if (mots.length >= 2 && enCapitales(mots[0]) && !enCapitales(mots[1])) {
+    return { prenom: mots.slice(1).join(' '), nom: mots[0] };
+  }
   return { prenom: mots[0] ?? '', nom: mots.slice(1).join(' ') };
+};
+
+/** LES FORMES À MASQUER pour une personne connue : son nom complet dans les
+    deux ordres (`nomsEnInitiales`), et SON NOM DE FAMILLE SEUL (reprise du
+    19 octobre 2026) : au Bénin on écrit volontiers « Madame Dossou », et
+    « prénom et initiale seulement » (11 octobre) n'y laisse pas passer le
+    nom. Trois lettres au moins, pour ne pas masquer un « Da » au hasard. */
+const formesAMasquer = (p: Personne): Personne[] => {
+  const nom = (p.nom ?? '').trim();
+  return nom.replace(/[^\p{L}]/gu, '').length >= 3 ? [p, { nom }] : [p];
 };
 
 const coupe = (t: string, n: number): string => {
@@ -146,14 +203,37 @@ const coupe = (t: string, n: number): string => {
   return s.length <= n ? s : `${s.slice(0, n - 1).trimEnd()}…`;
 };
 
-/** Les derniers messages qui sont du texte : une photo, un vocal, un vide ne
-    se lisent pas. Douze au plus, les plus récents. `qui` nomme la cliente
-    dans le fil (« Elle », ou « Lui » quand la fiche dit Monsieur). */
+/** Ce qui n'est pas un mot se dit par sa nature, entre crochets : Claude ne
+    voit ni la photo ni le vocal, mais il sait qu'« et pour ça ? » parle
+    d'une photo. Les noms sont ceux que le Trône affiche (webhook). */
+const NATURE_DU_MESSAGE: Record<string, string> = {
+  image: 'une photo', video: 'une vidéo', audio: 'un message vocal', document: 'un document',
+  sticker: 'un autocollant', location: 'sa position', contacts: 'une fiche de contact',
+};
+/** Les messages qui portent des mots : le texte, le bouton d'un modèle ou
+    d'une liste (son libellé), le modèle parti seul (son texte rendu). */
+const TYPES_DE_MOTS = new Set(['text', 'button', 'interactive', 'template']);
+
+/** Les derniers messages du fil, douze au plus, les plus récents. Les mots se
+    lisent (passés par `pourClaude`) ; une photo, un vocal se disent par leur
+    nature, leur légende à la suite ; une réaction, un type inconnu, un vide
+    ne se lisent pas ; un message de la Maison « non remis » non plus : elle
+    ne l'a jamais reçu. `qui` nomme la cliente (« Elle », ou « Lui » quand la
+    fiche dit Monsieur). */
 export function filPourClaude(fil: readonly MessageDuFilPourClaude[], personnes: readonly Personne[], qui = 'Elle'): string[] {
-  return fil
-    .filter((m) => (!m.type || m.type === 'text') && String(m.texte ?? '').trim())
-    .slice(-FIL_MAX)
-    .map((m) => `${m.sens === 'entrant' ? qui : 'La Maison'} : ${pourClaude(coupe(m.texte, SIGNES_MAX_PAR_MESSAGE), personnes)}`);
+  const masques = personnes.flatMap(formesAMasquer);
+  const lignes: string[] = [];
+  for (const m of fil) {
+    if (m.sens === 'sortant' && m.etat === 'non-remis') continue;
+    const texte = String(m.texte ?? '').trim();
+    const nature = m.type ? NATURE_DU_MESSAGE[m.type] : undefined;
+    let dit = '';
+    if (!m.type || TYPES_DE_MOTS.has(m.type)) dit = texte;
+    else if (nature) dit = texte && texte !== nature ? `[${nature}] ${texte}` : `[${nature}]`;
+    if (!dit) continue;
+    lignes.push(`${m.sens === 'entrant' ? qui : 'La Maison'} : ${pourClaude(coupe(dit, SIGNES_MAX_PAR_MESSAGE), masques)}`);
+  }
+  return lignes.slice(-FIL_MAX);
 }
 
 /** CE QUE CLAUDE REÇOIT. Jamais un nom entier, jamais un numéro : la cliente
@@ -163,8 +243,16 @@ export function contextePourClaude(o: ContexteDeLaReponse): string {
   const nomDeLaFiche = o.fiche?.name?.trim() ?? '';
   const profil = o.nomProfil && !/\d/.test(o.nomProfil) ? o.nomProfil.trim() : '';
   const personnes: Personne[] = [nomDeLaFiche, profil].filter(Boolean).map(personneDuNom);
-  const elle = nomDeLaFiche ? prenomEtInitiale(personneDuNom(nomDeLaFiche)) : profil ? prenomEtInitiale(personneDuNom(profil)) : '';
-  const appel = appelDe(o.fiche ?? null, profil || null);
+  const masques = personnes.flatMap(formesAMasquer);
+  const sienne = personneDuNom(nomDeLaFiche || profil);
+  const elle = nomDeLaFiche || profil ? prenomEtInitiale(sienne) : '';
+  /* L'appel de la Maison (`appelDe`), sur le nom remis dans l'ordre : le
+     prénom d'abord, pour qu'une fiche « DOSSOU Clarisse » se dise « Madame
+     Clarisse » et non par son nom de famille. */
+  const nomRemis = [sienne.prenom, sienne.nom].filter(Boolean).join(' ');
+  const appel = o.fiche
+    ? appelDe({ ...o.fiche, name: nomDeLaFiche ? nomRemis : o.fiche.name }, profil ? nomRemis : null)
+    : appelDe(null, profil ? nomRemis : null);
 
   const lignes: string[] = [];
   lignes.push('CONTEXTE, pour écrire la réponse de la Maison.');
@@ -177,15 +265,24 @@ export function contextePourClaude(o: ContexteDeLaReponse): string {
       : 'Aucun rendez-vous à venir.');
     const venue = o.derniereVenue;
     if (venue) lignes.push(`Sa dernière venue : ${dateDitePourClaude(venue.date)}${venue.gestes?.length ? ` (${venue.gestes.join(', ')})` : ''}.`);
-    if (typeof o.resteDu === 'number' && Number.isFinite(o.resteDu)) {
-      lignes.push(o.resteDu > 0 ? `Reste dû sur ses factures : ${prixDitWa(o.resteDu)} (ne cite aucun numéro de pièce).` : 'Rien à régler : ses factures sont soldées.');
+    /* LE RESTE DÛ NE S'ANNONCE PAS DE LUI-MÊME (reprise du 19 octobre 2026) :
+       « ne pas faire voir mon retard aux clients » (18 octobre). Il se dit
+       si elle en parle ; une relance glissée dans une réponse sur un tout
+       autre sujet trahirait une saisie en retard, ou viserait une cliente
+       qui a payé ce jour-là. */
+    if (typeof o.resteDu === 'number' && Number.isFinite(o.resteDu) && o.resteDu >= 0) {
+      lignes.push(o.resteDu > 0
+        ? `Reste dû sur son compte : ${prixDitWa(o.resteDu)}. N’en parle QUE si son message porte sur ce qu’elle doit ou sur un règlement ; ne cite aucun numéro de pièce.`
+        : 'Rien à régler : son compte est soldé.');
     }
   } else {
     lignes.push('Elle n’a pas de fiche à la Maison : ni rendez-vous connu, ni compte.');
   }
 
+  /* Une place se propose à partir de demain, comme le site : celle du jour
+     même, ou d'un jour passé, ne part jamais chez Claude. */
   if (o.places) {
-    const dites = prochainesPlaces(o.places, PLACES_DITES);
+    const dites = prochainesPlaces(o.places.filter((j) => /^\d{4}-\d{2}-\d{2}$/.test(j.iso) && j.iso > o.aujourdhui), PLACES_DITES);
     lignes.push(dites.length
       ? `Prochaines places libres (les seules que tu peux proposer) : ${dites.map((p) => dateDitePourClaude(p.iso, p.place.heure)).join(' ; ')}.`
       : 'Agenda consulté : aucune place libre prochainement. Ne promets rien ; dis que la Maison la rappelle pour une date.');
@@ -206,7 +303,7 @@ export function contextePourClaude(o: ContexteDeLaReponse): string {
   lignes.push('Écris maintenant la réponse de la Maison à son dernier message.');
   if (o.dejaProposee?.trim()) lignes.push(`Une proposition a déjà été écartée, écris-en une autre, différente : « ${coupe(o.dejaProposee, SIGNES_MAX)} ».`);
 
-  return pourClaude(lignes.join('\n'), personnes);
+  return pourClaude(lignes.join('\n'), masques);
 }
 
 /* ── LA CONSIGNE : LA VOIX DE LA MAISON ────────────────────────────────── */
@@ -226,6 +323,8 @@ export function consigneDeLaReponse(): string {
     '- Les places : ne promets JAMAIS une place, une heure ni un jour qui ne figure pas dans l’agenda du contexte. Sans agenda, invite à réserver sur maisonmnd.com/reserver/ ou dis que la Maison lui confirme l’heure.',
     '- Le cuir chevelu et les cheveux : aucun diagnostic ni avis à distance (démangeaison, plaque, chute, douleur). Invite à passer à la Maison ou à prendre une consultation.',
     '- Ne cite JAMAIS un numéro de facture, de reçu ou de devis, ni aucun numéro de téléphone.',
+    '- Ce qu’elle doit : n’en parle jamais de toi-même. Seulement si son dernier message porte sur un règlement ou sur ce qu’elle doit ; aucune relance.',
+    '- Une photo, un vocal se disent dans le fil entre crochets (« [une photo] ») : tu ne les vois pas et ne les entends pas. Ne décris rien, ne juge rien ; propose de regarder ensemble à la Maison.',
     '- N’invente rien : ce que le contexte ne dit pas, tu ne le sais pas ; propose alors que l’équipe précise.',
     '- Ne signe pas, n’ajoute ni devise ni longue formule finale : la personne qui envoie s’en charge.',
     '- Réponds à son dernier message, dans la suite du fil : si la Maison a déjà salué dans les derniers échanges, ne salue pas une seconde fois.',
@@ -249,7 +348,17 @@ export const SCHEMA_DE_LA_REPONSE: Record<string, unknown> = {
     chiffres et passe. */
 const NUMERO = /\d(?:[\s.\-]?\d){7,}/g;
 const DATE_ISO = /^\d{4}-\d{2}-\d{2}$/;
-const porteUnNumero = (t: string): boolean => [...t.matchAll(NUMERO)].some((m) => !DATE_ISO.test(m[0].trim()));
+/** Et une pièce, même courte (reprise du 19 octobre 2026) : les séries de la
+    Maison (« MND-2026-0042 », « MND-D-… », « F-… », « CMD-… », les anciennes
+    « MND-V-… ») et un « n° 42 ». WhatsApp ferait d'un numéro un lien
+    téléphone, et un numéro de pièce ne va jamais dans un message. */
+const PIECE = /(^|[^\p{L}])(?:MND(?:-[A-Z])?|CMD|F)-\d|\bn[°º]\s*\d/iu;
+const porteUnNumero = (t: string): boolean =>
+  PIECE.test(t) || [...t.matchAll(NUMERO)].some((m) => !DATE_ISO.test(m[0].trim()));
+/** Les émojis tombent, mais pas les signes des marques : « SÍNSIN™ », « ® »
+    et « © » sont rangés parmi les pictogrammes par Unicode (reprise du
+    19 octobre 2026, la proposition perdait le ™ des noms du catalogue). */
+const EMOJI = /(?![\u00A9\u00AE\u2122])[\p{Extended_Pictographic}\u{FE0F}\u{200D}\u{20E3}]/gu;
 
 export const motsDe = (t: string): number => String(t ?? '').trim().split(/\s+/).filter(Boolean).length;
 
@@ -286,7 +395,7 @@ export function lectureDeLaReponse(brut: unknown): string | null {
     .replace(/\r\n?/g, '\n')
     .replace(/\s*[—–]\s*/g, ', ')
     .replace(/\*\*/g, '')
-    .replace(/[\p{Extended_Pictographic}\u{FE0F}\u{200D}]/gu, '')
+    .replace(EMOJI, '')
     .replace(/[ \t]+/g, ' ')
     .replace(/\s*\n\s*/g, '\n')
     .replace(/\n{2,}/g, '\n')

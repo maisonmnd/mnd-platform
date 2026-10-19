@@ -1674,7 +1674,7 @@ export default function Conversations() {
                         La devise ne se pose pas ici : elle signe ce que la Maison écrit seule.
                       </span>
                       {/* « Proposer une réponse » (19 octobre 2026) : Claude remplit la zone, la main relit et envoie par le bouton d'à côté. */}
-                      <ReponseProposee key={fil.numero} fil={fil} occupe={envoiEnCours} surProposition={(t) => { prendsLaMain('proposition'); setTexte(t); }} />
+                      <ReponseProposee key={fil.numero} fil={fil} texte={texte} occupe={envoiEnCours} surProposition={(t) => { if (t) prendsLaMain('proposition'); setTexte(t); }} />
                       <Button className="trc-saisie__lien" variant="ghost" size="sm" onClick={() => setLienOuvert(true)}>Lien de réservation</Button>
                       <Button
                         variant="copper"

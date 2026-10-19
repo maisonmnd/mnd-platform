@@ -8,13 +8,21 @@
    Prix : ceux du catalogue, « à partir de » pour les créations (14 octobre).
    Chez Claude : prénom et initiale, jamais un numéro (11 octobre).
 
+   « Ne pas faire voir mon retard aux clients » (18 octobre) : ce qu'elle doit
+   ne s'annonce pas de soi-même.
+
    LES ATTENTES SONT ÉCRITES À LA MAIN d'après ces décisions, jamais déduites
-   du code. Données d'exemple. */
+   du code. Données d'exemple.
+
+   REPRISE DU 19 OCTOBRE 2026, au soir : trois attentes de la première main
+   étaient fausses en fait, et sont corrigées ici (le 1er janvier 2027 est un
+   VENDREDI ; une phrase de seize mots tient trois fois dans soixante, pas
+   quatre ; « SÍNSIN™ » garde son ™, c'était le code qui le perdait). */
 import { readFileSync } from 'node:fs';
 import {
   FIL_MAX, MOTS_MAX, SIGNES_MAX, SCHEMA_DE_LA_REPONSE,
-  consigneDeLaReponse, contextePourClaude, dateDitePourClaude, derniereVenueDe, filPourClaude,
-  lectureDeLaReponse, lignesDuCataloguePourClaude, motsDe, prochainRdvDe,
+  consigneDeLaReponse, contextePourClaude, dateDitePourClaude, derniereVenueDe, etatDeLaZone, filOuvertAClaude, filPourClaude,
+  lectureDeLaReponse, lignesDuCataloguePourClaude, motsDe, prochainRdvDe, zoneAProteger,
 } from '../src/shared/ia-reponse-wa-pur';
 import { DEPARTEMENTS_PAR_CHANTIER, peutDemander } from '../src/shared/ia-maison-pur';
 
@@ -28,6 +36,7 @@ const lis = (f: string) => readFileSync(f, 'utf8').split(String.fromCharCode(13)
 const sansCommentaires = (t: string) => t.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '').replace(/\{\/\*[\s\S]*?\*\/\}/g, '');
 const PUR = 'src/shared/ia-reponse-wa-pur.ts';
 const COMPOSANT = 'src/apps/trone/routes/clients/ReponseProposee.tsx';
+const CSS = 'src/apps/trone/routes/clients/reponse-proposee.css';
 const CONVERSATIONS = 'src/apps/trone/routes/clients/Conversations.tsx';
 const AUTOMATE = 'src/shared/automate-wa.ts';
 const AUTOMATE_EDGE = 'supabase/functions/whatsapp-automate/index.ts';
@@ -55,7 +64,13 @@ const CATALOGUE = ['SÍNSIN™ Essentiel : 35 000 F', 'VÈKPÈ™ Jumbo : à par
   dit('le fil se borne aux douze derniers messages, le plus récent en bas', [12, false, true, true, true],
     [FIL_MAX, c.includes('Message numéro 3'), c.includes('Message numéro 4'), c.includes('Message numéro 15'), c.indexOf('Message numéro 4') < c.indexOf('Message numéro 15')]);
   dit('elle parle, la Maison répond : chaque tour dit qui', [true, true], [c.includes('Elle : Message numéro 15'), c.includes('La Maison : Message numéro 14')]);
-  dit('le reste dû se dit en francs, sans numéro de pièce', [true, true], [c.includes('Reste dû sur ses factures : 15 000 F'), c.includes('ne cite aucun numéro de pièce')]);
+  dit('le reste dû se dit en francs, sans numéro de pièce', [true, true], [c.includes('Reste dû sur son compte : 15 000 F.'), c.includes('ne cite aucun numéro de pièce')]);
+  dit('... et Claude n en parle que si elle en parle : jamais de relance glissée (retard invisible, 18 octobre)', true,
+    c.includes('N’en parle QUE si son message porte sur ce qu’elle doit ou sur un règlement'));
+  const abime = (resteDu: number) => contextePourClaude({ fil: fil(1), fiche: CLARISSE, resteDu, catalogue: [], aujourdhui: AUJOURDHUI });
+  dit('... un reste dû abîmé (négatif, pas un nombre) ne se dit pas du tout ; sans fiche non plus', [false, false, false],
+    [/Reste dû|Rien à régler/.test(abime(-5000)), /Reste dû|Rien à régler/.test(abime(Number.NaN)),
+      /Reste dû|Rien à régler/.test(contextePourClaude({ fil: fil(1), resteDu: 15000, catalogue: [], aujourdhui: AUJOURDHUI }))]);
   dit('sans rendez-vous à venir, on le dit', true, c.includes('Aucun rendez-vous à venir.'));
   dit('sans agenda, Claude n en promet aucune place et renvoie à la réservation en ligne', [true, true],
     [c.includes('Agenda : non consulté. Ne promets aucune place'), c.includes('maisonmnd.com/reserver/')]);
@@ -69,20 +84,44 @@ const CATALOGUE = ['SÍNSIN™ Essentiel : 35 000 F', 'VÈKPÈ™ Jumbo : à par
   dit('la proposition écartée revient à Claude, mais anonymisée elle aussi (la seconde barrière)', [true, false, false, true],
     [c.includes('Une proposition a déjà été écartée'), /dossou/i.test(c), c.includes(NUMERO_DIT), c.includes('Clarisse D.')]);
 }
-dit('le fil seul : prénom et initiale, le numéro effacé, une photo ou un vocal ne se lisent pas',
-  ['Elle : Je suis Clarisse D., au [numéro]', 'La Maison : Bien reçu'],
+dit('le fil seul : prénom et initiale, le numéro effacé ; une photo ou un vocal se disent par leur nature, jamais leur contenu ; un vide ne se lit pas',
+  ['Elle : Je suis Clarisse D., au [numéro]', 'Elle : [une photo]', 'Elle : [une photo] Et pour ça ?', 'Elle : [un message vocal]', 'La Maison : Bien reçu'],
   filPourClaude([
     { sens: 'entrant', texte: 'Je suis Clarisse Dossou, au 01 97 00 00 00' },
-    { sens: 'entrant', texte: '[photo]', type: 'image' },
+    { sens: 'entrant', texte: 'une photo', type: 'image' },
+    { sens: 'entrant', texte: 'Et pour ça ?', type: 'image' },
+    { sens: 'entrant', texte: 'un message vocal', type: 'audio' },
     { sens: 'entrant', texte: '   ' },
     { sens: 'sortant', texte: 'Bien reçu' },
   ], [{ prenom: 'Clarisse', nom: 'Dossou' }]));
+dit('le fil : le bouton qu elle touche et le modèle parti se lisent ; une réaction, un type inconnu, un message « non remis » ne se lisent pas',
+  ['La Maison : Votre rendez-vous de demain tient-il ?', 'Elle : Oui, je confirme', 'Elle : Choisir une autre heure'],
+  filPourClaude([
+    { sens: 'sortant', texte: 'Votre rendez-vous de demain tient-il ?', type: 'template' },
+    { sens: 'entrant', texte: 'Oui, je confirme', type: 'button' },
+    { sens: 'entrant', texte: 'Choisir une autre heure', type: 'interactive' },
+    { sens: 'entrant', texte: '❤', type: 'reaction' },
+    { sens: 'entrant', texte: 'un message que le Trône ne sait pas encore afficher', type: 'unsupported' },
+    { sens: 'sortant', texte: 'Ce message n est jamais arrivé', etat: 'non-remis' },
+  ], []));
+dit('le fil : son nom de famille seul ne passe pas non plus (« Madame Dossou » devient « Madame D. »)',
+  ['Elle : C est Madame D., la maman de Clarisse D.'],
+  filPourClaude([{ sens: 'entrant', texte: 'C est Madame Dossou, la maman de Clarisse DOSSOU' }], [{ prenom: 'Clarisse', nom: 'Dossou' }]));
+{
+  const c = contextePourClaude({ fil: [{ sens: 'entrant', texte: 'Bonjour, ici DOSSOU Clarisse' }], fiche: { name: 'DOSSOU Clarisse', civilite: 'madame' }, catalogue: [], aujourdhui: AUJOURDHUI });
+  dit('une fiche écrite à la façon des papiers (« DOSSOU Clarisse ») : « Clarisse D. », « Madame Clarisse », et le nom de famille jamais', [true, true, false],
+    [c.includes('La cliente : Clarisse D.'), c.includes('On l’appelle : Madame Clarisse.'), /dossou/i.test(c)]);
+}
+dit('seuls les fils des clientes s ouvrent à Claude : ni l équipe, ni les prestataires, ni un fil marqué privé',
+  [true, true, false, false, false, false],
+  [filOuvertAClaude({ tiroir: 'clientes', prive: false }), filOuvertAClaude({ prive: false }), filOuvertAClaude({ tiroir: 'equipe', prive: false }),
+    filOuvertAClaude({ tiroir: 'prestataires', prive: false }), filOuvertAClaude({ tiroir: 'clientes', prive: true }), filOuvertAClaude(null)]);
 dit('une fiche muette dit le prénom seul (jamais « Madame » supposé) ; un monsieur se dit « Lui »', [true, true, true],
   [contextePourClaude({ fil: fil(1), fiche: { name: 'Ola Kossou' }, catalogue: [], aujourdhui: AUJOURDHUI }).includes('On l’appelle : Ola.'),
     contextePourClaude({ fil: fil(1), fiche: { name: 'Koffi Agbo', civilite: 'monsieur' }, catalogue: [], aujourdhui: AUJOURDHUI }).includes('On l’appelle : Monsieur Koffi.'),
     contextePourClaude({ fil: fil(1), fiche: { name: 'Koffi Agbo', civilite: 'monsieur' }, catalogue: [], aujourdhui: AUJOURDHUI }).includes('Lui : Message numéro 1')]);
 {
-  const sansFiche = contextePourClaude({ fil: fil(1), nomProfil: 'Awa Dossou', catalogue: [], aujourdhui: AUJOURDHUI });
+  const sansFiche = contextePourClaude({ fil: [{ sens: 'entrant', texte: 'Bonjour, Awa Dossou, sœur de Madame DOSSOU' }], nomProfil: 'Awa Dossou', catalogue: [], aujourdhui: AUJOURDHUI });
   dit('sans fiche, le nom du profil WhatsApp se dit en initiale, et rien de connu de plus', [true, true, false, true],
     [sansFiche.includes('La cliente : Awa D.'), sansFiche.includes('On l’appelle : Awa.'), /dossou/i.test(sansFiche), sansFiche.includes('Elle n’a pas de fiche à la Maison')]);
   const numerique = contextePourClaude({ fil: fil(1), nomProfil: '+229 01 97 00 00 00', catalogue: [], aujourdhui: AUJOURDHUI });
@@ -107,8 +146,8 @@ dit('une fiche muette dit le prénom seul (jamais « Madame » supposé) ; un mo
   dit('personne d autre : rien', [null, null], [prochainRdvDe(appts, 'c9', AUJOURDHUI), derniereVenueDe(appts, 'c9', AUJOURDHUI)]);
   const c = contextePourClaude({ fil: fil(1), fiche: CLARISSE, prochainRdv: prochainRdvDe(appts, 'c1', AUJOURDHUI, nomDe), derniereVenue: derniereVenueDe(appts, 'c1', AUJOURDHUI, nomDe), resteDu: 0, catalogue: [], aujourdhui: AUJOURDHUI });
   dit('le rendez-vous et la venue se disent avec l année, et les gestes', [true, true, true],
-    [c.includes('Son prochain rendez-vous : mercredi 21 octobre 2026 à 14:00 (SÍNSIN™ Essentiel, Lavage).'), c.includes('Sa dernière venue : jeudi 10 septembre 2026 (SÍNSIN™ Essentiel).'), c.includes('Rien à régler : ses factures sont soldées.')]);
-  dit('une date se dit avec son année, toujours ; une date abîmée ne se dit pas', ['mercredi 21 octobre 2026 à 14:00', 'jeudi 1 janvier 2027', ''],
+    [c.includes('Son prochain rendez-vous : mercredi 21 octobre 2026 à 14:00 (SÍNSIN™ Essentiel, Lavage).'), c.includes('Sa dernière venue : jeudi 10 septembre 2026 (SÍNSIN™ Essentiel).'), c.includes('Rien à régler : son compte est soldé.')]);
+  dit('une date se dit avec son année, toujours ; une date abîmée ne se dit pas', ['mercredi 21 octobre 2026 à 14:00', 'vendredi 1 janvier 2027', ''],
     [dateDitePourClaude('2026-10-21', '14:00'), dateDitePourClaude('2027-01-01'), dateDitePourClaude('demain')]);
 }
 
@@ -124,6 +163,10 @@ dit('une fiche muette dit le prénom seul (jamais « Madame » supposé) ; un mo
   dit('... le quatrième jour et les 10:00 ne s y trouvent pas', [false, false], [ligne.includes('23 octobre'), ligne.includes('10:00')]);
   dit('agenda consulté mais vide : rien de promis, la Maison rappelle', true,
     contextePourClaude({ fil: fil(1), fiche: CLARISSE, places: [], catalogue: [], aujourdhui: AUJOURDHUI }).includes('Agenda consulté : aucune place libre prochainement. Ne promets rien'));
+  /* Une place se propose à partir de demain, comme le site : ni aujourd'hui, ni hier. */
+  const passees = contextePourClaude({ fil: fil(1), fiche: CLARISSE, places: [{ iso: '2026-10-18', heures }, { iso: AUJOURDHUI, heures }, { iso: 'demain', heures }], catalogue: [], aujourdhui: AUJOURDHUI });
+  dit('... une place d hier, du jour même ou à la date abîmée ne part jamais : l agenda se dit alors vide', [false, false, true],
+    [passees.includes('18 octobre 2026'), passees.includes('lundi 19 octobre 2026 à'), passees.includes('Agenda consulté : aucune place libre prochainement.')]);
 }
 
 /* ── 4. LE CATALOGUE : LES PRIX DU JOUR, « À PARTIR DE » POUR UNE CRÉATION ── */
@@ -138,9 +181,10 @@ dit('une fiche muette dit le prénom seul (jamais « Madame » supposé) ; un mo
     { id: 'sv-cache', name: 'Prix caché', categoryId: 'atl-ii', priceXof: 99000, hidePrice: true },
     { id: 'sv-vieux', name: 'Archivée', categoryId: 'atl-ii', priceXof: 10000, hidePrice: false, archived: true },
     { id: 'sv-koko-ori', name: 'KÒKÒ™ Origine', categoryId: 'koko', priceXof: 5000, hidePrice: false },
+    { id: 'sv-var', name: 'Lavage profond', categoryId: 'atl-ii', priceXof: 8000, hidePrice: false, priceMode: 'variable' as const },
   ];
-  dit('un entretien au prix du catalogue ; une création, une réparation, une « consultation avant » : « à partir de » ; un devis le dit ; masquée et archivée : rien',
-    ['SÍNSIN™ Essentiel : 35 000 F', 'VÈKPÈ™ Jumbo : à partir de 135 000 F', 'FÍNFÍN™ Reprise : à partir de 50 000 F', 'Soin sur mesure : à partir de 20 000 F', 'Extensions : sur devis, après consultation', 'KÒKÒ™ Origine : 5 000 F'],
+  dit('un entretien au prix du catalogue ; une création, une réparation, une « consultation avant », un prix variable : « à partir de » ; un devis le dit ; masquée et archivée : rien',
+    ['SÍNSIN™ Essentiel : 35 000 F', 'VÈKPÈ™ Jumbo : à partir de 135 000 F', 'FÍNFÍN™ Reprise : à partir de 50 000 F', 'Soin sur mesure : à partir de 20 000 F', 'Extensions : sur devis, après consultation', 'KÒKÒ™ Origine : 5 000 F', 'Lavage profond : à partir de 8 000 F'],
     lignesDuCataloguePourClaude(services, cats));
   dit('sans catalogue, Claude ne donne aucun montant', true,
     contextePourClaude({ fil: fil(1), fiche: CLARISSE, catalogue: [], aujourdhui: AUJOURDHUI }).includes('Catalogue : aucun prix disponible. Ne donne aucun montant'));
@@ -158,6 +202,10 @@ dit('une fiche muette dit le prénom seul (jamais « Madame » supposé) ; un mo
   dit('pas de diagnostic du cuir chevelu : on invite à passer ou à consulter', [true, true],
     [c.includes('Le cuir chevelu et les cheveux : aucun diagnostic ni avis à distance'), c.includes('Invite à passer à la Maison ou à prendre une consultation')]);
   dit('jamais un numéro de facture, de reçu, de devis, ni de téléphone', true, c.includes('Ne cite JAMAIS un numéro de facture, de reçu ou de devis, ni aucun numéro de téléphone'));
+  dit('ce qu elle doit : jamais de soi-même, aucune relance (ne pas faire voir le retard)', [true, true],
+    [c.includes('Ce qu’elle doit : n’en parle jamais de toi-même'), c.includes('aucune relance')]);
+  dit('une photo ou un vocal : Claude ne les voit pas, ne décrit ni ne juge rien', [true, true],
+    [c.includes('tu ne les vois pas et ne les entends pas'), c.includes('Ne décris rien, ne juge rien')]);
   dit('pas d émoji, pas de tiret long, 60 mots au plus, rien d inventé, pas de signature', [true, true, true, true, true],
     [c.includes('Pas d’émoji'), c.includes('pas de tiret long'), c.includes(`${MOTS_MAX} mots au plus`) && MOTS_MAX === 60, c.includes('N’invente rien'), c.includes('Ne signe pas')]);
   dit('le schéma attend un seul champ : la réponse', [['reponse'], 'object', false],
@@ -172,24 +220,40 @@ dit('une fiche muette dit le prénom seul (jamais « Madame » supposé) ; un mo
     [lectureDeLaReponse({ reponse: 'Appelez-nous au 01 97 00 00 00.' }), lectureDeLaReponse({ reponse: 'WhatsApp +2290197000000' })]);
   dit('un numéro de facture ou de reçu : refusée', [null, null],
     [lectureDeLaReponse({ reponse: 'Votre facture MND-2026-0042 reste à régler.' }), lectureDeLaReponse({ reponse: 'Reçu n° 20261019001 ci-joint.' })]);
+  dit('... même court : un devis, une pièce du rituel, une commande, une ancienne série, un « n° 42 »', [null, null, null, null, null],
+    [lectureDeLaReponse({ reponse: 'Le devis MND-D-2026-7 est prêt.' }), lectureDeLaReponse({ reponse: 'Votre pièce F-2026-12 est soldée.' }),
+      lectureDeLaReponse({ reponse: 'Commande CMD-4821 partie.' }), lectureDeLaReponse({ reponse: 'Ancienne facture mnd-v-310.' }),
+      lectureDeLaReponse({ reponse: 'Voir la facture n° 42.' })]);
   dit('le mot banni, au singulier, au pluriel, en majuscules : refusée', [null, null, null],
     [lectureDeLaReponse({ reponse: 'Venez au salon demain.' }), lectureDeLaReponse({ reponse: 'Nos Salons vous attendent.' }), lectureDeLaReponse({ reponse: 'SALON ouvert.' })]);
   dit('vide, blanc, absent, un nombre, un objet sans texte : rien', [null, null, null, null, null],
     [lectureDeLaReponse({ reponse: '' }), lectureDeLaReponse({ reponse: '   ' }), lectureDeLaReponse(null), lectureDeLaReponse(42), lectureDeLaReponse({ reponse: 7 })]);
   dit('le tiret long devient une virgule, le gras et les émojis tombent', 'La Maison vous reçoit, du lundi au samedi. À bientôt',
     lectureDeLaReponse({ reponse: 'La Maison vous reçoit — du lundi au samedi. **À bientôt** 😊✨' }));
+  dit('... mais les signes des marques restent : « SÍNSIN™ », « ® », « © »', 'SÍNSIN™ Essentiel et KÒKÒ® Origine, © la Maison.',
+    lectureDeLaReponse({ reponse: 'SÍNSIN™ Essentiel et KÒKÒ® Origine, © la Maison. 🌿' }));
   dit('un prix de la Maison et une date ISO ne sont pas des numéros', ['Comptez 135 000 F, le 2026-10-21.', 'Un VÈKPÈ™ Jumbo commence à 1 350 000 F.'],
     [lectureDeLaReponse({ reponse: 'Comptez 135 000 F, le 2026-10-21.' }), lectureDeLaReponse({ reponse: 'Un VÈKPÈ™ Jumbo commence à 1 350 000 F.' })]);
   const phrase = 'Votre couronne mérite ce soin et nous serons heureuses de vous recevoir bientôt à la Maison.';
   const longue = Array.from({ length: 6 }, () => phrase).join(' ');
   const coupee = lectureDeLaReponse({ reponse: longue }) ?? '';
-  dit('trop longue : coupée aux phrases, soixante mots au plus, finie par un point', [true, true, true, motsDe(phrase) * 4],
+  /* Seize mots par phrase, comptés à la main : trois tiennent (48), la quatrième ferait 64 > 60. */
+  dit('trop longue : coupée aux phrases, soixante mots au plus, finie par un point (trois phrases de seize mots)', [true, true, true, 48],
     [motsDe(coupee) <= MOTS_MAX, coupee.length <= SIGNES_MAX, coupee.endsWith('.'), motsDe(coupee)]);
   const uneSeule = Array.from({ length: 90 }, (_, i) => `mot${i}`).join(' ');
   const c1 = lectureDeLaReponse({ reponse: uneSeule }) ?? '';
   dit('une seule phrase trop longue : coupée au mot, avec des points', [true, true, true], [motsDe(c1) <= MOTS_MAX, c1.endsWith('…'), c1.startsWith('mot0 mot1')]);
   dit('les sauts de ligne se fondent : un message WhatsApp, pas une lettre', 'Bonjour Madame Clarisse, bien reçu. À bientôt.',
     lectureDeLaReponse({ reponse: 'Bonjour Madame Clarisse,\n\nbien reçu.\nÀ bientôt.' }));
+}
+
+/* ── 6 bis. LA ZONE DE SAISIE : LA PROPOSITION À VÉRIFIER, LA MAIN PROTÉGÉE ── */
+{
+  const p = 'Bonjour Madame Clarisse, bien reçu.';
+  dit('la zone : vide ; la proposition mot pour mot (à vérifier) ; un mot changé (la sienne) ; écrite seule', ['vide', 'proposee', 'retouchee', 'a-la-main', 'vide'],
+    [etatDeLaZone('', p), etatDeLaZone(p, p), etatDeLaZone('Bonjour Madame Clarisse, bien reçu, merci.', p), etatDeLaZone('Je vous rappelle.', null), etatDeLaZone('   ', null)]);
+  dit('une proposition ne remplace jamais en silence ce que la main a écrit ou retouché ; elle remplace la sienne, ou une zone vide', [true, true, false, false],
+    [zoneAProteger('Je vous rappelle.', null), zoneAProteger('Bonjour Madame Clarisse, bien reçu, merci.', p), zoneAProteger(p, p), zoneAProteger('', p)]);
 }
 
 /* ── 7. LA PORTE : QUI PEUT DEMANDER (la direction, la Clientèle) ──────── */
@@ -208,25 +272,37 @@ dit('la direction demande ; un maître, s il a la Clientèle ; les Finances n y 
   const iComp = conv.indexOf('<ReponseProposee');
   const iEnvoyer = conv.indexOf("{envoiEnCours ? 'Envoi…' : 'Envoyer'}");
   dit('... dans le composeur du fil ouvert, avant le bouton Envoyer', true, iSaisie > 0 && iComp > iSaisie && iEnvoyer > iComp && iEnvoyer - iSaisie < 2000);
-  dit('... la proposition remplit la zone de saisie existante, et l équipe prend la main sur l automate', true,
-    /<ReponseProposee key=\{fil\.numero\} fil=\{fil\} occupe=\{envoiEnCours\} surProposition=\{\(t\) => \{ prendsLaMain\('proposition'\); setTexte\(t\); \}\} \/>/.test(conv));
+  dit('... la proposition remplit la zone de saisie existante (la zone vidée sans réveiller personne), et l équipe prend la main sur l automate', true,
+    /<ReponseProposee key=\{fil\.numero\} fil=\{fil\} texte=\{texte\} occupe=\{envoiEnCours\} surProposition=\{\(t\) => \{ if \(t\) prendsLaMain\('proposition'\); setTexte\(t\); \}\} \/>/.test(conv));
   dit('... « Envoyer » est le bouton qui existait, inchangé, par `envoie()`', true,
     /disabled=\{!!refus \|\| envoiEnCours\}\s*onClick=\{\(\) => void envoie\(\)\}\s*>\s*\{envoiEnCours \? 'Envoi…' : 'Envoyer'\}/.test(conv));
 
   const comp = sansCommentaires(lis(COMPOSANT));
-  dit('le composant se tait sans la fonction posée et pour qui n a pas le chantier', [true, true],
-    [/const sait = useSaitIaMaison\(\);/.test(comp), /if \(sait !== true \|\| !peutDemander\(moi\?\.role, 'reponse-wa', acces\[moi\?\.user_id \?\? ''\]\)\) return null;/.test(comp)]);
+  dit('le composant se tait sans la fonction posée, pour qui n a pas le chantier, et hors des fils des clientes', [true, true],
+    [/const sait = useSaitIaMaison\(\);/.test(comp),
+      /if \(sait !== true \|\| !filOuvertAClaude\(fil\) \|\| !peutDemander\(moi\?\.role, 'reponse-wa', acces\[moi\?\.user_id \?\? ''\]\)\) return null;/.test(comp)]);
   const crochets = [...comp.matchAll(/\buse[A-Z]\w*\(/g)].map((m) => m.index ?? 0);
-  dit('... tous ses crochets viennent avant son premier retour', true, crochets.length >= 8 && Math.max(...crochets) < comp.indexOf('return null;'));
+  dit('... tous ses crochets viennent avant son premier retour', true, crochets.length >= 12 && Math.max(...crochets) < comp.indexOf('return null;'));
   dit('... il demande à Claude par la porte commune : chantier reponse-wa, usage texte, la consigne, le schéma, et relit la réponse', [true, true, true, true],
     [/chantier: 'reponse-wa', usage: 'texte', systeme: consigneDeLaReponse\(\)/.test(comp), /schema: SCHEMA_DE_LA_REPONSE/.test(comp),
-      /const texte = lectureDeLaReponse\(r\.data\);/.test(comp), /contextePourClaude\(\{/.test(comp)]);
+      /const proposee = lectureDeLaReponse\(r\.data\);/.test(comp), /contextePourClaude\(\{/.test(comp)]);
   dit('... la proposition va dans la zone (surProposition), jamais au départ : aucun envoi, aucune écriture', [true, false, false],
-    [/surProposition\(texte\);/.test(comp), /\benvoie\(|functions\.invoke|whatsapp-envoi|appelleOuGarde|\.insert\(|\.upsert\(/.test(comp), /'Envoyer'|>Envoyer</.test(comp)]);
-  dit('... ses boutons : « Proposer une réponse », « Une autre »', [true, true], [comp.includes("'Proposer une réponse'"), comp.includes("'Une autre'")]);
-  dit('... « Une autre » dit à Claude ce qu on a écarté', true, /dejaProposee: derniere \?\? undefined/.test(comp));
-  dit('... le prénom, l initiale et le reste dû se lisent de la fiche et des factures, jamais des devis ni des brouillons', true,
-    /f\.kind === 'facture' && f\.status !== 'brouillon'/.test(comp) && /invoiceResteXof\(f\)/.test(comp));
+    [/surProposition\(proposee\);/.test(comp), /\benvoie\(|functions\.invoke|whatsapp-envoi|appelleOuGarde|\.insert\(|\.upsert\(|Store\.set\(|poseLaMain/.test(comp), /'Envoyer'|>Envoyer</.test(comp)]);
+  dit('... ses boutons : « Proposer une réponse », « Une autre », « Écarter » (qui vide la zone)', [true, true, true, true],
+    [comp.includes("'Proposer une réponse'"), comp.includes("'Une autre'"), comp.includes('onClick={ecarter}>Écarter<'), /const ecarter = \(\) => \{[^}]*surProposition\(''\);/.test(comp)]);
+  dit('... « Une autre » dit à Claude ce qu on a écarté', true, /const aEcarter = zone === 'proposee' \|\| zone === 'retouchee' \? derniere : ecartee;/.test(comp) && /dejaProposee: aEcarter \?\? undefined/.test(comp));
+  dit('... ce que la main a écrit ne se remplace qu après lui avoir demandé ; ce qu elle écrit pendant que Claude cherche reste', [true, true],
+    [/if \(zoneAProteger\(texte, derniere\) && !await demande\(\{/.test(comp), /if \(zoneVive\.current !== auDepart && zoneAProteger\(zoneVive\.current, derniere\)\) \{[^}]*return;/.test(comp)]);
+  const iVivant = comp.indexOf('if (!vivant.current) return;');
+  dit('... une réponse arrivée après qu on a quitté le fil ne se pose pas dans la zone d un autre', true,
+    iVivant > comp.indexOf('await demandeAClaude') && iVivant < comp.indexOf('surProposition(proposee);') && /return \(\) => \{ vivant\.current = false; \};/.test(comp));
+  dit('... le reste dû est celui de sa fiche, du même juge que le compte (le rituel fait foi), jamais les factures seules', [true, false],
+    [/lignesImpayees\(ecrituresDeLaTete\(ecrituresDuCompte\(\{/.test(comp) && /netDuRituel: \(a\) => apptNetXof\(a, byId\), dûDuRituel: \(a\) => apptDueXof\(a, byId\)/.test(comp) && /\}\), fiche\.id\)\)\.reduce\(\(s, l\) => s \+ l\.resteXof, 0\)/.test(comp),
+      /invoiceResteXof/.test(comp)]);
+  dit('... la zone qui porte la proposition se dit « à vérifier » et se teinte cuivre', [true, true, true],
+    [/data-reponse-proposee=\{etat === 'cherche' \? 'cherche' : zone === 'proposee' \? 'a-verifier' : 'prete'\}/.test(comp),
+      comp.includes("import './reponse-proposee.css';"),
+      /\.trc-saisie:has\(\.trc-reponse-proposee\[data-reponse-proposee="a-verifier"\]\) > \.trc-saisie__texte \{[^}]*var\(--copper-50/.test(lis(CSS))]);
 
   const pur = sansCommentaires(lis(PUR));
   dit('le module pur réutilise les prix de l automate et la porte de la qualification : une seule règle des prix', [true, true, true],
