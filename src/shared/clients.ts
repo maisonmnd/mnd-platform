@@ -64,6 +64,12 @@ export type Client = {
       la Maison y lit s'affiche sous le champ — une lecture invisible ne se
       corrige jamais. Distinct de `notes`, qui porte les notes de consultation. */
   observation?: string;
+  /** SES AUTRES NOMS — 19 octobre 2026, le cahier papier rattrapé. Un surnom
+      (« Steph »), une graphie du cahier (« Clarise ») : écrits quand la Maison
+      rattache une ligne de cahier à cette fiche, lus par le rapprochement
+      (`shared/ia-cahier-pur`) pour que la page suivante la reconnaisse seule.
+      Jamais montrés à Claude. */
+  aussiDit?: string[];
   archived?: boolean;
   /* LA CARTE DE MARRAINE — 28 septembre 2026. Son code (PRENOM-XXX), le
      modèle de sa carte, le résumé de ses filleules et ses soins offerts.

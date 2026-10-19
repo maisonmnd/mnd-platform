@@ -1191,7 +1191,11 @@ export function apptPayState(a: Appointment, byId: Map<string, Service>): 'payé
 }
 
 export const apptLabel = (a: Appointment, byId: Map<string, Service>) =>
-  apptServices(a, byId).map((s) => s.name).join(' + ') || '—';
+  /* SANS PRESTATION DU CATALOGUE, LE NOM DU FORFAIT — 19 octobre 2026 (le
+     cahier papier rattrapé) : un rituel lu « retwist » sur un cahier et que
+     le catalogue ne reconnaît pas garde ses mots, au Carnet comme sur sa
+     pièce, au lieu d'un tiret. */
+  apptServices(a, byId).map((s) => s.name).join(' + ') || a.forfait?.nom?.trim() || '—';
 
 /** LE RITUEL RÉSUMÉ EN UNE LIGNE COURTE — pour les pièces où la place est
     comptée (relevé, facture : la colonne PRESTATION tient sur deux lignes).
