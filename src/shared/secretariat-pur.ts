@@ -85,6 +85,11 @@ export type Piece = {
   prive?: boolean;
   /** Le dossier annuel qui a préparé ce document (`bourse:2027-2028:04`). */
   dossier?: string;
+  /** RÉDIGÉE D'UNE PHRASE PAR CLAUDE (19 octobre 2026, ia-lettre-pur) : le
+      brouillon le dit tant qu'il n'est pas signé, ses champs se teintent
+      cuivre « à vérifier », et « Une autre » redemande avec la même phrase.
+      Le numéro, lui, vient de la signature, comme pour toute pièce. */
+  proposition?: { par: 'claude'; phrase: string; le: string };
 };
 
 /** RCCM et IFU d'une entité, tapés par la direction (jamais devinés). */
