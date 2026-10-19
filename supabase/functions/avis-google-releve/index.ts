@@ -33,7 +33,7 @@ const PLACE_ID = Deno.env.get('GOOGLE_PLACE_ID') ?? '';
 const CRON_SECRET = (Deno.env.get('CRON_SECRET') ?? '').trim();
 
 /** La version de ce fichier, rendue dans chaque réponse. */
-const VERSION = '2026-10-10-a';
+const VERSION = '2026-10-20-a';
 
 /** Égalité à temps constant : une comparaison naïve fuit le secret par le
     temps de réponse. Une chaîne vide n'est égale à rien. */
@@ -60,12 +60,23 @@ const CORS: Record<string, string> = {
 const json = (obj: unknown, status = 200) =>
   new Response(JSON.stringify(obj), { status, headers: { ...CORS, 'Content-Type': 'application/json' } });
 
+/* LE TEXTE D'ORIGINE AUSSI — 20 octobre 2026. Google rend les avis traduits
+   en français (`languageCode=fr`) : un avis écrit en anglais arrivait donc en
+   français, et sa réponse proposée au Trône serait partie en français
+   (« répondre dans la langue de l'avis », choix de Yéman au sélecteur).
+   On garde désormais, à côté, le texte tel que l'auteur l'a écrit et sa
+   langue. `texte` NE CHANGE PAS : il est la clé des avis cochés pour le site
+   (Vitrines › Site public), et le changer décocherait ses choix. Les deux
+   champs ne paraissent que si Google les donne ; un avis déjà en français
+   les porte aussi, identiques. */
 type AvisGoogle = {
   auteur: string;
   note: number;
   texte: string;
   quand: string;
   photo?: string;
+  texteOriginal?: string;
+  langueOriginale?: string;
 };
 
 Deno.serve(async (req) => {
@@ -92,6 +103,8 @@ Deno.serve(async (req) => {
       texte: String(r.text?.text ?? r.originalText?.text ?? '').trim(),
       quand: String(r.relativePublishTimeDescription ?? '').trim(),
       ...(r.authorAttribution?.photoUri ? { photo: String(r.authorAttribution.photoUri) } : {}),
+      ...(String(r.originalText?.text ?? '').trim() ? { texteOriginal: String(r.originalText.text).trim() } : {}),
+      ...(String(r.originalText?.languageCode ?? '').trim() ? { langueOriginale: String(r.originalText.languageCode).trim() } : {}),
     }));
 
   const doc = {

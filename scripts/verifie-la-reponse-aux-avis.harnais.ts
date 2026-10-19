@@ -333,8 +333,13 @@ dit('l écran des avis (Vitrines › Site public) monte l en-tête et la répons
   [/<EnTeteDesReponses avis=\{avis\} \/>/.test(ecran), /<ReponseAUnAvis avis=\{a\} fiche=\{fiche\} \/>/.test(ecran), /<ChoixDesAvis avis=/.test(ecran)]);
 
 const fonction = sansCommentaires(lis(FONCTION));
-dit('la fonction avis-google-releve est intacte : sa version, son seul document, et rien de Claude', [true, true, false],
-  [/const VERSION = '2026-10-10-a';/.test(fonction), /upsert\(\{ key: 'mnd_avis_google', data: doc \}\)/.test(fonction), /anthropic|ia-maison|claude|brouillon/i.test(fonction)]);
+/* 20 octobre 2026 (« répondre dans la langue de l'avis », sélecteur) : le
+   relevé garde AUSSI le texte d'origine et sa langue ; `texte` reste la clé
+   des avis cochés, intouchée. Il ne connaît toujours rien de Claude. */
+dit('la fonction avis-google-releve garde son seul document, rien de Claude, et le texte d origine à côté du texte', [true, true, false, true, true, true],
+  [/const VERSION = '2026-10-20-a';/.test(fonction), /upsert\(\{ key: 'mnd_avis_google', data: doc \}\)/.test(fonction), /anthropic|ia-maison|claude|brouillon/i.test(fonction),
+    /texte: String\(r\.text\?\.text \?\? r\.originalText\?\.text \?\? ''\)\.trim\(\),/.test(fonction),
+    /texteOriginal: String\(r\.originalText\.text\)\.trim\(\)/.test(fonction), /langueOriginale: String\(r\.originalText\.languageCode\)\.trim\(\)/.test(fonction)]);
 
 console.log(ko === 0 ? '\nTOUT VA BIEN : la réponse aux avis tient ses promesses.' : `\n${ko} ÉCHEC(S)`);
 if (ko) process.exitCode = 1;
