@@ -404,10 +404,17 @@ dit('qui peut demander : souverain, gérant, un maître de la Clientèle ou de l
       /\{appt && <FicheDuJour appt=\{appt\} client=\{rdvClient\} byId=\{byId\} resteDu=\{\(a\) => apptDueXof\(a, byId\)\} \/>\}/.test(corps)]);
 
   /* RIEN NE TOURNE LA NUIT : aucune fonction Supabase, aucune migration,
-     aucun cron ne connaît la fiche du jour. */
+     aucun cron ne connaît la fiche du jour.
+     LA PORTE COMMUNE EST À PART (19 octobre 2026, à la fusion des huit
+     chantiers) : `ia-maison` recopie le contrat, qui NOMME les huit chantiers
+     (la liste `CHANTIERS_IA` et leurs départements), mais elle ne fait que
+     répondre à une demande du Trône ; elle ne compose ni ne programme rien.
+     On la juge sans cette copie : hors du bloc ⟨ia-maison⟩, elle ne doit pas
+     plus connaître la fiche du jour que les autres. */
   const fonctions = readdirSync('supabase/functions').filter((d) => !d.startsWith('_'));
+  const sansLeContrat = (src: string): string => src.replace(/\/\* ⟨ia-maison⟩ \*\/[\s\S]*?\/\* ⟨\/ia-maison⟩ \*\//, '');
   const fonctionsQuiLaConnaissent = fonctions.filter((d) => {
-    try { return /fiche-du-jour|fiches_du_jour|FicheDuJour/.test(readFileSync(`supabase/functions/${d}/index.ts`, 'utf8')); } catch { return false; }
+    try { return /fiche-du-jour|fiches_du_jour|FicheDuJour/.test(sansLeContrat(readFileSync(`supabase/functions/${d}/index.ts`, 'utf8'))); } catch { return false; }
   });
   dit('aucune fonction Supabase ne porte la fiche du jour (pas de tâche de nuit, pas de liste du matin)', [], fonctionsQuiLaConnaissent);
   const migrations = readdirSync('supabase/migrations').filter((f) => /mnd_ia_fiches_du_jour|fiche_du_jour|fiche-du-jour/.test(readFileSync(`supabase/migrations/${f}`, 'utf8')));
