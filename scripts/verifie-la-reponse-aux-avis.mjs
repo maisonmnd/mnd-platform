@@ -1,21 +1,24 @@
 import { build } from 'esbuild';
-import { mkdirSync, rmSync } from 'node:fs';
+import { mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 /* LA REPONSE AUX AVIS GOOGLE, EPROUVEE — `node scripts/verifie-la-reponse-aux-avis.mjs`.
 
    Chantier 5 des huit chantiers Claude (19 octobre 2026) : la consigne, la
-   relecture de ce que Claude rend, les brouillons (cinq par ouverture, un a
-   la fois, jamais deux fois le meme), l'ecran (Copier seulement, rien ne part
-   vers Google), la fonction avis-google-releve intacte.
+   relecture de ce que Claude rend, la serie de l'ouverture (cinq au plus, un
+   appel a la fois, jamais deux fois le meme) jouee contre un faux Claude, le
+   verrou pose avant l'appel, l'ecran (Copier seulement, rien ne part vers
+   Google), la fonction avis-google-releve intacte.
 
-   Le paquet s'ecrit sous node_modules/.cache ; le harnais n'appelle jamais
-   la vraie fonction ia-maison. */
+   Sans cles Supabase, le client vaut null : le harnais n'appelle jamais la
+   vraie fonction ia-maison. Le paquet s'ecrit dans un dossier temporaire du
+   systeme, jamais dans node_modules (19 octobre 2026, reprise : le dossier
+   node_modules d'un worktree est une jonction vers celui du depot). */
 
 const racine = path.resolve(import.meta.dirname, '..');
-const dossier = path.join(racine, 'node_modules', '.cache', 'verifie-la-reponse-aux-avis');
-mkdirSync(dossier, { recursive: true });
+const dossier = mkdtempSync(path.join(tmpdir(), 'verifie-la-reponse-aux-avis-'));
 const sortie = path.join(dossier, 'harnais.mjs');
 
 try {
@@ -26,7 +29,6 @@ try {
     platform: 'node',
     outfile: sortie,
     logLevel: 'error',
-    external: ['esbuild'],
     loader: { '.css': 'empty' },
     define: { 'import.meta.env': JSON.stringify({ VITE_SUPABASE_URL: '', VITE_SUPABASE_ANON_KEY: '' }) },
     banner: {

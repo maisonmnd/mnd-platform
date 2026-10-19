@@ -8,7 +8,7 @@ import { peutDemander } from '../../../../shared/ia-maison-pur';
 import {
   annuleCollee, changeLeBrouillon, ecarteLeBrouillon, marqueCollee, proposeUneReponse, reprendsLeBrouillon, useBrouillonsDAvis, usePrepareLesBrouillons,
 } from '../../../../shared/ia-avis';
-import { compteSansReponse, estSansReponse, idDeLAvis, langueDite, lienDeLAvis, verrouTenu, type AvisAvecReponse } from '../../../../shared/ia-avis-pur';
+import { compteSansReponse, estSansReponse, idDeLAvis, jourLocalDe, langueDite, lienDeLAvis, verrouTenu, type AvisAvecReponse } from '../../../../shared/ia-avis-pur';
 import { staffAccessStore } from '../equipe/data';
 
 /* ══ LA RÉPONSE PROPOSÉE SOUS UN AVIS GOOGLE — 19 octobre 2026 ══════════
@@ -30,17 +30,19 @@ export function usePeutRepondreAuxAvis(): boolean {
 }
 
 /** L'en-tête du bloc : « N sans réponse », et la préparation des brouillons
-    (une fois par ouverture, cinq au plus, un à la fois). */
+    (une fois par ouverture, cinq au plus, un à la fois). Sans la porte, rien :
+    le relevé ne porte pas les réponses déjà publiées sur Google, le compte
+    ne veut dire quelque chose qu'avec les « répondu » notés ici. */
 export function EnTeteDesReponses({ avis }: { avis: AvisAvecReponse[] | null }) {
   const peut = usePeutRepondreAuxAvis();
   const [brouillons] = useBrouillonsDAvis();
   usePrepareLesBrouillons(avis, peut);
-  if (!avis || avis.length === 0) return null;
+  if (!peut || !avis || avis.length === 0) return null;
   const n = compteSansReponse(avis, brouillons);
   return (
     <span style={{ fontSize: 12.5, color: n > 0 ? 'var(--copper-700)' : 'var(--trf-success, #4A6B52)' }}>
       {n === 0 ? 'Chaque avis a reçu sa réponse sur Google.' : n === 1 ? '1 avis sans réponse' : `${n} avis sans réponse`}
-      {peut && n > 0 ? <span className="mnd-muted">{' · Claude propose une réponse sous chacun : on copie, on colle sur Google.'}</span> : null}
+      {n > 0 ? <span className="mnd-muted">{' · Claude propose une réponse sous chacun : on copie, on colle sur Google.'}</span> : null}
     </span>
   );
 }
@@ -67,11 +69,16 @@ export function ReponseAUnAvis({ avis, fiche }: { avis: AvisAvecReponse; fiche?:
     if (!b?.publieeLe) return null;
     return (
       <div style={{ marginLeft: 26, marginTop: 4, display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
-        <span className="mnd-muted" style={{ fontSize: 11.5 }}>Réponse collée sur Google le {jourCourtAn(b.publieeLe.slice(0, 10))}</span>
+        <span className="mnd-muted" style={{ fontSize: 11.5 }}>Répondu sur Google, noté le {jourCourtAn(jourLocalDe(b.publieeLe))}</span>
         <Petit onClick={() => annuleCollee(id)}>Finalement non</Petit>
       </div>
     );
   }
+
+  /* 19 octobre 2026 (reprise) : le relevé ne porte pas les réponses déjà
+     publiées (Places ne les rend pas). Un avis auquel la Maison a répondu
+     AVANT ce chantier se dit ici, d'une touche, sans brouillon. */
+  const dejaRepondu = <Petit onClick={() => marqueCollee(id)} disabled={enCours}>Déjà répondu sur Google</Petit>;
 
   const demande = async () => {
     setOccupe(true);
@@ -107,6 +114,7 @@ export function ReponseAUnAvis({ avis, fiche }: { avis: AvisAvecReponse; fiche?:
       <div style={{ marginLeft: 26, marginTop: 4, display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
         <span className="mnd-muted" style={{ fontSize: 11.5 }}>Sans réponse, par choix de la Maison</span>
         <Petit onClick={() => { reprendsLeBrouillon(id); void demande(); }} disabled={enCours}>Proposer une réponse</Petit>
+        {dejaRepondu}
       </div>
     );
   }
@@ -116,6 +124,7 @@ export function ReponseAUnAvis({ avis, fiche }: { avis: AvisAvecReponse; fiche?:
       <div style={{ marginLeft: 26, marginTop: 4, display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
         <span className="mnd-muted" style={{ fontSize: 11.5 }}>{enCours ? 'Claude écrit une proposition…' : 'Pas encore de proposition.'}</span>
         {!enCours && <Petit onClick={() => void demande()}>Proposer une réponse</Petit>}
+        {dejaRepondu}
       </div>
     );
   }
@@ -125,7 +134,7 @@ export function ReponseAUnAvis({ avis, fiche }: { avis: AvisAvecReponse; fiche?:
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'baseline', flexWrap: 'wrap' }}>
         <span style={{ fontSize: 12, color: 'var(--copper-700)' }}>
           Réponse proposée, en {langueDite(b.langue)}, à vérifier
-          {b.le ? <span className="mnd-muted">{` · ${jourCourtAn(b.le.slice(0, 10))}`}</span> : null}
+          {b.le ? <span className="mnd-muted">{` · ${jourCourtAn(jourLocalDe(b.le))}`}</span> : null}
         </span>
         <Petit onClick={() => ecarteLeBrouillon(id)} disabled={enCours}>Écarter</Petit>
       </div>

@@ -153,29 +153,29 @@ function ChoixDesAvis({ avis, fiche }: { avis: UnAvisGoogle[] | null; fiche?: st
       <EnTeteDesReponses avis={avis} />
       {rangs.map(({ a, cle, rang }) => (
         <Fragment key={cle}>
-          <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start', borderTop: '1px solid var(--hairline)', paddingTop: 7 }}>
-            <input type="checkbox" checked={rang >= 0} onChange={() => pose(basculeLeChoix(choisis, cle))}
-              aria-label={`Montrer l’avis de ${a.auteur} sur le site`} style={{ marginTop: 3, flex: 'none' }} />
-            <span style={{ flex: 1, minWidth: 0, fontSize: 13 }}>
-              <span style={{ color: 'var(--color-copper)' }}>{'★'.repeat(Math.max(0, Math.min(5, Math.round(a.note))))}</span>{' '}
-              <b style={{ fontWeight: 600 }}>{a.auteur || 'Sans nom'}</b>
-              {a.quand ? <span className="mnd-muted"> · {a.quand}</span> : null}
-              <span className="mnd-muted" style={{ display: 'block', fontSize: 12, lineHeight: 1.45, marginTop: 2 }}>
-                {a.texte.length > 180 ? `${a.texte.slice(0, 177).trimEnd()}…` : a.texte}
-              </span>
+        <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start', borderTop: '1px solid var(--hairline)', paddingTop: 7 }}>
+          <input type="checkbox" checked={rang >= 0} onChange={() => pose(basculeLeChoix(choisis, cle))}
+            aria-label={`Montrer l’avis de ${a.auteur} sur le site`} style={{ marginTop: 3, flex: 'none' }} />
+          <span style={{ flex: 1, minWidth: 0, fontSize: 13 }}>
+            <span style={{ color: 'var(--color-copper)' }}>{'★'.repeat(Math.max(0, Math.min(5, Math.round(a.note))))}</span>{' '}
+            <b style={{ fontWeight: 600 }}>{a.auteur || 'Sans nom'}</b>
+            {a.quand ? <span className="mnd-muted"> · {a.quand}</span> : null}
+            <span className="mnd-muted" style={{ display: 'block', fontSize: 12, lineHeight: 1.45, marginTop: 2 }}>
+              {a.texte.length > 180 ? `${a.texte.slice(0, 177).trimEnd()}…` : a.texte}
             </span>
-            {rang >= 0 && (
-              <span style={{ display: 'flex', gap: 4, alignItems: 'center', flex: 'none' }}>
-                <span className="mnd-muted" style={{ fontSize: 11.5, minWidth: 14, textAlign: 'right' }}>{rang + 1}</span>
-                <button type="button" className="trc-c360-linkbtn" disabled={rang === 0} aria-label="Monter"
-                  onClick={() => pose(deplaceLeChoix(choisis, cle, -1))}>↑</button>
-                <button type="button" className="trc-c360-linkbtn" disabled={rang === choisis.length - 1} aria-label="Descendre"
-                  onClick={() => pose(deplaceLeChoix(choisis, cle, 1))}>↓</button>
-              </span>
-            )}
-          </div>
-          {/* 19 octobre 2026 : la réponse proposée par Claude, sous l'avis sans réponse. */}
-          <ReponseAUnAvis avis={a} fiche={fiche} />
+          </span>
+          {rang >= 0 && (
+            <span style={{ display: 'flex', gap: 4, alignItems: 'center', flex: 'none' }}>
+              <span className="mnd-muted" style={{ fontSize: 11.5, minWidth: 14, textAlign: 'right' }}>{rang + 1}</span>
+              <button type="button" className="trc-c360-linkbtn" disabled={rang === 0} aria-label="Monter"
+                onClick={() => pose(deplaceLeChoix(choisis, cle, -1))}>↑</button>
+              <button type="button" className="trc-c360-linkbtn" disabled={rang === choisis.length - 1} aria-label="Descendre"
+                onClick={() => pose(deplaceLeChoix(choisis, cle, 1))}>↓</button>
+            </span>
+          )}
+        </div>
+        {/* 19 octobre 2026 : la réponse proposée par Claude, sous l'avis sans réponse. */}
+        <ReponseAUnAvis avis={a} fiche={fiche} />
         </Fragment>
       ))}
       {disparus.length > 0 && (

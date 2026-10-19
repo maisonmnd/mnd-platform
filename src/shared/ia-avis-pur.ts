@@ -50,7 +50,16 @@ export const LIEN_DE_LA_FICHE_DEFAUT = 'https://www.google.com/maps/place/?q=pla
 export const JETONS_DE_LA_REPONSE = 400;
 
 /** Un avis du relevé, avec les champs qu'un relevé futur pourrait ajouter
-    (la réponse du propriétaire, le lien direct de l'avis). */
+    (la réponse du propriétaire, le lien direct de l'avis, le texte d'origine).
+
+    LA LANGUE DE L'AVIS (19 octobre 2026, reprise). Le relevé demande les
+    avis à Google en français (`languageCode=fr`) et garde `text`, que Google
+    TRADUIT ; l'original est dans `originalText`, que le relevé ne garde pas.
+    Un avis écrit en anglais arrive donc ici en français, et Claude répondrait
+    en français. Le jour où le relevé ajoute `texteOriginal` et
+    `langueOriginale` (sans toucher `texte`, qui fait la clé du choix du
+    site), Claude lit l'original et répond dans sa langue : rien d'autre à
+    changer côté Trône. */
 export type AvisAvecReponse = UnAvisGoogle & {
   reponse?: unknown;
   reply?: unknown;
@@ -58,6 +67,8 @@ export type AvisAvecReponse = UnAvisGoogle & {
   ownerReply?: unknown;
   lien?: string;
   googleMapsUri?: string;
+  texteOriginal?: string;
+  langueOriginale?: string;
 };
 
 /** Ce que le Trône garde par avis : la proposition, sa langue, quand et par
@@ -159,6 +170,61 @@ export function prochainsAFaire(
   return ids;
 }
 
+/* ── LA SÉRIE DE L'OUVERTURE — 19 octobre 2026 (reprise) ─────────────────
+   Le déroulé de « cinq par ouverture, un à la fois, jamais deux fois », mis
+   ici pour être ÉPROUVÉ en vrai (le banc lui donne un faux Claude et compte
+   les appels en vol). Il ne connaît ni l'écran, ni le réseau, ni le
+   magasin : on lui passe de quoi lire les brouillons et de quoi proposer. */
+
+/** Ce que rend une proposition : réussie, ou pourquoi pas. */
+export type IssueDeProposition = { ok: true } | { ok: false; erreur: string };
+
+/** Les échecs qui ne valent que pour CET avis (Claude a mal répondu, la
+    relecture a refusé) : on passe au suivant. Tout autre refus (budget,
+    porte absente, réseau, équipe, document pas encore descendu) vaut pour
+    tous les avis : la série s'arrête. */
+export const ECHECS_D_UN_SEUL_AVIS: readonly string[] = ['lecture', 'claude'];
+
+export async function prepareUneSerie(o: {
+  avis: readonly AvisAvecReponse[];
+  /** Les brouillons tels qu'ils sont MAINTENANT (relus avant chaque appel). */
+  lis: () => BrouillonsDAvis;
+  propose: (a: AvisAvecReponse) => Promise<IssueDeProposition>;
+  maintenant: () => number;
+  /** Ce qui reste de l'ouverture (cinq, moins ce qui est déjà fait). */
+  max: number;
+  /** Les identifiants déjà demandés depuis le chargement de la page. */
+  dejaDemandes: Set<string>;
+  /** Faux quand l'écran se ferme : la série s'arrête avant l'appel suivant. */
+  continuer: () => boolean;
+}): Promise<number> {
+  const max = Math.max(0, Math.floor(Number(o.max) || 0));
+  const candidats = prochainsAFaire(o.avis, o.lis(), o.maintenant(), o.avis.length);
+  let faits = 0;
+  for (const id of candidats) {
+    if (faits >= max || !o.continuer()) break;
+    if (o.dejaDemandes.has(id)) continue;
+    const a = o.avis.find((x) => idDeLAvis(x) === id);
+    if (!a) continue;
+    /* Relu juste avant l'appel : un autre poste a pu le prendre pendant
+       qu'on attendait le précédent. */
+    if (!aBesoinDUnBrouillon(a, o.lis()[id], o.maintenant())) continue;
+    o.dejaDemandes.add(id);
+    faits += 1;
+    const r = await o.propose(a);
+    if (!r.ok && !ECHECS_D_UN_SEUL_AVIS.includes(r.erreur)) break;
+  }
+  return faits;
+}
+
+/** Le jour d'un instant ISO, à l'heure du poste : une réponse notée à 0 h 30
+    à Cotonou est de ce jour-là, pas de la veille (l'instant est en UTC). */
+export function jourLocalDe(iso: string | undefined): string {
+  const d = new Date(String(iso ?? ''));
+  if (Number.isNaN(d.getTime())) return String(iso ?? '').slice(0, 10);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
 const lienSur = (v: unknown): string | null => (typeof v === 'string' && /^https:\/\//.test(v.trim()) ? v.trim() : null);
 
 /** Où ouvrir l'avis sur Google : le lien de l'avis si le relevé le porte,
@@ -200,10 +266,16 @@ export function consigneDeLaReponse(): string {
 export function messagePourLAvis(a: AvisAvecReponse): string {
   const note = Math.max(0, Math.min(5, Math.round(Number(a.note) || 0)));
   const prenom = prenomDeLAuteur(a.auteur);
-  const texte = sansCoordonnees(String(a.texte ?? '').replace(/\s+/g, ' ').trim());
+  /* L'original quand le relevé le porte (voir `AvisAvecReponse`), sinon le
+     texte du relevé. */
+  const original = typeof a.texteOriginal === 'string' ? a.texteOriginal.trim() : '';
+  const texte = sansCoordonnees(String(original || a.texte || '').replace(/\s+/g, ' ').trim());
+  const l = typeof a.langueOriginale === 'string' ? a.langueOriginale.trim().toLowerCase() : '';
+  const langue = original && /^[a-z]{2,3}(?:-[a-z]{2,4})?$/.test(l) ? l.split('-')[0] : '';
   return [
     `Avis Google reçu par la Maison : ${note} étoile${note > 1 ? 's' : ''} sur 5${a.quand ? `, laissé ${String(a.quand).trim()}` : ''}.`,
     `Prénom de l’auteur, tel qu’il paraît sur Google : ${prenom || 'inconnu'}.`,
+    ...(langue ? [`Langue de l’avis, selon Google : ${langue}.`] : []),
     texte ? `Texte de l’avis :\n« ${texte} »` : 'L’avis n’a pas de texte : une note seulement.',
     'Écris la réponse de la Maison.',
   ].join('\n');
@@ -223,10 +295,28 @@ export const SCHEMA_DE_LA_REPONSE: Record<string, unknown> = {
 /* ── LA RELECTURE ──────────────────────────────────────────────────────── */
 
 const PRIX = /(?:\d[\d\s., ]*\s?(?:f\b|fcfa|cfa|francs?|xof|€|\$|euros?|dollars?))|(?:[€$]\s?\d)/i;
+/* 19 octobre 2026 (reprise) : la remise en pour-cent est un geste commercial,
+   le remboursement une promesse ; la consigne les interdit, la relecture
+   aussi. */
+const REMISE = /\d\s?%/;
+const PROMESSE = /(?:^|[^\p{L}])(?:rembours|refund|dédommag|reembols)/iu;
+/* Un numéro, un courriel (ce que `sansCoordonnees` masquerait) ou un lien :
+   « sans donner de numéro ni d'adresse ». */
+const LIEN = /\bhttps?:\/\/|\bwww\./i;
 const SALON = /\bsalons?\b/i;
 const SIGNATURE_EN_FIN = /\s*[-–—,;:]*\s*l[’']\s?équipe de la maison mnd\s*\.?\s*$/i;
 const LIGNE_DE_SIGNATURE = /^\s*[-–—]*\s*l[’']\s?équipe de la maison mnd\s*\.?\s*$/gim;
+/* La signature que Claude traduit parfois (« The Maison MND team ») : une
+   LISTE FERMÉE de formes, seules sur leur ligne. Une phrase qui nomme la
+   Maison (« See you soon at Maison MND. ») n'en est pas une. */
+const SIGNATURE_TRADUITE = /^\s*[-–—]*\s*(?:(?:the\s+)?maison mnd(?:\s+team)?|(?:the\s+)?team\s+(?:of|at)\s+(?:the\s+)?maison mnd|la maison mnd|l[’']\s?équipe maison mnd|el equipo de (?:la\s+)?maison mnd|a equipe da maison mnd)\s*\.?\s*$/gim;
 const CIVILITE = /\b(?:Madame|Monsieur|Mme|Mlle|Mrs?|Ms|M\.)\s+/g;
+/* Une civilité restée après le nettoyage du prénom est une SUPPOSITION (on
+   ne sait pas qui écrit) : la proposition est refusée. */
+const CIVILITE_SUPPOSEE = [
+  /(?:^|[^\p{L}])(?:madame|monsieur|mademoiselle|madam)(?=$|[^\p{L}])/iu,
+  /\b(?:Mme|Mlle|Mrs?|Ms|Sir)(?=$|[\s,.])|(?:^|\s)M\.(?=\s)/u,
+];
 
 const echappe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
@@ -240,10 +330,12 @@ export function comptePhrases(t: string): number {
 }
 
 /** LA RELECTURE DE CE QUE CLAUDE REND. `null` : refusée (vide, trop longue,
-    un prix, « salon »). Sinon la réponse nettoyée : le tiret long devient une
-    virgule, le nom entier de l'auteur redevient son prénom, la civilité
-    supposée tombe, et la signature de la Maison termine toujours le texte,
-    une seule fois. La langue est un code court ; sinon « fr ». */
+    un prix, une remise, un remboursement, un numéro, un courriel, un lien,
+    « salon », une civilité supposée). Sinon la réponse nettoyée : le tiret
+    long devient une virgule, le nom entier de l'auteur redevient son prénom,
+    la civilité devant lui tombe, et la signature de la Maison termine
+    toujours le texte, une seule fois (même traduite, elle ne se double pas).
+    La langue est un code court ; sinon « fr ». */
 export function lectureDeLaReponse(brut: unknown, a: Pick<UnAvisGoogle, 'auteur'>): { langue: string; reponse: string } | null {
   if (!brut || typeof brut !== 'object') return null;
   const o = brut as { langue?: unknown; reponse?: unknown };
@@ -251,11 +343,13 @@ export function lectureDeLaReponse(brut: unknown, a: Pick<UnAvisGoogle, 'auteur'
 
   let corps = o.reponse.replace(/\r\n?/g, '\n').replace(/[ \t ]+/g, ' ').replace(/\n{3,}/g, '\n\n').trim();
   /* La signature, où qu'elle soit : on la retire, on la remettra à sa place. */
-  corps = corps.replace(LIGNE_DE_SIGNATURE, '').replace(SIGNATURE_EN_FIN, '').trim();
+  corps = corps.replace(LIGNE_DE_SIGNATURE, '').replace(SIGNATURE_TRADUITE, '').replace(SIGNATURE_EN_FIN, '').trim();
   if (!corps) return null;
   if (corps.length > SIGNES_MAX_REPONSE) return null;
   if (SALON.test(corps)) return null;
-  if (PRIX.test(corps)) return null;
+  if (PRIX.test(corps) || REMISE.test(corps)) return null;
+  if (PROMESSE.test(corps)) return null;
+  if (LIEN.test(corps) || sansCoordonnees(corps) !== corps) return null;
 
   /* Le tiret long devient une virgule (le point médian reste permis). */
   corps = corps.replace(/\s*[—–]\s*/g, ', ').replace(/,\s*,/g, ',').replace(/\s+,/g, ',');
@@ -271,9 +365,11 @@ export function lectureDeLaReponse(brut: unknown, a: Pick<UnAvisGoogle, 'auteur'
       if (nom.replace(/[^\p{L}]/gu, '').length >= 3) corps = corps.replace(new RegExp(`(^|[^\\p{L}])${echappe(nom)}(?=$|[^\\p{L}])`, 'giu'), `$1${prenom}`);
     }
   }
-  if (prenom) corps = corps.replace(new RegExp(`${CIVILITE.source}(?=${echappe(prenom)}\\b)`, 'g'), '');
+  /* La frontière se lit en Unicode : « Madame Aimé » tombe aussi. */
+  if (prenom) corps = corps.replace(new RegExp(`${CIVILITE.source}(?=${echappe(prenom)}(?=$|[^\\p{L}]))`, 'giu'), '');
   corps = corps.trim();
   if (!corps) return null;
+  if (CIVILITE_SUPPOSEE.some((r) => r.test(corps))) return null;
 
   if (comptePhrases(corps) > PHRASES_TOLEREES) return null;
 
