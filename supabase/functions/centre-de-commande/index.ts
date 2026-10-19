@@ -312,6 +312,9 @@ export const PLAFOND_PAR_DEFAUT_USD = 10;
 export const PRIX_PAR_MILLION: Record<string, { entree: number; sortie: number }> = {
   'claude-sonnet-5-5': { entree: 3, sortie: 15 },
   'claude-haiku-4-5-20251001': { entree: 1, sortie: 5 },
+  /* Le rapide des huit chantiers (ia-maison, 19 octobre 2026), au prix du
+     haiku 4.5 : sans cette ligne, il se compterait au prix le plus haut. */
+  'claude-haiku-5-5': { entree: 1, sortie: 5 },
   'claude-opus-5-5': { entree: 15, sortie: 75 },
   'claude-opus-4-8': { entree: 15, sortie: 75 },
 };

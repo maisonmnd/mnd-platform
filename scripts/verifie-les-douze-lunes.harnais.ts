@@ -618,6 +618,8 @@ const regles: Regle[] = [
         'message-vocal': { fichier: 'src/shared/message-vocal-pur.ts', extrait: (s) => entre(s, 'message-vocal') },
         /* Le chat de la Maison (19 octobre 2026), recopie dans discussion. */
         'chat-du-site': { fichier: 'src/shared/chat-du-site-pur.ts', extrait: (s) => entre(s, 'chat-du-site') },
+        /* La porte vers Claude des huit chantiers (19 octobre 2026), recopiee dans ia-maison. */
+        'ia-maison': { fichier: 'src/shared/ia-maison-pur.ts', extrait: (s) => entre(s, 'ia-maison') },
       };
       const fonctions: string[] = [];
       const marche = (d: string) => { for (const n of readdirSync(d)) { const p = `${d}/${n}`; if (statSync(p).isDirectory()) marche(p); else if (/\.(ts|js)$/.test(n)) fonctions.push(p); } };
@@ -656,6 +658,7 @@ const regles: Regle[] = [
       { nom: 'un caractere change dans la copie automate-wa de whatsapp-automate', mute: [P('supabase/functions/whatsapp-automate/index.ts', 'const PLAFOND_DE_L_AUTOMATE = 10;', 'const PLAFOND_DE_L_AUTOMATE = 11;')] },
       { nom: 'l original de prochaines-places change seul', mute: [P('src/shared/reservation-express.ts', 'export const PLACES_PAR_JOUR = 2;', 'export const PLACES_PAR_JOUR = 3;')] },
       { nom: 'un caractere change dans la copie ce-qui-tombe de push-notify', mute: [P('supabase/functions/push-notify/index.ts', 'const JOURS_DE_NOTIFICATION = [7, 1];', 'const JOURS_DE_NOTIFICATION = [7, 2];')] },
+      { nom: 'un caractere change dans la copie ia-maison de la porte vers Claude', mute: [P('supabase/functions/ia-maison/index.ts', 'export const PLAFOND_DES_HUIT_USD = 60;', 'export const PLAFOND_DES_HUIT_USD = 61;')] },
     ],
   },
 
