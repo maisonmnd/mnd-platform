@@ -24,6 +24,7 @@ import { splitNotes, serializeNotes, ConsultCards, EditConsultModal, type Consul
 import { ChampDeDate } from '../../../../ds/dates';
 import { cheminDeLaConversation } from '../../../../shared/conversations';
 import { appelDe } from '../../../../shared/civilite';
+import { DiagnosticsARelire } from './DiagnosticsARelire';
 
 /* Consultations — trois temps : les dossiers clients (avec archivage), les cinq
    formulaires personnalisables (gestionnaire de questions) et les consultations
@@ -124,6 +125,9 @@ export default function Consultations() {
         title="La consultation."
         actions={<Button variant="indigo" onClick={() => setChooser(true)}>+ Nouvelle consultation</Button>}
       />
+
+      {/* LES DIAGNOSTICS PHOTO À RELIRE (19 octobre 2026) : direction et Atelier seuls. */}
+      <DiagnosticsARelire />
 
       <div className="trc-tabs" style={{ marginBottom: 22 }}>
         {TABS.map((t) => (

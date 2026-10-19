@@ -9,6 +9,7 @@ import { EN_PARCOURS } from './en-parcours';
 import { EN_FORMULE } from './en-formule';
 import { EN_RDV } from './en-rdv';
 import { EN_ENTRE_DEUX } from './en-entre-deux';
+import { EN_DIAGNOSTIC } from './en-diagnostic';
 
 export const EN: Record<string, string> = {
   ...EN_COMMUN,
@@ -18,4 +19,5 @@ export const EN: Record<string, string> = {
   ...EN_FORMULE,
   ...EN_RDV,
   ...EN_ENTRE_DEUX,
+  ...EN_DIAGNOSTIC,
 };

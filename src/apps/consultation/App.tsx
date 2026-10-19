@@ -22,6 +22,7 @@ import {
   ACCES_VIDE, accesApresDepot, accesApresLeWidget, accesSansVerdict, voieDAcces,
   type Access, type Reglement,
 } from './acces-pur';
+import { DiagnosticPhoto } from './DiagnosticPhoto';
 
 /* La Consultation — le rite d'entrée mondial de la Maison MND.
    Huit temps numérotés, du seuil à la porte du salon. */
@@ -1092,6 +1093,9 @@ export default function App() {
                 </div>
               </div>
             </div>
+
+            {/* LE DIAGNOSTIC PHOTO (19 octobre 2026) : rien tant que la direction ne l'allume pas, ni sans paiement vérifié. */}
+            <DiagnosticPhoto consultationId={access.consultationId} transactionId={access.paid ? access.ref : null} photos={photos} devise={cur} />
 
             <Nav
               onBack={() => go('vision')}

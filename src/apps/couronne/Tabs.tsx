@@ -1,5 +1,6 @@
 import { asset } from '../../shared/asset';
 import { EntreDeux } from './EntreDeux';
+import { MonDiagnosticPhoto } from './MonDiagnosticPhoto';
 import { DEVISE_MAISON } from '../../shared/identite';
 import { CarteDeMarraine } from '../../ds/CarteDeMarraine';
 import { graineDansDite, MonAmbassade, useMaCarte, useMaGraine, visitesDites } from './MaCarte';
@@ -1136,6 +1137,8 @@ export function SuiviTab({ regard, onOpenBooking, onOpenRdv, onOpenOrders, goGam
           une semaine après la séance et une semaine avant la suivante ; et à
           tout moment, un souci à dire à sa maîtresse. */}
       {client && <EntreDeux client={client} appts={clientAppts} onAvancer={() => onOpenBooking({ pourId: regard?.id })} />}
+      {/* LE DIAGNOSTIC PHOTO (19 octobre 2026) : sa couronne à elle, et rien tant que la direction ne l'allume pas. */}
+      {client && !regard && <MonDiagnosticPhoto />}
 
       {/* prescription de la maison — produit choisi sur la fiche, au Trône.
           Pas pour un mineur : la Gamme n'est pas à son nom (9 août). */}

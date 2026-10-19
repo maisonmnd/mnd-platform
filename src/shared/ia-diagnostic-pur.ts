@@ -378,3 +378,97 @@ export const intensiteDite = (cle: string): string => ditDe(INTENSITES, cle);
 export const calibreDit = (cle: string): string => ditDe(CALIBRES_ESTIMES, cle);
 export const longueurDite = (cle: string): string => ditDe(LONGUEURS_ESTIMEES, cle);
 export const drapeauDit = (cle: string): string => ditDe(DRAPEAUX_PEAU, cle);
+
+/* ══ HORS DU BLOC : CE QUE LES ÉCRANS PARTAGENT (reprise du 19 octobre) ══
+   La fonction n'en a pas besoin ; La Consultation, Ma Couronne et le Trône,
+   si. Rien ici ne parle au réseau. */
+
+/** L'ACCORD EXPLICITE (sa décision) : la phrase que la cliente coche, mot
+    pour mot dans les deux applications. Sans la case cochée, rien ne part. */
+export const PHRASE_DE_L_ACCORD = 'J’accepte que la Maison garde ces photos 90 jours pour relire ma lecture.';
+
+/** Peut-on envoyer ? `null` : oui ; sinon, ce qu'on dit à la cliente. */
+export function defautDeLEnvoi(nbPhotos: number, accord: boolean): string | null {
+  if (!(nbPhotos >= PHOTOS_MIN)) return 'Choisissez au moins une photo.';
+  if (nbPhotos > PHOTOS_MAX) return 'Quatre photos au plus.';
+  if (accord !== true) return 'Cochez l’accord pour que la Maison garde vos photos.';
+  return null;
+}
+
+/** LES REFUS DE LA FONCTION, DITS À LA CLIENTE. Aucun ne parle de Claude,
+    d'argent ou de quota : elle lit ce qu'elle peut faire. */
+export const MOTS_DES_REFUS: Readonly<Record<string, string>> = {
+  ferme: 'Le diagnostic photo n’est pas ouvert pour l’instant.',
+  porte: 'La lecture de vos photos s’ouvre avec votre consultation réglée en ligne, ou depuis votre compte Ma Couronne.',
+  personnel: 'Ce compte est celui de l’équipe : le diagnostic photo se fait depuis le compte d’une cliente.',
+  consentement: 'Cochez l’accord pour que la Maison garde vos photos.',
+  photos: 'Une à quatre photos, nettes et à la lumière du jour.',
+  format: 'Ce format de photo ne se lit pas : choisissez une photo JPEG, PNG ou WebP.',
+  too_large: 'Une photo est trop lourde : choisissez-en une autre.',
+  budget: 'Les lectures de photos reprennent le mois prochain : montrez vos photos à la Maison lors de votre consultation.',
+  rate_limited: 'Plusieurs envois en peu de temps : réessayez dans dix minutes.',
+  reseau: 'Pas de réseau : réessayez quand il revient.',
+  erreur: 'Vos photos ne sont pas parties. Réessayez dans un moment.',
+};
+export const motDuRefus = (code: string | undefined): string => MOTS_DES_REFUS[code ?? ''] ?? MOTS_DES_REFUS.erreur;
+
+/** Ce que la cliente lit d'une lecture : le mot du maître quand il a relu et
+    corrigé, sinon le texte de la lecture. */
+export function texteMontre(d: { etat?: string; texte?: string | null; correction?: string | null }): string {
+  const c = typeof d.correction === 'string' ? d.correction.trim() : '';
+  return d.etat === 'relu' && c ? c : String(d.texte ?? '').trim();
+}
+
+/** Le mot du maître, propre : pas de tiret long, des espaces simples, borné. */
+export const motDuMaitre = (brut: unknown): string =>
+  String(brut ?? '').replace(/\s*[—–]\s*/g, ', ').replace(/[ \t]+/g, ' ').replace(/\n{3,}/g, '\n\n').trim().slice(0, 1200);
+
+/** LA RELECTURE AU TRÔNE (sa décision : un maître relit dans la journée).
+    Confirmer passe l'état à « relu », avec qui et quand ; un mot du maître
+    remplace chez la cliente le texte de la lecture ; un rituel ou un
+    produit qu'il retire n'est plus proposé ni mis de côté. La lecture de
+    Claude, elle, reste telle quelle : on garde ce qui a été lu. */
+export function relecture<D extends { recommandation?: Recommandation | null; correction?: string }>(
+  data: D,
+  o: { correction?: string; rituelsRetires?: readonly string[]; produitsRetires?: readonly string[]; par: string; leIso: string },
+): { etat: 'relu'; relu_par: string; relu_le: string; data: D } {
+  const mot = motDuMaitre(o.correction);
+  const r = data.recommandation;
+  const recommandation = r
+    ? { ...r, rituels: r.rituels.filter((x) => !(o.rituelsRetires ?? []).includes(x.id)), produits: r.produits.filter((x) => !(o.produitsRetires ?? []).includes(x.id)) }
+    : r;
+  const { correction: _avant, ...reste } = data;
+  return {
+    etat: 'relu', relu_par: o.par, relu_le: o.leIso,
+    data: { ...reste, recommandation, ...(mot ? { correction: mot } : {}) } as D,
+  };
+}
+
+/** Écarter : la lecture ne sert pas (photo d'autre chose, doublon). Elle
+    sort de la liste à relire ; la cliente lit « à confirmer en consultation ». */
+export const ecarte = (par: string, leIso: string): { etat: 'ferme'; relu_par: string; relu_le: string } =>
+  ({ etat: 'ferme', relu_par: par, relu_le: leIso });
+
+/** LE DOCUMENT DE LA TABLE, tel que la direction l'écrit au Trône : ses
+    lignes, et quand elle l'a validée. Sans `valideeLe`, la table reste
+    marquée « à valider » (sa décision du 19 octobre). */
+export type DocDeLaTable = { lignes: LigneDeLaTable[]; valideeLe?: string; valideePar?: string };
+export const tableEstValidee = (doc: unknown): boolean => {
+  const v = doc && typeof doc === 'object' && !Array.isArray(doc) ? (doc as { valideeLe?: unknown }).valideeLe : undefined;
+  return typeof v === 'string' && Number.isFinite(Date.parse(v));
+};
+/** « huile, beurre » tapé dans une case : des mots propres, bornés. */
+export const motsDeLaSaisie = (s: unknown, max = 8): string[] => motsPropres(s, max);
+/** Ce qu'une ligne propose avec le catalogue d'aujourd'hui : la même
+    recommandation que la fonction, pour une observation forte seule. */
+export const apercuDeLaLigne = (ligne: LigneDeLaTable, catalogue: Catalogue): Recommandation =>
+  recommande({ observations: [{ cle: ligne.observation, zone: 'longueurs', intensite: 'forte' }], calibre: 'incertain', longueur: 'incertain', peau: [], qualite: 'bonne', resume: '' }, [ligne], catalogue);
+
+/** « 19 octobre 2026 » : l'année toujours, sur une date de cliente. */
+export function dateDuDiagnostic(iso: string | null | undefined): string {
+  const d = new Date(String(iso ?? ''));
+  if (Number.isNaN(d.getTime())) return '';
+  const MOIS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
+  const local = new Date(d.getTime() + 3_600_000); // l'heure de Cotonou (UTC+1)
+  return `${local.getUTCDate()} ${MOIS[local.getUTCMonth()]} ${local.getUTCFullYear()}`;
+}
