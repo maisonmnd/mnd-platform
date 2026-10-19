@@ -335,10 +335,11 @@ export const SCHEMA_DE_LA_LECTURE: Record<string, unknown> = {
   },
 };
 
-/** QUI RELIT (sa décision : la direction et le département Atelier) : la
-    même porte que la barre du Trône pour l'écran des consultations. */
+/** QUI RELIT (sa décision : la direction et le département Atelier), et
+    personne d'autre : un maître de la Clientèle voit l'écran des
+    consultations, il ne relit pas une lecture de photos. */
 export const peutRelire = (role: string | undefined, acces: Record<string, boolean> | undefined): boolean =>
-  !!role && (role !== 'maitre' || acces?.['dept-atelier'] === true || acces?.['/consultations'] === true);
+  role === 'souverain' || role === 'gerant' || (role === 'maitre' && acces?.['dept-atelier'] === true);
 
 /** Où une photo vit dans le coffre : la branche, le diagnostic, son rang. */
 export const cheminDeLaPhotoDuDiagnostic = (branchId: string, diagnosticId: string, n: number): string =>

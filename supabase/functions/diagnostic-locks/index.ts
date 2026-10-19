@@ -251,32 +251,32 @@ function objetPourClaude<T>(valeur: T, personnes: readonly Personne[] = []): T {
    NE RIEN RETOUCHER ENTRE LES REPÈRES : on corrige l'original, puis on
    recopie le bloc entier ; `verifie-les-douze-lunes` (R8) confronte les deux. */
 /* ⟨diagnostic-locks⟩ */
-const VERSION_DU_DIAGNOSTIC = '2026-10-19-a';
+export const VERSION_DU_DIAGNOSTIC = '2026-10-19-a';
 /** Une à quatre photos de la même couronne (sa décision). */
-const PHOTOS_MIN = 1;
-const PHOTOS_MAX = 4;
+export const PHOTOS_MIN = 1;
+export const PHOTOS_MAX = 4;
 /** 4 Mo par photo en clair : le téléphone réduit avant d'envoyer. */
-const OCTETS_MAX_PAR_PHOTO = 4_000_000;
+export const OCTETS_MAX_PAR_PHOTO = 4_000_000;
 /** 90 jours (sa décision), puis les photos s'effacent ; la lecture reste. */
-const GARDE_DES_PHOTOS_JOURS = 90;
-const COFFRE_DES_PHOTOS_DU_DIAGNOSTIC = 'photos-du-diagnostic';
-const TABLE_DES_DIAGNOSTICS = 'diagnostics';
+export const GARDE_DES_PHOTOS_JOURS = 90;
+export const COFFRE_DES_PHOTOS_DU_DIAGNOSTIC = 'photos-du-diagnostic';
+export const TABLE_DES_DIAGNOSTICS = 'diagnostics';
 /** La table « observation → rituel → produit » corrigée par la direction. */
-const CLE_DE_LA_TABLE_DU_DIAGNOSTIC = 'mnd_diagnostic_table';
+export const CLE_DE_LA_TABLE_DU_DIAGNOSTIC = 'mnd_diagnostic_table';
 /** Le compteur du diagnostic, à part de ceux des agents et des huit. */
-const CLE_DU_COMPTEUR_DU_DIAGNOSTIC = 'mnd_ia_compteur_diagnostic';
-const PLAFOND_DU_DIAGNOSTIC_USD = 20;
+export const CLE_DU_COMPTEUR_DU_DIAGNOSTIC = 'mnd_ia_compteur_diagnostic';
+export const PLAFOND_DU_DIAGNOSTIC_USD = 20;
 /** Sonnet lit les photos ; Haiku prend le relais si Sonnet n'est pas ouvert à la clé. */
-const MODELES_DU_DIAGNOSTIC: readonly string[] = ['claude-sonnet-5-5', 'claude-haiku-5-5'];
+export const MODELES_DU_DIAGNOSTIC: readonly string[] = ['claude-sonnet-5-5', 'claude-haiku-5-5'];
 /** Cinq lectures par dix minutes et par adresse. */
-const SEAU_DU_DIAGNOSTIC = 5;
+export const SEAU_DU_DIAGNOSTIC = 5;
 /** Au plus trois rituels et deux produits : une lecture propose, elle ne vend pas. */
-const RITUELS_MAX = 3;
-const PRODUITS_MAX = 2;
+export const RITUELS_MAX = 3;
+export const PRODUITS_MAX = 2;
 
 /* ── LES ÉNUMÉRATIONS FERMÉES ──────────────────────────────────────────
    Claude ne choisit que dans ces listes ; ce qui n'y est pas se refuse. */
-const OBSERVATIONS = [
+export const OBSERVATIONS = [
   { cle: 'secheresse', dit: 'Sécheresse' },
   { cle: 'frisottis', dit: 'Frisottis et repousse' },
   { cle: 'racines-laches', dit: 'Racines lâches' },
@@ -286,45 +286,45 @@ const OBSERVATIONS = [
   { cle: 'pointes-abimees', dit: 'Pointes abîmées' },
   { cle: 'casse', dit: 'Casse' },
 ] as const;
-type Observation = (typeof OBSERVATIONS)[number]['cle'];
-const ZONES = [
+export type Observation = (typeof OBSERVATIONS)[number]['cle'];
+export const ZONES = [
   { cle: 'racines', dit: 'les racines' },
   { cle: 'longueurs', dit: 'les longueurs' },
   { cle: 'pointes', dit: 'les pointes' },
   { cle: 'cuir-chevelu', dit: 'le cuir chevelu' },
 ] as const;
-type Zone = (typeof ZONES)[number]['cle'];
-const INTENSITES = [
+export type Zone = (typeof ZONES)[number]['cle'];
+export const INTENSITES = [
   { cle: 'legere', dit: 'légère', poids: 1 },
   { cle: 'marquee', dit: 'marquée', poids: 2 },
   { cle: 'forte', dit: 'forte', poids: 3 },
 ] as const;
-type Intensite = (typeof INTENSITES)[number]['cle'];
+export type Intensite = (typeof INTENSITES)[number]['cle'];
 /** Le calibre ESTIMÉ d'après la photo : jamais le compte exact, qui se fait à la Maison. */
-const CALIBRES_ESTIMES = [
+export const CALIBRES_ESTIMES = [
   { cle: 'micro', dit: 'micro' }, { cle: 'fin', dit: 'fin' }, { cle: 'moyen', dit: 'moyen' },
   { cle: 'epais', dit: 'épais' }, { cle: 'incertain', dit: 'à constater à la Maison' },
 ] as const;
-type CalibreEstime = (typeof CALIBRES_ESTIMES)[number]['cle'];
+export type CalibreEstime = (typeof CALIBRES_ESTIMES)[number]['cle'];
 /** Les trois longueurs du catalogue, et le doute. */
-const LONGUEURS_ESTIMEES = [
+export const LONGUEURS_ESTIMEES = [
   { cle: 'court', dit: 'court' }, { cle: 'mi-long', dit: 'mi-long' }, { cle: 'long', dit: 'long' },
   { cle: 'incertain', dit: 'à constater à la Maison' },
 ] as const;
-type LongueurEstimee = (typeof LONGUEURS_ESTIMEES)[number]['cle'];
+export type LongueurEstimee = (typeof LONGUEURS_ESTIMEES)[number]['cle'];
 /** LA PEAU QUI INQUIÈTE (sa décision) : un drapeau, jamais un mot de plus. */
-const DRAPEAUX_PEAU = [
+export const DRAPEAUX_PEAU = [
   { cle: 'rougeur', dit: 'une rougeur' },
   { cle: 'plaie', dit: 'une plaie' },
   { cle: 'croutes', dit: 'des croûtes' },
   { cle: 'chute-en-plaques', dit: 'une chute en plaques' },
 ] as const;
-type DrapeauPeau = (typeof DRAPEAUX_PEAU)[number]['cle'];
-const QUALITES_DE_PHOTO = ['bonne', 'moyenne', 'insuffisante'] as const;
-type QualiteDePhoto = (typeof QUALITES_DE_PHOTO)[number];
+export type DrapeauPeau = (typeof DRAPEAUX_PEAU)[number]['cle'];
+export const QUALITES_DE_PHOTO = ['bonne', 'moyenne', 'insuffisante'] as const;
+export type QualiteDePhoto = (typeof QUALITES_DE_PHOTO)[number];
 
-type ObservationLue = { cle: Observation; zone: Zone; intensite: Intensite };
-type Lecture = {
+export type ObservationLue = { cle: Observation; zone: Zone; intensite: Intensite };
+export type Lecture = {
   observations: ObservationLue[];
   calibre: CalibreEstime;
   longueur: LongueurEstimee;
@@ -341,9 +341,9 @@ type Lecture = {
    quatre mots que le Trône connaît : huile, shampoing, beurre, sérum. Une
    observation sans mot de produit ne propose aucun produit, et c'est voulu
    (une repousse se reprend au fauteuil, elle ne s'achète pas). */
-type LigneDeLaTable = { observation: Observation; rituel: string[]; produits: string[] };
-const MOTS_DE_PRODUIT: readonly string[] = ['huile', 'shampoing', 'beurre', 'sérum'];
-const TABLE_PAR_DEFAUT: readonly LigneDeLaTable[] = [
+export type LigneDeLaTable = { observation: Observation; rituel: string[]; produits: string[] };
+export const MOTS_DE_PRODUIT: readonly string[] = ['huile', 'shampoing', 'beurre', 'sérum'];
+export const TABLE_PAR_DEFAUT: readonly LigneDeLaTable[] = [
   { observation: 'secheresse', rituel: ['hydratant', 'soin', 'dandan'], produits: ['huile', 'beurre'] },
   { observation: 'frisottis', rituel: ['reprise', 'resserrage', 'sinsin', 'racines'], produits: [] },
   { observation: 'racines-laches', rituel: ['reprise', 'resserrage', 'sinsin'], produits: [] },
@@ -357,18 +357,18 @@ const TABLE_PAR_DEFAUT: readonly LigneDeLaTable[] = [
     (la lecture y renvoie déjà), le défaisage, l'Académie. */
 const CATEGORIES_HORS_RITUEL: readonly string[] = ['doto', 'koko', 'plt-45', 'cat-defaisage'];
 
-const MOT_A_CONFIRMER = 'À confirmer en consultation.';
-const MOT_RELU = 'Relu par la Maison.';
-const MOT_SANS_LECTURE = 'La Maison relit vos photos et vous répond dans la journée.';
-const MOT_PEAU = 'Ce que montrent vos photos mérite d’abord l’avis d’un médecin ou d’un dermatologue. La Maison ne propose aucun produit ici ; l’équipe est prévenue et vous rappelle.';
-const MOT_DES_PRODUITS = 'mis de côté pour votre prochain passage';
+export const MOT_A_CONFIRMER = 'À confirmer en consultation.';
+export const MOT_RELU = 'Relu par la Maison.';
+export const MOT_SANS_LECTURE = 'La Maison relit vos photos et vous répond dans la journée.';
+export const MOT_PEAU = 'Ce que montrent vos photos mérite d’abord l’avis d’un médecin ou d’un dermatologue. La Maison ne propose aucun produit ici ; l’équipe est prévenue et vous rappelle.';
+export const MOT_DES_PRODUITS = 'mis de côté pour votre prochain passage';
 
 const estParmi = <T extends string>(liste: readonly { cle: T }[], v: unknown): v is T => liste.some((x) => x.cle === v);
 const estUne = <T extends string>(liste: readonly T[], v: unknown): v is T => (liste as readonly unknown[]).includes(v);
 const ditDe = (liste: readonly { cle: string; dit: string }[], cle: string): string =>
   liste.find((x) => x.cle === cle)?.dit ?? cle;
 /** Sans accents ni majuscules, pour reconnaître un mot dans un nom. */
-const motSimple = (s: unknown): string =>
+export const motSimple = (s: unknown): string =>
   String(s ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
 const motsPropres = (brut: unknown, max: number): string[] =>
   (Array.isArray(brut) ? brut : typeof brut === 'string' ? brut.split(/[,;]/) : [])
@@ -378,7 +378,7 @@ const motsPropres = (brut: unknown, max: number): string[] =>
     être absent, une liste, ou `{ lignes }` ; une observation qu'il ne porte
     pas garde sa ligne par défaut ; une ligne qu'il porte la remplace, mots
     nettoyés et bornés. Une table abîmée retombe entièrement sur le défaut. */
-function tableValide(brut: unknown): LigneDeLaTable[] {
+export function tableValide(brut: unknown): LigneDeLaTable[] {
   const lignes = Array.isArray(brut) ? brut : (brut && typeof brut === 'object' && Array.isArray((brut as { lignes?: unknown }).lignes))
     ? (brut as { lignes: unknown[] }).lignes : [];
   const siennes = new Map<Observation, LigneDeLaTable>();
@@ -395,7 +395,7 @@ function tableValide(brut: unknown): LigneDeLaTable[] {
     listes se laisse tomber ; un calibre ou une longueur inconnus deviennent
     « incertain » (c'est ce qu'ils sont) ; un drapeau inventé ne compte pas ;
     un résumé qui n'est pas un texte devient vide. */
-function lectureDuDiagnostic(brut: unknown): Lecture | null {
+export function lectureDuDiagnostic(brut: unknown): Lecture | null {
   if (!brut || typeof brut !== 'object' || Array.isArray(brut)) return null;
   const b = brut as Record<string, unknown>;
   if (!Array.isArray(b.observations)) return null;
@@ -421,12 +421,12 @@ function lectureDuDiagnostic(brut: unknown): Lecture | null {
   };
 }
 
-type Catalogue = {
+export type Catalogue = {
   services: readonly { id: string; name: string; categoryId?: string; archived?: boolean }[];
   categories: readonly { id: string; fon?: string; label?: string; parentId?: string }[];
   products: readonly { id: string; name: string; priceXof: number; stock: number }[];
 };
-type Recommandation = {
+export type Recommandation = {
   rituels: { id: string; nom: string }[];
   produits: { id: string; nom: string; prixXof: number }[];
   peauInquiete: boolean;
@@ -439,7 +439,7 @@ type Recommandation = {
     des produits du Trône ; trois rituels et deux produits au plus, chacun
     une fois ; un produit sans stock ne se met pas de côté. UNE PEAU QUI
     INQUIÈTE (sa décision) : aucun produit, aucun rituel, le mot du médecin. */
-function recommande(lecture: Lecture, table: readonly LigneDeLaTable[], catalogue: Catalogue): Recommandation {
+export function recommande(lecture: Lecture, table: readonly LigneDeLaTable[], catalogue: Catalogue): Recommandation {
   if (lecture.peau.length > 0) return { rituels: [], produits: [], peauInquiete: true, mot: MOT_PEAU };
   const poids = (i: Intensite): number => INTENSITES.find((x) => x.cle === i)?.poids ?? 0;
   const ordre = [...lecture.observations].sort((a, b) => poids(b.intensite) - poids(a.intensite));
@@ -483,7 +483,7 @@ function recommande(lecture: Lecture, table: readonly LigneDeLaTable[], catalogu
     le résumé composé prend la place. Une phrase qui garantit, promet, parle
     de porosité ou de résultat tombe ; le tiret long devient une virgule ;
     « À confirmer en consultation. » clôt toujours. */
-function texteSansPromesse(texte: unknown): string {
+export function texteSansPromesse(texte: unknown): string {
   let t = String(texte ?? '').replace(/\s*[—–]\s*/g, ', ').replace(/\*\*/g, '').replace(/\s+/g, ' ').trim();
   if (!t) return '';
   if (/\d[\d\s.,]*\s*(f\b|f\.|fcfa|cfa|xof|francs?\b|€|\$)/i.test(t)) return '';
@@ -499,7 +499,7 @@ function texteSansPromesse(texte: unknown): string {
 
 /** LE RÉSUMÉ COMPOSÉ DEPUIS LES LISTES FERMÉES : ce qu'on montre quand le
     texte de Claude ne passe pas, et ce que le Trône relit à côté. */
-function resumeDepuisLesObservations(lecture: Lecture): string {
+export function resumeDepuisLesObservations(lecture: Lecture): string {
   if (lecture.peau.length > 0) return MOT_PEAU;
   const parts: string[] = [];
   if (lecture.qualite === 'insuffisante') parts.push('Vos photos ne permettent pas une lecture sûre : reprenez-les à la lumière du jour, de près.');
@@ -516,7 +516,7 @@ function resumeDepuisLesObservations(lecture: Lecture): string {
 
 /** La consigne de Claude : lire, dans les mots de la Maison, sans jamais
     soigner. Le prénom et l'initiale, rien d'autre d'elle. */
-function consigneDuDiagnostic(o: { appel: string; nbPhotos: number }): string {
+export function consigneDuDiagnostic(o: { appel: string; nbPhotos: number }): string {
   return [
     'Tu lis des photos de locks pour la Maison MND, une maison de soin des locks à Cotonou (Bénin). Tu rends UNE lecture, dans la forme demandée, et rien d’autre.',
     `La personne : ${o.appel || 'la cliente'}. Tu ne connais que ce prénom ; n’invente ni nom ni civilité.`,
@@ -540,7 +540,7 @@ function consigneDuDiagnostic(o: { appel: string; nbPhotos: number }): string {
 }
 
 /** La forme que Claude doit rendre : un outil à appeler, jamais du texte libre. */
-const SCHEMA_DE_LA_LECTURE: Record<string, unknown> = {
+export const SCHEMA_DE_LA_LECTURE: Record<string, unknown> = {
   type: 'object',
   additionalProperties: false,
   required: ['observations', 'calibre', 'longueur', 'peau', 'qualite', 'resume'],
@@ -564,27 +564,28 @@ const SCHEMA_DE_LA_LECTURE: Record<string, unknown> = {
   },
 };
 
-/** QUI RELIT (sa décision : la direction et le département Atelier) : la
-    même porte que la barre du Trône pour l'écran des consultations. */
-const peutRelire = (role: string | undefined, acces: Record<string, boolean> | undefined): boolean =>
-  !!role && (role !== 'maitre' || acces?.['dept-atelier'] === true || acces?.['/consultations'] === true);
+/** QUI RELIT (sa décision : la direction et le département Atelier), et
+    personne d'autre : un maître de la Clientèle voit l'écran des
+    consultations, il ne relit pas une lecture de photos. */
+export const peutRelire = (role: string | undefined, acces: Record<string, boolean> | undefined): boolean =>
+  role === 'souverain' || role === 'gerant' || (role === 'maitre' && acces?.['dept-atelier'] === true);
 
 /** Où une photo vit dans le coffre : la branche, le diagnostic, son rang. */
-const cheminDeLaPhotoDuDiagnostic = (branchId: string, diagnosticId: string, n: number): string =>
+export const cheminDeLaPhotoDuDiagnostic = (branchId: string, diagnosticId: string, n: number): string =>
   `${branchId || 'maison'}/${diagnosticId}/${n}.jpg`;
 
 /** Les formats qu'on sait garder et montrer à Claude. */
-function formatDePhotoPermis(mime: unknown): boolean {
+export function formatDePhotoPermis(mime: unknown): boolean {
   const m = String(mime ?? '').toLowerCase().split(';')[0].trim();
   return m === 'image/jpeg' || m === 'image/png' || m === 'image/webp';
 }
 
 /** L'instant avant lequel les photos d'un diagnostic doivent être effacées. */
-const limiteDeGardeDesPhotos = (maintenantMs: number): number => maintenantMs - GARDE_DES_PHOTOS_JOURS * 86_400_000;
+export const limiteDeGardeDesPhotos = (maintenantMs: number): number => maintenantMs - GARDE_DES_PHOTOS_JOURS * 86_400_000;
 
 /** Les diagnostics dont les photos partent : créés avant la limite, photos
     encore là, pas encore effacées. */
-function diagnosticsAuxPhotosAEffacer<T extends { id: string; cree_le?: string; data?: { photos?: unknown; photosEffaceesLe?: unknown } }>(
+export function diagnosticsAuxPhotosAEffacer<T extends { id: string; cree_le?: string; data?: { photos?: unknown; photosEffaceesLe?: unknown } }>(
   lignes: readonly T[], maintenantMs: number,
 ): T[] {
   const limite = limiteDeGardeDesPhotos(maintenantMs);
@@ -592,10 +593,10 @@ function diagnosticsAuxPhotosAEffacer<T extends { id: string; cree_le?: string; 
     && Number.isFinite(Date.parse(d.cree_le ?? '')) && Date.parse(d.cree_le!) < limite);
 }
 
-type EtatDuDiagnostic = 'a-relire' | 'relu' | 'ferme';
-const ETATS_DU_DIAGNOSTIC: readonly EtatDuDiagnostic[] = ['a-relire', 'relu', 'ferme'];
+export type EtatDuDiagnostic = 'a-relire' | 'relu' | 'ferme';
+export const ETATS_DU_DIAGNOSTIC: readonly EtatDuDiagnostic[] = ['a-relire', 'relu', 'ferme'];
 /** Ce que la cliente lit sous sa lecture, selon l'état. */
-const motDeLEtat = (etat: string | undefined, peauInquiete = false): string =>
+export const motDeLEtat = (etat: string | undefined, peauInquiete = false): string =>
   (peauInquiete ? MOT_PEAU : etat === 'relu' ? MOT_RELU : MOT_A_CONFIRMER);
 /* ⟨/diagnostic-locks⟩ */
 
@@ -821,7 +822,10 @@ const appelPourClaude = (nom: unknown): string => {
 };
 
 /** LA PORTE : une session Ma Couronne (une cliente, jamais le personnel), ou
-    une consultation dont la transaction KkiaPay est au registre. */
+    une consultation dont la transaction KkiaPay est au registre. La
+    Consultation envoie la clé publique, jamais une session : un jeton qui
+    n'est pas une session, ou une session sans fiche, laisse sa chance à la
+    consultation payée (reprise du 19 octobre 2026). */
 async function porte({ jwt, body }: RequeteDuDiagnostic): Promise<Porte | null | 'personnel'> {
   if (jwt && jwt.split('.').length === 3) {
     const { data } = await admin.auth.getUser(jwt).catch(() => ({ data: null as { user?: { id?: string } } | null }));
@@ -829,15 +833,16 @@ async function porte({ jwt, body }: RequeteDuDiagnostic): Promise<Porte | null |
     if (uid) {
       const { data: s } = await admin.from('staff').select('user_id').eq('user_id', uid).maybeSingle();
       if (s) return 'personnel';
-      type Fiche = { id: string; branch_id?: string | null; data?: { name?: string; branchId?: string } };
+      type Fiche = { id: string; branch_id?: string | null; data?: { name?: string; branchId?: string; archived?: boolean } };
       const { data: parCompte } = await admin.from('clients').select('id, branch_id, data').eq('data->>authUserId', uid).limit(1);
       let fiche = ((parCompte ?? []) as Fiche[])[0];
       if (!fiche) {
         const { data: parId } = await admin.from('clients').select('id, branch_id, data').eq('id', uid).maybeSingle();
         fiche = (parId ?? undefined) as Fiche | undefined;
       }
-      if (!fiche) return null;
-      return { source: 'couronne', branchId: fiche.data?.branchId || fiche.branch_id || '', clientId: fiche.id, consultationId: null, appel: appelPourClaude(fiche.data?.name) };
+      if (fiche && fiche.data?.archived !== true) {
+        return { source: 'couronne', branchId: fiche.data?.branchId || fiche.branch_id || '', clientId: fiche.id, consultationId: null, appel: appelPourClaude(fiche.data?.name) };
+      }
     }
   }
   const consultationId = String(body.consultationId ?? '').trim();

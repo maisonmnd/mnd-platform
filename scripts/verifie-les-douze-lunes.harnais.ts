@@ -618,6 +618,8 @@ const regles: Regle[] = [
         'message-vocal': { fichier: 'src/shared/message-vocal-pur.ts', extrait: (s) => entre(s, 'message-vocal') },
         /* Le chat de la Maison (19 octobre 2026), recopie dans discussion. */
         'chat-du-site': { fichier: 'src/shared/chat-du-site-pur.ts', extrait: (s) => entre(s, 'chat-du-site') },
+        /* Le diagnostic photo des locks (19 octobre 2026), recopie dans diagnostic-locks. */
+        'diagnostic-locks': { fichier: 'src/shared/ia-diagnostic-pur.ts', extrait: (s) => entre(s, 'diagnostic-locks') },
       };
       const fonctions: string[] = [];
       const marche = (d: string) => { for (const n of readdirSync(d)) { const p = `${d}/${n}`; if (statSync(p).isDirectory()) marche(p); else if (/\.(ts|js)$/.test(n)) fonctions.push(p); } };
