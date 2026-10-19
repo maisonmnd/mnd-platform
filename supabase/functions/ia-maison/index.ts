@@ -455,7 +455,14 @@ async function traiteLaDemande(o: OutilsDeLaMaison, body: unknown, jwt: string):
   const ligne = uid ? await o.base.staff(uid) : null;
   if (!uid || !ligne) return refus(403, 'equipe', 'Cette porte est celle de l’équipe : ouvrez une session du Trône.');
 
-  /* 2. LA DEMANDE EST RECEVABLE, avant de dépenser quoi que ce soit. */
+  /* 2. LA DEMANDE EST RECEVABLE, avant de dépenser quoi que ce soit.
+     Une image qui n'est pas un objet (null, une chaîne) ferait tomber
+     `defautDeLaDemande` (`'base64' in null` lance) : on la refuse avant,
+     en format, plutôt qu'en « la porte a trébuché » (19 octobre 2026). */
+  const imagesRecues = (body as { images?: unknown } | null)?.images;
+  if (Array.isArray(imagesRecues) && imagesRecues.some((im) => !im || typeof im !== 'object' || Array.isArray(im))) {
+    return refus(400, 'format', 'La demande n’est pas recevable : image mal formée.');
+  }
   const defaut = defautDeLaDemande(body as Partial<DemandeIa>);
   if (defaut) return refus(400, 'format', `La demande n’est pas recevable : ${defaut}.`);
   const d = body as DemandeIa;
@@ -516,7 +523,12 @@ async function traiteLaDemande(o: OutilsDeLaMaison, body: unknown, jwt: string):
       return refus(502, 'claude', `Claude n’a pas répondu : ${String((e as Error)?.message ?? e).slice(0, 300)}`);
     }
     if (modeleInconnu(r.status, r.corps)) { derniere = `${modele} : ${r.corps.error?.message ?? r.status}`; continue; }
-    if (r.status < 200 || r.status >= 300) return refus(502, 'claude', `Claude n’a pas répondu (${r.status}) : ${r.corps.error?.message ?? 'sans détail'}`.slice(0, 400));
+    if (r.status < 200 || r.status >= 300) {
+      /* Le refus se journalise sobrement : le statut et le genre d'erreur,
+         jamais le message (il pourrait citer la demande). */
+      console.error(`ia-maison: ${d.chantier} ${modele} refus ${r.status} ${r.corps.error?.type ?? ''}`.trim());
+      return refus(502, 'claude', `Claude n’a pas répondu (${r.status}) : ${r.corps.error?.message ?? 'sans détail'}`.slice(0, 400));
+    }
 
     /* 7. LE COÛT, DÛ MÊME SI LA RÉPONSE EST INUTILISABLE. Les jetons rendus
        par l'API ; le cache (créé ou relu) se compte au plein prix d'entrée :
@@ -537,6 +549,11 @@ async function traiteLaDemande(o: OutilsDeLaMaison, body: unknown, jwt: string):
 
     const blocs = r.corps.content ?? [];
     if (schema) {
+      /* COUPÉE EN ROUTE (19 octobre 2026) : au bout de ses jetons, Claude
+         rend un outil inachevé, une liste qui s'arrête au troisième article
+         sur cinq, et qui a l'air entière. On ne la rend pas : le chantier
+         redemande plus court, ou avec plus de jetons. */
+      if (r.corps.stop_reason === 'max_tokens') return refus(502, 'claude', 'La réponse de Claude a été coupée avant la fin : redemandez plus court.', { resteUsd: reste });
       const outil = blocs.find((b) => b.type === 'tool_use');
       if (!outil || !outil.input || typeof outil.input !== 'object') return refus(502, 'claude', 'Claude n’a pas répondu dans la forme demandée.', { resteUsd: reste });
       return [200, { ok: true, data: outil.input, texte: '', modele, coutUsd: cout, resteUsd: reste }];

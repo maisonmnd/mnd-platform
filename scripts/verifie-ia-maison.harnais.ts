@@ -155,6 +155,14 @@ const essais = async () => {
     const [st, r] = await s.demande({ ...LETTRE, images: PHOTO.images });
     dit('une demande texte qui emporte une image : format, avant tout appel', [400, 'format', 'La demande n’est pas recevable : un texte n’emporte pas d’image.', 0], [st, r.erreur, r.message, s.j.appels.length]);
     dit('un corps vide ou un chantier inconnu : format', [[400, 'format'], [400, 'format']], [code(await s.demande(null)), code(await s.demande({ ...LETTRE, chantier: 'inconnu' }))]);
+    /* Une image nulle ou en chaîne ferait lancer la règle du contrat
+       (`'base64' in null`) : la porte la refuse en format, sans trébucher. */
+    let lance = '';
+    const malFormees: unknown[] = [];
+    for (const im of [null, 'photo.jpg', [1, 2]]) {
+      try { malFormees.push(code(await s.demande({ ...PHOTO, images: [im] }))); } catch (e) { lance = String((e as Error)?.message ?? e); }
+    }
+    dit('une image nulle, une chaîne, un tableau : format 400, sans exception ni appel', [[[400, 'format'], [400, 'format'], [400, 'format']], '', 0], [malFormees, lance, s.j.appels.length]);
   }
 
   /* L'ANONYMISATION DE SÛRETÉ. */
@@ -267,6 +275,15 @@ const essais = async () => {
     dit('un schéma mais pas de tool_use : claude, et le coût est dû quand même', [502, 'claude', 'Claude n’a pas répondu dans la forme demandée.', 1], [st, r.erreur, r.message, s.j.ecritures.length]);
   }
   {
+    /* Au bout de ses jetons, l'outil est inachevé : une liste de trois sur
+       cinq aurait l'air entière. Refusée, et le coût est dû. */
+    const coupee: ReponseFausse = { status: 200, corps: { content: [{ type: 'tool_use', id: 'tu_2', name: 'reponds', input: { montant: 33000 } }], usage: { input_tokens: 500, output_tokens: 1500 }, stop_reason: 'max_tokens' } };
+    const s = serveur({ reponses: [coupee] });
+    const [st, r] = await s.demande({ ...LETTRE, chantier: 'recu', schema: SCHEMA });
+    dit('un outil coupé au bout des jetons : claude 502, rien de rendu, le coût compté', [502, 'claude', 'La réponse de Claude a été coupée avant la fin : redemandez plus court.', undefined, 1],
+      [st, r.erreur, r.message, r.data, s.j.ecritures.length]);
+  }
+  {
     const s = serveur();
     const [st, r] = await s.demande(LETTRE);
     dit('sans schéma : pas d outil, le texte des blocs joints, data nulle', [200, undefined, undefined, 'Bonjour Awa D.,\nvotre lettre.', null],
@@ -288,6 +305,8 @@ const essais = async () => {
     const s = serveur({ reponses: [{ status: 400, corps: { error: { type: 'invalid_request_error', message: 'messages: text content blocks must be non-empty' } } }] });
     const [st, r] = await s.demande(LETTRE);
     dit('un autre 400 : claude 502 avec le message d Anthropic en clair, sans second essai', [502, true, 1], [st, String(r.message).includes('text content blocks must be non-empty'), s.j.appels.length]);
+    dit('... et le journal dit le refus (statut, genre) sans son message', [['ia-maison: lettre claude-haiku-5-5 refus 400 invalid_request_error'], false],
+      [s.j.journal, s.j.journal.join('\n').includes('text content blocks')]);
   }
   {
     const s = serveur({ reponses: [MODELE_INCONNU, MODELE_INCONNU] });
@@ -338,7 +357,9 @@ const structure = () => {
     [existsSync('docs/ia-maison.md'), /Verify JWT/.test(lis('docs/ia-maison.md')), /60 \$/.test(lis('docs/ia-maison.md')), /mnd_ia_compteur_huit/.test(lis('docs/ia-maison.md'))]);
 };
 
-await essais();
+/* Un vrai code qui plante est un échec dit, pas un banc qui s'arrête :
+   la structure se lit quand même. */
+try { await essais(); } catch (e) { ko++; console.log(`ECHEC le vrai code de la fonction plante sur de faux outils\n       ${String((e as Error)?.message ?? e).slice(0, 200)}`); }
 structure();
 console.log(ko === 0 ? '\nTOUT VA BIEN : la porte vers Claude tient ses promesses.' : `\n${ko} ÉCHEC(S)`);
 if (ko) process.exitCode = 1;
