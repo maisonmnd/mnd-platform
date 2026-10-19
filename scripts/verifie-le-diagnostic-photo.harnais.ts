@@ -426,7 +426,8 @@ function monde(o: { allume?: boolean; table?: unknown; compteur?: unknown; diagn
     await Promise.all(fonds);
     return rendu;
   };
-  return { s, outils, tables, coffre, journal, claudes, alertes, envoie };
+  const etat = async () => { const rendu = await s.etatDuDiagnostic(outils); await Promise.all(fonds); return rendu; };
+  return { s, outils, tables, coffre, journal, claudes, alertes, envoie, etat };
 }
 const AWA = (body: Record<string, unknown> = {}) => ({ jwt: 'jwt.awa.x', body: { consentement: 'oui', photos: [PHOTO, PHOTO], ...body } });
 const MARIAM = (body: Record<string, unknown> = {}) => ({ jwt: ANON, body: { consentement: 'oui', photos: [PHOTO], consultationId: 'cons-1', transactionId: 'tx-ok', ...body } });
@@ -519,6 +520,8 @@ const essais = async () => {
       [m.alertes.length, m.alertes[0]?.titre, m.alertes[0]?.corps, m.alertes[0]?.urgent, m.alertes[0]?.diagnosticId]);
     dit('elle lit tout de suite sa lecture, « à confirmer en consultation »', [200, 'diag-1', 'a-relire', MOT_A_CONFIRMER, true],
       [st, r.id, r.etat, r.mot, typeof r.texte === 'string' && (r.texte as string).length > 20]);
+    dit('... la phrase brute de Claude ne voyage pas jusqu à son téléphone ; le Trône la garde', ['', LECTURE_A.resume],
+      [(r.lecture as Lecture | null)?.resume, (d?.data.lecture as Lecture | undefined)?.resume]);
   }
   {
     const m = monde();
@@ -593,6 +596,10 @@ const essais = async () => {
       [m.coffre.has('photos-du-diagnostic/br-cot/diag-vieux/1.jpg'), m.coffre.has('photos-du-diagnostic/br-cot/diag-jeune/1.jpg')]);
     dit('... la lecture reste et dit quand ses photos sont parties', [[], iso(T0), 'Vieux', ['br-cot/diag-jeune/1.jpg']],
       [diag(m, 'diag-vieux')?.data.photos, diag(m, 'diag-vieux')?.data.photosEffaceesLe, diag(m, 'diag-vieux')?.data.texte, diag(m, 'diag-jeune')?.data.photos]);
+    const eteint = monde({ allume: false, diagnostics: [vieux, jeune] });
+    await eteint.etat();
+    dit('... et à chaque ouverture des applications (l état), même interrupteur éteint', [false, true],
+      [eteint.coffre.has('photos-du-diagnostic/br-cot/diag-vieux/1.jpg'), eteint.coffre.has('photos-du-diagnostic/br-cot/diag-jeune/1.jpg')]);
   }
 
   /* Ce qu'elle relit. */
@@ -601,7 +608,7 @@ const essais = async () => {
       ({ id, branch_id: 'br-cot', client_id: client, source: client ? 'couronne' : 'consultation', etat, cree_le: iso(T0 - JOUR), relu_par: etat === 'relu' ? 'u-maitre' : null, relu_le: etat === 'relu' ? iso(T0) : null,
         data: { appel: 'x', consultationId: consultation, photos: ['p'], texte: `texte ${id}`, sansLecture: false, ...data } });
     const m = monde({ diagnostics: [
-      ligne('d-relu', 'c-awa', null, 'relu', { correction: 'Le mot du maître' }), ligne('d-sans', 'c-awa', null, 'a-relire', { sansLecture: true }),
+      ligne('d-relu', 'c-awa', null, 'relu', { correction: 'Le mot du maître', lecture: { ...LECTURE_A, resume: 'Passez au salon, 15 000 F.' } }), ligne('d-sans', 'c-awa', null, 'a-relire', { sansLecture: true }),
       ligne('d-autre', 'c-autre', null, 'a-relire'), ligne('d-cons', null, 'cons-1', 'a-relire'),
     ] });
     const [st, r] = await m.s.lire(m.outils, { jwt: 'jwt.awa.x', body: {} });
@@ -611,6 +618,8 @@ const essais = async () => {
       Object.keys(lus[0] ?? {}).sort());
     dit('... relue : « Relu par la Maison. » et le mot du maître ; sans lecture : la Maison relit', [MOT_RELU, 'Le mot du maître', MOT_SANS_LECTURE],
       [lus.find((d) => d.id === 'd-relu')?.mot, lus.find((d) => d.id === 'd-relu')?.correction, lus.find((d) => d.id === 'd-sans')?.mot]);
+    dit('... sans la phrase brute de Claude', ['', 'fin'],
+      [(lus.find((d) => d.id === 'd-relu')?.lecture as Lecture | undefined)?.resume, (lus.find((d) => d.id === 'd-relu')?.lecture as Lecture | undefined)?.calibre]);
     const [, c] = await m.s.lire(m.outils, { jwt: ANON, body: { consultationId: 'cons-1', transactionId: 'tx-ok' } });
     dit('La Consultation : seulement celle de sa consultation payée ; sans preuve, rien', [['d-cons'], 403],
       [(c.diagnostics as { id: string }[]).map((d) => d.id), (await m.s.lire(m.outils, { jwt: ANON, body: { consultationId: 'cons-1', transactionId: 'tx-echec' } }))[0]]);
@@ -686,6 +695,9 @@ const structure = () => {
     const montres = `${cons}\n${mc}`;
     dit('ce que lisent les clientes : jamais « salon », jamais de tiret long, jamais « intelligence », toujours « à confirmer en consultation »', [false, false, false, true],
       [/\bsalons?\b/i.test(montres), /—/.test(montres), /intelligence/i.test(montres), /MOT_A_CONFIRMER|À confirmer en consultation\./.test(montres) || /rendu\.mot/.test(cons)]);
+    dit('... avant d envoyer, elles lisent que la lecture est automatique, relue par un maître, et pas un examen médical', [true, true, true, true],
+      [/lecture, automatique/.test(cons) && /un maître de la Maison la relit/.test(cons), /pas un examen médical/.test(cons),
+        /lecture, automatique/.test(mc) && /un maître de la Maison la relit/.test(mc), /pas un examen médical/.test(mc)]);
   }
 
   /* Le Trône. */

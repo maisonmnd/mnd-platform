@@ -118,7 +118,7 @@ export function MonDiagnosticPhoto() {
       ) : saisie ? (
         <div className="mc-ed-carte">
           <div className="mc-micro-eyebrow">{t('Le diagnostic photo')}</div>
-          <p className="mc-ed-doux">{t('Une à quatre photos, à la lumière du jour : le dessus, un profil, la nuque. Une première lecture, automatique, s’affiche aussitôt ; un maître de la Maison la relit dans la journée.')}</p>
+          <p className="mc-ed-doux">{t('Une à quatre photos, à la lumière du jour : le dessus, un profil, la nuque. Une première lecture, automatique, s’affiche aussitôt ; un maître de la Maison la relit dans la journée. Ce n’est pas un examen médical.')}</p>
           <label className="mc-ed-champ"><span>{t('Vos photos ({n} sur {max})', { n: fichiers.length, max: PHOTOS_MAX })}</span>
             <input type="file" accept="image/*" multiple disabled={fichiers.length >= PHOTOS_MAX} onChange={(e) => { ajoute(e.target.files); e.target.value = ''; }} />
           </label>

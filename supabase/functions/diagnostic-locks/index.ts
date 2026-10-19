@@ -653,15 +653,24 @@ type Reponse = [number, Record<string, unknown>];
 const isoDe = (ms: number): string => new Date(ms).toISOString();
 const octetsDe = (b64: string): Uint8Array => Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
 
+/** Ce que la cliente reçoit de la lecture : jamais le résumé brut de Claude
+    (reprise du 19 octobre). Elle lit `texte`, passé par `texteSansPromesse` ;
+    une phrase refusée ne doit pas voyager jusqu'à son téléphone. */
+const lecturePourElle = (l: Lecture | null | undefined): Lecture | null => (l ? { ...l, resume: '' } : null);
+
 /** Ce que la cliente relit d'un diagnostic : jamais qui l'a relu. */
 const pourLaCliente = (l: LigneDiagnostic) => ({
   id: l.id, cree_le: l.cree_le, etat: l.etat,
-  lecture: l.data.lecture ?? null, recommandation: l.data.recommandation ?? null, texte: l.data.texte ?? '',
+  lecture: lecturePourElle(l.data.lecture), recommandation: l.data.recommandation ?? null, texte: l.data.texte ?? '',
   correction: l.data.correction ?? null, relu_le: l.relu_le ?? null, photosEffaceesLe: l.data.photosEffaceesLe ?? null,
   mot: l.data.sansLecture && l.etat !== 'relu' ? MOT_SANS_LECTURE : motDeLEtat(l.etat, l.data.recommandation?.peauInquiete === true),
 });
 
 async function etatDuDiagnostic(o: OutilsDuDiagnostic): Promise<Reponse> {
+  /* Les 90 jours passent aussi par ici (reprise du 19 octobre) : chaque
+     ouverture de La Consultation ou de Ma Couronne demande l'état, même
+     interrupteur éteint ; une photo trop vieille n'attend pas le prochain envoi. */
+  o.fond(effaceLesVieillesPhotos(o, o.maintenant()));
   return [200, { ok: true, ouvert: await o.base.interrupteur(), version: VERSION_DU_DIAGNOSTIC }];
 }
 
@@ -755,7 +764,7 @@ async function lirePhotos(o: OutilsDuDiagnostic, r: RequeteDuDiagnostic): Promis
   /* 90 jours (sa décision) : les vieilles photos partent, en passant. */
   o.fond(effaceLesVieillesPhotos(o, maintenant));
   return [200, {
-    ok: true, id, etat: 'a-relire', lecture, recommandation, texte,
+    ok: true, id, etat: 'a-relire', lecture: lecturePourElle(lecture), recommandation, texte,
     mot: lecture ? (urgent ? MOT_PEAU : MOT_A_CONFIRMER) : MOT_SANS_LECTURE,
   }];
 }

@@ -4,7 +4,7 @@
 export const EN_DIAGNOSTIC: Record<string, string> = {
   'Le diagnostic photo': 'The photo reading',
   'Faire lire vos locks en photo par la Maison.': 'Have the Maison read your locks from photos.',
-  'Une à quatre photos, à la lumière du jour : le dessus, un profil, la nuque. Une première lecture, automatique, s’affiche aussitôt ; un maître de la Maison la relit dans la journée.': 'One to four photos, in daylight: the top, a profile, the nape. A first, automatic reading appears straight away; an artisan of the Maison reviews it within the day.',
+  'Une à quatre photos, à la lumière du jour : le dessus, un profil, la nuque. Une première lecture, automatique, s’affiche aussitôt ; un maître de la Maison la relit dans la journée. Ce n’est pas un examen médical.': 'One to four photos, in daylight: the top, a profile, the nape. A first, automatic reading appears straight away; an artisan of the Maison reviews it within the day. This is not a medical examination.',
   'Vos photos ({n} sur {max})': 'Your photos ({n} of {max})',
   'Tout retirer': 'Remove all',
   'Envoyer mes photos à la Maison': 'Send my photos to the Maison',

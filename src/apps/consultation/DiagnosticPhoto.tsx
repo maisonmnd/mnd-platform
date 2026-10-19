@@ -144,7 +144,7 @@ export function DiagnosticPhoto({ consultationId, transactionId, photos, devise 
       <p className="lc-intro" style={{ marginTop: 10, maxWidth: 640 }}>
         Si vous le voulez, vos photos partent à la Maison. Une première lecture, automatique, s’affiche
         aussitôt ; un maître de la Maison la relit dans la journée. Elle ne remplace pas la consultation,
-        et une photo ne dit pas tout de votre couronne.
+        une photo ne dit pas tout de votre couronne, et ce n’est pas un examen médical.
       </p>
 
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, marginTop: 12 }}>
