@@ -36,6 +36,7 @@ import {
 import './systeme.css';
 import { CarteMndPay } from './CarteMndPay';
 import { CarteRelances } from './CarteRelances';
+import { CarteDiagnosticPhoto } from './CarteDiagnosticPhoto';
 
 /* Système · Paramètres — jours & heures d'ouverture, accès ERP du personnel par
    rubrique de domaine (codes d'accès envoyables), et les liens d'automatisation. */
@@ -2478,6 +2479,8 @@ export default function Parametres() {
         brut={autoCfgRaw.automateWa}
         ecris={(r) => setAutoCfgRaw({ ...autoCfg, automateWa: r })}
       />
+      {/* LE DIAGNOSTIC PHOTO (19 octobre 2026) : l'interrupteur et la table « à valider », direction seule. */}
+      <CarteDiagnosticPhoto />
 
       {/* ══ LES DONNÉES ═════════════════════════════════════════════
           Ce qu'on garde et ce qu'on emporte. Le destructif est plus bas, et

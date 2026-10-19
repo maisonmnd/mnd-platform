@@ -620,6 +620,8 @@ const regles: Regle[] = [
         'chat-du-site': { fichier: 'src/shared/chat-du-site-pur.ts', extrait: (s) => entre(s, 'chat-du-site') },
         /* La porte vers Claude des huit chantiers (19 octobre 2026), recopiee dans ia-maison. */
         'ia-maison': { fichier: 'src/shared/ia-maison-pur.ts', extrait: (s) => entre(s, 'ia-maison') },
+        /* Le diagnostic photo des locks (19 octobre 2026), recopie dans diagnostic-locks. */
+        'diagnostic-locks': { fichier: 'src/shared/ia-diagnostic-pur.ts', extrait: (s) => entre(s, 'diagnostic-locks') },
       };
       const fonctions: string[] = [];
       const marche = (d: string) => { for (const n of readdirSync(d)) { const p = `${d}/${n}`; if (statSync(p).isDirectory()) marche(p); else if (/\.(ts|js)$/.test(n)) fonctions.push(p); } };

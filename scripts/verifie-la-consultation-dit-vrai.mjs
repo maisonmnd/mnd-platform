@@ -18,7 +18,10 @@
 import { readFileSync } from 'node:fs';
 
 const lis = (f) => readFileSync(new URL(`../${f}`, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
-const sansCommentaires = (s) => s.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '').replace(/\{\s*\/\*[\s\S]*?\*\/\s*\}/g, '');
+/* 19 octobre 2026 (diagnostic photo) : « image/* », l'accept des cadres de
+   photo, ouvrait un faux commentaire qui avalait le JSX jusqu'au suivant ;
+   un texte interdit glissé là passait sans un mot. Il se neutralise d'abord. */
+const sansCommentaires = (s) => s.replace(/image\/\*/g, 'image/tout').replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '').replace(/\{\s*\/\*[\s\S]*?\*\/\s*\}/g, '');
 
 const app = sansCommentaires(lis('src/apps/consultation/App.tsx'));
 const data = sansCommentaires(lis('src/apps/consultation/data.ts'));
