@@ -47,6 +47,7 @@ import { appelDe } from '../../../../shared/civilite';
 import ReponsesDeLaMaison from './ReponsesDeLaMaison';
 import { invoicesStore } from '../../../../shared/finance';
 import { useLaPieceEnPdf } from '../vente/pdf-de-la-piece';
+import { CaptureLue } from './CaptureLue';
 
 /* ═══════════════════════════════════════════════════════════════════
    LES CONVERSATIONS — maquette `public/maquette-les-conversations.html`,
@@ -1408,6 +1409,8 @@ export default function Conversations() {
                             depuis le 15 septembre. Une pièce ENVOYÉE n'a pas
                             de chemin : seuls son nom et son poids restent. */}
                         {m.sens === 'entrant' && m.piece && <PieceDuFil piece={m.piece} />}
+                        {/* La capture d'un transfert, lue par Claude (19 octobre 2026) : à vérifier, puis inscrire ou écarter. */}
+                        {m.sens === 'entrant' && m.piece?.type?.startsWith('image/') && <CaptureLue message={m} clientId={fil.clientId} />}
                         {m.rangeDans && m.rangeDans !== '-' && (
                           <span className="trc-b__note">
                             Rangée dans son engagement, comme devis à saisir.{' '}
