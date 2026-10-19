@@ -2365,7 +2365,8 @@ export default function Depenses() {
                 aujourdhui={todayISO()}
                 onPhoto={(pj) => { setForm((f) => ({ ...f, fichier: pj })); setVoletRecu(true); setPlusOuvert(true); }}
                 onLecture={(lu) => {
-                  setForm((f) => { avantLaPhoto.current = f; return formulaireDepuisLaLecture(f, lu, catNames, uid); });
+                  /* Le formulaire d'AVANT la première photo : une seconde photo ne le remplace pas. */
+                  setForm((f) => { if (!avantLaPhoto.current) avantLaPhoto.current = f; return formulaireDepuisLaLecture(f, lu, catNames, uid); });
                   setVenusDeLaPhoto(new Set(champsRemplis(lu)));
                   if (lu.lignes.length) setPlusOuvert(true);
                 }}

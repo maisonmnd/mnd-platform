@@ -17,7 +17,7 @@ import { DEPARTEMENTS_PAR_CHANTIER, peutDemander } from '../src/shared/ia-maison
 import {
   CHAMPS_DU_RECU, CHANTIER_DU_RECU, LIBELLE_DU_RESTE, LIGNES_MAX, MONTANT_MAX_XOF, SCHEMA_DU_CHEQUE, SCHEMA_DU_RECU, TOLERANCE_DES_LIGNES, USAGE_DU_RECU,
   banqueReconnue, categorieLue, champsRemplis, chequeDit, consigneDuCheque, consigneDuRecu, cuivreSi, dateLue, formulaireDepuisLaLecture,
-  lectureDuCheque, lectureDuRecu, lignesPourLaDepense, montantLu, moyenLu, type RecuLu,
+  lectureDuCheque, lectureDuRecu, lignesPourLaDepense, montantLu, moyenLu, pieceDuCoffre, sansNumero, type RecuLu,
 } from '../src/shared/ia-recu-pur';
 import { BANQUES_DU_BENIN } from '../src/shared/trace-du-moyen-pur';
 
@@ -28,7 +28,10 @@ const dit = (nom: string, attendu: unknown, obtenu: unknown) => {
   else { ko++; console.log(`ECHEC ${nom}\n       obtenu  ${o}\n       attendu ${a}`); }
 };
 const lis = (f: string) => readFileSync(f, 'utf8').split(String.fromCharCode(13)).join('');
-const sansCommentaires = (t: string) => t.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '').replace(/\{\/\*[\s\S]*?\*\/\}/g, '');
+/* Un commentaire s'ouvre en début de ligne ou après un blanc, une accolade,
+   une parenthèse : `accept="image/*"` n'en ouvre pas un (la première écriture
+   avalait tout, de là jusqu'au commentaire suivant). */
+const sansCommentaires = (t: string) => t.replace(/\{\/\*[\s\S]*?\*\/\}/g, '').replace(/(^|[\s{(;,])\/\*[\s\S]*?\*\//g, '$1').replace(/^\s*\/\/.*$/gm, '');
 const AUJ = '2026-10-19';
 const CATEGORIES = ['Local', 'Matières premières', 'Salaires', 'Marketing', 'Logistique', 'Équipement', 'Frais bancaires', 'Divers'];
 const compteur = () => { let n = 0; return () => `l${++n}`; };
@@ -56,6 +59,17 @@ dit('la teinte est cuivre, jamais obsidienne, et s efface quand on touche', [tru
 dit('un montant : entier de francs, arrondi (12 500,5 devient 12 501), lu même écrit « 12 500 » ou « 12.500,50 » ; négatif, absurde ou texte : null',
   [12500, 12501, 12500, 12501, null, null, null, 0],
   [montantLu(12500), montantLu(12500.5), montantLu('12 500'), montantLu('12.500,50'), montantLu(-5), montantLu('abc'), montantLu(2_000_000_000), montantLu(0)]);
+/* Reprise du 19 octobre 2026 : un montant à moitié lu est pire qu'une case vide. */
+dit('un montant à virgule ou à l anglaise se lit en francs (« 12 500,00 », « 12,500 », « 12 500 FCFA », insécable) ; un texte qui n est pas un nombre vaut null (« 12abc », « 1.2.3 », « 12 500 euros »)',
+  [12500, 12500, 12500, 12500, 12500, null, null, null, null],
+  [montantLu('12 500,00'), montantLu('12,500'), montantLu('12 500 FCFA'), montantLu('12 500 F'), montantLu('12500 XOF'), montantLu('12abc'), montantLu('1.2.3'), montantLu('12 500 euros'), montantLu(Number.NaN)]);
+dit('le numéro de téléphone imprimé quitte le nom de l enseigne ; « Hôtel » et « Station 2000 » restent entiers',
+  ['Pharmacie du Port', 'Super U', 'Erevan', 'Hôtel Azalaï', 'Station 2000', 'Pharmacie Camp Guézo'],
+  [sansNumero('Pharmacie du Port Tél. 21 30 00 00'), sansNumero('Super U · +229 97 00 00 00'), sansNumero('Erevan 21-30-00-00'), sansNumero('Hôtel Azalaï'), sansNumero('Station 2000'), sansNumero('Pharmacie Camp Guézo Téléphone : 0197000000')]);
+dit('la photo jointe : l originale si le compartiment la prend (jpeg, png, webp, gif, pdf, 10 Mo au plus), sinon la réduite (HEIC, 12 Mo, vide)',
+  ['originale', 'originale', 'originale', 'reduite', 'reduite', 'reduite', 'reduite'],
+  [pieceDuCoffre({ type: 'image/jpeg', size: 3_000_000 }), pieceDuCoffre({ type: 'image/png', size: 1_000_000 }), pieceDuCoffre({ type: 'image/jpeg', size: 10 * 1024 * 1024 }),
+    pieceDuCoffre({ type: 'image/jpeg', size: 12_000_000 }), pieceDuCoffre({ type: 'image/heic', size: 2_000_000 }), pieceDuCoffre({ type: '', size: 2_000_000 }), pieceDuCoffre({ type: 'image/jpeg', size: 0 })]);
 dit('une date : ISO avec l année, pas dans le futur ; « 18/10/2026 », le 30 février, 1999 : null ; une heure derrière ne gêne pas',
   ['2026-10-18', AUJ, null, null, null, null, '2026-10-18', '2026-10-20'],
   [dateLue('2026-10-18', AUJ), dateLue(AUJ, AUJ), dateLue('2026-10-20', AUJ), dateLue('18/10/2026', AUJ), dateLue('2026-02-30', AUJ), dateLue('1999-01-01', AUJ),
@@ -90,8 +104,15 @@ dit('un reçu sain : total, date, enseigne nettoyée, catégorie du Trône, deux
 }
 {
   const l = lectureDuRecu({ ...BRUT, montant: 10000, lignes: [{ libelle: 'A', quantite: 1, montant: 10300 }] }, { categories: CATEGORIES, aujourdhui: AUJ })!;
-  dit('à 3 % au-dessus (dans la tolérance) : la ligne est lue, mais elle ne devient pas un article (la somme des articles fait loi dans la dépense)',
-    [10000, 1, []], [l.montant, l.lignes.length, lignesPourLaDepense(l, compteur())]);
+  dit('à 3 % au-dessus (dans la tolérance) : la ligne est lue, mais elle ne devient pas un article (la somme des articles fait loi dans la dépense), et on le dit',
+    [10000, 1, [], true], [l.montant, l.lignes.length, lignesPourLaDepense(l, compteur()), /une remise \?\) : seul le total est repris, les articles ne sont pas posés/.test(l.avertissements.join(' '))]);
+}
+{
+  /* Un total, une taxe, une remise ou la monnaie rendue ne sont pas des articles, même lisibles. */
+  const l = lectureDuRecu({ ...BRUT, lignes: [...BRUT.lignes.slice(0, 2), { libelle: 'TOTAL TTC', quantite: 1, montant: 12500 }, { libelle: 'Sous-total', quantite: 1, montant: 12500 },
+    { libelle: 'TVA 18 %', quantite: 1, montant: 1907 }, { libelle: 'Rendu monnaie', quantite: 1, montant: 2500 }, { libelle: 'Net à payer', quantite: 1, montant: 12500 }, { libelle: 'Totalement bio, savon offert', quantite: 1, montant: 0 }] }, { categories: CATEGORIES, aujourdhui: AUJ })!;
+  dit('les lignes de total, de TVA, de monnaie rendue ou de net à payer tombent ; les articles restent (« Totalement bio » en est un), sans avertissement',
+    [['Beurre de karité 1 kg', 'Huile de coco', 'Totalement bio, savon offert'], []], [l.lignes.map((x) => x.libelle), l.avertissements]);
 }
 {
   const l = lectureDuRecu({ ...BRUT, montant: null }, { categories: CATEGORIES, aujourdhui: AUJ })!;
@@ -102,14 +123,34 @@ dit('un reçu sain : total, date, enseigne nettoyée, catégorie du Trône, deux
   dit('une date dans le futur est refusée, et dite', [null, true], [l.date, /dans le futur/.test(l.avertissements.join(' '))]);
   const l2 = lectureDuRecu({ ...BRUT, date: '18 octobre' }, { categories: CATEGORIES, aujourdhui: AUJ })!;
   dit('une date sans année est refusée, et dite', [null, true], [l2.date, /date complète/.test(l2.avertissements.join(' '))]);
+  /* Une année mal lue (2016 pour 2026) : gardée, mais dite avec l'année. */
+  const l3 = lectureDuRecu({ ...BRUT, date: '2016-10-18' }, { categories: CATEGORIES, aujourdhui: AUJ })!;
+  const l4 = lectureDuRecu({ ...BRUT, date: '2025-11-02' }, { categories: CATEGORIES, aujourdhui: AUJ })!;
+  dit('une date de plus d un an est gardée mais dite, année comprise ; à moins d un an, rien à dire', ['2016-10-18', true, '2025-11-02', []],
+    [l3.date, /le 2016-10-18, il y a plus d’un an : vérifiez l’année/.test(l3.avertissements.join(' ')), l4.date, l4.avertissements]);
+}
+{
+  const l = lectureDuRecu({ ...BRUT, fournisseur: 'SUPER U Tél. 21 30 00 00' }, { categories: CATEGORIES, aujourdhui: AUJ })!;
+  dit('le bénéficiaire lu n emporte pas le numéro du ticket', 'SUPER U', l.fournisseur);
+  dit('une photo qui ne porte qu un numéro n est pas un reçu', null,
+    lectureDuRecu({ montant: null, date: null, fournisseur: '+229 97 00 00 00', categorie: null, lignes: [], moyen: null, confiance: 0.2 }, { categories: CATEGORIES, aujourdhui: AUJ }));
 }
 {
   const l = lectureDuRecu({ ...BRUT, categorie: 'Courses' }, { categories: CATEGORIES, aujourdhui: AUJ })!;
   dit('une catégorie hors liste est vidée, et dite', ['', true], [l.categorie, /n’est pas une catégorie du Trône/.test(l.avertissements.join(' '))]);
 }
 {
-  const l = lectureDuRecu({ ...BRUT, devise: 'eur' }, { categories: CATEGORIES, aujourdhui: AUJ })!;
-  dit('un ticket en euros : le montant tel que lu, la devise dite', ['EUR', true], [l.devise, /en EUR/.test(l.avertissements.join(' '))]);
+  /* Reprise du 19 octobre 2026 : 50 € ne s'inscrivent jamais 50 F. */
+  const l = lectureDuRecu({ ...BRUT, montant: 50, devise: 'eur', lignes: [{ libelle: 'Peigne', quantite: 1, montant: 50 }] }, { categories: CATEGORIES, aujourdhui: AUJ })!;
+  dit('un ticket en euros : la devise et le montant lus se disent, mais la case des francs n en reçoit rien (ni montant, ni articles, ni teinte)',
+    ['EUR', 50, true, '', [], ['date', 'fournisseur', 'categorie']],
+    [l.devise, l.montant, /en EUR \(50 EUR\) : le montant n’est pas repris/.test(l.avertissements.join(' ')),
+      formulaireDepuisLaLecture({ amount: '', date: AUJ, label: '', category: '', subcategory: '', items: [] }, l, CATEGORIES, compteur()).amount,
+      formulaireDepuisLaLecture({ amount: '', date: AUJ, label: '', category: '', subcategory: '', items: [] }, l, CATEGORIES, compteur()).items,
+      champsRemplis(l)]);
+  dit('... « XOF » ou « CFA » ne sont pas une devise étrangère', [undefined, undefined, 12500],
+    [lectureDuRecu({ ...BRUT, devise: 'XOF' }, { categories: CATEGORIES, aujourdhui: AUJ })!.devise, lectureDuRecu({ ...BRUT, devise: 'cfa' }, { categories: CATEGORIES, aujourdhui: AUJ })!.devise,
+      lectureDuRecu({ ...BRUT, devise: 'XOF' }, { categories: CATEGORIES, aujourdhui: AUJ })!.montant]);
   const l2 = lectureDuRecu({ ...BRUT, confiance: 1.7 }, { categories: CATEGORIES, aujourdhui: AUJ })!;
   const l3 = lectureDuRecu({ ...BRUT, confiance: 'haute' }, { categories: CATEGORIES, aujourdhui: AUJ })!;
   dit('la confiance est bornée entre 0 et 1 ; un mot vaut 0', [1, 0], [l2.confiance, l3.confiance]);
@@ -200,7 +241,11 @@ dit('la banque lue se ramène à la liste du Trône (Bank of Africa, Ecobank, SG
   dit('... il demande à Claude par le chantier « recu », en image, avec la consigne et le schéma, et revalide la réponse', [true, true, true, true],
     [/chantier: CHANTIER_DU_RECU,\s*usage: USAGE_DU_RECU,/.test(p), /systeme: consigneDuRecu\(\{ categories, aujourdhui \}\)/.test(p), /schema: SCHEMA_DU_RECU,/.test(p), /lectureDuRecu\(r\.data, \{ categories, aujourdhui \}\)/.test(p)]);
   dit('... la photo part réduite chez Claude ET au coffre des pièces des dépenses (elle reste jointe même si Claude se tait), prise à l appareil', [true, true, true, true],
-    [/photoPourClaude\(f\)/.test(p), /deposerFichier\(branchId, f, 'depense'\)/.test(p), /if \(piece\) onPhoto\(piece\);/.test(p), /capture="environment"/.test(p)]);
+    [/photoPourClaude\(f\)/.test(p), /deposerFichier\(branchId, aDeposer, 'depense'\)/.test(p), /if \(piece\) onPhoto\(piece\);/.test(p), /capture="environment"/.test(p)]);
+  dit('... la pièce est l originale quand le compartiment la prend, la réduite sinon ; elle est jointe AVANT que l on regarde la réponse de Claude', [true, true],
+    [/const aDeposer = pieceDuCoffre\(f\) === 'originale' \? f : image \? enFichierJpeg\(image\.base64, f\.name\) : null;/.test(p),
+      p.indexOf('if (piece) onPhoto(piece);') > -1 && p.indexOf('if (piece) onPhoto(piece);') < p.indexOf('if (!r.ok)')]);
+  dit('... il dit les lignes qui deviennent des articles, pas celles que Claude a vues', true, /const articles = lu \? lignesPourLaDepense\(lu, \(\) => ''\)\.length : 0;/.test(p));
   dit('... le composant n inscrit RIEN : ni magasin, ni base, ni dépense', false, /setExpenses|expensesStore|useExpenses|\.set\(|supabase|\.insert\(|\.upsert\(/.test(p));
   dit('... la lecture se rend au formulaire et peut s écarter', [true, true, true], [/onLecture\(lecture\);/.test(p), /Écarter la lecture/.test(p), /onEcarter\(\);/.test(p)]);
 
@@ -212,13 +257,13 @@ dit('la banque lue se ramène à la liste du Trône (Bank of Africa, Ecobank, SG
   dit('... la photo se joint à la dépense (le champ `fichier`, celui de « Joindre le reçu »)', [true, true],
     [/onPhoto=\{\(pj\) => \{ setForm\(\(f\) => \(\{ \.\.\.f, fichier: pj \}\)\);/.test(montage), (d.match(/fichier: form\.fichier,/g) ?? []).length >= 2]);
   dit('... la lecture remplit le formulaire par le module pur et teinte les cases remplies ; « Écarter » rend le formulaire d avant', [true, true, true],
-    [/formulaireDepuisLaLecture\(f, lu, catNames, uid\)/.test(montage), /setVenusDeLaPhoto\(new Set\(champsRemplis\(lu\)\)\)/.test(montage), /avantLaPhoto\.current = f;/.test(montage) && /if \(avant\) setForm\(\(f\) => \(\{ \.\.\.avant, fichier: f\.fichier \}\)\);/.test(montage)]);
+    [/formulaireDepuisLaLecture\(f, lu, catNames, uid\)/.test(montage), /setVenusDeLaPhoto\(new Set\(champsRemplis\(lu\)\)\)/.test(montage), /if \(!avantLaPhoto\.current\) avantLaPhoto\.current = f;/.test(montage) && /if \(avant\) setForm\(\(f\) => \(\{ \.\.\.avant, fichier: f\.fichier \}\)\);/.test(montage)]);
   dit('... les quatre cases de la maquette se teintent cuivre, et chaque case touchée perd sa teinte', [true, true, true, true, 4],
     [/cuivreSi\(venusDeLaPhoto\.has\('montant'\)\)/.test(d), /cuivreSi\(venusDeLaPhoto\.has\('date'\)\)/.test(d), /cuivreSi\(venusDeLaPhoto\.has\('fournisseur'\)\)/.test(d), /cuivreSi\(venusDeLaPhoto\.has\('categorie'\)\)/.test(d),
       (d.match(/toucheLaCase\('(montant|date|fournisseur|categorie)'\)/g) ?? []).length]);
   dit('... la dépense passe par `save`, comme à la main : le statut vient du rôle (soumission pour un maître), une seule porte d écriture, le bouton ne reçoit aucun moyen d écrire', [1, 1, false],
     [(d.match(/validation: jeSoumets \? soumission\(monNom \|\| 'Sans nom', new Date\(\)\.toISOString\(\)\) : undefined,/g) ?? []).length,
-      (d.match(/setExpenses\(\(prev\) => \[e, \.\.\.prev\]\)/g) ?? []).length, /setExpenses|save=/.test(montage)]);
+      (d.match(/setExpenses\(\(prev\) => \[e, \.\.\.prev\]\)/g) ?? []).length, /setExpenses|save=|save\(|setCashboxes|\.insert\(|\.upsert\(/.test(montage)]);
   dit('... la teinte se remet à zéro quand la fenêtre s ouvre (nouvelle ou modifiée)', 2, (d.match(/setVenusDeLaPhoto\(new Set\(\)\); avantLaPhoto\.current = null;/g) ?? []).length);
 
   const t = sansCommentaires(lis(TRACE));
@@ -226,7 +271,9 @@ dit('la banque lue se ramène à la liste du Trône (Bank of Africa, Ecobank, SG
     /\{famille === 'cheque' && <LireLaPhotoDuCheque chemin=\{t\.photo\.chemin\} onLu=\{poseLaLecture\} \/>\}/.test(t));
   dit('... la lecture pose la banque (hors liste : « Autre banque ») et le numéro, en cuivre jusqu au toucher, jamais « Au nom de »', [true, true, true, true, true, false],
     [/if \(lu\.banque\) \{ patch\.banque = lu\.banque; setAutreBanque\(lu\.horsListe\); \}/.test(t), /if \(lu\.numero\) patch\.numero = lu\.numero;/.test(t), /pose\(patch\);/.test(t),
-      /cuivreSi\(lus\.has\('banque'\)\)/.test(t), /cuivreSi\(lus\.has\('numero'\)\)/.test(t), /auNomDe: lu\./.test(t)]);
+      /cuivreSi\(lus\.has\('banque'\)\)/.test(t), /cuivreSi\(lus\.has\('numero'\)\)/.test(t), /auNomDe\s*[:=]\s*lu\.|lu\.tireur/.test(t)]);
+  dit('... une banque hors liste se relit dans sa case libre, cuivrée elle aussi jusqu au toucher', true,
+    /aria-label="Le nom de la banque" value=\{t\.banque \?\? ''\} style=\{cuivreSi\(lus\.has\('banque'\)\)\} onChange=\{\(e\) => \{ touche\('banque'\);/.test(t));
 
   const c = sansCommentaires(lis(CHQ));
   dit('« Lire la photo » se tait sans fonction posée ou sans département ; crochets avant le retour', [true, true],
@@ -235,8 +282,10 @@ dit('la banque lue se ramène à la liste du Trône (Bank of Africa, Ecobank, SG
     [/images: \[\{ coffre: COFFRE_DES_TRACES, chemin \}\]/.test(c), /chantier: CHANTIER_DU_RECU,\s*usage: USAGE_DU_RECU,/.test(c), /systeme: consigneDuCheque\(\{ aujourdhui, banques: BANQUES_DU_BENIN \}\)/.test(c), /schema: SCHEMA_DU_CHEQUE,/.test(c), /lectureDuCheque\(r\.data, \{ aujourdhui, banques: BANQUES_DU_BENIN \}\)/.test(c)]);
   dit('... et n inscrit rien lui-même', false, /\.set\(|supabase|\.insert\(|\.upsert\(|invoicesStore|deposeLaPhoto/.test(c));
 
-  dit('aucun tiret long dans ce qui s affiche (les trois fichiers neufs et le module pur)', [false, false, false, false],
-    [/—/.test(lis(PHOTO)), /—/.test(lis(CHQ)), /—/.test(sansCommentaires(lis(PUR)).replace(/^\s*\*.*$/gm, '')), /salon/i.test(lis(PHOTO) + lis(CHQ) + lis(PUR))]);
+  /* Le tiret long est permis dans un commentaire (les en-têtes datés de la
+     Maison en portent) ; jamais dans ce qui s'affiche ni dans une consigne. */
+  dit('aucun tiret long dans ce qui s affiche (les trois fichiers neufs et le module pur, commentaires ôtés), jamais « salon »', [false, false, false, false],
+    [/—/.test(sansCommentaires(lis(PHOTO))), /—/.test(sansCommentaires(lis(CHQ))), /—/.test(sansCommentaires(lis(PUR))), /salon/i.test(lis(PHOTO) + lis(CHQ) + lis(PUR))]);
 }
 
 console.log(ko === 0 ? '\nTOUT VA BIEN : la photo remplit la dépense, et la Maison garde le dernier mot.' : `\n${ko} ÉCHEC(S)`);

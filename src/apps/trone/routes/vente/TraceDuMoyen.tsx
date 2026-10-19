@@ -87,7 +87,7 @@ export function ChampsDeLaTrace({ famille, valeur, onChange, branchId, etiquette
             />
           </div>
           {autreBanque && (
-            <Input id={id('autre')} autoComplete="off" placeholder="Le nom de la banque" aria-label="Le nom de la banque" value={t.banque ?? ''} onChange={(e) => pose({ banque: e.target.value })} />
+            <Input id={id('autre')} autoComplete="off" placeholder="Le nom de la banque" aria-label="Le nom de la banque" value={t.banque ?? ''} style={cuivreSi(lus.has('banque'))} onChange={(e) => { touche('banque'); pose({ banque: e.target.value }); }} />
           )}
           <Input id={id('aunom')} autoComplete="off" placeholder="Au nom de (si ce n’est pas la cliente), facultatif" aria-label="Au nom de" value={t.auNomDe ?? ''} onChange={(e) => pose({ auNomDe: e.target.value })} />
         </>

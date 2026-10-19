@@ -3,7 +3,7 @@ import { Button } from '../../../../ds/components';
 import { demandeAClaude, photoPourClaude, useSaitIaMaison } from '../../../../shared/ia-maison';
 import { peutDemander } from '../../../../shared/ia-maison-pur';
 import {
-  CHANTIER_DU_RECU, SCHEMA_DU_RECU, USAGE_DU_RECU, champsRemplis, consigneDuRecu, lectureDuRecu, type RecuLu,
+  CHANTIER_DU_RECU, SCHEMA_DU_RECU, USAGE_DU_RECU, champsRemplis, consigneDuRecu, lectureDuRecu, lignesPourLaDepense, pieceDuCoffre, type RecuLu,
 } from '../../../../shared/ia-recu-pur';
 import { deposerFichier } from '../../../../shared/fil';
 import type { PieceJointe } from '../../../../shared/finance';
@@ -54,23 +54,28 @@ export function PhotoDuRecu({ role, acces, branchId, categories, aujourdhui, onP
   const lire = async (f: File | undefined) => {
     if (!f) return;
     setEtat('lecture'); setMot(null); setLu(null);
-    const [piece, image] = await Promise.all([
-      deposerFichier(branchId, f, 'depense').catch(() => null),
-      photoPourClaude(f).catch(() => null),
+    /* La photo réduite d'abord (sur le poste, une seconde) : elle part chez
+       Claude, et elle sert de pièce quand l'originale est trop lourde ou d'un
+       format que le compartiment refuse (`pieceDuCoffre`, reprise du 19
+       octobre 2026). Puis le dépôt et la lecture voyagent ensemble. */
+    const image = await photoPourClaude(f).catch(() => null);
+    const aDeposer = pieceDuCoffre(f) === 'originale' ? f : image ? enFichierJpeg(image.base64, f.name) : null;
+    const [piece, r] = await Promise.all([
+      aDeposer ? deposerFichier(branchId, aDeposer, 'depense').catch(() => null) : Promise.resolve(null),
+      image ? demandeAClaude<unknown>({
+        chantier: CHANTIER_DU_RECU,
+        usage: USAGE_DU_RECU,
+        systeme: consigneDuRecu({ categories, aujourdhui }),
+        messages: [{ role: 'user', content: 'Lis ce reçu et rends ce que tu lis, rien de plus.' }],
+        images: [image],
+        schema: SCHEMA_DU_RECU,
+        maxTokens: 2500,
+      }) : Promise.resolve(null),
     ]);
     if (piece) onPhoto(piece);
     const jointe = piece ? ' La photo reste jointe.' : ' La photo n’a pas pu être jointe : réessayez par « Joindre le reçu ».';
-    if (!image) { setEtat('repos'); setMot(`Cette photo ne se lit pas comme une image : saisissez à la main.${jointe}`); return; }
-    const r = await demandeAClaude<unknown>({
-      chantier: CHANTIER_DU_RECU,
-      usage: USAGE_DU_RECU,
-      systeme: consigneDuRecu({ categories, aujourdhui }),
-      messages: [{ role: 'user', content: 'Lis ce reçu et rends ce que tu lis, rien de plus.' }],
-      images: [image],
-      schema: SCHEMA_DU_RECU,
-      maxTokens: 2500,
-    });
     setEtat('repos');
+    if (!image || !r) { setMot(`Cette photo ne se lit pas comme une image : saisissez à la main.${jointe}`); return; }
     if (!r.ok) { setMot(`${r.message}${jointe} Saisissez à la main.`); return; }
     const lecture = lectureDuRecu(r.data, { categories, aujourdhui });
     if (!lecture) { setMot(`Rien d’utilisable n’a été lu sur cette photo : saisissez à la main.${jointe}`); return; }
@@ -79,6 +84,9 @@ export function PhotoDuRecu({ role, acces, branchId, categories, aujourdhui, onP
   };
 
   const remplies = lu ? champsRemplis(lu).length : 0;
+  /* Les lignes DITES sont celles qui deviennent des articles, pas celles que
+     Claude a vues : une ligne écartée (total dépassé, devise) n'est pas posée. */
+  const articles = lu ? lignesPourLaDepense(lu, () => '').length : 0;
   return (
     <div data-photo-du-recu style={{ display: 'grid', gap: 6 }}>
       <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
@@ -103,7 +111,7 @@ export function PhotoDuRecu({ role, acces, branchId, categories, aujourdhui, onP
         <div role="status" style={{ border: '1px solid var(--copper-300)', background: 'var(--copper-50)', borderRadius: 6, padding: '8px 10px', fontSize: 12, lineHeight: 1.6, display: 'grid', gap: 4 }}>
           <span>
             <b>Lu sur la photo</b> · {remplies} case{remplies > 1 ? 's' : ''} remplie{remplies > 1 ? 's' : ''}
-            {lu.lignes.length ? ` · ${lu.lignes.length} ligne${lu.lignes.length > 1 ? 's' : ''}` : ''}
+            {articles ? ` · ${articles} ligne${articles > 1 ? 's' : ''} d’articles` : ''}
             {lu.moyen ? ` · payé en ${lu.moyen}` : ''}
             {` · confiance ${Math.round(lu.confiance * 100)} %`}
           </span>
@@ -116,4 +124,14 @@ export function PhotoDuRecu({ role, acces, branchId, categories, aujourdhui, onP
       )}
     </div>
   );
+}
+
+/** La photo réduite (base64 JPEG) redevenue un fichier, pour le compartiment. */
+function enFichierJpeg(base64: string, nom: string): File | null {
+  try {
+    const bin = atob(base64);
+    const octets = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) octets[i] = bin.charCodeAt(i);
+    return new File([octets], `${nom.replace(/\.[^.]+$/, '') || 'recu'}.jpg`, { type: 'image/jpeg' });
+  } catch { return null; }
 }

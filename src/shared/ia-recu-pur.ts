@@ -39,7 +39,7 @@ export type LigneDuRecu = { libelle: string; quantite: number; montant: number }
 export type RecuLu = {
   /** Le total du ticket, entier, en francs. null : illisible. */
   montant: number | null;
-  /** La devise lue si ce n'est pas le franc (« EUR », « USD ») : le montant reste tel que lu, et l'écran le dit. */
+  /** La devise lue si ce n'est pas le franc (« EUR », « USD ») : le montant reste tel que lu, se dit, et ne se pose PAS dans la case des francs. */
   devise?: string;
   /** AAAA-MM-JJ, jamais dans le futur. null : illisible. */
   date: string | null;
@@ -81,7 +81,7 @@ export function consigneDuRecu(o: { categories: readonly string[]; aujourdhui: s
     `Aujourd’hui : ${o.aujourdhui}.`,
     'montant : le total payé (TTC, après remise), un nombre entier de francs CFA ; si le ticket est dans une autre monnaie, donne le nombre tel qu’il est écrit et dis la monnaie dans devise (code ISO, par exemple EUR). Si le total n’est pas lisible, null.',
     'date : la date du ticket au format AAAA-MM-JJ, avec l’année. Si l’année n’est pas imprimée ou si la date n’est pas lisible, null. Une date postérieure à aujourd’hui est une erreur de lecture : null.',
-    'fournisseur : le nom de l’enseigne ou de l’entreprise imprimé en tête du ticket (le magasin, la pharmacie, la station). Jamais le nom d’une personne : ne relève aucun nom de personne, ni caissier ni cliente ; si seul un nom de personne figure, laisse fournisseur vide.',
+    'fournisseur : le nom de l’enseigne ou de l’entreprise imprimé en tête du ticket (le magasin, la pharmacie, la station), sans son numéro de téléphone ni son adresse. Jamais le nom d’une personne : ne relève aucun nom de personne, ni caissier ni cliente ; si seul un nom de personne figure, laisse fournisseur vide.',
     `categorie : choisis UNE catégorie dans cette liste, écrite exactement comme ici : ${listeDesCategories}. Si aucune ne convient clairement, null.`,
     'lignes : chaque article du ticket, dans l’ordre, avec libelle (tel qu’imprimé), quantite (1 si rien n’est écrit) et montant (le total de la ligne, en francs, entier). Pas plus de 60 lignes ; les lignes de sous-total, de remise, de TVA ou de rendu monnaie ne sont pas des articles.',
     'moyen : le mode de paiement s’il est imprimé, parmi espèces, carte, mobile money, chèque, virement ; sinon null.',
@@ -124,19 +124,39 @@ const propre = (v: unknown, max: number): string =>
 
 const sansAccents = (s: string): string => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
 
-/** Un nombre tel que Claude le rend : 12500, 12500.5, « 12 500 », « 12.500,50 ». Entier ≥ 0, ou null. */
+/** Un nombre tel que Claude le rend : 12500, 12500.5, « 12 500 », « 12.500,50 »,
+    « 12,500 », « 12 500 FCFA ». Entier ≥ 0, ou null.
+    STRICT (reprise du 19 octobre 2026) : un texte qui n'est pas un nombre,
+    une fois les espaces (insécables comprises, `\s` les prend) et le mot de
+    la monnaie ôtés, vaut null. `parseFloat` seul lisait « 12abc » comme 12 et
+    « 1.2.3 » comme 1,2 : un montant à moitié lu est pire qu'une case vide. */
 export function montantLu(v: unknown): number | null {
   let n: number;
   if (typeof v === 'number') n = v;
   else if (typeof v === 'string') {
-    const t = v.replace(/[\s ]/g, '').replace(/F(CFA)?$/i, '');
-    /* « 12.500,50 » : le point sépare les milliers, la virgule les décimales. */
-    const fr = /^\d{1,3}(\.\d{3})+(,\d+)?$/.test(t) ? t.replace(/\./g, '').replace(',', '.') : t.replace(',', '.');
-    n = parseFloat(fr);
+    const t = v.replace(/\s/g, '').replace(/(FCFA|CFA|XOF|F)$/i, '');
+    /* « 12.500,50 » : le point sépare les milliers, la virgule les décimales ;
+       « 12,500.50 » : l'inverse, à l'anglaise. Le franc n'a pas de centimes :
+       un séparateur suivi de trois chiffres, répété, sépare des milliers. */
+    const nombre = /^\d{1,3}(\.\d{3})+(,\d+)?$/.test(t) ? t.replace(/\./g, '').replace(',', '.')
+      : /^\d{1,3}(,\d{3})+(\.\d+)?$/.test(t) ? t.replace(/,/g, '')
+        : t.replace(',', '.');
+    if (!/^\d+(\.\d+)?$/.test(nombre)) return null;
+    n = Number(nombre);
   } else return null;
   if (!Number.isFinite(n) || n < 0 || n > MONTANT_MAX_XOF) return null;
   return Math.round(n);
 }
+
+/** Un numéro de téléphone imprimé sur le ticket (« Tél. 21 30 00 00 ») n'est
+    pas le nom d'une enseigne : il ne s'inscrit pas dans le bénéficiaire (la
+    Maison n'écrit jamais un numéro là où il n'a rien à faire). Huit chiffres
+    au moins, avec ou sans espaces, points, tirets ou indicatif. Le mot « Tél. »
+    ne tombe que DEVANT un numéro et en début de mot : « Hôtel » reste entier. */
+export const sansNumero = (s: string): string =>
+  s.replace(/(^|[\s,;(·-])(t[ée]l[ée]phone|t[ée]l|tel|phone|cell?|whatsapp)\.?\s*:?\s*(?=\+?\d)/gi, '$1')
+    .replace(/\+?\d[\d\s.\-/]{6,}\d/g, (m) => (m.replace(/\D/g, '').length >= 8 ? ' ' : m))
+    .replace(/\s+/g, ' ').replace(/^[\s,;:·-]+|[\s,;:·-]+$/g, '').trim();
 
 /** Une date ISO plausible, avec son année, et pas dans le futur sauf permission. */
 export function dateLue(v: unknown, aujourdhui: string, o: { futurPermis?: boolean } = {}): string | null {
@@ -152,6 +172,22 @@ export function dateLue(v: unknown, aujourdhui: string, o: { futurPermis?: boole
   if (!o.futurPermis && iso > aujourdhui) return null;
   return iso;
 }
+
+/** Les jours entre deux dates ISO (b après a : positif). */
+export const joursEntre = (a: string, b: string): number =>
+  Math.round((Date.UTC(+b.slice(0, 4), +b.slice(5, 7) - 1, +b.slice(8, 10)) - Date.UTC(+a.slice(0, 4), +a.slice(5, 7) - 1, +a.slice(8, 10))) / 86_400_000);
+
+/* ── LA PHOTO JOINTE ───────────────────────────────────────────────────────
+   La photo va au compartiment des pièces des dépenses (`fil`, dossier
+   « depense », 0059), là où « Joindre le reçu » la mettrait : le « Voir » de la
+   pièce l'ouvre comme les autres, aucune politique neuve. Ce compartiment ne
+   prend que ces formats, jusqu'à 10 Mo. Une photo trop lourde ou d'un autre
+   format (HEIC d'un iPhone) part RÉDUITE, en JPEG : la preuve compte plus que
+   ses pixels, et une dépense ne reste pas sans sa pièce pour 2 Mo de trop. */
+export const FORMATS_DU_COFFRE = ['image/png', 'image/jpeg', 'image/webp', 'image/gif', 'application/pdf'] as const;
+export const OCTETS_MAX_DU_COFFRE = 10 * 1024 * 1024;
+export const pieceDuCoffre = (f: { type: string; size: number }): 'originale' | 'reduite' =>
+  (FORMATS_DU_COFFRE as readonly string[]).includes(String(f.type ?? '').toLowerCase()) && f.size > 0 && f.size <= OCTETS_MAX_DU_COFFRE ? 'originale' : 'reduite';
 
 /** La catégorie telle que le Trône l'écrit, ou vide si elle n'est pas de la liste. */
 export function categorieLue(v: unknown, categories: readonly string[]): string {
@@ -171,6 +207,11 @@ export function moyenLu(v: unknown): MoyenLu | null {
   return null;
 }
 
+/** Ce qui n'est pas un article, même si Claude le rend comme une ligne : un
+    total, une taxe, une remise, la monnaie rendue (la consigne le dit, la
+    lecture ne le croit pas). Compté, il doublerait la dépense. */
+const PAS_UN_ARTICLE = /^(sous[\s-]?)?total\b|^net\s+(à|a)\s+payer|^montant\s+(total|ttc|ht)\b|^t\.?v\.?a\b|^taxe|^remise|^rendu|^monnaie|^esp[eè]ces\s+(re[cç]ues|donn[ée]es)/i;
+
 function lignesLues(v: unknown): LigneDuRecu[] {
   if (!Array.isArray(v)) return [];
   const out: LigneDuRecu[] = [];
@@ -179,7 +220,7 @@ function lignesLues(v: unknown): LigneDuRecu[] {
     const o = l as Record<string, unknown>;
     const libelle = propre(o.libelle, 80);
     const montant = montantLu(o.montant);
-    if (!libelle || montant === null) continue;
+    if (!libelle || montant === null || PAS_UN_ARTICLE.test(libelle)) continue;
     const q = typeof o.quantite === 'number' ? o.quantite : typeof o.quantite === 'string' ? parseFloat(o.quantite.replace(',', '.')) : 1;
     const quantite = Number.isFinite(q) && q > 0 ? Math.round(q * 1000) / 1000 : 1;
     out.push({ libelle, quantite, montant });
@@ -205,28 +246,43 @@ export function lectureDuRecu(brut: unknown, o: { categories: readonly string[];
   const date = dateLue(b.date, o.aujourdhui);
   if (typeof b.date === 'string' && b.date.trim() && date === null) {
     avertissements.push(/^\d{4}-\d{2}-\d{2}/.test(b.date.trim()) && b.date.trim().slice(0, 10) > o.aujourdhui
-      ? 'La date lue est dans le futur : la date du jour est gardée.'
-      : 'La date lue n’est pas une date complète : la date du jour est gardée.');
+      ? 'La date lue est dans le futur : la date déjà dans la case est gardée.'
+      : 'La date lue n’est pas une date complète : la date déjà dans la case est gardée.');
   }
+  /* UNE ANNÉE MAL LUE SE VOIT (reprise du 19 octobre 2026) : un ticket
+     effacé fait lire 2016 pour 2026. Plus d'un an en arrière, la date est
+     gardée (un vieux reçu se saisit aussi) mais dite, année comprise. */
+  if (date && joursEntre(date, o.aujourdhui) > 366) avertissements.push(`La date lue est le ${date}, il y a plus d’un an : vérifiez l’année sur le ticket.`);
 
-  const fournisseur = propre(b.fournisseur, 80);
+  /* L'enseigne, sans le numéro de téléphone imprimé à côté. */
+  const fournisseur = sansNumero(propre(b.fournisseur, 80));
 
   const categorie = categorieLue(b.categorie, o.categories);
   if (propre(b.categorie, 80) && !categorie) avertissements.push(`« ${propre(b.categorie, 40)} » n’est pas une catégorie du Trône : choisissez-la.`);
+
+  /* UN TICKET EN DEVISE NE DEVIENT PAS DES FRANCS (reprise du 19 octobre
+     2026). La première écriture reprenait « 50 » d'un ticket en euros dans
+     la case des francs, avec un mot « convertissez-le » : un clic distrait, et
+     la Maison inscrivait 50 F pour 32 800. Le montant et les lignes en devise
+     se DISENT, la case du montant reste à la personne. */
+  const devise = propre(b.devise, 3).toUpperCase();
+  const deviseEtrangere = /^[A-Z]{3}$/.test(devise) && devise !== 'XOF' && devise !== 'CFA';
 
   let lignes = lignesLues(b.lignes);
   const somme = sommeDesLignes(lignes);
   if (lignes.length && montant !== null && somme > montant * (1 + TOLERANCE_DES_LIGNES)) {
     avertissements.push(`Les ${lignes.length} lignes totalisent ${francs(somme)}, le ticket dit ${francs(montant)} : seul le total est repris.`);
     lignes = [];
+  } else if (lignes.length && montant !== null && somme > montant) {
+    avertissements.push(`Les lignes dépassent le total de ${francs(somme - montant)} (une remise ?) : seul le total est repris, les articles ne sont pas posés.`);
   } else if (lignes.length && montant === null) {
     montant = somme;
     avertissements.push('Le total n’a pas été lu : il est pris comme la somme des lignes, vérifiez-le.');
   }
 
-  const devise = propre(b.devise, 3).toUpperCase();
-  const deviseEtrangere = /^[A-Z]{3}$/.test(devise) && devise !== 'XOF' && devise !== 'CFA';
-  if (deviseEtrangere) avertissements.push(`Le ticket est en ${devise} : le montant est repris tel que lu, convertissez-le.`);
+  if (deviseEtrangere) {
+    avertissements.push(`Le ticket est en ${devise}${montant !== null ? ` (${montant.toLocaleString('fr-FR')} ${devise})` : ''} : le montant n’est pas repris, saisissez-le dans la monnaie de la caisse.`);
+  }
 
   const moyen = moyenLu(b.moyen);
   const c = typeof b.confiance === 'number' && Number.isFinite(b.confiance) ? Math.min(1, Math.max(0, b.confiance)) : 0;
@@ -238,9 +294,13 @@ export function lectureDuRecu(brut: unknown, o: { categories: readonly string[];
   };
 }
 
+/** Le montant que la lecture POSE dans la case des francs : jamais celui
+    d'un ticket en devise. */
+export const montantAPoser = (l: RecuLu): number | null => (!l.devise && l.montant !== null && l.montant > 0 ? l.montant : null);
+
 /** Les cases que la photo a remplies : celles-là se teintent cuivre. */
 export const champsRemplis = (l: RecuLu): ChampDuRecu[] => CHAMPS_DU_RECU.filter((c) => (
-  c === 'montant' ? l.montant !== null && l.montant > 0
+  c === 'montant' ? montantAPoser(l) !== null
     : c === 'date' ? !!l.date
       : c === 'fournisseur' ? !!l.fournisseur
         : !!l.categorie));
@@ -259,9 +319,10 @@ export type LigneDeDepense = { id: string; label: string; amountXof: number; qty
       · égale au total : telles quelles ;
       · en dessous : plus une ligne « Reste du ticket » pour la différence ;
       · au-dessus (dans la tolérance) : aucune, le total seul vaut.
-    Sans total lu, les lignes font le total. */
+    Sans total lu, les lignes font le total. Un ticket en devise : aucune
+    (les articles d'une dépense sont en francs). */
 export function lignesPourLaDepense(l: RecuLu, nouvelId: () => string): LigneDeDepense[] {
-  if (!l.lignes.length) return [];
+  if (!l.lignes.length || l.devise) return [];
   const somme = sommeDesLignes(l.lignes);
   const total = l.montant ?? somme;
   if (somme > total) return [];
@@ -283,9 +344,10 @@ export function formulaireDepuisLaLecture<F extends { amount: string; date: stri
 ): F {
   const lignes = lignesPourLaDepense(l, nouvelId);
   const categorie = l.categorie && categories.includes(l.categorie) ? l.categorie : '';
+  const montant = montantAPoser(l);
   return {
     ...f,
-    amount: l.montant !== null && l.montant > 0 ? String(l.montant) : f.amount,
+    amount: montant !== null ? String(montant) : f.amount,
     date: l.date ?? f.date,
     label: l.fournisseur || f.label,
     category: categorie || f.category,
