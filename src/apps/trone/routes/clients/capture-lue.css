@@ -1,0 +1,43 @@
+/* ══ LA CARTE « LU PAR CLAUDE · À VÉRIFIER » — 19 octobre 2026 ══════════
+   Sous une image reçue, dans le fil. Les cases sont teintées cuivre : c'est
+   une proposition, pas une écriture. Indigo pour le bouton qui inscrit,
+   jamais d'obsidienne. */
+.trc-capture {
+  display: grid; gap: 8px; margin: 8px 0 4px; padding: 10px 12px;
+  border: 1px solid var(--copper-300, #E3C9AE); border-radius: 6px;
+  background: var(--copper-50, #F9EFE7); color: var(--color-indigo, #1F2A5A);
+  font-family: var(--font-sans); font-size: 12.5px; line-height: 1.45;
+  max-width: 420px;
+}
+.trc-capture__t {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 8px;
+  font-size: 9.5px; letter-spacing: .14em; text-transform: uppercase; color: var(--copper-700, #8A5A2B);
+}
+.trc-capture__t small { letter-spacing: 0; text-transform: none; font-size: 11px; color: var(--ink-soft); }
+.trc-capture__cases { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 8px; }
+.trc-capture__case { display: grid; gap: 2px; }
+.trc-capture__case > span { font-size: 9.5px; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-soft); }
+.trc-capture__case input, .trc-capture__case select {
+  width: 100%; box-sizing: border-box; padding: 6px 8px; font: inherit; font-size: 12.5px;
+  border: 1px solid var(--copper-300, #E3C9AE); border-radius: 4px; background: #fff; color: inherit;
+}
+.trc-capture__case input:focus, .trc-capture__case select:focus { outline: 2px solid var(--copper-300, #E3C9AE); outline-offset: 1px; }
+.trc-capture__phrase { font-size: 12.5px; }
+.trc-capture__phrase b { color: var(--copper-700, #8A5A2B); }
+.trc-capture__benef { font-size: 11px; color: var(--ink-soft); }
+.trc-capture__benef.est-douteux { color: var(--copper-700, #8A5A2B); }
+.trc-capture__boutons { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.trc-capture__choix { display: grid; gap: 4px; }
+.trc-capture__choix label {
+  display: flex; gap: 8px; align-items: baseline; padding: 6px 8px; border-radius: 4px;
+  border: 1px solid var(--hairline); background: #fff; cursor: pointer; font-size: 12px;
+}
+.trc-capture__choix label.est-a-venir { opacity: .75; }
+.trc-capture__etat { display: block; font-size: 11.5px; margin-top: 5px; color: var(--ink-soft); font-style: italic; }
+.trc-capture__etat button {
+  background: none; border: none; padding: 0; cursor: pointer; font: inherit;
+  color: inherit; text-decoration: underline; text-underline-offset: 2px; font-style: normal;
+}
+@media (max-width: 480px) {
+  .trc-capture__cases { grid-template-columns: 1fr; }
+}

@@ -189,7 +189,9 @@ const iConfirm = actions.indexOf('const confirm = (garderOuvert = false) =>');
 const iCree = actions.indexOf('caisseDesAnneesPassees(branch.id)', iConfirm);
 const iEcrit = actions.indexOf('invoicesStore.set(', iConfirm);
 dit('la caisse des années passées naît AVANT que l argent s écrive', true, iConfirm > 0 && iCree > iConfirm && iCree < iEcrit);
-dit('une année antérieure date l argent du rituel par défaut', true, /useState\(\(\) => \(estAnneeAnterieure\(appt\.date, todayISO\(\)\) && appt\.date \? appt\.date : todayISO\(\)\)\)/.test(actions));
+/* 19 octobre 2026 (chantier `capture`) : hors année antérieure, une capture
+   lue date l'argent du jour du transfert ; la règle de l'année passe d'abord. */
+dit('une année antérieure date l argent du rituel par défaut', true, /useState\(\(\) => \(estAnneeAnterieure\(appt\.date, todayISO\(\)\) && appt\.date \? appt\.date : (initial\?\.jourDuPaiement \|\| )?todayISO\(\)\)\)/.test(actions));
 dit('le bandeau dit qui encaisse, et l année antérieure seulement quand elle l est', [true, true],
   [/Encaissé par \$\{quiNom\}/.test(actions), /\{anneePassee \? ` · rendez-vous de \$\{anneeDe\(appt\.date\)\}/.test(actions)]);
 dit('les tuiles : MTN MoMoPay, Chèque, et pas de Moov', [true, true, false],

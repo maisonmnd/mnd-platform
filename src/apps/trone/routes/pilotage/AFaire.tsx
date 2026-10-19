@@ -29,6 +29,7 @@ import { useSettings } from '../../../../shared/settings';
 import { jourDuSalon } from '../../../../shared/envois';
 import { aAppeler, departDesRelances, etatDesRelances, seRelance } from '../../../../shared/relances-pur';
 import { useEnvois } from '../equipe/data';
+import { TuileCapturesAInscrire } from './TuileCapturesAInscrire';
 /** LES GESTES QUI SE LISENT TÊTE PAR TÊTE. Les mains, le prix d'achat et les
     impayés ne concernent pas une tête : ils vivent sur un rituel ou une fiche
     de stock, et leur liste est ailleurs. */
@@ -296,6 +297,8 @@ export default function AFaire() {
           <div className="trp-af-jourtitre">{jourDuTitre}.</div>
         </div>
         <div className="trp-af-score">
+          {/* Les captures de transfert lues par Claude qui attendent un oui (19 octobre 2026). */}
+          <TuileCapturesAInscrire />
           {aConfirmer.length > 0 && (
             <button type="button" className="trp-af-pill trp-af-pill--attente" onClick={() => versAncre('relances')}>
               <b>{aConfirmer.length}</b> à confirmer

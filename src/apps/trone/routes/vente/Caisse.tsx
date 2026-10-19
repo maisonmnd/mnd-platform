@@ -49,6 +49,8 @@ import { ChampsDeLaTrace } from './TraceDuMoyen';
 import { useStaff, adresseDe } from '../equipe/data';
 import { caisseProposee, caissesAuChoix, peutChangerLaCaisse, CAISSE_CHEQUES, caisseDesCheques } from '../../../../shared/caisses-des-caissiers-pur';
 import { identiteCourante } from '../../../../shared/journal';
+import { DeposerUneCapture } from './DeposerUneCapture';
+import { methodeDuMoyenLu } from '../../../../shared/ia-capture-pur';
 import { addTipPartage, PART_POURBOIRE_DEFAUT } from '../../../../shared/tips';
 import {
   CAISSE_MND_PAY, MOYEN_ZELLE, moyenDeLaPiece, resteDuTicket, versementDeLaDemande, versementsDesParts,
@@ -1510,6 +1512,9 @@ export default function Caisse() {
 
             <div style={{ padding: '8px 22px 22px' }}>
               <div className="trv-sec-label trv-sec-label--copper" style={{ margin: '6px 0 12px' }}>Paiement</div>
+              {/* La capture du transfert remplit le moyen, la date de la vente et la part (19 octobre 2026) ; la référence se dit, le ticket garde ses règles. */}
+              <DeposerUneCapture clientId={posClient?.id}
+                onLecture={(l) => { const m = methodeDuMoyenLu(l.moyen, methods); if (m) setPay(m); setDateVente(l.jour); setPartStr(String(l.montantXof)); }} />
               {/* MND PAY EN TÊTE quand il est ouvert : la demande au téléphone
                   ou le QR de la carte, confirmés par FedaPay. */}
               {mndOn && (

@@ -52,6 +52,8 @@ import {
 } from '../../../../shared/caisses-des-caissiers-pur';
 import { identiteCourante } from '../../../../shared/journal';
 import { useEstDirection } from '../_vie';
+import { methodeDuMoyenLu, noteDeLaCapture, type MoyenLu } from '../../../../shared/ia-capture-pur';
+import { DeposerUneCapture } from '../vente/DeposerUneCapture';
 
 /* Actions transverses Clients & Agenda : fidélité (points Cercle) + encaissement d'un RDV. */
 
@@ -834,9 +836,21 @@ const DIT_LA_TUILE: Record<TuileEnc, string> = {
 /** UNE PART DU RÈGLEMENT : sa tuile, son montant, et la caisse qu'une main
     de la direction a choisie à la place de celle qui se propose. `mnd` : la
     part MND PAY payée (le vert de FedaPay est venu). */
-type PartEnc = { id: string; tuile: TuileEnc; montantStr: string; autre?: string; caisseChoisie?: string; choixOuvert?: boolean; mnd?: { id: string; methode: string }; trace?: TraceDuMoyen };
+type PartEnc = { id: string; tuile: TuileEnc; montantStr: string; autre?: string; caisseChoisie?: string; choixOuvert?: boolean; mnd?: { id: string; methode: string }; trace?: TraceDuMoyen; note?: string };
 const partNeuve = (tuile: TuileEnc, montant: number | ''): PartEnc =>
   ({ id: `pt-${uid()}`, tuile, montantStr: montant === '' ? '' : String(Math.max(0, Math.round(montant))) });
+/** LA CAPTURE LUE PRÉREMPLIT L'ÉCRAN (19 octobre 2026, chantier `capture`) :
+    le montant lu, le moyen lu (MTN → la tuile MoMoPay, dont la caisse de la
+    Maison se propose ; Moov, Celtiis, virement → « Autres », le moyen de sa
+    liste qui lui ressemble, et on choisit la caisse), le jour du transfert
+    comme jour du versement, la référence en note du versement (c'est elle
+    qui reconnaît ensuite une capture déjà inscrite). L'écran garde ses
+    règles : rien n'est écrit d'avance. */
+export type PreremplissageEnc = { montantXof: number; moyen: MoyenLu; jourDuPaiement: string; reference?: string };
+const partDeLaLecture = (l: PreremplissageEnc, methods: readonly string[]): PartEnc => {
+  const autre = l.moyen === 'mtn' ? undefined : methodeDuMoyenLu(l.moyen, methods);
+  return { ...partNeuve(l.moyen === 'mtn' ? 'momo' : 'autre', l.montantXof), ...(autre ? { autre } : {}), note: noteDeLaCapture(l.reference) };
+};
 /** Où va l'argent d'une part : son moyen écrit, sa caisse, ce que la règle
     proposait, et si la main présente peut la changer. */
 type CaisseDeLaPart = { methode: string; caisse: string; proposee: CaisseProposee; peutChanger: boolean };
@@ -993,9 +1007,14 @@ export function emettreLaPieceDuRituelRegle(
   return { ok: true, deja: r.deja };
 }
 
-export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour }: {
+export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour, initial, onEncaisse }: {
   appt: Appointment;
   onClose: () => void;
+  /** Les cases préremplies par une capture lue (19 octobre 2026) ; l'écran
+      les montre, la main les vérifie, et lui seul écrit. */
+  initial?: PreremplissageEnc;
+  /** Appelé une fois le versement écrit : la capture se marque « inscrite ». */
+  onEncaisse?: () => void;
   /** RETOUR AU RITUEL — 17 août 2026, demande de Yéman : « quand j'arrive à la
       page encaisser le rituel je dois pouvoir aller en arrière ». L'écran
       d'encaissement s'ouvre DEPUIS la fiche du rendez-vous, qui se referme
@@ -1196,7 +1215,10 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour }: {
      68 000 F dans les encaissements d'aout, ou ils ne sont jamais entres. */
   /* UNE ANNÉE ANTÉRIEURE (17 octobre 2026) : on rattrape l'histoire, l'argent
      se date du rituel ; « Aujourd'hui » reste à un geste dans « Et ensuite ». */
-  const [payDate, setPayDate] = useState(() => (estAnneeAnterieure(appt.date, todayISO()) && appt.date ? appt.date : todayISO()));
+  /* UNE CAPTURE LUE (19 octobre 2026) date l'argent du jour du transfert ;
+     la règle de l'année antérieure passe d'abord : tout son argent se date
+     du rituel. */
+  const [payDate, setPayDate] = useState(() => (estAnneeAnterieure(appt.date, todayISO()) && appt.date ? appt.date : initial?.jourDuPaiement || todayISO()));
   /* Les deux dates sont JUSTES par défaut (facture = jour du rituel, paiement =
      aujourd'hui) : elles se replient en une ligne, « Modifier » les rouvre. */
   const [datesOuvertes, setDatesOuvertes] = useState(false);
@@ -1215,7 +1237,7 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour }: {
   const [etape, setEtape] = useState<EtapeEncId | null>(
     () => ((appt.depositXof ?? 0) > 0 && !appt.depositConfirmed ? 'du' : 'paie'),
   );
-  const [parts, setParts] = useState<PartEnc[]>(() => [partNeuve('especes', due)]);
+  const [parts, setParts] = useState<PartEnc[]>(() => [initial ? partDeLaLecture(initial, methods) : partNeuve('especes', due)]);
   const montantDe = (pt: PartEnc): number => Math.max(0, Math.round(Number(pt.montantStr) || 0));
   const majPart = (id: string, patch: Partial<PartEnc>) =>
     setParts((prev) => prev.map((pt) => (pt.id === id ? { ...pt, ...patch } : pt)));
@@ -1637,7 +1659,7 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour }: {
           id: mnd?.id ?? `ip-${uid()}`, date: payDate, amountXof: x,
           method: c.methode, cashbox: c.caisse || undefined,
           ...(trace ? { trace } : {}),
-          ...(mnd ? { note: `${mnd.moyen === 'tapgo' ? 'MND PAY · Tap & Go' : 'MND PAY'}${mnd.reference ? ` · réf. ${mnd.reference}` : ''}${mnd.fraisXof > 0 ? ` · frais ${mnd.fraisXof} F payés par la cliente` : ''}` } : {}),
+          ...(mnd ? { note: `${mnd.moyen === 'tapgo' ? 'MND PAY · Tap & Go' : 'MND PAY'}${mnd.reference ? ` · réf. ${mnd.reference}` : ''}${mnd.fraisXof > 0 ? ` · frais ${mnd.fraisXof} F payés par la cliente` : ''}` } : pt.note ? { note: pt.note } : {}),
           time: new Date().toTimeString().slice(0, 5),
           ...(quiEncaisse() ? { encaissePar: quiEncaisse() } : {}),
           /* LA DEVISE VIT SUR LE VERSEMENT — les 100 € de Stevie A., 18 août.
@@ -1991,6 +2013,8 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour }: {
        champs à zéro pour le suivant, et le bandeau du reste dû se recalcule
        tout seul depuis le magasin. Fermer aurait obligé à retrouver le rituel
        au carnet entre deux moyens de paiement. */
+    /* La capture lue qui a ouvert cet écran se marque inscrite (19 octobre 2026). */
+    if (settleTotal > 0) onEncaisse?.();
     if (garderOuvert) {
       submitting.current = false;
       const t0 = parts[0]?.tuile;
@@ -2605,6 +2629,8 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour }: {
               </div>
             );
           })}
+          {/* La capture du transfert remplit les cases (19 octobre 2026) : une seule part, au montant lu. */}
+          {!fxOn && <DeposerUneCapture clientId={appt.clientId} onLecture={(l) => { setParts([partDeLaLecture({ montantXof: l.montantXof, moyen: l.moyen, jourDuPaiement: l.jour, reference: l.reference }, methods)]); setPayDate(estAnneeAnterieure(appt.date, todayISO()) && appt.date ? appt.date : l.jour); }} />}
           {resteAPartager > 0 && settleTotal > 0 && !fxOn && (
             <button
               type="button"
