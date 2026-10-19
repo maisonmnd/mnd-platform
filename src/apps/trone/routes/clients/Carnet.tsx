@@ -26,6 +26,9 @@ import {
 } from './_shared';
 import { cancelAppointmentPayment, deshonoreLeRituel, factureAEnvoyer, honoreSansEncaisser, PayAppointmentModal } from './actions';
 import { SerieModal } from './SerieModal';
+import { RattraperUnCahier } from './RattraperUnCahier';
+import { useSaitIaMaison } from '../../../../shared/ia-maison';
+import { peutDemander } from '../../../../shared/ia-maison-pur';
 import { useEnvoiDeLaPiece } from '../vente/envoi-de-la-piece';
 import { rituelDeLaRepriseEffacee } from '../../../../shared/reprise-nue';
 
@@ -142,6 +145,12 @@ export default function Carnet() {
   /* LA SAISIE EN SÉRIE vit ici, à côté de « + RDV passé » — arbitrage du
      5 septembre : c'est là qu'on va quand on pense à l'historique. */
   const [serieOuverte, setSerieOuverte] = useState(false);
+  /* LE CAHIER PAPIER RATTRAPÉ (19 octobre 2026, chantier « cahier ») : le
+     bouton se montre quand la fonction ia-maison est posée ET que son
+     département le permet (direction, Clientèle, Finances). */
+  const saitIaMaison = useSaitIaMaison();
+  const peutRattraperUnCahier = saitIaMaison === true && peutDemander(moiCarnet?.role, 'cahier', mesDomainesCarnet);
+  const [cahierOuvert, setCahierOuvert] = useState(false);
   const navigate = useNavigate();
 
   /* ══ CE QU'IL FAUT LUI DEMANDER, PAR TÊTE — 6 septembre 2026 ═══════
@@ -679,6 +688,9 @@ export default function Carnet() {
               + RDV passé
             </Button>
             <Button variant="ghost" onClick={() => setSerieOuverte(true)}>Saisir en série</Button>
+            {peutRattraperUnCahier && (
+              <Button variant="ghost" onClick={() => setCahierOuvert(true)}>Rattraper un cahier</Button>
+            )}
             <Button variant="copper" onClick={() => setModal({})}>+ Nouveau RDV</Button>
           </>
         }
@@ -840,6 +852,7 @@ export default function Carnet() {
           main date de son ouverture, et le versement qu'on vient d'inscrire
           l'a déjà fait vieillir. */}
       {serieOuverte && <SerieModal onClose={() => setSerieOuverte(false)} />}
+      {cahierOuvert && peutRattraperUnCahier && <RattraperUnCahier onClose={() => setCahierOuvert(false)} />}
 
       {payAppt && !sansPrix && (
         <PayAppointmentModal
