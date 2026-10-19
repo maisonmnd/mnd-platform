@@ -1,4 +1,5 @@
 import { pourClaude, prenomEtInitiale, sansCoordonnees, type Personne } from './ia-anonymise-pur';
+import { jourDeCotonou } from './ia-faits-pur';
 import type { ChantierIa, UsageIa } from './ia-maison-pur';
 
 /* ══ LA FICHE DU JOUR, SES RÈGLES — 19 octobre 2026 ═══════════════════════
@@ -72,12 +73,33 @@ export function heureDite(hhmm: string | null | undefined): string {
   return m[2] === '00' ? `${h} h` : `${h} h ${m[2]}`;
 }
 
-const pad2 = (n: number) => String(n).padStart(2, '0');
-/** Le jour local de l'appareil, « AAAA-MM-JJ » : le rendez-vous est écrit
-    dans le jour de Cotonou, pas en UTC. */
-export const jourLocal = (d: Date): string => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
-/** Le jour d'un instant ISO (ou d'un jour déjà court). */
+/** « AAAA-MM-JJ », le jour À COTONOU (reprise du 19 octobre 2026). Le
+    rendez-vous s'écrit dans le jour de la Maison ; un instant ISO est en UTC.
+    Comparer le jour UTC d'une fiche écrite à 0 h 30 au jour de Cotonou la
+    disait d'hier, et l'ouverture suivante repayait la même journée. Le
+    fuseau de l'appareil n'y entre pas non plus (`jourDeCotonou`). */
+export const aujourdhuiACotonou = (d: Date = new Date()): string => jourDeCotonou(d);
+/** Le jour d'un jour déjà court (« 2026-10-19 »), tel quel. */
 export const jourDe = (iso: string | null | undefined): string => String(iso ?? '').slice(0, 10);
+/** Le jour, à Cotonou, d'un instant ISO (« 2026-10-18T23:30:00Z » est le
+    19 octobre 2026 à 0 h 30) ; un jour court reste tel quel ; l'illisible
+    rend une chaîne vide. */
+export function jourDeLInstant(iso: string | null | undefined): string {
+  const s = String(iso ?? '').trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+  const t = Date.parse(s);
+  return Number.isFinite(t) ? jourDeCotonou(new Date(t)) : '';
+}
+/** « 9 h 12 » : l'heure, à Cotonou, d'un instant ISO. */
+export function heureDeLInstant(iso: string | null | undefined): string {
+  const t = Date.parse(String(iso ?? ''));
+  if (!Number.isFinite(t)) return '';
+  try {
+    return heureDite(new Intl.DateTimeFormat('en-GB', { timeZone: 'Africa/Porto-Novo', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(new Date(t)));
+  } catch {
+    return '';
+  }
+}
 export function jourPlus(isoJour: string, n: number): string {
   const d = new Date(`${jourDe(isoJour)}T12:00:00Z`);
   if (Number.isNaN(d.getTime())) return '';
@@ -112,7 +134,9 @@ export type BilanPourLaFiche = {
   prochaineVisite?: string;
 };
 export type MessagePourLaFiche = {
-  canal: 'entre-deux' | 'whatsapp';
+  /** `site` : une demande du site, rangée dans son fil WhatsApp (28 septembre
+      2026) ; c'est elle qui l'a écrite, mais ce n'est pas un WhatsApp. */
+  canal: 'entre-deux' | 'whatsapp' | 'site';
   /** L'instant ISO (ou le jour). */
   quand: string;
   texte?: string;
@@ -132,20 +156,26 @@ export type MatiereDeLaFiche = {
   prochain: { le: string; heure?: string; prestations: string[]; maitre?: string };
   rituels: { le: string; prestations: string[]; maitre?: string; note?: string }[];
   bilans: { le: string; prestation?: string; vu?: string; sens?: string; propose?: string; points: string[]; prochaineVisite?: string }[];
-  messages: { le: string; canal: 'Entre deux séances' | 'WhatsApp'; texte: string }[];
+  messages: { le: string; canal: 'Entre deux séances' | 'WhatsApp' | 'Le site'; texte: string }[];
   reste: { xof: number; rituelDu: string }[];
 };
 
+/** Les mots d'un nom qui sont aussi des mots de tous les jours : seuls, on
+    ne les remplace pas (« Marie De La Fontaine » ne doit pas changer « la
+    racine » en « L. racine »). Le nom entier, lui, se reconnaît toujours. */
+const PARTICULES = new Set(['de', 'du', 'des', 'la', 'le', 'les', 'da', 'do', 'dos', 'das', 'di', 'del', 'van', 'von', 'der', 'den', 'ben', 'bin', 'el', 'al', 'et']);
+
 /** Les formes de son nom qu'il faut reconnaître dans un texte libre : le
-    nom entier derrière le prénom, puis chaque nom seul. Toutes deviennent
-    prénom et initiale par `nomsEnInitiales` (« Awa K. », « K. », « D. »). */
+    nom entier derrière le prénom, puis chaque nom seul (hors particules).
+    Toutes deviennent prénom et initiale par `nomsEnInitiales` (« Awa K. »,
+    « K. », « D. »). */
 export function personnesDe(name: string): Personne[] {
   const mots = String(name ?? '').trim().split(/\s+/).filter(Boolean);
   if (mots.length < 2) return [];
   const prenom = mots[0];
   const noms = mots.slice(1);
   const formes: Personne[] = [{ prenom, nom: noms.join(' ') }];
-  for (const n of noms) if (n.length > 1) formes.push({ nom: n });
+  for (const n of noms) if (n.length > 1 && !PARTICULES.has(n.toLocaleLowerCase('fr'))) formes.push({ nom: n });
   return formes;
 }
 
@@ -204,16 +234,20 @@ export function matiere(
     points: liste(b.points, 3, 200),
     prochaineVisite: propre(b.prochaineVisite, 120) || undefined,
   }));
+  const CANAUX = { 'entre-deux': 'Entre deux séances', whatsapp: 'WhatsApp', site: 'Le site' } as const;
+  /* Les instants se comparent en millisecondes, jamais en texte (« 10:00:00Z »
+     et « 10:00:00.000Z » disent la même heure) ; le jour est celui de Cotonou. */
+  const instant = (q: string): number => { const t = Date.parse(String(q ?? '')); return Number.isFinite(t) ? t : 0; };
   const messages = [...messagesEntreDeuxSeances]
-    .filter((m) => dateDite(jourDe(m.quand)) !== '')
-    .sort((a, b) => String(b.quand).localeCompare(String(a.quand)))
+    .filter((m) => dateDite(jourDeLInstant(m.quand)) !== '' && Object.prototype.hasOwnProperty.call(CANAUX, m.canal))
+    .sort((a, b) => instant(b.quand) - instant(a.quand))
     .map((m) => {
       const soucis = (m.soucis ?? []).map((s) => propre(s, 60)).filter(Boolean);
       const corps = propre(m.texte, 300);
       const texte = m.canal === 'entre-deux'
         ? [m.bien ? 'Tout va bien.' : '', soucis.length ? `Soucis : ${soucis.join(', ')}.` : '', corps].filter(Boolean).join(' ')
         : corps;
-      return { le: dateDite(jourDe(m.quand)), canal: m.canal === 'entre-deux' ? 'Entre deux séances' as const : 'WhatsApp' as const, texte };
+      return { le: dateDite(jourDeLInstant(m.quand)), canal: CANAUX[m.canal], texte };
     })
     .filter((m) => m.texte)
     .slice(0, MESSAGES_RETENUS);
@@ -277,15 +311,34 @@ export const SCHEMA_DE_LA_FICHE: Record<string, unknown> = {
 export const sansTiretLong = (s: string): string =>
   String(s ?? '').replace(/\s*[—–]\s*/g, ', ').replace(/,\s*,/g, ',').trim();
 
-/** Les montants qu'une ligne écrit en francs (« 5 000 F », « 15000 FCFA », « 3 000 francs »). */
+/** LES MONTANTS QU'UNE LIGNE ÉCRIT. Un nombre suivi de sa monnaie (« 5 000 F »,
+    « 15000 FCFA », « 3 000 francs », « 2 500 XOF ») ; et, monnaie ou pas, un
+    nombre groupé par milliers (« 15 000 ») ou de cinq chiffres et plus
+    (« 15000 ») : une année (« 2026 »), un jour (« 2 octobre »), une heure
+    (« 10 h ») ou un rang (« 4e ») n'en sont pas.
+    Reprise du 19 octobre 2026 : le « F » nu était lu sans tenir compte de la
+    casse, et une lettre accentuée faisait frontière ; « le 2 février 2027 »
+    se lisait donc « 2 F », et la ligne tombait. Le « F » est en capitale,
+    et la frontière connaît les lettres accentuées. */
 export function montantsDits(ligne: string): number[] {
-  const r = /(\d(?:[\d\s.  ]*\d)?)\s?(?:F\b|FCFA\b|F CFA\b|XOF\b|francs?\b)/gi;
+  const r = /(?<![\p{L}\p{N}])(\d{1,3}(?:[\s.]\d{3})+|\d+)(?:\s?(F CFA|FCFA|F|XOF|[Ff]rancs?)(?![\p{L}\p{N}]))?/gu;
   const montants: number[] = [];
-  for (let m = r.exec(ligne); m; m = r.exec(ligne)) {
-    const n = Number(m[1].replace(/[^\d]/g, ''));
+  const texte = String(ligne ?? '');
+  for (let m = r.exec(texte); m; m = r.exec(texte)) {
+    const chiffres = m[1].replace(/\D/g, '');
+    const groupe = /[\s.]/.test(m[1]);
+    if (!m[2] && !groupe && chiffres.length < 5) continue;
+    const n = Number(chiffres);
     if (Number.isFinite(n)) montants.push(n);
   }
   return montants;
+}
+
+/** Les montants qu'une ligne a le droit d'écrire : chaque reste dû donné,
+    et leur somme quand il y en a plusieurs (« 7 500 F en tout »). */
+export function montantsPermis(restes: readonly number[]): number[] {
+  const l = restes.filter((x) => Number.isFinite(x) && x > 0).map((x) => Math.round(x));
+  return l.length > 1 ? [...l, l.reduce((s, x) => s + x, 0)] : l;
 }
 
 function lignesBrutes(brut: unknown): unknown[] {
@@ -303,10 +356,11 @@ function lignesBrutes(brut: unknown): unknown[] {
 /** ON NE FAIT PAS CONFIANCE À LA SORTIE. De une à trois lignes ; une ligne
     vide ou illisible tombe ; une ligne qui dit « salon », qui porte un
     numéro ou une adresse, ou qui écrit un prix autre que le reste dû donné
-    est REFUSÉE (pas corrigée : on ne devine pas ce qu'elle voulait dire) ;
-    le tiret long devient une virgule ; une puce ou un numéro en tête
-    s'efface ; une ligne trop longue est coupée. */
-export function lectureDeLaFiche(brut: unknown, resteAutorise: readonly number[] = []): string[] {
+    (ou leur somme) est REFUSÉE (pas corrigée : on ne devine pas ce qu'elle
+    voulait dire) ; le tiret long devient une virgule ; une puce ou un
+    numéro en tête s'efface ; une ligne trop longue est coupée. */
+export function lectureDeLaFiche(brut: unknown, restesDus: readonly number[] = []): string[] {
+  const permis = montantsPermis(restesDus);
   const sorties: string[] = [];
   for (const l of lignesBrutes(brut)) {
     if (typeof l !== 'string') continue;
@@ -317,7 +371,7 @@ export function lectureDeLaFiche(brut: unknown, resteAutorise: readonly number[]
     if (!t) continue;
     if (/\[numéro\]|\[adresse\]/.test(t)) continue;
     if (/\bsalons?\b/i.test(t)) continue;
-    if (montantsDits(t).some((m) => !resteAutorise.includes(m))) continue;
+    if (montantsDits(t).some((m) => !permis.includes(m))) continue;
     sorties.push(borne(t, SIGNES_MAX_PAR_LIGNE));
     if (sorties.length >= LIGNES_MAX) break;
   }
@@ -338,12 +392,23 @@ export type FicheGardee = {
 export type FichesDuJour = Record<string, FicheGardee>;
 
 /** Une fiche vaut si elle prépare CE jour de rendez-vous et qu'elle a été
-    écrite AUJOURD'HUI. D'un autre jour, elle est périmée : la prochaine
+    écrite AUJOURD'HUI, jour de Cotonou (`aujourdhui` vient de
+    `aujourdhuiACotonou`). D'un autre jour, elle est périmée : la prochaine
     ouverture la refait (un message a pu arriver entre-temps). */
 export function ficheValable(f: FicheGardee | undefined, jourDuRendezVous: string, aujourdhui: string): boolean {
   if (!f || typeof f !== 'object' || !Array.isArray(f.lignes)) return false;
-  return f.jour === jourDe(jourDuRendezVous) && jourDe(f.le) === jourDe(aujourdhui);
+  const ecrite = jourDeLInstant(f.le);
+  return f.jour === jourDe(jourDuRendezVous) && ecrite !== '' && ecrite === jourDe(aujourdhui);
 }
+
+/** Ce qu'on montre d'une fiche gardée : le document se lit de tous les postes
+    et s'écrit par tout le personnel, on le relit donc aussi (des textes, trois
+    au plus, bornés). */
+export const lignesGardees = (f: FicheGardee | undefined): string[] =>
+  (Array.isArray(f?.lignes) ? f.lignes : [])
+    .filter((x): x is string => typeof x === 'string' && x.trim() !== '')
+    .slice(0, LIGNES_MAX)
+    .map((x) => borne(x.trim(), SIGNES_MAX_PAR_LIGNE));
 
 /** Les fiches de plus de sept jours s'en vont, et les entrées abîmées avec.
     Rien à purger : le MÊME objet revient, pour que le magasin ne réécrive
@@ -351,7 +416,7 @@ export function ficheValable(f: FicheGardee | undefined, jourDuRendezVous: strin
 export function fichesPurgees(fiches: FichesDuJour | null | undefined, aujourdhui: string): FichesDuJour {
   const source = fiches && typeof fiches === 'object' ? fiches : {};
   const limite = jourPlus(aujourdhui, -GARDE_DES_FICHES_JOURS);
-  const gardees = Object.entries(source).filter(([, f]) => f && typeof f === 'object' && Array.isArray(f.lignes) && jourDe(f.le) >= limite);
+  const gardees = Object.entries(source).filter(([, f]) => f && typeof f === 'object' && Array.isArray(f.lignes) && jourDeLInstant(f.le) !== '' && jourDeLInstant(f.le) >= limite);
   return gardees.length === Object.keys(source).length ? source : Object.fromEntries(gardees);
 }
 
