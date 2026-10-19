@@ -21,7 +21,9 @@ export type Evenement =
   /* La carte cadeau réglée en ligne (2 octobre 2026) : la fenêtre de
      paiement ouverte, puis la carte réglée. Le tunnel se lit entre les deux. */
   | 'cadeau_paiement_ouvert'
-  | 'cadeau_regle';
+  | 'cadeau_regle'
+  /* Le message vocal laissé sur le site (19 octobre 2026). */
+  | 'vocal_depose';
 
 export type Parametres = { parcours?: string; page?: string; sortie?: string; genre?: string; chemin?: string };
 

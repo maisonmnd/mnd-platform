@@ -181,7 +181,7 @@ const admin = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: 
 /** La version de ce fichier : ouvrir l'adresse de la fonction la dit (405),
     pour ne jamais chercher une panne dans un fichier qui n'est pas celui
     qu'on croit déployé. */
-const VERSION = '2026-10-15-a · l accuse dit la demande (un rappel), le nom dans sa case';
+const VERSION = '2026-10-19-a · le message vocal du site';
 
 /** `EdgeRuntime.waitUntil`, s'il existe (la même garde que le webhook) : ce
     qui n'a pas besoin d'être attendu continue après la réponse. Sans lui, la
@@ -300,6 +300,64 @@ export const texteDeLAccuse = (genre: GenreDAccuse, appel: string, quand: string
       : `Bonjour ${appel}, la Maison MND a bien reçu votre demande (${quand}). Nous vous répondons très vite, sur ce numéro.`;
 /* ⟨/accuse-du-site⟩ */
 const texte = (v: unknown, max: number): string => String(v ?? '').replace(/\s+/g, ' ').trim().slice(0, max);
+
+/* LE MESSAGE VOCAL DU SITE — 19 octobre 2026. Bloc RECOPIÉ tel quel de
+   `src/shared/message-vocal-pur.ts` (ses choix y sont écrits) ;
+   `verifie-le-message-vocal` confronte les deux. NE RIEN RETOUCHER ENTRE
+   LES REPÈRES. */
+/* ⟨message-vocal⟩ */
+/** Deux minutes au plus (sa décision). L'enregistreur s'arrête seul. */
+export const DUREE_MAX_DE_LA_VOIX_S = 120;
+/** Ce qu'un message de deux minutes ne dépasse jamais, même enregistré sans
+    compression par un vieux téléphone : au-delà, c'est autre chose. */
+export const OCTETS_MAX_DE_LA_VOIX = 3_500_000;
+/** En dessous, c'est un clic par erreur, pas un message. */
+export const OCTETS_MIN_DE_LA_VOIX = 1_000;
+/** 90 jours (sa décision), puis la voix s'efface ; la demande reste. */
+export const GARDE_DES_VOIX_JOURS = 90;
+export const COFFRE_DES_VOIX = 'voix-du-site';
+export const PROFIL_DU_VOCAL = 'Message vocal';
+
+/** Le format reçu, ramené à ce que le coffre accepte, et son extension.
+    `null` : ce n'est pas un son qu'on sait garder. Chrome et Android
+    enregistrent en webm (parfois dit « video/webm »), Safari et l'iPhone en
+    mp4 (AAC). */
+export function formatDeLaVoix(type: string): { mime: string; ext: string } | null {
+  const t = String(type ?? '').toLowerCase().split(';')[0].trim();
+  if (t === 'audio/webm' || t === 'video/webm') return { mime: 'audio/webm', ext: 'webm' };
+  if (t === 'audio/ogg') return { mime: 'audio/ogg', ext: 'ogg' };
+  if (t === 'audio/mp4' || t === 'audio/aac' || t === 'audio/x-m4a' || t === 'audio/m4a' || t === 'video/mp4') return { mime: 'audio/mp4', ext: 'm4a' };
+  if (t === 'audio/mpeg' || t === 'audio/mp3') return { mime: 'audio/mpeg', ext: 'mp3' };
+  if (t === 'audio/wav' || t === 'audio/x-wav' || t === 'audio/wave') return { mime: 'audio/wav', ext: 'wav' };
+  return null;
+}
+
+/** Où la voix vit dans le coffre : la branche, puis la demande. */
+export const cheminDeLaVoix = (branchId: string, demandeId: string, ext: string): string =>
+  `${branchId}/${demandeId}.${ext}`;
+
+/** La durée annoncée par le navigateur, bornée : jamais crue au-delà du plafond. */
+export const dureeBornee = (s: unknown): number =>
+  Math.max(0, Math.min(DUREE_MAX_DE_LA_VOIX_S + 5, Math.round(Number(s) || 0)));
+
+/** « 0:42 ». */
+export const dureeDite = (s: number): string => {
+  const n = Math.max(0, Math.round(Number(s) || 0));
+  return `${Math.floor(n / 60)}:${String(n % 60).padStart(2, '0')}`;
+};
+
+/** L'instant avant lequel une voix doit être effacée. */
+export const limiteDeGarde = (maintenantMs: number): number => maintenantMs - GARDE_DES_VOIX_JOURS * 86_400_000;
+
+/** Les voix à effacer : déposées avant la limite, pas encore effacées. */
+export function voixAEffacer<T extends { id: string; createdAt?: string; voix?: { chemin?: string; effaceeLe?: string } }>(
+  demandes: readonly T[], maintenantMs: number,
+): T[] {
+  const limite = limiteDeGarde(maintenantMs);
+  return demandes.filter((d) => !!d.voix?.chemin && !d.voix.effaceeLe
+    && Number.isFinite(Date.parse(d.createdAt ?? '')) && Date.parse(d.createdAt!) < limite);
+}
+/* ⟨/message-vocal⟩ */
 
 /* La branche rend aussi SA LIGNE (9 octobre 2026) : le juge des places y
    lit les maîtres ET les fauteuils (`seats`), que l'ancien juge ignorait. */
@@ -1698,10 +1756,135 @@ async function envoieLAccuse(o: {
   return statut;
 }
 
+/* ══ LE MESSAGE VOCAL — 19 octobre 2026 ══════════════════════════════════
+   La visiteuse s'enregistre sur la page Contact ou « Être rappelée » ; la
+   voix arrive ici en multipart. Même porte que les demandes écrites : un
+   seau de débit à elle, le numéro en E.164, la case cochée. La voix va dans
+   le coffre privé `voix-du-site` (0135), la demande « Message vocal » dans
+   Les demandes, le fil des Conversations le dit, l'accusé de rappel part
+   (sa décision), l'équipe est prévenue. Rien de tout cela ne lit le son :
+   on l'écoute au Trône. */
+// ── DEBUT messageVocal
+const RATE_MAX_VOCAL = 4;  // quatre messages par dix minutes et par adresse
+
+async function messageVocal(req: Request, ip: string): Promise<Response> {
+  if (!(await allowRate(ip, 'vocal', RATE_MAX_VOCAL))) return json({ error: 'rate_limited' }, 429);
+  const longueur = Number(req.headers.get('content-length') ?? 0);
+  if (longueur > OCTETS_MAX_DE_LA_VOIX + 64_000) return json({ error: 'too_large' }, 413);
+  let form: FormData;
+  try { form = await req.formData(); } catch { return json({ error: 'bad_request' }, 400); }
+  const champ = (k: string): string => { const v = form.get(k); return typeof v === 'string' ? v : ''; };
+  if (champ('consentement') !== 'oui') return json({ error: 'consentement' }, 400);
+  const telephone = telephoneNormalise(champ('telephone'), champ('dial') || '+229');
+  if (!telephone) return json({ error: 'telephone' }, 400);
+  const voix = form.get('voix');
+  if (!(voix instanceof Blob)) return json({ error: 'voix' }, 400);
+  const format = formatDeLaVoix(voix.type);
+  if (!format) return json({ error: 'format' }, 415);
+  if (voix.size < OCTETS_MIN_DE_LA_VOIX) return json({ error: 'trop_court' }, 400);
+  if (voix.size > OCTETS_MAX_DE_LA_VOIX) return json({ error: 'too_large' }, 413);
+  const prenom = texte(champ('prenom'), 60);
+  const nom = texte(champ('nom'), 60);
+  const nomEntier = [prenom, nom].filter(Boolean).join(' ');
+  const c = champ('civilite');
+  const civilite = c === 'madame' || c === 'mademoiselle' || c === 'monsieur' ? c : '';
+  const dureeS = dureeBornee(champ('duree'));
+
+  /* Le même numéro, un message il y a moins de deux minutes : le même envoi
+     touché deux fois. On rend le premier, la Maison n'a qu'une ligne. */
+  const depuis = new Date(Date.now() - 2 * 60_000).toISOString();
+  const { data: memes } = await admin.from('demandes').select('id')
+    .eq('data->>telephone', telephone).eq('data->>profil', PROFIL_DU_VOCAL).gte('updated_at', depuis).limit(1);
+  const meme = ((memes ?? []) as { id: string }[])[0];
+  if (meme) return json({ ok: true, id: meme.id, deja: true });
+
+  const id = `dem-${crypto.randomUUID()}`;
+  const now = new Date().toISOString();
+  const branchId = (await brancheParDefaut(champ('branchId'))).id;
+  const chemin = cheminDeLaVoix(branchId, id, format.ext);
+  const octets = new Uint8Array(await voix.arrayBuffer());
+  const { error: errVoix } = await admin.storage.from(COFFRE_DES_VOIX).upload(chemin, octets, { contentType: format.mime, upsert: false });
+  if (errVoix) { console.error('demande-submit: voix', errVoix.message); return json({ error: 'voix_refusee' }, 500); }
+
+  const page = texte(champ('page'), 120);
+  const demande = {
+    id, genre: 'prospect', createdAt: now, branchId, prenom,
+    ...(civilite ? { civilite } : {}),
+    ...(nom ? { nom } : {}),
+    telephone, besoin: 'inconnu', profil: PROFIL_DU_VOCAL,
+    voix: { chemin, mime: format.mime, octets: voix.size, dureeS },
+    source: 'site',
+    ...(page ? { page } : {}),
+    consentementLe: now,
+    statut: 'nouvelle',
+  } as Record<string, unknown>;
+  const { error } = await admin.from('demandes').insert({ id, genre: 'prospect', branch_id: branchId, data: demande });
+  if (error) {
+    /* Une voix sans demande ne se retrouverait jamais : elle repart. */
+    await admin.storage.from(COFFRE_DES_VOIX).remove([chemin]).catch(() => undefined);
+    return json({ error: 'insert_failed' }, 500);
+  }
+
+  /* Le fil des Conversations le dit, comme pour une demande écrite. */
+  {
+    const tel = telephone.replace(/\D/g, '');
+    const idFil = `site-${id}`;
+    const { error: errFil } = await admin.from('messages_wa').upsert({
+      id: idFil,
+      branch_id: branchId,
+      data: {
+        id: idFil, branchId, sens: 'entrant', canal: 'site', numero: tel, clientId: '',
+        ...(nomEntier ? { nomProfil: nomEntier } : {}),
+        texte: `Message vocal depuis le site (${dureeDite(dureeS)}) : à écouter dans Les demandes`,
+        type: 'text', quand: now, demandeId: id,
+      },
+    }, { onConflict: 'id' });
+    if (errFil) console.error('demande-submit: fil du vocal', errFil.message);
+  }
+
+  /* L'accusé d'une demande de rappel (sa décision), et l'équipe prévenue. */
+  const accuse = await auPlus(envoieLAccuse({
+    demandeId: id, branchId, prenom, telephone, ...(civilite ? { civilite } : {}),
+    avecPlace: false, quand: 'votre message vocal',
+  }).catch((e) => { console.error('demande-submit: accusé du vocal', String(e)); return 'échec'; }), 2500, 'en-cours');
+  const sent = await auPlus(alerteLePersonnel(
+    'Message vocal depuis le site',
+    `${nomEntier || 'Une visiteuse'} · ${dureeDite(dureeS)}`,
+    '/trone/#/demandes',
+  ).catch(() => 0), 1500, 0);
+  enTacheDeFond(effaceLesVieillesVoix(branchId));
+  return json({ ok: true, id, sent, accuse });
+}
+
+/** LES VOIX DE PLUS DE 90 JOURS S'EFFACENT (sa décision) ; la demande reste
+    et dit quand sa voix est partie. Le Trône fait la même chose quand la
+    direction ouvre Les demandes. */
+async function effaceLesVieillesVoix(branchId: string): Promise<void> {
+  const limite = new Date(limiteDeGarde(Date.now())).toISOString();
+  const { data: lignes } = await admin.from('demandes').select('id, data')
+    .eq('branch_id', branchId).eq('data->>profil', PROFIL_DU_VOCAL).lt('data->>createdAt', limite).limit(50);
+  const rangees = (lignes ?? []) as { id: string; data: Record<string, unknown> & { voix?: { chemin?: string; effaceeLe?: string } } }[];
+  const vieilles = voixAEffacer(rangees.map((l) => ({ ...l.data, id: l.id })), Date.now());
+  if (!vieilles.length) return;
+  const { error } = await admin.storage.from(COFFRE_DES_VOIX).remove(vieilles.map((d) => d.voix!.chemin!));
+  if (error) { console.error('demande-submit: voix à effacer', error.message); return; }
+  const le = new Date().toISOString();
+  for (const d of vieilles) {
+    const ligne = rangees.find((l) => l.id === d.id);
+    if (!ligne) continue;
+    await admin.from('demandes').update({ data: { ...ligne.data, voix: { ...(ligne.data.voix ?? {}), effaceeLe: le } } }).eq('id', d.id);
+  }
+}
+
+// ── FIN messageVocal
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
   if (req.method !== 'POST') return json({ error: 'method', version: VERSION }, 405);
   const ip = ipOf(req);
+  /* LA VOIX ARRIVE EN MULTIPART (19 octobre 2026) : elle passe avant la
+     lecture JSON, plafonnée à 5 000 caractères pour les demandes écrites. */
+  if ((req.headers.get('content-type') ?? '').toLowerCase().startsWith('multipart/form-data')) return await messageVocal(req, ip);
 
   const corps = await req.text();
   if (corps.length > 5_000) return json({ error: 'too_large' }, 400);

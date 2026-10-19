@@ -4,6 +4,7 @@ import { etatDeLaMaison, semaineDite, type EtatDeLaMaison, type JourDit } from '
 import { heuresDeLaMaison, lienWhatsApp, maison, type Maison } from '../maison';
 import { mesure } from '../mesure';
 import { numeroDit } from '../numero';
+import MessageVocal from './MessageVocal';
 
 /* NOUS ÉCRIRE, NOUS TROUVER, QUAND VENIR — 21 septembre 2026.
 
@@ -76,6 +77,9 @@ function Ecrire({ m }: { m: Maison | null }) {
         <a href={`mailto:${COMMUN.editeur.email}`}>{COMMUN.editeur.email}</a>
         <small>Pour les devis et les partenariats</small>
       </div>
+      {/* PLUTÔT PARLER (19 octobre 2026, sa décision : la page Contact et
+          « Être rappelée ») : le message vocal s'ouvre dans la carte. */}
+      <MessageVocal />
     </article>
   );
 }

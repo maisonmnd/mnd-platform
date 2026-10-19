@@ -2262,3 +2262,37 @@ footer ul { gap: 12px; }
   .appel-remise__quand { flex-basis: 100%; }
   .appel-remise__quand::before { content: none; }
 }
+
+/* LE MESSAGE VOCAL — 19 octobre 2026 (maquette HR7V2tMu… validée). Sur la
+   page Contact (dans « Nous écrire ») et dans la colonne de /rappel/. Un seul
+   gros bouton pour parler ; le reste se règle d'un doigt. */
+.vocal { display: grid; gap: 12px; }
+.vocal-carte { background: var(--carte); border: 1px solid var(--filet); border-radius: 4px; padding: 22px; display: grid; gap: 12px; min-width: 0; }
+.vocal-carte h3 { font-size: 22px; }
+.vocal-panneau { display: grid; gap: 14px; min-width: 0; }
+.vocal-panneau .deux-champs { min-width: 0; }
+@media (max-width: 520px) { .vocal-panneau .deux-champs { grid-template-columns: 1fr; } }
+.vocal-etiquette { font-size: 11px; letter-spacing: .2em; text-transform: uppercase; color: var(--accent-profond); }
+.vocal-civ { display: flex; flex-wrap: wrap; gap: 6px; }
+.vocal-civ button { font: inherit; font-size: 14px; cursor: pointer; border: 1px solid var(--filet); border-radius: 999px; padding: 6px 13px; background: var(--fond); color: var(--titre); }
+.vocal-civ button[aria-pressed="true"] { background: var(--sombre); color: var(--fort-texte); border-color: var(--sombre); }
+.vocal-civ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.vocal-micro { display: grid; justify-items: center; gap: 8px; padding-block: 6px; }
+.vocal-rond { width: 76px; height: 76px; border-radius: 50%; border: none; cursor: pointer; background: var(--plein); color: var(--plein-texte); font: 500 12px/1.1 var(--sans); letter-spacing: .1em; text-transform: uppercase; box-shadow: 0 8px 20px rgba(154, 96, 54, .32); }
+.vocal-micro--parle .vocal-rond { background: #8E2F2F; box-shadow: 0 8px 20px rgba(142, 47, 47, .32); }
+.vocal-rond:focus-visible { outline: 2px solid var(--titre); outline-offset: 3px; }
+.vocal-rond:disabled { opacity: .5; cursor: default; }
+.vocal-onde { display: flex; gap: 3px; align-items: center; height: 26px; }
+.vocal-onde i { display: block; width: 3px; height: 6px; border-radius: 2px; background: var(--accent); }
+.vocal-micro--parle .vocal-onde i { animation: vocal-bat .9s ease-in-out infinite; }
+.vocal-onde i:nth-child(3n) { animation-delay: .15s; }
+.vocal-onde i:nth-child(3n + 1) { animation-delay: .3s; }
+@keyframes vocal-bat { 0%, 100% { height: 5px; } 50% { height: 24px; } }
+@media (prefers-reduced-motion: reduce) { .vocal-micro--parle .vocal-onde i { animation: none; height: 14px; } }
+.vocal-temps { font: 400 22px/1 var(--sans); color: var(--titre); font-variant-numeric: tabular-nums; }
+.vocal-limite { font-size: 12.5px; color: var(--texte-doux); }
+.vocal-trio { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; }
+.vocal-trio .btn:disabled { opacity: .45; cursor: default; }
+.vocal-trio .btn--plein { flex: 1 1 100%; }
+.vocal-refus { display: grid; gap: 10px; font-size: 14px; color: var(--texte-doux); }
+.vocal-merci { background: var(--accent-clair); border: 1px solid var(--accent); border-radius: 4px; padding: 16px 18px; display: grid; gap: 10px; color: var(--titre); }

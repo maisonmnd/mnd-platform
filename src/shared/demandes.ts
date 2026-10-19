@@ -56,6 +56,9 @@ export type Demande = {
   besoin: BesoinDeLaDemande;
   profil?: string;            // « Je n'ai pas encore de locks », « J'ai des locks créées ailleurs »…
   mot?: string;               // le message libre
+  /** LE MESSAGE VOCAL DU SITE (19 octobre 2026) : où vit la voix dans le
+      coffre privé, sa durée, et le jour où elle a été effacée (90 jours). */
+  voix?: { chemin: string; mime?: string; octets?: number; dureeS?: number; effaceeLe?: string };
   /* 'whatsapp' · 9 octobre 2026 : une inconnue a réservé sur WhatsApp
      (`shared/automate-wa`) et a choisi sa civilité. La fiche née au
      rattachement l'emporte, avec sa provenance (`ficheDepuisLaDemande`). */

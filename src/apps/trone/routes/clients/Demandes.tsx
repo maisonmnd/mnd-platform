@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PageHead } from '../_ui';
 import { Button, Select, Textarea, demande, toast } from '../../../../ds/components';
@@ -11,6 +11,10 @@ import {
   telephoneMasque, telephoneNormalise, depuisQuand, BESOINS, dansLeFiltre, nomDeLaDemande,
   type Demande, type BesoinDeLaDemande, type StatutDeLaDemande, type FiltreDesDemandes,
 } from '../../../../shared/demandes';
+import { supabase } from '../../../../shared/supabase';
+import { COFFRE_DES_VOIX, voixAEffacer } from '../../../../shared/message-vocal-pur';
+import { useEstDirection } from '../_vie';
+import { VoixDeLaDemande } from './VoixDeLaDemande';
 import './clients.css';
 
 /* ══ LES DEMANDES VENUES DU SITE · 17 septembre 2026 ═══════════════════
@@ -109,6 +113,25 @@ export default function Demandes() {
   const poser = (d: Demande, patch: Partial<Demande>) =>
     setDemandes((prev) => prev.map((x) => (x.id === d.id ? { ...x, ...patch } : x)));
 
+  /* LES VOIX DE PLUS DE 90 JOURS S'EFFACENT (19 octobre 2026, sa décision) :
+     quand la direction ouvre Les demandes, une fois. La demande reste et dit
+     quand sa voix est partie. La fonction du site en fait autant à chaque
+     nouveau message. */
+  const estDirection = useEstDirection();
+  const purgee = useRef(false);
+  useEffect(() => {
+    if (!estDirection || purgee.current || !supabase || toutes.length === 0) return;
+    purgee.current = true;
+    const vieilles = voixAEffacer(toutes, Date.now());
+    if (vieilles.length === 0) return;
+    void supabase.storage.from(COFFRE_DES_VOIX).remove(vieilles.map((d) => d.voix!.chemin)).then(({ error }) => {
+      if (error) return;
+      const le = new Date().toISOString();
+      const ids = new Set(vieilles.map((d) => d.id));
+      setDemandes((prev) => prev.map((x) => (ids.has(x.id) && x.voix ? { ...x, voix: { ...x.voix, effaceeLe: le } } : x)));
+    });
+  }, [estDirection, toutes, setDemandes]);
+
   const archiver = (d: Demande) => {
     poser(d, { archiveeLe: new Date().toISOString() });
     toast(`La demande de ${d.prenom} est archivée.`);
@@ -133,6 +156,8 @@ export default function Demandes() {
       dur: true,
     })) return;
     setDemandes((prev) => prev.filter((x) => x.id !== d.id));
+    /* Sa voix part avec elle : une voix sans demande ne se retrouverait plus. */
+    if (d.voix?.chemin && !d.voix.effaceeLe && supabase) void supabase.storage.from(COFFRE_DES_VOIX).remove([d.voix.chemin]);
     toast(`La demande de ${d.prenom} est supprimée.`);
   };
 
@@ -278,6 +303,8 @@ export default function Demandes() {
                   « {d.mot} »
                 </p>
               )}
+              {/* LE MESSAGE VOCAL DU SITE (19 octobre 2026) : on l'écoute ici. */}
+              <VoixDeLaDemande d={d} />
 
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
                 <button

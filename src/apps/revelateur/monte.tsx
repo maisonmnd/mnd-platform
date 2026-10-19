@@ -25,6 +25,8 @@ const ILOTS: Record<string, Chargeur> = {
   joindre: () => import('./ilots/Joindre') as unknown as ReturnType<Chargeur>,
   offrir: () => import('./ilots/Offrir') as unknown as ReturnType<Chargeur>,
   parrainer: () => import('./ilots/Parrainer') as unknown as ReturnType<Chargeur>,
+  /* Le message vocal (19 octobre 2026) : la colonne de /rappel/. */
+  vocal: () => import('./ilots/MessageVocal') as unknown as ReturnType<Chargeur>,
 };
 
 document.querySelectorAll<HTMLElement>('[data-ilot]').forEach((el) => {

@@ -614,6 +614,8 @@ const regles: Regle[] = [
         'ce-qui-tombe': { fichier: 'src/shared/secretariat-admin-pur.ts', extrait: (s) => entre(s, 'ce-qui-tombe') },
         /* L'accuse d'une demande du site (15 octobre 2026), recopie dans demande-submit. */
         'accuse-du-site': { fichier: 'src/shared/accuse-du-site.ts', extrait: (s) => entre(s, 'accuse-du-site') },
+        /* Le message vocal du site (19 octobre 2026), recopie dans demande-submit. */
+        'message-vocal': { fichier: 'src/shared/message-vocal-pur.ts', extrait: (s) => entre(s, 'message-vocal') },
       };
       const fonctions: string[] = [];
       const marche = (d: string) => { for (const n of readdirSync(d)) { const p = `${d}/${n}`; if (statSync(p).isDirectory()) marche(p); else if (/\.(ts|js)$/.test(n)) fonctions.push(p); } };
