@@ -672,10 +672,16 @@ export type Cashbox = {
   /** ── JAMAIS PROPOSÉE À L'ENCAISSEMENT — 17 octobre 2026 ─────────
       « BIIC : un compte à part » (Yéman). La caisse vit (dépenses,
       transferts, relevé), mais la règle des caissiers ne la propose jamais
-      pour recevoir l'argent d'un rituel ou d'une vente, et seule la
-      direction peut l'y choisir. `false` : décochée exprès (la décision
+      pour recevoir l'argent d'un rituel ou d'une vente. Depuis le tri du
+      19 octobre 2026 (« Épargne, jamais au comptoir ») : la direction non
+      plus ne l'y choisit. `false` : décochée exprès (la décision
       automatique ne repasse pas). */
   horsEncaissement?: boolean;
+  /** LE TRI DES CAISSES (19 octobre 2026) : ce qu'elle était avant, pour le
+      retour (`shared/tri-des-caisses-pur.ts`). */
+  avantLeTri?: { le: string; name: string; sub: string; role?: Cashbox['role']; equipe?: boolean; horsEncaissement?: boolean };
+  /** Rangée par le tri après que son solde est passé ailleurs (l'instant). */
+  rangeeAuTri?: string;
   /** ── L'HISTOIRE — 17 octobre 2026 ──────────────────────────────
       La caisse « Années passées » : comme une ancienne, elle garde TOUT son
       passé (le départ des caisses ne la coupe pas) et reste hors de la

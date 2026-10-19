@@ -234,11 +234,10 @@ export function caisseProposee(o: {
         ...(nommee(CAISSE_CHEQUES) ? {} : { aCreer: true }),
       };
     }
-    const c = ici.find((b) => b.role === 'banque' && b.name !== CAISSE_CHEQUES)
-      ?? ici.find((b) => !b.caissierId && b.name !== CAISSE_CHEQUES && /banque|bank/.test(plat(b.name)));
-    return c
-      ? { caisse: c.name, pourquoi: cheque ? 'Le chèque se dépose à la banque.' : 'La carte et le virement arrivent à la banque.' }
-      : { pourquoi: 'Aucune caisse de banque : choisissez la caisse.' };
+    /* LA CARTE ET LE VIREMENT : « on choisit à chaque fois » (le tri du
+       19 octobre 2026). Rien ne se propose, plus même une « banque » lue au
+       nom (Scotiabank en était une). */
+    return { pourquoi: cheque ? 'Le chèque : choisissez la caisse.' : 'La carte et le virement : choisissez la caisse.' };
   }
   if (famille === 'zelle') {
     const c = nommee(CAISSE_ZELLE);
@@ -266,7 +265,9 @@ export function caissesAuChoix<B extends Boite>(boxes: readonly B[], o: {
   return boxes.filter((b) => {
     if (b.name === o.garder) return true;
     if (b.name === CAISSE_MND_PAY) return false;
-    if (b.horsEncaissement && !o.estDirection) return false;
+    /* L'épargne, jamais au comptoir (le tri du 19 octobre 2026) : la
+       direction non plus ne l'y choisit. */
+    if (b.horsEncaissement) return false;
     if (b.name === CAISSE_ANNEES_PASSEES) return o.anneePassee;
     if (b.caissierId && b.caissierId !== o.staffId && !o.estDirection) return false;
     return true;

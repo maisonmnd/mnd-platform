@@ -39,6 +39,7 @@ import { aligneLeRituel, corrigeLeVersement, estLieALaPiece, sansTiroir, type Co
 import { soldeDeLaPiece, caisseManquante } from './encaissement-pur';
 import { familleDeTrace, traceAEcrire, traceDite, traceSuffit, type TraceDuMoyen } from '../../../../shared/trace-du-moyen-pur';
 import { CAISSE_CHEQUES } from '../../../../shared/caisses-des-caissiers-pur';
+import { caissesPourCorriger } from '../../../../shared/tri-des-caisses-pur';
 import { ChampsDeLaTrace, VoirLaPhoto } from './TraceDuMoyen';
 
 /* Factures & devis — documents de marque à âme. Six thèmes émotionnels,
@@ -1470,7 +1471,7 @@ export default function Factures() {
                               </Select>
                               <Select aria-label="Caisse du versement" value={p.cashbox ?? ''} onChange={(e) => corrige(p.id, { cashbox: e.target.value || undefined })} style={{ fontSize: 12 }}>
                                 <option value="">Caisse non dite</option>
-                                {[...new Set([...(p.cashbox ? [p.cashbox] : []), ...caissesPourLaDate(boxesBranche, p.date, p.cashbox).map((c) => c.name)])].map((n) => (
+                                {[...new Set([...(p.cashbox ? [p.cashbox] : []), ...caissesPourCorriger(caissesPourLaDate(boxesBranche, p.date, p.cashbox), p.cashbox).map((c) => c.name)])].map((n) => (
                                   <option key={n} value={n}>{n}</option>
                                 ))}
                               </Select>

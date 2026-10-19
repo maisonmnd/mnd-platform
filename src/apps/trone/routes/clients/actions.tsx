@@ -45,6 +45,7 @@ import { useEnvoiDeLaPiece } from '../vente/envoi-de-la-piece';
 import { argentHorsDuCarnet, versementsAInscrireAuCarnet } from '../../../../shared/caisse-du-versement';
 import { ditCeQuiManque, familleDeTrace, traceAEcrire, traceSuffit, type TraceDuMoyen } from '../../../../shared/trace-du-moyen-pur';
 import { ChampsDeLaTrace } from '../vente/TraceDuMoyen';
+import { caissesPourCorriger } from '../../../../shared/tri-des-caisses-pur';
 import {
   CAISSE_ANNEES_PASSEES, anneeDe, caisseDesAnneesPassees, caisseProposee, caissesAuChoix, estAnneeAnterieure, CAISSE_CHEQUES, caisseDesCheques,
   familleDuMoyen, peutChangerLaCaisse, prenomDe, type CaisseProposee,
@@ -2308,7 +2309,8 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour }: {
                     aria-label="Caisse créditée"
                   >
                     <option value="">, hors caisse</option>
-                    {branchBoxes.map((c) => (
+                    {/* Le comptoir seulement (le tri du 19 octobre 2026, règle 4). */}
+                    {caissesPourCorriger(branchBoxes, v.cashbox).map((c) => (
                       <option key={c.name} value={c.name}>{c.name}</option>
                     ))}
                   </Select>

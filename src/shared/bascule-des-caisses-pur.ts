@@ -150,10 +150,12 @@ export type NomPour = (nom: unknown, date: unknown) => string | undefined;
     (une fois : un second passage ne l'efface pas). Rend le même objet quand
     rien ne change. La bascule note « Avant » ; une fusion de caisses
     (17 octobre 2026) note « AvantFusion », pour qu'on défasse l'une sans
-    l'autre. */
-function reecritLaCase<T extends Rec>(r: T, champ: string, date: unknown, nomPour: NomPour, suffixe: string): T {
+    l'autre. Sans suffixe (`null`, le renommage du tri, 19 octobre 2026),
+    aucune note : un renommage se défait par le renommage inverse. */
+function reecritLaCase<T extends Rec>(r: T, champ: string, date: unknown, nomPour: NomPour, suffixe: string | null): T {
   const neuf = nomPour(r[champ], date);
   if (neuf === undefined) return r;
+  if (suffixe === null) return { ...r, [champ]: neuf };
   const avant = `${champ}${suffixe}`;
   return { ...r, [champ]: neuf, [avant]: r[avant] ?? r[champ] };
 }
@@ -179,7 +181,7 @@ const SIMPLES: Record<Exclude<Sorte, 'factures' | 'transferts' | 'rendezVous'>, 
 
 /** Réécrit les cases d'une écriture selon `nomPour`. Rend la même
     référence si rien ne change. */
-export function reecritLEcriture<T>(sorte: Sorte, ecriture: T, nomPour: NomPour, suffixe = 'Avant'): T {
+export function reecritLEcriture<T>(sorte: Sorte, ecriture: T, nomPour: NomPour, suffixe: string | null = 'Avant'): T {
   const r = ecriture as unknown as Rec;
   if (sorte === 'transferts') {
     const a = reecritLaCase(r, 'de', r.date, nomPour, suffixe);

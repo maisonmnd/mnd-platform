@@ -102,7 +102,11 @@ dit('espèces : la caisse de qui encaisse (Gérard, Brice)', ['Caisse de Gérard
 dit('espèces, sans caisse à son nom ou sans fiche : le tiroir commun', ['Terrasse · Tiroir espèces', 'Terrasse · Tiroir espèces'], [P('Espèces', 'y1'), P('Espèces')]);
 dit('une caisse rangée ne se propose plus', 'Terrasse · Tiroir espèces', P('Espèces', 'l1'));
 dit('MTN MoMoPay → le compte MoMoPay de la Maison, pas le MoMo d un associé', 'Terrasse · MoMoPay société', P('MTN MoMo', 'g1'));
-dit('carte, virement → La Banque', ['La Banque', 'La Banque'], [P('Carte', 'g1'), P('Virement bancaire', 'g1')]);
+/* LE TRI DU 19 OCTOBRE 2026, règle 2 : « la carte et le virement, on choisit
+   à chaque fois ». Plus rien ne se propose, même une caisse au rôle banque. */
+dit('carte, virement : rien ne se propose, on choisit (le tri du 19 octobre)', [null, null], [P('Carte', 'g1'), P('Virement bancaire', 'g1')]);
+dit('... et l écran le dit', true, /choisissez la caisse/.test(caisseProposee({ methode: 'Carte', aujourdhui: '2026-10-19', boxes: BOITES, branchId: 'cot' }).pourquoi));
+dit('... et le caissier peut choisir (sinon la carte ne s encaisserait plus)', true, peutChangerLaCaisse(false, { caisse: P('Carte', 'g1') ?? undefined }));
 /* LA CAISSE DES CHÈQUES (18 octobre 2026, sa décision : « Une caisse
    « Chèques à déposer » ») : le chèque y attend son dépôt, jamais la banque. */
 {
@@ -112,10 +116,10 @@ dit('carte, virement → La Banque', ['La Banque', 'La Banque'], [P('Carte', 'g1
   const AVEC = [caisseDesCheques('cot'), ...BOITES];
   const avec = caisseProposee({ methode: 'Chèque', aujourdhui: '2026-10-17', boxes: AVEC, branchId: 'cot', staffId: 'g1' });
   dit('... et quand elle existe, plus rien à créer', ['Chèques à déposer', false], [avec.caisse, avec.aCreer === true]);
-  dit('la caisse des chèques passe AVANT La Banque dans la liste : la carte et le virement vont quand même à la banque', ['La Banque', 'La Banque'],
+  dit('la caisse des chèques au rôle banque n attire jamais la carte ni le virement', [null, null],
     [P('Carte', 'g1', '2026-10-17', AVEC), P('Virement bancaire', 'g1', '2026-10-17', AVEC)]);
   dit('un chèque de 2025 reste aux années passées', CAISSE_ANNEES_PASSEES, P('Chèque', 'g1', '2025-05-02', AVEC));
-  dit('rangée ou mise à part à la main, elle ne reçoit plus de chèque : La Banque reprend, sans rien créer', ['La Banque', 'La Banque', false],
+  dit('rangée ou mise à part à la main, elle ne reçoit plus de chèque : on choisit, sans rien créer', [null, null, false],
     [P('Chèque', 'g1', '2026-10-17', [{ ...caisseDesCheques('cot'), archiveeLe: '2026-10-17' }, ...BOITES]),
       P('Chèque', 'g1', '2026-10-17', [{ ...caisseDesCheques('cot'), horsEncaissement: true }, ...BOITES]),
       caisseProposee({ methode: 'Chèque', aujourdhui: '2026-10-17', boxes: [{ ...caisseDesCheques('cot'), archiveeLe: '2026-10-17' }, ...BOITES], branchId: 'cot' }).aCreer === true]);
@@ -198,11 +202,14 @@ dit('la fiche du personnel ouvre la caisse, direction seule', true,
 
 /* ── 7. LES AUTRES CAISSES ───────────────────────────────────────────── */
 const AVEC_BIIC: Cashbox[] = [...BOITES.filter((x) => x.role !== 'banque'), b('BIIC', { role: 'banque', horsEncaissement: true }), b('La Banque', { role: 'banque' })];
-dit('BIIC à part : la carte va à La Banque, jamais à BIIC (même au rôle banque)', 'La Banque', P('Carte', 'g1', '2026-10-17', AVEC_BIIC));
+dit('BIIC à part : la carte ne va jamais à BIIC (même au rôle banque)', true, P('Carte', 'g1', '2026-10-17', AVEC_BIIC) !== 'BIIC');
 dit('BIIC seule banque, mais à part : rien ne se propose, on choisit', null, P('Carte', 'g1', '2026-10-17', [b('BIIC', { role: 'banque', horsEncaissement: true })]));
-dit('au choix : BIIC cachée au caissier, offerte à la direction', [false, true],
+/* « Épargne, jamais au comptoir » (le tri du 19 octobre 2026) : la direction
+   non plus ne la voit ; celle qu'un versement porte déjà reste lisible. */
+dit('au choix : BIIC cachée au caissier ET à la direction', [false, false],
   [caissesAuChoix(AVEC_BIIC, { staffId: 'g1', estDirection: false, anneePassee: false }).some((x) => x.name === 'BIIC'),
     caissesAuChoix(AVEC_BIIC, { estDirection: true, anneePassee: false }).some((x) => x.name === 'BIIC')]);
+dit('... sauf celle que le versement porte déjà', true, caissesAuChoix(AVEC_BIIC, { estDirection: true, anneePassee: false, garder: 'BIIC' }).some((x) => x.name === 'BIIC'));
 
 const AVANT: Cashbox[] = [
   b('BIIC'),

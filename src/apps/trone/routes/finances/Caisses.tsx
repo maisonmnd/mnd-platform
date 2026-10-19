@@ -3,6 +3,7 @@ import { ClotureDuTiroir } from './ClotureDuTiroir';
 import { DepartDesCaisses, moisEtAn } from './DepartDesCaisses';
 import { BasculeDOctobre } from './BasculeDOctobre';
 import { FusionDesCaisses } from './FusionDesCaisses';
+import { TriDesCaisses } from './TriDesCaisses';
 import { ChequesADeposer } from './ChequesADeposer';
 import { gardeToutSonPasse } from '../../../../shared/finance';
 import { useNavigate } from 'react-router-dom';
@@ -358,6 +359,8 @@ export default function Caisses() {
         </div>
       </div>
 
+      {/* LE TRI DES CAISSES (19 octobre 2026, ses choix sur la page de tri). */}
+      <TriDesCaisses />
       <FusionDesCaisses />
       {/* LES CHÈQUES À DÉPOSER (18 octobre 2026, maquette « Chèque et carte »). */}
       <ChequesADeposer />
@@ -874,8 +877,8 @@ export default function Caisses() {
                 <span>
                   <b style={{ fontFamily: 'var(--font-sans)', fontSize: 13.5, fontWeight: 500 }}>Proposée à l’encaissement</b>
                   <span className="mnd-muted" style={{ fontSize: 10.5, display: 'block', marginTop: 3, lineHeight: 1.55 }}>
-                    Décochée, elle garde ses dépenses, ses transferts et son relevé, mais elle ne se propose jamais
-                    pour recevoir l’argent d’un rituel ou d’une vente ; seule la direction peut l’y choisir.
+                    Décochée (l’épargne, un compte à l’étranger), elle garde ses dépenses, ses transferts et son relevé,
+                    mais elle ne paraît jamais au comptoir : ni la caissière ni la direction ne l’y choisissent.
                   </span>
                 </span>
               </label>

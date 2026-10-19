@@ -22,10 +22,11 @@ export function ChequesADeposer() {
   const [clients] = useClients();
   const [ecartes, setEcartes] = useState<Set<string>>(new Set());
   const [caisses] = useCashboxes();
-  /* LE COMPTE QUI REÇOIT LE DÉPÔT : un compte de la banque de la branche, en
-     francs (jamais une caisse de caissier, ni une caisse en devise, ni hors
-     bilan, ni les années passées, ni MND PAY). */
-  const comptes = caisses.filter((c) => c.branchId === branch.id && !c.archiveeLe && !c.caissierId && !c.horsBilan
+  /* LE COMPTE QUI REÇOIT LE DÉPÔT : un compte de la branche en francs (jamais
+     une caisse de caissier, ni une caisse en devise, ni les années passées, ni
+     MND PAY). L'épargne et les comptes hors bilan en sont : la BIIC est l'un
+     d'eux (le tri du 19 octobre 2026), et c'est là que le chèque se dépose. */
+  const comptes = caisses.filter((c) => c.branchId === branch.id && !c.archiveeLe && !c.caissierId
     && (!c.currency || c.currency === currency)
     && ![CAISSE_CHEQUES, CAISSE_ANNEES_PASSEES, CAISSE_MND_PAY].includes(c.name));
   const parDefaut = (comptes.find((c) => c.role === 'banque') ?? comptes.find((c) => /biic|banque|bank/i.test(c.name)))?.name ?? '';

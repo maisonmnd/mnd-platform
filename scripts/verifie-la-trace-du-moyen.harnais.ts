@@ -117,11 +117,14 @@ dit('la photo vit sous le compte qui l a prise ; la direction la voit, qui l a p
   const caisses = lis('src/apps/trone/routes/finances/Caisses.tsx');
   dit('Caisses montre les chèques à déposer', true, /<ChequesADeposer \/>/.test(caisses));
   const depot = sansCommentaires(lis('src/apps/trone/routes/finances/ChequesADeposer.tsx'));
-  dit('« Marquer déposés » écrit le virement, attend le compte, et le choix exclut caissiers, devises, années passées et MND PAY', [true, true, true, true],
+  /* La BIIC est hors bilan et « épargne » (le tri du 19 octobre 2026) : c'est
+     pourtant là que le chèque se dépose. Le choix ne l'écarte pas. */
+  dit('« Marquer déposés » écrit le virement, attend le compte, exclut caissiers, devises, années passées et MND PAY, et garde la BIIC (hors bilan)', [true, true, true, true, false],
     [/if \(virement\) transfertsStore\.set\(\(prev\) => \[\.\.\.prev, virement\]\);/.test(depot),
       /disabled=\{choisis\.length === 0 \|\| \(aVirer && !virement\)\}/.test(depot),
-      /!c\.caissierId && !c\.horsBilan[\s\S]{0,80}\(!c\.currency \|\| c\.currency === currency\)/.test(depot),
-      /!\[CAISSE_CHEQUES, CAISSE_ANNEES_PASSEES, CAISSE_MND_PAY\]\.includes\(c\.name\)/.test(depot)]);
+      /!c\.caissierId[\s\S]{0,80}\(!c\.currency \|\| c\.currency === currency\)/.test(depot),
+      /!\[CAISSE_CHEQUES, CAISSE_ANNEES_PASSEES, CAISSE_MND_PAY\]\.includes\(c\.name\)/.test(depot),
+      /const comptes = caisses\.filter\([^;]*(horsBilan|horsEncaissement)/.test(depot)]);
   dit('la caisse des chèques naît au premier chèque : au rituel, à la Caisse ; Marquer payée la prend d office', [true, true, true],
     [/if \(lesCaisses\.some\(\(c\) => c\.caisse === CAISSE_CHEQUES\) && !branchBoxes\.some\(\(c\) => c\.name === CAISSE_CHEQUES\)\)/.test(act),
       /const chequeVaASaCaisse = proposeePos\.caisse === CAISSE_CHEQUES/.test(caisse) && /caisseDesCheques\(branch\.id\)/.test(caisse),
