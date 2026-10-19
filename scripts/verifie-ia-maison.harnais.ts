@@ -49,6 +49,15 @@ dit('la demande : un texte n emporte pas d image, une lecture d image en a une',
   [defautDeLaDemande({ chantier: 'lettre', usage: 'texte', systeme: 's', messages: [{ role: 'user', content: 'x' }], images: [{ base64: 'A'.repeat(200), mime: 'image/jpeg' }] }),
     defautDeLaDemande({ chantier: 'diagnostic', usage: 'image', systeme: 's', messages: [{ role: 'user', content: 'x' }] }),
     defautDeLaDemande({ chantier: 'lettre', usage: 'texte', systeme: 's', messages: [{ role: 'user', content: 'x' }] })]);
+{
+  /* Le contrat refuse lui-même une image qui n'est pas un objet (19 octobre
+     2026, au soir) : avant, `'base64' in null` lançait. */
+  const regle = (im: unknown) => {
+    try { return defautDeLaDemande({ chantier: 'diagnostic', usage: 'image', systeme: 's', messages: [{ role: 'user', content: 'x' }], images: [im] as never }); } catch (e) { return `lance : ${String((e as Error)?.message ?? e)}`; }
+  };
+  dit('le contrat : une image nulle, une chaîne, un tableau sont « image mal formée », sans exception', ['image mal formée', 'image mal formée', 'image mal formée'],
+    [regle(null), regle('photo.jpg'), regle([1, 2])]);
+}
 dit('les jetons accordés : 1500 par défaut, 4000 au plus, 50 au moins', [1500, 4000, 50], [jetonsAccordes(undefined), jetonsAccordes(10_000), jetonsAccordes(10)]);
 dit('un numéro et une adresse s effacent, un montant et une date restent', 'Awa D., [numéro], [adresse], 33 000 F le 2026-10-19',
   sansCoordonnees('Awa D., 01 97 00 00 00, awa.d@exemple.com, 33 000 F le 2026-10-19'));
@@ -75,15 +84,15 @@ const copiesEntieres = (t: string) => [...t.matchAll(/\/\/ ── DÉBUT DE LA C
 type Rendu = [number, Record<string, unknown>];
 type Appel = Record<string, unknown>;
 type ReponseFausse = { status: number; corps: Record<string, unknown> };
-type Fichier = { octets: Uint8Array; mime: string };
+type Fichier = { octets: Uint8Array; mime: string; lecteurs?: string[] };
 type Traite = (o: unknown, body: unknown, jwt: string) => Promise<Rendu>;
 type Options = {
   role?: string; acces?: Record<string, boolean>; compteur?: Record<string, unknown>; fichiers?: Record<string, Fichier>;
   reponses?: ReponseFausse[] | ((corps: Appel) => ReponseFausse); panne?: string; maintenant?: string;
 };
 /** La session de chacun : un jeton, un identifiant ; la ligne staff dit le rôle. */
-const JETONS: Record<string, string> = { 'jeton-de-la-fondatrice': 'u-yeman', 'jeton-de-la-gerante': 'u-gerante', 'jeton-du-maitre': 'u-maitre', 'jeton-de-l-inconnu': 'u-inconnu' };
-const ROLES: Record<string, string> = { 'u-yeman': 'souverain', 'u-gerante': 'gerant', 'u-maitre': 'maitre' };
+const JETONS: Record<string, string> = { 'jeton-de-la-fondatrice': 'u-yeman', 'jeton-de-la-gerante': 'u-gerante', 'jeton-du-maitre': 'u-maitre', 'jeton-d-un-autre-maitre': 'u-maitre-2', 'jeton-de-l-inconnu': 'u-inconnu' };
+const ROLES: Record<string, string> = { 'u-yeman': 'souverain', 'u-gerante': 'gerant', 'u-maitre': 'maitre', 'u-maitre-2': 'maitre' };
 const REPONSE_TEXTE: ReponseFausse = { status: 200, corps: { content: [{ type: 'text', text: 'Bonjour Awa D.,' }, { type: 'text', text: 'votre lettre.' }], usage: { input_tokens: 1000, output_tokens: 1000 }, stop_reason: 'end_turn' } };
 const REPONSE_OUTIL: ReponseFausse = { status: 200, corps: { content: [{ type: 'tool_use', id: 'tu_1', name: 'reponds', input: { montant: 33000, date: '2026-10-19' } }], usage: { input_tokens: 500, output_tokens: 50 }, stop_reason: 'tool_use' } };
 const MODELE_INCONNU: ReponseFausse = { status: 404, corps: { error: { type: 'not_found_error', message: 'model: claude-opus-5-5' } } };
@@ -96,16 +105,22 @@ function serveur(o: Options = {}) {
   const fauxConsole = { log: (...a: unknown[]) => journal.push(a.map(String).join(' ')), error: (...a: unknown[]) => journal.push(a.map(String).join(' ')), warn: () => {} };
   // eslint-disable-next-line no-new-func
   const f = new Function('console', `${js}; return { traiteLaDemande, COFFRES_D_IMAGES };`)(fauxConsole) as { traiteLaDemande: Traite; COFFRES_D_IMAGES: readonly string[] };
-  const j = { appels: [] as Appel[], ecritures: [] as Record<string, unknown>[], telechargements: [] as [string, string][], journal };
+  const j = { appels: [] as Appel[], ecritures: [] as Record<string, unknown>[], telechargements: [] as [string, string, string][], journal };
   let compteur: Record<string, unknown> = o.compteur ?? {};
   const file = Array.isArray(o.reponses) ? [...o.reponses] : null;
   const base = {
     utilisateur: async (jwt: string) => JETONS[jwt] ?? null,
     staff: async (uid: string) => (ROLES[uid] ? { user_id: uid, role: o.role ?? ROLES[uid] } : null),
-    matrice: async () => ({ 'u-maitre': o.acces ?? {} }),
+    matrice: async () => ({ 'u-maitre': o.acces ?? {}, 'u-maitre-2': o.acces ?? {} }),
     compteur: async () => JSON.parse(JSON.stringify(compteur)) as Record<string, unknown>,
     ecrisLeCompteur: async (doc: Record<string, unknown>) => { compteur = doc; j.ecritures.push(doc); },
-    telecharge: async (coffre: string, chemin: string) => { j.telechargements.push([coffre, chemin]); return o.fichiers?.[`${coffre}/${chemin}`] ?? null; },
+    /* LA RLS, EN FAUX : un fichier peut nommer les jetons qui le lisent
+       (un chèque : la direction et qui l'a pris). Sans liste, l'équipe. */
+    telecharge: async (coffre: string, chemin: string, jwt: string) => {
+      j.telechargements.push([coffre, chemin, jwt]);
+      const f = o.fichiers?.[`${coffre}/${chemin}`];
+      return f && (!f.lecteurs || f.lecteurs.includes(jwt)) ? { octets: f.octets, mime: f.mime } : null;
+    },
   };
   const outils = {
     base,
@@ -240,25 +255,40 @@ const essais = async () => {
   }
   {
     const s = serveur();
-    dit('la liste blanche des coffres : whatsapp, entre-deux, fil, engagements, site, rien d autre', ['engagements', 'entre-deux', 'fil', 'site', 'whatsapp'], [...s.COFFRES_D_IMAGES].sort());
+    /* Resserrée le 19 octobre au soir : ce que les chantiers lisent, rien de plus. */
+    dit('la liste blanche des coffres : whatsapp, fil, traces-privees, rien d autre', ['fil', 'traces-privees', 'whatsapp'], [...s.COFFRES_D_IMAGES].sort());
     const refuses = [];
-    for (const coffre of ['papiers', 'secretariat', 'rh', 'traces-privees', 'signatures']) refuses.push(code(await s.demande({ ...PHOTO, images: [{ coffre, chemin: 'x/y.jpg' }] })));
-    dit('les papiers, le secrétariat, la RH, les chèques, les signatures : refusés sans lecture ni appel', [Array(5).fill([400, 'format']), 0, 0], [refuses, s.j.telechargements.length, s.j.appels.length]);
+    for (const coffre of ['papiers', 'secretariat', 'rh', 'signatures', 'engagements', 'entre-deux', 'site']) refuses.push(code(await s.demande({ ...PHOTO, images: [{ coffre, chemin: 'x/y.jpg' }] })));
+    dit('les papiers, le secrétariat, la RH, les signatures, les engagements (une carte d identité), entre-deux et le site : refusés sans lecture ni appel',
+      [Array(7).fill([400, 'format']), 0, 0], [refuses, s.j.telechargements.length, s.j.appels.length]);
   }
   {
     const fichiers = {
       'whatsapp/22901970000000/abc-photo.jpg': { octets: new Uint8Array([0, 1, 2]), mime: 'image/jpeg' },
-      'entre-deux/c-1/lourde.jpg': { octets: new Uint8Array(OCTETS_MAX_PAR_IMAGE + 1), mime: 'image/jpeg' },
+      'fil/depense/lourde.jpg': { octets: new Uint8Array(OCTETS_MAX_PAR_IMAGE + 1), mime: 'image/jpeg' },
       'fil/devis.pdf': { octets: new Uint8Array([1, 2, 3, 4]), mime: 'application/pdf' },
     };
     const s = serveur({ fichiers });
     const [st] = await s.demande({ ...PHOTO, images: [{ coffre: 'whatsapp', chemin: '22901970000000/abc-photo.jpg' }] });
     const contenu = (s.j.appels[0].messages as { content: { source?: { data: string; media_type: string } }[] }[])[0].content[0];
-    dit('une photo reçue sur WhatsApp se lit dans son coffre et part en base64', [200, [['whatsapp', '22901970000000/abc-photo.jpg']], 'AAEC', 'image/jpeg'],
+    dit('une photo reçue sur WhatsApp se lit dans son coffre, AVEC LE JETON de la personne, et part en base64', [200, [['whatsapp', '22901970000000/abc-photo.jpg', 'jeton-de-la-gerante']], 'AAEC', 'image/jpeg'],
       [st, s.j.telechargements, contenu.source?.data, contenu.source?.media_type]);
-    dit('plus de 4 Mo : trop-gros 413, sans appel', [[413, 'trop-gros'], 1], [code(await s.demande({ ...PHOTO, images: [{ coffre: 'entre-deux', chemin: 'c-1/lourde.jpg' }] })), s.j.appels.length]);
-    dit('un PDF n est pas une image que Claude lit ; un fichier absent non plus', [[400, 'format'], [400, 'format'], 1],
-      [code(await s.demande({ ...PHOTO, images: [{ coffre: 'fil', chemin: 'devis.pdf' }] })), code(await s.demande({ ...PHOTO, images: [{ coffre: 'fil', chemin: 'absente.jpg' }] })), s.j.appels.length]);
+    dit('plus de 4 Mo : trop-gros 413, sans appel', [[413, 'trop-gros'], 1], [code(await s.demande({ ...PHOTO, images: [{ coffre: 'fil', chemin: 'depense/lourde.jpg' }] })), s.j.appels.length]);
+    const [stAbsente, rAbsente] = await s.demande({ ...PHOTO, images: [{ coffre: 'fil', chemin: 'absente.jpg' }] });
+    dit('un PDF n est pas une image que Claude lit ; un fichier absent ne se lit pas non plus (403, comme un refus)', [[400, 'format'], [403, 'format', 'Cette image n’est pas lisible pour vous.'], 1],
+      [code(await s.demande({ ...PHOTO, images: [{ coffre: 'fil', chemin: 'devis.pdf' }] })), [stAbsente, rAbsente.erreur, rAbsente.message], s.j.appels.length]);
+  }
+  {
+    /* LE CHÈQUE (0134) : la RLS ne le donne qu'à la direction et à qui l'a
+       pris. Le faux coffre l'imite ; la fonction lit avec le jeton reçu. */
+    const fichiers = { 'traces-privees/cheque/u-maitre/2026-10-19-a1.jpg': { octets: new Uint8Array([9, 9, 9]), mime: 'image/jpeg', lecteurs: ['jeton-de-la-gerante', 'jeton-du-maitre'] } };
+    const s = serveur({ fichiers, acces: { 'dept-vente-caisse': true } });
+    const cheque = { ...PHOTO, chantier: 'recu' as const, images: [{ coffre: 'traces-privees', chemin: 'cheque/u-maitre/2026-10-19-a1.jpg' }] };
+    const [stAutre, rAutre] = await s.demande(cheque, 'jeton-d-un-autre-maitre');
+    dit('le chèque d un autre : 403, « Cette image n’est pas lisible pour vous. », et Claude n est pas appelé', [403, 'format', 'Cette image n’est pas lisible pour vous.', 0],
+      [stAutre, rAutre.erreur, rAutre.message, s.j.appels.length]);
+    dit('... celui qui l a pris et la gérante le lisent', [[200, true], [200, true]], [code(await s.demande(cheque, 'jeton-du-maitre')), code(await s.demande(cheque, 'jeton-de-la-gerante'))]);
+    dit('chaque lecture de coffre porte le jeton de la demande, jamais un autre', ['jeton-d-un-autre-maitre', 'jeton-du-maitre', 'jeton-de-la-gerante'], s.j.telechargements.map((t) => t[2]));
   }
 
   /* LE SCHÉMA. */
@@ -328,6 +358,53 @@ const essais = async () => {
   }
 };
 
+/* ── 3 bis. LES VRAIS OUTILS, SUR UN FAUX SUPABASE ─────────────────────
+   Le coffre se lit avec la SESSION de la personne (19 octobre 2026, au
+   soir) : le vrai code des outils, de « LES VRAIS OUTILS » jusqu'à l'appel
+   d'Anthropic, rejoué avec un faux `createClient` et un faux client de
+   service qui notent tout. Les clés sont des chaînes d'exemple. */
+const SERVICE = 'cle-de-service-du-banc';
+const ENV: Record<string, string> = { CLE_SERVICE: SERVICE, SUPABASE_SERVICE_ROLE_KEY: 'autre-cle-de-service', SUPABASE_ANON_KEY: 'cle-publique-de-l-environnement' };
+async function vraisOutils() {
+  const src = lis(FONCTION);
+  const i = src.indexOf('/* ══ LES VRAIS OUTILS');
+  const k = src.indexOf('/** Anthropic, soixante secondes');
+  if (i < 0 || k < i) { dit('les vrais outils se trouvent entre leurs repères', true, false); return; }
+  const js = transformSync(src.slice(i, k), { loader: 'ts', format: 'cjs' }).code;
+  const clients: { cle: string; autorisation: string }[] = [];
+  const parLeService: string[] = [];
+  const fauxCreateClient = (_url: string, cle: string, opts: { global?: { headers?: Record<string, string> } }) => {
+    clients.push({ cle, autorisation: opts?.global?.headers?.Authorization ?? '' });
+    return { storage: { from: (coffre: string) => ({ download: async (chemin: string) => ({ data: new Blob([new Uint8Array([7, 7])], { type: 'image/jpeg' }), error: null, coffre, chemin }) }) } };
+  };
+  const fauxAdmin = {
+    storage: { from: (coffre: string) => { parLeService.push(coffre); return { download: async () => ({ data: new Blob([new Uint8Array([1])], { type: 'image/jpeg' }), error: null }) }; } },
+    auth: { getUser: async () => ({ data: { user: { id: 'u-gerante' } } }) },
+    from: () => ({ select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: null }) }) }), upsert: async () => ({ error: null }) }),
+  };
+  const fauxDeno = { env: { get: (n: string) => ENV[n] } };
+  // eslint-disable-next-line no-new-func
+  const f = new Function('admin', 'createClient', 'Deno', 'SUPABASE_URL', 'SERVICE_KEY', 'CLE_DU_COMPTEUR_DES_HUIT',
+    `${js}; return { clePubliqueDe, baseDeLaRequete };`)(fauxAdmin, fauxCreateClient, fauxDeno, 'https://exemple.supabase.co', SERVICE, CLE_DU_COMPTEUR_DES_HUIT) as {
+    clePubliqueDe: (req: { headers: Headers }) => string;
+    baseDeLaRequete: (cle: string) => { telecharge: (c: string, ch: string, jwt: string) => Promise<{ octets: Uint8Array; mime: string } | null> };
+  };
+  const req = (h: Record<string, string>) => ({ headers: new Headers(h) });
+  dit('la clé du lecteur : l apikey reçue ; sans elle, ou si c est une clé de service, celle de l environnement',
+    ['cle-publique-du-trone', 'cle-publique-de-l-environnement', 'cle-publique-de-l-environnement', 'cle-publique-de-l-environnement'],
+    [f.clePubliqueDe(req({ apikey: 'cle-publique-du-trone' })), f.clePubliqueDe(req({})), f.clePubliqueDe(req({ apikey: SERVICE })), f.clePubliqueDe(req({ apikey: 'autre-cle-de-service' }))]);
+  const base = f.baseDeLaRequete(f.clePubliqueDe(req({ apikey: 'cle-publique-du-trone' })));
+  const lu = await base.telecharge('traces-privees', 'cheque/u-maitre/a1.jpg', 'jeton-du-maitre');
+  dit('un coffre se lit par un client à la clé publique et au jeton de la personne', [[{ cle: 'cle-publique-du-trone', autorisation: 'Bearer jeton-du-maitre' }], [7, 7], 'image/jpeg'],
+    [clients, lu ? [...lu.octets] : null, lu?.mime]);
+  const parService = await base.telecharge('fil', 'depense/x.jpg', SERVICE);
+  const sansJeton = await base.telecharge('fil', 'depense/x.jpg', '');
+  const sansCle = await f.baseDeLaRequete('').telecharge('fil', 'depense/x.jpg', 'jeton-du-maitre');
+  dit('un jeton qui serait la clé de service, un jeton vide, une clé publique absente : rien ne se lit, aucun client créé', [null, null, null, 1], [parService, sansJeton, sansCle, clients.length]);
+  dit('le client de service ne lit JAMAIS un coffre, et aucun lecteur ne porte une clé de service', [[], false],
+    [parLeService, clients.some((c) => [SERVICE, 'autre-cle-de-service'].includes(c.cle) || [SERVICE, 'autre-cle-de-service'].some((s) => c.autorisation.includes(s)))]);
+}
+
 /* ── 4. LA STRUCTURE DE LA FONCTION ───────────────────────────────────── */
 const structure = () => {
   const brut = lis(FONCTION);
@@ -340,6 +417,8 @@ const structure = () => {
   dit('elle ne lit que deux documents : la matrice des départements et son compteur ; jamais la table des clientes', [['\'mnd_staff_access\'', 'CLE_DU_COMPTEUR_DES_HUIT'], 1, 2, false],
     [documents, (f.match(/\.eq\('key', /g) ?? []).length, (f.match(/from\('documents'\)/g) ?? []).length, /from\('clients'\)/.test(f)]);
   dit('le compteur s écrit par un upsert de la clé des huit', true, /upsert\(\{ key: CLE_DU_COMPTEUR_DES_HUIT, data: doc \}\)/.test(f));
+  dit('aucun coffre ne se lit par le client de service ; chaque requête bâtit ses outils avec SA clé publique', [false, true, true],
+    [/admin\s*\.\s*storage/.test(f), /base: baseDeLaRequete\(clePubliqueDe\(req\)\)/.test(f), /o\.base\.telecharge\(im\.coffre, im\.chemin, jwt\)/.test(f)]);
   dit('Anthropic par fetch, la clé en en-tête, la version d API, soixante secondes au plus', [true, true, true, true],
     [/fetch\('https:\/\/api\.anthropic\.com\/v1\/messages'/.test(f), /'x-api-key': ANTHROPIC_API_KEY/.test(f), /'anthropic-version': '2023-06-01'/.test(f), /setTimeout\(\(\) => arret\.abort\(\), 60_000\)/.test(f)]);
   /* La clé ne vit que sur trois lignes : lue, exigée, mise en en-tête. Toute
@@ -360,6 +439,7 @@ const structure = () => {
 /* Un vrai code qui plante est un échec dit, pas un banc qui s'arrête :
    la structure se lit quand même. */
 try { await essais(); } catch (e) { ko++; console.log(`ECHEC le vrai code de la fonction plante sur de faux outils\n       ${String((e as Error)?.message ?? e).slice(0, 200)}`); }
+try { await vraisOutils(); } catch (e) { ko++; console.log(`ECHEC les vrais outils plantent sur un faux Supabase\n       ${String((e as Error)?.message ?? e).slice(0, 200)}`); }
 structure();
 console.log(ko === 0 ? '\nTOUT VA BIEN : la porte vers Claude tient ses promesses.' : `\n${ko} ÉCHEC(S)`);
 if (ko) process.exitCode = 1;

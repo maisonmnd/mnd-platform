@@ -28,8 +28,11 @@
         à l'heure de Cotonou dans `documents` · mnd_ia_compteur_huit ; au
         plafond, { erreur: 'budget' } et AUCUN appel ;
      5. LES IMAGES : telles quelles en base64, ou lues dans un coffre de la
-        liste blanche (jamais les papiers de la famille) ; trop lourde ou d'un
-        format inconnu, refusée ;
+        liste blanche (whatsapp, fil, traces-privees ; jamais les papiers de
+        la famille) AVEC LA SESSION DE LA PERSONNE, jamais la clé de service :
+        la RLS du coffre décide (un chèque, la direction et qui l'a pris) ;
+        refusée, { erreur: 'format' } 403 ; trop lourde ou d'un format
+        inconnu, refusée ;
      6. L'APPEL : le modèle fin pour une image, le rapide pour un texte, le
         remplaçant si le premier n'est pas ouvert à la clé ; avec un schéma,
         Claude répond par l'outil `reponds` et la fonction rend `data` ; sans,
@@ -154,6 +157,9 @@ export function defautDeLaDemande(d: Partial<DemandeIa> | null | undefined): str
   if (d.usage === 'image' && !images.length) return 'une lecture d’image sans image';
   if (d.usage === 'texte' && images.length) return 'un texte n’emporte pas d’image';
   for (const im of images) {
+    /* Une image nulle ou en chaîne ferait lancer le test qui suit
+       (`'base64' in null`) : elle se refuse d'abord (19 octobre 2026, au soir). */
+    if (!im || typeof im !== 'object' || Array.isArray(im)) return 'image mal formée';
     if ('base64' in im) {
       if (!mimeDImagePermis(im.mime)) return 'format d’image refusé';
       if (typeof im.base64 !== 'string' || im.base64.length < 100) return 'image vide';
@@ -364,21 +370,26 @@ export function compteurApres(c: Compteur | null | undefined, mois: string, mode
    `verifie-ia-maison` le rejoue sur de faux outils, sans jamais appeler la
    vraie fonction ni Anthropic. */
 // ── DEBUT iaMaison
-/** LES COFFRES QUE CLAUDE PEUT LIRE (liste blanche, 19 octobre 2026). Les
-    compartiments d'IMAGES de la Maison, relevés dans supabase/migrations :
-      · whatsapp     les pièces reçues sur WhatsApp (whatsapp-webhook les range
-                     sous `<numéro>/<clé>-<nom>`, migration 0102) : photos de
-                     locks, captures envoyées par les clientes ;
-      · entre-deux   les photos entre deux séances (0132) ;
-      · fil          les pièces jointes du fil (0059) ;
-      · engagements  les devis et pièces des fournisseurs (0099) ;
-      · site         les photos du site public (0114, ouvert au public).
-    JAMAIS : papiers (les papiers officiels, 0117), secretariat (0129, la
-    bourse scolaire y vit), rh (0130, contrats et paie), traces-privees (0134,
-    les chèques : un numéro de compte s'y lit), signatures (0116),
-    certificats (0103), sauvegardes (0064), voix-du-site (0135, des sons).
-    Sa règle : les papiers de la famille ne vont jamais chez Claude. */
-const COFFRES_D_IMAGES: readonly string[] = ['whatsapp', 'entre-deux', 'fil', 'engagements', 'site'];
+/** LES COFFRES QUE CLAUDE PEUT LIRE (liste blanche, resserrée le 19 octobre
+    2026 au soir) : ceux qu'un chantier lit vraiment, rien de plus.
+      · whatsapp        les pièces reçues sur WhatsApp (whatsapp-webhook les
+                        range sous `<numéro>/<clé>-<nom>`, migration 0102) : le
+                        chantier capture lit les images reçues ;
+      · fil             les pièces jointes du fil (0059) : le reçu y joint sa
+                        photo (dossier `depense`) ;
+      · traces-privees  les chèques et tickets (0134), lus par leur chemin :
+                        la photo du chèque.
+    RETIRÉS : engagements (0099, une carte d'identité de prestataire peut s'y
+    trouver), entre-deux (0132) et site (0114), qu'aucun chantier ne lit.
+    JAMAIS : papiers (0117), secretariat (0129, la bourse scolaire y vit), rh
+    (0130), signatures (0116), certificats (0103), sauvegardes (0064),
+    voix-du-site (0135). Sa règle : les papiers de la famille ne vont jamais
+    chez Claude.
+    LA LISTE NE SUFFIT PAS : le fichier se lit avec la SESSION de la
+    personne (`telecharge(…, jwt)`), jamais avec la clé de service. La RLS
+    des compartiments décide alors : un chèque ne se lit que par la direction
+    et par qui l'a pris (0134), un numéro réservé à la direction aussi (0102). */
+const COFFRES_D_IMAGES: readonly string[] = ['whatsapp', 'fil', 'traces-privees'];
 
 type LigneStaff = { user_id: string; role: string };
 type Matrice = Record<string, Record<string, boolean>>;
@@ -400,8 +411,10 @@ type BaseDeLaMaison = {
   /** Le compteur des huit (documents · CLE_DU_COMPTEUR_DES_HUIT). */
   compteur(): Promise<DocumentDuCompteur>;
   ecrisLeCompteur(doc: DocumentDuCompteur): Promise<void>;
-  /** Un fichier d'un coffre, ou null s'il n'y est pas. */
-  telecharge(coffre: string, chemin: string): Promise<Fichier | null>;
+  /** Un fichier d'un coffre, lu AVEC LA SESSION de la personne (son jeton) :
+      null s'il n'y est pas ou si la RLS le lui refuse (les deux se
+      confondent, et c'est voulu : on ne dit pas qu'un chèque existe). */
+  telecharge(coffre: string, chemin: string, jwt: string): Promise<Fichier | null>;
 };
 type OutilsDeLaMaison = {
   base: BaseDeLaMaison;
@@ -455,14 +468,8 @@ async function traiteLaDemande(o: OutilsDeLaMaison, body: unknown, jwt: string):
   const ligne = uid ? await o.base.staff(uid) : null;
   if (!uid || !ligne) return refus(403, 'equipe', 'Cette porte est celle de l’équipe : ouvrez une session du Trône.');
 
-  /* 2. LA DEMANDE EST RECEVABLE, avant de dépenser quoi que ce soit.
-     Une image qui n'est pas un objet (null, une chaîne) ferait tomber
-     `defautDeLaDemande` (`'base64' in null` lance) : on la refuse avant,
-     en format, plutôt qu'en « la porte a trébuché » (19 octobre 2026). */
-  const imagesRecues = (body as { images?: unknown } | null)?.images;
-  if (Array.isArray(imagesRecues) && imagesRecues.some((im) => !im || typeof im !== 'object' || Array.isArray(im))) {
-    return refus(400, 'format', 'La demande n’est pas recevable : image mal formée.');
-  }
+  /* 2. LA DEMANDE EST RECEVABLE, avant de dépenser quoi que ce soit (une
+     image nulle ou en chaîne y compris : le contrat la refuse lui-même). */
   const defaut = defautDeLaDemande(body as Partial<DemandeIa>);
   if (defaut) return refus(400, 'format', `La demande n’est pas recevable : ${defaut}.`);
   const d = body as DemandeIa;
@@ -488,8 +495,8 @@ async function traiteLaDemande(o: OutilsDeLaMaison, body: unknown, jwt: string):
   for (const im of d.images ?? []) {
     if ('base64' in im) { images.push({ media_type: mimeNet(im.mime), data: im.base64 }); continue; }
     if (!COFFRES_D_IMAGES.includes(im.coffre)) return refus(400, 'format', `Le coffre « ${im.coffre} » n’est pas un coffre d’images que Claude peut lire.`);
-    const lu = await o.base.telecharge(im.coffre, im.chemin);
-    if (!lu) return refus(400, 'format', 'L’image demandée est introuvable dans son coffre.');
+    const lu = await o.base.telecharge(im.coffre, im.chemin, jwt);
+    if (!lu) return refus(403, 'format', 'Cette image n’est pas lisible pour vous.');
     if (lu.octets.length > OCTETS_MAX_PAR_IMAGE) return refus(413, 'trop-gros', 'Cette image dépasse 4 Mo : réduisez-la avant de la montrer à Claude.');
     if (!mimeDImagePermis(lu.mime)) return refus(400, 'format', 'Ce fichier n’est pas une image que Claude sait lire (JPEG, PNG, WebP, GIF).');
     images.push({ media_type: mimeNet(lu.mime), data: enBase64(lu.octets) });
@@ -567,34 +574,60 @@ async function traiteLaDemande(o: OutilsDeLaMaison, body: unknown, jwt: string):
 
 /* ══ LES VRAIS OUTILS ═══════════════════════════════════════════════════
    La fonction ne lit que deux documents : la matrice des départements et
-   son compteur. Jamais la table des clientes, jamais un autre document. */
+   son compteur. Jamais la table des clientes, jamais un autre document.
+   DEUX CLIENTS (19 octobre 2026, au soir) : celui de service pour `staff`,
+   les documents et le compteur ; un LECTEUR à la session de la personne
+   pour les coffres, que la RLS de storage juge comme si le Trône lisait. */
 async function lisLeDocument<T>(cle: string, defaut: T): Promise<T> {
   const { data } = await admin.from('documents').select('data').eq('key', cle).maybeSingle();
   const v = (data as { data?: unknown } | null)?.data;
   return (v === null || v === undefined ? defaut : v) as T;
 }
 
-const base: BaseDeLaMaison = {
-  utilisateur: async (jwt) => {
-    const { data } = await admin.auth.getUser(jwt);
-    return data?.user?.id ?? null;
-  },
-  staff: async (uid) => {
-    const { data } = await admin.from('staff').select('user_id, role').eq('user_id', uid).maybeSingle();
-    return (data as LigneStaff | null) ?? null;
-  },
-  matrice: () => lisLeDocument<Matrice>('mnd_staff_access', {}),
-  compteur: () => lisLeDocument<DocumentDuCompteur>(CLE_DU_COMPTEUR_DES_HUIT, {}),
-  ecrisLeCompteur: async (doc) => {
-    const { error } = await admin.from('documents').upsert({ key: CLE_DU_COMPTEUR_DES_HUIT, data: doc });
-    if (error) throw new Error(`compteur : ${error.message}`);
-  },
-  telecharge: async (coffre, chemin) => {
-    const { data, error } = await admin.storage.from(coffre).download(chemin);
-    if (error || !data) return null;
-    return { octets: new Uint8Array(await data.arrayBuffer()), mime: data.type || '' };
-  },
-};
+/** Les clés de service connues : aucune ne sert jamais à lire un coffre. */
+const CLES_DE_SERVICE: readonly string[] = [Deno.env.get('CLE_SERVICE'), Deno.env.get('SERVICE_KEY'), Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')]
+  .map((c) => (c ?? '').trim()).filter(Boolean);
+
+/** LA CLÉ PUBLIQUE DU TRÔNE : celle que la requête porte (`apikey`), sinon
+    celle de l'environnement. Jamais une clé de service : glissée dans
+    l'en-tête, elle lirait par-dessus la RLS. */
+function clePubliqueDe(req: Request): string {
+  const recue = (req.headers.get('apikey') ?? '').trim();
+  if (recue && !CLES_DE_SERVICE.includes(recue)) return recue;
+  const env = (Deno.env.get('SUPABASE_ANON_KEY') ?? '').trim();
+  return CLES_DE_SERVICE.includes(env) ? '' : env;
+}
+
+function baseDeLaRequete(clePublique: string): BaseDeLaMaison {
+  return {
+    utilisateur: async (jwt) => {
+      const { data } = await admin.auth.getUser(jwt);
+      return data?.user?.id ?? null;
+    },
+    staff: async (uid) => {
+      const { data } = await admin.from('staff').select('user_id, role').eq('user_id', uid).maybeSingle();
+      return (data as LigneStaff | null) ?? null;
+    },
+    matrice: () => lisLeDocument<Matrice>('mnd_staff_access', {}),
+    compteur: () => lisLeDocument<DocumentDuCompteur>(CLE_DU_COMPTEUR_DES_HUIT, {}),
+    ecrisLeCompteur: async (doc) => {
+      const { error } = await admin.from('documents').upsert({ key: CLE_DU_COMPTEUR_DES_HUIT, data: doc });
+      if (error) throw new Error(`compteur : ${error.message}`);
+    },
+    /* Le coffre se lit avec la clé publique et le jeton de la personne :
+       la RLS dit oui ou non, la fonction n'en sait pas plus que le Trône. */
+    telecharge: async (coffre, chemin, jwt) => {
+      if (!clePublique || !jwt || CLES_DE_SERVICE.includes(jwt)) return null;
+      const lecteur = createClient(SUPABASE_URL, clePublique, {
+        auth: { persistSession: false, autoRefreshToken: false },
+        global: { headers: { Authorization: `Bearer ${jwt}` } },
+      });
+      const { data, error } = await lecteur.storage.from(coffre).download(chemin);
+      if (error || !data) return null;
+      return { octets: new Uint8Array(await data.arrayBuffer()), mime: data.type || '' };
+    },
+  };
+}
 
 /** Anthropic, soixante secondes au plus (une lecture de quatre photos prend
     son temps). Rend le statut et le corps ; lance si le réseau ou le délai
@@ -621,14 +654,13 @@ async function appelleAnthropic(corps: Record<string, unknown>): Promise<{ statu
   }
 }
 
-const outils: OutilsDeLaMaison = { base, appelleAnthropic, maintenant: () => new Date() };
-
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
   if (req.method !== 'POST') return json({ error: 'method', version: VERSION }, 405);
   const jwt = (req.headers.get('authorization') ?? '').replace(/^Bearer\s+/i, '').trim();
   let body: unknown;
   try { body = await req.json(); } catch { return json({ ok: false, erreur: 'format', message: 'La demande n’est pas du JSON.', version: VERSION }, 400); }
+  const outils: OutilsDeLaMaison = { base: baseDeLaRequete(clePubliqueDe(req)), appelleAnthropic, maintenant: () => new Date() };
   try {
     const [status, corps] = await traiteLaDemande(outils, body, jwt);
     return json({ ...corps, version: VERSION }, status);

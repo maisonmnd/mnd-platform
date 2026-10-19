@@ -99,6 +99,9 @@ export function defautDeLaDemande(d: Partial<DemandeIa> | null | undefined): str
   if (d.usage === 'image' && !images.length) return 'une lecture d’image sans image';
   if (d.usage === 'texte' && images.length) return 'un texte n’emporte pas d’image';
   for (const im of images) {
+    /* Une image nulle ou en chaîne ferait lancer le test qui suit
+       (`'base64' in null`) : elle se refuse d'abord (19 octobre 2026, au soir). */
+    if (!im || typeof im !== 'object' || Array.isArray(im)) return 'image mal formée';
     if ('base64' in im) {
       if (!mimeDImagePermis(im.mime)) return 'format d’image refusé';
       if (typeof im.base64 !== 'string' || im.base64.length < 100) return 'image vide';
