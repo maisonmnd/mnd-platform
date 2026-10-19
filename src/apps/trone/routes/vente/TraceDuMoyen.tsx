@@ -6,7 +6,9 @@ import {
   type FamilleDeTrace, type TraceDuMoyen,
 } from '../../../../shared/trace-du-moyen-pur';
 import { adresseDeLaPhoto, deposeLaPhoto, monCompte } from '../../../../shared/traces-coffre';
+import { cuivreSi, type ChequeLu } from '../../../../shared/ia-recu-pur';
 import { useEstDirection } from '../_vie';
+import { LireLaPhotoDuCheque } from './LireLaPhotoDuCheque';
 
 /* ══ LES CHAMPS DE LA TRACE — 18 octobre 2026 ═══════════════════════════
    Maquette « Chèque et carte » validée : sous la tuile Chèque, la banque (une
@@ -26,6 +28,19 @@ export function ChampsDeLaTrace({ famille, valeur, onChange, branchId, etiquette
   const pose = (patch: Partial<TraceDuMoyen>) => onChange({ ...t, ...patch });
   const [envoi, setEnvoi] = useState(false);
   const [autreBanque, setAutreBanque] = useState(!!t.banque && !BANQUES_DU_BENIN.includes(t.banque));
+  /* LA PHOTO REMPLIT LA BANQUE ET LE NUMÉRO (19 octobre 2026, chantier
+     `recu`) : en cuivre jusqu'à ce qu'on les touche ; une banque hors liste
+     passe en « Autre banque ». L'encaissement inscrit, comme avant. */
+  const [lus, setLus] = useState<Set<'banque' | 'numero'>>(new Set());
+  const touche = (k: 'banque' | 'numero') => setLus((s) => (s.has(k) ? new Set([...s].filter((x) => x !== k)) : s));
+  const poseLaLecture = (lu: ChequeLu) => {
+    const patch: Partial<TraceDuMoyen> = {};
+    if (lu.banque) { patch.banque = lu.banque; setAutreBanque(lu.horsListe); }
+    if (lu.numero) patch.numero = lu.numero;
+    if (!Object.keys(patch).length) return;
+    pose(patch);
+    setLus(new Set<'banque' | 'numero'>([...(lu.banque ? ['banque' as const] : []), ...(lu.numero ? ['numero' as const] : [])]));
+  };
   const suffit = traceSuffit(famille, t);
   const titre = famille === 'cheque' ? 'La trace du chèque' : 'La trace de la carte';
   const id = (k: string) => `trace-${etiquette ? etiquette.replace(/\W+/g, '-') : 'x'}-${k}`;
@@ -49,7 +64,9 @@ export function ChampsDeLaTrace({ famille, valeur, onChange, branchId, etiquette
               id={id('banque')}
               aria-label={`Banque du chèque${etiquette ? ` · ${etiquette}` : ''}`}
               value={autreBanque ? AUTRE_BANQUE : (t.banque ?? '')}
+              style={cuivreSi(lus.has('banque'))}
               onChange={(e) => {
+                touche('banque');
                 const v = e.target.value;
                 if (v === AUTRE_BANQUE) { setAutreBanque(true); pose({ banque: '' }); } else { setAutreBanque(false); pose({ banque: v }); }
               }}
@@ -65,11 +82,12 @@ export function ChampsDeLaTrace({ famille, valeur, onChange, branchId, etiquette
               placeholder="N° du chèque"
               aria-label={`Numéro du chèque${etiquette ? ` · ${etiquette}` : ''}`}
               value={t.numero ?? ''}
-              onChange={(e) => pose({ numero: e.target.value })}
+              style={cuivreSi(lus.has('numero'))}
+              onChange={(e) => { touche('numero'); pose({ numero: e.target.value }); }}
             />
           </div>
           {autreBanque && (
-            <Input id={id('autre')} autoComplete="off" placeholder="Le nom de la banque" aria-label="Le nom de la banque" value={t.banque ?? ''} onChange={(e) => pose({ banque: e.target.value })} />
+            <Input id={id('autre')} autoComplete="off" placeholder="Le nom de la banque" aria-label="Le nom de la banque" value={t.banque ?? ''} style={cuivreSi(lus.has('banque'))} onChange={(e) => { touche('banque'); pose({ banque: e.target.value }); }} />
           )}
           <Input id={id('aunom')} autoComplete="off" placeholder="Au nom de (si ce n’est pas la cliente), facultatif" aria-label="Au nom de" value={t.auNomDe ?? ''} onChange={(e) => pose({ auNomDe: e.target.value })} />
         </>
@@ -85,6 +103,7 @@ export function ChampsDeLaTrace({ famille, valeur, onChange, branchId, etiquette
           <>
             <span style={{ color: '#2F6B4F' }}>{famille === 'cheque' ? 'Photo du chèque prise' : 'Photo du ticket prise'}</span>
             <VoirLaPhoto chemin={t.photo.chemin} />
+            {famille === 'cheque' && <LireLaPhotoDuCheque chemin={t.photo.chemin} onLu={poseLaLecture} />}
             <button type="button" className="tre-link-btn" onClick={() => pose({ photo: undefined })}>Retirer</button>
           </>
         ) : (

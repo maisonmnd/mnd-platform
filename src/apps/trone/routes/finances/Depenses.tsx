@@ -46,6 +46,8 @@ import { apptNetXof, useBranchAppointments, useServicesById } from '../clients/_
 import './finances.css';
 import { ChampDeDate } from '../../../../ds/dates';
 import { reponsesManquantes, ditCeQuiManque, compteDesReponses, derniereDepenseDe, ditLaDerniereFois, groupeParJour, ditLeJour } from '../../../../shared/depenses-saisie';
+import { champsRemplis, cuivreSi, formulaireDepuisLaLecture, type ChampDuRecu } from '../../../../shared/ia-recu-pur';
+import { PhotoDuRecu } from './PhotoDuRecu';
 
 /** Jour d'un achat, ex. « 13 juil. » — pour afficher la date de chaque dépense. */
 /* `fmtDay` a rejoint `_shared` le 23 août 2026 — voir pourquoi là-bas. */
@@ -223,6 +225,16 @@ export default function Depenses() {
   const [voletRecu, setVoletRecu] = useState(false);
   const [filtreDuFlux, setFiltreDuFlux] = useState<string>('all');
   const [form, setForm] = useState<Form>({ label: '', amount: '', category: '', subcategory: '', cashbox: '', enDevise: '', recurring: '', date: '', flagged: false, items: [], sources: [], porteur: voitToutesLesDepenses ? '' : monNom, avancee: false, porteurChoisi: !voitToutesLesDepenses, caisseChoisie: false });
+  /* ══ LA PHOTO QUI REMPLIT LA DÉPENSE — 19 octobre 2026 (chantier `recu`) ══
+     « Les cases cuivrées viennent de la photo : vérifiez-les » (maquette
+     validée). Les cases que la photo a remplies se teintent cuivre jusqu'à ce
+     qu'on les touche ; « Écarter la lecture » rend le formulaire d'avant.
+     RIEN NE S'INSCRIT PAR ICI : la dépense passe par `save`, comme à la main,
+     avec le même statut (« sa dépense attend votre validation, comme
+     aujourd'hui »). */
+  const [venusDeLaPhoto, setVenusDeLaPhoto] = useState<Set<ChampDuRecu>>(new Set());
+  const avantLaPhoto = useRef<Form | null>(null);
+  const toucheLaCase = (c: ChampDuRecu) => setVenusDeLaPhoto((s) => (s.has(c) ? new Set([...s].filter((x) => x !== c)) : s));
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const toggleExpand = (id: string) => setExpanded((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
   const [catOpen, setCatOpen] = useState(false);
@@ -657,6 +669,7 @@ export default function Depenses() {
     setSaveErr(null);
     setEditingId(null);
     setPlusOuvert(false); setVoletRevenu(false); setVoletRecu(false);
+    setVenusDeLaPhoto(new Set()); avantLaPhoto.current = null;
     /* ══ RIEN N'EST CHOISI D'OFFICE — 13 septembre 2026 ══════════════════
        « Dans dépenses je ne veux rien de présélectionné : les équipements,
        qui fait l'achat, ni payer depuis la caisse. Rien de dur, sinon après
@@ -700,6 +713,7 @@ export default function Depenses() {
   const openEdit = (e: Expense) => {
     setSaveErr(null);
     setEditingId(e.id);
+    setVenusDeLaPhoto(new Set()); avantLaPhoto.current = null;
     setPlusOuvert(!!(e.items?.length || e.sources?.length || e.fichier || e.recurring));
     setVoletRevenu(!!e.sources?.length);
     setVoletRecu(!!e.fichier);
@@ -2337,6 +2351,33 @@ export default function Depenses() {
               restreint signe de son nom, la poche dispense de la caisse
               (31 août), le revenu jamais devant un compte restreint. */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            {/* « PHOTOGRAPHIER LE REÇU » (19 octobre 2026, chantier `recu`) :
+                la photo part au coffre et se joint ; ce qu'elle dit se pose en
+                cuivre dans les cases et les lignes ; « Écarter » rend le
+                formulaire d'avant. Le bouton se tait tant que la fonction
+                n'est pas posée ou que le département ne l'ouvre pas. */}
+            {!editingId && (
+              <PhotoDuRecu
+                role={monProfil?.role}
+                acces={mesDomaines}
+                branchId={branch.id}
+                categories={catNames}
+                aujourdhui={todayISO()}
+                onPhoto={(pj) => { setForm((f) => ({ ...f, fichier: pj })); setVoletRecu(true); setPlusOuvert(true); }}
+                onLecture={(lu) => {
+                  /* Le formulaire d'AVANT la première photo : une seconde photo ne le remplace pas. */
+                  setForm((f) => { if (!avantLaPhoto.current) avantLaPhoto.current = f; return formulaireDepuisLaLecture(f, lu, catNames, uid); });
+                  setVenusDeLaPhoto(new Set(champsRemplis(lu)));
+                  if (lu.lignes.length) setPlusOuvert(true);
+                }}
+                onEcarter={() => {
+                  const avant = avantLaPhoto.current;
+                  if (avant) setForm((f) => ({ ...avant, fichier: f.fichier }));
+                  avantLaPhoto.current = null;
+                  setVenusDeLaPhoto(new Set());
+                }}
+              />
+            )}
             {/* ═══ LE MONTANT EST LE HÉROS — 16 août 2026, demande de Yéman :
                 « quand on ouvre Ajouter une dépense, je veux le même modèle que
                 Inscrire un mouvement dans Salon & Foyer ». C'est le nombre
@@ -2359,6 +2400,7 @@ export default function Depenses() {
                         width: 220, textAlign: 'right', display: 'inline-block',
                         borderBottom: '1px solid var(--copper-300)',
                         fontFamily: 'var(--font-serif)', fontSize: 42, color: 'var(--color-indigo)', padding: '2px 6px',
+                        ...cuivreSi(venusDeLaPhoto.has('montant')),
                       }}>
                         {formTotal.toLocaleString('fr-FR')}
                       </span>
@@ -2369,7 +2411,7 @@ export default function Depenses() {
                            (`fCur`, à droite) — il l’ÉTAIT même quand la saisie,
                            elle, restait en francs : l’écran disait « USD » sous
                            un nombre de francs. Il dit vrai depuis le 23 août. */
-                        onChange={(e) => setForm((f) => ({ ...f, amount: nettoieLeMontant(e.target.value, montantsDep.enDevise) }))}
+                        onChange={(e) => { toucheLaCase('montant'); setForm((f) => ({ ...f, amount: nettoieLeMontant(e.target.value, montantsDep.enDevise) })); }}
                         inputMode="decimal"
                         placeholder="0"
                         autoFocus
@@ -2379,6 +2421,7 @@ export default function Depenses() {
                           border: 'none', borderBottom: '1px solid var(--copper-300)',
                           fontFamily: 'var(--font-serif)', fontSize: 42, color: 'var(--color-indigo)',
                           padding: '2px 6px', outline: 'none',
+                          ...cuivreSi(venusDeLaPhoto.has('montant')),
                         }}
                       />
                     )}
@@ -2406,7 +2449,8 @@ export default function Depenses() {
                   className="mnd-input"
                   list="mnd-fournisseurs"
                   value={form.label}
-                  onChange={(e) => setForm((f) => ({ ...f, label: e.target.value }))}
+                  style={cuivreSi(venusDeLaPhoto.has('fournisseur'))}
+                  onChange={(e) => { toucheLaCase('fournisseur'); setForm((f) => ({ ...f, label: e.target.value })); }}
                   /* AUCUN EXEMPLE EN DUR (17 septembre) : « enlève Fournisseur Karité écrit en dur, make it blank » (Yéman). La case est vide, le libellé au-dessus dit ce qu'on attend. */
                 />
                 <datalist id="mnd-fournisseurs">
@@ -2415,7 +2459,7 @@ export default function Depenses() {
               </label>
               <label className="mnd-field trf-ligne2__date">
                 <span className="mnd-field__label">Date</span>
-                <ChampDeDate compact sens="arriere" value={form.date} onChange={(iso) => setForm((f) => ({ ...f, date: iso }))} />
+                <ChampDeDate compact sens="arriere" value={form.date} style={cuivreSi(venusDeLaPhoto.has('date'))} onChange={(iso) => { toucheLaCase('date'); setForm((f) => ({ ...f, date: iso })); }} />
               </label>
             </div>
 
@@ -2445,7 +2489,7 @@ export default function Depenses() {
               <div className="trf-rep">
                 <div className="trf-rep__q">À quoi</div>
                 <div className="trf-rep__menus">
-                  <Select value={form.category} onChange={(e) => setForm((f) => ({ ...f, category: e.target.value, subcategory: '' }))} aria-label="À quoi va cet argent">
+                  <Select value={form.category} style={cuivreSi(venusDeLaPhoto.has('categorie'))} onChange={(e) => { toucheLaCase('categorie'); setForm((f) => ({ ...f, category: e.target.value, subcategory: '' })); }} aria-label="À quoi va cet argent">
                     <option value="">Choisir…</option>
                     {catNames.map((c) => <option key={c} value={c}>{c}</option>)}
                   </Select>
