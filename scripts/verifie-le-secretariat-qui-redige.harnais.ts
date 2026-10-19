@@ -10,14 +10,15 @@
    déduites du code. On n'appelle jamais la vraie fonction : la consigne, le
    schéma, la lecture et le garde-fou se jugent à sec, et la structure de
    l'écran se lit dans les fichiers. */
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync, statSync } from 'node:fs';
+import path from 'node:path';
 import {
   CLES_DES_REGISTRES, EXEMPLE_DE_PHRASE, FORMULE_MAX, LIGNES_DU_DESTINATAIRE_MAX, MOTS_DE_LA_FAMILLE, MOTS_MAX, MOT_DU_REFUS_FAMILLE, OBJET_MAX, PARAGRAPHES_MAX, PHRASE_MAX,
-  REGISTRE_PAR_DEFAUT, REGISTRES_DE_LA_LETTRE, SCHEMA_DE_LA_LETTRE, champsDeLaLettre, consigneDeLaLettre, contientSalon, defautDeLaPhrase, lectureDeLaLettre, parleDeLaFamille,
-  registreLu, sansTiretLong,
+  REGISTRE_PAR_DEFAUT, REGISTRES_DE_LA_LETTRE, SCHEMA_DE_LA_LETTRE, anneeAPreciser, champsDeLaLettre, civiliteNonSupposee, consigneDeLaLettre, contientSalon, defautDeLaPhrase,
+  lectureDeLaLettre, parleDeLaFamille, phraseDitLaCivilite, registreLu, sansTiretLong,
 } from '../src/shared/ia-lettre-pur';
 import { CHANTIERS_IA, DEPARTEMENTS_PAR_CHANTIER, defautDeLaDemande, peutDemander } from '../src/shared/ia-maison-pur';
-import { modeleDe, MODELES } from '../src/shared/secretariat-modeles';
+import { aCompleter, modeleDe, MODELES } from '../src/shared/secretariat-modeles';
 
 let ko = 0;
 const dit = (nom: string, attendu: unknown, obtenu: unknown) => {
@@ -87,6 +88,9 @@ dit('une phrase vide ou une page entière ne partent pas ; la phrase de la maque
     [/ · attestation-stage : Attestation de stage/.test(c), / · lettre : Lettre officielle/.test(c), /Si rien ne convient, « lettre »/.test(c)]);
   dit('... la famille : refus = « famille », rien d autre', true, /membre de la famille de la direction, d’une bourse scolaire, d’un passeport, d’un visa, d’une pièce d’identité[\s\S]*rends refus = « famille », et laisse tous les autres champs vides/.test(c));
   dit('... la forme : 1 à 8 paragraphes, 1200 mots, la formule entière ou vide', [true, true, true], [/1 à 8 paragraphes/.test(c), /1200 mots au plus/.test(c), /formule = la phrase de politesse entière, ou vide/.test(c)]);
+  dit('... la civilité jamais supposée d après un prénom : le nom seul, « Madame, Monsieur » pour s adresser', [true, true, true],
+    [/LA CIVILITÉ : ne la suppose jamais d’après un prénom/.test(c), /nomme la personne par son nom tel qu’il est écrit, sans civilité/.test(c), /adresse-toi à « Madame, Monsieur »/.test(c)]);
+  dit('... pas d appel en tête du corps : le papier l imprime à part', true, /pas de formule d’appel \(« Madame, Monsieur, »\) en tête du corps/.test(c));
   dit('... la consigne et la phrase tiennent dans une demande recevable', null,
     defautDeLaDemande({ chantier: 'lettre', usage: 'texte', systeme: c, messages: [{ role: 'user', content: EXEMPLE_DE_PHRASE }], schema: SCHEMA_DE_LA_LETTRE }));
   const autre = consigneDeLaLettre({ auNomDe: 'ACIA 1', dateDuJour: '2026-10-19', ville: 'Porto-Novo', registreImpose: 'attestation-stage' });
@@ -139,6 +143,39 @@ dit('rien de lisible : pas un objet, pas de corps, corps vide, corps qui n est p
 dit('un paragraphe qui n est pas une chaîne est ignoré, les blancs s aplatissent', ['Un paragraphe propre.'],
   lectureDeLaLettre({ ...BONNE, corps: [42, '  Un   paragraphe\n propre. ', null] })?.corps);
 
+/* LA CIVILITÉ (règle du 13 octobre 2026 : fiche muette = le nom seul, rien
+   de connu = « Madame, Monsieur »). La phrase de la maquette n'en dit aucune. */
+dit('la phrase de la maquette ne dit pas de civilité ; « Mme D. », « Monsieur K. » en disent une', [false, true, true],
+  [phraseDitLaCivilite(EXEMPLE_DE_PHRASE), phraseDitLaCivilite('Lettre à Mme D. pour sa fidélité'), phraseDitLaCivilite('Convocation de Monsieur K. à un entretien')]);
+{
+  const devinee = lectureDeLaLettre({
+    ...BONNE, registre: 'lettre', destinataire: 'Madame Awa K.\nCotonou, Bénin',
+    corps: ['Nous attestons que Mademoiselle Awa K. a suivi le stage.', 'Nous vous remercions, Madame, de votre assiduité.'],
+    formule: 'Veuillez agréer, Madame, l’assurance de nos sentiments respectueux.',
+  }, EXEMPLE_DE_PHRASE);
+  dit('Claude devine « Madame » d après « Awa » : la civilité devant le nom tombe, l adresse devient « Madame, Monsieur »',
+    ['Awa K.\nCotonou, Bénin', 'Nous attestons que Awa K. a suivi le stage.', 'Nous vous remercions, Madame, Monsieur, de votre assiduité.', 'Veuillez agréer, Madame, Monsieur, l’assurance de nos sentiments respectueux.'],
+    [devinee?.destinataire, devinee?.corps[0], devinee?.corps[1], devinee?.formule]);
+  const dite = lectureDeLaLettre({ ...BONNE, registre: 'lettre', destinataire: 'Madame D.\nCotonou, Bénin', corps: ['Madame D. est une cliente fidèle de la Maison.'] }, 'Remerciement à Madame D. pour sa fidélité');
+  dit('... la phrase dit « Madame » : la direction a parlé, rien ne bouge', ['Madame D.\nCotonou, Bénin', 'Madame D. est une cliente fidèle de la Maison.'], [dite?.destinataire, dite?.corps[0]]);
+}
+dit('... un titre et la paire « Madame, Monsieur » restent tels quels', ['À Madame la Directrice de l’ANPE', 'Monsieur le Directeur général', 'Madame, Monsieur, nous vous écrivons.'],
+  [civiliteNonSupposee('À Madame la Directrice de l’ANPE'), civiliteNonSupposee('Monsieur le Directeur général'), civiliteNonSupposee('Madame, Monsieur, nous vous écrivons.')]);
+dit('l appel seul dans un paragraphe tombe : le papier l imprime au-dessus du corps', ['Nous accusons réception de votre courrier.'],
+  lectureDeLaLettre({ ...BONNE, registre: 'lettre', corps: ['Madame, Monsieur,', 'Nous accusons réception de votre courrier.', 'Chère Madame,'] })?.corps);
+
+/* L'ANNÉE SUR CHAQUE DATE : une date sans son année se marque [ANNÉE], et le
+   crochet compte parmi les éléments à compléter (la pièce ne se signe pas avant). */
+dit('une date sans son année est marquée ; avec son année, ou l année dite juste après, elle ne bouge pas',
+  ['Le 3 octobre [ANNÉE], vous étiez absente.', 'du 1er au 30 septembre 2026', 'du 1er septembre au 30 septembre 2026', 'le 14 juillet 2026', 'mais 2 mais', 'Le 12 mars [ANNÉE].'],
+  [anneeAPreciser('Le 3 octobre, vous étiez absente.'), anneeAPreciser('du 1er au 30 septembre 2026'), anneeAPreciser('du 1er septembre au 30 septembre 2026'),
+    anneeAPreciser('le 14 juillet 2026'), anneeAPreciser('mais 2 mais'), anneeAPreciser('Le 12 mars.')]);
+{
+  const l = lectureDeLaLettre({ ...BONNE, registre: 'convocation-entretien', objet: 'Entretien du 23 octobre', corps: ['Nous vous convoquons le 23 octobre à 10 h.'] });
+  dit('... dans le corps et l objet de la proposition, et l éditeur le compte « à compléter »', ['Entretien du 23 octobre [ANNÉE]', 'Nous vous convoquons le 23 octobre [ANNÉE] à 10 h.', 2],
+    [l?.objet, l?.corps[0], l ? aCompleter(l.destinataire, l.objet, champsDeLaLettre(l).corps) : -1]);
+}
+
 /* ── 6. CE QUI REMPLIT LE BROUILLON ───────────────────────────────────── */
 {
   const a = champsDeLaLettre(BONNE);
@@ -167,8 +204,18 @@ dit('un paragraphe qui n est pas une chaîne est ignoré, les blancs s aplatisse
     i('if (parleDeLaFamille(o.phrase)) return { message: MOT_DU_REFUS_FAMILLE };') > 0 && i('if (parleDeLaFamille(o.phrase))') < i('await demandeAClaude<unknown>({'));
   dit('... la demande : chantier « lettre », usage « texte », la consigne du module, le schéma, la phrase passée par pourClaude', [true, true, true, true, true],
     [/chantier: 'lettre',/.test(c), /usage: 'texte',/.test(c), /systeme: consigneDeLaLettre\(\{/.test(c), /schema: SCHEMA_DE_LA_LETTRE,/.test(c), /content: pourClaude\(o\.phrase\.trim\(\)\)/.test(c)]);
-  dit('... la sortie de Claude est relue avant d être montrée, et le refus famille se dit', [true, true],
-    [/const lettre = lectureDeLaLettre\(r\.data\);/.test(c), /if \(lettre\.refus\) return \{ message: MOT_DU_REFUS_FAMILLE \};/.test(c)]);
+  dit('... la sortie de Claude est relue avant d être montrée (avec la phrase, pour la civilité), et le refus famille se dit', [true, true],
+    [/const lettre = lectureDeLaLettre\(r\.data, o\.phrase\);/.test(c), /if \(lettre\.refus\) return \{ message: MOT_DU_REFUS_FAMILLE \};/.test(c)]);
+  dit('... Claude n est demandé que sur un geste : « Rédiger » et « Une autre », jamais à l ouverture, jamais d envoi', [2, false, false],
+    [(c.match(/await demandeLaLettre\(\{/g) ?? []).length, /useEffect\(\(\) => \{[^}]*demande/.test(c), /envoieSurWhatsApp|ouvreWhatsApp|functions\.invoke/.test(c)]);
+  dit('... la fenêtre fermée pendant la rédaction : la réponse tombe, aucun brouillon ne naît', true,
+    c.indexOf('if (!vivant.current) return;') > c.indexOf('const r = await demandeLaLettre({ phrase, auNomDe, ville });')
+    && c.indexOf('if (!vivant.current) return;') < c.indexOf('surLettre(r.lettre, phrase);')
+    && /useEffect\(\(\) => \{ vivant\.current = true; return \(\) => \{ vivant\.current = false; \}; \}, \[\]\);/.test(c));
+  dit('... « Une autre » remplit la pièce telle qu elle est MAINTENANT, et pas une pièce signée entre-temps', [true, true],
+    [/const actuelle = pieces\(secretariatStore\.get\(\)\)\.find\(\(x\) => x\.id === p\.id\);/.test(c), /if \(!actuelle \|\| !modifiable\(actuelle\)\) \{[^\n]*return; \}\s*remplisLaPiece\(actuelle, r\.lettre, phrase, \{ texteSeul: true \}\);/.test(c)]);
+  dit('... « Écarter » efface le brouillon : la direction seule, un brouillon seulement, par le chemin existant', [true, true],
+    [/\{direction && supprimable\(p\) && surEcarte && <Button[^\n]*onClick=\{ecarte\}/.test(c), /if \(effaceLaPiece\(p\)\) \{/.test(c)]);
   dit('... le composant ne numérote rien, ne signe rien, ne finalise rien : il remplit un brouillon par metsAJour', [false, true],
     [/prochainNumero|signeLaPiece|finalise\(|\bnumero\b|nouvellePiece/.test(c), /return metsAJour\(p, \{ \.\.\.patch, proposition: \{ par: 'claude', phrase: phrase\.trim\(\), le: new Date\(\)\.toISOString\(\) \} \}\);/.test(c)]);
   dit('... le bandeau de l éditeur ne vit que sur un brouillon marqué, « Une autre » garde le registre', [true, true],
@@ -177,7 +224,8 @@ dit('un paragraphe qui n est pas une chaîne est ignoré, les blancs s aplatisse
   dit('... pas de tiret long affiché', false, c.includes('—'));
 
   const e = sansCommentaires(lis(ECRAN));
-  dit('Nouveau document monte le champ, jamais pour une lettre personnelle', true, /\{entite !== 'perso' && <RedigerDUnePhrase auNomDe=\{nomAuNomDe\} surLettre=\{\(lettre, phrase\) => choisis\(lettre\.registre, \{ lettre, phrase \}\)\} \/>\}/.test(e));
+  dit('Nouveau document monte le champ, jamais pour une lettre personnelle, et pour une autre entreprise une fois choisie', true,
+    /\{entite !== 'perso' && \(entite !== 'autre' \|\| !!entrepriseChoisie\) && <RedigerDUnePhrase auNomDe=\{nomAuNomDe\} surLettre=\{\(lettre, phrase\) => choisis\(lettre\.registre, \{ lettre, phrase \}\)\} \/>\}/.test(e));
   dit('... la proposition passe par le chemin existant : nouvellePiece d abord, le remplissage ensuite, puis l éditeur', true,
     e.indexOf('const p = nouvellePiece({ branchId, entite: auNomDe,') > 0
     && e.indexOf('const p = nouvellePiece({ branchId, entite: auNomDe,') < e.indexOf('if (proposition) remplisLaPiece(p, proposition.lettre, proposition.phrase);')
@@ -186,7 +234,7 @@ dit('un paragraphe qui n est pas une chaîne est ignoré, les blancs s aplatisse
 
   const ed = sansCommentaires(lis(EDITEUR));
   dit('l éditeur montre le bandeau, et teinte cuivre les champs tant que la proposition est un brouillon', [true, true],
-    [/<BandeauDeLaProposition p=\{p\} auNomDe=\{r\?\.enTete\.nom \?\? maisonNom\(\)\} ville=\{r\?\.enTete\.ville\} \/>/.test(ed), /className=\{p\.proposition && ouvert \? 'sec-a-verifier' : undefined\}/.test(ed)]);
+    [/<BandeauDeLaProposition p=\{p\} auNomDe=\{r\?\.enTete\.nom \?\? maisonNom\(\)\} ville=\{r\?\.enTete\.ville\} surEcarte=\{onClose\} \/>/.test(ed), /className=\{p\.proposition && ouvert \? 'sec-a-verifier' : undefined\}/.test(ed)]);
   dit('... « Garder et numéroter » EST le bouton Signer d aujourd hui : la signature du compte, le numéro par le chemin existant', [true, 2],
     [/signeLaPiece\(p, moi, image\)/.test(ed), (ed.match(/signeLaPiece\(/g) ?? []).length]);
 
@@ -194,6 +242,22 @@ dit('un paragraphe qui n est pas une chaîne est ignoré, les blancs s aplatisse
   dit('la pièce porte sa proposition (qui, la phrase, quand), rien de plus', true, /proposition\?: \{ par: 'claude'; phrase: string; le: string \};/.test(sp));
   const css = lis(CSS);
   dit('la teinte « à vérifier » est cuivre, jamais obsidienne', [true, false], [/\.sec-a-verifier \.mnd-input[^\n]*--copper-500[^\n]*--copper-50/.test(css), /obsidian/.test(css)]);
+
+  /* Qui monte la rédaction : Nouveau document et l'éditeur, rien d'autre.
+     Ni l'onglet Bourse scolaire, ni les papiers : la famille n'y passe pas. */
+  const fichiers: string[] = [];
+  const parcours = (d: string) => {
+    for (const n of readdirSync(d)) {
+      const f = path.join(d, n);
+      if (statSync(f).isDirectory()) parcours(f);
+      else if (/\.(tsx?|jsx?)$/.test(n)) fichiers.push(f.split(path.sep).join('/'));
+    }
+  };
+  parcours('src');
+  dit('seuls Nouveau document et l éditeur importent la rédaction d une phrase', [EDITEUR, ECRAN].sort(),
+    fichiers.filter((f) => f !== COMPOSANT && /from '[^']*RedigerDUnePhrase'/.test(lis(f))).sort());
+  dit('... et seul le composant demande une lettre à Claude', [COMPOSANT],
+    fichiers.filter((f) => /chantier: 'lettre'/.test(sansCommentaires(lis(f)))));
 }
 
 console.log(ko === 0 ? '\nTOUT VA BIEN : le Secrétariat qui rédige tient ses promesses.' : `\n${ko} ÉCHEC(S)`);

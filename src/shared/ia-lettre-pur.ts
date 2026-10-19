@@ -118,7 +118,9 @@ export function consigneDeLaLettre(o: { auNomDe: string; dateDuJour: string; vil
     '',
     'CE QUE TU N’INVENTES JAMAIS : aucune donnée que la phrase ne donne pas. Ni date, ni montant, ni numéro de pièce d’identité, ni numéro de dossier, de facture ou de contrat, ni adresse, ni poste, ni durée. Ce que la pièce exige et que la phrase ne dit pas s’écrit [À COMPLÉTER], entre crochets, tel quel : la direction le remplira avant de signer. Les noms de personnes s’écrivent comme la phrase les écrit, sans les compléter ni les deviner.',
     '',
-    'LES INTERDITS : jamais le mot « salon » (on dit « la Maison ») ; jamais de tiret long (une virgule à la place) ; aucun numéro de téléphone ; pas de « Objet : » dans le champ objet ; pas de signature, pas de nom de signataire, pas de lieu ni de date de signature dans le corps.',
+    'LES INTERDITS : jamais le mot « salon » (on dit « la Maison ») ; jamais de tiret long (une virgule à la place) ; aucun numéro de téléphone ; pas de « Objet : » dans le champ objet ; pas de signature, pas de nom de signataire, pas de lieu ni de date de signature dans le corps ; pas de formule d’appel (« Madame, Monsieur, ») en tête du corps : le papier l’imprime à part.',
+    '',
+    'LA CIVILITÉ : ne la suppose jamais d’après un prénom. Si la phrase ne dit ni « Madame » ni « Monsieur », nomme la personne par son nom tel qu’il est écrit, sans civilité, et adresse-toi à « Madame, Monsieur ». Les accords qui en dépendent s’écrivent comme dans les modèles du Secrétariat : « soussigné(e) », « informé(e) ».',
     '',
     `LA DATE ET LE LIEU : la pièce est faite à ${ville}, le ${dateDite(o.dateDuJour)} (${o.dateDuJour}). Le papier l’imprime en tête, avec la zone de signature : ne l’écris pas dans le corps. Toute date que tu écris porte son année, en toutes lettres pour le mois (« 1er au 30 septembre 2026 »).`,
     '',
@@ -160,25 +162,67 @@ export function registreLu(x: unknown): string {
   return CLES_DES_REGISTRES.includes(k) ? k : REGISTRE_PAR_DEFAUT;
 }
 
-export function lectureDeLaLettre(x: unknown): LettreProposee | null {
+/* ── LA CIVILITÉ, JAMAIS SUPPOSÉE (règle du 13 octobre 2026) ────────────
+   Fiche muette = le nom seul ; rien de connu = « Madame, Monsieur ». Claude
+   devine volontiers « Madame » d'après « Awa » : quand la phrase de la
+   direction ne dit aucune civilité, celle que Claude ajoute tombe. Un titre
+   (« Madame la Directrice ») et la paire « Madame, Monsieur » restent. Si la
+   phrase en dit une, on ne touche à rien : la direction a parlé. */
+const CIVILITE_DITE = /(^|[^\p{L}])(madame|monsieur|mademoiselle|mme|mlle)(?=$|[^\p{L}])/iu;
+export const phraseDitLaCivilite = (phrase: string): boolean => CIVILITE_DITE.test(String(phrase ?? ''));
+export function civiliteNonSupposee(texte: string): string {
+  return String(texte ?? '')
+    /* « Madame Awa K. » : la civilité devant un nom tombe, le nom reste. */
+    .replace(/(^|[^\p{L}])(?:Madame|Monsieur|Mademoiselle|Mme|Mlle)\.?\s+(?!(?:La|Le|Les)(?!\p{L})|L[’'])(?=\p{Lu})/gu, '$1')
+    /* « Nous vous remercions, Madame, de… » : on s'adresse à « Madame, Monsieur ». */
+    .replace(/(^|[^\p{L}])(Madame|Monsieur|Mademoiselle)(?!\p{L})/giu, (m: string, avant: string, mot: string, i: number, tout: string) => {
+      const apres = tout.slice(i + m.length);
+      const devant = tout.slice(0, i + avant.length);
+      if (/^madame$/i.test(mot) && /^,\s*monsieur(?!\p{L})/iu.test(apres)) return m;
+      if (/^monsieur$/i.test(mot) && /madame,\s*$/iu.test(devant)) return m;
+      if (/^\s+(?:la|le|les)(?!\p{L})|^\s+l[’']/iu.test(apres)) return m;
+      return `${avant}Madame, Monsieur`;
+    });
+}
+
+/** « Madame, Monsieur, » seul dans un paragraphe : le papier imprime l'appel à part. */
+const estUnAppel = (p: string): boolean =>
+  /^(?:madame|monsieur|mademoiselle|mesdames|messieurs|ch[eè]re?s?|bonjour)(?!\p{L})[^.!?;:]{0,50},$/iu.test(p.trim());
+
+/* ── L'ANNÉE SUR CHAQUE DATE (« toujours l'année », trois demandes) ─────
+   Une date sans son année (« le 3 octobre ») se marque [ANNÉE] : le crochet
+   compte parmi les éléments à compléter de l'éditeur (`aCompleter`), et la
+   pièce ne se signe pas avant. Une année dite juste après, dans la même
+   proposition (« du 1er septembre au 30 septembre 2026 »), suffit. */
+const MOIS_DITS = 'janvier|f[ée]vrier|mars|avril|mai|juin|juillet|ao[uû]t|septembre|octobre|novembre|d[ée]cembre';
+const DATE_SANS_ANNEE = new RegExp(`(^|[^\\p{L}\\d])((?:1er|[12]?\\d|3[01])\\s+(?:${MOIS_DITS}))(?!\\p{L})(?![^.;:!?\\n]{0,40}\\d{4})`, 'giu');
+export const ANNEE_A_PRECISER = '[ANNÉE]';
+export const anneeAPreciser = (s: string): string => String(s ?? '').replace(DATE_SANS_ANNEE, `$1$2 ${ANNEE_A_PRECISER}`);
+
+/** `phrase` : celle de la direction, pour savoir si elle a dit une civilité. */
+export function lectureDeLaLettre(x: unknown, phrase = ''): LettreProposee | null {
   if (!x || typeof x !== 'object' || Array.isArray(x)) return null;
   const o = x as Record<string, unknown>;
   /* Le refus d'abord : la phrase parlait de la famille, il n'y a rien à lire. */
   if (o.refus === 'famille') return { registre: REGISTRE_PAR_DEFAUT, destinataire: '', objet: '', corps: [], formule: '', refus: 'famille' };
   if (o.refus !== undefined && o.refus !== null && o.refus !== '') return null;
+  const civilite = phraseDitLaCivilite(phrase) ? (s: string) => s : civiliteNonSupposee;
   const registre = registreLu(o.registre);
   const destinataire = typeof o.destinataire === 'string'
-    ? o.destinataire.replace(/\r\n/g, '\n').split('\n').map((l) => texteLu(l, 120)).filter(Boolean).slice(0, LIGNES_DU_DESTINATAIRE_MAX).join('\n')
+    ? o.destinataire.replace(/\r\n/g, '\n').split('\n').map((l) => civilite(texteLu(l, 120))).filter(Boolean).slice(0, LIGNES_DU_DESTINATAIRE_MAX).join('\n')
     : '';
-  const objet = texteLu(o.objet, OBJET_MAX).replace(/^objet\s*:\s*/i, '').trim();
-  const formule = texteLu(o.formule, FORMULE_MAX);
+  const objet = anneeAPreciser(civilite(texteLu(o.objet, OBJET_MAX).replace(/^objet\s*:\s*/i, '').trim()));
+  const formule = civilite(texteLu(o.formule, FORMULE_MAX));
   if (!Array.isArray(o.corps)) return null;
   const corps = o.corps
     .filter((p): p is string => typeof p === 'string')
     .map((p) => sansTiretLong(p).replace(/\s+/g, ' ').trim())
     .filter(Boolean)
     /* « Fait à Cotonou, le … » : le papier l'imprime déjà ; en double, non. */
-    .filter((p) => !/^fait [àa] /i.test(p));
+    .filter((p) => !/^fait [àa] /i.test(p))
+    /* L'appel aussi : le papier l'imprime au-dessus du corps. */
+    .filter((p) => !estUnAppel(p))
+    .map((p) => anneeAPreciser(civilite(p)));
   if (corps.length < 1 || corps.length > PARAGRAPHES_MAX) return null;
   if (nombreDeMots(corps.join(' ')) > MOTS_MAX) return null;
   if ([destinataire, objet, formule, ...corps].some(contientSalon)) return null;

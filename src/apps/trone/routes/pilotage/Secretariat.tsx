@@ -328,7 +328,8 @@ function NouveauDocument({ direction, branchId, moi, nomParDefaut, entreprisesCo
     if (proposition) remplisLaPiece(p, proposition.lettre, proposition.phrase);
     surCree(p.id);
   };
-  const nomAuNomDe = entite === 'mnd' ? maisonNom() : entite === 'acia' ? ACIA.nom : (entreprisesConnues.find((e) => e.id === entrepriseId)?.nom ?? 'l’entreprise');
+  const entrepriseChoisie = entreprisesConnues.find((e) => e.id === entrepriseId);
+  const nomAuNomDe = entite === 'mnd' ? maisonNom() : entite === 'acia' ? ACIA.nom : (entrepriseChoisie?.nom ?? 'l’entreprise');
 
   const ENTITES: { v: Entite; l: string; si?: boolean }[] = [
     { v: 'mnd', l: maisonNom() }, { v: 'acia', l: ACIA.nom }, { v: 'autre', l: 'Autre entreprise' }, { v: 'perso', l: 'Personnelle', si: direction },
@@ -361,8 +362,10 @@ function NouveauDocument({ direction, branchId, moi, nomParDefaut, entreprisesCo
           </p>
         </div>
 
-        {/* Pas pour une lettre personnelle : elle n'est pas au nom de la Maison. */}
-        {entite !== 'perso' && <RedigerDUnePhrase auNomDe={nomAuNomDe} surLettre={(lettre, phrase) => choisis(lettre.registre, { lettre, phrase })} />}
+        {/* Pas pour une lettre personnelle : elle n'est pas au nom de la Maison.
+            Pour une autre entreprise, une fois choisie : sinon la lettre
+            rédigée (et payée) ne trouverait pas où se poser. */}
+        {entite !== 'perso' && (entite !== 'autre' || !!entrepriseChoisie) && <RedigerDUnePhrase auNomDe={nomAuNomDe} surLettre={(lettre, phrase) => choisis(lettre.registre, { lettre, phrase })} />}
 
         <div className="sec-choix">
           <div className="sec-choix__familles">

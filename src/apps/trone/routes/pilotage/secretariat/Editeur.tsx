@@ -156,7 +156,7 @@ export function Editeur({ pieceId, direction, onClose, surOuvre }: {
         <div className="sec-bandeau">Il reste {reste} élément{reste > 1 ? 's' : ''} entre crochets [à compléter] : le document ne se signe pas avant.</div>
       )}
       {/* Rédigée d'une phrase par Claude (19 octobre 2026) : le bandeau et la teinte cuivre, tant que c'est un brouillon. */}
-      <BandeauDeLaProposition p={p} auNomDe={r?.enTete.nom ?? maisonNom()} ville={r?.enTete.ville} />
+      <BandeauDeLaProposition p={p} auNomDe={r?.enTete.nom ?? maisonNom()} ville={r?.enTete.ville} surEcarte={onClose} />
 
       <div className="sec-editeur__corps">
         <div className="sec-editeur__form">
