@@ -5,14 +5,16 @@
    lignes d'import. Ce script refait les copies ; le banc
    `verifie-le-centre-de-commande` crie si elles divergent.
 
-   node scripts/copie-dans-le-centre.mjs [--verifie]
+   node scripts/copie-dans-le-centre.mjs [--verifie] [--fonction <chemin>]
    Avec --verifie, il ne réécrit rien : il dit seulement si tout est à jour
-   (code 1 sinon). */
+   (code 1 sinon). Avec --fonction, il travaille sur une autre fonction qui
+   porte les mêmes repères (ia-maison, 19 octobre 2026) ; sans, le Centre. */
 import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
 const racine = path.resolve(import.meta.dirname, '..');
-const FONCTION = path.join(racine, 'supabase/functions/centre-de-commande/index.ts');
+const voulue = process.argv.indexOf('--fonction');
+const FONCTION = path.join(racine, voulue > 0 && process.argv[voulue + 1] ? process.argv[voulue + 1] : 'supabase/functions/centre-de-commande/index.ts');
 const DEBUT = /^\/\/ ── DÉBUT DE LA COPIE : (\S+) ──$/;
 const FIN = '// ── FIN DE LA COPIE ──';
 
