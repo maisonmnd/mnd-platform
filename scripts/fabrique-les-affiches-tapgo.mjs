@@ -14,12 +14,21 @@
    construction du site (`node scripts/build-sites.mjs` d'abord).
 
    Il écrit, dans le dossier donné : carre.png, carre-indigo.png,
-   statut.png, statut-indigo.png. */
+   statut.png, statut-indigo.png.
+
+   LE QR DE FEDAPAY, SUR SA DEMANDE (19 octobre 2026, « ajoute également le
+   code QR de Fedapay ») : `node scripts/fabrique-les-affiches-tapgo.mjs
+   <dossier> "<ce que dit le QR de sa page Tap & Go>"`. Le QR est REDESSINÉ
+   net à partir de son contenu, lu sur l'image que FedaPay donne : la même
+   donnée, donc le même paiement au scan ; il reste sombre sur une carte
+   blanche (un QR clair sur fond sombre se lit mal). Sans ce second
+   argument, l'affiche n'a que le numéro à composer. */
 import { readFileSync, writeFileSync, mkdirSync, mkdtempSync, readdirSync } from 'node:fs';
 import { spawn } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { createRequire } from 'node:module';
 
 const DEPOT = path.resolve(import.meta.dirname, '..').split(path.sep).join('/');
 const SORTIE = path.resolve(process.argv[2] || path.join(tmpdir(), 'affiches-tapgo'));
@@ -32,6 +41,19 @@ const CODE = lis('CODE_TAPGO_DEFAUT');
 const PREFIXE = lis('PREFIXE_USSD_TAPGO');
 const DEVISE = 'mi nyɔ́ ɖɛkpɛ, votre beauté est déjà là';
 const ussdHtml = `${PREFIXE}<b>${CODE}</b>*<i>MONTANT</i>#`;
+const QR_DONNEE = String(process.argv[3] ?? '').trim();
+const qrcode = createRequire(DEPOT + '/package.json')('qrcode-generator');
+/* Le QR, en modules carrés indigo, sans marge (la carte blanche fait la marge). */
+function qrSvg(donnee) {
+  const q = qrcode(0, 'M');
+  q.addData(donnee);
+  q.make();
+  const n = q.getModuleCount();
+  let d = '';
+  for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) if (q.isDark(y, x)) d += `M${x} ${y}h1v1h-1z`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${n} ${n}" shape-rendering="crispEdges"><path fill="#1E2150" d="${d}"/></svg>`;
+}
+const carteQr = () => `<div class="carte-qr">${qrSvg(QR_DONNEE)}</div>`;
 
 const verrou = (teinte) => readFileSync(`${DEPOT}/public/assets/vectoriel/verrou-couche-${teinte}.svg`, 'utf8').replace(/<\?xml[^>]*>/, '');
 /* Les polices de la construction : leurs noms portent une empreinte, on les cherche. */
@@ -77,6 +99,8 @@ html, body { background: var(--fond); color: var(--encre); }
 .filet { width: 120px; height: 1.5px; background: var(--accent); }
 .par { font: 300 19px/1.3 'Jost', sans-serif; color: var(--doux); letter-spacing: .04em; }
 .devise { font: italic 400 30px/1.2 'Devise', 'Cormorant', serif; color: var(--accent); }
+.carte-qr { background: #FFFFFF; border: 1.5px solid var(--filet); border-radius: 18px; display: grid; place-items: center; }
+.carte-qr svg { display: block; }
 `;
 const PAS = `<ol class="pas">
   <li><span>1</span><p>Composez ce numéro sur votre téléphone.</p></li>
@@ -84,8 +108,34 @@ const PAS = `<ol class="pas">
   <li><span>3</span><p>Confirmez avec votre code secret Mobile Money.</p></li>
 </ol>`;
 
+/* LE CARRÉ 1080 AVEC LE QR : le QR à gauche, le numéro et les pas à droite. */
+const carreQr = (theme) => `<!doctype html><html lang="fr"><head><meta charset="utf-8"><style>${FONTES}${THEMES[theme].css}${COMMUN}
+body { width: 1080px; height: 1080px; }
+.page { width: 1080px; height: 1080px; padding: 74px 84px 62px; justify-content: space-between; }
+.verrou { width: 240px; }
+.tete { display: grid; gap: 12px; justify-items: center; }
+.titre { font-size: 80px; }
+.milieu { display: grid; grid-template-columns: 340px 1fr; gap: 44px; align-items: center; text-align: left; width: 100%; }
+.qr { display: grid; gap: 14px; justify-items: center; }
+.carte-qr { width: 340px; height: 340px; } .carte-qr svg { width: 290px; height: 290px; }
+.droite { display: grid; gap: 22px; }
+.numero { font-size: 33px; padding: 18px 20px; border-radius: 16px; justify-self: start; }
+.pas { gap: 14px; }
+.pas li { font-size: 21px; grid-template-columns: 40px 1fr; gap: 14px; } .pas li span { width: 40px; height: 40px; font-size: 19px; }
+.bas { display: grid; gap: 12px; justify-items: center; }
+.devise { font-size: 27px; }
+</style></head><body><div class="page">
+  <div class="verrou">${verrou(THEMES[theme].verrou)}</div>
+  <div class="tete"><p class="sur">Régler votre rituel</p><h1 class="titre">Par Mobile Money</h1><p class="reseaux">Tout réseau, en deux façons</p></div>
+  <div class="milieu">
+    <div class="qr">${carteQr()}<p class="etiquette">Scannez pour payer</p></div>
+    <div class="droite"><p class="etiquette">Ou composez, sans internet</p><p class="numero">${ussdHtml}</p>${PAS}</div>
+  </div>
+  <div class="bas"><p class="par">Paiement Tap &amp; Go de FedaPay · Maison MND</p><p class="devise">${DEVISE}</p></div>
+</div></body></html>`;
+
 /* LE CARRÉ 1080 (l'image qu'on envoie sur WhatsApp). */
-const carre = (theme) => `<!doctype html><html lang="fr"><head><meta charset="utf-8"><style>${FONTES}${THEMES[theme].css}${COMMUN}
+const carre = (theme) => QR_DONNEE ? carreQr(theme) : `<!doctype html><html lang="fr"><head><meta charset="utf-8"><style>${FONTES}${THEMES[theme].css}${COMMUN}
 body { width: 1080px; height: 1080px; }
 .page { width: 1080px; height: 1080px; padding: 74px 90px 62px; justify-content: space-between; }
 .verrou { width: 250px; }
@@ -104,7 +154,7 @@ body { width: 1080px; height: 1080px; }
 </div></body></html>`;
 
 /* LE STATUT 1080 × 1920 (le statut WhatsApp, l'histoire Instagram). */
-const statut = (theme) => `<!doctype html><html lang="fr"><head><meta charset="utf-8"><style>${FONTES}${THEMES[theme].css}${COMMUN}
+const statut = (theme) => QR_DONNEE ? statutQr(theme) : `<!doctype html><html lang="fr"><head><meta charset="utf-8"><style>${FONTES}${THEMES[theme].css}${COMMUN}
 body { width: 1080px; height: 1920px; }
 .page { width: 1080px; height: 1920px; padding: 150px 96px 130px; justify-content: space-between; }
 .page::before { inset: 40px; }
@@ -126,6 +176,34 @@ body { width: 1080px; height: 1920px; }
   <div class="bloc"><p class="etiquette">Composez</p><p class="numero">${ussdHtml}</p></div>
   ${PAS}
   <div class="filet"></div>
+  <div class="bas"><p class="par">Paiement Tap &amp; Go de FedaPay · Maison MND</p><p class="devise">${DEVISE}</p></div>
+</div></body></html>`;
+
+/* LE STATUT AVEC LE QR : le QR sous le titre, puis le numéro et les pas. */
+const statutQr = (theme) => `<!doctype html><html lang="fr"><head><meta charset="utf-8"><style>${FONTES}${THEMES[theme].css}${COMMUN}
+body { width: 1080px; height: 1920px; }
+.page { width: 1080px; height: 1920px; padding: 120px 96px 110px; justify-content: space-between; }
+.page::before { inset: 40px; }
+.verrou { width: 310px; }
+.tete { display: grid; gap: 18px; justify-items: center; }
+.sur { font-size: 20px; }
+.titre { font-size: 104px; }
+.reseaux { font-size: 28px; }
+.qr { display: grid; gap: 18px; justify-items: center; }
+.carte-qr { width: 470px; height: 470px; border-radius: 22px; } .carte-qr svg { width: 400px; height: 400px; }
+.bloc { display: grid; gap: 20px; justify-items: center; }
+.numero { font-size: 52px; padding: 30px 34px; }
+.pas { gap: 26px; }
+.pas li { font-size: 31px; grid-template-columns: 58px 1fr; gap: 22px; } .pas li span { width: 58px; height: 58px; font-size: 26px; }
+.bas { display: grid; gap: 16px; justify-items: center; }
+.par { font-size: 22px; }
+.devise { font-size: 34px; }
+</style></head><body><div class="page">
+  <div class="verrou">${verrou(THEMES[theme].verrou)}</div>
+  <div class="tete"><p class="sur">Régler votre rituel</p><h1 class="titre">Par Mobile Money</h1><p class="reseaux">Tout réseau, en deux façons</p></div>
+  <div class="qr">${carteQr()}<p class="etiquette">Scannez pour payer</p></div>
+  <div class="bloc"><p class="etiquette">Ou composez, sans internet ni smartphone</p><p class="numero">${ussdHtml}</p></div>
+  ${PAS}
   <div class="bas"><p class="par">Paiement Tap &amp; Go de FedaPay · Maison MND</p><p class="devise">${DEVISE}</p></div>
 </div></body></html>`;
 
