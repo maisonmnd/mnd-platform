@@ -48,6 +48,7 @@ import { cheminDeLaConversation, lienDuFil, lienWaMe } from '../../../../shared/
 import { appelDe } from '../../../../shared/civilite';
 import { rituelDeLaRepriseEffacee } from '../../../../shared/reprise-nue';
 import { LeBilanDeLaSeance } from './LeBilanDeLaSeance';
+import { FicheDuJour } from './FicheDuJour';
 
 export { ChampDeDate };
 
@@ -2975,6 +2976,9 @@ export function RdvModal({
             Son envie pour cette séance : <b>{ENVIES_AVANT.find((x) => x.cle === appt.envieAvantSeance?.envie)?.dit ?? appt.envieAvantSeance.envie}</b>, dite sur WhatsApp le {frShortAn(appt.envieAvantSeance.quand.slice(0, 10))}.
           </div>
         )}
+        {/* AVANT DE LA RECEVOIR — 19 octobre 2026 : la fiche du jour (Claude), pour un
+            rendez-vous du jour ou à venir ; le bloc tient sa porte lui-même. */}
+        {appt && <FicheDuJour appt={appt} client={rdvClient} byId={byId} resteDu={(a) => apptDueXof(a, byId)} />}
         {/* ═══ LE BANDEAU VIVANT (14 août) — il ne bouge jamais.
             Onze champs à la file, et le total tout en bas : on faisait défiler
             pour retrouver ce qu'on était en train d'écrire. La tête, son
