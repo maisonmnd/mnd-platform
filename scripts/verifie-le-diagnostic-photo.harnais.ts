@@ -634,7 +634,10 @@ const essais = async () => {
     for (let i = 0; i < 6; i++) suite.push(await s.allowRate('1.1.1.1', 'diagnostic_photos', SEAU_DU_DIAGNOSTIC));
     dit('cinq lectures par dix minutes et par adresse, la sixième attend ; une autre adresse passe ; une vieille trace ne compte pas',
       [[true, true, true, true, true, false], true], [suite, await s.allowRate('2.2.2.2', 'diagnostic_photos', SEAU_DU_DIAGNOSTIC)]);
-    dit('le coût d un appel inconnu se compte au plus cher (jamais sous la vraie facture)', true, s.coutDeLAppel('claude-haiku-5-5', 1_000_000, 0) >= s.coutDeLAppel('claude-sonnet-5-5', 1_000_000, 0));
+    /* Le haiku 5.5 a son prix depuis la fusion des huit chantiers (19 octobre
+       2026, au prix du 4.5) : l'inconnu de l'exemple est un vrai inconnu. */
+    dit('le coût d un appel inconnu se compte au plus cher (jamais sous la vraie facture)', true, s.coutDeLAppel('claude-modele-inconnu', 1_000_000, 0) >= s.coutDeLAppel('claude-opus-5-5', 1_000_000, 0));
+    dit('... et le repli, le haiku 5.5, au prix du haiku', true, s.coutDeLAppel('claude-haiku-5-5', 1_000_000, 0) === s.coutDeLAppel('claude-haiku-4-5-20251001', 1_000_000, 0));
   }
 };
 
