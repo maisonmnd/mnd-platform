@@ -47,6 +47,7 @@ import { appelDe } from '../../../../shared/civilite';
 import ReponsesDeLaMaison from './ReponsesDeLaMaison';
 import { invoicesStore } from '../../../../shared/finance';
 import { useLaPieceEnPdf } from '../vente/pdf-de-la-piece';
+import { ReponseProposee } from './ReponseProposee';
 
 /* ═══════════════════════════════════════════════════════════════════
    LES CONVERSATIONS — maquette `public/maquette-les-conversations.html`,
@@ -1672,6 +1673,8 @@ export default function Conversations() {
                       <span className="trc-sub trc-saisie__note" style={{ fontSize: 11, marginRight: 'auto' }}>
                         La devise ne se pose pas ici : elle signe ce que la Maison écrit seule.
                       </span>
+                      {/* « Proposer une réponse » (19 octobre 2026) : Claude remplit la zone, la main relit et envoie par le bouton d'à côté. */}
+                      <ReponseProposee key={fil.numero} fil={fil} occupe={envoiEnCours} surProposition={(t) => { prendsLaMain('proposition'); setTexte(t); }} />
                       <Button className="trc-saisie__lien" variant="ghost" size="sm" onClick={() => setLienOuvert(true)}>Lien de réservation</Button>
                       <Button
                         variant="copper"
