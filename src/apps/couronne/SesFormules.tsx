@@ -3,7 +3,7 @@ import { useModelBands } from '../../shared/pricing';
 import { decaleLeJour } from '../../shared/ia-faits-pur';
 import type { LigneDeSeances, ReleveDeLAbonnee, ReleveDuContrat, SeanceDuContrat } from '../../shared/abonnee-pur';
 import { useNomDeService, Legende, type DemandeDeReglement } from './Abonnee';
-import { ETAT_FORMULE, dateDansLaPhrase, dateLongue, dateSansJour, heureDite, rangDit } from './releve';
+import { ETAT_FORMULE, dateDansLaPhrase, dateLongue, heureDite, rangDit } from './releve';
 import { fourchetteDuModele } from './fourchette';
 import { t, prix } from './i18n';
 import './abonnee.css';
@@ -57,11 +57,11 @@ function CarteDuContrat({ c, prenom, onRegler, onRenoncer }: {
   const total = c.seances.reduce((m, l) => Math.max(m, l.incluses ?? 0), 0);
   const tag = c.mode === 'cycle'
     ? t('Chaque lune · {montant}', { montant: prix(c.argent.prixVenduXof) })
-    : c.etat === 'retenue' && c.retenueJusquau ? t('{n} séances · retenue jusqu’au {date}', { n: total, date: dateSansJour(c.retenueJusquau) })
-      : c.etat === 'resiliee' && c.resilieeLe ? t('{n} séances · résiliée le {date}', { n: total, date: dateSansJour(c.resilieeLe) })
+    : c.etat === 'retenue' && c.retenueJusquau ? t('{n} séances · retenue jusqu’au {date}', { n: total, date: dateDansLaPhrase(c.retenueJusquau) })
+      : c.etat === 'resiliee' && c.resilieeLe ? t('{n} séances · résiliée le {date}', { n: total, date: dateDansLaPhrase(c.resilieeLe) })
         : c.finIso ? (c.etat === 'terminee'
-          ? t('{n} séances · terminée le {date}', { n: total, date: dateSansJour(c.finIso) })
-          : t('{n} séances · jusqu’au {date}', { n: total, date: dateSansJour(c.finIso) }))
+          ? t('{n} séances · terminée le {date}', { n: total, date: dateDansLaPhrase(c.finIso) })
+          : t('{n} séances · jusqu’au {date}', { n: total, date: dateDansLaPhrase(c.finIso) }))
           : t('{n} séances', { n: total });
   const lignes: [string, string][] = [[t('Référence'), c.reference]];
   if (c.etat === 'retenue') lignes.push([t('Prise en ligne'), t('le {date}, pas encore réglée', { date: dateDansLaPhrase(c.debutIso) })]);
@@ -70,7 +70,7 @@ function CarteDuContrat({ c, prenom, onRegler, onRenoncer }: {
   if (c.resilieeLe) lignes.push([t('Résiliée'), t('le {date}', { date: dateDansLaPhrase(c.resilieeLe) })]);
   if (c.mode === 'cycle') {
     lignes.push([t('Lune'), c.lune && c.etat !== 'en-pause'
-      ? t('du {du} au {au}', { du: dateSansJour(c.lune.du), au: dateSansJour(dernierJour(c.lune.au)) })
+      ? t('du {du} au {au}', { du: dateDansLaPhrase(c.lune.du), au: dateDansLaPhrase(dernierJour(c.lune.au)) })
       : t('en attente de règlement')]);
   }
   if (b?.name) lignes.push([prenom ? t('Sa tête') : t('Votre tête'), t('{calibre}, {fourchette}', { calibre: b.name.trim(), fourchette: fourchetteDuModele(b, bands) })]);

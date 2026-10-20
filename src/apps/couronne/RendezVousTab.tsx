@@ -3,7 +3,7 @@ import { useAppointments, apptDueXof, type Appointment } from '../../shared/agen
 import { useServices } from '../../shared/catalog';
 import { etatDeLaSeance, type ReleveDeLAbonnee } from '../../shared/abonnee-pur';
 import { MONTHS } from './lib';
-import { ETAT_SEANCE, dateCourte, dateSansJour, heureDite, seanceDuRelevé } from './releve';
+import { ETAT_SEANCE, dateCourte, dateDansLaPhrase, heureDite, seanceDuRelevé } from './releve';
 import { t, prix } from './i18n';
 import './abonnee.css';
 
@@ -55,7 +55,7 @@ export default function RendezVousTab({ releve, prenom, selecteur, onOpenRdv, on
   const argent = (a: Appointment): { mot: string; cls: string } | null => {
     const x = seanceDuRelevé(releve, a.id);
     if (x && x.s.compte) {
-      if (x.c.mode === 'cycle') return { mot: x.c.lune ? t('Incluse · lune du {date}', { date: dateSansJour(x.c.lune.du) }) : t('Incluse dans la lune'), cls: '' };
+      if (x.c.mode === 'cycle') return { mot: x.c.lune ? t('Incluse · lune du {date}', { date: dateDansLaPhrase(x.c.lune.du) }) : t('Incluse dans la lune'), cls: '' };
       return x.s.rang && x.s.total ? { mot: t('Incluse · séance {n} sur {total}', { n: x.s.rang, total: x.s.total }), cls: '' } : { mot: t('Incluse dans la formule'), cls: '' };
     }
     if (x && x.s.pourquoiPas === 'rendue') return { mot: t('Rendue par la Maison'), cls: 'ab-argent--hors' };

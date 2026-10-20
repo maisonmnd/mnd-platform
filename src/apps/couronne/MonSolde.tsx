@@ -3,7 +3,7 @@ import { useAppointments, apptPaidXof } from '../../shared/agenda';
 import { useInvoices, invoiceTotal } from '../../shared/finance';
 import type { EcheanceDuContrat, ReleveDeLAbonnee, ReleveDuContrat } from '../../shared/abonnee-pur';
 import { objetDeLaLigne, type DemandeDeReglement } from './Abonnee';
-import { dateCourte, dateDansLaPhrase, dateSansJour, rangDit } from './releve';
+import { dateCourte, dateDansLaPhrase, rangDit } from './releve';
 import { t, prix } from './i18n';
 import './abonnee.css';
 
@@ -47,7 +47,9 @@ function Echeancier({ c, jour, onRegler }: { c: ReleveDuContrat; jour: string; o
           <div key={e.numero} className="ab-ech__ligne">
             <span className={`ab-pastille ${PASTILLE[e.statut]}`} aria-hidden="true" />
             <span className="ab-ech__date"><b>{t('{rang} échéance', { rang: rangDit(e.numero) })}</b><br />{phraseDeLEcheance(e, c, jour)}</span>
-            <span className={`ab-ech__mt ${e.statut === 'reglee' || e.statut === 'annulee' ? 'is-paye' : ''}`}>{prix(e.amountXof)}</span>
+            {/* BARRÉ SEULEMENT CE QUI EST ANNULÉ : un montant réglé se lit en clair,
+                avec « réglée le … » ; barré, il se lirait « annulée ». */}
+            <span className={`ab-ech__mt ${e.statut === 'annulee' ? 'is-barre' : ''}`}>{prix(e.amountXof)}</span>
           </div>
         ))}
         {c.mode === 'cycle' && ar.luneARegler && (
@@ -121,8 +123,8 @@ export default function MonSolde({ releve, prenom, selecteur, onClose, onRegler 
     }))),
     ...appts.filter((a) => a.clientId === releve.clientId && !a.coveredBySub && apptPaidXof(a) > 0)
       .flatMap((a) => (a.payments?.length
-        ? a.payments.map((p) => ({ id: `p-${p.id}`, date: p.date || a.date, montantXof: Number(p.amountXof) || 0, objet: t('Séance du {date}', { date: dateCourte(a.date) }), moyen: p.method as string | undefined }))
-        : [{ id: `p-${a.id}`, date: a.date, montantXof: apptPaidXof(a), objet: t('Séance du {date}', { date: dateCourte(a.date) }), moyen: undefined as string | undefined }])),
+        ? a.payments.map((p) => ({ id: `p-${p.id}`, date: p.date || a.date, montantXof: Number(p.amountXof) || 0, objet: t('Séance du {date}', { date: dateDansLaPhrase(a.date) }), moyen: p.method as string | undefined }))
+        : [{ id: `p-${a.id}`, date: a.date, montantXof: apptPaidXof(a), objet: t('Séance du {date}', { date: dateDansLaPhrase(a.date) }), moyen: undefined as string | undefined }])),
   ].filter((p) => p.montantXof > 0).sort((a, b) => (a.date < b.date ? 1 : -1));
 
   /* SES PIÈCES : le numéro se lit ici, dans l'application, jamais dans un
@@ -173,7 +175,7 @@ export default function MonSolde({ releve, prenom, selecteur, onClose, onRegler 
               <span className="ab-sol-lab">{t('À venir')}</span>
               <b>{prix(s.aVenirXof)}</b>
               {aVenir.length
-                ? aVenir.map((l) => <span key={`${l.genre}-${l.subId ?? l.id}-${l.numero ?? ''}-${l.dueIso ?? ''}`} className="ab-sol-sous">{l.dueIso ? t('{montant} le {date}', { montant: prix(l.montantXof), date: dateSansJour(l.dueIso) }) : prix(l.montantXof)}</span>)
+                ? aVenir.map((l) => <span key={`${l.genre}-${l.subId ?? l.id}-${l.numero ?? ''}-${l.dueIso ?? ''}`} className="ab-sol-sous">{l.dueIso ? t('{montant} le {date}', { montant: prix(l.montantXof), date: dateDansLaPhrase(l.dueIso) }) : prix(l.montantXof)}</span>)
                 : <span className="ab-sol-sous">{t('Rien de prévu.')}</span>}
             </div>
             <div className="ab-sol-petit">

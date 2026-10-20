@@ -466,7 +466,7 @@ export function sceauDeLaSeance(releve: ReleveDeLAbonnee | null | undefined, app
   for (const c of [...releve.contrats, ...releve.anciens]) {
     const s = c.attribuees.find((x) => x.id === apptId);
     if (!s || !s.compte) continue;
-    if (c.mode === 'cycle') return c.lune ? t('Incluse · lune du {date}', { date: dateCourte(c.lune.du) }) : t('Incluse dans la lune');
+    if (c.mode === 'cycle') return c.lune ? t('Incluse · lune du {date}', { date: dateDansLaPhrase(c.lune.du) }) : t('Incluse dans la lune');
     if (!s.rang || !s.total) return t('Incluse dans la formule');
     return prenom
       ? t('Incluse · séance {n} sur {total} de sa formule', { n: s.rang, total: s.total })

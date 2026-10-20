@@ -99,6 +99,12 @@ dit('jamais " salon "', [], tous.filter(([, x]) => /\bsalons?\b/i.test(x)).map((
 dit('jamais le nom d un maitre cote cliente', [],
   NEUFS.filter((f) => /\{maitre\}|preferredMaster|\.master\b(?!\s*\?\?\s*'')/.test(lis(f).replace(/service\?\.master \?\? ''/g, ''))));
 dit('aucune date sans son annee (pas de toLocaleDateString ici)', [], NEUFS.filter((f) => /toLocaleDateString|toLocaleString\(/.test(lis(f))));
+const DANS_LA_PHRASE = /(^|[\s'’])(le|du|au|depuis le|jusqu’au|avant le)\s+\{(date|du|au|fin|debut)\}/;
+const datesCourtesEnPhrase = NEUFS.flatMap((f) => [...lis(f).matchAll(/\bt\(\s*'((?:\\.|[^'\\\n])*)'\s*,\s*\{([^}]*)\}/g)]
+  .filter((m) => DANS_LA_PHRASE.test(m[1]) && /\b(dateCourte|dateSansJour)\(/.test(m[2])).map((m) => `${f}: ${m[1]}`));
+dit('dans une phrase, la date s ecrit en toutes lettres (le lundi 2 novembre 2026)', [], datesCourtesEnPhrase);
+dit('un montant regle se lit en clair ; seul l annule est barre', [true, false],
+  [/e\.statut === 'annulee' \? 'is-barre'/.test(solde), /'reglee'[^\n]*\? 'is-(barre|paye)'/.test(solde)]);
 dit('les dates des ecrans portent l annee', ['Mar. 3 nov. 2026', 'Dimanche 1er novembre 2026', '2 nov. 2026', 'mardi 29 juin 2027'],
   [dateCourte('2026-11-03'), dateLongue('2026-11-01'), dateSansJour('2026-11-02'), dateDansLaPhrase('2027-06-29')]);
 
