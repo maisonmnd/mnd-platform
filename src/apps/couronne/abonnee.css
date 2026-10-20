@@ -1,0 +1,299 @@
+/* ══ LE PARCOURS DE L'ABONNÉE — 20 octobre 2026 ═══════════════════════════
+   Maquette L0 « Le parcours de l'abonnée », validée par Yéman (« construis
+   c'est bon comme ça »). Les écrans de l'abonnée (tableau de bord, Ma formule,
+   Rendez-vous, Mon solde, Réserver une séance de ma formule, Acheter) gardent
+   la langue de Ma Couronne : papier ivoire, indigo qui structure, cuivre qui
+   ponctue, grands serifs. Le soir, indigo profond, jamais noir.
+
+   CE QUI EST NEUF EST PRÉFIXÉ `ab-` : les classes de couronne.css restent
+   intactes, et rien ici ne les redessine. Les quelques couleurs à double rôle
+   (la carte indigo, le fond brique d'un retard) ont leurs jetons, redéfinis
+   pour la nuit selon la même règle que couronne.css : le téléphone, sauf
+   choix fait dans Profil (`data-mc-theme`). */
+
+:root {
+  --ab-carte-indigo: var(--color-indigo);
+  --ab-sur-indigo: var(--color-ivoire);
+  --ab-sur-indigo-doux: var(--indigo-100);
+  --ab-sur-indigo-pale: var(--indigo-200);
+  --ab-sur-cuivre: var(--color-ivoire);
+  --ab-brique-fond: #F6E8E5;
+  --ab-vert: #2E6B4F;
+  --ab-brique: #96412E;
+  --ab-filet-doux: var(--mc-hairline-soft);
+  --ab-ombre-barre: 0 10px 28px rgba(12, 13, 32, 0.28);
+  --ab-ombre-choix: 0 2px 10px rgba(185, 122, 74, 0.13);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-mc-theme="clair"]) {
+    --ab-carte-indigo: #2A2F66;
+    --ab-brique-fond: rgba(240, 138, 148, 0.12);
+    --ab-vert: #7FCF9C;
+    --ab-brique: #F08A94;
+  }
+}
+:root[data-mc-theme="sombre"] {
+  --ab-carte-indigo: #2A2F66;
+  --ab-brique-fond: rgba(240, 138, 148, 0.12);
+  --ab-vert: #7FCF9C;
+  --ab-brique: #F08A94;
+}
+
+/* ── Les pages ─────────────────────────────────────────────────────── */
+.ab-page { padding: 16px 20px 26px; display: flex; flex-direction: column; gap: 12px; }
+.ab-tete { padding: 22px 20px 4px; }
+.ab-titre { font-family: var(--font-serif); font-weight: 400; font-size: 31px; line-height: 1.05; color: var(--mc-encre); margin: 6px 0 4px; }
+.ab-lab { font-size: 10.5px; font-weight: 600; letter-spacing: 0.2em; text-transform: uppercase; color: var(--ink-soft); margin: 12px 0 -2px; }
+.ab-meta { font-size: 12px; color: var(--ink-soft); margin: 3px 0 0; line-height: 1.5; }
+.ab-doute { text-align: center; font: italic 14px var(--font-serif); color: var(--ink-soft); margin: 4px 0 0; }
+.ab-devise { font-family: var(--font-serif); font-style: italic; font-size: 13.5px; color: var(--ink-soft); text-align: center; margin: 8px 0 0; }
+.ab-raison { font-size: 11.5px; color: var(--ink-soft); margin: -4px 0 0; text-align: center; }
+.ab-big { font-family: var(--font-serif); font-size: 30px; line-height: 1.1; color: var(--mc-encre); font-variant-numeric: lining-nums tabular-nums; }
+.ab-big.is-retard { color: var(--mc-error); }
+.ab-lien { display: inline-block; margin-top: 10px; padding: 4px 0; background: none; border: 0; font-size: 11px; font-weight: 600; letter-spacing: 0.16em; text-transform: uppercase; color: var(--mc-cuivre-texte); cursor: pointer; text-align: left; font-family: var(--font-sans); }
+
+/* ── Cartes ────────────────────────────────────────────────────────── */
+.ab-card { background: var(--surface-card); border: 1px solid var(--hairline); border-radius: 4px; padding: 15px 16px; }
+.ab-card__top { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+.ab-card__when { font-family: var(--font-serif); font-size: 19px; line-height: 1.15; color: var(--mc-encre); font-variant-numeric: lining-nums tabular-nums; }
+.ab-card__svc { font-size: 13.5px; color: var(--ink); margin-top: 5px; line-height: 1.4; }
+
+/* La carte « Ma formule » de l'accueil */
+.ab-mcf__nom { font-family: var(--font-serif); font-size: 23px; line-height: 1.15; color: var(--mc-encre); margin-top: 6px; }
+.ab-mcf__ligne { margin-top: 13px; }
+.ab-mcf__tete { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; font-size: 13px; color: var(--ink); }
+.ab-mcf__tete b { font-family: var(--font-serif); font-size: 21px; font-weight: 400; color: var(--mc-encre); white-space: nowrap; font-variant-numeric: lining-nums tabular-nums; }
+.ab-leg { display: flex; flex-wrap: wrap; gap: 4px 12px; margin-top: 6px; font-size: 11.5px; color: var(--ink-soft); }
+.ab-leg__i { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
+.ab-leg__i .ab-seg { flex: none; width: 12px; height: 8px; }
+.ab-mcf__teaser { margin-top: 12px; padding: 11px 12px; background: var(--paper-2); border-radius: 3px; display: grid; gap: 1px; }
+.ab-mcf__teaser span { font-size: 12.5px; color: var(--ink); }
+.ab-mcf__teaser small { font-size: 11px; color: var(--ink-soft); }
+
+/* La barre en trois matières : faite pleine, réservée hachurée, disponible vide. */
+.ab-barre3 { display: flex; gap: 3px; margin-top: 7px; }
+.ab-seg { flex: 1; height: 9px; border-radius: 1px; border: 1px solid var(--accent); background: transparent; }
+.ab-seg--faite { background: var(--accent); }
+.ab-seg--manquee { background: var(--mc-error); border-color: var(--mc-error); }
+.ab-seg--reservee { background: repeating-linear-gradient(135deg, var(--accent) 0 2px, transparent 2px 5px); }
+.ab-seg--libre { border-color: var(--color-argile); }
+.ab-seg--perdue { border-color: var(--color-argile); background: repeating-linear-gradient(45deg, var(--color-argile) 0 1px, transparent 1px 5px); }
+.ab-barre3.is-voile .ab-seg { border-style: dashed; border-color: var(--color-argile); background: transparent; }
+
+/* Le sceau d'argent de la carte indigo « Votre prochaine séance » */
+.ab-sceau { display: inline-block; margin-top: 11px; font-size: 10px; font-weight: 600; letter-spacing: 0.12em; line-height: 1.5; text-transform: uppercase; color: var(--color-indigo-deep); background: var(--copper-200); border-radius: 3px; padding: 4px 9px; }
+.ab-sceau.is-hors { background: transparent; color: var(--copper-200); border: 1px solid var(--copper-300); }
+
+/* La carte « Mon solde » de l'accueil */
+.ab-mcs__lab { display: block; font-size: 10px; font-weight: 600; letter-spacing: 0.18em; text-transform: uppercase; color: var(--ink-soft); margin-top: 8px; }
+.ab-mcs__ok { font-family: var(--font-serif); font-size: 24px; color: var(--mc-encre); margin-top: 6px; }
+.ab-mcs__venir { margin-top: 10px; padding-top: 9px; border-top: 1px solid var(--ab-filet-doux); }
+.ab-mcs__l { display: flex; justify-content: space-between; gap: 10px; font-size: 12.5px; color: var(--ink-soft); margin-top: 3px; }
+.ab-mcs__l b { font-weight: 500; color: var(--ink); font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+/* L'alerte unique, la plus urgente */
+.ab-alerte { display: flex; align-items: center; gap: 10px; padding: 11px 12px 11px 13px; background: var(--copper-50); border: 1px solid var(--copper-300); border-radius: 3px; font-size: 12.5px; line-height: 1.45; color: var(--accent-strong); }
+.ab-alerte__dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); flex: none; }
+.ab-alerte__t { flex: 1; min-width: 0; }
+.ab-alerte__go { flex: none; margin-left: 4px; background: var(--accent); color: var(--ab-sur-cuivre); border: 0; border-radius: 2px; padding: 8px 11px; min-height: 36px; font: 600 10px var(--font-sans); letter-spacing: 0.14em; text-transform: uppercase; cursor: pointer; }
+.ab-alerte--retard { background: var(--ab-brique-fond); border-color: var(--mc-error); border-left-width: 3px; color: var(--mc-error); }
+.ab-alerte--retard .ab-alerte__dot { background: var(--mc-error); }
+.ab-alerte--retard .ab-alerte__go { background: var(--mc-error); }
+.ab-alerte--retenue { border-style: dashed; }
+.ab-alerte--pause { border-left-width: 3px; }
+.ab-alerte--info { background: transparent; border-color: var(--hairline); color: var(--mc-encre); }
+.ab-alerte--info .ab-alerte__dot { background: var(--mc-encre); }
+.ab-alerte--info .ab-alerte__go { background: var(--mc-plein); color: var(--mc-sur-plein); }
+
+/* Les boutons de l'accueil */
+.ab-boutons { display: flex; flex-direction: column; gap: 10px; margin-top: 4px; }
+.ab-court { min-height: 44px; padding: 12px; margin-top: 12px; font-size: 11px; }
+.ab-duo { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.ab-mini { background: var(--paper-2); border: 1px solid var(--ab-filet-doux); border-radius: 4px; padding: 13px; text-align: left; cursor: pointer; display: flex; flex-direction: column; gap: 4px; font-family: var(--font-sans); color: var(--ink); }
+.ab-mini b { font-family: var(--font-serif); font-size: 18px; font-weight: 400; line-height: 1.15; color: var(--mc-encre); }
+.ab-mini span:last-child { font-size: 11.5px; color: var(--ink-soft); line-height: 1.4; }
+
+/* Les pastilles neuves (les autres vivent dans couronne.css) */
+.mc-stchip.mc-stchip--proposee { color: var(--mc-encre); border: 1px dashed var(--accent); }
+.mc-stchip.mc-stchip--pause { color: var(--accent-strong); background: var(--copper-50); border-color: var(--copper-300); }
+
+/* Le sélecteur de tête, partout où elle regarde une tête */
+.ab-pourqui { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.ab-pourqui__lab { font-size: 10px; font-weight: 600; letter-spacing: 0.2em; text-transform: uppercase; color: var(--ink-soft); margin-right: 2px; }
+
+/* Segments et bascule */
+.ab-segs { display: flex; gap: 2px; padding: 2px; border: 1px solid var(--hairline); border-radius: 999px; }
+.ab-segs__opt { flex: 1; border: 0; background: none; font: 12.5px var(--font-sans); padding: 8px 10px; min-height: 36px; border-radius: 999px; color: var(--ink-soft); cursor: pointer; }
+.ab-segs__opt.is-on { background: var(--mc-plein); color: var(--mc-sur-plein); }
+.ab-bascule { display: inline-flex; align-items: center; gap: 9px; align-self: flex-start; background: none; border: 0; padding: 4px 0; font: 12.5px var(--font-sans); color: var(--ink); cursor: pointer; min-height: 36px; }
+.ab-bascule__rond { width: 34px; height: 20px; border-radius: 999px; border: 1px solid var(--hairline); background: var(--paper-2); position: relative; transition: background 0.2s var(--ease-soft); }
+.ab-bascule__rond::after { content: ""; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%; background: var(--surface-card); border: 1px solid var(--hairline); transition: transform 0.2s var(--ease-soft); }
+.ab-bascule.is-on .ab-bascule__rond { background: var(--accent); border-color: var(--accent); }
+.ab-bascule.is-on .ab-bascule__rond::after { transform: translateX(14px); }
+
+/* ── Rendez-vous ───────────────────────────────────────────────────── */
+.ab-rdvc { padding: 0; overflow: hidden; }
+.ab-rdvc__clic { padding: 14px 15px 12px; cursor: pointer; }
+.ab-rdvc__clic:hover { background: var(--hover-veil); }
+.ab-rdvc--passe .ab-rdvc__clic { padding: 11px 14px 10px; }
+.ab-rdvc--passe .ab-card__when { font-size: 16.5px; }
+.ab-rdvc--annulee .ab-card__when, .ab-rdvc--annulee .ab-card__svc { text-decoration: line-through; text-decoration-color: var(--ink-mute); color: var(--ink-mute); }
+.ab-rdvc__note { margin: 0; padding: 0 14px 12px; font-size: 12px; color: var(--ink-soft); }
+.ab-argent { display: inline-block; margin-top: 8px; font-size: 10px; font-weight: 600; letter-spacing: 0.1em; line-height: 1.5; text-transform: uppercase; color: var(--accent-strong); border: 1px solid var(--copper-300); border-radius: 3px; padding: 3px 8px; }
+.ab-argent--hors { color: var(--ink-soft); border-color: var(--hairline); }
+.ab-argent--reste { color: var(--mc-error); border-color: var(--mc-error); }
+.ab-argent + .ab-argent { margin-left: 4px; }
+.ab-rdvc__acts { display: flex; gap: 8px; padding: 0 15px 14px; }
+.ab-rdvc__acts .mc-rdvact { flex: 1 1 30%; }
+.ab-effet { margin: 0 15px 14px; padding: 12px 13px; border: 1px dashed var(--copper-300); background: var(--copper-50); border-radius: 3px; font-size: 12.5px; line-height: 1.55; color: var(--ink); }
+.ab-effet b { font-weight: 600; color: var(--mc-encre); }
+.ab-effet.is-compte { border-color: var(--mc-error); background: var(--ab-brique-fond); }
+.ab-annee { font-family: var(--font-serif); font-weight: 400; font-size: 26px; color: var(--mc-encre); margin: 10px 0 -4px; font-variant-numeric: lining-nums; }
+.ab-mois { font-size: 10.5px; font-weight: 600; letter-spacing: 0.2em; text-transform: uppercase; color: var(--ink-soft); margin: 8px 0 -4px; }
+.ab-vide { text-align: center; padding: 30px 16px 18px; }
+.ab-vide__g { font-family: var(--font-serif); font-size: 40px; line-height: 1; color: var(--mc-ornement); }
+.ab-vide__t { font-family: var(--font-serif); font-size: 22px; color: var(--mc-encre); margin-top: 10px; }
+.ab-vide__s { font-size: 12.5px; color: var(--ink-soft); margin: 6px auto 0; max-width: 264px; }
+
+/* ── Ma formule ────────────────────────────────────────────────────── */
+.ab-carte { position: relative; overflow: hidden; background: var(--ab-carte-indigo); color: var(--ab-sur-indigo); border-radius: 4px; padding: 18px; }
+.ab-carte::after { content: ""; position: absolute; right: -34px; top: -34px; width: 110px; height: 110px; border-radius: 50%; border: 1px solid rgba(185, 122, 74, 0.4); pointer-events: none; }
+.ab-carte__tag { font-size: 9px; font-weight: 600; letter-spacing: 0.2em; text-transform: uppercase; color: var(--copper-300); }
+.ab-carte__nom { font-family: var(--font-serif); font-weight: 300; font-size: 27px; line-height: 1.1; margin: 6px 0 4px; color: var(--ab-sur-indigo); }
+.ab-carte__ligne { font-family: var(--font-serif); font-style: italic; font-size: 14px; color: var(--ab-sur-indigo-doux); margin: 0 0 12px; }
+.ab-carte dl { margin: 0; display: grid; gap: 5px; font-size: 12px; }
+.ab-carte dl div { display: grid; grid-template-columns: 92px 1fr; gap: 8px; }
+.ab-carte dt { color: var(--ab-sur-indigo-pale); }
+.ab-carte dd { margin: 0; color: var(--ab-sur-indigo); }
+.ab-carte__etat { display: flex; justify-content: space-between; align-items: baseline; padding-top: 11px; margin-top: 12px; border-top: 1px solid rgba(211, 213, 229, 0.25); font-size: 11.5px; color: var(--ab-sur-indigo-doux); }
+.ab-carte__etat b { font-family: var(--font-serif); font-size: 19px; font-weight: 400; color: var(--ab-sur-indigo); }
+.ab-actes { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px; }
+.ab-actes--un { grid-template-columns: 1fr; }
+.ab-actes .mc-cta { margin: 0; min-height: 44px; padding: 11px 8px; font-size: 10.5px; }
+.ab-invert { background: transparent; color: var(--ab-sur-indigo); border: 1px solid var(--ab-sur-indigo-pale); }
+.ab-pli { border: 1px solid var(--hairline); border-radius: 4px; background: var(--surface-card); }
+.ab-pli.is-ouvert { border-color: var(--copper-300); }
+.ab-pli__tete { display: grid; grid-template-columns: 1fr auto; gap: 4px 10px; width: 100%; padding: 13px 15px; background: none; border: 0; text-align: left; cursor: pointer; font-family: var(--font-sans); color: var(--ink); }
+.ab-pli__nom { font-family: var(--font-serif); font-size: 18.5px; color: var(--mc-encre); line-height: 1.2; }
+.ab-pli__chev { grid-row: 1; grid-column: 2; font-size: 18px; color: var(--mc-cuivre-texte); line-height: 1; }
+.ab-pli__resume { grid-column: 1 / -1; font-size: 11.5px; color: var(--ink-soft); }
+.ab-jetons { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 5px; margin-top: 4px; }
+.ab-jeton { width: 21px; height: 21px; border-radius: 50%; border: 1px solid var(--color-argile); display: inline-flex; align-items: center; justify-content: center; font-size: 10px; color: var(--mc-ornement); flex: none; }
+.ab-jeton.is-faite { background: var(--copper-600); border-color: var(--copper-600); color: var(--ab-sur-cuivre); }
+.ab-jeton.is-reservee { border-color: var(--copper-600); background: linear-gradient(90deg, var(--copper-600) 50%, transparent 50%); }
+.ab-jeton.is-manquee { border-color: var(--mc-error); color: var(--mc-error); }
+.ab-jeton.is-perdue { border-style: dashed; color: var(--ink-mute); }
+.ab-seances { list-style: none; margin: 0; padding: 2px 15px 12px; display: grid; }
+.ab-s { display: grid; grid-template-columns: 21px 1fr auto; gap: 11px; align-items: center; padding: 9px 0; border-top: 1px solid var(--ab-filet-doux); font-size: 12.5px; }
+.ab-s__t b { display: block; font-weight: 500; color: var(--mc-encre); font-size: 12.5px; }
+.ab-s__t span { color: var(--ink-soft); font-size: 12px; }
+.ab-s__go { background: transparent; border: 1px solid var(--mc-encre); border-radius: 2px; padding: 6px 10px; min-height: 34px; font: 600 9.5px var(--font-sans); letter-spacing: 0.13em; text-transform: uppercase; color: var(--mc-encre); cursor: pointer; }
+.ab-reg__haut { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; font-size: 12.5px; color: var(--ink-soft); }
+.ab-reg__haut b { font-family: var(--font-serif); font-size: 22px; font-weight: 400; color: var(--mc-encre); white-space: nowrap; font-variant-numeric: lining-nums tabular-nums; }
+.ab-reg__haut b.is-ok { color: var(--mc-success); font-size: 18px; }
+.ab-progres { height: 3px; background: var(--hairline); border-radius: 3px; overflow: hidden; margin-top: 10px; }
+.ab-progres > div { height: 100%; background: var(--accent); }
+.ab-verrou { border: 1px dashed var(--hairline); border-radius: 3px; padding: 11px 13px; font-size: 11.5px; line-height: 1.6; color: var(--ink-soft); }
+.ab-verrou dl { margin: 0; display: grid; gap: 9px; }
+.ab-verrou dt { font-size: 12px; font-weight: 600; color: var(--mc-encre); }
+.ab-verrou dd { margin: 1px 0 0; }
+
+/* ── Mon solde ─────────────────────────────────────────────────────── */
+.ab-sol-grand { border: 1px solid var(--hairline); border-radius: 4px; padding: 15px 16px; background: var(--surface-card); }
+.ab-sol-grand.is-du { border-color: var(--copper-300); background: var(--copper-50); }
+.ab-sol-grand.is-retard { border-color: var(--mc-error); background: var(--ab-brique-fond); border-left-width: 3px; }
+.ab-sol-lab { display: block; font-size: 10px; font-weight: 600; letter-spacing: 0.18em; text-transform: uppercase; color: var(--ink-soft); }
+.ab-sol-chiffre { display: block; font-family: var(--font-serif); font-weight: 400; font-size: 40px; line-height: 1.05; color: var(--mc-encre); font-variant-numeric: lining-nums tabular-nums; margin-top: 4px; }
+.ab-sol-grand.is-retard .ab-sol-chiffre { color: var(--mc-error); }
+.ab-sol-sous { display: block; font-size: 12px; color: var(--ink-soft); margin-top: 3px; line-height: 1.45; }
+.ab-sol-duo { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.ab-sol-petit { border: 1px solid var(--hairline); border-radius: 4px; padding: 12px 13px; background: var(--surface-card); min-width: 0; }
+.ab-sol-petit b { display: block; font-family: var(--font-serif); font-weight: 400; font-size: 24px; line-height: 1.15; color: var(--mc-encre); margin-top: 3px; font-variant-numeric: lining-nums tabular-nums; }
+.ab-ech { border: 1px solid var(--hairline); border-radius: 4px; padding: 6px 14px 12px; background: var(--surface-card); }
+.ab-ech__ligne { display: grid; grid-template-columns: 10px 1fr auto; gap: 9px; align-items: baseline; padding: 8px 0; font-size: 12px; border-bottom: 1px solid var(--ab-filet-doux); }
+.ab-pastille { width: 8px; height: 8px; border-radius: 50%; align-self: center; background: var(--color-argile); }
+.ab-pastille.is-ok { background: var(--ab-vert); }
+.ab-pastille.is-retard { background: var(--ab-brique); }
+.ab-pastille.is-jour { background: var(--accent); }
+.ab-ech__date { color: var(--ink-soft); line-height: 1.45; }
+.ab-ech__date b { color: var(--ink); font-weight: 500; }
+.ab-ech__mt { font-variant-numeric: tabular-nums; white-space: nowrap; color: var(--ink); }
+.ab-ech__mt.is-paye { text-decoration: line-through; color: var(--ink-mute); }
+.ab-somme { display: flex; justify-content: space-between; align-items: baseline; padding-top: 10px; }
+.ab-somme span { font-size: 12px; color: var(--ink-soft); }
+.ab-somme b { font-family: var(--font-serif); font-weight: 400; font-size: 24px; color: var(--mc-encre); font-variant-numeric: lining-nums tabular-nums; }
+.ab-pai { display: grid; grid-template-columns: 1fr auto; gap: 2px 10px; padding: 9px 0; border-bottom: 1px solid var(--ab-filet-doux); font-size: 12.5px; }
+.ab-pai__d { grid-column: 1 / -1; font-size: 10px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-mute); }
+.ab-pai__o { color: var(--ink); line-height: 1.4; }
+.ab-pai__o small { display: block; color: var(--ink-soft); font-size: 11.5px; }
+.ab-pai b { font-weight: 500; font-variant-numeric: tabular-nums; white-space: nowrap; color: var(--mc-encre); }
+
+/* La feuille « Régler » */
+.ab-voile { position: absolute; inset: 0; z-index: 70; background: rgba(21, 23, 58, 0.45); animation: mc-fade 0.25s var(--ease-soft); }
+.ab-feuille { position: absolute; left: 0; right: 0; bottom: 0; z-index: 71; background: var(--paper); border-radius: 14px 14px 0 0; padding: 10px 22px calc(20px + env(safe-area-inset-bottom)); display: flex; flex-direction: column; gap: 9px; max-height: 88%; overflow-y: auto; animation: mc-rise 0.3s var(--ease-soft); border-top: 1px solid var(--hairline); }
+.ab-feuille__poignee { width: 38px; height: 4px; border-radius: 4px; background: var(--hairline); align-self: center; margin-bottom: 4px; }
+.ab-feuille__t { font-family: var(--font-serif); font-size: 30px; font-weight: 400; color: var(--mc-encre); font-variant-numeric: lining-nums tabular-nums; }
+
+/* ── Réserver et Acheter : les choix ───────────────────────────────── */
+.ab-choix { display: block; width: 100%; text-align: left; border: 1px solid var(--hairline); border-radius: 4px; background: var(--surface-card); padding: 13px 15px; cursor: pointer; font-family: var(--font-sans); color: var(--ink); }
+.ab-choix:disabled { cursor: not-allowed; opacity: 0.6; }
+.ab-choix.is-on { border-color: var(--copper-600); border-left: 3px solid var(--copper-600); padding-left: 13px; background: var(--copper-50); box-shadow: var(--ab-ombre-choix); }
+.ab-choix__haut { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.ab-choix__n { display: block; font-family: var(--font-serif); font-size: 18px; line-height: 1.25; color: var(--mc-encre); }
+.ab-choix.is-on .ab-choix__n::before { content: "\2713"; margin-right: 7px; font: 12px var(--font-sans); color: var(--accent-strong); }
+.ab-choix__s { display: block; font-size: 12px; color: var(--ink-soft); margin-top: 2px; line-height: 1.45; }
+.ab-choix__m { font-family: var(--font-serif); font-size: 22px; color: var(--mc-encre); font-variant-numeric: lining-nums tabular-nums; white-space: nowrap; }
+.ab-choix__m s { font-size: 15px; color: var(--ink-mute); margin-right: 6px; }
+.ab-choix__refus { display: block; margin-top: 5px; font-size: 11.5px; color: var(--mc-error); }
+.ab-compter { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 10px 12px; border: 1px dashed var(--copper-300); border-radius: 4px; background: var(--copper-50); font-size: 12.5px; color: var(--ink); }
+.ab-compter button { border: 1px solid var(--hairline); background: var(--surface-card); border-radius: 3px; padding: 7px 10px; font: 12px var(--font-sans); color: var(--ink); cursor: pointer; }
+.ab-compter button.is-on { background: var(--mc-plein); border-color: var(--mc-plein); color: var(--mc-sur-plein); }
+.ab-recap { background: var(--surface-card); border: 1px solid var(--hairline); border-radius: 4px; padding: 16px; }
+.ab-recap__l { display: flex; justify-content: space-between; gap: 12px; font-size: 13px; color: var(--ink); }
+.ab-recap__l + .ab-recap__l { margin-top: 7px; }
+.ab-recap__l > span:first-child { color: var(--ink-soft); flex: none; }
+.ab-recap__l > span:last-child { text-align: right; }
+.ab-recap__total { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; margin-top: 12px; padding-top: 11px; border-top: 1px solid var(--hairline); }
+.ab-recap__total > span:first-child { font-size: 10.5px; letter-spacing: 0.13em; text-transform: uppercase; color: var(--mc-encre); }
+.ab-recap__total > span:last-child { font-family: var(--font-serif); font-size: 26px; color: var(--mc-encre); white-space: nowrap; font-variant-numeric: lining-nums tabular-nums; }
+.ab-barre-bas { position: sticky; bottom: 4px; z-index: 30; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 12px; margin-top: 8px; padding: 12px 14px; background: var(--ab-carte-indigo); border: 1px solid var(--hairline-invert); border-radius: 4px; box-shadow: var(--ab-ombre-barre); }
+.ab-barre-bas__n { display: block; font-family: var(--font-serif); font-size: 18px; line-height: 1.15; color: var(--ab-sur-indigo); font-variant-numeric: lining-nums tabular-nums; }
+.ab-barre-bas__m { display: block; font-size: 11.5px; color: var(--ab-sur-indigo-pale); margin-top: 2px; }
+.ab-barre-bas .mc-cta { width: auto; flex: 1 0 128px; min-height: 44px; padding: 12px 14px; font-size: 11px; margin: 0; }
+.ab-barre-bas--vide { background: var(--sable); border-color: var(--hairline); box-shadow: none; }
+.ab-barre-bas--vide .ab-barre-bas__n { font: 13.5px var(--font-sans); color: var(--ink-soft); }
+.ab-fil { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 10px; font-size: 9px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-soft); }
+.ab-fil b { font-weight: 400; }
+.ab-fil b.is-on { color: var(--copper-700); font-weight: 600; }
+.ab-fil span { color: var(--ink-mute); }
+.ab-heures { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.ab-heure { min-height: 42px; border: 1px solid var(--hairline); border-radius: 2px; background: var(--surface-card); font: 15px var(--font-serif); color: var(--mc-encre); cursor: pointer; font-variant-numeric: lining-nums tabular-nums; }
+.ab-heure.is-on { background: var(--mc-plein); border-color: var(--mc-plein); color: var(--mc-sur-plein); }
+.ab-calbas { margin-top: 9px; font-size: 11px; color: var(--ink-soft); line-height: 1.5; }
+.ab-calday-apres { background: repeating-linear-gradient(45deg, var(--ab-filet-doux) 0 1px, transparent 1px 5px); }
+
+/* Acheter */
+.ab-calibres { display: grid; gap: 6px; }
+.ab-cal { display: grid; grid-template-columns: 1fr auto; gap: 1px 10px; align-items: baseline; width: 100%; text-align: left; border: 1px solid var(--hairline); border-radius: 3px; background: var(--surface-card); padding: 9px 12px; cursor: pointer; font-family: var(--font-sans); color: var(--ink); }
+.ab-cal b { font-family: var(--font-serif); font-size: 17px; font-weight: 400; color: var(--mc-encre); }
+.ab-cal span { font-size: 11.5px; color: var(--ink-soft); grid-column: 1; }
+.ab-cal em { font-style: normal; grid-column: 2; grid-row: 1 / span 2; align-self: center; font-family: var(--font-serif); font-size: 18px; color: var(--mc-encre); white-space: nowrap; font-variant-numeric: lining-nums tabular-nums; }
+.ab-cal.is-on { border-color: var(--copper-600); border-left: 3px solid var(--copper-600); padding-left: 10px; background: var(--copper-50); }
+.ab-lu { display: flex; gap: 10px; align-items: flex-start; padding: 12px 13px; border: 1px solid var(--hairline); border-radius: 3px; background: var(--surface-card); font-size: 13px; color: var(--ink); cursor: pointer; }
+.ab-lu input { width: 20px; height: 20px; margin: 1px 0 0; accent-color: var(--copper-600); flex: none; }
+.ab-foyer { padding: 10px 12px; border-radius: 3px; background: var(--copper-50); border: 1px solid var(--copper-300); font-size: 12.5px; color: var(--ink); }
+.ab-foyer s { color: var(--ink-mute); }
+
+@media (max-width: 420px) {
+  .ab-page { padding-left: 16px; padding-right: 16px; }
+  .ab-tete { padding-left: 16px; padding-right: 16px; }
+  .ab-titre { font-size: 28px; }
+  .ab-heures { grid-template-columns: repeat(2, 1fr); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ab-voile, .ab-feuille { animation: none; }
+}
+
+/* La pile du tableau de bord, posée dans la page de l'accueil */
+.ab-pile { display: flex; flex-direction: column; gap: 12px; margin-top: 12px; }
+.ab-pile > .mc-nextrdv { margin-top: 0; }

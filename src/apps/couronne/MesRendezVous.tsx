@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, useSyncExternalStore, type KeyboardEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type KeyboardEvent } from 'react';
 import { useBranch } from '../../shared/branches';
 import { ecrisRendezVous, useAppointments, type Appointment } from '../../shared/agenda';
 import { useClients, useFamilies } from '../../shared/clients';
@@ -24,6 +24,9 @@ import {
   todayIso,
   useClientId,
 } from './lib';
+import { etatDeLaSeance } from '../../shared/abonnee-pur';
+import { decaleLeJour } from '../../shared/ia-faits-pur';
+import { ETAT_SEANCE, appelleLaMaison, dateDansLaPhrase, leJour, seanceDuRelevé, useRelevesDe } from './releve';
 import { t, prix } from './i18n';
 
 /* MES RENDEZ-VOUS — voir, déplacer, annuler.
@@ -45,17 +48,13 @@ type Props = {
   onBook: () => void;
   toast: (msg: string) => void;
   ouvrir?: string;
+  /** LE GESTE DEMANDÉ DEPUIS L'ONGLET (20 octobre 2026) : la fiche s'ouvre
+      directement sur l'annulation ou le déplacement, qui disent leur effet. */
+  geste?: 'annuler' | 'deplacer';
   onRefaire?: (a: Appointment) => void;
 };
 
-const STATUS_META: Record<Appointment['status'], { label: string; cls: string }> = {
-  'confirmé': { label: 'Confirmé', cls: 'mc-stchip--ok' },
-  'en attente': { label: 'En attente', cls: 'mc-stchip--wait' },
-  'honoré': { label: 'Honoré', cls: 'mc-stchip--info' },
-  'annulé': { label: 'Annulé', cls: 'mc-stchip--off' },
-};
-
-export default function MesRendezVous({ onClose, onBook, toast, ouvrir, onRefaire }: Props) {
+export default function MesRendezVous({ onClose, onBook, toast, ouvrir, geste, onRefaire }: Props) {
   const { branch, currency } = useBranch();
   const [services] = useServices();
   const [appts] = useAppointments();
@@ -70,6 +69,39 @@ export default function MesRendezVous({ onClose, onBook, toast, ouvrir, onRefair
     () => (moi ? tetesPortees(moi, tousClients, familles, todayIso()) : []),
     [moi, tousClients, familles],
   );
+
+  /* LE RELEVÉ DE CHAQUE TÊTE (20 octobre 2026) : l'état d'une séance, son
+     rang dans la formule et l'effet d'une annulation se lisent au juge
+     unique, le même que l'accueil et le Trône. */
+  const idsDesTetes = useMemo(() => [clientId, ...tetes.map((x) => x.id)], [clientId, tetes]);
+  const releves = useRelevesDe(idsDesTetes);
+  const jourC = leJour();
+  const seanceDe = (a: Appointment) => seanceDuRelevé(releves.get(a.clientId) ?? null, a.id);
+  const etatDit = (a: Appointment) => ETAT_SEANCE[etatDeLaSeance(a, jourC)];
+  /** Les heures qui séparent maintenant du début de la séance (heure de Cotonou). */
+  const heuresAvant = (a: Appointment): number =>
+    (Date.parse(`${a.date}T${a.time.length === 5 ? a.time : '00:00'}:00+01:00`) - Date.now()) / 3_600_000;
+  /** Ce que l'annulation fera, dit AVANT d'agir (décision 3). */
+  const effetDeLAnnulation = (a: Appointment): { texte: string; compte: boolean } => {
+    const x = seanceDe(a);
+    const moins24 = heuresAvant(a) < 24;
+    if (!x || !x.s.compte) {
+      return moins24
+        ? { texte: t('À moins de 24 h, le créneau est déjà tenu pour vous. Écrivez à la Maison si vous ne pouvez pas venir.'), compte: false }
+        : { texte: t('Plus de 24 h avant : rien n’est dû, le créneau est rendu.'), compte: false };
+    }
+    if (moins24) return { texte: t('À moins de 24 h : la séance sera comptée et marquée « Manquée » ; elle ne reviendra pas à votre formule. Pour un motif justifié, la Maison peut vous la rendre : écrivez-lui.'), compte: true };
+    const ligne = x.c.seances.find((l) => a.serviceIds.includes(l.serviceId));
+    return ligne && ligne.incluses !== null && ligne.disponibles !== null
+      ? { texte: t('Plus de 24 h avant : rien n’est compté. La séance revient à votre formule : {avant} → {apres} disponibles sur {total}.', { avant: ligne.disponibles, apres: ligne.disponibles + 1, total: ligne.incluses }), compte: false }
+      : { texte: t('Plus de 24 h avant : rien n’est compté, la séance revient à votre formule.'), compte: false };
+  };
+  /** La séance d'une formule ne se déplace pas au-delà de sa fin. */
+  const finPourDeplacer = (a: Appointment): string | null => {
+    const x = seanceDe(a);
+    if (!x || !x.s.compte) return null;
+    return x.c.mode === 'cycle' ? (x.c.lune ? decaleLeJour(x.c.lune.au, -1) : null) : x.c.finIso;
+  };
 
   const mine = useMemo(
     () => {
@@ -222,13 +254,17 @@ export default function MesRendezVous({ onClose, onBook, toast, ouvrir, onRefair
   const calCells = useMemo(() => {
     if (!editing) return [];
     const dur = durationOf(editing);
+    /* LA SÉANCE D'UNE FORMULE : pas au-delà de sa fin, et plus d'ici à moins
+       de 24 h (décision 3). */
+    const fin = finPourDeplacer(editing);
+    const bloque = !!seanceDe(editing)?.s.compte && heuresAvant(editing) < 24;
     const first = new Date(month.y, month.m, 1);
     const daysIn = new Date(month.y, month.m + 1, 0).getDate();
     const cells: { key: string; day: number | null; iso?: string; free: boolean }[] = [];
     for (let i = 0; i < first.getDay(); i++) cells.push({ key: `b${i}`, day: null, free: false });
     for (let d = 1; d <= daysIn; d++) {
       const iso = `${month.y}-${pad2(month.m + 1)}-${pad2(d)}`;
-      const free = iso >= today && freeSlots(iso, editing.master, dur, others, services, branch.id, occupes).length > 0;
+      const free = !bloque && iso >= today && (!fin || iso <= fin) && freeSlots(iso, editing.master, dur, others, services, branch.id, occupes).length > 0;
       cells.push({ key: iso, day: d, iso, free });
     }
     return cells;
@@ -255,7 +291,17 @@ export default function MesRendezVous({ onClose, onBook, toast, ouvrir, onRefair
     setSelIso(null);
     /* Le libellé du Trône reste en français ; le sien suit sa langue. */
     const label = `${names(a, true)} · ${dayLabelIsoFr(iso)} à ${heure}`;
-    const transmis = await ecrisRendezVous(a.id, { date: iso, time: heure, status: 'en attente' });
+    /* LE SERVEUR D'ABORD (20 octobre 2026) : `deplacer_une_seance` vérifie la
+       fin du contrat, la place et la lune. Tant qu'il n'est pas posé en base,
+       l'écriture d'avant prend le relais. */
+    const parLaMaison = await appelleLaMaison<{ ok?: boolean; raison?: string }>('deplacer_une_seance', { p_appt_id: a.id, p_date: iso, p_time: heure });
+    if (!parLaMaison.ok && !parLaMaison.absente) {
+      toast(parLaMaison.raison === 'fin' ? t('Cette date est après la fin de votre formule.')
+        : parLaMaison.raison === 'place' ? t('Ce moment vient d’être pris. Choisissez-en un autre.')
+          : t('La Maison n’a pas pu déplacer cette séance. Écrivez-lui.'));
+      return;
+    }
+    const transmis = parLaMaison.ok ? true : await ecrisRendezVous(a.id, { date: iso, time: heure, status: 'en attente' });
     if (!transmis) {
       toast(t('Déplacement non transmis, prévenez la maison.'));
       setNonTransmis({ a: { ...a, date: iso, time: heure }, geste: 'déplacement' });
@@ -290,7 +336,12 @@ export default function MesRendezVous({ onClose, onBook, toast, ouvrir, onRefair
   const [nonTransmis, setNonTransmis] = useState<{ a: Appointment; geste: 'annulation' | 'déplacement' } | null>(null);
 
   const annuler = async (a: Appointment) => {
-    const transmis = await ecrisRendezVous(a.id, { status: 'annulé' });
+    /* LE SERVEUR D'ABORD (20 octobre 2026) : `annuler_une_seance` date
+       l'annulation ; le juge dit ensuite si elle est comptée. Tant qu'il n'est
+       pas posé en base, l'écriture d'avant prend le relais. */
+    const parLaMaison = await appelleLaMaison<{ ok?: boolean; raison?: string }>('annuler_une_seance', { p_appt_id: a.id });
+    if (!parLaMaison.ok && !parLaMaison.absente) { toast(t('La Maison n’a pas pu annuler cette séance. Écrivez-lui.')); return; }
+    const transmis = parLaMaison.ok ? true : await ecrisRendezVous(a.id, { status: 'annulé' });
     const body = t('{rituel} du {jour} à {heure}, annulé.', { rituel: names(a), jour: dayLabelIso(a.date), heure: a.time });
     const titre = t('Rendez-vous annulé');
     if (transmis) {
@@ -319,6 +370,16 @@ export default function MesRendezVous({ onClose, onBook, toast, ouvrir, onRefair
     setCancelling(null);
     void annuler(a);
   };
+
+  /* LE GESTE DEMANDÉ DEPUIS L'ONGLET, une fois, quand la fiche est là. */
+  const gesteFait = useRef<string | null>(null);
+  useEffect(() => {
+    if (!geste || !fiche || gesteFait.current === `${fiche.id}:${geste}`) return;
+    gesteFait.current = `${fiche.id}:${geste}`;
+    if (geste === 'annuler') setCancelling(fiche);
+    else openEdit(fiche);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [geste, fiche?.id]);
 
   return (
     <div className="mc-overlayscreen mc-slide" style={{ zIndex: 42 }}>
@@ -390,6 +451,21 @@ export default function MesRendezVous({ onClose, onBook, toast, ouvrir, onRefair
               {t('{rituel} · actuellement {jour} à {heure}', { rituel: names(editing), jour: dayLabelIso(editing.date), heure: editing.time })}
               {editing.seriesTotal ? <>{' · '}{t('séance {i}/{n}', { i: editing.seriesIndex ?? '', n: editing.seriesTotal })}</> : null}
             </div>
+            {(() => {
+              /* L'EFFET DU DÉPLACEMENT, DIT AVANT D'AGIR (décision 3). */
+              const x = seanceDe(editing);
+              if (!x || !x.s.compte) return null;
+              const fin = finPourDeplacer(editing);
+              return (
+                <div className={`ab-effet ${heuresAvant(editing) < 24 ? 'is-compte' : ''}`} style={{ margin: '0 0 14px' }}>
+                  {heuresAvant(editing) < 24
+                    ? t('À moins de 24 h, la séance ne se déplace plus d’ici. Écrivez à la Maison : elle voit ce qui est possible.')
+                    : fin
+                      ? t('Votre séance reste dans votre formule. Plus de 24 h avant, rien n’est compté ; choisissez un autre moment avant le {date}.', { date: dateDansLaPhrase(fin) })
+                      : t('Votre séance reste dans votre formule. Plus de 24 h avant, rien n’est compté.')}
+                </div>
+              );
+            })()}
             <div className="mc-calnav">
               <button onClick={() => setMonthIdx(Math.max(0, monthIdx - 1))} disabled={monthIdx === 0}>‹</button>
               {/* Le mois se dit à l'affichage, dans sa langue (MONTHS suit la langue). */}
@@ -463,7 +539,7 @@ export default function MesRendezVous({ onClose, onBook, toast, ouvrir, onRefair
                 <div className="mc-micro-eyebrow">{aVenir ? t('Votre rituel') : t('Votre rituel · passé')}</div>
                 <div className="mc-fiche__quand">{dayLabelIso(a.date)}<br />{a.time}</div>
                 <div className="mc-fiche__etat">
-                  <span className={`mc-stchip ${STATUS_META[a.status].cls}`}>{t(STATUS_META[a.status].label)}</span>
+                  <span className={`mc-stchip ${etatDit(a).cls}`}>{t(etatDit(a).dit)}</span>
                   <span>{fmtDuration(durationOf(a))} · {branch.name}</span>
                 </div>
                 <div className="mc-recapcard" style={{ textAlign: 'left' }}>
@@ -480,7 +556,20 @@ export default function MesRendezVous({ onClose, onBook, toast, ouvrir, onRefair
                   {a.seriesTotal && (
                     <div className="mc-recapcard__line"><span>{t('Séance {i}/{n}', { i: a.seriesIndex ?? '', n: a.seriesTotal })}</span><span /></div>
                   )}
-                  {net != null && (
+                  {(() => {
+                    /* CE QU'ELLE CONSOMME DE LA FORMULE (20 octobre 2026). */
+                    const x = seanceDe(a);
+                    if (!x || !x.s.compte) return null;
+                    return (
+                      <div className="mc-recapcard__line">
+                        <span>{t('Incluse')}</span>
+                        <span>{x.c.mode === 'cycle' || !x.s.rang || !x.s.total
+                          ? t('{nom} · 0 F', { nom: x.c.nom })
+                          : t('séance {n} sur {total} · {nom} · 0 F', { n: x.s.rang, total: x.s.total, nom: x.c.nom })}</span>
+                      </div>
+                    );
+                  })()}
+                  {net != null && !seanceDe(a)?.s.compte && (
                     <div className="mc-recapcard__line"><span>{t('Total annoncé')}</span><span>{prix(net, currency)}</span></div>
                   )}
                   {a.depositXof != null && (
@@ -540,7 +629,7 @@ export default function MesRendezVous({ onClose, onBook, toast, ouvrir, onRefair
                 <div key={a.id} className="mc-rdvcard mc-rdvcard--ouvrable" role="button" tabIndex={0} onClick={() => ouvreLaFiche(a)} onKeyDown={auClavier(a)}>
                   <div className="mc-rdvcard__top">
                     <span className="mc-rdvcard__when">{dayLabelIso(a.date)} · {a.time}</span>
-                    <span className={`mc-stchip ${STATUS_META[a.status].cls}`}>{t(STATUS_META[a.status].label)}</span>
+                    <span className={`mc-stchip ${etatDit(a).cls}`}>{t(etatDit(a).dit)}</span>
                   </div>
                   <div className="mc-rdvcard__svc">{names(a)}</div>
                   <div className="mc-rdvcard__meta">{fmtDuration(durationOf(a))} · {branch.name}</div>
@@ -569,7 +658,7 @@ export default function MesRendezVous({ onClose, onBook, toast, ouvrir, onRefair
                     <div key={a.id} className="mc-rdvcard mc-rdvcard--past mc-rdvcard--ouvrable" role="button" tabIndex={0} onClick={() => ouvreLaFiche(a)} onKeyDown={auClavier(a)}>
                       <div className="mc-rdvcard__top">
                         <span className="mc-rdvcard__when">{dayLabelIso(a.date)} · {a.time}</span>
-                        <span className={`mc-stchip ${STATUS_META[a.status].cls}`}>{t(STATUS_META[a.status].label)}</span>
+                        <span className={`mc-stchip ${etatDit(a).cls}`}>{t(etatDit(a).dit)}</span>
                       </div>
                       <div className="mc-rdvcard__svc">{names(a)}</div>
                       <div className="mc-rdvcard__meta">{branch.name}</div>
@@ -612,6 +701,10 @@ export default function MesRendezVous({ onClose, onBook, toast, ouvrir, onRefair
               <div className="mc-cancel__s">
                 {t('{rituel} · {jour} à {heure}.', { rituel: names(cancelling), jour: dayLabelIso(cancelling.date), heure: cancelling.time })}
               </div>
+              {(() => {
+                const e = effetDeLAnnulation(cancelling);
+                return <div className={`ab-effet ${e.compte ? 'is-compte' : ''}`} style={{ margin: '12px 0 0' }}>{e.texte}</div>;
+              })()}
               {cancelling.depositXof != null && (
                 <div className="mc-cancel__warn">
                   {t('L’acompte de {montant} reste acquis à la maison.', { montant: prix(cancelling.depositXof, currency) })}

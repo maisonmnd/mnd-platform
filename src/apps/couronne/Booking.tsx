@@ -6,8 +6,9 @@ import { depositForServices, depositPctFor, useSettings, useExceptionsHoraires, 
 import { useBlocages } from '../../shared/blocages';
 import { prochainesPlaces } from '../../shared/reservation-express';
 import { appointmentsStore, useAppointments, venuesHonorees, type Appointment, estampilleLesPoses } from '../../shared/agenda';
-import { useSubscribers, subPaid } from '../../shared/abonnements';
-import { peutReserver } from '../../shared/echeancier';
+import { useSubscribers } from '../../shared/abonnements';
+import { REGLES_DE_LA_MAISON } from '../../shared/abonnee-pur';
+import { useReleve } from './releve';
 import { askNotifyPermission, downloadIcs, notifyLocal, type IcsEvent } from '../../shared/ics';
 import { enablePush, pushNotify, pushNotifyStaff } from '../../shared/push';
 import { uid, useStore } from '../../shared/store';
@@ -1122,12 +1123,23 @@ export default function Booking({ prefill, onClose, toast, onVoirRdv }: Props) {
      appeler, régler et repartir avec son rendez-vous — c'est Yéman qui tient
      le comptoir. L'écran cesse seulement de servir en libre accès celle qui
      doit ; il ne la chasse pas, et il lui dit exactement quoi faire. */
+  /* LE JUGE UNIQUE DE L'ABONNÉE (20 octobre 2026) : la porte lit le relevé,
+     toutes ses formules réunies, et non plus le premier contrat trouvé. Le
+     retard se compte dès le lendemain de l'échéance ; la porte se ferme
+     au-delà de la grâce de la Maison, comme avant. */
+  const releveDeLaPorte = useReleve(clientId && clientId !== 'c-local' ? clientId : undefined);
   const verdictReservation = useMemo(() => {
-    const sien = mesAbonnements.find((s) => s.clientId === clientId && s.status !== 'churn' && s.echeances?.length);
-    if (!sien) return null;
-    const v = peutReserver(sien.echeances, subPaid(sien), todayIso());
-    return v.ouvert ? null : v;
-  }, [mesAbonnements, clientId]);
+    if (!releveDeLaPorte) return null;
+    const enRetard = [...releveDeLaPorte.contrats, ...releveDeLaPorte.anciens]
+      .find((c) => c.argent.retardJours > REGLES_DE_LA_MAISON.graceJours);
+    if (!enRetard) return null;
+    const n = enRetard.argent.retardJours;
+    return {
+      retardXof: enRetard.argent.enRetardXof,
+      retardJours: n,
+      dit: `Une échéance de votre formule attend depuis ${n} jours. Réglez-la et votre prochain rendez-vous se rouvre aussitôt.`,
+    };
+  }, [releveDeLaPorte]);
 
   if (verdictReservation) {
     const numero = (branch.phone ?? '').replace(/\D/g, '');

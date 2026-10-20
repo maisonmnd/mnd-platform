@@ -1,24 +1,21 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import { useBranch } from '../../shared/branches';
-import { fmtMoney } from '../../shared/currency';
 import { useAppointments } from '../../shared/agenda';
 import { useServices } from '../../shared/catalog';
 import { useModelBands, useBandSets, bandsAbonnements, calibreDeLaTete } from '../../shared/pricing';
 import { useFamilies } from '../../shared/clients';
 import {
-  FAMILLES_FORMULES, activeSubscriberOf, cycleLabel, formuleLaPlusUtile, prixDeLaFormule, moisDuPack,
+  FAMILLES_FORMULES, formuleLaPlusUtile, prixDeLaFormule, moisDuPack,
   etendueDeLaFormule, SELON_LE_CALIBRE, gainPourElle, type TeteConnue,
-  prixVenduXof, ecartDuPrixConvenu, valeurALaCarte, remiseSurLaCarte,
-  formulesPourElle, etendueDesRemises,
-  subPaid, subServiceUsage, usePlans, useSubscribers, type Plan, type Subscriber,
+  formulesPourElle, usePlans, type Plan,
 } from '../../shared/abonnements';
-import { etatDesEcheances, prochaineEcheance, resteDeLEcheancier } from '../../shared/echeancier';
-import { libelleCouleur } from '../../shared/couleur';
-import { demandeOuverteDe, demandesFormuleStore, useDemandesFormule, formulesVisiblesPour, vitrineConfigStore } from '../../shared/bridges';
-import { uid, useStore } from '../../shared/store';
+import { demandeOuverteDe, useDemandesFormule, formulesVisiblesPour, vitrineConfigStore } from '../../shared/bridges';
+import { useStore } from '../../shared/store';
 import { useClient } from './lib';
-import { kkiapayEnabled, payWithKkiapay, saitLEcheanceSuivante, verifyDeposit, versionDeKkiapayVerify } from '../../shared/kkiapay';
+import type { ReleveDeLAbonnee, ReleveDuContrat } from '../../shared/abonnee-pur';
 import AchatFormule from './AchatFormule';
+import { SesFormules } from './SesFormules';
+import type { DemandeDeReglement } from './Abonnee';
 import { t, locale, prix } from './i18n';
 import './couronne.css';
 
@@ -44,223 +41,11 @@ import './couronne.css';
    deviendrait ingérable le jour où deux clientes réservent le même créneau
    réservé — et un abonnement porte un créneau, c'est sa promesse. */
 
-const todayIso = () => new Date().toISOString().slice(0, 10);
-
 const frCourt = (iso?: string) => {
   if (!iso) return '—';
   const d = new Date(`${iso}T12:00:00`);
   return d.toLocaleDateString(locale(), { day: 'numeric', month: 'long', year: 'numeric' });
 };
-
-/** LA COULEUR DITE DANS SA LANGUE : le libellé partagé (« L’Ébène · une venue
-    sur deux ») se traduit morceau par morceau, à l'affichage seulement. */
-const couleurDite = (o: Parameters<typeof libelleCouleur>[0]) =>
-  libelleCouleur(o).split(' · ').map((x) => t(x)).join(' · ');
-
-/** Le rang d'une échéance : « 1ʳᵉ », « 2ᵉ »… et en anglais 1st, 2nd, 3rd. */
-const rangDeLEcheance = (n: number) =>
-  n === 1 ? t('1ʳᵉ') : n === 2 ? t('2ᵉ') : n === 3 ? t('3ᵉ') : t('{n}ᵉ', { n });
-
-/** Les jetons d'une prestation incluse : pris, prochain, à venir. */
-function Jetons({ pris, total }: { pris: number; total: number }) {
-  /* Au-delà de douze, la rangée cesse d'être lisible d'un coup d'œil : on
-     rend alors le compte en clair plutôt qu'un mur de pastilles. */
-  if (total > 12) {
-    return <div className="cma-jetons__long">{t('{pris} pris sur {total}', { pris, total })}</div>;
-  }
-  return (
-    <div className="cma-jetons">
-      {Array.from({ length: total }, (_, i) => {
-        const etat = i < pris ? 'pris' : i === pris ? 'suivant' : '';
-        return (
-          <span key={i} className={`cma-jeton ${etat}`} aria-hidden="true">
-            {etat === 'pris' ? '✓' : etat === 'suivant' ? '→' : ''}
-          </span>
-        );
-      })}
-    </div>
-  );
-}
-
-/* ── CE QU'ELLE A ────────────────────────────────────────────────────── */
-function SaFormule({ sub, plan }: { sub: Subscriber; plan: Plan | undefined }) {
-  const { currency, branch } = useBranch();
-  const [appts] = useAppointments();
-  const [services] = useServices();
-  /* LES ÉCHÉANCES SE RÈGLENT ICI — 16 octobre 2026 (MND PAY, sa décision :
-     « réglées dans l'app »). KkiaPay garde Ma Couronne : le serveur
-     (`kkiapay-verify`) attend la plus vieille échéance pas encore couverte,
-     jamais un montant que l'app lui dicterait. */
-  const client = useClient();
-  const [paie, setPaie] = useState<'repos' | 'en_cours' | 'ok' | 'ko'>('repos');
-  const [motPaie, setMotPaie] = useState('');
-  /* Le bouton n'existe que si le serveur sait régler l'échéance suivante. */
-  const [serveurPret, setServeurPret] = useState(false);
-  useEffect(() => {
-    if (!kkiapayEnabled()) return;
-    let vivant = true;
-    void versionDeKkiapayVerify().then((v) => { if (vivant) setServeurPret(saitLEcheanceSuivante(v)); });
-    return () => { vivant = false; };
-  }, []);
-  const enLigne = kkiapayEnabled() && serveurPret;
-  const nomService = (id: string) => services.find((s) => s.id === id)?.name ?? t('Prestation retirée');
-
-  const usage = useMemo(() => subServiceUsage(sub, plan, appts), [sub, plan, appts]);
-  /* « Il vous reste N séances » — la plus contrainte des prestations, celle
-     qui s'épuisera la première. Annoncer la plus généreuse ferait une
-     promesse que la formule ne tient pas. */
-  const restant = usage.reduce<number | null>((m, u) => (
-    u.remaining === null ? m : (m === null ? u.remaining : Math.min(m, u.remaining))
-  ), null);
-  const total = usage.reduce((m, u) => Math.max(m, u.qty ?? 0), 0);
-
-  const etats = sub.echeances?.length
-    ? etatDesEcheances(sub.echeances, subPaid(sub), todayIso())
-    : [];
-  const suivante = prochaineEcheance(etats);
-
-  /* LE BOUTON ÉCRIT À LA MAISON, il ne prélève pas. Une application qui
-     prétendrait encaisser seule créerait des paiements que personne n'a vus. */
-  const numero = (branch.phone ?? '').replace(/\D/g, '');
-  const reglerEnLigne = async () => {
-    if (!suivante || paie === 'en_cours') return;
-    setPaie('en_cours');
-    setMotPaie('');
-    try {
-      const { transactionId } = await payWithKkiapay({
-        amountXof: suivante.resteXof, partnerId: sub.id, branchId: branch.id,
-        clientId: client?.id, phone: client?.phone, name: client?.name, email: client?.email,
-      });
-      const v = await verifyDeposit({
-        transactionId, apptId: '', subId: sub.id, expectedXof: suivante.resteXof, branchId: branch.id, clientId: client?.id,
-      });
-      setPaie(v.ok ? 'ok' : 'ko');
-      setMotPaie(v.ok
-        ? t('Réglé : {montant}. Merci.', { montant: prix(v.amountXof, currency) })
-        : t('Le paiement n’a pas été confirmé. Réessayez, ou réglez au comptoir.'));
-    } catch (e) {
-      setPaie('ko');
-      setMotPaie(e instanceof Error && e.message ? t(e.message) : t('Paiement interrompu.'));
-    }
-  };
-  const lienReglement = suivante && numero
-    ? `https://wa.me/${numero}?text=${encodeURIComponent(
-      `Bonjour, je souhaite régler ${fmtMoney(suivante.resteXof, currency)} sur mon abonnement « ${plan?.name ?? ''} ».`)}`
-    : '';
-
-  return (
-    <>
-      <div className="cma-carte">
-        <div className="cma-carte__tag">
-          {plan?.mode === 'pack'
-            ? (total > 1
-              ? t('{total} séances · valable {n} mois', { total, n: moisDuPack(plan) })
-              : t('{total} séance · valable {n} mois', { total, n: moisDuPack(plan) }))
-            : t(cycleLabel(sub.cycle ?? 'mensuel'))}
-        </div>
-        <div className="cma-carte__nom">{plan?.name ?? t('Votre formule')}</div>
-        {plan?.line && <p className="cma-carte__ligne">{plan.line}</p>}
-        <div className="cma-carte__etat">
-          <span>{t('Il vous reste')}</span>
-          <b>{restant === null ? t('sans limite')
-            : total
-              ? (restant === 0 ? t('0 séance sur {total}', { total })
-                : restant > 1 ? t('{n} séances sur {total}', { n: restant, total })
-                  : t('{n} séance sur {total}', { n: restant, total }))
-              : (restant === 0 ? t('0 séance')
-                : restant > 1 ? t('{n} séances', { n: restant })
-                  : t('{n} séance', { n: restant }))}</b>
-        </div>
-      </div>
-
-      {sub.couleur && (
-        <div className="cma-option">
-          <span className="cma-micro">{t('Votre option couleur')}</span>
-          <div className="cma-option__val">{couleurDite(sub.couleur)}</div>
-        </div>
-      )}
-
-      {usage.length > 0 && (
-        <div className="cma-credits">
-          <span className="cma-micro">{t('Vos crédits')}</span>
-          {usage.map((u) => (
-            <div key={u.serviceId} className="cma-credit">
-              <div className="cma-credit__tete">
-                <span className="cma-credit__nom">{nomService(u.serviceId)}</span>
-                <span className="cma-credit__compte">
-                  {u.qty === null
-                    ? t('sans limite')
-                    : (u.remaining ?? 0) > 1
-                      ? t('{pris} pris · {reste} restent', { pris: u.used, reste: u.remaining ?? 0 })
-                      : t('{pris} pris · {reste} reste', { pris: u.used, reste: u.remaining ?? 0 })}
-                </span>
-              </div>
-              {u.qty !== null && <Jetons pris={u.used} total={u.qty} />}
-            </div>
-          ))}
-        </div>
-      )}
-
-      {etats.length > 0 && (
-        <div className="cma-ech">
-          <span className="cma-micro">{t('Votre règlement · en {n} fois', { n: etats.length })}</span>
-          {etats.map((e) => (
-            <div key={e.numero} className="cma-ech__ligne">
-              <span className={`cma-pastille ${e.soldee ? 'ok' : e.enRetard ? 'retard' : 'avenir'}`} />
-              <span className="cma-ech__date">
-                {rangDeLEcheance(e.numero)} · {frCourt(e.dueIso)}
-                {e.soldee ? <>{', '}{t('réglée')}</>
-                  : e.enRetard ? <>{', '}{e.retardJours === 1 ? t('en retard de 1 j') : t('en retard de {j} j', { j: e.retardJours })}</>
-                    : e.regleXof > 0 ? <>{', '}{t('{montant} versés', { montant: prix(e.regleXof, currency) })}</> : null}
-              </span>
-              <span className={`cma-ech__mt ${e.soldee ? 'paye' : ''}`}>{prix(e.amountXof, currency)}</span>
-            </div>
-          ))}
-          {suivante && (
-            enLigne
-              ? <button type="button" className="cma-btn" disabled={paie === 'en_cours'} onClick={() => void reglerEnLigne()}>
-                {paie === 'en_cours' ? t('Paiement en cours…') : t('Régler {montant}', { montant: prix(suivante.resteXof, currency) })}
-              </button>
-              : lienReglement
-                ? <a className="cma-btn" href={lienReglement} target="_blank" rel="noreferrer">
-                  {t('Régler {montant}', { montant: prix(suivante.resteXof, currency) })}
-                </a>
-                : <div className="cma-vide">{t('Il reste {montant} à régler au comptoir.', { montant: prix(resteDeLEcheancier(etats), currency) })}</div>
-          )}
-          {motPaie && <p className="cma-note" role="status">{motPaie}</p>}
-          <p className="cma-note">
-            {enLigne
-              ? t('Mobile money ou carte : votre règlement est confirmé en quelques secondes.')
-              : t('La Maison vous envoie le code MoMo et constate votre règlement au comptoir.')}
-          </p>
-        </div>
-      )}
-
-      {etats.length === 0 && plan && (
-        <div className="cma-ech">
-          <span className="cma-micro">{t('Votre règlement')}</span>
-          <div className="cma-ech__ligne">
-            <span className="cma-pastille avenir" />
-            <span className="cma-ech__date">{t('Prochaine échéance · {date}', { date: frCourt(sub.nextIso) })}</span>
-            {/* SON PRIX, ET CE QUE LA MAISON LUI ACCORDE (décision du 28 août).
-                Le prix du catalogue barré à côté du sien : elle mesure le geste
-                au lieu de le deviner. Sans prix convenu, rien n'est barré et la
-                ligne reste celle d'avant. */}
-            <span className="cma-ech__mt">
-              {(() => {
-                const e = ecartDuPrixConvenu(sub, plan, sub.cycle ?? 'mensuel');
-                return e && e.ecartXof < 0 ? (
-                  <span className="cma-ech__avant">{prix(e.catalogueXof, currency)}</span>
-                ) : null;
-              })()}
-              {prix(prixVenduXof(sub, plan, sub.cycle ?? 'mensuel'), currency)}
-            </span>
-          </div>
-        </div>
-      )}
-    </>
-  );
-}
 
 /* ── CE QU'ELLE POURRAIT PRENDRE ─────────────────────────────────────── */
 function LaVitrine({ plans, onDemande }: { plans: Plan[]; onDemande: (p: Plan) => void }) {
@@ -501,15 +286,30 @@ function LaVitrine({ plans, onDemande }: { plans: Plan[]; onDemande: (p: Plan) =
 }
 
 /* ── L'ONGLET ────────────────────────────────────────────────────────── */
-export function MaFormuleTab({ toast, onReserver }: {
+export function MaFormuleTab({ toast, onReserver, releve, prenom, selecteur, onRegler, onRenoncer, onSolde, onOpenRdv, onReserverIncluse }: {
   toast: (m: string) => void;
   onReserver: () => void;
+  /** LE RELEVÉ DE LA TÊTE REGARDÉE (20 octobre 2026) : ses formules, lues
+      par le juge unique. Sans formule ni passée, l'onglet reste la vitrine. */
+  releve: ReleveDeLAbonnee | null;
+  /** Le prénom de la tête portée ; absent : c'est elle. */
+  prenom?: string;
+  selecteur?: ReactNode;
+  onRegler: (d: DemandeDeReglement) => void;
+  onRenoncer?: (c: ReleveDuContrat) => void;
+  onSolde: () => void;
+  onOpenRdv: (id: string) => void;
+  onReserverIncluse: () => void;
 }) {
   /* ── ELLE PREND SA FORMULE ELLE-MÊME — 29 août 2026 ──────────────
      « Je ne veux pas qu'on envoie une demande au Trône. La cliente réserve
      immédiatement et passe au paiement » (Yéman). Le bouton n'écrit plus une
-     demande : il ouvre l'achat, en trois temps. */
+     demande : il ouvre l'achat, une seule porte (20 octobre 2026). */
   const [achat, setAchat] = useState<Plan | null>(null);
+  /* « PRENDRE UNE AUTRE FORMULE » : deux formules peuvent courir ensemble
+     (tranché au sélecteur le 20 octobre 2026), la vitrine s'ouvre donc aussi
+     à celle qui en porte une. */
+  const [vitrine, setVitrine] = useState(false);
   const { branch } = useBranch();
   const client = useClient();
   const [plans] = usePlans();
@@ -519,8 +319,7 @@ export function MaFormuleTab({ toast, onReserver }: {
 
      LA FORMULE QU'ELLE PORTE DÉJÀ N'EST PAS CONCERNÉE : le masque ne touche
      que la VITRINE. Masquer une formule ne la retire à personne, et son suivi
-     continue de s'afficher plus haut — c'est tout l'intérêt de masquer plutôt
-     que d'effacer. */
+     continue de s'afficher plus haut. */
   const [cfgVitrine] = useStore(vitrineConfigStore);
   const moi = useClient();
   /* SON FOYER, OU PAS — même règle que le composeur, même juge. */
@@ -533,25 +332,9 @@ export function MaFormuleTab({ toast, onReserver }: {
     ),
     [cfgVitrine, moi?.vitrineMasques, plans, aUnFoyer],
   );
-  const [subs] = useSubscribers();
   const [demandes] = useDemandesFormule();
-
-  const sub = client ? activeSubscriberOf(subs, client.id) : undefined;
-  const plan = sub ? plans.find((p) => p.id === sub.planId) : undefined;
   const ouverte = client ? demandeOuverteDe(demandes, client.id) : undefined;
-
-  const demander = (p: Plan) => {
-    if (!client) return;
-    demandesFormuleStore.set((prev) => [...prev, {
-      id: `df-${uid()}`,
-      clientId: client.id,
-      clientName: client.name,
-      planId: p.id,
-      planName: p.name,
-      demandeeLe: todayIso(),
-    }]);
-    toast(t('Votre demande est partie, la Maison vous répond très vite.'));
-  };
+  const sesFormules = !!releve && (releve.contrats.length > 0 || releve.anciens.length > 0);
 
   const numero = (branch.phone ?? '').replace(/\D/g, '');
 
@@ -559,18 +342,46 @@ export function MaFormuleTab({ toast, onReserver }: {
     return (
       <AchatFormule
         plan={achat}
+        releve={releve}
         toast={toast}
-        onClose={() => setAchat(null)}
-        onReserver={() => { setAchat(null); onReserver(); }}
+        onClose={() => { setAchat(null); setVitrine(false); }}
+        onReserver={() => { setAchat(null); setVitrine(false); onReserver(); }}
+      />
+    );
+  }
+
+  /* LA FORMULE D'UNE TÊTE PORTÉE SE PREND AU COMPTOIR : la souscription en
+     ligne signe au nom du compte. On lit la sienne, on n'en achète pas ici. */
+  if (sesFormules && releve && !vitrine) {
+    return (
+      <SesFormules
+        releve={releve}
+        prenom={prenom}
+        selecteur={selecteur}
+        onRegler={onRegler}
+        onRenoncer={onRenoncer}
+        onSolde={onSolde}
+        onOpenRdv={onOpenRdv}
+        onReserverIncluse={onReserverIncluse}
+        onAcheter={prenom || enVitrine.length === 0 ? undefined : () => setVitrine(true)}
       />
     );
   }
 
   return (
     <div className="cma-wrap">
-      {sub ? (
-        <SaFormule sub={sub} plan={plan} />
-      ) : ouverte ? (
+      {selecteur && <div style={{ padding: '14px 18px 0' }}>{selecteur}</div>}
+      {vitrine && (
+        <button type="button" className="mc-linkback" style={{ margin: '14px 18px 0', alignSelf: 'flex-start' }} onClick={() => setVitrine(false)}>
+          ← {t('Ma formule')}
+        </button>
+      )}
+      {prenom ? (
+        <div className="cma-attente">
+          <div className="cma-attente__tag">{t('Aucune formule en cours')}</div>
+          <p className="cma-attente__dit">{t('La formule de {prenom} se prend au comptoir de la Maison.', { prenom })}</p>
+        </div>
+      ) : ouverte && !vitrine ? (
         /* L'ATTENTE PORTE UNE DATE : elle engage la Maison, là où « en cours
            de traitement » n'engage personne et laisse la cliente se demander
            si le bouton a marché. */

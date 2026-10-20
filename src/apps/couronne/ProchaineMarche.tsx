@@ -12,7 +12,7 @@ import { useServices, fondeLaCouronne } from '../../shared/catalog';
 import { useModelBands, useBandSets, bandsAbonnements, calibreDeLaTete } from '../../shared/pricing';
 import { useFamilies } from '../../shared/clients';
 import {
-  activeSubscriberOf, formulesPourElle, prixDeLaFormule, subServiceUsage, usePlans, useSubscribers, type Plan, type TeteConnue,
+  formulesPourElle, prixDeLaFormule, usePlans, useSubscribers, type Plan, type TeteConnue,
 } from '../../shared/abonnements';
 import type { Appointment } from '../../shared/agenda';
 import { formulesVisiblesPour, vitrineConfigStore } from '../../shared/bridges';
@@ -21,6 +21,7 @@ import { decoupesPour } from '../../shared/echeancier';
 import { phaseDeLaGrille } from '../../shared/nouvelle-grille-pur';
 import { prochaineMarche, CURE_DE_LUMIERE, type Marche } from '../../shared/prochaine-marche-pur';
 import { useClient, useVisibleCatalog, todayIso, type BookingPrefill } from './lib';
+import { useReleve } from './releve';
 import { t, prix } from './i18n';
 
 /** Le nom, le geste offert et la phrase d'une formule en lunes, selon sa famille. */
@@ -52,6 +53,9 @@ export function ProchaineMarche({ appts, onOpenBooking, goFormule }: {
   const { services: servicesVisibles } = useVisibleCatalog();
   const [plans] = usePlans();
   const [subs] = useSubscribers();
+  /* LE JUGE UNIQUE DE L'ABONNÉE (20 octobre 2026) : la formule qui court et
+     ce qu'il lui reste se lisent au relevé, jamais recomptés ici. */
+  const releve = useReleve(client?.id);
   const [familles] = useFamilies();
   const [cfg] = useStore(vitrineConfigStore);
   const [bands] = useModelBands();
@@ -71,23 +75,20 @@ export function ProchaineMarche({ appts, onOpenBooking, goFormule }: {
        comptent pas : les formules en lunes y sont encore cachées. */
     const visibles = apercu ? plans : formulesVisiblesPour({ cfg, masques: client.vitrineMasques, plans });
     const enVente = new Set(formulesPourElle(visibles, aUnFoyer).map((p) => p.id));
-    const sub = activeSubscriberOf(subs, client.id);
-    const planDuSub = sub ? plans.find((p) => p.id === sub.planId) : undefined;
-    const restantes = sub
-      ? subServiceUsage(sub, planDuSub, siens as Appointment[]).reduce<number | null>(
-        (m, u) => (u.remaining === null ? m : m === null ? u.remaining : Math.min(m, u.remaining)), null)
-      : null;
+    const enCours = releve?.contrats.find((c) => c.etat === 'en-cours' || c.etat === 'epuisee') ?? releve?.contrats[0];
+    const bornees = enCours ? enCours.seances.filter((l) => l.disponibles !== null).map((l) => l.disponibles as number) : [];
+    const restantes = bornees.length ? Math.min(...bornees) : null;
     return prochaineMarche({
       jour,
       visites: siens,
       estCreation,
       crownSince: client.crownSince,
-      formule: sub ? { planId: sub.planId, ...(typeof restantes === 'number' ? { restantes } : {}) } : undefined,
+      formule: enCours ? { planId: enCours.sub.planId, ...(typeof restantes === 'number' ? { restantes } : {}) } : undefined,
       dejaPrises: new Set(subs.filter((s) => s.clientId === client.id).map((s) => s.planId)),
       enVente,
       creationAVenir: siens.some((a) => a.status !== 'honoré' && a.status !== 'annulé' && a.date >= jour && a.serviceIds.some(estCreation)),
     });
-  }, [client, apercu, jour, services, appts, familles, plans, cfg, subs]);
+  }, [client, apercu, jour, services, appts, familles, plans, cfg, subs, releve]);
 
   if (!client || !marche) return null;
 

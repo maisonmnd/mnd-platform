@@ -36,6 +36,13 @@ import { cercleSeuilStore, foyerSeuilStore, estDuCercle, useFoyerTiers, cercleAc
 import { deliveryFee, useSettings } from '../../shared/settings';
 import { palierDuCarnet, pasSuivant, jourLocal, PALIER_DIT } from '../../shared/paliers';
 import { ProchaineMarche } from './ProchaineMarche';
+import {
+  AlerteUnique, BoutonsDeLAccueil, CarteFormule, CarteSolde, Cloche, TableauDeBord, aUneFormule, sceauDeLaSeance,
+  type GestesDeLAbonnee,
+} from './Abonnee';
+import { ETAT_SEANCE } from './releve';
+import { etatDeLaSeance } from '../../shared/abonnee-pur';
+import { jourDeCotonou } from '../../shared/ia-faits-pur';
 import { createStore, uid, useStore } from '../../shared/store';
 import {
   ensureClient,
@@ -405,6 +412,7 @@ export function HomeTab({
   toast,
   onOpenCarte,
   goFormule,
+  abonnee,
 }: {
   onOpenBooking: OpenBooking;
   onOpenCompose: () => void;
@@ -417,6 +425,9 @@ export function HomeTab({
   onOpenCarte?: () => void;
   /** L'onglet « Ma formule » (la prochaine marche, janvier 2027). */
   goFormule?: () => void;
+  /** LE TABLEAU DE BORD DE L'ABONNÉE (20 octobre 2026, maquette L0 validée) :
+      son relevé et ses gestes. Sans formule, l'accueil reste celui d'avant. */
+  abonnee?: GestesDeLAbonnee;
 }) {
   const client = useClient();
   const maCarte = useMaCarte();
@@ -510,53 +521,20 @@ export function HomeTab({
     notifyLocal(t('Votre rituel approche'), t('{jour} · {heure}, la maison vous attend.', { jour: jourDit(soon.date), heure: soon.time }));
   }, [soon]);
 
-  const pickOffer = (o: Offer) => {
-    if (o.act === 'invite') {
-      toast(t('Invitation prête à transmettre sur WhatsApp.'));
-      return;
-    }
-    if (o.serviceId) onOpenBooking({ serviceId: o.serviceId, discountPct: o.discountPct, offerLabel: o.tag });
-  };
-
-  return (
-    <div className="mc-fade">
-      {/* hero photographique + voile obsidienne */}
-      <div className="mc-homehero">
-        <img className="mc-homehero__photo" src={asset("/assets/photos/model-microlocks.jpg")} alt="" />
-        <div className="mc-homehero__veil" />
-        <img className="mc-homehero__seal" src={asset("/assets/monograms/mono-ivoire.png")} alt="" />
-        <button className="mc-bell" aria-label={t('Notifications')} onClick={onOpenNotif}>
-          ♟{notifCount > 0 && <span className="mc-bell__count">{notifCount}</span>}
-        </button>
-        <div className="mc-homehero__text">
-          <div className="mc-micro-eyebrow">{t('Votre couronne')}</div>
-          <div className="mc-homehero__greet">{prenom ? t('Bonjour, {prenom}.', { prenom }) : t('Bonjour.')}</div>
-        </div>
-      </div>
-
-      <div className="mc-pagepad">
-        {/* rappel discret — rituel sous 48 h */}
-        {soon && (
-          <button className="mc-remindbanner" onClick={() => onOpenRdv(soon.id)}>
-            <span className="mc-remindbanner__dot" aria-hidden="true" />
-            <span className="mc-remindbanner__txt">
-              {t('Votre rituel approche, {jour} · {heure}', { jour: jourDit(soon.date), heure: soon.time })}
-            </span>
-            <span className="mc-remindbanner__go">{t('Voir')}</span>
-          </button>
-        )}
-
-        {/* LA CITATION EST RETIRÉE (14 août — « élimine tous les textes
-            inutiles ») : une phrase qui ne porte ni geste ni information
-            occupait une carte entière à chaque ouverture. */}
-
+  /* LE TABLEAU DE BORD (20 octobre 2026) : une seule alerte, une carte par
+     formule, la prochaine séance, le solde, deux boutons. Sans formule ni
+     formule passée, l'accueil d'avant, la carte de la prochaine séance en tête. */
+  const releveA = abonnee?.releve;
+  const abonneeA = aUneFormule(releveA);
+  const carteProchaine = (
+    <>
         {/* VOTRE PROCHAINE SÉANCE — EN TÊTE (maquette accueil, repère 2) : la
             séance prise, ou la séance PRÉDITE avec ses deux gestes. Le vide
             n'ouvre plus l'écran. */}
         <div className="mc-nextrdv">
           <div className="mc-nextrdv__row">
             <span className="mc-nextrdv__label">{t('Votre prochaine séance')}</span>
-            {next && <span className="mc-nextrdv__status">{next.status === 'confirmé' ? t('Confirmé') : t('En attente')}</span>}
+            {next && <span className="mc-nextrdv__status">{t(ETAT_SEANCE[etatDeLaSeance(next, jourDeCotonou())].dit)}</span>}
           </div>
           {next ? (
             /* LA CARTE S'OUVRE — 7 octobre 2026 (maquette validée) : toute la
@@ -571,6 +549,11 @@ export function HomeTab({
               )}
               {next.depositXof != null && (
                 <span className="mc-nextrdv__seal">{next.depositConfirmed ? t('Acompte reçu') : t('Acompte')} · {prix(next.depositXof, currency)}</span>
+              )}
+              {/* LE SCEAU DE LA FORMULE (20 octobre 2026) : « Incluse · séance 3
+                  sur 6 de votre formule », lu au relevé. */}
+              {sceauDeLaSeance(abonnee?.releve, next.id) && (
+                <span className="ab-sceau" style={{ display: 'block', width: 'fit-content' }}>{sceauDeLaSeance(abonnee?.releve, next.id)}</span>
               )}
               <span className="mc-nextrdv__voir">{t('Ouvrir')} →</span>
             </button>
@@ -626,6 +609,87 @@ export function HomeTab({
             {t('Mes rendez-vous')}
           </button>
         </div>
+    </>
+  );
+  const LE_TABLEAU_DE_BORD = abonnee && releveA && abonneeA ? (
+    <div className="ab-pile">
+      <TableauDeBord
+        releve={releveA}
+        onFormule={abonnee.onFormule}
+        onRegler={abonnee.onRegler}
+        onRenoncer={abonnee.onRenoncer}
+        onSolde={abonnee.onSolde}
+        onOpenRdv={(id) => onOpenRdv(id)}
+        onReserverIncluse={abonnee.onReserverIncluse}
+        onAcheter={abonnee.onAcheter}
+        avantLeSolde={carteProchaine}
+      />
+      {!moduleHidden(client, 'reserver') && (
+        <BoutonsDeLAccueil
+          releve={releveA}
+          peutAcheter={abonnee.peutAcheter}
+          onReserverIncluse={abonnee.onReserverIncluse}
+          onReserverAutre={() => onOpenBooking()}
+          onAcheter={abonnee.onAcheter}
+          onRegler={abonnee.onRegler}
+        />
+      )}
+    </div>
+  ) : (
+    <>
+      {carteProchaine}
+      {abonnee?.peutAcheter && (
+        <div className="ab-card" style={{ marginTop: 12 }}>
+          <div className="mc-micro-eyebrow">{t('Ma formule')}</div>
+          <div className="ab-mcf__nom">{t('Pas encore de formule.')}</div>
+          <p className="ab-meta">{t('Une formule, ce sont vos séances d’avance, à un prix qui tient une fois votre calibre compté.')}</p>
+          <button type="button" className="ab-lien" onClick={abonnee.onAcheter}>{t('Voir les formules →')}</button>
+        </div>
+      )}
+    </>
+  );
+
+  const pickOffer = (o: Offer) => {
+    if (o.act === 'invite') {
+      toast(t('Invitation prête à transmettre sur WhatsApp.'));
+      return;
+    }
+    if (o.serviceId) onOpenBooking({ serviceId: o.serviceId, discountPct: o.discountPct, offerLabel: o.tag });
+  };
+
+  return (
+    <div className="mc-fade">
+      {/* hero photographique + voile obsidienne */}
+      <div className="mc-homehero">
+        <img className="mc-homehero__photo" src={asset("/assets/photos/model-microlocks.jpg")} alt="" />
+        <div className="mc-homehero__veil" />
+        <img className="mc-homehero__seal" src={asset("/assets/monograms/mono-ivoire.png")} alt="" />
+        <button className="mc-bell" aria-label={t('Notifications')} onClick={onOpenNotif}>
+          <Cloche />{notifCount > 0 && <span className="mc-bell__count">{notifCount}</span>}
+        </button>
+        <div className="mc-homehero__text">
+          <div className="mc-micro-eyebrow">{t('Votre couronne')}</div>
+          <div className="mc-homehero__greet">{prenom ? t('Bonjour, {prenom}.', { prenom }) : t('Bonjour.')}</div>
+        </div>
+      </div>
+
+      <div className="mc-pagepad">
+        {/* rappel discret — rituel sous 48 h */}
+        {soon && (
+          <button className="mc-remindbanner" onClick={() => onOpenRdv(soon.id)}>
+            <span className="mc-remindbanner__dot" aria-hidden="true" />
+            <span className="mc-remindbanner__txt">
+              {t('Votre rituel approche, {jour} · {heure}', { jour: jourDit(soon.date), heure: soon.time })}
+            </span>
+            <span className="mc-remindbanner__go">{t('Voir')}</span>
+          </button>
+        )}
+
+        {/* LA CITATION EST RETIRÉE (14 août — « élimine tous les textes
+            inutiles ») : une phrase qui ne porte ni geste ni information
+            occupait une carte entière à chaque ouverture. */}
+
+        {LE_TABLEAU_DE_BORD}
 
         {/* VOTRE PROCHAINE MARCHE (1er janvier 2027, la genèse des prix) :
             une seule carte, la première marche qui s'applique à sa couronne. */}
@@ -743,7 +807,7 @@ export function HomeTab({
 
         {/* Modules coupés par la Maison : les gestes fermés disparaissent (les
             gardes d'App.tsx couvrent de toute façon tous les autres chemins). */}
-        {!moduleHidden(client, 'reserver') && (
+        {!moduleHidden(client, 'reserver') && !abonneeA && (
           <button className="mc-cta mc-cta--copper" style={{ marginTop: 16 }} onClick={() => onOpenBooking()}>
             {t('Réserver un rituel')}
           </button>
@@ -866,6 +930,30 @@ export function HomeTab({
             </div>
           </>
         ) : null}
+        {/* LA GAMME ET LE CERCLE, EN CARTES (décision 8) : ils quittent la
+            barre du bas, ils restent à une touche d'ici et du Profil. */}
+        {(abonnee?.goGamme || abonnee?.goCercle) && (
+          <>
+            <div className="mc-sectionlabel" style={{ margin: '24px 0 10px' }}>{t('Pour vous')}</div>
+            <div className="ab-duo">
+              {abonnee.goGamme && (
+                <button type="button" className="ab-mini" onClick={abonnee.goGamme}>
+                  <span className="mc-micro-eyebrow">{t('La Gamme')}</span>
+                  <b>{t('Les soins Maison MND, chez vous.')}</b>
+                  <span>{t('Ce que la Maison emploie, à emporter.')}</span>
+                </button>
+              )}
+              {abonnee.goCercle && (
+                <button type="button" className="ab-mini" onClick={abonnee.goCercle}>
+                  <span className="mc-micro-eyebrow">{t('Le Cercle')}</span>
+                  <b>{t('De main en main.')}</b>
+                  <span>{t('Offrez une première séance à une proche.')}</span>
+                </button>
+              )}
+            </div>
+          </>
+        )}
+        <p className="ab-devise">{t('mi nyɔ́ ɖɛkpɛ, votre beauté est déjà là')}</p>
         <div style={{ height: 26 }} />
       </div>
     </div>
@@ -879,12 +967,14 @@ export function HomeTab({
    qui ne nomme pas sa tête laisse poser un rendez-vous sur la mauvaise
    personne, et personne ne s'en aperçoit avant le fauteuil. */
 
-export function HomeEnfant({ enfant, onOpenBooking, onRevenir, onOpenRdv }: {
+export function HomeEnfant({ enfant, onOpenBooking, onRevenir, onOpenRdv, abonnee }: {
   enfant: Client;
   onOpenBooking: OpenBooking;
   onRevenir: () => void;
   /** Son rituel s'ouvre sur sa fiche (7 octobre 2026). */
   onOpenRdv?: (id?: string) => void;
+  /** SA FORMULE, quand elle en porte une (20 octobre 2026) : son relevé. */
+  abonnee?: GestesDeLAbonnee;
 }) {
   const [services] = useServices();
   const [bands] = useModelBands();
@@ -903,6 +993,8 @@ export function HomeEnfant({ enfant, onOpenBooking, onRevenir, onOpenRdv }: {
     [appts, enfant],
   );
   const reprise = !next && cadence?.predicted && cadence.iso ? cadence.iso : null;
+  const releveE = abonnee?.releve;
+  const abonneeE = aUneFormule(releveE);
 
   return (
     <div className="mc-fade mc-pagepad mc-pagepad--top">
@@ -917,6 +1009,16 @@ export function HomeEnfant({ enfant, onOpenBooking, onRevenir, onOpenRdv }: {
               : t('{age} an · c’est vous qui réservez et réglez.', { age })}
         </div>
       </div>
+
+      {abonnee && releveE && abonneeE && (
+        <div className="ab-pile">
+          <AlerteUnique releve={releveE} onRegler={abonnee.onRegler} onSolde={abonnee.onSolde} onOpenRdv={(id) => onOpenRdv?.(id)}
+            onReserverIncluse={abonnee.onReserverIncluse} onAcheter={abonnee.onAcheter} />
+          {releveE.contrats.map((c) => (
+            <CarteFormule key={c.sub.id} c={c} prenom={prenom} onFormule={abonnee.onFormule} onRegler={abonnee.onRegler} />
+          ))}
+        </div>
+      )}
 
       {/* Son calibre se COMPTE, comme pour toutes les têtes (13 août). */}
       <div className="mc-crownstatus">
@@ -954,6 +1056,9 @@ export function HomeEnfant({ enfant, onOpenBooking, onRevenir, onOpenRdv }: {
           <button type="button" className="mc-nextrdv__ouvrir" onClick={() => onOpenRdv?.(next.id)}>
             <div className="mc-nextrdv__service">{serviceNames(next, services) || t('Rituel de la maison')}</div>
             <div className="mc-nextrdv__when">{jourDit(next.date)} · {next.time}</div>
+            {sceauDeLaSeance(releveE, next.id, prenom) && (
+              <span className="ab-sceau" style={{ display: 'block', width: 'fit-content' }}>{sceauDeLaSeance(releveE, next.id, prenom)}</span>
+            )}
             {onOpenRdv && <span className="mc-nextrdv__voir">{t('Ouvrir')} →</span>}
           </button>
         ) : (
@@ -964,9 +1069,17 @@ export function HomeEnfant({ enfant, onOpenBooking, onRevenir, onOpenRdv }: {
         )}
       </div>
 
-      <button className="mc-cta mc-cta--copper" style={{ marginTop: 16 }} onClick={() => onOpenBooking({ pourId: enfant.id })}>
-        {t('Réserver pour {prenom}', { prenom })}
-      </button>
+      {abonnee && releveE && abonneeE ? (
+        <div className="ab-pile">
+          <CarteSolde releve={releveE} prenom={prenom} onSolde={abonnee.onSolde} onRegler={abonnee.onRegler} />
+          <BoutonsDeLAccueil releve={releveE} prenom={prenom} peutAcheter={false} onReserverIncluse={abonnee.onReserverIncluse}
+            onReserverAutre={() => onOpenBooking({ pourId: enfant.id })} onAcheter={abonnee.onAcheter} onRegler={abonnee.onRegler} />
+        </div>
+      ) : (
+        <button className="mc-cta mc-cta--copper" style={{ marginTop: 16 }} onClick={() => onOpenBooking({ pourId: enfant.id })}>
+          {t('Réserver pour {prenom}', { prenom })}
+        </button>
+      )}
       <button className="mc-cta mc-cta--outline" style={{ marginTop: 10 }} onClick={onRevenir}>
         {t('Revenir à votre couronne')}
       </button>
@@ -2027,7 +2140,12 @@ function MesEnfants({ toast }: { toast: (m: string) => void }) {
   );
 }
 
-export function ProfilTab({ toast }: { toast: (m: string) => void }) {
+export function ProfilTab({ toast, entrees }: {
+  toast: (m: string) => void;
+  /** MON SOLDE, LA GAMME, LE CERCLE (20 octobre 2026, décision 8) : une
+      touche d'ici, depuis qu'ils ont quitté la barre du bas. */
+  entrees?: { solde?: () => void; gamme?: () => void; cercle?: () => void };
+}) {
   const [choixTheme, setChoixTheme] = useTheme();
   const lg = useLangue();
   const client = useClient();
@@ -2162,6 +2280,28 @@ export function ProfilTab({ toast }: { toast: (m: string) => void }) {
           de trois ans ne la dira jamais au comptoir, et la Maison ne la devine
           pas. Il ne crée pas de fiche pour autant : il dépose un prénom et une
           date, la Maison ouvre la tête. */}
+      {entrees && (entrees.solde || entrees.gamme || entrees.cercle) && (
+        <div className="mc-preflist" style={{ marginTop: 16 }}>
+          {entrees.solde && (
+            <button className="mc-navrow" onClick={entrees.solde}>
+              <span className="mc-navrow__main"><span>{t('Mon solde')}</span><span className="mc-navrow__sub">{t('réglé, à venir, avoir')}</span></span>
+              <span className="mc-navrow__arrow" aria-hidden="true">→</span>
+            </button>
+          )}
+          {entrees.gamme && (
+            <button className="mc-navrow" onClick={entrees.gamme}>
+              <span className="mc-navrow__main"><span>{t('La Gamme')}</span><span className="mc-navrow__sub">{t('les soins Maison MND, à emporter')}</span></span>
+              <span className="mc-navrow__arrow" aria-hidden="true">→</span>
+            </button>
+          )}
+          {entrees.cercle && (
+            <button className="mc-navrow" onClick={entrees.cercle}>
+              <span className="mc-navrow__main"><span>{t('Le Cercle')}</span><span className="mc-navrow__sub">{t('de main en main')}</span></span>
+              <span className="mc-navrow__arrow" aria-hidden="true">→</span>
+            </button>
+          )}
+        </div>
+      )}
       <MesEnfants toast={toast} />
       {/* L'APPARENCE (3 octobre 2026) : elle suit le téléphone, ou la cliente
           la fixe. Voir theme.ts. */}

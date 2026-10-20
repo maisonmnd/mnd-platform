@@ -10,6 +10,7 @@ import { EN_FORMULE } from './en-formule';
 import { EN_RDV } from './en-rdv';
 import { EN_ENTRE_DEUX } from './en-entre-deux';
 import { EN_DIAGNOSTIC } from './en-diagnostic';
+import { EN_ABONNEE } from './en-abonnee';
 
 export const EN: Record<string, string> = {
   ...EN_COMMUN,
@@ -20,4 +21,5 @@ export const EN: Record<string, string> = {
   ...EN_RDV,
   ...EN_ENTRE_DEUX,
   ...EN_DIAGNOSTIC,
+  ...EN_ABONNEE,
 };
