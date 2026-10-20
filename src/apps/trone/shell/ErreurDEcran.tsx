@@ -30,6 +30,14 @@ export function ErreurDEcran() {
       <button className="mnd-btn" style={{ alignSelf: 'flex-start' }} onClick={() => window.location.reload()}>
         Recharger
       </button>
+      {/* LE DÉTAIL SE LIT (20 octobre 2026). « Les tendances » ne s'ouvrait
+          pas chez Yéman et ne se reproduisait pas hors ligne : sans le message,
+          une capture ne dit pas la cause. Discret, pour qui l'envoie. */}
+      {message && (
+        <p className="mnd-muted" style={{ margin: 0, fontSize: 11.5, lineHeight: 1.5, overflowWrap: 'anywhere' }}>
+          Détail : {message.slice(0, 240)}
+        </p>
+      )}
     </div>
   );
 }
