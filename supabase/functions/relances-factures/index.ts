@@ -26,6 +26,23 @@
    JAMAIS DEUX RELANCES LE MÊME JOUR À LA MÊME CLIENTE, même pour deux
    factures. Une borne par passage : quarante messages au plus.
 
+   LA PIÈCE D'UNE FORMULE NE SE RELANCE PLUS SUR SON RESTE (20 octobre 2026,
+   parcours de l'abonnée, décision 6 : le contrat fait foi, la pièce suit).
+   Elle porte le prix entier dès le premier versement : la relancer à J+1
+   réclamait la deuxième échéance un mois avant son jour. Désormais elle se
+   relance sur l'ÉCHÉANCIER du contrat, lu par une copie bornée du juge
+   unique (`abonnee-pur.ts`) :
+     · jamais avant l'échéance : la première relance part le LENDEMAIN du
+       jour dû, et une échéance écrite un dimanche se juge le lundi ;
+     · le montant réclamé est l'échu en retard, jamais l'à venir ;
+     · une formule Chaque Lune ne se relance JAMAIS : une lune non réglée met
+       la formule en pause, ce n'est pas une dette ;
+     · une formule retenue (rien de dû), effacée ou résiliée : rien ;
+     · chaque échéance a sa propre suite J+1, J+3, J+7, J+14 ;
+     · la tête portée n'a pas de numéro : on écrit à celle qui paie pour son
+       foyer.
+   La veille d'une échéance, c'est `rappels-d-echeance` qui écrit.
+
    RIEN NE PART SANS SON MODÈLE : le secret WA_TEMPLATE_RELANCE nomme le
    modèle approuvé par Meta (`rappel_de_reglement`). Variables : {{1}} son
    appel, {{2}} le jour de la facture avec l'année, {{3}} le reste ; bouton
@@ -45,7 +62,7 @@ import { createClient } from 'npm:@supabase/supabase-js@2';
 const TZ = 'Africa/Porto-Novo'; // le fuseau du salon, pas celui du serveur
 
 /** La version de ce fichier, rendue dans chaque réponse. */
-const VERSION = '2026-10-18-b · jamais de relance pour un rattrapage';
+const VERSION = '2026-10-20-a · les formules relancées sur leur échéancier';
 
 /** Numéro béninois → format international sans « + » (copie de rappels-j1). */
 const numeroIntl = (brut: string | undefined): string | null => {
@@ -200,9 +217,10 @@ type FactureLue = {
   id: string; kind?: string; status?: string; date: string; number?: string; branchId?: string;
   clientId: string; forClientId?: string; clientName?: string;
   lines: LigneLue[]; globalDiscountPct: number; globalDiscountXof?: number;
-  payments?: { id: string; amountXof: number }[];
+  payments?: { id: string; amountXof: number; date: string }[];
   relancesPause?: { le: string; par?: string };
   creeeLe?: string;
+  note?: string;
 };
 const ligneNetXof = (l: LigneLue): number =>
   Math.max(0, l.qty * l.unitXof * (1 - l.discountPct / 100) - (l.discountXof ?? 0));
@@ -230,6 +248,203 @@ const fraisTapGo = (baseXof: number, r: ReglagesTapGo | undefined): number => {
 };
 const codeTapGo = (r: ReglagesTapGo | undefined): string => String(r?.tapgo?.code ?? '').replace(/\D/g, '') || CODE_TAPGO_DEFAUT;
 // ── FIN fraisTapGo
+
+// ── DEBUT echeances (copie bornée de src/shared/abonnee-pur.ts, avec etatDesEcheances de echeancier.ts et decaleLeJour de ia-faits-pur.ts : l'argent d'un contrat ; scripts/verifie-les-messages-de-l-abonnee la rejoue contre l'original)
+type EcheanceEcrite = { numero: number; dueIso: string; amountXof: number };
+type VersementEcrit = { id: string; date: string; amountXof: number; method?: string };
+type ContratEcrit = {
+  id: string; clientId?: string; branchId?: string; name?: string; planId?: string; reference?: string; status?: string;
+  cycle?: string; nextIso?: string; sinceIso?: string; startIso?: string; expiresIso?: string | null;
+  priceXof?: number; prixConvenuXof?: number; echeances?: EcheanceEcrite[]; payments?: VersementEcrit[]; invoiceId?: string;
+  calibreVendu?: string; origine?: string; resilieeLe?: string; renonceeLe?: string;
+  suspendue?: { du: string; au: string; motif?: string };
+  prixRevu?: { le: string; ancienXof: number; nouveauXof: number; calibre?: string };
+};
+type FormuleEcrite = { id: string; name?: string; mode?: string; priceXof?: number };
+type PieceEcrite = { id: string; payments?: VersementEcrit[] };
+
+const estIso = (s: string | null | undefined): s is string => !!s && /^\d{4}-\d{2}-\d{2}$/.test(s);
+function decaleLeJour(jour: string, n: number): string {
+  const d = new Date(`${jour}T12:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + n);
+  return d.toISOString().slice(0, 10);
+}
+const joursEntre = (de: string, a: string): number =>
+  Math.round((Date.parse(`${a}T12:00:00Z`) - Date.parse(`${de}T12:00:00Z`)) / 86_400_000);
+/** LE DIMANCHE PASSE AU LUNDI : la porte de la Maison est close le dimanche. */
+const jourOuvre = (iso: string): string =>
+  (estIso(iso) && new Date(`${iso}T12:00:00Z`).getUTCDay() === 0 ? decaleLeJour(iso, 1) : iso);
+const estUnPaquet = (plan: FormuleEcrite | undefined): boolean => plan?.mode === 'pack';
+const debutDuContratLu = (sub: ContratEcrit): string =>
+  (estIso(sub.startIso) ? sub.startIso : sub.sinceIso) ?? '0000-01-01';
+const finDuContratLu = (sub: ContratEcrit): string | null => (estIso(sub.expiresIso) ? sub.expiresIso : null);
+
+/** LE VERSÉ D'UN CONTRAT : ses versements et ceux de sa pièce, réunis par identifiant. */
+type VersementLu = { id: string; date: string; montantXof: number };
+function versementsDuContrat(sub: ContratEcrit, invoices: readonly PieceEcrite[]): VersementLu[] {
+  const parId = new Map<string, VersementLu>();
+  for (const p of sub.payments ?? []) {
+    if (!p?.id) continue;
+    parId.set(p.id, { id: p.id, date: p.date, montantXof: p.amountXof });
+  }
+  const piece = sub.invoiceId ? invoices.find((i) => i.id === sub.invoiceId) : undefined;
+  for (const p of piece?.payments ?? []) {
+    if (!p?.id || parId.has(p.id)) continue;
+    parId.set(p.id, { id: p.id, date: p.date, montantXof: p.amountXof });
+  }
+  return [...parId.values()].sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
+}
+
+/** Les versements s'imputent dans l'ordre, la plus vieille échéance d'abord. */
+type EcheanceImputee = EcheanceEcrite & { regleXof: number; resteXof: number; soldee: boolean };
+function etatDesEcheances(echeances: readonly EcheanceEcrite[], verseXof: number): EcheanceImputee[] {
+  let reserve = Math.max(0, verseXof);
+  return [...echeances].sort((a, b) => a.numero - b.numero).map((e) => {
+    const pris = Math.min(reserve, e.amountXof);
+    reserve -= pris;
+    const reste = e.amountXof - pris;
+    return { ...e, regleXof: pris, resteXof: reste, soldee: reste === 0 };
+  });
+}
+
+const prixParDefaut = (sub: ContratEcrit, plan: FormuleEcrite | undefined): number =>
+  sub.prixConvenuXof ?? (estUnPaquet(plan) ? sub.priceXof : undefined) ?? plan?.priceXof ?? 0;
+/** L'échéancier qui fait foi : celui du contrat, sinon, pour un paquet, son prix entier à la signature. */
+const echeancesDeBase = (sub: ContratEcrit, plan: FormuleEcrite | undefined, prixXof: number): EcheanceEcrite[] => {
+  if (sub.echeances?.length) return [...sub.echeances].sort((a, b) => a.numero - b.numero).map((e) => ({ ...e }));
+  return estUnPaquet(plan) && prixXof > 0 ? [{ numero: 1, dueIso: debutDuContratLu(sub), amountXof: prixXof }] : [];
+};
+
+/** L'ÉTAT QUI DÉCIDE DE L'ARGENT : le début de `etatDeLaFormule`, dans le même
+    ordre (résiliée, effacée, retenue, terminée, en pause). Épuisée ne change
+    rien à l'argent : elle se lit ici « en-cours ». */
+function etatPourLArgent(
+  sub: ContratEcrit, plan: FormuleEcrite | undefined, jour: string, regleXof: number, retenueJours = 7,
+): { etat: string; retenueJusquau?: string } {
+  if (sub.resilieeLe ? sub.resilieeLe <= jour : sub.status === 'churn') return { etat: 'resiliee' };
+  if (sub.origine === 'couronne' && regleXof <= 0) {
+    if (sub.renonceeLe && sub.renonceeLe <= jour) return { etat: 'effacee' };
+    const jusquau = jourOuvre(decaleLeJour(debutDuContratLu(sub), retenueJours));
+    if (jour > jusquau) return { etat: 'effacee', retenueJusquau: jusquau };
+    return { etat: 'retenue', retenueJusquau: jusquau };
+  }
+  const fin = finDuContratLu(sub);
+  if (fin && fin < jour) return { etat: 'terminee' };
+  if (sub.suspendue && sub.suspendue.du <= jour && jour <= sub.suspendue.au) return { etat: 'en-pause' };
+  if (!estUnPaquet(plan) && estIso(sub.nextIso) && jour >= jourOuvre(sub.nextIso)) return { etat: 'en-pause' };
+  return { etat: 'en-cours' };
+}
+
+type EcheanceJugee = {
+  numero: number; amountXof: number; dueIso: string; dueEcriteIso: string; resteXof: number;
+  statut: 'reglee' | 'a-regler-aujourdhui' | 'en-retard' | 'a-venir' | 'retenue' | 'annulee'; retardJours: number;
+};
+type ArgentLu = {
+  regleXof: number; resteXof: number; aRegleAujourdhuiXof: number; enRetardXof: number; retardJours: number;
+  aVenir: { dueIso: string; montantXof: number; numero?: number; genre: 'echeance' | 'lune' }[];
+  echeances: EcheanceJugee[]; prochaine?: { dueIso: string; montantXof: number }; avoirXof: number;
+};
+/** L'ARGENT D'UN CONTRAT : l'échu, le retard (le LENDEMAIN de l'échéance), l'à
+    venir et l'avoir. Une lune n'est jamais une dette. La résiliation au
+    prorata n'est pas recopiée : un contrat résilié ne reçoit ni rappel ni
+    relance automatique, son reste se règle avec la Maison. */
+function argentDuContrat(
+  sub: ContratEcrit, plan: FormuleEcrite | undefined, invoices: readonly PieceEcrite[], jour: string,
+  o: { prixXof?: number; etat?: string } = {},
+): ArgentLu {
+  const prix = o.prixXof ?? prixParDefaut(sub, plan);
+  const regle = versementsDuContrat(sub, invoices).reduce((s, v) => s + v.montantXof, 0);
+  const base = echeancesDeBase(sub, plan, prix);
+  const etat = o.etat;
+  const sansDette = etat === 'resiliee' || etat === 'effacee' || etat === 'retenue';
+  const echeances: EcheanceJugee[] = etatDesEcheances(base, regle).map((e) => {
+    const dueIso = jourOuvre(e.dueIso);
+    let statut: EcheanceJugee['statut'];
+    if (e.soldee) statut = 'reglee';
+    else if (etat === 'retenue') statut = 'retenue';
+    else if (sansDette) statut = 'annulee';
+    else if (dueIso < jour) statut = 'en-retard';
+    else if (dueIso === jour) statut = 'a-regler-aujourdhui';
+    else statut = 'a-venir';
+    return {
+      numero: e.numero, amountXof: e.amountXof, dueIso, dueEcriteIso: e.dueIso, resteXof: e.resteXof, statut,
+      retardJours: statut === 'en-retard' ? joursEntre(dueIso, jour) : 0,
+    };
+  });
+  const ouvertes = echeances.filter((e) => e.statut === 'a-regler-aujourdhui' || e.statut === 'en-retard' || e.statut === 'a-venir');
+  const aVenir: ArgentLu['aVenir'] = echeances
+    .filter((e) => e.statut === 'a-venir').map((e) => ({ dueIso: e.dueIso, montantXof: e.resteXof, numero: e.numero, genre: 'echeance' as const }));
+  const totalEcheancier = base.reduce((s, e) => s + e.amountXof, 0);
+  const out: ArgentLu = {
+    regleXof: regle,
+    resteXof: ouvertes.reduce((s, e) => s + e.resteXof, 0),
+    aRegleAujourdhuiXof: echeances.filter((e) => e.statut === 'a-regler-aujourdhui' || e.statut === 'en-retard').reduce((s, e) => s + e.resteXof, 0),
+    enRetardXof: echeances.filter((e) => e.statut === 'en-retard').reduce((s, e) => s + e.resteXof, 0),
+    retardJours: echeances.reduce((m, e) => Math.max(m, e.retardJours), 0),
+    aVenir, echeances,
+    avoirXof: base.length && etat !== 'effacee' ? Math.max(0, regle - totalEcheancier) : 0,
+  };
+  if (!estUnPaquet(plan) && !sansDette && estIso(sub.nextIso) && !base.length && etat !== 'en-pause') {
+    out.aVenir.push({ dueIso: jourOuvre(sub.nextIso), montantXof: prix, genre: 'lune' });
+  }
+  const prochaine = ouvertes[0];
+  if (prochaine) out.prochaine = { dueIso: prochaine.dueIso, montantXof: prochaine.resteXof };
+  else if (out.aVenir.length) out.prochaine = { dueIso: out.aVenir[0].dueIso, montantXof: out.aVenir[0].montantXof };
+  return out;
+}
+
+const JOURS_DITS = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'];
+const MOIS_DITS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
+/** « lundi 2 novembre 2026 », « dimanche 1er novembre 2026 » : l'année toujours. */
+const jourDitAvecLAnnee = (iso: string): string => {
+  if (!estIso(iso)) return iso;
+  const [a, m, j] = iso.split('-').map(Number);
+  return `${JOURS_DITS[new Date(`${iso}T12:00:00Z`).getUTCDay()]} ${j === 1 ? '1er' : j} ${MOIS_DITS[m - 1]} ${a}`;
+};
+/** « 70 000 F », espaces insécables. */
+const francs = (n: number): string =>
+  `${String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, ' ')} F`;
+// ── FIN echeances
+
+/** L'identifiant d'une relance d'ÉCHÉANCE : une suite par échéance du contrat. */
+const idDeLaRelanceDEcheance = (factureId: string, numero: number, n: number): string => `rl-${factureId}-e${numero}-${n}-whatsapp`;
+
+/** LA PIÈCE D'UNE FORMULE : un contrat la nomme, ou sa note le dit. */
+const estUnePieceDeFormule = (f: { id: string; note?: string }, piecesDesContrats: ReadonlySet<string>): boolean =>
+  piecesDesContrats.has(f.id) || /^Abonnement\b/.test(f.note ?? '');
+
+/** CE QUE LA RELANCE D'UNE FORMULE RÉCLAME AUJOURD'HUI : la plus vieille
+    échéance en retard et tout l'échu en retard, ou null. Jamais une lune,
+    jamais une formule retenue, effacée ou résiliée, jamais avant le lendemain
+    du jour dû. `plancher` : rien de plus vieux que la marge du cron. */
+function echeanceARelancer(
+  c: ContratEcrit, plan: FormuleEcrite | undefined, piece: PieceEcrite, aujourdhui: string, plancher: string,
+): { numero: number; depart: string; resteXof: number } | null {
+  if (!estUnPaquet(plan)) return null;
+  const regle = versementsDuContrat(c, [piece]).reduce((s, v) => s + v.montantXof, 0);
+  const { etat } = etatPourLArgent(c, plan, aujourdhui, regle);
+  if (etat === 'resiliee' || etat === 'effacee' || etat === 'retenue') return null;
+  const argent = argentDuContrat(c, plan, [piece], aujourdhui, { etat });
+  const premiere = argent.echeances.find((e) => e.statut === 'en-retard');
+  if (!premiere || premiere.dueIso < plancher) return null;
+  return { numero: premiere.numero, depart: premiere.dueIso, resteXof: argent.enRetardXof };
+}
+
+/** À QUI ÉCRIRE : la payeuse si elle a un numéro, sinon la cliente soignée,
+    sinon celle qui paie pour son foyer (la tête portée n'a pas de numéro). */
+type FicheLue = { id: string; name?: string; phone?: string; civilite?: string; auMasculin?: boolean; archived?: boolean; familyId?: string };
+function destinataireDe(
+  ids: readonly (string | undefined)[], fiches: ReadonlyMap<string, FicheLue>, payeurDuFoyer: ReadonlyMap<string, string>,
+): FicheLue | undefined {
+  const connues = ids.filter((x): x is string => !!x).map((id) => fiches.get(id)).filter((x): x is FicheLue => !!x);
+  const avecNumero = connues.find((f) => !!numeroIntl(f.phone));
+  if (avecNumero) return avecNumero;
+  for (const f of connues) {
+    const payeur = f.familyId ? fiches.get(payeurDuFoyer.get(f.familyId) ?? '') : undefined;
+    if (payeur && numeroIntl(payeur.phone)) return payeur;
+  }
+  return connues[connues.length - 1];
+}
 
 /** Les verdicts du journal qui ne comptent pas comme une relance partie. */
 const SE_RETENTE = new Set(['échec', 'périmé']);
@@ -282,30 +497,79 @@ async function tournee(sb: any, o: { maintenantMs: number; MODELE: string; WA_TO
       factures.push(...(data ?? []).map((l) => ({ ...(l.data as FactureLue), id: l.id as string })));
     }
   }
-  const enLice = factures.filter((f) => seRelance(f) && !f.relancesPause && departDesRelances(f, r, jourDuSalon) !== null && resteDeLaFacture(f) > 0);
-  if (enLice.length === 0) return { version: VERSION, relances: 0, jour: aujourdhui, lues: factures.length };
+  /* ③bis LES FORMULES. Leur pièce porte le prix entier dès le premier
+     versement : elle ne se relance pas sur son reste, mais sur l'échéancier
+     de son contrat (le contrat fait foi, la pièce suit). */
+  const contrats: ContratEcrit[] = [];
+  for (let de = 0; ; de += 1000) {
+    const { data, error } = await sb.from('subscribers').select('id, data').range(de, de + 999);
+    if (error) return { version: VERSION, relances: 'lecture-refusee', motif: error.message.slice(0, 120) };
+    contrats.push(...(data ?? []).map((l) => ({ ...(l.data as ContratEcrit), id: l.id as string })));
+    if ((data ?? []).length < 1000) break;
+  }
+  const { data: lignesDesFormules } = await sb.from('plans').select('id, data');
+  const formules = ((lignesDesFormules ?? []) as { id: string; data: FormuleEcrite }[]).map((l) => ({ ...l.data, id: l.id }));
+  const piecesDesContrats = new Set(contrats.map((c) => c.invoiceId).filter((x): x is string => !!x));
+  const pieces = new Map(factures.map((f) => [f.id, f]));
+  const manquantes = [...piecesDesContrats].filter((id) => !pieces.has(id));
+  for (let i = 0; i < manquantes.length; i += 200) {
+    const { data } = await sb.from('invoices').select('id, data').in('id', manquantes.slice(i, i + 200));
+    for (const l of data ?? []) pieces.set(l.id as string, { ...(l.data as FactureLue), id: l.id as string });
+  }
+
+  /* LES DOSSIERS DU JOUR : une facture ordinaire, sa suite à elle ; une
+     échéance de formule en retard, la sienne. */
+  type Dossier = { f: FactureLue; depart: string | null; resteXof: number; idDe: (n: number) => string; subId?: string; echeance?: number; tete?: string };
+  const dossiers: Dossier[] = [];
+  for (const f of factures) {
+    if (estUnePieceDeFormule(f, piecesDesContrats)) continue;
+    if (!seRelance(f) || f.relancesPause || departDesRelances(f, r, jourDuSalon) === null || !(resteDeLaFacture(f) > 0)) continue;
+    dossiers.push({ f, depart: departDesRelances(f, r, jourDuSalon), resteXof: resteDeLaFacture(f), idDe: (n) => idDeLaRelance(f.id, n) });
+  }
+  for (const c of contrats) {
+    const f = c.invoiceId ? pieces.get(c.invoiceId) : undefined;
+    if (!f || !seRelance(f) || f.relancesPause) continue;
+    const e = echeanceARelancer(c, formules.find((p) => p.id === c.planId), f, aujourdhui, plancher);
+    if (!e) continue;
+    dossiers.push({ f, depart: e.depart, resteXof: e.resteXof, idDe: (n) => idDeLaRelanceDEcheance(f.id, e.numero, n), subId: c.id, echeance: e.numero, tete: c.clientId });
+  }
+  if (dossiers.length === 0) return { version: VERSION, relances: 0, jour: aujourdhui, lues: factures.length };
 
   /* ④ LES LIENS DÉJÀ PAYÉS que personne n'a encore inscrits (aucun Trône
      ouvert) : ils comptent. Une cliente qui vient de payer n'est pas relancée. */
   const { data: payees } = await sb.from('mnd_pay').select('id, data')
-    .in('data->>pieceId', enLice.map((f) => f.id)).eq('data->>statut', 'payee');
+    .in('data->>pieceId', [...new Set(dossiers.map((d) => d.f.id))]).eq('data->>statut', 'payee');
   const payeParPiece = new Map<string, number>();
   for (const l of (payees ?? []) as { id: string; data: { pieceId?: string; genre?: string; montantXof?: number } }[]) {
-    const f = enLice.find((x) => x.id === l.data?.pieceId);
+    const f = dossiers.find((d) => d.f.id === l.data?.pieceId)?.f;
     if (!f || l.data?.genre !== 'lien' || (f.payments ?? []).some((p) => p.id === l.id)) continue;
     payeParPiece.set(f.id, (payeParPiece.get(f.id) ?? 0) + Math.round(Number(l.data?.montantXof) || 0));
   }
 
-  /* Les fiches : la payeuse si elle a un numéro, sinon la cliente soignée. */
-  const idsFiches = [...new Set(enLice.flatMap((f) => [f.clientId, f.forClientId]).filter((x): x is string => !!x))];
-  const fiches = new Map<string, { id: string; name?: string; phone?: string; civilite?: string; auMasculin?: boolean; archived?: boolean }>();
-  for (let i = 0; i < idsFiches.length; i += 200) {
-    const { data } = await sb.from('clients').select('id, data').in('id', idsFiches.slice(i, i + 200));
-    for (const l of data ?? []) fiches.set(l.id as string, { id: l.id as string, ...(l.data as object) });
+  /* Les fiches : la payeuse si elle a un numéro, sinon la cliente soignée ;
+     pour une échéance de formule seulement, sinon celle qui paie pour son foyer. */
+  const idsFiches = [...new Set(dossiers.flatMap((d) => [d.f.clientId, d.f.forClientId, d.tete]).filter((x): x is string => !!x))];
+  const fiches = new Map<string, FicheLue>();
+  const litLesFiches = async (ids: string[]) => {
+    for (let i = 0; i < ids.length; i += 200) {
+      const { data } = await sb.from('clients').select('id, data').in('id', ids.slice(i, i + 200));
+      for (const l of data ?? []) fiches.set(l.id as string, { id: l.id as string, ...(l.data as object) });
+    }
+  };
+  await litLesFiches(idsFiches);
+  const tetesDesFormules = new Set(dossiers.filter((d) => d.subId).flatMap((d) => [d.f.clientId, d.f.forClientId, d.tete]).filter((x): x is string => !!x));
+  const foyers = [...new Set([...fiches.values()].filter((x) => tetesDesFormules.has(x.id) && !numeroIntl(x.phone) && x.familyId).map((x) => x.familyId as string))];
+  const payeurDuFoyer = new Map<string, string>();
+  if (foyers.length) {
+    const { data: lignesDesFoyers } = await sb.from('families').select('id, data').in('id', foyers);
+    for (const l of (lignesDesFoyers ?? []) as { id: string; data: { payerClientId?: string } }[]) {
+      if (l.data?.payerClientId) payeurDuFoyer.set(l.id, l.data.payerClientId);
+    }
+    await litLesFiches([...payeurDuFoyer.values()].filter((id) => !fiches.has(id)));
   }
 
   /* Le journal : les relances déjà posées, et celles d'aujourd'hui (une cliente, une relance par jour). */
-  const idsJournal = enLice.flatMap((f) => CADENCE_DES_RELANCES.map((_, k) => idDeLaRelance(f.id, k + 1)));
+  const idsJournal = dossiers.flatMap((d) => CADENCE_DES_RELANCES.map((_, k) => d.idDe(k + 1)));
   const journal = new Map<string, { statut?: string; quand?: string }>();
   for (let i = 0; i < idsJournal.length; i += 200) {
     const { data } = await sb.from('envois').select('id, data').in('id', idsJournal.slice(i, i + 200));
@@ -321,13 +585,16 @@ async function tournee(sb: any, o: { maintenantMs: number; MODELE: string; WA_TO
   const sautes: Record<string, number> = {};
   const saute = (pourquoi: string) => { sautes[pourquoi] = (sautes[pourquoi] ?? 0) + 1; };
 
-  for (const f of enLice) {
+  for (const d of dossiers) {
     if (parties >= BORNE_DES_RELANCES) { bornee = true; break; }
-    const depart = departDesRelances(f, r, jourDuSalon);
-    const reste = Math.max(0, resteDeLaFacture(f) - (payeParPiece.get(f.id) ?? 0));
+    const { f, depart } = d;
+    const reste = Math.max(0, d.resteXof - (payeParPiece.get(f.id) ?? 0));
+    /* UNE FACTURE ORDINAIRE va où elle allait : la payeuse si elle a un
+       numéro, sinon la cliente soignée. Seule une échéance de formule peut
+       aller à celle qui paie pour le foyer d'une tête portée. */
     const payeuse = fiches.get(f.clientId);
     const soignee = fiches.get(f.forClientId ?? f.clientId);
-    const fiche = numeroIntl(payeuse?.phone) ? payeuse : soignee;
+    const fiche = d.subId ? destinataireDe([f.clientId, f.forClientId ?? d.tete ?? f.clientId], fiches, payeurDuFoyer) : (numeroIntl(payeuse?.phone) ? payeuse : soignee);
     const tel = numeroIntl(fiche?.phone);
     if (!fiche || !tel) { saute('sans-numero'); continue; }
     if (fiche.archived) { saute('archivee'); continue; }
@@ -336,7 +603,7 @@ async function tournee(sb: any, o: { maintenantMs: number; MODELE: string; WA_TO
     let derniereLe: string | undefined;
     let premiereQuand: string | undefined;
     for (let n = 1; n <= CADENCE_DES_RELANCES.length; n++) {
-      const l = journal.get(idDeLaRelance(f.id, n));
+      const l = journal.get(d.idDe(n));
       if (!l || SE_RETENTE.has(l.statut ?? '')) break;
       partiesDeLaFacture = n;
       if (l.quand) { derniereLe = jourDuSalon(l.quand); if (n === 1) premiereQuand = l.quand; }
@@ -369,7 +636,7 @@ async function tournee(sb: any, o: { maintenantMs: number; MODELE: string; WA_TO
         id: idAttente, branch_id: f.branchId ?? null,
         data: {
           id: idAttente, branchId: f.branchId, genre: 'lien', moyen: 'tapgo', montantXof: reste, fraisXof, totalXof,
-          pieceId: f.id, ...(f.number ? { pieceNumero: String(f.number).slice(0, 40) } : {}), clientId: fiche.id,
+          pieceId: f.id, ...(f.number ? { pieceNumero: String(f.number).slice(0, 40) } : {}), ...(d.subId ? { subId: d.subId } : {}), clientId: fiche.id,
           libelle: 'Maison MND · relance', statut: 'en_attente', creeLe: new Date(maintenantMs).toISOString(), creePar: 'la Maison, automatiquement',
         },
       });
@@ -377,7 +644,7 @@ async function tournee(sb: any, o: { maintenantMs: number; MODELE: string; WA_TO
     }
 
     /* ⑥ LE MESSAGE. */
-    const idEnvoi = idDeLaRelance(f.id, n);
+    const idEnvoi = d.idDe(n);
     const appel = appelDe(fiche, f.clientName);
     const jour = dateDite(f.date);
     const resteDit = enFrancs(reste);
@@ -390,6 +657,7 @@ async function tournee(sb: any, o: { maintenantMs: number; MODELE: string; WA_TO
     const maintenant = new Date(maintenantMs).toISOString();
     const commun = {
       id: idEnvoi, branchId: f.branchId, type: 'relance-facture', canal: 'whatsapp', apptId: '', dateRdv: '', invoiceId: f.id, rang: n,
+      ...(d.subId ? { subId: d.subId, echeance: d.echeance } : {}),
       clientId: fiche.id, numero: tel, dateFacture: f.date, quand: maintenant,
     };
     if (salleOuverte) {
@@ -443,7 +711,7 @@ async function tournee(sb: any, o: { maintenantMs: number; MODELE: string; WA_TO
   }
 
   return {
-    version: VERSION, jour: aujourdhui, relances: parties, enLice: enLice.length, salle: salleOuverte, sautes,
+    version: VERSION, jour: aujourdhui, relances: parties, enLice: dossiers.length, salle: salleOuverte, sautes,
     ...(bornee ? { borne: BORNE_DES_RELANCES } : {}),
   };
 }
