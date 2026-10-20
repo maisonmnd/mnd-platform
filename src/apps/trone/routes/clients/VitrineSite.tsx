@@ -6,10 +6,11 @@ import { useSettings } from '../../../../shared/settings';
 import { useOffers } from '../../../../shared/offers';
 import { etatDeLOffre } from '../../../../shared/offres-pur';
 import { useDemandes } from '../../../../shared/demandes';
-import { supabase } from '../../../../shared/supabase';
 import { jourCourtAn } from '../../../../shared/calendrier';
 import { EditeurDuSite } from './EditeurDuSite';
-import { EnTeteDesReponses, ReponseAUnAvis } from './ReponseAUnAvis';
+import { useReleveDesAvis } from './releve-des-avis';
+import { compteSansReponse } from '../../../../shared/ia-avis-pur';
+import { useBrouillonsDAvis } from '../../../../shared/ia-avis';
 import { useBrouillonDuSite, changementsEnAttente } from '../../../../shared/site-retouches-store';
 import { useStore } from '../../../../shared/store';
 import { poseLesAvisChoisis, vitrineConfigStore } from '../../../../shared/bridges';
@@ -108,34 +109,15 @@ function usePagesDuSite(): string[] {
   return pages;
 }
 
-/** Les avis Google relevés pour le site, avec la liste du moment (10 octobre
-    2026 : la Maison y choisit ceux que le site montre). */
-function useAvisGoogle(): { note: number; nombre: number; le?: string; fiche?: string; avis: UnAvisGoogle[] } | null {
-  const [avis, setAvis] = useState<{ note: number; nombre: number; le?: string; fiche?: string; avis: UnAvisGoogle[] } | null>(null);
-  useEffect(() => {
-    let vivant = true;
-    if (!supabase) return;
-    void supabase.from('documents').select('data,updated_at').eq('key', 'mnd_avis_google').maybeSingle()
-      .then(({ data }) => {
-        const d = (data as { data?: { note?: number; nombre?: number; avis?: UnAvisGoogle[]; fiche?: string }; updated_at?: string } | null);
-        const liste = Array.isArray(d?.data?.avis) ? d.data.avis.filter((a) => a && typeof a.auteur === 'string' && typeof a.texte === 'string') : [];
-        /* 19 octobre 2026 : le lien de la fiche, pour « Ouvrir l'avis sur Google ». */
-        const fiche = typeof d?.data?.fiche === 'string' ? d.data.fiche : undefined;
-        if (vivant && d?.data && Number(d.data.note) > 0) setAvis({ note: Number(d.data.note), nombre: Number(d.data.nombre) || 0, le: d.updated_at, fiche, avis: liste });
-      });
-    return () => { vivant = false; };
-  }, []);
-  return avis;
-}
-
 /* ══ LES AVIS GOOGLE QUE LE SITE MONTRE — 10 octobre 2026 ═══════════════
    « Je veux avoir la possibilité de les sélectionner, pas de mettre les
    derniers sur mon site en permanence » (Yéman). On coche parmi les avis du
    moment (cinq au plus, relus deux fois par jour) ; rien de coché, le site
    montre ceux de Google. Le juge et la mention vivent dans
    shared/avis-google-pur, le même module que le site. */
-function ChoixDesAvis({ avis, fiche }: { avis: UnAvisGoogle[] | null; fiche?: string }) {
+function ChoixDesAvis({ avis, versLesAvis }: { avis: UnAvisGoogle[] | null; versLesAvis?: () => void }) {
   const [cfg] = useStore(vitrineConfigStore);
+  const [brouillons] = useBrouillonsDAvis();
   const choisis = cfg.avisChoisis ?? [];
   const pose = (liste: string[]) => poseLesAvisChoisis(liste);
   const tous = avis ?? [];
@@ -149,8 +131,13 @@ function ChoixDesAvis({ avis, fiche }: { avis: UnAvisGoogle[] | null; fiche?: st
   return (
     <Bloc titre="Les avis Google du site" ou="Cochez ceux que le site montre, dans l’ordre de votre choix. Google en renvoie cinq au plus, relus deux fois par jour : un avis qu’il ne renvoie plus quitte le site, même coché. Rien de coché : le site montre ceux de Google.">
       {!avis && <span className="mnd-muted" style={{ fontSize: 12.5 }}>Les avis ne sont pas encore relevés.</span>}
-      {/* 19 octobre 2026 : « N sans réponse », et les brouillons de Claude préparés à l'ouverture. */}
-      <EnTeteDesReponses avis={avis} />
+      {/* 20 octobre 2026 : les réponses et les fiches ont leur onglet, « Les avis Google ».
+          Ici, seulement ce que le site montre, et le chemin vers l'onglet. */}
+      {versLesAvis && tous.length > 0 && (
+        <button type="button" className="trc-c360-linkbtn" style={{ alignSelf: 'flex-start' }} onClick={versLesAvis}>
+          {(() => { const n = compteSansReponse(tous, brouillons); return n > 0 ? `${n} sans réponse · répondre dans « Les avis Google » →` : 'Les réponses et les fiches : « Les avis Google » →'; })()}
+        </button>
+      )}
       {rangs.map(({ a, cle, rang }) => (
         <Fragment key={cle}>
         <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start', borderTop: '1px solid var(--hairline)', paddingTop: 7 }}>
@@ -174,8 +161,6 @@ function ChoixDesAvis({ avis, fiche }: { avis: UnAvisGoogle[] | null; fiche?: st
             </span>
           )}
         </div>
-        {/* 19 octobre 2026 : la réponse proposée par Claude, sous l'avis sans réponse. */}
-        <ReponseAUnAvis avis={a} fiche={fiche} />
         </Fragment>
       ))}
       {disparus.length > 0 && (
@@ -192,14 +177,14 @@ function ChoixDesAvis({ avis, fiche }: { avis: UnAvisGoogle[] | null; fiche?: st
   );
 }
 
-export function VitrineSite({ catalogue }: { catalogue: ReactNode }) {
+export function VitrineSite({ catalogue, versLesAvis }: { catalogue: ReactNode; versLesAvis?: () => void }) {
   const { branch } = useBranch();
   const [reglages] = useSettings();
   const [offres] = useOffers();
   const [demandes] = useDemandes();
   const miseEnLigne = useDerniereMiseEnLigne();
   const pages = usePagesDuSite();
-  const avis = useAvisGoogle();
+  const avis = useReleveDesAvis();
   const [toutesLesPages, setToutesLesPages] = useState(false);
   const [editeur, setEditeur] = useState(false);
   const [brouillonSite] = useBrouillonDuSite();
@@ -263,11 +248,11 @@ export function VitrineSite({ catalogue }: { catalogue: ReactNode }) {
 
         <Bloc titre="Ce qui revient du site">
           <Ligne gauche="Demandes et rendez-vous posés" sous={nouvelles > 0 ? `${nouvelles} nouvelle${nouvelles > 1 ? 's' : ''}` : 'rien en attente'} droite={<Lien vers="/demandes">Les demandes →</Lien>} />
-          <Ligne gauche="Avis Google" sous={avis ? `${avis.note.toLocaleString('fr-FR')} · ${avis.nombre} avis${avis.le ? ` · relevé le ${jourCourtAn(avis.le.slice(0, 10))}` : ''}` : 'pas encore relevés'} droite={<span />} />
+          <Ligne gauche="Avis Google" sous={avis ? `${avis.note.toLocaleString('fr-FR')} · ${avis.nombre} avis${avis.le ? ` · relevé le ${jourCourtAn(avis.le.slice(0, 10))}` : ''}` : 'pas encore relevés'} droite={versLesAvis ? <button type="button" className="trc-c360-linkbtn" onClick={versLesAvis}>Les avis →</button> : <span />} />
           <Ligne gauche="Cartes cadeaux payées en ligne" sous="KkiaPay" droite={<Lien vers="/cartes-cadeaux">Les cartes →</Lien>} />
         </Bloc>
 
-        <ChoixDesAvis avis={avis ? avis.avis : null} fiche={avis?.fiche} />
+        <ChoixDesAvis avis={avis ? avis.avis : null} versLesAvis={versLesAvis} />
 
         <Bloc titre="Les pages du site" ou="Lues dans le plan du site. Pour changer un texte ou une photo : « Modifier les textes et photos », en haut.">
           {pages.length === 0 && <span className="mnd-muted" style={{ fontSize: 12.5 }}>Le plan du site n’a pas pu être lu (hors ligne ?).</span>}

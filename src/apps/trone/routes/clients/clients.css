@@ -3161,3 +3161,13 @@
   .trc-chat-fil { max-height: 58dvh; }
   .trc-chat-msg { max-width: 88%; }
 }
+
+/* Les onglets des vitrines — 20 octobre 2026. Un quatrième (« Les avis
+   Google ») ne tient plus sur une ligne de téléphone : il débordait de
+   20 px, coupé au bord. Sous 640 px, deux rangées de deux, toutes lisibles. */
+@media (max-width: 640px) {
+  .trc-vitrine-onglets { width: 100%; }
+  .trc-vitrine-onglets .mnd-segs { display: grid; grid-template-columns: 1fr 1fr; width: 100%; }
+  .trc-vitrine-onglets .mnd-seg:nth-child(odd) { border-left: none; }
+  .trc-vitrine-onglets .mnd-seg:nth-child(n+3) { border-top: 1px solid var(--hairline); }
+}

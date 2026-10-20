@@ -37,6 +37,7 @@ import { usePointsHistory, cercleSeuilStore, foyerSeuilStore, estDuCercle, point
 import { dernierBilanDe, useBilans, seancesSansBilan } from '../../../../shared/bilans';
 import { BilanModal, RegistreDesBilans } from './BilanModal';
 import { CarteDeMarrainePanneau } from './CarteDeMarrainePanneau';
+import { SonAvisGoogle } from './SonAvisGoogle';
 import { useClientSessions, isOnline } from '../../../../shared/activity';
 import { uid, useStore } from '../../../../shared/store';
 import { useSettings } from '../../../../shared/settings';
@@ -3255,6 +3256,10 @@ function Customer360({
 
             {/* ══ SA CARTE DE MARRAINE — 28 septembre 2026 ══════════════ */}
             <CarteDeMarrainePanneau client={client} />
+
+            {/* ══ SON AVIS GOOGLE — 20 octobre 2026 ═════════════════════
+                L'avis relié dans Vitrines › Les avis Google, et sa réponse. */}
+            <SonAvisGoogle client={client} />
 
             {/* ══ SA PORTE — par où la Maison la joint ═══════════════════
                 La présence Ma Couronne, le bilan et la demande étaient trois

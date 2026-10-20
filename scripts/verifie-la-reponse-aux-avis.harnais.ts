@@ -47,7 +47,7 @@ const sansCommentaires = (t: string) => t.replace(/\/\*[\s\S]*?\*\//g, '').repla
 const PUR = 'src/shared/ia-avis-pur.ts';
 const MAGASIN = 'src/shared/ia-avis.ts';
 const COMPOSANT = 'src/apps/trone/routes/clients/ReponseAUnAvis.tsx';
-const ECRAN = 'src/apps/trone/routes/clients/VitrineSite.tsx';
+const ECRAN = 'src/apps/trone/routes/clients/VitrineAvis.tsx';
 const FONCTION = 'supabase/functions/avis-google-releve/index.ts';
 const T0 = Date.parse('2026-10-19T10:00:00Z');
 const il = (min: number) => new Date(T0 - min * 60_000).toISOString();
@@ -329,15 +329,18 @@ dit('AUCUNE PUBLICATION AUTOMATIQUE : l écran n appelle ni fetch, ni fonction, 
 dit('... et le texte affiché ne porte ni tiret cadratin ni « salon »', [false, false], [/—/.test(composant), /\bsalon/i.test(composant)]);
 
 const ecran = sansCommentaires(lis(ECRAN));
-dit('l écran des avis (Vitrines › Site public) monte l en-tête et la réponse sous chaque avis, et garde le choix du site', [true, true, true],
-  [/<EnTeteDesReponses avis=\{avis\} \/>/.test(ecran), /<ReponseAUnAvis avis=\{a\} fiche=\{fiche\} \/>/.test(ecran), /<ChoixDesAvis avis=/.test(ecran)]);
+/* 20 octobre 2026 (maquette DNVVXdkd…) : les réponses ont quitté « Le site
+   public » pour leur onglet, « Les avis Google », qui prépare les brouillons
+   à son ouverture et monte la réponse sous chaque avis ouvert. */
+dit('l écran des avis (Vitrines › Les avis Google) prépare les brouillons et monte la réponse sous chaque avis', [true, true],
+  [/usePrepareLesBrouillons\(avis, peutRepondre\)/.test(ecran), /<ReponseAUnAvis avis=\{a\} fiche=\{releve\.fiche\} sansRetrait \/>/.test(ecran)]);
 
 const fonction = sansCommentaires(lis(FONCTION));
 /* 20 octobre 2026 (« répondre dans la langue de l'avis », sélecteur) : le
    relevé garde AUSSI le texte d'origine et sa langue ; `texte` reste la clé
    des avis cochés, intouchée. Il ne connaît toujours rien de Claude. */
 dit('la fonction avis-google-releve garde son seul document, rien de Claude, et le texte d origine à côté du texte', [true, true, false, true, true, true],
-  [/const VERSION = '2026-10-20-a';/.test(fonction), /upsert\(\{ key: 'mnd_avis_google', data: doc \}\)/.test(fonction), /anthropic|ia-maison|claude|brouillon/i.test(fonction),
+  [/const VERSION = '2026-10-20-b';/.test(fonction), /upsert\(\{ key: 'mnd_avis_google', data: doc \}\)/.test(fonction), /anthropic|ia-maison|claude|brouillon/i.test(fonction),
     /texte: String\(r\.text\?\.text \?\? r\.originalText\?\.text \?\? ''\)\.trim\(\),/.test(fonction),
     /texteOriginal: String\(r\.originalText\.text\)\.trim\(\)/.test(fonction), /langueOriginale: String\(r\.originalText\.languageCode\)\.trim\(\)/.test(fonction)]);
 

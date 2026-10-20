@@ -1,0 +1,39 @@
+/* L'onglet « Les avis Google » (Vitrines) — 20 octobre 2026.
+   Une ligne par avis, un seul panneau ouvert ; la ligne de l'avis ouvert
+   colle en haut pendant qu'on fait défiler son panneau. AUCUN overflow
+   caché sur la carte : il ferait d'elle le conteneur de défilement, et la
+   ligne collerait à la carte au lieu de la page. */
+.trc-avisg { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.trc-avisg__liste { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.trc-avisg__avis { background: var(--surface-card); border: 1px solid var(--hairline); border-radius: 6px; min-width: 0; }
+.trc-avisg__avis.is-open { border-color: var(--copper-300, #E3C9AE); box-shadow: 0 4px 14px rgba(154, 96, 54, .10); }
+.trc-avisg__ligne {
+  all: unset; box-sizing: border-box; cursor: pointer; width: 100%;
+  display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 4px 10px; align-items: center;
+  padding: 10px 12px; border-radius: 6px; background: var(--surface-card);
+}
+.trc-avisg__avis.is-open > .trc-avisg__ligne {
+  position: sticky; top: env(safe-area-inset-top, 0px); z-index: 2;
+  border-bottom: 1px solid var(--hairline); border-radius: 6px 6px 0 0;
+}
+.trc-avisg__ligne:focus-visible { outline: 2px solid var(--color-copper); outline-offset: -2px; }
+.trc-avisg__etoiles { color: var(--color-copper); font-size: 13px; letter-spacing: 1px; white-space: nowrap; }
+.trc-avisg__qui { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13.5px; }
+.trc-avisg__qui b { font-weight: 600; color: var(--color-indigo); }
+.trc-avisg__qui .mnd-muted { font-size: 12.5px; }
+.trc-avisg__etats { display: flex; gap: 5px; flex-wrap: wrap; justify-content: flex-end; }
+@media (max-width: 640px) {
+  .trc-avisg__ligne { grid-template-columns: auto minmax(0, 1fr); }
+  .trc-avisg__etats { grid-column: 1 / -1; justify-content: flex-start; }
+}
+.trc-avisg__dedans { padding: 12px; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.trc-avisg__texte { margin: 0; font-size: 13.5px; line-height: 1.55; overflow-wrap: anywhere; }
+.trc-avisg__texte .mnd-muted { display: block; font-size: 12px; margin-top: 4px; }
+.trc-avisg__cadre { display: flex; flex-direction: column; gap: 8px; border-radius: 6px; padding: 10px 12px; font-size: 13px; min-width: 0; }
+.trc-avisg__cadre--fiche { background: var(--indigo-50, #F3F2F9); border: 1px solid var(--hairline); }
+.trc-avisg__cadre b { font-weight: 600; color: var(--color-indigo); }
+.trc-avisg__titre { font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-soft); }
+.trc-avisg__gestes { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.trc-avisg__props { display: flex; flex-direction: column; gap: 6px; }
+.trc-avisg__prop { display: flex; gap: 8px; align-items: flex-start; cursor: pointer; }
+.trc-avisg__prop input { margin-top: 3px; flex: none; }

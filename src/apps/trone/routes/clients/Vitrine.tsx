@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { DEVISE_COMPLETE } from '../../../../shared/identite';
 import { PageHead } from '../_ui';
 import { Button, Input, Segs, toast, demande } from '../../../../ds/components';
@@ -23,6 +24,7 @@ import { autoConfigStore } from '../equipe/data';
 import { usePlans } from '../../../../shared/abonnements';
 import { seuilCliente } from '../../../../shared/echeancier';
 import { VitrineSite, BandeDeVitrine, Pastille } from './VitrineSite';
+import { VitrineAvis } from './VitrineAvis';
 import { tapisDuSite } from './tapis-du-site';
 import './clients.css';
 
@@ -48,28 +50,50 @@ import './clients.css';
    la carte du comptoir (qui attend à la Maison). Un réglage n'a qu'une
    place, et sa vitrine dit qui le verra. */
 type Portee = 'cliente' | 'maison' | 'site';
-type Onglet = 'site' | 'couronne' | 'comptoir';
+/* 20 octobre 2026 : un quatrième onglet, « Les avis Google » (maquette
+   DNVVXdkd…, « Tout me va ») : les avis, leurs réponses, la fiche de la
+   cliente. `?onglet=avis` l'ouvre d'un lien (la fiche cliente, l'alerte de
+   la direction), et `&avis=<id>` y ouvre un avis. */
+type Onglet = 'site' | 'couronne' | 'comptoir' | 'avis';
+const ONGLETS: readonly Onglet[] = ['site', 'couronne', 'comptoir', 'avis'];
 
 export default function Vitrine() {
-  const [onglet, setOnglet] = useState<Onglet>('site');
+  const [params, setParams] = useSearchParams();
+  const ongletDemande = params.get('onglet') as Onglet | null;
+  const [onglet, setOngletLocal] = useState<Onglet>(ongletDemande && ONGLETS.includes(ongletDemande) ? ongletDemande : 'site');
+  useEffect(() => {
+    if (ongletDemande && ONGLETS.includes(ongletDemande)) setOngletLocal(ongletDemande);
+  }, [ongletDemande]);
+  const setOnglet = (o: Onglet) => {
+    setOngletLocal(o);
+    /* L'adresse suit l'onglet : un lien d'ailleurs ne nous ramène pas à un
+       onglet qu'on a quitté. */
+    if (params.get('onglet')) setParams((p) => { p.delete('onglet'); p.delete('avis'); return p; }, { replace: true });
+  };
   return (
     <div className="mnd-rise">
       <PageHead
         eyebrow="Marketing & fidélité · ce que voient les autres"
         title="Les vitrines."
         actions={
+          /* Quatre onglets ne tiennent pas sur une ligne de téléphone : la
+             boîte les range en deux rangées (clients.css). */
+          <div className="trc-vitrine-onglets">
           <Segs<Onglet>
             options={[
               { value: 'site', label: 'Le site public' },
               { value: 'couronne', label: 'Ma Couronne' },
               { value: 'comptoir', label: 'La carte du comptoir' },
+              { value: 'avis', label: 'Les avis Google' },
             ]}
             value={onglet}
             onChange={setOnglet}
           />
+          </div>
         }
       />
-      {onglet === 'site' && <VitrineSite catalogue={<CatalogueEnVitrine portees={['site']} />} />}
+      {onglet === 'site' && <VitrineSite catalogue={<CatalogueEnVitrine portees={['site']} />} versLesAvis={() => setOnglet('avis')} />}
+      {onglet === 'avis' && <VitrineAvis ouvrir={params.get('avis') ?? undefined} />}
       {onglet === 'couronne' && <VitrineCouronne />}
       {onglet === 'comptoir' && (
         <>

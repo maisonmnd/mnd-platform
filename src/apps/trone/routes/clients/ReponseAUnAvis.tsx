@@ -51,8 +51,11 @@ const Petit = ({ onClick, children, disabled }: { onClick: () => void; children:
   <button type="button" className="trc-c360-linkbtn" onClick={onClick} disabled={disabled}>{children}</button>
 );
 
-/** Sous un avis : le brouillon, ses trois boutons, et le mot de Google. */
-export function ReponseAUnAvis({ avis, fiche }: { avis: AvisAvecReponse; fiche?: string }) {
+/** Sous un avis : le brouillon, ses trois boutons, et le mot de Google.
+    `sansRetrait` (20 octobre 2026) : dans l'onglet « Les avis Google », le
+    bloc vit dans le panneau de l'avis, sans le retrait sous la case à cocher. */
+export function ReponseAUnAvis({ avis, fiche, sansRetrait }: { avis: AvisAvecReponse; fiche?: string; sansRetrait?: boolean }) {
+  const retrait = sansRetrait ? 0 : 26;
   const peut = usePeutRepondreAuxAvis();
   const [brouillons] = useBrouillonsDAvis();
   const [occupe, setOccupe] = useState(false);
@@ -68,7 +71,7 @@ export function ReponseAUnAvis({ avis, fiche }: { avis: AvisAvecReponse; fiche?:
   if (!estSansReponse(avis, b)) {
     if (!b?.publieeLe) return null;
     return (
-      <div style={{ marginLeft: 26, marginTop: 4, display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+      <div style={{ marginLeft: retrait, marginTop: 4, display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
         <span className="mnd-muted" style={{ fontSize: 11.5 }}>Répondu sur Google, noté le {jourCourtAn(jourLocalDe(b.publieeLe))}</span>
         <Petit onClick={() => annuleCollee(id)}>Finalement non</Petit>
       </div>
@@ -111,7 +114,7 @@ export function ReponseAUnAvis({ avis, fiche }: { avis: AvisAvecReponse; fiche?:
 
   if (b?.ecarte) {
     return (
-      <div style={{ marginLeft: 26, marginTop: 4, display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+      <div style={{ marginLeft: retrait, marginTop: 4, display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
         <span className="mnd-muted" style={{ fontSize: 11.5 }}>Sans réponse, par choix de la Maison</span>
         <Petit onClick={() => { reprendsLeBrouillon(id); void demande(); }} disabled={enCours}>Proposer une réponse</Petit>
         {dejaRepondu}
@@ -121,7 +124,7 @@ export function ReponseAUnAvis({ avis, fiche }: { avis: AvisAvecReponse; fiche?:
 
   if (!b?.reponse) {
     return (
-      <div style={{ marginLeft: 26, marginTop: 4, display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+      <div style={{ marginLeft: retrait, marginTop: 4, display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
         <span className="mnd-muted" style={{ fontSize: 11.5 }}>{enCours ? 'Claude écrit une proposition…' : 'Pas encore de proposition.'}</span>
         {!enCours && <Petit onClick={() => void demande()}>Proposer une réponse</Petit>}
         {dejaRepondu}
@@ -130,7 +133,7 @@ export function ReponseAUnAvis({ avis, fiche }: { avis: AvisAvecReponse; fiche?:
   }
 
   return (
-    <div style={{ marginLeft: 26, marginTop: 6, display: 'flex', flexDirection: 'column', gap: 6 }}>
+    <div style={{ marginLeft: retrait, marginTop: 6, display: 'flex', flexDirection: 'column', gap: 6 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'baseline', flexWrap: 'wrap' }}>
         <span style={{ fontSize: 12, color: 'var(--copper-700)' }}>
           Réponse proposée, en {langueDite(b.langue)}, à vérifier
