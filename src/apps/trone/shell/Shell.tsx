@@ -900,10 +900,14 @@ export default function Shell() {
             {currency} · <span className="mnd-copper">{branch.country}</span>
           </div>
           <NotificationsBell />
-          {/* + CLIENTE (20 octobre 2026) — remplace « Appel reçu », qui se pose
-              désormais depuis le Journal des Appels. La fiche d'ajout s'ouvre au
-              registre des Clientes, où la nouvelle tête apparaît aussitôt. */}
-          <Button variant="ghost" onClick={() => navigate('/customers?nouvelle=1')} title="Inscrire une nouvelle cliente">+ Cliente</Button>
+          {/* + DÉPENSE (20 octobre 2026, au soir) — remplace « + Cliente », qui
+              avait lui-même remplacé « Appel reçu » (posé désormais depuis le
+              Journal des Appels). La fiche d'une nouvelle dépense s'ouvre sur
+              l'écran des Dépenses ; le bouton ne paraît qu'à qui voit cet écran.
+              Une nouvelle cliente s'inscrit depuis le registre des Clientes. */}
+          {peutVoir(role, '/depenses', mesDomaines) && (
+            <Button variant="ghost" onClick={() => navigate('/depenses?nouvelle=1')} title="Inscrire une nouvelle dépense">+ Dépense</Button>
+          )}
           <Button variant="ghost" onClick={() => setRdvNouveau(true)} title="Poser un rendez-vous">+ RDV</Button>
           <Button onClick={() => navigate('/caisse')}>+ Encaisser</Button>
           {session && <BoutonDesCles className="tr-top__bell" />}

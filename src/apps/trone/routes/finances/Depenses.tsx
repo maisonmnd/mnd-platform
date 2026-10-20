@@ -6,7 +6,7 @@ import { fmtMoney, fmtIn, convertFromXof } from '../../../../shared/currency';
 import { uid, HOUSE_BLANK } from '../../../../shared/store';
 import { CURRENCIES } from '../../../../shared/geo';
 import { ensureKkiapayCashbox } from '../../../../shared/kkiapay';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { expenseOccurrences,
   useExpenses, useBudgets, useCashboxes, useExpenseCategories, useInvoices, useCoffre, useCredits, invoiceTotal, invoiceRegleAu, invoiceReglements, expenseTotal,
   partsPrisesParRevenu, partNonNommee, entameLeRevenu, sourcesDe,
@@ -690,6 +690,19 @@ export default function Depenses() {
     setForm({ label: '', amount: '', category: '', subcategory: '', cashbox: cashbox ?? '', enDevise: '', recurring: '', date: todayISO(), flagged: false, items: [], sources: [], porteur: voitToutesLesDepenses ? '' : monNom, avancee: false, porteurChoisi: !voitToutesLesDepenses, caisseChoisie: cashbox !== undefined });
     setOpen(true);
   };
+  /* `?nouvelle=1` — le « + Dépense » de la barre du haut (20 octobre 2026,
+     à la place de « + Cliente ») ouvre la fiche d'une nouvelle dépense. Le
+     paramètre s'efface aussitôt : un rafraîchissement ne la rouvre pas, un
+     second toucher la rouvre bien. */
+  const [paramsNouvelle, setParamsNouvelle] = useSearchParams();
+  useEffect(() => {
+    if (paramsNouvelle.get('nouvelle') !== '1') return;
+    openFor();
+    const reste = new URLSearchParams(paramsNouvelle);
+    reste.delete('nouvelle');
+    setParamsNouvelle(reste, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [paramsNouvelle, setParamsNouvelle]);
   /* ══ ON ARRIVE ICI POUR UNE ÉCRITURE PRÉCISE — 1er septembre 2026 ══
      « Je n'arrive pas à ouvrir les pièces » (Yéman). Il n'y en avait aucune :
      la fiche du fournisseur disait « manquante », et le mot ne menait nulle
