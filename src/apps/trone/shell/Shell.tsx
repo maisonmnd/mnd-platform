@@ -12,7 +12,7 @@ import { AppelRecuModal } from './AppelRecuModal';
 import { AppelQuiSonne } from './AppelQuiSonne';
 import { PastilleDeLaSalle } from './PastilleDeLaSalle';
 import { useReprisesNuesVivant } from './useReprisesNuesVivant';
-import { useAppels, appelsAActer, marquerAppelFait } from '../../../shared/appels';
+import { marquerAppelFait } from '../../../shared/appels';
 import { RdvModal } from '../routes/clients/_shared';
 import { RdvFoyerHote } from '../routes/clients/RdvFoyer';
 
@@ -590,8 +590,6 @@ export default function Shell() {
      n'importe où : le geste du comptoir ne doit pas dépendre de l'écran où l'on
      se trouve (demande du 25 août). */
   const [rdvNouveau, setRdvNouveau] = useState(false);
-  const [appels] = useAppels();
-  const appelsEnAttente = appelsAActer(appels, branch.id).length;
 
   /* PARTAGER → LE TRÔNE (25 août). Depuis les appels récents du téléphone,
      « Partager » vers l'app installée arrive ici avec le numéro (share_target du
@@ -902,11 +900,10 @@ export default function Shell() {
             {currency} · <span className="mnd-copper">{branch.country}</span>
           </div>
           <NotificationsBell />
-          <Button variant="ghost" onClick={() => setAppelOpen(true)} title="Poser un appel reçu">
-            Appel reçu{appelsEnAttente > 0 && (
-              <span style={{ marginLeft: 6, background: 'var(--color-copper)', color: '#fff', borderRadius: 999, fontSize: 11, padding: '0 6px', fontWeight: 600 }}>{appelsEnAttente}</span>
-            )}
-          </Button>
+          {/* + CLIENTE (20 octobre 2026) — remplace « Appel reçu », qui se pose
+              désormais depuis le Journal des Appels. La fiche d'ajout s'ouvre au
+              registre des Clientes, où la nouvelle tête apparaît aussitôt. */}
+          <Button variant="ghost" onClick={() => navigate('/customers?nouvelle=1')} title="Inscrire une nouvelle cliente">+ Cliente</Button>
           <Button variant="ghost" onClick={() => setRdvNouveau(true)} title="Poser un rendez-vous">+ RDV</Button>
           <Button onClick={() => navigate('/caisse')}>+ Encaisser</Button>
           {session && <BoutonDesCles className="tr-top__bell" />}

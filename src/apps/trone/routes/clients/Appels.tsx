@@ -2,7 +2,8 @@ import { useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Search } from 'lucide-react';
 import { PageHead } from '../_ui';
-import { Input } from '../../../../ds/components';
+import { Button, Input } from '../../../../ds/components';
+import { AppelRecuModal } from '../../shell/AppelRecuModal';
 import { useBranch } from '../../../../shared/branches';
 import { appointmentsStore } from '../../../../shared/agenda';
 import { useAppels, appelsAActer, marquerAppelFait, reporterAppel, rouvrirAppel, messageAppel, type AppelRecu } from '../../../../shared/appels';
@@ -22,6 +23,9 @@ export default function Appels() {
   const [vue, setVue] = useState<Vue>('a-traiter');
   const [q, setQ] = useState('');
   const [rdvPour, setRdvPour] = useState<{ clientId: string; appelId: string; avant: number } | null>(null);
+  /* L'appel se pose ICI depuis le 20 octobre 2026 : la barre du haut a rendu
+     sa place à « + Cliente ». */
+  const [appelOpen, setAppelOpen] = useState(false);
   const demainAppel = addDaysISO(todayISO(), 1);
 
   const dansLaBranche = useMemo(() => appels.filter((a) => a.branchId === branch.id), [appels, branch.id]);
@@ -52,6 +56,7 @@ export default function Appels() {
         eyebrow={`Le Trône · ${branch.city}`}
         title="Le Journal des Appels"
         sub={`${aTraiter.length} à traiter · ${traites.length} traité${traites.length > 1 ? 's' : ''} · ${dansLaBranche.length} au total`}
+        actions={<Button variant="indigo" onClick={() => setAppelOpen(true)}>+ Appel reçu</Button>}
       />
 
       <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', margin: '18px 0 12px' }}>
@@ -73,7 +78,7 @@ export default function Appels() {
 
       {liste.length === 0 ? (
         <div className="mnd-muted" style={{ fontSize: 13, border: '1px dashed var(--hairline)', borderRadius: 4, padding: '18px 20px' }}>
-          {q ? 'Aucun appel à ce nom.' : vue === 'traites' ? 'Aucun appel traité pour l’instant.' : 'Aucun appel en attente. Posez-en un depuis « Appel reçu », en haut.'}
+          {q ? 'Aucun appel à ce nom.' : vue === 'traites' ? 'Aucun appel traité pour l’instant.' : 'Aucun appel en attente. Posez-en un depuis « + Appel reçu », ci-dessus.'}
         </div>
       ) : (
         <div style={{ border: '1px solid var(--hairline)', borderRadius: 4, overflow: 'hidden' }}>
@@ -125,6 +130,7 @@ export default function Appels() {
         </div>
       )}
 
+      <AppelRecuModal open={appelOpen} onClose={() => setAppelOpen(false)} onPoserRdv={ouvrirRdv} />
       {rdvPour && (
         <RdvModal
           title="Rendez-vous depuis un appel"

@@ -548,7 +548,7 @@ export default function Customers() {
      (Trouver), demain d'autres écrans. On réagit au CHANGEMENT du paramètre,
      jamais à chaque rendu : les clics de la liste gardent la main, et une
      nouvelle navigation vers le même écran rouvre bien la fiche demandée. */
-  const [params] = useSearchParams();
+  const [params, setParams] = useSearchParams();
   useEffect(() => {
     const pid = params.get('id');
     if (pid) setSelId(pid);
@@ -560,6 +560,16 @@ export default function Customers() {
   }, [params]);
   const [rdvFor, setRdvFor] = useState<Client | null>(null);
   const [intake, setIntake] = useState(false);
+  /* `?nouvelle=1` — le « + Cliente » de la barre du haut (20 octobre 2026)
+     ouvre la fiche d'ajout. Le paramètre s'efface aussitôt : un
+     rafraîchissement ne la rouvre pas, un second toucher la rouvre bien. */
+  useEffect(() => {
+    if (params.get('nouvelle') !== '1') return;
+    setIntake(true);
+    const reste = new URLSearchParams(params);
+    reste.delete('nouvelle');
+    setParams(reste, { replace: true });
+  }, [params, setParams]);
   /* La file des enfants declares depuis Ma Couronne, en attente de la Maison. */
   const [fileEnfants, setFileEnfants] = useState(false);
   const [declarations] = useEnfantsDeclares();
