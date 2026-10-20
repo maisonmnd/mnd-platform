@@ -12,7 +12,8 @@
 
 import { attendEncore, ECARTE, PERIME } from './salle-des-envois';
 
-export type TypeDEnvoi = 'accuse' | 'confirmation' | 'rappel-j1' | 'avis-google' | 'fin-de-paquet' | 'reprise-j3' | 'point-apres' | 'point-avant' | 'relance-facture';
+export type TypeDEnvoi = 'accuse' | 'confirmation' | 'rappel-j1' | 'avis-google' | 'fin-de-paquet' | 'reprise-j3' | 'point-apres' | 'point-avant' | 'relance-facture'
+  | 'rappel-echeance' | 'prix-revu';
 
 /** Ce que le journal lit d'une ligne `envois`. Les champs viennent de
     fonctions différentes, écrites à des dates différentes : tous facultatifs
@@ -79,6 +80,10 @@ export const TYPE_DIT: Record<string, string> = {
   'point-avant': 'Point d’avant séance',
   /* Les relances des factures à régler (18 octobre 2026). */
   'relance-facture': 'Relance de facture',
+  /* Le parcours de l'abonnée (20 octobre 2026) : la veille d'une échéance, et
+     le prix revu après le comptage du calibre. */
+  'rappel-echeance': 'Rappel d’échéance',
+  'prix-revu': 'Prix revu',
 };
 export const typeDit = (t: string): string => TYPE_DIT[t] ?? t;
 

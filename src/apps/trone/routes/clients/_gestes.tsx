@@ -12,7 +12,7 @@ import {
 } from '../../../../shared/finance';
 import {
   useSubscribers, usePlans, contratPourLaDate, usageDetaille,
-  rdvCouvertsHorsFormule, retardDuContrat,
+  rdvCouvertsHorsFormule, releveDuContrat,
 } from '../../../../shared/abonnements';
 import { invoiceEnPiece, type PieceRendue } from '../../../../shared/pdf';
 import {
@@ -124,8 +124,15 @@ export function useGestesDuFil(fil: FilOutille | null): {
           mode: plan?.mode === 'pack' ? 'pack' : 'cycle',
           lignes,
           expireLe: sub.expiresIso ?? undefined,
-          prochaineEcheance: sub.nextIso ? { date: sub.nextIso, montantXof: sub.mrrXof } : undefined,
-          retardXof: retardDuContrat(sub, aujourdhui),
+          /* LE JUGE UNIQUE (20 octobre 2026) : la prochaine échéance vraie
+             (échéancier, ou lune à régler), jamais `mrrXof`, moyenne morte. */
+          ...(() => {
+            const r = releveDuContrat(sub, plan, carnet, { jour: aujourdhui });
+            return {
+              prochaineEcheance: r?.argent.prochaine ? { date: r.argent.prochaine.dueIso, montantXof: r.argent.prochaine.montantXof } : undefined,
+              retardXof: r?.argent.enRetardXof ?? 0,
+            };
+          })(),
           couvertsHorsFormule: rdvCouvertsHorsFormule(sub, plan, carnet).length,
         };
       }

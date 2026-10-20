@@ -326,6 +326,26 @@ export type Appointment = {
       des séances antérieures à son enregistrement, et le lien explicite les
       rattache quand une fenêtre de dates les aurait perdues. */
   subId?: string;
+
+  /* ── LES FAITS DE LA SÉANCE — 20 octobre 2026 (le relevé de l'abonnée) ──
+     Le juge unique (`shared/abonnee-pur`) lit l'état d'une séance sur ces
+     faits, jamais sur un état stocké. Tous facultatifs : absents, la séance
+     se lit comme avant. */
+  /** L'INSTANT de l'annulation (ISO avec heure). À moins de 24 h, une
+      annulation de la cliente compte la séance (« Manquée »). */
+  annuleeLe?: string;
+  /** Qui a annulé. Une annulation de la Maison ne se compte jamais. */
+  annuleePar?: 'cliente' | 'maison';
+  /** Elle n'est pas venue : « Absente : marquer manquée », au comptoir. */
+  absente?: { le: string; par?: string };
+  /** LA SÉANCE RENDUE : une manquée que la Maison redonne, avec son motif. */
+  rendue?: { le: string; motif: string; par?: string };
+  /** Proposée par la Maison (la cadence posée d'avance), en attente d'elle. */
+  proposeeLe?: string;
+  /** LA COUVERTURE RETIRÉE AU COMPTOIR, avec son motif (geste sensible). La
+      séance revient à la formule et se règle au tarif de sa tête ; Ma
+      Couronne le dit à la cliente, le motif reste au Trône. */
+  couvertureRetiree?: { le: string; motif: string; par?: string };
 };
 
 /* ── LES SÉANCES DE SUITE (15 août) ───────────────────────────────────

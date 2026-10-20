@@ -38,6 +38,10 @@ import { dernierBilanDe, useBilans, seancesSansBilan } from '../../../../shared/
 import { BilanModal, RegistreDesBilans } from './BilanModal';
 import { CarteDeMarrainePanneau } from './CarteDeMarrainePanneau';
 import { SonAvisGoogle } from './SonAvisGoogle';
+import { CarteAbonnement } from './CarteAbonnement';
+import { releveDeLAbonnee } from '../../../../shared/abonnee-pur';
+import { echeancierAPoser } from './gestes-de-l-abonnement';
+import { jourDeCotonou } from '../../../../shared/ia-faits-pur';
 import { useClientSessions, isOnline } from '../../../../shared/activity';
 import { uid, useStore } from '../../../../shared/store';
 import { useSettings } from '../../../../shared/settings';
@@ -47,12 +51,12 @@ import {
 } from '../../../../shared/paliers';
 import { pushToClient } from '../../../../shared/push';
 import { PayAppointmentModal } from './actions';
-import { useSubscribers, usePlans, activeSubscriberOf } from '../equipe/data';
+import { useSubscribers, usePlans, prixVenduXof, type Subscriber } from '../equipe/data';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Camera, Search } from 'lucide-react';
 import {
   Avatar, ClientPicker, Drawer, RdvModal, StatusPill, readImageDownscaled, type RdvInitial,
-  addDaysISO, apptDueXof, apptLabel, apptResume, apptServices, apptNetXof, cadenceLabel, dureeEnClair, frLong, frLongAn,
+  addDaysISO, apptDueXof, apptLabel, apptResume, apptServices, apptNetXof, cadenceLabel, dureeEnClair, frLongAn,
   fromISO, predictNextVisit, relDays, timeToMin, todayISO, useBranchAppointments, useBranchClients, useServicesById, useClefDuTarif,
   type Cadence, frJourAn, frShortAn, PortesWhatsApp } from './_shared';
 import { ecrituresDeLaTete, ecrituresDuCompte, lignesImpayees, soldeDuCompte, tetesDuCompte, rendezVousAVenirDuFoyer } from '../../../../shared/compte';
@@ -2104,9 +2108,9 @@ function Customer360({
   const [sessions] = useClientSessions();
   const [subs] = useSubscribers();
   const [plans] = usePlans();
-  /* Abonnement actif de la cliente — distingué sur la fiche. */
-  const membership = activeSubscriberOf(subs, client.id);
-  const membershipPlan = membership ? plans.find((p) => p.id === membership.planId) : undefined;
+  /* SES FORMULES — 20 octobre 2026 : la pastille « ★ Abonnée » est devenue la
+     carte Abonnement de l'aperçu (`CarteAbonnement`), qui lit le juge unique. */
+  const aDesFormules = subs.some((s) => s.clientId === client.id);
   /* Compte & avoir — porté par le compte famille (parent payeur) ou la cliente. */
   const [families] = useFamilies();
   const [credits] = useCredits();
@@ -2624,7 +2628,26 @@ function Customer360({
   const owing = appts
     .filter((a) => a.status !== 'annulé' && apptDueXof(a, byId) > 0)
     .sort((a, b) => a.date.localeCompare(b.date));
-  const due = owing.reduce((s, a) => s + apptDueXof(a, byId), 0);
+  /* ══ CE QUI PRESSE, UNE SEULE DÉFINITION — 20 octobre 2026 ══════════════
+     Le solde de la cliente vient du juge unique (`soldeDeLaCliente`) : ses
+     rituels qui gardent un reste ET les échéances échues de ses formules,
+     l'à venir à part, l'avoir à part. Six calculs disaient « ce qu'elle
+     doit » au Trône ; celui-ci est celui que Ma Couronne lui montre. */
+  const releveDuSolde = releveDeLAbonnee({
+    jour: jourDeCotonou(), clientId: client.id, subs, plans, appts, invoices,
+    prixDuContrat: (s, p) => prixVenduXof(s as Subscriber, p, s.cycle ?? 'mensuel'),
+    restesHorsFormule: owing.map((a) => ({ id: a.id, genre: 'rituel' as const, date: a.date, resteXof: apptDueXof(a, byId) })),
+  });
+  const solde = releveDuSolde.solde;
+  /* UN CONTRAT SANS ÉCHÉANCIER N'EST JAMAIS EN RETARD (20 octobre 2026) : son
+     reste se dit « Échéancier à poser », hors de ce qui presse. */
+  const echeanciersAPoser = releveDuSolde.contrats.map((c) => ({ c, ap: echeancierAPoser(c) })).filter((x) => !!x.ap);
+  const sansEcheancier = new Set(echeanciersAPoser.map((x) => x.c.sub.id));
+  const lignesDues = solde.lignes.filter((l) => (l.statut === 'a-regler-aujourdhui' || l.statut === 'en-retard')
+    && !(l.subId && sansEcheancier.has(l.subId) && l.genre === 'echeance'));
+  const due = lignesDues.reduce((n, l) => n + l.montantXof, 0);
+  const rituelsEchus = owing.filter((a) => a.date <= jourDeCotonou());
+  const echeancesEchues = lignesDues.filter((l) => l.genre === 'echeance' || l.genre === 'resiliation');
   /* LE RELEVÉ DE COMPTE — un rituel par ligne, à ce qu'il RESTE à payer (pas
      à son prix plein : ce qui a déjà été versé n'est plus dû, et un relevé
      qui le réclamerait serait faux). Le numéro porte la date du jour et
@@ -2671,7 +2694,7 @@ function Customer360({
       total: fmtMoney(due, currency),
       reste: fmtMoney(due, currency),
       status: 'à régler',
-      note: `Relevé arrêté au ${frLong(jour)} · ${owing.length} rituel${owing.length > 1 ? 's' : ''} non soldé${owing.length > 1 ? 's' : ''}.`,
+      note: `Relevé arrêté au ${frLongAn(jour)} · ${owing.length} rituel${owing.length > 1 ? 's' : ''} non soldé${owing.length > 1 ? 's' : ''}.`,
       legal: maisonRaisonDuPdfAu(jour),
     });
   };
@@ -2852,11 +2875,6 @@ function Customer360({
                 Juste Prix ×{String(client.priceCoef).replace('.', ',')} · tous ses prix
               </div>
             )}
-            {membership && (
-              <div style={{ marginTop: 8, display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11, fontWeight: 600, letterSpacing: '.04em', color: 'var(--color-ivoire)', background: 'rgba(185,122,74,.28)', border: '1px solid var(--copper-300)', borderRadius: 'var(--radius-pill)', padding: '3px 11px' }}>
-                ★ Abonnée · {membershipPlan?.name ?? 'formule'} · {membership.cycle ?? 'mensuel'}
-              </div>
-            )}
             {/* En-tête : contact rapide seulement. Le reste des actions vit dans
                 les onglets, pour une carte nette. Info manquante → le bouton mène
                 au champ d'identité (onglet Profil) pour la renseigner d'un geste. */}
@@ -2957,13 +2975,19 @@ function Customer360({
             <span className="trc-presse__v">
               {due > 0
                 ? fmtMoney(due, currency)
-                : upcoming ? `${frLong(upcoming.date)} · ${upcoming.time}`
+                : upcoming ? `${frLongAn(upcoming.date)} · ${upcoming.time}`
                 : predicted.iso ? `Elle revient vers le ${frShortAn(predicted.iso)}`
                 : 'À reconquérir'}
             </span>
             <span className="trc-presse__s">
               {due > 0
-                ? `${owing.length} rituel${owing.length > 1 ? 's' : ''} · le plus ancien du ${frJourAn(owing[0]?.date ?? '')}`
+                ? [
+                  rituelsEchus.length ? `${rituelsEchus.length} rituel${rituelsEchus.length > 1 ? 's' : ''} · le plus ancien du ${frJourAn(rituelsEchus[0].date)}` : '',
+                  echeancesEchues.length ? `${echeancesEchues.length} échéance${echeancesEchues.length > 1 ? 's' : ''} de formule` : '',
+                  solde.avoirXof > 0 ? `avoir de ${fmtMoney(solde.avoirXof, currency)} à part` : '',
+                  ...echeanciersAPoser.map((x) => `échéancier à poser · reste ${fmtMoney(x.ap?.resteXof ?? 0, currency)}`),
+                ].filter(Boolean).join(' · ')
+                : echeanciersAPoser.length ? echeanciersAPoser.map((x) => `Rien d’échu · échéancier à poser, reste ${fmtMoney(x.ap?.resteXof ?? 0, currency)}`).join(' · ')
                 : upcoming ? 'Tout est réglé, le fauteuil est posé.'
                 : 'Tout est réglé. Rien au carnet.'}
             </span>
@@ -2974,7 +2998,12 @@ function Customer360({
                 {/* LE RELEVÉ DE COMPTE (15 août) — « comme ça il voit toutes les
                     factures impayées », une pièce, un rituel par ligne. */}
                 <Button variant="ghost" size="sm" onClick={() => void releveDeCompte()}>Relevé de compte</Button>
-                <Button variant="copper" size="sm" onClick={() => setPayAppt(owing[0])}>Encaisser</Button>
+                {rituelsEchus.length > 0 && <Button variant="copper" size="sm" onClick={() => setPayAppt(rituelsEchus[0])}>Encaisser</Button>}
+                {echeancesEchues.length > 0 && (
+                  <Button variant={rituelsEchus.length ? 'ghost' : 'copper'} size="sm" onClick={() => document.getElementById('carte-abonnement')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}>
+                    Sa formule
+                  </Button>
+                )}
               </>
             ) : !upcoming && predicted.iso && predicted.template ? (
               <>
@@ -2987,6 +3016,10 @@ function Customer360({
           </span>
         </div>
 
+        {/* ══ ①bis SA FORMULE — 20 octobre 2026 : la carte Abonnement, sous ce
+            qui presse. Elle ne paraît que pour une tête qui a ou a eu une formule. */}
+        {aDesFormules && <CarteAbonnement client={client} appts={appts} invoices={invoices} />}
+
         {/* ══ ② DEUX COLONNES — CE QUI SE FAIT, CE QU'ELLE EST ═════════
             À gauche ce qui se décide au fauteuil, à droite ce qu'elle
             représente. Les chiffres ne commandent aucun geste : ils passent à
@@ -2998,7 +3031,7 @@ function Customer360({
             <div className="trc-next">
               <div className="trc-next__eyebrow">{upcoming ? 'Prochain rendez-vous' : 'Prochain rendez-vous · prédit'}</div>
               <div className="trc-next__date">
-                {upcoming ? `${frLong(upcoming.date)} · ${upcoming.time}` : predicted.iso ? `≈ ${frLong(predicted.iso)}` : 'À reconquérir'}
+                {upcoming ? `${frLongAn(upcoming.date)} · ${upcoming.time}` : predicted.iso ? `≈ ${frLongAn(predicted.iso)}` : 'À reconquérir'}
               </div>
               <div style={{ fontSize: 12, color: 'var(--indigo-100)', marginTop: 6 }}>
                 {upcoming

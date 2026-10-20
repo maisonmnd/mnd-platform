@@ -1719,9 +1719,12 @@
 
 .tre-etat { font-size: 9.5px; letter-spacing: .14em; text-transform: uppercase; padding: 3px 9px; border-radius: 99px; border: 1px solid; flex: none; }
 .tre-etat.is-en-cours { color: #4A6B52; border-color: #CBDACE; background: #EFF3EF; }
-.tre-etat.is-epuise { color: var(--copper-700); border-color: var(--copper-300); background: var(--copper-50); }
-.tre-etat.is-termine { color: var(--ink-soft); border-color: var(--hairline); background: var(--hover-veil); }
-.tre-etat.is-resilie, .tre-etat.is-retard { color: #96412E; border-color: #E4BDB2; background: #FBF0ED; }
+/* Les mots du juge unique (20 octobre 2026) : retenue, en pause, épuisée,
+   terminée, résiliée, effacée. */
+.tre-etat.is-epuisee, .tre-etat.is-retenue { color: var(--copper-700); border-color: var(--copper-300); background: var(--copper-50); }
+.tre-etat.is-en-pause { color: var(--color-indigo); border-color: var(--hairline); background: var(--hover-veil); }
+.tre-etat.is-terminee, .tre-etat.is-effacee { color: var(--ink-soft); border-color: var(--hairline); background: var(--hover-veil); }
+.tre-etat.is-resiliee, .tre-etat.is-retard { color: #96412E; border-color: #E4BDB2; background: #FBF0ED; }
 
 .tre-trou { display: flex; align-items: center; gap: 12px; padding: 2px 0 8px 4px; }
 .tre-trou i { display: block; width: 2px; height: 24px; flex: none; background: repeating-linear-gradient(180deg, var(--hairline) 0 3px, transparent 3px 6px); }

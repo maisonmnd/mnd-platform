@@ -294,9 +294,14 @@ const lesTroisTranches = [
 /* ── ① L'ARGENT DÉJÀ REÇU EST UN FAIT ─────────────────────────────
    Aucun prix ne peut passer sous ce qu'elle a versé : la Maison deviendrait sa
    débitrice, et rendre de l'argent est une décision d'avoir. */
+/* LE PRIX REVU, DÉCISION 10 DU 20 OCTOBRE 2026 (le juge unique,
+   `echeancierApresPrixRevu`) : l'écart va sur la PROCHAINE échéance ; en sa
+   faveur, il s'en retranche, et ce qui dépasse devient un AVOIR. Un prix sous
+   les versements ne se refuse donc plus : il pose un avoir, lu à part dans
+   Mon solde. */
 const trop = revoitLePrixConvenu(contrat(lesTroisTranches, [60_000, 50_000]), undefined, 90_000);
-dit('un prix sous les versements se refuse', false, trop.ok);
-dit('… et le refus porte le montant reçu', true, (trop.refus ?? '').includes('110000'));
+dit('un prix sous les versements pose un avoir', true, trop.ok);
+dit('… de ce qui a été versé au-delà du nouveau prix', 20_000, trop.avoirXof);
 dit('un contrat à zéro se refuse aussi', false,
   revoitLePrixConvenu(contrat(lesTroisTranches, []), undefined, 0).ok);
 
@@ -307,22 +312,24 @@ const monte = revoitLePrixConvenu(contrat(lesTroisTranches, [60_000]), undefined
 dit('la hausse passe', true, monte.ok);
 dit('… la première, payée, reste à 60 000', 60_000, monte.echeances?.[0].amountXof);
 dit('… une seule tranche est gardée', 1, monte.gardees);
-dit('… le reste se répartit sur les deux autres', [65_000, 65_000],
+dit('… l’écart va tout entier sur la prochaine échéance', [80_000, 50_000],
   (monte.echeances ?? []).slice(1).map((e) => e.amountXof));
 dit('… et la somme fait le nouveau prix', 190_000,
   (monte.echeances ?? []).reduce((n, e) => n + e.amountXof, 0));
 
-/* LA BAISSE SUIT LA MÊME RÈGLE. 130 000 après 60 000 reçus : il reste 70 000
-   à répartir sur deux tranches. */
+/* LA BAISSE SE RETRANCHE DE LA PROCHAINE. 130 000 après 60 000 reçus : les
+   30 000 d'écart sortent de la deuxième échéance (50 000 → 20 000). */
 const baisse = revoitLePrixConvenu(contrat(lesTroisTranches, [60_000]), undefined, 130_000);
-dit('la baisse se répartit aussi', [60_000, 35_000, 35_000],
+dit('la baisse se retranche de la prochaine échéance', [60_000, 20_000, 50_000],
   (baisse.echeances ?? []).map((e) => e.amountXof));
 
-/* LE RAB VA SUR LA DERNIÈRE : la Maison ne réclame jamais un franc de plus
-   qu'annoncé sur une tranche qu'elle vient de nommer. */
+/* LES AUTRES ÉCHÉANCES NE BOUGENT PAS : seule la prochaine porte l'écart, et
+   la somme fait le nouveau prix au franc près. */
 const impair = revoitLePrixConvenu(contrat(lesTroisTranches, []), undefined, 100_001);
-dit('le rab tombe sur la dernière tranche', [33_333, 33_333, 33_335],
+dit('seule la prochaine porte la baisse', [1, 50_000, 50_000],
   (impair.echeances ?? []).map((e) => e.amountXof));
+dit('… et la somme fait le nouveau prix', 100_001,
+  (impair.echeances ?? []).reduce((n, e) => n + e.amountXof, 0));
 
 /* ── ③ JAMAIS DE TRANCHE À ZÉRO ───────────────────────────────────
    Une tranche vide se lirait comme soldée d'avance, et la cliente croirait

@@ -4,6 +4,7 @@ import {
   comptesAbonnement, paquetsEnFin, subscribersStore, plansStore, type FinDePaquet,
 } from './abonnements';
 import { appointmentsStore } from './agenda';
+import { invoicesStore } from './finance';
 import { clientsStore } from './clients';
 import { numeroWa, MODELE_FIN_DE_PAQUET } from './conversations';
 import { envoieSurWhatsApp, jourDit } from './whatsapp';
@@ -100,7 +101,7 @@ export async function previensLesFinsDePaquet(o: { branchId: string }): Promise<
   const subs = subscribersStore.get().filter((s) => s.branchId === o.branchId);
   if (subs.length === 0) return bilan;
   const comptes = comptesAbonnement({
-    subs, plans: plansStore.get(), appts: appointmentsStore.get(), aujourdhui,
+    subs, plans: plansStore.get(), appts: appointmentsStore.get(), aujourdhui, invoices: invoicesStore.get(),
   });
   const alertes = paquetsEnFin(comptes.flatMap((c) => c.contrats), aujourdhui);
   const clients = clientsStore.get();

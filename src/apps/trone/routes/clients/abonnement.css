@@ -1,0 +1,107 @@
+/* ══ LA CARTE ABONNEMENT ET LA SÉANCE DE LA FORMULE — 20 octobre 2026 ══════
+   Maquette « Le parcours de l'abonnée » (validée). Les jetons de la Maison,
+   jamais une couleur en dur sans repli : le sombre suit. Filet cuivre pour un
+   geste d'argent, fond brique pour un geste sensible. */
+.trc-abo {
+  --abo-brique: var(--color-brique, #96412E);
+  --abo-brique-fond: rgba(150, 65, 46, .08);
+  --abo-vert: #4A6B52;
+  border: 1px solid var(--copper-300);
+  border-radius: var(--radius-md);
+  background: var(--surface-card);
+  margin-top: 14px;
+  display: grid;
+  gap: 0;
+  overflow: hidden;
+}
+.trc-abo__bandeau {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  border-bottom: 1px solid var(--hairline);
+}
+.trc-abo__bandeau > div { padding: 10px 14px; display: grid; gap: 2px; border-right: 1px solid var(--hairline); min-width: 0; }
+.trc-abo__bandeau > div:last-child { border-right: none; }
+.trc-abo__bandeau span { font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-soft); }
+.trc-abo__bandeau b { font-family: var(--font-serif); font-weight: 400; font-size: 20px; color: var(--color-indigo); font-variant-numeric: tabular-nums; }
+.trc-abo__bandeau small { font-size: 11px; color: var(--ink-soft); }
+.trc-abo__bandeau .is-retard b, .trc-abo__bandeau .is-retard small { color: var(--abo-brique); }
+
+.trc-abo__contrat { border-top: 1px solid var(--hairline); padding: 14px 16px; display: grid; gap: 12px; }
+.trc-abo__contrat:first-of-type { border-top: none; }
+.trc-abo__tete { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap; padding: 0; }
+.trc-abo > .trc-abo__tete { padding: 14px 16px; }
+.trc-abo__eyebrow { font-size: 10px; letter-spacing: .16em; text-transform: uppercase; color: var(--copper-700); }
+.trc-abo__nom { font-family: var(--font-serif); font-size: 21px; color: var(--color-indigo); line-height: 1.2; }
+.trc-abo__ref { font-size: 12px; color: var(--ink-soft); margin-top: 2px; }
+.trc-abo__ref b { color: var(--color-indigo); font-weight: 600; }
+.trc-abo__chips { display: flex; gap: 6px; flex-wrap: wrap; }
+.trc-abo__chip { font-size: 9.5px; letter-spacing: .14em; text-transform: uppercase; padding: 3px 9px; border-radius: 99px; border: 1px solid var(--hairline); color: var(--ink-soft); white-space: nowrap; }
+.trc-abo__chip.is-en-cours { color: var(--abo-vert); border-color: #CBDACE; background: #EFF3EF; }
+.trc-abo__chip.is-epuisee, .trc-abo__chip.is-retenue, .trc-abo__chip.is-jour { color: var(--copper-700); border-color: var(--copper-300); background: var(--copper-50); }
+.trc-abo__chip.is-en-pause { color: var(--color-indigo); border-color: var(--hairline); }
+.trc-abo__chip.is-retard, .trc-abo__chip.is-resiliee { color: var(--abo-brique); border-color: #E4BDB2; background: var(--abo-brique-fond); }
+
+.trc-abo__alertes { margin: 0; padding: 8px 12px 8px 26px; border-left: 3px solid var(--color-copper, #B97A4A); background: var(--copper-50); border-radius: var(--radius-md); font-size: 12.5px; color: var(--copper-700); display: grid; gap: 4px; }
+
+.trc-abo__grille { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 18px; }
+@media (max-width: 760px) { .trc-abo__grille { grid-template-columns: 1fr; } .trc-abo__bandeau { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.trc-abo__h { margin: 0 0 6px; font-size: 10px; letter-spacing: .16em; text-transform: uppercase; color: var(--ink-soft); }
+.trc-abo__presta { display: grid; gap: 4px; padding: 6px 0; border-bottom: 1px solid var(--hairline); }
+.trc-abo__presta-n { font-size: 13px; color: var(--color-indigo); font-weight: 500; }
+.trc-abo__presta-c { font-size: 12px; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+.trc-abo__presta-c b { color: var(--color-indigo); font-weight: 600; }
+.trc-abo__barre { display: flex; height: 7px; border-radius: 4px; background: var(--hairline); overflow: hidden; }
+.trc-abo__barre i { display: block; height: 100%; }
+.trc-abo__barre i.faite { background: var(--copper-700); }
+.trc-abo__barre i.reservee { background: repeating-linear-gradient(135deg, var(--copper-500, #B97A4A) 0 3px, var(--copper-50) 3px 6px); }
+.trc-abo__barre i.manquee { background: var(--abo-brique); }
+.trc-abo__barre--libre { background: var(--copper-50); }
+.trc-abo__note { margin: 6px 0 0; font-size: 11.5px; color: var(--ink-soft); line-height: 1.5; }
+.trc-abo__note.is-alerte { color: var(--abo-brique); }
+
+.trc-abo__ech { display: grid; grid-template-columns: 10px minmax(0, 1fr) auto; gap: 10px; align-items: baseline; padding: 6px 0; border-bottom: 1px solid var(--hairline); font-size: 12.5px; color: var(--color-indigo); }
+.trc-abo__ech i { width: 8px; height: 8px; border-radius: 50%; border: 1px solid var(--copper-300); align-self: center; }
+.trc-abo__ech small { display: block; font-size: 11px; color: var(--ink-soft); }
+.trc-abo__ech b { font-variant-numeric: tabular-nums; font-weight: 600; }
+.trc-abo__ech.is-reglee i { background: var(--abo-vert); border-color: var(--abo-vert); }
+.trc-abo__ech.is-reglee b, .trc-abo__ech.is-annulee b { color: var(--ink-soft); font-weight: 400; }
+.trc-abo__ech.is-annulee b { text-decoration: line-through; }
+.trc-abo__ech.is-en-retard i { background: var(--abo-brique); border-color: var(--abo-brique); }
+.trc-abo__ech.is-en-retard small, .trc-abo__ech.is-en-retard b { color: var(--abo-brique); }
+.trc-abo__ech.is-a-regler-aujourdhui i, .trc-abo__ech.is-retenue i { background: var(--copper-700); border-color: var(--copper-700); }
+.trc-abo__prix { margin: 8px 0 0; font-size: 12px; color: var(--ink-soft); }
+.trc-abo__prix b { color: var(--color-indigo); font-variant-numeric: tabular-nums; }
+
+.trc-abo__gestes { display: flex; flex-wrap: wrap; gap: 8px; }
+.trc-abo__btn { cursor: pointer; font: inherit; font-size: 12px; padding: 6px 12px; border-radius: var(--radius-md); border: 1px solid var(--copper-300); background: transparent; color: var(--copper-700); }
+.trc-abo__btn:disabled { opacity: .45; cursor: default; }
+.trc-abo__btn[aria-pressed='true'] { background: var(--copper-50); border-color: var(--copper-700); }
+.trc-abo__btn.is-plein { background: var(--copper-700); color: var(--color-ivoire); border-color: var(--copper-700); }
+.trc-abo__btn.is-sensible { color: var(--abo-brique); border-color: #E4BDB2; }
+.trc-abo__btn.is-sensible[aria-pressed='true'] { background: var(--abo-brique-fond); }
+
+.trc-abo__effet { border-left: 3px solid var(--copper-700); background: var(--copper-50); border-radius: var(--radius-md); padding: 10px 14px; display: grid; gap: 10px; font-size: 12.5px; color: var(--color-indigo); }
+.trc-abo__effet.is-sensible { border-left-color: var(--abo-brique); background: var(--abo-brique-fond); }
+.trc-abo__effet ul { margin: 0; padding-left: 18px; display: grid; gap: 4px; line-height: 1.5; }
+.trc-abo__effet p { margin: 0; }
+.trc-abo__refus { margin: 0; color: var(--abo-brique); font-size: 12.5px; }
+.trc-abo__champs { display: flex; flex-wrap: wrap; gap: 12px; }
+.trc-abo__champs label { display: grid; gap: 4px; font-size: 11px; letter-spacing: .06em; color: var(--ink-soft); min-width: 0; }
+.trc-abo__champs input, .trc-abo__champs select { font: inherit; font-size: 13px; padding: 6px 8px; border: 1px solid var(--hairline); border-radius: var(--radius-md); background: var(--surface-card); color: var(--color-indigo); max-width: 100%; }
+.trc-abo__rendre { display: grid; gap: 4px; padding: 6px 0; border-top: 1px solid var(--hairline); }
+.trc-abo__rendre small { color: var(--ink-soft); }
+
+.trc-abo__vie { border-top: 1px solid var(--hairline); padding: 10px 16px 14px; }
+.trc-abo__vie-btn { cursor: pointer; font: inherit; font-size: 12px; color: var(--copper-700); background: none; border: none; padding: 0; }
+.trc-abo__vie ol { list-style: none; margin: 10px 0 0; padding: 0; display: grid; gap: 6px; }
+.trc-abo__vie li { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr) minmax(0, 1.6fr); gap: 10px; font-size: 12px; color: var(--ink-soft); }
+.trc-abo__vie li b { color: var(--color-indigo); font-weight: 500; }
+@media (max-width: 640px) { .trc-abo__vie li { grid-template-columns: 1fr; gap: 2px; } }
+
+/* ── LA SÉANCE DE LA FORMULE, DANS LA FICHE DU RENDEZ-VOUS ── */
+.trc-seance-formule { border: 1px solid var(--copper-300); border-left: 3px solid var(--color-copper, #B97A4A); border-radius: var(--radius-md); background: var(--copper-50); padding: 11px 13px; display: grid; gap: 8px; font-size: 12.5px; color: var(--copper-700); }
+.trc-seance-formule.is-annulee { border-left-color: var(--hairline); background: transparent; color: var(--ink-soft); }
+.trc-seance-formule.is-manquee { border-left-color: var(--color-brique, #96412E); background: rgba(150, 65, 46, .06); color: var(--color-brique, #96412E); }
+.trc-seance-formule__t { font-weight: 600; }
+.trc-seance-formule__s { font-size: 11.5px; color: var(--ink-soft); line-height: 1.5; }
+.trc-seance-formule .trc-abo__gestes { margin-top: 2px; }

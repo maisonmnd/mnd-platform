@@ -38,7 +38,7 @@ const dismissedNotifsStore = createStore<string[]>('mnd_notif_dismissed', []);
 
 type NotifKind =
   | 'consultation' | 'prospect' | 'inscription' | 'enligne'
-  | 'attente' | 'rdv' | 'imminent' | 'devis' | 'stock' | 'impaye' | 'couronne' | 'engagement' | 'paquet' | 'carte';
+  | 'attente' | 'rdv' | 'imminent' | 'devis' | 'stock' | 'impaye' | 'couronne' | 'engagement' | 'paquet' | 'carte' | 'formule';
 
 type Notif = { id: string; kind: NotifKind; label: string; meta?: string; to: string };
 
@@ -57,6 +57,7 @@ const ICONS: Record<NotifKind, LucideIcon> = {
   engagement: FileClock,
   paquet: Hourglass,
   carte: Gift,
+  formule: Crown,
 };
 
 /* Événements qui déclenchent aussi une notification navigateur (les plus importants). */
@@ -68,6 +69,13 @@ const isoOffset = (n: number) => {
   const d = new Date();
   d.setDate(d.getDate() + n);
   return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+};
+/* L'ANNÉE SUR TOUTE DATE DE CLIENTE (« lun. 2 nov. 2026 »). */
+const frShortAn = (iso: string) => {
+  const s = new Date(`${iso}T12:00:00`).toLocaleDateString('fr-FR', {
+    weekday: 'short', day: 'numeric', month: 'short', year: 'numeric',
+  });
+  return s.charAt(0).toUpperCase() + s.slice(1);
 };
 const frShort = (iso: string) => {
   const s = new Date(`${iso}T12:00:00`).toLocaleDateString('fr-FR', {
@@ -292,7 +300,7 @@ function useNotifications(): Notif[] {
     {
       const siens = subscribers.filter((s) => s.branchId === branch.id);
       if (siens.length > 0) {
-        const comptes = comptesAbonnement({ subs: siens, plans, appts: appointments, aujourdhui: today });
+        const comptes = comptesAbonnement({ subs: siens, plans, appts: appointments, aujourdhui: today, invoices });
         for (const f of paquetsEnFin(comptes.flatMap((c) => c.contrats), today)) {
           const fiche = clients.find((c) => c.id === f.clientId);
           const numero = numeroWa(fiche?.phone) || numeroWa(fiche?.phone2);
@@ -303,6 +311,47 @@ function useNotifications(): Notif[] {
             meta: `${f.formule} · ${reste} · ${f.sub.finPrevenueLe ? 'prévenue par WhatsApp' : numero ? 'message en route' : 'aucun numéro, à appeler'}`,
             to: '/abonnements',
           });
+        }
+
+        /* ══ CE QUE LE JUGE UNIQUE SIGNALE — 20 octobre 2026 ══════════════
+           Trois choses nouvelles, lues dans le relevé de chaque contrat :
+           une formule prise en ligne qui attend son premier règlement, une
+           séance incluse réservée en ligne à confirmer, et une séance passée
+           restée « Confirmée », à clôturer (faite ou manquée ?). */
+        const nomDe = (clientId?: string, repli = '') => clients.find((c) => c.id === clientId)?.name ?? repli;
+        for (const compte of comptes) {
+          for (const c of compte.contrats) {
+            const r = c.releve;
+            const qui = nomDe(c.sub.clientId, c.sub.name);
+            if (r.etat === 'retenue' && r.argent.pourOuvrir) {
+              out.push({
+                id: `formule-retenue-${c.sub.id}`, kind: 'formule',
+                label: `Formule prise en ligne, à régler · ${qui}`,
+                meta: `${r.nom} · ${fmtMoney(r.argent.pourOuvrir.montantXof, currency)} avant le ${frShortAn(r.argent.pourOuvrir.avantIso)}`,
+                to: c.sub.clientId ? `/customers?id=${c.sub.clientId}` : '/abonnements',
+              });
+            }
+            for (const x of r.attribuees) {
+              const rdv = appointments.find((a) => a.id === x.id);
+              if (!rdv) continue;
+              if (x.etat === 'a-confirmer' && rdv.source === 'couronne' && rdv.date >= today) {
+                out.push({
+                  id: `formule-incluse-${x.id}`, kind: 'formule',
+                  label: `Séance incluse réservée en ligne · ${qui}`,
+                  meta: `${frShortAn(x.date)} à ${x.time}${x.rang && x.total ? ` · séance ${x.rang} sur ${x.total}` : ''} · à confirmer`,
+                  to: c.sub.clientId ? `/customers?id=${c.sub.clientId}` : '/abonnements',
+                });
+              }
+              if (x.etat === 'a-cloturer') {
+                out.push({
+                  id: `formule-cloture-${x.id}`, kind: 'formule',
+                  label: `Séance à clôturer · ${qui}`,
+                  meta: `${frShortAn(x.date)} · restée « Confirmée » : faite ou manquée ?`,
+                  to: c.sub.clientId ? `/customers?id=${c.sub.clientId}` : '/abonnements',
+                });
+              }
+            }
+          }
         }
       }
     }

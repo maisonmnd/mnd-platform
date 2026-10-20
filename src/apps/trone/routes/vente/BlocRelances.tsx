@@ -3,7 +3,7 @@ import { invoiceResteXof, type Invoice } from '../../../../shared/finance';
 import { jourDuSalon } from '../../../../shared/envois';
 import { jourDit } from '../../../../shared/gestes-conversation';
 import { jourLocal } from '../../../../shared/mnd-pay-pur';
-import { CADENCE_DES_RELANCES, departDesRelances, etatDesRelances, jourPlusR } from '../../../../shared/relances-pur';
+import { CADENCE_DES_RELANCES, departDesRelances, etatDesRelancesDeLaPiece, jourPlusR } from '../../../../shared/relances-pur';
 import { useEnvois } from '../equipe/data';
 
 /* ══ LES RELANCES D'UNE FACTURE, AU COMPTOIR — 18 octobre 2026 ══════════
@@ -25,7 +25,7 @@ export function BlocRelances({ facture, qui, pose }: {
   if (!depart || facture.kind !== 'facture' || facture.status === 'brouillon' || !(reste > 0)) return null;
   const enPause = !!facture.relancesPause;
   const aujourdhui = jourLocal(new Date().toISOString());
-  const e = etatDesRelances({ factureId: facture.id, depart, journal: envois, resteXof: reste, enPause, aujourdhui, jourDe: jourDuSalon });
+  const e = etatDesRelancesDeLaPiece({ factureId: facture.id, depart, journal: envois, resteXof: reste, enPause, aujourdhui, jourDe: jourDuSalon });
   const total = CADENCE_DES_RELANCES.length;
   /* La tournée passe à 10 h : passé cette heure, la relance « du jour » partira demain. */
   const prochaine = e.prochaine && e.prochaine <= aujourdhui && new Date().getHours() >= 10 ? jourPlusR(aujourdhui, 1) : e.prochaine;

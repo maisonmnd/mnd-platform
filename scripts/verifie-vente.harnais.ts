@@ -462,15 +462,17 @@ dit('un paquet dans sa fenetre est en cours', 'en-cours',
    de revendre, la tete est la et elle repassera au plein tarif. */
 const douzeVenues = Array.from({ length: 12 }, (_, i) =>
   ({ ...rdv(`rr${i}`, '2026-08-1' + (i % 10), i < 6 ? 'sv-resserrage' : 'sv-lavage'), subId: 'ab-o' }));
-dit('tous les credits bus, la fenetre ouverte : epuise', 'epuise',
+/* LES MOTS DU JUGE UNIQUE — 20 octobre 2026 (« les memes mots partout », maquette
+   du parcours de l'abonnee validee) : epuisee, terminee, resiliee. */
+dit('tous les credits bus, la fenetre ouverte : epuise', 'epuisee',
   etatDuContrat(paquetOuvert, PACK, douzeVenues, JOUR));
 /* TERMINE PRIME SUR EPUISE : la date passee ferme le contrat, credits bus ou
    non, et ceux qui restent disent que la formule etait trop grande pour elle. */
 const paquetClos = { ...paquetOuvert, id: 'ab-f', expiresIso: '2026-06-30' };
-dit('la date passee ferme le contrat', 'termine', etatDuContrat(paquetClos, PACK, [], JOUR));
+dit('la date passee ferme le contrat', 'terminee', etatDuContrat(paquetClos, PACK, [], JOUR));
 /* RESILIE PRIME SUR TOUT : une resiliation le jour de l'echeance reste une
    resiliation, et c'est le seul depart veritable. */
-dit('le resilie prime', 'resilie',
+dit('le resilie prime', 'resiliee',
   etatDuContrat({ ...paquetClos, status: 'churn' as const }, PACK, [], JOUR));
 /* UN ABONNEMENT A CYCLE NE S'EPUISE PAS : il se recharge a l'echeance, et
    l'appeler epuise ferait relancer une tete qui n'a besoin de rien. */
@@ -577,14 +579,19 @@ dit('… et se compte en tetes', 1, mot.retardTetes);
 /* A ENCAISSER D'ICI LA FIN DU MOIS : le 20 septembre tombe dans le mois, le
    reste non. */
 dit('a encaisser d’ici la fin du mois', 115_000, mot.aEncaisserXof);
-dit('… la prochaine date', '2026-09-20', mot.prochaineIso);
+/* LE DIMANCHE PASSE AU LUNDI — 20 octobre 2026 (tranche par Yeman au selecteur) :
+   le 20 septembre 2026 est un dimanche, porte close ; l'echeance se juge le lundi. */
+dit('… la prochaine date', '2026-09-21', mot.prochaineIso);
 
 /* LE CARNET remplace le MRR : ce que les abonnements en cours doivent encore
    rapporter, tout compris, recalcule a chaque fois. */
 dit('le carnet', 175_000, mot.carnetXof);
 
 /* LA DETTE DE FAUTEUIL : des heures deja payees, que rien ne chiffrait. */
-dit('les seances dues', 24, mot.seancesDues);
+/* EN SEANCES, PAS EN PRESTATIONS (« six seances, pas douze », 20 octobre 2026) :
+   une venue porte ses deux prestations. Deux paquets de 6 seances libres = 12. La
+   VALEUR, elle, se chiffre prestation par prestation (ligne suivante). */
+dit('les seances dues', 12, mot.seancesDues);
 dit('… ce qu’elles valent au catalogue', 576_000, mot.valeurDueXof);
 
 /* LES ETATS SE COMPTENT TOUS, et la somme retombe sur le nombre de contrats :
@@ -608,7 +615,7 @@ dit('une formule reprise apres une fin se compte', 1, avecReprise.reprises);
 dit('… et ne compte plus comme un depart', 0, avecReprise.finsSansReprise);
 
 /* LES RETARDS EN TETE, PUIS LE PLUS PROCHE : l'ordre dans lequel on appelle. */
-dit('les retards d’abord', ['2026-08-14', '2026-09-20'], mot.dues.map((d) => d.dueIso));
+dit('les retards d’abord', ['2026-08-14', '2026-09-21'], mot.dues.map((d) => d.dueIso));
 
 /* UN RESILIE NE RECLAME PLUS RIEN : le compter ferait une creance que la Maison
    a elle-meme annulee. */

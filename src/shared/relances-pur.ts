@@ -86,6 +86,40 @@ export const aReponduDepuis = (messages: readonly { sens?: string; quand?: strin
   !!depuisIso && messages.some((m) => m.sens === 'entrant' && (m.quand ?? '') > depuisIso);
 // ── FIN relances
 
+/* ══ LES RELANCES D'UNE ÉCHÉANCE DE FORMULE — 20 octobre 2026 ══════════════
+   La pièce d'une formule se relance ÉCHÉANCE PAR ÉCHÉANCE (la fonction
+   relances-factures écrit `rl-<pièce>-e<k>-<n>`). Hors du bloc copié au
+   serveur, qui garde son texte : on relit la suite de la plus récente
+   échéance relancée comme une suite ordinaire, puis le même juge parle. */
+/** L'identifiant d'une relance d'ÉCHÉANCE de formule : une suite par échéance. */
+export const idDeLaRelanceDEcheance = (factureId: string, numero: number, n: number): string =>
+  `rl-${factureId}-e${numero}-${n}-whatsapp`;
+
+/** LA PLUS RÉCENTE ÉCHÉANCE RELANCÉE de cette pièce, ou `null` (pièce ordinaire). */
+export function derniereEcheanceRelancee(factureId: string, journal: readonly { id: string }[]): number | null {
+  const tete = `rl-${factureId}-e`;
+  let k: number | null = null;
+  for (const l of journal) {
+    if (!l.id.startsWith(tete)) continue;
+    const m = /^(\d+)-\d+-whatsapp$/.exec(l.id.slice(tete.length));
+    if (m) k = Math.max(k ?? 0, Number(m[1]));
+  }
+  return k;
+}
+
+/** CE QUE L'ÉCRAN DIT DES RELANCES D'UNE PIÈCE, la pièce d'une formule
+    comprise : la suite de sa plus récente échéance relancée, sinon la sienne. */
+export function etatDesRelancesDeLaPiece(o: Parameters<typeof etatDesRelances>[0]): ReturnType<typeof etatDesRelances> {
+  const k = derniereEcheanceRelancee(o.factureId, o.journal);
+  if (k === null) return etatDesRelances(o);
+  const journal: LigneDeRelance[] = [];
+  for (let n = 1; n <= CADENCE_DES_RELANCES.length; n++) {
+    const l = o.journal.find((x) => x.id === idDeLaRelanceDEcheance(o.factureId, k, n));
+    if (l) journal.push({ ...l, id: idDeLaRelance(o.factureId, n) });
+  }
+  return etatDesRelances({ ...o, journal });
+}
+
 /** Une pause posée au comptoir (« elle passe régler samedi »). */
 export type PauseDesRelances = { le: string; par?: string };
 

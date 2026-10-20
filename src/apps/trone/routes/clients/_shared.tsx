@@ -2,7 +2,7 @@ import { Fragment, useEffect, useMemo, useRef, useState, useSyncExternalStore, t
 import { ENVIES_AVANT } from '../../../../shared/entre-deux-pur';
 import { Link, useNavigate } from 'react-router-dom';
 import { Bell, BellOff, Check } from 'lucide-react';
-import { Button, Field, Input, Modal, Select, toast, demande } from '../../../../ds/components';
+import { Button, Field, Input, Modal, Select, toast, demande, demandeUnTexte } from '../../../../ds/components';
 import { clefDeRecherche, prestationRepond } from '../../../../shared/recherche';
 import { useBranch, maitreParDefaut } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
@@ -42,7 +42,11 @@ import { modelBandsStore, bandSetsStore, prixFerme, prixFixeDe, useModelBands, u
 import { sameName } from '../../../../shared/text';
 import { gammeNetteXof, gammeBruteXof, ligneNetteXof, ligneBruteXof, poseUnProduit, retireUnProduit, remiseDeLaLigne, ecartsDeTarif, manqueALEtagere, type LigneGamme } from '../../../../shared/gamme';
 import type { CommRates } from '../equipe/payroll';
-import { invoicesStore, invoiceTotal, invoiceReglements, caissesHorsBilan, type Invoice, type InvoiceLine, type Cashbox, totalProduitsXof } from '../../../../shared/finance';
+import { invoicesStore, invoiceTotal, invoiceReglements, caissesHorsBilan, quiEncaisse, type Invoice, type InvoiceLine, type Cashbox, totalProduitsXof } from '../../../../shared/finance';
+import { releveDeLAbonnee, formuleProposeePourReserver, dansLaVie } from '../../../../shared/abonnee-pur';
+import { jourDeCotonou } from '../../../../shared/ia-faits-pur';
+import { SeanceDeLaFormule } from './SeanceDeLaFormule';
+import { effetDeLAnnulation } from './gestes-de-l-abonnement';
 import './clients.css';
 import { cheminDeLaConversation, lienDuFil, lienWaMe } from '../../../../shared/conversations';
 import { appelDe } from '../../../../shared/civilite';
@@ -1915,10 +1919,26 @@ export function RdvModal({
      LE CONTRAT SUIT LA DATE, et il change quand on change la date : c'est le
      même juge qui nomme la formule en haut de l'écran, qui calcule ce qui reste
      et qui pose le lien à l'enregistrement. */
-  const membership = clientId ? contratPourLaDate(subs, clientId, date, plans) : undefined;
+  /* ══ DEUX FORMULES EN MÊME TEMPS — 20 octobre 2026 ═══════════════════
+     Le contrat que NOMME le rendez-vous d'abord (`subId`), s'il vit à cette
+     date ; sinon celui que le juge propose pour la réserver (la formule qui
+     finit le plus tôt et porte encore la prestation) ; sinon le contrat de
+     la date, comme avant. */
+  const releveDeLaTete = useMemo(
+    () => (clientId ? releveDeLAbonnee({ jour: jourDeCotonou(), clientId, subs, plans, appts: tousLesRdv, invoices: [] }) : undefined),
+    [clientId, subs, plans, tousLesRdv],
+  );
+  const contratLie = appt?.subId ? subs.find((s) => s.id === appt.subId && dansLaVie(s, date)) : undefined;
+  const contratPropose = !contratLie && releveDeLaTete
+    ? serviceIds.map((sid) => formuleProposeePourReserver(releveDeLaTete, sid, date, appt?.id).proposee).find(Boolean)
+    : undefined;
+  const membership = clientId
+    ? contratLie ?? (contratPropose?.sub as typeof subs[number] | undefined) ?? contratPourLaDate(subs, clientId, date, plans)
+    : undefined;
   const membershipPlan = membership ? plans.find((p) => p.id === membership.planId) : undefined;
   /* Couverture par l'abonnement : rituel « inclus » (prix 0, décompté du quota). */
   const [covered, setCovered] = useState<boolean>(appt?.coveredBySub ?? false);
+  const [motifRetrait, setMotifRetrait] = useState('');
   /* LA SÉANCE DE SUITE (15 août) — de quel rituel déjà facturé celle-ci est la
      suite. Vide = un rituel qui se facture normalement. À la réouverture, on
      retrouve le parent par la tête de sa série. */
@@ -2082,7 +2102,7 @@ export function RdvModal({
         /* SES prestations à elle : le contenu ajusté à la vente fait foi. Le
            soin de la lune est celui de la lune du rendez-vous. */
         .filter((sv) => inclusVendus(membership, membershipPlan, date).some((i) => i.serviceId === sv.id))
-        .map((sv) => ({ sv, remaining: coveredRemaining(membership, membershipPlan, sv.id, branchAppts, appt?.id) }))
+        .map((sv) => ({ sv, remaining: coveredRemaining(membership, membershipPlan, sv.id, tousLesRdv, appt?.id, date) }))
     : [];
   /* ══ CE QUE LA FORMULE NE PORTE PAS — 1er septembre 2026 ═══════════
      « J'ai pris les 2 services lavage et reprise sur la réservation du
@@ -2679,6 +2699,16 @@ export function RdvModal({
                    haut de l'écran, et il n'y a plus d'écart entre ce qu'on
                    lit et ce qui se décompte. */
                 subId: effCovered ? membership?.id : undefined,
+                /* LES FAITS DE LA SÉANCE (20 octobre 2026) : la couverture
+                   retirée avec son motif, l'instant d'une annulation et qui
+                   l'a faite. Le sélecteur de statut est un geste de la Maison :
+                   une annulation de la Maison ne compte jamais la séance. */
+                ...(x.coveredBySub && !effCovered && motifRetrait
+                  ? { couvertureRetiree: { le: jourDeCotonou(), motif: motifRetrait, ...(quiEncaisse() ? { par: quiEncaisse() } : {}) } }
+                  : {}),
+                ...(chosenStatus === 'annulé' && x.status !== 'annulé' && !x.annuleeLe
+                  ? { annuleeLe: new Date().toISOString(), annuleePar: 'maison' as const }
+                  : {}),
                 offertPar: offertRetenu,
                 forfait: forfaitEnregistre,
                 /* Un forfait posé efface les remises : le total négocié EST le
@@ -2922,6 +2952,22 @@ export function RdvModal({
      mais reste visible (barré) au Carnet — l'histoire n'est pas effacée. */
   const cancelRdv = async () => {
     if (!appt) return;
+    /* ══ UNE SÉANCE DE FORMULE : QUI ANNULE ? — 20 octobre 2026 (décision 3) ══
+       À moins de 24 h, une annulation de la CLIENTE compte la séance
+       (« Manquée ») ; une annulation de la Maison ne compte jamais. Le
+       comptoir annule souvent pour elle, au téléphone : il faut le dire. */
+    let parQui: 'cliente' | 'maison' | null = null;
+    if (appt.coveredBySub && appt.coverKind !== 'forfait') {
+      const effetCliente = effetDeLAnnulation(appt, 'cliente');
+      parQui = await demande({
+        quoi: 'Séance de sa formule',
+        titre: 'Qui annule cette séance ?',
+        dit: `Si c’est la cliente : ${effetCliente.lignes[0]}`,
+        suite: 'Si c’est la Maison : la séance ne compte jamais, elle revient à la formule.',
+        accepter: 'La cliente annule',
+        refuser: 'La Maison annule',
+      }) ? 'cliente' : 'maison';
+    }
     const paid = appt.paidXof ?? 0;
     const msg = paid > 0
       ? `Annuler ce rendez-vous ? Il porte déjà ${argent(paid)} encaissés, l'annulation ne rembourse rien (passez par « Encaisser → Annuler l'encaissement » d'abord si besoin). Le rituel sortira du calendrier et ne comptera dans aucun chiffre.`
@@ -2934,7 +2980,9 @@ export function RdvModal({
       refuser: 'Le garder au calendrier',
       dur: true,
     })) return;
-    appointmentsStore.set((prev) => prev.map((x) => (x.id === appt.id ? { ...x, status: 'annulé' } : x)));
+    appointmentsStore.set((prev) => prev.map((x) => (x.id === appt.id
+      ? { ...x, status: 'annulé', ...(parQui ? { annuleeLe: new Date().toISOString(), annuleePar: parQui } : {}) }
+      : x)));
     /* S'il avait été honoré, sa recette revient au stock — un rituel annulé
        n'a rien consommé. Sans mouvement : geste muet. */
     rembobinerRituel(appt.id);
@@ -2973,6 +3021,9 @@ export function RdvModal({
         <SaVie vie={vie} principal={{ table: 'appointments', id: appt.id }} />
       ) : (
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+        {/* LA SÉANCE DE SA FORMULE — 20 octobre 2026 : « Incluse · séance 3 sur
+            6 », ce qu'il reste, et les gestes qui font bouger le compteur. */}
+        {appt && appt.coveredBySub && appt.coverKind !== 'forfait' && <SeanceDeLaFormule appt={appt} onFait={onClose} />}
         {/* SON ENVIE POUR CETTE SÉANCE — 17 octobre 2026 : dite sur WhatsApp sept
             jours avant (Entre deux séances). La Maison prépare sa venue. */}
         {appt?.envieAvantSeance && (
@@ -3803,7 +3854,26 @@ export function RdvModal({
                 type="checkbox"
                 checked={effCovered}
                 disabled={!canCover}
-                onChange={(e) => setCovered(e.target.checked)}
+                onChange={(e) => {
+                  const coche = e.target.checked;
+                  /* DÉCOCHER UNE SÉANCE DÉJÀ COUVERTE EST UN GESTE SENSIBLE
+                     (20 octobre 2026) : la séance revient à la formule et le
+                     tarif de sa tête revient. Le motif est obligatoire ; il
+                     reste au Trône, Ma Couronne dit le fait à la cliente. */
+                  if (!coche && appt?.coveredBySub) {
+                    void demandeUnTexte({
+                      quoi: 'Couverture de la formule',
+                      titre: 'Décocher la couverture ?',
+                      dit: 'La séance revient à la formule et se règle au tarif de sa tête. Ma Couronne le dit à la cliente ; aucun WhatsApp ne part. Le motif reste au Trône.',
+                      etiquette: 'Motif, obligatoire',
+                      gabarit: 'Par exemple : elle garde ses séances pour la fin de l’année',
+                      accepter: 'Décocher la couverture',
+                      refuser: 'Garder la couverture',
+                    }).then((m) => { if (m) { setMotifRetrait(m); setCovered(false); } });
+                    return;
+                  }
+                  setCovered(coche);
+                }}
                 style={{ marginTop: 2, flex: 'none' }}
               />
               <span style={{ minWidth: 0 }}>
@@ -3820,14 +3890,14 @@ export function RdvModal({
                     const label = r.remaining === null
                       ? 'illimité'
                       : (r.remaining ?? 0) > 0
-                        ? `reste ${r.remaining} ce cycle`
+                        ? (membershipPlan?.mode === 'pack' ? `reste ${r.remaining}` : `reste ${r.remaining} cette lune`)
                         : 'allocation épuisée';
                     return `${r.sv.name} · ${label}`;
                   }).join(' — ')}
                 </span>
                 {!canCover && (
                   <span style={{ display: 'block', fontSize: 11, color: '#8f3b30', marginTop: 3 }}>
-                    Plus d’allocation sur le cycle en cours, le rituel sera facturé normalement.
+                    {membershipPlan?.mode === 'pack' ? 'Plus de séance disponible sur ce paquet' : 'Plus de séance disponible cette lune'}, le rituel sera facturé normalement.
                   </span>
                 )}
                 {/* LE PRIX DE CE QUI SORT DE LA FORMULE, ANNONCÉ. Cocher la case

@@ -19,9 +19,17 @@ import { bindCollection, quandTablePrete } from './sync';
 import { fermeLesFormulesAZero, ouvertesALaVente } from './formules-fermees-pur';
 import { soinDeLaLune } from './formules-en-lunes-pur';
 import { isoDuJour } from './offres-pur';
-import type { PaymentMethod } from './finance';
+import type { PaymentMethod, Invoice } from './finance';
 import type { Appointment } from './agenda';
-import { etatDesEcheances, resteDeLEcheancier, enRetardXof } from './echeancier';
+import { etatDesEcheances } from './echeancier';
+/* LE JUGE UNIQUE — 20 octobre 2026. Il n'importe d'ici que des TYPES : ce
+   fichier peut donc le lire sans boucle. Les juges qui suivent (compteurs,
+   état, reste dû, comptes) ne recomptent plus rien : ils PROJETTENT son
+   relevé pour les écrans qui les appelaient. */
+import {
+  releveDeLAbonnee, echeancierApresPrixRevu, versementsDuContrat, type ReleveDuContrat, type EtatFormule,
+} from './abonnee-pur';
+import { jourDeCotonou } from './ia-faits-pur';
 import {
   roundPrice, modelBandsStore, bandSetsStore, bandsAbonnements, type ModelBand,
 } from './pricing';
@@ -269,6 +277,25 @@ export type Subscriber = {
       l'écran ; le VERROU, lui, est la ligne `env-paquet-<contrat>` du journal
       des envois (voir `shared/fin-de-paquet.ts`). */
   finPrevenueLe?: string;
+
+  /* ── LES FAITS DU CONTRAT — 20 octobre 2026 (le relevé de l'abonnée) ──
+     Le juge unique (`shared/abonnee-pur`) lit l'état d'une formule sur ces
+     faits ; `status` ne décide plus rien. Tous facultatifs. */
+  /** 'couronne' : prise en ligne (souscription serveur) ; 'comptoir' : vendue
+      au Trône. Une formule en ligne sans règlement est RETENUE 7 jours. */
+  origine?: 'couronne' | 'comptoir';
+  /** LA RÉSILIATION DATÉE, avec son motif : l'avoir au prorata se compte à
+      cette date. Absente sur un `churn` d'avant. */
+  resilieeLe?: string;
+  motifDeResiliation?: string;
+  /** Elle a renoncé à une formule retenue non réglée. */
+  renonceeLe?: string;
+  /** LA SUSPENSION, datée, avec son motif : « En pause jusqu'au … ». */
+  suspendue?: { du: string; au: string; motif?: string };
+  /** LE DERNIER PRIX REVU après le comptage du calibre (annoncé à la cliente). */
+  prixRevu?: { le: string; ancienXof: number; nouveauXof: number; calibre?: string };
+  /** LES PROLONGATIONS, datées, avec leur motif : la fin recule, la trace reste. */
+  prolongations?: { le: string; deIso: string | null; aIso: string; motif: string; par?: string }[];
 };
 
 /* Maison neuve — aucune donnée de démonstration ; tout naît de l’usage. */
@@ -300,43 +327,30 @@ export const subCycleAmountXof = (monthlyXof: number, cycle: SubCycle) =>
 /** Contribution NORMALISÉE (mensuelle) au MRR selon le cycle. */
 export const subMonthlyXof = (monthlyXof: number, cycle: SubCycle) =>
   cycle === 'mensuel' ? monthlyXof : Math.round((monthlyXof * CYCLE_MONTHS_PAID[cycle]) / CYCLE_MONTHS_SPAN[cycle]);
-/** TOUS les abonnements vivants d'une cliente, du plus récent au plus ancien.
+/** TOUS les abonnements qui courent pour une cliente, du plus récent au plus
+    ancien : retenue, en cours, en pause, épuisée.
 
-    UNE SEULE FORMULE À LA FOIS EST LA RÈGLE, et le serveur la tient depuis la
-    0077 : deux abonnements ouverts, ce sont deux compteurs de crédits sur les
-    mêmes rendez-vous, et personne ne sait lequel se décompte.
+    DEUX FORMULES EN MÊME TEMPS — 20 octobre 2026 (« Deux en même temps »,
+    tranché par Yéman au sélecteur). La règle d'une seule formule à la fois
+    venait de ce qu'un rendez-vous couvert se décomptait sur TOUS les contrats
+    qui le couvraient. Le juge unique le rattache désormais à UN contrat (son
+    `subId`, sinon le plus récent en vie qui porte la prestation) : deux
+    formules ne font plus deux compteurs sur la même séance.
 
-    LE COMPTOIR, LUI, NE LA TENAIT PAS. On pouvait inscrire deux fois la même
-    tête sans un mot, et c'est arrivé (Mylène, 1er septembre 2026) : la fiche
-    d'un rendez-vous lisait alors l'ANCIENNE formule, annonçait qu'elle ne
-    couvrait rien, et le rituel se facturait plein alors que la nouvelle
-    formule le portait. */
-export const abonnementsVivantsDe = (subs: Subscriber[], clientId: string): Subscriber[] => {
-  /* UN PAQUET DONT LA DATE EST PASSÉE EST TERMINÉ — 1er septembre 2026. « Elle
-     a un abonnement qui est déjà terminé » (Yéman). Un pack porte sa date de
-     fin (`expiresIso`) ; la laisser passer sans rien en faire gardait sa
-     formule « vivante » indéfiniment, et c'est elle qu'on opposait à la tête
-     qui venait d'en reprendre une neuve.
+    L'ÉTAT EST CELUI DU JUGE (`shared/abonnee-pur`), lu sans les rendez-vous :
+    une formule épuisée court encore, et seul le compteur en dépend. Un paquet
+    passé sa date est terminé ; une retenue jamais réglée, effacée. */
+export const abonnementsVivantsDe = (subs: Subscriber[], clientId: string): Subscriber[] =>
+  releveDeLAbonnee({ jour: jourDeCotonou(), clientId, subs, plans: plansStore.get() ?? [], appts: [], invoices: [] })
+    .contrats.map((c) => c.sub as Subscriber)
+    .sort((a, b) => (debutDuContrat(a) < debutDuContrat(b) ? 1 : -1));
 
-     L'ALLOCATION ÉPUISÉE, ELLE, NE TERMINE RIEN : un cycle se remet à zéro à
-     l'échéance, et une abonnée mensuelle qui a tout consommé ce mois-ci reste
-     abonnée. Ce sont deux choses différentes, et les confondre résilierait des
-     abonnements en cours. */
-  const aujourdhui = todayIsoLocal();
-  return subs
-    .filter((s) => s.clientId === clientId
-      && s.status !== 'churn'
-      && !(s.expiresIso && s.expiresIso < aujourdhui))
-    .sort((a, b) => ((a.sinceIso ?? '') < (b.sinceIso ?? '') ? 1 : -1));
-};
-
-/** L'abonnement actif d'une cliente, ou undefined.
-
-    LE PLUS RÉCENT L'EMPORTE quand il y en a plusieurs. `find` rendait le
-    PREMIER du magasin, c'est-à-dire le plus anciennement écrit : la tête qui
-    venait de reprendre une formule se voyait opposer celle de l'an dernier. */
+/** LA FORMULE QUI SE NOMME D'ABORD, quand il y en a plusieurs : celle qui
+    finit le plus tôt, comme à la réservation (le juge la propose d'office,
+    pour que rien ne se perde à sa date de fin). */
 export const activeSubscriberOf = (subs: Subscriber[], clientId: string): Subscriber | undefined =>
-  abonnementsVivantsDe(subs, clientId)[0];
+  releveDeLAbonnee({ jour: jourDeCotonou(), clientId, subs, plans: plansStore.get() ?? [], appts: [], invoices: [] })
+    .contrats[0]?.sub as Subscriber | undefined;
 /** Somme réglée par l'abonnée (tous règlements confondus). */
 /* ══ DEUX FOIS LA MÊME FORMULE, ET RIEN POUR LES DISTINGUER ═══════════
    « Il arrive qu'une cliente ait acheté La Juste Cadence 2 fois dans la même
@@ -538,14 +552,80 @@ export const contratPourLaDate = (
     retrouvées à l'unité près, sans qu'aucun compteur ait été importé. */
 export type IncludedUsage = { serviceId: string; qty: number | null; used: number; remaining: number | null };
 
-/** LES RENDEZ-VOUS QUI DÉCOMPTENT CET ABONNEMENT, du plus récent au plus ancien.
+/* ══ LE RELEVÉ D'UN CONTRAT, LU PAR LES ÉCRANS — 20 octobre 2026 ════════
+   « Repenser entièrement l'expérience des clients abonnés… fiable, pour les
+   clientes comme pour l'administration » (Yéman). Six calculs disaient « ce
+   qu'elle doit », trois disaient « ce qui reste » : ils PROJETTENT désormais
+   le relevé du juge unique, et aucun ne recompte de son côté.
 
-    Même juge que le compteur (`coversSub`), même fenêtre : c'est la condition
-    pour que la liste et le nombre ne se contredisent jamais. */
-export const rdvCouvertsDe = (sub: Subscriber, plan: Plan | undefined, appts: Appointment[]): Appointment[] =>
-  appts
-    .filter((a) => coversSub(a, sub, plan))
+   CE QUE L'ÉCRAN NE TEND PAS SE LIT DANS LES MAGASINS, au moment de l'appel
+   (même règle que `lesCalibres`) : les autres contrats de la tête, qui
+   décident à quel contrat une séance sans lien appartient, et les formules.
+   Les pièces, elles, se tendent : sans elles, le versé est celui du contrat
+   seul, comme avant. */
+export type ContexteDuJuge = {
+  /** Le jour à Cotonou ; défaut : aujourd'hui (`jourDeCotonou`). */
+  jour?: string;
+  /** Tous les contrats (ceux de la tête suffisent). Défaut : le magasin. */
+  subs?: readonly Subscriber[];
+  plans?: readonly Plan[];
+  /** Les pièces : le versé est l'union du contrat et de sa pièce, par id. */
+  invoices?: readonly Invoice[];
+  /** Les rendez-vous, pour les juges qui n'en prennent pas en argument (le
+      reste dû d'une résiliation se compte sur les séances comptées). */
+  appts?: readonly Appointment[];
+};
+
+/** UN CONTRAT SANS FICHE est une tête à lui seul : les abonnements repris de
+    l'ancien ERP n'ont pas de `clientId`, et les grouper ferait une tête
+    imaginaire portant six formules. */
+const teteDuContrat = (sub: Subscriber): string => sub.clientId ?? `sans-fiche:${sub.id}`;
+
+/** LE RELEVÉ DE CE CONTRAT, tel que le juge unique le lit. `undefined` ne se
+    produit pas en pratique (le contrat fait partie de sa propre tête). */
+export function releveDuContrat(
+  sub: Subscriber, plan: Plan | undefined, appts: readonly Appointment[], o: ContexteDuJuge = {},
+): ReleveDuContrat | undefined {
+  const tete = teteDuContrat(sub);
+  const tous = o.subs ?? subscribersStore.get() ?? [];
+  const autres = sub.clientId ? tous.filter((s) => s.clientId === sub.clientId && s.id !== sub.id) : [];
+  const plansDuMagasin = o.plans ?? plansStore.get() ?? [];
+  /* LA FORMULE TENDUE FAIT FOI : un écran qui édite une formule la passe
+     avant que le magasin ne l'ait reçue. */
+  const plans = plan ? [plan, ...plansDuMagasin.filter((p) => p.id !== plan.id)] : plansDuMagasin;
+  /* LE LIEN EXPLICITE SUIT LE CONTRAT, quelle que soit la fiche du rendez-vous
+     (une fiche fusionnée, une séance posée sur la mauvaise tête) : c'était la
+     règle de `coversSub`, et elle ne change pas. */
+  const ids = new Set([sub.id, ...autres.map((s) => s.id)]);
+  const sesRdv = appts
+    .filter((a) => (sub.clientId && a.clientId === sub.clientId) || (!!a.subId && ids.has(a.subId)))
+    .map((a) => (a.clientId === tete ? a : { ...a, clientId: tete }));
+  const r = releveDeLAbonnee({
+    jour: o.jour ?? jourDeCotonou(),
+    clientId: tete,
+    subs: [{ ...sub, clientId: tete }, ...autres],
+    plans,
+    appts: sesRdv,
+    invoices: o.invoices ?? [],
+    prixDuContrat: (s, p) => prixVenduXof(s, p, s.cycle ?? 'mensuel'),
+  });
+  return [...r.contrats, ...r.anciens].find((c) => c.sub.id === sub.id);
+}
+
+/** LES RENDEZ-VOUS QUI DÉCOMPTENT CET ABONNEMENT, du plus récent au plus ancien :
+    toute sa vie, faites, réservées et manquées (une annulée ou une rendue ne
+    prend rien). Même juge que le compteur : la liste et le nombre ne peuvent
+    pas se contredire. */
+export const rdvCouvertsDe = (
+  sub: Subscriber, plan: Plan | undefined, appts: readonly Appointment[], o: ContexteDuJuge = {},
+): Appointment[] => {
+  const c = releveDuContrat(sub, plan, appts, o);
+  if (!c) return [];
+  const comptees = new Set(c.attribuees.filter((s) => s.compte).map((s) => s.id));
+  return appts
+    .filter((a) => comptees.has(a.id))
     .sort((a, b) => (a.date === b.date ? (a.time < b.time ? 1 : -1) : (a.date < b.date ? 1 : -1)));
+};
 
 /** LE COMPTEUR AVEC SES RENDEZ-VOUS — 1er septembre 2026.
 
@@ -559,22 +639,39 @@ export const rdvCouvertsDe = (sub: Subscriber, plan: Plan | undefined, appts: Ap
     la liste. Deux façons de compter la même chose finissent par diverger.
 
     UN RENDEZ-VOUS PORTANT DEUX PRESTATIONS INCLUSES paraît sur les deux lignes,
-    et décompte les deux : c'est bien deux jetons qu'il consomme. */
-export type IncludedUsageDetail = IncludedUsage & { rdv: Appointment[] };
+    et décompte les deux : c'est bien deux jetons qu'il consomme.
+
+    LES TROIS PARTS — 20 octobre 2026 (décision 1). `used` est ce qui est
+    PRIS : faites, réservées et manquées. Elles se lisent aussi à part,
+    parce qu'une séance réservée n'est pas une séance faite. */
+export type IncludedUsageDetail = IncludedUsage & {
+  rdv: Appointment[];
+  faites: number;
+  reservees: number;
+  manquees: number;
+  /** Dont les réservées passées restées « Confirmée » : à clôturer. */
+  aCloturer: number;
+};
 export const usageDetaille = (
-  sub: Subscriber, plan: Plan | undefined, appts: Appointment[],
+  sub: Subscriber, plan: Plan | undefined, appts: readonly Appointment[], o: ContexteDuJuge = {},
 ): IncludedUsageDetail[] => {
-  /* SES QUOTAS À ELLE. Lire ceux de la formule quand on lui en a promis
-     d'autres afficherait six jetons à qui on en a vendu huit — la plus sûre
-     façon de perdre sa confiance. */
-  const inc = inclusVendus(sub, plan);
-  if (inc.length === 0) return [];
-  const mine = rdvCouvertsDe(sub, plan, appts);
-  return inc.map((i) => {
-    const rdv = mine.filter((a) => a.serviceIds.includes(i.serviceId));
+  /* SES QUOTAS À ELLE, et la fenêtre du jour (sa lune pour un cycle, toute
+     sa vie pour un paquet) : c'est le juge qui les lit, ici on projette. */
+  const c = releveDuContrat(sub, plan, appts, o);
+  if (!c) return [];
+  const parId = new Map(appts.map((a) => [a.id, a]));
+  const comptees = new Set(c.attribuees.filter((s) => s.compte).map((s) => s.id));
+  return c.seances.map((l) => {
+    const rdv = l.seances
+      .filter((id) => comptees.has(id))
+      .map((id) => parId.get(id))
+      .filter((a): a is Appointment => !!a)
+      .sort((a, b) => (a.date === b.date ? (a.time < b.time ? 1 : -1) : (a.date < b.date ? 1 : -1)));
     return {
-      serviceId: i.serviceId, qty: i.qty, used: rdv.length,
-      remaining: i.qty === null ? null : Math.max(0, i.qty - rdv.length), rdv,
+      serviceId: l.serviceId, qty: l.incluses,
+      used: l.faites + l.reservees + l.manquees,
+      remaining: l.disponibles,
+      rdv, faites: l.faites, reservees: l.reservees, manquees: l.manquees, aCloturer: l.aCloturer,
     };
   });
 };
@@ -586,10 +683,10 @@ export const usageDetaille = (
     PART : il se règle comme s'il était offert, sans jeton en face. C'est la
     seule anomalie que le suivi ne pouvait pas montrer, et la plus coûteuse. */
 export const rdvCouvertsHorsFormule = (
-  sub: Subscriber, plan: Plan | undefined, appts: Appointment[],
+  sub: Subscriber, plan: Plan | undefined, appts: readonly Appointment[], o: ContexteDuJuge = {},
 ): Appointment[] => {
-  const inclus = new Set(inclusVendus(sub, plan).map((i) => i.serviceId));
-  return rdvCouvertsDe(sub, plan, appts).filter((a) => !a.serviceIds.some((id) => inclus.has(id)));
+  const ids = new Set(releveDuContrat(sub, plan, appts, o)?.couvertsHorsFormule ?? []);
+  return appts.filter((a) => ids.has(a.id));
 };
 
 /** Le compteur seul, sans les pièces — pour les écrans qui n'affichent qu'un nombre.
@@ -624,43 +721,43 @@ export const subServiceUsage = (sub: Subscriber, plan: Plan | undefined, appts: 
       moment de revendre : la tête est là, elle vient, et elle repassera au
       plein tarif à sa prochaine venue. RÉSERVÉ AUX PAQUETS : un abonnement à
       cycle qui a tout consommé n'est pas épuisé, il se recharge à l'échéance.
-    · en cours — tout le reste. */
-export type EtatContrat = 'resilie' | 'termine' | 'epuise' | 'en-cours';
+    · en cours — tout le reste.
+
+    LE JUGE UNIQUE PREND LA PLACE — 20 octobre 2026. Les mots sont désormais
+    les siens, les mêmes au Trône et dans Ma Couronne : retenue, en cours, en
+    pause, épuisée, terminée, résiliée, et effacée (une retenue jamais réglée,
+    sans pastille). L'ordre des questions vit dans `etatDeLaFormule`. */
+export type EtatContrat = EtatFormule;
 
 export const etatDuContrat = (
-  sub: Subscriber, plan: Plan | undefined, appts: Appointment[], aujourdhui: string,
-): EtatContrat => {
-  if (sub.status === 'churn') return 'resilie';
-  if (sub.expiresIso && sub.expiresIso < aujourdhui) return 'termine';
-  if (plan?.mode !== 'pack') return 'en-cours';
-  const lignes = usageDetaille(sub, plan, appts);
-  /* SANS PRESTATION INCLUSE, RIEN NE PEUT S'ÉPUISER : un paquet qui ne porte
-     aucun crédit se règle au comptoir et court jusqu'à sa date. */
-  if (lignes.length === 0) return 'en-cours';
-  const tousBus = lignes.every((u) => u.qty !== null && (u.remaining ?? 0) <= 0);
-  return tousBus ? 'epuise' : 'en-cours';
-};
+  sub: Subscriber, plan: Plan | undefined, appts: readonly Appointment[], aujourdhui: string, o: ContexteDuJuge = {},
+): EtatContrat => releveDuContrat(sub, plan, appts, { ...o, jour: aujourdhui })?.etat ?? 'en-cours';
 
 export const ETAT_LABEL: Record<EtatContrat, string> = {
-  'en-cours': 'En cours', epuise: 'Épuisé', termine: 'Terminé', resilie: 'Résilié',
+  retenue: 'Retenue, à régler', 'en-cours': 'En cours', 'en-pause': 'En pause', epuisee: 'Épuisée',
+  terminee: 'Terminée', resiliee: 'Résiliée', effacee: 'Retenue non réglée, effacée',
 };
 
-/** CE QUI RESTE DÛ SUR UN CONTRAT.
+/** Les états qui COURENT encore : la formule est vivante, quoi qu'elle doive. */
+export const ETATS_QUI_COURENT: readonly EtatContrat[] = ['retenue', 'en-cours', 'en-pause', 'epuisee'];
 
-    L'ÉCHÉANCIER FAIT FOI QUAND IL EXISTE : c'est ce qui a été convenu, date par
-    date. Sans échéancier, un PAQUET doit son prix moins ce qui a été versé.
+/** CE QUI RESTE DÛ SUR UN CONTRAT, échu ou non : `argentDuContrat` du juge.
 
-    UN ABONNEMENT À CYCLE NE DOIT RIEN : il se règle lune après lune, et compter
-    son prix comme une dette ferait apparaître une créance qui n'existe pas. */
-export const resteDuContrat = (sub: Subscriber, plan: Plan | undefined, aujourdhui: string): number => {
-  const verse = subPaid(sub);
-  if (sub.echeances?.length) return resteDeLEcheancier(etatDesEcheances(sub.echeances, verse, aujourdhui));
-  if (plan?.mode !== 'pack') return 0;
-  return Math.max(0, prixVenduXof(sub, plan, sub.cycle ?? 'mensuel') - verse);
+    L'ÉCHÉANCIER FAIT FOI QUAND IL EXISTE ; sans lui, un PAQUET doit son prix
+    moins le versé ; une lune ne doit jamais rien (elle met en pause). Une
+    retenue ne doit rien ; une résiliation datée doit ce qui a été consommé
+    au-delà du réglé. Le versé est l'union du contrat et de sa pièce quand
+    l'écran tend les pièces. */
+export const resteDuContrat = (
+  sub: Subscriber, plan: Plan | undefined, aujourdhui: string, o: ContexteDuJuge = {},
+): number => releveDuContrat(sub, plan, o.appts ?? [], { ...o, jour: aujourdhui })?.argent.resteXof ?? 0;
+
+/** L'ÉCHU LA VEILLE OU AVANT : la seule définition du retard. Le jour même
+    de l'échéance, la somme est « à régler aujourd'hui », pas en retard. */
+export const retardDuContrat = (sub: Subscriber, aujourdhui: string, o: ContexteDuJuge = {}): number => {
+  const plan = (o.plans ?? plansStore.get() ?? []).find((p) => p.id === sub.planId);
+  return releveDuContrat(sub, plan, o.appts ?? [], { ...o, jour: aujourdhui })?.argent.enRetardXof ?? 0;
 };
-
-export const retardDuContrat = (sub: Subscriber, aujourdhui: string): number =>
-  sub.echeances?.length ? enRetardXof(etatDesEcheances(sub.echeances, subPaid(sub), aujourdhui)) : 0;
 
 export type ContratDuCompte = {
   sub: Subscriber;
@@ -675,25 +772,32 @@ export type ContratDuCompte = {
   retardXof: number;
   resteXof: number;
   verseXof: number;
-  /** Crédits : consommés (rendez-vous à venir compris) et promis. */
+  /** SÉANCES, pas prestations (« six séances, pas douze ») : prises (faites,
+      réservées, manquées) et vendues, dans la fenêtre du jour (sa lune pour
+      un cycle, toute sa vie pour un paquet). `promis` 0 : sans limite. */
   utilises: number;
   promis: number;
-  /** Séances RENDUES, celles qui ont eu lieu. Ce que la tête a reçu. */
-  honorees: number;
+  /** LES MÊMES MOTS QUE MA COURONNE : faites, réservées, manquées. */
+  faites: number;
+  reservees: number;
+  manquees: number;
   /** Jours sans abonnement avant celui-ci, quand le précédent avait une fin. */
   trouJours: number | null;
+  /** Le relevé du juge, entier : échéances, versements, porte, séances datées. */
+  releve: ReleveDuContrat;
 };
 
 export type CompteAbonnement = {
   clientId: string;
   nom: string;
   contrats: ContratDuCompte[];
-  /** Le contrat qui vit, s'il y en a un : celui que l'écran met en tête. */
+  /** Le contrat qui vit, s'il y en a un : celui que l'écran met en tête (celui
+      qui finit le plus tôt, quand deux formules courent ensemble). */
   vif: ContratDuCompte | undefined;
   verseXof: number;
   resteXof: number;
   retardXof: number;
-  honorees: number;
+  faites: number;
   depuisIso: string;
 };
 
@@ -706,8 +810,10 @@ export type CompteAbonnement = {
 export function comptesAbonnement(o: {
   subs: readonly Subscriber[];
   plans: readonly Plan[];
-  appts: Appointment[];
+  appts: readonly Appointment[];
   aujourdhui: string;
+  /** Les pièces : le versé est l'union du contrat et de sa pièce, par id. */
+  invoices?: readonly Invoice[];
 }): CompteAbonnement[] {
   /* UN CONTRAT SANS FICHE RESTE VISIBLE, seul dans son compte. `clientId` est
      facultatif depuis toujours : les abonnements repris de l'ancien ERP n'en ont
@@ -715,19 +821,58 @@ export function comptesAbonnement(o: {
      les cacher ferait disparaitre de l'argent encaissé. */
   const parTete = new Map<string, Subscriber[]>();
   for (const s of o.subs) {
-    const cle = s.clientId ?? `sans-fiche:${s.id}`;
+    const cle = teteDuContrat(s);
     const l = parTete.get(cle);
     if (l) l.push(s); else parTete.set(cle, [s]);
   }
+  /* LES RENDEZ-VOUS DE CHAQUE TÊTE, triés une fois : le juge lit une tête à
+     la fois, et repasser sur tout le carnet pour chacune coûterait cher. */
+  const rdvParTete = new Map<string, Appointment[]>();
+  const rdvParSub = new Map<string, Appointment[]>();
+  for (const a of o.appts) {
+    if (a.subId) {
+      const l = rdvParSub.get(a.subId);
+      if (l) l.push(a); else rdvParSub.set(a.subId, [a]);
+    }
+    if (!a.clientId) continue;
+    const l = rdvParTete.get(a.clientId);
+    if (l) l.push(a); else rdvParTete.set(a.clientId, [a]);
+  }
   const comptes: CompteAbonnement[] = [];
-  for (const siens of parTete.values()) {
+  for (const [tete, siens] of parTete) {
+    /* LE RELEVÉ DE LA TÊTE, une fois : toutes ses formules, chaque séance
+       rattachée à UN contrat, l'argent par contrat. Les lignes du compte le
+       projettent ; rien ne se recompte ici. */
+    const sansFiche = !siens[0]?.clientId;
+    /* SES RENDEZ-VOUS, et ceux qu'un lien explicite rattache à l'un de ses
+       contrats, posés sur une autre fiche (même règle que `releveDuContrat`). */
+    const sesIds = new Set(siens.map((s) => s.id));
+    const lies = siens.flatMap((s) => rdvParSub.get(s.id) ?? []);
+    const appts = [
+      ...(sansFiche ? [] : rdvParTete.get(tete) ?? []),
+      ...lies.filter((a) => a.clientId !== tete && !!a.subId && sesIds.has(a.subId)),
+    ].map((a) => (a.clientId === tete ? a : { ...a, clientId: tete }));
+    const r = releveDeLAbonnee({
+      jour: o.aujourdhui, clientId: tete,
+      subs: sansFiche ? siens.map((s) => ({ ...s, clientId: tete })) : siens,
+      plans: o.plans, appts, invoices: o.invoices ?? [],
+      prixDuContrat: (s, p) => prixVenduXof(s, p, s.cycle ?? 'mensuel'),
+    });
+    const releves = new Map([...r.contrats, ...r.anciens].map((c) => [c.sub.id, c]));
+    const parId = new Map(appts.map((a) => [a.id, a]));
     /* DU PLUS RÉCENT AU PLUS ANCIEN, sur la date de DÉBUT : c'est l'ordre dans
        lequel on raconte une histoire qu'on connaît déjà. */
     const ordonnes = [...siens].sort((a, b) => (debutDuContrat(a) < debutDuContrat(b) ? 1 : -1));
-    const contrats: ContratDuCompte[] = ordonnes.map((sub, i) => {
-      const plan = o.plans.find((p) => p.id === sub.planId);
-      const lignes = usageDetaille(sub, plan, o.appts);
-      const rendus = rdvCouvertsDe(sub, plan, o.appts).filter((a) => a.status === 'honoré').length;
+    const contrats: ContratDuCompte[] = [];
+    ordonnes.forEach((sub, i) => {
+      const c = releves.get(sub.id);
+      if (!c) return;
+      const comptees = new Set(c.attribuees.filter((x) => x.compte).map((x) => x.id));
+      const lignes: IncludedUsageDetail[] = c.seances.map((l) => ({
+        serviceId: l.serviceId, qty: l.incluses, used: l.faites + l.reservees + l.manquees, remaining: l.disponibles,
+        rdv: l.seances.filter((id) => comptees.has(id)).map((id) => parId.get(id)).filter((a): a is Appointment => !!a),
+        faites: l.faites, reservees: l.reservees, manquees: l.manquees, aCloturer: l.aCloturer,
+      }));
       /* LE TROU SE MESURE ENTRE LA FIN DU PRÉCÉDENT ET LE DÉBUT DE CELUI-CI.
          Le « précédent » est le suivant dans la liste, puisqu'elle descend le
          temps. Sans date de fin, pas de trou : on ne devine pas un silence. */
@@ -737,29 +882,38 @@ export function comptesAbonnement(o: {
         ? Math.round((new Date(`${debutDuContrat(sub)}T12:00:00`).getTime()
           - new Date(`${finPrec}T12:00:00`).getTime()) / 86400000)
         : null;
-      return {
-        sub, plan, lignes,
-        etat: etatDuContrat(sub, plan, o.appts, o.aujourdhui),
-        retardXof: retardDuContrat(sub, o.aujourdhui),
-        resteXof: resteDuContrat(sub, plan, o.aujourdhui),
-        verseXof: subPaid(sub),
-        utilises: lignes.reduce((n, u) => n + u.used, 0),
-        promis: lignes.reduce((n, u) => n + (u.qty ?? 0), 0),
-        honorees: rendus,
+      /* FAITES, RÉSERVÉES, MANQUÉES : comptées une fois par SÉANCE, pas par
+         prestation (« six séances, pas douze »), dans la fenêtre du jour. */
+      const dansLaFenetre = (d: string) => !c.lune || (d >= c.lune.du && d < c.lune.au);
+      const siennes = c.attribuees.filter((x) => x.compte && dansLaFenetre(x.date));
+      const bornees = c.seances.filter((l) => l.incluses !== null).map((l) => l.incluses as number);
+      contrats.push({
+        sub, plan: c.plan, lignes, etat: c.etat,
+        retardXof: c.argent.enRetardXof,
+        resteXof: c.argent.resteXof,
+        verseXof: c.argent.regleXof,
+        utilises: siennes.length,
+        promis: bornees.length ? Math.max(...bornees) : 0,
+        faites: siennes.filter((x) => x.etat === 'faite').length,
+        reservees: siennes.filter((x) => x.etat !== 'faite' && x.etat !== 'manquee').length,
+        manquees: siennes.filter((x) => x.etat === 'manquee').length,
         trouJours,
-      };
+        releve: c,
+      });
     });
+    const vifId = r.contrats[0]?.sub.id;
     comptes.push({
       clientId: ordonnes[0]?.clientId ?? '',
       nom: ordonnes[0]?.name ?? '',
       contrats,
-      vif: contrats.find((c) => c.etat === 'en-cours' || c.etat === 'epuise'),
+      vif: contrats.find((c) => c.sub.id === vifId),
       verseXof: contrats.reduce((n, c) => n + c.verseXof, 0),
-      /* UN CONTRAT RÉSILIÉ NE RÉCLAME PLUS RIEN : le compter ferait une créance
-         que la Maison a elle-même annulée. */
-      resteXof: contrats.reduce((n, c) => n + (c.etat === 'resilie' ? 0 : c.resteXof), 0),
-      retardXof: contrats.reduce((n, c) => n + (c.etat === 'resilie' ? 0 : c.retardXof), 0),
-      honorees: contrats.reduce((n, c) => n + c.honorees, 0),
+      /* LE JUGE SAIT CE QU'UN CONTRAT RÉCLAME ENCORE : rien pour un `churn`
+         d'avant, le consommé au-delà du réglé pour une résiliation datée,
+         rien pour une retenue ou une effacée. On somme donc ce qu'il dit. */
+      resteXof: contrats.reduce((n, c) => n + c.resteXof, 0),
+      retardXof: contrats.reduce((n, c) => n + c.retardXof, 0),
+      faites: contrats.reduce((n, c) => n + c.faites, 0),
       depuisIso: debutDuContrat(ordonnes[ordonnes.length - 1]),
     });
   }
@@ -771,7 +925,7 @@ export function comptesAbonnement(o: {
     formule, puis les autres. L'alphabet ne dit rien à personne. */
 export const rangDuCompte = (c: CompteAbonnement): number => {
   if (c.retardXof > 0) return 0;
-  if (c.vif?.etat === 'epuise') return 1;
+  if (c.vif?.etat === 'epuisee') return 1;
   if (c.vif) return 2;
   return 3;
 };
@@ -820,12 +974,16 @@ export type MoteurAbonnements = {
   prochaineIso: string | null;
   /** LE CARNET : ce que les abonnements en cours doivent encore rapporter. */
   carnetXof: number;
-  /** La dette de fauteuil : séances promises et pas encore rendues. */
+  /** La dette de fauteuil : séances promises et encore disponibles. */
   seancesDues: number;
-  seancesTenues: number;
+  /** Séances réservées (à venir, ou passées à clôturer), pas encore faites. */
+  seancesReservees: number;
   valeurDueXof: number;
+  /** En cours ou en pause : la formule court. */
   enCours: number;
   epuisees: number;
+  /** Prises en ligne, en attente de leur premier règlement. */
+  retenues: number;
   nouvellesCeMois: number;
   enRetardNb: number;
   parties: number;
@@ -863,8 +1021,8 @@ export function moteurDesAbonnements(o: {
   const m: MoteurAbonnements = {
     encaisseCeMoisXof: 0, encaisseMoisPrecedentXof: 0, retardXof: 0, retardTetes: 0,
     aEncaisserXof: 0, aEncaisserNb: 0, prochaineIso: null, carnetXof: 0,
-    seancesDues: 0, seancesTenues: 0, valeurDueXof: 0,
-    enCours: 0, epuisees: 0, nouvellesCeMois: 0, enRetardNb: 0, parties: 0,
+    seancesDues: 0, seancesReservees: 0, valeurDueXof: 0,
+    enCours: 0, epuisees: 0, retenues: 0, nouvellesCeMois: 0, enRetardNb: 0, parties: 0,
     reprises: 0, finsSansReprise: 0, dues: [], parFormule: [],
   };
   const parPlan = new Map<string, { tetes: Set<string>; encaisseXof: number; resteXof: number }>();
@@ -876,7 +1034,7 @@ export function moteurDesAbonnements(o: {
        C'est la seule rétention qui se mesure sur ce qui s'est vraiment passé.
        Une fin SANS reprise est un départ aussi, simplement plus poli qu'une
        résiliation, et c'est elle que la carte « 100 % » ignorait. */
-    const finis = compte.contrats.filter((c) => c.etat === 'termine' || c.etat === 'resilie');
+    const finis = compte.contrats.filter((c) => c.etat === 'terminee' || c.etat === 'resiliee');
     if (finis.length > 0) {
       if (compte.vif) m.reprises += 1; else m.finsSansReprise += 1;
     }
@@ -886,52 +1044,62 @@ export function moteurDesAbonnements(o: {
       const e = parPlan.get(cle) ?? { tetes: new Set<string>(), encaisseXof: 0, resteXof: 0 };
       e.tetes.add(compte.clientId || compte.nom);
       e.encaisseXof += c.verseXof;
-      if (c.etat !== 'resilie') e.resteXof += c.resteXof;
+      e.resteXof += c.resteXof;
       parPlan.set(cle, e);
 
-      /* CE QUI EST ENTRÉ EN CAISSE, versement par versement, à sa date. */
-      for (const v of c.sub.payments ?? []) {
-        if (v.date?.slice(0, 7) === mois) m.encaisseCeMoisXof += v.amountXof;
-        else if (v.date?.slice(0, 7) === moisAvant) m.encaisseMoisPrecedentXof += v.amountXof;
+      /* CE QUI EST ENTRÉ EN CAISSE, versement par versement, à sa date. Les
+         versements du contrat ET de sa pièce, réunis par identifiant : MND PAY
+         n'écrivait que la pièce, KkiaPay que le contrat. */
+      for (const v of c.releve.argent.versements) {
+        if (v.date?.slice(0, 7) === mois) m.encaisseCeMoisXof += v.montantXof;
+        else if (v.date?.slice(0, 7) === moisAvant) m.encaisseMoisPrecedentXof += v.montantXof;
       }
 
-      if (c.etat === 'resilie') continue;
+      if (c.etat === 'effacee') continue;
+      /* UNE RÉSILIATION DATÉE PEUT ENCORE DEVOIR : le consommé au-delà du
+         réglé. Le juge le sait ; un `churn` d'avant ne doit rien. */
       m.carnetXof += c.resteXof;
-      if (c.etat === 'en-cours') m.enCours += 1;
-      if (c.etat === 'epuise') m.epuisees += 1;
-      if (debutDuContrat(c.sub).slice(0, 7) === mois) m.nouvellesCeMois += 1;
       if (c.retardXof > 0) { m.retardXof += c.retardXof; m.enRetardNb += 1; }
+      if (c.etat === 'resiliee' || c.etat === 'terminee') continue;
+      if (c.etat === 'en-cours' || c.etat === 'en-pause') m.enCours += 1;
+      if (c.etat === 'epuisee') m.epuisees += 1;
+      if (c.etat === 'retenue') m.retenues += 1;
+      if (debutDuContrat(c.sub).slice(0, 7) === mois) m.nouvellesCeMois += 1;
 
       /* LA DETTE DE FAUTEUIL : des heures déjà payées. Elle ne figurait nulle
          part, et c'est pourtant elle qui décide si la Maison peut vendre une
          formule de plus ce mois-ci. */
-      if (c.etat === 'en-cours' || c.etat === 'epuise') {
+      if (c.etat === 'en-cours' || c.etat === 'en-pause' || c.etat === 'epuisee') {
+        /* EN SÉANCES : une venue porte toutes ses prestations. La VALEUR, elle,
+           se chiffre prestation par prestation : c'est ce que vaut le fauteuil. */
+        if (c.promis > 0) m.seancesDues += Math.max(0, c.promis - c.utilises);
         for (const u of c.lignes) {
-          if (u.qty === null) continue;
-          const reste = Math.max(0, u.qty - u.used);
-          m.seancesDues += reste;
+          if (u.qty === null || u.remaining === null) continue;
           const prix = o.prixDuService(u.serviceId);
-          if (prix) m.valeurDueXof += reste * prix;
+          if (prix) m.valeurDueXof += u.remaining * prix;
         }
-        m.seancesTenues += Math.max(0, c.utilises - c.honorees);
+        m.seancesReservees += c.reservees;
       }
+    }
 
-      /* QUI PAIE, ET QUAND. Datée, nommée : c'est la seule liste qui fait
-         décrocher un téléphone. */
-      if (c.sub.echeances?.length) {
-        const etats = etatDesEcheances(c.sub.echeances, c.verseXof, o.aujourdhui);
-        for (const e2 of etats) {
-          if (e2.resteXof <= 0) continue;
-          const enRetard = e2.dueIso < o.aujourdhui;
-          if (!enRetard && e2.dueIso > fin) continue;
-          if (!enRetard) { m.aEncaisserXof += e2.resteXof; m.aEncaisserNb += 1; }
-          if (!enRetard && (m.prochaineIso === null || e2.dueIso < m.prochaineIso)) m.prochaineIso = e2.dueIso;
-          m.dues.push({
-            sub: c.sub, nom: compte.nom, formule: c.plan?.name ?? 'Formule retirée',
-            numero: e2.numero, total: c.sub.echeances.length, dueIso: e2.dueIso,
-            montantXof: e2.resteXof, retardJours: enRetard ? joursEntre(e2.dueIso, o.aujourdhui) : 0,
-          });
-        }
+    /* QUI PAIE, ET QUAND. Datée, nommée : c'est la seule liste qui fait
+       décrocher un téléphone. Les échéances lues par le juge : un dimanche se
+       juge le lundi, le retard commence le lendemain, une retenue ne doit
+       rien, une échéance annulée par la résiliation non plus. */
+    for (const c of compte.contrats) {
+      const echeances = c.releve.argent.echeances;
+      for (const e2 of echeances) {
+        if (e2.resteXof <= 0) continue;
+        if (e2.statut !== 'en-retard' && e2.statut !== 'a-regler-aujourdhui' && e2.statut !== 'a-venir') continue;
+        const enRetard = e2.statut === 'en-retard';
+        if (!enRetard && e2.dueIso > fin) continue;
+        if (!enRetard) { m.aEncaisserXof += e2.resteXof; m.aEncaisserNb += 1; }
+        if (!enRetard && (m.prochaineIso === null || e2.dueIso < m.prochaineIso)) m.prochaineIso = e2.dueIso;
+        m.dues.push({
+          sub: c.sub, nom: compte.nom, formule: c.plan?.name ?? 'Formule retirée',
+          numero: e2.numero, total: echeances.length, dueIso: e2.dueIso,
+          montantXof: e2.resteXof, retardJours: e2.retardJours,
+        });
       }
     }
   }
@@ -1474,6 +1642,29 @@ export function valeurALaCarte(
   return { totalXof, illimitees, introuvables };
 }
 
+/** LA VALEUR À LA CARTE DE LA FORMULE, la même pour toutes — 20 octobre 2026.
+
+    LE FOYER SE CALCULE SUR LA FORMULE, JAMAIS SUR LE JUSTE PRIX DE LA TÊTE
+    (Yéman, 20 octobre 2026) : au comptoir comme en ligne, la deuxième et la
+    troisième tête ont −15 %, sans que l'avantage dépasse 25 % sous la valeur
+    à la carte que la formule annonce d'elle-même. Même règle que le serveur
+    (`abo_valeur_a_la_carte`, 0138) : sur un carnet, les séances vendues pour
+    les séances payées (« six venues, la sixième offerte » : 140 000 F × 6 / 5
+    = 168 000 F) ; sinon son avantage écrit ; sans avantage écrit, son prix. */
+export function valeurALaCarteDeLaFormule(prixXof: number, plan: Pick<Plan, 'discountPct' | 'included'>): number {
+  const pct = Math.min(Math.max(plan.discountPct ?? 0, 0), 99);
+  if (pct <= 0 || !(prixXof > 0)) return prixXof;
+  const bornees = (plan.included ?? []).filter((i) => i.qty !== null).map((i) => i.qty as number);
+  const q = bornees.length ? Math.max(...bornees) : 0;
+  if (q > 0) {
+    const payees = q * (1 - pct / 100);
+    if (Math.abs(payees - Math.round(payees)) <= 0.05 && Math.round(payees) >= 1 && Math.round(payees) <= q) {
+      return (prixXof * q) / Math.round(payees);
+    }
+  }
+  return prixXof / (1 - pct / 100);
+}
+
 /** CE QU'ELLE GAGNE, ELLE — 1er septembre 2026.
 
     « Il faudra personnaliser ce message selon le prix de chacun. Combien la
@@ -1570,64 +1761,55 @@ export type PrixRevu = {
   ok: boolean;
   /** Dit à voix haute pourquoi la Maison refuse. */
   refus?: string;
-  /** Le nouvel échéancier — absent quand le contrat n'en portait pas. */
+  /** Le nouvel échéancier — absent quand le contrat se règle lune par lune. */
   echeances?: Echeance[];
   /** Combien de tranches sont déjà couvertes par l'argent reçu, donc intouchées. */
   gardees: number;
   verseXof: number;
   ancienXof: number;
   nouveauXof: number;
+  ecartXof: number;
+  /** Le rang de l'échéance qui porte l'écart. */
+  porteeSur?: number;
+  /** L'échéance neuve, à 30 jours, quand il n'en restait aucune. */
+  nouvelle?: { numero: number; dueIso: string; amountXof: number };
+  /** En sa faveur, au-delà de la prochaine échéance : un avoir. */
+  avoirXof: number;
 };
 
-export function revoitLePrixConvenu(
-  sub: Subscriber, plan: Plan | undefined, nouveauXof: number,
-): PrixRevu {
-  const nouveau = Math.max(0, Math.round(nouveauXof));
-  const verse = subPaid(sub);
-  const ancien = prixVenduXof(sub, plan, sub.cycle ?? 'mensuel');
-  const socle = { gardees: 0, verseXof: verse, ancienXof: ancien, nouveauXof: nouveau };
-  if (nouveau <= 0) {
-    return { ...socle, ok: false, refus: 'Un contrat à 0 F ne se vend pas. Résiliez-le plutôt.' };
-  }
-  if (nouveau < verse) {
-    return {
-      ...socle, ok: false,
-      refus: `Elle a déjà versé ${verse} : un prix en dessous ferait de la Maison sa débitrice. Passez par un avoir.`,
-    };
-  }
-  const ech = sub.echeances ?? [];
-  if (ech.length === 0) return { ...socle, ok: true };
+/** LE PRIX REVU, ÉCHÉANCIER COMPRIS (décision 10, 20 octobre 2026).
 
-  /* LES TRANCHES QUE L'ARGENT COUVRE DÉJÀ NE BOUGENT PAS. Les versements se
-     posent dans l'ordre (`etatDesEcheances`) : une tranche entièrement payée
-     est une page tournée, la réécrire ferait réapparaître une dette réglée. */
+    L'ÉCART VA SUR LA PROCHAINE ÉCHÉANCE, ou sur une échéance neuve à 30 jours
+    s'il n'en reste aucune ; en sa faveur, il se retranche de la prochaine, et
+    ce qui la dépasse devient un avoir. La règle vit dans le juge unique
+    (`echeancierApresPrixRevu`) : le comptoir, le Suivi et Ma Couronne disent
+    donc la même échéance. L'ARGENT DÉJÀ REÇU NE BOUGE PAS : une tranche
+    soldée reste soldée.
+
+    L'ANCIENNE RÈGLE refusait un prix sous le versé (« passez par un avoir ») ;
+    l'avoir se pose désormais tout seul, et se lit à part dans Mon solde. */
+export function revoitLePrixConvenu(
+  sub: Subscriber, plan: Plan | undefined, nouveauXof: number, o: ContexteDuJuge = {},
+): PrixRevu {
+  const jour = o.jour ?? jourDeCotonou();
+  const ancien = prixVenduXof(sub, plan, sub.cycle ?? 'mensuel');
+  const r = echeancierApresPrixRevu(sub, plan, o.invoices ?? [], nouveauXof, jour, { prixXof: ancien });
+  const verse = versementsDuContrat(sub, o.invoices ?? []).reduce((n, v) => n + v.montantXof, 0);
+  const socle = { gardees: 0, verseXof: verse, ancienXof: r.ancienXof, nouveauXof: r.nouveauXof, ecartXof: r.ecartXof, avoirXof: r.avoirXof };
+  if (!r.ok) return { ...socle, ok: false, refus: r.refus };
+  /* UN CONTRAT À LA LUNE n'a pas d'échéancier : le nouveau prix vaut dès la
+     lune suivante, rien d'autre ne s'écrit. */
+  if (r.echeances.length === 0) return { ...socle, ok: true };
   let couvert = 0;
   let gardees = 0;
-  for (const e of ech) {
+  for (const e of r.echeances) {
     if (couvert + e.amountXof > verse) break;
     couvert += e.amountXof;
     gardees += 1;
   }
-  const restant = nouveau - couvert;
-  const suite: Echeance[] = ech.slice(0, gardees).map((e) => ({ ...e }));
-  if (restant > 0) {
-    /* JAMAIS PLUS DE TRANCHES QUE DE FRANCS. Une tranche à zéro se lirait comme
-       soldée d'avance et la cliente croirait devoir moins : on en garde moins,
-       plutôt que d'en écrire une vide (même règle que `construitEcheancier`). */
-    const libres = ech.slice(gardees);
-    const places = Math.max(1, Math.min(libres.length, restant));
-    const base = Math.floor(restant / places);
-    const rab = restant - base * places;
-    for (let i = 0; i < places; i += 1) {
-      suite.push({
-        numero: suite.length + 1,
-        dueIso: libres[i]?.dueIso ?? libres[libres.length - 1].dueIso,
-        amountXof: i === places - 1 ? base + rab : base,
-      });
-    }
-  }
-  /* LES RANGS SE REFONT : « la deuxième » doit rester la deuxième de la liste
-     qu'on lui montre, sinon le suivi et le rappel parlent de tranches
-     différentes. */
-  return { ...socle, ok: true, gardees, echeances: suite.map((e, i) => ({ ...e, numero: i + 1 })) };
+  return {
+    ...socle, ok: true, gardees, echeances: r.echeances,
+    ...(r.porteeSur !== undefined ? { porteeSur: r.porteeSur } : {}),
+    ...(r.nouvelle ? { nouvelle: r.nouvelle } : {}),
+  };
 }

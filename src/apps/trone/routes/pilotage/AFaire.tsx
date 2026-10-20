@@ -27,7 +27,7 @@ import { appelDe } from '../../../../shared/civilite';
 import { invoiceResteXof, useInvoices } from '../../../../shared/finance';
 import { useSettings } from '../../../../shared/settings';
 import { jourDuSalon } from '../../../../shared/envois';
-import { aAppeler, departDesRelances, etatDesRelances, seRelance } from '../../../../shared/relances-pur';
+import { aAppeler, departDesRelances, etatDesRelancesDeLaPiece, seRelance } from '../../../../shared/relances-pur';
 import { useEnvois } from '../equipe/data';
 import { TuileCapturesAInscrire } from './TuileCapturesAInscrire';
 /** LES GESTES QUI SE LISENT TÊTE PAR TÊTE. Les mains, le prix d'achat et les
@@ -124,7 +124,7 @@ export default function AFaire() {
       const reste = invoiceResteXof(f);
       if (!depart || !(reste > 0)) return false;
       const enPause = !!f.relancesPause;
-      const e = etatDesRelances({ factureId: f.id, depart, journal: envoisDuJournal, resteXof: reste, enPause, aujourdhui: auj, jourDe: jourDuSalon });
+      const e = etatDesRelancesDeLaPiece({ factureId: f.id, depart, journal: envoisDuJournal, resteXof: reste, enPause, aujourdhui: auj, jourDe: jourDuSalon });
       return aAppeler(e, { resteXof: reste, enPause, aujourdhui: auj });
     });
   }, [factures, envoisDuJournal, reglagesMaison.relances, branch.id]);

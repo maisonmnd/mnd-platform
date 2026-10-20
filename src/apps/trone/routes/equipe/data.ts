@@ -696,6 +696,8 @@ export {
   cycleWindow, subWindow, coversSub, subServiceUsage, usageDetaille, rdvCouvertsDe, rdvCouvertsHorsFormule,
   libellesInclus, prochaineReferenceAbo, nomDuContrat, contratPourLaDate, debutDuContrat,
   etatDuContrat, comptesAbonnement, comptesRanges, resteDuContrat, retardDuContrat, ETAT_LABEL,
+  /* Le juge unique, lu par les écrans (20 octobre 2026). */
+  releveDuContrat, ETATS_QUI_COURENT, type ContexteDuJuge,
   moteurDesAbonnements, type MoteurAbonnements, type EcheanceDue,
   type EtatContrat, type CompteAbonnement, type ContratDuCompte,
   prixDeLaFormule, partMensuelleDeLaFormule, moisDuPack, valeurALaCarte, remiseSurLaCarte,
@@ -706,7 +708,7 @@ export {
   prixVenduXof, inclusVendus, validiteVendueJours, moisCouvertsVendus,
   partMensuelleVendueXof, prixEstConvenu, ecartDuPrixConvenu,
   /* Le prix convenu se revoit, 4 septembre — et l'échéancier suit. */
-  revoitLePrixConvenu, type PrixRevu,
+  revoitLePrixConvenu, type PrixRevu, valeurALaCarteDeLaFormule,
   /* Ce que « prochaine échéance » veut dire, 10 septembre : échéance,
      fin de paquet, ou date de cycle. */
   quandEstDue,
@@ -716,7 +718,9 @@ export type {
 } from '../../../../shared/abonnements';
 /* Les seuls usages INTERNES à ce fichier : les semences et le marketing en
    ont besoin comme valeurs, pas seulement comme types. */
-import { plansStore, subscribersStore, coversSub, inclusVendus, type Payment, type Plan, type PlanIncluded, type Subscriber } from '../../../../shared/abonnements';
+import { plansStore, subscribersStore, coversSub, inclusVendus, releveDuContrat, type Payment, type Plan, type PlanIncluded, type Subscriber } from '../../../../shared/abonnements';
+import { inclusALaDate, luneDeLaDate } from '../../../../shared/abonnee-pur';
+import { jourDeCotonou } from '../../../../shared/ia-faits-pur';
 
 
 
@@ -1098,22 +1102,32 @@ export function ensureStarterPlanIncluded(): void {
 
 
 
-/** Allocation RESTANTE pour couvrir CE service sur le cycle en cours :
+/** Allocation RESTANTE pour couvrir CE service à CETTE date :
     `undefined` = pas inclus dans la formule · `null` = illimité · nombre = reste.
-    `excludeApptId` exclut le RDV en cours d'édition de son propre décompte. */
+    `excludeApptId` exclut le RDV en cours d'édition de son propre décompte.
+
+    LE JUGE UNIQUE COMPTE — 20 octobre 2026. Les séances prises sont celles
+    que le relevé du contrat compte (faites, réservées, manquées ; jamais une
+    annulée, une rendue, ni une suite de forfait), dans la fenêtre de la date
+    du rendez-vous : toute la vie d'un paquet, la lune de la date pour un
+    cycle. L'ancien compte lisait la lune du JOUR DU CLIC. */
 export const coveredRemaining = (
-  sub: Subscriber, plan: Plan | undefined, serviceId: string, appts: Appointment[], excludeApptId?: string,
+  sub: Subscriber, plan: Plan | undefined, serviceId: string, appts: readonly Appointment[], excludeApptId?: string,
+  dateIso?: string,
 ): number | null | undefined => {
   /* SON CONTENU À ELLE. Lire celui de la formule refuserait au comptoir une
      prestation qu'on lui a vendue en propre, et en offrirait une qu'on lui
      avait retirée — les deux devant elle, au moment de réserver. */
-  const i = inclusVendus(sub, plan).find((x) => x.serviceId === serviceId);
+  const date = dateIso ?? jourDeCotonou();
+  const i = inclusALaDate(sub, plan, date).find((x) => x.serviceId === serviceId);
   if (!i) return undefined;
   if (i.qty === null) return null;
-  const used = appts.filter(
-    (a) => a.id !== excludeApptId && a.serviceIds.includes(serviceId) && coversSub(a, sub, plan),
-  ).length;
-  return Math.max(0, i.qty - used);
+  const c = releveDuContrat(sub, plan, appts);
+  const fenetre = plan?.mode === 'pack' ? null : luneDeLaDate(sub, date);
+  const prises = (c?.attribuees ?? []).filter((x) => x.compte && x.id !== excludeApptId
+    && x.serviceIds.includes(serviceId)
+    && (!fenetre || (x.date >= fenetre.du && x.date < fenetre.au))).length;
+  return Math.max(0, i.qty - prises);
 };
 
 /* ============================================================

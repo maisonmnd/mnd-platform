@@ -6,9 +6,11 @@ import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
 import { uid } from '../../../../shared/store';
 import {
-  usePaymentMethods, useCashboxes, caisseParDefaut, nouvelleFacture, ligneFacture,
-  invoicesStore, invoiceRegleXof, quiEncaisse, type Invoice, type InvoicePayment,
+  usePaymentMethods, useCashboxes, caisseParDefaut,
+  invoicesStore, invoiceRegleXof, quiEncaisse, useInvoices, type InvoicePayment,
 } from '../../../../shared/finance';
+import { jourDeCotonou } from '../../../../shared/ia-faits-pur';
+import { verseSurLAbonnement, resilie, type VersementDuComptoir } from '../clients/gestes-de-l-abonnement';
 import {
   shortDate, dateComplete, anciennete, usePlans, useSubscribers, ensureStarterPlans, ensureStarterPlanIncluded,
   subCycleAmountXof, subMonthlyXof, subPaid, cycleDays, cycleLabel,
@@ -16,8 +18,8 @@ import {
   prixDeLaFormule, libelleFourchette, SELON_LE_CALIBRE, partMensuelleDeLaFormule, moisDuPack, valeurALaCarte, remiseSurLaCarte, type PlanMode,
   type TeteConnue,
   prixVenduXof, ecartDuPrixConvenu, inclusVendus, libellesInclus, abonnementsVivantsDe,
-  revoitLePrixConvenu,
-  comptesAbonnement, comptesRanges, moteurDesAbonnements, ETAT_LABEL,
+  revoitLePrixConvenu, valeurALaCarteDeLaFormule,
+  comptesAbonnement, comptesRanges, moteurDesAbonnements, ETAT_LABEL, ETATS_QUI_COURENT, releveDuContrat,
   prochaineReferenceAbo,
   type Plan, type Subscriber, type Payment, type SubCycle, type PlanIncluded, type FamilleFormule,
 } from './data';
@@ -191,7 +193,15 @@ export default function Abonnements() {
   useEffect(() => { ensureStarterPlans(); ensureStarterPlanIncluded(); }, [plans]);
 
   const branchSubs = useMemo(() => subs.filter((m) => m.branchId === branch.id), [subs, branch.id]);
-  const members = useMemo(() => branchSubs.filter((m) => m.status !== 'churn'), [branchSubs]);
+  /* QUI COURT, QUI EST PARTI — 20 octobre 2026 : l'état du juge unique, plus
+     le statut stocké. Une retenue jamais réglée s'efface ; une résiliation
+     datée part à sa date ; un paquet passé sa fin est terminé. */
+  const [toutesLesPieces] = useInvoices();
+  const etatDe = (m: Subscriber) => releveDuContrat(m, plans.find((p) => p.id === m.planId), [], { subs, plans, invoices: toutesLesPieces })?.etat ?? 'en-cours';
+  const members = useMemo(() => branchSubs.filter((m) => ETATS_QUI_COURENT.includes(etatDe(m))), [branchSubs, subs, plans, toutesLesPieces]);
+  /* LE VERSÉ D'UN CONTRAT : le sien ET celui de sa pièce, réunis par
+     identifiant (le juge unique). `subPaid` ne lisait que le contrat. */
+  const verseDe = (m: Subscriber) => releveDuContrat(m, plans.find((p) => p.id === m.planId), [], { subs, plans, invoices: toutesLesPieces })?.argent.regleXof ?? 0;
 
   /* ── LES PARTIS, RETROUVABLES — 28 août ─────────────────────────────
      « Peux-tu retrouver les abonnements que j'avais auparavant ? » (Yéman).
@@ -208,7 +218,7 @@ export default function Abonnements() {
      confirmation, et LES PARTIS ONT LEUR LISTE, d'où l'on réabonne. Une
      résiliation est une décision, pas une suppression : la tête a payé, son
      histoire appartient à la Maison. */
-  const partis = useMemo(() => branchSubs.filter((m) => m.status === 'churn'), [branchSubs]);
+  const partis = useMemo(() => branchSubs.filter((m) => !ETATS_QUI_COURENT.includes(etatDe(m))), [branchSubs, subs, plans, toutesLesPieces]);
   const churned = partis.length;
   const [voirPartis, setVoirPartis] = useState(false);
   const [aResilier, setAResilier] = useState<Subscriber | null>(null);
@@ -267,22 +277,32 @@ export default function Abonnements() {
   const supprimer = (m: Subscriber) => {
     setSubs((prev) => prev.filter((x) => x.id !== m.id));
     setASupprimer(null);
-    const verse = subPaid(m);
+    const verse = verseDe(m);
     toast(verse > 0
       ? `Abonnement supprimé, avec ${fmtMoney(verse, currency)} de règlements inscrits dessus.`
       : 'Abonnement supprimé. Il ne portait aucun règlement.');
   };
 
+  /* RÉSILIER, DATÉ, AVEC SON MOTIF — 20 octobre 2026 (décision 9). L'avoir
+     au prorata se compte à cette date ; la carte Abonnement de la fiche 360
+     montre l'effet chiffré avant le geste. */
+  const [resiliationMotif, setResiliationMotif] = useState('');
   const resilier = (m: Subscriber) => {
-    setSubs((prev) => prev.map((x) => (x.id === m.id ? { ...x, status: 'churn' as const } : x)));
+    const le = jourDeCotonou();
+    resilie(m.id, le, resiliationMotif || 'Résiliée au comptoir', le);
     setAResilier(null);
+    setResiliationMotif('');
     setVoirPartis(true);
-    toast('Abonnement résilié. Il reste dans « Les partis », vous pouvez le reprendre.');
+    toast(`Abonnement résilié au ${dateComplete(le)}. Il reste dans « Les partis », vous pouvez le reprendre.`);
   };
   /* On rend le statut « actif », jamais « nouveau » : elle n'est pas une
-     nouvelle tête, elle revient. Le MRR repart avec elle. */
+     nouvelle tête, elle revient. La résiliation datée s'efface avec. */
   const reprendre = (m: Subscriber) => {
-    setSubs((prev) => prev.map((x) => (x.id === m.id ? { ...x, status: 'active' as const } : x)));
+    setSubs((prev) => prev.map((x) => {
+      if (x.id !== m.id) return x;
+      const { resilieeLe: _r, motifDeResiliation: _m, ...reste } = x;
+      return { ...reste, status: 'active' as const };
+    }));
     toast('Abonnement repris, la tête retrouve sa formule.');
   };
   /* ══ LE MRR EST MORT — 2 septembre 2026 ════════════════════════════
@@ -603,16 +623,10 @@ export default function Abonnements() {
     const autres = clients.filter((x) => x.familyId === c.familyId && x.id !== c.id && abonnementsVivantsDe(subs, x.id).length > 0).length;
     const rang = rangDansLeFoyer(autres);
     if (!leFoyerJoue(rang)) return null;
-    const tete = { ...pricingOf(c, bands, jeuxDeCalibres), longueur: c.longueur };
-    const prixDe = (id: string): number => {
-      const sv = services.find((s) => s.id === id);
-      return sv ? personalPriceXof(sv, tete, services) : 0;
-    };
-    let valeur = (plan.included ?? []).reduce((t, i) => t + (i.qty ?? 0) * prixDe(i.serviceId), 0);
-    const soins = plan.soinsDeLaLune ?? [];
-    if (soins.length) valeur += soins.reduce((t, id) => t + prixDe(id), 0) / soins.length;
+    /* SUR LA VALEUR DE LA FORMULE, la même pour toutes (Yéman, 20 octobre
+       2026) : jamais sur le Juste Prix de la tête, et comme en ligne. */
     const avant = prixDeLaFormule(plan, subForm.cycle, teteDeLaVente(), calibresAbo).montantXof;
-    const apres = prixDuFoyer(avant, valeur);
+    const apres = prixDuFoyer(avant, valeurALaCarteDeLaFormule(avant, plan));
     return apres < avant ? { rang, prixXof: apres, avantXof: avant } : null;
   };
 
@@ -659,12 +673,11 @@ export default function Abonnements() {
 
        ON REFUSE ET ON NOMME CE QUI BLOQUE. Un refus muet se reclique ; celui-ci
        dit quelle formule occupe déjà la place, et ce qu'il faut en faire. */
+    /* ══ DEUX EN MÊME TEMPS — 20 octobre 2026 (tranché par Yéman) ═══════
+       La règle d'une seule formule venait de ce qu'une séance se décomptait
+       sur tous les contrats qui la couvraient. Le juge unique la rattache à
+       UN contrat : une seconde formule se vend, et l'écran le dit. */
     const dejaLa = abonnementsVivantsDe(subs, client.id);
-    if (dejaLa.length > 0) {
-      const occupe = planOf(dejaLa[0].planId)?.name ?? 'une formule';
-      toast(`${client.name} a déjà « ${occupe} » en cours. Résiliez-la d’abord, ou modifiez-la : deux abonnements ouverts font deux compteurs sur les mêmes rendez-vous.`);
-      return;
-    }
     /* ══ UNE FOIS PAR TÊTE — 10 octobre 2026 (la genèse des prix) ══════
        Les Premières Lunes et le Carnet de Quatre sont des portes : chacune
        se prend une fois par tête. Tout contrat compte, même fini. */
@@ -718,6 +731,9 @@ export default function Abonnements() {
         ? (jours === null ? addDaysISO(cycleDays(cycle)) : addDaysISO(jours))
         : addDaysISO(cycleDays(cycle)),
       sinceIso: todayISO(), since: 'ce mois', status: 'new', payments: [],
+      /* VENDUE AU COMPTOIR : jamais « retenue » (la retenue est la formule
+         prise en ligne et non réglée). */
+      origine: 'comptoir',
       /* Le MRR porte l'option, ramenée au mois : un supplément annuel non
          normalisé gonflerait le revenu récurrent du mois de la signature,
          puis disparaîtrait des mois suivants. */
@@ -751,7 +767,9 @@ export default function Abonnements() {
     setSubs((prev) => [...prev, nm]);
     setSubModal(false);
     setSubForm({ clientId: '', planId: premiereOuverte(plans)?.id ?? '', slot: '', cycle: 'mensuel', parts: null, premiere: '', dates: {}, voie: '', rythme: 'reguliere', couleurServiceId: '', prixConvenu: '', motif: '', inclus: null, validiteMois: '' });
-    if (nm.echeances) toast(`Abonnement signé, réglable en ${nm.echeances.length} fois.`);
+    if (dejaLa.length > 0) {
+      toast(`Abonnement signé à côté de « ${planOf(dejaLa[0].planId)?.name ?? 'sa formule'} » : à la réservation, la formule qui finit le plus tôt est proposée d’office.`);
+    } else if (nm.echeances) toast(`Abonnement signé, réglable en ${nm.echeances.length} fois.`);
   };
 
   /* Règlement d'un abonnement : paiement daté, échéance avancée, abonnée réactivée. */
@@ -759,13 +777,18 @@ export default function Abonnements() {
     const plan = planOf(m.planId);
     /* Avec un échéancier, le montant proposé est celui de la PROCHAINE
        échéance, pas le cycle entier : c'est ce qu'on lui réclame aujourd'hui. */
-    const suivante = m.echeances?.length
-      ? prochaineEcheance(etatDesEcheances(m.echeances, subPaid(m), todayISO()))
-      : undefined;
+    /* LE JUGE UNIQUE DIT CE QUI EST DÛ (20 octobre 2026) : l'échu au jour, sinon
+       la prochaine échéance, sinon ce qui ouvre une retenue ou rouvre une lune.
+       Le versé de la pièce compte : MND PAY n'écrivait qu'elle. */
+    const r = releveDuContrat(m, plan, allAppts, { subs, plans, invoices: invoicesStore.get() });
     /* SON PRIX, PAS CELUI DU CATALOGUE. Réclamer 215 000 F à qui on en a
        convenu 190 000 est la faute qu'aucune cliente ne pardonne, et elle se
        ferait au comptoir, la caisse ouverte. */
-    const due = suivante ? suivante.resteXof : prixVenduXof(m, plan, m.cycle ?? 'mensuel');
+    const due = r?.argent.aRegleAujourdhuiXof
+      || r?.argent.prochaine?.montantXof
+      || r?.argent.pourOuvrir?.montantXof
+      || r?.argent.luneARegler?.montantXof
+      || prixVenduXof(m, plan, m.cycle ?? 'mensuel');
     setPayForm({ amount: String(due), date: todayISO(), method: methods[0] ?? '' });
     setCaisse(caisseParDefaut(branchBoxes, branch.id, currency)?.name ?? '');
     setPayFor(m);
@@ -783,107 +806,56 @@ export default function Abonnements() {
   /* L'état de paiement d'une abonnée, pour le tableau — dérivé, jamais stocké. */
   const etatPaiement = (m: Subscriber) => {
     if (!m.echeances?.length) return null;
-    const etats = etatDesEcheances(m.echeances, subPaid(m), todayISO());
-    const retard = enRetardXof(etats);
-    const soldees = etats.filter((e) => e.soldee).length;
-    return { retard, soldees, total: etats.length, reste: resteDeLEcheancier(etats) };
+    const r = releveDuContrat(m, planOf(m.planId), allAppts, { subs, plans, invoices: toutesLesPieces });
+    if (!r) return null;
+    const etats = r.argent.echeances;
+    return {
+      retard: r.argent.enRetardXof,
+      soldees: etats.filter((e) => e.statut === 'reglee').length,
+      total: etats.length,
+      reste: r.argent.resteXof,
+    };
   };
-  const savePay = () => {
-    if (!payFor) return;
+  /* ══ L'ARGENT D'UN CONTRAT PAR UN SEUL CHEMIN — 20 octobre 2026 (décision 6) ══
+     « Le contrat fait foi, la pièce suit. » Le comptoir écrivait le contrat ET
+     la pièce, KkiaPay le contrat seul, MND PAY la pièce seule : un argent payé
+     se lisait « en retard », un autre se comptait deux fois dans le mois. Le
+     versement part désormais au serveur (`verse_sur_l_abonnement`), qui écrit
+     le contrat et sa pièce unique sous le même identifiant, dans la même
+     transaction, avance la lune d'une Chaque Lune, et ne verse jamais deux
+     fois le même identifiant.
+
+     HORS LIGNE, LE VERSEMENT ATTEND (`gardeUnVersement`) et part au retour du
+     réseau ; le contrat ne se réécrit jamais sur l'appareil, ce qui ferait
+     renaître le double registre. Rejoué, il ne verse jamais deux fois. */
+  const [versementEnCours, setVersementEnCours] = useState(false);
+  const savePay = async () => {
+    if (!payFor || versementEnCours) return;
     const amount = parseInt(payForm.amount.replace(/[^0-9]/g, ''), 10) || 0;
     if (amount <= 0) { toast('Saisissez le montant encaissé.'); return; }
-    const pmt: Payment = { id: `pay-${uid()}`, amountXof: amount, date: payForm.date || todayISO(), method: payForm.method || undefined };
-    const cycle = payFor.cycle ?? 'mensuel';
-    /* Échéance d'ANNIVERSAIRE : on avance depuis l'échéance précédente — payer en
-       avance ne raccourcit plus le cycle, payer un peu en retard ne le décale plus.
-       Très en retard (la nouvelle échéance serait déjà passée) : on repart
-       d'aujourd'hui plutôt que de créer une échéance déjà échue. */
-    const days = cycleDays(cycle);
-    const base = /^\d{4}-\d{2}-\d{2}$/.test(payFor.nextIso) ? payFor.nextIso : todayISO();
-    let next = addDaysFromISO(base, days);
-    if (next <= todayISO()) next = addDaysISO(days);
-
-    /* ── L'ARGENT ENTRE VRAIMENT DANS LA MAISON — 29 août 2026 ──────
-       « Un règlement encaissé au comptoir ne devrait pas être QUE sur la fiche
-       de l'abonnement. Il doit créer un mouvement de caisse et une facture »
-       (Yéman). Le trou était réel : ce versement ne créait NI pièce NI entrée
-       de caisse. Or le journal de caisse se DÉRIVE des règlements de factures
-       (`InvoicePayment.cashbox`) : cet argent n'entrait donc dans aucun tiroir,
-       ne paraissait dans aucun chiffre d'affaires, et disparaissait tout entier
-       si l'abonnement était supprimé.
-
-       LA PIÈCE NAÎT AU PREMIER RÈGLEMENT ET SE GARDE. Les versements suivants
-       s'y ajoutent, comme une facture réglée en deux fois — c'est exactement ce
-       qu'est un abonnement échelonné. */
     const boite = caisse || caisseParDefaut(branchBoxes, branch.id, currency)?.name || '';
-    const versement: InvoicePayment = {
-      id: pmt.id,
-      date: pmt.date,
-      amountXof: amount,
-      method: pmt.method ?? (methods[0] ?? 'Espèces'),
+    const versement: VersementDuComptoir = {
+      id: `pay-${uid()}`,
+      date: payForm.date || todayISO(),
+      montantXof: amount,
+      moyen: payForm.method || (methods[0] ?? 'Espèces'),
       ...(boite ? { cashbox: boite } : {}),
       note: 'Abonnement',
-      time: new Date().toTimeString().slice(0, 5),
+      source: 'comptoir',
       ...(quiEncaisse() ? { encaissePar: quiEncaisse() } : {}),
     };
-    const plan = planOf(payFor.planId);
-    const nomFormule = plan?.name ?? 'Abonnement';
-    const pieceExistante = payFor.invoiceId
-      ? invoicesStore.get().find((i) => i.id === payFor.invoiceId)
-      : undefined;
-
-    let pieceId = payFor.invoiceId;
-    if (pieceExistante) {
-      invoicesStore.set((prev) => prev.map((i) => (i.id === pieceExistante.id
-        ? { ...i, payments: [...(i.payments ?? []), versement] }
-        : i)));
-    } else {
-      /* LA PIÈCE PORTE LE TOTAL DE LA FORMULE, pas le versement du jour : une
-         facture qui ne vaudrait que l'acompte laisserait le reste hors des
-         comptes, et la créance disparaîtrait. */
-      const total = prixVenduXof(payFor, plan, cycle) + (payFor.couleur?.supplementXof ?? 0);
-      const piece = nouvelleFacture({
-        branchId: branch.id,
-        serie: 'MND',
-        status: 'envoyée',
-        date: payFor.sinceIso || pmt.date,
-        clientId: payFor.clientId,
-        clientName: payFor.name,
-        /* LA PIÈCE PORTE CE QU'ELLE VEND. Une ligne « La Juste Cadence ·
-           168 000 F » ne dit pas ce que la cliente a acheté ; c'est pourtant ce
-           papier qu'elle ressortira dans six mois pour réclamer son cinquième
-           resserrage. Le contenu est ÉCRIT SUR LA PIÈCE, et non relu depuis la
-           formule : changer une formule ne doit pas réécrire ce que les
-           anciennes factures sont censées avoir vendu. */
-        lines: [{ ...ligneFacture(nomFormule, total), detail: libellesInclus(payFor, plan, serviceName) }],
-        theme: 'Aube',
-        /* LA PIÈCE DIT QUEL CONTRAT ELLE RÈGLE. Deux Juste Cadence dans
-           l'année font deux factures que rien ne distinguait. */
-        note: `Abonnement · ${nomFormule}${payFor.reference ? ` · ${payFor.reference}` : ''}${payFor.echeances?.length ? ` · réglable en ${payFor.echeances.length} fois` : ''}`,
-      });
-      /* LE MIROIR DU PREMIER VERSEMENT. `payment` est ce que lisent les écrans
-         qui ne déroulent pas le journal ; sans lui, la feuille des factures
-         affichait « — » sur une pièce pourtant réglée par chèque. */
-      const avecVersement: Invoice = {
-        ...piece, payments: [versement], payment: versement.method, ...(boite ? { cashbox: boite } : {}),
-      };
-      pieceId = avecVersement.id;
-      invoicesStore.set((prev) => [avecVersement, ...prev]);
-    }
-
-    setSubs((prev) => prev.map((s) => (s.id === payFor.id
-      ? {
-        ...s,
-        payments: [...(s.payments ?? []), pmt],
-        status: s.status === 'churn' ? s.status : 'active',
-        nextIso: next,
-        ...(pieceId ? { invoiceId: pieceId } : {}),
-      }
-      : s)));
+    setVersementEnCours(true);
+    const r = await verseSurLAbonnement(payFor.id, versement);
+    setVersementEnCours(false);
+    if (!r.ok) { toast(r.erreur); return; }
     setPayFor(null);
-    toast(boite
-      ? `${fmtMoney(amount, currency)} encaissés dans « ${boite} », la pièce est écrite.`
-      : `${fmtMoney(amount, currency)} encaissés, la pièce est écrite.`);
+    toast(r.enAttente
+      ? `Hors ligne : ${fmtMoney(amount, currency)} gardés sur cet appareil, ils s’inscrivent au contrat et sur sa pièce au retour du réseau, une seule fois.`
+      : r.deja
+      ? 'Ce versement était déjà inscrit : rien n’a été écrit deux fois.'
+      : boite
+        ? `${fmtMoney(amount, currency)} encaissés dans « ${boite} » : inscrits au contrat et sur sa pièce.`
+        : `${fmtMoney(amount, currency)} encaissés : inscrits au contrat et sur sa pièce.`);
   };
 
   /* ── SES DATES À ELLE, RECORRIGÉES ────────────────────────────────
@@ -1068,7 +1040,11 @@ export default function Abonnements() {
       date: x.dateIso,
       time: cadenceForm.heure,
       master: cadenceForm.maitre,
-      status: 'confirmé',
+      /* PROPOSÉES PAR LA MAISON — 20 octobre 2026 (maquette validée) : elles
+         arrivent chez la cliente à confirmer d'une touche. Elles comptent
+         aussitôt parmi les réservées ; refusées, elles reviennent à la formule. */
+      status: 'en attente',
+      proposeeLe: new Date().toISOString(),
       source: 'trone',
       note: `Cadence de l’abonnement${suiviFor.reference ? ` · ${suiviFor.reference}` : ''}`,
       coveredBySub: true,
@@ -1080,15 +1056,15 @@ export default function Abonnements() {
     } as Appointment));
     appointmentsStore.set((prev) => [...prev, ...estampilleLesPoses(neufs)]);
     setCadenceForm(null);
-    toast(`${neufs.length} rendez-vous posés, du ${dateComplete(neufs[0].date)} au ${dateComplete(neufs[neufs.length - 1].date)}.`);
+    toast(`${neufs.length} séance${neufs.length > 1 ? 's' : ''} proposée${neufs.length > 1 ? 's' : ''} à la cliente, du ${dateComplete(neufs[0].date)} au ${dateComplete(neufs[neufs.length - 1].date)} : elle les confirme dans Ma Couronne.`);
   };
 
   /* LES COMPTES SE CALCULENT À CHAQUE RENDU, jamais à l'enregistrement : c'est
      toute la différence avec le champ `status`, écrit à la vente et presque
      jamais remis à jour. Un état qui se stocke vieillit mal. */
   const comptes = useMemo(
-    () => comptesRanges(comptesAbonnement({ subs: branchSubs, plans, appts: allAppts, aujourdhui: todayISO() })),
-    [branchSubs, plans, allAppts],
+    () => comptesRanges(comptesAbonnement({ subs: branchSubs, plans, appts: allAppts, aujourdhui: jourDeCotonou(), invoices: toutesLesPieces })),
+    [branchSubs, plans, allAppts, toutesLesPieces],
   );
   /* LE MOTEUR SE CALCULE SUR LES COMPTES, jamais sur un champ écrit à la vente :
      c'est ce qui l'empêche de vieillir. */
@@ -1097,8 +1073,8 @@ export default function Abonnements() {
     prixDuService: (id) => services.find((sv) => sv.id === id)?.priceXof,
   }), [comptes, plans, services]);
   const comptesFiltres = useMemo(() => comptes.filter((c) => {
-    if (filtreCompte === 'en-cours') return c.vif?.etat === 'en-cours';
-    if (filtreCompte === 'a-relancer') return c.vif?.etat === 'epuise';
+    if (filtreCompte === 'en-cours') return c.vif?.etat === 'en-cours' || c.vif?.etat === 'en-pause' || c.vif?.etat === 'retenue';
+    if (filtreCompte === 'a-relancer') return c.vif?.etat === 'epuisee';
     if (filtreCompte === 'retard') return c.retardXof > 0;
     /* « PARTIES » : celles qui n'ont plus rien qui vive. Un paquet arrivé au
        bout sans reprise est un départ aussi, simplement plus poli qu'une
@@ -1119,8 +1095,12 @@ export default function Abonnements() {
     setSubModal(true);
   };
 
-  const statusDot = (s: Subscriber['status']) =>
-    s === 'risk' ? '#8f3b30' : s === 'new' ? 'var(--color-copper)' : '#6e7c5c';
+  /* LA PASTILLE SUIT L'ÉTAT DU JUGE, plus le statut stocké ('risk' n'était
+     écrit par personne). */
+  const statusDot = (m: Subscriber) => {
+    const e = etatDe(m);
+    return e === 'retenue' || e === 'epuisee' ? 'var(--color-copper)' : e === 'en-pause' ? 'var(--ink-soft)' : '#6e7c5c';
+  };
 
   return (
     <div className="mnd-rise">
@@ -1253,9 +1233,9 @@ export default function Abonnements() {
                 <Eyebrow>Ce que la Maison doit encore</Eyebrow>
                 <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 10 }}>
                   <div className="tre-du" style={{ cursor: 'default' }}>
-                    <span className="tre-du__q">Séances dues<i>crédits non consommés, toutes formules</i></span>
+                    <span className="tre-du__q">Séances disponibles<i>pas encore réservées, toutes formules</i></span>
                     <span className="tre-du__v">{moteur.seancesDues}
-                      <em>{moteur.seancesTenues > 0 ? `dont ${moteur.seancesTenues} à l’agenda` : 'aucune posée'}</em>
+                      <em>{moteur.seancesReservees > 0 ? `et ${moteur.seancesReservees} réservée${moteur.seancesReservees > 1 ? 's' : ''} à l’agenda` : 'aucune réservée'}</em>
                     </span>
                   </div>
                   <div className="tre-du" style={{ cursor: 'default' }}>
@@ -1406,7 +1386,7 @@ export default function Abonnements() {
                       <div className="tre-kpi__l">Reste dû</div>
                       <div className={`tre-kpi__v ${c.retardXof > 0 ? 'is-brique' : ''}`}>{fmtMoney(c.resteXof, currency)}</div>
                     </div>
-                    <div><div className="tre-kpi__l">Séances reçues</div><div className="tre-kpi__v">{c.honorees}</div></div>
+                    <div><div className="tre-kpi__l">Séances faites</div><div className="tre-kpi__v">{c.faites}</div></div>
                   </div>
                   {c.clientId && (
                     <button type="button" className="tre-link-btn" onClick={() => navigate(`/customers?id=${c.clientId}`)}>
@@ -1419,7 +1399,7 @@ export default function Abonnements() {
                   {montres.map((x) => {
                     const vif = x === c.vif;
                     const pct = x.promis > 0 ? Math.min(100, Math.round((x.utilises / x.promis) * 100)) : 0;
-                    const fait = x.promis > 0 ? Math.min(100, Math.round((x.honorees / x.promis) * 100)) : 0;
+                    const fait = x.promis > 0 ? Math.min(100, Math.round((x.faites / x.promis) * 100)) : 0;
                     return (
                       <div key={x.sub.id}>
                         {/* LE SILENCE ENTRE DEUX CONTRATS EST UNE DONNÉE : deux
@@ -1455,12 +1435,12 @@ export default function Abonnements() {
                             </span>
                             <span className="tre-contrat__n">
                               {x.promis > 0
-                                ? <><b>{x.honorees}</b> honorée{x.honorees > 1 ? 's' : ''}{x.utilises > x.honorees ? <> · <b>{x.utilises - x.honorees}</b> retenue{x.utilises - x.honorees > 1 ? 's' : ''}</> : null} sur {x.promis}</>
+                                ? <><b>{x.faites}</b> faite{x.faites > 1 ? 's' : ''}{x.reservees > 0 ? <> · <b>{x.reservees}</b> réservée{x.reservees > 1 ? 's' : ''}</> : null}{x.manquees > 0 ? <> · <b>{x.manquees}</b> manquée{x.manquees > 1 ? 's' : ''}</> : null} · <b>{Math.max(0, x.promis - x.utilises)}</b> disponible{x.promis - x.utilises > 1 ? 's' : ''} sur {x.promis}</>
                                 : 'aucune prestation incluse'}
                               {x.verseXof > 0 ? ` · versé ${fmtMoney(x.verseXof, currency)}` : ''}
                             </span>
                             <span className="tre-contrat__act">
-                              {x.etat === 'epuise' && c.clientId && (
+                              {x.etat === 'epuisee' && c.clientId && (
                                 <button type="button" className="tre-mini is-cuivre" onClick={() => reproposer(c.clientId)}>Lui reproposer</button>
                               )}
                               <button type="button" className="tre-mini" onClick={() => setSuiviFor(x.sub)}>Suivi</button>
@@ -1739,17 +1719,17 @@ export default function Abonnements() {
             <div className="mnd-scroll-x">
               <table className="tre-table tre-table--cards">
                 <thead>
-                  <tr><th>Tête couronnée</th><th>Formule · cycle</th><th>Son créneau · rien qu’à elle</th><th>Prochaine échéance</th><th style={{ textAlign: 'right' }}>MRR</th><th></th></tr>
+                  <tr><th>Tête couronnée</th><th>Formule · cycle</th><th>Son créneau · rien qu’à elle</th><th>Prochaine échéance</th><th></th></tr>
                 </thead>
                 <tbody>
                   {members.map((m) => {
                     const plan = planOf(m.planId);
-                    const paid = subPaid(m);
+                    const paid = verseDe(m);
                     return (
                     <tr key={m.id}>
                       <td>
                         <span style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                          <span style={{ width: 8, height: 8, borderRadius: '50%', background: statusDot(m.status), flex: 'none' }} />
+                          <span style={{ width: 8, height: 8, borderRadius: '50%', background: statusDot(m), flex: 'none' }} />
                           <span>
                             <span style={{ display: 'block', fontFamily: 'var(--font-serif)', fontSize: 17, color: 'var(--color-indigo)' }}>{m.name}</span>
                             <span className="mnd-muted" style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 10.5, flexWrap: 'wrap' }}>
@@ -1826,7 +1806,7 @@ export default function Abonnements() {
                           const q = quandEstDue(m, todayISO());
                           return (
                             <>
-                              <span style={{ fontSize: 12.5, color: m.status === 'risk' ? '#8f3b30' : undefined }}>
+                              <span style={{ fontSize: 12.5 }}>
                                 {q.iso ? dateComplete(q.iso) : '—'}
                               </span>
                               {q.quoi !== 'cycle' && (
@@ -1858,7 +1838,6 @@ export default function Abonnements() {
                         })()}
                         {m.note && <div style={{ fontSize: 10.5, color: '#8f3b30', marginTop: 2 }}>{m.note}</div>}
                       </td>
-                      <td className="num" data-label="MRR" style={{ textAlign: 'right' }}>{fmtMoney(m.mrrXof, currency)}</td>
                       <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
                         {(plan?.included?.length ?? 0) > 0 && (
                           <button className="tre-link-btn" style={{ marginRight: 10 }} onClick={() => setSuiviFor(m)}>Suivi</button>
@@ -1928,7 +1907,7 @@ export default function Abonnements() {
                   <div className="mnd-scroll-x">
                     <table className="tre-table tre-table--cards">
                       <thead>
-                        <tr><th>Tête couronnée</th><th>Formule</th><th>Abonnée depuis</th><th style={{ textAlign: 'right' }}>MRR d’alors</th><th></th></tr>
+                        <tr><th>Tête couronnée</th><th>Formule</th><th>Abonnée depuis</th><th>Fin</th><th></th></tr>
                       </thead>
                       <tbody>
                         {partis.map((m) => (
@@ -1936,7 +1915,7 @@ export default function Abonnements() {
                             <td data-label="Tête couronnée">{m.name}</td>
                             <td data-label="Formule" className="mnd-muted">{planOf(m.planId)?.name ?? 'Formule retirée'}</td>
                             <td data-label="Depuis" className="mnd-muted">{m.sinceIso ? dateComplete(m.sinceIso) : m.since}</td>
-                            <td data-label="MRR" className="num" style={{ textAlign: 'right' }}>{fmtMoney(m.mrrXof, currency)}</td>
+                            <td data-label="Fin" className="mnd-muted">{m.resilieeLe ? `résiliée le ${dateComplete(m.resilieeLe)}` : ETAT_LABEL[etatDe(m)]}</td>
                             <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
                               <button className="tre-link-btn" onClick={() => reprendre(m)}>Reprendre l’abonnement</button>
                                 <button
@@ -1962,7 +1941,7 @@ export default function Abonnements() {
       {aDecouper && (() => {
         const total = aRegler(aDecouper);
         const apercu = construitEcheancier(total, partsDecoupe, todayISO());
-        const deja = subPaid(aDecouper);
+        const deja = verseDe(aDecouper);
         return (
           <Modal title="Découper le règlement" onClose={() => setADecouper(null)} width={440}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -2021,7 +2000,7 @@ export default function Abonnements() {
       {/* SUPPRIMER NE SE DÉFAIT PAS. Résilier se reprend, ceci non : on le dit
           avant, et on nomme la tête pour qu'on ne se trompe pas de ligne. */}
       {aSupprimer && (() => {
-        const verse = subPaid(aSupprimer);
+        const verse = verseDe(aSupprimer);
         return (
           <Modal title="Supprimer définitivement ?" onClose={() => setASupprimer(null)} width={440}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -2068,16 +2047,21 @@ export default function Abonnements() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             <p style={{ fontSize: 13.5, lineHeight: 1.7, margin: 0 }}>
               <b style={{ fontWeight: 500 }}>{aResilier.name}</b> quitte la formule
-              {' '}{planOf(aResilier.planId)?.name ?? 'retirée'}. La Maison perd
-              {' '}{fmtMoney(aResilier.mrrXof, currency)} de revenu mensuel.
+              {' '}{planOf(aResilier.planId)?.name ?? 'retirée'}, résiliée aujourd’hui, {dateComplete(jourDeCotonou())}.
+              Ce qu’elle a réglé au-delà des séances comptées devient un avoir au prorata ; les échéances
+              à venir sont annulées. Pour une autre date, et l’effet chiffré avant le geste, passez par
+              la carte Abonnement de sa fiche.
             </p>
+            <Field label="Motif">
+              <Input value={resiliationMotif} onChange={(e) => setResiliationMotif(e.target.value)} placeholder="Par exemple : voyage, à sa demande" />
+            </Field>
             <p className="mnd-muted" style={{ fontSize: 12.5, lineHeight: 1.65, margin: 0 }}>
               Rien n’est effacé : l’abonnement rejoint « Les partis », sous le tableau, d’où vous
               pouvez le reprendre quand elle revient.
             </p>
             <div style={{ display: 'flex', gap: 9, justifyContent: 'flex-end' }}>
               <Button variant="ghost" onClick={() => setAResilier(null)}>Garder l’abonnement</Button>
-              <Button variant="copper" onClick={() => resilier(aResilier)}>Résilier</Button>
+              <Button variant="copper" onClick={() => resilier(aResilier)}>Résilier aujourd’hui</Button>
             </div>
           </div>
         </Modal>
@@ -3421,9 +3405,12 @@ export default function Abonnements() {
                 règle qui permette de dire « deux échéances de retard » sans se
                 tromper. Voir `shared/echeancier.ts`, 31 vérifications. */}
             {payFor.echeances && payFor.echeances.length > 0 && (() => {
-              const etats = etatDesEcheances(payFor.echeances, subPaid(payFor), todayISO());
-              const retard = enRetardXof(etats);
-              const suivante = prochaineEcheance(etats);
+              /* LE JUGE UNIQUE : le versé du contrat et de sa pièce, le
+                 dimanche jugé le lundi, le retard dès le lendemain. */
+              const lu = releveDuContrat(payFor, planOf(payFor.planId), allAppts, { subs, plans, invoices: toutesLesPieces });
+              const etats = (lu?.argent.echeances ?? []).map((e) => ({ ...e, soldee: e.statut === 'reglee', enRetard: e.statut === 'en-retard' }));
+              const retard = lu?.argent.enRetardXof ?? 0;
+              const suivante = etats.find((e) => !e.soldee && e.resteXof > 0 && e.statut !== 'annulee' && e.statut !== 'retenue');
               return (
                 <div>
                   <div className="tre-sec-label" style={{ marginBottom: 8 }}>
@@ -3476,7 +3463,7 @@ export default function Abonnements() {
                     )}
                   </div>
                   <div className="mnd-muted" style={{ fontSize: 11, marginTop: 6, lineHeight: 1.6 }}>
-                    Reste {fmtMoney(resteDeLEcheancier(etats), currency)} sur l’échéancier. Un versement qui déborde
+                    Reste {fmtMoney(lu?.argent.resteXof ?? 0, currency)} sur l’échéancier. Un versement qui déborde
                     coule sur l’échéance suivante.
                   </div>
                 </div>
@@ -3522,14 +3509,16 @@ export default function Abonnements() {
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 10, fontSize: 13 }}>
                   <span className="mnd-muted">Total réglé</span>
-                  <b style={{ color: 'var(--color-indigo)' }}>{fmtMoney(subPaid(payFor), currency)}</b>
+                  <b style={{ color: 'var(--color-indigo)' }}>{fmtMoney(verseDe(payFor), currency)}</b>
                 </div>
               </div>
             )}
 
             <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
               <Button variant="ghost" onClick={() => setPayFor(null)}>Fermer</Button>
-              <Button variant="copper" style={{ flex: 1 }} onClick={savePay} disabled={!(parseInt(payForm.amount, 10) > 0)}>Enregistrer le règlement</Button>
+              <Button variant="copper" style={{ flex: 1 }} onClick={() => void savePay()} disabled={versementEnCours || !(parseInt(payForm.amount, 10) > 0)}>
+                {versementEnCours ? 'Inscription par le serveur…' : 'Enregistrer le règlement'}
+              </Button>
             </div>
           </div>
         </Modal>
