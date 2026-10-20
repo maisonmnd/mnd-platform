@@ -13,8 +13,11 @@ import { CLE_DES_LIENS, type LienDAvis, type LiensDesAvis } from './avis-fiches-
    le document s'écrit en entier (dernier geste gagnant) ; un lien posé
    avant la descente effacerait au serveur ceux des autres postes. */
 
-export const liensDesAvisStore = createStore<LiensDesAvis>(CLE_DES_LIENS, {});
-bindDocument(liensDesAvisStore, CLE_DES_LIENS);
+/* La clé s'écrit EN TOUTES LETTRES (garde verifie-cles-uniques : deux
+   magasins sur une même clé n'en font qu'un) ; le banc vérifie qu'elle est
+   bien `CLE_DES_LIENS`. */
+export const liensDesAvisStore = createStore<LiensDesAvis>('mnd_avis_fiches', {});
+bindDocument(liensDesAvisStore, 'mnd_avis_fiches');
 export const useLiensDesAvis = () => useStore(liensDesAvisStore);
 
 /** Le geste a-t-il pu se poser ? Non tant que le document n'est pas descendu. */

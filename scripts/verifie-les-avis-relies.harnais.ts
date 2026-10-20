@@ -154,7 +154,7 @@ dit('chercher : le début des mots du nom, sans accent ; quatre chiffres du num�
   dit('« Ce n est pas elle » : le lien tombe, l avis redevient à relier', [false, 'a-relier'], [id in liensDesAvisStore.get(), etatDuLien(K, liensDesAvisStore.get()[id], RELEVE)]);
   const magasin = sansCommentaires(lis('src/shared/avis-fiches.ts'));
   dit('le document synchronisé, et AUCUN geste avant sa descente (il effacerait les liens des autres postes)', [true, true, true],
-    [/createStore<LiensDesAvis>\(CLE_DES_LIENS, \{\}\)/.test(magasin), /bindDocument\(liensDesAvisStore, CLE_DES_LIENS\)/.test(magasin),
+    [/createStore<LiensDesAvis>\('mnd_avis_fiches', \{\}\)/.test(magasin) && CLE_DES_LIENS === 'mnd_avis_fiches', /bindDocument\(liensDesAvisStore, 'mnd_avis_fiches'\)/.test(magasin),
       magasin.indexOf('if (!documentDescendu(CLE_DES_LIENS)) return \'attente\';') >= 0 && magasin.indexOf('if (!documentDescendu(CLE_DES_LIENS))') < magasin.indexOf('liensDesAvisStore.set(')]);
 }
 
