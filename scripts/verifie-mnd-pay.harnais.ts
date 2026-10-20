@@ -175,13 +175,19 @@ dit('plusieurs signatures, une juste : acceptée', true, await signatureValide(`
 /* L'échéance suivante (KkiaPay, Ma Couronne) : même texte dans les deux
    fonctions, et la bonne règle. */
 const sansCR = (s: string) => s.split(String.fromCharCode(13)).join('');
+/* 20 octobre 2026 (le parcours de l'abonnée) : `duDeLAbonnement` devient
+   `duDuContrat`, qui réunit le versé du contrat et de sa pièce ; il est
+   éprouvé contre le juge par verifie-le-serveur-de-l-abonnee. Ici, la règle
+   de l'échéance suivante, telle que MND PAY l'a voulue le 16 octobre. */
 dit('kkiapay-verify et kkiapay-webhook portent la même règle de l échéance', true,
-  sansCR(extrais('supabase/functions/kkiapay-verify/index.ts', 'duDeLAbonnement')) === sansCR(extrais('supabase/functions/kkiapay-webhook/index.ts', 'duDeLAbonnement')));
-const du = charge<(d: unknown) => number>('supabase/functions/kkiapay-verify/index.ts', 'duDeLAbonnement');
-const ech = [{ amountXof: 30_000 }, { amountXof: 30_000 }, { amountXof: 30_000 }];
+  sansCR(extrais('supabase/functions/kkiapay-verify/index.ts', 'duDuContrat')) === sansCR(extrais('supabase/functions/kkiapay-webhook/index.ts', 'duDuContrat')));
+const duDuContrat = charge<(d: unknown, piece: unknown, plan: unknown, jour: string) => { duXof: number }>('supabase/functions/kkiapay-verify/index.ts', 'duDuContrat');
+const du = (d: Record<string, unknown>) => duDuContrat({ planId: 'pl', ...d }, null, { mode: 'pack', priceXof: 45_000 }, '2026-10-20').duXof;
+const ech = [{ numero: 1, amountXof: 30_000 }, { numero: 2, amountXof: 30_000 }, { numero: 3, amountXof: 30_000 }];
+const unVersement = (id: string, amountXof: number) => ({ id, amountXof });
 dit('l échéance due : la 1re, la 2e, le reste de la 1re, rien quand tout est réglé, le prix sans échéancier', [30_000, 30_000, 10_000, 0, 45_000], [
-  du({ echeances: ech, payments: [] }), du({ echeances: ech, payments: [{ amountXof: 30_000 }] }),
-  du({ echeances: ech, payments: [{ amountXof: 20_000 }] }), du({ echeances: ech, payments: [{ amountXof: 90_000 }] }),
+  du({ echeances: ech, payments: [] }), du({ echeances: ech, payments: [unVersement('a', 30_000)] }),
+  du({ echeances: ech, payments: [unVersement('a', 20_000)] }), du({ echeances: ech, payments: [unVersement('a', 90_000)] }),
   du({ priceXof: 45_000 })]);
 
 /* ── 5 bis. LES FRAIS OFFERTS DANS LE CODE ── */
@@ -237,12 +243,14 @@ dit('la Caisse ferme le ticket avec le versement de la demande', true, /versemen
 dit('le pied de la Caisse ne promet plus une réconciliation MoMo automatique', false, /réconciliation MoMo automatique\./.test(caisse.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\{\/\*[\s\S]*?\*\/\}/g, '')));
 
 /* Ma Couronne ne propose l'échéance suivante qu'à un serveur qui sait la
-   régler : avant, la cliente paierait une deuxième échéance qu'il refuserait. */
-const maFormule = lis('src/apps/couronne/MaFormule.tsx');
+   régler : avant, la cliente paierait une deuxième échéance qu'il refuserait.
+   Depuis le 20 octobre 2026, ce bouton vit dans la feuille « Régler »
+   (FeuilleRegler, Abonnee.tsx), commune à l'accueil, Ma formule et Mon solde. */
+const feuilleRegler = lis('src/apps/couronne/Abonnee.tsx');
 dit('l échéance suivante attend un kkiapay-verify qui la sait (version comparée)', [false, true, false, true],
   ['2026-10-10-a', '2026-10-16-a', '', '2026-11-02-a'].map(saitLEcheanceSuivante));
 dit('Ma Couronne : le bouton « Régler » dépend du serveur prêt, pas seulement de KkiaPay', true,
-  /const enLigne = kkiapayEnabled\(\) && serveurPret;/.test(maFormule) && /\{suivante && \(\s*enLigne\s*\?/.test(maFormule));
+  /const enLigne = kkiapayEnabled\(\) && serveurPret\b/.test(feuilleRegler) && /\{enLigne && \(/.test(feuilleRegler));
 
 
 /* ── 7. TAP & GO ─────────────────────────────────────────────────────── */

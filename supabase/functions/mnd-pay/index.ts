@@ -41,7 +41,9 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
      SUPABASE_SERVICE_ROLE_KEY (ou CLE_SERVICE) : déjà posée
    ═══════════════════════════════════════════════════════════════════ */
 
-const VERSION = '2026-10-18-a';
+/* 20 octobre 2026 (le parcours de l'abonnée) : une demande qui règle un
+   contrat s'inscrit au contrat ET à sa pièce (`verse_sur_l_abonnement`). */
+const VERSION = '2026-10-20-a';
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -248,6 +250,129 @@ async function rangeLeTapGo(admin: any, tx: any): Promise<string> {
 }
 // ── FIN rangeLeTapGo
 
+// ── DEBUT duDuContrat (éprouvé par scripts/verifie-le-serveur-de-l-abonnee : même réponse que argentDuContrat)
+function duDuContrat(d: any, piece: any, plan: any, jour: string): { duXof: number; resteXof: number; raison?: 'resiliee' | 'effacee' | 'suspendue' | 'deja_regle' } {
+  const n = (x: unknown): number => (Number.isFinite(Number(x)) ? Number(x) : 0);
+  const iso = (s: unknown): s is string => typeof s === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(s);
+  const plus = (s: string, k: number): string => new Date(Date.parse(`${s}T12:00:00Z`) + k * 86_400_000).toISOString().slice(0, 10);
+  const ouvre = (s: string): string => (iso(s) && new Date(`${s}T12:00:00Z`).getUTCDay() === 0 ? plus(s, 1) : s);
+  /* LE VERSÉ : le contrat d'abord, puis sa pièce, réunis par identifiant. */
+  const verses = new Map<string, number>();
+  for (const p of Array.isArray(d?.payments) ? d.payments : []) if (p?.id) verses.set(String(p.id), n(p.amountXof));
+  for (const p of Array.isArray(piece?.payments) ? piece.payments : []) if (p?.id && !verses.has(String(p.id))) verses.set(String(p.id), n(p.amountXof));
+  const verse = [...verses.values()].reduce((s, x) => s + x, 0);
+  const paquet = plan?.mode === 'pack';
+  const prix = n(d?.prixConvenuXof ?? (paquet ? d?.priceXof : undefined) ?? plan?.priceXof ?? 0);
+  if (d?.resilieeLe ? String(d.resilieeLe) <= jour : d?.status === 'churn') return { duXof: 0, resteXof: 0, raison: 'resiliee' };
+  const ech = Array.isArray(d?.echeances) && d.echeances.length
+    ? [...d.echeances].sort((a: any, b: any) => n(a?.numero) - n(b?.numero)).map((e: any) => n(e?.amountXof))
+    : paquet && prix > 0 ? [prix] : [];
+  /* LA RETENUE : prise en ligne, rien de réglé, sept jours (le lundi si le
+     septième est un dimanche), puis effacée. */
+  if (d?.origine === 'couronne' && verse <= 0) {
+    if (d?.renonceeLe && String(d.renonceeLe) <= jour) return { duXof: 0, resteXof: 0, raison: 'effacee' };
+    const debut = iso(d?.startIso) ? d.startIso : d?.sinceIso;
+    if (iso(debut) && jour > ouvre(plus(debut, 7))) return { duXof: 0, resteXof: 0, raison: 'effacee' };
+    return { duXof: ech[0] ?? prix, resteXof: ech.length ? ech.reduce((s: number, x: number) => s + x, 0) : prix };
+  }
+  /* UNE LUNE : jamais une dette, elle se règle d'avance ou pour sortir de la
+     pause ; pas pendant une suspension. */
+  if (!ech.length) {
+    const s = d?.suspendue;
+    if (s && s.du <= jour && jour <= s.au) return { duXof: 0, resteXof: 0, raison: 'suspendue' };
+    if (paquet || !iso(d?.nextIso) || !(prix > 0)) return { duXof: 0, resteXof: 0, raison: 'deja_regle' };
+    return { duXof: prix, resteXof: prix };
+  }
+  let reserve = Math.max(0, verse);
+  let du = 0;
+  let reste = 0;
+  for (const m of ech) {
+    const pris = Math.min(reserve, m);
+    reserve -= pris;
+    if (m - pris > 0 && du === 0) du = m - pris;
+    reste += m - pris;
+  }
+  return du > 0 ? { duXof: du, resteXof: reste } : { duXof: 0, resteXof: 0, raison: 'deja_regle' };
+}
+// ── FIN duDuContrat
+
+// ── DEBUT leContratEtSaPiece (même texte dans kkiapay-verify, kkiapay-webhook, mnd-pay et mnd-pay-webhook)
+/** Le jour à Cotonou (UTC+1, sans heure d'été). */
+const jourDeCotonou = (): string => new Date(Date.now() + 3_600_000).toISOString().slice(0, 10);
+/** La pièce et la formule d'un contrat, relues pour juger son dû. */
+async function leContratEtSaPiece(admin: any, d: any): Promise<{ piece: any; plan: any }> {
+  const piece = d?.invoiceId
+    ? (await admin.from('invoices').select('data').eq('id', String(d.invoiceId)).maybeSingle())?.data?.data ?? null
+    : null;
+  const plan = d?.planId
+    ? (await admin.from('plans').select('data').eq('id', String(d.planId)).maybeSingle())?.data?.data ?? null
+    : null;
+  return { piece, plan };
+}
+// ── FIN leContratEtSaPiece
+
+/* ══ L'ARGENT D'UN CONTRAT — 20 octobre 2026 (le parcours de l'abonnée) ══
+   « Le contrat fait foi, la pièce suit » (décision 6). Une demande MND PAY
+   qui règle la pièce d'un abonnement (ou nomme son contrat, `subId`) ne
+   s'inscrit plus seulement sur la pièce : `verse_sur_l_abonnement` (0138)
+   l'écrit au contrat ET à la pièce, sous l'identifiant de la demande, le
+   même que celui que le Trône inscrit (`versementDeLaDemande`) : deux
+   inscriptions n'en font qu'une. Le montant demandé ne dépasse jamais ce
+   que le contrat attend encore. Même texte dans mnd-pay et mnd-pay-webhook. */
+// ── DEBUT moyenDeLaPiece (même corps que src/shared/mnd-pay-pur.ts)
+function moyenDeLaPiece(d: any): string {
+  const m = String(d.modeReel ?? '').toLowerCase();
+  if (m.startsWith('mtn')) return 'MTN MoMo';
+  if (m.startsWith('moov')) return 'Moov';
+  if (m === 'sbin' || m.startsWith('celtiis')) return 'Celtiis';
+  if (m && /card|visa|master|carte/.test(m)) return 'Carte';
+  if (d.moyen === 'mtn') return 'MTN MoMo';
+  if (d.moyen === 'moov') return 'Moov';
+  if (d.moyen === 'celtiis') return 'Celtiis';
+  if (d.moyen === 'carte') return 'Carte';
+  return 'MND PAY';
+}
+// ── FIN moyenDeLaPiece
+
+// ── DEBUT leContratDeLaDemande (même texte dans mnd-pay et mnd-pay-webhook)
+/** Le contrat que règle une demande : celui qu'elle nomme, sinon le seul
+    dont la pièce est la sienne. Rien s'il n'y en a pas, ou plusieurs. */
+async function leContratDeLaDemande(admin: any, subId: unknown, pieceId: unknown): Promise<{ id: string; data: any; piece: any; plan: any } | null> {
+  let ligne: any = null;
+  if (String(subId ?? '').trim()) {
+    ligne = (await admin.from('subscribers').select('id, data').eq('id', String(subId).trim()).maybeSingle())?.data ?? null;
+  } else if (String(pieceId ?? '').trim()) {
+    const { data: lies } = await admin.from('subscribers').select('id, data').eq('data->>invoiceId', String(pieceId).trim()).limit(2);
+    ligne = Array.isArray(lies) && lies.length === 1 ? lies[0] : null;
+  }
+  if (!ligne) return null;
+  const { piece, plan } = await leContratEtSaPiece(admin, ligne.data ?? {});
+  return { id: String(ligne.id), data: ligne.data ?? {}, piece, plan };
+}
+// ── FIN leContratDeLaDemande
+
+// ── DEBUT verseSurLeContratDeLaDemande (même texte dans mnd-pay et mnd-pay-webhook)
+/** UNE DEMANDE PAYÉE QUI RÈGLE UN CONTRAT : le versement passe par le seul
+    chemin de l'argent. Le jour est celui où FedaPay a confirmé, à Cotonou.
+    Rejouée, elle n'écrit rien de plus. */
+async function verseSurLeContratDeLaDemande(admin: any, d: any): Promise<string> {
+  if (d?.statut !== 'payee' || !d?.id) return 'pas payée';
+  const contrat = await leContratDeLaDemande(admin, d.subId, d.pieceId);
+  if (!contrat) return 'sans contrat';
+  const t = Date.parse(String(d.payeeLe ?? d.creeLe ?? ''));
+  const jour = Number.isFinite(t) ? new Date(t + 3_600_000).toISOString().slice(0, 10) : jourDeCotonou();
+  const { data: r, error } = await admin.rpc('verse_sur_l_abonnement', {
+    p_sub_id: contrat.id,
+    p_versement: {
+      id: String(d.id), montantXof: Math.round(Number(d.montantXof ?? 0)), date: jour, moyen: moyenDeLaPiece(d),
+      cashbox: 'MND PAY', source: 'mnd-pay', note: `MND PAY${d.reference ? ` · réf. ${d.reference}` : ''}`,
+    },
+  });
+  if (error) throw new Error(error.message);
+  return r?.ok === false ? `refusé : ${r.raison}` : r?.dejaVerse ? 'déjà inscrit' : 'inscrit au contrat';
+}
+// ── FIN verseSurLeContratDeLaDemande
+
 /** LA TRANSACTION RELUE, POSÉE SUR LA DEMANDE. Un « payé » se pose même sur
     une demande annulée au comptoir : la cliente a payé, l'argent est là. Le
     montant reçu doit couvrir ce qui était demandé. */
@@ -330,9 +455,22 @@ Deno.serve(async (req) => {
       const genre = corps.genre === 'lien' ? 'lien' : 'comptoir';
       const branchId = String(corps.branchId ?? '').trim();
       const pieceId = String(corps.pieceId ?? '').trim();
+      const subIdDemande = String(corps.subId ?? '').trim();
       if (!MOYENS.includes(moyen)) return refus('moyen inconnu');
       if (!Number.isFinite(montantXof) || montantXof <= 0) return refus('le montant doit être positif');
-      if (!branchId || !pieceId) return refus('la branche et la pièce sont requises');
+      if (!branchId || (!pieceId && !subIdDemande)) return refus('la branche et la pièce sont requises');
+      /* LA PIÈCE D'UN CONTRAT (20 octobre 2026) : jamais au-delà de ce que le
+         contrat attend encore, le versé du contrat et de sa pièce réunis. Un
+         contrat sans pièce encore (souscrit en ligne) se nomme par `subId`. */
+      const contrat = await leContratDeLaDemande(admin, subIdDemande, pieceId);
+      if (subIdDemande && !contrat) return refus('ce contrat est introuvable', 404);
+      if (contrat) {
+        const attendu = duDuContrat(contrat.data, contrat.piece, contrat.plan, jourDeCotonou());
+        if (!attendu.raison && montantXof > attendu.resteXof + 1) {
+          return refus(`au-delà de ce que le contrat attend encore (${attendu.resteXof.toLocaleString('fr-FR')} F)`);
+        }
+      }
+      const duContrat: Record<string, unknown> = contrat ? { subId: contrat.id } : {};
       const totalXof = montantXof + pourboireXof + fraisXof;
       const fraisOffertsXof = fraisXof === 0 ? Math.min(offertsLus, Math.ceil((montantXof + pourboireXof) / 10)) : 0;
       const offre: Record<string, unknown> = fraisOffertsXof > 0
@@ -367,7 +505,7 @@ Deno.serve(async (req) => {
         const attente: Record<string, unknown> = {
           id, branchId, genre, moyen, montantXof, fraisXof, ...offre, totalXof,
           ...(pourboireXof > 0 ? { pourboireXof } : {}),
-          pieceId,
+          pieceId, ...duContrat,
           ...(corps.pieceNumero ? { pieceNumero: String(corps.pieceNumero).slice(0, 40) } : {}),
           ...(corps.clientId ? { clientId: String(corps.clientId).slice(0, 80) } : {}),
           libelle,
@@ -396,7 +534,7 @@ Deno.serve(async (req) => {
       const data: Record<string, unknown> = {
         id, branchId, genre, moyen, montantXof, fraisXof, ...offre, totalXof,
         ...(pourboireXof > 0 ? { pourboireXof } : {}),
-        pieceId,
+        pieceId, ...duContrat,
         ...(corps.pieceNumero ? { pieceNumero: String(corps.pieceNumero).slice(0, 40) } : {}),
         ...(corps.clientId ? { clientId: String(corps.clientId).slice(0, 80) } : {}),
         ...(numero ? { telephone: numero.number } : {}),
@@ -460,7 +598,16 @@ Deno.serve(async (req) => {
         const { error } = await admin.from('mnd_pay').update({ data: d }).eq('id', id);
         if (error) throw new Error(error.message);
       }
-      return json({ ok: true, version: VERSION, demande: d });
+      /* PAYÉE, ELLE RÈGLE SON CONTRAT (20 octobre 2026). Un échec n'empêche
+         pas le comptoir de voir le paiement : la relecture suivante le
+         reprend, le versement est idempotent. */
+      let contrat: string | undefined;
+      if (d.statut === 'payee') {
+        try { contrat = await verseSurLeContratDeLaDemande(admin, { ...d, id: d.id ?? id }); } catch (e) {
+          contrat = `à reprendre : ${e instanceof Error ? e.message : String(e)}`.slice(0, 200);
+        }
+      }
+      return json({ ok: true, version: VERSION, demande: d, ...(contrat ? { contrat } : {}) });
     }
 
     return refus('geste inconnu : demander, statut ou annuler');

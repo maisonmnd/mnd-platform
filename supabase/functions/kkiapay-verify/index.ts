@@ -45,33 +45,80 @@ const KKIA_VERIFY_PATH = '/api/v1/transactions/status';
 
 /** La version de ce fichier, rendue dans chaque réponse : dire ce qui tourne
     vraiment évite de chercher une panne dans un fichier qui n'est pas celui
-    qu'on croit déployé. 10 octobre 2026 : une transaction, une cible ; le
-    montant attendu de CETTE cible, jamais du corps ; la carte cadeau liée à
-    sa transaction (revue de nuit). */
-const VERSION = '2026-10-16-a';
+    qu'on croit déployé. 20 octobre 2026 (le parcours de l'abonnée) :
+    l'argent d'un contrat passe par `verse_sur_l_abonnement` (0138), au
+    contrat ET à sa pièce ; le dû se relit sur les deux. */
+const VERSION = '2026-10-20-a';
 
-/* ── LA PROCHAINE ÉCHÉANCE, CE QU'IL EN RESTE — 16 octobre 2026 (MND PAY) ──
-   « Les échéances se règlent dans Ma Couronne » (sa décision). Le dû d'un
-   abonnement n'est plus seulement la PREMIÈRE échéance : c'est ce qui reste
-   de la plus vieille échéance pas encore couverte, les versements s'imputant
-   dans l'ordre (shared/echeancier.ts, règle ③). Tout réglé : zéro, et l'on
-   refuse plutôt que d'encaisser un trop-perçu. Sans échéancier, le prix
-   entier, comme avant. */
-// ── DEBUT duDeLAbonnement (éprouvé par scripts/verifie-mnd-pay)
-function duDeLAbonnement(d: { echeances?: { amountXof?: number }[]; payments?: { amountXof?: number }[]; priceXof?: number; mrrXof?: number }): number {
-  const ech = Array.isArray(d.echeances) ? d.echeances : [];
-  if (ech.length === 0) return Math.round(Number(d.priceXof ?? d.mrrXof ?? 0));
-  const verse = (Array.isArray(d.payments) ? d.payments : [])
-    .reduce((n, p) => n + Math.max(0, Math.round(Number(p?.amountXof ?? 0))), 0);
-  let cumul = 0;
-  for (const e of ech) {
-    const m = Math.max(0, Math.round(Number(e?.amountXof ?? 0)));
-    cumul += m;
-    if (cumul > verse) return Math.min(m, cumul - verse);
+/* ── CE QUE LE CONTRAT ATTEND — 20 octobre 2026 (le parcours de l'abonnée) ──
+   Le dû d'un abonnement est ce qui reste de la plus vieille échéance pas
+   encore couverte (16 octobre 2026), mais le VERSÉ réunit désormais le
+   contrat ET sa pièce par identifiant : KkiaPay écrivait le contrat seul,
+   MND PAY la pièce seule, et l'on réclamait en ligne un argent déjà reçu au
+   comptoir. Une formule retenue s'ouvre par sa première échéance ; une
+   Chaque Lune se règle lune par lune ; une formule résiliée ou effacée ne
+   se règle pas en ligne. Même réponse que `argentDuContrat` (le juge), sur
+   les mêmes cas (scripts/verifie-le-serveur-de-l-abonnee). */
+// ── DEBUT duDuContrat (éprouvé par scripts/verifie-le-serveur-de-l-abonnee : même réponse que argentDuContrat)
+function duDuContrat(d: any, piece: any, plan: any, jour: string): { duXof: number; resteXof: number; raison?: 'resiliee' | 'effacee' | 'suspendue' | 'deja_regle' } {
+  const n = (x: unknown): number => (Number.isFinite(Number(x)) ? Number(x) : 0);
+  const iso = (s: unknown): s is string => typeof s === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(s);
+  const plus = (s: string, k: number): string => new Date(Date.parse(`${s}T12:00:00Z`) + k * 86_400_000).toISOString().slice(0, 10);
+  const ouvre = (s: string): string => (iso(s) && new Date(`${s}T12:00:00Z`).getUTCDay() === 0 ? plus(s, 1) : s);
+  /* LE VERSÉ : le contrat d'abord, puis sa pièce, réunis par identifiant. */
+  const verses = new Map<string, number>();
+  for (const p of Array.isArray(d?.payments) ? d.payments : []) if (p?.id) verses.set(String(p.id), n(p.amountXof));
+  for (const p of Array.isArray(piece?.payments) ? piece.payments : []) if (p?.id && !verses.has(String(p.id))) verses.set(String(p.id), n(p.amountXof));
+  const verse = [...verses.values()].reduce((s, x) => s + x, 0);
+  const paquet = plan?.mode === 'pack';
+  const prix = n(d?.prixConvenuXof ?? (paquet ? d?.priceXof : undefined) ?? plan?.priceXof ?? 0);
+  if (d?.resilieeLe ? String(d.resilieeLe) <= jour : d?.status === 'churn') return { duXof: 0, resteXof: 0, raison: 'resiliee' };
+  const ech = Array.isArray(d?.echeances) && d.echeances.length
+    ? [...d.echeances].sort((a: any, b: any) => n(a?.numero) - n(b?.numero)).map((e: any) => n(e?.amountXof))
+    : paquet && prix > 0 ? [prix] : [];
+  /* LA RETENUE : prise en ligne, rien de réglé, sept jours (le lundi si le
+     septième est un dimanche), puis effacée. */
+  if (d?.origine === 'couronne' && verse <= 0) {
+    if (d?.renonceeLe && String(d.renonceeLe) <= jour) return { duXof: 0, resteXof: 0, raison: 'effacee' };
+    const debut = iso(d?.startIso) ? d.startIso : d?.sinceIso;
+    if (iso(debut) && jour > ouvre(plus(debut, 7))) return { duXof: 0, resteXof: 0, raison: 'effacee' };
+    return { duXof: ech[0] ?? prix, resteXof: ech.length ? ech.reduce((s: number, x: number) => s + x, 0) : prix };
   }
-  return 0;
+  /* UNE LUNE : jamais une dette, elle se règle d'avance ou pour sortir de la
+     pause ; pas pendant une suspension. */
+  if (!ech.length) {
+    const s = d?.suspendue;
+    if (s && s.du <= jour && jour <= s.au) return { duXof: 0, resteXof: 0, raison: 'suspendue' };
+    if (paquet || !iso(d?.nextIso) || !(prix > 0)) return { duXof: 0, resteXof: 0, raison: 'deja_regle' };
+    return { duXof: prix, resteXof: prix };
+  }
+  let reserve = Math.max(0, verse);
+  let du = 0;
+  let reste = 0;
+  for (const m of ech) {
+    const pris = Math.min(reserve, m);
+    reserve -= pris;
+    if (m - pris > 0 && du === 0) du = m - pris;
+    reste += m - pris;
+  }
+  return du > 0 ? { duXof: du, resteXof: reste } : { duXof: 0, resteXof: 0, raison: 'deja_regle' };
 }
-// ── FIN duDeLAbonnement
+// ── FIN duDuContrat
+
+// ── DEBUT leContratEtSaPiece (même texte dans kkiapay-verify, kkiapay-webhook, mnd-pay et mnd-pay-webhook)
+/** Le jour à Cotonou (UTC+1, sans heure d'été). */
+const jourDeCotonou = (): string => new Date(Date.now() + 3_600_000).toISOString().slice(0, 10);
+/** La pièce et la formule d'un contrat, relues pour juger son dû. */
+async function leContratEtSaPiece(admin: any, d: any): Promise<{ piece: any; plan: any }> {
+  const piece = d?.invoiceId
+    ? (await admin.from('invoices').select('data').eq('id', String(d.invoiceId)).maybeSingle())?.data?.data ?? null
+    : null;
+  const plan = d?.planId
+    ? (await admin.from('plans').select('data').eq('id', String(d.planId)).maybeSingle())?.data?.data ?? null
+    : null;
+  return { piece, plan };
+}
+// ── FIN leContratEtSaPiece
 
 
 /* LA CONSULTATION EN LIGNE SE PAIE AVANT D'EXISTER — 17 septembre 2026.
@@ -189,27 +236,31 @@ async function applyPayment(admin: any, opts: {
     // le comptoir le rapprochera. On ne perd jamais un franc reçu.
   }
 
-  /* 2bis) LE RÈGLEMENT D'UN ABONNEMENT — 29 août 2026. Il s'AJOUTE aux
-     règlements existants (l'état de chaque échéance se dérive des versements,
-     shared/echeancier.ts) ; l'identifiant du versement est celui de la
-     transaction, deux rejeux n'inscrivent qu'une ligne. Le dû est la PREMIÈRE
-     échéance quand elle a choisi de payer en deux fois, le prix entier sinon. */
+  /* 2bis) LE RÈGLEMENT D'UN ABONNEMENT — 20 octobre 2026 (le parcours de
+     l'abonnée). L'argent d'un contrat n'a plus qu'un chemin :
+     `verse_sur_l_abonnement` (0138) l'inscrit au contrat ET à sa pièce,
+     sous le même identifiant (celui de la transaction), dans la même
+     transaction de la base, et fait avancer la lune d'une Chaque Lune. Un
+     rejeu n'écrit rien de plus ; un versement inscrit d'un seul côté est
+     complété de l'autre. Le dû se relit avant : la plus vieille échéance
+     pas encore couverte, le versé du contrat et de sa pièce réunis. */
   if (opts.subId) {
     const { data: sub } = await admin.from('subscribers').select('id, data').eq('id', opts.subId).maybeSingle();
     if (sub) {
-      const d = (sub.data ?? {}) as { payments?: { id?: string; amountXof?: number }[]; status?: string; echeances?: { amountXof?: number }[]; priceXof?: number; mrrXof?: number };
-      const deja = Array.isArray(d.payments) ? d.payments : [];
-      /* La plus vieille échéance pas encore couverte (16 octobre 2026). */
-      const du = duDeLAbonnement(d);
-      if (couvre(du) && !deja.some((x) => x?.id === opts.transactionId)) {
-        await admin.from('subscribers').update({
-          data: {
-            ...d,
-            payments: [...deja, { id: opts.transactionId, amountXof: amount, date: at.slice(0, 10), method: opts.tx.source ?? 'KkiaPay' }],
-            /* Elle a payé : l'abonnement cesse d'être « neuf en attente ». */
-            status: d.status === 'churn' ? d.status : 'active',
+      const d = (sub.data ?? {}) as Record<string, any>;
+      const { piece, plan } = await leContratEtSaPiece(admin, d);
+      const inscrit = [...(Array.isArray(d.payments) ? d.payments : []), ...(Array.isArray(piece?.payments) ? piece.payments : [])]
+        .some((x: any) => x?.id === opts.transactionId);
+      if (inscrit || couvre(duDuContrat(d, piece, plan, jourDeCotonou()).duXof)) {
+        const { data: verse, error } = await admin.rpc('verse_sur_l_abonnement', {
+          p_sub_id: opts.subId,
+          p_versement: {
+            id: opts.transactionId, montantXof: amount, moyen: opts.tx.source ?? 'KkiaPay',
+            cashbox: 'KkiaPay', source: 'en-ligne', note: 'Abonnement · KkiaPay',
           },
-        }).eq('id', opts.subId);
+        });
+        if (error) throw new Error(error.message);
+        if (verse?.ok === false) throw new Error(`verse_sur_l_abonnement : ${verse.raison}`);
       }
     }
   }
@@ -367,7 +418,7 @@ Deno.serve(async (req) => {
     if (subId) {
       const { data: row } = await admin
         .from('subscribers').select('id, data').eq('id', String(subId)).maybeSingle();
-      const d = (row?.data ?? {}) as { echeances?: { amountXof?: number }[]; payments?: { amountXof?: number }[]; priceXof?: number; mrrXof?: number };
+      const d = (row?.data ?? {}) as Record<string, any>;
       if (!row) return json({ error: 'cible_sans_montant', version: VERSION }, 404);
       /* DÉJÀ INSCRITE PAR LE WEBHOOK (16 octobre 2026) : le dû aurait glissé
          sur l'échéance suivante et le contrôle du montant crierait à tort. */
@@ -375,7 +426,12 @@ Deno.serve(async (req) => {
       if (dejaInscrite && String(dejaInscrite.data?.partnerId ?? '') === String(subId)) {
         return json({ ok: true, version: VERSION, amountXof: Math.round(Number(tx.amount ?? 0)), feesXof: Math.round(Number(tx.fees ?? 0)), method: tx.source });
       }
-      expected = duDeLAbonnement(d);
+      /* Le versé du contrat ET de sa pièce (20 octobre 2026). Une formule
+         résiliée ou effacée ne se règle pas en ligne : le comptoir la reprend. */
+      const { piece, plan } = await leContratEtSaPiece(admin, d);
+      const du = duDuContrat(d, piece, plan, jourDeCotonou());
+      if (du.raison === 'resiliee' || du.raison === 'effacee') return json({ error: `formule_${du.raison}`, version: VERSION }, 409);
+      expected = du.duXof;
       if (expected <= 0) return json({ error: 'deja_regle', version: VERSION }, 409);
     }
     /* L'INSCRIPTION À L'ACADÉMIE — 17 septembre 2026. Le site dépose la
