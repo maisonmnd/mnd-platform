@@ -88,7 +88,10 @@ function chiffreDeLaLigne(c: ReleveDuContrat, l: LigneDeSeances): string {
   if (c.etat === 'retenue') return l.incluses > 1 ? t('{n} séances', { n: l.incluses }) : t('{n} séance', { n: l.incluses });
   if (c.etat === 'en-pause') return t('en pause');
   if (c.etat === 'terminee') return (l.disponibles ?? 0) > 1 ? t('{n} perdues', { n: l.disponibles ?? 0 }) : t('{n} perdue', { n: l.disponibles ?? 0 });
-  if (c.etat === 'resiliee') return t('résiliée');
+  if (c.etat === 'resiliee' && !c.courtJusquau) return t('résiliée');
+  /* L'ANCIEN CARNET ÉPUISÉ : ses séances ont été prises avant Le Trône ; on ne
+     prétend pas « 2 sur 6 ». */
+  if (c.etat === 'epuisee' && c.epuiseeParLAncienCarnet) return t('épuisée');
   if (c.etat === 'epuisee') return t('{n} sur {total}', { n: l.faites + l.manquees, total: l.incluses });
   return (l.disponibles ?? 0) > 1 ? t('{n} disponibles', { n: l.disponibles ?? 0 }) : t('{n} disponible', { n: l.disponibles ?? 0 });
 }
@@ -96,7 +99,9 @@ function chiffreDeLaLigne(c: ReleveDuContrat, l: LigneDeSeances): string {
 /** La ligne sous le nom de la formule : jusqu'à quand, ou pourquoi elle s'arrête. */
 function sousLeNom(c: ReleveDuContrat): string {
   if (c.etat === 'retenue' && c.retenueJusquau) return t('Retenue jusqu’au {date} au soir', { date: dateDansLaPhrase(c.retenueJusquau) });
+  if (c.etat === 'resiliee' && c.resilieeLe && c.courtJusquau) return t('Résiliée le {date} · la lune réglée court jusqu’au {fin}', { date: dateDansLaPhrase(c.resilieeLe), fin: dateDansLaPhrase(c.courtJusquau) });
   if (c.etat === 'resiliee' && c.resilieeLe) return t('Résiliée le {date}', { date: dateDansLaPhrase(c.resilieeLe) });
+  if (c.etat === 'epuisee' && c.epuiseeParLAncienCarnet) return t('Épuisée · séances prises avant Le Trône');
   if (c.etat === 'effacee' && c.effaceeLe) return t('Retenue non réglée, effacée le {date}', { date: dateDansLaPhrase(c.effaceeLe) });
   if (c.etat === 'en-pause' && c.pause?.genre === 'lune') return t('En pause depuis le {date}', { date: dateDansLaPhrase(c.pause.depuisIso) });
   if (c.etat === 'en-pause' && c.pause?.genre === 'suspension') return t('En pause jusqu’au {date}', { date: dateDansLaPhrase(c.pause.au) });
@@ -118,7 +123,7 @@ export function CarteFormule({ c, prenom, onFormule, onRegler, onRenoncer }: {
   const nomDe = useNomDeService();
   const etat = ETAT_FORMULE[c.etat];
   const voile = c.etat === 'retenue' || c.etat === 'en-pause';
-  const perdue = c.etat === 'terminee';
+  const perdue = c.etat === 'terminee' || !!c.epuiseeParLAncienCarnet;
   return (
     <div className="ab-card">
       <div className="ab-card__top">
@@ -142,7 +147,9 @@ export function CarteFormule({ c, prenom, onFormule, onRegler, onRenoncer }: {
             ? <div className="ab-leg">{t('Elles s’ouvrent au premier règlement.')}</div>
             : c.etat === 'en-pause'
               ? <div className="ab-leg">{t('Aucune séance incluse avant le règlement de la lune.')}</div>
-              : <Legende l={l} perdue={perdue} />}
+              : c.epuiseeParLAncienCarnet
+                ? <div className="ab-leg">{t('Séances prises avant Le Trône.')}</div>
+                : <Legende l={l} perdue={perdue} />}
         </div>
       ))}
       {c.etat === 'retenue' && c.argent.pourOuvrir && (
@@ -166,6 +173,7 @@ export function objetDeLaLigne(l: LigneDeSolde, pourElle = true): string {
   if (l.genre === 'echeance') return l.numero ? t('{rang} échéance de la formule', { rang: rangDit(l.numero) }) : t('échéance de la formule');
   if (l.genre === 'lune') return t('la lune suivante');
   if (l.genre === 'resiliation') return t('reste de la résiliation');
+  if (l.genre === 'a-convenir') return t('reste à convenir avec la Maison');
   if (l.genre === 'rituel') return pourElle ? t('reste d’une séance') : t('reste d’une séance de sa couronne');
   if (l.genre === 'piece') return l.libelle ?? t('facture');
   return t('avoir');
@@ -221,6 +229,9 @@ export function CarteSolde({ releve, prenom, onSolde, onRegler }: {
             </div>
           ))}
         </div>
+      )}
+      {s.aConvenirXof > 0 && (
+        <div className="ab-mcs__l"><span>{t('À convenir avec la Maison')}</span><b>{prix(s.aConvenirXof)}</b></div>
       )}
       {s.avoirXof > 0 && (
         <div className="ab-mcs__l"><span>{prenom ? t('Son avoir') : t('Votre avoir')}</span><b>{prix(s.avoirXof)}</b></div>

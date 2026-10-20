@@ -74,6 +74,11 @@ const MP = 'supabase/functions/mnd-pay/index.ts';
 const MW = 'supabase/functions/mnd-pay-webhook/index.ts';
 const QUATRE_FONCTIONS = [KV, KW, MP, MW];
 const MIGRATION = 'supabase/migrations/0138_le_parcours_de_l_abonnee.sql';
+/* La 0138 est COLLÉE en base (20 octobre 2026) : elle ne change plus. Les
+   règles du soir (déplacer à moins de 24 h, la Chaque Lune résiliée, le
+   paquet sans échéancier, l'ancien carnet épuisé) vivent dans la 0139, qui
+   se pose par-dessus. Le banc lit et joue les deux, dans l'ordre. */
+const MIGRATION_DU_SOIR = 'supabase/migrations/0139_les_regles_du_20_octobre_au_soir.sql';
 
 /* ══ 1. LE TEXTE DES FONCTIONS EDGE ════════════════════════════════════ */
 {
@@ -201,6 +206,15 @@ const CAS: Cas[] = [
   { nom: 'terminee le 30 juin 2027', e: entree({ jour: '2027-06-30' }), dates: ['2027-07-01'] },
   { nom: 'resiliee le 20 octobre 2026', e: entree({ subs: [contrat({ resilieeLe: '2026-10-20', motifDeResiliation: 'demenage', status: 'churn' })] }), dates: ['2026-10-27'] },
   { nom: 'resiliee plus tard (encore en cours)', e: entree({ subs: [contrat({ resilieeLe: '2026-11-15' })] }), dates: ['2026-11-10', '2026-11-20'] },
+  { nom: 'resiliee un dimanche, le consomme au-dela du regle du le lundi', e: entree({ jour: '2026-11-03', subs: [contrat({ status: 'churn', resilieeLe: '2026-11-01' })],
+    appts: [A1, A2, seance({ id: 'a7', date: '2026-10-23' }), seance({ id: 'a8', date: '2026-10-27' })] }), dates: ['2026-11-10'] },
+  { nom: 'chaque lune resiliee : sa lune reglee court jusqu a son terme', e: entree({ jour: '2026-10-21', subs: [lune({ status: 'churn', resilieeLe: '2026-10-20' })], appts: [] }),
+    dates: ['2026-10-28', '2026-10-31', '2026-11-02'] },
+  { nom: 'chaque lune resiliee, la lune finie', e: entree({ jour: '2026-11-01', subs: [lune({ status: 'churn', resilieeLe: '2026-10-20' })], appts: [] }), dates: ['2026-11-05'] },
+  { nom: 'chaque lune resiliee plus tard, dans sa lune', e: entree({ subs: [lune({ resilieeLe: '2026-10-25' })], appts: [] }), dates: ['2026-10-24', '2026-10-28', '2026-11-02'] },
+  { nom: 'chaque lune resiliee sans lune reglee', e: entree({ jour: '2026-11-04', subs: [lune({ status: 'churn', resilieeLe: '2026-11-03' })], appts: [] }), dates: ['2026-11-05'] },
+  { nom: 'paquet sans echeancier : jamais en retard, a convenir', e: entree({ jour: '2026-12-15', subs: [contrat({ prixConvenuXof: 234000, priceXof: 234000, echeances: undefined,
+    payments: [{ id: 'v1', amountXof: 50000, date: '2026-10-02' }] })], appts: [A1, A2] }), dates: ['2026-12-20'] },
   { nom: 'deux formules en meme temps', e: entree({ subs: [contrat({}), quatre], appts: [A1, A2, A3, seance({ id: 'q-1', subId: 'abo-q', date: '2026-10-12' })] }), dates: ['2026-10-27', '2027-04-04'] },
   { nom: 'deux formules, une seance sans lien va a la plus recente', e: entree({ subs: [contrat({}), quatre], appts: [A1, seance({ id: 'sl', subId: undefined, date: '2026-10-12' })] }), dates: ['2026-10-27'] },
   { nom: 'une seance sans lien (avant subId)', e: entree({ appts: [A1, { ...A2, subId: undefined } as SeanceLue, A3] }), dates: ['2026-10-27'] },
@@ -232,6 +246,8 @@ const tousLesContrats = (r: ReturnType<typeof releveDeLAbonnee>): ReleveDuContra
   const attenduDuJuge = (c: ReleveDuContrat): { du: number; raison?: string } => {
     if (c.etat === 'resiliee' || c.etat === 'effacee') return { du: 0, raison: c.etat };
     if (c.etat === 'retenue') return { du: c.argent.pourOuvrir?.montantXof ?? 0 };
+    /* Sans échéancier : jamais en retard, mais ce qui est à convenir peut se régler en ligne. */
+    if (c.argent.echeancierAPoser) return (c.argent.aConvenirXof ?? 0) > 0 ? { du: c.argent.aConvenirXof as number } : { du: 0, raison: 'deja_regle' };
     const ouverte = c.argent.echeances.find((x) => x.resteXof > 0 && x.statut !== 'annulee');
     if (ouverte) return { du: ouverte.resteXof };
     if (c.argent.echeances.length) return { du: 0, raison: 'deja_regle' };
@@ -253,17 +269,20 @@ const tousLesContrats = (r: ReturnType<typeof releveDeLAbonnee>): ReleveDuContra
 }
 
 /* ══ 3. LA MIGRATION, LUE COMME UN TEXTE ══════════════════════════════ */
-const SQL = lis(MIGRATION);
+const SQL_0138 = lis(MIGRATION);
+const SQL_0139 = lis(MIGRATION_DU_SOIR);
+const SQL = `${SQL_0138}\n${SQL_0139}`;
 const SQL_NU = SQL.replace(/--[^\n]*/g, '');
+/* La DERNIÈRE définition d'une fonction : celle de la 0139 quand elle la remplace. */
 const fonction = (nom: string): string => {
-  const a = SQL_NU.indexOf(`create or replace function public.${nom}(`);
+  const a = SQL_NU.lastIndexOf(`create or replace function public.${nom}(`);
   if (a < 0) return '';
   const d = SQL_NU.indexOf('$$', a);
   const f = SQL_NU.indexOf('$$', d + 2);
   return SQL_NU.slice(a, f + 2);
 };
 {
-  for (const bloc of ['abo_date', 'abo_jour_ouvre', 'abo_vie_du_contrat', 'abo_lunes', 'abo_inclus', 'abo_seance', 'abo_attribution',
+  for (const bloc of ['abo_date', 'abo_jour_ouvre', 'abo_vie_du_contrat', 'abo_lunes', 'abo_resiliee', 'abo_inclus', 'abo_seance', 'abo_attribution',
     'abo_argent', 'abo_etat_de_la_formule', 'abo_peut_porter', 'abo_prix_du_foyer', 'abo_numeros']) {
     dit(`3 · la copie bornee ${bloc} est la (DEBUT/FIN)`, true,
       SQL.includes(`-- ── DEBUT ${bloc}`) && SQL.indexOf(`-- ── FIN ${bloc}`) > SQL.indexOf(`-- ── DEBUT ${bloc}`));
@@ -298,6 +317,10 @@ const fonction = (nom: string): string => {
   dit('3 · reserver : le contrat a elle, sous verrou, le juge, la place, la couverture posee', [true, true, true, true, true],
     [/est_ma_tete\(v_sub\.data->>'clientId'\)/.test(res), /from public\.subscribers where id = p_sub_id for update/.test(res),
       /abo_peut_porter\(/.test(res), /pg_advisory_xact_lock\(hashtext\('pose'\)/.test(res), /'coveredBySub', true/.test(res) && /'coverKind', 'abonnement'/.test(res)]);
+  dit('3 · deplacer : une seance de formule a moins de 24 h se refuse (la Maison decide)', true,
+    /abo_debut_de_la_seance\(v_a\.data\) - public\.abo_maintenant\(\)\)\) \/ 3600 < 24 then\s+return jsonb_build_object\('ok', false, 'raison', 'moins_de_24_h'\)/.test(fonction('deplacer_une_seance')));
+  dit('3 · un paquet sans echeancier n a aucune date due : l echeancier de base n invente plus rien', false,
+    /jsonb_build_object\('numero', 1/.test(fonction('abo_echeances_de_base')));
   const g = fonction('garde_argent_cliente');
   dit('3 · la garde : invoker, qui ecrit decide, la couverture et les faits proteges', [true, true, true, true],
     [/security invoker/.test(g), /ecriture_de_la_maison\(\)/.test(g),
@@ -372,15 +395,24 @@ if (!PGlite) {
   }
   await db.exec('grant select, insert, update, delete on all tables in schema public to authenticated, service_role;');
 
-  /* LA MIGRATION, TOUTE ENTIÈRE. */
+  /* LA MIGRATION, TOUTE ENTIÈRE : la 0138 telle qu'elle est collée, puis la 0139. */
   let posee = true;
-  try { await db.exec(SQL); } catch (e) { posee = false; console.log(`       ${sansAccent(String((e as Error).message))}`); }
+  try { await db.exec(SQL_0138); } catch (e) { posee = false; console.log(`       ${sansAccent(String((e as Error).message))}`); }
   dit('4 · la migration 0138 se pose sur le socle, d un seul tenant', true, posee);
-  const controle = posee ? (await q(SQL.slice(SQL.lastIndexOf('select\n'))))[0] : null;
+  const controle = posee ? (await q(SQL_0138.slice(SQL_0138.lastIndexOf('select\n'))))[0] : null;
   dit('4 · son controle : une souscription a cinq arguments, cinq gestes, la garde invoker, deux gardes du contrat',
     { souscriptions: 1, arguments: 5, gestes: 5, garde_invoker: true, gardes_du_contrat: 2 },
     controle && { souscriptions: Number(controle.souscriptions), arguments: Number(controle.arguments), gestes: Number(controle.gestes),
       garde_invoker: controle.garde_invoker, gardes_du_contrat: Number(controle.gardes_du_contrat) });
+  let soir = true;
+  try { await db.exec(SQL_0139); } catch (e) { soir = false; console.log(`       ${sansAccent(String((e as Error).message))}`); }
+  dit('4 · la migration 0139 se pose par-dessus la 0138, d un seul tenant', true, soir);
+  const controle39 = soir ? (await q(SQL_0139.slice(SQL_0139.lastIndexOf('select\n'))))[0] : null;
+  dit('4 · son controle : les quatre regles du soir posees, la souscription intacte',
+    { lune_resiliee: true, deplacer_24_h: true, sans_echeancier: true, ancien_carnet: true, coupe_de_la_resiliation: true, souscriptions: 1 },
+    controle39 && { lune_resiliee: controle39.lune_resiliee, deplacer_24_h: controle39.deplacer_24_h, sans_echeancier: controle39.sans_echeancier,
+      ancien_carnet: controle39.ancien_carnet, coupe_de_la_resiliation: controle39.coupe_de_la_resiliation, souscriptions: Number(controle39.souscriptions) });
+  dit('4 · la 0139 se rejoue sans danger', true, await (async () => { try { await db.exec(SQL_0139); return true; } catch { return false; } })());
 
   /* ── 4a. LES OUTILS DU JUGE CONTRE L'ORIGINAL ── */
   const jours: string[] = [];
@@ -603,6 +635,15 @@ if (!PGlite) {
     { ok: dep.ok, date: a02.date, statut: a02.status, de: a02.deplaceeDe?.date });
   const dep2 = (await comme('cliente', `select public.deplacer_une_seance($1, '2027-08-01', '11:00') as r`, [id02]))[0].r;
   dit('4c · deplacee au-dela de quatre-vingt-dix jours : refusee', 'creneau_hors_fenetre', dep2.raison);
+  /* À moins de 24 h, la séance d'une formule ne se déplace plus en ligne ; elle s'annule encore, et compte. */
+  await fige('2026-10-29', '2026-10-29T11:00:00+01:00');
+  const id30 = (await q(`select id from public.appointments where data->>'date' = '2026-10-30'`))[0].id;
+  const dep3 = (await comme('cliente', `select public.deplacer_une_seance($1, '2026-11-06', '11:00') as r`, [id30]))[0].r;
+  dit('4c · 23 h avant : deplacer se refuse et dit pourquoi, la seance ne bouge pas', { raison: 'moins_de_24_h', date: '2026-10-30' },
+    { raison: dep3.raison, date: (await ligne('appointments', id30)).date });
+  const an3 = await annule(id30);
+  dit('4c · ... mais elle s annule encore, et compte « Manquee »', { ok: true, manquee: true }, { ok: an3.ok, manquee: an3.compteeCommeManquee });
+  await fige('2026-10-28', '2026-10-28T14:00:00+01:00');
 
   /* La garde : ce qu'une cliente écrit elle-même. */
   await fige('2026-10-20', '2026-10-20T10:00:00+01:00');

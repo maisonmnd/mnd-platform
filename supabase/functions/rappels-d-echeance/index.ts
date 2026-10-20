@@ -53,7 +53,7 @@ import { createClient } from 'npm:@supabase/supabase-js@2';
 const TZ = 'Africa/Porto-Novo'; // le fuseau de la Maison, pas celui du serveur
 
 /** La version de ce fichier, rendue dans chaque réponse. */
-const VERSION = '2026-10-20-a · la veille de chaque échéance, et le prix revu';
+const VERSION = '2026-10-20-b · la veille de chaque échéance, le prix revu, jamais un paquet sans échéancier';
 
 /** Numéro béninois → format international sans « + » (copie de rappels-j1). */
 const numeroIntl = (brut: string | undefined): string | null => {
@@ -136,9 +136,13 @@ type ContratEcrit = {
   priceXof?: number; prixConvenuXof?: number; echeances?: EcheanceEcrite[]; payments?: VersementEcrit[]; invoiceId?: string;
   calibreVendu?: string; origine?: string; resilieeLe?: string; renonceeLe?: string;
   suspendue?: { du: string; au: string; motif?: string };
+  inclusPropres?: { serviceId: string; qty: number | null }[];
   prixRevu?: { le: string; ancienXof: number; nouveauXof: number; calibre?: string };
 };
-type FormuleEcrite = { id: string; name?: string; mode?: string; priceXof?: number };
+type FormuleEcrite = {
+  id: string; name?: string; mode?: string; priceXof?: number;
+  included?: { serviceId: string; qty: number | null }[]; soinsDeLaLune?: string[];
+};
 type PieceEcrite = { id: string; payments?: VersementEcrit[] };
 
 const estIso = (s: string | null | undefined): s is string => !!s && /^\d{4}-\d{2}-\d{2}$/.test(s);
@@ -187,15 +191,16 @@ function etatDesEcheances(echeances: readonly EcheanceEcrite[], verseXof: number
 
 const prixParDefaut = (sub: ContratEcrit, plan: FormuleEcrite | undefined): number =>
   sub.prixConvenuXof ?? (estUnPaquet(plan) ? sub.priceXof : undefined) ?? plan?.priceXof ?? 0;
-/** L'échéancier qui fait foi : celui du contrat, sinon, pour un paquet, son prix entier à la signature. */
-const echeancesDeBase = (sub: ContratEcrit, plan: FormuleEcrite | undefined, prixXof: number): EcheanceEcrite[] => {
-  if (sub.echeances?.length) return [...sub.echeances].sort((a, b) => a.numero - b.numero).map((e) => ({ ...e }));
-  return estUnPaquet(plan) && prixXof > 0 ? [{ numero: 1, dueIso: debutDuContratLu(sub), amountXof: prixXof }] : [];
-};
+/** L'échéancier qui fait foi : celui du contrat, et lui seul. Un paquet sans
+    échéancier n'a aucune date due : son reste est « à convenir avec la
+    Maison », jamais en retard, jamais rappelé ni relancé. */
+const echeancesDeBase = (sub: ContratEcrit): EcheanceEcrite[] =>
+  (sub.echeances?.length ? [...sub.echeances].sort((a, b) => a.numero - b.numero).map((e) => ({ ...e })) : []);
 
 /** L'ÉTAT QUI DÉCIDE DE L'ARGENT : le début de `etatDeLaFormule`, dans le même
     ordre (résiliée, effacée, retenue, terminée, en pause). Épuisée ne change
-    rien à l'argent : elle se lit ici « en-cours ». */
+    rien à l'argent : elle se lit ici « en-cours », sauf le carnet que
+    l'ancien ERP a dit épuisé (`exhausted`), épuisé pour de bon. */
 function etatPourLArgent(
   sub: ContratEcrit, plan: FormuleEcrite | undefined, jour: string, regleXof: number, retenueJours = 7,
 ): { etat: string; retenueJusquau?: string } {
@@ -210,6 +215,7 @@ function etatPourLArgent(
   if (fin && fin < jour) return { etat: 'terminee' };
   if (sub.suspendue && sub.suspendue.du <= jour && jour <= sub.suspendue.au) return { etat: 'en-pause' };
   if (!estUnPaquet(plan) && estIso(sub.nextIso) && jour >= jourOuvre(sub.nextIso)) return { etat: 'en-pause' };
+  if (sub.status === 'exhausted') return { etat: 'epuisee' };
   return { etat: 'en-cours' };
 }
 
@@ -221,20 +227,23 @@ type ArgentLu = {
   regleXof: number; resteXof: number; aRegleAujourdhuiXof: number; enRetardXof: number; retardJours: number;
   aVenir: { dueIso: string; montantXof: number; numero?: number; genre: 'echeance' | 'lune' }[];
   echeances: EcheanceJugee[]; prochaine?: { dueIso: string; montantXof: number }; avoirXof: number;
+  echeancierAPoser?: true; aConvenirXof?: number;
 };
 /** L'ARGENT D'UN CONTRAT : l'échu, le retard (le LENDEMAIN de l'échéance), l'à
-    venir et l'avoir. Une lune n'est jamais une dette. La résiliation au
-    prorata n'est pas recopiée : un contrat résilié ne reçoit ni rappel ni
-    relance automatique, son reste se règle avec la Maison. */
+    venir et l'avoir. Une lune n'est jamais une dette ; un paquet sans
+    échéancier non plus (« à convenir avec la Maison »). La résiliation au
+    prorata n'est pas recopiée ici : seul son reste se relance (bloc
+    `resiliation` de relances-factures). */
 function argentDuContrat(
   sub: ContratEcrit, plan: FormuleEcrite | undefined, invoices: readonly PieceEcrite[], jour: string,
   o: { prixXof?: number; etat?: string } = {},
 ): ArgentLu {
   const prix = o.prixXof ?? prixParDefaut(sub, plan);
   const regle = versementsDuContrat(sub, invoices).reduce((s, v) => s + v.montantXof, 0);
-  const base = echeancesDeBase(sub, plan, prix);
+  const base = echeancesDeBase(sub);
   const etat = o.etat;
   const sansDette = etat === 'resiliee' || etat === 'effacee' || etat === 'retenue';
+  const sansEcheancier = estUnPaquet(plan) && !base.length && prix > 0;
   const echeances: EcheanceJugee[] = etatDesEcheances(base, regle).map((e) => {
     const dueIso = jourOuvre(e.dueIso);
     let statut: EcheanceJugee['statut'];
@@ -252,7 +261,7 @@ function argentDuContrat(
   const ouvertes = echeances.filter((e) => e.statut === 'a-regler-aujourdhui' || e.statut === 'en-retard' || e.statut === 'a-venir');
   const aVenir: ArgentLu['aVenir'] = echeances
     .filter((e) => e.statut === 'a-venir').map((e) => ({ dueIso: e.dueIso, montantXof: e.resteXof, numero: e.numero, genre: 'echeance' as const }));
-  const totalEcheancier = base.reduce((s, e) => s + e.amountXof, 0);
+  const totalEcheancier = sansEcheancier ? prix : base.reduce((s, e) => s + e.amountXof, 0);
   const out: ArgentLu = {
     regleXof: regle,
     resteXof: ouvertes.reduce((s, e) => s + e.resteXof, 0),
@@ -260,8 +269,13 @@ function argentDuContrat(
     enRetardXof: echeances.filter((e) => e.statut === 'en-retard').reduce((s, e) => s + e.resteXof, 0),
     retardJours: echeances.reduce((m, e) => Math.max(m, e.retardJours), 0),
     aVenir, echeances,
-    avoirXof: base.length && etat !== 'effacee' ? Math.max(0, regle - totalEcheancier) : 0,
+    avoirXof: (base.length || sansEcheancier) && etat !== 'effacee' ? Math.max(0, regle - totalEcheancier) : 0,
   };
+  if (sansEcheancier && !sansDette) {
+    out.echeancierAPoser = true;
+    out.aConvenirXof = Math.max(0, prix - regle);
+    out.resteXof = out.aConvenirXof;
+  }
   if (!estUnPaquet(plan) && !sansDette && estIso(sub.nextIso) && !base.length && etat !== 'en-pause') {
     out.aVenir.push({ dueIso: jourOuvre(sub.nextIso), montantXof: prix, genre: 'lune' });
   }

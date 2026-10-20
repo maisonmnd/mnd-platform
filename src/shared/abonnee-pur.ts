@@ -35,15 +35,24 @@
      identifiant : c'est ce qui referme le double registre ;
    · résiliation : ce qui a été réglé au-delà des séances comptées devient un
      avoir, au prorata, arrondi au franc ; un avoir n'est jamais retranché en
-     silence (décision 9) ;
+     silence (décision 9) ; ce qui a été consommé au-delà du réglé est dû le
+     jour de la résiliation (le lundi si c'est un dimanche) et se relance
+     comme une échéance ; une Chaque Lune ne rend rien de sa lune en cours,
+     qui court jusqu'à son terme (tranché au sélecteur), mais chaque lune
+     réglée d'avance et pas encore commencée devient un avoir (Yéman) ;
+   · un paquet SANS échéancier (les contrats d'avant) n'est jamais en
+     retard : son reste est « à convenir avec la Maison » (tranché par
+     Yéman) ;
    · prix revu après le comptage du calibre : l'écart va sur la prochaine
      échéance, ou sur une échéance neuve à 30 jours s'il n'en reste aucune ;
      en sa faveur, il se retranche de la prochaine, le reste en avoir
      (décision 10) ;
    · une séance proposée par la Maison compte aussitôt parmi les réservées ;
      refusée, elle revient à la formule ;
-   · le statut stocké `exhausted` (cinq contrats repris de l'ancien ERP) ne
-     décide plus rien : l'état se lit sur les faits.
+   · le statut stocké `exhausted` (cinq contrats repris de l'ancien ERP) dit
+     vrai : ces carnets sont épuisés pour de bon (sonde et réponse de Yéman,
+     20 octobre 2026), leurs lignes disent 0 disponible ; aucun autre statut
+     stocké ne décide de rien, l'état se lit sur les faits.
 
    PUR : aucun magasin, aucun réseau, aucune horloge. Le jour est passé en
    argument (`jourDeCotonou()` chez l'appelant), jamais `toISOString()`.
@@ -226,6 +235,24 @@ export const contratPourLaDate = (
 
 /* ══ LA SÉANCE ══════════════════════════════════════════════════════════ */
 
+/** LE DERNIER JOUR QUI COMPTE D'UNE FORMULE RÉSILIÉE (tranché au sélecteur
+    le 20 octobre 2026). Un paquet s'arrête le jour de sa résiliation. Une
+    Chaque Lune ne rend rien : la lune déjà réglée qui contient ce jour court
+    jusqu'à son terme (sans dépasser la fin vendue), et ses séances incluses
+    restent réservables jusque-là ; une lune non réglée s'arrête le jour même.
+    `undefined` : pas de résiliation datée. */
+export function dernierJourDeLaResiliee(sub: ContratLu, plan: Plan | undefined): string | undefined {
+  if (!estIso(sub.resilieeLe)) return undefined;
+  const le = sub.resilieeLe;
+  if (plan?.mode !== 'cycle' || !estIso(sub.nextIso) || le >= sub.nextIso) return le;
+  const lune = luneDeLaDate(sub, le);
+  if (!lune) return le;
+  const dernier = decaleLeJour(lune.au, -1);
+  const fin = finDuContratLu(sub);
+  if (fin && fin < dernier) return fin > le ? fin : le;
+  return dernier;
+}
+
 /** L'ÉTAT D'UNE SÉANCE, lu sur les faits, le même partout. */
 export function etatDeLaSeance(a: SeanceLue, jour: string, regles: ReglesDeLaMaison = REGLES_DE_LA_MAISON): EtatSeance {
   if (a.status === 'honoré') return 'faite';
@@ -242,6 +269,14 @@ export function etatDeLaSeance(a: SeanceLue, jour: string, regles: ReglesDeLaMai
   if (a.proposeeLe && a.status === 'en attente' && !a.confirmeeParLaClienteLe) return 'proposee';
   return a.status === 'en attente' ? 'a-confirmer' : 'confirmee';
 }
+
+/** UNE SÉANCE DE FORMULE SE DÉPLACE-T-ELLE EN LIGNE ? Plus de 24 h avant son
+    début seulement (tranché au sélecteur le 20 octobre 2026) : à moins de
+    24 h, la Maison décide, et elle peut la déplacer sans la compter.
+    L'annulation, elle, reste possible, et se compte (décision 3). */
+export const seDeplaceEnLigne = (
+  a: Pick<Appointment, 'date' | 'time'>, maintenantIso: string, regles: ReglesDeLaMaison = REGLES_DE_LA_MAISON,
+): boolean => (debutDeLaSeance(a) - instantDe(maintenantIso)) / 3_600_000 >= regles.delaiAnnulationHeures;
 
 /** Cet état prend-il un crédit ? Tout sauf l'annulée et la manquée rendue. */
 const prendUnCredit = (etat: EtatSeance, a: FaitsDeLaSeance): boolean =>
@@ -283,13 +318,15 @@ export function porteeParLeContrat(
 }
 
 /** CETTE SÉANCE PREND-ELLE UN CRÉDIT DE CE CONTRAT ? Portée par lui, son
-    état prend un crédit, et elle n'est pas postérieure à sa résiliation. */
+    état prend un crédit, et elle n'est pas postérieure au dernier jour de
+    sa résiliation (la lune réglée d'une Chaque Lune résiliée compte encore). */
 export function compteLaSeance(
   a: SeanceLue, sub: ContratLu, subsDeLaTete: readonly Subscriber[], plans: readonly Plan[],
   jour: string, regles: ReglesDeLaMaison = REGLES_DE_LA_MAISON,
 ): boolean {
   if (!porteeParLeContrat(a, sub, subsDeLaTete, plans)) return false;
-  if (sub.resilieeLe && a.date > sub.resilieeLe) return false;
+  const dernier = dernierJourDeLaResiliee(sub, plans.find((p) => p.id === sub.planId));
+  if (dernier && a.date > dernier) return false;
   return prendUnCredit(etatDeLaSeance(a, jour, regles), a);
 }
 
@@ -358,8 +395,20 @@ export type ArgentDuContrat = {
   pourOuvrir?: { montantXof: number; avantIso: string };
   /** Une lune en pause : rien n'est dû ; ceci la rouvre. */
   luneARegler?: { depuisIso: string; montantXof: number };
-  /** La résiliation, chiffrée au prorata. */
-  prorata?: { seances: number; comptees: number; consommeXof: number; avoirXof: number; resteXof: number; le: string };
+  /** La résiliation, chiffrée au prorata. `dueIso` : le jour où le consommé
+      au-delà du réglé est dû (la résiliation, le lundi si c'est un dimanche). */
+  prorata?: { seances: number; comptees: number; consommeXof: number; avoirXof: number; resteXof: number; le: string; dueIso: string };
+  /** UNE CHAQUE LUNE RÉSILIÉE : les lunes réglées d'avance et pas encore
+      commencées au jour de la résiliation deviennent un avoir (tranché par
+      Yéman le 20 octobre 2026) ; la lune en cours court jusqu'à son terme,
+      sans avoir. `du` : le premier jour de la première lune rendue. */
+  lunesEnAvoir?: { nombre: number; avoirXof: number; du: string };
+  /** UN PAQUET SANS ÉCHÉANCIER (les contrats d'avant) : aucune date due, donc
+      jamais en retard ; son reste se dit « à convenir avec la Maison », et le
+      Trône lit « échéancier à poser ». Compris dans `resteXof`, jamais dans
+      l'échu ni dans l'à venir. */
+  echeancierAPoser?: true;
+  aConvenirXof?: number;
 };
 
 /** LE PRIX VENDU, sans magasin : le prix convenu, sinon le prix du paquet,
@@ -368,12 +417,13 @@ export type ArgentDuContrat = {
 const prixParDefaut = (sub: Subscriber, plan: Plan | undefined): number =>
   sub.prixConvenuXof ?? (estUnPaquet(plan) ? sub.priceXof : undefined) ?? plan?.priceXof ?? 0;
 
-/** L'échéancier qui fait foi : celui du contrat, sinon, pour un paquet, son
-    prix entier attendu à la signature. Un cycle se règle lune par lune. */
-const echeancesDeBase = (sub: Subscriber, plan: Plan | undefined, prixXof: number): Echeance[] => {
-  if (sub.echeances?.length) return [...sub.echeances].sort((a, b) => a.numero - b.numero).map((e) => ({ ...e }));
-  return estUnPaquet(plan) && prixXof > 0 ? [{ numero: 1, dueIso: debutDuContratLu(sub), amountXof: prixXof }] : [];
-};
+/** L'échéancier qui fait foi : celui du contrat, et lui seul. Un cycle se
+    règle lune par lune ; un paquet sans échéancier n'a aucune date due
+    (« à convenir avec la Maison », tranché par Yéman le 20 octobre 2026 :
+    l'ancien juge lui donnait son prix entier dû à la signature, et le
+    disait en retard depuis). */
+const echeancesDeBase = (sub: Subscriber): Echeance[] =>
+  (sub.echeances?.length ? [...sub.echeances].sort((a, b) => a.numero - b.numero).map((e) => ({ ...e })) : []);
 
 /** Le jour où le cumul des versements a atteint ce montant. */
 const jourOuLeCumulAtteint = (versements: readonly Versement[], cumulXof: number): string | undefined => {
@@ -401,10 +451,11 @@ export function argentDuContrat(
   const prix = o.prixXof ?? prixParDefaut(sub, plan);
   const versements = versementsDuContrat(sub, invoices);
   const regle = versements.reduce((s, v) => s + v.montantXof, 0);
-  const base = echeancesDeBase(sub, plan, prix);
+  const base = echeancesDeBase(sub);
   const etat = o.etat;
   const resiliee = etat === 'resiliee';
   const sansDette = resiliee || etat === 'effacee' || etat === 'retenue';
+  const sansEcheancier = estUnPaquet(plan) && !base.length && prix > 0;
 
   let cumul = 0;
   const echeances: EcheanceDuContrat[] = etatDesEcheances(base, regle, jour).map((e) => {
@@ -434,14 +485,24 @@ export function argentDuContrat(
   const aVenir: ArgentDuContrat['aVenir'] = echeances
     .filter((e) => e.statut === 'a-venir').map((e) => ({ dueIso: e.dueIso, montantXof: e.resteXof, numero: e.numero, genre: 'echeance' }));
 
-  /* LE TROP-VERSÉ EST UN AVOIR, jamais une remise sur la suivante. */
-  const totalEcheancier = base.reduce((s, e) => s + e.amountXof, 0);
-  let avoirXof = base.length && etat !== 'effacee' ? Math.max(0, regle - totalEcheancier) : 0;
+  /* LE TROP-VERSÉ EST UN AVOIR, jamais une remise sur la suivante. Sans
+     échéancier, le total attendu est le prix. */
+  const totalEcheancier = sansEcheancier ? prix : base.reduce((s, e) => s + e.amountXof, 0);
+  let avoirXof = (base.length || sansEcheancier) && etat !== 'effacee' ? Math.max(0, regle - totalEcheancier) : 0;
 
   const out: ArgentDuContrat = {
     prixVenduXof: prix, regleXof: regle, resteXof, aRegleAujourdhuiXof, enRetardXof, retardJours,
     aVenir, echeances, versements, avoirXof,
   };
+
+  /* SANS ÉCHÉANCIER : le reste est à convenir avec la Maison, jamais échu,
+     jamais en retard, jamais relancé ; la porte des réservations reste
+     ouverte. Il se dit à part, sans date. */
+  if (sansEcheancier && !sansDette) {
+    out.echeancierAPoser = true;
+    out.aConvenirXof = Math.max(0, prix - regle);
+    out.resteXof = out.aConvenirXof;
+  }
 
   /* LA RÉSILIATION DATÉE, AU PRORATA (décision 9). Ce qui a été réglé au-delà
      des séances comptées revient en avoir ; ce qui a été consommé au-delà du
@@ -454,11 +515,27 @@ export function argentDuContrat(
       const consommeXof = Math.round((prix * Math.min(comptees, seances)) / seances);
       const avoir = Math.max(0, regle - consommeXof);
       const reste = Math.max(0, consommeXof - regle);
-      out.prorata = { seances, comptees, consommeXof, avoirXof: avoir, resteXof: reste, le: sub.resilieeLe };
+      /* LE CONSOMMÉ AU-DELÀ DU RÉGLÉ est dû le jour de la résiliation, le
+         lundi si c'est un dimanche, et se relance comme une échéance. */
+      const dueIso = jourOuvre(sub.resilieeLe);
+      out.prorata = { seances, comptees, consommeXof, avoirXof: avoir, resteXof: reste, le: sub.resilieeLe, dueIso };
       avoirXof = avoir;
       resteXof = reste;
-      aRegleAujourdhuiXof = reste > 0 && sub.resilieeLe <= jour ? reste : 0;
+      aRegleAujourdhuiXof = reste > 0 && dueIso <= jour ? reste : 0;
       out.avoirXof = avoirXof; out.resteXof = resteXof; out.aRegleAujourdhuiXof = aRegleAujourdhuiXof;
+    }
+  }
+
+  /* LA CHAQUE LUNE RÉSILIÉE (tranché par Yéman le 20 octobre 2026) : la lune
+     en cours court jusqu'à son terme, sans avoir ; chaque lune déjà réglée
+     et pas encore commencée au jour de la résiliation devient un avoir, à
+     son prix ; rien ne sort de la caisse. */
+  if (resiliee && estIso(sub.resilieeLe) && plan?.mode === 'cycle' && estIso(sub.nextIso) && sub.resilieeLe < sub.nextIso) {
+    const enCours = luneDeLaDate(sub, sub.resilieeLe);
+    const nombre = enCours ? Math.floor(joursEntre(enCours.au, sub.nextIso) / dureeDeLaLune(sub)) : 0;
+    if (enCours && nombre > 0 && prix > 0) {
+      out.lunesEnAvoir = { nombre, avoirXof: nombre * prix, du: enCours.au };
+      out.avoirXof = nombre * prix;
     }
   }
 
@@ -486,6 +563,8 @@ export function argentDuContrat(
 
 export type EtatDeLaFormule = {
   etat: EtatFormule;
+  /** Épuisée sur la foi de l'ancien ERP (`exhausted`), pas sur le compte. */
+  epuiseeParLAncienCarnet?: true;
   retenueJusquau?: string;
   effaceeLe?: string;
   pause?: { genre: 'lune'; depuisIso: string } | { genre: 'suspension'; du: string; au: string; motif?: string };
@@ -493,7 +572,8 @@ export type EtatDeLaFormule = {
 
 /** L'ÉTAT D'UNE FORMULE, LU ET NON STOCKÉ. L'ordre des questions est la
     définition : résiliée › effacée › terminée › retenue › en pause ›
-    épuisée › en cours. `exhausted`, `risk`, `new` ne décident de rien. */
+    épuisée › en cours. `risk` et `new` ne décident de rien ; `exhausted`
+    (l'ancien ERP) dit épuisée, après tout le reste. */
 export function etatDeLaFormule(
   sub: ContratLu, plan: Plan | undefined, o: { jour: string; regleXof: number; lignes: readonly LigneDeSeances[]; regles?: ReglesDeLaMaison },
 ): EtatDeLaFormule {
@@ -521,6 +601,12 @@ export function etatDeLaFormule(
   if (!estUnPaquet(plan) && estIso(sub.nextIso) && jour >= jourOuvre(sub.nextIso)) {
     return { etat: 'en-pause', pause: { genre: 'lune', depuisIso: jourOuvre(sub.nextIso) } };
   }
+  /* LE CARNET QUE L'ANCIEN ERP A DIT ÉPUISÉ (`exhausted`, cinq contrats,
+     jamais plus écrit) L'EST POUR DE BON : ses séances ont été prises sous
+     d'autres prestations ou avant les dates du contrat, le compte ne les
+     voit pas (sonde et réponse de Yéman, 20 octobre 2026). Il ne passe
+     qu'après résiliée, effacée, terminée, retenue et en pause. */
+  if (sub.status === 'exhausted') return { etat: 'epuisee', epuiseeParLAncienCarnet: true };
   /* ÉPUISÉE : toutes ses séances bornées sont prises. Elle ne bloque rien :
      une autre formule peut se prendre à côté. */
   const bornees = o.lignes.filter((l) => l.incluses !== null);
@@ -575,6 +661,13 @@ export type ReleveDuContrat = {
   retenueJusquau?: string;
   effaceeLe?: string;
   resilieeLe?: string;
+  /** RÉSILIÉE, ELLE COURT ENCORE jusqu'à ce jour : une Chaque Lune finit sa
+      lune réglée, et ses séances incluses restent réservables jusque-là. */
+  courtJusquau?: string;
+  /** ÉPUISÉE SUR LA FOI DE L'ANCIEN ERP : ses lignes disent 0 disponible, et
+      les écrans ne prétendent pas « 6 comptées sur 6 » (« Épuisée · séances
+      prises avant Le Trône »). */
+  epuiseeParLAncienCarnet?: true;
   pause?: EtatDeLaFormule['pause'];
   /** La lune des lignes : celle du jour, ou la dernière réglée en pause. */
   lune?: { du: string; au: string; prochaineIso: string };
@@ -606,8 +699,9 @@ export type Alerte = {
 export type ResteHorsFormule = { id: string; genre: 'rituel' | 'piece'; date: string; resteXof: number; libelle?: string };
 
 export type LigneDeSolde = {
-  genre: 'echeance' | 'resiliation' | 'lune' | 'avoir' | 'rituel' | 'piece';
-  statut: 'a-regler-aujourdhui' | 'en-retard' | 'a-venir' | 'avoir';
+  /** `a-convenir` : le reste d'un paquet sans échéancier, sans date. */
+  genre: 'echeance' | 'resiliation' | 'lune' | 'avoir' | 'rituel' | 'piece' | 'a-convenir';
+  statut: 'a-regler-aujourdhui' | 'en-retard' | 'a-venir' | 'avoir' | 'a-convenir';
   montantXof: number;
   dueIso?: string;
   subId?: string;
@@ -624,15 +718,19 @@ export type SoldeDeLaCliente = {
   aVenirXof: number;
   /** À part, jamais retranché en silence. */
   avoirXof: number;
-  parContrat: { subId: string; reference: string; aRegleAujourdhuiXof: number; enRetardXof: number; aVenirXof: number; avoirXof: number }[];
+  /** Le reste des paquets sans échéancier : à convenir avec la Maison, sans
+      date, jamais additionné à l'échu ni à l'à venir. */
+  aConvenirXof: number;
+  parContrat: { subId: string; reference: string; aRegleAujourdhuiXof: number; enRetardXof: number; aVenirXof: number; avoirXof: number; aConvenirXof: number }[];
   lignes: LigneDeSolde[];
 };
 
 export type ReleveDeLAbonnee = {
   jour: string;
   clientId: string;
-  /** Les formules qui courent (retenue, en cours, en pause, épuisée), celle
-      qui finit le plus tôt d'abord. Il peut y en avoir plusieurs. */
+  /** Les formules qui courent (retenue, en cours, en pause, épuisée, et la
+      Chaque Lune résiliée qui finit sa lune réglée), celle qui finit le plus
+      tôt d'abord. Il peut y en avoir plusieurs. */
   contrats: ReleveDuContrat[];
   /** Terminées, résiliées, effacées : de la plus récente à la plus ancienne. */
   anciens: ReleveDuContrat[];
@@ -697,9 +795,10 @@ export function releveDeLAbonnee(e: EntreeDuReleve): ReleveDeLAbonnee {
 
     /* SES SÉANCES, toutes, avec leur état et leur crédit. */
     const portees = appts.filter((a) => porteeParLeContrat(a, sub, siens, e.plans));
+    const dernierJour = dernierJourDeLaResiliee(sub, plan);
     const lues = portees.map((a) => {
       const etat = etatDeLaSeance(a, jour, regles);
-      const apres = !!sub.resilieeLe && a.date > sub.resilieeLe;
+      const apres = !!dernierJour && a.date > dernierJour;
       const compte = !apres && prendUnCredit(etat, a);
       return {
         a, etat, compte,
@@ -763,17 +862,24 @@ export function releveDeLAbonnee(e: EntreeDuReleve): ReleveDeLAbonnee {
     const versements = versementsDuContrat(sub, e.invoices);
     const regleXof = versements.reduce((s, v) => s + v.montantXof, 0);
     const etatF = etatDeLaFormule(sub, plan, { jour, regleXof, lignes, regles });
+    /* LE CARNET ÉPUISÉ SOUS L'ANCIEN ERP : plus rien de disponible, quoi que
+       dise le compte (ses séances ont été prises hors de sa vue). */
+    if (etatF.epuiseeParLAncienCarnet) for (const l of lignes) l.disponibles = 0;
     const compteesALaResiliation = attribuees.filter((s) => s.compte && (s.etat === 'faite' || s.etat === 'manquee')).length;
     const argent = argentDuContrat(sub, plan, e.invoices, jour, {
       prixXof, etat: etatF.etat, compteesALaResiliation, retenueJusquau: etatF.retenueJusquau, regles,
     });
+
+    /* RÉSILIÉE, ELLE COURT ENCORE : la lune réglée d'une Chaque Lune. */
+    const courtJusquau = etatF.etat === 'resiliee' && dernierJour && sub.resilieeLe
+      && dernierJour > sub.resilieeLe && dernierJour >= jour ? dernierJour : undefined;
 
     /* LA PORTE DE CE CONTRAT : réserver une séance incluse. */
     let porte: ReleveDuContrat['porte'] = { peutReserverIncluse: true };
     const parEtat: Partial<Record<EtatFormule, RaisonDeLaPorte>> = {
       retenue: 'retenue', 'en-pause': 'pause', epuisee: 'epuisee', terminee: 'terminee', resiliee: 'resiliee', effacee: 'effacee',
     };
-    const fermee = parEtat[etatF.etat];
+    const fermee = courtJusquau ? undefined : parEtat[etatF.etat];
     if (fermee) porte = { peutReserverIncluse: false, raison: fermee };
     else if (argent.retardJours > regles.graceJours) porte = { peutReserverIncluse: false, raison: 'retard' };
     else if (lignes.length && lignes.every((l) => l.disponibles !== null && l.disponibles <= 0)) porte = { peutReserverIncluse: false, raison: 'quota' };
@@ -801,6 +907,8 @@ export function releveDeLAbonnee(e: EntreeDuReleve): ReleveDeLAbonnee {
       ...(etatF.retenueJusquau ? { retenueJusquau: etatF.retenueJusquau } : {}),
       ...(etatF.effaceeLe ? { effaceeLe: etatF.effaceeLe } : {}),
       ...(etatF.etat === 'resiliee' && sub.resilieeLe ? { resilieeLe: sub.resilieeLe } : {}),
+      ...(courtJusquau ? { courtJusquau } : {}),
+      ...(etatF.epuiseeParLAncienCarnet ? { epuiseeParLAncienCarnet: true as const } : {}),
       ...(etatF.pause ? { pause: etatF.pause } : {}),
       ...(lune ? { lune } : {}),
       seances: lignes, attribuees, couvertsHorsFormule, argent, porte,
@@ -809,10 +917,11 @@ export function releveDeLAbonnee(e: EntreeDuReleve): ReleveDeLAbonnee {
   });
 
   const COURENT: readonly EtatFormule[] = ['retenue', 'en-cours', 'en-pause', 'epuisee'];
-  const finDe = (c: ReleveDuContrat) => c.finIso ?? '9999-12-31';
-  const contrats = releves.filter((c) => COURENT.includes(c.etat))
+  const court = (c: ReleveDuContrat) => COURENT.includes(c.etat) || !!c.courtJusquau;
+  const finDe = (c: ReleveDuContrat) => c.courtJusquau ?? c.finIso ?? '9999-12-31';
+  const contrats = releves.filter(court)
     .sort((a, b) => (finDe(a) === finDe(b) ? (a.debutIso < b.debutIso ? -1 : 1) : (finDe(a) < finDe(b) ? -1 : 1)));
-  const anciens = releves.filter((c) => !COURENT.includes(c.etat)).sort((a, b) => (a.debutIso < b.debutIso ? 1 : -1));
+  const anciens = releves.filter((c) => !court(c)).sort((a, b) => (a.debutIso < b.debutIso ? 1 : -1));
 
   const alertes = alertesDuReleve(contrats, anciens, jour, regles);
   const solde = soldeDuReleve([...contrats, ...anciens], e.restesHorsFormule ?? [], jour);
@@ -850,8 +959,8 @@ function alertesDuReleve(
         texte: `Votre ${rangDit(retard.numero)} échéance du ${jourDitAvecLAnnee(retard.dueIso)} attend : ${francs(c.argent.enRetardXof)}.` });
     }
     const p = c.argent.prorata;
-    if (p && p.resteXof > 0) {
-      out.push({ ...base, genre: p.le < jour ? 'retard' : 'a-regler', dueIso: p.le, montantXof: p.resteXof,
+    if (p && p.resteXof > 0 && p.dueIso <= jour) {
+      out.push({ ...base, genre: p.dueIso < jour ? 'retard' : 'a-regler', dueIso: p.dueIso, montantXof: p.resteXof,
         texte: `Votre ${c.nom}, résiliée le ${jourDitAvecLAnnee(p.le)}, garde un reste à régler : ${francs(p.resteXof)}.` });
     }
   }
@@ -915,8 +1024,13 @@ function soldeDuReleve(releves: readonly ReleveDuContrat[], restes: readonly Res
       }
     }
     if (ar.prorata && ar.prorata.resteXof > 0) {
-      lignes.push({ ...base, genre: 'resiliation', statut: ar.prorata.le < jour ? 'en-retard' : ar.prorata.le === jour ? 'a-regler-aujourdhui' : 'a-venir',
-        montantXof: ar.prorata.resteXof, dueIso: ar.prorata.le });
+      const due = ar.prorata.dueIso;
+      lignes.push({ ...base, genre: 'resiliation', statut: due < jour ? 'en-retard' : due === jour ? 'a-regler-aujourdhui' : 'a-venir',
+        montantXof: ar.prorata.resteXof, dueIso: due });
+    }
+    /* À CONVENIR : un paquet sans échéancier ; sans date, à part. */
+    if (ar.echeancierAPoser && (ar.aConvenirXof ?? 0) > 0) {
+      lignes.push({ ...base, genre: 'a-convenir', statut: 'a-convenir', montantXof: ar.aConvenirXof as number });
     }
     for (const v of ar.aVenir) if (v.genre === 'lune') lignes.push({ ...base, genre: 'lune', statut: 'a-venir', montantXof: v.montantXof, dueIso: v.dueIso });
     if (ar.avoirXof > 0) lignes.push({ ...base, genre: 'avoir', statut: 'avoir', montantXof: ar.avoirXof });
@@ -927,6 +1041,7 @@ function soldeDuReleve(releves: readonly ReleveDuContrat[], restes: readonly Res
       enRetardXof: siennes.filter((l) => l.statut === 'en-retard').reduce((s, l) => s + l.montantXof, 0),
       aVenirXof: siennes.filter((l) => l.statut === 'a-venir').reduce((s, l) => s + l.montantXof, 0),
       avoirXof: siennes.filter((l) => l.statut === 'avoir').reduce((s, l) => s + l.montantXof, 0),
+      aConvenirXof: siennes.filter((l) => l.statut === 'a-convenir').reduce((s, l) => s + l.montantXof, 0),
     });
   }
   for (const r of restes) {
@@ -940,6 +1055,7 @@ function soldeDuReleve(releves: readonly ReleveDuContrat[], restes: readonly Res
     dontEnRetardXof: somme((l) => l.statut === 'en-retard'),
     aVenirXof: somme((l) => l.statut === 'a-venir'),
     avoirXof: somme((l) => l.statut === 'avoir'),
+    aConvenirXof: somme((l) => l.statut === 'a-convenir'),
     parContrat, lignes,
   };
 }
@@ -964,9 +1080,12 @@ export function peutPorter(c: ReleveDuContrat, serviceId: string, dateIso: strin
   /* DÉPLACER LA DERNIÈRE SÉANCE D'UN PAQUET : il est épuisé par elle-même,
      elle doit pouvoir changer de jour sur son propre contrat. */
   const deplaceLaSienne = c.etat === 'epuisee' && !!sauf && c.attribuees.some((s) => s.id === sauf && s.compte);
-  if ((c.etat !== 'en-cours' && !deplaceLaSienne) || c.porte.raison === 'retard') return false;
+  /* RÉSILIÉE, ELLE COURT ENCORE : la lune réglée d'une Chaque Lune. */
+  const courtEncore = c.etat === 'resiliee' && !!c.courtJusquau;
+  if ((c.etat !== 'en-cours' && !deplaceLaSienne && !courtEncore) || c.porte.raison === 'retard') return false;
   if (!dansLaVie(c.sub, dateIso)) return false;
-  if (c.sub.resilieeLe && dateIso > c.sub.resilieeLe) return false;
+  const dernier = dernierJourDeLaResiliee(c.sub, c.plan);
+  if (dernier && dateIso > dernier) return false;
   if (c.sub.suspendue && c.sub.suspendue.du <= dateIso && dateIso <= c.sub.suspendue.au) return false;
   let fenetre: { du: string; au: string } | null = null;
   if (c.mode === 'cycle') {
@@ -989,8 +1108,8 @@ export function formuleProposeePourReserver(
 ): FormuleProposee {
   const possibles = releve.contrats.filter((c) => peutPorter(c, serviceId, dateIso, sauf))
     .sort((a, b) => {
-      const fa = a.finIso ?? '9999-12-31';
-      const fb = b.finIso ?? '9999-12-31';
+      const fa = a.courtJusquau ?? a.finIso ?? '9999-12-31';
+      const fb = b.courtJusquau ?? b.finIso ?? '9999-12-31';
       return fa === fb ? (a.debutIso < b.debutIso ? -1 : 1) : (fa < fb ? -1 : 1);
     });
   return { ...(possibles[0] ? { proposee: possibles[0] } : {}), autres: possibles.slice(1) };
@@ -1061,7 +1180,11 @@ export function echeancierApresPrixRevu(
   if (!estUnPaquet(plan) && !sub.echeances?.length) return { ...socle, ok: true, echeances: [] };
 
   const regle = versementsDuContrat(sub, invoices).reduce((s, v) => s + v.montantXof, 0);
-  const base = echeancesDeBase(sub, plan, ancien);
+  /* UN PAQUET SANS ÉCHÉANCIER LE RESTE : le nouveau prix change ce qui est
+     à convenir avec la Maison, sans dater quoi que ce soit ; le versé au-delà
+     du nouveau prix est un avoir. */
+  if (!sub.echeances?.length) return { ...socle, ok: true, echeances: [], avoirXof: Math.max(0, regle - nouveau) };
+  const base = echeancesDeBase(sub);
   const etats = etatDesEcheances(base, regle, jour);
   const tranches = etats.map((x) => ({ numero: x.numero, dueIso: x.dueIso, amountXof: x.amountXof }));
   const iProchaine = etats.findIndex((x) => x.resteXof > 0);

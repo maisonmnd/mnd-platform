@@ -15,7 +15,7 @@ import {
   releveDeLAbonnee, etatDeLaSeance, compteLaSeance, contratDeLaSeance, dansLaVie, inclusALaDate,
   contratPourLaDate as contratPourLaDatePur, versementsDuContrat, argentDuContrat, formuleProposeePourReserver,
   peutAcheterLaFormule, prixPourLaTete, echeancierApresPrixRevu, prochaineIsoApresReglement, jourOuvre,
-  jourDitAvecLAnnee, francs, luneDeLaDate, REGLES_DE_LA_MAISON,
+  jourDitAvecLAnnee, francs, luneDeLaDate, REGLES_DE_LA_MAISON, peutPorter, dernierJourDeLaResiliee, seDeplaceEnLigne,
   type ContratLu, type SeanceLue, type EntreeDuReleve, type ReleveDeLAbonnee, type Alerte,
 } from '../src/shared/abonnee-pur';
 import {
@@ -387,14 +387,26 @@ dit('les francs se disent avec des espaces insecables', '70 000 F', francs(70
   dit('deux montants pour le meme identifiant : signale', true, versementsDuContrat(sub, [faux])[0].desaccord);
 }
 
-/* ── 16. LE STATUT 'exhausted' NE DECIDE PLUS RIEN ── */
+/* ── 16. LE STATUT 'exhausted' DE L'ANCIEN ERP : EPUISE POUR DE BON (sonde et reponse de Yeman) ── */
 {
   const ex = contrat({ status: 'exhausted' });
-  const r = releve({ subs: [ex] });
-  dit('exhausted avec 3 disponibles : en cours, la porte ouverte', { etat: 'en-cours', inc: true, ach: true },
-    { etat: leContrat(r)?.etat, inc: r.porte.peutReserverIncluse, ach: r.porte.peutAcheter });
+  const r = garde(releve({ subs: [ex] }));
+  const c = leContrat(r)!;
+  dit('exhausted, meme si le compte voit 3 disponibles : epuisee, et dit pourquoi', { etat: 'epuisee', ancien: true, disponibles: [0] },
+    { etat: c.etat, ancien: c.epuiseeParLAncienCarnet ?? false, disponibles: c.seances.map((l) => l.disponibles) });
+  dit('plus de seance incluse sur lui ; l achat reste ouvert, le meme carnet compris', { inc: false, raison: 'epuisee', ach: true, meme: true },
+    { inc: r.porte.peutReserverIncluse, raison: r.porte.raison, ach: r.porte.peutAcheter, meme: peutAcheterLaFormule(SIX, r, PLANS).ok });
+  dit('ses seances faites restent faites (le compte ne s invente rien)', 2, ligneDe(r)?.faites);
+  dit('aucune date ne lui est proposee pour une seance incluse', [false], [peutPorter(c, GBEJI, '2026-10-27')]);
   const fini = releve({ jour: '2027-07-01', subs: [ex] });
-  dit('exhausted dont la date est passee : terminee', 'terminee', leContrat(fini)?.etat);
+  dit('exhausted dont la date est passee : terminee (il ne change aucun autre etat)', 'terminee', leContrat(fini)?.etat);
+  const resilie = releve({ subs: [contrat({ status: 'exhausted', resilieeLe: '2026-10-15' })] });
+  dit('exhausted resilie : resiliee', 'resiliee', leContrat(resilie)?.etat);
+  const enPause = releve({ jour: '2026-11-02', subs: [contrat({ id: 'abo-l', planId: LUNE.id, status: 'exhausted', startIso: undefined, expiresIso: null,
+    priceXof: undefined, prixConvenuXof: 37500, echeances: undefined, nextIso: '2026-11-02', payments: [{ id: 'l1', amountXof: 37500, date: '2026-10-03' }] })], appts: [] });
+  dit('exhausted sur une Chaque Lune non reglee : en pause', 'en-pause', leContrat(enPause, 'abo-l')?.etat);
+  const vrai = releve({ subs: [contrat({})] });
+  dit('sans ce statut, le meme carnet est en cours', { etat: 'en-cours', ancien: false }, { etat: leContrat(vrai)?.etat, ancien: leContrat(vrai)?.epuiseeParLAncienCarnet ?? false });
 }
 
 /* ── 17. DEUX FORMULES EN MEME TEMPS (tranche au selecteur) ── */
@@ -502,8 +514,115 @@ dit('les francs se disent avec des espaces insecables', '70 000 F', francs(70
   const a = argentDuContrat(contrat({}), SIX, [], '2026-11-02', { etat: 'en-cours' });
   dit('argentDuContrat seul dit la meme chose que le releve', { aRegler: 70000, retard: 0 }, { aRegler: a.aRegleAujourdhuiXof, retard: a.enRetardXof });
   const sansEch = argentDuContrat(contrat({ echeances: undefined }), SIX, [], '2026-10-20', { etat: 'en-cours' });
-  dit('un paquet sans echeancier doit son prix des la signature, moins le verse', { reste: 70000, retard: 70000 },
-    { reste: sansEch.resteXof, retard: sansEch.enRetardXof });
+  dit('un paquet sans echeancier : son reste est a convenir, jamais du a la signature', { reste: 70000, aConvenir: 70000, retard: 0, aRegler: 0 },
+    { reste: sansEch.resteXof, aConvenir: sansEch.aConvenirXof, retard: sansEch.enRetardXof, aRegler: sansEch.aRegleAujourdhuiXof });
+}
+
+/* ── 23. SANS ECHEANCIER : JAMAIS EN RETARD, « A CONVENIR AVEC LA MAISON » (tranche par Yeman) ── */
+{
+  /* Un contrat d'avant : un paquet de 234 000 F, 50 000 F regles a la signature, aucun echeancier ecrit. */
+  const ancien = (o: Partial<ContratLu> = {}) => contrat({ prixConvenuXof: 234000, priceXof: 234000, echeances: undefined,
+    payments: [{ id: 'v1', amountXof: 50000, date: '2026-10-02' }], ...o });
+  const r = garde(releve({ jour: '2026-12-15', subs: [ancien()], appts: [A1, A2] }));
+  const c = leContrat(r)!;
+  dit('234 000 F, 50 000 F regles, deux mois et demi plus tard : 184 000 F a convenir, rien d echu, rien en retard',
+    { reste: 184000, aConvenir: 184000, aPoser: true, aRegler: 0, enRetard: 0, retardJours: 0, aVenir: 0, prochaine: null },
+    { reste: c.argent.resteXof, aConvenir: c.argent.aConvenirXof, aPoser: c.argent.echeancierAPoser, aRegler: c.argent.aRegleAujourdhuiXof,
+      enRetard: c.argent.enRetardXof, retardJours: c.argent.retardJours, aVenir: c.argent.aVenir.length, prochaine: c.argent.prochaine ?? null });
+  dit('aucune alerte d argent, et la reservation reste ouverte (pas de porte de la grace)', { argent: false, porte: true },
+    { argent: r.alertes.some((a) => a.genre === 'retard' || a.genre === 'a-regler'), porte: r.porte.peutReserverIncluse });
+  dit('le solde le dit a part, sans date : ni a regler aujourd hui, ni a venir',
+    { aRegler: 0, aVenir: 0, aConvenir: 184000, ligne: { genre: 'a-convenir', statut: 'a-convenir', dueIso: null } },
+    { aRegler: r.solde.aRegleAujourdhuiXof, aVenir: r.solde.aVenirXof, aConvenir: r.solde.aConvenirXof,
+      ligne: (({ genre, statut, dueIso }) => ({ genre, statut, dueIso: dueIso ?? null }))(r.solde.lignes.find((l) => l.subId === 'abo-14')!) });
+  const avecEch = releve({ jour: '2026-12-15', subs: [ancien({ echeances: [{ numero: 1, dueIso: '2026-10-02', amountXof: 50000 }, { numero: 2, dueIso: '2026-11-02', amountXof: 184000 }] })], appts: [A1, A2] });
+  dit('le meme contrat avec un echeancier ecrit, lui, est en retard : c est l echeancier absent qui decide', { retard: true, aPoser: false },
+    { retard: leContrat(avecEch)!.argent.enRetardXof > 0, aPoser: !!leContrat(avecEch)!.argent.echeancierAPoser });
+  const solde = releve({ jour: '2026-12-15', subs: [ancien({ payments: [{ id: 'v1', amountXof: 234000, date: '2026-10-02' }] })], appts: [A1, A2] });
+  dit('tout regle : rien a convenir, aucune ligne', { aConvenir: 0, lignes: 0 },
+    { aConvenir: solde.solde.aConvenirXof, lignes: solde.solde.lignes.length });
+  const trop = releve({ jour: '2026-12-15', subs: [ancien({ payments: [{ id: 'v1', amountXof: 250000, date: '2026-10-02' }] })], appts: [A1, A2] });
+  dit('le trop-verse d un paquet sans echeancier est un avoir', 16000, trop.solde.avoirXof);
+  const revu = echeancierApresPrixRevu(ancien(), SIX, [], 260000, '2026-10-27');
+  dit('le prix revu d un paquet sans echeancier ne date rien : l ecart rejoint ce qui est a convenir', { ok: true, echeances: [], avoir: 0 },
+    { ok: revu.ok, echeances: revu.echeances, avoir: revu.avoirXof });
+  dit('... et le reste a convenir suit le nouveau prix', 210000,
+    argentDuContrat(ancien({ prixConvenuXof: 260000 }), SIX, [], '2026-12-15', { etat: 'en-cours' }).aConvenirXof);
+}
+
+/* ── 24. RESILIATION : LE CONSOMME AU-DELA DU REGLE EST DU LE JOUR MEME, ET SE RELANCE (tranche au selecteur) ── */
+{
+  const quatre = [A1, A2, seance({ id: 'a7', date: '2026-10-23' }), seance({ id: 'a8', date: '2026-10-27' })];
+  /* Resiliee le dimanche 1er novembre 2026 : 4 seances sur 6 comptees, 93 333 F consommes, 70 000 F regles. */
+  const res = contrat({ status: 'churn', resilieeLe: '2026-11-01' });
+  const lu = (jour: string) => {
+    const r = releve({ jour, subs: [res], appts: quatre });
+    const c = leContrat(r)!;
+    return { aRegler: c.argent.aRegleAujourdhuiXof, statut: r.solde.lignes.find((l) => l.genre === 'resiliation')?.statut ?? null,
+      alerte: r.alertes.find((a) => a.subId === 'abo-14')?.genre ?? null };
+  };
+  dit('23 333 F dus, le jour de la resiliation, le lundi quand c est un dimanche', { reste: 23333, dueIso: '2026-11-02' },
+    (({ resteXof, dueIso }) => ({ reste: resteXof, dueIso }))(leContrat(releve({ jour: '2026-11-03', subs: [res], appts: quatre }))!.argent.prorata!));
+  dit('le dimanche : a venir, sans alerte ; le lundi : a regler aujourd hui ; le mardi : en retard, comme une echeance', [
+    { aRegler: 0, statut: 'a-venir', alerte: null },
+    { aRegler: 23333, statut: 'a-regler-aujourdhui', alerte: 'a-regler' },
+    { aRegler: 23333, statut: 'en-retard', alerte: 'retard' }], [lu('2026-11-01'), lu('2026-11-02'), lu('2026-11-03')]);
+}
+
+/* ── 25. CHAQUE LUNE RESILIEE : PAS D AVOIR, SA LUNE REGLEE COURT JUSQU A SON TERME (tranche au selecteur) ── */
+{
+  const lune = (o: Partial<ContratLu> = {}) => contrat({
+    id: 'abo-l', planId: LUNE.id, reference: 'ABO-2026-020', startIso: undefined, expiresIso: null, priceXof: undefined,
+    prixConvenuXof: 37500, echeances: undefined, nextIso: '2026-11-01', payments: [{ id: 'l1', amountXof: 37500, date: '2026-10-02' }],
+    status: 'churn', resilieeLe: '2026-10-20', ...o,
+  });
+  dit('le dernier jour qui compte : la fin de la lune reglee (31 octobre 2026) ; un paquet, le jour meme', ['2026-10-31', '2026-10-20'],
+    [dernierJourDeLaResiliee(lune(), LUNE), dernierJourDeLaResiliee(contrat({ resilieeLe: '2026-10-20' }), SIX)]);
+  const r = garde(releve({ jour: '2026-10-21', subs: [lune()], appts: [] }));
+  const c = leContrat(r, 'abo-l')!;
+  dit('resiliee le 20 octobre 2026 : elle court encore jusqu au 31 octobre, rangee avec celles qui courent, la porte ouverte',
+    { etat: 'resiliee', court: '2026-10-31', courent: 1, porte: true },
+    { etat: c.etat, court: c.courtJusquau ?? null, courent: r.contrats.length, porte: r.porte.peutReserverIncluse });
+  dit('sa seance incluse se reserve jusqu au 31 octobre, jamais apres', [true, true, false],
+    [peutPorter(c, GBEJI, '2026-10-28'), peutPorter(c, GBEJI, '2026-10-31'), peutPorter(c, GBEJI, '2026-11-02')]);
+  dit('et c est elle qui est proposee', 'abo-l', formuleProposeePourReserver(r, GBEJI, '2026-10-28').proposee?.sub.id ?? null);
+  dit('pas d avoir : rien n est rendu', { avoir: 0, prorata: null, solde: 0 },
+    { avoir: c.argent.avoirXof, prorata: c.argent.prorata ?? null, solde: r.solde.avoirXof });
+  const avecSeances = releve({ jour: '2026-10-21', subs: [lune()], appts: [
+    seance({ id: 'l-28', subId: 'abo-l', date: '2026-10-28', status: 'confirmé' }), seance({ id: 'l-05', subId: 'abo-l', date: '2026-11-05', status: 'confirmé' })] });
+  const cs = leContrat(avecSeances, 'abo-l')!;
+  dit('la seance du 28 octobre compte sur la lune, celle du 5 novembre non', [{ compte: true, rang: 1 }, { compte: false, pourquoi: 'apres-resiliation' }],
+    [(({ compte, rang }) => ({ compte, rang }))(cs.attribuees.find((s) => s.id === 'l-28')!),
+      (({ compte, pourquoiPas }) => ({ compte, pourquoi: pourquoiPas }))(cs.attribuees.find((s) => s.id === 'l-05')!)]);
+  const apres = releve({ jour: '2026-11-01', subs: [lune()], appts: [] });
+  dit('la lune finie, elle rejoint les anciennes et ne porte plus rien', { courent: 0, court: null, porte: false },
+    { courent: apres.contrats.length, court: leContrat(apres, 'abo-l')?.courtJusquau ?? null, porte: apres.porte.peutReserverIncluse });
+  const nonReglee = releve({ jour: '2026-11-04', subs: [lune({ resilieeLe: '2026-11-03' })], appts: [] });
+  dit('resiliee alors que la lune n etait pas reglee : elle s arrete le jour meme', { courent: 0, dernier: '2026-11-03' },
+    { courent: nonReglee.contrats.length, dernier: dernierJourDeLaResiliee(lune({ resilieeLe: '2026-11-03' }), LUNE) });
+  /* Les lunes réglées d'avance et pas encore commencées deviennent un avoir (Yéman). */
+  const avance = (nextIso: string, resilieeLe = '2026-10-20') => leContrat(releve({ jour: '2026-10-21', subs: [lune({ nextIso, resilieeLe })], appts: [] }), 'abo-l')!;
+  const une = avance('2026-12-01');
+  dit('novembre reglee d avance : la lune d octobre court jusqu au 31, celle de novembre devient un avoir de 37 500 F', { court: '2026-10-31', avoir: 37500, lunes: 1, du: '2026-11-01' },
+    { court: une.courtJusquau ?? null, avoir: une.argent.avoirXof, lunes: une.argent.lunesEnAvoir?.nombre ?? 0, du: une.argent.lunesEnAvoir?.du ?? null });
+  dit('deux lunes d avance : 75 000 F d avoir, dans « Votre avoir »', { avoir: 75000, solde: 75000 },
+    { avoir: avance('2026-12-31').argent.avoirXof, solde: releve({ jour: '2026-10-21', subs: [lune({ nextIso: '2026-12-31' })], appts: [] }).solde.avoirXof });
+  dit('resiliee le premier jour de la lune reglee : elle a commence, elle court, aucun avoir', { avoir: 0, court: '2026-11-30' },
+    { avoir: avance('2026-12-01', '2026-11-01').argent.avoirXof, court: leContrat(releve({ jour: '2026-11-02', subs: [lune({ nextIso: '2026-12-01', resilieeLe: '2026-11-01' })], appts: [] }), 'abo-l')!.courtJusquau ?? null });
+  dit('un paquet resilie ne connait pas les lunes rendues', null,
+    leContrat(releve({ jour: '2026-10-21', subs: [contrat({ status: 'churn', resilieeLe: '2026-10-20' })] }))!.argent.lunesEnAvoir ?? null);
+  const paquet = releve({ jour: '2026-10-21', subs: [contrat({ status: 'churn', resilieeLe: '2026-10-20' })] });
+  dit('un paquet resilie, lui, ne court pas : la porte se ferme le jour de la resiliation', { courent: 0, porte: false },
+    { courent: paquet.contrats.length, porte: paquet.porte.peutReserverIncluse });
+}
+
+/* ── 26. DEPLACER A MOINS DE 24 H : PAS EN LIGNE, LA MAISON DECIDE (tranche au selecteur) ── */
+{
+  const s = { date: '2026-11-03', time: '10:00' };
+  dit('la seance du mardi 3 novembre 2026 a 10 h : 25 h avant oui, 24 h pile oui, 23 h avant non', [true, true, false],
+    [seDeplaceEnLigne(s, '2026-11-02T09:00:00+01:00'), seDeplaceEnLigne(s, '2026-11-02T10:00:00+01:00'), seDeplaceEnLigne(s, '2026-11-02T11:00:00+01:00')]);
+  dit('une heure sans fuseau est celle de Cotonou ; une heure UTC se convertit', [false, false, true],
+    [seDeplaceEnLigne(s, '2026-11-02T10:30:00'), seDeplaceEnLigne(s, '2026-11-02T09:30:00Z'), seDeplaceEnLigne(s, '2026-11-02T08:59:00Z')]);
 }
 
 console.log(ko === 0 ? `\nLe releve de l abonnee tient (${n} epreuves).` : `\n${ko} epreuve(s) en echec sur ${n}.`);

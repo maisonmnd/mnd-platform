@@ -28,7 +28,7 @@ import { readFileSync } from 'node:fs';
 import { transformSync } from 'esbuild';
 import {
   argentDuContrat as argentPur, etatDeLaFormule, versementsDuContrat as versementsPur, jourDitAvecLAnnee as jourDitPur,
-  francs as francsPur, echeancierApresPrixRevu, type ContratLu,
+  francs as francsPur, echeancierApresPrixRevu, releveDeLAbonnee, type ContratLu, type SeanceLue,
 } from '../src/shared/abonnee-pur';
 import type { Plan } from '../src/shared/abonnements';
 import type { Invoice } from '../src/shared/finance';
@@ -65,7 +65,8 @@ type Fn = (...a: any[]) => any;
 const R = charge(RAPPELS, `{ tournee, rappelsDuContrat, annonceDuPrixRevu, effetDuPrixRevu, variablesDuRappel, texteDuRappel,
   variablesDuPrixRevu, texteDuPrixRevu, argentDuContrat, etatPourLArgent, versementsDuContrat, jourDitAvecLAnnee, francs,
   calibreEtFourchette, destinataireDe, idDuRappel, idDeLAnnonce, jourOuvre }`) as Record<string, Fn>;
-const L = charge(RELANCES, '{ tournee, echeanceARelancer, argentDuContrat, estUnePieceDeFormule, idDeLaRelanceDEcheance }') as Record<string, Fn>;
+const L = charge(RELANCES, `{ tournee, echeanceARelancer, argentDuContrat, estUnePieceDeFormule, idDeLaRelanceDEcheance,
+  prorataDeLaResiliation, resteDeResiliationARelancer, idDeLaRelanceDeResiliation, etatPourLArgent }`) as Record<string, Fn>;
 
 /* ── LES FORMULES ET LE SCÉNARIO ── */
 const CARNET = { id: 'carnet-six', name: 'GBÈJÍ™ · Carnet de Six', mode: 'pack', priceXof: 140000, included: [{ serviceId: 'svc-gbeji', qty: 6 }] } as unknown as Plan;
@@ -469,6 +470,94 @@ const sansNumeroDePiece = (t: string) => !/MND-\d|ABO-\d|\d{4}-\d{3,4}/.test(t);
   });
   dit('facture ordinaire, payeuse sans numéro : la soignée, comme avant, jamais le foyer', ['2290197000099', 'c-so'],
     [I.lignes('envois')[0]?.data?.numero, I.lignes('envois')[0]?.data?.clientId]);
+}
+
+/* ── 3ter. LES REGLES DU 20 OCTOBRE AU SOIR (tranchees au selecteur, et la reponse a la sonde) ── */
+{
+  const seanceAk = (o: Record<string, unknown>): SeanceLue => ({
+    id: 's', branchId: 'b1', clientId: 'c-ak', serviceIds: ['svc-gbeji'], date: '2026-10-06', time: '10:00', master: 'm',
+    status: 'honoré', coveredBySub: true, coverKind: 'abonnement', subId: 'abo-14', ...o,
+  } as unknown as SeanceLue);
+  const deux = [seanceAk({ id: 'a1', date: '2026-10-06' }), seanceAk({ id: 'a2', date: '2026-10-16' })];
+  const quatre = [...deux, seanceAk({ id: 'a7', date: '2026-10-23' }), seanceAk({ id: 'a8', date: '2026-10-27' })];
+  const varie = [...deux,
+    seanceAk({ id: 'm20', date: '2026-10-22', status: 'annulé', annuleeLe: '2026-10-21T14:00:00+01:00', annuleePar: 'cliente' }),
+    seanceAk({ id: 'm49', date: '2026-10-23', status: 'annulé', annuleeLe: '2026-10-21T09:00:00+01:00', annuleePar: 'cliente' }),
+    seanceAk({ id: 'mm', date: '2026-10-25', status: 'annulé', annuleeLe: '2026-10-25T08:00:00+01:00', annuleePar: 'maison' }),
+    seanceAk({ id: 'ab', date: '2026-10-19', status: 'confirmé', absente: { le: '2026-10-19' } }),
+    seanceAk({ id: 'rd', date: '2026-10-18', status: 'confirmé', absente: { le: '2026-10-18' }, rendue: { le: '2026-10-19', motif: 'malade' } }),
+    seanceAk({ id: 'fo', date: '2026-10-24', coverKind: 'forfait' }),
+    seanceAk({ id: 'sl', date: '2026-10-26', subId: undefined }),
+    seanceAk({ id: 'au', date: '2026-10-26', clientId: 'c-autre' }),
+    seanceAk({ id: 'ap', date: '2026-11-04' })];
+  const autre = akouavi({ id: 'abo-q', planId: 'carnet-quatre', reference: 'ABO-2026-040', sinceIso: '2026-10-12', startIso: '2026-10-12', invoiceId: 'inv-q',
+    echeances: [{ numero: 1, dueIso: '2026-10-12', amountXof: 126000 }], payments: [{ id: 'q1', date: '2026-10-12', amountXof: 126000 }] });
+  const cas: { c: ContratLu; subs: ContratLu[]; appts: SeanceLue[]; jours: string[] }[] = [
+    { c: akouavi({ resilieeLe: '2026-10-20' }), subs: [], appts: [...deux, seanceAk({ id: 'a3', date: '2026-11-03', status: 'confirmé' })], jours: ['2026-10-20', '2026-10-30'] },
+    { c: akouavi({ resilieeLe: '2026-11-01' }), subs: [], appts: quatre, jours: ['2026-11-01', '2026-11-03'] },
+    { c: akouavi({ resilieeLe: '2026-10-28' }), subs: [], appts: varie, jours: ['2026-10-28', '2026-11-10'] },
+    { c: akouavi({ resilieeLe: '2026-10-28' }), subs: [autre], appts: [...varie, seanceAk({ id: 'q-1', subId: 'abo-q', date: '2026-10-20' })], jours: ['2026-11-10'] },
+    { c: akouavi({ resilieeLe: '2026-10-28', payments: [] }), subs: [], appts: quatre, jours: ['2026-11-10'] },
+    { c: akouavi({ resilieeLe: '2026-10-28', echeances: undefined }), subs: [], appts: quatre, jours: ['2026-11-10'] },
+  ];
+  const ecarts: string[] = [];
+  let k = 0;
+  for (const x of cas) {
+    for (const j of x.jours) {
+      k++;
+      const subs = [x.c, ...x.subs];
+      const juge = [...releveDeLAbonnee({ jour: j, clientId: 'c-ak', subs, plans: PLANS, appts: x.appts, invoices: [pieceAk()] as unknown as Invoice[] }).anciens]
+        .find((c) => c.sub.id === x.c.id)?.argent.prorata ?? null;
+      const copie = L.prorataDeLaResiliation(x.c, planDe(x.c), [pieceAk()], subs, PLANS, x.appts, j);
+      const garde = (p: Record<string, unknown> | null) => p && [p.seances, p.comptees, p.consommeXof, p.avoirXof, p.resteXof, p.dueIso];
+      if (JSON.stringify(garde(juge as Record<string, unknown> | null)) !== JSON.stringify(garde(copie))) ecarts.push(`${x.c.resilieeLe}@${j}`);
+    }
+  }
+  dit(`le bloc resiliation dit le prorata du juge unique, seance par seance (${k} cas : manquees, rendue, maison, absente, forfait, sans lien, deux contrats)`, [], ecarts);
+
+  /* Règle 2 : le consommé au-delà du réglé est dû le jour de la résiliation (le lundi si dimanche), et se relance comme une échéance. */
+  const relanceRes = (c: ContratLu, appts: SeanceLue[], j: string) => L.resteDeResiliationARelancer(c, planDe(c), pieceAk(), [c], PLANS, appts, j, '2026-10-01') as Record<string, unknown> | null;
+  const dim = akouavi({ resilieeLe: '2026-11-01' });
+  dit('resiliee le dimanche 1er novembre 2026, 4 seances faites pour 70 000 F : rien le lundi 2 (jour du), la premiere relance le mardi 3, sur 23 333 F',
+    [null, null, { depart: '2026-11-02', resteXof: 23333 }], [relanceRes(dim, quatre, '2026-11-01'), relanceRes(dim, quatre, '2026-11-02'), relanceRes(dim, quatre, '2026-11-03')]);
+  dit('resiliee avec un avoir (2 seances faites) : rien a relancer, et l echeance annulee non plus', [null, null],
+    [relanceRes(akouavi({ resilieeLe: '2026-10-20' }), deux, '2026-11-05'), L.echeanceARelancer(akouavi({ resilieeLe: '2026-10-20' }), CARNET, pieceAk(), '2026-11-05', '2026-10-01')]);
+  dit('sa suite de relances a son propre identifiant', 'rl-inv-ab-r-1-whatsapp', L.idDeLaRelanceDeResiliation('inv-ab', 1));
+  const reglages = { key: 'mnd_settings', data: { relances: { actives: true, depuis: '2026-10-18' }, mndPay: { actif: true } } };
+  const joueL = async (ms: number, tables: Partial<Record<string, Ligne[]>>) => {
+    const b = base({ documents: [reglages, facteur(ms)], plans: PLANS.map(planL), invoices: [pieceL(pieceAk())], clients: [fiche('c-ak', '0197000014')], ...tables } as Record<string, Ligne[]>);
+    const r = await L.tournee(b.sb, { maintenantMs: ms, MODELE: 'rappel_de_reglement', WA_TOKEN: '', WA_PHONE_ID: '' });
+    return { r: r as Record<string, any>, ...b };
+  };
+  const rdvL = (a: SeanceLue): Ligne => ({ id: a.id, branch_id: 'b1', data: a });
+  const T1 = await joueL(Date.parse('2026-11-02T09:00:00Z'), { subscribers: [contrat(dim)], appointments: quatre.map(rdvL) });
+  const T2 = await joueL(Date.parse('2026-11-03T09:00:00Z'), { subscribers: [contrat(dim)], appointments: quatre.map(rdvL) });
+  const l2 = T2.lignes('envois')[0]?.data;
+  dit('dans la vraie tournee : rien le jour du, puis la relance du reste de la resiliation, marquee comme telle, au bon montant',
+    [0, 1, 'rl-inv-ab-r-1-whatsapp', true, 'abo-14', '23333'],
+    [T1.lignes('envois').length, T2.r.relances, l2?.id, l2?.resiliation, l2?.subId, String(l2?.colis?.composants?.[0]?.parameters?.[2]?.text ?? '').replace(/\D/g, '')]);
+  dit('jamais un numero de piece dans cette relance', true, sansNumeroDePiece(String(l2?.colis?.texteAuFil) + JSON.stringify(l2?.colis?.composants?.[0])));
+
+  /* Règle 4 : un paquet sans échéancier n'est jamais en retard, jamais rappelé, jamais relancé. */
+  const sansEch = akouavi({ echeances: undefined, prixConvenuXof: 234000, priceXof: 234000, payments: [{ id: 'v1', date: '2026-10-02', amountXof: 50000 }] });
+  const pieceSansEch = pieceAk({ payments: [{ id: 'v1', date: '2026-10-02', amountXof: 50000 }] });
+  const a = R.argentDuContrat(sansEch, CARNET, [pieceSansEch], '2026-12-15', { etat: 'en-cours' }) as Record<string, unknown>;
+  dit('sans echeancier : 184 000 F a convenir, rien d echu ni en retard', { aConvenir: 184000, aPoser: true, aRegler: 0, retard: 0 },
+    { aConvenir: a.aConvenirXof, aPoser: a.echeancierAPoser, aRegler: a.aRegleAujourdhuiXof, retard: a.enRetardXof });
+  const jours = ['2026-10-02', '2026-10-03', '2026-11-01', '2026-11-02', '2026-12-15', '2027-03-01'];
+  dit('sans echeancier : aucun rappel, aucune relance, quel que soit le jour', [0, 0],
+    [jours.reduce((n2, j) => n2 + R.rappelsDuContrat(sansEch, CARNET, [pieceSansEch], j, 0).length, 0),
+      jours.filter((j) => L.echeanceARelancer(sansEch, CARNET, pieceSansEch, j, '2026-10-01') !== null).length]);
+  const T3 = await joueL(Date.parse('2026-12-15T09:00:00Z'), { subscribers: [contrat(sansEch)], invoices: [pieceL(pieceSansEch)] });
+  dit('dans la vraie tournee : rien ne part pour un paquet sans echeancier', 0, T3.lignes('envois').length);
+
+  /* L'ancien carnet « exhausted » : épuisé pour de bon, mais son échéance impayée reste due et se rappelle. */
+  dit('un carnet exhausted se lit epuise, comme le juge', ['epuisee', 'epuisee'],
+    [L.etatPourLArgent(akouavi({ status: 'exhausted' }), CARNET, '2026-10-20', 70000).etat,
+      etatDeLaFormule(akouavi({ status: 'exhausted' }), CARNET, { jour: '2026-10-20', regleXof: 70000, lignes: [] }).etat]);
+  dit('... et son echeance impayee se rappelle la veille et se relance le lendemain, comme toute echeance', [1, true],
+    [R.rappelsDuContrat(akouavi({ status: 'exhausted' }), CARNET, [pieceAk()], '2026-11-01', 0).length,
+      L.echeanceARelancer(akouavi({ status: 'exhausted' }), CARNET, pieceAk(), '2026-11-03', '2026-10-01') !== null]);
 }
 
 /* ── 4. LA FONCTION ── */

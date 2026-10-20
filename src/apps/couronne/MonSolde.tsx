@@ -59,6 +59,15 @@ function Echeancier({ c, jour, onRegler }: { c: ReleveDuContrat; jour: string; o
             <span className="ab-ech__mt">{prix(ar.luneARegler.montantXof)}</span>
           </div>
         )}
+        {/* UNE CHAQUE LUNE RÉSILIÉE : ses lunes réglées d'avance, pas encore
+            commencées, deviennent un avoir (tranché par Yéman). */}
+        {c.mode === 'cycle' && ar.lunesEnAvoir && (
+          <div className="ab-ech__ligne">
+            <span className="ab-pastille is-ok" aria-hidden="true" />
+            <span className="ab-ech__date"><b>{ar.lunesEnAvoir.nombre > 1 ? t('{n} lunes réglées d’avance', { n: ar.lunesEnAvoir.nombre }) : t('Une lune réglée d’avance')}</b><br />{t('à partir du {date}, pas encore commencée à la résiliation : devenue un avoir', { date: dateDansLaPhrase(ar.lunesEnAvoir.du) })}</span>
+            <span className="ab-ech__mt">{prix(ar.lunesEnAvoir.avoirXof)}</span>
+          </div>
+        )}
         {c.mode === 'cycle' && ar.aVenir.filter((v) => v.genre === 'lune').map((v) => (
           <div key={v.dueIso} className="ab-ech__ligne">
             <span className="ab-pastille" aria-hidden="true" />
@@ -71,12 +80,23 @@ function Echeancier({ c, jour, onRegler }: { c: ReleveDuContrat; jour: string; o
             {t('Résiliée le {date} : {n} séances comptées valent {consomme}, au prorata, arrondi au franc ; vous aviez réglé {regle}.', {
               date: dateDansLaPhrase(ar.prorata.le), n: ar.prorata.comptees, consomme: prix(ar.prorata.consommeXof), regle: prix(ar.regleXof),
             })}
+            {ar.prorata.resteXof > 0 && <>{' '}{t('La différence, {montant}, est à régler le {date}.', { montant: prix(ar.prorata.resteXof), date: dateDansLaPhrase(ar.prorata.dueIso) })}</>}
           </p>
+        )}
+        {/* SANS ÉCHÉANCIER : aucune date due, jamais de retard (tranché par Yéman). */}
+        {ar.echeancierAPoser && (
+          <div className="ab-ech__ligne">
+            <span className="ab-pastille" aria-hidden="true" />
+            <span className="ab-ech__date"><b>{t('Sans échéancier')}</b><br />{t('à convenir avec la Maison, jamais en retard')}</span>
+            <span className="ab-ech__mt">{prix(ar.aConvenirXof ?? 0)}</span>
+          </div>
         )}
         <div className="ab-somme">
           {c.mode === 'cycle' && !ar.echeances.length
             ? <><span>{t('Une lune non réglée ne se doit pas')}</span><b>{prix(0)}</b></>
-            : <><span>{t('Reste sur la formule')}</span><b>{prix(ar.resteXof)}</b></>}
+            : ar.echeancierAPoser
+              ? <><span>{t('Reste à convenir avec la Maison')}</span><b>{prix(ar.resteXof)}</b></>
+              : <><span>{t('Reste sur la formule')}</span><b>{prix(ar.resteXof)}</b></>}
         </div>
       </div>
       {ouverte && (
@@ -113,7 +133,7 @@ export default function MonSolde({ releve, prenom, selecteur, onClose, onRegler 
   const retenue = releve.contrats.find((c) => c.etat === 'retenue' && c.argent.pourOuvrir);
   const enPause = releve.contrats.some((c) => c.etat === 'en-pause');
   const avecArgent = [...releve.contrats, ...releve.anciens].filter((c) => c.etat !== 'effacee'
-    && (c.argent.echeances.length || c.argent.luneARegler || c.argent.aVenir.length || c.argent.prorata || c.argent.versements.length));
+    && (c.argent.echeances.length || c.argent.luneARegler || c.argent.aVenir.length || c.argent.prorata || c.argent.versements.length || c.argent.echeancierAPoser));
 
   /* SES PAIEMENTS, tous : ceux de ses formules (réunis par identifiant) et
      ceux de ses rituels, chacun à sa date. */
@@ -184,6 +204,13 @@ export default function MonSolde({ releve, prenom, selecteur, onClose, onRegler 
               <span className="ab-sol-sous">{s.avoirXof > 0 ? t('À valoir sur une prochaine séance ; rien ne sort de la caisse.') : t('Aucun avoir.')}</span>
             </div>
           </div>
+          {s.aConvenirXof > 0 && (
+            <div className="ab-sol-petit">
+              <span className="ab-sol-lab">{t('À convenir avec la Maison')}</span>
+              <b>{prix(s.aConvenirXof)}</b>
+              <span className="ab-sol-sous">{t('Le reste d’une formule sans échéancier : aucune date due, jamais en retard. Écrivez à la Maison pour convenir du règlement.')}</span>
+            </div>
+          )}
           <p className="mc-footnote" style={{ textAlign: 'left', marginTop: 0 }}>{t('Ces trois chiffres ne s’additionnent pas : chacun a sa date.')}</p>
 
           {avecArgent.map((c) => (

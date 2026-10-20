@@ -2640,11 +2640,10 @@ function Customer360({
   });
   const solde = releveDuSolde.solde;
   /* UN CONTRAT SANS ÉCHÉANCIER N'EST JAMAIS EN RETARD (20 octobre 2026) : son
-     reste se dit « Échéancier à poser », hors de ce qui presse. */
+     reste est « à convenir avec la Maison » (le juge le met à part), jamais
+     ajouté à ce qui est dû aujourd'hui. */
   const echeanciersAPoser = releveDuSolde.contrats.map((c) => ({ c, ap: echeancierAPoser(c) })).filter((x) => !!x.ap);
-  const sansEcheancier = new Set(echeanciersAPoser.map((x) => x.c.sub.id));
-  const lignesDues = solde.lignes.filter((l) => (l.statut === 'a-regler-aujourdhui' || l.statut === 'en-retard')
-    && !(l.subId && sansEcheancier.has(l.subId) && l.genre === 'echeance'));
+  const lignesDues = solde.lignes.filter((l) => l.statut === 'a-regler-aujourdhui' || l.statut === 'en-retard');
   const due = lignesDues.reduce((n, l) => n + l.montantXof, 0);
   const rituelsEchus = owing.filter((a) => a.date <= jourDeCotonou());
   const echeancesEchues = lignesDues.filter((l) => l.genre === 'echeance' || l.genre === 'resiliation');
@@ -2985,9 +2984,10 @@ function Customer360({
                   rituelsEchus.length ? `${rituelsEchus.length} rituel${rituelsEchus.length > 1 ? 's' : ''} · le plus ancien du ${frJourAn(rituelsEchus[0].date)}` : '',
                   echeancesEchues.length ? `${echeancesEchues.length} échéance${echeancesEchues.length > 1 ? 's' : ''} de formule` : '',
                   solde.avoirXof > 0 ? `avoir de ${fmtMoney(solde.avoirXof, currency)} à part` : '',
-                  ...echeanciersAPoser.map((x) => `échéancier à poser · reste ${fmtMoney(x.ap?.resteXof ?? 0, currency)}`),
+                  ...lignesDues.filter((l) => l.genre === 'resiliation').map((l) => `reste de résiliation dû le ${frJourAn(l.dueIso ?? '')}`),
+                  ...echeanciersAPoser.map((x) => `à convenir avec la Maison · ${fmtMoney(x.ap?.resteXof ?? 0, currency)}, échéancier à poser`),
                 ].filter(Boolean).join(' · ')
-                : echeanciersAPoser.length ? echeanciersAPoser.map((x) => `Rien d’échu · échéancier à poser, reste ${fmtMoney(x.ap?.resteXof ?? 0, currency)}`).join(' · ')
+                : echeanciersAPoser.length ? echeanciersAPoser.map((x) => `Rien d’échu · à convenir avec la Maison, ${fmtMoney(x.ap?.resteXof ?? 0, currency)} : échéancier à poser`).join(' · ')
                 : upcoming ? 'Tout est réglé, le fauteuil est posé.'
                 : 'Tout est réglé. Rien au carnet.'}
             </span>

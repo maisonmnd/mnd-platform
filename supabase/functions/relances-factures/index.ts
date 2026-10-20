@@ -62,7 +62,7 @@ import { createClient } from 'npm:@supabase/supabase-js@2';
 const TZ = 'Africa/Porto-Novo'; // le fuseau du salon, pas celui du serveur
 
 /** La version de ce fichier, rendue dans chaque réponse. */
-const VERSION = '2026-10-20-a · les formules relancées sur leur échéancier';
+const VERSION = '2026-10-20-b · les formules relancées sur leur échéancier, le reste d’une résiliation, jamais un paquet sans échéancier';
 
 /** Numéro béninois → format international sans « + » (copie de rappels-j1). */
 const numeroIntl = (brut: string | undefined): string | null => {
@@ -258,9 +258,13 @@ type ContratEcrit = {
   priceXof?: number; prixConvenuXof?: number; echeances?: EcheanceEcrite[]; payments?: VersementEcrit[]; invoiceId?: string;
   calibreVendu?: string; origine?: string; resilieeLe?: string; renonceeLe?: string;
   suspendue?: { du: string; au: string; motif?: string };
+  inclusPropres?: { serviceId: string; qty: number | null }[];
   prixRevu?: { le: string; ancienXof: number; nouveauXof: number; calibre?: string };
 };
-type FormuleEcrite = { id: string; name?: string; mode?: string; priceXof?: number };
+type FormuleEcrite = {
+  id: string; name?: string; mode?: string; priceXof?: number;
+  included?: { serviceId: string; qty: number | null }[]; soinsDeLaLune?: string[];
+};
 type PieceEcrite = { id: string; payments?: VersementEcrit[] };
 
 const estIso = (s: string | null | undefined): s is string => !!s && /^\d{4}-\d{2}-\d{2}$/.test(s);
@@ -309,15 +313,16 @@ function etatDesEcheances(echeances: readonly EcheanceEcrite[], verseXof: number
 
 const prixParDefaut = (sub: ContratEcrit, plan: FormuleEcrite | undefined): number =>
   sub.prixConvenuXof ?? (estUnPaquet(plan) ? sub.priceXof : undefined) ?? plan?.priceXof ?? 0;
-/** L'échéancier qui fait foi : celui du contrat, sinon, pour un paquet, son prix entier à la signature. */
-const echeancesDeBase = (sub: ContratEcrit, plan: FormuleEcrite | undefined, prixXof: number): EcheanceEcrite[] => {
-  if (sub.echeances?.length) return [...sub.echeances].sort((a, b) => a.numero - b.numero).map((e) => ({ ...e }));
-  return estUnPaquet(plan) && prixXof > 0 ? [{ numero: 1, dueIso: debutDuContratLu(sub), amountXof: prixXof }] : [];
-};
+/** L'échéancier qui fait foi : celui du contrat, et lui seul. Un paquet sans
+    échéancier n'a aucune date due : son reste est « à convenir avec la
+    Maison », jamais en retard, jamais rappelé ni relancé. */
+const echeancesDeBase = (sub: ContratEcrit): EcheanceEcrite[] =>
+  (sub.echeances?.length ? [...sub.echeances].sort((a, b) => a.numero - b.numero).map((e) => ({ ...e })) : []);
 
 /** L'ÉTAT QUI DÉCIDE DE L'ARGENT : le début de `etatDeLaFormule`, dans le même
     ordre (résiliée, effacée, retenue, terminée, en pause). Épuisée ne change
-    rien à l'argent : elle se lit ici « en-cours ». */
+    rien à l'argent : elle se lit ici « en-cours », sauf le carnet que
+    l'ancien ERP a dit épuisé (`exhausted`), épuisé pour de bon. */
 function etatPourLArgent(
   sub: ContratEcrit, plan: FormuleEcrite | undefined, jour: string, regleXof: number, retenueJours = 7,
 ): { etat: string; retenueJusquau?: string } {
@@ -332,6 +337,7 @@ function etatPourLArgent(
   if (fin && fin < jour) return { etat: 'terminee' };
   if (sub.suspendue && sub.suspendue.du <= jour && jour <= sub.suspendue.au) return { etat: 'en-pause' };
   if (!estUnPaquet(plan) && estIso(sub.nextIso) && jour >= jourOuvre(sub.nextIso)) return { etat: 'en-pause' };
+  if (sub.status === 'exhausted') return { etat: 'epuisee' };
   return { etat: 'en-cours' };
 }
 
@@ -343,20 +349,23 @@ type ArgentLu = {
   regleXof: number; resteXof: number; aRegleAujourdhuiXof: number; enRetardXof: number; retardJours: number;
   aVenir: { dueIso: string; montantXof: number; numero?: number; genre: 'echeance' | 'lune' }[];
   echeances: EcheanceJugee[]; prochaine?: { dueIso: string; montantXof: number }; avoirXof: number;
+  echeancierAPoser?: true; aConvenirXof?: number;
 };
 /** L'ARGENT D'UN CONTRAT : l'échu, le retard (le LENDEMAIN de l'échéance), l'à
-    venir et l'avoir. Une lune n'est jamais une dette. La résiliation au
-    prorata n'est pas recopiée : un contrat résilié ne reçoit ni rappel ni
-    relance automatique, son reste se règle avec la Maison. */
+    venir et l'avoir. Une lune n'est jamais une dette ; un paquet sans
+    échéancier non plus (« à convenir avec la Maison »). La résiliation au
+    prorata n'est pas recopiée ici : seul son reste se relance (bloc
+    `resiliation` de relances-factures). */
 function argentDuContrat(
   sub: ContratEcrit, plan: FormuleEcrite | undefined, invoices: readonly PieceEcrite[], jour: string,
   o: { prixXof?: number; etat?: string } = {},
 ): ArgentLu {
   const prix = o.prixXof ?? prixParDefaut(sub, plan);
   const regle = versementsDuContrat(sub, invoices).reduce((s, v) => s + v.montantXof, 0);
-  const base = echeancesDeBase(sub, plan, prix);
+  const base = echeancesDeBase(sub);
   const etat = o.etat;
   const sansDette = etat === 'resiliee' || etat === 'effacee' || etat === 'retenue';
+  const sansEcheancier = estUnPaquet(plan) && !base.length && prix > 0;
   const echeances: EcheanceJugee[] = etatDesEcheances(base, regle).map((e) => {
     const dueIso = jourOuvre(e.dueIso);
     let statut: EcheanceJugee['statut'];
@@ -374,7 +383,7 @@ function argentDuContrat(
   const ouvertes = echeances.filter((e) => e.statut === 'a-regler-aujourdhui' || e.statut === 'en-retard' || e.statut === 'a-venir');
   const aVenir: ArgentLu['aVenir'] = echeances
     .filter((e) => e.statut === 'a-venir').map((e) => ({ dueIso: e.dueIso, montantXof: e.resteXof, numero: e.numero, genre: 'echeance' as const }));
-  const totalEcheancier = base.reduce((s, e) => s + e.amountXof, 0);
+  const totalEcheancier = sansEcheancier ? prix : base.reduce((s, e) => s + e.amountXof, 0);
   const out: ArgentLu = {
     regleXof: regle,
     resteXof: ouvertes.reduce((s, e) => s + e.resteXof, 0),
@@ -382,8 +391,13 @@ function argentDuContrat(
     enRetardXof: echeances.filter((e) => e.statut === 'en-retard').reduce((s, e) => s + e.resteXof, 0),
     retardJours: echeances.reduce((m, e) => Math.max(m, e.retardJours), 0),
     aVenir, echeances,
-    avoirXof: base.length && etat !== 'effacee' ? Math.max(0, regle - totalEcheancier) : 0,
+    avoirXof: (base.length || sansEcheancier) && etat !== 'effacee' ? Math.max(0, regle - totalEcheancier) : 0,
   };
+  if (sansEcheancier && !sansDette) {
+    out.echeancierAPoser = true;
+    out.aConvenirXof = Math.max(0, prix - regle);
+    out.resteXof = out.aConvenirXof;
+  }
   if (!estUnPaquet(plan) && !sansDette && estIso(sub.nextIso) && !base.length && etat !== 'en-pause') {
     out.aVenir.push({ dueIso: jourOuvre(sub.nextIso), montantXof: prix, genre: 'lune' });
   }
@@ -406,8 +420,117 @@ const francs = (n: number): string =>
   `${String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, ' ')} F`;
 // ── FIN echeances
 
+// ── DEBUT resiliation (copie bornée de src/shared/abonnee-pur.ts : etatDeLaSeance, contratDeLaSeance, porteeParLeContrat et le prorata d'argentDuContrat ; scripts/verifie-les-messages-de-l-abonnee la rejoue contre l'original)
+/* LA RÉSILIATION AU PRORATA (décision 9, tranché au sélecteur le 20 octobre
+   2026) : ce qui a été CONSOMMÉ au-delà du réglé est dû le jour de la
+   résiliation (le lundi si c'est un dimanche), et se relance comme une
+   échéance. C'est la seule chose d'un contrat résilié qui se relance. */
+type SeanceEcrite = {
+  id: string; clientId: string; date: string; time: string; status?: string; serviceIds?: string[];
+  coveredBySub?: boolean; coverKind?: string; subId?: string;
+  annuleeLe?: string; annuleePar?: string; absente?: { le: string }; rendue?: { le: string };
+  proposeeLe?: string; confirmeeParLaClienteLe?: string;
+};
+const DELAI_D_ANNULATION_H = 24;
+/** Un instant ISO en millisecondes ; sans fuseau, l'heure de Cotonou. */
+const instantDe = (iso: string): number => {
+  const s = iso.length <= 10 ? `${iso}T00:00:00` : iso;
+  return Date.parse(/([zZ]|[+-]\d{2}:?\d{2})$/.test(s) ? s : `${s}+01:00`);
+};
+const debutDeLaSeance = (a: { date: string; time?: string }): number => {
+  const h = /^(\d{1,2}):(\d{2})$/.exec(a.time ?? '');
+  return instantDe(`${a.date}T${h ? `${h[1].padStart(2, '0')}:${h[2]}` : '00:00'}:00`);
+};
+/** L'état d'une séance, lu sur les faits. */
+function etatDeLaSeance(a: SeanceEcrite, jour: string): string {
+  if (a.status === 'honoré') return 'faite';
+  if (a.absente) return 'manquee';
+  if (a.status === 'annulé') {
+    if (a.proposeeLe && !a.confirmeeParLaClienteLe) return 'annulee';
+    if (a.annuleePar === 'maison' || !a.annuleeLe) return 'annulee';
+    const heures = (debutDeLaSeance(a) - instantDe(a.annuleeLe)) / 3_600_000;
+    return heures < DELAI_D_ANNULATION_H ? 'manquee' : 'annulee';
+  }
+  if (a.date < jour) return 'a-cloturer';
+  if (a.proposeeLe && a.status === 'en attente' && !a.confirmeeParLaClienteLe) return 'proposee';
+  return a.status === 'en attente' ? 'a-confirmer' : 'confirmee';
+}
+const prendUnCredit = (etat: string, a: SeanceEcrite): boolean => etat !== 'annulee' && !(etat === 'manquee' && a.rendue);
+const dansLaVie = (sub: ContratEcrit, dateIso: string): boolean => {
+  if (dateIso < debutDuContratLu(sub)) return false;
+  const fin = finDuContratLu(sub);
+  return !fin || dateIso <= fin;
+};
+function soinDeLaLune(plan: FormuleEcrite, depuisIso: string | undefined, dateIso: string): string | undefined {
+  const soins = plan.soinsDeLaLune ?? [];
+  if (soins.length === 0) return undefined;
+  if (!depuisIso || dateIso < depuisIso) return soins[0];
+  const jours = Math.floor((Date.parse(`${dateIso}T12:00:00Z`) - Date.parse(`${depuisIso}T12:00:00Z`)) / 86_400_000);
+  return soins[Math.floor(jours / 30) % soins.length];
+}
+const inclusALaDate = (sub: ContratEcrit, plan: FormuleEcrite | undefined, dateIso: string): { serviceId: string; qty: number | null }[] => {
+  const base = sub.inclusPropres ?? plan?.included ?? [];
+  const soin = plan ? soinDeLaLune(plan, sub.sinceIso ?? sub.startIso ?? undefined, dateIso) : undefined;
+  return soin && !base.some((i) => i.serviceId === soin) ? [...base, { serviceId: soin, qty: 1 }] : base;
+};
+const seancesVendues = (inclus: readonly { qty: number | null }[]): number | null => {
+  const bornees = inclus.filter((i) => i.qty !== null).map((i) => i.qty as number);
+  return bornees.length ? Math.max(...bornees) : null;
+};
+/** À quel contrat appartient cette séance : celui que nomme `subId`, sinon le
+    plus récent en vie ce jour-là qui porte l'une de ses prestations. */
+function contratDeLaSeance(a: SeanceEcrite, subsDeLaTete: readonly ContratEcrit[], plans: readonly FormuleEcrite[]): ContratEcrit | undefined {
+  if (a.subId) return subsDeLaTete.find((s) => s.id === a.subId);
+  const vivants = subsDeLaTete
+    .filter((s) => s.clientId === a.clientId && dansLaVie(s, a.date))
+    .sort((x, y) => (debutDuContratLu(x) < debutDuContratLu(y) ? 1 : -1));
+  const porte = (s: ContratEcrit) => inclusALaDate(s, plans.find((p) => p.id === s.planId), a.date)
+    .some((i) => (a.serviceIds ?? []).includes(i.serviceId));
+  return vivants.find(porte) ?? vivants[0];
+}
+function porteeParLeContrat(a: SeanceEcrite, sub: ContratEcrit, subsDeLaTete: readonly ContratEcrit[], plans: readonly FormuleEcrite[]): boolean {
+  if (!a.coveredBySub || a.coverKind === 'forfait' || !dansLaVie(sub, a.date)) return false;
+  return contratDeLaSeance(a, subsDeLaTete, plans)?.id === sub.id;
+}
+/** LE PRORATA D'UN PAQUET RÉSILIÉ : les séances comptées au jour de la
+    résiliation (faites et manquées), le consommé au franc, l'avoir et le reste dû. */
+function prorataDeLaResiliation(
+  sub: ContratEcrit, plan: FormuleEcrite | undefined, invoices: readonly PieceEcrite[],
+  subsDeLaTete: readonly ContratEcrit[], plans: readonly FormuleEcrite[], seances: readonly SeanceEcrite[], jour: string,
+): { seances: number; comptees: number; consommeXof: number; avoirXof: number; resteXof: number; dueIso: string } | null {
+  if (!estUnPaquet(plan) || !estIso(sub.resilieeLe) || sub.resilieeLe > jour) return null;
+  const le = sub.resilieeLe;
+  const vendues = seancesVendues(inclusALaDate(sub, plan, le)) ?? 0;
+  if (!(vendues > 0)) return null;
+  const comptees = seances.filter((a) => {
+    if (a.clientId !== sub.clientId || a.date > le || !porteeParLeContrat(a, sub, subsDeLaTete, plans)) return false;
+    const e = etatDeLaSeance(a, jour);
+    return (e === 'faite' || e === 'manquee') && prendUnCredit(e, a);
+  }).length;
+  const prix = prixParDefaut(sub, plan);
+  const regle = versementsDuContrat(sub, invoices).reduce((s, v) => s + v.montantXof, 0);
+  const consommeXof = Math.round((prix * Math.min(comptees, vendues)) / vendues);
+  return {
+    seances: vendues, comptees, consommeXof,
+    avoirXof: Math.max(0, regle - consommeXof), resteXof: Math.max(0, consommeXof - regle), dueIso: jourOuvre(le),
+  };
+}
+/** CE QUE LA RELANCE D'UNE RÉSILIATION RÉCLAME AUJOURD'HUI : le consommé
+    au-delà du réglé, à partir du lendemain du jour dû ; rien d'autre. */
+function resteDeResiliationARelancer(
+  c: ContratEcrit, plan: FormuleEcrite | undefined, piece: PieceEcrite, subsDeLaTete: readonly ContratEcrit[],
+  plans: readonly FormuleEcrite[], seances: readonly SeanceEcrite[], aujourdhui: string, plancher: string,
+): { depart: string; resteXof: number } | null {
+  const p = prorataDeLaResiliation(c, plan, [piece], subsDeLaTete, plans, seances, aujourdhui);
+  if (!p || p.resteXof <= 0 || p.dueIso >= aujourdhui || p.dueIso < plancher) return null;
+  return { depart: p.dueIso, resteXof: p.resteXof };
+}
+// ── FIN resiliation
+
 /** L'identifiant d'une relance d'ÉCHÉANCE : une suite par échéance du contrat. */
 const idDeLaRelanceDEcheance = (factureId: string, numero: number, n: number): string => `rl-${factureId}-e${numero}-${n}-whatsapp`;
+/** L'identifiant d'une relance du RESTE D'UNE RÉSILIATION : sa propre suite. */
+const idDeLaRelanceDeResiliation = (factureId: string, n: number): string => `rl-${factureId}-r-${n}-whatsapp`;
 
 /** LA PIÈCE D'UNE FORMULE : un contrat la nomme, ou sa note le dit. */
 const estUnePieceDeFormule = (f: { id: string; note?: string }, piecesDesContrats: ReadonlySet<string>): boolean =>
@@ -519,7 +642,7 @@ async function tournee(sb: any, o: { maintenantMs: number; MODELE: string; WA_TO
 
   /* LES DOSSIERS DU JOUR : une facture ordinaire, sa suite à elle ; une
      échéance de formule en retard, la sienne. */
-  type Dossier = { f: FactureLue; depart: string | null; resteXof: number; idDe: (n: number) => string; subId?: string; echeance?: number; tete?: string };
+  type Dossier = { f: FactureLue; depart: string | null; resteXof: number; idDe: (n: number) => string; subId?: string; echeance?: number; resiliation?: true; tete?: string };
   const dossiers: Dossier[] = [];
   for (const f of factures) {
     if (estUnePieceDeFormule(f, piecesDesContrats)) continue;
@@ -532,6 +655,30 @@ async function tournee(sb: any, o: { maintenantMs: number; MODELE: string; WA_TO
     const e = echeanceARelancer(c, formules.find((p) => p.id === c.planId), f, aujourdhui, plancher);
     if (!e) continue;
     dossiers.push({ f, depart: e.depart, resteXof: e.resteXof, idDe: (n) => idDeLaRelanceDEcheance(f.id, e.numero, n), subId: c.id, echeance: e.numero, tete: c.clientId });
+  }
+  /* LE RESTE D'UNE RÉSILIATION : un paquet résilié dont le consommé dépasse
+     le réglé. Ses séances se lisent par pages, pour ses seules clientes. */
+  const resilies = contrats.filter((c) => estIso(c.resilieeLe) && c.resilieeLe <= aujourdhui && jourOuvre(c.resilieeLe) >= plancher
+    && estUnPaquet(formules.find((p) => p.id === c.planId)) && !!c.invoiceId && !!c.clientId);
+  if (resilies.length) {
+    const clientes = [...new Set(resilies.map((c) => c.clientId as string))];
+    const seances: SeanceEcrite[] = [];
+    for (let i = 0; i < clientes.length; i += 200) {
+      for (let de = 0; ; de += 1000) {
+        const { data, error } = await sb.from('appointments').select('id, data').in('data->>clientId', clientes.slice(i, i + 200)).range(de, de + 999);
+        if (error) return { version: VERSION, relances: 'lecture-refusee', motif: error.message.slice(0, 120) };
+        seances.push(...(data ?? []).map((l) => ({ ...(l.data as SeanceEcrite), id: l.id as string })));
+        if ((data ?? []).length < 1000) break;
+      }
+    }
+    for (const c of resilies) {
+      const f = pieces.get(c.invoiceId as string);
+      if (!f || !seRelance(f) || f.relancesPause) continue;
+      const r = resteDeResiliationARelancer(c, formules.find((p) => p.id === c.planId), f,
+        contrats.filter((s) => s.clientId === c.clientId), formules, seances, aujourdhui, plancher);
+      if (!r) continue;
+      dossiers.push({ f, depart: r.depart, resteXof: r.resteXof, idDe: (n) => idDeLaRelanceDeResiliation(f.id, n), subId: c.id, resiliation: true, tete: c.clientId });
+    }
   }
   if (dossiers.length === 0) return { version: VERSION, relances: 0, jour: aujourdhui, lues: factures.length };
 
@@ -657,7 +804,7 @@ async function tournee(sb: any, o: { maintenantMs: number; MODELE: string; WA_TO
     const maintenant = new Date(maintenantMs).toISOString();
     const commun = {
       id: idEnvoi, branchId: f.branchId, type: 'relance-facture', canal: 'whatsapp', apptId: '', dateRdv: '', invoiceId: f.id, rang: n,
-      ...(d.subId ? { subId: d.subId, echeance: d.echeance } : {}),
+      ...(d.subId ? { subId: d.subId, ...(d.resiliation ? { resiliation: true } : { echeance: d.echeance }) } : {}),
       clientId: fiche.id, numero: tel, dateFacture: f.date, quand: maintenant,
     };
     if (salleOuverte) {

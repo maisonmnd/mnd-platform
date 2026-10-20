@@ -68,6 +68,8 @@ function CarteDuContrat({ c, prenom, onRegler, onRenoncer }: {
   else lignes.push([t('Signée'), t('le {date}', { date: dateDansLaPhrase(c.debutIso) })]);
   if (c.mode === 'pack' && c.finIso) lignes.push([t('Fin'), t('le {date}', { date: dateDansLaPhrase(c.finIso) })]);
   if (c.resilieeLe) lignes.push([t('Résiliée'), t('le {date}', { date: dateDansLaPhrase(c.resilieeLe) })]);
+  if (c.courtJusquau) lignes.push([t('Court jusqu’au'), t('{date}, la fin de la lune réglée', { date: dateDansLaPhrase(c.courtJusquau) })]);
+  if (c.epuiseeParLAncienCarnet) lignes.push([t('Séances'), t('prises avant Le Trône')]);
   if (c.mode === 'cycle') {
     lignes.push([t('Lune'), c.lune && c.etat !== 'en-pause'
       ? t('du {du} au {au}', { du: dateDansLaPhrase(c.lune.du), au: dateDansLaPhrase(dernierJour(c.lune.au)) })
@@ -118,11 +120,12 @@ function LigneDePrestation({ c, l, ouvert, onBascule, onOpenRdv, onReserverInclu
   onReserverIncluse: () => void;
 }) {
   const nomDe = useNomDeService();
-  const perdue = c.etat === 'terminee' || c.etat === 'resiliee';
+  const perdue = c.etat === 'terminee' || (c.etat === 'resiliee' && !c.courtJusquau) || !!c.epuiseeParLAncienCarnet;
   const resume = c.etat === 'retenue' ? (l.incluses ?? 0) > 1
     ? t('{n} séances, ouvertes au premier règlement', { n: l.incluses ?? 0 }) : t('{n} séance, ouverte au premier règlement', { n: l.incluses ?? 0 })
     : c.etat === 'en-pause' ? t('En pause : aucune séance incluse avant le règlement de la lune')
-      : null;
+      : c.epuiseeParLAncienCarnet ? t('Épuisée · séances prises avant Le Trône')
+        : null;
   const seances = c.attribuees.filter((s) => s.compte && l.seances.includes(s.id));
   const fin = c.mode === 'cycle' ? (c.lune ? dernierJour(c.lune.au) : null) : c.finIso;
   return (
@@ -160,7 +163,10 @@ function LigneDePrestation({ c, l, ouvert, onBascule, onOpenRdv, onReserverInclu
                 if (c.etat === 'terminee') {
                   return <li key={`p${k}`} className="ab-s"><span className="ab-jeton is-perdue" /><span className="ab-s__t"><b>{t('Séance {n} · perdue', { n })}</b><span>{c.finIso ? t('Non prise au {date}, date de fin.', { date: dateDansLaPhrase(c.finIso) }) : ''}</span></span><span /></li>;
                 }
-                if (c.etat === 'resiliee') {
+                if (c.etat === 'resiliee' && !c.courtJusquau && c.mode === 'cycle') {
+                  return <li key={`p${k}`} className="ab-s"><span className="ab-jeton is-perdue" /><span className="ab-s__t"><b>{t('Séance {n} · non prise', { n })}</b><span>{c.resilieeLe ? t('Résiliée le {date} : la lune réglée a couru jusqu’à son terme, rien n’est rendu.', { date: dateDansLaPhrase(c.resilieeLe) }) : ''}</span></span><span /></li>;
+                }
+                if (c.etat === 'resiliee' && !c.courtJusquau) {
                   return <li key={`p${k}`} className="ab-s"><span className="ab-jeton is-perdue" /><span className="ab-s__t"><b>{t('Séance {n} · rendue en avoir', { n })}</b><span>{c.resilieeLe ? t('Non faite à la résiliation du {date} : comptée dans votre avoir.', { date: dateDansLaPhrase(c.resilieeLe) }) : ''}</span></span><span /></li>;
                 }
                 return (
@@ -216,7 +222,15 @@ function Reglement({ c, prenom, onRegler, onSolde }: { c: ReleveDuContrat; preno
     return (
       <div className="ab-card">
         <div className="ab-reg__haut"><span>{t('Réglé {regle} sur {prix}', { regle: prix(ar.regleXof), prix: prix(ar.prixVenduXof) })}</span><b className="is-ok">{t('Résiliée')}</b></div>
-        {ar.prorata && <p className="ab-meta">{t('Votre avoir : {montant}, à valoir sur une prochaine séance.', { montant: prix(ar.prorata.avoirXof) })}</p>}
+        {c.courtJusquau && <p className="ab-meta">{t('La lune en cours court jusqu’au {date} : vos séances incluses restent réservables jusque-là.', { date: dateDansLaPhrase(c.courtJusquau) })}</p>}
+        {c.mode === 'cycle' && (ar.lunesEnAvoir
+          ? <p className="ab-meta">{ar.lunesEnAvoir.nombre > 1
+            ? t('{n} lunes réglées d’avance deviennent un avoir : {montant}, à valoir sur une prochaine séance.', { n: ar.lunesEnAvoir.nombre, montant: prix(ar.lunesEnAvoir.avoirXof) })
+            : t('{n} lune réglée d’avance devient un avoir : {montant}, à valoir sur une prochaine séance.', { n: ar.lunesEnAvoir.nombre, montant: prix(ar.lunesEnAvoir.avoirXof) })}</p>
+          : <p className="ab-meta">{t('Rien n’est rendu de la lune en cours.')}</p>)}
+        {ar.prorata && ar.prorata.resteXof > 0
+          ? <p className="ab-meta">{t('Les séances faites dépassent ce qui était réglé : {montant} à régler le {date}.', { montant: prix(ar.prorata.resteXof), date: dateDansLaPhrase(ar.prorata.dueIso) })}</p>
+          : ar.prorata && <p className="ab-meta">{t('Votre avoir : {montant}, à valoir sur une prochaine séance.', { montant: prix(ar.prorata.avoirXof) })}</p>}
         {lienSolde}
       </div>
     );
@@ -245,6 +259,8 @@ function Reglement({ c, prenom, onRegler, onSolde }: { c: ReleveDuContrat; preno
             {t('Régler {montant}', { montant: prix(prochaine.resteXof) })}
           </button>
         </>
+      ) : ar.echeancierAPoser && (ar.aConvenirXof ?? 0) > 0 ? (
+        <p className="ab-meta" style={{ marginTop: 9 }}>{t('Reste {montant}, à convenir avec la Maison : sans échéance datée, jamais en retard.', { montant: prix(ar.aConvenirXof ?? 0) })}</p>
       ) : derniere?.regleeLe ? (
         <p className="ab-meta" style={{ marginTop: 9 }}>{t('Tout est réglé, la dernière échéance le {date}.', { date: dateDansLaPhrase(derniere.regleeLe) })}</p>
       ) : null}
@@ -259,16 +275,17 @@ function Convenu({ c }: { c: ReleveDuContrat }) {
     [t('La lune'), t('Elle dure 30 jours et commence le jour du règlement. Elle se règle avant, au mois seulement.')],
     [t('Non réglée'), t('La formule se met en pause, sans dette. Elle reprend le jour où vous réglez.')],
     [t('Annuler ou déplacer'), t('Plus de 24 h avant : rien n’est compté. À moins de 24 h, ou absente : la séance est comptée et marquée « Manquée ». Pour un motif justifié, la Maison peut la rendre.')],
-    [t('Résilier'), t('Quand vous voulez, daté, avec son motif. Rien ne sort de la caisse.')],
+    [t('Déplacer à moins de 24 h'), t('Écrivez à la Maison : elle peut la déplacer sans la compter.')],
+    [t('Résilier'), t('Quand vous voulez, daté, avec son motif. La lune en cours court jusqu’à son terme : vos séances restent réservables jusque-là. Une lune réglée d’avance et pas encore commencée devient un avoir ; rien ne sort de la caisse.')],
     [t('Le prix'), t('S’il est revu après le comptage de votre calibre, la Maison vous l’annonce ici et par WhatsApp avant la lune qui change.')],
   ] : [
     [t('Départ'), t('Le {date}.', { date: dateDansLaPhrase(c.debutIso) })],
     [t('Fin'), c.finIso ? t('Le {date}. Les séances non prises à cette date sont perdues.', { date: dateDansLaPhrase(c.finIso) }) : t('Les séances non prises à la date de fin sont perdues.')],
     [t('Annuler ou déplacer'), t('Plus de 24 h avant : rien n’est compté, la séance revient à votre formule.')],
     [t('À moins de 24 h, ou absente'), t('La séance est comptée et marquée « Manquée ». Pour un motif justifié, la Maison peut la rendre.')],
-    [t('Reporter'), t('Vous déplacez une séance autant qu’il le faut, plus de 24 h avant, jusqu’à la date de fin.')],
+    [t('Reporter'), t('Vous déplacez une séance autant qu’il le faut, plus de 24 h avant, jusqu’à la date de fin. À moins de 24 h, écrivez à la Maison : elle peut la déplacer sans la compter.')],
     [t('Prolonger'), t('Sur demande, la Maison peut repousser la fin, avec un motif et une nouvelle date.')],
-    [t('Résilier'), t('Ce que vous avez réglé au-delà des séances faites devient un avoir au prorata, arrondi au franc ; rien ne sort de la caisse. La résiliation se demande à la Maison, datée, avec son motif.')],
+    [t('Résilier'), t('Ce que vous avez réglé au-delà des séances faites devient un avoir au prorata, arrondi au franc ; rien ne sort de la caisse. Si les séances faites dépassent ce que vous avez réglé, la différence est à régler le jour de la résiliation. La résiliation se demande à la Maison, datée, avec son motif.')],
     [t('Le prix'), t('S’il est revu après un nouveau comptage de votre calibre, la Maison vous l’annonce ici et par WhatsApp avant que vos échéances changent ; l’écart s’ajoute à la prochaine échéance, ou devient une échéance à 30 jours s’il n’en reste pas. En votre faveur, il se retranche de la prochaine échéance, ou devient un avoir.')],
   ];
   return (

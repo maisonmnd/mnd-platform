@@ -32,6 +32,7 @@ import {
   gardeUnVersement, versementsEnAttente, echeancierAPoser, echeancierAEcrire, effetDePoserLEcheancier, poseLEcheancier,
 } from '../src/apps/trone/routes/clients/gestes-de-l-abonnement';
 import { etatDesRelancesDeLaPiece, derniereEcheanceRelancee } from '../src/shared/relances-pur';
+import { releveDeLAbonnee } from '../src/shared/abonnee-pur';
 import { TYPE_DIT } from '../src/shared/envois';
 
 const sansCommentairesTot = (src: string): string => src.replace(/\/\*[\s\S]*?\*\//g, '');
@@ -238,6 +239,42 @@ subscribersStore.set(() => []);
   const carteSrc = sansCommentairesTot(readFileSync('src/apps/trone/routes/clients/CarteAbonnement.tsx', 'utf8'));
   dit('la carte : jamais en retard sans echeancier, et le geste pour le poser', true,
     carteSrc.includes('aPoser ? undefined') && carteSrc.includes('Échéancier à poser') && carteSrc.includes('Poser l’échéancier'));
+}
+
+/* LES CHAMPS DU JUGE, LUS TELS QUELS (la passe des règles, 20 octobre 2026). */
+const luneR = contrat({
+  id: 'abo-lr', planId: LUNE.id, reference: 'ABO-2026-030', expiresIso: undefined, echeances: undefined, priceXof: 37500, prixConvenuXof: 37500,
+  nextIso: '2026-11-01', status: 'churn', resilieeLe: '2026-10-20', payments: [{ id: 'l1', amountXof: 37500, date: '2026-10-02' }],
+});
+const relLune = releveDuContrat(luneR, LUNE, [], { ...ctx, subs: [luneR] });
+dit('une Chaque Lune resiliee court jusqu au terme de sa lune reglee', '2026-10-31', relLune?.courtJusquau);
+dit('… sans avoir', 0, relLune?.argent.avoirXof ?? 0);
+const ancien = contrat({ id: 'abo-ex', status: 'exhausted' as Subscriber['status'], reference: undefined, echeances: undefined, prixConvenuXof: 125000, priceXof: 125000, payments: [{ id: 'x1', amountXof: 125000, date: '2026-01-05' }], sinceIso: '2026-01-05', startIso: '2026-01-05' });
+dit('un carnet epuise dans l ancien ERP se dit tel', true, !!releveDuContrat(ancien, SIX, [], { ...ctx, subs: [ancien] })?.epuiseeParLAncienCarnet);
+const consomme = contrat({ id: 'abo-rc', status: 'churn', resilieeLe: '2026-10-20', payments: [{ id: 'c1', amountXof: 20000, date: '2026-10-02' }] });
+const relRc = releveDuContrat(consomme, SIX, RDV.map((a) => ({ ...a, subId: 'abo-rc' })), { ...ctx, subs: [consomme] });
+dit('le reste de resiliation porte sa date', { reste: 26667, dueIso: '2026-10-20' }, { reste: relRc?.argent.prorata?.resteXof, dueIso: relRc?.argent.prorata?.dueIso });
+const releveSans = releveDeLAbonnee({ jour: JOUR, clientId: AK, subs: [sansEch], plans: PLANS, appts: RDV, invoices: [] });
+dit('le reste a convenir ne s ajoute jamais au du d aujourd hui', { du: 0, aConvenir: 70000 },
+  { du: releveSans.solde.aRegleAujourdhuiXof, aConvenir: releveSans.solde.aConvenirXof });
+const journalR = [
+  { id: 'rl-inv-7-e2-1-whatsapp', statut: 'envoyé', quand: '2026-10-03T09:00:00Z' },
+  { id: 'rl-inv-7-r-1-whatsapp', statut: 'envoyé', quand: '2026-10-21T09:00:00Z' },
+];
+dit('les relances du reste de resiliation se lisent (rl-<piece>-r-<n>)', { parties: 1, derniereLe: '2026-10-21' },
+  (({ parties, derniereLe }) => ({ parties, derniereLe }))(etatDesRelancesDeLaPiece({ factureId: 'inv-7', depart: '2026-10-20', journal: journalR, resteXof: 26667, enPause: false, aujourdhui: '2026-10-22', jourDe: (x) => x.slice(0, 10) })));
+{
+  const carteSrc = sansCommentairesTot(readFileSync('src/apps/trone/routes/clients/CarteAbonnement.tsx', 'utf8'));
+  dit('la carte dit la resiliee qui court, l ancien carnet, la date du reste', { court: true, ancien: true, date: true }, {
+    court: carteSrc.includes('c.courtJusquau && c.resilieeLe') && carteSrc.includes('sa lune court jusqu’au'),
+    ancien: carteSrc.includes('c.epuiseeParLAncienCarnet ? <>Épuisée · séances prises avant Le Trône</>'),
+    date: carteSrc.includes('argent.prorata.dueIso'),
+  });
+  const custSrc = sansCommentairesTot(readFileSync('src/apps/trone/routes/clients/Customers.tsx', 'utf8'));
+  dit('ce qui presse : a convenir a part, jamais dans le du', { aPart: true, horsDu: true }, {
+    aPart: custSrc.includes('à convenir avec la Maison'),
+    horsDu: custSrc.includes("const lignesDues = solde.lignes.filter((l) => l.statut === 'a-regler-aujourdhui' || l.statut === 'en-retard');"),
+  });
 }
 
 /* ══ ④ L'ARGENT PAR LE SERVEUR SEUL ════════════════════════════════ */

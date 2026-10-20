@@ -107,14 +107,22 @@ export function derniereEcheanceRelancee(factureId: string, journal: readonly { 
   return k;
 }
 
+/** L'identifiant d'une relance du RESTE DE RÉSILIATION (le consommé au-delà
+    du réglé, dû à la date de résiliation). */
+export const idDeLaRelanceDeResiliation = (factureId: string, n: number): string =>
+  `rl-${factureId}-r-${n}-whatsapp`;
+
 /** CE QUE L'ÉCRAN DIT DES RELANCES D'UNE PIÈCE, la pièce d'une formule
-    comprise : la suite de sa plus récente échéance relancée, sinon la sienne. */
+    comprise : la suite du reste de résiliation s'il est relancé (il vient en
+    dernier), sinon celle de sa plus récente échéance relancée, sinon la sienne. */
 export function etatDesRelancesDeLaPiece(o: Parameters<typeof etatDesRelances>[0]): ReturnType<typeof etatDesRelances> {
-  const k = derniereEcheanceRelancee(o.factureId, o.journal);
-  if (k === null) return etatDesRelances(o);
+  const resiliation = o.journal.some((x) => x.id.startsWith(`rl-${o.factureId}-r-`));
+  const k = resiliation ? null : derniereEcheanceRelancee(o.factureId, o.journal);
+  if (!resiliation && k === null) return etatDesRelances(o);
   const journal: LigneDeRelance[] = [];
   for (let n = 1; n <= CADENCE_DES_RELANCES.length; n++) {
-    const l = o.journal.find((x) => x.id === idDeLaRelanceDEcheance(o.factureId, k, n));
+    const id = resiliation ? idDeLaRelanceDeResiliation(o.factureId, n) : idDeLaRelanceDEcheance(o.factureId, k as number, n);
+    const l = o.journal.find((x) => x.id === id);
     if (l) journal.push({ ...l, id: idDeLaRelance(o.factureId, n) });
   }
   return etatDesRelances({ ...o, journal });

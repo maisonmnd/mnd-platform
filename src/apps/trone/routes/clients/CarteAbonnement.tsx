@@ -113,10 +113,7 @@ export function CarteAbonnement({ client, appts, invoices }: {
     if (ouvert?.sub === sub && ouvert.geste === geste) { setOuvert(null); return; }
     setOuvert({ sub, geste });
     setMotif(MOTIFS[0]);
-    const c0 = releve.contrats.find((x) => x.sub.id === sub);
-    setDate(geste === 'resilier'
-      ? (c0 && c0.mode === 'cycle' && c0.lune && decaleLeJour(c0.lune.au, -1) > jour ? decaleLeJour(c0.lune.au, -1) : jour)
-      : '');
+    setDate(geste === 'resilier' ? jour : '');
     setJours(30);
     setParts(1);
     setPrixCompte('');
@@ -205,7 +202,12 @@ export function CarteAbonnement({ client, appts, invoices }: {
                 </div>
               </div>
               <div className="trc-abo__chips">
-                <span className={`trc-abo__chip is-${c.etat}`}>{ETAT_LABEL[c.etat]}</span>
+                <span className={`trc-abo__chip is-${c.etat}`}>
+                  {c.courtJusquau && c.resilieeLe
+                    ? `Résiliée le ${dit(c.resilieeLe)} · sa lune court jusqu’au ${dit(c.courtJusquau)}`
+                    : c.epuiseeParLAncienCarnet ? 'Épuisée · séances prises avant Le Trône'
+                    : ETAT_LABEL[c.etat]}
+                </span>
                 {aPoser && <span className="trc-abo__chip is-jour">Échéancier à poser · reste {fmtMoney(aPoser.resteXof, currency)}</span>}
                 {du && (
                   <span className={`trc-abo__chip ${du.statut === 'en-retard' ? 'is-retard' : 'is-jour'}`}>
@@ -230,7 +232,7 @@ export function CarteAbonnement({ client, appts, invoices }: {
                     <span className="trc-abo__presta-n">{nomDuService(l.serviceId)}</span>
                     <BarreDesSeances l={l} />
                     <span className="trc-abo__presta-c">
-                      {l.incluses === null
+                      {c.epuiseeParLAncienCarnet ? <>Épuisée · séances prises avant Le Trône</> : l.incluses === null
                         ? <>sans limite · <b>{l.faites}</b> {l.faites > 1 ? 'faites' : 'faite'}</>
                         : <>
                           <b>{l.faites}</b> {l.faites > 1 ? 'faites' : 'faite'}
@@ -282,6 +284,19 @@ export function CarteAbonnement({ client, appts, invoices }: {
                     <b>{fmtMoney(e.statut === 'reglee' ? e.amountXof : e.resteXof || e.amountXof, currency)}</b>
                   </div>
                 ))}
+                {argent.prorata && (
+                  <div className={`trc-abo__ech is-${argent.prorata.resteXof > 0 && argent.prorata.dueIso < jour ? 'en-retard' : argent.prorata.resteXof > 0 && argent.prorata.dueIso === jour ? 'a-regler-aujourdhui' : 'a-venir'}`}>
+                    <i aria-hidden="true" />
+                    <span>
+                      Résiliation du {dit(argent.prorata.le)}
+                      <small>
+                        {argent.prorata.comptees} séance{argent.prorata.comptees > 1 ? 's' : ''} comptée{argent.prorata.comptees > 1 ? 's' : ''} sur {argent.prorata.seances}
+                        {argent.prorata.resteXof > 0 ? ` · consommé au-delà du réglé, dû le ${dit(argent.prorata.dueIso)}, relancé comme une échéance` : argent.prorata.avoirXof > 0 ? ' · avoir à part dans Mon solde' : ' · rien à rendre, rien à réclamer'}
+                      </small>
+                    </span>
+                    <b>{fmtMoney(argent.prorata.resteXof > 0 ? argent.prorata.resteXof : argent.prorata.avoirXof, currency)}</b>
+                  </div>
+                )}
                 {argent.luneARegler && (
                   <div className="trc-abo__ech is-a-regler-aujourdhui">
                     <i aria-hidden="true" />
@@ -436,18 +451,15 @@ export function CarteAbonnement({ client, appts, invoices }: {
 
             {g === 'resilier' && (() => {
               const effet = effetDeLaResiliation(c.sub as Subscriber, p, appts, ctx, date);
-              /* UNE CHAQUE LUNE se résilie au terme de sa lune réglée : elle
-                 court jusque-là, sans avoir (Yéman, 20 octobre 2026). */
-              const finDeLune = c.lune ? decaleLeJour(c.lune.au, -1) : jour;
-              const dates = paquet
-                ? [jour, decaleLeJour(jour, 7), c.finIso ?? decaleLeJour(jour, 30)].filter((d, i, t) => t.indexOf(d) === i)
-                : [finDeLune < jour ? jour : finDeLune];
+              /* UNE CHAQUE LUNE RÉSILIÉE COURT jusqu'au terme de sa lune réglée,
+                 sans avoir : le juge le dit (`courtJusquau`). */
+              const dates = [jour, decaleLeJour(jour, 7), c.finIso ?? decaleLeJour(jour, 30)].filter((d, i, t) => t.indexOf(d) === i);
               return (
                 <PanneauDEffet effet={effet} sensible>
                   <div className="trc-abo__champs">
                     <label>Date de la résiliation
                       <select value={date} onChange={(e) => setDate(e.target.value)}>
-                        {dates.map((d) => <option key={d} value={d}>{d === jour ? 'Aujourd’hui, ' : !paquet ? 'Au terme de la lune réglée, ' : ''}{dit(d)}</option>)}
+                        {dates.map((d) => <option key={d} value={d}>{d === jour ? 'Aujourd’hui, ' : ''}{dit(d)}</option>)}
                       </select>
                     </label>
                     <label>Motif<select value={motif} onChange={(e) => setMotif(e.target.value)}>{MOTIFS.map((m) => <option key={m}>{m}</option>)}</select></label>

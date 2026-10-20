@@ -57,12 +57,13 @@ export function effetDeLaResiliation(
     lignes.push(`Séances comptées au ${dit(le)} : ${p.comptees} sur ${p.seances} (faites et manquées).`);
     lignes.push(`Consommé : ${francs(p.consommeXof)} · réglé : ${francs(apres.argent.regleXof)}.`);
     if (p.avoirXof > 0) lignes.push(`Avoir de ${francs(p.avoirXof)}, à part dans Mon solde, jamais retranché en silence.`);
-    if (p.resteXof > 0) lignes.push(`Consommé au-delà du réglé : ${francs(p.resteXof)} dus le ${dit(le)}, relancés comme une échéance.`);
+    if (p.resteXof > 0) lignes.push(`Consommé au-delà du réglé : ${francs(p.resteXof)} dus le ${dit(p.dueIso)}, relancés comme une échéance.`);
     if (p.avoirXof === 0 && p.resteXof === 0) lignes.push('Rien à rendre, rien à réclamer.');
   } else {
     /* UNE CHAQUE LUNE RÉSILIÉE NE DONNE PAS D'AVOIR : la lune réglée court
        jusqu'à son terme (Yéman, 20 octobre 2026), puis la formule s'arrête. */
-    lignes.push(`Formule à la lune : pas d’avoir. La lune réglée court jusqu’à son terme, le ${dit(le)}, puis la formule s’arrête, sans dette.`);
+    const jusquau = apres.courtJusquau ?? (apres.lune ? decaleLeJour(apres.lune.au, -1) : le);
+    lignes.push(`Formule à la lune : pas d’avoir. La lune réglée court jusqu’à son terme, le ${dit(jusquau > le ? jusquau : le)} : ses séances incluses s’y réservent encore, puis la formule s’arrête, sans dette.`);
   }
   const annulees = (avant?.argent.echeances ?? []).filter((e) => e.resteXof > 0 && e.statut !== 'reglee').length;
   if (annulees > 0) lignes.push(`${annulees} échéance${annulees > 1 ? 's' : ''} non réglée${annulees > 1 ? 's' : ''} annulée${annulees > 1 ? 's' : ''}.`);
@@ -72,7 +73,7 @@ export function effetDeLaResiliation(
   }
   return {
     lignes,
-    laClienteLit: `Résiliée le ${dit(le)}${p && p.avoirXof > 0 ? `, avoir de ${francs(p.avoirXof)} dans Mon solde` : ''}${p && p.resteXof > 0 ? `, reste ${francs(p.resteXof)} à régler` : ''}.`,
+    laClienteLit: `Résiliée le ${dit(le)}${apres.courtJusquau ? ` · sa lune court jusqu’au ${dit(apres.courtJusquau)}` : ''}${p && p.avoirXof > 0 ? `, avoir de ${francs(p.avoirXof)} dans Mon solde` : ''}${p && p.resteXof > 0 ? `, ${francs(p.resteXof)} à régler le ${dit(p.dueIso)}` : ''}.`,
   };
 }
 
@@ -93,17 +94,13 @@ export function resilie(subId: string, le: string, motif: string, aujourdhui = j
 
 /* UN CONTRAT SANS ÉCHÉANCIER N'EST JAMAIS EN RETARD (Yéman, 20 octobre
    2026) : rien n'a été convenu, rien n'est échu. Le reste se dit « Échéancier
-   à poser », et le comptoir le pose. Le juge exposera `echeancierAPoser` sur
-   l'argent du contrat ; tant qu'il ne l'a pas, on le lit sur les faits : un
-   paquet sans échéancier qui garde un reste. */
+   à poser », et le comptoir le pose. Le juge le dit (`argent.echeancierAPoser`,
+   `argent.aConvenirXof`) : on le lit, on ne le devine plus. */
 export type EcheancierAPoser = { resteXof: number; regleXof: number; prixXof: number };
 export function echeancierAPoser(c: ReleveDuContrat | undefined): EcheancierAPoser | null {
   if (!c) return null;
-  const drapeau = (c.argent as { echeancierAPoser?: unknown }).echeancierAPoser;
-  const sansEcheancier = !(c.sub.echeances?.length);
-  const aPoser = drapeau === undefined ? c.mode === 'pack' && sansEcheancier : !!drapeau;
-  if (!aPoser || c.etat === 'resiliee' || c.etat === 'effacee' || c.etat === 'retenue') return null;
-  const reste = Math.max(0, c.argent.prixVenduXof - c.argent.regleXof);
+  if (!c.argent.echeancierAPoser) return null;
+  const reste = c.argent.aConvenirXof ?? 0;
   return reste > 0 ? { resteXof: reste, regleXof: c.argent.regleXof, prixXof: c.argent.prixVenduXof } : null;
 }
 

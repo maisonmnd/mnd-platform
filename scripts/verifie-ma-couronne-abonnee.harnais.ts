@@ -86,8 +86,34 @@ dit('les gestes : reserver une incluse, annuler, deplacer, renoncer', [true, tru
 dit('une fonction absente se dit, elle ne laisse pas l ecran blanc', [true, true],
   [/code === 'PGRST202' \|\| code === '42883'/.test(releveTs), /r\.absente\s*\?\s*t\('La réservation d’une séance de votre formule ouvre très bientôt/.test(lis('ReserverIncluse.tsx'))]);
 dit('annuler et deplacer disent leur effet avant d agir (24 h)', [true, true],
-  [/effetDeLAnnulation\(cancelling\)/.test(mrdv), /heuresAvant\(editing\) < 24/.test(mrdv)]);
+  [/effetDeLAnnulation\(cancelling\)/.test(mrdv), /const enLigne = seDeplaceEnLigne\(editing, /.test(mrdv)]);
+/* Tranché au sélecteur le 20 octobre 2026 : à moins de 24 h, la séance d'une
+   formule ne se déplace pas en ligne ; la Maison décide, sans la compter. */
+dit('a moins de 24 h, la seance d une formule ne se deplace pas d ici : le calendrier se ferme, la phrase le dit, le refus du serveur aussi', [true, true, true],
+  [/const bloque = !!seanceDe\(editing\)\?\.s\.compte && !seDeplaceEnLigne\(editing, /.test(mrdv),
+    /\{t\('À moins de 24 h, écrivez à la Maison : elle peut la déplacer sans la compter\.'\)\}/.test(mrdv),
+    /parLaMaison\.raison === 'moins_de_24_h' \? t\('À moins de 24 h, écrivez à la Maison : elle peut la déplacer sans la compter\.'\)/.test(mrdv)]);
 dit('la seance d une formule ne se deplace pas apres sa fin', true, /\(!fin \|\| iso <= fin\)/.test(mrdv));
+
+/* ── 5bis. LES REGLES DU 20 OCTOBRE AU SOIR, LA OU ELLE LES LIT ─────────── */
+{
+  const sol = lis('MonSolde.tsx');
+  const sf = lis('SesFormules.tsx');
+  const ab = lis('Abonnee.tsx');
+  dit('sans echeancier : Mon solde dit « a convenir avec la Maison », sans date, a part des trois chiffres', [true, true, true],
+    [/s\.aConvenirXof > 0 && \(/.test(sol) && /t\('À convenir avec la Maison'\)/.test(sol), /ar\.echeancierAPoser && \(/.test(sol) && /t\('à convenir avec la Maison, jamais en retard'\)/.test(sol),
+      /ar\.echeancierAPoser && \(ar\.aConvenirXof \?\? 0\) > 0/.test(sf)]);
+  dit('sans echeancier : l accueil le compte a part, jamais dans l echu', [true, true],
+    [/s\.aConvenirXof > 0 && \(/.test(ab), /l\.genre === 'a-convenir'\) return t\('reste à convenir avec la Maison'\)/.test(ab)]);
+  dit('resiliation : le consomme au-dela du regle est du le jour de la resiliation, dit dans Ma formule', [true, true],
+    [/la différence est à régler le jour de la résiliation/.test(sf), /ar\.prorata\.resteXof > 0/.test(sf) && /ar\.prorata\.dueIso/.test(sf)]);
+  dit('Chaque Lune resiliee : la lune reglee court, ses seances se reservent jusque-la, rien n est rendu', [true, true, true],
+    [/c\.etat === 'resiliee' && !c\.courtJusquau/.test(sf), /La lune en cours court jusqu’à son terme/.test(sf) && /Une lune réglée d’avance et pas encore commencée devient un avoir/.test(sf), /c\.etat === 'resiliee' && !c\.courtJusquau\) return t\('résiliée'\)/.test(ab)]);
+  dit('Chaque Lune resiliee : ses lunes reglees d avance et pas commencees deviennent un avoir, dit dans Ma formule et Mon solde', [true, true],
+    [/ar\.lunesEnAvoir\.nombre > 1/.test(sf) && /devient un avoir : \{montant\}/.test(sf), /c\.mode === 'cycle' && ar\.lunesEnAvoir && \(/.test(sol)]);
+  dit('ancien carnet epuise : « Epuisee · seances prises avant Le Trone », jamais « 2 sur 6 »', [true, true],
+    [/c\.etat === 'epuisee' && c\.epuiseeParLAncienCarnet\) return t\('épuisée'\)/.test(ab), /t\('Épuisée · séances prises avant Le Trône'\)/.test(ab) && /c\.epuiseeParLAncienCarnet/.test(sf)]);
+}
 
 /* ── 6. LES PHRASES DE LA MAISON ───────────────────────────────────────── */
 const literaux = (f: string) => [...lis(f).matchAll(/\bt\(\s*'((?:\\.|[^'\\\n])*)'/g)].map((m) => m[1]);

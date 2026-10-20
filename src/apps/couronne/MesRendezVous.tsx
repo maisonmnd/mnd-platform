@@ -24,7 +24,7 @@ import {
   todayIso,
   useClientId,
 } from './lib';
-import { etatDeLaSeance } from '../../shared/abonnee-pur';
+import { etatDeLaSeance, seDeplaceEnLigne } from '../../shared/abonnee-pur';
 import { decaleLeJour } from '../../shared/ia-faits-pur';
 import { ETAT_SEANCE, appelleLaMaison, dateDansLaPhrase, leJour, seanceDuRelevé, useRelevesDe } from './releve';
 import { t, prix } from './i18n';
@@ -255,9 +255,9 @@ export default function MesRendezVous({ onClose, onBook, toast, ouvrir, geste, o
     if (!editing) return [];
     const dur = durationOf(editing);
     /* LA SÉANCE D'UNE FORMULE : pas au-delà de sa fin, et plus d'ici à moins
-       de 24 h (décision 3). */
+       de 24 h : la Maison décide (tranché au sélecteur le 20 octobre 2026). */
     const fin = finPourDeplacer(editing);
-    const bloque = !!seanceDe(editing)?.s.compte && heuresAvant(editing) < 24;
+    const bloque = !!seanceDe(editing)?.s.compte && !seDeplaceEnLigne(editing, new Date().toISOString());
     const first = new Date(month.y, month.m, 1);
     const daysIn = new Date(month.y, month.m + 1, 0).getDate();
     const cells: { key: string; day: number | null; iso?: string; free: boolean }[] = [];
@@ -296,9 +296,10 @@ export default function MesRendezVous({ onClose, onBook, toast, ouvrir, geste, o
        l'écriture d'avant prend le relais. */
     const parLaMaison = await appelleLaMaison<{ ok?: boolean; raison?: string }>('deplacer_une_seance', { p_appt_id: a.id, p_date: iso, p_time: heure });
     if (!parLaMaison.ok && !parLaMaison.absente) {
-      toast(parLaMaison.raison === 'fin' ? t('Cette date est après la fin de votre formule.')
-        : parLaMaison.raison === 'place' ? t('Ce moment vient d’être pris. Choisissez-en un autre.')
-          : t('La Maison n’a pas pu déplacer cette séance. Écrivez-lui.'));
+      toast(parLaMaison.raison === 'moins_de_24_h' ? t('À moins de 24 h, écrivez à la Maison : elle peut la déplacer sans la compter.')
+        : parLaMaison.raison === 'fin' ? t('Cette date est après la fin de votre formule.')
+          : parLaMaison.raison === 'place' ? t('Ce moment vient d’être pris. Choisissez-en un autre.')
+            : t('La Maison n’a pas pu déplacer cette séance. Écrivez-lui.'));
       return;
     }
     const transmis = parLaMaison.ok ? true : await ecrisRendezVous(a.id, { date: iso, time: heure, status: 'en attente' });
@@ -456,10 +457,25 @@ export default function MesRendezVous({ onClose, onBook, toast, ouvrir, geste, o
               const x = seanceDe(editing);
               if (!x || !x.s.compte) return null;
               const fin = finPourDeplacer(editing);
+              /* À MOINS DE 24 H, PAS EN LIGNE : la Maison décide, et peut la
+                 déplacer sans la compter (tranché au sélecteur). */
+              const enLigne = seDeplaceEnLigne(editing, new Date().toISOString());
+              const numero = (branch.phone ?? '').replace(/\D/g, '');
               return (
-                <div className={`ab-effet ${heuresAvant(editing) < 24 ? 'is-compte' : ''}`} style={{ margin: '0 0 14px' }}>
-                  {heuresAvant(editing) < 24
-                    ? t('À moins de 24 h, la séance ne se déplace plus d’ici. Écrivez à la Maison : elle voit ce qui est possible.')
+                <div className={`ab-effet ${enLigne ? '' : 'is-compte'}`} style={{ margin: '0 0 14px' }}>
+                  {!enLigne
+                    ? (
+                      <>
+                        {t('À moins de 24 h, écrivez à la Maison : elle peut la déplacer sans la compter.')}
+                        {numero && (
+                          <>
+                            {' '}
+                            <a href={`https://wa.me/${numero}?text=${encodeURIComponent(`Bonjour, je voudrais déplacer ma séance du ${dayLabelIsoFr(editing.date)} à ${editing.time}.`)}`}
+                              target="_blank" rel="noreferrer">{t('Écrire à la Maison')}</a>
+                          </>
+                        )}
+                      </>
+                    )
                     : fin
                       ? t('Votre séance reste dans votre formule. Plus de 24 h avant, rien n’est compté ; choisissez un autre moment avant le {date}.', { date: dateDansLaPhrase(fin) })
                       : t('Votre séance reste dans votre formule. Plus de 24 h avant, rien n’est compté.')}
