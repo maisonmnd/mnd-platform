@@ -62,6 +62,8 @@ import {
 import { ecrituresDeLaTete, ecrituresDuCompte, lignesImpayees, soldeDuCompte, tetesDuCompte, rendezVousAVenirDuFoyer } from '../../../../shared/compte';
 import { survivantDe, fusionnerFiches } from '../../../../shared/fusion';
 import { DemanderModal } from '../equipe/DemanderModal';
+import { useAudiences } from '../equipe/useAudiences';
+import { estUneAudienceConnue, membresDeLAudience, nomDeLAudience } from '../../../../shared/audiences-pur';
 import './clients.css';
 import { splitNotes, serializeNotes, ConsultCards, EditConsultModal, type ConsultBlock } from './consultNotes';
 import { CarteModal } from './CarteModal';
@@ -574,6 +576,27 @@ export default function Customers() {
     reste.delete('nouvelle');
     setParams(reste, { replace: true });
   }, [params, setParams]);
+  /* `?audience=` — « Voir les N » de l'Audience du Marketing (21 octobre
+     2026). Le registre montre alors exactement les têtes du même juge
+     (`audiences-pur`), sans quoi le chiffre de là-bas mentirait ici. */
+  const [audienceVue, setAudienceVue] = useState<string | null>(null);
+  useEffect(() => {
+    const a = params.get('audience');
+    if (a && estUneAudienceConnue(a)) setAudienceVue(a);
+  }, [params]);
+  const { base: baseDesAudiences, ctx: ctxDesAudiences } = useAudiences();
+  const membresDeLAudienceVue = useMemo(
+    () => (audienceVue ? membresDeLAudience(audienceVue, baseDesAudiences, ctxDesAudiences) : null),
+    [audienceVue, baseDesAudiences, ctxDesAudiences],
+  );
+  const fermeLAudience = () => {
+    setAudienceVue(null);
+    if (params.get('audience')) {
+      const reste = new URLSearchParams(params);
+      reste.delete('audience');
+      setParams(reste, { replace: true });
+    }
+  };
   /* La file des enfants declares depuis Ma Couronne, en attente de la Maison. */
   const [fileEnfants, setFileEnfants] = useState(false);
   const [declarations] = useEnfantsDeclares();
@@ -863,7 +886,9 @@ export default function Customers() {
     /* LE FOCUS PASSE AVANT LES REGISTRES. Il reprend exactement la population de
        la carte cliquée — sans quoi « 3 anniversaires » afficherait deux lignes
        parce que la troisième est de la Diaspora, et le chiffre mentirait. */
-    const base = focus === 'nouvelles'
+    /* L'AUDIENCE DU MARKETING passe avant tout (21 octobre 2026) : « Voir les
+       38 » montre les 38 du même juge, registres et segments mis de côté. */
+    const base = membresDeLAudienceVue ? membresDeLAudienceVue : focus === 'nouvelles'
       ? tetesNouvelles
       : focus === 'anniversaires'
         ? tetesAnniversaire
@@ -882,10 +907,10 @@ export default function Customers() {
               : view === 'diaspora'
                 ? clients.filter((c) => isDiaspora(c) && estCouronnee(c, venues) && !sortiesParTete.has(c.id))
                 : maisonClients;
-    let list = focus === 'aucun' && view === 'maison' && seg !== 'Tous'
+    let list = !membresDeLAudienceVue && focus === 'aucun' && view === 'maison' && seg !== 'Tous'
       ? base.filter((c) => c.segments.includes(seg))
       : base;
-    if (focus === 'aucun' && view === 'maison' && palierFiltre !== 'Tous') {
+    if (!membresDeLAudienceVue && focus === 'aucun' && view === 'maison' && palierFiltre !== 'Tous') {
       list = list.filter((c) => (palierParTete.get(c.id)?.palier ?? 'Sans rituel') === palierFiltre);
     }
     if (q) {
@@ -922,7 +947,7 @@ export default function Customers() {
     return arr;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [clients, maisonClients, passageClients, tetesNouvelles, tetesAnniversaire, tetesEnLigne,
-    focus, seg, q, sort, stats, view, bandsCrm, rangDuCalibre, palierFiltre, palierParTete]);
+    focus, seg, q, sort, stats, view, bandsCrm, rangDuCalibre, palierFiltre, palierParTete, membresDeLAudienceVue]);
 
   /* ── LE GESTE GROUPÉ (26 août) ────────────────────────────────────
      Quatorze têtes à remettre « de passage » après un ménage du carnet, c'est
@@ -1074,7 +1099,19 @@ export default function Customers() {
       {/* CE QU'ON REGARDE SE DIT, ET SE REFERME. Une liste filtrée qui ne
           s'annonce pas se prend pour le carnet entier — et on croit avoir perdu
           des clientes. */}
-      {focus !== 'aucun' && (
+      {audienceVue && membresDeLAudienceVue && (
+        <div className="trc-focus">
+          <span>
+            Audience « {nomDeLAudience(audienceVue)} » · <b style={{ fontWeight: 600 }}>{filtered.length}</b>
+            {filtered.length > 1 ? ' têtes' : ' tête'}
+            {q ? ', recherche en cours' : ''}, comptées comme au Marketing.
+          </span>
+          <button type="button" className="trc-focus__x" onClick={fermeLAudience}>
+            Voir tout le carnet
+          </button>
+        </div>
+      )}
+      {!audienceVue && focus !== 'aucun' && (
         <div className="trc-focus">
           <span>
             {FOCUS_LABEL[focus]} · <b style={{ fontWeight: 600 }}>{filtered.length}</b>
@@ -4534,6 +4571,39 @@ function Customer360({
                 </>
               );
             })()}
+          </div>
+
+          {/* LES NOUVELLES DE LA MAISON — 21 octobre 2026. Oui ou non, daté, tel
+              qu'elle l'a dit : sans « oui », aucune campagne WhatsApp ne lui
+              part, jamais (règle de WhatsApp, choix de Yéman). Les rappels, les
+              confirmations et les reçus n'en dépendent pas. */}
+          <div>
+            <span className="trc-microlabel">Nouvelles de la Maison</span>
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+              <button
+                type="button"
+                className={`trc-chip ${client.nouvelles?.oui === true ? 'is-active' : ''}`}
+                aria-pressed={client.nouvelles?.oui === true}
+                onClick={() => patch({ nouvelles: { oui: true, le: todayISO(), par: 'comptoir' } })}
+              >
+                Elle accepte
+              </button>
+              <button
+                type="button"
+                className={`trc-chip ${client.nouvelles && !client.nouvelles.oui ? 'is-active' : ''}`}
+                aria-pressed={!!client.nouvelles && !client.nouvelles.oui}
+                onClick={() => patch({ nouvelles: { oui: false, le: todayISO(), par: 'comptoir' } })}
+              >
+                Elle refuse
+              </button>
+            </div>
+            <div className="trc-sub" style={{ marginTop: 8, lineHeight: 1.5 }}>
+              {!client.nouvelles
+                ? 'Pas encore demandé : aucune campagne WhatsApp ne lui part.'
+                : client.nouvelles.oui
+                  ? `Elle accepte les nouvelles de la Maison depuis le ${frShortAn(client.nouvelles.le)}.`
+                  : `Elle a dit non le ${frShortAn(client.nouvelles.le)}${client.nouvelles.par === 'stop' ? ', en répondant STOP' : ''} : aucune campagne WhatsApp.`}
+            </div>
           </div>
 
           <div>

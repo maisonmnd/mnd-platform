@@ -46,6 +46,7 @@ const TYPES: [FiltreDuJournal['type'], string][] = [
   ['reprise-j3', 'Reprises proposées'], ['accuse', 'Accusés de demande'], ['avis-google', 'Avis Google'],
   ['fin-de-paquet', 'Fins de paquet'], ['point-apres', 'Points d’après séance'], ['point-avant', 'Points d’avant séance'],
   ['relance-facture', 'Relances de facture'], ['rappel-echeance', 'Rappels d’échéance'], ['prix-revu', 'Prix revus'],
+  ['parrainage', 'Marraines prévenues'], ['campagne', 'Campagnes'],
 ];
 const PERIODE_DITE: Record<FiltreDuJournal['jour'], string> = {
   aujourdhui: 'aujourd’hui', hier: 'hier', semaine: 'ces 7 derniers jours',
@@ -73,11 +74,18 @@ const pastille = (texte: string, ton: { fond: string; encre: string; bord: strin
   }}>{texte}</span>
 );
 
-export function EnvoisAutomatiques({ onOuvrirLeFil }: { onOuvrirLeFil: (numero: string) => void }) {
+export function EnvoisAutomatiques({ onOuvrirLeFil, typeInitial }: {
+  onOuvrirLeFil: (numero: string) => void;
+  /** `?type=` — le Marketing ouvre le journal sur une automatisation (21 octobre 2026), sur sept jours. */
+  typeInitial?: string | null;
+}) {
   const { branch } = useBranch();
   const [envois] = useEnvois();
   const [clients] = useClients();
-  const [filtre, setFiltre] = useState<FiltreDuJournal>({ jour: 'aujourdhui', type: 'tout', seulementARegarder: false });
+  const typeDemande = TYPES.find(([k]) => k === typeInitial)?.[0];
+  const [filtre, setFiltre] = useState<FiltreDuJournal>({
+    jour: typeDemande && typeDemande !== 'tout' ? 'semaine' : 'aujourdhui', type: typeDemande ?? 'tout', seulementARegarder: false,
+  });
   const aujourdhui = jourDuSalon(new Date().toISOString(), FUSEAU);
 
   const ici = useMemo(

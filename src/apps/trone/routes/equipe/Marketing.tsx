@@ -2,26 +2,26 @@ import { asset } from '../../../../shared/asset';
 import { useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { OptionsPrestations, PageHead } from '../_ui';
-import { Button, Card, Eyebrow, Field, Input, Modal, Select, Textarea, alerte, demande, toast } from '../../../../ds/components';
+import { Button, Card, Eyebrow, Field, Input, Modal, Select, alerte, demande, toast } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
-import {
-  useClients, useSegments, addSegment, renameSegment, removeSegment, estDePassage,
-} from '../../../../shared/clients';
-import { useInvoices, invoiceTotal } from '../../../../shared/finance';
+import { useSegments } from '../../../../shared/clients';
 import { useCategories, useServices } from '../../../../shared/catalog';
-import { useStore, uid } from '../../../../shared/store';
+import { uid } from '../../../../shared/store';
 import { pushBroadcastClients } from '../../../../shared/push';
+import { cleDuSegment } from '../../../../shared/audiences-pur';
+import type { Campagne } from '../../../../shared/campagnes-pur';
 import {
-  AUTOMATION_CANAUX, OFFER_AUDIENCES, OFFER_DAYS, OFFER_HOURS,
-  automationsActiveStore, automationsStore, autoConfigStore, segmentNotesStore, useAutomations,
-  useCampaigns, useOffers, offerLiveNow,
+  OFFER_AUDIENCES, OFFER_DAYS, OFFER_HOURS,
+  useOffers, offerLiveNow,
   etatDeLOffre, saisonsAProposer, saisonsDeLaMaison, offreDepuisLaSaison, SAISONS, FENETRE_PROPOSITION, codeNormalise,
   OFFRES_DE_PARCOURS, offreDeParcours,
   prestationsDesCategories, codeDepuisLOffre,
-  type Automation, type AutomationCanal, type InstantOffer, type SegmentNote,
+  type InstantOffer,
 } from './data';
-import { Pill, Tabs, Toggle } from './ui';
+import { OngletAudience, OngletAutomatisations, OngletCampagnes, campagneNeuve } from './MarketingBranche';
+import { useAbonnesAuxNotifications } from './useAudiences';
+import { Pill, Tabs } from './ui';
 import './equipe.css';
 
 type Tab = 'campagnes' | 'offres' | 'auto' | 'audience';
@@ -61,8 +61,6 @@ const emptyOffer: OfferForm = {
 const promesseCreuse = (o: InstantOffer): boolean =>
   /[−-]\s?\d/.test(o.deal ?? '') && !(o.discountPct && (o.serviceIds?.length || o.serviceId));
 
-const campTone = (s: string): 'ok' | 'warn' | 'muted' => (s === 'Active' ? 'ok' : s === 'Programmée' ? 'warn' : 'muted');
-
 export default function Marketing() {
   const { branch, currency } = useBranch();
   /* ?tab=auto — permet d'arriver droit sur les automatisations depuis ailleurs
@@ -72,10 +70,7 @@ export default function Marketing() {
   const [tab, setTab] = useState<Tab>(
     asked === 'auto' || asked === 'offres' || asked === 'audience' ? asked : 'campagnes',
   );
-  const [campaigns] = useCampaigns();
   const [offers, setOffers] = useOffers();
-  const [clients] = useClients();
-  const [invoices] = useInvoices(); // valeur moyenne réelle par segment
   const [services] = useServices();
   const [categories] = useCategories();
   /* La liste des prestations est longue : un filtre évite de faire
@@ -93,64 +88,19 @@ export default function Marketing() {
      qu'il existe. Corriger un titre après coup est fréquent ; recevoir une
      cliente avec un code mort ne l'est pas. */
   const [codeALaMain, setCodeALaMain] = useState(false);
-  const [autoActive, setAutoActive] = useStore(automationsActiveStore);
-  const [automations, setAutomations] = useAutomations();
-  const [autoCfg, setAutoCfg] = useStore(autoConfigStore);
-  /* null = fermée ; objet = édition ; 'new' = création. */
-  const [autoModal, setAutoModal] = useState<Automation | 'new' | null>(null);
-
-  /* ----- Audience : la liste des segments s'édite ici ----- */
+  /* LE MARKETING BRANCHÉ (21 octobre 2026) : les automatisations, l'audience
+     et les campagnes vivent dans `MarketingBranche`. Ici, seulement ce qui les
+     relie : la campagne ouverte, et « Écrire » depuis l'Audience qui la
+     prépare déjà adressée. Les notifications se lisent une fois pour les deux. */
   const [segmentList] = useSegments();
-  const [segNotes, setSegNotes] = useStore(segmentNotesStore);
-  const [segEdit, setSegEdit] = useState<string | null>(null);
-  const [segEditVal, setSegEditVal] = useState('');
-  const [newSeg, setNewSeg] = useState('');
-
-  const addNewSeg = () => {
-    addSegment(newSeg);
-    setNewSeg('');
+  const abonnes = useAbonnesAuxNotifications();
+  const [brouillon, setBrouillon] = useState<Campagne | null>(null);
+  const ecrireA = (cle: string) => {
+    setTab('campagnes');
+    setBrouillon(campagneNeuve(branch.id, cle));
   };
+  const nouvelleCampagne = () => ecrireA(segmentList[0] ? cleDuSegment(segmentList[0]) : 'dormantes');
 
-  const commitSegRename = (from: string) => {
-    const to = segEditVal.trim();
-    /* Renomme la liste ET les fiches taguées — voir `renameSegment`. Les notes
-       suivent le nouveau nom, sinon la connaissance des maîtres serait perdue. */
-    if (to && to !== from) {
-      renameSegment(from, to);
-      setSegNotes((prev) => {
-        const note = prev[from];
-        if (!note) return prev;
-        const { [from]: _drop, ...rest } = prev;
-        return { ...rest, [to]: note };
-      });
-    }
-    setSegEdit(null);
-    setSegEditVal('');
-  };
-
-  const dropSegment = async (name: string, size: number) => {
-    const msg = size > 0
-      ? `Retirer « ${name} » ? ${size} fiche${size > 1 ? 's' : ''} le porte${size > 1 ? 'nt' : ''} : le tag sera retiré de ces fiches.`
-      : `Retirer le segment « ${name} » ?`;
-    if (!await demande({
-      quoi: 'Segment de la Maison',
-      titre: `Retirer le segment « ${name} » ?`,
-      dit: msg,
-      accepter: 'Retirer le segment',
-      refuser: 'Garder le segment',
-      dur: true,
-    })) return;
-    /* Ici on retire AUSSI des fiches : la table qu'on vient de lire montre
-       combien sont touchées, la maison décide en connaissance de cause. */
-    removeSegment(name, true);
-    setSegNotes((prev) => {
-      const { [name]: _drop, ...rest } = prev;
-      return rest;
-    });
-  };
-
-  const setNote = (seg: string, patch: SegmentNote) =>
-    setSegNotes((prev) => ({ ...prev, [seg]: { ...(prev[seg] ?? {}), ...patch } }));
   const [offerModal, setOfferModal] = useState(false);
   const [offerEditId, setOfferEditId] = useState<string | null>(null);
   const [offerForm, setOfferForm] = useState<OfferForm>(emptyOffer);
@@ -177,48 +127,7 @@ export default function Marketing() {
     );
   };
 
-  const branchCampaigns = useMemo(() => campaigns.filter((c) => c.branchId === branch.id), [campaigns, branch.id]);
   const branchOffers = useMemo(() => offers.filter((o) => o.branchId === branch.id), [offers, branch.id]);
-
-  /* — audience : segments réels des têtes couronnées de la branche — */
-  /* L'audience est pilotée par la LISTE gérable, pas seulement par les segments
-     déjà portés : un segment fraîchement créé doit apparaître (taille 0) pour
-     qu'on puisse le nommer et l'annoter avant la première cliente.
-     Un segment orphelin (porté par des fiches mais absent de la liste) est
-     montré quand même — le taire reviendrait à cacher des clientes. */
-  const audienceRows = useMemo(() => {
-    /* UNE AUDIENCE EST UNE LISTE DE GENS À QUI L'ON ÉCRIT. Les clientes de
-       passage n'en font pas partie : leur écrire, c'est du bruit — et le bruit
-       fait ignorer tous les messages suivants, y compris ceux qui comptent.
-       Elles gonfleraient aussi la taille et fausseraient la valeur moyenne du
-       segment. Voir `Client.dePassage`. */
-    const inBranch = clients.filter((c) => c.branchId === branch.id && !c.archived && !estDePassage(c));
-    const size = new Map<string, number>();
-    const spend = new Map<string, number>();
-    inBranch.forEach((c) => {
-      const paid = invoices
-        .filter((i) => i.clientId === c.id && i.kind === 'facture' && i.status === 'payée')
-        .reduce((s, i) => s + invoiceTotal(i), 0);
-      c.segments.forEach((s) => {
-        size.set(s, (size.get(s) ?? 0) + 1);
-        spend.set(s, (spend.get(s) ?? 0) + paid);
-      });
-    });
-    const orphans = Array.from(size.keys()).filter((s) => !segmentList.includes(s));
-    return [...segmentList, ...orphans]
-      .map((seg) => {
-        const n = size.get(seg) ?? 0;
-        return {
-          seg,
-          size: n,
-          /* Valeur moyenne réelle : factures payées des clientes du segment.
-             « — » tant qu'aucune n'a payé — la maison n'invente pas un panier. */
-          value: n > 0 ? Math.round((spend.get(seg) ?? 0) / n) : 0,
-          orphan: !segmentList.includes(seg),
-        };
-      })
-      .sort((a, b) => b.size - a.size || a.seg.localeCompare(b.seg));
-  }, [clients, invoices, branch.id, segmentList]);
 
   const serviceName = (id?: string) => (id ? services.find((s) => s.id === id)?.name ?? 'Prestation retirée du catalogue' : '');
 
@@ -256,27 +165,6 @@ export default function Marketing() {
     toast(couvertes.length
       ? `« ${sa.nom} » reprend son code ${sa.code} et ${couvertes.length} prestation${couvertes.length > 1 ? 's' : ''}.`
       : `« ${sa.nom} » reprend ses réglages.`);
-  };
-
-  const isOn = (id: string) => autoActive[id] !== false;
-  const activeCount = automations.filter((a) => isOn(a.id)).length;
-  const msgCount = automations.filter((a) => isOn(a.id)).reduce((s, a) => s + a.runs, 0);
-
-  /** Enregistre une automatisation (création ou édition). */
-  const saveAutomation = (a: Automation) => {
-    setAutomations((prev) => (prev.some((x) => x.id === a.id) ? prev.map((x) => (x.id === a.id ? a : x)) : [...prev, a]));
-    setAutoModal(null);
-  };
-
-  /** Retire l'automatisation ET son interrupteur — sans quoi l'état resterait
-      orphelin dans `mnd_automations_active` et ressusciterait un id recréé. */
-  const removeAutomation = (id: string) => {
-    setAutomations((prev) => prev.filter((x) => x.id !== id));
-    setAutoActive((prev) => {
-      const { [id]: _drop, ...rest } = prev;
-      return rest;
-    });
-    setAutoModal(null);
   };
 
   /* LES CODES DÉJÀ PRIS, celui qu'on modifie excepté : deux offres au même
@@ -438,10 +326,10 @@ export default function Marketing() {
       <PageHead
         eyebrow="Intelligence · Marketing & IA"
         title="L’intelligence."
-        sub="Campagnes · offres · automatisations."
+        sub="Campagnes · offres · automatisations · audience."
         actions={
           tab === 'offres' ? <Button variant="copper" onClick={openNewOffer}>+ Offre instantanée</Button>
-          : tab === 'auto' ? <Button variant="copper" onClick={() => setAutoModal('new')}>+ Automatisation</Button>
+          : tab === 'campagnes' ? <Button variant="copper" onClick={nouvelleCampagne}>+ Campagne</Button>
           : undefined
         }
       />
@@ -458,44 +346,7 @@ export default function Marketing() {
       />
 
       {tab === 'campagnes' && (
-        <div>
-          <div className="tre-deep" style={{ marginBottom: 16 }}>
-            <div>
-              <div className="tre-deep__eyebrow">Intelligence, en attente de vécu</div>
-              <div className="tre-deep__body">
-                L’intelligence attend l’activité de la maison.
-                <div style={{ fontFamily: 'var(--font-sans)', fontWeight: 300, fontSize: 12.5, color: 'rgba(246,241,231,.7)', marginTop: 5 }}>
-                  Les propositions de campagne naîtront des rendez-vous, des ventes et du Cercle, jamais d’invention.
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <Card style={{ overflow: 'hidden' }}>
-            <div className="mnd-scroll-x">
-              <table className="tre-table">
-                <thead>
-                  <tr><th>Campagne</th><th>Segment</th><th>Canal</th><th>Statut</th><th>Portée</th><th>Lift</th></tr>
-                </thead>
-                <tbody>
-                  {branchCampaigns.map((c) => (
-                    <tr key={c.id}>
-                      <td><span style={{ fontFamily: 'var(--font-serif)', fontSize: 17, color: 'var(--color-indigo)' }}>{c.name}</span></td>
-                      <td className="mnd-muted">{c.segment}</td>
-                      <td><Pill tone="muted">{c.canal}</Pill></td>
-                      <td><Pill tone={campTone(c.statut)}>{c.statut}</Pill></td>
-                      <td>{c.reach}</td>
-                      <td className="num" style={{ color: c.lift.startsWith('+') ? 'var(--copper-700)' : undefined }}>{c.lift}</td>
-                    </tr>
-                  ))}
-                  {branchCampaigns.length === 0 && (
-                    <tr><td colSpan={6} className="mnd-muted" style={{ textAlign: 'center', padding: 32 }}>Aucune campagne pour cette branche.</td></tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </Card>
-        </div>
+        <OngletCampagnes abonnes={abonnes} brouillon={brouillon} onBrouillon={setBrouillon} />
       )}
 
       {tab === 'offres' && (
@@ -768,177 +619,9 @@ export default function Marketing() {
         </div>
       )}
 
-      {tab === 'auto' && (
-        <div>
-          <div className="tr-grid tr-grid--3" style={{ marginBottom: 16 }}>
-            <Card filet="copper" style={{ padding: 16 }}>
-              <div className="mnd-stat__label">Automatisations actives</div>
-              <div className="mnd-stat__value" style={{ fontSize: 28 }}>{activeCount} / {automations.length}</div>
-            </Card>
-            <Card filet="indigo" style={{ padding: 16 }}>
-              <div className="mnd-stat__label">Messages ce mois</div>
-              <div className="mnd-stat__value" style={{ fontSize: 28 }}>{msgCount > 0 ? msgCount : '—'}</div>
-            </Card>
-            <Card filet="indigo" style={{ padding: 16 }}>
-              <div className="mnd-stat__label">Taux d’action</div>
-              <div className="mnd-stat__value" style={{ fontSize: 28 }}>—</div>
-            </Card>
-          </div>
+      {tab === 'auto' && <OngletAutomatisations />}
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {automations.length === 0 && (
-              <Card style={{ padding: '22px 24px' }}>
-                <p className="mnd-muted" style={{ fontSize: 12.5, margin: 0 }}>
-                  Aucune automatisation. Créez-en une, la maison parlera d’une seule voix.
-                </p>
-              </Card>
-            )}
-            {automations.map((a) => (
-              <Card key={a.id} style={{ padding: '15px 20px', display: 'flex', alignItems: 'center', gap: 18, opacity: isOn(a.id) ? 1 : 0.55 }}>
-                <button
-                  type="button"
-                  onClick={() => setAutoModal(a)}
-                  title="Modifier cette automatisation"
-                  style={{
-                    flex: 1, display: 'flex', alignItems: 'center', gap: 14, minWidth: 0,
-                    flexWrap: 'wrap', background: 'none', border: 'none', padding: 0,
-                    cursor: 'pointer', textAlign: 'left', font: 'inherit',
-                  }}
-                >
-                  <span style={{ fontSize: 12.5, background: 'var(--color-sable)', borderRadius: 2, padding: '7px 11px' }}>{a.trig}</span>
-                  <span style={{ color: 'var(--color-copper)' }}>→</span>
-                  <span style={{ fontSize: 12.5, color: 'var(--color-indigo)' }}>{a.act}</span>
-                </button>
-                <Pill tone="muted">{a.canal}</Pill>
-                <span className="mnd-muted" style={{ fontSize: 11.5, flex: 'none', width: 110, textAlign: 'right' }}>{a.runs > 0 ? `${a.runs} ce mois` : '—'}</span>
-                <Toggle on={isOn(a.id)} onToggle={() => setAutoActive((prev) => ({ ...prev, [a.id]: !isOn(a.id) }))} />
-              </Card>
-            ))}
-          </div>
-
-          <Card style={{ marginTop: 18, padding: '22px 24px' }}>
-            <Eyebrow>Automatisations · informations pour l’IA</Eyebrow>
-            <div style={{ fontFamily: 'var(--font-serif)', fontWeight: 300, fontSize: 21, color: 'var(--color-indigo)', marginTop: 6 }}>Liens configurables.</div>
-            <p className="mnd-muted" style={{ fontSize: 12, marginTop: 3, maxWidth: 640, lineHeight: 1.6 }}>
-              Le lien MoMo, l’itinéraire et le lien d’avis Google sont insérés tels quels dans les messages automatiques, rappels, relances, invitations. Ils se règlent aussi dans Paramètres → Automatisations.
-            </p>
-            <div className="tr-grid tr-grid--2" style={{ marginTop: 16 }}>
-              <Field label="Lien de paiement MoMo">
-                <Input value={autoCfg.momoLink} onChange={(e) => setAutoCfg({ ...autoCfg, momoLink: e.target.value })} />
-              </Field>
-              <Field label="Lien Google Maps · itinéraire">
-                <Input value={autoCfg.mapsLink} onChange={(e) => setAutoCfg({ ...autoCfg, mapsLink: e.target.value })} />
-              </Field>
-              <Field label="Lien Google Avis">
-                <Input value={autoCfg.reviewLink} onChange={(e) => setAutoCfg({ ...autoCfg, reviewLink: e.target.value })} />
-              </Field>
-              <Field label="Itinéraire · texte libre">
-                <Textarea
-                  rows={2}
-                  value={autoCfg.itineraire}
-                  onChange={(e) => setAutoCfg({ ...autoCfg, itineraire: e.target.value })}
-                />
-              </Field>
-            </div>
-          </Card>
-        </div>
-      )}
-
-      {tab === 'audience' && (
-        <div>
-          <Card style={{ overflow: 'hidden' }}>
-            <div className="mnd-scroll-x">
-              <table className="tre-table">
-                <thead>
-                  <tr>
-                    <th>Segment</th><th>Taille</th><th>Valeur moy.</th>
-                    <th>Propension à réserver</th><th>Moment idéal</th><th />
-                  </tr>
-                </thead>
-                <tbody>
-                  {audienceRows.length === 0 && (
-                    <tr>
-                      <td colSpan={6} className="mnd-muted" style={{ textAlign: 'center', padding: 28 }}>
-                        Aucun segment, nommez le premier ci-dessous, l’audience se dessinera avec les têtes couronnées.
-                      </td>
-                    </tr>
-                  )}
-                  {audienceRows.map((a) => {
-                    const note = segNotes[a.seg] ?? {};
-                    return (
-                      <tr key={a.seg}>
-                        <td>
-                          {segEdit === a.seg ? (
-                            <Input
-                              autoFocus
-                              value={segEditVal}
-                              onChange={(e) => setSegEditVal(e.target.value)}
-                              onBlur={() => commitSegRename(a.seg)}
-                              onKeyDown={(e) => {
-                                if (e.key === 'Enter') commitSegRename(a.seg);
-                                if (e.key === 'Escape') setSegEdit(null);
-                              }}
-                              style={{ maxWidth: 190 }}
-                            />
-                          ) : (
-                            <button
-                              type="button"
-                              className="tre-segname"
-                              title="Renommer, les fiches taguées suivent"
-                              onClick={() => { setSegEdit(a.seg); setSegEditVal(a.seg); }}
-                            >
-                              {a.seg}
-                              {a.orphan && <span className="tre-orphan" title="Porté par des fiches mais absent de la liste">hors liste</span>}
-                            </button>
-                          )}
-                        </td>
-                        <td>{a.size}</td>
-                        <td className={a.value > 0 ? 'num' : 'num mnd-muted'}>
-                          {a.value > 0 ? fmtMoney(a.value, currency) : '—'}
-                        </td>
-                        <td>
-                          <Input
-                            value={note.propension ?? ''}
-                            placeholder="—"
-                            onChange={(e) => setNote(a.seg, { propension: e.target.value })}
-                            style={{ maxWidth: 180 }}
-                          />
-                        </td>
-                        <td>
-                          <Input
-                            value={note.moment ?? ''}
-                            placeholder="—"
-                            onChange={(e) => setNote(a.seg, { moment: e.target.value })}
-                            style={{ maxWidth: 180 }}
-                          />
-                        </td>
-                        <td style={{ textAlign: 'right' }}>
-                          <button type="button" className="tre-segdel" title="Retirer ce segment" onClick={() => dropSegment(a.seg, a.size)}>
-                            ✕
-                          </button>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-            <div style={{ display: 'flex', gap: 8, alignItems: 'center', padding: '12px 18px', borderTop: '1px solid var(--hairline)', flexWrap: 'wrap' }}>
-              <Input
-                value={newSeg}
-                placeholder="Nommer un segment"
-                onChange={(e) => setNewSeg(e.target.value)}
-                onKeyDown={(e) => { if (e.key === 'Enter') addNewSeg(); }}
-                style={{ maxWidth: 260 }}
-              />
-              <Button variant="ghost" onClick={addNewSeg}>+ Segment</Button>
-              <span className="mnd-muted" style={{ fontSize: 11, marginLeft: 'auto' }}>
-                Taille et valeur viennent du vécu · propension et moment sont la parole des maîtres.
-              </span>
-            </div>
-          </Card>
-        </div>
-      )}
+      {tab === 'audience' && <OngletAudience abonnes={abonnes} onEcrire={ecrireA} />}
 
       {offerModal && (
         <Modal title={offerEditId ? 'Modifier l’offre instantanée.' : 'Nouvelle offre instantanée.'} onClose={() => setOfferModal(false)} width={560}>
@@ -1156,83 +839,6 @@ export default function Marketing() {
         </Modal>
       )}
 
-      {autoModal && (
-        <AutomationModal
-          initial={autoModal === 'new' ? null : autoModal}
-          onSave={saveAutomation}
-          onRemove={removeAutomation}
-          onClose={() => setAutoModal(null)}
-        />
-      )}
     </div>
-  );
-}
-
-/* ---------- Créer / modifier une automatisation ---------- */
-function AutomationModal({
-  initial, onSave, onRemove, onClose,
-}: {
-  initial: Automation | null;
-  onSave: (a: Automation) => void;
-  onRemove: (id: string) => void;
-  onClose: () => void;
-}) {
-  const [trig, setTrig] = useState(initial?.trig ?? '');
-  const [act, setAct] = useState(initial?.act ?? '');
-  const [canal, setCanal] = useState<AutomationCanal>(initial?.canal ?? 'WhatsApp');
-  const [error, setError] = useState<string | null>(null);
-
-  const submit = () => {
-    if (!trig.trim()) { setError('Indiquez le déclencheur.'); return; }
-    if (!act.trim()) { setError('Indiquez l’action.'); return; }
-    onSave({
-      id: initial?.id ?? `au-${uid()}`,
-      trig: trig.trim(),
-      act: act.trim(),
-      canal,
-      /* Le compteur d'envois appartient à l'usage, pas au formulaire. */
-      runs: initial?.runs ?? 0,
-    });
-  };
-
-  return (
-    <Modal title={initial ? 'Modifier l’automatisation.' : 'Nouvelle automatisation.'} onClose={onClose} width={560}>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-        <Field label="Déclencheur, quand ?">
-          <Input
-            value={trig}
-            onChange={(e) => { setTrig(e.target.value); setError(null); }}
-          />
-        </Field>
-        <Field label="Action, quoi ?">
-          <Input
-            value={act}
-            onChange={(e) => { setAct(e.target.value); setError(null); }}
-          />
-        </Field>
-        <Field label="Canal">
-          <Select value={canal} onChange={(e) => setCanal(e.target.value as AutomationCanal)}>
-            {AUTOMATION_CANAUX.map((c) => <option key={c} value={c}>{c}</option>)}
-          </Select>
-        </Field>
-
-        {error && <div className="mnd-muted" style={{ fontSize: 12, color: 'var(--copper-700)' }}>{error}</div>}
-
-        <p className="mnd-muted" style={{ fontSize: 11.5, lineHeight: 1.6, margin: 0 }}>
-          La maison consigne l’automatisation et son interrupteur. L’envoi lui-même n’est pas
-          encore câblé, aucun message ne partira tant que le canal ne sera pas relié.
-        </p>
-
-        <div style={{ display: 'flex', gap: 10, justifyContent: 'space-between', flexWrap: 'wrap' }}>
-          {initial ? (
-            <Button variant="ghost" onClick={() => onRemove(initial.id)}>Retirer</Button>
-          ) : <span />}
-          <div style={{ display: 'flex', gap: 10 }}>
-            <Button variant="ghost" onClick={onClose}>Annuler</Button>
-            <Button variant="copper" onClick={submit}>{initial ? 'Enregistrer' : 'Créer'}</Button>
-          </div>
-        </div>
-      </div>
-    </Modal>
   );
 }

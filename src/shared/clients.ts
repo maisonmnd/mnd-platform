@@ -1,5 +1,6 @@
 import type { ChoixDeRecompense, ModeleDeCarte, ResumeParrainage, SoinOffert } from './parrainage-pur';
 import type { ArchiveDesLunes, Graine } from './douze-lunes-pur';
+import type { AccordDesNouvelles } from './audiences-pur';
 import { createStore, useStore, uid, HOUSE_BLANK } from './store';
 import { accordePour, type AccordImage } from './droit-image';
 import { type EnvieKey } from './quiz';
@@ -28,6 +29,11 @@ export type Client = {
   campagne?: string;
   pageOrigine?: string;
   consentementLe?: string;
+  /** LES NOUVELLES DE LA MAISON — 21 octobre 2026. Oui ou non, daté, et d'où
+      vient la réponse. Sans « oui », aucune campagne WhatsApp ne lui part,
+      jamais (règle de WhatsApp, choix de Yéman). Les rappels, confirmations
+      et reçus ne dépendent pas de cet accord. Voir `shared/audiences-pur`. */
+  nouvelles?: AccordDesNouvelles;
   /** LE COMPTE MA COURONNE RATTACHÉ À CETTE FICHE.
 
       Ma Couronne reliait une cliente à son dossier par l'IDENTIFIANT : la

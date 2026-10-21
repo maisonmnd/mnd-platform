@@ -1126,6 +1126,7 @@ export default function Conversations() {
 
       {vue === 'envois' && (
         <EnvoisAutomatiques
+          typeInitial={params.get('type')}
           onOuvrirLeFil={(numero) => {
             const n = numeroWa(numero);
             setVue('fils');

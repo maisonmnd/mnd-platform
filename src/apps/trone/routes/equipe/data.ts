@@ -11,6 +11,7 @@ import type { ReglageDeLAutomate } from '../../../../shared/automate-wa';
 import { ussdAvecMontant } from '../../../../shared/momo';
 import type { Echeance } from '../../../../shared/echeancier';
 import type { OptionCouleur } from '../../../../shared/couleur';
+import type { Campagne } from '../../../../shared/campagnes-pur';
 
 /* Équipe & Croissance + Système — données du module.
    Tout est persisté en localStorage (createStore) ; branchId partout où c'est pertinent. */
@@ -422,16 +423,11 @@ export const netAVerser = (m: StaffMember) =>
    2 · Marketing — campagnes, offres instantanées, automatisations
    ============================================================ */
 
-export type Campaign = {
-  id: string;
-  branchId: string;
-  name: string;
-  segment: string;
-  canal: 'WhatsApp' | 'SMS';
-  statut: 'Active' | 'Programmée' | 'Brouillon';
-  reach: string;
-  lift: string;
-};
+/* LA CAMPAGNE BRANCHÉE — 21 octobre 2026. L'ancienne forme (nom, segment,
+   « portée », « lift » en texte libre) n'avait jamais été écrite par rien :
+   la table était vide. La campagne vit désormais dans `shared/campagnes-pur`,
+   et ses messages dans la table `envois`, comme tous les autres. */
+export type Campaign = Campagne;
 
 /* Maison neuve — aucune donnée de démonstration ; tout naît de l’usage. */
 export const CAMPAIGNS_SEED: Campaign[] = [];
@@ -610,7 +606,10 @@ export type Envoi = {
   /** « confirmation » (confirmation-rdv) et « accuse » (demande-submit, 18
       septembre) rejoignent le journal ; « fin-de-paquet » y vivait déjà sans
       être déclaré. Le journal les lit tous (`shared/envois`). */
-  type: 'rappel-j1' | 'avis-google' | 'confirmation' | 'accuse' | 'fin-de-paquet' | 'reprise-j3' | 'point-apres' | 'point-avant' | 'relance-facture';
+  type: 'rappel-j1' | 'avis-google' | 'confirmation' | 'accuse' | 'fin-de-paquet' | 'reprise-j3' | 'point-apres' | 'point-avant' | 'relance-facture'
+    | 'rappel-echeance' | 'prix-revu' | 'parrainage' | 'campagne';
+  /** La campagne du Marketing qui l'a déposé (21 octobre 2026). */
+  campagneId?: string;
   canal: 'push' | 'whatsapp' | 'sms' | 'wa-main';
   apptId: string;
   /** Le numéro et le prénom, quand il n'y a pas encore de fiche : l'accusé
