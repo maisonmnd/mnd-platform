@@ -2255,25 +2255,22 @@ footer ul { gap: 12px; }
 }
 
 /* LA FENÊTRE DE L'OFFRE, ÉPURÉE — 21 octobre 2026 (proposition B, la
-   structure du coupon Lacoste) : l'étiquette tissée de la Maison sur un piqué
-   d'un côté ; de l'autre la date, le chiffre en grand, ce qu'il couvre, le
+   structure du coupon Lacoste) : l'étiquette de la Maison sur une toile unie
+   (aucun motif dessiné en CSS, les couleurs de la palette) d'un côté ; de l'autre la date, le chiffre en grand, ce qu'il couvre, le
    code, un bouton. Au téléphone, l'étiquette passe en bande au-dessus. */
-.remise-fenetre { --pique: #E6DCCB; --pique-clair: #EFE7D9; --pique-sombre: #D9CCB6; --pique-ombre: rgba(80, 60, 30, .24);
+.remise-fenetre { --pique: #EEE6D6; --pique-clair: #F6F1E7; --pique-sombre: #E7D7C2;
   padding: 0; border: 0; border-radius: 4px; width: min(780px, calc(100% - 32px)); max-height: calc(100dvh - 32px); overflow: auto; background: var(--fond); color: var(--titre); box-shadow: 0 30px 80px rgba(21, 23, 58, .4); }
-.remise-fenetre--rose { --pique: #E6C2C7; --pique-clair: #EDCBD0; --pique-sombre: #D9AEB4; --pique-ombre: rgba(80, 30, 45, .28); }
+/* LE ROSE D'OCTOBRE ROSE, seule couleur hors palette du site, et seulement ici
+   (proposition B choisie par Yéman le 21 octobre 2026) ; verifie-la-lumiere le
+   cantonne à cette règle. */
+.remise-fenetre--rose { --pique: #E6C2C7; --pique-clair: #EDCBD0; --pique-sombre: #D9AEB4; }
 .remise-fenetre::backdrop { background: rgba(21, 23, 58, .45); }
 @keyframes remise-entre { from { opacity: 0; transform: translateY(18px); } }
 .remise-fenetre__carte { position: relative; display: grid; grid-template-columns: 1fr 1fr; min-height: 420px; }
 .remise-fenetre__fermer { position: absolute; top: 12px; right: 12px; z-index: 2; width: 40px; height: 40px; border-radius: 50%; border: 0; background: var(--carte); color: var(--titre); font: 400 22px/1 var(--sans); cursor: pointer; box-shadow: 0 4px 14px rgba(21, 23, 58, .22); }
 .remise-fenetre__fermer:focus-visible { outline: 2px solid var(--titre); outline-offset: 2px; }
-.remise-fenetre__vue { display: grid; place-items: center; padding: 28px; background:
-    radial-gradient(circle at 25% 25%, rgba(255, 255, 255, .28) 0 1px, transparent 1.6px) 0 0 / 6px 6px,
-    radial-gradient(circle at 75% 75%, rgba(60, 30, 20, .09) 0 1px, transparent 1.6px) 0 0 / 6px 6px,
-    radial-gradient(120% 90% at 30% 20%, var(--pique-clair) 0%, var(--pique) 55%, var(--pique-sombre) 100%); }
-.remise-etiquette { width: 72%; max-width: 260px; aspect-ratio: 1.45; padding: 9px; transform: rotate(-4deg); background:
-    repeating-linear-gradient(90deg, rgba(30, 33, 80, .035) 0 1px, transparent 1px 3px),
-    repeating-linear-gradient(0deg, rgba(30, 33, 80, .03) 0 1px, transparent 1px 3px), #FBF8F1;
-  box-shadow: 0 10px 22px var(--pique-ombre), 0 1px 0 rgba(255, 255, 255, .7) inset; }
+.remise-fenetre__vue { display: grid; place-items: center; padding: 28px; background: linear-gradient(160deg, var(--pique-clair) 0%, var(--pique) 55%, var(--pique-sombre) 100%); }
+.remise-etiquette { width: 72%; max-width: 260px; aspect-ratio: 1.45; padding: 9px; transform: rotate(-4deg); background: #FFFDF9; box-shadow: 0 10px 22px rgba(21, 23, 58, .22); }
 .remise-etiquette__cadre { height: 100%; border: 2px solid var(--titre); outline: 1px solid var(--titre); outline-offset: -6px; display: grid; place-items: center; align-content: center; gap: 8px; padding: 10px; text-align: center; }
 .remise-etiquette__cadre img { width: 72%; height: auto; }
 .remise-etiquette__cadre p { margin: 0; font: 500 10px/1.3 var(--sans); letter-spacing: .24em; text-transform: uppercase; color: var(--titre); }

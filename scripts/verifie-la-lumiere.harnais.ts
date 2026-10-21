@@ -515,7 +515,16 @@ const regles: Regle[] = [
       const ecarts: string[] = [];
       const i = e.feuille.indexOf(BLOC);
       if (i < 0) return ['le bloc « LA LUMIERE ET LA FIN » manque'];
-      const bloc = sansCommentaires(e.feuille.slice(e.feuille.lastIndexOf('/*', i)));
+      let bloc = sansCommentaires(e.feuille.slice(e.feuille.lastIndexOf('/*', i)));
+      /* LE ROSE D'OCTOBRE ROSE (21 octobre 2026, proposition B choisie par
+         Yéman) : la seule couleur hors palette du site, permise dans la seule
+         règle `.remise-fenetre--rose`, et seulement ces trois teintes. Ailleurs,
+         elles restent hors palette. */
+      const ROSE = new Set(['#E6C2C7', '#EDCBD0', '#D9AEB4']);
+      const regleRose = /\.remise-fenetre--rose \{[^}]*\}/.exec(bloc)?.[0] ?? '';
+      for (const h of regleRose.match(/#[0-9A-Fa-f]{3,6}\b/g) ?? []) if (!ROSE.has(h.toUpperCase())) ecarts.push(`${h} dans la regle du rose d Octobre Rose`);
+      if (/rgba\(|url\(|gradient/.test(regleRose)) ecarts.push('la regle du rose d Octobre Rose ne pose que ses trois teintes');
+      if (regleRose) bloc = bloc.replace(regleRose, '');
       const permis = new Set(['#F6F1E7', '#EEE6D6', '#FFFDF9', '#FAF1E9', '#E7D7C2', '#EDEEF4', '#D3D5E5', '#1E2150', '#15173A', '#272B6C', '#B97A4A', '#D6A06F', '#7C4C2C', '#2A2722', '#5E5750']);
       for (const h of bloc.match(/#[0-9A-Fa-f]{3,6}\b/g) ?? []) if (!permis.has(h.toUpperCase())) ecarts.push(`${h} hors palette dans le bloc`);
       for (const r of bloc.match(/rgba\([^)]*\)/g) ?? []) if (!/^rgba\((246, 241, 231|30, 33, 80|214, 160, 111|21, 23, 58|250, 241, 233|238, 230, 214|231, 215, 194|237, 238, 244|211, 213, 229)/.test(r)) ecarts.push(`${r} : un rgba hors palette`);
@@ -530,6 +539,8 @@ const regles: Regle[] = [
       return ecarts;
     },
     pannes: [
+      { nom: 'le rose hors de sa regle', mute: (e) => ({ ...copie(e), feuille: e.feuille.replace('.remise-fenetre__vue { display: grid;', '.remise-fenetre__vue { color: #E6C2C7; display: grid;') }) },
+      { nom: 'une teinte de plus dans la regle du rose', mute: (e) => ({ ...copie(e), feuille: e.feuille.replace('.remise-fenetre--rose { --pique: #E6C2C7;', '.remise-fenetre--rose { --pique: #E6C2C7; --vif: #FF0066;') }) },
       { nom: 'du noir dans le masque', mute: (e) => ({ ...copie(e), feuille: e.feuille.replace('mask-image: linear-gradient(90deg, transparent, var(--sombre)', 'mask-image: linear-gradient(90deg, transparent, #000') }) },
       { nom: 'une signature tapee a la main', mute: (e) => ({ ...copie(e), gen: e.gen.replace('<p class="pied-signature">${echappe(DEVISE_COMPLETE)}</p>', '<p class="pied-signature">mi nyɔ́ ɖɛkpɛ — votre beauté est déjà là</p>') }) },
     ],
