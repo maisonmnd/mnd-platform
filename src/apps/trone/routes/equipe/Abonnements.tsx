@@ -1580,15 +1580,20 @@ export default function Abonnements() {
                       <div key={perk} className="tre-plan__perk"><span className="mark">✦</span><span>{perk}</span></div>
                     ))}
                   </div>
-                  <div style={{ display: 'flex', gap: 8, marginTop: 20 }}>
-                    <Button size="sm" variant={p.popular ? 'copper' : 'ghost'} style={{ flex: 1 }} onClick={() => openPlanEdit(p)}>Modifier</Button>
+                  {/* LES TROIS GESTES SE LISENT SUR LES DEUX FONDS (21 octobre
+                      2026) : sur la carte en vedette, indigo, « Fermer à la
+                      vente » et « Retirer » s'écrivaient en encre sombre et ne
+                      se voyaient plus ; la rangée, trop large, débordait de la
+                      carte. Elle passe désormais à la ligne. */}
+                  <div className="tre-plan__actions">
+                    <Button size="sm" variant={p.popular ? 'copper' : 'ghost'} onClick={() => openPlanEdit(p)}>Modifier</Button>
                     {/* FERMER À LA VENTE, PAS EFFACER — 10 octobre 2026 (la genèse
                         des prix). La formule ne se propose plus à une nouvelle
                         abonnée ; ses contrats la lisent toujours. Rouvrir est le
                         même geste. */}
                     <Button
                       size="sm"
-                      variant="ghost"
+                      variant={p.popular ? 'ghost-invert' : 'ghost'}
                       onClick={() => {
                         const ouverte = estOuverteALaVente(p);
                         setPlans((prev) => prev.map((x) => (x.id === p.id ? basculeLaVente(x, isoDuJour(new Date())) : x)));
@@ -1616,7 +1621,7 @@ export default function Abonnements() {
                         l'écran est cassé. */}
                     <Button
                       size="sm"
-                      variant="ghost"
+                      variant={p.popular ? 'ghost-invert' : 'ghost'}
                       onClick={() => {
                         const dessus = members.filter((m) => m.planId === p.id);
                         if (dessus.length > 0) {

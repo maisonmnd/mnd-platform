@@ -465,6 +465,11 @@
 .tre-plan--popular .tre-plan__perk .mark { color: var(--copper-300); }
 .tre-plan__divider { height: 1px; background: var(--hairline); margin: 16px 0; }
 .tre-plan--popular .tre-plan__divider { background: rgba(255, 255, 255, 0.12); }
+/* Les trois gestes passent à la ligne plutôt que de déborder de la carte. */
+.tre-plan__actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 20px; }
+.tre-plan__actions > .mnd-btn { flex: 1 1 auto; }
+.tre-plan--popular .tre-plan__actions .mnd-btn--ghost-invert { border-color: rgba(246, 241, 231, 0.35); }
+.tre-plan--popular .tre-plan__actions .mnd-btn--ghost-invert:hover { background: rgba(255, 255, 255, 0.08); filter: none; }
 
 /* ---------- Recommandations ---------- */
 .tre-reco { border-top: 2px solid var(--color-copper); padding: 18px 20px; display: flex; flex-direction: column; }
