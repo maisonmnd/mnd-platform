@@ -119,6 +119,16 @@ export default function Analytics() {
     [invoices, scope],
   );
 
+  /** Ce qu'une pièce a REÇU dans une fenêtre — versement par versement.
+      AU-DESSUS DE `life`, qui l'appelle pendant le rendu (21 octobre 2026) :
+      déclarée plus bas, elle n'existait pas encore, et l'écran tombait
+      (« Cannot access before initialization ») dès qu'une facture était là.
+      Sans facture, le banc hors ligne ne l'appelait jamais. */
+  const regleEntre = (i: Invoice, from: string, to: string): number =>
+    invoiceReglements(i)
+      .filter((p) => (p.date ?? '') >= from && (p.date ?? '') <= to)
+      .reduce((n, p) => n + p.amountXof, 0);
+
   const today = todayISO();
   const thisMonth = today.slice(0, 7);
   const periodStart = period === 'mois' ? `${thisMonth}-01` : addDaysISO(today, -PERIOD_DAYS[period]);
@@ -195,12 +205,6 @@ export default function Analytics() {
            jamais encaissé n'en a pas, la ligne reste alors muette. */
         invoiceId: a.invoiceId,
       }));
-
-  /** Ce qu'une pièce a REÇU dans une fenêtre — versement par versement. */
-  const regleEntre = (i: Invoice, from: string, to: string): number =>
-    invoiceReglements(i)
-      .filter((p) => (p.date ?? '') >= from && (p.date ?? '') <= to)
-      .reduce((n, p) => n + p.amountXof, 0);
 
   /** Factures ayant reçu de l'argent dans une fenêtre. */
   const invoiceRows = (from: string, to: string): DrillRow[] =>
