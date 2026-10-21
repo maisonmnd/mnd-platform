@@ -1,5 +1,5 @@
 import { existsSync, readFileSync } from 'node:fs';
-import { IDS_DES_MOTEURS, LONGUEUR_MAX_DU_LIEN, MOTEURS, ajouteALHistorique, historiqueVivant, lienDeRecherche, lienPermis, peutRechercher, questionComposee, type Recherche } from '../src/shared/recherche-pur';
+import { DEVISE_DE_LA_MAISON, IDS_DES_MOTEURS, LONGUEUR_MAX_DU_LIEN, MODELES_DE_QUESTION, MOTEURS, ajouteALHistorique, effaceLaRecherche, historiqueVivant, lienDeRecherche, lienPermis, peutRechercher, questionComposee, questionDuModele, type Recherche } from '../src/shared/recherche-pur';
 
 /* LA RECHERCHE DEPUIS LE TRÔNE, ÉPROUVÉE — 13 octobre 2026.
    `node scripts/verifie-la-recherche.mjs [--prouve]`.
@@ -52,6 +52,24 @@ egal('la plus récente d’abord, et cent au plus', (() => { const l = ajouteALH
 /* ── 5. Aux fondateurs ── */
 egal('seuls Yéman et Brice voient le bouton (rôle souverain)', ['souverain', 'gerant', 'maitre', undefined].map(peutRechercher), [true, false, false, false]);
 
+
+/* ── 6. 21 octobre 2026 : effacer, une ligne par question, la conversation qui ne se garde pas, les modèles ── */
+const r2 = (id: string, joursAvant: number, moteur: 'claude' | 'chatgpt', question: string, modele?: string): Recherche => ({ id, le: new Date(new Date(ici).getTime() - joursAvant * 86_400_000).toISOString(), moteur, question, ...(modele ? { modele } : {}) });
+const doublons = [r2('a', 1, 'claude', 'Répond à cet avis'), r2('b', 0, 'chatgpt', '  répond à cet  AVIS ')];
+egal('la même question deux fois : une seule ligne, la plus récente, les deux moteurs', historiqueVivant(doublons, ici).map((x) => [x.id, x.moteurs]), [['b', ['chatgpt', 'claude']]]);
+egal('même texte, autre modèle : deux lignes', historiqueVivant([r2('a', 1, 'claude', 'x'), r2('b', 0, 'claude', 'x', 'avis-google')], ici).length, 2);
+egal('ajouter une question déjà posée ne la double pas', ajouteALHistorique(doublons, r2('c', 0, 'claude', 'répond à cet avis'), ici).length, 1);
+egal('effacer une question emporte tous ses exemplaires', effaceLaRecherche([...doublons, r2('z', 0, 'claude', 'autre')], doublons[0]).map((x) => x.id), ['z']);
+const tmp = lienDeRecherche('chatgpt', 'Ma question', null, [], { temporaire: true });
+egal('ChatGPT en conversation temporaire : le lien le demande, la question arrive', [tmp.startsWith('https://chatgpt.com/?temporary-chat=true&q='), decode(tmp), lienPermis(tmp)], [true, 'Ma question', true]);
+egal('sans le choix, ChatGPT s’ouvre comme avant', lienDeRecherche('chatgpt', 'Q', null, []).startsWith('https://chatgpt.com/?q='), true);
+egal('Claude n’a pas de lien temporaire : le lien ne change pas, le panneau rappelle le fantôme', [lienDeRecherche('claude', 'Q', null, [], { temporaire: true }), MOTEURS.claude.seGardePas.parLien, /fantôme/.test(MOTEURS.claude.seGardePas.dit)], ['https://claude.ai/new?q=Q', false, true]);
+const avis = questionDuModele('Merci Yéman et Brice, je vous embrasse de Kinshasa.', 'avis-google');
+egal('le modèle « avis » porte l’avis, la devise et les règles', [avis.includes('je vous embrasse de Kinshasa'), avis.includes(DEVISE_DE_LA_MAISON), /vouvoiement/.test(avis), /Pas de prix/.test(avis), /sans supposer Madame ou Monsieur/.test(avis)], [true, true, true, true, true]);
+egal('aucun modèle ne porte de tiret cadratin', MODELES_DE_QUESTION.filter((m) => m.gabarit('x').includes('—') || m.nom.includes('—') || m.invite.includes('—')).map((m) => m.id), []);
+egal('sans modèle, la question part telle quelle', questionDuModele('  Une question  '), 'Une question');
+egal('le modèle passe aussi par les barrières', decode(lienDeRecherche('claude', questionDuModele('Awa Dossou a écrit : merci', 'avis-google'), null, awa)).includes('Dossou'), false);
+
 /* ── Les règles qui lisent les sources, avec leurs pannes ── */
 type Entrees = { composant: string; pur: string; shell: string; css: string };
 const lis = (p: string) => (existsSync(p) ? readFileSync(p, 'utf8') : '');
@@ -70,7 +88,7 @@ const regles: Regle[] = [
       return x;
     },
     pannes: [
-      { nom: 'un appel direct à l’API', mute: (e) => ({ ...e, composant: e.composant.replace("const lien = lienDeRecherche(m, texte, e, personnes);", "const lien = lienDeRecherche(m, texte, e, personnes); void fetch('https://api.anthropic.com/v1/messages');") }) },
+      { nom: 'un appel direct à l’API', mute: (e) => ({ ...e, composant: e.composant.replace("const lien = lienDeRecherche(m, composee, e, personnes, { temporaire });", "const lien = lienDeRecherche(m, composee, e, personnes, { temporaire }); void fetch('https://api.anthropic.com/v1/messages');") }) },
       { nom: 'la garde du lien retirée', mute: (e) => ({ ...e, composant: e.composant.replace('if (!lienPermis(lien)) return false;', '') }) },
     ],
   },
@@ -80,13 +98,13 @@ const regles: Regle[] = [
       const x: string[] = [];
       const c = sansCommentaires(e.composant);
       if (!/if \(!peutRechercher\(role\)\) return null;/.test(c)) x.push('le bouton ne se ferme pas aux autres rôles');
-      if (!/lienDeRecherche\(m, texte, e, personnes\)/.test(c)) x.push('le lien se compose sans les personnes (pas d’anonymisation)');
+      if (!/lienDeRecherche\(m, composee, e, personnes, \{ temporaire \}\)/.test(c)) x.push('le lien se compose sans les personnes (pas d’anonymisation)');
       if (!/export function lienDeRecherche[\s\S]*questionComposee\(question, ecran, personnes\)/.test(e.pur) || !/pourClaude\(String\(question/.test(e.pur)) x.push('la question ne passe pas par pourClaude');
       return x;
     },
     pannes: [
       { nom: 'le bouton ouvert à tous', mute: (e) => ({ ...e, composant: e.composant.replace('if (!peutRechercher(role)) return null;', '') }) },
-      { nom: 'le lien composé sans les personnes', mute: (e) => ({ ...e, composant: e.composant.replace('lienDeRecherche(m, texte, e, personnes)', 'lienDeRecherche(m, texte, e, [])') }) },
+      { nom: 'le lien composé sans les personnes', mute: (e) => ({ ...e, composant: e.composant.replace('lienDeRecherche(m, composee, e, personnes, { temporaire })', 'lienDeRecherche(m, composee, e, [], { temporaire })') }) },
     ],
   },
   {
