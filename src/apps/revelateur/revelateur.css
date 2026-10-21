@@ -2398,3 +2398,54 @@ footer ul { gap: 12px; }
 .chat-pied a, .chat-lien { color: var(--accent-profond); text-decoration: underline; text-underline-offset: 3px; background: none; border: 0; padding: 0; font: inherit; cursor: pointer; }
 .joindre__ilot .vocal-panneau .deux-champs { grid-template-columns: 1fr; }
 .joindre__envies .joindre__choix { padding: 0; }
+
+/* ── LE CLUB DES PETITES COURONNES — 21 octobre 2026 ──────────────────
+   La page MND Kids à deux voix. « Pour toi » sur la toile de la Maison :
+   cinq moments, le collier de cauris (SVG écrit à la construction, ses
+   couleurs ici, en jetons), les paliers, le carnet et la fête. « Pour tes
+   parents » reprend les promesses et la grille de la Maison. */
+.club { padding-block: clamp(56px, 8vw, 96px); background: var(--fond-2); }
+.club-voix { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 26px; }
+.club-voix a { display: inline-flex; align-items: center; min-height: 44px; padding: 0 18px; border-radius: 999px; border: 1px solid rgba(30, 33, 80, .22); color: var(--titre); font: 400 12.5px var(--sans); letter-spacing: .14em; text-transform: uppercase; text-decoration: none; }
+.club-voix a[aria-current] { background: var(--titre); border-color: var(--titre); color: var(--fond); }
+.club-voix a:focus-visible { outline: 2px solid var(--accent-profond); outline-offset: 2px; }
+.club .ligne { max-width: 58ch; font-size: clamp(17px, 2vw, 19px); }
+.club-moments { list-style: none; margin: 30px 0 0; padding: 0; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 14px; }
+.club-moment { background: var(--carte); border: 1px solid rgba(30, 33, 80, .12); border-radius: 16px; padding: 20px 18px 22px; display: grid; gap: 8px; align-content: start; }
+.club-moment__icone { width: 52px; height: 52px; border-radius: 50%; background: var(--accent-clair); display: grid; place-items: center; }
+.club-icone { width: 28px; height: 28px; fill: none; stroke: var(--accent-profond); stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.club-icone .club-plein { fill: var(--accent-profond); stroke: none; }
+.club-moment__rang { font: 400 11px var(--sans); letter-spacing: .2em; text-transform: uppercase; color: var(--accent-profond); }
+.club-moment b { font: 400 25px/1.1 var(--serif); color: var(--titre); }
+.club-moment p { font-size: 15.5px; color: var(--texte); }
+.club-collier { margin-top: 40px; background: var(--carte); border-radius: 22px; padding: clamp(22px, 4vw, 40px); display: grid; gap: 20px; }
+.club-collier__tete { display: grid; gap: 8px; max-width: 60ch; }
+.club-collier__tete h3 { font: 400 clamp(26px, 3.4vw, 34px)/1.08 var(--serif); color: var(--titre); margin: 0; }
+.club-collier__tete p { font-size: clamp(16px, 1.9vw, 18px); color: var(--texte); }
+.club-collier__fil { display: block; width: 100%; height: auto; }
+.club-collier__fil--court { display: none; max-width: 420px; margin-inline: auto; }
+.club-cordon { fill: none; stroke: var(--accent-profond); stroke-width: 2.5; stroke-linecap: round; }
+.club-cauris ellipse { fill: var(--fond); stroke: var(--accent); stroke-width: 2; }
+.club-cauris .club-plein { fill: var(--accent-profond); }
+.club-cauris text { fill: var(--texte-doux); font: 400 13px var(--sans); }
+.club-cauris--palier ellipse { stroke: var(--accent-profond); stroke-width: 3; }
+.club-cauris--palier text { fill: var(--accent-profond); font-weight: 500; }
+.club-paliers { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.club-paliers li { border-top: 2px solid var(--accent); padding-top: 12px; display: grid; gap: 4px; align-content: start; }
+.club-palier__n { font: 500 11.5px var(--sans); letter-spacing: .16em; text-transform: uppercase; color: var(--accent-profond); }
+.club-paliers b { font: 400 23px/1.1 var(--serif); color: var(--titre); }
+.club-paliers p { font-size: 15px; color: var(--texte-doux); }
+.club-apres { margin-top: 32px; display: grid; grid-template-columns: 1fr 1fr; gap: 28px; }
+.club-apres h3 { font: 400 26px/1.1 var(--serif); color: var(--titre); margin: 0 0 8px; }
+.club-apres p { font-size: 16px; color: var(--texte); max-width: 52ch; }
+.club-parents__corps { display: grid; gap: 36px; }
+.club-liste { margin: 10px 0 0; padding-left: 18px; font-size: 14.5px; color: var(--texte-doux); display: grid; gap: 4px; }
+@media (max-width: 980px) {
+  .club-moments { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .club-paliers { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 560px) {
+  .club-moments, .club-paliers, .club-apres { grid-template-columns: 1fr; }
+  .club-collier__fil--long { display: none; }
+  .club-collier__fil--court { display: block; }
+}

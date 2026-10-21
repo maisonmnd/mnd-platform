@@ -1,0 +1,24 @@
+/* ══ SON COLLIER (le Club des Petites Couronnes) — 21 octobre 2026 ═══════
+   Les jetons de Ma Couronne seulement : le soir suit (--mc-encre, --mc-doux,
+   --mc-cuivre-texte changent avec le thème). */
+.mc-club {
+  position: relative;
+  margin-top: 16px;
+  background: var(--surface-card);
+  border: 1px solid var(--hairline);
+  border-radius: 4px;
+  padding: 13px 15px 14px;
+  display: grid;
+  gap: 6px;
+}
+.mc-club__label { font-size: 10px; letter-spacing: .18em; text-transform: uppercase; color: var(--mc-cuivre-texte); }
+.mc-club__titre { font-family: var(--font-serif); font-size: 22px; line-height: 1.15; color: var(--mc-encre); }
+.mc-club__palier { color: var(--mc-cuivre-texte); }
+.mc-club__collier { display: block; width: 100%; height: auto; margin: 2px 0 0; }
+.mc-club__cordon { fill: none; stroke: var(--mc-cuivre-texte); stroke-width: 2; stroke-linecap: round; }
+.mc-club__cauris { fill: none; stroke: var(--mc-cuivre-texte); stroke-width: 1.6; stroke-dasharray: 3 3; opacity: .55; }
+.mc-club__cauris.is-plein { fill: var(--copper-50); stroke-dasharray: none; opacity: 1; }
+.mc-club__fente { fill: var(--copper-700); }
+.mc-club__toi { margin: 0; font-family: var(--font-serif); font-style: italic; font-size: 17px; color: var(--mc-encre); }
+.mc-club__cadeau { margin: 0; font-size: 13.5px; color: var(--mc-cuivre-texte); }
+.mc-club__anniv { margin: 0; font-size: 13px; color: var(--mc-doux); }

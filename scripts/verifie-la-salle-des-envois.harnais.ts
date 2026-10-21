@@ -178,7 +178,7 @@ dit('le soir du 2, elles finissent le 3 a 8 h', iso(salon('2026-10-03', '08:00')
   };
   const egalise = (f: string) => readFileSync(f, 'utf8').replace(/\r\n/g, '\n').replace(/\s+/g, ' ');
   const DEPOSENT = ['reglesDepuis', 'heureDuSalon', 'dansLesHeuresCalmes', 'finDesHeuresCalmes', 'heureDeDepart', 'facteurVivant'];
-  for (const f of ['confirmation-rdv', 'rappels-j1', 'avis-google', 'relances-factures', 'rappels-d-echeance']) {
+  for (const f of ['confirmation-rdv', 'rappels-j1', 'avis-google', 'relances-factures', 'rappels-d-echeance', 'fete-de-couronne']) {
     const texte = egalise(`supabase/functions/${f}/index.ts`);
     dit(`${f} porte le calcul du depot, a l identique`, [], DEPOSENT.filter((n) => !texte.includes(duDepot(n))));
     dit(`${f} ne depose que si la salle est ouverte, et envoie comme avant sinon`, true, /salleOuverte/.test(texte) && /facteurVivant\(\(docs\?\.find\(\(d\) => d\.key === 'mnd_facteur'\)/.test(texte));
@@ -195,6 +195,8 @@ dit('le soir du 2, elles finissent le 3 a 8 h', iso(salon('2026-10-03', '08:00')
     'relances-factures': [/\.\.\.commun, statut: 'en-attente', \.\.\.depot\(/],
     /* La veille d'une échéance et le prix revu (20 octobre 2026). */
     'rappels-d-echeance': [/\.\.\.commun, statut: 'en-attente', \.\.\.depot\(/],
+    /* La fête de couronne du Club des Petites Couronnes (21 octobre 2026). */
+    'fete-de-couronne': [/\.\.\.commun, statut: 'en-attente', \.\.\.depot\(/],
   };
   for (const [f, motifs] of Object.entries(DEPOTS)) {
     const texte = egalise(`supabase/functions/${f}/index.ts`);

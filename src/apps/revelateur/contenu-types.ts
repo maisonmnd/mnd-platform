@@ -46,7 +46,23 @@ export type Section =
      (qui lit COMMUN.marques, rien n'est écrit dans la section). */
   | { type: 'piliers'; sur?: string; titre?: string; ligne?: string; items: { titre: string; ligne: string }[] }
   | { type: 'gamme'; sur?: string; titre?: string; ligne?: string; items: { nom: string; ligne: string; teinte: string }[] }
-  | { type: 'marques'; sur?: string; titre?: string; ligne?: string };
+  | { type: 'marques'; sur?: string; titre?: string; ligne?: string }
+  /* LE CLUB DES PETITES COURONNES — 21 octobre 2026 (programme validé par
+     Yéman). La page MND Kids à deux voix : `club-enfant` parle à l'enfant
+     (tu) : ses cinq moments, son collier de cauris et ses paliers, son
+     carnet, sa fête ; `club-parents` parle aux parents (vous). Le collier se
+     dessine en SVG à la construction, jamais en motif CSS. */
+  | {
+    type: 'club-enfant'; sur: string; titre: string; ligne: string;
+    moments: { icone: 'decouvre' | 'choisis' | 'collectionne' | 'soin' | 'fete'; titre: string; texte: string }[];
+    collier: { titre: string; texte: string; paliers: { cauris: number; titre: string; cadeau: string }[] };
+    apres: { titre: string; texte: string }[];
+  }
+  | {
+    type: 'club-parents'; sur: string; titre: string;
+    promesses: [string, string][];
+    items: { titre: string; texte: string; liste?: string[] }[];
+  };
 
 export type Page = {
   /** Le chemin canonique, avec la barre finale : `/premiere-couronne/`. */
@@ -73,6 +89,9 @@ export type Page = {
   faq?: [string, string][];
   /** Les pages libres se composent de sections, dans l'ordre. */
   sections?: Section[];
+  /** Sur une page de service, les sections posées JUSTE APRÈS l'ouverture,
+      avant le geste et les pas (21 octobre 2026, la page MND Kids). */
+  sectionsAvant?: Section[];
   /** Le balisage structuré à poser. */
   jsonld?: 'service' | 'faq' | 'course' | 'maison' | 'aucun';
   /** Le nom court dans le fil d'Ariane et le sitemap. */

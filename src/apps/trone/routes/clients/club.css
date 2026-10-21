@@ -1,0 +1,33 @@
+/* ══ LE CLUB DES PETITES COURONNES — 21 octobre 2026 ═══════════════════
+   La carte de la fiche et le signal du rendez-vous. Les jetons de la Maison,
+   un repli à chaque couleur : le sombre suit. */
+.trc-club {
+  border: 1px solid var(--copper-300);
+  border-radius: var(--radius-md);
+  background: var(--surface-card);
+  margin-top: 14px;
+  padding: 14px 16px 12px;
+  display: grid;
+  gap: 8px;
+}
+.trc-club__tete { display: flex; justify-content: space-between; align-items: flex-start; gap: 14px; flex-wrap: wrap; }
+.trc-club__eyebrow { font-size: 10px; letter-spacing: .16em; text-transform: uppercase; color: var(--copper-700); }
+.trc-club__nom { font-family: var(--font-serif); font-size: 21px; color: var(--color-indigo); line-height: 1.2; margin-top: 2px; }
+.trc-club__palier { color: var(--copper-700); }
+.trc-club__ligne { font-size: 13px; color: var(--ink-soft); margin-top: 3px; max-width: 60ch; }
+.trc-club__anniv { display: grid; gap: 1px; text-align: right; }
+.trc-club__anniv span { font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-soft); }
+.trc-club__anniv b { font-family: var(--font-serif); font-weight: 400; font-size: 18px; color: var(--color-indigo); }
+.trc-club__anniv small { font-size: 11px; color: var(--ink-soft); max-width: 34ch; }
+.trc-club__collier { display: block; width: 100%; max-width: 560px; height: auto; color: var(--copper-700); }
+.trc-club__collier.is-petit { max-width: 320px; }
+.trc-club__cauris { fill: none; stroke: var(--copper-300); stroke-width: 1.6; stroke-dasharray: 3 3; }
+.trc-club__cauris.is-plein { fill: var(--copper-50); stroke: var(--copper-700); stroke-dasharray: none; }
+.trc-club__fente { fill: var(--copper-700); }
+.trc-club__cadeaux { display: grid; gap: 6px; }
+.trc-club__cadeau { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; padding: 8px 10px; border-radius: var(--radius-md); background: var(--copper-50); border-left: 3px solid var(--color-copper); font-size: 13px; color: var(--ink); }
+.trc-club__cadeau b { color: var(--copper-700); font-weight: 600; }
+.trc-club__cadeau small { color: var(--ink-soft); font-size: 11.5px; }
+.trc-club__remis { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 11.5px; color: var(--ink-soft); }
+.trc-club__signal { display: grid; gap: 2px; border: 1px solid var(--copper-300); border-left: 3px solid var(--color-copper); border-radius: var(--radius-md); background: var(--copper-50); padding: 9px 12px; font-size: 13px; color: var(--copper-700); }
+.trc-club__signal b { font-size: 10px; letter-spacing: .14em; text-transform: uppercase; font-weight: 600; }

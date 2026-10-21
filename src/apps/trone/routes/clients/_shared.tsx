@@ -46,6 +46,7 @@ import { invoicesStore, invoiceTotal, invoiceReglements, caissesHorsBilan, quiEn
 import { releveDeLAbonnee, formuleProposeePourReserver, dansLaVie } from '../../../../shared/abonnee-pur';
 import { jourDeCotonou } from '../../../../shared/ia-faits-pur';
 import { SeanceDeLaFormule } from './SeanceDeLaFormule';
+import { SignalDuClub } from './CarteDuClub';
 import { effetDeLAnnulation } from './gestes-de-l-abonnement';
 import './clients.css';
 import { cheminDeLaConversation, lienDuFil, lienWaMe } from '../../../../shared/conversations';
@@ -3024,6 +3025,9 @@ export function RdvModal({
         {/* LA SÉANCE DE SA FORMULE — 20 octobre 2026 : « Incluse · séance 3 sur
             6 », ce qu'il reste, et les gestes qui font bouger le compteur. */}
         {appt && appt.coveredBySub && appt.coverKind !== 'forfait' && <SeanceDeLaFormule appt={appt} onFait={onClose} />}
+        {/* LE CLUB DES PETITES COURONNES — 21 octobre 2026 : le cauris de cette
+            venue, et le cadeau qu'un palier fait tomber. */}
+        {appt && <SignalDuClub appt={appt} />}
         {/* SON ENVIE POUR CETTE SÉANCE — 17 octobre 2026 : dite sur WhatsApp sept
             jours avant (Entre deux séances). La Maison prépare sa venue. */}
         {appt?.envieAvantSeance && (

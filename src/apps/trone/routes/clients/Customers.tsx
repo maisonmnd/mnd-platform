@@ -39,6 +39,7 @@ import { BilanModal, RegistreDesBilans } from './BilanModal';
 import { CarteDeMarrainePanneau } from './CarteDeMarrainePanneau';
 import { SonAvisGoogle } from './SonAvisGoogle';
 import { CarteAbonnement } from './CarteAbonnement';
+import { CarteDuClub } from './CarteDuClub';
 import { releveDeLAbonnee } from '../../../../shared/abonnee-pur';
 import { echeancierAPoser } from './gestes-de-l-abonnement';
 import { jourDeCotonou } from '../../../../shared/ia-faits-pur';
@@ -3056,6 +3057,9 @@ function Customer360({
         {/* ══ ①bis SA FORMULE — 20 octobre 2026 : la carte Abonnement, sous ce
             qui presse. Elle ne paraît que pour une tête qui a ou a eu une formule. */}
         {aDesFormules && <CarteAbonnement client={client} appts={appts} invoices={invoices} />}
+        {/* ══ ①ter LE CLUB DES PETITES COURONNES — 21 octobre 2026 : le
+            collier de cauris d'un enfant (MND Kids). Rien pour un adulte. */}
+        <CarteDuClub client={client} appts={appts} />
 
         {/* ══ ② DEUX COLONNES — CE QUI SE FAIT, CE QU'ELLE EST ═════════
             À gauche ce qui se décide au fauteuil, à droite ce qu'elle

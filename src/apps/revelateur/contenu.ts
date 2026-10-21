@@ -684,9 +684,9 @@ export const PAGES: Page[] = [
   {
     chemin: '/mnd-kids/',
     titre: 'Dreadlocks pour enfants à Cotonou · MND Kids',
-    description: 'Confiez la couronne de votre enfant à la Maison MND à Cotonou : création, reprise et soins pour les petites têtes. Organisez votre visite en famille.',
+    description: 'Offrez à votre enfant le Club des Petites Couronnes à Cotonou : un collier de cauris, un carnet, des soins doux pour ses locks. Organisez votre visite.',
     h1: 'MND Kids : les dreadlocks des enfants, à Cotonou',
-    sur: 'MND Kids',
+    sur: 'MND Kids · Le Club des Petites Couronnes',
     /* SA PROPRE PHOTO DEPUIS LE 24 SEPTEMBRE 2026 : la page et la porte de
        l'accueil montraient la même image. L'enfant au jardin tient seul sur
        cette page, où son échelle de visage n'a personne à côté de qui se
@@ -696,22 +696,80 @@ export const PAGES: Page[] = [
     ligne: "Un enfant a besoin de temps, de douceur, et d'une main qui ne tire pas. Vous restez à ses côtés.",
     besoin: 'enfant',
     cta: { texte: 'Organiser notre visite', note: 'La visite commence par un échange avec vous.' },
-    pas: {
-      sur: "L'univers",
-      titre: 'Cinq promesses',
-      liste: true,
-      items: [
-        ['Douceur', "Une séance plus longue plutôt qu'un enfant qui a mal."],
-        ['Sécurité', 'Un parent toujours présent.'],
-        ['Patience', 'Une pause, une histoire, un moment.'],
-        ['Hygiène', 'Comme pour les adultes, sans exception.'],
-        ['Famille', 'Les rendez-vous peuvent se suivre.'],
-      ],
-    },
+    /* LA PAGE À DEUX VOIX — 21 octobre 2026. « Un enfant est venu sur le
+       site, tout fier, et voulait savoir en quoi consistait le programme de
+       MND Kids. Je n'avais pas grande réponse pour lui » (Yéman). Le Club des
+       Petites Couronnes a été dessiné ce soir-là et validé au sélecteur :
+       « Pour toi » parle à l'enfant (tu), « Pour tes parents » aux parents
+       (vous). Les cinq promesses passent dans la voix des parents. Les
+       paliers et leurs cadeaux sont ceux de la règle du Club (shared/club-pur
+       au Trône) : on les change ensemble. Aucun prix : le Club est offert. */
+    sectionsAvant: [
+      {
+        type: 'club-enfant',
+        sur: 'Pour toi · Le Club des Petites Couronnes',
+        titre: 'Ici, ta couronne grandit avec toi.',
+        ligne: 'À la Maison, chaque enfant fait partie du Club des Petites Couronnes. C’est offert, et voici ce qui t’attend.',
+        moments: [
+          { icone: 'decouvre', titre: 'Je découvre', texte: 'La première fois, on ne touche pas à tes cheveux. Tu visites l’atelier, tu touches les peignes, tu choisis ton fauteuil. Et tu repars avec ton carnet.' },
+          { icone: 'choisis', titre: 'Je choisis', texte: 'À chaque visite, c’est toi qui choisis : une histoire, une musique, ou le silence. Tu peux demander une pause quand tu veux.' },
+          { icone: 'collectionne', titre: 'Je collectionne', texte: 'À chaque visite, un cauris de plus sur ton collier, et un tampon dans ton carnet.' },
+          { icone: 'soin', titre: 'Je prends soin', texte: 'Le soir, ton bonnet. Deux fois par semaine, ta brume. Chaque geste, un autocollant.' },
+          { icone: 'fete', titre: 'Je fête', texte: 'Chaque année, l’anniversaire de ta couronne : une photo, un diplôme, et une coiffure de fête si tu veux.' },
+        ],
+        collier: {
+          titre: 'Ton collier de cauris',
+          texte: 'Le jour de ta première visite, la Maison te donne un cordon. À chaque visite, tu y enfiles un cauris. Quand ton collier est plein, tu es une Petite Couronne.',
+          paliers: [
+            { cauris: 1, titre: 'Bienvenue', cadeau: 'Le cordon, le carnet et l’écusson du Club.' },
+            { cauris: 3, titre: 'Le premier rang', cadeau: 'Un bonnet de nuit en satin, à ta taille.' },
+            { cauris: 6, titre: 'La moitié du collier', cadeau: 'La trousse « Mon kit de couronne ».' },
+            { cauris: 10, titre: 'Petite Couronne', cadeau: 'Le cauris d’or, le diplôme Petite Couronne et ta photo dans le carnet.' },
+          ],
+        },
+        apres: [
+          { titre: 'Ton carnet', texte: 'Le Carnet de la Petite Couronne : ton nom de couronne, que tu inventes toi-même, un tampon à chaque visite, ton rituel du soir avec un autocollant par geste, et les photos de ta couronne qui grandit.' },
+          { titre: 'Ta fête de couronne', texte: 'Chaque année, l’anniversaire de ta Première Couronne : une photo pour ton carnet, un diplôme, et une coiffure de fête si tu veux.' },
+        ],
+      },
+      {
+        type: 'club-parents',
+        sur: 'Pour tes parents',
+        titre: 'Ce que vous pouvez attendre de la Maison.',
+        promesses: [
+          ['Douceur', "Une séance plus longue plutôt qu'un enfant qui a mal."],
+          ['Sécurité', 'Un parent toujours présent.'],
+          ['Patience', 'Une pause, une histoire, un moment.'],
+          ['Hygiène', 'Comme pour les adultes, sans exception.'],
+          ['Famille', 'Les rendez-vous peuvent se suivre.'],
+        ],
+        items: [
+          { titre: 'La première visite, sans toucher', texte: 'Un échange avec vous d’abord : ses cheveux, son âge, son envie. Votre enfant découvre l’atelier et choisit son fauteuil ; on ne touche pas encore à ses cheveux. Il repart avec son carnet, son cordon et son premier cauris.' },
+          { titre: 'De 3 à 15 ans', texte: 'Un enfant s’assied au fauteuil de la Maison à partir de 3 ans. Le Club l’accompagne jusqu’à 15 ans.' },
+          {
+            titre: 'Ce que la Maison propose',
+            texte: 'Le Club est offert à chaque enfant ; il ne change rien aux soins.',
+            liste: [
+              'La Première Couronne et ses trois premières venues',
+              'La retouche après la création',
+              'La reprise des racines',
+              'Le shampoing « Le Souffle »',
+              'La sublimation et le renfort durable',
+              'Le rituel complet',
+            ],
+          },
+          { titre: 'Dans Ma Couronne', texte: 'Dans votre espace, la tête de votre enfant montre son collier : ses cauris, et le prochain palier. Sa prochaine visite y est aussi, avec son rappel la veille.' },
+          { titre: 'Sa fête de couronne', texte: 'Chaque année, au jour de sa Première Couronne, la Maison vous écrit un mot. À sa visite suivante : une photo pour son carnet et son diplôme.' },
+          { titre: 'Sa vie privée', texte: 'Jamais son prénom ni sa photo sur le site ou les réseaux sans votre accord écrit.' },
+        ],
+      },
+    ],
     rassure: "Nous ne créons pas de locks sur un enfant sans en avoir parlé avec ses parents, et sans qu'il le souhaite lui-même.",
     faq: [
-      ['À partir de quel âge ?', "Il n'y a pas d'âge fixe. Cela dépend de l'enfant, de ses cheveux et de son envie."],
+      ['À partir de quel âge ?', "Il n'y a pas d'âge fixe. Cela dépend de l'enfant, de ses cheveux et de son envie. Au fauteuil, la Maison accueille les enfants dès 3 ans."],
       ['Que proposez-vous ?', "Premières locks, entretien, reprise de racines, coiffures d'école ou de fête."],
+      ['Combien coûte le Club ?', 'Rien. Il est offert à chaque enfant qui vient à la Maison ; les soins gardent leurs prix habituels.'],
+      ['Mon enfant est déjà venu : ses visites comptent ?', 'Oui. Son collier part avec toutes ses visites à la Maison. S’il a déjà passé un palier, il reçoit le cadeau du plus haut à sa prochaine visite.'],
     ],
     jsonld: 'service',
     court: 'MND Kids',

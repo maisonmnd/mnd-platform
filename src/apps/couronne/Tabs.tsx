@@ -64,6 +64,7 @@ import {
 import { DateEnClair } from '../../ds/dates';
 import { useTheme } from './theme';
 import { t, locale, langue, useLangue, changeLaLangue, anglaisPropose, prix, motsDeDate } from './i18n';
+import { SonCollier } from './SonCollier';
 
 /* Les cinq onglets de Ma Couronne + le panneau de notifications. */
 
@@ -1046,6 +1047,9 @@ export function HomeEnfant({ enfant, onOpenBooking, onRevenir, onOpenRdv, abonne
           </div>
         )}
       </div>
+
+      {/* SON COLLIER — 21 octobre 2026 : le Club des Petites Couronnes. */}
+      <SonCollier enfant={enfant} appts={appts} services={services} />
 
       <div className="mc-nextrdv">
         <div className="mc-nextrdv__row">

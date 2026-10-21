@@ -7,6 +7,7 @@ import { type EnvieKey } from './quiz';
 /* Import sans cycle : accounts.ts n'importe d'ici que des TYPES (effacés à
    l'exécution) — le runtime ne boucle pas. */
 import { estMineur } from './accounts';
+import { cadeauxApresRemise } from './club-pur';
 
 /* Têtes couronnées — CRM 360. Toutes les entités portent `branchId` :
    la branche sélectionnée filtre tout. */
@@ -386,6 +387,10 @@ export type Client = {
   envieAt?: string; // ISO
   birthday?: string; // ISO — anniversaire de la cliente (voir joursAvantAnniversaire)
   birthdayGiftAt?: string; // ISO — date du dernier cadeau anniversaire envoyé
+  /** LE CLUB DES PETITES COURONNES — 21 octobre 2026 : les cadeaux de palier
+      remis, par palier (1, 3, 6, 10), avec le jour et la main. Le reste du
+      Club se lit sur ses rendez-vous (`club-pur.ts`), rien d'autre ne s'écrit. */
+  clubCadeaux?: Record<string, { le: string; par?: string }>;
   geo?: { lat: number; lng: number }; // position GPS partagée (livraison Ma Couronne)
   /** Compte famille auquel la cliente est rattachée (ex. Famille A.). Le
       porte-monnaie d'avoir et le paiement des factures vivent alors sur le compte
@@ -1147,6 +1152,16 @@ export function poseUnComptage(clientId: string, champs: ComptageLocks): void {
     const suite = [...sans, { ...champs, locks }].sort((a, b) => a.iso.localeCompare(b.iso));
     return { ...c, comptages: suite, lockCount: suite[suite.length - 1].locks };
   }));
+}
+
+/** LE CADEAU DU CLUB REMIS — 21 octobre 2026 : un palier du collier (1, 3, 6
+    ou 10) marqué remis, avec le jour et la main. Remis deux fois, le premier
+    jour reste : le geste ne réécrit pas l'histoire. */
+export function poseLeCadeauDuClub(clientId: string, palier: number, le: string, par?: string): void {
+  if (!clientId || !palier || !le) return;
+  clientsStore.set((prev) => prev.map((c) => (c.id !== clientId || c.clubCadeaux?.[String(palier)]
+    ? c
+    : { ...c, clubCadeaux: cadeauxApresRemise(c, palier, le, par) })));
 }
 
 /** RETIRER UN COMPTAGE MAL SAISI. Le chiffre courant retombe sur celui d'avant ;

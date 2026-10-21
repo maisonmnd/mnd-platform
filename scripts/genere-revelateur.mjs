@@ -614,6 +614,10 @@ function rendSection(s) {
       return `<section class="univers"><div class="conteneur">${tete}${s.ligne ? `<p class="ligne" style="margin-top:-12px;margin-bottom:28px">${echappe(s.ligne)}</p>` : ''}${gamme(s.items)}</div></section>`;
     case 'marques':
       return marques(s);
+    case 'club-enfant':
+      return clubEnfant(s);
+    case 'club-parents':
+      return clubParents(s);
     case 'recit':
       return rendRecit(s);
     case 'appel':
@@ -622,6 +626,65 @@ function rendSection(s) {
     default:
       return '';
   }
+}
+
+/* ── LE CLUB DES PETITES COURONNES — 21 octobre 2026 ───────────────────
+   La page MND Kids à deux voix. Les dessins sont des SVG écrits ici, à la
+   construction : leurs couleurs viennent des jetons de la feuille (classes
+   `club-…`), jamais d'un motif CSS ni d'une teinte hors palette. */
+const ICONES_DU_CLUB = {
+  decouvre: '<circle cx="14" cy="14" r="8"/><path d="M20 20l7 7"/>',
+  choisis: '<path d="M6 8h20M6 16h20M6 24h12"/><circle cx="24" cy="24" r="2.6" class="club-plein"/>',
+  collectionne: '<ellipse cx="16" cy="16" rx="8" ry="12"/><path d="M16 6.5c-1.6 5.5-1.6 13.5 0 19 1.6-5.5 1.6-13.5 0-19z" class="club-plein"/>',
+  soin: '<path d="M21 6a10 10 0 1 0 5 12A8 8 0 0 1 21 6z"/>',
+  fete: '<path d="M6 26l6-16 10 10z"/><path d="M18 6v3M24 10l-2 2M26 16h-3"/>',
+};
+const iconeDuClub = (nom) => `<svg class="club-icone" viewBox="0 0 32 32" aria-hidden="true" focusable="false">${ICONES_DU_CLUB[nom] ?? ''}</svg>`;
+/* LE COLLIER : un cordon en arc et dix cauris enfilés, les paliers soulignés. */
+function collierDuClub(paliers) {
+  const n = 10;
+  const marques = new Set(paliers.map((p) => p.cauris));
+  const cauris = Array.from({ length: n }, (_, i) => {
+    const t = i / (n - 1);
+    const x = Math.round(60 + t * 780);
+    const y = Math.round(58 + Math.sin(t * Math.PI) * 34);
+    const palier = marques.has(i + 1);
+    return `<g class="club-cauris${palier ? ' club-cauris--palier' : ''}"><ellipse cx="${x}" cy="${y}" rx="17" ry="24"/><path d="M${x} ${y - 15}c-2.4 8-2.4 22 0 30 2.4-8 2.4-22 0-30z" class="club-plein"/><text x="${x}" y="${y + 46}" text-anchor="middle">${i + 1}</text></g>`;
+  }).join('');
+  /* AU TÉLÉPHONE, DEUX RANGS DE CINQ : sur 340 pixels, dix cauris en arc
+     tiendraient chacun dans un ongle. Les deux dessins sont dans la page, la
+     feuille montre celui qui convient à la largeur. */
+  const rang = (debut, y) => Array.from({ length: 5 }, (_, k) => {
+    const i = debut + k;
+    const x = 50 + k * 90;
+    const palier = marques.has(i + 1);
+    return `<g class="club-cauris${palier ? ' club-cauris--palier' : ''}"><ellipse cx="${x}" cy="${y}" rx="17" ry="24"/><path d="M${x} ${y - 15}c-2.4 8-2.4 22 0 30 2.4-8 2.4-22 0-30z" class="club-plein"/><text x="${x}" y="${y + 46}" text-anchor="middle">${i + 1}</text></g>`;
+  }).join('');
+  const court = `<svg class="club-collier__fil club-collier__fil--court" viewBox="0 0 460 250" role="img" aria-label="Un collier de dix cauris, un par visite"><path class="club-cordon" d="M10 52 Q230 82 450 52"/><path class="club-cordon" d="M10 172 Q230 202 450 172"/>${rang(0, 60)}${rang(5, 180)}</svg>`;
+  return `<svg class="club-collier__fil club-collier__fil--long" viewBox="0 0 900 150" role="img" aria-label="Un collier de dix cauris, un par visite"><path class="club-cordon" d="M20 40 Q450 140 880 40"/>${cauris}</svg>${court}`;
+}
+function clubEnfant(s) {
+  const moments = s.moments.map((m, i) => `<li class="club-moment"><span class="club-moment__icone">${iconeDuClub(m.icone)}</span><span class="club-moment__rang">Moment ${i + 1}</span><b>${echappe(m.titre)}</b><p>${echappe(m.texte)}</p></li>`).join('');
+  const paliers = s.collier.paliers.map((p) => `<li><span class="club-palier__n">${p.cauris} cauris</span><b>${echappe(p.titre)}</b><p>${echappe(p.cadeau)}</p></li>`).join('');
+  const apres = s.apres.map((a) => `<div><h3>${echappe(a.titre)}</h3><p>${echappe(a.texte)}</p></div>`).join('');
+  return `<section class="club" id="pour-toi"><div class="conteneur">
+        <nav class="club-voix" aria-label="Deux lectures de la page"><a href="#pour-toi" aria-current="true">Pour toi</a><a href="#pour-tes-parents">Pour tes parents</a></nav>
+        <div class="tete"><p class="sur">${echappe(s.sur)}</p><h2>${echappe(s.titre)}</h2><p class="ligne">${echappe(s.ligne)}</p></div>
+        <ol class="club-moments">${moments}</ol>
+        <div class="club-collier"><div class="club-collier__tete"><h3>${echappe(s.collier.titre)}</h3><p>${echappe(s.collier.texte)}</p></div>
+          <div class="club-collier__dessin">${collierDuClub(s.collier.paliers)}</div>
+          <ol class="club-paliers">${paliers}</ol>
+        </div>
+        <div class="club-apres">${apres}</div>
+      </div></section>`;
+}
+function clubParents(s) {
+  const promesses = `<ol class="pas pas--liste">${s.promesses.map(([t, l]) => `<li><div><b>${echappe(t)}</b><span>${echappe(l)}</span></div></li>`).join('')}</ol>`;
+  const items = s.items.map((it) => `<div class="grille-item"><b>${echappe(it.titre)}</b><p>${echappe(it.texte)}</p>${it.liste ? `<ul class="club-liste">${it.liste.map((l) => `<li>${echappe(l)}</li>`).join('')}</ul>` : ''}</div>`).join('');
+  return `<section class="serre club-parents" id="pour-tes-parents"><div class="conteneur">
+        <div class="tete"><p class="sur">${echappe(s.sur)}</p><h2>${echappe(s.titre)}</h2></div>
+        <div class="club-parents__corps">${promesses}<div class="grille">${items}</div></div>
+      </div></section>`;
 }
 
 /* ── L'emplacement d'un îlot, avec son repli statique ────────────────── */
@@ -1038,6 +1101,8 @@ function rendService(p) {
     ${bandeauDeLaMaison(p.chemin).map(([f, alt, dit]) => `<figure>${image(f, alt)}<figcaption>${echappe(dit)}</figcaption></figure>`).join('\n    ')}
   </div></div></section>`;
   const sections = (p.sections ?? []).map(rendSection).join('\n');
+  /* Les sections d'ouverture (21 octobre 2026, la page MND Kids à deux voix). */
+  const avant = (p.sectionsAvant ?? []).map(rendSection).join('\n');
   const appel = `<section class="appel"><div class="conteneur"><div><h2>${echappe(p.cta?.texte ?? p.h1)}</h2>${p.ligne ? `<p class="ligne" style="margin-top:8px">${echappe(p.cta?.note ?? '')}</p>` : ''}</div><div class="rangee">${cta}${auCalendrier ? secondaire : ''}</div></div></section>`;
   const mobile = p.cta ? `<div class="barre-mobile">${cta}${auCalendrier ? bouton({ texte: 'WhatsApp', vers: `whatsapp:${p.besoin ?? 'inconnu'}` }, 'btn') : `<a class="btn" href="${attr(versLeRappel(p.besoin))}">Me faire rappeler</a>`}</div>` : '';
   return `
@@ -1049,6 +1114,7 @@ function rendService(p) {
         </div>
         <div>${visuel}</div>
       </div></section>
+${avant}
 ${geste}
 ${pas}
 ${rassure}

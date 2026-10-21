@@ -11,6 +11,7 @@ import { EN_RDV } from './en-rdv';
 import { EN_ENTRE_DEUX } from './en-entre-deux';
 import { EN_DIAGNOSTIC } from './en-diagnostic';
 import { EN_ABONNEE } from './en-abonnee';
+import { EN_CLUB } from './en-club';
 
 export const EN: Record<string, string> = {
   ...EN_COMMUN,
@@ -22,4 +23,5 @@ export const EN: Record<string, string> = {
   ...EN_ENTRE_DEUX,
   ...EN_DIAGNOSTIC,
   ...EN_ABONNEE,
+  ...EN_CLUB,
 };
