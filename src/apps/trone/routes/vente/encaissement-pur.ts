@@ -216,7 +216,9 @@ export function ceQueLeRendezVousRecoit(e: { partNetteXof: number; acompteXof: n
     versements déjà reçus restent tels quels. */
 export function soldeDeLaPiece(
   inv: Invoice,
-  v: { id: string; jour: string; moyen: PaymentMethod; caisse?: string; time?: string; encaissePar?: string; trace?: TraceDuMoyen },
+  v: { id: string; jour: string; moyen: PaymentMethod; caisse?: string; time?: string; encaissePar?: string; trace?: TraceDuMoyen;
+    /** Reçu en devise (Zelle, Interac, Revolut, PayPal, 21 octobre 2026). */
+    fx?: { code: string; rate: number; amount: number } },
 ): Pick<Invoice, 'status' | 'payment' | 'payments'> {
   const deja = invoiceReglements(inv);
   const reste = invoiceResteXof(inv);
@@ -227,6 +229,7 @@ export function soldeDeLaPiece(
       ...(v.time ? { time: v.time } : {}),
       ...(v.encaissePar ? { encaissePar: v.encaissePar } : {}),
       ...(v.trace ? { trace: v.trace } : {}),
+      ...(v.fx ? { fx: v.fx } : {}),
     }]
     : deja;
   return { status: 'payée', payment: v.moyen, payments };

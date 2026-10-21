@@ -47,7 +47,7 @@ import { ditCeQuiManque, familleDeTrace, traceAEcrire, traceSuffit, type TraceDu
 import { ChampsDeLaTrace } from '../vente/TraceDuMoyen';
 import { caissesPourCorriger } from '../../../../shared/tri-des-caisses-pur';
 import {
-  CAISSE_ANNEES_PASSEES, anneeDe, avecLesMoyensDeLaMaison, caisseProposee, caissesAuChoix, estAnneeAnterieure, MOYEN_MOMO_PRIVE,
+  CAISSE_ANNEES_PASSEES, anneeDe, avecLesMoyensDeLaMaison, caisseProposee, caissesAuChoix, deviseDuMoyen, estAnneeAnterieure, MOYEN_MOMO_PRIVE,
   familleDuMoyen, peutChangerLaCaisse, poseLaCaisse, prenomDe, type CaisseProposee,
 } from '../../../../shared/caisses-des-caissiers-pur';
 import { identiteCourante } from '../../../../shared/journal';
@@ -822,6 +822,9 @@ const autresMethodes = (methods: readonly string[]): string[] => avecLesMoyensDe
   const f = familleDuMoyen(m);
   return f !== 'especes' && f !== 'momo' && f !== 'momoPrive' && f !== 'avoir' && f !== 'mndpay' && f !== 'carte' && f !== 'cheque';
 });
+/** Le moyen que « Autres » prend d'office : le premier qui reste en francs
+    (Zelle, Interac, Revolut, PayPal ouvrent une devise : on les choisit). */
+const premierAutre = (autres: readonly string[]): string | undefined => autres.find((m) => !deviseDuMoyen(m)) ?? autres[0];
 /** Le nom du moyen écrit sur la pièce : celui de SA liste quand il y est. */
 function methodeDeLaTuile(t: TuileEnc, methods: readonly string[], autre?: string): string {
   switch (t) {
@@ -832,7 +835,7 @@ function methodeDeLaTuile(t: TuileEnc, methods: readonly string[], autre?: strin
     case 'cheque': return methods.find(estCheque) ?? 'Chèque';
     case 'avoir': return 'Avoir';
     case 'mndpay': return 'MND PAY';
-    default: return autre || autresMethodes(methods)[0] || 'Virement bancaire';
+    default: return autre || premierAutre(autresMethodes(methods)) || 'Virement bancaire';
   }
 }
 const DIT_LA_TUILE: Record<TuileEnc, string> = {
@@ -1320,9 +1323,18 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour, init
   const [settings] = useSettings();
   /* La facture part seule chez elle (17 octobre 2026). */
   const envoiDeLaPiece = useEnvoiDeLaPiece();
-  const [fxOn, setFxOn] = useState(false);
-  const [fxCode, setFxCode] = useState('EUR');
+  const [fxManuel, setFxManuel] = useState(false);
+  const [fxCodeManuel, setFxCode] = useState('EUR');
   const [fxRate, setFxRate] = useState(String(rateToXof('EUR') || ''));
+  /* LE MOYEN IMPOSE SA DEVISE — 21 octobre 2026 : Zelle, Interac, Revolut,
+     PayPal arrivent en USD, CAD, EUR, USD, chacun dans sa caisse à son nom.
+     Le choisir parmi « Autres » ouvre la devise d'office (une seule part :
+     l'argent étranger ne se découpe pas), même quand Paramètres ne l'ouvre
+     pas ; le versement garde sa devise et sa valeur en francs. */
+  const partEnDevise = parts.find((pt) => pt.tuile === 'autre' && !!deviseDuMoyen(methodeDeLaTuile('autre', methods, pt.autre)));
+  const deviseImposee = partEnDevise ? deviseDuMoyen(methodeDeLaTuile('autre', methods, partEnDevise.autre)) : undefined;
+  const fxOn = fxManuel || !!deviseImposee;
+  const fxCode = deviseImposee ?? fxCodeManuel;
   const fxRateNum = Math.max(0, Number(fxRate) || 0);
   /* Ce qui traverse VRAIMENT le comptoir : le règlement ET le pourboire. À la
      Caisse c'était le net de la facture ; ici la cliente tend les deux d'un bloc,
@@ -1339,7 +1351,6 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour, init
   /* Les caisses où cet argent PEUT entrer : la branche, la date, la devise.
      MND PAY n'en fait pas partie à la main (seul FedaPay y fait entrer). */
   const eligibleBoxes = boxesDuJour.filter((c) => cashboxCurrency(c) === payCurrency && c.name !== CAISSE_MND_PAY);
-  const fxBlocked = fxOn && eligibleBoxes.length === 0;
 
   /* ── QUI ENCAISSE, ET OÙ VA CHAQUE PART — 17 octobre 2026 ─────────────
      Le compte connecté, retrouvé à sa fiche par l'adresse qui fait foi
@@ -1367,6 +1378,9 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour, init
     return { methode, caisse: choisie || proposee.caisse || '', proposee, peutChanger: peut };
   };
   const lesCaisses = parts.map(caisseDeLaPart);
+  /* Sans caisse dans la devise, on refuse ; sauf la caisse du moyen en devise
+     qui naît à ce premier encaissement (21 octobre 2026). */
+  const fxBlocked = fxOn && eligibleBoxes.length === 0 && !lesCaisses.some((c) => !!c.proposee.aCreer && c.caisse === c.proposee.caisse);
   /* LA TRACE DU CHÈQUE ET DE LA CARTE (18 octobre 2026, maquette « Chèque et
      carte ») : banque et numéro, ou photo ; n° d'autorisation, ou photo. Une
      part qui n'a pas la sienne retient l'encaissement. */
@@ -1408,8 +1422,9 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour, init
   const ditLaCaisse = caisseManquante || caisseGammeManquante;
   /* LA DEVISE NE SE DÉCOUPE PAS : un billet étranger, une seule part. */
   const basculeLaDevise = () => {
+    if (deviseImposee) return;
     if (!fxOn) setParts((prev) => [{ ...(prev.find((pt) => pt.tuile !== 'avoir' && pt.tuile !== 'mndpay') ?? partNeuve('especes', 0)), montantStr: String(Math.max(0, Math.min(due, amount))), caisseChoisie: undefined, choixOuvert: false }]);
-    setFxOn(!fxOn);
+    setFxManuel(!fxManuel);
   };
 
   /* ── UN BLOCAGE DOIT SE DIRE — 18 août 2026 ─────────────────────
@@ -2139,12 +2154,21 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour, init
   const tuilesOffertes = TUILES_ENC.filter((t) => (t.id !== 'mndpay' || (mndOn && !fxOn))
     && (t.id !== 'avoir' || avoirBal > 0)
     && (t.id !== 'autre' || lesAutres.length > 0));
+  /* UN AUTRE MOYEN EN DEVISE (Zelle, Interac, Revolut, PayPal) : une seule
+     part, tout le reste, et le taux du jour de sa devise. */
+  const poseLAutre = (p: PartEnc, m: string) => {
+    const d = deviseDuMoyen(m);
+    if (!d) { majPart(p.id, { tuile: 'autre', autre: m, caisseChoisie: undefined, choixOuvert: false }); return; }
+    setFxCode(d);
+    setFxRate(String(rateToXof(d) || ''));
+    setParts([{ ...p, tuile: 'autre', autre: m, montantStr: String(Math.max(0, Math.min(due, amount))), caisseChoisie: undefined, choixOuvert: false }]);
+  };
   const choisirTuile = (p: PartEnc, t: TuileEnc) => {
     if (p.mnd) return;
+    if (t === 'autre') { poseLAutre(p, p.autre || premierAutre(lesAutres) || ''); return; }
     majPart(p.id, {
       tuile: t, caisseChoisie: undefined, choixOuvert: false,
       ...(t === 'avoir' ? { montantStr: String(Math.min(avoirBal, montantDe(p) || resteAPartager)) } : {}),
-      ...(t === 'autre' && !p.autre ? { autre: lesAutres[0] } : {}),
     });
   };
   const quiNom = prenomDe(quiEncaisse() ?? maFiche?.name ?? '');
@@ -2474,7 +2498,7 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour, init
                     <Field label="La Gamme réglée par">
                       <Select value={payGammeChoisi} onChange={(e) => { setPayGammeChoisi(e.target.value as '' | PaymentMethod); setGammeBoxChoisie(''); }}>
                         <option value="">Comme le rituel · {payHorsMnd}</option>
-                        {avecLesMoyensDeLaMaison(methods).map((m) => <option key={m} value={m}>{m}</option>)}
+                        {avecLesMoyensDeLaMaison(methods, payGammeChoisi || undefined).filter((m) => !deviseDuMoyen(m)).map((m) => <option key={m} value={m}>{m}</option>)}
                       </Select>
                     </Field>
                     <Field label="Sa caisse">
@@ -2534,9 +2558,20 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour, init
                   })}
                 </div>
                 {p.tuile === 'autre' && (
-                  <Select value={p.autre ?? lesAutres[0] ?? ''} onChange={(e) => majPart(p.id, { autre: e.target.value, caisseChoisie: undefined, choixOuvert: false })} aria-label="Le moyen">
-                    {lesAutres.map((m) => <option key={m} value={m}>{m}</option>)}
+                  <Select value={p.autre ?? premierAutre(lesAutres) ?? ''} onChange={(e) => poseLAutre(p, e.target.value)} aria-label="Le moyen">
+                    {[...lesAutres, ...(p.autre && !lesAutres.includes(p.autre) ? [p.autre] : [])].map((m) => <option key={m} value={m}>{m}</option>)}
                   </Select>
+                )}
+                {/* LA DEVISE DU MOYEN SE DIT SOUS LA PART (21 octobre 2026) : le
+                    taux du jour, à corriger, et ce qu'elle envoie dans sa devise ;
+                    « Et ensuite » la redit, sans bascule possible. */}
+                {p.id === partEnDevise?.id && deviseImposee && (
+                  <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 6, fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--copper-700)' }}>
+                    <span>1 {deviseImposee} =</span>
+                    <Input type="number" min={0} step="any" value={fxRate} onChange={(e) => setFxRate(e.target.value)}
+                      style={{ width: 96, textAlign: 'right' }} aria-label={`Taux de la part : 1 ${deviseImposee} en ${currency}`} />
+                    <span>{currency} · à recevoir : <b style={{ color: 'var(--color-indigo)', fontWeight: 500 }}>{fxAmount > 0 ? `${fxAmount.toLocaleString('fr-FR', { maximumFractionDigits: 2 })} ${deviseImposee}` : '…'}</b></span>
+                  </div>
                 )}
                 <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                   <Input
@@ -2781,19 +2816,22 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour, init
           {/* Devise étrangère — le rituel reste chiffré en {currency} ; on ne note
               ici que ce que la cliente tend au comptoir, et à quel taux. Une
               seule part : un billet étranger ne se découpe pas en moyens. */}
-          {settings.fxEnabled && (
+          {(settings.fxEnabled || !!deviseImposee) && (
             <div style={{ border: '1px solid var(--copper-300)', borderRadius: 'var(--radius-md)', background: 'var(--copper-50)', padding: '11px 13px' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
                 <span style={{ fontFamily: 'var(--font-sans)', fontSize: 9.5, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--copper-700)' }}>
                   Régler en devise étrangère
                 </span>
-                <Toggle on={fxOn} onToggle={basculeLaDevise} />
+                {deviseImposee
+                  ? <span style={{ fontFamily: 'var(--font-sans)', fontSize: 11, color: 'var(--copper-700)' }}>imposée par {partEnDevise?.autre ?? 'le moyen'}</span>
+                  : <Toggle on={fxOn} onToggle={basculeLaDevise} />}
               </div>
               {fxOn && (
                 <>
                   <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
                     <Select
                       value={fxCode}
+                      disabled={!!deviseImposee}
                       onChange={(e) => { setFxCode(e.target.value); setFxRate(String(rateToXof(e.target.value) || '')); }}
                       style={{ flex: '1 1 120px' }}
                       aria-label="Devise reçue"

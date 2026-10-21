@@ -53,7 +53,17 @@
        devient « Chèque ».
    AUCUN PAIEMENT SANS CAISSE : la caisse d'un moyen se trouve par son
    identifiant, puis par son nom d'aujourd'hui ou d'avant ; introuvable, elle
-   naît (rangée, elle revient) au premier argent qui y entre. */
+   naît (rangée, elle revient) au premier argent qui y entre.
+
+   ══ LES AUTRES MOYENS, REVUS — 21 octobre 2026 ═════════════════════════
+   « Dans les autres moyens il faut enlever moov et celtis et mettre zelle,
+   et interac, revolut, paypal » (Yéman), puis au sélecteur : « Une caisse
+   par moyen ». Moov et Celtiis ne s'offrent plus (sa liste de Paramètres
+   n'est pas réécrite, et les réseaux du panneau MND PAY restent) ; Zelle,
+   Interac, Revolut et PayPal s'offrent toujours, chacun avec SA caisse, à
+   son nom, dans SA devise : l'argent reçu garde sa devise (`fx` du
+   versement) et sa valeur en francs. Wave, un virement, tout le reste :
+   « Autres ». */
 
 import type { Cashbox, RoleDeCaisse } from './finance';
 import { reecritLEcriture, rendsLEcriture, casesDe, type Sorte } from './bascule-des-caisses-pur';
@@ -78,7 +88,6 @@ export const ANCIEN_NOM_MOMOPAY = 'MoMoPay Maison MND';
 export const ANCIEN_NOM_TIROIR = 'Tiroir espèces';
 export const CAISSE_TIROIR_COMMUN = 'Terrasse · Tiroir espèces';
 const CAISSE_MND_PAY = 'MND PAY';
-const CAISSE_ZELLE = 'Zelle';
 const CAISSE_KKIAPAY = 'KkiaPay';
 
 /* LES DEUX MOYENS NOUVEAUX — 21 octobre 2026. Ils s'ajoutent à SA liste
@@ -86,20 +95,46 @@ const CAISSE_KKIAPAY = 'KkiaPay';
 export const MOYEN_MOMO_PRIVE = 'MoMo Privé';
 export const MOYEN_REPRISE = 'Reprise d’une année passée';
 
-export type FamilleDeMoyen = 'especes' | 'momo' | 'momoPrive' | 'carte' | 'cheque' | 'reprise' | 'mndpay' | 'zelle' | 'kkiapay' | 'avoir' | 'autre';
+export type FamilleDeMoyen = 'especes' | 'momo' | 'momoPrive' | 'carte' | 'cheque' | 'reprise' | 'mndpay'
+  | 'zelle' | 'interac' | 'revolut' | 'paypal' | 'kkiapay' | 'avoir' | 'autre';
 
 const plat = (s: string): string => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
 
+/* LES MOYENS EN DEVISE — 21 octobre 2026, sa décision : une caisse par
+   moyen, à son nom, dans sa devise. L'identifiant de Zelle est celui que
+   `assureLesCaissesMndPay` donnait déjà (`cb-zelle-<branche>`) : la caisse
+   qui existe se retrouve, elle ne naît pas en double. */
+export type FamilleEnDevise = 'zelle' | 'interac' | 'revolut' | 'paypal';
+type MoyenEnDevise = { nom: string; devise: string; sub: string; glyph: string };
+export const MOYENS_EN_DEVISE: Readonly<Record<FamilleEnDevise, MoyenEnDevise>> = {
+  zelle: { nom: 'Zelle', devise: 'USD', sub: 'Compte aux États-Unis', glyph: '$' },
+  interac: { nom: 'Interac', devise: 'CAD', sub: 'Virement Interac, au Canada', glyph: '$' },
+  revolut: { nom: 'Revolut', devise: 'EUR', sub: 'Compte Revolut, en euros', glyph: '€' },
+  paypal: { nom: 'PayPal', devise: 'USD', sub: 'Compte PayPal, en dollars', glyph: '$' },
+};
+const FAMILLES_EN_DEVISE = Object.keys(MOYENS_EN_DEVISE) as FamilleEnDevise[];
+export const estEnDevise = (f: FamilleDeMoyen): f is FamilleEnDevise => (FAMILLES_EN_DEVISE as string[]).includes(f);
+/** La devise qu'un moyen impose (Zelle → USD…), sinon `undefined`. */
+export const deviseDuMoyen = (methode: string): string | undefined => {
+  const f = familleDuMoyen(methode);
+  return estEnDevise(f) ? MOYENS_EN_DEVISE[f].devise : undefined;
+};
+/** Moov et Celtiis ne s'offrent plus parmi les moyens (21 octobre 2026). */
+const estRetire = (methode: string): boolean => /moov|celti/.test(plat(methode ?? ''));
+
 /** LA FAMILLE D'UN MOYEN, lue sur son nom (la liste des moyens est la sienne,
-    dans Paramètres : on la lit, on ne la réécrit pas). Moov, Celtiis, Wave,
-    PayPal, un virement : « autre », dont la caisse est « Autres » depuis le
-    21 octobre 2026. */
+    dans Paramètres : on la lit, on ne la réécrit pas). Wave, un virement, un
+    Moov d'avant : « autre », dont la caisse est « Autres » depuis le
+    21 octobre 2026. Zelle, Interac, Revolut, PayPal : chacun la sienne. */
 export function familleDuMoyen(methode: string): FamilleDeMoyen {
   const m = plat(methode ?? '');
   if (!m) return 'autre';
   if (m === 'avoir') return 'avoir';
   if (/mnd ?pay/.test(m)) return 'mndpay';
   if (/zelle/.test(m)) return 'zelle';
+  if (/interac/.test(m)) return 'interac';
+  if (/revolut/.test(m)) return 'revolut';
+  if (/pay ?pal/.test(m)) return 'paypal';
   if (/kkiapay/.test(m)) return 'kkiapay';
   if (/reprise/.test(m) && /annee/.test(m)) return 'reprise';
   if (/espece|cash|liquide/.test(m)) return 'especes';
@@ -111,16 +146,23 @@ export function familleDuMoyen(methode: string): FamilleDeMoyen {
   return 'autre';
 }
 
-/** SA LISTE, PLUS LES DEUX MOYENS DU 21 OCTOBRE 2026 : « MoMo Privé » juste
-    après son MTN, « Reprise d'une année passée » à la fin. Déjà là (sous un
-    nom qui en est la famille), rien ne s'ajoute. */
-export function avecLesMoyensDeLaMaison(methods: readonly string[]): string[] {
-  const out = [...methods];
+/** SA LISTE, REVUE LE 21 OCTOBRE 2026 : sans Moov ni Celtiis ; « MoMo Privé »
+    juste après son MTN ; Zelle, Interac, Revolut et PayPal ; « Reprise d'une
+    année passée » à la fin. Déjà là (sous un nom qui en est la famille), rien
+    ne s'ajoute. `garder` : le moyen déjà écrit sur un versement (une capture
+    lue « Moov ») reste dans la liste, pour qu'on ne le réécrive pas sans le
+    voir. */
+export function avecLesMoyensDeLaMaison(methods: readonly string[], garder?: string): string[] {
+  const out = methods.filter((m) => !estRetire(m) || m === garder);
   if (!out.some((m) => familleDuMoyen(m) === 'momoPrive')) {
     const i = out.findIndex((m) => familleDuMoyen(m) === 'momo');
     out.splice(i >= 0 ? i + 1 : out.length, 0, MOYEN_MOMO_PRIVE);
   }
+  for (const f of FAMILLES_EN_DEVISE) {
+    if (!out.some((m) => familleDuMoyen(m) === f)) out.push(MOYENS_EN_DEVISE[f].nom);
+  }
   if (!out.some((m) => familleDuMoyen(m) === 'reprise')) out.push(MOYEN_REPRISE);
+  if (garder && !out.includes(garder)) out.push(garder);
   return out;
 }
 
@@ -200,6 +242,13 @@ export function caisseNeuveDuPaiement(famille: FamilleDeCaisse, branchId: string
   };
 }
 
+/** LA CAISSE NEUVE D'UN MOYEN EN DEVISE, idempotente (`cb-<famille>-<branche>`),
+    dans sa devise. Rôle « banque » : un compte, pas un tiroir. */
+export function caisseNeuveEnDevise(famille: FamilleEnDevise, branchId: string): Cashbox {
+  const c = MOYENS_EN_DEVISE[famille];
+  return { id: `cb-${famille}-${branchId}`, branchId, name: c.nom, sub: c.sub, glyph: c.glyph, openingXof: 0, role: 'banque', currency: c.devise };
+}
+
 /** LA CAISSE DES CHÈQUES de la branche, idempotente. Rôle « banque » : c'est
     de l'argent en route vers la banque. */
 export const caisseDesCheques = (branchId: string): Cashbox => caisseNeuveDuPaiement('cheque', branchId);
@@ -231,7 +280,8 @@ export const nomDeLaCaisse = (boxes: readonly Boite[], branchId: string, famille
   laCaisseDuPaiement(boxes, branchId, famille)?.name ?? CAISSES_DES_PAIEMENTS[famille].nom;
 
 /** La famille de caisse d'un moyen ; `undefined` : il n'en a pas (avoir),
-    ou la sienne vit à part (MND PAY, Zelle, KkiaPay, Années passées). */
+    ou la sienne vit à part (MND PAY, KkiaPay, Années passées, et les moyens
+    en devise : Zelle, Interac, Revolut, PayPal). */
 export function familleDeCaisse(methode: string): FamilleDeCaisse | undefined {
   const f = familleDuMoyen(methode);
   return f === 'especes' || f === 'momo' || f === 'momoPrive' || f === 'carte' || f === 'cheque' || f === 'autre' ? f : undefined;
@@ -247,6 +297,9 @@ export type CaisseProposee = {
   /** La caisse n'existe pas encore (ou elle est rangée) : l'écran la pose
       telle quelle avant d'écrire l'argent (`poseLaCaisse`). */
   aCreer?: Cashbox;
+  /** La devise que le moyen impose (Zelle USD, Interac CAD, Revolut EUR,
+      PayPal USD) : l'écran l'ouvre d'office, le versement garde son `fx`. */
+  devise?: string;
 };
 
 const POURQUOI: Record<FamilleDeCaisse, string> = {
@@ -298,6 +351,28 @@ export function caisseProposee(o: {
     const c = nommee(CAISSE_MND_PAY);
     return c ? { caisse: c, pourquoi: 'Payé par MND PAY : l’argent est chez FedaPay jusqu’au reversement.' } : { pourquoi: 'La caisse MND PAY n’est pas ouverte.' };
   }
+  /* ZELLE, INTERAC, REVOLUT, PAYPAL — 21 octobre 2026 : sa caisse à son nom,
+     dans sa devise, même pour un rendez-vous d'une année antérieure (comme un
+     billet étranger : une caisse ne reçoit que sa devise). Une caisse du même
+     nom dans une autre devise ne reçoit rien, et rien ne naît en double. */
+  if (estEnDevise(famille)) {
+    const c = MOYENS_EN_DEVISE[famille];
+    const id = `cb-${famille}-${o.branchId}`;
+    /* Les caisses ouvertes de la branche, celles que l'écran passe ET toutes
+       les autres : un écran qui a déjà filtré sur la devise du jour ne doit
+       pas faire naître une seconde « Zelle ». */
+    const connues = [...ouvertes, ...(o.toutes ?? []).filter((x) => x.branchId === o.branchId && !x.archiveeLe)];
+    const lesSiennes = connues.filter((x) => x.id === id || x.name === c.nom);
+    const b = lesSiennes.find((x) => x.id === id && (x.currency ?? '') === c.devise)
+      ?? lesSiennes.find((x) => (x.currency ?? '') === c.devise);
+    const pourquoi = `${c.nom} arrive en ${c.devise} dans la caisse « ${c.nom} » ; le versement garde sa valeur en francs.`;
+    if (b) return { caisse: b.name, pourquoi, devise: c.devise };
+    if (lesSiennes.length > 0) {
+      return { pourquoi: `La caisse « ${c.nom} » ne tient pas des ${c.devise} : corrigez sa devise dans Les caisses.`, devise: c.devise };
+    }
+    const aCreer = ranimee(id, c.nom, () => caisseNeuveEnDevise(famille, o.branchId));
+    return { caisse: aCreer.name, pourquoi: `${pourquoi} Elle naît à ce premier encaissement.`, aCreer, devise: c.devise };
+  }
   /* UN BILLET ÉTRANGER GARDE SON TIROIR, même pour une année antérieure :
      une caisse ne reçoit que sa devise, sinon la trésorerie additionnerait
      des euros à des francs (18 août). */
@@ -314,10 +389,6 @@ export function caisseProposee(o: {
   /* LA REPRISE D'UNE ANNÉE PASSÉE, choisie à la main (21 octobre 2026) : une
      reprise inscrite à une autre date que celle de son rendez-vous. */
   if (famille === 'reprise') return annees('Une reprise d’une année passée : son argent va aux années passées.');
-  if (famille === 'zelle') {
-    const c = nommee(CAISSE_ZELLE);
-    return c ? { caisse: c, pourquoi: 'Zelle arrive sur le compte américain.' } : { pourquoi: 'La caisse Zelle n’est pas ouverte.' };
-  }
   if (famille === 'kkiapay') {
     const c = nommee(CAISSE_KKIAPAY);
     if (c) return { caisse: c, pourquoi: 'Payé en ligne par KkiaPay.' };
@@ -368,9 +439,13 @@ export function caissesAuChoix<B extends Boite>(boxes: readonly B[], o: {
 /** Les caisses qui ne se comptent jamais le soir : celle des années passées
     (l'histoire), MND PAY (l'argent est chez FedaPay), les chèques (des
     chèques, pas des billets, sous leur nom d'avant et d'aujourd'hui), la
-    carte (l'argent est chez la banque) et les autres moyens (Wave, PayPal…
-    rien qui se compte au tiroir). */
-export const HORS_CLOTURE: readonly string[] = [CAISSE_ANNEES_PASSEES, CAISSE_MND_PAY, CAISSE_CHEQUE, ANCIEN_NOM_CHEQUES, CAISSE_CARTE, CAISSE_AUTRES];
+    carte (l'argent est chez la banque), les autres moyens (Wave, un virement…
+    rien qui se compte au tiroir), et les comptes en devise de Zelle,
+    Interac, Revolut et PayPal (21 octobre 2026). */
+export const HORS_CLOTURE: readonly string[] = [
+  CAISSE_ANNEES_PASSEES, CAISSE_MND_PAY, CAISSE_CHEQUE, ANCIEN_NOM_CHEQUES, CAISSE_CARTE, CAISSE_AUTRES,
+  ...FAMILLES_EN_DEVISE.map((f) => MOYENS_EN_DEVISE[f].nom),
+];
 
 /* ══ FONDRE UNE CAISSE DANS UNE AUTRE — 17 octobre 2026 ═════════════════
    « Reprise 2025 » : « tout fondre dans Années passées » (sa décision). Toutes

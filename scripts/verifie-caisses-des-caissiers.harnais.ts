@@ -26,7 +26,13 @@
    puis au sélecteur : une seule « Espèces » (plus de caisse par caissier),
    « Carte », « MoMo Privé », « Autres », et « Reprise d'une année passée »
    parmi les autres moyens, qui va aux années passées. Les contrôles des
-   sections 1, 3, 4, 5 et 6 portent désormais SA règle du 21 octobre. */
+   sections 1, 3, 4, 5 et 6 portent désormais SA règle du 21 octobre.
+
+   21 OCTOBRE 2026, LES AUTRES MOYENS REVUS : « Dans les autres moyens il faut
+   enlever moov et celtis et mettre zelle, et interac, revolut, paypal », puis
+   au sélecteur « Une caisse par moyen » : Zelle (USD), Interac (CAD),
+   Revolut (EUR), PayPal (USD), chacun sa caisse à son nom, dans sa devise
+   (section 8). */
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import {
@@ -34,7 +40,7 @@ import {
   estAnneeAnterieure, familleDuMoyen, peutChangerLaCaisse, caisseDesAnneesPassees,
   fusionneLEcriture, defaisLaFusionDeLEcriture, casesQuiNomment, caissesApresFusion, caissesApresDefaire,
   CAISSE_CHEQUE, caisseDesCheques, HORS_CLOTURE, caisseMomopayDeLaMaison, avecLesMoyensDeLaMaison, poseLaCaisse,
-  MOYEN_MOMO_PRIVE, MOYEN_REPRISE, caisseNeuveDuPaiement,
+  MOYEN_MOMO_PRIVE, MOYEN_REPRISE, caisseNeuveDuPaiement, deviseDuMoyen,
 } from '../src/shared/caisses-des-caissiers-pur';
 import { decisionsDesCaisses, FUSION_DECIDEE } from '../src/shared/decisions-des-caisses-pur';
 import { caissesPourLEquipe, gardeToutSonPasse } from '../src/shared/finance';
@@ -42,6 +48,7 @@ import { toucheeParLeDepart } from '../src/shared/depart-des-caisses-pur';
 import { basculeLEcriture, type Sorte } from '../src/shared/bascule-des-caisses-pur';
 import { tiroirsQuiSeComptent, tiroirsSansCloture } from '../src/shared/caisse-du-soir-pur';
 import type { Cashbox } from '../src/shared/finance';
+import { soldeDeLaPiece } from '../src/apps/trone/routes/vente/encaissement-pur';
 
 let ko = 0;
 const dit = (nom: string, attendu: unknown, obtenu: unknown) => {
@@ -79,11 +86,11 @@ function sansCommentaires(src: string): string {
 
 /* ── 1. LA FAMILLE DE CHAQUE MOYEN ───────────────────────────────────── */
 const SA_LISTE = ['MTN MoMo', 'Moov', 'Celtis', 'Wave', 'Espèces', 'Carte', 'Virement bancaire', 'PayPal', 'Chèque', 'Lien WhatsApp', 'Avoir', 'MND PAY', 'Zelle', 'KkiaPay', 'MoMo Privé', 'Reprise d’une année passée'];
-dit('les moyens de sa liste, chacun à sa famille (Moov, Wave, PayPal, virement : « autre » ; MoMo Privé et la reprise ont la leur)',
-  ['momo', 'autre', 'autre', 'autre', 'especes', 'carte', 'autre', 'autre', 'cheque', 'autre', 'avoir', 'mndpay', 'zelle', 'kkiapay', 'momoPrive', 'reprise'],
+dit('les moyens de sa liste, chacun à sa famille (Moov, Wave, virement : « autre » ; PayPal, Zelle, MoMo Privé et la reprise ont la leur)',
+  ['momo', 'autre', 'autre', 'autre', 'especes', 'carte', 'autre', 'paypal', 'cheque', 'autre', 'avoir', 'mndpay', 'zelle', 'kkiapay', 'momoPrive', 'reprise'],
   SA_LISTE.map(familleDuMoyen));
-dit('sa liste, plus MoMo Privé juste après son MTN, et la reprise à la fin ; déjà là, rien ne s ajoute',
-  [['MTN MoMo', MOYEN_MOMO_PRIVE, 'Espèces', MOYEN_REPRISE], ['Espèces', 'Momo privé', 'reprise année passée']],
+dit('sa liste, plus MoMo Privé juste après son MTN, les quatre moyens en devise, et la reprise à la fin ; déjà là, rien ne s ajoute',
+  [['MTN MoMo', MOYEN_MOMO_PRIVE, 'Espèces', 'Zelle', 'Interac', 'Revolut', 'PayPal', MOYEN_REPRISE], ['Espèces', 'Momo privé', 'reprise année passée', 'Zelle', 'Interac', 'Revolut', 'PayPal']],
   [avecLesMoyensDeLaMaison(['MTN MoMo', 'Espèces']), avecLesMoyensDeLaMaison(['Espèces', 'Momo privé', 'reprise année passée'])]);
 
 /* ── 2. L'ANNÉE ANTÉRIEURE ───────────────────────────────────────────── */
@@ -119,9 +126,9 @@ dit('MTN MoMoPay → le compte MoMoPay de la Maison, pas le MoMo d un associé',
      identifiant tiré de la branche ; on ne choisit plus jamais à la main. */
   const tous = ['Carte', 'MoMo Privé', 'Momo privé', 'Moov', 'Wave', 'PayPal', 'Virement bancaire', 'Lien WhatsApp', 'Chèque'];
   const r = tous.map((m) => caisseProposee({ methode: m, dateDuRdv: '2026-10-21', aujourdhui: '2026-10-21', boxes: BOITES, branchId: 'cot' }));
-  dit('carte, MoMo Privé, Moov, Wave, PayPal, virement, lien, chèque : chacun sa caisse au nom du paiement',
-    ['Carte', 'MoMo Privé', 'MoMo Privé', 'Autres', 'Autres', 'Autres', 'Autres', 'Autres', 'Chèque'], r.map((x) => x.caisse ?? null));
-  dit('... elles naissent avec leur identifiant (une par branche)', ['cb-carte-cot', 'cb-momo-prive-cot', 'cb-momo-prive-cot', 'cb-autres-cot', 'cb-autres-cot', 'cb-autres-cot', 'cb-autres-cot', 'cb-autres-cot', 'cb-cheques-cot'],
+  dit('carte, MoMo Privé, Moov, Wave, PayPal, virement, lien, chèque : chacun sa caisse au nom du paiement (PayPal la sienne)',
+    ['Carte', 'MoMo Privé', 'MoMo Privé', 'Autres', 'Autres', 'PayPal', 'Autres', 'Autres', 'Chèque'], r.map((x) => x.caisse ?? null));
+  dit('... elles naissent avec leur identifiant (une par branche)', ['cb-carte-cot', 'cb-momo-prive-cot', 'cb-momo-prive-cot', 'cb-autres-cot', 'cb-autres-cot', 'cb-paypal-cot', 'cb-autres-cot', 'cb-autres-cot', 'cb-cheques-cot'],
     r.map((x) => x.aCreer?.id ?? null));
   dit('... et un caissier ne peut pas la changer : elle est choisie d office', [false, false], [peutChangerLaCaisse(false, r[0]), peutChangerLaCaisse(false, r[3])]);
   const nees = r.reduce<Cashbox[]>((l, x) => (x.aCreer ? poseLaCaisse(l, x.aCreer) : l), [...BOITES]);
@@ -223,7 +230,7 @@ dit('« Autres » offre la reprise d une année passée (la liste passe par la r
 dit('la Caisse suit la même règle, offre les deux moyens neufs, fait naître la caisse, et cache la liste à qui ne peut pas changer', [true, true, true, true],
   [/caisseProposee\(\{/.test(caisse), /avecLesMoyensDeLaMaison\(/.test(caisse), /poseLaCaisse\(prev, caisseANaitre\)/.test(caisse), /hasCashbox && !peutChangerPos \?/.test(caisse)]);
 dit('« Marquer payée » aussi : la caisse se déduit du paiement et naît au versement', [true, true, true, true],
-  [/caisseProposee\(\{\s*methode: payChoice/.test(factures), /caisse: caisseDuSolde \|\| undefined/.test(factures), /poseLaCaisse\(prev, proposeeSolde\.aCreer!\)/.test(factures), /avecLesMoyensDeLaMaison\(methods\)/.test(factures)]);
+  [/caisseProposee\(\{\s*methode: payChoice/.test(factures), /caisse: caisseDuSolde \|\| undefined/.test(factures), /poseLaCaisse\(prev, proposeeSolde\.aCreer!\)/.test(factures), /avecLesMoyensDeLaMaison\(methods, payChoice\)/.test(factures)]);
 dit('la fiche du personnel n ouvre plus de caisse de caissier', false, /caisseNeuveDuCaissier|Ouvrir sa caisse/.test(personnel));
 
 
@@ -355,6 +362,62 @@ dit('la fusion ne part qu après la sauvegarde', true, /disabled=\{!sauvee\} onC
 dit('les dépenses passent la fiche de qui saisit', true, /caissesPourLEquipe\(toutesLesCaisses, voitToutesLesDepenses, maFiche\?\.id\)/.test(depenses));
 dit('les soldes et la trésorerie lisent l histoire comme les anciennes', [true, true],
   [/const ancienne = gardeToutSonPasse\(boxOf\(name\)\);\s*const keep/.test(tiroirs), /!b\.horsBilan && !gardeToutSonPasse\(b\) && soldeVisible/.test(tiroirs)]);
+
+/* ── 8. LES AUTRES MOYENS REVUS — 21 octobre 2026 ─────────────────────
+   « Dans les autres moyens il faut enlever moov et celtis et mettre zelle,
+   et interac, revolut, paypal » ; « Une caisse par moyen », dans sa devise. */
+{
+  const SA_LISTE_DU_21 = ['MTN MoMo', 'Moov', 'Celtis', 'Celtiis', 'Wave', 'Espèces', 'Carte', 'PayPal', 'Virement bancaire', 'Chèque'];
+  const offerts = avecLesMoyensDeLaMaison(SA_LISTE_DU_21);
+  dit('les autres moyens : ni Moov ni Celtiis ; Zelle, Interac, Revolut, PayPal y sont, chacun une fois',
+    [false, false, false, 1, 1, 1, 1],
+    [offerts.includes('Moov'), offerts.includes('Celtis'), offerts.includes('Celtiis'),
+      ...['Zelle', 'Interac', 'Revolut', 'PayPal'].map((m) => offerts.filter((x) => x === m).length)]);
+  dit('... Wave et le virement restent, et la reprise ferme la liste', [true, true, MOYEN_REPRISE],
+    [offerts.includes('Wave'), offerts.includes('Virement bancaire'), offerts[offerts.length - 1]]);
+  dit('... un versement déjà écrit « Moov » garde son moyen dans la liste (on ne le réécrit pas sans le voir)', true,
+    avecLesMoyensDeLaMaison(['Moov', 'Espèces'], 'Moov').includes('Moov'));
+  dit('la devise que chaque moyen impose : Zelle USD, Interac CAD, Revolut EUR, PayPal USD ; Wave et les espèces aucune',
+    ['USD', 'CAD', 'EUR', 'USD', null, null],
+    ['Zelle', 'Interac', 'Revolut', 'PayPal', 'Wave', 'Espèces'].map((m) => deviseDuMoyen(m) ?? null));
+  const neuves = ['Zelle', 'Interac', 'Revolut', 'PayPal'].map((m) => caisseProposee({ methode: m, dateDuRdv: '2026-10-21', aujourdhui: '2026-10-21', boxes: BOITES, branchId: 'cot' }));
+  dit('chacun sa caisse à son nom, qui naît avec son identifiant et SA devise',
+    [['Zelle', 'cb-zelle-cot', 'USD', 'USD'], ['Interac', 'cb-interac-cot', 'CAD', 'CAD'], ['Revolut', 'cb-revolut-cot', 'EUR', 'EUR'], ['PayPal', 'cb-paypal-cot', 'USD', 'USD']],
+    neuves.map((x) => [x.caisse ?? null, x.aCreer?.id ?? null, x.aCreer?.currency ?? null, x.devise ?? null]));
+  dit('... et un caissier ne la change pas : elle est choisie d office', false, peutChangerLaCaisse(false, neuves[0]));
+  /* La caisse Zelle qu'ouvrait déjà MND PAY (`cb-zelle-<branche>`, en
+     dollars) se retrouve : rien ne naît en double. */
+  const zelleDeMndPay: Cashbox = { id: 'cb-zelle-cot', branchId: 'cot', name: 'Zelle', sub: 'Compte aux États-Unis', glyph: '$', openingXof: 0, currency: 'USD' };
+  const trouvee = caisseProposee({ methode: 'Zelle', aujourdhui: '2026-10-21', boxes: [...BOITES, zelleDeMndPay], branchId: 'cot' });
+  dit('la caisse Zelle qui existe la reçoit, sans renaître', ['Zelle', null], [trouvee.caisse ?? null, trouvee.aCreer?.id ?? null]);
+  /* L'écran qui passe les seules caisses de la devise du jour (les francs)
+     ne fait pas naître une seconde « Zelle » : `toutes` la connaît. */
+  const parToutes = caisseProposee({ methode: 'Zelle', aujourdhui: '2026-10-21', boxes: BOITES, toutes: [...BOITES, zelleDeMndPay], branchId: 'cot' });
+  dit('... même quand l écran ne la passe pas, elle est trouvée parmi toutes', ['Zelle', null], [parToutes.caisse ?? null, parToutes.aCreer?.id ?? null]);
+  const enFrancs = caisseProposee({ methode: 'Interac', aujourdhui: '2026-10-21', boxes: [...BOITES, b('Interac')], branchId: 'cot' });
+  dit('une caisse « Interac » en francs ne reçoit pas des dollars canadiens, et aucune seconde ne naît', [null, null, 'CAD'],
+    [enFrancs.caisse ?? null, enFrancs.aCreer?.id ?? null, enFrancs.devise ?? null]);
+  dit('un rendez-vous d une année antérieure : Zelle et Revolut gardent leur caisse en devise (comme un billet étranger)', ['Zelle', 'Revolut'],
+    [P('Zelle', 'g1', '2023-07-14'), P('Revolut', 'g1', '2024-02-02')]);
+  dit('les comptes en devise ne se comptent pas le soir', [true, true, true, true],
+    ['Zelle', 'Interac', 'Revolut', 'PayPal'].map((n) => HORS_CLOTURE.includes(n)));
+  const soirDevise = tiroirsQuiSeComptent([...BOITES, zelleDeMndPay, b('PayPal', { currency: 'USD' })], 'cot').map((x) => x.name);
+  dit('... ni au comptage du tiroir', [false, false], [soirDevise.includes('Zelle'), soirDevise.includes('PayPal')]);
+  /* LES ÉCRANS LISENT LA RÈGLE : le moyen impose sa devise au rituel, à la
+     Caisse et dans « Marquer payée », et le versement la garde. */
+  dit('le rituel : « Autres » en devise ouvre la devise d office, une seule part', [true, true, true],
+    [/const deviseImposee = partEnDevise \? deviseDuMoyen\(/.test(actions), /const fxOn = fxManuel \|\| !!deviseImposee;/.test(actions),
+      /const d = deviseDuMoyen\(m\);[\s\S]{0,200}setParts\(\[\{ \.\.\.p, tuile: 'autre', autre: m/.test(actions)]);
+  dit('la Caisse : le moyen impose sa devise', [true, true],
+    [/const deviseDuPaiement = deviseDuMoyen\(pay\);/.test(caisse), /const fxOnEff = fxOn \|\| !!deviseDuPaiement;/.test(caisse)]);
+  dit('« Marquer payée » : la devise du moyen, et le versement garde son fx', [true, true],
+    [/const deviseSolde = deviseDuMoyen\(payChoice\);/.test(factures), /\.\.\.\(fxSolde \? \{ fx: fxSolde \} : \{\}\)/.test(factures)]);
+  const pieceDollars = { id: 'inv-z', branchId: 'cot', kind: 'facture', number: 'F-Z', clientId: 'c', clientName: 'C', date: '2026-10-21',
+    lines: [{ id: 'l', label: 'Rituel', qty: 1, unitXof: 60000, discountPct: 0 }], globalDiscountPct: 0, theme: 'Rose', status: 'envoyée' } as unknown as Parameters<typeof soldeDeLaPiece>[0];
+  const soldeZelle = soldeDeLaPiece(pieceDollars, { id: 'ip-z', jour: '2026-10-21', moyen: 'Zelle', caisse: 'Zelle', fx: { code: 'USD', rate: 600, amount: 100 } });
+  dit('le versement « Marquer payée » en Zelle : 60 000 F, dans « Zelle », et 100 USD gardés', [[60000, 'Zelle', 'USD', 100]],
+    (soldeZelle.payments ?? []).map((p) => [p.amountXof, p.cashbox, p.fx?.code, p.fx?.amount]));
+}
 
 console.log(ko === 0 ? '\nLes caisses des caissiers tiennent leurs regles.' : `\n${ko} controle(s) en echec.`);
 process.exitCode = ko === 0 ? 0 : 1;

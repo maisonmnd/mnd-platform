@@ -5,7 +5,7 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNod
 import { OptionsPrestations, PageHead } from '../_ui';
 import { Button, Select, demande } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
-import { fmtMoney } from '../../../../shared/currency';
+import { fmtMoney, rateToXof } from '../../../../shared/currency';
 import { maisonNom, maisonRaisonAu, signeLeMessage, DEVISE_COMPLETE } from '../../../../shared/identite';
 import { useServices } from '../../../../shared/catalog';
 import { useClients, useFamilies } from '../../../../shared/clients';
@@ -38,7 +38,7 @@ import { appelDe } from '../../../../shared/civilite';
 import { aligneLeRituel, corrigeLeVersement, estLieALaPiece, sansTiroir, type CorrectionDeVersement } from '../../../../shared/caisse-du-versement';
 import { soldeDeLaPiece, caisseManquante } from './encaissement-pur';
 import { familleDeTrace, traceAEcrire, traceDite, traceSuffit, type TraceDuMoyen } from '../../../../shared/trace-du-moyen-pur';
-import { avecLesMoyensDeLaMaison, caisseProposee, poseLaCaisse } from '../../../../shared/caisses-des-caissiers-pur';
+import { avecLesMoyensDeLaMaison, caisseProposee, deviseDuMoyen, poseLaCaisse } from '../../../../shared/caisses-des-caissiers-pur';
 import { caissesPourCorriger } from '../../../../shared/tri-des-caisses-pur';
 import { ChampsDeLaTrace, VoirLaPhoto } from './TraceDuMoyen';
 
@@ -165,6 +165,11 @@ export default function Factures() {
   /* La trace d'un chèque ou d'une carte marqués payés ici (18 octobre 2026). */
   const [traceSolde, setTraceSolde] = useState<TraceDuMoyen>({});
   const famSolde = familleDeTrace(payChoice);
+  /* ZELLE, INTERAC, REVOLUT, PAYPAL — 21 octobre 2026 : le moyen impose sa
+     devise ; le reste dû s'y convertit au taux du jour (à corriger), le
+     versement garde les deux (`fx`), et sa caisse est celle de cette devise. */
+  const deviseSolde = deviseDuMoyen(payChoice);
+  const [tauxSolde, setTauxSolde] = useState('');
   /* La caisse du « Marquer payée » : jamais la première de la liste, on la dit. */
   const [payCaisse, setPayCaisse] = useState('');
   /* Elle se redit à chaque pièce (10 octobre 2026, revue) : gardée d'une
@@ -298,8 +303,13 @@ export default function Factures() {
      sélectionnée » (Yéman) : la même règle qu'au rendez-vous et à la Caisse
      (`caisseProposee`). La direction seule en choisit une autre. */
   const proposeeSolde = caisseProposee({
-    methode: payChoice, aujourdhui: jourLocalIso(), boxes: caissesPourLaDate(boxesBranche, jourLocalIso()), branchId: branch.id,
+    methode: payChoice, aujourdhui: jourLocalIso(), boxes: caissesPourLaDate(boxesBranche, jourLocalIso()), toutes: boxesBranche, branchId: branch.id,
   });
+  const tauxSoldeNum = Math.max(0, Number(tauxSolde) || (deviseSolde ? rateToXof(deviseSolde) : 0) || 0);
+  const resteSolde = selected ? invoiceResteXof(selected) : 0;
+  const fxSolde = deviseSolde && tauxSoldeNum > 0 && resteSolde > 0
+    ? { code: deviseSolde, rate: tauxSoldeNum, amount: Math.round((resteSolde / tauxSoldeNum) * 100) / 100 }
+    : undefined;
   const caisseDuSolde = (estDirection && payCaisse) || proposeeSolde.caisse || payCaisse;
   /* ── DEMANDER QU'ON S'EN OCCUPE — 18 août 2026 ──────────────────
      La porte qui compte le plus, et celle qu'on oublie de construire : on ne
@@ -1701,9 +1711,9 @@ export default function Factures() {
                 <div className="trv-doc-actions__row" style={{ display: 'flex', gap: 8 }}>
                   <Select value={payChoice} onChange={(e) => {
                     /* Un autre paiement, une autre caisse : celle de son nom. */
-                    setPayChoice(e.target.value as PaymentMethod); setTraceSolde({}); setPayCaisse('');
+                    setPayChoice(e.target.value as PaymentMethod); setTraceSolde({}); setPayCaisse(''); setTauxSolde('');
                   }} style={{ flex: 1, fontSize: 12 }}>
-                    {avecLesMoyensDeLaMaison(methods).map((p) => (
+                    {avecLesMoyensDeLaMaison(methods, payChoice).map((p) => (
                       <option key={p} value={p}>{p}</option>
                     ))}
                   </Select>
@@ -1717,7 +1727,7 @@ export default function Factures() {
                   {estDirection && boxesBranche.length > 0 ? (
                     <Select aria-label="Caisse créditée" value={caisseDuSolde} onChange={(e) => setPayCaisse(e.target.value)} style={{ flex: 1, fontSize: 12 }}>
                       <option value="">Caisse…</option>
-                      {caissesPourLaDate(boxesBranche, jourLocalIso(), caisseDuSolde).map((c) => (
+                      {caissesPourLaDate(boxesBranche, jourLocalIso(), caisseDuSolde).filter((c) => (c.currency || currency) === (deviseSolde ?? currency) || c.name === caisseDuSolde).map((c) => (
                         <option key={c.id} value={c.name}>{c.name}</option>
                       ))}
                       {/* La caisse du paiement qui naîtra au versement. */}
@@ -1729,7 +1739,7 @@ export default function Factures() {
                   <Button
                     variant="copper"
                     size="sm"
-                    disabled={caisseManquante(caisseDuSolde, boxesBranche.length) || (!!famSolde && !traceSuffit(famSolde, traceSolde))}
+                    disabled={caisseManquante(caisseDuSolde, boxesBranche.length) || (!!famSolde && !traceSuffit(famSolde, traceSolde)) || (!!deviseSolde && !fxSolde)}
                     title={caisseManquante(caisseDuSolde, boxesBranche.length) ? 'Choisissez la caisse qui reçoit l’argent' : undefined}
                     onClick={() => {
                       const trace = famSolde ? traceAEcrire(famSolde, traceSolde) : undefined;
@@ -1742,6 +1752,7 @@ export default function Factures() {
                         caisse: caisseDuSolde || undefined,
                         time: new Date().toTimeString().slice(0, 5),
                         ...(trace ? { trace } : {}),
+                        ...(fxSolde ? { fx: fxSolde } : {}),
                       }));
                       setTraceSolde({});
                     }}
@@ -1751,6 +1762,13 @@ export default function Factures() {
                 </div>
                 {famSolde && (
                   <ChampsDeLaTrace famille={famSolde} valeur={traceSolde} onChange={setTraceSolde} branchId={selected.branchId} />
+                )}
+                {deviseSolde && (
+                  <div style={{ marginTop: 6, fontFamily: 'var(--font-sans)', fontSize: 11.5, color: 'var(--copper-700)' }}>
+                    1 {deviseSolde} = {tauxSoldeNum > 0 ? `${tauxSoldeNum} ${currency}` : '…'} ·{' '}
+                    <input className="mnd-input" type="number" min={0} step="any" value={tauxSolde || (tauxSoldeNum ? String(tauxSoldeNum) : '')} onChange={(e) => setTauxSolde(e.target.value)} style={{ width: 90, textAlign: 'right' }} aria-label={`Taux : 1 ${deviseSolde} en ${currency}`} />
+                    {' '}Reçu : <b style={{ color: 'var(--color-indigo)' }}>{fxSolde ? `${fxSolde.amount.toLocaleString('fr-FR', { maximumFractionDigits: 2 })} ${deviseSolde}` : '…'}</b>
+                  </div>
                 )}
                 </>
                 )

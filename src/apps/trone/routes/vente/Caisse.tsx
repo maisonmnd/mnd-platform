@@ -47,7 +47,7 @@ import { leTicket, versementsDuTicket, ceQueLeRendezVousRecoit, lArgentDejaRecu,
 import { ditCeQuiManque, familleDeTrace, traceAEcrire, traceSuffit, type TraceDuMoyen } from '../../../../shared/trace-du-moyen-pur';
 import { ChampsDeLaTrace } from './TraceDuMoyen';
 import { useStaff, adresseDe } from '../equipe/data';
-import { avecLesMoyensDeLaMaison, caisseProposee, caissesAuChoix, peutChangerLaCaisse, poseLaCaisse } from '../../../../shared/caisses-des-caissiers-pur';
+import { avecLesMoyensDeLaMaison, caisseProposee, caissesAuChoix, deviseDuMoyen, peutChangerLaCaisse, poseLaCaisse } from '../../../../shared/caisses-des-caissiers-pur';
 import { identiteCourante } from '../../../../shared/journal';
 import { DeposerUneCapture } from './DeposerUneCapture';
 import { methodeDuMoyenLu } from '../../../../shared/ia-capture-pur';
@@ -83,11 +83,13 @@ const PAY_SUB: Record<string, string> = {
   'Espèces': 'Caisse',
   'Carte': 'TPE bancaire',
   'Virement bancaire': 'Banque',
-  'PayPal': 'Diaspora',
+  'PayPal': 'Diaspora · en dollars',
+  'Interac': 'Canada · en dollars canadiens',
+  'Revolut': 'Europe · en euros',
   'Chèque': 'Bancaire',
   'Lien WhatsApp': 'Paiement à distance',
   'Celtiis': 'Mobile Money',
-  'Zelle': 'États-Unis · noté à la main',
+  'Zelle': 'États-Unis · en dollars',
 };
 
 const todayIso = () => {
@@ -329,8 +331,11 @@ export default function Caisse() {
   const mndOn = mndPayOuvert(reglagesMnd);
   const zelleOn = !!reglagesMnd?.zelle?.actif;
   const zelleChoisi = pay === MOYEN_ZELLE;
-  const fxOnEff = fxOn || zelleChoisi;
-  const fxCodeEff = zelleChoisi ? 'USD' : fxCode;
+  /* ZELLE, INTERAC, REVOLUT, PAYPAL — 21 octobre 2026 : le moyen impose sa
+     devise (USD, CAD, EUR, USD) et sa caisse à son nom, dans cette devise. */
+  const deviseDuPaiement = deviseDuMoyen(pay);
+  const fxOnEff = fxOn || !!deviseDuPaiement;
+  const fxCodeEff = deviseDuPaiement ?? fxCode;
   useEffect(() => {
     if (mndOn || zelleOn) assureLesCaissesMndPay(branch.id, reglagesMnd);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1526,11 +1531,12 @@ export default function Caisse() {
                 </button>
               )}
               <div className="tr-grid tr-grid--2" style={{ gap: 10 }}>
-                {avecLesMoyensDeLaMaison(zelleOn && !methods.includes(MOYEN_ZELLE) ? [...methods, MOYEN_ZELLE] : methods).map((m) => (
+                {avecLesMoyensDeLaMaison(methods, pay).map((m) => (
                   <button key={m} className={`trv-pay ${pay === m ? 'is-active' : ''}`} onClick={() => {
                     if (m !== pay) setTraceCaisse({});
                     setPay(m);
-                    if (m === MOYEN_ZELLE) setFxRate(String(rateToXof('USD') || ''));
+                    const d = deviseDuMoyen(m);
+                    if (d) setFxRate(String(rateToXof(d) || ''));
                   }}>
                     <div className="n">{m}</div>
                     <div className="s">{PAY_SUB[m] ?? 'Paiement'}</div>
@@ -1551,14 +1557,14 @@ export default function Caisse() {
               {/* Devise étrangère — visible seulement quand la maison l'a ouvert
                   (Paramètres). La facture reste en {currency} : on ne consigne ici
                   que ce qui a été REÇU au comptoir, et à quel taux. */}
-              {zelleChoisi && (
+              {deviseDuPaiement && (
                 <div style={{ marginTop: 10, fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--copper-700)' }}>
-                  1 USD = {fxRateNum > 0 ? `${fxRateNum} ${currency}` : '…'} ·{' '}
-                  <input className="mnd-input" type="number" min={0} step="any" value={fxRate} onChange={(e) => setFxRate(e.target.value)} style={{ width: 100, textAlign: 'right' }} aria-label={`Taux : 1 USD en ${currency}`} />
-                  {' '}À recevoir : <b style={{ color: 'var(--color-indigo)' }}>{fxAmount > 0 ? `${fxAmount.toLocaleString('fr-FR', { maximumFractionDigits: 2 })} USD` : '…'}</b>
+                  1 {deviseDuPaiement} = {fxRateNum > 0 ? `${fxRateNum} ${currency}` : '…'} ·{' '}
+                  <input className="mnd-input" type="number" min={0} step="any" value={fxRate} onChange={(e) => setFxRate(e.target.value)} style={{ width: 100, textAlign: 'right' }} aria-label={`Taux : 1 ${deviseDuPaiement} en ${currency}`} />
+                  {' '}À recevoir : <b style={{ color: 'var(--color-indigo)' }}>{fxAmount > 0 ? `${fxAmount.toLocaleString('fr-FR', { maximumFractionDigits: 2 })} ${deviseDuPaiement}` : '…'}</b>
                 </div>
               )}
-              {settings.fxEnabled && !zelleChoisi && (
+              {settings.fxEnabled && !deviseDuPaiement && (
                 <div style={{ marginTop: 14, border: '1px solid var(--copper-300)', borderRadius: 'var(--radius-md)', background: 'var(--copper-50)', padding: '11px 13px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
                     <span style={{ fontFamily: 'var(--font-sans)', fontSize: 9.5, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--copper-700)' }}>

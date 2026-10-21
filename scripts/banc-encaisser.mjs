@@ -22,7 +22,9 @@
    (Espèces → le tiroir, MTN MoMoPay → le compte de la Maison, MoMo Privé,
    Carte, Chèque, Autres → leur caisse à leur nom, qui naît au premier
    argent), et « Reprise d'une année passée », parmi les autres moyens, va
-   aux années passées.
+   aux années passées. Le même jour, les autres moyens revus : ni Moov ni
+   Celtis ; Zelle et Interac (Revolut, PayPal aussi) vont chacun dans leur
+   caisse, devise ouverte d'office et imposée (USD, CAD).
 
    Il attend le Trône construit sans serveur (sous Bash) :
      VITE_APPS=trone VITE_SUPABASE_URL= VITE_SUPABASE_ANON_KEY= \
@@ -184,6 +186,33 @@ const repriseOk = await evalue(`(() => { const s = document.querySelector('.mnd-
   Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set.call(s, o.value); s.dispatchEvent(new Event('change', { bubbles: true })); return true; })()`);
 await attend(350);
 dit('« Autres » offre la reprise d une année passée, qui va aux années passées', repriseOk && (await caisseDeLaPart()) === 'Années passées', String(await caisseDeLaPart()));
+/* ── A0 bis. LES AUTRES MOYENS REVUS (21 octobre 2026) ─────────────────
+   « enlever moov et celtis et mettre zelle, et interac, revolut, paypal »,
+   « Une caisse par moyen » : chacun sa caisse à son nom, dans sa devise. */
+const optionsAutres = await evalue(`[...(document.querySelector('.mnd-modal select[aria-label="Le moyen"]')?.options ?? [])].map((o) => o.value)`);
+dit('« Autres » : ni Moov ni Celtis ; Zelle, Interac, Revolut et PayPal y sont',
+  !optionsAutres.some((m) => /moov|celti/i.test(m)) && ['Zelle', 'Interac', 'Revolut', 'PayPal'].every((m) => optionsAutres.includes(m)), JSON.stringify(optionsAutres));
+const choisisLAutre = (m) => evalue(`(() => { const s = document.querySelector('.mnd-modal select[aria-label="Le moyen"]'); if (!s) return false;
+  Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set.call(s, ${JSON.stringify(m)}); s.dispatchEvent(new Event('change', { bubbles: true })); return true; })()`);
+const deviseVue = () => evalue(`(() => { const i = [...document.querySelectorAll('.mnd-modal input')].find((x) => /^Taux de la part : 1 /.test(x.getAttribute('aria-label') || '')); return i ? i.getAttribute('aria-label').replace(/^Taux de la part : 1 ([A-Z]+) en .*$/, '$1') : null; })()`);
+for (const [m, devise] of [['Zelle', 'USD'], ['Interac', 'CAD']]) {
+  await choisisLAutre(m);
+  await attend(400);
+  const t2 = await texteModale();
+  dit(`Autres › ${m} : sa caisse « ${m} », la devise ${devise} ouverte d office et imposée`,
+    (await caisseDeLaPart()) === m && (await deviseVue()) === devise && t2.includes(`1 ${devise} =`) && /à recevoir : [\d\s.,]+ /.test(t2) && await sansChoix(),
+    JSON.stringify([await caisseDeLaPart(), await deviseVue()]));
+}
+if (captures) {
+  /* La liste des autres moyens, dépliée pour la capture (une liste native ne
+     se photographie pas ouverte) : la même liste, posée en boîte de choix. */
+  await evalue(`(() => { const s = document.querySelector('.mnd-modal select[aria-label="Le moyen"]'); if (s) { s.size = s.options.length; s.style.height = 'auto'; s.scrollIntoView({ block: 'center' }); } })()`);
+  await capture('autres-liste', 1280, 900, false);
+  await evalue(`(() => { const s = document.querySelector('.mnd-modal select[aria-label="Le moyen"]'); if (s) { s.size = 0; s.style.height = ''; } })()`);
+}
+await clique('.mnd-modal .trv-pay', 'Espèces');
+await attend(350);
+dit('retour aux espèces : la devise imposée se referme', (await deviseVue()) === null && !(await texteModale()).includes('à recevoir'), JSON.stringify(await deviseVue()));
 await clique('.mnd-modal .trv-pay', 'Espèces');
 await attend(350);
 dit('retour aux espèces : le tiroir', (await caisseDeLaPart()) === 'Terrasse · Tiroir espèces', String(await caisseDeLaPart()));

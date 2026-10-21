@@ -107,8 +107,8 @@ dit('la photo vit sous le compte qui l a prise ; la direction la voit, qui l a p
       /<ChampsDeLaTrace famille=\{famPay\} valeur=\{traceCaisse\}/.test(caisse)]);
   const fac = sansCommentaires(lis('src/apps/trone/routes/vente/Factures.tsx'));
   dit('Factures : « Marquer payée » attend la trace et l écrit ; le détail du Trône la montre', [true, true, true, true],
-    [/disabled=\{caisseManquante\(caisseDuSolde, boxesBranche\.length\) \|\| \(!!famSolde && !traceSuffit\(famSolde, traceSolde\)\)\}/.test(fac),
-      /\.\.\.\(trace \? \{ trace \} : \{\}\),\s*\}\)\);/.test(fac),
+    [/disabled=\{caisseManquante\(caisseDuSolde, boxesBranche\.length\) \|\| \(!!famSolde && !traceSuffit\(famSolde, traceSolde\)\)( \|\| \(!!deviseSolde && !fxSolde\))?\}/.test(fac),
+      /\.\.\.\(trace \? \{ trace \} : \{\}\),\s*(\.\.\.\(fxSolde \? \{ fx: fxSolde \} : \{\}\),\s*)?\}\)\);/.test(fac),
       /<ChampsDeLaTrace famille=\{famSolde\}/.test(fac),
       /\{p\.trace && traceDite\(p\.trace\) && <> · \{traceDite\(p\.trace\)\}<\/>\}/.test(fac)]);
   /* La trace d'un versement ne descend jamais dans le document de la cliente
