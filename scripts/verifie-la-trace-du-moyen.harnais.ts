@@ -10,7 +10,8 @@ import { readFileSync } from 'node:fs';
 import {
   AUTRE_BANQUE, BANQUES_DU_BENIN, chequesADeposer, cheminDeLaPhoto, familleDeTrace, peutVoirLaPhoto, traceAEcrire, traceDite, traceSuffit, virementDuDepot,
 } from '../src/shared/trace-du-moyen-pur';
-import { CAISSE_CHEQUES } from '../src/shared/caisses-des-caissiers-pur';
+/* La caisse des chèques porte le nom du paiement depuis le 21 octobre 2026 (« Chèque »). */
+import { CAISSE_CHEQUE as CAISSE_CHEQUES } from '../src/shared/caisses-des-caissiers-pur';
 import { soldeDeLaPiece, versementsDuTicket } from '../src/apps/trone/routes/vente/encaissement-pur';
 import { versementsDesParts } from '../src/shared/mnd-pay-pur';
 import type { Invoice } from '../src/shared/finance';
@@ -106,7 +107,7 @@ dit('la photo vit sous le compte qui l a prise ; la direction la voit, qui l a p
       /<ChampsDeLaTrace famille=\{famPay\} valeur=\{traceCaisse\}/.test(caisse)]);
   const fac = sansCommentaires(lis('src/apps/trone/routes/vente/Factures.tsx'));
   dit('Factures : « Marquer payée » attend la trace et l écrit ; le détail du Trône la montre', [true, true, true, true],
-    [/disabled=\{caisseManquante\(payCaisse, boxesBranche\.length\) \|\| \(!!famSolde && !traceSuffit\(famSolde, traceSolde\)\)\}/.test(fac),
+    [/disabled=\{caisseManquante\(caisseDuSolde, boxesBranche\.length\) \|\| \(!!famSolde && !traceSuffit\(famSolde, traceSolde\)\)\}/.test(fac),
       /\.\.\.\(trace \? \{ trace \} : \{\}\),\s*\}\)\);/.test(fac),
       /<ChampsDeLaTrace famille=\{famSolde\}/.test(fac),
       /\{p\.trace && traceDite\(p\.trace\) && <> · \{traceDite\(p\.trace\)\}<\/>\}/.test(fac)]);
@@ -125,10 +126,12 @@ dit('la photo vit sous le compte qui l a prise ; la direction la voit, qui l a p
       /!c\.caissierId[\s\S]{0,80}\(!c\.currency \|\| c\.currency === currency\)/.test(depot),
       /!\[CAISSE_CHEQUES, CAISSE_ANNEES_PASSEES, CAISSE_MND_PAY\]\.includes\(c\.name\)/.test(depot),
       /const comptes = caisses\.filter\([^;]*(horsBilan|horsEncaissement)/.test(depot)]);
+  /* Depuis le 21 octobre 2026 la règle est générale : chaque paiement a sa
+     caisse, qui naît au premier argent (le chèque comme les autres). */
   dit('la caisse des chèques naît au premier chèque : au rituel, à la Caisse ; Marquer payée la prend d office', [true, true, true],
-    [/if \(lesCaisses\.some\(\(c\) => c\.caisse === CAISSE_CHEQUES\) && !branchBoxes\.some\(\(c\) => c\.name === CAISSE_CHEQUES\)\)/.test(act),
-      /const chequeVaASaCaisse = proposeePos\.caisse === CAISSE_CHEQUES/.test(caisse) && /caisseDesCheques\(branch\.id\)/.test(caisse),
-      /familleDeTrace\(e\.target\.value\) === 'cheque' && boxesBranche\.some\(\(c\) => c\.name === CAISSE_CHEQUES\)\) setPayCaisse\(CAISSE_CHEQUES\)/.test(fac)]);
+    [/c\.proposee\.aCreer/.test(act) && /poseLaCaisse\(prev, neuve\)/.test(act),
+      /caisseANaitre = activeCashbox && activeCashbox === proposeePos\.caisse \? proposeePos\.aCreer/.test(caisse) && /poseLaCaisse\(prev, caisseANaitre\)/.test(caisse),
+      /caisseProposee\(\{\s*methode: payChoice/.test(fac) && /caisse: caisseDuSolde \|\| undefined/.test(fac)]);
   const sql = lis('supabase/migrations/0134_la_trace_des_cheques.sql');
   dit('le coffre des photos est privé ; on n y dépose que dans son dossier ; la direction et qui a pris la photo la lisent', [true, true, true, true],
     [/'traces-privees', 'traces-privees', false,/.test(sql),

@@ -685,6 +685,13 @@ export type Cashbox = {
   /** L'ancienne caisse MoMoPay d'ACIA 1, vidée dans celle de la Maison puis
       rangée (19 octobre 2026) : l'instant. */
   rangeeAuMomopay?: string;
+  /** LES CAISSES AU NOM DES PAIEMENTS (21 octobre 2026) : ce qu'elle était
+      avant d'être renommée, pour le retour ; `triAussi` : le tri du
+      19 octobre est passé dans le même geste (il se défait avec lui). */
+  avantLeNom?: { le: string; name: string; sub: string; triAussi?: boolean };
+  /** La caisse d'un caissier, vidée dans « Espèces » puis rangée par le même
+      geste : l'instant. */
+  rangeeAuNom?: string;
   /** ── L'HISTOIRE — 17 octobre 2026 ──────────────────────────────
       La caisse « Années passées » : comme une ancienne, elle garde TOUT son
       passé (le départ des caisses ne la coupe pas) et reste hors de la

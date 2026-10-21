@@ -17,7 +17,7 @@
    le vrai n'est jamais appelé. Données d'exemple. */
 import { readFileSync } from 'node:fs';
 import {
-  CAISSE_MOMOPAY_MAISON, caisseProposee,
+  CAISSE_MTN, caisseProposee,
 } from '../src/shared/caisses-des-caissiers-pur';
 import { defautDeLaDemande, peutDemander } from '../src/shared/ia-maison-pur';
 import { prenomEtInitiale } from '../src/shared/ia-anonymise-pur';
@@ -80,8 +80,10 @@ dit('ses mots : quatorze jours, dix lectures par passage, verrou de trois minute
   dit('un montant nul ne tombe sur rien', ['aucun', ['r1', 'f1', 's1#2']], v(0));
   dit('elle ne doit rien : aucun, liste vide', ['aucun', []], v(15000, []));
 }
-dit('la caisse : MTN va au MoMoPay de la Maison ; Moov, Celtiis, un virement, un autre : rien ne s\'impose',
-  ['MoMoPay Maison MND', null, null, null, null], (['mtn', 'moov', 'celtiis', 'virement', 'autre'] as MoyenLu[]).map((m) => caisseImposee(m) ?? null));
+/* 21 octobre 2026 : « chaque paiement a sa caisse » ; Moov, Celtiis, un
+   virement vont dans « Autres » ; un moyen pas lu : la main le choisit. */
+dit('la caisse : MTN va au MoMoPay de la Maison ; Moov, Celtiis, un virement : « Autres » ; un autre : rien ne s\'impose',
+  [CAISSE_MTN, 'Autres', 'Autres', 'Autres', null], (['mtn', 'moov', 'celtiis', 'virement', 'autre'] as MoyenLu[]).map((m) => caisseImposee(m) ?? null));
 {
   /* La règle des caissiers, la vraie, avec le moyen que la lecture choisit
      dans SA liste (Paramètres par défaut). */
@@ -97,8 +99,8 @@ dit('la caisse : MTN va au MoMoPay de la Maison ; Moov, Celtiis, un virement, un
   };
   dit('le moyen lu prend le nom de SA liste', ['MTN MoMo', 'Moov', 'Celtis', 'Virement bancaire', null],
     (['mtn', 'moov', 'celtiis', 'virement', 'autre'] as MoyenLu[]).map((m) => methodeDuMoyenLu(m, methods) ?? null));
-  dit('... et la caisse proposée : MoMoPay Maison MND pour MTN, aucune pour Moov, Celtiis, un virement',
-    [CAISSE_MOMOPAY_MAISON, null, null, null, 'à la main'], (['mtn', 'moov', 'celtiis', 'virement', 'autre'] as MoyenLu[]).map(caisse));
+  dit('... et la caisse proposée : la caisse MoMoPay de la Maison (sous son nom d avant) pour MTN, « Autres » pour Moov, Celtiis, un virement',
+    ['MoMoPay Maison MND', 'Autres', 'Autres', 'Autres', 'à la main'], (['mtn', 'moov', 'celtiis', 'virement', 'autre'] as MoyenLu[]).map(caisse));
   dit('un moyen absent de sa liste ne s\'invente pas', [null, null], [methodeDuMoyenLu('moov', ['Espèces', 'MTN MoMo']) ?? null, methodeDuMoyenLu('mtn', ['Espèces']) ?? null]);
 }
 {

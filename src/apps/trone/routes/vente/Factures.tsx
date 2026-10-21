@@ -38,7 +38,7 @@ import { appelDe } from '../../../../shared/civilite';
 import { aligneLeRituel, corrigeLeVersement, estLieALaPiece, sansTiroir, type CorrectionDeVersement } from '../../../../shared/caisse-du-versement';
 import { soldeDeLaPiece, caisseManquante } from './encaissement-pur';
 import { familleDeTrace, traceAEcrire, traceDite, traceSuffit, type TraceDuMoyen } from '../../../../shared/trace-du-moyen-pur';
-import { CAISSE_CHEQUES } from '../../../../shared/caisses-des-caissiers-pur';
+import { avecLesMoyensDeLaMaison, caisseProposee, poseLaCaisse } from '../../../../shared/caisses-des-caissiers-pur';
 import { caissesPourCorriger } from '../../../../shared/tri-des-caisses-pur';
 import { ChampsDeLaTrace, VoirLaPhoto } from './TraceDuMoyen';
 
@@ -291,8 +291,16 @@ export default function Factures() {
     const t = new Date();
     return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`;
   };
-  const [caisses] = useCashboxes();
+  const [caisses, setCaisses] = useCashboxes();
   const boxesBranche = caisses.filter((c) => c.branchId === branch.id);
+  /* ══ LA CAISSE DU PAIEMENT, CHOISIE D'OFFICE — 21 octobre 2026 ══════
+     « Quand je choisis un paiement que sa caisse soit automatiquement
+     sélectionnée » (Yéman) : la même règle qu'au rendez-vous et à la Caisse
+     (`caisseProposee`). La direction seule en choisit une autre. */
+  const proposeeSolde = caisseProposee({
+    methode: payChoice, aujourdhui: jourLocalIso(), boxes: caissesPourLaDate(boxesBranche, jourLocalIso()), branchId: branch.id,
+  });
+  const caisseDuSolde = (estDirection && payCaisse) || proposeeSolde.caisse || payCaisse;
   /* ── DEMANDER QU'ON S'EN OCCUPE — 18 août 2026 ──────────────────
      La porte qui compte le plus, et celle qu'on oublie de construire : on ne
      pense pas « j'ouvre le fil », on est DEVANT une facture et l'on veut que
@@ -1692,11 +1700,10 @@ export default function Factures() {
                 <>
                 <div className="trv-doc-actions__row" style={{ display: 'flex', gap: 8 }}>
                   <Select value={payChoice} onChange={(e) => {
-                    setPayChoice(e.target.value as PaymentMethod); setTraceSolde({});
-                    /* Le chèque attend son dépôt dans sa caisse (18 octobre 2026). */
-                    if (familleDeTrace(e.target.value) === 'cheque' && boxesBranche.some((c) => c.name === CAISSE_CHEQUES)) setPayCaisse(CAISSE_CHEQUES);
+                    /* Un autre paiement, une autre caisse : celle de son nom. */
+                    setPayChoice(e.target.value as PaymentMethod); setTraceSolde({}); setPayCaisse('');
                   }} style={{ flex: 1, fontSize: 12 }}>
-                    {methods.map((p) => (
+                    {avecLesMoyensDeLaMaison(methods).map((p) => (
                       <option key={p} value={p}>{p}</option>
                     ))}
                   </Select>
@@ -1707,26 +1714,32 @@ export default function Factures() {
                       pièce déjà réglée en partie. Le bouton écrit désormais
                       un versement daté d'aujourd'hui, du reste dû, à la caisse
                       choisie, et attend cette caisse quand la branche en a. */}
-                  {boxesBranche.length > 0 && (
-                    <Select aria-label="Caisse créditée" value={payCaisse} onChange={(e) => setPayCaisse(e.target.value)} style={{ flex: 1, fontSize: 12 }}>
+                  {estDirection && boxesBranche.length > 0 ? (
+                    <Select aria-label="Caisse créditée" value={caisseDuSolde} onChange={(e) => setPayCaisse(e.target.value)} style={{ flex: 1, fontSize: 12 }}>
                       <option value="">Caisse…</option>
-                      {caissesPourLaDate(boxesBranche, jourLocalIso(), payCaisse).map((c) => (
+                      {caissesPourLaDate(boxesBranche, jourLocalIso(), caisseDuSolde).map((c) => (
                         <option key={c.id} value={c.name}>{c.name}</option>
                       ))}
+                      {/* La caisse du paiement qui naîtra au versement. */}
+                      {proposeeSolde.aCreer && !boxesBranche.some((c) => c.name === caisseDuSolde) && <option value={caisseDuSolde}>{caisseDuSolde}</option>}
                     </Select>
-                  )}
+                  ) : caisseDuSolde ? (
+                    <span aria-label="Caisse créditée" title={proposeeSolde.pourquoi} style={{ flex: 1, fontSize: 12, alignSelf: 'center', color: 'var(--color-indigo)' }}>→ {caisseDuSolde}</span>
+                  ) : null}
                   <Button
                     variant="copper"
                     size="sm"
-                    disabled={caisseManquante(payCaisse, boxesBranche.length) || (!!famSolde && !traceSuffit(famSolde, traceSolde))}
-                    title={caisseManquante(payCaisse, boxesBranche.length) ? 'Choisissez la caisse qui reçoit l’argent' : undefined}
+                    disabled={caisseManquante(caisseDuSolde, boxesBranche.length) || (!!famSolde && !traceSuffit(famSolde, traceSolde))}
+                    title={caisseManquante(caisseDuSolde, boxesBranche.length) ? 'Choisissez la caisse qui reçoit l’argent' : undefined}
                     onClick={() => {
                       const trace = famSolde ? traceAEcrire(famSolde, traceSolde) : undefined;
+                      /* La caisse du paiement naît au premier argent qui y entre. */
+                      if (proposeeSolde.aCreer && caisseDuSolde === proposeeSolde.caisse) setCaisses((prev) => poseLaCaisse(prev, proposeeSolde.aCreer!));
                       patchSelected(soldeDeLaPiece(selected, {
                         id: `ip-${uid()}`,
                         jour: jourLocalIso(),
                         moyen: payChoice,
-                        caisse: payCaisse || undefined,
+                        caisse: caisseDuSolde || undefined,
                         time: new Date().toTimeString().slice(0, 5),
                         ...(trace ? { trace } : {}),
                       }));

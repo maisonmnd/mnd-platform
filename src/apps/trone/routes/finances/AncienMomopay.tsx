@@ -2,7 +2,7 @@ import { demande, toast } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
 import { cashboxesStore, transfertsStore, useToutesLesCaisses } from '../../../../shared/finance';
-import { CAISSE_MOMOPAY_MAISON } from '../../../../shared/caisses-des-caissiers-pur';
+import { laCaisseDuPaiement, nomDeLaCaisse } from '../../../../shared/caisses-des-caissiers-pur';
 import { CODE_MOMOPAY, ID_CAISSE_ACIA1, idDuVirementMomopay, virementDeLAncienMomopay } from '../../../../shared/momopay-de-la-maison-pur';
 import { useEstDirection } from '../_vie';
 import { useCaisses } from './tiroirs';
@@ -22,6 +22,9 @@ export function AncienMomopay() {
 
   const ancienne = toutes.find((b) => b.id === ID_CAISSE_ACIA1 && b.branchId === branch.id);
   if (!ancienne) return null;
+  /* La caisse MoMoPay de la Maison sous son nom du moment (« MTN MoMoPay »
+     depuis le 21 octobre 2026), retrouvée par son identifiant. */
+  const CAISSE_MOMOPAY_MAISON = nomDeLaCaisse(toutes, branch.id, 'momo');
   const petit = { fontFamily: 'var(--font-sans)', fontSize: 12.5, lineHeight: 1.55, color: 'var(--ink)' } as const;
 
   if (ancienne.rangeeAuMomopay) {
@@ -55,7 +58,7 @@ export function AncienMomopay() {
   }
   if (ancienne.archiveeLe) return null;
 
-  const neuve = toutes.find((b) => b.branchId === branch.id && b.name === CAISSE_MOMOPAY_MAISON && !b.archiveeLe);
+  const neuve = laCaisseDuPaiement(toutes, branch.id, 'momo');
   const solde = Math.round(boxBalance(ancienne.name));
   const boite = { border: '1px solid var(--copper-300)', background: 'var(--copper-50)', borderRadius: 'var(--radius-md)', padding: '14px 16px', margin: '14px 0', display: 'grid', gap: 10 } as const;
 

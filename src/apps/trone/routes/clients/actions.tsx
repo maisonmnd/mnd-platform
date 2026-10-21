@@ -47,8 +47,8 @@ import { ditCeQuiManque, familleDeTrace, traceAEcrire, traceSuffit, type TraceDu
 import { ChampsDeLaTrace } from '../vente/TraceDuMoyen';
 import { caissesPourCorriger } from '../../../../shared/tri-des-caisses-pur';
 import {
-  CAISSE_ANNEES_PASSEES, anneeDe, caisseDesAnneesPassees, caisseProposee, caissesAuChoix, estAnneeAnterieure, CAISSE_CHEQUES, caisseDesCheques,
-  familleDuMoyen, peutChangerLaCaisse, prenomDe, type CaisseProposee,
+  CAISSE_ANNEES_PASSEES, anneeDe, avecLesMoyensDeLaMaison, caisseProposee, caissesAuChoix, estAnneeAnterieure, MOYEN_MOMO_PRIVE,
+  familleDuMoyen, peutChangerLaCaisse, poseLaCaisse, prenomDe, type CaisseProposee,
 } from '../../../../shared/caisses-des-caissiers-pur';
 import { identiteCourante } from '../../../../shared/journal';
 import { useEstDirection } from '../_vie';
@@ -799,30 +799,35 @@ function EtapeEnc({ n, titre, resume, alerte, ouvert, onBascule, children }: {
 }
 
 /** LES TUILES DE L'ENCAISSEMENT. « Écrire juste MTN MoMoPay, enlève Moov
-    MoMoPay », « rajouter chèque » (17 octobre 2026). Le reste de la liste
-    des moyens (Paramètres, la sienne) passe par « Autres ». */
-type TuileEnc = 'especes' | 'momo' | 'carte' | 'cheque' | 'mndpay' | 'avoir' | 'autre';
+    MoMoPay », « rajouter chèque » (17 octobre 2026), « Il faut également
+    rajouter Momo Privé » (21 octobre 2026). Le reste de la liste des moyens
+    (Paramètres, la sienne, plus « Reprise d'une année passée ») passe par
+    « Autres ». Chaque tuile a sa caisse, à son nom, choisie d'office. */
+type TuileEnc = 'especes' | 'momo' | 'momoPrive' | 'carte' | 'cheque' | 'mndpay' | 'avoir' | 'autre';
 const TUILES_ENC: { id: TuileEnc; nom: string; sous: string }[] = [
   { id: 'especes', nom: 'Espèces', sous: 'au comptoir' },
   { id: 'momo', nom: 'MTN MoMoPay', sous: 'compte de la Maison' },
+  { id: 'momoPrive', nom: 'MoMo Privé', sous: 'numéro personnel' },
   { id: 'carte', nom: 'Carte', sous: 'à la banque' },
   { id: 'cheque', nom: 'Chèque', sous: 'à déposer' },
   { id: 'mndpay', nom: 'MND PAY', sous: 'confirmé par FedaPay' },
   { id: 'avoir', nom: 'Avoir', sous: 'crédit du compte' },
   { id: 'autre', nom: 'Autres', sous: 'les autres moyens' },
 ];
-const estCarte = (m: string) => /carte|card/i.test(m);
-const estCheque = (m: string) => /ch[eè]que/i.test(m);
-/** Les moyens de sa liste qu'aucune tuile ne porte. */
-const autresMethodes = (methods: readonly string[]): string[] => methods.filter((m) => {
+const estCarte = (m: string) => familleDuMoyen(m) === 'carte';
+const estCheque = (m: string) => familleDuMoyen(m) === 'cheque';
+/** Les moyens de sa liste qu'aucune tuile ne porte, plus « Reprise d'une
+    année passée » (21 octobre 2026). */
+const autresMethodes = (methods: readonly string[]): string[] => avecLesMoyensDeLaMaison(methods).filter((m) => {
   const f = familleDuMoyen(m);
-  return f !== 'especes' && f !== 'momo' && f !== 'avoir' && f !== 'mndpay' && !estCarte(m) && !estCheque(m);
+  return f !== 'especes' && f !== 'momo' && f !== 'momoPrive' && f !== 'avoir' && f !== 'mndpay' && f !== 'carte' && f !== 'cheque';
 });
 /** Le nom du moyen écrit sur la pièce : celui de SA liste quand il y est. */
 function methodeDeLaTuile(t: TuileEnc, methods: readonly string[], autre?: string): string {
   switch (t) {
     case 'especes': return methods.find((m) => familleDuMoyen(m) === 'especes') ?? 'Espèces';
     case 'momo': return methods.find((m) => familleDuMoyen(m) === 'momo') ?? 'MTN MoMo';
+    case 'momoPrive': return methods.find((m) => familleDuMoyen(m) === 'momoPrive') ?? MOYEN_MOMO_PRIVE;
     case 'carte': return methods.find(estCarte) ?? 'Carte';
     case 'cheque': return methods.find(estCheque) ?? 'Chèque';
     case 'avoir': return 'Avoir';
@@ -831,7 +836,7 @@ function methodeDeLaTuile(t: TuileEnc, methods: readonly string[], autre?: strin
   }
 }
 const DIT_LA_TUILE: Record<TuileEnc, string> = {
-  especes: 'en espèces', momo: 'en MTN MoMoPay', carte: 'par carte', cheque: 'par chèque', mndpay: 'par MND PAY', avoir: 'sur l’avoir', autre: '',
+  especes: 'en espèces', momo: 'en MTN MoMoPay', momoPrive: 'en MoMo Privé', carte: 'par carte', cheque: 'par chèque', mndpay: 'par MND PAY', avoir: 'sur l’avoir', autre: '',
 };
 /** UNE PART DU RÈGLEMENT : sa tuile, son montant, et la caisse qu'une main
     de la direction a choisie à la place de celle qui se propose. `mnd` : la
@@ -1344,7 +1349,7 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour, init
   const maFiche = monMail ? team.find((m) => adresseDe(m) === monMail) : undefined;
   const anneePassee = estAnneeAnterieure(appt.date, todayISO());
   const proposeePour = (methode: string, boxes: typeof eligibleBoxes, enDevise: boolean): CaisseProposee => caisseProposee({
-    methode, dateDuRdv: appt.date, aujourdhui: todayISO(), boxes, branchId: branch.id, staffId: maFiche?.id, enDevise,
+    methode, dateDuRdv: appt.date, aujourdhui: todayISO(), boxes, toutes: branchBoxes, branchId: branch.id, staffId: maFiche?.id, enDevise,
   });
   const caisseDeLaPart = (pt: PartEnc): CaisseDeLaPart => {
     if (pt.tuile === 'avoir') return { methode: 'Avoir', caisse: '', proposee: { pourquoi: 'L’avoir ne passe par aucune caisse.' }, peutChanger: false };
@@ -1517,20 +1522,15 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour, init
        ni des parts qui dépassent le reste, ni une part MND PAY pas encore payée. */
     if (ditLaCaisse || partsTropHautes || avoirTropHaut || mndEnAttente || horsCarnet > 0 || traceQuiManque) return;
     submitting.current = true;
-    /* LA CAISSE DES ANNÉES PASSÉES naît au premier argent qui y entre
-       (identifiant tiré de la branche : deux postes n'en font qu'une). */
-    if ((lesCaisses.some((c) => c.caisse === CAISSE_ANNEES_PASSEES) || (totalGamme > 0 && gammeBox === CAISSE_ANNEES_PASSEES))
-      && !branchBoxes.some((c) => c.name === CAISSE_ANNEES_PASSEES)) {
-      const neuve = caisseDesAnneesPassees(branch.id);
-      cashboxesStore.set((prev) => (prev.some((c) => c.id === neuve.id)
-        ? prev.map((c) => (c.id === neuve.id ? { ...c, archiveeLe: undefined } : c))
-        : [...prev, neuve]));
-    }
-    /* LA CAISSE DES CHÈQUES À DÉPOSER naît au premier chèque (18 octobre 2026). */
-    if (lesCaisses.some((c) => c.caisse === CAISSE_CHEQUES) && !branchBoxes.some((c) => c.name === CAISSE_CHEQUES)) {
-      const neuve = caisseDesCheques(branch.id);
-      cashboxesStore.set((prev) => (prev.some((c) => c.id === neuve.id) ? prev : [...prev, neuve]));
-    }
+    /* LA CAISSE QUI N'EXISTE PAS ENCORE NAÎT au premier argent qui y entre
+       (identifiant tiré de la branche : deux postes n'en font qu'une ;
+       rangée, elle revient) : les années passées, les chèques, et depuis le
+       21 octobre 2026 chaque caisse au nom d'un paiement. */
+    const aPoser = [
+      ...lesCaisses.filter((c) => !!c.caisse && c.caisse === c.proposee.caisse).map((c) => c.proposee.aCreer),
+      totalGamme > 0 && gammeBox && gammeBox === gammeProposee.caisse ? gammeProposee.aCreer : undefined,
+    ].filter((b): b is NonNullable<typeof b> => !!b);
+    for (const neuve of aPoser) cashboxesStore.set((prev) => poseLaCaisse(prev, neuve));
     /* La pièce que CE geste écrit — le pourboire s'y attache (19 août). */
     let idPieceEncaissee: string | undefined;
     if (settleTotal > 0 || totalGamme > 0) {
@@ -2474,7 +2474,7 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour, init
                     <Field label="La Gamme réglée par">
                       <Select value={payGammeChoisi} onChange={(e) => { setPayGammeChoisi(e.target.value as '' | PaymentMethod); setGammeBoxChoisie(''); }}>
                         <option value="">Comme le rituel · {payHorsMnd}</option>
-                        {methods.map((m) => <option key={m} value={m}>{m}</option>)}
+                        {avecLesMoyensDeLaMaison(methods).map((m) => <option key={m} value={m}>{m}</option>)}
                       </Select>
                     </Field>
                     <Field label="Sa caisse">

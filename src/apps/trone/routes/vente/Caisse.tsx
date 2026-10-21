@@ -47,7 +47,7 @@ import { leTicket, versementsDuTicket, ceQueLeRendezVousRecoit, lArgentDejaRecu,
 import { ditCeQuiManque, familleDeTrace, traceAEcrire, traceSuffit, type TraceDuMoyen } from '../../../../shared/trace-du-moyen-pur';
 import { ChampsDeLaTrace } from './TraceDuMoyen';
 import { useStaff, adresseDe } from '../equipe/data';
-import { caisseProposee, caissesAuChoix, peutChangerLaCaisse, CAISSE_CHEQUES, caisseDesCheques } from '../../../../shared/caisses-des-caissiers-pur';
+import { avecLesMoyensDeLaMaison, caisseProposee, caissesAuChoix, peutChangerLaCaisse, poseLaCaisse } from '../../../../shared/caisses-des-caissiers-pur';
 import { identiteCourante } from '../../../../shared/journal';
 import { DeposerUneCapture } from './DeposerUneCapture';
 import { methodeDuMoyenLu } from '../../../../shared/ia-capture-pur';
@@ -343,32 +343,31 @@ export default function Caisse() {
     .filter((c) => c.name !== CAISSE_MND_PAY)
     .filter((c) => cashboxCurrency(c) === payCurrency)
     .sort((a, b) => Number(b.role === 'terrasse') - Number(a.role === 'terrasse'));
-  /* ══ LA CAISSE DE QUI ENCAISSE — 17 octobre 2026 ══════════════════════
-     Même règle que l'encaissement d'un rituel (`caisseProposee`) : les
-     espèces vont dans la caisse du caissier connecté (le tiroir commun s'il
-     n'en a pas), MTN MoMoPay au compte MoMoPay, la carte et le chèque à la
-     banque. Seule la direction choisit une autre caisse ; pour un moyen sans
-     caisse attitrée, la caisse active d'avant reste, et chacun la change. */
+  /* ══ LA CAISSE DU PAIEMENT — 17 puis 21 octobre 2026 ══════════════════
+     Même règle que l'encaissement d'un rituel (`caisseProposee`) : chaque
+     moyen a sa caisse, à son nom (Espèces, MTN MoMoPay, MoMo Privé, Carte,
+     Chèque, Autres ; une reprise d'une année passée va aux années passées),
+     choisie d'office ; introuvable, elle naît à l'encaissement. Seule la
+     direction choisit une autre caisse. */
   const monMail = (identiteCourante().mail ?? '').trim().toLowerCase();
   const maFiche = monMail ? team.find((m) => adresseDe(m) === monMail) : undefined;
   const proposeePos = caisseProposee({
-    methode: pay, aujourdhui: dateVente, boxes: eligibleBoxes, branchId: branch.id, staffId: maFiche?.id, enDevise: fxOnEff,
+    methode: pay, aujourdhui: dateVente, boxes: eligibleBoxes, toutes: branchCashboxes, branchId: branch.id, staffId: maFiche?.id, enDevise: fxOnEff,
   });
   const [caisseTouchee, setCaisseTouchee] = useState(false);
   useEffect(() => { setCaisseTouchee(false); }, [pay]);
   const peutChangerPos = peutChangerLaCaisse(estDirection, proposeePos);
   const dansLaListe = (nom?: string) => !!nom && eligibleBoxes.some((c) => c.name === nom);
-  /* Le chèque attend son dépôt dans sa caisse (18 octobre 2026), même si elle
-     n'est pas encore née : elle naît à l'encaissement. */
-  const chequeVaASaCaisse = proposeePos.caisse === CAISSE_CHEQUES && !(peutChangerPos && caisseTouchee && dansLaListe(cashbox));
-  const activeCashbox = chequeVaASaCaisse
-    ? CAISSE_CHEQUES
-    : peutChangerPos && (caisseTouchee || !proposeePos.caisse) && dansLaListe(cashbox)
+  /* La caisse du paiement, même si elle n'est pas encore née : elle naît à
+     l'encaissement (`poseLaCaisse`). La main de la direction passe devant. */
+  const activeCashbox = peutChangerPos && (caisseTouchee || !proposeePos.caisse) && dansLaListe(cashbox)
     ? cashbox
-    : dansLaListe(proposeePos.caisse)
-      ? proposeePos.caisse!
+    : proposeePos.caisse
+      ? proposeePos.caisse
       : dansLaListe(cashbox) ? cashbox : eligibleBoxes[0]?.name ?? '';
-  const hasCashbox = eligibleBoxes.length > 0;
+  /* La caisse qui naît, si c'est bien elle qui reçoit. */
+  const caisseANaitre = activeCashbox && activeCashbox === proposeePos.caisse ? proposeePos.aCreer : undefined;
+  const hasCashbox = eligibleBoxes.length > 0 || !!caisseANaitre;
 
   const branchClients = clients.filter((c) => c.branchId === branch.id && !c.archived);
 
@@ -672,6 +671,8 @@ export default function Caisse() {
   const ajouteLaPart = () => {
     if (!partPossible) return;
     const trace = famPay ? traceAEcrire(famPay, traceCaisse) : undefined;
+    /* La caisse de cette part naît tout de suite si elle manquait. */
+    if (caisseANaitre) cashboxesStore.set((prev) => poseLaCaisse(prev, caisseANaitre));
     setParts((prev) => [...prev, {
       id: `ip-${uid()}`, methode: pay, montantXof: partSaisie,
       ...(activeCashbox ? { caisse: activeCashbox } : {}),
@@ -691,11 +692,9 @@ export default function Caisse() {
     if (pay === MND && !mndPay) return;
     if (!mndPay && resteApresParts > 0 && !traceDuMoyenOk) return;
     if (submitting.current) return;
-    /* La caisse des chèques naît au premier chèque. */
-    if ((activeCashbox === CAISSE_CHEQUES || parts.some((x) => x.caisse === CAISSE_CHEQUES)) && !cashboxes.some((c) => c.branchId === branch.id && c.name === CAISSE_CHEQUES)) {
-      const neuve = caisseDesCheques(branch.id);
-      cashboxesStore.set((prev) => (prev.some((c) => c.id === neuve.id) ? prev : [...prev, neuve]));
-    }
+    /* La caisse du paiement naît au premier argent qui y entre (21 octobre
+       2026 ; le chèque le faisait depuis le 18). */
+    if (caisseANaitre && !mndPay) cashboxesStore.set((prev) => poseLaCaisse(prev, caisseANaitre));
     submitting.current = true;
     try {
     const client = branchClients.find((c) => c.id === clientId);
@@ -1083,6 +1082,8 @@ export default function Caisse() {
                 {caissesAuChoix(eligibleBoxes, { staffId: maFiche?.id, estDirection, anneePassee: false, garder: activeCashbox }).map((c) => (
                   <option key={c.id} value={c.name}>{c.name}</option>
                 ))}
+                {/* La caisse du paiement qui naîtra à l'encaissement. */}
+                {caisseANaitre && !eligibleBoxes.some((c) => c.name === activeCashbox) && <option value={activeCashbox}>{activeCashbox}</option>}
               </select>
             ) : (
               <span style={{ fontFamily: 'var(--font-serif)', fontSize: 13, color: 'var(--ink-soft)', textTransform: 'none', letterSpacing: 0 }}>
@@ -1525,7 +1526,7 @@ export default function Caisse() {
                 </button>
               )}
               <div className="tr-grid tr-grid--2" style={{ gap: 10 }}>
-                {(zelleOn && !methods.includes(MOYEN_ZELLE) ? [...methods, MOYEN_ZELLE] : methods).map((m) => (
+                {avecLesMoyensDeLaMaison(zelleOn && !methods.includes(MOYEN_ZELLE) ? [...methods, MOYEN_ZELLE] : methods).map((m) => (
                   <button key={m} className={`trv-pay ${pay === m ? 'is-active' : ''}`} onClick={() => {
                     if (m !== pay) setTraceCaisse({});
                     setPay(m);

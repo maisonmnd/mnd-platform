@@ -85,8 +85,10 @@ dit('les renommages de ses choix : Real Money devient « Tiroir espèces » ; AC
   const P = (methode: string, staffId?: string, boxes = ici) =>
     caisseProposee({ methode, dateDuRdv: '2026-10-19', aujourdhui: '2026-10-19', boxes, branchId: B, staffId }).caisse ?? null;
   const avecGerard = [...ici, cb('cb-caissier-g1', 'Caisse de Gérard', { role: 'terrasse', equipe: true, caissierId: 'g1' })];
-  dit('au RDV : espèces → la caisse de qui encaisse, sinon le tiroir commun', ['Caisse de Gérard', 'Tiroir espèces'], [P('Espèces', 'g1', avecGerard), P('Espèces', 'y1', avecGerard)]);
-  dit('au RDV : MTN MoMoPay → le MoMoPay de la Maison ; la carte et le virement : on choisit ; le chèque : Chèques à déposer', ['MoMoPay Maison MND', 'MoMoPay Maison MND', null, null, 'Chèques à déposer'],
+  /* 21 OCTOBRE 2026, sa règle : « une seule Espèces », et chaque paiement a
+     sa caisse à son nom (Carte, Autres naissent ; le chèque garde la sienne). */
+  dit('au RDV : espèces → le tiroir, jamais la caisse de qui encaisse', ['Tiroir espèces', 'Tiroir espèces'], [P('Espèces', 'g1', avecGerard), P('Espèces', 'y1', avecGerard)]);
+  dit('au RDV : MTN MoMoPay → le MoMoPay de la Maison ; la carte → Carte ; le virement → Autres ; le chèque → sa caisse', ['MoMoPay Maison MND', 'MoMoPay Maison MND', 'Carte', 'Autres', 'Chèque'],
     [P('MTN MoMo'), P('Momopay'), P('Carte'), P('Virement bancaire'), P('Chèque')]);
   const auChoixDir = caissesAuChoix(ici, { estDirection: true, anneePassee: false }).map((x) => x.name);
   dit('au choix, même pour la direction : aucune caisse d épargne ni à l étranger ; le comptoir reste', [false, true, true, true],

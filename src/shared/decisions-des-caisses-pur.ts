@@ -4,7 +4,7 @@
    jamais un nom ni une année en dur. Éprouvées par
    `scripts/verifie-caisses-des-caissiers`. */
 import type { Cashbox } from './finance';
-import { CAISSE_ANNEES_PASSEES, caisseDesCheques, caisseMomopayDeLaMaison } from './caisses-des-caissiers-pur';
+import { CAISSE_ANNEES_PASSEES, caisseDesCheques, caisseMomopayDeLaMaison, caisseNeuveDuPaiement } from './caisses-des-caissiers-pur';
 
 /* ══ LES DÉCISIONS DU 17 OCTOBRE SUR LES AUTRES CAISSES ═════════════════
    « Que fait-on des autres caisses ? Caisses indépendantes, BIIC… » (Yéman),
@@ -40,9 +40,15 @@ export function decisionsDesCaisses<B extends Cashbox>(boxes: readonly B[], aujo
      pas : on la cherche parmi TOUTES les caisses, rangées comprises. */
   const branches = [...new Set(boxes.map((b) => b.branchId).filter((x): x is string => !!x))];
   for (const br of branches) {
-    /* Et la caisse MoMoPay de la Maison (19 octobre 2026), de la même façon. */
-    for (const neuve of [caisseDesCheques(br), caisseMomopayDeLaMaison(br)]) {
-      if (boxes.some((b) => b.id === neuve.id)) continue;
+    /* Et la caisse MoMoPay de la Maison (19 octobre 2026), de la même façon ;
+       puis les caisses au nom des paiements (21 octobre 2026) : « Carte »,
+       « MoMo Privé », « Autres ». « Espèces » ne naît jamais ici : c'est le
+       tiroir du comptoir, renommé par le panneau, et une caisse neuve
+       partagerait l'argent liquide en deux. */
+    const neuves = [caisseDesCheques(br), caisseMomopayDeLaMaison(br),
+      caisseNeuveDuPaiement('carte', br), caisseNeuveDuPaiement('momoPrive', br), caisseNeuveDuPaiement('autre', br)];
+    for (const neuve of neuves) {
+      if (boxes.some((b) => b.id === neuve.id || (b.branchId === br && b.name === neuve.name))) continue;
       out.push(neuve as B);
       change = true;
     }

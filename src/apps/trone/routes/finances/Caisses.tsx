@@ -4,6 +4,8 @@ import { DepartDesCaisses, moisEtAn } from './DepartDesCaisses';
 import { BasculeDOctobre } from './BasculeDOctobre';
 import { FusionDesCaisses } from './FusionDesCaisses';
 import { TriDesCaisses } from './TriDesCaisses';
+import { CaissesAuNom } from './CaissesAuNom';
+import { CarteAVirer } from './CarteAVirer';
 import { AncienMomopay } from './AncienMomopay';
 import { ChequesADeposer } from './ChequesADeposer';
 import { gardeToutSonPasse } from '../../../../shared/finance';
@@ -360,6 +362,9 @@ export default function Caisses() {
         </div>
       </div>
 
+      {/* LES CAISSES AU NOM DES PAIEMENTS (21 octobre 2026) : elles font le
+          tri du 19 octobre s'il attend encore. */}
+      <CaissesAuNom />
       {/* LE TRI DES CAISSES (19 octobre 2026, ses choix sur la page de tri). */}
       <TriDesCaisses />
       {/* LE NOUVEAU MOMOPAY DE LA MAISON (19 octobre 2026, code 909099). */}
@@ -367,6 +372,8 @@ export default function Caisses() {
       <FusionDesCaisses />
       {/* LES CHÈQUES À DÉPOSER (18 octobre 2026, maquette « Chèque et carte »). */}
       <ChequesADeposer />
+      {/* LA CARTE À VIRER À LA BANQUE (21 octobre 2026). */}
+      <CarteAVirer />
 
       <div className="trf-toolbar">
         <MonthNav month={month} onChange={setMonth} />

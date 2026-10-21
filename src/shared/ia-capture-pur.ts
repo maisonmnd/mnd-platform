@@ -29,7 +29,7 @@
    que Claude rend), le rapprochement, le tri des images à lire, le verrou.
    `scripts/verifie-la-capture-qui-s-encaisse` rejoue tout, pannes comprises. */
 
-import { CAISSE_MOMOPAY_MAISON, familleDuMoyen } from './caisses-des-caissiers-pur';
+import { CAISSE_AUTRES, CAISSE_MTN, familleDuMoyen } from './caisses-des-caissiers-pur';
 import { peutDemander, type ChantierIa, type ReponseIa, type UsageIa } from './ia-maison-pur';
 
 export const CHANTIER_CAPTURE: ChantierIa = 'capture';
@@ -92,10 +92,11 @@ export function methodeDuMoyenLu(moyen: MoyenLu, methods: readonly string[]): st
 }
 
 /** LA CAISSE QUE SA DÉCISION IMPOSE : MTN MoMoPay va au compte MoMoPay de la
-    Maison (code 909099). Moov, Celtiis, un virement : rien ne s'impose, on
-    choisit (la règle des caissiers du 17-19 octobre 2026). */
+    Maison (code 909099). Moov, Celtiis, un virement vont dans « Autres »
+    depuis le 21 octobre 2026 (« chaque paiement a sa caisse ») ; un moyen
+    qu'on n'a pas su lire : rien ne s'impose, la main le choisit. */
 export const caisseImposee = (moyen: MoyenLu): string | undefined =>
-  (moyen === 'mtn' ? CAISSE_MOMOPAY_MAISON : undefined);
+  (moyen === 'mtn' ? CAISSE_MTN : moyen === 'autre' ? undefined : CAISSE_AUTRES);
 
 /* ── CE QU'ELLE DOIT ──────────────────────────────────────────────────── */
 export type GenreDeDette = 'rituel' | 'facture' | 'echeance';

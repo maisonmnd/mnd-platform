@@ -17,7 +17,7 @@ import { LOTS, deLaBranche, lisLesLots } from './bascule';
 import { defaisLaFusion, fondsLaCaisse } from './fusion';
 
 /** Chaque case de la branche qui nomme `de` prend `vers`. */
-function renommeLesEcritures(branchId: string, de: string, vers: string): void {
+export function renommeLesEcritures(branchId: string, de: string, vers: string): void {
   const garde = deLaBranche(branchId);
   for (const l of LOTS) l.store.set((prev) => prev.map((r) => (garde(r) ? renommeLEcriture(l.sorte, r, de, vers) : r)));
 }

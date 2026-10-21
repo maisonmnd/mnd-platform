@@ -5,7 +5,7 @@ import { useBranch } from '../../../../shared/branches';
 import { useClients } from '../../../../shared/clients';
 import { fmtMoney } from '../../../../shared/currency';
 import { invoicesStore, quiEncaisse, transfertsStore, useCashboxes, useInvoices } from '../../../../shared/finance';
-import { CAISSE_ANNEES_PASSEES, CAISSE_CHEQUES } from '../../../../shared/caisses-des-caissiers-pur';
+import { CAISSE_ANNEES_PASSEES, laCaisseDuPaiement, nomDeLaCaisse, type FamilleDeCaisse } from '../../../../shared/caisses-des-caissiers-pur';
 import { CAISSE_MND_PAY } from '../../../../shared/mnd-pay-pur';
 import { jourDit } from '../../../../shared/gestes-conversation';
 import { jourLocal } from '../../../../shared/mnd-pay-pur';
@@ -26,8 +26,16 @@ export function ChequesADeposer() {
      une caisse de caissier, ni une caisse en devise, ni les années passées, ni
      MND PAY). L'épargne et les comptes hors bilan en sont : la BIIC est l'un
      d'eux (le tri du 19 octobre 2026), et c'est là que le chèque se dépose. */
+  /* LA CAISSE DES CHÈQUES sous son nom du moment (« Chèque » depuis le
+     21 octobre 2026, « Chèques à déposer » avant le panneau des noms). Les
+     caisses des paiements (Espèces, Carte…) ne sont pas des comptes de
+     banque : elles ne reçoivent jamais un dépôt. */
+  const CAISSE_CHEQUES = nomDeLaCaisse(caisses, branch.id, 'cheque');
+  const desPaiements = new Set((['especes', 'momo', 'momoPrive', 'carte', 'cheque', 'autre'] as FamilleDeCaisse[])
+    .map((f) => laCaisseDuPaiement(caisses, branch.id, f)?.id).filter((x): x is string => !!x));
   const comptes = caisses.filter((c) => c.branchId === branch.id && !c.archiveeLe && !c.caissierId
     && (!c.currency || c.currency === currency)
+    && !desPaiements.has(c.id)
     && ![CAISSE_CHEQUES, CAISSE_ANNEES_PASSEES, CAISSE_MND_PAY].includes(c.name));
   const parDefaut = (comptes.find((c) => c.role === 'banque') ?? comptes.find((c) => /biic|banque|bank/i.test(c.name)))?.name ?? '';
   const [vers, setVers] = useState('');

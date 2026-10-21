@@ -112,12 +112,15 @@ export function familleDuMoyen(r: Pick<Receipt, 'method' | 'cashbox'>): string {
   if (estEnLigne(r)) return 'KkiaPay, en ligne';
   if (estEnEspeces(r)) return 'Espèces';
   const m = (r.method ?? '').trim();
+  /* MoMo Privé (21 octobre 2026) : un MoMo reçu sur un numéro personnel, à
+     part du compte de la Maison, jusque dans le revenu du jour. */
+  if (/mtn|momo/i.test(m) && /priv[ée]|perso/i.test(m)) return 'MoMo Privé';
   if (/mtn|momo/i.test(m)) return 'MTN MoMo';
   if (/moov/i.test(m)) return 'Moov Money';
   if (/^mobile money$/i.test(m)) return 'Mobile Money';
   return m || 'Autre';
 }
-const ORDRE_DES_FAMILLES = ['Espèces', 'MTN MoMo', 'Moov Money', 'Mobile Money', 'Carte', 'Virement bancaire', 'KkiaPay, en ligne'];
+const ORDRE_DES_FAMILLES = ['Espèces', 'MTN MoMo', 'MoMo Privé', 'Moov Money', 'Mobile Money', 'Carte', 'Virement bancaire', 'KkiaPay, en ligne'];
 
 export type EtatDuPointage =
   | 'kkiapay'      // vérifié par le serveur

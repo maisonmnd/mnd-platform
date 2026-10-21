@@ -11,7 +11,7 @@ import {
   ANCIEN_CODE_MOMOPAY, CODE_MOMOPAY, MARCHAND_MOMOPAY, NUMERO_MOMOPAY, QR_MOMOPAY, USSD_MOMOPAY, ID_CAISSE_ACIA1,
   basculeDuMomopay, codeDuLien, idDuVirementMomopay, virementDeLAncienMomopay,
 } from '../src/shared/momopay-de-la-maison-pur';
-import { CAISSE_MOMOPAY_MAISON, caisseMomopayDeLaMaison, caisseProposee } from '../src/shared/caisses-des-caissiers-pur';
+import { CAISSE_MTN as CAISSE_MOMOPAY_MAISON, caisseMomopayDeLaMaison, caisseProposee } from '../src/shared/caisses-des-caissiers-pur';
 import { decisionsDesCaisses } from '../src/shared/decisions-des-caisses-pur';
 import { TRI_DU_19_OCTOBRE } from '../src/shared/tri-des-caisses-pur';
 import { MOMO_MARCHAND_DEFAUT, MOMO_QR_DEFAUT, MOMO_USSD_DEFAUT } from '../src/apps/trone/routes/equipe/data';
@@ -47,7 +47,9 @@ const ACIA = b(ID_CAISSE_ACIA1, 'ACIA1', { sub: 'Momopay' });
 const P = (boxes: Cashbox[]) => caisseProposee({ methode: 'MTN MoMo', aujourdhui: '2026-10-19', boxes, branchId: 'br' }).caisse ?? null;
 dit('MTN MoMo va dans la caisse de la Maison dès qu elle existe, même si celle d ACIA1 est encore là', [CAISSE_MOMOPAY_MAISON, CAISSE_MOMOPAY_MAISON],
   [P([ACIA, caisseMomopayDeLaMaison('br')]), P([caisseMomopayDeLaMaison('br'), ACIA])]);
-dit('sans elle, l ancienne en repli', 'ACIA1', P([ACIA]));
+/* 21 octobre 2026 : « les caisses portent le nom des paiements » ; sans la
+   caisse de la Maison, elle naît à son nom (plus de repli sur ACIA 1). */
+dit('sans elle, elle naît à son nom, jamais l ancienne d ACIA 1', CAISSE_MOMOPAY_MAISON, P([ACIA]));
 dit('la caisse de la Maison : une par branche, rôle Terrasse, elle dit son code', ['cb-momopay-br', 'terrasse', true],
   [caisseMomopayDeLaMaison('br').id, caisseMomopayDeLaMaison('br').role, /909099/.test(caisseMomopayDeLaMaison('br').sub)]);
 {

@@ -270,11 +270,13 @@ const byId = new Map<string, Service>();
   dit(55, 'une piece sans versement : un seul, du total, au jour du solde', [['2026-10-10', 50_000]],
     (soldeDeLaPiece(nue, { id: 'p3', jour: '2026-10-10', moyen: 'Espèces', caisse: 'Caisse principale' }).payments ?? []).map((p) => [p.date, p.amountXof]));
   dit(55, 'le bouton attend sa caisse quand la branche en a', [true, false, false], [caisseManquante('', 2), caisseManquante('Caisse principale', 2), caisseManquante('', 0)]);
+  /* 21 octobre 2026 : la caisse se déduit du paiement (`caisseDuSolde`),
+     la direction seule en choisit une autre ; la règle de #55 reste. */
   dit(55, 'Factures : le bouton ecrit le versement du jour, attend la caisse, la caisse se vide a chaque piece', [true, true, true, true, false], [
-    /patchSelected\(soldeDeLaPiece\(selected, \{\s*id: `ip-\$\{uid\(\)\}`,\s*jour: jourLocalIso\(\),\s*moyen: payChoice,\s*caisse: payCaisse \|\| undefined,/.test(factures),
-    /disabled=\{caisseManquante\(payCaisse, boxesBranche\.length\)( \|\| [^}\n]*)?\}/.test(factures),
+    /patchSelected\(soldeDeLaPiece\(selected, \{\s*id: `ip-\$\{uid\(\)\}`,\s*jour: jourLocalIso\(\),\s*moyen: payChoice,\s*caisse: caisseDuSolde \|\| undefined,/.test(factures),
+    /disabled=\{caisseManquante\(caisseDuSolde, boxesBranche\.length\)( \|\| [^}\n]*)?\}/.test(factures),
     /useEffect\(\(\) => \{ setPayCaisse\(''\); \}, \[selectedId\]\);/.test(factures),
-    /\{boxesBranche\.length > 0 && \(\s*<Select aria-label="Caisse créditée"/.test(factures),
+    /\{estDirection && boxesBranche\.length > 0 \? \(\s*<Select aria-label="Caisse créditée"/.test(factures),
     /\(selected\.payments \?\? \[\]\)\.length === 0 && payCaisse \? \{ cashbox: payCaisse \}/.test(factures),
   ]);
 }

@@ -17,6 +17,13 @@
    Hors ligne, personne n'est connecté : les espèces vont au tiroir commun,
    comme pour une main sans caisse à son nom.
 
+   21 octobre 2026, « les caisses portent le nom des paiements » : chaque
+   tuile choisie montre SA caisse d'elle-même, sans « caisse à choisir »
+   (Espèces → le tiroir, MTN MoMoPay → le compte de la Maison, MoMo Privé,
+   Carte, Chèque, Autres → leur caisse à leur nom, qui naît au premier
+   argent), et « Reprise d'une année passée », parmi les autres moyens, va
+   aux années passées.
+
    Il attend le Trône construit sans serveur (sous Bash) :
      VITE_APPS=trone VITE_SUPABASE_URL= VITE_SUPABASE_ANON_KEY= \
        npx vite build --outDir "$TEMP/banc-trone" --emptyOutDir */
@@ -99,7 +106,8 @@ const JOUR_PASSE = `${ANNEE_AVANT}-06-12`;
 const SEMENCE = {
   'trone::mnd_cashboxes': [
     { id: 'cb-t', branchId: 'maison', name: 'Terrasse · Tiroir espèces', sub: 'Espèces du comptoir', glyph: '◈', openingXof: 0, role: 'terrasse', equipe: true },
-    { id: 'cb-m', branchId: 'maison', name: 'Terrasse · MoMoPay société', sub: 'MTN MoMoPay', glyph: '◉', openingXof: 0, role: 'terrasse', equipe: true },
+    /* La caisse MoMoPay de la Maison, sous son nom d'avant le panneau des noms. */
+    { id: 'cb-momopay-maison', branchId: 'maison', name: 'MoMoPay Maison MND', sub: 'MTN MoMoPay · code 909099', glyph: '◉', openingXof: 0, role: 'terrasse' },
     { id: 'cb-b', branchId: 'maison', name: 'La Banque', sub: 'Compte de la société', glyph: '▥', openingXof: 0, role: 'banque' },
   ],
   'trone::mnd_staff': [
@@ -155,6 +163,35 @@ dit('la barre dit où vont les 30 000 F', /30\s?000\s?F en espèces → Terrasse
 await capture('encaisser-bureau', 1280, 900, false);
 await capture('encaisser-telephone', 390, 844, true);
 
+/* ── A0. CHAQUE TUILE CHOISIT SA CAISSE (21 octobre 2026) ─────────── */
+const caisseDeLaPart = () => evalue(`(() => { const s = [...document.querySelectorAll('.mnd-modal span')].find((x) => x.textContent.trim().startsWith('→') && x.querySelector('b')); return s ? s.querySelector('b').textContent.trim() : null; })()`);
+const sansChoix = () => evalue(`!/caisse à choisir|Choisissez la caisse/.test(document.querySelector('.mnd-modal')?.innerText || '')`);
+dit('la tuile MoMo Privé est là', tuiles.includes('MoMo Privé'), JSON.stringify(tuiles));
+const ATTENDUES = [['Espèces', 'Terrasse · Tiroir espèces'], ['MTN MoMoPay', 'MoMoPay Maison MND'], ['MoMo Privé', 'MoMo Privé'], ['Carte', 'Carte'], ['Chèque', 'Chèque'], ['Autres', 'Autres']];
+const vues = [];
+for (const [tuile] of ATTENDUES) {
+  await clique('.mnd-modal .trv-pay', tuile);
+  await attend(350);
+  vues.push([tuile, await caisseDeLaPart(), await sansChoix()]);
+  if (tuile === 'MoMo Privé' && captures) {
+    await capture('caisse-momo-prive-bureau', 1280, 900, false);
+    await capture('caisse-momo-prive-telephone', 390, 844, true);
+  }
+}
+dit('chaque tuile montre sa caisse d elle-même, jamais « caisse à choisir »', JSON.stringify(vues) === JSON.stringify(ATTENDUES.map(([a, b]) => [a, b, true])), JSON.stringify(vues));
+const repriseOk = await evalue(`(() => { const s = document.querySelector('.mnd-modal select[aria-label="Le moyen"]'); if (!s) return false;
+  const o = [...s.options].find((x) => /^Reprise d.une année passée$/.test(x.value)); if (!o) return false;
+  Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set.call(s, o.value); s.dispatchEvent(new Event('change', { bubbles: true })); return true; })()`);
+await attend(350);
+dit('« Autres » offre la reprise d une année passée, qui va aux années passées', repriseOk && (await caisseDeLaPart()) === 'Années passées', String(await caisseDeLaPart()));
+await clique('.mnd-modal .trv-pay', 'Espèces');
+await attend(350);
+dit('retour aux espèces : le tiroir', (await caisseDeLaPart()) === 'Terrasse · Tiroir espèces', String(await caisseDeLaPart()));
+if (captures) {
+  await capture('caisse-especes-bureau', 1280, 900, false);
+  await capture('caisse-especes-telephone', 390, 844, true);
+}
+
 await tape('input[aria-label="Montant de la part 1"]', '40000');
 await attend(300);
 t = await texteModale();
@@ -167,7 +204,7 @@ await attend(400);
 await tape('input[aria-label="Pourboire"]', '2000');
 await attend(300);
 t = await texteModale();
-dit('la deuxième part part en MTN MoMoPay, vers le compte MoMoPay de la Maison', /10\s?000\s?F en MTN MoMoPay → Terrasse · MoMoPay société/u.test(t));
+dit('la deuxième part part en MTN MoMoPay, vers le compte MoMoPay de la Maison', /10\s?000\s?F en MTN MoMoPay → MoMoPay Maison MND/u.test(t));
 dit('la barre dit « Tout est réglé. »', t.includes('Tout est réglé.'));
 await capture('encaisser-deux-moyens', 1280, 900, false);
 dit('le bouton encaisse 30 000 F', await clique('button', 'Encaisser 30', modale));
@@ -175,10 +212,10 @@ await attend(2500);
 const pieces = (await lis('trone::mnd_invoices')) ?? [];
 const p = pieces.find((x) => x.apptId === 'rdv-awa');
 const v = (p?.payments ?? []).map((x) => [x.method, x.amountXof, x.cashbox]);
-dit('deux versements, chacun dans sa caisse', JSON.stringify(v) === JSON.stringify([['Espèces', 20000, 'Terrasse · Tiroir espèces'], ['MTN MoMo', 10000, 'Terrasse · MoMoPay société']]), JSON.stringify(v));
+dit('deux versements, chacun dans sa caisse', JSON.stringify(v) === JSON.stringify([['Espèces', 20000, 'Terrasse · Tiroir espèces'], ['MTN MoMo', 10000, 'MoMoPay Maison MND']]), JSON.stringify(v));
 dit('la pièce est payée, le pourboire à part', p?.status === 'payée' && p?.tipXof === 2000, `${p?.status} · ${p?.tipXof}`);
 const rdv = ((await lis('trone::mnd_appointments')) ?? []).find((a) => a.id === 'rdv-awa');
-dit('le carnet porte une ligne par part, la somme juste', JSON.stringify((rdv?.payments ?? []).map((x) => [x.method, x.amountXof, x.cashbox])) === JSON.stringify([['Espèces', 20000, 'Terrasse · Tiroir espèces'], ['MTN MoMo', 10000, 'Terrasse · MoMoPay société']]) && rdv?.paidXof === 30000, JSON.stringify(rdv?.payments?.map((x) => x.amountXof)));
+dit('le carnet porte une ligne par part, la somme juste', JSON.stringify((rdv?.payments ?? []).map((x) => [x.method, x.amountXof, x.cashbox])) === JSON.stringify([['Espèces', 20000, 'Terrasse · Tiroir espèces'], ['MTN MoMo', 10000, 'MoMoPay Maison MND']]) && rdv?.paidXof === 30000, JSON.stringify(rdv?.payments?.map((x) => x.amountXof)));
 const tips = ((await lis('trone::mnd_tips_v2')) ?? []).filter((x) => x.invoiceId === p?.id);
 dit('l équipe reçoit ses parts du pourboire', tips.length === 2 && tips.reduce((n, x) => n + x.amountXof, 0) === 2000, JSON.stringify(tips.map((x) => x.amountXof)));
 
@@ -231,10 +268,11 @@ dit('le chèque s encaisse', await clique('.mnd-modal button', 'Encaisser 30'));
 await attend(2500);
 const pche = ((await lis('trone::mnd_invoices')) ?? []).find((x) => x.apptId === 'rdv-che');
 const vche = (pche?.payments ?? []).map((x) => [x.method, x.amountXof, x.cashbox, x.trace?.banque, x.trace?.numero]);
-/* « Une caisse « Chèques à déposer » » (18 octobre 2026, sa décision) : le chèque y attend son dépôt. */
-dit('le versement porte sa trace : chèque, BOA Bénin, n° 1234567, dans « Chèques à déposer »', JSON.stringify(vche) === JSON.stringify([['Chèque', 30000, 'Chèques à déposer', 'BOA Bénin', '1234567']]), JSON.stringify(vche));
-const cbChe = ((await lis('trone::mnd_cashboxes')) ?? []).filter((x) => x.name === 'Chèques à déposer');
-dit('la caisse « Chèques à déposer » existe, une seule, dans la branche', cbChe.length === 1 && cbChe[0].branchId === 'maison', JSON.stringify(cbChe.map((x) => [x.id, x.branchId])));
+/* « Une caisse « Chèques à déposer » » (18 octobre 2026, sa décision) : le chèque y attend son dépôt ;
+   son nom suit le paiement depuis le 21 octobre 2026 : « Chèque ». */
+dit('le versement porte sa trace : chèque, BOA Bénin, n° 1234567, dans « Chèque »', JSON.stringify(vche) === JSON.stringify([['Chèque', 30000, 'Chèque', 'BOA Bénin', '1234567']]), JSON.stringify(vche));
+const cbChe = ((await lis('trone::mnd_cashboxes')) ?? []).filter((x) => x.name === 'Chèque');
+dit('la caisse « Chèque » existe, une seule, dans la branche', cbChe.length === 1 && cbChe[0].branchId === 'maison', JSON.stringify(cbChe.map((x) => [x.id, x.branchId])));
 
 await cdp('Page.navigate', { url: `http://127.0.0.1:${port}/trone.html#/caisses` });
 await attend(4500);
@@ -245,7 +283,7 @@ dit('le compte qui reçoit le dépôt : La Banque d office', compteDuDepot === '
 dit('« Marquer déposés » se clique', await clique('[data-cheques-a-deposer] button', 'Marquer déposés'));
 await attend(1200);
 const vir = ((await lis('trone::mnd_transferts_caisse')) ?? []).map((x) => [x.de, x.vers, x.amountXof]);
-dit('le dépôt vire 30 000 F de « Chèques à déposer » à La Banque, une fois', JSON.stringify(vir) === JSON.stringify([['Chèques à déposer', 'La Banque', 30000]]), JSON.stringify(vir));
+dit('le dépôt vire 30 000 F de « Chèque » à La Banque, une fois', JSON.stringify(vir) === JSON.stringify([['Chèque', 'La Banque', 30000]]), JSON.stringify(vir));
 const pdep = ((await lis('trone::mnd_invoices')) ?? []).find((x) => x.apptId === 'rdv-che');
 dit('le chèque porte son jour de dépôt', (pdep?.payments ?? [])[0]?.trace?.deposeLe === AUJ, JSON.stringify((pdep?.payments ?? [])[0]?.trace));
 dit('il ne paraît plus dans les chèques à déposer', !(await evalue(`!!document.querySelector('[data-cheques-a-deposer]')`)));

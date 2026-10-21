@@ -5,6 +5,7 @@ import { fmtMoney } from '../../../../shared/currency';
 import { useToutesLesCaisses } from '../../../../shared/finance';
 import { FUSION_DECIDEE } from '../../../../shared/decisions-des-caisses-pur';
 import { TRI_DU_19_OCTOBRE, leTriEstFait, lesCaissesDuPlan, nomsDejaPris, renommagesDuPlan } from '../../../../shared/tri-des-caisses-pur';
+import { leNomEstFait } from '../../../../shared/caisses-au-nom-pur';
 import { useEstDirection } from '../_vie';
 import { downloadBackup } from '../../backup';
 import { useCaisses } from './tiroirs';
@@ -28,6 +29,11 @@ export function TriDesCaisses() {
 
   const plan = TRI_DU_19_OCTOBRE;
   const fait = leTriEstFait(toutes, branch.id, plan);
+  /* LES CAISSES AU NOM DES PAIEMENTS (21 octobre 2026) font le tri qui
+     attend, dans leur propre geste : ce panneau ne le propose plus. Leur
+     geste fait, le tri ne se défait plus seul (il renommerait des caisses
+     qui ont changé de nom depuis) : le retour passe par leur « Défaire ». */
+  if (!fait || leNomEstFait(toutes, branch.id)) return null;
   const boite = { border: '1px solid var(--copper-300)', background: 'var(--copper-50)', borderRadius: 'var(--radius-md)', padding: '14px 16px', margin: '14px 0', display: 'grid', gap: 10 } as const;
   const petit = { fontFamily: 'var(--font-sans)', fontSize: 12.5, lineHeight: 1.55, color: 'var(--ink)' } as const;
 

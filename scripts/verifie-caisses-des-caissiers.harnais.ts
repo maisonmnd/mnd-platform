@@ -17,14 +17,24 @@
    7. LES AUTRES CAISSES (17 octobre 2026, ses réponses) : BIIC à part, Caisse
       Indépendantes remplacée, chacun ne voit que la sienne, « Reprise 2025 »
       fondue dans les années passées (et défaite à l'identique), l'histoire
-      qui garde tout son passé. */
+      qui garde tout son passé.
+
+   21 OCTOBRE 2026 : LES CAISSES PORTENT LE NOM DES PAIEMENTS. « Chaque
+   paiement doit être attribué à une caisse. Quand je choisis un paiement que
+   sa caisse soit automatiquement sélectionnée. Il faut également rajouter
+   Momo Privé. Les caisses doivent porter les mêmes noms que les paiements »,
+   puis au sélecteur : une seule « Espèces » (plus de caisse par caissier),
+   « Carte », « MoMo Privé », « Autres », et « Reprise d'une année passée »
+   parmi les autres moyens, qui va aux années passées. Les contrôles des
+   sections 1, 3, 4, 5 et 6 portent désormais SA règle du 21 octobre. */
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import {
-  CAISSE_ANNEES_PASSEES, caisseDuCaissier, caisseNeuveDuCaissier, caisseProposee, caissesAuChoix,
+  CAISSE_ANNEES_PASSEES, caisseProposee, caissesAuChoix,
   estAnneeAnterieure, familleDuMoyen, peutChangerLaCaisse, caisseDesAnneesPassees,
   fusionneLEcriture, defaisLaFusionDeLEcriture, casesQuiNomment, caissesApresFusion, caissesApresDefaire,
-  CAISSE_CHEQUES, caisseDesCheques, HORS_CLOTURE, caisseMomopayDeLaMaison,
+  CAISSE_CHEQUE, caisseDesCheques, HORS_CLOTURE, caisseMomopayDeLaMaison, avecLesMoyensDeLaMaison, poseLaCaisse,
+  MOYEN_MOMO_PRIVE, MOYEN_REPRISE, caisseNeuveDuPaiement,
 } from '../src/shared/caisses-des-caissiers-pur';
 import { decisionsDesCaisses, FUSION_DECIDEE } from '../src/shared/decisions-des-caisses-pur';
 import { caissesPourLEquipe, gardeToutSonPasse } from '../src/shared/finance';
@@ -68,10 +78,13 @@ function sansCommentaires(src: string): string {
 }
 
 /* ── 1. LA FAMILLE DE CHAQUE MOYEN ───────────────────────────────────── */
-const SA_LISTE = ['MTN MoMo', 'Moov', 'Celtis', 'Wave', 'Espèces', 'Carte', 'Virement bancaire', 'PayPal', 'Chèque', 'Lien WhatsApp', 'Avoir', 'MND PAY', 'Zelle', 'KkiaPay'];
-dit('les moyens de sa liste, chacun à sa famille (Moov, Wave, PayPal sans caisse attitrée)',
-  ['momo', 'autre', 'autre', 'autre', 'especes', 'banque', 'banque', 'autre', 'banque', 'autre', 'avoir', 'mndpay', 'zelle', 'kkiapay'],
+const SA_LISTE = ['MTN MoMo', 'Moov', 'Celtis', 'Wave', 'Espèces', 'Carte', 'Virement bancaire', 'PayPal', 'Chèque', 'Lien WhatsApp', 'Avoir', 'MND PAY', 'Zelle', 'KkiaPay', 'MoMo Privé', 'Reprise d’une année passée'];
+dit('les moyens de sa liste, chacun à sa famille (Moov, Wave, PayPal, virement : « autre » ; MoMo Privé et la reprise ont la leur)',
+  ['momo', 'autre', 'autre', 'autre', 'especes', 'carte', 'autre', 'autre', 'cheque', 'autre', 'avoir', 'mndpay', 'zelle', 'kkiapay', 'momoPrive', 'reprise'],
   SA_LISTE.map(familleDuMoyen));
+dit('sa liste, plus MoMo Privé juste après son MTN, et la reprise à la fin ; déjà là, rien ne s ajoute',
+  [['MTN MoMo', MOYEN_MOMO_PRIVE, 'Espèces', MOYEN_REPRISE], ['Espèces', 'Momo privé', 'reprise année passée']],
+  [avecLesMoyensDeLaMaison(['MTN MoMo', 'Espèces']), avecLesMoyensDeLaMaison(['Espèces', 'Momo privé', 'reprise année passée'])]);
 
 /* ── 2. L'ANNÉE ANTÉRIEURE ───────────────────────────────────────────── */
 dit('2025, 2024, 2023, 2022 : antérieures ; l année en cours, non ; demain non plus',
@@ -82,12 +95,12 @@ dit('sans date lisible : jamais antérieure', [false, false], [estAnneeAnterieur
 const pur = sansCommentaires(lis2('src/shared/caisses-des-caissiers-pur.ts'));
 dit('aucune année écrite en dur dans la règle', [], pur.match(/\b20\d\d\b/g) ?? []);
 
-/* ── 3. LA CAISSE PROPOSÉE ───────────────────────────────────────────── */
+/* ── 3. LA CAISSE PROPOSÉE (sa règle du 21 octobre 2026) ─────────────── */
 const b = (name: string, x: Partial<Cashbox> = {}): Cashbox => ({ id: `cb-${name}`, branchId: 'cot', name, sub: '', glyph: '', openingXof: 0, ...x });
 const BOITES: Cashbox[] = [
   b('Terrasse · Tiroir espèces', { role: 'terrasse', equipe: true, sub: 'Espèces du comptoir' }),
   b('Terrasse · MoMo MTN', { role: 'terrasse' }),
-  b('Terrasse · MoMoPay société', { role: 'terrasse', equipe: true, sub: 'MTN MoMoPay' }),
+  caisseMomopayDeLaMaison('cot'),
   b('La Banque', { role: 'banque', sub: 'Compte de la société' }),
   b('Caisse du mois', { role: 'mois' }),
   b('KkiaPay', { role: 'terrasse' }),
@@ -96,116 +109,128 @@ const BOITES: Cashbox[] = [
   b('Caisse de Brice', { role: 'terrasse', equipe: true, caissierId: 'b1' }),
   b('Ancienne caisse de Lou', { role: 'terrasse', caissierId: 'l1', archiveeLe: '2026-10-01' }),
 ];
-const P = (methode: string, staffId?: string, dateDuRdv = '2026-10-17', boxes: Cashbox[] = BOITES, enDevise = false) =>
-  caisseProposee({ methode, dateDuRdv, aujourdhui: '2026-10-17', boxes, branchId: 'cot', staffId, enDevise }).caisse ?? null;
-dit('espèces : la caisse de qui encaisse (Gérard, Brice)', ['Caisse de Gérard', 'Caisse de Brice'], [P('Espèces', 'g1'), P('Espèces', 'b1')]);
-dit('espèces, sans caisse à son nom ou sans fiche : le tiroir commun', ['Terrasse · Tiroir espèces', 'Terrasse · Tiroir espèces'], [P('Espèces', 'y1'), P('Espèces')]);
-dit('une caisse rangée ne se propose plus', 'Terrasse · Tiroir espèces', P('Espèces', 'l1'));
-dit('MTN MoMoPay → le compte MoMoPay de la Maison, pas le MoMo d un associé', 'Terrasse · MoMoPay société', P('MTN MoMo', 'g1'));
-/* LE TRI DU 19 OCTOBRE 2026, règle 2 : « la carte et le virement, on choisit
-   à chaque fois ». Plus rien ne se propose, même une caisse au rôle banque. */
-dit('carte, virement : rien ne se propose, on choisit (le tri du 19 octobre)', [null, null], [P('Carte', 'g1'), P('Virement bancaire', 'g1')]);
-dit('... et l écran le dit', true, /choisissez la caisse/.test(caisseProposee({ methode: 'Carte', aujourdhui: '2026-10-19', boxes: BOITES, branchId: 'cot' }).pourquoi));
-dit('... et le caissier peut choisir (sinon la carte ne s encaisserait plus)', true, peutChangerLaCaisse(false, { caisse: P('Carte', 'g1') ?? undefined }));
-/* LA CAISSE DES CHÈQUES (18 octobre 2026, sa décision : « Une caisse
-   « Chèques à déposer » ») : le chèque y attend son dépôt, jamais la banque. */
+const P = (methode: string, staffId?: string, dateDuRdv = '2026-10-21', boxes: Cashbox[] = BOITES, enDevise = false) =>
+  caisseProposee({ methode, dateDuRdv, aujourdhui: '2026-10-21', boxes, branchId: 'cot', staffId, enDevise }).caisse ?? null;
+dit('espèces : UNE caisse des espèces pour toute la Maison, jamais celle de qui encaisse (Gérard, Brice, sans fiche)',
+  ['Terrasse · Tiroir espèces', 'Terrasse · Tiroir espèces', 'Terrasse · Tiroir espèces'], [P('Espèces', 'g1'), P('Espèces', 'b1'), P('Espèces')]);
+dit('MTN MoMoPay → le compte MoMoPay de la Maison, pas le MoMo d un associé', 'MTN MoMoPay', P('MTN MoMo', 'g1'));
 {
-  const sans = caisseProposee({ methode: 'Chèque', aujourdhui: '2026-10-17', boxes: BOITES, branchId: 'cot', staffId: 'g1' });
-  dit('le chèque → « Chèques à déposer », à créer quand elle n existe pas, et il le dit', ['Chèques à déposer', true, true],
-    [sans.caisse, sans.aCreer === true, /dépôt|dépose/.test(sans.pourquoi)]);
-  const AVEC = [caisseDesCheques('cot'), ...BOITES];
-  const avec = caisseProposee({ methode: 'Chèque', aujourdhui: '2026-10-17', boxes: AVEC, branchId: 'cot', staffId: 'g1' });
-  dit('... et quand elle existe, plus rien à créer', ['Chèques à déposer', false], [avec.caisse, avec.aCreer === true]);
-  dit('la caisse des chèques au rôle banque n attire jamais la carte ni le virement', [null, null],
-    [P('Carte', 'g1', '2026-10-17', AVEC), P('Virement bancaire', 'g1', '2026-10-17', AVEC)]);
-  dit('un chèque de 2025 reste aux années passées', CAISSE_ANNEES_PASSEES, P('Chèque', 'g1', '2025-05-02', AVEC));
-  dit('rangée ou mise à part à la main, elle ne reçoit plus de chèque : on choisit, sans rien créer', [null, null, false],
-    [P('Chèque', 'g1', '2026-10-17', [{ ...caisseDesCheques('cot'), archiveeLe: '2026-10-17' }, ...BOITES]),
-      P('Chèque', 'g1', '2026-10-17', [{ ...caisseDesCheques('cot'), horsEncaissement: true }, ...BOITES]),
-      caisseProposee({ methode: 'Chèque', aujourdhui: '2026-10-17', boxes: [{ ...caisseDesCheques('cot'), archiveeLe: '2026-10-17' }, ...BOITES], branchId: 'cot' }).aCreer === true]);
-  dit('la caisse des chèques d une autre branche ne compte pas ici', ['Chèques à déposer', true],
-    [P('Chèque', 'g1', '2026-10-17', [{ ...caisseDesCheques('pn'), archiveeLe: '2026-10-17' }, ...BOITES]),
-      caisseProposee({ methode: 'Chèque', aujourdhui: '2026-10-17', boxes: [caisseDesCheques('pn'), ...BOITES], branchId: 'cot' }).aCreer === true]);
-  dit('la caisse des chèques : une par branche, même identifiant à chaque fois, rôle banque, ouverte à 0', ['cb-cheques-cot', 'cot', 'banque', 0, true],
-    [caisseDesCheques('cot').id, caisseDesCheques('cot').branchId, caisseDesCheques('cot').role, caisseDesCheques('cot').openingXof, caisseDesCheques('cot').id === caisseDesCheques('cot').id]);
-  dit('un caissier peut y mettre un chèque ; elle ne se compte pas le soir', [true, true],
-    [caissesAuChoix(AVEC, { staffId: 'g1', estDirection: false, anneePassee: false }).some((x) => x.name === CAISSE_CHEQUES), HORS_CLOTURE.includes(CAISSE_CHEQUES)]);
+  /* CHAQUE PAIEMENT A SA CAISSE : celle qui manque naît, à son nom, avec son
+     identifiant tiré de la branche ; on ne choisit plus jamais à la main. */
+  const tous = ['Carte', 'MoMo Privé', 'Momo privé', 'Moov', 'Wave', 'PayPal', 'Virement bancaire', 'Lien WhatsApp', 'Chèque'];
+  const r = tous.map((m) => caisseProposee({ methode: m, dateDuRdv: '2026-10-21', aujourdhui: '2026-10-21', boxes: BOITES, branchId: 'cot' }));
+  dit('carte, MoMo Privé, Moov, Wave, PayPal, virement, lien, chèque : chacun sa caisse au nom du paiement',
+    ['Carte', 'MoMo Privé', 'MoMo Privé', 'Autres', 'Autres', 'Autres', 'Autres', 'Autres', 'Chèque'], r.map((x) => x.caisse ?? null));
+  dit('... elles naissent avec leur identifiant (une par branche)', ['cb-carte-cot', 'cb-momo-prive-cot', 'cb-momo-prive-cot', 'cb-autres-cot', 'cb-autres-cot', 'cb-autres-cot', 'cb-autres-cot', 'cb-autres-cot', 'cb-cheques-cot'],
+    r.map((x) => x.aCreer?.id ?? null));
+  dit('... et un caissier ne peut pas la changer : elle est choisie d office', [false, false], [peutChangerLaCaisse(false, r[0]), peutChangerLaCaisse(false, r[3])]);
+  const nees = r.reduce<Cashbox[]>((l, x) => (x.aCreer ? poseLaCaisse(l, x.aCreer) : l), [...BOITES]);
+  dit('posées une fois, elles sont trouvées ensuite, rien ne renaît',
+    [['Carte', 'MoMo Privé', 'Autres', 'Chèque'], [null, null, null, null]],
+    [['Carte', 'MoMo Privé', 'Moov', 'Chèque'].map((m) => P(m, 'g1', '2026-10-21', nees)),
+      ['Carte', 'MoMo Privé', 'Moov', 'Chèque'].map((m) => caisseProposee({ methode: m, aujourdhui: '2026-10-21', boxes: nees, branchId: 'cot' }).aCreer?.id ?? null)]);
+  dit('poser une caisse rangée la rouvre, au lieu d en faire une seconde', [1, null],
+    (() => { const l = poseLaCaisse([{ ...caisseDesCheques('cot'), archiveeLe: '2026-10-20' }], caisseDesCheques('cot')); return [l.length, l[0].archiveeLe ?? null]; })());
 }
+/* LES NOMS D'AVANT : tant que le panneau des noms n'est pas appliqué, la
+   caisse se retrouve par son identifiant, sous son ancien nom. */
+dit('avant le panneau : « MoMoPay Maison MND » et « Chèques à déposer » reçoivent encore leur paiement, par leur identifiant',
+  ['MoMoPay Maison MND', 'Chèques à déposer'],
+  [P('MTN MoMo', undefined, '2026-10-21', [{ ...caisseMomopayDeLaMaison('cot'), name: 'MoMoPay Maison MND' }]),
+    P('Chèque', undefined, '2026-10-21', [{ ...caisseDesCheques('cot'), name: 'Chèques à déposer' }])]);
+dit('... et sous un autre identifiant, par leur nom d avant (« Tiroir espèces » compris)', ['MoMoPay Maison MND', 'Chèques à déposer', 'Tiroir espèces'],
+  [P('MTN MoMo', undefined, '2026-10-21', [b('MoMoPay Maison MND')]), P('Chèque', undefined, '2026-10-21', [b('Chèques à déposer')]),
+    P('Espèces', undefined, '2026-10-21', [b('Tiroir espèces')])]);
+dit('le tiroir du tri (Real Money, par son identifiant) reçoit les espèces avant tout renommage', 'Real Money',
+  P('Espèces', 'g1', '2026-10-21', [{ ...b('Real Money'), id: 'ytb0sweqjt' }, b('Caisse de Gérard', { caissierId: 'g1', role: 'terrasse' })]));
+dit('une caisse du paiement mise à part la reçoit quand même : chaque paiement a sa caisse', 'Chèque',
+  P('Chèque', 'g1', '2026-10-21', [{ ...caisseDesCheques('cot'), horsEncaissement: true }, ...BOITES]));
+dit('la caisse des chèques d une autre branche ne compte pas ici : la sienne naît', ['Chèque', 'cb-cheques-cot'],
+  (() => { const x = caisseProposee({ methode: 'Chèque', aujourdhui: '2026-10-21', boxes: [caisseDesCheques('pn'), ...BOITES], branchId: 'cot' }); return [x.caisse, x.aCreer?.id]; })());
+dit('la caisse des chèques : une par branche, même identifiant à chaque fois, rôle banque, ouverte à 0', ['cb-cheques-cot', 'cot', 'banque', 0, 'Chèque'],
+  [caisseDesCheques('cot').id, caisseDesCheques('cot').branchId, caisseDesCheques('cot').role, caisseDesCheques('cot').openingXof, caisseDesCheques('cot').name]);
+dit('le chèque, la carte et les autres ne se comptent pas le soir ; MoMo Privé, si', [true, true, true, true, false],
+  [HORS_CLOTURE.includes(CAISSE_CHEQUE), HORS_CLOTURE.includes('Chèques à déposer'), HORS_CLOTURE.includes('Carte'), HORS_CLOTURE.includes('Autres'), HORS_CLOTURE.includes('MoMo Privé')]);
 dit('MND PAY → MND PAY ; l avoir → aucune caisse', ['MND PAY', null], [P('MND PAY', 'g1'), P('Avoir', 'g1')]);
-dit('Moov, Wave, PayPal : rien ne se propose, on choisit', [null, null, null], [P('Moov', 'g1'), P('Wave', 'g1'), P('PayPal', 'g1')]);
 dit('jamais la première venue : KkiaPay ne prend pas les espèces', true, P('Espèces', 'zz') !== 'KkiaPay');
-const passe = caisseProposee({ methode: 'Espèces', dateDuRdv: '2025-03-02', aujourdhui: '2026-10-17', boxes: BOITES, branchId: 'cot', staffId: 'g1' });
+/* LA REPRISE D'UNE ANNÉE PASSÉE, choisie à la main (21 octobre 2026) : une
+   reprise inscrite à une autre date que son rendez-vous va aux années
+   passées, même pour un rendez-vous de l'année. */
+{
+  const rep = caisseProposee({ methode: MOYEN_REPRISE, dateDuRdv: '2026-10-21', aujourdhui: '2026-10-21', boxes: BOITES, branchId: 'cot' });
+  dit('« Reprise d une année passée » → les années passées, même daté de l année, la caisse à créer', [CAISSE_ANNEES_PASSEES, 'cb-annees-passees-cot', true],
+    [rep.caisse, rep.aCreer?.id, rep.aCreer?.histoire]);
+  dit('... et quand elle existe, elle la reçoit sans renaître', [CAISSE_ANNEES_PASSEES, null],
+    (() => { const x = caisseProposee({ methode: MOYEN_REPRISE, aujourdhui: '2026-10-21', boxes: [...BOITES, caisseDesAnneesPassees('cot')], branchId: 'cot' }); return [x.caisse, x.aCreer?.id ?? null]; })());
+}
+const passe = caisseProposee({ methode: 'Espèces', dateDuRdv: '2025-03-02', aujourdhui: '2026-10-21', boxes: BOITES, branchId: 'cot', staffId: 'g1' });
 dit('un rendez-vous de 2025 : les années passées, quel que soit le caissier, et la caisse est à créer',
-  { caisse: CAISSE_ANNEES_PASSEES, anneePassee: 2025, aCreer: true }, { caisse: passe.caisse, anneePassee: passe.anneePassee, aCreer: passe.aCreer });
-dit('2023 aussi, et tout moyen : MoMo, carte, chèque, Moov', [CAISSE_ANNEES_PASSEES, CAISSE_ANNEES_PASSEES, CAISSE_ANNEES_PASSEES, CAISSE_ANNEES_PASSEES],
-  ['MTN MoMo', 'Carte', 'Chèque', 'Moov'].map((m) => P(m, 'b1', '2023-07-14')));
+  { caisse: CAISSE_ANNEES_PASSEES, anneePassee: 2025, aCreer: 'cb-annees-passees-cot' }, { caisse: passe.caisse, anneePassee: passe.anneePassee, aCreer: passe.aCreer?.id });
+dit('2023 aussi, et tout moyen : MoMo, carte, chèque, Moov, MoMo Privé', [CAISSE_ANNEES_PASSEES, CAISSE_ANNEES_PASSEES, CAISSE_ANNEES_PASSEES, CAISSE_ANNEES_PASSEES, CAISSE_ANNEES_PASSEES],
+  ['MTN MoMo', 'Carte', 'Chèque', 'Moov', 'MoMo Privé'].map((m) => P(m, 'b1', '2023-07-14')));
 dit('sauf MND PAY (chez FedaPay) et l avoir', ['MND PAY', null], [P('MND PAY', 'g1', '2024-05-05'), P('Avoir', 'g1', '2024-05-05')]);
 const avecLaCaisse = [...BOITES, b(CAISSE_ANNEES_PASSEES, { role: 'archive' })];
-dit('la caisse existe : plus rien à créer', undefined, caisseProposee({ methode: 'Espèces', dateDuRdv: '2025-03-02', aujourdhui: '2026-10-17', boxes: avecLaCaisse, branchId: 'cot' }).aCreer);
-dit('un rendez-vous de l année ne la voit jamais, même quand elle existe', 'Caisse de Gérard', P('Espèces', 'g1', '2026-02-10', avecLaCaisse));
+dit('la caisse existe : plus rien à créer', null, caisseProposee({ methode: 'Espèces', dateDuRdv: '2025-03-02', aujourdhui: '2026-10-21', boxes: avecLaCaisse, branchId: 'cot' }).aCreer?.id ?? null);
+dit('un rendez-vous de l année ne la voit jamais, même quand elle existe', 'Terrasse · Tiroir espèces', P('Espèces', 'g1', '2026-02-10', avecLaCaisse));
 const usd = [b('Zelle', { currency: 'USD' })];
-dit('un billet étranger garde son tiroir, même pour une année antérieure', ['Zelle', 'Zelle'], [P('Zelle', 'g1', '2026-10-17', usd, true), P('Espèces', 'g1', '2025-01-01', usd, true)]);
-dit('une autre branche ne prête pas ses caisses', null, P('Espèces', 'g1', '2026-10-17', BOITES.map((x) => ({ ...x, branchId: 'porto' }))));
+dit('un billet étranger garde son tiroir, même pour une année antérieure', ['Zelle', 'Zelle'], [P('Zelle', 'g1', '2026-10-21', usd, true), P('Espèces', 'g1', '2025-01-01', usd, true)]);
+dit('une autre branche ne prête pas ses caisses : celle des espèces naît ici', ['Espèces', 'cb-especes-cot'],
+  (() => { const x = caisseProposee({ methode: 'Espèces', aujourdhui: '2026-10-21', boxes: BOITES.map((y) => ({ ...y, branchId: 'porto' })), branchId: 'cot' }); return [x.caisse, x.aCreer?.id]; })());
 
 /* ── 4. QUI PEUT CHANGER ─────────────────────────────────────────────── */
-dit('la direction toujours ; les autres seulement sans proposition', [true, false, true, true],
+dit('la direction toujours ; les autres seulement sans proposition (un billet étranger sans tiroir)', [true, false, true, true],
   [peutChangerLaCaisse(true, { caisse: 'La Banque' }), peutChangerLaCaisse(false, { caisse: 'La Banque' }), peutChangerLaCaisse(false, {}), peutChangerLaCaisse(true, {})]);
 const choixDeGerard = caissesAuChoix(BOITES, { staffId: 'g1', estDirection: false, anneePassee: false }).map((x) => x.name);
-dit('au choix, Gérard ne voit ni la caisse de Brice, ni MND PAY', [false, false, true],
+dit('au choix : plus aucune caisse de caissier (la sienne non plus), ni MND PAY', [false, false, false],
   [choixDeGerard.includes('Caisse de Brice'), choixDeGerard.includes('MND PAY'), choixDeGerard.includes('Caisse de Gérard')]);
-dit('la direction voit les caisses de chacun', true, caissesAuChoix(BOITES, { estDirection: true, anneePassee: false }).some((x) => x.name === 'Caisse de Brice'));
+dit('la direction non plus ne met de l argent dans une caisse de caissier', false, caissesAuChoix(BOITES, { estDirection: true, anneePassee: false }).some((x) => x.name === 'Caisse de Brice'));
 dit('les années passées ne s offrent que pour une année antérieure', [false, true],
   [caissesAuChoix(avecLaCaisse, { estDirection: true, anneePassee: false }).some((x) => x.name === CAISSE_ANNEES_PASSEES),
     caissesAuChoix(avecLaCaisse, { estDirection: true, anneePassee: true }).some((x) => x.name === CAISSE_ANNEES_PASSEES)]);
 
-/* ── LA CAISSE NEUVE ─────────────────────────────────────────────────── */
-const neuve = caisseNeuveDuCaissier('cot', { id: 'k9', name: 'Kémi Adjovi' }, BOITES);
-dit('la caisse neuve : son prénom, son identifiant tiré de la fiche, la Terrasse, ouverte à l équipe',
-  { id: 'cb-caissier-k9', name: 'Caisse de Kémi', role: 'terrasse', equipe: true, caissierId: 'k9' },
-  { id: neuve.id, name: neuve.name, role: neuve.role, equipe: neuve.equipe, caissierId: neuve.caissierId });
-dit('deux Gérard : la seconde prend le nom entier', 'Caisse de Gérard Houngbo', caisseNeuveDuCaissier('cot', { id: 'g2', name: 'Gérard Houngbo' }, BOITES).name);
-dit('elle se retrouve par sa fiche', 'Caisse de Kémi', caisseDuCaissier([...BOITES, neuve], 'cot', 'k9')?.name);
-
 /* ── 5. LE SOIR ──────────────────────────────────────────────────────── */
-const soir = tiroirsQuiSeComptent([...avecLaCaisse], 'cot').map((x) => x.name);
-dit('le soir : la caisse de Gérard se compte ; ni les années passées, ni MND PAY', [true, false, false],
-  [soir.includes('Caisse de Gérard'), soir.includes(CAISSE_ANNEES_PASSEES), soir.includes('MND PAY')]);
+const soir = tiroirsQuiSeComptent([...avecLaCaisse, b('Carte', { role: 'banque' }), b('Autres'), b('MoMo Privé')], 'cot').map((x) => x.name);
+dit('le soir : le tiroir et MoMo Privé se comptent ; ni les années passées, ni MND PAY, ni la carte, ni les autres', [true, true, false, false, false, false],
+  [soir.includes('Terrasse · Tiroir espèces'), soir.includes('MoMo Privé'), soir.includes(CAISSE_ANNEES_PASSEES), soir.includes('MND PAY'), soir.includes('Carte'), soir.includes('Autres')]);
 const oublis = tiroirsSansCloture({
-  branchId: 'cot', date: '2026-10-17',
-  registre: [{ date: '2026-10-17', cashbox: 'Caisse de Gérard' }, { date: '2026-10-17', cashbox: CAISSE_ANNEES_PASSEES }, { date: '2026-10-17', cashbox: 'MND PAY' }],
+  branchId: 'cot', date: '2026-10-21',
+  registre: [{ date: '2026-10-21', cashbox: 'Terrasse · Tiroir espèces' }, { date: '2026-10-21', cashbox: CAISSE_ANNEES_PASSEES }, { date: '2026-10-21', cashbox: 'MND PAY' }, { date: '2026-10-21', cashbox: 'Carte' }],
   depenses: [], clotures: [],
 });
-dit('la veille ne réclame ni les années passées ni MND PAY', ['Caisse de Gérard'], oublis);
+dit('la veille ne réclame ni les années passées, ni MND PAY, ni la carte', ['Terrasse · Tiroir espèces'], oublis);
 
 /* ── 6. LES RÈGLES DANS LE CODE ──────────────────────────────────────── */
 const actions = sansCommentaires(lis2('src/apps/trone/routes/clients/actions.tsx'));
 const caisse = sansCommentaires(lis2('src/apps/trone/routes/vente/Caisse.tsx'));
+const factures = sansCommentaires(lis2('src/apps/trone/routes/vente/Factures.tsx'));
 const personnel = sansCommentaires(lis2('src/apps/trone/routes/equipe/Personnel.tsx'));
 dit('le rituel déduit la caisse par la règle, jamais par la première de la liste', [true, false],
   [/caisseProposee\(\{/.test(actions), /eligibleBoxes\[0\]/.test(actions)]);
 dit('le choix de la caisse ne s ouvre qu à qui peut la changer', true, /const montreLeChoix = c\.peutChanger && /.test(actions));
 dit('un versement par part, chacun avec sa caisse', true, /parts\.forEach\(\(pt, i\) => \{[\s\S]{0,800}cashbox: c\.caisse \|\| undefined/.test(actions));
 const iConfirm = actions.indexOf('const confirm = (garderOuvert = false) =>');
-const iCree = actions.indexOf('caisseDesAnneesPassees(branch.id)', iConfirm);
+const iCree = actions.indexOf('poseLaCaisse(prev, neuve)', iConfirm);
 const iEcrit = actions.indexOf('invoicesStore.set(', iConfirm);
-dit('la caisse des années passées naît AVANT que l argent s écrive', true, iConfirm > 0 && iCree > iConfirm && iCree < iEcrit);
+dit('la caisse qui manque naît AVANT que l argent s écrive', true, iConfirm > 0 && iCree > iConfirm && iCree < iEcrit);
 /* 19 octobre 2026 (chantier `capture`) : hors année antérieure, une capture
    lue date l'argent du jour du transfert ; la règle de l'année passe d'abord. */
 dit('une année antérieure date l argent du rituel par défaut', true, /useState\(\(\) => \(estAnneeAnterieure\(appt\.date, todayISO\(\)\) && appt\.date \? appt\.date : (initial\?\.jourDuPaiement \|\| )?todayISO\(\)\)\)/.test(actions));
 dit('le bandeau dit qui encaisse, et l année antérieure seulement quand elle l est', [true, true],
   [/Encaissé par \$\{quiNom\}/.test(actions), /\{anneePassee \? ` · rendez-vous de \$\{anneeDe\(appt\.date\)\}/.test(actions)]);
-dit('les tuiles : MTN MoMoPay, Chèque, et pas de Moov', [true, true, false],
-  [/nom: 'MTN MoMoPay'/.test(actions), /nom: 'Chèque'/.test(actions), /nom: 'Moov/.test(actions)]);
-dit('la Caisse suit la même règle, et cache la liste à qui ne peut pas changer', [true, true],
-  [/caisseProposee\(\{/.test(caisse), /hasCashbox && !peutChangerPos \?/.test(caisse)]);
-dit('la fiche du personnel ouvre la caisse, direction seule', true,
-  /editId && estDirection && \(\(\) => \{[\s\S]{0,200}caisseDuCaissier\(/.test(personnel) && /caisseNeuveDuCaissier\(/.test(personnel));
+dit('les tuiles : MTN MoMoPay, MoMo Privé, Chèque, et pas de Moov', [true, true, true, false],
+  [/nom: 'MTN MoMoPay'/.test(actions), /nom: 'MoMo Privé'/.test(actions), /nom: 'Chèque'/.test(actions), /nom: 'Moov/.test(actions)]);
+dit('« Autres » offre la reprise d une année passée (la liste passe par la règle)', true, /avecLesMoyensDeLaMaison\(methods\)\.filter/.test(actions));
+dit('la Caisse suit la même règle, offre les deux moyens neufs, fait naître la caisse, et cache la liste à qui ne peut pas changer', [true, true, true, true],
+  [/caisseProposee\(\{/.test(caisse), /avecLesMoyensDeLaMaison\(/.test(caisse), /poseLaCaisse\(prev, caisseANaitre\)/.test(caisse), /hasCashbox && !peutChangerPos \?/.test(caisse)]);
+dit('« Marquer payée » aussi : la caisse se déduit du paiement et naît au versement', [true, true, true, true],
+  [/caisseProposee\(\{\s*methode: payChoice/.test(factures), /caisse: caisseDuSolde \|\| undefined/.test(factures), /poseLaCaisse\(prev, proposeeSolde\.aCreer!\)/.test(factures), /avecLesMoyensDeLaMaison\(methods\)/.test(factures)]);
+dit('la fiche du personnel n ouvre plus de caisse de caissier', false, /caisseNeuveDuCaissier|Ouvrir sa caisse/.test(personnel));
 
 
 /* ── 7. LES AUTRES CAISSES ───────────────────────────────────────────── */
 const AVEC_BIIC: Cashbox[] = [...BOITES.filter((x) => x.role !== 'banque'), b('BIIC', { role: 'banque', horsEncaissement: true }), b('La Banque', { role: 'banque' })];
 dit('BIIC à part : la carte ne va jamais à BIIC (même au rôle banque)', true, P('Carte', 'g1', '2026-10-17', AVEC_BIIC) !== 'BIIC');
-dit('BIIC seule banque, mais à part : rien ne se propose, on choisit', null, P('Carte', 'g1', '2026-10-17', [b('BIIC', { role: 'banque', horsEncaissement: true })]));
+dit('BIIC seule banque, mais à part : la carte va dans « Carte », qui naît (21 octobre 2026)', 'Carte', P('Carte', 'g1', '2026-10-17', [b('BIIC', { role: 'banque', horsEncaissement: true })]));
 /* « Épargne, jamais au comptoir » (le tri du 19 octobre 2026) : la direction
    non plus ne la voit ; celle qu'un versement porte déjà reste lisible. */
 dit('au choix : BIIC cachée au caissier ET à la direction', [false, false],
@@ -213,6 +238,9 @@ dit('au choix : BIIC cachée au caissier ET à la direction', [false, false],
     caissesAuChoix(AVEC_BIIC, { estDirection: true, anneePassee: false }).some((x) => x.name === 'BIIC')]);
 dit('... sauf celle que le versement porte déjà', true, caissesAuChoix(AVEC_BIIC, { estDirection: true, anneePassee: false, garder: 'BIIC' }).some((x) => x.name === 'BIIC'));
 
+/** Les caisses que les décisions font naître seules, déjà là. */
+const NEES = (br: string): Cashbox[] => [caisseDesCheques(br), caisseMomopayDeLaMaison(br),
+  caisseNeuveDuPaiement('carte', br), caisseNeuveDuPaiement('momoPrive', br), caisseNeuveDuPaiement('autre', br)];
 const AVANT: Cashbox[] = [
   b('BIIC'),
   b('Caisse Indépendantes', { equipe: true }),
@@ -232,18 +260,26 @@ dit('les décisions : BIIC à part ; Indépendantes remplacée, sans encaissemen
 });
 dit('une seconde fois : rien ne change (une décision ne s applique qu une fois)', null, decisionsDesCaisses(APRES!, '2026-10-18'));
 {
-  /* Les caisses nées seules (chèques, MoMoPay de la Maison) sont là : seule la décision sur BIIC est en jeu. */
-  const recochee = decisionsDesCaisses([b('BIIC', { horsEncaissement: false }), caisseDesCheques('cot'), caisseMomopayDeLaMaison('cot')], '2026-10-18');
+  /* Les caisses nées seules (chèques, MoMoPay de la Maison, et depuis le
+     21 octobre 2026 Carte, MoMo Privé, Autres) sont là : seule la décision
+     sur BIIC est en jeu. */
+  const recochee = decisionsDesCaisses([b('BIIC', { horsEncaissement: false }), ...NEES('cot')], '2026-10-18');
   dit('BIIC recochée à la main (false) : la décision ne repasse pas', null, recochee);
 }
-/* La caisse des chèques naît une fois par branche ; rangée à la main, elle ne revient pas. */
+/* La caisse des chèques naît une fois par branche ; rangée à la main, elle ne revient pas.
+   Depuis le 21 octobre 2026, « Carte », « MoMo Privé » et « Autres » aussi ; jamais « Espèces »
+   (c'est le tiroir renommé : une caisse neuve partagerait l'argent liquide en deux). */
 {
   const deux = decisionsDesCaisses([b('BIIC', { horsEncaissement: false }), { ...b('Caisse Porto'), branchId: 'pn' }], '2026-10-18');
-  dit('les décisions créent « Chèques à déposer » une fois par branche, sans toucher au reste', [['cb-cheques-cot', 'cb-cheques-pn'], false],
-    [(deux ?? []).filter((x) => x.name === CAISSE_CHEQUES).map((x) => x.id).sort(), lis(deux, 'BIIC')?.horsEncaissement]);
+  dit('les décisions créent « Chèque » une fois par branche, sans toucher au reste', [['cb-cheques-cot', 'cb-cheques-pn'], false],
+    [(deux ?? []).filter((x) => x.name === CAISSE_CHEQUE).map((x) => x.id).sort(), lis(deux, 'BIIC')?.horsEncaissement]);
+  dit('... et Carte, MoMo Privé, Autres, à leur nom, jamais Espèces', [['Autres', 'Carte', 'MoMo Privé'], false],
+    [(deux ?? []).filter((x) => x.branchId === 'cot' && ['Carte', 'MoMo Privé', 'Autres'].includes(x.name)).map((x) => x.name).sort(), (deux ?? []).some((x) => x.name === 'Espèces')]);
   dit('... une seconde fois, rien', null, decisionsDesCaisses(deux!, '2026-10-19'));
-  dit('rangée à la main, elle ne revient pas', null, decisionsDesCaisses([b('BIIC', { horsEncaissement: false }), { ...caisseDesCheques('cot'), archiveeLe: '2026-10-20' }, caisseMomopayDeLaMaison('cot')], '2026-10-21'));
-  dit('dans les décisions d avant (BIIC, Indépendantes), elle naît aussi', true, !!lis(APRES, CAISSE_CHEQUES));
+  dit('rangée à la main, elle ne revient pas', null, decisionsDesCaisses([b('BIIC', { horsEncaissement: false }), ...NEES('cot').map((x) => (x.id === 'cb-cheques-cot' ? { ...x, archiveeLe: '2026-10-20' } : x))], '2026-10-21'));
+  dit('une caisse qui porte déjà le nom (autre identifiant) ne se double pas', false,
+    (decisionsDesCaisses([b('BIIC', { horsEncaissement: false }), ...NEES('cot').filter((x) => x.id !== 'cb-carte-cot'), b('Carte')], '2026-10-21') ?? []).some((x) => x.id === 'cb-carte-cot'));
+  dit('dans les décisions d avant (BIIC, Indépendantes), elle naît aussi', true, !!lis(APRES, CAISSE_CHEQUE));
 }
 const seule = decisionsDesCaisses([b('Caisse Indépendantes', { equipe: true }), b('Wells Fargo')], '2026-10-17');
 dit('seule caisse de l équipe : elle le reste (sinon l équipe verrait TOUT)', [true, undefined], [lis(seule, 'Caisse Indépendantes')?.equipe, lis(seule, 'Caisse Indépendantes')?.equipeRetireeLe]);
