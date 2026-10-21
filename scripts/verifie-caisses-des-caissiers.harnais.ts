@@ -89,8 +89,8 @@ const SA_LISTE = ['MTN MoMo', 'Moov', 'Celtis', 'Wave', 'Espèces', 'Carte', 'Vi
 dit('les moyens de sa liste, chacun à sa famille (Moov, Wave, virement : « autre » ; PayPal, Zelle, MoMo Privé et la reprise ont la leur)',
   ['momo', 'autre', 'autre', 'autre', 'especes', 'carte', 'autre', 'paypal', 'cheque', 'autre', 'avoir', 'mndpay', 'zelle', 'kkiapay', 'momoPrive', 'reprise'],
   SA_LISTE.map(familleDuMoyen));
-dit('sa liste, plus MoMo Privé juste après son MTN, les quatre moyens en devise, et la reprise à la fin ; déjà là, rien ne s ajoute',
-  [['MTN MoMo', MOYEN_MOMO_PRIVE, 'Espèces', 'Zelle', 'Interac', 'Revolut', 'PayPal', MOYEN_REPRISE], ['Espèces', 'Momo privé', 'reprise année passée', 'Zelle', 'Interac', 'Revolut', 'PayPal']],
+dit('sa liste, plus MoMo Privé juste après son MTN, les quatre moyens en devise, « Autres », et la reprise à la fin ; déjà là, rien ne s ajoute',
+  [['MTN MoMo', MOYEN_MOMO_PRIVE, 'Espèces', 'Zelle', 'Interac', 'Revolut', 'PayPal', 'Autres', MOYEN_REPRISE], ['Espèces', 'Momo privé', 'reprise année passée', 'Zelle', 'Interac', 'Revolut', 'PayPal', 'Autres']],
   [avecLesMoyensDeLaMaison(['MTN MoMo', 'Espèces']), avecLesMoyensDeLaMaison(['Espèces', 'Momo privé', 'reprise année passée'])]);
 
 /* ── 2. L'ANNÉE ANTÉRIEURE ───────────────────────────────────────────── */
@@ -375,6 +375,11 @@ dit('les soldes et la trésorerie lisent l histoire comme les anciennes', [true,
       ...['Zelle', 'Interac', 'Revolut', 'PayPal'].map((m) => offerts.filter((x) => x === m).length)]);
   dit('... Wave et le virement restent, et la reprise ferme la liste', [true, true, MOYEN_REPRISE],
     [offerts.includes('Wave'), offerts.includes('Virement bancaire'), offerts[offerts.length - 1]]);
+  /* « dans autres moyens rajoute autres aussi » (21 octobre 2026). */
+  dit('... « Autres » y est, une seule fois, juste avant la reprise, et va dans la caisse Autres (famille « autre ») ; déjà dans sa liste, il ne se double pas',
+    [1, offerts.length - 2, 'autre', 1],
+    [offerts.filter((x) => x === 'Autres').length, offerts.indexOf('Autres'), familleDuMoyen('Autres'),
+      avecLesMoyensDeLaMaison(['Espèces', 'autres']).filter((x) => /^autres$/i.test(x)).length]);
   dit('... un versement déjà écrit « Moov » garde son moyen dans la liste (on ne le réécrit pas sans le voir)', true,
     avecLesMoyensDeLaMaison(['Moov', 'Espèces'], 'Moov').includes('Moov'));
   dit('la devise que chaque moyen impose : Zelle USD, Interac CAD, Revolut EUR, PayPal USD ; Wave et les espèces aucune',

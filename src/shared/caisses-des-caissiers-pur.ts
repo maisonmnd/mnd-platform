@@ -94,6 +94,10 @@ const CAISSE_KKIAPAY = 'KkiaPay';
    (Paramètres), sans la réécrire : `avecLesMoyensDeLaMaison`. */
 export const MOYEN_MOMO_PRIVE = 'MoMo Privé';
 export const MOYEN_REPRISE = 'Reprise d’une année passée';
+/* « AUTRES » DANS LES AUTRES MOYENS — 21 octobre 2026 (« dans autres moyens
+   rajoute autres aussi ») : le moyen qui n'a pas de nom va, comme Wave ou un
+   virement, dans la caisse « Autres ». */
+export const MOYEN_AUTRES = 'Autres';
 
 export type FamilleDeMoyen = 'especes' | 'momo' | 'momoPrive' | 'carte' | 'cheque' | 'reprise' | 'mndpay'
   | 'zelle' | 'interac' | 'revolut' | 'paypal' | 'kkiapay' | 'avoir' | 'autre';
@@ -147,8 +151,8 @@ export function familleDuMoyen(methode: string): FamilleDeMoyen {
 }
 
 /** SA LISTE, REVUE LE 21 OCTOBRE 2026 : sans Moov ni Celtiis ; « MoMo Privé »
-    juste après son MTN ; Zelle, Interac, Revolut et PayPal ; « Reprise d'une
-    année passée » à la fin. Déjà là (sous un nom qui en est la famille), rien
+    juste après son MTN ; Zelle, Interac, Revolut et PayPal ; « Autres », puis
+    « Reprise d'une année passée » à la fin. Déjà là (sous un nom qui en est la famille), rien
     ne s'ajoute. `garder` : le moyen déjà écrit sur un versement (une capture
     lue « Moov ») reste dans la liste, pour qu'on ne le réécrive pas sans le
     voir. */
@@ -161,6 +165,7 @@ export function avecLesMoyensDeLaMaison(methods: readonly string[], garder?: str
   for (const f of FAMILLES_EN_DEVISE) {
     if (!out.some((m) => familleDuMoyen(m) === f)) out.push(MOYENS_EN_DEVISE[f].nom);
   }
+  if (!out.some((m) => plat(m) === plat(MOYEN_AUTRES))) out.push(MOYEN_AUTRES);
   if (!out.some((m) => familleDuMoyen(m) === 'reprise')) out.push(MOYEN_REPRISE);
   if (garder && !out.includes(garder)) out.push(garder);
   return out;
