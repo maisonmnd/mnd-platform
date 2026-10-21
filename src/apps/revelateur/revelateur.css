@@ -2254,25 +2254,48 @@ footer ul { gap: 12px; }
   .remise-pastille { left: auto; right: 0; bottom: auto; top: 42%; writing-mode: vertical-rl; padding: 18px 11px; gap: 10px; border-radius: 8px 0 0 8px; font-size: 12px; letter-spacing: .16em; text-transform: uppercase; box-shadow: -6px 0 18px rgba(21, 23, 58, .18); transform: translateX(100%); }
 }
 
-.remise-fenetre { padding: 0; border: 0; border-radius: 10px; width: min(440px, calc(100% - 32px)); max-height: calc(100dvh - 32px); overflow: auto; background: var(--carte); color: var(--texte); box-shadow: 0 30px 80px rgba(21, 23, 58, .4); }
+/* LA FENÊTRE DE L'OFFRE, ÉPURÉE — 21 octobre 2026 (proposition B, la
+   structure du coupon Lacoste) : l'étiquette tissée de la Maison sur un piqué
+   d'un côté ; de l'autre la date, le chiffre en grand, ce qu'il couvre, le
+   code, un bouton. Au téléphone, l'étiquette passe en bande au-dessus. */
+.remise-fenetre { --pique: #E6DCCB; --pique-clair: #EFE7D9; --pique-sombre: #D9CCB6; --pique-ombre: rgba(80, 60, 30, .24);
+  padding: 0; border: 0; border-radius: 4px; width: min(780px, calc(100% - 32px)); max-height: calc(100dvh - 32px); overflow: auto; background: var(--fond); color: var(--titre); box-shadow: 0 30px 80px rgba(21, 23, 58, .4); }
+.remise-fenetre--rose { --pique: #E6C2C7; --pique-clair: #EDCBD0; --pique-sombre: #D9AEB4; --pique-ombre: rgba(80, 30, 45, .28); }
 .remise-fenetre::backdrop { background: rgba(21, 23, 58, .45); }
 @keyframes remise-entre { from { opacity: 0; transform: translateY(18px); } }
-.remise-fenetre__tete { position: relative; background: var(--plein); color: var(--plein-texte); padding: 22px 64px 18px 22px; }
-.remise-fenetre__sur { margin: 0; font-size: 11px; letter-spacing: .2em; text-transform: uppercase; }
-.remise-fenetre__deal { margin: 6px 0 0; font: 300 64px/1 var(--serif); }
-.remise-fenetre__fermer { position: absolute; top: 10px; right: 10px; width: 44px; height: 44px; border-radius: 50%; border: 0; background: rgba(246, 241, 231, .18); color: var(--plein-texte); font-size: 22px; line-height: 1; cursor: pointer; }
-.remise-fenetre__fermer:focus-visible { outline: 2px solid var(--plein-texte); outline-offset: 2px; }
-.remise-fenetre__corps { padding: 18px 22px 22px; display: grid; gap: 12px; }
-.remise-fenetre__corps h2 { margin: 0; font: 400 28px/1.1 var(--serif); color: var(--titre); }
-.remise-fenetre__corps p { margin: 0; color: var(--texte-doux); font-size: 15px; }
-.remise-fenetre .btn { width: 100%; }
-.remise-fenetre p.remise-fenetre__fin { font-size: 13px; text-align: center; }
-.remise-fenetre__fin a { color: var(--titre); }
-.remise-code { display: flex; align-items: center; justify-content: space-between; gap: 10px; border: 1px dashed var(--accent); background: rgba(250, 241, 233, 1); border-radius: 4px; padding: 0 14px; font-size: 13px; color: var(--accent-profond); }
-.remise-code b { color: var(--titre); letter-spacing: .18em; font-weight: 500; font-size: 15px; }
-.remise-code button { min-height: 44px; background: transparent; border: 0; padding: 0; color: var(--titre); font: 400 12px/1 var(--sans); letter-spacing: .14em; text-transform: uppercase; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.remise-fenetre__carte { position: relative; display: grid; grid-template-columns: 1fr 1fr; min-height: 420px; }
+.remise-fenetre__fermer { position: absolute; top: 12px; right: 12px; z-index: 2; width: 40px; height: 40px; border-radius: 50%; border: 0; background: var(--carte); color: var(--titre); font: 400 22px/1 var(--sans); cursor: pointer; box-shadow: 0 4px 14px rgba(21, 23, 58, .22); }
+.remise-fenetre__fermer:focus-visible { outline: 2px solid var(--titre); outline-offset: 2px; }
+.remise-fenetre__vue { display: grid; place-items: center; padding: 28px; background:
+    radial-gradient(circle at 25% 25%, rgba(255, 255, 255, .28) 0 1px, transparent 1.6px) 0 0 / 6px 6px,
+    radial-gradient(circle at 75% 75%, rgba(60, 30, 20, .09) 0 1px, transparent 1.6px) 0 0 / 6px 6px,
+    radial-gradient(120% 90% at 30% 20%, var(--pique-clair) 0%, var(--pique) 55%, var(--pique-sombre) 100%); }
+.remise-etiquette { width: 72%; max-width: 260px; aspect-ratio: 1.45; padding: 9px; transform: rotate(-4deg); background:
+    repeating-linear-gradient(90deg, rgba(30, 33, 80, .035) 0 1px, transparent 1px 3px),
+    repeating-linear-gradient(0deg, rgba(30, 33, 80, .03) 0 1px, transparent 1px 3px), #FBF8F1;
+  box-shadow: 0 10px 22px var(--pique-ombre), 0 1px 0 rgba(255, 255, 255, .7) inset; }
+.remise-etiquette__cadre { height: 100%; border: 2px solid var(--titre); outline: 1px solid var(--titre); outline-offset: -6px; display: grid; place-items: center; align-content: center; gap: 8px; padding: 10px; text-align: center; }
+.remise-etiquette__cadre img { width: 72%; height: auto; }
+.remise-etiquette__cadre p { margin: 0; font: 500 10px/1.3 var(--sans); letter-spacing: .24em; text-transform: uppercase; color: var(--titre); }
+.remise-fenetre__corps { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; padding: 44px 36px; text-align: center; }
+.remise-fenetre__sur { margin: 0; font: 400 11px/1.4 var(--sans); letter-spacing: .2em; text-transform: uppercase; color: var(--accent-profond, var(--plein)); }
+.remise-fenetre__deal { margin: 0; font: 400 92px/.9 var(--serif); color: var(--titre); letter-spacing: -.01em; }
+.remise-fenetre--long .remise-fenetre__deal { font-size: 44px; line-height: 1.05; text-wrap: balance; }
+.remise-fenetre__court { margin: -4px 0 0; font: italic 400 24px/1.15 var(--serif); color: var(--titre); }
+.remise-code { display: inline-flex; align-items: center; gap: 14px; border: 1px dashed var(--plein); background: var(--carte); border-radius: 999px; padding: 6px 6px 6px 20px; white-space: nowrap; }
+.remise-code b { color: var(--titre); letter-spacing: .16em; font-weight: 500; font-size: 18px; }
+.remise-code button { min-height: 36px; background: var(--titre); color: var(--fond); border: 0; border-radius: 999px; padding: 0 16px; font: 500 11px/1 var(--sans); letter-spacing: .14em; text-transform: uppercase; cursor: pointer; }
+.remise-code button:focus-visible { outline: 2px solid var(--plein); outline-offset: 2px; }
+.remise-fenetre__bouton { display: inline-flex; align-items: center; justify-content: center; min-height: 50px; padding: 0 32px; border-radius: 999px; background: var(--plein); color: var(--plein-texte); font: 500 12.5px var(--sans); letter-spacing: .16em; text-transform: uppercase; text-decoration: none; }
+.remise-fenetre__bouton:hover, .remise-fenetre__bouton:focus-visible { filter: brightness(1.08); }
 @media (max-width: 560px) {
   .remise-fenetre { width: 100%; max-width: 100%; margin: auto 0 0; border-radius: 22px 22px 0 0; padding-bottom: env(safe-area-inset-bottom, 0px); }
+  .remise-fenetre__carte { grid-template-columns: 1fr; min-height: 0; }
+  .remise-fenetre__vue { height: 190px; padding: 18px; }
+  .remise-etiquette { width: 218px; max-width: 72%; }
+  .remise-fenetre__corps { padding: 24px 20px 26px; gap: 12px; }
+  .remise-fenetre__deal { font-size: 72px; }
+  .remise-fenetre__bouton { width: 100%; }
 }
 @keyframes remise-monte { from { transform: translateY(100%); } }
 /* Le mouvement se demande (no-preference), comme les fondus du site : sous

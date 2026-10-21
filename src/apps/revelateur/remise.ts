@@ -73,52 +73,70 @@ function rappelDeFin(r: Remise): HTMLElement | null {
 }
 
 /** ③ La fenêtre de l'offre : un vrai <dialog>, qui garde le focus, se ferme
-    à Échap, et rend la main à ce qui l'a ouverte. */
+    à Échap, et rend la main à ce qui l'a ouverte.
+
+    LA CARTE ÉPURÉE — 21 octobre 2026 (Yéman : « fais-le avec le design de
+    Lacoste », puis la proposition B de la maquette 6y8uMiyb, « épurer, trop
+    de textes »). D'un côté l'étiquette tissée de la Maison posée sur un piqué
+    (rose pour Octobre Rose, sable pour les autres offres) ; de l'autre la
+    date, le chiffre en grand, ce qu'il couvre, le code et un seul bouton.
+    Plus de phrase « le code est déjà posé… · Voir les conditions » : elle l'a
+    fait retirer ; le code reste posé d'office dans la réservation. */
 function laFenetre(r: Remise): HTMLDialogElement {
   const d = el('dialog', 'remise-fenetre');
+  if (/rose/i.test(`${r.id} ${r.titre}`)) d.classList.add('remise-fenetre--rose');
+  if (r.deal.length > 9) d.classList.add('remise-fenetre--long');
   d.setAttribute('aria-labelledby', 'remise-titre');
-  const tete = el('div', 'remise-fenetre__tete');
-  const sur = [r.tag, r.auDit ? `jusqu’au ${r.auDit}` : ''].filter(Boolean).join(' · ');
-  if (sur) tete.append(el('p', 'remise-fenetre__sur', sur));
-  tete.append(el('p', 'remise-fenetre__deal', r.deal));
   const fermer = el('button', 'remise-fenetre__fermer', '×');
   fermer.type = 'button';
   fermer.setAttribute('aria-label', 'Fermer');
   fermer.addEventListener('click', () => d.close());
-  tete.append(fermer);
+
+  /* L'étiquette : le verrou de la Maison, puis l'offre et son année. */
+  const vue = el('div', 'remise-fenetre__vue');
+  const etiquette = el('div', 'remise-etiquette');
+  const cadre = el('div', 'remise-etiquette__cadre');
+  const verrou = el('img');
+  verrou.src = base('/assets/verrous/verrou-couche-indigo.png');
+  verrou.alt = 'Maison MND';
+  verrou.width = 160;
+  verrou.height = 50;
+  const annee = /^(\d{4})/.exec(r.au)?.[1] ?? '';
+  cadre.append(verrou, el('p', '', [r.titre, annee].filter(Boolean).join(' · ')));
+  etiquette.append(cadre);
+  vue.append(etiquette);
+
   const corps = el('div', 'remise-fenetre__corps');
-  const h = el('h2', '', r.titre);
+  const sur = r.auDit ? `Jusqu’au ${r.auDit}` : r.tag;
+  if (sur) corps.append(el('p', 'remise-fenetre__sur', sur));
+  const h = el('h2', 'remise-fenetre__deal', r.deal);
   h.id = 'remise-titre';
   corps.append(h);
-  if (r.sub) corps.append(el('p', '', r.sub));
+  if (r.court) corps.append(el('p', 'remise-fenetre__court', r.court.charAt(0).toLowerCase() + r.court.slice(1)));
   if (r.code) {
     const boite = el('div', 'remise-code');
-    const dit = el('span', '', 'avec le code ');
     const code = el('b', '', r.code);
-    dit.append(code);
     const copier = el('button', '', 'Copier');
     copier.type = 'button';
+    copier.setAttribute('aria-label', `Copier le code ${r.code}`);
     copier.addEventListener('click', () => {
       const fini = () => { copier.textContent = 'Copié'; window.setTimeout(() => { copier.textContent = 'Copier'; }, 1800); };
       const choisir = () => { const s = getSelection(); const plage = document.createRange(); plage.selectNodeContents(code); s?.removeAllRanges(); s?.addRange(plage); };
       try { void navigator.clipboard.writeText(r.code).then(fini, choisir); } catch { choisir(); }
     });
-    boite.append(dit, copier);
+    boite.append(code, copier);
     corps.append(boite);
   }
-  const bouton = el('a', 'btn btn--plein', r.bouton);
+  const bouton = el('a', 'remise-fenetre__bouton', r.bouton);
   bouton.href = r.porte;
   bouton.dataset.mesure = 'parcours_choisi';
   bouton.dataset.parcours = r.parcours;
   bouton.dataset.sortie = 'remise';
   corps.append(bouton);
-  const fin = el('p', 'remise-fenetre__fin');
-  if (r.code && r.porte.includes('/reserver/')) fin.append('Le code est déjà posé dans la réservation · ');
-  const conditions = el('a', '', 'Voir les conditions');
-  conditions.href = base('/les-offres/');
-  fin.append(conditions);
-  corps.append(fin);
-  d.append(tete, corps);
+
+  const carte = el('div', 'remise-fenetre__carte');
+  carte.append(fermer, vue, corps);
+  d.append(carte);
   /* Le voile ferme : un clic qui tombe sur le <dialog> lui-même, hors de son
      contenu, est un clic sur le fond. */
   d.addEventListener('click', (e) => { if (e.target === d) d.close(); });
