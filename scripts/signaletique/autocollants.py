@@ -96,6 +96,12 @@ def _ligne(t, famille, taille, cx, y, couleur, largeur, graisse=500, interlettre
     return texte(t, famille, ajuste(t, famille, taille, largeur, graisse, interlettre), cx, y, 'milieu', graisse, interlettre, couleur)[0]
 
 
+def _phrase(t1, t2, famille, taille, cx, y1, y2, couleur, largeur, graisse=500):
+    """Une phrase sur deux lignes, à la même taille : la plus longue décide pour les deux."""
+    z = min(ajuste(t1, famille, taille, largeur, graisse), ajuste(t2, famille, taille, largeur, graisse))
+    return [texte(t1, famille, z, cx, y1, 'milieu', graisse, 0, couleur)[0], texte(t2, famille, z, cx, y2, 'milieu', graisse, 0, couleur)[0]]
+
+
 def _anneau(cx, cy, r, couleur, ep=1.2):
     return f'<circle cx="{cx}" cy="{cy}" r="{r}" fill="none" stroke="{couleur}" stroke-width="{ep}"/>'
 
@@ -165,11 +171,10 @@ def buvez(cx, cy):
 
 
 def racines(cx, cy):
-    return [medaillon(cx, cy - 58, 30, I),
-            _ligne('Vos racines', 'cormorant', 30, cx, cy - 8, I, 150),
-            _ligne('Vos origines.', 'cormorant-italique', 24, cx, cy + 22, I, 150),
-            _ligne('UNE IDENTITÉ,', 'jost', 8.5, cx, cy + 46, C, 120, 500, 0.2),
-            _ligne('QUI S’AFFIRME', 'jost', 8.5, cx, cy + 59, C, 120, 500, 0.2)]
+    return [medaillon(cx, cy - 62, 30, I),
+            _ligne('Vos racines', 'cormorant', 30, cx, cy - 20, I, 160),
+            *_phrase('racontent d’où vous venez.', 'Portez-les avec fierté.', 'cormorant-italique', 20, cx, cy + 8, cy + 32, I, 164),
+            _ligne('Une identité qui s’affirme.', 'jost', 10.5, cx, cy + 60, C, 140, 400, 0.02)]
 
 
 # ══ MND KIDS, LE CLUB DES PETITES COURONNES ════════════════════════════
@@ -191,27 +196,28 @@ def dandan(cx, cy):
     # Ce qu'il est, ce qu'il fait, comment l'avoir : trois phrases qu'on lit d'un coup d'œil.
     return [medaillon(cx, cy - 66, 26, C),
             _ligne('Le soin DÀNDÀN™', 'cormorant', 30, cx, cy - 24, V, 172),
-            _ligne('Sept huiles qui hydratent', 'cormorant-italique', 20, cx, cy + 6, V, 150),
-            _ligne('et font briller vos locks.', 'cormorant-italique', 20, cx, cy + 30, V, 150),
+            *_phrase('Sept huiles qui hydratent', 'et font briller vos locks.', 'cormorant-italique', 20, cx, cy + 6, cy + 30, V, 160),
             f'<rect x="{cx - 16}" y="{cy + 42}" width="32" height="1.1" fill="{C}"/>',
             _ligne('Demandez-le à l’accueil.', 'jost', 11, cx, cy + 62, C, 130, 400, 0.02)]
 
 
 def kids_oui(cx, cy):
-    return [medaillon(cx, cy - 58, 28, V),
-            _ligne('Ici, c’est toi', 'cormorant-italique', 28, cx, cy - 6, V, 150),
-            _ligne('qui dis oui.', 'cormorant-italique', 28, cx, cy + 24, V, 150),
-            _ligne('MND KIDS', 'jost', 9, cx, cy + 52, V, 110, 500, 0.3)]
+    # « Refais les phrases » : l'enfant décide, la Maison demande toujours avant de toucher (le Club).
+    return [medaillon(cx, cy - 62, 28, V),
+            _ligne('Ici, tu décides.', 'cormorant', 30, cx, cy - 20, V, 160),
+            *_phrase('On te demande toujours', 'avant de toucher tes locks.', 'cormorant-italique', 20, cx, cy + 10, cy + 34, V, 160),
+            _ligne('MND Kids · Club des Petites Couronnes', 'jost', 10.5, cx, cy + 62, V, 140, 400, 0.02)]
 
 
 # ══ CE QUI FAIT REVENIR ═════════════════════════════════════════════════
 
 def retour_rituel(cx, cy):
-    return [medaillon(cx, cy - 62, 26, C),
-            _ligne('Avant de partir,', 'cormorant-italique', 22, cx, cy - 22, V, 150),
-            _ligne('votre prochain', 'cormorant', 30, cx, cy + 10, V, 156),
-            _ligne('rituel ?', 'cormorant', 30, cx, cy + 40, C, 156),
-            _ligne('NOUS LE NOTONS ENSEMBLE', 'jost', 8, cx, cy + 62, V, 130, 500, 0.18)]
+    # Une question simple, puis ce qu'on fait : réserver la prochaine séance avant de sortir.
+    return [medaillon(cx, cy - 66, 26, C),
+            _ligne('On se revoit quand ?', 'cormorant', 28, cx, cy - 24, V, 166),
+            *_phrase('Réservez votre prochaine', 'séance avant de partir.', 'cormorant-italique', 20, cx, cy + 6, cy + 30, V, 166),
+            f'<rect x="{cx - 16}" y="{cy + 42}" width="32" height="1.1" fill="{C}"/>',
+            _ligne('Nous la notons ensemble à l’accueil.', 'jost', 10.5, cx, cy + 62, C, 140, 400, 0.02)]
 
 
 def _formule(cx, cy, nom, doses, geste, encre, accent, frais):
@@ -243,9 +249,9 @@ AUTOCOLLANTS = [
     ('qr', 'Booking QR (maisonmnd.com)', V, reserver),
     ('slogan', 'Motto in Fon', C, devise_fon),
     ('shampoing', 'Shampoo: breathe', P, respirez),
-    ('bien-etre', 'Wellness: drink water', I, buvez),
+    ('bien-etre', 'Wellness: drink water', P, buvez),
     ('formule', 'Home mist: everyday', V, brume_quotidien),
-    ('soin', 'DÀNDÀN care', I, dandan),
+    ('soin', 'DÀNDÀN care', P, dandan),
     ('shampoing', 'Shampoo: let the water work', A, laissez_l_eau),
     ('qr', 'Review QR (Google)', S, avis),
     ('coiffure', 'Hairstyle of the day', C, coiffure_du_jour),
