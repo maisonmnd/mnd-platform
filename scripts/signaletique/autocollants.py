@@ -225,9 +225,11 @@ def _formule(cx, cy, nom, doses, geste, encre, accent, frais):
     out = [texte_en_arc('FORMULE MAISON', 'jost', 9.5, cx, cy, 84, en_bas=False, graisse=500, interlettre=0.26, couleur=accent),
            _ligne(nom, 'cormorant-italique', 21, cx, cy - 40, encre, 150),
            f'<rect x="{cx - 16}" y="{cy - 31}" width="32" height="1" fill="{accent}"/>']
+    # Les doses à une seule taille : la plus longue décide pour toutes.
+    z = min(ajuste(d, 'jost', 10, 150, 400, 0.02) for d in doses)
     y = cy - 12
     for d in doses:
-        out.append(_ligne(d, 'jost', 10, cx, y, encre, 150, 400, 0.02))
+        out.append(texte(d, 'jost', z, cx, y, 'milieu', 400, 0.02, encre)[0])
         y += 15
     out.append(_ligne(geste, 'cormorant-italique', 14, cx, y + 8, accent, 140))
     out.append(_ligne(frais, 'jost', 7.2, cx, y + 26, encre, 120, 500, 0.14))
@@ -240,7 +242,9 @@ def brume_quotidien(cx, cy):
 
 
 def brume_harmattan(cx, cy):
-    return _formule(cx, cy, 'La brume de l’harmattan', ['250 ml d’eau', '3 gouttes d’huile d’amande douce', '2 c. à café de gel d’aloe vera'],
+    # « Change la brume de l'harmattan avec d'autres ingrédients » : l'eau de rose (la brume de la boutique),
+    # le gel de lin (la base du Laboratoire), l'huile de pépins de raisin (une huile légère du journal). Doses à valider.
+    return _formule(cx, cy, 'La brume de l’harmattan', ['250 ml d’eau de rose', '1 c. à soupe de gel de graines de lin', '3 gouttes d’huile de pépins de raisin'],
                     'Plus souvent, jamais plus d’huile.', I, P, 'AU FRAIS · À REFAIRE CHAQUE SEMAINE')
 
 
