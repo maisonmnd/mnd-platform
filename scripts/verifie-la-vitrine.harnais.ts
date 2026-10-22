@@ -413,7 +413,12 @@ dit('… et l’îlot des offres bâtit ses portes depuis la base du site', true
    sur l'accueil ; les phrases retirées ne doivent pas revenir par une
    réécriture. */
 dit('la Maison existe depuis 2010, nulle part 2014', true, accueil.includes('depuis 2010') && !accueil.includes('2014'));
-dit('… sur chaque page servie', [], [...pages].filter(([, h]) => h.includes('2014')).map(([c]) => c));
+/* UNE SEULE EXCEPTION — 22 octobre 2026. « En 2014, il nous a quittés. » :
+   la phrase de Yéman dans le chapitre de Kolétan (Notre histoire) dit l'année
+   de son départ, pas celle de la Maison. Elle seule, mot pour mot, et sur
+   cette page seulement ; tout autre 2014 crie encore. */
+const KOLETAN_2014 = 'En 2014, il nous a quittés.';
+dit('… sur chaque page servie', [], [...pages].filter(([c, h]) => (c === '/notre-histoire/' ? h.split(KOLETAN_2014).join('') : h).includes('2014')).map(([c]) => c));
 dit('le bandeau de l’offre ne vit plus sur l’accueil', false, accueil.includes('data-ilot="bandeau-offre"'));
 dit('la bande de confiance non plus', false, accueil.includes('class="confiance sombre"'));
 dit('le titre des offres affirme', false, /à quelles conditions|Aucun prix|ne solde pas|non cumulable|Rien à payer/.test(accueil));
