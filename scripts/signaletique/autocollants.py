@@ -42,6 +42,11 @@ est celle de la boutique (« Format éco, 1 L, pour remplir les flacons à la
 maison »), sans prix sur l'autocollant. Puis : « Fais un message court et direct
 qui incite à acheter » : un verbe, la brume, le lieu où l'acheter. Et « enlève 1 litre ».
 
+Puis, sur la page : « buvez » et « laissez l'eau faire » passent sur indigo, la
+brume de l'harmattan aussi (« 3 FOIS PAR SEMAINE » en bas), la recharge sur
+cuivre ; « On se revoit quand ? » est décoché, et à sa place : « Merci pour
+votre fidélité ».
+
 Le QR du pourboire (« 909099@momopay », par analogie avec l'ancien QR lu sur le
 document MTN) n'a jamais été scanné : il s'éprouve avec l'application MoMo
 avant l'impression (voir src/shared/momopay-de-la-maison-pur.ts).
@@ -51,7 +56,6 @@ from formes import ENCRES, texte, texte_en_arc
 from motifs import medaillon, pictogramme, taille_pictogramme
 
 P = ENCRES['indigo-profond']
-A = ENCRES['argile']
 OR = ENCRES['or']
 
 # Les QR, tirés une fois par qrcode-generator (correction M) ; un module noir = « 1 ».
@@ -150,10 +154,10 @@ def respirez(cx, cy):
 
 
 def laissez_l_eau(cx, cy):
-    return [_picto(cx, cy - 70, 30, I),
-            _ligne('Fermez les yeux.', 'cormorant-italique', 21, cx, cy - 16, I, 140),
-            _ligne('Laissez l’eau', 'cormorant', 32, cx, cy + 18, I, 150),
-            _ligne('faire.', 'cormorant', 32, cx, cy + 50, I, 150)]
+    return [_picto(cx, cy - 70, 30, V),
+            _ligne('Fermez les yeux.', 'cormorant-italique', 21, cx, cy - 16, V, 140),
+            _ligne('Laissez l’eau', 'cormorant', 32, cx, cy + 18, V, 150),
+            _ligne('faire.', 'cormorant', 32, cx, cy + 50, V, 150)]
 
 
 def devise_fon(cx, cy):
@@ -164,12 +168,12 @@ def devise_fon(cx, cy):
 
 def recharge_brume(cx, cy):
     # Court et direct, pour faire acheter : un verbe, la brume, où l'acheter. L'arc la range avec les deux formules maison.
-    return [texte_en_arc('FORMAT ÉCO', 'jost', 9.5, cx, cy, 84, en_bas=False, graisse=500, interlettre=0.26, couleur=C),
+    return [texte_en_arc('FORMAT ÉCO', 'jost', 9.5, cx, cy, 84, en_bas=False, graisse=500, interlettre=0.26, couleur=V),
             _ligne('Rechargez', 'cormorant', 34, cx, cy - 20, V, 130),
             _ligne('votre brume.', 'cormorant-italique', 26, cx, cy + 8, V, 150),
             _ligne('Aux huiles macérées.', 'jost', 11, cx, cy + 30, V, 140, 400, 0.02),
-            f'<rect x="{cx - 16}" y="{cy + 42}" width="32" height="1.1" fill="{C}"/>',
-            _ligne('Achetez-la à l’accueil.', 'jost', 13, cx, cy + 62, C, 130, 400, 0.02)]
+            f'<rect x="{cx - 16}" y="{cy + 42}" width="32" height="1.1" fill="{V}"/>',
+            _ligne('Achetez-la à l’accueil.', 'jost', 13, cx, cy + 62, V, 130, 500, 0.02)]
 
 
 def buvez(cx, cy):
@@ -220,13 +224,13 @@ def kids_oui(cx, cy):
 
 # ══ CE QUI FAIT REVENIR ═════════════════════════════════════════════════
 
-def retour_rituel(cx, cy):
-    # Une question simple, puis ce qu'on fait : réserver la prochaine séance avant de sortir.
-    return [medaillon(cx, cy - 66, 26, C),
-            _ligne('On se revoit quand ?', 'cormorant', 28, cx, cy - 24, V, 166),
-            *_phrase('Réservez votre prochaine', 'séance avant de partir.', 'cormorant-italique', 20, cx, cy + 6, cy + 30, V, 166),
-            f'<rect x="{cx - 16}" y="{cy + 42}" width="32" height="1.1" fill="{C}"/>',
-            _ligne('Nous la notons ensemble à l’accueil.', 'jost', 10.5, cx, cy + 62, C, 140, 400, 0.02)]
+def merci_fidelite(cx, cy):
+    # « Merci pour votre fidélité » : un merci, puis l'au revoir qui fait revenir.
+    return [medaillon(cx, cy - 62, 28, C),
+            _ligne('Merci', 'cormorant', 40, cx, cy - 14, V, 150),
+            _ligne('pour votre fidélité.', 'cormorant-italique', 22, cx, cy + 16, V, 166),
+            f'<rect x="{cx - 16}" y="{cy + 30}" width="32" height="1.1" fill="{C}"/>',
+            _ligne('À très bientôt à la Maison.', 'jost', 11, cx, cy + 52, C, 140, 400, 0.02)]
 
 
 def _formule(cx, cy, nom, doses, geste, encre, accent, frais):
@@ -255,25 +259,25 @@ def brume_harmattan(cx, cy):
     # puis sa recette, mot pour mot : deux gouttes d'huile de lin et trois de baobab, sans gel. L'huile de lin
     # rancit vite, d'où le frais et la semaine. Sa phrase : « Un voile léger contre le vent sec. »
     return _formule(cx, cy, 'La brume de l’harmattan', ['250 ml d’eau de rose', '2 gouttes d’huile de lin', '3 gouttes d’huile de baobab'],
-                    'Un voile léger contre le vent sec.', I, P, 'AU FRAIS · À REFAIRE CHAQUE SEMAINE')
+                    'Un voile léger contre le vent sec.', V, C, '3 FOIS PAR SEMAINE')
 
 
-# L'ordre de la planche : une couleur ne touche jamais la même.
+# L'ordre de la planche : une couleur ne touche jamais la même, sauf ses choix du 22 au soir (trois cuivres de s11 à s13).
 AUTOCOLLANTS = [
     ('qr', 'Booking QR (maisonmnd.com)', V, reserver),
     ('slogan', 'Motto in Fon', C, devise_fon),
     ('shampoing', 'Shampoo: breathe', P, respirez),
-    ('bien-etre', 'Wellness: drink water', P, buvez),
+    ('bien-etre', 'Wellness: drink water', I, buvez),
     ('formule', 'Home mist: everyday', V, brume_quotidien),
     ('soin', 'DÀNDÀN care', P, dandan),
-    ('shampoing', 'Shampoo: let the water work', A, laissez_l_eau),
+    ('shampoing', 'Shampoo: let the water work', I, laissez_l_eau),
     ('qr', 'Review QR (Google)', S, avis),
     ('coiffure', 'Hairstyle of the day', C, coiffure_du_jour),
-    ('formule', 'Home mist: harmattan', A, brume_harmattan),
+    ('formule', 'Home mist: harmattan', I, brume_harmattan),
     ('qr', 'Tip QR (MoMoPay 909099)', C, pourboire_qr),
-    ('boutique', 'Mist refill, macerated oils', I, recharge_brume),
+    ('boutique', 'Mist refill, macerated oils', C, recharge_brume),
     ('kids', 'MND Kids: you say yes', C, kids_oui),
-    ('retour', 'Come back: book before leaving', I, retour_rituel),
+    ('retour', 'Thank you for your loyalty', I, merci_fidelite),
     ('bien-etre', 'Wellness: roots and origins', S, racines),
 ]
 
