@@ -113,7 +113,7 @@ RECETTES = {
     'N5': dict(montage='mur', centre=3.3, support=dict(el=0, ep=4, matiere='alu-indigo', face='plein'),
                pieces=[_p(1, 'acrylique-ivoire', 15, 14)], goujons=10, vues=['jour', 'situation']),
     # Néon de 6 mm suivant les lettres, sur une plaque claire de 8 mm, à 20 mm du mur.
-    'N6': dict(montage='mur', centre=1.6, support=dict(el=0, ep=8, recul=20, matiere='clair', face='plein'),
+    'N6': dict(montage='mur', centre=1.6, mur_uni=True, support=dict(el=0, ep=8, recul=20, matiere='clair', face='plein'),
                neon=dict(el=[1, 2], z=31, rayon=3), pieces=[], goujons=20, vues=['jour', 'nuit', 'situation'], situation='nuit'),
     # Plaque de 2 mm en inox cuivre, gravure remplie d'indigo, sur 4 entretoises de 15 mm.
     'N7': dict(montage='mur', centre=1.45, support=dict(el=0, ep=2, recul=15, matiere='cuivre-brosse', face='plein'),
@@ -213,7 +213,8 @@ def scene(e):
     return dict(
         id=e['id'], nom=e['name'], w=e['w'], h=e['h'], forme=e['forme'], rx={'N9': 16, 'N6': 34, 'R5': 2, 'R8': 4, 'N2': 6, 'N7': 3}.get(e.get('base', e['id']), 0),
         scene=e['scene'], elements=els, recette=dict(r, support=sup), orphelins=imprimes if not (sup and sup.get('face') == 'impression') else [],
-        mur_motif=motif_du_mur(e['scene']),
+        # « C'est illisible » : derrière le néon de la devise, le mur reste uni.
+        mur_motif=None if r.get('mur_uni') else motif_du_mur(e['scene']),
     )
 
 
