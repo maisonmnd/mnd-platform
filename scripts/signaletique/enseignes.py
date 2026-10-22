@@ -205,9 +205,10 @@ def n4(a):
            f'<rect x="10" y="10" width="1180" height="780" fill="none" stroke="{I}" stroke-width="20"/>']
     s, h = logo_centre(a, 'verrou-debout', 600, 140, 336, I)
     out.append(s)
-    out.append(texte('COTONOU · BÉNIN', 'jost', 30, 600, 650, 'milieu', 500, 0.3, I)[0])
+    # « Descends Cotonou Bénin et le RCCM » : les deux lignes vont vers le bas du cadre, à 40 mm du filet.
+    out.append(texte('COTONOU · BÉNIN', 'jost', 30, 600, 692, 'milieu', 500, 0.3, I)[0])
     # « Sur la N4, rajouter le RCCM de Maison MND », puis « l'IFU aussi » (22 oct. 2026) : la ligne légale des factures, imprimée petit.
-    out.append(texte('RCCM RB/COT/26 A 120676 · IFU 1 2010 0097 2809', 'jost', 21, 600, 710, 'milieu', 500, 0.12, I)[0])
+    out.append(texte('RCCM RB/COT/26 A 120676 · IFU 1 2010 0097 2809', 'jost', 21, 600, 740, 'milieu', 500, 0.12, I)[0])
     return ''.join(out)
 
 
