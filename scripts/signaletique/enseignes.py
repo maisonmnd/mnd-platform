@@ -335,6 +335,17 @@ def n10(a):
 # ══ LE CATALOGUE ════════════════════════════════════════════════════════
 # Chaque fiche : ce que la Maison lit (fr) et ce que le fabricant lit (en).
 
+# « Le médaillon seul, rétroéclairé, sur la porte extérieure de la maison » (22 oct. 2026) : porte en métal, Ø400.
+N11_D = 400
+N11_MEDAILLON = 330
+
+
+def n11(a):
+    from motifs import medaillon
+    c = N11_D / 2
+    return ''.join([f'<circle cx="{c}" cy="{c}" r="{c}" fill="{a.metal(C)}"/>', medaillon(c, c, N11_MEDAILLON, V)])
+
+
 def _f(id_, dessin, w, h, prof, forme, scene, effet, **k):
     return dict(id=id_, dessin=dessin, w=w, h=h, prof=prof, forme=forme, scene=scene, effet=effet, **k)
 
@@ -507,4 +518,15 @@ ENSEIGNES = [
                finish='Indigo #1E2150, brushed copper, ivory opal.',
                lighting='Addressable LED behind the medallion (3000 K warm white, colours possible for festive scenes) and halo on the logo. The light breathes at rest and rises when someone approaches; closing timer.',
                change='NEW ITEM, inspired by your HoneyFactory pylon sign, in a quiet version: the medallion alone. Please quote.')),
+    _f('N11', n11, N11_D, N11_D, 30, 'rond', 'facade', 'ajoure',
+       nom='Le médaillon de la porte, rétroéclairé', name='Backlit medallion for the front door',
+       statut='nouvelle', lieu='Porte d’entrée extérieure de la maison (métal), à hauteur des yeux',
+       fr=dict(construction='Plaque ronde Ø400 en inox de 2 mm, finition cuivre PVD, le médaillon (Ø330) découpé au laser au travers ; derrière, acrylique opale de 3 mm (garder les îlots collés sur l’opale) et un caisson étanche de 30 mm, fixé sur la porte en métal par 4 écrous à sertir. Rien d’autre sur la plaque : le médaillon seul.',
+               finition='Cuivre brossé, opale ivoire.',
+               lumiere='Seul le médaillon s’allume : LED blanc chaud 3000 K derrière l’opale, IP65, 12 V. Le courant passe par un passe-câble de porte blindé côté charnières, l’alimentation reste à l’intérieur ; même minuterie que les autres enseignes.',
+               change='Nouvelle pièce : le médaillon de la Maison, rétroéclairé, sur la porte extérieure.'),
+       en=dict(construction='Ø400 mm round plate, 2 mm stainless steel with copper PVD finish, the Ø330 mm medallion laser-cut through it; behind it 3 mm opal acrylic (keep the islands bonded to the opal) and a sealed 30 mm box, fixed to the metal door with 4 rivet nuts. Nothing else on the plate: the medallion alone.',
+               finish='Brushed copper, ivory opal.',
+               lighting='Only the medallion lights up: 3000 K warm white LED behind the opal, IP65, 12 V. Power through an armoured door cable loop on the hinge side, the driver stays inside the house; same timer as the other signs.',
+               change='NEW ITEM: our medallion, backlit, on the outside metal door of the house. Please quote.')),
 ]

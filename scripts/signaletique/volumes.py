@@ -150,6 +150,11 @@ def recette_totem(k=None):
 
 
 RECETTES['N10'] = recette_totem()
+# Le médaillon de la porte : plaque cuivre de 2 mm ajourée, opale derrière, caisson de 30 mm ; seul le médaillon s'allume.
+# La porte en métal se rend comme une façade sombre, sans motif (un médaillon sur un motif ne se lit plus).
+RECETTES['N11'] = dict(montage='mur', centre=1.55, mur_uni=True,
+                       support=dict(el=0, ep=30, matiere='cuivre-brosse', face='percee', percee=[1], fond='opale', lum='percee', fond_lum=0.7, sans_lueur=True),
+                       pieces=[], vues=['jour', 'nuit', 'situation'])
 
 # Les options à motifs : leurs recettes partent de celles des bases.
 from options import OPTIONS, recettes_des_options  # noqa: E402

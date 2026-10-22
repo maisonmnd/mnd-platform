@@ -9,7 +9,7 @@ MND. Show all the add ons to get final results so they can make final quote
 and adjustments » (Yéman). Un seul document, en anglais et en chinois
 (l'anglais fait foi), A4 paysage :
   A · les lignes de la PI FINALE, chacune avec ce qui change et son effet sur le prix ;
-  B · les nouvelles pièces, N1 à N10 ;
+  B · les nouvelles pièces, N1 à N11 ;
   C · les options à motifs, chacune en supplément de sa base ;
   D · les compléments sans lesquels le résultat final ne marche pas à Cotonou ;
 puis nos questions et le récapitulatif. Les colonnes de prix sont vides : Lico
@@ -139,7 +139,7 @@ COMPLEMENTS = [
      '并排拍照：电镀铜色、PVD 铜色、铜色镜面亚克力、靛蓝烤漆与 #1E2150 对比、象牙白、沙色、浅靛蓝 #2C3070 印刷。', '1 set'),
     ('D7', 'Proof 5', '第 5 版打样', 'A full set of proofs with every item and every option we choose, to approve before production.', '包含所有选定物品和选项的全套打样，生产前由我们确认。', '1 set'),
     ('D8', 'Photos and video before packing', '包装前照片和视频', 'Every finished item photographed by day and filmed lit, before it goes into its crate.', '每件成品包装前拍白天照片并拍点亮的视频。', 'per item'),
-    ('D9', 'Labelled crates', '木箱标注', 'Each piece labelled with its reference (R1 to N10, and -M for the options) and a packing list per crate.', '每件标注编号（R1 至 N10，选项加 -M），每个木箱附装箱单。', 'per crate'),
+    ('D9', 'Labelled crates', '木箱标注', 'Each piece labelled with its reference (R1 to N11, and -M for the options) and a packing list per crate.', '每件标注编号（R1 至 N11，选项加 -M），每个木箱附装箱单。', 'per crate'),
     ('D10', 'Shipping to Cotonou', '运至科托努', 'Please quote three ways: EXW Guangzhou as before; sea freight to the Port of Cotonou (CFR); air freight to Cotonou (COO). Give the volume and weight of each crate.',
      '请报三种方式：广州 EXW（同前）；海运至科托努港（CFR）；空运至科托努（COO）。请注明每个木箱的体积和重量。', '3 options'),
     ('D11', 'Installation guide', '安装指导', 'A written guide with wiring diagrams for each lit item, and one video call with your engineer. No travel.', '每个发光件的书面安装指南和接线图，加一次与工程师的视频通话。不需要上门。', '1 set'),
@@ -194,13 +194,13 @@ table.grille { border-collapse: collapse; width: 100%; }
 .prix { width: 21mm; background: repeating-linear-gradient(0deg, transparent 0 4.5mm, #e6e1d8 4.5mm 4.7mm); border-left: .2mm solid #ddd; }
 .a td:nth-child(3) { width: 48mm; } .a td:nth-child(6) { width: 70mm; } .a td:nth-child(7) { width: 38mm; }
 .b td:nth-child(3) { width: 70mm; } .c td:nth-child(3) { width: 62mm; } .d td:nth-child(2) { width: 46mm; }
-.questions { margin: 0; padding-left: 5mm; display: grid; gap: 1.4mm; } .questions .zh { display: block; color: #666; }
+.questions { margin: 0; padding-left: 5mm; display: grid; gap: 1mm; } .questions .zh { display: block; color: #666; }
 .fin { display: grid; grid-template-columns: 1fr 1fr; gap: 8mm; margin-top: 3mm; break-inside: avoid; }
-.recap { border-collapse: collapse; width: 100%; } .recap td { padding: 1.8mm 2mm; border-bottom: .2mm solid #ccc; } .recap td.v { width: 40mm; border-left: .2mm solid #ccc; }
+.recap { border-collapse: collapse; width: 100%; } .recap td { padding: 1.3mm 2mm; border-bottom: .2mm solid #ccc; } .recap td.v { width: 40mm; border-left: .2mm solid #ccc; }
 .recap tr:last-child td { border-top: .4mm solid #1E2150; font-weight: bold; } .recap .zh { color: #666; margin-left: 2mm; }
 .signe { border: .35mm solid #1E2150; padding: 3mm 4mm; display: grid; gap: 2mm; align-content: start; }
 .signe .cases { display: grid; grid-template-columns: 1fr 1fr 1.3fr; gap: 3mm; } .signe .cases span { border-bottom: .25mm solid #999; padding-top: 6mm; font-size: 7pt; color: #666; }
-.note { color: #666; font-size: 6.8pt; margin-top: 3mm; }
+.note { color: #666; font-size: 6.8pt; margin-top: 2mm; }
 </style>'''
 
 
@@ -222,10 +222,10 @@ def document():
 </ul></div>'''
     q = ''.join(f'<li>{esc(en)}<span class="zh">{esc(zh)}</span></li>' for en, zh in QUESTIONS)
     recap = ''.join(f'<tr><td>{esc(en)}<span class="zh">{esc(zh)}</span></td><td class="v"></td></tr>' for en, zh in RECAP)
-    fin = f'''<div class="fin"><div><h2>Summary to fill in <span class="zh">请填写汇总（美元）</span></h2><table class="recap">{recap}</table></div>
+    fin = f'''<div class="fin"><div><h2>Summary to fill in <span class="zh">请填写汇总（美元）</span></h2><table class="recap">{recap}</table><p class="note">Yéman Boya · Maison MND · Cotonou, Benin · WhatsApp +229 01 51 99 77 99 · maisonmnd.com. 3D renders are computed from the production files; screen colours are indicative. English prevails in case of doubt. 三维效果图由生产文件计算生成，屏幕颜色仅供参考。如有歧义，以英文为准。</p></div>
 <div><h2>Our questions <span class="zh">我们的问题</span></h2><ol class="questions">{q}</ol>
 <div class="signe"><b>Revised PI accepted · 修改后的 PI 确认</b><div class="cases"><span>Name · 姓名</span><span>Date · 日期</span><span>Signature · 签名</span></div></div></div></div>
-<p class="note">Yéman Boya · Maison MND · Cotonou, Benin · WhatsApp +229 01 51 99 77 99 · maisonmnd.com. 3D renders are computed from the production files; screen colours are indicative. English prevails in case of doubt. 三维效果图由生产文件计算生成，屏幕颜色仅供参考。如有歧义，以英文为准。</p>'''
+'''
     corps = (bandeau + intro
              + '<h2>A · The 9 items ordered on the PI FINALE <span class="zh">A · 最终 PI 上订购的 9 件物品</span></h2>' + table_a()
              + '<h2>B · New items, please quote <span class="zh">B · 新品，请报价</span></h2>' + table_b()

@@ -306,7 +306,8 @@ async function enseigne(sc, nuit) {
         capuchon.rotation.x = Math.PI / 2; capuchon.position.set(x, y, recul + ep + 2); g.add(capuchon);
       }
     }
-    if (nuit && (sup.lum === 'face' || sup.lum === 'percee') && r.montage === 'mur') g.add(await lueur(sc, sup.el != null ? sc.elements[sup.el] : fragmentDe(sc, sup.imprime || []), 0.07, 0.28, 0.6, sup));
+    // sans_lueur : la lumière ne sort que par l'ajour (le médaillon de la porte), rien ne déborde sur le mur.
+    if (nuit && (sup.lum === 'face' || sup.lum === 'percee') && r.montage === 'mur' && !sup.sans_lueur) g.add(await lueur(sc, sup.el != null ? sc.elements[sup.el] : fragmentDe(sc, sup.imprime || []), 0.07, 0.28, 0.6, sup));
     if (nuit && (sup.lum === 'retro' || sup.lum === 'contour')) {
       g.add(await lueur(sc, sc.elements[sup.el ?? 0] ?? '', sup.lum === 'contour' ? 0.05 : 0.04, sup.lum === 'contour' ? 0.75 : 0.6, 0.6, sup));
     }
