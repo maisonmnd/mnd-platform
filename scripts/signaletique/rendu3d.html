@@ -1,0 +1,508 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Rendu 3D des enseignes</title>
+<!-- LE MOTEUR 3D DES ENSEIGNES — 22 octobre 2026. Ouvert par rendu3d.mjs dans
+     un Chrome sans tête. Il reçoit la scène d'une enseigne (volumes.py), extrude
+     les chemins mêmes du fichier du fabricant (rien n'est redessiné), pose les
+     matières, et calcule la lumière : jour, nuit allumée à 3000 K, en situation. -->
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"}}</script>
+<!-- Clipper unit les contours des glyphes avant de les ajourer (le « t » italique en a deux qui se chevauchent). -->
+<script src="https://cdn.jsdelivr.net/npm/clipper-lib@6.4.2/clipper.js"></script>
+<style>body{margin:0;background:#000}</style>
+</head>
+<body>
+<script type="module">
+import * as THREE from 'three';
+import { SVGLoader } from 'three/addons/loaders/SVGLoader.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+
+const W = 1600, H = 1000, MM = 0.001;
+/* 3000 K, le blanc chaud de la Maison. */
+const LUMIERE = new THREE.Color(0xFFBE7D);
+const SCENES = {
+  mur: ['#EFE7D9', '#D6C9B2'], interieur: ['#ECE3D4', '#C9BBA3'], facade: ['#4A4D66', '#3A3B44'],
+  rue: ['#DCD5C8', '#8E8A84'], nuit: ['#34364A', '#24252F'], verre: ['#E8E1D3', '#B9AD97'], planche: ['#E6DECF', '#C9B79A'],
+};
+
+/* Profondeur logarithmique : une impression posée à 0,2 mm d'une face ne scintille plus, même de loin. */
+const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true, logarithmicDepthBuffer: true });
+renderer.setSize(W, H);
+renderer.setPixelRatio(1);
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+document.body.appendChild(renderer.domElement);
+const pmrem = new THREE.PMREMGenerator(renderer);
+const ENV = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+const loader = new SVGLoader();
+
+/* ── Les matières ─────────────────────────────────────────────────────── */
+const physique = (o) => new THREE.MeshPhysicalMaterial(o);
+function matiere(nom, nuit) {
+  const m = (() => {
+    switch (nom) {
+      case 'cuivre-brosse': return physique({ color: 0xB0703F, metalness: 1, roughness: 0.32 });
+      case 'cuivre-miroir': return physique({ color: 0xD29463, metalness: 1, roughness: 0.26 });
+      case 'alu-cuivre': return physique({ color: 0xC98A5A, metalness: 0.7, roughness: 0.42 });
+      case 'inox': return physique({ color: 0xD9DCE1, metalness: 0.9, roughness: 0.38 });
+      case 'indigo': return physique({ color: 0x1E2150, metalness: 0.1, roughness: 0.42, clearcoat: 0.5, clearcoatRoughness: 0.25 });
+      case 'alu-indigo': return physique({ color: 0x1E2150, metalness: 0.25, roughness: 0.4, clearcoat: 0.3 });
+      case 'fer-indigo': return physique({ color: 0x1E2150, metalness: 0.45, roughness: 0.62 });
+      case 'ivoire': return physique({ color: 0xF6F1E7, roughness: 0.62 });
+      case 'acrylique-ivoire': return physique({ color: 0xF6F1E7, roughness: 0.2, clearcoat: 0.8 });
+      case 'acrylique-indigo': return physique({ color: 0x1E2150, roughness: 0.15, clearcoat: 1 });
+      case 'opale': return physique({ color: 0xF4EFE6, roughness: 0.3, clearcoat: 0.4 });
+      case 'depoli': return physique({ color: 0xEEF1EE, roughness: 0.55, transmission: 0.5, thickness: 6, ior: 1.49 });
+      case 'clair': return physique({ color: 0xFFFFFF, roughness: 0.03, transmission: 0.97, thickness: 8, ior: 1.49 });
+      case 'verre': return physique({ color: 0xDDE8EA, roughness: 0.02, transmission: 0.92, thickness: 10, ior: 1.52 });
+      case 'film-cuivre': return physique({ color: 0xC98D5B, roughness: 0.42, metalness: 0.2 });
+      case 'papier': return physique({ color: 0xFFFFFF, roughness: 0.78 });
+      case 'vinyle-cuivre': return physique({ color: 0xB97A4A, metalness: 0.55, roughness: 0.35 });
+      case 'vinyle-blanc': return physique({ color: 0xF7F7F5, roughness: 0.45 });
+      case 'vinyle-sable': return physique({ color: 0xE3DACB, roughness: 0.7, transparent: true, opacity: 0.82 });
+      case 'encre-indigo': return physique({ color: 0x1E2150, roughness: 0.6 });
+      case 'encre-ivoire': return physique({ color: 0xF6F1E7, roughness: 0.6 });
+      default: return physique({ color: 0xFF00FF });
+    }
+  })();
+  /* Un métal ne montre que ce qu'il reflète : vu de face, la pièce est sombre ; un peu plus de
+     reflet le fait lire cuivre (ou inox), le jour comme sous l'éclairage de la pièce la nuit. */
+  const metal = m.metalness >= 0.9;
+  m.envMapIntensity = nuit ? (metal ? 0.4 : 0.08) : (metal ? 1.6 : 1.0);
+  return m;
+}
+const allume = (m, intensite = 2.2, carte = null) => {
+  m.emissive = LUMIERE.clone();
+  m.emissiveIntensity = intensite;
+  if (carte) m.emissiveMap = carte;
+  return m;
+};
+
+/* ── Les formes, tirées du dessin du fabricant ─────────────────────────── */
+function chemins(fragment, w, h) {
+  /* y vers le haut : le dessin est retourné une fois, ici. */
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${w} ${h}"><g transform="translate(0 ${h}) scale(1 -1)">${fragment}</g></svg>`;
+  return loader.parse(svg).paths;
+}
+function rectShape(x, y, w, h, r = 0, Ctor = THREE.Shape) {
+  const s = new Ctor();
+  r = Math.min(r, w / 2, h / 2);
+  if (!r) { s.moveTo(x, y); s.lineTo(x + w, y); s.lineTo(x + w, y + h); s.lineTo(x, y + h); s.closePath(); return s; }
+  s.moveTo(x + r, y); s.lineTo(x + w - r, y); s.quadraticCurveTo(x + w, y, x + w, y + r);
+  s.lineTo(x + w, y + h - r); s.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+  s.lineTo(x + r, y + h); s.quadraticCurveTo(x, y + h, x, y + h - r);
+  s.lineTo(x, y + r); s.quadraticCurveTo(x, y, x + r, y);
+  return s;
+}
+/** Un cercle de 128 côtés : absarc n'en donnerait que curveSegments (12), et le disque se lirait polygone. */
+function cercle(cx, cy, r, Ctor = THREE.Shape) {
+  const s = new Ctor(), n = 128, sens = Ctor === THREE.Path ? -1 : 1;
+  for (let i = 0; i < n; i++) { const a = sens * i / n * Math.PI * 2, x = cx + r * Math.cos(a), y = cy + r * Math.sin(a); if (i) s.lineTo(x, y); else s.moveTo(x, y); }
+  s.closePath();
+  return s;
+}
+/** Un cercle ou un rectangle tracé (sans remplissage) devient un anneau plein. */
+function anneau(node, h) {
+  const sw = parseFloat(node.getAttribute('stroke-width') || '1');
+  if (node.nodeName === 'circle') {
+    const cx = +node.getAttribute('cx'), cy = h - +node.getAttribute('cy'), r = +node.getAttribute('r');
+    const s = cercle(cx, cy, r + sw / 2); s.holes.push(cercle(cx, cy, r - sw / 2, THREE.Path)); return s;
+  }
+  if (node.nodeName === 'rect') {
+    const x = +(node.getAttribute('x') || 0), y = +(node.getAttribute('y') || 0), w = +node.getAttribute('width'), hh = +node.getAttribute('height');
+    const Y = h - y - hh;
+    const s = rectShape(x - sw / 2, Y - sw / 2, w + sw, hh + sw);
+    s.holes.push(rectShape(x + sw / 2, Y + sw / 2, w - sw, hh - sw, 0, THREE.Path));
+    return s;
+  }
+  return null;
+}
+function formes(fragment, w, h, trait = false) {
+  const out = [];
+  for (const p of chemins(fragment, w, h)) {
+    const st = p.userData.style, node = p.userData.node;
+    const sansFond = !st.fill || st.fill === 'none';
+    if (trait || (sansFond && st.stroke && st.stroke !== 'none')) { const s = anneau(node, h); if (s) out.push(s); continue; }
+    if (!sansFond) out.push(...SVGLoader.createShapes(p));
+  }
+  return out;
+}
+const fragmentDe = (sc, ids) => ids.map((i) => sc.elements[i]).join('');
+
+/** Les ajours d'une face : l'union des glyphes. Deux contours qui se chevauchent (le « t » italique,
+ *  dessiné en deux traits) feraient deux trous superposés, que la triangulation rebouche ; on les
+ *  unit d'abord. Renvoie les trous de la face, et les îlots (l'intérieur des « o », des « e »…). */
+function ajours(formesDesGlyphes) {
+  const C = window.ClipperLib, S = 1000;
+  const vers = (pts, sens) => { const q = pts.map((v) => ({ X: Math.round(v.x * S), Y: Math.round(v.y * S) })); if ((C.Clipper.Area(q) > 0) !== (sens > 0)) q.reverse(); return q; };
+  const retour = (q) => q.map((v) => new THREE.Vector2(v.X / S, v.Y / S));
+  const cl = new C.Clipper();
+  for (const f of formesDesGlyphes) {
+    cl.AddPath(vers(f.getPoints(12), 1), C.PolyType.ptSubject, true);
+    for (const h of f.holes) cl.AddPath(vers(h.getPoints(12), -1), C.PolyType.ptSubject, true);
+  }
+  const arbre = new C.PolyTree();
+  cl.Execute(C.ClipType.ctUnion, arbre, C.PolyFillType.pftNonZero, C.PolyFillType.pftNonZero);
+  const out = { trous: [], ilots: [] };
+  const ilot = (n) => {
+    const s = new THREE.Shape(retour(n.Contour()));
+    for (const c of n.Childs()) { s.holes.push(new THREE.Path(retour(c.Contour()))); c.Childs().forEach(ilot); }
+    out.ilots.push(s);
+  };
+  for (const n of arbre.Childs()) { out.trous.push(new THREE.Path(retour(n.Contour()))); n.Childs().forEach(ilot); }
+  return out;
+}
+
+/** Le contour du support (y vers le haut), retrait `inset` mm. */
+function cadreDu(sc, sup) {
+  let x = 0, y = 0, w = sc.w, h = sc.h;
+  if (sup.taille) { const W2 = sup.taille[0] ?? sc.w, H2 = sup.taille[1] ?? sc.h + 2 * (sup.marge || 0); x = (sc.w - W2) / 2; y = (sc.h - H2) / 2; w = W2; h = H2; }
+  return { x, y, w, h };
+}
+function contour(sc, sup, inset = 0, Ctor = THREE.Shape) {
+  const c = cadreDu(sc, sup);
+  if (sc.forme === 'rond') return cercle(c.x + c.w / 2, c.y + c.h / 2, c.w / 2 - inset, Ctor);
+  return rectShape(c.x + inset, c.y + inset, c.w - 2 * inset, c.h - 2 * inset, Math.max(0, (sc.rx || 0) - inset), Ctor);
+}
+/** Un glyphe a parfois deux points confondus (le K de VÈKPÈ™) : ExtrudeGeometry en tire des
+ *  triangles plats à normale nulle, que le shader normalise en NaN, et le halo de nuit étale ce
+ *  NaN en un grand pan noir. On retire ces triangles ; le volume reste celui du dessin. */
+function sansTrianglesPlats(g) {
+  const n = g.attributes.normal.array, nb = n.length / 9, garde = [];
+  for (let t = 0; t < nb; t++) {
+    let ok = true;
+    for (let k = 0; k < 3; k++) { const i = t * 9 + k * 3; if (!(Math.hypot(n[i], n[i + 1], n[i + 2]) > 0.5)) ok = false; }
+    if (ok) garde.push(t);
+  }
+  if (garde.length === nb) return g;
+  const out = new THREE.BufferGeometry();
+  for (const [nom, attr] of Object.entries(g.attributes)) {
+    const s = attr.itemSize * 3, a = new Float32Array(garde.length * s);
+    garde.forEach((t, j) => a.set(attr.array.subarray(t * s, (t + 1) * s), j * s));
+    out.setAttribute(nom, new THREE.BufferAttribute(a, attr.itemSize));
+  }
+  g.dispose();
+  return out;
+}
+function extrude(shapes, ep, z, mat, biseau = false, lisse = false) {
+  const g = sansTrianglesPlats(new THREE.ExtrudeGeometry(shapes, { depth: ep, curveSegments: lisse ? 64 : 12, bevelEnabled: biseau && ep >= 4, bevelThickness: 0.5, bevelSize: 0.35, bevelSegments: 2 }));
+  const m = new THREE.Mesh(g, mat);
+  m.position.z = z;
+  m.castShadow = true; m.receiveShadow = true;
+  return m;
+}
+
+/* ── Les textures : l'impression, et les lueurs ────────────────────────── */
+async function imageDe(fragment, w, h, largeurPx) {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${largeurPx}" height="${Math.round(largeurPx * h / w)}" viewBox="0 0 ${w} ${h}">${fragment}</svg>`;
+  const url = URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml' }));
+  const img = new Image();
+  img.src = url;
+  await img.decode();
+  URL.revokeObjectURL(url);
+  return img;
+}
+async function impression(sc, ids) {
+  const img = await imageDe(fragmentDe(sc, ids), sc.w, sc.h, 2048);
+  const c = document.createElement('canvas'); c.width = img.width; c.height = img.height;
+  c.getContext('2d').drawImage(img, 0, 0);
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8;
+  return t;
+}
+/** Une lueur : la silhouette des morceaux, floutée, posée derrière eux. */
+async function lueur(sc, fragment, flouRel, force, z, sup) {
+  const pad = Math.max(sc.w, sc.h) * 0.45;
+  const Wt = sc.w + pad * 2, Ht = sc.h + pad * 2, px = 1024 / Math.max(Wt, Ht);
+  const img = await imageDe(fragment, sc.w, sc.h, Math.max(8, Math.round(sc.w * px)));
+  const base = document.createElement('canvas'); base.width = Math.round(Wt * px); base.height = Math.round(Ht * px);
+  const b = base.getContext('2d');
+  b.drawImage(img, pad * px, pad * px, sc.w * px, sc.h * px);
+  b.globalCompositeOperation = 'source-in'; b.fillStyle = '#fff'; b.fillRect(0, 0, base.width, base.height);
+  const flou = document.createElement('canvas'); flou.width = base.width; flou.height = base.height;
+  const f = flou.getContext('2d');
+  f.filter = `blur(${Math.max(2, flouRel * Math.max(sc.w, sc.h) * px)}px)`;
+  f.drawImage(base, 0, 0);
+  f.filter = `blur(${Math.max(1, flouRel * 0.35 * Math.max(sc.w, sc.h) * px)}px)`;
+  f.drawImage(base, 0, 0);
+  const t = new THREE.CanvasTexture(flou);
+  const mat = new THREE.MeshBasicMaterial({ color: LUMIERE.clone().multiplyScalar(force), map: t, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false });
+  const plan = new THREE.Mesh(new THREE.PlaneGeometry(Wt, Ht), mat);
+  plan.position.set(sc.w / 2, sc.h / 2, z);
+  plan.userData.lueur = true;
+  return plan;
+}
+function planDeFace(sc, shape, carte, mat, z, derriere = false) {
+  const g = new THREE.ShapeGeometry(shape, 48);
+  const pos = g.attributes.position, uv = g.attributes.uv;
+  for (let i = 0; i < pos.count; i++) uv.setXY(i, pos.getX(i) / sc.w, pos.getY(i) / sc.h);
+  const m = new THREE.Mesh(g, mat);
+  if (derriere) { m.rotation.y = Math.PI; m.position.set(sc.w, 0, z); } else m.position.z = z;
+  m.receiveShadow = true;
+  return m;
+}
+
+/* ── L'enseigne ───────────────────────────────────────────────────────── */
+async function enseigne(sc, nuit) {
+  const r = sc.recette, sup = r.support;
+  const g = new THREE.Group();
+  const lum = { surface: 0 };
+  if (sup) {
+    const recul = sup.recul || 0, ep = sup.ep;
+    const mat = matiere(sup.matiere, nuit);
+    if (sup.matiere === 'cuivre-brosse') { mat.roughness = 0.55; mat.color.set(0xC08050); }
+    const exterieur = contour(sc, sup);
+    lum.surface = recul + ep;
+    if (sup.face === 'percee') {
+      const { trous, ilots } = ajours(formes(fragmentDe(sc, sup.percee), sc.w, sc.h));
+      const face = contour(sc, sup);
+      face.holes.push(...trous);
+      g.add(extrude([face], 1.5, recul + ep - 1.5, mat));
+      if (ilots.length) g.add(extrude(ilots, 1.5, recul + ep - 1.5, mat));
+      const retour = contour(sc, sup); retour.holes.push(contour(sc, sup, 1.5, THREE.Path));
+      g.add(extrude([retour], ep - 1.5, recul, mat));
+      const fondMat = matiere(sup.fond, nuit);
+      if (nuit && sup.lum === 'percee') allume(fondMat, 2.4);
+      /* Vu par les ajours, le miroir ne reflète que l'envers de la face : on lui rend le jour de la pièce. */
+      if (!nuit && fondMat.metalness >= 0.9) fondMat.envMapIntensity *= 1.8;
+      g.add(extrude([contour(sc, sup, 1.5)], 1.5, recul + ep - (sup.lum === 'percee' ? 8 : 5), fondMat));
+    } else if (sup.face === 'impression') {
+      g.add(extrude([exterieur], ep, recul, mat, false, true));
+      const carte = await impression(sc, sup.imprime);
+      const faceMat = new THREE.MeshStandardMaterial({ map: carte, roughness: sup.matiere === 'papier' ? 0.8 : 0.32, transparent: true, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
+      faceMat.envMapIntensity = nuit ? 0.08 : 1.0;
+      if (nuit && sup.lum === 'face') allume(faceMat, 1.25, carte);
+      if (nuit && sup.lum === 'retro') allume(faceMat, 0.55, carte);
+      g.add(planDeFace(sc, contour(sc, sup), carte, faceMat, recul + ep + 0.15));
+      if (sup.double) g.add(planDeFace(sc, contour(sc, sup), carte, faceMat, recul - 0.15, true));
+    } else {
+      if (nuit && sup.lum === 'retro') allume(mat, 0.6);
+      g.add(extrude([exterieur], ep, recul, mat, false, true));
+    }
+    if (sup.rebord) {
+      const rb = matiere(sup.rebord, nuit);
+      const bague = contour(sc, sup, -1.2); bague.holes.push(contour(sc, sup, 9, THREE.Path));
+      g.add(extrude([bague], 3, recul + ep, rb, true, true));
+      if (sup.double) g.add(extrude([bague], 3, recul - 3, rb, true, true));
+    }
+    if (recul > 0) {
+      const c = cadreDu(sc, sup), inox = matiere('inox', nuit);
+      const pts = sc.forme === 'rond'
+        ? [45, 135, 225, 315].map((a) => [c.x + c.w / 2 + Math.cos(a * Math.PI / 180) * c.w * 0.38, c.y + c.h / 2 + Math.sin(a * Math.PI / 180) * c.h * 0.38])
+        : [[c.x + 20, c.y + 20], [c.x + c.w - 20, c.y + 20], [c.x + 20, c.y + c.h - 20], [c.x + c.w - 20, c.y + c.h - 20]];
+      for (const [x, y] of pts) {
+        const t = new THREE.Mesh(new THREE.CylinderGeometry(5, 5, recul + ep + 3, 20), inox);
+        t.rotation.x = Math.PI / 2; t.position.set(x, y, (recul + ep + 3) / 2); t.castShadow = true; g.add(t);
+        const capuchon = new THREE.Mesh(new THREE.CylinderGeometry(7.5, 7.5, 4, 24), inox);
+        capuchon.rotation.x = Math.PI / 2; capuchon.position.set(x, y, recul + ep + 2); g.add(capuchon);
+      }
+    }
+    if (nuit && (sup.lum === 'face' || sup.lum === 'percee') && r.montage === 'mur') g.add(await lueur(sc, sup.el != null ? sc.elements[sup.el] : fragmentDe(sc, sup.imprime || []), 0.07, 0.28, 0.6, sup));
+    if (nuit && (sup.lum === 'retro' || sup.lum === 'contour')) {
+      g.add(await lueur(sc, sc.elements[sup.el ?? 0] ?? '', sup.lum === 'contour' ? 0.05 : 0.04, sup.lum === 'contour' ? 0.75 : 0.6, 0.6, sup));
+    }
+  }
+  for (const p of r.pieces) {
+    const frag = fragmentDe(sc, p.el);
+    const shapes = formes(frag, sc.w, sc.h, !!p.trait);
+    const mat = matiere(p.matiere, nuit);
+    if (nuit && p.lum === 'face') allume(mat, 1.6);
+    if (p.socle) g.add(extrude(shapes, p.socle, p.z - p.socle, matiere('depoli', nuit)));
+    g.add(extrude(shapes, p.ep, p.z, mat, p.matiere.startsWith('cuivre') || p.matiere === 'inox'));
+    /* Le halo se pose sur ce qui est derrière les lettres : le caisson, ou le mur. */
+    if (nuit && p.lum === 'halo') g.add(await lueur(sc, frag, 0.02, 0.55, lum.surface + 0.4));
+  }
+  if (r.neon) {
+    const shapes = formes(fragmentDe(sc, r.neon.el), sc.w, sc.h);
+    const mat = nuit
+      ? new THREE.MeshBasicMaterial({ color: LUMIERE.clone().multiplyScalar(1.5), toneMapped: false })
+      : physique({ color: 0xF3ECE2, roughness: 0.35 });
+    for (const s of shapes) {
+      for (const ligne of [s, ...s.holes]) {
+        const pts = ligne.getPoints(6).map((v) => new THREE.Vector3(v.x, v.y, 0));
+        if (pts.length < 4) continue;
+        const courbe = new THREE.CatmullRomCurve3(pts, true, 'centripetal');
+        const tube = new THREE.Mesh(new THREE.TubeGeometry(courbe, Math.min(900, pts.length * 3), r.neon.rayon, 8, true), mat);
+        tube.position.z = r.neon.z; tube.castShadow = !nuit; g.add(tube);
+      }
+    }
+    if (nuit) g.add(await lueur(sc, fragmentDe(sc, r.neon.el), 0.025, 0.4, (sup ? (sup.recul || 0) + sup.ep : 0) + 0.5));
+  }
+  return g;
+}
+
+/* ── Le décor : mur, sol, potence, porte, table, et la silhouette ─────── */
+function mur(couleur, nuit) {
+  const c = document.createElement('canvas'); c.width = c.height = 512;
+  const x = c.getContext('2d'); x.fillStyle = couleur; x.fillRect(0, 0, 512, 512);
+  for (let i = 0; i < 9000; i++) { x.fillStyle = `rgba(${Math.random() < 0.5 ? '0,0,0' : '255,255,255'},${Math.random() * 0.035})`; x.fillRect(Math.random() * 512, Math.random() * 512, 2, 2); }
+  const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(6, 4); t.colorSpace = THREE.SRGBColorSpace;
+  const m = new THREE.MeshStandardMaterial({ map: t, roughness: 0.92 });
+  m.envMapIntensity = nuit ? 0.08 : 0.6;
+  return m;
+}
+function silhouette(nuit) {
+  const m = new THREE.MeshStandardMaterial({ color: nuit ? 0x2C2E3A : 0x8A8D97, roughness: 0.85 });
+  const g = new THREE.Group();
+  const capsule = (r, l, x, y) => { const c = new THREE.Mesh(new THREE.CapsuleGeometry(r, l, 8, 16), m); c.position.set(x, y, 0); c.castShadow = true; g.add(c); return c; };
+  capsule(0.065, 0.72, -0.09, 0.43); capsule(0.065, 0.72, 0.09, 0.43);
+  capsule(0.17, 0.42, 0, 1.12);
+  const bg = capsule(0.045, 0.56, -0.215, 1.04), bd = capsule(0.045, 0.56, 0.215, 1.04);
+  bg.rotation.z = 0.05; bd.rotation.z = -0.05;
+  const tete = new THREE.Mesh(new THREE.SphereGeometry(0.105, 24, 16), m); tete.position.y = 1.595; tete.castShadow = true; g.add(tete);
+  return g;
+}
+
+async function compose(sc, mode) {
+  const nuit = mode === 'nuit' || (mode === 'situation' && sc.recette.situation === 'nuit');
+  const r = sc.recette, sup = r.support;
+  const tournee = r.montage === 'drapeau' || r.montage === 'potence';
+  const scene = new THREE.Scene();
+  scene.environment = ENV;
+  const [cm, cs] = SCENES[sc.scene] || SCENES.mur;
+  scene.background = new THREE.Color(nuit ? 0x0E0F18 : (tournee ? 0xC9D3DA : 0xD9D2C4));
+
+  const signe = await enseigne(sc, nuit);
+  signe.scale.setScalar(MM);
+  const ep = sup ? (sup.recul || 0) + sup.ep : Math.max(...r.pieces.map((p) => p.z + p.ep), 10);
+  const pivot = new THREE.Group();
+  pivot.add(signe);
+  if (tournee) {
+    signe.position.set(-sc.w / 2 * MM, -sc.h / 2 * MM, -ep / 2 * MM);
+    pivot.rotation.y = Math.PI / 2;
+    const bras = (r.bras || 250) * MM;
+    pivot.position.set(0, r.centre, r.montage === 'potence' ? bras * 0.55 + 0.04 : bras + sc.w / 2 * MM);
+  } else if (r.montage === 'table') {
+    signe.position.set(-sc.w / 2 * MM, -sc.h / 2 * MM, 0);
+    pivot.rotation.x = -Math.PI / 2;
+    pivot.position.set(0, 0.752, 0.62);
+  } else {
+    signe.position.set(-sc.w / 2 * MM, -sc.h / 2 * MM, 0);
+    pivot.position.set(0, r.centre, 0);
+  }
+  scene.add(pivot);
+
+  /* Le mur et le sol. */
+  const murMat = mur(cm, nuit);
+  if (r.montage === 'vitre') {
+    const ouverture = rectShape(-0.51, 0, 1.02, 2.16, 0, THREE.Path);
+    const plein = rectShape(-5, -0.01, 10, 6); plein.holes.push(ouverture);
+    const m = new THREE.Mesh(new THREE.ShapeGeometry(plein), murMat); m.receiveShadow = true; scene.add(m);
+    const cadre = rectShape(-0.51, 0, 1.02, 2.16); cadre.holes.push(rectShape(-0.45, 0.0, 0.9, 2.1, 0, THREE.Path));
+    const dormant = new THREE.Mesh(new THREE.ExtrudeGeometry(cadre, { depth: 0.06, bevelEnabled: false }), matiere('fer-indigo', nuit));
+    dormant.position.z = -0.03; dormant.castShadow = true; scene.add(dormant);
+    const dedans = new THREE.Mesh(new THREE.PlaneGeometry(4, 3), new THREE.MeshStandardMaterial({ color: 0x9C8A70, roughness: 0.9 }));
+    dedans.position.set(0, 1.4, -1.6); scene.add(dedans);
+    const lampe = new THREE.PointLight(0xFFD7A8, nuit ? 0.6 : 3.0, 0, 2); lampe.position.set(0.3, 2.2, -1.0); scene.add(lampe);
+  } else {
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(14, 8), murMat); m.position.set(0, 3.98, 0); m.receiveShadow = true; scene.add(m);
+  }
+  const solMat = new THREE.MeshStandardMaterial({ color: new THREE.Color(cs), roughness: 0.85 });
+  solMat.envMapIntensity = nuit ? 0.06 : 0.7;
+  const sol = new THREE.Mesh(new THREE.PlaneGeometry(14, 10), solMat);
+  sol.rotation.x = -Math.PI / 2; sol.position.set(0, 0, 5); sol.receiveShadow = true; scene.add(sol);
+
+  /* Les potences. */
+  const fixe = (m) => { m.castShadow = true; scene.add(m); return m; };
+  if (r.montage === 'drapeau') {
+    const bras = (r.bras || 250) * MM, mat = matiere(r.bras_matiere || 'inox', nuit);
+    const tube = fixe(new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, bras, 24), mat)); tube.rotation.x = Math.PI / 2; tube.position.set(0, r.centre, bras / 2);
+    fixe(new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.2, 0.006), mat)).position.set(0, r.centre, 0.003);
+  }
+  if (r.montage === 'potence') {
+    const bras = (r.bras || 650) * MM, fer = matiere('fer-indigo', nuit), haut = r.centre + sc.h / 2 * MM + 0.12;
+    fixe(new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.42, 0.03), fer)).position.set(0, haut - 0.12, 0.015);
+    const b = fixe(new THREE.Mesh(new THREE.CylinderGeometry(0.011, 0.011, bras, 16), fer)); b.rotation.x = Math.PI / 2; b.position.set(0, haut, bras / 2);
+    fixe(new THREE.Mesh(new THREE.SphereGeometry(0.02, 16, 12), matiere('cuivre-brosse', nuit))).position.set(0, haut, bras + 0.01);
+    const cz = pivot.position.z;
+    for (const dz of [-0.11, 0.11]) fixe(new THREE.Mesh(new THREE.CylinderGeometry(0.003, 0.003, 0.12, 8), fer)).position.set(0, haut - 0.06, cz + dz);
+  }
+  if (r.montage === 'table') {
+    const plateau = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.04, 1.1), new THREE.MeshStandardMaterial({ color: 0xB89874, roughness: 0.55 }));
+    plateau.position.set(0, 0.73, 0.62); plateau.receiveShadow = true; scene.add(plateau);
+  }
+
+  /* La lumière. */
+  /* Le cadrage suit l'enseigne, pas ses lueurs. */
+  pivot.updateMatrixWorld(true);
+  const boite = new THREE.Box3();
+  pivot.traverse((o) => { if (o.isMesh && !o.userData.lueur) boite.expandByObject(o); });
+  /* Une potence se montre avec son bras : un disque pendu à deux tiges qui sortent du cadre ne se comprend pas. */
+  if (r.montage === 'potence') boite.expandByPoint(new THREE.Vector3(0, r.centre + sc.h / 2 * MM + 0.15, 0));
+  const centre = boite.getCenter(new THREE.Vector3()), taille = boite.getSize(new THREE.Vector3());
+  const grand = Math.max(taille.x, taille.y, taille.z);
+  if (nuit) {
+    scene.add(new THREE.HemisphereLight(0x2B3050, 0x0B0C12, 0.25));
+    const lune = new THREE.DirectionalLight(0x9FB0FF, 0.12); lune.position.set(-3, 5, 4); scene.add(lune);
+  } else {
+    scene.add(new THREE.HemisphereLight(0xFFF6EA, 0xB8A98F, 0.65));
+    const soleil = new THREE.DirectionalLight(0xFFF1DD, 2.6);
+    /* Le soleil vient du côté où l'on regarde la face. */
+    if (tournee) soleil.position.set(centre.x + 3.2, centre.y + 3.6, centre.z + 1.4);
+    else soleil.position.set(centre.x - 1.6, centre.y + 3.6, centre.z + 3.2);
+    soleil.target.position.copy(centre); scene.add(soleil.target);
+    soleil.castShadow = true;
+    const ombre = Math.max(2.5, grand * 1.6);
+    Object.assign(soleil.shadow.camera, { left: -ombre, right: ombre, top: ombre, bottom: -ombre, near: 0.1, far: 20 });
+    soleil.shadow.mapSize.set(2048, 2048); soleil.shadow.bias = -0.0004; soleil.shadow.radius = 4;
+    scene.add(soleil);
+  }
+
+  /* La silhouette, pour l'échelle. */
+  if (mode === 'situation' && r.montage !== 'table') {
+    const s = silhouette(nuit);
+    if (tournee) { s.position.set(0.15, 0, boite.max.z + 0.45); s.rotation.y = Math.PI / 2; }
+    else s.position.set(boite.max.x + 0.55, 0, 0.4);
+    scene.add(s);
+  }
+
+  /* La caméra. */
+  const cam = new THREE.PerspectiveCamera(30, W / H, 0.01, 60);
+  const tan = Math.tan(THREE.MathUtils.degToRad(30) / 2);
+  if (mode === 'situation') {
+    const zone = boite.clone();
+    if (r.montage !== 'table') { zone.expandByPoint(new THREE.Vector3(boite.max.x + 1.0, 0, 0)); zone.expandByPoint(new THREE.Vector3(boite.min.x - 0.4, 0, 0)); }
+    const c = zone.getCenter(new THREE.Vector3()), t = zone.getSize(new THREE.Vector3());
+    const d = Math.max(t.y, t.x / (W / H)) * 1.5 / 2 / tan;
+    if (r.montage === 'table') { cam.position.set(c.x + 0.5, 1.85, c.z + 1.45); cam.lookAt(c.x, 0.75, c.z); }
+    else if (tournee) {
+      /* Une enseigne en drapeau se regarde depuis la rue, comme de près : la face, pas la tranche. */
+      const zt = boite.clone(); zt.expandByPoint(new THREE.Vector3(0.9, 0, 1.1)); zt.expandByPoint(new THREE.Vector3(0, 0, 0));
+      const ct = zt.getCenter(new THREE.Vector3()), tt = zt.getSize(new THREE.Vector3());
+      const dt = Math.max(tt.y, tt.z / (W / H)) * 1.25 / 2 / tan;
+      cam.position.set(ct.x + dt, Math.max(1.55, ct.y * 0.8), ct.z + dt * 0.28); cam.lookAt(ct);
+    }
+    else { cam.position.set(c.x + d * 0.22, Math.max(1.55, c.y * 0.6), d); cam.lookAt(c); }
+  } else if (r.montage === 'table') {
+    cam.position.set(centre.x + 0.25, 1.75, centre.z + 0.95); cam.lookAt(centre);
+  } else {
+    const d = Math.max(taille.y, taille.x / (W / H), tournee ? taille.z / (W / H) : 0) * 1.32 / 2 / tan;
+    const dir = tournee ? new THREE.Vector3(1, 0.05, 0.2) : new THREE.Vector3(0.3, 0.06, 1);
+    dir.normalize();
+    cam.position.copy(centre).addScaledVector(dir, d);
+    cam.lookAt(centre);
+  }
+
+  const composer = new EffectComposer(renderer);
+  composer.setSize(W, H);
+  composer.addPass(new RenderPass(scene, cam));
+  if (nuit) composer.addPass(new UnrealBloomPass(new THREE.Vector2(W, H), 0.55, 0.4, 0.88));
+  composer.addPass(new OutputPass());
+  composer.render();
+  const url = renderer.domElement.toDataURL('image/png');
+  scene.traverse((o) => { o.geometry?.dispose?.(); if (o.material) [].concat(o.material).forEach((m) => { m.map?.dispose?.(); m.dispose?.(); }); });
+  composer.dispose?.();
+  return url;
+}
+
+window.rends = (sc, mode) => compose(sc, mode);
+window.pret = true;
+</script>
+</body>
+</html>

@@ -1,0 +1,199 @@
+# -*- coding: utf-8 -*-
+"""LES ENSEIGNES EN VOLUME, 22 octobre 2026.
+
+« Besoin de faire une fiche technique par élément. Chaque pièce, chaque
+commande, avec le résultat final du LED ou du 3D, pas juste une simple
+image » (Yéman). Choix au sélecteur : les dix-huit enseignes, un rendu 3D
+CALCULÉ depuis les vrais fichiers (pas une image générée, qui redessinerait
+le logo), des fiches en anglais et en chinois.
+
+Chaque enseigne reçoit ici sa RECETTE : de quoi chaque morceau de son dessin
+est fait, à quelle épaisseur, à quelle distance du mur, et comment il
+s'allume. Les morceaux sont les éléments du dessin du fabricant, dans l'ordre
+où `enseignes.py` les pose (0 = le premier) : le volume est extrudé des
+chemins mêmes qui partent chez Lico Sign, rien n'est redessiné.
+
+Unités : millimètres pour le dessin et les épaisseurs ; `z` se mesure depuis
+le mur jusqu'au dos du morceau ; `centre` est la hauteur du centre de
+l'enseigne au-dessus du sol, en mètres.
+
+Lumières : `halo` (la lumière part du dos et éclaire le mur ou le caisson),
+`face` (la face s'allume), `retro` (la plaque est éclairée par derrière),
+`contour` (le pourtour s'allume), `neon`.
+"""
+import json
+import xml.etree.ElementTree as ET
+
+from enseignes import ENSEIGNES, Atelier, ATELIERS, plaque_atelier
+
+# Matières : le moteur 3D (rendu3d.html) connaît chacune de ces clés.
+MATIERES = {
+    'cuivre-brosse': ('Brushed copper (PVD / electroplated)', '拉丝铜色（PVD/电镀）'),
+    'cuivre-miroir': ('Mirror copper', '镜面铜色'),
+    'inox': ('Brushed stainless steel', '拉丝不锈钢'),
+    'alu-cuivre': ('Brushed aluminium, copper anodised', '拉丝铝，阳极氧化铜色'),
+    'indigo': ('Indigo paint #1E2150', '靛蓝色烤漆 #1E2150'),
+    'ivoire': ('Ivory paint #F6F1E7', '象牙白烤漆 #F6F1E7'),
+    'opale': ('Opal acrylic (light diffusing)', '乳白亚克力（透光）'),
+    'depoli': ('Frosted acrylic', '磨砂亚克力'),
+    'clair': ('Clear acrylic', '透明亚克力'),
+    'film-cuivre': ('Copper light-transmitting film', '铜色透光膜'),
+    'acrylique-indigo': ('Indigo acrylic', '靛蓝色亚克力'),
+    'acrylique-ivoire': ('Ivory acrylic', '象牙白亚克力'),
+    'fer-indigo': ('Wrought iron, indigo powder coat', '铁艺，靛蓝色喷粉'),
+    'alu-indigo': ('Aluminium composite, indigo', '铝塑板，靛蓝色'),
+    'papier': ('Synthetic paper, matte lamination', '合成纸，哑膜'),
+    'verre': ('Glass (door)', '玻璃（门）'),
+    'vinyle-cuivre': ('Copper cut vinyl', '铜色刻字膜'),
+    'vinyle-blanc': ('White cut vinyl', '白色刻字膜'),
+    'vinyle-sable': ('Frosted vinyl', '磨砂膜'),
+    'encre-indigo': ('Indigo ink / paint fill', '靛蓝色油墨/填漆'),
+    'encre-ivoire': ('Ivory print', '象牙白印刷'),
+    'neon': ('LED neon flex 6 mm', '6毫米LED柔性霓虹灯'),
+}
+
+
+def _p(el, matiere, ep, z, lum=None, **k):
+    return dict(el=el if isinstance(el, list) else [el], matiere=matiere, ep=ep, z=z, lum=lum, **k)
+
+
+RECETTES = {
+    # Lettres pleines, retours soudés de 30 mm, sur goujons de 15 mm.
+    'R1': dict(montage='mur', centre=2.0, support=None,
+               pieces=[_p(0, 'cuivre-brosse', 30, 15)], goujons=15, vues=['jour', 'situation']),
+    # Face indigo de 1,2 mm ajourée sur un fond inox miroir cuivre ; cadre de 20 mm.
+    'R2': dict(montage='mur', centre=1.55, support=dict(el=0, ep=20, matiere='indigo', face='percee', percee=[1, 2], fond='cuivre-miroir'),
+               pieces=[], vues=['jour', 'situation']),
+    # Caisson rond de 120 mm, perpendiculaire au mur, deux faces opales imprimées et allumées.
+    'R3': dict(montage='drapeau', centre=2.8, bras=260, support=dict(el=None, ep=120, matiere='indigo', face='impression', lum='face', double=True, rebord='inox'),
+               pieces=[], vues=['jour', 'nuit', 'situation']),
+    # Caisson ivoire de 60 mm ; logo à retours de 40 mm sur 10 mm d'acrylique dépoli (halo) ;
+    # devise fon à 20 mm (halo) ; ligne française et filet en miroir cuivre de 3 mm, à plat.
+    'R4': dict(montage='mur', centre=1.55, support=dict(el=0, ep=60, matiere='ivoire', face='plein'),
+               pieces=[_p(1, 'cuivre-brosse', 40, 70, 'halo', socle=10), _p(2, 'cuivre-brosse', 20, 70, 'halo', socle=10),
+                       _p(3, 'cuivre-miroir', 3, 60), _p(4, 'cuivre-miroir', 3, 60)],
+               vues=['jour', 'nuit', 'situation']),
+    # Plaque d'acrylique dépoli de 9,5 mm imprimée, sur entretoises de 20 mm, bande cuivre, rétroéclairée.
+    'R5': dict(montage='mur', centre=1.5, support=dict(el=0, ep=9.5, recul=20, matiere='depoli', face='impression', imprime=[1, 2, 3, 5], lum='retro'),
+               pieces=[_p(4, 'alu-cuivre', 1.5, 29.5)], goujons=20, vues=['jour', 'nuit', 'situation']),
+    # Caisson rond de 100 mm, face opale imprimée allumée, cerclage inox.
+    'R6': dict(montage='mur', centre=1.8, support=dict(el=None, ep=100, matiere='indigo', face='impression', lum='face', rebord='inox'),
+               pieces=[], vues=['jour', 'nuit', 'situation']),
+    # Caisson ivoire de 60 mm, logo et devise ajourés ; derrière, opale et film cuivre allumés.
+    'R7': dict(montage='mur', centre=1.6, support=dict(el=0, ep=60, matiere='ivoire', face='percee', percee=[1, 2, 3], fond='film-cuivre', lum='percee'),
+               pieces=[], vues=['jour', 'nuit', 'situation']),
+    # Base dépolie de 7,5 mm sur entretoises, cadre et lettres en miroir cuivre de 2 mm, rétroéclairée.
+    'R8': dict(montage='mur', centre=1.55, support=dict(el=0, ep=7.5, recul=15, matiere='depoli', face='plein', lum='retro'),
+               pieces=[_p(1, 'cuivre-miroir', 2, 22.5, trait=True), _p([2, 3, 4, 5, 6, 7], 'cuivre-miroir', 2, 22.5)], goujons=15,
+               vues=['jour', 'nuit', 'situation']),
+    # La planche de quinze autocollants, posée sur une table.
+    'R9': dict(montage='table', centre=0.0, support=dict(el=None, ep=0.3, matiere='papier', face='impression', sans_trait=True),
+               pieces=[], vues=['jour']),
+    # Lettres boîtiers inversées de 50 mm, sur entretoises de 30 mm, devant le bandeau indigo ; halo.
+    'N1': dict(montage='mur', centre=3.4, support=dict(el=None, ep=3, matiere='alu-indigo', face='plein', taille=(3400, None), marge=180),
+               pieces=[_p(0, 'cuivre-brosse', 50, 33, 'halo')], goujons=30, vues=['jour', 'nuit', 'situation'], situation='nuit'),
+    # Caisson carré indigo de 100 mm, double face ; logo, cercle et texte en opale traversante ; potence cuivre.
+    'N2': dict(montage='drapeau', centre=2.8, bras=240, bras_matiere='cuivre-brosse',
+               support=dict(el=0, ep=100, matiere='indigo', face='plein', double=True),
+               pieces=[_p(1, 'opale', 106, -3, 'face', trait=True, traversant=True), _p([2, 3], 'opale', 106, -3, 'face', traversant=True)],
+               vues=['jour', 'nuit', 'situation']),
+    # Disque de 4 mm imprimé des deux côtés, jonc indigo, potence en fer forgé de 650 mm.
+    'N3': dict(montage='potence', centre=2.5, bras=650, support=dict(el=None, ep=4, matiere='alu-indigo', face='impression', double=True, rebord='indigo'),
+               pieces=[], vues=['jour', 'situation']),
+    # Panneau ivoire de 10 mm dans un cadre indigo de 20 mm ; logo et texte en acrylique indigo de 5 mm ; LED du pourtour.
+    'N4': dict(montage='mur', centre=1.6, support=dict(el=0, ep=20, matiere='acrylique-ivoire', face='plein', lum='contour'),
+               pieces=[_p(1, 'alu-indigo', 24, 0, trait=True), _p([2, 3], 'acrylique-indigo', 5, 20)],
+               vues=['jour', 'nuit', 'situation']),
+    # Bandeau indigo de 4 mm ; verrou couché en acrylique ivoire de 15 mm, sur goujons de 10 mm.
+    'N5': dict(montage='mur', centre=3.3, support=dict(el=0, ep=4, matiere='alu-indigo', face='plein'),
+               pieces=[_p(1, 'acrylique-ivoire', 15, 14)], goujons=10, vues=['jour', 'situation']),
+    # Néon de 6 mm suivant les lettres, sur une plaque claire de 8 mm, à 20 mm du mur.
+    'N6': dict(montage='mur', centre=1.6, support=dict(el=0, ep=8, recul=20, matiere='clair', face='plein'),
+               neon=dict(el=[1, 2], z=31, rayon=3), pieces=[], goujons=20, vues=['jour', 'nuit', 'situation'], situation='nuit'),
+    # Plaque de 2 mm en inox cuivre, gravure remplie d'indigo, sur 4 entretoises de 15 mm.
+    'N7': dict(montage='mur', centre=1.45, support=dict(el=0, ep=2, recul=15, matiere='cuivre-brosse', face='plein'),
+               pieces=[_p(list(range(1, 11)), 'encre-indigo', 0.25, 16.9)], goujons=15, vues=['jour', 'situation']),
+    # Vinyles sur la porte vitrée.
+    'N8': dict(montage='vitre', centre=1.05, support=dict(el=0, ep=10, matiere='verre', face='plein'),
+               pieces=[_p(1, 'vinyle-cuivre', 0.3, 10), _p([2, 6, 7, 8], 'vinyle-blanc', 0.3, 10), _p(3, 'vinyle-sable', 0.25, 10),
+                       _p([4, 5], 'encre-indigo', 0.3, 10.2)],
+               vues=['jour', 'situation']),
+    # Plaque indigo de 4 mm sur entretoises ; « 88 » à retours de 20 mm ; « MAISON MND » imprimé ivoire.
+    'N9': dict(montage='mur', centre=1.8, support=dict(el=0, ep=4, recul=10, matiere='alu-indigo', face='plein'),
+               pieces=[_p(1, 'cuivre-brosse', 20, 14, 'halo'), _p(2, 'encre-ivoire', 0.2, 14)], goujons=10,
+               vues=['jour', 'nuit', 'situation'], nuit_option=True),
+}
+
+
+def morceaux(dessin):
+    """Les éléments de premier niveau du dessin du fabricant, dans l'ordre."""
+    racine = ET.fromstring(f'<svg>{dessin(Atelier(False))}</svg>')
+    return [ET.tostring(el, encoding='unicode') for el in racine]
+
+
+def dessin_de(e):
+    if e['id'] == 'R8':
+        return lambda a: plaque_atelier(a, 0)
+    return e['dessin']
+
+
+def scene(e):
+    """Ce que le moteur 3D reçoit pour une enseigne."""
+    r = RECETTES[e['id']]
+    els = morceaux(dessin_de(e))
+    utilises = set()
+    sup = dict(r['support']) if r.get('support') else None
+    if sup and sup.get('el') is not None:
+        utilises.add(sup['el'])
+    for p in r['pieces']:
+        utilises.update(p['el'])
+    if r.get('neon'):
+        utilises.update(r['neon']['el'])
+    if sup:
+        for k in ('percee', 'imprime'):
+            utilises.update(sup.get(k, []))
+    imprimes = [i for i in range(len(els)) if i not in utilises]
+    if sup and sup.get('face') == 'impression' and not sup.get('imprime'):
+        # Tout le dessin s'imprime sur la face (sauf le trait de découpe).
+        sup['imprime'] = [i for i in range(len(els)) if 'EC008C' not in els[i]]
+    return dict(
+        id=e['id'], nom=e['name'], w=e['w'], h=e['h'], forme=e['forme'], rx={'N9': 16, 'N6': 34, 'R5': 2, 'R8': 4, 'N2': 6, 'N7': 3}.get(e['id'], 0),
+        scene=e['scene'], elements=els, recette=dict(r, support=sup), orphelins=imprimes if not (sup and sup.get('face') == 'impression') else [],
+    )
+
+
+def verifie():
+    """Chaque recette nomme des éléments qui existent ; aucun élément n'est oublié."""
+    fautes = []
+    for e in ENSEIGNES:
+        s = scene(e)
+        n = len(s['elements'])
+        r = s['recette']
+        cites = []
+        if r.get('support') and r['support'].get('el') is not None:
+            cites.append(r['support']['el'])
+        for p in r['pieces']:
+            cites += p['el']
+        if r.get('neon'):
+            cites += r['neon']['el']
+        if r.get('support'):
+            cites += r['support'].get('percee', []) + r['support'].get('imprime', [])
+        hors = [i for i in cites if i >= n]
+        if hors:
+            fautes.append(f"{e['id']}: éléments {hors} absents (le dessin en a {n})")
+        if s['orphelins']:
+            fautes.append(f"{e['id']}: éléments sans matière {s['orphelins']}")
+    return fautes
+
+
+if __name__ == '__main__':
+    import sys
+    f = verifie()
+    print('\n'.join(f) if f else f'{len(RECETTES)} recettes, toutes complètes.')
+    if len(sys.argv) > 1:
+        sortie = sys.argv[1]
+        ids = sys.argv[2].split(',') if len(sys.argv) > 2 else [e['id'] for e in ENSEIGNES]
+        scenes = [scene(e) for e in ENSEIGNES if e['id'] in ids]
+        with open(sortie, 'w', encoding='utf-8') as fh:
+            json.dump(scenes, fh, ensure_ascii=False)
+        print(f'{len(scenes)} scènes écrites dans {sortie}')
