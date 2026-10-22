@@ -24,7 +24,8 @@ Lumières : `halo` (la lumière part du dos et éclaire le mur ou le caisson),
 import json
 import xml.etree.ElementTree as ET
 
-from enseignes import ENSEIGNES, Atelier, ATELIERS, plaque_atelier
+from enseignes import ENSEIGNES, Atelier, ATELIERS, plaque_atelier, TOTEM_H
+from motifs import chemin_du_pictogramme
 
 # Matières : le moteur 3D (rendu3d.html) connaît chacune de ces clés.
 MATIERES = {
@@ -32,6 +33,8 @@ MATIERES = {
     'cuivre-miroir': ('Mirror copper', '镜面铜色'),
     'inox': ('Brushed stainless steel', '拉丝不锈钢'),
     'alu-cuivre': ('Brushed aluminium, copper anodised', '拉丝铝，阳极氧化铜色'),
+    'alu-sable': ('Aluminium composite, sand', '铝塑板，沙色'),
+    'encre-cuivre': ('Copper ink, UV print', '铜色油墨，UV 打印'),
     'indigo': ('Indigo paint #1E2150', '靛蓝色烤漆 #1E2150'),
     'ivoire': ('Ivory paint #F6F1E7', '象牙白烤漆 #F6F1E7'),
     'opale': ('Opal acrylic (light diffusing)', '乳白亚克力（透光）'),
@@ -125,6 +128,51 @@ RECETTES = {
 }
 
 
+# ══ LE TOTEM VIVANT (N10) ═══════════════════════════════════════════════
+# Les éléments du dessin n10 : 0 colonne, 1 socle, 2 médaillon (découpé), 3 verrou debout,
+# 4 plaque cuivre, 5 QR, 6 œil du détecteur.
+def recette_totem(k=None):
+    """`k` : l'intensité du médaillon (m) et du logo (logo), 1 par défaut."""
+    k = k or {}
+    coupe = [('Column: galvanised steel frame, indigo aluminium skin', '立柱：镀锌钢骨架，靛蓝铝板', 0, 220, '#1E2150', None),
+             ('LED behind the medallion, addressable, 3000 K', '圆章后的可编程 LED，3000K', 150, 200, '#FFD9A0', None),
+             ('Opal acrylic behind the cut-out medallion', '镂空圆章后的乳白亚克力', 212, 217, '#F4EFE6', 'percee'),
+             ('Face 2 mm, medallion laser-cut', '2 毫米面板，激光镂空圆章', 218, 220, '#1E2150', None),
+             ('Logo: channel letters, 40 mm returns, 20 mm stand-offs', '标志：发光字，40 毫米侧边，20 毫米支架', 240, 280, '#B0703F', 'halo'),
+             ('Booking plate, copper 3 mm, QR print, NFC tag behind', '预约牌，3 毫米铜色，印二维码，背面 NFC 标签', 220, 223, '#B0703F', None)]
+    return dict(montage='sol', centre=TOTEM_H / 2000, avance=1.8,
+                support=dict(el=0, ep=220, matiere='indigo', face='percee', percee=[2], fond='opale', lum='percee', fond_lum=0.8 * k.get('m', 1)),
+                pieces=[_p(1, 'cuivre-brosse', 3, 220), _p(3, 'cuivre-brosse', 40, 240, 'halo', intensite=k.get('logo', 1)),
+                        _p(4, 'cuivre-brosse', 3, 220), _p(5, 'encre-indigo', 0.2, 223.1), _p(6, 'acrylique-indigo', 6, 220)],
+                vues=['jour', 'nuit', 'situation'], coupe=coupe)
+
+
+RECETTES['N10'] = recette_totem()
+
+# Les options à motifs : leurs recettes partent de celles des bases.
+from options import OPTIONS, recettes_des_options  # noqa: E402
+RECETTES.update(recettes_des_options(RECETTES))
+TOUTES = ENSEIGNES + OPTIONS
+
+# Les trois temps d'une approche, la nuit : ce que fait le détecteur de passage.
+SCENES_TOTEM = [
+    ('1', 'At rest: the light breathes', '待机：灯光缓慢呼吸', 'Au repos : la lumière respire', dict(m=0.3, logo=0.35)),
+    ('2', 'Someone approaches: the light rises', '有人走近：灯光渐亮', 'Quelqu’un approche : la lumière monte', dict(m=0.65, logo=0.7)),
+    ('3', 'Welcome: full light', '欢迎：全亮', 'Accueil : pleine lumière', dict()),
+]
+
+# Les murs du décor portent l'allover de la Maison, ton sur ton : (encre, largeur, pas en x, pas en y), en mm.
+MOTIF_MUR = {
+    'mur': ('#E0D4C0', 110, 300, 260), 'interieur': ('#DCCFBB', 110, 300, 260), 'facade': ('#56597A', 170, 440, 380),
+    'rue': ('#CDC5B5', 140, 380, 330), 'verre': ('#D9CFBD', 110, 300, 260), 'planche': ('#DCD2C0', 110, 300, 260),
+}
+
+
+def motif_du_mur(nom_scene):
+    encre, largeur, px, py = MOTIF_MUR.get(nom_scene, MOTIF_MUR['mur'])
+    return dict(chemin_du_pictogramme(), encre=encre, largeur=largeur, pas_x=px, pas_y=py)
+
+
 def morceaux(dessin):
     """Les éléments de premier niveau du dessin du fabricant, dans l'ordre."""
     racine = ET.fromstring(f'<svg>{dessin(Atelier(False))}</svg>')
@@ -149,6 +197,10 @@ def scene(e):
         utilises.update(p['el'])
     if r.get('neon'):
         utilises.update(r['neon']['el'])
+    for si in r.get('surimpressions', []):
+        utilises.update(si['el'])
+    for p_ in r['pieces']:
+        utilises.update(p_.get('ajoure', []))
     if sup:
         for k in ('percee', 'imprime'):
             utilises.update(sup.get(k, []))
@@ -157,15 +209,16 @@ def scene(e):
         # Tout le dessin s'imprime sur la face (sauf le trait de découpe).
         sup['imprime'] = [i for i in range(len(els)) if 'EC008C' not in els[i]]
     return dict(
-        id=e['id'], nom=e['name'], w=e['w'], h=e['h'], forme=e['forme'], rx={'N9': 16, 'N6': 34, 'R5': 2, 'R8': 4, 'N2': 6, 'N7': 3}.get(e['id'], 0),
+        id=e['id'], nom=e['name'], w=e['w'], h=e['h'], forme=e['forme'], rx={'N9': 16, 'N6': 34, 'R5': 2, 'R8': 4, 'N2': 6, 'N7': 3}.get(e.get('base', e['id']), 0),
         scene=e['scene'], elements=els, recette=dict(r, support=sup), orphelins=imprimes if not (sup and sup.get('face') == 'impression') else [],
+        mur_motif=motif_du_mur(e['scene']),
     )
 
 
 def verifie():
     """Chaque recette nomme des éléments qui existent ; aucun élément n'est oublié."""
     fautes = []
-    for e in ENSEIGNES:
+    for e in TOUTES:
         s = scene(e)
         n = len(s['elements'])
         r = s['recette']
@@ -176,6 +229,8 @@ def verifie():
             cites += p['el']
         if r.get('neon'):
             cites += r['neon']['el']
+        for si in r.get('surimpressions', []):
+            cites += si['el']
         if r.get('support'):
             cites += r['support'].get('percee', []) + r['support'].get('imprime', [])
         hors = [i for i in cites if i >= n]
@@ -192,8 +247,12 @@ if __name__ == '__main__':
     print('\n'.join(f) if f else f'{len(RECETTES)} recettes, toutes complètes.')
     if len(sys.argv) > 1:
         sortie = sys.argv[1]
-        ids = sys.argv[2].split(',') if len(sys.argv) > 2 else [e['id'] for e in ENSEIGNES]
-        scenes = [scene(e) for e in ENSEIGNES if e['id'] in ids]
+        ids = sys.argv[2].split(',') if len(sys.argv) > 2 else [e['id'] for e in TOUTES]
+        scenes = [scene(e) for e in TOUTES if e['id'] in ids]
+        if 'N10' in ids:
+            base = [x for x in scenes if x['id'] == 'N10'][0]
+            for num, en, zh, fr, k in SCENES_TOTEM:
+                scenes.append(dict(base, id=f'N10-{num}', recette=dict(recette_totem(k), vues=['nuit'])))
         with open(sortie, 'w', encoding='utf-8') as fh:
             json.dump(scenes, fh, ensure_ascii=False)
         print(f'{len(scenes)} scènes écrites dans {sortie}')

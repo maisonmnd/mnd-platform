@@ -15,6 +15,10 @@ NOMS_FR = {'indigo': 'Indigo', 'cuivre': 'Cuivre', 'ivoire': 'Ivoire', 'sable': 
 def variantes(e):
     if e['id'] == 'R8':
         return [(f'R8-{(n or "KOKO")}', (lambda i: (lambda a: plaque_atelier(a, i)))(i)) for i, (n, *_r) in enumerate(ATELIERS)]
+    if e['id'] == 'R8-M':
+        # L'option des plaques : les cinq plaques, chacune avec son médaillon.
+        from options import r8m
+        return [(f'R8-M-{(n or "KOKO")}', (lambda i: (lambda a: r8m(a, i)))(i)) for i, (n, *_r) in enumerate(ATELIERS)]
     return [(e['id'], e['dessin'])]
 
 
@@ -22,8 +26,9 @@ def decoupe(e):
     w, h = e['w'], e['h']
     if e['forme'] == 'rond':
         return f'<circle cx="{w / 2}" cy="{h / 2}" r="{w / 2}"/>'
-    if e['forme'] == 'rect' and e['id'] not in ('N8',):
-        rx = {'N9': 16, 'N6': 34, 'R5': 2, 'R8': 4, 'N2': 6, 'N7': 3}.get(e['id'], 0)
+    base = e.get('base', e['id'])
+    if e['forme'] == 'rect' and base not in ('N8',):
+        rx = {'N9': 16, 'N6': 34, 'R5': 2, 'R8': 4, 'N2': 6, 'N7': 3}.get(base, 0)
         return f'<rect width="{w}" height="{h}" rx="{rx}"/>'
     return ''
 

@@ -32,7 +32,7 @@ from communs import (NOMS_ENCRES, NOMS_EN, NOMS_FR, variantes, decoupe, encres_d
 def svg_fabricant(e, ident, dessin):
     corps = dessin(Atelier(False))
     w, h = e['w'], e['h']
-    titre = html.escape(f"Maison MND · {ident} · {e['name']} · {w} × {h} mm · scale 1:1 · 13 Oct 2026")
+    titre = html.escape(f"Maison MND · {ident} · {e['name']} · {w} × {h} mm · scale 1:1 · {'22 Oct 2026' if e.get('statut') == 'option' or e['id'] == 'N10' else '13 Oct 2026'}")
     return (f'<?xml version="1.0" encoding="UTF-8"?>\n'
             f'<svg xmlns="http://www.w3.org/2000/svg" width="{w}mm" height="{h}mm" viewBox="0 0 {w} {h}">\n'
             f'<title>{titre}</title>\n'
@@ -42,8 +42,11 @@ def svg_fabricant(e, ident, dessin):
             f'<g id="cut-line" fill="none" stroke="#EC008C" stroke-width="0.3">{decoupe(e)}</g>\n</svg>\n')
 
 
+from options import OPTIONS  # noqa: E402
+
 fichiers = {}
-for e in ENSEIGNES:
+# Les options à motifs ont aussi leur fichier 1:1 ; elles n'entrent pas au catalogue ni aux fiches de 2026-10-13.
+for e in ENSEIGNES + OPTIONS:
     for ident, dessin in variantes(e):
         nom = f"{ident} · {e['name']} · {e['w']}x{e['h']} mm.svg".replace('/', '-').replace('“', '').replace('”', '')
         io.open(os.path.join(SORTIE, 'SVG 1-1', nom), 'w', encoding='utf-8').write(svg_fabricant(e, ident, dessin))

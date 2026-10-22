@@ -51,6 +51,7 @@ function matiere(nom, nuit) {
       case 'cuivre-brosse': return physique({ color: 0xB0703F, metalness: 1, roughness: 0.32 });
       case 'cuivre-miroir': return physique({ color: 0xD29463, metalness: 1, roughness: 0.26 });
       case 'alu-cuivre': return physique({ color: 0xC98A5A, metalness: 0.7, roughness: 0.42 });
+      case 'alu-sable': return physique({ color: 0xE3DACB, metalness: 0.15, roughness: 0.5, clearcoat: 0.2 });
       case 'inox': return physique({ color: 0xD9DCE1, metalness: 0.9, roughness: 0.38 });
       case 'indigo': return physique({ color: 0x1E2150, metalness: 0.1, roughness: 0.42, clearcoat: 0.5, clearcoatRoughness: 0.25 });
       case 'alu-indigo': return physique({ color: 0x1E2150, metalness: 0.25, roughness: 0.4, clearcoat: 0.3 });
@@ -68,6 +69,7 @@ function matiere(nom, nuit) {
       case 'vinyle-blanc': return physique({ color: 0xF7F7F5, roughness: 0.45 });
       case 'vinyle-sable': return physique({ color: 0xE3DACB, roughness: 0.7, transparent: true, opacity: 0.82 });
       case 'encre-indigo': return physique({ color: 0x1E2150, roughness: 0.6 });
+      case 'encre-cuivre': return physique({ color: 0xB97A4A, metalness: 0.35, roughness: 0.45 });
       case 'encre-ivoire': return physique({ color: 0xF6F1E7, roughness: 0.6 });
       default: return physique({ color: 0xFF00FF });
     }
@@ -268,7 +270,8 @@ async function enseigne(sc, nuit) {
       const retour = contour(sc, sup); retour.holes.push(contour(sc, sup, 1.5, THREE.Path));
       g.add(extrude([retour], ep - 1.5, recul, mat));
       const fondMat = matiere(sup.fond, nuit);
-      if (nuit && sup.lum === 'percee') allume(fondMat, 2.4);
+      if (nuit && sup.lum === 'percee') allume(fondMat, 2.4 * (sup.fond_lum ?? 1));
+      if (sup.double) g.add(extrude([contour(sc, sup)], 1.5, recul, mat));
       /* Vu par les ajours, le miroir ne reflète que l'envers de la face : on lui rend le jour de la pièce. */
       if (!nuit && fondMat.metalness >= 0.9) fondMat.envMapIntensity *= 1.8;
       g.add(extrude([contour(sc, sup, 1.5)], 1.5, recul + ep - (sup.lum === 'percee' ? 8 : 5), fondMat));
@@ -311,12 +314,38 @@ async function enseigne(sc, nuit) {
   for (const p of r.pieces) {
     const frag = fragmentDe(sc, p.el);
     const shapes = formes(frag, sc.w, sc.h, !!p.trait);
+    if (p.ajoure) {
+      /* Une pièce ajourée : ses trous sont l'union des motifs nommés (une couronne claire dans le dépoli). */
+      const { trous, ilots } = ajours(formes(fragmentDe(sc, p.ajoure), sc.w, sc.h));
+      for (const sh of shapes) sh.holes.push(...trous);
+      shapes.push(...ilots);
+    }
     const mat = matiere(p.matiere, nuit);
-    if (nuit && p.lum === 'face') allume(mat, 1.6);
+    /* L'intensité d'une pièce : 1 par défaut ; les scènes du totem l'allument, la baissent, l'éteignent. */
+    const k = p.intensite ?? 1;
+    if (nuit && p.lum === 'face' && k > 0) allume(mat, 1.6 * k);
     if (p.socle) g.add(extrude(shapes, p.socle, p.z - p.socle, matiere('depoli', nuit)));
-    g.add(extrude(shapes, p.ep, p.z, mat, p.matiere.startsWith('cuivre') || p.matiere === 'inox'));
+    const piece = extrude(shapes, p.ep, p.z, mat, p.matiere.startsWith('cuivre') || p.matiere === 'inox');
+    if (p.tourne) {
+      /* Un médaillon sur moteur : tourné autour de son centre (coordonnées du dessin, y vers le bas). */
+      const cx = p.tourne.cx, cy = sc.h - p.tourne.cy;
+      piece.geometry.translate(-cx, -cy, 0).rotateZ(THREE.MathUtils.degToRad(p.tourne.deg || 0)).translate(cx, cy, 0);
+    }
+    g.add(piece);
     /* Le halo se pose sur ce qui est derrière les lettres : le caisson, ou le mur. */
-    if (nuit && p.lum === 'halo') g.add(await lueur(sc, frag, 0.02, 0.55, lum.surface + 0.4));
+    if (nuit && p.lum === 'halo' && k > 0) g.add(await lueur(sc, frag, 0.02, 0.55 * k, lum.surface + 0.4));
+    /* Une lanterne allumée éclaire aussi la colonne autour d'elle. */
+    if (nuit && p.lum === 'face' && p.eclat && k > 0) g.add(await lueur(sc, frag, 0.03, 0.32 * k, lum.surface + 0.4));
+  }
+  /* Les surimpressions : un motif imprimé ou gravé posé sur une face, qui peut s'allumer (gravure
+     d'un acrylique éclairé par la tranche). Le PNG suit le dessin du fabricant, à 2 px par mm. */
+  for (const si of r.surimpressions || []) {
+    const carte = await impression(sc, si.el);
+    const m = new THREE.MeshStandardMaterial({ map: carte, roughness: si.rugosite ?? 0.5, transparent: true, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3 });
+    m.envMapIntensity = nuit ? 0.08 : 1.0;
+    if (nuit && si.lum) allume(m, si.lum, carte);
+    g.add(planDeFace(sc, contour(sc, sup || {}), carte, m, si.z));
+    if (si.double) g.add(planDeFace(sc, contour(sc, sup || {}), carte, m, si.z_dos ?? 0, true));
   }
   if (r.neon) {
     const shapes = formes(fragmentDe(sc, r.neon.el), sc.w, sc.h);
@@ -338,7 +367,27 @@ async function enseigne(sc, nuit) {
 }
 
 /* ── Le décor : mur, sol, potence, porte, table, et la silhouette ─────── */
-function mur(couleur, nuit) {
+/** Le mur tapissé de l'allover : une tuile d'un pas de large et deux rangées de haut, la seconde
+ *  décalée d'un demi-pas, comme les tuiles du Drive ; le pictogramme est le tracé officiel. */
+function murAMotif(couleur, nuit, mo) {
+  const px = 2.2, tw = Math.round(mo.pas_x * px), th = Math.round(2 * mo.pas_y * px);
+  const c = document.createElement('canvas'); c.width = tw; c.height = th;
+  const x = c.getContext('2d'); x.fillStyle = couleur; x.fillRect(0, 0, tw, th);
+  for (let i = 0; i < 2500; i++) { x.fillStyle = `rgba(${Math.random() < 0.5 ? '0,0,0' : '255,255,255'},${Math.random() * 0.03})`; x.fillRect(Math.random() * tw, Math.random() * th, 2, 2); }
+  const chemin = new Path2D(mo.d), k = mo.largeur * px / mo.w, lw = mo.largeur * px, lh = mo.h * k;
+  x.fillStyle = mo.encre; x.globalAlpha = mo.opacite ?? 1;
+  const pose = (X, Y) => { x.save(); x.translate(X, Y); x.scale(k, k); x.fill(chemin); x.restore(); };
+  const dy = (mo.pas_y * px - lh) / 2;
+  pose(tw / 2 - lw / 2, dy);
+  pose(-lw / 2, mo.pas_y * px + dy); pose(tw - lw / 2, mo.pas_y * px + dy);
+  const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  t.repeat.set(14000 / mo.pas_x, 8000 / (2 * mo.pas_y)); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8;
+  const m = new THREE.MeshStandardMaterial({ map: t, roughness: 0.9 });
+  m.envMapIntensity = nuit ? 0.08 : 0.6;
+  return m;
+}
+function mur(couleur, nuit, motif) {
+  if (motif) return murAMotif(couleur, nuit, motif);
   const c = document.createElement('canvas'); c.width = c.height = 512;
   const x = c.getContext('2d'); x.fillStyle = couleur; x.fillRect(0, 0, 512, 512);
   for (let i = 0; i < 9000; i++) { x.fillStyle = `rgba(${Math.random() < 0.5 ? '0,0,0' : '255,255,255'},${Math.random() * 0.035})`; x.fillRect(Math.random() * 512, Math.random() * 512, 2, 2); }
@@ -384,12 +433,13 @@ async function compose(sc, mode) {
     pivot.position.set(0, 0.752, 0.62);
   } else {
     signe.position.set(-sc.w / 2 * MM, -sc.h / 2 * MM, 0);
-    pivot.position.set(0, r.centre, 0);
+    /* Au mur, la face contre lui ; au sol (le totem), debout sur le trottoir, à `avance` m de la façade. */
+    pivot.position.set(0, r.centre, r.montage === 'sol' ? (r.avance ?? 1.6) : 0);
   }
   scene.add(pivot);
 
   /* Le mur et le sol. */
-  const murMat = mur(cm, nuit);
+  const murMat = mur(cm, nuit, sc.mur_motif);
   if (r.montage === 'vitre') {
     const ouverture = rectShape(-0.51, 0, 1.02, 2.16, 0, THREE.Path);
     const plein = rectShape(-5, -0.01, 10, 6); plein.holes.push(ouverture);
@@ -438,7 +488,8 @@ async function compose(sc, mode) {
   const centre = boite.getCenter(new THREE.Vector3()), taille = boite.getSize(new THREE.Vector3());
   const grand = Math.max(taille.x, taille.y, taille.z);
   if (nuit) {
-    scene.add(new THREE.HemisphereLight(0x2B3050, 0x0B0C12, 0.25));
+    /* La rue, la nuit : un totem au sol reçoit la lumière des lampadaires, sinon sa colonne disparaît. */
+    scene.add(new THREE.HemisphereLight(0x2B3050, 0x0B0C12, r.montage === 'sol' ? 0.9 : 0.25));
     const lune = new THREE.DirectionalLight(0x9FB0FF, 0.12); lune.position.set(-3, 5, 4); scene.add(lune);
   } else {
     scene.add(new THREE.HemisphereLight(0xFFF6EA, 0xB8A98F, 0.65));
@@ -458,7 +509,7 @@ async function compose(sc, mode) {
   if (mode === 'situation' && r.montage !== 'table') {
     const s = silhouette(nuit);
     if (tournee) { s.position.set(0.15, 0, boite.max.z + 0.45); s.rotation.y = Math.PI / 2; }
-    else s.position.set(boite.max.x + 0.55, 0, 0.4);
+    else s.position.set(boite.max.x + 0.55, 0, r.montage === 'sol' ? boite.max.z + 0.25 : 0.4);
     scene.add(s);
   }
 
@@ -482,7 +533,8 @@ async function compose(sc, mode) {
   } else if (r.montage === 'table') {
     cam.position.set(centre.x + 0.25, 1.75, centre.z + 0.95); cam.lookAt(centre);
   } else {
-    const d = Math.max(taille.y, taille.x / (W / H), tournee ? taille.z / (W / H) : 0) * 1.32 / 2 / tan;
+    /* Un totem se cadre de plus près : il est haut et étroit, le format est couché. */
+    const d = Math.max(taille.y, taille.x / (W / H), tournee ? taille.z / (W / H) : 0) * (r.montage === 'sol' ? 1.1 : 1.32) / 2 / tan;
     const dir = tournee ? new THREE.Vector3(1, 0.05, 0.2) : new THREE.Vector3(0.3, 0.06, 1);
     dir.normalize();
     cam.position.copy(centre).addScaledVector(dir, d);

@@ -314,6 +314,59 @@ def n9(a):
     return ''.join(out)
 
 
+
+# ══ LE TOTEM VIVANT (22 octobre 2026) ═══════════════════════════════════
+# « Use our patterns creatively and design a Maison MND sign that is
+# interactive and alive » (Yéman, d'après le pylône HoneyFactory de Lico Sign).
+# Le logo et le médaillon sont posés, jamais redessinés.
+
+# Le QR de https://maisonmnd.com/ (qrcode-generator, correction M, 25 × 25).
+QR_SITE = ["1111111010001010101111111", "1000001010100000001000001", "1011101011110101001011101", "1011101001111100101011101",
+           "1011101010000010101011101", "1000001000111100101000001", "1111111010101010101111111", "0000000001010101100000000",
+           "1001111110001010110010111", "1001100110101111000111110", "0100101101001101111111001", "0010100111011010001111111",
+           "0111101000000000101100001", "1001010101001011100010010", "1100001101000111100011111", "1001010000001001011101101",
+           "1001011111011110111110110", "0000000011010100100010110", "1111111010001000101010001", "1000001010010101100010000",
+           "1011101011110101111110011", "1011101011101111011000011", "1011101001010100100011111", "1000001001011100011110111",
+           "1111111010111100100001001"]
+
+TOTEM_W, TOTEM_H = 600, 2400
+# « Je n'aime pas du tout, ce n'est pas pro et hyper chargé » (Yéman, sur le
+# totem aux quatorze lanternes) ; parmi trois colonnes sobres, elle a choisi la
+# B, « le médaillon de lumière » : le médaillon découpé dans la face indigo, de
+# l'opale derrière ; ivoire le jour, lanterne la nuit. Rien d'autre que le logo,
+# une petite plaque cuivre pour réserver (QR et NFC) et l'œil du détecteur.
+TOTEM_MEDAILLON = dict(cx=300, cy=430, d=420)
+TOTEM_PLAQUE = dict(x=225, y=1262, w=150, h=176)
+
+
+def n10(a):
+    from motifs import medaillon
+    m = a.metal(C)
+    pl = TOTEM_PLAQUE
+    out = [f'<rect width="{TOTEM_W}" height="{TOTEM_H}" fill="{I}"/>',
+           f'<rect y="2350" width="{TOTEM_W}" height="50" fill="{m}"/>',
+           medaillon(TOTEM_MEDAILLON['cx'], TOTEM_MEDAILLON['cy'], TOTEM_MEDAILLON['d'], V)]
+    s, h = logo_centre(a, 'verrou-debout', 300, 830, 260, m)
+    out.append(s)
+    out.append(f'<rect x="{pl["x"]}" y="{pl["y"]}" width="{pl["w"]}" height="{pl["h"]}" rx="4" fill="{m}"/>')
+    n, cote = len(QR_SITE), 5.0
+    x0, y0 = 300 - cote * n / 2, pl['y'] + 14
+    modules = []
+    for r, ligne in enumerate(QR_SITE):
+        c = 0
+        while c < n:
+            if ligne[c] == '1':
+                d = c
+                while d < n and ligne[d] == '1':
+                    d += 1
+                modules.append(f'<rect x="{x0 + c * cote:.2f}" y="{y0 + r * cote:.2f}" width="{(d - c) * cote:.2f}" height="{cote:.2f}"/>')
+                c = d
+            else:
+                c += 1
+    out.append(f'<g fill="{I}">{"".join(modules)}</g>')
+    out.append(f'<circle cx="300" cy="1500" r="9" fill="{ENCRES["indigo-profond"]}"/>')
+    return ''.join(out)
+
 # ══ LE CATALOGUE ════════════════════════════════════════════════════════
 # Chaque fiche : ce que la Maison lit (fr) et ce que le fabricant lit (en).
 
@@ -476,4 +529,15 @@ ENSEIGNES = [
                finition='Indigo, cuivre, ivoire.', lumiere='Halo des chiffres 3000 K en option (sinon non lumineuse).', change='L’itinéraire dit « Maison n° 88 » : le numéro se voit enfin.'),
        en=dict(construction='500 × 300 mm INDIGO aluminium composite plate, rounded corners; “88” digits in COPPER PVD stainless, 20 mm returns; “MAISON MND” printed ivory.',
                finish='Indigo, copper, ivory.', lighting='Optional 3000 K halo on the digits.', change='NEW ITEM. Please quote.')),
+    _f('N10', n10, TOTEM_W, TOTEM_H, 220, 'rect', 'facade', 'totem',
+       nom='Le totem au médaillon de lumière', name='Medallion light totem (pylon sign)',
+       statut='nouvelle', lieu='Devant la façade, sur le trottoir de la Maison',
+       fr=dict(construction='Colonne autoportante 600 × 2400 × 220 : ossature acier galvanisé, habillage aluminium 2 mm peint INDIGO, platine au sol ancrée par 4 tiges M12, porte de visite fermant à clé au dos ; socle cuivre de 50 mm. Médaillon Ø420 découpé au laser dans la face, acrylique opale derrière (les îlots collés sur l’opale). Verrou debout : pictogramme et MND en lettres boîtiers inox cuivre, retours 40 mm sur entretoises de 20 mm, halo ; MAISON en acrylique miroir cuivre 10 mm. Plaque cuivre 150 × 176 avec le QR imprimé indigo et une étiquette NFC derrière, centrée à 1,05 m du sol ; œil du détecteur de passage à 0,9 m.',
+               finition='Indigo #1E2150, cuivre brossé, opale ivoire.',
+               lumiere='LED pilotables derrière le médaillon (blanc chaud 3000 K, couleurs possibles pour les fêtes) et halo du logo ; la lumière respire au repos et monte quand quelqu’un approche ; minuterie de fermeture.',
+               change='Nouvelle pièce, inspirée du pylône HoneyFactory du fabricant, en version sobre : le médaillon seul.'),
+       en=dict(construction='Free-standing column 600 × 2400 × 220 mm: galvanised steel frame, 2 mm aluminium skin painted INDIGO, base plate anchored with 4 × M12 rods, lockable service door at the back; 50 mm copper plinth. Ø420 medallion laser-cut in the face, opal acrylic behind (keep the islands bonded to the opal). Stacked logo: pictogram and MND in copper finish stainless channel letters, 40 mm returns on 20 mm stand-offs, halo-lit; MAISON flat-cut 10 mm copper mirror acrylic. Copper plate 150 × 176 mm with the QR code printed indigo and an NFC tag behind it, centred 1.05 m above the ground; motion sensor window at 0.9 m.',
+               finish='Indigo #1E2150, brushed copper, ivory opal.',
+               lighting='Addressable LED behind the medallion (3000 K warm white, colours possible for festive scenes) and halo on the logo. The light breathes at rest and rises when someone approaches; closing timer.',
+               change='NEW ITEM, inspired by your HoneyFactory pylon sign, in a quiet version: the medallion alone. Please quote.')),
 ]
