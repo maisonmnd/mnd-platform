@@ -205,7 +205,7 @@ def page(e):
     vues = r['vues']
     principale = f'<figure class="rendu grand"><img src="Rendus 3D/{e["id"]}-{vues[0]}.png" alt=""><figcaption>{legende(e, vues[0])}</figcaption></figure>'
     petites = ''.join(f'<figure class="rendu"><img src="Rendus 3D/{e["id"]}-{v}.png" alt=""><figcaption>{legende(e, v)}</figcaption></figure>' for v in vues[1:])
-    statut = (bi(f"ORDERED · {esc(e.get('pi', '')).replace('ligne', 'line').replace('épreuve', 'proof')}", Z['commande'])
+    statut = (bi(f"ORDERED · {esc(e.get('pi', '')).replace('ligne', 'line').replace('épreuve', 'proof').replace('feuilles', 'sheets')}", Z['commande'])
               if e['statut'] == 'commande' else
               bi(f"PATTERN OPTION · extra over {e.get('base')}", f"图案选项 · 在 {e.get('base')} 基础上加价") if option else
               bi('NEW ITEM · please quote', Z['nouvelle']))

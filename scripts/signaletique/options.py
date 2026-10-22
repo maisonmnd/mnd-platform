@@ -6,6 +6,7 @@ enseigne garde sa version de base et reçoit une OPTION à motif, chiffrée à
 part par Lico Sign ; les murs des rendus portent aussi l'allover. Elle a
 ensuite demandé de ne garder que les options sobres : dix restent (ton sur ton,
 petits médaillons, une seule couronne), les huit plus chargées sont écartées.
+R9-M a disparu le même jour : les nouveaux autocollants portent déjà les motifs.
 
 Une option est une enseigne à part entière : son dessin (celui de la base,
 plus le motif posé depuis le tracé officiel du pictogramme, jamais
@@ -14,7 +15,7 @@ anglais et en chinois. Son identifiant est celui de la base suivi de « -M ».
 """
 import xml.etree.ElementTree as ET
 
-from enseignes import ENSEIGNES, DEVISE_FON, DEVISE_FR, C, I, S, H_N1, H_R1, ajuste, autocollant, n1, n5, n7, n8, plaque_atelier, r1, r4, r5
+from enseignes import ENSEIGNES, DEVISE_FON, DEVISE_FR, C, I, S, H_N1, H_R1, ajuste, n1, n5, n7, n8, plaque_atelier, r1, r4, r5
 from formes import texte
 from motifs import allover, grille, medaillon, pictogramme
 
@@ -63,14 +64,6 @@ def r8m(a, rang=0):
     return plaque_atelier(a, rang) + medaillon(528, 80, 52, a.metal(C))
 
 
-def r9m(a):
-    out = []
-    for i in range(15):
-        cx, cy = 106 + (i % 5) * 212, 113 + (i // 5) * 226
-        els = elements(autocollant(a, i, cx, cy))
-        pts = grille(cx - 84, cy - 84, 168, 168, 20, 30, 26, rond=(cx, cy, 84), ancre=(cx, cy))
-        out.append(els[0] + allover(pts, 20, TON) + ''.join(els[1:]))
-    return ''.join(out)
 
 
 def n1m(a):
@@ -129,10 +122,6 @@ TEXTES = {
            ('Imprimées avec le reste, à l’encre cuivre.', 'Printed with the rest of the UV print, copper ink.', '与其他图文一起 UV 打印，铜色。')),
     'R8': (('Petit médaillon cuivre au coin de chaque plaque (5)', 'Small copper mirror medallion in the top corner of each plate (5 plates)', '每块门牌右上角加一个铜色镜面小圆章（5 块）'),
            ('Acrylique miroir cuivre 2 mm, découpé et posé comme les lettres.', '2 mm copper mirror acrylic, cut and mounted like the letters.', '2 毫米铜色镜面亚克力，切割安装方式与文字相同。')),
-    'R9': (('Allover ton sur ton dans chaque autocollant', 'Tone-on-tone allover inside each sticker', '每张贴纸内印同色系满版图案'),
-           ('Indigo clair #2C3070 imprimé sous le dessin : la planche et la découpe ne changent pas.',
-            'Light indigo #2C3070 printed under the artwork: no change to the sheet or the die-cut.',
-            '在图案下方印浅靛蓝 #2C3070，版面和模切不变。')),
     'N1': (('Allover ton sur ton sur le bandeau indigo', 'Allover tone-on-tone on the indigo fascia behind the letters', '字后的靛蓝门头板印同色系满版图案'),
            ('Impression UV indigo clair #2C3070 sur le bandeau, encre extérieure anti-UV, avant la pose des lettres.',
             'UV print in light indigo #2C3070 on the indigo panel, outdoor UV-resistant ink, before the letters are mounted.',
@@ -152,7 +141,7 @@ TEXTES = {
 }
 
 DESSINS = {'R1': (r1m, R1M_W, R1M_H), 'R4': (r4m,), 'R5': (r5m,), 'R8': (r8m,),
-           'R9': (r9m,), 'N1': (n1m, N1M_W, N1M_H), 'N5': (n5m,), 'N6': (n6m, 1200, N6M_H),
+           'N1': (n1m, N1M_W, N1M_H), 'N5': (n5m,), 'N6': (n6m, 1200, N6M_H),
            'N7': (n7m,), 'N8': (n8m,)}
 
 
@@ -194,7 +183,6 @@ def recettes_des_options(R):
         'R4-M': de('R4', surimpressions=[dict(el=[5], z=60.1)]),
         'R5-M': de('R5', support=sup('R5', imprime=[1, 2, 3, 5, 6])),
         'R8-M': de('R8', pieces=R['R8']['pieces'] + [_p(8, 'cuivre-miroir', 2, 22.5)]),
-        'R9-M': de('R9'),
         'N1-M': dict(montage='mur', centre=3.4, support=dict(el=0, ep=3, matiere='alu-indigo', face='plein'),
                      surimpressions=[dict(el=[1], z=3.1)], pieces=[_p(2, 'cuivre-brosse', 50, 33, 'halo')], goujons=30,
                      vues=['jour', 'nuit', 'situation'], situation='nuit'),

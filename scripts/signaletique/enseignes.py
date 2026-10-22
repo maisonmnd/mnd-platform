@@ -167,48 +167,10 @@ def plaque_atelier(a, rang):
     return ''.join(out)
 
 
-GESTES = [
-    ('VÈKPÈ™', 'Création de locks'), ('SÍNSIN™', 'Resserrage des racines'), ('KLƆKLƆ™', 'Lavage rituel'),
-    ('DÀNDÀN™', 'Hydratation'), ('GBÌGBÌ™', 'Reconstruction'), ('FÍNFÍN™', 'Restauration'),
-    ('YÈKPÈ™', 'Couleur végétale'), ('GBÀTÀ™', 'Défaisage'), ('KÒKÒ™', 'Consultation'),
-    ('VÍVÍVÓ™', 'Activateur de pousse'), ('WÈWÈ™', 'Purification'), ('GBÈJÍ™', 'Entretien suivi'),
-]
-
-
-def autocollant(a, n, cx, cy, decoupe=True):
-    """Un autocollant de Ø200 : fond indigo à fond perdu (3 mm), trait de
-    découpe au Ø200 dans le fichier du fabricant."""
-    out = [f'<circle cx="{cx}" cy="{cy}" r="{103 if not a.rendu else 100}" fill="{I}"/>',
-           f'<circle cx="{cx}" cy="{cy}" r="88" fill="none" stroke="{C}" stroke-width="1.6"/>']
-    if n == 0:
-        s, h = logo_centre(a, 'verrou-debout', cx, cy - 66, 110, V)
-        out.append(s)
-    elif n == 1:
-        s, h = logo_centre(a, 'pictogramme', cx, cy - 50, 124, C)
-        out.append(s)
-    elif n == 2:
-        s, h = logo_centre(a, 'pictogramme', cx, cy - 62, 64, C)
-        out.append(s)
-        out.append(texte(DEVISE_FON, 'fon', 30, cx, cy + 22, 'milieu', couleur=V)[0])
-        out.append(texte(DEVISE_FR, 'cormorant-italique', ajuste(DEVISE_FR, 'cormorant-italique', 17, 140, 500), cx, cy + 50, 'milieu', 500, 0, C)[0])
-    else:
-        marque, fr = GESTES[n - 3]
-        s, h = logo_centre(a, 'pictogramme', cx, cy - 66, 40, C)
-        out.append(s)
-        t = ajuste(marque, 'cormorant', 34, 140, 500, 0.02)
-        out.append(texte(marque, 'cormorant', t, cx, cy + 14, 'milieu', 500, 0.02, V)[0])
-        out.append(texte(fr, 'cormorant-italique', ajuste(fr, 'cormorant-italique', 19, 136, 500), cx, cy + 44, 'milieu', 500, 0, C)[0])
-    if decoupe and not a.rendu:
-        out.append(f'<circle cx="{cx}" cy="{cy}" r="100" fill="none" stroke="#EC008C" stroke-width="0.25" data-couche="decoupe"/>')
-    return ''.join(out)
-
-
 def r9(a):
-    out = []
-    for i in range(15):
-        col, lig = i % 5, i // 5
-        out.append(autocollant(a, i, 106 + col * 212, 113 + lig * 226))
-    return ''.join(out)
+    """La planche de quinze autocollants : leurs messages et leurs couleurs vivent dans autocollants.py."""
+    from autocollants import planche
+    return planche(a)
 
 
 # ══ LES NOUVELLES ═══════════════════════════════════════════════════════
@@ -456,13 +418,15 @@ ENSEIGNES = [
                change='SPELLING: “GBÉJÍ” must be “GBÈJÍ”. KÒKÒ plate gets the pictogram. Gold → copper. French function line added.')),
     _f('R9', r9, 1060, 680, 0, 'feuille', 'planche', 'plat',
        nom='Autocollants ronds Ø20 cm, 15 dessins', name='Round stickers Ø200, 15 designs per sheet',
-       statut='commande', pi='PI FINALE · ligne 7 (stickers D20, 100 feuilles)', prix=35, qte=100, lieu='Coffrets, sacs, vitrines',
+       statut='commande', pi='PI FINALE · ligne 7 (stickers D20, 100 feuilles)', prix=35, qte=100, lieu='Miroirs, bacs à shampoing, comptoir, coffrets',
        fr=dict(construction='Papier synthétique adhésif, pelliculage mat, impression numérique recto ; découpe à la forme Ø200.',
-               finition='Fond INDIGO (au lieu du noir), cuivre et ivoire.', lumiere='Sans lumière (autocollants).',
-               change='Les 15 dessins refaits : verrou, pictogramme, devise, et les 12 gestes en fon ET en français.'),
+               finition='Les sept encres de la charte : indigo, indigo profond, cuivre, ivoire, sable, argile, or (sur l’indigo seulement).',
+               lumiere='Sans lumière (autocollants).',
+               change='Les 15 dessins refaits : trois QR (réserver, avis Google, pourboire MoMoPay), le pourboire, la détente au shampoing, la devise, le bien-être et trois brumes maison.'),
        en=dict(construction='Synthetic paper adhesive, matte lamination, single-sided digital print, die-cut Ø200 (magenta line), 3 mm bleed.',
-               finish='INDIGO background (instead of black), copper and ivory.', lighting='None (stickers).',
-               change='All 15 designs replaced (sheet 1060 × 680 mm, 5 × 3).')),
+               finish='The seven brand inks: indigo, deep indigo, copper, ivory, sand, clay, gold (on indigo only). Print the 3 QR codes at 100%, never resized or recoloured.',
+               lighting='None (stickers).',
+               change='All 15 designs replaced: 3 QR codes (booking, Google review, MoMoPay tip), tip, shampoo relaxation, motto, wellness and 3 home mist recipes. Same sheet 1060 × 680 mm, 5 × 3.')),
     _f('N1', n1, 3000, round(H_N1), 50, 'lettres', 'facade', 'halo',
        nom='Lettres boîtiers de façade, halo', name='Halo-lit reverse channel letters, horizontal logo',
        statut='nouvelle', lieu='Bandeau de façade',
