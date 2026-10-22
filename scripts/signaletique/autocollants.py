@@ -23,6 +23,13 @@ devise en français (sur indigo) et les racines (« Vos origines. Une identité,
 qui s'affirme »). Ses mots sont gardés, la typographie française posée
 (apostrophe, espace avant « ! », capitales accentuées).
 
+Puis : « Remplace 2 autocollants avec une phrase qui fait revenir » ; elle
+avait décoché « Petite Couronne » et la brume du cuir chevelu. À leur place :
+« À la prochaine lune. » (la lune, le pas des formules de la Maison) et
+« Avant de partir, votre prochain rituel ? » (reprendre rendez-vous avant de
+sortir, le geste qui fait revenir). « Ici, c'est toi qui dis oui » passe sur
+cuivre, comme elle l'a choisi.
+
 Le QR du pourboire (« 909099@momopay », par analogie avec l'ancien QR lu sur le
 document MTN) n'a jamais été scanné : il s'éprouve avec l'application MoMo
 avant l'impression (voir src/shared/momopay-de-la-maison-pur.ts).
@@ -172,13 +179,6 @@ def _cauris(cx, cy, fond, coquille):
     return f'<g>{"".join(out)}</g>'
 
 
-def kids_couronne(cx, cy):
-    return [_picto(cx, cy - 64, 44, OR),
-            _ligne('Petite', 'cormorant', 30, cx, cy + 4, V, 150),
-            _ligne('Couronne', 'cormorant', 30, cx, cy + 32, V, 150),
-            _ligne('MND KIDS', 'jost', 9, cx, cy + 56, OR, 110, 500, 0.3)]
-
-
 def kids_cauris(cx, cy):
     return [_cauris(cx, cy - 56, C, V),
             _ligne('Un cauris', 'cormorant', 32, cx, cy + 8, V, 150),
@@ -187,10 +187,32 @@ def kids_cauris(cx, cy):
 
 
 def kids_oui(cx, cy):
-    return [medaillon(cx, cy - 58, 28, C),
-            _ligne('Ici, c’est toi', 'cormorant-italique', 28, cx, cy - 6, C, 150),
-            _ligne('qui dis oui.', 'cormorant-italique', 28, cx, cy + 24, C, 150),
-            _ligne('MND KIDS', 'jost', 9, cx, cy + 52, I, 110, 500, 0.3)]
+    return [medaillon(cx, cy - 58, 28, V),
+            _ligne('Ici, c’est toi', 'cormorant-italique', 28, cx, cy - 6, V, 150),
+            _ligne('qui dis oui.', 'cormorant-italique', 28, cx, cy + 24, V, 150),
+            _ligne('MND KIDS', 'jost', 9, cx, cy + 52, V, 110, 500, 0.3)]
+
+
+# ══ CE QUI FAIT REVENIR ═════════════════════════════════════════════════
+
+def _lune(cx, cy, encre, fond):
+    """Un croissant de lune : un disque, mordu par un disque du fond. Un dessin, pas le logo."""
+    return f'<g><circle cx="{cx}" cy="{cy}" r="12" fill="{encre}"/><circle cx="{cx + 5}" cy="{cy - 3}" r="10.4" fill="{fond}"/></g>'
+
+
+def retour_lune(cx, cy):
+    return [_lune(cx, cy - 58, C, I),
+            _ligne('À la prochaine', 'cormorant-italique', 24, cx, cy - 8, V, 150),
+            _ligne('lune.', 'cormorant', 40, cx, cy + 30, C, 150),
+            _ligne('VOTRE COURONNE VOUS ATTEND', 'jost', 8.5, cx, cy + 54, V, 132, 500, 0.18)]
+
+
+def retour_rituel(cx, cy):
+    return [medaillon(cx, cy - 62, 26, C),
+            _ligne('Avant de partir,', 'cormorant-italique', 22, cx, cy - 22, V, 150),
+            _ligne('votre prochain', 'cormorant', 30, cx, cy + 10, V, 156),
+            _ligne('rituel ?', 'cormorant', 30, cx, cy + 40, C, 156),
+            _ligne('NOUS LE NOTONS ENSEMBLE', 'jost', 8, cx, cy + 62, V, 130, 500, 0.18)]
 
 
 def _formule(cx, cy, nom, doses, geste, encre, accent, frais):
@@ -217,11 +239,6 @@ def brume_harmattan(cx, cy):
                     'Plus souvent, jamais plus d’huile.', I, P, 'AU FRAIS · À REFAIRE CHAQUE SEMAINE')
 
 
-def brume_cuir_chevelu(cx, cy):
-    return _formule(cx, cy, 'La brume du cuir chevelu', ['100 ml d’eau', '3 gouttes d’huile de pépins de raisin'],
-                    'Quand il tire, du bout des doigts.', V, C, 'AU FRAIS · À REFAIRE CHAQUE SEMAINE')
-
-
 # L'ordre de la planche : une couleur ne touche jamais la même.
 AUTOCOLLANTS = [
     ('qr', 'Booking QR (maisonmnd.com)', V, reserver),
@@ -229,15 +246,15 @@ AUTOCOLLANTS = [
     ('shampoing', 'Shampoo: breathe', P, respirez),
     ('bien-etre', 'Wellness: drink water', I, buvez),
     ('formule', 'Home mist: everyday', V, brume_quotidien),
-    ('kids', 'MND Kids: little crown', I, kids_couronne),
+    ('retour', 'Come back: next moon', I, retour_lune),
     ('shampoing', 'Shampoo: let the water work', A, laissez_l_eau),
     ('qr', 'Review QR (Google)', S, avis),
     ('kids', 'MND Kids: a cowrie per visit', C, kids_cauris),
     ('formule', 'Home mist: harmattan', A, brume_harmattan),
     ('qr', 'Tip QR (MoMoPay 909099)', C, pourboire_qr),
     ('slogan', 'Motto in French', I, devise_fr),
-    ('kids', 'MND Kids: you say yes', V, kids_oui),
-    ('formule', 'Home mist: scalp', I, brume_cuir_chevelu),
+    ('kids', 'MND Kids: you say yes', C, kids_oui),
+    ('retour', 'Come back: book before leaving', I, retour_rituel),
     ('bien-etre', 'Wellness: roots and origins', S, racines),
 ]
 
