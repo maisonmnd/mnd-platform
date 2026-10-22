@@ -39,7 +39,8 @@ styling de sortie au choix du catalogue). Et « Fais-en un sur le soin DÀNDÀN 
 Puis elle libère la devise en français (déjà en fon sur la planche) : « Fais la
 pub pour la recharge d'une brume faite avec des huiles macérées ». La recharge
 est celle de la boutique (« Format éco, 1 L, pour remplir les flacons à la
-maison »), sans prix sur l'autocollant.
+maison »), sans prix sur l'autocollant. Puis : « Fais un message court et direct
+qui incite à acheter » : un verbe, la brume, le lieu où l'acheter.
 
 Le QR du pourboire (« 909099@momopay », par analogie avec l'ancien QR lu sur le
 document MTN) n'a jamais été scanné : il s'éprouve avec l'application MoMo
@@ -162,13 +163,13 @@ def devise_fon(cx, cy):
 
 
 def recharge_brume(cx, cy):
-    # Ce que c'est, ce qu'on en fait, où la trouver ; l'arc la range avec les deux formules maison.
+    # Court et direct, pour faire acheter : un verbe, la brume, où l'acheter. L'arc la range avec les deux formules maison.
     return [texte_en_arc('FORMAT ÉCO · 1 LITRE', 'jost', 9.5, cx, cy, 84, en_bas=False, graisse=500, interlettre=0.24, couleur=C),
-            _ligne('La recharge', 'cormorant', 30, cx, cy - 34, V, 160),
-            *_phrase('de votre brume', 'aux huiles macérées.', 'cormorant-italique', 20, cx, cy - 6, cy + 18, V, 160),
-            f'<rect x="{cx - 16}" y="{cy + 30}" width="32" height="1.1" fill="{C}"/>',
-            _ligne('Remplissez votre flacon à la maison.', 'jost', 10.5, cx, cy + 48, V, 140, 400, 0.02),
-            _ligne('Demandez-la à l’accueil.', 'jost', 11, cx, cy + 64, C, 130, 400, 0.02)]
+            _ligne('Rechargez', 'cormorant', 34, cx, cy - 20, V, 130),
+            _ligne('votre brume.', 'cormorant-italique', 26, cx, cy + 8, V, 150),
+            _ligne('Aux huiles macérées.', 'jost', 11, cx, cy + 30, V, 140, 400, 0.02),
+            f'<rect x="{cx - 16}" y="{cy + 42}" width="32" height="1.1" fill="{C}"/>',
+            _ligne('Achetez-la à l’accueil.', 'jost', 13, cx, cy + 62, C, 130, 400, 0.02)]
 
 
 def buvez(cx, cy):
