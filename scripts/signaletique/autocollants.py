@@ -36,6 +36,11 @@ coiffure », avec ses mots sur la page : « Quelle coiffure aujourd'hui ? » (le
 styling de sortie au choix du catalogue). Et « Fais-en un sur le soin DÀNDÀN » :
 « Hydratation, brillance, le soin DÀNDÀN », à la place de « À la prochaine lune ».
 
+Puis elle libère la devise en français (déjà en fon sur la planche) : « Fais la
+pub pour la recharge d'une brume faite avec des huiles macérées ». La recharge
+est celle de la boutique (« Format éco, 1 L, pour remplir les flacons à la
+maison »), sans prix sur l'autocollant.
+
 Le QR du pourboire (« 909099@momopay », par analogie avec l'ancien QR lu sur le
 document MTN) n'a jamais été scanné : il s'éprouve avec l'application MoMo
 avant l'impression (voir src/shared/momopay-de-la-maison-pur.ts).
@@ -156,11 +161,14 @@ def devise_fon(cx, cy):
             _ligne(DEVISE_FR, 'cormorant-italique', 17, cx, cy + 50, V, 140)]
 
 
-def devise_fr(cx, cy):
-    return [_picto(cx, cy - 72, 34, V),
-            _ligne('votre beauté', 'cormorant-italique', 32, cx, cy - 2, V, 160),
-            _ligne('est déjà là', 'cormorant-italique', 32, cx, cy + 30, V, 160),
-            _ligne(DEVISE_FON, 'fon', 15, cx, cy + 60, C, 110)]
+def recharge_brume(cx, cy):
+    # Ce que c'est, ce qu'on en fait, où la trouver ; l'arc la range avec les deux formules maison.
+    return [texte_en_arc('FORMAT ÉCO · 1 LITRE', 'jost', 9.5, cx, cy, 84, en_bas=False, graisse=500, interlettre=0.24, couleur=C),
+            _ligne('La recharge', 'cormorant', 30, cx, cy - 34, V, 160),
+            *_phrase('de votre brume', 'aux huiles macérées.', 'cormorant-italique', 20, cx, cy - 6, cy + 18, V, 160),
+            f'<rect x="{cx - 16}" y="{cy + 30}" width="32" height="1.1" fill="{C}"/>',
+            _ligne('Remplissez votre flacon à la maison.', 'jost', 10.5, cx, cy + 48, V, 140, 400, 0.02),
+            _ligne('Demandez-la à l’accueil.', 'jost', 11, cx, cy + 64, C, 130, 400, 0.02)]
 
 
 def buvez(cx, cy):
@@ -262,7 +270,7 @@ AUTOCOLLANTS = [
     ('coiffure', 'Hairstyle of the day', C, coiffure_du_jour),
     ('formule', 'Home mist: harmattan', A, brume_harmattan),
     ('qr', 'Tip QR (MoMoPay 909099)', C, pourboire_qr),
-    ('slogan', 'Motto in French', I, devise_fr),
+    ('boutique', 'Mist refill, macerated oils', I, recharge_brume),
     ('kids', 'MND Kids: you say yes', C, kids_oui),
     ('retour', 'Come back: book before leaving', I, retour_rituel),
     ('bien-etre', 'Wellness: roots and origins', S, racines),
