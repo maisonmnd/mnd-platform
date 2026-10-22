@@ -69,11 +69,11 @@ LIGNES_PI = [
     ('R1', '1', ('Re-quote: option 1 (6 extra letters) and option 2 (+ gold to copper)', '请分别报价：方案 1（加 6 个字母）和方案 2（另加金色改铜色）')),
     ('R3', '2', ('Quote: 2 new printed faces', '请报价：两面新印刷面板')),
     ('R4', '3', ('Re-quote: 6 letters added, 1 letter replaced', '需重新报价：加 6 个字母，换 1 个字母')),
-    ('R5', '4', ('Confirm: possible? cost', '请确认：是否可行及费用')),
+    ('R5', '4', ('Quote: 2 plates reprinted', '请报价：重印 2 块门牌')),
     ('R6', '5', ('Quote: new printed face', '请报价：新印刷面板')),
     ('R7', '6', ('Quote: new face', '请报价：新面板')),
     ('R9', '7', ('Confirm: 15 new designs, same sheet', '请确认：15 款新图案，版面不变')),
-    ('R2', None, ('Quote: new top layer', '请报价：新面层')),
+    ('R2', None, ('Quote: new ivory top layer and new copper back layer', '请报价：新的象牙白面层和新的铜色底层')),
     ('R8', None, ('Quote: 2 plates reprinted', '请报价：重印 2 块门牌')),
 ]
 
@@ -141,8 +141,8 @@ POUVOIR = ('Power for Benin', '贝宁电源', 'All drivers 220–240 V 50 Hz, pl
 # Pour la commande : ce qu'il faut pour la finir et l'installer à Cotonou.
 COMPLEMENTS_COMMANDE = [
     POUVOIR + ('all lit items',),
-    ('Finish samples before production', '生产前的表面样板', 'Photos side by side: your gold, copper electroplating and copper PVD (for R1 option 2 and the R5 bar).',
-     '并排拍照：贵司的金色、电镀铜色和 PVD 铜色（用于 R1 方案 2 和 R5 的竖线）。', '1 set'),
+    ('Finish samples before production', '生产前的表面样板', 'Photos side by side: your gold, copper electroplating and copper PVD (for R1 option 2, R2 and R5).',
+     '并排拍照：贵司的金色、电镀铜色和 PVD 铜色（用于 R1 方案 2、R2 和 R5）。', '1 set'),
     ('Proof 5', '第 5 版打样', 'A full set of proofs of the 9 items with the changes above, to approve before production.', '包含上述修改的 9 件物品全套打样，生产前由我们确认。', '1 set'),
     ('Photos and video before packing', '包装前照片和视频', 'Every finished item photographed by day and filmed lit, before it goes into its crate.', '每件成品包装前拍白天照片并拍点亮的视频。', 'per item'),
     ('Labelled crates', '木箱标注', 'Each piece labelled with its reference (R1 to R9) and a packing list per crate.', '每件标注编号（R1 至 R9），每个木箱附装箱单。', 'per crate'),
@@ -264,7 +264,7 @@ def commande():
 {LOGO_REGLE}
 <li><b>MAISON goes between the pictogram and MND;</b> the rest of the logo stays where it is.<span class="zh">MAISON 放在图形和 MND 之间；标志其余部分位置不变。</span></li>
 {DEVISE_REGLE}
-<li><b>Colours:</b> the items keep their gold and black, except R1 option 2 (gold to copper) and the R5 bar (copper).<span class="zh">颜色：各件保留原有金色和黑色，R1 方案 2（金色改铜色）和 R5 竖线（铜色）除外。</span></li>
+<li><b>Colours:</b> the items keep their gold and black, except R1 option 2 (gold to copper), R2 (ivory and copper) and R5 (indigo and copper).<span class="zh">颜色：各件保留原有金色和黑色，R1 方案 2（金色改铜色）、R2（象牙白和铜色）和 R5（靛蓝和铜色）除外。</span></li>
 </ul></div>'''
     recap = [('A · Ordered items, revised', 'A · 订购物品（修改后）'), ('D · Add-ons', 'D · 附加项目'), ('Shipping (D6)', '运费（D6）'), ('Grand total', '总计')]
     corps = (bandeau(f'Revision request · {PI}', 'The 9 items already made: what changes for Maison MND, and what we need to finish the order',

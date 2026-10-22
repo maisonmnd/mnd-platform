@@ -50,6 +50,9 @@ function matiere(nom, nuit) {
     switch (nom) {
       case 'cuivre-brosse': return physique({ color: 0xB0703F, metalness: 1, roughness: 0.32 });
       case 'cuivre-miroir': return physique({ color: 0xD29463, metalness: 1, roughness: 0.26 });
+      // L'or et le noir des pièces déjà fabriquées chez Lico Sign (R2), pour les montrer telles qu'elles sont.
+      case 'or-miroir': return physique({ color: 0xE9C46A, metalness: 1, roughness: 0.18 });
+      case 'noir': return physique({ color: 0x1B1B1D, metalness: 0.1, roughness: 0.45, clearcoat: 0.4, clearcoatRoughness: 0.3 });
       case 'alu-cuivre': return physique({ color: 0xC98A5A, metalness: 0.7, roughness: 0.42 });
       case 'alu-sable': return physique({ color: 0xE3DACB, metalness: 0.15, roughness: 0.5, clearcoat: 0.2 });
       case 'inox': return physique({ color: 0xD9DCE1, metalness: 0.9, roughness: 0.38 });
@@ -273,7 +276,11 @@ async function enseigne(sc, nuit) {
       if (nuit && sup.lum === 'percee') allume(fondMat, 2.4 * (sup.fond_lum ?? 1));
       if (sup.double) g.add(extrude([contour(sc, sup)], 1.5, recul, mat));
       /* Vu par les ajours, le miroir ne reflète que l'envers de la face : on lui rend le jour de la pièce. */
-      if (!nuit && fondMat.metalness >= 0.9) fondMat.envMapIntensity *= 1.8;
+      if (!nuit && fondMat.metalness >= 0.9) {
+        fondMat.envMapIntensity *= 1.8;
+        // « On ne voit rien » (R2) : un miroir vu par un ajour brille comme sur la photo de l'atelier, pas brun.
+        fondMat.emissive = fondMat.color.clone().multiplyScalar(0.38);
+      }
       g.add(extrude([contour(sc, sup, 1.5)], 1.5, recul + ep - (sup.lum === 'percee' ? 8 : 5), fondMat));
     } else if (sup.face === 'impression') {
       g.add(extrude([exterieur], ep, recul, mat, false, true));

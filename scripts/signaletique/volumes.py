@@ -65,7 +65,7 @@ RECETTES = {
     'R1': dict(montage='mur', centre=2.0, support=None,
                pieces=[_p(0, 'cuivre-brosse', 30, 15)], goujons=15, vues=['jour', 'situation']),
     # Face indigo de 1,2 mm ajourée sur un fond inox miroir cuivre ; cadre de 20 mm.
-    'R2': dict(montage='mur', centre=1.55, support=dict(el=0, ep=20, matiere='indigo', face='percee', percee=[1, 2], fond='cuivre-miroir'),
+    'R2': dict(montage='mur', centre=1.55, support=dict(el=0, ep=20, matiere='ivoire', face='percee', percee=[1, 2], fond='cuivre-miroir'),
                pieces=[], vues=['jour', 'situation']),
     # Caisson rond de 120 mm, perpendiculaire au mur, deux faces opales imprimées et allumées.
     'R3': dict(montage='drapeau', centre=2.8, bras=260, support=dict(el=None, ep=120, matiere='indigo', face='impression', lum='face', double=True, rebord='inox'),

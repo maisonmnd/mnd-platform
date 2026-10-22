@@ -70,7 +70,8 @@ def r1(a):
 
 
 def r2(a):
-    out = [f'<circle cx="300" cy="300" r="300" fill="{I}"/>']
+    # « R2 est en indigo, on ne voit rien » (23 oct. 2026) : la couche du dessus passe en ivoire, le fond en miroir cuivre.
+    out = [f'<circle cx="300" cy="300" r="300" fill="{V}"/>']
     s, h = logo_centre(a, 'verrou-debout', 300, 92, 250, a.metal(C))
     out.append(s)
     # Là où l'épreuve 4 disait « LOCKS · NATUREL · BEAUTÉ · BIEN-ÊTRE », le slogan (Yéman, 22 oct. 2026).
@@ -115,7 +116,8 @@ def _femme(x, y, c):
 def r5(a):
     out = [f'<rect width="150" height="400" rx="2" fill="{V}"/>',
            _homme(48, 52, I), _femme(102, 52, I),
-           f'<rect x="73.5" y="48" width="3" height="92" fill="{I}"/>',
+           # « La barre qui sépare l'image des toilettes en cuivre au lieu du noir » (23 oct. 2026).
+           f'<rect x="73.5" y="48" width="3" height="92" fill="{a.metal(C)}"/>',
            f'<rect y="170" width="150" height="46" fill="{a.metal(C)}"/>']
     t = ajuste('TOILETTES', 'cormorant', 26, 124, 500, 0.08)
     out.append(texte('TOILETTES', 'cormorant', t, 75, 300, 'milieu', 500, 0.08, I)[0])
@@ -367,12 +369,12 @@ ENSEIGNES = [
     _f('R2', r2, 600, 600, 20, 'rond', 'mur', 'plaque',
        nom='Plaque ronde double couche, ajourée', name='Double-layer cut-out round plate',
        statut='commande', pi='PI FINALE · plaque double couche L60 · épreuve 4 p. 2', prix=147, qte=1, lieu='Entrée, à hauteur d’yeux',
-       fr=dict(construction='Face inox 1,2 mm peinte INDIGO, cadre de 20 mm ; logo et devise ajourés, doublés d’inox miroir CUIVRE.',
-               finition='Indigo #1E2150 (au lieu du noir), cuivre miroir (au lieu de l’or).', lumiere='Non lumineuse.',
-               change='Déjà fabriqué. Une couche du dessus neuve, ajourée : MAISON ajouté entre le pictogramme et MND, et « LOCKS · NATUREL · BEAUTÉ · BIEN-ÊTRE » remplacé par « votre beauté est déjà là ». La couche du fond reste. Noir et or gardés.'),
-       en=dict(construction='1.2 mm stainless face, 20 mm frame, INDIGO paint. Logo and ring text cut out, backed with COPPER mirror stainless. Keep letter counters (islands) bonded to the backing.',
-               finish='Indigo paint #1E2150 (instead of black); copper mirror backing (instead of gold).', lighting='Non-illuminated.',
-               change='Already made. A new cut-out top layer: add MAISON between the pictogram and MND, and the ring text “LOCKS · NATUREL · BEAUTÉ · BIEN-ÊTRE” becomes “votre beauté est déjà là”. The back layer stays. Black and gold kept.')),
+       fr=dict(construction='Face inox 1,2 mm peinte IVOIRE, cadre de 20 mm ; logo et devise ajourés, doublés d’inox miroir CUIVRE.',
+               finition='Ivoire #F6F1E7 (au lieu du noir), cuivre miroir (au lieu de l’or).', lumiere='Non lumineuse.',
+               change='Déjà fabriqué. Deux couches neuves : le dessus, ajouré et peint ivoire, avec MAISON entre le pictogramme et MND et « votre beauté est déjà là » à la place de « LOCKS · NATUREL · BEAUTÉ · BIEN-ÊTRE » ; le fond en inox miroir cuivre au lieu de l’or.'),
+       en=dict(construction='1.2 mm stainless face, 20 mm frame, IVORY paint. Logo and ring text cut out, backed with COPPER mirror stainless. Keep letter counters (islands) bonded to the backing.',
+               finish='Ivory paint #F6F1E7 (instead of black); copper mirror backing (instead of gold).', lighting='Non-illuminated.',
+               change='Already made. Two new layers: the cut-out top layer painted ivory, with MAISON between the pictogram and MND, and “votre beauté est déjà là” instead of “LOCKS · NATUREL · BEAUTÉ · BIEN-ÊTRE”; the back layer in copper mirror stainless instead of gold.')),
     _f('R3', r3, 600, 600, 120, 'rond', 'facade', 'drapeau',
        nom='Enseigne drapeau ronde lumineuse, double face', name='Double-sided round projecting light box',
        statut='commande', pi='PI FINALE · ligne 2 (LED BOX L60) · épreuve 4 p. 3', prix=215, qte=1, lieu='Façade, perpendiculaire à la rue',
@@ -399,11 +401,11 @@ ENSEIGNES = [
        nom='Plaques des toilettes, rétroéclairées', name='Backlit restroom signs',
        statut='commande', pi='PI FINALE · ligne 4 (restroom sign) · épreuve 4 p. 5', prix=70, qte=2, lieu='Portes des toilettes',
        fr=dict(construction='Acrylique dépoli 9,5 mm, impression UV ; bande en aluminium brossé anodisé CUIVRE ; LED intégrée, effet rétroéclairé.',
-               finition='Pictogrammes et « TOILETTES » en indigo (au lieu du noir), bande cuivre (au lieu de l’or).',
-               lumiere='Rétroéclairage blanc chaud 3000 K.', change='Déjà fabriqué. Est-il possible de mettre en cuivre, au lieu du noir, la barre qui sépare l’homme et la femme ? Dites-nous si c’est possible, et le prix.'),
+               finition='Pictogrammes et « TOILETTES » en indigo (au lieu du noir) ; bande et barre de séparation en cuivre (au lieu de l’or et du noir).',
+               lumiere='Rétroéclairage blanc chaud 3000 K.', change='Déjà fabriquées. Les deux plaques réimprimées aux couleurs de la Maison : l’homme, la femme et « TOILETTES » en indigo au lieu du noir ; la bande et la barre qui les sépare en cuivre.'),
        en=dict(construction='9.5 mm frosted acrylic, UV print; brushed aluminium band anodised COPPER; built-in LED, backlit effect.',
-               finish='Pictograms and “TOILETTES” printed INDIGO (instead of black); copper band (instead of gold).',
-               lighting='Backlit 3000 K warm white.', change='Already made. Can the bar between the man and the woman be copper instead of black? Please tell us if it is possible, and the cost.')),
+               finish='Pictograms and “TOILETTES” printed INDIGO (instead of black); copper band and copper dividing bar (instead of gold and black).',
+               lighting='Backlit 3000 K warm white.', change='Already made. Please reprint both plates in our colours: the man, the woman and “TOILETTES” in indigo instead of black; the band and the bar between them in copper.')),
     _f('R6', r6, 600, 600, 100, 'rond', 'mur', 'caisson',
        nom='Rond lumineux mural', name='Round front-lit wall light box',
        statut='commande', pi='PI FINALE · ligne 5 (LED BOX L60, une face) · épreuve 4 p. 6', prix=181, qte=1, lieu='Mur intérieur ou sous auvent',
