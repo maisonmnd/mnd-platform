@@ -243,9 +243,9 @@ def brume_quotidien(cx, cy):
 
 def brume_harmattan(cx, cy):
     # « Change la brume de l'harmattan avec d'autres ingrédients » : l'eau de rose (la brume de la boutique),
-    # le gel de lin (la base du Laboratoire), l'huile de lin (choisie par elle à la place du baobab ; elle rancit
-    # vite, d'où le frais et la semaine). Sa phrase : « Un voile léger contre le vent sec. » Doses à valider.
-    return _formule(cx, cy, 'La brume de l’harmattan', ['250 ml d’eau de rose', '1 c. à soupe de gel de graines de lin', '3 gouttes d’huile de lin'],
+    # puis sa recette, mot pour mot : deux gouttes d'huile de lin et trois de baobab, sans gel. L'huile de lin
+    # rancit vite, d'où le frais et la semaine. Sa phrase : « Un voile léger contre le vent sec. »
+    return _formule(cx, cy, 'La brume de l’harmattan', ['250 ml d’eau de rose', '2 gouttes d’huile de lin', '3 gouttes d’huile de baobab'],
                     'Un voile léger contre le vent sec.', I, P, 'AU FRAIS · À REFAIRE CHAQUE SEMAINE')
 
 
