@@ -206,8 +206,8 @@ def n4(a):
     s, h = logo_centre(a, 'verrou-debout', 600, 140, 336, I)
     out.append(s)
     out.append(texte('COTONOU · BÉNIN', 'jost', 30, 600, 650, 'milieu', 500, 0.3, I)[0])
-    # « Sur la N4, rajouter le RCCM de Maison MND » (22 oct. 2026) : le registre de l'établissement, imprimé petit.
-    out.append(texte('RCCM RB/COT/26 A 120676', 'jost', 21, 600, 710, 'milieu', 500, 0.12, I)[0])
+    # « Sur la N4, rajouter le RCCM de Maison MND », puis « l'IFU aussi » (22 oct. 2026) : la ligne légale des factures, imprimée petit.
+    out.append(texte('RCCM RB/COT/26 A 120676 · IFU 1 2010 0097 2809', 'jost', 21, 600, 710, 'milieu', 500, 0.12, I)[0])
     return ''.join(out)
 
 
@@ -457,9 +457,9 @@ ENSEIGNES = [
     _f('N4', n4, 1200, 800, 40, 'rect', 'interieur', 'cadre-lumineux',
        nom='Cadre lumineux à LED périmétrique', name='Edge-lit framed panel',
        statut='nouvelle', lieu='Accueil ou couloir',
-       fr=dict(construction='Panneau acrylique ivoire 10 mm dans un cadre aluminium INDIGO 20 mm ; logo indigo en acrylique 5 mm découpé, posé en relief ; le RCCM de Maison MND (RB/COT/26 A 120676) imprimé UV en indigo sous COTONOU · BÉNIN.',
+       fr=dict(construction='Panneau acrylique ivoire 10 mm dans un cadre aluminium INDIGO 20 mm ; logo indigo en acrylique 5 mm découpé, posé en relief ; le RCCM (RB/COT/26 A 120676) et l’IFU (1 2010 0097 2809) de Maison MND imprimés UV en indigo sous COTONOU · BÉNIN.',
                finition='Ivoire, indigo.', lumiere='LED sur le pourtour du cadre, halo blanc chaud 3000 K.', change='Inspiré de « Maison du Revêtement ».'),
-       en=dict(construction='10 mm ivory acrylic panel in a 20 mm INDIGO aluminium frame; logo flat-cut from 5 mm indigo acrylic, raised; our company registration number (RCCM RB/COT/26 A 120676) UV printed in indigo under COTONOU · BÉNIN.',
+       en=dict(construction='10 mm ivory acrylic panel in a 20 mm INDIGO aluminium frame; logo flat-cut from 5 mm indigo acrylic, raised; our company registration and tax numbers (RCCM RB/COT/26 A 120676 · IFU 1 2010 0097 2809) UV printed in indigo under COTONOU · BÉNIN.',
                finish='Ivory, indigo.', lighting='Perimeter LED (frame halo), 3000 K warm white.', change='NEW ITEM. Please quote.')),
     _f('N5', n5, 3000, 600, 15, 'rect', 'rue', 'plat-relief',
        nom='Bandeau indigo, lettres ivoire découpées', name='Indigo fascia with ivory flat-cut letters',
