@@ -73,7 +73,8 @@ def r2(a):
     out = [f'<circle cx="300" cy="300" r="300" fill="{I}"/>']
     s, h = logo_centre(a, 'verrou-debout', 300, 92, 250, a.metal(C))
     out.append(s)
-    out.append(texte_en_arc(f'{DEVISE_FON} · {DEVISE_FR}', 'fon', 34, 300, 300, 262, en_bas=True, couleur=a.metal(C)))
+    # Là où l'épreuve 4 disait « LOCKS · NATUREL · BEAUTÉ · BIEN-ÊTRE », le slogan (Yéman, 22 oct. 2026).
+    out.append(texte_en_arc(DEVISE_FR, 'cormorant-italique', 40, 300, 300, 262, en_bas=True, graisse=500, couleur=a.metal(C)))
     return ''.join(out)
 
 
@@ -82,7 +83,7 @@ def r3(a):
            f'<circle cx="300" cy="300" r="281" fill="none" stroke="{C}" stroke-width="4"/>']
     s, h = logo_centre(a, 'verrou-debout', 300, 92, 268, I)
     out.append(s)
-    out.append(texte_en_arc('COTONOU · BÉNIN', 'jost', 26, 300, 300, 262, en_bas=True, graisse=500, interlettre=0.2, couleur=C))
+    out.append(texte_en_arc(DEVISE_FR, 'cormorant-italique', 38, 300, 300, 258, en_bas=True, graisse=500, couleur=C))
     return ''.join(out)
 
 
@@ -354,21 +355,21 @@ ENSEIGNES = [
        statut='commande', pi='PI FINALE · plaque double couche L60 · épreuve 4 p. 2', prix=147, qte=1, lieu='Entrée, à hauteur d’yeux',
        fr=dict(construction='Face inox 1,2 mm peinte INDIGO, cadre de 20 mm ; logo et devise ajourés, doublés d’inox miroir CUIVRE.',
                finition='Indigo #1E2150 (au lieu du noir), cuivre miroir (au lieu de l’or).', lumiere='Non lumineuse.',
-               change='Nouveau logo ; « LOCKS · NATUREL · BEAUTÉ · BIEN-ÊTRE » remplacé par la devise ; noir → indigo ; or → cuivre.'),
+               change='Nouveau logo ; « LOCKS · NATUREL · BEAUTÉ · BIEN-ÊTRE » remplacé par le slogan « votre beauté est déjà là » ; noir → indigo ; or → cuivre.'),
        en=dict(construction='1.2 mm stainless face, 20 mm frame, INDIGO paint. Logo and ring text cut out, backed with COPPER mirror stainless. Keep letter counters (islands) bonded to the backing.',
                finish='Indigo paint #1E2150 (instead of black); copper mirror backing (instead of gold).', lighting='Non-illuminated.',
-               change='New logo; ring text is now the motto “mi nyɔ́ ɖɛkpɛ · votre beauté est déjà là”; black → indigo; gold → copper.')),
+               change='New logo; the ring text “LOCKS · NATUREL · BEAUTÉ · BIEN-ÊTRE” becomes our slogan “votre beauté est déjà là”; black → indigo; gold → copper.')),
     _f('R3', r3, 600, 600, 120, 'rond', 'facade', 'drapeau',
        nom='Enseigne drapeau ronde lumineuse, double face', name='Double-sided round projecting light box',
        statut='commande', pi='PI FINALE · ligne 2 (LED BOX L60) · épreuve 4 p. 3', prix=215, qte=1, lieu='Façade, perpendiculaire à la rue',
        fr=dict(construction='Caisson Ø600 × 120, faces acrylique opale 5 mm imprimées UV, cerclage inox ; potence tube inox Ø40, platine 5 mm, chevilles M6.',
-               finition='Face ivoire, logo indigo, cercle et « COTONOU · BÉNIN » cuivre ; côtés INDIGO (au lieu du noir).',
+               finition='Face ivoire, logo indigo, cercle et slogan cuivre ; côtés INDIGO (au lieu du noir).',
                lumiere='LED intérieures, double face, blanc chaud 3000 K (au lieu de 4500 K), alimentation Mean Well 110–240 V.',
-               change='Nouveau logo ; noir → indigo ; or → cuivre ; lumière plus chaude.'),
+               change='Nouveau logo ; « LOCKS · NATUREL · BEAUTÉ · BIEN-ÊTRE » remplacé par le slogan « votre beauté est déjà là » ; noir → indigo ; or → cuivre ; lumière plus chaude.'),
        en=dict(construction='Ø600 × 120 mm light box, 5 mm opal acrylic faces with UV print both sides, stainless rim; Ø40 stainless tube bracket, 5 mm steel plate, M6 anchors.',
-               finish='Ivory face, indigo logo, copper ring and “COTONOU · BÉNIN”; INDIGO painted sides (instead of black).',
+               finish='Ivory face, indigo logo, copper ring and slogan; INDIGO painted sides (instead of black).',
                lighting='Internal LED, double-sided, WARM WHITE 3000 K (instead of 4500 K), Mean Well 110–240 V driver, outdoor IP65.',
-               change='New logo; black → indigo; gold → copper; 3000 K.')),
+               change='New logo; the ring text “LOCKS · NATUREL · BEAUTÉ · BIEN-ÊTRE” becomes our slogan “votre beauté est déjà là”; black → indigo; gold → copper; 3000 K.')),
     _f('R4', r4, 1050, 1600, 60, 'rect', 'interieur', 'halo-panneau',
        nom='Grand panneau d’accueil, logo rétroéclairé', name='Reception wall panel with backlit logo',
        statut='commande', pi='PI FINALE · ligne 3 (LED sign 105 × 160) · épreuve 4 p. 4', prix=522, qte=1, lieu='Mur de l’accueil',

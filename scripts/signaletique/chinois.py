@@ -64,13 +64,13 @@ ENSEIGNES = {
         construction='1.2 毫米不锈钢面板，20 毫米边框，靛蓝色烤漆。标志和环形文字镂空，背衬铜色镜面不锈钢。字母内部的孤岛须粘在背板上。',
         finish='靛蓝色烤漆 #1E2150（替代黑色）；铜色镜面背板（替代金色）。',
         lighting='不发光。',
-        change='新标志；环形文字改为格言 “mi nyɔ́ ɖɛkpɛ · votre beauté est déjà là”；黑色改为靛蓝；金色改为铜色。'),
+        change='新标志；环形文字 “LOCKS · NATUREL · BEAUTÉ · BIEN-ÊTRE” 改为我们的标语 “votre beauté est déjà là”；黑色改为靛蓝；金色改为铜色。'),
     'R3': dict(
         name='双面圆形侧招灯箱',
         construction='Ø600 × 120 毫米灯箱，5 毫米乳白亚克力双面 UV 打印，不锈钢包边；Ø40 不锈钢管支架，5 毫米钢底板，M6 膨胀螺丝。',
-        finish='象牙白底，靛蓝色标志，铜色圆环和 “COTONOU · BÉNIN”；侧边靛蓝色烤漆（替代黑色）。',
+        finish='象牙白底，靛蓝色标志，铜色圆环和标语；侧边靛蓝色烤漆（替代黑色）。',
         lighting='内置 LED，双面发光，3000K 暖白光（替代 4500K），明纬电源 110–240V，户外 IP65。',
-        change='新标志；黑色改为靛蓝；金色改为铜色；3000K。'),
+        change='新标志；环形文字 “LOCKS · NATUREL · BEAUTÉ · BIEN-ÊTRE” 改为我们的标语 “votre beauté est déjà là”；黑色改为靛蓝；金色改为铜色；3000K。'),
     'R4': dict(
         name='前台背景墙牌，标志背发光',
         construction='60 毫米折弯不锈钢灯箱，象牙白烤漆；标志为拉丝不锈钢铜色，40 毫米侧边，10 毫米磨砂亚克力背板（背发光）；“mi nyɔ́ ɖɛkpɛ” 字 20 毫米侧边，背发光；“votre beauté est déjà là” 为 3 毫米铜色镜面亚克力，平贴，不发光。',
