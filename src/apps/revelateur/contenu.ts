@@ -957,7 +957,7 @@ export const PAGES: Page[] = [
        publicité. */
     chemin: '/notre-histoire/',
     titre: 'Notre histoire · Brice, Yéman et la Maison MND',
-    description: "Lisez le récit fondateur de la Maison MND : deux jeunes amoureux, une terrasse à Cotonou, un enfant, dix ans de deuil et le retour à la maison d'Akpakpa.",
+    description: "Lisez le récit fondateur de la Maison MND : deux jeunes amoureux, une terrasse à Cotonou, un fils, Kolétan, et le retour à la maison d'Akpakpa.",
     /* LE RÉCIT EN RESPIRATIONS — 1er octobre 2026. « Une lecture fluide, ne même
        pas sentir que le texte est long » (Yéman). Une ouverture plein écran,
        puis le texte entier, mot pour mot, une ou deux phrases par bloc : ce
@@ -1015,31 +1015,22 @@ export const PAGES: Page[] = [
           {
             id: 'koletan', titre: 'Kolétan Bright',
             lignes: [
-              'Il y a un enfant au cœur de cette histoire.',
-              'Il s’appelle Kolétan Bright. Kolé, pour nous.',
-              'Nous parlons de lui avec justesse et humilité. Tel qu’il était, sans rien ajouter. C’est la seule façon digne de le faire.',
-              'Kolé était la joie. Calme et doux. Joyeux sans bruit, comme une lumière silencieuse.',
-              'Il n’avait pas besoin de faire grand-chose pour qu’on se sente bien à côté de lui. Il était là, et ça suffisait.',
-              'Il aimait les bons moments. Il aimait le beau, déjà\u00a0: un enfant soigné, raffiné, qui prenait soin de ce qu’il portait et de ce qu’il touchait.',
-              'On le regardait faire, et on se disait qu’il savait quelque chose que nous étions encore en train d’apprendre.',
-              'Et il allait au bout de tout ce qu’il commençait. À sa manière, tranquille, sans jamais lâcher.',
-              'Son prénom parle d’abondance. C’est ce qu’il était\u00a0: plus de lumière qu’une seule maison ne peut en contenir.',
-              'Il portait ses locks, de deux à cinq ans. Il est parti avec elles. Ses frères portent encore les leurs.',
-              { souffle: 'Avec les locks, il nous retrouverait toujours.' },
-              'Cette phrase n’a pas besoin d’être expliquée. Elle est là, et nous la gardons.',
-              'Kolé ne nous a pas seulement quittés. Il nous a laissé quelque chose.',
-              'Il nous a fait aller puiser en nous, là où nous n’étions jamais allés.',
-              'Et il nous a appris ceci\u00a0: un être humain a besoin d’une attention particulière. Dans les moments les plus durs, ce dont on a le plus besoin, c’est que quelqu’un prenne soin de nous.',
-              'Nous l’avons vécu. Et de cette épreuve est née une envie plus grande que la douleur\u00a0: prendre encore plus soin. Des nôtres, puis de tous ceux qui passeraient notre porte.',
-              { souffle: 'Kolétan, c’est mettre de la lumière dans les cœurs. Sans condition, et en abondance.' },
-              'C’est pour cela que la Maison est là.',
-              'Après lui, nous avons quitté la maison pour un temps. Il fallait réapprendre à vivre. Nous l’avons fait avec nos mains.',
+              /* DANS LA JOIE — 22 octobre 2026. « Je veux l'inverse. Je veux une
+                 version dans la joie » (Yéman) : son texte, mot pour mot, remplace
+                 le chapitre ; rien de l'ancien n'est gardé (son choix). */
+              'Notre fils Kolétan était calme et doux, joyeux.',
+              'Il aimait les beaux moments et les belles choses, et il allait au bout de tout ce qu’il commençait.',
+              'Son prénom veut dire l’abondance.',
+              'En 2014, il nous a quittés.',
+              'Dans cette épreuve, nous avons appris une chose simple : quand la vie nous éprouve, nous avons besoin que d’autres prennent soin de nous.',
+              'C’est devenu la raison d’être de la Maison.',
+              'Chaque personne qui entre chez nous doit se sentir au calme, aimée, comprise, précieuse.',
+              { souffle: 'Kolétan, c’est mettre de la lumière dans les cœurs, sans condition et en abondance.' },
             ],
           },
           {
             id: 'mains', titre: 'Les mains',
             lignes: [
-              'Quand on ne sait plus quoi faire de sa douleur, on peut au moins faire quelque chose de ses mains.',
               'Nous avons continué à travailler. Une tête, puis une autre.',
               'Des locks abîmées que l’on nous demandait de réparer. Des cheveux fragiles que l’on nous demandait de préserver.',
               'Des personnes qui arrivaient fatiguées et repartaient un peu plus légères.',
@@ -1103,7 +1094,7 @@ export const PAGES: Page[] = [
           {
             id: 'retour', titre: 'Le retour à la maison',
             lignes: [
-              'Nous sommes revenus. À l’endroit même de la douleur.',
+              'Nous sommes revenus.',
               'Après Kolétan, nous avions quitté la maison. Chaque pièce portait un souvenir, et nous n’avions pas la force de les regarder en face.',
               'Alors nous sommes partis, comme on s’éloigne d’une blessure pour ne plus la sentir.',
               'Dix ans plus tard, nous avons poussé la même porte.',
@@ -1141,7 +1132,6 @@ export const PAGES: Page[] = [
               'Nous prenons leur tête entre nos mains, nous prenons le temps, nous parlons ou nous nous taisons. Et elles repartent avec quelque chose de différent.',
               'Nous savons ce que c’est, porter quelque chose de lourd. Nous savons aussi ce que ça fait, quand quelqu’un prend soin de vous à ce moment-là.',
               'C’est pour cela que cette maison existe.',
-              'Une personne qui entre chez nous doit se sentir au calme. Aimée. Comprise. Précieuse.',
               'Chaque moment passé ici doit réveiller en elle ce sentiment d’être bien, d’être attendue, d’être à sa place.',
               'Pas pour prouver quelque chose à ceux qui nous regardaient de haut. Pas même pour montrer que nous avons réussi.',
               'Pour faire ce que Kolétan nous a appris\u00a0: mettre de la lumière dans les cœurs, sans condition, et en abondance.',
