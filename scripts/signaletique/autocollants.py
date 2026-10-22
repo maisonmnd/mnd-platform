@@ -40,7 +40,7 @@ Puis elle libère la devise en français (déjà en fon sur la planche) : « Fai
 pub pour la recharge d'une brume faite avec des huiles macérées ». La recharge
 est celle de la boutique (« Format éco, 1 L, pour remplir les flacons à la
 maison »), sans prix sur l'autocollant. Puis : « Fais un message court et direct
-qui incite à acheter » : un verbe, la brume, le lieu où l'acheter.
+qui incite à acheter » : un verbe, la brume, le lieu où l'acheter. Et « enlève 1 litre ».
 
 Le QR du pourboire (« 909099@momopay », par analogie avec l'ancien QR lu sur le
 document MTN) n'a jamais été scanné : il s'éprouve avec l'application MoMo
@@ -164,7 +164,7 @@ def devise_fon(cx, cy):
 
 def recharge_brume(cx, cy):
     # Court et direct, pour faire acheter : un verbe, la brume, où l'acheter. L'arc la range avec les deux formules maison.
-    return [texte_en_arc('FORMAT ÉCO · 1 LITRE', 'jost', 9.5, cx, cy, 84, en_bas=False, graisse=500, interlettre=0.24, couleur=C),
+    return [texte_en_arc('FORMAT ÉCO', 'jost', 9.5, cx, cy, 84, en_bas=False, graisse=500, interlettre=0.26, couleur=C),
             _ligne('Rechargez', 'cormorant', 34, cx, cy - 20, V, 130),
             _ligne('votre brume.', 'cormorant-italique', 26, cx, cy + 8, V, 150),
             _ligne('Aux huiles macérées.', 'jost', 11, cx, cy + 30, V, 140, 400, 0.02),
