@@ -15,6 +15,14 @@ Les sept encres de la charte y passent toutes, chaque rond sur une paire
 permise (l'or seulement sur l'indigo, jamais de noir). Un seul motif par rond,
 et du vide : la Maison veut du sobre.
 
+Le 22 octobre au soir, sur la page de tri (artefact TiDS69cE…, collection
+« choix ») : elle écarte trois ronds (le pourboire en mots, le satin, « rien à
+faire ») et demande à leur place « des mots pour les MND Kids » ; elle change
+le shampoing (« Un moment de détente. »), l'eau (« Hydratez vos locks. »), la
+devise en français (sur indigo) et les racines (« Vos origines. Une identité,
+qui s'affirme »). Ses mots sont gardés, la typographie française posée
+(apostrophe, espace avant « ! », capitales accentuées).
+
 Le QR du pourboire (« 909099@momopay », par analogie avec l'ancien QR lu sur le
 document MTN) n'a jamais été scanné : il s'éprouve avec l'application MoMo
 avant l'impression (voir src/shared/momopay-de-la-maison-pur.ts).
@@ -109,16 +117,9 @@ def pourboire_qr(cx, cy):
             texte_en_arc('MOMOPAY · CODE 909099', 'jost', 10, cx, cy, 82, en_bas=True, graisse=500, interlettre=0.2, couleur=V)]
 
 
-def pourboire(cx, cy):
-    return [medaillon(cx, cy - 50, 52, OR),
-            _ligne('Un pourboire,', 'cormorant-italique', 22, cx, cy + 8, V, 140),
-            _ligne('jamais attendu,', 'cormorant-italique', 22, cx, cy + 32, V, 140),
-            _ligne('toujours reçu avec joie.', 'cormorant-italique', 22, cx, cy + 56, OR, 140)]
-
-
 def respirez(cx, cy):
     return [_anneau(cx, cy, 92, C, 1.0), medaillon(cx, cy - 58, 26, C),
-            _ligne('Posez la nuque.', 'cormorant-italique', 22, cx, cy - 14, V, 140),
+            _ligne('Un moment de détente.', 'cormorant-italique', 22, cx, cy - 14, V, 140),
             _ligne('Respirez.', 'cormorant', 38, cx, cy + 22, V, 140),
             _ligne('INSPIREZ SUR 4 · EXPIREZ SUR 6', 'jost', 8.5, cx, cy + 48, C, 132, 500, 0.16)]
 
@@ -130,13 +131,6 @@ def laissez_l_eau(cx, cy):
             _ligne('faire.', 'cormorant', 32, cx, cy + 50, I, 150)]
 
 
-def rien_a_faire(cx, cy):
-    return [_ligne('Rien à faire,', 'cormorant', 30, cx, cy - 8, I, 150),
-            _ligne('rien à prouver.', 'cormorant-italique', 23, cx, cy + 22, I, 150),
-            f'<rect x="{cx - 18}" y="{cy + 36}" width="36" height="1.2" fill="{C}"/>',
-            _ligne('JUSTE CE MOMENT', 'jost', 9, cx, cy + 56, I, 120, 500, 0.24)]
-
-
 def devise_fon(cx, cy):
     return [medaillon(cx, cy - 46, 56, V),
             _ligne(DEVISE_FON, 'fon', 40, cx, cy + 22, V, 156),
@@ -144,33 +138,59 @@ def devise_fon(cx, cy):
 
 
 def devise_fr(cx, cy):
-    return [_picto(cx, cy - 72, 34, C),
-            _ligne('votre beauté', 'cormorant-italique', 32, cx, cy - 2, C, 160),
-            _ligne('est déjà là', 'cormorant-italique', 32, cx, cy + 30, C, 160),
-            _ligne(DEVISE_FON, 'fon', 15, cx, cy + 60, I, 110)]
+    return [_picto(cx, cy - 72, 34, V),
+            _ligne('votre beauté', 'cormorant-italique', 32, cx, cy - 2, V, 160),
+            _ligne('est déjà là', 'cormorant-italique', 32, cx, cy + 30, V, 160),
+            _ligne(DEVISE_FON, 'fon', 15, cx, cy + 60, C, 110)]
 
 
 def buvez(cx, cy):
     return [_picto(cx, cy - 66, 28, C),
-            _ligne('Buvez de l’eau.', 'cormorant', 28, cx, cy - 4, V, 156),
-            _ligne('Vos locks aussi ont soif.', 'cormorant-italique', 18, cx, cy + 24, C, 146),
+            _ligne('Buvez de l’eau !', 'cormorant', 28, cx, cy - 4, V, 156),
+            _ligne('Hydratez vos locks.', 'cormorant-italique', 18, cx, cy + 24, C, 146),
             _ligne('UN VERRE, PUIS UN AUTRE', 'jost', 8.5, cx, cy + 50, V, 128, 500, 0.2)]
-
-
-def satin(cx, cy):
-    return [_anneau(cx, cy, 92, OR, 1.0),
-            _ligne('La nuit,', 'cormorant-italique', 24, cx, cy - 24, V, 140),
-            _ligne('du satin.', 'cormorant', 38, cx, cy + 12, C, 150),
-            _ligne('LE FOULARD GARDE L’EAU', 'jost', 8.5, cx, cy + 38, V, 128, 500, 0.18),
-            _ligne('DANS VOS LOCKS', 'jost', 8.5, cx, cy + 51, V, 128, 500, 0.18)]
 
 
 def racines(cx, cy):
     return [medaillon(cx, cy - 58, 30, I),
             _ligne('Vos racines', 'cormorant', 30, cx, cy - 8, I, 150),
-            _ligne('aiment la paix.', 'cormorant-italique', 24, cx, cy + 22, I, 150),
-            _ligne('MOINS DE GESTES,', 'jost', 8.5, cx, cy + 46, C, 120, 500, 0.2),
-            _ligne('PLUS DE DOUCEUR', 'jost', 8.5, cx, cy + 59, C, 120, 500, 0.2)]
+            _ligne('Vos origines.', 'cormorant-italique', 24, cx, cy + 22, I, 150),
+            _ligne('UNE IDENTITÉ,', 'jost', 8.5, cx, cy + 46, C, 120, 500, 0.2),
+            _ligne('QUI S’AFFIRME', 'jost', 8.5, cx, cy + 59, C, 120, 500, 0.2)]
+
+
+# ══ MND KIDS, LE CLUB DES PETITES COURONNES ════════════════════════════
+# « Tu » pour l'enfant, comme le Club ; un cauris à chaque visite, et c'est
+# l'enfant qui dit oui lui-même (voir le programme MND Kids).
+
+def _cauris(cx, cy, fond, coquille):
+    """Le cauris du Club : une coquille, sa fente et ses dents. Un dessin, pas le logo."""
+    out = [f'<ellipse cx="{cx}" cy="{cy}" rx="11" ry="15" fill="{coquille}"/>',
+           f'<path d="M{cx} {cy - 11} C{cx + 2.6} {cy - 4} {cx + 2.6} {cy + 4} {cx} {cy + 11}" fill="none" stroke="{fond}" stroke-width="1.6" stroke-linecap="round"/>']
+    for t in (-7, -3.5, 0, 3.5, 7):
+        out.append(f'<path d="M{cx - 4.2} {cy + t} H{cx - 1.4} M{cx + 1.9} {cy + t} H{cx + 4.6}" stroke="{fond}" stroke-width="1" stroke-linecap="round"/>')
+    return f'<g>{"".join(out)}</g>'
+
+
+def kids_couronne(cx, cy):
+    return [_picto(cx, cy - 64, 44, OR),
+            _ligne('Petite', 'cormorant', 30, cx, cy + 4, V, 150),
+            _ligne('Couronne', 'cormorant', 30, cx, cy + 32, V, 150),
+            _ligne('MND KIDS', 'jost', 9, cx, cy + 56, OR, 110, 500, 0.3)]
+
+
+def kids_cauris(cx, cy):
+    return [_cauris(cx, cy - 56, C, V),
+            _ligne('Un cauris', 'cormorant', 32, cx, cy + 8, V, 150),
+            _ligne('à chaque visite.', 'cormorant-italique', 22, cx, cy + 34, V, 150),
+            _ligne('TON COLLIER GRANDIT AVEC TOI', 'jost', 8, cx, cy + 56, V, 132, 500, 0.16)]
+
+
+def kids_oui(cx, cy):
+    return [medaillon(cx, cy - 58, 28, C),
+            _ligne('Ici, c’est toi', 'cormorant-italique', 28, cx, cy - 6, C, 150),
+            _ligne('qui dis oui.', 'cormorant-italique', 28, cx, cy + 24, C, 150),
+            _ligne('MND KIDS', 'jost', 9, cx, cy + 52, I, 110, 500, 0.3)]
 
 
 def _formule(cx, cy, nom, doses, geste, encre, accent, frais):
@@ -209,16 +229,16 @@ AUTOCOLLANTS = [
     ('shampoing', 'Shampoo: breathe', P, respirez),
     ('bien-etre', 'Wellness: drink water', I, buvez),
     ('formule', 'Home mist: everyday', V, brume_quotidien),
-    ('pourboire', 'Tip: a word', I, pourboire),
+    ('kids', 'MND Kids: little crown', I, kids_couronne),
     ('shampoing', 'Shampoo: let the water work', A, laissez_l_eau),
     ('qr', 'Review QR (Google)', S, avis),
-    ('bien-etre', 'Wellness: satin at night', P, satin),
+    ('kids', 'MND Kids: a cowrie per visit', C, kids_cauris),
     ('formule', 'Home mist: harmattan', A, brume_harmattan),
     ('qr', 'Tip QR (MoMoPay 909099)', C, pourboire_qr),
-    ('slogan', 'Motto in French', V, devise_fr),
-    ('shampoing', 'Shampoo: nothing to do', S, rien_a_faire),
+    ('slogan', 'Motto in French', I, devise_fr),
+    ('kids', 'MND Kids: you say yes', V, kids_oui),
     ('formule', 'Home mist: scalp', I, brume_cuir_chevelu),
-    ('bien-etre', 'Wellness: roots love peace', S, racines),
+    ('bien-etre', 'Wellness: roots and origins', S, racines),
 ]
 
 
