@@ -178,21 +178,23 @@ def racines(cx, cy):
 
 def coiffure_du_jour(cx, cy):
     """« Quelle coiffure aujourd'hui ? » (ses mots) : le styling de sortie au choix du SÍNSIN, chignon, demi-attache ou détaché structuré."""
-    return [_picto(cx, cy - 70, 30, V),
-            _ligne('Quelle coiffure', 'cormorant', 30, cx, cy - 12, V, 156),
-            _ligne('aujourd’hui ?', 'cormorant-italique', 26, cx, cy + 18, V, 150),
-            _ligne('CHIGNON · DEMI-ATTACHE · DÉTACHÉ', 'jost', 7.5, cx, cy + 44, V, 140, 500, 0.14),
-            _ligne('À LA SORTIE, AU CHOIX', 'jost', 7.5, cx, cy + 58, V, 120, 500, 0.2)]
+    # « Le texte n'est pas très clair » : des phrases entières, en gros, sans petites capitales.
+    return [_picto(cx, cy - 72, 30, V),
+            _ligne('Quelle coiffure', 'cormorant', 30, cx, cy - 16, V, 156),
+            _ligne('aujourd’hui ?', 'cormorant-italique', 26, cx, cy + 14, V, 150),
+            _ligne('Chignon, demi-attache ou détaché :', 'jost', 11, cx, cy + 42, V, 150, 400, 0.02),
+            _ligne('dites-nous votre envie.', 'cormorant-italique', 17, cx, cy + 62, V, 130)]
 
 
 def dandan(cx, cy):
     """« Hydratation, brillance, le soin DÀNDÀN » (ses mots) ; « aux sept huiles » vient du journal de la Maison."""
+    # Ce qu'il est, ce qu'il fait, comment l'avoir : trois phrases qu'on lit d'un coup d'œil.
     return [medaillon(cx, cy - 66, 26, C),
-            _ligne('Hydratation', 'cormorant', 30, cx, cy - 22, V, 156),
-            _ligne('Brillance', 'cormorant', 30, cx, cy + 10, V, 156),
-            f'<rect x="{cx - 16}" y="{cy + 24}" width="32" height="1.1" fill="{C}"/>',
-            _ligne('LE SOIN DÀNDÀN™', 'jost', 10, cx, cy + 44, C, 140, 500, 0.2),
-            _ligne('AUX SEPT HUILES', 'jost', 7.5, cx, cy + 58, V, 120, 500, 0.2)]
+            _ligne('Le soin DÀNDÀN™', 'cormorant', 30, cx, cy - 24, V, 172),
+            _ligne('Sept huiles qui hydratent', 'cormorant-italique', 20, cx, cy + 6, V, 150),
+            _ligne('et font briller vos locks.', 'cormorant-italique', 20, cx, cy + 30, V, 150),
+            f'<rect x="{cx - 16}" y="{cy + 42}" width="32" height="1.1" fill="{C}"/>',
+            _ligne('Demandez-le à l’accueil.', 'jost', 11, cx, cy + 62, C, 130, 400, 0.02)]
 
 
 def kids_oui(cx, cy):
