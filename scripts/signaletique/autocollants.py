@@ -25,7 +25,8 @@ qui s'affirme »). Ses mots sont gardés, la typographie française posée
 
 Puis : « Remplace 2 autocollants avec une phrase qui fait revenir » ; elle
 avait décoché « Petite Couronne » et la brume du cuir chevelu. À leur place :
-« À la prochaine lune. » (la lune, le pas des formules de la Maison) et
+« À la prochaine lune. » (la lune, le pas des formules de la Maison ; le médaillon
+au-dessus, à sa demande) et
 « Avant de partir, votre prochain rituel ? » (reprendre rendez-vous avant de
 sortir, le geste qui fait revenir). « Ici, c'est toi qui dis oui » passe sur
 cuivre, comme elle l'a choisi.
@@ -195,13 +196,8 @@ def kids_oui(cx, cy):
 
 # ══ CE QUI FAIT REVENIR ═════════════════════════════════════════════════
 
-def _lune(cx, cy, encre, fond):
-    """Un croissant de lune : un disque, mordu par un disque du fond. Un dessin, pas le logo."""
-    return f'<g><circle cx="{cx}" cy="{cy}" r="12" fill="{encre}"/><circle cx="{cx + 5}" cy="{cy - 3}" r="10.4" fill="{fond}"/></g>'
-
-
 def retour_lune(cx, cy):
-    return [_lune(cx, cy - 58, C, I),
+    return [medaillon(cx, cy - 58, 28, C),
             _ligne('À la prochaine', 'cormorant-italique', 24, cx, cy - 8, V, 150),
             _ligne('lune.', 'cormorant', 40, cx, cy + 30, C, 150),
             _ligne('VOTRE COURONNE VOUS ATTEND', 'jost', 8.5, cx, cy + 54, V, 132, 500, 0.18)]
