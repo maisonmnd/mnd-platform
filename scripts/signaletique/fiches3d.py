@@ -107,7 +107,8 @@ def couches(e):
         if si.get('lum'):
             out.append(('Laser-engraved pattern, lit by the edge LEDs', '激光雕刻图案，由边缘 LED 点亮', si['z'] - 0.5, si['z'], '#E6DCCB', 'contour'))
         else:
-            out.append(('Pattern, UV print', '图案，UV 打印', si['z'] - 0.1, si['z'] + 0.1, '#C9BFAE', None))
+            en, zh = si.get('nom', ('Pattern, UV print', '图案，UV 打印'))
+            out.append((en, zh, si['z'] - 0.1, si['z'] + 0.1, '#C9BFAE', None))
     vus, uniques = set(), []
     for c in out:
         if c not in vus:

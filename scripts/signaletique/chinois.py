@@ -127,7 +127,7 @@ ENSEIGNES = {
         change='新品。请报价。'),
     'N4': dict(
         name='边缘发光框画',
-        construction='10 毫米象牙白亚克力板，装在 20 毫米靛蓝色铝框内；标志为 5 毫米靛蓝色亚克力平切，凸出安装。',
+        construction='10 毫米象牙白亚克力板，装在 20 毫米靛蓝色铝框内；标志为 5 毫米靛蓝色亚克力平切，凸出安装；COTONOU · BÉNIN 下方以 UV 印刷靛蓝色公司注册号（RCCM RB/COT/26 A 120676）。',
         finish='象牙白，靛蓝色。',
         lighting='边框四周 LED（边框光晕），3000K 暖白光。',
         change='新品。请报价。'),

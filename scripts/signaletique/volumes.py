@@ -103,9 +103,11 @@ RECETTES = {
     # Disque de 4 mm imprimé des deux côtés, jonc indigo, potence en fer forgé de 650 mm.
     'N3': dict(montage='potence', centre=2.5, bras=650, support=dict(el=None, ep=4, matiere='alu-indigo', face='impression', double=True, rebord='indigo'),
                pieces=[], vues=['jour', 'situation']),
-    # Panneau ivoire de 10 mm dans un cadre indigo de 20 mm ; logo et texte en acrylique indigo de 5 mm ; LED du pourtour.
+    # Panneau ivoire de 10 mm dans un cadre indigo de 20 mm ; logo et texte en acrylique indigo de 5 mm ; LED du pourtour ;
+    # le RCCM imprimé UV sur la face.
     'N4': dict(montage='mur', centre=1.6, support=dict(el=0, ep=20, matiere='acrylique-ivoire', face='plein', lum='contour'),
                pieces=[_p(1, 'alu-indigo', 24, 0, trait=True), _p([2, 3], 'acrylique-indigo', 5, 20)],
+               surimpressions=[dict(el=[4], z=20.1, nom=('RCCM number, UV print', 'RCCM 注册号，UV 打印'))],
                vues=['jour', 'nuit', 'situation']),
     # Bandeau indigo de 4 mm ; verrou couché en acrylique ivoire de 15 mm, sur goujons de 10 mm.
     'N5': dict(montage='mur', centre=3.3, support=dict(el=0, ep=4, matiere='alu-indigo', face='plein'),
