@@ -31,6 +31,11 @@ au-dessus, à sa demande) et
 sortir, le geste qui fait revenir). « Ici, c'est toi qui dis oui » passe sur
 cuivre, comme elle l'a choisi.
 
+Puis : « Je ne garde pas celui du cauris, remplace avec un thème sur une
+coiffure », avec ses mots sur la page : « Quelle coiffure aujourd'hui ? » (le
+styling de sortie au choix du catalogue). Et « Fais-en un sur le soin DÀNDÀN » :
+« Hydratation, brillance, le soin DÀNDÀN », à la place de « À la prochaine lune ».
+
 Le QR du pourboire (« 909099@momopay », par analogie avec l'ancien QR lu sur le
 document MTN) n'a jamais été scanné : il s'éprouve avec l'application MoMo
 avant l'impression (voir src/shared/momopay-de-la-maison-pur.ts).
@@ -171,20 +176,23 @@ def racines(cx, cy):
 # « Tu » pour l'enfant, comme le Club ; un cauris à chaque visite, et c'est
 # l'enfant qui dit oui lui-même (voir le programme MND Kids).
 
-def _cauris(cx, cy, fond, coquille):
-    """Le cauris du Club : une coquille, sa fente et ses dents. Un dessin, pas le logo."""
-    out = [f'<ellipse cx="{cx}" cy="{cy}" rx="11" ry="15" fill="{coquille}"/>',
-           f'<path d="M{cx} {cy - 11} C{cx + 2.6} {cy - 4} {cx + 2.6} {cy + 4} {cx} {cy + 11}" fill="none" stroke="{fond}" stroke-width="1.6" stroke-linecap="round"/>']
-    for t in (-7, -3.5, 0, 3.5, 7):
-        out.append(f'<path d="M{cx - 4.2} {cy + t} H{cx - 1.4} M{cx + 1.9} {cy + t} H{cx + 4.6}" stroke="{fond}" stroke-width="1" stroke-linecap="round"/>')
-    return f'<g>{"".join(out)}</g>'
+def coiffure_du_jour(cx, cy):
+    """« Quelle coiffure aujourd'hui ? » (ses mots) : le styling de sortie au choix du SÍNSIN, chignon, demi-attache ou détaché structuré."""
+    return [_picto(cx, cy - 70, 30, V),
+            _ligne('Quelle coiffure', 'cormorant', 30, cx, cy - 12, V, 156),
+            _ligne('aujourd’hui ?', 'cormorant-italique', 26, cx, cy + 18, V, 150),
+            _ligne('CHIGNON · DEMI-ATTACHE · DÉTACHÉ', 'jost', 7.5, cx, cy + 44, V, 140, 500, 0.14),
+            _ligne('À LA SORTIE, AU CHOIX', 'jost', 7.5, cx, cy + 58, V, 120, 500, 0.2)]
 
 
-def kids_cauris(cx, cy):
-    return [_cauris(cx, cy - 56, C, V),
-            _ligne('Un cauris', 'cormorant', 32, cx, cy + 8, V, 150),
-            _ligne('à chaque visite.', 'cormorant-italique', 22, cx, cy + 34, V, 150),
-            _ligne('TON COLLIER GRANDIT AVEC TOI', 'jost', 8, cx, cy + 56, V, 132, 500, 0.16)]
+def dandan(cx, cy):
+    """« Hydratation, brillance, le soin DÀNDÀN » (ses mots) ; « aux sept huiles » vient du journal de la Maison."""
+    return [medaillon(cx, cy - 66, 26, C),
+            _ligne('Hydratation', 'cormorant', 30, cx, cy - 22, V, 156),
+            _ligne('Brillance', 'cormorant', 30, cx, cy + 10, V, 156),
+            f'<rect x="{cx - 16}" y="{cy + 24}" width="32" height="1.1" fill="{C}"/>',
+            _ligne('LE SOIN DÀNDÀN™', 'jost', 10, cx, cy + 44, C, 140, 500, 0.2),
+            _ligne('AUX SEPT HUILES', 'jost', 7.5, cx, cy + 58, V, 120, 500, 0.2)]
 
 
 def kids_oui(cx, cy):
@@ -195,13 +203,6 @@ def kids_oui(cx, cy):
 
 
 # ══ CE QUI FAIT REVENIR ═════════════════════════════════════════════════
-
-def retour_lune(cx, cy):
-    return [medaillon(cx, cy - 58, 28, C),
-            _ligne('À la prochaine', 'cormorant-italique', 24, cx, cy - 8, V, 150),
-            _ligne('lune.', 'cormorant', 40, cx, cy + 30, C, 150),
-            _ligne('VOTRE COURONNE VOUS ATTEND', 'jost', 8.5, cx, cy + 54, V, 132, 500, 0.18)]
-
 
 def retour_rituel(cx, cy):
     return [medaillon(cx, cy - 62, 26, C),
@@ -242,10 +243,10 @@ AUTOCOLLANTS = [
     ('shampoing', 'Shampoo: breathe', P, respirez),
     ('bien-etre', 'Wellness: drink water', I, buvez),
     ('formule', 'Home mist: everyday', V, brume_quotidien),
-    ('retour', 'Come back: next moon', I, retour_lune),
+    ('soin', 'DÀNDÀN care', I, dandan),
     ('shampoing', 'Shampoo: let the water work', A, laissez_l_eau),
     ('qr', 'Review QR (Google)', S, avis),
-    ('kids', 'MND Kids: a cowrie per visit', C, kids_cauris),
+    ('coiffure', 'Hairstyle of the day', C, coiffure_du_jour),
     ('formule', 'Home mist: harmattan', A, brume_harmattan),
     ('qr', 'Tip QR (MoMoPay 909099)', C, pourboire_qr),
     ('slogan', 'Motto in French', I, devise_fr),
