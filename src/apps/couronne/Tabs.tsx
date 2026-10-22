@@ -65,6 +65,7 @@ import { DateEnClair } from '../../ds/dates';
 import { useTheme } from './theme';
 import { t, locale, langue, useLangue, changeLaLangue, anglaisPropose, prix, motsDeDate } from './i18n';
 import { SonCollier } from './SonCollier';
+import { BoutiqueGamme, estCommandeBoutique } from './Boutique';
 
 /* Les cinq onglets de Ma Couronne + le panneau de notifications. */
 
@@ -331,17 +332,23 @@ function useClientDevis(): Invoice[] {
   );
 }
 
-/** Commandes de la cliente — tous ses devis transmis (produits & prestations). */
+/** Commandes de la cliente — tous ses devis transmis (produits & prestations).
+    Une commande de la Boutique peut aussi porter l'identifiant de son COMPTE
+    (le serveur la rattache par le jeton, 22 octobre 2026) : elle compte aussi.
+    Une pièce de la Boutique reste dans la liste une fois réglée et convertie. */
 function useClientOrders(): Invoice[] {
   const [invoices] = useInvoices();
   const clientId = useClientId();
+  const { session } = useAuth();
+  const compte = session?.user?.id ?? '';
   return useMemo(
     () =>
       invoices
-        .filter((i) => i.clientId === clientId && i.kind === 'devis' && i.status !== 'brouillon')
+        .filter((i) => (i.clientId === clientId || (!!compte && i.clientId === compte))
+          && (i.kind === 'devis' || estCommandeBoutique(i)) && i.status !== 'brouillon')
         .slice()
         .sort((a, b) => b.date.localeCompare(a.date) || b.id.localeCompare(a.id)),
-    [invoices, clientId]
+    [invoices, clientId, compte]
   );
 }
 
@@ -420,7 +427,8 @@ export function HomeTab({
   onOpenNotif: () => void;
   /** Sans identifiant : la liste. Avec : la fiche de CE rendez-vous (7 octobre 2026). */
   onOpenRdv: (id?: string) => void;
-  goGamme: () => void;
+  /** Absente quand la Boutique est fermée (date d'ouverture, 22 octobre 2026). */
+  goGamme?: () => void;
   toast: (m: string) => void;
   /** La carte de marraine (28 septembre 2026). */
   onOpenCarte?: () => void;
@@ -927,7 +935,7 @@ export function HomeTab({
                   {productMeta(chosenReco.id).line} · {prix(chosenReco.priceXof, currency)}
                 </div>
               </div>
-              <button className="mc-arrowbtn" aria-label={t('Voir la gamme')} onClick={goGamme}>→</button>
+              {goGamme && <button className="mc-arrowbtn" aria-label={t('Voir la gamme')} onClick={goGamme}>→</button>}
             </div>
           </>
         ) : null}
@@ -1094,7 +1102,7 @@ export function HomeEnfant({ enfant, onOpenBooking, onRevenir, onOpenRdv, abonne
 
 /* ================= SUIVI ================= */
 
-export function SuiviTab({ regard, onOpenBooking, onOpenRdv, onOpenOrders, goGamme }: { regard?: Client; onOpenBooking: OpenBooking; onOpenRdv: (id?: string) => void; onOpenOrders: () => void; goGamme: () => void }) {
+export function SuiviTab({ regard, onOpenBooking, onOpenRdv, onOpenOrders, goGamme }: { regard?: Client; onOpenBooking: OpenBooking; onOpenRdv: (id?: string) => void; onOpenOrders: () => void; goGamme?: () => void }) {
   const [services] = useServices();
   const moi = useClient();
   /* LE SUIVI SUIT LE REGARD : la tête choisie au sélecteur de l'accueil.
@@ -1271,7 +1279,7 @@ export function SuiviTab({ regard, onOpenBooking, onOpenRdv, onOpenOrders, goGam
               <div className="mc-recocard__name">{reco.name}</div>
               <div className="mc-recocard__line">{productMeta(reco.id).line} · {prix(reco.priceXof, currency)}</div>
             </div>
-            <button className="mc-arrowbtn" aria-label={t('Voir la gamme')} onClick={goGamme}>→</button>
+            {goGamme && <button className="mc-arrowbtn" aria-label={t('Voir la gamme')} onClick={goGamme}>→</button>}
           </div>
         </>
       )}
@@ -1443,384 +1451,11 @@ export function SuiviTab({ regard, onOpenBooking, onOpenRdv, onOpenOrders, goGam
 
 /* ================= GAMME ================= */
 
+/* LA GAMME EST DEVENUE LA BOUTIQUE — 22 octobre 2026 : les articles à fiche,
+   par rayon, commandés par le serveur. Tout vit dans Boutique.tsx. */
 export function GammeTab({ toast, onOpenOrders }: { toast: (m: string) => void; onOpenOrders: () => void }) {
-  const { branch, currency } = useBranch();
-  const { products } = useVisibleCatalog();
-  const client = useClient();
-  const clientId = useClientId();
   const orders = useClientOrders();
-
-  /* Panier réel : id produit → quantité. */
-  const [cart, setCart] = useState<Record<string, number>>({});
-  const [basketOpen, setBasketOpen] = useState(false);
-  /* Remise : retrait en maison (offert) ou livraison à domicile (frais + adresse). */
-  const [mode, setMode] = useState<'retrait' | 'livraison'>('retrait');
-  const [address, setAddress] = useState(client?.city ? `${client.city}, ` : '');
-  /* Position GPS partagée par la cliente — un point précis pour le livreur. */
-  const [geo, setGeo] = useState<{ lat: number; lng: number } | null>(null);
-  const [geoBusy, setGeoBusy] = useState(false);
-  const mapsLink = geo ? `https://maps.google.com/?q=${geo.lat},${geo.lng}` : '';
-
-  const shareLocation = () => {
-    if (typeof navigator === 'undefined' || !('geolocation' in navigator)) {
-      toast(t('La géolocalisation n’est pas disponible sur cet appareil.'));
-      return;
-    }
-    setGeoBusy(true);
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        setGeo({
-          lat: Number(pos.coords.latitude.toFixed(6)),
-          lng: Number(pos.coords.longitude.toFixed(6)),
-        });
-        setGeoBusy(false);
-        toast(t('Position partagée, la maison vous trouvera facilement.'));
-      },
-      (err) => {
-        setGeoBusy(false);
-        toast(
-          err.code === err.PERMISSION_DENIED
-            ? t('Autorisez la localisation pour partager votre position.')
-            : t('Impossible d’obtenir votre position. Réessayez.'),
-        );
-      },
-      { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 },
-    );
-  };
-  /* État après-commande : le récapitulatif reste affiché, le suivi à un geste. */
-  const [orderDone, setOrderDone] = useState<
-    { number: string; totalXof: number; mode: 'retrait' | 'livraison' } | null
-  >(null);
-
-  const add = (id: string) => setCart((c) => ({ ...c, [id]: (c[id] ?? 0) + 1 }));
-  const dec = (id: string) =>
-    setCart((c) => {
-      const q = (c[id] ?? 0) - 1;
-      const next = { ...c };
-      if (q <= 0) delete next[id];
-      else next[id] = q;
-      return next;
-    });
-  const drop = (id: string) =>
-    setCart((c) => {
-      const next = { ...c };
-      delete next[id];
-      return next;
-    });
-
-  const items = products.filter((p) => (cart[p.id] ?? 0) > 0).map((p) => ({ p, qty: cart[p.id] }));
-  const count = items.reduce((n, it) => n + it.qty, 0);
-  const subtotal = items.reduce((n, it) => n + it.p.priceXof * it.qty, 0);
-  /* Frais de livraison — pilotés par le Trône (Paramètres) ; 0 = offert. */
-  const fee = deliveryFee();
-  const deliveryCost = mode === 'livraison' ? fee : 0;
-  const total = subtotal + deliveryCost;
-  /* La livraison exige un repère : une adresse saisie OU une position GPS partagée. */
-  const addressMissing = mode === 'livraison' && !address.trim() && !geo;
-
-  /* Commander : un vrai devis produit adressé à la maison (Trône · Factures/devis).
-     La livraison ajoute sa propre ligne au devis ; l'adresse voyage dans la note. */
-  const checkout = () => {
-    if (items.length === 0 || addressMissing) return;
-    const year = new Date().getFullYear();
-    const rand = Math.floor(1000 + Math.random() * 9000);
-    const productLines: InvoiceLine[] = items.map((it) => ({
-      id: uid(),
-      label: it.p.name,
-      qty: it.qty,
-      unitXof: it.p.priceXof,
-      discountPct: 0,
-    }));
-    if (mode === 'livraison') {
-      productLines.push({ id: uid(), label: 'Livraison à domicile', qty: 1, unitXof: fee, discountPct: 0 });
-    }
-    const note =
-      mode === 'livraison'
-        ? [
-            `Livraison à domicile${address.trim() ? `, ${address.trim()}` : ''}`,
-            mapsLink ? `Position GPS : ${mapsLink}` : '',
-          ]
-            .filter(Boolean)
-            .join('\n')
-        : 'Retrait en maison';
-    const inv: Invoice = {
-      id: uid(),
-      branchId: branch.id,
-      kind: 'devis',
-      number: `CMD-${year}-${rand}`,
-      clientId,
-      date: todayIso(),
-      lines: productLines,
-      globalDiscountPct: 0,
-      theme: 'Souffle',
-      status: 'envoyée',
-      clientName: client?.name,
-      note,
-    };
-    const confirmed = prix(total, currency);
-    invoicesStore.set((prev) => [...prev, inv]);
-    /* La position GPS partagée se dépose aussi sur la fiche cliente — le Trône
-       propose alors un itinéraire direct depuis le CRM. */
-    if (geo) clientsStore.set((prev) => prev.map((c) => (c.id === clientId ? { ...c, geo } : c)));
-    setCart({});
-    setGeo(null);
-    setOrderDone({ number: inv.number, totalXof: total, mode });
-    toast(t('Commande transmise à la maison, {montant}', { montant: confirmed }));
-  };
-
-  const closeBasket = () => {
-    setBasketOpen(false);
-    setOrderDone(null);
-  };
-
-  return (
-    <div className="mc-pagepad mc-pagepad--top mc-fade mc-page--wide">
-      <div className="mc-micro-eyebrow">{t('La Gamme · Care & Store')}</div>
-      <h1 className="mc-serif-title" style={{ margin: '6px 0 4px' }}>{t('Votre rituel.')}</h1>
-      <p className="mc-lead" style={{ margin: '0 0 18px' }}>
-        {t('Formules naturelles, moringa, karité, niaouli. Sans silicone ni paraben.')}
-      </p>
-
-      {/* Suivre ses commandes — visible dès qu'une commande existe. */}
-      {orders.length > 0 && (
-        <button className="mc-orderslink" onClick={onOpenOrders}>
-          <span>{t('Mes commandes · {n}', { n: orders.length })}</span>
-          <span className="mc-orderslink__arrow" aria-hidden="true">→</span>
-        </button>
-      )}
-
-      <div className="mc-stack mc-productgrid" style={{ gap: 12 }}>
-        {products.map((p) => {
-          const meta = productMeta(p.id);
-          const qty = cart[p.id] ?? 0;
-          return (
-            <div key={p.id} className="mc-productcard">
-              <div className="mc-productvisual mc-productvisual--tall"><img src={asset("/assets/monograms/mono-copper.png")} alt="" /></div>
-              <div className="mc-productcard__body">
-                <div className="mc-micro-eyebrow" style={{ fontSize: 9.5 }}>{meta.tag}</div>
-                <div className="mc-productcard__name">{p.name}</div>
-                <div className="mc-productcard__line">{meta.line}</div>
-                {p.stock > 0 && p.stock <= 8 && <div className="mc-productcard__scarce">{t('Dernières pièces, {n} en maison', { n: p.stock })}</div>}
-              </div>
-              <div className="mc-productcard__side">
-                <span className="mc-productcard__price">{prix(p.priceXof, currency)}</span>
-                {qty > 0 ? (
-                  <div className="mc-qtystep">
-                    <button aria-label={t('Retirer {nom}', { nom: p.name })} onClick={() => dec(p.id)}>−</button>
-                    <span>{qty}</span>
-                    <button aria-label={t('Ajouter {nom}', { nom: p.name })} onClick={() => add(p.id)}>+</button>
-                  </div>
-                ) : (
-                  <button className="mc-plusbtn" aria-label={t('Ajouter {nom}', { nom: p.name })} onClick={() => add(p.id)}>+</button>
-                )}
-              </div>
-            </div>
-          );
-        })}
-        {products.length === 0 && (
-          <div className="mc-emptyzone">
-            <div className="mc-emptyzone__glyph">⬡</div>
-            <div className="mc-emptyzone__t">{t('La gamme se prépare.')}</div>
-            <div className="mc-emptyzone__s">
-              {t('Nos formules naturelles seront bientôt disponibles ici. La maison vous les présentera une à une.')}
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Barre panier — synthèse vivante, visible depuis la Gamme. */}
-      {count > 0 && (
-        <div className="mc-basketbar">
-          <div className="mc-basketbar__info">
-            <span className="mc-basketbar__count">{count > 1 ? t('{n} articles', { n: count }) : t('{n} article', { n: count })}</span>
-            <span className="mc-basketbar__total">{prix(total, currency)}</span>
-          </div>
-          <button className="mc-cta mc-cta--copper mc-basketbar__cta" onClick={() => setBasketOpen(true)}>
-            {t('Voir le panier')}
-          </button>
-        </div>
-      )}
-
-      <div style={{ height: 70 }} />
-
-      {/* Vue panier — liste, quantités, total, commander. */}
-      {basketOpen && (
-        <div className="mc-overlayscreen mc-slide" style={{ zIndex: 42 }}>
-          <div className="mc-flowhead mc-flowhead--split">
-            <div>
-              <div className="mc-micro-eyebrow">{orderDone ? t('Commande transmise') : t('Votre panier')}</div>
-              <h1 className="mc-flowhead__h1" style={{ marginTop: 4 }}>
-                {orderDone ? t('C’est transmis.') : t('Le panier.')}
-              </h1>
-            </div>
-            <button className="mc-x" aria-label={t('Fermer')} onClick={closeBasket}>✕</button>
-          </div>
-          <div className="mc-scroll" style={{ flex: 1, padding: '18px 24px calc(24px + env(safe-area-inset-bottom))' }}>
-            {orderDone ? (
-              <div className="mc-confirm mc-rise" style={{ paddingTop: 26 }}>
-                <div className="mc-confirm__seal"><img src={asset("/assets/monograms/mono-copper.png")} alt="" /></div>
-                <h2>{t('Commande transmise.')}</h2>
-                <p>
-                  {t('La maison la reçoit à l’instant et vous confirme sur WhatsApp. Suivez son état à tout moment dans « Mes commandes ».')}
-                </p>
-                <div className="mc-recapcard" style={{ textAlign: 'left', width: '100%' }}>
-                  <div className="mc-recapcard__line"><span>{t('Commande')}</span><span>{orderDone.number}</span></div>
-                  <div className="mc-recapcard__line"><span>{t('Statut')}</span><span>{t('Reçue par la maison')}</span></div>
-                  <div className="mc-recapcard__line">
-                    <span>{t('Remise')}</span>
-                    <span>{orderDone.mode === 'livraison' ? t('Livraison à domicile') : t('Retrait en maison')}</span>
-                  </div>
-                  <div className="mc-hairline" />
-                  <div className="mc-recapcard__total">
-                    <span>{t('Total')}</span>
-                    <span>{prix(orderDone.totalXof, currency)}</span>
-                  </div>
-                  <div className="mc-recapcard__meta">
-                    {orderDone.mode === 'livraison' ? t('Réglée à la livraison.') : t('Réglée au retrait en maison.')}
-                  </div>
-                </div>
-                <button
-                  className="mc-cta mc-cta--indigo"
-                  style={{ marginTop: 20 }}
-                  onClick={() => { closeBasket(); onOpenOrders(); }}
-                >
-                  {t('Suivre mes commandes')}
-                </button>
-                <button className="mc-quietbtn" onClick={closeBasket}>{t('Revenir à la gamme')}</button>
-              </div>
-            ) : items.length === 0 ? (
-              <div className="mc-emptyzone">
-                <div className="mc-emptyzone__glyph">⬡</div>
-                <div className="mc-emptyzone__t">{t('Votre panier est vide.')}</div>
-                <div className="mc-emptyzone__s">
-                  {t('Ajoutez une formule de la gamme pour composer votre commande.')}
-                </div>
-                <button className="mc-cta mc-cta--outline" style={{ marginTop: 22 }} onClick={closeBasket}>
-                  {t('Revenir à la gamme')}
-                </button>
-              </div>
-            ) : (
-              <>
-                <div className="mc-stack" style={{ gap: 10 }}>
-                  {items.map((it) => (
-                    <div key={it.p.id} className="mc-basketrow">
-                      <div className="mc-basketrow__body">
-                        <div className="mc-basketrow__name">{it.p.name}</div>
-                        <div className="mc-basketrow__unit">{t('{prix} l’unité', { prix: prix(it.p.priceXof, currency) })}</div>
-                      </div>
-                      <div className="mc-qtystep">
-                        <button aria-label={t('Retirer {nom}', { nom: it.p.name })} onClick={() => dec(it.p.id)}>−</button>
-                        <span>{it.qty}</span>
-                        <button aria-label={t('Ajouter {nom}', { nom: it.p.name })} onClick={() => add(it.p.id)}>+</button>
-                      </div>
-                      <div className="mc-basketrow__total">{prix(it.p.priceXof * it.qty, currency)}</div>
-                      <button className="mc-basketrow__x" aria-label={t('Retirer {nom} du panier', { nom: it.p.name })} onClick={() => drop(it.p.id)}>✕</button>
-                    </div>
-                  ))}
-                </div>
-                {/* Remise — retrait en maison (offert) ou livraison à domicile. */}
-                <div className="mc-deliver" style={{ marginTop: 18 }}>
-                  <div className="mc-micro-eyebrow">{t('Comment la recevoir')}</div>
-                  <div className="mc-deliver__opts">
-                    <button
-                      type="button"
-                      className={`mc-deliver__opt ${mode === 'retrait' ? 'is-active' : ''}`}
-                      onClick={() => setMode('retrait')}
-                    >
-                      <span className="mc-deliver__name">{t('Retrait en maison')}</span>
-                      <span className="mc-deliver__price">{t('Offert')}</span>
-                    </button>
-                    <button
-                      type="button"
-                      className={`mc-deliver__opt ${mode === 'livraison' ? 'is-active' : ''}`}
-                      onClick={() => setMode('livraison')}
-                    >
-                      <span className="mc-deliver__name">{t('Livraison à domicile')}</span>
-                      <span className="mc-deliver__price">{fee > 0 ? prix(fee, currency) : t('Offert')}</span>
-                    </button>
-                  </div>
-                  {mode === 'livraison' && (
-                    <>
-                      <label className="mc-deliver__addr">
-                        <span className="mc-deliver__addrlabel">{t('Adresse de livraison')}</span>
-                        <textarea
-                          className="mc-deliver__addrinput"
-                          value={address}
-                          onChange={(e) => setAddress(e.target.value)}
-                          placeholder={t('Quartier, rue, repère… et un numéro à joindre.')}
-                          rows={2}
-                        />
-                      </label>
-                      <div className="mc-geo">
-                        <button
-                          type="button"
-                          className={`mc-geo__btn ${geo ? 'is-set' : ''}`}
-                          onClick={shareLocation}
-                          disabled={geoBusy}
-                        >
-                          <MapPin size={15} strokeWidth={1.75} />
-                          {geoBusy
-                            ? t('Localisation en cours…')
-                            : geo
-                              ? t('Actualiser ma position')
-                              : t('Partager ma position GPS')}
-                        </button>
-                        {geo && (
-                          <a
-                            className="mc-geo__link"
-                            href={mapsLink}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                          >
-                            {t('Position enregistrée · voir sur la carte')}
-                          </a>
-                        )}
-                        {!geo && (
-                          <span className="mc-geo__hint">
-                            {t('Un point précis pour que le livreur vous trouve sans hésiter.')}
-                          </span>
-                        )}
-                      </div>
-                    </>
-                  )}
-                </div>
-
-                <div className="mc-recapcard" style={{ marginTop: 16 }}>
-                  <div className="mc-recapcard__line">
-                    <span>{count > 1 ? t('Sous-total · {n} articles', { n: count }) : t('Sous-total · {n} article', { n: count })}</span>
-                    <span>{prix(subtotal, currency)}</span>
-                  </div>
-                  <div className="mc-recapcard__line">
-                    <span>{t('Livraison')}</span>
-                    <span>{mode === 'livraison' ? (deliveryCost > 0 ? prix(deliveryCost, currency) : t('Offerte')) : t('Retrait, offert')}</span>
-                  </div>
-                  <div className="mc-hairline" />
-                  <div className="mc-recapcard__total"><span>{t('Total')}</span><span>{prix(total, currency)}</span></div>
-                  <div className="mc-recapcard__meta">
-                    {mode === 'livraison' ? t('Réglée à la livraison.') : t('Réglée au retrait en maison.')}
-                  </div>
-                </div>
-                <button
-                  className="mc-cta mc-cta--copper"
-                  style={{ marginTop: 18 }}
-                  onClick={checkout}
-                  disabled={addressMissing}
-                >
-                  {t('Commander · {prix}', { prix: prix(total, currency) })}
-                </button>
-                {addressMissing && (
-                  <div className="mc-footnote" style={{ color: 'var(--mc-copper, #b97a4a)' }}>
-                    {t('Indiquez l’adresse de livraison pour transmettre la commande.')}
-                  </div>
-                )}
-                <div className="mc-footnote">{t('La maison confirmera votre commande sur WhatsApp.')}</div>
-              </>
-            )}
-          </div>
-        </div>
-      )}
-    </div>
-  );
+  return <BoutiqueGamme toast={toast} onOpenOrders={onOpenOrders} nbCommandes={orders.length} />;
 }
 
 /* ================= CERCLE ================= */
@@ -2497,6 +2132,20 @@ const ORDER_STATUS: Record<Invoice['status'], { label: string; cls: string }> = 
   'payée': { label: 'Réglée', cls: 'mc-stchip--ok' },
 };
 
+/** L'ÉTAT D'UNE COMMANDE DE LA BOUTIQUE — 22 octobre 2026 : la Maison la
+    prépare (`boutique.etat`), et le paiement en ligne se lit sur la pièce.
+    Reçue par la Maison → Réglée en ligne → Prête → Remise. Les autres devis
+    gardent leur lecture d'avant. */
+type EtatBoutique = { etat?: 'a-preparer' | 'prete' | 'remise'; paiement?: string };
+function etatDeLaCommande(o: Invoice): { label: string; cls: string } {
+  const b = (o as Invoice & { boutique?: EtatBoutique }).boutique;
+  if (!b) return ORDER_STATUS[o.status];
+  if (b.etat === 'remise') return { label: 'Remise', cls: 'mc-stchip--ok' };
+  if (b.etat === 'prete') return { label: 'Prête', cls: 'mc-stchip--info' };
+  if (o.status === 'payée') return { label: 'Réglée en ligne', cls: 'mc-stchip--ok' };
+  return { label: 'Reçue par la Maison', cls: 'mc-stchip--wait' };
+}
+
 export function MesCommandes({ onClose }: { onClose: () => void }) {
   const { currency } = useBranch();
   const orders = useClientOrders();
@@ -2522,7 +2171,7 @@ export function MesCommandes({ onClose }: { onClose: () => void }) {
             </div>
             <div className="mc-orderrow__foot">
               <span className="mc-orderrow__total">{prix(invoiceTotal(o), currency)}</span>
-              <span className={`mc-stchip ${ORDER_STATUS[o.status].cls}`}>{t(ORDER_STATUS[o.status].label)}</span>
+              {(() => { const e = etatDeLaCommande(o); return <span className={`mc-stchip ${e.cls}`}>{t(e.label)}</span>; })()}
             </div>
           </div>
         ))}

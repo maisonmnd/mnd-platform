@@ -281,6 +281,8 @@ export function buildReceipts(s: ReceiptSources): Receipt[] {
 
   /* ② Acomptes réglés EN LIGNE — la preuve est la transaction elle-même. */
   const onlineByAppt = new Set<string>();
+  const versementsBoutique = new Set<string>();
+  for (const i of s.invoices) for (const v of i.payments ?? []) if (v.id.startsWith('kkia-')) versementsBoutique.add(v.id);
   for (const p of s.online) {
     if (p.branchId !== s.branchId || p.status !== 'success') continue;
     /* UNE CARTE CADEAU RÉGLÉE EN LIGNE (`cc-…`, 2 octobre 2026) entre au
@@ -288,6 +290,13 @@ export function buildReceipts(s: ReceiptSources): Receipt[] {
        la carte et pour qui. Le paiement KkiaPay qui l'a réglée la compterait
        une seconde fois : il reste au registre des transactions, pas ici. */
     if (p.partnerId?.startsWith('cc-')) continue;
+    /* UNE COMMANDE DE LA BOUTIQUE (`cmd-…`, 22 octobre 2026) entre au
+       registre par le VERSEMENT que la fonction `boutique` pose sur sa pièce
+       (①, caisse KkiaPay). Tant que la pièce ne le porte pas (page fermée
+       trop tôt, seule la fonction de rappel l'a vu), la transaction reste
+       ici, « à rapprocher » : on ne perd jamais un franc reçu. */
+    const commandeId = p.partnerId?.startsWith('cmd-') ? p.partnerId.slice(4) : '';
+    if (commandeId && versementsBoutique.has(`kkia-${p.id}`)) continue;
     if (p.partnerId) onlineByAppt.add(p.partnerId);
     const appt = s.appointments.find((a) => a.id === p.partnerId);
     out.push({
@@ -300,7 +309,7 @@ export function buildReceipts(s: ReceiptSources): Receipt[] {
       method: `KkiaPay${p.method ? ` · ${p.method === 'CARD' ? 'carte' : 'Mobile Money'}` : ''}`,
       cashbox: 'KkiaPay',
       ref: p.id,
-      label: appt ? `Acompte · ${s.apptLabel(appt)}` : 'Acompte en ligne',
+      label: appt ? `Acompte · ${s.apptLabel(appt)}` : commandeId ? 'Commande de la Boutique, à rapprocher' : 'Acompte en ligne',
       apptId: p.partnerId,
       ...(p.at && !Number.isNaN(new Date(p.at).getTime()) ? { heure: new Date(p.at).toTimeString().slice(0, 5) } : {}),
     });

@@ -424,7 +424,9 @@ function page({ chemin, titre, description, corps, noeuds, image: og, classeBody
      dont le premier écran est indigo (main.ts la rend ivoire dès que la barre
      est pleine). */
   const couleurDuHaut = classeBody === 'accueil-plein' ? '#1E2150' : TONS[ton];
-  const nav = COMMUN.nav.map((l) => `<a href="${attr(lien(l.vers))}">${echappe(l.texte)}</a>`).join('\n      ');
+  /* Un lien qui attend son heure (la Boutique, 22 octobre 2026) est écrit
+     caché ; main.ts le révèle à l'ouverture. */
+  const nav = COMMUN.nav.map((l) => `<a href="${attr(lien(l.vers))}"${l.revele ? ` hidden data-revele="${attr(l.revele)}"` : ''}>${echappe(l.texte)}</a>`).join('\n      ');
   const suivre = comptesPublics().length
     ? `\n    <div><h3>Nous suivre</h3><ul>${comptesPublics().map((c) => `<li><a href="${attr(c.url)}" target="_blank" rel="noopener">${echappe(c.nom)}</a></li>`).join('')}</ul></div>`
     : '';
@@ -1021,6 +1023,12 @@ function ilot(nom, p) {
   }
   /* LA CARTE CADEAU se compose dans l'îlot ; sans lui, la page dit encore
      comment commander : WhatsApp, et la Maison la prépare avec vous. */
+  /* LA BOUTIQUE — 22 octobre 2026. Le repli écrit ne dit RIEN de ce qui
+     s'y vend, ni article ni prix : avant l'ouverture, l'îlot renvoie à
+     l'accueil, et une page sans script ne doit pas en dire plus. */
+  if (nom === 'boutique') {
+    return `<section class="serre"><div class="conteneur"><div data-ilot="boutique"><p class="corps">La Boutique se prépare. Si rien ne s’affiche, écrivez à la Maison sur WhatsApp.</p><p style="margin-top:12px">${bouton({ texte: 'Écrire à la Maison', vers: 'whatsapp:inconnu' }, 'btn')}</p></div></div></section>`;
+  }
   if (nom === 'offrir') {
     return `<section class="serre"><div class="conteneur"><div data-ilot="offrir"><p class="corps">La carte se compose ici : un modèle, un geste ou un montant, un prénom, un mot. Si rien ne s’affiche, écrivez-nous, la Maison la prépare avec vous.</p><p style="margin-top:12px">${bouton({ texte: 'Commander sur WhatsApp', vers: 'whatsapp:inconnu' }, 'btn btn--plein')}</p></div></div></section>`;
   }
@@ -1132,7 +1140,7 @@ function rendLibre(p, supplement = '') {
   /* DEUX ÎLOTS SE LISENT AVANT LE TEXTE, pas après : le triage, qui EST la
      page, et les trois cartes du contact, qui répondent aux questions qu'on
      vient poser. Les autres (formulaire, calendrier, offres) ferment la page. */
-  const enTete = p.ilot === 'triage' || p.ilot === 'joindre' || p.ilot === 'offrir'
+  const enTete = p.ilot === 'triage' || p.ilot === 'joindre' || p.ilot === 'offrir' || p.ilot === 'boutique'
     || p.ilot === 'parrainer' || p.ilot === 'ingredients' || p.ilot === 'engagements'
     /* La réservation et le rappel SONT la page (11 octobre 2026). */
     || p.ilot === 'reserver' || p.ilot === 'demande';
@@ -1702,7 +1710,15 @@ for (const p of PAGES) {
   if (p.jsonld === 'course') noeuds.push({ '@type': 'Course', name: p.h1, description: p.description, provider: { '@type': 'Organization', name: COMMUN.nom, '@id': `${SITE}#maison` } });
   const faqItems = p.jsonld === 'faq' ? (p.sections ?? []).filter((s) => s.type === 'faq').flatMap((s) => s.items) : [];
   if (faqItems.length) noeuds.push({ '@type': 'FAQPage', mainEntity: faqItems.map(([q, r]) => ({ '@type': 'Question', name: q, acceptedAnswer: { '@type': 'Answer', text: r } })) });
-  ecrit(p.chemin, page({ chemin: p.chemin, titre: p.titre, description: p.description, corps, noeuds, image: p.image, classeBody: p.cta ? 'a-barre-mobile' : '', ton: tonDe(p) }));
+  const html = page({ chemin: p.chemin, titre: p.titre, description: p.description, corps, noeuds, image: p.image, classeBody: p.cta ? 'a-barre-mobile' : '', ton: tonDe(p) });
+  /* HORS DES MOTEURS (la Boutique avant son ouverture, 22 octobre 2026) :
+     écrite à son adresse, mais noindex, hors du plan et de pages.json. */
+  if (p.horsDesMoteurs) {
+    ecrit(p.chemin, html.replace('<link rel="canonical"', '<meta name="robots" content="noindex" /><link rel="canonical"'));
+    console.log(`  hors des moteurs : ${p.chemin} (${p.horsDesMoteurs})`);
+    continue;
+  }
+  ecrit(p.chemin, html);
   pagesEcrites.push(p.chemin);
 }
 
@@ -1797,7 +1813,7 @@ ecrit(PLAN, page({
       <nav aria-label="Fil d’Ariane" class="conteneur"><ol class="fil"><li><a href="${BASE}">Accueil</a></li><li aria-hidden="true">·</li><li aria-current="page">Plan du site</li></ol></nav>
       <section class="page-hero page-hero--simple"><div class="conteneur"><div><h1>Plan du site</h1><p class="ligne">Toutes les pages de la Maison, rassemblées.</p></div></div></section>
       <section class="serre"><div class="conteneur"><div class="plan">
-        ${lignesDuPlan('Les parcours et la Maison', [['Accueil', '/'], ...PAGES.filter((p) => !p.enAttente).map((p) => [p.court, p.chemin]), ['Galerie', '/galerie/']])}
+        ${lignesDuPlan('Les parcours et la Maison', [['Accueil', '/'], ...PAGES.filter((p) => !p.enAttente && !p.horsDesMoteurs).map((p) => [p.court, p.chemin]), ['Galerie', '/galerie/']])}
         ${INGREDIENTS.length ? lignesDuPlan('Nos ingrédients', INGREDIENTS.map((i) => [i.nom, cheminIngredient(i)])) : ''}
         ${articles.length ? lignesDuPlan('Le Journal', articles.map((a) => [a.titre, `/journal/${a.slug}/`])) : ''}
         ${lignesDuPlan('Les mentions', [...LEGALES.map((l) => [l.court, l.chemin]), ['Plan du site', PLAN]])}

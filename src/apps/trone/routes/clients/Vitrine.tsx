@@ -25,6 +25,8 @@ import { usePlans } from '../../../../shared/abonnements';
 import { seuilCliente } from '../../../../shared/echeancier';
 import { VitrineSite, BandeDeVitrine, Pastille } from './VitrineSite';
 import { VitrineAvis } from './VitrineAvis';
+import { VitrineBoutique } from './VitrineBoutique';
+import { boutiqueOuverte } from '../../../../shared/boutique-pur';
 import { tapisDuSite } from './tapis-du-site';
 import './clients.css';
 
@@ -54,8 +56,11 @@ type Portee = 'cliente' | 'maison' | 'site';
    DNVVXdkd…, « Tout me va ») : les avis, leurs réponses, la fiche de la
    cliente. `?onglet=avis` l'ouvre d'un lien (la fiche cliente, l'alerte de
    la direction), et `&avis=<id>` y ouvre un avis. */
-type Onglet = 'site' | 'couronne' | 'comptoir' | 'avis';
-const ONGLETS: readonly Onglet[] = ['site', 'couronne', 'comptoir', 'avis'];
+/* 22 octobre 2026 : un cinquième, « La Boutique » (maquette 8dE2BEat…,
+   « construis ») : l'ouverture, les articles, les commandes. `?onglet=boutique`
+   l'ouvre depuis la cloche. */
+type Onglet = 'site' | 'couronne' | 'comptoir' | 'avis' | 'boutique';
+const ONGLETS: readonly Onglet[] = ['site', 'couronne', 'comptoir', 'avis', 'boutique'];
 
 export default function Vitrine() {
   const [params, setParams] = useSearchParams();
@@ -85,6 +90,7 @@ export default function Vitrine() {
               { value: 'couronne', label: 'Ma Couronne' },
               { value: 'comptoir', label: 'La carte du comptoir' },
               { value: 'avis', label: 'Les avis Google' },
+              { value: 'boutique', label: 'La Boutique' },
             ]}
             value={onglet}
             onChange={setOnglet}
@@ -94,6 +100,7 @@ export default function Vitrine() {
       />
       {onglet === 'site' && <VitrineSite catalogue={<CatalogueEnVitrine portees={['site']} />} versLesAvis={() => setOnglet('avis')} />}
       {onglet === 'avis' && <VitrineAvis ouvrir={params.get('avis') ?? undefined} />}
+      {onglet === 'boutique' && <VitrineBoutique />}
       {onglet === 'couronne' && <VitrineCouronne />}
       {onglet === 'comptoir' && (
         <>
@@ -952,7 +959,7 @@ const COURONNE_MODULES: { k: string; label: string; sub: string }[] = [
   { k: 'reserver', label: 'Réserver', sub: 'La prise de rendez-vous en ligne (tunnel en sept temps).' },
   { k: 'compose', label: 'Composer', sub: 'Le rituel sur-mesure (composeur).' },
   { k: 'suivi', label: 'Carnet de Suivi', sub: 'Onglet Suivi, parcours, photos, recommandation.' },
-  { k: 'gamme', label: 'La Gamme', sub: 'Onglet boutique, produits maison, commandes.' },
+  { k: 'gamme', label: 'La Gamme', sub: 'La Boutique de la Maison : articles et commandes.' },
   { k: 'cercle', label: 'Le Cercle', sub: 'Onglet fidélité, points et paliers.' },
   { k: 'offres', label: 'Offres instantanées', sub: 'Les offres du Marketing sur son accueil.' },
 ];
@@ -987,10 +994,16 @@ function CouronnePreview({ client }: { client: ReturnType<typeof useBranchClient
   const refuseesDElle = mesDemandes.filter((d) => d.statut === 'refusé');
 
   const hidden = client.hiddenModules ?? [];
+  /* LA GAMME SUIT L'OUVERTURE DE LA BOUTIQUE — 22 octobre 2026. « La boutique
+     ne sera visible que dès cet instant » (Yéman) : pour toute la Maison, la
+     Gamme n'a plus d'interrupteur, elle s'ouvre à la date posée dans l'onglet
+     La Boutique. La fiche d'une cliente peut encore la lui retirer. */
+  const boutiqueOuv = boutiqueOuverte(cfg.boutique?.ouverture, new Date());
+  const fermeParLaMaison = (k: string) => (k === 'gamme' ? !boutiqueOuv : (cfg.modulesFermes ?? []).includes(k));
   /* L'APERÇU DOIT DIRE LA VÉRITÉ : un module fermé pour toute la Maison est
      fermé chez elle aussi, même si sa fiche ne dit rien. Le même juge que
      l'application (`useModuleFerme`, couronne/lib.ts). */
-  const isOff = (k: string) => hidden.includes(k) || (cfg.modulesFermes ?? []).includes(k);
+  const isOff = (k: string) => hidden.includes(k) || fermeParLaMaison(k);
   const toggleModule = (k: string) =>
     clientsStore.set((prev) => prev.map((c) => (c.id === client.id
       ? { ...c, hiddenModules: (c.hiddenModules ?? []).includes(k) ? (c.hiddenModules ?? []).filter((x) => x !== k) : [...(c.hiddenModules ?? []), k] }
@@ -1037,7 +1050,7 @@ function CouronnePreview({ client }: { client: ReturnType<typeof useBranchClient
   ) : null);
 
   /* Ce que la Maison a fermé pour tout le monde — lu deux fois ci-dessous. */
-  const fermeMaison = (k: string) => (cfg.modulesFermes ?? []).includes(k);
+  const fermeMaison = fermeParLaMaison;
   const ouvertsMaison = COURONNE_MODULES.filter((m) => !fermeMaison(m.k)).length;
   /* Ce que SA fiche retire EN PLUS de la Maison — le seul chiffre qui la
      concerne. Compter les modules fermés par la Maison dans son total ferait
@@ -1131,6 +1144,11 @@ function CouronnePreview({ client }: { client: ReturnType<typeof useBranchClient
                     <div style={{ fontSize: 13, color: fermeMaison(m.k) ? 'var(--indigo-200)' : 'var(--color-ivoire)' }}>{m.label}</div>
                     <div style={{ fontSize: 10.5, color: 'var(--indigo-100)', marginTop: 2 }}>{m.sub}</div>
                   </div>
+                  {m.k === 'gamme' ? (
+                    <span style={{ fontSize: 10.5, color: 'var(--copper-200)', textAlign: 'right', maxWidth: 150 }}>
+                      Suit l’ouverture de la Boutique{boutiqueOuv ? ' · ouverte' : ' · fermée'}
+                    </span>
+                  ) : (
                   <button
                     className={`trc-switch ${!fermeMaison(m.k) ? 'is-on' : ''}`}
                     onClick={() => vitrineConfigStore.set((c) => {
@@ -1140,6 +1158,7 @@ function CouronnePreview({ client }: { client: ReturnType<typeof useBranchClient
                     aria-label={`Module ${m.label} pour toutes`}
                     style={{ flex: 'none' }}
                   />
+                  )}
                 </div>
               ))}
             </div>
@@ -1190,7 +1209,7 @@ function CouronnePreview({ client }: { client: ReturnType<typeof useBranchClient
                   <div style={{ minWidth: 0 }}>
                     <div style={{ fontSize: 13, color: isOff(m.k) ? 'var(--ink-soft)' : 'var(--ink)' }}>{m.label}</div>
                     <div style={{ fontSize: 11, color: 'var(--ink-soft)', marginTop: 2 }}>
-                      {parLaMaison ? 'Fermé pour toutes, voir ci-dessus' : m.sub}
+                      {parLaMaison ? (m.k === 'gamme' ? 'Fermée jusqu’à l’ouverture de la Boutique' : 'Fermé pour toutes, voir ci-dessus') : m.sub}
                     </div>
                   </div>
                   <button

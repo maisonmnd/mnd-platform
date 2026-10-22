@@ -318,7 +318,7 @@ function Shell() {
             onOpenCompose={openCompose}
             onOpenNotif={() => setNotifOpen(true)}
             onOpenRdv={openRdv}
-            goGamme={() => setEcran('gamme')}
+            goGamme={versLaGamme}
             toast={toast}
             onOpenCarte={() => (!ferme('cercle') ? setEcran('cercle') : setCarteOpen(true))}
             goFormule={visibleTabs.some((t) => t.id === 'formule') ? () => setTab('formule') : undefined}
@@ -335,7 +335,7 @@ function Shell() {
             onReserver={() => (enfant ? openBookingDirect({ pourId: enfant.id }) : openBooking())}
           />
         )}
-        {tab === 'suivi' && <SuiviTab regard={enfant} onOpenBooking={openBooking} onOpenRdv={openRdv} onOpenOrders={openOrders} goGamme={() => setEcran('gamme')} />}
+        {tab === 'suivi' && <SuiviTab regard={enfant} onOpenBooking={openBooking} onOpenRdv={openRdv} onOpenOrders={openOrders} goGamme={versLaGamme} />}
         {tab === 'formule' && (
           <MaFormuleTab
             toast={toast}
@@ -372,7 +372,7 @@ function Shell() {
       </nav>
 
       {/* LA GAMME ET LE CERCLE, posés par-dessus : ils ont quitté la barre. */}
-      {(ecran === 'gamme' || ecran === 'cercle') && (
+      {((ecran === 'gamme' && versLaGamme) || ecran === 'cercle') && (
         <div className="mc-overlayscreen mc-slide" style={{ zIndex: 41 }}>
           <div className="mc-flowhead" style={{ paddingBottom: 10 }}>
             <div className="mc-flowhead__row">

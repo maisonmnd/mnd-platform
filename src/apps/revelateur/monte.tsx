@@ -29,6 +29,8 @@ const ILOTS: Record<string, Chargeur> = {
   vocal: () => import('./ilots/MessageVocal') as unknown as ReturnType<Chargeur>,
   /* Le chat de la Maison (19 octobre 2026) : la bulle, et la page Contact. */
   chat: () => import('./ilots/ChatDuSite') as unknown as ReturnType<Chargeur>,
+  /* La Boutique de la Maison (22 octobre 2026). */
+  boutique: () => import('./ilots/Boutique') as unknown as ReturnType<Chargeur>,
 };
 
 /* MONTER UN ÎLOT À LA DEMANDE — 19 octobre 2026. La bulle « Nous joindre »

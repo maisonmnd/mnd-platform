@@ -1,0 +1,99 @@
+/* LA BOUTIQUE, AU TRÔNE — 22 octobre 2026. Les blocs de la cinquième vitrine :
+   un rayon replié porte son résumé, un seul s'ouvre, et la barre collante dit
+   ce qu'on règle tant qu'on fait défiler. Pas d'`overflow: hidden` sur un bloc
+   parent : il volerait le défilement à la barre collante. */
+.tvb-bloc {
+  background: var(--surface-card);
+  border: 1px solid var(--hairline);
+  border-radius: 4px;
+  padding: 16px 18px;
+  margin-bottom: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+.tvb-bloc--alerte { border-left: 3px solid var(--color-copper); }
+.tvb-titre { font-family: var(--font-serif); font-size: 21px; color: var(--color-indigo); line-height: 1.15; }
+.tvb-dit { font-size: 12.5px; line-height: 1.55; max-width: 72ch; }
+.tvb-pied { font-size: 12px; margin: 4px 0 24px; }
+.tvb-vide { font-size: 13px; padding: 6px 0; }
+.tvb-entete { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-end; gap: 12px; }
+.tvb-poser { flex-direction: row; flex-wrap: wrap; align-items: center; justify-content: space-between; border-left: 3px solid var(--color-copper); }
+
+/* ① L'ouverture */
+.tvb-ouverture { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px; }
+.tvb-champ { display: inline-flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--ink-soft); }
+.tvb-champ--ligne { flex-direction: row; align-items: center; gap: 8px; }
+.tvb-champ--prix { flex-direction: row; align-items: center; gap: 4px; }
+.tvb-champ--prix .mnd-input { width: 92px; text-align: right; font-variant-numeric: tabular-nums; }
+.tvb-etat { font-size: 14px; color: var(--copper-700); }
+.tvb-etat.is-ok { color: var(--trf-success, #4A6B52); }
+.tvb-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* ② Les rayons, repliés */
+.tvb-rayons { display: flex; flex-direction: column; gap: 8px; }
+.tvb-rayon { border: 1px solid var(--hairline); border-radius: 4px; background: var(--surface-card); }
+.tvb-rayon.is-open { border-color: var(--color-indigo); }
+.tvb-rayon__tete {
+  appearance: none; background: none; border: 0; width: 100%; cursor: pointer; text-align: left;
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 14px; padding: 12px 14px; color: var(--ink);
+}
+.tvb-rayon__nom { font-family: var(--font-serif); font-size: 18px; color: var(--color-indigo); }
+.tvb-rayon__resume { font-size: 12.5px; color: var(--ink-soft); flex: 1; min-width: 0; }
+.tvb-rayon__fleche { font-size: 18px; color: var(--copper-700); }
+.tvb-rayon__corps { padding: 0 14px 14px; display: flex; flex-direction: column; gap: 8px; }
+.tvb-collante {
+  position: sticky; top: env(safe-area-inset-top, 0px); z-index: 3;
+  padding: 8px 12px; background: var(--color-indigo); color: var(--color-ivoire, #F6F1E7);
+  border-radius: 4px; font-size: 11.5px; letter-spacing: .12em; text-transform: uppercase;
+}
+.tvb-tout-le-rayon { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 6px 0 4px; border-bottom: 1px solid var(--hairline); }
+.tvb-article-groupe { border-bottom: 1px solid var(--hairline); padding: 6px 0; }
+.tvb-article-groupe:last-child { border-bottom: 0; }
+.tvb-article {
+  display: grid;
+  grid-template-columns: 52px minmax(160px, 1fr) auto auto auto minmax(140px, auto);
+  align-items: center;
+  gap: 8px 14px;
+  padding: 4px 0;
+}
+.tvb-article--short { grid-template-columns: 52px minmax(160px, 1fr) auto auto auto minmax(140px, auto); padding-left: 0; }
+.tvb-article--short .tvb-article__vignette { width: 40px; height: 40px; justify-self: end; }
+.tvb-article__vignette { width: 52px; height: 52px; border-radius: 4px; background: var(--paper, #F6F1E7); display: grid; place-items: center; overflow: hidden; }
+.tvb-article__vignette img { width: 100%; height: 100%; object-fit: contain; }
+.tvb-article__nom { display: flex; flex-direction: column; min-width: 0; font-size: 14px; }
+.tvb-article__nom .mnd-muted { font-size: 11.5px; }
+.tvb-article__etat { justify-self: end; }
+.tvb-stock { display: inline-flex; align-items: center; border: 1px solid var(--hairline); border-radius: 999px; }
+.tvb-stock button { appearance: none; border: 0; background: none; width: 30px; height: 30px; font-size: 16px; cursor: pointer; color: var(--color-indigo); }
+.tvb-stock input { width: 40px; border: 0; background: none; text-align: center; font: inherit; font-variant-numeric: tabular-nums; }
+.tvb-vente { display: inline-flex; }
+
+/* ③ Les commandes, repliées aussi */
+.tvb-commandes { display: flex; flex-direction: column; gap: 8px; }
+.tvb-commande { border: 1px solid var(--hairline); border-radius: 4px; }
+.tvb-commande.is-open { border-color: var(--color-indigo); }
+.tvb-commande__tete {
+  appearance: none; background: none; border: 0; width: 100%; cursor: pointer; text-align: left; color: var(--ink);
+  display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; padding: 10px 14px;
+}
+.tvb-commande__num { font-variant-numeric: tabular-nums; font-weight: 500; color: var(--color-indigo); }
+.tvb-commande__qui { flex: 1; min-width: 160px; font-size: 14px; }
+.tvb-commande__total { font-variant-numeric: tabular-nums; }
+.tvb-commande__corps { padding: 0 14px 14px; display: flex; flex-direction: column; gap: 10px; }
+.tvb-lignes { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.tvb-lignes li { display: flex; justify-content: space-between; gap: 12px; font-size: 13.5px; border-bottom: 1px dashed var(--hairline); padding-bottom: 4px; }
+.tvb-infos { display: grid; gap: 4px; font-size: 13.5px; }
+.tvb-infos .mnd-muted { display: inline-block; min-width: 90px; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; }
+.tvb-rattacher, .tvb-gestes { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+
+/* ④ ⑤ Lignes simples */
+.tvb-orphelin { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px 12px; padding: 8px 0; border-top: 1px solid var(--hairline); font-size: 13.5px; }
+
+@media (max-width: 760px) {
+  .tvb-article, .tvb-article--short { grid-template-columns: 44px minmax(0, 1fr) auto; }
+  .tvb-article__vignette { width: 44px; height: 44px; }
+  .tvb-article__etat { grid-column: 2 / -1; justify-self: start; }
+  .tvb-champ--prix, .tvb-stock, .tvb-vente { grid-column: auto; }
+}

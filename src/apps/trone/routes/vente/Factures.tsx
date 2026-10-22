@@ -1684,7 +1684,11 @@ export default function Factures() {
                 <Button
                   variant="copper"
                   size="sm"
-                  onClick={() => patchSelected({ kind: 'facture', number: nextNumber('facture'), status: 'envoyée' })}
+                  /* UNE COMMANDE DÉJÀ RÉGLÉE EN LIGNE RESTE RÉGLÉE — 22 octobre 2026
+                     (la Boutique) : convertie, elle repassait « envoyée » avec
+                     tout son argent dessus, et la cloche la réclamait comme
+                     impayée. Le statut suit l'argent. */
+                  onClick={() => patchSelected({ kind: 'facture', number: nextNumber('facture'), status: invoiceTotal(selected) > 0 && invoiceSoldee(selected) ? 'payée' : 'envoyée' })}
                 >
                   Convertir en facture
                 </Button>

@@ -17,7 +17,14 @@ export type Besoin = 'creation' | 'reparation' | 'entretien' | 'enfant' | 'forma
     2026 : la Couronne à domicile et la Cour ont leur phrase, pas celle du
     parcours), ou `soeur:couronne` / `soeur:academie` vers une sœur sur la
     même origine. */
-export type Lien = { texte: string; vers: string };
+export type Lien = {
+  texte: string;
+  vers: string;
+  /** UN LIEN QUI ATTEND SON HEURE — 22 octobre 2026 : « La Boutique » est dans
+      le menu de chaque page, mais caché (`hidden`) ; main.ts le révèle le jour
+      où la Boutique ouvre (la date posée au Trône, lue sans compte). */
+  revele?: 'boutique';
+};
 
 export type Section =
   /** `cle: 'registre'` (10 octobre 2026) : le paragraphe qui dit le registre
@@ -104,13 +111,20 @@ export type Page = {
       adresse) est écrite ici mais n'est ni construite ni mise au plan tant
       que ce champ dit pourquoi. On l'efface le jour venu. */
   enAttente?: string;
+  /** HORS DES MOTEURS ET HORS DU PLAN — 22 octobre 2026. La page est écrite à
+      son adresse, mais `noindex`, absente du plan du site et de pages.json :
+      la Boutique ne se montre qu'à son ouverture. Le champ dit pourquoi ; on
+      l'efface à la publication qui suit l'ouverture. */
+  horsDesMoteurs?: string;
   /** Un îlot React à monter sur cette page. */
   /** `contact` est la petite carte WhatsApp de la page de réservation ;
       `joindre` les trois cartes de la page contact (écrire, trouver, venir). */
   ilot?: 'triage' | 'demande' | 'contact' | 'joindre' | 'reserver' | 'offres' | 'offrir'
     /* 28 septembre 2026 : la communauté. `engagements` et `ingredients` ne
        montent pas de React, ils se rendent à la construction. */
-    | 'parrainer' | 'testeuse' | 'engagements' | 'ingredients';
+    | 'parrainer' | 'testeuse' | 'engagements' | 'ingredients'
+    /* 22 octobre 2026 : la Boutique de la Maison. */
+    | 'boutique';
   /** LA FAMILLE DE LUMIÈRE, forcée. Sans ce champ, tons.ts la déduit : parcours
       (cta, pas, îlot d'action), offres (offres, offrir, parrainer), maison sinon. */
   ton?: Ton;

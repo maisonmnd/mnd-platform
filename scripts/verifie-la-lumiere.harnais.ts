@@ -489,7 +489,7 @@ const regles: Regle[] = [
     eprouve: (e) => {
       const ecarts: string[] = [];
       if (!/createRoot\(el\)\.render\([\s\S]*?\);[\s\S]{0,700}?el\.classList\.add\('est-monte'\)/.test(e.monteTsx)) ecarts.push('monte.tsx ne pose pas est-monte apres le rendu');
-      for (const sel of ['[data-ilot="reserver"]', '[data-ilot="offres"]', '[data-ilot="offrir"]', '[data-ilot="joindre"]', '.diag__quiz']) {
+      for (const sel of ['[data-ilot="reserver"]', '[data-ilot="offres"]', '[data-ilot="offrir"]', '[data-ilot="joindre"]', '[data-ilot="boutique"]', '.diag__quiz']) {
         const echappe = sel.replace(/[[\]"]/g, (c) => '\\' + c).replace('.', '\\.');
         const estIlot = sel.startsWith('[data-ilot');
         if (estIlot && new RegExp(`${echappe} \\{[^}]*min-height`).test(e.feuille)) ecarts.push(`${sel} : un plancher sans :not(.est-monte) survit au montage`);

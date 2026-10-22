@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   AlarmClock, Bell, CalendarClock, ClipboardList, Clock, Crown, FileCheck2, FileClock,
-  Gift, Hourglass, KeyRound, PackageSearch, Radio, UserPlus, Wallet, type LucideIcon,
+  Gift, Hourglass, KeyRound, PackageSearch, Radio, ShoppingBag, UserPlus, Wallet, type LucideIcon,
 } from 'lucide-react';
 import {
   useEngagements, useDevisRecus, useVersementsEngagement, litLesDossiers, bilanDesEngagements,
@@ -16,7 +16,9 @@ import { askNotifyPermission, notifyLocal } from '../../../shared/ics';
 import { useInvoices, invoiceTotal } from '../../../shared/finance';
 import { SEUIL_REASSORT, useProducts } from '../../../shared/catalog';
 import { useClients } from '../../../shared/clients';
-import { consultationsQueueStore } from '../../../shared/bridges';
+import { consultationsQueueStore, vitrineConfigStore } from '../../../shared/bridges';
+import { boutiqueOuverte, etatDeLArticle } from '../../../shared/boutique-pur';
+import { estDeLaBoutique } from '../../../shared/boutique-store';
 import { createStore, useStore } from '../../../shared/store';
 import { useSettings } from '../../../shared/settings';
 import { useClientSessions, isOnline } from '../../../shared/activity';
@@ -38,7 +40,8 @@ const dismissedNotifsStore = createStore<string[]>('mnd_notif_dismissed', []);
 
 type NotifKind =
   | 'consultation' | 'prospect' | 'inscription' | 'enligne'
-  | 'attente' | 'rdv' | 'imminent' | 'devis' | 'stock' | 'impaye' | 'couronne' | 'engagement' | 'paquet' | 'carte' | 'formule';
+  | 'attente' | 'rdv' | 'imminent' | 'devis' | 'stock' | 'impaye' | 'couronne' | 'engagement' | 'paquet' | 'carte' | 'formule'
+  | 'boutique';
 
 type Notif = { id: string; kind: NotifKind; label: string; meta?: string; to: string };
 
@@ -58,10 +61,11 @@ const ICONS: Record<NotifKind, LucideIcon> = {
   paquet: Hourglass,
   carte: Gift,
   formule: Crown,
+  boutique: ShoppingBag,
 };
 
 /* Événements qui déclenchent aussi une notification navigateur (les plus importants). */
-const PUSH_KINDS = new Set<NotifKind>(['consultation', 'prospect', 'inscription', 'imminent', 'couronne', 'carte']);
+const PUSH_KINDS = new Set<NotifKind>(['consultation', 'prospect', 'inscription', 'imminent', 'couronne', 'carte', 'boutique']);
 
 /* ---------- Dates ---------- */
 const pad2 = (n: number) => String(n).padStart(2, '0');
@@ -115,6 +119,7 @@ function useNotifications(): Notif[] {
   const [subscribers] = useSubscribers();
   const [plans] = usePlans();
   const [cartes] = useCartesCadeaux();
+  const [vitrineCfg] = useStore(vitrineConfigStore);
 
   /* Battement : « dans 1h » et « en ligne » doivent se rafraîchir avec le temps. */
   const [tick, setTick] = useState(0);
@@ -230,6 +235,22 @@ function useNotifications(): Notif[] {
       });
     }
 
+    // 5 ter — LES COMMANDES DE LA BOUTIQUE (22 octobre 2026) : du site ou de
+    // Ma Couronne, pas encore remises, passées depuis moins de sept jours.
+    const ilYA7Jours = Date.now() - 7 * 86400000;
+    for (const inv of invoices) {
+      if (inv.branchId !== branch.id || !estDeLaBoutique(inv)) continue;
+      const b = inv.boutique;
+      if (b.etat === 'remise' || !(Date.parse(b.creeLe ?? '') >= ilYA7Jours)) continue;
+      const who = inv.clientName ?? nameOf.get(inv.clientId) ?? 'une cliente';
+      out.push({
+        id: `boutique-${inv.id}`, kind: 'boutique',
+        label: `Commande de la Boutique · ${inv.number} · ${fmtMoney(invoiceTotal(inv), currency)}`,
+        meta: `${who} · ${b.remise === 'livraison' ? 'livraison' : 'retrait'} · ${b.etat === 'prete' ? 'prête' : 'à préparer'}`,
+        to: '/vitrine?onglet=boutique',
+      });
+    }
+
     // 6 — Devis acceptés à transformer en facture.
     for (const inv of invoices) {
       if (inv.branchId !== branch.id || inv.kind !== 'devis' || inv.status !== 'acceptée') continue;
@@ -256,8 +277,15 @@ function useNotifications(): Notif[] {
 
     // 8 — Produits en stock bas (< 10).
     if (okStock) {
+      /* LA BOUTIQUE NE SONNE QUE POUR CE QU'ELLE VEND (22 octobre 2026) :
+         73 articles posés à zéro, des « Bientôt » sans prix et des éditions
+         hors saison auraient noyé la cloche. Avant l'ouverture, rien ;
+         après, seulement un article en vente, avec un prix, dans sa saison. */
+      const boutiqueOuv = boutiqueOuverte(vitrineCfg.boutique?.ouverture, new Date());
       for (const p of products) {
         if (p.stock > SEUIL_REASSORT) continue;
+        if (p.boutique && (!boutiqueOuv || p.boutique.shortDe || p.boutique.enVente === false
+          || !(p.priceXof > 0) || etatDeLArticle({ ...p, stock: 1 }, new Date()) === 'cache')) continue;
         out.push({
           id: `stock-${p.id}`, kind: 'stock',
           label: `Stock bas, ${p.name}`,
@@ -358,7 +386,7 @@ function useNotifications(): Notif[] {
 
     return out;
   }, [appointments, invoices, products, clients, queue, sessions, branch.id, currency, okRdv, okStock, okPaie, tick,
-    engagements, devisRecus, versementsEng, subscribers, plans, cartes]);
+    engagements, devisRecus, versementsEng, subscribers, plans, cartes, vitrineCfg]);
 }
 
 /* ══ LE PASSAGE QUI ENVOIE LES FINS DE PAQUET ═══════════════════════

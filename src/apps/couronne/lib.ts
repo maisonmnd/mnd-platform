@@ -21,6 +21,7 @@ import { creneauxLibres, minutesDeHhmm as toMin, type CreneauOccupe } from '../.
 import { blocagesStore, plagesBloquees } from '../../shared/blocages';
 import { useOffers, offerLiveNow } from '../../shared/offers';
 import { t, langue } from './i18n';
+import { boutiqueOuverte } from '../../shared/boutique-pur';
 
 /* Ma Couronne — bibliothèque locale : cliente, visibilité, dates, créneaux, offres. */
 
@@ -718,14 +719,33 @@ export const moduleHidden = (
   m: CouronneModule,
 ): boolean => !!client?.hiddenModules?.includes(m);
 
+/** LA BOUTIQUE EST-ELLE OUVERTE ? — 22 octobre 2026. « La boutique ne sera
+    visible que dès cet instant » (Yéman) : une date posée au Trône, ET passée.
+    Le temps se relit chaque demi-minute : à l'heure dite, la Gamme apparaît
+    sans recharger l'application. */
+export function useBoutiqueOuverte(): boolean {
+  const [cfg] = useStore(vitrineConfigStore);
+  const [ms, setMs] = useState(() => Date.now());
+  useEffect(() => {
+    const id = window.setInterval(() => setMs(Date.now()), 30_000);
+    return () => window.clearInterval(id);
+  }, []);
+  return boutiqueOuverte(cfg.boutique?.ouverture, new Date(ms));
+}
+
 /** DEUX FERMETURES QUI S'ADDITIONNENT : celle de la Maison, pour toutes
     (`VitrineConfig.modulesFermes`), et celle de la fiche, pour elle seule.
     Aucune ne rouvre ce que l'autre a fermé — on ne rend pas à une cliente ce
-    que la Maison a fermé à tout le monde. */
+    que la Maison a fermé à tout le monde.
+
+    LA GAMME SUIT LA DATE D'OUVERTURE DE LA BOUTIQUE (22 octobre 2026) : son
+    ancien interrupteur de Maison ne compte plus pour elle, la date le
+    remplace ; la fiche peut toujours la retirer à une cliente. */
 export function useModuleFerme(): (m: CouronneModule) => boolean {
   const me = useClient();
   const [cfg] = useStore(vitrineConfigStore);
-  return (m) => (cfg.modulesFermes ?? []).includes(m) || moduleHidden(me, m);
+  const boutique = useBoutiqueOuverte();
+  return (m) => (m === 'gamme' ? !boutique : (cfg.modulesFermes ?? []).includes(m)) || moduleHidden(me, m);
 }
 
 /** La porte de l'application — au-dessus des modules. */

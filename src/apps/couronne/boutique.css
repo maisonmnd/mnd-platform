@@ -1,0 +1,150 @@
+/* ══ LA BOUTIQUE DANS MA COURONNE — 22 octobre 2026 ══════════════════════
+   Les jetons de Ma Couronne : le soir suit (--mc-encre, --mc-doux,
+   --mc-cuivre-texte changent avec le thème). L'image d'un article pose
+   toujours sur une toile de sable, de jour comme de nuit : c'est la photo du
+   produit, pas l'écran, et un flacon indigo ne se lit pas sur l'indigo.
+   D'où des couleurs FIXES sur la toile (sable, ivoire, indigo) : les jetons
+   --color-* changent la nuit, la photo, elle, ne change pas. */
+.mc-app { --bq-toile: #E9E0CE; --bq-ivoire: #F6F1E7; --bq-indigo: #1E2150; }
+.bq-puces { display: flex; flex-wrap: wrap; gap: 8px; margin: 4px 0 18px; }
+.bq-puce {
+  border: 1px solid var(--hairline);
+  background: transparent;
+  color: var(--mc-encre);
+  border-radius: 999px;
+  padding: 7px 14px;
+  min-height: 38px;
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+.bq-puce[aria-pressed='true'] { background: var(--mc-plein); color: var(--mc-sur-plein); border-color: var(--mc-plein); }
+
+.bq-rayon { display: grid; gap: 12px; margin-bottom: 26px; }
+.bq-rayon__t {
+  margin: 0;
+  font-family: var(--font-serif);
+  font-weight: 500;
+  font-size: 22px;
+  color: var(--mc-encre);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 10px;
+  border-bottom: 1px solid var(--hairline);
+  padding-bottom: 6px;
+}
+.bq-rayon__t small { font-family: inherit; font-size: 12.5px; color: var(--mc-doux); font-style: italic; }
+
+.bq-grille { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 150px), 1fr)); }
+@media (min-width: 720px) { .bq-grille { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 14px; } }
+
+.bq-carte {
+  background: var(--surface-card);
+  border: 1px solid var(--hairline);
+  border-radius: 4px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+.bq-carte__vue {
+  all: unset;
+  cursor: pointer;
+  position: relative;
+  display: block;
+  aspect-ratio: 1 / 1;
+  background: var(--bq-toile);
+}
+.bq-carte__vue:focus-visible { outline: 2px solid var(--mc-cuivre-texte); outline-offset: -3px; }
+.bq-carte__vue img { width: 100%; height: 100%; object-fit: contain; display: block; padding: 4%; box-sizing: border-box; }
+.bq-pastille {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: var(--bq-ivoire);
+  color: var(--bq-indigo);
+  border: 1px solid rgba(30, 33, 80, 0.18);
+}
+.bq-pastille--plein { background: var(--bq-indigo); color: var(--bq-ivoire); border-color: var(--bq-indigo); }
+.bq-carte__corps { padding: 10px 12px 12px; display: grid; gap: 3px; flex: 1; }
+.bq-carte__rayon { font-size: 9.5px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--mc-cuivre-texte); }
+.bq-carte__nom { margin: 0; font-family: var(--font-serif); font-weight: 500; font-size: 18px; line-height: 1.15; color: var(--mc-encre); }
+.bq-carte__format { font-size: 11.5px; color: var(--mc-doux); }
+.bq-carte__pied { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: auto; padding-top: 8px; }
+.bq-prix { font-family: var(--font-serif); font-size: 17px; color: var(--mc-encre); font-variant-numeric: tabular-nums; }
+.bq-prix--vide { font-style: italic; font-size: 14px; color: var(--mc-doux); }
+.bq-prix--grand { font-size: 24px; }
+.bq-lien {
+  background: none;
+  border: 0;
+  padding: 6px 0;
+  font: inherit;
+  font-size: 12.5px;
+  color: var(--mc-cuivre-texte);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+/* La fiche */
+.bq-scene { position: relative; background: var(--bq-toile); aspect-ratio: 1 / 1; max-height: 52vh; width: 100%; display: grid; place-items: center; }
+.bq-scene img { width: 100%; height: 100%; object-fit: contain; padding: 6%; box-sizing: border-box; }
+.bq-faces {
+  position: absolute;
+  bottom: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  background: var(--bq-ivoire);
+  border: 1px solid rgba(30, 33, 80, 0.18);
+  border-radius: 999px;
+}
+.bq-faces button { border: 0; background: none; border-radius: 999px; padding: 6px 14px; min-height: 36px; font: inherit; font-size: 13px; color: var(--bq-indigo); cursor: pointer; }
+.bq-faces button[aria-pressed='true'] { background: var(--bq-indigo); color: var(--bq-ivoire); }
+.bq-fiche { padding: 18px 24px 0; display: grid; gap: 12px; }
+.bq-fiche__sous { margin: 0; font-family: var(--font-serif); font-style: italic; font-size: 18px; color: var(--mc-doux); }
+.bq-fiche__edition { margin: -4px 0 0; font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--mc-cuivre-texte); }
+.bq-fiche__dl { margin: 0; display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 8px 14px; border-top: 1px solid var(--hairline); padding-top: 12px; }
+.bq-fiche__dl dt { font-size: 10.5px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--mc-doux); padding-top: 3px; }
+.bq-fiche__dl dd { margin: 0; color: var(--mc-encre); font-size: 14px; }
+.bq-note { margin: 0; font-size: 12.5px; color: var(--mc-doux); min-height: 1.2em; }
+.bq-ok { margin: 0; font-size: 13.5px; color: var(--mc-ok-texte); }
+.bq-choix { border: 0; margin: 0; padding: 0; }
+.bq-choix legend { padding: 0; margin-bottom: 8px; font-size: 10.5px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--mc-doux); }
+.bq-choix > div { display: flex; flex-wrap: wrap; gap: 8px; }
+.bq-taille {
+  border: 1px solid var(--hairline);
+  background: transparent;
+  color: var(--mc-encre);
+  border-radius: 4px;
+  min-width: 52px;
+  min-height: 44px;
+  padding: 6px 12px;
+  font: inherit;
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+.bq-taille[aria-pressed='true'] { background: var(--mc-plein); color: var(--mc-sur-plein); border-color: var(--mc-plein); }
+.bq-champ { display: grid; gap: 5px; }
+.bq-champ span { font-size: 12.5px; color: var(--mc-doux); }
+.bq-champ input {
+  border: 1px solid var(--hairline);
+  background: var(--surface-card);
+  color: var(--mc-encre);
+  border-radius: 4px;
+  padding: 11px 12px;
+  font: inherit;
+  font-size: 15px;
+}
+.bq-champ small { font-size: 11.5px; color: var(--mc-doux); }
+.bq-achat { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; padding-top: 4px; }
+.bq-achat__btn { width: auto; flex: 0 1 auto; min-width: 180px; margin: 0; }
+.bq-prevenir { display: grid; gap: 10px; }
+.bq-mini { width: 48px; height: 48px; border-radius: 4px; background: var(--bq-toile); object-fit: contain; flex: 0 0 auto; }

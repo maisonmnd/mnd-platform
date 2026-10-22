@@ -45,6 +45,19 @@ function marqueLaPageCourante() {
 
 compte();
 marqueLaPageCourante();
+/* LA BOUTIQUE SE RÉVÈLE À SON OUVERTURE — 22 octobre 2026. « La boutique ne
+   sera visible que dès cet instant » (Yéman) : son lien est écrit caché dans
+   le menu, et se montre quand la date posée au Trône est passée. Lu quand le
+   navigateur souffle, jamais avant le premier écran. */
+const liensQuiAttendent = document.querySelectorAll<HTMLAnchorElement>('a[data-revele="boutique"]');
+if (liensQuiAttendent.length) {
+  const revele = () => {
+    void import('./boutique-ouverte').then((m) => m.boutiqueEstOuverte())
+      .then((ouverte) => { if (ouverte) liensQuiAttendent.forEach((a) => { a.hidden = false; }); })
+      .catch(() => { /* fermée ou injoignable : le lien reste caché */ });
+  };
+  if ('requestIdleCallback' in window) requestIdleCallback(revele, { timeout: 3000 }); else setTimeout(revele, 1500);
+}
 /* REACT PART D'ABORD, ET LA PAGE DE RÉSERVATION LE SAIT — 11 octobre 2026
    (vitesse) : sur cette page, la bibliothèque Supabase (210 Ko) et l'agenda
    attendent que React soit là, pour que le calendrier paraisse avant. */

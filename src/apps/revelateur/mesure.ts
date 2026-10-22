@@ -24,6 +24,12 @@ export type Evenement =
   | 'cadeau_regle'
   /* Le message vocal laissé sur le site (19 octobre 2026). */
   | 'vocal_depose'
+  /* La Boutique (22 octobre 2026) : une commande écrite, la fenêtre de
+     paiement ouverte, la commande réglée, un « Me prévenir ». */
+  | 'boutique_commande'
+  | 'boutique_paiement_ouvert'
+  | 'boutique_reglee'
+  | 'boutique_prevenir'
   /* Le chat de la Maison (19 octobre 2026) : une discussion ouverte, un message écrit. */
   | 'chat_ouvert'
   | 'chat_message';

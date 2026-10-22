@@ -96,6 +96,10 @@ export const COMMUN: Commun = {
     { texte: 'Diagnostic', vers: '/mon-parcours/' },
     { texte: 'Services', vers: '/#portes' },
     { texte: 'Offrir', vers: '/offrir/' },
+    /* LA BOUTIQUE — 22 octobre 2026. Écrite dans le menu de chaque page mais
+       cachée : main.ts la révèle le jour où la Boutique ouvre, à la date
+       posée au Trône (Les vitrines). Avant, personne ne la voit. */
+    { texte: 'La Boutique', vers: '/boutique/', revele: 'boutique' },
     /* LA CINQUIEME ENTREE — 18 septembre 2026, demandée par Yéman. Placée
        après Services, là où l'œil se pose, sans déplacer « Mon parcours »
        qui reste la porte d'entrée du site. Sous 860 pixels la barre cache
@@ -1471,6 +1475,26 @@ export const PAGES: Page[] = [
     ],
     jsonld: 'aucun',
     court: 'Les offres',
+  },
+  /* LA BOUTIQUE DE LA MAISON — 22 octobre 2026, maquette validée
+     (https://claude.ai/artifact/8dE2BEatDd94pn2CfWZRaP). La page porte un
+     îlot et rien d'autre : les articles, leurs prix et leur stock se lisent à
+     l'exécution, dans le catalogue du Trône. Avant l'ouverture, l'îlot renvoie
+     à l'accueil ; le texte écrit ici ne dit donc rien de ce qui s'y vend. */
+  {
+    chemin: '/boutique/',
+    titre: 'La Boutique · Maison MND',
+    description: 'Retrouvez les soins que la Maison MND met sur les locks, et ses t-shirts : à retirer à la Maison, ou livrés dans Cotonou.',
+    h1: 'La Boutique',
+    sur: 'Maison MND',
+    ligne: 'Ce que la Maison met sur les têtes, et ce qu’elle porte.',
+    court: 'La Boutique',
+    ilot: 'boutique',
+    /* La toile ivoire de la Maison : les flacons et les t-shirts y ont été dessinés. */
+    ton: 'maison',
+    sections: [],
+    jsonld: 'aucun',
+    horsDesMoteurs: 'La Boutique ouvre à la date posée au Trône. Effacer ce champ à la publication qui suit l’ouverture, pour la rendre aux moteurs et au plan du site.',
   },
   /* OFFRIR — 27 septembre 2026, maquette validée. La carte cadeau : trois
      modèles sur les motifs de la Maison, un geste ou un montant, et la

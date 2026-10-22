@@ -304,6 +304,13 @@ export type VitrineConfig = {
   couronneFermee?: boolean;
   /** Ce que lit la cliente quand la porte est close. Vide = un mot de la Maison. */
   couronneMot?: string;
+  /** LA BOUTIQUE — 22 octobre 2026. « La boutique ne sera visible que dès cet
+      instant » (Yéman) : l'instant d'ouverture (ISO, heure de Cotonou), qu'elle
+      déplace quand elle veut. Sans date, la Boutique est fermée au public : le
+      site renvoie /boutique/ à l'accueil et Ma Couronne cache la Gamme. Ce
+      document est lisible sans compte, d'où sa place ici et non dans
+      `mnd_settings`. Voir shared/boutique-pur.ts. */
+  boutique?: { ouverture?: string };
   /** SON HISTOIRE TRANCHE. Allumé, le quiz ne prend plus la désignation de son
       persona telle quelle : il choisit, PARMI tout ce que la Maison a désigné
       pour cette envie, la prestation que ses rendez-vous rendent la plus juste

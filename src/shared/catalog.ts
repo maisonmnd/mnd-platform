@@ -442,7 +442,12 @@ export type Product = {
   priceXof: number;
   stock: number;
   order: number;
+  /** LA FICHE DE LA BOUTIQUE — 22 octobre 2026. Présente, le produit se vend
+      sur le site et dans Ma Couronne (voir shared/boutique-pur.ts). Absente,
+      c'est un produit du comptoir, que la Boutique ne montre pas. */
+  boutique?: FicheBoutique;
 };
+import type { FicheBoutique } from './boutique-pur';
 
 /* L'ARBORESCENCE v6 — deux maisons, quatre ateliers, trois axes Studio, et entre
    les deux un plateau technique qui n'appartient à personne et se vend des deux

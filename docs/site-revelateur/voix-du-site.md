@@ -7,7 +7,7 @@ Repères pour la pose :
 - Les noms des gestes s'écrivent exactement ainsi, avec leur marque, sans espace avant le ™ : VÈKPÈ™, SÍNSIN™, FÍNFÍN™, YÈKPÈ™, GBÀTÀ™, DÀNDÀN™, KLƆKLƆ™.
 - Le point médian « · » sépare des éléments courts sur une même ligne. Il ne remplace jamais une phrase.
 - Chaque bouton dit ce que la lectrice réserve ou découvre. Jamais un simple « Réserver ».
-- Aucun prix chiffré sur le site : les montants passent par le devis.
+- Aucun prix chiffré sur le site : les montants passent par le devis. Une exception, depuis le 22 octobre 2026 : la Boutique (/boutique/) affiche le prix de ses articles, lu au catalogue du Trône au moment de la visite. Les pages écrites, elles, n'en portent toujours aucun.
 - La devise et la signature de la Maison sont posées par le code. Elles ne sont pas répétées ici, sauf sur le grand écran d'accueil où la maquette les attend.
 
 ## 1. L'accueil
