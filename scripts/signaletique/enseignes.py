@@ -360,7 +360,7 @@ def n11(a):
 # d'angle (« Oui, en N17 »). Les dessins sont
 # dans directions.py ; leurs tailles sont ici, car le catalogue les lit avant de dessiner. N12 reste le nom
 # de l'ancienne feuille d'autocollants chez Lico Sign : on ne le reprend pas.
-POTEAU_W, POTEAU_H = 1870, 2400
+POTEAU_W, POTEAU_H = 1870, 2980
 RUE_W, RUE_H = 1400, 460
 IVOIRE_W, IVOIRE_H = 1200, 340
 TABLE_W, TABLE_H = 244, 330
@@ -584,10 +584,10 @@ ENSEIGNES = [
     _f('N13', n13, POTEAU_W, POTEAU_H, 130, 'fleche', 'rue', 'plaque',
        nom='Le poteau de direction', name='Fingerpost direction sign, five blades',
        statut='nouvelle', lieu='Entrée, cour ou coin de la rue', decoupe=_coupes('poteau'),
-       fr=dict(construction='Poteau carré en acier 110 × 110 thermolaqué indigo, 2400 mm hors sol, sur platine ancrée par 4 tiges M12 ; chapeau et bague de pied en cuivre brossé. Cinq lames en profilé aluminium de 20 mm, 820 × 150, en flèche, fixées au poteau par colliers inox : la première indigo, lettres ivoire et filet cuivre ; les quatre autres ivoire, lettres et filet indigo. Lettres imprimées UV sur les deux faces, vernis anti-UV.',
+       fr=dict(construction='Poteau carré en acier 110 × 110 thermolaqué indigo, sur platine ancrée par 4 tiges M12 ; chapeau et bague de pied en cuivre brossé ; 2980 mm hors sol avec la tête. La tête, comme celle d’un sapin de Noël : disque Ø520 en aluminium de 20 mm, indigo, cerclage cuivre brossé, « BIENVENUE » en cuivre et le verrou debout en ivoire, imprimés UV sur les deux faces, sur une tige cuivre. Cinq lames en profilé aluminium de 20 mm, 820 × 150, en flèche, ivoire, lettres et filet indigo, fixées au poteau par colliers inox. Impression UV sur les deux faces, vernis anti-UV.',
                finition='Indigo, ivoire, cuivre brossé.', lumiere='Non lumineux.',
-               change='Nouvelle pièce, d’après le poteau d’Amen Corner : CONSULTATION, ACCUEIL, LES ATELIERS, BOUTIQUE, TOILETTES. Les mots des lames peuvent encore changer.'),
-       en=dict(construction='Square steel post 110 × 110 mm, indigo powder coat, 2400 mm above the ground on a base plate anchored with 4 × M12 rods; brushed copper cap and foot ring. Five blades in 20 mm extruded aluminium profile, 820 × 150 mm, arrow-shaped, fixed to the post with stainless clamps: the first blade indigo with ivory letters and a copper edge line, the four others ivory with indigo letters and an indigo edge line. Lettering UV printed on both faces, anti-UV varnish.',
+               change='Nouvelle pièce, d’après le poteau d’Amen Corner : en tête, le disque « Bienvenue » au logo de la Maison ; puis CONSULTATION, ACCUEIL, LES ATELIERS, BOUTIQUE, TOILETTES. Les mots des lames peuvent encore changer.'),
+       en=dict(construction='Square steel post 110 × 110 mm, indigo powder coat, on a base plate anchored with 4 × M12 rods; brushed copper cap and foot ring; 2980 mm above the ground with the topper. The topper, like the star on a Christmas tree: Ø520 mm disc in 20 mm aluminium, indigo, brushed copper rim, “BIENVENUE” in copper and our stacked logo in ivory, UV printed on both faces, on a copper neck. Five blades in 20 mm extruded aluminium profile, 820 × 150 mm, arrow-shaped, ivory with indigo letters and an indigo edge line, fixed to the post with stainless clamps. UV print on both faces, anti-UV varnish.',
                finish='Indigo #1E2150, ivory #F6F1E7, brushed copper.', lighting='Non-illuminated.',
                change='NEW ITEM. The words on the blades may still change: please confirm the text with us before printing. Please quote.')),
     _f('N14', n14, RUE_W, RUE_H, 15, 'fleche', 'rue', 'plaque',

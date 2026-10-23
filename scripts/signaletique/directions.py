@@ -17,7 +17,7 @@ les recettes de volumes.py.
 """
 from enseignes import (C, I, S, V, DEVISE_FR, ajuste, POTEAU_W, POTEAU_H, RUE_W, RUE_H, IVOIRE_W, IVOIRE_H,  # noqa: F401
                        TABLE_W, TABLE_H, ANGLE_W, ANGLE_H)
-from formes import pose_logo, proportion, texte
+from formes import pose_logo, proportion, texte, texte_en_arc
 
 
 def _ligne(t, famille, taille, cx, y, couleur, largeur, graisse=500, interlettre=0.0):
@@ -43,28 +43,41 @@ def _chemin(d, fond, trait=None, ep=0):
 
 
 # ── 1 · Le poteau de la Maison (Amen Corner) ─────────────────────────────
-# « Il faut mettre Consultation à la place de Maison MND » (23 oct. 2026) : la première lame reste indigo, sans le logo.
+# « Il faut mettre Consultation à la place de Maison MND », puis « Consultation reste en ivoire comme les autres »
+# (23 oct. 2026) : cinq lames ivoire, toutes pareilles.
 POTEAU_LAMES = [('CONSULTATION', True), ('ACCUEIL', False), ('LES ATELIERS', True), ('BOUTIQUE', False), ('TOILETTES', True)]
+# « Rajoute au haut du poteau Bienvenue Maison MND, comme la tête qu'on met sur les sapins de Noël » (23 oct. 2026) :
+# un disque indigo à cerclage cuivre sur une tige, « BIENVENUE » en arc et le verrou debout. Le poteau garde sa hauteur
+# sous le chapeau ; tout descend de TETE et la pièce passe à 2980 mm.
+TETE, TETE_D = 580, 520
 
 
 def poteau():
-    """Poteau carré indigo, chapeau et bague cuivre ; cinq lames, la première indigo.
-    Éléments : 0 poteau, 1 chapeau, 2 dessus du chapeau, 3 bague de pied, puis lame et texte de chaque lame."""
-    cx = POTEAU_W / 2
-    els = [f'<rect x="{cx - 55}" y="60" width="110" height="2340" fill="{I}"/>',
-           f'<rect x="{cx - 75}" y="20" width="150" height="50" fill="{C}"/>',
-           f'<rect x="{cx - 62}" y="0" width="124" height="24" fill="{C}"/>',
-           f'<rect x="{cx - 75}" y="2380" width="150" height="20" fill="{C}"/>']
+    """Poteau carré indigo, chapeau et bague cuivre, cinq lames ivoire, et la tête « Bienvenue » au-dessus.
+    Éléments : 0 poteau, 1 chapeau, 2 dessus du chapeau, 3 bague de pied, puis lame et texte de chaque lame (4 à 13),
+    puis 14 tige, 15 disque, 16 cerclage, 17 BIENVENUE, 18 logo."""
+    cx, t = POTEAU_W / 2, TETE
+    els = [f'<rect x="{cx - 55}" y="{t + 60}" width="110" height="2340" fill="{I}"/>',
+           f'<rect x="{cx - 75}" y="{t + 20}" width="150" height="50" fill="{C}"/>',
+           f'<rect x="{cx - 62}" y="{t}" width="124" height="24" fill="{C}"/>',
+           f'<rect x="{cx - 75}" y="{t + 2380}" width="150" height="20" fill="{C}"/>']
     coupes = []
-    y = 230
-    for k, (mot, droite) in enumerate(POTEAU_LAMES):
+    y = t + 230
+    for mot, droite in POTEAU_LAMES:
         x0 = cx + 55 if droite else cx - 55
         d = _lame(x0, y, 820, 150, droite)
-        fond, trait, encre = (I, C, V) if k == 0 else (V, I, I)
-        els += [_chemin(d, fond, trait, 6), _ligne(mot, 'cormorant', 92, x0 + (360 if droite else -360), y + 108, encre, 600, 600, 0.06)]
+        els += [_chemin(d, V, I, 6), _ligne(mot, 'cormorant', 92, x0 + (360 if droite else -360), y + 108, I, 600, 600, 0.06)]
         coupes.append(d)
         y += 190
-    return '-40 -40 1950 2480', els, coupes
+    r = TETE_D / 2
+    cy = r
+    els += [f'<rect x="{cx - 25}" y="{TETE_D - 6}" width="50" height="{t - TETE_D + 12}" fill="{C}"/>',
+            f'<circle cx="{cx}" cy="{cy}" r="{r}" fill="{I}"/>',
+            f'<circle cx="{cx}" cy="{cy}" r="{r - 16}" fill="none" stroke="{C}" stroke-width="10"/>',
+            texte_en_arc('BIENVENUE', 'cormorant', 66, cx, cy, r - 86, en_bas=False, graisse=600, interlettre=0.18, couleur=C),
+            _logo('verrou-debout', cx, cy + 42, 220, V)]
+    coupes.append(f'M{cx - r} {cy}A{r} {r} 0 1 0 {cx + r} {cy}A{r} {r} 0 1 0 {cx - r} {cy}Z')
+    return '-40 -40 1950 3060', els, coupes
 
 
 # ── 2 · La flèche de rue (le panneau touristique) ────────────────────────
@@ -143,9 +156,9 @@ def plaque_angle():
 
 
 DESSINS = [
-    ('poteau', 'Le poteau de la Maison', poteau, 'N13 · poteau de direction · 1870 × 2400 mm',
-     'Le poteau carré indigo, chapeau cuivre, et cinq lames : la première, indigo, mène à la consultation, les autres à l’accueil, aux ateliers, à la boutique, aux toilettes. Pour l’entrée, la cour ou le coin de la rue.',
-     'Poteau acier 110 × 110 peint indigo sur platine ancrée au sol, chapeau et bague de pied en cuivre brossé ; lames en profilé aluminium de 20 mm, ivoire (la première indigo), lettres imprimées UV sur les deux faces.'),
+    ('poteau', 'Le poteau de la Maison', poteau, 'N13 · poteau de direction · 1870 × 2980 mm',
+     'Le poteau carré indigo, coiffé comme un sapin de Noël d’un disque « Bienvenue » au logo de la Maison, et cinq lames ivoire : la consultation, l’accueil, les ateliers, la boutique, les toilettes. Pour l’entrée, la cour ou le coin de la rue.',
+     'Poteau acier 110 × 110 peint indigo sur platine ancrée au sol, chapeau et bague de pied en cuivre brossé ; tête Ø520 en aluminium indigo à cerclage cuivre, sur une tige cuivre ; lames en profilé aluminium de 20 mm, ivoire ; lettres et logo imprimés UV sur les deux faces.'),
     ('rue', 'La flèche de rue', fleche_rue, 'N14 · panneau de rue · 1400 × 460 mm',
      'Le panneau qu’on voit des grandes routes, aux couleurs de la Maison : cuivre, bord ivoire, chevron et logo ivoire, la distance dessous. Il guide de la rue principale jusqu’à la porte.',
      'Aluminium 3 mm, face ivoire imprimée UV cuivre, film rétroréfléchissant sur le chevron, le logo et la distance ; rails au dos, sur poteau ou mur. La distance est à mesurer sur place.'),

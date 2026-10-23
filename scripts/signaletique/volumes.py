@@ -162,12 +162,15 @@ RECETTES['N11'] = dict(montage='mur', centre=1.55, mur_uni=True,
 # plaquée les pâlissait au soleil). Éléments de directions.poteau.
 RECETTES['N13'] = dict(montage='sol', centre=POTEAU_H / 2000, avance=1.6,
                        pieces=[_p(0, 'indigo', 110, 10), _p([1, 3], 'cuivre-brosse', 130, 0), _p(2, 'cuivre-brosse', 120, 5),
-                               _p(4, 'alu-indigo', 20, 55), _p([6, 8, 10, 12], 'ivoire', 20, 55),
-                               _p(5, 'encre-ivoire', 0.2, 75.15), _p([7, 9, 11, 13], 'encre-indigo', 0.2, 75.15)],
+                               _p([4, 6, 8, 10, 12], 'ivoire', 20, 55), _p([5, 7, 9, 11, 13], 'encre-indigo', 0.2, 75.15),
+                               # La tête « Bienvenue » : tige cuivre, disque indigo de 20 mm, cerclage cuivre un peu en saillie.
+                               _p(14, 'cuivre-brosse', 40, 45), _p(15, 'alu-indigo', 20, 55), _p(16, 'cuivre-brosse', 24, 53),
+                               _p(17, 'encre-cuivre', 0.2, 75.15), _p(18, 'encre-ivoire', 0.2, 75.15)],
                        surimpressions=[dict(el=[4, 6, 8, 10, 12], z=75.1, nom=('Edge lines, UV print both faces', '边线，双面 UV 打印'))],
                        vues=['jour', 'situation'],
                        coupe=[('Post 110 × 110, steel, indigo powder coat', '立柱 110 × 110，钢，靛蓝色喷粉', 10, 120, '#1E2150', None),
                               ('Cap and foot ring 150 × 150, brushed copper', '顶帽和底环 150 × 150，拉丝铜色', 0, 130, '#B0703F', None),
+                              ('Topper Ø520, aluminium 20 mm, indigo, copper rim', '顶饰 Ø520，20 毫米铝板，靛蓝色，铜色边圈', 53, 77, '#1E2150', None),
                               ('Blades, extruded aluminium 20 mm, centred on the post', '指示牌，20 毫米铝型材，居立柱中间', 55, 75, '#F1EADC', None),
                               ('Lettering and edge lines, UV print both faces', '文字和边线，双面 UV 打印', 75, 75.2, '#C9BFAE', None)])
 # La flèche de rue : panneau de 3 mm en film rétroréfléchissant ivoire, imprimé cuivre, sur rails à 12 mm du mur.
