@@ -36,10 +36,13 @@ dit('le menu dit « Les vitrines »', true, /path: '\/vitrine', label: 'Les vitr
    les codes ». Une recherche, des filtres par moment, un présentoir de tuiles
    avec UN geste ; la fiche complète s'ouvre à part. */
 const qr = sansCommentaires('src/apps/trone/routes/clients/QrCodes.tsx');
-dit('les codes se cherchent et se filtrent par moment', true,
-  /placeholder="Chercher un code : momo, wifi, avis, prix, adresse…"/.test(qr) && /'avant'.*'pendant'.*'depart'.*'longtemps'.*'equipe'/s.test(qr) && /a-renseigner/.test(qr));
-dit('chaque tuile a un seul geste principal, la fiche complete s ouvre a part', true,
-  /<Modal title=\{ouvert\.carte\.nom\}/.test(qr) && /<CarteCode \{\.\.\.ouvert\.carte\} \/>/.test(qr) && !/<Moment\s/.test(qr));
+/* REFAITE LE 24 OCTOBRE 2026 (« je ne me retrouve pas facilement dans les
+   QR », Yéman, maquette validée) : les filtres disent ce que veut la cliente,
+   et la fiche s'ouvre DANS sa ligne, une à la fois, plus en fenêtre. */
+dit('les codes se cherchent et se filtrent par ce que veut la cliente', true,
+  /placeholder="Elle veut… payer, le wifi, l’adresse, les prix"/.test(qr) && /'payer'.*'connecter'.*'decouvrir'.*'revenir'.*'equipe'/s.test(qr) && /a-renseigner/.test(qr));
+dit('chaque ligne a un seul geste principal, la fiche complete s ouvre dans la ligne', true,
+  /<CarteCode \{\.\.\.c\.carte\} sansTete /.test(qr) && !/<Modal/.test(qr) && !/<Moment\s/.test(qr));
 
 console.log(ko === 0 ? '\nLes trois vitrines tiennent separees.' : `\n${ko} controle(s) en echec.`);
 process.exit(ko === 0 ? 0 : 1);
