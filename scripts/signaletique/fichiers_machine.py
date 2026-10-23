@@ -51,8 +51,8 @@ def imprime(html_chemin, pdf):
         sys.exit(f'PDF absent : {pdf}')
 
 
-def page_html(corps, w, h, extra=''):
-    return ('<!doctype html><html><head><meta charset="utf-8"><style>'
+def page_html(corps, w, h, extra='', titre='Maison MND'):
+    return (f'<!doctype html><html><head><meta charset="utf-8"><title>{esc(titre)}</title><style>'
             f'@page {{ size: {w}mm {h}mm; margin: 0 }} html, body {{ margin: 0; padding: 0 }} '
             '* { box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact } '
             f'svg.feuille {{ display: block; width: {w}mm; height: {h}mm }} {extra}</style></head><body>{corps}</body></html>')
@@ -109,13 +109,13 @@ def fichiers_machine(ident):
     impression = DECOUPE.sub('', svg)
     tete = svg[:svg.index('>') + 1]
     decoupe_seule = tete + '<g id="decoupe">' + ''.join(decoupes) + '</g></svg>'
-    base = f"{ident} · {e['name']} · 1060x680 mm · 1-1"
     sorties = []
-    for suffixe, contenu, ton in (('machine, impression et découpe CutContour', svg, True), ('impression seule', impression, False),
-                                  ('découpe seule CutContour', decoupe_seule, True)):
+    # Des noms courts : le chemin Windows du dossier 6 ne doit pas dépasser 260 caractères (Acrobat ne l'ouvre plus).
+    for suffixe, titre, contenu, ton in (('machine CutContour 1-1', 'print and cut', svg, True), ('impression seule 1-1', 'print only', impression, False),
+                                         ('découpe seule CutContour 1-1', 'cut only', decoupe_seule, True)):
         h = os.path.join(SORTIE, f'_{ident}-{len(sorties)}.html')
-        io.open(h, 'w', encoding='utf-8').write(page_html(contenu, e['w'], e['h']))
-        pdf = os.path.join(SORTIE, f'{base} · {suffixe}.pdf')
+        io.open(h, 'w', encoding='utf-8').write(page_html(contenu, e['w'], e['h'], titre=f"Maison MND · {ident} · {e['name']} · {titre} · 1060 × 680 mm · 1:1"))
+        pdf = os.path.join(SORTIE, f'{ident} · {suffixe}.pdf')
         imprime(h, pdf)
         n = ton_direct(pdf) if ton else 0
         format_exact(pdf, e['w'], e['h'])
@@ -230,8 +230,8 @@ if __name__ == '__main__':
             print(os.path.basename(pdf), '·', nb, 'découpes', '·', n, 'traits passés en CutContour' if n else '')
     for ident, pages in (('R9', epreuve_r9()), ('N12', epreuve_n12())):
         h = os.path.join(SORTIE, f'_epreuve-{ident}.html')
-        io.open(h, 'w', encoding='utf-8').write(page_html(''.join(pages), 420, 297, CSS_EPREUVE))
-        pdf = os.path.join(SORTIE, f"{ident} · {PAR_ID[ident]['name']} · proof, each sticker at actual size · A3.pdf")
+        io.open(h, 'w', encoding='utf-8').write(page_html(''.join(pages), 420, 297, CSS_EPREUVE, f"Maison MND · {ident} · {PAR_ID[ident]['name']} · proof, each sticker at actual size"))
+        pdf = os.path.join(SORTIE, f'{ident} · épreuve A3.pdf')
         imprime(h, pdf)
         os.remove(h)
         print(os.path.basename(pdf), '·', len(fitz.open(pdf)), 'pages')
