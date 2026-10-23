@@ -204,3 +204,60 @@ export function pourquoiIlNePartPlus(
   if (Number.isFinite(moment) && moment <= maintenantMs) return 'l’heure du rendez-vous est passée';
   return null;
 }
+
+/* ══ LA CONFIRMATION SUIT SON RENDEZ-VOUS — 23 octobre 2026 ══════════════
+   « Quand j'apporte une modification au RDV, modifier la date à une nouvelle
+   date, la date ne se change pas automatiquement dans le message qui va
+   partir. Le message est figé sur la date initialement prévue » (Yéman).
+
+   Le colis se fabrique au dépôt, la date écrite dedans. Déplacé pendant
+   l'attente, le rendez-vous rendait le message « périmé » : l'écran montrait
+   l'ancienne date jusqu'au bout, et la cliente ne recevait rien pour la
+   nouvelle. Désormais une CONFIRMATION reprend la nouvelle date et la
+   nouvelle heure, partout où le colis les dit (le modèle WhatsApp, le texte
+   du fil, la notification). Le Trône le fait dès qu'il voit le changement,
+   le facteur le refait avant de porter.
+
+   Un rappel de la veille, lui, reste périmé : sa veille a changé, et
+   rappels-j1 le redéposera le bon soir. Annulé, plus confirmé, déjà passé :
+   rien ne part, comme avant. Ces trois fonctions sont recopiées à
+   l'identique dans envois-partent (verifie-la-salle-des-envois). */
+export const FUSEAU_DU_SALON = 'Africa/Porto-Novo';
+/** « 8 h 30 », « 14 h » : l'heure telle que le dit la confirmation-rdv. */
+export function heureDuMessage(hhmm: string | undefined): string {
+  if (!/^\d{1,2}:\d{2}$/.test(hhmm ?? '')) return hhmm ?? '';
+  const [h, m] = (hhmm as string).split(':');
+  const minutes = Number(m);
+  return Number.isFinite(minutes) && minutes > 0
+    ? `${Number(h)} h ${String(minutes).padStart(2, '0')}`
+    : `${Number(h)} h`;
+}
+/** « vendredi 28 août 2026 à 14 h » : le moment tel qu'il est écrit dans le colis. */
+export function momentDuMessage(date: string | undefined, hhmm: string | undefined): string {
+  if (!date) return '';
+  let jour = date;
+  try {
+    jour = new Date(`${date}T12:00:00`).toLocaleDateString('fr-FR', {
+      weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: FUSEAU_DU_SALON,
+    });
+  } catch { jour = date; }
+  return `${jour} à ${heureDuMessage(hhmm)}`;
+}
+/** La confirmation reprise à la nouvelle date, ou `null` s'il n'y a rien à
+    reprendre (même moment, autre type de message, rendez-vous qui ne tient
+    plus, ou un colis qui ne dit pas l'ancien moment mot pour mot). */
+export function recolleLeColis<T extends { type?: string; dateRdv?: string; heure?: string; colis?: unknown }>(
+  e: T,
+  rdv: { date?: string; time?: string; status?: string } | null | undefined,
+  maintenantMs: number,
+): T | null {
+  if (e.type !== 'confirmation' || !e.colis || !rdv || !rdv.date) return null;
+  if (rdv.date === (e.dateRdv ?? '') && (rdv.time ?? '') === (e.heure ?? '')) return null;
+  const repris = { ...e, dateRdv: rdv.date, heure: rdv.time ?? '' };
+  if (pourquoiIlNePartPlus(repris, rdv, maintenantMs) !== null) return null;
+  const avant = momentDuMessage(e.dateRdv, e.heure);
+  const apres = momentDuMessage(rdv.date, rdv.time);
+  const texte = JSON.stringify(e.colis);
+  if (!avant || !texte.includes(avant)) return null;
+  return { ...repris, colis: JSON.parse(texte.split(avant).join(apres)) };
+}

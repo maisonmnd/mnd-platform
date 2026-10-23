@@ -12,7 +12,7 @@ import { readFileSync } from 'node:fs';
 import {
   REGLES_PAR_DEFAUT, reglesDepuis, heureDuSalon, dansLesHeuresCalmes, finDesHeuresCalmes, heureDeDepart,
   facteurVivant, FACTEUR_VIVANT_MS, peutPartir, retiens, relache, envoieMaintenant, ecarte, resumeDeLaSalle,
-  quandIlPart, pourquoiIlNePartPlus, attendEncore, EN_ATTENTE, RETENU, ECARTE, PERIME, EN_ENVOI,
+  quandIlPart, pourquoiIlNePartPlus, recolleLeColis, momentDuMessage, attendEncore, EN_ATTENTE, RETENU, ECARTE, PERIME, EN_ENVOI,
 } from '../src/shared/salle-des-envois';
 import { envoisDeLaPeriode, compteDuJournal, devenuDe, DEVENU_DIT } from '../src/shared/envois';
 
@@ -138,6 +138,51 @@ dit('le soir du 2, elles finissent le 3 a 8 h', iso(salon('2026-10-03', '08:00')
     pourquoiIlNePartPlus(e, { date: '2026-10-08', time: '10:00', status: 'confirmé' }, salon('2026-10-08', '10:30')));
 }
 
+/* ── 7 bis. La confirmation suit son rendez-vous (23 octobre 2026) ──
+   « Le message est figé sur la date initialement prévue » (Yéman). */
+{
+  const sansCommentaires = (f: string) => readFileSync(f, 'utf8').replace(/\/\*[\s\S]*?\*\//g, '').replace(/\s+/g, ' ');
+  const t = salon('2026-10-23', '10:00');
+  const avant = momentDuMessage('2026-10-30', '14:30');
+  dit('le moment se dit comme dans la confirmation-rdv', 'vendredi 30 octobre 2026 à 14 h 30', avant);
+  dit('une heure ronde se dit sans minutes', 'samedi 31 octobre 2026 à 9 h', momentDuMessage('2026-10-31', '09:00'));
+  const colis = {
+    genre: 'whatsapp', numero: '22900000000', modele: 'confirmation_rdv',
+    texteAuFil: `Bonjour Awa, c'est confirmé : votre rendez-vous est retenu ${avant}. Nous vous attendons.`,
+    composants: [{ type: 'body', parameters: [{ type: 'text', text: 'Awa' }, { type: 'text', text: avant }] }],
+  };
+  const e = { id: 'conf-r1-whatsapp', type: 'confirmation', statut: 'en-attente', dateRdv: '2026-10-30', heure: '14:30', colis };
+  const repris = recolleLeColis(e, { date: '2026-11-03', time: '10:00', status: 'confirmé' }, t);
+  const texte = JSON.stringify(repris?.colis ?? {});
+  dit('deplacee en attente : la confirmation prend la nouvelle date et la nouvelle heure', ['2026-11-03', '10:00', true, false],
+    [repris?.dateRdv, repris?.heure, texte.includes('mardi 3 novembre 2026 à 10 h'), texte.includes(avant)]);
+  dit('... dans le modele WhatsApp ET dans le texte du fil', 2, texte.split('mardi 3 novembre 2026 à 10 h').length - 1);
+  dit('... et alors elle peut partir', null, repris ? pourquoiIlNePartPlus(repris, { date: '2026-11-03', time: '10:00', status: 'confirmé' }, t) : 'pas repris');
+  dit('seule l heure change : elle suit aussi', true, JSON.stringify(recolleLeColis(e, { date: '2026-10-30', time: '16:00', status: 'confirmé' }, t)?.colis ?? {}).includes('vendredi 30 octobre 2026 à 16 h'));
+  dit('rien n a bouge : rien a reprendre', null, recolleLeColis(e, { date: '2026-10-30', time: '14:30', status: 'confirmé' }, t));
+  dit('annule : on ne reprend pas, il ne partira pas', null, recolleLeColis(e, { date: '2026-11-03', time: '10:00', status: 'annulé' }, t));
+  dit('repasse en attente : on ne confirme pas', null, recolleLeColis(e, { date: '2026-11-03', time: '10:00', status: 'en attente' }, t));
+  dit('deplace dans le passe : on ne confirme pas', null, recolleLeColis(e, { date: '2026-10-22', time: '10:00', status: 'confirmé' }, t));
+  dit('un rappel de la veille ne se reprend pas : sa veille a change', null, recolleLeColis({ ...e, type: 'rappel-j1' }, { date: '2026-11-03', time: '10:00', status: 'confirmé' }, t));
+  dit('un colis qui ne dit pas l ancien moment mot pour mot ne se devine pas', null,
+    recolleLeColis({ ...e, colis: { genre: 'push', corps: 'autre chose' } }, { date: '2026-11-03', time: '10:00', status: 'confirmé' }, t));
+  const conf = sansCommentaires('supabase/functions/confirmation-rdv/index.ts');
+  dit('la confirmation-rdv ecrit le moment comme momentDuMessage le relit', true,
+    conf.includes('const quand = `${jourEnClair(a.date)} à ${heureLisible(a.time)}`;')
+    && conf.includes("weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: TZ")
+    && conf.includes("const TZ = 'Africa/Porto-Novo';"));
+  const facteurR = sansCommentaires('supabase/functions/envois-partent/index.ts');
+  dit('le facteur reprend la date avant de juger', true,
+    facteurR.includes('const repris = recolleLeColis(l.data, rdv, Date.now());')
+    && facteurR.includes('const motif = pourquoiIlNePartPlus(repris ?? l.data, rdv, Date.now());')
+    && facteurR.includes('colis = repris.colis;'));
+  const ecranR = sansCommentaires('src/apps/trone/routes/clients/SalleDesEnvois.tsx').replace(/\s+/g, ' ');
+  dit('le Trone reprend au serveur sous condition (encore en salle, encore a l ancienne date)', true,
+    ecranR.includes(".update({ data: apres }) .eq('id', e.id).eq('data->>statut', e.statut).eq('data->>dateRdv', e.dateRdv ?? '')"));
+  const pastilleR = sansCommentaires('src/apps/trone/shell/PastilleDeLaSalle.tsx');
+  dit('le guetteur vit dans la pastille de la barre, sur tous les ecrans', true, pastilleR.includes('useRecolleLesEnvois();'));
+}
+
 /* ── 8. Le facteur, vivant ou non ── */
 {
   const t = salon('2026-10-02', '15:00');
@@ -206,12 +251,13 @@ dit('le soir du 2, elles finissent le 3 a 8 h', iso(salon('2026-10-03', '08:00')
     dit(`${f} : dans une branche de salle, rien ne part vers la cliente`, [], branches.filter((b) => /fetch\(/.test(b)).map((b) => b.slice(0, 60)));
   }
   const facteur = egalise('supabase/functions/envois-partent/index.ts');
-  dit('le facteur porte le calcul du depot, a l identique', [], ['reglesDepuis', 'heureDuSalon', 'dansLesHeuresCalmes', 'pourquoiIlNePartPlus'].filter((n) => !facteur.includes(duDepot(n))));
+  dit('le facteur porte le calcul du depot, a l identique', [], ['reglesDepuis', 'heureDuSalon', 'dansLesHeuresCalmes', 'pourquoiIlNePartPlus', 'heureDuMessage', 'momentDuMessage', 'recolleLeColis'].filter((n) => !facteur.includes(duDepot(n))));
+  dit('... et le meme fuseau pour dire la date', true, facteur.includes("const FUSEAU_DU_SALON = 'Africa/Porto-Novo';"));
   dit('le facteur dit qu il est vivant', true, /upsert\(\{ key: 'mnd_facteur', data: \{ vuLe: maintenant/.test(facteur));
   dit('le facteur ne lit que ce qui est « en-attente » : un message retenu lui est invisible', true, /\.eq\('data->>statut', 'en-attente'\)\.limit\(300\)/.test(facteur));
   dit('le facteur prend en main par une ecriture conditionnelle', true, /statut: 'en-envoi' \} \}\) \.eq\('id', l\.id\)\.eq\('data->>statut', 'en-attente'\)\.select\('id'\)/.test(facteur));
   dit('le facteur ne porte rien pendant les heures calmes, sauf a la main', true, /partAde\(l\) <= maintenantMs && \(!calme \|\| l\.data\.parLaMain === true\)/.test(facteur));
-  dit('le facteur relit le rendez-vous avant de porter', true, /pourquoiIlNePartPlus\(l\.data, \(rdvRow\?\.data \?\? null\)/.test(facteur) && /statut: 'périmé', detail: motif/.test(facteur));
+  dit('le facteur relit le rendez-vous avant de porter', true, facteur.includes('const rdv = (rdvRow?.data ?? null)') && facteur.includes('pourquoiIlNePartPlus(repris ?? l.data, rdv, Date.now())') && /statut: 'périmé', detail: motif/.test(facteur));
   const confirmation = egalise('supabase/functions/confirmation-rdv/index.ts');
   /* Depuis le 9 octobre 2026, WhatsApp aussi : elle a touche « Je confirme ». */
   dit('celle qui reserve elle-meme (Ma Couronne, WhatsApp) recoit sa confirmation tout de suite', true, /const enSalle = salleOuverte && a\.source !== 'couronne' && a\.source !== 'whatsapp';/.test(confirmation));
@@ -225,8 +271,10 @@ dit('le soir du 2, elles finissent le 3 a 8 h', iso(salon('2026-10-03', '08:00')
   const sansCommentaires = (f: string) => readFileSync(f, 'utf8').replace(/\/\*[\s\S]*?\*\//g, '').replace(/\s+/g, ' ');
   const ecran = sansCommentaires('src/apps/trone/routes/clients/SalleDesEnvois.tsx');
   dit('le geste ne passe que si la ligne est encore dans l etat montre', true, /\.update\(\{ data: apres \}\)\.eq\('id', id\)\.eq\('data->>statut', ligne\.statut\)\.select\('id'\)/.test(ecran));
-  dit('avec un serveur, l ecran n ecrit pas dans le magasin (sa poussee pourrait remettre en attente un message parti)', 1, (ecran.match(/envoisStore\.set\(/g) ?? []).length);
-  dit('... et cette seule ecriture est celle du poste sans serveur', true, /if \(!supabase\) \{ envoisStore\.set\(/.test(ecran));
+  /* Deux écritures au magasin depuis le 23 octobre (le geste, la reprise de
+     date) : toutes deux réservées au poste sans serveur. */
+  dit('avec un serveur, l ecran n ecrit pas dans le magasin (sa poussee pourrait remettre en attente un message parti)', 2, (ecran.match(/envoisStore\.set\(/g) ?? []).length);
+  dit('... et ces ecritures sont celles du poste sans serveur', 2, (ecran.match(/if \(!supabase\) \{ envoisStore\.set\(/g) ?? []).length);
   const barre = sansCommentaires('src/apps/trone/shell/Shell.tsx');
   dit('la pastille de la salle vit dans la barre du Trone', true, /<SyncDot \/> <PastilleDeLaSalle \/>/.test(barre));
   const pastille = sansCommentaires('src/apps/trone/shell/PastilleDeLaSalle.tsx');

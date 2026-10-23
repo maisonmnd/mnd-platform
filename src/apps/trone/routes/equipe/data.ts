@@ -642,6 +642,9 @@ export type Envoi = {
   ecarteLe?: string;
   /** De quoi l'envoyer, déposé par la fonction qui a jugé. Le Trône ne le lit pas. */
   colis?: unknown;
+  /** La confirmation a repris la nouvelle date de son rendez-vous pendant
+      l'attente (23 octobre 2026, `recolleLeColis`). */
+  recolleLe?: string;
   /** L'IDENTIFIANT META DU MESSAGE — le fil qui relie l'envoi à son accusé.
       Sans lui, l'accusé que Meta rapporte minutes plus tard ne se rapproche
       de rien, et « envoyé » reste le dernier mot pour toujours. */

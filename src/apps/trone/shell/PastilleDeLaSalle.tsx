@@ -16,8 +16,11 @@ import { useBranch } from '../../../shared/branches';
 import { sonne } from '../../../shared/sonnette';
 import { EN_ATTENTE, RETENU, resumeDeLaSalle } from '../../../shared/salle-des-envois';
 import { useEnvois } from '../routes/equipe/data';
+import { useRecolleLesEnvois } from '../routes/clients/SalleDesEnvois';
 
 export function PastilleDeLaSalle() {
+  /* Une confirmation en salle suit son rendez-vous déplacé (23 octobre 2026). */
+  useRecolleLesEnvois();
   const navigate = useNavigate();
   const { branch } = useBranch();
   const [envois] = useEnvois();

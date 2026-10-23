@@ -41,7 +41,7 @@
 
 import { createClient } from 'npm:@supabase/supabase-js@2';
 
-const VERSION = '2026-10-10-a';
+const VERSION = '2026-10-23-a';
 
 /* ── LE CALCUL DES HEURES, recopié de src/shared/salle-des-envois.ts ── */
 const DECALAGE_DU_SALON_H = 1;
@@ -83,6 +83,42 @@ function pourquoiIlNePartPlus(
   const moment = Date.parse(`${rdv.date}T${h}:00+01:00`);
   if (Number.isFinite(moment) && moment <= maintenantMs) return 'l’heure du rendez-vous est passée';
   return null;
+}
+/* La confirmation suit son rendez-vous (23 octobre 2026) : recopié lui aussi
+   de src/shared/salle-des-envois.ts, comparé par verifie-la-salle-des-envois. */
+const FUSEAU_DU_SALON = 'Africa/Porto-Novo';
+function heureDuMessage(hhmm: string | undefined): string {
+  if (!/^\d{1,2}:\d{2}$/.test(hhmm ?? '')) return hhmm ?? '';
+  const [h, m] = (hhmm as string).split(':');
+  const minutes = Number(m);
+  return Number.isFinite(minutes) && minutes > 0
+    ? `${Number(h)} h ${String(minutes).padStart(2, '0')}`
+    : `${Number(h)} h`;
+}
+function momentDuMessage(date: string | undefined, hhmm: string | undefined): string {
+  if (!date) return '';
+  let jour = date;
+  try {
+    jour = new Date(`${date}T12:00:00`).toLocaleDateString('fr-FR', {
+      weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: FUSEAU_DU_SALON,
+    });
+  } catch { jour = date; }
+  return `${jour} à ${heureDuMessage(hhmm)}`;
+}
+function recolleLeColis<T extends { type?: string; dateRdv?: string; heure?: string; colis?: unknown }>(
+  e: T,
+  rdv: { date?: string; time?: string; status?: string } | null | undefined,
+  maintenantMs: number,
+): T | null {
+  if (e.type !== 'confirmation' || !e.colis || !rdv || !rdv.date) return null;
+  if (rdv.date === (e.dateRdv ?? '') && (rdv.time ?? '') === (e.heure ?? '')) return null;
+  const repris = { ...e, dateRdv: rdv.date, heure: rdv.time ?? '' };
+  if (pourquoiIlNePartPlus(repris, rdv, maintenantMs) !== null) return null;
+  const avant = momentDuMessage(e.dateRdv, e.heure);
+  const apres = momentDuMessage(rdv.date, rdv.time);
+  const texte = JSON.stringify(e.colis);
+  if (!avant || !texte.includes(avant)) return null;
+  return { ...repris, colis: JSON.parse(texte.split(avant).join(apres)) };
 }
 /* ── fin du calcul recopié ── */
 
@@ -234,15 +270,26 @@ Deno.serve(async (req) => {
       .eq('id', l.id).eq('data->>statut', 'en-attente').select('id');
     if ((pris ?? []).length === 0) { dejaPris++; continue; }
 
-    const { colis, partA: _p, parLaMain: _m, calme: _c, ...base } = l.data as Ligne['data'] & { calme?: boolean };
+    const { colis: colisDepose, partA: _p, parLaMain: _m, calme: _c, ...base } = l.data as Ligne['data'] & { calme?: boolean };
+    let colis = colisDepose;
     const ecris = async (plus: Record<string, unknown>) => {
       await sb.from('envois').update({ data: { ...base, ...plus, quand: new Date().toISOString() } }).eq('id', l.id);
     };
 
-    /* ④ RELU AVANT DE PARTIR. */
+    /* ④ RELU AVANT DE PARTIR. Une confirmation dont le rendez-vous a été
+       déplacé pendant l'attente reprend la nouvelle date au lieu d'être
+       écartée (23 octobre 2026) ; tout le reste se juge comme avant. */
     if (l.data.apptId) {
       const { data: rdvRow } = await sb.from('appointments').select('id, data').eq('id', l.data.apptId).maybeSingle();
-      const motif = pourquoiIlNePartPlus(l.data, (rdvRow?.data ?? null) as { date?: string; time?: string; status?: string } | null, Date.now());
+      const rdv = (rdvRow?.data ?? null) as { date?: string; time?: string; status?: string } | null;
+      const repris = recolleLeColis(l.data, rdv, Date.now());
+      if (repris) {
+        colis = repris.colis;
+        base.dateRdv = repris.dateRdv;
+        base.heure = repris.heure;
+        (base as Record<string, unknown>).recolleLe = new Date().toISOString();
+      }
+      const motif = pourquoiIlNePartPlus(repris ?? l.data, rdv, Date.now());
       if (motif) { await ecris({ statut: 'périmé', detail: motif }); perimes++; continue; }
     }
     if (!colis) { await ecris({ statut: 'échec', detail: 'déposé sans colis' }); echecs++; continue; }

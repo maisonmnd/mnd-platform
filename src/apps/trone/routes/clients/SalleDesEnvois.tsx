@@ -18,17 +18,18 @@
    pourrait remettre « en attente » un message que le facteur vient de porter.
    L'écran se met à jour par le direct, comme pour le geste d'un autre poste. */
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Button, Card } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { useClients } from '../../../../shared/clients';
+import { useAppointments } from '../../../../shared/agenda';
 import { useAuth, useMaTete } from '../../../../shared/auth';
 import { supabase } from '../../../../shared/supabase';
 import { heureLisible } from '../../../../shared/rappel';
 import { typeDit, canalDit } from '../../../../shared/envois';
 import {
   EN_ATTENTE, RETENU, reglesDepuis, retiens, relache, envoieMaintenant, ecarte,
-  quandIlPart, facteurVivant, heureDuSalon, type ReglesDeLaSalle,
+  quandIlPart, facteurVivant, heureDuSalon, recolleLeColis, type ReglesDeLaSalle,
 } from '../../../../shared/salle-des-envois';
 import { envoisStore, useEnvois, useAutoConfig, type Envoi } from '../equipe/data';
 
@@ -55,6 +56,42 @@ export async function gesteDeLaSalle(id: string, geste: Geste, qui: string, regl
     .update({ data: apres }).eq('id', id).eq('data->>statut', ligne.statut).select('id');
   if (error) return 'panne';
   return (data ?? []).length > 0 ? 'fait' : 'trop-tard';
+}
+
+/* ══ LA CONFIRMATION SUIT SON RENDEZ-VOUS — 23 octobre 2026 ══════════════
+   « Le message est figé sur la date initialement prévue » (Yéman). Dès que
+   le Trône voit un rendez-vous déplacé alors que sa confirmation attend en
+   salle, il réécrit le message à la nouvelle date (la règle :
+   `recolleLeColis`). Écrit au serveur SOUS CONDITION, comme les gestes : la
+   ligne doit attendre encore, à l'ancienne date ; un message parti ou déjà
+   repris ailleurs n'est pas touché. Monté dans la pastille de la barre, qui
+   vit sur tous les écrans : la salle n'a pas besoin d'être ouverte. Le
+   facteur refait la même reprise avant de porter, si aucun Trône n'était
+   ouvert. */
+export function useRecolleLesEnvois(): void {
+  const [envois] = useEnvois();
+  const [appts] = useAppointments();
+  const faits = useRef(new Set<string>());
+  useEffect(() => {
+    const parId = new Map(appts.map((a) => [a.id, a]));
+    const maintenant = Date.now();
+    for (const e of envois) {
+      if (!e || !e.apptId || (e.statut !== EN_ATTENTE && e.statut !== RETENU)) continue;
+      const rdv = parId.get(e.apptId);
+      if (!rdv) continue;
+      const repris = recolleLeColis(e, { date: rdv.date, time: rdv.time, status: rdv.status }, maintenant);
+      if (!repris) continue;
+      const cle = `${e.id}|${repris.dateRdv}|${repris.heure ?? ''}`;
+      if (faits.current.has(cle)) continue;
+      faits.current.add(cle);
+      const apres: Envoi = { ...repris, recolleLe: new Date(maintenant).toISOString() };
+      if (!supabase) { envoisStore.set((prev) => prev.map((x) => (x.id === e.id ? apres : x))); continue; }
+      void supabase.from('envois').update({ data: apres })
+        .eq('id', e.id).eq('data->>statut', e.statut).eq('data->>dateRdv', e.dateRdv ?? '')
+        .select('id')
+        .then(({ error }) => { if (error) faits.current.delete(cle); });
+    }
+  }, [envois, appts]);
 }
 
 /** « jeu. 8 oct. 2026 · 10 h ». L'année depuis le 10 octobre 2026, comme au
@@ -194,6 +231,11 @@ export function SalleDesEnvois() {
               <span className="mnd-muted" style={{ display: 'block', fontSize: 12.5 }}>
                 {canalDit(e.canal)}{e.dateRdv && e.type !== 'avis-google' ? ` · ${e.type === 'point-apres' || e.type === 'point-avant' ? 'séance' : 'rendez-vous'} du ${pourLeRdv(e.dateRdv, e.heure)}` : ''}
               </span>
+              {e.recolleLe && (
+                <span style={{ display: 'block', fontSize: 12, color: 'var(--copper-700)' }}>
+                  Rendez-vous déplacé : le message dit maintenant la nouvelle date.
+                </span>
+              )}
             </div>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
               {tenu ? (
