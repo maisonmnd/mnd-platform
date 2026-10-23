@@ -10,10 +10,10 @@ votre beauté est déjà là » (Yéman). « Feel free to create some » : s'ajo
 là ensemble » : la devise entière sur une seule pastille.
 
 La même feuille que R9 (1060 × 680 mm, papier synthétique, découpe à la forme),
-pour qu'elle coûte à peu près le même prix : 120 pastilles Ø60 pour fermer les
-sachets, les papiers de soie et les boîtes (12 de chaque dessin), et 12 étiquettes
-119 × 55 pour le flacon de brume. Une feuille, onze dessins ; 100 feuilles = 12 000
-pastilles et 1 200 étiquettes.
+pour qu'elle coûte à peu près le même prix : 60 pastilles Ø88 pour fermer les
+sachets, les papiers de soie et les boîtes (6 de chaque dessin), et 6 étiquettes
+146 × 68 pour le flacon de brume. Une feuille, onze dessins ; 100 feuilles = 6 000
+pastilles et 600 étiquettes.
 Un seul motif par pastille, du vide : la Maison veut du sobre.
 """
 from enseignes import C, I, S, V, DEVISE_FON, ajuste
@@ -25,18 +25,18 @@ OR = ENCRES['or']
 I_CLAIR = '#2C3070'   # l'indigo clair de l'allover ton sur ton
 
 W, H = 1060, 680
-# « 24 de chaque, c'est trop, et ils sont trop petits : 12 de chaque » (23 oct. 2026) :
-# 16 × 9 places, pastilles Ø60 (le dessin de Ø50 agrandi de 1,2, jamais redessiné), 12 étiquettes.
-PAS_X, PAS_Y = 64.5, 72
-COLS, RANGS = 16, 9
+# « 24 de chaque, c'est trop, et ils sont trop petits », puis « 6 de chaque, encore trop petits » (23 oct. 2026) :
+# 6 rangs de 10 pastilles Ø88 (le dessin de Ø50 agrandi de 1,76, jamais redessiné), puis un rang de 6 étiquettes.
+PAS_X, PAS_Y = 100, 94
+COLS, RANGS = 10, 7
 X0, Y0 = (W - COLS * PAS_X) / 2, (H - RANGS * PAS_Y) / 2
 R = 25                      # le rayon du dessin d'origine
-K = 1.2                     # son agrandissement : la pastille coupée fait Ø60
+K = 1.76                    # son agrandissement : la pastille coupée fait Ø88
 R_REEL = R * K
 FOND_PERDU = 1.5
 ETIQ_W, ETIQ_H = 108, 50    # l'étiquette d'origine
-K_ETIQ = 1.1                # coupée à 118,8 × 55
-PAR_DESSIN = 12
+K_ETIQ = 1.35               # coupée à 145,8 × 67,5
+PAR_DESSIN = 6
 
 
 def _ligne(t, famille, taille, cx, y, couleur, largeur, graisse=500, interlettre=0.0):
@@ -111,14 +111,14 @@ PASTILLES = [
     ('motif', 'Allover square for boxes, no text', I, None, PAR_DESSIN),
 ]
 N_ETIQ = PAR_DESSIN
-assert sum(p[4] for p in PASTILLES) + 2 * N_ETIQ == COLS * RANGS
+assert sum(p[4] for p in PASTILLES) == COLS * (RANGS - 1)
 
 
 def carre_allover(a, cx, cy):
     """La pastille carrée des boîtes : l'allover ton sur ton, sans texte (60 × 60 coupé)."""
     c = 2 * R_REEL + (0 if a.rendu else 2 * FOND_PERDU)
     pts = grille(cx - R_REEL, cy - R_REEL, 2 * R_REEL, 2 * R_REEL, 7 * K, 11 * K, 9.5 * K, marge=1.0)
-    return [f'<rect x="{cx - c / 2}" y="{cy - c / 2}" width="{c}" height="{c}" rx="{3.6 if a.rendu else 5}" fill="{I}"/>', allover(pts, 7 * K, I_CLAIR)]
+    return [f'<rect x="{cx - c / 2}" y="{cy - c / 2}" width="{c}" height="{c}" rx="{3 * K if a.rendu else 3 * K + 1.5}" fill="{I}"/>', allover(pts, 7 * K, I_CLAIR)]
 
 
 def etiquette_brume(a, cx, cy):
@@ -140,7 +140,7 @@ def pastille(a, i, cx, cy, decoupe=True):
     _f, _t, fond, dessin, _n = PASTILLES[i]
     if dessin is None:
         out = ''.join(carre_allover(a, cx, cy))
-        trait = f'<rect x="{cx - R_REEL}" y="{cy - R_REEL}" width="{2 * R_REEL}" height="{2 * R_REEL}" rx="3.6"/>'
+        trait = f'<rect x="{cx - R_REEL}" y="{cy - R_REEL}" width="{2 * R_REEL}" height="{2 * R_REEL}" rx="{3 * K}"/>'
     else:
         r = R_REEL + (0 if a.rendu else FOND_PERDU)
         out = f'<circle cx="{cx}" cy="{cy}" r="{r}" fill="{fond}"/>' + _agrandi(''.join(dessin(cx, cy)), cx, cy, K)
@@ -152,9 +152,9 @@ def etiquette(a, cx, cy, decoupe=True):
     """Une étiquette entière, à sa taille réelle."""
     w, h = ETIQ_W * K_ETIQ, ETIQ_H * K_ETIQ
     fw, fh = (w, h) if a.rendu else (w + 2 * FOND_PERDU, h + 2 * FOND_PERDU)
-    out = (f'<rect x="{cx - fw / 2:.2f}" y="{cy - fh / 2:.2f}" width="{fw:.2f}" height="{fh:.2f}" rx="3.3" fill="{V}"/>'
+    out = (f'<rect x="{cx - fw / 2:.2f}" y="{cy - fh / 2:.2f}" width="{fw:.2f}" height="{fh:.2f}" rx="{3 * K_ETIQ:.2f}" fill="{V}"/>'
            + _agrandi(''.join(etiquette_brume(a, cx, cy)), cx, cy, K_ETIQ))
-    trait = f'<rect x="{cx - w / 2:.2f}" y="{cy - h / 2:.2f}" width="{w:.2f}" height="{h:.2f}" rx="3.3"/>'
+    trait = f'<rect x="{cx - w / 2:.2f}" y="{cy - h / 2:.2f}" width="{w:.2f}" height="{h:.2f}" rx="{3 * K_ETIQ:.2f}"/>'
     return out + (_trait(trait) if decoupe and not a.rendu else '')
 
 
@@ -165,11 +165,9 @@ def cases():
     for k, i in enumerate(file_):
         r, c = divmod(k, COLS)
         out.append((i, X0 + PAS_X / 2 + c * PAS_X, Y0 + PAS_Y / 2 + r * PAS_Y))
-    k = len(file_)
-    for _ in range(N_ETIQ):
-        r, c = divmod(k, COLS)
-        out.append(('brume', X0 + (c + 1) * PAS_X, Y0 + PAS_Y / 2 + r * PAS_Y))
-        k += 2
+    pas = COLS * PAS_X / N_ETIQ    # le dernier rang : les étiquettes, régulièrement espacées
+    for j in range(N_ETIQ):
+        out.append(('brume', X0 + pas / 2 + j * pas, Y0 + PAS_Y / 2 + (RANGS - 1) * PAS_Y))
     return out
 
 

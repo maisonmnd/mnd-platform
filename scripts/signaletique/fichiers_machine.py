@@ -198,21 +198,20 @@ def epreuve_n12():
                  f'<div class="vue">{svg_mm("<rect width='1060' height='680' fill='#fff' stroke='#ccc' stroke-width='1'/>" + feuille, 0, 0, 1060, 680, 0.36)}</div>'
                  f'<p class="note">Sheet 1060 × 680 mm: {nb} round seals and {b.N_ETIQ} labels, {b.PAR_DESSIN} of each design; {tailles}; '
                  f'{b.FOND_PERDU:g} mm bleed, kiss-cut on the magenta line (spot colour CutContour in the machine file). '
-                 'Each design is shown at actual size and enlarged on the next pages.</p></div>')
+                 'Each design is shown at actual size on the next pages.</p></div>')
     dessins = []
     for i, (_f, titre, _fond, _d, n) in enumerate(b.PASTILLES):
         c = d_rond / 2
         dessins.append((titre, n, b.pastille(a, i, c, c), d_rond, d_rond))
     lw, lh = d_lab
     dessins.append((f'La Brume · Hydra Mist, bottle label {b.ETIQ_W * b.K_ETIQ:.0f} × {b.ETIQ_H * b.K_ETIQ:.0f} mm', b.N_ETIQ, b.etiquette(a, lw / 2, lh / 2), lw, lh))
-    cases = ''.join(f'<div class="case">{svg_mm(f, 0, 0, w, h)}<div><b>{esc(t)}</b><br>{n} per sheet</div></div>' for t, n, f, w, h in dessins)
-    pages.append(f'<div class="page">{tete(f"N12 · the {len(dessins)} designs, actual size · 1:1", "Maison MND · proof for Lico Sign")}'
-                 f'<div class="grille" style="grid-template-columns:repeat(5, auto)">{cases}</div><p class="note">{tailles.capitalize()}; {b.FOND_PERDU:g} mm bleed.</p></div>')
-    for k, lot in enumerate((dessins[:6], dessins[6:]), 1):
-        cases = ''.join(f'<div class="case">{svg_mm(f, 0, 0, w, h, 1.7 if w < 100 else 1.3)}<div><b>{esc(t)}</b><br>{n} per sheet · inks: '
+    # À Ø88, tout se lit à taille réelle : six dessins par page, avec leurs encres.
+    lots = [dessins[k:k + 6] for k in range(0, len(dessins), 6)]
+    for k, lot in enumerate(lots, 1):
+        cases = ''.join(f'<div class="case">{svg_mm(f, 0, 0, w, h)}<div><b>{esc(t)}</b><br>{n} per sheet · inks: '
                         f'{", ".join(NOMS_ENCRES[c] for c in encres(f))}</div></div>' for t, n, f, w, h in lot)
-        pages.append(f'<div class="page">{tete(f"N12 · the designs, enlarged × 1.7 to read the details ({k}/2)", "Maison MND · proof for Lico Sign")}'
-                     f'<div class="grille" style="grid-template-columns:repeat(3, auto)">{cases}</div></div>')
+        pages.append(f'<div class="page">{tete(f"N12 · the {len(dessins)} designs, actual size · 1:1 ({k}/{len(lots)})", "Maison MND · proof for Lico Sign")}'
+                     f'<div class="grille" style="grid-template-columns:repeat(3, auto)">{cases}</div><p class="note">{tailles.capitalize()}; {b.FOND_PERDU:g} mm bleed.</p></div>')
     return pages
 
 
