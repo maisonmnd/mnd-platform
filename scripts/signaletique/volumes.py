@@ -24,7 +24,7 @@ Lumières : `halo` (la lumière part du dos et éclaire le mur ou le caisson),
 import json
 import xml.etree.ElementTree as ET
 
-from enseignes import ENSEIGNES, Atelier, ATELIERS, plaque_atelier, TOTEM_H
+from enseignes import ENSEIGNES, Atelier, ATELIERS, plaque_atelier, TOTEM_H, POTEAU_H, TABLE_H
 from motifs import chemin_du_pictogramme
 
 # Matières : le moteur 3D (rendu3d.html) connaît chacune de ces clés.
@@ -155,6 +155,44 @@ RECETTES['N10'] = recette_totem()
 RECETTES['N11'] = dict(montage='mur', centre=1.55, mur_uni=True,
                        support=dict(el=0, ep=30, matiere='cuivre-brosse', face='percee', percee=[1], fond='opale', lum='percee', fond_lum=0.7, sans_lueur=True),
                        pieces=[], vues=['jour', 'nuit', 'situation'])
+
+# ══ LES PANNEAUX DE DIRECTION (23 oct. 2026) ════════════════════════════
+# Le poteau : poteau acier de 110, chapeau et bague cuivre qui l'entourent, lames de 20 mm au milieu de son
+# épaisseur ; le filet de chaque lame est imprimé, les lettres sont une encre posée dessus (une image
+# plaquée les pâlissait au soleil). Éléments de directions.poteau.
+RECETTES['N13'] = dict(montage='sol', centre=POTEAU_H / 2000, avance=1.6,
+                       pieces=[_p(0, 'indigo', 110, 10), _p([1, 3], 'cuivre-brosse', 130, 0), _p(2, 'cuivre-brosse', 120, 5),
+                               _p(4, 'alu-indigo', 20, 55), _p([6, 8, 10, 12], 'ivoire', 20, 55),
+                               _p(5, 'encre-ivoire', 0.2, 75.15), _p([7, 9, 11, 13], 'encre-indigo', 0.2, 75.15)],
+                       surimpressions=[dict(el=[4, 6, 8, 10, 12], z=75.1, nom=('Edge lines, UV print both faces', '边线，双面 UV 打印'))],
+                       vues=['jour', 'situation'],
+                       coupe=[('Post 110 × 110, steel, indigo powder coat', '立柱 110 × 110，钢，靛蓝色喷粉', 10, 120, '#1E2150', None),
+                              ('Cap and foot ring 150 × 150, brushed copper', '顶帽和底环 150 × 150，拉丝铜色', 0, 130, '#B0703F', None),
+                              ('Blades, extruded aluminium 20 mm, centred on the post', '指示牌，20 毫米铝型材，居立柱中间', 55, 75, '#F1EADC', None),
+                              ('Lettering and edge lines, UV print both faces', '文字和边线，双面 UV 打印', 75, 75.2, '#C9BFAE', None)])
+# La flèche de rue : panneau de 3 mm en film rétroréfléchissant ivoire, imprimé cuivre, sur rails à 12 mm du mur.
+RECETTES['N14'] = dict(montage='mur', centre=2.3,
+                       pieces=[_p(0, 'ivoire', 3, 12), _p(1, 'encre-cuivre', 0.2, 15), _p([2, 3, 4], 'encre-ivoire', 0.2, 15.2)],
+                       goujons=12, vues=['jour', 'situation'],
+                       coupe=[('Rails at the back, aluminium', '背面导轨，铝', 0, 12, '#AEB3BA', None),
+                              ('Aluminium panel 3 mm, ivory reflective film', '3 毫米铝板，象牙白反光膜', 12, 15, '#F1EADC', None),
+                              ('Copper UV print', '铜色 UV 打印', 15, 15.2, '#B97A4A', None)])
+# La flèche ivoire : base indigo de 5 mm, face ivoire de 3 mm, chevron et logo en relief de 3 mm, devise imprimée.
+RECETTES['N15'] = dict(montage='mur', centre=1.6,
+                       pieces=[_p(0, 'acrylique-indigo', 5, 10), _p(1, 'acrylique-ivoire', 3, 15), _p([2, 3], 'acrylique-indigo', 3, 18), _p(4, 'encre-cuivre', 0.2, 18)],
+                       goujons=10, vues=['jour', 'situation'])
+# Le poteau de table, posé sur le comptoir de l'accueil : socle de 124, poteau de 24, bagues cuivre, lames de 5 mm.
+# Éléments : 0 poteau, 1 tête, 2 socle, puis bague, lame, mot, ligne (3 à 14).
+RECETTES['N16'] = dict(montage='sol', comptoir=True, centre=0.78 + TABLE_H / 2000, avance=0.45,
+                       pieces=[_p([0, 1], 'acrylique-indigo', 24, 50), _p(2, 'acrylique-indigo', 124, 0), _p([3, 7, 11], 'cuivre-brosse', 30, 47),
+                               _p([4, 8, 12], 'acrylique-ivoire', 5, 59.5), _p([5, 9, 13], 'encre-indigo', 0.2, 64.65), _p([6, 10, 14], 'encre-cuivre', 0.2, 64.65)],
+                       surimpressions=[dict(el=[4, 8, 12], z=64.6, nom=('Edge lines, UV print both faces', '边线，双面 UV 打印'))],
+                       vues=['jour', 'situation'],
+                       coupe=[('Weighted base 124 × 124 × 18, indigo acrylic', '配重底座 124 × 124 × 18，靛蓝色亚克力', 0, 124, '#2A2E66', None),
+                              ('Post 24 × 24, indigo acrylic', '立柱 24 × 24，靛蓝色亚克力', 50, 74, '#2A2E66', None),
+                              ('Rings, brushed copper', '套环，拉丝铜色', 47, 77, '#B0703F', None),
+                              ('Blades, ivory acrylic 5 mm', '指示牌，5 毫米象牙白亚克力', 59.5, 64.5, '#F6F1E7', None),
+                              ('Lettering and edge lines, UV print both faces', '文字和边线，双面 UV 打印', 64.5, 64.7, '#C9BFAE', None)])
 
 # Les options à motifs : leurs recettes partent de celles des bases.
 from options import OPTIONS, recettes_des_options  # noqa: E402

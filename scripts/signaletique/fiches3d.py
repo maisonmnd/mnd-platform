@@ -230,7 +230,7 @@ def page(e):
         lignes = lignes_option(e)
     table = ''.join(f'<tr><th>{k}<small>{esc(kz)}</small></th><td>{v}</td></tr>' for k, kz, v in lignes)
     # Le totem est haut et étroit : sa vue cotée et ses couleurs passent sur sa page « comment il vit ».
-    duo = '' if r['montage'] == 'sol' else (
+    duo = '' if e['id'] == 'N10' else (
         f'<div class="duo"><div><h3>Front view, mm <span class="zh-t">{Z["vue_face"]}</span></h3><div class="vue">{vue_cotee(e, dessin0, 120, 78)}</div></div>'
         f'<div><h3>Colours <span class="zh-t">{Z["couleurs"]}</span></h3>{nuancier_bi(corps0)}</div></div>')
     serie = ''

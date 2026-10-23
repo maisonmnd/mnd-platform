@@ -355,6 +355,43 @@ def n11(a):
     return ''.join([f'<circle cx="{c}" cy="{c}" r="{c}" fill="{a.metal(C)}"/>', medaillon(c, c, N11_MEDAILLON, V)])
 
 
+# ══ LES PANNEAUX DE DIRECTION (23 oct. 2026) ════════════════════════════
+# « Fais plusieurs dessins de panneaux de direction » ; elle en garde quatre au sélecteur. Les dessins sont
+# dans directions.py ; leurs tailles sont ici, car le catalogue les lit avant de dessiner. N12 reste le nom
+# de l'ancienne feuille d'autocollants chez Lico Sign : on ne le reprend pas.
+POTEAU_W, POTEAU_H = 1870, 2400
+RUE_W, RUE_H = 1400, 460
+IVOIRE_W, IVOIRE_H = 1200, 340
+TABLE_W, TABLE_H = 244, 330
+
+
+def _direction(nom):
+    import directions
+    return getattr(directions, nom)()
+
+
+def _coupes(nom):
+    """Le trait de découpe d'un panneau en flèche : ses contours, pas un rectangle."""
+    return lambda: ''.join(f'<path d="{d}"/>' for d in _direction(nom)[2])
+
+
+def n13(a):
+    return ''.join(_direction('poteau')[1])
+
+
+def n14(a):
+    return ''.join(_direction('fleche_rue')[1])
+
+
+def n15(a):
+    return ''.join(_direction('fleche_ivoire')[1])
+
+
+def n16(a):
+    return ''.join(_direction('poteau_table')[1])
+
+
+
 def _f(id_, dessin, w, h, prof, forme, scene, effet, **k):
     return dict(id=id_, dessin=dessin, w=w, h=h, prof=prof, forme=forme, scene=scene, effet=effet, **k)
 
@@ -538,6 +575,42 @@ ENSEIGNES = [
                finish='Brushed copper, ivory opal.',
                lighting='Only the medallion lights up: 3000 K warm white LED behind the opal, IP65, 12 V. Power through an armoured door cable loop on the hinge side, the driver stays inside the house; same timer as the other signs.',
                change='NEW ITEM: our medallion, backlit, on the outside metal door of the house. Please quote.')),
+    _f('N13', n13, POTEAU_W, POTEAU_H, 130, 'fleche', 'rue', 'plaque',
+       nom='Le poteau de direction', name='Fingerpost direction sign, five blades',
+       statut='nouvelle', lieu='Entrée, cour ou coin de la rue', decoupe=_coupes('poteau'),
+       fr=dict(construction='Poteau carré en acier 110 × 110 thermolaqué indigo, 2400 mm hors sol, sur platine ancrée par 4 tiges M12 ; chapeau et bague de pied en cuivre brossé. Cinq lames en profilé aluminium de 20 mm, 820 × 150, en flèche, fixées au poteau par colliers inox : la première indigo, lettres ivoire et filet cuivre ; les quatre autres ivoire, lettres et filet indigo. Lettres imprimées UV sur les deux faces, vernis anti-UV.',
+               finition='Indigo, ivoire, cuivre brossé.', lumiere='Non lumineux.',
+               change='Nouvelle pièce, d’après le poteau d’Amen Corner : CONSULTATION, ACCUEIL, LES ATELIERS, BOUTIQUE, TOILETTES. Les mots des lames peuvent encore changer.'),
+       en=dict(construction='Square steel post 110 × 110 mm, indigo powder coat, 2400 mm above the ground on a base plate anchored with 4 × M12 rods; brushed copper cap and foot ring. Five blades in 20 mm extruded aluminium profile, 820 × 150 mm, arrow-shaped, fixed to the post with stainless clamps: the first blade indigo with ivory letters and a copper edge line, the four others ivory with indigo letters and an indigo edge line. Lettering UV printed on both faces, anti-UV varnish.',
+               finish='Indigo #1E2150, ivory #F6F1E7, brushed copper.', lighting='Non-illuminated.',
+               change='NEW ITEM. The words on the blades may still change: please confirm the text with us before printing. Please quote.')),
+    _f('N14', n14, RUE_W, RUE_H, 15, 'fleche', 'rue', 'plaque',
+       nom='La flèche de rue', name='Street direction panel (tourist sign style)',
+       statut='nouvelle', lieu='Rue principale, sur poteau ou mur, à 2,3 m du sol', decoupe=_coupes('fleche_rue'),
+       fr=dict(construction='Panneau aluminium 3 mm découpé à la flèche, face en film rétroréfléchissant ivoire, imprimée UV cuivre autour du chevron, du logo et de la distance (qui restent ivoire et se voient la nuit dans les phares) ; deux rails aluminium au dos, pour un poteau ou un mur, à 12 mm du mur.',
+               finition='Cuivre, ivoire rétroréfléchissant.', lumiere='Non lumineux (rétroréfléchissant).',
+               change='Nouvelle pièce, d’après le panneau touristique brun. La distance (« à 100 m ») se mesure sur place avant l’impression.'),
+       en=dict(construction='3 mm aluminium panel cut to the arrow shape; the face in ivory reflective film, UV printed copper around the chevron, the logo and the distance (they stay reflective ivory, visible at night in car lights); two aluminium rails at the back for a post or a wall, 12 mm from the wall.',
+               finish='Copper #B97A4A, reflective ivory #F6F1E7.', lighting='Non-illuminated (reflective).',
+               change='NEW ITEM. The distance (“à 100 m”) will be measured on site and confirmed before printing. Please quote.')),
+    _f('N15', n15, IVOIRE_W, IVOIRE_H, 21, 'fleche', 'mur', 'relief',
+       nom='La flèche ivoire', name='Ivory arrow wall sign',
+       statut='nouvelle', lieu='Portail, couloir ou mur de l’entrée', decoupe=_coupes('fleche_ivoire'),
+       fr=dict(construction='Base en acrylique indigo 5 mm découpée à la flèche ; face en acrylique ivoire 3 mm posée dessus, liseré indigo de 20 mm ; chevron et logo en acrylique indigo 3 mm découpé, en relief ; devise imprimée UV cuivre. Sur 4 goujons, à 10 mm du mur ; acrylique d’extérieur, stable aux UV.',
+               finition='Indigo, ivoire, cuivre.', lumiere='Non lumineuse.',
+               change='Nouvelle pièce, d’après la flèche blanche du mariage.'),
+       en=dict(construction='Base in 5 mm indigo acrylic cut to the arrow; face in 3 mm ivory acrylic laid on it, leaving a 20 mm indigo border; chevron and logo flat-cut from 3 mm indigo acrylic, raised; motto UV printed copper. On 4 stand-off studs, 10 mm from the wall; outdoor grade acrylic, UV stable.',
+               finish='Indigo #1E2150, ivory #F6F1E7, copper #B97A4A.', lighting='Non-illuminated.',
+               change='NEW ITEM. Please quote.')),
+    _f('N16', n16, TABLE_W, TABLE_H, 124, 'fleche', 'interieur', 'plaque',
+       nom='Le poteau de table', name='Tabletop direction post, three blades',
+       statut='nouvelle', lieu='Comptoir de l’accueil et tables', decoupe=_coupes('poteau_table'),
+       fr=dict(construction='Poteau en acrylique indigo 24 × 24 à tête arrondie, sur un socle indigo lesté 124 × 124 × 18 ; trois bagues en cuivre brossé ; trois lames en acrylique ivoire 5 mm, 170 × 42, en flèche, filet indigo. Impression UV sur les deux faces : « VOTRE BEAUTÉ / 0 km · déjà là », « RÉSERVER / maisonmnd.com », « MOMOPAY / *880*41*909099*Montant# ». Hauteur 330 mm.',
+               finition='Indigo, ivoire, cuivre.', lumiere='Non lumineux.',
+               change='Nouvelle pièce, d’après le petit poteau « Where we met » ; le code MoMoPay de la Maison à la place d’Instagram.'),
+       en=dict(construction='24 × 24 mm indigo acrylic post with a rounded top, on a weighted indigo base 124 × 124 × 18 mm; three brushed copper rings; three blades in 5 mm ivory acrylic, 170 × 42 mm, arrow-shaped, indigo edge line. UV print on both faces: “VOTRE BEAUTÉ / 0 km · déjà là”, “RÉSERVER / maisonmnd.com”, “MOMOPAY / *880*41*909099*Montant#”. Total height 330 mm.',
+               finish='Indigo #1E2150, ivory #F6F1E7, copper.', lighting='Non-illuminated.',
+               change='NEW ITEM. Please check the MoMoPay code character by character: *880*41*909099*Montant#. Please quote.')),
 ]
 
 # « Sur la demande de devis, garder N3, N4, N5, N7, N9, N10 et N11 » (23 oct. 2026) : N1, N2, N6 et N8 sont mises

@@ -481,6 +481,14 @@ async function compose(sc, mode) {
     const cz = pivot.position.z;
     for (const dz of [-0.11, 0.11]) fixe(new THREE.Mesh(new THREE.CylinderGeometry(0.003, 0.003, 0.12, 8), fer)).position.set(0, haut - 0.06, cz + dz);
   }
+  /* Le poteau de table se pose sur le comptoir de l'accueil : un caisson ivoire, un plateau de bois. */
+  if (r.comptoir) {
+    const z = pivot.position.z + ep / 2 * MM;
+    const plateau = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.03, 0.62), new THREE.MeshStandardMaterial({ color: 0xB89874, roughness: 0.55 }));
+    plateau.position.set(0, 0.765, z); plateau.receiveShadow = true; plateau.castShadow = true; scene.add(plateau);
+    const caisson = new THREE.Mesh(new THREE.BoxGeometry(1.36, 0.75, 0.58), matiere('ivoire', nuit));
+    caisson.position.set(0, 0.375, z); caisson.receiveShadow = true; scene.add(caisson);
+  }
   if (r.montage === 'table') {
     const plateau = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.04, 1.1), new THREE.MeshStandardMaterial({ color: 0xB89874, roughness: 0.55 }));
     plateau.position.set(0, 0.73, 0.62); plateau.receiveShadow = true; scene.add(plateau);
@@ -517,7 +525,7 @@ async function compose(sc, mode) {
   if (mode === 'situation' && r.montage !== 'table') {
     const s = silhouette(nuit);
     if (tournee) { s.position.set(0.15, 0, boite.max.z + 0.45); s.rotation.y = Math.PI / 2; }
-    else s.position.set(boite.max.x + 0.55, 0, r.montage === 'sol' ? boite.max.z + 0.25 : 0.4);
+    else s.position.set(boite.max.x + (r.comptoir ? 0.95 : 0.55), 0, r.montage === 'sol' ? boite.max.z + 0.25 : 0.4);
     scene.add(s);
   }
 
@@ -527,6 +535,8 @@ async function compose(sc, mode) {
   if (mode === 'situation') {
     const zone = boite.clone();
     if (r.montage !== 'table') { zone.expandByPoint(new THREE.Vector3(boite.max.x + 1.0, 0, 0)); zone.expandByPoint(new THREE.Vector3(boite.min.x - 0.4, 0, 0)); }
+    /* Au comptoir, le cadre prend le comptoir entier et la silhouette debout à côté. */
+    if (r.comptoir) { zone.expandByPoint(new THREE.Vector3(boite.max.x + 1.25, 1.8, 0)); zone.expandByPoint(new THREE.Vector3(-0.75, 0, 0)); }
     const c = zone.getCenter(new THREE.Vector3()), t = zone.getSize(new THREE.Vector3());
     const d = Math.max(t.y, t.x / (W / H)) * 1.5 / 2 / tan;
     if (r.montage === 'table') { cam.position.set(c.x + 0.5, 1.85, c.z + 1.45); cam.lookAt(c.x, 0.75, c.z); }

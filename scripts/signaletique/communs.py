@@ -23,6 +23,8 @@ def variantes(e):
 
 
 def decoupe(e):
+    if e.get('decoupe'):
+        return e['decoupe']()
     w, h = e['w'], e['h']
     if e['forme'] == 'rond':
         return f'<circle cx="{w / 2}" cy="{h / 2}" r="{w / 2}"/>'
@@ -98,4 +100,4 @@ def nuancier(e, corps, langue='en'):
 
 
 def interieur_ou_ext(e):
-    return 'Outdoor (IP65)' if e['scene'] in ('facade', 'rue') or e['id'] in ('N7', 'N9', 'R1') else 'Indoor'
+    return 'Outdoor (IP65)' if e['scene'] in ('facade', 'rue') or e['id'] in ('N7', 'N9', 'N15', 'R1') else 'Indoor'
