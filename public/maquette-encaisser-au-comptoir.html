@@ -1,0 +1,614 @@
+<title>Encaisser au comptoir</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="robots" content="noindex" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,400&family=Jost:wght@300;400;500;600&display=swap">
+<style>
+  /* LA MAQUETTE DE LA CAISSE DU COMPTOIR, 24 octobre 2026.
+     Un seul monde, celui de la Maison : parchemin, indigo, cuivre en accent.
+     La maquette peint son propre fond et ne suit pas le thème du lecteur.
+     Mise en page : une colonne de lecture, puis l'écran démontré (à faire maintenant à gauche,
+     le ticket en trois temps à droite, la barre collante en bas), puis les arbitrages. */
+  :root {
+    --parchemin:#F3EDE1; --ivoire:#FBF8F2; --blanc:#FFFFFF;
+    --indigo:#1E2150; --indigo-2:#3A3F72; --indigo-pale:#EDEEF4;
+    --cuivre:#B97A4A; --cuivre-fonce:#8C5A33; --cuivre-p:#E3C9AE; --cuivre-f:#FAF1E9;
+    --encre:#2A2722; --encre-d:#6E6961; --filet:#D9CFBC;
+    --vert:#41604A; --vert-f:#EDF2EE; --vert-p:#C4D5C8;
+    --brique:#96412E; --brique-f:#FBF0ED; --brique-p:#E4BDB2;
+    --serif:'Cormorant Garamond',Georgia,'Times New Roman',serif;
+    --sans:'Jost','Century Gothic','Segoe UI',system-ui,sans-serif;
+    color-scheme: light;
+  }
+  * { box-sizing:border-box; }
+  [hidden] { display:none !important; }
+  body { margin:0; background:var(--parchemin); color:var(--encre); font-family:var(--sans); font-size:15px; line-height:1.6; -webkit-font-smoothing:antialiased; }
+  .page { max-width:1120px; margin:0 auto; padding-block:52px 110px; padding-left:max(22px, env(safe-area-inset-left, 0px)); padding-right:max(22px, env(safe-area-inset-right, 0px)); }
+  @media (max-width:600px){ .page { padding-block:30px 80px; padding-left:max(16px, env(safe-area-inset-left, 0px)); padding-right:max(16px, env(safe-area-inset-right, 0px)); } }
+  .eyebrow { font-size:10.5px; letter-spacing:.22em; text-transform:uppercase; color:var(--cuivre-fonce); margin:0 0 12px; }
+  h1 { font-family:var(--serif); font-weight:300; font-size:clamp(38px,7vw,58px); line-height:1.03; color:var(--indigo); margin:0 0 18px; text-wrap:balance; }
+  h2 { font-family:var(--serif); font-weight:400; font-size:clamp(25px,3.6vw,33px); line-height:1.1; color:var(--indigo); margin:0 0 8px; text-wrap:balance; }
+  h3 { font-family:var(--serif); font-weight:500; font-size:20px; color:var(--indigo); margin:0 0 6px; }
+  .cite { border-left:2px solid var(--cuivre); padding:2px 0 2px 16px; margin:0 0 24px; font-family:var(--serif); font-size:20px; line-height:1.45; color:var(--indigo); max-width:64ch; }
+  .cite span { display:block; font-family:var(--sans); font-size:11px; letter-spacing:.16em; text-transform:uppercase; color:var(--encre-d); margin-top:8px; }
+  .chapeau { max-width:72ch; font-size:16px; color:var(--encre-d); margin:0; }
+  .chapeau b, .intro b { color:var(--encre); font-weight:500; }
+  section { margin-top:60px; }
+  .intro { max-width:74ch; color:var(--encre-d); margin:0 0 20px; }
+  .exemple { font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:var(--encre-d); margin:0 0 10px; }
+
+  .decide { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px; }
+  @media (max-width:900px){ .decide { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+  @media (max-width:520px){ .decide { grid-template-columns:1fr; } }
+  .decide div { background:var(--vert-f); border:1px solid var(--vert-p); border-radius:4px; padding:14px 16px; font-size:13.5px; line-height:1.55; }
+  .decide b { display:block; font-family:var(--serif); font-weight:500; font-size:18px; color:var(--indigo); margin-bottom:4px; }
+  .avant { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; }
+  @media (max-width:760px){ .avant { grid-template-columns:1fr; } }
+  .avant div { background:var(--blanc); border:1px solid var(--filet); border-radius:4px; padding:14px 16px; font-size:13.5px; }
+  .avant .chiffre { font-family:var(--serif); font-size:34px; line-height:1; color:var(--indigo); display:block; margin-bottom:6px; font-variant-numeric:tabular-nums; }
+
+  /* ── L'ÉCRAN DÉMONTRÉ ─────────────────────────────────────────── */
+  .ecran { background:var(--ivoire); border:1px solid var(--filet); border-radius:4px; }
+  .ecran__tete { background:var(--indigo); color:#EFEAE0; padding:13px 18px; display:flex; justify-content:space-between; gap:12px; align-items:baseline; flex-wrap:wrap; border-radius:4px 4px 0 0; }
+  .ecran__tete b { font-family:var(--serif); font-weight:400; font-size:22px; color:var(--blanc); }
+  .ecran__tete span { font-size:10.5px; letter-spacing:.16em; text-transform:uppercase; color:var(--cuivre-p); }
+  .grille { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1.25fr); }
+  @media (max-width:860px){ .grille { grid-template-columns:1fr; } }
+  .gauche { border-right:1px solid var(--filet); padding:16px 18px; display:flex; flex-direction:column; gap:14px; min-width:0; }
+  @media (max-width:860px){ .gauche { border-right:0; border-bottom:1px solid var(--filet); padding:14px; } }
+  .droite { min-width:0; }
+
+  .champ { width:100%; font:inherit; font-size:15px; padding:10px 12px; border:1px solid var(--filet); border-radius:3px; background:var(--blanc); color:var(--encre); }
+  .liste { display:flex; flex-direction:column; gap:6px; }
+  .choix { display:flex; justify-content:space-between; gap:12px; align-items:baseline; padding:10px 12px; border:1px solid var(--filet); border-radius:3px; background:var(--blanc); cursor:pointer; font:inherit; color:inherit; text-align:left; width:100%; }
+  .choix:hover { border-color:var(--cuivre-p); }
+  .choix small { color:var(--encre-d); font-size:12px; }
+  .choix .genre { font-size:10px; letter-spacing:.14em; text-transform:uppercase; color:var(--cuivre-fonce); margin-right:8px; }
+  .choix .montant { font-variant-numeric:tabular-nums; white-space:nowrap; }
+  .choix.on { border-color:var(--indigo); box-shadow:inset 0 0 0 1px var(--indigo); }
+  .choix .etat { display:block; font-size:12px; color:var(--encre-d); }
+  .choix .etat.fini { color:var(--vert); }
+  .titre-bloc { font-size:10.5px; letter-spacing:.16em; text-transform:uppercase; color:var(--cuivre-fonce); margin:0; }
+
+  .rang { border-top:1px solid var(--filet); }
+  .rang:first-of-type { border-top:0; }
+  .rang__ligne { width:100%; display:grid; grid-template-columns:minmax(0,1fr) auto; gap:12px; align-items:baseline; padding:14px 18px; background:none; border:0; text-align:left; font:inherit; color:inherit; cursor:pointer; }
+  .rang__ligne:focus-visible, button:focus-visible, input:focus-visible { outline:2px solid var(--cuivre); outline-offset:2px; }
+  .rang__titre { font-family:var(--serif); font-size:21px; color:var(--indigo); line-height:1.2; }
+  .rang__resume { display:block; font-size:13px; color:var(--encre-d); margin-top:2px; overflow-wrap:anywhere; }
+  .rang__resume.fait { color:var(--encre); }
+  .rang__etat { font-size:10.5px; letter-spacing:.14em; text-transform:uppercase; color:var(--encre-d); white-space:nowrap; }
+  .rang__etat.ok { color:var(--vert); }
+  .rang__corps { padding:0 18px 18px; display:flex; flex-direction:column; gap:12px; }
+  @media (max-width:600px){ .rang__corps { padding:0 14px 16px; } .rang__ligne { padding:13px 14px; } }
+
+  .ligne { display:grid; grid-template-columns:minmax(0,1fr) auto auto; gap:10px; align-items:center; padding:9px 12px; background:var(--blanc); border:1px solid var(--filet); border-radius:3px; }
+  .ligne b { font-weight:500; }
+  .ligne small { display:block; color:var(--encre-d); font-size:12px; }
+  .ligne .prix { font-variant-numeric:tabular-nums; white-space:nowrap; text-align:right; }
+  .ligne .prix s { color:var(--encre-d); font-size:12px; display:block; }
+  .qte { display:flex; align-items:center; gap:6px; }
+  .qte button { width:28px; height:28px; border-radius:50%; border:1px solid var(--filet); background:var(--ivoire); font:inherit; cursor:pointer; color:var(--indigo); }
+  .puces { display:flex; flex-wrap:wrap; gap:6px; }
+  .puce { font:inherit; font-size:13px; padding:6px 12px; border-radius:999px; border:1px solid var(--filet); background:var(--blanc); color:var(--encre); cursor:pointer; }
+  .puce:hover { border-color:var(--cuivre-p); }
+  .puce.on { background:var(--indigo); border-color:var(--indigo); color:var(--blanc); }
+  .note { font-size:12.5px; color:var(--encre-d); margin:0; }
+  .auto { background:var(--indigo-pale); border-radius:3px; padding:9px 12px; font-size:13px; color:var(--indigo-2); }
+  .propose { background:var(--cuivre-f); border:1px solid var(--cuivre-p); border-radius:4px; padding:12px 14px; display:flex; justify-content:space-between; gap:12px; align-items:center; flex-wrap:wrap; font-size:13.5px; }
+  .propose b { color:var(--indigo); font-weight:500; }
+  .btn { font:inherit; font-size:12px; letter-spacing:.12em; text-transform:uppercase; padding:9px 14px; border-radius:3px; cursor:pointer; border:1px solid var(--indigo); background:var(--indigo); color:var(--blanc); }
+  .btn.cuivre { background:var(--cuivre); border-color:var(--cuivre); }
+  .btn.sobre { background:transparent; color:var(--indigo); }
+  .btn[disabled] { opacity:.38; cursor:not-allowed; }
+  .ligne-cle { display:flex; justify-content:space-between; gap:12px; font-size:14px; }
+  .ligne-cle span:last-child { font-variant-numeric:tabular-nums; white-space:nowrap; }
+  .ligne-cle.remise span:last-child { color:var(--cuivre-fonce); }
+  .lien { background:none; border:0; padding:4px 0; font:inherit; font-size:14px; color:var(--cuivre-fonce); cursor:pointer; text-align:left; }
+
+  .tuiles { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:6px; }
+  @media (max-width:520px){ .tuiles { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+  .tuile { font:inherit; padding:10px 8px; border:1px solid var(--filet); border-radius:4px; background:var(--blanc); cursor:pointer; text-align:center; color:var(--encre); display:flex; flex-direction:column; gap:1px; }
+  .tuile b { font-weight:500; font-size:14px; }
+  .tuile small { font-size:11px; color:var(--encre-d); }
+  .tuile.on { border-color:var(--indigo); box-shadow:inset 0 0 0 1px var(--indigo); }
+  .tuile.habituel small { color:var(--cuivre-fonce); }
+  .rendu { display:flex; flex-direction:column; gap:8px; padding:12px; background:var(--blanc); border:1px solid var(--filet); border-radius:4px; }
+  .rendu .grand { font-family:var(--serif); font-size:28px; color:var(--indigo); line-height:1.1; font-variant-numeric:tabular-nums; }
+  .rendu .grand.manque { color:var(--brique); }
+
+  /* La barre collante : le net, le moyen, et le seul bouton. */
+  .barre { position:sticky; bottom:0; z-index:2; background:var(--indigo); color:#EFEAE0; padding:12px 18px calc(12px + env(safe-area-inset-bottom, 0px)); display:flex; gap:14px; align-items:center; justify-content:space-between; flex-wrap:wrap; border-radius:0 0 4px 4px; }
+  .barre__texte { min-width:0; flex:1 1 280px; font-size:13px; line-height:1.45; }
+  .barre__texte b { font-family:var(--serif); font-weight:400; font-size:26px; color:var(--blanc); display:block; font-variant-numeric:tabular-nums; }
+  .barre .btn { border-color:var(--cuivre); background:var(--cuivre); padding:11px 18px; }
+
+  .reussite { padding:26px 22px; display:flex; flex-direction:column; gap:12px; align-items:flex-start; }
+  .reussite .coche { font-size:10.5px; letter-spacing:.18em; text-transform:uppercase; color:var(--vert); }
+  .reussite .montant { font-family:var(--serif); font-size:40px; color:var(--indigo); line-height:1; font-variant-numeric:tabular-nums; }
+  .reussite p { margin:0; color:var(--encre-d); font-size:14px; }
+  .boutons { display:flex; gap:8px; flex-wrap:wrap; }
+
+  .nefera { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px 28px; padding:0; margin:0; list-style:none; max-width:940px; }
+  @media (max-width:640px){ .nefera { grid-template-columns:1fr; } }
+  .nefera li { border-top:1px solid var(--filet); padding-top:10px; font-size:14px; }
+  .nefera b { color:var(--indigo); font-weight:500; }
+  .arbitrages { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px; }
+  @media (max-width:760px){ .arbitrages { grid-template-columns:1fr; } }
+  .arbitrage { background:var(--blanc); border:1px solid var(--filet); border-radius:4px; padding:16px 18px; display:flex; flex-direction:column; gap:8px; }
+  .arbitrage .q { font-size:10.5px; letter-spacing:.16em; text-transform:uppercase; color:var(--cuivre-fonce); }
+  .arbitrage p { margin:0; font-size:14px; color:var(--encre-d); }
+  .arbitrage .ferme { color:var(--encre); background:var(--cuivre-f); border-left:2px solid var(--cuivre); padding:8px 12px; }
+  .arbitrage .ferme b { color:var(--indigo); font-weight:500; }
+  .defauts { margin:0; padding-left:18px; font-size:14px; color:var(--encre-d); max-width:74ch; }
+  footer { margin-top:56px; font-size:12.5px; color:var(--encre-d); max-width:72ch; }
+  @media (prefers-reduced-motion: reduce){ * { transition:none !important; } }
+</style>
+
+<div class="page">
+  <p class="eyebrow">Maquette · Le Trône · Caisse · 24 octobre 2026</p>
+  <h1>Encaisser au comptoir</h1>
+  <p class="cite">« Tu n’as pas construit la page du paiement. Elle doit être smooth et intelligente. »<span>Yéman · 24 octobre 2026 · au sélecteur : l’encaissement à la Caisse</span></p>
+  <p class="chapeau">La Caisse reprend la grammaire d’« Encaisser le rituel », validée le 17 octobre : <b>trois temps, un seul ouvert, une barre collante</b>. Elle ouvre sur ce qui est à encaisser maintenant, propose ce qu’elle sait déjà (l’offre qui court, son avoir, son moyen habituel), rend la monnaie, et dit clairement que c’est encaissé.</p>
+
+  <section>
+    <h2>Ce qui est déjà décidé</h2>
+    <p class="intro">La maquette ne revient sur aucune règle posée : elle les rend visibles au bon moment.</p>
+    <div class="decide">
+      <div><b>Trois temps</b>Comme « Encaisser le rituel » du 17 octobre : un seul ouvert, chaque temps fermé garde son résumé.</div>
+      <div><b>La caisse d’office</b>Chaque moyen a sa caisse au même nom (21 octobre). La raison se lit en clair, plus seulement au survol.</div>
+      <div><b>ROSE15 hors gamme</b>15 % sur les prestations, net au millier supérieur, une seule ligne sur la pièce (23 octobre).</div>
+      <div><b>La remise gamme</b>À part, sur les produits seuls ; le code ne l’efface jamais (23 octobre).</div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Pourquoi ce n’est pas fluide aujourd’hui</h2>
+    <div class="avant">
+      <div><span class="chiffre">26</span>blocs l’un sous l’autre dans la colonne du ticket, des remises au reçu, et le ticket n’est pas collant : au téléphone, il tombe sous tout le catalogue.</div>
+      <div><span class="chiffre">0</span>proposition avant de choisir la cliente. Le rituel à solder n’apparaît qu’une fois son nom trouvé, et le catalogue n’a pas de recherche.</div>
+      <div><span class="chiffre">0</span>monnaie rendue, moyen habituel ou écran de réussite. Le moyen proposé est le premier de la liste, et après l’encaissement le ticket se vide sans rien dire.</div>
+    </div>
+  </section>
+
+  <section>
+    <h2>L’écran, à essayer</h2>
+    <p class="intro">Touche « Mireille A. » dans « À encaisser maintenant », applique l’offre, choisis Espèces et tape ce qu’elle donne. Ou cherche « huile » pour vendre un produit seul.</p>
+    <p class="exemple">Exemple · clientes, prix et soldes fictifs · samedi 24 octobre 2026, 13 h 25</p>
+
+    <div class="ecran">
+      <div class="ecran__tete"><b>Caisse</b><span>Maison MND · Suru-Léré · encaissé par Brice</span></div>
+      <div class="grille" id="grille">
+        <div class="gauche">
+          <input class="champ" id="recherche" type="search" placeholder="Cliente, prestation ou produit" autocomplete="off" aria-label="Cliente, prestation ou produit">
+          <div class="liste" id="trouves"></div>
+          <p class="titre-bloc">À encaisser maintenant</p>
+          <div class="liste" id="maintenant"></div>
+          <p class="titre-bloc">Les plus vendus</p>
+          <div class="puces" id="vendus"></div>
+        </div>
+
+        <div class="droite" id="droite">
+          <div id="ticket-zone">
+            <div class="rang" data-rang="ticket">
+              <button class="rang__ligne" type="button" aria-expanded="true">
+                <span><span class="rang__titre">Le ticket</span><span class="rang__resume" id="resume-ticket">Une cliente, puis ce qu’elle règle</span></span>
+                <span class="rang__etat" id="etat-ticket">vide</span>
+              </button>
+              <div class="rang__corps" id="corps-ticket">
+                <div id="cliente"></div>
+                <div class="liste" id="lignes"></div>
+              </div>
+            </div>
+
+            <div class="rang" data-rang="remises">
+              <button class="rang__ligne" type="button" aria-expanded="false">
+                <span><span class="rang__titre">Les remises</span><span class="rang__resume" id="resume-remises">Aucune</span></span>
+                <span class="rang__etat" id="etat-remises">facultatif</span>
+              </button>
+              <div class="rang__corps" id="corps-remises" hidden>
+                <div id="offre"></div>
+                <div>
+                  <p class="titre-bloc" style="margin-bottom:6px">Remise gamme · les produits seuls</p>
+                  <div class="puces" id="gamme"></div>
+                </div>
+                <button class="lien" type="button" id="plus-remises">+ Une remise globale, une remise en francs, un code nominatif</button>
+                <p class="note" id="plus-remises-note" hidden>Les mêmes cases qu’aujourd’hui, repliées ici tant qu’on n’en a pas besoin.</p>
+              </div>
+            </div>
+
+            <div class="rang" data-rang="paie">
+              <button class="rang__ligne" type="button" aria-expanded="false">
+                <span><span class="rang__titre">Comment elle paie</span><span class="rang__resume" id="resume-paie">Le moyen, la caisse, le pourboire</span></span>
+                <span class="rang__etat" id="etat-paie">à remplir</span>
+              </button>
+              <div class="rang__corps" id="corps-paie" hidden>
+                <div id="avoir"></div>
+                <div class="tuiles" id="tuiles"></div>
+                <p class="note" id="caisse"></p>
+                <div id="especes"></div>
+                <div>
+                  <p class="titre-bloc" style="margin-bottom:6px">Pourboire pour l’équipe</p>
+                  <div class="puces" id="pourboire"></div>
+                </div>
+                <button class="lien" type="button" id="autre-moyen">+ Un autre moyen pour une partie</button>
+                <p class="note" id="autre-moyen-note" hidden>Comme dans « Encaisser le rituel » : une part par moyen, la suivante règle ce qui reste.</p>
+              </div>
+            </div>
+
+            <div class="barre">
+              <div class="barre__texte" id="barre"><b>0 F</b>Le ticket est vide.</div>
+              <button class="btn" type="button" id="encaisser" disabled>Encaisser</button>
+            </div>
+          </div>
+
+          <div class="reussite" id="reussite" hidden aria-live="polite">
+            <span class="coche">Encaissé</span>
+            <span class="montant" id="r-montant"></span>
+            <p id="r-detail"></p>
+            <p id="r-recu"></p>
+            <div class="boutons">
+              <button class="btn" type="button" id="suivant">Ticket suivant</button>
+              <button class="btn sobre" type="button" id="prochain">Son prochain rendez-vous</button>
+              <button class="btn sobre" type="button" id="piece">Voir la pièce</button>
+            </div>
+            <p class="note" id="r-note"></p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Ce que ça ne fera pas</h2>
+    <ul class="nefera">
+      <li><b>Encaisser seul.</b> Les propositions remplissent le ticket ; l’argent n’entre qu’au clic d’« Encaisser ».</li>
+      <li><b>Appliquer une offre en silence.</b> L’offre qui court se propose, en cuivre, avec ce qu’elle retire ; on l’applique d’un geste.</li>
+      <li><b>Changer de caisse sans la direction.</b> La caisse suit le moyen, comme décidé le 17 et le 21 octobre.</li>
+      <li><b>Dire « payé » pour un MoMo pas encore reçu.</b> MND PAY se confirme seul ; un MoMo au téléphone reste à pointer le soir.</li>
+      <li><b>Écrire la monnaie rendue sur la pièce.</b> Elle s’affiche pour le comptoir ; la pièce garde ce qui est encaissé.</li>
+      <li><b>Envoyer le reçu d’une vente antidatée.</b> La règle d’aujourd’hui reste.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>Quatre arbitrages</h2>
+    <p class="intro">Chacun avec la proposition ferme que je construirais si tu dis oui.</p>
+    <div class="arbitrages">
+      <div class="arbitrage">
+        <span class="q">À encaisser maintenant</span>
+        <h3>Quels rendez-vous en tête ?</h3>
+        <p>La liste qui ouvre la Caisse, avant même de chercher un nom.</p>
+        <p class="ferme"><b>Proposition :</b> ceux du jour qui sont au fauteuil ou finis et pas encore réglés, le plus ancien en premier. Un geste remplit le ticket : la cliente, son rituel, ce qu’elle a déjà versé.</p>
+      </div>
+      <div class="arbitrage">
+        <span class="q">Le moyen proposé</span>
+        <h3>Lequel est choisi d’avance ?</h3>
+        <p>Aujourd’hui, c’est le premier de la liste, pour toutes.</p>
+        <p class="ferme"><b>Proposition :</b> son moyen habituel, celui de ses dernières venues, marqué « habituel ». Une nouvelle cliente n’a rien de choisi : la caissière touche le sien.</p>
+      </div>
+      <div class="arbitrage">
+        <span class="q">La monnaie</span>
+        <h3>Rendre la monnaie à l’écran ?</h3>
+        <p>Pour les espèces seulement.</p>
+        <p class="ferme"><b>Proposition :</b> oui. « Elle donne », avec les billets ronds au-dessus du net en un geste, et « Rendre 4 000 F » en grand. Si elle donne moins, le reste se dit, et peut se régler par un autre moyen.</p>
+      </div>
+      <div class="arbitrage">
+        <span class="q">Après l’encaissement</span>
+        <h3>Un écran de réussite ?</h3>
+        <p>Aujourd’hui le ticket se vide sans rien dire.</p>
+        <p class="ferme"><b>Proposition :</b> oui : le montant, le moyen, la caisse, le reçu parti sur son WhatsApp, puis « Ticket suivant » et « Son prochain rendez-vous », qui ouvre le nouveau « + RDV » sur elle et sur son rituel.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Trois défauts corrigés au passage</h2>
+    <ul class="defauts">
+      <li>Au téléphone, le bouton de la barre du bas ne vérifie pas la trace d’un chèque ou d’une carte : un toucher ne fait rien, sans dire pourquoi.</li>
+      <li>La sortie du stock d’un produit se date du jour, même quand la vente est antidatée.</li>
+      <li>L’alerte « pas de caisse dans cette devise » en tête de page regarde le mauvais réglage.</li>
+    </ul>
+  </section>
+
+  <footer>Maquette seulement : rien n’est construit. Les prénoms, prix et soldes de l’exemple sont fictifs. Quand tu valides, je construis la Caisse en trois temps, avec les règles d’argent d’aujourd’hui, inchangées.</footer>
+</div>
+
+<script>
+(() => {
+  /* ── LES DONNÉES DE L'EXEMPLE (fictives) ─────────────────────────── */
+  const ARTICLES = {
+    retwist: { nom: 'Retwist', prix: 45000, genre: 'prestation', offre: true },
+    soin: { nom: 'Soin hydratant', prix: 10000, genre: 'prestation', offre: true },
+    shampoing: { nom: 'Shampoing', prix: 5000, genre: 'prestation', offre: true },
+    huile: { nom: 'L’Huile de Nuit · 50 ml', prix: 7500, genre: 'produit' },
+    brume: { nom: 'La Brume · Hydra Mist · 250 ml', prix: 9000, genre: 'produit' },
+    beurre: { nom: 'Le Beurre de Karité · 100 g', prix: 6000, genre: 'produit' },
+  };
+  const CLIENTES = {
+    m: { nom: 'Mireille A.', avoir: 6000, habituel: 'momo', tel: true },
+    a: { nom: 'Awa K.', avoir: 0, habituel: 'especes', tel: true },
+    p: { nom: 'Cliente de passage', avoir: 0, habituel: null, tel: false },
+  };
+  const MAINTENANT = [
+    { id: 'm', quoi: ['retwist', 'soin'], qui: 'Gérard', etat: 'fini à 13 h 20', fini: true, recu: 15000 },
+    { id: 'a', quoi: ['shampoing'], qui: 'Teckle', etat: 'au fauteuil depuis 12 h 50', fini: false, recu: 0 },
+  ];
+  const MOYENS = [
+    { id: 'especes', nom: 'Espèces', caisse: 'Espèces' },
+    { id: 'momo', nom: 'MTN MoMoPay', caisse: 'MTN MoMoPay' },
+    { id: 'carte', nom: 'Carte', caisse: 'Carte' },
+    { id: 'cheque', nom: 'Chèque', caisse: 'Chèque' },
+    { id: 'mndpay', nom: 'MND PAY', caisse: 'MND PAY' },
+    { id: 'momoprive', nom: 'MoMo Privé', caisse: 'MoMo Privé' },
+    { id: 'autres', nom: 'Autres', caisse: 'Autres' },
+  ];
+  const OFFRE = { titre: 'Octobre Rose', code: 'ROSE15', pct: 15, jusqua: 'samedi 31 octobre 2026' };
+  const POURBOIRES = [0, 1000, 2000, 5000];
+
+  const etat = { cliente: null, rdv: null, lignes: {}, offre: false, gamme: 0, moyen: null, avoir: false, donne: '', pourboire: 0, ouvert: 'ticket' };
+  const $ = (id) => document.getElementById(id);
+  const F = (n) => `${Math.round(n).toLocaleString('fr-FR').replace(/ /g, ' ')} F`;
+  const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+  /* ── LE CALCUL, la règle d'aujourd'hui (leTicket) ─────────────── */
+  function calcul() {
+    let prest = 0, prodBrut = 0, prodNet = 0;
+    for (const [id, q] of Object.entries(etat.lignes)) {
+      const a = ARTICLES[id];
+      if (a.genre === 'prestation') prest += a.prix * q;
+      else { prodBrut += a.prix * q; prodNet += Math.round(a.prix * q * (1 - etat.gamme / 100)); }
+    }
+    const sous = prest + prodNet;
+    const brutCode = etat.offre ? Math.round(prest * OFFRE.pct / 100) : 0;
+    const netCode = Math.max(0, sous - brutCode);
+    const reste = netCode % 1000;
+    const arrondi = brutCode > 0 ? Math.min(brutCode, reste === 0 ? 0 : 1000 - reste) : 0;
+    const code = brutCode - arrondi;
+    const net = sous - code;
+    const recu = etat.rdv?.recu ?? 0;
+    const avoirMax = etat.cliente ? Math.min(CLIENTES[etat.cliente].avoir, Math.max(0, net - recu)) : 0;
+    const avoir = etat.avoir ? avoirMax : 0;
+    const aPayer = Math.max(0, net - recu - avoir);
+    return { prest, prodBrut, prodNet, sous, brutCode, arrondi, code, net, recu, avoir, avoirMax, aPayer, gammeRemise: prodBrut - prodNet };
+  }
+
+  /* ── LES TEMPS : un seul ouvert ─────────────────────────────────── */
+  document.querySelectorAll('.rang').forEach((r) => r.querySelector('.rang__ligne').addEventListener('click', () => ouvre(r.dataset.rang === etat.ouvert ? '' : r.dataset.rang)));
+  function ouvre(nom) {
+    etat.ouvert = nom;
+    document.querySelectorAll('.rang').forEach((r) => {
+      const on = r.dataset.rang === nom;
+      r.querySelector('.rang__corps').hidden = !on;
+      r.querySelector('.rang__ligne').setAttribute('aria-expanded', String(on));
+    });
+  }
+
+  /* ── À GAUCHE : à encaisser maintenant, la recherche, les plus vendus ── */
+  function dessineGauche() {
+    const box = $('maintenant');
+    box.innerHTML = '';
+    for (const r of MAINTENANT) {
+      const c = CLIENTES[r.id];
+      const total = r.quoi.reduce((n, id) => n + ARTICLES[id].prix, 0);
+      const b = document.createElement('button');
+      b.type = 'button'; b.className = `choix ${etat.rdv === r ? 'on' : ''}`;
+      b.innerHTML = `<span>${esc(c.nom)} <small>· ${esc(r.quoi.map((id) => ARTICLES[id].nom).join(' + '))} · ${esc(r.qui)}</small><span class="etat ${r.fini ? 'fini' : ''}">${esc(r.etat)}${r.recu ? ` · acompte reçu ${F(r.recu)}` : ''}</span></span><span class="montant">${F(total)}</span>`;
+      b.addEventListener('click', () => prendLeRdv(r));
+      box.appendChild(b);
+    }
+    const v = $('vendus');
+    v.innerHTML = '';
+    for (const id of ['shampoing', 'huile', 'brume', 'soin']) {
+      const b = document.createElement('button');
+      b.type = 'button'; b.className = 'puce';
+      b.textContent = `${ARTICLES[id].nom.split(' · ')[0]} · ${F(ARTICLES[id].prix)}`;
+      b.addEventListener('click', () => ajoute(id));
+      v.appendChild(b);
+    }
+  }
+  $('recherche').addEventListener('input', (e) => {
+    const t = e.target.value.trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+    const box = $('trouves');
+    box.innerHTML = '';
+    if (t.length < 2) return;
+    for (const [id, c] of Object.entries(CLIENTES)) {
+      if (!c.nom.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').includes(t)) continue;
+      const b = document.createElement('button');
+      b.type = 'button'; b.className = 'choix';
+      b.innerHTML = `<span><span class="genre">Cliente</span>${esc(c.nom)}</span><small>${c.avoir ? `avoir ${F(c.avoir)}` : ''}</small>`;
+      b.addEventListener('click', () => { etat.cliente = id; nettoie(); tout(); ouvre('ticket'); });
+      box.appendChild(b);
+    }
+    for (const [id, a] of Object.entries(ARTICLES)) {
+      if (!a.nom.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').includes(t)) continue;
+      const b = document.createElement('button');
+      b.type = 'button'; b.className = 'choix';
+      b.innerHTML = `<span><span class="genre">${a.genre === 'produit' ? 'Produit' : 'Prestation'}</span>${esc(a.nom)}</span><span class="montant">${F(a.prix)}</span>`;
+      b.addEventListener('click', () => { ajoute(id); nettoie(); });
+      box.appendChild(b);
+    }
+  });
+  function nettoie() { $('recherche').value = ''; $('trouves').innerHTML = ''; }
+  function prendLeRdv(r) {
+    etat.cliente = r.id; etat.rdv = r; etat.lignes = {};
+    for (const id of r.quoi) etat.lignes[id] = (etat.lignes[id] ?? 0) + 1;
+    etat.moyen = CLIENTES[r.id].habituel; etat.avoir = false; etat.donne = '';
+    tout(); ouvre('ticket');
+  }
+  function ajoute(id) {
+    etat.lignes[id] = (etat.lignes[id] ?? 0) + 1;
+    if (!etat.cliente) etat.cliente = 'p';
+    tout();
+  }
+
+  /* ── LE TICKET ──────────────────────────────────────────────────── */
+  function dessineTicket(k) {
+    const c = etat.cliente ? CLIENTES[etat.cliente] : null;
+    $('cliente').innerHTML = c
+      ? `<div class="auto">${esc(c.nom)}${etat.rdv ? ` · rituel du jour avec ${esc(etat.rdv.qui)}, ${esc(etat.rdv.etat)}` : ''}${c.avoir ? ` · avoir ${F(c.avoir)}` : ''}</div>`
+      : '<p class="note">Touche une cliente dans « À encaisser maintenant », ou cherche-la. Un produit seul se vend aussi sans nom.</p>';
+    const box = $('lignes');
+    box.innerHTML = '';
+    for (const [id, q] of Object.entries(etat.lignes)) {
+      const a = ARTICLES[id];
+      const brut = a.prix * q;
+      const net = a.genre === 'produit' ? Math.round(brut * (1 - etat.gamme / 100)) : brut;
+      const row = document.createElement('div');
+      row.className = 'ligne';
+      row.innerHTML = `<span><b>${esc(a.nom)}</b><small>${a.genre === 'produit' ? `la gamme${etat.gamme ? ` · remise gamme −${etat.gamme} %` : ''}` : 'prestation'}</small></span>
+        <span class="qte"><button type="button" aria-label="Un de moins">−</button><span>${q}</span><button type="button" aria-label="Un de plus">+</button></span>
+        <span class="prix">${net !== brut ? `<s>${F(brut)}</s>` : ''}${F(net)}</span>`;
+      const [moins, plus] = row.querySelectorAll('button');
+      moins.addEventListener('click', () => { if (q <= 1) delete etat.lignes[id]; else etat.lignes[id] = q - 1; tout(); });
+      plus.addEventListener('click', () => { etat.lignes[id] = q + 1; tout(); });
+      box.appendChild(row);
+    }
+    if (Object.keys(etat.lignes).length) {
+      const t = document.createElement('div');
+      t.className = 'liste';
+      t.innerHTML = `<div class="ligne-cle"><span>Sous-total</span><span>${F(k.prest + k.prodBrut)}</span></div>`
+        + (k.gammeRemise ? `<div class="ligne-cle remise"><span>Remises sur les lignes</span><span>− ${F(k.gammeRemise)}</span></div>` : '')
+        + (k.code ? `<div class="ligne-cle remise"><span>${OFFRE.code} · ${OFFRE.pct} % hors gamme${k.arrondi ? ', arrondi au millier' : ''}</span><span>− ${F(k.code)}</span></div>` : '')
+        + `<div class="ligne-cle"><span><b>Net</b></span><span><b>${F(k.net)}</b></span></div>`
+        + (k.recu ? `<div class="ligne-cle remise"><span>Acompte déjà reçu</span><span>− ${F(k.recu)}</span></div>` : '');
+      box.appendChild(t);
+    }
+  }
+
+  /* ── LES REMISES : l'offre qui court se propose ─────────────────── */
+  function dessineRemises(k) {
+    const o = $('offre');
+    if (k.prest > 0 && !etat.offre) {
+      o.innerHTML = `<div class="propose"><span>L’offre <b>${OFFRE.titre}</b> court jusqu’au ${OFFRE.jusqua} : <b>${OFFRE.code}</b> retirerait ${F(Math.round(k.prest * OFFRE.pct / 100))} sur les prestations, hors gamme.</span><button class="btn cuivre" type="button" id="appliquer">Appliquer</button></div>`;
+      $('appliquer').addEventListener('click', () => { etat.offre = true; tout(); });
+    } else if (etat.offre) {
+      o.innerHTML = `<div class="auto">${OFFRE.code} · ${OFFRE.pct} % hors gamme${k.arrondi ? `, arrondi au millier (+ ${F(k.arrondi)})` : ''} : − ${F(k.code)}. <button class="lien" type="button" id="retirer-offre">Retirer</button></div>`;
+      $('retirer-offre').addEventListener('click', () => { etat.offre = false; tout(); });
+    } else {
+      o.innerHTML = '<p class="note">Aucune offre ne s’applique à ce ticket.</p>';
+    }
+    const g = $('gamme');
+    g.innerHTML = '';
+    const aProduit = Object.keys(etat.lignes).some((id) => ARTICLES[id].genre === 'produit');
+    g.parentElement.hidden = !aProduit;
+    for (const t of [0, 5, 10, 15, 20]) {
+      const b = document.createElement('button');
+      b.type = 'button'; b.className = `puce ${etat.gamme === t ? 'on' : ''}`;
+      b.textContent = t ? `−${t} %` : '0';
+      b.addEventListener('click', () => { etat.gamme = t; tout(); });
+      g.appendChild(b);
+    }
+  }
+  $('plus-remises').addEventListener('click', () => { $('plus-remises-note').hidden = !$('plus-remises-note').hidden; });
+  $('autre-moyen').addEventListener('click', () => { $('autre-moyen-note').hidden = !$('autre-moyen-note').hidden; });
+
+  /* ── COMMENT ELLE PAIE : son moyen habituel, son avoir, la monnaie ── */
+  function dessinePaie(k) {
+    const c = etat.cliente ? CLIENTES[etat.cliente] : null;
+    const av = $('avoir');
+    av.innerHTML = c && c.avoir && k.net > k.recu
+      ? `<div class="propose"><span>Elle a <b>${F(c.avoir)}</b> d’avoir.${etat.avoir ? ` ${F(k.avoir)} servent sur ce ticket.` : ''}</span><button class="btn ${etat.avoir ? 'sobre' : 'cuivre'}" type="button" id="avoir-btn">${etat.avoir ? 'Ne pas l’utiliser' : `Utiliser ${F(k.avoirMax)}`}</button></div>`
+      : '';
+    if ($('avoir-btn')) $('avoir-btn').addEventListener('click', () => { etat.avoir = !etat.avoir; etat.donne = ''; tout(); });
+    const t = $('tuiles');
+    t.innerHTML = '';
+    for (const m of MOYENS) {
+      const b = document.createElement('button');
+      b.type = 'button';
+      const hab = c && c.habituel === m.id;
+      b.className = `tuile ${etat.moyen === m.id ? 'on' : ''} ${hab ? 'habituel' : ''}`;
+      b.innerHTML = `<b>${esc(m.nom)}</b><small>${hab ? 'habituel' : '&nbsp;'}</small>`;
+      b.setAttribute('aria-pressed', String(etat.moyen === m.id));
+      b.addEventListener('click', () => { etat.moyen = m.id; etat.donne = ''; tout(); });
+      t.appendChild(b);
+    }
+    const m = MOYENS.find((x) => x.id === etat.moyen);
+    $('caisse').textContent = m ? `Caisse : ${m.caisse}, choisie d’office pour ce moyen. Seule la direction peut en changer.` : 'Choisis le moyen : sa caisse se choisit seule.';
+    const es = $('especes');
+    if (etat.moyen === 'especes' && k.aPayer > 0) {
+      const total = k.aPayer + etat.pourboire;
+      const ronds = [...new Set([total, Math.ceil(total / 5000) * 5000, Math.ceil(total / 10000) * 10000, Math.ceil(total / 10000) * 10000 + 10000])].filter((x) => x >= total).slice(0, 4);
+      const donne = Number(String(etat.donne).replace(/\D/g, '')) || 0;
+      const rendu = donne - total;
+      es.innerHTML = `<div class="rendu">
+        <label class="titre-bloc" for="donne">Elle donne</label>
+        <input class="champ" id="donne" inputmode="numeric" value="${etat.donne}" placeholder="${F(total)}">
+        <div class="puces" id="ronds"></div>
+        <span class="grand ${donne && rendu < 0 ? 'manque' : ''}" id="rendu-txt">${!donne ? 'Le montant exact, ou un billet rond' : rendu >= 0 ? `Rendre ${F(rendu)}` : `Il manque ${F(-rendu)}`}</span>
+        ${donne && rendu < 0 ? '<span class="note">Le reste peut se régler par un autre moyen, en une seconde part.</span>' : ''}
+      </div>`;
+      const rb = $('ronds');
+      for (const r of ronds) {
+        const b = document.createElement('button');
+        b.type = 'button'; b.className = 'puce';
+        b.textContent = r === total ? 'Le compte exact' : F(r);
+        b.addEventListener('click', () => { etat.donne = String(r); tout(); });
+        rb.appendChild(b);
+      }
+      $('donne').addEventListener('change', (e) => { etat.donne = e.target.value; tout(); });
+    } else {
+      es.innerHTML = etat.moyen === 'mndpay' ? '<div class="auto">MND PAY : la cliente reçoit la demande sur son téléphone, le ticket s’encaisse seul dès que FedaPay confirme.</div>'
+        : etat.moyen === 'momo' ? '<div class="auto">MTN MoMoPay : elle paie au code 909099 ; l’argent se pointe le soir sur le relevé.</div>' : '';
+    }
+    const p = $('pourboire');
+    p.innerHTML = '';
+    for (const v of POURBOIRES) {
+      const b = document.createElement('button');
+      b.type = 'button'; b.className = `puce ${etat.pourboire === v ? 'on' : ''}`;
+      b.textContent = v ? F(v) : 'Aucun';
+      b.addEventListener('click', () => { etat.pourboire = v; tout(); });
+      p.appendChild(b);
+    }
+  }
+
+  /* ── LES RÉSUMÉS ET LA BARRE : un seul calcul pour tous ─────────── */
+  function resume(k) {
+    const n = Object.values(etat.lignes).reduce((x, y) => x + y, 0);
+    const c = etat.cliente ? CLIENTES[etat.cliente] : null;
+    const met = (id, txt, ok) => { $(`resume-${id}`).textContent = txt; $(`resume-${id}`).classList.toggle('fait', ok); };
+    met('ticket', n ? `${c ? c.nom : 'Sans nom'} · ${n} ligne${n > 1 ? 's' : ''} · net ${F(k.net)}` : 'Une cliente, puis ce qu’elle règle', n > 0);
+    $('etat-ticket').textContent = n ? 'prêt' : 'vide'; $('etat-ticket').classList.toggle('ok', n > 0);
+    const rem = [k.code ? `${OFFRE.code} − ${F(k.code)}` : '', k.gammeRemise ? `gamme − ${F(k.gammeRemise)}` : ''].filter(Boolean).join(' · ');
+    met('remises', rem || (k.prest > 0 && !etat.offre ? `Aucune · l’offre ${OFFRE.titre} peut s’appliquer` : 'Aucune'), !!rem);
+    const m = MOYENS.find((x) => x.id === etat.moyen);
+    met('paie', m ? `${m.nom}${k.avoir ? ` + avoir ${F(k.avoir)}` : ''}${etat.pourboire ? ` · pourboire ${F(etat.pourboire)}` : ''}` : 'Le moyen, la caisse, le pourboire', !!m);
+    const paieFaite = n > 0 && (!!m || k.aPayer === 0);
+    $('etat-paie').textContent = paieFaite ? 'fait' : 'à remplir'; $('etat-paie').classList.toggle('ok', paieFaite);
+    const donne = Number(String(etat.donne).replace(/\D/g, '')) || 0;
+    const manque = etat.moyen === 'especes' && donne > 0 && donne < k.aPayer + etat.pourboire;
+    const pret = n > 0 && (k.aPayer === 0 || (!!m && !manque));
+    $('encaisser').disabled = !pret;
+    $('encaisser').textContent = k.aPayer === 0 && n ? 'Valider' : `Encaisser ${F(k.aPayer + etat.pourboire)}`;
+    $('barre').innerHTML = n
+      ? `<b>${F(k.aPayer)}</b>${m ? `${esc(m.nom)} · caisse ${esc(m.caisse)}` : 'Choisis le moyen'}${etat.pourboire ? ` · + pourboire ${F(etat.pourboire)}` : ''}${k.recu || k.avoir ? ` · déjà couvert ${F(k.recu + k.avoir)}` : ''}`
+      : '<b>0 F</b>Le ticket est vide.';
+  }
+  function tout() { const k = calcul(); dessineGauche(); dessineTicket(k); dessineRemises(k); dessinePaie(k); resume(k); }
+
+  /* ── ENCAISSER, PUIS DIRE QUE C'EST FAIT ────────────────────────── */
+  $('encaisser').addEventListener('click', () => {
+    const k = calcul();
+    const c = etat.cliente ? CLIENTES[etat.cliente] : null;
+    const m = MOYENS.find((x) => x.id === etat.moyen);
+    const donne = Number(String(etat.donne).replace(/\D/g, '')) || 0;
+    $('ticket-zone').hidden = true; $('reussite').hidden = false;
+    $('r-montant').textContent = F(k.aPayer + etat.pourboire);
+    $('r-detail').textContent = `${c ? c.nom : 'Sans nom'} · ${m ? `${m.nom} · caisse ${m.caisse}` : 'rien à encaisser'}${k.avoir ? ` · avoir ${F(k.avoir)}` : ''}${etat.pourboire ? ` · dont ${F(etat.pourboire)} de pourboire pour l’équipe` : ''}${etat.moyen === 'especes' && donne > k.aPayer + etat.pourboire ? ` · monnaie rendue ${F(donne - k.aPayer - etat.pourboire)}` : ''}`;
+    $('r-recu').textContent = c && c.tel ? 'Le reçu est parti sur son WhatsApp.' : 'Pas de numéro : le reçu se télécharge depuis « Voir la pièce ».';
+    $('prochain').hidden = !c || etat.cliente === 'p';
+    $('r-note').textContent = '';
+  });
+  $('suivant').addEventListener('click', () => {
+    Object.assign(etat, { cliente: null, rdv: null, lignes: {}, offre: false, gamme: 0, moyen: null, avoir: false, donne: '', pourboire: 0 });
+    $('reussite').hidden = true; $('ticket-zone').hidden = false;
+    tout(); ouvre('ticket');
+  });
+  $('prochain').addEventListener('click', () => { $('r-note').textContent = 'Dans le Trône, le nouveau « + RDV » s’ouvrirait sur elle, son rituel repris et sa semaine de reprise ouverte.'; });
+  $('piece').addEventListener('click', () => { $('r-note').textContent = 'Dans le Trône, la pièce s’ouvrirait, avec sa ligne « ROSE15 · 15 % hors gamme » s’il y a lieu.'; });
+
+  tout();
+  ouvre('ticket');
+})();
+</script>

@@ -8,13 +8,14 @@
   /* LA MAQUETTE DU « + RDV » EN TROIS QUESTIONS, 24 octobre 2026.
      Un seul monde, celui de la Maison : parchemin, indigo, cuivre en accent.
      La maquette peint son propre fond et ne suit pas le thème du lecteur.
-     Mise en page : une colonne de lecture, puis l'écran démontré, puis les arbitrages. */
+     Mise en page : une colonne de lecture, puis l'écran démontré, puis les arbitrages tranchés. */
   :root {
     --parchemin:#F3EDE1; --ivoire:#FBF8F2; --blanc:#FFFFFF;
     --indigo:#1E2150; --indigo-2:#3A3F72; --indigo-pale:#EDEEF4;
     --cuivre:#B97A4A; --cuivre-fonce:#8C5A33; --cuivre-p:#E3C9AE; --cuivre-f:#FAF1E9;
     --encre:#2A2722; --encre-d:#6E6961; --filet:#D9CFBC;
     --vert:#41604A; --vert-f:#EDF2EE; --vert-p:#C4D5C8;
+    --brique:#96412E; --brique-f:#FBF0ED; --brique-p:#E4BDB2;
     --serif:'Cormorant Garamond',Georgia,'Times New Roman',serif;
     --sans:'Jost','Century Gothic','Segoe UI',system-ui,sans-serif;
     color-scheme: light;
@@ -41,6 +42,7 @@
   @media (max-width:520px){ .decide { grid-template-columns:1fr; } }
   .decide div { background:var(--vert-f); border:1px solid var(--vert-p); border-radius:4px; padding:14px 16px; font-size:13.5px; line-height:1.55; }
   .decide b { display:block; font-family:var(--serif); font-weight:500; font-size:18px; color:var(--indigo); margin-bottom:4px; }
+  .decide + .decide { margin-top:12px; }
 
   .avant { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; }
   @media (max-width:760px){ .avant { grid-template-columns:1fr; } }
@@ -49,14 +51,16 @@
 
   /* ── L'ÉCRAN DÉMONTRÉ ─────────────────────────────────────────── */
   .ecran { background:var(--ivoire); border:1px solid var(--filet); border-radius:4px; max-width:760px; }
-  .ecran__tete { background:var(--indigo); color:#EFEAE0; padding:13px 18px; display:flex; justify-content:space-between; gap:12px; align-items:baseline; flex-wrap:wrap; border-radius:4px 4px 0 0; }
+  .ecran__tete { background:var(--indigo); color:#EFEAE0; padding:13px 18px; display:flex; justify-content:space-between; gap:12px; align-items:center; flex-wrap:wrap; border-radius:4px 4px 0 0; }
   .ecran__tete b { font-family:var(--serif); font-weight:400; font-size:22px; color:var(--blanc); }
-  .ecran__tete span { font-size:10.5px; letter-spacing:.16em; text-transform:uppercase; color:var(--cuivre-p); }
+  .ecran__tete .mode { font:inherit; font-size:10.5px; letter-spacing:.14em; text-transform:uppercase; color:var(--cuivre-p); background:none; border:1px solid #4B5086; border-radius:3px; padding:6px 10px; cursor:pointer; }
+  .case { padding:14px 18px; border-bottom:1px solid var(--filet); display:flex; flex-direction:column; gap:8px; }
+  @media (max-width:600px){ .case { padding:12px 14px; } }
 
   .rang { border-top:1px solid var(--filet); }
   .rang:first-of-type { border-top:0; }
   .rang__ligne { width:100%; display:grid; grid-template-columns:28px minmax(0,1fr) auto; gap:12px; align-items:baseline; padding:15px 18px; background:none; border:0; text-align:left; font:inherit; color:inherit; cursor:pointer; }
-  .rang__ligne:focus-visible, button:focus-visible, input:focus-visible { outline:2px solid var(--cuivre); outline-offset:2px; }
+  .rang__ligne:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible { outline:2px solid var(--cuivre); outline-offset:2px; }
   .rang__num { font-family:var(--serif); font-size:20px; color:var(--cuivre-fonce); }
   .rang__titre { font-family:var(--serif); font-size:21px; color:var(--indigo); line-height:1.2; }
   .rang__resume { display:block; font-size:13px; color:var(--encre-d); margin-top:2px; overflow-wrap:anywhere; }
@@ -71,6 +75,7 @@
   .choix { display:flex; justify-content:space-between; gap:12px; align-items:baseline; padding:10px 12px; border:1px solid var(--filet); border-radius:3px; background:var(--blanc); cursor:pointer; font:inherit; color:inherit; text-align:left; width:100%; }
   .choix:hover { border-color:var(--cuivre-p); }
   .choix small { color:var(--encre-d); font-size:12px; }
+  .choix .genre { font-size:10px; letter-spacing:.14em; text-transform:uppercase; color:var(--cuivre-fonce); margin-right:8px; }
   .choix.neuf { border-style:dashed; color:var(--cuivre-fonce); }
 
   .habitude { background:var(--cuivre-f); border:1px solid var(--cuivre-p); border-radius:4px; padding:14px 16px; display:flex; flex-direction:column; gap:8px; }
@@ -92,26 +97,26 @@
   .puce { font:inherit; font-size:13px; padding:6px 12px; border-radius:999px; border:1px solid var(--filet); background:var(--blanc); color:var(--encre); cursor:pointer; }
   .puce:hover { border-color:var(--cuivre-p); }
   .puce.on { background:var(--indigo); border-color:var(--indigo); color:var(--blanc); }
+  .puce.sien { border-color:var(--cuivre); }
   .note { font-size:12.5px; color:var(--encre-d); margin:0; }
   .note.cuivre { color:var(--cuivre-fonce); }
   .auto { background:var(--indigo-pale); border-radius:3px; padding:9px 12px; font-size:13px; color:var(--indigo-2); }
+  .raison { border-radius:3px; padding:9px 12px; font-size:13px; }
+  .raison.prise { background:var(--cuivre-f); border:1px solid var(--cuivre-p); color:var(--cuivre-fonce); }
+  .raison.bloque { background:var(--brique-f); border:1px solid var(--brique-p); color:var(--brique); }
 
-  .creneaux { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; }
-  @media (max-width:640px){ .creneaux { grid-template-columns:1fr; } }
-  .creneau { display:flex; flex-direction:column; gap:2px; padding:12px; border:1px solid var(--filet); border-radius:4px; background:var(--blanc); cursor:pointer; font:inherit; color:inherit; text-align:left; }
-  .creneau:hover { border-color:var(--cuivre-p); }
-  .creneau.on { border-color:var(--indigo); box-shadow:inset 0 0 0 1px var(--indigo); }
-  .creneau .jour { font-size:11px; letter-spacing:.12em; text-transform:uppercase; color:var(--cuivre-fonce); }
-  .creneau .heure { font-family:var(--serif); font-size:24px; color:var(--indigo); line-height:1.1; font-variant-numeric:tabular-nums; }
-  .creneau .qui { font-size:13px; }
-  .creneau .pourquoi { font-size:12px; color:var(--encre-d); }
+  .semaine-tete { display:flex; justify-content:space-between; align-items:baseline; gap:10px; flex-wrap:wrap; }
   .semaine { display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); gap:6px; }
   @media (max-width:520px){ .semaine { grid-template-columns:repeat(4,minmax(0,1fr)); } }
   .jourbtn { font:inherit; padding:8px 4px; border:1px solid var(--filet); background:var(--blanc); border-radius:3px; cursor:pointer; display:flex; flex-direction:column; align-items:center; gap:1px; color:var(--encre); }
   .jourbtn b { font-family:var(--serif); font-size:19px; color:var(--indigo); font-weight:500; line-height:1.1; }
-  .jourbtn small { font-size:10.5px; color:var(--encre-d); }
+  .jourbtn small { font-size:10.5px; color:var(--encre-d); text-align:center; line-height:1.25; }
+  .jourbtn .sienne { color:var(--cuivre-fonce); }
   .jourbtn.on { border-color:var(--indigo); box-shadow:inset 0 0 0 1px var(--indigo); }
+  .jourbtn.reprise { border-color:var(--cuivre); }
   .jourbtn[disabled] { opacity:.45; cursor:not-allowed; }
+  .ligne-heure { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+  .ligne-heure select { font:inherit; font-size:14px; padding:7px 10px; border:1px solid var(--filet); border-radius:3px; background:var(--blanc); color:var(--encre); }
 
   .options { display:flex; flex-direction:column; gap:8px; }
   .option-ouverte { padding:10px 12px; background:var(--blanc); border:1px solid var(--filet); border-radius:3px; display:flex; flex-direction:column; gap:6px; }
@@ -135,14 +140,6 @@
   @media (max-width:640px){ .nefera { grid-template-columns:1fr; } }
   .nefera li { border-top:1px solid var(--filet); padding-top:10px; font-size:14px; }
   .nefera b { color:var(--indigo); font-weight:500; }
-
-  .arbitrages { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px; }
-  @media (max-width:760px){ .arbitrages { grid-template-columns:1fr; } }
-  .arbitrage { background:var(--blanc); border:1px solid var(--filet); border-radius:4px; padding:16px 18px; display:flex; flex-direction:column; gap:8px; }
-  .arbitrage .q { font-size:10.5px; letter-spacing:.16em; text-transform:uppercase; color:var(--cuivre-fonce); }
-  .arbitrage p { margin:0; font-size:14px; color:var(--encre-d); }
-  .arbitrage .propose { color:var(--encre); background:var(--cuivre-f); border-left:2px solid var(--cuivre); padding:8px 12px; }
-  .arbitrage .propose b { color:var(--indigo); font-weight:500; }
   footer { margin-top:56px; font-size:12.5px; color:var(--encre-d); max-width:70ch; }
   @media (prefers-reduced-motion: reduce){ * { transition:none !important; } }
 </style>
@@ -151,16 +148,22 @@
   <p class="eyebrow">Maquette · Le Trône · 24 octobre 2026</p>
   <h1>Prendre un rendez-vous</h1>
   <p class="cite">« Create a smart and intelligent system to make appointments. There are too many info and it must be easy to navigate and smart ready. »<span>Yéman · 24 octobre 2026</span></p>
-  <p class="chapeau">Le « + RDV » du Trône devient <b>trois questions : qui, quoi, quand</b>. À chaque question, le Trône propose d’abord ce qu’il sait déjà de la cliente. Tout le reste attend, replié, et ne s’ouvre que s’il la concerne.</p>
+  <p class="chapeau">Le « + RDV » du Trône devient <b>trois questions : qui, quoi, quand</b>, sous une seule case qui reconnaît une cliente ou une prestation. À chaque question, le Trône propose d’abord ce qu’il sait déjà de la cliente. Tout le reste attend, replié, et ne s’ouvre que s’il la concerne. Le même écran sert à créer et à modifier.</p>
 
   <section>
     <h2>Ce qui est décidé</h2>
-    <p class="intro">Tes réponses du 24 octobre, au sélecteur.</p>
+    <p class="intro">Tes réponses du 24 octobre, au sélecteur : la porte et ses intelligences, puis les quatre arbitrages.</p>
     <div class="decide">
       <div><b>Le « + RDV » d’abord</b>Ce que l’accueil remplit au comptoir et au téléphone. Le site et Ma Couronne suivront.</div>
-      <div><b>Le prochain créneau</b>Le Trône propose trois créneaux vraiment libres, avec le maître et le fauteuil.</div>
+      <div><b>Les places libres</b>Le Trône ne montre que des heures où le maître et un fauteuil sont libres, pour la durée de sa tête.</div>
       <div><b>Son rituel habituel</b>Une cliente connue retrouve en un geste ses prestations, son maître et son rythme.</div>
       <div><b>Seulement l’utile</b>Les cases rares restent repliées tant qu’elles ne la concernent pas.</div>
+    </div>
+    <div class="decide">
+      <div><b>Créer et modifier</b>Les deux passent ensemble aux trois questions. Un rendez-vous existant s’ouvre avec ses trois rangées repliées sur leur résumé.</div>
+      <div><b>La semaine directement</b>« Quand » ouvre la semaine de son jour de reprise, ses places libres jour par jour, son maître en premier.</div>
+      <div><b>Une heure prise</b>Elle se pose quand même, la raison dite en cuivre. Seul le plafond des fauteuils bloque, comme sur le site.</div>
+      <div><b>Une seule case</b>En tête de l’écran : un nom, un numéro ou une prestation. La phrase entière viendra ensuite, sans IA payante.</div>
     </div>
   </section>
 
@@ -176,22 +179,25 @@
 
   <section>
     <h2>L’écran, à essayer</h2>
-    <p class="intro">Touche les rangées. Une seule reste ouverte à la fois, chaque rangée fermée garde son résumé, et la barre du bas dit toujours le rendez-vous en cours. Commence par « Mireille », « Nadège » ou un prénom qui n’existe pas.</p>
-    <p class="exemple">Exemple · clientes, prix et durées fictifs · semaine du lundi 26 octobre 2026</p>
+    <p class="intro">Tape dans la case « Mireille », « Nadège », un prénom qui n’existe pas, ou une prestation comme « retwist ». Une seule rangée reste ouverte à la fois, chaque rangée fermée garde son résumé, et la barre du bas dit toujours le rendez-vous en cours. Le bouton en haut à droite montre le même écran en modification.</p>
+    <p class="exemple">Exemple · clientes, prix, durées et places fictifs · aujourd’hui samedi 24 octobre 2026</p>
 
     <div class="ecran" id="ecran">
-      <div class="ecran__tete"><b>Nouveau rendez-vous</b><span>Maison MND · Suru-Léré</span></div>
+      <div class="ecran__tete"><b id="titre-ecran">Nouveau rendez-vous</b><button class="mode" type="button" id="mode">Voir en modification</button></div>
+
+      <div class="case">
+        <input class="champ" id="recherche" type="search" placeholder="Nom, numéro ou prestation" autocomplete="off" aria-label="Nom, numéro ou prestation">
+        <div class="liste" id="trouvees"></div>
+      </div>
 
       <div class="rang" data-rang="qui">
         <button class="rang__ligne" type="button" aria-expanded="true">
           <span class="rang__num">1</span>
-          <span><span class="rang__titre">Qui ?</span><span class="rang__resume" id="resume-qui">Un nom ou un numéro</span></span>
+          <span><span class="rang__titre">Qui ?</span><span class="rang__resume" id="resume-qui">La cliente, à chercher dans la case</span></span>
           <span class="rang__etat" id="etat-qui">à remplir</span>
         </button>
         <div class="rang__corps" id="corps-qui">
-          <input class="champ" id="recherche" type="search" placeholder="Nom ou numéro de la cliente" autocomplete="off" aria-label="Nom ou numéro de la cliente">
-          <div class="liste" id="trouvees"></div>
-          <div id="fiche"></div>
+          <div id="fiche"><p class="note">Cherche-la dans la case ci-dessus : son rituel habituel apparaîtra ici.</p></div>
         </div>
       </div>
 
@@ -206,7 +212,7 @@
           <div class="liste" id="gestes"></div>
           <p class="note" id="duree"></p>
           <div>
-            <p class="exemple" style="margin-bottom:6px">Ajouter une prestation · les plus demandées</p>
+            <p class="exemple" style="margin-bottom:6px">Les plus demandées</p>
             <div class="puces" id="alaune"></div>
           </div>
         </div>
@@ -220,11 +226,15 @@
         </button>
         <div class="rang__corps" id="corps-quand" hidden>
           <p class="note cuivre" id="reprise"></p>
-          <div class="creneaux" id="creneaux"></div>
-          <button class="lien" type="button" id="autre-jour">Un autre jour</button>
           <div id="semaine-bloc" hidden>
+            <div class="semaine-tete"><span class="exemple" id="semaine-titre" style="margin:0"></span><button class="lien" type="button" id="semaine-suite">Semaine suivante</button></div>
             <div class="semaine" id="semaine"></div>
             <div class="puces" id="heures" style="margin-top:10px"></div>
+            <div class="ligne-heure" id="autre-heure" hidden>
+              <label class="note" for="heure-choisie">Une autre heure</label>
+              <select id="heure-choisie"></select>
+            </div>
+            <div id="raison"></div>
           </div>
         </div>
       </div>
@@ -258,8 +268,9 @@
       <table class="tableau">
         <thead><tr><th>Proposition</th><th>Ce qu’elle lit</th><th>Où la Maison le fait déjà</th></tr></thead>
         <tbody>
-          <tr><td>Ses créneaux</td><td>La durée de sa tête (calibre, longueur), le planning et les habilitations des maîtres, les fauteuils, les plafonds du jour.</td><td>Le site, Ma Couronne et l’automate WhatsApp, qui ne proposent que des places libres.</td></tr>
-          <tr><td>Son rituel</td><td>Ses dernières venues, son maître, les prestations qui reviennent, son rythme de reprise.</td><td>« Ses rituels habituels » de la fenêtre actuelle, et la reprise posée après une venue honorée.</td></tr>
+          <tr><td>Ses places libres</td><td>La durée de sa tête (calibre, longueur), le planning et les habilitations des maîtres, les fauteuils, les plafonds du jour.</td><td>Le site, Ma Couronne et l’automate WhatsApp, qui ne proposent que des places libres.</td></tr>
+          <tr><td>Son jour de reprise</td><td>Sa dernière venue et son rythme, pour ouvrir la bonne semaine et marquer le bon jour.</td><td>La reprise posée après une venue honorée.</td></tr>
+          <tr><td>Son rituel</td><td>Ses dernières venues, son maître, les prestations qui reviennent.</td><td>« Ses rituels habituels » de la fenêtre actuelle.</td></tr>
           <tr><td>Son prix</td><td>Son calibre, sa longueur, son Juste Prix, sa formule, la remise de son foyer.</td><td>Le tarif de la tête, inchangé : la maquette ne touche à aucun prix.</td></tr>
           <tr><td>Seulement l’utile</td><td>Ce qui s’applique à elle : formule, Kids, foyer, acompte, Regard à déduire.</td><td>Les règles d’aujourd’hui. Elles s’affichent seules au lieu d’attendre une case à cocher.</td></tr>
         </tbody>
@@ -275,91 +286,56 @@
       <li><b>Proposer une main non habilitée</b> pour la prestation choisie.</li>
       <li><b>Appeler une IA payante.</b> Les propositions sont des calculs de la Maison, sur ses propres données.</li>
       <li><b>Changer un prix.</b> Le tarif de la tête reste celui du Juste Prix.</li>
-      <li><b>Cacher une règle qui s’applique.</b> Formule, Kids, acompte : ce qui la concerne s’affiche sans qu’on le cherche.</li>
+      <li><b>Dépasser les fauteuils.</b> Une heure prise par un maître se pose avec sa raison ; une heure où tous les fauteuils sont occupés ne se pose pas.</li>
     </ul>
   </section>
 
-  <section>
-    <h2>Quatre arbitrages</h2>
-    <p class="intro">Chacun avec la proposition ferme que je construirais si tu dis oui.</p>
-    <div class="arbitrages">
-      <div class="arbitrage">
-        <span class="q">Créer et modifier</span>
-        <h3>Le même écran pour modifier ?</h3>
-        <p>Un rendez-vous existant se modifie aujourd’hui dans la fenêtre complète.</p>
-        <p class="propose"><b>Proposition :</b> créer d’abord en trois questions. La modification garde la fenêtre actuelle tant que la nouvelle n’a pas fait ses preuves au comptoir, puis elle passe à son tour.</p>
-      </div>
-      <div class="arbitrage">
-        <span class="q">Les créneaux</span>
-        <h3>Combien, et dans quel ordre ?</h3>
-        <p>Trop de choix ramène la liste d’aujourd’hui ; un seul ne laisse pas choisir.</p>
-        <p class="propose"><b>Proposition :</b> trois. Son maître à son jour de reprise, puis le plus tôt avec son maître, puis le plus tôt toutes mains habilitées. « Un autre jour » ouvre la semaine.</p>
-      </div>
-      <div class="arbitrage">
-        <span class="q">Une heure prise</span>
-        <h3>Et si la cliente veut 10 h, qui n’est pas libre ?</h3>
-        <p>Au téléphone, l’accueil doit garder la main.</p>
-        <p class="propose"><b>Proposition :</b> l’heure se pose quand même, la raison dite en cuivre (« Gérard est pris jusqu’à 11 h 30 »). Seul le plafond des fauteuils bloque, comme sur le site.</p>
-      </div>
-      <div class="arbitrage">
-        <span class="q">Prêt pour la suite</span>
-        <h3>Une seule case en tête ?</h3>
-        <p>« Smart ready » : un écran qui pourra un jour comprendre une phrase.</p>
-        <p class="propose"><b>Proposition :</b> oui, une seule case qui reconnaît un nom, un numéro ou une prestation. La phrase entière (« Mireille, retwist, mardi matin ») viendra ensuite, sans IA payante.</p>
-      </div>
-    </div>
-  </section>
-
-  <footer>Maquette seulement : rien n’est construit. Les prénoms, prix et durées de l’exemple sont fictifs. Quand tu valides, je construis le « + RDV » en trois questions dans le Trône.</footer>
+  <footer>Maquette seulement : rien n’est construit. Les prénoms, prix, durées et places de l’exemple sont fictifs. Quand tu valides, je construis le « + RDV » en trois questions dans le Trône, pour créer et pour modifier.</footer>
 </div>
 
 <script>
 (() => {
   /* ── LES DONNÉES DE L'EXEMPLE (fictives) ─────────────────────────── */
   const PRESTATIONS = {
-    retwist: { nom: 'Retwist', prix: 45000, min: 150 },
+    retwist: { nom: 'Retwist', prix: 45000, min: 150, tete: true },
     soin: { nom: 'Soin hydratant', prix: 10000, min: 30 },
     shampoing: { nom: 'Shampoing', prix: 5000, min: 20 },
-    creation: { nom: 'Création de locks', prix: null, min: 300 },
+    creation: { nom: 'Création de locks', prix: null, min: 300, tete: true },
     reveler: { nom: 'RÉVÉLER · Le Cheveu Naturel Libre', prix: 60000, min: 180 },
     celebrer: { nom: 'CÉLÉBRER · Les Grands Jours', prix: 80000, min: 240 },
   };
   const CLIENTES = [
     { id: 'm', nom: 'Mireille A.', tel: '01 •• •• •• 42', tete: 'locks moyennes · calibre fin', coef: 1.15,
-      habitude: { gestes: ['retwist', 'soin'], maitre: 'Gérard', rythme: 'toutes les 6 semaines', derniere: 'mercredi 16 septembre 2026', revient: 'mercredi 28 octobre 2026' } },
+      habitude: { gestes: ['retwist', 'soin'], maitre: 'Gérard', rythme: 'toutes les 6 semaines', derniere: 'mercredi 16 septembre 2026', revient: 'mercredi 28 octobre 2026', jour: 28 } },
     { id: 'n', nom: 'Nadège T.', tel: '01 •• •• •• 07', tete: 'locks longues · calibre moyen', coef: 1.1,
       formule: 'Formule Lune · séance comprise, 2 restantes',
-      habitude: { gestes: ['retwist'], maitre: 'Aimer', rythme: 'toutes les 4 semaines', derniere: 'jeudi 1er octobre 2026', revient: 'jeudi 29 octobre 2026' } },
+      habitude: { gestes: ['retwist'], maitre: 'Aimer', rythme: 'toutes les 4 semaines', derniere: 'jeudi 1er octobre 2026', revient: 'jeudi 29 octobre 2026', jour: 29 } },
     { id: 'a', nom: 'Awa K.', tel: '01 •• •• •• 19', tete: 'locks naissantes', coef: 1, habitude: null },
   ];
   const ACOMPTE_PCT = 25;
-  /* Les créneaux que le calcul du site rendrait pour chaque cliente (exemple). */
-  const PROPOSES = {
-    m: [
-      { jour: 'mer. 28 oct. 2026', heure: '10 h 00', maitre: 'Gérard', fauteuil: 2, pourquoi: 'son maître, son jour de reprise' },
-      { jour: 'mar. 27 oct. 2026', heure: '9 h 00', maitre: 'Gérard', fauteuil: 1, pourquoi: 'le plus tôt avec Gérard' },
-      { jour: 'lun. 26 oct. 2026', heure: '14 h 00', maitre: 'Aimer', fauteuil: 3, pourquoi: 'le plus tôt, toutes mains' },
-    ],
-    n: [
-      { jour: 'jeu. 29 oct. 2026', heure: '9 h 30', maitre: 'Aimer', fauteuil: 1, pourquoi: 'son maître, son jour de reprise' },
-      { jour: 'mar. 27 oct. 2026', heure: '15 h 00', maitre: 'Aimer', fauteuil: 2, pourquoi: 'le plus tôt avec Aimer' },
-      { jour: 'lun. 26 oct. 2026', heure: '10 h 30', maitre: 'Teckle', fauteuil: 2, pourquoi: 'le plus tôt, toutes mains' },
-    ],
-    autre: [
-      { jour: 'lun. 26 oct. 2026', heure: '9 h 00', maitre: 'Teckle', fauteuil: 1, pourquoi: 'le plus tôt' },
-      { jour: 'lun. 26 oct. 2026', heure: '13 h 30', maitre: 'Nassim', fauteuil: 3, pourquoi: 'le plus tôt l’après-midi' },
-      { jour: 'mar. 27 oct. 2026', heure: '9 h 00', maitre: 'Gérard', fauteuil: 1, pourquoi: 'le lendemain matin' },
-    ],
-  };
-  const SEMAINE = [
-    { court: 'lun.', num: 26, places: 4, heures: ['9 h 00 · Teckle', '13 h 30 · Nassim', '14 h 00 · Aimer'] },
-    { court: 'mar.', num: 27, places: 3, heures: ['9 h 00 · Gérard', '15 h 00 · Aimer'] },
-    { court: 'mer.', num: 28, places: 2, heures: ['10 h 00 · Gérard', '14 h 30 · Teckle'] },
-    { court: 'jeu.', num: 29, places: 5, heures: ['9 h 30 · Aimer', '11 h 00 · Nassim', '15 h 30 · Gérard'] },
-    { court: 'ven.', num: 30, places: 1, heures: ['16 h 00 · Aimer'] },
-    { court: 'sam.', num: 31, places: 2, heures: ['9 h 00 · Gérard', '11 h 30 · Teckle'] },
-    { court: 'dim.', num: 1, places: 0, ferme: true, heures: [] },
+  const MAITRES = ['Gérard', 'Aimer', 'Teckle', 'Nassim'];
+  /* Deux semaines de places libres, telles que le calcul du site les rendrait (exemple). */
+  const SEMAINES = [
+    { titre: 'Semaine du samedi 24 octobre 2026', jours: [
+      { court: 'sam.', num: 24, mois: 'oct.', libres: ['15 h 00 · Teckle'], pleins: ['10 h 00', '10 h 30', '11 h 00'] },
+      { court: 'dim.', num: 25, mois: 'oct.', ferme: true },
+      { court: 'lun.', num: 26, mois: 'oct.', libres: ['9 h 00 · Teckle', '13 h 30 · Nassim', '14 h 00 · Aimer'], pleins: [] },
+      { court: 'mar.', num: 27, mois: 'oct.', libres: ['9 h 00 · Gérard', '15 h 00 · Aimer'], pleins: ['11 h 00', '11 h 30'] },
+      { court: 'mer.', num: 28, mois: 'oct.', libres: ['10 h 00 · Gérard', '14 h 30 · Teckle'], pleins: ['15 h 00', '15 h 30'] },
+      { court: 'jeu.', num: 29, mois: 'oct.', libres: ['9 h 30 · Aimer', '11 h 00 · Nassim', '15 h 30 · Gérard'], pleins: [] },
+      { court: 'ven.', num: 30, mois: 'oct.', libres: ['16 h 00 · Aimer'], pleins: ['10 h 00', '10 h 30'] },
+    ] },
+    { titre: 'Semaine du samedi 31 octobre 2026', jours: [
+      { court: 'sam.', num: 31, mois: 'oct.', libres: ['9 h 00 · Gérard', '11 h 30 · Teckle'], pleins: [] },
+      { court: 'dim.', num: 1, mois: 'nov.', ferme: true },
+      { court: 'lun.', num: 2, mois: 'nov.', libres: ['9 h 00 · Aimer', '10 h 00 · Gérard', '14 h 00 · Nassim'], pleins: [] },
+      { court: 'mar.', num: 3, mois: 'nov.', libres: ['13 h 00 · Teckle'], pleins: ['9 h 00', '9 h 30'] },
+      { court: 'mer.', num: 4, mois: 'nov.', libres: ['9 h 30 · Gérard', '15 h 00 · Aimer'], pleins: [] },
+      { court: 'jeu.', num: 5, mois: 'nov.', libres: ['10 h 00 · Nassim'], pleins: [] },
+      { court: 'ven.', num: 6, mois: 'nov.', libres: ['9 h 00 · Teckle', '14 h 30 · Gérard'], pleins: [] },
+    ] },
   ];
+  const HEURES = []; for (let h = 9; h <= 17; h++) for (const m of ['00', '30']) HEURES.push(`${h} h ${m}`);
   const OPTIONS = [
     { id: 'note', titre: 'Une note au carnet', champ: 'Ce que la cliente a demandé, une précaution…' },
     { id: 'remise', titre: 'Une remise ou un forfait', champ: 'Pourcentage, francs ou forfait, comme aujourd’hui' },
@@ -368,44 +344,55 @@
     { id: 'mains', titre: 'Plusieurs mains', champ: 'Un second maître pour une prestation' },
   ];
 
-  const etat = { cliente: null, gestes: [], creneau: null, ouvert: 'qui', options: new Set() };
+  const etat = { cliente: null, gestes: [], creneau: null, ouvert: 'qui', options: new Set(), semaine: 0, jour: null, modif: false };
   const $ = (id) => document.getElementById(id);
   const francs = (n) => `${n.toLocaleString('fr-FR').replace(/ /g, ' ')} F`;
   const duree = (min) => { const h = Math.floor(min / 60), m = Math.round(min % 60); return h ? `${h} h ${String(m).padStart(2, '0')}` : `${m} min`; };
   const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const court = (g) => PRESTATIONS[g].nom.split(' · ')[0];
 
   /* ── LES RANGÉES : une seule ouverte à la fois ─────────────────── */
   document.querySelectorAll('.rang').forEach((r) => {
-    r.querySelector('.rang__ligne').addEventListener('click', () => ouvre(r.dataset.rang === etat.ouvert ? '' : r.dataset.rang, true));
+    r.querySelector('.rang__ligne').addEventListener('click', () => ouvre(r.dataset.rang === etat.ouvert ? '' : r.dataset.rang));
   });
-  function ouvre(nom, focus = false) {
+  function ouvre(nom) {
     etat.ouvert = nom;
     document.querySelectorAll('.rang').forEach((r) => {
       const on = r.dataset.rang === nom;
       r.querySelector('.rang__corps').hidden = !on;
       r.querySelector('.rang__ligne').setAttribute('aria-expanded', String(on));
     });
-    if (nom === 'qui' && focus) setTimeout(() => $('recherche').focus(), 0);
   }
 
-  /* ── 1 · QUI ───────────────────────────────────────────────────── */
+  /* ── LA CASE UNIQUE : une cliente, un numéro ou une prestation ─── */
   $('recherche').addEventListener('input', (e) => trouve(e.target.value));
   function trouve(q) {
     const t = q.trim().toLowerCase();
     const box = $('trouvees');
     box.innerHTML = '';
-    $('fiche').innerHTML = '';
     if (!t) return;
     const chiffres = t.replace(/\D/g, '');
-    const vues = CLIENTES.filter((c) => c.nom.toLowerCase().includes(t) || (chiffres.length >= 2 && c.tel.replace(/\D/g, '').endsWith(chiffres)));
-    for (const c of vues) {
+    const clientes = CLIENTES.filter((c) => c.nom.toLowerCase().includes(t) || (chiffres.length >= 2 && c.tel.replace(/\D/g, '').endsWith(chiffres)));
+    const gestes = Object.entries(PRESTATIONS).filter(([, p]) => t.length >= 3 && p.nom.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').includes(t.normalize('NFD').replace(/[̀-ͯ]/g, '')));
+    for (const c of clientes) {
       const b = document.createElement('button');
       b.type = 'button'; b.className = 'choix';
-      b.innerHTML = `<span>${esc(c.nom)} <small>· ${esc(c.tete)}</small></span><small>${esc(c.tel)}</small>`;
+      b.innerHTML = `<span><span class="genre">Cliente</span>${esc(c.nom)} <small>· ${esc(c.tete)}</small></span><small>${esc(c.tel)}</small>`;
       b.addEventListener('click', () => choisit(c));
       box.appendChild(b);
     }
-    if (!vues.length || vues.every((c) => c.nom.toLowerCase() !== t)) {
+    for (const [id, p] of gestes) {
+      const b = document.createElement('button');
+      b.type = 'button'; b.className = 'choix';
+      b.innerHTML = `<span><span class="genre">Prestation</span>${esc(p.nom)}</span><small>${p.prix === null ? 'sur devis' : francs(p.prix)}</small>`;
+      b.addEventListener('click', () => {
+        if (!etat.gestes.includes(id)) etat.gestes.push(id);
+        etat.creneau = null; $('recherche').value = ''; box.innerHTML = '';
+        rafraichit(); ouvre(etat.cliente ? 'quoi' : 'qui');
+      });
+      box.appendChild(b);
+    }
+    if (!gestes.length && (!clientes.length || clientes.every((c) => c.nom.toLowerCase() !== t)) && /[a-zà-ÿ]/i.test(t)) {
       const b = document.createElement('button');
       b.type = 'button'; b.className = 'choix neuf';
       const nom = q.trim().replace(/^./, (x) => x.toUpperCase());
@@ -415,9 +402,9 @@
     }
   }
   function choisit(c) {
-    etat.cliente = c; etat.gestes = []; etat.creneau = null;
+    etat.cliente = c; etat.creneau = null; etat.jour = null; etat.semaine = 0;
     $('trouvees').innerHTML = '';
-    $('recherche').value = c.nom;
+    $('recherche').value = '';
     const f = $('fiche');
     if (c.habitude) {
       const h = c.habitude;
@@ -427,7 +414,7 @@
         <p>${esc(h.rythme)} · dernière venue le ${esc(h.derniere)} · elle revient d’habitude vers le ${esc(h.revient)}</p>
         <div class="boutons"><button class="btn cuivre" type="button" id="reprendre">Reprendre son rituel</button><button class="btn sobre" type="button" id="autre-chose">Autre chose</button></div>
       </div>`;
-      $('reprendre').addEventListener('click', () => { etat.gestes = [...h.gestes]; rafraichit(); ouvre('quand'); });
+      $('reprendre').addEventListener('click', () => { etat.gestes = [...h.gestes]; etat.jour = h.jour; rafraichit(); ouvre('quand'); });
       $('autre-chose').addEventListener('click', () => { rafraichit(); ouvre('quoi'); });
     } else {
       f.innerHTML = `<div class="auto">${c.neuve ? 'Première venue : le Trône lui ouvre une fiche avec son prénom et son numéro. Les prestations les plus demandées l’attendent à la question suivante.' : 'Pas encore d’habitude : une seule venue. Les prestations les plus demandées l’attendent à la question suivante.'}</div>
@@ -435,30 +422,28 @@
       $('vers-quoi').addEventListener('click', () => { rafraichit(); ouvre('quoi'); });
     }
     rafraichit();
+    ouvre(etat.gestes.length && !c.habitude ? 'quand' : 'qui');
   }
 
   /* ── 2 · QUOI ──────────────────────────────────────────────────── */
-  function dureeTotale() {
-    const c = etat.cliente;
-    return etat.gestes.reduce((n, g) => n + PRESTATIONS[g].min * (g === 'retwist' || g === 'creation' ? (c?.coef ?? 1) : 1), 0);
-  }
-  function prixTotal() { return etat.gestes.reduce((n, g) => n + (PRESTATIONS[g].prix ?? 0), 0); }
+  const minutes = (g) => PRESTATIONS[g].min * (PRESTATIONS[g].tete ? (etat.cliente?.coef ?? 1) : 1);
+  const dureeTotale = () => etat.gestes.reduce((n, g) => n + minutes(g), 0);
+  const prixTotal = () => etat.gestes.reduce((n, g) => n + (PRESTATIONS[g].prix ?? 0), 0);
   function dessineQuoi() {
     const c = etat.cliente;
     $('formule').innerHTML = c?.formule ? `<div class="auto">Abonnée · ${esc(c.formule)}. Le prix du rituel est couvert, rien à encaisser.</div>` : '';
     $('gestes').innerHTML = '';
     for (const g of etat.gestes) {
       const p = PRESTATIONS[g];
-      const min = p.min * (g === 'retwist' || g === 'creation' ? (c?.coef ?? 1) : 1);
       const row = document.createElement('div');
       row.className = 'geste';
-      row.innerHTML = `<span><b>${esc(p.nom)}</b><small>${duree(min)} pour sa tête${min !== p.min ? ' (calibre compris)' : ''}</small></span>
+      row.innerHTML = `<span><b>${esc(p.nom)}</b><small>${duree(minutes(g))} pour sa tête${minutes(g) !== p.min ? ' (calibre compris)' : ''}</small></span>
         <span class="prix">${p.prix === null ? 'sur devis' : (c?.formule ? 'compris' : francs(p.prix))}</span>
         <button type="button" aria-label="Retirer ${esc(p.nom)}">Retirer</button>`;
       row.querySelector('button').addEventListener('click', () => { etat.gestes = etat.gestes.filter((x) => x !== g); etat.creneau = null; rafraichit(); });
       $('gestes').appendChild(row);
     }
-    $('duree').textContent = etat.gestes.length ? `En tout ${duree(dureeTotale())} au fauteuil.` : 'Aucune prestation pour l’instant.';
+    $('duree').textContent = etat.gestes.length ? `En tout ${duree(dureeTotale())} au fauteuil.` : 'Aucune prestation pour l’instant : touche une prestation ci-dessous, ou tape-la dans la case.';
     const box = $('alaune');
     box.innerHTML = '';
     for (const [id, p] of Object.entries(PRESTATIONS)) {
@@ -474,62 +459,74 @@
     }
   }
 
-  /* ── 3 · QUAND ─────────────────────────────────────────────────── */
+  /* ── 3 · QUAND : la semaine directement ────────────────────────── */
   function dessineQuand() {
     const c = etat.cliente;
-    const liste = PROPOSES[c?.id] ?? PROPOSES.autre;
-    const box = $('creneaux');
-    box.innerHTML = '';
-    $('autre-jour').hidden = !etat.gestes.length;
-    if (!etat.gestes.length) {
-      $('reprise').textContent = 'Les créneaux se calculent dès que la cliente et ses prestations sont choisies : ils dépendent de la durée de sa tête.';
-      $('semaine-bloc').hidden = true;
+    const pret = c && etat.gestes.length;
+    $('semaine-bloc').hidden = !pret;
+    if (!pret) {
+      $('reprise').textContent = 'La semaine s’ouvre dès que la cliente et ses prestations sont choisies : ses places dépendent de la durée de sa tête.';
       return;
     }
-    $('reprise').textContent = c?.habitude
-      ? `Elle revient d’habitude vers le ${c.habitude.revient}, avec ${c.habitude.maitre}. Trois créneaux libres pour ${duree(dureeTotale())} :`
-      : `Trois créneaux libres pour ${duree(dureeTotale())}, maître habilité et fauteuil compris :`;
-    liste.forEach((s) => {
-      const b = document.createElement('button');
-      b.type = 'button';
-      const on = etat.creneau && etat.creneau.jour === s.jour && etat.creneau.heure === s.heure;
-      b.className = `creneau ${on ? 'on' : ''}`;
-      b.setAttribute('aria-pressed', String(!!on));
-      b.innerHTML = `<span class="jour">${esc(s.jour)}</span><span class="heure">${esc(s.heure)}</span><span class="qui">${esc(s.maitre)} · fauteuil ${s.fauteuil}</span><span class="pourquoi">${esc(s.pourquoi)}</span>`;
-      b.addEventListener('click', () => { etat.creneau = s; rafraichit(); });
-      box.appendChild(b);
-    });
-  }
-  $('autre-jour').addEventListener('click', () => {
-    const bloc = $('semaine-bloc');
-    bloc.hidden = !bloc.hidden;
-    $('autre-jour').textContent = bloc.hidden ? 'Un autre jour' : 'Revenir aux trois propositions';
-    if (!bloc.hidden) dessineSemaine(null);
-  });
-  function dessineSemaine(choisi) {
+    $('reprise').textContent = c.habitude
+      ? `Elle revient d’habitude vers le ${c.habitude.revient}, avec ${c.habitude.maitre}. Places libres pour ${duree(dureeTotale())}, son maître en premier :`
+      : `Places libres pour ${duree(dureeTotale())}, maître habilité et fauteuil compris :`;
+    const sem = SEMAINES[etat.semaine];
+    $('semaine-titre').textContent = sem.titre;
+    $('semaine-suite').textContent = etat.semaine === 0 ? 'Semaine suivante' : 'Semaine précédente';
     const box = $('semaine');
     box.innerHTML = '';
-    SEMAINE.forEach((j, i) => {
+    const sien = c.habitude?.maitre;
+    sem.jours.forEach((j) => {
       const b = document.createElement('button');
-      b.type = 'button'; b.className = `jourbtn ${choisi === i ? 'on' : ''}`;
+      b.type = 'button';
+      const reprise = c.habitude && j.num === c.habitude.jour && j.mois === 'oct.';
+      b.className = `jourbtn ${etat.jour === j.num ? 'on' : ''} ${reprise ? 'reprise' : ''}`;
       b.disabled = !!j.ferme;
-      b.innerHTML = `<small>${j.court}</small><b>${j.num}</b><small>${j.ferme ? 'fermé' : `${j.places} place${j.places > 1 ? 's' : ''}`}</small>`;
-      b.addEventListener('click', () => dessineSemaine(i));
+      const n = j.libres?.length ?? 0;
+      const avecLui = sien ? (j.libres ?? []).filter((h) => h.endsWith(sien)).length : 0;
+      b.innerHTML = `<small>${j.court}</small><b>${j.num}</b><small>${j.ferme ? 'fermé' : `${n} place${n > 1 ? 's' : ''}`}</small>${reprise ? '<small class="sienne">son jour</small>' : avecLui ? `<small class="sienne">${esc(sien)}</small>` : ''}`;
+      b.addEventListener('click', () => { etat.jour = j.num; $('raison').innerHTML = ''; dessineQuand(); });
       box.appendChild(b);
     });
     const heures = $('heures');
     heures.innerHTML = '';
-    if (choisi === null) return;
-    const j = SEMAINE[choisi];
-    const mois = j.num === 1 ? 'nov.' : 'oct.';
-    j.heures.forEach((h) => {
+    const j = sem.jours.find((x) => x.num === etat.jour);
+    $('autre-heure').hidden = !j;
+    if (!j) return;
+    const libres = [...(j.libres ?? [])].sort((a, b) => (b.endsWith(sien ?? '-') ? 1 : 0) - (a.endsWith(sien ?? '-') ? 1 : 0));
+    libres.forEach((h) => {
       const [heure, maitre] = h.split(' · ');
       const b = document.createElement('button');
-      b.type = 'button'; b.className = 'puce';
-      b.textContent = h;
-      b.addEventListener('click', () => { etat.creneau = { jour: `${j.court} ${j.num} ${mois} 2026`, heure, maitre, fauteuil: 1, pourquoi: 'choisi dans la semaine' }; rafraichit(); });
+      b.type = 'button';
+      const on = etat.creneau && etat.creneau.num === j.num && etat.creneau.heure === heure;
+      b.className = `puce ${on ? 'on' : ''} ${maitre === sien ? 'sien' : ''}`;
+      b.textContent = maitre === sien ? `${h} · son maître` : h;
+      b.addEventListener('click', () => { pose(j, heure, maitre, null); });
       heures.appendChild(b);
     });
+    const sel = $('heure-choisie');
+    sel.innerHTML = '<option value="">Choisir…</option>' + HEURES.map((h) => `<option value="${h}">${h}</option>`).join('');
+    sel.onchange = () => {
+      const h = sel.value;
+      if (!h) return;
+      const libre = libres.find((x) => x.startsWith(`${h} ·`));
+      if (libre) { pose(j, h, libre.split(' · ')[1], null); return; }
+      if ((j.pleins ?? []).includes(h)) {
+        etat.creneau = null;
+        $('raison').innerHTML = `<div class="raison bloque">Les trois fauteuils sont occupés le ${j.court} ${j.num} ${j.mois} 2026 à ${h} : cette heure ne se pose pas. La première place libre ce jour-là : ${esc(libres[0] ?? 'aucune')}.</div>`;
+        resume();
+        return;
+      }
+      const maitre = sien ?? MAITRES[0];
+      pose(j, h, maitre, `${maitre} est pris à ${h} ce jour-là (un autre rituel jusqu’à ${h.replace(/^(\d+)/, (x) => String(Number(x) + 1))}). Le rendez-vous se pose quand même, à ta demande ; le Carnet le montrera en cuivre.`);
+    };
+  }
+  $('semaine-suite').addEventListener('click', () => { etat.semaine = etat.semaine === 0 ? 1 : 0; etat.jour = null; $('raison').innerHTML = ''; dessineQuand(); });
+  function pose(j, heure, maitre, raison) {
+    etat.creneau = { num: j.num, jour: `${j.court} ${j.num} ${j.mois} 2026`, heure, maitre, prise: !!raison };
+    $('raison').innerHTML = raison ? `<div class="raison prise">${esc(raison)}</div>` : '';
+    dessineQuand(); dessineOptions(); resume();
   }
 
   /* ── PLUS D'OPTIONS : replié, rien de coché d'avance ───────────── */
@@ -537,7 +534,12 @@
     const box = $('options');
     box.innerHTML = '';
     const c = etat.cliente;
-    if (prixTotal() > 0 && !c?.formule) {
+    if (etat.modif) {
+      const s = document.createElement('div');
+      s.className = 'auto';
+      s.textContent = 'En modification : statut confirmé · acompte reçu le mardi 20 octobre 2026. Changer la date ou l’heure prévient la cliente comme aujourd’hui.';
+      box.appendChild(s);
+    } else if (prixTotal() > 0 && !c?.formule) {
       const a = document.createElement('div');
       a.className = 'auto';
       a.textContent = `Acompte de ${ACOMPTE_PCT} % demandé à la confirmation : ${francs(Math.round(prixTotal() * ACOMPTE_PCT / 100))}. Il s’affiche seul, selon les réglages de la Maison.`;
@@ -564,30 +566,51 @@
   function resume() {
     const c = etat.cliente, g = etat.gestes, s = etat.creneau;
     const met = (id, texte, fait) => { $(`resume-${id}`).textContent = texte; $(`resume-${id}`).classList.toggle('fait', fait); };
-    met('qui', c ? `${c.nom} · ${c.tete}` : 'Un nom ou un numéro', !!c);
-    met('quoi', g.length ? `${g.map((x) => PRESTATIONS[x].nom.split(' · ')[0]).join(' + ')} · ${duree(dureeTotale())}${c?.formule ? ' · compris dans sa formule' : prixTotal() ? ` · ${francs(prixTotal())}` : ''}` : 'Les prestations du rituel', g.length > 0);
-    met('quand', s ? `${s.jour} · ${s.heure} · ${s.maitre}` : 'Le jour, l’heure, le maître', !!s);
+    met('qui', c ? `${c.nom} · ${c.tete}` : 'La cliente, à chercher dans la case', !!c);
+    met('quoi', g.length ? `${g.map(court).join(' + ')} · ${duree(dureeTotale())}${c?.formule ? ' · compris dans sa formule' : prixTotal() ? ` · ${francs(prixTotal())}` : ''}` : 'Les prestations du rituel', g.length > 0);
+    met('quand', s ? `${s.jour} · ${s.heure} · ${s.maitre}${s.prise ? ' · heure prise, posée quand même' : ''}` : 'Le jour, l’heure, le maître', !!s);
     const nOpt = etat.options.size;
-    $('resume-plus').textContent = nOpt ? `${nOpt} option${nOpt > 1 ? 's' : ''} ajoutée${nOpt > 1 ? 's' : ''}` : (prixTotal() > 0 && !c?.formule ? `Rien de plus · acompte ${ACOMPTE_PCT} % demandé` : 'Rien de plus');
+    $('resume-plus').textContent = nOpt ? `${nOpt} option${nOpt > 1 ? 's' : ''} ajoutée${nOpt > 1 ? 's' : ''}` : etat.modif ? 'Confirmé · acompte reçu' : (prixTotal() > 0 && !c?.formule ? `Rien de plus · acompte ${ACOMPTE_PCT} % demandé` : 'Rien de plus');
     for (const [id, ok] of [['qui', !!c], ['quoi', g.length > 0], ['quand', !!s]]) {
       $(`etat-${id}`).textContent = ok ? 'fait' : 'à remplir';
       $(`etat-${id}`).classList.toggle('ok', ok);
     }
     const pret = !!(c && g.length && s);
-    $('poser').disabled = !pret; $('attente').disabled = !pret;
+    $('poser').disabled = !pret; $('attente').disabled = !pret || etat.modif;
     const acompte = prixTotal() > 0 && !c?.formule;
-    $('poser').textContent = acompte ? 'Confirmer & demander l’acompte' : 'Confirmer';
+    $('poser').textContent = etat.modif ? 'Enregistrer les changements' : acompte ? 'Confirmer & demander l’acompte' : 'Confirmer';
+    $('attente').hidden = etat.modif;
+    $('titre-ecran').textContent = etat.modif ? 'Modifier le rendez-vous' : 'Nouveau rendez-vous';
+    $('mode').textContent = etat.modif ? 'Voir en création' : 'Voir en modification';
     $('barre').innerHTML = pret
-      ? `<b>${esc(c.nom)} · ${esc(s.jour)} · ${esc(s.heure)}</b>${esc(g.map((x) => PRESTATIONS[x].nom.split(' · ')[0]).join(' + '))} · ${esc(s.maitre)} · ${duree(dureeTotale())} · ${c.formule ? 'compris dans sa formule' : esc(francs(prixTotal()))}`
+      ? `<b>${esc(c.nom)} · ${esc(s.jour)} · ${esc(s.heure)}</b>${esc(g.map(court).join(' + '))} · ${esc(s.maitre)} · ${duree(dureeTotale())} · ${c.formule ? 'compris dans sa formule' : esc(francs(prixTotal()))}`
       : `<b>${c ? esc(c.nom) : 'Le rendez-vous se compose'}</b>${!c ? 'Trois questions, et il est posé.' : !g.length ? 'Reste : les prestations, puis le moment.' : 'Reste : le moment.'}`;
   }
   function rafraichit() { dessineQuoi(); dessineQuand(); dessineOptions(); resume(); }
 
+  /* ── MODIFIER : le même écran, ses trois rangées repliées ───────── */
+  $('mode').addEventListener('click', () => {
+    if (etat.modif) {
+      Object.assign(etat, { cliente: null, gestes: [], creneau: null, options: new Set(), semaine: 0, jour: null, modif: false });
+      $('fiche').innerHTML = '<p class="note">Cherche-la dans la case ci-dessus : son rituel habituel apparaîtra ici.</p>';
+      $('raison').innerHTML = ''; $('pose').textContent = '';
+      rafraichit(); ouvre('qui');
+      return;
+    }
+    const m = CLIENTES[0];
+    choisit(m);
+    Object.assign(etat, { gestes: [...m.habitude.gestes], semaine: 0, jour: 28, modif: true, creneau: { num: 28, jour: 'mer. 28 oct. 2026', heure: '10 h 00', maitre: 'Gérard', prise: false } });
+    $('pose').textContent = '';
+    rafraichit(); ouvre('');
+  });
+
   $('poser').addEventListener('click', () => {
-    $('pose').textContent = `Dans le Trône, le rendez-vous de ${etat.cliente.nom} serait inscrit ici, au ${etat.creneau.jour}, ${etat.creneau.heure}. La maquette n’écrit rien.`;
+    $('pose').textContent = etat.modif
+      ? `Dans le Trône, le rendez-vous de ${etat.cliente.nom} serait mis à jour : ${etat.creneau.jour}, ${etat.creneau.heure}. La maquette n’écrit rien.`
+      : `Dans le Trône, le rendez-vous de ${etat.cliente.nom} serait inscrit ici, au ${etat.creneau.jour}, ${etat.creneau.heure}. La maquette n’écrit rien.`;
   });
   $('attente').addEventListener('click', () => {
-    $('pose').textContent = 'Dans le Trône, il serait gardé en attente, sans créneau bloqué. La maquette n’écrit rien.';
+    $('pose').textContent = 'Dans le Trône, il serait gardé en attente, sans place bloquée. La maquette n’écrit rien.';
   });
 
   rafraichit();
