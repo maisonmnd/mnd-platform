@@ -165,7 +165,7 @@ RECETTES['N13'] = dict(montage='sol', centre=POTEAU_H / 2000, avance=1.6,
                                _p([4, 6, 8, 10, 12], 'ivoire', 20, 55), _p([5, 7, 9, 11, 13], 'encre-indigo', 0.2, 75.15),
                                # La tête « Bienvenue » : tige cuivre, disque indigo de 20 mm, cerclage cuivre un peu en saillie.
                                _p(14, 'cuivre-brosse', 40, 45), _p(15, 'alu-indigo', 20, 55), _p(16, 'cuivre-brosse', 24, 53),
-                               _p(17, 'encre-cuivre', 0.2, 75.15), _p(18, 'encre-ivoire', 0.2, 75.15)],
+                               _p([17, 18], 'encre-ivoire', 0.2, 75.15)],
                        surimpressions=[dict(el=[4, 6, 8, 10, 12], z=75.1, nom=('Edge lines, UV print both faces', '边线，双面 UV 打印'))],
                        vues=['jour', 'situation'],
                        coupe=[('Post 110 × 110, steel, indigo powder coat', '立柱 110 × 110，钢，靛蓝色喷粉', 10, 120, '#1E2150', None),

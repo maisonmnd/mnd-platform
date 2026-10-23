@@ -44,8 +44,8 @@ def _chemin(d, fond, trait=None, ep=0):
 
 # ── 1 · Le poteau de la Maison (Amen Corner) ─────────────────────────────
 # « Il faut mettre Consultation à la place de Maison MND », puis « Consultation reste en ivoire comme les autres »
-# (23 oct. 2026) : cinq lames ivoire, toutes pareilles.
-POTEAU_LAMES = [('CONSULTATION', True), ('ACCUEIL', False), ('LES ATELIERS', True), ('BOUTIQUE', False), ('TOILETTES', True)]
+# (23 oct. 2026) : cinq lames ivoire, toutes pareilles ; « Accueil doit venir avant la Consultation ».
+POTEAU_LAMES = [('ACCUEIL', True), ('CONSULTATION', False), ('LES ATELIERS', True), ('BOUTIQUE', False), ('TOILETTES', True)]
 # « Rajoute au haut du poteau Bienvenue Maison MND, comme la tête qu'on met sur les sapins de Noël » (23 oct. 2026) :
 # un disque indigo à cerclage cuivre sur une tige, « BIENVENUE » en arc et le verrou debout. Le poteau garde sa hauteur
 # sous le chapeau ; tout descend de TETE et la pièce passe à 2980 mm.
@@ -74,7 +74,7 @@ def poteau():
     els += [f'<rect x="{cx - 25}" y="{TETE_D - 6}" width="50" height="{t - TETE_D + 12}" fill="{C}"/>',
             f'<circle cx="{cx}" cy="{cy}" r="{r}" fill="{I}"/>',
             f'<circle cx="{cx}" cy="{cy}" r="{r - 16}" fill="none" stroke="{C}" stroke-width="10"/>',
-            texte_en_arc('BIENVENUE', 'cormorant', 66, cx, cy, r - 86, en_bas=False, graisse=600, interlettre=0.18, couleur=C),
+            texte_en_arc('BIENVENUE', 'cormorant', 66, cx, cy, r - 86, en_bas=False, graisse=600, interlettre=0.18, couleur=V),  # « Écris le Bienvenue en blanc aussi » : l'ivoire, comme le logo
             _logo('verrou-debout', cx, cy + 42, 220, V)]
     coupes.append(f'M{cx - r} {cy}A{r} {r} 0 1 0 {cx + r} {cy}A{r} {r} 0 1 0 {cx - r} {cy}Z')
     return '-40 -40 1950 3060', els, coupes
@@ -157,7 +157,7 @@ def plaque_angle():
 
 DESSINS = [
     ('poteau', 'Le poteau de la Maison', poteau, 'N13 · poteau de direction · 1870 × 2980 mm',
-     'Le poteau carré indigo, coiffé comme un sapin de Noël d’un disque « Bienvenue » au logo de la Maison, et cinq lames ivoire : la consultation, l’accueil, les ateliers, la boutique, les toilettes. Pour l’entrée, la cour ou le coin de la rue.',
+     'Le poteau carré indigo, coiffé comme un sapin de Noël d’un disque « Bienvenue » au logo de la Maison, et cinq lames ivoire : l’accueil, la consultation, les ateliers, la boutique, les toilettes. Pour l’entrée, la cour ou le coin de la rue.',
      'Poteau acier 110 × 110 peint indigo sur platine ancrée au sol, chapeau et bague de pied en cuivre brossé ; tête Ø520 en aluminium indigo à cerclage cuivre, sur une tige cuivre ; lames en profilé aluminium de 20 mm, ivoire ; lettres et logo imprimés UV sur les deux faces.'),
     ('rue', 'La flèche de rue', fleche_rue, 'N14 · panneau de rue · 1400 × 460 mm',
      'Le panneau qu’on voit des grandes routes, aux couleurs de la Maison : cuivre, bord ivoire, chevron et logo ivoire, la distance dessous. Il guide de la rue principale jusqu’à la porte.',
