@@ -33,11 +33,11 @@ dit('les trois reseaux', ['MTN MoMo', 'Moov Money', 'Celtiis Cash'], [...RESEAUX
 const ecran = sansCommentaires('src/apps/trone/routes/clients/QrCodes.tsx');
 dit('l ecran lit la regle', true, ecran.includes("from '../../../../shared/kkiapay-chapchap-pur'"));
 dit('l ecran ne recopie ni le lien ni le code', [false, false], [ecran.includes('chapchap.kkiapay.me'), ecran.includes('*616*')]);
-dit('la carte Mobile Money est sur la page, au depart', true, /id: 'kkiapay', court: 'Mobile Money', moment: 'depart'/.test(ecran));
+dit('la carte Mobile Money est sur la page, dans Payer', true, /id: 'kkiapay', court: 'Mobile Money', groupe: 'payer'/.test(ecran));
 dit('son QR, sa carte A5 et son lien copie disent le lien de la regle', [true, true, true],
   [/valeur: LIEN_CHAPCHAP,/.test(ecran), /qr: LIEN_CHAPCHAP,/.test(ecran), /copier\(LIEN_CHAPCHAP,/.test(ecran)]);
 dit('l affiche de la Maison est montree, et dite a qui ne la voit pas', [true, true, true],
-  [/affiche: 'kkiapay-affiche\.png'/.test(ecran), /alt=\{g\.afficheAlt \?\?/.test(ecran), existsSync('public/kkiapay-affiche.png')]);
+  [/affiche: 'kkiapay-affiche\.png'/.test(ecran), /alt=\{g\.afficheAlt \?\?/.test(sansCommentaires('src/apps/trone/routes/clients/AuComptoir.tsx')), existsSync('public/kkiapay-affiche.png')]);
 
 /* ── La fabrique des affiches ─────────────────────────────────────────── */
 const fabrique = sansCommentaires('scripts/fabrique-les-affiches-kkiapay.mjs');

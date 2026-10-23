@@ -98,6 +98,16 @@ export const MOYEN_REPRISE = 'Reprise d’une année passée';
    rajoute autres aussi ») : le moyen qui n'a pas de nom va, comme Wave ou un
    virement, dans la caisse « Autres ». */
 export const MOYEN_AUTRES = 'Autres';
+/* LE QR MOBILE MONEY DU COMPTOIR — 24 octobre 2026. Payé par le QR KkiaPay
+   « Chap Chap » (tous réseaux), l'argent arrive sur le compte KkiaPay, pas
+   sur MoMoPay : au sélecteur, Yéman a choisi le moyen « KkiaPay » et sa
+   caisse, la même que celle des paiements en ligne (`cb-kkiapay-<branche>`,
+   comme `ensureKkiapayCashbox`). */
+export const MOYEN_KKIAPAY = 'KkiaPay';
+/** LA CAISSE KKIAPAY NEUVE, idempotente : l'identifiant de celle des paiements en ligne. */
+export const caisseKkiapayNeuve = (branchId: string): Cashbox => ({
+  id: `cb-kkiapay-${branchId}`, branchId, name: CAISSE_KKIAPAY, sub: 'Paiements en ligne et QR Mobile Money', glyph: '◈', openingXof: 0,
+});
 
 export type FamilleDeMoyen = 'especes' | 'momo' | 'momoPrive' | 'carte' | 'cheque' | 'reprise' | 'mndpay'
   | 'zelle' | 'interac' | 'revolut' | 'paypal' | 'kkiapay' | 'avoir' | 'autre';
@@ -161,6 +171,11 @@ export function avecLesMoyensDeLaMaison(methods: readonly string[], garder?: str
   if (!out.some((m) => familleDuMoyen(m) === 'momoPrive')) {
     const i = out.findIndex((m) => familleDuMoyen(m) === 'momo');
     out.splice(i >= 0 ? i + 1 : out.length, 0, MOYEN_MOMO_PRIVE);
+  }
+  /* KkiaPay juste après les MoMo (24 octobre 2026), pour le QR Mobile Money. */
+  if (!out.some((m) => familleDuMoyen(m) === 'kkiapay')) {
+    const i = out.findIndex((m) => familleDuMoyen(m) === 'momoPrive');
+    out.splice(i >= 0 ? i + 1 : out.length, 0, MOYEN_KKIAPAY);
   }
   for (const f of FAMILLES_EN_DEVISE) {
     if (!out.some((m) => familleDuMoyen(m) === f)) out.push(MOYENS_EN_DEVISE[f].nom);
@@ -394,9 +409,15 @@ export function caisseProposee(o: {
   /* LA REPRISE D'UNE ANNÉE PASSÉE, choisie à la main (21 octobre 2026) : une
      reprise inscrite à une autre date que celle de son rendez-vous. */
   if (famille === 'reprise') return annees('Une reprise d’une année passée : son argent va aux années passées.');
+  /* KKIAPAY : en ligne, ou par le QR Mobile Money du comptoir (24 octobre
+     2026). L'argent est sur le compte KkiaPay ; sa caisse naît au premier
+     paiement si les paiements en ligne ne l'ont pas déjà posée. */
   if (famille === 'kkiapay') {
+    const pourquoi = 'Payé par KkiaPay : l’argent est sur le compte KkiaPay.';
     const c = nommee(CAISSE_KKIAPAY);
-    if (c) return { caisse: c, pourquoi: 'Payé en ligne par KkiaPay.' };
+    if (c) return { caisse: c, pourquoi };
+    const aCreer = ranimee(`cb-kkiapay-${o.branchId}`, CAISSE_KKIAPAY, () => caisseKkiapayNeuve(o.branchId));
+    return { caisse: aCreer.name, pourquoi: `${pourquoi} Elle naît à ce premier encaissement.`, aCreer };
   }
   /* LA CAISSE AU NOM DU PAIEMENT. Une caisse du paiement qu'on aurait mise à
      part à la main la reçoit quand même : sa règle est « chaque paiement a sa

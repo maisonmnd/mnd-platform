@@ -89,8 +89,8 @@ const SA_LISTE = ['MTN MoMo', 'Moov', 'Celtis', 'Wave', 'Espèces', 'Carte', 'Vi
 dit('les moyens de sa liste, chacun à sa famille (Moov, Wave, virement : « autre » ; PayPal, Zelle, MoMo Privé et la reprise ont la leur)',
   ['momo', 'autre', 'autre', 'autre', 'especes', 'carte', 'autre', 'paypal', 'cheque', 'autre', 'avoir', 'mndpay', 'zelle', 'kkiapay', 'momoPrive', 'reprise'],
   SA_LISTE.map(familleDuMoyen));
-dit('sa liste, plus MoMo Privé juste après son MTN, les quatre moyens en devise, « Autres », et la reprise à la fin ; déjà là, rien ne s ajoute',
-  [['MTN MoMo', MOYEN_MOMO_PRIVE, 'Espèces', 'Zelle', 'Interac', 'Revolut', 'PayPal', 'Autres', MOYEN_REPRISE], ['Espèces', 'Momo privé', 'reprise année passée', 'Zelle', 'Interac', 'Revolut', 'PayPal', 'Autres']],
+dit('sa liste, plus MoMo Privé juste après son MTN, KkiaPay après lui (24 oct.), les quatre moyens en devise, « Autres », et la reprise à la fin ; déjà là, rien ne s ajoute',
+  [['MTN MoMo', MOYEN_MOMO_PRIVE, 'KkiaPay', 'Espèces', 'Zelle', 'Interac', 'Revolut', 'PayPal', 'Autres', MOYEN_REPRISE], ['Espèces', 'Momo privé', 'KkiaPay', 'reprise année passée', 'Zelle', 'Interac', 'Revolut', 'PayPal', 'Autres']],
   [avecLesMoyensDeLaMaison(['MTN MoMo', 'Espèces']), avecLesMoyensDeLaMaison(['Espèces', 'Momo privé', 'reprise année passée'])]);
 
 /* ── 2. L'ANNÉE ANTÉRIEURE ───────────────────────────────────────────── */

@@ -3171,3 +3171,65 @@
   .trc-vitrine-onglets .mnd-seg:nth-child(odd) { border-left: none; }
   .trc-vitrine-onglets .mnd-seg:nth-child(n+3) { border-top: 1px solid var(--hairline); }
 }
+
+/* ── LES CODES, PAR CE QUE VEUT LA CLIENTE — 24 octobre 2026 ───────────────
+   « Je ne me retrouve pas facilement dans les QR » (Yéman) : plus de
+   présentoir de carrés. Le bandeau « En ce moment » en indigo, puis une ligne
+   par code (pictogramme, nom, phrase), une seule ouverte à la fois. */
+.trq-moment {
+  background: var(--color-indigo); color: var(--color-ivoire);
+  border-radius: 6px; padding: 16px 20px; display: grid; gap: 12px; margin-top: 4px;
+}
+.trq-moment__sur {
+  margin: 0; font-size: 11px; letter-spacing: .3em; text-transform: uppercase; font-weight: 500;
+  color: var(--copper-300, #D6A06F);
+}
+.trq-moment__ligne {
+  display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap;
+  padding-top: 12px; border-top: 1px solid rgba(246, 241, 231, .16);
+}
+.trq-moment__sur + .trq-moment__ligne { border-top: 0; padding-top: 0; }
+.trq-moment__texte { min-width: 0; flex: 1 1 260px; }
+.trq-moment__texte b { font-weight: 500; display: block; }
+.trq-moment__texte small { display: block; font-size: 12.5px; color: rgba(246, 241, 231, .72); margin-top: 1px; }
+.trq-moment__gestes { display: flex; gap: 8px; flex-wrap: wrap; }
+.trq-moment .mnd-btn--ghost { color: var(--color-ivoire); border-color: rgba(246, 241, 231, .4); background: transparent; }
+.trq-moment .mnd-btn--ghost:hover { background: rgba(246, 241, 231, .08); }
+
+.trq-groupe { display: grid; gap: 8px; margin-top: 18px; }
+.trq-groupe__titre {
+  margin: 0 0 2px; font-family: inherit; font-size: 11px; font-weight: 500;
+  letter-spacing: .3em; text-transform: uppercase; color: var(--copper-700);
+}
+.trq-ligne { background: var(--surface-card); border: 1px solid var(--hairline); border-radius: 6px; }
+.trq-ligne--ouverte { border-color: var(--copper-300); }
+/* Un code à moitié réglé n'a l'air de rien : le pointillé le dit. */
+.trq-ligne--muette { border-style: dashed; border-color: var(--copper-300); }
+.trq-ligne__tete { display: grid; grid-template-columns: 44px minmax(0, 1fr) auto auto; align-items: center; gap: 14px; padding: 11px 14px; }
+.trq-ligne__signe {
+  width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center;
+  background: var(--color-sable, #EFE6D8); color: var(--color-indigo);
+}
+.trq-ligne__nom {
+  border: 0; background: transparent; padding: 0; text-align: left; cursor: pointer; min-width: 0;
+  display: grid; gap: 2px; color: inherit; font: inherit;
+}
+.trq-ligne__court { font-family: var(--font-serif); font-size: 20px; line-height: 1.15; color: var(--color-indigo); }
+.trq-ligne__resume { font-size: 12.5px; color: var(--ink-soft); overflow-wrap: anywhere; }
+.trq-ligne__ouvre {
+  border: 0; background: transparent; padding: 8px; border-radius: 4px; cursor: pointer;
+  display: grid; place-items: center; color: var(--ink-soft);
+}
+.trq-ligne__ouvre svg { transition: transform var(--dur-base, .2s) var(--ease-soft, ease); }
+.trq-ligne--ouverte .trq-ligne__ouvre svg { transform: rotate(180deg); }
+.trq-ligne__nom:focus-visible, .trq-ligne__ouvre:focus-visible { outline: 2px solid var(--copper-300); outline-offset: 2px; }
+.trq-ligne__panneau { border-top: 1px solid var(--hairline); padding: 14px 16px 16px; }
+.trq-ligne__panneau .trq-carte { border: 0; padding: 0; background: transparent; }
+.trq-ligne__panneau .trq-qr { width: 132px; height: 132px; }
+@media (max-width: 560px) {
+  /* Au téléphone, « Afficher » reste : c'est le geste du comptoir. Le nom
+     ouvre la ligne, la flèche se tait. */
+  .trq-ligne__tete { grid-template-columns: 40px minmax(0, 1fr) auto; gap: 10px; }
+  .trq-ligne__ouvre { display: none; }
+}
+@media (prefers-reduced-motion: reduce) { .trq-ligne__ouvre svg { transition: none; } }

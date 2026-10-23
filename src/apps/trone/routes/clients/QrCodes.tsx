@@ -1,11 +1,11 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { BookOpen, Clock, Crown, Globe, MapPin, Smartphone, Star, Wallet, Wifi, type LucideIcon } from 'lucide-react';
+import { BookOpen, ChevronDown, Clock, Crown, Globe, GraduationCap, MapPin, Smartphone, Star, Wallet, Wifi, type LucideIcon } from 'lucide-react';
 import { asset } from '../../../../shared/asset';
 import { useBranch } from '../../../../shared/branches';
-import { toast, demandeUnTexte, Modal } from '../../../../ds/components';
+import { toast, demandeUnTexte } from '../../../../ds/components';
 import { PageHead } from '../_ui';
-import { useStore } from '../../../../shared/store';
+import { createStore, useStore } from '../../../../shared/store';
 import { maisonNom, DEVISE_COMPLETE, signeLeMessage, estLaMaisonMND } from '../../../../shared/identite';
 import { autoConfigStore, MOMO_QR_DEFAUT, REVIEW_LINK_DEFAUT, MOMO_USSD_DEFAUT, MOMO_MARCHAND_DEFAUT } from '../equipe/data';
 import { CODE_MOMOPAY } from '../../../../shared/momopay-de-la-maison-pur';
@@ -13,7 +13,14 @@ import { LIEN_CHAPCHAP, USSD_CHAPCHAP, MARCHAND_CHAPCHAP, RESEAUX_CHAPCHAP } fro
 import { usePointageConfig } from '../equipe/payroll';
 import { QrSvg, qrMatrice, lienDuJour } from '../equipe/Comptoir';
 import { imprimeCarteCouronne, lienMaCouronne } from './Vitrine';
-import { todayISO } from './_shared';
+import { todayISO, useBranchAppointments, useBranchClients, useServicesById, apptDurationMin, apptDueXof } from './_shared';
+import { apptCashOnDay, bornesDuSalon } from '../../../../shared/agenda';
+import { useSettings } from '../../../../shared/settings';
+import { fmtMoney } from '../../../../shared/currency';
+import { appelDe } from '../../../../shared/civilite';
+import { lienWaMe } from '../../../../shared/conversations';
+import { codesDuMoment, ordreParUsage, premiereVenueDe, minutesDe, type IdDuCode, type RdvDuMoment, type Suggestion } from '../../../../shared/codes-du-moment';
+import { AuComptoir, type Grand } from './AuComptoir';
 import './clients.css';
 
 /* QR CODES — TOUS LES CODES DE LA MAISON, RÉUNIS (13 août, demande de Yéman).
@@ -23,20 +30,6 @@ import './clients.css';
    Chaque carte sait aussi s'AFFICHER AU COMPTOIR : le code en grand, plein
    écran, tourné vers la cliente — elle scanne, on referme. */
 
-/* Ce qu'un code montre quand il occupe tout l'écran. */
-type Grand = {
-  titre: string;
-  phrase: string;
-  valeur: string;
-  /** L'AFFICHE DE LA MAISON, à la place du carré nu — 18 août 2026. Yéman a
-      fait faire une affiche MoMoPay à ses couleurs : la montrer entière vaut
-      mieux qu'un QR posé sur du blanc, parce qu'elle dit déjà le marchand, le
-      code USSD et le geste. Absente ailleurs : les réseaux Wi-Fi n'en ont pas. */
-  affiche?: string;
-  /** Ce que l'affiche dit, pour qui ne la voit pas (23 octobre 2026 : deux
-      affiches désormais, MoMoPay et Mobile Money). */
-  afficheAlt?: string;
-};
 
 /* Le format Wi-Fi que tous les téléphones savent lire : WIFI:T:WPA;S:…;P:…;;
    Les caractères que le format réserve s'échappent — un mot de passe qui
@@ -140,7 +133,7 @@ const imprime = (html: string) => {
 
 type Geste = { texte: string; faire: () => void; fort?: boolean; empeche?: string };
 
-function CarteCode({ signe, nom, qui, dit, valeur, vide, champ, gestes, large, enfants }: {
+function CarteCode({ signe, nom, qui, dit, valeur, vide, champ, gestes, large, enfants, sansTete }: {
   signe: LucideIcon;
   nom: string;
   /** « La cliente scanne · elle règle » — le sujet et la conséquence. */
@@ -153,11 +146,14 @@ function CarteCode({ signe, nom, qui, dit, valeur, vide, champ, gestes, large, e
   gestes: Geste[];
   large?: boolean;
   enfants?: ReactNode;
+  /** Dans le panneau d'une ligne, qui dit déjà le signe et le nom (24 octobre 2026). */
+  sansTete?: boolean;
 }) {
   const Signe = signe;
   const pret = !!valeur;
   return (
     <div className={`trq-carte${large ? ' trq-carte--large' : ''}${pret ? '' : ' trq-carte--muette'}`}>
+      {!sansTete && (
       <div className="trq-carte__tete">
         <span className={`trq-badge${pret ? '' : ' trq-badge--vide'}`}>
           <Signe size={20} strokeWidth={1.5} aria-hidden="true" />
@@ -167,6 +163,7 @@ function CarteCode({ signe, nom, qui, dit, valeur, vide, champ, gestes, large, e
           <p className="trq-carte__qui">{qui}</p>
         </div>
       </div>
+      )}
 
       <p className="trq-carte__dit">{dit}</p>
 
@@ -303,71 +300,11 @@ function BoxWifi({ rang, portee, ssid, pass, pose, surComptoir }: {
     </div>
   );
 }
-/* ── LE PLEIN ÉCRAN DU COMPTOIR ─────────────────────────────────────────
-   Parchemin, marque, le code aussi grand que l'écran le permet. On le tourne
-   vers la cliente ; un toucher n'importe où — ou Échap — le referme. */
-function AuComptoir({ g, onClose }: { g: Grand; onClose: () => void }) {
-  useEffect(() => {
-    const surTouche = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
-    window.addEventListener('keydown', surTouche);
-    return () => window.removeEventListener('keydown', surTouche);
-  }, [onClose]);
-  return (
-    <div
-      onClick={onClose}
-      role="dialog"
-      aria-label={`${g.titre}, plein écran`}
-      style={{
-        /* Au-dessus de tout — tiroirs (z-modal+1) et toasts (z-modal+5). */
-        position: 'fixed', inset: 0, zIndex: 120,
-        background: '#F6F1E7', cursor: 'pointer',
-        display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-        padding: '24px 20px', animation: 'mnd-fade var(--dur-base) var(--ease-soft)',
-      }}
-    >
-      {estLaMaisonMND(maisonNom()) ? (
-        /* Le verrou, jamais sous son plancher : 150 px au plus petit. */
-        <img
-          src={asset('assets/verrous/verrou-couche-indigo.png')}
-          alt={maisonNom()}
-          style={{ width: 'clamp(150px, 18vw, 260px)', height: 'auto', display: 'block' }}
-        />
-      ) : (
-        <div style={{ fontSize: 13, fontWeight: 600, letterSpacing: '.34em', color: '#1E2150' }}>
-          {maisonNom().toUpperCase()}
-        </div>
-      )}
-      <div style={{ fontFamily: 'var(--font-serif)', fontWeight: 300, fontSize: 'clamp(30px, 5vw, 46px)', color: '#1E2150', margin: '12px 0 2px', textAlign: 'center' }}>
-        {g.titre}
-      </div>
-      <div style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: 'clamp(15px, 2.2vw, 20px)', color: '#45454F', textAlign: 'center', maxWidth: '46ch', lineHeight: 1.5 }}>
-        {g.phrase}
-      </div>
-      {g.affiche ? (
-        /* L'AFFICHE DE LA MAISON — 19 octobre 2026. « Recrée un poster, épuré
-           et avec les couleurs de la charte » (Yéman) : le compte MoMoPay de
-           MAISON MND (code 909099), ivoire, indigo et cuivre, le QR dedans.
-           L'ancienne (noir et or, « YEMAN » gravé, recouvert d'un panneau
-           ACIA1) est rangée au Drive, 99 · Archives › Anciennes affiches. */
-        <img
-          src={asset(g.affiche)}
-          alt={g.afficheAlt ?? `Régler par MTN MoMo, code marchand ${CODE_MOMOPAY}, MAISON MND`}
-          style={{ height: 'min(66vh, 96vw)', width: 'auto', borderRadius: 4, boxShadow: '0 2px 18px rgba(30,33,80,.13)', display: 'block', margin: '22px 0 14px' }}
-        />
-      ) : (
-        <div style={{ width: 'min(64vw, 56vh)', height: 'min(64vw, 56vh)', margin: '26px 0 14px' }}>
-          <QrSvg valeur={g.valeur} style={{ width: '100%', height: '100%', display: 'block' }} />
-        </div>
-      )}
-      <div style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: 14, color: '#9E6238' }}>
-        {DEVISE_COMPLETE}
-      </div>
-      <div style={{ position: 'absolute', bottom: 16, fontSize: 11.5, color: '#8a8a93', letterSpacing: '.08em' }}>
-        toucher l’écran pour fermer · Échap
-      </div>
-    </div>
-  );
-}
+/* LES CODES QUE CE POSTE MONTRE LE PLUS — 24 octobre 2026. Gardés sur
+   l'appareil (jamais synchronisés) : le comptoir et le téléphone de Brice
+   n'ont pas les mêmes habitudes, chacun range sa page à sa main. */
+const usageDesCodes = createStore<Record<string, number>>('mnd_codes_usage', {});
+
 export default function QrCodes() {
   const navigate = useNavigate();
   const [autoRaw, setAuto] = useStore(autoConfigStore);
@@ -380,7 +317,16 @@ export default function QrCodes() {
   const [preuve] = usePointageConfig();
   const codeJour = preuve.codeDate === todayISO() ? (preuve.codeValeur ?? '') : '';
 
-  const { branch } = useBranch();
+  const { branch, currency } = useBranch();
+  const [usage, setUsage] = useStore(usageDesCodes);
+  const rdvsDeLaBranche = useBranchAppointments();
+  const clientsDeLaBranche = useBranchClients();
+  const servicesParId = useServicesById();
+  const [reglagesMaison] = useSettings();
+  const aujourdhui = todayISO();
+  /* Le bandeau se relit à la minute : un rituel qui se termine change ce qu'il propose. */
+  const [maintenant, setMaintenant] = useState(() => new Date());
+  useEffect(() => { const t = setInterval(() => setMaintenant(new Date()), 60_000); return () => clearInterval(t); }, []);
   const [grand, setGrand] = useState<Grand | null>(null);
   const [recherche, setRecherche] = useState('');
   const [filtre, setFiltre] = useState<string>('tous');
@@ -535,25 +481,30 @@ export default function QrCodes() {
   const etats = [!!lienCarte, !!lienPlan, wifi1 || wifi2, !!momoQr, !!lienAvis, !!lienCouronne, !!codeJour];
   const prets = etats.filter(Boolean).length;
 
-  /* ══ LE PRÉSENTOIR — 4 octobre 2026 ═══════════════════════════════════
-     « La page QR code a besoin de plus de facilité pour retrouver les codes.
-     Toujours trop de codes et pas facile. Restructure la page. Meilleur UI,
-     et meilleur UX » (Yéman).
+  /* ══ LES CODES, RANGÉS PAR CE QUE VEUT LA CLIENTE — 24 octobre 2026 ════
+     « Je ne me retrouve pas facilement dans les QR. Comment faciliter
+     l'utilisation, qu'elle soit smart et intelligente » (Yéman). La troisième
+     fois que la page déroute (27 août, 4 octobre). Le présentoir de tuiles
+     montrait dix carrés noirs côte à côte : un QR ne se reconnaît pas à l'œil,
+     c'était là le mélange.
 
-     NEUF GRANDES CARTES EMPILÉES se lisaient avant de se trouver. Désormais :
-     une recherche et des filtres par moment en tête, puis un présentoir de
-     tuiles (le carré, son nom court, son état, UN bouton « Afficher ») ; la
-     fiche complète de chaque code (ce qu'il fait, où il mène, imprimer,
-     copier, le message, le réglage du wifi) s'ouvre d'un clic. Ce que fait
-     chaque code ne change pas : ce sont les mêmes gestes, rangés. */
-  type MomentDuCode = 'avant' | 'pendant' | 'depart' | 'longtemps' | 'equipe';
+     Désormais, validé sur maquette :
+       · EN CE MOMENT, en tête : le code dont le moment a besoin, lu dans
+         l'agenda du jour (shared/codes-du-moment.ts) ;
+       · une LISTE PAR INTENTION (Payer, Se connecter, Nous découvrir,
+         Revenir, L'équipe) : un pictogramme, un nom, une phrase ; le QR ne
+         paraît qu'à l'ouverture d'une ligne ou en plein écran ;
+       · UNE seule ligne ouverte à la fois ;
+       · dans chaque intention, les codes que CE POSTE montre le plus d'abord
+         (`usageDesCodes`, gardé sur l'appareil, jamais synchronisé). */
+  type GroupeDuCode = 'payer' | 'connecter' | 'decouvrir' | 'revenir' | 'equipe';
   type CodeDef = {
-    id: string; court: string; moment: MomentDuCode; motsCles: string; pret: boolean;
+    id: IdDuCode; court: string; resume: string; groupe: GroupeDuCode; motsCles: string; pret: boolean;
     principal?: Geste; carte: Parameters<typeof CarteCode>[0];
   };
-  const MOMENTS: { k: MomentDuCode; l: string }[] = [
-    { k: 'avant', l: 'Avant la visite' }, { k: 'pendant', l: 'Pendant' }, { k: 'depart', l: 'Au départ' },
-    { k: 'longtemps', l: 'Pour longtemps' }, { k: 'equipe', l: 'L’équipe' },
+  const GROUPES: { k: GroupeDuCode; l: string }[] = [
+    { k: 'payer', l: 'Payer' }, { k: 'connecter', l: 'Se connecter' }, { k: 'decouvrir', l: 'Nous découvrir' },
+    { k: 'revenir', l: 'Revenir' }, { k: 'equipe', l: 'L’équipe' },
   ];
   const sansPlan = 'Renseignez l’adresse dans Système › Branches';
   const sansAvis = 'Renseignez le lien dans Paramètres › Automatisations';
@@ -566,10 +517,82 @@ export default function QrCodes() {
   const afficheCouronne: Geste = { texte: 'Afficher', fort: true, faire: () => setGrand({ titre: 'Ma Couronne.', phrase: 'Scannez, votre couronne vous reconnaît.', valeur: lienCouronne }) };
   const afficheAcademie: Geste = { texte: 'Afficher', fort: true, faire: () => setGrand({ titre: 'Académie MND.', phrase: 'Scannez, la Maison vous apprend le métier.', valeur: lienAcademie }) };
   const afficheJour: Geste | undefined = codeJour ? { texte: 'Afficher', fort: true, faire: () => setGrand({ titre: 'Le code du jour.', phrase: 'Le pointage de l’équipe, il change chaque nuit.', valeur: lienDuJour(codeJour) }) } : undefined;
+  /* Le wifi n'a pas de bouton unique (deux box) : la 5G d'abord, sinon la 2G. */
+  const wifiDuMoment = wifi1 ? wifiPayload(autoRaw.wifiSsid!.trim(), autoRaw.wifiPass!.trim())
+    : wifi2 ? wifiPayload(autoRaw.wifi2Ssid!.trim(), autoRaw.wifi2Pass!.trim()) : '';
+  const afficheWifi: Geste | undefined = wifiDuMoment
+    ? { texte: 'Afficher', fort: true, faire: () => setGrand({ titre: 'Installez-vous.', phrase: 'Le réseau de la Maison est à vous.', valeur: wifiDuMoment }) }
+    : undefined;
+  const hote = lienSite.replace(/^https?:\/\//, '').replace(/\/$/, '');
+
+  /* Un geste compté : c'est lui qui range les codes de CE poste. */
+  const compte = (id: IdDuCode) => setUsage((u) => ({ ...u, [id]: (u[id] ?? 0) + 1 }));
+  const avecCompte = (id: IdDuCode, g: Geste): Geste => ({ ...g, faire: () => { compte(id); g.faire(); } });
 
   const codes: CodeDef[] = [
     {
-      id: 'site', court: 'Le site', moment: 'avant', motsCles: 'site internet web maison vitrine rendez-vous', pret: !!lienSite, principal: afficheSite,
+      /* LE PAIEMENT KKIAPAY « CHAP CHAP » — 23 octobre 2026. « Redessine le QR
+         code dans les paiements Kkiapay pour MND avec le code USSD » (Yéman).
+         Le lien et le code vivent dans shared/kkiapay-chapchap-pur.ts : ils ne
+         se règlent pas ici, ils se relisent sur l'affiche de KkiaPay. */
+      id: 'kkiapay', court: 'Mobile Money', groupe: 'payer', pret: true, principal: afficheChapchap,
+      resume: `Tous réseaux : ${RESEAUX_CHAPCHAP.join(', ')} · au nom de ${MARCHAND_CHAPCHAP}`,
+      motsCles: 'kkiapay chap chap mobile money mtn momo moov celtiis payer paiement argent régler ussd',
+      carte: {
+        signe: Wallet, nom: 'Payer par Mobile Money.', qui: 'La cliente scanne · elle règle',
+        dit: <>Avec l’appareil photo de son téléphone, la page de paiement KkiaPay s’ouvre au nom de <b>{MARCHAND_CHAPCHAP}</b> : {RESEAUX_CHAPCHAP.join(', ')}. À l’encaissement, choisissez le moyen <b>KkiaPay</b> : l’argent va dans la caisse KkiaPay.</>,
+        valeur: LIEN_CHAPCHAP,
+        champ: { lab: 'Marchand', val: <b style={{ color: 'var(--copper-700)', fontWeight: 600 }}>{MARCHAND_CHAPCHAP}</b>, lab2: 'ou composez', val2: USSD_CHAPCHAP },
+        gestes: [
+          { ...afficheChapchap, texte: 'Afficher le QR seul' },
+          { texte: 'L’affiche', faire: () => setGrand({ titre: 'Régler par Mobile Money.', phrase: `${RESEAUX_CHAPCHAP.join(', ')}, le montant en francs.`, valeur: LIEN_CHAPCHAP, affiche: 'kkiapay-affiche.png', afficheAlt: `Régler par Mobile Money, ${RESEAUX_CHAPCHAP.join(', ')}, marchand ${MARCHAND_CHAPCHAP}, ou composez ${USSD_CHAPCHAP}` }) },
+          { texte: 'Carte A5', faire: imprimerChapchap },
+          { texte: 'Copier le lien', faire: () => copier(LIEN_CHAPCHAP, 'de paiement Mobile Money') },
+        ],
+      },
+    },
+    {
+      id: 'momo', court: 'MoMoPay', groupe: 'payer', pret: !!momoQr, principal: afficheMomo,
+      resume: `MTN seulement, avec l’application MoMo · marchand ${momoMarchand}`,
+      motsCles: 'momo momopay payer paiement argent mtn régler marchand',
+      carte: {
+        signe: Smartphone, nom: 'Payer par MoMoPay.', qui: 'La cliente scanne · elle règle',
+        dit: <>Elle scanne avec son application MoMo et saisit le montant en francs. À l’encaissement, le moyen <b>MTN MoMo</b>. Le code et le marchand se règlent dans Paramètres › L’encaissement.</>,
+        valeur: momoQr,
+        champ: { lab: 'Marchand', val: <b style={{ color: 'var(--copper-700)', fontWeight: 600 }}>{momoMarchand}</b>, lab2: 'ou composez', val2: momoUssd },
+        gestes: [
+          { ...afficheMomo, texte: 'Afficher le QR seul' },
+          { texte: 'L’affiche', faire: () => setGrand({ titre: 'Régler par MoMo.', phrase: `Marchand ${momoMarchand}, le montant en francs.`, valeur: momoQr, affiche: 'momopay-affiche.png' }) },
+          { texte: 'Carte A5', faire: imprimerMomo },
+          { texte: 'Copier le lien', faire: () => copier(lienMomo(), 'de paiement'), empeche: codeMarchand ? undefined : 'Renseignez le code MoMo dans Paramètres › L’encaissement' },
+        ],
+      },
+    },
+    {
+      id: 'wifi', court: 'Le wifi', groupe: 'connecter', pret: wifi1 || wifi2, principal: afficheWifi,
+      resume: 'Deux box : la 5G près du fauteuil, la 2G jusqu’au fond',
+      motsCles: 'wifi internet réseau connexion mot de passe 5g 2g',
+      carte: {
+        signe: Wifi, nom: 'Le wifi de la Maison.', qui: 'La cliente scanne · elle est connectée',
+        dit: <>Deux box, la 5G près du fauteuil et la 2G jusqu’au fond. Elle n’a rien à taper.</>,
+        valeur: wifi1 || wifi2 ? 'ok' : '', gestes: [],
+        enfants: (
+          <>
+            <BoxWifi rang="5G" portee="Le plus rapide, près du fauteuil" ssid={autoRaw.wifiSsid ?? ''} pass={autoRaw.wifiPass ?? ''}
+              pose={(ssid, pass) => setAuto({ ...autoRaw, wifiSsid: ssid, wifiPass: pass })} surComptoir={(g) => { compte('wifi'); setGrand(g); }} />
+            <BoxWifi rang="2G" portee="Porte plus loin, jusqu’au fond" ssid={autoRaw.wifi2Ssid ?? ''} pass={autoRaw.wifi2Pass ?? ''}
+              pose={(ssid, pass) => setAuto({ ...autoRaw, wifi2Ssid: ssid, wifi2Pass: pass })} surComptoir={(g) => { compte('wifi'); setGrand(g); }} />
+            {autoRaw.wifiPass?.trim() && autoRaw.wifiPass.trim() === autoRaw.wifi2Pass?.trim() && (
+              <div className="trq-motdepasse"><span>Mot de passe des deux box</span><b>{autoRaw.wifiPass.trim()}</b></div>
+            )}
+          </>
+        ),
+      },
+    },
+    {
+      id: 'site', court: 'Le site', groupe: 'decouvrir', pret: !!lienSite, principal: afficheSite,
+      resume: `${hote} · nos gestes, nos parcours, le rendez-vous`,
+      motsCles: 'site internet web maison vitrine rendez-vous',
       carte: {
         signe: Globe, nom: 'Le site de la Maison.', qui: 'Elle scanne · la Maison s’ouvre',
         dit: <>Ce que la Maison fait, pour qui ne la connaît pas encore : les gestes, les parcours, les avis et la prise de rendez-vous. C’est le carré de la vitrine et du dos de carte.</>,
@@ -579,7 +602,7 @@ export default function QrCodes() {
           { texte: 'Imprimer l’affiche', faire: () => imprime(carteA5({
             verrou: verrouDeLaMaison(), titre: 'La Maison, en entier.',
             sous: 'Nos gestes, nos parcours, nos avis, et la prise de rendez-vous.',
-            qr: lienSite, grand: lienSite.replace(/^https?:\/\//, '').replace(/\/$/, ''), sousGrand: 'Ou tapez cette adresse.',
+            qr: lienSite, grand: hote, sousGrand: 'Ou tapez cette adresse.',
             etapes: ['Ouvrez l’appareil photo du téléphone', 'Visez le carré', 'La Maison s’ouvre, prenez rendez-vous'],
             ariaQr: 'QR du site de la Maison',
           })) },
@@ -590,7 +613,9 @@ export default function QrCodes() {
       },
     },
     {
-      id: 'carte', court: 'La carte des prix', moment: 'avant', motsCles: 'prix tarif carte rituels formules combien', pret: !!lienCarte, principal: afficheCarte,
+      id: 'carte', court: 'La carte des prix', groupe: 'decouvrir', pret: !!lienCarte, principal: afficheCarte,
+      resume: 'Rituels, formules et gamme, au franc près',
+      motsCles: 'prix tarif carte rituels formules combien',
       carte: {
         signe: BookOpen, nom: 'La carte des prix.', qui: 'La cliente scanne · nos prix s’ouvrent',
         dit: <>Nos rituels, nos formules et la gamme, à jour au franc près. Le lien s’envoie aussi par WhatsApp à celle qui demande un prix.</>,
@@ -604,7 +629,9 @@ export default function QrCodes() {
       },
     },
     {
-      id: 'plan', court: 'Nous trouver', moment: 'avant', motsCles: 'adresse itinéraire plan maps localisation carte google', pret: !!lienPlan, principal: affichePlan,
+      id: 'plan', court: 'Nous trouver', groupe: 'decouvrir', pret: !!lienPlan, principal: affichePlan,
+      resume: planPrecis ? 'La porte de la Maison, sur Google Maps' : lienPlan ? 'Le centre de la ville seulement : collez le lien de la fiche Google' : 'Adresse à renseigner',
+      motsCles: 'adresse itinéraire plan maps localisation carte google trouver',
       carte: {
         signe: MapPin, nom: 'Où nous trouver.', qui: 'La cliente scanne · sa carte s’ouvre',
         dit: lienPlan
@@ -619,60 +646,24 @@ export default function QrCodes() {
       },
     },
     {
-      id: 'wifi', court: 'Le wifi', moment: 'pendant', motsCles: 'wifi internet réseau connexion mot de passe 5g 2g', pret: wifi1 || wifi2,
+      id: 'couronne', court: 'Ma Couronne', groupe: 'revenir', pret: !!lienCouronne, principal: afficheCouronne,
+      resume: 'Son application : rendez-vous, parcours, Cercle',
+      motsCles: 'ma couronne application app appli compte installer télécharger',
       carte: {
-        signe: Wifi, nom: 'Le wifi de la Maison.', qui: 'La cliente scanne · elle est connectée',
-        dit: <>Deux box, la 5G près du fauteuil et la 2G jusqu’au fond. Elle n’a rien à taper.</>,
-        valeur: wifi1 || wifi2 ? 'ok' : '', gestes: [],
-        enfants: (
-          <>
-            <BoxWifi rang="5G" portee="Le plus rapide, près du fauteuil" ssid={autoRaw.wifiSsid ?? ''} pass={autoRaw.wifiPass ?? ''}
-              pose={(ssid, pass) => setAuto({ ...autoRaw, wifiSsid: ssid, wifiPass: pass })} surComptoir={setGrand} />
-            <BoxWifi rang="2G" portee="Porte plus loin, jusqu’au fond" ssid={autoRaw.wifi2Ssid ?? ''} pass={autoRaw.wifi2Pass ?? ''}
-              pose={(ssid, pass) => setAuto({ ...autoRaw, wifi2Ssid: ssid, wifi2Pass: pass })} surComptoir={setGrand} />
-            {autoRaw.wifiPass?.trim() && autoRaw.wifiPass.trim() === autoRaw.wifi2Pass?.trim() && (
-              <div className="trq-motdepasse"><span>Mot de passe des deux box</span><b>{autoRaw.wifiPass.trim()}</b></div>
-            )}
-          </>
-        ),
-      },
-    },
-    {
-      id: 'momo', court: 'MoMoPay', moment: 'depart', motsCles: 'momo momopay payer paiement argent mtn régler marchand', pret: !!momoQr, principal: afficheMomo,
-      carte: {
-        signe: Smartphone, nom: 'Payer par MoMoPay.', qui: 'La cliente scanne · elle règle',
-        dit: <>Elle scanne avec son application MoMo et saisit le montant en francs. Le code et le marchand se règlent dans Paramètres › L’encaissement.</>,
-        valeur: momoQr,
-        champ: { lab: 'Marchand', val: <b style={{ color: 'var(--copper-700)', fontWeight: 600 }}>{momoMarchand}</b>, lab2: 'ou composez', val2: momoUssd },
+        signe: Crown, nom: 'Ma Couronne.', qui: 'La cliente scanne · elle installe l’application',
+        dit: <>Elle se crée un compte, puis « Ajouter à l’écran d’accueil » l’installe comme une application. Son parcours, ses rendez-vous et son Cercle la suivent.</>,
+        valeur: lienCouronne, champ: { lab: 'Mène à', val: <span style={{ wordBreak: 'break-all' }}>{lienCouronne}</span> },
         gestes: [
-          { ...afficheMomo, texte: 'Afficher le QR seul' },
-          { texte: 'L’affiche', faire: () => setGrand({ titre: 'Régler par MoMo.', phrase: `Marchand ${momoMarchand}, le montant en francs.`, valeur: momoQr, affiche: 'momopay-affiche.png' }) },
-          { texte: 'Carte A5', faire: imprimerMomo },
-          { texte: 'Copier le lien', faire: () => copier(lienMomo(), 'de paiement'), empeche: codeMarchand ? undefined : 'Renseignez le code MoMo dans Paramètres › L’encaissement' },
+          { ...afficheCouronne, texte: 'Afficher au comptoir' },
+          { texte: 'Carte A5', faire: imprimeCarteCouronne },
+          { texte: 'Copier le lien', faire: () => copier(lienCouronne, 'de Ma Couronne') },
         ],
       },
     },
     {
-      /* LE PAIEMENT KKIAPAY « CHAP CHAP » — 23 octobre 2026. « Redessine le QR
-         code dans les paiements Kkiapay pour MND avec le code USSD » (Yéman).
-         Le lien et le code vivent dans shared/kkiapay-chapchap-pur.ts : ils ne
-         se règlent pas ici, ils se relisent sur l'affiche de KkiaPay. */
-      id: 'kkiapay', court: 'Mobile Money', moment: 'depart', motsCles: 'kkiapay chap chap mobile money mtn momo moov celtiis payer paiement argent régler ussd', pret: true, principal: afficheChapchap,
-      carte: {
-        signe: Wallet, nom: 'Payer par Mobile Money.', qui: 'La cliente scanne · elle règle',
-        dit: <>Avec l’appareil photo de son téléphone, elle ouvre la page de paiement KkiaPay au nom de <b>{MARCHAND_CHAPCHAP}</b>, puis règle par {RESEAUX_CHAPCHAP.join(', ')}. Sans appareil photo, elle compose le code.</>,
-        valeur: LIEN_CHAPCHAP,
-        champ: { lab: 'Marchand', val: <b style={{ color: 'var(--copper-700)', fontWeight: 600 }}>{MARCHAND_CHAPCHAP}</b>, lab2: 'ou composez', val2: USSD_CHAPCHAP },
-        gestes: [
-          { ...afficheChapchap, texte: 'Afficher le QR seul' },
-          { texte: 'L’affiche', faire: () => setGrand({ titre: 'Régler par Mobile Money.', phrase: `${RESEAUX_CHAPCHAP.join(', ')}, le montant en francs.`, valeur: LIEN_CHAPCHAP, affiche: 'kkiapay-affiche.png', afficheAlt: `Régler par Mobile Money, ${RESEAUX_CHAPCHAP.join(', ')}, marchand ${MARCHAND_CHAPCHAP}, ou composez ${USSD_CHAPCHAP}` }) },
-          { texte: 'Carte A5', faire: imprimerChapchap },
-          { texte: 'Copier le lien', faire: () => copier(LIEN_CHAPCHAP, 'de paiement Mobile Money') },
-        ],
-      },
-    },
-    {
-      id: 'avis', court: 'Un avis Google', moment: 'depart', motsCles: 'avis google étoiles note merci', pret: !!lienAvis, principal: afficheAvis,
+      id: 'avis', court: 'Un avis Google', groupe: 'revenir', pret: !!lienAvis, principal: afficheAvis,
+      resume: lienAvis ? 'Le formulaire d’avis s’ouvre directement' : 'Lien à renseigner',
+      motsCles: 'avis google étoiles note merci',
       carte: {
         signe: Star, nom: 'Laisser un avis.', qui: 'La cliente scanne · l’avis s’ouvre',
         dit: lienAvis
@@ -687,22 +678,11 @@ export default function QrCodes() {
       },
     },
     {
-      id: 'couronne', court: 'Ma Couronne', moment: 'longtemps', motsCles: 'ma couronne application app compte installer', pret: !!lienCouronne, principal: afficheCouronne,
+      id: 'academie', court: 'Académie MND', groupe: 'revenir', pret: !!lienAcademie, principal: afficheAcademie,
+      resume: 'Neuf parcours, leurs prix et la réservation',
+      motsCles: 'académie formation métier apprendre parcours certificat',
       carte: {
-        signe: Crown, nom: 'Ma Couronne.', qui: 'La cliente scanne · elle installe l’application',
-        dit: <>Elle se crée un compte, puis « Ajouter à l’écran d’accueil » l’installe comme une application. Son parcours, ses rendez-vous et son Cercle la suivent.</>,
-        valeur: lienCouronne, champ: { lab: 'Mène à', val: <span style={{ wordBreak: 'break-all' }}>{lienCouronne}</span> },
-        gestes: [
-          { ...afficheCouronne, texte: 'Afficher au comptoir' },
-          { texte: 'Carte A5', faire: imprimeCarteCouronne },
-          { texte: 'Copier le lien', faire: () => copier(lienCouronne, 'de Ma Couronne') },
-        ],
-      },
-    },
-    {
-      id: 'academie', court: 'Académie MND', moment: 'longtemps', motsCles: 'académie formation métier apprendre parcours certificat', pret: !!lienAcademie, principal: afficheAcademie,
-      carte: {
-        signe: BookOpen, nom: 'Académie MND.', qui: 'Elle scanne · elle voit les neuf parcours',
+        signe: GraduationCap, nom: 'Académie MND.', qui: 'Elle scanne · elle voit les neuf parcours',
         dit: <>Le site public de l’Académie : les neuf parcours avec leurs prix, le programme de chacun, et la réservation. Une demande laissée là revient dans l’Académie, onglet « Demandes du site ».</>,
         valeur: lienAcademie, champ: { lab: 'Mène à', val: <span style={{ wordBreak: 'break-all' }}>{lienAcademie}</span> },
         gestes: [
@@ -713,7 +693,9 @@ export default function QrCodes() {
       },
     },
     {
-      id: 'jour', court: 'Le code du jour', moment: 'equipe', motsCles: 'code du jour pointage équipe présence comptoir', pret: !!codeJour, principal: afficheJour ?? { texte: 'Ouvrir le Comptoir', fort: true, faire: () => navigate('/comptoir') },
+      id: 'jour', court: 'Le code du jour', groupe: 'equipe', pret: !!codeJour, principal: afficheJour ?? { texte: 'Ouvrir le Comptoir', fort: true, faire: () => navigate('/comptoir') },
+      resume: codeJour ? `Celui d’aujourd’hui : ${codeJour}` : 'Pas encore né : il naît au Comptoir',
+      motsCles: 'code du jour pointage équipe présence comptoir',
       carte: {
         signe: Clock, nom: 'Le code du jour.', qui: 'L’équipe scanne · elle pointe',
         dit: codeJour
@@ -728,31 +710,129 @@ export default function QrCodes() {
     },
   ];
 
+  const gesteDu = (id: IdDuCode, texte: string, fort = false): Geste | null => {
+    const p = codes.find((c) => c.id === id)?.principal;
+    return p ? { ...avecCompte(id, p), texte, fort } : null;
+  };
+
+  /* ── EN CE MOMENT ─────────────────────────────────────────────────────
+     L'agenda du jour, lu à la minute. La règle est dans
+     shared/codes-du-moment.ts ; l'écran ne fait que la nourrir et la dire. */
+  const ficheDe = new Map(clientsDeLaBranche.map((c) => [c.id, c]));
+  const rdvsDuMoment: RdvDuMoment[] = rdvsDeLaBranche.filter((a) => a.date === aujourdhui).map((a) => ({
+    id: a.id,
+    qui: a.clientName || ficheDe.get(a.clientId)?.name || 'Rendez-vous sans nom',
+    ...(a.master ? { maitre: a.master } : {}),
+    date: a.date, time: a.time, dureeMin: apptDurationMin(a, servicesParId), status: a.status,
+    resteXof: apptDueXof(a, servicesParId),
+    payeAujourdhui: apptCashOnDay(a, aujourdhui) > 0,
+    premiereVenue: premiereVenueDe(rdvsDeLaBranche, a.clientId, aujourdhui),
+    aCouronne: !!ficheDe.get(a.clientId)?.authUserId,
+  }));
+  const { ouverture } = bornesDuSalon(Object.fromEntries(reglagesMaison.hours.map((d) => [d.key, { open: d.open, close: d.close, closed: d.closed }])));
+  const minutes = maintenant.getHours() * 60 + maintenant.getMinutes();
+  const suggestions = codesDuMoment({
+    aujourdhui, minutes, rdvs: rdvsDuMoment, ouvertureMin: ouverture * 60, codeDuJourNe: !!codeJour,
+    prets: new Set(codes.filter((c) => c.pret).map((c) => c.id)), usage,
+  });
+  const heureDite = (hhmm: string) => {
+    const m = minutesDe(hhmm);
+    return Number.isFinite(m) ? `${Math.floor(m / 60)} h ${String(m % 60).padStart(2, '0')}` : hhmm;
+  };
+  const avecQui = (qui: string, maitre?: string) => (maitre ? `${qui} avec ${maitre}` : qui);
+
+  /* L'ITINÉRAIRE, AVANT LE RENDEZ-VOUS — « il faut avant le RDV son
+     itinéraire » (Yéman). WhatsApp s'ouvre sur SON numéro, le message écrit
+     (l'application de la main, pas l'envoi de la Maison) ; sans numéro, le
+     message se copie. Pas de date dans le message : « aujourd'hui » suffit. */
+  const envoieItineraire = (rdvId: string) => {
+    const a = rdvsDeLaBranche.find((x) => x.id === rdvId);
+    if (!a || !lienPlan) return;
+    compte('plan');
+    const fiche = ficheDe.get(a.clientId);
+    const message = signeLeMessage(`Bonjour ${appelDe(fiche ?? {}, a.clientName)}, voici l’itinéraire de la ${maisonNom()} pour votre rendez-vous d’aujourd’hui à ${heureDite(a.time)} : ${lienPlan}`);
+    const lien = lienWaMe(fiche?.phone, message);
+    if (!lien) { toast('Pas de numéro sur sa fiche : le message est à copier.'); copierTexte(message, 'Le message de l’itinéraire'); return; }
+    const w = window.open(lien, '_blank');
+    if (w) { try { w.opener = null; } catch { /* l'onglet est ouvert */ } } else copierTexte(message, 'Le message de l’itinéraire');
+  };
+
+  const ligneDuMoment = (s: Suggestion): { cle: string; texte: string; sous: string; gestes: Geste[] } => {
+    const g = (...xs: (Geste | null)[]) => xs.filter((x): x is Geste => !!x);
+    switch (s.sorte) {
+      case 'payer': return {
+        cle: `payer-${s.rdvId}`, texte: `${avecQui(s.qui, s.maitre)} : le rituel se termine.`,
+        sous: `Reste à régler : ${fmtMoney(s.resteXof, currency)}`,
+        gestes: g(gesteDu('kkiapay', 'Payer · Mobile Money', true), gesteDu('momo', 'MoMoPay')),
+      };
+      case 'avis': return {
+        cle: `avis-${s.rdvId}`, texte: `${s.qui} : c’est sa première venue.`, sous: 'Après le paiement, un avis Google',
+        gestes: g(gesteDu('avis', 'Un avis Google', true)),
+      };
+      case 'code-du-jour': return {
+        cle: 'code-du-jour', texte: 'Le code du jour n’est pas encore né.', sous: 'L’équipe en a besoin pour pointer',
+        gestes: [{ texte: 'Ouvrir le Comptoir', fort: true, faire: () => navigate('/comptoir') }],
+      };
+      case 'itineraire': return {
+        cle: `itineraire-${s.rdvId}`, texte: `${heureDite(s.heure)} · rendez-vous de ${avecQui(s.qui, s.maitre)}.`,
+        sous: s.premiereVenue ? 'Première venue : la Maison est encore à découvrir' : 'Son itinéraire, à envoyer avant de venir',
+        gestes: g({ texte: 'Envoyer l’itinéraire', fort: true, faire: () => envoieItineraire(s.rdvId) }, gesteDu('plan', 'Afficher')),
+      };
+      case 'couronne': return {
+        cle: `couronne-${s.rdvId}`, texte: `${s.qui} n’a pas encore Ma Couronne.`, sous: 'Un scan, et l’application s’installe : rendez-vous, parcours, Cercle',
+        gestes: g(gesteDu('couronne', 'Ma Couronne', true)),
+      };
+      case 'wifi': return {
+        cle: `wifi-${s.rdvId}`, texte: `Rituel en cours : ${avecQui(s.qui, s.maitre)}.`, sous: 'Le wifi, pour patienter',
+        gestes: g(gesteDu('wifi', 'Le wifi', true)),
+      };
+      case 'habitude': {
+        const c = codes.find((x) => x.id === s.code);
+        return { cle: `habitude-${s.code}`, texte: c?.court ?? s.code, sous: c?.resume ?? '', gestes: g(gesteDu(s.code, 'Afficher', true)) };
+      }
+    }
+  };
+
   const plat = (s: string) => s.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase();
   const q = plat(recherche.trim());
   const visibles = codes.filter((c) => {
     if (filtre === 'a-renseigner' && c.pret) return false;
-    if (filtre !== 'tous' && filtre !== 'a-renseigner' && c.moment !== filtre) return false;
-    return !q || plat(`${c.court} ${c.carte.nom} ${c.motsCles}`).includes(q);
+    if (filtre !== 'tous' && filtre !== 'a-renseigner' && c.groupe !== filtre) return false;
+    return !q || plat(`${c.court} ${c.resume} ${c.carte.nom} ${c.motsCles}`).includes(q);
   });
   const manquent = codes.filter((c) => !c.pret).length;
-  const ouvert = codes.find((c) => c.id === ouvertId);
 
   return (
     <div className="mnd-rise">
-      <PageHead eyebrow="Clients & Agenda · Les portes" title="Les codes de la Maison." sub="Trouver un code, le montrer d’un geste." />
+      <PageHead eyebrow="Clients & Agenda · Les portes" title="Les codes de la Maison." sub="Que veut la cliente ? Un geste, le bon code." />
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 18 }}>
+      {suggestions.length > 0 && (
+        <section className="trq-moment" aria-label="En ce moment">
+          <p className="trq-moment__sur">En ce moment · {heureDite(`${maintenant.getHours()}:${String(maintenant.getMinutes()).padStart(2, '0')}`)}</p>
+          {suggestions.map(ligneDuMoment).map((l) => (
+            <div key={l.cle} className="trq-moment__ligne">
+              <div className="trq-moment__texte"><b>{l.texte}</b>{l.sous && <small>{l.sous}</small>}</div>
+              <div className="trq-moment__gestes">
+                {l.gestes.map((x) => (
+                  <button key={x.texte} type="button" className={`mnd-btn mnd-btn--sm ${x.fort ? 'mnd-btn--copper' : 'mnd-btn--ghost'}`} disabled={!!x.empeche} title={x.empeche} onClick={x.faire}>{x.texte}</button>
+                ))}
+              </div>
+            </div>
+          ))}
+        </section>
+      )}
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10, margin: '18px 0' }}>
         <input
           className="mnd-input"
           value={recherche}
           onChange={(e) => setRecherche(e.target.value)}
-          placeholder="Chercher un code : momo, wifi, avis, prix, adresse…"
+          placeholder="Elle veut… payer, le wifi, l’adresse, les prix"
           aria-label="Chercher un code"
-          style={{ maxWidth: 420 }}
+          style={{ maxWidth: 460 }}
         />
-        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }} role="group" aria-label="Moment de la visite">
-          {[{ k: 'tous', l: `Tous · ${codes.length}` }, ...MOMENTS.map((m) => ({ k: m.k, l: m.l })), ...(manquent ? [{ k: 'a-renseigner', l: `À renseigner · ${manquent}` }] : [])].map((f) => (
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }} role="group" aria-label="Ce que veut la cliente">
+          {[{ k: 'tous', l: `Tous · ${codes.length}` }, ...GROUPES.map((g) => ({ k: g.k, l: g.l })), ...(manquent ? [{ k: 'a-renseigner', l: `À renseigner · ${manquent}` }] : [])].map((f) => (
             <button
               key={f.k}
               type="button"
@@ -767,45 +847,45 @@ export default function QrCodes() {
         </div>
       </div>
 
-      {visibles.length === 0 && <div className="trc-empty">Aucun code ne correspond. Essayez « momo », « wifi », « avis »…</div>}
+      {visibles.length === 0 && <div className="trc-empty">Aucun code ne correspond. Essayez « payer », « wifi », « adresse »…</div>}
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 14 }}>
-        {visibles.map((c) => {
-          const Signe = c.carte.signe;
-          const p = c.principal;
-          return (
-            <div key={c.id} style={{ background: 'var(--surface-card)', border: `1px solid ${c.pret ? 'var(--hairline)' : 'var(--copper-300)'}`, borderStyle: c.pret ? 'solid' : 'dashed', borderRadius: 6, padding: 14, display: 'flex', flexDirection: 'column', gap: 10, minWidth: 0 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
-                <Signe size={18} strokeWidth={1.6} aria-hidden="true" style={{ color: 'var(--copper-700)', flex: 'none' }} />
-                <span style={{ fontFamily: 'var(--font-serif)', fontSize: 19, color: 'var(--color-indigo)', lineHeight: 1.1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.court}</span>
-              </div>
-              <button type="button" onClick={() => setOuvertId(c.id)} aria-label={`Ouvrir la fiche : ${c.court}`}
-                style={{ border: 0, padding: 0, background: 'transparent', cursor: 'pointer', aspectRatio: '1 / 1', width: '100%', borderRadius: 4, overflow: 'hidden' }}>
-                {c.pret && c.carte.valeur && c.carte.valeur !== 'ok'
-                  ? <QrSvg valeur={c.carte.valeur} style={{ width: '100%', height: '100%', display: 'block' }} />
-                  : (
-                    <span style={{ display: 'grid', placeItems: 'center', width: '100%', height: '100%', background: c.pret ? 'var(--copper-50, #f9efe7)' : 'transparent', border: c.pret ? 0 : '1px dashed var(--copper-300)', color: 'var(--copper-700)', fontSize: 12.5, borderRadius: 4, textAlign: 'center', padding: 8 }}>
-                      {c.pret ? <><Signe size={42} strokeWidth={1.2} aria-hidden="true" /><span style={{ display: 'block', marginTop: 6 }}>Ouvrir pour choisir le réseau</span></> : (c.carte.vide ?? 'à renseigner')}
-                    </span>
+      {GROUPES.map((gr) => {
+        const ici = ordreParUsage(visibles.filter((c) => c.groupe === gr.k).map((c) => c.id), usage)
+          .map((id) => visibles.find((c) => c.id === id)!);
+        if (ici.length === 0) return null;
+        return (
+          <section key={gr.k} className="trq-groupe" aria-label={gr.l}>
+            <h2 className="trq-groupe__titre">{gr.l}</h2>
+            {ici.map((c) => {
+              const Signe = c.carte.signe;
+              const ouverte = ouvertId === c.id;
+              const p = c.principal;
+              return (
+                <div key={c.id} className={`trq-ligne${ouverte ? ' trq-ligne--ouverte' : ''}${c.pret ? '' : ' trq-ligne--muette'}`}>
+                  <div className="trq-ligne__tete">
+                    <span className="trq-ligne__signe"><Signe size={21} strokeWidth={1.6} aria-hidden="true" /></span>
+                    <button type="button" className="trq-ligne__nom" onClick={() => setOuvertId(ouverte ? null : c.id)} aria-expanded={ouverte}>
+                      <span className="trq-ligne__court">{c.court}</span>
+                      <span className="trq-ligne__resume">{c.resume}</span>
+                    </button>
+                    {p
+                      ? <button type="button" className="mnd-btn mnd-btn--sm mnd-btn--copper trq-ligne__afficher" disabled={!!p.empeche} title={p.empeche} onClick={avecCompte(c.id, p).faire}>{p.texte}</button>
+                      : <span />}
+                    <button type="button" className="trq-ligne__ouvre" onClick={() => setOuvertId(ouverte ? null : c.id)} aria-expanded={ouverte} aria-label={`${ouverte ? 'Refermer' : 'Tout voir'} : ${c.court}`}>
+                      <ChevronDown size={20} strokeWidth={1.6} aria-hidden="true" />
+                    </button>
+                  </div>
+                  {ouverte && (
+                    <div className="trq-ligne__panneau">
+                      <CarteCode {...c.carte} sansTete gestes={c.carte.gestes.map((x) => avecCompte(c.id, x))} />
+                    </div>
                   )}
-              </button>
-              <span className="mnd-muted" style={{ fontSize: 11.5, lineHeight: 1.4, minHeight: 32 }}>{c.carte.qui}</span>
-              <div style={{ display: 'flex', gap: 6 }}>
-                {p
-                  ? <button type="button" className="mnd-btn mnd-btn--sm mnd-btn--copper" style={{ flex: 1 }} disabled={!!p.empeche} title={p.empeche} onClick={p.faire}>{p.texte}</button>
-                  : <button type="button" className="mnd-btn mnd-btn--sm mnd-btn--copper" style={{ flex: 1 }} onClick={() => setOuvertId(c.id)}>Ouvrir</button>}
-                <button type="button" className="mnd-btn mnd-btn--sm mnd-btn--ghost" onClick={() => setOuvertId(c.id)}>Tout voir</button>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-
-      {ouvert && (
-        <Modal title={ouvert.carte.nom} onClose={() => setOuvertId(null)} width={640}>
-          <CarteCode {...ouvert.carte} />
-        </Modal>
-      )}
+                </div>
+              );
+            })}
+          </section>
+        );
+      })}
 
       {grand && <AuComptoir g={grand} onClose={() => setGrand(null)} />}
     </div>

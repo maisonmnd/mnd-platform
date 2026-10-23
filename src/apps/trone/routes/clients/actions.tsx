@@ -25,7 +25,9 @@ import { sameName, normName } from '../../../../shared/text';
 import { addTipPartage, repartirPourboire, retirerPourboiresDesFactures, PART_POURBOIRE_DEFAUT } from '../../../../shared/tips';
 import { pourboireDejaRecu } from '../../../../shared/pourboire-du-rituel';
 import { Link } from 'react-router-dom';
-import { autoConfigStore, automationsActiveStore, REVIEW_LINK_DEFAUT, lienPaiementMomo } from '../equipe/data';
+import { autoConfigStore, automationsActiveStore, REVIEW_LINK_DEFAUT, lienPaiementMomo, MOMO_QR_DEFAUT, MOMO_MARCHAND_DEFAUT } from '../equipe/data';
+import { LIEN_CHAPCHAP, MARCHAND_CHAPCHAP, RESEAUX_CHAPCHAP } from '../../../../shared/kkiapay-chapchap-pur';
+import { AuComptoir, type Grand } from './AuComptoir';
 import { signeLeMessage } from '../../../../shared/identite';
 import { consommerPourRituel, rembobinerRituel, retirerParReferences } from '../../../../shared/stock';
 import { detacherFacture } from '../../../../shared/laboratoire';
@@ -48,7 +50,7 @@ import { ditCeQuiManque, familleDeTrace, traceAEcrire, traceSuffit, type TraceDu
 import { ChampsDeLaTrace } from '../vente/TraceDuMoyen';
 import { caissesPourCorriger } from '../../../../shared/tri-des-caisses-pur';
 import {
-  CAISSE_ANNEES_PASSEES, anneeDe, avecLesMoyensDeLaMaison, caisseProposee, caissesAuChoix, deviseDuMoyen, estAnneeAnterieure, MOYEN_MOMO_PRIVE,
+  CAISSE_ANNEES_PASSEES, anneeDe, avecLesMoyensDeLaMaison, caisseProposee, caissesAuChoix, deviseDuMoyen, estAnneeAnterieure, MOYEN_MOMO_PRIVE, MOYEN_KKIAPAY,
   familleDuMoyen, peutChangerLaCaisse, poseLaCaisse, prenomDe, type CaisseProposee,
 } from '../../../../shared/caisses-des-caissiers-pur';
 import { identiteCourante } from '../../../../shared/journal';
@@ -804,11 +806,14 @@ function EtapeEnc({ n, titre, resume, alerte, ouvert, onBascule, children }: {
     rajouter Momo Privé » (21 octobre 2026). Le reste de la liste des moyens
     (Paramètres, la sienne, plus « Reprise d'une année passée ») passe par
     « Autres ». Chaque tuile a sa caisse, à son nom, choisie d'office. */
-type TuileEnc = 'especes' | 'momo' | 'momoPrive' | 'carte' | 'cheque' | 'mndpay' | 'avoir' | 'autre';
+type TuileEnc = 'especes' | 'momo' | 'momoPrive' | 'kkiapay' | 'carte' | 'cheque' | 'mndpay' | 'avoir' | 'autre';
 const TUILES_ENC: { id: TuileEnc; nom: string; sous: string }[] = [
   { id: 'especes', nom: 'Espèces', sous: 'au comptoir' },
   { id: 'momo', nom: 'MTN MoMoPay', sous: 'compte de la Maison' },
   { id: 'momoPrive', nom: 'MoMo Privé', sous: 'numéro personnel' },
+  /* LE QR MOBILE MONEY DU COMPTOIR (24 octobre 2026) : tous réseaux, par
+     KkiaPay ; l'argent va dans la caisse KkiaPay. */
+  { id: 'kkiapay', nom: 'Mobile Money', sous: 'QR KkiaPay, tous réseaux' },
   { id: 'carte', nom: 'Carte', sous: 'à la banque' },
   { id: 'cheque', nom: 'Chèque', sous: 'à déposer' },
   { id: 'mndpay', nom: 'MND PAY', sous: 'confirmé par FedaPay' },
@@ -821,7 +826,7 @@ const estCheque = (m: string) => familleDuMoyen(m) === 'cheque';
     année passée » (21 octobre 2026). */
 const autresMethodes = (methods: readonly string[]): string[] => avecLesMoyensDeLaMaison(methods).filter((m) => {
   const f = familleDuMoyen(m);
-  return f !== 'especes' && f !== 'momo' && f !== 'momoPrive' && f !== 'avoir' && f !== 'mndpay' && f !== 'carte' && f !== 'cheque';
+  return f !== 'especes' && f !== 'momo' && f !== 'momoPrive' && f !== 'kkiapay' && f !== 'avoir' && f !== 'mndpay' && f !== 'carte' && f !== 'cheque';
 });
 /** Le moyen que « Autres » prend d'office : le premier qui reste en francs
     (Zelle, Interac, Revolut, PayPal ouvrent une devise : on les choisit). */
@@ -832,6 +837,7 @@ function methodeDeLaTuile(t: TuileEnc, methods: readonly string[], autre?: strin
     case 'especes': return methods.find((m) => familleDuMoyen(m) === 'especes') ?? 'Espèces';
     case 'momo': return methods.find((m) => familleDuMoyen(m) === 'momo') ?? 'MTN MoMo';
     case 'momoPrive': return methods.find((m) => familleDuMoyen(m) === 'momoPrive') ?? MOYEN_MOMO_PRIVE;
+    case 'kkiapay': return methods.find((m) => familleDuMoyen(m) === 'kkiapay') ?? MOYEN_KKIAPAY;
     case 'carte': return methods.find(estCarte) ?? 'Carte';
     case 'cheque': return methods.find(estCheque) ?? 'Chèque';
     case 'avoir': return 'Avoir';
@@ -840,7 +846,7 @@ function methodeDeLaTuile(t: TuileEnc, methods: readonly string[], autre?: strin
   }
 }
 const DIT_LA_TUILE: Record<TuileEnc, string> = {
-  especes: 'en espèces', momo: 'en MTN MoMoPay', momoPrive: 'en MoMo Privé', carte: 'par carte', cheque: 'par chèque', mndpay: 'par MND PAY', avoir: 'sur l’avoir', autre: '',
+  especes: 'en espèces', momo: 'en MTN MoMoPay', momoPrive: 'en MoMo Privé', kkiapay: 'en Mobile Money (KkiaPay)', carte: 'par carte', cheque: 'par chèque', mndpay: 'par MND PAY', avoir: 'sur l’avoir', autre: '',
 };
 /** UNE PART DU RÈGLEMENT : sa tuile, son montant, et la caisse qu'une main
     de la direction a choisie à la place de celle qui se propose. `mnd` : la
@@ -1299,6 +1305,9 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour, init
   const pourboireDeja = pourboireDejaRecu(appt, piecesDuPourboire);
   const [tipStr, setTipStr] = useState('0');
   const tip = pourboireDeja ? 0 : Math.max(0, Math.round(Number(tipStr) || 0));
+  /* LE QR MONTRÉ À LA CLIENTE — 24 octobre 2026 : le moyen choisi dit lequel,
+     pour que l'argent tombe dans la caisse de ce moyen. */
+  const [qrAuComptoir, setQrAuComptoir] = useState<Grand | null>(null);
   /* LE POURBOIRE SE PARTAGE ENTRE TOUS. Il allait auparavant au seul maître
      officiant, retrouvé par son nom — une majuscule de différence suffisait
      alors à le faire disparaître. Ce n'est pas la règle de la Maison : le
@@ -2187,9 +2196,21 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour, init
     });
   };
   const quiNom = prenomDe(quiEncaisse() ?? maFiche?.name ?? '');
+  /* MTN MoMoPay montre le QR MoMoPay (caisse MoMoPay) ; Mobile Money montre le
+     QR KkiaPay, tous réseaux (caisse KkiaPay). Le montant se dit : la cliente
+     le tape. */
+  const qrDeLaTuile = (t: TuileEnc, montant: number): Grand => {
+    const aRegler = montant > 0 ? ` À régler : ${fmtMoney(montant, currency)}.` : '';
+    if (t === 'kkiapay') {
+      return { titre: 'Régler par Mobile Money.', phrase: `${RESEAUX_CHAPCHAP.join(', ')}. La page s’ouvre au nom de ${MARCHAND_CHAPCHAP}.${aRegler}`, valeur: LIEN_CHAPCHAP };
+    }
+    const cfg = autoConfigStore.get();
+    return { titre: 'Régler par MoMo.', phrase: `Marchand ${cfg.momoMarchand || MOMO_MARCHAND_DEFAUT}.${aRegler}`, valeur: cfg.momoQr || MOMO_QR_DEFAUT };
+  };
 
   return (
     <Modal title="Encaisser le rituel" onClose={onClose} width={520}>
+      {qrAuComptoir && <AuComptoir g={qrAuComptoir} onClose={() => setQrAuComptoir(null)} />}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
         {/* LE CHEMIN DU RETOUR, EN HAUT — là où l'œil cherche à revenir. */}
         {onRetour && (
@@ -2572,6 +2593,12 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour, init
                     );
                   })}
                 </div>
+                {(p.tuile === 'momo' || p.tuile === 'kkiapay') && !p.mnd && (
+                  <button type="button" className="mnd-btn mnd-btn--ghost mnd-btn--sm" style={{ justifySelf: 'start' }}
+                    onClick={() => setQrAuComptoir(qrDeLaTuile(p.tuile, x || resteAPartager))}>
+                    Montrer le QR à la cliente
+                  </button>
+                )}
                 {p.tuile === 'autre' && (
                   <Select value={p.autre ?? premierAutre(lesAutres) ?? ''} onChange={(e) => poseLAutre(p, e.target.value)} aria-label="Le moyen">
                     {[...lesAutres, ...(p.autre && !lesAutres.includes(p.autre) ? [p.autre] : [])].map((m) => <option key={m} value={m}>{m}</option>)}
