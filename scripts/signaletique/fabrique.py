@@ -32,7 +32,7 @@ from communs import (NOMS_ENCRES, NOMS_EN, NOMS_FR, variantes, decoupe, encres_d
 def svg_fabricant(e, ident, dessin):
     corps = dessin(Atelier(False))
     w, h = e['w'], e['h']
-    titre = html.escape(f"Maison MND · {ident} · {e['name']} · {w} × {h} mm · scale 1:1 · {'23 Oct 2026' if e['id'] in ('N13', 'N14', 'N15', 'N16') else '22 Oct 2026' if e.get('statut') == 'option' or e['id'] in ('N10', 'N11') else '13 Oct 2026'}")
+    titre = html.escape(f"Maison MND · {ident} · {e['name']} · {w} × {h} mm · scale 1:1 · {'23 Oct 2026' if e['id'] in ('N13', 'N14', 'N15', 'N16', 'N17') else '22 Oct 2026' if e.get('statut') == 'option' or e['id'] in ('N10', 'N11') else '13 Oct 2026'}")
     return (f'<?xml version="1.0" encoding="UTF-8"?>\n'
             f'<svg xmlns="http://www.w3.org/2000/svg" width="{w}mm" height="{h}mm" viewBox="0 0 {w} {h}">\n'
             f'<title>{titre}</title>\n'

@@ -193,6 +193,14 @@ RECETTES['N16'] = dict(montage='sol', comptoir=True, centre=0.78 + TABLE_H / 200
                               ('Rings, brushed copper', '套环，拉丝铜色', 47, 77, '#B0703F', None),
                               ('Blades, ivory acrylic 5 mm', '指示牌，5 毫米象牙白亚克力', 59.5, 64.5, '#F6F1E7', None),
                               ('Lettering and edge lines, UV print both faces', '文字和边线，双面 UV 打印', 64.5, 64.7, '#C9BFAE', None)])
+# La plaque d'angle : tôle émaillée indigo de 3 mm, les encres posées dessus ; le filet aux coins arrondis
+# et la flèche, deux traits, sont imprimés (un trait devient un anneau aux coins vifs dans le volume).
+RECETTES['N17'] = dict(montage='mur', centre=2.5, support=dict(el=0, ep=3, matiere='alu-indigo', face='plein'),
+                       pieces=[_p(3, 'encre-cuivre', 0.2, 3), _p(2, 'encre-ivoire', 0.2, 3), _p(4, 'alu-sable', 0.2, 3)],
+                       surimpressions=[dict(el=[1, 5], z=3.15, nom=('Copper frame line and sand arrow, printed', '铜色边框线和沙色箭头，印刷'))],
+                       vues=['jour', 'situation'],
+                       coupe=[('Enamelled steel 2 mm (or lacquered aluminium 3 mm), indigo', '2 毫米搪瓷钢板（或 3 毫米烤漆铝板），靛蓝色', 0, 3, '#1E2150', None),
+                              ('Copper frame line, ivory logo, sand lettering and arrow', '铜色边框线，象牙白标志，沙色文字和箭头', 3, 3.2, '#B97A4A', None)])
 
 # Les options à motifs : leurs recettes partent de celles des bases.
 from options import OPTIONS, recettes_des_options  # noqa: E402
@@ -254,7 +262,7 @@ def scene(e):
         # Tout le dessin s'imprime sur la face (sauf le trait de découpe).
         sup['imprime'] = [i for i in range(len(els)) if 'EC008C' not in els[i]]
     return dict(
-        id=e['id'], nom=e['name'], w=e['w'], h=e['h'], forme=e['forme'], rx={'N9': 16, 'N6': 34, 'R5': 2, 'R8': 4, 'N2': 6, 'N7': 3}.get(e.get('base', e['id']), 0),
+        id=e['id'], nom=e['name'], w=e['w'], h=e['h'], forme=e['forme'], rx={'N9': 16, 'N6': 34, 'R5': 2, 'R8': 4, 'N2': 6, 'N7': 3, 'N17': 26}.get(e.get('base', e['id']), 0),
         scene=e['scene'], elements=els, recette=dict(r, support=sup), orphelins=imprimes if not (sup and sup.get('face') == 'impression') else [],
         # « C'est illisible » : derrière le néon de la devise, le mur reste uni.
         mur_motif=None if r.get('mur_uni') else motif_du_mur(e['scene']),

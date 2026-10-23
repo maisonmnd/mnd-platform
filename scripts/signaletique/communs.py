@@ -30,7 +30,7 @@ def decoupe(e):
         return f'<circle cx="{w / 2}" cy="{h / 2}" r="{w / 2}"/>'
     base = e.get('base', e['id'])
     if e['forme'] == 'rect' and base not in ('N8',):
-        rx = {'N9': 16, 'N6': 34, 'R5': 2, 'R8': 4, 'N2': 6, 'N7': 3}.get(base, 0)
+        rx = {'N9': 16, 'N6': 34, 'R5': 2, 'R8': 4, 'N2': 6, 'N7': 3, 'N17': 26}.get(base, 0)
         return f'<rect width="{w}" height="{h}" rx="{rx}"/>'
     return ''
 

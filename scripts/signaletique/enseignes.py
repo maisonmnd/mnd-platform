@@ -356,13 +356,15 @@ def n11(a):
 
 
 # ══ LES PANNEAUX DE DIRECTION (23 oct. 2026) ════════════════════════════
-# « Fais plusieurs dessins de panneaux de direction » ; elle en garde quatre au sélecteur. Les dessins sont
+# « Fais plusieurs dessins de panneaux de direction » ; elle en garde quatre au sélecteur, puis la plaque
+# d'angle (« Oui, en N17 »). Les dessins sont
 # dans directions.py ; leurs tailles sont ici, car le catalogue les lit avant de dessiner. N12 reste le nom
 # de l'ancienne feuille d'autocollants chez Lico Sign : on ne le reprend pas.
 POTEAU_W, POTEAU_H = 1870, 2400
 RUE_W, RUE_H = 1400, 460
 IVOIRE_W, IVOIRE_H = 1200, 340
 TABLE_W, TABLE_H = 244, 330
+ANGLE_W, ANGLE_H = 800, 360
 
 
 def _direction(nom):
@@ -389,6 +391,10 @@ def n15(a):
 
 def n16(a):
     return ''.join(_direction('poteau_table')[1])
+
+
+def n17(a):
+    return ''.join(_direction('plaque_angle')[1])
 
 
 
@@ -611,6 +617,15 @@ ENSEIGNES = [
        en=dict(construction='24 × 24 mm indigo acrylic post with a rounded top, on a weighted indigo base 124 × 124 × 18 mm; three brushed copper rings; three blades in 5 mm ivory acrylic, 170 × 42 mm, arrow-shaped, indigo edge line. UV print on both faces: “VOTRE BEAUTÉ / 0 km · déjà là”, “RÉSERVER / maisonmnd.com”, “MOMOPAY / *880*41*909099*Montant#”. Total height 330 mm.',
                finish='Indigo #1E2150, ivory #F6F1E7, copper.', lighting='Non-illuminated.',
                change='NEW ITEM. Please check the MoMoPay code character by character: *880*41*909099*Montant#. Please quote.')),
+    _f('N17', n17, ANGLE_W, ANGLE_H, 3, 'rect', 'rue', 'plaque',
+       nom='La plaque d’angle', name='Street corner name plate',
+       statut='nouvelle', lieu='Angle de la rue, à 2,5 m du sol',
+       fr=dict(construction='Plaque 800 × 360 à coins arrondis R26 : tôle d’acier émaillée 2 mm (ou aluminium laqué 3 mm), fond indigo ; filet cuivre à 18 mm du bord ; logo ivoire, filet court cuivre, « SURU-LÉRÉ · COTONOU » et la flèche en sable. Quatre goujons inox soudés au dos, cachés ; posée à 2,5 m du sol.',
+               finition='Indigo, cuivre, ivoire, sable.', lumiere='Non lumineuse.',
+               change='Nouvelle pièce : la plaque émaillée du coin de rue, avec la flèche vers la Maison.'),
+       en=dict(construction='800 × 360 mm plate, R26 rounded corners: 2 mm vitreous enamelled steel (or 3 mm lacquered aluminium), indigo background; copper frame line 18 mm from the edge; ivory logo, short copper rule, “SURU-LÉRÉ · COTONOU” and the arrow in sand. Four hidden stainless studs welded at the back; mounted 2.5 m above the ground.',
+               finish='Indigo #1E2150, copper #B97A4A, ivory #F6F1E7, sand #E3DACB.', lighting='Non-illuminated.',
+               change='NEW ITEM. If possible, please quote both versions: enamelled steel and lacquered aluminium.')),
 ]
 
 # « Sur la demande de devis, garder N3, N4, N5, N7, N9, N10 et N11 » (23 oct. 2026) : N1, N2, N6 et N8 sont mises

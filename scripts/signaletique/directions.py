@@ -8,14 +8,15 @@ est toujours le verrou officiel, jamais retapé. Les distances sont à mesurer s
 
 Elle en garde quatre au sélecteur pour la demande de devis : le poteau (N13), la flèche
 de rue (N14), la flèche ivoire (N15) et le poteau de table (N16) ; N12 reste le nom de
-l'ancienne feuille d'autocollants chez Lico Sign, on ne le reprend pas.
+l'ancienne feuille d'autocollants chez Lico Sign, on ne le reprend pas. Puis « Oui, en N17 » :
+la plaque d'angle aussi.
 
 Chaque dessin rend (viewBox de la page, éléments, contours de découpe) : les éléments
 sont posés dans le cadre 0 0 w h de la pièce, un par morceau, dans l'ordre que lisent
 les recettes de volumes.py.
 """
 from enseignes import (C, I, S, V, DEVISE_FR, ajuste, POTEAU_W, POTEAU_H, RUE_W, RUE_H, IVOIRE_W, IVOIRE_H,  # noqa: F401
-                       TABLE_W, TABLE_H)
+                       TABLE_W, TABLE_H, ANGLE_W, ANGLE_H)
 from formes import pose_logo, proportion, texte
 
 
@@ -128,8 +129,9 @@ def poteau_table():
 
 # ── 5 · La plaque d'angle (le coin de rue) ───────────────────────────────
 def plaque_angle():
-    """Plaque émaillée indigo, filet cuivre, le logo (son pictogramme suffit), le quartier et la flèche."""
-    W, H = 800, 360
+    """Plaque émaillée indigo, filet cuivre, le logo (son pictogramme suffit), le quartier et la flèche.
+    Éléments : 0 plaque, 1 filet, 2 logo, 3 filet court, 4 quartier, 5 flèche."""
+    W, H = ANGLE_W, ANGLE_H
     els = [f'<rect width="{W}" height="{H}" rx="26" fill="{I}"/>',
            f'<rect x="18" y="18" width="{W - 36}" height="{H - 36}" rx="16" fill="none" stroke="{C}" stroke-width="5"/>',
            _logo('verrou-couche', W / 2, 150, 480, V),
@@ -153,7 +155,7 @@ DESSINS = [
     ('table', 'Le poteau de table', poteau_table, 'N16 · poteau de comptoir · 330 mm',
      'Le petit poteau du comptoir et des tables : « Votre beauté, 0 km, déjà là », réserver, et le code MoMoPay pour payer. Un clin d’œil à la devise, qui se photographie.',
      'Poteau en acrylique indigo 24 mm sur socle lesté 124 × 124, bagues cuivre, lames en acrylique ivoire 5 mm, impression UV sur les deux faces.'),
-    ('angle', 'La plaque d’angle', plaque_angle, 'Plaque de coin de rue · 800 × 360 mm',
+    ('angle', 'La plaque d’angle', plaque_angle, 'N17 · plaque de coin de rue · 800 × 360 mm',
      'La plaque émaillée qu’on pose à l’angle de la rue : indigo, filet cuivre, le logo et le quartier, avec la flèche vers la Maison.',
-     'Tôle émaillée ou aluminium laqué indigo, filet cuivre, impression ivoire, vissée à 2,5 m du sol.'),
+     'Tôle d’acier émaillée 2 mm ou aluminium laqué 3 mm, indigo, filet cuivre, logo ivoire, quartier et flèche en sable ; goujons soudés au dos, posée à 2,5 m du sol.'),
 ]

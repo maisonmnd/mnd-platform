@@ -13,7 +13,7 @@ file ». Deux documents, en anglais et en chinois (l'anglais fait foi), A4 paysa
      qui change sur chacune (ses mots : R1 en deux options, MAISON et le slogan sur
      R3, MAISON et le ɖ sur R4 et R7, la barre cuivre de R5, les autocollants R9),
      puis ce qu'il faut pour finir la commande (épreuve 5, caisses, transport…).
-  2. Demande de devis : les nouvelles pièces (N3 à N16), les options à motifs et
+  2. Demande de devis : les nouvelles pièces (N3 à N17), les options à motifs et
      leurs compléments, chacun sur sa ligne.
 
 Les colonnes de prix sont vides : Lico Sign les remplit.
@@ -163,8 +163,8 @@ COMPLEMENTS_NEUFS = [
      f'每个户外发光件（{ALLUMES_DEHORS}）配一个 7 天数字定时器：天黑自动开，关店自动关。', 'per item'),
     ('N10 electronics', 'N10 电子部分', 'If not included in N10: RGBW addressable controller with phone app, motion sensor, NFC tag written and tested, the scenes programmed (sheet N10, page 2).',
      '如 N10 报价未包含：RGBW 可编程控制器和手机应用、人体感应器、写好并测试的 NFC 标签、编好的场景（见 N10 第 2 页）。', '1 set'),
-    ('Proof, photos, crates, shipping, warranty', '打样、照片、木箱、运输、质保', 'As in our revision request for the order: please include the new items you quote, labelled N3 to N16 (and -M for the options).',
-     '同我们订单的修改请求：请把报价的新品一并列入，编号 N3 至 N16（选项加 -M）。', 'same'),
+    ('Proof, photos, crates, shipping, warranty', '打样、照片、木箱、运输、质保', 'As in our revision request for the order: please include the new items you quote, labelled N3 to N17 (and -M for the options).',
+     '同我们订单的修改请求：请把报价的新品一并列入，编号 N3 至 N17（选项加 -M）。', 'same'),
 ]
 
 
