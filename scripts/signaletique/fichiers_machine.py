@@ -189,38 +189,30 @@ def epreuve_r9():
 def epreuve_n12():
     a = Atelier(False)
     b = boutique
+    d_rond, d_lab = 2 * (b.R_REEL + b.FOND_PERDU) + 1, (b.ETIQ_W * b.K_ETIQ + 2 * b.FOND_PERDU + 1, b.ETIQ_H * b.K_ETIQ + 2 * b.FOND_PERDU + 1)
+    tailles = f"round seals Ø{2 * b.R_REEL:g} mm, the allover square {2 * b.R_REEL:g} × {2 * b.R_REEL:g} mm, the mist label {b.ETIQ_W * b.K_ETIQ:.0f} × {b.ETIQ_H * b.K_ETIQ:.0f} mm"
     pages = []
     feuille = b.planche(a)
+    nb = sum(p[4] for p in b.PASTILLES)
     pages.append(f'<div class="page">{tete("N12 · Boutique stickers · the whole sheet (scaled)", "Maison MND · proof for Lico Sign · 23 Oct 2026")}'
-                 f'<div class="vue">{svg_mm("<rect width=\'1060\' height=\'680\' fill=\'#fff\' stroke=\'#ccc\' stroke-width=\'1\'/>" + feuille, 0, 0, 1060, 680, 0.36)}</div>'
-                 '<p class="note">Sheet 1060 × 680 mm: 180 round seals Ø50 mm and 9 labels 108 × 50 mm, 1.5 mm bleed, kiss-cut on the magenta line '
-                 '(spot colour CutContour in the machine file). Each design is shown at actual size and enlarged on the next pages.</p></div>')
+                 f'<div class="vue">{svg_mm("<rect width='1060' height='680' fill='#fff' stroke='#ccc' stroke-width='1'/>" + feuille, 0, 0, 1060, 680, 0.36)}</div>'
+                 f'<p class="note">Sheet 1060 × 680 mm: {nb} round seals and {b.N_ETIQ} labels, {b.PAR_DESSIN} of each design; {tailles}; '
+                 f'{b.FOND_PERDU:g} mm bleed, kiss-cut on the magenta line (spot colour CutContour in the machine file). '
+                 'Each design is shown at actual size and enlarged on the next pages.</p></div>')
     dessins = []
-    for p in b.PASTILLES:
-        _f, titre, fond, dessin, nb = p
-        if dessin is None:
-            frag = ''.join(b.carre_allover(a, 30, 30)) + '<rect x="5" y="5" width="50" height="50" rx="3" fill="none" stroke="#EC008C" stroke-width="0.25"/>'
-            dessins.append((titre, nb, frag, 60, 60))
-        else:
-            frag = b._rond(30, 30, fond, a) + ''.join(dessin(30, 30)) + '<circle cx="30" cy="30" r="25" fill="none" stroke="#EC008C" stroke-width="0.25"/>'
-            dessins.append((titre, nb, frag, 60, 60))
-    lab = ''.join(b.etiquette_brume(a, 60, 30)) + f'<rect x="{60 - b.ETIQ_W / 2}" y="{30 - b.ETIQ_H / 2}" width="{b.ETIQ_W}" height="{b.ETIQ_H}" rx="3" fill="none" stroke="#EC008C" stroke-width="0.25"/>'
-    dessins.append(('La Brume · Hydra Mist, bottle label 108 × 50 mm', 9, lab, 120, 60))
-    for echelle, titre_page, cols in ((1.0, 'actual size · 1:1', 'repeat(5, auto)'), (1.9, 'enlarged × 1.9 to read the details', 'repeat(4, auto)')):
-        cases = ''.join(f'<div class="case">{svg_mm(f, 0, 0, w, h, echelle)}<div><b>{esc(t)}</b><br>{n} per sheet</div></div>'
-                        for t, n, f, w, h in dessins)
-        if echelle > 1:
-            # Agrandies, les douze ne tiennent pas sur une page : six par page.
-            lots = [dessins[:6], dessins[6:]]
-            for k, lot in enumerate(lots, 1):
-                cases = ''.join(f'<div class="case">{svg_mm(f, 0, 0, w, h, echelle if w < 100 else echelle * 0.8)}<div><b>{esc(t)}</b><br>{n} per sheet · inks: '
-                                f'{", ".join(NOMS_ENCRES[c] for c in encres(f))}</div></div>' for t, n, f, w, h in lot)
-                pages.append(f'<div class="page">{tete(f"N12 · the designs, {titre_page} ({k}/2)", "Maison MND · proof for Lico Sign")}'
-                             f'<div class="grille" style="grid-template-columns:repeat(3, auto)">{cases}</div></div>')
-        else:
-            pages.append(f'<div class="page">{tete(f"N12 · the {len(dessins)} designs, {titre_page}", "Maison MND · proof for Lico Sign")}'
-                         f'<div class="grille" style="grid-template-columns:{cols}">{cases}</div>'
-                         '<p class="note">Seals Ø50 mm cut, 1.5 mm bleed; the allover square 50 × 50 mm; the mist label 108 × 50 mm.</p></div>')
+    for i, (_f, titre, _fond, _d, n) in enumerate(b.PASTILLES):
+        c = d_rond / 2
+        dessins.append((titre, n, b.pastille(a, i, c, c), d_rond, d_rond))
+    lw, lh = d_lab
+    dessins.append((f'La Brume · Hydra Mist, bottle label {b.ETIQ_W * b.K_ETIQ:.0f} × {b.ETIQ_H * b.K_ETIQ:.0f} mm', b.N_ETIQ, b.etiquette(a, lw / 2, lh / 2), lw, lh))
+    cases = ''.join(f'<div class="case">{svg_mm(f, 0, 0, w, h)}<div><b>{esc(t)}</b><br>{n} per sheet</div></div>' for t, n, f, w, h in dessins)
+    pages.append(f'<div class="page">{tete(f"N12 · the {len(dessins)} designs, actual size · 1:1", "Maison MND · proof for Lico Sign")}'
+                 f'<div class="grille" style="grid-template-columns:repeat(5, auto)">{cases}</div><p class="note">{tailles.capitalize()}; {b.FOND_PERDU:g} mm bleed.</p></div>')
+    for k, lot in enumerate((dessins[:6], dessins[6:]), 1):
+        cases = ''.join(f'<div class="case">{svg_mm(f, 0, 0, w, h, 1.7 if w < 100 else 1.3)}<div><b>{esc(t)}</b><br>{n} per sheet · inks: '
+                        f'{", ".join(NOMS_ENCRES[c] for c in encres(f))}</div></div>' for t, n, f, w, h in lot)
+        pages.append(f'<div class="page">{tete(f"N12 · the designs, enlarged × 1.7 to read the details ({k}/2)", "Maison MND · proof for Lico Sign")}'
+                     f'<div class="grille" style="grid-template-columns:repeat(3, auto)">{cases}</div></div>')
     return pages
 
 
