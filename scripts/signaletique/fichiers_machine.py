@@ -189,7 +189,7 @@ def epreuve_r9():
         dessins.append((titre, n, b.pastille(a, i, c, c), d_rond, d_rond))
     lw, lh = d_lab
     dessins.append((f'La Brume · Hydra Mist, bottle label {b.ETIQ_W * b.K_ETIQ:.0f} × {b.ETIQ_H * b.K_ETIQ:.0f} mm', b.N_ETIQ, b.etiquette(a, lw / 2, lh / 2), lw, lh))
-    # À Ø88, tout se lit à taille réelle : six dessins par page, avec leurs encres.
+    # Tout se lit à taille réelle : six dessins par page, avec leurs encres.
     lots = [dessins[k:k + 6] for k in range(0, len(dessins), 6)]
     for k, lot in enumerate(lots, 1):
         cases = ''.join(f'<div class="case">{svg_mm(f, 0, 0, w, h)}<div><b>{esc(t)}</b><br>{n} per sheet · inks: '

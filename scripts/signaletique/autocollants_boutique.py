@@ -10,9 +10,10 @@ votre beauté est déjà là » (Yéman). « Feel free to create some » : s'ajo
 là ensemble » : la devise entière sur une seule pastille.
 
 La même feuille que R9 (1060 × 680 mm, papier synthétique, découpe à la forme),
-pour qu'elle coûte à peu près le même prix : 60 pastilles Ø88 pour fermer les
-sachets, les papiers de soie et les boîtes (6 de chaque dessin), et 6 étiquettes
-146 × 68 pour le flacon de brume. Une feuille, onze dessins ; 100 feuilles = 6 000
+pour qu'elle coûte à peu près le même prix : 120 pastilles Ø50 (la taille standard
+d'un sceau) pour fermer les sachets, les papiers de soie, les boîtes et le kit de
+voyage (12 de chaque dessin), et 12 étiquettes 80 × 55 pour le flacon de brume de
+250 ml. Une feuille, onze dessins ; 100 feuilles = 12 000
 pastilles et 600 étiquettes.
 Un seul motif par pastille, du vide : la Maison veut du sobre.
 
@@ -28,18 +29,19 @@ OR = ENCRES['or']
 I_CLAIR = '#2C3070'   # l'indigo clair de l'allover ton sur ton
 
 W, H = 1060, 680
-# « 24 de chaque, c'est trop, et ils sont trop petits », puis « 6 de chaque, encore trop petits » (23 oct. 2026) :
-# 6 rangs de 10 pastilles Ø88 (le dessin de Ø50 agrandi de 1,76, jamais redessiné), puis un rang de 6 étiquettes.
-PAS_X, PAS_Y = 100, 94
-COLS, RANGS = 10, 7
-X0, Y0 = (W - COLS * PAS_X) / 2, (H - RANGS * PAS_Y) / 2
+# « 88 mm, c'est trop grand pour les petites boîtes, le kit de voyage, les petits sacs » (23 oct. 2026) :
+# la taille standard d'un sceau, Ø50, 12 de chaque : 8 rangs de 15 pastilles, puis 2 rangs de 6 étiquettes 80 × 55.
+PAS_X, PAS_Y = 60, 60
+COLS, RANGS = 15, 8
+PAS_ETIQ_X, PAS_ETIQ_Y, RANGS_ETIQ = 100, 64, 2
+X0, Y0 = (W - COLS * PAS_X) / 2, (H - RANGS * PAS_Y - RANGS_ETIQ * PAS_ETIQ_Y) / 2
 R = 25                      # le rayon du dessin d'origine
-K = 1.76                    # son agrandissement : la pastille coupée fait Ø88
+K = 1.0                     # la pastille coupée fait Ø50, à la taille du dessin
 R_REEL = R * K
 FOND_PERDU = 1.5
-ETIQ_W, ETIQ_H = 108, 50    # l'étiquette d'origine
-K_ETIQ = 1.35               # coupée à 145,8 × 67,5
-PAR_DESSIN = 6
+ETIQ_W, ETIQ_H = 80, 55     # l'étiquette du flacon de 250 ml
+K_ETIQ = 1.0
+PAR_DESSIN = 12
 
 
 def _ligne(t, famille, taille, cx, y, couleur, largeur, graisse=500, interlettre=0.0):
@@ -130,7 +132,7 @@ PASTILLES = [
     ('motif', 'Allover square for boxes, no text', I, None, PAR_DESSIN),
 ]
 N_ETIQ = PAR_DESSIN
-assert sum(p[4] for p in PASTILLES) == COLS * (RANGS - 1)
+assert sum(p[4] for p in PASTILLES) == COLS * RANGS and N_ETIQ == 6 * RANGS_ETIQ
 
 
 def carre_allover(a, cx, cy):
@@ -142,12 +144,13 @@ def carre_allover(a, cx, cy):
 
 def etiquette_brume(a, cx, cy):
     """L'étiquette du flacon : « La Brume · Hydra Mist », ses mots, sur l'ivoire (contenu à la taille d'origine)."""
-    lw = 34
-    out = [pose_logo('verrou-couche', cx - lw / 2, cy - 19, largeur=lw, couleur=C)[0]]
-    out.append(_ligne('La Brume', 'cormorant', 12, cx, cy + 6, I, 90, 600))
-    out.append(_ligne('Hydra Mist', 'cormorant-italique', 8, cx, cy + 14, C, 80))
+    # À 80 × 55 : le verrou couché en haut, puis le nom, sa ligne en italique et le volume.
+    lw = 32
+    out = [pose_logo('verrou-couche', cx - lw / 2, cy - 20, largeur=lw, couleur=C)[0]]
+    out.append(_ligne('La Brume', 'cormorant', 12.5, cx, cy + 5, I, 68, 600))
+    out.append(_ligne('Hydra Mist', 'cormorant-italique', 8.5, cx, cy + 14, C, 62))
     # « Sur La Brume, enlève rose et aloe vera » (23 oct. 2026) : le volume seul.
-    out.append(_ligne('250 ML', 'jost', 3.2, cx, cy + 20.5, I, 80, 500, 0.2))
+    out.append(_ligne('250 ML', 'jost', 3.4, cx, cy + 21.5, I, 60, 500, 0.2))
     return out
 
 
@@ -185,9 +188,11 @@ def cases():
     for k, i in enumerate(file_):
         r, c = divmod(k, COLS)
         out.append((i, X0 + PAS_X / 2 + c * PAS_X, Y0 + PAS_Y / 2 + r * PAS_Y))
-    pas = COLS * PAS_X / N_ETIQ    # le dernier rang : les étiquettes, régulièrement espacées
+    par_rang = N_ETIQ // RANGS_ETIQ   # les étiquettes en dessous, centrées
+    x0 = (W - par_rang * PAS_ETIQ_X) / 2
     for j in range(N_ETIQ):
-        out.append(('brume', X0 + pas / 2 + j * pas, Y0 + PAS_Y / 2 + (RANGS - 1) * PAS_Y))
+        r, c = divmod(j, par_rang)
+        out.append(('brume', x0 + PAS_ETIQ_X / 2 + c * PAS_ETIQ_X, Y0 + RANGS * PAS_Y + PAS_ETIQ_Y / 2 + r * PAS_ETIQ_Y))
     return out
 
 

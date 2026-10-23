@@ -72,7 +72,7 @@ LIGNES_PI = [
     ('R5', '4', ('Quote: 2 plates reprinted', '请报价：重印 2 块门牌')),
     ('R6', '5', ('Quote: new printed face', '请报价：新印刷面板')),
     ('R7', '6', ('Quote: new face', '请报价：新面板')),
-    ('R9', '7', ('Confirm: our final sheet, 11 designs, 6 of each', '请确认：定稿贴纸，11 款，每款 6 个')),
+    ('R9', '7', ('Confirm: our final sheet, 11 designs, 12 of each', '请确认：定稿贴纸，11 款，每款 12 个')),
     ('R2', None, ('Quote: new ivory top layer and new copper back layer', '请报价：新的象牙白面层和新的铜色底层')),
     ('R8', None, ('Quote: 2 plates reprinted', '请报价：重印 2 块门牌')),
 ]

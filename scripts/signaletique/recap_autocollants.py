@@ -108,10 +108,10 @@ def dessins_n12(w_page, h_page, echelle, par_page, cols):
     pieces.append((vignette(b.etiquette(a, lw / 2, lh / 2, decoupe=False) + carre(0.3, 0.3, lw - 0.6, lh - 0.6, 3 * b.K_ETIQ, 0.5), lw, lh, lw * echelle),
                    f'{len(pieces) + 1:02d} · La Brume · Hydra Mist label', f'{lw:.0f} × {lh:.0f} mm', 2))
     lots = [pieces[k:k + par_page] for k in range(0, len(pieces), par_page)]
-    taille = 'actual size · 1:1' if echelle == 1 else f'printed at {echelle * 100:.0f} % (A4 cannot hold them at full size)'
+    taille = 'actual size · 1:1 · print at 100 %' if echelle == 1 else f'printed at {echelle * 100:.0f} %'
     pages = []
     for k, lot in enumerate(lots, 1):
-        cases = ''.join(f'<div class="c" style="grid-column: span {sp}">{img}<b>{esc(t)}</b><span>{esc(f)} · 6 per sheet</span></div>' for img, t, f, sp in lot)
+        cases = ''.join(f'<div class="c" style="grid-column: span {sp}">{img}<b>{esc(t)}</b><span>{esc(f)} · {boutique.PAR_DESSIN} per sheet</span></div>' for img, t, f, sp in lot)
         pages.append(f'<section><header><b>R9 · Stickers · the {len(pieces)} designs</b><span>{esc(taille)} · page {k} of {len(lots)} · Maison MND</span></header>'
                      f'<div class="g" style="grid-template-columns: repeat({cols}, auto)">{cases}</div></section>')
     css = (f'@page {{ size: {w_page}mm {h_page}mm; margin: 0 }} * {{ box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact }} '
@@ -139,7 +139,7 @@ def imprime(html_texte, pdf, png=True):
     return len(d)
 
 
-for nom, args in (('R9 · les 11 dessins · A3 1-1', (297, 420, 1.0, 12, 3)), ('R9 · les 11 dessins · A4 90 pour cent', (210, 297, 0.9, 6, 2))):
+for nom, args in (('R9 · les 11 dessins · A3 1-1', (297, 420, 1.0, 12, 3)), ('R9 · les 11 dessins · A4 1-1', (210, 297, 1.0, 12, 3))):
     n = imprime(dessins_n12(*args), os.path.join(SORTIE, nom + '.pdf'))
     print(nom, n, 'page(s)')
 

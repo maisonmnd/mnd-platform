@@ -110,5 +110,5 @@ AJOUTS = {
     'R6': (r6, ['MAISON, imprimé sur la face.']),
     'R7': (r7, ['MAISON, ajouré et éclairé comme MND.']),
     'R8': (None, ['Rien à ajouter pour MAISON : les plaques ne portent pas le logo.', 'GBÉJÍ s’écrit GBÈJÍ sur la plaque de l’atelier II.']),
-    'R9': (None, ['La feuille de la boutique : 11 dessins, 6 de chaque, 60 pastilles Ø88 et 6 étiquettes La Brume.']),
+    'R9': (None, ['La feuille de la boutique : 11 dessins, 12 de chaque, 120 pastilles Ø50 et 12 étiquettes La Brume de 80 × 55.']),
 }
