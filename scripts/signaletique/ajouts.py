@@ -106,9 +106,9 @@ AJOUTS = {
     'R2': (r2, ['MAISON, ajouré comme MND.', '« LOCKS · NATUREL · BEAUTÉ · BIEN-ÊTRE » devient « votre beauté est déjà là ».']),
     'R3': (r3, ['MAISON, imprimé sur les deux faces.', '« LOCKS · NATUREL · BEAUTÉ · BIEN-ÊTRE » devient « votre beauté est déjà là ».']),
     'R4': (r4, ['MAISON, en lettres rétroéclairées comme MND.']),
-    'R5': (None, ['Rien à ajouter : cette plaque ne porte pas le logo.']),
+    'R5': (None, ['Pas de logo sur cette plaque : le dessin de Connie, réimprimé aux couleurs de la Maison (indigo, barre et bande cuivre).']),
     'R6': (r6, ['MAISON, imprimé sur la face.']),
     'R7': (r7, ['MAISON, ajouré et éclairé comme MND.']),
     'R8': (None, ['Rien à ajouter pour MAISON : les plaques ne portent pas le logo.', 'GBÉJÍ s’écrit GBÈJÍ sur la plaque de l’atelier II.']),
-    'R9': (None, ['Pas d’épreuve de Lico Sign pour les autocollants : la planche est refaite en entier.']),
+    'R9': (None, ['La feuille de la boutique : 11 dessins, 6 de chaque, 60 pastilles Ø88 et 6 étiquettes La Brume.']),
 }
