@@ -62,7 +62,17 @@ export type Ticket = {
   acompteXof: number;
   /** Ce qui reste à régler au comptoir (comptant et avoir). */
   aPayerXof: number;
+  /** Ce que l'arrondi au millier a repris à la remise du code qui gagne. */
+  arrondiXof: number;
+  /** Le code retirait quelque chose, mais l'arrondi au millier a tout repris. */
+  codeMangeParLArrondi: boolean;
 };
+
+/** L'ARRONDI DU CODE — 23 octobre 2026. « Quand les codes promos sont mis,
+    calculés et arrondis au franc suivant. Pas de monnaie » (Yéman) ; au
+    sélecteur : au 1 000 F supérieur. 84 000 F avec ROSE15 à 8 250 F ne fait
+    plus 75 750 F mais 76 000 F. */
+export const PALIER_DU_CODE_XOF = 1000;
 
 /** LE TICKET, AU FRANC PRÈS. Même ordre que `invoiceTotal` : le pourcentage,
     puis les francs. La remise du rendez-vous compte comme « déjà posée » face
@@ -76,8 +86,16 @@ export function leTicket(e: EntreeDuTicket): Ticket {
      au ticket : une ligne retirée n'emporte pas un geste plus grand qu'elle. */
   const rdv = Math.min(f(e.remiseDuRendezVousXof), Math.round(prest));
   const dejaPose = Math.round(sous * (pct / 100)) + xof + rdv;
-  const cumul = laMeilleureEnFrancs(dejaPose, e.promoBrutXof, e.nomDuCode);
-  const promoXof = cumul.codeConsomme ? f(e.promoBrutXof) : 0;
+  /* LE NET DU CODE MONTE AU MILLIER SUIVANT. Le code qui gagne écarte tout ce
+     qui était posé : son net est le sous-total moins sa remise, et c'est ce
+     net qui s'arrondit ; la remise rend la différence, jamais plus qu'elle ne
+     vaut. L'arrondi se compte AVANT la comparaison des remises : un code que
+     l'arrondi ramène sous la remise déjà posée ne gagne plus. */
+  const brut = f(e.promoBrutXof);
+  const netDuCode = Math.max(0, Math.round(sous) - brut);
+  const arrondi = brut > 0 ? Math.min(brut, (PALIER_DU_CODE_XOF - (netDuCode % PALIER_DU_CODE_XOF)) % PALIER_DU_CODE_XOF) : 0;
+  const cumul = laMeilleureEnFrancs(dejaPose, brut - arrondi, e.nomDuCode);
+  const promoXof = cumul.codeConsomme ? brut - arrondi : 0;
   /* LE CODE QUI GAGNE ÉCARTE TOUT CE QUI ÉTAIT POSÉ : c'est ce que l'écran
      annonce, c'est donc ce que le net retranche. */
   const pctEff = cumul.codeConsomme ? 0 : pct;
@@ -89,8 +107,22 @@ export function leTicket(e: EntreeDuTicket): Ticket {
   return {
     cumul, remisePct: pctEff, remiseXof: xofEff, remiseDuRendezVousXof: rdvEff, promoXof,
     netXof, partNetteXof, acompteXof, aPayerXof: Math.max(0, netXof - acompteXof),
+    arrondiXof: cumul.codeConsomme ? arrondi : 0,
+    codeMangeParLArrondi: brut > 0 && arrondi === brut,
   };
 }
+
+/** LA REMISE GAMME — 23 octobre 2026. « Ne pas faire de remise sur la gamme
+    quand je passe un code de réduction sur les services. La gamme doit avoir
+    sa remise à part. ROSE15 est 15 % hors gamme » (Yéman) ; au sélecteur :
+    une case « Remise gamme ». Elle ne touche que les PRODUITS, se pose sur
+    leur ligne (le code des prestations, qui écarte la remise globale, ne
+    l'efface donc jamais) et ne s'empile pas sur la remise de la ligne : le
+    produit garde la plus forte des deux. */
+export const remiseDeLaLigne = (genre: string, remiseLignePct: number, remiseGammePct: number): number => {
+  const ligne = Math.max(0, Math.min(100, remiseLignePct || 0));
+  return genre === 'product' ? Math.max(ligne, Math.max(0, Math.min(100, remiseGammePct || 0))) : ligne;
+};
 
 /** Un argent que le rendez-vous a reçu avant le comptoir. */
 export type DejaRecu = { date: string; amountXof: number; note: string };

@@ -43,7 +43,7 @@ import '../equipe/equipe.css'; // styles du Toggle partagé (tre-toggle)
 import './vente.css';
 import { cheminDeLaConversation } from '../../../../shared/conversations';
 import { RattacherUneCarte } from './RattacherUneCarte';
-import { leTicket, versementsDuTicket, ceQueLeRendezVousRecoit, lArgentDejaRecu, aDejaSaPiece } from './encaissement-pur';
+import { leTicket, versementsDuTicket, ceQueLeRendezVousRecoit, lArgentDejaRecu, aDejaSaPiece, remiseDeLaLigne, PALIER_DU_CODE_XOF } from './encaissement-pur';
 import { ditCeQuiManque, familleDeTrace, traceAEcrire, traceSuffit, type TraceDuMoyen } from '../../../../shared/trace-du-moyen-pur';
 import { ChampsDeLaTrace } from './TraceDuMoyen';
 import { useStaff, adresseDe } from '../equipe/data';
@@ -132,6 +132,8 @@ export default function Caisse() {
 
   const [globalDisc, setGlobalDisc] = useState(0);
   const [globalDiscXof, setGlobalDiscXof] = useState(0);
+  /* La remise de la gamme, à part (23 octobre 2026) : les produits seuls. */
+  const [remiseGamme, setRemiseGamme] = useState(0);
   /* LE CODE DE PROMOTION TAPÉ AU COMPTOIR — 14 septembre 2026, maquette
      `public/maquette-la-conversation-outillee.html`. La règle vit dans
      `shared/promos.ts` et nulle part ailleurs : la caisse, le rendez-vous et
@@ -520,8 +522,11 @@ export default function Caisse() {
          Sans cela, encaisser un rituel de juillet le repriserait au tarif
          d'aujourd'hui. */
       const unit = v.unitXof !== undefined ? v.unitXof : (it.mode === 'devis' ? 0 : it.priceXof);
-      const netXof = unit * v.qty * (1 - v.disc / 100);
-      return { key: k, ...it, ...v, unit, netXof };
+      /* `disc` reste la remise posée sur la ligne ; `discEff` y ajoute la
+         remise gamme pour un produit (la plus forte des deux). */
+      const discEff = remiseDeLaLigne(it.kind, v.disc, remiseGamme);
+      const netXof = unit * v.qty * (1 - discEff / 100);
+      return { key: k, ...it, ...v, unit, discEff, netXof };
     });
   const subXof = lines.reduce((s, l) => s + l.netXof, 0);
   /* LE SELECTEUR DE LONGUEUR NE PARAIT QUE S'IL COMMANDE QUELQUE CHOSE. Il
@@ -720,7 +725,7 @@ export default function Caisse() {
       clientName: client ? undefined : 'Walk-in',
       forClientId: posPayerId && posPayerId !== clientId ? clientId : undefined,
       date: dateVente,
-      lines: lines.map((l) => ligneFacture(l.n, l.unit, l.qty, l.disc)),
+      lines: lines.map((l) => ligneFacture(l.n, l.unit, l.qty, l.discEff)),
       /* LES REMISES QUI S'APPLIQUENT, ET ELLES SEULES (10 octobre 2026) : le
          code qui gagne a écarté la remise posée, la pièce ne la porte plus. */
       globalDiscountPct: ticket.remisePct,
@@ -1017,6 +1022,7 @@ export default function Caisse() {
     setApptToSettle('');
     setGlobalDisc(0);
     setGlobalDiscXof(0);
+    setRemiseGamme(0);
     setAvoirStr('0');
     /* Un ticket neuf : nouvel identifiant réservé, ni pourboire ni parts. */
     setTicketId(`inv-${uid()}`);
@@ -1286,6 +1292,7 @@ export default function Caisse() {
                         <div style={{ fontFamily: 'var(--font-sans)', fontSize: 11.5, color: 'var(--ink-soft)', marginTop: 2 }}>
                           {fmtMoney(l.unit, currency)} · {l.kind === 'product' ? 'produit' : l.kind === 'formation' ? 'formation' : 'service'}
                           {l.disc > 0 && <span style={{ color: 'var(--copper-700)' }}> · remise −{l.disc} %</span>}
+                          {l.discEff > l.disc && <span style={{ color: 'var(--copper-700)' }}> · remise gamme −{l.discEff} %</span>}
                         </div>
                       )}
                     </div>
@@ -1329,6 +1336,23 @@ export default function Caisse() {
                   </button>
                 ))}
               </div>
+
+              {/* ── LA REMISE GAMME — 23 octobre 2026 ─────────────────────
+                  « La gamme doit avoir sa remise à part » (Yéman). Les produits
+                  seuls ; le code des prestations ne l'efface jamais. Elle ne
+                  paraît que si le ticket porte un produit. */}
+              {lines.some((l) => l.kind === 'product') && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '16px 0', borderBottom: '1px solid var(--hairline)', flexWrap: 'wrap' }}>
+                  <span style={{ fontFamily: 'var(--font-sans)', fontSize: 9.5, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--ink-soft)', maxWidth: 84, lineHeight: 1.3 }}>
+                    Remise gamme
+                  </span>
+                  {[0, ...tauxPermis(estDirection)].map((taux) => (
+                    <button key={taux} className={`trv-pill ${remiseGamme === taux ? 'is-active is-active--copper' : ''}`} onClick={() => setRemiseGamme(taux)}>
+                      {taux === 0 ? '0' : `−${taux}%`}
+                    </button>
+                  ))}
+                </div>
+              )}
 
               {/* Remise manuelle en CFA — geste de comptoir, retranchée après le %. */}
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '16px 0', borderBottom: '1px solid var(--hairline)', flexWrap: 'wrap' }}>
@@ -1398,6 +1422,14 @@ export default function Caisse() {
                 {promoXof > 0 && (
                   <span style={{ fontFamily: 'var(--font-sans)', fontSize: 12, color: '#41604A', fontWeight: 600 }}>
                     −{fmtMoney(promoXof, currency)}{offreCodee ? ` · offre ${offreCodee.title}` : ''}
+                    {ticket.arrondiXof > 0 && ` · arrondi au ${fmtMoney(PALIER_DU_CODE_XOF, currency)} supérieur`}
+                  </span>
+                )}
+                {/* L'ARRONDI QUI MANGE TOUT LE CODE SE DIT : sinon le code tapé
+                    semble ignoré par la caisse. */}
+                {!refusDuCode && ticket.codeMangeParLArrondi && (
+                  <span style={{ fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--copper-700)' }}>
+                    L’arrondi au {fmtMoney(PALIER_DU_CODE_XOF, currency)} supérieur reprend toute la remise de ce code sur ce ticket.
                   </span>
                 )}
                 {refusDuCode && (

@@ -146,7 +146,8 @@ dit('Ma Couronne et la fiche lisent les interrupteurs', [true, true], [
   /statutFidelite\(client, clientsBranche, families, branchAppts, seuilCercle, seuilFoyer, cercleOuvert, foyerOuvert\)/.test(sansCom('src/apps/trone/routes/clients/Customers.tsx')),
 ]);
 const rdvModal = sansCom('src/apps/trone/routes/clients/_shared.tsx');
-dit('la direction : les taux et les plafonds aux quatre ecrans', [3, false, 2, 2, 2], [
+/* La Caisse en a trois depuis le 23 octobre 2026 : ligne, globale, et la remise gamme. */
+dit('la direction : les taux et les plafonds aux quatre ecrans', [3, false, 3, 2, 2], [
   (rdvModal.match(/tauxPermis\(estDirection\)\.map\(/g) ?? []).length,
   /TAUX_DE_REMISE\.map\(/.test(rdvModal),
   (sansCom('src/apps/trone/routes/vente/Caisse.tsx').match(/tauxPermis\(estDirection\)/g) ?? []).length,

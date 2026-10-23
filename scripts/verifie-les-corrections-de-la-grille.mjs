@@ -83,6 +83,7 @@ const PANNES = [
   ['la fiche ne plafonne pas le %', 'src/apps/trone/routes/clients/_shared.tsx', 'Math.min(plafondDeRemisePct(estDirection), ', 'Math.min(100, '],
   ['la fiche ne plafonne pas les francs', 'src/apps/trone/routes/clients/_shared.tsx', 'Math.min(plafondDeRemiseXof(estDirection, effGross), ', 'Math.min(Infinity, '],
   ['la Caisse montre tous les taux', 'src/apps/trone/routes/vente/Caisse.tsx', '{[0, ...tauxPermis(estDirection)].map((pct) => (', '{[0, ...TAUX_DE_REMISE].map((pct) => ('],
+  ['la remise gamme montre tous les taux', 'src/apps/trone/routes/vente/Caisse.tsx', '{[0, ...tauxPermis(estDirection)].map((taux) => (', '{[0, ...TAUX_DE_REMISE].map((taux) => ('],
   ['la Caisse ne plafonne pas les francs', 'src/apps/trone/routes/vente/Caisse.tsx', 'Math.min(plafondDeRemiseXof(estDirection, subXof), ', 'Math.min(Infinity, '],
   ['la serie montre tous les taux', 'src/apps/trone/routes/clients/SerieModal.tsx', '{tauxPermis(estDirection).map((pct) => (', '{TAUX_DE_REMISE.map((pct) => ('],
   ['les factures montrent tous les taux', 'src/apps/trone/routes/vente/Factures.tsx', 'DISC_OPTIONS.filter((v) => estDirection || v < 50 || v === l.discountPct)', 'DISC_OPTIONS.filter((v) => true || v === l.discountPct)'],
