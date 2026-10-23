@@ -88,13 +88,18 @@ def meilleurs_voeux(cx, cy):
 
 
 def cadeau(cx, cy):
-    return [_ligne('Un cadeau', 'cormorant', 9, cx, cy + 0.5, I, 38, 500),
-            _ligne('pour vous', 'cormorant-italique', 8, cx, cy + 8.5, C, 36)]
+    # « Un cadeau pour vous et À très bientôt doivent être accompagnés du médaillon » (23 oct. 2026) :
+    # placé comme sur Meilleurs vœux, en cuivre sur le sable.
+    return [medaillon(cx, cy - 11, 9, C),
+            _ligne('Un cadeau', 'cormorant', 9, cx, cy + 3.5, I, 38, 500),
+            _ligne('pour vous', 'cormorant-italique', 8, cx, cy + 11.5, C, 36)]
 
 
 def a_bientot(cx, cy):
-    return [_ligne('À très', 'cormorant-italique', 8.5, cx, cy - 0.5, V, 36),
-            _ligne('bientôt', 'cormorant', 10, cx, cy + 8.5, V, 38, 500)]
+    # Le médaillon en ivoire sur le cuivre.
+    return [medaillon(cx, cy - 11, 9, V),
+            _ligne('À très', 'cormorant-italique', 8.5, cx, cy + 3, V, 36),
+            _ligne('bientôt', 'cormorant', 10, cx, cy + 12, V, 38, 500)]
 
 
 def medaillon_seul(cx, cy):
