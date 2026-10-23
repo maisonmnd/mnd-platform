@@ -6,12 +6,13 @@
 fidélité, Merci pour votre achat, Meilleurs vœux, Thank you, la Brume Hydra
 Mist, le médaillon, l'allover (sans texte) pour les boîtes, la devise en fon et
 votre beauté est déjà là » (Yéman). « Feel free to create some » : s'ajoutent
-« Un cadeau pour vous » et « À très bientôt ».
+« Un cadeau pour vous » et « À très bientôt ». Puis : « le slogan fon et votre beauté est déjà
+là ensemble » : la devise entière sur une seule pastille.
 
 La même feuille que R9 (1060 × 680 mm, papier synthétique, découpe à la forme),
 pour qu'elle coûte à peu près le même prix : 180 pastilles Ø50 pour fermer les
 sachets, les papiers de soie et les boîtes, et 9 étiquettes 108 × 50 pour le
-flacon de brume. Une feuille, treize dessins ; 100 feuilles = 18 000 pastilles et 900 étiquettes.
+flacon de brume. Une feuille, douze dessins ; 100 feuilles = 18 000 pastilles et 900 étiquettes.
 Un seul motif par pastille, du vide : la Maison veut du sobre.
 """
 from enseignes import C, I, S, V, DEVISE_FON, ajuste
@@ -80,13 +81,11 @@ def medaillon_seul(cx, cy):
     return [medaillon(cx, cy, 34, C)]
 
 
-def devise_fon(cx, cy):
-    return [_ligne(DEVISE_FON, 'fon', 7.5, cx, cy + 2.5, V, 40)]
-
-
-def beaute(cx, cy):
-    return [_ligne('votre beauté', 'cormorant-italique', 7.4, cx, cy - 0.5, I, 38),
-            _ligne('est déjà là', 'cormorant-italique', 7.4, cx, cy + 7.5, I, 38)]
+def devise(cx, cy):
+    # « Le slogan fon et votre beauté est déjà là ensemble » : la devise entière sur une pastille.
+    return [_ligne(DEVISE_FON, 'fon', 7.5, cx, cy - 1, V, 40),
+            _ligne('votre beauté', 'cormorant-italique', 5.6, cx, cy + 6.5, C, 34),
+            _ligne('est déjà là', 'cormorant-italique', 5.6, cx, cy + 12, C, 34)]
 
 
 # (famille, titre anglais, fond, dessin, nombre par feuille)
@@ -99,8 +98,7 @@ PASTILLES = [
     ('cadeau', 'A gift for you (FR)', S, cadeau, 12),
     ('revenir', 'See you soon (FR)', C, a_bientot, 12),
     ('motif', 'Medallion, no text', V, medaillon_seul, 18),
-    ('devise', 'Motto in Fon', I, devise_fon, 12),
-    ('devise', 'Motto in French', S, beaute, 12),
+    ('devise', 'Motto, Fon and French', I, devise, 24),
     ('motif', 'Allover square for boxes, no text', I, None, 12),
 ]
 assert sum(p[4] for p in PASTILLES) == COLS * (RANGS - 1)

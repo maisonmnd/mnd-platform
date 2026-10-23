@@ -114,7 +114,7 @@ def table_b():
         z = chinois.ENSEIGNES[e['id']]
         lignes.append(f'<tr><td class="ref"><b>{e["id"]}</b><small>sheet {e["id"]}</small></td><td class="img">{vignette(e["id"])}</td>'
                       f'<td>{bi("<b>" + esc(e["name"]) + "</b>", z["name"])}<small class="t">{esc(taille(e))} · {"outdoor IP65" if dehors(e) else "indoor"}</small></td>'
-                      f'<td class="num">1</td><td>{bi(esc(e["en"]["lighting"]), z["lighting"])}</td>{VIDE}</tr>')
+                      f'<td class="num">{(str(e["qte"]) + " sheets") if e["forme"] == "feuille" else 1}</td><td>{bi(esc(e["en"]["lighting"]), z["lighting"])}</td>{VIDE}</tr>')
     tete = ('<tr><th>Ref<small>编号</small></th><th>Final result<small>最终效果</small></th><th>Item<small>品名</small></th><th>Qty<small>数量</small></th>'
             '<th>Lighting (full spec on the sheet)<small>照明（详细见规格书）</small></th><th>Unit price<small>单价</small></th><th>Total<small>总价</small></th></tr>')
     return f'<table class="grille b"><thead>{tete}</thead><tbody>{"".join(lignes)}</tbody></table>'
@@ -163,8 +163,8 @@ COMPLEMENTS_NEUFS = [
      f'每个户外发光件（{ALLUMES_DEHORS}）配一个 7 天数字定时器：天黑自动开，关店自动关。', 'per item'),
     ('N10 electronics', 'N10 电子部分', 'If not included in N10: RGBW addressable controller with phone app, motion sensor, NFC tag written and tested, the scenes programmed (sheet N10, page 2).',
      '如 N10 报价未包含：RGBW 可编程控制器和手机应用、人体感应器、写好并测试的 NFC 标签、编好的场景（见 N10 第 2 页）。', '1 set'),
-    ('Proof, photos, crates, shipping, warranty', '打样、照片、木箱、运输、质保', 'As in our revision request for the order: please include the new items you quote, labelled N1 to N11 (and -M for the options).',
-     '同我们订单的修改请求：请把报价的新品一并列入，编号 N1 至 N11（选项加 -M）。', 'same'),
+    ('Proof, photos, crates, shipping, warranty', '打样、照片、木箱、运输、质保', 'As in our revision request for the order: please include the new items you quote, labelled N1 to N12 (and -M for the options).',
+     '同我们订单的修改请求：请把报价的新品一并列入，编号 N1 至 N12（选项加 -M）。', 'same'),
 ]
 
 

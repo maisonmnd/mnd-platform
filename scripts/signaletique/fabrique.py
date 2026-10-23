@@ -32,7 +32,7 @@ from communs import (NOMS_ENCRES, NOMS_EN, NOMS_FR, variantes, decoupe, encres_d
 def svg_fabricant(e, ident, dessin):
     corps = dessin(Atelier(False))
     w, h = e['w'], e['h']
-    titre = html.escape(f"Maison MND · {ident} · {e['name']} · {w} × {h} mm · scale 1:1 · {'22 Oct 2026' if e.get('statut') == 'option' or e['id'] in ('N10', 'N11') else '13 Oct 2026'}")
+    titre = html.escape(f"Maison MND · {ident} · {e['name']} · {w} × {h} mm · scale 1:1 · {'22 Oct 2026' if e.get('statut') == 'option' or e['id'] in ('N10', 'N11', 'N12') else '13 Oct 2026'}")
     return (f'<?xml version="1.0" encoding="UTF-8"?>\n'
             f'<svg xmlns="http://www.w3.org/2000/svg" width="{w}mm" height="{h}mm" viewBox="0 0 {w} {h}">\n'
             f'<title>{titre}</title>\n'
@@ -171,7 +171,7 @@ for e in ENSEIGNES:
     lignes = [
         ('Item', f"{e['id']} · {html.escape(e['name'])}"),
         ('Order line', html.escape(e.get('pi', 'NEW ITEM')).replace('ligne', 'line').replace('épreuve', 'proof')),
-        ('Quantity', str(e['qte'] if e.get('qte') else 1) + (' sheets' if e['id'] == 'R9' else ' set(s)')),
+        ('Quantity', str(e['qte'] if e.get('qte') else 1) + (' sheets' if e['forme'] == 'feuille' else ' set(s)')),
         ('Overall size', (f"Ø {e['w']} mm" if e['forme'] == 'rond' else f"{e['w']} × {e['h']} mm") + (f" × depth {e['prof']} mm" if e['prof'] else '')),
         ('Construction', html.escape(en['construction'])),
         ('Finish', html.escape(en['finish'])),
@@ -227,7 +227,7 @@ for e in ENSEIGNES:
     prix = f"{e['prix']} USD (PI FINALE)" if e.get('prix') else 'à chiffrer par Lico Sign'
     statut = 'Commandée · à réviser' if e['statut'] == 'commande' else 'Nouvelle'
     qte = e.get('qte') or 1
-    q = f"{qte} feuilles" if e['id'] == 'R9' else f"{qte} pièce{'s' if qte > 1 else ''}"
+    q = f"{qte} feuilles" if e['forme'] == 'feuille' else f"{qte} pièce{'s' if qte > 1 else ''}"
     encres = ' · '.join(NOMS_FR[n] for n in encres_de(corps0))
     cartes.append(f'''<article class="carte" id="{e["id"]}">
 <div class="rendu">{rendu(e, ident0, dessin0)}</div>

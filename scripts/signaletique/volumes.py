@@ -150,6 +150,9 @@ def recette_totem(k=None):
 
 
 RECETTES['N10'] = recette_totem()
+# La feuille de la boutique : posée sur la table comme celle de R9.
+RECETTES['N12'] = dict(montage='table', centre=0.0, support=dict(el=None, ep=0.3, matiere='papier', face='impression', sans_trait=True),
+               pieces=[], vues=['jour'])
 # Le médaillon de la porte : plaque cuivre de 2 mm ajourée, opale derrière, caisson de 30 mm ; seul le médaillon s'allume.
 # La porte en métal se rend comme une façade sombre, sans motif (un médaillon sur un motif ne se lit plus).
 RECETTES['N11'] = dict(montage='mur', centre=1.55, mur_uni=True,

@@ -176,6 +176,12 @@ def r9(a):
     return planche(a)
 
 
+def n12(a):
+    """La feuille de la boutique : ses dessins vivent dans autocollants_boutique.py."""
+    from autocollants_boutique import planche
+    return planche(a)
+
+
 # ══ LES NOUVELLES ═══════════════════════════════════════════════════════
 
 def n1(a):
@@ -532,4 +538,15 @@ ENSEIGNES = [
                finish='Brushed copper, ivory opal.',
                lighting='Only the medallion lights up: 3000 K warm white LED behind the opal, IP65, 12 V. Power through an armoured door cable loop on the hinge side, the driver stays inside the house; same timer as the other signs.',
                change='NEW ITEM: our medallion, backlit, on the outside metal door of the house. Please quote.')),
+    _f('N12', n12, 1060, 680, 0, 'feuille', 'planche', 'plat',
+       nom='Autocollants de la boutique, 12 dessins', name='Boutique stickers, 12 designs per sheet',
+       statut='nouvelle', qte=100, lieu='Sachets, papier de soie, boîtes, flacons de brume',
+       fr=dict(construction='Papier synthétique adhésif, pelliculage mat, impression numérique recto ; mi-chair à la forme : 180 pastilles Ø50 et 9 étiquettes 108 × 50 par feuille.',
+               finition='Les encres de la charte : indigo, indigo profond, cuivre, ivoire, sable ; l’or seulement sur l’indigo (Meilleurs vœux).',
+               lumiere='Sans lumière (autocollants).',
+               change='Nouvelle feuille : le logo, Merci pour votre achat, Merci pour votre fidélité, Thank you, Meilleurs vœux, Un cadeau pour vous, À très bientôt, le médaillon, la devise (fon et français ensemble), l’allover des boîtes et l’étiquette La Brume.'),
+       en=dict(construction='Synthetic paper adhesive, matte lamination, single-sided digital print; kiss-cut to shape (magenta line), 1.5 mm bleed: 180 round seals Ø50 mm and 9 labels 108 × 50 mm per sheet.',
+               finish='Brand inks: indigo, deep indigo, copper, ivory and sand; gold only on indigo (season’s greetings).',
+               lighting='None (stickers).',
+               change='NEW ITEM: our boutique stickers (logo seal, thank-you seals, season’s greetings, gift, see you soon, medallion, motto, allover box seal, mist bottle label). 100 sheets. Please quote.')),
 ]

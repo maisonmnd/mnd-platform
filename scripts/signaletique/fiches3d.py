@@ -212,8 +212,8 @@ def page(e):
               bi('NEW ITEM · please quote', Z['nouvelle']))
     taille = (f"Ø {e['w']} mm" if e['forme'] == 'rond' else f"{e['w']} × {e['h']} mm") + (f" × depth {e['prof']} mm" if e['prof'] else '')
     qte = e.get('qte') or 1
-    q_en = f"{qte} sheets" if e['id'] == 'R9' else f"{qte} set{'s' if qte > 1 else ''}"
-    q_zh = f"{qte} 张" if e['id'] == 'R9' else f"{qte} 套"
+    q_en = f"{qte} sheets" if e['forme'] == 'feuille' else f"{qte} set{'s' if qte > 1 else ''}"
+    q_zh = f"{qte} 张" if e['forme'] == 'feuille' else f"{qte} 套"
     usage = interieur_ou_ext(e)
     prix = f"USD {e['prix']} (PI FINALE)" if e.get('prix') else 'To be quoted'
     lignes = [
