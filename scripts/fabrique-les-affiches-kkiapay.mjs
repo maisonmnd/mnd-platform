@@ -12,7 +12,10 @@
    Même charte et mêmes formats que les affiches MoMoPay
    (fabrique-les-affiches-momopay.mjs) : A3 mur, A4 comptoir, A5 chevalet (une
    A4 pliée en deux), carré 1080, en ivoire et en indigo. Polices de la
-   construction du site (`node scripts/build-sites.mjs` d'abord). */
+   construction du site (`node scripts/build-sites.mjs` d'abord).
+
+   Il écrit aussi A4-ecran.png (deux fois plus fin), que le Trône montre comme
+   affiche au comptoir (`public/kkiapay-affiche.png`). */
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { spawn } from 'node:child_process';
 import { mkdtempSync } from 'node:fs';
@@ -27,13 +30,17 @@ const qrcode = require('qrcode-generator');
 const SORTIE = path.resolve(process.argv[2] || path.join(tmpdir(), 'affiches-kkiapay'));
 mkdirSync(SORTIE, { recursive: true });
 
-/* Lus sur l'affiche KkiaPay du comptoir, le 23 octobre 2026. Si KkiaPay remet
-   une nouvelle affiche, la relire : le lien et le code changent ensemble. */
-export const LIEN_CHAPCHAP = 'https://chapchap.kkiapay.me/fRUfT6FJZH1Hfiw18552';
-const CODE = '8552';
+/* Les valeurs du paiement, lues dans la règle (une seule vérité) :
+   `shared/kkiapay-chapchap-pur.ts`, lues sur l'affiche KkiaPay du comptoir. */
+const REGLE = readFileSync(`${DEPOT}/src/shared/kkiapay-chapchap-pur.ts`, 'utf8');
+const lis = (nom) => { const m = new RegExp(`export const ${nom} = '([^']+)'`).exec(REGLE); if (!m) throw new Error(`${nom} introuvable dans la règle`); return m[1]; };
+const LIEN_CHAPCHAP = lis('LIEN_CHAPCHAP');
+const CODE = lis('CODE_CHAPCHAP');
 const USSD = `*616*41*${CODE}*montant#`;
-const NOM = 'MND';
-const RESEAUX = ['MTN MoMo', 'Moov Money', 'Celtiis Cash'];
+if (!REGLE.includes('export const USSD_CHAPCHAP = `*616*41*${CODE_CHAPCHAP}*montant#`;')) throw new Error('le code USSD de la règle a changé de forme : relire la fabrique');
+const NOM = lis('MARCHAND_CHAPCHAP');
+const RESEAUX = JSON.parse((/export const RESEAUX_CHAPCHAP = (\[[^\]]+\])/.exec(REGLE) ?? [])[1]?.replace(/'/g, '"') ?? 'null');
+if (!Array.isArray(RESEAUX) || RESEAUX.length === 0) throw new Error('RESEAUX_CHAPCHAP introuvable dans la règle');
 const DEVISE = 'mi nyɔ́ ɖɛkpɛ, votre beauté est déjà là';
 
 /* Le QR, en modules carrés indigo, sans marge (la carte blanche fait la marge).
@@ -176,7 +183,10 @@ body { --k: 1; width: 1080px; height: 1080px; }
   <p class="devise">${DEVISE}</p>
 </div></body></html>`;
 
-const PAGES = [];
+const PAGES = [
+  /* L'écran du Trône montre l'ivoire. */
+  { nom: 'A4-ecran', html: portrait(1, 'A4'), apercu: { l: 794, h: 1123 }, finesse: 2 },
+];
 for (const theme of Object.keys(THEMES)) {
   const suffixe = theme === 'ivoire' ? '' : `-${theme}`;
   PAGES.push(
@@ -205,7 +215,7 @@ await cdp('Page.enable');
 for (const p of PAGES) {
   const url = pathToFileURL(path.join(SORTIE, `${p.nom}.html`)).href;
   const taille = p.png ?? p.apercu;
-  await cdp('Emulation.setDeviceMetricsOverride', { width: taille.l, height: taille.h, deviceScaleFactor: 1, mobile: false });
+  await cdp('Emulation.setDeviceMetricsOverride', { width: taille.l, height: taille.h, deviceScaleFactor: p.finesse ?? 1, mobile: false });
   await cdp('Page.navigate', { url });
   await attend(1800);
   await cdp('Runtime.evaluate', { expression: 'document.fonts.ready.then(() => true)', awaitPromise: true });
