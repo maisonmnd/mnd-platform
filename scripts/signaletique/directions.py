@@ -94,7 +94,8 @@ def fleche_rue():
     chev = f'M300 95L170 {p}L300 {H - 95}H370L240 {p}L370 95Z'
     els = [_chemin(ext, V, '#B7AFA2', 2), _chemin(inte, C), _chemin(chev, V),
            _logo('verrou-couche', 860, 190, 640, V),
-           _ligne('Suru-Léré · à 100 m', 'jost', 52, 860, 355, V, 640, 500, 0.04)]
+           # « Suru-Léré à 100 m, baisse un peu » (23 oct. 2026) : de 355 à 385, plus d'air sous le logo.
+           _ligne('Suru-Léré · à 100 m', 'jost', 52, 860, 385, V, 640, 500, 0.04)]
     return '-10 -10 1420 480', els, [ext]
 
 
