@@ -112,6 +112,14 @@ export function leTicket(e: EntreeDuTicket): Ticket {
   };
 }
 
+/** LE LIBELLÉ DU CODE SUR LA PIÈCE — 23 octobre 2026. « Comment savoir que
+    ROSE15 est juste sur les services sur la facture, et surtout que la
+    cliente comprenne ? » (Yéman) ; au sélecteur : une seule ligne qui dit
+    tout, « ROSE15 · 15 % hors gamme, arrondi au millier ». Un code en francs
+    dit « sur les prestations, hors gamme ». */
+export const libelleDuCode = (code: string, pct: number, arrondiXof: number): string =>
+  `${code} · ${pct > 0 ? `${Math.round(pct)} % hors gamme` : 'sur les prestations, hors gamme'}${arrondiXof > 0 ? ', arrondi au millier' : ''}`;
+
 /** LA REMISE GAMME — 23 octobre 2026. « Ne pas faire de remise sur la gamme
     quand je passe un code de réduction sur les services. La gamme doit avoir
     sa remise à part. ROSE15 est 15 % hors gamme » (Yéman) ; au sélecteur :

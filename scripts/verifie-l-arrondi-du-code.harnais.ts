@@ -12,7 +12,8 @@
    cablage de la Caisse se lit dans la source, commentaires effaces. */
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
-import { leTicket, remiseDeLaLigneDuTicket } from '../src/apps/trone/routes/vente/encaissement-pur';
+import { leTicket, remiseDeLaLigneDuTicket, libelleDuCode } from '../src/apps/trone/routes/vente/encaissement-pur';
+import { remisesDuPapier } from '../src/apps/trone/routes/vente/pdf-de-la-piece';
 import { invoiceTotal, ligneFacture, type Invoice } from '../src/shared/finance';
 import { apptTotalXof, apptNetXof, apptDueXof, partsDuRituelXof, prixAFiger, arrondiDuCodeAuRdv } from '../src/apps/trone/routes/clients/_shared';
 import type { Appointment } from '../src/shared/agenda';
@@ -37,6 +38,8 @@ const source = (rel: string): string => {
   return sansCommentaires(s);
 };
 const caisse = source('src/apps/trone/routes/vente/Caisse.tsx');
+const pdf = source('src/shared/pdf.ts');
+const pdfDeLaPiece = source('src/apps/trone/routes/vente/pdf-de-la-piece.ts');
 
 const sans = { remisePct: 0, remiseXof: 0, remiseDuRendezVousXof: 0, dejaRecuXof: 0, nomDuCode: 'ROSE15' };
 
@@ -126,6 +129,29 @@ dit(6, 'Caisse : le code ne vise que les prestations (ROSE15 hors gamme)', true,
   /* 10 250 F moins 100 F de code : arrondir a 11 000 F ferait payer plus que le prix plein. */
   dit(7, 'jamais plus que le prix plein : 10 250 F moins 100 F revient a 10 250 F, pas 11 000 F', 10_250,
     apptTotalXof(a({ id: 'r8', serviceIds: ['svE'], codeOffre: 'ROSE15', remisesLignes: [{ xof: 100 }] }), byId));
+}
+
+/* ══ #8 — LA CLIENTE LIT SUR QUOI PORTE LE CODE ══
+   « Comment savoir que ROSE15 est juste sur les services sur la facture, et
+   surtout que la cliente comprenne ? » ; au selecteur : une seule ligne qui
+   dit tout. Et le PDF ne melange plus la remise gamme dans la ligne du code. */
+{
+  dit(8, 'le libelle : le pourcentage, hors gamme, et l arrondi quand il y en a un', [
+    'ROSE15 · 15 % hors gamme, arrondi au millier', 'ROSE15 · 15 % hors gamme', 'MAMAN-A7K · sur les prestations, hors gamme',
+  ], [libelleDuCode('ROSE15', 15, 250), libelleDuCode('ROSE15', 15, 0), libelleDuCode('MAMAN-A7K', 0, 0)]);
+  const piece = { lines: [ligneFacture('Rituel', 55_000), ligneFacture('Produits', 29_000, 1, 10)], globalDiscountPct: 0, globalDiscountXof: 8_100,
+    discountLabel: libelleDuCode('ROSE15', 15, 150) } as unknown as Invoice;
+  const lignes = remisesDuPapier(piece, (n) => `${n} F`);
+  dit(8, 'le papier : la remise gamme a sa ligne, le code la sienne, sous son nom', [
+    { label: 'Remises sur les lignes', value: '− 2900 F' }, { label: 'ROSE15 · 15 % hors gamme, arrondi au millier', value: '− 8100 F' },
+  ], lignes);
+  dit(8, '... et leurs montants font le sous-total moins le total (84 000 - 73 000)', 11_000, lignes.reduce((n, r) => n + Number(r.value.replace(/[^0-9]/g, '')), 0));
+  dit(8, 'cablage : la Caisse ecrit le libelle et passe les remises au recu ; les deux PDF les ecrivent', [true, true, true, true], [
+    /discountLabel: libelleDuCode\(offreCodee\.code \?\? normaliseLeCode\(codeTape\), offreCodee\.discountPct \?\? 0, ticket\.arrondiXof\)/.test(caisse),
+    /remises: remisesDuPapier\(inv, \(n\) => fmtMoney\(n, currency\)\),/.test(caisse),
+    /remises: remisesDuPapier\(d, \(n\) => fmtMoney\(n, currency\)\),/.test(pdfDeLaPiece),
+    /if \(d\.remises\?\.length\) for \(const r of d\.remises\) row\(r\.label, r\.value, false, COPPER\);/.test(pdf),
+  ]);
 }
 
 console.log(ko === 0 ? 'Tout tient.' : `${ko} constat(s) en echec.`);

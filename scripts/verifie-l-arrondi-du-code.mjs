@@ -24,6 +24,8 @@ const prouve = process.argv.includes('--prouve');
 const P = 'src/apps/trone/routes/vente/encaissement-pur.ts';
 const C = 'src/apps/trone/routes/vente/Caisse.tsx';
 const S = 'src/apps/trone/routes/clients/_shared.tsx';
+const D = 'src/apps/trone/routes/vente/pdf-de-la-piece.ts';
+const F = 'src/shared/pdf.ts';
 
 const FAUTES = [
   /* #1 : pas d'arrondi, ou au mauvais palier. */
@@ -48,6 +50,11 @@ const FAUTES = [
   { n: 7, fichier: S, avant: "  if (a.status === 'honoré' || apptPaidXof(a) > 0) return 0;\n", apres: '' },
   { n: 7, fichier: S, avant: 'return arrondiDuCodeAuRdv(a, byId) > 0 ? splitByWeights(apptTotalXof(a, byId), poids) : poids;', apres: 'return poids;' },
   { n: 7, fichier: S, avant: 'return Math.min(remise, reste === 0 ? 0 : PALIER_DU_CODE_XOF - reste);', apres: 'return reste === 0 ? 0 : PALIER_DU_CODE_XOF - reste;' },
+  /* #8 : le libelle ne dit plus « hors gamme », ou le papier melange les remises. */
+  { n: 8, fichier: P, avant: "% hors gamme` : 'sur les prestations, hors gamme'}", apres: "%` : ''}" },
+  { n: 8, fichier: D, avant: "if (lignes > 0) out.push({ label: 'Remises sur les lignes',", apres: "if (false) out.push({ label: 'Remises sur les lignes'," },
+  { n: 8, fichier: C, avant: '        remises: remisesDuPapier(inv, (n) => fmtMoney(n, currency)),\n', apres: '' },
+  { n: 8, fichier: F, avant: '  if (d.remises?.length) for (const r of d.remises) row(r.label, r.value, false, COPPER);\n  else if (d.discount)', apres: '  if (d.discount)' },
 ];
 
 const md5 = (rel) => createHash('md5').update(readFileSync(path.join(racine, rel))).digest('hex');

@@ -587,6 +587,10 @@ export type InvoicePdfData = {
   lines: PdfLine[];
   subtotal: string;
   discount?: string;
+  /** LES REMISES, CHACUNE À SA LIGNE ET SOUS SON NOM (23 octobre 2026) :
+      celles des lignes, la globale, puis le code (« ROSE15 · 15 % hors
+      gamme, arrondi au millier »). Absentes : la seule ligne « Remise ». */
+  remises?: { label: string; value: string }[];
   total: string;
   deposit?: string;
   reste?: string;
@@ -791,7 +795,8 @@ async function construitLaFacture(d: InvoicePdfData): Promise<{ doc: any; filena
     y += bold ? 8 : 6;
   };
   row('Sous-total', d.subtotal);
-  if (d.discount) row('Remise', d.discount, false, COPPER);
+  if (d.remises?.length) for (const r of d.remises) row(r.label, r.value, false, COPPER);
+  else if (d.discount) row('Remise', d.discount, false, COPPER);
   row('Total', d.total, true);
   if (d.deposit) row('Acompte', d.deposit, false, COPPER);
   if (d.reste) row('Reste à régler', d.reste);

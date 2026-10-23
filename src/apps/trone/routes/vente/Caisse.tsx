@@ -43,7 +43,8 @@ import '../equipe/equipe.css'; // styles du Toggle partagé (tre-toggle)
 import './vente.css';
 import { cheminDeLaConversation } from '../../../../shared/conversations';
 import { RattacherUneCarte } from './RattacherUneCarte';
-import { leTicket, versementsDuTicket, ceQueLeRendezVousRecoit, lArgentDejaRecu, aDejaSaPiece, remiseDeLaLigneDuTicket, PALIER_DU_CODE_XOF } from './encaissement-pur';
+import { leTicket, versementsDuTicket, ceQueLeRendezVousRecoit, lArgentDejaRecu, aDejaSaPiece, remiseDeLaLigneDuTicket, PALIER_DU_CODE_XOF, libelleDuCode } from './encaissement-pur';
+import { remisesDuPapier } from './pdf-de-la-piece';
 import { ditCeQuiManque, familleDeTrace, traceAEcrire, traceSuffit, type TraceDuMoyen } from '../../../../shared/trace-du-moyen-pur';
 import { ChampsDeLaTrace } from './TraceDuMoyen';
 import { useStaff, adresseDe } from '../equipe/data';
@@ -734,8 +735,10 @@ export default function Caisse() {
          foi partout, et le net du ticket doit être celui du papier, au franc
          près. */
       globalDiscountXof: (ticket.remiseXof + ticket.remiseDuRendezVousXof + promoXof) || undefined,
-      ...(promoXof > 0 && codePromo ? { discountLabel: `Promotion ${codePromo.code}` }
-        : promoXof > 0 && offreCodee ? { discountLabel: `Offre ${offreCodee.title} · ${offreCodee.code ?? ''}`.trim() } : {}),
+      /* « ROSE15 · 15 % hors gamme, arrondi au millier » : la cliente lit sur
+         quoi porte le code (23 octobre 2026). */
+      ...(promoXof > 0 && codePromo ? { discountLabel: libelleDuCode(codePromo.code, codePromo.remisePct ?? 0, ticket.arrondiXof) }
+        : promoXof > 0 && offreCodee ? { discountLabel: libelleDuCode(offreCodee.code ?? normaliseLeCode(codeTape), offreCodee.discountPct ?? 0, ticket.arrondiXof) } : {}),
       fx: !mndPay && fxOnEff && fxAmount > 0 ? { code: fxCodeEff, rate: fxRateNum, amount: fxAmount } : undefined,
       payment: posCashDue > 0 ? methodeFinale : (posAvoir > 0 ? 'Avoir' : methodeFinale),
       cashbox: caisseFinale || undefined,
@@ -967,6 +970,7 @@ export default function Caisse() {
         })),
         subtotal: fmtMoney(Math.round(grossXof), currency),
         discount: grossXof - netXof > 0 ? `− ${fmtMoney(Math.round(grossXof - netXof), currency)}` : undefined,
+        remises: remisesDuPapier(inv, (n) => fmtMoney(n, currency)),
         total: fmtMoney(netXof, currency),
         deposit: ticket.acompteXof > 0 ? `− ${fmtMoney(ticket.acompteXof, currency)}` : undefined,
         tip: (inv.tipXof ?? 0) > 0 ? fmtMoney(inv.tipXof!, currency) : undefined,

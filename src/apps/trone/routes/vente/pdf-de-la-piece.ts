@@ -12,6 +12,28 @@ import { paiementTapGoDeLaPiece, type ReglagesMndPay } from '../../../../shared/
 import type { InvoicePdfData } from '../../../../shared/pdf';
 import { paiementMomoDeLaMaison } from '../equipe/data';
 
+/** LES REMISES DU PAPIER, CHACUNE À SA LIGNE — 23 octobre 2026. Le PDF
+    additionnait en une seule « Remise » celles des lignes (la remise gamme
+    comprise) et celle du code : la cliente lisait « ROSE15 » sur une somme
+    qui touchait aussi ses produits. Séparées, chacune garde son nom, dans
+    l'ordre d'`invoiceTotal`, et leur somme fait le sous-total moins le total. */
+export const remisesDuPapier = (
+  d: Pick<Invoice, 'lines' | 'globalDiscountPct' | 'globalDiscountXof' | 'discountLabel'>,
+  fmt: (n: number) => string,
+): { label: string; value: string }[] => {
+  const brut = d.lines.reduce((s, l) => s + l.qty * l.unitXof, 0);
+  const apresLignes = d.lines.reduce((s, l) => s + ligneNetXof(l), 0);
+  const pct = Math.max(0, d.globalDiscountPct ?? 0);
+  const lignes = Math.round(brut) - Math.round(apresLignes);
+  const partPct = Math.round(apresLignes) - Math.round(apresLignes * (1 - pct / 100));
+  const francs = Math.max(0, Math.round(d.globalDiscountXof ?? 0));
+  const out: { label: string; value: string }[] = [];
+  if (lignes > 0) out.push({ label: 'Remises sur les lignes', value: `− ${fmt(lignes)}` });
+  if (partPct > 0) out.push({ label: `Remise globale · −${pct} %`, value: `− ${fmt(partPct)}` });
+  if (francs > 0) out.push({ label: d.discountLabel ?? 'Remise', value: `− ${fmt(francs)}` });
+  return out;
+};
+
 /* ══ LA PIÈCE EN PDF, UNE SEULE FOIS — 17 octobre 2026 ═══════════════════
    « Cette facture doit aller instantanément chez le client » (Yéman). La
    facture que l'encaissement du rituel envoie sur son WhatsApp doit être LA
@@ -169,6 +191,7 @@ export function useLaPieceEnPdf() {
       }),
       subtotal: fmtMoney(Math.round(gross), currency),
       discount: disc > 0 ? `− ${fmtMoney(Math.round(disc), currency)}` : undefined,
+      remises: remisesDuPapier(d, (n) => fmtMoney(n, currency)),
       total: fmtMoney(net, currency),
       /* Le pourboire remis avec le règlement — hors total, il appartient aux
          mains. La pièce doit dire TOUT ce que la cliente a tendu. */

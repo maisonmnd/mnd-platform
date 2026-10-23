@@ -1889,7 +1889,7 @@ export default function Factures() {
                 <>
                   <div className="trv-doc__totline"><span>Sous-total</span><span>{fmtMoney(Math.round(totals.gross), currency)}</span></div>
                   {totals.lineDisc > 0 && (
-                    <div className="trv-doc__totline disc"><span>Remises par prestation</span><span>− {fmtMoney(Math.round(totals.lineDisc), currency)}</span></div>
+                    <div className="trv-doc__totline disc"><span>Remises sur les lignes</span><span>− {fmtMoney(Math.round(totals.lineDisc), currency)}</span></div>
                   )}
                   {totals.globalDisc > 0 && (
                     <div className="trv-doc__totline disc"><span>Remise globale · −{active.globalDiscountPct}%</span><span>− {fmtMoney(Math.round(totals.globalDisc), currency)}</span></div>
