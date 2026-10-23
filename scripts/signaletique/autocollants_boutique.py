@@ -57,10 +57,10 @@ def logo(cx, cy):
     return [pose_logo('verrou-debout', cx - lw / 2, cy - h / 2, largeur=lw, couleur=C)[0]]
 
 
-def _motif(cx, cy):
+def _motif(cx, cy, ton=I_CLAIR):
     """Le fond des pastilles « à motif » de l'ancien R9-M : l'allover ton sur ton dans le disque, l'anneau cuivre."""
     pts = grille(cx - 21, cy - 21, 42, 42, 5, 7.5, 6.5, rond=(cx, cy, 21), ancre=(cx, cy))
-    return [allover(pts, 5, I_CLAIR), f'<circle cx="{cx}" cy="{cy}" r="22" fill="none" stroke="{C}" stroke-width="0.4"/>']
+    return [allover(pts, 5, ton), f'<circle cx="{cx}" cy="{cy}" r="22" fill="none" stroke="{C}" stroke-width="0.4"/>']
 
 
 def logo_motif(cx, cy):
@@ -69,8 +69,9 @@ def logo_motif(cx, cy):
 
 
 def picto_motif(cx, cy):
+    # « Trop sombre, la deuxième couleur » (23 oct. 2026) : sur l'ivoire, l'allover en sable.
     lw = 31
-    return _motif(cx, cy) + [pose_logo('pictogramme', cx - lw / 2, cy - 12.5, largeur=lw, couleur=C)[0]]
+    return _motif(cx, cy, S) + [pose_logo('pictogramme', cx - lw / 2, cy - 12.5, largeur=lw, couleur=C)[0]]
 
 
 def devise_motif(cx, cy):
@@ -118,7 +119,7 @@ PASTILLES = [
     ('logo', 'MAISON MND logo seal', I, logo, PAR_DESSIN),
     # « Ajoute ceux-ci » (l'ancien R9-M), « à la place du Thank you et des 2 Merci » (23 oct. 2026).
     ('motif', 'MAISON MND logo, allover', I, logo_motif, PAR_DESSIN),
-    ('motif', 'Pictogram, allover', I, picto_motif, PAR_DESSIN),
+    ('motif', 'Pictogram, allover', V, picto_motif, PAR_DESSIN),
     ('devise', 'Motto, Fon and French, allover', I, devise_motif, PAR_DESSIN),
     ('fetes', 'Season’s greetings (FR)', P, meilleurs_voeux, PAR_DESSIN),
     ('cadeau', 'A gift for you (FR)', S, cadeau, PAR_DESSIN),
