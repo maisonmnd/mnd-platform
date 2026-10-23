@@ -5,8 +5,9 @@
    payez Chap Chap » collée au comptoir. Son QR a été LU sur la photo (pas
    recopié à l'œil) : il ouvre la page de paiement Chap Chap dont le marchand
    s'affiche « MND » (« Direct payment link for MND »), MTN MoMo, Moov Money et
-   Celtiis Cash. Le QR est refait à l'identique de contenu, puis relu dans le
-   rendu par `scripts/verifie-les-affiches-kkiapay.py` avant toute impression.
+   Celtiis Cash. Le QR est refait à l'identique de contenu ; le 23 octobre,
+   les huit rendus ont été relus par un lecteur de QR (zxing-cpp) et disaient
+   tous ce même lien. Refaire cette relecture avant toute réimpression.
 
    Même charte et mêmes formats que les affiches MoMoPay
    (fabrique-les-affiches-momopay.mjs) : A3 mur, A4 comptoir, A5 chevalet (une
