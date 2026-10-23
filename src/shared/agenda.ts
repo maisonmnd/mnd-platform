@@ -62,6 +62,11 @@ export type Appointment = {
 
       Vide ou absent sur une ligne = pas de remise. */
   remisesLignes?: ({ pct?: number; xof?: number } | null)[];
+  /** LE CODE TAPÉ SUR LE SITE, tel que `demande-submit` l'écrit sur le
+      rendez-vous (ROSE15, un code de marraine) ; ses remises sont dans
+      `remisesLignes`. Lu depuis le 23 octobre 2026 pour l'arrondi du code
+      au millier (`arrondiDuCodeAuRdv`). */
+  codeOffre?: string;
   /** LA LONGUEUR TRAVAILLÉE CE JOUR-LÀ. Elle commande le prix et la durée des
       prestations qui se facturent à la longueur (voir `prixParLongueur`).
 

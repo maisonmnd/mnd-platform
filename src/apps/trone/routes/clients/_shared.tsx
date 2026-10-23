@@ -45,6 +45,7 @@ import type { CommRates } from '../equipe/payroll';
 import { invoicesStore, invoiceTotal, invoiceReglements, caissesHorsBilan, quiEncaisse, type Invoice, type InvoiceLine, type Cashbox, totalProduitsXof } from '../../../../shared/finance';
 import { releveDeLAbonnee, formuleProposeePourReserver, dansLaVie } from '../../../../shared/abonnee-pur';
 import { jourDeCotonou } from '../../../../shared/ia-faits-pur';
+import { PALIER_DU_CODE_XOF } from '../vente/encaissement-pur';
 import { SeanceDeLaFormule } from './SeanceDeLaFormule';
 import { SignalDuClub } from './CarteDuClub';
 import { effetDeLAnnulation } from './gestes-de-l-abonnement';
@@ -285,6 +286,12 @@ export const apptTotalXof = (a: Appointment, byId: Map<string, Service>) => {
      ERP, à 3 M F près. La règle des séries reste au-dessus : une séance 2+ ne
      vaut rien, prix figé ou non. */
   if (typeof a.priceXof === 'number') return a.priceXof;
+  const lu = totalLuXof(a, byId);
+  return lu + arrondiDuCodeAuRdv(a, byId, lu);
+};
+
+/** Le total des gestes tel qu'il se lit sans prix figé, avant l'arrondi du code. */
+const totalLuXof = (a: Appointment, byId: Map<string, Service>): number => {
   /* SANS PRIX ENREGISTRÉ, UN RENDEZ-VOUS PAS ENCORE HONORÉ SE LIT AU TARIF DE
      SA TÊTE — 9 octobre 2026, décision de la direction. Par le calcul de la
      fenêtre, mot pour mot (`tarifDeLaTeteXof`) : son calibre ou son comptage,
@@ -302,6 +309,25 @@ export const apptTotalXof = (a: Appointment, byId: Map<string, Service>) => {
     const s = byId.get(id);
     return s ? sum + svcNetForAppt(a, s, i) : sum;
   }, 0);
+};
+
+/** L'ARRONDI DU CODE AU RENDEZ-VOUS — 23 octobre 2026. « Quand les codes
+    promos sont mis, calculés et arrondis au franc suivant. Pas de monnaie »,
+    puis, au sélecteur, « partout » : un rendez-vous réservé avec un code
+    (`codeOffre`, ROSE15 sur le site) dont les remises de ligne mordent monte
+    au millier supérieur, comme le code tapé à la Caisse (`leTicket`). Le code
+    rend la différence, jamais plus qu'il ne retire.
+
+    LE PASSÉ NE BOUGE PAS. Un rendez-vous honoré, ou qui a déjà reçu un
+    versement, garde sa lecture d'avant : une pièce réglée au franc près ne
+    se met pas à réclamer 250 F. Au premier geste d'argent, `prixAFiger`
+    fige `apptTotalXof`, l'arrondi compris, et le prix figé fait foi ensuite. */
+export const arrondiDuCodeAuRdv = (a: Appointment, byId: Map<string, Service>, lu = totalLuXof(a, byId)): number => {
+  if (!a.codeOffre || !(a.remisesLignes ?? []).some((r) => (r?.pct ?? 0) > 0 || (r?.xof ?? 0) > 0)) return 0;
+  if (a.status === 'honoré' || apptPaidXof(a) > 0) return 0;
+  const remise = Math.max(0, totalLuXof({ ...a, remisesLignes: undefined }, byId) - lu);
+  const reste = Math.round(lu) % PALIER_DU_CODE_XOF;
+  return Math.min(remise, reste === 0 ? 0 : PALIER_DU_CODE_XOF - reste);
 };
 
 /** Total après remise du RDV : le pourcentage d'abord, puis la remise en CFA.
@@ -882,7 +908,9 @@ export function partsDuRituelXof(a: Appointment, byId: Map<string, Service>): nu
     poids.fill(0);
     for (const l of lignesAuTarif(a, byId, tarifs)) poids[l.i] = l.net;
   }
-  return typeof a.priceXof === 'number' ? splitByWeights(a.priceXof, poids) : poids;
+  if (typeof a.priceXof === 'number') return splitByWeights(a.priceXof, poids);
+  /* L'arrondi du code se répartit comme un prix figé : la somme des parts reste `apptTotalXof`. */
+  return arrondiDuCodeAuRdv(a, byId) > 0 ? splitByWeights(apptTotalXof(a, byId), poids) : poids;
 }
 
 /** CE QUE DIT LA COLONNE MONTANT DU CARNET — le chiffre du bandeau de la

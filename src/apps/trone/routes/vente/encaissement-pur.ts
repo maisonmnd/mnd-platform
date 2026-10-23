@@ -119,7 +119,7 @@ export function leTicket(e: EntreeDuTicket): Ticket {
     leur ligne (le code des prestations, qui écarte la remise globale, ne
     l'efface donc jamais) et ne s'empile pas sur la remise de la ligne : le
     produit garde la plus forte des deux. */
-export const remiseDeLaLigne = (genre: string, remiseLignePct: number, remiseGammePct: number): number => {
+export const remiseDeLaLigneDuTicket = (genre: string, remiseLignePct: number, remiseGammePct: number): number => {
   const ligne = Math.max(0, Math.min(100, remiseLignePct || 0));
   return genre === 'product' ? Math.max(ligne, Math.max(0, Math.min(100, remiseGammePct || 0))) : ligne;
 };

@@ -43,7 +43,7 @@ import '../equipe/equipe.css'; // styles du Toggle partagé (tre-toggle)
 import './vente.css';
 import { cheminDeLaConversation } from '../../../../shared/conversations';
 import { RattacherUneCarte } from './RattacherUneCarte';
-import { leTicket, versementsDuTicket, ceQueLeRendezVousRecoit, lArgentDejaRecu, aDejaSaPiece, remiseDeLaLigne, PALIER_DU_CODE_XOF } from './encaissement-pur';
+import { leTicket, versementsDuTicket, ceQueLeRendezVousRecoit, lArgentDejaRecu, aDejaSaPiece, remiseDeLaLigneDuTicket, PALIER_DU_CODE_XOF } from './encaissement-pur';
 import { ditCeQuiManque, familleDeTrace, traceAEcrire, traceSuffit, type TraceDuMoyen } from '../../../../shared/trace-du-moyen-pur';
 import { ChampsDeLaTrace } from './TraceDuMoyen';
 import { useStaff, adresseDe } from '../equipe/data';
@@ -524,7 +524,7 @@ export default function Caisse() {
       const unit = v.unitXof !== undefined ? v.unitXof : (it.mode === 'devis' ? 0 : it.priceXof);
       /* `disc` reste la remise posée sur la ligne ; `discEff` y ajoute la
          remise gamme pour un produit (la plus forte des deux). */
-      const discEff = remiseDeLaLigne(it.kind, v.disc, remiseGamme);
+      const discEff = remiseDeLaLigneDuTicket(it.kind, v.disc, remiseGamme);
       const netXof = unit * v.qty * (1 - discEff / 100);
       return { key: k, ...it, ...v, unit, discEff, netXof };
     });

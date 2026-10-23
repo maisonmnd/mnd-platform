@@ -12,8 +12,11 @@
    cablage de la Caisse se lit dans la source, commentaires effaces. */
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
-import { leTicket, remiseDeLaLigne } from '../src/apps/trone/routes/vente/encaissement-pur';
+import { leTicket, remiseDeLaLigneDuTicket } from '../src/apps/trone/routes/vente/encaissement-pur';
 import { invoiceTotal, ligneFacture, type Invoice } from '../src/shared/finance';
+import { apptTotalXof, apptNetXof, apptDueXof, partsDuRituelXof, prixAFiger, arrondiDuCodeAuRdv } from '../src/apps/trone/routes/clients/_shared';
+import type { Appointment } from '../src/shared/agenda';
+import type { Service } from '../src/shared/catalog';
 
 declare const __FAUTE__: { fichier: string; avant: string; apres: string } | null;
 
@@ -81,11 +84,11 @@ const sans = { remisePct: 0, remiseXof: 0, remiseDuRendezVousXof: 0, dejaRecuXof
 
 /* ══ #5 — LA REMISE GAMME : LES PRODUITS SEULS, A PART DU CODE ══ */
 {
-  dit(5, 'un produit prend la remise gamme ; la plus forte des deux, jamais empilees', [10, 20, 10], [remiseDeLaLigne('product', 0, 10), remiseDeLaLigne('product', 20, 10), remiseDeLaLigne('product', 5, 10)]);
-  dit(5, 'une prestation et une formation ne la prennent jamais', [0, 15, 5], [remiseDeLaLigne('service', 0, 10), remiseDeLaLigne('service', 15, 10), remiseDeLaLigne('formation', 5, 10)]);
+  dit(5, 'un produit prend la remise gamme ; la plus forte des deux, jamais empilees', [10, 20, 10], [remiseDeLaLigneDuTicket('product', 0, 10), remiseDeLaLigneDuTicket('product', 20, 10), remiseDeLaLigneDuTicket('product', 5, 10)]);
+  dit(5, 'une prestation et une formation ne la prennent jamais', [0, 15, 5], [remiseDeLaLigneDuTicket('service', 0, 10), remiseDeLaLigneDuTicket('service', 15, 10), remiseDeLaLigneDuTicket('formation', 5, 10)]);
   /* 55 000 F de prestations, 29 000 F de gamme a -10 % (26 100 F), ROSE15 sur
      les prestations seules (8 250 F) : 81 100 - 8 250 = 72 850 -> 73 000 F. */
-  const gamme = 29_000 * (1 - remiseDeLaLigne('product', 0, 10) / 100);
+  const gamme = 29_000 * (1 - remiseDeLaLigneDuTicket('product', 0, 10) / 100);
   const t = leTicket({ ...sans, sousTotalXof: 55_000 + gamme, prestationsXof: 55_000, promoBrutXof: 8_250 });
   dit(5, 'la gamme a -10 % et ROSE15 hors gamme : 73 000 F, le code gagne, la gamme garde sa remise', [26_100, 73_000, true], [gamme, t.netXof, t.cumul.codeConsomme]);
   const piece = { lines: [ligneFacture('Rituel', 55_000), ligneFacture('Produits', 29_000, 1, 10)], globalDiscountPct: t.remisePct, globalDiscountXof: t.remiseXof + t.remiseDuRendezVousXof + t.promoXof } as unknown as Invoice;
@@ -94,7 +97,7 @@ const sans = { remisePct: 0, remiseXof: 0, remiseDuRendezVousXof: 0, dejaRecuXof
 
 /* ══ #6 — LE CABLAGE DE LA CAISSE ══ */
 dit(6, 'Caisse : la remise gamme passe par la ligne, la piece l ecrit, le ticket neuf la remet a zero', [true, true, true, true, true], [
-  /const discEff = remiseDeLaLigne\(it\.kind, v\.disc, remiseGamme\);/.test(caisse),
+  /const discEff = remiseDeLaLigneDuTicket\(it\.kind, v\.disc, remiseGamme\);/.test(caisse),
   /const netXof = unit \* v\.qty \* \(1 - discEff \/ 100\);/.test(caisse),
   /ligneFacture\(l\.n, l\.unit, l\.qty, l\.discEff\)/.test(caisse),
   /setGlobalDiscXof\(0\);\n\s*setRemiseGamme\(0\);/.test(caisse),
@@ -102,5 +105,27 @@ dit(6, 'Caisse : la remise gamme passe par la ligne, la piece l ecrit, le ticket
 ]);
 dit(6, 'Caisse : le code ne vise que les prestations (ROSE15 hors gamme)', true,
   /const lignesRemisables = lines\n\s*\.filter\(\(l\) => l\.kind === 'service'\)\n\s*\.map\(\(l\) => \(\{ serviceId: l\.key\.slice\(2\), montantXof: Math\.round\(l\.netXof\) \}\)\);/.test(caisse));
+
+/* ══ #7 — PARTOUT : LE RENDEZ-VOUS RESERVE AVEC UN CODE ══
+   Au selecteur, « Oui, partout » : un rendez-vous pris sur le site avec
+   ROSE15 (`codeOffre`, remise de 15 % sur sa ligne) monte au millier, au
+   Carnet comme a la Caisse. Le passe ne bouge pas : honore, ou deja paye en
+   partie, il garde sa lecture d'avant. */
+{
+  const sv = (id: string, priceXof: number) => ({ id, name: id, priceXof }) as unknown as Service;
+  const byId = new Map<string, Service>([['svA', sv('svA', 55_000)], ['svB', sv('svB', 29_000)], ['svE', sv('svE', 10_250)]]);
+  const a = (o: object) => ({ clientId: '', status: 'confirmé', date: '2026-10-25', time: '10:00', ...o }) as unknown as Appointment;
+  const rdv = a({ id: 'r7', serviceIds: ['svA', 'svB'], codeOffre: 'ROSE15', remisesLignes: [{ pct: 15 }, null] });
+  const somme = (xs: number[]) => xs.reduce((n, x) => n + x, 0);
+  dit(7, '55 000 F a -15 % et 29 000 F : 75 750 F -> 76 000 F au total, au net, au du, aux parts, au prix fige', [76_000, 76_000, 76_000, 76_000, 76_000, 250],
+    [apptTotalXof(rdv, byId), apptNetXof(rdv, byId), apptDueXof(rdv, byId), somme(partsDuRituelXof(rdv, byId)), prixAFiger(rdv, byId).priceXof, arrondiDuCodeAuRdv(rdv, byId)]);
+  dit(7, 'le passe ne bouge pas : deja paye en partie, honore, ou prix fige au franc pres', [75_750, 75_750, 75_750],
+    [apptTotalXof({ ...rdv, paidXof: 10_000 }, byId), apptTotalXof({ ...rdv, status: 'honoré' } as Appointment, byId), apptTotalXof({ ...rdv, priceXof: 75_750 }, byId)]);
+  dit(7, 'sans code, ou un code qui ne mord sur rien : pas d arrondi', [75_750, 84_000],
+    [apptTotalXof({ ...rdv, codeOffre: undefined }, byId), apptTotalXof({ ...rdv, remisesLignes: undefined }, byId)]);
+  /* 10 250 F moins 100 F de code : arrondir a 11 000 F ferait payer plus que le prix plein. */
+  dit(7, 'jamais plus que le prix plein : 10 250 F moins 100 F revient a 10 250 F, pas 11 000 F', 10_250,
+    apptTotalXof(a({ id: 'r8', serviceIds: ['svE'], codeOffre: 'ROSE15', remisesLignes: [{ xof: 100 }] }), byId));
+}
 
 console.log(ko === 0 ? 'Tout tient.' : `${ko} constat(s) en echec.`);

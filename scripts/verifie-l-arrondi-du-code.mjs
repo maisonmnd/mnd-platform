@@ -23,6 +23,7 @@ const prouve = process.argv.includes('--prouve');
 
 const P = 'src/apps/trone/routes/vente/encaissement-pur.ts';
 const C = 'src/apps/trone/routes/vente/Caisse.tsx';
+const S = 'src/apps/trone/routes/clients/_shared.tsx';
 
 const FAUTES = [
   /* #1 : pas d'arrondi, ou au mauvais palier. */
@@ -42,6 +43,11 @@ const FAUTES = [
   { n: 6, fichier: C, avant: 'const netXof = unit * v.qty * (1 - discEff / 100);', apres: 'const netXof = unit * v.qty * (1 - v.disc / 100);' },
   { n: 6, fichier: C, avant: '    setRemiseGamme(0);\n', apres: '' },
   { n: 6, fichier: C, avant: "  const lignesRemisables = lines\n    .filter((l) => l.kind === 'service')", apres: "  const lignesRemisables = lines\n    .filter((l) => l.kind !== 'formation')" },
+  /* #7 : le rendez-vous reserve avec un code ne s'arrondit pas, ou le passe bouge. */
+  { n: 7, fichier: S, avant: '  const lu = totalLuXof(a, byId);\n  return lu + arrondiDuCodeAuRdv(a, byId, lu);', apres: '  return totalLuXof(a, byId);' },
+  { n: 7, fichier: S, avant: "  if (a.status === 'honoré' || apptPaidXof(a) > 0) return 0;\n", apres: '' },
+  { n: 7, fichier: S, avant: 'return arrondiDuCodeAuRdv(a, byId) > 0 ? splitByWeights(apptTotalXof(a, byId), poids) : poids;', apres: 'return poids;' },
+  { n: 7, fichier: S, avant: 'return Math.min(remise, reste === 0 ? 0 : PALIER_DU_CODE_XOF - reste);', apres: 'return reste === 0 ? 0 : PALIER_DU_CODE_XOF - reste;' },
 ];
 
 const md5 = (rel) => createHash('md5').update(readFileSync(path.join(racine, rel))).digest('hex');
