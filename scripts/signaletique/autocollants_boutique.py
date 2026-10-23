@@ -65,7 +65,8 @@ def _motif(cx, cy, ton=I_CLAIR):
 
 def logo_motif(cx, cy):
     lw = 27.5
-    return _motif(cx, cy) + [pose_logo('verrou-debout', cx - lw / 2, cy - 16.5, largeur=lw, couleur=V)[0]]
+    # « Les trois en B » (23 oct. 2026) : ivoire, allover sable, le logo en indigo.
+    return _motif(cx, cy, S) + [pose_logo('verrou-debout', cx - lw / 2, cy - 16.5, largeur=lw, couleur=I)[0]]
 
 
 def picto_motif(cx, cy):
@@ -76,8 +77,8 @@ def picto_motif(cx, cy):
 
 def devise_motif(cx, cy):
     lw = 16
-    return _motif(cx, cy) + [pose_logo('pictogramme', cx - lw / 2, cy - 15.5, largeur=lw, couleur=C)[0],
-                             texte(DEVISE_FON, 'fon', 7.5, cx, cy + 5.5, 'milieu', couleur=V)[0],
+    return _motif(cx, cy, S) + [pose_logo('pictogramme', cx - lw / 2, cy - 15.5, largeur=lw, couleur=C)[0],
+                                texte(DEVISE_FON, 'fon', 7.5, cx, cy + 5.5, 'milieu', couleur=I)[0],
                              texte(DEVISE_FR, 'cormorant-italique', ajuste(DEVISE_FR, 'cormorant-italique', 4.25, 35, 500), cx, cy + 12.5, 'milieu', 500, 0, C)[0]]
 
 
@@ -118,9 +119,9 @@ def devise(cx, cy):
 PASTILLES = [
     ('logo', 'MAISON MND logo seal', I, logo, PAR_DESSIN),
     # « Ajoute ceux-ci » (l'ancien R9-M), « à la place du Thank you et des 2 Merci » (23 oct. 2026).
-    ('motif', 'MAISON MND logo, allover', I, logo_motif, PAR_DESSIN),
+    ('motif', 'MAISON MND logo, allover', V, logo_motif, PAR_DESSIN),
     ('motif', 'Pictogram, allover', V, picto_motif, PAR_DESSIN),
-    ('devise', 'Motto, Fon and French, allover', I, devise_motif, PAR_DESSIN),
+    ('devise', 'Motto, Fon and French, allover', V, devise_motif, PAR_DESSIN),
     ('fetes', 'Season’s greetings (FR)', P, meilleurs_voeux, PAR_DESSIN),
     ('cadeau', 'A gift for you (FR)', S, cadeau, PAR_DESSIN),
     ('revenir', 'See you soon (FR)', C, a_bientot, PAR_DESSIN),
