@@ -101,6 +101,55 @@ h2 .ref { background: #B97A4A; color: #FBF8F2; padding: .4mm 2mm; border-radius:
     return f'<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Maison MND · all our stickers</title><style>{css}</style></head><body>{corps}</body></html>'
 
 
+def dessins_n12(w_page, h_page, echelle, par_page, cols):
+    """« Les 11 dessins sur une ou deux feuilles » : chaque dessin de N12 une fois, à l'échelle dite."""
+    a = Atelier(True)
+    b = boutique
+    d = 2 * b.R_REEL
+    pieces = []
+    for i, (_fam, titre, _fond, dessin, nb) in enumerate(b.PASTILLES):
+        filet = carre(0.3, 0.3, d - 0.6, d - 0.6, 3 * b.K, 0.5) if dessin is None else rond(d / 2, d / 2, d / 2 - 0.3, 0.5)
+        forme = f'{d:g} × {d:g} mm' if dessin is None else f'Ø{d:g} mm'
+        pieces.append((vignette(b.pastille(a, i, d / 2, d / 2, decoupe=False) + filet, d, d, d * echelle), f'{i + 1:02d} · {titre}', forme, 1))
+    lw, lh = b.ETIQ_W * b.K_ETIQ, b.ETIQ_H * b.K_ETIQ
+    pieces.append((vignette(b.etiquette(a, lw / 2, lh / 2, decoupe=False) + carre(0.3, 0.3, lw - 0.6, lh - 0.6, 3 * b.K_ETIQ, 0.5), lw, lh, lw * echelle),
+                   f'{len(pieces) + 1:02d} · La Brume · Hydra Mist label', f'{lw:.0f} × {lh:.0f} mm', 2))
+    lots = [pieces[k:k + par_page] for k in range(0, len(pieces), par_page)]
+    taille = 'actual size · 1:1' if echelle == 1 else f'printed at {echelle * 100:.0f} % (A4 cannot hold them at full size)'
+    pages = []
+    for k, lot in enumerate(lots, 1):
+        cases = ''.join(f'<div class="c" style="grid-column: span {sp}">{img}<b>{esc(t)}</b><span>{esc(f)} · 6 per sheet</span></div>' for img, t, f, sp in lot)
+        pages.append(f'<section><header><b>N12 · Boutique stickers · the {len(pieces)} designs</b><span>{esc(taille)} · page {k} of {len(lots)} · Maison MND</span></header>'
+                     f'<div class="g" style="grid-template-columns: repeat({cols}, auto)">{cases}</div></section>')
+    css = (f'@page {{ size: {w_page}mm {h_page}mm; margin: 0 }} * {{ box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact }} '
+           'html, body { margin: 0; padding: 0; font: 7pt/1.25 Arial, sans-serif; color: #1E2150 } '
+           f'section {{ width: {w_page}mm; height: {h_page}mm; padding: 7mm 6mm; page-break-after: always; display: flex; flex-direction: column; gap: 4mm; overflow: hidden }} '
+           'section:last-child { page-break-after: auto } '
+           'header { display: flex; justify-content: space-between; align-items: baseline; border-bottom: .3mm solid #B97A4A; padding-bottom: 1mm; font-size: 8pt } '
+           'header span { color: #666; font-size: 6.6pt } '
+           '.g { display: grid; gap: 3mm 5mm; justify-content: center; align-content: start } '
+           '.c { display: grid; justify-items: center; text-align: center; gap: .6mm } .c b { font-size: 6.8pt; margin-top: .6mm } .c span { color: #666; font-size: 6.2pt }')
+    return f'<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Maison MND · N12 · the 11 designs</title><style>{css}</style></head><body>{"".join(pages)}</body></html>'
+
+
+def imprime(html_texte, pdf, png=True):
+    h = os.path.join(SORTIE, '_page.html')
+    io.open(h, 'w', encoding='utf-8').write(html_texte)
+    subprocess.run([CHROME, '--headless=new', '--no-first-run', '--disable-gpu', '--no-pdf-header-footer', '--virtual-time-budget=30000',
+                    f'--print-to-pdf={pdf}', 'file:///' + h.replace(os.sep, '/')], capture_output=True, timeout=300)
+    os.remove(h)
+    d = pdfium.PdfDocument(pdf)
+    if png:
+        for i in range(len(d)):
+            suite = '' if len(d) == 1 else f' p{i + 1}'
+            d[i].render(scale=300 / 72 * 0.8).to_pil().save(pdf[:-4] + suite + '.png', optimize=True)
+    return len(d)
+
+
+for nom, args in (('N12 · les 11 dessins · A3 1-1', (297, 420, 1.0, 12, 3)), ('N12 · les 11 dessins · A4 90 pour cent', (210, 297, 0.9, 6, 2))):
+    n = imprime(dessins_n12(*args), os.path.join(SORTIE, nom + '.pdf'))
+    print(nom, n, 'page(s)')
+
 h = os.path.join(SORTIE, '_recap.html')
 io.open(h, 'w', encoding='utf-8').write(page())
 pdf = os.path.join(SORTIE, NOM + '.pdf')
