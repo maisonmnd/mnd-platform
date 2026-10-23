@@ -539,7 +539,7 @@ ENSEIGNES = [
                lighting='Only the medallion lights up: 3000 K warm white LED behind the opal, IP65, 12 V. Power through an armoured door cable loop on the hinge side, the driver stays inside the house; same timer as the other signs.',
                change='NEW ITEM: our medallion, backlit, on the outside metal door of the house. Please quote.')),
     _f('N12', n12, 1060, 680, 0, 'feuille', 'planche', 'plat',
-       nom='Autocollants de la boutique, 12 dessins', name='Boutique stickers, 12 designs per sheet',
+       nom='Autocollants de la boutique, 11 dessins', name='Boutique stickers, 11 designs per sheet',
        statut='nouvelle', qte=100, lieu='Sachets, papier de soie, boîtes, flacons de brume',
        fr=dict(construction='Papier synthétique adhésif, pelliculage mat, impression numérique recto ; mi-chair à la forme : 180 pastilles Ø50 et 9 étiquettes 108 × 50 par feuille.',
                finition='Les encres de la charte : indigo, indigo profond, cuivre, ivoire, sable ; l’or seulement sur l’indigo (Meilleurs vœux).',

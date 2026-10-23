@@ -12,7 +12,7 @@ là ensemble » : la devise entière sur une seule pastille.
 La même feuille que R9 (1060 × 680 mm, papier synthétique, découpe à la forme),
 pour qu'elle coûte à peu près le même prix : 180 pastilles Ø50 pour fermer les
 sachets, les papiers de soie et les boîtes, et 9 étiquettes 108 × 50 pour le
-flacon de brume. Une feuille, douze dessins ; 100 feuilles = 18 000 pastilles et 900 étiquettes.
+flacon de brume. Une feuille, onze dessins ; 100 feuilles = 18 000 pastilles et 900 étiquettes.
 Un seul motif par pastille, du vide : la Maison veut du sobre.
 """
 from enseignes import C, I, S, V, DEVISE_FON, ajuste
