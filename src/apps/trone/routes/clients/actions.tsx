@@ -23,6 +23,7 @@ import { pointsRateStore, pointsHistoryStore, pointsEnabledStore, estDuCercle, c
 import { uid } from '../../../../shared/store';
 import { sameName, normName } from '../../../../shared/text';
 import { addTipPartage, repartirPourboire, retirerPourboiresDesFactures, PART_POURBOIRE_DEFAUT } from '../../../../shared/tips';
+import { pourboireDejaRecu } from '../../../../shared/pourboire-du-rituel';
 import { Link } from 'react-router-dom';
 import { autoConfigStore, automationsActiveStore, REVIEW_LINK_DEFAUT, lienPaiementMomo } from '../equipe/data';
 import { signeLeMessage } from '../../../../shared/identite';
@@ -1288,8 +1289,16 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour, init
       recaleLesParts(net - alreadyPaid - (next ? deposit : 0));
       return next;
     });
+  /* UN POURBOIRE PAR RITUEL — 23 octobre 2026. « Refuse de donner les
+     pourboires plusieurs fois sur un même rituel » (Yéman) : Brice, sur son
+     poste, avait inscrit un second pourboire sur le rituel de N. M., déjà
+     réglé avec le sien. Un rituel qui en porte un ne s'en voit plus
+     proposer : le champ laisse la place à ce qui a été reçu, et le geste
+     n'en écrit aucun. La règle : shared/pourboire-du-rituel.ts. */
+  const [piecesDuPourboire] = useInvoices();
+  const pourboireDeja = pourboireDejaRecu(appt, piecesDuPourboire);
   const [tipStr, setTipStr] = useState('0');
-  const tip = Math.max(0, Math.round(Number(tipStr) || 0));
+  const tip = pourboireDeja ? 0 : Math.max(0, Math.round(Number(tipStr) || 0));
   /* LE POURBOIRE SE PARTAGE ENTRE TOUS. Il allait auparavant au seul maître
      officiant, retrouvé par son nom — une majuscule de différence suffisait
      alors à le faire disparaître. Ce n'est pas la règle de la Maison : le
@@ -1894,20 +1903,26 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour, init
       /* Pourboire seul sur un rituel déjà soldé : on crée une facture minimale à 0 F
          (invoiceTotal=0 → aucun chiffre d'affaires) portant le pourboire, pour qu'il
          reste tracé dans la caisse et reversable au maître. */
-      const inv: Invoice = nouvelleFacture({
-        branchId: branch.id,
-        serie: 'F',
-        clientId: appt.clientId,
-        date: invDate,
-        lines: [ligneFacture(`Pourboire · ${appt.master}`, 0)],
-        theme: 'Rose',
-        payment: pay,
-        cashbox: activeBox,
-        clientName: client?.name,
-        master: appt.master,
-        note: 'Pourboire',
-        tipXof: tip,
-      });
+      const inv: Invoice = {
+        ...nouvelleFacture({
+          branchId: branch.id,
+          serie: 'F',
+          clientId: appt.clientId,
+          date: invDate,
+          lines: [ligneFacture(`Pourboire · ${appt.master}`, 0)],
+          theme: 'Rose',
+          payment: pay,
+          cashbox: activeBox,
+          clientName: client?.name,
+          master: appt.master,
+          note: 'Pourboire',
+          tipXof: tip,
+        }),
+        /* Reliée au rituel qu'elle remercie (23 octobre 2026) : sans ce lien,
+           un second poste ne voyait pas qu'il avait déjà eu son pourboire. */
+        pourboireDe: appt.id,
+      };
+      idPieceEncaissee = inv.id;
       invoicesStore.set((prev) => [inv, ...prev]);
     }
 
@@ -2684,9 +2699,19 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour, init
           {/* LE POURBOIRE, AVEC L'ARGENT REÇU (sa décision) : la cliente tend
               les deux d'un bloc. Il se partage entre toute l'équipe, et le
               partage se montre avant d'être écrit. */}
-          <Field label="Pourboire reçu avec, partagé entre l’équipe">
-            <Input type="number" min={0} value={tipStr} onChange={(e) => setTipStr(e.target.value)} style={{ textAlign: 'right' }} aria-label="Pourboire" />
-          </Field>
+          {pourboireDeja ? (
+            <div style={{ padding: '9px 12px', background: 'var(--color-sable)', borderRadius: 4, fontSize: 12.5, lineHeight: 1.55 }}>
+              <b style={{ fontWeight: 600 }}>Pourboire déjà reçu sur ce rituel : {fmtMoney(pourboireDeja.montantXof, currency)}</b>
+              {pourboireDeja.date ? `, le ${frShortAn(pourboireDeja.date)}` : ''}.
+              <span style={{ display: 'block', color: 'var(--ink-soft)' }}>
+                Un rituel ne reçoit qu’un pourboire. Pour en corriger le montant, ouvrez la pièce{pourboireDeja.numero ? ` ${pourboireDeja.numero}` : ''} dans Factures.
+              </span>
+            </div>
+          ) : (
+            <Field label="Pourboire reçu avec, partagé entre l’équipe">
+              <Input type="number" min={0} value={tipStr} onChange={(e) => setTipStr(e.target.value)} style={{ textAlign: 'right' }} aria-label="Pourboire" />
+            </Field>
+          )}
           {tip > 0 && partMnd && !partMnd.mnd && (
             <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: -6 }}>Il part avec la demande MND PAY.</div>
           )}

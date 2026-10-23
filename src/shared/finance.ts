@@ -179,6 +179,11 @@ export type Invoice = {
   master?: string;
   /** RDV créé automatiquement à l’acceptation d’un devis (évite les doublons). */
   apptId?: string;
+  /** LA PIÈCE DE POURBOIRE SEUL d'un rituel déjà soldé (23 octobre 2026) : le
+      rituel qu'elle remercie. Pas `apptId`, qui désigne LA pièce du rituel
+      et que l'encaissement relit pour son journal de versements. Voir
+      shared/pourboire-du-rituel.ts : un rituel ne reçoit qu'un pourboire. */
+  pourboireDe?: string;
   /** LES RELANCES EN PAUSE (18 octobre 2026) : « elle passe régler samedi ».
       Posée au comptoir par toute personne qui encaisse ; la tournée du
       serveur ne relance plus cette facture tant qu'elle est là. */
