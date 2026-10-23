@@ -53,7 +53,7 @@ def r4m(a):
 
 
 def r5m(a):
-    return r5(a) + '<g>' + ''.join(pictogramme(13 + i * 34, 326, 22, C) for i in range(4)) + '</g>'
+    return r5(a) + '<g>' + ''.join(pictogramme(13 + i * 34, 346, 22, C) for i in range(4)) + '</g>'
 
 
 
@@ -78,8 +78,8 @@ def n1m(a):
 
 
 def n5m(a):
-    pts = grille(0, 0, 3000, 600, 100, 150, 130, marge=15)
-    return n5(a) + allover(pts, 100, TON)
+    pts = grille(0, 0, 1500, 300, 50, 75, 65, marge=7.5)
+    return n5(a) + allover(pts, 50, TON)
 
 
 N6M_H, N6M_DY = 650, 220
@@ -181,7 +181,7 @@ def recettes_des_options(R):
         'R1-M': dict(montage='mur', centre=2.0, support=dict(el=0, ep=4, matiere='alu-indigo', face='plein'),
                      surimpressions=[dict(el=[1], z=4.1)], pieces=[_p(2, 'cuivre-brosse', 30, 19)], goujons=15, vues=['jour', 'situation']),
         'R4-M': de('R4', surimpressions=[dict(el=[5], z=60.1)]),
-        'R5-M': de('R5', support=sup('R5', imprime=[1, 2, 3, 5, 6])),
+        'R5-M': de('R5', support=sup('R5', imprime=[1, 2, 4, 5])),
         'R8-M': de('R8', pieces=R['R8']['pieces'] + [_p(8, 'cuivre-miroir', 2, 22.5)]),
         'N1-M': dict(montage='mur', centre=3.4, support=dict(el=0, ep=3, matiere='alu-indigo', face='plein'),
                      surimpressions=[dict(el=[1], z=3.1)], pieces=[_p(2, 'cuivre-brosse', 50, 33, 'halo')], goujons=30,

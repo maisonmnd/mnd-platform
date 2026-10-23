@@ -4,7 +4,7 @@
     python scripts/signaletique/recap_autocollants.py "<sortie>"
 
 « Fais une page qui résume tous les autocollants » (Yéman) : une seule page A3
-paysage, R9 (les 15 ronds Ø200) puis N12 (la boutique), chaque dessin avec son
+paysage, R9 (la feuille de la boutique depuis le 23 oct.), chaque dessin avec son
 nom, sa taille, son nombre par feuille et une place suggérée. Les dessins sont
 ceux des fichiers d'impression, jamais redessinés. Sortie : un PDF et un PNG.
 """
@@ -19,7 +19,6 @@ import pypdfium2 as pdfium
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from enseignes import Atelier  # noqa: E402
 from formes import pose_logo  # noqa: E402
-import autocollants  # noqa: E402
 import autocollants_boutique as boutique  # noqa: E402
 
 SORTIE = sys.argv[1]
@@ -58,10 +57,6 @@ def case(img, nom, ligne1, ligne2):
 def page():
     a = Atelier(True)       # les couleurs du rendu, sans trait de découpe : c'est une page à lire
     logo, _w, _h = pose_logo('verrou-couche', 0, 0, largeur=320, couleur='#F6F1E7')
-    r9 = []
-    for n, (fam, titre, _fond, _d) in enumerate(autocollants.AUTOCOLLANTS):
-        img = vignette(autocollants.autocollant(a, n, 100, 100, decoupe=False) + rond(100, 100, 99.4, 1.2), 200, 200, 40)
-        r9.append(case(img, f'{n + 1:02d} · {titre}', 'Ø200 mm · 1 per sheet', PLACE_R9.get(fam, '')))
     b = boutique
     n12 = []
     for i, (fam, titre, _fond, _d, nb) in enumerate(b.PASTILLES):
@@ -76,13 +71,11 @@ def page():
     par_feuille = sum(p[4] for p in b.PASTILLES) + b.N_ETIQ
     corps = f'''
 <div class="bandeau"><svg viewBox="0 0 320 {_h:.1f}">{logo}</svg>
-<div class="t"><b>All our stickers · Tous nos autocollants</b><span>Two sheets of 1060 × 680 mm, synthetic paper, matte lamination · 100 sheets each</span></div>
+<div class="t"><b>Our stickers · Nos autocollants</b><span>One sheet of 1060 × 680 mm, synthetic paper, matte lamination · 100 sheets (PI FINALE, line 7)</span></div>
 <div class="d">23 Oct 2026<br>Maison MND · Cotonou, Benin</div></div>
-<h2><span class="ref">R9</span> Round stickers Ø200 mm · 15 designs, 1 of each per sheet · 100 sheets = 100 of each</h2>
-<div class="grille r9">{''.join(r9)}</div>
-<h2><span class="ref">N12</span> Boutique stickers · {len(n12)} designs, {b.PAR_DESSIN} of each per sheet ({par_feuille} pieces) · 100 sheets = {b.PAR_DESSIN * 100} of each</h2>
+<h2><span class="ref">R9</span> Stickers · {len(n12)} designs, {b.PAR_DESSIN} of each per sheet ({par_feuille} pieces) · 100 sheets = {b.PAR_DESSIN * 100} of each</h2>
 <div class="grille n12">{''.join(n12)}</div>
-<p class="pied">Print files in « Impression · R9 et N12 »: the machine PDF at 1:1 with the cut line as spot colour CutContour, print-only, cut-only, and an A3 proof with each sticker at actual size. Places are suggestions.</p>'''
+<p class="pied">Print files in « Impression · R9 »: the machine PDF at 1:1 with the cut line as spot colour CutContour, print-only, cut-only, and an A3 proof with each sticker at actual size. Places are suggestions.</p>'''
     css = '''@page { size: 420mm 297mm; margin: 0 }
 * { box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact }
 html, body { margin: 0; padding: 0 }
@@ -102,7 +95,7 @@ h2 .ref { background: #B97A4A; color: #FBF8F2; padding: .4mm 2mm; border-radius:
 
 
 def dessins_n12(w_page, h_page, echelle, par_page, cols):
-    """« Les 11 dessins sur une ou deux feuilles » : chaque dessin de N12 une fois, à l'échelle dite."""
+    """« Les 11 dessins sur une ou deux feuilles » : chaque dessin de R9 une fois, à l'échelle dite."""
     a = Atelier(True)
     b = boutique
     d = 2 * b.R_REEL
@@ -119,7 +112,7 @@ def dessins_n12(w_page, h_page, echelle, par_page, cols):
     pages = []
     for k, lot in enumerate(lots, 1):
         cases = ''.join(f'<div class="c" style="grid-column: span {sp}">{img}<b>{esc(t)}</b><span>{esc(f)} · 6 per sheet</span></div>' for img, t, f, sp in lot)
-        pages.append(f'<section><header><b>N12 · Boutique stickers · the {len(pieces)} designs</b><span>{esc(taille)} · page {k} of {len(lots)} · Maison MND</span></header>'
+        pages.append(f'<section><header><b>R9 · Stickers · the {len(pieces)} designs</b><span>{esc(taille)} · page {k} of {len(lots)} · Maison MND</span></header>'
                      f'<div class="g" style="grid-template-columns: repeat({cols}, auto)">{cases}</div></section>')
     css = (f'@page {{ size: {w_page}mm {h_page}mm; margin: 0 }} * {{ box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact }} '
            'html, body { margin: 0; padding: 0; font: 7pt/1.25 Arial, sans-serif; color: #1E2150 } '
@@ -129,7 +122,7 @@ def dessins_n12(w_page, h_page, echelle, par_page, cols):
            'header span { color: #666; font-size: 6.6pt } '
            '.g { display: grid; gap: 3mm 5mm; justify-content: center; align-content: start } '
            '.c { display: grid; justify-items: center; text-align: center; gap: .6mm } .c b { font-size: 6.8pt; margin-top: .6mm } .c span { color: #666; font-size: 6.2pt }')
-    return f'<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Maison MND · N12 · the 11 designs</title><style>{css}</style></head><body>{"".join(pages)}</body></html>'
+    return f'<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Maison MND · R9 · the 11 designs</title><style>{css}</style></head><body>{"".join(pages)}</body></html>'
 
 
 def imprime(html_texte, pdf, png=True):
@@ -146,7 +139,7 @@ def imprime(html_texte, pdf, png=True):
     return len(d)
 
 
-for nom, args in (('N12 · les 11 dessins · A3 1-1', (297, 420, 1.0, 12, 3)), ('N12 · les 11 dessins · A4 90 pour cent', (210, 297, 0.9, 6, 2))):
+for nom, args in (('R9 · les 11 dessins · A3 1-1', (297, 420, 1.0, 12, 3)), ('R9 · les 11 dessins · A4 90 pour cent', (210, 297, 0.9, 6, 2))):
     n = imprime(dessins_n12(*args), os.path.join(SORTIE, nom + '.pdf'))
     print(nom, n, 'page(s)')
 

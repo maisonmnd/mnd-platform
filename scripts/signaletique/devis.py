@@ -72,7 +72,7 @@ LIGNES_PI = [
     ('R5', '4', ('Quote: 2 plates reprinted', '请报价：重印 2 块门牌')),
     ('R6', '5', ('Quote: new printed face', '请报价：新印刷面板')),
     ('R7', '6', ('Quote: new face', '请报价：新面板')),
-    ('R9', '7', ('Confirm: 15 new designs, same sheet', '请确认：15 款新图案，版面不变')),
+    ('R9', '7', ('Confirm: our final sheet, 11 designs, 6 of each', '请确认：定稿贴纸，11 款，每款 6 个')),
     ('R2', None, ('Quote: new ivory top layer and new copper back layer', '请报价：新的象牙白面层和新的铜色底层')),
     ('R8', None, ('Quote: 2 plates reprinted', '请报价：重印 2 块门牌')),
 ]
@@ -163,8 +163,8 @@ COMPLEMENTS_NEUFS = [
      f'每个户外发光件（{ALLUMES_DEHORS}）配一个 7 天数字定时器：天黑自动开，关店自动关。', 'per item'),
     ('N10 electronics', 'N10 电子部分', 'If not included in N10: RGBW addressable controller with phone app, motion sensor, NFC tag written and tested, the scenes programmed (sheet N10, page 2).',
      '如 N10 报价未包含：RGBW 可编程控制器和手机应用、人体感应器、写好并测试的 NFC 标签、编好的场景（见 N10 第 2 页）。', '1 set'),
-    ('Proof, photos, crates, shipping, warranty', '打样、照片、木箱、运输、质保', 'As in our revision request for the order: please include the new items you quote, labelled N1 to N12 (and -M for the options).',
-     '同我们订单的修改请求：请把报价的新品一并列入，编号 N1 至 N12（选项加 -M）。', 'same'),
+    ('Proof, photos, crates, shipping, warranty', '打样、照片、木箱、运输、质保', 'As in our revision request for the order: please include the new items you quote, labelled N1 to N11 (and -M for the options).',
+     '同我们订单的修改请求：请把报价的新品一并列入，编号 N1 至 N11（选项加 -M）。', 'same'),
 ]
 
 

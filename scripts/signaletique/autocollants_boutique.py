@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""LES AUTOCOLLANTS DE LA BOUTIQUE, 23 octobre 2026.
+"""LES AUTOCOLLANTS DE LA BOUTIQUE, 23 octobre 2026 : la feuille R9 de la commande.
 
 « Prépare un nouveau jeu d'autocollants que je puisse me permettre d'avoir à
 100 : plusieurs jeux, avec des messages différents. MAISON MND, Merci pour votre
@@ -15,8 +15,11 @@ sachets, les papiers de soie et les boîtes (6 de chaque dessin), et 6 étiquett
 146 × 68 pour le flacon de brume. Une feuille, onze dessins ; 100 feuilles = 6 000
 pastilles et 600 étiquettes.
 Un seul motif par pastille, du vide : la Maison veut du sobre.
+
+Le 23 octobre au soir : les trois pastilles « à motif » de l'ancien R9-M (le logo, le pictogramme,
+la devise, sur l'allover avec l'anneau cuivre) prennent la place du Thank you et des deux Merci.
 """
-from enseignes import C, I, S, V, DEVISE_FON, ajuste
+from enseignes import C, I, S, V, DEVISE_FON, DEVISE_FR, ajuste
 from formes import ENCRES, pose_logo, proportion, texte
 from motifs import allover, grille, medaillon
 
@@ -54,19 +57,27 @@ def logo(cx, cy):
     return [pose_logo('verrou-debout', cx - lw / 2, cy - h / 2, largeur=lw, couleur=C)[0]]
 
 
-def merci_achat(cx, cy):
-    return [_ligne('Merci', 'cormorant', 14, cx, cy + 1, I, 40, 600),
-            _ligne('pour votre achat', 'cormorant-italique', 6.4, cx, cy + 9.5, C, 38)]
+def _motif(cx, cy):
+    """Le fond des pastilles « à motif » de l'ancien R9-M : l'allover ton sur ton dans le disque, l'anneau cuivre."""
+    pts = grille(cx - 21, cy - 21, 42, 42, 5, 7.5, 6.5, rond=(cx, cy, 21), ancre=(cx, cy))
+    return [allover(pts, 5, I_CLAIR), f'<circle cx="{cx}" cy="{cy}" r="22" fill="none" stroke="{C}" stroke-width="0.4"/>']
 
 
-def merci_fidelite(cx, cy):
-    return [_ligne('Merci', 'cormorant', 14, cx, cy + 1, V, 40, 600),
-            _ligne('pour votre fidélité', 'cormorant-italique', 6.4, cx, cy + 9.5, V, 38)]
+def logo_motif(cx, cy):
+    lw = 27.5
+    return _motif(cx, cy) + [pose_logo('verrou-debout', cx - lw / 2, cy - 16.5, largeur=lw, couleur=V)[0]]
 
 
-def thank_you(cx, cy):
-    return [_ligne('Thank you', 'cormorant-italique', 11, cx, cy + 2, V, 40),
-            _ligne('MAISON MND', 'jost', 3.2, cx, cy + 10, C, 30, 500, 0.3)]
+def picto_motif(cx, cy):
+    lw = 31
+    return _motif(cx, cy) + [pose_logo('pictogramme', cx - lw / 2, cy - 12.5, largeur=lw, couleur=C)[0]]
+
+
+def devise_motif(cx, cy):
+    lw = 16
+    return _motif(cx, cy) + [pose_logo('pictogramme', cx - lw / 2, cy - 15.5, largeur=lw, couleur=C)[0],
+                             texte(DEVISE_FON, 'fon', 7.5, cx, cy + 5.5, 'milieu', couleur=V)[0],
+                             texte(DEVISE_FR, 'cormorant-italique', ajuste(DEVISE_FR, 'cormorant-italique', 4.25, 35, 500), cx, cy + 12.5, 'milieu', 500, 0, C)[0]]
 
 
 def meilleurs_voeux(cx, cy):
@@ -100,9 +111,10 @@ def devise(cx, cy):
 # (famille, titre anglais, fond, dessin, nombre par feuille)
 PASTILLES = [
     ('logo', 'MAISON MND logo seal', I, logo, PAR_DESSIN),
-    ('merci', 'Thank you for your purchase (FR)', V, merci_achat, PAR_DESSIN),
-    ('merci', 'Thank you for your loyalty (FR)', C, merci_fidelite, PAR_DESSIN),
-    ('merci', 'Thank you (EN)', I, thank_you, PAR_DESSIN),
+    # « Ajoute ceux-ci » (l'ancien R9-M), « à la place du Thank you et des 2 Merci » (23 oct. 2026).
+    ('motif', 'MAISON MND logo, allover', I, logo_motif, PAR_DESSIN),
+    ('motif', 'Pictogram, allover', I, picto_motif, PAR_DESSIN),
+    ('devise', 'Motto, Fon and French, allover', I, devise_motif, PAR_DESSIN),
     ('fetes', 'Season’s greetings (FR)', P, meilleurs_voeux, PAR_DESSIN),
     ('cadeau', 'A gift for you (FR)', S, cadeau, PAR_DESSIN),
     ('revenir', 'See you soon (FR)', C, a_bientot, PAR_DESSIN),
@@ -127,7 +139,8 @@ def etiquette_brume(a, cx, cy):
     out = [pose_logo('verrou-couche', cx - lw / 2, cy - 19, largeur=lw, couleur=C)[0]]
     out.append(_ligne('La Brume', 'cormorant', 12, cx, cy + 6, I, 90, 600))
     out.append(_ligne('Hydra Mist', 'cormorant-italique', 8, cx, cy + 14, C, 80))
-    out.append(_ligne('ROSE ET ALOE VERA · 250 ML', 'jost', 3.2, cx, cy + 20.5, I, 80, 500, 0.2))
+    # « Sur La Brume, enlève rose et aloe vera » (23 oct. 2026) : le volume seul.
+    out.append(_ligne('250 ML', 'jost', 3.2, cx, cy + 20.5, I, 80, 500, 0.2))
     return out
 
 

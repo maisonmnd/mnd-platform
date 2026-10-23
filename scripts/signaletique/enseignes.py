@@ -114,14 +114,18 @@ def _femme(x, y, c):
 
 
 def r5(a):
-    out = [f'<rect width="150" height="400" rx="2" fill="{V}"/>',
-           _homme(48, 52, I), _femme(102, 52, I),
-           # « La barre qui sépare l'image des toilettes en cuivre au lieu du noir » (23 oct. 2026).
-           f'<rect x="73.5" y="48" width="3" height="92" fill="{a.metal(C)}"/>',
-           f'<rect y="170" width="150" height="46" fill="{a.metal(C)}"/>']
-    t = ajuste('TOILETTES', 'cormorant', 26, 124, 500, 0.08)
-    out.append(texte('TOILETTES', 'cormorant', t, 75, 300, 'milieu', 500, 0.08, I)[0])
-    return ''.join(out)
+    # « R5 doit être celle de Connie, aux couleurs de Maison MND » (23 oct. 2026) : les tracés et la police de
+    # l'épreuve 4, relevés par r5_connie.py, jamais redessinés ; figures et TOILETTES en indigo, barre et bande en cuivre.
+    import io
+    import json
+    import os
+    r = json.load(io.open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'r5_connie.json'), encoding='utf-8'))
+    bx, by, bw, bh = r['bande']
+    return ''.join([f'<rect width="150" height="400" rx="2" fill="{V}"/>',
+                    f'<path d="{r["figures"]}" fill="{I}" fill-rule="evenodd"/>',
+                    f'<path d="{r["barre"]}" fill="{a.metal(C)}"/>',
+                    f'<rect x="{bx}" y="{by}" width="{bw}" height="{bh}" fill="{a.metal(C)}"/>',
+                    f'<path d="{r["toilettes"]}" fill="{I}"/>'])
 
 
 def r6(a):
@@ -171,13 +175,8 @@ def plaque_atelier(a, rang):
 
 
 def r9(a):
-    """La planche de quinze autocollants : leurs messages et leurs couleurs vivent dans autocollants.py."""
-    from autocollants import planche
-    return planche(a)
-
-
-def n12(a):
-    """La feuille de la boutique : ses dessins vivent dans autocollants_boutique.py."""
+    """La feuille d'autocollants de la commande. Depuis le 23 oct. 2026, c'est la feuille de la boutique (ses
+    dessins vivent dans autocollants_boutique.py) ; les quinze ronds Ø200 d'autocollants.py sont mis de côté."""
     from autocollants_boutique import planche
     return planche(a)
 
@@ -221,8 +220,9 @@ def n4(a):
 
 
 def n5(a):
-    out = [f'<rect width="3000" height="600" fill="{I}"/>']
-    s, w, h = a.logo('verrou-couche', 800, 80.7, largeur=1400, couleur=V)
+    # « N5, réduire sa taille de moitié » (23 oct. 2026) : 1500 × 300 au lieu de 3000 × 600.
+    out = [f'<rect width="1500" height="300" fill="{I}"/>']
+    s, w, h = a.logo('verrou-couche', 400, 40.35, largeur=700, couleur=V)
     out.append(s)
     return ''.join(out)
 
@@ -440,16 +440,16 @@ ENSEIGNES = [
                finish='Copper mirror (instead of gold). One extra French line under each name.', lighting='Backlit 3000 K warm white.',
                change='Already made. Reprint plate II: “GBÉJÍ” must be “GBÈJÍ”. Reprint the KÒKÒ plate with our pictogram. The other plates stay; gold kept.')),
     _f('R9', r9, 1060, 680, 0, 'feuille', 'planche', 'plat',
-       nom='Autocollants ronds Ø20 cm, 15 dessins', name='Round stickers Ø200, 15 designs per sheet',
-       statut='commande', pi='PI FINALE · ligne 7 (stickers D20, 100 feuilles)', prix=35, qte=100, lieu='Miroirs, bacs à shampoing, comptoir, coffrets',
-       fr=dict(construction='Papier synthétique adhésif, pelliculage mat, impression numérique recto ; découpe à la forme Ø200.',
-               finition='Cinq encres de la charte : indigo, indigo profond, cuivre, ivoire et sable.',
+       nom='Autocollants de la boutique, 11 dessins', name='Stickers, 11 designs, 6 of each per sheet',
+       statut='commande', pi='PI FINALE · ligne 7 (stickers, 100 feuilles)', prix=35, qte=100, lieu='Sachets, papier de soie, boîtes, flacons de brume',
+       fr=dict(construction='Papier synthétique adhésif, pelliculage mat, impression numérique recto ; mi-chair à la forme : 60 pastilles Ø88 (6 de chaque dessin) et 6 étiquettes 146 × 68 par feuille.',
+               finition='Les encres de la charte : indigo, indigo profond, cuivre, ivoire, sable ; l’or seulement sur l’indigo (Meilleurs vœux).',
                lumiere='Sans lumière (autocollants).',
-               change='Voici les autocollants que vous attendiez : les 15 dessins sont définitifs, même planche 1060 × 680, 5 × 3 (fichier R9).'),
-       en=dict(construction='Synthetic paper adhesive, matte lamination, single-sided digital print, die-cut Ø200 (magenta line), 3 mm bleed.',
-               finish='Five brand inks: indigo, deep indigo, copper, ivory and sand. Print the 3 QR codes at 100%, never resized or recoloured.',
+               change='Voici les autocollants que vous attendiez : notre feuille définitive, 11 dessins, 6 de chaque : 60 pastilles Ø88 et 6 étiquettes de brume 146 × 68, même feuille 1060 × 680 (fichier R9).'),
+       en=dict(construction='Synthetic paper adhesive, matte lamination, single-sided digital print; kiss-cut to shape (magenta line), 1.5 mm bleed: 60 round seals Ø88 mm (6 of each design) and 6 labels 146 × 68 mm per sheet.',
+               finish='Brand inks: indigo, deep indigo, copper, ivory and sand; gold only on indigo (season’s greetings).',
                lighting='None (stickers).',
-               change='Here are the stickers you have been waiting for: all 15 designs are final, same sheet 1060 × 680 mm, 5 × 3 (file R9).')),
+               change='Here are the stickers you have been waiting for: our final sheet, 11 designs, 6 of each: 60 round seals Ø88 mm and 6 mist bottle labels 146 × 68 mm, same sheet 1060 × 680 mm (file R9).')),
     _f('N1', n1, 3000, round(H_N1), 50, 'lettres', 'facade', 'halo',
        nom='Lettres boîtiers de façade, halo', name='Halo-lit reverse channel letters, horizontal logo',
        statut='nouvelle', lieu='Bandeau de façade',
@@ -481,12 +481,12 @@ ENSEIGNES = [
                finition='Ivoire, indigo.', lumiere='LED sur le pourtour du cadre, halo blanc chaud 3000 K.', change='Inspiré de « Maison du Revêtement ».'),
        en=dict(construction='10 mm ivory acrylic panel in a 20 mm INDIGO aluminium frame; logo flat-cut from 5 mm indigo acrylic, raised; our company registration and tax numbers (RCCM RB/COT/26 A 120676 · IFU 1 2010 0097 2809) UV printed in indigo under COTONOU · BÉNIN.',
                finish='Ivory, indigo.', lighting='Perimeter LED (frame halo), 3000 K warm white.', change='NEW ITEM. Please quote.')),
-    _f('N5', n5, 3000, 600, 15, 'rect', 'rue', 'plat-relief',
+    _f('N5', n5, 1500, 300, 15, 'rect', 'rue', 'plat-relief',
        nom='Bandeau indigo, lettres ivoire découpées', name='Indigo fascia with ivory flat-cut letters',
        statut='nouvelle', lieu='Bandeau de façade (jour)',
-       fr=dict(construction='Bandeau aluminium composite INDIGO 3000 × 600 ; verrou couché en acrylique IVOIRE 15 mm découpé, sur entretoises.',
+       fr=dict(construction='Bandeau aluminium composite INDIGO 1500 × 300 ; verrou couché en acrylique IVOIRE 15 mm découpé, sur entretoises.',
                finition='Indigo et ivoire.', lumiere='Non lumineux ; deux appliques col-de-cygne en option.', change='Inspiré de l’enseigne « DESIGN » : sobre, de jour.'),
-       en=dict(construction='3000 × 600 mm INDIGO aluminium composite fascia; horizontal logo flat-cut from 15 mm IVORY acrylic, on studs.',
+       en=dict(construction='1500 × 300 mm INDIGO aluminium composite fascia; horizontal logo flat-cut from 15 mm IVORY acrylic, on studs.',
                finish='Indigo, ivory.', lighting='Non-illuminated; two gooseneck lamps optional.', change='NEW ITEM. Please quote.')),
     _f('N6', n6, 1200, 430, 8, 'rect', 'nuit', 'neon',
        nom='Néon de la devise', name='LED neon motto',
@@ -538,15 +538,9 @@ ENSEIGNES = [
                finish='Brushed copper, ivory opal.',
                lighting='Only the medallion lights up: 3000 K warm white LED behind the opal, IP65, 12 V. Power through an armoured door cable loop on the hinge side, the driver stays inside the house; same timer as the other signs.',
                change='NEW ITEM: our medallion, backlit, on the outside metal door of the house. Please quote.')),
-    _f('N12', n12, 1060, 680, 0, 'feuille', 'planche', 'plat',
-       nom='Autocollants de la boutique, 11 dessins', name='Boutique stickers, 11 designs per sheet',
-       statut='nouvelle', qte=100, lieu='Sachets, papier de soie, boîtes, flacons de brume',
-       fr=dict(construction='Papier synthétique adhésif, pelliculage mat, impression numérique recto ; mi-chair à la forme : 60 pastilles Ø88 (6 de chaque dessin) et 6 étiquettes 146 × 68 par feuille.',
-               finition='Les encres de la charte : indigo, indigo profond, cuivre, ivoire, sable ; l’or seulement sur l’indigo (Meilleurs vœux).',
-               lumiere='Sans lumière (autocollants).',
-               change='Nouvelle feuille : le logo, Merci pour votre achat, Merci pour votre fidélité, Thank you, Meilleurs vœux, Un cadeau pour vous, À très bientôt, le médaillon, la devise (fon et français ensemble), l’allover des boîtes et l’étiquette La Brume.'),
-       en=dict(construction='Synthetic paper adhesive, matte lamination, single-sided digital print; kiss-cut to shape (magenta line), 1.5 mm bleed: 60 round seals Ø88 mm (6 of each design) and 6 labels 146 × 68 mm per sheet.',
-               finish='Brand inks: indigo, deep indigo, copper, ivory and sand; gold only on indigo (season’s greetings).',
-               lighting='None (stickers).',
-               change='NEW ITEM: our boutique stickers (logo seal, thank-you seals, season’s greetings, gift, see you soon, medallion, motto, allover box seal, mist bottle label). 100 sheets. Please quote.')),
 ]
+
+# « Sur la demande de devis, garder N3, N4, N5, N7, N9, N10 et N11 » (23 oct. 2026) : N1, N2, N6 et N8 sont mises
+# de côté (leurs dessins restent ici) ; leurs options partent avec elles.
+ECARTEES = ('N1', 'N2', 'N6', 'N8')
+ENSEIGNES = [e for e in ENSEIGNES if e['id'] not in ECARTEES]

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""LES FICHIERS PRÊTS À IMPRIMER DES AUTOCOLLANTS (R9, N12), 23 octobre 2026.
+"""LES FICHIERS PRÊTS À IMPRIMER DES AUTOCOLLANTS (R9), 23 octobre 2026.
 
     python scripts/signaletique/fichiers_machine.py "<dossier SVG 1-1>" "<sortie>"
 
@@ -14,7 +14,8 @@ chaque feuille, à partir du SVG 1:1 (jamais redessiné) :
   · une épreuve A3 : la feuille entière, puis chaque autocollant à taille réelle
     avec son nom et ses encres (HEX, RVB, CMJN).
 
-Chrome imprime les PDF ; PyMuPDF change le magenta en ton direct.
+Chrome imprime les PDF ; PyMuPDF change le magenta en ton direct. Depuis le 23 octobre, R9 est la
+feuille de la boutique (autocollants_boutique.py) : il n'y a plus de N12.
 """
 import html
 import io
@@ -171,30 +172,13 @@ def svg_mm(contenu, x, y, w, h, echelle=1.0):
 
 def epreuve_r9():
     a = Atelier(False)
-    pages = []
-    feuille = autocollants.planche(a)
-    pages.append(f'<div class="page">{tete("R9 · Round stickers Ø200 · the whole sheet (scaled)", "Maison MND · proof for Lico Sign · 23 Oct 2026")}'
-                 f'<div class="vue">{svg_mm("<rect width=\'1060\' height=\'680\' fill=\'#fff\' stroke=\'#ccc\' stroke-width=\'1\'/>" + feuille, 0, 0, 1060, 680, 0.36)}</div>'
-                 '<p class="note">Sheet 1060 × 680 mm, 5 × 3 stickers Ø200 mm, 3 mm bleed. Magenta hairline = cut line (spot colour CutContour in the machine file). '
-                 'Each sticker is shown at actual size on the next pages. Print the QR codes at 100 %, never resized.</p></div>')
-    for n, (_fam, titre, _fond, _d) in enumerate(autocollants.AUTOCOLLANTS):
-        un = autocollants.autocollant(a, n, 106, 106)
-        pages.append(f'<div class="page">{tete(f"R9 · sticker {n + 1} of 15", "actual size · 1:1")}'
-                     f'<div class="une">{svg_mm(un, 0, 0, 212, 212)}<div class="info"><h2>{esc(titre)}</h2>'
-                     '<p>Ø200 mm cut (magenta line), 3 mm bleed (Ø206). Synthetic paper, matte lamination.</p>'
-                     f'<p>Inks:</p><ul>{legende_encres(un)}</ul></div></div></div>')
-    return pages
-
-
-def epreuve_n12():
-    a = Atelier(False)
     b = boutique
     d_rond, d_lab = 2 * (b.R_REEL + b.FOND_PERDU) + 1, (b.ETIQ_W * b.K_ETIQ + 2 * b.FOND_PERDU + 1, b.ETIQ_H * b.K_ETIQ + 2 * b.FOND_PERDU + 1)
     tailles = f"round seals Ø{2 * b.R_REEL:g} mm, the allover square {2 * b.R_REEL:g} × {2 * b.R_REEL:g} mm, the mist label {b.ETIQ_W * b.K_ETIQ:.0f} × {b.ETIQ_H * b.K_ETIQ:.0f} mm"
     pages = []
     feuille = b.planche(a)
     nb = sum(p[4] for p in b.PASTILLES)
-    pages.append(f'<div class="page">{tete("N12 · Boutique stickers · the whole sheet (scaled)", "Maison MND · proof for Lico Sign · 23 Oct 2026")}'
+    pages.append(f'<div class="page">{tete("R9 · Stickers · the whole sheet (scaled)", "Maison MND · proof for Lico Sign · 23 Oct 2026")}'
                  f'<div class="vue">{svg_mm("<rect width='1060' height='680' fill='#fff' stroke='#ccc' stroke-width='1'/>" + feuille, 0, 0, 1060, 680, 0.36)}</div>'
                  f'<p class="note">Sheet 1060 × 680 mm: {nb} round seals and {b.N_ETIQ} labels, {b.PAR_DESSIN} of each design; {tailles}; '
                  f'{b.FOND_PERDU:g} mm bleed, kiss-cut on the magenta line (spot colour CutContour in the machine file). '
@@ -210,16 +194,16 @@ def epreuve_n12():
     for k, lot in enumerate(lots, 1):
         cases = ''.join(f'<div class="case">{svg_mm(f, 0, 0, w, h)}<div><b>{esc(t)}</b><br>{n} per sheet · inks: '
                         f'{", ".join(NOMS_ENCRES[c] for c in encres(f))}</div></div>' for t, n, f, w, h in lot)
-        pages.append(f'<div class="page">{tete(f"N12 · the {len(dessins)} designs, actual size · 1:1 ({k}/{len(lots)})", "Maison MND · proof for Lico Sign")}'
+        pages.append(f'<div class="page">{tete(f"R9 · the {len(dessins)} designs, actual size · 1:1 ({k}/{len(lots)})", "Maison MND · proof for Lico Sign")}'
                      f'<div class="grille" style="grid-template-columns:repeat(3, auto)">{cases}</div><p class="note">{tailles.capitalize()}; {b.FOND_PERDU:g} mm bleed.</p></div>')
     return pages
 
 
 if __name__ == '__main__':
-    for ident in ('R9', 'N12'):
+    for ident in ('R9',):
         for pdf, nb, n in fichiers_machine(ident):
             print(os.path.basename(pdf), '·', nb, 'découpes', '·', n, 'traits passés en CutContour' if n else '')
-    for ident, pages in (('R9', epreuve_r9()), ('N12', epreuve_n12())):
+    for ident, pages in (('R9', epreuve_r9()),):
         h = os.path.join(SORTIE, f'_epreuve-{ident}.html')
         io.open(h, 'w', encoding='utf-8').write(page_html(''.join(pages), 420, 297, CSS_EPREUVE, f"Maison MND · {ident} · {PAR_ID[ident]['name']} · proof, each sticker at actual size"))
         pdf = os.path.join(SORTIE, f'{ident} · épreuve A3.pdf')

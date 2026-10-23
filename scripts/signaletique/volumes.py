@@ -77,8 +77,8 @@ RECETTES = {
                        _p(3, 'cuivre-miroir', 3, 60), _p(4, 'cuivre-miroir', 3, 60)],
                vues=['jour', 'nuit', 'situation']),
     # Plaque d'acrylique dépoli de 9,5 mm imprimée, sur entretoises de 20 mm, bande cuivre, rétroéclairée.
-    'R5': dict(montage='mur', centre=1.5, support=dict(el=0, ep=9.5, recul=20, matiere='depoli', face='impression', imprime=[1, 2, 3, 5], lum='retro'),
-               pieces=[_p(4, 'alu-cuivre', 1.5, 29.5)], goujons=20, vues=['jour', 'nuit', 'situation']),
+    'R5': dict(montage='mur', centre=1.5, support=dict(el=0, ep=9.5, recul=20, matiere='depoli', face='impression', imprime=[1, 2, 4], lum='retro'),
+               pieces=[_p(3, 'alu-cuivre', 1.5, 29.5)], goujons=20, vues=['jour', 'nuit', 'situation']),
     # Caisson rond de 100 mm, face opale imprimée allumée, cerclage inox.
     'R6': dict(montage='mur', centre=1.8, support=dict(el=None, ep=100, matiere='indigo', face='impression', lum='face', rebord='inox'),
                pieces=[], vues=['jour', 'nuit', 'situation']),
@@ -89,7 +89,7 @@ RECETTES = {
     'R8': dict(montage='mur', centre=1.55, support=dict(el=0, ep=7.5, recul=15, matiere='depoli', face='plein', lum='retro'),
                pieces=[_p(1, 'cuivre-miroir', 2, 22.5, trait=True), _p([2, 3, 4, 5, 6, 7], 'cuivre-miroir', 2, 22.5)], goujons=15,
                vues=['jour', 'nuit', 'situation']),
-    # La planche de quinze autocollants, posée sur une table.
+    # La feuille d'autocollants (celle de la boutique depuis le 23 oct. 2026), posée sur une table.
     'R9': dict(montage='table', centre=0.0, support=dict(el=None, ep=0.3, matiere='papier', face='impression', sans_trait=True),
                pieces=[], vues=['jour']),
     # Lettres boîtiers inversées de 50 mm, sur entretoises de 30 mm, devant le bandeau indigo ; halo.
@@ -150,9 +150,6 @@ def recette_totem(k=None):
 
 
 RECETTES['N10'] = recette_totem()
-# La feuille de la boutique : posée sur la table comme celle de R9.
-RECETTES['N12'] = dict(montage='table', centre=0.0, support=dict(el=None, ep=0.3, matiere='papier', face='impression', sans_trait=True),
-               pieces=[], vues=['jour'])
 # Le médaillon de la porte : plaque cuivre de 2 mm ajourée, opale derrière, caisson de 30 mm ; seul le médaillon s'allume.
 # La porte en métal se rend comme une façade sombre, sans motif (un médaillon sur un motif ne se lit plus).
 RECETTES['N11'] = dict(montage='mur', centre=1.55, mur_uni=True,
