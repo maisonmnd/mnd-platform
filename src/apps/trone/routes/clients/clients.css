@@ -3395,3 +3395,34 @@
 .trc-tuile:hover { border-color: var(--copper-300) !important; box-shadow: 0 2px 12px rgba(30, 33, 80, .07); }
 .trc-tuile:focus-visible { outline: 2px solid var(--copper-300); outline-offset: 2px; }
 @media (prefers-reduced-motion: reduce) { .trc-tuile { transition: none; } }
+
+/* SES RENDEZ-VOUS — 24 octobre 2026 : l'onglet de la fenêtre du rendez-vous.
+   Les totaux en chiffres d'abord, puis une ligne par rendez-vous ; toucher une
+   ligne ouvre le sien par-dessus. */
+.trc-siens { display: flex; flex-direction: column; gap: 14px; font-family: var(--font-sans); }
+.trc-siens__totaux { display: grid; grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); gap: 8px; }
+.trc-siens__totaux > div { background: var(--paper, #F6F1E7); border-radius: 6px; padding: 8px 10px; display: flex; flex-direction: column; gap: 2px; }
+.trc-siens__totaux b { font: 400 18px/1.1 var(--font-serif); color: var(--color-indigo); font-variant-numeric: tabular-nums; }
+.trc-siens__totaux span { font-size: 11.5px; color: var(--ink-soft); }
+.trc-siens__totaux .est-du b { color: var(--alarme, #A3402B); }
+.trc-siens__groupe { display: flex; flex-direction: column; }
+.trc-siens__tete { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; flex-wrap: wrap; padding: 4px 0 6px; font: 500 11px var(--font-sans); letter-spacing: .14em; text-transform: uppercase; color: var(--copper-700); }
+.trc-siens__nouveau { background: none; border: 0; padding: 4px 0; font: 400 12.5px var(--font-sans); letter-spacing: 0; text-transform: none; color: var(--copper-700); cursor: pointer; }
+.trc-siens__vide { margin: 0; padding: 8px 0; font-size: 12.5px; color: var(--ink-soft); }
+.trc-siens__ligne { display: grid; grid-template-columns: 112px minmax(0, 1fr) auto auto 18px; gap: 10px; align-items: center; width: 100%; text-align: left; background: none; border: 0; border-top: 1px solid var(--hairline); padding: 10px 2px; min-height: 52px; cursor: pointer; font: 400 13.5px var(--font-sans); color: var(--ink); }
+.trc-siens__ligne:hover:not(:disabled) { background: var(--hover-veil, rgba(0,0,0,.03)); }
+.trc-siens__ligne.est-ici { cursor: default; background: var(--copper-50, #FAF1E9); }
+.trc-siens__ligne.est-annule .trc-siens__quoi { text-decoration: line-through; color: var(--ink-soft); }
+.trc-siens__quand, .trc-siens__quoi, .trc-siens__argent { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.trc-siens__quand span, .trc-siens__quoi span, .trc-siens__argent span { font-size: 11.5px; color: var(--ink-soft); }
+.trc-siens__quoi { overflow-wrap: anywhere; }
+.trc-siens__argent { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.trc-siens__argent .est-du { color: var(--alarme, #A3402B); }
+.trc-siens__ouvrir { color: var(--copper-700); font-size: 12px; text-align: right; }
+@media (max-width: 560px) {
+  .trc-siens__ligne { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "quand argent" "quoi argent"; row-gap: 4px; }
+  .trc-siens__quand { grid-area: quand; flex-direction: row; gap: 8px; align-items: baseline; }
+  .trc-siens__quoi { grid-area: quoi; }
+  .trc-siens__argent { grid-area: argent; }
+  .trc-siens__etat, .trc-siens__ouvrir { display: none; }
+}

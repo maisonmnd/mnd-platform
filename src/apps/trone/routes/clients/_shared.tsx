@@ -1,6 +1,8 @@
 import { Fragment, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
 import { ENVIES_AVANT } from '../../../../shared/entre-deux-pur';
 import { Link, useNavigate } from 'react-router-dom';
+import { createPortal } from 'react-dom';
+import { rangeSesRendezVous, totauxDeSesRendezVous } from './ses-rendez-vous-pur';
 import { Bell, BellOff, Check } from 'lucide-react';
 import { Button, Field, Input, Modal, Select, toast, demande, demandeUnTexte } from '../../../../ds/components';
 import { clefDeRecherche, prestationRepond } from '../../../../shared/recherche';
@@ -1856,7 +1858,7 @@ export function RdvModal({
      naissance en tête, l'onglet « Sa vie » à côté, lus dans la trace signée
      par la base (0092). La direction seule : la base refuse les autres. */
   const estDirection = useEstDirection();
-  const [vueDeLaFiche, setVueDeLaFiche] = useState<'rdv' | 'vie'>('rdv');
+  const [vueDeLaFiche, setVueDeLaFiche] = useState<'rdv' | 'vie' | 'siens'>('rdv');
   const vie = useVieDuRendezVous(appt, estDirection);
 
   /* ══ LA CASE ATTEND, ELLE NE DEVINE PAS — 2 septembre 2026 ═════════
@@ -1873,6 +1875,13 @@ export function RdvModal({
      `initial?.clientId` RESTE : quand on ouvre le rendez-vous DEPUIS une fiche,
      la tête est connue et la poser n'est pas deviner. */
   const [clientId, setClientId] = useState(appt?.clientId ?? initial?.clientId ?? '');
+  /* SES RENDEZ-VOUS, SANS QUITTER LE SIEN — 24 octobre 2026 (« je veux accéder
+     à ses anciens RDV et pouvoir les modifier à tout moment sans changer
+     d'écran », Yéman). L'onglet liste ses rendez-vous ; chacun s'ouvre
+     PAR-DESSUS celui-ci (`autre`), et le fermer ramène ici, la saisie
+     intacte. Voir ses-rendez-vous-pur.ts. */
+  const sesRdv = useMemo(() => (clientId ? branchAppts.filter((a) => a.clientId === clientId) : []), [clientId, branchAppts]);
+  const [autre, setAutre] = useState<{ appt?: Appointment; initial?: RdvInitial } | null>(null);
   const [serviceIds, setServiceIds] = useState<string[]>(appt?.serviceIds ?? initial?.serviceIds ?? []);
   /* LES MAINS, prestation par prestation. Un tableau parallele a `serviceIds` :
      le rituel peut porter deux fois le meme geste, et pas forcement par les
@@ -3297,36 +3306,60 @@ export function RdvModal({
     onClose();
   };
 
+  const montreSaVie = !!appt && estDirection;
+  const montreSiens = !!clientId && sesRdv.some((a) => a.id !== appt?.id);
   return (
     <Modal title={title ?? (appt ? 'Modifier le rendez-vous.' : 'Nouveau rendez-vous.')} onClose={onClose} width={640}>
-      {appt && estDirection && (
+      {(montreSaVie || montreSiens) && (
         <div className="tvie-entete">
-          <TamponDeNaissance
-            vie={vie}
-            principal={{ table: 'appointments', id: appt.id }}
-            creeLe={appt.creeLe}
-            onVoir={vueDeLaFiche === 'vie' ? undefined : () => setVueDeLaFiche('vie')}
-          />
+          {montreSaVie && appt && (
+            <TamponDeNaissance
+              vie={vie}
+              principal={{ table: 'appointments', id: appt.id }}
+              creeLe={appt.creeLe}
+              onVoir={vueDeLaFiche === 'vie' ? undefined : () => setVueDeLaFiche('vie')}
+            />
+          )}
           <div className="tvie-onglets" role="tablist">
             <button
               type="button" role="tab" aria-selected={vueDeLaFiche === 'rdv'}
               className={`tvie-onglet ${vueDeLaFiche === 'rdv' ? 'actif' : ''}`}
               onClick={() => setVueDeLaFiche('rdv')}
             >
-              Le rendez-vous
+              {appt ? 'Le rendez-vous' : 'Le nouveau rendez-vous'}
             </button>
-            <button
-              type="button" role="tab" aria-selected={vueDeLaFiche === 'vie'}
-              className={`tvie-onglet ${vueDeLaFiche === 'vie' ? 'actif' : ''}`}
-              onClick={() => setVueDeLaFiche('vie')}
-            >
-              Sa vie{vie.etat === 'pret' ? ` · ${nombreDeGestes(vie)}` : ''}
-            </button>
+            {montreSiens && (
+              <button
+                type="button" role="tab" aria-selected={vueDeLaFiche === 'siens'}
+                className={`tvie-onglet ${vueDeLaFiche === 'siens' ? 'actif' : ''}`}
+                onClick={() => setVueDeLaFiche('siens')}
+              >
+                Ses rendez-vous · {sesRdv.length}
+              </button>
+            )}
+            {montreSaVie && (
+              <button
+                type="button" role="tab" aria-selected={vueDeLaFiche === 'vie'}
+                className={`tvie-onglet ${vueDeLaFiche === 'vie' ? 'actif' : ''}`}
+                onClick={() => setVueDeLaFiche('vie')}
+              >
+                Sa vie{vie.etat === 'pret' ? ` · ${nombreDeGestes(vie)}` : ''}
+              </button>
+            )}
           </div>
         </div>
       )}
-      {appt && estDirection && vueDeLaFiche === 'vie' ? (
+      {montreSaVie && appt && vueDeLaFiche === 'vie' ? (
         <SaVie vie={vie} principal={{ table: 'appointments', id: appt.id }} />
+      ) : montreSiens && vueDeLaFiche === 'siens' ? (
+        <SesRendezVous
+          rdvs={sesRdv}
+          courantId={appt?.id}
+          byId={byId}
+          sansPrix={!!sansPrix}
+          onOuvrir={(a) => setAutre({ appt: a })}
+          onNouveau={() => setAutre({ initial: { clientId } })}
+        />
       ) : (
       <div className="trc-rdv3">
         {/* LA SÉANCE DE SA FORMULE — 20 octobre 2026 : « Incluse · séance 3 sur
@@ -5054,7 +5087,73 @@ export function RdvModal({
         </div>
       </div>
       )}
+      {/* L'AUTRE RENDEZ-VOUS, PAR-DESSUS : posé hors de cette fenêtre (portail),
+          pour qu'il s'étende sur tout l'écran ; le fermer ramène ici. */}
+      {autre && typeof document !== 'undefined' && createPortal(
+        <RdvModal appt={autre.appt} initial={autre.initial} sansPrix={sansPrix} onEncaisser={onEncaisser}
+          title={autre.appt ? `Son rendez-vous du ${frShortAn(autre.appt.date)}` : undefined}
+          onClose={() => setAutre(null)} />,
+        document.body,
+      )}
     </Modal>
+  );
+}
+
+/* ══ SES RENDEZ-VOUS — 24 octobre 2026 ═══════════════════════════════
+   L'onglet de la fenêtre du rendez-vous : ses totaux en chiffres, puis ses
+   rendez-vous à venir et passés, une ligne chacun ; toucher une ligne ouvre
+   ce rendez-vous par-dessus, à modifier. */
+function SesRendezVous({ rdvs, courantId, byId, sansPrix, onOuvrir, onNouveau }: {
+  rdvs: Appointment[];
+  courantId?: string;
+  byId: Map<string, Service>;
+  sansPrix: boolean;
+  onOuvrir: (a: Appointment) => void;
+  onNouveau: () => void;
+}) {
+  const { currency } = useBranch();
+  const aujourdhui = todayISO();
+  const { aVenir, passes } = rangeSesRendezVous(rdvs, aujourdhui);
+  const t = totauxDeSesRendezVous(rdvs, (a) => apptNetXof(a, byId), (a) => apptDueXof(a, byId));
+  const Ligne = ({ a }: { a: Appointment }) => {
+    const ici = a.id === courantId;
+    const reste = a.status === 'annulé' ? 0 : apptDueXof(a, byId);
+    return (
+      <button type="button" className={`trc-siens__ligne${ici ? ' est-ici' : ''}${a.status === 'annulé' ? ' est-annule' : ''}`}
+        onClick={() => { if (!ici) onOuvrir(a); }} disabled={ici} title={ici ? 'Le rendez-vous ouvert' : 'Ouvrir ce rendez-vous'}>
+        <span className="trc-siens__quand">{frShortAn(a.date)}<span>{a.time}</span></span>
+        <span className="trc-siens__quoi">{apptLabel(a, byId) || 'Rituel'}<span>{a.master || ''}</span></span>
+        <span className="trc-siens__etat"><StatusPill status={a.status} /></span>
+        {!sansPrix && (
+          <span className="trc-siens__argent">
+            {fmtMoney(apptNetXof(a, byId), currency)}
+            <span className={reste > 0 ? 'est-du' : ''}>{a.status === 'annulé' ? '' : reste > 0 ? `reste ${fmtMoney(reste, currency)}` : 'réglé'}</span>
+          </span>
+        )}
+        <span className="trc-siens__ouvrir" aria-hidden="true">{ici ? 'ouvert' : '›'}</span>
+      </button>
+    );
+  };
+  return (
+    <div className="trc-siens">
+      <div className="trc-siens__totaux">
+        <div><b>{t.nombre}</b><span>rendez-vous</span></div>
+        <div><b>{t.honores}</b><span>honorés</span></div>
+        <div><b>{t.annules}</b><span>annulés</span></div>
+        {!sansPrix && <div><b>{fmtMoney(t.honoresXof, currency)}</b><span>honorés, en tout</span></div>}
+        {!sansPrix && <div className={t.resteXof > 0 ? 'est-du' : ''}><b>{fmtMoney(t.resteXof, currency)}</b><span>reste à régler</span></div>}
+      </div>
+      <div className="trc-siens__groupe">
+        <div className="trc-siens__tete"><span>À venir · {aVenir.length}</span><button type="button" className="trc-siens__nouveau" onClick={onNouveau}>+ Un nouveau rendez-vous pour elle</button></div>
+        {aVenir.length === 0 && <p className="trc-siens__vide">Rien de posé à venir.</p>}
+        {aVenir.map((a) => <Ligne key={a.id} a={a} />)}
+      </div>
+      <div className="trc-siens__groupe">
+        <div className="trc-siens__tete"><span>Passés · {passes.length}</span></div>
+        {passes.length === 0 && <p className="trc-siens__vide">Aucun rendez-vous passé.</p>}
+        {passes.map((a) => <Ligne key={a.id} a={a} />)}
+      </div>
+    </div>
   );
 }
 

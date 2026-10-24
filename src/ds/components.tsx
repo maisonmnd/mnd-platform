@@ -224,6 +224,9 @@ export function Seal({
   );
 }
 
+/** Les fenêtres ouvertes, la dernière en haut : Échap ne ferme que celle-là. */
+const PILE_DES_MODALES: symbol[] = [];
+
 export function Modal({
   title,
   onClose,
@@ -239,8 +242,22 @@ export function Modal({
      comptoir, un clic à 5 px de la modale effaçait sans confirmation un
      encaissement en cours de saisie (montant, pourboire, acompte coché). La
      fermeture passe par ✕ ou Échap — jamais par accident. */
+  /* UNE FENÊTRE PAR-DESSUS UNE AUTRE — 24 octobre 2026 : un rendez-vous
+     ancien s'ouvre au-dessus du rendez-vous en cours (« Ses rendez-vous »).
+     Échap ne ferme que celle du dessus ; sans cela, il les fermait toutes
+     les deux, et la saisie d'en dessous était perdue. */
+  const moi = useRef<symbol>(Symbol('modale'));
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    const id = moi.current;
+    PILE_DES_MODALES.push(id);
+    return () => { const i = PILE_DES_MODALES.lastIndexOf(id); if (i >= 0) PILE_DES_MODALES.splice(i, 1); };
+  }, []);
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      if (PILE_DES_MODALES[PILE_DES_MODALES.length - 1] !== moi.current) return;
+      onClose();
+    };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [onClose]);
