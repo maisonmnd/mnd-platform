@@ -48,9 +48,13 @@ const FAUTES = [
   { n: 8, fichier: PAGE, avant: 'n: c.count })), rangs.caisses);', apres: 'n: c.count })), rangsStables(new Map(byCashbox.map((c) => [c.name, c.value]))));' },
   { n: 8, fichier: GRAPHES, avant: "points={mois.map((m, i) => `${cx(i).toFixed(1)},${y(m.net).toFixed(1)}`).join(' ')}", apres: "points={mois.map((m, i) => `${cx(i).toFixed(1)},${yNet(m.net).toFixed(1)}`).join(' ')}" },
   { n: 8, fichier: P, avant: "export const TEINTES = ['#3B4BA0', '#BE7526', '#4E86D9', '#008E7F'] as const;", apres: "export const TEINTES = ['#1E2150', '#BE7526', '#4E86D9', '#008E7F'] as const;" },
+  /* #9 : le mois en cours n'est plus borne a aujourd'hui ; la Synthese et le Bilan perdent la borne. */
+  { n: 9, fichier: P, avant: '  (mk >= aujourdhui.slice(0, 7) ? aujourdhui : undefined);', apres: '  (false ? aujourdhui : undefined);' },
+  { n: 9, fichier: PAGE, avant: 'const revenueOf = (mk: string, cut = borneDuMois(mk, today)) =>', apres: 'const revenueOf = (mk: string, cut: string | undefined = undefined) =>' },
+  { n: 9, fichier: 'src/apps/trone/routes/pilotage/BilanMensuel.tsx', avant: 'revenuDuMois(args, month, { exclureHorsBilan: true, cut: borne })', apres: 'revenuDuMois(args, month, { exclureHorsBilan: true })' },
 ];
 
-const md5 = (rel) => createHash('md5').update(readFileSync(path.join(racine, rel))).digest('hex');
+const md5 =(rel) => createHash('md5').update(readFileSync(path.join(racine, rel))).digest('hex');
 
 async function banc(faute) {
   const dossier = mkdtempSync(path.join(tmpdir(), 'verifie-la-synthese-en-graphes-'));

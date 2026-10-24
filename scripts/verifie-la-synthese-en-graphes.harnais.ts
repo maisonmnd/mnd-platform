@@ -8,7 +8,7 @@
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import {
-  TEINTES, graduations, chiffreCourt, rangsStables, partsDeLAnneau, pourcents, cheminDuMorceau, anglesDesMorceaux, ecartAuMois, groupePar,
+  TEINTES, graduations, chiffreCourt, rangsStables, partsDeLAnneau, pourcents, cheminDuMorceau, anglesDesMorceaux, ecartAuMois, groupePar, borneDuMois, aJourEgal, cumul,
 } from '../src/apps/trone/routes/finances/synthese-graphes-pur';
 
 declare const __FAUTE__: { fichier: string; avant: string; apres: string } | null;
@@ -115,10 +115,31 @@ dit(6, 'ecart : revenus en hausse = bon ; depenses en hausse = mauvais ; mois d 
   dit(8, 'une seule echelle : la ligne du resultat et les colonnes lisent le meme y ; une seule graduation', [true, 1], [
     graphes.includes("points={mois.map((m, i) => `${cx(i).toFixed(1)},${y(m.net).toFixed(1)}`).join(' ')}")
       && graphes.includes('y(Math.max(0, m.rev))') && graphes.includes('y(Math.max(0, m.exp))'),
-    (graphes.match(/graduations\(/g) ?? []).length,
+    (graphes.slice(graphes.indexOf('export function ColonnesDuResultat'), graphes.indexOf('export function Anneau')).match(/graduations\(/g) ?? []).length,
   ]);
   dit(8, 'les quatre teintes eprouvees, dans leur ordre', ["['#3B4BA0', '#BE7526', '#4E86D9', '#008E7F']"], [
     (pur.match(/export const TEINTES = (\[[^\]]*\])/) ?? [])[1],
+  ]);
+}
+
+/* == #9 -- ENCAISSE A CE JOUR, COMME LE TABLEAU DE BORD (25 octobre 2026) ==
+   Le mois en cours (et tout mois a venir) s'arrete a aujourd'hui ; un mois
+   passe se lit en entier ; le mois d'avant se compare au meme jour, borne a
+   sa longueur ; le cumul s'arrete a aujourd'hui. Et les deux ecrans lisent
+   cette borne. */
+{
+  dit(9, 'borne : octobre et novembre au 24 octobre ; septembre entier ; a jour egal ; cumul arrete',
+    [['2026-10-24', '2026-10-24', null], ['2026-09-24', '2026-02-28', '2026-11-30'], [1, 3, null, null]],
+    [[borneDuMois('2026-10', '2026-10-24'), borneDuMois('2026-11', '2026-10-24'), borneDuMois('2026-09', '2026-10-24') ?? null],
+      [aJourEgal('2026-09', '2026-10-24'), aJourEgal('2026-02', '2026-03-31'), aJourEgal('2026-11', '2026-12-31')],
+      cumul([1, 2, 3, 4], 1)]);
+  const page = source('src/apps/trone/routes/finances/Synthese.tsx');
+  const bilan = source('src/apps/trone/routes/pilotage/BilanMensuel.tsx');
+  dit(9, 'la Synthese et le Bilan bornent le revenu ; la Synthese compare a jour egal ; le projete se dit a part', [true, true, true, true], [
+    page.includes('const revenueOf = (mk: string, cut = borneDuMois(mk, today)) =>') && page.includes('branchId: branch.id }, mk, { cut });'),
+    bilan.includes('revenuDuMois(args, month, { exclureHorsBilan: true, cut: borne })'),
+    page.includes('const borneAvant = enCours ? aJourEgal(prevMonth, today) : undefined;') && page.includes('const prevRevenue = revenueOf(prevMonth, borneAvant);'),
+    page.includes('revenusProjetesDuMois(') && bilan.includes('revenusProjetesDuMois(args, month, today)'),
   ]);
 }
 

@@ -11,13 +11,13 @@ import { totalsOf, splitByMaison, MAISON_BUCKETS, sumTotals, type MaisonBucket, 
 import { useClients, type Client } from '../../../../shared/clients';
 import { useSettings } from '../../../../shared/settings';
 import {
-  palierDuCarnet, repartitionDesPaliers, rituelsDuMoisParPalier, PALIERS, PALIER_DIT, RANG_DU_PALIER, jourLocal,
+  palierDuCarnet, repartitionDesPaliers, rituelsDuMoisParPalier, PALIERS, PALIER_DIT, RANG_DU_PALIER, jourLocal, type Palier,
 } from '../../../../shared/paliers';
 import { useSubscribers, useApprenants, useFormations } from '../equipe/data';
-import { apptDiscountFactor, apptLabel, apptNetXof, apptServices, useServicesById, revenuDuMois } from '../clients/_shared';
+import { apptDiscountFactor, apptLabel, apptNetXof, apptServices, useServicesById, revenuDuMois, revenusProjetesDuMois } from '../clients/_shared';
 import { todayISO, monthKey, monthTitle, monthShort, shiftMonth, lastMonths, MonthNav, downloadCsv, fmtDay as jourDesFinances } from './_shared';
-import { TuileDuMois, ColonnesDuResultat, Anneau, Classement, FenetreDuDetail, type LigneDuDetail } from './SyntheseGraphes';
-import { TEINTES, rangsStables, partsDeLAnneau, ecartAuMois, type PartDeLAnneau } from './synthese-graphes-pur';
+import { TuileDuMois, ColonnesDuResultat, ColonnesEmpilees, BarreDesParts, Anneau, Classement, FenetreDuDetail, type LigneDuDetail } from './SyntheseGraphes';
+import { TEINTES, rangsStables, partsDeLAnneau, ecartAuMois, borneDuMois, aJourEgal, type PartDeLAnneau } from './synthese-graphes-pur';
 import './finances.css';
 
 /* Synthèse & résultat — le compte de résultat de la branche, mois par mois.
@@ -75,7 +75,8 @@ export default function Synthese() {
   /* La fenêtre du graphe : six mois, ou l'année glissante. */
   const [fenetre, setFenetre] = useState<6 | 12>(6);
 
-  const thisMonth = monthKey(todayISO());
+  const today = todayISO();
+  const thisMonth = monthKey(today);
   const [month, setMonth] = useState(thisMonth);
   const prevMonth = shiftMonth(month, -1);
 
@@ -124,12 +125,18 @@ export default function Synthese() {
     /* LE CA DU MOIS PASSE PAR LA PORTE UNIQUE `revenuDuMois` (clients/_shared) —
        la même que le Dashboard, Analytics et le Bilan. Écran opérationnel : toutes
        les caisses comptent (pas d'exclusion hors bilan). */
-    const revenueOf = (mk: string) =>
-      revenuDuMois({ invoices, appts, byId, apprenants, abonnes, branchId: branch.id }, mk);
+    /* ENCAISSÉ À CE JOUR — 25 octobre 2026, aligné sur le tableau de bord
+       (1er octobre). Sans borne, la Synthèse comptait dès le 24 un versement
+       daté du 29 et disait plus que le tableau de bord pour le même mois. Le
+       mois en cours s'arrête à aujourd'hui (`borneDuMois`) ; ce qui est daté
+       plus tard se lit dans le projeté, à part. */
+    const revenueOf = (mk: string, cut = borneDuMois(mk, today)) =>
+      revenuDuMois({ invoices, appts, byId, apprenants, abonnes, branchId: branch.id }, mk, { cut });
     /* Meme regle qu'a l'ecran Depenses ET au Dashboard : une recurrente active
        pese sur chaque mois qu'elle traverse. La porte unique `depensesDuMois`
-       (shared/finance.ts) tient cette regle pour tous les ecrans. */
-    const expenseOf = (mk: string) => depensesDuMois(expenses, branch.id, mk);
+       (shared/finance.ts) tient cette regle pour tous les ecrans. `cut` ne sert
+       qu'à la comparaison à jour égal, comme au tableau de bord. */
+    const expenseOf = (mk: string, cut?: string) => depensesDuMois(expenses, branch.id, mk, cut);
 
     /* LES RITUELS DE CHAQUE MOIS, pour la tuile « Rituels honorés » et sa
        pente : une visite par rendez-vous honoré (les séances 2..N d'une série
@@ -158,19 +165,37 @@ export default function Synthese() {
         rituels: vis.n, panier: vis.payants > 0 ? Math.round(vis.somme / vis.payants) : 0,
       };
     });
-    /* Le mois d'avant peut tomber hors de la fenêtre : la tuile le relit ici. */
-    const visitesDu = (mk: string) => {
-      const vis = visitesParMois.get(mk) ?? { n: 0, payants: 0, somme: 0 };
-      return { n: vis.n, panier: vis.payants > 0 ? Math.round(vis.somme / vis.payants) : 0 };
+    /* Le mois d'avant peut tomber hors de la fenêtre : la tuile le relit ici,
+       borné au même jour quand on compare le mois en cours. */
+    const visitesDu = (mk: string, cut?: string) => {
+      if (!cut) {
+        const vis = visitesParMois.get(mk) ?? { n: 0, payants: 0, somme: 0 };
+        return { n: vis.n, panier: vis.payants > 0 ? Math.round(vis.somme / vis.payants) : 0 };
+      }
+      let n = 0, payants = 0, somme = 0;
+      for (const a of appts) {
+        if (a.branchId !== branch.id || a.status !== 'honoré' || (a.seriesIndex && a.seriesIndex > 1)) continue;
+        if (monthKey(a.date) !== mk || a.date > cut) continue;
+        const v = apptNetXof(a, byId);
+        n += 1; if (v > 0) { payants += 1; somme += v; }
+      }
+      return { n, panier: payants > 0 ? Math.round(somme / payants) : 0 };
     };
 
     // — Détail du mois sélectionné —
     /* Les pièces qui ont REÇU de l'argent ce mois-ci — pas celles émises ce
        mois-ci. Une facture d'août encaissée en septembre appartient à
        septembre, et une facture réglée en deux fois appartient aux deux. */
-    const invM = factInv.filter((i) => invoiceRegleAu(i, month) > 0);
-    const ritM = honored.filter((a) => monthKey(a.date) === month);
-    const payM = formationPays.filter((p) => p.mk === month);
+    /* La même borne que le total : tout ce qui se ventile (caisses, modes,
+       clientes, sources, prestations) s'arrête au même jour que lui. */
+    const borne = borneDuMois(month, today);
+    const dansLaBorne = (d?: string) => !borne || (d ?? '') <= borne;
+    const regleDuMois = (i: (typeof factInv)[number]) => invoiceReglements(i)
+      .filter((pm) => (pm.date ?? '').startsWith(month) && dansLaBorne(pm.date))
+      .reduce((n, pm) => n + pm.amountXof, 0);
+    const invM = factInv.filter((i) => regleDuMois(i) > 0);
+    const ritM = honored.filter((a) => monthKey(a.date) === month && dansLaBorne(a.date));
+    const payM = formationPays.filter((p) => p.mk === month && dansLaBorne(p.iso));
 
     const bump = (m: Map<string, { value: number; count: number }>, key: string, v: number) => {
       const cur = m.get(key) ?? { value: 0, count: 0 };
@@ -191,7 +216,7 @@ export default function Synthese() {
     const caisseMap = new Map<string, { value: number; count: number }>();
     invM.forEach((i) => {
       for (const p of invoiceReglements(i)) {
-        if (!(p.date ?? '').startsWith(month) || p.amountXof <= 0) continue;
+        if (!(p.date ?? '').startsWith(month) || !dansLaBorne(p.date) || p.amountXof <= 0) continue;
         if (p.method === 'Avoir') bump(caisseMap, 'Avoir (crédit)', p.amountXof);
         else bump(caisseMap, cashboxLabel(p.cashbox), p.amountXof);
       }
@@ -204,7 +229,7 @@ export default function Synthese() {
     const methodMap = new Map<string, { value: number; count: number }>();
     invM.forEach((i) => {
       for (const p of invoiceReglements(i)) {
-        if (!(p.date ?? '').startsWith(month) || p.amountXof <= 0) continue;
+        if (!(p.date ?? '').startsWith(month) || !dansLaBorne(p.date) || p.amountXof <= 0) continue;
         bump(methodMap, p.method === 'Avoir' ? 'Avoir (crédit)' : (p.method || 'Non précisé'), p.amountXof);
       }
     });
@@ -216,7 +241,7 @@ export default function Synthese() {
     // au prix net de la remise ; les séances 2..N d'une série valent 0 (jamais deux fois).
     const honoredAll = appts.filter(
       (a) => a.branchId === branch.id && a.status === 'honoré'
-        && monthKey(a.date) === month && !(a.seriesIndex && a.seriesIndex > 1),
+        && monthKey(a.date) === month && dansLaBorne(a.date) && !(a.seriesIndex && a.seriesIndex > 1),
     );
     const svcMap = new Map<string, { value: number; count: number }>();
     const svcDetail = new Map<string, LigneDuDetail[]>();
@@ -303,7 +328,7 @@ export default function Synthese() {
 
     // Meilleures clientes du mois — factures payées + rituels honorés non facturés
     const cliMap = new Map<string, { value: number; count: number }>();
-    invM.forEach((i) => bump(cliMap, i.clientName ?? nameOf(i.clientId) ?? 'Cliente de passage', invoiceRegleAu(i, month)));
+    invM.forEach((i) => bump(cliMap, i.clientName ?? nameOf(i.clientId) ?? 'Cliente de passage', regleDuMois(i)));
     ritM.forEach((a) => bump(cliMap, nameOf(a.clientId) ?? 'Cliente', apptNetXof(a, byId)));
     payM.forEach((p) => bump(cliMap, p.who, p.amount));
     const topClients = spread(cliMap).slice(0, 5);
@@ -319,8 +344,8 @@ export default function Synthese() {
         cashbox: i.cashbox ? cashboxLabel(i.cashbox) : '',
         methodKey: i.payment ?? 'Non précisé',
         cashboxKey: cashboxLabel(i.cashbox),
-        /* Ce que la pièce a rapporté CE MOIS-CI — pas ce qu'elle vaut. */
-        amount: invoiceRegleAu(i, month),
+        /* Ce que la pièce a rapporté CE MOIS-CI, à ce jour — pas ce qu'elle vaut. */
+        amount: regleDuMois(i),
         source: 'Facture',
       })),
       ...ritM.map((a) => ({
@@ -373,7 +398,7 @@ export default function Synthese() {
       .sort((a, b) => ((a.date ?? '') < (b.date ?? '') ? 1 : -1));
 
     return { revenueOf, expenseOf, series, visitesDu, byCashbox, byMethod, revSources, expenseGroups, expenseRows, topServices, topClients, svcDetail, revMaison, maisonRows, couvertes, rituelRows };
-  }, [invoices, expenses, appts, clients, apprenants, formations, abonnes, branch.id, month, thisMonth, byId, categories, fenetre]);
+  }, [invoices, expenses, appts, clients, apprenants, formations, abonnes, branch.id, month, thisMonth, today, byId, categories, fenetre]);
 
   /* ② LA COULEUR SUIT LA CHOSE (synthese-graphes-pur) : le rang de chaque
      caisse, mode et catégorie se lit sur TOUT l'historique de la branche, pas
@@ -409,16 +434,30 @@ export default function Synthese() {
   /* L'ANNÉE SUR CHAQUE MOIS : « octobre 2026 », jamais « octobre » seul. */
   const monthName = monthTitle(month);
   const prevName = monthTitle(prevMonth);
+  /* LA COMPARAISON LOYALE, À JOUR ÉGAL — comme le tableau de bord : le mois
+     en cours, arrêté à aujourd'hui, se compare au mois d'avant arrêté au même
+     jour. Un mois passé se compare au mois d'avant en entier. */
+  const enCours = month === thisMonth;
+  const borneAvant = enCours ? aJourEgal(prevMonth, today) : undefined;
+  const quantieme = (iso: string) => { const j = Number(iso.slice(8, 10)); return j === 1 ? '1er' : String(j); };
+  const avantNom = borneAvant ? `Au ${quantieme(borneAvant)} ${prevName}` : prevName;
+  const vsNom = borneAvant ? `${prevName}, à jour égal` : prevName;
   const revenue = revenueOf(month);
   const spent = expenseOf(month);
   const net = revenue - spent;
-  const prevRevenue = revenueOf(prevMonth);
-  const prevSpent = expenseOf(prevMonth);
+  const prevRevenue = revenueOf(prevMonth, borneAvant);
+  const prevSpent = expenseOf(prevMonth, borneAvant);
   const prevNet = prevRevenue - prevSpent;
   const margin = revenue > 0 ? Math.round((net / revenue) * 100) : 0;
   const prevMargin = prevRevenue > 0 ? Math.round(((prevRevenue - prevSpent) / prevRevenue) * 100) : 0;
   const visites = visitesDu(month);
-  const visitesAvant = visitesDu(prevMonth);
+  const visitesAvant = visitesDu(prevMonth, borneAvant);
+  /* CE QUI EST ATTENDU D'ICI LA FIN DU MOIS : les versements datés plus tard
+     et le reste dû des rendez-vous à venir, le même calcul que la tuile
+     « Revenus projetés du mois » du tableau de bord. Rien n'en est acquis. */
+  const projete = month >= thisMonth
+    ? revenusProjetesDuMois({ invoices, appts, byId, apprenants, abonnes, branchId: branch.id }, month, today)
+    : null;
   const indexDuMois = series.findIndex((d) => d.selected);
 
   /* — Détail cliquable : chaque montant ouvre la liste des écritures qui le
@@ -534,24 +573,25 @@ export default function Synthese() {
           hausse des dépenses n'est pas une bonne nouvelle), et la pente. */}
       <div className="tr-grid tr-grid--4 tsy-tuiles">
         <TuileDuMois
-          libelle="Revenus encaissés" valeur={fmtMoney(revenue, currency)}
-          ecart={ecartAuMois(revenue, prevRevenue)} avantNom={prevName} avantValeur={fmtMoney(prevRevenue, currency)}
+          libelle={enCours ? 'Revenus encaissés à ce jour' : 'Revenus encaissés'} valeur={fmtMoney(revenue, currency)}
+          ecart={ecartAuMois(revenue, prevRevenue)} avantNom={avantNom} vsNom={vsNom} avantValeur={fmtMoney(prevRevenue, currency)}
+          extra={projete && projete.total > 0 ? `Projeté sur le mois : ${fmtMoney(revenue + projete.total, currency)}` : undefined}
           serie={series.map((d) => d.rev)} indexCourant={indexDuMois} onOuvrir={openRevenue}
         />
         <TuileDuMois
           libelle="Dépenses engagées" valeur={fmtMoney(spent, currency)}
-          ecart={ecartAuMois(spent, prevSpent, false)} avantNom={prevName} avantValeur={fmtMoney(prevSpent, currency)}
+          ecart={ecartAuMois(spent, prevSpent, false)} avantNom={avantNom} vsNom={vsNom} avantValeur={fmtMoney(prevSpent, currency)}
           serie={series.map((d) => d.exp)} indexCourant={indexDuMois} onOuvrir={openExpenses}
         />
         <TuileDuMois
           libelle="Résultat net" valeur={fmtMoney(net, currency)}
-          ecart={ecartAuMois(net, prevNet)} avantNom={prevName} avantValeur={fmtMoney(prevNet, currency)}
+          ecart={ecartAuMois(net, prevNet)} avantNom={avantNom} vsNom={vsNom} avantValeur={fmtMoney(prevNet, currency)}
           extra={`Marge nette ${margin} %${prevRevenue > 0 ? ` (${prevMargin} % avant)` : ''}`}
           serie={series.map((d) => d.net)} indexCourant={indexDuMois} onOuvrir={openResult}
         />
         <TuileDuMois
           libelle="Rituels honorés" valeur={`${visites.n}`}
-          ecart={ecartAuMois(visites.n, visitesAvant.n)} avantNom={prevName} avantValeur={`${visitesAvant.n} rituel${visitesAvant.n > 1 ? 's' : ''}`}
+          ecart={ecartAuMois(visites.n, visitesAvant.n)} avantNom={avantNom} vsNom={vsNom} avantValeur={`${visitesAvant.n} rituel${visitesAvant.n > 1 ? 's' : ''}`}
           extra={visites.panier > 0 ? `Panier moyen ${fmtMoney(visites.panier, currency)}` : undefined}
           serie={series.map((d) => d.rituels)} indexCourant={indexDuMois} onOuvrir={openRituels}
         />
@@ -592,6 +632,31 @@ export default function Synthese() {
               <span style={{ fontFamily: 'var(--font-sans)', fontWeight: p.strong ? 500 : 400, fontSize: p.strong ? 19 : 15, color: p.col, fontVariantNumeric: 'tabular-nums' }}>{p.value}</span>
             </div>
           ))}
+          {/* L'ATTENDU SOUS LE TRAIT : il n'entre pas dans le résultat (rien n'en
+              est acquis), il dit ce que le mois vaudra si chacune vient et règle. */}
+          {projete && projete.total > 0 && (
+            <>
+              <div style={{ height: 1, background: 'var(--line)', margin: '10px -10px 2px' }} />
+              <div
+                style={{
+                  display: 'flex', justifyContent: 'space-between', alignItems: 'baseline',
+                  padding: '11px 10px', margin: '0 -10px', background: 'var(--surface-sunken, var(--indigo-50))', borderRadius: 4,
+                }}
+              >
+                <span style={{ fontSize: 13, color: 'var(--ink)' }}>
+                  Encore attendu ce mois
+                  <span className="mnd-muted" style={{ display: 'block', fontSize: 11 }}>
+                    {projete.versements > 0 ? `versements datés plus tard · ${fmtMoney(projete.versements, currency)}` : ''}
+                    {projete.versements > 0 && projete.nombre > 0 ? ' · ' : ''}
+                    {projete.nombre > 0 ? `reste de ${projete.nombre} rendez-vous à venir · ${fmtMoney(projete.rendezVous, currency)}` : ''}
+                  </span>
+                </span>
+                <span style={{ fontFamily: 'var(--font-sans)', fontSize: 15, color: 'var(--indigo-500, var(--color-indigo))', fontVariantNumeric: 'tabular-nums' }}>
+                  {fmtMoney(projete.total, currency)}
+                </span>
+              </div>
+            </>
+          )}
           {(horsMois > 0 || sortiesMois > 0 || notreDette > 0) && (
             <>
               <div style={{ height: 1, background: 'var(--line)', margin: '10px -10px 2px' }} />
@@ -866,7 +931,7 @@ export default function Synthese() {
           Maquette `maquette-les-trois-paliers.html`. C'est le chiffre qui dit
           si la Maison fait grandir ses clientes, ou si elle recommence chaque
           mois à la Fondation. */}
-      <LesPaliers clients={clients} appts={appts} byId={byId} branchId={branch.id} month={month} monthName={monthName} />
+      <LesPaliers clients={clients} appts={appts} byId={byId} branchId={branch.id} month={month} monthName={monthName} mois={series.map((d) => d.mk)} onChoisir={setMonth} />
 
       {/* Détail cliquable d'un montant : les écritures qui le composent, et « Voir par ». */}
       {detail && (
@@ -888,16 +953,28 @@ export default function Synthese() {
    Le même juge que la fiche cliente et Ma Couronne (`palierDuCarnet`), passé
    sur toutes les têtes de la branche. Aucune projection : des rituels
    honorés, des dates. Le mois choisi dit qui est MONTÉE ce mois-là, et
-   combien de rituels honorés relèvent de chaque palier. */
-function LesPaliers({ clients, appts, byId, branchId, month, monthName }: {
+   combien de rituels honorés relèvent de chaque palier.
+
+   EN GRAPHES (25 octobre 2026) : les rituels de chaque palier, mois par
+   mois, et les clientes par palier en une barre. Trois marches ORDONNÉES :
+   une seule teinte, du clair (Fondation) au foncé (Souveraineté), éprouvée
+   comme une rampe (clarté qui monte, écarts visibles, le clair tient 2:1 sur
+   l'ivoire). */
+const RAMPE_DES_PALIERS: Record<Palier, string> = { Fondation: '#8F9BD3', 'Élévation': '#5263BE', 'Souveraineté': '#283371' };
+
+function LesPaliers({ clients, appts, byId, branchId, month, monthName, mois, onChoisir }: {
   clients: Client[];
   appts: Appointment[];
   byId: ReturnType<typeof useServicesById>;
   branchId: string;
   month: string;
   monthName: string;
+  /** Les mois du graphe (la fenêtre de 6 ou 12 mois de la page). */
+  mois: string[];
+  onChoisir: (mk: string) => void;
 }) {
   const [reglages] = useSettings();
+  const cleDesMois = mois.join(',');
   const lecture = useMemo(() => {
     const aujourdhui = jourLocal();
     const tetes = clients.filter((c) => c.branchId === branchId);
@@ -905,46 +982,53 @@ function LesPaliers({ clients, appts, byId, branchId, month, monthName }: {
     return {
       total: tetes.length,
       repartition: repartitionDesPaliers(paliers, month),
-      rituels: rituelsDuMoisParPalier(appts, byId, month, branchId),
+      parMois: cleDesMois.split(',').filter(Boolean).map((mk) => ({ mk, rituels: rituelsDuMoisParPalier(appts, byId, mk, branchId) })),
     };
-  }, [clients, appts, byId, branchId, month, reglages.paliers]);
-  const avecPalier = lecture.total - lecture.repartition.sansPalier;
-  const pct = (n: number, sur: number) => (sur > 0 ? `${Math.round((n / sur) * 100)} %` : '—');
-  const rituelsDuMois = PALIERS.reduce((s, p) => s + lecture.rituels[p], 0);
-  const montees = PALIERS.reduce((s, p) => s + lecture.repartition.monteesDuMois[p], 0);
+  }, [clients, appts, byId, branchId, month, reglages.paliers, cleDesMois]);
   if (lecture.total === 0) return null;
+  const avecPalier = lecture.total - lecture.repartition.sansPalier;
+  const montees = PALIERS.reduce((s, p) => s + lecture.repartition.monteesDuMois[p], 0);
+  const rituels = (n: number) => `${n} rituel${n > 1 ? 's' : ''}`;
   return (
-    <div style={{ marginTop: 28 }}>
+    <div className="tsy-titre-section">
       <Eyebrow>Les paliers · où en sont les couronnes</Eyebrow>
-      <div className="tr-grid tr-grid--3" style={{ marginTop: 10 }}>
-        {PALIERS.map((p) => (
-          <div key={p} style={{ border: '1px solid var(--hairline)', borderRadius: 3, padding: '14px 16px', background: 'var(--surface-card)' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-              <span className={`mnd-palier mnd-palier--${RANG_DU_PALIER[p]}`}>{p}</span>
-              <span className="mnd-muted" style={{ fontSize: 11 }}>{PALIER_DIT[p].sous}</span>
-            </div>
-            <div style={{ fontFamily: 'var(--font-serif)', fontSize: 28, color: 'var(--color-indigo)', lineHeight: 1 }}>
-              {lecture.repartition.parPalier[p]}
-              <span style={{ fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--ink-soft)', marginLeft: 8 }}>
-                {pct(lecture.repartition.parPalier[p], avecPalier)} des clientes
-              </span>
-            </div>
-            <div className="mnd-muted" style={{ fontSize: 12, marginTop: 8, lineHeight: 1.5 }}>
-              {lecture.repartition.monteesDuMois[p] > 0
-                ? `${lecture.repartition.monteesDuMois[p]} montée${lecture.repartition.monteesDuMois[p] > 1 ? 's' : ''} en ${monthName}`
-                : `aucune montée en ${monthName}`}
-              {' · '}
-              {lecture.rituels[p]} rituel{lecture.rituels[p] > 1 ? 's' : ''} honoré{lecture.rituels[p] > 1 ? 's' : ''} ce mois
-              {rituelsDuMois > 0 ? ` (${pct(lecture.rituels[p], rituelsDuMois)})` : ''}
-            </div>
+      <div className="tsy-rangee" style={{ marginTop: 10 }}>
+        <div className="trf-panel">
+          <div className="tsy-panneau__tete">
+            <div className="trf-panel__title">Rituels honorés par palier · {mois.length} mois</div>
+            <span className="tsy-panneau__sous">Un clic sur un mois le lit en entier</span>
           </div>
-        ))}
-      </div>
-      <div className="mnd-muted" style={{ fontSize: 12, marginTop: 10, lineHeight: 1.55 }}>
-        {avecPalier} cliente{avecPalier > 1 ? 's' : ''} avec un rituel honoré
-        {lecture.repartition.sansPalier > 0 ? `, ${lecture.repartition.sansPalier} sans palier encore (aucun rituel honoré)` : ''}.
-        {montees > 0 ? ` ${montees} montée${montees > 1 ? 's' : ''} de palier en ${monthName}.` : ''}
-        {' '}Le palier se lit sur le carnet, il ne se saisit pas : les seuils se règlent dans Paramètres.
+          <ColonnesEmpilees
+            colonnes={lecture.parMois.map((m) => ({
+              cle: m.mk, court: moisCourt(m.mk), long: monthTitle(m.mk),
+              valeurs: PALIERS.map((p) => m.rituels[p]), marque: m.mk === month,
+            }))}
+            series={PALIERS.map((p) => ({ nom: p, teinte: RAMPE_DES_PALIERS[p] }))}
+            fmt={rituels} fmtAxe={(v) => v.toLocaleString('fr-FR')} pasMin={1}
+            onChoisir={onChoisir} consigne="Cliquer pour lire ce mois"
+            vide="Aucun rituel honoré sur ces mois, les marches attendent leurs premières couronnes."
+          />
+        </div>
+        <div className="trf-panel">
+          <div className="trf-panel__title">Les clientes par palier</div>
+          <BarreDesParts
+            parts={PALIERS.map((p) => {
+              const m = lecture.repartition.monteesDuMois[p];
+              return {
+                nom: p, valeur: lecture.repartition.parPalier[p], teinte: RAMPE_DES_PALIERS[p],
+                marque: <span className={`mnd-palier mnd-palier--${RANG_DU_PALIER[p]}`}>{p}</span>,
+                detail: `${PALIER_DIT[p].sous} ${m > 0 ? `${m} montée${m > 1 ? 's' : ''}` : 'Aucune montée'} en ${monthName}.`,
+              };
+            })}
+            vide="Aucune cliente n'a encore de rituel honoré : pas de palier à lire."
+          />
+          <div className="tsy-note">
+            {avecPalier} cliente{avecPalier > 1 ? 's' : ''} avec un rituel honoré
+            {lecture.repartition.sansPalier > 0 ? `, ${lecture.repartition.sansPalier} sans palier encore (aucun rituel honoré)` : ''}.
+            {montees > 0 ? ` ${montees} montée${montees > 1 ? 's' : ''} de palier en ${monthName}.` : ''}
+            {' '}Le palier se lit sur le carnet, il ne se saisit pas : les seuils se règlent dans Paramètres.
+          </div>
+        </div>
       </div>
     </div>
   );

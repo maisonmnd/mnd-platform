@@ -3,31 +3,54 @@ import '../finances/finances.css';
 import { PageHead } from '../_ui';
 import { Segs } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
-import { fmtMoney } from '../../../../shared/currency';
+import { fmtMoney, convertFromXof } from '../../../../shared/currency';
 import { useAppointments, type Appointment } from '../../../../shared/agenda';
 import { useApprenants, useSubscribers } from '../equipe/data';
 import { estDePassage, useClients } from '../../../../shared/clients';
-import { useInvoices, invoiceRegleAu, invoiceReglements, invoiceRegleAuSauf, caissesHorsBilan, useCashboxes } from '../../../../shared/finance';
+import { useInvoices, invoiceReglements, caissesHorsBilan, useCashboxes } from '../../../../shared/finance';
 import {
   apptLabel, apptNetXof, apptServices, apptDiscountFactor, apptPayState, apptDueXof,
   frShort, todayISO, useServicesById, RdvModal, PayStatusPill,
-  DrillModal, revenuDuMois, type Drill, type DrillRow,
+  DrillModal, revenuDuMois, revenusProjetesDuMois, type Drill, type DrillRow,
 } from '../clients/_shared';
 import { PayAppointmentModal } from '../clients/actions';
+import { TuileDuMois, ColonnesEmpilees, LignesDuCumul, Anneau, Classement } from '../finances/SyntheseGraphes';
+import {
+  TEINTES, TEINTE_AUTRES, chiffreCourt, ecartAuMois, borneDuMois, aJourEgal, cumul, type PartDeLAnneau,
+} from '../finances/synthese-graphes-pur';
 import './pilotage.css';
 
 /* Bilan mensuel — le mois d'un regard : combien de rendez-vous, combien de revenu,
    qui sont les meilleures clientes, et combien de chaque prestation. Même base que
    la Synthèse (source de vérité du CA), donc mêmes chiffres — jamais deux fois :
    revenu = factures payées + rituels honorés NON facturés (la facture d'un rituel
-   encaissé le compte déjà). Tout est dérivé des magasins réels. */
+   encaissé le compte déjà). Tout est dérivé des magasins réels.
+
+   EN GRAPHES — 25 octobre 2026 (« Donne leur le même traitement », Yéman) :
+   les tuiles de la Synthèse, le revenu jour par jour en colonnes (l'encaissé,
+   puis l'attendu des jours à venir), le cumul du mois face au mois d'avant,
+   les rendez-vous par état, les classements. Les règles de dessin vivent dans
+   `finances/synthese-graphes-pur.ts`.
+
+   ENCAISSÉ À CE JOUR (même jour) : le mois en cours s'arrête à aujourd'hui,
+   comme le tableau de bord et la Synthèse ; ce qui est daté plus tard est de
+   l'attendu, montré à part et jamais additionné au revenu. */
 
 const MONTHS_FR = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
 const pad2 = (n: number) => String(n).padStart(2, '0');
 const monthTitle = (mk: string) => { const [y, m] = mk.split('-').map(Number); return `${MONTHS_FR[m - 1]} ${y}`; };
-const shiftMonth = (mk: string, dir: 1 | -1) => { const [y, m] = mk.split('-').map(Number); const d = new Date(y, m - 1 + dir, 1); return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}`; };
+const shiftMonth = (mk: string, dir: number) => { const [y, m] = mk.split('-').map(Number); const d = new Date(y, m - 1 + dir, 1); return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}`; };
 const daysInMonth = (mk: string) => { const [y, m] = mk.split('-').map(Number); return new Date(y, m, 0).getDate(); };
+/* « jeudi 24 octobre 2026 » : la bulle d'un jour dit son nom et son année. */
+const jourLong = (iso: string) => new Date(`${iso}T12:00:00`).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
 
+/* LES ÉTATS D'UN RENDEZ-VOUS, chacun sa teinte, fixée à l'état et non à son rang. */
+const ETATS: { k: Appointment['status']; nom: string; teinte: string }[] = [
+  { k: 'honoré', nom: 'Honorés', teinte: TEINTES[0] },
+  { k: 'confirmé', nom: 'Confirmés', teinte: TEINTES[2] },
+  { k: 'en attente', nom: 'En attente', teinte: TEINTES[1] },
+  { k: 'annulé', nom: 'Annulés', teinte: TEINTE_AUTRES },
+];
 
 /* Date d'un règlement de formation (jj/mm/aaaa, ou ISO) → jour ISO comparable. */
 const payISOLocal = (d: string): string => {
@@ -51,8 +74,9 @@ export default function BilanMensuel() {
   const [abonnes] = useSubscribers();
   const byId = useServicesById();
   const today = todayISO();
+  const thisMonth = today.slice(0, 7);
 
-  const [month, setMonth] = useState(today.slice(0, 7));
+  const [month, setMonth] = useState(thisMonth);
   const [drill, setDrill] = useState<Drill | null>(null);
   const [editAppt, setEditAppt] = useState<Appointment | null>(null);
   const [payAppt, setPayAppt] = useState<Appointment | null>(null);
@@ -72,42 +96,66 @@ export default function BilanMensuel() {
   });
 
   const d = useMemo(() => {
+    const borne = borneDuMois(month, today);
+    const dansLaBorne = (iso?: string) => !borne || (iso ?? '') <= borne;
     const inMonth = (iso: string) => iso.slice(0, 7) === month;
+    const factures = invoices.filter((i) => i.branchId === branch.id && i.kind === 'facture');
+    /* Ce qu'une pièce a reçu sur `prefixe` (un mois, ou un jour), à ce jour,
+       hors des caisses écartées quand `sauf` le demande. */
+    const regle = (i: (typeof factures)[number], prefixe: string, sauf: boolean, cut?: string) => invoiceReglements(i)
+      .filter((p) => (p.date ?? '').startsWith(prefixe) && (!cut || (p.date ?? '') <= cut) && (!sauf || !exclues.has(p.cashbox ?? '')))
+      .reduce((s, p) => s + p.amountXof, 0);
+
     /* LES PIÈCES QUI ONT REÇU DE L'ARGENT CE MOIS-CI — 17 août 2026.
        Depuis qu'une facture porte plusieurs règlements, son STATUT ne dit plus
        ce qui est entré : une pièce à moitié réglée est « envoyée », et filtrer
        sur `payée` effacerait l'argent déjà reçu. On ne retient plus la date
        d'ÉMISSION mais celle des VERSEMENTS. */
-    const paidInv = invoices.filter((i) => i.branchId === branch.id && i.kind === 'facture' && invoiceRegleAu(i, month) > 0);
+    const paidInv = factures.filter((i) => regle(i, month, false, borne) > 0);
     /* Rituels honorés NON facturés : la facture d'encaissement, quand elle existe,
        les compte déjà — on ne retient donc que ceux sans invoiceId (jamais deux fois). */
-    const honoredNoInv = appts.filter((a) => a.branchId === branch.id && a.status === 'honoré' && !a.invoiceId && inMonth(a.date));
+    const honoredNoInv = appts.filter((a) => a.branchId === branch.id && a.status === 'honoré' && !a.invoiceId && inMonth(a.date) && dansLaBorne(a.date));
     const monthAppts = appts.filter((a) => a.branchId === branch.id && a.status !== 'annulé' && inMonth(a.date));
+    const annulesDuMois = appts.filter((a) => a.branchId === branch.id && a.status === 'annulé' && inMonth(a.date));
     /* Rituels honorés porteurs de valeur (séances 2..N d'une série = 0). */
     const honoredValue = monthAppts.filter((a) => a.status === 'honoré' && !(a.seriesIndex && a.seriesIndex > 1));
 
     /* LES CAISSES HORS BILAN N'ENTRENT PAS DANS LE REVENU — 22 août 2026.
        Une épargne personnelle, un tiroir tenu pour quelqu'un d'autre : ce qui
-       y tombe n'a pas été gagné par la Maison. L'exclusion est DITE plus bas :
+       y tombe n'a pas été gagné par la Maison. L'exclusion est DITE plus haut :
        un total amputé en silence se croirait faux sans qu'on sache pourquoi. */
-    const revInv = paidInv.reduce((s, i) => s + invoiceRegleAuSauf(i, month, exclues), 0);
     const revRit = honoredNoInv.reduce((s, a) => s + apptNetXof(a, byId), 0);
-    /* Meme correction qu'a l'Analytics : le Bilan annoncait « meme base que la
-       Synthese » tout en omettant les reglements de formation. */
-    const revForm = apprenants
-      .flatMap((ap) => ap.payments ?? [])
-      .filter((pm) => inMonth(payISOLocal(pm.date)))
-      .reduce((s2, pm) => s2 + pm.amountXof, 0);
     /* LE CA DU MOIS PAR LA PORTE UNIQUE `revenuDuMois` (clients/_shared), la même
        que la Synthèse / le Dashboard / Analytics — mais avec `exclureHorsBilan`,
        car le Bilan seul écarte les caisses hors bilan (livres officiels). Les
-       abonnements y ENTRENT désormais (ils manquaient — décision du 3 août).
-       revInv/revRit/revForm restent calculés au-dessus pour les ventilations. */
-    const revenue = revenuDuMois(
-      { invoices, appts, byId, apprenants, abonnes, branchId: branch.id, cashboxes },
-      month,
-      { exclureHorsBilan: true },
-    );
+       abonnements y ENTRENT (décision du 3 août). Borné à aujourd'hui pour le
+       mois en cours (25 octobre 2026). */
+    const args = { invoices, appts, byId, apprenants, abonnes, branchId: branch.id, cashboxes };
+    const revenue = revenuDuMois(args, month, { exclureHorsBilan: true, cut: borne });
+    const projete = month >= thisMonth ? revenusProjetesDuMois(args, month, today) : null;
+
+    /* LES CHIFFRES D'UN MOIS, pour les tuiles et leur pente. `cut` borne au jour
+       (le mois en cours, ou le mois d'avant comparé à jour égal). Le nombre de
+       rendez-vous, lui, compte aussi ceux à venir : c'est le carnet du mois. */
+    const chiffresDu = (mk: string, cut?: string) => {
+      const rdv = appts.filter((a) => a.branchId === branch.id && a.status !== 'annulé' && a.date.slice(0, 7) === mk);
+      const honores = rdv.filter((a) => a.status === 'honoré' && (!cut || a.date <= cut));
+      const valeur = honores.filter((a) => !(a.seriesIndex && a.seriesIndex > 1));
+      const net = valeur.reduce((s, a) => s + apptNetXof(a, byId), 0);
+      return {
+        rdv: rdv.length,
+        honores: honores.length,
+        revenu: revenuDuMois(args, mk, { exclureHorsBilan: true, cut }),
+        panier: valeur.length > 0 ? Math.round(net / valeur.length) : 0,
+      };
+    };
+    const moisDuFil = Array.from({ length: 6 }, (_, i) => shiftMonth(month, i - 5));
+    const fil = moisDuFil.map((mk) => chiffresDu(mk, borneDuMois(mk, today)));
+    const moisAvant = shiftMonth(month, -1);
+    const borneAvant = month === thisMonth ? aJourEgal(moisAvant, today) : undefined;
+    const avant = chiffresDu(moisAvant, borneAvant);
+    const avantRdv = chiffresDu(moisAvant).rdv;
+
     const honoredNet = honoredValue.reduce((s, a) => s + apptNetXof(a, byId), 0);
     const honoredCount = monthAppts.filter((a) => a.status === 'honoré').length;
     const totalRdv = monthAppts.length;
@@ -139,23 +187,42 @@ export default function BilanMensuel() {
       .filter(([id, date]) => branchClientIds.has(id) && date.slice(0, 7) === month).length;
     const dePassage = new Set(monthAppts.filter((a) => passage.has(a.clientId)).map((a) => a.clientId)).size;
 
-    /* — revenu jour par jour du mois — */
+    /* — LE REVENU JOUR PAR JOUR : l'encaissé jusqu'à aujourd'hui ; pour les
+       jours à venir (et ce qui reste d'aujourd'hui), l'ATTENDU : les versements
+       datés de ce jour-là et le reste dû des rendez-vous prévus. Les caisses
+       écartées n'y entrent pas, comme dans le total. — */
+    const encaisseDu = (mk: string, iso: string) =>
+      factures.reduce((s, x) => s + regle(x, iso, true), 0)
+      + appts.filter((a) => a.branchId === branch.id && a.status === 'honoré' && !a.invoiceId && a.date === iso && a.date.slice(0, 7) === mk)
+        .reduce((s, a) => s + apptNetXof(a, byId), 0);
     const dim = daysInMonth(month);
     const days = Array.from({ length: dim }, (_, i) => {
       const iso = `${month}-${pad2(i + 1)}`;
-      const inv = paidInv.reduce((s, x) => s + invoiceRegleAu(x, iso), 0);
-      const rit = honoredNoInv.filter((a) => a.date === iso).reduce((s, a) => s + apptNetXof(a, byId), 0);
-      return { day: i + 1, iso, total: inv + rit };
+      const passe = !borne || iso <= borne;
+      const encaisse = passe ? encaisseDu(month, iso) : 0;
+      const verseePlusTard = !passe ? factures.reduce((s, x) => s + regle(x, iso, true), 0) : 0;
+      const resteDesRdv = borne && iso >= today
+        ? appts.filter((a) => a.branchId === branch.id && a.date === iso && a.status !== 'annulé' && a.status !== 'honoré')
+          .reduce((s, a) => s + Math.max(0, apptDueXof(a, byId)), 0)
+        : 0;
+      return { day: i + 1, iso, total: encaisse, attendu: verseePlusTard + resteDesRdv };
     });
-    const dayMax = Math.max(...days.map((x) => x.total), 1);
+    const dayMax = Math.max(...days.map((x) => x.total), 0);
+    /* LE CUMUL, face au mois d'avant ENTIER (on y lit où l'on en était au même
+       jour, et où il a fini). */
+    const dimAvant = daysInMonth(moisAvant);
+    const joursAvant = Array.from({ length: dimAvant }, (_, i) => encaisseDu(moisAvant, `${moisAvant}-${pad2(i + 1)}`));
+    const indexDuJour = borne ? Number(borne.slice(8, 10)) - 1 : dim - 1;
+    const cumulDuMois = cumul(days.map((x) => x.total), indexDuJour);
+    const cumulDuMoisAvant = cumul(joursAvant);
+    const cumulAvant = Array.from({ length: dim }, (_, i) => (i < dimAvant ? cumulDuMoisAvant[i] : null));
 
     /* — meilleures clientes du mois (revenu) — */
     const cliMap = new Map<string, { value: number; count: number }>();
     const bumpCli = (k: string, v: number) => { const c = cliMap.get(k) ?? { value: 0, count: 0 }; cliMap.set(k, { value: c.value + v, count: c.count + 1 }); };
-    paidInv.forEach((i) => bumpCli(i.clientName ?? nameOf(i.clientId), invoiceRegleAu(i, month)));
+    paidInv.forEach((i) => bumpCli(i.clientName ?? nameOf(i.clientId), regle(i, month, false, borne)));
     honoredNoInv.forEach((a) => bumpCli(nameOf(a.clientId), apptNetXof(a, byId)));
     const topClients = Array.from(cliMap.entries()).map(([name, v]) => ({ name, ...v })).sort((a, b) => b.value - a.value).slice(0, 8);
-    const cliMax = Math.max(...topClients.map((c) => c.value), 1);
 
     /* — résumé des prestations réalisées : combien de CHAQUE, et le revenu —
        part de la prestation dans le rituel, remise répercutée au prorata (une
@@ -170,18 +237,33 @@ export default function BilanMensuel() {
       });
     });
     const services = Array.from(svcMap.entries()).map(([name, v]) => ({ name, ...v })).sort((a, b) => b.count - a.count || b.value - a.value);
-    const svcCountMax = Math.max(...services.map((s) => s.count), 1);
     const svcTotalCount = services.reduce((s, x) => s + x.count, 0);
+
+    /* — les rendez-vous du mois par état (les annulés compris : ils se voient) — */
+    const parEtat = ETATS.map((e) => ({
+      ...e,
+      rdv: e.k === 'annulé' ? annulesDuMois : monthAppts.filter((a) => a.status === e.k),
+    }));
+
+    /* LES FORMATIONS : leurs règlements entrent dans le revenu (revenuDuMois)
+       mais pas dans les colonnes du jour ; on dit l'écart plutôt que de le
+       cacher. */
+    const formations = apprenants
+      .flatMap((ap) => ap.payments ?? [])
+      .filter((pm) => inMonth(payISOLocal(pm.date)) && dansLaBorne(payISOLocal(pm.date)))
+      .reduce((s2, pm) => s2 + pm.amountXof, 0);
 
     return {
       /* Le mois voyage avec ses chiffres : les journaux en aval doivent
          additionner les VERSEMENTS de ce mois-là, pas le total des pièces. */
-      month,
+      month, borne, borneAvant, moisAvant,
       paidInv, honoredNoInv, monthAppts, honoredValue,
-      revenue, revInv, revRit, honoredNet, honoredCount, totalRdv, basket, heads, nouvelles, dePassage,
-      days, dayMax, topClients, cliMax, services, svcCountMax, svcTotalCount,
+      revenue, projete, revRit, honoredNet, honoredCount, totalRdv, basket, heads, nouvelles, dePassage,
+      days, dayMax, cumulDuMois, cumulAvant, topClients, services, svcTotalCount, parEtat,
+      moisDuFil, fil, avant, avantRdv, formations,
+      regleDuMois: (i: (typeof factures)[number]) => regle(i, month, false, borne),
     };
-  }, [appts, invoices, branch.id, month, byId, clients, apprenants, abonnes, cashboxes]);
+  }, [appts, invoices, branch.id, month, byId, clients, apprenants, abonnes, cashboxes, exclues, today, thisMonth]);
 
   const hasLife = d.totalRdv > 0 || d.revenue > 0;
 
@@ -212,16 +294,24 @@ export default function BilanMensuel() {
         .map((a) => ({ date: a.date, who: nameOf(a.clientId), sub: apptLabel(a, byId), amount: apptNetXof(a, byId), ...apptLink(a) })),
       ...d.paidInv
         .filter((i) => invoiceReglements(i).some((p) => p.date >= from && p.date <= to))
-        .map((i) => ({ date: i.date, who: i.clientName ?? nameOf(i.clientId), sub: `Facture ${i.number}`, amount: invoiceRegleAu(i, d.month), invoiceId: i.id })),
+        .map((i) => ({ date: i.date, who: i.clientName ?? nameOf(i.clientId), sub: `Facture ${i.number}`, amount: d.regleDuMois(i), invoiceId: i.id })),
     ].sort((a, b) => ((a.date ?? '') < (b.date ?? '') ? 1 : -1));
 
   const openRevenueMonth = () => {
-    const rows = revenueRows(`${month}-01`, `${month}-31`);
-    setDrill({ title: `Revenu · ${monthTitle(month)}`, sub: 'Factures payées et rituels honorés du mois', rows, total: rows.reduce((s, r) => s + (r.amount ?? 0), 0) });
+    const rows = revenueRows(`${month}-01`, d.borne ?? `${month}-31`);
+    setDrill({ title: `Revenu · ${monthTitle(month)}`, sub: d.borne ? `Factures payées et rituels honorés, encaissés au ${frShort(d.borne)}` : 'Factures payées et rituels honorés du mois', rows, total: rows.reduce((s, r) => s + (r.amount ?? 0), 0) });
   };
   const openDay = (iso: string) => {
+    if (d.borne && iso > d.borne) {
+      /* Un jour à venir : ce qu'il attend, rendez-vous par rendez-vous. */
+      const rows: DrillRow[] = appts
+        .filter((a) => a.branchId === branch.id && a.date === iso && a.status !== 'annulé' && a.status !== 'honoré')
+        .map((a) => ({ date: a.date, who: nameOf(a.clientId), sub: `${apptLabel(a, byId)} · ${a.time ?? ''} · reste à régler`, amount: Math.max(0, apptDueXof(a, byId)), ...apptLink(a) }));
+      setDrill({ title: `Attendu · ${jourLong(iso)}`, sub: rows.length ? `${rows.length} rendez-vous prévu${rows.length > 1 ? 's' : ''}, rien n'est encore acquis` : 'aucun rendez-vous prévu ce jour', rows, total: rows.reduce((s, r) => s + (r.amount ?? 0), 0) });
+      return;
+    }
     const rows = revenueRows(iso, iso);
-    setDrill({ title: `Revenu · ${frShort(iso)}`, sub: rows.length ? `${rows.length} encaissement${rows.length > 1 ? 's' : ''}` : 'aucun encaissement ce jour', rows, total: rows.reduce((s, r) => s + (r.amount ?? 0), 0) });
+    setDrill({ title: `Revenu · ${jourLong(iso)}`, sub: rows.length ? `${rows.length} encaissement${rows.length > 1 ? 's' : ''}` : 'aucun encaissement ce jour', rows, total: rows.reduce((s, r) => s + (r.amount ?? 0), 0) });
   };
   const openTotalRdv = () => {
     const rows: DrillRow[] = d.monthAppts
@@ -230,10 +320,19 @@ export default function BilanMensuel() {
       .map((a) => ({ date: a.date, who: nameOf(a.clientId), sub: `${apptLabel(a, byId)} · ${a.status}`, amount: a.status === 'honoré' ? apptNetXof(a, byId) : undefined, ...apptLink(a) }));
     setDrill({ title: `Rendez-vous · ${monthTitle(month)}`, sub: `${rows.length} rendez-vous (hors annulés)`, rows });
   };
+  const openEtat = (p: PartDeLAnneau) => {
+    const e = d.parEtat.find((x) => x.nom === p.nom);
+    if (!e) return;
+    const rows: DrillRow[] = e.rdv
+      .slice()
+      .sort((a, b) => (a.date < b.date ? 1 : -1))
+      .map((a) => ({ date: a.date, who: nameOf(a.clientId), sub: `${apptLabel(a, byId)}${a.time ? ` · ${a.time}` : ''}`, amount: a.status === 'honoré' ? apptNetXof(a, byId) : undefined, ...apptLink(a) }));
+    setDrill({ title: `${e.nom} · ${monthTitle(month)}`, sub: `${rows.length} rendez-vous`, rows });
+  };
   const openClient = (name: string) => {
     const rows: DrillRow[] = [
       ...d.honoredNoInv.filter((a) => nameOf(a.clientId) === name).map((a) => ({ date: a.date, who: name, sub: apptLabel(a, byId), amount: apptNetXof(a, byId), ...apptLink(a) })),
-      ...d.paidInv.filter((i) => (i.clientName ?? nameOf(i.clientId)) === name).map((i) => ({ date: i.date, who: name, sub: `Facture ${i.number}`, amount: invoiceRegleAu(i, d.month), invoiceId: i.id })),
+      ...d.paidInv.filter((i) => (i.clientName ?? nameOf(i.clientId)) === name).map((i) => ({ date: i.date, who: name, sub: `Facture ${i.number}`, amount: d.regleDuMois(i), invoiceId: i.id })),
     ].sort((a, b) => ((a.date ?? '') < (b.date ?? '') ? 1 : -1));
     setDrill({ title: name, sub: `Le mois de ${monthTitle(month)}`, rows, total: rows.reduce((s, r) => s + (r.amount ?? 0), 0) });
   };
@@ -251,12 +350,20 @@ export default function BilanMensuel() {
     setDrill({ title: `Prestation · ${svcName}`, sub: `${rows.length} fois en ${monthTitle(month)}`, rows, total: rows.reduce((s, r) => s + (r.amount ?? 0), 0) });
   };
 
-  const kpis = [
-    { l: 'Rendez-vous du mois', v: String(d.totalRdv), cap: `${d.heads} cliente${d.heads > 1 ? 's' : ''} · ${d.nouvelles} nouvelle${d.nouvelles > 1 ? 's' : ''}${d.dePassage > 0 ? ` · ${d.dePassage} de passage` : ''}`, a: 'var(--color-indigo)', pct: d.totalRdv > 0 ? Math.round((d.honoredCount / d.totalRdv) * 100) : 0, open: d.totalRdv > 0 ? openTotalRdv : undefined },
-    { l: 'Rituels honorés', v: String(d.honoredCount), cap: d.totalRdv > 0 ? `${Math.round((d.honoredCount / d.totalRdv) * 100)} % des rendez-vous` : 'aucun rituel honoré', a: 'var(--copper-600)', pct: d.totalRdv > 0 ? Math.round((d.honoredCount / d.totalRdv) * 100) : 0, open: undefined },
-    { l: 'Revenu du mois', v: d.revenue > 0 ? fmtMoney(d.revenue, currency) : '—', cap: d.revenue > 0 ? 'factures payées + rituels honorés' : 'en attente d’encaissement', a: 'var(--color-copper)', pct: d.revenue > 0 ? Math.round((d.revRit / d.revenue) * 100) : 0, open: d.revenue > 0 ? openRevenueMonth : undefined },
-    { l: 'Panier moyen', v: d.basket > 0 ? fmtMoney(d.basket, currency) : '—', cap: d.basket > 0 ? 'par rituel honoré' : 'se calcule à l’usage', a: 'var(--indigo-400)', pct: d.basket > 0 && d.revenue > 0 ? Math.min(100, Math.round((d.basket / (d.revenue || 1)) * 100)) : 0, open: undefined },
-  ];
+  /* — LES TUILES : la même comparaison loyale que la Synthèse. Le mois en
+     cours, arrêté à aujourd'hui, se compare au mois d'avant au même jour ;
+     un mois passé, au mois d'avant entier. — */
+  const nomAvant = monthTitle(d.moisAvant);
+  const quantieme = (iso: string) => { const j = Number(iso.slice(8, 10)); return j === 1 ? '1er' : String(j); };
+  const avantNom = d.borneAvant ? `Au ${quantieme(d.borneAvant)} ${nomAvant}` : nomAvant;
+  const vsNom = d.borneAvant ? `${nomAvant}, à jour égal` : nomAvant;
+  const indexDuMois = d.moisDuFil.length - 1;
+  const parts = d.parEtat
+    .map((e, i) => ({ nom: e.nom, valeur: e.rdv.length, n: e.rdv.length, teinte: i, membres: [e.nom] }))
+    .filter((p) => p.valeur > 0);
+  const teinteDeLEtat = (p: PartDeLAnneau) => ETATS.find((e) => e.nom === p.nom)?.teinte ?? TEINTE_AUTRES;
+  const court = (v: number) => chiffreCourt(convertFromXof(v, currency));
+  const enCours = month === thisMonth;
 
   return (
     <div className="mnd-rise">
@@ -276,7 +383,7 @@ export default function BilanMensuel() {
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, border: '1px solid var(--hairline)', borderRadius: 2, padding: '8px 12px' }}>
             <button onClick={() => setMonth((m) => shiftMonth(m, -1))} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--ink-soft)', fontSize: 13 }} aria-label="Mois précédent">‹</button>
             <button
-              onClick={() => setMonth(today.slice(0, 7))}
+              onClick={() => setMonth(thisMonth)}
               title="Revenir au mois en cours"
               style={{ background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 12, letterSpacing: '.04em', color: 'var(--color-indigo)', textTransform: 'capitalize', minWidth: 120 }}
             >
@@ -295,130 +402,109 @@ export default function BilanMensuel() {
         </div>
       )}
 
-      {/* Indices du mois */}
-      <div className="tr-grid tr-grid--4" style={{ marginTop: 18 }}>
-        {kpis.map((i) => {
-          const inner = (
-            <>
-              <span className="trp-kpi__bar" style={{ background: i.a }} />
-              <div className="trp-index__label">{i.l}</div>
-              <div className="trp-index__value">{i.v}</div>
-              <svg viewBox="0 0 100 8" style={{ width: '100%', height: 8, marginTop: 12, display: 'block' }} aria-hidden>
-                <line x1="0" y1="4" x2="100" y2="4" stroke="var(--hairline)" strokeWidth="2" />
-                <line x1="0" y1="4" x2={i.pct} y2="4" stroke={i.a} strokeWidth="4" strokeLinecap="round" />
-              </svg>
-              <div className="trp-index__cap">{i.cap}</div>
-            </>
-          );
-          return i.open ? (
-            <button type="button" key={i.l} className="trp-index trp-index--click" onClick={i.open} title="Voir le détail">{inner}</button>
-          ) : (
-            <div className="trp-index" key={i.l}>{inner}</div>
-          );
-        })}
+      {/* LES QUATRE CHIFFRES DU MOIS, comme à la Synthèse. */}
+      <div className="tr-grid tr-grid--4 tsy-tuiles">
+        <TuileDuMois
+          libelle="Rendez-vous du mois" valeur={String(d.totalRdv)}
+          ecart={ecartAuMois(d.totalRdv, d.avantRdv)} avantNom={nomAvant} avantValeur={`${d.avantRdv} rendez-vous`}
+          extra={`${d.heads} cliente${d.heads > 1 ? 's' : ''} · ${d.nouvelles} nouvelle${d.nouvelles > 1 ? 's' : ''}${d.dePassage > 0 ? ` · ${d.dePassage} de passage` : ''}`}
+          serie={d.fil.map((x) => x.rdv)} indexCourant={indexDuMois} onOuvrir={d.totalRdv > 0 ? openTotalRdv : undefined}
+        />
+        <TuileDuMois
+          libelle="Rituels honorés" valeur={String(d.honoredCount)}
+          ecart={ecartAuMois(d.honoredCount, d.avant.honores)} avantNom={avantNom} vsNom={vsNom} avantValeur={`${d.avant.honores} rituel${d.avant.honores > 1 ? 's' : ''}`}
+          extra={d.totalRdv > 0 ? `${Math.round((d.honoredCount / d.totalRdv) * 100)} % des rendez-vous` : undefined}
+          serie={d.fil.map((x) => x.honores)} indexCourant={indexDuMois}
+        />
+        <TuileDuMois
+          libelle={enCours ? 'Revenu encaissé à ce jour' : 'Revenu du mois'} valeur={fmtMoney(d.revenue, currency)}
+          ecart={ecartAuMois(d.revenue, d.avant.revenu)} avantNom={avantNom} vsNom={vsNom} avantValeur={fmtMoney(d.avant.revenu, currency)}
+          extra={d.projete && d.projete.total > 0 ? `Projeté sur le mois : ${fmtMoney(d.revenue + d.projete.total, currency)}` : undefined}
+          serie={d.fil.map((x) => x.revenu)} indexCourant={indexDuMois} onOuvrir={d.revenue > 0 ? openRevenueMonth : undefined}
+        />
+        <TuileDuMois
+          libelle="Panier moyen" valeur={fmtMoney(d.basket, currency)}
+          ecart={ecartAuMois(d.basket, d.avant.panier)} avantNom={avantNom} vsNom={vsNom} avantValeur={fmtMoney(d.avant.panier, currency)}
+          extra="par rituel honoré"
+          serie={d.fil.map((x) => x.panier)} indexCourant={indexDuMois}
+        />
       </div>
 
-      {/* Revenu · jour par jour du mois */}
-      <div className="trp-rev" style={{ marginTop: 18, borderRadius: 4 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12 }}>
-          <div>
-            <div className="trp-rev__eyebrow">Revenu · jour par jour</div>
-            <div style={{ fontSize: 11.5, color: 'var(--indigo-100)', marginTop: 4 }}>
-              Chaque barre = l’encaissement d’un jour (factures payées + rituels honorés). Touchez un jour pour le détail.
-            </div>
+      {/* LE MOIS JOUR PAR JOUR, et ses rendez-vous par état. */}
+      <div className="tsy-rangee">
+        <div className="trf-panel">
+          <div className="tsy-panneau__tete">
+            <div className="trf-panel__title">Revenu · jour par jour · {monthTitle(month)}</div>
+            <span className="tsy-panneau__sous">
+              {d.days.some((x) => x.total > 0) ? `Meilleur jour ${fmtMoney(d.dayMax, currency)} · ` : ''}un clic sur un jour pour le détail
+            </span>
           </div>
-          <div style={{ textAlign: 'right' }}>
-            <div className="mnd-serif" style={{ fontSize: 28, lineHeight: 1, color: 'var(--color-ivoire)' }}>{d.revenue > 0 ? fmtMoney(d.revenue, currency) : '—'}</div>
-            <div style={{ fontSize: 10.5, color: 'var(--indigo-200)', marginTop: 4, letterSpacing: '.04em', textTransform: 'uppercase' }}>total du mois</div>
+          <ColonnesEmpilees
+            colonnes={d.days.map((x) => ({
+              cle: x.iso,
+              court: x.day === 1 || x.day % 5 === 0 || x.day === d.days.length ? String(x.day) : '',
+              long: jourLong(x.iso),
+              valeurs: [x.total, x.attendu],
+              marque: x.iso === today,
+            }))}
+            series={[{ nom: 'Encaissé', teinte: TEINTES[0] }, { nom: 'Attendu (pas encore acquis)', teinte: TEINTE_AUTRES }]}
+            fmt={(v) => fmtMoney(v, currency)} fmtAxe={court}
+            onChoisir={openDay} consigne="Cliquer pour le détail du jour"
+            vide="Aucun encaissement ce mois-ci, le premier rituel honoré posera la première colonne."
+          />
+          <div className="tsy-note">
+            {d.honoredCount} rituel{d.honoredCount > 1 ? 's' : ''} honoré{d.honoredCount > 1 ? 's' : ''} · {d.paidInv.length} facture{d.paidInv.length > 1 ? 's' : ''} payée{d.paidInv.length > 1 ? 's' : ''}.
+            {' '}Une colonne dit les factures réglées et les rituels honorés du jour
+            {d.formations > 0 ? ` ; les ${fmtMoney(d.formations, currency)} de formations et les abonnements comptent dans le total sans jour de caisse` : ''}.
           </div>
         </div>
-        {d.revenue > 0 ? (
-          <svg viewBox="0 0 480 190" style={{ width: '100%', height: 190, marginTop: 18, display: 'block' }} aria-hidden>
-            {d.days.map((x) => {
-              const bw = 460 / d.days.length;
-              const bx = 10 + x.day * bw - bw;
-              const h = (x.total / d.dayMax) * 150;
-              const showLabel = x.day === 1 || x.day % 5 === 0 || x.day === d.days.length;
-              const isToday = x.iso === today;
-              return (
-                <g key={x.iso} onClick={x.total > 0 ? () => openDay(x.iso) : undefined} style={{ cursor: x.total > 0 ? 'pointer' : 'default' }}>
-                  <rect x={bx} y={10} width={bw} height={158} fill="transparent" />
-                  <rect
-                    x={bx + Math.max(1, bw * 0.14)}
-                    y={168 - h}
-                    width={Math.max(2, bw * 0.72)}
-                    height={Math.max(1, h)}
-                    rx={1}
-                    fill={x.total > 0 ? (isToday ? 'var(--copper-200)' : 'var(--color-copper)') : 'rgba(246,241,231,0.10)'}
-                  />
-                  {showLabel && (
-                    <text x={bx + bw / 2} y={184} textAnchor="middle" fontSize={8.5} fontFamily="var(--font-sans)" fill="var(--indigo-200)">{x.day}</text>
-                  )}
-                  {x.total > 0 && <title>{`${frShort(x.iso)} · ${fmtMoney(x.total, currency)}`}</title>}
-                </g>
-              );
-            })}
-          </svg>
-        ) : (
-          <div style={{ padding: '38px 0 26px', fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: 15, color: 'var(--indigo-100)' }}>
-            Aucun encaissement ce mois-ci, le premier rituel honoré posera la première barre.
-          </div>
-        )}
-        <div className="trp-rev__foot">
-          <span>{d.honoredCount} rituel{d.honoredCount > 1 ? 's' : ''} honoré{d.honoredCount > 1 ? 's' : ''} · {d.paidInv.length} facture{d.paidInv.length > 1 ? 's' : ''} payée{d.paidInv.length > 1 ? 's' : ''}</span>
-          <span className="trp-rev__best">{d.days.some((x) => x.total > 0) ? `meilleur jour ${fmtMoney(d.dayMax, currency)}` : '—'}</span>
+        <div className="trf-panel">
+          <div className="trf-panel__title">Les rendez-vous du mois</div>
+          <Anneau
+            parts={parts} currency={currency} compte total={parts.reduce((s, p) => s + p.valeur, 0)} libelleTotal="rendez-vous"
+            teinteDe={teinteDeLEtat} vide={`Aucun rendez-vous en ${monthTitle(month)}.`} onOuvrir={openEtat}
+          />
         </div>
       </div>
 
-      {/* Top clientes + Résumé des prestations */}
-      <div className="tr-grid tr-grid--2" style={{ marginTop: 18 }}>
-        <div className="trp-panel">
-          <div className="trp-panel__title">Meilleures clientes · {monthTitle(month)}</div>
-          {d.topClients.length === 0 ? (
-            <div className="mnd-muted" style={{ fontSize: 13, fontFamily: 'var(--font-serif)', fontStyle: 'italic' }}>Aucune cliente encaissée ce mois, le classement attend ses lauréates.</div>
-          ) : (
-            d.topClients.map((c, i) => (
-              <button type="button" key={c.name} className="trp-drill" onClick={() => openClient(c.name)} title="Voir le détail de la cliente">
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 10 }}>
-                  <span className="mnd-serif" style={{ fontSize: 15, color: 'var(--color-indigo)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    <span style={{ color: 'var(--copper-600)', marginRight: 8 }}>{i + 1}.</span>{c.name}
-                  </span>
-                  <span style={{ fontSize: 13, color: 'var(--color-indigo)', fontFamily: 'var(--font-serif)', flex: 'none' }}>{fmtMoney(c.value, currency)}</span>
-                </div>
-                <div className="trp-bar" style={{ marginTop: 5 }}>
-                  <div style={{ width: `${Math.round((c.value / d.cliMax) * 100)}%`, background: i === 0 ? 'var(--color-copper)' : 'var(--indigo-400)' }} />
-                </div>
-                <div style={{ fontSize: 10.5, color: 'var(--ink-soft)', marginTop: 3 }}>{c.count} passage{c.count > 1 ? 's' : ''}</div>
-              </button>
-            ))
-          )}
+      {/* LE CUMUL FACE AU MOIS D'AVANT, et les meilleures clientes. */}
+      <div className="tsy-rangee">
+        <div className="trf-panel">
+          <div className="tsy-panneau__tete">
+            <div className="trf-panel__title">Le cumul du mois · face à {nomAvant}</div>
+            <span className="tsy-panneau__sous">Factures réglées et rituels honorés, depuis le 1er</span>
+          </div>
+          <LignesDuCumul
+            points={d.days.length}
+            series={[
+              { nom: monthTitle(month), teinte: TEINTES[0], valeurs: d.cumulDuMois },
+              { nom: nomAvant, teinte: TEINTE_AUTRES, valeurs: d.cumulAvant },
+            ]}
+            fmt={(v) => fmtMoney(v, currency)} fmtAxe={court}
+            libelle={(i) => `Le ${i === 0 ? '1er' : i + 1} du mois`}
+            court={(i) => (i === 0 || (i + 1) % 5 === 0 || i === d.days.length - 1 ? String(i + 1) : null)}
+          />
         </div>
+        <div className="trf-panel">
+          <div className="trf-panel__title">Meilleures clientes · {monthTitle(month)}</div>
+          <Classement
+            lignes={d.topClients.map((c) => ({ nom: c.name, valeur: c.value, meta: `${c.count} passage${c.count > 1 ? 's' : ''}` }))}
+            currency={currency} vide="Aucune cliente encaissée ce mois, le classement attend ses lauréates." onOuvrir={openClient}
+          />
+        </div>
+      </div>
 
-        <div className="trp-panel">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 10 }}>
-            <div className="trp-panel__title" style={{ marginBottom: 0 }}>Résumé des prestations · combien de chaque</div>
-            {d.svcTotalCount > 0 && <span style={{ fontSize: 11, color: 'var(--ink-soft)' }}>{d.svcTotalCount} au total</span>}
-          </div>
-          <div style={{ marginTop: 12 }}>
-            {d.services.length === 0 ? (
-              <div className="mnd-muted" style={{ fontSize: 13, fontFamily: 'var(--font-serif)', fontStyle: 'italic' }}>Aucune prestation réalisée ce mois, le résumé se dessinera avec le carnet.</div>
-            ) : (
-              d.services.map((s) => (
-                <button type="button" key={s.name} className="trp-drill" onClick={() => openService(s.name)} title="Voir les rituels de cette prestation">
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 10 }}>
-                    <span style={{ fontSize: 13.5, color: 'var(--ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.name}</span>
-                    <span style={{ flex: 'none', display: 'inline-flex', alignItems: 'baseline', gap: 8 }}>
-                      <span className="mnd-serif" style={{ fontSize: 17, color: 'var(--color-indigo)' }}>{s.count}×</span>
-                      <span style={{ fontSize: 12, color: 'var(--copper-700)' }}>{fmtMoney(s.value, currency)}</span>
-                    </span>
-                  </div>
-                  <div className="trp-bar" style={{ marginTop: 5 }}>
-                    <div style={{ width: `${Math.round((s.count / d.svcCountMax) * 100)}%`, background: 'var(--color-indigo)' }} />
-                  </div>
-                </button>
-              ))
-            )}
-          </div>
+      {/* LE RÉSUMÉ DES PRESTATIONS : la barre suit le NOMBRE, le montant se lit à côté. */}
+      <div className="trf-panel" style={{ marginTop: 18 }}>
+        <div className="tsy-panneau__tete">
+          <div className="trf-panel__title">Résumé des prestations · combien de chaque</div>
+          {d.svcTotalCount > 0 && <span className="tsy-panneau__sous">{d.svcTotalCount} au total</span>}
+        </div>
+        <div className="tsy-colonnes-2">
+          <Classement
+            lignes={d.services.map((s) => ({ nom: s.name, valeur: s.count, dit: `${s.count}× · ${fmtMoney(s.value, currency)}` }))}
+            currency={currency} vide="Aucune prestation réalisée ce mois, le résumé se dessinera avec le carnet." onOuvrir={openService}
+          />
         </div>
       </div>
 

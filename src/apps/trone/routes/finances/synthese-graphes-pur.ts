@@ -35,14 +35,15 @@ const MOINS = '−';
 
 /** LES GRADUATIONS DE L'AXE : des nombres ronds (1, 2, 2,5, 5 × 10ⁿ), qui
     contiennent toujours le zéro, et descendent sous lui quand un résultat est
-    négatif. Un axe qui ne part pas de zéro grossit les écarts. */
-export function graduations(min: number, max: number, cible = 4): number[] {
+    négatif. Un axe qui ne part pas de zéro grossit les écarts. `pasMin` : un
+    axe qui compte des rendez-vous ne dit jamais « 0,25 rituel ». */
+export function graduations(min: number, max: number, cible = 4, pasMin = 0): number[] {
   const bas = Math.min(0, min);
   const haut = Math.max(0, max);
   if (haut === bas) return [0];
   const brut = (haut - bas) / Math.max(1, cible);
   const p = 10 ** Math.floor(Math.log10(brut));
-  const pas = [1, 2, 2.5, 5, 10].map((m) => m * p).find((s) => s >= brut - 1e-9) ?? 10 * p;
+  const pas = Math.max(pasMin, [1, 2, 2.5, 5, 10].map((m) => m * p).find((s) => s >= brut - 1e-9) ?? 10 * p);
   const debut = Math.floor(bas / pas + 1e-9) * pas;
   const fin = Math.ceil(haut / pas - 1e-9) * pas;
   const out: number[] = [];
@@ -157,4 +158,29 @@ export function groupePar<T extends { amount: number; dims?: Record<string, stri
     m.set(nom, { total: c.total + l.amount, n: c.n + 1 });
   }
   return [...m.entries()].map(([nom, v]) => ({ nom, ...v })).sort((a, b) => b.total - a.total || a.nom.localeCompare(b.nom, 'fr'));
+}
+
+/** LA BORNE DU MOIS : « encaissé à ce jour ». Le mois en cours, et tout mois
+    à venir, s'arrête à aujourd'hui ; un mois passé se lit en entier. La même
+    règle que le tableau de bord depuis le 1er octobre 2026 : un versement daté
+    du 29 n'est pas encore de l'argent reçu le 24, il se lit dans le projeté. */
+export const borneDuMois = (mk: string, aujourdhui: string): string | undefined =>
+  (mk >= aujourdhui.slice(0, 7) ? aujourdhui : undefined);
+
+/** LA COMPARAISON LOYALE, À JOUR ÉGAL : le mois d'avant s'arrête au même
+    quantième, borné à sa longueur (le 31 mars se compare au 28 février). */
+export const aJourEgal = (mkAvant: string, aujourdhui: string): string => {
+  const fin = new Date(Number(mkAvant.slice(0, 4)), Number(mkAvant.slice(5, 7)), 0).getDate();
+  return `${mkAvant}-${String(Math.min(Number(aujourdhui.slice(8, 10)), fin)).padStart(2, '0')}`;
+};
+
+/** LE CUMUL JOUR APRÈS JOUR. `jusqua` (un indice) arrête la courbe : les
+    jours d'après valent null, ils ne sont pas encore arrivés. */
+export function cumul(valeurs: readonly number[], jusqua = valeurs.length - 1): (number | null)[] {
+  let s = 0;
+  return valeurs.map((v, i) => {
+    if (i > jusqua) return null;
+    s += v;
+    return s;
+  });
 }

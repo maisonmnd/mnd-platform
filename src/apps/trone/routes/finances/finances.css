@@ -2370,3 +2370,21 @@
   border-top: 1px solid var(--hairline); font-family: var(--font-sans); font-size: 12.5px; font-weight: 500;
 }
 .tsy-detail__total span:last-child { font-size: 20px; font-variant-numeric: tabular-nums; }
+
+/* ── Le mois jour par jour, les paliers (25 octobre 2026) ── */
+.tsy-tuile--fixe { cursor: default; }
+.tsy-tuile--fixe:hover { border-color: var(--hairline); box-shadow: none; }
+.tsy-parts__barre { display: flex; gap: 2px; height: 16px; border-radius: 4px; overflow: hidden; background: var(--surface-card); }
+.tsy-parts__seg { min-width: 3px; }
+.tsy-parts__legende { display: grid; gap: 2px; margin-top: 14px; }
+.tsy-parts__ligne {
+  display: grid; grid-template-columns: 10px minmax(0, 1fr) auto auto; align-items: center; gap: 4px 10px;
+  padding: 7px 0; border-bottom: 1px solid var(--hairline); font-family: var(--font-sans); font-size: 12.5px; color: var(--ink);
+}
+.tsy-parts__ligne:last-child { border-bottom: 0; }
+.tsy-parts__nom { display: inline-flex; align-items: center; gap: 8px; min-width: 0; }
+.tsy-parts__v { font-weight: 500; font-variant-numeric: tabular-nums; text-align: right; }
+.tsy-parts__detail { grid-column: 2 / -1; font-size: 11.5px; color: var(--tsy-muet); }
+.tsy-titre-section { margin-top: 30px; }
+.tsy-colonnes-2 .tsy-classement { grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 32px; }
+@media (max-width: 760px) { .tsy-colonnes-2 .tsy-classement { grid-template-columns: minmax(0, 1fr); } }
