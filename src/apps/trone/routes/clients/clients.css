@@ -3426,3 +3426,36 @@
   .trc-siens__argent { grid-area: argent; }
   .trc-siens__etat, .trc-siens__ouvrir { display: none; }
 }
+
+/* LE CARNET PLUS INTELLIGENT — 25 octobre 2026. Des chiffres et leur calcul,
+   des compteurs qui filtrent, des jours qui disent leur charge, des signaux. */
+.trc-calcs { display: flex; flex-direction: column; margin-top: 8px; width: 100%; }
+.trc-calc { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 8px; padding: 3px 0; font-size: 12px; color: var(--ink-soft); font-variant-numeric: tabular-nums; text-align: left; }
+.trc-calc span:nth-child(2), .trc-calc span:nth-child(3) { text-align: right; white-space: nowrap; }
+.trc-calc.est-total { border-top: 1px solid var(--color-indigo); margin-top: 3px; padding-top: 5px; color: var(--color-indigo); font-weight: 600; }
+.trc-calc.est-alerte { color: var(--alarme, #A3402B); }
+.trc-presse { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 14px; }
+.trc-presse__puce { font: 400 12.5px var(--font-sans); padding: 7px 12px; border-radius: 999px; border: 1px solid var(--line, var(--hairline)); background: var(--surface-card); color: var(--ink); cursor: pointer; }
+.trc-presse__puce b { font-weight: 600; color: var(--color-indigo); }
+.trc-presse__puce.est-alerte b { color: var(--alarme, #A3402B); }
+.trc-presse__puce span { color: var(--ink-soft); }
+.trc-presse__puce.is-on { background: var(--color-indigo); border-color: var(--color-indigo); color: var(--color-ivoire, #F6F1E7); }
+.trc-presse__puce.is-on b, .trc-presse__puce.is-on span { color: inherit; }
+.trc-presse__effacer { background: none; border: 0; font: 400 12.5px var(--font-sans); color: var(--copper-700); cursor: pointer; padding: 4px; }
+.trc-compris { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin: -4px 0 12px; }
+.trc-compris__dit { font-size: 12.5px; color: var(--ink-soft); }
+.trc-compris__puce { font: 500 11px var(--font-sans); letter-spacing: .04em; padding: 3px 9px; border-radius: 999px; border: 1px solid var(--indigo-200, #C9CEEB); color: var(--color-indigo); }
+.trc-carnet-jour { display: flex; gap: 18px; align-items: baseline; flex-wrap: wrap; padding: 8px 18px; background: var(--paper-2, #EFE7DA); font-size: 12.5px; color: var(--ink-soft); }
+.trc-carnet-jour__nom { font: 400 16px var(--font-serif); color: var(--color-indigo); margin-right: auto; }
+.trc-carnet-jour__xof { font-variant-numeric: tabular-nums; color: var(--ink); }
+.trc-carnet-jour__charge { display: inline-flex; align-items: center; gap: 6px; font-variant-numeric: tabular-nums; }
+.trc-carnet-jour__charge i { display: inline-block; width: 64px; height: 6px; border-radius: 3px; background: var(--hairline); overflow: hidden; }
+.trc-carnet-jour__charge i b { display: block; height: 6px; background: var(--indigo-500, #3D4BA3); }
+.trc-carnet-jour__charge.est-plein { color: var(--alarme, #A3402B); }
+.trc-carnet-jour__charge.est-plein i b { background: var(--alarme, #A3402B); }
+.trc-carnet-jour__charge.est-creux { color: var(--copper-700); }
+.trc-carnet-jour__charge.est-creux i b { background: var(--copper-300, #E3C9AE); }
+.trc-signal { cursor: help; }
+.trc-signal.est-alerte { background: #FBEDEA; color: var(--alarme, #A3402B); border-color: #E7B7AC; }
+.trc-geste { display: inline-block; margin-top: 2px; background: none; border: 0; padding: 2px 0; font: 500 12px var(--font-sans); color: var(--copper-700); cursor: pointer; text-decoration: none; white-space: nowrap; }
+.trc-geste:hover { text-decoration: underline; }

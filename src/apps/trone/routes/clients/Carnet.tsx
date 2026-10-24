@@ -15,7 +15,13 @@ import { monthTitle } from '../finances/_shared';
 import { appointmentsStore, type Appointment } from '../../../../shared/agenda';
 import { useCategories, useServices, useProducts, MAISONS, type Maison } from '../../../../shared/catalog';
 import { useModelBands, useBandSets } from '../../../../shared/pricing';
-import { useSettings } from '../../../../shared/settings';
+import { useSettings, openingForIso } from '../../../../shared/settings';
+import { chargeDuJour, tauxDit } from '../../../../shared/agents-maison-pur';
+import {
+  ancienneteDesCreances, ceQuiPresse, comprendsLaPhrase, dettesParCliente, estAVenir, gardeSelonLaPhrase, gesteDuRdv,
+  historiqueParCliente, jourEnClair, probable, signauxDuRdv, tauxDHonneur,
+  type CleQuiPresse, type RdvLu, type Signal,
+} from './carnet-intelligent-pur';
 import { useStaff as useMyStaff } from '../../../../shared/auth';
 import { staffAccessStore } from '../equipe/data';
 import { useStore } from '../../../../shared/store';
@@ -23,7 +29,7 @@ import { voitLesPrix } from '../index';
 import { type Service } from '../../../../shared/catalog';
 import {
   Avatar, PayStatusPill, RdvModal, ReminderBell, SourceBadge, StatusPill, type RdvInitial,
-  addDaysISO, apptLabel, apptNetXof, apptGammeXof, apptPayState, montantDuCarnet, apptDueXof, apptDepositCreditXof, frDay, frShort, timeToMin, todayISO, useBranchAppointments, useBranchClients, useServicesById,
+  addDaysISO, apptLabel, apptNetXof, apptGammeXof, apptPayState, montantDuCarnet, apptDueXof, apptDepositCreditXof, apptDurationMin, frDay, frShort, timeToMin, todayISO, useBranchAppointments, useBranchClients, useServicesById,
   tarifsDuRituel, PortesWhatsApp, DrillModal, type Drill,
 } from './_shared';
 import { cancelAppointmentPayment, deshonoreLeRituel, factureAEnvoyer, honoreSansEncaisser, PayAppointmentModal } from './actions';
@@ -33,6 +39,7 @@ import { useSaitIaMaison } from '../../../../shared/ia-maison';
 import { peutDemander } from '../../../../shared/ia-maison-pur';
 import { useEnvoiDeLaPiece } from '../vente/envoi-de-la-piece';
 import { rituelDeLaRepriseEffacee } from '../../../../shared/reprise-nue';
+import { cheminDeLaConversation } from '../../../../shared/conversations';
 
 /* Le Carnet — le registre des rendez-vous : multi-services, duplication, statuts. */
 
@@ -214,6 +221,10 @@ export default function Carnet() {
      Le regroupement à venir / passés reste au-dessus : filtrer sur les impayés
      montre donc d'abord ceux qui arrivent, ce qui est l'ordre utile. */
   const [vue, setVue] = useState<VueCarnet>('');
+  /* CE QUI PRESSE, EN COMPTEURS QUI FILTRENT — 25 octobre 2026 (Carnet plus
+     intelligent, maquette VJ5PJEGU… vue 8). Un compteur touché garde ses
+     rendez-vous dans la liste ; les comptes des vues ne bougent pas. */
+  const [presse, setPresse] = useState<CleQuiPresse | ''>('');
 
   /* Ferme le menu ⋯ à un clic hors menu (le bouton et le menu stoppent la propagation). */
   useEffect(() => {
@@ -228,6 +239,44 @@ export default function Carnet() {
      fois cinq cents fiches, à chaque affichage. */
   const ficheParId = useMemo(() => new Map(clients.map((c) => [c.id, c] as const)), [clients]);
   const clientOf = (id: string) => ficheParId.get(id);
+
+  /* ══ LE CARNET PLUS INTELLIGENT — 25 octobre 2026 ═══════════════════
+     « Make this page more intelligent » (Yéman). Les règles vivent dans
+     `carnet-intelligent-pur.ts` ; ici, chaque rendez-vous est lu UNE fois,
+     chiffré (net, reste, durée), et les signaux se calculent dessus : ce
+     qu'elle doit d'avant, l'acompte qui manque à 48 h, le risque d'absence
+     sur son historique, les têtes au-delà des fauteuils, l'anniversaire. */
+  const lus = useMemo(() => appts.map((a): RdvLu => ({
+    id: a.id, clientId: a.clientId, date: a.date, time: a.time, status: a.status, master: a.master,
+    depositXof: a.depositXof, depositConfirmed: a.depositConfirmed, creeLe: a.creeLe,
+    dureeMin: apptDurationMin(a, byId), netXof: apptNetXof(a, byId), resteXof: apptDueXof(a, byId),
+  })), [appts, byId, bands, sets, produits, reglages]);
+  const luDe = useMemo(() => new Map(lus.map((l) => [l.id, l] as const)), [lus]);
+  const signaux = useMemo(() => {
+    const dettes = dettesParCliente(lus, today);
+    const historiques = historiqueParCliente(lus, today);
+    const parJour = new Map<string, RdvLu[]>();
+    for (const l of lus) { const j = parJour.get(l.date); if (j) j.push(l); else parJour.set(l.date, [l]); }
+    const ctx = {
+      aujourdhui: today, sieges: Math.max(0, branch.seats ?? 0), dettes, historiques, sansPrix,
+      duJour: (iso: string) => parJour.get(iso) ?? [],
+      anniversaireDe: (id: string) => { const b = ficheParId.get(id)?.birthday; return b && /^\d{4}-\d{2}-\d{2}/.test(b) ? b.slice(5, 10) : undefined; },
+    };
+    const parRdv = new Map<string, Signal[]>();
+    for (const l of lus) if (estAVenir(l, today)) parRdv.set(l.id, signauxDuRdv(l, ctx));
+    /* LA CHARGE DES JOURS QUI VIENNENT : la part des fauteuils occupée. */
+    const charge = new Map<string, number>();
+    for (const [iso, liste] of parJour) {
+      if (iso < today) continue;
+      charge.set(iso, chargeDuJour({ iso, ouverture: openingForIso(iso), sieges: Math.max(0, branch.seats ?? 0),
+        rdvs: liste.filter((l) => l.status !== 'annulé').map((l) => ({ debutMin: timeToMin(l.time), dureeMin: l.dureeMin })) }).taux);
+    }
+    return { dettes, parRdv, charge, honneur: tauxDHonneur(lus, today) };
+  }, [lus, today, branch.seats, ficheParId, sansPrix]);
+  const maitresConnus = useMemo(() => [...new Set(appts.map((a) => a.master).filter(Boolean))], [appts]);
+  /* LA RECHERCHE QUI COMPREND UNE PHRASE : « impayés de septembre », « Team
+     samedi », « sans acompte cette semaine ». Ce qui reste est un nom. */
+  const phrase = useMemo(() => comprendsLaPhrase(query, { aujourdhui: today, maitres: maitresConnus }), [query, today, maitresConnus]);
 
   const { upcoming, past, comptes, totaux } = useMemo(() => {
     /* Recherche par nom de cliente — taper les premières lettres suffit
@@ -245,8 +294,13 @@ export default function Carnet() {
     const maisonDe = (sid: string) => categories.find((c) => c.id === byId.get(sid)?.categoryId)?.maison;
     const estDeLaMaison = (a: Appointment) =>
       maison === '' || a.serviceIds.some((sid) => maisonDe(sid) === maison);
-    const match = (a: Appointment) =>
-      (qn === '' || normName(nameOf(a)).includes(qn)) && estDeLaMaison(a);
+    const match = (a: Appointment) => {
+      const l = luDe.get(a.id);
+      const parLaPhrase = l
+        ? gardeSelonLaPhrase(l, phrase, { payeDe: () => apptPayState(a, byId), nomDe: () => nameOf(a), aujourdhui: today })
+        : (qn === '' || normName(nameOf(a)).includes(qn));
+      return parLaPhrase && estDeLaMaison(a);
+    };
     const aVenir = (a: Appointment) => a.date >= today && a.status !== 'honoré' && a.status !== 'annulé';
 
     /* La base : ce que la recherche et la maison laissent passer. Les compteurs
@@ -290,7 +344,9 @@ export default function Carnet() {
       },
     };
 
-    const garde = (a: Appointment) => VUES[vue].garde(a, byId, aVenir);
+    const dansCeQuiPresse = (a: Appointment) => presse === ''
+      || (presse === 'remplir' ? aVenir(a) && manquesDuJour.has(a.clientId) : !!signaux.parRdv.get(a.id)?.some((x) => x.cle === presse));
+    const garde = (a: Appointment) => VUES[vue].garde(a, byId, aVenir) && dansCeQuiPresse(a);
     const upcoming = base
       .filter((a) => aVenir(a) && garde(a))
       .sort((a, b) => a.date.localeCompare(b.date) || timeToMin(a.time) - timeToMin(b.time));
@@ -300,7 +356,7 @@ export default function Carnet() {
       .filter((a) => !aVenir(a) && garde(a))
       .sort((a, b) => b.date.localeCompare(a.date) || timeToMin(b.time) - timeToMin(a.time));
     return { upcoming, past, comptes, totaux };
-  }, [appts, today, query, ficheParId, maison, categories, byId, vue, bands, sets, produits, reglages]);
+  }, [appts, today, query, ficheParId, maison, categories, byId, vue, bands, sets, produits, reglages, luDe, phrase, presse, signaux, manquesDuJour]);
 
   /* ══ LES MOIS PASSÉS SE REPLIENT — 1er octobre 2026 ═════════════════
      « Quand je clique dans la barre de navigation du Trône, c'est lent »
@@ -392,6 +448,7 @@ export default function Carnet() {
     }
     const out: ReactNode[] = [];
     let mois = '';
+    let jourVu = '';
     for (const a of liste) {
       const k = a.date.slice(0, 7);
       if (k !== mois) {
@@ -417,6 +474,26 @@ export default function Carnet() {
             <span className="trc-carnet-mois__nom">{monthTitle(k)}</span>
             <span className="trc-carnet-mois__n">{s.n} rituel{s.n > 1 ? 's' : ''}</span>
             {!sansPrix && <span className="trc-carnet-mois__xof">{fmtMoney(s.xof, currency)}</span>}
+          </div>,
+        );
+      }
+      /* LES JOURS DISENT LEUR CHARGE (25 octobre 2026) : sous le mois, chaque
+         jour à venir s'annonce avec ses rendez-vous, son montant et la part
+         des fauteuils occupée. */
+      if (!repliable && a.date !== jourVu) {
+        jourVu = a.date;
+        const duJour = liste.filter((x) => x.date === a.date);
+        const taux = signaux.charge.get(a.date);
+        out.push(
+          <div key={`jour-${a.date}`} className="trc-carnet-jour">
+            <span className="trc-carnet-jour__nom">{jourEnClair(a.date).replace(/^./, (c) => c.toUpperCase())}</span>
+            <span>{duJour.length} rendez-vous</span>
+            {!sansPrix && <span className="trc-carnet-jour__xof">{fmtMoney(duJour.reduce((n, x) => n + apptNetXof(x, byId), 0), currency)}</span>}
+            {taux !== undefined && (
+              <span className={`trc-carnet-jour__charge${taux >= 0.9 ? ' est-plein' : taux < 0.35 ? ' est-creux' : ''}`} title="La part des fauteuils occupée ce jour-là">
+                fauteuils <i aria-hidden="true"><b style={{ width: `${Math.min(100, Math.round(taux * 100))}%` }} /></i> {tauxDit(taux)}
+              </span>
+            )}
           </div>,
         );
       }
@@ -536,6 +613,11 @@ export default function Carnet() {
               offert par {clientOf(a.offertPar)?.name?.split(' ')[0] ?? 'une autre'}
             </span>
           )}
+          {/* CE QUE LE TRÔNE VOIT (25 octobre 2026) : chaque signal porte son
+              calcul en infobulle. Sur ce qui vient seulement. */}
+          {(signaux.parRdv.get(a.id) ?? []).map((s) => (
+            <span key={s.cle} className={`trc-src trc-signal${s.alerte ? ' est-alerte' : ''}`} title={s.pourquoi}>{s.dit}</span>
+          ))}
           <SourceBadge source={a.source} />
         </span>
         <span className="trc-carnet__amount" style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
@@ -587,6 +669,26 @@ export default function Carnet() {
               )}
             </>
           )}
+          {/* UN SEUL GESTE PROPOSÉ, dans l'ordre de ce qui presse. */}
+          {(() => {
+            const l = luDe.get(a.id);
+            const g = l ? gesteDuRdv(l, signaux.parRdv.get(a.id) ?? [], today, sansPrix) : null;
+            if (!g) return null;
+            const chiffres = tel(c?.phone);
+            if (g.cle === 'appeler' && chiffres) {
+              return <a className="trc-geste" href={`tel:+${chiffres}`} onClick={(e) => e.stopPropagation()}>{g.dit} ›</a>;
+            }
+            return (
+              <button type="button" className="trc-geste" onClick={(e) => {
+                e.stopPropagation();
+                if (g.cle === 'ancien') { const d = signaux.dettes.get(a.clientId); if (d) setPayAppt(appts.find((x) => x.id === d.plusAncien.id) ?? null); }
+                else if (g.cle === 'encaisser') setPayAppt(a);
+                else if (g.cle === 'confirmer') setStatus(a.id, 'confirmé');
+                else if (g.cle === 'acompte' && cheminDeLaConversation(c?.phone)) navigate(cheminDeLaConversation(c?.phone)!);
+                else setModal({ appt: a });
+              }}>{g.dit} ›</button>
+            );
+          })()}
         </span>
         <span className="trc-carnet__status" style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 10 }}>
           <PayStatusPill a={a} byId={byId} />
@@ -761,8 +863,8 @@ export default function Carnet() {
           <Input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Rechercher un rendez-vous par cliente…"
-            aria-label="Rechercher un rendez-vous par cliente"
+            placeholder="Une cliente, ou une phrase : « impayés de septembre », « Team samedi »…"
+            aria-label="Rechercher un rendez-vous, par cliente ou par une phrase"
           />
         </div>
         {/* LA BASCULE DES DEUX MAISONS. Le 3 août 2026, un rendez-vous du
@@ -782,6 +884,14 @@ export default function Carnet() {
           )}
         </div>
       </div>
+
+      {query.trim() && phrase.compris.length > 0 && (
+        <div className="trc-compris" role="status">
+          <span className="trc-compris__dit">Le Carnet comprend :</span>
+          {phrase.compris.map((x) => <span key={x} className="trc-compris__puce">{x}</span>)}
+          <span className="trc-compris__dit">· {upcoming.length + past.length} rendez-vous</span>
+        </div>
+      )}
 
       {/* CE QU'ON VIENT CHERCHER. Chaque pastille porte son compte : on voit
           combien d'impayés il y a AVANT de cliquer, et le comptoir sait s'il a
@@ -816,43 +926,91 @@ export default function Carnet() {
           — le geste n'a pas eu lieu, elle peut annuler, le montant peut changer
           au fauteuil. Les mettre dans le même chiffre, c'est annoncer une somme
           que personne ne peut aller chercher. */}
-      {!sansPrix && (
-        <div className="tr-cols" style={{ '--cols': '1fr 1fr 1fr', gap: 12, marginBottom: 14 } as CSSProperties}>
-          <button type="button" className="trc-tuile" onClick={ouvreLaCreance} title="Voir les rituels à recouvrer" style={{ background: 'var(--surface-card)', border: '1px solid var(--hairline)', borderLeft: '3px solid var(--color-copper)', borderRadius: 'var(--radius-md)', padding: '14px 18px' }}>
-            <div className="trc-microlabel" style={{ margin: 0 }}>Reste à encaisser · rituels rendus ›</div>
-            <div style={{ fontFamily: 'var(--font-serif)', fontWeight: 300, fontSize: 30, color: 'var(--copper-700)', lineHeight: 1.1 }}>
-              {fmtMoney(totaux.creanceXof, currency)}
-            </div>
-            <div className="trc-sub">
-              {totaux.creanceN === 0
-                ? 'Rien à recouvrer, tout est réglé.'
-                : `sur ${totaux.creanceN} rituel${totaux.creanceN > 1 ? 's' : ''} déjà rendu${totaux.creanceN > 1 ? 's' : ''}`}
-            </div>
-          </button>
-          <button type="button" className="trc-tuile" onClick={ouvreLeJour} title="Voir les rendez-vous du jour" style={{ background: 'var(--surface-card)', border: '1px solid var(--hairline)', borderLeft: '3px solid var(--color-indigo)', borderRadius: 'var(--radius-md)', padding: '14px 18px' }}>
-            <div className="trc-microlabel" style={{ margin: 0 }}>Attendu · aujourd’hui ›</div>
-            <div style={{ fontFamily: 'var(--font-serif)', fontWeight: 300, fontSize: 30, color: 'var(--color-indigo)', lineHeight: 1.1 }}>
-              {fmtMoney(totaux.jour.attenduXof, currency)}
-            </div>
-            <div className="trc-sub">
-              {totaux.jour.nombre === 0
-                ? 'Aucun rendez-vous aujourd’hui.'
-                : `${totaux.jour.nombre} rendez-vous · déjà encaissé ${fmtMoney(totaux.jour.encaisseXof, currency)} · reste ${fmtMoney(totaux.jour.resteXof, currency)}${totaux.jour.gammeXof > 0 ? ` · dont Gamme ${fmtMoney(totaux.jour.gammeXof, currency)}` : ''}`}
-            </div>
-          </button>
-          <button type="button" className="trc-tuile" onClick={ouvreLAvenir} title="Voir les rendez-vous à venir" style={{ background: 'var(--surface-card)', border: '1px solid var(--hairline)', borderLeft: '3px solid var(--color-indigo)', borderRadius: 'var(--radius-md)', padding: '14px 18px' }}>
-            <div className="trc-microlabel" style={{ margin: 0 }}>Attendu · rendez-vous à venir ›</div>
-            <div style={{ fontFamily: 'var(--font-serif)', fontWeight: 300, fontSize: 30, color: 'var(--color-indigo)', lineHeight: 1.1 }}>
-              {fmtMoney(totaux.avenirXof, currency)}
-            </div>
-            <div className="trc-sub">
-              {totaux.avenirN === 0
-                ? 'Le carnet est libre.'
-                : `sur ${totaux.avenirN} rendez-vous, rien n’est encore acquis`}
-            </div>
-          </button>
-        </div>
-      )}
+      {/* LES CHIFFRES ET LEUR CALCUL — 25 octobre 2026 (« des démonstrations
+          de calculs, avec des totaux », même soir) : le reste à encaisser par
+          ancienneté, le probable à venir (posé × venues honorées), et ce qui
+          est à surveiller. Les tuiles s'ouvrent toujours sur leurs rendez-vous. */}
+      {!sansPrix && (() => {
+        const anciennete = ancienneteDesCreances(totaux.listes.creance.map((a) => ({ date: a.date, resteXof: apptDueXof(a, byId) })), today);
+        const honneur = signaux.honneur;
+        const aVenirLus = totaux.listes.avenir.map((a) => luDe.get(a.id)).filter((l): l is RdvLu => !!l);
+        const enRisque = aVenirLus.filter((l) => signaux.parRdv.get(l.id)?.some((x) => x.cle === 'risque'));
+        const sansAcompte = aVenirLus.filter((l) => signaux.parRdv.get(l.id)?.some((x) => x.cle === 'acompte'));
+        const enJeu = new Set([...enRisque, ...sansAcompte]);
+        const L = ({ g, n, d, total, alerte }: { g: string; n?: number | string; d: string; total?: boolean; alerte?: boolean }) => (
+          <span className={`trc-calc${total ? ' est-total' : ''}${alerte ? ' est-alerte' : ''}`}><span>{g}</span><span>{n ?? ''}</span><span>{d}</span></span>
+        );
+        return (
+          <div className="tr-cols" style={{ '--cols': '1fr 1fr 1fr 1fr', gap: 12, marginBottom: 14 } as CSSProperties}>
+            <button type="button" className="trc-tuile" onClick={ouvreLaCreance} title="Voir les rituels à recouvrer" style={{ background: 'var(--surface-card)', border: '1px solid var(--hairline)', borderLeft: '3px solid var(--color-copper)', borderRadius: 'var(--radius-md)', padding: '14px 18px' }}>
+              <div className="trc-microlabel" style={{ margin: 0 }}>Reste à encaisser · rituels rendus ›</div>
+              <div style={{ fontFamily: 'var(--font-serif)', fontWeight: 300, fontSize: 30, color: 'var(--copper-700)', lineHeight: 1.1 }}>
+                {fmtMoney(totaux.creanceXof, currency)}
+              </div>
+              <span className="trc-calcs">
+                {anciennete.tranches.map((t) => <L key={t.cle} g={t.nom} n={t.n} d={fmtMoney(t.xof, currency)} alerte={t.cle === '+' && t.n > 0} />)}
+                <L g={`${anciennete.n} rituel${anciennete.n > 1 ? 's' : ''}`} d={fmtMoney(anciennete.xof, currency)} total />
+              </span>
+            </button>
+            <button type="button" className="trc-tuile" onClick={ouvreLeJour} title="Voir les rendez-vous du jour" style={{ background: 'var(--surface-card)', border: '1px solid var(--hairline)', borderLeft: '3px solid var(--color-indigo)', borderRadius: 'var(--radius-md)', padding: '14px 18px' }}>
+              <div className="trc-microlabel" style={{ margin: 0 }}>Attendu · aujourd’hui ›</div>
+              <div style={{ fontFamily: 'var(--font-serif)', fontWeight: 300, fontSize: 30, color: 'var(--color-indigo)', lineHeight: 1.1 }}>
+                {fmtMoney(totaux.jour.attenduXof, currency)}
+              </div>
+              <span className="trc-calcs">
+                <L g="Rendez-vous" n={totaux.jour.nombre} d="" />
+                <L g="Déjà encaissé" d={fmtMoney(totaux.jour.encaisseXof, currency)} />
+                {totaux.jour.gammeXof > 0 && <L g="dont Gamme" d={fmtMoney(totaux.jour.gammeXof, currency)} />}
+                <L g="Reste" d={fmtMoney(totaux.jour.resteXof, currency)} total />
+              </span>
+            </button>
+            <button type="button" className="trc-tuile" onClick={ouvreLAvenir} title="Voir les rendez-vous à venir" style={{ background: 'var(--surface-card)', border: '1px solid var(--hairline)', borderLeft: '3px solid var(--color-indigo)', borderRadius: 'var(--radius-md)', padding: '14px 18px' }}>
+              <div className="trc-microlabel" style={{ margin: 0 }}>À venir · probable ›</div>
+              <div style={{ fontFamily: 'var(--font-serif)', fontWeight: 300, fontSize: 30, color: 'var(--color-indigo)', lineHeight: 1.1 }}>
+                {fmtMoney(probable(totaux.avenirXof, honneur.taux), currency)}
+              </div>
+              <span className="trc-calcs">
+                <L g="Posés" n={totaux.avenirN} d={fmtMoney(totaux.avenirXof, currency)} />
+                <L g={honneur.peuDHistoire ? '× venues (par défaut)' : '× venues honorées, 12 mois'} d={tauxDit(honneur.taux)} />
+                <L g="Probable" d={fmtMoney(probable(totaux.avenirXof, honneur.taux), currency)} total />
+              </span>
+            </button>
+            <button type="button" className="trc-tuile" onClick={() => setPresse(presse === 'risque' ? '' : 'risque')} title="Garder dans la liste les rendez-vous à risque" style={{ background: 'var(--surface-card)', border: '1px solid var(--hairline)', borderLeft: '3px solid var(--alarme, #A3402B)', borderRadius: 'var(--radius-md)', padding: '14px 18px' }}>
+              <div className="trc-microlabel" style={{ margin: 0 }}>À surveiller ›</div>
+              <div style={{ fontFamily: 'var(--font-serif)', fontWeight: 300, fontSize: 30, color: 'var(--color-indigo)', lineHeight: 1.1 }}>
+                {enJeu.size} rendez-vous
+              </div>
+              <span className="trc-calcs">
+                <L g="Risque d’absence" n={enRisque.length} d={fmtMoney(enRisque.reduce((n, l) => n + l.netXof, 0), currency)} />
+                <L g="Sans acompte à 48 h" n={sansAcompte.length} d={fmtMoney(sansAcompte.reduce((n, l) => n + l.netXof, 0), currency)} />
+                <L g="En jeu" d={fmtMoney([...enJeu].reduce((n, l) => n + l.netXof, 0), currency)} total />
+              </span>
+            </button>
+          </div>
+        );
+      })()}
+
+      {/* CE QUI PRESSE, EN COMPTEURS — un compteur touché filtre la liste. */}
+      {(() => {
+        const aVenirLus = totaux.listes.avenir.map((a) => luDe.get(a.id)).filter((l): l is RdvLu => !!l);
+        const remplir = new Set(totaux.listes.avenir.filter((a) => manquesDuJour.has(a.clientId)).map((a) => a.clientId)).size;
+        const lignes = ceQuiPresse(aVenirLus.map((l) => ({ a: l, signaux: signaux.parRdv.get(l.id) ?? [] })), remplir)
+          .filter((x) => x.n > 0 && (!sansPrix || x.cle !== 'dette'));
+        return (
+          <div className="trc-presse" role="group" aria-label="Ce qui presse">
+            <span className="trc-microlabel" style={{ margin: 0 }}>Ce qui presse</span>
+            {lignes.length === 0 && <span className="trc-sub">Rien ne presse sur ce qui vient.</span>}
+            {lignes.map((x) => (
+              <button key={x.cle} type="button" aria-pressed={presse === x.cle}
+                className={`trc-presse__puce${x.alerte ? ' est-alerte' : ''}${presse === x.cle ? ' is-on' : ''}`}
+                onClick={() => setPresse(presse === x.cle ? '' : x.cle)}>
+                <b>{x.n}</b> {x.dit}{x.xof > 0 && !sansPrix ? <span> · {fmtMoney(x.xof, currency)}</span> : null}
+              </button>
+            ))}
+            {presse && <button type="button" className="trc-presse__effacer" onClick={() => setPresse('')}>Tout montrer</button>}
+          </div>
+        );
+      })()}
 
       <div className="trc-sheet trc-carnet">
         <div className="trc-sheet__head" style={{ gridTemplateColumns: GRID }}>
