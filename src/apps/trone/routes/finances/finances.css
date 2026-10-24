@@ -2220,3 +2220,153 @@
 
 /* Cinq cartes tiennent sur trois colonnes, comme quatre sur deux au petit écran. */
 .tr-grid--5 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+
+/* ══ LA SYNTHÈSE EN GRAPHES — 24 octobre 2026 ══════════════════════════
+   Tuiles, colonnes du résultat, anneaux, classements. Préfixe tsy-.
+   Grille et axes en filets qui se retirent ; aucun texte dans la couleur
+   d'une série ; chiffres en sans, comme le reste de l'écran. */
+:root {
+  --tsy-grille: rgba(20, 20, 27, 0.08);
+  --tsy-base: #CBC2B3;
+  --tsy-muet: #66656D;
+  --tsy-attenue: #A8A296;
+  --tsy-choisi: rgba(227, 218, 203, 0.62);
+  --tsy-bon: #56653F;
+  --tsy-mauvais: #8C3B2E;
+}
+
+.tsy-outils { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.tsy-segs { display: inline-flex; border: 1px solid var(--hairline); border-radius: var(--radius-md); overflow: hidden; background: var(--surface-card); }
+.tsy-seg {
+  font-family: var(--font-sans); font-size: 11.5px; letter-spacing: .04em; color: var(--ink-soft);
+  background: transparent; border: 0; padding: 8px 12px; cursor: pointer; min-height: 34px;
+}
+.tsy-segs .tsy-seg + .tsy-seg { border-left: 1px solid var(--hairline); }
+.tsy-seg:hover { background: var(--hover-veil); }
+.tsy-seg.is-on { background: var(--color-indigo); color: var(--ink-invert); }
+.tsy-seg:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
+
+/* ── Les tuiles ── */
+.tsy-tuiles { margin-top: 24px; }
+.tsy-tuile {
+  background: var(--surface-card); border: 1px solid var(--hairline); border-radius: var(--radius-md);
+  padding: 18px 20px 14px; cursor: pointer; display: flex; flex-direction: column; min-width: 0;
+  transition: border-color .15s, box-shadow .15s;
+}
+.tsy-tuile:hover { border-color: var(--indigo-200); box-shadow: 0 1px 0 rgba(20, 20, 27, .04); }
+.tsy-tuile:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+.tsy-tuile__l { font-family: var(--font-sans); font-size: 10px; letter-spacing: .16em; text-transform: uppercase; color: var(--ink-soft); }
+.tsy-tuile__ligne { display: flex; align-items: center; gap: 10px; margin-top: 12px; min-width: 0; }
+.tsy-tuile__v {
+  font-family: var(--font-sans); font-weight: 500; font-size: 30px; line-height: 1.05; color: var(--ink);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; letter-spacing: -.01em;
+}
+.tsy-pastille { flex: none; width: 12px; height: 12px; border-radius: 50%; background: var(--tsy-attenue); }
+.tsy-pastille--bon { background: #6E7C5C; }
+.tsy-pastille--mauvais { background: var(--tsy-mauvais); }
+.tsy-tuile__ecart { font-family: var(--font-sans); font-size: 12px; margin-top: 8px; color: var(--tsy-muet); }
+.tsy-tuile__ecart--bon { color: var(--tsy-bon); }
+.tsy-tuile__ecart--mauvais { color: var(--tsy-mauvais); }
+.tsy-tuile__cmp { display: grid; gap: 3px; font-family: var(--font-sans); font-size: 11.5px; color: var(--tsy-muet); min-width: 0; margin-top: 10px; }
+.tsy-tuile__pied { margin-top: auto; padding-top: 10px; min-height: 40px; }
+.tsy-tuile__cmp span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tsy-etincelle { flex: none; display: block; }
+
+/* ── Une rangée : le graphe large et sa colonne ── */
+.tsy-rangee { display: grid; gap: var(--space-4); grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); margin-top: 18px; align-items: start; }
+.tsy-rangee--3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+@media (max-width: 1180px) {
+  .tsy-rangee { grid-template-columns: minmax(0, 1fr); }
+  .tsy-rangee--3 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 760px) { .tsy-rangee--3 { grid-template-columns: minmax(0, 1fr); } }
+.tsy-panneau__tete { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }
+.tsy-panneau__tete .trf-panel__title { margin-bottom: 0; }
+.tsy-panneau__sous { font-family: var(--font-sans); font-size: 11.5px; color: var(--tsy-muet); }
+
+/* ── Le graphe du résultat ── */
+.tsy-graphe__tete { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+.tsy-legende { display: flex; gap: 18px; flex-wrap: wrap; }
+.tsy-legende__item { display: inline-flex; align-items: center; gap: 7px; font-family: var(--font-sans); font-size: 11.5px; color: var(--ink-soft); }
+.tsy-cle { display: inline-block; flex: none; }
+.tsy-cle--barre { width: 10px; height: 10px; border-radius: 2px; }
+.tsy-cle--ligne { width: 14px; height: 2px; border-radius: 1px; }
+.tsy-graphe__plan { position: relative; margin-top: 14px; min-height: 268px; }
+.tsy-graphe__plan svg { display: block; overflow: visible; }
+.tsy-axe { font-family: var(--font-sans); font-size: 10.5px; fill: var(--tsy-muet); font-variant-numeric: tabular-nums; }
+.tsy-axe--choisi { fill: var(--ink); font-weight: 600; }
+.tsy-bulle {
+  position: absolute; top: 4px; transform: translateX(-50%); pointer-events: none; z-index: 2;
+  background: var(--surface-card); border: 1px solid var(--hairline); border-radius: 6px;
+  box-shadow: 0 6px 18px rgba(20, 20, 27, .10); padding: 10px 12px; min-width: 200px;
+  font-family: var(--font-sans); font-size: 11.5px; color: var(--ink-soft);
+}
+.tsy-bulle__t { font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-soft); margin-bottom: 6px; }
+.tsy-bulle__l { display: grid; grid-template-columns: 14px auto 1fr; align-items: center; gap: 8px; padding: 2px 0; }
+.tsy-bulle__l strong { font-weight: 600; color: var(--ink); font-size: 13px; font-variant-numeric: tabular-nums; }
+.tsy-bulle__note { margin-top: 6px; font-size: 10.5px; color: var(--tsy-muet); }
+.tsy-table__boite { margin-top: 14px; overflow-x: auto; }
+.tsy-table { width: 100%; border-collapse: collapse; font-family: var(--font-sans); font-size: 12.5px; }
+.tsy-table th, .tsy-table td { text-align: right; padding: 9px 10px; border-bottom: 1px solid var(--hairline); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.tsy-table th:first-child { text-align: left; }
+.tsy-table thead th { font-size: 10px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-soft); font-weight: 500; }
+.tsy-table tbody th { font-weight: 400; color: var(--ink); text-transform: capitalize; }
+.tsy-table tr.is-on { background: var(--tsy-choisi); }
+
+/* ── L'anneau ── */
+.tsy-anneau { display: flex; align-items: center; justify-content: center; gap: 20px; flex-wrap: wrap; }
+.tsy-anneau__dessin { position: relative; width: 172px; height: 172px; flex: none; }
+.tsy-anneau__dessin svg { display: block; }
+.tsy-anneau__centre { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; pointer-events: none; padding: 0 34px; }
+.tsy-anneau__v { font-family: var(--font-sans); font-weight: 500; font-size: 24px; color: var(--ink); line-height: 1.1; }
+.tsy-anneau__l { font-family: var(--font-sans); font-size: 10.5px; color: var(--tsy-muet); margin-top: 4px; line-height: 1.3; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.tsy-anneau__legende { flex: 1 1 180px; min-width: 0; display: grid; gap: 2px; }
+.tsy-anneau__ligne {
+  display: grid; grid-template-columns: 10px minmax(0, 1fr) auto auto; align-items: center; gap: 9px;
+  padding: 7px 8px; margin: 0 -8px; border-radius: 4px; cursor: pointer;
+  font-family: var(--font-sans); font-size: 12.5px; color: var(--ink);
+}
+.tsy-anneau__ligne:hover, .tsy-anneau__ligne.is-on { background: var(--hover-veil); }
+.tsy-anneau__ligne:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 0; }
+.tsy-anneau__nom { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tsy-anneau__pct { color: var(--tsy-muet); font-size: 11.5px; font-variant-numeric: tabular-nums; }
+.tsy-anneau__val { font-variant-numeric: tabular-nums; text-align: right; }
+.tsy-lien {
+  font-family: var(--font-sans); font-size: 11.5px; letter-spacing: .02em; color: var(--copper-700);
+  background: none; border: 0; padding: 4px 0; cursor: pointer; text-decoration: underline;
+  text-decoration-color: var(--copper-200); text-underline-offset: 3px;
+}
+.tsy-lien:hover { text-decoration-color: currentColor; }
+.tsy-lien:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+.tsy-note { font-family: var(--font-sans); font-size: 11.5px; color: var(--ink-soft); line-height: 1.55; margin-top: 12px; }
+
+/* ── Le classement ── */
+.tsy-classement { display: grid; gap: 4px; }
+.tsy-classement__ligne { padding: 8px 8px; margin: 0 -8px; border-radius: 4px; cursor: pointer; }
+.tsy-classement__ligne:hover { background: var(--hover-veil); }
+.tsy-classement__ligne:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 0; }
+.tsy-classement__haut { display: flex; align-items: baseline; gap: 10px; font-family: var(--font-sans); font-size: 12.5px; color: var(--ink); min-width: 0; }
+.tsy-classement__rang { flex: none; width: 16px; color: var(--tsy-muet); font-size: 11px; font-variant-numeric: tabular-nums; }
+.tsy-classement__nom { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tsy-classement__val { flex: none; font-variant-numeric: tabular-nums; }
+.tsy-classement__piste { margin-top: 6px; height: 8px; }
+.tsy-classement__barre { height: 8px; border-radius: 0 4px 4px 0; min-width: 3px; }
+.tsy-classement__meta { font-family: var(--font-sans); font-size: 11px; color: var(--tsy-muet); margin-top: 4px; }
+.tsy-classement__haut .tsy-classement__meta { margin-top: 0; flex: none; }
+
+/* ── La fenêtre du détail ── */
+.tsy-detail__vues { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-bottom: 14px; }
+.tsy-detail__vuesl { font-family: var(--font-sans); font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-soft); margin-right: 4px; }
+.tsy-detail__vues .tsy-seg { border: 1px solid var(--hairline); border-radius: 999px; padding: 6px 12px; min-height: 32px; }
+.tsy-detail__vues .tsy-seg.is-on { border-color: var(--color-indigo); }
+.tsy-detail__filtre {
+  display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap;
+  background: var(--color-sable); border-radius: 4px; padding: 9px 12px; margin-bottom: 12px;
+  font-family: var(--font-sans); font-size: 12.5px; color: var(--ink);
+}
+.tsy-detail__filtre strong { font-weight: 600; }
+.tsy-detail__total {
+  display: flex; justify-content: space-between; align-items: baseline; margin-top: 16px; padding-top: 13px;
+  border-top: 1px solid var(--hairline); font-family: var(--font-sans); font-size: 12.5px; font-weight: 500;
+}
+.tsy-detail__total span:last-child { font-size: 20px; font-variant-numeric: tabular-nums; }
