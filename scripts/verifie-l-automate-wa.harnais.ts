@@ -1899,7 +1899,8 @@ const regles: Regle[] = [
         vaut('banc : Je confirme pose le rendez-vous : son id, confirme, whatsapp, sa fiche, sa duree, la note d essai',
           { id: `rdv-wa-${cleCourte(oui.id)}`, status: 'confirmé', source: 'whatsapp', clientId: 'cli-naffi', dureeMin: 150, note: 'Pris sur WhatsApp · réponse automatique · essai' },
           { id: rdv?.id, status: rdv?.data.status, source: rdv?.data.source, clientId: rdv?.data.clientId, dureeMin: rdv?.data.dureeMin, note: rdv?.data.note });
-        vaut('banc : ... la Maison attribue : les maitres libres du juge, le premier pris par le verrou', [['Team', 'Expert'], 'Team'], [B().poses[0]?.p_maitres, rdv?.data.master]);
+        /* Son rituel est un SÍNSIN : chez Team, seul (24 octobre 2026). */
+        vaut('banc : ... la Maison attribue : un SINSIN va chez Team seul, et le verrou le prend', [['Team'], 'Team'], [B().poses[0]?.p_maitres, rdv?.data.master]);
         const b4 = dernierA(NAFFI_E);
         vrai('banc : la confirmation en texte, l annee, l itineraire, la devise', b4?.type === 'text' && /^C'est confirmé, Madame Naffi/.test(corpsDe(b4)) && /2026 à/.test(corpsDe(b4)) && /Akpakpa/.test(corpsDe(b4)) && corpsDe(b4).endsWith(DEVISE), corpsDe(b4));
         vrai('banc : le lien Google Maps de la branche suit l itineraire, sans le parametre de partage', corpsDe(b4).includes('face à la pharmacie.\n\nItinéraire sur Google Maps : https://maps.app.goo.gl/AbCdEf12345\n\n'), corpsDe(b4));

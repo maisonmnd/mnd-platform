@@ -11,6 +11,7 @@ import { useServices, useProducts, useCategories, type Service, type ServiceIncl
 import {
   dateOfIso, dayLabelIso, ensureClient, fmtDuration, isoOf, todayIso, freeSlots, useCreneauxOccupes, useClient, useClientId,
 } from './lib';
+import { estUnSinsin, MAITRE_DES_SINSIN } from '../../shared/agenda-pur';
 import { t, prix } from './i18n';
 
 /* ═══ LE CYCLE — un forfait de plusieurs séances, scellé d'un geste ═══
@@ -138,8 +139,11 @@ export default function Cycle({ forfait, onClose, onFini, toast }: Props) {
       }));
   }, [forfait, tousServices, pricing]);
 
-  /* Le maître du forfait, ou celui de sa première prestation. */
-  const master = forfait.master || tousServices.find((s) => s.id === seances[0]?.serviceIds[0])?.master || '';
+  /* Le maître du forfait, ou celui de sa première prestation. Un forfait de
+     SÍNSIN va chez Team, seul (24 octobre 2026). */
+  const master = estUnSinsin(forfait.name) || seances.some((sc) => sc.noms.some(estUnSinsin))
+    ? MAITRE_DES_SINSIN
+    : forfait.master || tousServices.find((s) => s.id === seances[0]?.serviceIds[0])?.master || '';
 
   /* ---- LES DATES PROPOSÉES — une fois, à l'ouverture ----
      Deux jours de battement avant la première séance, puis chaque séance à sa

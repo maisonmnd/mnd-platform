@@ -181,7 +181,7 @@ const admin = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: 
 /** La version de ce fichier : ouvrir l'adresse de la fonction la dit (405),
     pour ne jamais chercher une panne dans un fichier qui n'est pas celui
     qu'on croit déployé. */
-const VERSION = '2026-10-24-a · une seule place en ligne a la fois';
+const VERSION = '2026-10-24-b · une seule place en ligne a la fois, les SINSIN chez Team';
 
 /** `EdgeRuntime.waitUntil`, s'il existe (la même garde que le webhook) : ce
     qui n'a pas besoin d'être attendu continue après la réponse. Sans lui, la
@@ -556,6 +556,24 @@ export const occupesDuJour = (
     (`capSimultane`) pour toute porte en ligne ; la base tient la même règle
     (migration 0140 : `pose_si_libre` et le garde `une_place_en_ligne`). */
 export const PLACES_EN_LIGNE = 1;
+
+/** LES SÍNSIN CHEZ TEAM — 24 octobre 2026.
+
+    « La couronne doit toujours proposer un seul maître Team pour les SÍNSIN.
+    L'expert n'est proposé que pour les autres services » (Yéman), et au
+    sélecteur : PARTOUT (le Trône, Ma Couronne, le site, WhatsApp). Les trois
+    SÍNSIN du catalogue (Kids, Essentiel, Signature) n'avaient aucun maître :
+    le Trône reprenait celui de ses habitudes (« Expert »). Un rendez-vous qui
+    contient un SÍNSIN va chez Team ; les autres prestations gardent tous les
+    maîtres de la branche. Un SÍNSIN se reconnaît à son nom. */
+export const MAITRE_DES_SINSIN = 'Team';
+export const estUnSinsin = (nom: string | null | undefined): boolean =>
+  (nom ?? '').normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase().includes('sinsin');
+/** Les maîtres qu'un rituel peut recevoir : avec un SÍNSIN, Team seul (si la
+    branche le porte) ; sinon ceux de la branche, tels quels. */
+export function maitresPermis(noms: readonly (string | null | undefined)[], maitres: readonly string[]): string[] {
+  return noms.some(estUnSinsin) && maitres.includes(MAITRE_DES_SINSIN) ? [MAITRE_DES_SINSIN] : [...maitres];
+}
 /* ⟨/agenda-pur⟩ */
 
 /* ⟨catalogue-pur⟩ */
@@ -948,6 +966,9 @@ function lesGestesSeReservent(agenda: AgendaDuServeur, serviceIds: readonly stri
     une prestation s'il y en a un, sinon ceux de la Maison, sinon le libellé
     vide d'une branche qui n'en déclare aucun. */
 function maitresDuRituel(agenda: AgendaDuServeur, serviceIds: readonly string[]): string[] {
+  /* LES SÍNSIN CHEZ TEAM (24 octobre 2026) : un SÍNSIN dans la venue, et
+     c'est Team, seul. */
+  if (serviceIds.some((id) => estUnSinsin(agenda.services.find((s) => s.id === id)?.name))) return [MAITRE_DES_SINSIN];
   const designes = serviceIds
     .map((id) => agenda.services.find((s) => s.id === id)?.master)
     .filter((m): m is string => !!m);

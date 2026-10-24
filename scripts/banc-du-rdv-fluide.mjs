@@ -6,10 +6,12 @@
 
      - la porte : quatre rangées, « Qui ? » seule ouverte, rien de posable ;
      - la case unique trouve Mireille, sa fiche dit son rituel habituel ;
-     - « Reprendre son rituel » ouvre « Quand ? » sur la semaine de sa
-       reprise, son jour choisi, les places qui sautent les fauteuils pleins ;
-     - une heure aux fauteuils pleins bloque, une heure où Team reçoit déjà
-       se pose avec sa raison ; le rendez-vous s'écrit ;
+     - « Reprendre son rituel » ouvre « Quand ? » sur AUJOURD'HUI (24 octobre
+       2026) ; « Voir ce jour » mène à sa reprise, les places y sautent les
+       fauteuils pleins ;
+     - une heure aux fauteuils pleins arrête la pose jusqu'à « Poser quand
+       même » ; une heure où Team reçoit déjà se pose avec sa raison ; le
+       rendez-vous s'écrit ;
      - la case pose une prestation ; au téléphone, rien ne déborde ;
      - le Carnet le rouvre replié, et il s'enregistre sans bouger.
 
@@ -151,9 +153,21 @@ dit('« Reprendre son rituel »', await clique('.trc-rdv3__habitude button', 'Re
 await attend(700);
 dit('« Quand ? » s ouvre seule', (await ouverte()) === 'Quand ?', await ouverte());
 dit('« Quoi ? » résume ses deux prestations et leur durée', /Retwist \+ Soin hydratant · 3 h/.test(await texteRang(1, '.trc-rang__resume')), await texteRang(1, '.trc-rang__resume'));
+/* AUJOURD'HUI D'ABORD — 24 octobre 2026 : « la date d'aujourd'hui doit être
+   proposée automatiquement quand on ouvre Quand ? » (Yéman). */
+const aujourdHui = new Date().getDate();
+dit('aujourd hui est choisi d avance', await evalue(`(() => { const b = document.querySelector('.trc-rdv3__jour.is-on'); return !!b && Number(b.querySelector('b').textContent) === ${aujourdHui}; })()`),
+  await evalue(`(document.querySelector('.trc-rdv3__jour.is-on') || {}).textContent || 'aucun'`));
+/* Puis sa reprise : marquée dans la semaine montrée, ou « Voir ce jour ». */
+if (await evalue(`!!document.querySelector('.trc-rdv3__jour.is-reprise')`)) {
+  await evalue(`document.querySelector('.trc-rdv3__jour.is-reprise').click()`);
+} else {
+  dit('« Voir ce jour » mène à sa reprise', await clique('.trc-rdv3__note button', 'Voir ce jour'));
+}
+await attend(500);
 const jours = await evalue(`[...document.querySelectorAll('.trc-rdv3__jour')].map((b) => b.textContent.replace(/\\s+/g, ' ').trim())`);
 dit('sept jours', jours.length === 7, jours.join(' | '));
-dit('son jour est marqué et choisi d avance', await evalue(`!!document.querySelector('.trc-rdv3__jour.is-reprise.is-on')`), jours.join(' | '));
+dit('son jour est marqué, et se choisit', await evalue(`!!document.querySelector('.trc-rdv3__jour.is-reprise.is-on')`), jours.join(' | '));
 dit('le dimanche dit qu il est fermé', jours.some((j) => /^dim\..*fermé/.test(j)), jours.join(' | '));
 const heures = await evalue(`[...document.querySelectorAll('.trc-rdv3__heure')].map((b) => b.textContent.trim())`);
 const estSamedi = await evalue(`(document.querySelector('.trc-rdv3__jour.is-on small')?.textContent || '').startsWith('sam')`);
@@ -173,6 +187,11 @@ const bloquee = await texte('.trc-rdv3__raison.is-bloque');
 dit('les deux fauteuils pleins bloquent, la première place est proposée', bloquee.startsWith('Les 2 fauteuils sont occupés') && bloquee.includes(`Première place libre ce jour-là : ${heures[0]}`), bloquee);
 dit('Confirmer et En attente se ferment', (await desactive('Confirmer')) === 'true' && (await desactive('En attente')) === 'true');
 dit('« Quand ? » dit qu il faut changer', (await texteRang(2, '.trc-rang__etat')) === 'à changer');
+/* LA MAIN DU TRÔNE PASSE OUTRE (24 octobre 2026). */
+dit('« Poser quand même à 11:00 »', await clique('.trc-rdv3__forcer', 'Poser quand même à 11:00'));
+await attend(400);
+dit('... Confirmer s ouvre, la raison ne bloque plus', (await desactive('Confirmer')) === 'false' && !(await evalue(`!!document.querySelector('.trc-rdv3__raison.is-bloque')`)));
+dit('... « Quand ? » le résume', /11:00 · Team · fauteuils pleins, posé quand même/.test(await texteRang(2, '.trc-rang__resume')), await texteRang(2, '.trc-rang__resume'));
 dit('« Une autre heure » : 16:00', await choisis('.trc-rdv3__autre select', '16:00'));
 await attend(400);
 const prise = await texte('.trc-rdv3__raison');
@@ -212,7 +231,7 @@ await attend(300);
 await clique('.trc-clientpick__opt', 'Nadège T.');
 await attend(500);
 dit('Nadège choisie après sa prestation : « Quand ? » s ouvre seule', (await ouverte()) === 'Quand ?', await ouverte());
-dit('sans jour de reprise, le premier jour qui a une place se propose, ses heures dessous', await evalue(`(() => { const on = document.querySelector('.trc-rdv3__jour.is-on'); const j = [...document.querySelectorAll('.trc-rdv3__jour')]; const premier = j.find((x) => / place/.test(x.textContent)); return !!on && on === premier && document.querySelectorAll('.trc-rdv3__heure').length > 0; })()`));
+dit('sans jour de reprise, aujourd hui se propose', await evalue(`(() => { const on = document.querySelector('.trc-rdv3__jour.is-on'); return !!on && Number(on.querySelector('b').textContent) === ${aujourdHui}; })()`));
 const deborde = await evalue(`(() => { const b = document.querySelector('.mnd-modal__body'); return b ? b.scrollWidth - b.clientWidth : -1; })()`);
 dit('au téléphone (390 px), rien ne déborde', deborde === 0, deborde);
 dit('au téléphone, la semaine tient sur une ligne', await evalue(`(() => { const j = [...document.querySelectorAll('.trc-rdv3__jour')]; return j.length === 7 && new Set(j.map((b) => b.getBoundingClientRect().top)).size === 1; })()`));

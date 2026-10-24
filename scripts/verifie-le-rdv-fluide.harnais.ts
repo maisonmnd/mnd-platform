@@ -69,10 +69,10 @@ const raison = (o: Partial<Parameters<typeof raisonDeLHeure>[0]>) => raisonDeLHe
   jourDit: 'mercredi 28 octobre 2026', premiereLibre: '12:30', ...o,
 });
 dit(2, 'deux fauteuils occupes a 11:00 : bloque, et la premiere place libre proposee', {
-  bloque: true, texte: 'Les 2 fauteuils sont occupés le mercredi 28 octobre 2026 à 11:00 : cette heure ne se pose pas. Première place libre ce jour-là : 12:30.',
+  bloque: true, texte: 'Les 2 fauteuils sont occupés le mercredi 28 octobre 2026 à 11:00 : cette heure est pleine. Première place libre ce jour-là : 12:30.',
 }, raison({}));
 dit(2, 'un seul fauteuil, et plus aucune place ce jour-la', {
-  bloque: true, texte: 'Le fauteuil est occupé le mercredi 28 octobre 2026 à 11:00 : cette heure ne se pose pas. Plus aucune place ce jour-là.',
+  bloque: true, texte: 'Le fauteuil est occupé le mercredi 28 octobre 2026 à 11:00 : cette heure est pleine. Plus aucune place ce jour-là.',
 }, raison({ sieges: 1, occupes: [DEUX[0]], premiereLibre: null }));
 dit(2, 'trois fauteuils : Team recoit deja, la raison se dit et l heure se pose', {
   bloque: false, texte: 'Team reçoit déjà A. K. de 10:00 à 12:30, et 1 autre. Le rendez-vous se pose quand même.',
@@ -103,6 +103,9 @@ dit(2, 'jour ferme, hors des heures, creneau bloque : dits, jamais bloquants', [
       bloqueLaPose({ ...base, dureeMin: 180, relu }),
       bloqueLaPose({ ...base, raison: { bloque: false, texte: 'dit' } }),
     ]);
+  /* « Poser quand meme » : la main du Trone passe outre (24 octobre 2026). */
+  dit(3, 'poser quand meme leve le blocage des fauteuils pleins, nouveau comme deplace', [false, false],
+    [bloqueLaPose({ ...base, force: true }), bloqueLaPose({ ...base, relu: { ...relu, time: '09:00' }, force: true })]);
 }
 
 /* ══ #4 — LA SEMAINE DIRECTEMENT : la sienne, jamais un jour passe a la creation ══ */
@@ -111,7 +114,9 @@ dit(4, 'le lundi d un samedi, d un lundi, d un dimanche', ['2026-10-19', '2026-1
 dit(4, 'reprise mercredi 28 : sa semaine ; dimanche 25 : a partir d aujourd hui ; un rendez-vous relu : sa semaine entiere',
   ['2026-10-26', '2026-10-24', '2026-10-19'],
   [debutDeLaSemaine('2026-10-28', '2026-10-24', false), debutDeLaSemaine('2026-10-25', '2026-10-24', false), debutDeLaSemaine('2026-10-25', '2026-10-24', true)]);
-dit(4, 'l ancre : le jour du rendez-vous, sinon sa reprise a venir, sinon aujourd hui', ['2026-11-03', '2026-10-28', '2026-10-24', '2026-10-24'], [
+/* 24 octobre 2026 : « la date d'aujourd'hui doit etre proposee quand on ouvre Quand ? » (Yeman) :
+   la reprise n'ouvre plus la semaine. */
+dit(4, 'l ancre : le jour du rendez-vous, sinon aujourd hui (la reprise ne l ouvre plus)', ['2026-11-03', '2026-10-24', '2026-10-24', '2026-10-24'], [
   ancreDeLaSemaine({ dateDuRdv: '2026-11-03', reprise: '2026-10-28', aujourdhui: '2026-10-24' }),
   ancreDeLaSemaine({ reprise: '2026-10-28', aujourdhui: '2026-10-24' }),
   ancreDeLaSemaine({ reprise: '2026-10-01', aujourdhui: '2026-10-24' }),

@@ -60,6 +60,7 @@ import {
   ajouteJours, ancreDeLaSemaine, bloqueLaPose, ceQuiReste, debutDeLaSemaine, placesDuJour, prestationsDeLaCase,
   raisonDeLHeure, rangeeSuivante, septJours, type Occupant, type Rangee,
 } from './rdv-fluide-pur';
+import { estUnSinsin, maitresPermis, MAITRE_DES_SINSIN } from '../../../../shared/agenda-pur';
 
 export { ChampDeDate };
 
@@ -2650,6 +2651,7 @@ export function RdvModal({
      elle se posait sans qu'on l'ait regardée. Un rendez-vous relu, ou ouvert
      depuis une case de l'agenda, a déjà le sien. */
   const [momentChoisi, setMomentChoisi] = useState(!!appt || !!initial?.time);
+  const [forcePlein, setForcePlein] = useState(false);
   const [rang, setRang] = useState<Rangee>(() => (appt ? '' : rangeeSuivante({
     qui: !!initial?.clientId,
     quoi: (initial?.serviceIds?.length ?? 0) > 0,
@@ -2703,9 +2705,13 @@ export function RdvModal({
      son jour de reprise, sinon le premier jour de la semaine qui a une place :
      le prochain créneau se propose sans qu'on le cherche. */
   const jourMontre = jourVu ?? (momentChoisi || initial?.date ? date : null);
+  /* AUJOURD'HUI D'ABORD — 24 octobre 2026 (« la date d'aujourd'hui doit être
+     proposée automatiquement quand on ouvre Quand ? », Yéman). Sans jour
+     touché ni moment, c'est aujourd'hui qui se montre, ses places dessous ;
+     hors de la semaine montrée, le premier jour qui a une place. */
   const jourDuJour = jourMontre
     ? semaine.find((j) => j.iso === jourMontre)
-    : semaine.find((j) => j.iso === reprise?.iso) ?? semaine.find((j) => j.heures.length > 0);
+    : semaine.find((j) => j.iso === aujourdhui) ?? semaine.find((j) => j.heures.length > 0);
   const jourDit = (iso: string) => jourEnLettres(iso).replace(/^./, (c) => c.toLowerCase());
   const raison = momentChoisi
     ? raisonDeLHeure({
@@ -2727,7 +2733,21 @@ export function RdvModal({
     time,
     dureeMin: dureeRetenue,
     relu: appt ? { date: appt.date, time: appt.time, dureeMin: apptDurationMin(appt, byId) } : undefined,
+    force: forcePlein,
   });
+  /* « POSER QUAND MÊME » NE VAUT QUE POUR L'HEURE OÙ ON L'A DIT : un autre
+     jour, une autre heure, une autre durée se rejugent. */
+  useEffect(() => { setForcePlein(false); }, [date, time, dureeRetenue]);
+  /* LES SÍNSIN CHEZ TEAM — 24 octobre 2026 (« un seul maître Team pour les
+     SÍNSIN, l'expert n'est proposé que pour les autres services », Yéman).
+     À la création, un SÍNSIN pose Team ; un rendez-vous relu garde le sien
+     dans la liste (un maître ne change jamais seul). */
+  const avecUnSinsin = chosen.some((sv) => estUnSinsin(sv.name));
+  const maitresOfferts = maitresPermis(chosen.map((sv) => sv.name), branch.masters);
+  const maitresDuSelect = appt && master && !maitresOfferts.includes(master) ? [...maitresOfferts, master] : maitresOfferts;
+  useEffect(() => {
+    if (!appt && avecUnSinsin && branch.masters.includes(MAITRE_DES_SINSIN) && master !== MAITRE_DES_SINSIN) setMaster(MAITRE_DES_SINSIN);
+  }, [appt, avecUnSinsin, master, branch.masters]);
   const pret = !!clientId && serviceIds.length > 0 && momentChoisi;
   /* UNE PLACE CHOISIE POSE LE JOUR ET L'HEURE, JAMAIS LE MAÎTRE : il reste
      celui de la question « Quand ? ». */
@@ -2749,6 +2769,10 @@ export function RdvModal({
   };
   const habitude = rituelsHabituels[0];
   const habitudePosee = !!habitude && [...habitude.ids].sort().join('|') === [...serviceIds].sort().join('|');
+  /* Son maître habituel, seulement s'il peut recevoir ce rituel (un SÍNSIN va
+     chez Team, 24 octobre 2026). */
+  const maitreHabituel = habitude?.master && maitresPermis(habitude.ids.map((id) => byId.get(id)?.name), branch.masters).includes(habitude.master)
+    ? habitude.master : null;
   /* REPRENDRE NE REMPLACE PAS EN SILENCE : des prestations déjà posées
      demandent confirmation, sous le modèle, à la question « Quoi ? ». */
   const reprendsSonRituel = () => {
@@ -2759,7 +2783,7 @@ export function RdvModal({
       return;
     }
     poseLesPrestations(habitude.ids);
-    if (habitude.master && branch.masters.includes(habitude.master)) setMaster(habitude.master);
+    if (maitreHabituel) setMaster(maitreHabituel);
     setModeleAConfirmer(null);
     setRang(momentChoisi ? '' : 'quand');
   };
@@ -4170,12 +4194,20 @@ export function RdvModal({
           fait={momentChoisi && !bloque}
           etat={bloque ? 'à changer' : undefined}
           resume={momentChoisi
-            ? [jourCourtAn(date), time, master || 'sans maître', bloque ? 'fauteuils pleins' : raison ? 'posé quand même' : null].filter(Boolean).join(' · ')
+            ? [jourCourtAn(date), time, master || 'sans maître', bloque ? 'fauteuils pleins' : raison?.bloque ? 'fauteuils pleins, posé quand même' : raison ? 'posé quand même' : null].filter(Boolean).join(' · ')
             : 'Le jour, l’heure, le maître'}
         >
           {rdvClient && reprise?.iso && !appt && (
             <p className="trc-rdv3__note trc-rdv3__note--cuivre">
-              Elle revient d’habitude vers le {jourDit(reprise.iso)}{habitude?.master ? `, avec ${habitude.master}` : ''}.
+              Elle revient d’habitude vers le {jourDit(reprise.iso)}{maitreHabituel ? `, avec ${maitreHabituel}` : ''}.
+              {!semaine.some((j) => j.iso === reprise.iso) && (
+                <>
+                  {' '}
+                  <button type="button" className="tre-link-btn" onClick={() => { setDebutChoisi(debutDeLaSemaine(reprise.iso, aujourdhui, false)); setJourVu(reprise.iso); }}>
+                    Voir ce jour
+                  </button>
+                </>
+              )}
             </p>
           )}
           {chosen.length === 0 ? (
@@ -4275,8 +4307,17 @@ export function RdvModal({
             </div>
           </div>
           {raison && (
-            <div className={`trc-rdv3__raison${raison.bloque ? ' is-bloque' : ''}`} role={raison.bloque ? 'alert' : undefined}>
+            <div className={`trc-rdv3__raison${bloque ? ' is-bloque' : ''}`} role={bloque ? 'alert' : undefined}>
               {raison.texte}
+              {raison.bloque && (forcePlein ? (
+                <span style={{ display: 'block', marginTop: 6 }}>Posé quand même, par-dessus les fauteuils : la Maison s’organise.</span>
+              ) : (
+                <span style={{ display: 'block', marginTop: 8 }}>
+                  <button type="button" className="mnd-btn mnd-btn--sm mnd-btn--ghost trc-rdv3__forcer" onClick={() => setForcePlein(true)}>
+                    Poser quand même à {time}
+                  </button>
+                </span>
+              ))}
             </div>
           )}
           {/* POSÉ APRÈS SON HEURE — 13 septembre 2026 : on le dit avant
@@ -4299,10 +4340,13 @@ export function RdvModal({
               style={{ flex: '0 1 220px', minWidth: 0 }}
               aria-label="Maître au fauteuil"
             >
-              {branch.masters.map((m) => (
+              {maitresDuSelect.map((m) => (
                 <option key={m} value={m}>{m}</option>
               ))}
             </Select>
+            {avecUnSinsin && maitresOfferts.length === 1 && (
+              <span className="mnd-muted" style={{ fontSize: 11.5 }}>Les SÍNSIN se font chez {MAITRE_DES_SINSIN}.</span>
+            )}
             {/* JUSQU'OÙ CETTE MAIN EXÉCUTE, lu sur sa fiche d'équipe. */}
             {(() => {
               const fiche = equipe.find((m) => sameName(m.name, master));

@@ -8,6 +8,7 @@ import {
   formuleProposeePourReserver, peutPorter, type ReleveDeLAbonnee, type ReleveDuContrat,
 } from '../../shared/abonnee-pur';
 import { DOW_LETTERS, MONTHS, dayLabelIsoFr, freeSlots, pad2, useCreneauxOccupes } from './lib';
+import { estUnSinsin, MAITRE_DES_SINSIN } from '../../shared/agenda-pur';
 import { appelleLaMaison, dateDansLaPhrase, dateLongue, heureDite } from './releve';
 import { t } from './i18n';
 import './abonnee.css';
@@ -99,7 +100,8 @@ export default function ReserverIncluse({ releve, prenom, teteId, estElle, debut
 
   const service = serviceId ? services.find((s) => s.id === serviceId) : undefined;
   const duree = service?.durationMin ?? 60;
-  const maitre = service?.master ?? '';
+  /* Les SÍNSIN chez Team, seul (24 octobre 2026). */
+  const maitre = service && estUnSinsin(service.name) ? MAITRE_DES_SINSIN : (service?.master ?? '');
 
   /* LES MOIS DU CALENDRIER : d'aujourd'hui à la fin du contrat, six au plus. */
   const lesMois = useMemo(() => {

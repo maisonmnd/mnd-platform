@@ -6,6 +6,7 @@ import { depositForServices, depositPctFor, useSettings, useExceptionsHoraires, 
 import { useBlocages } from '../../shared/blocages';
 import { prochainesPlaces } from '../../shared/reservation-express';
 import { appointmentsStore, useAppointments, venuesHonorees, type Appointment, estampilleLesPoses } from '../../shared/agenda';
+import { estUnSinsin, MAITRE_DES_SINSIN } from '../../shared/agenda-pur';
 import { useSubscribers } from '../../shared/abonnements';
 import { REGLES_DE_LA_MAISON } from '../../shared/abonnee-pur';
 import { useReleve } from './releve';
@@ -363,8 +364,11 @@ export default function Booking({ prefill, onClose, toast, onVoirRdv }: Props) {
   const anyHidden = selected.some((s) => s.hidePrice);
   const allHidden = chiffre.masque;
   /* Maître : commun si toutes le partagent, sinon celui de la première prestation. */
-  const master = selected[0]?.master ?? '';
-  const masterVaries = selected.length > 1 && !selected.every((s) => s.master === master);
+  /* LES SÍNSIN CHEZ TEAM — 24 octobre 2026 (« la couronne doit toujours
+     proposer un seul maître Team pour les SÍNSIN », Yéman). */
+  const avecUnSinsin = selected.some((s) => estUnSinsin(s.name));
+  const master = avecUnSinsin ? MAITRE_DES_SINSIN : (selected[0]?.master ?? '');
+  const masterVaries = !avecUnSinsin && selected.length > 1 && !selected.every((s) => s.master === master);
   /* `summaryLabel` part au Trône (alerte du personnel) : il reste en français.
      `summaryDit` est celui que la cliente lit, dans sa langue. */
   const summaryLabel = selected.length === 1 ? selected[0].name : `${selected.length} prestations`;

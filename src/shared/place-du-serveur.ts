@@ -1,5 +1,5 @@
 import {
-  creneauxLibres, dureeDesPrestations, minutesDeHhmm, occupesDuJour, ouvertureDuJour, plagesBloquees, PLACES_EN_LIGNE,
+  creneauxLibres, dureeDesPrestations, estUnSinsin, MAITRE_DES_SINSIN, minutesDeHhmm, occupesDuJour, ouvertureDuJour, plagesBloquees, PLACES_EN_LIGNE,
   type CreneauOccupe, type ExceptionDHoraire, type HeureDeLaSemaine, type MurPose,
 } from './agenda-pur';
 import { estUneConsultation, masquePourLeSite, priceModeOf, racineOf, type MasquesDuSite, type PriceMode } from './catalogue-pur';
@@ -305,6 +305,9 @@ function lesGestesSeReservent(agenda: AgendaDuServeur, serviceIds: readonly stri
     une prestation s'il y en a un, sinon ceux de la Maison, sinon le libellé
     vide d'une branche qui n'en déclare aucun. */
 function maitresDuRituel(agenda: AgendaDuServeur, serviceIds: readonly string[]): string[] {
+  /* LES SÍNSIN CHEZ TEAM (24 octobre 2026) : un SÍNSIN dans la venue, et
+     c'est Team, seul. */
+  if (serviceIds.some((id) => estUnSinsin(agenda.services.find((s) => s.id === id)?.name))) return [MAITRE_DES_SINSIN];
   const designes = serviceIds
     .map((id) => agenda.services.find((s) => s.id === id)?.master)
     .filter((m): m is string => !!m);

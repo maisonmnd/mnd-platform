@@ -94,7 +94,7 @@ dit('... refuse par creneau_pris, a la creation comme au deplacement', [true, tr
 for (const f of ['supabase/functions/demande-submit/index.ts', 'supabase/functions/whatsapp-automate/index.ts']) {
   const s = lis(f);
   dit(`${f.split('/')[2]} : la regle, le juge a une place, la version du 24 octobre`, [true, true, true],
-    [s.includes('export const PLACES_EN_LIGNE = 1;'), s.includes('sieges: PLACES_EN_LIGNE,'), s.includes("const VERSION = '2026-10-24-a")]);
+    [s.includes('export const PLACES_EN_LIGNE = 1;'), s.includes('sieges: PLACES_EN_LIGNE,'), s.includes("const VERSION = '2026-10-24-")]);
 }
 
 console.log(`\n${n - ko}/${n} epreuves : une seule reservation en ligne a la fois.`);

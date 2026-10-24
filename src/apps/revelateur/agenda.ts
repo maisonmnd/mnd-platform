@@ -1,6 +1,6 @@
 import type { FormuleRapide } from '../../shared/reservation-express';
 import {
-  creneauxLibres, dureeDesPrestations, occupesDuJour, ouvertureDuJour, plagesBloquees, PLACES_EN_LIGNE,
+  creneauxLibres, dureeDesPrestations, estUnSinsin, MAITRE_DES_SINSIN, occupesDuJour, ouvertureDuJour, plagesBloquees, PLACES_EN_LIGNE,
   type CreneauOccupe, type ExceptionDHoraire, type HeureDeLaSemaine, type MurPose,
 } from '../../shared/agenda-pur';
 import { estUneConsultation, type MasquesDuSite } from '../../shared/catalogue-pur';
@@ -257,7 +257,10 @@ export function heuresLibres(o: {
   const maintenantMin = aujourdHui ? maintenant.getHours() * 60 + maintenant.getMinutes() : null;
 
   const demandes = serviceIds.map((id) => agenda.services.find((s) => s.id === id)?.master).filter(Boolean) as string[];
-  const maitres = demandes.length > 0 ? [...new Set(demandes)] : (agenda.maitres.length > 0 ? agenda.maitres : ['']);
+  /* Les SÍNSIN chez Team, seul (24 octobre 2026). */
+  const sinsin = serviceIds.some((id) => estUnSinsin(agenda.services.find((s) => s.id === id)?.name));
+  const maitres = sinsin ? [MAITRE_DES_SINSIN]
+    : demandes.length > 0 ? [...new Set(demandes)] : (agenda.maitres.length > 0 ? agenda.maitres : ['']);
 
   const parHeure = new Map<string, string>();
   for (const maitre of maitres) {

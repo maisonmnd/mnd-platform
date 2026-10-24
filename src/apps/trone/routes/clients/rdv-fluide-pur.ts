@@ -48,12 +48,14 @@ export const lundiDe = (iso: string): string => ajouteJours(iso, -((new Date(`${
 export const septJours = (debut: string): string[] => Array.from({ length: 7 }, (_, i) => ajouteJours(debut, i));
 
 /** LE JOUR AUTOUR DUQUEL LA SEMAINE S'OUVRE : celui du rendez-vous (relu, ou
-    la case de l'agenda d'où l'on vient), sinon son jour de reprise s'il est
-    devant nous, sinon aujourd'hui. */
+    la case de l'agenda d'où l'on vient), sinon AUJOURD'HUI.
+
+    24 octobre 2026 : « la date d'aujourd'hui doit être proposée
+    automatiquement quand on ouvre Quand ? » (Yéman). La semaine s'ouvrait sur
+    son jour de reprise ; il reste dit (et marqué quand il tombe dans la
+    semaine montrée), il n'ouvre plus la semaine. */
 export function ancreDeLaSemaine(e: { dateDuRdv?: string; reprise?: string | null; aujourdhui: string }): string {
-  if (e.dateDuRdv) return e.dateDuRdv;
-  if (e.reprise && e.reprise >= e.aujourdhui) return e.reprise;
-  return e.aujourdhui;
+  return e.dateDuRdv || e.aujourdhui;
 }
 
 /** LE PREMIER JOUR MONTRÉ : le lundi de la semaine de l'ancre. À la création,
@@ -97,9 +99,11 @@ export function placesDuJour(o: {
 
 export type Raison = { bloque: boolean; texte: string };
 
-/** CE QUE L'HEURE CHOISIE DOIT DIRE. Les fauteuils pleins bloquent ; le reste
-    (jour fermé, hors des heures, créneau bloqué, maître qui reçoit déjà) se
-    dit en cuivre et se pose quand même. Rien à dire : `null`. */
+/** CE QUE L'HEURE CHOISIE DOIT DIRE. Les fauteuils pleins arrêtent la pose
+    tant que la main n'a pas dit « Poser quand même » (24 octobre 2026, voir
+    `bloqueLaPose`) ; le reste (jour fermé, hors des heures, créneau bloqué,
+    maître qui reçoit déjà) se dit en cuivre et se pose quand même. Rien à
+    dire : `null`. */
 export function raisonDeLHeure(o: {
   heure: string;
   durationMin: number;
@@ -120,7 +124,7 @@ export function raisonDeLHeure(o: {
   if (sieges > 0 && ensemble.length >= sieges) {
     const plein = sieges === 1 ? 'Le fauteuil est occupé' : `Les ${sieges} fauteuils sont occupés`;
     const issue = o.premiereLibre ? ` Première place libre ce jour-là : ${o.premiereLibre}.` : ' Plus aucune place ce jour-là.';
-    return { bloque: true, texte: `${plein} le ${o.jourDit} à ${o.heure} : cette heure ne se pose pas.${issue}` };
+    return { bloque: true, texte: `${plein} le ${o.jourDit} à ${o.heure} : cette heure est pleine.${issue}` };
   }
   const dits: string[] = [];
   if (o.ouverture.closed) {
@@ -142,7 +146,13 @@ export function raisonDeLHeure(o: {
 
 /** LE BLOCAGE NE VAUT QUE POUR CE QUI BOUGE. Un rendez-vous relu qui garde
     son jour, son heure et sa durée s'enregistre toujours : corriger une note
-    ne bute pas sur un plafond. Un rendez-vous annulé ne prend aucun fauteuil. */
+    ne bute pas sur un plafond. Un rendez-vous annulé ne prend aucun fauteuil.
+
+    LA MAIN DU TRÔNE PASSE OUTRE — 24 octobre 2026 : « même s'il n'y a pas de
+    place à une heure donnée, au Trône on peut réserver cette heure et pouvoir
+    overwrite l'horaire » (Yéman). « Poser quand même » (`force`) lève le
+    blocage ; les portes en ligne, elles, n'ont pas cette main
+    (`PLACES_EN_LIGNE`). */
 export function bloqueLaPose(e: {
   raison: Raison | null;
   statut: string;
@@ -150,8 +160,9 @@ export function bloqueLaPose(e: {
   time: string;
   dureeMin: number;
   relu?: { date: string; time: string; dureeMin: number };
+  force?: boolean;
 }): boolean {
-  if (!e.raison?.bloque || e.statut === 'annulé') return false;
+  if (e.force || !e.raison?.bloque || e.statut === 'annulé') return false;
   if (!e.relu) return true;
   return e.relu.date !== e.date || e.relu.time !== e.time || e.dureeMin > e.relu.dureeMin;
 }
