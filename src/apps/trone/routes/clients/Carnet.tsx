@@ -24,7 +24,7 @@ import { type Service } from '../../../../shared/catalog';
 import {
   Avatar, PayStatusPill, RdvModal, ReminderBell, SourceBadge, StatusPill, type RdvInitial,
   addDaysISO, apptLabel, apptNetXof, apptGammeXof, apptPayState, montantDuCarnet, apptDueXof, apptDepositCreditXof, frDay, frShort, timeToMin, todayISO, useBranchAppointments, useBranchClients, useServicesById,
-  tarifsDuRituel, PortesWhatsApp,
+  tarifsDuRituel, PortesWhatsApp, DrillModal, type Drill,
 } from './_shared';
 import { cancelAppointmentPayment, deshonoreLeRituel, factureAEnvoyer, honoreSansEncaisser, PayAppointmentModal } from './actions';
 import { SerieModal } from './SerieModal';
@@ -142,6 +142,8 @@ export default function Carnet() {
   const today = todayISO();
 
   const [modal, setModal] = useState<{ initial?: RdvInitial; title?: string; appt?: Appointment } | null>(null);
+  /* Le détail d'une tuile (24 octobre 2026, « rendre cliquables les attendus »). */
+  const [detail, setDetail] = useState<Drill | null>(null);
   const [payAppt, setPayAppt] = useState<Appointment | null>(null); // encaissement (partiel / total / pourboire)
   const [menuFor, setMenuFor] = useState<string | null>(null);
   /* La facture à régler part seule chez elle (17 octobre 2026). */
@@ -276,6 +278,16 @@ export default function Carnet() {
       jour: chiffreAttenduDuJour(vivants.map((a) => ({
         date: a.date, status: a.status, rituelXof: apptNetXof(a, byId), resteRituelXof: apptDueXof(a, byId), gamme: a.gamme,
       })), todayISO()),
+      /* CE QUE CHAQUE TUILE COMPTE, pour l'ouvrir (24 octobre 2026) : les
+         mêmes rendez-vous que ses chiffres, dans l'ordre de l'agenda. */
+      listes: {
+        creance: rendus.filter((a) => apptDueXof(a, byId) > 0)
+          .sort((a, b) => b.date.localeCompare(a.date) || timeToMin(a.time) - timeToMin(b.time)),
+        jour: vivants.filter((a) => a.date === todayISO())
+          .sort((a, b) => timeToMin(a.time) - timeToMin(b.time)),
+        avenir: vivants.filter(aVenir)
+          .sort((a, b) => a.date.localeCompare(b.date) || timeToMin(a.time) - timeToMin(b.time)),
+      },
     };
 
     const garde = (a: Appointment) => VUES[vue].garde(a, byId, aVenir);
@@ -686,6 +698,44 @@ export default function Carnet() {
     );
   };
 
+  /* ══ LES TUILES S'OUVRENT — 24 octobre 2026 ═══════════════════════════
+     « Rendre cliquables les attendus » (Yéman). Chaque tuile ouvre les
+     rendez-vous qu'elle compte, avec leur montant ; le total de la liste est
+     celui de la tuile, et une ligne ouvre son rendez-vous. */
+  const nomDe = (a: Appointment) => clientOf(a.clientId)?.name ?? a.clientName ?? 'Cliente de passage';
+  const ouvreLeRdv = (a: Appointment) => () => { setDetail(null); setModal({ appt: a }); };
+  const ouvreLaCreance = () => setDetail({
+    title: 'Reste à encaisser · rituels rendus',
+    sub: 'Les rituels déjà rendus qui attendent encore un règlement, du plus récent au plus ancien.',
+    rows: totaux.listes.creance.map((a) => ({
+      who: nomDe(a), sub: `${a.time} · ${apptLabel(a, byId)} · reste à régler`, date: a.date,
+      amount: apptDueXof(a, byId), onOpen: ouvreLeRdv(a),
+    })),
+    total: totaux.creanceXof,
+  });
+  const ouvreLeJour = () => setDetail({
+    title: 'Attendu aujourd’hui',
+    sub: `Rituels du jour et Gamme posée · déjà encaissé ${fmtMoney(totaux.jour.encaisseXof, currency)} · reste ${fmtMoney(totaux.jour.resteXof, currency)}`,
+    rows: totaux.listes.jour.map((a) => {
+      const j = chiffreAttenduDuJour([{ date: a.date, status: a.status, rituelXof: apptNetXof(a, byId), resteRituelXof: apptDueXof(a, byId), gamme: a.gamme }], a.date);
+      return {
+        who: nomDe(a),
+        sub: `${a.time} · ${apptLabel(a, byId)}${j.gammeXof > 0 ? ` · dont Gamme ${fmtMoney(j.gammeXof, currency)}` : ''} · ${j.resteXof > 0 ? `reste ${fmtMoney(j.resteXof, currency)}` : 'réglé'}`,
+        amount: j.attenduXof, onOpen: ouvreLeRdv(a),
+      };
+    }),
+    total: totaux.jour.attenduXof,
+  });
+  const ouvreLAvenir = () => setDetail({
+    title: 'Attendu · rendez-vous à venir',
+    sub: 'Chaque rendez-vous à venir à sa valeur entière ; rien n’est encore acquis.',
+    rows: totaux.listes.avenir.map((a) => ({
+      who: nomDe(a), sub: `${a.time} · ${apptLabel(a, byId)}${apptDueXof(a, byId) < apptNetXof(a, byId) ? ` · reste ${fmtMoney(apptDueXof(a, byId), currency)}` : ''}`, date: a.date,
+      amount: apptNetXof(a, byId), onOpen: ouvreLeRdv(a),
+    })),
+    total: totaux.avenirXof,
+  });
+
   return (
     <div className="mnd-rise">
       <PageHead
@@ -768,8 +818,8 @@ export default function Carnet() {
           que personne ne peut aller chercher. */}
       {!sansPrix && (
         <div className="tr-cols" style={{ '--cols': '1fr 1fr 1fr', gap: 12, marginBottom: 14 } as CSSProperties}>
-          <div style={{ background: 'var(--surface-card)', border: '1px solid var(--hairline)', borderLeft: '3px solid var(--color-copper)', borderRadius: 'var(--radius-md)', padding: '14px 18px' }}>
-            <div className="trc-microlabel" style={{ margin: 0 }}>Reste à encaisser · rituels rendus</div>
+          <button type="button" className="trc-tuile" onClick={ouvreLaCreance} title="Voir les rituels à recouvrer" style={{ background: 'var(--surface-card)', border: '1px solid var(--hairline)', borderLeft: '3px solid var(--color-copper)', borderRadius: 'var(--radius-md)', padding: '14px 18px' }}>
+            <div className="trc-microlabel" style={{ margin: 0 }}>Reste à encaisser · rituels rendus ›</div>
             <div style={{ fontFamily: 'var(--font-serif)', fontWeight: 300, fontSize: 30, color: 'var(--copper-700)', lineHeight: 1.1 }}>
               {fmtMoney(totaux.creanceXof, currency)}
             </div>
@@ -778,9 +828,9 @@ export default function Carnet() {
                 ? 'Rien à recouvrer, tout est réglé.'
                 : `sur ${totaux.creanceN} rituel${totaux.creanceN > 1 ? 's' : ''} déjà rendu${totaux.creanceN > 1 ? 's' : ''}`}
             </div>
-          </div>
-          <div style={{ background: 'var(--surface-card)', border: '1px solid var(--hairline)', borderLeft: '3px solid var(--color-indigo)', borderRadius: 'var(--radius-md)', padding: '14px 18px' }}>
-            <div className="trc-microlabel" style={{ margin: 0 }}>Attendu · aujourd’hui</div>
+          </button>
+          <button type="button" className="trc-tuile" onClick={ouvreLeJour} title="Voir les rendez-vous du jour" style={{ background: 'var(--surface-card)', border: '1px solid var(--hairline)', borderLeft: '3px solid var(--color-indigo)', borderRadius: 'var(--radius-md)', padding: '14px 18px' }}>
+            <div className="trc-microlabel" style={{ margin: 0 }}>Attendu · aujourd’hui ›</div>
             <div style={{ fontFamily: 'var(--font-serif)', fontWeight: 300, fontSize: 30, color: 'var(--color-indigo)', lineHeight: 1.1 }}>
               {fmtMoney(totaux.jour.attenduXof, currency)}
             </div>
@@ -789,9 +839,9 @@ export default function Carnet() {
                 ? 'Aucun rendez-vous aujourd’hui.'
                 : `${totaux.jour.nombre} rendez-vous · déjà encaissé ${fmtMoney(totaux.jour.encaisseXof, currency)} · reste ${fmtMoney(totaux.jour.resteXof, currency)}${totaux.jour.gammeXof > 0 ? ` · dont Gamme ${fmtMoney(totaux.jour.gammeXof, currency)}` : ''}`}
             </div>
-          </div>
-          <div style={{ background: 'var(--surface-card)', border: '1px solid var(--hairline)', borderLeft: '3px solid var(--color-indigo)', borderRadius: 'var(--radius-md)', padding: '14px 18px' }}>
-            <div className="trc-microlabel" style={{ margin: 0 }}>Attendu · rendez-vous à venir</div>
+          </button>
+          <button type="button" className="trc-tuile" onClick={ouvreLAvenir} title="Voir les rendez-vous à venir" style={{ background: 'var(--surface-card)', border: '1px solid var(--hairline)', borderLeft: '3px solid var(--color-indigo)', borderRadius: 'var(--radius-md)', padding: '14px 18px' }}>
+            <div className="trc-microlabel" style={{ margin: 0 }}>Attendu · rendez-vous à venir ›</div>
             <div style={{ fontFamily: 'var(--font-serif)', fontWeight: 300, fontSize: 30, color: 'var(--color-indigo)', lineHeight: 1.1 }}>
               {fmtMoney(totaux.avenirXof, currency)}
             </div>
@@ -800,7 +850,7 @@ export default function Carnet() {
                 ? 'Le carnet est libre.'
                 : `sur ${totaux.avenirN} rendez-vous, rien n’est encore acquis`}
             </div>
-          </div>
+          </button>
         </div>
       )}
 
@@ -871,6 +921,7 @@ export default function Carnet() {
           carnet. On relit le rituel dans le magasin — celui qu'on tient en
           main date de son ouverture, et le versement qu'on vient d'inscrire
           l'a déjà fait vieillir. */}
+      {detail && <DrillModal drill={detail} onClose={() => setDetail(null)} />}
       {serieOuverte && <SerieModal onClose={() => setSerieOuverte(false)} />}
       {cahierOuvert && peutRattraperUnCahier && <RattraperUnCahier onClose={() => setCahierOuvert(false)} />}
 

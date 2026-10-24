@@ -1084,15 +1084,30 @@ export default function Dashboard() {
             const j = chiffreAttenduDuJour(todayRows.map((a) => ({
               date: a.date, status: a.status, rituelXof: apptNetXof(a, byId), resteRituelXof: apptDueXof(a, byId), gamme: a.gamme,
             })), today);
+            /* Il s'ouvre sur ses rendez-vous (24 octobre 2026, « rendre
+               cliquables les attendus »). */
+            const ouvre = () => setDrill({
+              title: 'Attendu aujourd’hui',
+              sub: `Rituels du jour et Gamme posée · déjà encaissé ${fmtMoney(j.encaisseXof, currency)} · reste ${fmtMoney(j.resteXof, currency)}`,
+              rows: todayRows.map((a) => {
+                const u = chiffreAttenduDuJour([{ date: a.date, status: a.status, rituelXof: apptNetXof(a, byId), resteRituelXof: apptDueXof(a, byId), gamme: a.gamme }], a.date);
+                return {
+                  who: clientOf(a.clientId)?.name ?? 'Cliente de passage',
+                  sub: `${a.time} · ${apptLabel(a, byId)}${u.gammeXof > 0 ? ` · dont Gamme ${fmtMoney(u.gammeXof, currency)}` : ''} · ${u.resteXof > 0 ? `reste ${fmtMoney(u.resteXof, currency)}` : 'réglé'}`,
+                  amount: u.attenduXof, onOpen: () => { setDrill(null); setEditAppt(a); },
+                };
+              }),
+              total: j.attenduXof,
+            });
             return j.attenduXof > 0 ? (
-              <div className="trp-day__chiffre">
-                <span className="trp-day__chiffre-lab">Attendu aujourd’hui</span>
+              <button type="button" className="trp-day__chiffre" onClick={ouvre} title="Voir les rendez-vous du jour">
+                <span className="trp-day__chiffre-lab">Attendu aujourd’hui ›</span>
                 <b>{fmtMoney(j.attenduXof, currency)}</b>
                 <span className="trp-day__chiffre-sub">
                   déjà encaissé {fmtMoney(j.encaisseXof, currency)} · reste {fmtMoney(j.resteXof, currency)}
                   {j.gammeXof > 0 ? ` · dont Gamme ${fmtMoney(j.gammeXof, currency)}` : ''}
                 </span>
-              </div>
+              </button>
             ) : null;
           })()}
           {/* UN ÉTAT VIDE PROPOSE, il ne constate pas : un carnet libre est

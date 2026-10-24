@@ -227,6 +227,13 @@
 }
 /* Le chiffre attendu de la journée, sous l'en-tête (24 octobre 2026). */
 .trp-day__chiffre {
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: 0;
+  cursor: pointer;
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
@@ -249,6 +256,8 @@
   color: var(--color-indigo);
   font-variant-numeric: tabular-nums;
 }
+.trp-day__chiffre:hover { background: var(--copper-50, #f9efe7); }
+.trp-day__chiffre:focus-visible { outline: 2px solid var(--copper-300); outline-offset: -2px; }
 .trp-day__chiffre-sub {
   flex-basis: 100%;
   font-size: 12px;

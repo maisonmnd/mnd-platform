@@ -57,5 +57,16 @@ dit('... deja encaisse compte la Gamme reglee, le total du ce qu il en reste', [
   rituel.includes('−{fmtMoney(alreadyPaid + gammeRegleeXof, currency)}'),
   rituel.includes('{fmtMoney(due + gammeARegler, currency)}')]);
 
+/* ── Les tuiles s'ouvrent (24 octobre 2026, « rendre cliquables les attendus ») ── */
+dit('les trois tuiles du Carnet sont des boutons qui ouvrent leur detail', [true, true, true, true], [
+  carnet.includes('onClick={ouvreLaCreance}'), carnet.includes('onClick={ouvreLeJour}'), carnet.includes('onClick={ouvreLAvenir}'),
+  carnet.includes('{detail && <DrillModal drill={detail} onClose={() => setDetail(null)} />}')]);
+dit('... chaque detail porte le total de sa tuile, et une ligne ouvre son rendez-vous', [true, true, true, true], [
+  carnet.includes('total: totaux.creanceXof,'), carnet.includes('total: totaux.jour.attenduXof,'), carnet.includes('total: totaux.avenirXof,'),
+  carnet.includes('const ouvreLeRdv = (a: Appointment) => () => { setDetail(null); setModal({ appt: a }); };')]);
+dit('le tableau de bord ouvre aussi « Attendu aujourd hui » sur ses rendez-vous', [true, true], [
+  tableau.includes('<button type="button" className="trp-day__chiffre" onClick={ouvre}'),
+  tableau.includes('total: j.attenduXof,')]);
+
 console.log(`\n${n - ko}/${n} epreuves : le chiffre du jour et ce qu elle doit.`);
 if (ko) console.log(`${ko} ECHEC(S).`);

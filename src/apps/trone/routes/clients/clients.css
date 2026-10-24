@@ -3386,3 +3386,12 @@
 .trq-puce--double button:hover { background: rgba(246, 241, 231, .22); }
 .trq-puce__note { font-size: 11px; color: rgba(246, 241, 231, .6); }
 .trq-moment__sur--suite { margin-top: 6px; }
+
+/* Les tuiles du Carnet s'ouvrent sur leur détail (24 octobre 2026). */
+.trc-tuile {
+  display: block; width: 100%; text-align: left; font: inherit; color: inherit; cursor: pointer;
+  transition: border-color var(--dur-base, .2s) var(--ease-soft, ease), box-shadow var(--dur-base, .2s) var(--ease-soft, ease);
+}
+.trc-tuile:hover { border-color: var(--copper-300) !important; box-shadow: 0 2px 12px rgba(30, 33, 80, .07); }
+.trc-tuile:focus-visible { outline: 2px solid var(--copper-300); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) { .trc-tuile { transition: none; } }
