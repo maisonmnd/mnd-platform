@@ -26,7 +26,7 @@ export type Grand = {
       code USSD et le geste. Absente ailleurs : les réseaux Wi-Fi n'en ont pas. */
   affiche?: string;
   /** Ce que l'affiche dit, pour qui ne la voit pas (23 octobre 2026 : deux
-      affiches désormais, MoMoPay et Mobile Money). */
+      affiches désormais, MoMoPay et KkiaPay). */
   afficheAlt?: string;
 };
 

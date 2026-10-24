@@ -811,9 +811,11 @@ const TUILES_ENC: { id: TuileEnc; nom: string; sous: string }[] = [
   { id: 'especes', nom: 'Espèces', sous: 'au comptoir' },
   { id: 'momo', nom: 'MTN MoMoPay', sous: 'compte de la Maison' },
   { id: 'momoPrive', nom: 'MoMo Privé', sous: 'numéro personnel' },
-  /* LE QR MOBILE MONEY DU COMPTOIR (24 octobre 2026) : tous réseaux, par
-     KkiaPay ; l'argent va dans la caisse KkiaPay. */
-  { id: 'kkiapay', nom: 'Mobile Money', sous: 'QR KkiaPay, tous réseaux' },
+  /* LE QR KKIAPAY DU COMPTOIR (24 octobre 2026) : tous réseaux, l'argent va
+     dans la caisse KkiaPay. Il s'appelait « Mobile Money » ; « corriger le nom
+     en KkiaPay partout sur le Trône » (Yéman, le même jour) : MoMoPay est
+     aussi du Mobile Money, le nom du canal le distingue. */
+  { id: 'kkiapay', nom: 'KkiaPay', sous: 'QR Chap Chap, tous réseaux' },
   { id: 'carte', nom: 'Carte', sous: 'à la banque' },
   { id: 'cheque', nom: 'Chèque', sous: 'à déposer' },
   { id: 'mndpay', nom: 'MND PAY', sous: 'confirmé par FedaPay' },
@@ -846,7 +848,7 @@ function methodeDeLaTuile(t: TuileEnc, methods: readonly string[], autre?: strin
   }
 }
 const DIT_LA_TUILE: Record<TuileEnc, string> = {
-  especes: 'en espèces', momo: 'en MTN MoMoPay', momoPrive: 'en MoMo Privé', kkiapay: 'en Mobile Money (KkiaPay)', carte: 'par carte', cheque: 'par chèque', mndpay: 'par MND PAY', avoir: 'sur l’avoir', autre: '',
+  especes: 'en espèces', momo: 'en MTN MoMoPay', momoPrive: 'en MoMo Privé', kkiapay: 'par KkiaPay', carte: 'par carte', cheque: 'par chèque', mndpay: 'par MND PAY', avoir: 'sur l’avoir', autre: '',
 };
 /** UNE PART DU RÈGLEMENT : sa tuile, son montant, et la caisse qu'une main
     de la direction a choisie à la place de celle qui se propose. `mnd` : la
@@ -2196,13 +2198,13 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour, init
     });
   };
   const quiNom = prenomDe(quiEncaisse() ?? maFiche?.name ?? '');
-  /* MTN MoMoPay montre le QR MoMoPay (caisse MoMoPay) ; Mobile Money montre le
-     QR KkiaPay, tous réseaux (caisse KkiaPay). Le montant se dit : la cliente
+  /* MTN MoMoPay montre le QR MoMoPay (caisse MoMoPay) ; KkiaPay montre son QR
+     Chap Chap, tous réseaux (caisse KkiaPay). Le montant se dit : la cliente
      le tape. */
   const qrDeLaTuile = (t: TuileEnc, montant: number): Grand => {
     const aRegler = montant > 0 ? ` À régler : ${fmtMoney(montant, currency)}.` : '';
     if (t === 'kkiapay') {
-      return { titre: 'Régler par Mobile Money.', phrase: `${RESEAUX_CHAPCHAP.join(', ')}. La page s’ouvre au nom de ${MARCHAND_CHAPCHAP}.${aRegler}`, valeur: LIEN_CHAPCHAP };
+      return { titre: 'Régler par KkiaPay.', phrase: `${RESEAUX_CHAPCHAP.join(', ')}. La page s’ouvre au nom de ${MARCHAND_CHAPCHAP}.${aRegler}`, valeur: LIEN_CHAPCHAP };
     }
     const cfg = autoConfigStore.get();
     return { titre: 'Régler par MoMo.', phrase: `Marchand ${cfg.momoMarchand || MOMO_MARCHAND_DEFAUT}.${aRegler}`, valeur: cfg.momoQr || MOMO_QR_DEFAUT };

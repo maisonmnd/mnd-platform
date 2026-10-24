@@ -100,10 +100,10 @@ dit('l itineraire part par WhatsApp sur SON numero, sans date dans le message', 
 
 /* ── Encaisser ────────────────────────────────────────────────────────── */
 const enc = sansCommentaires('src/apps/trone/routes/clients/actions.tsx');
-dit('la tuile Mobile Money ecrit le moyen KkiaPay', [true, true],
-  [enc.includes("{ id: 'kkiapay', nom: 'Mobile Money', sous: 'QR KkiaPay, tous réseaux' }"), enc.includes("case 'kkiapay': return methods.find((m) => familleDuMoyen(m) === 'kkiapay') ?? MOYEN_KKIAPAY;")]);
-dit('le QR montre a la cliente suit le moyen : MoMoPay pour MTN, KkiaPay pour Mobile Money', [true, true, true],
-  [enc.includes("(p.tuile === 'momo' || p.tuile === 'kkiapay') && !p.mnd"), /if \(t === 'kkiapay'\) \{ return \{ titre: 'Régler par Mobile Money\.'.*?valeur: LIEN_CHAPCHAP \};/.test(enc), enc.includes('valeur: cfg.momoQr || MOMO_QR_DEFAUT')]);
+dit('la tuile KkiaPay ecrit le moyen KkiaPay', [true, true],
+  [enc.includes("{ id: 'kkiapay', nom: 'KkiaPay', sous: 'QR Chap Chap, tous réseaux' }"), enc.includes("case 'kkiapay': return methods.find((m) => familleDuMoyen(m) === 'kkiapay') ?? MOYEN_KKIAPAY;")]);
+dit('le QR montre a la cliente suit le moyen : MoMoPay pour MTN, KkiaPay pour KkiaPay', [true, true, true],
+  [enc.includes("(p.tuile === 'momo' || p.tuile === 'kkiapay') && !p.mnd"), /if \(t === 'kkiapay'\) \{ return \{ titre: 'Régler par KkiaPay\.'.*?valeur: LIEN_CHAPCHAP \};/.test(enc), enc.includes('valeur: cfg.momoQr || MOMO_QR_DEFAUT')]);
 const comptoir = sansCommentaires('src/apps/trone/routes/clients/AuComptoir.tsx');
 dit('le plein ecran passe par-dessus Encaisser, et Echap ne ferme que lui', [true, true, true],
   [comptoir.includes('return createPortal('), comptoir.includes("window.addEventListener('keydown', surTouche, true)"), comptoir.includes('e.stopPropagation(); onClose();')]);

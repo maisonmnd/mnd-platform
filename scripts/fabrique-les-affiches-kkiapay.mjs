@@ -15,7 +15,11 @@
    construction du site (`node scripts/build-sites.mjs` d'abord).
 
    Il écrit aussi A4-ecran.png (deux fois plus fin), que le Trône montre comme
-   affiche au comptoir (`public/kkiapay-affiche.png`). */
+   affiche au comptoir (`public/kkiapay-affiche.png`).
+
+   24 octobre 2026 : le titre dit « Par KkiaPay », plus « Par Mobile Money » :
+   « corriger le nom en KkiaPay partout » (Yéman), MoMoPay est aussi du
+   Mobile Money. */
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { spawn } from 'node:child_process';
 import { mkdtempSync } from 'node:fs';
@@ -110,7 +114,7 @@ body { --k: ${k}; width: calc(var(--k) * 210mm); height: calc(var(--k) * 297mm);
 .qr { display: grid; gap: calc(var(--k) * 3.4mm); justify-items: center; }
 </style></head><body><div class="page">
   <div class="verrou">${verrou('couche', THEMES[theme].verrou)}</div>
-  <div class="tete"><p class="sur">Régler votre rituel</p><h1 class="titre">Par Mobile Money</h1><p class="reseaux">${reseauxHtml}</p></div>
+  <div class="tete"><p class="sur">Régler votre rituel</p><h1 class="titre">Par KkiaPay</h1><p class="reseaux">${reseauxHtml}</p></div>
   <div class="qr"><div class="carte-qr">${qrSvg(LIEN_CHAPCHAP)}</div><p class="etiquette">Scannez avec l’appareil photo</p><p class="note">La page de paiement s’ouvre au nom de ${NOM} :<br>saisissez le montant en francs, puis validez.</p></div>
   <div class="filet"></div>
   <div class="bloc"><p class="etiquette">Sans appareil photo, composez</p><p class="ussd">${ussdHtml}</p><p class="note">Remplacez « montant » par la somme en francs, puis validez.</p></div>
@@ -122,7 +126,7 @@ const face = (theme) => `<div class="face">
   <div class="gauche"><div class="carte-qr">${qrSvg(LIEN_CHAPCHAP)}</div><p class="etiquette">Scannez avec l’appareil photo</p></div>
   <div class="droite">
     <div class="verrou">${verrou('couche', THEMES[theme].verrou)}</div>
-    <h2 class="titre">Par Mobile Money</h2>
+    <h2 class="titre">Par KkiaPay</h2>
     <p class="reseaux">${reseauxHtml}</p>
     <div class="bloc"><p class="etiquette">Sans appareil photo</p><p class="ussd">${ussdHtml}</p></div>
     <p class="garant">Paiement sécurisé par KkiaPay</p>
@@ -176,7 +180,7 @@ body { --k: 1; width: 1080px; height: 1080px; }
   <div class="haut"><div class="verrou">${verrou('couche', THEMES[theme].verrou)}</div><p class="sur">Régler votre rituel</p></div>
   <div class="gauche"><div class="carte-qr">${qrSvg(LIEN_CHAPCHAP)}</div><p class="etiquette">Scannez avec l’appareil photo</p></div>
   <div class="droite">
-    <div class="bloc"><h1 class="titre">Par Mobile Money</h1><p class="reseaux">${reseauxHtml}</p></div>
+    <div class="bloc"><h1 class="titre">Par KkiaPay</h1><p class="reseaux">${reseauxHtml}</p></div>
     <div class="bloc"><p class="etiquette">Sans appareil photo, composez</p><p class="ussd">${ussdHtml}</p></div>
     <p class="garant">Paiement sécurisé par KkiaPay</p>
   </div>

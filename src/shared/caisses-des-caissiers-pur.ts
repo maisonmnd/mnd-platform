@@ -98,7 +98,7 @@ export const MOYEN_REPRISE = 'Reprise d’une année passée';
    rajoute autres aussi ») : le moyen qui n'a pas de nom va, comme Wave ou un
    virement, dans la caisse « Autres ». */
 export const MOYEN_AUTRES = 'Autres';
-/* LE QR MOBILE MONEY DU COMPTOIR — 24 octobre 2026. Payé par le QR KkiaPay
+/* LE QR KKIAPAY DU COMPTOIR — 24 octobre 2026. Payé par le QR KkiaPay
    « Chap Chap » (tous réseaux), l'argent arrive sur le compte KkiaPay, pas
    sur MoMoPay : au sélecteur, Yéman a choisi le moyen « KkiaPay » et sa
    caisse, la même que celle des paiements en ligne (`cb-kkiapay-<branche>`,
@@ -106,7 +106,7 @@ export const MOYEN_AUTRES = 'Autres';
 export const MOYEN_KKIAPAY = 'KkiaPay';
 /** LA CAISSE KKIAPAY NEUVE, idempotente : l'identifiant de celle des paiements en ligne. */
 export const caisseKkiapayNeuve = (branchId: string): Cashbox => ({
-  id: `cb-kkiapay-${branchId}`, branchId, name: CAISSE_KKIAPAY, sub: 'Paiements en ligne et QR Mobile Money', glyph: '◈', openingXof: 0,
+  id: `cb-kkiapay-${branchId}`, branchId, name: CAISSE_KKIAPAY, sub: 'Paiements en ligne et QR Chap Chap', glyph: '◈', openingXof: 0,
 });
 
 export type FamilleDeMoyen = 'especes' | 'momo' | 'momoPrive' | 'carte' | 'cheque' | 'reprise' | 'mndpay'
@@ -172,7 +172,7 @@ export function avecLesMoyensDeLaMaison(methods: readonly string[], garder?: str
     const i = out.findIndex((m) => familleDuMoyen(m) === 'momo');
     out.splice(i >= 0 ? i + 1 : out.length, 0, MOYEN_MOMO_PRIVE);
   }
-  /* KkiaPay juste après les MoMo (24 octobre 2026), pour le QR Mobile Money. */
+  /* KkiaPay juste après les MoMo (24 octobre 2026), pour son QR Chap Chap. */
   if (!out.some((m) => familleDuMoyen(m) === 'kkiapay')) {
     const i = out.findIndex((m) => familleDuMoyen(m) === 'momoPrive');
     out.splice(i >= 0 ? i + 1 : out.length, 0, MOYEN_KKIAPAY);

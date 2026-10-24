@@ -452,12 +452,12 @@ export default function QrCodes() {
     ariaQr: 'QR MoMoPay de la maison',
   }));
 
-  /* LA CARTE A5 MOBILE MONEY — 23 octobre 2026. Le lien de paiement KkiaPay
+  /* LA CARTE A5 KKIAPAY — 23 octobre 2026. Le lien de paiement KkiaPay
      s'ouvre avec l'appareil photo de n'importe quel téléphone : pas besoin
      d'une application d'opérateur, contrairement au QR MoMoPay. */
   const imprimerChapchap = () => imprime(carteA5({
     verrou: verrouDeLaMaison(),
-    titre: 'Régler par Mobile Money.',
+    titre: 'Régler par KkiaPay.',
     sous: `${RESEAUX_CHAPCHAP.join(', ')} : scannez, ou composez le code, le montant en francs.`,
     qr: LIEN_CHAPCHAP,
     grand: MARCHAND_CHAPCHAP,
@@ -467,7 +467,7 @@ export default function QrCodes() {
       `Vérifiez le nom ${MARCHAND_CHAPCHAP} sur la page`,
       'Saisissez le montant en francs, validez',
     ],
-    ariaQr: 'QR de paiement Mobile Money de la maison',
+    ariaQr: 'QR de paiement KkiaPay de la maison',
   }));
 
   /* ── CE QUI EST PRÊT, CE QUI DORT INCOMPLET ─────────────────────
@@ -512,7 +512,7 @@ export default function QrCodes() {
   const afficheCarte: Geste = { texte: 'Afficher', fort: true, faire: () => setGrand({ titre: 'Notre carte.', phrase: 'Scannez, tous nos prix s’ouvrent sur votre téléphone.', valeur: lienCarte }) };
   const affichePlan: Geste = { texte: 'Afficher', fort: true, faire: () => setGrand({ titre: 'Nous trouver.', phrase: adresseComplete, valeur: lienPlan }), empeche: lienPlan ? undefined : sansPlan };
   const afficheMomo: Geste = { texte: 'Afficher', fort: true, faire: () => setGrand({ titre: 'Régler par MoMo.', phrase: `Marchand ${momoMarchand}, le montant en francs.`, valeur: momoQr }) };
-  const afficheChapchap: Geste = { texte: 'Afficher', fort: true, faire: () => setGrand({ titre: 'Régler par Mobile Money.', phrase: `${RESEAUX_CHAPCHAP.join(', ')}. La page s’ouvre au nom de ${MARCHAND_CHAPCHAP}.`, valeur: LIEN_CHAPCHAP }) };
+  const afficheChapchap: Geste = { texte: 'Afficher', fort: true, faire: () => setGrand({ titre: 'Régler par KkiaPay.', phrase: `${RESEAUX_CHAPCHAP.join(', ')}. La page s’ouvre au nom de ${MARCHAND_CHAPCHAP}.`, valeur: LIEN_CHAPCHAP }) };
   const afficheAvis: Geste = { texte: 'Afficher', fort: true, faire: () => setGrand({ titre: 'Un avis, un merci.', phrase: 'Scannez, deux phrases suffisent, la Maison vous lit.', valeur: lienAvis }), empeche: lienAvis ? undefined : sansAvis };
   const afficheCouronne: Geste = { texte: 'Afficher', fort: true, faire: () => setGrand({ titre: 'Ma Couronne.', phrase: 'Scannez, votre couronne vous reconnaît.', valeur: lienCouronne }) };
   const afficheAcademie: Geste = { texte: 'Afficher', fort: true, faire: () => setGrand({ titre: 'Académie MND.', phrase: 'Scannez, la Maison vous apprend le métier.', valeur: lienAcademie }) };
@@ -535,19 +535,19 @@ export default function QrCodes() {
          code dans les paiements Kkiapay pour MND avec le code USSD » (Yéman).
          Le lien et le code vivent dans shared/kkiapay-chapchap-pur.ts : ils ne
          se règlent pas ici, ils se relisent sur l'affiche de KkiaPay. */
-      id: 'kkiapay', court: 'Mobile Money', groupe: 'payer', pret: true, principal: afficheChapchap,
+      id: 'kkiapay', court: 'KkiaPay', groupe: 'payer', pret: true, principal: afficheChapchap,
       resume: `Tous réseaux : ${RESEAUX_CHAPCHAP.join(', ')} · au nom de ${MARCHAND_CHAPCHAP}`,
       motsCles: 'kkiapay chap chap mobile money mtn momo moov celtiis payer paiement argent régler ussd',
       carte: {
-        signe: Wallet, nom: 'Payer par Mobile Money.', qui: 'La cliente scanne · elle règle',
+        signe: Wallet, nom: 'Payer par KkiaPay.', qui: 'La cliente scanne · elle règle',
         dit: <>Avec l’appareil photo de son téléphone, la page de paiement KkiaPay s’ouvre au nom de <b>{MARCHAND_CHAPCHAP}</b> : {RESEAUX_CHAPCHAP.join(', ')}. À l’encaissement, choisissez le moyen <b>KkiaPay</b> : l’argent va dans la caisse KkiaPay.</>,
         valeur: LIEN_CHAPCHAP,
         champ: { lab: 'Marchand', val: <b style={{ color: 'var(--copper-700)', fontWeight: 600 }}>{MARCHAND_CHAPCHAP}</b>, lab2: 'ou composez', val2: USSD_CHAPCHAP },
         gestes: [
           { ...afficheChapchap, texte: 'Afficher le QR seul' },
-          { texte: 'L’affiche', faire: () => setGrand({ titre: 'Régler par Mobile Money.', phrase: `${RESEAUX_CHAPCHAP.join(', ')}, le montant en francs.`, valeur: LIEN_CHAPCHAP, affiche: 'kkiapay-affiche.png', afficheAlt: `Régler par Mobile Money, ${RESEAUX_CHAPCHAP.join(', ')}, marchand ${MARCHAND_CHAPCHAP}, ou composez ${USSD_CHAPCHAP}` }) },
+          { texte: 'L’affiche', faire: () => setGrand({ titre: 'Régler par KkiaPay.', phrase: `${RESEAUX_CHAPCHAP.join(', ')}, le montant en francs.`, valeur: LIEN_CHAPCHAP, affiche: 'kkiapay-affiche.png', afficheAlt: `Régler par KkiaPay, ${RESEAUX_CHAPCHAP.join(', ')}, marchand ${MARCHAND_CHAPCHAP}, ou composez ${USSD_CHAPCHAP}` }) },
           { texte: 'Carte A5', faire: imprimerChapchap },
-          { texte: 'Copier le lien', faire: () => copier(LIEN_CHAPCHAP, 'de paiement Mobile Money') },
+          { texte: 'Copier le lien', faire: () => copier(LIEN_CHAPCHAP, 'de paiement KkiaPay') },
         ],
       },
     },
@@ -763,7 +763,7 @@ export default function QrCodes() {
       case 'payer': return {
         cle: `payer-${s.rdvId}`, texte: `${avecQui(s.qui, s.maitre)} : le rituel se termine.`,
         sous: `Reste à régler : ${fmtMoney(s.resteXof, currency)}`,
-        gestes: g(gesteDu('kkiapay', 'Payer · Mobile Money', true), gesteDu('momo', 'MoMoPay')),
+        gestes: g(gesteDu('kkiapay', 'Payer · KkiaPay', true), gesteDu('momo', 'MoMoPay')),
       };
       case 'avis': return {
         cle: `avis-${s.rdvId}`, texte: `${s.qui} : c’est sa première venue.`, sous: 'Après le paiement, un avis Google',
