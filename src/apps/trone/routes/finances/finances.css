@@ -2371,7 +2371,7 @@
 }
 .tsy-detail__total span:last-child { font-size: 20px; font-variant-numeric: tabular-nums; }
 
-/* ── Le mois jour par jour, les paliers (25 octobre 2026) ── */
+/* ── Le mois jour par jour, les paliers (24 octobre 2026) ── */
 .tsy-tuile--fixe { cursor: default; }
 .tsy-tuile--fixe:hover { border-color: var(--hairline); box-shadow: none; }
 .tsy-parts__barre { display: flex; gap: 2px; height: 16px; border-radius: 4px; overflow: hidden; background: var(--surface-card); }

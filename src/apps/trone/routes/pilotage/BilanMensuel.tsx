@@ -26,7 +26,7 @@ import './pilotage.css';
    revenu = factures payées + rituels honorés NON facturés (la facture d'un rituel
    encaissé le compte déjà). Tout est dérivé des magasins réels.
 
-   EN GRAPHES — 25 octobre 2026 (« Donne leur le même traitement », Yéman) :
+   EN GRAPHES — 24 octobre 2026 (« Donne leur le même traitement », Yéman) :
    les tuiles de la Synthèse, le revenu jour par jour en colonnes (l'encaissé,
    puis l'attendu des jours à venir), le cumul du mois face au mois d'avant,
    les rendez-vous par état, les classements. Les règles de dessin vivent dans
@@ -129,7 +129,7 @@ export default function BilanMensuel() {
        que la Synthèse / le Dashboard / Analytics — mais avec `exclureHorsBilan`,
        car le Bilan seul écarte les caisses hors bilan (livres officiels). Les
        abonnements y ENTRENT (décision du 3 août). Borné à aujourd'hui pour le
-       mois en cours (25 octobre 2026). */
+       mois en cours (24 octobre 2026). */
     const args = { invoices, appts, byId, apprenants, abonnes, branchId: branch.id, cashboxes };
     const revenue = revenuDuMois(args, month, { exclureHorsBilan: true, cut: borne });
     const projete = month >= thisMonth ? revenusProjetesDuMois(args, month, today) : null;

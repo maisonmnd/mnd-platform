@@ -106,6 +106,17 @@ dit(2, 'jour ferme, hors des heures, creneau bloque : dits, jamais bloquants', [
   /* « Poser quand meme » : la main du Trone passe outre (24 octobre 2026). */
   dit(3, 'poser quand meme leve le blocage des fauteuils pleins, nouveau comme deplace', [false, false],
     [bloqueLaPose({ ...base, force: true }), bloqueLaPose({ ...base, relu: { ...relu, time: '09:00' }, force: true })]);
+  /* Un rituel honore a eu lieu : relu, meme allonge par un recalcul, il ne se rejuge pas (24 octobre 2026). */
+  dit(3, 'un rituel honore relu, allonge ou non : jamais bloque', [false, false],
+    [bloqueLaPose({ ...base, statut: 'honoré', dureeMin: 180, relu }), bloqueLaPose({ ...base, statut: 'honoré', relu: { ...relu, time: '09:00' } })]);
+  /* Et voir les reglements d'un rituel regle n'exige pas de l'enregistrer s'il n'a pas bouge. */
+  const modale = source('src/apps/trone/routes/clients/_shared.tsx');
+  const ds = source('src/ds/ds.css');
+  dit(3, 'les reglements s ouvrent sans enregistrer un rendez-vous inchange ; le calendrier du champ passe devant la fenetre', [true, true, true], [
+    modale.includes('if (!rienNaBouge && !save(status)) return;'),
+    modale.includes('onClick={voirLesReglements}>'),
+    /\.mnd-date__pop \{[^}]*z-index: calc\(var\(--z-modal\) \+ 60\)/.test(ds),
+  ]);
 }
 
 /* ══ #4 — LA SEMAINE DIRECTEMENT : la sienne, jamais un jour passe a la creation ══ */

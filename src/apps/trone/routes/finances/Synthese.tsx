@@ -125,7 +125,7 @@ export default function Synthese() {
     /* LE CA DU MOIS PASSE PAR LA PORTE UNIQUE `revenuDuMois` (clients/_shared) —
        la même que le Dashboard, Analytics et le Bilan. Écran opérationnel : toutes
        les caisses comptent (pas d'exclusion hors bilan). */
-    /* ENCAISSÉ À CE JOUR — 25 octobre 2026, aligné sur le tableau de bord
+    /* ENCAISSÉ À CE JOUR — 24 octobre 2026, aligné sur le tableau de bord
        (1er octobre). Sans borne, la Synthèse comptait dès le 24 un versement
        daté du 29 et disait plus que le tableau de bord pour le même mois. Le
        mois en cours s'arrête à aujourd'hui (`borneDuMois`) ; ce qui est daté
@@ -955,7 +955,7 @@ export default function Synthese() {
    honorés, des dates. Le mois choisi dit qui est MONTÉE ce mois-là, et
    combien de rituels honorés relèvent de chaque palier.
 
-   EN GRAPHES (25 octobre 2026) : les rituels de chaque palier, mois par
+   EN GRAPHES (24 octobre 2026) : les rituels de chaque palier, mois par
    mois, et les clientes par palier en une barre. Trois marches ORDONNÉES :
    une seule teinte, du clair (Fondation) au foncé (Souveraineté), éprouvée
    comme une rampe (clarté qui monte, écarts visibles, le clair tient 2:1 sur

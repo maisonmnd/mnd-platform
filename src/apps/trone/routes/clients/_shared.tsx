@@ -3213,6 +3213,17 @@ export function RdvModal({
     if (!save(status)) return;
     onEncaisser(appt);
   };
+  /* VOIR LES RÈGLEMENTS N'EXIGE PAS D'ENREGISTRER — 24 octobre 2026. Relire
+     ce qui a été reçu ne touche pas au rendez-vous : s'il n'a pas bougé, la
+     fenêtre des règlements s'ouvre tout de suite, quoi que disent les
+     fauteuils ; s'il a bougé, on l'enregistre d'abord, pour ne rien perdre. */
+  const rienNaBouge = !!appt && clientId === appt.clientId && serviceIds.join('|') === appt.serviceIds.join('|')
+    && date === appt.date && time === appt.time && (master ?? '') === (appt.master ?? '') && status === appt.status;
+  const voirLesReglements = () => {
+    if (!appt || !onEncaisser) return;
+    if (!rienNaBouge && !save(status)) return;
+    onEncaisser(appt);
+  };
 
   const remove = async () => {
     if (!appt) return;
@@ -5017,7 +5028,7 @@ export function RdvModal({
                 {/* UN RITUEL RÉGLÉ NE S'ENCAISSE PAS DEUX FOIS (11 août), mais
                     ce qui a été reçu se relit et se corrige (17 août). */}
                 {onEncaisser && (apptPayState(appt, byId) === 'payé' ? (
-                  <button type="button" className="trc-rdv3__lien trc-rdv3__lien--clair" onClick={enregistreEtEncaisse}>
+                  <button type="button" className="trc-rdv3__lien trc-rdv3__lien--clair" onClick={voirLesReglements}>
                     Réglé, voir et corriger les règlements
                   </button>
                 ) : (

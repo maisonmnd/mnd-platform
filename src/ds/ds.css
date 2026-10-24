@@ -359,7 +359,10 @@
 /* LE VOLET DU CHAMP COMPACT vit hors de la modale (portail) : il se pose donc
    au-dessus de tout, voile de modale et tiroir compris. */
 .mnd-date__pop {
-  position: fixed; z-index: 1000; width: 288px; max-width: calc(100vw - 16px); box-sizing: border-box;
+  /* AU-DESSUS DE LA FENÊTRE QUI LE PORTE (24 octobre 2026) : le voile d'une
+     modale est à z-modal + 5 ; à 1000, le calendrier du « Quand ? » s'ouvrait
+     derrière elle, invisible (« le calendrier ne s'ouvre pas »). */
+  position: fixed; z-index: calc(var(--z-modal) + 60); width: 288px; max-width: calc(100vw - 16px); box-sizing: border-box;
   display: flex; flex-direction: column; gap: 4px; padding: 11px 12px;
   background: var(--surface-card); border: 1px solid var(--hairline); border-radius: 4px;
   box-shadow: 0 12px 30px rgba(27, 31, 58, 0.16);

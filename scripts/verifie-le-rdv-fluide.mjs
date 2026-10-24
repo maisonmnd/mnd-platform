@@ -34,9 +34,14 @@ const FAUTES = [
   { n: 2, fichier: P, avant: 'ensemble.filter((a) => a.maitre === o.maitre)', apres: 'ensemble.filter((a) => a.maitre !== o.maitre)' },
   /* #3 : un rendez-vous allonge passe sous le plafond. */
   { n: 3, fichier: P, avant: ' || e.dureeMin > e.relu.dureeMin;', apres: ';' },
+  /* #3 : un rituel honore relu se rejuge aux fauteuils ; voir les reglements exige d'enregistrer ; le calendrier repasse derriere. */
+  { n: 3, fichier: P, avant: " || e.statut === 'annulé' || e.statut === 'honoré') return false;", apres: " || e.statut === 'annulé') return false;" },
+  { n: 3, fichier: C, avant: '    if (!rienNaBouge && !save(status)) return;', apres: '    if (!save(status)) return;' },
+  { n: 3, fichier: 'src/ds/ds.css', avant: '  position: fixed; z-index: calc(var(--z-modal) + 60);', apres: '  position: fixed; z-index: 1000;' },
   /* #4 : la creation propose un jour passe, une reprise passee ouvre la semaine. */
   { n: 4, fichier: P, avant: 'return !edition && lundi < aujourdhui ? aujourdhui : lundi;', apres: 'return lundi;' },
-  { n: 4, fichier: P, avant: 'if (e.reprise && e.reprise >= e.aujourdhui) return e.reprise;', apres: 'if (e.reprise) return e.reprise;' },
+  /* Depuis le 24 octobre, la semaine s'ouvre sur aujourd'hui, plus sur la reprise : la faute la lui rend. */
+  { n: 4, fichier: P, avant: '  return e.dateDuRdv || e.aujourdhui;', apres: '  return e.dateDuRdv || e.reprise || e.aujourdhui;' },
   /* #5 : le moment passe avant les prestations. */
   { n: 5, fichier: P, avant: "  if (!e.quoi) return 'quoi';\n  if (!e.quand) return 'quand';", apres: "  if (!e.quand) return 'quand';\n  if (!e.quoi) return 'quoi';" },
   /* #6 : un numero cherche une prestation. */

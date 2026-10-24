@@ -162,7 +162,13 @@ export function bloqueLaPose(e: {
   relu?: { date: string; time: string; dureeMin: number };
   force?: boolean;
 }): boolean {
-  if (e.force || !e.raison?.bloque || e.statut === 'annulé') return false;
+  /* UN RITUEL HONORÉ A EU LIEU — 24 octobre 2026. « Les règlements ne
+     s'ouvrent pas dans le rendez-vous » (Yéman, sur un SÍNSIN du 28 mars
+     2025) : relu, sa durée recalculée dépassait celle d'alors, les deux
+     fauteuils de ce matin-là se déclaraient pleins, et l'enregistrement qui
+     précède l'ouverture des règlements était refusé. Les fauteuils d'un
+     rituel passé ne se rejugent pas. */
+  if (e.force || !e.raison?.bloque || e.statut === 'annulé' || e.statut === 'honoré') return false;
   if (!e.relu) return true;
   return e.relu.date !== e.date || e.relu.time !== e.time || e.dureeMin > e.relu.dureeMin;
 }

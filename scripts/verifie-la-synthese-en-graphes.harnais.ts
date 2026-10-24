@@ -122,7 +122,7 @@ dit(6, 'ecart : revenus en hausse = bon ; depenses en hausse = mauvais ; mois d 
   ]);
 }
 
-/* == #9 -- ENCAISSE A CE JOUR, COMME LE TABLEAU DE BORD (25 octobre 2026) ==
+/* == #9 -- ENCAISSE A CE JOUR, COMME LE TABLEAU DE BORD (24 octobre 2026) ==
    Le mois en cours (et tout mois a venir) s'arrete a aujourd'hui ; un mois
    passe se lit en entier ; le mois d'avant se compare au meme jour, borne a
    sa longueur ; le cumul s'arrete a aujourd'hui. Et les deux ecrans lisent
