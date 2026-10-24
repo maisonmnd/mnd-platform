@@ -4,7 +4,7 @@ import { client, lienWhatsApp, maison, offresDuSite, type OffreDuSite } from '..
 import { campagne, mesure } from '../mesure';
 import {
   agendaEnCache, calendrierDuSite, creneauxOccupes, groupesDePrestations, heuresLibres,
-  jourCourt, jourDit, prestationsReservables, prochainsJours, PLAFOND_GESTES,
+  isoDuJour, jourCourt, jourDit, prestationsReservables, prochainsJours, PLAFOND_GESTES,
   type AgendaDeLaMaison, type PrestationPublique,
 } from '../agenda';
 import { porteDuBesoin, type Besoin } from '../../../shared/qualification';
@@ -20,6 +20,7 @@ import Demande from './Demande';
 import { raisonDuRefus } from '../refus-du-serveur';
 import { diagnosticGarde, oublieLeDiagnostic } from '../diagnostic-garde';
 import { lienLu } from '../../../shared/lien-reservation';
+import { litLaPhrase, departage } from '../../../shared/phrase-de-rendez-vous-pur';
 import { FORME_DU_CODE } from '../../../shared/parrainage-pur';
 import {
   CLE_MEMOIRE_DU_SITE, memoireAEcrire, memoireLue, prochainesPlaces, type MemoireDuSite,
@@ -283,6 +284,24 @@ const dit = (min?: number): string => {
   return m ? `${h} h ${String(m).padStart(2, '0')}` : `${h} h`;
 };
 
+/* ══ LA PHRASE ENTIÈRE — 24 octobre 2026 ══════════════════════════════
+   « Taper une phrase entière dans la case (« Mireille retwist mercredi à
+   10h ») sur le Trône, le site et Ma Couronne » (Yéman). La lecture est
+   celle du Trône (shared/phrase-de-rendez-vous-pur.ts), sans cliente : ici,
+   c'est elle qui réserve. Rien ne se réserve sans son numéro. */
+function PhraseDuSite({ onLire }: { onLire: (phrase: string) => void }) {
+  const [phrase, setPhrase] = useState('');
+  return (
+    <form className="phrase-du-site" onSubmit={(e) => { e.preventDefault(); if (phrase.trim()) onLire(phrase); }}>
+      <label className="phrase-du-site__titre" htmlFor="phrase-du-site">Ou dites-le en une phrase</label>
+      <div className="phrase-du-site__ligne">
+        <input id="phrase-du-site" value={phrase} onChange={(e) => setPhrase(e.target.value)} placeholder="Retwist mercredi à 10 h" autoComplete="off" enterKeyHint="go" />
+        <button type="submit" className="btn">Lire</button>
+      </div>
+    </form>
+  );
+}
+
 function Calendrier({ besoin: besoinInitial, initiales, surLaPorte }: Props) {
   const f = COMMUN.formulaire;
   /* `||` et non `??` : l'adresse rend une chaîne VIDE quand elle ne porte
@@ -545,6 +564,62 @@ function Calendrier({ besoin: besoinInitial, initiales, surLaPorte }: Props) {
   /* LES SIX PROCHAINES PLACES, tous jours confondus : la cliente pressée
      touche la première, « Un autre jour » ouvre le calendrier entier. */
   const places = useMemo(() => prochainesPlaces(jours, 6), [jours]);
+
+  /* LA PHRASE LUE : ses gestes se posent tout de suite ; le jour et l'heure
+     attendent que les heures libres de CES gestes soient calculées (mêmes
+     fauteuils, mêmes murs que le reste du site), puis se posent s'ils sont
+     libres, sinon le dit. */
+  const [voulu, setVoulu] = useState<{ jour: string | null; heure: string | null } | null>(null);
+  const [lu, setLuDeLaPhrase] = useState<{ texte: string; doutes: { mot: string; ids: string[] }[] } | null>(null);
+  const lisLaPhrase = (phrase: string) => {
+    const m = new Date();
+    /* Sa dernière venue, gardée sur ce téléphone, lève un doute (« retwist »). */
+    const lecture = departage(litLaPhrase(phrase, {
+      aujourdhui: isoDuJour(m),
+      minutes: m.getHours() * 60 + m.getMinutes(),
+      prestations: prestations.map((p) => ({ id: p.id, name: p.name })),
+    }), moi?.serviceIds ?? []);
+    if (lecture.vide) { setLuDeLaPhrase({ texte: 'Nous n’avons pas compris. Essayez par exemple : « retwist mercredi à 10 h ».', doutes: [] }); return; }
+    const ids = lecture.prestations.slice(0, PLAFOND_GESTES);
+    if (ids.length) {
+      setServiceIds(ids);
+      setRepondu(true);
+      if (!calibreId) setCalibreId('inconnu');
+    }
+    setJour('');
+    setHeure(null);
+    setAutreJour(false);
+    setErreur(null);
+    const noms = ids.map((id) => nomEnFrancaisWa(prestations.find((p) => p.id === id)?.name ?? '').francais).filter(Boolean);
+    const moment = [lecture.jour ? jourDit(lecture.jour) : null, lecture.heure ? `à ${lecture.heure.replace(':', ' h ').replace(' h 00', ' h')}` : null].filter(Boolean).join(' ');
+    const compris = [noms.join(', '), moment].filter(Boolean).join(', ');
+    setLuDeLaPhrase({
+      texte: compris ? `Compris : ${compris}.` : 'Quel geste souhaitez-vous ?',
+      doutes: lecture.doutes,
+    });
+    /* Le moment dit attend aussi le geste choisi dans un doute. */
+    setVoulu((ids.length || lecture.doutes.length) && (lecture.jour || lecture.heure) ? { jour: lecture.jour, heure: lecture.heure } : null);
+  };
+  useEffect(() => {
+    if (!voulu || serviceIds.length === 0 || occupesEtat !== 'frais') return;
+    setVoulu(null);
+    const leJour = voulu.jour ?? (voulu.heure ? jours.find((x) => x.heures.some((h) => h.heure === voulu.heure))?.iso : undefined) ?? jours[0]?.iso ?? null;
+    const j = leJour ? jours.find((x) => x.iso === leJour) : undefined;
+    if (!j) {
+      setLuDeLaPhrase((l) => l && { ...l, texte: `${l.texte} ${voulu.jour ? `Le ${jourDit(voulu.jour)} n’a pas de place pour ce geste` : 'Pas de place ce jour-là'} : voici les prochaines.` });
+      return;
+    }
+    setJour(j.iso);
+    const h = voulu.heure ? j.heures.find((x) => x.heure === voulu.heure) : undefined;
+    if (h) setHeure(h);
+    else if (voulu.heure) setLuDeLaPhrase((l) => l && { ...l, texte: `${l.texte} Cette heure n’est pas libre ce jour-là : choisissez-en une autre.` });
+  }, [voulu, jours, serviceIds.length, occupesEtat]);
+  const ajouteDuDoute = (id: string) => {
+    setServiceIds((prec) => (prec.includes(id) || prec.length >= PLAFOND_GESTES ? prec : [...prec, id]));
+    setRepondu(true);
+    if (!calibreId) setCalibreId('inconnu');
+    setLuDeLaPhrase((l) => l && { ...l, doutes: l.doutes.filter((x) => !x.ids.includes(id)) });
+  };
   /* La place touchée, le formulaire vient à elle : pas de défilement à
      chercher sur un téléphone. */
   useEffect(() => {
@@ -1018,6 +1093,20 @@ function Calendrier({ besoin: besoinInitial, initiales, surLaPorte }: Props) {
         <li className={heure ? 'ici' : ''}>Vous</li>
       </ol>
       {surLaPorte && <p className="changer-porte"><button type="button" className="btn btn--lien" onClick={surLaPorte}>Changer de porte</button></p>}
+      {lu && (
+        <div className="phrase-du-site__lu" role="status">
+          <p>{lu.texte}</p>
+          {lu.doutes.map((x) => (
+            <p key={x.mot} className="phrase-du-site__doute">
+              « {x.mot} » : lequel ?{' '}
+              {x.ids.map((id) => {
+                const p = prestations.find((q) => q.id === id);
+                return p ? <button key={id} type="button" className="btn btn--lien" onClick={() => ajouteDuDoute(id)}>{nomEnFrancaisWa(p.name).francais}</button> : null;
+              })}
+            </p>
+          ))}
+        </div>
+      )}
 
       {retour && choisi ? (
         /* BON RETOUR : sa dernière venue, cochée ; elle touche une place. */
@@ -1030,6 +1119,7 @@ function Calendrier({ besoin: besoinInitial, initiales, surLaPorte }: Props) {
             <button type="button" className="btn btn--lien" onClick={autreChose}>Autre chose</button>
             <button type="button" className="btn btn--lien" onClick={pasMoi}>Ce n’est pas moi</button>
           </p>
+          <PhraseDuSite onLire={(p) => { setRetour(false); lisLaPhrase(p); }} />
         </div>
       ) : express && !choisi ? (
         <div className="bloc-reservation">
@@ -1056,6 +1146,7 @@ function Calendrier({ besoin: besoinInitial, initiales, surLaPorte }: Props) {
               );
             })}
           </div>
+          <PhraseDuSite onLire={lisLaPhrase} />
           <p><button type="button" className="btn btn--lien" onClick={() => { setComposer(true); setRepondu(false); setRang(0); }}>Composer moi-même, geste par geste</button></p>
         </div>
       ) : express && choisi ? (

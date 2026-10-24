@@ -7,6 +7,7 @@ import { useBlocages } from '../../shared/blocages';
 import { prochainesPlaces } from '../../shared/reservation-express';
 import { appointmentsStore, useAppointments, venuesHonorees, type Appointment, estampilleLesPoses } from '../../shared/agenda';
 import { estUnSinsin, MAITRE_DES_SINSIN } from '../../shared/agenda-pur';
+import { litLaPhrase, departage } from '../../shared/phrase-de-rendez-vous-pur';
 import { useSubscribers } from '../../shared/abonnements';
 import { REGLES_DE_LA_MAISON } from '../../shared/abonnee-pur';
 import { useReleve } from './releve';
@@ -1028,6 +1029,73 @@ export default function Booking({ prefill, onClose, toast, onVoirRdv }: Props) {
     setSessionDates([]); setSelIso(null); setTime(null); setMonthIdx(0);
     setStep(3);
   };
+  /* ══ LA PHRASE ENTIÈRE — 24 octobre 2026 ════════════════════════════
+     « Taper une phrase entière (« Mireille retwist mercredi à 10h ») sur le
+     Trône, le site et Ma Couronne » (Yéman). La lecture est celle du Trône
+     (shared/phrase-de-rendez-vous-pur.ts), sans cliente : ici, c'est elle.
+     Ses gestes se posent ; un jour dit ouvre le calendrier sur ce jour, et
+     l'heure se pose si elle est libre, quand les murs du salon sont lus. Rien
+     ne se réserve sans son toucher. */
+  const [voulu, setVoulu] = useState<{ iso: string; time: string } | null>(null);
+  /* Le moment dit, quand la phrase n'a laissé qu'un doute : il attend le geste choisi. */
+  const [momentDit, setMomentDit] = useState<{ jour: string; heure: string | null } | null>(null);
+  /* LE JOUR DIT OUVRE LE CALENDRIER sur ce jour ; l'heure attend les murs. */
+  const ouvreLeJourDit = (jour: string, heure: string | null): boolean => {
+    const i = months.findIndex((mo) => mo.y === Number(jour.slice(0, 4)) && mo.m === Number(jour.slice(5, 7)) - 1);
+    if (i < 0 || jour < todayIso()) return false;
+    setViaExpress(true);
+    setSessionDates([]); setSelIso(jour); setTime(null); setMonthIdx(i);
+    setStep(3);
+    setVoulu(heure ? { iso: jour, time: heure } : null);
+    return true;
+  };
+  const [luPhrase, setLuPhrase] = useState<{ texte: string; doutes: { mot: string; ids: string[] }[] } | null>(null);
+  const lisLaPhrase = (phrase: string) => {
+    const m = new Date();
+    /* Ses venues lèvent un doute : « retwist » chez une habituée d'un SÍNSIN™. */
+    const lecture = departage(litLaPhrase(phrase, {
+      aujourdhui: todayIso(),
+      minutes: m.getHours() * 60 + m.getMinutes(),
+      prestations: offre.map((s) => ({ id: s.id, name: s.name })),
+    }), appts.filter((a) => a.status !== 'annulé' && !!cible && a.clientId === cible.id).flatMap((a) => a.serviceIds ?? []));
+    if (lecture.vide) { setLuPhrase({ texte: t('Nous n’avons pas compris. Essayez par exemple : « retwist mercredi à 10 h ».'), doutes: [] }); return; }
+    const ids = lecture.prestations;
+    if (ids.length) choisisLesGestes(ids);
+    const noms = ids.map((id) => services.find((x) => x.id === id)?.name).filter(Boolean).join(', ');
+    const jour = lecture.jour ?? (lecture.heure ? todayIso() : null);
+    const moment = jour ? `${jourDit(jour)}${lecture.heure ? ` · ${lecture.heure}` : ''}` : '';
+    const compris = [noms, moment].filter(Boolean).join(', ');
+    let texte = compris ? `${t('Compris : {gestes}', { gestes: compris })}.` : t('Quel geste souhaitez-vous ?');
+    setMomentDit(null);
+    if (jour && ids.length && !ouvreLeJourDit(jour, lecture.heure)) {
+      texte = `${texte} ${t('Ce jour est au-delà de nos quatre mois : choisissez-en un plus proche.')}`;
+    } else if (jour && !ids.length && lecture.doutes.length) {
+      setMomentDit({ jour, heure: lecture.heure });
+    }
+    setLuPhrase({ texte, doutes: lecture.doutes });
+  };
+  /* L'HEURE DITE, QUAND LES MURS SONT LUS : libre, elle se pose comme son
+     heure habituelle ; prise, on le dit, et la journée reste ouverte. */
+  useEffect(() => {
+    if (!voulu || !occupesCharges || selIso !== voulu.iso || totalSessions > 1 || selected.length === 0) return;
+    setVoulu(null);
+    if (dayTimes.includes(voulu.time)) {
+      setSessionDates([{ iso: voulu.iso, time: voulu.time }]);
+      setTime(voulu.time);
+    } else {
+      setLuPhrase((l) => l && { ...l, texte: `${l.texte} ${t('Cette heure n’est pas libre ce jour-là : choisissez-en une autre.')}` });
+    }
+  }, [voulu, occupesCharges, selIso, dayTimes, totalSessions, selected.length]);
+  const ajouteDuDoute = (id: string) => {
+    if (!selectedIds.includes(id)) choisisLesGestes([...selectedIds, id]);
+    setLuPhrase((l) => l && { ...l, doutes: l.doutes.filter((x) => !x.ids.includes(id)) });
+    if (momentDit) {
+      setMomentDit(null);
+      if (!ouvreLeJourDit(momentDit.jour, momentDit.heure)) {
+        setLuPhrase((l) => l && { ...l, texte: `${l.texte} ${t('Ce jour est au-delà de nos quatre mois : choisissez-en un plus proche.')}` });
+      }
+    }
+  };
   const composerMoiMeme = () => {
     setViaExpress(false);
     setSelectedIds([]); setSessionDates([]); setSelIso(null); setTime(null); setPlaceExpress(null);
@@ -1263,6 +1331,20 @@ export default function Booking({ prefill, onClose, toast, onVoirRdv }: Props) {
       </div>
 
       <div className="mc-scroll mc-flowbody">
+        {luPhrase && (
+          <div className="mc-phrase__lu" role="status">
+            <div>{luPhrase.texte}</div>
+            {luPhrase.doutes.map((x) => (
+              <div key={x.mot} className="mc-phrase__doute">
+                {t('« {mot} » : lequel ?', { mot: x.mot })}{' '}
+                {x.ids.map((id) => {
+                  const s = services.find((q) => q.id === id);
+                  return s ? <button key={id} type="button" className="mc-textbtn" onClick={() => ajouteDuDoute(id)}>{s.name}</button> : null;
+                })}
+              </div>
+            ))}
+          </div>
+        )}
 
         {/* POUR QUI ? — le sélecteur de tête (TEMPS 2). Ne paraît que si la
             Maison a validé des mineurs sur son compte : réserver pour Keli est
@@ -1296,6 +1378,7 @@ export default function Booking({ prefill, onClose, toast, onVoirRdv }: Props) {
               ))}
               <button type="button" className="mc-textbtn" style={{ justifySelf: 'start' }} onClick={composerMoiMeme}>{t('Composer moi-même →')}</button>
             </div>
+            <PhraseDeLaCouronne onLire={lisLaPhrase} />
 
             {selected.length > 0 && (
               <>
@@ -1342,6 +1425,9 @@ export default function Booking({ prefill, onClose, toast, onVoirRdv }: Props) {
             l'application. Ce qui se propose au bout est une prestation RÉELLE du
             catalogue, à SON prix — jamais un rituel inventé pour la circonstance.
             Deux questions, contournables d'un mot. */}
+        {/* SANS ÉCRAN EXPRESS (une nouvelle venue, aucune formule rapide), la
+            phrase se tape sur le premier écran, quiz ou ateliers. */}
+        {!expressDispo && vue === premierEcran && <PhraseDeLaCouronne onLire={lisLaPhrase} enTete />}
         {vue === QUIZ && (
           <div className="mc-fade">
             <div className="mc-quizintro">
@@ -1971,6 +2057,20 @@ export default function Booking({ prefill, onClose, toast, onVoirRdv }: Props) {
 
 /* Une question, ses réponses en pastilles — la même mécanique qu'au miroir du
    salon, aux dimensions du pouce. */
+/* LA CASE DE LA PHRASE : « Retwist mercredi à 10 h », lue sans IA payante. */
+function PhraseDeLaCouronne({ onLire, enTete = false }: { onLire: (phrase: string) => void; enTete?: boolean }) {
+  const [phrase, setPhrase] = useState('');
+  return (
+    <form className={`mc-phrase${enTete ? ' mc-phrase--entete' : ''}`} onSubmit={(e) => { e.preventDefault(); if (phrase.trim()) onLire(phrase); }}>
+      <label className="mc-sectionlabel" htmlFor="mc-phrase">{enTete ? t('Dites-le en une phrase') : t('Ou dites-le en une phrase')}</label>
+      <div className="mc-phrase__ligne">
+        <input id="mc-phrase" className="mc-input" value={phrase} onChange={(e) => setPhrase(e.target.value)} placeholder={t('Retwist mercredi à 10 h')} autoComplete="off" enterKeyHint="go" />
+        <button type="submit" className="mc-cta mc-cta--indigo">{t('Lire')}</button>
+      </div>
+    </form>
+  );
+}
+
 function QuizRow({ label, opts, value, onPick }: {
   label: string;
   opts: [string, string][];

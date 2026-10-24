@@ -3266,3 +3266,22 @@
 .mc-ed-date { font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--mc-doux); }
 .mc-ed-etat { font-size: 12.5px; color: var(--mc-cuivre-texte); }
 .mc-ed-etat.est-traite { color: var(--mc-ok-texte); }
+
+/* ── LA PHRASE ENTIÈRE — 24 octobre 2026 ────────────────────────────────
+   « Retwist mercredi à 10 h » sous les formules ; ce qui a été compris, dit
+   en tête du tunnel. Jetons du thème : la nuit les suit. */
+.mc-phrase { display: grid; gap: 6px; margin-top: 22px; }
+.mc-phrase--entete { margin: 0 0 22px; }
+.mc-phrase__ligne { display: flex; align-items: center; gap: 10px; border-bottom: 1px solid var(--mc-encre); padding: 4px 2px 8px; }
+.mc-phrase__ligne input {
+  flex: 1; min-width: 0; border: none; background: transparent; outline: none;
+  font-family: var(--font-serif); font-size: 19px; color: var(--mc-encre);
+}
+.mc-phrase__ligne input::placeholder { font-family: var(--font-sans); font-size: 14px; color: var(--mc-doux); }
+.mc-phrase__ligne .mc-cta { flex: none; width: auto; padding-left: 18px; padding-right: 18px; }
+.mc-phrase__lu {
+  margin: 0 0 14px; padding: 11px 13px; border-radius: 4px; border-left: 3px solid var(--mc-cuivre-texte);
+  background: var(--mc-l-fond-faf1e9); color: var(--mc-encre); font-size: 13.5px; line-height: 1.5;
+}
+.mc-phrase__doute { margin-top: 6px; color: var(--mc-doux); }
+.mc-phrase__doute .mc-textbtn { margin-right: 10px; }

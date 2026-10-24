@@ -241,4 +241,15 @@ export const EN_BOOKING: Record<string, string> = {
     'The Maison could not check this time. Please check your connection, then try again.',
   'La réservation n’est pas partie. Vérifiez votre connexion, puis réessayez.':
     'The booking was not sent. Please check your connection, then try again.',
+  // La phrase entière (24 octobre 2026).
+  'Ou dites-le en une phrase': 'Or say it in one sentence',
+  'Dites-le en une phrase': 'Say it in one sentence',
+  'Retwist mercredi à 10 h': 'Retwist Wednesday 10h',
+  'Lire': 'Read',
+  'Nous n’avons pas compris. Essayez par exemple : « retwist mercredi à 10 h ».': 'We did not understand. Try for example: “retwist Wednesday 10h”.',
+  'Compris : {gestes}': 'Understood: {gestes}',
+  'Quel geste souhaitez-vous ?': 'Which service would you like?',
+  'Ce jour est au-delà de nos quatre mois : choisissez-en un plus proche.': 'This day is beyond our four months: please choose a closer one.',
+  'Cette heure n’est pas libre ce jour-là : choisissez-en une autre.': 'This time is not free that day: please choose another.',
+  '« {mot} » : lequel ?': '“{mot}”: which one?',
 };

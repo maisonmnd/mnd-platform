@@ -56,6 +56,7 @@ import { rituelDeLaRepriseEffacee } from '../../../../shared/reprise-nue';
 import { LeBilanDeLaSeance } from './LeBilanDeLaSeance';
 import { FicheDuJour } from './FicheDuJour';
 import { predictNextVisit, cadenceLabel } from '../../../../shared/cadence';
+import { litLaPhrase, estUnePhrase, departage, type LectureDeLaPhrase } from '../../../../shared/phrase-de-rendez-vous-pur';
 import {
   ajouteJours, ancreDeLaSemaine, bloqueLaPose, ceQuiReste, debutDeLaSemaine, placesDuJour, prestationsDeLaCase,
   raisonDeLHeure, rangeeSuivante, septJours, type Occupant, type Rangee,
@@ -2791,6 +2792,78 @@ export function RdvModal({
     poserSv(id);
     setRang(clientId ? 'quoi' : 'qui');
   };
+  /* ══ LA PHRASE ENTIÈRE — 24 octobre 2026 ══════════════════════════════
+     « Mireille retwist mercredi à 10h » : la lecture vit dans
+     shared/phrase-de-rendez-vous-pur.ts, sans IA payante. La case propose
+     « Tout poser » (une ligne par homonyme) ; rien ne s'enregistre avant
+     Confirmer. Une heure sans jour vaut pour le jour déjà posé ; un mot qui
+     désigne plusieurs prestations ouvre « Quoi ? » sur elles. */
+  const lisLaPhrase = (q: string): LectureDeLaPhrase => {
+    const m = new Date();
+    return litLaPhrase(q, {
+      aujourdhui: todayISO(),
+      minutes: m.getHours() * 60 + m.getMinutes(),
+      prestations: proposables.map((sv) => ({ id: sv.id, name: sv.name })),
+      clientes: clients.filter((c) => !c.archived).map((c) => ({ id: c.id, name: c.name, phone: c.phone })),
+      maitres: branch.masters,
+    });
+  };
+  const poseLaPhrase = (lecture: LectureDeLaPhrase, id: string) => {
+    if (id) setClientId(id);
+    if (lecture.prestations.length) poseLesPrestations([...serviceIds, ...lecture.prestations.filter((x) => !serviceIds.includes(x))]);
+    if (lecture.maitre && branch.masters.includes(lecture.maitre)) setMaster(lecture.maitre);
+    const jour = lecture.jour ?? (lecture.heure ? date : null);
+    if (jour) {
+      setDate(jour);
+      setJourVu(jour);
+      setDebutChoisi(debutDeLaSemaine(jour, todayISO(), !!appt));
+      if (lecture.heure) { setTime(lecture.heure); setMomentChoisi(true); }
+    }
+    if (lecture.doutes.length) {
+      setChercheSv(lecture.doutes[0].mot);
+      setSvOuvert(true);
+      setRang('quoi');
+      return;
+    }
+    const qui = !!(id || clientId);
+    const quoi = serviceIds.length + lecture.prestations.length > 0;
+    setRang(jour && lecture.heure ? 'quand' : rangeeSuivante({ qui, quoi, quand: momentChoisi }));
+  };
+  /* « Retwist » désigne plusieurs SÍNSIN™ : chez une cliente connue, celui
+     qui revient dans ses venues l'emporte (`departage`) ; sinon chaque
+     variante devient une ligne « Tout poser », quatre au plus. */
+  const optionsDeLaPhrase = (q: string) => {
+    const lecture = lisLaPhrase(q);
+    if (!estUnePhrase(lecture)) return [];
+    const qui = lecture.clientes.length ? lecture.clientes.slice(0, 4) : [clientId || ''];
+    const options: { cle: string; titre: string; detail: string; onPose: () => void }[] = [];
+    for (const id of qui) {
+      const habitudes = id ? branchAppts.filter((a) => a.clientId === id && a.status !== 'annulé').flatMap((a) => a.serviceIds ?? []) : [];
+      const l = departage(lecture, habitudes);
+      const variantes = l.doutes.length === 1 && l.doutes[0].ids.length <= 4
+        ? l.doutes[0].ids.map((x) => ({ ...l, prestations: [...l.prestations, x], doutes: [] }))
+        : [l];
+      for (const v of variantes) {
+        const ce = [
+          v.prestations.map((x) => byId.get(x)?.name.split(' · ')[0]).filter(Boolean).join(' + '),
+          v.jour ? jourDit(v.jour) : null,
+          v.heure ? `à ${v.heure}` : null,
+          v.maitre ? `avec ${v.maitre}` : null,
+        ].filter(Boolean).join(' · ');
+        const detail = [
+          ...v.doutes.map((x) => `« ${x.mot} » : ${x.ids.length} prestations, à préciser`),
+          ...(v.reste.length ? [`pas compris : ${v.reste.join(', ')}`] : []),
+        ].join(' · ') || 'La cliente, les prestations et le moment se posent ; rien ne part avant Confirmer.';
+        options.push({
+          cle: `phrase-${id || 'sans'}-${v.prestations.join('+')}`,
+          titre: `Tout poser : ${[id ? clients.find((c) => c.id === id)?.name : null, ce].filter(Boolean).join(' · ')}`,
+          detail,
+          onPose: () => poseLaPhrase(v, id),
+        });
+      }
+    }
+    return options.slice(0, 6);
+  };
   const courts = chosen.map((sv) => sv.name.split(' · ')[0]);
   const prixDuRituelDit = sansPrix ? null : effCovered ? 'compris dans sa formule' : estSuite ? 'séance incluse' : argent(totalXof);
   /* CE QUE « PLUS D'OPTIONS » PORTE, dit sur sa ligne fermée. */
@@ -3278,6 +3351,7 @@ export function RdvModal({
                   detail: sansPrix ? '' : priceModeOf(sv) === 'devis' ? 'sur devis' : argent(personalPriceXof(sv, pricing, services, produitsGamme)),
                 })),
               onPrestation: poseDeLaCase,
+              phrase: optionsDeLaPhrase,
             }}
           />
         </div>
@@ -5048,6 +5122,9 @@ export function ClientPicker({
   caseUnique?: {
     prestations: (q: string) => { id: string; nom: string; detail: string }[];
     onPrestation: (id: string) => void;
+    /** LA PHRASE ENTIÈRE (24 octobre 2026) : ce que la case propose de tout
+        poser d'un geste, une ligne par cliente reconnue. */
+    phrase?: (q: string) => { cle: string; titre: string; detail: string; onPose: () => void }[];
   };
 }) {
   const clients = useBranchClients();
@@ -5154,6 +5231,8 @@ export function ClientPicker({
 
   const display = open ? query : caseUnique ? '' : selected?.name ?? (value === 'walkin' && allowWalkIn ? 'Vente au comptoir' : '');
   const prestationsVues = caseUnique && q ? caseUnique.prestations(q) : [];
+  const phraseVue = caseUnique?.phrase && q ? caseUnique.phrase(q) : [];
+  const poseLaPhraseVue = (p: { onPose: () => void }) => { p.onPose(); setQuery(''); setOpen(false); };
   /* UNE PREMIÈRE VENUE S'INSCRIT D'ICI. Dans la case unique, une fois
      quelque chose tapé, l'offre descend sous les réponses : taper « retw »
      cherche un retwist, pas une cliente nommée « retw ». */
@@ -5173,6 +5252,10 @@ export function ClientPicker({
         placeholder={placeholder}
         onFocus={() => { setOpen(true); setQuery(''); }}
         onChange={(e) => { setQuery(e.target.value); setOpen(true); }}
+        onKeyDown={(e) => {
+          /* Entrée pose la phrase lue, quand il y en a une. */
+          if (e.key === 'Enter' && phraseVue.length) { e.preventDefault(); poseLaPhraseVue(phraseVue[0]); }
+        }}
       />
       {open && passage && (
         <div className="trc-clientpick__menu trc-passage" role="dialog" aria-label="Cliente de passage">
@@ -5221,6 +5304,12 @@ export function ClientPicker({
       )}
       {open && !passage && (
         <div className="trc-clientpick__menu" role="listbox">
+          {phraseVue.map((p) => (
+            <button key={p.cle} type="button" className="trc-clientpick__opt trc-clientpick__opt--phrase" onClick={() => poseLaPhraseVue(p)}>
+              <span className="trc-clientpick__n">{p.titre}</span>
+              <span className="trc-clientpick__m">{p.detail}</span>
+            </button>
+          ))}
           {!(caseUnique && q) && offrePassage}
           {allowWalkIn && (
             <button type="button" className="trc-clientpick__opt" onClick={() => { onChange('walkin'); setOpen(false); }}>
@@ -5252,14 +5341,14 @@ export function ClientPicker({
               ))}
             </>
           )}
-          {results.length === 0 && prestationsVues.length === 0 && (
+          {results.length === 0 && prestationsVues.length === 0 && phraseVue.length === 0 && (
             <div className="trc-clientpick__empty">
               {caseUnique && q
                 ? `Ni cliente ni prestation ne répond à « ${q} ».`
                 : <>Aucune cliente, {q ? 'affinez la recherche' : 'ajoutez-en une'}.</>}
             </div>
           )}
-          {caseUnique && q && offrePassage}
+          {caseUnique && q && !phraseVue.length && offrePassage}
           {cachees > 0 && (
             <div className="trc-clientpick__empty">
               {cachees} autre{cachees > 1 ? 's' : ''} tête{cachees > 1 ? 's' : ''} (de passage, sorties, jamais venues) : tapez un nom ou un numéro.
