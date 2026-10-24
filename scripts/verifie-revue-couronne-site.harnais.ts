@@ -63,10 +63,13 @@ dit('n94 acompte encaisse et verifie : confirme meme sans murs', true, naitConfi
   const finalize = /const finalize = async \(\) => \{[\s\S]*?\n {4}\};/.exec(b)?.[0] ?? '';
   dit('n94 settle juge par naitConfirme, sur les murs RELUS', true,
     contient(finalize, new RegExp(String.raw`const tenu = naitConfirme\(\{\s*acompteVerifie: !!online\?\.confirmed,\s*acompteDemande: hasDeposit,\s*mursConnus: mursFrais !== null,\s*seancesToujoursLibres,\s*\}\)`)));
-  dit('n94 les murs se redemandent a creneaux_occupes sur les jours des seances', true,
-    contient(finalize, new RegExp(String.raw`const mursFrais = peutNaitreConfirme\s*\? await relisLesMurs\(sb \? \(\) => sb\.rpc\('creneaux_occupes', \{\s*p_branch: branch\.id, p_du: joursDesSeances\[0\], p_au: joursDesSeances\[joursDesSeances\.length - 1\],\s*\}\) : null\)\s*: null;`)));
-  dit('n94 ... seule une place qui peut naitre confirmee les attend', true,
-    contient(finalize, new RegExp(String.raw`const peutNaitreConfirme = !online\?\.confirmed && !hasDeposit;`)));
+  /* 24 octobre 2026 (une seule reservation en ligne a la fois) : les murs se
+     relisent TOUJOURS, acompte ou non, et une place prise n ecrit plus rien. */
+  dit('n94 les murs se redemandent a creneaux_occupes sur les jours des seances, TOUJOURS', true,
+    contient(finalize, new RegExp(String.raw`const mursFrais = await relisLesMurs\(sb \? \(\) => sb\.rpc\('creneaux_occupes', \{\s*p_branch: branch\.id, p_du: joursDesSeances\[0\], p_au: joursDesSeances\[joursDesSeances\.length - 1\],\s*\}\) : null\);`)));
+  dit('n94 ... une place prise, ou des murs inconnus, n ecrivent rien', true,
+    contient(finalize, new RegExp(String.raw`if \(issue === 'prise'\) \{ laPlacePrise\(\); return; \}`))
+    && contient(finalize, new RegExp(String.raw`if \(issue === 'inconnue'\) \{`)));
   dit('n94 la place relue l est contre les murs frais, seance par seance', true,
     contient(finalize, new RegExp(String.raw`const seancesToujoursLibres = mursFrais !== null && sessionDates\.every\(\(sd\) =>\s*freeSlots\(sd\.iso, master, totalDuration, appts, tousServices, branch\.id, mursFrais\)\.includes\(sd\.time\)\)`)));
   dit('n94 ... la relecture vient AVANT le jugement', true,

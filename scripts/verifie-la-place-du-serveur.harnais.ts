@@ -194,7 +194,10 @@ function suite(lib: Lib, silence: boolean): number {
 
   /* ── L'agenda se lit sans se casser ── */
   dit('A1 sans branche, pas d agenda', null, lib.agendaDepuisLesLignes(lignes({ branche: null })));
-  dit('A2 les fauteuils ecrits en texte se lisent, les libelles vides tombent', [2, ['Team', 'Expert']], [AG.sieges, AG.maitres]);
+  /* UNE SEULE RESERVATION EN LIGNE A LA FOIS — 24 octobre 2026 (choix de
+     Yeman, au selecteur) : l agenda des portes en ligne tient UNE place,
+     quels que soient les fauteuils ecrits sur la branche (ici deux). */
+  dit('A2 en ligne, une place, quels que soient les fauteuils ; les libelles vides tombent', [1, ['Team', 'Expert']], [AG.sieges, AG.maitres]);
   dit('A3 un plafond ecrit en texte « 0 » vaut sans limite', [0, 0], [AG.capMaison, AG.capMaitre]);
   dit('A4 une valeur mal ecrite en base ne casse rien', true, (() => {
     const a = lib.agendaDepuisLesLignes({
@@ -207,7 +210,7 @@ function suite(lib: Lib, silence: boolean): number {
       blocages: [{ data: { branchId: 'br', date: JEU, debut: 9, fin: null } }, null as never],
       occupes: [{ jour: JEU, maitre: 'Team', debut: '10:00', duree: 'long' }, { jour: JEU, debut: '' }],
     });
-    return !!a && a.sieges === 0 && a.maitres.length === 0 && a.capMaison === 0 && a.services.length === 1
+    return !!a && a.sieges === 1 && a.maitres.length === 0 && a.capMaison === 0 && a.services.length === 1
       && a.occupes.length === 1 && a.occupes[0].duree === 60 && lib.laPlaceTient(a, { date: JEU, time: '10:00', serviceIds: ['x'] }, MS).ok === false;
   })());
   dit('A5 les formules vides tombent, les masques du site se lisent', [1, ['masque-1']], [AG.formules.length, AG.masques.services]);
@@ -267,18 +270,20 @@ function suite(lib: Lib, silence: boolean): number {
   dit('A23 ... et rouvre quand un fauteuil se libere, avec les deux maitres', ['Team', 'Expert'], onze.ok ? onze.maitres : onze.erreur);
   const sansFauteuils = ag({ branche: { id: 'br', data: { masters: ['Team', 'Expert'] } } });
   const s10 = tient(sansFauteuils, SAM, '10:00', ['lav-1']);
-  dit('A24 sans fauteuils declares, la Maison n a pas de limite (Expert prend)', ['Expert'], s10.ok ? s10.maitres : s10.erreur);
+  dit('A24 sans fauteuils declares, en ligne c est quand meme une place : creneau_pris', 'creneau_pris', s10.ok ? s10.maitres : s10.erreur);
 
   /* ── Le maitre libre, jamais le premier sans regarder ── */
   const j10 = tient(AG, JEU, '10:00', ['lav-1']);
-  dit('A25 Team est pris a 10 h : la place tient, avec Expert seul', ['Expert'], j10.ok ? j10.maitres : j10.erreur);
+  dit('A25 Team est pris a 10 h : en ligne, l heure est prise pour tous (24 oct. 2026)', 'creneau_pris', j10.ok ? j10.maitres : j10.erreur);
   const j9 = tient(AG, JEU, '09:00', ['lav-1']);
   dit('A26 libres tous les deux : l ordre de la Maison', ['Team', 'Expert'], j9.ok ? j9.maitres : j9.erreur);
   const j9long = tient(AG, JEU, '09:00', ['rep-1']);
-  dit('A27 un rituel de deux heures qui deborde sur le rendez-vous de Team', ['Expert'], j9long.ok ? j9long.maitres : j9long.erreur);
+  dit('A27 un rituel de deux heures qui deborde sur le rendez-vous de Team : creneau_pris', 'creneau_pris', j9long.ok ? j9long.maitres : j9long.erreur);
   const colAg = ag({ occupes: [occ(JEU, 'Expert', '10:00', 60)] });
-  dit('A28 un geste qui designe son maitre n en prend pas d autre', ['creneau_pris', 'ok'],
-    [erreur(tient(colAg, JEU, '10:00', ['col-1'])), erreur(tient(colAg, JEU, '10:00', ['lav-1']))]);
+  const midi = tient(colAg, JEU, '12:00', ['col-1']);
+  dit('A28 un geste qui designe son maitre n en prend pas d autre ; et a 10 h, l heure d Expert est prise pour tous',
+    [['Expert'], 'creneau_pris'],
+    [midi.ok ? midi.maitres : midi.erreur, erreur(tient(colAg, JEU, '10:00', ['lav-1']))]);
   const sansMaitre = ag({ branche: { id: 'br', data: { masters: [] } } });
   const sm = tient(sansMaitre, JEU2, '09:00', ['lav-1']);
   dit('A29 une branche sans maitre declare : le libelle vide', [''], sm.ok ? sm.maitres : sm.erreur);
@@ -289,7 +294,7 @@ function suite(lib: Lib, silence: boolean): number {
   const v12 = tient(AG, VEN, '12:00', ['lav-1']);
   dit('A31 ... a midi, les deux sont libres', ['Team', 'Expert'], v12.ok ? v12.maitres : v12.erreur);
   const v10 = tient(ag({ occupes: [occ(VEN, 'Team', '09:00', 180)] }), VEN, '11:00', ['lav-1']);
-  dit('A32 la duree ecrite (180) tient Team jusqu a midi, meme pour un geste d une heure', ['Expert'], v10.ok ? v10.maitres : v10.erreur);
+  dit('A32 la duree ecrite (180) tient l heure jusqu a midi, meme pour un geste d une heure : creneau_pris', 'creneau_pris', v10.ok ? v10.maitres : v10.erreur);
 
   /* ── Les murs ── */
   const j14 = tient(AG, JEU, '14:00', ['lav-1']);

@@ -17,7 +17,7 @@ import { branchesStore, useBranch } from '../../shared/branches';
 import { tablePrete } from '../../shared/sync';
 import { type Appointment } from '../../shared/agenda';
 import { openingForIso, hourToMin, settingsStore } from '../../shared/settings';
-import { creneauxLibres, minutesDeHhmm as toMin, type CreneauOccupe } from '../../shared/agenda-pur';
+import { creneauxLibres, minutesDeHhmm as toMin, PLACES_EN_LIGNE, type CreneauOccupe } from '../../shared/agenda-pur';
 import { blocagesStore, plagesBloquees } from '../../shared/blocages';
 import { useOffers, offerLiveNow } from '../../shared/offers';
 import { t, langue } from './i18n';
@@ -560,6 +560,12 @@ export function freeSlots(
     master,
     capMaison: regl.maxRdvParJourMaison ?? 0,
     capMaitre: regl.maxRdvParJourMaitre ?? 0,
+    /* UNE SEULE RÉSERVATION EN LIGNE À LA FOIS — 24 octobre 2026. Elle ne
+       regardait que les rituels de SON maître : un rituel « Team » à 14 h
+       laissait 14 h libre pour une réservation sans maître, et deux têtes de
+       500 locks se sont retrouvées au même fauteuil. Désormais tout rituel
+       inscrit, quel qu'en soit le maître, ferme ses heures. */
+    capSimultane: PLACES_EN_LIGNE,
     maintenantMin: dateIso === isoOf(now) ? now.getHours() * 60 + now.getMinutes() : null,
   });
 }

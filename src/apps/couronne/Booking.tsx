@@ -44,7 +44,7 @@ import {
   type BookingPrefill,
 } from './lib';
 import { t, locale, langue, prix } from './i18n';
-import { heureHabituelle, naitConfirme, relisLesMurs } from './reservation-pure';
+import { heureHabituelle, issueDeLaPlace, naitConfirme, relisLesMurs, verdictDeLEcriture } from './reservation-pure';
 import { supabase } from '../../shared/supabase';
 
 /* LE JOUR DIT DANS SA LANGUE : « Sam. 5 juil » en français (le libellé de
@@ -775,16 +775,38 @@ export default function Booking({ prefill, onClose, toast, onVoirRdv }: Props) {
          séances se redemandent ici (`relisLesMurs`) ; un échec les laisse
          inconnus. Seule une place qui PEUT naître confirmée les attend : un
          acompte, vérifié ou seulement annoncé, décide sans eux. */
-      const peutNaitreConfirme = !online?.confirmed && !hasDeposit;
       const joursDesSeances = sessionDates.map((sd) => sd.iso).sort();
       const sb = supabase;
-      const mursFrais = peutNaitreConfirme
-        ? await relisLesMurs(sb ? () => sb.rpc('creneaux_occupes', {
-          p_branch: branch.id, p_du: joursDesSeances[0], p_au: joursDesSeances[joursDesSeances.length - 1],
-        }) : null)
-        : null;
+      /* UNE PLACE EN LIGNE À LA FOIS — 24 octobre 2026. Les murs se relisent
+         désormais TOUJOURS, acompte ou non : une place qui n'est plus libre ne
+         naît plus « en attente » par-dessus un rituel déjà inscrit. */
+      const mursFrais = await relisLesMurs(sb ? () => sb.rpc('creneaux_occupes', {
+        p_branch: branch.id, p_du: joursDesSeances[0], p_au: joursDesSeances[joursDesSeances.length - 1],
+      }) : null);
       const seancesToujoursLibres = mursFrais !== null && sessionDates.every((sd) =>
         freeSlots(sd.iso, master, totalDuration, appts, tousServices, branch.id, mursFrais).includes(sd.time));
+      const laPlacePrise = () => {
+        setPaying(false);
+        toast(t('Ce moment vient d’être pris. Choisissez une autre heure.'));
+        setSessionDates([]); setTime(null); setStep(3);
+      };
+      /* L'ACOMPTE EST ENCAISSÉ, L'HEURE EST PRISE : on n'écrit rien par-dessus
+         un autre rituel. La Maison est prévenue tout de suite et rappelle. */
+      const acompteSansPlace = () => {
+        setPaying(false);
+        void pushNotifyStaff('Acompte reçu, heure déjà prise · Ma Couronne',
+          `${cibleNom} · ${summaryLabel} · ${sessionDates.map((sd) => `${sd.iso} ${sd.time}`).join(', ')} · réf. ${online?.transactionId ?? ''} · à rappeler pour fixer l’heure`,
+          '/trone/#/calendrier');
+        toast(t('Votre acompte est bien reçu, mais ce moment vient d’être pris : la Maison vous appelle pour fixer l’heure.'));
+      };
+      const issue = issueDeLaPlace({ mursConnus: mursFrais !== null, seancesToujoursLibres, acompteVerifie: !!online?.confirmed });
+      if (issue === 'prise') { laPlacePrise(); return; }
+      if (issue === 'prise-acompte-recu') { acompteSansPlace(); return; }
+      if (issue === 'inconnue') {
+        setPaying(false);
+        toast(t('La Maison n’a pas pu vérifier ce moment. Vérifiez votre connexion, puis réessayez.'));
+        return;
+      }
       const tenu = naitConfirme({
         acompteVerifie: !!online?.confirmed,
         acompteDemande: hasDeposit,
@@ -807,6 +829,11 @@ export default function Booking({ prefill, onClose, toast, onVoirRdv }: Props) {
           date: sd.iso,
           time: sd.time,
           master,
+          /* LA DURÉE SE FIGE À LA POSE (règle du 1er septembre 2026, appliquée
+             ici le 24 octobre) : celle de SA tête, calibre compris. Sans elle,
+             le Trône et le serveur relisaient la durée du catalogue, et une
+             tête de 500 locks paraissait finir bien plus tôt qu'elle ne finit. */
+          dureeMin: totalDuration,
           /* UNE PLACE LIBRE SE TIENT TOUT DE SUITE — 29 septembre 2026 (« Tout
              de suite », Yéman, maquette « La réservation en 30 secondes ») :
              sans acompte demandé, le rendez-vous naît confirmé, et la
@@ -851,7 +878,27 @@ export default function Booking({ prefill, onClose, toast, onVoirRdv }: Props) {
           ...(totalSessions > 1 ? { seriesId, seriesIndex: i + 1, seriesTotal: totalSessions } : {}),
         };
       });
-      appointmentsStore.set((prev) => [...prev, ...estampilleLesPoses(newAppts)]);
+      const poses = estampilleLesPoses(newAppts);
+      /* LA BASE DIT LE DERNIER MOT — 24 octobre 2026. Le rendez-vous s'écrit
+         directement, et l'on attend sa réponse : entre la relecture des murs
+         et cette ligne, une autre a pu prendre l'heure, et le garde de la base
+         (`une_place_en_ligne`, 0140) la refuse. Avant, l'écriture partait plus
+         tard avec la synchronisation, et un refus laissait sur son téléphone
+         un rendez-vous que la Maison n'avait pas. Un acompte déjà encaissé
+         garde l'ancien chemin si la base ne répond pas : on ne perd pas une
+         cliente qui a payé. */
+      if (sb) {
+        const { error } = await sb.from('appointments').insert(poses.map((a) => ({ id: a.id, branch_id: a.branchId ?? null, data: a })));
+        const verdict = verdictDeLEcriture(error ? error.message : null);
+        if (verdict === 'prise') { if (online?.confirmed) acompteSansPlace(); else laPlacePrise(); return; }
+        if (verdict === 'echec' && !online?.confirmed) {
+          console.warn('[mnd-couronne] réservation refusée :', error?.message);
+          setPaying(false);
+          toast(t('La réservation n’est pas partie. Vérifiez votre connexion, puis réessayez.'));
+          return;
+        }
+      }
+      appointmentsStore.set((prev) => [...prev, ...poses]);
       setRdvCree(newAppts[0]?.id ?? null);
       /* Alerte le personnel du Trône (Web Push), même Le Trône fermé. */
       void pushNotifyStaff(

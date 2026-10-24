@@ -1,5 +1,5 @@
 import {
-  creneauxLibres, dureeDesPrestations, minutesDeHhmm, occupesDuJour, ouvertureDuJour, plagesBloquees,
+  creneauxLibres, dureeDesPrestations, minutesDeHhmm, occupesDuJour, ouvertureDuJour, plagesBloquees, PLACES_EN_LIGNE,
   type CreneauOccupe, type ExceptionDHoraire, type HeureDeLaSemaine, type MurPose,
 } from './agenda-pur';
 import { estUneConsultation, masquePourLeSite, priceModeOf, racineOf, type MasquesDuSite, type PriceMode } from './catalogue-pur';
@@ -219,7 +219,11 @@ function agendaDepuisLesLignes(l: LignesDeLAgenda): AgendaDuServeur | null {
   return {
     branchId: brancheId,
     maitres: ids(branche.masters),
-    sieges: entier(branche.seats),
+    /* LES PLACES EN LIGNE, PAS LES FAUTEUILS — 24 octobre 2026 : cet agenda
+       ne juge que les portes en ligne (le site, WhatsApp), et en ligne un
+       rituel ne chevauche jamais un autre (`PLACES_EN_LIGNE`). Les fauteuils
+       de la branche restent au comptoir. */
+    sieges: PLACES_EN_LIGNE,
     capMaison: entier(reglages.maxRdvParJourMaison),
     capMaitre: entier(reglages.maxRdvParJourMaitre),
     semaine,

@@ -1,6 +1,6 @@
 import type { FormuleRapide } from '../../shared/reservation-express';
 import {
-  creneauxLibres, dureeDesPrestations, occupesDuJour, ouvertureDuJour, plagesBloquees,
+  creneauxLibres, dureeDesPrestations, occupesDuJour, ouvertureDuJour, plagesBloquees, PLACES_EN_LIGNE,
   type CreneauOccupe, type ExceptionDHoraire, type HeureDeLaSemaine, type MurPose,
 } from '../../shared/agenda-pur';
 import { estUneConsultation, type MasquesDuSite } from '../../shared/catalogue-pur';
@@ -269,7 +269,8 @@ export function heuresLibres(o: {
       master: maitre,
       capMaison: agenda.capMaison,
       capMaitre: agenda.capMaitre,
-      capSimultane: agenda.sieges,
+      /* En ligne, un seul rituel à la fois (24 octobre 2026). */
+      capSimultane: PLACES_EN_LIGNE,
       maintenantMin,
     });
     for (const h of heures) if (!parHeure.has(h)) parHeure.set(h, maitre);

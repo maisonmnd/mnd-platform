@@ -179,4 +179,18 @@ export const occupesDuJour = (
   occupes
     .filter((c) => c.jour === dateIso && c.debut)
     .map((c) => ({ maitre: c.maitre, debutMin: minutesDeHhmm(c.debut), dureeMin: c.duree }));
+
+/** UNE SEULE RÉSERVATION EN LIGNE À LA FOIS — 24 octobre 2026.
+
+    Deux têtes de 500 locks posées à 14 h le même samedi (P. L. au Trône,
+    C. O. depuis Ma Couronne) : Ma Couronne ne comptait que les rituels de
+    SON maître (« Team » d'un côté, aucun de l'autre), et pas les fauteuils.
+    Au sélecteur, Yéman : en ligne (Ma Couronne, le site, WhatsApp), un
+    rituel ne chevauche JAMAIS un rituel déjà inscrit, quel qu'en soit le
+    maître. Le second fauteuil reste au comptoir, posé à la main.
+
+    C'est le plafond des rituels simultanés de `creneauxLibres`
+    (`capSimultane`) pour toute porte en ligne ; la base tient la même règle
+    (migration 0140 : `pose_si_libre` et le garde `une_place_en_ligne`). */
+export const PLACES_EN_LIGNE = 1;
 /* ⟨/agenda-pur⟩ */

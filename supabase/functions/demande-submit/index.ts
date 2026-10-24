@@ -181,7 +181,7 @@ const admin = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: 
 /** La version de ce fichier : ouvrir l'adresse de la fonction la dit (405),
     pour ne jamais chercher une panne dans un fichier qui n'est pas celui
     qu'on croit déployé. */
-const VERSION = '2026-10-19-a · le message vocal du site';
+const VERSION = '2026-10-24-a · une seule place en ligne a la fois';
 
 /** `EdgeRuntime.waitUntil`, s'il existe (la même garde que le webhook) : ce
     qui n'a pas besoin d'être attendu continue après la réponse. Sans lui, la
@@ -542,6 +542,20 @@ export const occupesDuJour = (
   occupes
     .filter((c) => c.jour === dateIso && c.debut)
     .map((c) => ({ maitre: c.maitre, debutMin: minutesDeHhmm(c.debut), dureeMin: c.duree }));
+
+/** UNE SEULE RÉSERVATION EN LIGNE À LA FOIS — 24 octobre 2026.
+
+    Deux têtes de 500 locks posées à 14 h le même samedi (P. L. au Trône,
+    C. O. depuis Ma Couronne) : Ma Couronne ne comptait que les rituels de
+    SON maître (« Team » d'un côté, aucun de l'autre), et pas les fauteuils.
+    Au sélecteur, Yéman : en ligne (Ma Couronne, le site, WhatsApp), un
+    rituel ne chevauche JAMAIS un rituel déjà inscrit, quel qu'en soit le
+    maître. Le second fauteuil reste au comptoir, posé à la main.
+
+    C'est le plafond des rituels simultanés de `creneauxLibres`
+    (`capSimultane`) pour toute porte en ligne ; la base tient la même règle
+    (migration 0140 : `pose_si_libre` et le garde `une_place_en_ligne`). */
+export const PLACES_EN_LIGNE = 1;
 /* ⟨/agenda-pur⟩ */
 
 /* ⟨catalogue-pur⟩ */
@@ -848,7 +862,11 @@ function agendaDepuisLesLignes(l: LignesDeLAgenda): AgendaDuServeur | null {
   return {
     branchId: brancheId,
     maitres: ids(branche.masters),
-    sieges: entier(branche.seats),
+    /* LES PLACES EN LIGNE, PAS LES FAUTEUILS — 24 octobre 2026 : cet agenda
+       ne juge que les portes en ligne (le site, WhatsApp), et en ligne un
+       rituel ne chevauche jamais un autre (`PLACES_EN_LIGNE`). Les fauteuils
+       de la branche restent au comptoir. */
+    sieges: PLACES_EN_LIGNE,
     capMaison: entier(reglages.maxRdvParJourMaison),
     capMaitre: entier(reglages.maxRdvParJourMaitre),
     semaine,

@@ -66,6 +66,39 @@ export function heureHabituelle(
       · une réponse lisible : les murs du moment ;
       · une erreur, une exception, une réponse illisible : `null`, les murs
         ne sont PAS connus, et le rendez-vous part « en attente ». */
+/** CE QU'ON FAIT DE LA PLACE RELUE — 24 octobre 2026.
+
+    « Comment se fait-il qu'elle a réussi à prendre rendez-vous à la même
+    heure ? » (Yéman : deux têtes de 500 locks à 14 h). Jusqu'ici une place
+    qui n'était plus libre naissait quand même, « en attente », et occupait
+    l'agenda. En ligne, un rituel ne chevauche plus jamais un autre :
+      · `ecrire`             : la place est libre (ou l'acompte est déjà
+                               encaissé et les murs ne se lisent pas : on ne
+                               perd pas une cliente qui a payé) ;
+      · `prise`              : elle ne l'est plus, rien ne s'écrit, on revient
+                               aux heures ;
+      · `inconnue`           : les murs ne se lisent pas, rien ne s'écrit à
+                               l'aveugle, on le dit ;
+      · `prise-acompte-recu` : prise, mais l'acompte est déjà encaissé : rien
+                               ne s'écrit, la Maison est prévenue et rappelle. */
+export function issueDeLaPlace(o: {
+  mursConnus: boolean;
+  seancesToujoursLibres: boolean;
+  acompteVerifie: boolean;
+}): 'ecrire' | 'prise' | 'inconnue' | 'prise-acompte-recu' {
+  if (o.mursConnus && !o.seancesToujoursLibres) return o.acompteVerifie ? 'prise-acompte-recu' : 'prise';
+  if (!o.mursConnus) return o.acompteVerifie ? 'ecrire' : 'inconnue';
+  return 'ecrire';
+}
+
+/** LA RÉPONSE DE LA BASE À L'ÉCRITURE — 24 octobre 2026. Le garde
+    `une_place_en_ligne` (migration 0140) refuse une place déjà prise par
+    `creneau_pris` ; tout autre refus est une écriture qui n'est pas partie. */
+export function verdictDeLEcriture(message: string | null | undefined): 'posee' | 'prise' | 'echec' {
+  if (message == null) return 'posee';
+  return /creneau_pris/.test(message) ? 'prise' : 'echec';
+}
+
 export async function relisLesMurs(
   rpc: (() => PromiseLike<{ data: unknown; error: unknown }>) | null,
 ): Promise<CreneauOccupe[] | null> {
