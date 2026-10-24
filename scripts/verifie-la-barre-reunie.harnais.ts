@@ -26,8 +26,13 @@ const dansLaBarre = items.filter((it) => !it.horsMenu);
 /* ── 1. CE QUE LA BARRE MONTRE ── */
 /* 40 depuis le 15 octobre 2026 : « Entre deux séances » (maquette EfhgzxjA…
    validée) s'ajoute à la Clientèle ; les quatorze réunions ne bougent pas. */
-dit('la barre montre 40 rubriques (54, moins quatorze)', 40, dansLaBarre.length);
+/* 41 depuis le 24 octobre 2026 : « Les projets » (maquette VJ5PJEGU…,
+   choix du sélecteur : rangés sous Direction) prennent une rubrique ; « Mes
+   tâches », né le même soir, est un onglet du Fil et n'en prend aucune. */
+dit('la barre montre 41 rubriques', 41, dansLaBarre.length);
 dit('... dont Entre deux seances, dans la Clientele', ['Clientèle', false], [item('/entre-deux')?.groupe, !!item('/entre-deux')?.horsMenu]);
+dit('... dont Les projets, sous Direction ; Mes taches reste un onglet du Fil', ['Direction', false, true],
+  [item('/projets')?.groupe, !!item('/projets')?.horsMenu, item('/mes-taches')?.horsMenu === true]);
 const absorbes = ['/tableau', '/recommandations', '/bilan-mensuel', '/consultations', '/marque', '/cadence', '/coffre', '/cartes-cadeaux', '/personas', '/fournisseurs', '/compte-courant', '/appels', '/atelier-des-contenus', '/branches'];
 dit('les quatorze ecrans absorbes ont quitte la barre', absorbes, absorbes.filter((p) => item(p)?.horsMenu === true));
 dit('... et restent joignables : chacun garde son adresse', absorbes.length, absorbes.filter((p) => !!item(p)).length);
