@@ -121,9 +121,10 @@ def fleche_ivoire():
 # « À la place d'Instagram, mets le code MoMoPay *880*41*909099*Montant# » (23 oct. 2026). Puis, le 24 octobre :
 # « le poteau de table doit s'écrire recto verso », « je veux le QR sur la lame MoMoPay juste à côté, pas sur une
 # quatrième bague cuivre », et « crée une 4e lame cuivre pour le compte Mobile Money KkiaPay avec son code USSD et
-# son QR ». Chaque lame : (mot, ligne, QR). Les QR se posent au bout de leur lame, avant la pointe, le texte à côté.
+# son QR », puis « renommer le Mobile Money en KkiaPay » : MoMoPay est aussi du Mobile Money, et la lame dit
+# le nom de l'affiche Chap Chap du comptoir. Chaque lame : (mot, ligne, QR). Les QR se posent au bout de leur lame, avant la pointe, le texte à côté.
 TABLE_LAMES = [('VOTRE BEAUTÉ', '0 km · déjà là', None), ('RÉSERVER', 'maisonmnd.com', None),
-               ('MOMOPAY', '*880*41*909099*Montant#', 'momopay'), ('MOBILE MONEY', '*616*41*8552*Montant#', 'kkiapay')]
+               ('MOMOPAY', '*880*41*909099*Montant#', 'momopay'), ('KKIAPAY', '*616*41*8552*Montant#', 'kkiapay')]
 # Le QR KkiaPay Chap Chap de la Maison (src/shared/kkiapay-chapchap-pur.ts, LIEN_CHAPCHAP ; le marchand « MND »),
 # tiré par qrcode-generator, correction M comme l'affiche d'origine : 33 × 33. Le QR MoMoPay est celui de
 # l'autocollant du pourboire (909099@momopay, à éprouver d'un scan avec l'application MoMo avant l'impression).
@@ -203,7 +204,7 @@ DESSINS = [
      'La flèche fine du panneau de mariage : ivoire, liseré indigo, chevron indigo, le logo et la devise en cuivre. Pour le portail, le couloir, le mur de l’entrée.',
      'Base en acrylique indigo 5 mm découpée à la flèche, face en acrylique ivoire 3 mm, chevron et logo en acrylique indigo 3 mm en relief, devise imprimée UV cuivre ; goujons au mur.'),
     ('table', 'Le poteau de table', poteau_table, 'N16 · poteau de comptoir · 330 mm',
-     'Le petit poteau du comptoir et des tables : « Votre beauté, 0 km, déjà là », réserver, puis les deux façons de payer, chacune avec son code et son QR à côté : MoMoPay sur la lame ivoire, Mobile Money KkiaPay sur la lame cuivre. Recto verso : il se lit des deux côtés du comptoir.',
+     'Le petit poteau du comptoir et des tables : « Votre beauté, 0 km, déjà là », réserver, puis les deux façons de payer, chacune avec son code et son QR à côté : MoMoPay sur la lame ivoire, KkiaPay sur la lame cuivre. Recto verso : il se lit des deux côtés du comptoir.',
      'Poteau en acrylique indigo 24 mm sur socle lesté 124 × 124, quatre bagues cuivre, quatre lames en acrylique ivoire 5 mm (la quatrième imprimée cuivre), impression UV recto verso : le verso est fourni à part, lames vers la gauche.'),
     ('angle', 'La plaque d’angle', plaque_angle, 'N17 · plaque de coin de rue · 800 × 360 mm',
      'La plaque émaillée qu’on pose à l’angle de la rue : indigo, filet cuivre, le logo et le quartier, avec la flèche vers la Maison.',
