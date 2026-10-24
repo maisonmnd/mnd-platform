@@ -51,8 +51,8 @@ export type LigneDeLaPrevision = { cle: 'encaisse' | 'rdv' | 'reprises' | 'crean
 
 export type Prevision = {
   encaisseXof: number;
-  rdv: { nombre: number; duXof: number; taux: number; comptesXof: number; peuDHistoire: boolean };
-  reprises: { nombre: number; valeurXof: number; taux: number; comptesXof: number };
+  rdv: { nombre: number; duXof: number; taux: number; comptesXof: number; peuDHistoire: boolean; basXof: number; hautXof: number };
+  reprises: { nombre: number; valeurXof: number; taux: number; comptesXof: number; basXof: number; hautXof: number };
   creances: { medianeXof: number; basXof: number; hautXof: number; mois: number };
   versementsXof: number;
   centraleXof: number;
@@ -116,8 +116,8 @@ export function prevoisLeMois(e: EntreesDeLaPrevision): Prevision {
 
   return {
     encaisseXof,
-    rdv: { nombre: rdvs.length, duXof, taux, comptesXof: arrondi(duXof * taux), peuDHistoire },
-    reprises: { nombre: reprises.length, valeurXof, taux: p, comptesXof: arrondi(valeurXof * p) },
+    rdv: { nombre: rdvs.length, duXof, taux, comptesXof: arrondi(duXof * taux), peuDHistoire, basXof: arrondi(duXof * borne(taux - 0.1)), hautXof: arrondi(duXof * borne(taux + 0.05)) },
+    reprises: { nombre: reprises.length, valeurXof, taux: p, comptesXof: arrondi(valeurXof * p), basXof: arrondi(valeurXof * (p / 2)), hautXof: arrondi(valeurXof * borne(p * 1.5)) },
     creances: { medianeXof: arrondi(medianeXof), basXof: arrondi(basC), hautXof: arrondi(hautC), mois: creances.length },
     versementsXof: v,
     centraleXof, basXof, hautXof,
@@ -158,4 +158,32 @@ export function ceQuiFaitLaPrevision(p: Prevision, fmt: (xof: number) => string,
     lignes.push({ cle: 'versements', dit: `Des versements déjà inscrits, datés plus tard ce mois : ${fmt(p.versementsXof)}.`, xof: p.versementsXof });
   }
   return lignes;
+}
+
+/* ── LE CALCUL MONTRÉ — 24 octobre 2026 ─────────────────────────────
+   « Moins de textes, je veux des démonstrations de calculs, de chiffres,
+   avec des totaux prévisionnels » (Yéman, devant le tableau de bord). La
+   prévision se montre en TABLEAU : chaque part, sa base, son taux, ce qui
+   est compté, sa fourchette ; la dernière ligne fait les totaux. */
+export type LigneDuCalcul = {
+  cle: 'encaisse' | 'rdv' | 'reprises' | 'creances' | 'versements';
+  libelle: string;
+  /** Le montant de départ (dû, valeur des rituels, médiane…). */
+  baseXof: number;
+  /** Le taux appliqué, de 0 à 1 ; `null` quand la part se prend telle quelle. */
+  taux: number | null;
+  compteXof: number;
+  basXof: number;
+  hautXof: number;
+};
+
+export function calculDeLaPrevision(p: Prevision): { lignes: LigneDuCalcul[]; total: { compteXof: number; basXof: number; hautXof: number } } {
+  const lignes: LigneDuCalcul[] = [
+    { cle: 'encaisse', libelle: 'Déjà entré', baseXof: p.encaisseXof, taux: null, compteXof: p.encaisseXof, basXof: p.encaisseXof, hautXof: p.encaisseXof },
+    { cle: 'rdv', libelle: `${p.rdv.nombre} rendez-vous posés`, baseXof: p.rdv.duXof, taux: p.rdv.taux, compteXof: p.rdv.comptesXof, basXof: p.rdv.basXof, hautXof: p.rdv.hautXof },
+    { cle: 'reprises', libelle: `${p.reprises.nombre} reprises attendues`, baseXof: p.reprises.valeurXof, taux: p.reprises.taux, compteXof: p.reprises.comptesXof, basXof: p.reprises.basXof, hautXof: p.reprises.hautXof },
+    { cle: 'creances', libelle: p.creances.mois > 0 ? `Créances (médiane ${p.creances.mois} mois)` : 'Créances', baseXof: p.creances.medianeXof, taux: null, compteXof: p.creances.medianeXof, basXof: p.creances.basXof, hautXof: p.creances.hautXof },
+  ];
+  if (p.versementsXof > 0) lignes.push({ cle: 'versements', libelle: 'Versements déjà inscrits', baseXof: p.versementsXof, taux: null, compteXof: p.versementsXof, basXof: p.versementsXof, hautXof: p.versementsXof });
+  return { lignes, total: { compteXof: p.centraleXof, basXof: p.basXof, hautXof: p.hautXof } };
 }

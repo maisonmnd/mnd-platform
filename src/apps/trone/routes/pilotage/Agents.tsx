@@ -24,11 +24,14 @@ import {
   messageDeLaLigne, nettoieLeProcessus, prochainCreneau, statsDuProcessus,
   type CleDAudience, type Passage, type Processus,
 } from '../../../../shared/processus-pur';
-import { RdvModal, apptDueXof, todayISO, useBranchAppointments, useServicesById } from '../clients/_shared';
+import { RdvModal, apptDueXof, apptNetXof, todayISO, useBranchAppointments, useServicesById } from '../clients/_shared';
 import {
-  enregistreLeProcessus, maintenantLocal, poseLeStatut, retireLeProcessus, useDepenseDuMois, useLancePassagesDus,
+  enregistreLeProcessus, maintenantLocal, poseLeStatut, preparePassageMaintenant, retireLeProcessus, useDepenseDuMois, useLancePassagesDus,
   useLesProcessus, usePlacesLibres, useTetesDuProcessus,
 } from './agents-donnees';
+import { AgentDeLaComptabilite, AgentDesAvis, AgentDuPlanning, AgentDuStock, Chiffres, TeteDAgent } from './AgentsSuivants';
+import { tauxDeRealisation } from '../../../../shared/cadence';
+import { JUSTESSE_PAR_DEFAUT } from '../../../../shared/prevision-du-mois-pur';
 import './agents.css';
 
 /* ═══════════════════════════════════════════════════════════════════
@@ -96,7 +99,7 @@ export default function Agents() {
       <PageHead
         eyebrow="Centre de commande · Les agents"
         title="Une équipe numérique, formée à vos règles."
-        sub="Ils proposent, vous décidez : rien ne part ni ne s’inscrit sans votre geste."
+        sub="Ils proposent, vous décidez."
         actions={depense && (
           <div className="agt-budget" title="Le compteur de la fonction ia-maison, ce mois-ci à Cotonou">
             <span className="agt-sur">Claude ce mois</span>
@@ -138,15 +141,19 @@ export default function Agents() {
           <AgentDesReprises agent={agentReprises} passages={passages} tetes={tetes} aujourdhui={aujourdhui} maintenantMin={maintenantMin} monNom={monNom} />
         )}
       </div>
-      <section className="agt-carte agt-ensuite" aria-label="Les agents suivants">
-        <span className="agt-sur">Ensuite, pas encore construits</span>
-        <ul>
-          <li><b>Le planning</b> · veiller aux fauteuils, signaler les jours creux.</li>
-          <li><b>La comptabilité</b> · ranger les reçus et les chèques photographiés.</li>
-          <li><b>Les avis</b> · préparer une réponse à chaque avis Google.</li>
-          <li><b>Le stock</b> · préparer le réassort de la Gamme.</li>
-        </ul>
-      </section>
+      {/* LES QUATRE AUTRES (24 octobre 2026, « construis les quatre autres
+          agents ») : ils lisent et proposent, chaque geste est un clic. */}
+      <div className="agt-grille">
+        <AgentDuPlanning preparerUneListe={() => {
+          if (!agentReprises) return;
+          const r = preparePassageMaintenant(agentReprises, tetes);
+          toast(r.lignes === 0 ? 'Aucune cliente à relancer aujourd’hui : la liste est vide.' : `${r.lignes} cliente${r.lignes > 1 ? 's' : ''} à relancer, en haut dans « À valider », avec les places libres des prochains jours.`);
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        }} />
+        <AgentDeLaComptabilite />
+        <AgentDesAvis />
+        <AgentDuStock />
+      </div>
 
       {/* ══ ③ LES PROCESSUS ══ */}
       <section className="agt-carte agt-processus" aria-label="Les processus">
@@ -181,8 +188,7 @@ export default function Agents() {
 
       <section className="agt-carte agt-regles" aria-label="Ce qu’ils ne font jamais">
         <span className="agt-sur">Ce qu’ils ne font jamais</span>
-        <p>Envoyer ou inscrire sans votre geste · inventer un chiffre · voir un nom complet ou un numéro chez Claude (il ne reçoit que des sommes et votre phrase) · mettre un prix ou un numéro de pièce dans un message · supposer Madame ou Monsieur · écrire à la même personne deux fois en trente jours.</p>
-        <p className="agt-doux">Les listes se font quand un souverain ouvre le tableau de bord ou cet écran, au premier créneau dû. L’assistant coûte quelques centimes par demande, dans les 120 $ du mois.</p>
+        <p>Rien ne part sans votre geste · aucun chiffre inventé · ni nom ni numéro chez Claude · ni prix ni numéro de pièce dans un message · une même cliente au plus une fois en 30 jours.</p>
       </section>
 
       {rdvPour && (
@@ -249,9 +255,9 @@ function ListeAValider({ passage, processus, ficheDe, placesPour, monNom, poser 
 
 /* ═══ L'AGENT DES ENCAISSEMENTS ═════════════════════════════════════
    Il n'écrit à personne : les relances des factures ont leur tournée au
-   serveur, les captures leur lecture. Il rassemble ce qui attend un oui. */
+   serveur, les captures leur lecture. Il rassemble ce qui attend un oui,
+   EN CHIFFRES, avec le total à encaisser (24 octobre 2026). */
 function AgentDesEncaissements() {
-  const navigate = useNavigate();
   const { branch, currency } = useBranch();
   const [captures] = useCapturesLues();
   const [reglages] = useSettings();
@@ -265,22 +271,32 @@ function AgentDesEncaissements() {
   const rituels = useMemo(() => appts.filter((a) => a.status === 'honoré' && !a.invoiceId && a.date < aujourdhui && apptDueXof(a, byId) > 0), [appts, byId, aujourdhui]);
   const resteRituels = rituels.reduce((s, a) => s + apptDueXof(a, byId), 0);
   const relancesActives = !!reglages.relances?.actives;
+  const fmt = (x: number) => fmtMoney(x, currency);
   return (
     <section className="agt-carte agt-agent" aria-label="L’agent des encaissements">
-      <div className="agt-entre"><h3>Les encaissements</h3><span className="agt-etat est-on">en premier · chaque jour</span></div>
-      <p>Rassemble ce qui attend un oui pour que l’argent dû entre : les captures de paiement lues, les factures qui doivent encore, les rituels honorés sans versement. Il n’écrit à personne.</p>
-      <ul className="agt-liste">
-        <li><span><b>{lues}</b> capture{lues > 1 ? 's' : ''} MoMo ou KkiaPay lue{lues > 1 ? 's' : ''}, à inscrire</span><button type="button" className="agt-lien" onClick={() => navigate('/conversations')}>Les inscrire ›</button></li>
-        <li><span><b>{factures.length}</b> facture{factures.length > 1 ? 's' : ''} avec un reste · {fmtMoney(resteFactures, currency)}</span><button type="button" className="agt-lien" onClick={() => navigate('/creances')}>Les créances ›</button></li>
-        <li><span><b>{rituels.length}</b> rituel{rituels.length > 1 ? 's' : ''} honoré{rituels.length > 1 ? 's' : ''} sans versement inscrit · {fmtMoney(resteRituels, currency)}</span><button type="button" className="agt-lien" onClick={() => navigate('/carnet')}>Le carnet ›</button></li>
-        <li><span>Les relances J+1, 3, 7, 14 : <b>{relancesActives ? 'allumées' : 'éteintes'}</b>{relancesActives ? ', elles partent seules à 10 h' : ''}</span><button type="button" className="agt-lien" onClick={() => navigate(relancesActives ? '/a-faire' : '/parametres')}>{relancesActives ? 'À appeler ›' : 'Les allumer ›'}</button></li>
-      </ul>
-      <p className="agt-doux agt-petit">Son autonomie : il agit après votre oui. Jamais de reçu pour un rituel passé, jamais de numéro de pièce dans un message.</p>
+      <TeteDAgent nom="Les encaissements" rythme="chaque jour" autonomie="après votre oui" />
+      <Chiffres
+        lignes={[
+          { libelle: 'Captures MoMo et KkiaPay à inscrire', nombre: lues, geste: <LienVers vers="/conversations">Inscrire</LienVers> },
+          { libelle: 'Factures avec un reste', nombre: factures.length, montant: fmt(resteFactures), geste: <LienVers vers="/creances">Les créances</LienVers> },
+          { libelle: 'Rituels honorés sans versement', nombre: rituels.length, montant: fmt(resteRituels), geste: <LienVers vers="/carnet">Le carnet</LienVers> },
+          { libelle: 'Relances J+1, 3, 7, 14', nombre: relancesActives ? 'allumées' : 'éteintes', geste: <LienVers vers={relancesActives ? '/a-faire' : '/parametres'}>{relancesActives ? 'À appeler' : 'Les allumer'}</LienVers> },
+        ]}
+        total={{ libelle: 'Total à encaisser', nombre: factures.length + rituels.length, montant: fmt(resteFactures + resteRituels) }}
+      />
     </section>
   );
 }
 
-/* ═══ L'AGENT DES REPRISES : un processus livré, à régler et à allumer ═══ */
+function LienVers({ vers, children }: { vers: string; children: string }) {
+  const navigate = useNavigate();
+  return <button type="button" className="agt-lien" onClick={() => navigate(vers)}>{children} ›</button>;
+}
+
+/* ═══ L'AGENT DES REPRISES : un processus livré, à régler et à allumer.
+   Son total prévisionnel : la valeur du dernier rituel de chaque cliente
+   trouvée, comptée à la justesse mesurée de la Cadence (la même que la
+   prévision du mois). ═══ */
 function AgentDesReprises({ agent, passages, tetes, aujourdhui, maintenantMin, monNom }: {
   agent: Processus;
   passages: Passage[];
@@ -289,13 +305,27 @@ function AgentDesReprises({ agent, passages, tetes, aujourdhui, maintenantMin, m
   maintenantMin: number;
   monNom: string;
 }) {
+  const { currency } = useBranch();
+  const appts = useBranchAppointments();
+  const byId = useServicesById();
   const [delai, setDelai] = useState(agent.delaiJours);
   const [avecPlaces, setAvecPlaces] = useState(agent.avecPlaces);
   const [message, setMessage] = useState(agent.message);
   const [reglage, setReglage] = useState(false);
   const s = statsDuProcessus(passages, agent.id);
   const prochain = prochainCreneau(agent, aujourdhui, maintenantMin);
-  const essai = listeDuPassage({ audience: 'reprises', delaiJours: delai }, tetes, aujourdhui).length;
+  const essai = listeDuPassage({ audience: 'reprises', delaiJours: delai }, tetes, aujourdhui);
+  const { valeur, justesse } = useMemo(() => {
+    const ids = new Set(essai.map((l) => l.clientId));
+    let v = 0;
+    for (const id of ids) {
+      const dernier = appts.filter((a) => a.clientId === id && a.status === 'honoré').sort((a, b) => a.date.localeCompare(b.date)).pop();
+      if (dernier) v += apptNetXof(dernier, byId);
+    }
+    const juste = tauxDeRealisation(appts.filter((a) => a.status === 'honoré' && !(a.seriesIndex && a.seriesIndex > 1)));
+    return { valeur: v, justesse: juste ? juste.dans14 / 100 : JUSTESSE_PAR_DEFAUT };
+  }, [essai, appts, byId]);
+  const fmt = (x: number) => fmtMoney(x, currency);
   const remarques = relisLaMarque(message, { campagne: true });
   const sauve = (actif: boolean) => {
     if (bloquant(remarques)) { toast(remarques.find((r) => r.gravite === 'bloque')!.dit); return; }
@@ -305,14 +335,16 @@ function AgentDesReprises({ agent, passages, tetes, aujourdhui, maintenantMin, m
   };
   return (
     <section className="agt-carte agt-agent" aria-label="L’agent des reprises">
-      <div className="agt-entre"><h3>{agent.nom}</h3><span className={`agt-etat${agent.actif ? ' est-on' : ''}`}>{agent.actif ? `allumé · ${prochain ? creneauDit(prochain) : ''}` : 'éteint'}</span></div>
-      <p>Chaque lundi à 9 h, lit le rythme de chaque cliente, repère celles dont la reprise a {delai} jours de retard et rien de posé, et prépare un message{avecPlaces ? ' avec deux places libres de la semaine' : ''}. Vous écrivez, posez ou écartez, une par une.</p>
-      <div className="agt-chiffres">
-        <div><b>{s.proposes}</b><span className="agt-doux">proposées</span></div>
-        <div><b>{s.ecrits + s.poses}</b><span className="agt-doux">écrites ou posées</span></div>
-        <div><b>{s.ecartes}</b><span className="agt-doux">écartées</span></div>
-      </div>
-      <p className="agt-doux">Cette semaine, il aurait trouvé <b>{pluriel(essai, 'cliente', 'clientes')}</b>.</p>
+      <TeteDAgent nom={agent.nom} rythme={agent.actif ? (prochain ? creneauDit(prochain) : 'allumé') : 'éteint'} autonomie="propose" />
+      <Chiffres
+        lignes={[
+          { libelle: <>Clientes en retard <span className="agt-doux">(au moins {delai} jours, rien de posé)</span></>, nombre: essai.length },
+          { libelle: 'Valeur de leurs derniers rituels', montant: fmt(valeur) },
+          { libelle: <>Justesse de la Cadence</>, nombre: `× ${Math.round(justesse * 100)} %` },
+          { libelle: 'Proposées · écrites ou posées · écartées', nombre: `${s.proposes} · ${s.ecrits + s.poses} · ${s.ecartes}` },
+        ]}
+        total={{ libelle: 'À faire revenir (prévision)', montant: fmt(Math.round((valeur * justesse) / 1000) * 1000) }}
+      />
       {reglage ? (
         <div className="agt-reglage">
           <label>Retard d’au moins
@@ -336,7 +368,6 @@ function AgentDesReprises({ agent, passages, tetes, aujourdhui, maintenantMin, m
           <Button size="sm" variant="ghost" onClick={() => setReglage(true)}>Lui apprendre quelque chose</Button>
         </div>
       )}
-      <p className="agt-doux agt-petit">Son autonomie : il propose seulement. Jamais deux messages à la même personne en trente jours ; ni les passantes, ni la diaspora, ni les locks défaits.</p>
     </section>
   );
 }

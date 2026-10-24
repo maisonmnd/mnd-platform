@@ -115,8 +115,8 @@ dit('la direction seule : un maitre, meme avec la Direction cochee, ne les deman
 dit('120 $ par mois (jusqu a 120 $ au selecteur), et le Trone ne propose qu a la fonction qui le sait', [120, true, false],
   [PLAFOND_DES_HUIT_USD, saitLeTableauIntelligent('2026-10-24-a'), saitLeTableauIntelligent('2026-10-19-a')]);
 const expl = demandeDExplication({ mois: 'octobre 2026', aujourdhui: '24 oct. 2026', centrale: '3 840 000 F', bas: '3 630 000 F', haut: '4 030 000 F', parts: [{ cle: 'rdv', dit: '14 rendez-vous posés…' }], moisPasses: ['septembre 2026 : 3 120 000 F'] });
-dit('l explication : recevable par la porte, un texte, une forme attendue, sans refaire le calcul', [null, 'prevision', 'texte', ['phrase', 'raisons', 'gestes'], true],
-  [defautDeLaDemande(expl), expl.chantier, expl.usage, (expl.schema as { required: string[] }).required, expl.systeme.includes('Ne refais pas le calcul')]);
+dit('l explication : recevable par la porte, une phrase et deux gestes chiffres, sans refaire le calcul', [null, 'prevision', 'texte', ['phrase', 'gestes'], true],
+  [defautDeLaDemande(expl), expl.chantier, expl.usage, (expl.schema as { required: string[] }).required, expl.systeme.includes('Ne refais pas le calcul') && expl.systeme.includes('des chiffres, pas du texte')]);
 const q = demandeDeQuestion('Pourquoi novembre est calme ?', { aujourdhui: '24 oct. 2026', jour: '6 rendez-vous', prevision: ['Fin du mois : 3 840 000 F.'] },
   [{ role: 'user', content: 'a' }, { role: 'assistant', content: 'b' }, { role: 'user', content: 'c' }, { role: 'assistant', content: 'd' }, { role: 'user', content: 'e' }, { role: 'assistant', content: 'f' }]);
 dit('la question : recevable, le contexte dans la consigne, quatre tours d avant au plus, la question en dernier', [null, 'question', true, 5, 'Pourquoi novembre est calme ?'],

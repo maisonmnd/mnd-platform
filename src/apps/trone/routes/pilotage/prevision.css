@@ -61,3 +61,23 @@
 .trp-demander__lui { align-self: flex-start; background: var(--copper-50, #FAF1E9); color: var(--ink); }
 .trp-agents { margin-top: 14px; width: 100%; display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 16px; text-align: left; padding: 14px 18px; background: var(--surface-card); border: 1px solid var(--color-copper); border-radius: var(--radius-md, 8px); font: 400 14px var(--font-sans); color: var(--ink); cursor: pointer; }
 .trp-agents b { font: 400 20px var(--font-serif); color: var(--color-indigo); }
+
+/* LE CALCUL MONTRÉ — 24 octobre 2026 : un tableau, des chiffres alignés,
+   la ligne des totaux en dernier. */
+.trp-calc__defile { overflow-x: auto; }
+.trp-calc { width: 100%; min-width: 420px; border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; }
+.trp-calc th, .trp-calc td { padding: 7px 6px; border-top: 1px solid var(--hairline); text-align: right; white-space: nowrap; }
+.trp-calc thead th { border-top: 0; font: 500 10.5px var(--font-sans); letter-spacing: .12em; text-transform: uppercase; color: var(--ink-soft); padding-top: 0; }
+.trp-calc th[scope="row"], .trp-calc thead th:first-child { text-align: left; font-weight: 400; color: var(--ink); white-space: normal; padding-left: 0; }
+.trp-calc th[scope="row"] .trp-prev__lien { font-size: 13px; color: var(--ink); text-align: left; }
+.trp-calc th[scope="row"] .trp-prev__lien:hover { color: var(--copper-700); }
+.trp-calc__compte { color: var(--color-indigo); font-weight: 500; }
+.trp-calc__fourchette { color: var(--ink-soft); }
+.trp-calc tfoot th, .trp-calc tfoot td { border-top: 2px solid var(--color-indigo); font-weight: 600; color: var(--color-indigo); padding-top: 9px; }
+
+/* Le calcul sous le dessin, sur toute la largeur : un tableau de six
+   colonnes ne tient pas dans une demi-carte (24 octobre 2026). */
+.trp-prev__corps { flex-direction: column; align-items: stretch; }
+.trp-prev__dessin { flex: 1 1 auto; }
+.trp-prev__raisons { flex: 1 1 auto; border-left: 0; padding-left: 0; border-top: 1px solid var(--hairline); padding-top: 14px; }
+.trp-calc { font-size: 14px; }

@@ -4,7 +4,7 @@
    maquette VJ5PJEGUPDbYKUgEdMUNbS, « construis ». Choix au sélecteur : le
    Trône calcule, Claude explique. La règle (shared/prevision-du-mois-pur.ts)
    et sa place au tableau de bord (texte). Tout est inventé. Sortie ASCII. */
-import { ceQuiFaitLaPrevision, prevoisLeMois, type EntreesDeLaPrevision } from '../src/shared/prevision-du-mois-pur';
+import { calculDeLaPrevision, ceQuiFaitLaPrevision, prevoisLeMois, type EntreesDeLaPrevision } from '../src/shared/prevision-du-mois-pur';
 import { readFileSync } from 'node:fs';
 
 let ko = 0;
@@ -43,8 +43,8 @@ const encaisse = jours.reduce((s, j) => s + j.xof, 0);
 const p = prevoisLeMois(base);
 
 dit('l entre du mois est la somme des jours', encaisse, p.encaisseXof);
-dit('les rendez-vous : seulement ce mois, a venir, qui doivent encore ; comptes au taux d honneur', { nombre: 2, duXof: 300000, taux: 0.94, comptesXof: 282000, peuDHistoire: false }, p.rdv);
-dit('les reprises : ce mois, avec une valeur ; comptees a la justesse de la Cadence', { nombre: 1, valeurXof: 100000, taux: 0.5, comptesXof: 50000 }, p.reprises);
+dit('les rendez-vous : seulement ce mois, a venir, qui doivent encore ; comptes au taux d honneur', { nombre: 2, duXof: 300000, taux: 0.94, comptesXof: 282000, peuDHistoire: false, basXof: 252000, hautXof: 297000 }, p.rdv);
+dit('les reprises : ce mois, avec une valeur ; comptees a la justesse de la Cadence', { nombre: 1, valeurXof: 100000, taux: 0.5, comptesXof: 50000, basXof: 25000, hautXof: 75000 }, p.reprises);
 dit('les creances : la mediane, la plus faible et la plus forte des mois passes', { medianeXof: 140000, basXof: 100000, hautXof: 200000, mois: 3 }, p.creances);
 dit('la prevision centrale : entre + rdv x honneur + reprises x justesse + creances, au millier', Math.round((encaisse + 282000 + 50000 + 140000) / 1000) * 1000, p.centraleXof);
 dit('la fourchette : honneur -10 / +5 points, reprises x0,5 / x1,5, creances au plus faible / au plus fort',
@@ -61,6 +61,19 @@ dit('sans historique de creances : zero, et la phrase le dit', [0, true],
 dit('des versements deja inscrits plus tard ce mois s ajoutent tels quels, et ont leur ligne', [p.centraleXof + 30000, true],
   (() => { const q = prevoisLeMois({ ...base, versementsAVenirXof: 30000 }); return [q.centraleXof, ceQuiFaitLaPrevision(q, fmt, 'le 31').some((l) => l.cle === 'versements')]; })());
 
+/* LE CALCUL MONTRÉ (« des démonstrations de calculs, avec des totaux
+   prévisionnels », 24 octobre 2026) : chaque ligne et ses totaux. */
+const calc = calculDeLaPrevision(p);
+dit('le calcul : une ligne par part, base x taux = compte, sa fourchette', [
+  ['encaisse', encaisse, null, encaisse, encaisse, encaisse],
+  ['rdv', 300000, 0.94, 282000, 252000, 297000],
+  ['reprises', 100000, 0.5, 50000, 25000, 75000],
+  ['creances', 140000, null, 140000, 100000, 200000],
+], calc.lignes.map((l) => [l.cle, l.baseXof, l.taux, l.compteXof, l.basXof, l.hautXof]));
+dit('les totaux du calcul sont ceux de la prevision, et les lignes les refont (au millier pres par ligne)', [true, true, true],
+  [calc.total.compteXof === p.centraleXof && calc.total.basXof === p.basXof && calc.total.hautXof === p.hautXof,
+    Math.abs(calc.lignes.reduce((s, l) => s + l.compteXof, 0) - p.centraleXof) <= 1000 * calc.lignes.length,
+    Math.abs(calc.lignes.reduce((s, l) => s + l.basXof, 0) - p.basXof) <= 1000 * calc.lignes.length]);
 const lignes = ceQuiFaitLaPrevision(p, fmt, 'le 31');
 dit('ce qui fait la prevision se lit en clair, part par part', ['encaisse', 'rdv', 'reprises', 'creances'], lignes.map((l) => l.cle));
 dit('la ligne des rendez-vous dit le nombre, le du, le taux et ce qui est compte', true,

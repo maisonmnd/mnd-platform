@@ -9,7 +9,7 @@ import {
   addDaysISO, apptDueXof, apptNetXof, revenuDuMois, revenusProjetesDuMois, todayISO,
   useBranchAppointments, useBranchClients, useClefDuTarif, useServicesById,
 } from '../clients/_shared';
-import { ceQuiFaitLaPrevision, prevoisLeMois, type LigneDeLaPrevision, type Prevision } from '../../../../shared/prevision-du-mois-pur';
+import { calculDeLaPrevision, ceQuiFaitLaPrevision, prevoisLeMois, type LigneDeLaPrevision, type Prevision } from '../../../../shared/prevision-du-mois-pur';
 import { useStaff as useMonProfil } from '../../../../shared/auth';
 import { demandeAClaude, versionDeIaMaison } from '../../../../shared/ia-maison';
 import { saitLeTableauIntelligent } from '../../../../shared/ia-maison-pur';
@@ -184,6 +184,9 @@ export function PrevisionDuMois({ donnees }: { donnees: DonneesDeLaPrevision }) 
   const y = (x: number) => H - (x / haut) * H;
   const iAujourdhui = prevision.jours.findIndex((j) => j.iso === today);
   const court = (iso: string) => `${Number(iso.slice(8, 10))} ${MOIS_COURTS[Number(iso.slice(5, 7)) - 1]}`;
+  const calcul = calculDeLaPrevision(prevision);
+  /* Les montants du tableau, sans le « F » répété : l'en-tête dit la devise. */
+  const nombre = (x: number) => fmt(x).replace(/\s*F\s*$/, '').replace(/\s*FCFA\s*$/, '');
   const ouAller: Partial<Record<(typeof lignes)[number]['cle'], { dit: string; vers: string }>> = {
     rdv: { dit: 'Le carnet', vers: '/carnet' },
     reprises: { dit: 'La Cadence', vers: '/cadence' },
@@ -198,7 +201,7 @@ export function PrevisionDuMois({ donnees }: { donnees: DonneesDeLaPrevision }) 
           <span className="trp-prev__gros">{fmt(prevision.centraleXof)}</span>
           <span className="trp-prev__dit">Fin du mois, si le rythme tient : entre {fmt(prevision.basXof)} et {fmt(prevision.hautXof)}.</span>
         </div>
-        <span className="trp-prev__calcule">Calculé par le Trône sur l’historique de la Maison. Rien n’est inventé : chaque part est détaillée avec le dessin.</span>
+        <span className="trp-prev__calcule">Calculé par le Trône sur l’historique de la Maison.</span>
       </div>
       <div className="trp-prev__corps">
         <figure className="trp-prev__dessin">
@@ -238,31 +241,54 @@ export function PrevisionDuMois({ donnees }: { donnees: DonneesDeLaPrevision }) 
             )}
             <span>{court(dernierJour)}</span>
           </div>
-          <figcaption className="trp-prev__note">Survolez une barre pour son montant. Les créances ne se dessinent pas jour par jour : on ne sait pas quel jour elles rentrent.</figcaption>
+          <figcaption className="trp-prev__note">Survolez une barre pour son montant.</figcaption>
         </figure>
+        {/* LE CALCUL MONTRÉ — 24 octobre 2026 : « moins de textes, des
+            démonstrations de calculs, avec des totaux prévisionnels ». */}
         <div className="trp-prev__raisons">
-          <span className="trp-prev__sur">Ce qui fait la prévision</span>
+          <span className="trp-prev__sur">Le calcul · en francs CFA</span>
+          <div className="trp-calc__defile">
+            <table className="trp-calc">
+              <thead>
+                <tr><th scope="col">Part</th><th scope="col">Base</th><th scope="col">Taux</th><th scope="col">Compté</th><th scope="col">Bas</th><th scope="col">Haut</th></tr>
+              </thead>
+              <tbody>
+                {calcul.lignes.map((l) => (
+                  <tr key={l.cle}>
+                    <th scope="row">
+                      {ouAller[l.cle]
+                        ? <button type="button" className="trp-prev__lien" onClick={() => navigate(ouAller[l.cle]!.vers)} title={ouAller[l.cle]!.dit}>{l.libelle} ›</button>
+                        : l.libelle}
+                    </th>
+                    <td>{nombre(l.baseXof)}</td>
+                    <td>{l.taux === null ? '' : `× ${Math.round(l.taux * 100)} %`}</td>
+                    <td className="trp-calc__compte">{nombre(l.compteXof)}</td>
+                    <td className="trp-calc__fourchette">{nombre(l.basXof)}</td>
+                    <td className="trp-calc__fourchette">{nombre(l.hautXof)}</td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot>
+                <tr>
+                  <th scope="row">Total prévisionnel</th><td /><td />
+                  <td className="trp-calc__compte">{nombre(calcul.total.compteXof)}</td>
+                  <td>{nombre(calcul.total.basXof)}</td>
+                  <td>{nombre(calcul.total.hautXof)}</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
           {explication ? (
             <div className="trp-prev__claude" role="note">
-              <span className="trp-prev__sur">L’assistant explique</span>
-              <p>{explication.phrase}</p>
-              {explication.raisons.length > 0 && <ul>{explication.raisons.map((x) => <li key={x}>{x}</li>)}</ul>}
-              {explication.gestes.length > 0 && <p className="trp-prev__gestes">Cette semaine : {explication.gestes.join(' ; ')}</p>}
+              <p><b>L’assistant :</b> {explication.phrase}</p>
+              {explication.gestes.length > 0 && <ul>{explication.gestes.map((x) => <li key={x}>{x}</li>)}</ul>}
             </div>
           ) : peutDemander && claude ? (
             <button type="button" className="trp-prev__demander" onClick={() => { void expliquer(); }} disabled={enCours}>
-              {enCours ? 'L’assistant lit la prévision…' : 'Demander pourquoi à l’assistant ›'}
+              {enCours ? 'L’assistant lit le calcul…' : 'Demander pourquoi à l’assistant ›'}
             </button>
           ) : null}
           {refus && <span className="trp-prev__note">{refus}</span>}
-          <ul>
-            {lignes.map((l) => (
-              <li key={l.cle}>
-                {l.dit}
-                {ouAller[l.cle] && <> <button type="button" className="trp-prev__lien" onClick={() => navigate(ouAller[l.cle]!.vers)}>{ouAller[l.cle]!.dit} ›</button></>}
-              </li>
-            ))}
-          </ul>
         </div>
       </div>
     </section>

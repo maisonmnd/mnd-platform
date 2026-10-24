@@ -43,7 +43,7 @@ export function demandeDExplication(c: ContexteDeLaPrevision): DemandeIa {
   return {
     chantier: 'prevision',
     usage: 'texte',
-    systeme: `${REGLES_DE_LA_MAISON}\nOn te donne la prévision du mois calculée par le Trône et le détail de ses parts. Explique-la à la directrice en une phrase, puis donne au plus trois raisons et au plus deux gestes utiles cette semaine (relancer, poser, encaisser). Ne refais pas le calcul.`,
+    systeme: `${REGLES_DE_LA_MAISON}\nOn te donne la prévision du mois calculée par le Trône et le détail de ses parts. La directrice veut des chiffres, pas du texte : une phrase de 25 mots au plus qui nomme la part qui pèse le plus, avec son montant ; puis au plus deux gestes de 12 mots au plus, chacun avec le montant qu’il peut faire entrer (« Relancer les 10 reprises : jusqu’à 383 000 F de plus »). Ne refais pas le calcul.`,
     messages: [{
       role: 'user',
       content: [
@@ -57,13 +57,12 @@ export function demandeDExplication(c: ContexteDeLaPrevision): DemandeIa {
     schema: {
       type: 'object',
       properties: {
-        phrase: { type: 'string', description: 'Une phrase qui dit la prévision et sa raison principale.' },
-        raisons: { type: 'array', items: { type: 'string' }, maxItems: 3 },
-        gestes: { type: 'array', items: { type: 'string' }, maxItems: 2 },
+        phrase: { type: 'string', description: 'Vingt-cinq mots au plus, avec un montant.' },
+        gestes: { type: 'array', items: { type: 'string' }, maxItems: 2, description: 'Douze mots au plus chacun, avec le montant en jeu.' },
       },
-      required: ['phrase', 'raisons', 'gestes'],
+      required: ['phrase', 'gestes'],
     },
-    maxTokens: 700,
+    maxTokens: 400,
   };
 }
 export type ExplicationDeLaPrevision = { phrase: string; raisons: string[]; gestes: string[] };

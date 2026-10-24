@@ -123,6 +123,19 @@ export function useLancePassagesDus(actif: boolean, processus: readonly Processu
   }, [actif, processus, passages, tetes]);
 }
 
+/** UNE LISTE TOUT DE SUITE — 24 octobre 2026, l'agent du planning : un jour
+    creux se remplit en proposant ses places aux reprises maintenant, sans
+    attendre lundi. Le passage porte l'heure du geste ; il ne compte pas comme
+    le passage du lundi (identifiant différent). */
+export function preparePassageMaintenant(p: Processus, tetes: readonly TeteDuProcessus[]): { ok: boolean; lignes: number } {
+  const maintenant = maintenantLocal();
+  const aujourdhui = maintenant.slice(0, 10);
+  const lignes = listeDuPassage(p, tetes, aujourdhui).map((l) => ({ ...l, statut: 'a-valider' as const }));
+  const passage: Passage = { id: idDuPassage(p.branchId, p.id, maintenant), processusId: p.id, branchId: p.branchId, prevuA: maintenant, faitLe: maintenant, lignes };
+  passagesStore.set((prev) => [...passagesGardes(prev.filter((x) => x.id !== passage.id), aujourdhui), passage]);
+  return { ok: true, lignes: lignes.length };
+}
+
 /** DEUX PLACES LIBRES dans les sept jours qui viennent (dès demain), pour
     la durée et le maître de son dernier rituel. */
 export function usePlacesLibres(): (clientId: string) => { iso: string; heure: string }[] {

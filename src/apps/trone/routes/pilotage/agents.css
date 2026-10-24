@@ -64,3 +64,29 @@
   .agt-grille { grid-template-columns: 1fr; }
   .agt-budget { min-width: 0; }
 }
+
+/* Le planning : quatorze jours, une barre chacun (la part des fauteuils
+   occupée). L'indigo dit la charge ; le cuivre clair, un creux ; le gris,
+   un jour fermé. La couleur double le mot de l'infobulle, jamais seule. */
+.agt-barres { display: grid; grid-template-columns: repeat(14, minmax(0, 1fr)); gap: 3px; align-items: end; height: 84px; padding-top: 4px; }
+.agt-barre { display: flex; flex-direction: column; align-items: stretch; justify-content: flex-end; height: 100%; gap: 3px; }
+.agt-barre i { display: block; border-radius: 3px 3px 0 0; background: var(--indigo-500, #3D4BA3); min-height: 0; }
+.agt-barre.est-creux i { background: var(--copper-300, #E3C9AE); }
+.agt-barre.est-plein i { background: var(--indigo-700, #232C6B); }
+.agt-barre.est-ferme i { background: transparent; }
+.agt-barre b { font: 400 10.5px var(--font-sans); color: var(--ink-soft); text-align: center; }
+.agt-barre.est-ferme b { color: var(--hairline); }
+
+/* DES CHIFFRES, PAS DES PHRASES — 24 octobre 2026. */
+.agt-etiquettes { display: inline-flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+.agt-etiquette { font-size: 11px; letter-spacing: .06em; color: var(--copper-700); border: 1px solid var(--copper-300, #E3C9AE); border-radius: 999px; padding: 2px 8px; }
+.agt-defile { overflow-x: auto; }
+.agt-chiffres-table { width: 100%; border-collapse: collapse; font-size: 13.5px; font-variant-numeric: tabular-nums; }
+.agt-chiffres-table th, .agt-chiffres-table td { padding: 8px 6px; border-top: 1px solid var(--hairline); text-align: right; vertical-align: middle; }
+.agt-chiffres-table th[scope="row"] { text-align: left; font-weight: 400; padding-left: 0; }
+.agt-chiffres-table td:nth-child(2) { color: var(--color-indigo); font-weight: 500; white-space: nowrap; }
+.agt-chiffres-table td:nth-child(3) { white-space: nowrap; }
+.agt-chiffres-table__geste { width: 1%; white-space: nowrap; padding-right: 0 !important; }
+.agt-chiffres-table tr.est-alerte th, .agt-chiffres-table tr.est-alerte td { color: var(--agt-alerte); }
+.agt-chiffres-table tfoot th, .agt-chiffres-table tfoot td { border-top: 2px solid var(--color-indigo); font-weight: 600; color: var(--color-indigo); }
+.agt-barre em { font: normal 400 9.5px var(--font-sans); color: var(--ink-soft); text-align: center; font-variant-numeric: tabular-nums; }
