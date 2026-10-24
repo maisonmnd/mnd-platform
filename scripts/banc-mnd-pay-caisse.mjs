@@ -12,6 +12,10 @@
        demande), et le pied de la caisse ne promet plus de réconciliation
        automatique.
 
+   24 octobre 2026, la Caisse en trois temps (maquette EUoSyHQd…) : le
+   paiement s'ouvre par « Comment elle paie », la monnaie se rend à l'écran,
+   et l'écran de réussite précède « Ticket suivant ».
+
    Il attend le Trône construit sans serveur (sous Bash : sous PowerShell, une
    variable vide est SUPPRIMÉE et Vite reprend le vrai .env) :
      VITE_APPS=trone VITE_SUPABASE_URL= VITE_SUPABASE_ANON_KEY= \
@@ -93,9 +97,22 @@ dit('la caisse s ouvre', await evalue(`!!document.querySelector('.trv-pick')`));
 dit('hors ligne, pas de tuile MND PAY (pas de connexion, pas de demande)', (await evalue(`[...document.querySelectorAll('.trv-pay .n')].some((x) => x.textContent.trim() === 'MND PAY')`)) === false);
 dit('le produit entre au ticket', await clique('.trv-pick', 'Brume d’aloès du banc'));
 await attend(700);
+dit('rien n est choisi d avance pour une vente sans historique', (await evalue(`[...document.querySelectorAll('.trv-pay.is-active')].length`)) === 0);
+dit('« Comment elle paie » s ouvre', await clique('.trv-etape__ligne', 'Comment elle paie'));
+await attend(300);
 dit('le pourboire se tape librement', await tape('#caisse-pourboire', '2000'));
 await attend(300);
 dit('Espèces se choisit', await clique('.trv-pay', 'Espèces'));
+await attend(300);
+/* LA MONNAIE : 47 000 F et 2 000 F de pourboire, elle donne 50 000 F ; puis 30 000 F. */
+dit('elle donne 50 000 F', await tape('#caisse-donne', '50000'));
+await attend(300);
+dit('la monnaie se rend : 1 000 F', /Rendre 1\s?000\s?F/u.test(await evalue(`document.body.innerText`)));
+await tape('#caisse-donne', '30000');
+await attend(300);
+dit('elle donne 30 000 F : il manque 19 000 F, et on n encaisse pas tout en espèces', /Il manque 19\s?000\s?F/u.test(await evalue(`document.body.innerText`))
+  && (await evalue(`[...document.querySelectorAll('.trv-ticket__pied button')].every((b) => b.disabled)`)));
+await tape('#caisse-donne', '');
 await attend(300);
 dit('une part de 20 000 F se tape', await tape('input[aria-label^="Montant d’une part"]', '20000'));
 await attend(300);
@@ -110,6 +127,7 @@ dit('le bouton encaisse le reste, pourboire en plus', /Encaisser 27\s?000\s?F \+
 dit('le pied ne promet plus une réconciliation automatique', (await evalue(`document.body.innerText.includes('réconciliation MoMo automatique')`)) === false);
 await clique('button', 'Encaisser 27');
 await attend(2500);
+dit('l écran de réussite dit ce qui est entré', (await evalue(`document.querySelector('.trv-reussite__montant')?.textContent || ''`)).replace(/\s/g, '').startsWith('47000'));
 
 const pieces = (await lis('trone::mnd_invoices')) ?? [];
 const p = pieces[0];
@@ -119,6 +137,8 @@ dit('deux versements : 20 000 F en espèces, 27 000 F en MTN MoMo', JSON.stringi
 dit('la pièce est payée, le pourboire à part (hors du total)', p?.status === 'payée' && p?.tipXof === 2000, `${p?.status} · ${p?.tipXof}`);
 const tips = ((await lis('trone::mnd_tips_v2')) ?? []).filter((x) => x.invoiceId === p?.id);
 dit('l équipe reçoit ses parts du pourboire (2 × 1 000 F)', tips.length === 2 && tips.reduce((n, x) => n + x.amountXof, 0) === 2000, JSON.stringify(tips.map((x) => x.amountXof)));
+dit('« Ticket suivant » repart', await clique('button', 'Ticket suivant'));
+await attend(500);
 dit('le ticket suivant repart vide de parts et de pourboire', (await evalue(`document.querySelector('#caisse-pourboire') === null || document.querySelector('#caisse-pourboire').value === '0'`)));
 dit('aucune erreur dans la page', erreurs.length === 0, erreurs.slice(0, 3).join(' | ') || 'aucune');
 

@@ -16,7 +16,7 @@ import { soinUtilise } from '../../../../shared/parrainage';
 import {
   useModelBands, useBandSets, pricingOf, personalPriceXof, prixFerme, estProposable,
 } from '../../../../shared/pricing';
-import { ClientPicker, useBranchAppointments, apptLabel, apptDueXof, apptNetXof, apptTotalXof, useServicesById, partsDuRituelXof, prixAFigerAuTicket, frShortAn } from '../clients/_shared';
+import { ClientPicker, RdvModal, useBranchAppointments, apptLabel, apptDueXof, apptNetXof, apptTotalXof, useServicesById, partsDuRituelXof, prixAFigerAuTicket, frShortAn } from '../clients/_shared';
 import { honoreALEncaissement } from '../clients/actions';
 import { appointmentsStore, useAppointments, venuesHonorees } from '../../../../shared/agenda';
 import { ClotureDuTiroir } from '../finances/ClotureDuTiroir';
@@ -45,6 +45,7 @@ import { cheminDeLaConversation } from '../../../../shared/conversations';
 import { RattacherUneCarte } from './RattacherUneCarte';
 import { leTicket, versementsDuTicket, ceQueLeRendezVousRecoit, lArgentDejaRecu, aDejaSaPiece, remiseDeLaLigneDuTicket, PALIER_DU_CODE_XOF, libelleDuCode } from './encaissement-pur';
 import { remisesDuPapier } from './pdf-de-la-piece';
+import { aEncaisserMaintenant, billetsRonds, moyenHabituel, offreAProposer, renduDeMonnaie } from './caisse-fluide-pur';
 import { ditCeQuiManque, familleDeTrace, traceAEcrire, traceSuffit, type TraceDuMoyen } from '../../../../shared/trace-du-moyen-pur';
 import { ChampsDeLaTrace } from './TraceDuMoyen';
 import { useStaff, adresseDe } from '../equipe/data';
@@ -97,6 +98,26 @@ const todayIso = () => {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 };
+
+/** UN TEMPS DE LA CAISSE — 24 octobre 2026 (maquette EUoSyHQd…) : un seul
+    ouvert à la fois, le temps fermé garde son résumé, comme « Encaisser le
+    rituel » du 17 octobre. */
+function TempsDeLaCaisse({ titre, resume, etat, fait, ouvert, onBascule, children }: {
+  titre: string; resume: string; etat: string; fait: boolean; ouvert: boolean; onBascule: () => void; children: React.ReactNode;
+}) {
+  return (
+    <section className={`trv-etape ${ouvert ? 'is-open' : ''}`}>
+      <button type="button" className="trv-etape__ligne" aria-expanded={ouvert} onClick={onBascule}>
+        <span style={{ minWidth: 0 }}>
+          <span className="trv-etape__titre">{titre}</span>
+          <span className={`trv-etape__resume ${fait ? 'is-fait' : ''}`}>{resume}</span>
+        </span>
+        <span className={`trv-etape__etat ${fait ? 'is-ok' : ''}`}>{etat}</span>
+      </button>
+      {ouvert && <div className="trv-etape__corps">{children}</div>}
+    </section>
+  );
+}
 
 const fmtDateFr = (iso: string) => {
   const d = new Date(iso + 'T00:00:00');
@@ -276,7 +297,12 @@ export default function Caisse() {
   const [avoirStr, setAvoirStr] = useState('0');
   /* Défaut = premier moyen de la liste gérée (Paramètres) — un « MTN MoMo » codé
      en dur devenait un Select vide si la maison renommait le moyen. */
-  const [pay, setPay] = useState<PaymentMethod>(methods[0] ?? 'Espèces');
+  /* LE MOYEN HABITUEL, CHOISI D'AVANCE — 24 octobre 2026 (arbitrage 2) :
+     celui de ses dernières venues ; une nouvelle cliente n'a rien de choisi,
+     la caissière touche le sien. Vide tant que rien n'est choisi. */
+  const [pay, setPay] = useState<PaymentMethod>('');
+  /* La main de la caissière passe devant l'habitude, jusqu'au ticket suivant. */
+  const payTouche = useRef(false);
   /* ══ MND PAY À LA CAISSE — 16 octobre 2026 (maquette UigU1Rr5…) ══════
      Le ticket garde un identifiant RÉSERVÉ dès sa naissance : la demande
      MND PAY le nomme comme sa pièce, et la pièce le prend en se fermant. Le
@@ -305,6 +331,19 @@ export default function Caisse() {
   /* La cliente choisie se dit en CHIP + « Changer » (maquette écran 3) — le
      sélecteur ne se rouvre que si on le demande, l'écran reste calme au rush. */
   const [changeCliente, setChangeCliente] = useState(false);
+  /* ══ LA CAISSE FLUIDE — 24 octobre 2026 (maquette EUoSyHQd…) ══════════
+     Trois temps (le ticket, les remises, comment elle paie), une seule
+     case de recherche, ce qui est à encaisser maintenant en tête, la monnaie
+     rendue, et un écran qui dit que c'est encaissé. */
+  const [tempsOuvert, setTempsOuvert] = useState<'ticket' | 'remises' | 'paie' | ''>('ticket');
+  const bascule = (t: 'ticket' | 'remises' | 'paie') => setTempsOuvert((cur) => (cur === t ? '' : t));
+  const [recherche, setRecherche] = useState('');
+  const [donneStr, setDonneStr] = useState('');
+  /* Le rendez-vous touché dans « À encaisser maintenant » : il se pose au
+     ticket une fois la cliente choisie, quand son catalogue est le sien. */
+  const [rituelAPrendre, setRituelAPrendre] = useState('');
+  const [reussite, setReussite] = useState<{ montant: string; detail: string; invoiceId: string; clientId: string; serviceIds: string[] } | null>(null);
+  const [rdvPour, setRdvPour] = useState<{ clientId: string; serviceIds: string[] } | null>(null);
   /* LE SOIN OFFERT DE LA MARRAINE — 28 septembre 2026. Celui qu'on offre sur
      ce ticket, et la ligne qu'il a passée à 100 %. Il ne se consomme qu'à
      l'encaissement, comme un code : un ticket abandonné ne le brûle pas. */
@@ -573,6 +612,9 @@ export default function Caisse() {
         tape: codeTape, codes, clientId, branchId: branch.id, maintenant: new Date().toISOString(),
       });
   const codePromo = !refusDuCode && !offreCodee && normaliseLeCode(codeTape) ? codeNominatif : undefined;
+  /* L'OFFRE QUI COURT SE PROPOSE, elle ne s'applique jamais en silence : un
+     geste (« Appliquer ») tape son code, et la règle d'aujourd'hui fait le reste. */
+  const offreProposee = offreAProposer(offresDeLaBranche, lignesRemisables, { codeTape });
   /* CE QUE LE CODE RETIRERAIT, en francs exacts, sur les prestations qu'il
      couvre. Jamais plus que sa base : une promotion n'est pas un crédit. */
   const promoBrutXof = codePromo ? remiseDuCode(codePromo, lignesRemisables)
@@ -646,6 +688,57 @@ export default function Caisse() {
      L'AVOIR TAPÉ AUSSI (reprise de la relecture) : la somme tapée pour A
      se posait aussitôt sur le compte de B, et l'avoir de B partait à
      l'encaissement sans que personne l'ait demandé. */
+  /* SON MOYEN HABITUEL (arbitrage 2), parmi ceux que la Caisse propose. */
+  const moyensDeLaCaisse = [...avecLesMoyensDeLaMaison(methods, pay), ...(mndOn ? [MND] : [])];
+  const habituel = moyenHabituel(invoices, clientId, moyensDeLaCaisse);
+  useEffect(() => {
+    if (!payTouche.current) setPay(habituel ?? '');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [clientId, habituel]);
+  useEffect(() => { setDonneStr(''); }, [pay]);
+  /* À ENCAISSER MAINTENANT (arbitrage 1) : du jour, au fauteuil ou fini, pas
+     encore réglé, le plus ancien en premier. */
+  const maintenantMin = new Date().getHours() * 60 + new Date().getMinutes();
+  const aEncaisser = useMemo(
+    () => aEncaisserMaintenant(carnet, { aujourdhui: todayIso(), maintenantMin, dejaSaPiece: (a) => aDejaSaPiece(a, invoices), duXof: (a) => apptDueXof(a, svcById) }),
+    [carnet, invoices, svcById, maintenantMin],
+  );
+  /* LA CASE UNIQUE : une cliente, une prestation, un produit ou une formation. */
+  const trouves = useMemo(() => {
+    const q = recherche.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    if (q.length < 2) return { clientes: [], articles: [] };
+    const plat = (t: string) => t.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    const chiffres = q.replace(/\D/g, '');
+    return {
+      clientes: branchClients.filter((c) => plat(c.name).includes(q) || (chiffres.length >= 3 && c.phone.replace(/\D/g, '').includes(chiffres))).slice(0, 5),
+      articles: Object.entries(flat).filter(([, it]) => plat(it.n).includes(q)).slice(0, 8),
+    };
+  }, [recherche, branchClients, flat]);
+  const prendsLeRendezVous = (id: string, cliente: string) => {
+    changeDeCliente(cliente);
+    setChangeCliente(false);
+    setRituelAPrendre(id);
+    setTempsOuvert('ticket');
+  };
+  useEffect(() => {
+    if (!rituelAPrendre) return;
+    const a = carnet.find((x) => x.id === rituelAPrendre);
+    if (!a || a.clientId !== clientId) return;
+    choisirRituel(rituelAPrendre);
+    setRituelAPrendre('');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rituelAPrendre, clientId, flat]);
+  const ticketSuivant = () => {
+    setReussite(null);
+    changeDeCliente('');
+    setChangeCliente(false);
+    payTouche.current = false;
+    setPay('');
+    setDonneStr('');
+    setRecuHint(null);
+    setWaHint(null);
+    setTempsOuvert('ticket');
+  };
   const changeDeCliente = (id: string) => {
     if (id !== clientId) {
       choisirRituel('');
@@ -668,9 +761,17 @@ export default function Caisse() {
   const partsXof = parts.reduce((n, x) => n + x.montantXof, 0);
   const resteApresParts = resteDuTicket(posCashDue, parts);
   const pourboire = Math.max(0, Math.round(Number(pourboireStr) || 0));
+  /* LA MONNAIE (arbitrage 3) : pour les espèces, ce qu'elle donne contre le
+     reste et le pourboire. Elle s'affiche au comptoir, la pièce n'en garde rien. */
+  const donne = Math.max(0, Math.round(Number(donneStr) || 0));
   const beneficiaires = team
     .filter((s) => s.branchId === branch.id)
     .map((s) => ({ id: s.id, part: s.partPourboire ?? PART_POURBOIRE_DEFAUT }));
+  const duEnEspeces = resteApresParts + (pourboire > 0 && beneficiaires.length ? pourboire : 0);
+  const monnaie = renduDeMonnaie(duEnEspeces, donne);
+  const enEspeces = pay === 'Espèces' && !fxOnEff;
+  /* Elle donne moins que le dû : on n'encaisse pas tout en espèces, on pose sa part. */
+  const especesCourtes = enEspeces && monnaie.manqueXof > 0;
   const fxRateNum = Math.max(0, Number(fxRate) || 0);
   const fxAmount = fxOnEff && fxRateNum > 0 ? Math.round((resteApresParts / fxRateNum) * 100) / 100 : 0;
   const partSaisie = Math.max(0, Math.round(Number(partStr) || 0));
@@ -679,6 +780,17 @@ export default function Caisse() {
   const famPay = pay === MND ? null : familleDeTrace(pay);
   const traceDuMoyenOk = !famPay || traceSuffit(famPay, traceCaisse);
   const partPossible = partSaisie > 0 && partSaisie < resteApresParts && pay !== MND && pay !== 'Lien WhatsApp' && !fxOnEff && traceDuMoyenOk;
+  /* Elle donne moins que le dû : ses billets deviennent une part en espèces,
+     et le reste attend un autre moyen, à choisir. */
+  const partEspecesPossible = enEspeces && donne > 0 && donne < resteApresParts;
+  const ajouteLaPartEnEspeces = () => {
+    if (!partEspecesPossible) return;
+    if (caisseANaitre) cashboxesStore.set((prev) => poseLaCaisse(prev, caisseANaitre));
+    setParts((prev) => [...prev, { id: `ip-${uid()}`, methode: pay, montantXof: donne, ...(activeCashbox ? { caisse: activeCashbox } : {}) }]);
+    setDonneStr('');
+    payTouche.current = false;
+    setPay('');
+  };
   const ajouteLaPart = () => {
     if (!partPossible) return;
     const trace = famPay ? traceAEcrire(famPay, traceCaisse) : undefined;
@@ -702,10 +814,12 @@ export default function Caisse() {
     if (lines.length === 0 || devisMissing.length > 0) return;
     if (pay === MND && !mndPay) return;
     if (!mndPay && resteApresParts > 0 && !traceDuMoyenOk) return;
+    /* Rien de choisi, ou des espèces qui ne couvrent pas le dû : on n'encaisse pas. */
+    if (!mndPay && resteApresParts > 0 && (!pay || especesCourtes)) return;
     if (submitting.current) return;
     /* La caisse du paiement naît au premier argent qui y entre (21 octobre
        2026 ; le chèque le faisait depuis le 18). */
-    if (caisseANaitre && !mndPay) cashboxesStore.set((prev) => poseLaCaisse(prev, caisseANaitre));
+    if (caisseANaitre && !mndPay && pay) cashboxesStore.set((prev) => poseLaCaisse(prev, caisseANaitre));
     submitting.current = true;
     try {
     const client = branchClients.find((c) => c.id === clientId);
@@ -927,7 +1041,7 @@ export default function Caisse() {
          Studio ne draine pas la réserve de l'Atelier. */
       const sansFiche: typeof vendus = [];
       for (const l of vendus) {
-        if (!venteGamme(l.key.slice(2), l.qty, inv.number, todayIso(), branch.id)) sansFiche.push(l);
+        if (!venteGamme(l.key.slice(2), l.qty, inv.number, dateVente, branch.id)) sansFiche.push(l);
       }
       if (sansFiche.length) {
         productsStore.set((prev) => prev.map((prod) => {
@@ -1017,6 +1131,25 @@ export default function Caisse() {
         parQui: session?.user?.email ?? undefined,
       }).then((r) => setRecuHint(r.ok ? (r.enAttente ? 'Reçu gardé : il partira sur son WhatsApp au retour du réseau.' : 'Reçu envoyé sur son WhatsApp.') : `Reçu non envoyé : ${r.erreur}`));
     }
+    /* L'ÉCRAN DE RÉUSSITE (arbitrage 4) : ce qui est entré, par quel moyen,
+       dans quelle caisse ; puis le ticket suivant ou son prochain rendez-vous. */
+    const entreXof = argentDuJour.reduce((n, v) => n + v.amountXof, 0);
+    setReussite({
+      montant: fmtMoney(entreXof, currency),
+      detail: [
+        client?.name ?? 'Cliente de passage',
+        argentDuJour.length ? moyensDits : (posAvoir > 0 ? 'par avoir' : 'rien à encaisser'),
+        inv.cashbox && argentDuJour.length === 1 ? `caisse ${inv.cashbox}` : '',
+        posAvoir > 0 && argentDuJour.length ? `avoir ${fmtMoney(posAvoir, currency)}` : '',
+        ticket.acompteXof > 0 ? `acompte déjà reçu ${fmtMoney(ticket.acompteXof, currency)}` : '',
+        avecPourboire ? `pourboire ${fmtMoney(pourboireRecu, currency)} pour l’équipe` : '',
+        enEspeces && monnaie.renduXof > 0 ? `monnaie rendue ${fmtMoney(monnaie.renduXof, currency)}` : '',
+      ].filter(Boolean).join(' · '),
+      invoiceId: inv.id,
+      clientId: client?.id ?? '',
+      serviceIds: lines.filter((l) => l.kind === 'service').map((l) => l.key.slice(2)),
+    });
+    setDonneStr('');
     setCart({});
     setTraceCaisse({});
     /* LA DATE REVIENT À AUJOURD'HUI. Laissée sur hier, elle ferait tomber la
@@ -1033,7 +1166,8 @@ export default function Caisse() {
     setPourboireStr('0');
     setParts([]);
     setPartStr('');
-    if (pay === MND) setPay(methods[0] ?? 'Espèces');
+    payTouche.current = false;
+    if (pay === MND) setPay('');
     } finally {
       submitting.current = false;
     }
@@ -1084,7 +1218,7 @@ export default function Caisse() {
             Caisse active
             {hasCashbox && !peutChangerPos ? (
               <span title={proposeePos.pourquoi} style={{ fontFamily: 'var(--font-serif)', fontSize: 15, color: 'var(--color-indigo)', textTransform: 'none', letterSpacing: 0 }}>
-                {activeCashbox}
+                {pay ? activeCashbox : 'selon le moyen'}
               </span>
             ) : hasCashbox ? (
               <select
@@ -1102,7 +1236,7 @@ export default function Caisse() {
               </select>
             ) : (
               <span style={{ fontFamily: 'var(--font-serif)', fontSize: 13, color: 'var(--ink-soft)', textTransform: 'none', letterSpacing: 0 }}>
-                {fxOn
+                {fxOnEff
                   ? `Aucune caisse en ${payCurrency}, créez-en une dans Dépenses`
                   : 'Aucune caisse, créez-en une dans Dépenses'}
               </span>
@@ -1159,7 +1293,48 @@ export default function Caisse() {
 
         <div className="trv-pos-grid">
           {/* — l'offre — */}
-          <div>
+          <div className="trv-pos-offre">
+            {/* LA CASE UNIQUE ET CE QUI EST À ENCAISSER MAINTENANT (24 octobre
+                2026, maquette EUoSyHQd…) : la Caisse ouvre sur ce qui attend
+                au comptoir, avant même de chercher un nom. */}
+            <div className="trv-maintenant">
+              <input className="mnd-input trv-recherche" type="search" value={recherche} onChange={(e) => setRecherche(e.target.value)}
+                placeholder="Cliente, prestation ou produit" aria-label="Chercher une cliente, une prestation ou un produit" />
+              {(trouves.clientes.length > 0 || trouves.articles.length > 0) && (
+                <div className="trv-choix-liste">
+                  {trouves.clientes.map((c) => (
+                    <button key={`c-${c.id}`} type="button" className="trv-choix" onClick={() => { changeDeCliente(c.id); setChangeCliente(false); setRecherche(''); setTempsOuvert('ticket'); }}>
+                      <span><span className="trv-choix__genre">Cliente</span>{c.name}</span>
+                    </button>
+                  ))}
+                  {trouves.articles.map(([cle, it]) => (
+                    <button key={`a-${cle}`} type="button" className="trv-choix" onClick={() => { add(cle); setRecherche(''); setTempsOuvert('ticket'); }}>
+                      <span><span className="trv-choix__genre">{it.kind === 'product' ? 'Produit' : it.kind === 'formation' ? 'Formation' : 'Prestation'}</span>{it.n}</span>
+                      <span className="trv-choix__montant">{it.mode === 'devis' ? 'sur devis' : it.mode === 'variable' ? `dès ${fmtMoney(it.priceXof, currency)}` : fmtMoney(it.priceXof, currency)}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+              {aEncaisser.length > 0 && (
+                <>
+                  <div className="trv-sec-label trv-sec-label--copper" style={{ margin: '4px 0 0' }}>À encaisser maintenant</div>
+                  <div className="trv-choix-liste">
+                    {aEncaisser.map((a) => {
+                      const nom = clients.find((c) => c.id === a.clientId)?.name ?? a.clientName ?? 'Cliente';
+                      return (
+                        <button key={`m-${a.id}`} type="button" className={`trv-choix ${apptToSettle === a.id ? 'is-on' : ''}`} onClick={() => prendsLeRendezVous(a.id, a.clientId!)}>
+                          <span>
+                            {nom} <small>· {apptLabel(a, svcById)}{a.master ? ` · ${a.master}` : ''}</small>
+                            <small className="trv-choix__etat">{a.status === 'honoré' ? 'honoré' : `depuis ${a.time}`}{a.depositConfirmed && Number(a.depositXof) > 0 ? ` · acompte reçu ${fmtMoney(Number(a.depositXof), currency)}` : ''}</small>
+                          </span>
+                          <span className="trv-choix__montant">{fmtMoney(apptDueXof(a, svcById), currency)}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </>
+              )}
+            </div>
             {/* Les gestes de la maison — le quotidien à un tap, le catalogue dessous. */}
             {gestes.length >= 3 && (
               <div style={{ marginBottom: 20 }}>
@@ -1232,9 +1407,25 @@ export default function Caisse() {
           <div className="trv-ticket">
             <div className="trv-ticket__head">
               <span className="t">Ticket</span>
-              <span style={{ fontFamily: 'var(--font-sans)', fontSize: 10, letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--copper-200)' }}>{activeCashbox || 'Caisse principale'}</span>
+              <span style={{ fontFamily: 'var(--font-sans)', fontSize: 10, letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--copper-200)' }}>{pay ? (activeCashbox || 'Caisse principale') : 'caisse selon le moyen'}</span>
             </div>
-            <div style={{ padding: '18px 22px' }}>
+            {reussite ? (
+              <div className="trv-reussite" aria-live="polite">
+                <span className="trv-reussite__coche">Encaissé</span>
+                <span className="trv-reussite__montant">{reussite.montant}</span>
+                <p>{reussite.detail}</p>
+                {recuHint && <p>{recuHint}</p>}
+                {waHint && <p>{waHint}</p>}
+                <div className="trv-reussite__boutons">
+                  <Button variant="copper" onClick={ticketSuivant}>Ticket suivant</Button>
+                  {reussite.clientId && <Button variant="ghost" onClick={() => setRdvPour({ clientId: reussite.clientId, serviceIds: reussite.serviceIds })}>Son prochain rendez-vous</Button>}
+                  <Button variant="ghost" onClick={() => navigate(`/factures?id=${reussite.invoiceId}`)}>Voir la pièce</Button>
+                </div>
+              </div>
+            ) : (
+            <>
+            <TempsDeLaCaisse titre="Le ticket" resume={lines.length ? `${posClient?.name ?? 'Sans fiche'} · ${lines.reduce((n, l) => n + l.qty, 0)} ligne${lines.reduce((n, l) => n + l.qty, 0) > 1 ? 's' : ''} · net ${fmtMoney(netXof, currency)}` : 'Une cliente, puis ce qu’elle règle'}
+              etat={lines.length ? 'prêt' : 'vide'} fait={lines.length > 0} ouvert={tempsOuvert === 'ticket'} onBascule={() => bascule('ticket')}>
               {/* La cliente et la longueur vivent désormais EN TÊTE d'écran
                   (trv-poshead) — le ticket commence au rituel du jour. */}
               {rituelsDuJour.length > 0 && (
@@ -1324,6 +1515,38 @@ export default function Caisse() {
                 </div>
               ))}
 
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: 16, fontFamily: 'var(--font-sans)', fontSize: 13, color: 'var(--ink-soft)' }}>
+                <span>Sous-total</span>
+                <span>{fmtMoney(Math.round(subXof), currency)}</span>
+              </div>
+              {/* CE QUE LE RENDEZ-VOUS APPORTE SE LIT (10 octobre 2026) : sa
+                  remise et l'argent qu'il a déjà reçu, sous le sous-total. */}
+              {ticket.remiseDuRendezVousXof > 0 && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: 8, fontFamily: 'var(--font-sans)', fontSize: 13, color: 'var(--copper-700)' }}>
+                  <span>Remise du rendez-vous</span>
+                  <span>−{fmtMoney(ticket.remiseDuRendezVousXof, currency)}</span>
+                </div>
+              )}
+              {ticket.acompteXof > 0 && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: 8, fontFamily: 'var(--font-sans)', fontSize: 13, color: 'var(--ink-soft)' }}>
+                  <span>Déjà reçu pour ce rendez-vous</span>
+                  <span>−{fmtMoney(ticket.acompteXof, currency)}</span>
+                </div>
+              )}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', padding: '14px 0 4px' }}>
+                <span style={{ fontFamily: 'var(--font-sans)', fontSize: 11, letterSpacing: '.18em', textTransform: 'uppercase', color: 'var(--color-indigo)' }}>Net à payer</span>
+                <span className="trv-net">{fmtMoney(aPayerXof, currency)}</span>
+              </div>
+            </TempsDeLaCaisse>
+            <TempsDeLaCaisse titre="Les remises" resume={[promoXof > 0 ? `${codePromo?.code ?? offreCodee?.code ?? ''} −${fmtMoney(promoXof, currency)}` : '', ticket.remisePct > 0 ? `−${ticket.remisePct} %` : '', ticket.remiseXof > 0 ? `−${fmtMoney(ticket.remiseXof, currency)}` : '', remiseGamme > 0 ? `gamme −${remiseGamme} %` : '', soinPose ? 'récompense posée' : ''].filter(Boolean).join(' · ') || (offreProposee ? `Aucune · l’offre ${offreProposee.offre.title} peut s’appliquer` : 'Aucune')}
+              etat="facultatif" fait={promoXof > 0 || ticket.remisePct > 0 || ticket.remiseXof > 0 || remiseGamme > 0 || !!soinPose} ouvert={tempsOuvert === 'remises'} onBascule={() => bascule('remises')}>
+              {/* L'OFFRE QUI COURT SE PROPOSE (24 octobre 2026) : un geste, jamais en silence. */}
+              {offreProposee && (
+                <div className="trv-propose">
+                  <span>L’offre <b>{offreProposee.offre.title}</b> court : <b>{offreProposee.offre.code}</b> retirerait {fmtMoney(offreProposee.retireXof, currency)} sur les prestations, hors gamme.</span>
+                  <button type="button" className="mnd-btn mnd-btn--copper mnd-btn--sm" onClick={() => setCodeTape(offreProposee.offre.code ?? '')}>Appliquer</button>
+                </div>
+              )}
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '16px 0', borderBottom: '1px solid var(--hairline)', flexWrap: 'wrap' }}>
                 <span style={{ fontFamily: 'var(--font-sans)', fontSize: 9.5, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--ink-soft)', maxWidth: 84, lineHeight: 1.3 }}>
                   Remise globale facture
@@ -1375,36 +1598,6 @@ export default function Caisse() {
                   aria-label={`Remise manuelle en ${currency}`}
                 />
                 <span style={{ fontFamily: 'var(--font-sans)', fontSize: 11, color: 'var(--ink-soft)' }}>{currency}</span>
-              </div>
-
-              {/* ── LA DATE DE LA VENTE — 15 septembre 2026 ────────────────
-                  « Permets-moi d'éditer les dates des ventes » (Yéman). Elle
-                  ne paraît EN CUIVRE que si l'on s'écarte d'aujourd'hui : un
-                  champ de date visible en permanence au-dessus du net à payer
-                  serait une invitation à se tromper cinquante fois par jour.
-                  Discrète quand elle dit « aujourd'hui », voyante dès qu'elle
-                  dit autre chose. */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '16px 0', borderBottom: '1px solid var(--hairline)', flexWrap: 'wrap' }}>
-                <span style={{ fontFamily: 'var(--font-sans)', fontSize: 9.5, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--ink-soft)', maxWidth: 84, lineHeight: 1.3 }}>
-                  Date de la vente
-                </span>
-                <ChampDeDate
-                  compact
-                  sens="arriere"
-                  value={dateVente}
-                  onChange={(iso) => setDateVente(iso || todayIso())}
-                  style={{ padding: '7px 10px', fontSize: 12 }}
-                />
-                {dateVente !== todayIso() && (
-                  <>
-                    <span style={{ fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--copper-700)', fontWeight: 600 }}>
-                      Cette vente ne comptera pas aujourd’hui.
-                    </span>
-                    <button type="button" className="trv-minibtn" onClick={() => setDateVente(todayIso())}>
-                      Revenir à aujourd’hui
-                    </button>
-                  </>
-                )}
               </div>
 
               {/* ── LE CODE DE PROMOTION ──────────────────────────────────
@@ -1460,44 +1653,6 @@ export default function Caisse() {
                 )}
               </div>
 
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: 16, fontFamily: 'var(--font-sans)', fontSize: 13, color: 'var(--ink-soft)' }}>
-                <span>Sous-total</span>
-                <span>{fmtMoney(Math.round(subXof), currency)}</span>
-              </div>
-              {/* CE QUE LE RENDEZ-VOUS APPORTE SE LIT (10 octobre 2026) : sa
-                  remise et l'argent qu'il a déjà reçu, sous le sous-total. */}
-              {ticket.remiseDuRendezVousXof > 0 && (
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: 8, fontFamily: 'var(--font-sans)', fontSize: 13, color: 'var(--copper-700)' }}>
-                  <span>Remise du rendez-vous</span>
-                  <span>−{fmtMoney(ticket.remiseDuRendezVousXof, currency)}</span>
-                </div>
-              )}
-              {ticket.acompteXof > 0 && (
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: 8, fontFamily: 'var(--font-sans)', fontSize: 13, color: 'var(--ink-soft)' }}>
-                  <span>Déjà reçu pour ce rendez-vous</span>
-                  <span>−{fmtMoney(ticket.acompteXof, currency)}</span>
-                </div>
-              )}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', padding: '14px 0 4px' }}>
-                <span style={{ fontFamily: 'var(--font-sans)', fontSize: 11, letterSpacing: '.18em', textTransform: 'uppercase', color: 'var(--color-indigo)' }}>Net à payer</span>
-                <span className="trv-net">{fmtMoney(aPayerXof, currency)}</span>
-              </div>
-              {/* LE POURBOIRE, EN MONTANT LIBRE (MND PAY, sa décision). Il
-                  n'entre ni dans la pièce ni dans le chiffre : il se partage
-                  entre toute l'équipe, comme à l'encaissement d'un rituel. */}
-              {lines.length > 0 && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 0 4px', flexWrap: 'wrap' }}>
-                  <label htmlFor="caisse-pourboire" style={{ fontFamily: 'var(--font-sans)', fontSize: 9.5, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--ink-soft)', maxWidth: 84, lineHeight: 1.3 }}>
-                    Pourboire
-                  </label>
-                  <input id="caisse-pourboire" className="mnd-input" type="number" min={0} inputMode="numeric" value={pourboireStr}
-                    onChange={(e) => setPourboireStr(e.target.value)} style={{ width: 130, textAlign: 'right' }} aria-label={`Pourboire libre en ${currency}`} />
-                  <span style={{ fontFamily: 'var(--font-sans)', fontSize: 11, color: 'var(--ink-soft)' }}>
-                    {pourboire > 0 ? (beneficiaires.length ? `pour l’équipe, en plus de ${fmtMoney(aPayerXof, currency)}` : 'aucune équipe sur cette branche : il ne sera pas noté') : 'facultatif, pour l’équipe'}
-                  </span>
-                </div>
-              )}
-
               {soinsDispo.length > 0 && (
                 <div style={{ marginTop: 12, border: '1px solid var(--copper-300)', borderRadius: 'var(--radius-md)', background: 'var(--copper-50)', padding: '10px 12px', display: 'grid', gap: 8 }}>
                   <span style={{ fontFamily: 'var(--font-sans)', fontSize: 9.5, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--copper-700)' }}>Ses récompenses · une par ticket</span>
@@ -1524,6 +1679,9 @@ export default function Caisse() {
                 </div>
               )}
 
+            </TempsDeLaCaisse>
+            <TempsDeLaCaisse titre="Comment elle paie" resume={pay ? `${pay}${pay !== MND && activeCashbox ? ` · caisse ${activeCashbox}` : ''}${posAvoir > 0 ? ` + avoir ${fmtMoney(posAvoir, currency)}` : ''}${partsXof > 0 ? ` · ${parts.length} part${parts.length > 1 ? 's' : ''} déjà posée${parts.length > 1 ? 's' : ''}` : ''}${pourboire > 0 ? ` · pourboire ${fmtMoney(pourboire, currency)}` : ''}` : (lines.length && resteApresParts === 0 ? 'Rien à encaisser en plus' : 'Le moyen, la caisse, le pourboire')}
+              etat={lines.length && (pay || resteApresParts === 0) ? 'fait' : 'à remplir'} fait={lines.length > 0 && (!!pay || resteApresParts === 0)} ouvert={tempsOuvert === 'paie'} onBascule={() => bascule('paie')}>
               {posAvoirBal > 0 && aPayerXof > 0 && (
                 <div style={{ marginTop: 12, border: '1px solid var(--copper-300)', borderLeft: '3px solid var(--color-copper)', borderRadius: 'var(--radius-md)', background: 'var(--copper-50)', padding: '10px 12px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
@@ -1550,10 +1708,6 @@ export default function Caisse() {
                   <RattacherUneCarte porteur={posAccount} clientId={posClient.id} nom={posClient.name.split(' ')[0]} compact />
                 </div>
               )}
-            </div>
-
-            <div style={{ padding: '8px 22px 22px' }}>
-              <div className="trv-sec-label trv-sec-label--copper" style={{ margin: '6px 0 12px' }}>Paiement</div>
               {/* La capture du transfert remplit le moyen, la date de la vente et la part (19 octobre 2026) ; la référence se dit, le ticket garde ses règles. */}
               <DeposerUneCapture clientId={posClient?.id}
                 onLecture={(l) => { const m = methodeDuMoyenLu(l.moyen, methods); if (m) setPay(m); setDateVente(l.jour); setPartStr(String(l.montantXof)); }} />
@@ -1561,7 +1715,7 @@ export default function Caisse() {
                   ou le QR de la carte, confirmés par FedaPay. */}
               {mndOn && (
                 <button type="button" className={`trv-pay ${pay === MND ? 'is-active' : ''}`} style={{ width: '100%', marginBottom: 10, borderColor: 'var(--copper-300)' }}
-                  onClick={() => setPay(MND)} aria-pressed={pay === MND}>
+                  onClick={() => { payTouche.current = true; setPay(MND); }} aria-pressed={pay === MND}>
                   <div className="n">MND PAY</div>
                   <div className="s">mobile money au téléphone · carte par QR · confirmé seul</div>
                 </button>
@@ -1569,16 +1723,48 @@ export default function Caisse() {
               <div className="tr-grid tr-grid--2" style={{ gap: 10 }}>
                 {avecLesMoyensDeLaMaison(methods, pay).map((m) => (
                   <button key={m} className={`trv-pay ${pay === m ? 'is-active' : ''}`} onClick={() => {
+                    payTouche.current = true;
                     if (m !== pay) setTraceCaisse({});
                     setPay(m);
                     const d = deviseDuMoyen(m);
                     if (d) setFxRate(String(rateToXof(d) || ''));
                   }}>
                     <div className="n">{m}</div>
-                    <div className="s">{PAY_SUB[m] ?? 'Paiement'}</div>
+                    <div className="s">{habituel === m ? 'son habituel' : PAY_SUB[m] ?? 'Paiement'}</div>
                   </button>
                 ))}
               </div>
+              {/* LA CAISSE SE DIT EN CLAIR, plus seulement au survol (24 octobre 2026). */}
+              {pay && pay !== MND && lines.length > 0 && resteApresParts > 0 && hasCashbox && (
+                <div className="trv-caisse-dite">Caisse : <b>{activeCashbox}</b>. {proposeePos.pourquoi}</div>
+              )}
+              {/* LA MONNAIE RENDUE (arbitrage 3) : pour les espèces seulement. */}
+              {enEspeces && lines.length > 0 && resteApresParts > 0 && (
+                <div className="trv-rendu">
+                  <label htmlFor="caisse-donne" className="trv-rendu__lb">Elle donne</label>
+                  <div className="trv-rendu__ligne">
+                    <input id="caisse-donne" className="mnd-input" type="number" min={0} inputMode="numeric" value={donneStr} onChange={(e) => setDonneStr(e.target.value)}
+                      placeholder={String(duEnEspeces)} style={{ width: 150, textAlign: 'right' }} aria-label={`Ce qu’elle donne en ${currency}`} />
+                    {billetsRonds(duEnEspeces).map((b) => (
+                      <button key={b} type="button" className={`trv-pill ${donne === b ? 'is-active' : ''}`} onClick={() => setDonneStr(String(b))}>
+                        {b === duEnEspeces ? 'Le compte exact' : fmtMoney(b, currency)}
+                      </button>
+                    ))}
+                  </div>
+                  {donne > 0 && (monnaie.manqueXof > 0 ? (
+                    <div className="trv-rendu__manque">
+                      Il manque {fmtMoney(monnaie.manqueXof, currency)}.
+                      {partEspecesPossible && (
+                        <button type="button" className="mnd-btn mnd-btn--ghost mnd-btn--sm" onClick={ajouteLaPartEnEspeces}>
+                          Encaisser ses {fmtMoney(donne, currency)} en espèces, le reste par un autre moyen
+                        </button>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="trv-rendu__rendre">{monnaie.renduXof > 0 ? `Rendre ${fmtMoney(monnaie.renduXof, currency)}` : 'Le compte est exact'}</div>
+                  ))}
+                </div>
+              )}
               {/* ZELLE, NOTÉ À LA MAIN : rien ne le confirme seul. On donne
                   l'adresse à la cliente, et l'on encaisse quand le relevé
                   américain montre l'argent. */}
@@ -1693,42 +1879,55 @@ export default function Caisse() {
                 </div>
               )}
 
-              {pay === MND ? (
-                <PanneauMndPay
-                  style={{ marginTop: 16 }}
-                  branchId={branch.id}
-                  pieceId={ticketId}
-                  clientId={posClient?.id}
-                  telephone={posClient?.phone}
-                  cliente={posClient}
-                  montantXof={resteApresParts}
-                  pourboireXof={pourboire}
-                  libelle={`${maisonNom()} · ${posClient ? posClient.name.split(' ')[0] : 'ticket du comptoir'}`}
-                  currency={currency}
-                  reglages={reglagesMnd}
-                  onPayee={(d) => void checkout(d)}
-                />
-              ) : (
-              <Button
-                variant="copper"
-                size="lg"
-                style={{ marginTop: 16, width: '100%' }}
-                /* On encaisse même sans caisse configurée (la vente est tracée par
-                   la facture, tiroir « Caisse principale » par défaut). On EXIGE une
-                   caisse UNIQUEMENT en devise étrangère : verser des euros au tiroir
-                   en francs fausserait les deux soldes. Et JAMAIS un sur-devis sans
-                   montant : une œuvre vendue 0 F par inattention. */
-                disabled={lines.length === 0 || devisMissing.length > 0 || (fxOnEff && resteApresParts > 0 && (!hasCashbox || fxAmount <= 0)) || (resteApresParts > 0 && !traceDuMoyenOk)}
-                title={resteApresParts > 0 && !traceDuMoyenOk && famPay ? ditCeQuiManque(famPay) : undefined}
-                onClick={() => void checkout()}
-              >
-                {posCashDue === 0 && posAvoir > 0
-                  ? `Encaisser par avoir · ${fmtMoney(posAvoir, currency)}`
-                  : <>Encaisser {fxOnEff && fxAmount > 0
-                      ? `${fxAmount.toLocaleString('fr-FR', { maximumFractionDigits: 2 })} ${fxCodeEff}`
-                      : fmtMoney(resteApresParts, currency)}{pourboire > 0 && beneficiaires.length ? ` + pourboire ${fmtMoney(pourboire, currency)}` : ''}</>}
-              </Button>
+              {/* LE POURBOIRE, EN MONTANT LIBRE (MND PAY, sa décision). Il
+                  n'entre ni dans la pièce ni dans le chiffre : il se partage
+                  entre toute l'équipe, comme à l'encaissement d'un rituel. */}
+              {lines.length > 0 && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 0 4px', flexWrap: 'wrap' }}>
+                  <label htmlFor="caisse-pourboire" style={{ fontFamily: 'var(--font-sans)', fontSize: 9.5, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--ink-soft)', maxWidth: 84, lineHeight: 1.3 }}>
+                    Pourboire
+                  </label>
+                  <input id="caisse-pourboire" className="mnd-input" type="number" min={0} inputMode="numeric" value={pourboireStr}
+                    onChange={(e) => setPourboireStr(e.target.value)} style={{ width: 130, textAlign: 'right' }} aria-label={`Pourboire libre en ${currency}`} />
+                  {[1000, 2000, 5000].map((v) => (
+                    <button key={v} type="button" className={`trv-pill ${pourboire === v ? 'is-active' : ''}`} onClick={() => setPourboireStr(String(v))}>{fmtMoney(v, currency)}</button>
+                  ))}
+                  <span style={{ fontFamily: 'var(--font-sans)', fontSize: 11, color: 'var(--ink-soft)' }}>
+                    {pourboire > 0 ? (beneficiaires.length ? `pour l’équipe, en plus de ${fmtMoney(aPayerXof, currency)}` : 'aucune équipe sur cette branche : il ne sera pas noté') : 'facultatif, pour l’équipe'}
+                  </span>
+                </div>
               )}
+
+              {/* ── LA DATE DE LA VENTE — 15 septembre 2026 ────────────────
+                  « Permets-moi d'éditer les dates des ventes » (Yéman). Elle
+                  ne paraît EN CUIVRE que si l'on s'écarte d'aujourd'hui : un
+                  champ de date visible en permanence au-dessus du net à payer
+                  serait une invitation à se tromper cinquante fois par jour.
+                  Discrète quand elle dit « aujourd'hui », voyante dès qu'elle
+                  dit autre chose. */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '16px 0', borderBottom: '1px solid var(--hairline)', flexWrap: 'wrap' }}>
+                <span style={{ fontFamily: 'var(--font-sans)', fontSize: 9.5, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--ink-soft)', maxWidth: 84, lineHeight: 1.3 }}>
+                  Date de la vente
+                </span>
+                <ChampDeDate
+                  compact
+                  sens="arriere"
+                  value={dateVente}
+                  onChange={(iso) => setDateVente(iso || todayIso())}
+                  style={{ padding: '7px 10px', fontSize: 12 }}
+                />
+                {dateVente !== todayIso() && (
+                  <>
+                    <span style={{ fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--copper-700)', fontWeight: 600 }}>
+                      Cette vente ne comptera pas aujourd’hui.
+                    </span>
+                    <button type="button" className="trv-minibtn" onClick={() => setDateVente(todayIso())}>
+                      Revenir à aujourd’hui
+                    </button>
+                  </>
+                )}
+              </div>
+
               {posClient?.phone && pay !== 'Lien WhatsApp' && lines.length > 0 && (
                 <label style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 10, fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--ink-soft)' }}>
                   <input type="checkbox" checked={envoyerRecu} onChange={(e) => setEnvoyerRecu(e.target.checked)} />
@@ -1747,7 +1946,57 @@ export default function Caisse() {
               <div style={{ textAlign: 'center', marginTop: 10, fontFamily: 'var(--font-sans)', fontSize: 11, color: 'var(--ink-soft)' }}>
                 {mndOn ? 'Reçu WhatsApp · MND PAY se rapproche seul, le code MoMo se rapproche au relevé.' : 'Reçu WhatsApp · le code MoMo se rapproche au relevé.'}
               </div>
+            </TempsDeLaCaisse>
+              {pay === MND && (
+                <PanneauMndPay
+                  style={{ marginTop: 16 }}
+                  branchId={branch.id}
+                  pieceId={ticketId}
+                  clientId={posClient?.id}
+                  telephone={posClient?.phone}
+                  cliente={posClient}
+                  montantXof={resteApresParts}
+                  pourboireXof={pourboire}
+                  libelle={`${maisonNom()} · ${posClient ? posClient.name.split(' ')[0] : 'ticket du comptoir'}`}
+                  currency={currency}
+                  reglages={reglagesMnd}
+                  onPayee={(d) => void checkout(d)}
+                />
+              )}
+            {/* LA BARRE COLLANTE DU TICKET (bureau) : le net, le moyen, la caisse,
+                et le seul bouton. Au téléphone, la barre du pouce fait le même geste. */}
+            <div className="trv-ticket__pied">
+              <div className="trv-ticket__pied-info">
+                <span className="lb">Net à payer</span>
+                <span className="v">{fmtMoney(aPayerXof, currency)}</span>
+                <span className="m">{pay ? `${pay}${pay !== MND && activeCashbox ? ` · caisse ${activeCashbox}` : ''}` : (lines.length && resteApresParts > 0 ? 'choisissez le moyen' : '')}{remisesXof > 0 ? ` · remises −${fmtMoney(remisesXof, currency)}` : ''}</span>
+              </div>
+              {pay === MND ? (
+                <span className="trv-ticket__pied-mnd">La demande MND PAY ferme le ticket dès que FedaPay confirme.</span>
+              ) : (
+              <Button
+                variant="copper"
+                size="lg"
+                style={{ flex: 'none' }}
+                /* On encaisse même sans caisse configurée (la vente est tracée par
+                   la facture, tiroir « Caisse principale » par défaut). On EXIGE une
+                   caisse UNIQUEMENT en devise étrangère : verser des euros au tiroir
+                   en francs fausserait les deux soldes. Et JAMAIS un sur-devis sans
+                   montant : une œuvre vendue 0 F par inattention. */
+                disabled={(resteApresParts > 0 && (!pay || especesCourtes)) || lines.length === 0 || devisMissing.length > 0 || (fxOnEff && resteApresParts > 0 && (!hasCashbox || fxAmount <= 0)) || (resteApresParts > 0 && !traceDuMoyenOk)}
+                title={resteApresParts > 0 && !pay ? 'Choisissez le moyen de paiement' : especesCourtes ? 'Elle donne moins que le dû : posez sa part en espèces' : resteApresParts > 0 && !traceDuMoyenOk && famPay ? ditCeQuiManque(famPay) : undefined}
+                onClick={() => void checkout()}
+              >
+                {posCashDue === 0 && posAvoir > 0
+                  ? `Encaisser par avoir · ${fmtMoney(posAvoir, currency)}`
+                  : <>Encaisser {fxOnEff && fxAmount > 0
+                      ? `${fxAmount.toLocaleString('fr-FR', { maximumFractionDigits: 2 })} ${fxCodeEff}`
+                      : fmtMoney(resteApresParts, currency)}{pourboire > 0 && beneficiaires.length ? ` + pourboire ${fmtMoney(pourboire, currency)}` : ''}</>}
+              </Button>
+              )}
             </div>
+            </>
+            )}
           </div>
 
           {/* LE TOTAL ANCRÉ EN ZONE DU POUCE — téléphone seulement (CSS). Sous
@@ -1755,13 +2004,13 @@ export default function Caisse() {
               et « Encaisser » vivaient au fond du défilement. La barre dit le
               net, les remises déduites et le moyen retenu ; le bouton est le
               MÊME geste que celui du ticket, mêmes gardes. */}
-          {lines.length > 0 && (
+          {lines.length > 0 && !reussite && (
             <div className="trv-totalbar">
               <div className="trv-totalbar__info">
                 <span className="lb">Net à payer</span>
                 <span className="v">{fmtMoney(aPayerXof, currency)}</span>
                 <span className="m">
-                  {posCashDue === 0 && posAvoir > 0 ? 'par avoir' : pay}
+                  {posCashDue === 0 && posAvoir > 0 ? 'par avoir' : pay || 'choisissez le moyen'}
                   {remisesXof > 0 ? ` · remises −${fmtMoney(remisesXof, currency)}` : ''}
                 </span>
               </div>
@@ -1769,7 +2018,7 @@ export default function Caisse() {
                   ce bouton : il mène au panneau. */}
               <button
                 className="trv-totalbar__go"
-                disabled={lines.length === 0 || devisMissing.length > 0 || (pay !== MND && fxOnEff && resteApresParts > 0 && (!hasCashbox || fxAmount <= 0))}
+                disabled={lines.length === 0 || devisMissing.length > 0 || (pay !== MND && fxOnEff && resteApresParts > 0 && (!hasCashbox || fxAmount <= 0)) || (pay !== MND && resteApresParts > 0 && (!pay || especesCourtes)) || (pay !== MND && resteApresParts > 0 && !traceDuMoyenOk)}
                 onClick={() => {
                   if (pay === MND) { document.querySelector('[data-mnd-pay="panneau"]')?.scrollIntoView({ behavior: 'smooth', block: 'center' }); return; }
                   void checkout();
@@ -1910,6 +2159,8 @@ export default function Caisse() {
           </div>
         </div>
       )}
+      {/* SON PROCHAIN RENDEZ-VOUS, ouvert depuis l'écran de réussite (24 octobre 2026). */}
+      {rdvPour && <RdvModal title="Son prochain rendez-vous" initial={{ clientId: rdvPour.clientId, serviceIds: rdvPour.serviceIds }} onClose={() => setRdvPour(null)} />}
     </div>
   );
 }

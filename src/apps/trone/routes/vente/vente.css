@@ -237,7 +237,9 @@
   background: var(--surface-card);
   border: 1px solid var(--hairline);
   border-radius: var(--radius-md);
-  overflow: hidden;
+  /* clip et non hidden (24 octobre 2026) : hidden ferait du ticket le
+     conteneur de défilement, et sa barre ne resterait plus collée en bas. */
+  overflow: clip;
   box-shadow: var(--shadow-md);
 }
 .trv-ticket__head {
@@ -1500,3 +1502,79 @@
 .mndpay-roue { width: 18px; height: 18px; border-radius: 50%; border: 2px solid var(--copper-300, #E2D0BC); border-top-color: var(--copper-700, #9A6036); animation: mndpay-tourne 1s linear infinite; flex: none; }
 @keyframes mndpay-tourne { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .mndpay-roue { animation: none; } }
+
+
+/* ══ LA CAISSE FLUIDE — 24 octobre 2026 (maquette EUoSyHQd…) ════════════
+   La case unique et « À encaisser maintenant » à gauche ; le ticket en trois
+   temps, un seul ouvert ; la barre collante ; l'écran de réussite. */
+.trv-maintenant { display: flex; flex-direction: column; gap: 10px; margin-bottom: 22px; }
+.trv-recherche { width: 100%; font-size: 15px; }
+.trv-choix-liste { display: flex; flex-direction: column; gap: 6px; }
+.trv-choix {
+  display: flex; justify-content: space-between; align-items: baseline; gap: 12px; width: 100%;
+  padding: 10px 12px; border: 1px solid var(--hairline); border-radius: var(--radius-md);
+  background: var(--surface-card); color: var(--ink); font-family: var(--font-sans); font-size: 14px;
+  text-align: left; cursor: pointer;
+}
+.trv-choix:hover { border-color: var(--copper-300); }
+.trv-choix.is-on { border-color: var(--color-indigo); box-shadow: inset 0 0 0 1px var(--color-indigo); }
+.trv-choix small { color: var(--ink-soft); font-size: 12px; }
+.trv-choix__genre { font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: var(--copper-700); margin-right: 8px; }
+.trv-choix__etat { display: block; }
+.trv-choix__montant { font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+.trv-etape { border-bottom: 1px solid var(--hairline); }
+.trv-etape__ligne {
+  width: 100%; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; align-items: baseline;
+  padding: 15px 22px; background: none; border: 0; text-align: left; cursor: pointer; color: inherit; font: inherit;
+}
+.trv-etape__ligne:focus-visible { outline: 2px solid var(--color-copper); outline-offset: -2px; }
+.trv-etape__titre { display: block; font-family: var(--font-serif); font-size: 21px; color: var(--color-indigo); line-height: 1.2; }
+.trv-etape__resume { display: block; font-family: var(--font-sans); font-size: 12.5px; color: var(--ink-soft); margin-top: 2px; overflow-wrap: anywhere; }
+.trv-etape__resume.is-fait { color: var(--ink); }
+.trv-etape__etat { font-family: var(--font-sans); font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-soft); white-space: nowrap; }
+.trv-etape__etat.is-ok { color: #41604A; }
+.trv-etape__corps { padding: 0 22px 18px; }
+
+.trv-propose {
+  display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;
+  margin: 4px 0 10px; padding: 11px 13px; border: 1px solid var(--copper-300); border-radius: var(--radius-md);
+  background: var(--copper-50); font-family: var(--font-sans); font-size: 13px; color: var(--ink);
+}
+.trv-propose b { color: var(--color-indigo); font-weight: 500; }
+.trv-caisse-dite { margin-top: 10px; font-family: var(--font-sans); font-size: 12px; color: var(--ink-soft); line-height: 1.5; }
+.trv-caisse-dite b { color: var(--color-indigo); font-weight: 500; }
+.trv-rendu { margin-top: 12px; padding: 12px; border: 1px solid var(--hairline); border-radius: var(--radius-md); background: var(--surface-card); display: grid; gap: 8px; }
+.trv-rendu__lb { font-family: var(--font-sans); font-size: 9.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--copper-700); }
+.trv-rendu__ligne { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.trv-rendu__rendre { font-family: var(--font-serif); font-size: 26px; color: var(--color-indigo); line-height: 1.1; font-variant-numeric: tabular-nums; }
+.trv-rendu__manque { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; font-family: var(--font-sans); font-size: 13px; color: #96412E; }
+
+.trv-ticket__pied {
+  position: sticky; bottom: 0; z-index: 2;
+  display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap;
+  padding: 12px 22px; background: var(--color-indigo); color: var(--color-ivoire);
+}
+.trv-ticket__pied-info { display: flex; flex-direction: column; min-width: 0; flex: 1 1 200px; }
+.trv-ticket__pied-info .lb { font-family: var(--font-sans); font-size: 9.5px; letter-spacing: .16em; text-transform: uppercase; color: var(--copper-200); }
+.trv-ticket__pied-info .v { font-family: var(--font-serif); font-size: 28px; line-height: 1.1; color: var(--color-ivoire); font-variant-numeric: tabular-nums; }
+.trv-ticket__pied-info .m { font-family: var(--font-sans); font-size: 12px; color: var(--copper-200); overflow-wrap: anywhere; }
+.trv-ticket__pied-mnd { font-family: var(--font-sans); font-size: 12px; color: var(--copper-200); max-width: 26ch; }
+/* Au téléphone, la barre du pouce fait le même geste : une seule barre à la fois. */
+@media (max-width: 1100px) { .trv-ticket__pied { display: none; } }
+
+.trv-reussite { padding: 26px 22px; display: flex; flex-direction: column; align-items: flex-start; gap: 10px; }
+.trv-reussite__coche { font-family: var(--font-sans); font-size: 10.5px; letter-spacing: .18em; text-transform: uppercase; color: #41604A; }
+.trv-reussite__montant { font-family: var(--font-serif); font-size: 40px; line-height: 1; color: var(--color-indigo); font-variant-numeric: tabular-nums; }
+.trv-reussite p { margin: 0; font-family: var(--font-sans); font-size: 13.5px; color: var(--ink-soft); line-height: 1.5; }
+.trv-reussite__boutons { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 6px; }
+
+/* AU TÉLÉPHONE, LE TICKET NE TOMBE PLUS SOUS TOUT LE CATALOGUE (24 octobre
+   2026) : la case et « À encaisser maintenant » en tête, puis le ticket, puis
+   l'offre. La colonne de gauche s'efface pour que ses enfants se rangent. */
+@media (max-width: 1100px) {
+  .trv-pos-offre { display: contents; }
+  .trv-pos-offre > * { order: 3; }
+  .trv-pos-offre > .trv-maintenant { order: 1; margin-bottom: 0; }
+  .trv-pos-grid > .trv-ticket { order: 2; }
+}
