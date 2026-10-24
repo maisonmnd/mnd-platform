@@ -167,3 +167,71 @@ export const graveLesLignesReglees = (
   lignes?.map((l) => (!l.regleeAt && (panier[l.id] ?? 0) >= Math.max(1, Math.round(l.qty || 1))
     ? { ...l, regleeAt: jourIso }
     : l));
+
+/* ══ LA GAMME PAYÉE AILLEURS QUE DANS « ENCAISSER LE RITUEL » — 24 octobre 2026 ══
+   « Elle a payé 76 000 F hier ; quand j'ouvre son rendez-vous, il reste à
+   encaisser 9 000 F pour la Gamme. Ça ne reconnaît pas le paiement des
+   9 000 F inclus dans le total » (Yéman, A. S.). La Caisse du comptoir met la
+   Gamme du rendez-vous sur son ticket et l'encaisse, mais elle ne gravait pas
+   les lignes « réglées » sur le rendez-vous : seul « Encaisser le rituel » le
+   faisait. Le rendez-vous redemandait donc des flacons déjà payés.
+
+   La Caisse grave désormais au moment du ticket. Pour les rendez-vous déjà
+   encaissés ainsi, la Gamme se relit sur LES PIÈCES PAYÉES DU RENDEZ-VOUS :
+   une ligne dont la quantité y figure (par son produit, ou par son nom sur
+   les tickets de la Caisse, qui n'écrivent que le libellé) est réglée, au
+   jour de la pièce. Pur : ni magasin ni horloge ; le banc
+   verifie-la-gamme-payee-a-la-caisse le rejoue. */
+
+export type PieceDeLaGamme = {
+  id: string;
+  kind?: string;
+  status?: string;
+  date: string;
+  apptId?: string;
+  lines?: readonly { label: string; qty: number; produitId?: string }[];
+};
+
+/** Les pièces de ce rendez-vous : la sienne, celles de ses versements, celle
+    qui le désigne. */
+export function piecesDuRendezVous<P extends PieceDeLaGamme>(
+  a: { id: string; invoiceId?: string; payments?: readonly { invoiceId?: string }[] },
+  pieces: readonly P[],
+): P[] {
+  const ids = new Set([a.invoiceId, ...(a.payments ?? []).map((p) => p.invoiceId)].filter((x): x is string => !!x));
+  return pieces.filter((p) => ids.has(p.id) || p.apptId === a.id);
+}
+
+const nomPlat = (s: string | undefined): string =>
+  (s ?? '').normalize('NFD').replace(/\p{Diacritic}/gu, '').replace(/\s+/g, ' ').trim().toLowerCase();
+
+/** LA GAMME RELUE SUR SES PIÈCES PAYÉES. Rend le même tableau quand rien ne
+    change (l'appelant sait alors qu'il n'a rien à écrire). */
+export function gammePayeeSurSesPieces(
+  lignes: readonly LigneGamme[] | undefined,
+  pieces: readonly PieceDeLaGamme[],
+  nomDuProduit: (id: string) => string | undefined,
+): readonly LigneGamme[] | undefined {
+  if (!lignes?.some((l) => !l.regleeAt)) return lignes;
+  const payees = pieces.filter((p) => p.kind === 'facture' && p.status === 'payée');
+  if (payees.length === 0) return lignes;
+  let change = false;
+  const suite = lignes.map((l) => {
+    if (l.regleeAt) return l;
+    const nom = nomPlat(nomDuProduit(l.id));
+    let qte = 0;
+    let jour = '';
+    for (const p of payees) {
+      for (const x of p.lines ?? []) {
+        const meme = x.produitId ? x.produitId === l.id : !!nom && nomPlat(x.label) === nom;
+        if (!meme) continue;
+        qte += Math.max(0, Math.round(x.qty || 0));
+        if (p.date > jour) jour = p.date;
+      }
+    }
+    if (qte < Math.max(1, Math.round(l.qty || 1)) || !jour) return l;
+    change = true;
+    return { ...l, regleeAt: jour };
+  });
+  return change ? suite : lignes;
+}

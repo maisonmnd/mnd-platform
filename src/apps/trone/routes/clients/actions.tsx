@@ -16,7 +16,8 @@ import { invoicesStore, cashboxesStore, useCashboxes, caissesPourLaDate, invoice
 import { detailDuForfait } from '../../../../shared/kids';
 import { holderOf, payerClientIdOf, estDependant } from '../../../../shared/accounts';
 import { venteGamme, fichePourGamme, stockDe, useMouvementsStock } from '../../../../shared/stock';
-import { graveLesLignesReglees, ligneNetteXof, lignesARegler } from '../../../../shared/gamme';
+import { gammePayeeSurSesPieces, graveLesLignesReglees, ligneNetteXof, lignesARegler, piecesDuRendezVous } from '../../../../shared/gamme';
+import { useLaGammePayeeRegravee } from './gamme-payee';
 import { duDuCompte, peutPartirDevant, tetesDuCompte } from '../../../../shared/compte';
 import { useModelBands, useBandSets, pricingOf, personalPriceXof, splitByWeights } from '../../../../shared/pricing';
 import { pointsRateStore, pointsHistoryStore, pointsEnabledStore, estDuCercle, cercleSeuilStore } from '../../../../shared/offers';
@@ -1147,7 +1148,16 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour, init
 
      LE PANIER S'OUVRE DONC DÉJÀ REMPLI, et le bloc avec lui : ce qu'on a
      promis se voit, et se décoche si elle change d'avis. */
-  const gammePromise = appt.gamme ?? [];
+  /* LA GAMME DÉJÀ PAYÉE AILLEURS SE RECONNAÎT — 24 octobre 2026 : une ligne
+     que les pièces payées du rendez-vous couvrent (un ticket de la Caisse du
+     comptoir) n'est plus redemandée ; elle se regrave une fois par séance
+     (`useLaGammePayeeRegravee`). */
+  const [produitsCatalogue] = useProducts();
+  const [piecesDeLaGamme] = useInvoices();
+  useLaGammePayeeRegravee();
+  const gammePromise = gammePayeeSurSesPieces(
+    appt.gamme, piecesDuRendezVous(appt, piecesDeLaGamme), (id) => produitsCatalogue.find((p) => p.id === id)?.name,
+  ) ?? [];
   /* CE QUI RESTE À RÉGLER, ET RIEN D'AUTRE. Une ligne déjà gravée remplissait
      le panier une seconde fois à la réouverture de cet écran : le même flacon
      se serait facturé deux fois. */
@@ -1159,7 +1169,6 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour, init
       .filter(([, q]) => (q as number) > 0)),
   );
 
-  const [produitsCatalogue] = useProducts();
   const [mouvementsStock] = useMouvementsStock();
   /* Rangés comme au catalogue : la Maison a mis de l'ordre, on ne le rebat pas. */
   const produitsBranche = useMemo(

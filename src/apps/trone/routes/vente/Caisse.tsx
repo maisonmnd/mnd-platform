@@ -37,7 +37,7 @@ import { ChampDeDate } from '../../../../ds/dates';
 import { useEstDirection } from '../_vie';
 import { maisonNom, maisonRaisonDuPdfAu, signeLeMessage } from '../../../../shared/identite';
 import { uid } from '../../../../shared/store';
-import { ligneNetteXof } from '../../../../shared/gamme';
+import { graveLesLignesReglees, ligneNetteXof } from '../../../../shared/gamme';
 import { plafondDeRemiseXof, tauxPermis } from '../../../../shared/pricing';
 import '../equipe/equipe.css'; // styles du Toggle partagé (tre-toggle)
 import './vente.css';
@@ -964,6 +964,16 @@ export default function Caisse() {
       for (const l of lines) {
         if (l.kind === 'service') auTicket.set(l.key.slice(2), (auTicket.get(l.key.slice(2)) ?? 0) + l.unit * l.qty);
       }
+      /* LA GAMME DU RENDEZ-VOUS, PAYÉE AU TICKET, SE GRAVE — 24 octobre 2026.
+         « Elle a payé 76 000 F hier ; quand j'ouvre son rendez-vous, il reste
+         à encaisser 9 000 F pour la Gamme » (Yéman) : le ticket encaissait les
+         flacons sans les dire réglés sur le rendez-vous, et « Encaisser le
+         rituel » les redemandait. Une ligne se grave quand le ticket en porte
+         toute la quantité, comme à l'écran du rituel. */
+      const panierDuTicket: Record<string, number> = {};
+      for (const l of lines) {
+        if (l.kind === 'product') panierDuTicket[l.key.slice(2)] = (panierDuTicket[l.key.slice(2)] ?? 0) + l.qty;
+      }
       appointmentsStore.set((prev) => prev.map((a) => {
         if (a.id !== apptToSettle) return a;
         /* TOUJOURS (10 octobre 2026, revue, constat 57) : le ticket pose sa
@@ -986,6 +996,7 @@ export default function Caisse() {
           ...remiseDuComptoirEcrite(a, remise),
           paidXof: (a.paidXof ?? 0) + recu.comptantXof + recu.avoirXof,
           ...fige,
+          ...((a.gamme?.length ?? 0) > 0 ? { gamme: graveLesLignesReglees(a.gamme, panierDuTicket, dateVente) } : {}),
           /* C'est l'argent qui fige ce prix : annuler l'encaissement le rendra
              au tarif de la tête (10 octobre 2026, `prixFigeParLArgent`). */
           ...(typeof fige.priceXof === 'number' ? { prixFigeParLArgent: fige.priceXof } : {}),

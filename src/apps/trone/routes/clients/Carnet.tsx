@@ -5,6 +5,7 @@ import { useBilans } from '../../../../shared/bilans';
 import { manquesDeLaTete } from '../../../../shared/afaire';
 import { PageHead } from '../_ui';
 import { gammeTouteReglee } from '../../../../shared/gamme';
+import { useLaGammePayeeRegravee } from './gamme-payee';
 import { Button, Input, alerte, refus, demande } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
@@ -106,6 +107,8 @@ function FiltreChip({ actif, onClick, children, compte }: {
 export const SEUIL_DE_REPLI = 120;
 
 export default function Carnet() {
+  /* La Gamme payée à la Caisse se regrave une fois par séance (24 octobre 2026). */
+  useLaGammePayeeRegravee();
   /* UN MAÎTRE NE LIT PAS L'ARGENT DE LA MAISON. Il ouvre le Carnet pour savoir
      qui vient, avec quel rituel et à quelle heure — pas pour connaître le
      montant, la remise ou ce qui reste dû. La colonne se vide, le solde
