@@ -233,4 +233,12 @@ export const EN_BOOKING: Record<string, string> = {
   'Paiement annulé.': 'Payment cancelled.',
   'Le paiement n’a pas abouti, réessayez ou envoyez l’acompte vous-même.':
     'The payment did not go through. Try again, or send the deposit yourself.',
+  /* Une seule réservation en ligne à la fois (24 octobre 2026). */
+  'Ce moment vient d’être pris. Choisissez une autre heure.': 'This time has just been taken. Please choose another time.',
+  'Votre acompte est bien reçu, mais ce moment vient d’être pris : la Maison vous appelle pour fixer l’heure.':
+    'Your deposit has been received, but this time has just been taken: the Maison will call you to set the time.',
+  'La Maison n’a pas pu vérifier ce moment. Vérifiez votre connexion, puis réessayez.':
+    'The Maison could not check this time. Please check your connection, then try again.',
+  'La réservation n’est pas partie. Vérifiez votre connexion, puis réessayez.':
+    'The booking was not sent. Please check your connection, then try again.',
 };
