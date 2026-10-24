@@ -1,0 +1,43 @@
+/* LA PRÉVISION DU MOIS — 24 octobre 2026. Palette des graphiques validée
+   pour la maquette (#3D4BA3 l'entré, un indigo pâle l'attendu, le cuivre
+   pour aujourd'hui) ; le texte garde ses encres, jamais la couleur d'une
+   série. */
+.trp-prev {
+  --prev-entre: var(--indigo-500, #3D4BA3);
+  --prev-attendu: var(--indigo-100, #C9CEEB);
+  margin-top: 14px; padding: 20px 22px; display: flex; flex-direction: column; gap: 16px;
+  background: var(--surface-card); border: 1px solid var(--hairline); border-radius: var(--radius-md, 8px);
+  font-family: var(--font-sans); color: var(--ink);
+}
+.trp-prev__tete { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-end; gap: 10px 24px; }
+.trp-prev__chiffre { display: flex; flex-direction: column; gap: 6px; }
+.trp-prev__sur { font: 500 11px/1.2 var(--font-sans); letter-spacing: .22em; text-transform: uppercase; color: var(--copper-700); }
+.trp-prev__gros { font: 300 38px/1 var(--font-serif); color: var(--color-indigo); font-variant-numeric: tabular-nums; }
+.trp-prev__dit { font-size: 14px; color: var(--ink); }
+.trp-prev__calcule { font-size: 12px; color: var(--ink-soft); max-width: 360px; line-height: 1.45; }
+.trp-prev__corps { display: flex; flex-wrap: wrap; gap: 22px; align-items: flex-start; }
+.trp-prev__dessin { flex: 3 1 420px; min-width: 0; margin: 0; display: flex; flex-direction: column; gap: 8px; }
+.trp-prev__legende { display: flex; flex-wrap: wrap; gap: 16px; font-size: 12px; color: var(--ink-soft); }
+.trp-prev__legende span { display: inline-flex; align-items: center; gap: 7px; }
+.trp-prev__cle { display: inline-block; width: 14px; height: 8px; border-radius: 2px; }
+.trp-prev__cle--entre { background: var(--prev-entre); }
+.trp-prev__cle--attendu { background: var(--prev-attendu); }
+.trp-prev__aire { display: flex; gap: 8px; }
+.trp-prev__axe { display: flex; flex-direction: column; justify-content: space-between; height: 200px; font-size: 10.5px; color: var(--ink-soft); text-align: right; min-width: 38px; font-variant-numeric: tabular-nums; }
+.trp-prev__svg { flex: 1; min-width: 0; height: 200px; display: block; }
+.trp-prev__grille { fill: var(--hairline); }
+.trp-prev__entre { fill: var(--prev-entre); }
+.trp-prev__attendu { fill: var(--prev-attendu); }
+.trp-prev__auj { fill: var(--color-copper); }
+.trp-prev__jours { position: relative; display: flex; justify-content: space-between; font-size: 11px; color: var(--ink-soft); margin-left: 46px; min-height: 16px; }
+.trp-prev__auj-dit { position: absolute; top: 0; transform: translateX(-50%); white-space: nowrap; color: var(--copper-700); background: var(--surface-card); padding: 0 4px; }
+.trp-prev__note { font-size: 12px; color: var(--ink-soft); }
+.trp-prev__raisons { flex: 2 1 280px; min-width: 0; display: flex; flex-direction: column; gap: 10px; border-left: 1px solid var(--hairline); padding-left: 20px; }
+.trp-prev__raisons ul { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 10px; font-size: 13.5px; line-height: 1.5; }
+.trp-prev__lien { background: none; border: 0; padding: 0; font: 400 12.5px var(--font-sans); color: var(--copper-700); cursor: pointer; }
+.trp-prev__lien:hover { text-decoration: underline; }
+@media (max-width: 720px) {
+  .trp-prev { padding: 16px; }
+  .trp-prev__gros { font-size: 32px; }
+  .trp-prev__raisons { border-left: 0; padding-left: 0; border-top: 1px solid var(--hairline); padding-top: 14px; }
+}

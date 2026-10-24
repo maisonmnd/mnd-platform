@@ -1,5 +1,5 @@
 import { lazy, type LazyExoticComponent, type ComponentType } from 'react';
-import { Compass, Clapperboard, Activity, BadgeCheck, HeartHandshake, BarChart3, BookOpen, CalendarDays, ClipboardList, Crown, Drama, FileSignature, FileText, FlaskConical, Gift, GraduationCap, Hammer, HandCoins, Handshake, MessageCircle, Handshake as PoigneeDeMain, HeartPulse, Inbox, KeyRound, Landmark, LayoutDashboard, Lightbulb, LineChart, ListChecks, MapPin, Megaphone, MessageSquare, MessagesSquare, MonitorPlay, NotebookPen, Palette, PhoneIncoming, PieChart, PiggyBank, QrCode, ReceiptText, Repeat, Scale, ScrollText, Settings, ShieldCheck, ShoppingBag, SquareKanban, Store, Users, UsersRound, Wallet, type LucideIcon } from 'lucide-react';
+import { Compass, FolderKanban, ListTodo, Clapperboard, Activity, BadgeCheck, HeartHandshake, BarChart3, BookOpen, CalendarDays, ClipboardList, Crown, Drama, FileSignature, FileText, FlaskConical, Gift, GraduationCap, Hammer, HandCoins, Handshake, MessageCircle, Handshake as PoigneeDeMain, HeartPulse, Inbox, KeyRound, Landmark, LayoutDashboard, Lightbulb, LineChart, ListChecks, MapPin, Megaphone, MessageSquare, MessagesSquare, MonitorPlay, NotebookPen, Palette, PhoneIncoming, PieChart, PiggyBank, QrCode, ReceiptText, Repeat, Scale, ScrollText, Settings, ShieldCheck, ShoppingBag, SquareKanban, Store, Users, UsersRound, Wallet, type LucideIcon } from 'lucide-react';
 
 /* Registre des routes du Trône, groupées par DÉPARTEMENT.
    Le module d'un écran (routes/<dossier>/) dit d'où il vient, pas où il se range :
@@ -44,6 +44,10 @@ const NAV_DES_ECRANS: TroneGroup[] = [
          Operating System », phase 1 : l'orchestrateur, la mémoire, les
          missions, la validation, les briefings. Réservé aux fondateurs. */
       { path: '/centre-de-commande', label: 'Centre de commande', icon: Compass, Component: lazy(() => import('./pilotage/CentreDeCommande')) },
+      /* LES PROJETS (24 octobre 2026) — planifier, confier, suivre. Maquette
+         VJ5PJEGUPDbYKUgEdMUNbS ; rangés sous Direction (choix du sélecteur).
+         Une tâche reste une demande du Fil : le projet ne fait que les grouper. */
+      { path: '/projets', label: 'Les projets', icon: FolderKanban, Component: lazy(() => import('./pilotage/Projets')) },
       { path: '/bilan-mensuel', label: 'Bilan mensuel', icon: BarChart3, Component: lazy(() => import('./pilotage/BilanMensuel')) },
       { path: '/synthese', label: 'Synthèse & résultat', icon: PieChart, Component: lazy(() => import('./finances/Synthese')) },
       { path: '/analytics', label: 'Analytics', icon: LineChart, Component: lazy(() => import('./pilotage/Analytics')) },
@@ -179,6 +183,9 @@ const NAV_DES_ECRANS: TroneGroup[] = [
          une demande du Fil, c'est le même registre vu autrement. */
       { path: '/fil', label: 'Le Fil', icon: MessageSquare, Component: lazy(() => import('./equipe/Fil')) },
       { path: '/tableau', label: 'Le Tableau', icon: SquareKanban, Component: lazy(() => import('./equipe/Tableau')) },
+      /* MES TÂCHES (24 octobre 2026) — vue 7 de la maquette des projets : la
+         liste de qui travaille, au pouce. Chaque ligne est une demande du Fil. */
+      { path: '/mes-taches', label: 'Mes tâches', icon: ListTodo, Component: lazy(() => import('./equipe/MesTaches')) },
       { path: '/mon-mois', label: 'Mon mois', icon: BadgeCheck, Component: lazy(() => import('./equipe/MonMois')) },
       { path: '/personnel', label: 'Ressources humaines', icon: UsersRound, Component: lazy(() => import('./equipe/Personnel')) },
       /* LES PRÊTS AU PERSONNEL — 14 octobre 2026, décision de la direction :
@@ -253,7 +260,7 @@ export const REUNIONS: readonly Reunion[] = [
   { hote: '/caisses', titre: 'Caisses & coffre', onglets: [{ path: '/caisses', label: 'Les caisses' }, { path: '/coffre', label: 'Le coffre' }] },
   { hote: '/prets', titre: 'Prêts & compte courant', onglets: [{ path: '/prets', label: 'Les prêts' }, { path: '/compte-courant', label: 'Le compte courant' }] },
   { hote: '/marketing', titre: 'Marketing', onglets: [{ path: '/marketing', label: 'Le marketing' }, { path: '/personas', label: 'Les personas' }] },
-  { hote: '/fil', titre: 'Le Fil', onglets: [{ path: '/fil', label: 'Le fil' }, { path: '/tableau', label: 'Le tableau' }] },
+  { hote: '/fil', titre: 'Le Fil', onglets: [{ path: '/fil', label: 'Le fil' }, { path: '/tableau', label: 'Le tableau' }, { path: '/mes-taches', label: 'Mes tâches' }] },
   { hote: '/personnel', titre: 'Ressources humaines', onglets: [{ path: '/personnel', label: 'Ressources humaines' }, { path: '/prets-personnel', label: 'Les prêts au personnel' }] },
   { hote: '/parametres', titre: 'Paramètres', onglets: [{ path: '/parametres', label: 'Les réglages' }, { path: '/marque', label: 'La marque et le thème' }, { path: '/branches', label: 'Les branches' }] },
 ];
@@ -336,7 +343,7 @@ export const reunionDe = (path: string): Reunion | undefined => REUNIONS.find((r
 export const ROUTES_MAITRE: string[] = [];
 
 /** Ouverts d'office, mais qu'un souverain peut refermer un par un. */
-export const ROUTES_MAITRE_FERMABLES = ['/mon-mois', '/calendrier', '/fil', '/tableau'];
+export const ROUTES_MAITRE_FERMABLES = ['/mon-mois', '/calendrier', '/fil', '/tableau', '/mes-taches'];
 
 /* ── DEUX CASQUETTES, UN SEUL COMPTE ────────────────────────────────────
    Gerard tient le secrétariat et le fauteuil. Lui donner deux comptes
@@ -401,7 +408,7 @@ export const ANCIENS_DOMAINES: Record<string, string[]> = {
    un : la table ci-dessus ne se met pas à jour. Il s'ouvre par son
    département seul. On les NOMME ici, pour que la barre et la photographie
    restent vérifiables : un écran absent des deux listes est un oubli. */
-export const ECRANS_NES_APRES_LES_DEPARTEMENTS: readonly string[] = ['/compte-courant', '/parrainages', '/cartes-cadeaux', '/secretariat', '/centre-de-commande', '/atelier-des-contenus', '/chiffre-des-prestations', '/prets-personnel', '/entre-deux', '/discussions'];
+export const ECRANS_NES_APRES_LES_DEPARTEMENTS: readonly string[] = ['/compte-courant', '/parrainages', '/cartes-cadeaux', '/secretariat', '/centre-de-commande', '/atelier-des-contenus', '/chiffre-des-prestations', '/prets-personnel', '/entre-deux', '/discussions', '/projets', '/mes-taches'];
 
 /** L'ancien domaine d'un écran, celui d'avant les départements. */
 export const ancienDomaineDe = (path: string): string | undefined =>

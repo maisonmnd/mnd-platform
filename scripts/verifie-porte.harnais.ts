@@ -183,7 +183,11 @@ dit('… et cet ailleurs lui est bien ouvert', true, (() => {
 /* TOUT FERMÉ = AUCUNE DESTINATION. Le Shell le dit alors en toutes lettres au
    lieu d'ouvrir une application vide. */
 dit('tout fermé, aucune destination', null,
-  premierEcranVisible('maitre', { '/mon-mois': false, '/calendrier': false, '/fil': false, '/tableau': false }));
+  premierEcranVisible('maitre', { '/mon-mois': false, '/calendrier': false, '/fil': false, '/tableau': false, '/mes-taches': false }));
+/* MES TÂCHES (24 octobre 2026) s'ouvre d'office comme le Tableau, et se
+   referme de même : c'est la liste de qui travaille, vue 7 de la maquette. */
+dit('Mes tâches s ouvre d office a un maitre, et se referme un par un', [true, false],
+  [peutVoir('maitre', '/mes-taches', {}), peutVoir('maitre', '/mes-taches', { '/mes-taches': false })]);
 
 /* UN SOUVERAIN GARDE SA PORTE, quoi qu'on ait coché : les cases ne valent que
    pour un maître. */

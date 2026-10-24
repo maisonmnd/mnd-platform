@@ -43,6 +43,7 @@ import { revenuDuJour } from '../../../../shared/caisse-du-soir-pur';
 import { ChampDeDate } from '../../../../ds/dates';
 import { cheminDeLaConversation } from '../../../../shared/conversations';
 import AlarmeWhatsApp from './AlarmeWhatsApp';
+import { PrevisionDuMois } from './PrevisionDuMois';
 import { useDemandes, demandesTriees, ditLeBesoin, ditLeGenre, depuisQuand, telephoneMasque, nomDeLaDemande } from '../../../../shared/demandes';
 import { appelDe } from '../../../../shared/civilite';
 import { useSignalements } from '../../../../shared/entre-deux';
@@ -918,6 +919,10 @@ export default function Dashboard() {
           </div>
         ))}
       </div>
+
+      {/* LA PRÉVISION DU MOIS — 24 octobre 2026, maquette VJ5PJEGUPDbYKUgEdMUNbS :
+          le Trône calcule, chaque part se dit en clair (PrevisionDuMois.tsx). */}
+      <PrevisionDuMois />
 
       {/* Tuiles secondaires */}
       {/* LE CHIFFRE PAR MAISON — n'apparaît que s'il y a quelque chose à séparer.

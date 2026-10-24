@@ -133,6 +133,13 @@ export type FilMessage = {
       brique pour ce qui presse, or pour le moyen, indigo doux pour ce qui
       peut attendre. */
   priorite?: 'haute' | 'moyenne' | 'basse';
+
+  /** LE PROJET — 24 octobre 2026, « la gestion des projets ». Une tâche de
+      projet reste une demande du Fil (règle du Tableau, 18 août) : ces deux
+      champs la rattachent à un projet et à l'un de ses jalons, rien de plus.
+      Sans eux, la demande est ce qu'elle a toujours été. */
+  projetId?: string;
+  jalonId?: string;
 };
 
 /* ── LA PRIORITÉ SE TRIE ET SE NOMME ─────────────────────────────── */

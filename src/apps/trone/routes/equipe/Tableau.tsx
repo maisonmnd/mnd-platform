@@ -15,6 +15,7 @@ import {
 } from '../../../../shared/fil';
 import { useStaff, staffAccessStore, useAnnuaire, nomDuCompte, adresseDe } from './data';
 import { voitLesPrix } from '../index';
+import { useProjets } from '../../../../shared/projets';
 import './equipe.css';
 import { ChampDeDate } from '../../../../ds/dates';
 
@@ -61,6 +62,9 @@ export default function Tableau() {
   const { branch, currency } = useBranch();
   const { session } = useAuth();
   const [tous] = useFil();
+  /* LE PROJET DE LA CARTE — 24 octobre 2026 : une tâche de projet est une
+     demande comme les autres ; sa carte dit seulement de quel projet elle est. */
+  const [projets] = useProjets();
   const [equipe] = useStaff();
   const [invoices] = useInvoices();
   const monProfil = useMonProfil();
@@ -327,6 +331,9 @@ export default function Tableau() {
           </span>
         )}
         <div className="trt__texte">{m.texte}</div>
+        {m.projetId && projets.some((p) => p.id === m.projetId) && (
+          <div className="trt__projet">Projet · {projets.find((p) => p.id === m.projetId)!.nom}</div>
+        )}
 
         {m.piece && (
           <div className="trt__piece">
