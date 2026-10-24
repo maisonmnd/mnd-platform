@@ -3233,3 +3233,131 @@
   .trq-ligne__ouvre { display: none; }
 }
 @media (prefers-reduced-motion: reduce) { .trq-ligne__ouvre svg { transition: none; } }
+
+/* ══ LE « + RDV » EN TROIS QUESTIONS — 24 octobre 2026 ══════════════════
+   Maquette X5FzkB4m… : une case en tête, quatre rangées (une seule ouverte,
+   les autres gardent leur résumé), une barre collante qui dit le rendez-vous. */
+.trc-rdv3 { display: flex; flex-direction: column; gap: 10px; }
+.trc-rdv3__case .mnd-input { width: 100%; font-size: 15px; padding-top: 11px; padding-bottom: 11px; }
+
+.trc-rang { border: 1px solid var(--hairline); border-radius: var(--radius-md); background: var(--paper); }
+.trc-rang.is-open { border-color: var(--copper-300); }
+.trc-rang__ligne {
+  display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 12px;
+  width: 100%; padding: 12px 14px; background: none; border: none; cursor: pointer;
+  text-align: left; font: inherit; color: inherit;
+}
+.trc-rang__ligne:focus-visible { outline: 2px solid var(--color-copper); outline-offset: -2px; }
+.trc-rang__num {
+  width: 26px; height: 26px; border-radius: 50%; border: 1px solid var(--color-copper);
+  color: var(--copper-700); font-family: var(--font-sans); font-size: 12px; font-weight: 600;
+  display: inline-flex; align-items: center; justify-content: center;
+}
+.trc-rang.is-open .trc-rang__num { background: var(--color-indigo); border-color: var(--color-indigo); color: var(--color-ivoire); }
+.trc-rang__txt { min-width: 0; display: flex; flex-direction: column; }
+.trc-rang__titre { font-family: var(--font-serif); font-size: 18px; color: var(--color-indigo); line-height: 1.2; }
+.trc-rang__resume { font-size: 12.5px; color: var(--ink-soft); margin-top: 2px; overflow-wrap: anywhere; }
+.trc-rang__resume.is-fait { color: var(--ink); }
+.trc-rang__etat { font-size: 10px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-soft); white-space: nowrap; }
+.trc-rang__etat.is-ok { color: var(--copper-700); }
+.trc-rang__corps { display: flex; flex-direction: column; gap: 12px; padding: 14px 14px 16px; border-top: 1px solid var(--hairline); }
+.trc-rang__corps[hidden] { display: none; }
+
+.trc-rdv3__note { margin: 0; font-size: 12.5px; line-height: 1.55; color: var(--ink-soft); }
+.trc-rdv3__note--cuivre { color: var(--copper-700); }
+.trc-rdv3__petit { font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-soft); }
+.trc-rdv3__fiche { display: grid; grid-template-columns: minmax(0, 1fr) 124px; gap: 12px; align-items: start; }
+.trc-rdv3__nom { font-family: var(--font-serif); font-size: 20px; color: var(--color-indigo); line-height: 1.2; }
+.trc-rdv3__meta { font-size: 12px; color: var(--ink-soft); line-height: 1.5; }
+.trc-rdv3__auto {
+  font-size: 12.5px; line-height: 1.5; padding: 9px 12px; border-radius: 2px;
+  border-left: 3px solid var(--color-indigo); background: var(--indigo-50); color: var(--color-indigo);
+}
+.trc-rdv3__habitude {
+  display: flex; flex-direction: column; gap: 4px; padding: 12px 14px;
+  border: 1px solid var(--copper-300); background: var(--copper-50); border-radius: var(--radius-md);
+}
+.trc-rdv3__habitude .trc-rdv3__petit { color: var(--copper-700); }
+.trc-rdv3__habitude-rituel { font-family: var(--font-serif); font-size: 17px; color: var(--color-indigo); line-height: 1.3; }
+.trc-rdv3__boutons { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 4px; }
+
+.trc-rdv3__semaine-tete {
+  display: flex; justify-content: space-between; align-items: baseline; gap: 6px 12px; flex-wrap: wrap;
+  font-size: 12px; color: var(--ink-soft);
+}
+.trc-rdv3__nav { display: inline-flex; gap: 14px; }
+.trc-rdv3__nav button {
+  background: none; border: none; padding: 2px 0; font: inherit; font-size: 12px; font-weight: 600;
+  color: var(--copper-700); cursor: pointer;
+}
+.trc-rdv3__nav button:disabled { color: var(--hairline); cursor: default; }
+.trc-rdv3__semaine { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 5px; margin-top: 8px; }
+.trc-rdv3__jour {
+  display: flex; flex-direction: column; align-items: center; gap: 1px; min-width: 0;
+  padding: 7px 2px; border: 1px solid var(--hairline); border-radius: 3px; background: var(--color-ivoire);
+  cursor: pointer; font: inherit; color: var(--ink);
+}
+.trc-rdv3__jour small {
+  font-size: 10.5px; color: var(--ink-soft); line-height: 1.25; max-width: 100%;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.trc-rdv3__jour b { font-family: var(--font-serif); font-weight: 400; font-size: 19px; color: var(--color-indigo); line-height: 1.1; }
+.trc-rdv3__jour:hover:not(:disabled) { border-color: var(--copper-300); }
+.trc-rdv3__jour.is-reprise { border-color: var(--color-copper); }
+.trc-rdv3__jour.is-on { background: var(--color-indigo); border-color: var(--color-indigo); }
+.trc-rdv3__jour.is-on b, .trc-rdv3__jour.is-on small { color: var(--color-ivoire); }
+.trc-rdv3__jour:disabled { opacity: .45; cursor: default; }
+.trc-rdv3__jour .trc-rdv3__sien { color: var(--copper-700); font-weight: 600; }
+.trc-rdv3__jour.is-on .trc-rdv3__sien { color: var(--copper-200); }
+.trc-rdv3__heures { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.trc-rdv3__heure {
+  padding: 6px 11px; border: 1px solid var(--hairline); border-radius: 999px; background: var(--color-ivoire);
+  font: inherit; font-size: 12.5px; color: var(--color-indigo); cursor: pointer;
+}
+.trc-rdv3__heure:hover { border-color: var(--copper-300); }
+.trc-rdv3__heure.is-on { background: var(--color-copper); border-color: var(--color-copper); color: var(--color-ivoire); }
+.trc-rdv3__autre { display: flex; flex-direction: column; gap: 6px; }
+.trc-rdv3__autre-champs { display: grid; grid-template-columns: minmax(0, 1fr) 132px; gap: 10px; align-items: start; }
+.trc-rdv3__raison {
+  font-size: 12.5px; line-height: 1.55; padding: 9px 12px; border-radius: 2px;
+  border: 1px solid var(--copper-300); border-left: 3px solid var(--color-copper); background: var(--copper-50); color: var(--ink);
+}
+.trc-rdv3__raison.is-bloque {
+  border-color: #E4BDB2; border-left-color: var(--color-brique, #96412E); background: #FBF0ED; color: var(--color-brique, #96412E);
+}
+
+.trc-rdv3__gestes { display: flex; justify-content: center; gap: 18px; }
+.trc-rdv3__lien {
+  background: none; border: none; padding: 4px; font: inherit; font-size: 11.5px; font-weight: 600;
+  color: var(--copper-700); cursor: pointer;
+}
+.trc-rdv3__lien--doux { color: var(--ink-soft); font-weight: 400; }
+.trc-rdv3__lien--clair { color: var(--copper-200); }
+
+/* La barre : indigo, comme le bandeau qu'elle remplace ; collée au bas de la
+   fenêtre tant qu'on remplit, à sa place quand on arrive au bout. */
+.trc-rdv3__barre {
+  position: sticky; bottom: 0; z-index: 3;
+  display: flex; align-items: center; justify-content: space-between; gap: 10px 14px; flex-wrap: wrap;
+  margin-top: 2px; padding: 12px 14px; border-radius: 3px;
+  background: var(--color-indigo); color: var(--indigo-100, #DCDDEB);
+  box-shadow: 0 -8px 18px -10px rgba(20, 18, 48, .45);
+}
+.trc-rdv3__barre-texte { min-width: 0; flex: 1 1 260px; display: flex; flex-direction: column; gap: 2px; font-size: 12.5px; line-height: 1.45; }
+.trc-rdv3__barre-texte b { font-family: var(--font-serif); font-weight: 400; font-size: 18px; color: var(--color-ivoire); overflow-wrap: anywhere; }
+.trc-rdv3__erreur { color: var(--copper-200); font-weight: 600; }
+.trc-rdv3__barre .trc-rdv3__boutons { margin-top: 0; }
+.trc-rdv3__barre .mnd-btn--ghost { color: var(--color-ivoire); border-color: rgba(239, 234, 224, .45); }
+.trc-rdv3__barre .mnd-btn--ghost:hover { background: rgba(239, 234, 224, .08); }
+
+@media (max-width: 560px) {
+  .trc-rdv3__fiche { grid-template-columns: minmax(0, 1fr); }
+  .trc-rdv3__autre-champs { grid-template-columns: minmax(0, 1fr); }
+  .trc-rang__ligne { padding: 11px 12px; gap: 10px; }
+  .trc-rang__corps { padding: 12px 12px 14px; }
+  .trc-rdv3__semaine { gap: 3px; }
+  .trc-rdv3__jour { padding: 6px 1px; }
+  .trc-rdv3__jour small { font-size: 9.5px; }
+  .trc-rdv3__barre .trc-rdv3__boutons { width: 100%; }
+  .trc-rdv3__barre .trc-rdv3__boutons .mnd-btn { flex: 1 1 0; }
+}

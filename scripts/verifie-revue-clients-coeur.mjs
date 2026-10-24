@@ -76,7 +76,7 @@ const FAUTES = [
     avant: '!!f.discountLabel && f.discountLabel !== LIBELLE_REMISE_FAMILLE',
     apres: '!!f.discountLabel' },
   { n: '60 (ecran muet)', fichier: ACTIONS, ecrie: '[60] l ecran passe ce que le rendez-vous a deja recu',
-    avant: '            remiseDejaSurLeRdvXof: appt.discountXof ?? 0,\n',
+    avant: '    remiseDejaSurLeRdvXof: appt.discountXof ?? 0,\n',
     apres: '' },
   { n: '104 (motif nomme)', fichier: BLOCAGES, ecrie: '[104] le motif ne porte que le rendez-vous',
     avant: 'motif: `${marque} · Salon Souverain`,',

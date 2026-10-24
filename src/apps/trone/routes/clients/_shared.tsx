@@ -17,13 +17,13 @@ import { apptPaidXof,
   appointmentsStore, useAppointments, useRemindersSent, markReminderSent, reminderKey, venuesHonorees,
   attacheSeance, detacheSeance,
 } from '../../../../shared/agenda';
-import { fermerLeSalonPour, rouvrirLeSalonDe } from '../../../../shared/blocages';
+import { fermerLeSalonPour, rouvrirLeSalonDe, useBlocages, plagesBloquees } from '../../../../shared/blocages';
 import {
   type Appointment, type ReminderKind,
 } from '../../../../shared/agenda';
 import { categoriesStore, servicesStore, productsStore, sousArbreOf, useServices, useCategories, useProducts, priceModeOf, catsDansLOrdre, mondeDeCat, mondeLabel, LONGUEURS, suitLongueur, fondeLaCouronne, type LongueurId, type Service } from '../../../../shared/catalog';
 import { RANG_DU_PALIER, plusHautDes, avertissementDHabilitation, type Palier } from '../../../../shared/paliers';
-import { depositForServices, depositPctFor, useSettings, settingsStore } from '../../../../shared/settings';
+import { depositForServices, depositPctFor, useSettings, settingsStore, openingForIso } from '../../../../shared/settings';
 import { createStore, uid, useStore } from '../../../../shared/store';
 import { consommerPourRituel, rembobinerRituel } from '../../../../shared/stock';
 import { ageDe, estKids, AGE_MND_KIDS } from '../../../../shared/accounts';
@@ -55,6 +55,11 @@ import { appelDe } from '../../../../shared/civilite';
 import { rituelDeLaRepriseEffacee } from '../../../../shared/reprise-nue';
 import { LeBilanDeLaSeance } from './LeBilanDeLaSeance';
 import { FicheDuJour } from './FicheDuJour';
+import { predictNextVisit, cadenceLabel } from '../../../../shared/cadence';
+import {
+  ajouteJours, ancreDeLaSemaine, bloqueLaPose, ceQuiReste, debutDeLaSemaine, placesDuJour, prestationsDeLaCase,
+  raisonDeLHeure, rangeeSuivante, septJours, type Occupant, type Rangee,
+} from './rdv-fluide-pur';
 
 export { ChampDeDate };
 
@@ -1703,17 +1708,46 @@ const fmtDureeCourte = (min: number): string => {
   return m ? `${h} h ${m}` : `${h} h`;
 };
 
-function PalierRdv({ n, titre, aide }: { n: number; titre: string; aide?: string }) {
+function PalierRdv({ n, titre, aide }: { n?: number; titre: string; aide?: string }) {
   return (
     <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginTop: 4 }}>
-      <span style={{
+      {n !== undefined && <span style={{
         flex: 'none', width: 21, height: 21, borderRadius: '50%', border: '1px solid var(--color-copper)',
         color: 'var(--copper-700)', fontFamily: 'var(--font-serif)', fontSize: 11.5,
         display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-      }}>{n}</span>
+      }}>{n}</span>}
       <span style={{ fontFamily: 'var(--font-serif)', fontSize: 17, color: 'var(--color-indigo)' }}>{titre}</span>
       {aide && <span className="mnd-muted" style={{ fontSize: 11.5, marginLeft: 'auto' }}>{aide}</span>}
     </div>
+  );
+}
+
+/* UNE RANGÉE DU « + RDV » — 24 octobre 2026 (maquette X5FzkB4m…). Fermée,
+   elle garde son résumé ; ouverte, ses champs. Le corps reste MONTÉ quand il
+   se replie (`hidden`) : une note à moitié écrite, un bilan en cours ou des
+   locks qu'on saisit ne se perdent pas en ouvrant la rangée voisine. */
+function RangeeRdv({ n, titre, resume, fait, etat, ouverte, onBascule, children }: {
+  n: string;
+  titre: string;
+  resume: string;
+  fait: boolean;
+  etat?: string;
+  ouverte: boolean;
+  onBascule: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <section className={`trc-rang${ouverte ? ' is-open' : ''}`}>
+      <button type="button" className="trc-rang__ligne" aria-expanded={ouverte} onClick={onBascule}>
+        <span className="trc-rang__num" aria-hidden="true">{n}</span>
+        <span className="trc-rang__txt">
+          <span className="trc-rang__titre">{titre}</span>
+          <span className={`trc-rang__resume${fait ? ' is-fait' : ''}`}>{resume}</span>
+        </span>
+        <span className={`trc-rang__etat${fait ? ' is-ok' : ''}`}>{etat ?? (fait ? 'fait' : 'à remplir')}</span>
+      </button>
+      <div className="trc-rang__corps" hidden={!ouverte}>{children}</div>
+    </section>
   );
 }
 
@@ -2548,19 +2582,6 @@ export function RdvModal({
   const depositRates = [...new Set(chosen.map((s) => depositPctFor(s.id)).filter((p) => p > 0))];
   const depositPct = depositRates.length === 1 ? depositRates[0] : null;
 
-  /* Chevauchement — même maître, même jour, statut non annulé (indication non bloquante). */
-  const overlap = useMemo(() => {
-    const start = timeToMin(time);
-    const end = start + (chosen.reduce((s, sv) => s + sv.durationMin, 0) || 60);
-    return branchAppts.find((a) => {
-      if (a.id === appt?.id || a.date !== date || a.master !== master || a.status === 'annulé') return false;
-      const s2 = timeToMin(a.time);
-      return start < s2 + apptDurationMin(a, byId) && s2 < end;
-    });
-  }, [branchAppts, appt?.id, date, time, master, chosen, byId]);
-
-  const overlapName = overlap ? clients.find((c) => c.id === overlap.clientId)?.name ?? 'une cliente' : '';
-
   /* CE QUI S'ÉCRIT SUR LE RITUEL. `baseXof` se réaffirme à chaque enregistrement :
      c'est le prix plein contre lequel la Maison vient de consentir ce total.
      La date, elle, ne bouge que si le total change — rouvrir une fiche ne
@@ -2620,6 +2641,146 @@ export function RdvModal({
     return [grille, auPlanning].filter((t): t is string => !!t);
   }, [chosen, mains, master, equipe, cats, planningRh, date]);
 
+  /* ══ LE « + RDV » EN TROIS QUESTIONS — 24 octobre 2026 ═══════════════
+     Qui, quoi, quand, puis « Plus d'options » : une rangée ouverte à la fois,
+     la semaine de son jour de reprise, la raison d'une heure prise. Les règles
+     vivent dans `rdv-fluide-pur.ts` ; ici, seulement l'état de l'écran.
+
+     LE MOMENT SE CHOISIT. 9 h aujourd'hui n'était qu'une valeur de départ, et
+     elle se posait sans qu'on l'ait regardée. Un rendez-vous relu, ou ouvert
+     depuis une case de l'agenda, a déjà le sien. */
+  const [momentChoisi, setMomentChoisi] = useState(!!appt || !!initial?.time);
+  const [rang, setRang] = useState<Rangee>(() => (appt ? '' : rangeeSuivante({
+    qui: !!initial?.clientId,
+    quoi: (initial?.serviceIds?.length ?? 0) > 0,
+    quand: !!initial?.time,
+  })));
+  const basculeRang = (r: Rangee) => setRang((x) => (x === r ? '' : r));
+  const [debutChoisi, setDebutChoisi] = useState<string | null>(null);
+  const [jourVu, setJourVu] = useState<string | null>(null);
+  const [blocages] = useBlocages();
+  const aujourdhui = todayISO();
+  const sieges = Math.max(0, branch.seats ?? 0);
+  /* SON JOUR DE REPRISE : le même juge que sa fiche, sur ses seules venues
+     honorées ; un rendez-vous déjà pris se dit à part (`dejaPose`). */
+  const reprise = useMemo(() => {
+    if (!clientId) return null;
+    const c = predictNextVisit(tousLesRdv.filter((a) => a.status === 'honoré' && a.id !== appt?.id), clients, clientId, aujourdhui);
+    return c.predicted && c.iso ? { iso: c.iso, jours: c.avgDays } : null;
+  }, [clientId, tousLesRdv, clients, appt?.id, aujourdhui]);
+  const dejaPose = useMemo(() => (clientId
+    ? branchAppts
+      .filter((a) => a.clientId === clientId && a.id !== appt?.id && a.status !== 'annulé' && a.status !== 'honoré' && a.date >= aujourdhui)
+      .sort((a, b) => a.date.localeCompare(b.date) || timeToMin(a.time) - timeToMin(b.time))[0]
+    : undefined), [clientId, branchAppts, appt?.id, aujourdhui]);
+  const ancre = ancreDeLaSemaine({ dateDuRdv: appt?.date ?? initial?.date, reprise: reprise?.iso, aujourdhui });
+  const debutSemaine = debutChoisi ?? debutDeLaSemaine(ancre, aujourdhui, !!appt);
+  /* CE QUI OCCUPE LES FAUTEUILS UN JOUR : tout rendez-vous non annulé, sauf
+     celui qu'on relit (il ne se gêne pas lui-même). */
+  const occupesDe = (iso: string): Occupant[] => branchAppts
+    .filter((a) => a.date === iso && a.status !== 'annulé' && a.id !== appt?.id)
+    .map((a) => ({
+      maitre: a.master,
+      debutMin: timeToMin(a.time),
+      dureeMin: apptDurationMin(a, byId),
+      qui: clients.find((c) => c.id === a.clientId)?.name,
+    }));
+  const placesDe = (iso: string) => {
+    const m = new Date();
+    return placesDuJour({
+      iso,
+      aujourdhui,
+      maintenantMin: m.getHours() * 60 + m.getMinutes(),
+      ouverture: openingForIso(iso),
+      durationMin: dureeRetenue,
+      occupes: occupesDe(iso),
+      bloques: plagesBloquees(blocages, branch.id, iso, master),
+      sieges,
+    });
+  };
+  const semaine = septJours(debutSemaine).map(placesDe);
+  /* LE JOUR MONTRÉ : celui qu'on a touché, sinon celui du rendez-vous, sinon
+     son jour de reprise, sinon le premier jour de la semaine qui a une place :
+     le prochain créneau se propose sans qu'on le cherche. */
+  const jourMontre = jourVu ?? (momentChoisi || initial?.date ? date : null);
+  const jourDuJour = jourMontre
+    ? semaine.find((j) => j.iso === jourMontre)
+    : semaine.find((j) => j.iso === reprise?.iso) ?? semaine.find((j) => j.heures.length > 0);
+  const jourDit = (iso: string) => jourEnLettres(iso).replace(/^./, (c) => c.toLowerCase());
+  const raison = momentChoisi
+    ? raisonDeLHeure({
+      heure: time,
+      durationMin: dureeRetenue,
+      maitre: master,
+      ouverture: openingForIso(date),
+      occupes: occupesDe(date),
+      bloques: plagesBloquees(blocages, branch.id, date, master),
+      sieges,
+      jourDit: jourDit(date),
+      premiereLibre: (semaine.find((j) => j.iso === date) ?? placesDe(date)).heures[0] ?? null,
+    })
+    : null;
+  const bloque = bloqueLaPose({
+    raison,
+    statut: status,
+    date,
+    time,
+    dureeMin: dureeRetenue,
+    relu: appt ? { date: appt.date, time: appt.time, dureeMin: apptDurationMin(appt, byId) } : undefined,
+  });
+  const pret = !!clientId && serviceIds.length > 0 && momentChoisi;
+  /* UNE PLACE CHOISIE POSE LE JOUR ET L'HEURE, JAMAIS LE MAÎTRE : il reste
+     celui de la question « Quand ? ». */
+  const poseLeMoment = (iso: string, heure: string) => {
+    setDate(iso);
+    setTime(heure);
+    setJourVu(iso);
+    setMomentChoisi(true);
+  };
+  /* LA CLIENTE CHOISIE OUVRE LA BONNE QUESTION : sa fiche quand elle a des
+     habitudes à reprendre, sinon la première question sans réponse. */
+  const choisisLaCliente = (id: string) => {
+    setClientId(id);
+    setDebutChoisi(null);
+    setJourVu(null);
+    if (appt) return;
+    const habituee = branchAppts.some((a) => a.clientId === id && a.status !== 'annulé' && (a.serviceIds?.length ?? 0) > 0);
+    setRang(serviceIds.length === 0 && habituee ? 'qui' : rangeeSuivante({ qui: true, quoi: serviceIds.length > 0, quand: momentChoisi }));
+  };
+  const habitude = rituelsHabituels[0];
+  const habitudePosee = !!habitude && [...habitude.ids].sort().join('|') === [...serviceIds].sort().join('|');
+  /* REPRENDRE NE REMPLACE PAS EN SILENCE : des prestations déjà posées
+     demandent confirmation, sous le modèle, à la question « Quoi ? ». */
+  const reprendsSonRituel = () => {
+    if (!habitude) return;
+    if (serviceIds.length > 0 && !habitudePosee) {
+      setModeleAConfirmer(habitude.ids.join('|'));
+      setRang('quoi');
+      return;
+    }
+    poseLesPrestations(habitude.ids);
+    if (habitude.master && branch.masters.includes(habitude.master)) setMaster(habitude.master);
+    setModeleAConfirmer(null);
+    setRang(momentChoisi ? '' : 'quand');
+  };
+  const poseDeLaCase = (id: string) => {
+    poserSv(id);
+    setRang(clientId ? 'quoi' : 'qui');
+  };
+  const courts = chosen.map((sv) => sv.name.split(' · ')[0]);
+  const prixDuRituelDit = sansPrix ? null : effCovered ? 'compris dans sa formule' : estSuite ? 'séance incluse' : argent(totalXof);
+  /* CE QUE « PLUS D'OPTIONS » PORTE, dit sur sa ligne fermée. */
+  const optionsDites = [
+    appt ? status : null,
+    note.trim() ? 'une note' : null,
+    !sansPrix && forfaitPose ? (forfaitNom.trim() || 'forfait') : null,
+    !sansPrix && !forfaitPose && discountPct > 0 ? `remise −${discountPct} %` : null,
+    !sansPrix && !forfaitPose && discountXof > 0 ? `remise −${argent(discountXof)}` : null,
+    gamme.length ? `${gamme.length} produit${gamme.length > 1 ? 's' : ''} de la gamme` : null,
+    offertRetenu ? `offert par ${nomDe(offertRetenu)}` : null,
+    !sansPrix && hasDeposit ? `acompte ${argent(depositXof)}` : null,
+  ].filter((x): x is string => !!x);
+
   const save = (chosenStatus: Appointment['status']): boolean => {
     if (!clientId) {
       setError('Choisissez une tête couronnée.');
@@ -2627,6 +2788,16 @@ export function RdvModal({
     }
     if (serviceIds.length === 0) {
       setError('Ajoutez au moins une prestation.');
+      return false;
+    }
+    if (!momentChoisi) {
+      setError('Choisissez le moment : un jour et une heure, à la question « Quand ? ».');
+      return false;
+    }
+    /* SEULS LES FAUTEUILS PLEINS BLOQUENT (24 octobre 2026), comme sur le
+       site ; un maître déjà pris se dit en cuivre et se pose quand même. */
+    if (bloque && chosenStatus !== 'annulé') {
+      setError(raison?.texte ?? 'Tous les fauteuils sont occupés à cette heure.');
       return false;
     }
     /* LE RÉGLAGE STRICT : la Maison a choisi de refuser plutôt que d'avertir. */
@@ -3049,7 +3220,7 @@ export function RdvModal({
       {appt && estDirection && vueDeLaFiche === 'vie' ? (
         <SaVie vie={vie} principal={{ table: 'appointments', id: appt.id }} />
       ) : (
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <div className="trc-rdv3">
         {/* LA SÉANCE DE SA FORMULE — 20 octobre 2026 : « Incluse · séance 3 sur
             6 », ce qu'il reste, et les gestes qui font bouger le compteur. */}
         {appt && appt.coveredBySub && appt.coverKind !== 'forfait' && <SeanceDeLaFormule appt={appt} onFait={onClose} />}
@@ -3066,164 +3237,144 @@ export function RdvModal({
         {/* AVANT DE LA RECEVOIR — 19 octobre 2026 : la fiche du jour (Claude), pour un
             rendez-vous du jour ou à venir ; le bloc tient sa porte lui-même. */}
         {appt && <FicheDuJour appt={appt} client={rdvClient} byId={byId} resteDu={(a) => apptDueXof(a, byId)} />}
-        {/* ═══ LE BANDEAU VIVANT (14 août) — il ne bouge jamais.
-            Onze champs à la file, et le total tout en bas : on faisait défiler
-            pour retrouver ce qu'on était en train d'écrire. La tête, son
-            calibre, le moment et LE TOTAL NET (remise déduite — la somme
-            qu'elle paiera, pas le prix du catalogue) restent sous les yeux du
-            premier au dernier champ. */}
-        <div style={{
-          position: 'sticky', top: -1, zIndex: 3, margin: '-4px -2px 0',
-          background: 'var(--color-indigo)', borderRadius: 3, padding: '13px 16px',
-        }}>
-          <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 14, flexWrap: 'wrap' }}>
-            <span style={{ fontFamily: 'var(--font-serif)', fontSize: 21, color: 'var(--color-ivoire)', minWidth: 0 }}>
-              {rdvClient?.name ?? 'Tête à choisir'}
-            </span>
-            {!sansPrix && (
-              <span style={{ fontFamily: 'var(--font-serif)', fontSize: 23, color: 'var(--copper-200)', whiteSpace: 'nowrap' }}>
-                {effCovered ? 'inclus' : estSuite ? 'séance incluse' : argent(totalXof)}
-              </span>
-            )}
-          </div>
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginTop: 6, fontSize: 12, color: 'var(--ink-invert-soft, #C9C3DB)' }}>
-            {pricing.band && rdvClient?.lockCount ? (
-              <span style={{ border: '1px solid var(--hairline-invert)', borderRadius: 999, padding: '1px 9px' }}>
-                {bandLabel(pricing.band, bands)} · {rdvClient.lockCount} locks
-              </span>
-            ) : null}
-            <span>
-              {frShortAn(date)} · <b style={{ color: 'var(--color-ivoire)', fontWeight: 600 }}>{time}</b>
-              {master ? <> · avec <b style={{ color: 'var(--color-ivoire)', fontWeight: 600 }}>{master}</b></> : ''}
-            </span>
-            <span style={{ border: '1px solid var(--hairline-invert)', borderRadius: 999, padding: '1px 9px' }}>{status}</span>
-          </div>
-        </div>
-
-        {/* ① LA TÊTE — et ses locks : ils commandent le barème du modèle. Tant
-            qu'ils manquent, le prix s'annonce « dès » ; il devient exact dès
-            qu'on les connaît, sans quitter la modale. */}
-        <PalierRdv n={1} titre="La tête" />
-        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 124px', gap: 12, alignItems: 'start', marginTop: -8 }}>
-          <Field label="Tête couronnée">
-            <ClientPicker value={clientId} onChange={setClientId} allowPassage placeholder="Rechercher une cliente (nom, téléphone)…" />
-            {/* ON NOMME LE CONTRAT QUI PORTE, pas seulement la formule : deux
-                Juste Cadence dans l'année se ressemblent trait pour trait, et
-                celle qui décompte doit se lire sans ouvrir une autre page. */}
-            {membership && (
-              <div style={{ marginTop: 8, display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11.5, fontWeight: 600, color: 'var(--copper-700)', background: 'var(--copper-50)', border: '1px solid var(--copper-300)', borderRadius: 'var(--radius-pill)', padding: '3px 11px' }}>
-                ★ Abonnée · {membershipPlan?.name ?? 'formule'}{membership.reference ? ` · ${membership.reference}` : ''}{membership.cycle && membership.cycle !== 'mensuel' ? ` · ${membership.cycle}` : ''}
-              </div>
-            )}
-            {/* ══ LA FAMILLE ENTIÈRE, D'UN GESTE — 2 septembre 2026 ═════
-                Le lien vit SOUS LE CHOIX DE LA TÊTE, parce que c'est en la
-                nommant qu'on se souvient que sa sœur vient aussi. Plus bas, au
-                milieu des prestations, il arrivait après qu'on ait commencé à
-                remplir pour une seule.
-
-                IL NE PARAÎT QUE SI LA TÊTE A UN FOYER D'AU MOINS DEUX TÊTES :
-                ailleurs il ne mènerait qu'à un refus, et un bouton qui refuse
-                est un bouton de trop. */}
-            {clientId && foyerEstServi() && (() => {
-              const cli = clients.find((c) => c.id === clientId);
-              const combien = cli?.familyId
-                ? clients.filter((c) => c.familyId === cli.familyId && !c.archived).length : 0;
-              if (combien < 2) return null;
-              return (
-                <button
-                  type="button" className="tre-link-btn" style={{ marginTop: 8, display: 'block' }}
-                  onClick={() => { demandeLeFoyer(clientId); onClose(); }}
-                >
-                  Elles viennent à {combien} · rendez-vous du foyer
-                </button>
-              );
-            })()}
-          </Field>
-          <LocksDeLaTete
-            key={clientId}
-            client={rdvClient}
-            calibre={pricing.band ? bandLabel(pricing.band, bands) : undefined}
+        {/* ══ LA CASE UNIQUE — 24 octobre 2026 ══════════════════════════════
+            Un nom, un numéro ou une prestation : la même case trouve la
+            cliente (ou en inscrit une nouvelle) et pose une prestation. */}
+        <div className="trc-rdv3__case">
+          <ClientPicker
+            value={clientId}
+            onChange={choisisLaCliente}
+            allowPassage
+            placeholder="Nom, numéro ou prestation"
+            caseUnique={{
+              prestations: (q) => prestationsDeLaCase(q, proposables, (sv, t) => prestationRepond(sv.name, t), serviceIds)
+                .map((sv) => ({
+                  id: sv.id,
+                  nom: sv.name,
+                  detail: sansPrix ? '' : priceModeOf(sv) === 'devis' ? 'sur devis' : argent(personalPriceXof(sv, pricing, services, produitsGamme)),
+                })),
+              onPrestation: poseDeLaCase,
+            }}
           />
         </div>
+        <RangeeRdv
+          n="1"
+          titre="Qui ?"
+          ouverte={rang === 'qui'}
+          onBascule={() => basculeRang('qui')}
+          fait={!!rdvClient}
+          resume={rdvClient
+            ? [
+              rdvClient.name,
+              pricing.band && rdvClient.lockCount ? `${bandLabel(pricing.band, bands)} · ${rdvClient.lockCount} locks` : null,
+              membership ? `abonnée · ${membershipPlan?.name ?? 'formule'}` : null,
+            ].filter(Boolean).join(' · ')
+            : 'La cliente, à chercher dans la case'}
+        >
+          {!rdvClient ? (
+            <p className="trc-rdv3__note">
+              Cherchez-la dans la case ci-dessus, par son nom ou son numéro. Une première venue
+              s’inscrit d’un geste, prénom et téléphone suffisent.
+            </p>
+          ) : (
+            <>
+              <div className="trc-rdv3__fiche">
+                <div style={{ minWidth: 0 }}>
+                  <div className="trc-rdv3__nom">{rdvClient.name}</div>
+                  <div className="trc-rdv3__meta">
+                    {[rdvClient.phone, estDePassage(rdvClient) ? 'de passage' : null].filter(Boolean).join(' · ') || 'sans téléphone'}
+                  </div>
+                  {/* ON NOMME LE CONTRAT QUI PORTE, pas seulement la formule : deux
+                      Juste Cadence dans l'année se ressemblent trait pour trait, et
+                      celle qui décompte doit se lire sans ouvrir une autre page. */}
+                  {membership && (
+                    <div style={{ marginTop: 8, display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11.5, fontWeight: 600, color: 'var(--copper-700)', background: 'var(--copper-50)', border: '1px solid var(--copper-300)', borderRadius: 'var(--radius-pill)', padding: '3px 11px' }}>
+                      ★ Abonnée · {membershipPlan?.name ?? 'formule'}{membership.reference ? ` · ${membership.reference}` : ''}{membership.cycle && membership.cycle !== 'mensuel' ? ` · ${membership.cycle}` : ''}
+                    </div>
+                  )}
+                  {/* ══ LA FAMILLE ENTIÈRE, D'UN GESTE — 2 septembre 2026 ═════
+                      Le lien vit SOUS LE CHOIX DE LA TÊTE, parce que c'est en la
+                      nommant qu'on se souvient que sa sœur vient aussi. Plus bas, au
+                      milieu des prestations, il arrivait après qu'on ait commencé à
+                      remplir pour une seule.
 
-        {/* ELLE NE PARAÎT QUE LORSQUE LA DURÉE CHANGE. Sur une tête Medium, ou
-            sur une prestation qui ne suit pas le modèle, rien ne s'affiche : un
-            écran qui commente ce qu'il n'a pas modifié fatigue pour rien.
-
-            SANS CETTE PHRASE, L'ALLONGEMENT PASSE POUR UN BOGUE : on lit 1 h au
-            catalogue, 1 h 55 au calendrier, on corrige à la main, et le réglage
-            ne sert plus à rien. */}
-        {chosen.length > 0 && (
-          <div className="trc-rdv-duree">
-            <div className="trc-rdv-duree__t">
-              <b>{fmtDureeCourte(dureeRetenue)}</b>, de {time} à {String(Math.floor(finDuRdv / 60)).padStart(2, '0')}:{String(finDuRdv % 60).padStart(2, '0')}
-            </div>
-            {dureeCalculee !== dureeCatalogue && !dureeMain && pricing.band && (
-              <div className="trc-rdv-duree__d">
-                La fiche annonce {fmtDureeCourte(dureeCatalogue)} ; sa tête est
-                {' '}<b>calibre {pricing.band.name ?? bandLabel(pricing.band, bands)}</b>,
-                et le barème des prestations y pose ×{pricing.band.durCoef}.
+                      IL NE PARAÎT QUE SI LA TÊTE A UN FOYER D'AU MOINS DEUX TÊTES :
+                      ailleurs il ne mènerait qu'à un refus, et un bouton qui refuse
+                      est un bouton de trop. */}
+                  {clientId && foyerEstServi() && (() => {
+                    const cli = clients.find((c) => c.id === clientId);
+                    const combien = cli?.familyId
+                      ? clients.filter((c) => c.familyId === cli.familyId && !c.archived).length : 0;
+                    if (combien < 2) return null;
+                    return (
+                      <button
+                        type="button" className="tre-link-btn" style={{ marginTop: 8, display: 'block' }}
+                        onClick={() => { demandeLeFoyer(clientId); onClose(); }}
+                      >
+                        Elles viennent à {combien} · rendez-vous du foyer
+                      </button>
+                    );
+                  })()}
+                </div>
+                <LocksDeLaTete
+                  key={clientId}
+                  client={rdvClient}
+                  calibre={pricing.band ? bandLabel(pricing.band, bands) : undefined}
+                />
               </div>
-            )}
-            <div className="trc-rdv-duree__main">
-              <span>À la main</span>
-              <input
-                className="mnd-input"
-                inputMode="numeric"
-                placeholder={String(dureeCalculee || 60)}
-                value={dureeMain}
-                onChange={(e) => setDureeMain(e.target.value.replace(/[^0-9]/g, ''))}
-              />
-              <span>min</span>
-              {dureeMain && (
-                <button className="tre-link-btn" onClick={() => setDureeMain('')}>revenir au calcul</button>
+              {/* UN RENDEZ-VOUS DÉJÀ PRIS se dit avant d'en poser un second. */}
+              {dejaPose && (
+                <div className="trc-rdv3__auto">
+                  Déjà au carnet : {jourDit(dejaPose.date)} à {dejaPose.time}{dejaPose.master ? `, avec ${dejaPose.master}` : ''}.
+                </div>
               )}
-            </div>
-          </div>
-        )}
-
-        <div>
-          <PalierRdv
-            n={2}
-            titre="Le rituel"
-            aide={chosen.length
-              ? `${chosen.length} prestation${chosen.length > 1 ? 's' : ''} · ${fmtDureeCourte(chosen.reduce((s, sv) => s + sv.durationMin, 0))}`
-              : undefined}
-          />
-          {/* LE MAÎTRE AU FAUTEUIL, ICI — c'est lui qui exécute le rituel, et
-              chaque prestation le nomme juste dessous. Il tenait un champ à
-              part en bas de page, à côté du statut : deux choses qui n'ont
-              rien à voir. */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginTop: 9 }}>
-            <span className="mnd-muted" style={{ fontSize: 11.5, flex: 'none' }}>Au fauteuil</span>
-            <Select
-              value={master}
-              onChange={(e) => setMaster(e.target.value)}
-              style={{ flex: '0 1 220px', minWidth: 0 }}
-              aria-label="Maître au fauteuil"
-            >
-              {branch.masters.map((m) => (
-                <option key={m} value={m}>{m}</option>
-              ))}
-            </Select>
-            {/* JUSQU'OÙ CETTE MAIN EXÉCUTE, lu sur sa fiche d'équipe. */}
-            {(() => {
-              const fiche = equipe.find((m) => sameName(m.name, master));
-              return fiche?.palier
-                ? <span className={`mnd-palier mnd-palier--${RANG_DU_PALIER[fiche.palier]}`} title="Son habilitation">{fiche.palier}</span>
-                : null;
-            })()}
-          </div>
-          {avertHabilitation && (
-            <div style={{ marginTop: 8, padding: '9px 12px', borderRadius: 3, fontSize: 12.5, lineHeight: 1.5, border: '1px solid var(--copper-300)', borderLeft: '3px solid var(--color-copper)', background: 'var(--copper-50)', color: 'var(--ink)' }}>
-              {avertHabilitation.texte}
-            </div>
+              {/* SON RITUEL HABITUEL, à reprendre d'un geste : ses prestations
+                  et son maître ; la question « Quand ? » s'ouvre ensuite sur la
+                  semaine de son jour de reprise. Pas sur une séance incluse :
+                  la suite ne propose que ce qui y donne droit. */}
+              {!estSuite && habitude && (
+                <div className="trc-rdv3__habitude">
+                  <span className="trc-rdv3__petit">Son rituel habituel</span>
+                  <span className="trc-rdv3__habitude-rituel">
+                    {habitude.ids.map((id) => byId.get(id)?.name).filter(Boolean).join(' + ')}
+                    {habitude.master ? ` avec ${habitude.master}` : ''}
+                  </span>
+                  <span className="trc-rdv3__meta">
+                    {[
+                      reprise?.jours ? cadenceLabel(reprise.jours) : `${habitude.n} fois`,
+                      `dernière fois le ${jourDit(habitude.dernier)}`,
+                      reprise?.iso ? `elle revient d’habitude vers le ${jourDit(reprise.iso)}` : null,
+                    ].filter(Boolean).join(' · ')}
+                  </span>
+                  <div className="trc-rdv3__boutons">
+                    {habitudePosee
+                      ? <span className="trc-rdv3__meta">C’est le rituel posé.</span>
+                      : <Button size="sm" variant="copper" onClick={reprendsSonRituel}>Reprendre son rituel</Button>}
+                    <Button size="sm" variant="ghost" onClick={() => setRang('quoi')}>
+                      {habitudePosee ? 'Voir les prestations' : 'Autre chose'}
+                    </Button>
+                  </div>
+                </div>
+              )}
+              {!estSuite && !habitude && (
+                <div className="trc-rdv3__boutons">
+                  <Button size="sm" variant="ghost" onClick={() => setRang('quoi')}>Choisir les prestations</Button>
+                </div>
+              )}
+            </>
           )}
-          {avertRh.map((t) => (
-            <div key={t} style={{ marginTop: 8, padding: '9px 12px', borderRadius: 3, fontSize: 12.5, lineHeight: 1.5, border: '1px solid var(--copper-300)', borderLeft: '3px solid var(--color-copper)', background: 'var(--copper-50)', color: 'var(--ink)' }}>
-              {t}
-            </div>
-          ))}
+        </RangeeRdv>
+
+        <RangeeRdv
+          n="2"
+          titre="Quoi ?"
+          ouverte={rang === 'quoi'}
+          onBascule={() => basculeRang('quoi')}
+          fait={chosen.length > 0}
+          resume={chosen.length
+            ? [courts.join(' + '), fmtDureeCourte(dureeRetenue), prixDuRituelDit].filter(Boolean).join(' · ')
+            : 'Les prestations du rituel'}
+        >
           {/* SES HABITUDES, À UN CLIC — À LA CRÉATION COMME À LA RELECTURE.
               Demande de Yéman, 17 août : ouvrir un rituel existant doit aussi
               montrer ses combinaisons. Elles servent alors à comparer autant
@@ -3740,891 +3891,1038 @@ export function RdvModal({
               )}
             </div>
           </div>
-        </div>
-
-        {/* LA LONGUEUR TRAVAILLÉE — elle commande le prix et la durée des
-            prestations qui s'y facturent, et se fige sur le rendez-vous. Elle ne
-            paraît que si une prestation choisie la lit : ailleurs, un sélecteur
-            qui ne commande rien n'est qu'une case de plus à remplir. */}
-        {longueurPertinente && (
-          <div style={{ border: '1px solid var(--copper-300)', borderLeft: '3px solid var(--color-copper)', borderRadius: 'var(--radius-md)', background: 'var(--copper-50)', padding: '11px 13px' }}>
-            <div style={{ fontFamily: 'var(--font-sans)', fontSize: 10, letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--copper-700)', marginBottom: 8 }}>
-              Longueur travaillée
-            </div>
-            {/* LE CHOIX DOIT SE VOIR. Ces pastilles portaient `trv-palier-chip`,
-                une classe qui vit dans `vente.css` — jamais chargée sur le
-                Carnet, qui n'a que `clients.css`. Les trois boutons restaient
-                donc bruts et « actif » ne peignait rien : on choisissait une
-                longueur sans jamais savoir laquelle était retenue, alors qu'elle
-                commande le prix. Le style est ici, avec le composant : une
-                modale partagée par quatre écrans ne peut pas dépendre de la
-                feuille d'un domaine. */}
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-              {LONGUEURS.map((l) => (
-                <ChipChoix
-                  key={l.id}
-                  actif={longueur === l.id}
-                  title={l.hint}
-                  onClick={() => setLongueur(l.id)}
-                >
-                  {l.label}
-                </ChipChoix>
-              ))}
-            </div>
-            {/* CE QUE LA LONGUEUR CHOISIE COÛTE, en clair — c'est la seule raison
-                pour laquelle on la demande. */}
-            <div style={{ fontSize: 11.5, color: 'var(--copper-700)', marginTop: 9, lineHeight: 1.55 }}>
-              <b style={{ fontWeight: 600 }}>{LONGUEURS.find((l) => l.id === longueur)?.label}</b>
-              {' — '}
-              {chosen.filter(suitLongueur).map((sv) => `${sv.name} · ${argent(personalPriceXof(sv, pricing, services, produitsGamme))}`).join(' · ')}
-            </div>
-          </div>
-        )}
-
-        {/* ══ ELLE EST ABONNÉE, ET RIEN NE LE DIT — 1er septembre 2026 ═════
-            « Comment j'utilise un rituel en abonnement ? J'ai pris un RDV qui
-            n'a pas montré que les services sortent d'un abonnement » (Yéman).
-
-            LA COUVERTURE MARCHAIT, MAIS ELLE SE TAISAIT. Le bloc cuivre ne
-            paraît que si l'une des prestations choisies est DANS sa formule.
-            Quand aucune ne l'est, l'écran ne disait rien du tout : on voyait
-            « ★ Abonnée » en haut, un prix plein en bas, et rien entre les deux
-            pour expliquer pourquoi.
-
-            ON DIT CE QUE PORTE SA FORMULE. C'est la seule information qui
-            permette de comprendre en un regard : soit on s'est trompé de
-            prestation, soit celle-ci n'a jamais été incluse, et dans les deux
-            cas on sait quoi faire. */}
-        {membership && membershipPlan && coverageRows.length === 0 && chosen.length > 0 && (() => {
-          const inclus = inclusVendus(membership, membershipPlan)
-            .map((i) => services.find((sv) => sv.id === i.serviceId)?.name)
-            .filter(Boolean) as string[];
-          /* ══ DIRE OÙ SE CORRIGE L'ERREUR — 1er septembre 2026 ══════════
-             « La Juste Cadence inclut Le Souffle et non L'Ancrage, et voici le
-             message que j'obtiens sur le compte de Mme Grimaud » (Yéman).
-
-             LA NOTE DISAIT « SA FORMULE PORTE », ET C'ÉTAIT AMBIGU. Ce qui est
-             listé vient de `inclusVendus` : le contenu AJUSTÉ À LA VENTE s'il
-             existe, sinon celui de la formule. Les deux se corrigent à des
-             endroits différents, et se tromper d'endroit fait perdre une
-             journée : retoucher la formule ne change RIEN pour une abonnée
-             dont le contenu a été figé le jour de sa vente. */
-          const surMesure = (membership.inclusPropres?.length ?? 0) > 0;
-          return (
-            <div className="tre-inline-note">
-              <span className="mark">!</span>
-              <span>
-                {membershipPlan.name} <b>ne couvre pas</b> {chosen.length > 1 ? 'ces prestations' : 'cette prestation'}.
-                {inclus.length > 0
-                  ? <>
-                    {surMesure
-                      ? <> Son contenu a été <b>ajusté à la vente</b> et porte : </>
-                      : <> Sa formule porte : </>}
-                    <b>{inclus.join(', ')}</b>.
-                    <span style={{ display: 'block', marginTop: 3, opacity: .85 }}>
-                      {surMesure
-                        ? 'À corriger sur SA fiche d’abonnée, Abonnements → Modifier : retoucher la formule ne changerait rien pour elle.'
-                        : 'À corriger sur la formule, Abonnements → Les formules.'}
-                    </span>
-                  </>
-                  : <> Elle ne porte aucune prestation incluse, ce rituel se règle donc au comptoir.</>}
-              </span>
-            </div>
-          );
-        })()}
-
-        {(() => {
-          /* ══ LE REGARD DÉDUIT SOUS 30 JOURS — 10 octobre 2026 ══════════
-             KÒKÒ™ Origine de la création, KÒKÒ™ Accueil de la restauration,
-             KÒKÒ™ Conseil de la création Kids : proposé ici, posé d'un geste,
-             en remise sur la ligne de l'acte. */
-          if (appt?.regardDeduit) {
-            return (
-              <div className="tre-inline-note"><span className="mark">✓</span>
-                <span>Le Regard est déduit de cet acte : −{fmtMoney(appt.regardDeduit.xof, currency)}.</span>
-              </div>
-            );
-          }
-          if (!clientId) return null;
-          const regard = regardADeduire({
-            rdv: { id: appt?.id, clientId, date, serviceIds },
-            rdvs: appointmentsStore.get(),
-            estCreation: (id) => { const sv = byId.get(id); return !!sv && fondeLaCouronne(sv); },
-            payeXof: (a) => apptPaidXof(a as Appointment),
-            prixDuRegard: (id) => byId.get(id)?.priceXof ?? 0,
-          });
-          if (!regard) return null;
-          const nom = byId.get(regard.regardServiceId)?.name?.split(' · ')[0] ?? 'Le Regard';
-          if (deduction) {
-            return (
-              <div className="tre-inline-note"><span className="mark">✓</span>
-                <span>{nom} du {frShortAn(regard.date)} déduit : −{fmtMoney(regard.xof, currency)} sur la ligne de l’acte, à l’enregistrement.</span>
-              </div>
-            );
-          }
-          return (
-            <div className="tre-inline-note"><span className="mark">!</span>
-              <span>
-                {nom} du {frShortAn(regard.date)}, réglé, se déduit de cet acte (sous 30 jours) : −{fmtMoney(regard.xof, currency)}.{' '}
-                <button type="button" className="trc-c360-linkbtn" onClick={() => {
-                  setRemisesL((prev) => {
-                    const l = serviceIds.map((_, k) => prev[k] ?? null);
-                    l[regard.index] = remiseAvecLeRegard(l[regard.index], regard.xof);
-                    return l;
-                  });
-                  setDeduction(regard);
-                }}>Déduire</button>
-              </span>
-            </div>
-          );
-        })()}
-
-        {coverageRows.length > 0 && (
-          <div style={{ border: '1px solid var(--copper-300)', borderLeft: '3px solid var(--color-copper)', borderRadius: 'var(--radius-md)', background: 'var(--copper-50)', padding: '11px 13px' }}>
-            <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, cursor: canCover ? 'pointer' : 'default' }}>
+          {/* LES CHAMPS DE SAISIE AUSSI. Masquer les montants FORMATÉS ne suffisait
+              pas : le montant du rituel et les remises sont des nombres bruts,
+              qui passaient au travers. Un écran censé ne montrer aucun prix en
+              montrait trois. */}
+          {needsAmount && !seulPrixLibre && !effCovered && !sansPrix && (
+            <Field label="Montant du rituel (F CFA)">
               <input
-                type="checkbox"
-                checked={effCovered}
-                disabled={!canCover}
-                onChange={(e) => {
-                  const coche = e.target.checked;
-                  /* DÉCOCHER UNE SÉANCE DÉJÀ COUVERTE EST UN GESTE SENSIBLE
-                     (20 octobre 2026) : la séance revient à la formule et le
-                     tarif de sa tête revient. Le motif est obligatoire ; il
-                     reste au Trône, Ma Couronne dit le fait à la cliente. */
-                  if (!coche && appt?.coveredBySub) {
-                    void demandeUnTexte({
-                      quoi: 'Couverture de la formule',
-                      titre: 'Décocher la couverture ?',
-                      dit: 'La séance revient à la formule et se règle au tarif de sa tête. Ma Couronne le dit à la cliente ; aucun WhatsApp ne part. Le motif reste au Trône.',
-                      etiquette: 'Motif, obligatoire',
-                      gabarit: 'Par exemple : elle garde ses séances pour la fin de l’année',
-                      accepter: 'Décocher la couverture',
-                      refuser: 'Garder la couverture',
-                    }).then((m) => { if (m) { setMotifRetrait(m); setCovered(false); } });
-                    return;
-                  }
-                  setCovered(coche);
-                }}
-                style={{ marginTop: 2, flex: 'none' }}
+                className="mnd-input"
+                type="number"
+                min={0}
+                value={amountStr}
+                onChange={(e) => setAmount(e.target.value)}
+                placeholder={grossLibre > 0 ? String(grossLibre) : '—'}
+                style={{ width: 180, textAlign: 'right' }}
+                aria-label="Montant convenu du rituel"
               />
-              <span style={{ minWidth: 0 }}>
-                <span style={{ display: 'block', fontSize: 12.5, fontWeight: 600, color: 'var(--copper-700)' }}>
-                  Inclus dans l’abonnement, ne rien facturer
-                </span>
-                {pauseDeLaLune && (
-                  <span style={{ display: 'block', fontSize: 11.5, color: 'var(--copper-700)', marginTop: 3, lineHeight: 1.5 }}>
-                    La lune n’est pas réglée : la formule est en pause, sans dette. Elle reprend dès le règlement de la lune.
-                  </span>
-                )}
-                <span style={{ display: 'block', fontSize: 11, color: 'var(--ink-soft)', marginTop: 3, lineHeight: 1.5 }}>
-                  {coverageRows.map((r) => {
-                    const label = r.remaining === null
-                      ? 'illimité'
-                      : (r.remaining ?? 0) > 0
-                        ? (membershipPlan?.mode === 'pack' ? `reste ${r.remaining}` : `reste ${r.remaining} cette lune`)
-                        : 'allocation épuisée';
-                    return `${r.sv.name} · ${label}`;
-                  }).join(' — ')}
-                </span>
-                {!canCover && (
-                  <span style={{ display: 'block', fontSize: 11, color: '#8f3b30', marginTop: 3 }}>
-                    {membershipPlan?.mode === 'pack' ? 'Plus de séance disponible sur ce paquet' : 'Plus de séance disponible cette lune'}, le rituel sera facturé normalement.
-                  </span>
-                )}
-                {/* LE PRIX DE CE QUI SORT DE LA FORMULE, ANNONCÉ. Cocher la case
-                    met le rituel ENTIER à zéro : sans cette ligne, la prestation
-                    non incluse part offerte, sans remise et sans trace. */}
-                {horsFormule.length > 0 && (
-                  <span style={{ display: 'block', fontSize: 11, color: '#8f3b30', marginTop: 5, lineHeight: 1.5 }}>
-                    <b>{horsFormule.map((sv) => sv.name).join(', ')}</b>{' '}
-                    {horsFormule.length > 1 ? 'ne sont pas dans sa formule' : 'n’est pas dans sa formule'}.
-                    {effCovered
-                      ? <> En cochant, {horsFormule.length > 1 ? 'elles partent offertes' : 'elle part offerte'} : le rituel entier passe à 0 F.</>
-                      : <> {horsFormule.length > 1 ? 'Elles se règlent' : 'Elle se règle'} au comptoir.</>}
-                  </span>
-                )}
-              </span>
-            </label>
-          </div>
-        )}
-
-        {/* ③ LE MOMENT — le jour, l'heure, la main qui tient le fauteuil. */}
-        <PalierRdv n={3} titre="Le moment" />
-        <div className="tr-grid tr-grid--2" style={{ marginTop: -8 }}>
-          <Field label="Date">
-            {/* ON TAPE LA DATE, ON NE LA CHERCHE PAS. Le calendrier du
-                navigateur s'ouvre sur le mois courant : poser un rituel de
-                janvier 2025 en septembre 2026, c'est vingt clics sur une
-                fleche. Il reste offert, replie, sous « Le calendrier ». */}
-            <ChampDeDate
-              value={date}
-              onChange={setDate}
-              ariaLabel="Le jour du rituel"
-              sens="avant"
-              alertePasse
-              joursFermes={joursFermes}
-            />
-          </Field>
-          <Field label="Heure">
-            <Select value={time} onChange={(e) => setTime(e.target.value)}>
-              {!TIME_SLOTS.includes(time) && <option value={time}>{time}</option>}
-              {TIME_SLOTS.map((t) => (
-                <option key={t} value={t}>
-                  {t}
-                </option>
-              ))}
-            </Select>
-          </Field>
-        </div>
-
-        {/* LE MAÎTRE A QUITTÉ LE BAS DE PAGE (14 août, Yéman) : il se lisait
-            déjà trois fois — dans le bandeau, sous chaque prestation, et là.
-            Le choix vit désormais AU RITUEL, où la main le désigne ; ici ne
-            reste que ce qui appartient au moment. */}
-        {appt && (
-          <Field label="Statut">
-            <Select value={status} onChange={(e) => setStatus(e.target.value as Appointment['status'])}>
-              {RDV_STATUSES.map((s) => (
-                <option key={s} value={s}>
-                  {s}
-                </option>
-              ))}
-            </Select>
-          </Field>
-        )}
-
-        {overlap && (
-          <div className="trc-overlap">
-            Attention, {master} reçoit déjà {overlapName} à {overlap.time} ce jour-là. Les deux rituels se chevauchent ;
-            vous pouvez tout de même enregistrer.
-          </div>
-        )}
-
-        {/* LA NOTE SE REPLIE (14 août) : elle reste vide la plupart du temps,
-            et occupait une ligne entière entre deux champs qu'on remplit
-            toujours. Le pli s'ouvre de lui-même quand elle porte un mot. */}
-        {noteOuverte ? (
-          <Field label="Note du carnet">
-            <Input value={note} onChange={(e) => setNote(e.target.value)} autoFocus={!appt?.note?.trim()} />
-          </Field>
-        ) : (
-          <button
-            type="button"
-            onClick={() => setNoteOuverte(true)}
-            style={{
-              alignSelf: 'flex-start', cursor: 'pointer', background: 'none', border: 'none', padding: 0,
-              font: 'inherit', fontSize: 12.5, fontWeight: 600, color: 'var(--copper-700)',
-            }}
-          >
-            + Une note au carnet
-          </button>
-        )}
-
-        {/* LE BILAN DE LA SÉANCE — 4 octobre 2026. Après la séance, sous la
-            note du carnet : ce que le maître a vu, et l'assistant qui rédige.
-            La note vit dans sa table (0115), jamais dans le rendez-vous. */}
-        {appt && appt.status !== 'annulé' && appt.date <= todayISO() && (
-          <LeBilanDeLaSeance appt={appt} client={clients.find((c) => c.id === appt.clientId)} byId={byId} />
-        )}
-
-        {/* LES CHAMPS DE SAISIE AUSSI. Masquer les montants FORMATÉS ne suffisait
-            pas : le montant du rituel et les remises sont des nombres bruts,
-            qui passaient au travers. Un écran censé ne montrer aucun prix en
-            montrait trois. */}
-        {needsAmount && !seulPrixLibre && !effCovered && !sansPrix && (
-          <Field label="Montant du rituel (F CFA)">
-            <input
-              className="mnd-input"
-              type="number"
-              min={0}
-              value={amountStr}
-              onChange={(e) => setAmount(e.target.value)}
-              placeholder={grossLibre > 0 ? String(grossLibre) : '—'}
-              style={{ width: 180, textAlign: 'right' }}
-              aria-label="Montant convenu du rituel"
-            />
-            <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 6, lineHeight: 1.5 }}>
-              Montant convenu pour {libres.length > 1 ? 'les prestations à prix libre' : 'la prestation à prix libre'}.
-              {grossFixe > 0 ? ` Il s’ajoute aux ${argent(grossFixe)} des prestations à prix fixe.` : ''}
-              {grossLibre > 0 ? ` À défaut, ${argent(grossLibre)} (prix de départ${rdvPersonalized ? ' personnalisé' : ''}) sera retenu.` : ''}
-            </div>
-          </Field>
-        )}
-
-        {/* LE PRIX — UN SEUL CHOIX. Plein, remisé, ou forfait : trois modes
-            exclusifs sous une seule étiquette. Avant, « Forfait », « Remise % »
-            et « Remise manuelle » s'empilaient comme trois réglages cumulables —
-            alors qu'un forfait EFFACE les remises (un prix négocié ne se remise
-            pas). Le choix dit la règle. */}
-        {!effCovered && !sansPrix && (
-          <>
-          <PalierRdv
-            n={4}
-            titre="Le prix"
-            aide={rdvPersonalized && rdvClient?.lockCount ? `son prix · ${rdvClient.lockCount} locks` : undefined}
-          />
-          {/* LA SÉANCE DE SUITE (15 août, cas Ahmed T.) — « il a pris un
-              soin 2 séances, il paie une séance et réserve la deuxième sans
-              payer », et « ça peut arriver qu'on finisse en 1 séance ». Le
-              nombre de séances ne se sait donc pas à la prise : la série se
-              construit à mesure, en rattachant celle-ci au rituel qui porte
-              déjà le prix. Rien à encaisser ici — `apptTotalXof` met une
-              séance 2+ à zéro partout, et le carnet lui refuse « Encaisser ». */}
-          {/* LA SÉANCE DE SUITE NE SE CHOISIT PLUS ICI (15 août, 2ᵉ passe).
-              Le sélecteur listait les rituels PASSÉS de la cliente : ouvert
-              depuis un rituel déjà facturé, il invitait à le rattacher EN
-              ARRIÈRE — un rendez-vous à 133 200 F passait à « séance incluse »,
-              donc à zéro, d'un clic dans une liste qu'on lisait de travers.
-              « C'est quoi + 7 autres, c'est quoi le prix de 119 000 F ? » :
-              c'étaient ceux de L'AUTRE rituel, et rien ne le disait.
-
-              Le rattachement part désormais du bon bout — menu ⋯ du rituel qui
-              porte le soin → « Poser la séance suivante ». Ici, on ne fait plus
-              que DIRE l'état, et le défaire s'il est faux. */}
-          {estSuite && porteur && (
-            <div className="mnd-bande" style={{ padding: '13px 15px' }}>
-              <div style={{ fontFamily: 'var(--font-serif)', fontSize: 16, color: 'var(--color-indigo)' }}>
-                Séance {(appt?.seriesIndex ?? 2)} de « {porteur.dit} »
+              <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 6, lineHeight: 1.5 }}>
+                Montant convenu pour {libres.length > 1 ? 'les prestations à prix libre' : 'la prestation à prix libre'}.
+                {grossFixe > 0 ? ` Il s’ajoute aux ${argent(grossFixe)} des prestations à prix fixe.` : ''}
+                {grossLibre > 0 ? ` À défaut, ${argent(grossLibre)} (prix de départ${rdvPersonalized ? ' personnalisé' : ''}) sera retenu.` : ''}
               </div>
-              <div style={{ fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--ink-soft)', marginTop: 5, lineHeight: 1.6 }}>
-                Le rituel du {frShortAn(porteur.a.date)} porte le prix{porteur.seances > 0 ? ` des ${porteur.seances} séances` : ''}, rien à encaisser ici. Il ne reste qu'à choisir <b>la date</b>, au palier ③.
-                Seuls les soins à plusieurs séances sont repris : une création
-                déjà terminée en une seule séance se retire d'un ✕, au palier ②.
-              </div>
-              <button
-                type="button"
-                className="trc-disc"
-                style={{ marginTop: 10 }}
-                onClick={() => setSuiteDe('')}
-              >
-                Détacher, ce rituel se facture
-              </button>
-            </div>
-          )}
-          {/* UNE SÉANCE INCLUSE NE PARLE PLUS D'ARGENT — 22 août 2026.
-              « Quand on pose la séance suivante, ne mets aucun total, aucun
-              montant. Juste séance incluse. » Le palier continuait d'offrir
-              prix plein, remise, forfait, acompte et récapitulatif — sur un
-              rituel qui vaut ZÉRO par construction (`apptTotalXof` met une
-              séance 2+ à zéro partout). Proposer d'y consentir une remise
-              n'avait aucun sens, et le total affiché en bas invitait à croire
-              qu'il restait quelque chose à encaisser. */}
-          {/* ══ CE QU'ELLE EMPORTE — la Gamme au rendez-vous ═══════════════
-              5 septembre 2026, maquette validée.
-
-              La Gamme ne vivait qu'au comptoir : un produit promis à la
-              réservation n'existait nulle part avant que la cliente soit devant
-              vous. Le stock ne savait pas qu'il était attendu, et le total
-              annoncé au téléphone n'était celui d'aucun écran.
-
-              C'EST UNE INTENTION, PAS DE L'ARGENT. Le règlement se fait
-              toujours à La Caisse, et LE STOCK NE BOUGE QU'À LA VENTE
-              (arbitrage) : un flacon retenu trois semaines pour une venue qui
-              n'aura pas lieu est un flacon invendu. L'écran ANNONCE ce qu'il
-              reste, il ne le retient pas. */}
-          {!estSuite && (
-            <Field label="La Gamme · ce qu’elle emporte">
-              {gamme.length > 0 && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 9, marginBottom: 10 }}>
-                  {gamme.map((l) => {
-                    const prod = produitsGamme.find((x) => x.id === l.id);
-                    const reste = prod?.stock ?? 0;
-                    const manque = manqueALEtagere(l, reste);
-                    const posee = (l.remise?.pct ?? 0) > 0 || (l.remise?.xof ?? 0) > 0;
-                    const ouverte = posee || gammeOuverte.includes(l.id);
-                    /* LE TARIF A-T-IL BOUGÉ DEPUIS LA PROMESSE ? Le prix figé
-                       fait foi, mais le comptoir doit pouvoir le dire, sans
-                       quoi la Maison vendrait à perte sans jamais le voir. */
-                    const bouge = prod && Math.round(prod.priceXof) !== Math.round(l.prixXof);
-                    return (
-                      <div key={l.id} className="mnd-bande" style={{ padding: '11px 13px' }}>
-                        <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
-                          <span style={{ fontSize: 14, color: 'var(--color-indigo)' }}>
-                            {prod?.name ?? 'Produit retiré de la Gamme'}
-                          </span>
-                          <span
-                            className="mnd-muted"
-                            style={{ fontSize: 10.5, color: manque ? 'var(--trv-error, #96412E)' : undefined }}
-                          >
-                            {manque ? `il n’en reste que ${reste}` : `il en reste ${reste}`}
-                          </span>
-                          <span style={{ marginLeft: 'auto', fontSize: 14, fontVariantNumeric: 'tabular-nums' }}>
-                            {argent(ligneNetteXof(l))}
-                            {ligneNetteXof(l) !== ligneBruteXof(l) && (
-                              <span className="mnd-muted" style={{ fontSize: 11.5 }}> au lieu de {argent(ligneBruteXof(l))}</span>
-                            )}
-                          </span>
-                        </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 9, flexWrap: 'wrap', marginTop: 9 }}>
-                          <button type="button" className="mnd-btn mnd-btn--ghost mnd-btn--sm" style={{ flex: 'none' }}
-                            onClick={() => setGamme((g) => poseUnProduit(g, { id: l.id, priceXof: l.prixXof }, -1))}>−</button>
-                          <span style={{ fontSize: 13.5, fontVariantNumeric: 'tabular-nums', minWidth: 22, textAlign: 'center' }}>{l.qty}</span>
-                          <button type="button" className="mnd-btn mnd-btn--ghost mnd-btn--sm" style={{ flex: 'none' }}
-                            onClick={() => setGamme((g) => poseUnProduit(g, { id: l.id, priceXof: l.prixXof }, 1))}>+</button>
-                          <span className="mnd-muted" style={{ fontSize: 11.5 }}>× {argent(l.prixXof)}</span>
-                          <button
-                            type="button"
-                            onClick={() => setGammeOuverte((prev) => (prev.includes(l.id) ? prev.filter((x) => x !== l.id) : [...prev, l.id]))}
-                            style={{
-                              marginLeft: 'auto', cursor: 'pointer', background: 'none', border: 'none', padding: 0,
-                              font: 'inherit', fontSize: 11.5, fontWeight: 600, color: 'var(--copper-700)',
-                            }}
-                          >
-                            {ouverte ? 'Replier' : 'Remiser'}
-                          </button>
-                          <button type="button" className="mnd-btn mnd-btn--ghost mnd-btn--sm" style={{ flex: 'none' }}
-                            onClick={() => setGamme((g) => retireUnProduit(g, l.id))}>Retirer</button>
-                        </div>
-                        {ouverte && (
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 9, flexWrap: 'wrap' }}>
-                            {tauxPermis(estDirection).map((v) => (
-                              <button
-                                key={v}
-                                type="button"
-                                className={`mnd-btn mnd-btn--sm ${(l.remise?.pct ?? 0) === v ? 'mnd-btn--copper' : 'mnd-btn--ghost'}`}
-                                style={{ flex: 'none' }}
-                                onClick={() => setGamme((g) => remiseDeLaLigne(g, l.id, { pct: (l.remise?.pct ?? 0) === v ? 0 : v }))}
-                              >
-                                −{v}%
-                              </button>
-                            ))}
-                            <input
-                              className="mnd-input"
-                              inputMode="numeric"
-                              placeholder="0"
-                              value={l.remise?.xof ? String(l.remise.xof) : ''}
-                              onChange={(e) => setGamme((g) => remiseDeLaLigne(g, l.id, { xof: Math.max(0, Math.round(Number(e.target.value.replace(/[^\d]/g, '')) || 0)) }))}
-                              style={{ width: 96, textAlign: 'right' }}
-                              aria-label="Remise en francs sur ce produit"
-                            />
-                            <span className="mnd-muted" style={{ fontSize: 11.5 }}>F · après le %</span>
-                          </div>
-                        )}
-                        {bouge && (
-                          <div style={{ fontSize: 11.5, marginTop: 8, lineHeight: 1.55, color: 'var(--copper-700)' }}>
-                            Le tarif a bougé depuis : {argent(prod!.priceXof)} au catalogue aujourd’hui.
-                            {' '}
-                            <button
-                              type="button"
-                              onClick={() => setGamme((g) => g.map((x) => (x.id === l.id ? { ...x, prixXof: Math.round(prod!.priceXof) } : x)))}
-                              style={{ cursor: 'pointer', background: 'none', border: 'none', padding: 0, font: 'inherit', fontWeight: 600, color: 'var(--copper-700)', textDecoration: 'underline' }}
-                            >
-                              Prendre le prix d’aujourd’hui
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-              <Select
-                value=""
-                onChange={(e) => {
-                  const prod = produitsGamme.find((x) => x.id === e.target.value);
-                  if (prod) setGamme((g) => poseUnProduit(g, prod, 1));
-                }}
-              >
-                <option value="">+ Ajouter de la Gamme…</option>
-                {produitsGamme
-                  .filter((prod) => !gamme.some((l) => l.id === prod.id))
-                  .map((prod) => (
-                    <option key={prod.id} value={prod.id}>
-                      {prod.name} · {argent(prod.priceXof)} · stock {prod.stock}
-                    </option>
-                  ))}
-              </Select>
-              {gamme.length > 0 && (
-                <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 7, lineHeight: 1.55 }}>
-                  <b>{argent(gammeNetteXof(gamme, forfaitPose ? 0 : discountPct))}</b> de Gamme,
-                  {' '}en plus des gestes. Elle se règle au comptoir, avec le rituel : rien n’est
-                  {' '}retenu sur l’étagère avant qu’elle ne l’emporte.
-                  {forfaitPose
-                    ? ' Un forfait ne l’absorbe pas, elle s’ajoute à son prix.'
-                    : (discountPct > 0 ? ` La remise de −${discountPct} % y porte aussi.` : '')}
-                </div>
-              )}
             </Field>
           )}
+          {/* ELLE NE PARAÎT QUE LORSQUE LA DURÉE CHANGE. Sur une tête Medium, ou
+              sur une prestation qui ne suit pas le modèle, rien ne s'affiche : un
+              écran qui commente ce qu'il n'a pas modifié fatigue pour rien.
 
-          {!estSuite && (
-          <Field label="Le prix">
-            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-              {([
-                { m: 'plein' as const, t: 'Prix plein' },
-                { m: 'remise' as const, t: 'Remise' },
-                { m: 'forfait' as const, t: 'Forfait' },
-              ]).map(({ m, t }) => (
-                <button
-                  key={m}
-                  type="button"
-                  className={`trc-disc ${prixMode === m ? 'is-on' : ''}`}
-                  onClick={() => {
-                    /* Un choix de la main éteint l'automatisme famille : « Prix
-                       plein » consenti reste plein, même si la tête change. */
-                    famAuto.current = false;
-                    setPrixMode(m);
-                    if (m !== 'forfait') setForfaitOn(false);
-                    if (m === 'forfait') { setForfaitOn(true); setDiscountPct(0); setDiscountXof(0); }
-                    if (m === 'plein') { setDiscountPct(0); setDiscountXof(0); }
-                  }}
-                >
-                  {t}
-                </button>
-              ))}
+              SANS CETTE PHRASE, L'ALLONGEMENT PASSE POUR UN BOGUE : on lit 1 h au
+              catalogue, 1 h 55 au calendrier, on corrige à la main, et le réglage
+              ne sert plus à rien. */}
+          {chosen.length > 0 && (
+            <div className="trc-rdv-duree">
+              <div className="trc-rdv-duree__t">
+                <b>{fmtDureeCourte(dureeRetenue)}</b>, de {time} à {String(Math.floor(finDuRdv / 60)).padStart(2, '0')}:{String(finDuRdv % 60).padStart(2, '0')}
+              </div>
+              {dureeCalculee !== dureeCatalogue && !dureeMain && pricing.band && (
+                <div className="trc-rdv-duree__d">
+                  La fiche annonce {fmtDureeCourte(dureeCatalogue)} ; sa tête est
+                  {' '}<b>calibre {pricing.band.name ?? bandLabel(pricing.band, bands)}</b>,
+                  et le barème des prestations y pose ×{pricing.band.durCoef}.
+                </div>
+              )}
+              <div className="trc-rdv-duree__main">
+                <span>À la main</span>
+                <input
+                  className="mnd-input"
+                  inputMode="numeric"
+                  placeholder={String(dureeCalculee || 60)}
+                  value={dureeMain}
+                  onChange={(e) => setDureeMain(e.target.value.replace(/[^0-9]/g, ''))}
+                />
+                <span>min</span>
+                {dureeMain && (
+                  <button className="tre-link-btn" onClick={() => setDureeMain('')}>revenir au calcul</button>
+                )}
+              </div>
             </div>
-            {/* Le compte famille annonce son avantage — un clic le pose, quel
-                que soit le mode où la main se trouve. */}
-            {famPct > 0 && prixMode !== 'remise' && (
-              <button
-                type="button"
-                className="trc-disc"
-                style={{ marginTop: 10, borderColor: 'var(--copper-300)', color: 'var(--copper-700)' }}
-                onClick={() => {
-                  setPrixMode('remise');
-                  setForfaitOn(false);
-                  setDiscountPct(famPct);
-                  setDiscountXof(0);
-                }}
-              >
-                Poser la remise famille · −{famPct}%
-              </button>
-            )}
-            {prixMode === 'remise' && (
-              <>
-                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center', marginTop: 10 }}>
-                  {famPct > 0 && (
-                    <button
-                      type="button"
-                      className={`trc-disc ${discountPct === famPct ? 'is-on' : ''}`}
-                      onClick={() => setDiscountPct(famPct)}
-                      title={`L'avantage du compte ${familleDuCompte?.name ?? 'famille'}`}
-                    >
-                      Famille −{famPct}%
-                    </button>
+          )}
+          {/* LA LONGUEUR TRAVAILLÉE — elle commande le prix et la durée des
+              prestations qui s'y facturent, et se fige sur le rendez-vous. Elle ne
+              paraît que si une prestation choisie la lit : ailleurs, un sélecteur
+              qui ne commande rien n'est qu'une case de plus à remplir. */}
+          {longueurPertinente && (
+            <div style={{ border: '1px solid var(--copper-300)', borderLeft: '3px solid var(--color-copper)', borderRadius: 'var(--radius-md)', background: 'var(--copper-50)', padding: '11px 13px' }}>
+              <div style={{ fontFamily: 'var(--font-sans)', fontSize: 10, letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--copper-700)', marginBottom: 8 }}>
+                Longueur travaillée
+              </div>
+              {/* LE CHOIX DOIT SE VOIR. Ces pastilles portaient `trv-palier-chip`,
+                  une classe qui vit dans `vente.css` — jamais chargée sur le
+                  Carnet, qui n'a que `clients.css`. Les trois boutons restaient
+                  donc bruts et « actif » ne peignait rien : on choisissait une
+                  longueur sans jamais savoir laquelle était retenue, alors qu'elle
+                  commande le prix. Le style est ici, avec le composant : une
+                  modale partagée par quatre écrans ne peut pas dépendre de la
+                  feuille d'un domaine. */}
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                {LONGUEURS.map((l) => (
+                  <ChipChoix
+                    key={l.id}
+                    actif={longueur === l.id}
+                    title={l.hint}
+                    onClick={() => setLongueur(l.id)}
+                  >
+                    {l.label}
+                  </ChipChoix>
+                ))}
+              </div>
+              {/* CE QUE LA LONGUEUR CHOISIE COÛTE, en clair — c'est la seule raison
+                  pour laquelle on la demande. */}
+              <div style={{ fontSize: 11.5, color: 'var(--copper-700)', marginTop: 9, lineHeight: 1.55 }}>
+                <b style={{ fontWeight: 600 }}>{LONGUEURS.find((l) => l.id === longueur)?.label}</b>
+                {' — '}
+                {chosen.filter(suitLongueur).map((sv) => `${sv.name} · ${argent(personalPriceXof(sv, pricing, services, produitsGamme))}`).join(' · ')}
+              </div>
+            </div>
+          )}
+          {/* ══ ELLE EST ABONNÉE, ET RIEN NE LE DIT — 1er septembre 2026 ═════
+              « Comment j'utilise un rituel en abonnement ? J'ai pris un RDV qui
+              n'a pas montré que les services sortent d'un abonnement » (Yéman).
+
+              LA COUVERTURE MARCHAIT, MAIS ELLE SE TAISAIT. Le bloc cuivre ne
+              paraît que si l'une des prestations choisies est DANS sa formule.
+              Quand aucune ne l'est, l'écran ne disait rien du tout : on voyait
+              « ★ Abonnée » en haut, un prix plein en bas, et rien entre les deux
+              pour expliquer pourquoi.
+
+              ON DIT CE QUE PORTE SA FORMULE. C'est la seule information qui
+              permette de comprendre en un regard : soit on s'est trompé de
+              prestation, soit celle-ci n'a jamais été incluse, et dans les deux
+              cas on sait quoi faire. */}
+          {membership && membershipPlan && coverageRows.length === 0 && chosen.length > 0 && (() => {
+            const inclus = inclusVendus(membership, membershipPlan)
+              .map((i) => services.find((sv) => sv.id === i.serviceId)?.name)
+              .filter(Boolean) as string[];
+            /* ══ DIRE OÙ SE CORRIGE L'ERREUR — 1er septembre 2026 ══════════
+               « La Juste Cadence inclut Le Souffle et non L'Ancrage, et voici le
+               message que j'obtiens sur le compte de Mme Grimaud » (Yéman).
+
+               LA NOTE DISAIT « SA FORMULE PORTE », ET C'ÉTAIT AMBIGU. Ce qui est
+               listé vient de `inclusVendus` : le contenu AJUSTÉ À LA VENTE s'il
+               existe, sinon celui de la formule. Les deux se corrigent à des
+               endroits différents, et se tromper d'endroit fait perdre une
+               journée : retoucher la formule ne change RIEN pour une abonnée
+               dont le contenu a été figé le jour de sa vente. */
+            const surMesure = (membership.inclusPropres?.length ?? 0) > 0;
+            return (
+              <div className="tre-inline-note">
+                <span className="mark">!</span>
+                <span>
+                  {membershipPlan.name} <b>ne couvre pas</b> {chosen.length > 1 ? 'ces prestations' : 'cette prestation'}.
+                  {inclus.length > 0
+                    ? <>
+                      {surMesure
+                        ? <> Son contenu a été <b>ajusté à la vente</b> et porte : </>
+                        : <> Sa formule porte : </>}
+                      <b>{inclus.join(', ')}</b>.
+                      <span style={{ display: 'block', marginTop: 3, opacity: .85 }}>
+                        {surMesure
+                          ? 'À corriger sur SA fiche d’abonnée, Abonnements → Modifier : retoucher la formule ne changerait rien pour elle.'
+                          : 'À corriger sur la formule, Abonnements → Les formules.'}
+                      </span>
+                    </>
+                    : <> Elle ne porte aucune prestation incluse, ce rituel se règle donc au comptoir.</>}
+                </span>
+              </div>
+            );
+          })()}
+
+          {(() => {
+            /* ══ LE REGARD DÉDUIT SOUS 30 JOURS — 10 octobre 2026 ══════════
+               KÒKÒ™ Origine de la création, KÒKÒ™ Accueil de la restauration,
+               KÒKÒ™ Conseil de la création Kids : proposé ici, posé d'un geste,
+               en remise sur la ligne de l'acte. */
+            if (appt?.regardDeduit) {
+              return (
+                <div className="tre-inline-note"><span className="mark">✓</span>
+                  <span>Le Regard est déduit de cet acte : −{fmtMoney(appt.regardDeduit.xof, currency)}.</span>
+                </div>
+              );
+            }
+            if (!clientId) return null;
+            const regard = regardADeduire({
+              rdv: { id: appt?.id, clientId, date, serviceIds },
+              rdvs: appointmentsStore.get(),
+              estCreation: (id) => { const sv = byId.get(id); return !!sv && fondeLaCouronne(sv); },
+              payeXof: (a) => apptPaidXof(a as Appointment),
+              prixDuRegard: (id) => byId.get(id)?.priceXof ?? 0,
+            });
+            if (!regard) return null;
+            const nom = byId.get(regard.regardServiceId)?.name?.split(' · ')[0] ?? 'Le Regard';
+            if (deduction) {
+              return (
+                <div className="tre-inline-note"><span className="mark">✓</span>
+                  <span>{nom} du {frShortAn(regard.date)} déduit : −{fmtMoney(regard.xof, currency)} sur la ligne de l’acte, à l’enregistrement.</span>
+                </div>
+              );
+            }
+            return (
+              <div className="tre-inline-note"><span className="mark">!</span>
+                <span>
+                  {nom} du {frShortAn(regard.date)}, réglé, se déduit de cet acte (sous 30 jours) : −{fmtMoney(regard.xof, currency)}.{' '}
+                  <button type="button" className="trc-c360-linkbtn" onClick={() => {
+                    setRemisesL((prev) => {
+                      const l = serviceIds.map((_, k) => prev[k] ?? null);
+                      l[regard.index] = remiseAvecLeRegard(l[regard.index], regard.xof);
+                      return l;
+                    });
+                    setDeduction(regard);
+                  }}>Déduire</button>
+                </span>
+              </div>
+            );
+          })()}
+
+          {coverageRows.length > 0 && (
+            <div style={{ border: '1px solid var(--copper-300)', borderLeft: '3px solid var(--color-copper)', borderRadius: 'var(--radius-md)', background: 'var(--copper-50)', padding: '11px 13px' }}>
+              <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, cursor: canCover ? 'pointer' : 'default' }}>
+                <input
+                  type="checkbox"
+                  checked={effCovered}
+                  disabled={!canCover}
+                  onChange={(e) => {
+                    const coche = e.target.checked;
+                    /* DÉCOCHER UNE SÉANCE DÉJÀ COUVERTE EST UN GESTE SENSIBLE
+                       (20 octobre 2026) : la séance revient à la formule et le
+                       tarif de sa tête revient. Le motif est obligatoire ; il
+                       reste au Trône, Ma Couronne dit le fait à la cliente. */
+                    if (!coche && appt?.coveredBySub) {
+                      void demandeUnTexte({
+                        quoi: 'Couverture de la formule',
+                        titre: 'Décocher la couverture ?',
+                        dit: 'La séance revient à la formule et se règle au tarif de sa tête. Ma Couronne le dit à la cliente ; aucun WhatsApp ne part. Le motif reste au Trône.',
+                        etiquette: 'Motif, obligatoire',
+                        gabarit: 'Par exemple : elle garde ses séances pour la fin de l’année',
+                        accepter: 'Décocher la couverture',
+                        refuser: 'Garder la couverture',
+                      }).then((m) => { if (m) { setMotifRetrait(m); setCovered(false); } });
+                      return;
+                    }
+                    setCovered(coche);
+                  }}
+                  style={{ marginTop: 2, flex: 'none' }}
+                />
+                <span style={{ minWidth: 0 }}>
+                  <span style={{ display: 'block', fontSize: 12.5, fontWeight: 600, color: 'var(--copper-700)' }}>
+                    Inclus dans l’abonnement, ne rien facturer
+                  </span>
+                  {pauseDeLaLune && (
+                    <span style={{ display: 'block', fontSize: 11.5, color: 'var(--copper-700)', marginTop: 3, lineHeight: 1.5 }}>
+                      La lune n’est pas réglée : la formule est en pause, sans dette. Elle reprend dès le règlement de la lune.
+                    </span>
                   )}
-                  {tauxPermis(estDirection).map((p) => (
+                  <span style={{ display: 'block', fontSize: 11, color: 'var(--ink-soft)', marginTop: 3, lineHeight: 1.5 }}>
+                    {coverageRows.map((r) => {
+                      const label = r.remaining === null
+                        ? 'illimité'
+                        : (r.remaining ?? 0) > 0
+                          ? (membershipPlan?.mode === 'pack' ? `reste ${r.remaining}` : `reste ${r.remaining} cette lune`)
+                          : 'allocation épuisée';
+                      return `${r.sv.name} · ${label}`;
+                    }).join(' — ')}
+                  </span>
+                  {!canCover && (
+                    <span style={{ display: 'block', fontSize: 11, color: '#8f3b30', marginTop: 3 }}>
+                      {membershipPlan?.mode === 'pack' ? 'Plus de séance disponible sur ce paquet' : 'Plus de séance disponible cette lune'}, le rituel sera facturé normalement.
+                    </span>
+                  )}
+                  {/* LE PRIX DE CE QUI SORT DE LA FORMULE, ANNONCÉ. Cocher la case
+                      met le rituel ENTIER à zéro : sans cette ligne, la prestation
+                      non incluse part offerte, sans remise et sans trace. */}
+                  {horsFormule.length > 0 && (
+                    <span style={{ display: 'block', fontSize: 11, color: '#8f3b30', marginTop: 5, lineHeight: 1.5 }}>
+                      <b>{horsFormule.map((sv) => sv.name).join(', ')}</b>{' '}
+                      {horsFormule.length > 1 ? 'ne sont pas dans sa formule' : 'n’est pas dans sa formule'}.
+                      {effCovered
+                        ? <> En cochant, {horsFormule.length > 1 ? 'elles partent offertes' : 'elle part offerte'} : le rituel entier passe à 0 F.</>
+                        : <> {horsFormule.length > 1 ? 'Elles se règlent' : 'Elle se règle'} au comptoir.</>}
+                    </span>
+                  )}
+                </span>
+              </label>
+            </div>
+          )}
+          {typeof frozenXof === 'number' && servicesChanged && !needsAmount && (
+            <div style={{ fontSize: 12, color: 'var(--copper-700)', background: 'var(--copper-50)', border: '1px solid var(--copper-300)', borderRadius: 'var(--radius-md)', padding: '9px 11px', lineHeight: 1.5 }}>
+              Vous avez modifié les prestations : enregistrer recalculera ce rituel au tarif du jour
+              ({argent(grossBase)}), l’ancien prix de {argent(frozenXof)} sera abandonné.
+            </div>
+          )}
+        </RangeeRdv>
+
+        <RangeeRdv
+          n="3"
+          titre="Quand ?"
+          ouverte={rang === 'quand'}
+          onBascule={() => basculeRang('quand')}
+          fait={momentChoisi && !bloque}
+          etat={bloque ? 'à changer' : undefined}
+          resume={momentChoisi
+            ? [jourCourtAn(date), time, master || 'sans maître', bloque ? 'fauteuils pleins' : raison ? 'posé quand même' : null].filter(Boolean).join(' · ')
+            : 'Le jour, l’heure, le maître'}
+        >
+          {rdvClient && reprise?.iso && !appt && (
+            <p className="trc-rdv3__note trc-rdv3__note--cuivre">
+              Elle revient d’habitude vers le {jourDit(reprise.iso)}{habitude?.master ? `, avec ${habitude.master}` : ''}.
+            </p>
+          )}
+          {chosen.length === 0 ? (
+            <p className="trc-rdv3__note">
+              Les places s’ouvrent dès que les prestations sont choisies : elles dépendent de la durée de sa tête.
+            </p>
+          ) : (
+            <div>
+              <div className="trc-rdv3__semaine-tete">
+                <span>
+                  Semaine du {jourDit(debutSemaine)} · places pour {fmtDureeCourte(dureeRetenue)}
+                  {sieges > 0 ? `, ${sieges} fauteuil${sieges > 1 ? 's' : ''}` : ''}
+                </span>
+                <span className="trc-rdv3__nav">
+                  <button type="button" disabled={!appt && debutSemaine <= aujourdhui} onClick={() => setDebutChoisi(ajouteJours(debutSemaine, -7))}>‹ Précédente</button>
+                  <button type="button" onClick={() => setDebutChoisi(ajouteJours(debutSemaine, 7))}>Suivante ›</button>
+                </span>
+              </div>
+              <div className="trc-rdv3__semaine">
+                {semaine.map((j) => {
+                  const n = j.heures.length;
+                  const on = jourDuJour?.iso === j.iso;
+                  const sonJour = reprise?.iso === j.iso;
+                  return (
                     <button
-                      key={p}
+                      key={j.iso}
                       type="button"
-                      className={`trc-disc ${discountPct === p ? 'is-on' : ''}`}
-                      onClick={() => setDiscountPct(p)}
+                      className={`trc-rdv3__jour${on ? ' is-on' : ''}${sonJour ? ' is-reprise' : ''}`}
+                      disabled={j.passe && !appt}
+                      aria-pressed={on}
+                      onClick={() => setJourVu(j.iso)}
                     >
-                      −{p}%
+                      <small>{new Date(`${j.iso}T12:00:00`).toLocaleDateString('fr-FR', { weekday: 'short' })}</small>
+                      <b>{Number(j.iso.slice(8, 10))}</b>
+                      <small>{j.ferme ? 'fermé' : j.passe ? 'passé' : n === 0 ? 'complet' : `${n} place${n > 1 ? 's' : ''}`}</small>
+                      {sonJour
+                        ? <small className="trc-rdv3__sien">son jour</small>
+                        : appt?.date === j.iso ? <small className="trc-rdv3__sien">le sien</small> : null}
+                    </button>
+                  );
+                })}
+              </div>
+              {jourDuJour && (jourDuJour.heures.length > 0 ? (
+                <div className="trc-rdv3__heures" role="group" aria-label={`Les places du ${jourDit(jourDuJour.iso)}`}>
+                  {jourDuJour.heures.map((h) => (
+                    <button
+                      key={h}
+                      type="button"
+                      className={`trc-rdv3__heure${momentChoisi && date === jourDuJour.iso && time === h ? ' is-on' : ''}`}
+                      onClick={() => poseLeMoment(jourDuJour.iso, h)}
+                    >
+                      {h}
                     </button>
                   ))}
-                  <input
-                    className="mnd-input"
-                    type="number"
-                    min={0}
-                    max={100}
-                    value={discountPct}
-                    onChange={(e) => setDiscountPct(Math.max(0, Math.min(plafondDeRemisePct(estDirection), Math.round(Number(e.target.value) || 0))))}
-                    title={estDirection ? undefined : '50 % et plus : la direction seulement.'}
-                    style={{ width: 68, textAlign: 'right' }}
-                    aria-label="Remise en pourcentage"
-                  />
-                  <span className="mnd-muted" style={{ fontSize: 11.5 }}>% · ou</span>
-                  <input
-                    className="mnd-input"
-                    type="number"
-                    min={0}
-                    value={discountXof}
-                    onChange={(e) => setDiscountXof(Math.min(plafondDeRemiseXof(estDirection, effGross), Math.max(0, Math.round(Number(e.target.value) || 0))))}
-                    style={{ width: 120, textAlign: 'right' }}
-                    placeholder="0"
-                    aria-label={`Remise en ${currency}`}
-                  />
-                  <span className="mnd-muted" style={{ fontSize: 11.5 }}>{currency}</span>
                 </div>
-                <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 6 }}>
-                  Le pourcentage d’abord, les francs ensuite, les deux se cumulent.
-                </div>
-              </>
-            )}
-            {prixMode === 'forfait' && (
-              <>
-                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginTop: 10 }}>
-                  <input
-                    className="mnd-input"
-                    value={forfaitNom}
-                    onChange={(e) => setForfaitNom(e.target.value)}
-                    placeholder="Forfait"
-                    style={{ flex: '1 1 150px', minWidth: 0 }}
-                    aria-label="Nom du forfait"
-                  />
-                  <input
-                    className="mnd-input"
-                    type="number"
-                    min={0}
-                    value={forfaitStr}
-                    onChange={(e) => setForfaitStr(e.target.value)}
-                    placeholder={String(effGross)}
-                    style={{ width: 128, textAlign: 'right' }}
-                    aria-label={`Total du forfait en ${currency}`}
-                  />
-                  <span className="mnd-muted" style={{ fontSize: 11.5 }}>soit</span>
-                  <input
-                    className="mnd-input"
-                    type="number"
-                    min={0}
-                    max={100}
-                    step={0.1}
-                    value={forfaitPose ? forfaitPct : ''}
-                    onChange={(e) => setForfaitParPct(e.target.value)}
-                    style={{ width: 76, textAlign: 'right' }}
-                    aria-label="Taux du forfait en pourcentage"
-                  />
-                  <span className="mnd-muted" style={{ fontSize: 11.5 }}>% sur {argent(effGross)}</span>
-                </div>
-                <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 6, lineHeight: 1.5 }}>
-                  Les prestations restent détaillées : chacune reçoit sa part du total, au prorata de
-                  ce qu’elle vaut pour cette tête. Les mains, les primes, les commissions et le Bilan
-                  continuent de compter juste.
-                </div>
-              </>
-            )}
-          </Field>
+              ) : (
+                <p className="trc-rdv3__note" style={{ marginTop: 10 }}>
+                  {jourDuJour.ferme
+                    ? `La Maison est fermée le ${jourDit(jourDuJour.iso)}. Une heure s’y pose quand même ci-dessous, si elle ouvre exprès.`
+                    : jourDuJour.passe
+                      ? 'Ce jour est passé.'
+                      : `Plus aucune place le ${jourDit(jourDuJour.iso)} pour ${fmtDureeCourte(dureeRetenue)}.`}
+                </p>
+              ))}
+            </div>
           )}
-          </>
-        )}
-
-        {/* CE RITUEL EST-IL OFFERT ? Le geste vit sur le rendez-vous, et non sur
-            la facture : c'est le rendez-vous que tout le monde relit. Rhanda a
-            offert à Ahmed sa première visite — 110 000 F, le 2 mai 2026 — et la
-            Maison n'avait aucun endroit où l'inscrire, sinon un compte famille
-            qui l'aurait faite payeuse à vie. DERRIÈRE UN INTERRUPTEUR : un cas
-            d'exception ne s'étale pas à chaque rendez-vous. */}
-        {!effCovered && !sansPrix && (
-          <div>
-            <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12.5, cursor: 'pointer', fontFamily: 'var(--font-sans)' }}>
-              <input
-                type="checkbox"
-                checked={offertOn}
-                onChange={(e) => {
-                  setOffertOn(e.target.checked);
-                  if (!e.target.checked) setOffertPar('');
-                }}
+          {/* LA MAIN GARDE LE DERNIER MOT : une autre date, une autre heure,
+              hors des places proposées. La raison se dit juste dessous. */}
+          <div className="trc-rdv3__autre">
+            <span className="trc-rdv3__petit">Ou une autre date, une autre heure</span>
+            <div className="trc-rdv3__autre-champs">
+              {/* ON TAPE LA DATE, ON NE LA CHERCHE PAS (le calendrier reste
+                  offert, replié) : poser un rituel de janvier 2025 en
+                  septembre 2026 ne coûte pas vingt clics. */}
+              <ChampDeDate
+                value={date}
+                onChange={(d) => { setDate(d); setJourVu(d); setDebutChoisi(debutDeLaSemaine(d, aujourdhui, !!appt)); }}
+                ariaLabel="Le jour du rituel"
+                sens="avant"
+                alertePasse
+                compact
+                joursFermes={joursFermes}
               />
-              Ce rituel est offert par une autre cliente, cas exceptionnel
-            </label>
-            {offertOn && (
-              <div style={{ marginTop: 10 }}>
-                <ClientPicker
-                  value={offertPar}
-                  onChange={setOffertPar}
-                  placeholder="Qui l’offre ?"
-                />
-                {offertPar && offertPar !== clientId && (
-                  <div className="trc-sub" style={{ marginTop: 6, lineHeight: 1.5 }}>
-                    La dépense et les points de fidélité iront à {nomDe(offertPar)}, c’est elle qui
-                    paie. Le rituel, lui, reste au parcours de {nomDe(clientId)}.
-                  </div>
-                )}
-                {offertPar && offertPar === clientId && (
-                  <div className="trc-sub" style={{ marginTop: 6, color: 'var(--copper-700)' }}>
-                    Elle ne peut pas s’offrir son propre rituel, laissez vide.
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* LE PRIX D'ORIGINE FAIT FOI : le rituel a été facturé à CE prix-là et
-            le garde, quoi que fasse le catalogue. Il ne se recalcule que si les
-            prestations elles-mêmes changent — et on le dit AVANT d'enregistrer. */}
-        {frozenDiffers && !servicesChanged && !refreshPrice && !sansPrix && (
-          <div style={{ fontSize: 12, color: 'var(--copper-700)', background: 'var(--copper-50)', border: '1px solid var(--copper-300)', borderRadius: 'var(--radius-md)', padding: '9px 11px', lineHeight: 1.5 }}>
-            Prix d’origine conservé : <b>{argent(frozenXof!)}</b> (au tarif d’aujourd’hui,
-            ces prestations vaudraient {argent(grossBase)}). Il ne changera que si vous
-            modifiez les prestations, ou si vous l’actualisez :
-            <div style={{ marginTop: 8 }}>
-              <button
-                type="button"
-                onClick={() => setRefreshPrice(true)}
-                style={{ cursor: 'pointer', background: 'var(--color-copper)', color: 'var(--color-ivoire)', border: 'none', borderRadius: 3, padding: '6px 12px', fontFamily: 'var(--font-sans)', fontSize: 11.5, fontWeight: 600 }}
+              <Select
+                value={momentChoisi ? time : ''}
+                onChange={(e) => { if (e.target.value) poseLeMoment(jourDuJour?.iso ?? jourMontre ?? date, e.target.value); }}
+                aria-label="L’heure du rituel"
               >
-                Actualiser au tarif du jour ({argent(grossBase)})
-              </button>
+                {!momentChoisi && <option value="">Une heure…</option>}
+                {momentChoisi && !TIME_SLOTS.includes(time) && <option value={time}>{time}</option>}
+                {TIME_SLOTS.map((t) => (
+                  <option key={t} value={t}>
+                    {t}
+                  </option>
+                ))}
+              </Select>
             </div>
           </div>
-        )}
-        {frozenDiffers && !servicesChanged && refreshPrice && !sansPrix && (
-          <div style={{ fontSize: 12, color: 'var(--copper-700)', background: 'var(--copper-50)', border: '1px solid var(--copper-300)', borderRadius: 'var(--radius-md)', padding: '9px 11px', lineHeight: 1.5 }}>
-            Ré-tarifé au tarif du jour : <b>{argent(grossBase)}</b> (ancien prix
-            {' '}{argent(frozenXof!)}). Enregistrez pour figer ce nouveau prix ; ré-encaissez
-            ensuite pour que la facture porte les mêmes montants.
-            <div style={{ marginTop: 8 }}>
-              <button
-                type="button"
-                onClick={() => setRefreshPrice(false)}
-                style={{ cursor: 'pointer', background: 'none', color: 'var(--copper-700)', border: '1px solid var(--copper-300)', borderRadius: 3, padding: '6px 12px', fontFamily: 'var(--font-sans)', fontSize: 11.5 }}
-              >
-                Garder le prix d’origine
-              </button>
+          {raison && (
+            <div className={`trc-rdv3__raison${raison.bloque ? ' is-bloque' : ''}`} role={raison.bloque ? 'alert' : undefined}>
+              {raison.texte}
             </div>
+          )}
+          {/* POSÉ APRÈS SON HEURE — 13 septembre 2026 : on le dit avant
+              d'enregistrer, pour que le silence de la Maison soit voulu. */}
+          {!appt && momentChoisi && momentDuRdv({ date, time }) <= Date.now() && (
+            <p className="trc-rdv3__note">
+              Ce rendez-vous est posé après son heure : ni confirmation, ni rappel, ni demande d’avis ne
+              partiront vers la cliente.
+            </p>
+          )}
+          {/* LE MAÎTRE AU FAUTEUIL, ICI — c'est lui qui exécute le rituel, et
+              chaque prestation le nomme juste dessous. Il tenait un champ à
+              part en bas de page, à côté du statut : deux choses qui n'ont
+              rien à voir. */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginTop: 9 }}>
+            <span className="mnd-muted" style={{ fontSize: 11.5, flex: 'none' }}>Au fauteuil</span>
+            <Select
+              value={master}
+              onChange={(e) => setMaster(e.target.value)}
+              style={{ flex: '0 1 220px', minWidth: 0 }}
+              aria-label="Maître au fauteuil"
+            >
+              {branch.masters.map((m) => (
+                <option key={m} value={m}>{m}</option>
+              ))}
+            </Select>
+            {/* JUSQU'OÙ CETTE MAIN EXÉCUTE, lu sur sa fiche d'équipe. */}
+            {(() => {
+              const fiche = equipe.find((m) => sameName(m.name, master));
+              return fiche?.palier
+                ? <span className={`mnd-palier mnd-palier--${RANG_DU_PALIER[fiche.palier]}`} title="Son habilitation">{fiche.palier}</span>
+                : null;
+            })()}
           </div>
-        )}
-        {typeof frozenXof === 'number' && servicesChanged && !needsAmount && (
-          <div style={{ fontSize: 12, color: 'var(--copper-700)', background: 'var(--copper-50)', border: '1px solid var(--copper-300)', borderRadius: 'var(--radius-md)', padding: '9px 11px', lineHeight: 1.5 }}>
-            Vous avez modifié les prestations : enregistrer recalculera ce rituel au tarif du jour
-            ({argent(grossBase)}), l’ancien prix de {argent(frozenXof)} sera abandonné.
-          </div>
-        )}
-        {/* Prix PERSONNALISÉ — modèle (tranche de locks) × Juste Prix : annoncé
-            avant d'enregistrer, puis figé sur le rendez-vous. */}
-        {rdvPersonalized && !needsAmount && !keepFrozen && !effCovered && (
-          <div style={{ fontSize: 12, color: 'var(--copper-700)', background: 'var(--copper-50)', border: '1px solid var(--copper-300)', borderRadius: 'var(--radius-md)', padding: '9px 11px', lineHeight: 1.5 }}>
-            Prix personnalisé : <b>{argent(grossBase)}</b>
-            {pricing.band ? <>, modèle {bandLabel(pricing.band, bands)} (×{pricing.band.coef})</> : null}
-            {pricing.clientCoef !== 1 ? <> · Juste Prix ×{pricing.clientCoef}</> : null}
-            {grossBase !== grossCatalogue ? <> · catalogue {argent(grossCatalogue)}</> : null}.
-            Il sera figé sur ce rendez-vous à l’enregistrement.
-          </div>
-        )}
+          {avertHabilitation && (
+            <div style={{ marginTop: 8, padding: '9px 12px', borderRadius: 3, fontSize: 12.5, lineHeight: 1.5, border: '1px solid var(--copper-300)', borderLeft: '3px solid var(--color-copper)', background: 'var(--copper-50)', color: 'var(--ink)' }}>
+              {avertHabilitation.texte}
+            </div>
+          )}
+          {avertRh.map((t) => (
+            <div key={t} style={{ marginTop: 8, padding: '9px 12px', borderRadius: 3, fontSize: 12.5, lineHeight: 1.5, border: '1px solid var(--copper-300)', borderLeft: '3px solid var(--color-copper)', background: 'var(--copper-50)', color: 'var(--ink)' }}>
+              {t}
+            </div>
+          ))}
+        </RangeeRdv>
 
-        {/* LE RÉCAPITULATIF ENTIER SE TAIT. Le laisser avec des tirets partout
-            n'apprend rien et donne l'air d'un écran cassé : mieux vaut qu'il
-            n'y soit pas. */}
-        {!sansPrix && (
-        <div className="trc-total">
-          {effCovered ? (
-            <div className="trc-total__row">
-              <span>Inclus dans l’abonnement</span>
-              <span className="trc-total__num" style={{ color: 'var(--copper-700)' }}>Rien à facturer</span>
-            </div>
+        <RangeeRdv
+          n="+"
+          titre="Plus d’options"
+          ouverte={rang === 'plus'}
+          onBascule={() => basculeRang('plus')}
+          fait={optionsDites.length > 0}
+          etat="facultatif"
+          resume={optionsDites.join(' · ') || 'Rien de plus'}
+        >
+          {/* LE MAÎTRE A QUITTÉ LE BAS DE PAGE (14 août, Yéman) : il se lisait
+              déjà trois fois — dans le bandeau, sous chaque prestation, et là.
+              Le choix vit désormais AU RITUEL, où la main le désigne ; ici ne
+              reste que ce qui appartient au moment. */}
+          {appt && (
+            <Field label="Statut">
+              <Select value={status} onChange={(e) => setStatus(e.target.value as Appointment['status'])}>
+                {RDV_STATUSES.map((s) => (
+                  <option key={s} value={s}>
+                    {s}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+          )}
+          {/* LA NOTE SE REPLIE (14 août) : elle reste vide la plupart du temps,
+              et occupait une ligne entière entre deux champs qu'on remplit
+              toujours. Le pli s'ouvre de lui-même quand elle porte un mot. */}
+          {noteOuverte ? (
+            <Field label="Note du carnet">
+              <Input value={note} onChange={(e) => setNote(e.target.value)} autoFocus={!appt?.note?.trim()} />
+            </Field>
           ) : (
-          <>
-          {/* Remise « prix d'origine conservé » : prix du jour plein, puis l'écart
-              figé retranché — la remise reste LISIBLE (comme sur la facture). */}
-          {frozenRemiseXof > 0 && (
+            <button
+              type="button"
+              onClick={() => setNoteOuverte(true)}
+              style={{
+                alignSelf: 'flex-start', cursor: 'pointer', background: 'none', border: 'none', padding: 0,
+                font: 'inherit', fontSize: 12.5, fontWeight: 600, color: 'var(--copper-700)',
+              }}
+            >
+              + Une note au carnet
+            </button>
+          )}
+          {/* LE BILAN DE LA SÉANCE — 4 octobre 2026. Après la séance, sous la
+              note du carnet : ce que le maître a vu, et l'assistant qui rédige.
+              La note vit dans sa table (0115), jamais dans le rendez-vous. */}
+          {appt && appt.status !== 'annulé' && appt.date <= todayISO() && (
+            <LeBilanDeLaSeance appt={appt} client={clients.find((c) => c.id === appt.clientId)} byId={byId} />
+          )}
+          {/* LE PRIX — UN SEUL CHOIX. Plein, remisé, ou forfait : trois modes
+              exclusifs sous une seule étiquette. Avant, « Forfait », « Remise % »
+              et « Remise manuelle » s'empilaient comme trois réglages cumulables —
+              alors qu'un forfait EFFACE les remises (un prix négocié ne se remise
+              pas). Le choix dit la règle. */}
+          {!effCovered && !sansPrix && (
             <>
-              <div className="trc-total__row">
-                <span>Prix du jour</span>
-                <span className="trc-total__num">{argent(grossBase)}</span>
-              </div>
-              <div className="trc-total__row">
-                <span>Remise · prix d’origine conservé</span>
-                <span className="trc-total__num" style={{ color: 'var(--copper-700)' }}>−{argent(frozenRemiseXof)}</span>
-              </div>
-            </>
-          )}
-          {forfaitPose && (
-            <div className="trc-total__row">
-              <span>{forfaitNom.trim() || 'Forfait'} · au lieu de {argent(effGross)}</span>
-              <span className="trc-total__num" style={{ color: 'var(--copper-700)' }}>
-                −{argent(Math.max(0, effGross - forfaitNum))}
-              </span>
-            </div>
-          )}
-          {!forfaitPose && (discountPct > 0 || discountXof > 0) && (
-            <div className="trc-total__row">
-              <span>
-                Sous-total
-                {discountPct > 0 ? (remiseEstFamille ? ` · remise famille −${discountPct}%${forfaitPartXof > 0 ? ' (hors forfaits)' : ''}` : ` · remise −${discountPct}%`) : ''}
-                {discountXof > 0 ? ` · remise −${argent(discountXof)}` : ''}
-              </span>
-              <span className="trc-total__num"><s style={{ color: 'var(--ink-soft)' }}>{argent(effGross)}</s></span>
-            </div>
-          )}
-          <div className="trc-total__row">
-            <span>Total prestations</span>
-            <span className="trc-total__num">{argent(totalXof)}</span>
-          </div>
-          </>
-          )}
-          {hasDeposit && (
-            <div className="trc-total__row">
-              <span>
-                Acompte demandé{depositPct !== null ? ` · ${depositPct} %` : ' · taux variables'}
-                {depositServiceIds.length < chosen.length ? ' (partiel)' : ''}
-                {' · à vérifier à l’encaissement'}
-              </span>
-              <span className="trc-total__num">{argent(depositXof)}</span>
-            </div>
-          )}
-        </div>
-        )}
+            <PalierRdv
+              titre="Le prix"
+              aide={rdvPersonalized && rdvClient?.lockCount ? `son prix · ${rdvClient.lockCount} locks` : undefined}
+            />
+            {/* LA SÉANCE DE SUITE (15 août, cas Ahmed T.) — « il a pris un
+                soin 2 séances, il paie une séance et réserve la deuxième sans
+                payer », et « ça peut arriver qu'on finisse en 1 séance ». Le
+                nombre de séances ne se sait donc pas à la prise : la série se
+                construit à mesure, en rattachant celle-ci au rituel qui porte
+                déjà le prix. Rien à encaisser ici — `apptTotalXof` met une
+                séance 2+ à zéro partout, et le carnet lui refuse « Encaisser ». */}
+            {/* LA SÉANCE DE SUITE NE SE CHOISIT PLUS ICI (15 août, 2ᵉ passe).
+                Le sélecteur listait les rituels PASSÉS de la cliente : ouvert
+                depuis un rituel déjà facturé, il invitait à le rattacher EN
+                ARRIÈRE — un rendez-vous à 133 200 F passait à « séance incluse »,
+                donc à zéro, d'un clic dans une liste qu'on lisait de travers.
+                « C'est quoi + 7 autres, c'est quoi le prix de 119 000 F ? » :
+                c'étaient ceux de L'AUTRE rituel, et rien ne le disait.
 
-        {error && (
-          <div style={{ fontSize: 12, color: 'var(--copper-700)' }}>{error}</div>
-        )}
-
-        {appt ? (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            <Button variant="copper" onClick={() => save(status)}>
-              Enregistrer les modifications
-            </Button>
-            {/* UN RITUEL RÉGLÉ NE S'ENCAISSE PAS DEUX FOIS (Yéman, 11 août) :
-                proposer « Encaisser » sur un rituel payé sème la confusion.
-                MAIS RÉGLÉ N'EST PAS UNE IMPASSE (17 août) : « comment retourner
-                sur les encaissements, je ne peux pas les éditer ». On n'encaisse
-                pas deux fois — on doit pourtant pouvoir RELIRE ce qui a été reçu
-                et corriger un moyen ou une date mal saisis. Le bouton change
-                donc de mot au lieu de disparaître. */}
-            {onEncaisser && (apptPayState(appt, byId) === 'payé' ? (
-              <button
-                type="button"
-                onClick={enregistreEtEncaisse}
-                style={{
-                  alignSelf: 'center', cursor: 'pointer', background: 'none', border: 'none',
-                  padding: 4, font: 'inherit', fontSize: 11.5, fontWeight: 600, color: 'var(--copper-700)',
-                }}
-              >
-                Réglé, voir et corriger les règlements
-              </button>
-            ) : (
-              <Button variant="ghost" onClick={enregistreEtEncaisse}>
-                Enregistrer et encaisser
-              </Button>
-            ))}
-            {/* « Demander à quelqu'un de s'en occuper » RETIRÉ du rituel le
-                7 octobre 2026 (Yéman) : la porte reste sur la facture et sur la
-                fiche de la cliente. */}
-            {/* LA DESTRUCTION QUITTE LA PILE (14 août). Annuler et supprimer
-                s'alignaient, pleine largeur, avec Enregistrer et Encaisser :
-                quatre boutons de même poids dont deux qui détruisent — une
-                erreur qui attend son heure. Ils vivent désormais sous un pli,
-                en petit, et gardent leur mot de confirmation. */}
-            <div style={{ display: 'flex', justifyContent: 'center', gap: 18, marginTop: 2 }}>
-              {appt.status !== 'annulé' && (
+                Le rattachement part désormais du bon bout — menu ⋯ du rituel qui
+                porte le soin → « Poser la séance suivante ». Ici, on ne fait plus
+                que DIRE l'état, et le défaire s'il est faux. */}
+            {estSuite && porteur && (
+              <div className="mnd-bande" style={{ padding: '13px 15px' }}>
+                <div style={{ fontFamily: 'var(--font-serif)', fontSize: 16, color: 'var(--color-indigo)' }}>
+                  Séance {(appt?.seriesIndex ?? 2)} de « {porteur.dit} »
+                </div>
+                <div style={{ fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--ink-soft)', marginTop: 5, lineHeight: 1.6 }}>
+                  Le rituel du {frShortAn(porteur.a.date)} porte le prix{porteur.seances > 0 ? ` des ${porteur.seances} séances` : ''}, rien à encaisser ici. Il ne reste qu'à choisir <b>la date</b>, à la question « Quand ? ».
+                  Seuls les soins à plusieurs séances sont repris : une création
+                  déjà terminée en une seule séance se retire d'un ✕, à la question « Quoi ? ».
+                </div>
                 <button
                   type="button"
-                  onClick={cancelRdv}
-                  style={{ cursor: 'pointer', background: 'none', border: 'none', padding: 4, font: 'inherit', fontSize: 11.5, color: 'var(--ink-soft)' }}
+                  className="trc-disc"
+                  style={{ marginTop: 10 }}
+                  onClick={() => setSuiteDe('')}
                 >
-                  Annuler le rendez-vous
+                  Détacher, ce rituel se facture
                 </button>
-              )}
-              <button
-                type="button"
-                onClick={remove}
-                style={{ cursor: 'pointer', background: 'none', border: 'none', padding: 4, font: 'inherit', fontSize: 11.5, color: 'var(--copper-700)' }}
-              >
-                Supprimer
-              </button>
-            </div>
-          </div>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {/* POSÉ APRÈS SON HEURE — 13 septembre 2026 : on le dit avant
-                d'enregistrer, pour que le silence de la Maison soit voulu. */}
-            {momentDuRdv({ date, time }) <= Date.now() && (
-              <div className="mnd-muted" style={{ fontSize: 12, lineHeight: 1.5, textAlign: 'center' }}>
-                Ce rendez-vous est posé après son heure : ni confirmation, ni rappel, ni demande d’avis ne
-                partiront vers la cliente.
               </div>
             )}
-            <Button variant="copper" onClick={() => save('confirmé')}>
-              {hasDeposit ? 'Confirmer & demander l’acompte' : 'Confirmer le rendez-vous'}
-            </Button>
-            <Button variant="ghost" onClick={() => save('en attente')}>
-              Enregistrer en attente
-            </Button>
+            {/* UNE SÉANCE INCLUSE NE PARLE PLUS D'ARGENT — 22 août 2026.
+                « Quand on pose la séance suivante, ne mets aucun total, aucun
+                montant. Juste séance incluse. » Le palier continuait d'offrir
+                prix plein, remise, forfait, acompte et récapitulatif — sur un
+                rituel qui vaut ZÉRO par construction (`apptTotalXof` met une
+                séance 2+ à zéro partout). Proposer d'y consentir une remise
+                n'avait aucun sens, et le total affiché en bas invitait à croire
+                qu'il restait quelque chose à encaisser. */}
+            {/* ══ CE QU'ELLE EMPORTE — la Gamme au rendez-vous ═══════════════
+                5 septembre 2026, maquette validée.
+
+                La Gamme ne vivait qu'au comptoir : un produit promis à la
+                réservation n'existait nulle part avant que la cliente soit devant
+                vous. Le stock ne savait pas qu'il était attendu, et le total
+                annoncé au téléphone n'était celui d'aucun écran.
+
+                C'EST UNE INTENTION, PAS DE L'ARGENT. Le règlement se fait
+                toujours à La Caisse, et LE STOCK NE BOUGE QU'À LA VENTE
+                (arbitrage) : un flacon retenu trois semaines pour une venue qui
+                n'aura pas lieu est un flacon invendu. L'écran ANNONCE ce qu'il
+                reste, il ne le retient pas. */}
+            {!estSuite && (
+              <Field label="La Gamme · ce qu’elle emporte">
+                {gamme.length > 0 && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 9, marginBottom: 10 }}>
+                    {gamme.map((l) => {
+                      const prod = produitsGamme.find((x) => x.id === l.id);
+                      const reste = prod?.stock ?? 0;
+                      const manque = manqueALEtagere(l, reste);
+                      const posee = (l.remise?.pct ?? 0) > 0 || (l.remise?.xof ?? 0) > 0;
+                      const ouverte = posee || gammeOuverte.includes(l.id);
+                      /* LE TARIF A-T-IL BOUGÉ DEPUIS LA PROMESSE ? Le prix figé
+                         fait foi, mais le comptoir doit pouvoir le dire, sans
+                         quoi la Maison vendrait à perte sans jamais le voir. */
+                      const bouge = prod && Math.round(prod.priceXof) !== Math.round(l.prixXof);
+                      return (
+                        <div key={l.id} className="mnd-bande" style={{ padding: '11px 13px' }}>
+                          <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
+                            <span style={{ fontSize: 14, color: 'var(--color-indigo)' }}>
+                              {prod?.name ?? 'Produit retiré de la Gamme'}
+                            </span>
+                            <span
+                              className="mnd-muted"
+                              style={{ fontSize: 10.5, color: manque ? 'var(--trv-error, #96412E)' : undefined }}
+                            >
+                              {manque ? `il n’en reste que ${reste}` : `il en reste ${reste}`}
+                            </span>
+                            <span style={{ marginLeft: 'auto', fontSize: 14, fontVariantNumeric: 'tabular-nums' }}>
+                              {argent(ligneNetteXof(l))}
+                              {ligneNetteXof(l) !== ligneBruteXof(l) && (
+                                <span className="mnd-muted" style={{ fontSize: 11.5 }}> au lieu de {argent(ligneBruteXof(l))}</span>
+                              )}
+                            </span>
+                          </div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 9, flexWrap: 'wrap', marginTop: 9 }}>
+                            <button type="button" className="mnd-btn mnd-btn--ghost mnd-btn--sm" style={{ flex: 'none' }}
+                              onClick={() => setGamme((g) => poseUnProduit(g, { id: l.id, priceXof: l.prixXof }, -1))}>−</button>
+                            <span style={{ fontSize: 13.5, fontVariantNumeric: 'tabular-nums', minWidth: 22, textAlign: 'center' }}>{l.qty}</span>
+                            <button type="button" className="mnd-btn mnd-btn--ghost mnd-btn--sm" style={{ flex: 'none' }}
+                              onClick={() => setGamme((g) => poseUnProduit(g, { id: l.id, priceXof: l.prixXof }, 1))}>+</button>
+                            <span className="mnd-muted" style={{ fontSize: 11.5 }}>× {argent(l.prixXof)}</span>
+                            <button
+                              type="button"
+                              onClick={() => setGammeOuverte((prev) => (prev.includes(l.id) ? prev.filter((x) => x !== l.id) : [...prev, l.id]))}
+                              style={{
+                                marginLeft: 'auto', cursor: 'pointer', background: 'none', border: 'none', padding: 0,
+                                font: 'inherit', fontSize: 11.5, fontWeight: 600, color: 'var(--copper-700)',
+                              }}
+                            >
+                              {ouverte ? 'Replier' : 'Remiser'}
+                            </button>
+                            <button type="button" className="mnd-btn mnd-btn--ghost mnd-btn--sm" style={{ flex: 'none' }}
+                              onClick={() => setGamme((g) => retireUnProduit(g, l.id))}>Retirer</button>
+                          </div>
+                          {ouverte && (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 9, flexWrap: 'wrap' }}>
+                              {tauxPermis(estDirection).map((v) => (
+                                <button
+                                  key={v}
+                                  type="button"
+                                  className={`mnd-btn mnd-btn--sm ${(l.remise?.pct ?? 0) === v ? 'mnd-btn--copper' : 'mnd-btn--ghost'}`}
+                                  style={{ flex: 'none' }}
+                                  onClick={() => setGamme((g) => remiseDeLaLigne(g, l.id, { pct: (l.remise?.pct ?? 0) === v ? 0 : v }))}
+                                >
+                                  −{v}%
+                                </button>
+                              ))}
+                              <input
+                                className="mnd-input"
+                                inputMode="numeric"
+                                placeholder="0"
+                                value={l.remise?.xof ? String(l.remise.xof) : ''}
+                                onChange={(e) => setGamme((g) => remiseDeLaLigne(g, l.id, { xof: Math.max(0, Math.round(Number(e.target.value.replace(/[^\d]/g, '')) || 0)) }))}
+                                style={{ width: 96, textAlign: 'right' }}
+                                aria-label="Remise en francs sur ce produit"
+                              />
+                              <span className="mnd-muted" style={{ fontSize: 11.5 }}>F · après le %</span>
+                            </div>
+                          )}
+                          {bouge && (
+                            <div style={{ fontSize: 11.5, marginTop: 8, lineHeight: 1.55, color: 'var(--copper-700)' }}>
+                              Le tarif a bougé depuis : {argent(prod!.priceXof)} au catalogue aujourd’hui.
+                              {' '}
+                              <button
+                                type="button"
+                                onClick={() => setGamme((g) => g.map((x) => (x.id === l.id ? { ...x, prixXof: Math.round(prod!.priceXof) } : x)))}
+                                style={{ cursor: 'pointer', background: 'none', border: 'none', padding: 0, font: 'inherit', fontWeight: 600, color: 'var(--copper-700)', textDecoration: 'underline' }}
+                              >
+                                Prendre le prix d’aujourd’hui
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+                <Select
+                  value=""
+                  onChange={(e) => {
+                    const prod = produitsGamme.find((x) => x.id === e.target.value);
+                    if (prod) setGamme((g) => poseUnProduit(g, prod, 1));
+                  }}
+                >
+                  <option value="">+ Ajouter de la Gamme…</option>
+                  {produitsGamme
+                    .filter((prod) => !gamme.some((l) => l.id === prod.id))
+                    .map((prod) => (
+                      <option key={prod.id} value={prod.id}>
+                        {prod.name} · {argent(prod.priceXof)} · stock {prod.stock}
+                      </option>
+                    ))}
+                </Select>
+                {gamme.length > 0 && (
+                  <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 7, lineHeight: 1.55 }}>
+                    <b>{argent(gammeNetteXof(gamme, forfaitPose ? 0 : discountPct))}</b> de Gamme,
+                    {' '}en plus des gestes. Elle se règle au comptoir, avec le rituel : rien n’est
+                    {' '}retenu sur l’étagère avant qu’elle ne l’emporte.
+                    {forfaitPose
+                      ? ' Un forfait ne l’absorbe pas, elle s’ajoute à son prix.'
+                      : (discountPct > 0 ? ` La remise de −${discountPct} % y porte aussi.` : '')}
+                  </div>
+                )}
+              </Field>
+            )}
+
+            {!estSuite && (
+            <Field label="Le prix">
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                {([
+                  { m: 'plein' as const, t: 'Prix plein' },
+                  { m: 'remise' as const, t: 'Remise' },
+                  { m: 'forfait' as const, t: 'Forfait' },
+                ]).map(({ m, t }) => (
+                  <button
+                    key={m}
+                    type="button"
+                    className={`trc-disc ${prixMode === m ? 'is-on' : ''}`}
+                    onClick={() => {
+                      /* Un choix de la main éteint l'automatisme famille : « Prix
+                         plein » consenti reste plein, même si la tête change. */
+                      famAuto.current = false;
+                      setPrixMode(m);
+                      if (m !== 'forfait') setForfaitOn(false);
+                      if (m === 'forfait') { setForfaitOn(true); setDiscountPct(0); setDiscountXof(0); }
+                      if (m === 'plein') { setDiscountPct(0); setDiscountXof(0); }
+                    }}
+                  >
+                    {t}
+                  </button>
+                ))}
+              </div>
+              {/* Le compte famille annonce son avantage — un clic le pose, quel
+                  que soit le mode où la main se trouve. */}
+              {famPct > 0 && prixMode !== 'remise' && (
+                <button
+                  type="button"
+                  className="trc-disc"
+                  style={{ marginTop: 10, borderColor: 'var(--copper-300)', color: 'var(--copper-700)' }}
+                  onClick={() => {
+                    setPrixMode('remise');
+                    setForfaitOn(false);
+                    setDiscountPct(famPct);
+                    setDiscountXof(0);
+                  }}
+                >
+                  Poser la remise famille · −{famPct}%
+                </button>
+              )}
+              {prixMode === 'remise' && (
+                <>
+                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center', marginTop: 10 }}>
+                    {famPct > 0 && (
+                      <button
+                        type="button"
+                        className={`trc-disc ${discountPct === famPct ? 'is-on' : ''}`}
+                        onClick={() => setDiscountPct(famPct)}
+                        title={`L'avantage du compte ${familleDuCompte?.name ?? 'famille'}`}
+                      >
+                        Famille −{famPct}%
+                      </button>
+                    )}
+                    {tauxPermis(estDirection).map((p) => (
+                      <button
+                        key={p}
+                        type="button"
+                        className={`trc-disc ${discountPct === p ? 'is-on' : ''}`}
+                        onClick={() => setDiscountPct(p)}
+                      >
+                        −{p}%
+                      </button>
+                    ))}
+                    <input
+                      className="mnd-input"
+                      type="number"
+                      min={0}
+                      max={100}
+                      value={discountPct}
+                      onChange={(e) => setDiscountPct(Math.max(0, Math.min(plafondDeRemisePct(estDirection), Math.round(Number(e.target.value) || 0))))}
+                      title={estDirection ? undefined : '50 % et plus : la direction seulement.'}
+                      style={{ width: 68, textAlign: 'right' }}
+                      aria-label="Remise en pourcentage"
+                    />
+                    <span className="mnd-muted" style={{ fontSize: 11.5 }}>% · ou</span>
+                    <input
+                      className="mnd-input"
+                      type="number"
+                      min={0}
+                      value={discountXof}
+                      onChange={(e) => setDiscountXof(Math.min(plafondDeRemiseXof(estDirection, effGross), Math.max(0, Math.round(Number(e.target.value) || 0))))}
+                      style={{ width: 120, textAlign: 'right' }}
+                      placeholder="0"
+                      aria-label={`Remise en ${currency}`}
+                    />
+                    <span className="mnd-muted" style={{ fontSize: 11.5 }}>{currency}</span>
+                  </div>
+                  <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 6 }}>
+                    Le pourcentage d’abord, les francs ensuite, les deux se cumulent.
+                  </div>
+                </>
+              )}
+              {prixMode === 'forfait' && (
+                <>
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginTop: 10 }}>
+                    <input
+                      className="mnd-input"
+                      value={forfaitNom}
+                      onChange={(e) => setForfaitNom(e.target.value)}
+                      placeholder="Forfait"
+                      style={{ flex: '1 1 150px', minWidth: 0 }}
+                      aria-label="Nom du forfait"
+                    />
+                    <input
+                      className="mnd-input"
+                      type="number"
+                      min={0}
+                      value={forfaitStr}
+                      onChange={(e) => setForfaitStr(e.target.value)}
+                      placeholder={String(effGross)}
+                      style={{ width: 128, textAlign: 'right' }}
+                      aria-label={`Total du forfait en ${currency}`}
+                    />
+                    <span className="mnd-muted" style={{ fontSize: 11.5 }}>soit</span>
+                    <input
+                      className="mnd-input"
+                      type="number"
+                      min={0}
+                      max={100}
+                      step={0.1}
+                      value={forfaitPose ? forfaitPct : ''}
+                      onChange={(e) => setForfaitParPct(e.target.value)}
+                      style={{ width: 76, textAlign: 'right' }}
+                      aria-label="Taux du forfait en pourcentage"
+                    />
+                    <span className="mnd-muted" style={{ fontSize: 11.5 }}>% sur {argent(effGross)}</span>
+                  </div>
+                  <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 6, lineHeight: 1.5 }}>
+                    Les prestations restent détaillées : chacune reçoit sa part du total, au prorata de
+                    ce qu’elle vaut pour cette tête. Les mains, les primes, les commissions et le Bilan
+                    continuent de compter juste.
+                  </div>
+                </>
+              )}
+            </Field>
+            )}
+            </>
+          )}
+          {/* CE RITUEL EST-IL OFFERT ? Le geste vit sur le rendez-vous, et non sur
+              la facture : c'est le rendez-vous que tout le monde relit. Rhanda a
+              offert à Ahmed sa première visite — 110 000 F, le 2 mai 2026 — et la
+              Maison n'avait aucun endroit où l'inscrire, sinon un compte famille
+              qui l'aurait faite payeuse à vie. DERRIÈRE UN INTERRUPTEUR : un cas
+              d'exception ne s'étale pas à chaque rendez-vous. */}
+          {!effCovered && !sansPrix && (
+            <div>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12.5, cursor: 'pointer', fontFamily: 'var(--font-sans)' }}>
+                <input
+                  type="checkbox"
+                  checked={offertOn}
+                  onChange={(e) => {
+                    setOffertOn(e.target.checked);
+                    if (!e.target.checked) setOffertPar('');
+                  }}
+                />
+                Ce rituel est offert par une autre cliente, cas exceptionnel
+              </label>
+              {offertOn && (
+                <div style={{ marginTop: 10 }}>
+                  <ClientPicker
+                    value={offertPar}
+                    onChange={setOffertPar}
+                    placeholder="Qui l’offre ?"
+                  />
+                  {offertPar && offertPar !== clientId && (
+                    <div className="trc-sub" style={{ marginTop: 6, lineHeight: 1.5 }}>
+                      La dépense et les points de fidélité iront à {nomDe(offertPar)}, c’est elle qui
+                      paie. Le rituel, lui, reste au parcours de {nomDe(clientId)}.
+                    </div>
+                  )}
+                  {offertPar && offertPar === clientId && (
+                    <div className="trc-sub" style={{ marginTop: 6, color: 'var(--copper-700)' }}>
+                      Elle ne peut pas s’offrir son propre rituel, laissez vide.
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+          {/* LE PRIX D'ORIGINE FAIT FOI : le rituel a été facturé à CE prix-là et
+              le garde, quoi que fasse le catalogue. Il ne se recalcule que si les
+              prestations elles-mêmes changent — et on le dit AVANT d'enregistrer. */}
+          {frozenDiffers && !servicesChanged && !refreshPrice && !sansPrix && (
+            <div style={{ fontSize: 12, color: 'var(--copper-700)', background: 'var(--copper-50)', border: '1px solid var(--copper-300)', borderRadius: 'var(--radius-md)', padding: '9px 11px', lineHeight: 1.5 }}>
+              Prix d’origine conservé : <b>{argent(frozenXof!)}</b> (au tarif d’aujourd’hui,
+              ces prestations vaudraient {argent(grossBase)}). Il ne changera que si vous
+              modifiez les prestations, ou si vous l’actualisez :
+              <div style={{ marginTop: 8 }}>
+                <button
+                  type="button"
+                  onClick={() => setRefreshPrice(true)}
+                  style={{ cursor: 'pointer', background: 'var(--color-copper)', color: 'var(--color-ivoire)', border: 'none', borderRadius: 3, padding: '6px 12px', fontFamily: 'var(--font-sans)', fontSize: 11.5, fontWeight: 600 }}
+                >
+                  Actualiser au tarif du jour ({argent(grossBase)})
+                </button>
+              </div>
+            </div>
+          )}
+          {frozenDiffers && !servicesChanged && refreshPrice && !sansPrix && (
+            <div style={{ fontSize: 12, color: 'var(--copper-700)', background: 'var(--copper-50)', border: '1px solid var(--copper-300)', borderRadius: 'var(--radius-md)', padding: '9px 11px', lineHeight: 1.5 }}>
+              Ré-tarifé au tarif du jour : <b>{argent(grossBase)}</b> (ancien prix
+              {' '}{argent(frozenXof!)}). Enregistrez pour figer ce nouveau prix ; ré-encaissez
+              ensuite pour que la facture porte les mêmes montants.
+              <div style={{ marginTop: 8 }}>
+                <button
+                  type="button"
+                  onClick={() => setRefreshPrice(false)}
+                  style={{ cursor: 'pointer', background: 'none', color: 'var(--copper-700)', border: '1px solid var(--copper-300)', borderRadius: 3, padding: '6px 12px', fontFamily: 'var(--font-sans)', fontSize: 11.5 }}
+                >
+                  Garder le prix d’origine
+                </button>
+              </div>
+            </div>
+          )}
+          {/* Prix PERSONNALISÉ — modèle (tranche de locks) × Juste Prix : annoncé
+              avant d'enregistrer, puis figé sur le rendez-vous. */}
+          {rdvPersonalized && !needsAmount && !keepFrozen && !effCovered && (
+            <div style={{ fontSize: 12, color: 'var(--copper-700)', background: 'var(--copper-50)', border: '1px solid var(--copper-300)', borderRadius: 'var(--radius-md)', padding: '9px 11px', lineHeight: 1.5 }}>
+              Prix personnalisé : <b>{argent(grossBase)}</b>
+              {pricing.band ? <>, modèle {bandLabel(pricing.band, bands)} (×{pricing.band.coef})</> : null}
+              {pricing.clientCoef !== 1 ? <> · Juste Prix ×{pricing.clientCoef}</> : null}
+              {grossBase !== grossCatalogue ? <> · catalogue {argent(grossCatalogue)}</> : null}.
+              Il sera figé sur ce rendez-vous à l’enregistrement.
+            </div>
+          )}
+          {/* LE RÉCAPITULATIF ENTIER SE TAIT. Le laisser avec des tirets partout
+              n'apprend rien et donne l'air d'un écran cassé : mieux vaut qu'il
+              n'y soit pas. */}
+          {!sansPrix && (
+          <div className="trc-total">
+            {effCovered ? (
+              <div className="trc-total__row">
+                <span>Inclus dans l’abonnement</span>
+                <span className="trc-total__num" style={{ color: 'var(--copper-700)' }}>Rien à facturer</span>
+              </div>
+            ) : (
+            <>
+            {/* Remise « prix d'origine conservé » : prix du jour plein, puis l'écart
+                figé retranché — la remise reste LISIBLE (comme sur la facture). */}
+            {frozenRemiseXof > 0 && (
+              <>
+                <div className="trc-total__row">
+                  <span>Prix du jour</span>
+                  <span className="trc-total__num">{argent(grossBase)}</span>
+                </div>
+                <div className="trc-total__row">
+                  <span>Remise · prix d’origine conservé</span>
+                  <span className="trc-total__num" style={{ color: 'var(--copper-700)' }}>−{argent(frozenRemiseXof)}</span>
+                </div>
+              </>
+            )}
+            {forfaitPose && (
+              <div className="trc-total__row">
+                <span>{forfaitNom.trim() || 'Forfait'} · au lieu de {argent(effGross)}</span>
+                <span className="trc-total__num" style={{ color: 'var(--copper-700)' }}>
+                  −{argent(Math.max(0, effGross - forfaitNum))}
+                </span>
+              </div>
+            )}
+            {!forfaitPose && (discountPct > 0 || discountXof > 0) && (
+              <div className="trc-total__row">
+                <span>
+                  Sous-total
+                  {discountPct > 0 ? (remiseEstFamille ? ` · remise famille −${discountPct}%${forfaitPartXof > 0 ? ' (hors forfaits)' : ''}` : ` · remise −${discountPct}%`) : ''}
+                  {discountXof > 0 ? ` · remise −${argent(discountXof)}` : ''}
+                </span>
+                <span className="trc-total__num"><s style={{ color: 'var(--ink-soft)' }}>{argent(effGross)}</s></span>
+              </div>
+            )}
+            <div className="trc-total__row">
+              <span>Total prestations</span>
+              <span className="trc-total__num">{argent(totalXof)}</span>
+            </div>
+            </>
+            )}
+            {hasDeposit && (
+              <div className="trc-total__row">
+                <span>
+                  Acompte demandé{depositPct !== null ? ` · ${depositPct} %` : ' · taux variables'}
+                  {depositServiceIds.length < chosen.length ? ' (partiel)' : ''}
+                  {' · à vérifier à l’encaissement'}
+                </span>
+                <span className="trc-total__num">{argent(depositXof)}</span>
+              </div>
+            )}
+          </div>
+          )}
+        </RangeeRdv>
+
+        {/* LA DESTRUCTION RESTE EN PETIT (14 août) : annuler et supprimer ne
+            s'alignent pas avec Enregistrer, ils gardent leur mot de
+            confirmation. */}
+        {appt && (
+          <div className="trc-rdv3__gestes">
+            {appt.status !== 'annulé' && (
+              <button type="button" className="trc-rdv3__lien trc-rdv3__lien--doux" onClick={cancelRdv}>
+                Annuler le rendez-vous
+              </button>
+            )}
+            <button type="button" className="trc-rdv3__lien" onClick={remove}>
+              Supprimer
+            </button>
           </div>
         )}
+
+        {/* LA BARRE COLLANTE : ce qu'on est en train de poser, toujours sous
+            les yeux, et les boutons qui le posent. Elle remplace le bandeau
+            indigo du haut (14 août), qui disait la même chose. */}
+        <div className="trc-rdv3__barre">
+          <div className="trc-rdv3__barre-texte">
+            {pret ? (
+              <>
+                <b>{rdvClient?.name ?? 'Une cliente'} · {jourCourtAn(date)} · {time}</b>
+                <span>{[courts.join(' + '), master, fmtDureeCourte(dureeRetenue), prixDuRituelDit].filter(Boolean).join(' · ')}</span>
+              </>
+            ) : (
+              <>
+                <b>{rdvClient?.name ?? 'Le rendez-vous se compose'}</b>
+                <span>{ceQuiReste({ qui: !!clientId, quoi: serviceIds.length > 0, quand: momentChoisi })}</span>
+              </>
+            )}
+            {error && <span className="trc-rdv3__erreur">{error}</span>}
+          </div>
+          <div className="trc-rdv3__boutons">
+            {appt ? (
+              <>
+                {/* UN RITUEL RÉGLÉ NE S'ENCAISSE PAS DEUX FOIS (11 août), mais
+                    ce qui a été reçu se relit et se corrige (17 août). */}
+                {onEncaisser && (apptPayState(appt, byId) === 'payé' ? (
+                  <button type="button" className="trc-rdv3__lien trc-rdv3__lien--clair" onClick={enregistreEtEncaisse}>
+                    Réglé, voir et corriger les règlements
+                  </button>
+                ) : (
+                  <Button variant="ghost" onClick={enregistreEtEncaisse} disabled={!pret || bloque}>
+                    Enregistrer et encaisser
+                  </Button>
+                ))}
+                <Button variant="copper" onClick={() => save(status)} disabled={!pret || bloque}>
+                  Enregistrer
+                </Button>
+              </>
+            ) : (
+              <>
+                <Button variant="ghost" onClick={() => save('en attente')} disabled={!pret || bloque}>
+                  En attente
+                </Button>
+                <Button variant="copper" onClick={() => save('confirmé')} disabled={!pret || bloque}>
+                  {hasDeposit ? 'Confirmer & demander l’acompte' : 'Confirmer'}
+                </Button>
+              </>
+            )}
+          </div>
+        </div>
       </div>
       )}
     </Modal>
@@ -4693,12 +4991,20 @@ export function ClientPicker({
   placeholder = 'Rechercher une cliente…',
   allowWalkIn = false,
   allowPassage = false,
+  caseUnique,
 }: {
   value: string;
   onChange: (id: string) => void;
   placeholder?: string;
   allowWalkIn?: boolean;
   allowPassage?: boolean;
+  /** LA CASE UNIQUE DU « + RDV » — 24 octobre 2026. La même case trouve
+      aussi les prestations, et se vide après un choix : la cliente se lit
+      dans la rangée « Qui ? », pas dans la case. */
+  caseUnique?: {
+    prestations: (q: string) => { id: string; nom: string; detail: string }[];
+    onPrestation: (id: string) => void;
+  };
 }) {
   const clients = useBranchClients();
   const { branch } = useBranch();
@@ -4802,7 +5108,18 @@ export function ClientPicker({
     setQuery('');
   };
 
-  const display = open ? query : selected?.name ?? (value === 'walkin' && allowWalkIn ? 'Vente au comptoir' : '');
+  const display = open ? query : caseUnique ? '' : selected?.name ?? (value === 'walkin' && allowWalkIn ? 'Vente au comptoir' : '');
+  const prestationsVues = caseUnique && q ? caseUnique.prestations(q) : [];
+  /* UNE PREMIÈRE VENUE S'INSCRIT D'ICI. Dans la case unique, une fois
+     quelque chose tapé, l'offre descend sous les réponses : taper « retw »
+     cherche un retwist, pas une cliente nommée « retw ». */
+  const nomTape = caseUnique && q && /\p{L}/u.test(q) ? q : '';
+  const offrePassage = allowPassage && (
+    <button type="button" className="trc-clientpick__opt" onClick={ouvrePassage}>
+      <span className="trc-clientpick__n">{nomTape ? `＋ Nouvelle cliente « ${nomTape} »` : '＋ Cliente de passage'}</span>
+      <span className="trc-clientpick__m">prénom + téléphone</span>
+    </button>
+  );
 
   return (
     <div className="trc-clientpick" ref={wrapRef}>
@@ -4860,12 +5177,7 @@ export function ClientPicker({
       )}
       {open && !passage && (
         <div className="trc-clientpick__menu" role="listbox">
-          {allowPassage && (
-            <button type="button" className="trc-clientpick__opt" onClick={ouvrePassage}>
-              <span className="trc-clientpick__n">＋ Cliente de passage</span>
-              <span className="trc-clientpick__m">prénom + téléphone</span>
-            </button>
-          )}
+          {!(caseUnique && q) && offrePassage}
           {allowWalkIn && (
             <button type="button" className="trc-clientpick__opt" onClick={() => { onChange('walkin'); setOpen(false); }}>
               <span className="trc-clientpick__n">Vente au comptoir</span>
@@ -4880,9 +5192,30 @@ export function ClientPicker({
               </span>
             </button>
           ))}
-          {results.length === 0 && (
-            <div className="trc-clientpick__empty">Aucune cliente, {q ? 'affinez la recherche' : 'ajoutez-en une'}.</div>
+          {prestationsVues.length > 0 && (
+            <>
+              <div className="trc-svpick__grp">Prestations</div>
+              {prestationsVues.map((p) => (
+                <button
+                  key={`sv-${p.id}`}
+                  type="button"
+                  className="trc-clientpick__opt"
+                  onClick={() => { caseUnique?.onPrestation(p.id); setQuery(''); setOpen(false); }}
+                >
+                  <span className="trc-clientpick__n">{p.nom}</span>
+                  <span className="trc-clientpick__m">{p.detail}</span>
+                </button>
+              ))}
+            </>
           )}
+          {results.length === 0 && prestationsVues.length === 0 && (
+            <div className="trc-clientpick__empty">
+              {caseUnique && q
+                ? `Ni cliente ni prestation ne répond à « ${q} ».`
+                : <>Aucune cliente, {q ? 'affinez la recherche' : 'ajoutez-en une'}.</>}
+            </div>
+          )}
+          {caseUnique && q && offrePassage}
           {cachees > 0 && (
             <div className="trc-clientpick__empty">
               {cachees} autre{cachees > 1 ? 's' : ''} tête{cachees > 1 ? 's' : ''} (de passage, sorties, jamais venues) : tapez un nom ou un numéro.
