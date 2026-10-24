@@ -19,6 +19,9 @@ def variantes(e):
         # L'option des plaques : les cinq plaques, chacune avec son médaillon.
         from options import r8m
         return [(f'R8-M-{(n or "KOKO")}', (lambda i: (lambda a: r8m(a, i)))(i)) for i, (n, *_r) in enumerate(ATELIERS)]
+    # Une pièce imprimée recto verso porte ses deux faces (N16, 24 octobre 2026).
+    if e.get('variantes'):
+        return e['variantes']
     return [(e['id'], e['dessin'])]
 
 

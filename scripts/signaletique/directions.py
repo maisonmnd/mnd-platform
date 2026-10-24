@@ -7,7 +7,7 @@ mariage et le petit poteau de table). Cinq dessins, à plat, en millimètres ; l
 est toujours le verrou officiel, jamais retapé. Les distances sont à mesurer sur place.
 
 Elle en garde quatre au sélecteur pour la demande de devis : le poteau (N13), la flèche
-de rue (N14), la flèche ivoire (N15) et le poteau de table (N16) ; N12 reste le nom de
+de rue (N14), la flèche ivoire (N15) et le poteau de table (N16, recto verso, avec le QR MoMoPay) ; N12 reste le nom de
 l'ancienne feuille d'autocollants chez Lico Sign, on ne le reprend pas. Puis « Oui, en N17 » :
 la plaque d'angle aussi.
 
@@ -120,25 +120,42 @@ def fleche_ivoire():
 # ── 4 · Le poteau de table (le comptoir) ─────────────────────────────────
 # « À la place d'Instagram, mets le code MoMoPay *880*41*909099*Montant# » (23 oct. 2026).
 TABLE_LAMES = [('VOTRE BEAUTÉ', '0 km · déjà là'), ('RÉSERVER', 'maisonmnd.com'), ('MOMOPAY', '*880*41*909099*Montant#')]
+# « Rajouter le QR code MoMoPay sur le poteau de table », puis « le poteau de table doit s'écrire recto verso »
+# (24 oct. 2026) : une plaque ivoire carrée sous la lame MoMoPay, le QR de la Maison (909099@momopay, le même que
+# l'autocollant du pourboire, à éprouver d'un scan avant l'impression), et tout s'imprime sur les deux faces.
+QR_PLAQUE, QR_COTE = 70, 54   # 54 mm pour 21 modules : 2,6 mm le module, une marge de 8 mm tout autour
 
 
-def poteau_table():
-    """Petit poteau indigo à bagues cuivre, trois lames ivoire : la devise en distance, réserver, le MoMoPay.
-    Éléments : 0 poteau, 1 tête arrondie, 2 socle, puis bague, lame, mot et ligne de chaque lame."""
-    cx = 62
+def poteau_table(verso=False):
+    """Petit poteau indigo à bagues cuivre, trois lames ivoire et la plaque du QR : la devise en distance, réserver,
+    le MoMoPay, puis son QR. `verso` : la face arrière telle qu'on la lit de derrière, les lames vers la gauche.
+    Éléments : 0 poteau, 1 tête arrondie, 2 socle, puis bague, lame, mot et ligne de chaque lame (3 à 14),
+    puis 15 bague, 16 plaque, 17 QR."""
+    from autocollants import QR_POURBOIRE, _qr
+    s = -1 if verso else 1
+    cx = TABLE_W - 62 if verso else 62
     els = [f'<rect x="{cx - 12}" y="18" width="24" height="296" rx="3" fill="{I}"/>',
            f'<path d="M{cx - 12} 30Q{cx - 12} 6 {cx} 6Q{cx + 12} 6 {cx + 12} 30Z" fill="{I}"/>',
            f'<rect x="{cx - 62}" y="312" width="124" height="18" rx="4" fill="{I}"/>']
     coupes = []
     y = 44
     for t1, t2 in TABLE_LAMES:
-        d = _lame(cx + 12, y, 170, 42, True)
+        d = _lame(cx + s * 12, y, 170, 42, not verso)
         els += [f'<rect x="{cx - 15}" y="{y - 4}" width="30" height="5" rx="2" fill="{C}"/>', _chemin(d, V, I, 2.4),
-                _ligne(t1, 'cormorant', 15, cx + 92, y + 19, I, 132, 600, 0.04),
-                _ligne(t2, 'jost', 10, cx + 92, y + 33, C, 132, 500, 0.02)]
+                _ligne(t1, 'cormorant', 15, cx + s * 92, y + 19, I, 132, 600, 0.04),
+                _ligne(t2, 'jost', 10, cx + s * 92, y + 33, C, 132, 500, 0.02)]
         coupes.append(d)
         y += 62
+    x0 = cx + 12 if not verso else cx - 12 - QR_PLAQUE
+    d = f'M{x0} {y}H{x0 + QR_PLAQUE}V{y + QR_PLAQUE}H{x0}Z'
+    els += [f'<rect x="{cx - 15}" y="{y - 4}" width="30" height="5" rx="2" fill="{C}"/>', _chemin(d, V, I, 2.4),
+            _qr(QR_POURBOIRE, x0 + QR_PLAQUE / 2, y + QR_PLAQUE / 2, QR_COTE, I)]
+    coupes.append(d)
     return '-16 -4 276 338', els, coupes
+
+
+def poteau_table_verso():
+    return poteau_table(verso=True)
 
 
 # ── 5 · La plaque d'angle (le coin de rue) ───────────────────────────────
@@ -167,8 +184,8 @@ DESSINS = [
      'La flèche fine du panneau de mariage : ivoire, liseré indigo, chevron indigo, le logo et la devise en cuivre. Pour le portail, le couloir, le mur de l’entrée.',
      'Base en acrylique indigo 5 mm découpée à la flèche, face en acrylique ivoire 3 mm, chevron et logo en acrylique indigo 3 mm en relief, devise imprimée UV cuivre ; goujons au mur.'),
     ('table', 'Le poteau de table', poteau_table, 'N16 · poteau de comptoir · 330 mm',
-     'Le petit poteau du comptoir et des tables : « Votre beauté, 0 km, déjà là », réserver, et le code MoMoPay pour payer. Un clin d’œil à la devise, qui se photographie.',
-     'Poteau en acrylique indigo 24 mm sur socle lesté 124 × 124, bagues cuivre, lames en acrylique ivoire 5 mm, impression UV sur les deux faces.'),
+     'Le petit poteau du comptoir et des tables : « Votre beauté, 0 km, déjà là », réserver, le code MoMoPay et son QR pour payer. Recto verso : il se lit des deux côtés du comptoir. Un clin d’œil à la devise, qui se photographie.',
+     'Poteau en acrylique indigo 24 mm sur socle lesté 124 × 124, bagues cuivre, trois lames et une plaque QR de 70 × 70 en acrylique ivoire 5 mm, impression UV recto verso : le verso est fourni à part, lames vers la gauche.'),
     ('angle', 'La plaque d’angle', plaque_angle, 'N17 · plaque de coin de rue · 800 × 360 mm',
      'La plaque émaillée qu’on pose à l’angle de la rue : indigo, filet cuivre, le logo et le quartier, avec la flèche vers la Maison.',
      'Tôle d’acier émaillée 2 mm ou aluminium laqué 3 mm, indigo, filet cuivre, logo ivoire, quartier et flèche en sable ; goujons soudés au dos, posée à 2,5 m du sol.'),

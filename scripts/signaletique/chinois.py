@@ -33,6 +33,7 @@ ETIQUETTES = {
     'rendu_nuit': '夜间点亮效果 · 3000K 暖白光',
     'rendu_nuit_option': '可选背光效果 · 3000K',
     'rendu_situation': '安装效果 · 1.70 米人物作比例',
+    'rendu_verso': '背面 · 同样印刷，从背面阅读',
     'rendu_situation_nuit': '夜间安装效果 · 1.70 米人物作比例',
     'validation': '打样确认，可以生产',
     'nom': '姓名',
@@ -193,10 +194,10 @@ ENSEIGNES = {
         change='新品。请报价。'),
     'N16': dict(
         name='桌面方向指示柱（三块指示牌）',
-        construction='24 × 24 毫米靛蓝色亚克力立柱，圆顶，立在 124 × 124 × 18 毫米靛蓝色配重底座上；三个拉丝铜色套环；三块 5 毫米象牙白亚克力指示牌，170 × 42 毫米，箭头形，靛蓝色边线。双面 UV 打印：“VOTRE BEAUTÉ / 0 km · déjà là”、“RÉSERVER / maisonmnd.com”、“MOMOPAY / *880*41*909099*Montant#”。总高 330 毫米。',
+        construction='24 × 24 毫米靛蓝色亚克力立柱，圆顶，立在 124 × 124 × 18 毫米靛蓝色配重底座上；四个拉丝铜色套环；三块 5 毫米象牙白亚克力指示牌，170 × 42 毫米，箭头形，靛蓝色边线；下方一块 70 × 70 毫米象牙白板，印 MoMoPay 二维码（54 毫米）。双面 UV 打印：“VOTRE BEAUTÉ / 0 km · déjà là”、“RÉSERVER / maisonmnd.com”、“MOMOPAY / *880*41*909099*Montant#” 和二维码，两面都可阅读；背面有单独文件（N16-VERSO），指示牌朝左。总高 330 毫米。',
         finish='靛蓝色 #1E2150，象牙白 #F6F1E7，铜色。',
         lighting='不发光。',
-        change='新品。请逐个字符核对 MoMoPay 代码：*880*41*909099*Montant#。请报价。'),
+        change='新品。正面按 N16 文件打印，背面按 N16-VERSO 文件打印，两面都可阅读。请逐个字符核对 MoMoPay 代码：*880*41*909099*Montant#，二维码请按我们的文件原尺寸打印，不要重画。请报价。'),
     'N17': dict(
         name='街角路名牌',
         construction='800 × 360 毫米面板，R26 圆角：2 毫米搪瓷钢板（或 3 毫米烤漆铝板），靛蓝色底；距边 18 毫米铜色边框线；象牙白标志、铜色短线，“SURU-LÉRÉ · COTONOU” 和箭头为沙色。背面焊接 4 个隐藏不锈钢螺柱；安装高度离地 2.5 米。',

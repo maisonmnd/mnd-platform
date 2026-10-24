@@ -113,7 +113,9 @@ def table_b():
             continue
         z = chinois.ENSEIGNES[e['id']]
         lignes.append(f'<tr><td class="ref"><b>{e["id"]}</b><small>sheet {e["id"]}</small></td><td class="img">{vignette(e["id"])}</td>'
-                      f'<td>{bi("<b>" + esc(e["name"]) + "</b>", z["name"])}<small class="t">{esc(taille(e))} · {"outdoor IP65" if dehors(e) else "indoor"}</small></td>'
+                      f'<td>{bi("<b>" + esc(e["name"]) + "</b>", z["name"])}<small class="t">{esc(taille(e))} · {"outdoor IP65" if dehors(e) else "indoor"}</small>'
+                      # Ce que la ligne doit dire d'emblée (N16 : recto verso, et son QR).
+                      + (f'<small class="t">{bi(esc(e["devis_note"][0]), e["devis_note"][1])}</small>' if e.get('devis_note') else '') + '</td>'
                       f'<td class="num">{(str(e["qte"]) + " sheets") if e["forme"] == "feuille" else 1}</td><td>{bi(esc(e["en"]["lighting"]), z["lighting"])}</td>{VIDE}</tr>')
     tete = ('<tr><th>Ref<small>编号</small></th><th>Final result<small>最终效果</small></th><th>Item<small>品名</small></th><th>Qty<small>数量</small></th>'
             '<th>Lighting (full spec on the sheet)<small>照明（详细见规格书）</small></th><th>Unit price<small>单价</small></th><th>Total<small>总价</small></th></tr>')

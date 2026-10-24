@@ -168,6 +168,8 @@ def legende(e, vue):
         return bi('Final result · daytime', Z['rendu_jour'])
     if vue == 'nuit':
         return bi('Optional halo · 3000 K', Z['rendu_nuit_option']) if r.get('nuit_option') else bi('Lit at night · 3000 K warm white', Z['rendu_nuit'])
+    if vue == 'verso':
+        return bi('Back face · same print, reads from behind', Z['rendu_verso'])
     if r.get('situation') == 'nuit':
         return bi('In place at night · 1.70 m figure for scale', Z['rendu_situation_nuit'])
     return bi('In place · 1.70 m figure for scale', Z['rendu_situation'])

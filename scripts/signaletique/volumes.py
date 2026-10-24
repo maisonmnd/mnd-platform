@@ -185,17 +185,25 @@ RECETTES['N15'] = dict(montage='mur', centre=1.6,
                        pieces=[_p(0, 'acrylique-indigo', 5, 10), _p(1, 'acrylique-ivoire', 3, 15), _p([2, 3], 'acrylique-indigo', 3, 18), _p(4, 'encre-cuivre', 0.2, 18)],
                        goujons=10, vues=['jour', 'situation'])
 # Le poteau de table, posé sur le comptoir de l'accueil : socle de 124, poteau de 24, bagues cuivre, lames de 5 mm.
-# Éléments : 0 poteau, 1 tête, 2 socle, puis bague, lame, mot, ligne (3 à 14).
+# Éléments : 0 poteau, 1 tête, 2 socle, puis bague, lame, mot, ligne (3 à 14), puis 15 bague, 16 plaque, 17 QR.
+# RECTO VERSO (24 oct. 2026, « le poteau de table doit s'écrire recto verso ») : chaque encre a son double sur la
+# face arrière, retourné autour de son axe pour se lire de derrière (les mots autour de x 154, le QR autour du
+# centre de sa plaque) ; la vue « verso » tourne le poteau.
+_VERSO_ENCRE = 59.5 - 0.35
 RECETTES['N16'] = dict(montage='sol', comptoir=True, centre=0.78 + TABLE_H / 2000, avance=0.45,
-                       pieces=[_p([0, 1], 'acrylique-indigo', 24, 50), _p(2, 'acrylique-indigo', 124, 0), _p([3, 7, 11], 'cuivre-brosse', 30, 47),
-                               _p([4, 8, 12], 'acrylique-ivoire', 5, 59.5), _p([5, 9, 13], 'encre-indigo', 0.2, 64.65), _p([6, 10, 14], 'encre-cuivre', 0.2, 64.65)],
-                       surimpressions=[dict(el=[4, 8, 12], z=64.6, nom=('Edge lines, UV print both faces', '边线，双面 UV 打印'))],
-                       vues=['jour', 'situation'],
+                       pieces=[_p([0, 1], 'acrylique-indigo', 24, 50), _p(2, 'acrylique-indigo', 124, 0), _p([3, 7, 11, 15], 'cuivre-brosse', 30, 47),
+                               _p([4, 8, 12, 16], 'acrylique-ivoire', 5, 59.5),
+                               _p([5, 9, 13], 'encre-indigo', 0.2, 64.65, verso=dict(z=_VERSO_ENCRE, axe=154)),
+                               _p([6, 10, 14], 'encre-cuivre', 0.2, 64.65, verso=dict(z=_VERSO_ENCRE, axe=154)),
+                               _p(17, 'encre-indigo', 0.2, 64.65, verso=dict(z=_VERSO_ENCRE, axe=62 + 12 + 35))],
+                       surimpressions=[dict(el=[4, 8, 12, 16], z=64.6, verso_z=59.4, nom=('Edge lines, UV print both faces', '边线，双面 UV 打印'))],
+                       vues=['jour', 'verso', 'situation'],
                        coupe=[('Weighted base 124 × 124 × 18, indigo acrylic', '配重底座 124 × 124 × 18，靛蓝色亚克力', 0, 124, '#2A2E66', None),
                               ('Post 24 × 24, indigo acrylic', '立柱 24 × 24，靛蓝色亚克力', 50, 74, '#2A2E66', None),
                               ('Rings, brushed copper', '套环，拉丝铜色', 47, 77, '#B0703F', None),
-                              ('Blades, ivory acrylic 5 mm', '指示牌，5 毫米象牙白亚克力', 59.5, 64.5, '#F6F1E7', None),
-                              ('Lettering and edge lines, UV print both faces', '文字和边线，双面 UV 打印', 64.5, 64.7, '#C9BFAE', None)])
+                              ('Back face print: lettering, QR, edge lines (file N16-VERSO)', '背面印刷：文字、二维码、边线（N16-VERSO 文件）', 59.3, 59.5, '#C9BFAE', None),
+                              ('Blades and QR plate, ivory acrylic 5 mm', '指示牌和二维码板，5 毫米象牙白亚克力', 59.5, 64.5, '#F6F1E7', None),
+                              ('Front face print: lettering, QR, edge lines (file N16)', '正面印刷：文字、二维码、边线（N16 文件）', 64.5, 64.7, '#C9BFAE', None)])
 # La plaque d'angle : tôle émaillée indigo de 3 mm, les encres posées dessus ; le filet aux coins arrondis
 # et la flèche, deux traits, sont imprimés (un trait devient un anneau aux coins vifs dans le volume).
 RECETTES['N17'] = dict(montage='mur', centre=2.5, support=dict(el=0, ep=3, matiere='alu-indigo', face='plein'),

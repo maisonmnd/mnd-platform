@@ -393,6 +393,11 @@ def n16(a):
     return ''.join(_direction('poteau_table')[1])
 
 
+def n16_verso(a):
+    """Le verso du poteau de table, tel qu'on le lit de derrière : lames vers la gauche, textes et QR lisibles."""
+    return ''.join(_direction('poteau_table_verso')[1])
+
+
 def n17(a):
     return ''.join(_direction('plaque_angle')[1])
 
@@ -611,12 +616,14 @@ ENSEIGNES = [
     _f('N16', n16, TABLE_W, TABLE_H, 124, 'fleche', 'interieur', 'plaque',
        nom='Le poteau de table', name='Tabletop direction post, three blades',
        statut='nouvelle', lieu='Comptoir de l’accueil et tables', decoupe=_coupes('poteau_table'),
-       fr=dict(construction='Poteau en acrylique indigo 24 × 24 à tête arrondie, sur un socle indigo lesté 124 × 124 × 18 ; trois bagues en cuivre brossé ; trois lames en acrylique ivoire 5 mm, 170 × 42, en flèche, filet indigo. Impression UV sur les deux faces : « VOTRE BEAUTÉ / 0 km · déjà là », « RÉSERVER / maisonmnd.com », « MOMOPAY / *880*41*909099*Montant# ». Hauteur 330 mm.',
+       variantes=[('N16', n16), ('N16-VERSO', n16_verso)], decoupe_variantes={'N16-VERSO': _coupes('poteau_table_verso')},
+       devis_note=('Printed on both faces (files N16 and N16-VERSO), with our MoMoPay QR code', '双面打印（N16 和 N16-VERSO 文件），含 MoMoPay 二维码'),
+       fr=dict(construction='Poteau en acrylique indigo 24 × 24 à tête arrondie, sur un socle indigo lesté 124 × 124 × 18 ; quatre bagues en cuivre brossé ; trois lames en acrylique ivoire 5 mm, 170 × 42, en flèche, filet indigo, et sous elles une plaque ivoire 70 × 70 au QR MoMoPay de la Maison (54 mm). Impression UV RECTO VERSO : « VOTRE BEAUTÉ / 0 km · déjà là », « RÉSERVER / maisonmnd.com », « MOMOPAY / *880*41*909099*Montant# » et le QR, lisibles des deux côtés ; le verso a son propre fichier, lames vers la gauche. Hauteur 330 mm.',
                finition='Indigo, ivoire, cuivre.', lumiere='Non lumineux.',
-               change='Nouvelle pièce, d’après le petit poteau « Where we met » ; le code MoMoPay de la Maison à la place d’Instagram.'),
-       en=dict(construction='24 × 24 mm indigo acrylic post with a rounded top, on a weighted indigo base 124 × 124 × 18 mm; three brushed copper rings; three blades in 5 mm ivory acrylic, 170 × 42 mm, arrow-shaped, indigo edge line. UV print on both faces: “VOTRE BEAUTÉ / 0 km · déjà là”, “RÉSERVER / maisonmnd.com”, “MOMOPAY / *880*41*909099*Montant#”. Total height 330 mm.',
+               change='Nouvelle pièce, d’après le petit poteau « Where we met » ; le code MoMoPay de la Maison à la place d’Instagram, son QR dessous, et tout recto verso.'),
+       en=dict(construction='24 × 24 mm indigo acrylic post with a rounded top, on a weighted indigo base 124 × 124 × 18 mm; four brushed copper rings; three blades in 5 mm ivory acrylic, 170 × 42 mm, arrow-shaped, indigo edge line, and below them a 70 × 70 mm ivory plate with the MoMoPay QR code (54 mm). UV print on BOTH FACES: “VOTRE BEAUTÉ / 0 km · déjà là”, “RÉSERVER / maisonmnd.com”, “MOMOPAY / *880*41*909099*Montant#” and the QR code, readable from both sides; the back face has its own file (N16-VERSO), blades pointing left. Total height 330 mm.',
                finish='Indigo #1E2150, ivory #F6F1E7, copper.', lighting='Non-illuminated.',
-               change='NEW ITEM. Please check the MoMoPay code character by character: *880*41*909099*Montant#. Please quote.')),
+               change='NEW ITEM. Please print the front from file N16 and the back from file N16-VERSO, both readable. Please check the MoMoPay code character by character: *880*41*909099*Montant#, and print the QR code at true size from our file, do not redraw it. Please quote.')),
     _f('N17', n17, ANGLE_W, ANGLE_H, 3, 'rect', 'rue', 'plaque',
        nom='La plaque d’angle', name='Street corner name plate',
        statut='nouvelle', lieu='Angle de la rue, à 2,5 m du sol',

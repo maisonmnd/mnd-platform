@@ -32,6 +32,8 @@ from communs import (NOMS_ENCRES, NOMS_EN, NOMS_FR, variantes, decoupe, encres_d
 def svg_fabricant(e, ident, dessin):
     corps = dessin(Atelier(False))
     w, h = e['w'], e['h']
+    # Le verso d'une pièce recto verso a sa propre découpe : la même pièce, vue de l'autre côté.
+    coupe = (e.get('decoupe_variantes') or {}).get(ident)
     titre = html.escape(f"Maison MND · {ident} · {e['name']} · {w} × {h} mm · scale 1:1 · {'23 Oct 2026' if e['id'] in ('N13', 'N14', 'N15', 'N16', 'N17') else '22 Oct 2026' if e.get('statut') == 'option' or e['id'] in ('N10', 'N11') else '13 Oct 2026'}")
     return (f'<?xml version="1.0" encoding="UTF-8"?>\n'
             f'<svg xmlns="http://www.w3.org/2000/svg" width="{w}mm" height="{h}mm" viewBox="0 0 {w} {h}">\n'
@@ -39,7 +41,7 @@ def svg_fabricant(e, ident, dessin):
             f'<desc>All text converted to outlines. Colours: {", ".join(f"{NOMS_EN[n]} {ENCRES[n]}" for n in encres_de(corps))}. '
             f'Magenta hairline = cut line.</desc>\n'
             f'<g id="artwork">{corps}</g>\n'
-            f'<g id="cut-line" fill="none" stroke="#EC008C" stroke-width="0.3">{decoupe(e)}</g>\n</svg>\n')
+            f'<g id="cut-line" fill="none" stroke="#EC008C" stroke-width="0.3">{coupe() if coupe else decoupe(e)}</g>\n</svg>\n')
 
 
 from options import OPTIONS  # noqa: E402

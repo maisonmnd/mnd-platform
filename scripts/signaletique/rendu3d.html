@@ -196,6 +196,23 @@ function sansTrianglesPlats(g) {
   g.dispose();
   return out;
 }
+/** LE VERSO (24 octobre 2026, « le poteau de table doit s'écrire recto verso ») : une géométrie retournée,
+ *  autour de la verticale x = axe (une encre qui se lit de derrière), ou vers l'arrière (axe nul : un plan
+ *  imprimé tourné vers le dos). La symétrie inverse le sens des triangles : on le rétablit, sinon la face
+ *  regarderait vers l'intérieur et disparaîtrait. */
+function retourne(geom, axe) {
+  const g = geom.index ? geom.toNonIndexed() : geom;
+  if (axe == null) g.scale(1, 1, -1);
+  else { g.translate(-axe, 0, 0); g.scale(-1, 1, 1); g.translate(axe, 0, 0); }
+  for (const a of Object.values(g.attributes)) {
+    const k = a.itemSize, t = a.array;
+    for (let i = 0; i + 2 < a.count; i += 3) {
+      for (let j = 0; j < k; j++) { const u = (i + 1) * k + j, v = (i + 2) * k + j, x = t[u]; t[u] = t[v]; t[v] = x; }
+    }
+    a.needsUpdate = true;
+  }
+  return g;
+}
 function extrude(shapes, ep, z, mat, biseau = false, lisse = false) {
   const g = sansTrianglesPlats(new THREE.ExtrudeGeometry(shapes, { depth: ep, curveSegments: lisse ? 64 : 12, bevelEnabled: biseau && ep >= 4, bevelThickness: 0.5, bevelSize: 0.35, bevelSegments: 2 }));
   const m = new THREE.Mesh(g, mat);
@@ -340,6 +357,11 @@ async function enseigne(sc, nuit) {
       piece.geometry.translate(-cx, -cy, 0).rotateZ(THREE.MathUtils.degToRad(p.tourne.deg || 0)).translate(cx, cy, 0);
     }
     g.add(piece);
+    if (p.verso) {
+      const dos = extrude(shapes, p.ep, p.verso.z, mat);
+      dos.geometry = retourne(dos.geometry, p.verso.axe);
+      g.add(dos);
+    }
     /* Le halo se pose sur ce qui est derrière les lettres : le caisson, ou le mur. */
     if (nuit && p.lum === 'halo' && k > 0) g.add(await lueur(sc, frag, 0.02, 0.55 * k, lum.surface + 0.4));
     /* Une lanterne allumée éclaire aussi la colonne autour d'elle. */
@@ -354,6 +376,12 @@ async function enseigne(sc, nuit) {
     if (nuit && si.lum) allume(m, si.lum, carte);
     g.add(planDeFace(sc, contour(sc, sup || {}), carte, m, si.z));
     if (si.double) g.add(planDeFace(sc, contour(sc, sup || {}), carte, m, si.z_dos ?? 0, true));
+    /* Un filet imprimé au dos, à sa place : le plan se tourne vers l'arrière sans se déplacer. */
+    if (si.verso_z != null) {
+      const dos = planDeFace(sc, contour(sc, sup || {}), carte, m, si.verso_z);
+      dos.geometry = retourne(dos.geometry, null);
+      g.add(dos);
+    }
   }
   if (r.neon) {
     const shapes = formes(fragmentDe(sc, r.neon.el), sc.w, sc.h);
@@ -443,6 +471,8 @@ async function compose(sc, mode) {
     signe.position.set(-sc.w / 2 * MM, -sc.h / 2 * MM, 0);
     /* Au mur, la face contre lui ; au sol (le totem), debout sur le trottoir, à `avance` m de la façade. */
     pivot.position.set(0, r.centre, r.montage === 'sol' ? (r.avance ?? 1.6) : 0);
+    /* La vue « verso » : on tourne la pièce, la caméra reste devant (derrière elle, il y a le mur). */
+    if (mode === 'verso') pivot.rotation.y = Math.PI;
   }
   scene.add(pivot);
 
@@ -483,7 +513,7 @@ async function compose(sc, mode) {
   }
   /* Le poteau de table se pose sur le comptoir de l'accueil : un caisson ivoire, un plateau de bois. */
   if (r.comptoir) {
-    const z = pivot.position.z + ep / 2 * MM;
+    const z = pivot.position.z + (mode === 'verso' ? -1 : 1) * ep / 2 * MM;
     const plateau = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.03, 0.62), new THREE.MeshStandardMaterial({ color: 0xB89874, roughness: 0.55 }));
     plateau.position.set(0, 0.765, z); plateau.receiveShadow = true; plateau.castShadow = true; scene.add(plateau);
     const caisson = new THREE.Mesh(new THREE.BoxGeometry(1.36, 0.75, 0.58), matiere('ivoire', nuit));
