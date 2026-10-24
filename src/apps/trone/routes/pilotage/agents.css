@@ -1,0 +1,66 @@
+/* LES AGENTS — 24 octobre 2026, maquette VJ5PJEGUPDbYKUgEdMUNbS (vues 2, 3).
+   Sobre : une carte par rôle, le cuivre pour le geste principal. */
+.agt { --agt-ok: #0A7A6C; --agt-alerte: var(--alarme, #A3402B); display: flex; flex-direction: column; gap: 18px; font-family: var(--font-sans); color: var(--ink); }
+.agt-carte { background: var(--surface-card); border: 1px solid var(--hairline); border-radius: var(--radius-md, 8px); padding: 18px 20px; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.agt-sur { font: 500 11px/1.2 var(--font-sans); letter-spacing: .22em; text-transform: uppercase; color: var(--copper-700); }
+.agt-doux { color: var(--ink-soft); font-size: 12.5px; }
+.agt-petit { font-size: 12px; }
+.agt-alerte { color: var(--agt-alerte); font-size: 12.5px; }
+.agt-entre { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.agt-entre h3 { margin: 0; font: 400 24px/1.15 var(--font-serif); color: var(--color-indigo); }
+.agt-vide { margin: 0; }
+.agt-lien { background: none; border: 0; padding: 4px 0; font: 400 13px var(--font-sans); color: var(--copper-700); cursor: pointer; white-space: nowrap; }
+.agt-lien:hover { text-decoration: underline; }
+.agt-gestes { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.agt-budget { display: flex; flex-direction: column; gap: 6px; min-width: 220px; padding: 12px 16px; border: 1px solid var(--hairline); border-radius: var(--radius-md, 8px); background: var(--surface-card); }
+.agt-budget__chiffre { font: 300 24px/1 var(--font-serif); color: var(--color-indigo); }
+.agt-jauge { height: 6px; border-radius: 3px; background: var(--paper-3, #EDE4D6); overflow: hidden; }
+.agt-jauge > div { height: 100%; background: var(--indigo-500, #3D4BA3); }
+
+/* À valider */
+.agt-passage { display: flex; flex-direction: column; border-top: 1px solid var(--hairline); padding-top: 10px; }
+.agt-passage__tete { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; align-items: baseline; padding-bottom: 6px; }
+.agt-passage__tete b { font: 400 19px/1.2 var(--font-serif); color: var(--color-indigo); }
+.agt-ligne { border-top: 1px solid var(--hairline); }
+.agt-ligne.is-open { background: var(--copper-50, #FAF1E9); }
+.agt-ligne__tete { display: flex; align-items: center; gap: 12px; padding: 10px 4px; flex-wrap: wrap; min-height: 52px; box-sizing: border-box; }
+.agt-ligne__nom { flex: 1 1 220px; min-width: 0; display: flex; flex-direction: column; gap: 2px; text-align: left; background: none; border: 0; padding: 0; cursor: pointer; font: 400 14px var(--font-sans); color: var(--ink); }
+.agt-ligne__nom b { font-weight: 500; }
+.agt-message { margin: 0 4px 12px; padding: 12px 14px; background: var(--paper, #F6F1E7); border-radius: 6px; font-size: 13.5px; line-height: 1.55; white-space: pre-line; }
+.agt-recents { display: flex; flex-direction: column; gap: 4px; border-top: 1px solid var(--hairline); padding-top: 10px; }
+.agt-recent { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; font-size: 13.5px; padding: 4px 0; }
+
+/* Les agents */
+.agt-grille { display: grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap: 16px; align-items: start; }
+.agt-agent p { margin: 0; font-size: 13.5px; line-height: 1.5; }
+.agt-etat { font-size: 12px; color: var(--ink-soft); }
+.agt-etat.est-on { color: var(--agt-ok); }
+.agt-chiffres { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.agt-chiffres > div { background: var(--paper, #F6F1E7); border-radius: 6px; padding: 8px 10px; display: flex; flex-direction: column; }
+.agt-chiffres b { font: 400 22px var(--font-serif); color: var(--color-indigo); }
+.agt-liste { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; }
+.agt-liste > li { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 9px 0; border-top: 1px solid var(--hairline); font-size: 13.5px; flex-wrap: wrap; }
+.agt-reglage { display: flex; flex-direction: column; gap: 10px; background: var(--paper, #F6F1E7); border-radius: 6px; padding: 12px 14px; }
+.agt-reglage label, .agt-brouillon label { display: flex; flex-direction: column; gap: 4px; font-size: 12.5px; color: var(--ink-soft); }
+.agt-case { flex-direction: row !important; align-items: center; gap: 8px !important; color: var(--ink) !important; font-size: 13.5px !important; }
+.agt-ensuite ul { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 4px; font-size: 13.5px; color: var(--ink-soft); }
+.agt-ensuite b { color: var(--ink); font-weight: 500; }
+
+/* Les processus */
+.agt-ligne-processus { align-items: flex-start !important; }
+.agt-ligne-processus__nom { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1 1 280px; }
+.agt-ligne-processus__nom b { font-weight: 500; }
+.agt-constructeur { display: flex; flex-direction: column; gap: 10px; border-top: 1px solid var(--hairline); padding-top: 14px; margin-top: 4px; }
+.agt-constructeur__phrase { display: flex; flex-direction: column; gap: 8px; }
+.agt-brouillon { display: flex; flex-direction: column; gap: 12px; border: 1px solid var(--color-copper); border-radius: var(--radius-md, 8px); padding: 14px 16px; }
+.agt-clarifier { margin: 0; background: var(--copper-50, #FAF1E9); border-radius: 6px; padding: 10px 12px; font-size: 13.5px; }
+.agt-champ { display: flex; flex-direction: column; gap: 6px; font-size: 12.5px; color: var(--ink-soft); }
+.agt-jours { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.agt-puce { font: 400 13px var(--font-sans); padding: 7px 12px; min-height: 36px; border: 1px solid var(--hairline); border-radius: 999px; background: var(--surface-card); color: var(--ink); cursor: pointer; text-transform: capitalize; }
+.agt-puce.is-on { background: var(--color-indigo); color: var(--color-ivoire); border-color: var(--color-indigo); }
+.agt-essai { margin: 0; font-size: 13.5px; line-height: 1.5; }
+.agt-regles p { margin: 0; font-size: 13.5px; line-height: 1.55; }
+@media (max-width: 640px) {
+  .agt-grille { grid-template-columns: 1fr; }
+  .agt-budget { min-width: 0; }
+}

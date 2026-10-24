@@ -70,9 +70,16 @@ dit('les parts expliquees refont la prevision centrale', p.centraleXof, Math.rou
 /* ── Au tableau de bord (texte) ───────────────────────────────────── */
 const tableau = sansCommentaires('src/apps/trone/routes/pilotage/Dashboard.tsx');
 const bloc = sansCommentaires('src/apps/trone/routes/pilotage/PrevisionDuMois.tsx');
-dit('la prevision vit au tableau de bord, sous les chiffres du mois', true, /\{kpis\.map[\s\S]*<PrevisionDuMois \/>/.test(tableau));
+dit('la prevision vit au tableau de bord, sous les chiffres du mois, calculee une fois', true, /\{kpis\.map[\s\S]*<PrevisionDuMois donnees=\{prevDuMois\} \/>/.test(tableau) && tableau.includes('const prevDuMois = usePrevisionDuMois();'));
 dit('l entre se lit avec la regle des Revenus du mois', true, bloc.includes('revenuDuMois(args, mk, { cut: d })'));
-dit('le Trone calcule : rien ne part vers un serveur ni un modele', [false, false, false], [bloc.includes('fetch('), bloc.includes('functions.invoke'), bloc.includes('ia-maison')]);
+/* LE TRÔNE CALCULE, CLAUDE EXPLIQUE (24 octobre 2026) : le calcul de la
+   prévision ne touche ni un serveur ni un modèle ; l'assistant ne parle que
+   sur un clic (« Demander pourquoi »), après le calcul, et ne le refait pas. */
+const calcul = bloc.slice(bloc.indexOf('export function usePrevisionDuMois'), bloc.indexOf('const explicationsDuJour'));
+dit('le Trone calcule : le calcul ne part vers aucun serveur ni modele', [true, false, false, false],
+  [calcul.length > 500, calcul.includes('fetch('), calcul.includes('functions.invoke'), calcul.includes('demandeAClaude')]);
+dit('Claude n explique que sur un clic, apres le calcul', true,
+  bloc.split('demandeAClaude(').length === 2 && /const expliquer = async \(\) => \{[^}]*demandeAClaude\(demandeDExplication/.test(bloc) && bloc.includes('onClick={() => { void expliquer(); }}'));
 dit('les reprises viennent du juge de la Cadence, sa justesse aussi', true, bloc.includes('predictNextVisit(siens, [c], c.id, today)') && bloc.includes('tauxDeRealisation(venues)'));
 dit('pas de tiret cadratin dans ce que le bloc et la regle disent', [false, false],
   [bloc.includes('—'), sansCommentaires('src/shared/prevision-du-mois-pur.ts').includes('—')]);

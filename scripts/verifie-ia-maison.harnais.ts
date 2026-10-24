@@ -39,7 +39,8 @@ dit('« fin-photos » : le fin pour une image, le rapide pour un texte, le milie
 dit('chaque modèle des huit a son prix (sinon il se compterait au plus cher)', ['claude-opus-5-5', 'claude-sonnet-5-5', 'claude-haiku-5-5'],
   [...new Set([...MODELES_PAR_USAGE.image, ...MODELES_PAR_USAGE.texte])].filter((m) => m in PRIX_PAR_MILLION));
 dit('le haiku 5.5 coûte 1 $ le million en entrée, 5 $ en sortie', [1, 5], [coutDeLAppel('claude-haiku-5-5', 1_000_000, 0), coutDeLAppel('claude-haiku-5-5', 0, 1_000_000)]);
-dit('son plafond pour les huit : 60 $, dans son propre compteur', [60, 'mnd_ia_compteur_huit'], [PLAFOND_DES_HUIT_USD, CLE_DU_COMPTEUR_DES_HUIT]);
+/* 120 $ depuis le 24 octobre 2026 (Tableau de bord intelligent, « jusqu'à 120 $ » au sélecteur). */
+dit('son plafond : 120 $, dans son propre compteur', [120, 'mnd_ia_compteur_huit'], [PLAFOND_DES_HUIT_USD, CLE_DU_COMPTEUR_DES_HUIT]);
 dit('qui peut demander : la direction tout ; un maître ce que son département ouvre ; la lettre, la direction seule ; sans rôle, rien',
   [true, true, false, true, false, false, false],
   [peutDemander('souverain', 'lettre', {}), peutDemander('gerant', 'capture', {}), peutDemander('maitre', 'capture', {}),
@@ -193,16 +194,16 @@ const essais = async () => {
 
   /* LE BUDGET. */
   {
-    const plein = { '2026-10': { usd: 60, appels: 40, entree: 1, sortie: 1 } };
+    const plein = { '2026-10': { usd: 120, appels: 40, entree: 1, sortie: 1 } };
     const s = serveur({ compteur: plein });
     const [st, r] = await s.demande(LETTRE);
-    dit('à 60 $ dans le mois : budget, 0 $ de reste, AUCUN appel, aucune écriture', [402, 'budget', 0, 'Les 60 $ du mois sont dépensés : Claude se tait jusqu’au 1er.', 0, 0],
+    dit('à 120 $ dans le mois : budget, 0 $ de reste, AUCUN appel, aucune écriture', [402, 'budget', 0, 'Les 120 $ du mois sont dépensés : Claude se tait jusqu’au 1er.', 0, 0],
       [st, r.erreur, r.resteUsd, r.message, s.j.appels.length, s.j.ecritures.length]);
   }
   {
-    const s = serveur({ compteur: { '2026-10': { usd: 59.99, appels: 40, entree: 1, sortie: 1 } } });
+    const s = serveur({ compteur: { '2026-10': { usd: 119.99, appels: 40, entree: 1, sortie: 1 } } });
     const [st, r] = await s.demande(LETTRE);
-    dit('à 59,99 $ l appel part encore ; le reste dit ce qui reste après lui', [200, 0.006, 0.004], [st, r.coutUsd, r.resteUsd]);
+    dit('à 119,99 $ l appel part encore ; le reste dit ce qui reste après lui', [200, 0.006, 0.004], [st, r.coutUsd, r.resteUsd]);
   }
   {
     const s = serveur({ compteur: { '2026-10': { usd: 10, appels: 4, entree: 1, sortie: 1 } } });
@@ -211,7 +212,7 @@ const essais = async () => {
   {
     const s = serveur();
     const [, r] = await s.demande(LETTRE);
-    dit('le coût du haiku pour mille jetons dans chaque sens, et une seule écriture', [0.006, 59.994, 1], [r.coutUsd, r.resteUsd, s.j.ecritures.length]);
+    dit('le coût du haiku pour mille jetons dans chaque sens, et une seule écriture', [0.006, 119.994, 1], [r.coutUsd, r.resteUsd, s.j.ecritures.length]);
     dit('le compteur écrit : la ligne du mois à la forme du budget, et le détail par chantier à côté',
       { '2026-10': { usd: 0.006, appels: 1, entree: 1000, sortie: 1000 }, parChantier: { '2026-10': { lettre: { usd: 0.006, appels: 1 } } } }, s.j.ecritures[0]);
     await s.demande(LETTRE);
@@ -222,9 +223,9 @@ const essais = async () => {
   }
   {
     /* 23 h 30 UTC le 31 octobre = 0 h 30 à Cotonou le 1er novembre : le mois d'octobre plein ne compte plus. */
-    const s = serveur({ compteur: { '2026-10': { usd: 60, appels: 40, entree: 1, sortie: 1 } }, maintenant: '2026-10-31T23:30:00Z' });
+    const s = serveur({ compteur: { '2026-10': { usd: 120, appels: 40, entree: 1, sortie: 1 } }, maintenant: '2026-10-31T23:30:00Z' });
     const [st] = await s.demande(LETTRE);
-    dit('le mois est celui de Cotonou : à minuit et demie le 1er, octobre plein ne retient plus rien, et novembre s ouvre', ['2026-11', 200, { usd: 0.006, appels: 1, entree: 1000, sortie: 1000 }, { usd: 60, appels: 40, entree: 1, sortie: 1 }, { lettre: { usd: 0.006, appels: 1 } }],
+    dit('le mois est celui de Cotonou : à minuit et demie le 1er, octobre plein ne retient plus rien, et novembre s ouvre', ['2026-11', 200, { usd: 0.006, appels: 1, entree: 1000, sortie: 1000 }, { usd: 120, appels: 40, entree: 1, sortie: 1 }, { lettre: { usd: 0.006, appels: 1 } }],
       [moisACotonou(new Date('2026-10-31T23:30:00Z')), st, s.compteur()['2026-11'], s.compteur()['2026-10'], (s.compteur().parChantier as Record<string, unknown>)['2026-11']]);
   }
   {
@@ -409,7 +410,7 @@ async function vraisOutils() {
 const structure = () => {
   const brut = lis(FONCTION);
   const f = sansCommentaires(brut);
-  dit('la fonction dit sa version et répond 405 à un GET avec elle', [true, true], [/const VERSION = '2026-10-19-a';/.test(f), /if \(req\.method !== 'POST'\) return json\(\{ error: 'method', version: VERSION \}, 405\);/.test(f)]);
+  dit('la fonction dit sa version et répond 405 à un GET avec elle', [true, true], [/const VERSION = '2026-10-24-a';/.test(f), /if \(req\.method !== 'POST'\) return json\(\{ error: 'method', version: VERSION \}, 405\);/.test(f)]);
   dit('l en-tête dit Verify JWT ALLUMÉ, et les secrets qui existent déjà', [true, true, true], [/Verify JWT ALLUMÉ/.test(brut), /ANTHROPIC_API_KEY et CLE_SERVICE/.test(brut), /aucun secret nouveau/.test(brut)]);
   dit('la porte lit la personne du jeton, puis sa ligne staff (rôle)', [true, true],
     [/await admin\.auth\.getUser\(jwt\)/.test(f), /from\('staff'\)\.select\('user_id, role'\)\.eq\('user_id', uid\)\.maybeSingle\(\)/.test(f)]);
@@ -433,7 +434,7 @@ const structure = () => {
   dit('le plafond se lit avant l appel, dans le bloc', true, f.indexOf('const permis = peutAppeler(') > 0 && f.indexOf('const permis = peutAppeler(') < f.indexOf('await o.appelleAnthropic('));
   dit('le Trône appelle bien une fonction nommée ia-maison', true, /const FONCTION = 'ia-maison';/.test(lis('src/shared/ia-maison.ts')));
   dit('docs/ia-maison.md existe et dit la porte, Verify JWT, le plafond et le compteur', [true, true, true, true],
-    [existsSync('docs/ia-maison.md'), /Verify JWT/.test(lis('docs/ia-maison.md')), /60 \$/.test(lis('docs/ia-maison.md')), /mnd_ia_compteur_huit/.test(lis('docs/ia-maison.md'))]);
+    [existsSync('docs/ia-maison.md'), /Verify JWT/.test(lis('docs/ia-maison.md')), /120 \$/.test(lis('docs/ia-maison.md')), /mnd_ia_compteur_huit/.test(lis('docs/ia-maison.md'))]);
 };
 
 /* Un vrai code qui plante est un échec dit, pas un banc qui s'arrête :

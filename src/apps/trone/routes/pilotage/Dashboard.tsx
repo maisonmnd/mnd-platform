@@ -43,7 +43,9 @@ import { revenuDuJour } from '../../../../shared/caisse-du-soir-pur';
 import { ChampDeDate } from '../../../../ds/dates';
 import { cheminDeLaConversation } from '../../../../shared/conversations';
 import AlarmeWhatsApp from './AlarmeWhatsApp';
-import { PrevisionDuMois } from './PrevisionDuMois';
+import { PrevisionDuMois, usePrevisionDuMois } from './PrevisionDuMois';
+import { DemanderALaMaison } from './DemanderALaMaison';
+import { AValiderDesAgents } from './AValiderDesAgents';
 import { useDemandes, demandesTriees, ditLeBesoin, ditLeGenre, depuisQuand, telephoneMasque, nomDeLaDemande } from '../../../../shared/demandes';
 import { appelDe } from '../../../../shared/civilite';
 import { useSignalements } from '../../../../shared/entre-deux';
@@ -136,6 +138,8 @@ export default function Dashboard() {
   const [payAppt, setPayAppt] = useState<Appointment | null>(null);
 
   const today = todayISO();
+  /* La prévision du mois, calculée une fois pour le bloc et pour l'assistant. */
+  const prevDuMois = usePrevisionDuMois();
   const now = new Date();
   const greeting = now.getHours() >= 17 || now.getHours() < 5 ? 'Bonsoir' : 'Bonjour';
   /* Salutation à la personne connectée — nom du personnel, sinon la partie
@@ -810,6 +814,12 @@ export default function Dashboard() {
   const best = rev7.reduce((a, b) => (b.total >= a.total ? b : a), rev7[0]);
   const bestName = fromISO(best.iso).toLocaleDateString('fr-FR', { weekday: 'long' });
 
+  /* LA JOURNÉE, DITE À L'ASSISTANT : des sommes, jamais une cliente. */
+  const jourDuChiffre = chiffreAttenduDuJour(todayRows.map((a) => ({
+    date: a.date, status: a.status, rituelXof: apptNetXof(a, byId), resteRituelXof: apptDueXof(a, byId), gamme: a.gamme,
+  })), today);
+  const jourPourLAssistant = `${jourDuChiffre.nombre} rendez-vous, ${fmtMoney(jourDuChiffre.attenduXof, currency)} attendus, dont ${fmtMoney(jourDuChiffre.encaisseXof, currency)} déjà encaissés ; reste ${fmtMoney(jourDuChiffre.resteXof, currency)}.`;
+
   return (
     <div className="mnd-rise">
       <Eyebrow>
@@ -828,6 +838,10 @@ export default function Dashboard() {
         <button type="button" className="trp-af-pill" onClick={() => navigate('/a-faire')}>À faire</button>
         <button type="button" className="trp-af-pill" onClick={() => navigate('/cadence')}>La Cadence</button>
       </div>
+
+      {/* DEMANDER À LA MAISON — 24 octobre 2026, maquette VJ5PJEGU… : une
+          question, et l'assistant répond avec les seules sommes du Trône. */}
+      <DemanderALaMaison prevision={prevDuMois} jour={jourPourLAssistant} />
 
       {/* L'ALARME DES MESSAGES SANS RÉPONSE — 18 septembre 2026. En tête,
           avant tout le reste : une fenêtre de 24 h ne se rattrape pas, un
@@ -922,7 +936,8 @@ export default function Dashboard() {
 
       {/* LA PRÉVISION DU MOIS — 24 octobre 2026, maquette VJ5PJEGUPDbYKUgEdMUNbS :
           le Trône calcule, chaque part se dit en clair (PrevisionDuMois.tsx). */}
-      <PrevisionDuMois />
+      <PrevisionDuMois donnees={prevDuMois} />
+      <AValiderDesAgents />
 
       {/* Tuiles secondaires */}
       {/* LE CHIFFRE PAR MAISON — n'apparaît que s'il y a quelque chose à séparer.

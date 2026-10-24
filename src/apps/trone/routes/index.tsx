@@ -1,5 +1,5 @@
 import { lazy, type LazyExoticComponent, type ComponentType } from 'react';
-import { Compass, FolderKanban, ListTodo, Clapperboard, Activity, BadgeCheck, HeartHandshake, BarChart3, BookOpen, CalendarDays, ClipboardList, Crown, Drama, FileSignature, FileText, FlaskConical, Gift, GraduationCap, Hammer, HandCoins, Handshake, MessageCircle, Handshake as PoigneeDeMain, HeartPulse, Inbox, KeyRound, Landmark, LayoutDashboard, Lightbulb, LineChart, ListChecks, MapPin, Megaphone, MessageSquare, MessagesSquare, MonitorPlay, NotebookPen, Palette, PhoneIncoming, PieChart, PiggyBank, QrCode, ReceiptText, Repeat, Scale, ScrollText, Settings, ShieldCheck, ShoppingBag, SquareKanban, Store, Users, UsersRound, Wallet, type LucideIcon } from 'lucide-react';
+import { Compass, Bot, FolderKanban, ListTodo, Clapperboard, Activity, BadgeCheck, HeartHandshake, BarChart3, BookOpen, CalendarDays, ClipboardList, Crown, Drama, FileSignature, FileText, FlaskConical, Gift, GraduationCap, Hammer, HandCoins, Handshake, MessageCircle, Handshake as PoigneeDeMain, HeartPulse, Inbox, KeyRound, Landmark, LayoutDashboard, Lightbulb, LineChart, ListChecks, MapPin, Megaphone, MessageSquare, MessagesSquare, MonitorPlay, NotebookPen, Palette, PhoneIncoming, PieChart, PiggyBank, QrCode, ReceiptText, Repeat, Scale, ScrollText, Settings, ShieldCheck, ShoppingBag, SquareKanban, Store, Users, UsersRound, Wallet, type LucideIcon } from 'lucide-react';
 
 /* Registre des routes du Trône, groupées par DÉPARTEMENT.
    Le module d'un écran (routes/<dossier>/) dit d'où il vient, pas où il se range :
@@ -48,6 +48,10 @@ const NAV_DES_ECRANS: TroneGroup[] = [
          VJ5PJEGUPDbYKUgEdMUNbS ; rangés sous Direction (choix du sélecteur).
          Une tâche reste une demande du Fil : le projet ne fait que les grouper. */
       { path: '/projets', label: 'Les projets', icon: FolderKanban, Component: lazy(() => import('./pilotage/Projets')) },
+      /* LES AGENTS (24 octobre 2026) — onglet du Centre de commande, les
+         souverains seuls : À valider, les agents (encaissements, reprises),
+         les processus et l'assistant qui les construit. Maquette VJ5PJEGU…. */
+      { path: '/agents', label: 'Les agents', icon: Bot, Component: lazy(() => import('./pilotage/Agents')) },
       { path: '/bilan-mensuel', label: 'Bilan mensuel', icon: BarChart3, Component: lazy(() => import('./pilotage/BilanMensuel')) },
       { path: '/synthese', label: 'Synthèse & résultat', icon: PieChart, Component: lazy(() => import('./finances/Synthese')) },
       { path: '/analytics', label: 'Analytics', icon: LineChart, Component: lazy(() => import('./pilotage/Analytics')) },
@@ -249,7 +253,7 @@ const NAV_DES_ECRANS: TroneGroup[] = [
    quittent seulement la barre. */
 export type Reunion = { hote: string; titre: string; onglets: { path: string; label: string }[] };
 export const REUNIONS: readonly Reunion[] = [
-  { hote: '/centre-de-commande', titre: 'Centre de commande', onglets: [{ path: '/centre-de-commande', label: 'Le centre' }, { path: '/atelier-des-contenus', label: 'Les contenus' }] },
+  { hote: '/centre-de-commande', titre: 'Centre de commande', onglets: [{ path: '/centre-de-commande', label: 'Le centre' }, { path: '/agents', label: 'Les agents' }, { path: '/atelier-des-contenus', label: 'Les contenus' }] },
   { hote: '/synthese', titre: 'Synthèse & bilan', onglets: [{ path: '/synthese', label: 'Le résultat' }, { path: '/bilan-mensuel', label: 'Le mois jour par jour' }] },
   { hote: '/analytics', titre: 'Les tendances', onglets: [{ path: '/analytics', label: 'L’analyse' }, { path: '/cadence', label: 'La cadence' }] },
   /* LE CHAT DU SITE (19 octobre 2026) entre dans Conversations, sans rubrique de plus : tout ce que les clientes écrivent au même endroit. */
@@ -408,7 +412,7 @@ export const ANCIENS_DOMAINES: Record<string, string[]> = {
    un : la table ci-dessus ne se met pas à jour. Il s'ouvre par son
    département seul. On les NOMME ici, pour que la barre et la photographie
    restent vérifiables : un écran absent des deux listes est un oubli. */
-export const ECRANS_NES_APRES_LES_DEPARTEMENTS: readonly string[] = ['/compte-courant', '/parrainages', '/cartes-cadeaux', '/secretariat', '/centre-de-commande', '/atelier-des-contenus', '/chiffre-des-prestations', '/prets-personnel', '/entre-deux', '/discussions', '/projets', '/mes-taches'];
+export const ECRANS_NES_APRES_LES_DEPARTEMENTS: readonly string[] = ['/compte-courant', '/parrainages', '/cartes-cadeaux', '/secretariat', '/centre-de-commande', '/atelier-des-contenus', '/chiffre-des-prestations', '/prets-personnel', '/entre-deux', '/discussions', '/projets', '/mes-taches', '/agents'];
 
 /** L'ancien domaine d'un écran, celui d'avant les départements. */
 export const ancienDomaineDe = (path: string): string | undefined =>
@@ -440,7 +444,7 @@ const ouvertParSonGroupe = (path: string, acces: Record<string, boolean>): boole
 /* LE CENTRE DE COMMANDE AUSSI (11 octobre 2026) : Yéman ou Brice valident,
    il porte les chiffres du mois et les décisions de la Maison. L'atelier des
    contenus de même : ce qui part au nom de la Maison passe par eux. */
-export const ROUTES_SOUVERAIN = ['/salon-foyer', '/centre-de-commande', '/atelier-des-contenus'];
+export const ROUTES_SOUVERAIN = ['/salon-foyer', '/centre-de-commande', '/atelier-des-contenus', '/agents'];
 
 /* Le journal dit qui fait quoi : le rendre lisible de tous changerait le
    climat de la Maison — on ne travaille pas pareil quand chaque geste est

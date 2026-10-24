@@ -660,7 +660,7 @@ const regles: Regle[] = [
       { nom: 'un caractere change dans la copie automate-wa de whatsapp-automate', mute: [P('supabase/functions/whatsapp-automate/index.ts', 'const PLAFOND_DE_L_AUTOMATE = 10;', 'const PLAFOND_DE_L_AUTOMATE = 11;')] },
       { nom: 'l original de prochaines-places change seul', mute: [P('src/shared/reservation-express.ts', 'export const PLACES_PAR_JOUR = 2;', 'export const PLACES_PAR_JOUR = 3;')] },
       { nom: 'un caractere change dans la copie ce-qui-tombe de push-notify', mute: [P('supabase/functions/push-notify/index.ts', 'const JOURS_DE_NOTIFICATION = [7, 1];', 'const JOURS_DE_NOTIFICATION = [7, 2];')] },
-      { nom: 'un caractere change dans la copie ia-maison de la porte vers Claude', mute: [P('supabase/functions/ia-maison/index.ts', 'export const PLAFOND_DES_HUIT_USD = 60;', 'export const PLAFOND_DES_HUIT_USD = 61;')] },
+      { nom: 'un caractere change dans la copie ia-maison de la porte vers Claude', mute: [P('supabase/functions/ia-maison/index.ts', 'export const PLAFOND_DES_HUIT_USD = 120;', 'export const PLAFOND_DES_HUIT_USD = 121;')] },
     ],
   },
 

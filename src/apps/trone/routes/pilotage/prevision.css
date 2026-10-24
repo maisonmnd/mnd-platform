@@ -36,8 +36,28 @@
 .trp-prev__raisons ul { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 10px; font-size: 13.5px; line-height: 1.5; }
 .trp-prev__lien { background: none; border: 0; padding: 0; font: 400 12.5px var(--font-sans); color: var(--copper-700); cursor: pointer; }
 .trp-prev__lien:hover { text-decoration: underline; }
+.trp-prev__demander { align-self: flex-start; background: none; border: 1px solid var(--color-copper); border-radius: 4px; padding: 9px 14px; min-height: 40px; font: 500 12.5px var(--font-sans); color: var(--copper-700); cursor: pointer; }
+.trp-prev__demander:disabled { opacity: .6; cursor: progress; }
+.trp-prev__claude { display: flex; flex-direction: column; gap: 6px; background: var(--copper-50, #FAF1E9); border-radius: 6px; padding: 12px 14px; font-size: 13.5px; line-height: 1.5; }
+.trp-prev__claude p { margin: 0; }
+.trp-prev__claude ul { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 4px; list-style: disc; }
+.trp-prev__gestes { color: var(--ink-soft); }
 @media (max-width: 720px) {
   .trp-prev { padding: 16px; }
   .trp-prev__gros { font-size: 32px; }
   .trp-prev__raisons { border-left: 0; padding-left: 0; border-top: 1px solid var(--hairline); padding-top: 14px; }
 }
+
+/* DEMANDER À LA MAISON et À VALIDER · LES AGENTS — 24 octobre 2026. */
+.trp-demander { margin-top: 16px; display: flex; flex-direction: column; gap: 10px; font-family: var(--font-sans); }
+.trp-demander__masque { position: absolute; left: -9999px; }
+.trp-demander__champ { display: flex; gap: 8px; flex-wrap: wrap; }
+.trp-demander__champ input { flex: 1 1 260px; min-width: 0; min-height: 44px; box-sizing: border-box; padding: 10px 14px; font: 400 14px var(--font-sans); color: var(--ink); background: var(--surface-card); border: 1px solid var(--hairline); border-radius: var(--radius-md, 8px); }
+.trp-demander__champ button { min-height: 44px; padding: 0 18px; border-radius: 4px; border: 1px solid var(--color-copper); background: var(--color-copper); color: var(--color-ivoire, #FFFDF9); font: 500 12px var(--font-sans); letter-spacing: .12em; text-transform: uppercase; cursor: pointer; }
+.trp-demander__champ button:disabled { opacity: .55; cursor: default; }
+.trp-demander__fil { display: flex; flex-direction: column; gap: 8px; }
+.trp-demander__fil p { margin: 0; font-size: 14px; line-height: 1.55; padding: 10px 13px; border-radius: 10px; max-width: 760px; white-space: pre-line; }
+.trp-demander__moi { align-self: flex-end; background: var(--color-indigo); color: var(--color-ivoire, #F6F1E7); }
+.trp-demander__lui { align-self: flex-start; background: var(--copper-50, #FAF1E9); color: var(--ink); }
+.trp-agents { margin-top: 14px; width: 100%; display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 16px; text-align: left; padding: 14px 18px; background: var(--surface-card); border: 1px solid var(--color-copper); border-radius: var(--radius-md, 8px); font: 400 14px var(--font-sans); color: var(--ink); cursor: pointer; }
+.trp-agents b { font: 400 20px var(--font-serif); color: var(--color-indigo); }

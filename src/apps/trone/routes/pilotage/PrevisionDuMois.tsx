@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
@@ -9,7 +9,11 @@ import {
   addDaysISO, apptDueXof, apptNetXof, revenuDuMois, revenusProjetesDuMois, todayISO,
   useBranchAppointments, useBranchClients, useClefDuTarif, useServicesById,
 } from '../clients/_shared';
-import { ceQuiFaitLaPrevision, prevoisLeMois } from '../../../../shared/prevision-du-mois-pur';
+import { ceQuiFaitLaPrevision, prevoisLeMois, type LigneDeLaPrevision, type Prevision } from '../../../../shared/prevision-du-mois-pur';
+import { useStaff as useMonProfil } from '../../../../shared/auth';
+import { demandeAClaude, versionDeIaMaison } from '../../../../shared/ia-maison';
+import { saitLeTableauIntelligent } from '../../../../shared/ia-maison-pur';
+import { demandeDExplication, explicationLisible, type ExplicationDeLaPrevision } from '../../../../shared/ia-tableau-pur';
 import './prevision.css';
 
 /* ═══════════════════════════════════════════════════════════════════
@@ -38,8 +42,21 @@ const pasLisible = (max: number): number => {
   return [1, 2, 5, 10].map((k) => k * p).find((k) => k >= brut) ?? p * 10;
 };
 
-export function PrevisionDuMois() {
-  const navigate = useNavigate();
+export type DonneesDeLaPrevision = {
+  prevision: Prevision;
+  lignes: LigneDeLaPrevision[];
+  nomDuMois: string;
+  today: string;
+  mk: string;
+  dernierJour: string;
+  /** Les trois mois passés, entiers, pour l'explication (« septembre 2026 : 3 120 000 F »). */
+  moisPasses: string[];
+  fmt: (x: number) => string;
+};
+
+/** LE CALCUL, UNE FOIS POUR TOUT LE TABLEAU DE BORD : le bloc de la
+    prévision et « Demander à la Maison » lisent le même. */
+export function usePrevisionDuMois(): DonneesDeLaPrevision {
   const { branch, currency } = useBranch();
   const [invoices] = useInvoices();
   const appts = useBranchAppointments();
@@ -108,9 +125,50 @@ export function PrevisionDuMois() {
     });
   }, [invoices, appts, clients, byId, apprenants, abonnes, branch.id, today, mk, dernierJour, clefDuTarif]);
 
+  const moisPasses = useMemo(() => {
+    const args = { invoices, appts, byId, apprenants, abonnes, branchId: branch.id };
+    return [1, 2, 3].map((k) => {
+      const m = moisAvant(mk, k);
+      return `${MOIS[Number(m.slice(5, 7)) - 1]} ${m.slice(0, 4)} : ${fmtMoney(revenuDuMois(args, m), currency)}`;
+    });
+  }, [invoices, appts, byId, apprenants, abonnes, branch.id, mk, currency]);
+
   const fmt = (x: number) => fmtMoney(x, currency);
   const lignes = ceQuiFaitLaPrevision(prevision, fmt, `le ${Number(dernierJour.slice(8, 10))}`);
   const nomDuMois = `${MOIS[Number(mk.slice(5, 7)) - 1]} ${mk.slice(0, 4)}`;
+  return { prevision, lignes, nomDuMois, today, mk, dernierJour, moisPasses, fmt };
+}
+
+/* L'EXPLICATION DE CLAUDE, gardée le temps de la journée : rouvrir le
+   tableau de bord ne la redemande pas (et ne la repaie pas). */
+const explicationsDuJour = new Map<string, ExplicationDeLaPrevision>();
+
+export function PrevisionDuMois({ donnees }: { donnees: DonneesDeLaPrevision }) {
+  const navigate = useNavigate();
+  const monProfil = useMonProfil();
+  const { prevision, lignes, nomDuMois, today, mk, dernierJour, moisPasses, fmt } = donnees;
+  /* CLAUDE EXPLIQUE (choix du sélecteur) : la direction seule, et seulement
+     quand la fonction posée connaît le chantier `prevision`. */
+  const peutDemander = monProfil?.role === 'souverain' || monProfil?.role === 'gerant';
+  const [claude, setClaude] = useState(false);
+  useEffect(() => { let v = true; void versionDeIaMaison().then((x) => { if (v) setClaude(saitLeTableauIntelligent(x)); }); return () => { v = false; }; }, []);
+  const cle = `${today}|${prevision.centraleXof}`;
+  const [explication, setExplication] = useState<ExplicationDeLaPrevision | null>(() => explicationsDuJour.get(cle) ?? null);
+  const [enCours, setEnCours] = useState(false);
+  const [refus, setRefus] = useState('');
+  const expliquer = async () => {
+    setEnCours(true); setRefus('');
+    const r = await demandeAClaude(demandeDExplication({
+      mois: nomDuMois, aujourdhui: today, centrale: fmt(prevision.centraleXof), bas: fmt(prevision.basXof), haut: fmt(prevision.hautXof),
+      parts: lignes.map((l) => ({ cle: l.cle, dit: l.dit })), moisPasses,
+    }));
+    setEnCours(false);
+    if (!r.ok) { setRefus(r.message); return; }
+    const e = explicationLisible(r.data);
+    if (!e) { setRefus('L’assistant a répondu de travers ; réessayez.'); return; }
+    explicationsDuJour.set(cle, e);
+    setExplication(e);
+  };
 
   /* LE DESSIN — une barre par jour : l'entré en indigo, l'attendu en indigo
      pâle par-dessus. Une seule échelle, des graduations qui tombent juste. */
@@ -184,6 +242,19 @@ export function PrevisionDuMois() {
         </figure>
         <div className="trp-prev__raisons">
           <span className="trp-prev__sur">Ce qui fait la prévision</span>
+          {explication ? (
+            <div className="trp-prev__claude" role="note">
+              <span className="trp-prev__sur">L’assistant explique</span>
+              <p>{explication.phrase}</p>
+              {explication.raisons.length > 0 && <ul>{explication.raisons.map((x) => <li key={x}>{x}</li>)}</ul>}
+              {explication.gestes.length > 0 && <p className="trp-prev__gestes">Cette semaine : {explication.gestes.join(' ; ')}</p>}
+            </div>
+          ) : peutDemander && claude ? (
+            <button type="button" className="trp-prev__demander" onClick={() => { void expliquer(); }} disabled={enCours}>
+              {enCours ? 'L’assistant lit la prévision…' : 'Demander pourquoi à l’assistant ›'}
+            </button>
+          ) : null}
+          {refus && <span className="trp-prev__note">{refus}</span>}
           <ul>
             {lignes.map((l) => (
               <li key={l.cle}>

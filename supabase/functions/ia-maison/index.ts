@@ -6,11 +6,14 @@
 // decor vient apres.
 
 /* ═══════════════════════════════════════════════════════════════════════
-   IA-MAISON · la porte vers Claude · 19 octobre 2026 · version 2026-10-19-a
+   IA-MAISON · la porte vers Claude · 19 octobre 2026 · version 2026-10-24-a
 
    « Je veux construire des choses » avec les 200 $ d'API compris dans son
    abonnement (lié le 19 octobre 2026). Maquette NKQMiMMY… validée (« Tout me
    va »), ses choix lus en base (maquette/chantiers) et au sélecteur du soir.
+   LE 24 OCTOBRE 2026 (version 2026-10-24-a) : trois chantiers de plus pour le
+   Tableau de bord intelligent (prevision, question, processus ; la direction
+   seule, des sommes et jamais une cliente), et le plafond porté à 120 $.
    Huit chantiers du Trône (capture, reçu, cahier, réponse WhatsApp, avis,
    diagnostic, fiche du jour, lettre) demandent à Claude par UNE seule porte :
    celle-ci. Elle ne connaît aucun chantier : le Trône compose la consigne et
@@ -24,7 +27,7 @@
         `mnd_staff_access`) ; sinon { erreur: 'equipe' } ;
      3. L'ANONYMISATION DE SÛRETÉ : la consigne et chaque message repassent
         par `sansCoordonnees`, même si le Trône l'a déjà fait ;
-     4. LE BUDGET : 60 $ par mois (PLAFOND_DES_HUIT_USD) pour les huit, compté
+     4. LE BUDGET : 120 $ par mois (PLAFOND_DES_HUIT_USD ; 60 $ jusqu'au 24 octobre 2026), compté
         à l'heure de Cotonou dans `documents` · mnd_ia_compteur_huit ; au
         plafond, { erreur: 'budget' } et AUCUN appel ;
      5. LES IMAGES : telles quelles en base64, ou lues dans un coffre de la
@@ -49,7 +52,7 @@
    aussi un JWT, passe pour le GET de version). Secrets : ceux qui existent
    déjà, ANTHROPIC_API_KEY et CLE_SERVICE (ou SERVICE_KEY). Aucune migration,
    aucun secret nouveau. Contrôle : un GET sur l'adresse de la fonction rend
-   { error: 'method', version: '2026-10-19-a' }.
+   { error: 'method', version: '2026-10-24-a' }.
 
    LES BLOCS RECOPIÉS : ⟨ia-maison⟩ (la règle R8 de verifie-les-douze-lunes le
    confronte à src/shared/ia-maison-pur.ts), et deux copies entières comme
@@ -68,7 +71,7 @@ const ANTHROPIC_API_KEY = (Deno.env.get('ANTHROPIC_API_KEY') ?? '').trim();
 const admin = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } });
 
 /** La version de ce fichier : `saitIaMaison` du Trône la compare. */
-const VERSION = '2026-10-19-a';
+const VERSION = '2026-10-24-a';
 
 const CORS: Record<string, string> = {
   'Access-Control-Allow-Origin': '*',
@@ -83,15 +86,18 @@ const json = (obj: unknown, status = 200) =>
    bloc entier ; `verifie-les-douze-lunes` (R8) confronte les deux. */
 /* ⟨ia-maison⟩ */
 /** Les huit chantiers, par leur clef : c'est ce que le compteur détaille. */
-export const CHANTIERS_IA = ['capture', 'recu', 'cahier', 'reponse-wa', 'avis', 'diagnostic', 'fiche-du-jour', 'lettre'] as const;
+export const CHANTIERS_IA = ['capture', 'recu', 'cahier', 'reponse-wa', 'avis', 'diagnostic', 'fiche-du-jour', 'lettre', 'prevision', 'question', 'processus'] as const;
 export type ChantierIa = (typeof CHANTIERS_IA)[number];
 
 /** Ce qu'on demande : lire une image (le plus fin) ou écrire un texte (le rapide). */
 export type UsageIa = 'image' | 'texte';
 
-/** Son plafond pour les huit : 60 $ par mois (sélecteur du 19 octobre 2026).
-    Le Centre de commande garde le sien (10 $) ; ils ne se mélangent pas. */
-export const PLAFOND_DES_HUIT_USD = 60;
+/** Son plafond : 60 $ par mois pour les huit (sélecteur du 19 octobre 2026),
+    porté à 120 $ le 24 octobre 2026 quand le Tableau de bord intelligent y
+    est entré (« jusqu'à 120 $ », au sélecteur), toujours dans les 200 $
+    compris dans l'abonnement. Le Centre de commande garde le sien (10 $) ;
+    ils ne se mélangent pas. Le nom reste : c'est la clé que tout lit. */
+export const PLAFOND_DES_HUIT_USD = 120;
 /** Le compteur des huit, dans `documents` : la fonction seule l'écrit. */
 export const CLE_DU_COMPTEUR_DES_HUIT = 'mnd_ia_compteur_huit';
 
@@ -188,6 +194,12 @@ export const DEPARTEMENTS_PAR_CHANTIER: Record<ChantierIa, readonly string[]> = 
   diagnostic: ['dept-atelier', 'dept-clientele'],
   'fiche-du-jour': ['dept-clientele', 'dept-atelier'],
   lettre: [],
+  /* LE TABLEAU DE BORD INTELLIGENT (24 octobre 2026) : la direction seule.
+     Claude explique la prévision, répond à « Demander à la Maison » et
+     propose un processus ; il ne voit que des sommes, jamais une cliente. */
+  prevision: [],
+  question: [],
+  processus: [],
 };
 export function peutDemander(role: string | undefined, chantier: ChantierIa, acces: Record<string, boolean> | undefined): boolean {
   if (!role) return false;
@@ -198,6 +210,8 @@ export function peutDemander(role: string | undefined, chantier: ChantierIa, acc
 /** La version de la fonction qui sait tout ceci. Le Trône ne propose un
     chantier que si la fonction posée le sait (sinon la demande échouerait). */
 export const saitIaMaison = (version: string | undefined): boolean => !!version && version >= '2026-10-19-a';
+/** La fonction qui connaît les trois chantiers du Tableau de bord et les 120 $. */
+export const saitLeTableauIntelligent = (version: string | undefined): boolean => !!version && version >= '2026-10-24-a';
 /* ⟨/ia-maison⟩ */
 
 /* CE QUI SORT VERS CLAUDE ET LE PLAFOND, RECOPIÉS ENTIERS comme dans
