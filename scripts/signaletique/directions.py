@@ -7,7 +7,7 @@ mariage et le petit poteau de table). Cinq dessins, à plat, en millimètres ; l
 est toujours le verrou officiel, jamais retapé. Les distances sont à mesurer sur place.
 
 Elle en garde quatre au sélecteur pour la demande de devis : le poteau (N13), la flèche
-de rue (N14), la flèche ivoire (N15) et le poteau de table (N16, recto verso, avec le QR MoMoPay) ; N12 reste le nom de
+de rue (N14), la flèche ivoire (N15) et le poteau de table (N16, recto verso, avec MoMoPay et KkiaPay) ; N12 reste le nom de
 l'ancienne feuille d'autocollants chez Lico Sign, on ne le reprend pas. Puis « Oui, en N17 » :
 la plaque d'angle aussi.
 
@@ -118,40 +118,59 @@ def fleche_ivoire():
 
 
 # ── 4 · Le poteau de table (le comptoir) ─────────────────────────────────
-# « À la place d'Instagram, mets le code MoMoPay *880*41*909099*Montant# » (23 oct. 2026).
-TABLE_LAMES = [('VOTRE BEAUTÉ', '0 km · déjà là'), ('RÉSERVER', 'maisonmnd.com'), ('MOMOPAY', '*880*41*909099*Montant#')]
-# « Rajouter le QR code MoMoPay sur le poteau de table », puis « le poteau de table doit s'écrire recto verso »
-# (24 oct. 2026) : une plaque ivoire carrée sous la lame MoMoPay, le QR de la Maison (909099@momopay, le même que
-# l'autocollant du pourboire, à éprouver d'un scan avant l'impression), et tout s'imprime sur les deux faces.
-QR_PLAQUE, QR_COTE = 70, 54   # 54 mm pour 21 modules : 2,6 mm le module, une marge de 8 mm tout autour
+# « À la place d'Instagram, mets le code MoMoPay *880*41*909099*Montant# » (23 oct. 2026). Puis, le 24 octobre :
+# « le poteau de table doit s'écrire recto verso », « je veux le QR sur la lame MoMoPay juste à côté, pas sur une
+# quatrième bague cuivre », et « crée une 4e lame cuivre pour le compte Mobile Money KkiaPay avec son code USSD et
+# son QR ». Chaque lame : (mot, ligne, QR). Les QR se posent au bout de leur lame, avant la pointe, le texte à côté.
+TABLE_LAMES = [('VOTRE BEAUTÉ', '0 km · déjà là', None), ('RÉSERVER', 'maisonmnd.com', None),
+               ('MOMOPAY', '*880*41*909099*Montant#', 'momopay'), ('MOBILE MONEY', '*616*41*8552*Montant#', 'kkiapay')]
+# Le QR KkiaPay Chap Chap de la Maison (src/shared/kkiapay-chapchap-pur.ts, LIEN_CHAPCHAP ; le marchand « MND »),
+# tiré par qrcode-generator, correction M comme l'affiche d'origine : 33 × 33. Le QR MoMoPay est celui de
+# l'autocollant du pourboire (909099@momopay, à éprouver d'un scan avec l'application MoMo avant l'impression).
+QR_KKIAPAY = ["111111101001011111011001001111111", "100000101000010000100001101000001", "101110100111000101010011001011101", "101110101111101110001000001011101",
+              "101110100011001001001110001011101", "100000100100100000011010101000001", "111111101010101010101010101111111", "000000001011001001001001000000000",
+              "101101110100111011110100001001011", "101101011010101010111101001101111", "110110111001001011000011001111001", "010000001111111100110000000101010",
+              "011000101100100000110000010011010", "110010010000000011100010001000010", "111011111100101110000010101010100", "100111001110010010011111011111100",
+              "111010100100111100111111111011000", "011010011110001111101001111011000", "010010100110011111001110001110110", "101001000111101010011011001010000",
+              "110000111010101000101110100011100", "111001000111111101100111001001101", "001010101010100011000001101011111", "011111011100000010110010001001010",
+              "100110110100011101100001111110100", "000000001010001111010001100011000", "111111101111100000011111101010000", "100000101111101110010101100011110",
+              "101110100101001101011001111110111", "101110101101011001111110000100101", "101110101000010001010010001100000", "100000100100110111010001111110001",
+              "111111101011010111100101011011000"]   # https://chapchap.kkiapay.me/fRUfT6FJZH1Hfiw18552
+# Sur la lame ivoire, 32 mm pour 21 modules (1,5 mm le module, 3,8 mm de marge sous le filet) ; sur la lame cuivre,
+# un carré ivoire de toute la hauteur au bout de la lame et 35 mm pour 33 modules (1,06 mm le module, 3,5 mm de marge).
+QR_MOMOPAY_MM, QR_KKIAPAY_MM = 32, 35
 
 
 def poteau_table(verso=False):
-    """Petit poteau indigo à bagues cuivre, trois lames ivoire et la plaque du QR : la devise en distance, réserver,
-    le MoMoPay, puis son QR. `verso` : la face arrière telle qu'on la lit de derrière, les lames vers la gauche.
-    Éléments : 0 poteau, 1 tête arrondie, 2 socle, puis bague, lame, mot et ligne de chaque lame (3 à 14),
-    puis 15 bague, 16 plaque, 17 QR."""
+    """Petit poteau indigo à bagues cuivre et quatre lames : la devise en distance, réserver, le MoMoPay et son QR
+    (ivoire), le Mobile Money KkiaPay et son QR (cuivre). `verso` : la face arrière telle qu'on la lit de derrière,
+    les lames vers la gauche. Éléments : 0 poteau, 1 tête arrondie, 2 socle, puis bague, lame, mot et ligne de
+    chaque lame (3 à 18), puis 19 QR MoMoPay, 20 carré ivoire de la lame cuivre, 21 QR KkiaPay."""
     from autocollants import QR_POURBOIRE, _qr
     s = -1 if verso else 1
     cx = TABLE_W - 62 if verso else 62
     els = [f'<rect x="{cx - 12}" y="18" width="24" height="296" rx="3" fill="{I}"/>',
            f'<path d="M{cx - 12} 30Q{cx - 12} 6 {cx} 6Q{cx + 12} 6 {cx + 12} 30Z" fill="{I}"/>',
            f'<rect x="{cx - 62}" y="312" width="124" height="18" rx="4" fill="{I}"/>']
-    coupes = []
+    coupes, qr = [], []
     y = 44
-    for t1, t2 in TABLE_LAMES:
+    for t1, t2, code in TABLE_LAMES:
+        cuivre = code == 'kkiapay'
         d = _lame(cx + s * 12, y, 170, 42, not verso)
-        els += [f'<rect x="{cx - 15}" y="{y - 4}" width="30" height="5" rx="2" fill="{C}"/>', _chemin(d, V, I, 2.4),
-                _ligne(t1, 'cormorant', 15, cx + s * 92, y + 19, I, 132, 600, 0.04),
-                _ligne(t2, 'jost', 10, cx + s * 92, y + 33, C, 132, 500, 0.02)]
+        # Une lame à QR garde son texte entre le poteau et le QR ; les autres le centrent sur la lame.
+        tx, tl = (cx + s * 66, 96) if code else (cx + s * 92, 132)
+        els += [f'<rect x="{cx - 15}" y="{y - 4}" width="30" height="5" rx="2" fill="{C}"/>',
+                _chemin(d, C if cuivre else V, V if cuivre else I, 2.4),
+                _ligne(t1, 'cormorant', 15, tx, y + 19, V if cuivre else I, tl, 600, 0.04),
+                _ligne(t2, 'jost', 10, tx, y + 33, I if cuivre else C, tl, 500, 0.02)]
         coupes.append(d)
+        if code == 'momopay':
+            qr.append(_qr(QR_POURBOIRE, cx + s * 140, y + 21, QR_MOMOPAY_MM, I))
+        if cuivre:
+            qr += [f'<rect x="{min(cx + s * 119, cx + s * 161)}" y="{y}" width="42" height="42" fill="{V}"/>',
+                   _qr(QR_KKIAPAY, cx + s * 140, y + 21, QR_KKIAPAY_MM, I)]
         y += 62
-    x0 = cx + 12 if not verso else cx - 12 - QR_PLAQUE
-    d = f'M{x0} {y}H{x0 + QR_PLAQUE}V{y + QR_PLAQUE}H{x0}Z'
-    els += [f'<rect x="{cx - 15}" y="{y - 4}" width="30" height="5" rx="2" fill="{C}"/>', _chemin(d, V, I, 2.4),
-            _qr(QR_POURBOIRE, x0 + QR_PLAQUE / 2, y + QR_PLAQUE / 2, QR_COTE, I)]
-    coupes.append(d)
-    return '-16 -4 276 338', els, coupes
+    return '-16 -4 276 338', els + qr, coupes
 
 
 def poteau_table_verso():
@@ -184,8 +203,8 @@ DESSINS = [
      'La flèche fine du panneau de mariage : ivoire, liseré indigo, chevron indigo, le logo et la devise en cuivre. Pour le portail, le couloir, le mur de l’entrée.',
      'Base en acrylique indigo 5 mm découpée à la flèche, face en acrylique ivoire 3 mm, chevron et logo en acrylique indigo 3 mm en relief, devise imprimée UV cuivre ; goujons au mur.'),
     ('table', 'Le poteau de table', poteau_table, 'N16 · poteau de comptoir · 330 mm',
-     'Le petit poteau du comptoir et des tables : « Votre beauté, 0 km, déjà là », réserver, le code MoMoPay et son QR pour payer. Recto verso : il se lit des deux côtés du comptoir. Un clin d’œil à la devise, qui se photographie.',
-     'Poteau en acrylique indigo 24 mm sur socle lesté 124 × 124, bagues cuivre, trois lames et une plaque QR de 70 × 70 en acrylique ivoire 5 mm, impression UV recto verso : le verso est fourni à part, lames vers la gauche.'),
+     'Le petit poteau du comptoir et des tables : « Votre beauté, 0 km, déjà là », réserver, puis les deux façons de payer, chacune avec son code et son QR à côté : MoMoPay sur la lame ivoire, Mobile Money KkiaPay sur la lame cuivre. Recto verso : il se lit des deux côtés du comptoir.',
+     'Poteau en acrylique indigo 24 mm sur socle lesté 124 × 124, quatre bagues cuivre, quatre lames en acrylique ivoire 5 mm (la quatrième imprimée cuivre), impression UV recto verso : le verso est fourni à part, lames vers la gauche.'),
     ('angle', 'La plaque d’angle', plaque_angle, 'N17 · plaque de coin de rue · 800 × 360 mm',
      'La plaque émaillée qu’on pose à l’angle de la rue : indigo, filet cuivre, le logo et le quartier, avec la flèche vers la Maison.',
      'Tôle d’acier émaillée 2 mm ou aluminium laqué 3 mm, indigo, filet cuivre, logo ivoire, quartier et flèche en sable ; goujons soudés au dos, posée à 2,5 m du sol.'),
