@@ -3361,3 +3361,28 @@
   .trc-rdv3__barre .trc-rdv3__boutons { width: 100%; }
   .trc-rdv3__barre .trc-rdv3__boutons .mnd-btn { flex: 1 1 0; }
 }
+
+/* ── POUR UNE CLIENTE — 24 octobre 2026 ─────────────────────────────────
+   « Avoir les codes dont le client a besoin dans le bandeau », et choisir la
+   cliente à qui les envoyer, au même endroit. Les puces gardent l'encre du
+   bandeau ; « Envoyer » et « Afficher » vivent dans la puce. */
+.trq-cliente { display: grid; gap: 8px; }
+.trq-cliente__choix { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.trq-cliente__choix .trc-clientpick { flex: 1 1 280px; max-width: 460px; }
+.trq-cliente__choix .mnd-input { width: 100%; }
+.trq-cliente__rien { margin: 0; font-size: 12.5px; color: rgba(246, 241, 231, .72); }
+.trq-puces { display: flex; flex-wrap: wrap; gap: 8px; }
+.trq-puce {
+  font: inherit; font-size: 13px; padding: 7px 14px; border-radius: 999px; cursor: pointer;
+  border: 1px solid rgba(246, 241, 231, .4); background: transparent; color: var(--color-ivoire);
+}
+.trq-puce:hover { background: rgba(246, 241, 231, .08); }
+.trq-puce--double { display: inline-flex; align-items: center; gap: 8px; padding: 4px 5px 4px 14px; cursor: default; }
+.trq-puce--double:hover { background: transparent; }
+.trq-puce--double button {
+  font: inherit; font-size: 12px; font-weight: 600; padding: 4px 11px; border-radius: 999px; border: 0; cursor: pointer;
+  background: rgba(246, 241, 231, .12); color: var(--copper-200, #E9C4A2);
+}
+.trq-puce--double button:hover { background: rgba(246, 241, 231, .22); }
+.trq-puce__note { font-size: 11px; color: rgba(246, 241, 231, .6); }
+.trq-moment__sur--suite { margin-top: 6px; }

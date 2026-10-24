@@ -6,7 +6,10 @@
    l'appli devrait le lui proposer ». La règle (src/shared/codes-du-moment.ts),
    la page QR codes refaite, le QR montré depuis Encaisser et le moyen KkiaPay.
    Tout est inventé. Sortie ASCII : la console de Windows. */
-import { codesDuMoment, ordreParUsage, premiereVenueDe, minutesDe, type IdDuCode, type RdvDuMoment } from '../src/shared/codes-du-moment';
+import {
+  codesDuMoment, ordreParUsage, premiereVenueDe, minutesDe, besoinsDeLaCliente, autresCodesDeLaCliente, CODES_DES_CLIENTES,
+  CODES_ENVOYABLES, type IdDuCode, type RdvDuMoment,
+} from '../src/shared/codes-du-moment';
 import { caisseProposee, avecLesMoyensDeLaMaison, familleDuMoyen } from '../src/shared/caisses-des-caissiers-pur';
 import { readFileSync } from 'node:fs';
 
@@ -86,8 +89,50 @@ dit('KkiaPay est dans la liste des moyens, une fois, juste apres MoMo Prive', [1
   avecLesMoyensDeLaMaison(['MTN MoMo', 'Espèces', 'KkiaPay']).filter((m) => m === 'KkiaPay').length,
   (() => { const l = avecLesMoyensDeLaMaison(['MTN MoMo', 'Espèces']); return l.indexOf('KkiaPay') === l.indexOf('MoMo Privé') + 1; })()]);
 
+/* ── Pour une cliente (24 octobre 2026) ─────────────────────────────────
+   « Avoir les codes dont le client a besoin dans le bandeau ; pouvoir choisir
+   les clients depuis cet endroit » (Yeman). Attendus ecrits a la main. */
+{
+  const tous = new Set<IdDuCode>(TOUS);
+  const r = (date: string, time: string, status: string, resteXof = 0) => ({ date, time, status, resteXof });
+  const sesRdvs = [
+    r('2026-10-20', '10:00', 'honoré', 25_000),   // honore, reste du : compte
+    r(JOUR, '10:00', 'honoré', 0),                 // venue d'aujourd'hui, soldee
+    r('2026-10-28', '10:00', 'confirmé'),          // son prochain rendez-vous
+    r('2026-10-10', '09:00', 'confirmé', 45_000),  // jamais honore : une absence, pas une dette
+    r('2026-10-22', '15:00', 'annulé', 10_000),    // annule : rien
+  ];
+  dit('une cliente : son reste (honore seulement), son prochain rendez-vous, Ma Couronne, l avis de la venue du jour', [
+    { code: 'kkiapay', raison: 'reste', resteXof: 25_000 }, { code: 'momo', raison: 'reste', resteXof: 25_000 },
+    { code: 'plan', raison: 'rendez-vous', date: '2026-10-28', time: '10:00' },
+    { code: 'couronne', raison: 'sans-couronne' }, { code: 'avis', raison: 'venue-recente', date: JOUR },
+  ], besoinsDeLaCliente({ rdvs: sesRdvs, aCouronne: false, aujourdhui: JOUR, minutes: 14 * 60, prets: tous }));
+  dit('le prochain rendez-vous peut etre ce soir ; passe l heure, c est le suivant', [
+    [{ code: 'plan', raison: 'rendez-vous', date: JOUR, time: '16:00' }],
+    [{ code: 'plan', raison: 'rendez-vous', date: '2026-10-28', time: '10:00' }],
+  ], [
+    besoinsDeLaCliente({ rdvs: [r(JOUR, '16:00', 'confirmé'), r('2026-10-28', '10:00', 'confirmé')], aCouronne: true, aujourdhui: JOUR, minutes: 14 * 60, prets: tous }),
+    besoinsDeLaCliente({ rdvs: [r(JOUR, '13:00', 'confirmé'), r('2026-10-28', '10:00', 'confirmé')], aCouronne: true, aujourdhui: JOUR, minutes: 14 * 60, prets: tous }),
+  ]);
+  dit('rien qui presse : compte deja la, rien du, derniere venue il y a 30 jours', [],
+    besoinsDeLaCliente({ rdvs: [r('2026-09-24', '10:00', 'honoré')], aCouronne: true, aujourdhui: JOUR, minutes: 600, prets: tous }));
+  dit('un code qui n est pas pret ne se propose pas (ni MoMoPay ni avis)', ['kkiapay', 'couronne'],
+    besoinsDeLaCliente({ rdvs: sesRdvs, aCouronne: false, aujourdhui: JOUR, minutes: 600, prets: new Set<IdDuCode>(['kkiapay', 'couronne']) }).map((x) => x.code));
+  dit('ses autres codes : les codes des clientes moins ses besoins, jamais le code du jour', ['wifi', 'site', 'carte', 'couronne', 'avis', 'academie'],
+    autresCodesDeLaCliente([{ code: 'kkiapay', raison: 'reste', resteXof: 1 }, { code: 'momo', raison: 'reste', resteXof: 1 }, { code: 'plan', raison: 'rendez-vous', date: JOUR, time: '16:00' }], tous));
+  dit('le code du jour n est jamais aux clientes ; le wifi ne s envoie pas', [false, false, false, true],
+    [CODES_DES_CLIENTES.includes('jour'), CODES_ENVOYABLES.includes('jour'), CODES_ENVOYABLES.includes('wifi'), CODES_DES_CLIENTES.includes('wifi')]);
+}
+
 /* ── La page QR codes ─────────────────────────────────────────────────── */
 const page = sansCommentaires('src/apps/trone/routes/clients/QrCodes.tsx');
+dit('le bandeau choisit la cliente, et lit ses besoins dans la regle', [true, true],
+  [page.includes('<ClientPicker value={clienteId} onChange={setClienteId}'), page.includes('const besoins = cliente ? besoinsDeLaCliente({')]);
+dit('l envoi : seulement un code envoyable, signe, WhatsApp sur SON numero (les Conversations refusent hors modele) ; sans numero, copie', [true, true, true, true, false],
+  [page.includes('cliente && CODES_ENVOYABLES.includes(id) ? messagePour(id, x) : null'), page.includes('const message = signeLeMessage(brut);'),
+    page.includes('const lien = lienWaMe(cliente.phone, message);'), page.includes("if (!lien) { copierTexte(message,"), page.includes('cheminDeLaConversation(cliente.phone')]);
+dit('les dates des messages portent l annee, MoMoPay au montant du reste', [true, true],
+  [page.includes("const jourDit = (iso: string) => jourEnLettres(iso)"), page.includes('lienPaiementMomo(reste || undefined)')]);
 dit('la page lit le moment dans la regle, et range chaque intention par usage', [true, true],
   [page.includes('const suggestions = codesDuMoment({'), page.includes('ordreParUsage(visibles.filter((c) => c.groupe === gr.k).map((c) => c.id), usage)')]);
 dit('les habitudes restent sur ce poste (jamais synchronisees)', [true, false],

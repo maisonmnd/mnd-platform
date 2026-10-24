@@ -7,19 +7,23 @@ import { toast, demandeUnTexte } from '../../../../ds/components';
 import { PageHead } from '../_ui';
 import { createStore, useStore } from '../../../../shared/store';
 import { maisonNom, DEVISE_COMPLETE, signeLeMessage, estLaMaisonMND } from '../../../../shared/identite';
-import { autoConfigStore, MOMO_QR_DEFAUT, REVIEW_LINK_DEFAUT, MOMO_USSD_DEFAUT, MOMO_MARCHAND_DEFAUT } from '../equipe/data';
+import { autoConfigStore, MOMO_QR_DEFAUT, REVIEW_LINK_DEFAUT, MOMO_USSD_DEFAUT, MOMO_MARCHAND_DEFAUT, lienPaiementMomo } from '../equipe/data';
 import { CODE_MOMOPAY } from '../../../../shared/momopay-de-la-maison-pur';
 import { LIEN_CHAPCHAP, USSD_CHAPCHAP, MARCHAND_CHAPCHAP, RESEAUX_CHAPCHAP } from '../../../../shared/kkiapay-chapchap-pur';
 import { usePointageConfig } from '../equipe/payroll';
 import { QrSvg, qrMatrice, lienDuJour } from '../equipe/Comptoir';
 import { imprimeCarteCouronne, lienMaCouronne } from './Vitrine';
-import { todayISO, useBranchAppointments, useBranchClients, useServicesById, apptDurationMin, apptDueXof } from './_shared';
+import { todayISO, useBranchAppointments, useBranchClients, useServicesById, apptDurationMin, apptDueXof, ClientPicker } from './_shared';
 import { apptCashOnDay, bornesDuSalon } from '../../../../shared/agenda';
 import { useSettings } from '../../../../shared/settings';
 import { fmtMoney } from '../../../../shared/currency';
 import { appelDe } from '../../../../shared/civilite';
 import { lienWaMe } from '../../../../shared/conversations';
-import { codesDuMoment, ordreParUsage, premiereVenueDe, minutesDe, type IdDuCode, type RdvDuMoment, type Suggestion } from '../../../../shared/codes-du-moment';
+import { jourEnLettres } from '../../../../shared/calendrier';
+import {
+  codesDuMoment, ordreParUsage, premiereVenueDe, minutesDe, besoinsDeLaCliente, autresCodesDeLaCliente, CODES_DES_CLIENTES,
+  CODES_ENVOYABLES, type IdDuCode, type RdvDuMoment, type Suggestion, type Besoin,
+} from '../../../../shared/codes-du-moment';
 import { AuComptoir, type Grand } from './AuComptoir';
 import './clients.css';
 
@@ -331,6 +335,8 @@ export default function QrCodes() {
   const [recherche, setRecherche] = useState('');
   const [filtre, setFiltre] = useState<string>('tous');
   const [ouvertId, setOuvertId] = useState<string | null>(null);
+  /* La cliente à qui l'on montre ou envoie un code (le bandeau, en tête). */
+  const [clienteId, setClienteId] = useState('');
 
   /* ── LES LIENS QU'ON ENVOIE — 18 août 2026 ──────────────────────
      « C'est des liens individuels, pas un seul lien pour toute la page » puis
@@ -741,6 +747,74 @@ export default function QrCodes() {
   };
   const avecQui = (qui: string, maitre?: string) => (maitre ? `${qui} avec ${maitre}` : qui);
 
+  /* ── POUR UNE CLIENTE — 24 octobre 2026 ──────────────────────────────
+     « Avoir les codes dont le client a besoin dans le bandeau. Si je veux
+     envoyer un QR à un de mes clients, pouvoir choisir les clients depuis cet
+     endroit » (Yéman). La règle est dans shared/codes-du-moment.ts
+     (`besoinsDeLaCliente`) ; ici, ses mots et ses gestes.
+
+     L'ENVOI OUVRE WHATSAPP SUR SON NUMÉRO, le message écrit, comme
+     l'itinéraire plus bas. Les Conversations du Trône n'acceptent que les
+     modèles approuvés par Meta tant qu'elle n'a pas écrit dans les 24 h :
+     le message préparé y disparaissait (essai du 24 octobre 2026). */
+  const pretsDesCodes = new Set(codes.filter((c) => c.pret).map((c) => c.id));
+  const cliente = clienteId ? ficheDe.get(clienteId) : undefined;
+  const besoins = cliente
+    ? besoinsDeLaCliente({
+      rdvs: rdvsDeLaBranche.filter((a) => a.clientId === cliente.id)
+        .map((a) => ({ date: a.date, time: a.time, status: a.status, resteXof: apptDueXof(a, servicesParId) })),
+      aCouronne: !!cliente.authUserId, aujourdhui, minutes, prets: pretsDesCodes,
+    })
+    : [];
+  const autres = autresCodesDeLaCliente(besoins, pretsDesCodes);
+  const codeDe = (id: IdDuCode) => codes.find((c) => c.id === id);
+  /* La date d'une cliente se dit avec son année. */
+  const jourDit = (iso: string) => jourEnLettres(iso).replace(/^./, (c) => c.toLowerCase());
+  const pourquoi = (x: Besoin): string => {
+    switch (x.raison) {
+      case 'reste': return x.code === 'kkiapay'
+        ? `Reste à régler : ${fmtMoney(x.resteXof, currency)}, tous réseaux`
+        : `Reste à régler : ${fmtMoney(x.resteXof, currency)}, avec l’application MoMo`;
+      case 'rendez-vous': return `Son rendez-vous du ${jourDit(x.date)} à ${heureDite(x.time)} : l’itinéraire`;
+      case 'sans-couronne': return 'Pas encore de compte : l’application à installer';
+      case 'venue-recente': return `Venue le ${jourDit(x.date)} : un avis Google`;
+    }
+  };
+  const messagePour = (id: IdDuCode, x?: Besoin): string | null => {
+    const bonjour = `Bonjour ${appelDe(cliente ?? {})}, `;
+    const reste = x?.raison === 'reste' ? x.resteXof : 0;
+    const montant = reste ? `${fmtMoney(reste, currency)} ` : '';
+    switch (id) {
+      case 'kkiapay': return `${bonjour}pour régler ${montant}par KkiaPay (${RESEAUX_CHAPCHAP.join(', ')}), ouvrez ce lien : la page s’ouvre au nom de ${MARCHAND_CHAPCHAP}, saisissez le montant en francs. ${LIEN_CHAPCHAP}`;
+      case 'momo': {
+        const l = lienPaiementMomo(reste || undefined);
+        return l ? `${bonjour}pour régler ${montant}par MoMoPay, ouvrez cette page : le code à composer s’y affiche${reste ? ', montant compris' : ''}. ${l}` : null;
+      }
+      case 'site': return `${bonjour}voici la ${maisonNom()} : nos gestes, nos parcours, et la prise de rendez-vous. ${lienSite}`;
+      case 'carte': return `${bonjour}voici la carte de la ${maisonNom()}, avec tous nos rituels et nos formules : ${lienCarte}`;
+      case 'plan':
+        if (!lienPlan) return null;
+        return x?.raison === 'rendez-vous'
+          ? `${bonjour}voici l’itinéraire de la ${maisonNom()} pour votre rendez-vous du ${jourDit(x.date)} à ${heureDite(x.time)} : ${lienPlan}`
+          : `${bonjour}voici où trouver la ${maisonNom()} : ${lienPlan}`;
+      case 'couronne': return `${bonjour}voici Ma Couronne, l’application de la ${maisonNom()} : vos rendez-vous, votre parcours et le Cercle. Créez votre compte, puis « Ajouter à l’écran d’accueil ». ${lienCouronne}`;
+      case 'avis': return lienAvis ? `${bonjour}merci pour votre passage à la ${maisonNom()}. Si le cœur vous en dit, un avis nous aiderait beaucoup : ${lienAvis}` : null;
+      case 'academie': return `${bonjour}la ${maisonNom()} forme au métier du lock : neuf parcours, de la Fondation à L’Œuvre, sur des têtes réelles à Cotonou. Le programme, les prix et l’inscription sont ici : ${lienAcademie}`;
+      default: return null;
+    }
+  };
+  /* Sans numéro sur sa fiche, le message se copie : rien ne se perd. */
+  const envoie = (id: IdDuCode, x?: Besoin) => {
+    const brut = cliente && CODES_ENVOYABLES.includes(id) ? messagePour(id, x) : null;
+    if (!brut || !cliente) return;
+    compte(id);
+    const message = signeLeMessage(brut);
+    const lien = lienWaMe(cliente.phone, message);
+    if (!lien) { copierTexte(message, 'Pas de numéro sur sa fiche : le message'); return; }
+    const w = window.open(lien, '_blank');
+    if (w) { try { w.opener = null; } catch { /* l'onglet est ouvert */ } } else copierTexte(message, 'Le message');
+  };
+
   /* L'ITINÉRAIRE, AVANT LE RENDEZ-VOUS — « il faut avant le RDV son
      itinéraire » (Yéman). WhatsApp s'ouvre sur SON numéro, le message écrit
      (l'application de la main, pas l'envoi de la Maison) ; sans numéro, le
@@ -806,9 +880,59 @@ export default function QrCodes() {
     <div className="mnd-rise">
       <PageHead eyebrow="Clients & Agenda · Les portes" title="Les codes de la Maison." sub="Que veut la cliente ? Un geste, le bon code." />
 
-      {suggestions.length > 0 && (
-        <section className="trq-moment" aria-label="En ce moment">
-          <p className="trq-moment__sur">En ce moment · {heureDite(`${maintenant.getHours()}:${String(maintenant.getMinutes()).padStart(2, '0')}`)}</p>
+      {/* LE BANDEAU : les codes des clientes et la cliente à qui on les
+          envoie, puis ce que l'agenda du moment demande. */}
+      <section className="trq-moment" aria-label="Pour une cliente, et en ce moment">
+        <div className="trq-cliente">
+          <p className="trq-moment__sur">Pour une cliente</p>
+          <div className="trq-cliente__choix">
+            <ClientPicker value={clienteId} onChange={setClienteId} placeholder="Choisir une cliente, pour lui envoyer un code" />
+            {cliente && <button type="button" className="mnd-btn mnd-btn--sm mnd-btn--ghost" onClick={() => setClienteId('')}>Sans cliente</button>}
+          </div>
+        </div>
+        {!cliente ? (
+          <div className="trq-puces" role="group" aria-label="Les codes des clientes">
+            {CODES_DES_CLIENTES.map(codeDe).filter((c): c is CodeDef => !!c && c.pret && !!c.principal).map((c) => (
+              <button key={c.id} type="button" className="trq-puce" onClick={avecCompte(c.id, c.principal!).faire}>{c.court}</button>
+            ))}
+          </div>
+        ) : (
+          <>
+            <div className="trq-moment__ligne trq-cliente__qui">
+              <div className="trq-moment__texte">
+                <b>{cliente.name}</b>
+                <small>{cliente.phone ? `WhatsApp ${cliente.phone} · « Envoyer » ouvre WhatsApp, le message écrit, à relire` : 'Pas de numéro sur sa fiche : les messages se copient'}</small>
+              </div>
+            </div>
+            {besoins.map((x) => {
+              const c = codeDe(x.code);
+              return (
+                <div key={x.code} className="trq-moment__ligne">
+                  <div className="trq-moment__texte"><b>{c?.court ?? x.code}</b><small>{pourquoi(x)}</small></div>
+                  <div className="trq-moment__gestes">
+                    <button type="button" className="mnd-btn mnd-btn--sm mnd-btn--copper" onClick={() => envoie(x.code, x)}>Envoyer</button>
+                    {c?.principal && <button type="button" className="mnd-btn mnd-btn--sm mnd-btn--ghost" disabled={!!c.principal.empeche} onClick={avecCompte(c.id, c.principal).faire}>Afficher</button>}
+                  </div>
+                </div>
+              );
+            })}
+            {besoins.length === 0 && <p className="trq-cliente__rien">Rien qui presse pour elle : ses codes sont ici.</p>}
+            <div className="trq-puces" role="group" aria-label="Ses autres codes">
+              {autres.map(codeDe).filter((c): c is CodeDef => !!c && !!c.principal).map((c) => (
+                <span key={c.id} className="trq-puce trq-puce--double">
+                  <span className="trq-puce__nom">{c.court}</span>
+                  {CODES_ENVOYABLES.includes(c.id)
+                    ? <button type="button" onClick={() => envoie(c.id)}>Envoyer</button>
+                    : <span className="trq-puce__note" title="Le wifi ne s’envoie pas : il s’affiche au comptoir">au comptoir</span>}
+                  <button type="button" onClick={avecCompte(c.id, c.principal!).faire}>Afficher</button>
+                </span>
+              ))}
+            </div>
+          </>
+        )}
+        {suggestions.length > 0 && (
+          <>
+          <p className="trq-moment__sur trq-moment__sur--suite">En ce moment · {heureDite(`${maintenant.getHours()}:${String(maintenant.getMinutes()).padStart(2, '0')}`)}</p>
           {suggestions.map(ligneDuMoment).map((l) => (
             <div key={l.cle} className="trq-moment__ligne">
               <div className="trq-moment__texte"><b>{l.texte}</b>{l.sous && <small>{l.sous}</small>}</div>
@@ -819,8 +943,9 @@ export default function QrCodes() {
               </div>
             </div>
           ))}
-        </section>
-      )}
+          </>
+        )}
+      </section>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10, margin: '18px 0' }}>
         <input

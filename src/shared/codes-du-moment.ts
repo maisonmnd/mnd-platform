@@ -155,3 +155,68 @@ export function codesDuMoment(o: {
   const repli = habitudes.length > 0 ? habitudes : PAR_DEFAUT.filter((c) => o.prets.has(c));
   return repli.slice(0, 2).map((code) => ({ sorte: 'habitude', code }));
 }
+
+/* ══ POUR UNE CLIENTE — 24 octobre 2026 ═════════════════════════════════
+   « Dans les codes QR de la Maison, avoir les codes dont le client a besoin
+   dans le bandeau. Si je veux envoyer un QR à un de mes clients, pouvoir
+   choisir les clients depuis cet endroit » (Yéman).
+
+   Le bandeau montre d'abord LES CODES DES CLIENTES, jamais le code du jour
+   (celui de l'équipe). Une cliente choisie, il met devant ce dont ELLE a
+   besoin, lu sur ses rendez-vous :
+     · un reste à régler (rituels honorés, ou du jour) : KkiaPay et MoMoPay,
+       au montant ;
+     · un prochain rendez-vous : l'itinéraire, sa date dite ;
+     · pas encore de compte : Ma Couronne ;
+     · une venue honorée ces quatorze derniers jours : l'avis Google.
+   Tout code qui a un lien s'envoie ; le wifi, non : ses mots de passe
+   s'affichent au comptoir le temps d'un scan (18 août 2026). Un rendez-vous
+   passé jamais honoré ne crée pas de dette : c'est souvent une absence. */
+export const CODES_DES_CLIENTES: readonly IdDuCode[] = ['kkiapay', 'momo', 'wifi', 'site', 'carte', 'plan', 'couronne', 'avis', 'academie'];
+export const CODES_ENVOYABLES: readonly IdDuCode[] = ['kkiapay', 'momo', 'site', 'carte', 'plan', 'couronne', 'avis', 'academie'];
+export const AVIS_SOUS_JOURS = 14;
+
+export type RdvDeLaCliente = { date: string; time: string; status: string; resteXof: number };
+
+export type Besoin =
+  | { code: 'kkiapay' | 'momo'; raison: 'reste'; resteXof: number }
+  | { code: 'plan'; raison: 'rendez-vous'; date: string; time: string }
+  | { code: 'couronne'; raison: 'sans-couronne' }
+  | { code: 'avis'; raison: 'venue-recente'; date: string };
+
+const joursEntre = (a: string, b: string): number =>
+  Math.round((Date.parse(`${b}T12:00:00Z`) - Date.parse(`${a}T12:00:00Z`)) / 86_400_000);
+
+export function besoinsDeLaCliente(o: {
+  /** Ses rendez-vous, toutes dates, chacun avec ce qui reste à régler. */
+  rdvs: readonly RdvDeLaCliente[];
+  aCouronne: boolean;
+  aujourdhui: string;
+  /** Minutes depuis minuit, à l'heure de la Maison. */
+  minutes: number;
+  prets: ReadonlySet<IdDuCode>;
+}): Besoin[] {
+  const vivants = o.rdvs.filter((a) => a.status !== 'annulé');
+  const reste = vivants
+    .filter((a) => a.date <= o.aujourdhui && (a.status === 'honoré' || a.date === o.aujourdhui))
+    .reduce((n, a) => n + Math.max(0, Math.round(a.resteXof)), 0);
+  const prochain = vivants
+    .filter((a) => a.status !== 'honoré' && (a.date > o.aujourdhui || (a.date === o.aujourdhui && minutesDe(a.time) >= o.minutes)))
+    .sort((x, y) => x.date.localeCompare(y.date) || minutesDe(x.time) - minutesDe(y.time))[0];
+  const derniere = vivants.filter((a) => a.status === 'honoré' && a.date <= o.aujourdhui).map((a) => a.date).sort().pop();
+  const out: Besoin[] = [];
+  if (reste > 0) {
+    if (o.prets.has('kkiapay')) out.push({ code: 'kkiapay', raison: 'reste', resteXof: reste });
+    if (o.prets.has('momo')) out.push({ code: 'momo', raison: 'reste', resteXof: reste });
+  }
+  if (prochain && o.prets.has('plan')) out.push({ code: 'plan', raison: 'rendez-vous', date: prochain.date, time: prochain.time });
+  if (!o.aCouronne && o.prets.has('couronne')) out.push({ code: 'couronne', raison: 'sans-couronne' });
+  if (derniere && joursEntre(derniere, o.aujourdhui) <= AVIS_SOUS_JOURS && o.prets.has('avis')) {
+    out.push({ code: 'avis', raison: 'venue-recente', date: derniere });
+  }
+  return out;
+}
+
+/** Les autres codes des clientes, après ses besoins, dans l'ordre du bandeau. */
+export const autresCodesDeLaCliente = (besoins: readonly Besoin[], prets: ReadonlySet<IdDuCode>): IdDuCode[] =>
+  CODES_DES_CLIENTES.filter((c) => prets.has(c) && !besoins.some((b) => b.code === c));
