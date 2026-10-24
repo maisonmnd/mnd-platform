@@ -19,6 +19,7 @@ import { splitByWeights } from '../../../../shared/pricing';
 import { usePrets, pretsASurveiller, joursEntre } from '../../../../shared/foyer';
 import { useCoffre, useObjectifs, objectifsASurveiller } from '../../../../shared/finance';
 import { totalsOf, MAISON_BUCKETS, emptyTotals, sumTotals, type Part } from '../../../../shared/maisons';
+import { chiffreAttenduDuJour } from '../clients/chiffre-du-jour-pur';
 import {
   Avatar, PayStatusPill, RdvModal, ReminderBell, SourceBadge, StatusPill, tarifsDuRituel, apptLabel, apptTotalXof, apptNetXof, apptDueXof, addDaysISO, frShort, frShortAn, fromISO,
   facturesQuiAttendent,
@@ -1068,6 +1069,9 @@ export default function Dashboard() {
       </div>
 
       {/* Carnet du jour + revenu 7 jours */}
+      {/* LE CHIFFRE ATTENDU DE LA JOURNÉE — 24 octobre 2026 (voir
+          clients/chiffre-du-jour-pur.ts) : rituels du jour et Gamme posée, ce
+          qui est déjà entré et ce qui reste. Le même calcul qu'au Carnet. */}
       <div className="tr-cols" style={{ '--cols': '1.55fr 1fr', gap: 18, marginTop: 24, alignItems: 'start' } as CSSProperties}>
         <div className="trp-day">
           <div className="trp-day__head">
@@ -1076,6 +1080,21 @@ export default function Dashboard() {
               Tout voir →
             </button>
           </div>
+          {(() => {
+            const j = chiffreAttenduDuJour(todayRows.map((a) => ({
+              date: a.date, status: a.status, rituelXof: apptNetXof(a, byId), resteRituelXof: apptDueXof(a, byId), gamme: a.gamme,
+            })), today);
+            return j.attenduXof > 0 ? (
+              <div className="trp-day__chiffre">
+                <span className="trp-day__chiffre-lab">Attendu aujourd’hui</span>
+                <b>{fmtMoney(j.attenduXof, currency)}</b>
+                <span className="trp-day__chiffre-sub">
+                  déjà encaissé {fmtMoney(j.encaisseXof, currency)} · reste {fmtMoney(j.resteXof, currency)}
+                  {j.gammeXof > 0 ? ` · dont Gamme ${fmtMoney(j.gammeXof, currency)}` : ''}
+                </span>
+              </div>
+            ) : null;
+          })()}
           {/* UN ÉTAT VIDE PROPOSE, il ne constate pas : un carnet libre est
               l'occasion de relancer les couronnes qui ont passé leur cadence. */}
           {todayRows.length === 0 && (

@@ -2141,12 +2141,21 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour, init
   });
   const forfaitABouge = !!appt.forfait && Math.round(appt.forfait.baseXof) !== Math.round(grossActuel);
   const acompteAVerifier = deposit > 0 && !depositReceived;
+  /* LE RITUEL ET SA GAMME, CHACUN SON MONTANT — 24 octobre 2026. « Je veux
+     voir les 2 montants, 67 000 F et 9 000 F, dans ce qu'elle doit »
+     (Yéman, A. S.) : le bloc ne disait que le rituel, et une Gamme payée avec
+     lui disparaissait de ce qu'elle doit comme de ce qu'elle a versé. Chaque
+     ligne de la Gamme se dit, réglée (et quand) ou à régler. */
+  const gammeDuRdv = gammePromise;
+  const gammeRegleeXof = gammeDuRdv.filter((l) => !!l.regleeAt).reduce((n, l) => n + ligneNetteXof(l), 0);
+  const gammeARegler = gammeDuRdv.filter((l) => !l.regleeAt).reduce((n, l) => n + ligneNetteXof(l), 0);
+  const gammeDuRdvXof = gammeRegleeXof + gammeARegler;
   const resumeDu = [
-    `Total ${fmtMoney(net, currency)}`,
+    gammeDuRdvXof > 0 ? `Rituel ${fmtMoney(net, currency)} + Gamme ${fmtMoney(gammeDuRdvXof, currency)}` : `Total ${fmtMoney(net, currency)}`,
     deposit > 0 && depositReceived ? `acompte −${fmtMoney(deposit, currency)}` : '',
     acompteAVerifier ? 'acompte à vérifier' : '',
-    alreadyPaid > 0 ? `déjà reçu −${fmtMoney(alreadyPaid, currency)}` : '',
-    totalGamme > 0 ? `+ Gamme ${fmtMoney(totalGamme, currency)}` : '',
+    alreadyPaid + gammeRegleeXof > 0 ? `déjà reçu −${fmtMoney(alreadyPaid + gammeRegleeXof, currency)}` : '',
+    gammeDuRdvXof === 0 && totalGamme > 0 ? `+ Gamme ${fmtMoney(totalGamme, currency)}` : '',
     forfaitABouge ? 'le forfait a bougé' : '',
     aReporter ? 'une remise à reporter' : '',
   ].filter(Boolean).join(' · ');
@@ -2278,12 +2287,35 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour, init
 
         {/* ① CE QU'ELLE DOIT — le compte du rituel, avant tout règlement. */}
         <EtapeEnc n={1} titre="Ce qu’elle doit" resume={resumeDu} alerte={acompteAVerifier || forfaitABouge || !!aReporter} ouvert={etape === 'du'} onBascule={() => bascule('du')}>
-          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-            <span className="mnd-muted">
-              {forfaitPose ? `Total · ${nomForfait}` : `Total${appt.discountPct ? ` (remise −${appt.discountPct}%)` : ''}`}
-            </span>
-            <span style={{ fontFamily: 'var(--font-serif)' }}>{fmtMoney(net, currency)}</span>
-          </div>
+          {gammeDuRdvXof > 0 ? (
+            <>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span className="mnd-muted">
+                  {forfaitPose ? `Rituel · ${nomForfait}` : `Rituel${appt.discountPct ? ` (remise −${appt.discountPct}%)` : ''}`}
+                </span>
+                <span style={{ fontFamily: 'var(--font-serif)' }}>{fmtMoney(net, currency)}</span>
+              </div>
+              {gammeDuRdv.map((l) => (
+                <div key={l.id} style={{ display: 'flex', justifyContent: 'space-between', gap: 10 }}>
+                  <span className="mnd-muted">
+                    Gamme · {nomProduit(l.id)}{l.qty > 1 ? ` × ${l.qty}` : ''} · {l.regleeAt ? `réglée le ${frShortAn(l.regleeAt)}` : 'à régler'}
+                  </span>
+                  <span style={{ fontFamily: 'var(--font-serif)', flex: 'none' }}>{fmtMoney(ligneNetteXof(l), currency)}</span>
+                </div>
+              ))}
+              <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid var(--hairline)', paddingTop: 7 }}>
+                <span className="mnd-muted">Total</span>
+                <span style={{ fontFamily: 'var(--font-serif)' }}>{fmtMoney(net + gammeDuRdvXof, currency)}</span>
+              </div>
+            </>
+          ) : (
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+              <span className="mnd-muted">
+                {forfaitPose ? `Total · ${nomForfait}` : `Total${appt.discountPct ? ` (remise −${appt.discountPct}%)` : ''}`}
+              </span>
+              <span style={{ fontFamily: 'var(--font-serif)' }}>{fmtMoney(net, currency)}</span>
+            </div>
+          )}
           {/* LE FORFAIT NE SE POSE PLUS ICI (14 août) : il se dit au rendez-vous.
               La bande rattrape le seul cas qui demande encore une main : la
               composition a bougé depuis la promesse. */}
@@ -2321,13 +2353,13 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour, init
               <span>Acompte reçu et vérifié (MoMo contrôlé), le déduire du reste à encaisser</span>
             </label>
           )}
-          {alreadyPaid > 0 && (
+          {alreadyPaid + gammeRegleeXof > 0 && (
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span className="mnd-muted">Déjà encaissé</span><span>−{fmtMoney(alreadyPaid, currency)}</span>
+              <span className="mnd-muted">Déjà encaissé</span><span>−{fmtMoney(alreadyPaid + gammeRegleeXof, currency)}</span>
             </div>
           )}
           <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: 'var(--font-serif)', fontSize: 18, borderTop: '1px solid var(--hairline)', paddingTop: 9 }}>
-            <span>Total dû</span><span className="mnd-copper">{fmtMoney(due, currency)}</span>
+            <span>Total dû</span><span className="mnd-copper">{fmtMoney(due + gammeARegler, currency)}</span>
           </div>
           {/* LA PIÈCE PORTE UNE REMISE QUE LE RENDEZ-VOUS N'A PAS REÇUE (2 octobre
               2026) : on la propose ici, d'un geste, et c'est une main qui décide. */}

@@ -6,6 +6,7 @@ import { manquesDeLaTete } from '../../../../shared/afaire';
 import { PageHead } from '../_ui';
 import { gammeTouteReglee } from '../../../../shared/gamme';
 import { useLaGammePayeeRegravee } from './gamme-payee';
+import { chiffreAttenduDuJour } from './chiffre-du-jour-pur';
 import { Button, Input, alerte, refus, demande } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
@@ -270,6 +271,11 @@ export default function Carnet() {
       creanceXof: rendus.reduce((n, a) => n + apptDueXof(a, byId), 0),
       avenirN: vivants.filter(aVenir).length,
       avenirXof: vivants.filter(aVenir).reduce((n, a) => n + apptNetXof(a, byId), 0),
+      /* LA JOURNÉE, À PART — 24 octobre 2026 : rituels du jour et Gamme posée,
+         le même calcul qu'au tableau de bord (chiffre-du-jour-pur). */
+      jour: chiffreAttenduDuJour(vivants.map((a) => ({
+        date: a.date, status: a.status, rituelXof: apptNetXof(a, byId), resteRituelXof: apptDueXof(a, byId), gamme: a.gamme,
+      })), todayISO()),
     };
 
     const garde = (a: Appointment) => VUES[vue].garde(a, byId, aVenir);
@@ -761,7 +767,7 @@ export default function Carnet() {
           au fauteuil. Les mettre dans le même chiffre, c'est annoncer une somme
           que personne ne peut aller chercher. */}
       {!sansPrix && (
-        <div className="tr-cols" style={{ '--cols': '1fr 1fr', gap: 12, marginBottom: 14 } as CSSProperties}>
+        <div className="tr-cols" style={{ '--cols': '1fr 1fr 1fr', gap: 12, marginBottom: 14 } as CSSProperties}>
           <div style={{ background: 'var(--surface-card)', border: '1px solid var(--hairline)', borderLeft: '3px solid var(--color-copper)', borderRadius: 'var(--radius-md)', padding: '14px 18px' }}>
             <div className="trc-microlabel" style={{ margin: 0 }}>Reste à encaisser · rituels rendus</div>
             <div style={{ fontFamily: 'var(--font-serif)', fontWeight: 300, fontSize: 30, color: 'var(--copper-700)', lineHeight: 1.1 }}>
@@ -771,6 +777,17 @@ export default function Carnet() {
               {totaux.creanceN === 0
                 ? 'Rien à recouvrer, tout est réglé.'
                 : `sur ${totaux.creanceN} rituel${totaux.creanceN > 1 ? 's' : ''} déjà rendu${totaux.creanceN > 1 ? 's' : ''}`}
+            </div>
+          </div>
+          <div style={{ background: 'var(--surface-card)', border: '1px solid var(--hairline)', borderLeft: '3px solid var(--color-indigo)', borderRadius: 'var(--radius-md)', padding: '14px 18px' }}>
+            <div className="trc-microlabel" style={{ margin: 0 }}>Attendu · aujourd’hui</div>
+            <div style={{ fontFamily: 'var(--font-serif)', fontWeight: 300, fontSize: 30, color: 'var(--color-indigo)', lineHeight: 1.1 }}>
+              {fmtMoney(totaux.jour.attenduXof, currency)}
+            </div>
+            <div className="trc-sub">
+              {totaux.jour.nombre === 0
+                ? 'Aucun rendez-vous aujourd’hui.'
+                : `${totaux.jour.nombre} rendez-vous · déjà encaissé ${fmtMoney(totaux.jour.encaisseXof, currency)} · reste ${fmtMoney(totaux.jour.resteXof, currency)}${totaux.jour.gammeXof > 0 ? ` · dont Gamme ${fmtMoney(totaux.jour.gammeXof, currency)}` : ''}`}
             </div>
           </div>
           <div style={{ background: 'var(--surface-card)', border: '1px solid var(--hairline)', borderLeft: '3px solid var(--color-indigo)', borderRadius: 'var(--radius-md)', padding: '14px 18px' }}>
