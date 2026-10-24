@@ -363,7 +363,7 @@ def n11(a):
 POTEAU_W, POTEAU_H = 1870, 2980
 RUE_W, RUE_H = 1400, 460
 IVOIRE_W, IVOIRE_H = 1200, 340
-TABLE_W, TABLE_H = 244, 330
+TABLE_W, TABLE_H = 340, 460   # 244 × 330 jusqu'au 24 oct. 2026 : « rendre le tout lisible »
 ANGLE_W, ANGLE_H = 800, 360
 
 
@@ -613,15 +613,15 @@ ENSEIGNES = [
        en=dict(construction='Base in 5 mm indigo acrylic cut to the arrow; face in 3 mm ivory acrylic laid on it, leaving a 20 mm indigo border; chevron and logo flat-cut from 3 mm indigo acrylic, raised; motto UV printed copper. On 4 stand-off studs, 10 mm from the wall; outdoor grade acrylic, UV stable.',
                finish='Indigo #1E2150, ivory #F6F1E7, copper #B97A4A.', lighting='Non-illuminated.',
                change='NEW ITEM. Please quote.')),
-    _f('N16', n16, TABLE_W, TABLE_H, 124, 'fleche', 'interieur', 'plaque',
+    _f('N16', n16, TABLE_W, TABLE_H, 170, 'fleche', 'interieur', 'plaque',
        nom='Le poteau de table', name='Tabletop direction post, four blades',
        statut='nouvelle', lieu='Comptoir de l’accueil et tables', decoupe=_coupes('poteau_table'),
        variantes=[('N16', n16), ('N16-VERSO', n16_verso)], decoupe_variantes={'N16-VERSO': _coupes('poteau_table_verso')},
        devis_note=('Printed on both faces (files N16 and N16-VERSO), with our two payment QR codes', '双面打印（N16 和 N16-VERSO 文件），含两个付款二维码'),
-       fr=dict(construction='Poteau en acrylique indigo 24 × 24 à tête arrondie, sur un socle indigo lesté 124 × 124 × 18 ; quatre bagues en cuivre brossé ; quatre lames en acrylique ivoire 5 mm, 170 × 42, en flèche. Deux lames ivoire à filet indigo : « VOTRE BEAUTÉ / 0 km · déjà là », « RÉSERVER / maisonmnd.com » ; la troisième imprimée indigo à filet ivoire : « MOMOPAY / *880*41*909099*Montant# » avec le QR MoMoPay (34 mm) ; la quatrième imprimée cuivre à filet ivoire : « KKIAPAY / *616*41*8552*Montant# » avec le QR KkiaPay (35 mm). Chaque QR sur un carré ivoire au bout de sa lame. Impression UV RECTO VERSO, lisible des deux côtés ; le verso a son propre fichier, lames vers la gauche. Hauteur 330 mm.',
+       fr=dict(construction='Poteau en acrylique indigo 34 × 34 à tête arrondie, sur un socle indigo lesté 170 × 170 × 24 ; quatre bagues en cuivre brossé ; quatre lames en acrylique ivoire 5 mm, 238 × 58, en flèche. Deux lames ivoire à filet indigo : « VOTRE BEAUTÉ / 0 km · déjà là », « RÉSERVER / maisonmnd.com » ; la troisième imprimée indigo à filet ivoire : « MOMOPAY / *880*41*909099*Montant# » avec le QR MoMoPay (48 mm) ; la quatrième imprimée cuivre à filet ivoire : « KKIAPAY / *616*41*8552*Montant# » avec le QR KkiaPay (49 mm). Chaque QR sur un carré ivoire au bout de sa lame. Impression UV RECTO VERSO, lisible des deux côtés ; le verso a son propre fichier, lames vers la gauche. Hauteur 460 mm.',
                finition='Indigo, ivoire, cuivre.', lumiere='Non lumineux.',
                change='Nouvelle pièce, d’après le petit poteau « Where we met » ; le code MoMoPay et son QR à la place d’Instagram, une quatrième lame cuivre pour KkiaPay, et tout recto verso.'),
-       en=dict(construction='24 × 24 mm indigo acrylic post with a rounded top, on a weighted indigo base 124 × 124 × 18 mm; four brushed copper rings; four blades in 5 mm ivory acrylic, 170 × 42 mm, arrow-shaped. Two ivory blades with an indigo edge line: “VOTRE BEAUTÉ / 0 km · déjà là”, “RÉSERVER / maisonmnd.com”; the third blade printed indigo #1E2150 with an ivory edge line: “MOMOPAY / *880*41*909099*Montant#” with the MoMoPay QR code (34 mm); the fourth blade printed copper #B97A4A with an ivory edge line: “KKIAPAY / *616*41*8552*Montant#” with the KkiaPay QR code (35 mm). Each QR code on an ivory square at the end of its blade. UV print on BOTH FACES, readable from both sides; the back face has its own file (N16-VERSO), blades pointing left. Total height 330 mm.',
+       en=dict(construction='34 × 34 mm indigo acrylic post with a rounded top, on a weighted indigo base 170 × 170 × 24 mm; four brushed copper rings; four blades in 5 mm ivory acrylic, 238 × 58 mm, arrow-shaped. Two ivory blades with an indigo edge line: “VOTRE BEAUTÉ / 0 km · déjà là”, “RÉSERVER / maisonmnd.com”; the third blade printed indigo #1E2150 with an ivory edge line: “MOMOPAY / *880*41*909099*Montant#” with the MoMoPay QR code (48 mm); the fourth blade printed copper #B97A4A with an ivory edge line: “KKIAPAY / *616*41*8552*Montant#” with the KkiaPay QR code (49 mm). Each QR code on an ivory square at the end of its blade. UV print on BOTH FACES, readable from both sides; the back face has its own file (N16-VERSO), blades pointing left. Total height 460 mm.',
                finish='Indigo #1E2150, ivory #F6F1E7, copper.', lighting='Non-illuminated.',
                change='NEW ITEM. Please print the front from file N16 and the back from file N16-VERSO, both readable. Please check both codes character by character: *880*41*909099*Montant# and *616*41*8552*Montant#, and print the two QR codes at true size from our file, do not redraw them. Please quote.')),
     _f('N17', n17, ANGLE_W, ANGLE_H, 3, 'rect', 'rue', 'plaque',

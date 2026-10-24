@@ -138,12 +138,18 @@ QR_KKIAPAY = ["111111101001011111011001001111111", "1000001010000100001000011010
               "101110100101001101011001111110111", "101110101101011001111110000100101", "101110101000010001010010001100000", "100000100100110111010001111110001",
               "111111101011010111100101011011000"]   # https://chapchap.kkiapay.me/fRUfT6FJZH1Hfiw18552
 # « La lame de MoMoPay en indigo » (24 oct. 2026) : les deux lames de paiement ont leur couleur, indigo pour
-# MoMoPay, cuivre pour KkiaPay, chacune à filet et titre ivoire. Le QR se pose sur un carré ivoire de toute la
-# hauteur, au bout de la lame : 34 mm pour les 21 modules de MoMoPay (1,6 mm le module, 4 mm de marge), 35 mm pour
-# les 33 de KkiaPay (1,06 mm le module, 3,5 mm de marge).
-QR_MOMOPAY_MM, QR_KKIAPAY_MM = 34, 35
+# MoMoPay, cuivre pour KkiaPay, chacune à filet et titre ivoire ; chaque QR sur un carré ivoire de toute la hauteur,
+# au bout de sa lame. « Écrire le code en blanc, plus lisible que le cuivre » : sur l'indigo le code MoMoPay est
+# ivoire ; sur le cuivre, le code KkiaPay reste indigo, plus lisible que le blanc.
 # (fond, filet, mot, ligne) de chaque sorte de lame.
-COULEURS_DES_LAMES = {None: (V, I, I, C), 'momopay': (I, V, V, C), 'kkiapay': (C, V, V, I)}
+COULEURS_DES_LAMES = {None: (V, I, I, C), 'momopay': (I, V, V, V), 'kkiapay': (C, V, V, I)}
+
+# « Quelles sont les tailles du poteau de table ? Rendre le tout lisible » (24 oct. 2026) : il passe de
+# 244 × 330 à 340 × 460 mm. Poteau 34 × 34, socle 170 × 170 × 24, lames 238 × 58 (pointe de 29), un pas de 86 ;
+# titres de 21 mm de corps, lignes de 14 (les codes, ajustés à leur place, autour de 11) ; QR MoMoPay de 48 mm
+# (21 modules : 2,3 mm le module, 5 mm de marge), QR KkiaPay de 49 mm (33 modules : 1,5 mm, 4,5 mm de marge).
+PT = dict(pied=85, poteau=17, haut=26, bas=438, socle=24, lame=238, lame_h=58, pas=86, premiere=62, filet=3)
+QR_MOMOPAY_MM, QR_KKIAPAY_MM = 48, 49
 
 
 def poteau_table(verso=False):
@@ -153,28 +159,32 @@ def poteau_table(verso=False):
     lame (3 à 18), puis 19 carré ivoire et 20 QR de MoMoPay, 21 carré ivoire et 22 QR de KkiaPay."""
     from autocollants import QR_POURBOIRE, _qr
     s = -1 if verso else 1
-    cx = TABLE_W - 62 if verso else 62
-    els = [f'<rect x="{cx - 12}" y="18" width="24" height="296" rx="3" fill="{I}"/>',
-           f'<path d="M{cx - 12} 30Q{cx - 12} 6 {cx} 6Q{cx + 12} 6 {cx + 12} 30Z" fill="{I}"/>',
-           f'<rect x="{cx - 62}" y="312" width="124" height="18" rx="4" fill="{I}"/>']
+    p, r, h = PT['pied'], PT['poteau'], PT['lame_h']
+    cx = TABLE_W - p if verso else p
+    els = [f'<rect x="{cx - r}" y="{PT["haut"]}" width="{2 * r}" height="{PT["bas"] - PT["haut"]}" rx="4" fill="{I}"/>',
+           f'<path d="M{cx - r} {PT["haut"] + 16}Q{cx - r} 8 {cx} 8Q{cx + r} 8 {cx + r} {PT["haut"] + 16}Z" fill="{I}"/>',
+           f'<rect x="{cx - p}" y="{TABLE_H - PT["socle"]}" width="{2 * p}" height="{PT["socle"]}" rx="5" fill="{I}"/>']
     coupes, qr = [], []
-    y = 44
+    y = PT['premiere']
+    pointe = h / 2
+    fin_droite = r + PT['lame'] - pointe            # du centre du poteau au début de la pointe
     for t1, t2, code in TABLE_LAMES:
         fond, filet, mot, ligne = COULEURS_DES_LAMES[code]
-        d = _lame(cx + s * 12, y, 170, 42, not verso)
+        d = _lame(cx + s * r, y, PT['lame'], h, not verso)
         # Une lame à QR garde son texte entre le poteau et le QR ; les autres le centrent sur la lame.
-        tx, tl = (cx + s * 66, 96) if code else (cx + s * 92, 132)
-        els += [f'<rect x="{cx - 15}" y="{y - 4}" width="30" height="5" rx="2" fill="{C}"/>',
-                _chemin(d, fond, filet, 2.4),
-                _ligne(t1, 'cormorant', 15, tx, y + 19, mot, tl, 600, 0.04),
-                _ligne(t2, 'jost', 10, tx, y + 33, ligne, tl, 500, 0.02)]
+        tx, tl = (cx + s * 92, 134) if code else (cx + s * 129, 185)
+        els += [f'<rect x="{cx - 21}" y="{y - 6}" width="42" height="7" rx="3" fill="{C}"/>',
+                _chemin(d, fond, filet, PT['filet']),
+                _ligne(t1, 'cormorant', 21, tx, y + 27, mot, tl, 600, 0.04),
+                _ligne(t2, 'jost', 14, tx, y + 46, ligne, tl, 500, 0.02)]
         coupes.append(d)
         if code:
             matrice, cote = (QR_POURBOIRE, QR_MOMOPAY_MM) if code == 'momopay' else (QR_KKIAPAY, QR_KKIAPAY_MM)
-            qr += [f'<rect x="{min(cx + s * 119, cx + s * 161)}" y="{y}" width="42" height="42" fill="{V}"/>',
-                   _qr(matrice, cx + s * 140, y + 21, cote, I)]
-        y += 62
-    return '-16 -4 276 338', els + qr, coupes
+            x_carre = cx + s * (fin_droite - h) if not verso else cx - fin_droite
+            qr += [f'<rect x="{x_carre}" y="{y}" width="{h}" height="{h}" fill="{V}"/>',
+                   _qr(matrice, cx + s * (fin_droite - h / 2), y + h / 2, cote, I)]
+        y += PT['pas']
+    return '-16 -4 372 468', els + qr, coupes
 
 
 def poteau_table_verso():
@@ -206,9 +216,9 @@ DESSINS = [
     ('ivoire', 'La flèche ivoire', fleche_ivoire, 'N15 · flèche murale · 1200 × 340 mm',
      'La flèche fine du panneau de mariage : ivoire, liseré indigo, chevron indigo, le logo et la devise en cuivre. Pour le portail, le couloir, le mur de l’entrée.',
      'Base en acrylique indigo 5 mm découpée à la flèche, face en acrylique ivoire 3 mm, chevron et logo en acrylique indigo 3 mm en relief, devise imprimée UV cuivre ; goujons au mur.'),
-    ('table', 'Le poteau de table', poteau_table, 'N16 · poteau de comptoir · 330 mm',
+    ('table', 'Le poteau de table', poteau_table, 'N16 · poteau de comptoir · 340 × 460 mm',
      'Le petit poteau du comptoir et des tables : « Votre beauté, 0 km, déjà là », réserver, puis les deux façons de payer, chacune avec son code et son QR à côté : MoMoPay sur la lame indigo, KkiaPay sur la lame cuivre. Recto verso : il se lit des deux côtés du comptoir.',
-     'Poteau en acrylique indigo 24 mm sur socle lesté 124 × 124, quatre bagues cuivre, quatre lames en acrylique ivoire 5 mm (la troisième imprimée indigo, la quatrième cuivre), impression UV recto verso : le verso est fourni à part, lames vers la gauche.'),
+     'Poteau en acrylique indigo 34 mm sur socle lesté 170 × 170, quatre bagues cuivre, quatre lames de 238 × 58 en acrylique ivoire 5 mm (la troisième imprimée indigo, la quatrième cuivre), impression UV recto verso : le verso est fourni à part, lames vers la gauche.'),
     ('angle', 'La plaque d’angle', plaque_angle, 'N17 · plaque de coin de rue · 800 × 360 mm',
      'La plaque émaillée qu’on pose à l’angle de la rue : indigo, filet cuivre, le logo et le quartier, avec la flèche vers la Maison.',
      'Tôle d’acier émaillée 2 mm ou aluminium laqué 3 mm, indigo, filet cuivre, logo ivoire, quartier et flèche en sable ; goujons soudés au dos, posée à 2,5 m du sol.'),
