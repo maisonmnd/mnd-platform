@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type CSSProperties, type PointerEvent as PE } from 'react';
+import { TexteFon } from '../../../../../ds/fon';
 import { asset } from '../../../../../shared/asset';
 import { DEVISE_COMPLETE } from '../../../../../shared/identite';
 import {
@@ -172,7 +173,7 @@ export function Apercu({ r, signaturesAttendues, glissable, surPoses }: {
       {(e.pied.length > 0 || e.devise) && (
         <div style={{ marginTop: px(10), borderTop: `${px(0.2)} solid #D9CFBC`, paddingTop: px(2), textAlign: 'center', ...corps, fontSize: pt(7.5), lineHeight: px(3.6), color: '#6b6b73' }}>
           {e.pied.map((l, i) => <div key={i}>{l}</div>)}
-          {e.devise && <div style={{ fontFamily: 'var(--font-devise, "Cormorant Garamond", Georgia, serif)', fontStyle: 'italic', color: '#B97A4A', fontSize: pt(8) }}>{DEVISE_COMPLETE}</div>}
+          {e.devise && <div style={{ fontFamily: 'var(--font-devise, "Cormorant Garamond", Georgia, serif)', fontStyle: 'italic', color: '#B97A4A', fontSize: pt(8) }}><TexteFon texte={DEVISE_COMPLETE} penche /></div>}
         </div>
       )}
     </div>

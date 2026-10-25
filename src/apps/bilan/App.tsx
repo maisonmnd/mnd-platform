@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { DEVISE_COMPLETE } from '../../shared/identite';
+import { TexteFon } from '../../ds/fon';
 import { asset } from '../../shared/asset';
 import { DateEnClair } from '../../ds/dates';
 
@@ -240,7 +241,7 @@ export default function App() {
               <div className="seal" aria-hidden="true">Les<br />Quatre<br />Temps</div>
               <div className="signature">
                 <p className="sig-nom">{praticien}</p>
-                <p className="sig-role">Maison MND · {DEVISE_COMPLETE}</p>
+                <p className="sig-role">Maison MND · <TexteFon texte={DEVISE_COMPLETE} /></p>
               </div>
             </footer>
           </article>

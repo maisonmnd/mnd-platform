@@ -1,4 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react';
+import { CSS_FON_OA, htmlFon } from '../../../../ds/fon-pur';
 import { useNavigate } from 'react-router-dom';
 import { BookOpen, ChevronDown, Clock, Crown, Globe, GraduationCap, MapPin, Smartphone, Star, Wallet, Wifi, type LucideIcon } from 'lucide-react';
 import { asset } from '../../../../shared/asset';
@@ -91,6 +92,7 @@ const carteA5 = (o: { titre: string; sous: string; qr: string; grand?: string; s
   .etapes { font-size: 12.5px; color: #14141B; line-height: 2; letter-spacing: .02em; margin-top: 6mm; }
   .etapes b { color: #9E6238; font-weight: 600; letter-spacing: .12em; }
   .devise { margin-top: auto; font-family: 'Cormorant Garamond', serif; font-style: italic; font-size: 14px; color: #9E6238; }
+  ${CSS_FON_OA} .devise .fon-oa::after { left: 58%; font-style: italic; }
 </style></head><body>
   <div class="carte">
     ${o.verrou ? `<img class="verrou" src="${escHtml(o.verrou)}" alt="${escHtml(maisonNom())}" />`
@@ -104,7 +106,7 @@ const carteA5 = (o: { titre: string; sous: string; qr: string; grand?: string; s
     ${o.grand ? `<div class="grand">${escHtml(o.grand)}</div>` : ''}
     ${o.sousGrand ? `<div class="sousgrand">${escHtml(o.sousGrand)}</div>` : ''}
     <div class="etapes">${o.etapes.map((e, i) => `<b>${i + 1}</b> · ${escHtml(e)}`).join('<br />')}</div>
-    <div class="devise">${DEVISE_COMPLETE}</div>
+    <div class="devise">${htmlFon(DEVISE_COMPLETE)}</div>
   </div>
   <script>window.onload = () => setTimeout(() => window.print(), 400);</script>
 </body></html>`;

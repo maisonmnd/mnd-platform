@@ -90,3 +90,15 @@
   font-display: swap;
   unicode-range: U+0186, U+0189, U+0190, U+0254, U+025B, U+0256, U+0301;
 }
+
+/* L'ACCENT DE « nyɔ́ » DESSINÉ AU-DESSUS DU ɔ — 25 octobre 2026 (« il faut
+   régler l'accent sur le slogan, partout »). La police fon porte l'accent
+   flottant mais ne sait pas l'accrocher : il tombait à droite du ɔ. Le
+   composant TexteFon (ds/fon.tsx) pose le ɔ dans ce span ; l'accent ´ est
+   dessiné par-dessus, comme sur le site (.oa, revelateur.css). En italique,
+   il penche avec le texte. */
+.fon-oa { position: relative; display: inline-block; }
+/* À la hauteur de l'accent du « é », un peu à droite du centre, comme la
+   police le pose elle-même sur « ó » (réglé à l'œil, en grand, le 25 octobre). */
+.fon-oa::after { content: '\00B4'; position: absolute; left: 62%; top: -.06em; transform: translateX(-50%); font-family: 'Cormorant Garamond', Georgia, serif; font-style: normal; font-weight: 400; pointer-events: none; }
+.fon-oa--penche::after { left: 58%; font-style: italic; }

@@ -28,6 +28,7 @@
 import qrcode from 'qrcode-generator';
 import { asset } from '../shared/asset';
 import { assureLesPolices } from './carte';
+import { ecritLeFon } from './fon-canvas';
 import { lienCourtDuParrainage, nomDuRang, type ModeleDeCarte, type RangId } from '../shared/parrainage-pur';
 import { URL_DU_MODELE } from '../shared/lien-reservation';
 
@@ -251,7 +252,7 @@ async function peinsLeVerso(c: CanvasRenderingContext2D, d: DonneesDeCarte): Pro
   plie(c, 'Quand elle est venue, un soin ou une remise, à votre choix.', 70, fin + 48, 450, 30);
   c.fillStyle = CUIVRE;
   c.font = `italic 400 26px ${SERIF_FON}`;
-  c.fillText('mi nyɔ́ ɖɛkpɛ', 70, 584);
+  ecritLeFon(c, 'mi nyɔ́ ɖɛkpɛ', 70, 584);
   const largeurDevise = c.measureText('mi nyɔ́ ɖɛkpɛ').width;
   c.fillStyle = '#5E5750';
   c.font = `400 13px ${SANS}`;

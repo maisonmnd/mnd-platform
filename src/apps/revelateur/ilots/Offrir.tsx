@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
+import { TexteFon } from '../../../ds/fon';
 import { COMMUN } from '../contenu';
 import { client, lienWhatsApp, maison } from '../maison';
 import { mesure } from '../mesure';
@@ -208,7 +209,7 @@ export default function Offrir() {
         <p className="mot">{mot.trim()}{de.trim() ? `${mot.trim() ? ' ' : ''}De la part de ${de.trim()}.` : ''}</p>
       </div>
       <div className="bas">
-        <span className="fon">Mi nyɔ́ ɖɛkpɛ.</span>
+        <span className="fon"><TexteFon texte={'Mi nyɔ́ ɖɛkpɛ.'} penche /></span>
         {reglee
           ? <span className="code"><b>{reglee.code}</b>{reglee.valable ? ` valable jusqu’au ${dateLongue(reglee.valable)}` : ''}</span>
           : <span className="code">MND · carte cadeau</span>}

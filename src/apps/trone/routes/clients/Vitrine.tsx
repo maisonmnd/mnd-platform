@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import { CSS_FON_OA, htmlFon } from '../../../../ds/fon-pur';
 import { useSearchParams } from 'react-router-dom';
 import { DEVISE_COMPLETE } from '../../../../shared/identite';
 import { PageHead } from '../_ui';
@@ -230,6 +231,7 @@ export const imprimeCarteCouronne = () => {
   .etapes b { color: #9E6238; font-weight: 600; letter-spacing: .12em; }
   .lien { font-size: 11px; color: #45454F; margin-top: 5mm; letter-spacing: .04em; }
   .devise { margin-top: auto; font-family: 'Cormorant Garamond', serif; font-style: italic; font-size: 14px; color: #9E6238; }
+  ${CSS_FON_OA} .devise .fon-oa::after { left: 58%; font-style: italic; }
 </style></head><body>
   <div class="carte">
     <div class="marque">MAISON MND</div>
@@ -245,7 +247,7 @@ export const imprimeCarteCouronne = () => {
       <b>3</b> · « Ajouter à l'écran d'accueil », elle s'installe comme une application
     </div>
     <div class="lien">${lienCouronne}</div>
-    <div class="devise">${DEVISE_COMPLETE}</div>
+    <div class="devise">${htmlFon(DEVISE_COMPLETE)}</div>
   </div>
   <script>window.onload = () => setTimeout(() => window.print(), 400);</script>
 </body></html>`);

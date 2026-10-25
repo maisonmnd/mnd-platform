@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { TexteFon } from '../../../../ds/fon';
 import { createPortal } from 'react-dom';
 import { asset } from '../../../../shared/asset';
 import { maisonNom, DEVISE_COMPLETE, estLaMaisonMND } from '../../../../shared/identite';
@@ -84,7 +85,7 @@ export function AuComptoir({ g, onClose }: { g: Grand; onClose: () => void }) {
         </div>
       )}
       <div style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: 14, color: '#9E6238' }}>
-        {DEVISE_COMPLETE}
+        <TexteFon texte={DEVISE_COMPLETE} penche />
       </div>
       <div style={{ position: 'absolute', bottom: 16, fontSize: 11.5, color: '#8a8a93', letterSpacing: '.08em' }}>
         toucher l’écran pour fermer · Échap

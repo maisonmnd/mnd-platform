@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { TexteFon } from '../../ds/fon';
 import { useBranch } from '../../shared/branches';
 import { fmtMoney } from '../../shared/currency';
 import { DEVISE_COMPLETE, maisonNom } from '../../shared/identite';
@@ -95,7 +96,7 @@ export default function App() {
       <header className="kio-tete">
         <div className="kio-marque">
           <span className="kio-nom">{maisonNom()}</span>
-          <span className="kio-devise">{DEVISE_COMPLETE}</span>
+          <span className="kio-devise"><TexteFon texte={DEVISE_COMPLETE} penche /></span>
         </div>
         <nav className="kio-onglets" aria-label="La carte">
           {volets.map((v) => (

@@ -1,4 +1,5 @@
 import { useMemo, useState, type ReactNode } from 'react';
+import { TexteFon } from '../../../../ds/fon';
 import { PageHead } from '../_ui';
 import { Button, Card, Modal, toast, demande } from '../../../../ds/components';
 import { Tabs } from '../equipe/ui';
@@ -1141,7 +1142,7 @@ function OngletIdentite() {
             <em>{(id.ville || '…').toUpperCase()}</em>
           </span>
         </div>
-        <div className="txt-papier__pied">{DEVISE_COMPLETE}</div>
+        <div className="txt-papier__pied"><TexteFon texte={DEVISE_COMPLETE} penche /></div>
       </div>
       <div className="txt-rub__aide" style={{ marginTop: 8 }}>
         La devise ne se règle pas : elle a une seule source, et chaque copie faite à la main

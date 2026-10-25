@@ -1,4 +1,5 @@
 import { asset } from '../../shared/asset';
+import { TexteFon } from '../../ds/fon';
 import { EntreDeux } from './EntreDeux';
 import { MonDiagnosticPhoto } from './MonDiagnosticPhoto';
 import { DEVISE_MAISON } from '../../shared/identite';
@@ -237,7 +238,7 @@ export function BilanLecteur({ bilan, porteuse, onClose, onReserver }: {
         {bilan.prochaineVisite && (
           <div className="mc-bilannext">{t('Prochaine visite conseillée, {quand}', { quand: bilan.prochaineVisite })}</div>
         )}
-        {bilan.praticien && <div className="mc-bilansig">{bilan.praticien} · Maison MND · {DEVISE_MAISON}, {t('votre beauté est déjà là')}</div>}
+        {bilan.praticien && <div className="mc-bilansig">{bilan.praticien} · Maison MND · <TexteFon texte={DEVISE_MAISON} penche />, {t('votre beauté est déjà là')}</div>}
 
         <button className="mc-cta mc-cta--outline" style={{ marginTop: 20 }} onClick={telecharge} disabled={papier === 'prepare'}>
           {papier === 'prepare' ? t('Le document se prépare…') : t('Télécharger le document')}

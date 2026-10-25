@@ -17,6 +17,7 @@
 
 import { asset } from '../shared/asset';
 import { DEVISE_COMPLETE, maisonNom } from '../shared/identite';
+import { ecritLeFon } from './fon-canvas';
 import type { ContenuDeCarte } from '../shared/cartes';
 
 export const LARGEUR = 1080;
@@ -417,7 +418,7 @@ export async function dessineLaCarte(canvas: HTMLCanvasElement, k: ContenuDeCart
   const basDevise = HAUTEUR - 62 - 8;
   c.font = `italic 400 28px ${SERIF_FON}`;
   c.fillStyle = profond ? CU_200 : CU_700;
-  c.fillText(DEVISE_COMPLETE, cx, basDevise);
+  ecritLeFon(c, DEVISE_COMPLETE, cx, basDevise);
 
   const yFilet = basDevise - 28 - 12;
   c.strokeStyle = CU_300; c.lineWidth = 1;

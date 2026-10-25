@@ -1,4 +1,5 @@
 import type { ModeleDeCarte } from '../../../shared/cartes-cadeaux-pur';
+import { ecritLeFon } from '../../../ds/fon-canvas';
 
 /* L'IMAGE DE LA CARTE — 2 octobre 2026. « Enregistrer la carte » : la même
    carte qu'à l'écran, au modèle choisi, avec son code et sa date, en une
@@ -108,7 +109,7 @@ export async function imageDeLaCarte(o: {
   /* Le bas : la devise, et le code. */
   ctx.fillStyle = ivoire ? '#7C4C2C' : '#D6A06F';
   ctx.font = `italic 400 50px ${SERIF}`;
-  ctx.fillText('Mi nyɔ́ ɖɛkpɛ.', marge, H - marge);
+  ecritLeFon(ctx, 'Mi nyɔ́ ɖɛkpɛ.', marge, H - marge);
   ctx.textAlign = 'right';
   ctx.fillStyle = encre;
   ctx.font = `500 52px ${SANS}`;

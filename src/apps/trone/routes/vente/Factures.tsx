@@ -1,4 +1,5 @@
 import { asset } from '../../../../shared/asset';
+import { TexteFon } from '../../../../ds/fon';
 import { useSearchParams } from 'react-router-dom';
 import { CalendarClock, MapPin, Search } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
@@ -1998,7 +1999,7 @@ export default function Factures() {
               })()}
 
               <div className="trv-doc__foot">
-                <div className="trv-doc__fon">{DEVISE_COMPLETE}</div>
+                <div className="trv-doc__fon"><TexteFon texte={DEVISE_COMPLETE} penche /></div>
                 {/* LA LIGNE LÉGALE VIENT DES PARAMÈTRES (13 août). Un RCCM codé
                     en dur ici contredisait celui de l'identité — deux numéros
                     pour une seule maison, et c'est la pièce OFFICIELLE. */}

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { asset } from '../../shared/asset';
 import { payWithKkiapay } from '../../shared/kkiapay-widget';
+import { TexteFon } from '../../ds/fon';
 import { lisLeLien, regleLeLien, type PageDuLien } from '../../shared/regler-la-seance-serveur';
 
 /* ══ RÉGLER SA SÉANCE — la page de la cliente (25 octobre 2026) ══════════
@@ -201,7 +202,7 @@ export default function App() {
         </section>
       )}
 
-      <p className="rg-devise">{DEVISE}</p>
+      <p className="rg-devise"><TexteFon texte={DEVISE} penche /></p>
     </main>
   );
 }
