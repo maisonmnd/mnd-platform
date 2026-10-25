@@ -37,6 +37,8 @@ const PANNES = [
   ['deux avis a egalite : on devine', PUR, 'if (proches.length > 1 && proches[0].d === proches[1].d) return null;', ''],
   ['le nom d avis n est plus verifie', PUR, 'const NOM_D_AVIS = /^accounts\\/[0-9]+\\/locations\\/[0-9]+\\/reviews\\/[A-Za-z0-9_-]+$/;', 'const NOM_D_AVIS = /^accounts\\/.+$/;'],
   ['Make fait oublier la reponse du Trone', PUR, 'const garde = !a.reponse && avant?.reponse', 'const garde = false && avant?.reponse'],
+  ['sans nom, la date seule suffit', PUR, '      && aPlat(g.texte).includes(debutSeul));', '      && true);'],
+  ['les champs de Make lus avec leurs majuscules', PUR, '    const cle = k.trim().toLowerCase();', '    const cle = k;'],
   ['les Finances publient', PUR, "export const DEPARTEMENTS_QUI_PUBLIENT: readonly string[] = ['dept-clientele', 'dept-marketing'];", "export const DEPARTEMENTS_QUI_PUBLIENT: readonly string[] = ['dept-clientele', 'dept-marketing', 'dept-finances'];"],
   ['le jeton n est plus verifie', FONCTION, "if (!memeSecret((req.headers.get('x-jeton') ?? '').trim(), JETON)) return refus(403, 'jeton', 'Jeton refusé.');", ''],
   ['le departement n est plus verifie', FONCTION, "if (!peutPublier((ligne as { role?: string }).role, matrice[uid])) return refus(403, 'equipe', 'Publier sur Google n’est pas ouvert à votre département.');", ''],

@@ -75,8 +75,18 @@ function dateDe(v: unknown): string | undefined {
 
 /** CE QUE MAKE ENVOIE, lu champ par champ (formulaire ou JSON). Le nom de
     l'avis est obligatoire et vérifié ; le reste se lit tel quel. Null si ce
-    n'est pas un avis. */
-export function lisLAvisRecu(corps: Record<string, unknown>, maintenant: string): AvisDeGoogle | null {
+    n'est pas un avis.
+
+    25 octobre 2026, au premier import : les noms des champs se lisent sans
+    majuscules ni espaces autour (« Auteur », « auteur » : le même champ).
+    Ils se tapent à la main dans Make, et une majuscule y avait vidé les
+    299 noms. */
+export function lisLAvisRecu(brut: Record<string, unknown>, maintenant: string): AvisDeGoogle | null {
+  const corps: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(brut ?? {})) {
+    const cle = k.trim().toLowerCase();
+    if (!(cle in corps) || champ(corps[cle]) === '') corps[cle] = v;
+  }
   const name = champ(corps.name);
   if (!nomDAvisValide(name)) return null;
   const a: AvisDeGoogle = {
@@ -89,7 +99,7 @@ export function lisLAvisRecu(corps: Record<string, unknown>, maintenant: string)
   const creeLe = dateDe(corps.cree);
   const majLe = dateDe(corps.maj);
   const reponse = champ(corps.reponse);
-  const reponduLe = dateDe(corps.reponduLe);
+  const reponduLe = dateDe(corps.repondule);
   if (creeLe) a.creeLe = creeLe;
   if (majLe) a.majLe = majLe;
   if (reponse) { a.reponse = reponse; if (reponduLe) a.reponduLe = reponduLe; }
@@ -136,13 +146,25 @@ const ECART_MAX_MS = 36 * 3_600_000;
 /** RETROUVER CHEZ GOOGLE l'avis que le Trône montre. Le même nom affiché,
     puis la même date de publication (à 36 h près) ; sans date commune, le
     même début de texte. Deux à la même distance, ou aucun : null. On ne
-    devine jamais, une réponse sous le mauvais avis serait publique. */
+    devine jamais, une réponse sous le mauvais avis serait publique.
+
+    SANS NOM CHEZ MAKE (25 octobre 2026, le premier import est arrivé sans
+    les noms) : un avis apporté sans nom se retrouve par la date (à 36 h
+    près) ET le même début de texte, les deux à la fois, et seulement s'il
+    est le seul. Une note sans texte ne se retrouve pas ainsi. */
 export function apparie(a: AvisAApparier, tous: readonly AvisDeGoogle[]): AvisDeGoogle | null {
   const qui = aPlat(a.auteur);
   if (!qui) return null;
-  const memes = tous.filter((g) => aPlat(g.auteur) === qui);
-  if (memes.length === 0) return null;
   const t = Date.parse(String(a.publieLe ?? ''));
+  const memes = tous.filter((g) => aPlat(g.auteur) === qui);
+  if (memes.length === 0) {
+    const debutSeul = aPlat(a.texteOriginal || a.texte).slice(0, 40);
+    if (!debutSeul || !Number.isFinite(t)) return null;
+    const sansNom = tous.filter((g) => !aPlat(g.auteur)
+      && Math.abs(Date.parse(String(g.creeLe ?? '')) - t) <= ECART_MAX_MS
+      && aPlat(g.texte).includes(debutSeul));
+    return sansNom.length === 1 ? sansNom[0] : null;
+  }
   const proches = Number.isFinite(t)
     ? memes
       .map((g) => ({ g, d: Math.abs(Date.parse(String(g.creeLe ?? '')) - t) }))

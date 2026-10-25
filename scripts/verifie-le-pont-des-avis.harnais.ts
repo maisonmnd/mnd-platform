@@ -78,6 +78,29 @@ dit('... une date trop loin (plus de 36 h) passe au texte, un nom inconnu ne tro
   nomDe(apparie({ auteur: 'Hélène K.', texte: 'Autre chose', publieLe: '2026-08-30T10:00:00Z' }, TOUS)),
   nomDe(apparie({ auteur: 'Inconnue', texte: 'Un soin long et précis.', publieLe: '2026-07-23T10:00:00Z' }, TOUS)),
 ]);
+/* 25 octobre 2026, le premier import : 299 avis arrivés sans leurs noms. */
+const majuscules = lisLAvisRecu({ Name: NOM('m1'), ' Auteur ': 'A. B.', NOTE: 'FOUR', Texte: 'Bien', Cree: '2026-07-01T09:00:00Z', REPONSE: 'Merci', reponduLe: '2026-07-02T09:00:00Z' }, 'T');
+dit('les noms des champs de Make se lisent sans majuscules ni espaces', [NOM('m1'), 'A. B.', 4, 'Bien', '2026-07-01T09:00:00Z', 'Merci', '2026-07-02T09:00:00Z'],
+  [majuscules?.name, majuscules?.auteur, majuscules?.note, majuscules?.texte, majuscules?.creeLe, majuscules?.reponse, majuscules?.reponduLe]);
+const SANS_NOM = [
+  G('s1', '', '2026-07-23T10:00:00Z', 'Il était temps que je fasse ma reprise de locks, et surtout.'),
+  G('s2', '', '2026-07-23T11:00:00Z', 'Un tout autre avis du même jour.'),
+  G('s3', '', '2026-07-13T10:00:00Z', 'Après avoir cherché longtemps des mains expertes. (Translated by Google) After…'),
+  G('s4', '', '2026-07-01T10:00:00Z', ''),
+  G('s5', '', '2026-08-01T10:00:00Z', 'Même début de texte que le suivant, mot pour mot ici.'),
+  G('s6', '', '2026-08-01T12:00:00Z', 'Même début de texte que le suivant, mot pour mot ici.'),
+];
+dit('sans nom chez Make : la date ET le début du texte retrouvent l avis, et lui seul', ['s1', 's3', null, null, null, null], [
+  nomDe(apparie({ auteur: 'G. J.', texte: 'Il était temps que je fasse ma reprise de locks, et surtout.', publieLe: '2026-07-23T10:00:00Z' }, SANS_NOM)),
+  nomDe(apparie({ auteur: 'F. G.', texte: 'trad', texteOriginal: 'Après avoir cherché longtemps des mains expertes.', publieLe: '2026-07-13T10:00:01Z' }, SANS_NOM)),
+  nomDe(apparie({ auteur: 'G. J.', texte: 'Il était temps que je fasse ma reprise de locks, et surtout.', publieLe: '2026-09-23T10:00:00Z' }, SANS_NOM)),
+  nomDe(apparie({ auteur: 'B. F.', texte: '', publieLe: '2026-07-01T10:00:00Z' }, SANS_NOM)),
+  nomDe(apparie({ auteur: 'X', texte: 'Même début de texte que le suivant, mot pour mot ici.', publieLe: '2026-08-01T11:00:00Z' }, SANS_NOM)),
+  nomDe(apparie({ auteur: 'G. J.', texte: 'Il était temps que je fasse ma reprise de locks, et surtout.' }, SANS_NOM)),
+]);
+dit('... un avis nommé autrement chez Make n est jamais pris pour un avis sans nom', null,
+  nomDe(apparie({ auteur: 'Z', texte: 'Un soin long et précis.', publieLe: '2026-07-23T10:00:00Z' }, TOUS)));
+
 const corps = corpsDeLaReponse('Merci « Awa » !\nÀ bientôt, "la Maison".');
 dit('le corps de la réponse : du JSON où guillemets et retours à la ligne passent', { comment: 'Merci « Awa » !\nÀ bientôt, "la Maison".' }, JSON.parse(corps));
 dit('ce qui empêche de publier : vide, trop long en octets (pas en signes)', ['la réponse est vide', 'la réponse est vide', null, 'la réponse dépasse la longueur que Google accepte', null],
@@ -186,7 +209,7 @@ const { ecarts } = copiesAJour(lis(FONCTION), (p: string) => readFileSync(p, 'ut
 dit('la fonction porte la copie à jour de avis-google-pont-pur', [], ecarts);
 const f = sansCommentaires(lis(FONCTION));
 dit('la fonction : sa version, le jeton comparé sans fuite, ni jeton ni webhook dans une réponse', [true, true, false],
-  [/const VERSION = '2026-10-25-a';/.test(f), /memeSecret\(\(req\.headers\.get\('x-jeton'\)/.test(f), /json\(\{[^}]*(JETON|WEBHOOK)[,}]/.test(f.replace(/!!JETON|!!WEBHOOK/g, ''))]);
+  [/const VERSION = '2026-10-25-b';/.test(f), /memeSecret\(\(req\.headers\.get\('x-jeton'\)/.test(f), /json\(\{[^}]*(JETON|WEBHOOK)[,}]/.test(f.replace(/!!JETON|!!WEBHOOK/g, ''))]);
 
 /* ── 4. L'ÉCRAN ────────────────────────────────────────────────────────── */
 const ecran = sansCommentaires(lis('src/apps/trone/routes/clients/ReponseAUnAvis.tsx'));
