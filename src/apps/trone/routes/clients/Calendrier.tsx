@@ -3,9 +3,10 @@ import { useNavigate } from 'react-router-dom';
 import { PageHead } from '../_ui';
 import { Button, Segs } from '../../../../ds/components';
 import { useBranch, maitreParDefaut } from '../../../../shared/branches';
+import { fmtMoney } from '../../../../shared/currency';
 import { bornesDuSalon, appointmentsStore, type Appointment } from '../../../../shared/agenda';
 import {
-  PayStatusPill, RdvModal, ReminderBell, addDaysISO, apptDurationMin, apptLabel, apptPayState, frShort, fromISO, pad2, timeToMin, toISO, todayISO,
+  PayStatusPill, RdvModal, ReminderBell, addDaysISO, apptDueXof, apptDurationMin, apptLabel, apptPayState, frShort, fromISO, pad2, timeToMin, toISO, todayISO,
   useBranchAppointments, useBranchClients, useServicesById, useClefDuTarif, type RdvInitial,
 } from './_shared';
 import { PayAppointmentModal } from './actions';
@@ -50,7 +51,7 @@ export default function Calendrier() {
      pourtant, et un comptoir sans montants ne sert a rien. */
   const mesDomaines = useStore(staffAccessStore)[0][moi?.user_id ?? ''] ?? {};
   const estMaitre = !voitLesPrix(moi?.role, mesDomaines);
-  const { branch } = useBranch();
+  const { branch, currency } = useBranch();
   const appts = useBranchAppointments();
   const clients = useBranchClients();
   const byId = useServicesById();
@@ -66,6 +67,19 @@ export default function Calendrier() {
      bloc ouvre toujours le rituel. */
   const navigate = useNavigate();
   const ouvrirFiche = (clientId: string) => navigate(`/customers?id=${clientId}`);
+  /* UN RITUEL HONORÉ QUI DOIT ENCORE NE S'EFFACE PAS — 25 octobre 2026 (« je
+     ne retrouve pas le RDV du client Brice dans calendrier, il a pourtant un
+     impayé »). Le Calendrier pâlissait TOUT rituel honoré et lui retirait
+     « Encaisser » : un rituel rendu mais pas réglé y devenait presque
+     invisible, alors que c'est de l'argent à aller chercher. Il ne pâlit
+     désormais que s'il ne doit plus rien ; sinon il se marque en cuivre, dit
+     son reste (« à encaisser » pour qui ne voit pas les prix) et garde son
+     bouton. Le juge est celui du Carnet (`apptPayState`). */
+  const doitEncore = (a: Appointment) => { const e = apptPayState(a, byId); return e === 'impayé' || e === 'partiel'; };
+  const estEfface = (a: Appointment) => a.status === 'honoré' && !doitEncore(a);
+  const honoreDu = (a: Appointment) => a.status === 'honoré' && doitEncore(a);
+  const resteDit = (a: Appointment) => (estMaitre ? 'à encaisser' : `reste ${fmtMoney(apptDueXof(a, byId), currency)}`);
+  const aEncaisser = (a: Appointment) => (a.status === 'honoré' ? doitEncore(a) : apptPayState(a, byId) !== 'payé');
 
   const isPhone = useIsPhone();
   const [view, setView] = useState<'jour' | 'semaine' | 'mois'>('jour');
@@ -435,7 +449,7 @@ export default function Calendrier() {
                 <button
                   key={a.id}
                   type="button"
-                  className={`trc-agenda__row ${live ? 'is-live' : ''} ${a.status === 'honoré' ? 'is-muted' : ''}`}
+                  className={`trc-agenda__row ${live ? 'is-live' : ''} ${estEfface(a) ? 'is-muted' : ''} ${honoreDu(a) ? 'is-du' : ''}`}
                   onClick={() => setEditAppt(a)}
                 >
                   <span className="trc-agenda__time">{a.time}</span>
@@ -459,6 +473,7 @@ export default function Calendrier() {
                       </span>
                       {serieMark(a) && <span className="trc-cal__serie">{serieMark(a)}</span>}
                       {marqueWhatsApp(a)}
+                      {honoreDu(a) && <span className="trc-cal__reste">{resteDit(a)}</span>}
                       {live && <span style={{ opacity: .75, fontWeight: 400 }}> · en cours</span>}
                     </span>
                     <span className="trc-agenda__svc">{apptLabel(a, byId)} · {a.master}</span>
@@ -470,7 +485,7 @@ export default function Calendrier() {
                         Yéman) : la pastille dit « payé » et le bouton
                         proposait quand même de recommencer. Le juge est
                         celui de la modale — un seul avis sur l'argent reçu. */}
-                    {a.status !== 'honoré' && apptPayState(a, byId) !== 'payé' && (
+                    {aEncaisser(a) && (
                       <button type="button" className="trc-agenda__pay" onClick={(e) => { e.stopPropagation(); setPayAppt(a); }}>Encaisser</button>
                     )}
                   </span>
@@ -526,7 +541,7 @@ export default function Calendrier() {
                   const top = ((startMin - OPEN_HOUR * 60) / 60) * HOUR_PX;
                   const h = Math.max(30, (dur / 60) * HOUR_PX - 6);
                   const live = anchor === today && nowMin >= startMin && nowMin < startMin + dur && a.status !== 'honoré';
-                  const cls = live ? 'trc-cal__appt--deep' : a.status === 'honoré' ? 'trc-cal__appt--muted' : '';
+                  const cls = live ? 'trc-cal__appt--deep' : estEfface(a) ? 'trc-cal__appt--muted' : honoreDu(a) ? 'trc-cal__appt--du' : '';
                   return (
                     <div
                       className={`trc-cal__appt trc-cal__appt--drag ${cls} ${dragId === a.id ? 'is-dragging' : ''}`}
@@ -564,6 +579,7 @@ export default function Calendrier() {
                         </button>
                         {serieMark(a) && <span className="trc-cal__serie">{serieMark(a)}</span>}
                         {marqueWhatsApp(a)}
+                        {honoreDu(a) && <span className="trc-cal__reste">{resteDit(a)}</span>}
                         {/* L'INDIGO SE DIT EN TOUTES LETTRES. La couleur seule
                             voulait dire « au fauteuil en ce moment » — et il
                             fallait le savoir pour la comprendre (question de
@@ -575,7 +591,7 @@ export default function Calendrier() {
                         <span style={{ pointerEvents: 'none', flex: 'none' }}><PayStatusPill a={a} byId={byId} /></span>
                       </div>
                       {/* Réglé = plus rien à encaisser — même juge qu'ailleurs. */}
-                      {a.status !== 'honoré' && apptPayState(a, byId) !== 'payé' && (
+                      {aEncaisser(a) && (
                         <button
                           className="trc-cal__encaisser"
                           draggable={false}
@@ -666,7 +682,7 @@ export default function Calendrier() {
                     const deep = a.status === 'confirmé' || a.status === 'en attente';
                     return (
                       <div
-                        className={`trc-week__chip trc-week__chip--drag ${deep ? 'trc-week__chip--deep' : ''} ${dragId === a.id ? 'is-dragging' : ''}`}
+                        className={`trc-week__chip trc-week__chip--drag ${deep ? 'trc-week__chip--deep' : ''} ${honoreDu(a) ? 'trc-week__chip--du' : ''} ${dragId === a.id ? 'is-dragging' : ''}`}
                         key={a.id}
                         title={`${nomDuRdv(a)} · ${a.master}, glisser vers un autre jour, cliquer pour modifier`}
                         draggable
@@ -740,7 +756,7 @@ export default function Calendrier() {
                     {c.appts.slice(0, 3).map((a) => (
                       <div
                         key={a.id}
-                        className={`trc-month__chip trc-month__chip--drag ${a.status === 'honoré' ? 'is-muted' : ''} ${dragId === a.id ? 'is-dragging' : ''}`}
+                        className={`trc-month__chip trc-month__chip--drag ${estEfface(a) ? 'is-muted' : ''} ${honoreDu(a) ? 'is-du' : ''} ${dragId === a.id ? 'is-dragging' : ''}`}
                         title={`${a.time} · ${nomDuRdv(a)} · ${apptLabel(a, byId)}, glisser vers un autre jour, cliquer pour modifier`}
                         draggable
                         onDragStart={(e) => onDragStart(e, a)}

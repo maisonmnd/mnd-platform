@@ -733,6 +733,9 @@
 }
 .trc-cal__appt--deep { background: var(--color-indigo); border-color: var(--color-indigo); border-left-color: var(--color-copper); }
 .trc-cal__appt--muted { opacity: 0.55; }
+/* Honoré mais pas réglé (25 octobre 2026) : en cuivre, jamais pâli. */
+.trc-cal__appt--du { background: #FBF4EC; border-color: var(--copper-200, #E3C9AE); border-left-color: var(--copper-700, #9A6036); }
+.trc-cal__reste { margin-left: 6px; font: 500 10px var(--font-sans); letter-spacing: .06em; text-transform: uppercase; color: var(--copper-700, #9A6036); white-space: nowrap; }
 .trc-cal__appt-title { font-family: var(--font-serif); font-size: 15px; color: var(--color-indigo); line-height: 1.1; }
 .trc-cal__appt--deep .trc-cal__appt-title { color: var(--color-ivoire); }
 /* LE NOM MÈNE À SA FICHE — un filet pointillé sous le nom, pas un lien bleu :
@@ -768,6 +771,7 @@
 .trc-week__num { font-family: var(--font-serif); font-weight: var(--weight-light); font-size: 22px; color: var(--ink); margin-top: 2px; }
 .trc-week__chip { border-radius: var(--radius-sm); padding: 6px 8px; background: var(--color-sable); color: var(--color-indigo); }
 .trc-week__chip--deep { background: var(--color-indigo); color: var(--color-ivoire); }
+.trc-week__chip--du { background: #FBF4EC; color: var(--copper-700, #9A6036); box-shadow: inset 3px 0 0 var(--copper-700, #9A6036); }
 .trc-week__chip b { display: block; font-family: var(--font-serif); font-weight: var(--weight-light); font-size: 13px; line-height: 1; }
 .trc-week__chip i { display: block; font-style: normal; font-size: 10px; margin-top: 3px; opacity: 0.9; }
 /* Le nom de la cliente — sept colonnes étroites : il s'abrège plutôt que de
@@ -1171,6 +1175,7 @@
 }
 .trc-month__chip b { font-family: var(--font-serif); font-weight: var(--weight-light); }
 .trc-month__chip.is-muted { opacity: 0.55; }
+.trc-month__chip.is-du { background: #FBF4EC; color: var(--copper-700, #9A6036); box-shadow: inset 2px 0 0 var(--copper-700, #9A6036); }
 .trc-month__chip--drag { cursor: grab; touch-action: none; }
 .trc-month__chip--drag:active { cursor: grabbing; }
 .trc-month__chip.is-dragging { opacity: 0.45; box-shadow: var(--shadow-lg); }
@@ -2024,6 +2029,7 @@
 .trc-agenda__row.is-live .trc-agenda__client { color: var(--color-ivoire); }
 .trc-agenda__row.is-live .trc-agenda__svc { color: var(--indigo-100); }
 .trc-agenda__row.is-muted { opacity: 0.6; }
+.trc-agenda__row.is-du { background: #FBF4EC; border-left-color: var(--copper-700, #9A6036); }
 .trc-agenda__time {
   flex: none;
   width: 44px;
