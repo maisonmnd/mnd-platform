@@ -150,6 +150,12 @@ dit('le Trone monte le guetteur des reglements en ligne', true, /useReglementsEn
 dit('la page est construite avec le Trone (vite et build-sites)', [true, true], [/regler: resolve\(__dirname, 'regler\.html'\)/.test(lis('vite.config.ts')), /apps: 'trone,[^']*\bregler\b/.test(lis('scripts/build-sites.mjs'))]);
 dit('la page dit la devise de la Maison, mot pour mot, sans emporter l ERP', [DEVISE_COMPLETE, false],
   [/const DEVISE = '([^']+)';/.exec(lis('src/apps/regler/App.tsx'))?.[1], /shared\/(identite|sync|supabase|finance)'/.test(lis('src/apps/regler/App.tsx'))]);
+const appTexte = lis('src/apps/regler/App.tsx');
+dit('les montants du merci : 500, 1 000, 2 000, 5 000, 10 000, puis Autre (sa liste du 25 octobre 2026)', ['500, 1000, 2000, 5000, 10000', true],
+  [/const POURBOIRES = \[([^\]]+)\];/.exec(appTexte)?.[1], />\s*Autre\s*</.test(appTexte)]);
+const elision = new RegExp(/const deLaCliente = [^?]+\? '' : \/(\^\[[^\]]+\])\/i/.exec(appTexte)?.[1] ?? '^$', 'i');
+dit('« la seance d Awa », mais « de Yeman » : l elision devant une voyelle seulement', ['d', 'd', 'de', 'de', 'de'],
+  ['Awa', 'Inès', 'Yéman', 'Sena', 'Hélène'].map((p) => (elision.test(p) ? 'd' : 'de')));
 dit('la page ne decide d aucun montant : elle lit le reste au serveur', [true, false], [/p\.resteXof \+ \(p\.pourboire \? pourboire : 0\)/.test(lis('src/apps/regler/App.tsx')), /resteXof\s*=/.test(sansCommentaires(lis('src/apps/regler/App.tsx')))]);
 
 /* ── 10. La fonction porte la même règle, et se rejoue ─────────────────── */

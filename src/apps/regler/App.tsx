@@ -17,10 +17,15 @@ const jourDit = (iso: string): string => {
   return m ? `${parseInt(m[3], 10)} ${MOIS[parseInt(m[2], 10) - 1]} ${m[1]}` : iso;
 };
 const francs = (x: number): string => `${Math.round(x).toLocaleString('fr-FR').replace(/ | /g, ' ')} F`;
-/** « la séance d'Awa », « la séance de Sena » : la page se lit aussi chez celle qui règle pour elle. */
-const deLaCliente = (prenom: string): string => (!prenom ? '' : /^[aeiouyàâäéèêëîïôöûüh]/i.test(prenom) ? `d’${prenom}` : `de ${prenom}`);
+/** « la séance d'Awa », « la séance de Sena » : la page se lit aussi chez celle qui règle pour elle.
+    L'élision devant une voyelle seulement (25 octobre 2026, « j'ai vu d'Yeman ») :
+    « de Yéman », « de Hélène » plutôt qu'une élision fautive. */
+const deLaCliente = (prenom: string): string => (!prenom ? '' : /^[aeiouàâäéèêëîïôöûü]/i.test(prenom) ? `d’${prenom}` : `de ${prenom}`);
 
-const POURBOIRES = [0, 500, 1000, 2000];
+/** Les montants du merci (sa liste du 25 octobre 2026), puis « Autre ». Aucun
+    n'est choisi d'avance : le merci reste libre, et se retire d'un second toucher. */
+const POURBOIRES = [500, 1000, 2000, 5000, 10000];
+const POURBOIRE_MAX = 100000;
 /* La devise, écrite ici : identite.ts emporterait la synchronisation de
    l'ERP dans une page de paiement ouverte sur un téléphone. Le banc
    verifie-regler-la-seance la compare à DEVISE_COMPLETE. */
@@ -39,6 +44,8 @@ export default function App() {
   const jeton = jetonDeLAdresse();
   const [ecran, setEcran] = useState<Ecran>({ k: 'lecture' });
   const [pourboire, setPourboire] = useState(0);
+  const [autre, setAutre] = useState(false);
+  const [saisie, setSaisie] = useState('');
   const [souci, setSouci] = useState('');
   const [partage, setPartage] = useState('');
 
@@ -135,12 +142,35 @@ export default function App() {
               <div className="rg-merci">
                 <span className="rg-doux">Un merci pour l’équipe ?</span>
                 <div className="rg-puces">
-                  {POURBOIRES.map((x) => (
-                    <button key={x} type="button" className={pourboire === x ? 'rg-puce rg-puce--on' : 'rg-puce'} onClick={() => setPourboire(x)} aria-pressed={pourboire === x}>
-                      {x ? francs(x) : 'Sans'}
-                    </button>
-                  ))}
+                  {POURBOIRES.map((x) => {
+                    const on = !autre && pourboire === x;
+                    return (
+                      <button key={x} type="button" className={on ? 'rg-puce rg-puce--on' : 'rg-puce'} aria-pressed={on}
+                        onClick={() => { setAutre(false); setSaisie(''); setPourboire(on ? 0 : x); }}>
+                        {francs(x)}
+                      </button>
+                    );
+                  })}
+                  <button type="button" className={autre ? 'rg-puce rg-puce--on' : 'rg-puce'} aria-pressed={autre}
+                    onClick={() => { const o = !autre; setAutre(o); setSaisie(''); setPourboire(0); }}>
+                    Autre
+                  </button>
                 </div>
+                {autre && (
+                  <label className="rg-autre-montant">
+                    <span className="rg-doux">Le montant de votre merci</span>
+                    <span className="rg-champ">
+                      <input inputMode="numeric" autoComplete="off" placeholder="Par exemple 3 000" value={saisie} autoFocus
+                        onChange={(e) => {
+                          const chiffres = e.target.value.replace(/\D/g, '').slice(0, 6);
+                          const x = Math.min(POURBOIRE_MAX, Number(chiffres) || 0);
+                          setSaisie(x ? x.toLocaleString('fr-FR').replace(/ | /g, ' ') : '');
+                          setPourboire(x);
+                        }} />
+                      <span>F</span>
+                    </span>
+                  </label>
+                )}
               </div>
             )}
 

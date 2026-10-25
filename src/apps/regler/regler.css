@@ -73,6 +73,30 @@ body {
   cursor: pointer;
 }
 .rg-puce--on { background: var(--rg-indigo); border-color: var(--rg-indigo); color: var(--rg-ivoire); }
+.rg-autre-montant { display: flex; flex-direction: column; gap: 6px; }
+.rg-champ {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--rg-filet);
+  border-radius: 6px;
+  background: var(--rg-carte);
+  padding: 0 14px;
+  min-height: 48px;
+}
+.rg-champ:focus-within { border-color: var(--rg-cuivre-clair); }
+.rg-champ input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  font: inherit;
+  font-size: 16px;
+  color: var(--rg-indigo);
+  font-variant-numeric: tabular-nums;
+}
+.rg-champ span { color: var(--rg-doux); }
 .rg-regler {
   font: inherit;
   font-weight: 600;
