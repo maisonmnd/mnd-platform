@@ -29,8 +29,9 @@
 
    DÉPLOIEMENT : Supabase → Edge Functions → New function → nom
    « avis-google-pont » → coller CE FICHIER ENTIER → Deploy. Verify JWT
-   ALLUMÉ : le Trône passe la session de la personne, Make passe la clé
-   publique (anon), qui est aussi un JWT. Secrets : AVIS_PONT_JETON (le
+   ÉTEINT : la clé publique du projet n'est plus un JWT (sb_publishable_…),
+   et la fonction fait sa porte elle-même, le jeton pour Make, la session
+   relue chez Supabase (`auth.getUser`) pour le Trône. Secrets : AVIS_PONT_JETON (le
    jeton que Make met dans l'en-tête x-jeton), MAKE_AVIS_REPONDRE
    (l'adresse du webhook « Répondre sur Google ») ; CLE_SERVICE (ou
    SERVICE_KEY) existe déjà. Aucune migration. Contrôle : un GET sur
