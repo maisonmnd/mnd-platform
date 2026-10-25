@@ -385,6 +385,10 @@ export function VitrineAvis({ ouvrir }: { ouvrir?: string }) {
             {releveLe ? `Relevé le ${jourCourtAn(releveLe.slice(0, 10))}, deux fois par jour. ` : ''}
             Tant que Google n’a pas ouvert son accès à la Maison, le relevé ne voit que les cinq avis qu’il juge « les plus pertinents » : un nouvel avis peut ne pas paraître ici.
             {` La case « Site » choisit les avis que montre maisonmnd.com ; rien de coché, le site montre ceux de Google. Sous les avis, le site écrit : « ${mentionDuTri(vueDuSite.mode)} »`}
+            {/* 25 octobre 2026 : ce que Make a apporté, champ par champ. Une
+                pastille de Make mal reconnue se voit ici (un nom, une date ou
+                une réponse qui manque partout), sans ouvrir Make. */}
+            {deGoogle && avis && ` Make a apporté ${deGoogle.length} avis : ${deGoogle.filter((g) => g.auteur).length} avec un nom, ${deGoogle.filter((g) => g.creeLe).length} avec une date, ${deGoogle.filter((g) => g.reponse).length} avec une réponse publiée ; ${chezGoogle.size} des ${avis.length} avis ci-dessus retrouvés chez Google.`}
           </p>
         </div>
       )}
