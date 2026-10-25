@@ -180,10 +180,12 @@ export default function App() {
             <p className="rg-doux rg-petit rg-centre">MTN, Moov, Celtiis ou carte, par KkiaPay. Les frais de KkiaPay s’ajoutent au paiement (1,9 % Mobile Money, 4 % carte).</p>
             {souci && <p className="rg-souci" role="alert">{souci}</p>}
 
-            {p.tapgo && (
-              <a className="rg-autre" href={`payer.html?tg=${encodeURIComponent(p.tapgo.parametre)}`}>Composer le numéro de paiement (Tap &amp; Go), {francs(p.tapgo.totalXof)} frais compris</a>
-            )}
+            {/* PLUS DE TAP & GO ICI — 25 octobre 2026 (« le Tap & Go n'est
+                vraiment pas nécessaire sur cette page ») : KkiaPay prend déjà
+                les trois réseaux et la carte ; deux boutons de paiement à deux
+                montants faisaient douter. Tap & Go reste au comptoir. */}
             <button type="button" className="rg-autre" onClick={() => { void partager(); }}>Quelqu’un règle pour moi</button>
+            <p className="rg-doux rg-petit rg-centre">Envoyez-lui ce lien : la personne voit la séance et le montant, jamais votre numéro.</p>
             {partage && <p className="rg-doux rg-petit rg-centre">{partage}</p>}
           </section>
         );

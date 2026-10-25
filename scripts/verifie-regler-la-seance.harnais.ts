@@ -156,6 +156,8 @@ dit('les montants du merci : 500, 1 000, 2 000, 5 000, 10 000, puis Autre (sa li
 const elision = new RegExp(/const deLaCliente = [^?]+\? '' : \/(\^\[[^\]]+\])\/i/.exec(appTexte)?.[1] ?? '^$', 'i');
 dit('« la seance d Awa », mais « de Yeman » : l elision devant une voyelle seulement', ['d', 'd', 'de', 'de', 'de'],
   ['Awa', 'Inès', 'Yéman', 'Sena', 'Hélène'].map((p) => (elision.test(p) ? 'd' : 'de')));
+dit('plus de Tap & Go sur la page : un seul bouton de paiement, et « Quelqu un regle pour moi » explique (25 octobre 2026)', [false, true],
+  [/Tap &amp; Go|payer\.html\?tg=/.test(sansCommentaires(appTexte)), /la personne voit la séance et le montant, jamais votre numéro/.test(appTexte)]);
 dit('la page ne decide d aucun montant : elle lit le reste au serveur', [true, false], [/p\.resteXof \+ \(p\.pourboire \? pourboire : 0\)/.test(lis('src/apps/regler/App.tsx')), /resteXof\s*=/.test(sansCommentaires(lis('src/apps/regler/App.tsx')))]);
 
 /* ── 10. La fonction porte la même règle, et se rejoue ─────────────────── */
