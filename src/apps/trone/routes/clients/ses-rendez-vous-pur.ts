@@ -43,3 +43,19 @@ export function totauxDeSesRendezVous<T extends RdvDeLaListe>(
     resteXof: rdvs.filter((a) => a.status !== 'annulé').reduce((s, a) => s + Math.max(0, resteDe(a)), 0),
   };
 }
+
+/** ANNÉE PAR ANNÉE — 25 octobre 2026 (« dans ses RDV je veux une distinction
+    entre chaque année, 2024, 2025, 2026 », Yéman). La liste arrive déjà
+    triée (à venir : le plus proche d'abord ; passés : le plus récent) ; on la
+    coupe à chaque changement d'année sans la retrier, chaque année gardant
+    ses rendez-vous dans l'ordre reçu. */
+export function parAnnee<T extends RdvDeLaListe>(rdvs: readonly T[]): { annee: string; rdvs: T[] }[] {
+  const out: { annee: string; rdvs: T[] }[] = [];
+  for (const a of rdvs) {
+    const annee = a.date.slice(0, 4);
+    const dernier = out[out.length - 1];
+    if (dernier && dernier.annee === annee) dernier.rdvs.push(a);
+    else out.push({ annee, rdvs: [a] });
+  }
+  return out;
+}

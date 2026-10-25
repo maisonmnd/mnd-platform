@@ -2,7 +2,7 @@ import { Fragment, useEffect, useMemo, useRef, useState, useSyncExternalStore, t
 import { ENVIES_AVANT } from '../../../../shared/entre-deux-pur';
 import { Link, useNavigate } from 'react-router-dom';
 import { createPortal } from 'react-dom';
-import { rangeSesRendezVous, totauxDeSesRendezVous } from './ses-rendez-vous-pur';
+import { rangeSesRendezVous, totauxDeSesRendezVous, parAnnee } from './ses-rendez-vous-pur';
 import { Bell, BellOff, Check } from 'lucide-react';
 import { Button, Field, Input, Modal, Select, toast, demande, demandeUnTexte } from '../../../../ds/components';
 import { clefDeRecherche, prestationRepond } from '../../../../shared/recherche';
@@ -5130,10 +5130,34 @@ function SesRendezVous({ rdvs, courantId, byId, sansPrix, onOuvrir, onNouveau }:
             <span className={reste > 0 ? 'est-du' : ''}>{a.status === 'annulé' ? '' : reste > 0 ? `reste ${fmtMoney(reste, currency)}` : 'réglé'}</span>
           </span>
         )}
-        <span className="trc-siens__ouvrir" aria-hidden="true">{ici ? 'ouvert' : '›'}</span>
+        {/* « C'est quoi le ouvert ? » (25 octobre 2026) : le rendez-vous de la
+            fenêtre ; « celui-ci » le dit sans qu'on ait à le demander. */}
+        <span className="trc-siens__ouvrir" aria-hidden="true">{ici ? 'celui-ci' : '›'}</span>
       </button>
     );
   };
+  /* ANNÉE PAR ANNÉE : un bandeau par année, qui dit ses chiffres ; les
+     lignes gardent leur ordre (à venir : le plus proche ; passés : le plus récent). */
+  const Annees = ({ liste }: { liste: Appointment[] }) => (
+    <>
+      {parAnnee(liste).map(({ annee, rdvs: ceux }) => {
+        const ta = totauxDeSesRendezVous(ceux, (a) => apptNetXof(a, byId), (a) => apptDueXof(a, byId));
+        return (
+          <div key={annee} className="trc-siens__an">
+            <div className="trc-siens__annee">
+              <b>{annee}</b>
+              <span>
+                {ta.nombre} rendez-vous{ta.honores > 0 ? ` · ${ta.honores} honoré${ta.honores > 1 ? 's' : ''}` : ''}
+                {ta.annules > 0 ? ` · ${ta.annules} annulé${ta.annules > 1 ? 's' : ''}` : ''}
+                {!sansPrix && ta.honoresXof > 0 ? ` · ${fmtMoney(ta.honoresXof, currency)}` : ''}
+              </span>
+            </div>
+            {ceux.map((a) => <Ligne key={a.id} a={a} />)}
+          </div>
+        );
+      })}
+    </>
+  );
   return (
     <div className="trc-siens">
       <div className="trc-siens__totaux">
@@ -5146,12 +5170,12 @@ function SesRendezVous({ rdvs, courantId, byId, sansPrix, onOuvrir, onNouveau }:
       <div className="trc-siens__groupe">
         <div className="trc-siens__tete"><span>À venir · {aVenir.length}</span><button type="button" className="trc-siens__nouveau" onClick={onNouveau}>+ Un nouveau rendez-vous pour elle</button></div>
         {aVenir.length === 0 && <p className="trc-siens__vide">Rien de posé à venir.</p>}
-        {aVenir.map((a) => <Ligne key={a.id} a={a} />)}
+        <Annees liste={aVenir} />
       </div>
       <div className="trc-siens__groupe">
         <div className="trc-siens__tete"><span>Passés · {passes.length}</span></div>
         {passes.length === 0 && <p className="trc-siens__vide">Aucun rendez-vous passé.</p>}
-        {passes.map((a) => <Ligne key={a.id} a={a} />)}
+        <Annees liste={passes} />
       </div>
     </div>
   );
