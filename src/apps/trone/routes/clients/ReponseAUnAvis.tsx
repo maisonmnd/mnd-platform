@@ -6,8 +6,10 @@ import { jourCourtAn } from '../../../../shared/calendrier';
 import { useSaitIaMaison } from '../../../../shared/ia-maison';
 import { peutDemander } from '../../../../shared/ia-maison-pur';
 import {
-  annuleCollee, changeLeBrouillon, ecarteLeBrouillon, marqueCollee, proposeUneReponse, reprendsLeBrouillon, useBrouillonsDAvis, usePrepareLesBrouillons,
+  annuleCollee, changeLeBrouillon, ecarteLeBrouillon, marqueCollee, marquePublieeParLeTrone, proposeUneReponse, reprendsLeBrouillon, useBrouillonsDAvis, usePrepareLesBrouillons,
 } from '../../../../shared/ia-avis';
+import { publieSurGoogle, useEtatDuPont } from '../../../../shared/avis-google-pont';
+import { peutPublier } from '../../../../shared/avis-google-pont-pur';
 import { compteSansReponse, estSansReponse, idDeLAvis, jourLocalDe, langueDite, lienDeLAvis, verrouTenu, type AvisAvecReponse } from '../../../../shared/ia-avis-pur';
 import { staffAccessStore } from '../equipe/data';
 
@@ -19,7 +21,13 @@ import { staffAccessStore } from '../equipe/data';
    colle. Le Trône n'envoie RIEN à Google.
 
    Qui voit : la direction, la Clientèle et le Marketing (`peutDemander`),
-   et seulement quand la porte `ia-maison` est posée (`useSaitIaMaison`). */
+   et seulement quand la porte `ia-maison` est posée (`useSaitIaMaison`).
+
+   25 OCTOBRE 2026 : « PUBLIER SUR GOOGLE », PAR LE PONT DE MAKE. Quand la
+   fonction `avis-google-pont` dit que son webhook est posé, la réponse part
+   d'ici : « Publier sur Google », puis « Oui, publier » sous la question
+   qui nomme l'autrice. Deux touchers, après lecture ; rien ne part seul.
+   Sans le pont, le copier-coller reste, inchangé. */
 
 /** La porte : la fonction posée, et le département qui a ce chantier. */
 export function usePeutRepondreAuxAvis(): boolean {
@@ -63,10 +71,17 @@ export function ReponseAUnAvis({ avis, fiche, sansRetrait }: { avis: AvisAvecRep
      s'ouvre vide, et ce qu'on y tape est le brouillon (Claude ne repasse
      pas sur un avis qui a déjà un texte). */
   const [aLaMain, setALaMain] = useState(false);
+  const [confirme, setConfirme] = useState(false);
+  const [envoi, setEnvoi] = useState(false);
+  const pont = useEtatDuPont();
+  const staff = useStaff();
+  const acces = useStore(staffAccessStore)[0];
   const zone = useRef<HTMLTextAreaElement>(null);
   const id = idDeLAvis(avis);
   const b = brouillons[id];
   if (!peut) return null;
+  /* Le pont posé, et un département qui publie (le même que la fonction juge). */
+  const parLePont = pont?.publie === true && peutPublier(staff?.role, acces[staff?.user_id ?? '']);
 
   const lien = lienDeLAvis(avis, fiche);
   const enCours = occupe || verrouTenu(b, Date.now());
@@ -74,6 +89,14 @@ export function ReponseAUnAvis({ avis, fiche, sansRetrait }: { avis: AvisAvecRep
   /* « Collée » : l'avis a sa réponse, on le dit, et on peut se dédire. */
   if (!estSansReponse(avis, b)) {
     if (!b?.publieeLe) return null;
+    if (b.parLeTrone) {
+      return (
+        <div style={{ marginLeft: retrait, marginTop: 4, display: 'flex', flexDirection: 'column', gap: 4 }}>
+          <span style={{ fontSize: 11.5, color: 'var(--trf-success, #4A6B52)' }}>Publié sur Google depuis le Trône, le {jourCourtAn(jourLocalDe(b.publieeLe))}</span>
+          {b.reponse ? <span className="mnd-muted" style={{ fontSize: 12.5, lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>« {b.reponse} »</span> : null}
+        </div>
+      );
+    }
     return (
       <div style={{ marginLeft: retrait, marginTop: 4, display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
         <span className="mnd-muted" style={{ fontSize: 11.5 }}>Répondu sur Google, noté le {jourCourtAn(jourLocalDe(b.publieeLe))}</span>
@@ -116,6 +139,24 @@ export function ReponseAUnAvis({ avis, fiche, sansRetrait }: { avis: AvisAvecRep
     }
   };
 
+  /* PUBLIER SUR GOOGLE : la fonction retrouve l'avis chez Google, Make pose
+     la réponse. Rien ne se note « publié » sans le oui de la fonction. */
+  const publier = async () => {
+    if (envoi) return;
+    setEnvoi(true);
+    try {
+      const r = await publieSurGoogle(
+        { auteur: avis.auteur, texte: avis.texte, texteOriginal: avis.texteOriginal, publieLe: (avis as { publieLe?: string }).publieLe },
+        b?.reponse ?? '',
+      );
+      if (r.ok) {
+        marquePublieeParLeTrone(id, r.le);
+        setConfirme(false);
+        toast('Publié sur Google. Google peut mettre quelques minutes à l’afficher.');
+      } else toast(r.message);
+    } finally { setEnvoi(false); }
+  };
+
   if (b?.ecarte) {
     return (
       <div style={{ marginLeft: retrait, marginTop: 4, display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
@@ -154,7 +195,7 @@ export function ReponseAUnAvis({ avis, fiche, sansRetrait }: { avis: AvisAvecRep
         ref={zone}
         value={texte}
         onChange={(e) => changeLeBrouillon(id, e.target.value)}
-        disabled={enCours}
+        disabled={enCours || envoi}
         autoFocus={aLaMain && !texte}
         placeholder="Merci pour votre avis…"
         rows={Math.min(8, Math.max(3, texte.split('\n').length + 1))}
@@ -162,14 +203,30 @@ export function ReponseAUnAvis({ avis, fiche, sansRetrait }: { avis: AvisAvecRep
         style={{ background: 'var(--copper-50, #FAF1E9)', border: '1px solid var(--copper-300, #E3C9AE)', fontSize: 13, lineHeight: 1.45 }}
       />
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-        <Button variant="copper" size="sm" onClick={() => void copier()} disabled={enCours}>Copier</Button>
+        {parLePont && !confirme && (
+          <Button variant="copper" size="sm" onClick={() => setConfirme(true)} disabled={enCours || envoi || !texte.trim()}>Publier sur Google</Button>
+        )}
+        <Button variant={parLePont ? 'ghost' : 'copper'} size="sm" onClick={() => void copier()} disabled={enCours}>Copier</Button>
         <a className="mnd-btn mnd-btn--ghost mnd-btn--sm" href={lien} target="_blank" rel="noreferrer">Ouvrir l’avis sur Google</a>
         {(deClaude || enCours || !texte.trim()) && (
           <Button variant="ghost" size="sm" onClick={() => void demande()} disabled={enCours}>{enCours ? 'Claude écrit…' : 'Une autre'}</Button>
         )}
       </div>
+      {parLePont && confirme && (
+        <div className="trc-avisg__cadre trc-avisg__cadre--site" role="group" aria-label="Publier sur Google">
+          <span>Publier cette réponse sous l’avis de <b>{avis.auteur || 'sans nom'}</b> ? Elle sera visible de tous, sur Google.</span>
+          <span className="trc-avisg__gestes">
+            <Button variant="copper" size="sm" disabled={envoi || !texte.trim()} onClick={() => void publier()}>{envoi ? 'Publication…' : 'Oui, publier'}</Button>
+            <Button variant="ghost" size="sm" disabled={envoi} onClick={() => setConfirme(false)}>Annuler</Button>
+          </span>
+        </div>
+      )}
       <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
-        <span className="mnd-muted" style={{ fontSize: 11.5, lineHeight: 1.45 }}>Google exige que la réponse soit publiée par vous : on copie, on colle.</span>
+        <span className="mnd-muted" style={{ fontSize: 11.5, lineHeight: 1.45 }}>
+          {parLePont
+            ? 'La réponse part sur Google par Make, après votre « Oui, publier ». Google peut mettre quelques minutes à l’afficher.'
+            : 'Google exige que la réponse soit publiée par vous : on copie, on colle.'}
+        </span>
         <Petit onClick={() => marqueCollee(id)} disabled={enCours}>J’ai collé la réponse sur Google</Petit>
       </div>
     </div>

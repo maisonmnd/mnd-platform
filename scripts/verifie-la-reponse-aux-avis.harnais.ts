@@ -324,7 +324,10 @@ dit('... « Une autre » redemande à Claude ; « Écarter » ; « J’ai collé
 dit('... le mot de Google est dit tel quel', true, /Google exige que la réponse soit publiée par vous : on copie, on colle\./.test(composant));
 dit('... les dates se disent avec l année, au jour du poste', [true, true, false],
   [/jourCourtAn\(jourLocalDe\(b\.publieeLe\)\)/.test(composant), /jourCourtAn\(jourLocalDe\(b\.le\)\)/.test(composant), /slice\(0, 10\)/.test(composant)]);
-dit('AUCUNE PUBLICATION AUTOMATIQUE : l écran n appelle ni fetch, ni fonction, ni Supabase, ni Google ; « Copier » seulement', false,
+/* 25 octobre 2026 : « Publier sur Google » passe par `publieSurGoogle`
+   (shared/avis-google-pont), au toucher ; verifie-le-pont-des-avis l éprouve.
+   L écran lui-même n appelle toujours rien. */
+dit('AUCUNE PUBLICATION AUTOMATIQUE : l écran n appelle ni fetch, ni fonction, ni Supabase, ni Google lui-même', false,
   /fetch\(|functions\.invoke|supabase|XMLHttpRequest|sendBeacon|window\.open|https?:\/\/[^'"`\s]*google/i.test(composant));
 dit('... et le texte affiché ne porte ni tiret cadratin ni « salon »', [false, false], [/—/.test(composant), /\bsalon/i.test(composant)]);
 

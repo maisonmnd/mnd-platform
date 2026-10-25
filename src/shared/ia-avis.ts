@@ -81,7 +81,10 @@ export const reprendsLeBrouillon = (id: string): void => touche(id, { ecarte: un
 /** « J'ai collé la réponse sur Google » : l'avis sort des « sans réponse ».
     C'est elle qui le dit ; le Trône ne le vérifie pas chez Google. */
 export const marqueCollee = (id: string): void => touche(id, { publieeLe: maintenant() });
-export const annuleCollee = (id: string): void => touche(id, { publieeLe: undefined });
+export const annuleCollee = (id: string): void => touche(id, { publieeLe: undefined, parLeTrone: undefined });
+/** 25 octobre 2026 : publiée par le pont, au toucher ; la date est celle
+    que la fonction a rendue. */
+export const marquePublieeParLeTrone = (id: string, le: string): void => touche(id, { publieeLe: le, parLeTrone: true });
 
 /** PRÉPARER LES BROUILLONS À L'OUVERTURE : un appel à la fois, cinq par
     ouverture (par montage de l'écran), jamais deux fois le même identifiant

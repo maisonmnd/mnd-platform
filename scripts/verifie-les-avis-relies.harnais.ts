@@ -216,8 +216,10 @@ const alerte = (() => {
     [/<ReponseAUnAvis avis=\{a\} fiche=\{releve\.fiche\} sansRetrait \/>/.test(onglet), /usePrepareLesBrouillons\(avis, peutRepondre\)/.test(onglet), /<FicheDeLAvis /.test(onglet)]);
   dit('RIEN NE PART SUR GOOGLE D ICI : ni fetch, ni fonction, ni Supabase ; le lien n est relié qu au toucher', [false, true],
     [/fetch\(|functions\.invoke|supabase|XMLHttpRequest|sendBeacon/.test(onglet), /onClick=\{\(\) => ditLeGeste\(relieLAvis\(id, p\.clientId, qui\)\)\}/.test(onglet)]);
-  dit('l onglet dit l état de l envoi à Google, et la limite des cinq avis', [true, true],
-    [/Envoi à Google : en attente de l’accès Google/.test(onglet), /cinq avis qu’il juge « les plus pertinents »/.test(onglet)]);
+  /* 25 octobre 2026 : le pont de Make. La pastille dit si « Publier sur
+     Google » est ouvert ; sinon, le copier-coller. */
+  dit('l onglet dit l état de l envoi à Google (par Make, ou copier-coller), et la limite des cinq avis', [true, true, true],
+    [/'Envoi à Google : par Make'/.test(onglet), /'Envoi à Google : copier-coller'/.test(onglet), /cinq avis qu’il juge « les plus pertinents »/.test(onglet)]);
   const fiche = sansCommentaires(lis('src/apps/trone/routes/clients/Customers.tsx'));
   const panneau = sansCommentaires(lis('src/apps/trone/routes/clients/SonAvisGoogle.tsx'));
   dit('la fiche cliente montre son avis Google, et ne relie ni ne délie rien', [true, false],

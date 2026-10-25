@@ -44,6 +44,18 @@ const UID = 'u-banc-direction';
 const CLE = 'sb-127-auth-token';
 const le = new Date(Date.now() - 86_400_000).toISOString();
 
+/* 25 octobre 2026, le pont de Make : les avis que Make a apportés (A. K.
+   porte déjà sa réponse publiée), l'état du pont (webhook posé), et ce que
+   « Publier sur Google » envoie à la fonction. */
+const NOM = (r) => `accounts/1/locations/2/reviews/${r}`;
+const DE_GOOGLE = {
+  avis: Object.fromEntries(RELEVE.avis.map((a, i) => [NOM(`r${i}`), {
+    name: NOM(`r${i}`), auteur: a.auteur, note: 5, texte: a.texte, creeLe: a.publieLe, recuLe: '2026-10-25T08:00:00Z',
+    ...(a.auteur === 'A. K.' ? { reponse: 'Merci A. K., à bientôt à la Maison.', reponduLe: '2026-07-29T09:00:00Z' } : {}),
+  }])),
+};
+const publications = [];
+
 console.log('Construction du Trône (Supabase = le serveur du banc)…');
 let origine = '';
 const serveur = createServer((req, res) => {
@@ -65,6 +77,26 @@ const serveur = createServer((req, res) => {
   if (u.pathname === '/rest/v1/staff') {
     res.writeHead(200, { 'content-type': 'application/json' });
     res.end(JSON.stringify({ user_id: UID, name: 'Direction', role: 'souverain', rubrics: [] }));
+    return;
+  }
+  if (u.pathname === '/rest/v1/documents' && u.searchParams.get('key') === 'eq.mnd_avis_google_tous') {
+    res.writeHead(200, { 'content-type': 'application/json' });
+    res.end(JSON.stringify({ data: DE_GOOGLE }));
+    return;
+  }
+  if (u.pathname === '/functions/v1/avis-google-pont' && req.method === 'GET') {
+    res.writeHead(405, { 'content-type': 'application/json' });
+    res.end(JSON.stringify({ error: 'method', version: '2026-10-25-a', recoit: true, publie: true }));
+    return;
+  }
+  if (u.pathname === '/functions/v1/avis-google-pont' && req.method === 'POST') {
+    let corps = '';
+    req.on('data', (c) => { corps += c; });
+    req.on('end', () => {
+      publications.push(JSON.parse(corps || '{}'));
+      res.writeHead(200, { 'content-type': 'application/json' });
+      res.end(JSON.stringify({ ok: true, name: NOM('r0'), le: new Date().toISOString(), version: '2026-10-25-a' }));
+    });
     return;
   }
   if (u.pathname === '/functions/v1/ia-maison' && req.method === 'GET') {
@@ -203,6 +235,33 @@ await attend(500);
 const br = await lis('trone::mnd_ia_avis_brouillons');
 dit('... ce qu on tape devient le brouillon de l avis', Object.values(br ?? {}).some((b) => b?.reponse === 'Merci pour votre confiance.' && !b?.le), JSON.stringify(br));
 await photo('2-panneau');
+
+/* Publier sur Google, par le pont : deux touchers, après lecture. */
+dit('la bande dit l envoi par Make et les avis reçus', /Envoi à Google : par Make/.test(await texte('main')) && /5 avis reçus par Make/.test(await texte('main')));
+dit('« Publier sur Google » s offre sous la réponse', await clique('.trc-avisg__dedans button', 'Publier sur Google'));
+await attend(300);
+const question = await texte('.trc-avisg__dedans [role="group"]');
+dit('... il ne publie rien : il pose la question, qui nomme l autrice', publications.length === 0 && /Publier cette réponse sous l’avis de G\. J\. \?/.test(question), question);
+await photo('2b-question');
+dit('« Oui, publier » se clique', await clique('.trc-avisg__dedans [role="group"] button', 'Oui, publier'));
+await jusqua(`/Publié sur Google depuis le Trône/.test(document.querySelector('.trc-avisg__dedans')?.innerText || '')`, 8000);
+dit('... la fonction reçoit l avis du relevé et la réponse, une fois',
+  publications.length === 1 && publications[0].action === 'publier' && publications[0].avis?.auteur === 'G. J.' && publications[0].avis?.publieLe === '2026-07-23T10:00:00Z' && publications[0].reponse === 'Merci pour votre confiance.',
+  JSON.stringify(publications));
+dit('... et l écran dit « Publié sur Google depuis le Trône »', /Publié sur Google depuis le Trône/.test(await texte('.trc-avisg__dedans')));
+const brPub = Object.values((await lis('trone::mnd_ia_avis_brouillons')) ?? {}).find((b) => b?.reponse === 'Merci pour votre confiance.');
+dit('... le brouillon se note publié par le Trône', !!brPub?.publieeLe && brPub?.parLeTrone === true, JSON.stringify(brPub));
+await photo('2c-publie');
+
+/* La réponse déjà publiée sur Google, apportée par Make. */
+dit('le filtre « Tous » se clique', await clique('.mnd-seg', 'Tous'));
+await attend(300);
+const etatAK = await evalue(`(() => { const d = [...document.querySelectorAll('.trc-avisg__avis')].find((x) => x.querySelector('.trc-avisg__qui b')?.textContent === 'A. K.'); return d ? d.querySelector('.trc-avisg__etats')?.innerText : ''; })()`);
+dit('A. K., répondue sur Google : « Répondu » sans rien noter à la main', /Répondu/.test(etatAK || ''), etatAK);
+await ouvre('G. J.');
+await ouvre('A. K.');
+await attend(400);
+dit('... son panneau montre la réponse publiée', /La réponse sur Google[\s\S]*Merci A\. K\., à bientôt à la Maison\./i.test(await texte('.trc-avisg__dedans')), (await texte('.trc-avisg__dedans')).slice(0, 200));
 
 /* Au téléphone. */
 await cdp('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 2, mobile: true });

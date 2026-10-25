@@ -16,6 +16,8 @@ import {
 import { delieLAvis, marqueSansFiche, relieLAvis, useLiensDesAvis, type IssueDuLien } from '../../../../shared/avis-fiches';
 import { poseLesAvisChoisis, vitrineConfigStore } from '../../../../shared/bridges';
 import { avisAMontrer, basculeLeChoix, choixDisparus, deplaceLeChoix, mentionDuTri } from '../../../../shared/avis-google-pur';
+import { useAvisDeGoogle, useEtatDuPont } from '../../../../shared/avis-google-pont';
+import { apparie, type AvisDeGoogle } from '../../../../shared/avis-google-pont-pur';
 import { staffAccessStore, useEnvois } from '../equipe/data';
 import { BandeDeVitrine, Pastille } from './VitrineSite';
 import { ReponseAUnAvis, usePeutRepondreAuxAvis } from './ReponseAUnAvis';
@@ -47,6 +49,12 @@ import './avis-google.css';
    descend. Mêmes juges, même document qu'avant (`avis-google-pur`,
    `mnd_vitrine_config.avisChoisis`) : seul l'écran a changé de place, et
    « Le site public » n'en garde qu'un résumé (un réglage, une place). */
+
+/* 25 OCTOBRE 2026, LE PONT DE MAKE : les avis que Make apporte de Google
+   portent la réponse déjà publiée. Chaque avis du relevé est retrouvé chez
+   Google (`apparie`) : sa réponse publiée le fait passer « Répondu », et se
+   lit dans son panneau. La pastille d'envoi dit si « Publier sur Google »
+   est ouvert (le webhook de Make posé). */
 
 /** Le filtre « Sur le site » s'ajoute à ceux des réponses et des fiches :
     il ne dépend que du choix de la Maison, pas des brouillons ni des liens. */
@@ -235,7 +243,19 @@ export function VitrineAvis({ ouvrir }: { ouvrir?: string }) {
   const [ouvert, setOuvert] = useState<string | null>(ouvrir ?? null);
   useEffect(() => { if (ouvrir) setOuvert(ouvrir); }, [ouvrir]);
 
-  const avis = releve?.avis ?? null;
+  const pont = useEtatDuPont();
+  const deGoogle = useAvisDeGoogle();
+  /* Chaque avis du relevé retrouvé chez Google ; sa réponse publiée passe
+     dans `reponse`, que les juges lisent déjà (`aUneReponseChezGoogle`). */
+  const chezGoogle = useMemo(() => {
+    const m = new Map<string, AvisDeGoogle>();
+    if (!releve || !deGoogle) return m;
+    for (const a of releve.avis) { const g = apparie(a, deGoogle); if (g) m.set(idDeLAvis(a), g); }
+    return m;
+  }, [releve, deGoogle]);
+  const avis = useMemo(() => (releve
+    ? releve.avis.map((a) => { const r = chezGoogle.get(idDeLAvis(a))?.reponse; return r ? { ...a, reponse: r } : a; })
+    : null), [releve, chezGoogle]);
   const releveLe = releve?.le;
   /* Les brouillons de Claude se préparent à l'ouverture de CET onglet
      (cinq au plus, un à la fois), comme ils le faisaient sous le site. */
@@ -272,7 +292,8 @@ export function VitrineAvis({ ouvrir }: { ouvrir?: string }) {
               : 'Sur le site : ceux de Google'}
           </Pastille>
         )}
-        <Pastille>Envoi à Google : en attente de l’accès Google</Pastille>
+        <Pastille ton={pont?.publie ? 'ok' : undefined}>{pont?.publie ? 'Envoi à Google : par Make' : 'Envoi à Google : copier-coller'}</Pastille>
+        {deGoogle && <Pastille>{`${deGoogle.length} avis reçus par Make`}</Pastille>}
         {releve?.fiche && <a className="mnd-btn mnd-btn--ghost" href={releve.fiche} target="_blank" rel="noreferrer">La fiche Google</a>}
       </BandeDeVitrine>
 
@@ -339,6 +360,17 @@ export function VitrineAvis({ ouvrir }: { ouvrir?: string }) {
                           {original && <span className="mnd-muted">{`Écrit en ${langueDite(a.langueOriginale?.split('-')[0])}. Google le traduit : « ${a.texte} »`}</span>}
                         </p>
                         : <p className="mnd-muted" style={{ fontSize: 12.5 }}>Une note seulement, sans texte.</p>}
+                      {(() => {
+                        const g = chezGoogle.get(id);
+                        if (!g?.reponse || brouillons[id]?.parLeTrone) return null;
+                        return (
+                          <div className="trc-avisg__cadre trc-avisg__cadre--fiche">
+                            <span className="trc-avisg__titre">La réponse sur Google</span>
+                            <span style={{ whiteSpace: 'pre-wrap', lineHeight: 1.5 }}>« {g.reponse} »</span>
+                            {g.reponduLe && <span className="mnd-muted" style={{ fontSize: 11.5 }}>{`${g.parLeTrone ? 'Publiée depuis le Trône' : 'Publiée'} le ${jourCourtAn(jourLocalDe(g.reponduLe))}`}</span>}
+                          </div>
+                        );
+                      })()}
                       <SurLeSite id={id} choisis={choisis} place={place} pose={pose} />
                       <FicheDeLAvis a={a} releveLe={releveLe} peutRelier={peutRelier} />
                       <ReponseAUnAvis avis={a} fiche={releve.fiche} sansRetrait />

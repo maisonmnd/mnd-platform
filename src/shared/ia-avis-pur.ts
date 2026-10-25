@@ -81,6 +81,9 @@ export type BrouillonDAvis = {
   modele?: string;
   ecarte?: boolean;
   publieeLe?: string;
+  /** 25 octobre 2026 : la réponse est partie du Trône (« Publier sur
+      Google », par le pont), pas d'un copier-coller. */
+  parLeTrone?: boolean;
   enCours?: string;
   echoueLe?: string;
 };
