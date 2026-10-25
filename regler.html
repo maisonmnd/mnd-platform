@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#F6F1E7" />
+    <!-- HORS DES MOTEURS, 24 septembre 2026 : un ecran a connexion ou un
+         document personnel n a rien a faire dans Google. Le robots.txt de
+         /trone/ ne comptait pas, seul celui de la racine est lu. -->
+    <meta name="robots" content="noindex" />
+    <link rel="icon" type="image/png" href="/assets/monograms/mono-indigo.png" />
+    <title>Régler votre séance · Maison MND</title>
+    <!-- ══ LA CARTE DE LIEN — 7 septembre 2026 ═════════════════════════
+         « Quand j'envoie le lien de MND, ça doit se présenter comme celui de
+         Claude » (Yéman) : la carte compacte, vignette à gauche, titre et
+         phrase, pas la grande affiche blanche. WhatsApp ne fait la compacte
+         que si l'image est PETITE (sous ~300 px) — la vignette fait 240 px,
+         et c'est un choix, pas une économie.
+
+         AUCUN DOMAINE EN DUR : og:image et og:url exigent une adresse
+         absolue, et la règle de la Maison interdit d'en écrire une. Les
+         repères __LIEN_DU_SITE__ / __LIEN_DE_LA_PAGE__ sont remplacés par
+         build-sites.mjs, qui lit le compte GitHub depuis l'origine du dépôt,
+         comme le fait déjà la publication. En développement ils restent tels
+         quels : personne ne partage localhost. -->
+    <meta name="description" content="Régler votre séance à la Maison MND, depuis votre téléphone." />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Maison MND" />
+    <meta property="og:locale" content="fr_FR" />
+    <meta property="og:title" content="Régler votre séance · Maison MND" />
+    <meta property="og:description" content="Régler votre séance à la Maison MND, depuis votre téléphone." />
+    <meta property="og:url" content="__LIEN_DE_LA_PAGE__" />
+    <meta property="og:image" content="__LIEN_DU_SITE__assets/og/carte-lien.png" />
+    <meta property="og:image:width" content="240" />
+    <meta property="og:image:height" content="240" />
+    <meta name="twitter:card" content="summary" />
+
+  </head>
+  <body data-surface="regler">
+    <div id="root"></div>
+    <script type="module" src="/src/apps/regler/main.tsx"></script>
+  </body>
+</html>

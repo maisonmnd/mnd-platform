@@ -58,10 +58,13 @@ export const FACTURE_JOINTE = 'ci-jointe';
 export const variablesDeLaFacture = (c: Porteuse, jourIso: string, resteDit: string): string[] =>
   [appelDe(c), dateDite(jourIso), FACTURE_JOINTE, resteDit];
 
-/** Le mot qui accompagne le PDF dans la fenêtre. */
-export const motDeLaFacture = (c: Porteuse, jourIso: string, resteDit: string, lien?: string): string =>
+/** Le mot qui accompagne le PDF dans la fenêtre. `enLigne` : le lien mène à
+    la page « Régler sa séance » (KkiaPay, et Tap & Go à côté), 25 octobre 2026. */
+export const motDeLaFacture = (c: Porteuse, jourIso: string, resteDit: string, lien?: string, enLigne = false): string =>
   signeLeMessage(`${maisonNom()} · facture\nBonjour ${appelDe(c)}, merci de votre visite du ${dateDite(jourIso)}. Voici votre facture ${FACTURE_JOINTE}, reste à régler : ${resteDit}.${lien
-    ? `\nPour régler par mobile money, tout réseau, touchez ce lien : votre téléphone compose le numéro de paiement, frais compris.\n${lien}`
+    ? (enLigne
+      ? `\nPour régler depuis votre téléphone (MTN, Moov, Celtiis ou carte), touchez ce lien :\n${lien}`
+      : `\nPour régler par mobile money, tout réseau, touchez ce lien : votre téléphone compose le numéro de paiement, frais compris.\n${lien}`)
     : ''}`);
 
 /** `repli: 'lien'` : le modèle de la facture n'est pas (encore) approuvé, le lien de paiement est parti seul. */
@@ -77,6 +80,9 @@ export async function envoieLaFactureARegler(o: {
   /** Tap & Go : le paramètre du bouton (« 51166-2032 »), le lien entier, le
       total frais compris dit. Sans lui, pas de bouton, donc pas de modèle. */
   tapgo?: { parametre: string; lien: string; totalDit: string };
+  /** Le paramètre du bouton mène à la page « Régler sa séance » (r-<jeton>) :
+      le mot le dit (25 octobre 2026). */
+  enLigne?: boolean;
   /** L'identifiant de la pièce : une clé d'unicité par étape, pour que deux
       postes n'envoient pas deux fois la même facture. */
   cle?: string;
@@ -92,7 +98,7 @@ export async function envoieLaFactureARegler(o: {
   const base = { numero: tel, clientId: o.client.id, branchId: o.client.branchId, parQui: o.parQui };
   const cle = (etape: string) => (o.cle ? { cleUnique: `facture-${o.cle}-${etape}` } : {});
 
-  const r = await envoie({ ...base, piece, texte: motDeLaFacture(o.client, o.jourIso, o.resteDit, o.tapgo?.lien), ...cle('mot') });
+  const r = await envoie({ ...base, piece, texte: motDeLaFacture(o.client, o.jourIso, o.resteDit, o.tapgo?.lien, o.enLigne), ...cle('mot') });
   if (r.ok || !/fenêtre/i.test(r.erreur)) return r;
   if (!o.tapgo) return { ok: false, erreur: 'la fenêtre de 24 heures est fermée et Tap & Go est éteint : le modèle de la facture a besoin de son bouton de paiement.' };
 

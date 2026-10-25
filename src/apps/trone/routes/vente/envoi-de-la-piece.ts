@@ -10,6 +10,9 @@ import { envoieLeRecu, recuAEnvoyer } from '../../../../shared/recu-whatsapp';
 import { envoieLaFactureARegler, MODELE_FACTURE, type ResultatDeLaFacture } from '../../../../shared/facture-whatsapp';
 import { toast } from '../../../../ds/components';
 import { useLaPieceEnPdf } from './pdf-de-la-piece';
+import { adresseDuLien, noteLEnvoiDuLien, poseLeLienDeReglement } from '../../../../shared/regler-la-seance';
+import { saitRegler, versionDuReglement } from '../../../../shared/regler-la-seance-serveur';
+import { parametreDuLien } from '../../../../shared/regler-la-seance-pur';
 
 /* ══ LA PIÈCE PART SEULE CHEZ ELLE — 17 octobre 2026 ═════════════════════
    « Cette facture doit aller instantanément chez le client » (Yéman). Deux
@@ -80,11 +83,22 @@ export function useEnvoiDeLaPiece() {
     /* Le même Tap & Go que le pied du PDF : le reste, frais ajoutés. */
     const reste = invoiceResteXof(p.piece);
     const tg = paiementTapGoDeLaPiece(reste, settings.mndPay);
+    const tapgo = tg ? { parametre: parametreTapGo(tg.totalXof, settings.mndPay), lien: tg.qr, totalDit: fmtMoney(tg.totalXof, currency) } : undefined;
+    /* RÉGLER SA SÉANCE (25 octobre 2026, « Terminer la séance ») : quand la
+       fonction répond, le bouton « Régler » mène à la page de sa séance
+       (KkiaPay, et Tap & Go à côté) au lieu du seul numéro à composer. Le
+       modèle reste `facture_du_rituel`, déjà approuvé : seul son paramètre
+       change. Sans la fonction, rien ne change. */
+    const jeton = p.piece.apptId && saitRegler(await versionDuReglement())
+      ? poseLeLienDeReglement(p.piece.apptId, tapgo ? { resteXof: reste, parametre: tapgo.parametre, totalXof: tg!.totalXof } : undefined)
+      : null;
+    const lien = jeton ? { parametre: parametreDuLien(jeton), lien: adresseDuLien(jeton), totalDit: fmtMoney(reste, currency) } : undefined;
     const r = await envoieLaFactureARegler({
       client: { ...p.destinataire, branchId: p.destinataire.branchId }, pdf: buildPdfData(p.piece),
       resteDit: fmtMoney(reste, currency), jourIso: jourDuRituel, parQui: quiEncaisse(), cle: p.piece.id,
-      tapgo: tg ? { parametre: parametreTapGo(tg.totalXof, settings.mndPay), lien: tg.qr, totalDit: fmtMoney(tg.totalXof, currency) } : undefined,
+      tapgo: lien ?? tapgo, enLigne: !!lien,
     });
+    if (r.ok && jeton && p.piece.apptId) noteLEnvoiDuLien(p.piece.apptId);
     dit(p.piece.number, r);
   };
 

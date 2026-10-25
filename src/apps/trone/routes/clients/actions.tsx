@@ -29,6 +29,7 @@ import { Link } from 'react-router-dom';
 import { autoConfigStore, automationsActiveStore, REVIEW_LINK_DEFAUT, lienPaiementMomo, MOMO_QR_DEFAUT, MOMO_MARCHAND_DEFAUT } from '../equipe/data';
 import { LIEN_CHAPCHAP, MARCHAND_CHAPCHAP, RESEAUX_CHAPCHAP } from '../../../../shared/kkiapay-chapchap-pur';
 import { AuComptoir, type Grand } from './AuComptoir';
+import { ReglementEnDirect } from './ReglementEnDirect';
 import { signeLeMessage } from '../../../../shared/identite';
 import { consommerPourRituel, rembobinerRituel, retirerParReferences } from '../../../../shared/stock';
 import { detacherFacture } from '../../../../shared/laboratoire';
@@ -3035,7 +3036,9 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour, init
                 if (h.facture && !h.deja) void envoiDeLaPiece.aRegler(h.facture.id, appt.date);
               }}
             >
-              Honorer sans encaisser · facture à régler
+              {/* « TERMINER LA SÉANCE » (25 octobre 2026) : le même geste, dit
+                  comme elle le dit, quand le message part (rituel du jour). */}
+              {appt.date === todayISO() ? 'Terminer la séance · le reste part sur son WhatsApp' : 'Honorer sans encaisser · facture à régler'}
             </Button>
           )}
           {appt.status === 'honoré' && (
@@ -3050,6 +3053,8 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour, init
               )}
             </div>
           )}
+          {/* Le lien « Régler sa séance », suivi en direct (25 octobre 2026). */}
+          <ReglementEnDirect appt={appt} />
         </EtapeEnc>
 
         {/* ═══ LA BARRE COLLANTE — ce qui est réglé, où va l'argent, et le

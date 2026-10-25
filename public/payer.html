@@ -149,10 +149,14 @@
 
 <script>
   var p = new URLSearchParams(location.search);
+  /* RÉGLER SA SÉANCE — 25 octobre 2026. Le bouton « Régler » du message
+     porte « tg=r-<jeton> » : la page de la séance, KkiaPay et Tap & Go. */
+  var rj = (p.get('tg') || '').match(/^r-([23456789abcdefghjkmnpqrstuvwxyz]{14})$/);
+  if (rj) location.replace('regler.html?r=' + rj[1]);
   var e = function (s) { return String(s).replace(/[&<>"]/g, function (c) { return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]; }); };
   /* TAP & GO : « tg=CODE-TOTAL », chiffres seulement, sinon rien ne se compose. */
   var tg = (p.get('tg') || '').match(/^(\d{3,8})-(\d{1,9})$/);
-  if (p.has('tg')) {
+  if (p.has('tg') && !rj) {
     document.body.classList.add('tapgo');
     var tete = document.getElementById('tete');
     if (tete && tete.parentNode) tete.parentNode.removeChild(tete);

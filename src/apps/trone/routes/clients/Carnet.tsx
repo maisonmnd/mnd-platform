@@ -771,7 +771,8 @@ export default function Carnet() {
                       setMenuFor(null);
                     }}
                   >
-                    Honorer · facture à régler
+                    {/* « Terminer la séance » le jour même : le reste part sur son WhatsApp (25 octobre 2026). */}
+                    {a.date === todayISO() ? 'Terminer la séance · le reste part sur son WhatsApp' : 'Honorer · facture à régler'}
                   </button>
                 )}
                 {/* LE CHEMIN INVERSE — 13 septembre 2026. L'annulation

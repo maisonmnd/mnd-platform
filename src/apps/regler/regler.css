@@ -1,0 +1,126 @@
+/* RÉGLER SA SÉANCE — la page de la cliente, aux couleurs de la charte :
+   ivoire pour le fond, indigo pour l'encre, cuivre pour le geste. Sobre :
+   un seul geste vedette, du vide autour (25 octobre 2026). Les polices de
+   la Maison, servies par nous (tokens/fonts.css). */
+@import '../../ds/tokens/fonts.css';
+:root {
+  --rg-ivoire: #F6F1E7;
+  --rg-carte: #FFFDF9;
+  --rg-indigo: #1E2150;
+  --rg-cuivre: #9A6036;
+  --rg-cuivre-clair: #B97A4A;
+  --rg-filet: #E7D7C2;
+  --rg-doux: #5E5750;
+  --rg-vert: #0A6B5F;
+  --rg-alerte: #A3402B;
+  color-scheme: light;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--rg-ivoire);
+  color: var(--rg-indigo);
+  font-family: 'Jost', 'Century Gothic', 'Futura', system-ui, -apple-system, 'Segoe UI', sans-serif;
+}
+.rg {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+  padding: calc(28px + env(safe-area-inset-top, 0px)) 18px calc(40px + env(safe-area-inset-bottom, 0px));
+}
+.rg-tete { display: grid; justify-items: center; }
+.rg-verrou { width: 150px; height: auto; display: block; }
+.rg-bloc {
+  width: min(100%, 420px);
+  background: var(--rg-carte);
+  border: 1px solid var(--rg-filet);
+  border-radius: 10px;
+  padding: 22px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.rg-sur { margin: 0; font-size: 11px; letter-spacing: .28em; text-transform: uppercase; color: var(--rg-cuivre); }
+.rg-titre {
+  margin: 0;
+  font-family: 'Cormorant Garamond', Georgia, 'Times New Roman', serif;
+  font-weight: 300;
+  font-size: 30px;
+  line-height: 1.08;
+  text-wrap: balance;
+}
+.rg-doux { color: var(--rg-doux); margin: 0; font-size: 14px; line-height: 1.5; }
+.rg-petit { font-size: 12px; }
+.rg-centre { text-align: center; }
+.rg > .rg-doux { max-width: 420px; padding: 24px 6px; }
+.rg-lignes { display: flex; flex-direction: column; border-top: 1px solid var(--rg-filet); border-bottom: 1px solid var(--rg-filet); padding: 4px 0; }
+.rg-ligne { display: flex; justify-content: space-between; gap: 12px; padding: 8px 0; font-size: 14px; font-variant-numeric: tabular-nums; }
+.rg-ligne span:last-child { white-space: nowrap; }
+.rg-fort { font-weight: 600; font-size: 15px; }
+.rg-merci { display: flex; flex-direction: column; gap: 8px; }
+.rg-puces { display: flex; gap: 8px; flex-wrap: wrap; }
+.rg-puce {
+  font: inherit;
+  font-size: 14px;
+  min-height: 44px;
+  padding: 10px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--rg-filet);
+  background: var(--rg-carte);
+  color: var(--rg-indigo);
+  cursor: pointer;
+}
+.rg-puce--on { background: var(--rg-indigo); border-color: var(--rg-indigo); color: var(--rg-ivoire); }
+.rg-regler {
+  font: inherit;
+  font-weight: 600;
+  font-size: 17px;
+  letter-spacing: .02em;
+  min-height: 54px;
+  padding: 15px 18px;
+  border: 0;
+  border-radius: 6px;
+  background: var(--rg-cuivre-clair);
+  color: var(--rg-carte);
+  cursor: pointer;
+}
+.rg-regler:disabled { opacity: .7; cursor: progress; }
+.rg-autre {
+  display: block;
+  font: inherit;
+  font-size: 14px;
+  text-align: center;
+  text-decoration: none;
+  min-height: 46px;
+  padding: 12px 14px;
+  border: 1px solid var(--rg-filet);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--rg-indigo);
+  cursor: pointer;
+  line-height: 1.4;
+}
+.rg-souci { margin: 0; font-size: 13.5px; line-height: 1.5; color: var(--rg-alerte); }
+.rg-ok {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 14px;
+  border-radius: 6px;
+  background: #EAF4F1;
+  border: 1px solid #9FCFC5;
+  font-size: 14px;
+  line-height: 1.5;
+}
+.rg-ok strong { color: var(--rg-vert); font-weight: 600; }
+.rg-devise {
+  margin: 8px 0 0;
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-style: italic;
+  font-size: 14px;
+  color: var(--rg-cuivre);
+  text-align: center;
+}
+button:focus-visible, a:focus-visible { outline: 2px solid var(--rg-cuivre-clair); outline-offset: 2px; }

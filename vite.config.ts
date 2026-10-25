@@ -32,6 +32,9 @@ const ALL_INPUTS: Record<string, string> = {
   bilan: resolve(__dirname, 'bilan.html'),
   carte: resolve(__dirname, 'carte.html'),
   bulletin: resolve(__dirname, 'bulletin.html'),
+  /* RÉGLER SA SÉANCE — 25 octobre 2026 : la page que la cliente ouvre depuis
+     le bouton « Régler » de son message (payer.html?tg=r-… y mène). */
+  regler: resolve(__dirname, 'regler.html'),
 };
 const apps = (process.env.VITE_APPS || '').split(',').map((s) => s.trim()).filter(Boolean);
 const choisies = apps.length

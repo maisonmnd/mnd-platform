@@ -1,6 +1,7 @@
 import { createStore, useStore } from './store';
 import type { LongueurId } from './catalog';
 import type { LigneGamme } from './gamme';
+import type { LienDeReglement } from './regler-la-seance-pur';
 
 /* Le Carnet — rendez-vous multi-services, 08:00–18:00.
    Les semences sont générées autour d'aujourd'hui : le carnet vit toujours. */
@@ -120,6 +121,10 @@ export type Appointment = {
       Quand ce journal existe, il FAIT FOI ; `paidXof` reste le repli des
       rendez-vous d'avant (voir `apptPaidXof`). */
   payments?: ApptPayment[];
+  /** LE LIEN « RÉGLER SA SÉANCE » (25 octobre 2026) : un jeton par rendez-vous,
+      posé par le Trône à « Terminer la séance » ; la fonction
+      `regler-la-seance` y note la première ouverture et le règlement. */
+  lienDeReglement?: LienDeReglement;
   /** QUI A OFFERT CE RITUEL — l'identifiant de celle qui l'a payé pour une
       autre.
 

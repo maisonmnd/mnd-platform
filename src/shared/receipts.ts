@@ -297,8 +297,14 @@ export function buildReceipts(s: ReceiptSources): Receipt[] {
        ici, « à rapprocher » : on ne perd jamais un franc reçu. */
     const commandeId = p.partnerId?.startsWith('cmd-') ? p.partnerId.slice(4) : '';
     if (commandeId && versementsBoutique.has(`kkia-${p.id}`)) continue;
+    /* UNE SÉANCE RÉGLÉE DEPUIS SON TÉLÉPHONE (`reg-<rendez-vous>`, 25 octobre
+       2026) : même règle que la Boutique. Le versement kkia-… que la fonction
+       `regler-la-seance` pose sur la pièce entre par elle (①) ; tant qu'il
+       n'y est pas, la transaction reste ici, à rapprocher. */
+    const seanceId = p.partnerId?.startsWith('reg-') ? p.partnerId.slice(4) : '';
+    if (seanceId && versementsBoutique.has(`kkia-${p.id}`)) continue;
     if (p.partnerId) onlineByAppt.add(p.partnerId);
-    const appt = s.appointments.find((a) => a.id === p.partnerId);
+    const appt = s.appointments.find((a) => a.id === (seanceId || p.partnerId));
     out.push({
       id: `r-pay-${p.id}`,
       kind: 'acompte',
@@ -309,8 +315,8 @@ export function buildReceipts(s: ReceiptSources): Receipt[] {
       method: `KkiaPay${p.method ? ` · ${p.method === 'CARD' ? 'carte' : 'Mobile Money'}` : ''}`,
       cashbox: 'KkiaPay',
       ref: p.id,
-      label: appt ? `Acompte · ${s.apptLabel(appt)}` : commandeId ? 'Commande de la Boutique, à rapprocher' : 'Acompte en ligne',
-      apptId: p.partnerId,
+      label: seanceId ? `Séance réglée en ligne, à rapprocher${appt ? ` · ${s.apptLabel(appt)}` : ''}` : appt ? `Acompte · ${s.apptLabel(appt)}` : commandeId ? 'Commande de la Boutique, à rapprocher' : 'Acompte en ligne',
+      apptId: seanceId || p.partnerId,
       ...(p.at && !Number.isNaN(new Date(p.at).getTime()) ? { heure: new Date(p.at).toTimeString().slice(0, 5) } : {}),
     });
   }

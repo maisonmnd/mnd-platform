@@ -614,9 +614,13 @@ dit('l envoi transporte le paramètre du bouton jusqu à la fonction', true, /\.
       /Votre \$\{doc\.kind === 'devis' \? 'devis' : 'facture'\} est en pièce jointe\./.test(lis('src/apps/trone/routes/vente/Factures.tsx'))]);
 
   const env = lis('src/apps/trone/routes/vente/envoi-de-la-piece.ts');
-  dit('honorer sans encaisser : le reste dû, et le même Tap & Go que le pied du PDF', [true, true, true],
+  /* RÉGLER SA SÉANCE (25 octobre 2026) : le Tap & Go reste celui du pied du
+     PDF ; quand la fonction regler-la-seance répond, le lien de la séance
+     prend le bouton (verifie-regler-la-seance tient le reste). */
+  dit('honorer sans encaisser : le reste dû, et le même Tap & Go que le pied du PDF', [true, true, true, true],
     [/const tg = paiementTapGoDeLaPiece\(reste, settings\.mndPay\);/.test(env), /resteDit: fmtMoney\(reste, currency\)/.test(env),
-      /tapgo: tg \? \{ parametre: parametreTapGo\(tg\.totalXof, settings\.mndPay\), lien: tg\.qr, totalDit: fmtMoney\(tg\.totalXof, currency\) \} : undefined/.test(env)]);
+      /const tapgo = tg \? \{ parametre: parametreTapGo\(tg\.totalXof, settings\.mndPay\), lien: tg\.qr, totalDit: fmtMoney\(tg\.totalXof, currency\) \} : undefined;/.test(env),
+      /tapgo: lien \?\? tapgo, enLigne: !!lien/.test(env)]);
 }
 console.log(ko === 0 ? '\nMND PAY tient ses regles.' : `\n${ko} controle(s) en echec.`);
 process.exitCode = ko === 0 ? 0 : 1;

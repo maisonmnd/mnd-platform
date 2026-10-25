@@ -56,16 +56,19 @@ export async function envoieLeRecu(o: {
   montant: string;
   jourIso: string;
   parQui?: string;
+  /** Une clé d'unicité : deux postes n'envoient qu'un reçu (règlement en ligne, 25 octobre 2026). */
+  cleUnique?: string;
 }): Promise<ResultatDEnvoi> {
   const tel = (o.client.phone ?? '').trim();
   if (!tel) return { ok: false, erreur: 'Pas de numéro sur sa fiche : le reçu n’est pas parti.' };
   const { invoiceEnPiece } = await import('./pdf');
   const piece = await invoiceEnPiece(o.pdf);
   const base = { numero: tel, piece, clientId: o.client.id, branchId: o.client.branchId, parQui: o.parQui };
-  let r = await envoieSurWhatsApp({ ...base, texte: motDuRecu(o.client, o.montant, o.jourIso) });
+  const cle = (etape: string) => (o.cleUnique ? { cleUnique: `${o.cleUnique}-${etape}` } : {});
+  let r = await envoieSurWhatsApp({ ...base, texte: motDuRecu(o.client, o.montant, o.jourIso), ...cle('mot') });
   if (!r.ok && /fenêtre/i.test(r.erreur)) {
     r = await envoieSurWhatsApp({
-      ...base, modele: MODELE_RECU, variables: variablesDuRecu(o.client, o.montant, o.jourIso), enTete: 'document',
+      ...base, modele: MODELE_RECU, variables: variablesDuRecu(o.client, o.montant, o.jourIso), enTete: 'document', ...cle('modele'),
     });
   }
   return r;

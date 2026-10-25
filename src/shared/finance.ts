@@ -3,6 +3,7 @@ import { createStore, useStore, uid, type Store } from './store';
 import { sameName } from './text';
 import { identiteCourante } from './journal';
 import type { TraceDuMoyen } from './trace-du-moyen-pur';
+import type { ReglementEnLigne } from './regler-la-seance-pur';
 
 /* Finances — factures/devis, dépenses, caisses. Montants stockés en XOF. */
 
@@ -196,6 +197,10 @@ export type Invoice = {
   /** Pourboire encaissé dans la caisse (traçabilité POS) — HORS chiffre d'affaires,
       reversé au maître. Ne compte jamais dans invoiceTotal. */
   tipXof?: number;
+  /** RÉGLÉE PAR LA CLIENTE DEPUIS SON TÉLÉPHONE (25 octobre 2026) : la trace
+      que la fonction `regler-la-seance` pose avec son versement kkia-… ; le
+      Trône y lit le pourboire de l'équipe, le reçu et l'annonce. */
+  reglementsEnLigne?: ReglementEnLigne[];
   /** Part de la facture réglée par AVOIR (crédit prépayé du compte). C'est du
       revenu (compte dans invoiceTotal / le CA) mais PAS de l'argent physique :
       la Synthèse la route vers le poste « Avoir (crédit) », jamais une caisse. */

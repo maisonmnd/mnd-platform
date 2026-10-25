@@ -72,6 +72,7 @@ const selonLaMain = <T extends { path: string }>(voulu: string[] | undefined, it
 import { useReconcileClients } from './useReconcileClients';
 import { useRattacheLesReservations } from './useRattacheLesReservations';
 import { useMndPayRattache } from './useMndPayRattache';
+import { useReglementsEnLigne } from './useReglementsEnLigne';
 import { useLectureDesCaptures } from './useLectureDesCaptures';
 import { useLaReleveArrive } from './useLaReleveArrive';
 import { useParrainageVivant } from './useParrainageVivant';
@@ -558,6 +559,8 @@ export default function Shell() {
   useRattacheLesReservations();
   /* MND PAY : le lien payé règle sa pièce, sur n'importe quel écran (16 octobre 2026). */
   useMndPayRattache();
+  /* Régler sa séance : la séance payée depuis son téléphone s'annonce, son pourboire se partage, son reçu part (25 octobre 2026). */
+  useReglementsEnLigne();
   /* Les captures de transfert reçues sur WhatsApp d'une cliente qui doit se lisent seules, par Claude (19 octobre 2026). */
   useLectureDesCaptures();
   /* Les dossiers de La Relève, déposés sur le site de l'Académie, entrent au Recrutement (15 octobre 2026). */

@@ -1179,7 +1179,8 @@ export default function Dashboard() {
                       border: a.status === 'en attente' ? '1px solid transparent' : '1px solid var(--color-indigo)',
                     }}
                   >
-                    {a.status === 'en attente' ? 'Confirmer' : 'Honorer'}
+                    {/* « Terminer » le jour même : le reste part sur son WhatsApp (25 octobre 2026). */}
+                    {a.status === 'en attente' ? 'Confirmer' : a.date === todayISO() ? 'Terminer' : 'Honorer'}
                   </button>
                 )}
                 <button
