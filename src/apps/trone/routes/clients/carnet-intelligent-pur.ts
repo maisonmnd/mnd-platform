@@ -254,6 +254,11 @@ export type PhraseComprise = {
   du?: string;
   au?: string;
   maitre?: string;
+  /** LE PRÉNOM D'UN MAÎTRE QUI EST AUSSI CELUI D'UNE CLIENTE — 25 octobre
+      2026 (« quand j'écris Brice, je ne vois toujours pas ses rendez-vous ») :
+      le mot tapé garde les deux, ceux que Brice a tenus ET ceux de la cliente
+      Brice. Sans cliente de ce nom, le mot reste un maître. */
+  ouCliente?: string;
   sansAcompte?: boolean;
   /** Ce que le Carnet a compris, à montrer. */
   compris: string[];
@@ -272,7 +277,7 @@ const NOMS_STATUT: Record<string, string> = { annulé: 'Annulés', honoré: 'Hon
     acompte cette semaine », « Baké ». Ce qui n'est ni un mot d'état, ni un
     mois, ni un jour, ni un maître reste un nom à chercher. Le Carnet montre
     toujours ce qu'il a compris. */
-export function comprendsLaPhrase(phrase: string, o: { aujourdhui: string; maitres: readonly string[] }): PhraseComprise {
+export function comprendsLaPhrase(phrase: string, o: { aujourdhui: string; maitres: readonly string[]; clientes?: readonly string[] }): PhraseComprise {
   const r: PhraseComprise = { nom: '', compris: [] };
   let t = ` ${plie(phrase).replace(/[’']/g, ' ').replace(/[^a-z0-9 -]+/g, ' ')} `;
   const prend = (re: RegExp): boolean => { if (!re.test(t)) return false; t = t.replace(re, ' '); return true; };
@@ -304,7 +309,11 @@ export function comprendsLaPhrase(phrase: string, o: { aujourdhui: string; maitr
       continue;
     }
     const maitre = o.maitres.find((x) => plie(x).split(/\s+/)[0] === m);
-    if (maitre && !r.maitre) { r.maitre = maitre; continue; }
+    if (maitre && !r.maitre) {
+      r.maitre = maitre;
+      if ((o.clientes ?? []).some((c) => plie(c).split(/\s+/).includes(m))) r.ouCliente = m;
+      continue;
+    }
     restes.push(m);
   }
   r.nom = restes.join(' ');
@@ -312,7 +321,7 @@ export function comprendsLaPhrase(phrase: string, o: { aujourdhui: string; maitr
   if (r.statut) r.compris.push(NOMS_STATUT[r.statut]);
   if (r.mois) r.compris.push(`${MOIS[Number(r.mois.slice(5, 7)) - 1].replace(/^./, (c) => c.toUpperCase())} ${r.mois.slice(0, 4)}`);
   if (r.du && r.au) r.compris.push(r.du === r.au ? jourEnClair(r.du).replace(/^./, (c) => c.toUpperCase()) : `Du ${jourEnClair(r.du)} au ${jourEnClair(r.au)}`);
-  if (r.maitre) r.compris.push(`Maître : ${r.maitre}`);
+  if (r.maitre) r.compris.push(r.ouCliente ? `Maître ou cliente : ${r.maitre}` : `Maître : ${r.maitre}`);
   if (r.nom) r.compris.push(`Cliente : ${r.nom}`);
   return r;
 }
@@ -329,7 +338,8 @@ export function gardeSelonLaPhrase(
   if (p.mois && a.date.slice(0, 7) !== p.mois) return false;
   if (p.du && a.date < p.du) return false;
   if (p.au && a.date > p.au) return false;
-  if (p.maitre && plie(a.master ?? '').split(/\s+/)[0] !== plie(p.maitre).split(/\s+/)[0]) return false;
+  if (p.maitre && plie(a.master ?? '').split(/\s+/)[0] !== plie(p.maitre).split(/\s+/)[0]
+    && !(p.ouCliente && plie(o.nomDe(a)).split(/\s+/).includes(p.ouCliente))) return false;
   if (p.sansAcompte && !((a.depositXof ?? 0) > 0 && !a.depositConfirmed && estAVenir(a, o.aujourdhui))) return false;
   if (p.nom && !plie(o.nomDe(a)).includes(p.nom)) return false;
   return true;

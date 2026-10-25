@@ -276,7 +276,10 @@ export default function Carnet() {
   const maitresConnus = useMemo(() => [...new Set(appts.map((a) => a.master).filter(Boolean))], [appts]);
   /* LA RECHERCHE QUI COMPREND UNE PHRASE : « impayés de septembre », « Team
      samedi », « sans acompte cette semaine ». Ce qui reste est un nom. */
-  const phrase = useMemo(() => comprendsLaPhrase(query, { aujourdhui: today, maitres: maitresConnus }), [query, today, maitresConnus]);
+  /* Les noms des clientes : un prénom de maître qui est aussi celui d'une
+     cliente garde les deux (25 octobre 2026). */
+  const clientesConnues = useMemo(() => [...new Set([...ficheParId.values()].map((c) => c.name).filter(Boolean))], [ficheParId]);
+  const phrase = useMemo(() => comprendsLaPhrase(query, { aujourdhui: today, maitres: maitresConnus, clientes: clientesConnues }), [query, today, maitresConnus, clientesConnues]);
 
   const { upcoming, past, comptes, totaux } = useMemo(() => {
     /* Recherche par nom de cliente — taper les premières lettres suffit

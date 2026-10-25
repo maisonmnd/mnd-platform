@@ -90,6 +90,14 @@ dit('« sans acompte cette semaine » (un dimanche : jusqu au soir)', { nom: '',
 dit('« la semaine prochaine »', ['2026-10-26', '2026-11-01'], (() => { const p = comprendsLaPhrase('la semaine prochaine', o); return [p.du, p.au]; })());
 dit('« Baké » reste un nom ; « annulés de juillet 2025 » garde son annee', [{ nom: 'bake', compris: ['Cliente : bake'] }, ['annulé', '2025-07']],
   [(() => { const p = comprendsLaPhrase('Baké', o); return { nom: p.nom, compris: p.compris }; })(), (() => { const p = comprendsLaPhrase('annulés de juillet 2025', o); return [p.statut, p.mois]; })()]);
+/* « BRICE » EST UN MAÎTRE ET UNE CLIENTE — 25 octobre 2026 : le mot garde les deux. */
+const oB = { aujourdhui: AUJ, maitres: ['Team', 'Brice'], clientes: ['Brice', 'Awa Kossou'] };
+const pB = comprendsLaPhrase('brice', oB);
+const rdvB = (id: string, master: string, nom: string) => ({ ...rdvs[0], id, master, status: 'honoré' as const, date: '2026-10-25', clientId: id, _nom: nom });
+const gardesB = [rdvB('b1', 'Team', 'Brice'), rdvB('b2', 'Brice', 'Awa Kossou'), rdvB('b3', 'Team', 'Awa Kossou')]
+  .filter((a) => gardeSelonLaPhrase(a, pB, { payeDe: () => 'payé', nomDe: (x) => (x as { _nom: string })._nom, aujourdhui: AUJ })).map((a) => a.id);
+dit('« brice » : maitre ET cliente, les rendez-vous des deux, pas les autres', [['Maître ou cliente : Brice'], ['b1', 'b2']], [pB.compris, gardesB]);
+dit('... sans cliente de ce nom, le mot reste un maitre', ['Maître : Brice'], comprendsLaPhrase('brice', { ...oB, clientes: ['Awa Kossou'] }).compris);
 dit('« en attente demain chez Gérard »', ['en attente', '2026-10-26', 'Gérard'], (() => { const p = comprendsLaPhrase('en attente demain chez Gérard', o); return [p.statut, p.du, p.maitre]; })());
 const garde = (q: string, a: RdvLu, paye = 'impayé', nom = 'Baké Gorousso') => gardeSelonLaPhrase(a, comprendsLaPhrase(q, o), { payeDe: () => paye, nomDe: () => nom, aujourdhui: AUJ });
 dit('la phrase filtre : impayes de septembre ; un annule n est jamais un impaye', [true, false, false],
