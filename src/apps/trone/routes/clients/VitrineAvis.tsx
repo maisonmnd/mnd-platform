@@ -14,6 +14,8 @@ import {
   type AvisDuReleve, type FiltreDesAvis, type LienDAvis,
 } from '../../../../shared/avis-fiches-pur';
 import { delieLAvis, marqueSansFiche, relieLAvis, useLiensDesAvis, type IssueDuLien } from '../../../../shared/avis-fiches';
+import { poseLesAvisChoisis, vitrineConfigStore } from '../../../../shared/bridges';
+import { avisAMontrer, basculeLeChoix, choixDisparus, deplaceLeChoix, mentionDuTri } from '../../../../shared/avis-google-pur';
 import { staffAccessStore, useEnvois } from '../equipe/data';
 import { BandeDeVitrine, Pastille } from './VitrineSite';
 import { ReponseAUnAvis, usePeutRepondreAuxAvis } from './ReponseAUnAvis';
@@ -35,7 +37,20 @@ import './avis-google.css';
    son API (demande refusée deux fois le 20 octobre), la réponse se copie et
    se colle (`ReponseAUnAvis`, inchangée). Le départ seul des réponses de 4
    et 5 étoiles (6 h pour l'arrêter, jamais de 20 h à 8 h) se construira le
-   jour où Google dira oui. */
+   jour où Google dira oui.
+
+   25 OCTOBRE 2026 : LE CHOIX DES AVIS DU SITE VIENT ICI. « Je veux les
+   sélectionner, les avis Google qui sont sur le site, mais je veux
+   également répondre aux avis Google depuis ici » (Yéman). La case « Site »
+   de chaque rangée coche l'avis pour maisonmnd.com, le filtre « Sur le
+   site » les range dans l'ordre de la page, et le panneau les monte ou les
+   descend. Mêmes juges, même document qu'avant (`avis-google-pur`,
+   `mnd_vitrine_config.avisChoisis`) : seul l'écran a changé de place, et
+   « Le site public » n'en garde qu'un résumé (un réglage, une place). */
+
+/** Le filtre « Sur le site » s'ajoute à ceux des réponses et des fiches :
+    il ne dépend que du choix de la Maison, pas des brouillons ni des liens. */
+type Filtre = FiltreDesAvis | 'site';
 
 const ETOILES = (n: number) => '★'.repeat(Math.max(0, Math.min(5, Math.round(n)))) + '☆'.repeat(5 - Math.max(0, Math.min(5, Math.round(n))));
 
@@ -175,6 +190,37 @@ function FicheDeLAvis({ a, releveLe, peutRelier }: { a: AvisDuReleve; releveLe?:
   );
 }
 
+/** SUR LE SITE, dans le panneau de l'avis : sa place sur la page, monter,
+    descendre, retirer ; ou le montrer. `place` est son rang parmi les avis
+    que le site montre vraiment (un coché que Google ne renvoie plus ne
+    compte pas, et n'a pas de panneau) ; les flèches suivent l'ordre gardé,
+    celui que le site lit. */
+function SurLeSite({ id, choisis, place, pose }: { id: string; choisis: readonly string[]; place: number; pose: (liste: string[]) => void }) {
+  const i = choisis.indexOf(id);
+  if (i < 0) {
+    return (
+      <div className="trc-avisg__cadre trc-avisg__cadre--site">
+        <span className="trc-avisg__titre">Sur le site</span>
+        <span className="mnd-muted">Pas choisi pour maisonmnd.com.</span>
+        <span className="trc-avisg__gestes">
+          <Button variant="indigo" size="sm" onClick={() => pose(basculeLeChoix(choisis, id))}>Montrer sur le site</Button>
+        </span>
+      </div>
+    );
+  }
+  return (
+    <div className="trc-avisg__cadre trc-avisg__cadre--site">
+      <span className="trc-avisg__titre">Sur le site</span>
+      <span><b>{place === 0 ? '1er' : `${place + 1}e`}</b> avis montré sur maisonmnd.com.</span>
+      <span className="trc-avisg__gestes">
+        <Button variant="ghost" size="sm" disabled={i === 0} onClick={() => pose(deplaceLeChoix(choisis, id, -1))}>Monter</Button>
+        <Button variant="ghost" size="sm" disabled={i === choisis.length - 1} onClick={() => pose(deplaceLeChoix(choisis, id, 1))}>Descendre</Button>
+        <button type="button" className="trc-c360-linkbtn" onClick={() => pose(basculeLeChoix(choisis, id))}>Retirer du site</button>
+      </span>
+    </div>
+  );
+}
+
 export function VitrineAvis({ ouvrir }: { ouvrir?: string }) {
   const releve = useReleveDesAvis();
   const [brouillons] = useBrouillonsDAvis();
@@ -184,7 +230,8 @@ export function VitrineAvis({ ouvrir }: { ouvrir?: string }) {
   const acces = useStore(staffAccessStore)[0];
   const peutRepondre = usePeutRepondreAuxAvis();
   const peutRelier = peutDemander(staff?.role, 'avis', acces[staff?.user_id ?? '']);
-  const [filtre, setFiltre] = useState<FiltreDesAvis>('tous');
+  const [cfg] = useStore(vitrineConfigStore);
+  const [filtre, setFiltre] = useState<Filtre>('tous');
   const [ouvert, setOuvert] = useState<string | null>(ouvrir ?? null);
   useEffect(() => { if (ouvrir) setOuvert(ouvrir); }, [ouvrir]);
 
@@ -194,9 +241,22 @@ export function VitrineAvis({ ouvrir }: { ouvrir?: string }) {
      (cinq au plus, un à la fois), comme ils le faisaient sous le site. */
   usePrepareLesBrouillons(avis, peutRepondre);
 
+  /* Le choix du site : la case écrit le document de la vitrine en direct,
+     le site le relit à chaque visite. */
+  const choisis = cfg.avisChoisis ?? [];
+  const pose = (liste: string[]) => poseLesAvisChoisis(liste);
+  const vueDuSite = avisAMontrer(avis ?? [], choisis);
+  const disparus = avis ? choixDisparus(choisis, avis) : [];
+  const placeSurLeSite = (id: string) => (vueDuSite.mode === 'choix' ? vueDuSite.avis.findIndex((x) => idDeLAvis(x) === id) : -1);
+
   const nomDe = (cid: string) => clients.find((c) => c.id === cid)?.name || 'une fiche effacée';
   const comptes = useMemo(() => compteParFiltre(avis ?? [], brouillons, liens, releveLe), [avis, brouillons, liens, releveLe]);
-  const vus = (avis ?? []).filter((a) => passeLeFiltre(a, filtre, brouillons[idDeLAvis(a)], liens[idDeLAvis(a)], releveLe));
+  /* « Sur le site » : ce que la page montre, dans son ordre (les choisis, ou
+     ceux de Google quand rien n'est coché). Les autres filtres gardent
+     l'ordre du relevé. */
+  const vus = filtre === 'site'
+    ? vueDuSite.avis
+    : (avis ?? []).filter((a) => passeLeFiltre(a, filtre, brouillons[idDeLAvis(a)], liens[idDeLAvis(a)], releveLe));
 
   return (
     <>
@@ -205,6 +265,13 @@ export function VitrineAvis({ ouvrir }: { ouvrir?: string }) {
         {releve && <Pastille>{`${releve.note.toLocaleString('fr-FR')} ★ · ${releve.nombre} avis`}</Pastille>}
         {releve && <Pastille ton={comptes.sans > 0 ? 'attente' : 'ok'}>{comptes.sans > 0 ? `${comptes.sans} sans réponse` : 'Chaque avis a sa réponse'}</Pastille>}
         {releve && comptes.relier > 0 && <Pastille ton="attente">{`${comptes.relier} à relier`}</Pastille>}
+        {releve && (
+          <Pastille ton={vueDuSite.mode === 'choix' ? 'ok' : undefined}>
+            {vueDuSite.mode === 'choix'
+              ? `Sur le site : ${vueDuSite.avis.length} avis choisi${vueDuSite.avis.length > 1 ? 's' : ''}`
+              : 'Sur le site : ceux de Google'}
+          </Pastille>
+        )}
         <Pastille>Envoi à Google : en attente de l’accès Google</Pastille>
         {releve?.fiche && <a className="mnd-btn mnd-btn--ghost" href={releve.fiche} target="_blank" rel="noreferrer">La fiche Google</a>}
       </BandeDeVitrine>
@@ -213,16 +280,31 @@ export function VitrineAvis({ ouvrir }: { ouvrir?: string }) {
 
       {releve && (
         <div className="trc-avisg">
-          <Segs<FiltreDesAvis>
+          <Segs<Filtre>
             options={[
               { value: 'tous', label: `Tous · ${comptes.tous}` },
               { value: 'sans', label: `Sans réponse · ${comptes.sans}` },
               { value: 'relier', label: `À relier · ${comptes.relier}` },
               { value: 'repondus', label: `Répondus · ${comptes.repondus}` },
+              { value: 'site', label: `Sur le site · ${vueDuSite.avis.length}` },
             ]}
             value={filtre}
             onChange={setFiltre}
           />
+
+          {filtre === 'site' && vueDuSite.mode === 'google' && vueDuSite.avis.length > 0 && (
+            <p className="mnd-muted" style={{ fontSize: 12.5, margin: 0 }}>
+              Rien de coché : le site montre les avis de Google, dans leur ordre. Cochez « Site » sur un avis pour choisir vous-même.
+            </p>
+          )}
+          {disparus.length > 0 && (
+            <p className="trc-avisg__disparus">
+              {disparus.length > 1
+                ? `${disparus.length} avis cochés que Google ne renvoie plus : ils ne s’affichent plus sur le site.`
+                : '1 avis coché que Google ne renvoie plus : il ne s’affiche plus sur le site.'}
+              <button type="button" className="trc-c360-linkbtn" onClick={() => pose(choisis.filter((c) => !disparus.includes(c)))}>Retirer</button>
+            </p>
+          )}
 
           <div className="trc-avisg__liste">
             {vus.length === 0 && <p className="mnd-muted" style={{ fontSize: 12.5 }}>Rien dans ce filtre.</p>}
@@ -231,16 +313,25 @@ export function VitrineAvis({ ouvrir }: { ouvrir?: string }) {
               const estOuvert = ouvert === id;
               const jour = jourDeLAvis(a, releveLe);
               const original = typeof a.texteOriginal === 'string' && a.texteOriginal.trim() && a.texteOriginal.trim() !== a.texte.trim() ? a.texteOriginal.trim() : '';
+              const coche = choisis.includes(id);
+              const place = placeSurLeSite(id);
               return (
                 <div key={id} className={`trc-avisg__avis${estOuvert ? ' is-open' : ''}`}>
-                  <button type="button" className="trc-avisg__ligne" aria-expanded={estOuvert} onClick={() => setOuvert(estOuvert ? null : id)}>
-                    <span className="trc-avisg__etoiles" aria-label={`${a.note} étoiles sur 5`}>{ETOILES(a.note)}</span>
-                    <span className="trc-avisg__qui">
-                      <b>{a.auteur || 'Sans nom'}</b>
-                      <span className="mnd-muted">{` · ${jour ? jourCourtAn(jour) : a.quand}`}{a.texte ? ` · ${a.texte}` : ''}</span>
-                    </span>
-                    <EtatsDeLaLigne a={a} releveLe={releveLe} nomDe={nomDe} />
-                  </button>
+                  <div className="trc-avisg__rangee">
+                    <label className={`trc-avisg__site${coche ? ' is-on' : ''}`}>
+                      <input type="checkbox" checked={coche} onChange={() => pose(basculeLeChoix(choisis, id))}
+                        aria-label={`Montrer l’avis de ${a.auteur || 'sans nom'} sur le site`} />
+                      <span aria-hidden="true">{coche && place >= 0 ? `Site · ${place + 1}` : 'Site'}</span>
+                    </label>
+                    <button type="button" className="trc-avisg__ligne" aria-expanded={estOuvert} onClick={() => setOuvert(estOuvert ? null : id)}>
+                      <span className="trc-avisg__etoiles" aria-label={`${a.note} étoiles sur 5`}>{ETOILES(a.note)}</span>
+                      <span className="trc-avisg__qui">
+                        <b>{a.auteur || 'Sans nom'}</b>
+                        <span className="mnd-muted">{` · ${jour ? jourCourtAn(jour) : a.quand}`}{a.texte ? ` · ${a.texte}` : ''}</span>
+                      </span>
+                      <EtatsDeLaLigne a={a} releveLe={releveLe} nomDe={nomDe} />
+                    </button>
+                  </div>
                   {estOuvert && (
                     <div className="trc-avisg__dedans">
                       {original || a.texte
@@ -248,6 +339,7 @@ export function VitrineAvis({ ouvrir }: { ouvrir?: string }) {
                           {original && <span className="mnd-muted">{`Écrit en ${langueDite(a.langueOriginale?.split('-')[0])}. Google le traduit : « ${a.texte} »`}</span>}
                         </p>
                         : <p className="mnd-muted" style={{ fontSize: 12.5 }}>Une note seulement, sans texte.</p>}
+                      <SurLeSite id={id} choisis={choisis} place={place} pose={pose} />
                       <FicheDeLAvis a={a} releveLe={releveLe} peutRelier={peutRelier} />
                       <ReponseAUnAvis avis={a} fiche={releve.fiche} sansRetrait />
                     </div>
@@ -260,7 +352,7 @@ export function VitrineAvis({ ouvrir }: { ouvrir?: string }) {
           <p className="mnd-muted" style={{ fontSize: 11.5, lineHeight: 1.5 }}>
             {releveLe ? `Relevé le ${jourCourtAn(releveLe.slice(0, 10))}, deux fois par jour. ` : ''}
             Tant que Google n’a pas ouvert son accès à la Maison, le relevé ne voit que les cinq avis qu’il juge « les plus pertinents » : un nouvel avis peut ne pas paraître ici.
-            Le choix des avis montrés sur le site reste dans « Le site public ».
+            {` La case « Site » choisit les avis que montre maisonmnd.com ; rien de coché, le site montre ceux de Google. Sous les avis, le site écrit : « ${mentionDuTri(vueDuSite.mode)} »`}
           </p>
         </div>
       )}

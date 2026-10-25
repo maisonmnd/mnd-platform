@@ -79,14 +79,21 @@ dit('site : avisAMontrer sur le choix lu, la liste affichee est la sienne, la me
 const maison = sansCom('src/apps/revelateur/maison.ts');
 dit('site : le choix se lit dans mnd_vitrine_config (lisible sans compte)', true,
   new RegExp(String.raw`export async function avisChoisis\(\)[\s\S]{0,300}eq\('key', 'mnd_vitrine_config'\)`).test(maison));
-const trone = sansCom('src/apps/trone/routes/clients/VitrineSite.tsx');
-dit('Trone : le choix s ecrit dans avisChoisis, par les fonctions du juge', [true, true, true, true], [
+/* 25 octobre 2026 : le choix a déménagé dans « Les avis Google » (la case
+   « Site » de chaque rangée) ; « Le site public » n'en garde qu'un résumé,
+   qui lit le même juge et n'écrit plus rien. */
+const trone = sansCom('src/apps/trone/routes/clients/VitrineAvis.tsx');
+dit('Trone : le choix s ecrit dans avisChoisis, par les fonctions du juge, depuis l onglet des avis', [true, true, true, true, true], [
   /const pose = \(liste: string\[\]\) => poseLesAvisChoisis\(liste\);/.test(trone)
     && new RegExp(String.raw`export const poseLesAvisChoisis = \(liste: string\[\]\): void =>\s*vitrineConfigStore\.set\(\(c\) => \(\{ \.\.\.c, avisChoisis: liste \}\)\)`).test(sansCom('src/shared/bridges.ts')),
-  new RegExp(String.raw`basculeLeChoix\(choisis, cle\)`).test(trone),
-  new RegExp(String.raw`deplaceLeChoix\(choisis, cle, -1\)`).test(trone),
-  new RegExp(String.raw`<ChoixDesAvis avis=`).test(trone),
+  new RegExp(String.raw`basculeLeChoix\(choisis, id\)`).test(trone),
+  new RegExp(String.raw`deplaceLeChoix\(choisis, id, -1\)`).test(trone),
+  new RegExp(String.raw`<SurLeSite id=\{id\}`).test(trone),
+  new RegExp(String.raw`const vueDuSite = avisAMontrer\(avis \?\? \[\], choisis\);`).test(trone),
 ]);
+const resume = sansCom('src/apps/trone/routes/clients/VitrineSite.tsx');
+dit('Le site public : un resume par le meme juge, sans rien ecrire', [true, true, false],
+  [/<AvisDuSite avis=/.test(resume), /const vue = avisAMontrer\(tous, cfg\.avisChoisis\);/.test(resume), /poseLesAvisChoisis|basculeLeChoix|deplaceLeChoix/.test(resume)]);
 const pur = sansCom('src/shared/avis-google-pur.ts');
 dit('le juge est pur : aucun import', false, /^\s*import\s/m.test(pur));
 

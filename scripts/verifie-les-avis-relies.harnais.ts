@@ -209,8 +209,8 @@ const alerte = (() => {
     [/value: 'comptoir', label: 'La carte du comptoir' \},\s*\{ value: 'avis', label: 'Les avis Google' \}/.test(vitrine), /<VitrineAvis /.test(vitrine),
       /params\.get\('onglet'\)/.test(vitrine), /versLesAvis=\{\(\) => setOnglet\('avis'\)\}/.test(vitrine)]);
   const site = sansCommentaires(lis('src/apps/trone/routes/clients/VitrineSite.tsx'));
-  dit('« Le site public » garde le choix des avis du site, sans les réponses, avec le chemin vers l onglet', [true, false, false, true],
-    [/<ChoixDesAvis /.test(site), /<ReponseAUnAvis/.test(site), /<EnTeteDesReponses/.test(site), /onClick=\{versLesAvis\}/.test(site)]);
+  dit('« Le site public » montre les avis du site sans les choisir (25 oct. : le choix est dans l onglet), sans les réponses, avec le chemin vers l onglet', [true, false, false, true],
+    [/<AvisDuSite /.test(site), /<ReponseAUnAvis/.test(site), /<EnTeteDesReponses/.test(site), /onClick=\{versLesAvis\}/.test(site)]);
   const onglet = sansCommentaires(lis('src/apps/trone/routes/clients/VitrineAvis.tsx'));
   dit('l onglet : la réponse sous chaque avis, les brouillons préparés à l ouverture, la fiche de l avis', [true, true, true],
     [/<ReponseAUnAvis avis=\{a\} fiche=\{releve\.fiche\} sansRetrait \/>/.test(onglet), /usePrepareLesBrouillons\(avis, peutRepondre\)/.test(onglet), /<FicheDeLAvis /.test(onglet)]);

@@ -42,7 +42,7 @@ const PANNES = [
   ['le site ne dit plus la mention', 'src/apps/revelateur/ilots/Avis.tsx', '{mentionDuTri(vue.mode)}', "{''}"],
   ['le site affiche encore tous les avis de Google', 'src/apps/revelateur/ilots/Avis.tsx', '{vue.avis.map((a, i) => (', '{avis.avis.map((a, i) => ('],
   ['le Trone ecrit sous un autre nom', 'src/shared/bridges.ts', 'avisChoisis: liste }', 'avisChoisi: liste }'],
-  ['l onglet du site ecrit la vitrine en direct', 'src/apps/trone/routes/clients/VitrineSite.tsx', 'const pose = (liste: string[]) => poseLesAvisChoisis(liste);', 'const pose = (liste: string[]) => vitrineConfigStore.set((c) => ({ ...c, avisChoisis: liste }));'],
+  ['l onglet des avis ecrit la vitrine en direct', 'src/apps/trone/routes/clients/VitrineAvis.tsx', 'const pose = (liste: string[]) => poseLesAvisChoisis(liste);', 'const pose = (liste: string[]) => vitrineConfigStore.set((c) => ({ ...c, avisChoisis: liste }));'],
 ];
 
 const md5 = (f) => createHash('md5').update(readFileSync(path.join(racine, f))).digest('hex');

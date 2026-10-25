@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
@@ -13,10 +13,8 @@ import { compteSansReponse } from '../../../../shared/ia-avis-pur';
 import { useBrouillonsDAvis } from '../../../../shared/ia-avis';
 import { useBrouillonDuSite, changementsEnAttente } from '../../../../shared/site-retouches-store';
 import { useStore } from '../../../../shared/store';
-import { poseLesAvisChoisis, vitrineConfigStore } from '../../../../shared/bridges';
-import {
-  avisAMontrer, basculeLeChoix, choixDisparus, cleDeLAvis, deplaceLeChoix, mentionDuTri, type UnAvisGoogle,
-} from '../../../../shared/avis-google-pur';
+import { vitrineConfigStore } from '../../../../shared/bridges';
+import { avisAMontrer, cleDeLAvis, mentionDuTri, type UnAvisGoogle } from '../../../../shared/avis-google-pur';
 
 /* ══ LE SITE PUBLIC, VU DU TRÔNE — 4 octobre 2026 ═════════════════════
    « Cette page ne sert absolument à rien. Mettre le site public sur cette
@@ -114,65 +112,38 @@ function usePagesDuSite(): string[] {
    derniers sur mon site en permanence » (Yéman). On coche parmi les avis du
    moment (cinq au plus, relus deux fois par jour) ; rien de coché, le site
    montre ceux de Google. Le juge et la mention vivent dans
-   shared/avis-google-pur, le même module que le site. */
-function ChoixDesAvis({ avis, versLesAvis }: { avis: UnAvisGoogle[] | null; versLesAvis?: () => void }) {
+   shared/avis-google-pur, le même module que le site.
+
+   25 octobre 2026 : LE CHOIX A DÉMÉNAGÉ dans « Les avis Google », où l'on
+   répond aussi (« je veux les sélectionner… et répondre depuis ici »). Un
+   réglage, une place : ce bloc ne fait plus que MONTRER ce que la page
+   montre, dans son ordre, et mène à l'onglet. */
+function AvisDuSite({ avis, versLesAvis }: { avis: UnAvisGoogle[] | null; versLesAvis?: () => void }) {
   const [cfg] = useStore(vitrineConfigStore);
   const [brouillons] = useBrouillonsDAvis();
-  const choisis = cfg.avisChoisis ?? [];
-  const pose = (liste: string[]) => poseLesAvisChoisis(liste);
   const tous = avis ?? [];
-  const vue = avisAMontrer(tous, choisis);
-  const disparus = choixDisparus(choisis, tous);
-  /* Les cochés d'abord, dans l'ordre du site, puis les autres dans celui de
-     Google : l'écran se lit comme la page. */
-  const rangs = tous.map((a, i) => ({ a, cle: cleDeLAvis(a), i }))
-    .map((x) => ({ ...x, rang: choisis.indexOf(x.cle) }))
-    .sort((x, y) => (x.rang >= 0 ? x.rang : 1000 + x.i) - (y.rang >= 0 ? y.rang : 1000 + y.i));
+  const vue = avisAMontrer(tous, cfg.avisChoisis);
+  const sans = compteSansReponse(tous, brouillons);
   return (
-    <Bloc titre="Les avis Google du site" ou="Cochez ceux que le site montre, dans l’ordre de votre choix. Google en renvoie cinq au plus, relus deux fois par jour : un avis qu’il ne renvoie plus quitte le site, même coché. Rien de coché : le site montre ceux de Google.">
+    <Bloc titre="Les avis Google du site" ou="Ce que maisonmnd.com montre, dans cet ordre. Le choix se fait dans « Les avis Google » : la case « Site » sur chaque avis.">
       {!avis && <span className="mnd-muted" style={{ fontSize: 12.5 }}>Les avis ne sont pas encore relevés.</span>}
-      {/* 20 octobre 2026 : les réponses et les fiches ont leur onglet, « Les avis Google ».
-          Ici, seulement ce que le site montre, et le chemin vers l'onglet. */}
-      {versLesAvis && tous.length > 0 && (
+      {vue.avis.map((a, i) => (
+        <Ligne key={cleDeLAvis(a)}
+          gauche={<><span className="mnd-muted" style={{ fontVariantNumeric: 'tabular-nums' }}>{i + 1}. </span><span style={{ color: 'var(--color-copper)' }}>{'★'.repeat(Math.max(0, Math.min(5, Math.round(a.note))))}</span> <b style={{ fontWeight: 600 }}>{a.auteur || 'Sans nom'}</b></>}
+          sous={a.texte.length > 120 ? `${a.texte.slice(0, 117).trimEnd()}…` : a.texte} />
+      ))}
+      {avis && (
+        <span className="mnd-muted" style={{ fontSize: 11.5, lineHeight: 1.5 }}>
+          {vue.mode === 'choix'
+            ? `Choisis par la Maison, avec la mention « ${mentionDuTri('choix')} »`
+            : `Rien de coché : les avis de Google, avec la mention « ${mentionDuTri('google')} »`}
+        </span>
+      )}
+      {versLesAvis && (
         <button type="button" className="trc-c360-linkbtn" style={{ alignSelf: 'flex-start' }} onClick={versLesAvis}>
-          {(() => { const n = compteSansReponse(tous, brouillons); return n > 0 ? `${n} sans réponse · répondre dans « Les avis Google » →` : 'Les réponses et les fiches : « Les avis Google » →'; })()}
+          {sans > 0 ? `Choisir, et répondre aux ${sans} sans réponse, dans « Les avis Google » →` : 'Choisir les avis du site dans « Les avis Google » →'}
         </button>
       )}
-      {rangs.map(({ a, cle, rang }) => (
-        <Fragment key={cle}>
-        <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start', borderTop: '1px solid var(--hairline)', paddingTop: 7 }}>
-          <input type="checkbox" checked={rang >= 0} onChange={() => pose(basculeLeChoix(choisis, cle))}
-            aria-label={`Montrer l’avis de ${a.auteur} sur le site`} style={{ marginTop: 3, flex: 'none' }} />
-          <span style={{ flex: 1, minWidth: 0, fontSize: 13 }}>
-            <span style={{ color: 'var(--color-copper)' }}>{'★'.repeat(Math.max(0, Math.min(5, Math.round(a.note))))}</span>{' '}
-            <b style={{ fontWeight: 600 }}>{a.auteur || 'Sans nom'}</b>
-            {a.quand ? <span className="mnd-muted"> · {a.quand}</span> : null}
-            <span className="mnd-muted" style={{ display: 'block', fontSize: 12, lineHeight: 1.45, marginTop: 2 }}>
-              {a.texte.length > 180 ? `${a.texte.slice(0, 177).trimEnd()}…` : a.texte}
-            </span>
-          </span>
-          {rang >= 0 && (
-            <span style={{ display: 'flex', gap: 4, alignItems: 'center', flex: 'none' }}>
-              <span className="mnd-muted" style={{ fontSize: 11.5, minWidth: 14, textAlign: 'right' }}>{rang + 1}</span>
-              <button type="button" className="trc-c360-linkbtn" disabled={rang === 0} aria-label="Monter"
-                onClick={() => pose(deplaceLeChoix(choisis, cle, -1))}>↑</button>
-              <button type="button" className="trc-c360-linkbtn" disabled={rang === choisis.length - 1} aria-label="Descendre"
-                onClick={() => pose(deplaceLeChoix(choisis, cle, 1))}>↓</button>
-            </span>
-          )}
-        </div>
-        </Fragment>
-      ))}
-      {disparus.length > 0 && (
-        <Ligne gauche={disparus.length > 1 ? `${disparus.length} avis cochés que Google ne renvoie plus` : '1 avis coché que Google ne renvoie plus'}
-          sous="il ne s’affiche plus sur le site"
-          droite={<button type="button" className="trc-c360-linkbtn" onClick={() => pose(choisis.filter((c) => !disparus.includes(c)))}>Retirer</button>} />
-      )}
-      <span className="mnd-muted" style={{ fontSize: 11.5, lineHeight: 1.5 }}>
-        {vue.mode === 'choix'
-          ? `Le site montre ${vue.avis.length > 1 ? `ces ${vue.avis.length} avis` : 'cet avis'}, dans cet ordre, avec la mention « ${mentionDuTri('choix')} »`
-          : `Rien de coché : le site montre les avis de Google, avec la mention « ${mentionDuTri('google')} »`}
-      </span>
     </Bloc>
   );
 }
@@ -252,7 +223,7 @@ export function VitrineSite({ catalogue, versLesAvis }: { catalogue: ReactNode; 
           <Ligne gauche="Cartes cadeaux payées en ligne" sous="KkiaPay" droite={<Lien vers="/cartes-cadeaux">Les cartes →</Lien>} />
         </Bloc>
 
-        <ChoixDesAvis avis={avis ? avis.avis : null} versLesAvis={versLesAvis} />
+        <AvisDuSite avis={avis ? avis.avis : null} versLesAvis={versLesAvis} />
 
         <Bloc titre="Les pages du site" ou="Lues dans le plan du site. Pour changer un texte ou une photo : « Modifier les textes et photos », en haut.">
           {pages.length === 0 && <span className="mnd-muted" style={{ fontSize: 12.5 }}>Le plan du site n’a pas pu être lu (hors ligne ?).</span>}

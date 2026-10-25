@@ -7,22 +7,42 @@
 .trc-avisg__liste { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
 .trc-avisg__avis { background: var(--surface-card); border: 1px solid var(--hairline); border-radius: 6px; min-width: 0; }
 .trc-avisg__avis.is-open { border-color: var(--copper-300, #E3C9AE); box-shadow: 0 4px 14px rgba(154, 96, 54, .10); }
-.trc-avisg__ligne {
-  all: unset; box-sizing: border-box; cursor: pointer; width: 100%;
-  display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 4px 10px; align-items: center;
-  padding: 10px 12px; border-radius: 6px; background: var(--surface-card);
+/* 25 octobre 2026 : la rangée porte la case « Site » (le choix des avis du
+   site, venu de « Le site public ») À CÔTÉ du bouton de la ligne : une case
+   dans un bouton n'est pas du HTML valide, et chaque geste garde le sien. */
+.trc-avisg__rangee {
+  display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center;
+  border-radius: 6px; background: var(--surface-card);
 }
-.trc-avisg__avis.is-open > .trc-avisg__ligne {
+.trc-avisg__avis.is-open > .trc-avisg__rangee {
   position: sticky; top: env(safe-area-inset-top, 0px); z-index: 2;
   border-bottom: 1px solid var(--hairline); border-radius: 6px 6px 0 0;
 }
+.trc-avisg__site {
+  display: flex; gap: 6px; align-items: center; align-self: stretch; cursor: pointer; white-space: nowrap;
+  padding: 0 4px 0 12px; font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-soft);
+  font-variant-numeric: tabular-nums;
+}
+.trc-avisg__site input { margin: 0; flex: none; accent-color: var(--color-copper); }
+.trc-avisg__site.is-on { color: var(--copper-700); }
+.trc-avisg__ligne {
+  all: unset; box-sizing: border-box; cursor: pointer; width: 100%;
+  display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 4px 10px; align-items: center;
+  padding: 10px 12px 10px 8px; border-radius: 6px; background: var(--surface-card);
+}
+.trc-avisg__disparus { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin: 0; font-size: 12.5px; color: var(--copper-700); }
+.trc-avisg__cadre--site { background: var(--copper-50, #FAF1E9); border: 1px solid var(--copper-300, #E3C9AE); }
 .trc-avisg__ligne:focus-visible { outline: 2px solid var(--color-copper); outline-offset: -2px; }
 .trc-avisg__etoiles { color: var(--color-copper); font-size: 13px; letter-spacing: 1px; white-space: nowrap; }
 .trc-avisg__qui { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13.5px; }
 .trc-avisg__qui b { font-weight: 600; color: var(--color-indigo); }
 .trc-avisg__qui .mnd-muted { font-size: 12.5px; }
 .trc-avisg__etats { display: flex; gap: 5px; flex-wrap: wrap; justify-content: flex-end; }
+/* Cinq filtres depuis le 25 octobre (« Sur le site ») : ils passent à la
+   ligne plutôt que de se couper, et sur un téléphone se rangent par deux. */
+.trc-avisg > .mnd-segs { flex-wrap: wrap; max-width: 100%; align-self: flex-start; }
 @media (max-width: 640px) {
+  .trc-avisg > .mnd-segs { display: grid; grid-template-columns: 1fr 1fr; width: 100%; }
   .trc-avisg__ligne { grid-template-columns: auto minmax(0, 1fr); }
   .trc-avisg__etats { grid-column: 1 / -1; justify-content: flex-start; }
 }

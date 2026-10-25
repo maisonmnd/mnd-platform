@@ -59,6 +59,10 @@ export function ReponseAUnAvis({ avis, fiche, sansRetrait }: { avis: AvisAvecRep
   const peut = usePeutRepondreAuxAvis();
   const [brouillons] = useBrouillonsDAvis();
   const [occupe, setOccupe] = useState(false);
+  /* 25 octobre 2026 : « répondre depuis ici », aussi sans Claude. La zone
+     s'ouvre vide, et ce qu'on y tape est le brouillon (Claude ne repasse
+     pas sur un avis qui a déjà un texte). */
+  const [aLaMain, setALaMain] = useState(false);
   const zone = useRef<HTMLTextAreaElement>(null);
   const id = idDeLAvis(avis);
   const b = brouillons[id];
@@ -122,39 +126,47 @@ export function ReponseAUnAvis({ avis, fiche, sansRetrait }: { avis: AvisAvecRep
     );
   }
 
-  if (!b?.reponse) {
+  if (!b?.reponse && !aLaMain) {
     return (
       <div style={{ marginLeft: retrait, marginTop: 4, display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
         <span className="mnd-muted" style={{ fontSize: 11.5 }}>{enCours ? 'Claude écrit une proposition…' : 'Pas encore de proposition.'}</span>
         {!enCours && <Petit onClick={() => void demande()}>Proposer une réponse</Petit>}
+        {!enCours && <Petit onClick={() => setALaMain(true)}>Écrire moi-même</Petit>}
         {dejaRepondu}
       </div>
     );
   }
+  const texte = b?.reponse ?? '';
+  /* `le` n'est posé que par une proposition de Claude. */
+  const deClaude = !!b?.le;
 
   return (
     <div style={{ marginLeft: retrait, marginTop: 6, display: 'flex', flexDirection: 'column', gap: 6 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'baseline', flexWrap: 'wrap' }}>
         <span style={{ fontSize: 12, color: 'var(--copper-700)' }}>
-          Réponse proposée, en {langueDite(b.langue)}, à vérifier
-          {b.le ? <span className="mnd-muted">{` · ${jourCourtAn(jourLocalDe(b.le))}`}</span> : null}
+          {deClaude ? `Réponse proposée, en ${langueDite(b?.langue)}, à vérifier` : 'Votre réponse'}
+          {b?.le ? <span className="mnd-muted">{` · ${jourCourtAn(jourLocalDe(b.le))}`}</span> : null}
         </span>
-        <Petit onClick={() => ecarteLeBrouillon(id)} disabled={enCours}>Écarter</Petit>
+        <Petit onClick={() => { setALaMain(false); ecarteLeBrouillon(id); }} disabled={enCours}>Écarter</Petit>
       </div>
       <textarea
         className="mnd-textarea"
         ref={zone}
-        value={b.reponse}
+        value={texte}
         onChange={(e) => changeLeBrouillon(id, e.target.value)}
         disabled={enCours}
-        rows={Math.min(8, Math.max(3, b.reponse.split('\n').length + 1))}
-        aria-label={`Réponse proposée à l’avis de ${avis.auteur || 'sans nom'}`}
+        autoFocus={aLaMain && !texte}
+        placeholder="Merci pour votre avis…"
+        rows={Math.min(8, Math.max(3, texte.split('\n').length + 1))}
+        aria-label={`Réponse à l’avis de ${avis.auteur || 'sans nom'}`}
         style={{ background: 'var(--copper-50, #FAF1E9)', border: '1px solid var(--copper-300, #E3C9AE)', fontSize: 13, lineHeight: 1.45 }}
       />
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
         <Button variant="copper" size="sm" onClick={() => void copier()} disabled={enCours}>Copier</Button>
         <a className="mnd-btn mnd-btn--ghost mnd-btn--sm" href={lien} target="_blank" rel="noreferrer">Ouvrir l’avis sur Google</a>
-        <Button variant="ghost" size="sm" onClick={() => void demande()} disabled={enCours}>{enCours ? 'Claude écrit…' : 'Une autre'}</Button>
+        {(deClaude || enCours || !texte.trim()) && (
+          <Button variant="ghost" size="sm" onClick={() => void demande()} disabled={enCours}>{enCours ? 'Claude écrit…' : 'Une autre'}</Button>
+        )}
       </div>
       <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
         <span className="mnd-muted" style={{ fontSize: 11.5, lineHeight: 1.45 }}>Google exige que la réponse soit publiée par vous : on copie, on colle.</span>
