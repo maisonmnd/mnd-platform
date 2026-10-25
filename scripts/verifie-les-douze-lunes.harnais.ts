@@ -466,7 +466,9 @@ const regles: Regle[] = [
         Object.fromEntries([...poses.parFiche.keys()].sort().map((k) => [k, idsDe(k)])));
       vaut('aucun echo, aucun rang, aucun defi, malgre le reglage perime', [],
         [...poses.parFiche.values()].flat().filter((s) => /^(echo|rang|defi)-/.test(s.id) || s.source !== 'amie').map((s) => s.id));
-      vaut('un remerciement par merci pose', 5, poses.mercis.length);
+      /* Jamais pour un rattrapage (25 octobre 2026) : le 20 octobre, les cinq venues ont plus d'un jour. */
+      vaut('aucun remerciement pour des venues de plus d un jour', 0, poses.mercis.length);
+      vaut('... un remerciement pour l amie venue la veille (Rama, le 15)', ['Rama'], recompensesAPoser(r5Fiches, L, reglage, '2026-10-16').mercis.map((m) => m.prenomFilleule));
       vaut('la reservation du site recompensee est marquee', ['d-nadia'], poses.demandesMarquees);
       vaut('sans lancement : aucun merci', 0, recompensesAPoser(r5Fiches, L, { ...PERIME }, AUJ).parFiche.size);
       vaut('un lancement posterieur aux venues : aucun merci', 0, recompensesAPoser(r5Fiches, L, { ...PERIME, lanceLe: '2026-12-01' }, AUJ).parFiche.size);
@@ -497,6 +499,7 @@ const regles: Regle[] = [
       { nom: 'une lignee nee d un ancien code', mute: [P(MOTEUR, '    const code = codeActifDe(c);\n    if (!c || !code) continue;\n    res.set(code, {', '    const code = codeActifDe(c) ?? c?.codeParrain;\n    if (!c || !code) continue;\n    res.set(code, {')] },
       { nom: 'l archive oubliee : un merci deja recu revient', mute: [P(MOTEUR, 'const deja = new Set([...(c.soinsOfferts ?? []), ...(c.avantLesDouzeLunes?.soinsRetires ?? [])].map((s) => s?.id));', 'const deja = new Set([...(c.soinsOfferts ?? [])].map((s) => s?.id));')] },
       { nom: 'des mercis sans lancement', mute: [P(MOTEUR, '  if (!lance) return poses;\n', '')] },
+      { nom: 'le remerciement part pour un rattrapage', mute: [P(MOTEUR, ' && f.venueLe.slice(0, 10) >= laVeille(aujourdhui);', ';')] },
     ],
   },
 
@@ -938,7 +941,7 @@ const regles: Regle[] = [
       return ecarts;
     },
     pannes: [
-      { nom: 'le remerciement part aussi pour les mercis en retard', mute: [P(MOTEUR, "const merci = !!reglage.merciParWhatsApp && f.venueLe.slice(0, 10) >= (c.graine?.le ?? '9999-12-31');", 'const merci = !!reglage.merciParWhatsApp;')] },
+      { nom: 'le remerciement part aussi pour les mercis en retard', mute: [P(MOTEUR, "const merci = !!reglage.merciParWhatsApp && f.venueLe.slice(0, 10) >= (c.graine?.le ?? '9999-12-31') && f.venueLe.slice(0, 10) >= laVeille(aujourdhui);", 'const merci = !!reglage.merciParWhatsApp;')] },
       { nom: 'l accord promet le silence sans compter', mute: [P(FENETRE, "suite: `${ceQuiSuit(suite, 'Le geste')} Une Graine posée", "suite: `Aucun message ne part. Une Graine posée")] },
       { nom: 'le bandeau promet le silence', mute: [P(PARRAINAGES, 'Relisez la liste ; la ligne dit les mercis qu’elles libèrent.', 'Relisez la liste ; aucun message ne part.')] },
       { nom: 'le compte de l ecran oublie les messages', mute: [P(GESTE, 'const messages = poses.mercis.filter(', 'const messages = 0 * poses.mercis.filter(')] },

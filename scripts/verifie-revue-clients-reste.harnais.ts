@@ -177,8 +177,10 @@ const rdvsSite: RdvLu[] = [...rdvs, { id: 'r2', status: 'honoré', date: '2026-1
 const resa: DemandeLue = { id: 'dS', prenom: 'Efua', telephone: '+2290170000002', createdAt: '2026-10-02T09:00:00Z', codeRaison: 'parrainage', parrainDe: 'AMA-7K2', apptId: 'r2' };
 const p3 = recompensesAPoser([marraineApres, amie], lignees([marraineApres, amie], [resa], rdvsSite), reglage, '2026-10-07');
 dit('F4 rendez-vous du site rattache apres coup : ni seconde recompense ni second merci', [0, 0], [p3.parFiche.size, p3.mercis.length]);
-/* Le sens normal ne bouge pas : sans recompense deja posee, une seule. */
-const p4 = recompensesAPoser([marraine, amie], lignees([marraine, amie], [rappel], rdvs), reglage, '2026-10-07');
+/* Le sens normal ne bouge pas : sans recompense deja posee, une seule.
+   Le lendemain de la venue : le remerciement ne part que le jour meme ou la
+   veille, jamais pour un rattrapage (25 octobre 2026, sa decision). */
+const p4 = recompensesAPoser([marraine, amie], lignees([marraine, amie], [rappel], rdvs), reglage, '2026-10-06');
 dit('F5 sans recompense deja posee, une seule, au nom de la demande', [['parr-dR'], 1, ['dR']],
   [(p4.parFiche.get('m1') ?? []).map((s) => s.id), p4.mercis.length, p4.demandesMarquees]);
 

@@ -277,7 +277,16 @@ dit('la récompense d’une amie est À CHOISIR, avec son soin et sa remise', { 
   { genre: parrD1?.genre, serviceId: parrD1?.serviceId, pct: parrD1?.pct, expireLe: parrD1?.expireLe, source: parrD1?.source });
 dit('les réservations du site récompensées sont marquées', ['d1', 'd2', 'd4'], [...posesA.demandesMarquees].sort());
 dit('aucun remerciement tant que la Maison ne l’a pas allumé', 0, posesA.mercis.length);
-dit('… et un par merci posé quand elle l’allume', 6, recompensesAPoser(ficheA, LA, { ...reglageA, merciParWhatsApp: true }, '2026-10-20', nomsA).mercis.length);
+/* JAMAIS POUR UN RATTRAPAGE (25 octobre 2026, sa décision) : allumé, le
+   remerciement ne part que pour une amie venue le jour même ou la veille.
+   Le 20 octobre, les six venues du banc ont toutes plus d'un jour. */
+dit('… allumé, aucun remerciement pour des venues de plus d’un jour (un rattrapage)', [6, 0],
+  [[...recompensesAPoser(ficheA, LA, { ...reglageA, merciParWhatsApp: true }, '2026-10-20', nomsA).parFiche.values()].flat().length,
+    recompensesAPoser(ficheA, LA, { ...reglageA, merciParWhatsApp: true }, '2026-10-20', nomsA).mercis.length]);
+dit('… un remerciement pour l’amie venue le jour même (Léa, le 14 octobre)', ['Léa'], recompensesAPoser(ficheA, LA, { ...reglageA, merciParWhatsApp: true }, '2026-10-14', nomsA).mercis.map((m) => m.prenomFilleule));
+dit('… pour celle venue la veille, jamais l’avant-veille', [['Léa'], []],
+  [recompensesAPoser(ficheA, LA, { ...reglageA, merciParWhatsApp: true }, '2026-10-15', nomsA).mercis.map((m) => m.prenomFilleule),
+    recompensesAPoser(ficheA, LA, { ...reglageA, merciParWhatsApp: true }, '2026-10-16', nomsA).mercis.map((m) => m.prenomFilleule)]);
 dit('sans lancement (le document des Lunes ne l’a pas dit), aucun merci', 0, recompensesAPoser(ficheA, LA, { ...reglageA, lanceLe: undefined }, '2026-10-20', nomsA).parFiche.size);
 const ficheApres = ficheA.map((c) => ({ ...c, soinsOfferts: [...(c.soinsOfferts ?? []), ...(posesA.parFiche.get(c.id) ?? [])] }));
 dit('rien ne se pose deux fois (deux postes, un passage de plus)', 0, recompensesAPoser(ficheApres, lignees(ficheApres, demA, rdvA), reglageA, '2026-10-21', nomsA).parFiche.size);

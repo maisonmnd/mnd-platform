@@ -243,6 +243,12 @@ export const ajouteMois = (iso: string, mois: number): string => {
   d.setUTCMonth(d.getUTCMonth() + mois);
   return d.toISOString().slice(0, 10);
 };
+/** La veille d'un jour (AAAA-MM-JJ), à midi UTC pour ne jamais glisser. */
+export const laVeille = (iso: string): string => {
+  const d = new Date(`${iso.slice(0, 10)}T12:00:00Z`);
+  d.setUTCDate(d.getUTCDate() - 1);
+  return d.toISOString().slice(0, 10);
+};
 const MOIS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
 export const moisDit = (aaaaMm: string): string => MOIS[Number(aaaaMm.slice(5, 7)) - 1] ?? aaaaMm;
 
@@ -300,8 +306,13 @@ export function recompensesAPoser(
          ne part que pour une amie venue depuis que sa marraine est Graine.
          Venue AVANT (invitée par l'ancien code, décision 5), elle vaut
          toujours son merci, posé EN SILENCE : poser d'un geste quinze
-         Graines, ou baisser N, enverrait sinon quinze messages d'un coup. */
-      const merci = !!reglage.merciParWhatsApp && f.venueLe.slice(0, 10) >= (c.graine?.le ?? '9999-12-31');
+         Graines, ou baisser N, enverrait sinon quinze messages d'un coup.
+         ET JAMAIS POUR UN RATTRAPAGE (25 octobre 2026, « je vais faire passer
+         des paiements dans le passé ; ne pas envoyer de notification aux
+         clients ») : la venue doit dater d'aujourd'hui ou de la veille, la
+         même fenêtre que la demande d'avis. Un vieux rituel honoré ce matin
+         pose sa récompense, en silence. */
+      const merci = !!reglage.merciParWhatsApp && f.venueLe.slice(0, 10) >= (c.graine?.le ?? '9999-12-31') && f.venueLe.slice(0, 10) >= laVeille(aujourdhui);
       neuves.push({
         id: f.recompenseId, genre: 'a-choisir', libelle: 'Une récompense à choisir',
         raison: `Pour la venue de ${f.prenom}`, poseLe: aujourdhui, expireLe, source: 'amie', pct: remise,
