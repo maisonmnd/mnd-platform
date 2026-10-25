@@ -938,8 +938,18 @@ export default function Carnet() {
         const enRisque = aVenirLus.filter((l) => signaux.parRdv.get(l.id)?.some((x) => x.cle === 'risque'));
         const sansAcompte = aVenirLus.filter((l) => signaux.parRdv.get(l.id)?.some((x) => x.cle === 'acompte'));
         const enJeu = new Set([...enRisque, ...sansAcompte]);
-        const L = ({ g, n, d, total, alerte }: { g: string; n?: number | string; d: string; total?: boolean; alerte?: boolean }) => (
-          <span className={`trc-calc${total ? ' est-total' : ''}${alerte ? ' est-alerte' : ''}`}><span>{g}</span><span>{n ?? ''}</span><span>{d}</span></span>
+        /* LE NOMBRE VA AVEC SON LIBELLÉ, LE MONTANT RESTE SEUL — 25 octobre
+           2026 (« le 1 est à côté du montant 100 F, on a l'impression que
+           c'est 1 100 F »). Deux colonnes collées faisaient lire un seul
+           chiffre ; le nombre se dit désormais en mots, à gauche
+           (« 0 à 7 jours · 1 rituel »), et la colonne de droite ne porte
+           qu'un montant (ou le nombre seul, quand la ligne n'a pas de montant). */
+        const nDit = (k: number, un: string, plusieurs: string) => `${k}\u00a0${k > 1 ? plusieurs : un}`;
+        const L = ({ g, n, d, total, alerte }: { g: string; n?: string; d: string; total?: boolean; alerte?: boolean }) => (
+          <span className={`trc-calc${total ? ' est-total' : ''}${alerte ? ' est-alerte' : ''}`}>
+            <span>{g}{n && d ? <span className="trc-calc__n"> · {n}</span> : null}</span>
+            <span>{d || n || ''}</span>
+          </span>
         );
         return (
           <div className="tr-cols" style={{ '--cols': '1fr 1fr 1fr 1fr', gap: 12, marginBottom: 14 } as CSSProperties}>
@@ -949,7 +959,7 @@ export default function Carnet() {
                 {fmtMoney(totaux.creanceXof, currency)}
               </div>
               <span className="trc-calcs">
-                {anciennete.tranches.map((t) => <L key={t.cle} g={t.nom} n={t.n} d={fmtMoney(t.xof, currency)} alerte={t.cle === '+' && t.n > 0} />)}
+                {anciennete.tranches.map((t) => <L key={t.cle} g={t.nom} n={nDit(t.n, 'rituel', 'rituels')} d={fmtMoney(t.xof, currency)} alerte={t.cle === '+' && t.n > 0} />)}
                 <L g={`${anciennete.n} rituel${anciennete.n > 1 ? 's' : ''}`} d={fmtMoney(anciennete.xof, currency)} total />
               </span>
             </button>
@@ -959,7 +969,7 @@ export default function Carnet() {
                 {fmtMoney(totaux.jour.attenduXof, currency)}
               </div>
               <span className="trc-calcs">
-                <L g="Rendez-vous" n={totaux.jour.nombre} d="" />
+                <L g="Rendez-vous" n={String(totaux.jour.nombre)} d="" />
                 <L g="Déjà encaissé" d={fmtMoney(totaux.jour.encaisseXof, currency)} />
                 {totaux.jour.gammeXof > 0 && <L g="dont Gamme" d={fmtMoney(totaux.jour.gammeXof, currency)} />}
                 <L g="Reste" d={fmtMoney(totaux.jour.resteXof, currency)} total />
@@ -971,7 +981,7 @@ export default function Carnet() {
                 {fmtMoney(probable(totaux.avenirXof, honneur.taux), currency)}
               </div>
               <span className="trc-calcs">
-                <L g="Posés" n={totaux.avenirN} d={fmtMoney(totaux.avenirXof, currency)} />
+                <L g="Posés" n={nDit(totaux.avenirN, 'RDV', 'RDV')} d={fmtMoney(totaux.avenirXof, currency)} />
                 <L g={honneur.peuDHistoire ? '× venues (par défaut)' : '× venues honorées, 12 mois'} d={tauxDit(honneur.taux)} />
                 <L g="Probable" d={fmtMoney(probable(totaux.avenirXof, honneur.taux), currency)} total />
               </span>
@@ -982,8 +992,8 @@ export default function Carnet() {
                 {enJeu.size} rendez-vous
               </div>
               <span className="trc-calcs">
-                <L g="Risque d’absence" n={enRisque.length} d={fmtMoney(enRisque.reduce((n, l) => n + l.netXof, 0), currency)} />
-                <L g="Sans acompte à 48 h" n={sansAcompte.length} d={fmtMoney(sansAcompte.reduce((n, l) => n + l.netXof, 0), currency)} />
+                <L g="Risque d’absence" n={nDit(enRisque.length, 'RDV', 'RDV')} d={fmtMoney(enRisque.reduce((n, l) => n + l.netXof, 0), currency)} />
+                <L g={'Sans acompte à 48\u00a0h'} n={nDit(sansAcompte.length, 'RDV', 'RDV')} d={fmtMoney(sansAcompte.reduce((n, l) => n + l.netXof, 0), currency)} />
                 <L g="En jeu" d={fmtMoney([...enJeu].reduce((n, l) => n + l.netXof, 0), currency)} total />
               </span>
             </button>

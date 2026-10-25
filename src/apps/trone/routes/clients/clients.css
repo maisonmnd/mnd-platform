@@ -3440,8 +3440,11 @@
 /* LE CARNET PLUS INTELLIGENT — 25 octobre 2026. Des chiffres et leur calcul,
    des compteurs qui filtrent, des jours qui disent leur charge, des signaux. */
 .trc-calcs { display: flex; flex-direction: column; margin-top: 8px; width: 100%; }
-.trc-calc { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 8px; padding: 3px 0; font-size: 12px; color: var(--ink-soft); font-variant-numeric: tabular-nums; text-align: left; }
-.trc-calc span:nth-child(2), .trc-calc span:nth-child(3) { text-align: right; white-space: nowrap; }
+.trc-calc { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; padding: 3px 0; font-size: 12px; color: var(--ink-soft); font-variant-numeric: tabular-nums; text-align: left; }
+.trc-calc > span:nth-child(2) { text-align: right; white-space: nowrap; }
+/* Le nombre, en mots, avec son libellé (25 octobre 2026) : jamais collé au montant. */
+.trc-calc__n { color: var(--ink-faint, #8A847C); white-space: nowrap; }
+.trc-calc.est-total .trc-calc__n { color: inherit; font-weight: 400; }
 .trc-calc.est-total { border-top: 1px solid var(--color-indigo); margin-top: 3px; padding-top: 5px; color: var(--color-indigo); font-weight: 600; }
 .trc-calc.est-alerte { color: var(--alarme, #A3402B); }
 .trc-presse { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 14px; }
