@@ -41,8 +41,11 @@ const PANNES = [
   ['deplacer sort de la liste', 'src/shared/avis-google-pur.ts', 'if (i < 0 || j < 0 || j >= liste.length) return liste;', 'if (i < 0) return liste;'],
   ['le site ne dit plus la mention', 'src/apps/revelateur/ilots/Avis.tsx', '{mentionDuTri(vue.mode)}', "{''}"],
   ['le site affiche encore tous les avis de Google', 'src/apps/revelateur/ilots/Avis.tsx', '{vue.avis.map((a, i) => (', '{avis.avis.map((a, i) => ('],
-  ['le Trone ecrit sous un autre nom', 'src/shared/bridges.ts', 'avisChoisis: liste }', 'avisChoisi: liste }'],
-  ['l onglet des avis ecrit la vitrine en direct', 'src/apps/trone/routes/clients/VitrineAvis.tsx', 'const pose = (liste: string[]) => poseLesAvisChoisis(liste);', 'const pose = (liste: string[]) => vitrineConfigStore.set((c) => ({ ...c, avisChoisis: liste }));'],
+  ['le site lit les copies sous un autre nom', 'src/apps/revelateur/maison.ts', '?.data?.avisDuSite;', '?.data?.avisDuSites;'],
+  ['la rubrique coche sans copier', 'src/apps/trone/routes/clients/AvisGoogle.tsx', 'poseLesAvisDuSite(basculeDansLeSite(duSite, copieDe(a)));', 'void copieDe;'],
+  ['l ancien choix par cles reste', 'src/shared/bridges.ts', 'avisDuSite: liste, avisChoisis: [] }', 'avisDuSite: liste }'],
+  ['les copies ne passent plus d abord', 'src/shared/avis-google-pur.ts', "if (lus.length > 0) return { avis: lus, mode: 'choix' };", "if (false) return { avis: lus, mode: 'choix' };"],
+  ['une copie sans autrice passe', 'src/shared/avis-google-pur.ts', "&& typeof a.auteur === 'string' && !!a.auteur.trim() &&", "&& typeof a.auteur === 'string' &&"],
 ];
 
 const md5 = (f) => createHash('md5').update(readFileSync(path.join(racine, f))).digest('hex');

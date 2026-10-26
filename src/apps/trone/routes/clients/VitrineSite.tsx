@@ -14,7 +14,7 @@ import { useBrouillonsDAvis } from '../../../../shared/ia-avis';
 import { useBrouillonDuSite, changementsEnAttente } from '../../../../shared/site-retouches-store';
 import { useStore } from '../../../../shared/store';
 import { vitrineConfigStore } from '../../../../shared/bridges';
-import { avisAMontrer, cleDeLAvis, mentionDuTri, type UnAvisGoogle } from '../../../../shared/avis-google-pur';
+import { avisDuSiteAMontrer, cleDeLAvis, mentionDuTri, type UnAvisGoogle } from '../../../../shared/avis-google-pur';
 
 /* ══ LE SITE PUBLIC, VU DU TRÔNE — 4 octobre 2026 ═════════════════════
    « Cette page ne sert absolument à rien. Mettre le site public sur cette
@@ -122,17 +122,18 @@ function AvisDuSite({ avis, versLesAvis }: { avis: UnAvisGoogle[] | null; versLe
   const [cfg] = useStore(vitrineConfigStore);
   const [brouillons] = useBrouillonsDAvis();
   const tous = avis ?? [];
-  const vue = avisAMontrer(tous, cfg.avisChoisis);
+  /* 26 octobre 2026 : les avis copiés par la rubrique d'abord. */
+  const vue = avisDuSiteAMontrer(cfg.avisDuSite, tous, cfg.avisChoisis);
   const sans = compteSansReponse(tous, brouillons);
   return (
     <Bloc titre="Les avis Google du site" ou="Ce que maisonmnd.com montre, dans cet ordre. Le choix se fait dans « Les avis Google » : la case « Site » sur chaque avis.">
-      {!avis && <span className="mnd-muted" style={{ fontSize: 12.5 }}>Les avis ne sont pas encore relevés.</span>}
+      {!avis && vue.avis.length === 0 && <span className="mnd-muted" style={{ fontSize: 12.5 }}>Les avis ne sont pas encore relevés.</span>}
       {vue.avis.map((a, i) => (
-        <Ligne key={cleDeLAvis(a)}
+        <Ligne key={'cle' in a ? a.cle : cleDeLAvis(a)}
           gauche={<><span className="mnd-muted" style={{ fontVariantNumeric: 'tabular-nums' }}>{i + 1}. </span><span style={{ color: 'var(--color-copper)' }}>{'★'.repeat(Math.max(0, Math.min(5, Math.round(a.note))))}</span> <b style={{ fontWeight: 600 }}>{a.auteur || 'Sans nom'}</b></>}
           sous={a.texte.length > 120 ? `${a.texte.slice(0, 117).trimEnd()}…` : a.texte} />
       ))}
-      {avis && (
+      {(avis || vue.avis.length > 0) && (
         <span className="mnd-muted" style={{ fontSize: 11.5, lineHeight: 1.5 }}>
           {vue.mode === 'choix'
             ? `Choisis par la Maison, avec la mention « ${mentionDuTri('choix')} »`

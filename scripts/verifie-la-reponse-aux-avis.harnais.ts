@@ -47,7 +47,7 @@ const sansCommentaires = (t: string) => t.replace(/\/\*[\s\S]*?\*\//g, '').repla
 const PUR = 'src/shared/ia-avis-pur.ts';
 const MAGASIN = 'src/shared/ia-avis.ts';
 const COMPOSANT = 'src/apps/trone/routes/clients/ReponseAUnAvis.tsx';
-const ECRAN = 'src/apps/trone/routes/clients/VitrineAvis.tsx';
+const ECRAN = 'src/apps/trone/routes/clients/AvisGoogle.tsx';
 const FONCTION = 'supabase/functions/avis-google-releve/index.ts';
 const T0 = Date.parse('2026-10-19T10:00:00Z');
 const il = (min: number) => new Date(T0 - min * 60_000).toISOString();
@@ -335,8 +335,13 @@ const ecran = sansCommentaires(lis(ECRAN));
 /* 20 octobre 2026 (maquette DNVVXdkd…) : les réponses ont quitté « Le site
    public » pour leur onglet, « Les avis Google », qui prépare les brouillons
    à son ouverture et monte la réponse sous chaque avis ouvert. */
-dit('l écran des avis (Vitrines › Les avis Google) prépare les brouillons et monte la réponse sous chaque avis', [true, true],
-  [/usePrepareLesBrouillons\(avis, peutRepondre\)/.test(ecran), /<ReponseAUnAvis avis=\{a\} fiche=\{releve\.fiche\} sansRetrait \/>/.test(ecran)]);
+/* 26 octobre 2026 : la rubrique « Les avis Google » remplace l'onglet. Les
+   nouveaux (30 jours) s'apprêtent à l'ouverture ; les anciens par dix, sur
+   demande, un à la fois. */
+dit('la rubrique des avis apprête les nouveaux à l ouverture, les anciens par dix, et monte la réponse sous l avis ouvert', [true, true, true],
+  [/usePrepareLesBrouillons\(recents\.length > 0 \? recents : null, peutRepondre\)/.test(ecran),
+    /<ReponseAUnAvis avis=\{edite \? \{ \.\.\.a, reponse: undefined \} : a\} fiche=\{releve\?\.fiche\} sansRetrait \/>/.test(ecran),
+    /for \(let i = 0; i < anciens\.length; i\+\+\) \{\s*const r = await proposeUneReponse\(anciens\[i\]\);/.test(ecran)]);
 
 const fonction = sansCommentaires(lis(FONCTION));
 /* 20 octobre 2026 (« répondre dans la langue de l'avis », sélecteur) : le

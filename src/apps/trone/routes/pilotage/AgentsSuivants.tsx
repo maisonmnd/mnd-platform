@@ -181,7 +181,7 @@ export function AgentDesAvis() {
             lignes={[
               { libelle: 'Note sur Google', nombre: note(releve.note), montant: `${releve.nombre} avis` },
               { libelle: 'Les dix derniers', nombre: note(etat.noteRecente) },
-              { libelle: 'Réponses prêtes à copier', nombre: etat.prets, geste: <Lien vers="/vitrine?onglet=avis">Copier</Lien> },
+              { libelle: 'Réponses prêtes à copier', nombre: etat.prets, geste: <Lien vers="/avis-google">Relire</Lien> },
               { libelle: 'Réponses à préparer', nombre: etat.sansBrouillon },
             ]}
             total={{ libelle: 'Sans réponse', nombre: etat.sansReponse }}

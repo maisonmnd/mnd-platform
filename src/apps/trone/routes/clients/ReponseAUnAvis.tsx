@@ -146,7 +146,7 @@ export function ReponseAUnAvis({ avis, fiche, sansRetrait }: { avis: AvisAvecRep
     setEnvoi(true);
     try {
       const r = await publieSurGoogle(
-        { auteur: avis.auteur, texte: avis.texte, texteOriginal: avis.texteOriginal, publieLe: (avis as { publieLe?: string }).publieLe },
+        { auteur: avis.auteur, texte: avis.texte, texteOriginal: avis.texteOriginal, publieLe: (avis as { publieLe?: string }).publieLe, name: avis.name },
         b?.reponse ?? '',
       );
       if (r.ok) {

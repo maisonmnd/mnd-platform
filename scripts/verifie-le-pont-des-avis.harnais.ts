@@ -15,9 +15,13 @@
 import { readFileSync } from 'node:fs';
 import { transformSync } from 'esbuild';
 import {
-  apparie, aPlat, avecLaReponse, corpsDeLaReponse, defautDeLaReponse, lisLAvisRecu, nomDAvisValide, noteDeGoogle, peutPublier, versLeDocument,
+  apparie, aPlat, avecLaReponse, corpsDeLaReponse, defautDeLaReponse, lisLAvisRecu, nomDAvisValide, noteDeGoogle, peutPublier, texteDeGoogle, versLeDocument,
   type AvisDeGoogle, type DocumentDesAvisDeGoogle,
 } from '../src/shared/avis-google-pont-pur';
+import {
+  anciensAApreter, avisDeLaRubrique, cleDeGoogle, comptesDeLaRubrique, estRecent, etatDeLAvis, reponsesARelire,
+} from '../src/shared/avis-rubrique-pur';
+import { cleDeLAvis } from '../src/shared/avis-google-pur';
 // @ts-expect-error module .mjs sans types
 import { copiesAJour } from './copie-dans-le-centre.mjs';
 
@@ -100,6 +104,19 @@ dit('sans nom chez Make : la date ET le début du texte retrouvent l avis, et lu
 ]);
 dit('... un avis nommé autrement chez Make n est jamais pris pour un avis sans nom', null,
   nomDe(apparie({ auteur: 'Z', texte: 'Un soin long et précis.', publieLe: '2026-07-23T10:00:00Z' }, TOUS)));
+
+/* 26 octobre 2026 : le texte que Google traduit. */
+dit('le texte de Google : l original d abord, la traduction à part, dans les deux sens ; sans traduction, tel quel', [
+  { original: 'J’adore cet espace.', traduction: 'I love this place.' },
+  { original: 'Great place.', traduction: 'Super endroit.' },
+  { original: 'Très bien.' },
+  { original: '' },
+], [
+  texteDeGoogle('J’adore cet espace.\n\n(Translated by Google)\nI love this place.'),
+  texteDeGoogle('(Translated by Google) Super endroit.\n\n(Original)\nGreat place.'),
+  texteDeGoogle('  Très bien. '),
+  texteDeGoogle(undefined),
+]);
 
 const corps = corpsDeLaReponse('Merci « Awa » !\nÀ bientôt, "la Maison".');
 dit('le corps de la réponse : du JSON où guillemets et retours à la ligne passent', { comment: 'Merci « Awa » !\nÀ bientôt, "la Maison".' }, JSON.parse(corps));
@@ -195,6 +212,15 @@ const lu = async (r: Response) => ({ s: r.status, j: await r.json() as Record<st
   const range = (m.docs.mnd_avis_google_tous as DocumentDesAvisDeGoogle).avis[NOM('r1')];
   dit('... et la réponse se range sur l avis, publiée par le Trône', ['Merci « G. », à bientôt.\nLa Maison', true, true], [range.reponse, range.parLeTrone, typeof range.reponduLe === 'string']);
 
+  /* 26 octobre 2026 : la rubrique connaît le nom de l'avis chez Google. */
+  const parNom = await lu(await f(PUB('jwt-dir', { name: NOM('r2') }, 'Merci B.')));
+  const parti2 = JSON.parse(m.appels[m.appels.length - 1].corps) as { review: string };
+  dit('par son nom : l avis sert tel quel, sans appariement, même sans autrice ni texte', [200, NOM('r2')], [parNom.s, parti2.review]);
+  const avant2 = m.appels.length;
+  const nomInconnu = await lu(await f(PUB('jwt-dir', { name: NOM('zz') }, 'Merci')));
+  const nomFaux = await lu(await f(PUB('jwt-dir', { name: 'accounts/1/../x' }, 'Merci')));
+  dit('... un nom absent du document : 404 ; un nom qui n est pas celui d un avis : 400 ; rien vers Make', [404, 400, avant2], [nomInconnu.s, nomFaux.s, m.appels.length]);
+
   const sansW = monde();
   sansW.docs.mnd_avis_google_tous = m.docs.mnd_avis_google_tous;
   const fW = laFonction({ ...ENV, MAKE_AVIS_REPONDRE: '' }, sansW);
@@ -209,7 +235,7 @@ const { ecarts } = copiesAJour(lis(FONCTION), (p: string) => readFileSync(p, 'ut
 dit('la fonction porte la copie à jour de avis-google-pont-pur', [], ecarts);
 const f = sansCommentaires(lis(FONCTION));
 dit('la fonction : sa version, le jeton comparé sans fuite, ni jeton ni webhook dans une réponse', [true, true, false],
-  [/const VERSION = '2026-10-25-b';/.test(f), /memeSecret\(\(req\.headers\.get\('x-jeton'\)/.test(f), /json\(\{[^}]*(JETON|WEBHOOK)[,}]/.test(f.replace(/!!JETON|!!WEBHOOK/g, ''))]);
+  [/const VERSION = '2026-10-26-a';/.test(f), /memeSecret\(\(req\.headers\.get\('x-jeton'\)/.test(f), /json\(\{[^}]*(JETON|WEBHOOK)[,}]/.test(f.replace(/!!JETON|!!WEBHOOK/g, ''))]);
 
 /* ── 4. L'ÉCRAN ────────────────────────────────────────────────────────── */
 const ecran = sansCommentaires(lis('src/apps/trone/routes/clients/ReponseAUnAvis.tsx'));
@@ -220,8 +246,40 @@ dit('« Publier sur Google » ne fait qu ouvrir la question, qui nomme l autrice
   [/onClick=\{\(\) => setConfirme\(true\)\}[^>]*>Publier sur Google</.test(ecran), /Publier cette réponse sous l’avis de <b>\{avis\.auteur/.test(ecran)]);
 dit('« publié » ne se note qu après le oui de la fonction', true, /if \(r\.ok\) \{\s*marquePublieeParLeTrone\(id, r\.le\);/.test(ecran));
 dit('ni les brouillons de Claude ni l onglet ne publient', [false, false, false],
-  [/avis-google-pont/.test(lis('src/shared/ia-avis.ts')), /publieSurGoogle/.test(lis('src/apps/trone/routes/clients/VitrineAvis.tsx')), /publieSurGoogle/.test(lis('src/shared/avis-google-pont-pur.ts'))]);
-const textes = [ecran, sansCommentaires(lis('src/shared/avis-google-pont.ts')), f, sansCommentaires(lis('src/apps/trone/routes/clients/VitrineAvis.tsx'))].join('\n');
+  [/avis-google-pont/.test(lis('src/shared/ia-avis.ts')), /publieSurGoogle/.test(lis('src/apps/trone/routes/clients/AvisGoogle.tsx')), /publieSurGoogle/.test(lis('src/shared/avis-google-pont-pur.ts'))]);
+dit('la réponse donne à la fonction le nom de l avis chez Google', true, /publieLe: \(avis as \{ publieLe\?: string \}\)\.publieLe, name: avis\.name \}/.test(ecran));
+const textes = [ecran, sansCommentaires(lis('src/shared/avis-google-pont.ts')), f, sansCommentaires(lis('src/apps/trone/routes/clients/AvisGoogle.tsx'))].join('\n');
+
+/* ── 5. LA RUBRIQUE « LES AVIS GOOGLE » (26 octobre 2026) ───────────────── */
+{
+  const MAINT = Date.parse('2026-10-26T08:00:00Z');
+  const RELEVE = [{ auteur: 'G. J.', note: 5, texte: 'Un soin long et précis.', publieLe: '2026-07-23T10:00:00Z', quand: 'il y a 3 mois' }];
+  const MAKE = [
+    G('v1', 'G. J.', '2026-07-23T10:00:00Z', 'Un soin long et précis.', { reponse: 'Merci G.', reponduLe: '2026-07-24T10:00:00Z' }),
+    G('v2', 'A. K.', '2026-10-25T07:30:00Z', 'Accueil chaleureux.\n\n(Translated by Google)\nWarm welcome.'),
+    G('v3', 'S. H.', '2026-10-20T07:30:00Z', 'Une heure d’attente.', { note: 2 }),
+    G('v4', '', '2025-01-10T10:00:00Z', 'Ancien avis.'),
+    G('v5', 'R. T.', '2025-03-10T10:00:00Z', ''),
+  ];
+  const liste = avisDeLaRubrique(MAKE, RELEVE);
+  dit('la liste : tous les avis de Make, du plus récent au plus ancien', ['v2', 'v3', 'v1', 'v5', 'v4'], liste.map((a) => a.name?.split('/').pop()));
+  dit('... l avis que Places connaît garde SA clé (brouillons, fiche, site d avant) ; les autres une clé tirée de Google', [cleDeLAvis(RELEVE[0]), cleDeGoogle(NOM('v2'))],
+    [liste.find((a) => a.name === NOM('v1'))?.cle, liste.find((a) => a.name === NOM('v2'))?.cle]);
+  dit('... le texte d origine, la traduction à part, la réponse publiée lue', ['Accueil chaleureux.', 'Warm welcome.', 'Merci G.'],
+    [liste[0].texte, liste[0].traduction, liste.find((a) => a.name === NOM('v1'))?.reponse]);
+  dit('... sans Make, le relevé de Places, comme avant', [1, cleDeLAvis(RELEVE[0])], [avisDeLaRubrique(null, RELEVE).length, avisDeLaRubrique([], RELEVE)[0].cle]);
+  const v = (n: string) => liste.find((a) => a.name === NOM(n))!;
+  const B = { [v('v3').cle]: { reponse: 'Pardon.', le: 'L' }, [v('v5').cle]: { ecarte: true }, [v('v4').cle]: { enCours: new Date(MAINT - 30_000).toISOString() } };
+  dit('l état : répondu, prête, écartée, Claude prépare, nouveau', ['publiee', 'prete', 'ecartee', 'prepare', 'nouveau'],
+    [etatDeLAvis(v('v1'), undefined, MAINT), etatDeLAvis(v('v3'), B[v('v3').cle], MAINT), etatDeLAvis(v('v5'), B[v('v5').cle], MAINT), etatDeLAvis(v('v4'), B[v('v4').cle], MAINT), etatDeLAvis(v('v2'), undefined, MAINT)]);
+  dit('les comptes : le même juge que la liste', { recus: 2, relire: 1, sans: 4, publiees: 1, site: 1, tous: 5 },
+    comptesDeLaRubrique(liste, B, (c) => c === v('v1').cle, MAINT));
+  dit('récent : arrivé dans les 30 jours', [true, true, false], [estRecent(v('v2'), MAINT), estRecent(v('v3'), MAINT), estRecent(v('v4'), MAINT)]);
+  dit('les dix suivants : les anciens sans réponse ni proposition, sans échec récent, jamais les récents', [['v4'], []],
+    [anciensAApreter(liste, {}, MAINT).map((a) => a.name?.split('/').pop()).filter((n) => n !== 'v5'), anciensAApreter(liste, { [v('v4').cle]: { echoueLe: 'X' }, [v('v5').cle]: { ecarte: true } }, MAINT).map((a) => a.name)]);
+  dit('le chiffre de la barre : les réponses prêtes, ni publiées ni écartées', 1,
+    reponsesARelire({ a: { reponse: 'x' }, b: { reponse: 'y', publieeLe: 'L' }, c: { reponse: 'z', ecarte: true }, d: {} }));
+}
 dit('pas de tiret cadratin ni de « salon » dans le texte affiché', [false, false], [/—/.test(textes), /\bsalon/i.test(textes)]);
 
 console.log(ko === 0 ? '\nTOUT VA BIEN : le pont des avis tient ses promesses.' : `\n${ko} ÉCHEC(S)`);

@@ -113,6 +113,18 @@ export async function avisChoisis(): Promise<string[]> {
   return Array.isArray(liste) ? liste.filter((c): c is string => typeof c === 'string') : [];
 }
 
+/** LES AVIS COPIÉS PAR LA MAISON — 26 octobre 2026 : ceux que la rubrique
+    « Les avis Google » du Trône coche parmi tous ceux de la fiche, dans le
+    même document que le choix par clés. Une lecture ratée rend une liste
+    vide : le site revient au choix par clés, puis à ceux de Google. */
+export async function avisDuSite(): Promise<unknown[]> {
+  const supabase = await client();
+  if (!supabase) return [];
+  const { data } = await supabase.from('documents').select('data').eq('key', 'mnd_vitrine_config').maybeSingle();
+  const liste = (data as { data?: { avisDuSite?: unknown } } | null)?.data?.avisDuSite;
+  return Array.isArray(liste) ? liste : [];
+}
+
 export async function avisGoogle(): Promise<AvisGoogle | null> {
   const supabase = await client();
   if (!supabase) return null;

@@ -69,6 +69,12 @@ export type AvisAvecReponse = UnAvisGoogle & {
   googleMapsUri?: string;
   texteOriginal?: string;
   langueOriginale?: string;
+  /** 26 octobre 2026 : la clé que la rubrique « Les avis Google » donne à un
+      avis venu de Make (celle de l'avis de Places s'il y en a un, sinon tirée
+      de son nom chez Google). Absente, la clé se calcule comme avant. */
+  cle?: string;
+  /** Le nom de l'avis chez Google (accounts/…/reviews/…), quand Make l'a apporté. */
+  name?: string;
 };
 
 /** Ce que le Trône garde par avis : la proposition, sa langue, quand et par
@@ -92,7 +98,8 @@ export type BrouillonsDAvis = Record<string, BrouillonDAvis>;
 /** L'identifiant d'un avis : la clé du choix du site (stable d'un relevé à
     l'autre, calculée sur l'auteur et le texte). Un seul identifiant pour les
     deux écrans. */
-export const idDeLAvis = (a: Pick<UnAvisGoogle, 'auteur' | 'texte'>): string => cleDeLAvis(a);
+export const idDeLAvis = (a: Pick<UnAvisGoogle, 'auteur' | 'texte'> & { cle?: string }): string =>
+  (typeof a.cle === 'string' && a.cle ? a.cle : cleDeLAvis(a));
 
 /** Le prénom seul, tel qu'il paraît sur Google : le premier mot du nom
     affiché. « Awa Dossou » : Awa ; « A. D. » : A. ; rien : rien. */

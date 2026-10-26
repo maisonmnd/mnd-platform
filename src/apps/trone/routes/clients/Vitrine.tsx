@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { CSS_FON_OA, htmlFon } from '../../../../ds/fon-pur';
-import { useSearchParams } from 'react-router-dom';
+import { Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import { DEVISE_COMPLETE } from '../../../../shared/identite';
 import { PageHead } from '../_ui';
 import { Button, Input, Segs, toast, demande } from '../../../../ds/components';
@@ -25,7 +25,6 @@ import { autoConfigStore } from '../equipe/data';
 import { usePlans } from '../../../../shared/abonnements';
 import { seuilCliente } from '../../../../shared/echeancier';
 import { VitrineSite, BandeDeVitrine, Pastille } from './VitrineSite';
-import { VitrineAvis } from './VitrineAvis';
 import { VitrineBoutique } from './VitrineBoutique';
 import { boutiqueOuverte } from '../../../../shared/boutique-pur';
 import { tapisDuSite } from './tapis-du-site';
@@ -64,6 +63,7 @@ type Onglet = 'site' | 'couronne' | 'comptoir' | 'avis' | 'boutique';
 const ONGLETS: readonly Onglet[] = ['site', 'couronne', 'comptoir', 'avis', 'boutique'];
 
 export default function Vitrine() {
+  const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
   const ongletDemande = params.get('onglet') as Onglet | null;
   const [onglet, setOngletLocal] = useState<Onglet>(ongletDemande && ONGLETS.includes(ongletDemande) ? ongletDemande : 'site');
@@ -99,8 +99,11 @@ export default function Vitrine() {
           </div>
         }
       />
-      {onglet === 'site' && <VitrineSite catalogue={<CatalogueEnVitrine portees={['site']} />} versLesAvis={() => setOnglet('avis')} />}
-      {onglet === 'avis' && <VitrineAvis ouvrir={params.get('avis') ?? undefined} />}
+      {onglet === 'site' && <VitrineSite catalogue={<CatalogueEnVitrine portees={['site']} />} versLesAvis={() => navigate('/avis-google')} />}
+      {/* 26 octobre 2026 : les avis ont leur rubrique. L'onglet y mène, et un
+          lien d'avant (`?onglet=avis&avis=…` : la fiche cliente, l'alerte des
+          avis difficiles) y arrive sur le même avis. */}
+      {onglet === 'avis' && <Navigate replace to={`/avis-google${params.get('avis') ? `?avis=${encodeURIComponent(params.get('avis') ?? '')}` : ''}`} />}
       {onglet === 'boutique' && <VitrineBoutique />}
       {onglet === 'couronne' && <VitrineCouronne />}
       {onglet === 'comptoir' && (

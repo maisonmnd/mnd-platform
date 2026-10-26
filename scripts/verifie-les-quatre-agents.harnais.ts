@@ -84,7 +84,8 @@ dit('le bon se prepare en brouillon, jamais deux chez le meme fournisseur', true
 dit('ranger se fait sur un clic, et ne touche que la rubrique', [true, true],
   [suivants.includes('onClick={() => ranger(r.depenseId, r.vers, r.sous)}'), suivants.includes('{ ...d, category: vers, subcategory: sous }')]);
 dit('un creux se remplit par une liste de reprises a valider, pas par un envoi', true, agents.includes('const r = preparePassageMaintenant(agentReprises, tetes);'));
-dit('les avis menent a la vitrine, onglet des avis', true, suivants.includes('<Lien vers="/vitrine?onglet=avis">Copier</Lien>'));
+/* 26 octobre 2026 : les avis ont leur rubrique, « Les avis Google ». */
+dit('les avis menent a la rubrique des avis, pour relire', true, suivants.includes('<Lien vers="/avis-google">Relire</Lien>'));
 dit('chaque agent montre ses chiffres et sa ligne de total', 4, (suivants.match(/total=\{\{ libelle: /g) ?? []).length);
 dit('pas de tiret cadratin dans ce que l ecran dit', false, suivants.includes('—'));
 

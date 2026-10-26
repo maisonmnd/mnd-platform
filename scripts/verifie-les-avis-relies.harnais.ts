@@ -205,21 +205,28 @@ const alerte = (() => {
 /* ── 9. LES ÉCRANS ───────────────────────────────────────────────────── */
 {
   const vitrine = sansCommentaires(lis('src/apps/trone/routes/clients/Vitrine.tsx'));
-  dit('Vitrines : quatre onglets, le quatrième « Les avis Google », ouvrable d un lien (?onglet=avis)', [true, true, true, true],
-    [/value: 'comptoir', label: 'La carte du comptoir' \},\s*\{ value: 'avis', label: 'Les avis Google' \}/.test(vitrine), /<VitrineAvis /.test(vitrine),
-      /params\.get\('onglet'\)/.test(vitrine), /versLesAvis=\{\(\) => setOnglet\('avis'\)\}/.test(vitrine)]);
+  /* 26 octobre 2026 : les avis ont leur rubrique ; l'onglet des Vitrines y
+     mène, et un lien d'avant (?onglet=avis&avis=…) y arrive sur le même avis. */
+  dit('Vitrines : l onglet « Les avis Google » mène à la rubrique, les liens d avant aussi', [true, true, true, true],
+    [/value: 'comptoir', label: 'La carte du comptoir' \},\s*\{ value: 'avis', label: 'Les avis Google' \}/.test(vitrine),
+      /onglet === 'avis' && <Navigate replace to=\{`\/avis-google\$\{params\.get\('avis'\)/.test(vitrine),
+      /params\.get\('onglet'\)/.test(vitrine), /versLesAvis=\{\(\) => navigate\('\/avis-google'\)\}/.test(vitrine)]);
+  dit('la rubrique est dans la barre, sous Les vitrines', true,
+    /path: '\/vitrine', label: 'Les vitrines'[^\n]*\n(?:\s*\/\*[\s\S]*?\*\/\n)?\s*\{ path: '\/avis-google', label: 'Les avis Google'/.test(lis('src/apps/trone/routes/index.tsx')));
   const site = sansCommentaires(lis('src/apps/trone/routes/clients/VitrineSite.tsx'));
   dit('« Le site public » montre les avis du site sans les choisir (25 oct. : le choix est dans l onglet), sans les réponses, avec le chemin vers l onglet', [true, false, false, true],
     [/<AvisDuSite /.test(site), /<ReponseAUnAvis/.test(site), /<EnTeteDesReponses/.test(site), /onClick=\{versLesAvis\}/.test(site)]);
-  const onglet = sansCommentaires(lis('src/apps/trone/routes/clients/VitrineAvis.tsx'));
-  dit('l onglet : la réponse sous chaque avis, les brouillons préparés à l ouverture, la fiche de l avis', [true, true, true],
-    [/<ReponseAUnAvis avis=\{a\} fiche=\{releve\.fiche\} sansRetrait \/>/.test(onglet), /usePrepareLesBrouillons\(avis, peutRepondre\)/.test(onglet), /<FicheDeLAvis /.test(onglet)]);
-  dit('RIEN NE PART SUR GOOGLE D ICI : ni fetch, ni fonction, ni Supabase ; le lien n est relié qu au toucher', [false, true],
-    [/fetch\(|functions\.invoke|supabase|XMLHttpRequest|sendBeacon/.test(onglet), /onClick=\{\(\) => ditLeGeste\(relieLAvis\(id, p\.clientId, qui\)\)\}/.test(onglet)]);
-  /* 25 octobre 2026 : le pont de Make. La pastille dit si « Publier sur
-     Google » est ouvert ; sinon, le copier-coller. */
-  dit('l onglet dit l état de l envoi à Google (par Make, ou copier-coller), et la limite des cinq avis', [true, true, true],
-    [/'Envoi à Google : par Make'/.test(onglet), /'Envoi à Google : copier-coller'/.test(onglet), /cinq avis qu’il juge « les plus pertinents »/.test(onglet)]);
+  const onglet = sansCommentaires(lis('src/apps/trone/routes/clients/AvisGoogle.tsx'));
+  const ficheDeLAvis = sansCommentaires(lis('src/apps/trone/routes/clients/FicheDeLAvis.tsx'));
+  dit('la rubrique : la réponse sous l avis ouvert, les brouillons préparés à l ouverture, la fiche de l avis', [true, true, true],
+    [/<ReponseAUnAvis avis=/.test(onglet), /usePrepareLesBrouillons\(recents/.test(onglet), /<FicheDeLAvis a=\{a\} releveLe=\{releveLe\} peutRelier=\{peutRelier\} \/>/.test(onglet)]);
+  dit('RIEN NE PART SUR GOOGLE D ICI : ni fetch, ni fonction, ni Supabase ; le lien n est relié qu au toucher', [false, false, true],
+    [/fetch\(|functions\.invoke|supabase|XMLHttpRequest|sendBeacon/.test(onglet), /fetch\(|functions\.invoke|supabase|XMLHttpRequest|sendBeacon/.test(ficheDeLAvis),
+      /onClick=\{\(\) => ditLeGeste\(relieLAvis\(id, p\.clientId, qui\)\)\}/.test(ficheDeLAvis)]);
+  /* 25 octobre 2026 : le pont de Make. La rubrique dit si « Publier sur
+     Google » est ouvert ; sinon, le copier-coller. Sans Make, les cinq de Google. */
+  dit('la rubrique dit l état de l envoi à Google (par Make, ou copier-coller), et la limite des cinq avis sans Make', [true, true, true],
+    [/'par Make, après votre « Oui, publier »'/.test(onglet), /'copier-coller, le pont n’est pas posé'/.test(onglet), /cinq avis que Google juge « les plus pertinents »/.test(onglet)]);
   const fiche = sansCommentaires(lis('src/apps/trone/routes/clients/Customers.tsx'));
   const panneau = sansCommentaires(lis('src/apps/trone/routes/clients/SonAvisGoogle.tsx'));
   dit('la fiche cliente montre son avis Google, et ne relie ni ne délie rien', [true, false],
@@ -227,7 +234,7 @@ const alerte = (() => {
   dit('CLAUDE NE LIT JAMAIS LA FICHE : la réponse aux avis ignore les liens', false,
     /avis-fiches/.test(lis('src/shared/ia-avis.ts') + lis('src/shared/ia-avis-pur.ts')));
   dit('pas de tiret cadratin ni de « salon » dans le texte affiché', [false, false],
-    [/—/.test(onglet + panneau), /\bsalon/i.test(onglet + panneau)]);
+    [/—/.test(onglet + panneau + ficheDeLAvis), /\bsalon/i.test(onglet + panneau + ficheDeLAvis)]);
 }
 
 console.log(ko === 0 ? '\nTOUT VA BIEN : les avis se relient aux fiches comme promis.' : `\n${ko} ÉCHEC(S)`);

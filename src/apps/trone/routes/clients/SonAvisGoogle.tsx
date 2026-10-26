@@ -63,8 +63,8 @@ export function SonAvisGoogle({ client }: { client: { id: string } }) {
               : <span className="mnd-muted" style={{ fontSize: 12 }}>Une note seulement, sans texte.</span>}
             <span className="mnd-muted" style={{ fontSize: 11.5 }}>{reponse}</span>
             <span>
-              <button type="button" className="trc-c360-linkbtn" onClick={() => navigate(`/vitrine?onglet=avis&avis=${encodeURIComponent(id)}`)}>
-                Ouvrir l’avis dans Vitrines →
+              <button type="button" className="trc-c360-linkbtn" onClick={() => navigate(`/avis-google?avis=${encodeURIComponent(id)}`)}>
+                Ouvrir l’avis dans « Les avis Google » →
               </button>
             </span>
           </div>

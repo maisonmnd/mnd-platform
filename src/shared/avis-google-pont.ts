@@ -70,7 +70,12 @@ export async function publieSurGoogle(avis: AvisAApparier, reponse: string): Pro
   if (typeof navigator !== 'undefined' && navigator.onLine === false) return { ok: false, erreur: 'reseau', message: 'Pas de réseau : rien n’est parti.' };
   const corps = {
     action: 'publier',
-    avis: { auteur: avis.auteur, texte: avis.texte, ...(avis.texteOriginal ? { texteOriginal: avis.texteOriginal } : {}), ...(avis.publieLe ? { publieLe: avis.publieLe } : {}) },
+    avis: {
+      auteur: avis.auteur, texte: avis.texte,
+      ...(avis.texteOriginal ? { texteOriginal: avis.texteOriginal } : {}),
+      ...(avis.publieLe ? { publieLe: avis.publieLe } : {}),
+      ...(avis.name ? { name: avis.name } : {}),
+    },
     reponse: reponse.trim(),
   };
   try {

@@ -219,6 +219,11 @@ export type VitrineConfig = {
       compte. Aucune clé ne garde de texte de Google. Vide : le site montre
       les avis de Google. */
   avisChoisis?: string[];
+  /** LES AVIS DU SITE, COPIÉS — 26 octobre 2026 : ceux que la rubrique « Les
+      avis Google » coche parmi les 299 de la fiche, dans l'ordre du site
+      (`AvisDuSite`, shared/avis-google-pur). Non vide, il remplace
+      `avisChoisis`. */
+  avisDuSite?: { cle: string; auteur: string; note: number; texte: string; quand?: string }[];
   /** LES FORMULES QU'ON NE MONTRE PAS — « je ne veux pas rendre visible tous
       les abonnements en ligne sur Ma Couronne » (Yéman, 28 août).
 
@@ -450,11 +455,11 @@ bindCollection(consultationsQueueStore, 'consultations_queue');
 bindDocument(composeStore, 'mnd_couronne_compose');
 bindDocument(vitrineConfigStore, 'mnd_vitrine_config');
 
-/** LES AVIS GOOGLE CHOISIS — 10 octobre 2026. Le seul geste de l'onglet du
-    site sur la vitrine, et il ne touche QUE `avisChoisis` : le site ne règle
-    ni Ma Couronne ni la carte du comptoir (règle des vitrines, 4 octobre). */
-export const poseLesAvisChoisis = (liste: string[]): void =>
-  vitrineConfigStore.set((c) => ({ ...c, avisChoisis: liste }));
+/** LES AVIS DU SITE, COPIÉS — 26 octobre 2026 : la rubrique « Les avis
+    Google » écrit ici, et vide l'ancien choix par clés (il ne servirait plus
+    qu'à surprendre le jour où la liste redeviendrait vide). */
+export const poseLesAvisDuSite = (liste: NonNullable<VitrineConfig['avisDuSite']>): void =>
+  vitrineConfigStore.set((c) => ({ ...c, avisDuSite: liste, avisChoisis: [] }));
 
 /* ── LES DEMANDES DE FORMULE — Ma Couronne → Le Trône, 28 août 2026 ────
    « Build an interactive way for the clients to purchase and follow their

@@ -82,6 +82,8 @@ import { usePassageVivant } from './usePassageVivant';
 import { useSansLocksVivant } from './useSansLocksVivant';
 import { useVerrouDuPoste, postePartageStore } from './useVerrouDuPoste';
 import { useBranch } from '../../../shared/branches';
+import { useBrouillonsDAvis } from '../../../shared/ia-avis';
+import { reponsesARelire } from '../../../shared/avis-rubrique-pur';
 import { useHouseIdentity, fuseauIana } from '../../../shared/identite';
 import { Seal, Button, Modal, toast } from '../../../ds/components';
 import { useAuth, useMaTete, signOut } from '../../../shared/auth';
@@ -642,6 +644,7 @@ export default function Shell() {
     .map((p) => visibles.flatMap((g) => g.items).find((it) => it.path === p))
     .filter((it): it is TroneRoute => !!it));
   const [filTous] = useFil();
+  const [brouillonsDAvis] = useBrouillonsDAvis();
   const [factures] = useInvoices();
   const monMailShell = (session?.user?.email ?? '').trim().toLowerCase();
   const replies = visibles
@@ -653,6 +656,7 @@ export default function Shell() {
      puisqu'il faut déjà y être. La pastille vit donc dans le menu, à côté du
      Fil : on la croise en allant ailleurs, et c'est là qu'elle sert. */
   const demandesQuiAttendent = mesDemandes(filTous, branch.id, monMailShell, factures).length;
+  const aRelire = reponsesARelire(brouillonsDAvis);
   const lien = (it: TroneRoute) => (
     <NavLink
       key={it.path}
@@ -663,6 +667,10 @@ export default function Shell() {
     >
       {/* 26 octobre 2026 : sans icône, comme la maquette des avis. */}
       <span>{it.label}</span>
+      {/* 26 octobre 2026 : les réponses aux avis prêtes à relire. */}
+      {it.path === '/avis-google' && aRelire > 0 && (
+        <span className="tr-nav__pastille" title={`${aRelire} réponse(s) à relire`}>{aRelire}</span>
+      )}
       {it.path === '/fil' && demandesQuiAttendent > 0 && (
         <span className="tr-nav__pastille" title={`${demandesQuiAttendent} demande(s) à traiter`}>
           {demandesQuiAttendent}

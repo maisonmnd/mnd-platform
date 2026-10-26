@@ -1,0 +1,118 @@
+/* LA RUBRIQUE « LES AVIS GOOGLE » — 26 octobre 2026, d'après la maquette
+   YaWfiqou… (« Tout me va ») : un seul motif vedette, les trois temps en
+   bande ; dessous, deux volets (la liste, l'avis ouvert). Indigo et cuivre,
+   rayons de 3 px, Cormorant pour la citation seulement. AUCUN overflow caché
+   sur les volets : il ferait d'eux le conteneur de défilement, et le volet de
+   l'avis ne collerait plus à la page. */
+.trc-avr { display: flex; flex-direction: column; gap: 20px; min-width: 0; }
+.trc-avr .nombre, .trc-avr__compte b, .trc-avr__chiffre b, .trc-avr__onglet b { font-variant-numeric: lining-nums tabular-nums; }
+
+/* ── Les chiffres de l'en-tête ── */
+.trc-avr__chiffres { display: flex; gap: 26px; align-items: flex-end; flex-wrap: wrap; }
+.trc-avr__chiffre { display: flex; flex-direction: column; gap: 2px; }
+.trc-avr__chiffre b { font-family: var(--font-serif); font-weight: 400; font-size: 30px; line-height: 1; color: var(--color-indigo); }
+.trc-avr__chiffre b i { font-style: normal; color: var(--color-copper); font-size: 22px; }
+.trc-avr__chiffre small { font-size: 11.5px; color: var(--ink-soft); }
+
+/* ── Les trois temps (le motif vedette) ── */
+.trc-avr__temps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); background: var(--surface-card); border: 1px solid var(--hairline); border-radius: 3px; }
+.trc-avr__pas {
+  all: unset; box-sizing: border-box; cursor: pointer; position: relative;
+  display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 2px 14px; align-items: center; padding: 18px 22px;
+}
+.trc-avr__pas + .trc-avr__pas { border-left: 1px solid var(--hairline); }
+.trc-avr__pas::after { content: ''; position: absolute; left: 0; right: 0; bottom: -1px; height: 2px; background: transparent; }
+.trc-avr__pas.est-choisi::after { background: var(--color-copper); }
+.trc-avr__pas:focus-visible { outline: 2px solid var(--color-copper); outline-offset: -2px; }
+.trc-avr__num { grid-row: span 2; width: 30px; height: 30px; border-radius: 50%; border: 1px solid var(--copper-200); color: var(--copper-700); display: grid; place-items: center; font-family: var(--font-serif); font-size: 17px; }
+.trc-avr__pas.est-choisi .trc-avr__num { background: var(--color-copper); border-color: var(--color-copper); color: #fff; }
+.trc-avr__nom { font-weight: 500; font-size: 15px; color: var(--color-indigo); }
+.trc-avr__dit { grid-column: 2; font-size: 12px; color: var(--ink-soft); }
+.trc-avr__compte { grid-row: span 2; display: flex; flex-direction: column; align-items: flex-end; gap: 5px; }
+.trc-avr__compte b { font-family: var(--font-serif); font-weight: 400; font-size: 34px; line-height: 1; color: var(--color-indigo); }
+.trc-avr__compte small { font-size: 10.5px; line-height: 1; color: var(--ink-soft); letter-spacing: .04em; }
+
+.trc-avr__alerte-make { margin: 0; padding: 10px 14px; border-left: 3px solid var(--color-copper); background: var(--copper-50); border-radius: 0 3px 3px 0; font-size: 12.5px; }
+
+/* ── Deux volets ── */
+.trc-avr__volets { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 18px; align-items: start; }
+.trc-avr__liste, .trc-avr__avis { background: var(--surface-card); border: 1px solid var(--hairline); border-radius: 3px; min-width: 0; }
+.trc-avr__avis { position: sticky; top: env(safe-area-inset-top, 0px); }
+.trc-avr__onglets { display: flex; flex-wrap: wrap; border-bottom: 1px solid var(--hairline); }
+.trc-avr__onglet {
+  all: unset; box-sizing: border-box; cursor: pointer; white-space: nowrap;
+  padding: 11px 12px 9px; border-bottom: 2px solid transparent; margin-bottom: -1px;
+  font-size: 11px; letter-spacing: .1em; text-transform: uppercase; font-weight: 500; color: var(--ink-soft);
+}
+.trc-avr__onglet b { font-weight: 600; color: var(--color-indigo); margin-left: 6px; }
+.trc-avr__onglet--sans b { color: var(--copper-700); }
+.trc-avr__onglet.est-choisi { color: var(--color-indigo); border-bottom-color: var(--color-copper); }
+.trc-avr__onglet:focus-visible { outline: 2px solid var(--color-copper); outline-offset: -2px; }
+.trc-avr__outils { display: flex; gap: 10px; align-items: center; padding: 12px 14px; border-bottom: 1px solid var(--hairline); flex-wrap: wrap; }
+.trc-avr__cherche { flex: 1 1 160px; min-width: 0; }
+.trc-avr__puce { all: unset; cursor: pointer; border: 1px solid var(--hairline); border-radius: 999px; padding: 4px 11px; font-size: 12px; color: var(--ink-soft); white-space: nowrap; }
+.trc-avr__puce.est-choisie { border-color: #A3412F; color: #A3412F; background: #F8EAE6; }
+.trc-avr__aide { padding: 10px 16px; font-size: 12px; color: var(--ink-soft); border-bottom: 1px solid var(--hairline); background: var(--paper); }
+.trc-avr__serie { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; padding: 10px 16px; font-size: 12.5px; border-bottom: 1px solid var(--hairline); background: var(--copper-50); }
+.trc-avr__vide { padding: 26px 18px; color: var(--ink-soft); font-size: 13px; text-align: center; margin: 0; }
+
+.trc-avr__rangee { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: stretch; border-bottom: 1px solid var(--hairline); border-left: 3px solid transparent; }
+.trc-avr__rangee:hover { background: var(--paper); }
+.trc-avr__rangee.est-ouverte { background: var(--copper-50); border-left-color: var(--color-copper); }
+.trc-avr__site { display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 3px; padding: 0 4px 0 12px; min-width: 52px; font-size: 9.5px; letter-spacing: .1em; text-transform: uppercase; color: var(--obsidian-300); cursor: pointer; }
+.trc-avr__site input { margin: 0; accent-color: var(--color-copper); }
+.trc-avr__site.est-on { color: var(--copper-700); font-weight: 600; }
+.trc-avr__ligne { all: unset; box-sizing: border-box; cursor: pointer; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 3px 12px; padding: 13px 16px 13px 8px; min-width: 0; }
+.trc-avr__ligne:focus-visible { outline: 2px solid var(--color-copper); outline-offset: -2px; }
+.trc-avr__qui { display: flex; gap: 8px; align-items: baseline; min-width: 0; font-size: 13.5px; }
+.trc-avr__qui b { flex: none; max-width: 60%; font-weight: 600; color: var(--color-indigo); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.trc-avr__qui .trc-avr__etoiles { flex: none; }
+.trc-avr__qui span:last-child { min-width: 0; font-size: 12px; color: var(--ink-soft); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.trc-avr__extrait { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-soft); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.trc-avr__etoiles { color: var(--color-copper); letter-spacing: 1px; font-size: 12px; white-space: nowrap; }
+.trc-avr__etoiles-vides { color: var(--hairline); }
+.trc-avr__etat { font-size: 11px; padding: 2px 9px; border-radius: 999px; border: 1px solid var(--hairline); color: var(--ink-soft); white-space: nowrap; align-self: start; }
+.trc-avr__etat--prete { border-color: var(--color-copper); color: var(--copper-700); }
+.trc-avr__etat--nouveau { border-color: var(--copper-200); color: var(--copper-700); }
+.trc-avr__etat--prepare { border-color: var(--copper-200); }
+.trc-avr__etat--publiee { border-color: var(--trf-success, #4A6B52); color: var(--trf-success, #4A6B52); }
+.trc-avr__etat--difficile { border-color: #A3412F; color: #A3412F; background: #F8EAE6; }
+.trc-avr__fleches { display: flex; flex-direction: column; justify-content: center; gap: 2px; padding-right: 10px; }
+.trc-avr__fleches button { all: unset; box-sizing: border-box; cursor: pointer; display: grid; place-items: center; width: 26px; height: 22px; border: 1px solid var(--hairline); border-radius: 3px; font-size: 12px; color: var(--ink-soft); }
+.trc-avr__fleches button:disabled { opacity: .35; cursor: default; }
+.trc-avr__plus { all: unset; cursor: pointer; display: block; width: 100%; box-sizing: border-box; text-align: center; padding: 12px; font-size: 12.5px; color: var(--copper-700); }
+
+/* ── L'avis ouvert ── */
+.trc-avr__retour { display: none; }
+.trc-avr__tete { padding: 22px 26px 0; display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; align-items: baseline; }
+.trc-avr__tete .trc-avr__nom { font-size: 17px; font-weight: 600; }
+.trc-avr__meta { font-size: 12.5px; color: var(--ink-soft); display: flex; gap: 6px 12px; flex-wrap: wrap; align-items: center; margin-top: 2px; }
+.trc-avr__citation { margin: 14px 26px 0; font-family: var(--font-serif); font-weight: 300; font-size: 23px; line-height: 1.35; color: var(--color-indigo); overflow-wrap: anywhere; }
+.trc-avr__citation--vide { font-style: italic; color: var(--ink-soft); font-size: 19px; }
+.trc-avr__trad { margin: 8px 26px 0; font-size: 12.5px; color: var(--ink-soft); }
+.trc-avr__difficile { margin: 14px 26px 0; padding: 10px 14px; border-left: 3px solid #A3412F; background: #F8EAE6; font-size: 12.5px; border-radius: 0 3px 3px 0; }
+.trc-avr__liens { margin: 16px 26px 0; display: flex; gap: 10px; flex-wrap: wrap; }
+.trc-avr__case { display: inline-flex; gap: 7px; align-items: center; background: var(--paper); border: 1px solid var(--hairline); border-radius: 3px; padding: 6px 11px; font-size: 12.5px; cursor: pointer; }
+.trc-avr__case input { margin: 0; accent-color: var(--color-copper); }
+.trc-avr__fiche { margin: 12px 26px 0; }
+.trc-avr__reponse { margin-top: 20px; border-top: 1px solid var(--hairline); padding: 20px 26px 24px; background: var(--paper); border-radius: 0 0 3px 3px; display: flex; flex-direction: column; gap: 10px; }
+.trc-avr__publiee { display: flex; flex-direction: column; gap: 8px; }
+.trc-avr__publiee-dit { font-size: 12.5px; color: var(--trf-success, #4A6B52); }
+.trc-avr__publiee-texte { white-space: pre-wrap; font-size: 14px; line-height: 1.6; padding: 13px 14px; border: 1px solid var(--hairline); border-radius: 3px; background: var(--surface-card); }
+
+.trc-avr__pied { margin: 0; font-size: 11.5px; line-height: 1.5; color: var(--ink-soft); }
+
+/* ── Téléphone : la liste, puis l'avis en plein volet ── */
+@media (max-width: 900px) {
+  .trc-avr__temps { grid-template-columns: minmax(0, 1fr); }
+  .trc-avr__pas + .trc-avr__pas { border-left: 0; border-top: 1px solid var(--hairline); }
+  .trc-avr__volets { grid-template-columns: minmax(0, 1fr); }
+  .trc-avr__volets.montre-avis .trc-avr__liste { display: none; }
+  .trc-avr__volets:not(.montre-avis) .trc-avr__avis { display: none; }
+  .trc-avr__avis { position: static; }
+  .trc-avr__retour { display: inline-flex; margin: 14px 18px 0; }
+  .trc-avr__tete, .trc-avr__reponse { padding-left: 18px; padding-right: 18px; }
+  .trc-avr__citation, .trc-avr__trad, .trc-avr__difficile, .trc-avr__liens, .trc-avr__fiche { margin-left: 18px; margin-right: 18px; }
+  .trc-avr__citation { font-size: 20px; }
+  .trc-avr__chiffres { gap: 18px; }
+}

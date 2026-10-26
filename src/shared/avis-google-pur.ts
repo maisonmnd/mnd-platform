@@ -93,6 +93,60 @@ export function deplaceLeChoix(choisis: readonly string[] | undefined, cle: stri
   return liste;
 }
 
+/* ══ LES AVIS DU SITE, CHOISIS PARMI TOUS — 26 octobre 2026 ═══════════════
+   La rubrique « Les avis Google » (maquette YaWfiqou…, « Tout me va ») montre
+   les 299 avis que Make apporte de la fiche (l'API des fiches, pas Places) ;
+   la case « Site » de chacun le met sur maisonmnd.com. Le site ne lit pas ces
+   avis (le document de Make est réservé à l'équipe) : la Maison y COPIE ceux
+   qu'elle choisit, dans `mnd_vitrine_config.avisDuSite`, lisible sans compte.
+   Ce sont ses propres avis, venus de sa fiche ; la mention du tri reste.
+   Quand la liste existe, elle remplace l'ancien choix par clés (`avisChoisis`,
+   limité aux cinq avis de Places), que la rubrique vide en écrivant. */
+
+/** Un avis copié pour le site : ce qu'il montre, et sa clé dans la rubrique. */
+export type AvisDuSite = { cle: string; auteur: string; note: number; texte: string; quand?: string };
+
+const estUnAvisDuSite = (v: unknown): v is AvisDuSite => {
+  const a = v as AvisDuSite | null;
+  return !!a && typeof a === 'object' && typeof a.cle === 'string' && !!a.cle
+    && typeof a.auteur === 'string' && !!a.auteur.trim() && typeof a.texte === 'string' && Number.isFinite(Number(a.note));
+};
+
+/** Les avis copiés, lus d'un document qui a pu être retouché à la main :
+    ceux qui ne tiennent pas (sans clé, sans autrice) se taisent. */
+export function avisDuSiteLus(v: unknown): AvisDuSite[] {
+  return Array.isArray(v) ? v.filter(estUnAvisDuSite) : [];
+}
+
+/** CE QUE LE SITE MONTRE : les avis copiés par la Maison s'il y en a, dans
+    son ordre ; sinon l'ancien choix par clés parmi ceux de Google ; sinon
+    ceux de Google. */
+export function avisDuSiteAMontrer<T extends Pick<UnAvisGoogle, 'auteur' | 'texte'>>(
+  copies: readonly AvisDuSite[] | undefined | null,
+  tous: readonly T[],
+  choisis: readonly string[] | undefined | null,
+): { avis: (T | AvisDuSite)[]; mode: ModeDesAvis } {
+  const lus = avisDuSiteLus(copies);
+  if (lus.length > 0) return { avis: lus, mode: 'choix' };
+  return avisAMontrer(tous, choisis);
+}
+
+/** Cocher ou décocher un avis : coché, sa copie se range à la fin. */
+export function basculeDansLeSite(liste: readonly AvisDuSite[] | undefined, avis: AvisDuSite): AvisDuSite[] {
+  const l = avisDuSiteLus(liste);
+  return l.some((a) => a.cle === avis.cle) ? l.filter((a) => a.cle !== avis.cle) : [...l, avis];
+}
+
+/** Monter (-1) ou descendre (+1) un avis du site d'une place. */
+export function deplaceDansLeSite(liste: readonly AvisDuSite[] | undefined, cle: string, sens: -1 | 1): AvisDuSite[] {
+  const l = avisDuSiteLus(liste);
+  const i = l.findIndex((a) => a.cle === cle);
+  const j = i + sens;
+  if (i < 0 || j < 0 || j >= l.length) return l;
+  [l[i], l[j]] = [l[j], l[i]];
+  return l;
+}
+
 /** Les clés cochées que Google ne renvoie plus : elles ne s'affichent plus. */
 export function choixDisparus(choisis: readonly string[] | undefined, tous: readonly Pick<UnAvisGoogle, 'auteur' | 'texte'>[]): string[] {
   const presentes = new Set(tous.map(cleDeLAvis));

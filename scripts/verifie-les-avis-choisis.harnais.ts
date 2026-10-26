@@ -11,6 +11,7 @@
 import { readFileSync } from 'node:fs';
 import {
   avisAMontrer, basculeLeChoix, choixDisparus, cleDeLAvis, deplaceLeChoix, mentionDuTri,
+  avisDuSiteAMontrer, avisDuSiteLus, basculeDansLeSite, deplaceDansLeSite,
 } from '../src/shared/avis-google-pur';
 
 let ko = 0;
@@ -67,11 +68,25 @@ dit('le premier ne monte pas', [k(B), k(D)], deplaceLeChoix([k(B), k(D)], k(B), 
 dit('le dernier ne descend pas', [k(B), k(D)], deplaceLeChoix([k(B), k(D)], k(D), 1));
 dit('les coches disparus', ['av-disparu'], choixDisparus([k(A), 'av-disparu'], G));
 
+/* ── 4 bis. Les copies de la rubrique (26 octobre 2026) ── */
+const cp = (a: { auteur: string; note: number; texte: string }, cle: string) => ({ cle, auteur: a.auteur, note: a.note, texte: a.texte });
+const X = cp(A, 'g-1');
+const Y = cp(D, 'g-2');
+dit('copies lues : sans cle ou sans autrice, elles se taisent', ['g-1'], avisDuSiteLus([X, { ...Y, auteur: '  ' }, { ...Y, cle: '' }, null, 'x']).map((a) => a.cle));
+dit('copies : elles passent avant tout, dans l ordre de la Maison', { noms: ['Dodji', 'Afi'], mode: 'choix' },
+  (({ avis, mode }) => ({ noms: noms(avis), mode }))(avisDuSiteAMontrer([Y, X], G, [k(B)])));
+dit('... vides, l ancien choix par cles, puis ceux de Google', ['choix', 'google'],
+  [avisDuSiteAMontrer([], G, [k(B)]).mode, avisDuSiteAMontrer(undefined, G, []).mode]);
+dit('cocher une copie la range a la fin, decocher la retire', [['g-1', 'g-2'], ['g-2']],
+  [basculeDansLeSite([X], Y).map((a) => a.cle), basculeDansLeSite([X, Y], X).map((a) => a.cle)]);
+dit('monter, descendre, et rien au bord', [['g-2', 'g-1'], ['g-2', 'g-1'], ['g-1', 'g-2']],
+  [deplaceDansLeSite([X, Y], 'g-2', -1).map((a) => a.cle), deplaceDansLeSite([X, Y], 'g-1', 1).map((a) => a.cle), deplaceDansLeSite([X, Y], 'g-1', -1).map((a) => a.cle)]);
+
 /* ── 5. Les deux écrans lisent le même juge (commentaires effacés) ── */
 const sansCom = (f: string) => readFileSync(f, 'utf8').replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
 const site = sansCom('src/apps/revelateur/ilots/Avis.tsx');
-dit('site : avisAMontrer sur le choix lu, la liste affichee est la sienne, la mention dite', [true, true, true, false], [
-  new RegExp(String.raw`avisAMontrer\(avis\.avis, choisis\)`).test(site),
+dit('site : les copies, puis le choix lu, la liste affichee est la sienne, la mention dite', [true, true, true, false], [
+  new RegExp(String.raw`avisDuSiteAMontrer\(copies, avis\?\.avis \?\? \[\], choisis\)`).test(site),
   new RegExp(String.raw`vue\.avis\.map\(`).test(site),
   new RegExp(String.raw`mentionDuTri\(vue\.mode\)`).test(site),
   new RegExp(String.raw`avis\.avis\.map\(`).test(site),
@@ -79,21 +94,24 @@ dit('site : avisAMontrer sur le choix lu, la liste affichee est la sienne, la me
 const maison = sansCom('src/apps/revelateur/maison.ts');
 dit('site : le choix se lit dans mnd_vitrine_config (lisible sans compte)', true,
   new RegExp(String.raw`export async function avisChoisis\(\)[\s\S]{0,300}eq\('key', 'mnd_vitrine_config'\)`).test(maison));
-/* 25 octobre 2026 : le choix a déménagé dans « Les avis Google » (la case
-   « Site » de chaque rangée) ; « Le site public » n'en garde qu'un résumé,
-   qui lit le même juge et n'écrit plus rien. */
-const trone = sansCom('src/apps/trone/routes/clients/VitrineAvis.tsx');
-dit('Trone : le choix s ecrit dans avisChoisis, par les fonctions du juge, depuis l onglet des avis', [true, true, true, true, true], [
-  /const pose = \(liste: string\[\]\) => poseLesAvisChoisis\(liste\);/.test(trone)
-    && new RegExp(String.raw`export const poseLesAvisChoisis = \(liste: string\[\]\): void =>\s*vitrineConfigStore\.set\(\(c\) => \(\{ \.\.\.c, avisChoisis: liste \}\)\)`).test(sansCom('src/shared/bridges.ts')),
-  new RegExp(String.raw`basculeLeChoix\(choisis, id\)`).test(trone),
-  new RegExp(String.raw`deplaceLeChoix\(choisis, id, -1\)`).test(trone),
-  new RegExp(String.raw`<SurLeSite id=\{id\}`).test(trone),
-  new RegExp(String.raw`const vueDuSite = avisAMontrer\(avis \?\? \[\], choisis\);`).test(trone),
+dit('site : les copies se lisent dans mnd_vitrine_config (lisible sans compte), sous leur nom', [true, true],
+  [new RegExp(String.raw`export async function avisDuSite\(\)[\s\S]{0,300}eq\('key', 'mnd_vitrine_config'\)`).test(maison),
+    /\?\.data\?\.avisDuSite;/.test(maison) && /avisDuSite: liste, avisChoisis: \[\]/.test(sansCom('src/shared/bridges.ts'))]);
+/* 26 octobre 2026 : le choix vit dans la rubrique « Les avis Google », parmi
+   les 299 avis de Make, et s'y COPIE (`avisDuSite`) ; « Le site public »
+   n'en garde qu'un résumé, qui lit le même juge et n'écrit rien. */
+const trone = sansCom('src/apps/trone/routes/clients/AvisGoogle.tsx');
+const ponts = sansCom('src/shared/bridges.ts');
+dit('Trone : la case copie l avis, les fleches rangent, l ancien choix par cles se vide, un avis sans nom ne part pas', [true, true, true, true, true], [
+  /poseLesAvisDuSite\(basculeDansLeSite\(duSite, copieDe\(a\)\)\)/.test(trone),
+  /poseLesAvisDuSite\(deplaceDansLeSite\(duSite, a\.cle, -1\)\)/.test(trone),
+  new RegExp(String.raw`export const poseLesAvisDuSite = [^\n]*\n\s*vitrineConfigStore\.set\(\(c\) => \(\{ \.\.\.c, avisDuSite: liste, avisChoisis: \[\] \}\)\)`).test(ponts),
+  /if \(rangSurLeSite\(a\.cle\) < 0 && !a\.auteur\.trim\(\)\) \{/.test(trone),
+  /ancien\.mode === 'choix' \? ancien\.avis\.map\(\(a\) => \(\{ cle: cleDeLAvis\(a\)/.test(trone),
 ]);
 const resume = sansCom('src/apps/trone/routes/clients/VitrineSite.tsx');
 dit('Le site public : un resume par le meme juge, sans rien ecrire', [true, true, false],
-  [/<AvisDuSite avis=/.test(resume), /const vue = avisAMontrer\(tous, cfg\.avisChoisis\);/.test(resume), /poseLesAvisChoisis|basculeLeChoix|deplaceLeChoix/.test(resume)]);
+  [/<AvisDuSite avis=/.test(resume), /const vue = avisDuSiteAMontrer\(cfg\.avisDuSite, tous, cfg\.avisChoisis\);/.test(resume), /poseLesAvisChoisis|poseLesAvisDuSite|basculeLeChoix|deplaceLeChoix|basculeDansLeSite|deplaceDansLeSite/.test(resume)]);
 const pur = sansCom('src/shared/avis-google-pur.ts');
 dit('le juge est pur : aucun import', false, /^\s*import\s/m.test(pur));
 

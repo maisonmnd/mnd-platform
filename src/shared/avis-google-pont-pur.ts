@@ -136,8 +136,23 @@ export function aPlat(s: unknown): string {
     .trim();
 }
 
-/** Ce que le relevé du Trône sait d'un avis (Places). */
-export type AvisAApparier = { auteur: string; texte: string; texteOriginal?: string; publieLe?: string };
+/** Ce que le relevé du Trône sait d'un avis (Places). 26 octobre 2026 : la
+    rubrique « Les avis Google » connaît aussi son nom chez Google (`name`). */
+export type AvisAApparier = { auteur: string; texte: string; texteOriginal?: string; publieLe?: string; name?: string };
+
+/** LE TEXTE D'UN AVIS TEL QUE GOOGLE L'ÉCRIT, quand la fiche le traduit :
+    « original\n\n(Translated by Google)\ntraduction », ou l'inverse,
+    « (Translated by Google) traduction\n\n(Original)\noriginal ». On garde
+    l'original, et la traduction à part. */
+export function texteDeGoogle(brut: unknown): { original: string; traduction?: string } {
+  const s = String(brut ?? '').replace(/\r\n/g, '\n').trim();
+  if (!s) return { original: '' };
+  const avant = /^\(Translated by Google\)\s*([\s\S]*?)\n\s*\(Original\)\s*([\s\S]*)$/i.exec(s);
+  if (avant) return { original: avant[2].trim(), traduction: avant[1].trim() || undefined };
+  const apres = /^([\s\S]*?)\n\s*\(Translated by Google\)\s*([\s\S]*)$/i.exec(s);
+  if (apres) return { original: apres[1].trim(), traduction: apres[2].trim() || undefined };
+  return { original: s };
+}
 
 /** L'écart toléré entre la date de Places et celle de Google : la même
     publication, vue par deux portes. */

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { avisChoisis, avisGoogle, maison, type AvisGoogle } from '../maison';
-import { avisAMontrer, mentionDuTri } from '../../../shared/avis-google-pur';
+import { avisChoisis, avisDuSite, avisGoogle, maison, type AvisGoogle } from '../maison';
+import { avisDuSiteAMontrer, avisDuSiteLus, mentionDuTri, type AvisDuSite } from '../../../shared/avis-google-pur';
 
 /* LES AVIS GOOGLE, TELS QUELS. « Insérer les avis Google » (Yéman).
 
@@ -19,9 +19,11 @@ export default function Avis() {
   const [avis, setAvis] = useState<AvisGoogle | null | undefined>(undefined);
   const [fiche, setFiche] = useState('');
   const [choisis, setChoisis] = useState<string[]>([]);
+  const [copies, setCopies] = useState<AvisDuSite[]>([]);
   useEffect(() => {
     void avisGoogle().then(setAvis).catch(() => setAvis(null));
     void avisChoisis().then(setChoisis).catch(() => setChoisis([]));
+    void avisDuSite().then((l) => setCopies(avisDuSiteLus(l))).catch(() => setCopies([]));
     void maison().then((m) => setFiche(m?.fiche ?? ''));
   }, []);
 
@@ -30,7 +32,9 @@ export default function Avis() {
   /* LES AVIS QUE LA MAISON A CHOISIS — 10 octobre 2026 : ceux cochés au
      Trône, encore renvoyés par Google, dans l'ordre de la Maison ; sinon
      ceux de Google. La mention du tri est exigée par Google. */
-  const vue = avis ? avisAMontrer(avis.avis, choisis) : null;
+  /* 26 octobre 2026 : les avis COPIÉS par la Maison parmi tous ceux de sa
+     fiche passent d'abord (rubrique « Les avis Google » du Trône). */
+  const vue = avis || copies.length > 0 ? avisDuSiteAMontrer(copies, avis?.avis ?? [], choisis) : null;
 
   return (
     <div className="conteneur">
@@ -67,7 +71,7 @@ export default function Avis() {
             <div className="avis-carte" key={i}>
               <span className="etoiles">{etoiles(a.note)}</span>
               <p>{a.texte.length > 280 ? a.texte.slice(0, 277).trimEnd() + '…' : a.texte}</p>
-              <div className="qui">{a.photo ? <img src={a.photo} alt="" loading="lazy" /> : <i />}<span>{a.auteur}{a.quand ? ` · ${a.quand}` : ''}</span></div>
+              <div className="qui">{'photo' in a && a.photo ? <img src={a.photo} alt="" loading="lazy" /> : <i />}<span>{a.auteur}{a.quand ? ` · ${a.quand}` : ''}</span></div>
             </div>
           ))}
           <p className="legende" style={{ gridColumn: '1 / -1', marginTop: 4 }}>{mentionDuTri(vue.mode)}</p>

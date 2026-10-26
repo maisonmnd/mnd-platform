@@ -4,7 +4,7 @@
 // fonctions qu on colle a la main : elle survit a un collage de travers.
 
 /* ═══════════════════════════════════════════════════════════════════════
-   AVIS-GOOGLE-PONT · 25 octobre 2026 · version 2026-10-25-b
+   AVIS-GOOGLE-PONT · 25 octobre 2026 · version 2026-10-26-a
 
    « Je veux également répondre aux avis Google depuis ici » (Yéman). Google
    a refusé deux fois son API à la Maison ; Make.com l'a. Choix du 25 octobre
@@ -35,11 +35,15 @@
    jeton que Make met dans l'en-tête x-jeton), MAKE_AVIS_REPONDRE
    (l'adresse du webhook « Répondre sur Google ») ; CLE_SERVICE (ou
    SERVICE_KEY) existe déjà. Aucune migration. Contrôle : un GET sur
-   l'adresse rend { error: 'method', version: '2026-10-25-b', … }.
+   l'adresse rend { error: 'method', version: '2026-10-26-a', … }.
 
    2026-10-25-b (le soir du premier import, 299 avis arrivés sans leurs
    noms) : les champs de Make se lisent sans majuscules, et un avis sans
    nom se retrouve par la date ET le début du texte (`apparie`).
+
+   2026-10-26-a (la rubrique « Les avis Google ») : la rubrique connaît le
+   nom de l'avis chez Google ; s'il est dans le document, il sert tel quel,
+   sans appariement.
 
    LE BLOC RECOPIÉ : src/shared/avis-google-pont-pur.ts, entier, entre ses
    repères (`node scripts/copie-dans-le-centre.mjs --fonction
@@ -57,7 +61,7 @@ const WEBHOOK = (Deno.env.get('MAKE_AVIS_REPONDRE') ?? '').trim();
 const admin = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } });
 
 /** La version de ce fichier : le Trône la lit au GET. */
-const VERSION = '2026-10-25-b';
+const VERSION = '2026-10-26-a';
 
 const CORS: Record<string, string> = {
   'Access-Control-Allow-Origin': '*',
@@ -207,8 +211,23 @@ export function aPlat(s: unknown): string {
     .trim();
 }
 
-/** Ce que le relevé du Trône sait d'un avis (Places). */
-export type AvisAApparier = { auteur: string; texte: string; texteOriginal?: string; publieLe?: string };
+/** Ce que le relevé du Trône sait d'un avis (Places). 26 octobre 2026 : la
+    rubrique « Les avis Google » connaît aussi son nom chez Google (`name`). */
+export type AvisAApparier = { auteur: string; texte: string; texteOriginal?: string; publieLe?: string; name?: string };
+
+/** LE TEXTE D'UN AVIS TEL QUE GOOGLE L'ÉCRIT, quand la fiche le traduit :
+    « original\n\n(Translated by Google)\ntraduction », ou l'inverse,
+    « (Translated by Google) traduction\n\n(Original)\noriginal ». On garde
+    l'original, et la traduction à part. */
+export function texteDeGoogle(brut: unknown): { original: string; traduction?: string } {
+  const s = String(brut ?? '').replace(/\r\n/g, '\n').trim();
+  if (!s) return { original: '' };
+  const avant = /^\(Translated by Google\)\s*([\s\S]*?)\n\s*\(Original\)\s*([\s\S]*)$/i.exec(s);
+  if (avant) return { original: avant[2].trim(), traduction: avant[1].trim() || undefined };
+  const apres = /^([\s\S]*?)\n\s*\(Translated by Google\)\s*([\s\S]*)$/i.exec(s);
+  if (apres) return { original: apres[1].trim(), traduction: apres[2].trim() || undefined };
+  return { original: s };
+}
 
 /** L'écart toléré entre la date de Places et celle de Google : la même
     publication, vue par deux portes. */
@@ -333,11 +352,14 @@ async function publieUneReponse(req: Request, jwt: string): Promise<Response> {
   if (defaut) return refus(400, 'format', `Rien n’est parti : ${defaut}.`);
   const reponse = String(d.reponse).trim();
   const avis = d.avis ?? {};
-  if (typeof avis.auteur !== 'string' || typeof avis.texte !== 'string') return refus(400, 'format', 'L’avis n’est pas dit.');
+  const parSonNom = nomDAvisValide(avis.name) ? avis.name.trim() : '';
+  if (!parSonNom && (typeof avis.auteur !== 'string' || typeof avis.texte !== 'string')) return refus(400, 'format', 'L’avis n’est pas dit.');
 
-  /* 3. L'AVIS CHEZ GOOGLE, jamais deviné. */
+  /* 3. L'AVIS CHEZ GOOGLE, jamais deviné : par son nom s'il est connu (la
+     rubrique le donne), sinon par l'appariement. */
   const doc = await lisLeDocument<DocumentDesAvisDeGoogle>(CLE_DES_AVIS_DE_GOOGLE, { avis: {} });
-  const g = apparie(avis as AvisAApparier, Object.values(doc.avis ?? {}));
+  const g = (parSonNom ? doc.avis?.[parSonNom] : undefined)
+    ?? (typeof avis.auteur === 'string' && typeof avis.texte === 'string' ? apparie(avis as AvisAApparier, Object.values(doc.avis ?? {})) : null);
   if (!g) return refus(404, 'introuvable', 'Cet avis n’a pas encore été apporté par Make, ou deux avis lui ressemblent : rien n’est parti. Copiez la réponse et collez-la sur Google.');
   if (!WEBHOOK) return refus(503, 'pont', 'Le secret MAKE_AVIS_REPONDRE n’est pas posé : rien n’est parti.');
 

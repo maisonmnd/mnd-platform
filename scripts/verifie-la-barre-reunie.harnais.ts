@@ -29,7 +29,11 @@ const dansLaBarre = items.filter((it) => !it.horsMenu);
 /* 41 depuis le 24 octobre 2026 : « Les projets » (maquette VJ5PJEGU…,
    choix du sélecteur : rangés sous Direction) prennent une rubrique ; « Mes
    tâches », né le même soir, est un onglet du Fil et n'en prend aucune. */
-dit('la barre montre 41 rubriques', 41, dansLaBarre.length);
+/* 42 depuis le 26 octobre 2026 : « Les avis Google » (maquette YaWfiqou…,
+   « Tout me va ») prennent une rubrique à Marketing & fidélité, sous « Les
+   vitrines ». */
+dit('la barre montre 42 rubriques', 42, dansLaBarre.length);
+dit('... dont Les avis Google, sous Les vitrines', ['Marketing & Fidélité', false], [item('/avis-google')?.groupe, !!item('/avis-google')?.horsMenu]);
 dit('... dont Entre deux seances, dans la Clientele', ['Clientèle', false], [item('/entre-deux')?.groupe, !!item('/entre-deux')?.horsMenu]);
 dit('... dont Les projets, sous Direction ; Mes taches reste un onglet du Fil', ['Direction', false, true],
   [item('/projets')?.groupe, !!item('/projets')?.horsMenu, item('/mes-taches')?.horsMenu === true]);
