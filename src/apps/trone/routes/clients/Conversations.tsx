@@ -32,6 +32,8 @@ import { adresseDesFonctions, cleAnonyme } from '../../../../shared/supabase';
 import { appelleOuGarde, gardeUnAppel } from '../../../../shared/appels-en-attente';
 import { useSettings } from '../../../../shared/settings';
 import { useStaff as useEquipe, useEnvois, useAutoConfig } from '../equipe/data';
+import { aDejaLaisseUnAvis } from '../../../../shared/avis-fiches-pur';
+import { useLiensDesAvis } from '../../../../shared/avis-fiches';
 import { EnvoisAutomatiques } from './EnvoisAutomatiques';
 import { compteDuJournal, envoisDeLaPeriode, jourDuSalon, estEnvoiAutomatique, modeleDit } from '../../../../shared/envois';
 import { heuresDuJour } from './_heures';
@@ -317,6 +319,8 @@ export default function Conversations() {
   const demandeLesEnvois = params.get('envois') === '1';
   useEffect(() => { if (demandeLesEnvois) setVue('envois'); }, [demandeLesEnvois]);
   const [lesEnvois] = useEnvois();
+  /* UN AVIS, UNE SEULE FOIS (26 octobre 2026) : le modèle « Demande d'avis » se cache pour une cliente déjà reliée à un avis. */
+  const [liensDesAvis] = useLiensDesAvis();
   const aRegarderAujourdhui = useMemo(() => compteDuJournal(envoisDeLaPeriode(
     lesEnvois.filter((e) => e && e.canal !== 'push'), 'aujourdhui', jourDuSalon(new Date().toISOString()),
   )).aRegarder, [lesEnvois]);
@@ -1704,7 +1708,7 @@ export default function Conversations() {
                     <Button variant="copper" size="sm" disabled={envoiEnCours} onClick={() => setLienOuvert(true)}>
                       Réservation préparée
                     </Button>
-                    {MODELES.map((m) => (
+                    {MODELES.filter((m) => m.nom !== 'avis_google' || !aDejaLaisseUnAvis(fil.clientId, liensDesAvis)).map((m) => (
                       <Button
                         key={m.nom}
                         variant="copper"
@@ -1716,6 +1720,9 @@ export default function Conversations() {
                         {m.dit}
                       </Button>
                     ))}
+                    {aDejaLaisseUnAvis(fil.clientId, liensDesAvis) && (
+                      <span className="trc-sub" style={{ alignSelf: 'center' }}>Elle a déjà laissé son avis Google : on ne le lui redemande pas.</span>
+                    )}
                   </div>
                 )}
               </div>

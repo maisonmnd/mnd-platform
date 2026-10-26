@@ -15,7 +15,14 @@
         son geste d'un tap ;
      ⑤ consigne CHAQUE tentative dans la table `envois` (0043), identifiant
         DÉTERMINISTE `env-<facture>-wa-avis` : le cron peut se réveiller dix
-        fois, une cliente n'est jamais écrite deux fois.
+        fois, une cliente n'est jamais écrite deux fois ;
+     ⑥ UN AVIS, UNE SEULE FOIS (26 octobre 2026, Yéman : « si la cliente a
+        déjà posé son avis une fois sur Google, elle ne doit pas le reposer
+        une deuxième fois ») : une cliente reliée à un avis dans le document
+        `mnd_avis_fiches` (Vitrines › Les avis Google, « C'est elle ») n'est
+        plus jamais sollicitée ; sa pièce est consignée « sans-envoi », pour
+        ne jamais redevenir une première venue à fêter.
+   Un GET sans clé rend la version (405) : c'est le contrôle de santé.
 
    AUCUN SECRET ICI. Tout vient de l'environnement de la fonction
    (supabase secrets set …) — ce fichier vit dans un dépôt public.
@@ -206,7 +213,12 @@ const numeroIntl = (brut: string | undefined): string | null => {
   return d;
 };
 
+const VERSION = '2026-10-26-a';
+
 Deno.serve(async (req) => {
+  if (req.method === 'GET') {
+    return new Response(JSON.stringify({ fonction: 'avis-google', version: VERSION }), { status: 405, headers: { 'content-type': 'application/json' } });
+  }
   /* ══ LA CLÉ SERVICE, NOUVELLE FAMILLE — 7 septembre 2026 ═══════════
      Depuis la rotation des clés (fuite du 2 août), le projet vit sur les
      clés « sb_… » : la legacy service_role (eyJ…) injectée par la
@@ -235,7 +247,7 @@ Deno.serve(async (req) => {
 
   /* ── ① L'interrupteur de la Maison ──────────────────────────────── */
   const { data: docs } = await sb.from('documents').select('key, data')
-    .in('key', ['mnd_auto_config', 'mnd_house_identity', 'mnd_facteur']);
+    .in('key', ['mnd_auto_config', 'mnd_house_identity', 'mnd_facteur', 'mnd_avis_fiches']);
   const cfg = (docs?.find((d) => d.key === 'mnd_auto_config')?.data ?? {}) as
     { reviewLink?: string; avisAuto?: boolean; salleMin?: unknown; calmeDe?: unknown; calmeA?: unknown };
   /* LA SALLE EST OUVERTE si le facteur a donné signe de vie dans les cinq minutes. */
@@ -245,6 +257,11 @@ Deno.serve(async (req) => {
     return new Response(JSON.stringify({ actif: false }), { status: 200 });
   }
   const lien = (cfg.reviewLink ?? '').trim() || REVIEW_LINK_DEFAUT;
+  /* ⑥ Les clientes qui ont déjà laissé un avis : celles qu'un lien désigne
+     (même règle que `clientesAvecUnAvis` dans src/shared/avis-fiches-pur.ts). */
+  const liens = (docs?.find((d) => d.key === 'mnd_avis_fiches')?.data ?? {}) as Record<string, { clientId?: string } | null | undefined>;
+  const dejaUnAvis = new Set<string>();
+  for (const l of Object.values(liens)) if (l?.clientId) dejaUnAvis.add(l.clientId);
   const nomMaison: string =
     ((docs?.find((d) => d.key === 'mnd_house_identity')?.data as { nom?: string })?.nom ?? '').trim() || 'Maison MND';
 
@@ -354,7 +371,13 @@ Deno.serve(async (req) => {
   let nWa = 0;
   let nEcartes = 0;
   let nDeposes = 0;
+  let nDejaUnAvis = 0;
   for (const p of aFaire) {
+    if (dejaUnAvis.has(p.clientId!)) {
+      consigne(p, 'sans-envoi', 'a déjà laissé un avis Google');
+      nDejaUnAvis++;
+      continue;
+    }
     if (apresCoup(p)) {
       consigne(p, 'sans-envoi', 'rendez-vous posé après son heure');
       nEcartes++;
@@ -406,7 +429,7 @@ Deno.serve(async (req) => {
   }
 
   return new Response(
-    JSON.stringify({ actif: true, maison: nomMaison, jour: aujourdhui, premieres: aFaire.length, ecartes: nEcartes, salle: salleOuverte, deposes: nDeposes, envoyes: nWa }),
+    JSON.stringify({ actif: true, version: VERSION, maison: nomMaison, jour: aujourdhui, premieres: aFaire.length, ecartes: nEcartes, dejaUnAvis: nDejaUnAvis, salle: salleOuverte, deposes: nDeposes, envoyes: nWa }),
     { status: 200, headers: { 'content-type': 'application/json' } },
   );
 });

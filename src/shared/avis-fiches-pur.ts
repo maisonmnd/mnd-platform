@@ -115,8 +115,9 @@ export function prenomCompare(auteur: string | undefined | null): string {
 export type FicheProposee = {
   clientId: string;
   nom: string;
-  /** « demande » : la demande d'avis lui est partie ; « venue » : elle est venue. */
-  raison: 'demande' | 'venue';
+  /** « demande » : la demande d'avis lui est partie ; « venue » : elle est venue ;
+      « nom » : rien dans les 30 jours, mais son nom entier est seul à correspondre. */
+  raison: 'demande' | 'venue' | 'nom';
   /** Le jour de cette demande ou de cette venue. */
   le: string;
   /** Le reste du nom Google (nom ou initiale) tient aussi : plus sûr. */
@@ -170,6 +171,15 @@ export function fichesProposees(
     if (!demande && !venue) continue;
     props.push({ clientId: c.id, nom: c.name, raison: demande ? 'demande' : 'venue', le: (demande ?? venue) as string, nomAussi: resteDuNomTient(a.auteur, c.name) });
   }
+  /* RECONNAÎTRE UN AVIS ANCIEN — 26 octobre 2026 : « il faut que tu puisses
+     reconnaître les avis et relier la fiche » (Yéman). Rien dans les trente
+     jours, mais UNE SEULE fiche porte le prénom et le reste du nom de
+     Google : elle est proposée, la Maison confirme. Deux fiches qui tiennent,
+     et rien n'est proposé : on ne devine pas. */
+  if (props.length === 0) {
+    const parLeNom = o.clients.filter((c) => c?.id && motsDuNom(c.name).includes(prenom) && resteDuNomTient(a.auteur, c.name));
+    if (parLeNom.length === 1) props.push({ clientId: parLeNom[0].id, nom: parLeNom[0].name, raison: 'nom', le: jour, nomAussi: true });
+  }
   return props
     .sort((x, y) => (x.raison === y.raison ? 0 : x.raison === 'demande' ? -1 : 1)
       || Number(y.nomAussi) - Number(x.nomAussi)
@@ -180,6 +190,7 @@ export function fichesProposees(
 /** « demande d'avis partie le 19 oct. 2026 · même prénom ». Le jour se dit
     par la fonction qu'on lui passe (l'écran a la sienne, avec l'année). */
 export function pourquoiProposee(p: FicheProposee, jourDit: (jour: string) => string): string {
+  if (p.raison === 'nom') return 'même prénom, même nom · seule fiche qui corresponde, sans demande ni venue dans les 30 jours';
   const quoi = p.raison === 'demande' ? `demande d’avis partie le ${jourDit(p.le)}` : `venue le ${jourDit(p.le)}, sans demande d’avis`;
   return `${quoi} · ${p.nomAussi ? 'même prénom, même nom' : 'même prénom'}`;
 }
@@ -198,6 +209,22 @@ export function etatDuLien(a: AvisDuReleve, lien: LienDAvis | undefined, releveL
 
 export const compteARelier = (avis: readonly AvisDuReleve[], liens: LiensDesAvis, releveLe: string | undefined): number =>
   avis.filter((a) => etatDuLien(a, liens[idDeLAvis(a)], releveLe) === 'a-relier').length;
+
+/* ── UN AVIS, UNE SEULE FOIS — 26 octobre 2026 ──────────────────────────
+   « Si la cliente a déjà posé son avis une fois sur Google, elle ne doit
+   pas le reposer une deuxième fois » (Yéman). Le lien avis ↔ fiche est la
+   seule source : une cliente reliée à un avis n'est plus jamais sollicitée,
+   ni par la fonction du serveur (avis-google), ni par le modèle à la main
+   des Conversations, ni par l'assistant. Rien d'autre à cocher. */
+
+/** Les clientes qui ont laissé un avis : celles qu'un lien désigne. */
+export function clientesAvecUnAvis(liens: LiensDesAvis): Set<string> {
+  const s = new Set<string>();
+  for (const l of Object.values(liens ?? {})) if (l?.clientId) s.add(l.clientId);
+  return s;
+}
+export const aDejaLaisseUnAvis = (clientId: string | undefined, liens: LiensDesAvis): boolean =>
+  !!clientId && clientesAvecUnAvis(liens).has(clientId);
 
 /** LE FILTRE DE L'ONGLET, et le résumé de chaque ligne : les mêmes juges. */
 export type FiltreDesAvis = 'tous' | 'sans' | 'relier' | 'repondus';

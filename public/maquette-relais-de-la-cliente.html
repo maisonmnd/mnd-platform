@@ -1,0 +1,340 @@
+<title>Le relais de la cliente</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;1,400&family=Jost:wght@300;400;500;600&display=swap">
+<style>
+/* Mise en page : une figure vedette (la piste), puis la légende, le détail des relais, les règles. */
+:root {
+  --papier: #F6F1E7; --carte: #FBF8F2; --encre: #1E2150; --texte: #23232C; --doux: #5C5C66;
+  --filet: rgba(30,33,80,.14); --cuivre: #B97A4A; --cuivre-fonce: #7C4C2C; --cuivre-pale: #FAF1E9; --alarme: #A3402B;
+  --serif: "Cormorant Garamond", "Noto Serif", Georgia, serif; --sans: "Jost", "Noto Sans", system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --papier: #131532; --carte: #191B43; --encre: #E8E4F4; --texte: #E6E3EC; --doux: #A7ACC9;
+  --filet: rgba(232,228,244,.16); --cuivre: #D6A06F; --cuivre-fonce: #E4BE9C; --cuivre-pale: #2A2240; --alarme: #E28A72; color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --papier: #131532; --carte: #191B43; --encre: #E8E4F4; --texte: #E6E3EC; --doux: #A7ACC9;
+  --filet: rgba(232,228,244,.16); --cuivre: #D6A06F; --cuivre-fonce: #E4BE9C; --cuivre-pale: #2A2240; --alarme: #E28A72; color-scheme: dark; }
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { background: var(--papier); color: var(--texte); font: 400 15px/1.6 var(--sans); }
+.page { max-width: 1120px; margin: 0 auto; padding-block: 36px 64px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: flex; flex-direction: column; gap: 40px; }
+h1, h2 { font-family: var(--serif); font-weight: 400; color: var(--encre); margin: 0; text-wrap: balance; }
+h1 { font-size: clamp(36px, 6vw, 52px); line-height: 1.05; }
+h2 { font-size: 27px; line-height: 1.15; }
+p { margin: 0; max-width: 68ch; }
+.sur { font: 500 11px var(--sans); letter-spacing: .16em; text-transform: uppercase; color: var(--cuivre-fonce); }
+.doux { color: var(--doux); font-size: 13.5px; }
+section { display: flex; flex-direction: column; gap: 14px; }
+section + section { border-top: 1px solid var(--filet); padding-top: 34px; }
+header { display: flex; flex-direction: column; gap: 12px; }
+header p { font-size: 17px; }
+/* La piste */
+figure { margin: 0; display: flex; flex-direction: column; gap: 10px; }
+.piste { overflow-x: auto; }
+.piste svg { display: block; min-width: 980px; width: 100%; height: auto; color: var(--encre); }
+figcaption { font-size: 13.5px; color: var(--doux); }
+.t-num { font: 600 14px var(--sans); fill: var(--papier); }
+.t-titre { font: 500 15.5px var(--sans); fill: var(--encre); }
+.t-quand { font: 400 13px var(--sans); fill: var(--doux); }
+.t-marques { font: 500 11.5px var(--sans); fill: var(--doux); }
+.m-meta { fill: var(--alarme); font-weight: 600; }
+.m-srv { fill: var(--encre); }
+.m-cou { fill: var(--cuivre-fonce); font-weight: 600; }
+.m-main, .m-rien { fill: var(--doux); }
+.m-sep { fill: var(--doux); }
+.t-temps { font: 500 11px var(--sans); letter-spacing: .18em; fill: var(--doux); }
+.t-centre { font: 400 34px var(--serif); fill: var(--encre); }
+.t-sous { font: 300 13px var(--sans); fill: var(--doux); }
+.t-corde { font: 400 12.5px var(--sans); font-style: italic; fill: var(--cuivre-fonce); }
+/* La légende */
+.legende { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 18px 36px; }
+.legende h3 { margin: 0 0 8px; font: 500 11px var(--sans); letter-spacing: .16em; text-transform: uppercase; color: var(--doux); }
+.legende ul { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 7px; font-size: 14px; }
+.legende li { display: flex; gap: 10px; align-items: baseline; }
+.rond { display: inline-flex; width: 24px; height: 24px; border-radius: 50%; align-items: center; justify-content: center; font: 600 12px var(--sans); color: #F6F1E7; flex: none; }
+.r-serveur { background: #5B6283; } .r-accueil { background: #2C3470; } .r-gerard { background: #B97A4A; } .r-maitre { background: #0A9483; }
+.pm { display: inline-block; font: 600 10.5px var(--sans); letter-spacing: .08em; text-transform: uppercase; padding: 1px 7px; border-radius: 99px; margin-right: 4px; white-space: nowrap; }
+.pm-meta { background: var(--alarme); color: var(--papier); }
+.pm-srv { border: 1px solid var(--encre); color: var(--encre); }
+.pm-cou { background: var(--cuivre-pale); color: var(--cuivre-fonce); border: 1px solid var(--cuivre); }
+.pm-main { border: 1px dashed var(--doux); color: var(--doux); }
+.pm-rien { display: none; }
+/* Le détail */
+.cadre { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; min-width: 980px; font-size: 13.5px; font-variant-numeric: lining-nums tabular-nums; }
+th { text-align: left; font: 500 10.5px var(--sans); letter-spacing: .14em; text-transform: uppercase; color: var(--doux); padding: 0 12px 8px 0; border-bottom: 1px solid var(--encre); }
+td { padding: 12px 12px 12px 0; border-bottom: 1px solid var(--filet); vertical-align: top; }
+td.n { width: 36px; }
+td.t { font-family: var(--serif); font-size: 18px; color: var(--encre); white-space: nowrap; }
+td.t small { display: block; font: 400 12.5px var(--sans); color: var(--doux); }
+td.q { white-space: nowrap; color: var(--encre); }
+td.e { color: var(--doux); }
+.parts { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 5px; }
+/* Les règles */
+.regles { margin: 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 12px 32px; counter-reset: r; }
+.regles li { position: relative; padding-left: 34px; font-size: 15px; counter-increment: r; }
+.regles li::before { content: counter(r); position: absolute; left: 0; top: 0; font: 400 22px var(--serif); color: var(--cuivre-fonce); line-height: 1.1; }
+.encadre { border-left: 3px solid var(--cuivre); background: var(--cuivre-pale); padding: 10px 14px; font-size: 14px; max-width: 68ch; }
+@media (max-width: 720px) { h2 { font-size: 23px; } header p { font-size: 15.5px; } }
+</style>
+
+<div class="page">
+  <header>
+    <span class="sur">Maison MND · le suivi de nos clientes · 26 octobre 2026</span>
+    <h1>Le relais de la cliente</h1>
+    <p>De son premier mot à sa prochaine séance, treize relais, toujours dans le même ordre. À chacun, quelqu’un tient le bâton, et un seul message part, par un canal précis. Rien ne tombe entre deux mains ; rien ne part deux fois.</p>
+  </header>
+
+  <section>
+    <figure>
+      <div class="piste">
+        <svg viewBox="0 0 1440 1000" role="img" aria-label="La piste du relais : treize relais en cercle, de « Elle se manifeste » à « Sa date de cadence », chacun tenu par le serveur, l’accueil, Gérard ou le maître ; quand son prochain rendez-vous est posé, elle repart au relais 2.">
+<defs><marker id="fl" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="currentColor"/></marker></defs>
+<path d="M720.0 190.0 A330 330 0 0 1 846.2 215.1" fill="none" stroke="currentColor" stroke-width="2.5" marker-end="url(#fl)"/>
+<path d="M873.4 227.8 A330 330 0 0 1 973.5 308.7" fill="none" stroke="currentColor" stroke-width="2.5" marker-end="url(#fl)"/>
+<path d="M991.6 332.5 A330 330 0 0 1 1042.6 450.7" fill="none" stroke="currentColor" stroke-width="2.5" marker-end="url(#fl)"/>
+<path d="M1047.6 480.2 A330 330 0 0 1 1037.9 608.6" fill="none" stroke="currentColor" stroke-width="2.5" marker-end="url(#fl)"/>
+<path d="M1028.6 637.0 A330 330 0 0 1 960.3 746.2" fill="none" stroke="currentColor" stroke-width="2.5" marker-end="url(#fl)"/>
+<path d="M938.8 767.0 A330 330 0 0 1 827.7 831.9" fill="none" stroke="currentColor" stroke-width="2.5" marker-end="url(#fl)"/>
+<path d="M799.0 840.4 A330 330 0 0 1 670.4 846.2" fill="none" stroke="currentColor" stroke-width="2.5" marker-end="url(#fl)"/>
+<path d="M641.0 840.4 A330 330 0 0 1 524.5 785.8" fill="none" stroke="currentColor" stroke-width="2.5" marker-end="url(#fl)"/>
+<path d="M501.2 767.0 A330 330 0 0 1 423.3 664.5" fill="none" stroke="currentColor" stroke-width="2.5" marker-end="url(#fl)"/>
+<path d="M411.4 637.0 A330 330 0 0 1 390.1 510.1" fill="none" stroke="currentColor" stroke-width="2.5" marker-end="url(#fl)"/>
+<path d="M392.4 480.2 A330 330 0 0 1 432.5 357.9" fill="none" stroke="currentColor" stroke-width="2.5" marker-end="url(#fl)"/>
+<path d="M448.4 332.5 A330 330 0 0 1 540.8 242.9" fill="none" stroke="currentColor" stroke-width="2.5" marker-end="url(#fl)"/>
+<path d="M584.6 241.8 Q720.0 370.0 849.4 237.8" fill="none" stroke="#B97A4A" stroke-width="2.5" stroke-dasharray="7 6" marker-end="url(#fl)" style="color:#B97A4A"/>
+<text x="720" y="348" text-anchor="middle" class="t-corde">Son prochain RDV est posé : elle repart au relais 2</text>
+<text x="926.4" y="375.5" text-anchor="middle" class="t-temps">AVANT LA SÉANCE</text>
+<text x="781.0" y="764.5" text-anchor="middle" class="t-temps">LA SÉANCE</text>
+<text x="524.0" y="520.0" text-anchor="middle" class="t-temps">ENTRE DEUX SÉANCES</text>
+<text x="720" y="514" text-anchor="middle" class="t-centre">La cliente</text>
+<text x="720" y="542" text-anchor="middle" class="t-sous">un seul relais, une seule voix</text>
+<circle cx="720.0" cy="190.0" r="22" fill="#5B6283" stroke="var(--papier)" stroke-width="3"/>
+<text x="720.0" y="195.5" text-anchor="middle" class="t-num">1</text>
+<text x="720.0" y="94.0" text-anchor="middle" class="t-titre">Elle se manifeste</text>
+<text x="720.0" y="111.0" text-anchor="middle" class="t-quand">son premier mot</text>
+<text x="720.0" y="127.0" text-anchor="middle" class="t-marques"><tspan class="m-meta">Meta</tspan> <tspan class="m-sep">·</tspan> <tspan class="m-srv">Serveur</tspan></text>
+<circle cx="873.4" cy="227.8" r="22" fill="#2C3470" stroke="var(--papier)" stroke-width="3"/>
+<text x="873.4" y="233.3" text-anchor="middle" class="t-num">2</text>
+<text x="902.2" y="164.9" text-anchor="start" class="t-titre">Le RDV est posé</text>
+<text x="902.2" y="181.9" text-anchor="start" class="t-quand">confirmé aussitôt</text>
+<text x="902.2" y="197.9" text-anchor="start" class="t-marques"><tspan class="m-meta">Meta</tspan> <tspan class="m-sep">·</tspan> <tspan class="m-srv">Serveur</tspan></text>
+<circle cx="991.6" cy="332.5" r="22" fill="#B97A4A" stroke="var(--papier)" stroke-width="3"/>
+<text x="991.6" y="338.0" text-anchor="middle" class="t-num">3</text>
+<text x="1042.6" y="289.3" text-anchor="start" class="t-titre">Le point d’avant</text>
+<text x="1042.6" y="306.3" text-anchor="start" class="t-quand">J−7</text>
+<text x="1042.6" y="322.3" text-anchor="start" class="t-marques"><tspan class="m-meta">Meta</tspan> <tspan class="m-sep">·</tspan> <tspan class="m-srv">Serveur 18 h</tspan></text>
+<circle cx="1047.6" cy="480.2" r="22" fill="#B97A4A" stroke="var(--papier)" stroke-width="3"/>
+<text x="1047.6" y="485.7" text-anchor="middle" class="t-num">4</text>
+<text x="1109.1" y="464.7" text-anchor="start" class="t-titre">Garder le RDV</text>
+<text x="1109.1" y="481.7" text-anchor="start" class="t-quand">J−2</text>
+<text x="1109.1" y="497.7" text-anchor="start" class="t-marques"><tspan class="m-cou">Ma Couronne</tspan> <tspan class="m-sep">·</tspan> <tspan class="m-main">main</tspan></text>
+<circle cx="1028.6" cy="637.0" r="22" fill="#5B6283" stroke="var(--papier)" stroke-width="3"/>
+<text x="1028.6" y="642.5" text-anchor="middle" class="t-num">5</text>
+<text x="1086.5" y="651.0" text-anchor="start" class="t-titre">Le rappel de la veille</text>
+<text x="1086.5" y="668.0" text-anchor="start" class="t-quand">J−1</text>
+<text x="1086.5" y="684.0" text-anchor="start" class="t-marques"><tspan class="m-meta">Meta</tspan> <tspan class="m-sep">·</tspan> <tspan class="m-srv">Serveur 18 h</tspan></text>
+<circle cx="938.8" cy="767.0" r="22" fill="#0A9483" stroke="var(--papier)" stroke-width="3"/>
+<text x="938.8" y="772.5" text-anchor="middle" class="t-num">6</text>
+<text x="979.9" y="805.4" text-anchor="start" class="t-titre">La séance</text>
+<text x="979.9" y="822.4" text-anchor="start" class="t-quand">jour J</text>
+<text x="979.9" y="838.4" text-anchor="start" class="t-marques"><tspan class="m-rien">rien ne part</tspan></text>
+<circle cx="799.0" cy="840.4" r="22" fill="#2C3470" stroke="var(--papier)" stroke-width="3"/>
+<text x="799.0" y="845.9" text-anchor="middle" class="t-num">7</text>
+<text x="813.8" y="920.6" text-anchor="middle" class="t-titre">Terminer, la facture</text>
+<text x="813.8" y="937.6" text-anchor="middle" class="t-quand">jour J</text>
+<text x="813.8" y="953.6" text-anchor="middle" class="t-marques"><tspan class="m-meta">Meta</tspan> <tspan class="m-sep">·</tspan> <tspan class="m-srv">Serveur</tspan></text>
+<circle cx="641.0" cy="840.4" r="22" fill="#0A9483" stroke="var(--papier)" stroke-width="3"/>
+<text x="641.0" y="845.9" text-anchor="middle" class="t-num">8</text>
+<text x="626.2" y="920.6" text-anchor="middle" class="t-titre">Ses conseils pour la maison</text>
+<text x="626.2" y="937.6" text-anchor="middle" class="t-quand">jour J</text>
+<text x="626.2" y="953.6" text-anchor="middle" class="t-marques"><tspan class="m-cou">Ma Couronne</tspan> <tspan class="m-sep">·</tspan> <tspan class="m-meta">Meta à créer</tspan></text>
+<circle cx="501.2" cy="767.0" r="22" fill="#B97A4A" stroke="var(--papier)" stroke-width="3"/>
+<text x="501.2" y="772.5" text-anchor="middle" class="t-num">9</text>
+<text x="460.1" y="805.4" text-anchor="end" class="t-titre">La demande d’avis</text>
+<text x="460.1" y="822.4" text-anchor="end" class="t-quand">1re venue réglée, une fois</text>
+<text x="460.1" y="838.4" text-anchor="end" class="t-marques"><tspan class="m-meta">Meta</tspan> <tspan class="m-sep">·</tspan> <tspan class="m-srv">Serveur</tspan></text>
+<circle cx="411.4" cy="637.0" r="22" fill="#B97A4A" stroke="var(--papier)" stroke-width="3"/>
+<text x="411.4" y="642.5" text-anchor="middle" class="t-num">10</text>
+<text x="353.5" y="651.0" text-anchor="end" class="t-titre">Le point d’après</text>
+<text x="353.5" y="668.0" text-anchor="end" class="t-quand">J+7</text>
+<text x="353.5" y="684.0" text-anchor="end" class="t-marques"><tspan class="m-meta">Meta</tspan> <tspan class="m-sep">·</tspan> <tspan class="m-srv">Serveur 18 h</tspan></text>
+<circle cx="392.4" cy="480.2" r="22" fill="#B97A4A" stroke="var(--papier)" stroke-width="3"/>
+<text x="392.4" y="485.7" text-anchor="middle" class="t-num">11</text>
+<text x="330.9" y="464.7" text-anchor="end" class="t-titre">Une envie</text>
+<text x="330.9" y="481.7" text-anchor="end" class="t-quand">J+30</text>
+<text x="330.9" y="497.7" text-anchor="end" class="t-marques"><tspan class="m-cou">Ma Couronne</tspan> <tspan class="m-sep">·</tspan> <tspan class="m-meta">Meta à créer</tspan></text>
+<circle cx="448.4" cy="332.5" r="22" fill="#B97A4A" stroke="var(--papier)" stroke-width="3"/>
+<text x="448.4" y="338.0" text-anchor="middle" class="t-num">12</text>
+<text x="397.4" y="289.3" text-anchor="end" class="t-titre">Tout combiner</text>
+<text x="397.4" y="306.3" text-anchor="end" class="t-quand">cadence −7</text>
+<text x="397.4" y="322.3" text-anchor="end" class="t-marques"><tspan class="m-cou">Ma Couronne</tspan> <tspan class="m-sep">·</tspan> <tspan class="m-meta">Meta à créer</tspan></text>
+<circle cx="566.6" cy="227.8" r="22" fill="#B97A4A" stroke="var(--papier)" stroke-width="3"/>
+<text x="566.6" y="233.3" text-anchor="middle" class="t-num">13</text>
+<text x="537.8" y="164.9" text-anchor="end" class="t-titre">Sa date de cadence</text>
+<text x="537.8" y="181.9" text-anchor="end" class="t-quand">elle repart</text>
+<text x="537.8" y="197.9" text-anchor="end" class="t-marques"><tspan class="m-main">relance +10 j</tspan></text>
+        </svg>
+      </div>
+      <figcaption>La piste : treize relais en cercle. La couleur du relais dit qui tient le bâton ; sous chaque relais, ce qui part : <b>Meta</b> (un modèle WhatsApp payant), <b>Serveur</b> (le Trône l’envoie seul, à l’heure dite), <b>Ma Couronne</b> (gratuit), <b>main</b> (l’équipe, d’un toucher). Le pointillé cuivre : son prochain rendez-vous est posé, elle repart.</figcaption>
+    </figure>
+  </section>
+
+  <section>
+    <span class="sur">La légende</span>
+    <div class="legende">
+      <div>
+        <h3>Qui tient le bâton</h3>
+        <ul>
+          <li><span class="rond r-serveur">1</span><span><b>Le serveur et l’automate</b> : ce que le Trône fait seul, à l’heure dite (relais 1 et 5).</span></li>
+          <li><span class="rond r-accueil">2</span><span><b>L’accueil et la Caisse</b> : la personne au comptoir (relais 2 et 7).</span></li>
+          <li><span class="rond r-gerard">3</span><span><b>Gérard, l’Assistant Maison</b> : il écrit, il écoute, il se tait au bon moment (relais 3, 4, 9 à 13).</span></li>
+          <li><span class="rond r-maitre">6</span><span><b>Le maître, la maîtresse</b> : la séance, ses conseils, le rappel quand il y a un souci (relais 6, 8, 10).</span></li>
+        </ul>
+      </div>
+      <div>
+        <h3>Ce qui part, et par où</h3>
+        <ul>
+          <li><span class="pm pm-meta">Meta</span><span>Un modèle WhatsApp envoyé par l’API de Meta : payant, à faire approuver une fois (utilitaire ou marketing). Le nom du modèle est donné à chaque relais, avec son état.</span></li>
+          <li><span class="pm pm-srv">Serveur</span><span>Un message automatique du Trône, envoyé depuis Supabase par une fonction, à l’heure dite, sans personne.</span></li>
+          <li><span class="pm pm-cou">Ma Couronne</span><span>Une notification dans l’application de la cliente : gratuite, d’abord.</span></li>
+          <li><span class="pm pm-main">À la main</span><span>L’équipe envoie le message déjà écrit, d’un toucher, sur WhatsApp.</span></li>
+        </ul>
+      </div>
+    </div>
+    <p class="doux">Une réponse à une cliente qui vient d’écrire (dans les 24 h) ne coûte rien : c’est la fenêtre de WhatsApp. Un modèle Meta sert quand c’est la Maison qui parle la première.</p>
+  </section>
+
+  <section>
+    <span class="sur">Chaque relais, dans l’ordre</span>
+    <h2>Ce qui se passe, ce qui part, ce que l’équipe fait</h2>
+    <div class="cadre">
+      <table>
+        <thead><tr><th></th><th>Relais</th><th>Qui tient le bâton</th><th>Ce qui se passe</th><th>Ce qui part</th><th>Ce que l’équipe fait</th></tr></thead>
+        <tbody>
+<tr>
+  <td class="n"><span class="rond r-serveur">1</span></td>
+  <td class="t">Elle se manifeste<small>son premier mot</small></td>
+  <td class="q">Le serveur, puis l’accueil</td>
+  <td>Elle écrit sur le site (une demande, le chat, un message vocal), sur WhatsApp, elle appelle, ou elle ouvre Ma Couronne.</td>
+  <td><ul class="parts"><li><span class="pm pm-meta">Meta</span> l’accusé de réception, modèle utilitaire</li><li><span class="pm pm-srv">Serveur</span> demande-submit · whatsapp-webhook (l’automate) · discussion (le chat)</li></ul></td>
+  <td class="e">L’accueil rappelle dans la journée. Un prix ou une création se dit en consultation, jamais par message.</td>
+</tr>
+<tr>
+  <td class="n"><span class="rond r-accueil">2</span></td>
+  <td class="t">Le RDV est posé<small>aussitôt</small></td>
+  <td class="q">L’accueil</td>
+  <td>Au comptoir, sur WhatsApp, sur le site ou dans Ma Couronne : la place est prise, le maître désigné.</td>
+  <td><ul class="parts"><li><span class="pm pm-meta">Meta</span> la confirmation, utilitaire, approuvée</li><li><span class="pm pm-srv">Serveur</span> whatsapp-envoi, par la salle d’attente</li></ul></td>
+  <td class="e">Vérifier le maître, la longueur, la Gamme à prévoir.</td>
+</tr>
+<tr>
+  <td class="n"><span class="rond r-gerard">3</span></td>
+  <td class="t">Le point d’avant<small>J−7</small></td>
+  <td class="q">Gérard</td>
+  <td>« Un soin, une coloration, une coiffure pour une occasion ? » Seulement si quatorze jours ou plus séparent ses deux séances. Sa réponse arrive dans les conversations.</td>
+  <td><ul class="parts"><li><span class="pm pm-meta">Meta</span> point_avant_seance, marketing, approuvé</li><li><span class="pm pm-srv">Serveur</span> rappels-j1, 18 h</li></ul></td>
+  <td class="e">Préparer sa venue : ajouter le soin à son RDV.</td>
+</tr>
+<tr>
+  <td class="n"><span class="rond r-gerard">4</span></td>
+  <td class="t">Garder le RDV<small>J−2</small></td>
+  <td class="q">Gérard</td>
+  <td>« C’est toujours bon pour vous ? », pour un RDV pris depuis plus d’une semaine. Oui, déplacer, ou annuler.</td>
+  <td><ul class="parts"><li><span class="pm pm-cou">Ma Couronne</span> notification gratuite</li><li><span class="pm pm-meta">Meta</span> gerard_garder, utilitaire, à déposer</li><li><span class="pm pm-main">À la main</span> wa.me, d’un toucher</li></ul></td>
+  <td class="e">Une place libérée se propose aux jours creux.</td>
+</tr>
+<tr>
+  <td class="n"><span class="rond r-serveur">5</span></td>
+  <td class="t">Le rappel de la veille<small>J−1, 18 h</small></td>
+  <td class="q">Le serveur</td>
+  <td>Le jour, l’heure, le maître et l’adresse.</td>
+  <td><ul class="parts"><li><span class="pm pm-meta">Meta</span> le rappel, utilitaire, approuvé</li><li><span class="pm pm-srv">Serveur</span> rappels-j1, 18 h</li></ul></td>
+  <td class="e">Rien : il part seul.</td>
+</tr>
+<tr>
+  <td class="n"><span class="rond r-maitre">6</span></td>
+  <td class="t">La séance<small>jour J</small></td>
+  <td class="q">Le maître</td>
+  <td>L’accueil, le rituel, la note de séance : ce qu’il a vu, ce qu’elle attend.</td>
+  <td><ul class="parts"><li><span class="pm pm-rien"></span>rien ne part</li></ul></td>
+  <td class="e">Noter la longueur, le calibre, ce qu’il faut retenir.</td>
+</tr>
+<tr>
+  <td class="n"><span class="rond r-accueil">7</span></td>
+  <td class="t">Terminer la séance<small>jour J</small></td>
+  <td class="q">L’accueil et la Caisse</td>
+  <td>La facture part sur son WhatsApp avec le lien pour régler ; le reçu suit le paiement. Un reste dû : relances à J+1, 3, 7 et 14.</td>
+  <td><ul class="parts"><li><span class="pm pm-meta">Meta</span> facture_du_rituel (approuvé) · recu_de_paiement · rappel_de_reglement (à créer)</li><li><span class="pm pm-srv">Serveur</span> regler-la-seance · relances-factures, 9 h</li></ul></td>
+  <td class="e">Encaisser. Un pourboire se partage entre toute l’équipe.</td>
+</tr>
+<tr>
+  <td class="n"><span class="rond r-maitre">8</span></td>
+  <td class="t">Ses conseils pour la maison<small>jour J</small></td>
+  <td class="q">Le maître</td>
+  <td>Quatre lignes utiles jusqu’à la prochaine séance : la routine, les racines, le cuir chevelu, le produit de la Gamme. Pas un compte rendu. Les anciens bilans sont remis à zéro.</td>
+  <td><ul class="parts"><li><span class="pm pm-cou">Ma Couronne</span> notification gratuite</li><li><span class="pm pm-meta">Meta</span> conseils_maison, utilitaire, à créer</li></ul></td>
+  <td class="e">L’assistant propose, le maître relit et signe.</td>
+</tr>
+<tr>
+  <td class="n"><span class="rond r-gerard">9</span></td>
+  <td class="t">La demande d’avis<small>après sa première venue réglée, une seule fois</small></td>
+  <td class="q">Gérard</td>
+  <td>« Merci de votre visite, votre avis nous aide » avec le lien de la fiche Google, après sa première facture réglée, une seule fois dans sa vie de cliente. Si elle a déjà laissé un avis (relié à sa fiche), elle n’est plus jamais sollicitée. Son avis arrive : le Trône propose sa fiche, l’équipe confirme d’un toucher ; Gérard rédige la réponse.</td>
+  <td><ul class="parts"><li><span class="pm pm-meta">Meta</span> la demande d’avis, utilitaire, approuvée</li><li><span class="pm pm-srv">Serveur</span> avis-google, à chaque heure d’ouverture</li></ul></td>
+  <td class="e">Relier l’avis à sa fiche d’un toucher. Coller la réponse. Trois étoiles ou moins : appeler.</td>
+</tr>
+<tr>
+  <td class="n"><span class="rond r-gerard">10</span></td>
+  <td class="t">Le point d’après<small>J+7</small></td>
+  <td class="q">Gérard, puis la maîtresse</td>
+  <td>« Comment vont vos locks ? » Tout va bien, ou un souci. Conseil : la réponse validée part. À voir : elle rappelle sous 48 h. Santé : sous 24 h, jamais de conseil écrit.</td>
+  <td><ul class="parts"><li><span class="pm pm-meta">Meta</span> point_apres_seance, utilitaire, approuvé</li><li><span class="pm pm-srv">Serveur</span> rappels-j1, 18 h</li><li><span class="pm pm-cou">Ma Couronne</span> ou la notification</li></ul></td>
+  <td class="e">La maîtresse rappelle dans le délai ; la direction valide les réponses.</td>
+</tr>
+<tr>
+  <td class="n"><span class="rond r-gerard">11</span></td>
+  <td class="t">Une envie<small>J+30</small></td>
+  <td class="q">Gérard</td>
+  <td>Une seule, choisie sur sa fiche : un soin si ses locks sont sèches, une retouche de couleur, un lavage, midi et deux, une coiffure. Toutes les trois semaines du 1er novembre au 24 décembre.</td>
+  <td><ul class="parts"><li><span class="pm pm-cou">Ma Couronne</span> notification gratuite</li><li><span class="pm pm-meta">Meta</span> gerard_envie_*, marketing, à déposer</li><li><span class="pm pm-main">À la main</span> wa.me</li></ul></td>
+  <td class="e">Un oui ajoute l’envie à son RDV, au plein prix.</td>
+</tr>
+<tr>
+  <td class="n"><span class="rond r-gerard">12</span></td>
+  <td class="t">Tout combiner<small>cadence −7</small></td>
+  <td class="q">Gérard</td>
+  <td>Si rien n’est posé : deux places, et tout ce qu’elle a aimé, en une seule venue.</td>
+  <td><ul class="parts"><li><span class="pm pm-cou">Ma Couronne</span> notification gratuite</li><li><span class="pm pm-meta">Meta</span> gerard_combiner, marketing, à déposer</li></ul></td>
+  <td class="e">Poser le RDV qu’elle choisit.</td>
+</tr>
+<tr>
+  <td class="n"><span class="rond r-gerard">13</span></td>
+  <td class="t">Sa date de cadence<small>le jour attendu</small></td>
+  <td class="q">Gérard</td>
+  <td>RDV posé : elle repart au relais 2. Rien de posé : à +10 jours, une relance toutes les 4 semaines (2 en fêtes) ; endormie après 150 jours, trois fois au plus ; une seule venue, à 60 jours. Jamais « vous êtes en retard ».</td>
+  <td><ul class="parts"><li><span class="pm pm-meta">Meta</span> gerard_retard · gerard_endormie · gerard_une_venue, marketing, à déposer</li><li><span class="pm pm-cou">Ma Couronne</span> notification gratuite</li></ul></td>
+  <td class="e">Rien : il travaille seul. Son plan du jour se lit dans l’Assistant Maison.</td>
+</tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="encadre">Le bilan de séance n’existe plus : personne ne doit de bilan à personne, et les anciens sont remis à zéro. À sa place, au relais 8, <b>ses conseils pour la maison</b> : ce qu’elle fait chez elle pour de meilleures locks, des racines plus fortes, un cuir chevelu apaisé. Utile, court, mémorable.</div>
+  </section>
+
+  <section>
+    <span class="sur">Le béton armé</span>
+    <h2>Les règles qui ne bougent jamais</h2>
+    <ol class="regles">
+      <li><b>Une seule voix.</b> Tout ce qui part à une cliente passe par ce relais et signe « Maison MND ».</li>
+      <li><b>Jamais deux messages à moins de quatorze jours</b>, hors service (confirmation, rappel, garder le RDV, facture).</li>
+      <li><b>Il se tait</b> quand un souci À voir ou Santé est ouvert, quand l’équipe lui a parlé il y a moins de deux jours, quand une facture est due.</li>
+      <li><b>Le retard reste invisible.</b> La date du rituel juge ; on ne dit jamais « vous êtes en retard ».</li>
+      <li><b>Santé : jamais de conseil écrit.</b> La maîtresse rappelle sous 24 h ; un médecin si besoin.</li>
+      <li><b>Jamais un prix inventé</b>, jamais un numéro de facture dans un message, jamais le mot « salon ».</li>
+      <li><b>À une question franche</b> (« c’est un robot ? »), il dit qu’il est l’assistant automatique et propose l’équipe.</li>
+      <li><b>Les mots d’une cliente</b> ne quittent la Maison que sans son nom ni son numéro.</li>
+    </ol>
+  </section>
+</div>

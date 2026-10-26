@@ -45,6 +45,9 @@ export function SonAvisGoogle({ client }: { client: { id: string } }) {
           Demande d’avis partie le {jourCourtAn(demande as string)} · pas encore d’avis relié.
         </p>
       )}
+      {siens.length > 0 && (
+        <p className="mnd-muted" style={{ fontSize: 12, margin: '2px 0 0' }}>Elle a laissé son avis : la Maison ne lui en redemande pas.</p>
+      )}
       {siens.map((a) => {
         const id = idDeLAvis(a);
         const b = brouillons[id];

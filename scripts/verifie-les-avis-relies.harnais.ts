@@ -20,6 +20,7 @@ import { readFileSync } from 'node:fs';
 import { transformSync } from 'esbuild';
 import {
   CLE_DES_LIENS, DEPART_DES_LIENS, JOURS_DE_LA_DEMANDE, JOURS_DE_LA_VENUE, PROPOSITIONS_MAX,
+  aDejaLaisseUnAvis, clientesAvecUnAvis,
   avisDeLaCliente, chercheDesFiches, compteARelier, compteParFiltre, estDepuisLeDepart, etatDuLien, fichesProposees,
   jourACotonou, jourDeLAvis, motsDuNom, passeLeFiltre, pourquoiProposee, prenomCompare,
   type AvisDuReleve, type FiltreDesAvis, type LiensDesAvis,
@@ -159,6 +160,35 @@ dit('chercher : le début des mots du nom, sans accent ; quatre chiffres du num�
 }
 
 /* ── 8. L'ALERTE DE LA DIRECTION, DANS LA FONCTION ───────────────────── */
+/* ── UN AVIS, UNE SEULE FOIS (26 octobre 2026) ── */
+{
+  const liens: LiensDesAvis = {
+    'a-1': { clientId: 'c1', le: '2026-10-21T10:00:00.000Z' },
+    'a-2': { sansFiche: true, le: '2026-10-21T10:00:00.000Z' },
+    'a-3': { clientId: 'c2', le: '2026-10-22T10:00:00.000Z' },
+  };
+  dit('les clientes qui ont laissé un avis : celles qu un lien désigne, pas « aucune fiche »', ['c1', 'c2'], [...clientesAvecUnAvis(liens)].sort());
+  dit('une cliente reliée n est plus sollicitée ; une autre, si ; sans fiche, non', [true, false, false], [aDejaLaisseUnAvis('c1', liens), aDejaLaisseUnAvis('c9', liens), aDejaLaisseUnAvis(undefined, liens)]);
+  const vieux = { auteur: 'Mireille Agossou', note: 5, texte: 'Merci', quand: '2026-10-25T10:00:00.000Z', publieLe: '2026-10-25T09:00:00.000Z' } as AvisDuReleve;
+  const fiches = [{ id: 'm1', name: 'Mireille AGOSSOU' }, { id: 'm2', name: 'Mireille Dossou' }];
+  const unSeulNom = fichesProposees(vieux, '2026-10-26T06:00:00.000Z', { clients: fiches, envois: [], rdvs: [] });
+  dit('reconnaître un avis ancien : rien dans les 30 jours, mais une seule fiche porte le nom entier : proposée, raison « nom »', [['m1', 'nom', true]], unSeulNom.map((p) => [p.clientId, p.raison, p.nomAussi]));
+  dit('... et son pourquoi le dit', true, pourquoiProposee(unSeulNom[0], (j) => j).startsWith('même prénom, même nom · seule fiche'));
+  const deuxNoms = fichesProposees(vieux, '2026-10-26T06:00:00.000Z', { clients: [...fiches, { id: 'm3', name: 'Mireille Agossou Kpadonou' }], envois: [], rdvs: [] });
+  dit('... deux fiches qui tiennent : rien n est proposé, on ne devine pas', [], deuxNoms);
+  const avecDemande = fichesProposees(vieux, '2026-10-26T06:00:00.000Z', { clients: fiches, envois: [{ type: 'avis-google', clientId: 'm2', quand: '2026-10-20T10:00:00.000Z', statut: 'envoyé' }], rdvs: [] });
+  dit('... une demande partie dans les 30 jours passe d abord, le nom entier n ajoute rien', [['m2', 'demande']], avecDemande.map((p) => [p.clientId, p.raison]));
+  const envoi = sansCommentaires(lis('supabase/functions/avis-google/index.ts'));
+  dit('la fonction avis-google (2026-10-26-a) lit les liens et n écrit plus à une cliente reliée ; un GET rend la version', [true, true, true, true], [
+    envoi.includes("'mnd_avis_fiches'"), envoi.includes("consigne(p, 'sans-envoi', 'a déjà laissé un avis Google')"),
+    envoi.includes("const VERSION = '2026-10-26-a';"), /req\.method === 'GET'/.test(envoi),
+  ]);
+  const conv = sansCommentaires(lis('src/apps/trone/routes/clients/Conversations.tsx'));
+  dit('le modèle à la main « Demande d avis » se cache pour une cliente reliée', true,
+    conv.includes("MODELES.filter((m) => m.nom !== 'avis_google' || !aDejaLaisseUnAvis(fil.clientId, liensDesAvis))"));
+  dit('sa fiche le dit', true, lis('src/apps/trone/routes/clients/SonAvisGoogle.tsx').includes('la Maison ne lui en redemande pas'));
+}
+
 const FONCTION = 'supabase/functions/avis-google-releve/index.ts';
 type AvisAlerte = { auteur: string; note: number; texte: string; ref?: string; publieLe?: string };
 const alerte = (() => {
