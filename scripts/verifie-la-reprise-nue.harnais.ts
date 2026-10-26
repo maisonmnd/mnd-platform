@@ -163,7 +163,7 @@ const dit = (nom: string, attendu: unknown, obtenu: unknown) => {
   const carnet = readFileSync('src/apps/trone/routes/clients/Carnet.tsx', 'utf8');
   const dash = readFileSync('src/apps/trone/routes/pilotage/Dashboard.tsx', 'utf8');
   dit('Carnet, tableau de bord et encaissement honorent par honoreSansEncaisser', [true, true, true],
-    [/honoreSansEncaisser\(a, byId, tarifsDuRituel\(/.test(carnet), /honoreSansEncaisser\(a, byId, tarifsDuRituel\(/.test(dash), /onClick=\{\(\) => \{\s*const h = honoreSansEncaisser\(appt, byId, tarifsDuRituel\(/.test(actions)]);
+    [/honoreSansEncaisser\(a, byId, tarifsDuRituel\(/.test(carnet), /honoreSansEncaisser\(a, byId, tarifsDuRituel\(/.test(dash), /* 26 octobre 2026 : les deux gestes d'un RDV passé passent par `termine`. */ /const h = honoreSansEncaisser\(appt, byId, tarifsDuRituel\(/.test(actions)]);
 }
 
 /* ── 5. Branche ── */

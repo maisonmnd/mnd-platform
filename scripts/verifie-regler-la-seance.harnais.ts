@@ -155,7 +155,15 @@ for (const [fichier, nom] of [['src/apps/trone/routes/clients/actions.tsx', 'l e
       /if \(envoyer && h\.facture && !h\.deja\) void envoiDeLaPiece\.aRegler\(h\.facture\.id, \w+\.date, \{ memePasse: true \}\);/.test(t),
       /onClick=\{\(\) => termine\(false\)\}>Honorer sans prévenir/.test(t)]);
 }
-dit('... et nul autre chemin n envoie la facture d un RDV passe', 2,
+/* LE RENVOI D'UN RITUEL HONORÉ QUI DOIT ENCORE — 26 octobre 2026 (« Oui, un bouton d'envoi »). */
+for (const [fichier, nom] of [['src/apps/trone/routes/clients/actions.tsx', 'l encaissement'], ['src/apps/trone/routes/clients/Carnet.tsx', 'le Carnet']] as const) {
+  const t = sansCommentaires(lis(fichier));
+  dit(`${nom} : « Envoyer la facture sur son WhatsApp » sur un rituel honore qui doit encore, en renvoi`, [true, true],
+    [/status === 'honoré' && apptDueXof\(\w+, byId\) > 0 && \(/.test(t), /envoiDeLaPiece\.aRegler\(r\.inv\.id, \w+\.date, \{ memePasse: true, renvoi: true \}\);/.test(t)]);
+}
+dit('le renvoi change de cle a chaque minute : une facture deja partie repart, un double toucher non', true,
+  /cle: o\?\.renvoi \? `\$\{p\.piece\.id\}-\$\{new Date\(\)\.toISOString\(\)\.slice\(0, 16\)\}` : p\.piece\.id,/.test(envoi));
+dit('... et nul autre chemin n envoie la facture d un RDV passe', 4,
   ['src/apps/trone/routes/clients/actions.tsx', 'src/apps/trone/routes/clients/Carnet.tsx', 'src/apps/trone/routes/pilotage/Dashboard.tsx']
     .map((f) => (sansCommentaires(lis(f)).match(/memePasse: true/g) ?? []).length).reduce((a, b) => a + b, 0));
 dit('le Trone monte le guetteur des reglements en ligne', true, /useReglementsEnLigne\(\);/.test(sansCommentaires(lis('src/apps/trone/shell/Shell.tsx'))));

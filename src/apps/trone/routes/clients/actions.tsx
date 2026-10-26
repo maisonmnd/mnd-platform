@@ -3058,6 +3058,23 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour, init
               )}
             </div>
           )}
+          {/* RENVOYER LA FACTURE D'UN RITUEL HONORÉ QUI DOIT ENCORE — 26 octobre
+              2026 (sa décision : « Oui, un bouton d'envoi »), même des jours après. */}
+          {appt.status === 'honoré' && apptDueXof(appt, byId) > 0 && (
+            <Button
+              variant="ghost"
+              onClick={() => {
+                const t = tarifsDuRituel(appt, {
+                  client, bands, sets, cats: categories, byId, tousServices: [...byId.values()], produits: produitsCatalogue,
+                });
+                const r = factureAEnvoyer(appt, byId, appt.branchId, t.prixPlein, t.gesteDe);
+                if (!r.ok) { toast(`Facture non émise : ${r.erreur}`); return; }
+                void envoiDeLaPiece.aRegler(r.inv.id, appt.date, { memePasse: true, renvoi: true });
+              }}
+            >
+              Envoyer la facture sur son WhatsApp
+            </Button>
+          )}
           {/* Le lien « Régler sa séance », suivi en direct (25 octobre 2026). */}
           <ReglementEnDirect appt={appt} />
         </EtapeEnc>

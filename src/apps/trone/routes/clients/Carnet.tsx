@@ -207,6 +207,19 @@ export default function Carnet() {
     if (!r.ok) { refus(r.erreur); return; }
     navigate(`/factures?id=${r.inv.id}`);
   };
+  /* RENVOYER LA FACTURE D'UN RITUEL HONORÉ QUI DOIT ENCORE — 26 octobre 2026
+     (sa décision : « Oui, un bouton d'envoi »), même des jours après : sa pièce
+     (ou celle qui naît ici, au tarif de la tête), sur son WhatsApp. */
+  const renvoieLaFacture = (a: Appointment) => {
+    const t = tarifsDuRituel(a, {
+      client: clients.find((c) => c.id === a.clientId),
+      bands, sets, cats: categories, byId, tousServices: services, produits,
+    });
+    const r = factureAEnvoyer(a, byId, branch.id, t.prixPlein, t.gesteDe);
+    setMenuFor(null);
+    if (!r.ok) { refus(r.erreur); return; }
+    void envoiDeLaPiece.aRegler(r.inv.id, a.date, { memePasse: true, renvoi: true });
+  };
   /* La recherche peut arriver par l'adresse — c'est ainsi qu'un chiffre du
      Catalogue ouvre le rendez-vous qui le compose quand aucune facture n'y est
      rattachee : on ne peut pas ouvrir une piece qui n'existe pas, on ouvre donc
@@ -785,6 +798,9 @@ export default function Carnet() {
                 })()}
                 {/* LE CHEMIN INVERSE — 13 septembre 2026. L'annulation
                     d'encaissement y renvoyait depuis août, et il n'existait pas. */}
+                {a.status === 'honoré' && apptDueXof(a, byId) > 0 && (
+                  <button onClick={() => renvoieLaFacture(a)}>Envoyer la facture sur son WhatsApp</button>
+                )}
                 {a.status === 'honoré' && (
                   <button className="is-danger" onClick={() => { void deshonoreLeRituel(a, byId); setMenuFor(null); }}>
                     Dés-honorer le rituel

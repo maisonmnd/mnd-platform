@@ -78,8 +78,10 @@ export function useEnvoiDeLaPiece() {
   /** Une facture à régler, pour le rituel de `jourDuRituel` : seulement s'il est d'aujourd'hui,
       sauf le geste exprès « Terminer la séance · envoyer la facture » d'un rendez-vous passé
       (`memePasse`, 26 octobre 2026, sa décision : deux gestes séparés, « Honorer sans
-      prévenir » garde le rattrapage silencieux). */
-  const aRegler = async (pieceId: string, jourDuRituel: string, o?: { memePasse?: boolean }) => {
+      prévenir » garde le rattrapage silencieux). `renvoi` : le bouton « Envoyer la facture
+      sur son WhatsApp » d'un rituel déjà honoré la renvoie, même déjà partie (une clé
+      d'unicité à la minute : un double toucher n'envoie qu'une fois). */
+  const aRegler = async (pieceId: string, jourDuRituel: string, o?: { memePasse?: boolean; renvoi?: boolean }) => {
     if (!o?.memePasse && jourDuRituel !== aujourdhui()) return;
     const p = await preparer(pieceId);
     if (!p) return;
@@ -98,7 +100,8 @@ export function useEnvoiDeLaPiece() {
     const lien = jeton ? { parametre: parametreDuLien(jeton), lien: adresseDuLien(jeton), totalDit: fmtMoney(reste, currency) } : undefined;
     const r = await envoieLaFactureARegler({
       client: { ...p.destinataire, branchId: p.destinataire.branchId }, pdf: buildPdfData(p.piece),
-      resteDit: fmtMoney(reste, currency), jourIso: jourDuRituel, parQui: quiEncaisse(), cle: p.piece.id,
+      resteDit: fmtMoney(reste, currency), jourIso: jourDuRituel, parQui: quiEncaisse(),
+      cle: o?.renvoi ? `${p.piece.id}-${new Date().toISOString().slice(0, 16)}` : p.piece.id,
       tapgo: lien ?? tapgo, enLigne: !!lien,
     });
     if (r.ok && jeton && p.piece.apptId) noteLEnvoiDuLien(p.piece.apptId);
