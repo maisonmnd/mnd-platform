@@ -761,23 +761,28 @@ export default function Carnet() {
                 {canConfirm && (
                   <button onClick={() => { setStatus(a.id, 'confirmé'); setMenuFor(null); }}>Confirmer le rendez-vous</button>
                 )}
-                {canHonor && (
-                  <button
-                    onClick={() => {
-                      /* Honorer sans encaisser émet la facture (4 octobre 2026). */
-                      const h = honoreSansEncaisser(a, byId, tarifsDuRituel(a, {
-                        client: clients.find((c) => c.id === a.clientId),
-                        bands, sets, cats: categories, byId, tousServices: services, produits,
-                      }));
-                      /* La facture à régler part seule chez elle (17 octobre 2026). */
-                      if (h.facture && !h.deja) void envoiDeLaPiece.aRegler(h.facture.id, a.date);
-                      setMenuFor(null);
-                    }}
-                  >
-                    {/* « Terminer la séance » le jour même : le reste part sur son WhatsApp (25 octobre 2026). */}
-                    {a.date === todayISO() ? 'Terminer la séance · le reste part sur son WhatsApp' : 'Honorer · facture à régler'}
-                  </button>
-                )}
+                {canHonor && (() => {
+                  /* Honorer sans encaisser émet la facture (4 octobre 2026) ; « Terminer
+                     la séance » l'envoie sur son WhatsApp (25 octobre). UN RENDEZ-VOUS
+                     PASSÉ A DEUX GESTES (26 octobre 2026, sa décision) : « envoyer la
+                     facture » part exprès, « Honorer sans prévenir » ne dit rien. */
+                  const termine = (envoyer: boolean) => {
+                    const h = honoreSansEncaisser(a, byId, tarifsDuRituel(a, {
+                      client: clients.find((c) => c.id === a.clientId),
+                      bands, sets, cats: categories, byId, tousServices: services, produits,
+                    }));
+                    if (envoyer && h.facture && !h.deja) void envoiDeLaPiece.aRegler(h.facture.id, a.date, { memePasse: true });
+                    setMenuFor(null);
+                  };
+                  return a.date === todayISO() ? (
+                    <button onClick={() => termine(true)}>Terminer la séance · le reste part sur son WhatsApp</button>
+                  ) : (
+                    <>
+                      <button onClick={() => termine(true)}>Terminer la séance · envoyer la facture</button>
+                      <button onClick={() => termine(false)}>Honorer sans prévenir</button>
+                    </>
+                  );
+                })()}
                 {/* LE CHEMIN INVERSE — 13 septembre 2026. L'annulation
                     d'encaissement y renvoyait depuis août, et il n'existait pas. */}
                 {a.status === 'honoré' && (

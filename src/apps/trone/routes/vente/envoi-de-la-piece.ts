@@ -75,9 +75,12 @@ export function useEnvoiDeLaPiece() {
     dit(p.piece.number, r);
   };
 
-  /** Une facture à régler, pour le rituel de `jourDuRituel` : seulement s'il est d'aujourd'hui. */
-  const aRegler = async (pieceId: string, jourDuRituel: string) => {
-    if (jourDuRituel !== aujourdhui()) return;
+  /** Une facture à régler, pour le rituel de `jourDuRituel` : seulement s'il est d'aujourd'hui,
+      sauf le geste exprès « Terminer la séance · envoyer la facture » d'un rendez-vous passé
+      (`memePasse`, 26 octobre 2026, sa décision : deux gestes séparés, « Honorer sans
+      prévenir » garde le rattrapage silencieux). */
+  const aRegler = async (pieceId: string, jourDuRituel: string, o?: { memePasse?: boolean }) => {
+    if (!o?.memePasse && jourDuRituel !== aujourdhui()) return;
     const p = await preparer(pieceId);
     if (!p) return;
     /* Le même Tap & Go que le pied du PDF : le reste, frais ajoutés. */

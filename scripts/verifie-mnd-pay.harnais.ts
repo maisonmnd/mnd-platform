@@ -506,7 +506,7 @@ dit('l envoi transporte le paramètre du bouton jusqu à la fonction', true, /\.
       recuAEnvoyer({ jourDuPaiement: J, jourDuRituel: '2026-10-12', aujourdhui: J }), recuAEnvoyer({ jourDuPaiement: '2026-10-12', jourDuRituel: '2026-10-12', aujourdhui: J }),
       recuAEnvoyer({ jourDuPaiement: J, aujourdhui: J }), recuAEnvoyer({ jourDuPaiement: '2026-10-17', aujourdhui: J })]);
   dit('les envois : la règle du reçu, le rituel d aujourd hui seulement pour la facture à régler (jour local), l attente posée avant le PDF', [true, true, true, true],
-    [/if \(!recuAEnvoyer\(\{ jourDuPaiement, jourDuRituel, aujourdhui: aujourdhui\(\) \}\) \|\| !\(montantXof > 0\)\) return;/.test(env), /if \(jourDuRituel !== aujourdhui\(\)\) return;/.test(env),
+    [/if \(!recuAEnvoyer\(\{ jourDuPaiement, jourDuRituel, aujourdhui: aujourdhui\(\) \}\) \|\| !\(montantXof > 0\)\) return;/.test(env), /* 26 octobre 2026 : sauf le geste exprès d'un RDV passé (`memePasse`, verifie-regler-la-seance). */ /if \(!o\?\.memePasse && jourDuRituel !== aujourdhui\(\)\) return;/.test(env),
       /const aujourdhui = \(\) => jourLocal\(new Date\(\)\.toISOString\(\)\);/.test(env), iAtt > 0 && iPrep > iAtt]);
   dit('l encaissement passe par ce chemin, avec le jour du paiement ET celui du rituel', true,
     /envoiDeLaPiece\.apresReglement\(pieceId, montantXof, payDate, appt\.date\)/.test(act) && /void envoieLaFacture\(idPieceEncaissee, settleTotal \+ totalGamme\)/.test(act));
@@ -519,7 +519,9 @@ dit('l envoi transporte le paramètre du bouton jusqu à la fonction', true, /\.
       /\(j === aujourdhui \|\| j === hier\) && \(p\.date === aujourdhui \|\| p\.date === hier\)/.test(avis)]);
   dit('honorer sans encaisser envoie la facture à régler, partout (rituel, Carnet, tableau de bord)', [true, true, true],
     ['src/apps/trone/routes/clients/actions.tsx', 'src/apps/trone/routes/clients/Carnet.tsx', 'src/apps/trone/routes/pilotage/Dashboard.tsx']
-      .map((f) => /if \(h\.facture && !h\.deja\) void envoiDeLaPiece\.aRegler\(h\.facture\.id, (appt|a)\.date\);/.test(lis(f))));
+      /* 26 octobre 2026 : au rituel et au Carnet, le geste « Terminer la séance » envoie (memePasse pour un
+         RDV passé) ; « Honorer sans prévenir » se tait (verifie-regler-la-seance tient les deux gestes). */
+      .map((f) => /if \((envoyer && )?h\.facture && !h\.deja\) void envoiDeLaPiece\.aRegler\(h\.facture\.id, (appt|a)\.date(, \{ memePasse: true \})?\);/.test(lis(f))));
   const fac = lis('src/apps/trone/routes/vente/Factures.tsx');
   const mod = lis('src/apps/trone/routes/vente/pdf-de-la-piece.ts');
   dit('une seule fabrique de la facture en PDF, Tap & Go au pied', [true, false, true],

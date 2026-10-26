@@ -3025,22 +3025,27 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour, init
           {/* HONORER, SANS QUITTER L'ENCAISSEMENT (13 septembre) : le même geste
               que le carnet. Honorer sans encaisser émet la facture (4 octobre) ;
               un rituel à venir ne s'honore pas. */}
-          {appt.status !== 'honoré' && appt.status !== 'annulé' && appt.date <= todayISO() && (
-            <Button
-              variant="ghost"
-              onClick={() => {
-                const h = honoreSansEncaisser(appt, byId, tarifsDuRituel(appt, {
-                  client, bands, sets, cats: categories, byId, tousServices: [...byId.values()], produits: produitsCatalogue,
-                }));
-                /* La facture à régler part seule (le rituel d'aujourd'hui seulement). */
-                if (h.facture && !h.deja) void envoiDeLaPiece.aRegler(h.facture.id, appt.date);
-              }}
-            >
-              {/* « TERMINER LA SÉANCE » (25 octobre 2026) : le même geste, dit
-                  comme elle le dit, quand le message part (rituel du jour). */}
-              {appt.date === todayISO() ? 'Terminer la séance · le reste part sur son WhatsApp' : 'Honorer sans encaisser · facture à régler'}
-            </Button>
-          )}
+          {appt.status !== 'honoré' && appt.status !== 'annulé' && appt.date <= todayISO() && (() => {
+            /* « TERMINER LA SÉANCE » (25 octobre 2026) : honorer, émettre la
+               facture, et l'envoyer sur son WhatsApp. UN RENDEZ-VOUS PASSÉ A DEUX
+               GESTES (26 octobre 2026, sa décision) : « envoyer la facture »
+               part exprès ; « Honorer sans prévenir » ne dit rien à la cliente,
+               pour les rattrapages (consignes du 18 et du 25 octobre). */
+            const termine = (envoyer: boolean) => {
+              const h = honoreSansEncaisser(appt, byId, tarifsDuRituel(appt, {
+                client, bands, sets, cats: categories, byId, tousServices: [...byId.values()], produits: produitsCatalogue,
+              }));
+              if (envoyer && h.facture && !h.deja) void envoiDeLaPiece.aRegler(h.facture.id, appt.date, { memePasse: true });
+            };
+            return appt.date === todayISO() ? (
+              <Button variant="ghost" onClick={() => termine(true)}>Terminer la séance · le reste part sur son WhatsApp</Button>
+            ) : (
+              <>
+                <Button variant="ghost" onClick={() => termine(true)}>Terminer la séance · envoyer la facture</Button>
+                <Button variant="ghost" onClick={() => termine(false)}>Honorer sans prévenir</Button>
+              </>
+            );
+          })()}
           {appt.status === 'honoré' && (
             <div style={{ alignSelf: 'center', fontSize: 12, color: 'var(--trv-success, #41604A)', display: 'flex', gap: 10, alignItems: 'baseline', flexWrap: 'wrap', justifyContent: 'center' }}>
               <span>Rituel honoré</span>

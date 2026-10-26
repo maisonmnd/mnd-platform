@@ -145,7 +145,19 @@ dit('payer.html mene r-<jeton> a regler.html, avec le meme alphabet et la meme l
 dit('... et un lien Tap & Go d avant compose toujours', true, /if \(p\.has\('tg'\) && !rj\)/.test(payer) && /\^\(\\d\{3,8\}\)-\(\\d\{1,9\}\)\$/.test(payer));
 const envoi = sansCommentaires(lis('src/apps/trone/routes/vente/envoi-de-la-piece.ts'));
 dit('« Terminer la seance » : le lien seulement quand la fonction repond, le rituel du jour seulement',
-  [true, true, true], [/saitRegler\(await versionDuReglement\(\)\)/.test(envoi), /if \(jourDuRituel !== aujourdhui\(\)\) return;\s*const p = await preparer/.test(envoi), /enLigne: !!lien/.test(envoi)]);
+  [true, true, true], [/saitRegler\(await versionDuReglement\(\)\)/.test(envoi), /if \(!o\?\.memePasse && jourDuRituel !== aujourdhui\(\)\) return;\s*const p = await preparer/.test(envoi), /enLigne: !!lien/.test(envoi)]);
+/* UN RENDEZ-VOUS PASSÉ A DEUX GESTES — 26 octobre 2026 (sa décision) : « envoyer la facture » part
+   exprès (memePasse), « Honorer sans prévenir » ne dit rien ; aucun autre bouton n'envoie pour un RDV passé. */
+for (const [fichier, nom] of [['src/apps/trone/routes/clients/actions.tsx', 'l encaissement'], ['src/apps/trone/routes/clients/Carnet.tsx', 'le Carnet']] as const) {
+  const t = sansCommentaires(lis(fichier));
+  dit(`${nom} : un RDV passe a deux gestes, l envoi expres et le silence`, [true, true, true, true],
+    [/Terminer la séance · envoyer la facture/.test(t), /Honorer sans prévenir/.test(t),
+      /if \(envoyer && h\.facture && !h\.deja\) void envoiDeLaPiece\.aRegler\(h\.facture\.id, \w+\.date, \{ memePasse: true \}\);/.test(t),
+      /onClick=\{\(\) => termine\(false\)\}>Honorer sans prévenir/.test(t)]);
+}
+dit('... et nul autre chemin n envoie la facture d un RDV passe', 2,
+  ['src/apps/trone/routes/clients/actions.tsx', 'src/apps/trone/routes/clients/Carnet.tsx', 'src/apps/trone/routes/pilotage/Dashboard.tsx']
+    .map((f) => (sansCommentaires(lis(f)).match(/memePasse: true/g) ?? []).length).reduce((a, b) => a + b, 0));
 dit('le Trone monte le guetteur des reglements en ligne', true, /useReglementsEnLigne\(\);/.test(sansCommentaires(lis('src/apps/trone/shell/Shell.tsx'))));
 dit('la page est construite avec le Trone (vite et build-sites)', [true, true], [/regler: resolve\(__dirname, 'regler\.html'\)/.test(lis('vite.config.ts')), /apps: 'trone,[^']*\bregler\b/.test(lis('scripts/build-sites.mjs'))]);
 dit('la page dit la devise de la Maison, mot pour mot, sans emporter l ERP', [DEVISE_COMPLETE, false],
