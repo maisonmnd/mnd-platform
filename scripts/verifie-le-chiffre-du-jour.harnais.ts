@@ -45,9 +45,11 @@ dit('le tableau de bord le dit en tete du carnet du jour, sur les rendez-vous du
   tableau.includes('const j = chiffreAttenduDuJour(todayRows.map((a) => ({ date: a.date, status: a.status, rituelXof: apptNetXof(a, byId), resteRituelXof: apptDueXof(a, byId), gamme: a.gamme, })), today);'),
   tableau.includes('Attendu aujourd’hui')]);
 const carnet = sansCommentaires('src/apps/trone/routes/clients/Carnet.tsx');
-dit('le Carnet en fait une tuile, avec le meme calcul', [true, true], [
-  carnet.includes('jour: chiffreAttenduDuJour(vivants.map((a) => ({ date: a.date, status: a.status, rituelXof: apptNetXof(a, byId), resteRituelXof: apptDueXof(a, byId), gamme: a.gamme, })), todayISO()),'),
-  carnet.includes('Attendu · aujourd’hui')]);
+/* 26 octobre 2026 : la tuile interroge le jour choisi (aujourd'hui par défaut), même calcul. */
+dit('le Carnet en fait une tuile, avec le meme calcul, aujourd hui par defaut', [true, true, true], [
+  carnet.includes('jour: chiffreAttenduDuJour(vivants.map((a) => ({ date: a.date, status: a.status, rituelXof: apptNetXof(a, byId), resteRituelXof: apptDueXof(a, byId), gamme: a.gamme, })), jourVu),'),
+  carnet.includes('const [jourVu, setJourVu] = useState(() => todayISO());'),
+  carnet.includes("Attendu · {['aujourd’hui', 'demain', 'hier'].includes(jourDeLaTuile) ? jourDeLaTuile : 'ce jour'} ›")]);
 const rituel = sansCommentaires('src/apps/trone/routes/clients/actions.tsx');
 dit('« Ce qu elle doit » dit le rituel et chaque ligne de Gamme, reglee ou a regler', [true, true, true], [
   rituel.includes('{gammeDuRdvXof > 0 ? ('),
