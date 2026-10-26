@@ -10,9 +10,11 @@ import {
   ANNIV_VALABLE_JOURS, ENDORMIE_FOIS_MAX, MODELES_DE_GERARD, REMISES_PAR_SEMAINE,
   choisisLEnvie, dateDeCadence, estUneQuestionFranche, familleDuNom, filDeLaCliente, heureDite, jourDit, joursCreux, planDuJour,
   plusJours, remplis, situationDuJour,
-  ESSAI_MAX, reglagesLus, estSaisonDesFetes, ligneALaMain, ligneDeNotification, passageDu, servie, texteSansSignature, tracesDesEnvois,
+  EST_UN_SERVICE, PLAFOND_FRANCS_PAR_DEFAUT, plafondDeLaSemaine,
+  reglagesLus, estSaisonDesFetes, ligneALaMain, ligneDeNotification, passageDu, servie, texteSansSignature, tracesDesEnvois,
   type ContexteDeGerard, type FicheDeGerard, type RdvDeGerard,
 } from '../src/shared/gerard-pur';
+import { attendUneReponse, derniersMessagesHorsService, dernieresRelancesDeFacture, jourACotonou } from '../src/shared/dernier-message-pur';
 import { gerardSeTait } from '../src/shared/gerard-entre-deux-pur';
 
 let ko = 0;
@@ -40,9 +42,12 @@ dit('une date de cliente porte l’année, le 1er se dit « 1er »', ['mardi 3 n
   [jourDit('2026-11-03'), jourDit('2026-12-01'), heureDite('12:15'), heureDite('10:00')]);
 dit('un modèle se remplit variable par variable, et finit par la signature « Maison MND », jamais « Gérard »', 'Bonjour Madame K., votre resserrage des racines est mardi 3 novembre 2026 à 10 h. C’est toujours bon pour vous ?\n\nMaison MND',
   remplis(MODELES_DE_GERARD.garder.corps, ['Madame K.', 'resserrage des racines', 'mardi 3 novembre 2026 à 10 h']));
-dit('chaque modèle a un nom Meta, au plus trois boutons, jamais de prix, jamais le mot « code » (Meta le rangerait en Authentification), jamais « Gérard » ni « devait revenir »', true,
-  Object.values(MODELES_DE_GERARD).every((m) => /^gerard_[a-z_]+$/.test(m.nom) && m.boutons.length <= 3 && !/\d\s?(F|FCFA|XOF)\b/.test(m.corps) && !/\bcodes?\b/i.test(m.corps)
+dit('chaque modèle a un nom Meta, au plus trois boutons, jamais de prix ni de pourcentage, jamais le mot « code » (Meta le rangerait en Authentification), jamais « Gérard » ni « devait revenir »', true,
+  Object.values(MODELES_DE_GERARD).every((m) => /^(gerard_[a-z_]+|nouvelles_de_la_maison)$/.test(m.nom) && m.boutons.length <= 3 && !/\d\s?(F|FCFA|XOF)\b|%/.test(m.corps) && !/\bcodes?\b/i.test(m.corps)
     && !/Gérard|devait revenir|arrive vers/.test(m.corps)));
+dit('sept plus un (maquette v4) : huit modèles, un seul utilitaire, « garder » ; un seul genre de service', [8, ['gerard_garder'], ['garder']],
+  [Object.keys(MODELES_DE_GERARD).length, Object.values(MODELES_DE_GERARD).filter((m) => m.categorie === 'UTILITY').map((m) => m.nom),
+    Object.entries(EST_UN_SERVICE).filter(([, v]) => v).map(([k]) => k)]);
 
 /* ── 2. La date de cadence et le fil ── */
 const rdvPose = { id: 'p', date: '2026-12-08', time: '10:00', status: 'confirmé', familles: ['resserrage'], venu: false } as RdvDeGerard;
@@ -74,13 +79,13 @@ dit('... déjà fêtée cette année, ou sans accord ni Ma Couronne : pas de vœ
 /* ── 5. Le fil : l'envie, tout combiner ── */
 const e1 = sit(fiche());
 dit('une envie par mois : à J+30, avant que la cadence approche', ['envie', 'couronne-ou-whatsapp'], [e1?.genre, e1 ? 'couronne-ou-whatsapp' : '']);
-dit('... « cheveux secs » au point d’après : le soin hydratant, le modèle qui le dit', ['hydratation', 'envie_soin_secs'],
-  [sit(fiche({ soucis: ['seches'] }))?.envie, sit(fiche({ soucis: ['seches'] }))?.modele]);
+dit('... « cheveux secs » au point d’après : le soin hydratant, dit dans le modèle de l’envie', ['hydratation', 'envie', true],
+  [sit(fiche({ soucis: ['seches'] }))?.envie, sit(fiche({ soucis: ['seches'] }))?.modele, /la Maison vous propose un soin hydratant de 45 minutes, pour vos cheveux secs\. Je vous trouve une place \?/.test(sit(fiche({ soucis: ['seches'] }))?.texte ?? '')]);
 dit('... une envie il y a vingt jours : pas encore', null, sit(fiche({ traces: [{ quand: `${plusJours(A, -20)}T09:00:00Z`, genre: 'envie', envie: 'lavage' }] })));
 dit('... la cadence à 15 jours : pas d’envie, « tout combiner » arrive', null, sit(fiche({ cadence: { iso: plusJours(A, 15), rythmeJours: 45 } })));
 const comb = sit(fiche({ rdvs: [venue(plusJours(A, -100)), venue(plusJours(A, -49))], cadence: { iso: plusJours(A, 7), rythmeJours: 56 } }));
-dit('tout combiner, sept jours avant une date de cadence sans RDV : deux places, la coiffure offerte avec un soin', ['combiner', true],
-  [comb?.genre, /est prévu vers le lundi 2 novembre 2026\. Nous avons de la place mercredi 28 octobre 2026 à 10 h ou jeudi 29 octobre 2026 à 14 h : je vous en garde une \? Avec un soin ajouté le même jour, votre coiffure de sortie est offerte\.\n\nMaison MND$/.test(comb?.texte ?? '')]);
+dit('tout combiner, sept jours avant une date de cadence sans RDV : le modèle « avant », la coiffure offerte avec un soin', ['combiner', 'avant', true],
+  [comb?.genre, comb?.modele, /^Bonjour Madame K\., votre prochain resserrage des racines approche : il est prévu vers le lundi 2 novembre 2026\. Je vous réserve votre place \? Avec un soin ajouté le même jour, votre coiffure de sortie est offerte\.\n\nMaison MND$/.test(comb?.texte ?? '')]);
 dit('... RDV posé à sept jours : le point d’avant du Trône s’en charge, Gérard se tait', null,
   sit(fiche({ rdvs: [venue(plusJours(A, -50)), { ...rdvPose, date: plusJours(A, 7) }] })));
 dit('sans accord ni Ma Couronne, une envie ne part pas ; avec Ma Couronne, elle part en notification', [null, 'couronne'],
@@ -102,15 +107,19 @@ const creux = joursCreux({ aujourdhui: A, parJour, ordinaireDe: () => 5, ouvertL
 dit('les jours creux de 3 à 7 jours : le manque sous l’ordinaire, la semaine plafonne les remises', [['2026-10-29', 3, 3], ['2026-10-31', 4, 3]],
   creux.map((j) => [j.iso, j.manque, j.remises]));
 const viaCreux = sit(fiche(), ctx({ creux: [{ iso: '2026-10-29', poses: 2, ordinaire: 5, manque: 3, remises: 3 }], placesDe: (_id, jour) => (jour ? [{ iso: jour, heure: '11:00' }, { iso: jour, heure: '15:00' }] : places) }));
-dit('un jour creux change l’envie en place à −15 %, avec son code d’un jour', ['creux', 'CREUX', 15, '2026-10-29', true],
-  [viaCreux?.genre, viaCreux?.code?.mot, viaCreux?.code?.pct, viaCreux?.code?.jour, /jeudi 29 octobre 2026 à 11 h ou à 15 h, et ce jour-là votre resserrage des racines est à −15 %/.test(viaCreux?.texte ?? '')]);
+dit('un jour creux change l’envie en place remisée, notée à son nom pour un jour ; le message ne dit ni montant ni code', ['creux', 'nouvelles', 'CREUX', 15, '2026-10-29', true, false],
+  [viaCreux?.genre, viaCreux?.modele, viaCreux?.code?.mot, viaCreux?.code?.pct, viaCreux?.code?.jour,
+    /une place s’est libérée jeudi 29 octobre 2026 à 11 h ou à 15 h, et ce jour-là la Maison vous fait une remise sur votre resserrage des racines\./.test(viaCreux?.texte ?? ''), /%|\bcode/.test(viaCreux?.texte ?? '')]);
 
 /* ── 8. Les relances ── */
 const retard = fiche({ rdvs: [venue(plusJours(A, -90)), venue(plusJours(A, -55))], cadence: { iso: plusJours(A, -20), rythmeJours: 35 } });
-dit('en retard : dix jours après la date attendue, deux places', ['retard', true], [sit(retard)?.genre, /votre prochain resserrage des racines était prévu vers le mardi 6 octobre 2026\./.test(sit(retard)?.texte ?? '')]);
+dit('en retard : dix jours après la date attendue, deux places, le modèle « place »', ['retard', 'place', true],
+  [sit(retard)?.genre, sit(retard)?.modele, /^Bonjour Madame K\., il est temps de votre resserrage des racines : nous avons de la place mercredi 28 octobre 2026 à 10 h ou jeudi 29 octobre 2026 à 14 h\. Je vous en garde une \?/.test(sit(retard)?.texte ?? '')]);
+dit('... une relance n’est plus un service : sans accord ni Ma Couronne, ou « stop », elle ne part pas', [null, null],
+  [sit({ ...retard, accord: false }), sit({ ...retard, stop: true, couronne: true })]);
 dit('... relancée il y a trois semaines : pas avant quatre', null, sit({ ...retard, traces: [{ quand: `${plusJours(A, -21)}T09:00:00Z`, genre: 'retard' }] }));
 const unique = fiche({ rdvs: [venue(plusJours(A, -70), ['autre'])], cadence: { iso: plusJours(A, -40), rythmeJours: 30 } });
-dit('une seule venue : jamais « en retard », le message de la première venue', ['une-venue', 'une_venue'], [sit(unique)?.genre, sit(unique)?.modele]);
+dit('une seule venue : jamais « en retard », son premier resserrage', ['une-venue', 'place', true], [sit(unique)?.genre, sit(unique)?.modele, /votre premier resserrage des racines :/.test(sit(unique)?.texte ?? '')]);
 const dort = fiche({ rdvs: [venue('2026-01-10'), venue('2026-03-20')], cadence: { iso: null, rythmeJours: 70 } });
 dit('endormie (5 mois et plus) : trois fois au plus, six semaines d’écart', ['endormie', null, null],
   [sit(dort)?.genre,
@@ -119,8 +128,10 @@ dit('endormie (5 mois et plus) : trois fois au plus, six semaines d’écart', [
 
 /* ── 9. Noël ── */
 const decembre = fiche({ rdvs: [venue('2026-10-20'), venue('2026-11-20')], cadence: { iso: '2027-01-10', rythmeJours: 51 } });
-dit('du 1er au 15 décembre, dans le fil : les places des fêtes et la carte cadeau, sans code', ['noel', undefined],
-  [situationDuJour(decembre, ctx({ aujourdhui: '2026-12-03' }))?.genre, situationDuJour(decembre, ctx({ aujourdhui: '2026-12-03' }))?.code]);
+dit('du 1er au 15 décembre, dans le fil : les places des fêtes et la carte cadeau, sans code', ['noel', 'fetes', undefined],
+  [situationDuJour(decembre, ctx({ aujourdhui: '2026-12-03' }))?.genre, situationDuJour(decembre, ctx({ aujourdhui: '2026-12-03' }))?.modele, situationDuJour(decembre, ctx({ aujourdhui: '2026-12-03' }))?.code]);
+dit('... une carte cadeau vit déjà sur sa fiche : pas de message de Noël', true,
+  situationDuJour({ ...decembre, carteVivante: true }, ctx({ aujourdhui: '2026-12-03' }))?.genre !== 'noel');
 
 /* ── 10. Le plan du jour ── */
 const fiches = [
@@ -132,15 +143,22 @@ const fiches = [
 const plan = planDuJour(fiches, ctx({ creux: [{ iso: '2026-10-29', poses: 4, ordinaire: 5, manque: 1, remises: 1 }], remisesRestantes: 1, placesDe: (_id, jour) => (jour ? [{ iso: jour, heure: '11:00' }] : places) }));
 dit('le plan : une chose par cliente, garder d’abord, le jour creux à qui reste une remise, l’autre reçoit son envie', [['a', 'garder'], ['b', 'creux'], ['c', 'envie']],
   plan.map((s) => [s.clientId, s.genre]));
+const planAnniv = planDuJour([fiche({ id: 'n', birthday: `1990-${A.slice(5)}` }), fiche({ id: 'm' })],
+  ctx({ creux: [{ iso: '2026-10-29', poses: 4, ordinaire: 5, manque: 1, remises: 1 }], remisesRestantes: 1, placesDe: (_id, jour) => (jour ? [{ iso: jour, heure: '11:00' }] : places) }));
+dit('... l’anniversaire entre dans le plafond, avant le jour creux : la dernière remise est pour elle', [['n', 'anniversaire'], ['m', 'envie']],
+  planAnniv.map((s) => [s.clientId, s.genre]));
+dit('... plafond atteint : pas de remise d’anniversaire', true, sit(fiche({ birthday: `1990-${A.slice(5)}` }), ctx({ remisesRestantes: 0 }))?.genre !== 'anniversaire');
 
 /* ── 11. La question franche ── */
 dit('la question franche se reconnaît', [true, true, true, true, false, false, false],
   ['Je parle à Gérard ou c’est un robot ?', 'je parle à qui là', 'C’est bien Gérard ?', 'vous êtes un humain ?', 'Mardi 10h svp', 'Je veux le programme de pousse', 'je viens avec une personne'].map(estUneQuestionFranche));
 
 /* ── 12. Les réglages ── */
-dit('les réglages livrés : éteint, essai vide ; jamais plus de cinq clientes dans l’essai', ['eteint', 0, 5],
-  [reglagesLus(undefined).mode, reglagesLus(undefined).essai.length, reglagesLus({ mode: 'essai', essai: ['1', '2', '3', '4', '5', '6', '7'] }).essai.length]);
-dit('... la limite de l’essai reste cinq', 5, ESSAI_MAX);
+dit('les réglages livrés : en pause, 8 remises et 60 000 F par semaine ; un plafond illisible garde sa valeur', ['eteint', 8, 60000, 8, 60000, 3, 45000],
+  [reglagesLus(undefined).mode, reglagesLus(undefined).remisesParSemaine, reglagesLus(undefined).plafondFrancs,
+    reglagesLus({ remisesParSemaine: -2 as number }).remisesParSemaine, reglagesLus({ plafondFrancs: Number.NaN }).plafondFrancs,
+    reglagesLus({ remisesParSemaine: 3 }).remisesParSemaine, reglagesLus({ plafondFrancs: 45000 }).plafondFrancs]);
+dit('... le plafond par défaut est celui de la maquette', 60000, PLAFOND_FRANCS_PAR_DEFAUT);
 
 /* ── 13. La saison des fêtes ── */
 dit('la saison des fêtes : du 1er novembre au 24 décembre', [false, true, true, false], ['2026-10-31', '2026-11-01', '2026-12-24', '2026-12-25'].map(estSaisonDesFetes));
@@ -164,10 +182,11 @@ dit('le fil des fêtes : une envie toutes les trois semaines', [21, 42],
 /* ── 14. Le passage du jour ── */
 dit('Ma Couronne d’abord, même pour un service : gratuite, elle part seule', ['couronne', 'couronne', 'whatsapp'],
   [sit(fiche({ couronne: true, rdvs: [venue(plusJours(A, -40)), rdvDans2()] }))?.canal, sit(fiche({ couronne: true, accord: false }))?.canal, sit(fiche())?.canal]);
-dit('le passage est dû : allumé, pas encore fait, entre 8 h et 20 h', [true, false, false, false, false],
+dit('le passage est dû : actif, pas encore fait, entre 8 h et 20 h', [true, false, false, false, false],
   [passageDu({ mode: 'ouvert', essai: [] }, A, 9.5), passageDu({ mode: 'eteint', essai: [] }, A, 9.5), passageDu({ mode: 'ouvert', essai: [], dernierPassage: A }, A, 9.5),
     passageDu({ mode: 'ouvert', essai: [] }, A, 7.9), passageDu({ mode: 'ouvert', essai: [] }, A, 20)]);
-dit('... ouvert sert toutes les clientes, l’essai les siennes seulement', [true, true, false], [servie({ mode: 'ouvert', essai: [] }, 'x'), servie({ mode: 'essai', essai: ['x'] }, 'x'), servie({ mode: 'essai', essai: ['y'] }, 'x')]);
+dit('... Pause ou Actif : actif sert toutes les clientes (l’ancien essai aussi), la pause aucune', [true, true, false],
+  [servie({ mode: 'ouvert', essai: [] }, 'x'), servie({ mode: 'essai', essai: ['y'] }, 'x'), servie({ mode: 'eteint', essai: [] }, 'x')]);
 const sCou = sit(fiche({ couronne: true }))!;
 const lN = ligneDeNotification(sCou, { branchId: 'b', aujourdhui: A, maintenantIso: `${A}T09:00:00.000Z`, prenom: 'Awa', compte: 'u-1', partA: `${A}T09:10:00.000Z`, calme: false });
 dit('la notification déposée en salle : en attente, au compte abonné, titre « Maison MND », sans la signature en double', ['gerard-2026-10-26-c1-push', 'en-attente', 'gerard', 'u-1', 'Maison MND', false, '/couronne/'],
@@ -192,6 +211,56 @@ dit('... mais son RDV se garde quand même', 'garder', sit(fiche({ souciOuvert: 
 dit('... et le cerveau dit comme gerardSeTait (Entre deux séances)', [true, true, true],
   (['sante', 'a-voir', undefined] as const).map((x) => gerardSeTait({ souciOuvert: x }) === (sit(fiche({ souciOuvert: x })) === null)));
 
+/* ── 14 ter. Les silences de la maquette v4 ── */
+const avecGarder = (o: Partial<FicheDeGerard>) => fiche({ ...o, rdvs: [venue(plusJours(A, -40)), rdvDans2()] });
+dit('elle doit de l’argent : ni envie ni remise, mais son RDV se garde', [null, 'garder'],
+  [sit(fiche({ resteDu: 5000 })), sit(avecGarder({ resteDu: 5000 }))?.genre]);
+dit('une relance de facture il y a trois jours : silence ; il y a huit jours : l’envie revient', [null, 'envie'],
+  [sit(fiche({ derniereRelanceLe: plusJours(A, -3) })), sit(fiche({ derniereRelanceLe: plusJours(A, -8) }))?.genre]);
+dit('elle a écrit il y a moins de 48 heures sans réponse : on lui répond d’abord ; son RDV se garde', [null, 'garder'],
+  [sit(fiche({ attendUneReponse: true })), sit(avecGarder({ attendUneReponse: true }))?.genre]);
+dit('enfant d’un foyer : jamais écrite, pas même pour garder un RDV (le parent reçoit)', [null, null],
+  [sit(fiche({ enfantDuFoyer: true })), sit(avecGarder({ enfantDuFoyer: true }))]);
+dit('quatorze jours sur toutes les voix : un message de la Maison il y a dix jours fait taire, il y a quinze jours non', [null, 'envie'],
+  [sit(fiche({ dernierMessageHorsService: plusJours(A, -10) })), sit(fiche({ dernierMessageHorsService: plusJours(A, -15) }))?.genre]);
+const ctxCreux = ctx({ creux: [{ iso: '2026-10-29', poses: 2, ordinaire: 5, manque: 3, remises: 3 }], placesDe: (_id, jour) => (jour ? [{ iso: jour, heure: '11:00' }] : places) });
+dit('elle porte déjà une remise à son nom : pas de seconde (ni jour creux ni anniversaire), jamais de cumul', ['envie', true],
+  [sit(fiche({ codesVivants: 1 }), ctxCreux)?.genre, sit(fiche({ codesVivants: 1, birthday: `1990-${A.slice(5)}` }))?.genre !== 'anniversaire']);
+
+const envoisVus = [
+  { type: 'confirmation', clientId: 'a', statut: 'envoyé', quand: '2026-10-25T09:00:00Z' },
+  { type: 'avis-google', clientId: 'a', statut: 'envoyé', quand: '2026-10-20T09:00:00Z' },
+  { type: 'gerard', genre: 'garder', clientId: 'a', statut: 'envoyé', deposeLe: '2026-10-24T09:00:00Z' },
+  { type: 'campagne', clientId: 'b', statut: 'écarté', quand: '2026-10-24T09:00:00Z' },
+  { type: 'point-apres', clientId: 'b', statut: 'envoyé', quand: '2026-10-10T23:30:00Z' },
+  { type: 'relance-facture', clientId: 'c', statut: 'envoyé', quand: '2026-10-22T09:00:00Z' },
+];
+const derniers = derniersMessagesHorsService(envoisVus, [{ sens: 'sortant', clientId: 'c', quand: '2026-10-23T10:00:00Z' }, { sens: 'entrant', clientId: 'a', quand: '2026-10-26T08:00:00Z' }]);
+dit('le dernier message hors service : la demande d’avis compte, la confirmation et « garder » non, une ligne écartée non, un WhatsApp sortant oui', [['a', '2026-10-20'], ['b', '2026-10-11'], ['c', '2026-10-23']],
+  [...derniers.entries()].sort());
+dit('... le jour se lit à Cotonou : 23 h 30 UTC est déjà le lendemain', ['2026-10-11', '2026-10-26'], [jourACotonou('2026-10-10T23:30:00Z'), jourACotonou('2026-10-26')]);
+dit('... la dernière relance de facture de chacune', [['c', '2026-10-22']], [...dernieresRelancesDeFacture(envoisVus).entries()]);
+const maintenant = Date.parse('2026-10-26T12:00:00Z');
+dit('elle attend une réponse : son dernier mot a moins de 48 heures ; une réponse partie depuis, ou 50 heures, non', [['a'], false, false],
+  [[...attendUneReponse([{ sens: 'entrant', clientId: 'a', quand: '2026-10-26T02:00:00Z' }], maintenant)],
+    attendUneReponse([{ sens: 'entrant', clientId: 'a', quand: '2026-10-26T02:00:00Z' }, { sens: 'sortant', clientId: 'a', quand: '2026-10-26T03:00:00Z' }], maintenant).has('a'),
+    attendUneReponse([{ sens: 'entrant', clientId: 'a', quand: '2026-10-24T10:00:00Z' }], maintenant).has('a')]);
+
+/* ── 14 quater. Le plafond de la semaine, tout compris ── */
+const pl = plafondDeLaSemaine({
+  lundi: '2026-10-26', maintenantIso: '2026-10-28T12:00:00Z', ticketMoyenXof: 20000, remisesParSemaine: 8, plafondFrancs: 60000,
+  codes: [
+    { creeLe: '2026-10-25T09:00:00Z', expireLe: '2026-10-30T09:00:00Z', remisePct: 15 },
+    { creeLe: '2026-10-26T09:00:00Z', expireLe: '2026-10-27T09:00:00Z', remisePct: 15 },
+    { creeLe: '2026-10-26T10:00:00Z', expireLe: '2026-11-20T09:00:00Z', remisePct: 10, utiliseLe: '2026-10-27T10:00:00Z', remiseReelleXof: 2500 },
+    { creeLe: '2026-10-27T10:00:00Z', expireLe: '2026-10-29T10:00:00Z', remisePct: 15 },
+  ],
+});
+dit('le plafond compte toutes les remises depuis lundi ; les francs : réels si honorée, sur le ticket moyen si vivante, rien si morte', [3, 5500, 5],
+  [pl.faites, pl.francs, pl.restantes]);
+dit('... au plafond en francs, plus aucune remise', 0, plafondDeLaSemaine({ lundi: '2026-10-26', maintenantIso: '2026-10-28T12:00:00Z', ticketMoyenXof: 20000, remisesParSemaine: 8, plafondFrancs: 5000,
+  codes: [{ creeLe: '2026-10-26T10:00:00Z', expireLe: '2026-10-29T10:00:00Z', remisePct: 15 }, { creeLe: '2026-10-26T10:00:00Z', expireLe: '2026-10-29T10:00:00Z', remisePct: 15 }] }).restantes);
+
 /* ── 15. L'écran et la barre ── */
 const ecran = sansCommentaires(readFileSync('src/apps/trone/routes/clients/Gerard.tsx', 'utf8'));
 const donnees = sansCommentaires(readFileSync('src/apps/trone/routes/clients/gerard-donnees.ts', 'utf8'));
@@ -203,6 +272,12 @@ dit('... le passage du jour au chargement, le bouton WhatsApp, le journal du jou
   [/useLePassageDeGerard\(cerveau, plan\)/.test(ecran), /lienWaMe\(cerveau\.clientDe\(s\.clientId\)\?\.phone/.test(ecran), /<h3>Aujourd’hui <span>ce qui est parti<\/span><\/h3>/.test(ecran)]);
 const tableau = readFileSync('src/apps/trone/routes/pilotage/Dashboard.tsx', 'utf8');
 dit('... et le tableau de bord lance le passage', true, /<PassageDeGerard \/>/.test(tableau));
+dit('la fiche lit ce qui la fait taire : dette, relance, toutes les voix, réponse due, foyer, carte, remise vivante', [true, true, true, true, true, true, true],
+  ['resteDu: resteDu.get(c.id) ?? 0,', 'derniereRelanceLe: derniereRelance.get(c.id),', 'dernierMessageHorsService: dernierHorsService.get(c.id),', 'attendUneReponse: attend.has(c.id),',
+    'enfantDuFoyer: (() => {', 'carteVivante: carteSurSaFiche.has(c.id),', 'codesVivants: codesVivantsDe(codes, c.id, maintenantIso).length,'].map((x) => donnees.includes(x)));
+dit('... le plafond compte toutes les remises de la branche, quel qu’en soit l’auteur', true, donnees.includes('codes: codes.filter((k) => k.branchId === branch.id), lundi'));
+dit('l’écran : Pause ou Actif, plus d’essai à cinq ; le plafond en nombre et en francs', [true, false, 2],
+  [/metEnPause\(m\.pause/.test(ecran), /essai/i.test(ecran), (ecran.match(/onBlur=\{posePlafond\}/g) ?? []).length]);
 dit('Entre deux séances : la fiche lit le souci ouvert, l’écran montre ce que Gérard en sait', [true, true],
   [/souciOuvert: souciOuvertDe\(signalements\.filter\(\(s\) => s\.clientId === c\.id\)\)/.test(donnees), /<GerardEntreDeux \/>/.test(ecran)]);
 const routes = readFileSync('src/apps/trone/routes/index.tsx', 'utf8');

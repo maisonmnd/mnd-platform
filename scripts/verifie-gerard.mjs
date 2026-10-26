@@ -31,6 +31,7 @@ async function lanceLeBanc() {
 }
 
 const PUR = 'src/shared/gerard-pur.ts';
+const DERNIER = 'src/shared/dernier-message-pur.ts';
 const ECRAN = 'src/apps/trone/routes/clients/Gerard.tsx';
 const DONNEES = 'src/apps/trone/routes/clients/gerard-donnees.ts';
 const PANNES = [
@@ -46,7 +47,7 @@ const PANNES = [
   ['relancer toutes les semaines', PUR, 'export const RELANCE_TOUS_LES_JOURS = 28;', 'export const RELANCE_TOUS_LES_JOURS = 7;'],
   ['une seule venue en retard', PUR, 'if (venues >= 2 && c && !c.posee && ecartJours(c.iso, A) >= RELANCE_APRES_CADENCE) {', 'if (c && !c.posee && ecartJours(c.iso, A) >= RELANCE_APRES_CADENCE) {'],
   ['l endormie sans fin', PUR, 'if (fois.length >= ENDORMIE_FOIS_MAX) return null;', ''],
-  ['Noel avec un code', PUR, "return fait('noel', 'noel', [f.appel, A.slice(0, 4)], pourquoiDuFil);", "return fait('noel', 'noel', [f.appel, A.slice(0, 4)], pourquoiDuFil, { code: { mot: 'CREUX', pct: 15, jusquau: A } });"],
+  ['Noel avec un code', PUR, "return fait('noel', 'fetes', [f.appel, A.slice(0, 4)], pourquoiDuFil);", "return fait('noel', 'fetes', [f.appel, A.slice(0, 4)], pourquoiDuFil, { code: { mot: 'CREUX', pct: 15, jusquau: A } });"],
   ['la date sans annee', PUR, "${MOIS[d.getUTCMonth()]} ${d.getUTCFullYear()}`;", "${MOIS[d.getUTCMonth()]}`;"],
   ['la question franche sourde', PUR, '|\\bje parle (à|a) qui\\b', ''],
   ['la signature redevient Gerard', PUR, "export const SIGNATURE = 'Maison MND';", "export const SIGNATURE = 'Gérard, Maison MND';"],
@@ -63,6 +64,28 @@ const PANNES = [
   ['un souci ouvert ne fait plus taire', PUR, '  if (f.souciOuvert) return null;\n', ''],
   ['la fiche oublie le souci ouvert', DONNEES, '        souciOuvert: souciOuvertDe(signalements.filter((s) => s.clientId === c.id)),\n', ''],
   ['l ecran cache Entre deux seances', ECRAN, '      <GerardEntreDeux />\n', ''],
+  /* Maquette v4, lot 1 : une panne par regle nouvelle. */
+  ['une relance redevient service', PUR, "garder: true, combiner: false, retard: false, 'une-venue': false,", "garder: true, combiner: false, retard: true, 'une-venue': false,"],
+  ['une dette ne fait plus taire', PUR, '  if ((f.resteDu ?? 0) > 0) return null;\n', ''],
+  ['la reponse due oubliee', PUR, '  if (f.attendUneReponse) return null;\n', ''],
+  ['la relance de facture oubliee', PUR, '  if (f.derniereRelanceLe && ecartJours(f.derniereRelanceLe, A) < 7) return null;\n', ''],
+  ['un enfant du foyer ecrit', PUR, 'if (f.ecartee || f.enfantDuFoyer) return null;', 'if (f.ecartee) return null;'],
+  ['les autres voix ignorees', PUR, 'const recemment = [siens, f.dernierMessageHorsService]', 'const recemment = [siens]'],
+  ['deux remises a la fois', PUR, 'const aDejaUneRemise = (f.codesVivants ?? 0) > 0;', 'const aDejaUneRemise = false;'],
+  ['Noel malgre la carte cadeau', PUR, '&& !f.carteVivante) {', ') {'],
+  ['l anniversaire hors plafond', PUR, '&& !aDejaUneRemise && ctx.remisesRestantes > 0 && !traceDe', '&& !aDejaUneRemise && !traceDe'],
+  ['le plan oublie l anniversaire', PUR, '    if (!s.code) { out.push(s); continue; }', "    if (s.genre !== 'creux') { out.push(s); continue; }"],
+  ['les francs ne bornent plus', PUR, 'const restantes = francs >= o.plafondFrancs ? 0 : ', 'const restantes = '],
+  ['un code mort coute', PUR, 'else if (c.expireLe > o.maintenantIso) francs +=', 'else francs +='],
+  ['la pause ecrit', PUR, 'export const servie = (r: ReglagesDuPassage, _clientId: string): boolean => estActif(r);', 'export const servie = (r: ReglagesDuPassage, _clientId: string): boolean => true;'],
+  ['un pourcentage dans le corps', PUR, 'et ce jour-là la Maison vous fait une remise sur votre ${f.soinDit}.', 'et ce jour-là votre ${f.soinDit} est à −15 %.'],
+  ['un service compte dans les 14 jours', DERNIER, "if (estUnService(e) || PAS_PARTI.has(e.statut ?? '')) continue;", "if (PAS_PARTI.has(e.statut ?? '')) continue;"],
+  ['les WhatsApp sortants oublies', DERNIER, "  for (const w of messages) if (w.sens === 'sortant') pose(w.clientId, w.quand);\n", ''],
+  ['la reponse due sans fin', DERNIER, 'maintenantMs - t < 48 * 3_600_000', 'true'],
+  ['le jour lu en UTC', DERNIER, 'new Date(t + 3_600_000)', 'new Date(t)'],
+  ['la fiche oublie la dette', DONNEES, '        resteDu: resteDu.get(c.id) ?? 0,\n', ''],
+  ['le plafond ne compte que l Assistant', DONNEES, 'codes: codes.filter((k) => k.branchId === branch.id), lundi', "codes: codes.filter((k) => k.branchId === branch.id && k.parQui === 'Gérard'), lundi"],
+  ['l ecran perd le plafond en francs', ECRAN, '                onChange={(e) => setFrancs(e.target.value)} onBlur={posePlafond} />', '                onChange={(e) => setFrancs(e.target.value)} />'],
 ];
 
 const md5 = (f) => createHash('md5').update(readFileSync(path.join(racine, f))).digest('hex');

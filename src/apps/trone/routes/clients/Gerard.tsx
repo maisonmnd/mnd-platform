@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useBranch } from '../../../../shared/branches';
 import { useStaff } from '../../../../shared/auth';
 import { DEVISE_COMPLETE } from '../../../../shared/identite';
@@ -6,11 +6,11 @@ import { prenomSeul } from '../../../../shared/civilite';
 import { lienWaMe } from '../../../../shared/conversations';
 import { DEVENU_DIT, devenuDe } from '../../../../shared/envois';
 import {
-  ENVIE_DITE, GENRE_DIT, MODELES_DE_GERARD, REMISES_PAR_SEMAINE, REMISE_ANNIV_PCT, REMISE_CREUX_PCT, REPONSE_FRANCHE, SIGNATURE,
+  ENVIE_DITE, GENRE_DIT, MODELES_DE_GERARD, REMISE_ANNIV_PCT, REMISE_CREUX_PCT, REPONSE_FRANCHE, SIGNATURE,
   filDeLaCliente, jourDit, ligneALaMain, planDuJour, servie,
   type FicheDeGerard, type Situation,
 } from '../../../../shared/gerard-pur';
-import { ESSAI_MAX, basculeDansLEssai, changeLeMode, reglagesLus, useReglagesDeGerard, type ModeDeGerard } from '../../../../shared/gerard';
+import { changeLePlafond, estActif, metEnPause, reglagesLus, useReglagesDeGerard } from '../../../../shared/gerard';
 import { envoisStore, useEnvois } from '../equipe/data';
 import { fabriqueLeCodeDe, useCerveauDeGerard, useLePassageDeGerard } from './gerard-donnees';
 import { PageHead } from '../_ui';
@@ -25,6 +25,11 @@ import './gerard.css';
    jour, le fil de chaque cliente, les jours creux, les réglages de l'essai
    et les modèles à déposer chez Meta.
 
+   MAQUETTE V4 (« construis », 26 octobre 2026) : l'essai à cinq clientes
+   laisse place à un seul interrupteur, Pause ou Actif ; le plafond de la
+   semaine compte toutes les remises à son nom, en nombre et en francs ; les
+   modèles passent de quatorze à sept plus un.
+
    IL COMMENCE LE 26 OCTOBRE 2026 AU SOIR (« on commence immédiatement ») :
    le passage du jour (`gerard-donnees.ts`) dépose les notifications Ma
    Couronne en salle d'attente ; les lignes WhatsApp ont leur bouton, un
@@ -32,11 +37,11 @@ import './gerard.css';
    Claude lira les réponses plus tard. Le plan montre ce qui reste à faire
    aujourd'hui ; « Aujourd'hui » montre ce qui est parti. */
 
-const MODES: { v: ModeDeGerard; titre: string; dit: string }[] = [
-  { v: 'eteint', titre: 'Éteint', dit: 'Il prépare son plan, il n’écrit à personne.' },
-  { v: 'essai', titre: 'Essai', dit: `Il n’écrit qu’aux clientes de l’essai (${ESSAI_MAX} au plus).` },
-  { v: 'ouvert', titre: 'Ouvert', dit: 'Il écrit à toutes, chaque jour.' },
+const MODES: { pause: boolean; titre: string; dit: string }[] = [
+  { pause: true, titre: 'Pause', dit: 'Il prépare son plan, il n’écrit à personne.' },
+  { pause: false, titre: 'Actif', dit: 'Il écrit chaque jour, sous ses règles et son plafond.' },
 ];
+const francsDits = (n: number) => `${n.toLocaleString('fr-FR')} F`;
 
 /** Le pied de page des modèles : la devise seule (règle du 13 octobre 2026). */
 const piedDeGerard = DEVISE_COMPLETE;
@@ -91,13 +96,23 @@ export default function Gerard() {
     envoisStore.set((prev) => [...prev.filter((e) => e.id !== ligne.id), ligne as unknown as (typeof prev)[number]]);
   };
   const ficheDe = useMemo(() => new Map(fiches.map((f) => [f.id, f])), [fiches]);
-  const [vue, setVue] = useState<'tout' | 'essai'>('tout');
   const [ouverte, setOuverte] = useState<string | null>(null);
   const [copie, setCopie] = useState<string | null>(null);
+  const actif = estActif(reglages);
+  const { plafond } = cerveau;
+  /* Le plafond se tape puis s'écrit à la sortie du champ. */
+  const [nombre, setNombre] = useState(String(reglages.remisesParSemaine));
+  const [francs, setFrancs] = useState(String(reglages.plafondFrancs));
+  useEffect(() => { setNombre(String(reglages.remisesParSemaine)); }, [reglages.remisesParSemaine]);
+  useEffect(() => { setFrancs(String(reglages.plafondFrancs)); }, [reglages.plafondFrancs]);
+  const posePlafond = () => {
+    /* Un champ vidé ne vaut pas zéro : il garde le plafond d'avant. */
+    const lu = (x: string) => { const d = x.replace(/\D/g, ''); return d ? Number(d) : undefined; };
+    changeLePlafond({ remisesParSemaine: lu(nombre), plafondFrancs: lu(francs) }, moi?.name ?? 'La direction');
+  };
 
-  const montres = vue === 'essai' ? plan.filter((s) => reglages.essai.includes(s.clientId)) : plan;
+  const montres = plan;
   const garder = plan.filter((s) => s.genre === 'garder').length;
-  const remisesDonnees = REMISES_PAR_SEMAINE - ctx.remisesRestantes;
   const parGenre = plan.reduce<Record<string, number>>((m, s) => ({ ...m, [s.genre]: (m[s.genre] ?? 0) + 1 }), {});
 
   const copier = (cle: string, texte: string) => {
@@ -114,40 +129,36 @@ export default function Gerard() {
             <span className="trc-ger__chiffre"><b>{plan.length}</b><small>à écrire aujourd’hui</small></span>
             <span className="trc-ger__chiffre"><b>{duJour.length}</b><small>partis aujourd’hui</small></span>
             <span className="trc-ger__chiffre"><b>{garder}</b><small>RDV à garder</small></span>
-            <span className="trc-ger__chiffre"><b>{remisesDonnees} / {REMISES_PAR_SEMAINE}</b><small>remises de la semaine</small></span>
+            <span className="trc-ger__chiffre"><b>{plafond.faites} / {plafond.remisesParSemaine}</b><small>remises de la semaine</small></span>
+            <span className="trc-ger__chiffre"><b>{francsDits(plafond.francs)}</b><small>sur {francsDits(plafond.plafondFrancs)}</small></span>
           </div>
         )}
       />
 
       <div className="trc-ger__etat" role="note">
-        <b>{MODES.find((m) => m.v === reglages.mode)?.titre}.</b>
-        {reglages.mode === 'eteint'
-          ? <span>Gérard prépare son plan, il n’écrit à personne.</span>
+        <b>{actif ? 'Actif' : 'Pause'}.</b>
+        {!actif
+          ? <span>Il prépare son plan, il n’écrit à personne.</span>
           : <span>Chaque jour, quand la direction ouvre le Trône entre 8 h et 20 h, Gérard dépose les notifications Ma Couronne de son plan ; le facteur les porte, jamais entre 20 h et 8 h. WhatsApp : « Envoyer sur WhatsApp », un toucher par cliente, jusqu’à l’approbation de ses modèles chez Meta.{reglages.dernierPassage ? ` Dernier passage : ${reglages.dernierPassage === ctx.aujourdhui ? 'aujourd’hui' : jourDit(reglages.dernierPassage)}.` : ''}</span>}
       </div>
 
       <section className="trc-ger__carte">
         <div className="trc-ger__haut">
           <h3>Le plan du jour <span>ce qui reste à écrire aujourd’hui</span></h3>
-          <div className="trc-ger__onglets" role="tablist">
-            <button type="button" role="tab" aria-selected={vue === 'tout'} className={vue === 'tout' ? 'est-choisi' : ''} onClick={() => setVue('tout')}>Toutes · {plan.length}</button>
-            <button type="button" role="tab" aria-selected={vue === 'essai'} className={vue === 'essai' ? 'est-choisi' : ''} onClick={() => setVue('essai')}>L’essai · {plan.filter((s) => reglages.essai.includes(s.clientId)).length}</button>
-          </div>
         </div>
         {Object.keys(parGenre).length > 0 && (
           <p className="trc-ger__doux">{Object.entries(parGenre).map(([g, n]) => `${GENRE_DIT[g as Situation['genre']]} ${n}`).join(' · ')}</p>
         )}
-        {montres.length === 0 && <p className="trc-ger__vide">{vue === 'essai' ? 'Aucune cliente de l’essai n’a de message aujourd’hui.' : 'Plus rien à écrire aujourd’hui : chaque cliente est entre deux messages.'}</p>}
+        {montres.length === 0 && <p className="trc-ger__vide">Plus rien à écrire aujourd’hui : chaque cliente est entre deux messages.</p>}
         <ul className="trc-ger__liste">
           {montres.map((s) => {
             const f = ficheDe.get(s.clientId);
             const ouvert = ouverte === s.clientId;
             const modele = MODELES_DE_GERARD[s.modele];
-            const dansLEssai = reglages.essai.includes(s.clientId);
             return (
               <li key={s.clientId} className={`trc-ger__rangee${ouvert ? ' est-ouverte' : ''}`}>
                 <button type="button" className="trc-ger__ligne" aria-expanded={ouvert} onClick={() => setOuverte(ouvert ? null : s.clientId)}>
-                  <span className="trc-ger__qui">{nomDe(s.clientId)}{dansLEssai && <em>essai</em>}</span>
+                  <span className="trc-ger__qui">{nomDe(s.clientId)}</span>
                   <span className={`trc-ger__genre trc-ger__genre--${s.genre}`}>{GENRE_DIT[s.genre]}{s.envie ? ` · ${ENVIE_DITE[s.envie]}` : ''}</span>
                   <span className="trc-ger__canal">{canalDit(s.canal)}{s.code ? ` · ${codeDit(s)}` : ''}</span>
                 </button>
@@ -160,18 +171,13 @@ export default function Gerard() {
                         <span className="trc-ger__pied">{piedDeGerard}</span>
                       </div>
                       <small className="trc-ger__doux">Modèle {modele.nom} · {modele.categorie === 'UTILITY' ? 'utilitaire' : 'marketing'} · {canalDit(s.canal)}</small>
-                      {s.canal === 'whatsapp' && reglages.mode !== 'eteint' && servie(reglages, s.clientId) && (() => {
+                      {s.canal === 'whatsapp' && servie(reglages, s.clientId) && (() => {
                         const lien = lienWaMe(cerveau.clientDe(s.clientId)?.phone, `${s.texte}\n${DEVISE_COMPLETE}`);
                         return lien ? (
                           <a className="trc-ger__btn trc-ger__btn--cuivre" href={lien} target="_blank" rel="noreferrer" onClick={() => noteALaMain(s)}>Envoyer sur WhatsApp</a>
                         ) : null;
                       })()}
-                      {s.canal === 'couronne' && reglages.mode !== 'eteint' && <small className="trc-ger__doux">Notification Ma Couronne : elle part au passage du jour.</small>}
-                      {direction && (
-                        <button type="button" className="trc-ger__btn" onClick={() => basculeDansLEssai(s.clientId, moi?.name ?? 'La direction')}>
-                          {dansLEssai ? 'Retirer de l’essai' : reglages.essai.length >= ESSAI_MAX ? `L’essai est plein (${ESSAI_MAX})` : 'Mettre dans l’essai'}
-                        </button>
-                      )}
+                      {s.canal === 'couronne' && actif && <small className="trc-ger__doux">Notification Ma Couronne : elle part au passage du jour.</small>}
                     </div>
                     <div className="trc-ger__pourquoi">
                       <table>
@@ -214,7 +220,7 @@ export default function Gerard() {
       <section className="trc-ger__deux">
         <div className="trc-ger__carte">
           <h3>Les jours creux <span>de 3 à 7 jours</span></h3>
-          <p className="trc-ger__doux">Un jour est creux quand ses RDV posés sont sous l’ordinaire de ce jour de la semaine (les Prévisions). Gérard y ouvre autant de remises de {REMISE_CREUX_PCT} % qu’il manque de RDV, {REMISES_PAR_SEMAINE} par semaine au plus, d’abord aux clientes en retard.</p>
+          <p className="trc-ger__doux">Un jour est creux quand ses RDV posés sont sous l’ordinaire de ce jour de la semaine (les Prévisions). Gérard y ouvre autant de remises de {REMISE_CREUX_PCT} % qu’il manque de RDV, dans le plafond de la semaine, d’abord aux clientes en retard.</p>
           <div className="mnd-scroll-x">
             <table>
               <thead><tr><th>Jour</th><th className="d">Posés</th><th className="d">Ordinaire</th><th className="d">Manque</th><th className="d">Remises</th></tr></thead>
@@ -226,18 +232,29 @@ export default function Gerard() {
           </div>
         </div>
         <div className="trc-ger__carte">
-          <h3>Son réglage <span>ouvert dès le 26 octobre 2026</span></h3>
-          <div className="trc-ger__modes" role="radiogroup" aria-label="Le mode de Gérard">
+          <h3>Son réglage <span>Pause ou Actif</span></h3>
+          <div className="trc-ger__modes" role="radiogroup" aria-label="Pause ou Actif">
             {MODES.map((m) => (
-              <button key={m.v} type="button" role="radio" aria-checked={reglages.mode === m.v} disabled={!direction}
-                className={reglages.mode === m.v ? 'est-choisi' : ''} onClick={() => changeLeMode(m.v, moi?.name ?? 'La direction')}>
+              <button key={m.titre} type="button" role="radio" aria-checked={actif !== m.pause} disabled={!direction}
+                className={actif !== m.pause ? 'est-choisi' : ''} onClick={() => metEnPause(m.pause, moi?.name ?? 'La direction')}>
                 <b>{m.titre}</b><span>{m.dit}</span>
               </button>
             ))}
           </div>
+          <div className="trc-ger__plafond">
+            <label>
+              <span>Remises par semaine, tout compris</span>
+              <input type="text" inputMode="numeric" value={nombre} disabled={!direction}
+                onChange={(e) => setNombre(e.target.value)} onBlur={posePlafond} />
+            </label>
+            <label>
+              <span>Plafond en francs par semaine</span>
+              <input type="text" inputMode="numeric" value={francs} disabled={!direction}
+                onChange={(e) => setFrancs(e.target.value)} onBlur={posePlafond} />
+            </label>
+          </div>
           <p className="trc-ger__doux">
-            L’essai : {reglages.essai.length ? reglages.essai.map(nomDe).filter(Boolean).join(', ') : 'personne encore'} ({reglages.essai.length} sur {ESSAI_MAX}).
-            {direction ? ' Ouvrez une ligne du plan pour y mettre une cliente.' : ' La direction choisit les clientes de l’essai.'}
+            Cette semaine : {plafond.faites} remise{plafond.faites > 1 ? 's' : ''} à son nom, {francsDits(plafond.francs)} engagés (jour creux, anniversaire, offre flash et remises de la direction comptent ensemble). À l’une des deux bornes, plus aucune remise : il écrit sans elle.
           </p>
         </div>
       </section>
@@ -251,12 +268,13 @@ export default function Gerard() {
             <tbody>
               <tr><td>Le fil entre deux séances</td><td>Une envie par mois, d’après sa fiche : un soin si elle a dit « cheveux secs », une retouche si sa couleur a trois mois, midi et deux si elle vient à midi, une coiffure en fin d’année, un lavage si son rythme est long. Jamais la même deux fois ; refusée, elle attend trois mois.</td></tr>
               <tr><td>La saison des fêtes</td><td>Du 1er novembre au 24 décembre : une envie toutes les trois semaines, les relances toutes les deux semaines, le message de Noël dès le 15 novembre. Retour au rythme ordinaire le 25 décembre.</td></tr>
-              <tr><td>Tout combiner</td><td>Sept jours avant sa date de cadence, deux places ; avec un soin ajouté le même jour, la coiffure de sortie est offerte.</td></tr>
+              <tr><td>Avant sa date</td><td>Sept jours avant sa date de cadence, il lui propose de réserver ; avec un soin ajouté le même jour, la coiffure de sortie est offerte.</td></tr>
               <tr><td>Garder son RDV</td><td>Deux jours avant un RDV pris depuis plus d’une semaine ; la veille, le rappel habituel.</td></tr>
               <tr><td>Les relances</td><td>Dix jours après sa date de cadence si rien n’est posé, puis quatre semaines au plus entre deux ; une endormie trois fois, à six semaines d’écart, puis silence.</td></tr>
-              <tr><td>Les remises</td><td>Jour creux {REMISE_CREUX_PCT} %, anniversaire {REMISE_ANNIV_PCT} % (30 jours), {REMISES_PAR_SEMAINE} remises de jour creux par semaine.</td></tr>
+              <tr><td>Les remises</td><td>Jour creux {REMISE_CREUX_PCT} %, anniversaire {REMISE_ANNIV_PCT} % (30 jours), notées à son nom et proposées à la Caisse ; {plafond.remisesParSemaine} par semaine tout compris et {francsDits(plafond.plafondFrancs)} au plus ; jamais deux à la fois.</td></tr>
+              <tr><td>Le silence</td><td>Rien qu’à garder son RDV si elle doit de l’argent, si une relance de facture est partie il y a moins de sept jours, si elle a écrit depuis moins de 48 heures sans réponse, si un souci est ouvert ; jamais rien à un enfant d’un foyer (le parent reçoit).</td></tr>
               <tr><td>Noël</td><td>Du 15 novembre au 15 décembre, les places des fêtes et la carte cadeau, sans remise.</td></tr>
-              <tr><td>Toujours</td><td>Jamais entre 20 h et 8 h, jamais deux messages en moins de deux semaines (hors garder son RDV), jamais de prix ni de civilité supposée ; Ma Couronne d’abord (gratuite), sinon WhatsApp, avec l’accord des nouvelles pour une sollicitation.</td></tr>
+              <tr><td>Toujours</td><td>Jamais entre 20 h et 8 h, jamais deux messages en moins de deux semaines, toutes voix de la Maison comptées (hors garder son RDV et les services), jamais de prix ni de civilité supposée ; Ma Couronne d’abord (gratuite), sinon WhatsApp, avec l’accord des nouvelles pour une sollicitation.</td></tr>
               <tr><td>La question franche</td><td>Ses messages sont signés « {SIGNATURE} » et il n’annonce rien de lui-même ; à « c’est un robot ? », il répond : « {REPONSE_FRANCHE} »</td></tr>
             </tbody>
           </table>

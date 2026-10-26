@@ -85,25 +85,24 @@ export const SIGNATURE = 'Maison MND';
    signature, « Maison MND » ; le pied de page est la devise seule,
    comme pour tous les modèles de la Maison (13 octobre 2026). Jamais le mot
    « code » dans un corps : Meta le range alors en Authentification. */
-export type CleDeModele = 'garder' | 'anniversaire' | 'combiner' | 'noel' | 'envie_soin' | 'envie_soin_secs' | 'envie_couleur'
-  | 'envie_lavage' | 'envie_midi' | 'envie_coiffure' | 'creux' | 'retard' | 'une_venue' | 'endormie';
+/* SEPT PLUS UN (maquette v4, 26 octobre 2026, « Tout me va ») : les 14
+   modèles deviennent 8. Un seul service, « garder » (UTILITY) ; les autres
+   sont MARKETING et ne partent sur WhatsApp qu'avec l'accord des nouvelles :
+   déclarer service un modèle marketing expose le numéro de la Maison à un
+   blocage par Meta (131050), et tous ses rappels avec lui. Aucun montant de
+   remise ni le mot « code » dans un corps : la remise est notée à son nom et
+   se propose à la Caisse. Le soin et la date vont en variables. */
+export type CleDeModele = 'garder' | 'avant' | 'envie' | 'place' | 'anniversaire' | 'fetes' | 'endormie' | 'nouvelles';
 export type ModeleDeGerard = { nom: string; categorie: 'UTILITY' | 'MARKETING'; corps: string; boutons: string[] };
-const OUI_AUTRE = ['Oui', 'Une autre date', 'Pas cette fois'];
 const CORPS: Record<CleDeModele, ModeleDeGerard> = {
   garder: { nom: 'gerard_garder', categorie: 'UTILITY', corps: 'Bonjour {{1}}, votre {{2}} est {{3}}. C’est toujours bon pour vous ?', boutons: ['Oui, je viens', 'Changer l’heure', 'Je ne peux plus'] },
-  anniversaire: { nom: 'gerard_anniversaire', categorie: 'MARKETING', corps: 'Joyeux anniversaire {{1}} ! Toute la Maison vous souhaite une très belle année. Pour l’occasion, votre prochain soin est à −10 % jusqu’au {{2}} : c’est déjà noté à votre nom.', boutons: ['Merci, je réserve', 'Merci'] },
-  combiner: { nom: 'gerard_combiner', categorie: 'MARKETING', corps: 'Bonjour {{1}}, votre prochain {{2}} est prévu vers le {{3}}. Nous avons de la place {{4}} : je vous en garde une ? Avec un soin ajouté le même jour, votre coiffure de sortie est offerte.', boutons: ['Oui', 'Avec le soin', 'Une autre date'] },
-  noel: { nom: 'gerard_noel', categorie: 'MARKETING', corps: 'Bonjour {{1}}, les fêtes approchent et les places du 15 au 24 décembre {{2}} partent vite. Je vous en garde une ? Et pour offrir, la carte cadeau de la Maison se commande en deux minutes.', boutons: ['Une place', 'La carte cadeau', 'Pas cette fois'] },
-  envie_soin: { nom: 'gerard_envie_soin', categorie: 'MARKETING', corps: 'Bonjour {{1}}, un mois après votre séance, souhaitez-vous un soin hydratant avant votre prochain {{2}}, prévu {{3}} ? Je vous trouve une place ?', boutons: OUI_AUTRE },
-  envie_soin_secs: { nom: 'gerard_envie_soin_secs', categorie: 'MARKETING', corps: 'Bonjour {{1}}, vous nous disiez vos cheveux secs : un soin hydratant de 45 minutes les remet d’aplomb avant votre prochain {{2}}, prévu {{3}}. Je vous trouve une place ?', boutons: OUI_AUTRE },
-  envie_couleur: { nom: 'gerard_envie_couleur', categorie: 'MARKETING', corps: 'Bonjour {{1}}, votre couleur végétale date de {{2}}. Une retouche avant votre prochain {{3}}, prévu {{4}} ?', boutons: OUI_AUTRE },
-  envie_lavage: { nom: 'gerard_envie_lavage', categorie: 'MARKETING', corps: 'Bonjour {{1}}, un mois après votre séance, souhaitez-vous un soin ou un lavage rituel (shampoing) avant votre prochain {{2}}, prévu {{3}} ?', boutons: ['Un soin', 'Un lavage rituel', 'Pas cette fois'] },
-  envie_midi: { nom: 'gerard_envie_midi', categorie: 'MARKETING', corps: 'Bonjour {{1}}, une coiffure express pendant votre pause déjeuner, entre midi et deux ? 45 minutes, avant votre prochain {{2}}, prévu {{3}}.', boutons: OUI_AUTRE },
-  envie_coiffure: { nom: 'gerard_envie_coiffure', categorie: 'MARKETING', corps: 'Bonjour {{1}}, une occasion en vue ? Une coiffure de la Maison se réserve dès maintenant, avant votre prochain {{2}}, prévu {{3}}.', boutons: ['Je réserve', 'Pas cette fois'] },
-  creux: { nom: 'gerard_creux', categorie: 'MARKETING', corps: 'Bonjour {{1}}, une place s’est libérée {{2}} à {{3}}, et ce jour-là votre {{4}} est à −15 %. Je vous la garde ?', boutons: ['Oui', 'Pas cette fois'] },
-  retard: { nom: 'gerard_retard', categorie: 'MARKETING', corps: 'Bonjour {{1}}, votre prochain {{2}} était prévu vers le {{3}}. Nous avons de la place {{4}} : je vous en garde une ?', boutons: OUI_AUTRE },
-  une_venue: { nom: 'gerard_une_venue', categorie: 'MARKETING', corps: 'Bonjour {{1}}, votre première venue date du {{2}}. C’est le moment de votre premier resserrage des racines : nous avons de la place {{3}}, je vous en garde une ?', boutons: OUI_AUTRE },
+  avant: { nom: 'gerard_avant', categorie: 'MARKETING', corps: 'Bonjour {{1}}, votre prochain {{2}} approche : il est prévu {{3}}. Je vous réserve votre place ? Avec un soin ajouté le même jour, votre coiffure de sortie est offerte.', boutons: ['Oui', 'Avec le soin', 'Pas cette fois'] },
+  envie: { nom: 'gerard_envie', categorie: 'MARKETING', corps: 'Bonjour {{1}}, pour prendre soin de vos locks avant votre prochain {{2}}, prévu {{3}}, la Maison vous propose {{4}}. Je vous trouve une place ?', boutons: ['Oui', 'Pas cette fois'] },
+  place: { nom: 'gerard_place', categorie: 'MARKETING', corps: 'Bonjour {{1}}, il est temps de votre {{2}} : nous avons de la place {{3}}. Je vous en garde une ?', boutons: ['Oui', 'Une autre date', 'Pas cette fois'] },
+  anniversaire: { nom: 'gerard_anniversaire', categorie: 'MARKETING', corps: 'Joyeux anniversaire {{1}} ! Toute la Maison vous souhaite une très belle année. Pour l’occasion, une attention vous attend sur votre prochain soin, jusqu’au {{2}}.', boutons: ['Merci, je réserve', 'Merci'] },
+  fetes: { nom: 'gerard_fetes', categorie: 'MARKETING', corps: 'Bonjour {{1}}, les fêtes approchent et les places du 15 au 24 décembre {{2}} partent vite. Je vous en garde une ? Et pour offrir, la carte cadeau de la Maison se commande en deux minutes.', boutons: ['Une place', 'La carte cadeau', 'Pas cette fois'] },
   endormie: { nom: 'gerard_endormie', categorie: 'MARKETING', corps: 'Bonjour {{1}}, cela fait {{2}} mois que nous n’avons pas vu vos locks. Comment vont-elles ? Si l’envie vous prend d’un soin, la Maison a de la place les semaines qui viennent.', boutons: ['Prendre un RDV', 'Pas pour l’instant'] },
+  nouvelles: { nom: 'nouvelles_de_la_maison', categorie: 'MARKETING', corps: 'Bonjour {{1}}, des nouvelles de la Maison : {{2}} Répondez simplement à ce message si cela vous tente.', boutons: ['Oui', 'Pas cette fois'] },
 };
 /** Chaque corps finit par la signature de Gérard, sur sa ligne. */
 export const MODELES_DE_GERARD: Record<CleDeModele, ModeleDeGerard> = Object.fromEntries(
@@ -123,11 +122,18 @@ export type ReglagesDeGerard = {
   essaiDepuis?: string;
   /** Le jour du dernier passage (AAAA-MM-JJ) : une fois par jour. */
   dernierPassage?: string;
+  /** LE PLAFOND DE LA SEMAINE (maquette v4, choix « francs ») : le nombre de
+      remises, tout compris, et les francs qu'elles peuvent coûter. */
+  remisesParSemaine: number;
+  plafondFrancs: number;
   parQui?: string;
   le?: string;
 };
 export const ESSAI_MAX = 5;
-export const REGLAGES_LIVRES: ReglagesDeGerard = { mode: 'eteint', essai: [] };
+export const PLAFOND_FRANCS_PAR_DEFAUT = 60_000;
+export const REGLAGES_LIVRES: ReglagesDeGerard = { mode: 'eteint', essai: [], remisesParSemaine: REMISES_PAR_SEMAINE, plafondFrancs: PLAFOND_FRANCS_PAR_DEFAUT };
+const entierBorne = (x: unknown, defaut: number, max: number): number =>
+  typeof x === 'number' && Number.isFinite(x) && x >= 0 ? Math.min(max, Math.round(x)) : defaut;
 
 /** Les réglages lus, quoi que contienne le document. */
 export const reglagesLus = (r: Partial<ReglagesDeGerard> | null | undefined): ReglagesDeGerard => ({
@@ -135,8 +141,32 @@ export const reglagesLus = (r: Partial<ReglagesDeGerard> | null | undefined): Re
   essai: Array.isArray(r?.essai) ? r!.essai.filter((x) => typeof x === 'string').slice(0, ESSAI_MAX) : [],
   essaiDepuis: typeof r?.essaiDepuis === 'string' ? r.essaiDepuis : undefined,
   dernierPassage: typeof r?.dernierPassage === 'string' ? r.dernierPassage : undefined,
+  remisesParSemaine: entierBorne(r?.remisesParSemaine, REMISES_PAR_SEMAINE, 30),
+  plafondFrancs: entierBorne(r?.plafondFrancs, PLAFOND_FRANCS_PAR_DEFAUT, 1_000_000),
   parQui: r?.parQui, le: r?.le,
 });
+
+/* ── LE PLAFOND DE LA SEMAINE, TOUT COMPRIS ─────────────────────────────
+   Toutes les remises à son nom de la semaine (lundi à lundi) comptent, qui
+   que soit leur auteur : jour creux, anniversaire, offre flash, remise de
+   la direction. Les francs : ce qu'un code honoré a réellement remisé, ce
+   qu'un code vivant peut encore remiser (son pourcentage sur le ticket
+   moyen), rien pour un code mort sans servir. À l'une des deux bornes,
+   plus aucune remise : le gardien retombe sur la situation sans elle. */
+export type CodeCompte = { creeLe: string; expireLe: string; utiliseLe?: string; remisePct?: number; remiseXof?: number; remiseReelleXof?: number };
+export function plafondDeLaSemaine(o: {
+  codes: readonly CodeCompte[]; lundi: string; maintenantIso: string; ticketMoyenXof: number;
+  remisesParSemaine: number; plafondFrancs: number;
+}): { faites: number; francs: number; restantes: number } {
+  const siens = o.codes.filter((c) => c.creeLe.slice(0, 10) >= o.lundi);
+  let francs = 0;
+  for (const c of siens) {
+    if (c.utiliseLe) francs += Math.max(0, c.remiseReelleXof ?? 0);
+    else if (c.expireLe > o.maintenantIso) francs += c.remiseXof ?? Math.round(((c.remisePct ?? 0) / 100) * Math.max(0, o.ticketMoyenXof));
+  }
+  const restantes = francs >= o.plafondFrancs ? 0 : Math.max(0, o.remisesParSemaine - siens.length);
+  return { faites: siens.length, francs, restantes };
+}
 
 
 /* ── LES MOTS ────────────────────────────────────────────────────────── */
@@ -165,9 +195,10 @@ export const GENRE_DIT: Record<GenreDeMessage, string> = {
   garder: 'Garder son RDV', anniversaire: 'Anniversaire', combiner: 'Tout combiner', envie: 'Une envie du fil',
   creux: 'Jour creux', noel: 'Noël', retard: 'En retard', 'une-venue': 'Une seule venue', endormie: 'Endormie',
 };
-/** Ce qui sert la cliente (son RDV, sa reprise) et ce qui la sollicite (un accord des nouvelles est requis). */
+/** UN SEUL SERVICE, « garder » (maquette v4) : tout le reste sollicite, et
+    demande l'accord des nouvelles pour partir sur WhatsApp. */
 export const EST_UN_SERVICE: Record<GenreDeMessage, boolean> = {
-  garder: true, combiner: true, retard: true, 'une-venue': true,
+  garder: true, combiner: false, retard: false, 'une-venue': false,
   anniversaire: false, envie: false, creux: false, noel: false, endormie: false,
 };
 const PRIORITE: Record<GenreDeMessage, number> = {
@@ -218,6 +249,21 @@ export type FicheDeGerard = {
       grave de ses signalements non traités, Santé puis À voir. Gérard se
       tait alors (`gerardSeTait`, gerard-entre-deux-pur) : ni envie ni remise. */
   souciOuvert?: 'sante' | 'a-voir';
+  /* ── LA FICHE ÉLARGIE (maquette v4, lot 1) : ce qui la fait taire. ── */
+  /** Ce qu'elle doit encore, en francs : jamais d'envie ni de remise tant qu'un reste est dû. */
+  resteDu?: number;
+  /** Sa dernière relance de facture (AAAA-MM-JJ) : silence sept jours autour. */
+  derniereRelanceLe?: string;
+  /** Le dernier message hors service parti vers elle, toutes voix confondues (`dernier-message-pur`). */
+  dernierMessageHorsService?: string;
+  /** Elle a écrit depuis moins de 48 heures sans réponse : on lui doit une réponse d'abord. */
+  attendUneReponse?: boolean;
+  /** Enfant d'un foyer : jamais écrite, c'est le parent payeur qui reçoit. */
+  enfantDuFoyer?: boolean;
+  /** Une carte cadeau vit sur sa fiche : pas de message de Noël. */
+  carteVivante?: boolean;
+  /** Ses remises à son nom encore valables : pas de seconde remise, jamais de cumul. */
+  codesVivants?: number;
   rdvs: RdvDeGerard[];
   traces: TraceDeGerard[];
   /** La Cadence : la date ATTENDUE d'après son rythme (pour une cliente en
@@ -347,22 +393,25 @@ export function joursCreux(o: {
 export const deuxPlacesDites = (p: readonly Place[]): string =>
   p.length >= 2 ? `${placeDite(p[0])} ou ${placeDite(p[1])}` : p.length === 1 ? placeDite(p[0]) : 'cette semaine';
 
-/** L'ENVIE EN MODÈLE : son modèle et ses variables. */
-export function modeleDeLEnvie(e: EnvieDeGerard, f: FicheDeGerard, c: { iso: string; posee: boolean } | null, aujourdhui: string): { modele: CleDeModele; variables: string[] } {
-  const prevu = !c ? 'bientôt' : c.posee ? `le ${jourDit(c.iso)}` : `vers le ${jourDit(c.iso)}`;
+/** CE QUE LA MAISON PROPOSE, selon l'envie : le {{4}} du modèle gerard_envie. */
+export function propositionDeLEnvie(e: EnvieDeGerard, f: FicheDeGerard, aujourdhui: string): string {
   switch (e) {
     case 'hydratation':
-      return f.soucis.some((x) => x === 'seches' || x === 'cassantes')
-        ? { modele: 'envie_soin_secs', variables: [f.appel, f.soinDit, prevu] }
-        : { modele: 'envie_soin', variables: [f.appel, f.soinDit, prevu] };
+      return f.soucis.some((x) => x === 'seches' || x === 'cassantes') ? 'un soin hydratant de 45 minutes, pour vos cheveux secs' : 'un soin hydratant de 45 minutes';
     case 'couleur': {
       const cs = a(f, 'couleur');
-      return { modele: 'envie_couleur', variables: [f.appel, moisDit(cs[cs.length - 1] ?? aujourdhui), f.soinDit, prevu] };
+      return `une retouche de votre couleur végétale de ${moisDit(cs[cs.length - 1] ?? aujourdhui)}`;
     }
-    case 'lavage': return { modele: 'envie_lavage', variables: [f.appel, f.soinDit, prevu] };
-    case 'midi-deux': return { modele: 'envie_midi', variables: [f.appel, f.soinDit, prevu] };
-    case 'coiffure': return { modele: 'envie_coiffure', variables: [f.appel, f.soinDit, prevu] };
+    case 'lavage': return 'un lavage rituel (shampoing)';
+    case 'midi-deux': return 'une coiffure express entre midi et deux, pendant votre pause';
+    case 'coiffure': return 'une coiffure pour vos occasions';
   }
+}
+
+/** L'ENVIE EN MODÈLE : gerard_envie et ses variables. */
+export function modeleDeLEnvie(e: EnvieDeGerard, f: FicheDeGerard, c: { iso: string; posee: boolean } | null, aujourdhui: string): { modele: CleDeModele; variables: string[] } {
+  const prevu = !c ? 'bientôt' : c.posee ? `le ${jourDit(c.iso)}` : `vers le ${jourDit(c.iso)}`;
+  return { modele: 'envie', variables: [f.appel, f.soinDit, prevu, propositionDeLEnvie(e, f, aujourdhui)] };
 }
 
 /* ── LA SITUATION DU JOUR ────────────────────────────────────────────── */
@@ -387,7 +436,9 @@ export function canalDe(f: FicheDeGerard, genre: GenreDeMessage): 'whatsapp' | '
 
 export function situationDuJour(f: FicheDeGerard, ctx: ContexteDeGerard): Situation | null {
   const A = ctx.aujourdhui;
-  if (f.ecartee) return null;
+  /* Écartée (de passage, diaspora, locks défaits, archivée) ou enfant d'un
+     foyer : jamais écrite. Le parent payeur reçoit pour elle. */
+  if (f.ecartee || f.enfantDuFoyer) return null;
   const fait = (genre: GenreDeMessage, modele: CleDeModele, variables: string[], pourquoi: [string, string][], extra: Partial<Situation> = {}): Situation | null => {
     const canal = canalDe(f, genre);
     if (!canal) return null;
@@ -410,15 +461,27 @@ export function situationDuJour(f: FicheDeGerard, ctx: ContexteDeGerard): Situat
      fichier n'importe rien, le banc vérifie qu'il dit comme `gerardSeTait`. */
   if (f.souciOuvert) return null;
 
-  const recemment = derniereTrace(f, TOUS_SAUF_GARDER);
+  /* LES SILENCES DE LA MAQUETTE V4. On lui doit une réponse (elle a écrit
+     il y a moins de 48 heures) ; elle doit de l'argent (silence commercial,
+     décision commune aux trois architectures) ; une relance de facture est
+     partie il y a moins de sept jours. Seul « garder », plus haut, passe. */
+  if (f.attendUneReponse) return null;
+  if ((f.resteDu ?? 0) > 0) return null;
+  if (f.derniereRelanceLe && ecartJours(f.derniereRelanceLe, A) < 7) return null;
+
+  /* QUATORZE JOURS SUR TOUT CE QUI EST PARTI : ses propres messages, et le
+     dernier message hors service de n'importe quelle voix de la Maison. */
+  const siens = derniereTrace(f, TOUS_SAUF_GARDER);
+  const recemment = [siens, f.dernierMessageHorsService].filter((x): x is string => !!x).sort().pop();
   const tropTot = !!recemment && ecartJours(recemment, A) < ECART_MIN;
+  const aDejaUneRemise = (f.codesVivants ?? 0) > 0;
 
   /* ② Son anniversaire, le jour même, une fois l'an. */
   if (f.birthday && f.birthday.slice(5, 10) === A.slice(5, 10) && (f.birthdayGiftAt ?? '').slice(0, 4) !== A.slice(0, 4)
-    && !traceDe(f, ['anniversaire']).some((t) => t.quand.slice(0, 4) === A.slice(0, 4))) {
+    && !aDejaUneRemise && ctx.remisesRestantes > 0 && !traceDe(f, ['anniversaire']).some((t) => t.quand.slice(0, 4) === A.slice(0, 4))) {
     const jusquau = plusJours(A, ANNIV_VALABLE_JOURS);
     const s = fait('anniversaire', 'anniversaire', [f.appel, jourDit(jusquau)],
-      [['Anniversaire', jourDit(A)], ['Code', `${REMISE_ANNIV_PCT} %, ${ANNIV_VALABLE_JOURS} jours`]], { code: { mot: 'ANNIV', pct: REMISE_ANNIV_PCT, jusquau } });
+      [['Anniversaire', jourDit(A)], ['Remise à son nom', `${REMISE_ANNIV_PCT} %, ${ANNIV_VALABLE_JOURS} jours`]], { code: { mot: 'ANNIV', pct: REMISE_ANNIV_PCT, jusquau } });
     if (s) return s;
   }
   if (tropTot) return null;
@@ -432,11 +495,11 @@ export function situationDuJour(f: FicheDeGerard, ctx: ContexteDeGerard): Situat
   ];
   const creux = ctx.remisesRestantes > 0 ? ctx.creux.find((j) => j.remises > 0) : undefined;
   const offreCreux = (motif: string): Situation | null => {
-    if (!creux) return null;
+    if (!creux || aDejaUneRemise) return null;
     const places = ctx.placesDe(f.id, creux.iso);
     if (places.length === 0) return null;
     const heures = places.slice(0, 2).map((p) => heureDite(p.heure));
-    return fait('creux', 'creux', [f.appel, jourDit(creux.iso), heures.join(' ou à '), f.soinDit],
+    return fait('creux', 'nouvelles', [f.appel, `une place s’est libérée ${jourDit(creux.iso)} à ${heures.join(' ou à ')}, et ce jour-là la Maison vous fait une remise sur votre ${f.soinDit}.`],
       [...pourquoiDuFil, ['Jour creux', `${jourDit(creux.iso)} : ${creux.poses} posés, ordinaire ${creux.ordinaire}`], ['Pourquoi elle', motif]],
       { code: { mot: 'CREUX', pct: REMISE_CREUX_PCT, jusquau: creux.iso, jour: creux.iso } });
   };
@@ -450,13 +513,12 @@ export function situationDuJour(f: FicheDeGerard, ctx: ContexteDeGerard): Situat
   if (s0 && c && A > s0 && A <= c.iso && (c.posee || venues >= 2)) {
     const avantCadence = ecartJours(A, c.iso);
     if (avantCadence === COMBINER_AVANT && !c.posee) {
-      const places = ctx.placesDe(f.id);
-      return fait('combiner', 'combiner', [f.appel, f.soinDit, jourDit(c.iso), deuxPlacesDites(places)], pourquoiDuFil);
+      return fait('combiner', 'avant', [f.appel, f.soinDit, `vers le ${jourDit(c.iso)}`], pourquoiDuFil);
     }
     /* Le mois de Noël : les places des fêtes, la carte cadeau, sans remise. */
     if (A.slice(5) >= NOEL_DU && A.slice(5) <= NOEL_AU && !traceDe(f, ['noel']).some((t) => t.quand.slice(0, 4) === A.slice(0, 4))
-      && !(c.posee && c.iso.slice(5) >= '12-15' && c.iso.slice(5) <= '12-24')) {
-      return fait('noel', 'noel', [f.appel, A.slice(0, 4)], pourquoiDuFil);
+      && !(c.posee && c.iso.slice(5) >= '12-15' && c.iso.slice(5) <= '12-24') && !f.carteVivante) {
+      return fait('noel', 'fetes', [f.appel, A.slice(0, 4)], pourquoiDuFil);
     }
     const depuis = ecartJours(s0, A);
     const premiere = Math.min(PREMIERE_ENVIE_APRES, intervalleDesEnvies(A));
@@ -489,13 +551,15 @@ export function situationDuJour(f: FicheDeGerard, ctx: ContexteDeGerard): Situat
     const viaCreux = offreCreux(`en retard de ${ecartJours(c.iso, A)} jours`);
     if (viaCreux) return viaCreux;
     const places = ctx.placesDe(f.id);
-    return fait('retard', 'retard', [f.appel, f.soinDit, jourDit(c.iso), deuxPlacesDites(places)],
-      [...pourquoiDuFil, ['Retard', `${ecartJours(c.iso, A)} jours`]]);
+    return fait('retard', 'place', [f.appel, f.soinDit, deuxPlacesDites(places)],
+      [...pourquoiDuFil, ['Date attendue', jourDit(c.iso)], ['Retard', `${ecartJours(c.iso, A)} jours`]]);
   }
   if (venues === 1 && sansVenir >= UNE_VENUE_APRES) {
     const places = ctx.placesDe(f.id);
-    return fait('une-venue', 'une_venue', [f.appel, jourDit(s0), deuxPlacesDites(places)],
-      [...pourquoiDuFil, ['Ses venues', '1']]);
+    /* Venue une fois pour autre chose (sa création, un soin) : son premier resserrage. */
+    const dejaResserree = f.rdvs.some((x) => x.venu && x.familles.includes('resserrage'));
+    return fait('une-venue', 'place', [f.appel, dejaResserree ? f.soinDit : 'premier resserrage des racines', deuxPlacesDites(places)],
+      [...pourquoiDuFil, ['Ses venues', '1'], ['Première venue', jourDit(s0)]]);
   }
   return null;
 }
@@ -510,11 +574,12 @@ export function planDuJour(fiches: readonly FicheDeGerard[], ctx: ContexteDeGera
   const brutes = fiches.map((f) => ({ f, s: situationDuJour(f, ctx) })).filter((x): x is { f: FicheDeGerard; s: Situation } => !!x.s)
     .sort((x, y) => y.s.priorite - x.s.priorite);
   for (const { f, s } of brutes) {
-    if (s.genre !== 'creux') { out.push(s); continue; }
-    const jour = s.code?.jour ?? '';
-    const n = restant.get(jour) ?? 0;
-    if (n > 0 && semaine > 0) { restant.set(jour, n - 1); semaine -= 1; out.push(s); continue; }
-    /* Le jour creux est plein de remises : elle reçoit ce qu'elle aurait reçu sans lui. */
+    if (!s.code) { out.push(s); continue; }
+    /* L'anniversaire passe avant les jours creux (sa priorité est plus haute) ; tous deux comptent. */
+    const jour = s.code.jour;
+    const n = jour ? restant.get(jour) ?? 0 : 1;
+    if (n > 0 && semaine > 0) { if (jour) restant.set(jour, n - 1); semaine -= 1; out.push(s); continue; }
+    /* Le plafond est atteint : elle reçoit ce qu'elle aurait reçu sans remise. */
     const sans = situationDuJour(f, { ...ctx, creux: [], remisesRestantes: 0 });
     if (sans) out.push(sans);
   }
@@ -543,8 +608,10 @@ export const HEURE_DU_PASSAGE_A = 20;
 /** Le passage est-il dû : allumé, pas encore fait aujourd'hui, dans les heures. */
 export const passageDu = (r: ReglagesDuPassage, aujourdhui: string, heureCotonou: number): boolean =>
   r.mode !== 'eteint' && r.dernierPassage !== aujourdhui && heureCotonou >= HEURE_DU_PASSAGE_DE && heureCotonou < HEURE_DU_PASSAGE_A;
-/** Une cliente que le mode laisse servir. */
-export const servie = (r: ReglagesDuPassage, clientId: string): boolean => r.mode === 'ouvert' || (r.mode === 'essai' && r.essai.includes(clientId));
+/** PAUSE / ACTIF (maquette v4) : le champ `mode` garde ses valeurs, « eteint »
+    veut dire Pause, tout le reste (« ouvert », et l'ancien « essai ») Actif. */
+export const estActif = (r: Pick<ReglagesDuPassage, 'mode'>): boolean => r.mode !== 'eteint';
+export const servie = (r: ReglagesDuPassage, _clientId: string): boolean => estActif(r);
 
 export const idDeLaLigne = (aujourdhui: string, clientId: string, canal: 'push' | 'wa-main'): string => `gerard-${aujourdhui}-${clientId}-${canal}`;
 /** Le texte sans sa dernière ligne de signature : la notification porte déjà « Maison MND » en titre. */

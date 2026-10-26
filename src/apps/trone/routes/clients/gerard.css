@@ -70,8 +70,14 @@
 .trc-ger__noeud.en-bas small { top: 66px; }
 
 /* Les réglages */
-.trc-ger__modes { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.trc-ger__modes { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
 @media (max-width: 640px) { .trc-ger__modes { grid-template-columns: minmax(0, 1fr); } }
+/* Le plafond de la semaine : deux champs, nombre et francs. */
+.trc-ger__plafond { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: 12px; }
+.trc-ger__plafond label { display: grid; gap: 4px; font-size: 12px; color: var(--ink-soft); }
+.trc-ger__plafond input { min-height: 40px; padding: 8px 10px; border: 1px solid var(--hairline); border-radius: 3px; font: inherit; font-size: 15px; font-variant-numeric: tabular-nums; background: var(--surface-card); color: inherit; }
+.trc-ger__plafond input:focus-visible { outline: 2px solid var(--color-copper); outline-offset: 2px; }
+@media (max-width: 640px) { .trc-ger__plafond { grid-template-columns: minmax(0, 1fr); } }
 .trc-ger__modes button { all: unset; box-sizing: border-box; cursor: pointer; border: 1px solid var(--hairline); border-radius: 3px; padding: 10px 12px; display: flex; flex-direction: column; gap: 3px; background: var(--surface-card); }
 .trc-ger__modes button b { font-weight: 600; font-size: 13.5px; color: var(--color-indigo); }
 .trc-ger__modes button span { font-size: 12px; color: var(--ink-soft); }
