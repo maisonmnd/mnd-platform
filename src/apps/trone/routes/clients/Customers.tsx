@@ -32,7 +32,8 @@ import { CourbeDesJauges, CourbeDeLaPousse } from '../../../../ds/courbes';
 import { derniereCouleur, dernierDeclencheur, ouvertureDuProgramme, suivreLeProtocole, useProtocoles, protocoleNatif, protocolesDeLaTete, etapesPourLaTete, aSonEcart, MOT_DE_L_ETAT } from '../../../../shared/protocoles';
 import { useAuth } from '../../../../shared/auth';
 import { useStaff } from '../equipe/data';
-import { useInvoices, invoiceTotal, type Invoice } from '../../../../shared/finance';
+import { useInvoices, invoiceTotal, invoiceRegleXof, type Invoice } from '../../../../shared/finance';
+import { piecesParAnnee, toutesLesAnnees } from './documents-par-annee-pur';
 import { usePointsHistory, cercleSeuilStore, foyerSeuilStore, estDuCercle, pointsEnabledStore, useFoyerTiers, meilleurPalierFoyer, cercleActifStore, foyerActifStore } from '../../../../shared/offers';
 import { dernierBilanDe, useBilans, seancesSansBilan } from '../../../../shared/bilans';
 import { BilanModal, RegistreDesBilans } from './BilanModal';
@@ -4724,20 +4725,63 @@ function Customer360({
           {documents.length === 0 && (
             <div style={{ fontSize: 12, color: 'var(--ink-soft)' }}>Aucun document, ses factures et devis apparaîtront ici.</div>
           )}
-          {documents.length > 0 && (
-            <div className="trc-orders">
-              {documents.map((o) => (
-                <button type="button" className="trc-order trc-order--btn" key={o.id} title={`Ouvrir ${o.kind === 'devis' ? 'le devis' : 'la facture'} ${o.number}`} onClick={() => navigate(`/factures?id=${o.id}`)}>
-                  <span className="trc-order__id">
-                    <span style={{ fontFamily: 'var(--font-serif)', fontSize: 14, color: 'var(--color-indigo)' }}>{o.number}</span>
-                    <span className="trc-sub" style={{ marginLeft: 8 }}>{o.kind === 'devis' ? 'Devis' : 'Facture'} · {frJourAn(o.date)}{pourUneAutre(o) ? ` · pour ${pourUneAutre(o)}` : ''}</span>
-                  </span>
-                  <span className="trc-order__total">{fmtMoney(invoiceTotal(o), currency)}</span>
-                  <span className={orderStatusClass(o.status)}>{o.status}</span>
-                </button>
-              ))}
-            </div>
-          )}
+          {/* ANNÉE PAR ANNÉE — 26 octobre 2026 (« un détail précis sur son total
+              de chaque année, bien distinct ») : le tableau d'abord, puis les
+              pièces sous l'en-tête de leur année. Un devis n'entre dans aucun
+              total (documents-par-annee-pur.ts). */}
+          {documents.length > 0 && (() => {
+            const annees = piecesParAnnee(documents, invoiceTotal, invoiceRegleXof);
+            const tout = toutesLesAnnees(annees);
+            const m = (x: number) => fmtMoney(x, currency);
+            const nFactures = (k: number, d: number) => `${k} facture${k > 1 ? 's' : ''}${d > 0 ? ` + ${d} devis` : ''}`;
+            return (
+              <>
+                <div className="trc-annees-cadre">
+                  <table className="trc-annees">
+                    <thead>
+                      <tr><th>Année</th><th className="num">Pièces</th><th className="num">Total</th><th className="num">Réglé</th><th className="num">Reste</th></tr>
+                    </thead>
+                    <tbody>
+                      {annees.map((a) => (
+                        <tr key={a.annee}>
+                          <td>{a.annee}</td><td className="num">{nFactures(a.factures, a.devis)}</td>
+                          <td className="num">{m(a.totalXof)}</td><td className="num">{m(a.regleXof)}</td>
+                          <td className={`num${a.resteXof > 0 ? ' est-du' : ''}`}>{m(a.resteXof)}</td>
+                        </tr>
+                      ))}
+                      {annees.length > 1 && (
+                        <tr className="est-total">
+                          <td>Toutes</td><td className="num">{nFactures(tout.factures, tout.devis)}</td>
+                          <td className="num">{m(tout.totalXof)}</td><td className="num">{m(tout.regleXof)}</td>
+                          <td className={`num${tout.resteXof > 0 ? ' est-du' : ''}`}>{m(tout.resteXof)}</td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+                {annees.map((a) => (
+                  <div key={a.annee} className="trc-annee-bloc">
+                    <div className="trc-annee">
+                      <span>{a.annee}</span>
+                      <span>{nFactures(a.factures, a.devis)} · {m(a.totalXof)}{a.resteXof > 0 ? ` · reste ${m(a.resteXof)}` : ''}</span>
+                    </div>
+                    <div className="trc-orders">
+                      {a.pieces.map((o) => (
+                        <button type="button" className="trc-order trc-order--btn" key={o.id} title={`Ouvrir ${o.kind === 'devis' ? 'le devis' : 'la facture'} ${o.number}`} onClick={() => navigate(`/factures?id=${o.id}`)}>
+                          <span className="trc-order__id">
+                            <span style={{ fontFamily: 'var(--font-serif)', fontSize: 14, color: 'var(--color-indigo)' }}>{o.number}</span>
+                            <span className="trc-sub" style={{ marginLeft: 8 }}>{o.kind === 'devis' ? 'Devis' : 'Facture'} · {frJourAn(o.date)}{pourUneAutre(o) ? ` · pour ${pourUneAutre(o)}` : ''}</span>
+                          </span>
+                          <span className="trc-order__total">{fmtMoney(invoiceTotal(o), currency)}</span>
+                          <span className={orderStatusClass(o.status)}>{o.status}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </>
+            );
+          })()}
         </div>
 
         {/* LES PIÈCES DU RESTE DU COMPTE. Chaque facture reste au nom de celle

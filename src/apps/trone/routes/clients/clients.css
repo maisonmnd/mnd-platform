@@ -3487,3 +3487,19 @@
 .trc-signal.est-alerte { background: #FBEDEA; color: var(--alarme, #A3402B); border-color: #E7B7AC; }
 .trc-geste { display: inline-block; margin-top: 2px; background: none; border: 0; padding: 2px 0; font: 500 12px var(--font-sans); color: var(--copper-700); cursor: pointer; text-decoration: none; white-space: nowrap; }
 .trc-geste:hover { text-decoration: underline; }
+
+/* SES PIÈCES, ANNÉE PAR ANNÉE — 26 octobre 2026 : le tableau de l'onglet
+   Documents, puis l'en-tête de chaque année au-dessus de ses pièces. */
+.trc-annees-cadre { overflow-x: auto; margin: 6px 0 14px; }
+.trc-annees { width: 100%; border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; }
+.trc-annees th { text-align: left; font: 500 10.5px var(--font-sans); letter-spacing: .12em; text-transform: uppercase; color: var(--ink-soft); padding: 6px 8px; border-bottom: 1px solid var(--hairline); }
+.trc-annees td { padding: 8px; border-bottom: 1px solid var(--hairline); color: var(--color-indigo); }
+.trc-annees .num { text-align: right; white-space: nowrap; }
+.trc-annees td:first-child { font-family: var(--font-serif); font-size: 16px; }
+.trc-annees .est-du { color: var(--alarme, #A3402B); font-weight: 600; }
+.trc-annees tr.est-total td { border-top: 1px solid var(--color-indigo); border-bottom: 0; font-weight: 600; }
+.trc-annee-bloc { margin-top: 12px; }
+.trc-annee { display: flex; justify-content: space-between; gap: 12px; align-items: baseline; padding: 6px 2px; border-bottom: 1px solid var(--color-indigo); margin-bottom: 4px; font-variant-numeric: tabular-nums; }
+.trc-annee span:first-child { font-family: var(--font-serif); font-size: 18px; color: var(--color-indigo); }
+.trc-annee span:last-child { font-size: 12.5px; color: var(--ink-soft); text-align: right; }
+
