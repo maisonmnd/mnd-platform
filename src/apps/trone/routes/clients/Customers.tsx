@@ -34,6 +34,8 @@ import { useAuth } from '../../../../shared/auth';
 import { useStaff } from '../equipe/data';
 import { useInvoices, invoiceTotal, invoiceRegleXof, invoiceResteXof, type Invoice } from '../../../../shared/finance';
 import { piecesParAnnee, toutesLesAnnees } from './documents-par-annee-pur';
+import { RemplacerUnePrestation } from './RemplacerUnePrestation';
+import { useEstDirection } from '../_vie';
 import { usePointsHistory, cercleSeuilStore, foyerSeuilStore, estDuCercle, pointsEnabledStore, useFoyerTiers, meilleurPalierFoyer, cercleActifStore, foyerActifStore } from '../../../../shared/offers';
 import { dernierBilanDe, useBilans, seancesSansBilan } from '../../../../shared/bilans';
 import { BilanModal, RegistreDesBilans } from './BilanModal';
@@ -2568,6 +2570,9 @@ function Customer360({
   const [demanderOuvert, setDemanderOuvert] = useState(false);
   /* Documents : l'année dépliée, une seule à la fois ; null = la plus récente. */
   const [anneeOuverte, setAnneeOuverte] = useState<{ de: string; annee: string } | null>(null);
+  /* Documents : l'outil « Remplacer une prestation », ouvert pour cette fiche. */
+  const [remplaceOuvertPour, setRemplaceOuvertPour] = useState<string | null>(null);
+  const estDirection = useEstDirection();
   const [tousBilans] = useBilans();
   const dernierBilan = dernierBilanDe(tousBilans, client.id);
   /* SES BILANS À ELLE, dans l'ordre du temps — c'est la suite qui fait la
@@ -4800,6 +4805,15 @@ function Customer360({
               {documents.length === 0 && (
                 <div className="trc-docs__vide">Aucun document : ses factures et devis apparaîtront ici.</div>
               )}
+              {estDirection && documents.some((o) => o.kind !== 'devis') && (remplaceOuvertPour === client.id
+                ? <RemplacerUnePrestation clientId={client.id} documents={documents} onFerme={() => setRemplaceOuvertPour(null)} />
+                : (
+                  <div className="trc-docs__outils">
+                    <button type="button" className="trc-remplace__lien" onClick={() => setRemplaceOuvertPour(client.id)}>
+                      Remplacer une prestation sur ses factures…
+                    </button>
+                  </div>
+                ))}
               {documents.length > 0 && (
                 <div className="trc-annees-cadre">
                   <table className="trc-annees">

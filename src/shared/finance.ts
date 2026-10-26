@@ -189,6 +189,9 @@ export type Invoice = {
       Posée au comptoir par toute personne qui encaisse ; la tournée du
       serveur ne relance plus cette facture tant qu'elle est là. */
   relancesPause?: { le: string; par?: string };
+  /** UNE PRESTATION REMPLACÉE APRÈS COUP (26 octobre 2026) : les lignes d'avant
+      chaque remplacement, pour le défaire (remplacer-une-prestation-pur.ts). */
+  remplacements?: { le: string; de: string; vers: string; lines: InvoiceLine[]; globalDiscountXof?: number }[];
   /** L'INSTANT OÙ LA PIÈCE A ÉTÉ ÉCRITE (18 octobre 2026). Une pièce écrite
       après son jour est un rattrapage du comptoir : elle ne se relance pas
       seule, la cliente a peut-être payé ce jour-là. Absent sur les pièces

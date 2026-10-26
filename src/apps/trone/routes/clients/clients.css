@@ -3571,3 +3571,29 @@
   .trc-annees { font-size: 13px; }
   .trc-annees td, .trc-annees th { padding-left: 8px; padding-right: 8px; }
 }
+
+/* REMPLACER UNE PRESTATION — 26 octobre 2026 : l'outil de l'onglet Documents.
+   Un cadre cuivre clair, les champs sur une rangée, l'aperçu en tableau. */
+.trc-docs__outils { display: flex; justify-content: flex-end; margin-top: -6px; }
+.trc-remplace__lien { border: 0; background: none; padding: 0; font: inherit; font-size: 12.5px; color: var(--copper-700); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.trc-remplace { display: grid; gap: 14px; padding: 16px 18px; border: 1px solid var(--copper-300); border-radius: var(--radius-md); background: var(--copper-50, #FBF4EC); }
+.trc-remplace__tete { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.trc-remplace__titre { font-family: var(--font-serif); font-size: 19px; color: var(--color-indigo); }
+.trc-remplace__champs { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 2fr) minmax(7em, 1fr) minmax(7em, 1fr); gap: 10px 14px; }
+.trc-remplace__champs label { display: grid; gap: 4px; min-width: 0; }
+.trc-remplace__champs label > span { font: 500 10px var(--font-sans); letter-spacing: .14em; text-transform: uppercase; color: var(--ink-soft); }
+.trc-remplace__champs select,
+.trc-remplace__champs input { width: 100%; min-width: 0; font: inherit; font-size: 13.5px; padding: 8px 10px; border: 1px solid var(--hairline); border-radius: var(--radius-sm); background: var(--paper); color: var(--ink); font-variant-numeric: lining-nums tabular-nums; }
+.trc-remplace__dit { font-size: 13px; color: var(--ink); }
+.trc-remplace__dit.est-du, .trc-remplace .est-du { color: var(--alarme, #A3402B); }
+.trc-remplace .est-nul { color: var(--ink-soft); }
+.trc-remplace__table { font-size: 13px; }
+.trc-remplace__table td { padding: 9px 10px; }
+.trc-remplace__no { font-size: 12px; color: var(--ink-soft); white-space: nowrap; }
+.trc-remplace__gestes { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.trc-remplace__aide { font-size: 12px; color: var(--ink-soft); }
+@media (max-width: 760px) {
+  .trc-remplace__champs { grid-template-columns: 1fr 1fr; }
+  .trc-remplace__champs label:not(.est-court) { grid-column: 1 / -1; }
+}
+

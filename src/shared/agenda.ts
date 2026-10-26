@@ -243,6 +243,9 @@ export type Appointment = {
   prixFigeParLaBascule?: number;
   /** Prestations sur lesquelles l'acompte est calculé (défaut : toutes). */
   depositServiceIds?: string[];
+  /** UNE PRESTATION REMPLACÉE APRÈS COUP (26 octobre 2026) : les prestations
+      d'avant, pour le défaire (remplacer-une-prestation-pur.ts). */
+  remplacements?: { le: string; serviceIds: string[]; depositServiceIds?: string[] }[];
   /** Série multi-séances : les RDV liés partagent cet identifiant. */
   /** LE FOYER QUI VIENT ENSEMBLE — 2 septembre 2026.
 
