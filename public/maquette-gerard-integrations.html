@@ -1,0 +1,598 @@
+<title>Ce que Gérard sait</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;1,400&family=Jost:wght@300;400;500;600&display=swap">
+<style>
+/* Mise en page : une colonne de lecture, trois scènes à onglets (téléphone | Trône), les choix en bas. */
+:root {
+  --papier: #F6F1E7; --carte: #FBF8F2; --encre: #1E2150; --texte: #23232C; --doux: #5C5C66;
+  --filet: rgba(30,33,80,.14); --cuivre: #B97A4A; --cuivre-fonce: #7C4C2C; --cuivre-pale: #FAF1E9;
+  --alarme: #A3402B; --bulle-elle: #FFFFFF; --bulle-maison: #E9E6F2; --ecran: #EFEAE0;
+  --serif: "Cormorant Garamond", "Noto Serif", Georgia, serif; --sans: "Jost", "Noto Sans", system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --papier: #131532; --carte: #191B43; --encre: #E8E4F4; --texte: #E6E3EC; --doux: #A7ACC9;
+  --filet: rgba(232,228,244,.16); --cuivre: #D6A06F; --cuivre-fonce: #E4BE9C; --cuivre-pale: #2A2240;
+  --alarme: #E28A72; --bulle-elle: #232657; --bulle-maison: #2C3470; --ecran: #0C0D20; color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --papier: #131532; --carte: #191B43; --encre: #E8E4F4; --texte: #E6E3EC; --doux: #A7ACC9;
+  --filet: rgba(232,228,244,.16); --cuivre: #D6A06F; --cuivre-fonce: #E4BE9C; --cuivre-pale: #2A2240;
+  --alarme: #E28A72; --bulle-elle: #232657; --bulle-maison: #2C3470; --ecran: #0C0D20; color-scheme: dark; }
+* { box-sizing: border-box; }
+body { background: var(--papier); color: var(--texte); font: 400 15px/1.6 var(--sans); }
+.page { max-width: 1040px; margin: 0 auto; padding-block: 36px 64px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: flex; flex-direction: column; gap: 44px; }
+h1, h2, h3 { font-family: var(--serif); font-weight: 400; color: var(--encre); margin: 0; text-wrap: balance; }
+h1 { font-size: clamp(34px, 6vw, 48px); line-height: 1.05; }
+h2 { font-size: 28px; line-height: 1.15; }
+h3 { font-size: 21px; }
+p { margin: 0; max-width: 66ch; }
+.sur { font: 500 11px var(--sans); letter-spacing: .16em; text-transform: uppercase; color: var(--cuivre-fonce); }
+.doux { color: var(--doux); font-size: 13.5px; }
+section { display: flex; flex-direction: column; gap: 16px; }
+section + section { border-top: 1px solid var(--filet); padding-top: 36px; }
+.tete { display: flex; flex-direction: column; gap: 12px; }
+.etats { display: flex; flex-wrap: wrap; gap: 8px; }
+.etat { font-size: 12.5px; padding: 4px 11px; border: 1px solid var(--filet); border-radius: 99px; color: var(--encre); }
+.etat b { font-weight: 500; }
+.etat.fait { border-color: var(--cuivre); background: var(--cuivre-pale); }
+/* Le tableau des trois sources */
+.cadre { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 14px; font-variant-numeric: lining-nums tabular-nums; }
+th { text-align: left; font: 500 10.5px var(--sans); letter-spacing: .14em; text-transform: uppercase; color: var(--doux); padding: 0 14px 8px 0; border-bottom: 1px solid var(--encre); }
+td { padding: 12px 14px 12px 0; border-bottom: 1px solid var(--filet); vertical-align: top; }
+td:first-child { font-family: var(--serif); font-size: 19px; color: var(--encre); white-space: nowrap; }
+td.jamais { color: var(--alarme); }
+/* Les scènes */
+.onglets { display: flex; gap: 4px; border-bottom: 1px solid var(--filet); overflow-x: auto; }
+.onglets button { background: none; border: 0; border-bottom: 2px solid transparent; padding: 10px 14px; margin-bottom: -1px; font: 500 12px var(--sans); letter-spacing: .1em; text-transform: uppercase; color: var(--doux); cursor: pointer; white-space: nowrap; }
+.onglets button[aria-selected="true"] { color: var(--encre); border-bottom-color: var(--cuivre); }
+.onglets button:focus-visible, .choix button:focus-visible, .gros:focus-visible { outline: 2px solid var(--cuivre); outline-offset: 2px; }
+.scene { display: grid; grid-template-columns: minmax(0, 360px) minmax(0, 1fr); gap: 28px; align-items: start; }
+.scene + .scene { margin-top: 28px; padding-top: 28px; border-top: 1px dashed var(--filet); }
+.tel { background: var(--ecran); border: 1px solid var(--filet); border-radius: 22px; padding: 12px; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.tel__haut { display: flex; justify-content: space-between; align-items: baseline; padding: 2px 6px 8px; border-bottom: 1px solid var(--filet); }
+.tel__haut b { font-family: var(--serif); font-weight: 500; font-size: 17px; color: var(--encre); }
+.tel__haut small { font-size: 11.5px; color: var(--doux); }
+.jour { align-self: center; font-size: 11px; color: var(--doux); padding: 2px 10px; border-radius: 99px; background: var(--carte); }
+.bulle { max-width: 86%; padding: 8px 11px; border-radius: 12px; font-size: 13.5px; line-height: 1.45; }
+.bulle small { display: block; margin-top: 4px; font-size: 11px; color: var(--doux); }
+.elle { align-self: flex-start; background: var(--bulle-elle); border-top-left-radius: 3px; }
+.maison { align-self: flex-end; background: var(--bulle-maison); border-top-right-radius: 3px; }
+.maison .signe { display: block; margin-top: 6px; font-family: var(--serif); font-style: italic; color: var(--cuivre-fonce); }
+.boutons { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+.boutons span { font-size: 12px; padding: 5px 10px; border-radius: 8px; border: 1px solid var(--cuivre); color: var(--cuivre-fonce); background: var(--carte); }
+.equipe { align-self: flex-end; background: var(--carte); border: 1px solid var(--filet); }
+.silence { align-self: stretch; text-align: center; font-size: 12px; color: var(--doux); border: 1px dashed var(--filet); border-radius: 10px; padding: 8px; }
+.trone { background: var(--carte); border: 1px solid var(--filet); border-radius: 4px; padding: 16px 18px; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.trone h3 { font-size: 19px; }
+.trone ol { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 6px; font-size: 14px; }
+.trone li::marker { color: var(--cuivre-fonce); font-variant-numeric: lining-nums; }
+.lu { font-size: 13px; background: var(--cuivre-pale); border-left: 3px solid var(--cuivre); padding: 8px 12px; border-radius: 2px; }
+.lu b { font-weight: 500; color: var(--encre); }
+.alarme { color: var(--alarme); }
+/* Ce qu'il retient */
+.retient td:first-child { font-family: var(--sans); font-size: 14px; white-space: normal; }
+.puce { font-size: 11.5px; padding: 2px 8px; border-radius: 99px; border: 1px solid var(--filet); color: var(--doux); white-space: nowrap; }
+/* Jamais */
+.jamais-liste { margin: 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 10px 28px; }
+.jamais-liste li { padding-left: 16px; position: relative; font-size: 14.5px; }
+.jamais-liste li::before { content: ""; position: absolute; left: 0; top: .62em; width: 7px; height: 1.5px; background: var(--alarme); }
+/* Les choix */
+.choix { display: flex; flex-direction: column; gap: 22px; }
+.q { display: flex; flex-direction: column; gap: 8px; }
+.q h3 { font-size: 20px; display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
+.q h3 span { font: 500 10.5px var(--sans); letter-spacing: .14em; text-transform: uppercase; color: var(--doux); }
+.opts { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 8px; }
+.choix button { text-align: left; background: var(--carte); color: var(--texte); border: 1px solid var(--filet); border-radius: 4px; padding: 11px 13px; font: inherit; font-size: 14px; line-height: 1.45; cursor: pointer; display: flex; flex-direction: column; gap: 3px; }
+.choix button b { font-weight: 500; color: var(--encre); }
+.choix button small { color: var(--doux); font-size: 12.5px; }
+.choix button .reco { color: var(--cuivre-fonce); font-size: 11px; letter-spacing: .1em; text-transform: uppercase; }
+.choix button[aria-pressed="true"] { border-color: var(--cuivre); box-shadow: inset 0 0 0 1px var(--cuivre); background: var(--cuivre-pale); }
+.fin { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+.gros { background: var(--encre); color: var(--papier); border: 0; border-radius: 3px; padding: 12px 20px; font: 500 12px var(--sans); letter-spacing: .14em; text-transform: uppercase; cursor: pointer; }
+textarea { width: 100%; min-height: 84px; font: inherit; font-size: 14px; padding: 10px 12px; border: 1px solid var(--filet); border-radius: 4px; background: var(--carte); color: var(--texte); }
+#etat-choix { font-size: 13px; color: var(--doux); }
+/* La barre, avant et après */
+.barres { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 18px; }
+.barre { background: #1E2150; color: #E8E4F4; border-radius: 4px; padding: 16px 18px; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.barre__titre { font: 500 10.5px var(--sans); letter-spacing: .16em; text-transform: uppercase; color: #D6A06F; }
+.barre ul { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 2px; }
+.barre li { padding: 7px 10px; border-radius: 3px; font-size: 14.5px; }
+.barre li small { display: block; font-size: 11.5px; color: #A7ACC9; }
+.barre li.est-ger { background: rgba(214,160,111,.18); border-left: 3px solid #D6A06F; }
+.barre li.part { text-decoration: line-through; text-decoration-color: #E28A72; color: #C9C5DA; }
+.barre li.doux { color: #A7ACC9; }
+.barre__note { font-size: 12.5px; color: #C9C5DA; }
+/* La fenêtre de Gérard */
+.fenetre { border: 1px solid var(--filet); border-radius: 4px; background: var(--carte); padding: 16px 18px 20px; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.fenetre__haut { display: flex; justify-content: space-between; align-items: flex-end; gap: 12px 24px; flex-wrap: wrap; }
+.fenetre__haut > div:first-child b { font-family: var(--serif); font-weight: 400; font-size: 30px; color: var(--encre); display: block; line-height: 1; }
+.fenetre__haut > div:first-child small { font-size: 12.5px; color: var(--doux); }
+.fenetre__chiffres { display: flex; flex-wrap: wrap; gap: 6px 22px; font-size: 11.5px; color: var(--doux); font-variant-numeric: lining-nums tabular-nums; }
+.fenetre__chiffres span { display: flex; flex-direction: column; }
+.fenetre__chiffres b { font-family: var(--serif); font-weight: 400; font-size: 24px; color: var(--encre); line-height: 1.1; font-feature-settings: 'lnum' 1; }
+.fenetre__chiffres .alarme b { color: var(--alarme); }
+.doublure { padding: 4px 0 6px; }
+.panneau { display: flex; flex-direction: column; gap: 12px; padding-top: 6px; }
+.panneau h3 { font-size: 19px; }
+.badge { align-self: flex-start; font-size: 12px; padding: 3px 10px; border-radius: 99px; border: 1px dashed var(--doux); color: var(--doux); }
+.badge.fait { border-style: solid; border-color: var(--cuivre); color: var(--cuivre-fonce); background: var(--cuivre-pale); }
+td.nom { font-family: var(--sans); font-size: 14px; white-space: nowrap; color: var(--encre); font-weight: 500; }
+td.code { font-family: var(--sans); font-size: 13px; letter-spacing: .04em; white-space: nowrap; color: var(--encre); }
+td.d, th.d { text-align: right; white-space: nowrap; }
+tr.exemple td { color: var(--doux); font-style: italic; }
+.lien { color: var(--cuivre-fonce); text-decoration: underline; text-underline-offset: 3px; white-space: nowrap; }
+.calme { font-size: 13.5px; padding: 9px 12px; border-left: 3px solid var(--doux); background: var(--papier); }
+.filtres { display: flex; flex-wrap: wrap; gap: 6px; }
+.filtres span { font-size: 12.5px; padding: 4px 10px; border: 1px solid var(--filet); border-radius: 99px; color: var(--doux); }
+.filtres .est-choisi { border-color: var(--encre); color: var(--encre); }
+@media (max-width: 720px) {
+  .scene { grid-template-columns: 1fr; }
+  h2 { font-size: 24px; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div class="page">
+  <header class="tete">
+    <span class="sur">Maquette · v2 · 26 octobre 2026 · données d’exemple, initiales seulement</span>
+    <h1>Ce que Gérard sait</h1>
+    <p>Gérard devient <b>l’endroit unique</b> de tout ce qui se passe entre une cliente et la Maison, de sa séance à la suivante : ce qu’il écrit, les conversations, Entre deux séances, les bilans, et les remises qu’il propose. Quand tout est prêt, <b>Conversations</b> et <b>Entre deux séances</b> quittent la barre, et le bilan se retrouve dans Gérard.</p>
+    <div class="etats">
+      <span class="etat fait"><b>Aujourd’hui</b> · en ligne</span>
+      <span class="etat fait"><b>Entre deux séances</b> · ce qu’il en sait : construit, à publier</span>
+      <span class="etat"><b>Conversations</b> · à construire (lot 3)</span>
+      <span class="etat"><b>Les bilans</b> · à construire</span>
+      <span class="etat"><b>Remises et codes</b> · à construire, les codes existent déjà</span>
+    </div>
+  </header>
+
+  <section>
+    <span class="sur">La barre</span>
+    <h2>Avant, après</h2>
+    <div class="barres">
+      <div class="barre">
+        <span class="barre__titre">Clientèle · aujourd’hui</span>
+        <ul>
+          <li>Clientes</li>
+          <li class="est-ger">Gérard</li>
+          <li>Le Carnet</li>
+          <li class="part">Conversations <small>WhatsApp · Le chat du site · Les appels</small></li>
+          <li class="part">Entre deux séances <small>La file · Les réponses</small></li>
+          <li>Demandes &amp; consultations</li>
+          <li class="doux">…</li>
+        </ul>
+        <span class="barre__note">Le bilan se rédige et se remet dans la fenêtre de chaque RDV ; « Ses bilans remis » sur la fiche.</span>
+      </div>
+      <div class="barre barre--apres">
+        <span class="barre__titre">Clientèle · quand tout est prêt</span>
+        <ul>
+          <li>Clientes</li>
+          <li class="est-ger">Gérard <small>Aujourd’hui · Conversations · Entre deux séances · Les bilans · Remises et codes · Ce qu’il sait</small></li>
+          <li>Le Carnet</li>
+          <li>Demandes &amp; consultations</li>
+          <li class="doux">…</li>
+        </ul>
+        <span class="barre__note">Deux rubriques de moins. Rien ne se perd : chaque écran devient un onglet de Gérard, à la même adresse pour les liens déjà donnés.</span>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <span class="sur">La rubrique Gérard</span>
+    <h2>Onglet par onglet</h2>
+    <p class="doux">Ce qui est en ligne est marqué ; le reste est à construire après vos choix.</p>
+    <div class="fenetre">
+      <div class="fenetre__haut">
+        <div><b>Gérard</b><small>l’assistant de la Maison · ouvert</small></div>
+        <div class="fenetre__chiffres"><span><b>12</b>à écrire aujourd’hui</span><span><b>7</b>partis</span><span><b>2</b>RDV à garder</span><span><b>3 / 8</b>remises de la semaine</span></div>
+      </div>
+      <div class="onglets" role="tablist" aria-label="Les onglets de Gérard">
+        <button type="button" role="tab" id="g-auj" aria-controls="gp-auj" aria-selected="true">Aujourd’hui</button>
+        <button type="button" role="tab" id="g-conv" aria-controls="gp-conv" aria-selected="false">Conversations</button>
+        <button type="button" role="tab" id="g-entre" aria-controls="gp-entre" aria-selected="false">Entre deux séances</button>
+        <button type="button" role="tab" id="g-bilans" aria-controls="gp-bilans" aria-selected="false">Les bilans</button>
+        <button type="button" role="tab" id="g-codes" aria-controls="gp-codes" aria-selected="false">Remises et codes</button>
+        <button type="button" role="tab" id="g-sait" aria-controls="gp-sait" aria-selected="false">Ce qu’il sait</button>
+      </div>
+
+      <div role="tabpanel" id="gp-auj" aria-labelledby="g-auj" class="panneau">
+        <span class="badge fait">En ligne depuis le 26 octobre 2026</span>
+        <h3>Le plan du jour</h3>
+        <div class="cadre"><table>
+          <thead><tr><th>Cliente</th><th>Pourquoi</th><th>Ce qu’il écrit</th><th>Canal</th></tr></thead>
+          <tbody>
+            <tr><td class="nom">A. K.</td><td>Garder son RDV</td><td>Son resserrage mardi 28 octobre 2026 à 10 h, toujours bon pour vous ?</td><td>Ma Couronne</td></tr>
+            <tr><td class="nom">M. L.</td><td>Jour creux <span class="puce">CREUX15</span></td><td>Jeudi 29 octobre 2026, deux places à −15 % avant son resserrage</td><td>WhatsApp <span class="lien">Envoyer</span></td></tr>
+            <tr><td class="nom">S. A.</td><td>Une envie <span class="puce">bilan du 3 oct.</span></td><td>Le Soin Hydratant DÀNDÀN, proposé dans son bilan, à son RDV du 14 novembre 2026</td><td>Ma Couronne</td></tr>
+            <tr><td class="nom">F. B.</td><td>Anniversaire <span class="puce">ANNIV10</span></td><td>Bon anniversaire, −10 % pendant 30 jours</td><td>Ma Couronne</td></tr>
+            <tr><td class="nom">R. T.</td><td>En retard</td><td>Son resserrage était prévu vers le 20 octobre 2026, deux places proposées</td><td>WhatsApp <span class="lien">Envoyer</span></td></tr>
+          </tbody>
+        </table></div>
+        <div class="calme"><b>3 clientes au calme aujourd’hui</b> : un souci de santé ouvert (1), un souci À voir (1), l’équipe leur a parlé hier (1).</div>
+        <p class="doux">Et, déjà en ligne sous le plan : ce qui est parti aujourd’hui, les jours creux de 3 à 7 jours, son réglage (éteint, essai, ouvert).</p>
+      </div>
+
+      <div role="tabpanel" id="gp-conv" aria-labelledby="g-conv" class="panneau" hidden>
+        <span class="badge">À construire · reprend Conversations (WhatsApp, Le chat du site, Les appels)</span>
+        <div class="filtres"><span class="est-choisi">Toutes · 24</span><span>À répondre · 2</span><span>Gérard · 15</span><span>L’équipe · 7</span><span>WhatsApp</span><span>Le chat du site</span><span>Les appels</span></div>
+        <div class="cadre"><table>
+          <thead><tr><th>Cliente</th><th>Canal</th><th>Dernier mot</th><th>Qui</th><th>État</th></tr></thead>
+          <tbody>
+            <tr><td class="nom">Visiteuse</td><td>Chat du site</td><td>« combien pour un resserrage micro ? »</td><td>Gérard a passé la main</td><td class="alarme">À répondre</td></tr>
+            <tr><td class="nom">F. B.</td><td>WhatsApp</td><td>« oui, samedi 31 à 10 h vous va ? »</td><td>Nassim · hier</td><td>Gérard attend 48 h</td></tr>
+            <tr><td class="nom">S. A.</td><td>WhatsApp</td><td>« Oui, l’ajouter »</td><td>Gérard</td><td>Soin ajouté à son RDV</td></tr>
+            <tr><td class="nom">M. D.</td><td>Appel</td><td>« la rappeler pour sa reprise »</td><td>Accueil · à rappeler</td><td>Gérard attend</td></tr>
+            <tr><td class="nom">R. T.</td><td>WhatsApp</td><td>« je suis à Paris jusqu’au 10 décembre »</td><td>Gérard</td><td>Noté : absente jusqu’au 10 déc. 2026</td></tr>
+          </tbody>
+        </table></div>
+        <p class="doux">Chaque message de Gérard porte son étiquette ; l’équipe répond au même endroit, et Gérard se tait alors.</p>
+      </div>
+
+      <div role="tabpanel" id="gp-entre" aria-labelledby="g-entre" class="panneau" hidden>
+        <span class="badge fait">Ce qu’il en sait : construit, à publier · la file et les réponses : à déplacer ici</span>
+        <div class="fenetre__chiffres doublure"><span><b>9</b>soucis dits en 60 jours</span><span><b>3</b>encore ouverts</span><span class="alarme"><b>1</b>en retard</span><span><b>2</b>clientes qu’il laisse tranquilles</span><span class="alarme"><b>4</b>rubriques sans réponse validée</span></div>
+        <div class="cadre"><table>
+          <thead><tr><th>Cliente</th><th>Rubrique</th><th>Niveau</th><th>Reçu</th><th>Qui répond</th><th>État</th></tr></thead>
+          <tbody>
+            <tr><td class="nom">M. D.</td><td>Ça gratte, plaques</td><td class="alarme">Santé · 24 h</td><td>il y a 26 h</td><td>Nassim</td><td class="alarme">En retard</td></tr>
+            <tr><td class="nom">K. H.</td><td>Cassantes</td><td>À voir · 48 h</td><td>il y a 5 h</td><td>Teckle</td><td>Ouvert</td></tr>
+            <tr><td class="nom">A. K.</td><td>Sèches</td><td>Conseil</td><td>10 oct. 2026</td><td>Gérard</td><td>Réponse validée envoyée</td></tr>
+          </tbody>
+        </table></div>
+        <p class="doux">Puis « Les réponses » (vous validez, rien ne part avant) et la carte « Ce que Gérard en sait » : les 8 rubriques, ce qu’il répond, leurs mots sans nom, la consigne.</p>
+      </div>
+
+      <div role="tabpanel" id="gp-bilans" aria-labelledby="g-bilans" class="panneau" hidden>
+        <span class="badge">À construire · le bilan lui-même existe déjà (rédaction, signature, PDF)</span>
+        <div class="fenetre__chiffres doublure"><span class="alarme"><b>4</b>séances sans bilan</span><span><b>2</b>brouillons à signer</span><span><b>11</b>remis en octobre</span><span><b>3</b>envies venues d’un bilan</span></div>
+        <div class="cadre"><table>
+          <thead><tr><th>Cliente</th><th>Séance</th><th>Maître</th><th>Bilan</th><th>Ce que Gérard en tire</th></tr></thead>
+          <tbody>
+            <tr><td class="nom">S. A.</td><td>3 oct. 2026</td><td>Nassim</td><td>Signé, remis</td><td>Envie : Soin Hydratant DÀNDÀN · rappel « Nourrir » le 20 oct.</td></tr>
+            <tr><td class="nom">J. M.</td><td>24 oct. 2026</td><td>Teckle</td><td class="alarme">Brouillon à signer</td><td>Rien tant qu’il n’est pas signé</td></tr>
+            <tr><td class="nom">L. G.</td><td>25 oct. 2026</td><td>Nassim</td><td class="alarme">Pas de bilan</td><td><span class="lien">Rédiger</span></td></tr>
+            <tr><td class="nom">N. O.</td><td>22 oct. 2026</td><td>Aimer</td><td>Signé · alerte médicale</td><td class="alarme">Il se tait sur les envies</td></tr>
+          </tbody>
+        </table></div>
+      </div>
+
+      <div role="tabpanel" id="gp-codes" aria-labelledby="g-codes" class="panneau" hidden>
+        <span class="badge">À construire · les codes se créent déjà à l’envoi (jour creux, anniversaire)</span>
+        <div class="fenetre__chiffres doublure"><span><b>9</b>codes créés en octobre</span><span><b>4</b>utilisés</span><span><b>18 000 F</b>de remise accordée</span><span><b>186 000 F</b>de séances venues avec un code</span><span><b>3 / 8</b>remises cette semaine</span></div>
+        <div class="cadre"><table>
+          <thead><tr><th>Code</th><th>Cliente</th><th>Pourquoi</th><th class="d">Remise</th><th>Valable jusqu’au</th><th>Utilisé</th><th></th></tr></thead>
+          <tbody>
+            <tr><td class="code">CREUX15-7KQ</td><td class="nom">M. L.</td><td>Jour creux : 2 posés sur 6 d’ordinaire</td><td class="d">15 %</td><td>29 oct. 2026</td><td>Pas encore</td><td><span class="lien">Annuler</span></td></tr>
+            <tr><td class="code">ANNIV10-3PA</td><td class="nom">F. B.</td><td>Anniversaire, 26 oct. 2026</td><td class="d">10 %</td><td>25 nov. 2026</td><td>Pas encore</td><td><span class="lien">Annuler</span></td></tr>
+            <tr><td class="code">CREUX15-2XW</td><td class="nom">K. H.</td><td>Jour creux du 22 oct. 2026</td><td class="d">15 %</td><td>22 oct. 2026</td><td>22 oct. 2026 · −9 000 F</td><td></td></tr>
+            <tr><td class="code">ANNIV10-9TR</td><td class="nom">C. Z.</td><td>Anniversaire, 4 oct. 2026</td><td class="d">10 %</td><td>3 nov. 2026</td><td>17 oct. 2026 · −6 000 F</td><td></td></tr>
+          </tbody>
+        </table></div>
+        <h3>Les cartes cadeaux</h3>
+        <div class="cadre"><table>
+          <thead><tr><th>Message de Gérard</th><th class="d">Envoyés</th><th class="d">Cartes commandées</th><th class="d">Montant</th></tr></thead>
+          <tbody>
+            <tr><td>Noël, dès le 15 novembre 2026</td><td class="d">0</td><td class="d">0</td><td class="d">0 F</td></tr>
+            <tr class="exemple"><td>Exemple à mi-décembre</td><td class="d">64</td><td class="d">5</td><td class="d">125 000 F</td></tr>
+          </tbody>
+        </table></div>
+        <p class="doux">Gérard ne crée jamais de carte cadeau lui-même : il envoie le lien d’achat ; la cliente paie par KkiaPay, et la carte (son code) se crée comme aujourd’hui. Ici, vous voyez lesquelles sont venues d’un de ses messages.</p>
+      </div>
+
+      <div role="tabpanel" id="gp-sait" aria-labelledby="g-sait" class="panneau" hidden>
+        <span class="badge fait">Ses règles et ses 14 modèles Meta : en ligne · la carte Entre deux séances : à publier</span>
+        <div class="cadre"><table>
+          <thead><tr><th>Il sait</th><th>D’où</th><th>État</th></tr></thead>
+          <tbody>
+            <tr><td>Son fil : une envie par mois, toutes les 3 semaines en fêtes ; relances ; garder le RDV à J-2</td><td>Vos choix du 26 octobre 2026</td><td>En ligne</td></tr>
+            <tr><td>Les 8 rubriques, vos réponses validées, leurs mots sans nom</td><td>Entre deux séances</td><td>Construit, à publier</td></tr>
+            <tr><td>Son rituel, les propositions et leur « quand »</td><td>Le bilan signé</td><td>À construire</td></tr>
+            <tr><td>Une absence, une envie refusée, un horaire, « ne plus m’écrire »</td><td>Les conversations</td><td>À construire</td></tr>
+          </tbody>
+        </table></div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <span class="sur">Les trois sources</span>
+    <h2>Ce qu’il lit, ce qu’il en fait</h2>
+    <div class="cadre">
+      <table>
+        <thead><tr><th>Source</th><th>Ce que Gérard lit</th><th>Ce qu’il en fait</th><th>Ce qu’il ne lit jamais</th></tr></thead>
+        <tbody>
+          <tr><td>Entre deux séances</td><td>Les 8 rubriques, leur niveau et leur délai ; vos réponses validées ; ce que les clientes écrivent, sans nom ni numéro (60 jours)</td><td>Il répond avec la réponse validée ; il se tait tant qu’un souci À voir ou Santé est ouvert ; sèches ou cassantes : l’envie du mois devient un soin hydratant</td><td class="jamais">Les brouillons de réponse ; les photos ; un conseil écrit en Santé</td></tr>
+          <tr><td>Le bilan</td><td>Le bilan <b>signé</b> : le résumé, le rituel en quatre temps, les propositions et leur « quand »</td><td>L’envie suit les propositions du bilan ; un rappel du rituel au milieu de la cadence ; il répond à « c’est quelle huile déjà ? » avec son rituel</td><td class="jamais">Un bilan non signé ; la note de séance du maître ; l’alerte médicale (elle le fait taire)</td></tr>
+          <tr><td>Les conversations</td><td>WhatsApp, le chat du site et le motif des appels, 30 jours, sans nom ni numéro</td><td>Il se tait quand l’équipe parle avec elle ; il retient une absence, une envie refusée, un horaire ; il passe la main pour un prix ou une plainte</td><td class="jamais">Les numéros ; les photos ; les conversations des autres clientes</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <span class="sur">Trois scènes par source</span>
+    <h2>Sur son téléphone, et dans le Trône</h2>
+    <div class="onglets" role="tablist" aria-label="Les sources">
+      <button type="button" role="tab" id="t-entre" aria-controls="p-entre" aria-selected="true">Entre deux séances</button>
+      <button type="button" role="tab" id="t-bilan" aria-controls="p-bilan" aria-selected="false">Le bilan</button>
+      <button type="button" role="tab" id="t-conv" aria-controls="p-conv" aria-selected="false">Les conversations</button>
+    </div>
+
+    <div role="tabpanel" id="p-entre" aria-labelledby="t-entre">
+      <div class="scene">
+        <div class="tel" aria-label="Conversation d’exemple">
+          <div class="tel__haut"><b>Maison MND</b><small>A. K.</small></div>
+          <span class="jour">Samedi 10 octobre 2026 · une semaine après sa séance</span>
+          <div class="bulle maison">Bonjour Madame K., comment vont vos locks depuis votre séance ?<span class="signe">Maison MND</span></div>
+          <div class="boutons"><span>Tout va bien</span><span>J’ai un souci</span></div>
+          <div class="bulle elle">elles sont sèches et ça tire un peu sur le dessus<small>10:42</small></div>
+          <div class="bulle maison">Nourrir : quelques gouttes d’huile légère sur le cuir chevelu, deux fois par semaine, en massage lent. Séchez entièrement après chaque lavage.<span class="signe">Maison MND</span></div>
+          <span class="jour">Lundi 2 novembre 2026</span>
+          <div class="bulle maison">Bonjour Madame K., un soin hydratant avant votre prochain resserrage, prévu vers le 14 novembre ? On le prépare avec vous.<span class="signe">Maison MND</span></div>
+          <div class="boutons"><span>Oui, l’ajouter</span><span>Pas cette fois</span></div>
+        </div>
+        <div class="trone">
+          <h3>Dans le Trône</h3>
+          <ol>
+            <li>Ses mots « sèches », « ça tire » : rubrique <b>Sèches</b>, niveau Conseil.</li>
+            <li>La réponse <b>validée</b> part telle quelle. Sans réponse validée, il n’envoie qu’un accusé.</li>
+            <li>Un signalement s’ouvre au nom de sa maîtresse, dans Entre deux séances.</li>
+            <li>Un mois plus tard, son envie du mois devient le <b>soin hydratant</b>, au plein prix.</li>
+          </ol>
+          <div class="lu"><b>Ce que Claude lit</b> : la rubrique, la réponse validée, sa phrase sans nom. Jamais son numéro.</div>
+        </div>
+      </div>
+      <div class="scene">
+        <div class="tel" aria-label="Conversation d’exemple, souci de santé">
+          <div class="tel__haut"><b>Maison MND</b><small>M. D.</small></div>
+          <span class="jour">Mardi 20 octobre 2026</span>
+          <div class="bulle elle">ça gratte beaucoup et j’ai des plaques rouges derrière<small>18:05</small></div>
+          <div class="bulle maison">Merci de nous l’avoir dit. Votre maîtresse vous rappelle. En attendant, ne mettez aucun produit nouveau.<span class="signe">Maison MND</span></div>
+          <div class="silence">Plus aucune envie ni remise tant que ce souci n’est pas traité. Son rendez-vous du 6 novembre reste gardé.</div>
+        </div>
+        <div class="trone">
+          <h3>Dans le Trône</h3>
+          <ol>
+            <li>« ça gratte », « plaques » : rubrique <b>Ça gratte, plaques, rougeurs</b>, niveau <span class="alarme">Santé</span>.</li>
+            <li>Aucun conseil écrit : l’accusé santé, mot pour mot.</li>
+            <li>Sa maîtresse est prévenue : rappel <b>sous 24 h</b>, en tête de la file d’Entre deux séances.</li>
+            <li>Gérard <b>se tait</b> : ni envie ni remise jusqu’à « traité ». Le RDV se garde quand même.</li>
+          </ol>
+          <div class="lu"><b>Déjà construit</b> : la carte « Entre deux séances, ce que Gérard en sait » dans sa rubrique (les 8 rubriques, vos réponses, leurs mots, la consigne) et la règle du silence.</div>
+        </div>
+      </div>
+    </div>
+
+    <div role="tabpanel" id="p-bilan" aria-labelledby="t-bilan" hidden>
+      <div class="scene">
+        <div class="tel" aria-label="Conversation d’exemple, le bilan">
+          <div class="tel__haut"><b>Maison MND</b><small>S. A.</small></div>
+          <span class="jour">Samedi 3 octobre 2026 · bilan signé par Nassim</span>
+          <div class="bulle equipe">Votre bilan de séance, avec votre rituel en quatre temps et ce que la Maison vous propose.<small>Bilan remis par Nassim · PDF</small></div>
+          <span class="jour">Mardi 20 octobre 2026 · milieu de sa cadence</span>
+          <div class="bulle maison">Bonjour Madame A., pour votre rituel, le temps « Nourrir » : deux fois par semaine, quelques gouttes d’huile de baobab sur le cuir chevelu, en massage lent.<span class="signe">Maison MND</span></div>
+          <div class="bulle elle">merci ! c’est l’huile de baobab pure ou mélangée ?<small>09:15</small></div>
+          <div class="bulle maison">Votre bilan dit : huile de baobab, quelques gouttes, sans mélange. Pour une autre huile, votre maîtresse vous répond.<span class="signe">Maison MND</span></div>
+          <span class="jour">Samedi 31 octobre 2026</span>
+          <div class="bulle maison">Votre maîtresse vous proposait un Soin Hydratant DÀNDÀN à votre prochaine venue, le 14 novembre. On l’ajoute à votre resserrage ?<span class="signe">Maison MND</span></div>
+          <div class="boutons"><span>Oui, l’ajouter</span><span>Pas cette fois</span></div>
+        </div>
+        <div class="trone">
+          <h3>Dans le Trône</h3>
+          <ol>
+            <li>Gérard ne lit que le bilan <b>signé</b> : résumé, rituel, propositions avec leur « quand ».</li>
+            <li>Le rappel du rituel part <b>une fois</b>, au milieu de la cadence, un seul temps à la fois.</li>
+            <li>À une question sur sa routine, il répond <b>avec les mots du bilan</b> ; au-delà, il passe la main.</li>
+            <li>L’envie du mois suit la <b>première proposition</b> du bilan pas encore faite ; « Oui » l’ajoute au RDV posé, au plein prix.</li>
+            <li>Une alerte médicale dans le bilan : <span class="alarme">il se tait</span> sur les envies, comme en Santé.</li>
+          </ol>
+          <div class="lu"><b>Ce que Claude lit</b> : le bilan signé de cette cliente, sans son nom. Jamais la note de séance du maître, jamais un bilan non signé.</div>
+        </div>
+      </div>
+    </div>
+
+    <div role="tabpanel" id="p-conv" aria-labelledby="t-conv" hidden>
+      <div class="scene">
+        <div class="tel" aria-label="Conversation d’exemple, l’équipe parle">
+          <div class="tel__haut"><b>Maison MND</b><small>F. B.</small></div>
+          <span class="jour">Dimanche 25 octobre 2026</span>
+          <div class="bulle elle">bonjour, je peux décaler à samedi prochain ?<small>16:20</small></div>
+          <div class="bulle equipe">Bonjour Madame B., oui, samedi 31 à 10 h vous va ?<small>Nassim · 16:34</small></div>
+          <span class="jour">Lundi 26 octobre 2026</span>
+          <div class="silence">Gérard avait une envie prévue aujourd’hui. L’équipe lui a parlé hier : il attend 48 h.</div>
+        </div>
+        <div class="trone">
+          <h3>Dans le Trône</h3>
+          <ol>
+            <li>Il lit qui a écrit en dernier, et quand, sur WhatsApp, le chat du site et le journal des appels.</li>
+            <li>L’équipe lui a parlé il y a moins de <b>48 h</b> : il n’écrit pas ce jour-là.</li>
+            <li>Elle attend une réponse de l’équipe : il n’écrit pas, et la conversation remonte dans « À répondre ».</li>
+            <li>Un appel « à rappeler » pas encore fait : il attend aussi.</li>
+          </ol>
+        </div>
+      </div>
+      <div class="scene">
+        <div class="tel" aria-label="Conversation d’exemple, ce qu’il retient">
+          <div class="tel__haut"><b>Maison MND</b><small>R. T.</small></div>
+          <span class="jour">Jeudi 15 octobre 2026</span>
+          <div class="bulle elle">je suis à Paris jusqu’au 10 décembre, je reviens vers vous après. et pas de coloration pour moi<small>11:02</small></div>
+          <div class="bulle maison">Bon séjour, Madame T. Nous vous écrivons à votre retour pour votre prochain resserrage.<span class="signe">Maison MND</span></div>
+          <span class="jour">Mardi 8 décembre 2026</span>
+          <div class="bulle maison">Bonjour Madame T., bon retour bientôt ! Votre prochain resserrage était prévu vers le 20 novembre. Deux places : samedi 12 décembre à 10 h, ou mardi 15 à 14 h.<span class="signe">Maison MND</span></div>
+          <div class="boutons"><span>Samedi 12</span><span>Mardi 15</span><span>Autre jour</span></div>
+        </div>
+        <div class="trone">
+          <h3>Dans le Trône</h3>
+          <ol>
+            <li>Claude lit sa phrase sans nom et note : <b>absente jusqu’au 10 décembre 2026</b>, <b>pas de coloration</b>.</li>
+            <li>Plus d’envie ni de relance jusqu’à deux jours avant son retour ; la coloration ne revient jamais.</li>
+            <li>Ce qu’il retient se voit sur sa fiche, dans la carte Gérard, et s’efface d’un geste.</li>
+          </ol>
+          <div class="cadre">
+            <table class="retient">
+              <thead><tr><th>Ce qu’il retient de R. T.</th><th>Lu le</th><th></th></tr></thead>
+              <tbody>
+                <tr><td>Absente jusqu’au 10 décembre 2026</td><td>15 oct. 2026</td><td><span class="puce">Effacer</span></td></tr>
+                <tr><td>Pas de coloration</td><td>15 oct. 2026</td><td><span class="puce">Effacer</span></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      <div class="scene">
+        <div class="tel" aria-label="Conversation d’exemple, la main passe">
+          <div class="tel__haut"><b>Maison MND</b><small>Chat du site</small></div>
+          <div class="bulle elle">combien pour un resserrage micro ? et vous faites les extensions ?<small>21:40</small></div>
+          <div class="bulle maison">Je transmets à l’équipe, qui vous répond demain matin avec le détail.<span class="signe">Maison MND</span></div>
+        </div>
+        <div class="trone">
+          <h3>Dans le Trône</h3>
+          <ol>
+            <li>Un prix demandé, une plainte, une question hors de ses réponses : <b>la main passe</b> à l’équipe, avec un résumé d’une ligne.</li>
+            <li>À une question franche (« c’est un robot ? »), il dit qu’il est l’assistant automatique et propose l’équipe.</li>
+          </ol>
+          <div class="lu"><b>Coût estimé</b> : une réponse de Gérard lue par Claude, 5 à 10 F environ, prise sur le plafond d’ia-maison (120 $ par mois).</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <span class="sur">Les limites, tenues pour toutes</span>
+    <h2>Ce que Gérard ne fera jamais</h2>
+    <ul class="jamais-liste">
+      <li>Donner un prix, une remise hors de ses règles, ou promettre un résultat.</li>
+      <li>Écrire un conseil quand le souci touche à la santé.</li>
+      <li>Lire la note de séance du maître, une photo, ou un bilan non signé.</li>
+      <li>Envoyer à Claude un nom de cliente ou un numéro.</li>
+      <li>Écrire pendant que l’équipe parle avec elle.</li>
+      <li>Nier être un assistant automatique à une question franche.</li>
+    </ul>
+    <p class="doux">Pourquoi pas un robot WhatsApp du commerce : il ne connaît ni vos rubriques, ni vos réponses validées, ni les bilans, ni la cadence de chaque cliente ; il écrirait par-dessus l’équipe, et il ne sait pas se taire quand une cliente a un souci de santé.</p>
+  </section>
+
+  <section>
+    <span class="sur">À trancher</span>
+    <h2>Vos choix</h2>
+    <p class="doux">Un toucher par ligne ; tout s’enregistre ici. « Tout me va » prend les propositions marquées.</p>
+    <div class="choix" id="choix"></div>
+    <label class="q" for="note"><h3>Un mot de plus <span>facultatif</span></h3></label>
+    <textarea id="note" placeholder="Ce que la maquette oublie, ou ce que vous voulez autrement."></textarea>
+    <div class="fin">
+      <button type="button" class="gros" id="tout">Tout me va</button>
+      <span id="etat-choix" aria-live="polite">Vos choix s’enregistrent sur cette page.</span>
+    </div>
+  </section>
+</div>
+
+<script>
+(() => {
+  const QUESTIONS = [
+    { cle: 'barre', titre: 'Quand Conversations et Entre deux séances quittent la barre', reco: 'apres-essai', opts: [
+      { v: 'apres-essai', t: 'Après une semaine d’usage', d: 'Quand chaque onglet de Gérard est en ligne et a servi une semaine ; les anciennes adresses mènent à Gérard.' },
+      { v: 'tout-de-suite', t: 'Dès que les onglets sont construits', d: 'Elles quittent la barre le jour où Gérard les reprend.' } ] },
+    { cle: 'bilanOu', titre: 'Où s’écrit le bilan', reco: 'rdv-et-gerard', opts: [
+      { v: 'rdv-et-gerard', t: 'Depuis le RDV, la liste dans Gérard', d: 'Le maître le rédige et le signe depuis la fenêtre du RDV, comme aujourd’hui ; tous les bilans se suivent dans Gérard.' },
+      { v: 'gerard-seul', t: 'Tout dans Gérard', d: 'La fenêtre du RDV ne montre plus le bilan ; on le rédige depuis l’onglet Les bilans.' } ] },
+    { cle: 'codes', titre: 'Les codes que Gérard crée', reco: 'voir-annuler', opts: [
+      { v: 'voir-annuler', t: 'Vous voyez tout, et annulez', d: 'Chaque code, sa cliente, sa raison, son usage ; un code pas encore servi s’annule d’un geste.' },
+      { v: 'voir', t: 'Vous voyez tout', d: 'La liste et les totaux, sans annulation.' } ] },
+    { cle: 'bilanLit', titre: 'Le bilan : ce que Gérard lit', reco: 'signe', opts: [
+      { v: 'signe', t: 'Le bilan signé seulement', d: 'Résumé, rituel, propositions. Jamais la note de séance du maître.' },
+      { v: 'signe-et-note', t: 'Le bilan et la note de séance', d: 'Il lit aussi ce que le maître a noté pour lui-même.' } ] },
+    { cle: 'bilanFait', titre: 'Le bilan : ce qu’il en fait', reco: 'trois', opts: [
+      { v: 'trois', t: 'Les trois', d: 'L’envie suit les propositions ; un rappel du rituel au milieu de la cadence ; il répond sur sa routine avec les mots du bilan.' },
+      { v: 'envie', t: 'L’envie seulement', d: 'Les propositions du bilan choisissent l’envie du mois, rien d’autre.' },
+      { v: 'repond', t: 'Il répond seulement', d: 'Il ne prend l’initiative de rien ; il répond sur sa routine quand elle demande.' } ] },
+    { cle: 'convLit', titre: 'Les conversations : ce qu’il lit', reco: 'mots', opts: [
+      { v: 'mots', t: 'Leurs mots, 30 jours, sans nom ni numéro', d: 'WhatsApp, chat du site, motif des appels : il comprend une absence, un refus, une préférence.' },
+      { v: 'qui-quand', t: 'Seulement qui a écrit, et quand', d: 'Il sait se taire quand l’équipe parle, sans lire aucune phrase.' } ] },
+    { cle: 'convSilence', titre: 'Quand l’équipe lui parle', reco: '48h', opts: [
+      { v: '48h', t: 'Il attend 48 h', d: 'Après tout échange avec l’équipe, il n’écrit pas pendant deux jours.' },
+      { v: '24h', t: 'Il attend 24 h', d: 'Un jour de silence après l’équipe.' },
+      { v: 'jamais', t: 'Il suit son plan', d: 'Il écrit au jour prévu, même si l’équipe vient de lui parler.' } ] },
+    { cle: 'memoire', titre: 'Ce qu’il retient d’une conversation', reco: 'retient', opts: [
+      { v: 'retient', t: 'Il retient, vous voyez et effacez', d: 'Absence, envie refusée, horaire préféré, « ne plus m’écrire » : sur sa fiche, effaçable.' },
+      { v: 'rien', t: 'Il ne retient rien', d: 'Chaque conversation se lit seule ; rien n’est noté sur la fiche.' } ] },
+    { cle: 'repond', titre: 'Quand elle lui répond', reco: 'perimetre', opts: [
+      { v: 'perimetre', t: 'Il répond seul, dans son périmètre', d: 'Garder ou déplacer le RDV, oui ou non à une envie, vos réponses validées, son rituel. Le reste passe à l’équipe.' },
+      { v: 'brouillon', t: 'Il propose, l’équipe envoie', d: 'Chaque réponse attend un oui dans Conversations, deux semaines, puis on décide.' } ] },
+  ];
+
+  let etat = {};
+  let ref = null;
+  let file = Promise.resolve();
+  const dit = (t) => { document.getElementById('etat-choix').textContent = t; };
+
+  function rends() {
+    const boite = document.getElementById('choix');
+    boite.innerHTML = '';
+    for (const q of QUESTIONS) {
+      const bloc = document.createElement('div');
+      bloc.className = 'q';
+      const h = document.createElement('h3');
+      h.textContent = q.titre;
+      bloc.appendChild(h);
+      const opts = document.createElement('div');
+      opts.className = 'opts';
+      for (const o of q.opts) {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.id = `${q.cle}-${o.v}`;
+        b.setAttribute('aria-pressed', String(etat[q.cle] === o.v));
+        b.innerHTML = `${o.v === q.reco ? '<span class="reco">Proposé</span>' : ''}<b></b><small></small>`;
+        b.querySelector('b').textContent = o.t;
+        b.querySelector('small').textContent = o.d;
+        b.addEventListener('click', () => ecris({ [q.cle]: o.v }));
+        opts.appendChild(b);
+      }
+      bloc.appendChild(opts);
+      boite.appendChild(bloc);
+    }
+    const note = document.getElementById('note');
+    if (document.activeElement !== note) note.value = etat.note ?? '';
+    if (etat.valideLe) dit(`Choix enregistrés le ${new Date(etat.valideLe).toLocaleString('fr-FR', { dateStyle: 'long', timeStyle: 'short' })}.`);
+  }
+
+  function ecris(patch) {
+    etat = { ...etat, ...patch, majLe: new Date().toISOString() };
+    rends();
+    if (!ref) { dit('Ce choix se voit ici, mais cette page ne peut pas l’enregistrer pour vous.'); return; }
+    file = file.then(() => ref.set(etat)).then(() => dit('Enregistré.')).catch(() => dit('Pas enregistré : réessayez dans un instant.'));
+  }
+
+  document.getElementById('tout').addEventListener('click', () => {
+    const p = { valideLe: new Date().toISOString() };
+    for (const q of QUESTIONS) if (!etat[q.cle]) p[q.cle] = q.reco;
+    ecris(p);
+  });
+  let attente = 0;
+  document.getElementById('note').addEventListener('input', (e) => {
+    clearTimeout(attente);
+    const v = e.target.value;
+    attente = setTimeout(() => ecris({ note: v }), 700);
+  });
+
+  for (const liste of document.querySelectorAll('[role="tablist"]')) {
+    const onglets = [...liste.querySelectorAll('[role="tab"]')];
+    for (const t of onglets) t.addEventListener('click', () => {
+      for (const x of onglets) {
+        const actif = x === t;
+        x.setAttribute('aria-selected', String(actif));
+        document.getElementById(x.getAttribute('aria-controls')).hidden = !actif;
+      }
+    });
+  }
+
+  rends();
+  (async () => {
+    try {
+      const db = window.claude && window.claude.use ? await window.claude.use('db') : null;
+      if (!db) return;
+      ref = db.doc('maquette/choix');
+      ref.onSnapshot((s) => { if (s.exists) { etat = { ...s.data() }; rends(); } }, () => {});
+    } catch { /* la page se lit sans enregistrement */ }
+  })();
+})();
+</script>

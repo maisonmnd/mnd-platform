@@ -60,6 +60,9 @@ const PANNES = [
   ['WhatsApp avant Ma Couronne', PUR, "if (EST_UN_SERVICE[genre]) return f.couronne ? 'couronne' : f.telephone ? 'whatsapp' : null;", "if (EST_UN_SERVICE[genre]) return f.telephone ? 'whatsapp' : f.couronne ? 'couronne' : null;"],
   ['le passage depose WhatsApp aussi', DONNEES, "if (s.canal !== 'couronne' || !servie(r, s.clientId)) continue;", 'if (!servie(r, s.clientId)) continue;'],
   ['l ecran oublie ses envois', DONNEES, 'traces: traces.get(c.id) ?? [],', 'traces: [],'],
+  ['un souci ouvert ne fait plus taire', PUR, '  if (f.souciOuvert) return null;\n', ''],
+  ['la fiche oublie le souci ouvert', DONNEES, '        souciOuvert: souciOuvertDe(signalements.filter((s) => s.clientId === c.id)),\n', ''],
+  ['l ecran cache Entre deux seances', ECRAN, '      <GerardEntreDeux />\n', ''],
 ];
 
 const md5 = (f) => createHash('md5').update(readFileSync(path.join(racine, f))).digest('hex');

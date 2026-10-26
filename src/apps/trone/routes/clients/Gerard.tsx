@@ -14,6 +14,7 @@ import { ESSAI_MAX, basculeDansLEssai, changeLeMode, reglagesLus, useReglagesDeG
 import { envoisStore, useEnvois } from '../equipe/data';
 import { fabriqueLeCodeDe, useCerveauDeGerard, useLePassageDeGerard } from './gerard-donnees';
 import { PageHead } from '../_ui';
+import { GerardEntreDeux } from './GerardEntreDeux';
 import './gerard.css';
 
 /* ══ GÉRARD — 26 octobre 2026, lot 1 ═════════════════════════════════════
@@ -240,6 +241,8 @@ export default function Gerard() {
           </p>
         </div>
       </section>
+
+      <GerardEntreDeux />
 
       <section className="trc-ger__carte">
         <h3>Ses règles <span>vos choix du 26 octobre 2026</span></h3>

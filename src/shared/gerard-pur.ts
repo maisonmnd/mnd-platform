@@ -214,6 +214,10 @@ export type FicheDeGerard = {
   ecartee: boolean;
   /** Les soucis dits ces 60 derniers jours (Entre deux séances). */
   soucis: string[];
+  /** UN SOUCI ENCORE OUVERT (Entre deux séances, 26 octobre 2026) : le plus
+      grave de ses signalements non traités, Santé puis À voir. Gérard se
+      tait alors (`gerardSeTait`, gerard-entre-deux-pur) : ni envie ni remise. */
+  souciOuvert?: 'sante' | 'a-voir';
   rdvs: RdvDeGerard[];
   traces: TraceDeGerard[];
   /** La Cadence : la date ATTENDUE d'après son rythme (pour une cliente en
@@ -398,6 +402,13 @@ export function situationDuJour(f: FicheDeGerard, ctx: ContexteDeGerard): Situat
       [['Son RDV', placeDite({ iso: r.date, heure: r.time })], ['Pris le', r.creeLe ? jourDit(r.creeLe.slice(0, 10)) : 'avant le 5 sept. 2026']]);
     if (s) return s;
   }
+
+  /* Un souci À voir ou Santé encore ouvert : Gérard se tait. Le RDV
+     ci-dessus se garde quand même ; ni anniversaire, ni envie, ni relance
+     (`gerardSeTait`, gerard-entre-deux-pur : on ne propose rien à une
+     cliente qui attend qu'on la rappelle). Le test reste écrit ici : ce
+     fichier n'importe rien, le banc vérifie qu'il dit comme `gerardSeTait`. */
+  if (f.souciOuvert) return null;
 
   const recemment = derniereTrace(f, TOUS_SAUF_GARDER);
   const tropTot = !!recemment && ecartJours(recemment, A) < ECART_MIN;

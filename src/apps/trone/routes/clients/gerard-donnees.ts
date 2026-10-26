@@ -9,6 +9,7 @@ import { aDefaitSesLocks, estDePassage, estDiaspora, type Client } from '../../.
 import { appelDe, prenomSeul } from '../../../../shared/civilite';
 import { aAccepteLesNouvelles } from '../../../../shared/audiences-pur';
 import { useSignalements } from '../../../../shared/entre-deux';
+import { souciOuvertDe } from '../../../../shared/gerard-entre-deux-pur';
 import { useBlocages, plagesBloquees } from '../../../../shared/blocages';
 import { GESTES_EN_FRANCAIS, litLaMarqueWa } from '../../../../shared/gestes-en-francais';
 import { estUneVenue } from '../../../../shared/previsions-pur';
@@ -99,6 +100,7 @@ export function useCerveauDeGerard(): CerveauDeGerard {
         telephone: (c.phone ?? '').replace(/\D/g, '').length >= 8,
         ecartee: estDePassage(c) || estDiaspora(c) || aDefaitSesLocks(c) || !!c.archived,
         soucis: signalements.filter((s) => s.clientId === c.id && (s.quand ?? '') >= ilYA60).flatMap((s) => s.soucis ?? []),
+        souciOuvert: souciOuvertDe(signalements.filter((s) => s.clientId === c.id)),
         rdvs,
         traces: traces.get(c.id) ?? [],
         /* La date ATTENDUE : pour une cliente en retard, la Cadence reporte

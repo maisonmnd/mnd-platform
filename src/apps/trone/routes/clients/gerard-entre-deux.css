@@ -1,0 +1,31 @@
+/* CE QUE GÉRARD SAIT D'« ENTRE DEUX SÉANCES » — 26 octobre 2026.
+   La carte de sa rubrique : cinq chiffres, le tableau des huit rubriques,
+   leurs mots repliés (un seul ouvert), ses règles, la consigne. */
+.trc-gerd { font-variant-numeric: lining-nums tabular-nums; }
+.trc-gerd__chiffres { display: flex; flex-wrap: wrap; gap: 8px 26px; }
+.trc-gerd__chiffres span { display: flex; flex-direction: column; gap: 1px; }
+.trc-gerd__chiffres b { font-family: var(--font-serif); font-weight: 400; font-size: 26px; line-height: 1.1; color: var(--color-indigo); font-feature-settings: 'lnum' 1, 'tnum' 1; }
+.trc-gerd__chiffres small { font-size: 11.5px; color: var(--ink-soft); }
+.trc-gerd__chiffres .est-du b { color: var(--alarme, #A3402B); }
+.trc-gerd__cadre { overflow-x: auto; }
+.trc-gerd__rub { white-space: nowrap; color: var(--color-indigo); }
+.trc-gerd__niv { white-space: nowrap; color: var(--ink-soft); }
+.trc-gerd__rep { min-width: 18em; }
+.trc-gerd__rep em { font-style: normal; color: var(--copper-700); }
+.trc-gerd__rep a { color: var(--copper-700); }
+.trc-gerd__doux { color: var(--ink-soft); }
+.trc-gerd .est-du { color: var(--alarme, #A3402B); }
+.trc-gerd td.est-ouvert { color: var(--alarme, #A3402B); font-weight: 600; }
+.trc-gerd__dits { display: flex; flex-direction: column; gap: 4px; }
+.trc-gerd__dits h4, .trc-gerd__dits h4 span { margin: 0; }
+.trc-gerd__dits h4 { font-family: var(--font-serif); font-weight: 400; font-size: 18px; color: var(--color-indigo); display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
+.trc-gerd__dits h4 span { font-family: var(--font-sans); font-size: 10.5px; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-soft); }
+.trc-gerd__rubrique { border-top: 1px solid var(--hairline); }
+.trc-gerd__rubrique > button { display: flex; align-items: center; gap: 10px; width: 100%; padding: 9px 0; border: 0; background: none; font: inherit; font-size: 13.5px; color: var(--color-indigo); cursor: pointer; text-align: left; }
+.trc-gerd__rubrique > button small { margin-left: auto; font-size: 12px; color: var(--ink-soft); }
+.trc-gerd__chevron { width: 7px; height: 7px; border-right: 1.5px solid var(--copper-700); border-bottom: 1.5px solid var(--copper-700); transform: rotate(-45deg); flex: none; }
+.trc-gerd__rubrique.est-ouvert .trc-gerd__chevron { transform: translateY(-2px) rotate(45deg); }
+.trc-gerd__rubrique ul { margin: 0 0 10px; padding: 0 0 0 17px; display: flex; flex-direction: column; gap: 5px; font-size: 13px; color: var(--ink); list-style: none; }
+.trc-gerd__regles { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 4px; font-size: 12.5px; color: var(--ink); }
+.trc-gerd__lien { border: 0; background: none; padding: 0; font: inherit; font-size: 12.5px; color: var(--copper-700); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.trc-gerd__consigne pre { margin: 8px 0 0; padding: 12px 14px; white-space: pre-wrap; font: 12px/1.55 var(--font-sans); color: var(--ink); background: var(--hover-veil); border-radius: 3px; max-height: 26em; overflow: auto; }

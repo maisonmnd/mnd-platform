@@ -13,6 +13,7 @@ import {
   ESSAI_MAX, reglagesLus, estSaisonDesFetes, ligneALaMain, ligneDeNotification, passageDu, servie, texteSansSignature, tracesDesEnvois,
   type ContexteDeGerard, type FicheDeGerard, type RdvDeGerard,
 } from '../src/shared/gerard-pur';
+import { gerardSeTait } from '../src/shared/gerard-entre-deux-pur';
 
 let ko = 0;
 const dit = (nom: string, attendu: unknown, obtenu: unknown) => {
@@ -183,6 +184,14 @@ const tr = tracesDesEnvois([
 dit('ce que Gérard a écrit se relit dans les envois ; une ligne écartée ne compte pas', [[['envie', 'lavage']], [['creux', undefined]]],
   [tr.get('a')?.map((t) => [t.genre, t.envie]), tr.get('b')?.map((t) => [t.genre, t.envie])]);
 
+/* ── 14 bis. Entre deux séances : il se tait ── */
+dit('un souci Santé ou À voir encore ouvert : ni envie ni anniversaire', [null, null, null],
+  [sit(fiche({ souciOuvert: 'sante' }))?.genre ?? null, sit(fiche({ souciOuvert: 'a-voir' }))?.genre ?? null,
+    sit(fiche({ souciOuvert: 'sante', birthday: `1990-${A.slice(5)}` }))?.genre ?? null]);
+dit('... mais son RDV se garde quand même', 'garder', sit(fiche({ souciOuvert: 'sante', rdvs: [venue(plusJours(A, -40)), rdvDans2()] }))?.genre);
+dit('... et le cerveau dit comme gerardSeTait (Entre deux séances)', [true, true, true],
+  (['sante', 'a-voir', undefined] as const).map((x) => gerardSeTait({ souciOuvert: x }) === (sit(fiche({ souciOuvert: x })) === null)));
+
 /* ── 15. L'écran et la barre ── */
 const ecran = sansCommentaires(readFileSync('src/apps/trone/routes/clients/Gerard.tsx', 'utf8'));
 const donnees = sansCommentaires(readFileSync('src/apps/trone/routes/clients/gerard-donnees.ts', 'utf8'));
@@ -194,6 +203,8 @@ dit('... le passage du jour au chargement, le bouton WhatsApp, le journal du jou
   [/useLePassageDeGerard\(cerveau, plan\)/.test(ecran), /lienWaMe\(cerveau\.clientDe\(s\.clientId\)\?\.phone/.test(ecran), /<h3>Aujourd’hui <span>ce qui est parti<\/span><\/h3>/.test(ecran)]);
 const tableau = readFileSync('src/apps/trone/routes/pilotage/Dashboard.tsx', 'utf8');
 dit('... et le tableau de bord lance le passage', true, /<PassageDeGerard \/>/.test(tableau));
+dit('Entre deux séances : la fiche lit le souci ouvert, l’écran montre ce que Gérard en sait', [true, true],
+  [/souciOuvert: souciOuvertDe\(signalements\.filter\(\(s\) => s\.clientId === c\.id\)\)/.test(donnees), /<GerardEntreDeux \/>/.test(ecran)]);
 const routes = readFileSync('src/apps/trone/routes/index.tsx', 'utf8');
 dit('la barre : Gérard en Clientèle, sous Clientes, et nommé parmi les écrans nés après les départements', [true, true],
   [routes.indexOf("path: '/gerard'") > routes.indexOf("path: '/customers'") && routes.indexOf("path: '/gerard'") < routes.indexOf("path: '/carnet'"),
