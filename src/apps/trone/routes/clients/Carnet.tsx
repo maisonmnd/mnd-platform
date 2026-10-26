@@ -18,7 +18,8 @@ import { useInvoices } from '../../../../shared/finance';
 import { useCategories, useServices, useProducts, MAISONS, type Maison } from '../../../../shared/catalog';
 import { useModelBands, useBandSets } from '../../../../shared/pricing';
 import { useSettings, openingForIso } from '../../../../shared/settings';
-import { chargeDuJour, tauxDit } from '../../../../shared/agents-maison-pur';
+import { tauxDit } from '../../../../shared/agents-maison-pur';
+import { bilanDuMois, calculDuJour, chargeSurObjectif, rdvParJour, reperesDe, reperesParJour } from '../../../../shared/objectifs-des-fauteuils-pur';
 import {
   ancienneteDesCreances, ceQuiPresse, comprendsLaPhrase, dettesParCliente, estAVenir, gardeSelonLaPhrase, gesteDuRdv,
   historiqueParCliente, jourEnClair, probable, signauxDuRdv, tauxDHonneur,
@@ -277,6 +278,20 @@ export default function Carnet() {
     encaisse: apptPaidXof(a) > 0, facture: !!a.invoiceId || rdvsFactures.has(a.id),
   })), [appts, byId, bands, sets, produits, reglages, rdvsFactures]);
   const luDe = useMemo(() => new Map(lus.map((l) => [l.id, l] as const)), [lus]);
+  /* ══ LES OBJECTIFS DES FAUTEUILS — 26 octobre 2026 ═══════════════════
+     « Le pourcentage des fauteuils calcule dans le vide. Prends tous les RDV
+     de 2025 et 2026 : des objectifs atteignables, des prévisions
+     atteignables, pas des chiffres au hasard » (Yéman). La barre ne rapporte
+     plus les minutes aux fauteuils × heures d'ouverture : elle dit les
+     rendez-vous posés sur l'OBJECTIF du jour, le troisième quartile de ce
+     même jour de la semaine sur les six derniers mois ouverts (déjà atteint
+     un jour sur quatre). Les règles : `objectifs-des-fauteuils-pur`. Les
+     comptes portent sur TOUTE la branche, pas sur la liste filtrée. */
+  const estOuvertLe = (j: string) => !openingForIso(j).closed;
+  const comptesParJour = useMemo(() => rdvParJour(lus), [lus]);
+  const reperes = useMemo(() => reperesParJour({ parJour: comptesParJour, aujourdhui: today, ouvertLe: estOuvertLe }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [comptesParJour, today, reglages]);
   const signaux = useMemo(() => {
     const dettes = dettesParCliente(lus, today);
     const historiques = historiqueParCliente(lus, today);
@@ -289,14 +304,7 @@ export default function Carnet() {
     };
     const parRdv = new Map<string, Signal[]>();
     for (const l of lus) if (estAVenir(l, today)) parRdv.set(l.id, signauxDuRdv(l, ctx));
-    /* LA CHARGE DES JOURS QUI VIENNENT : la part des fauteuils occupée. */
-    const charge = new Map<string, number>();
-    for (const [iso, liste] of parJour) {
-      if (iso < today) continue;
-      charge.set(iso, chargeDuJour({ iso, ouverture: openingForIso(iso), sieges: Math.max(0, branch.seats ?? 0),
-        rdvs: liste.filter((l) => l.status !== 'annulé').map((l) => ({ debutMin: timeToMin(l.time), dureeMin: l.dureeMin })) }).taux);
-    }
-    return { dettes, parRdv, charge, honneur: tauxDHonneur(lus, today) };
+    return { dettes, parRdv, honneur: tauxDHonneur(lus, today) };
   }, [lus, today, branch.seats, ficheParId, sansPrix]);
   const maitresConnus = useMemo(() => [...new Set(appts.map((a) => a.master).filter(Boolean))], [appts]);
   /* LA RECHERCHE QUI COMPREND UNE PHRASE : « impayés de septembre », « Team
@@ -501,6 +509,18 @@ export default function Carnet() {
             {pliable && <span className="trc-carnet-mois__pli" aria-hidden="true">{moisOuvert(k) ? '▾' : '▸'}</span>}
             <span className="trc-carnet-mois__nom">{monthTitle(k)}</span>
             <span className="trc-carnet-mois__n">{s.n} rituel{s.n > 1 ? 's' : ''}</span>
+            {k >= today.slice(0, 7) && (() => {
+              /* Le mois en cours et ceux qui viennent : l'objectif (la somme des
+                 objectifs de ses jours ouverts) et la prévision (déjà fait, puis
+                 chaque jour à venir au plus grand de posés et de l'ordinaire). */
+              const b = bilanDuMois({ mois: k, aujourdhui: today, parJour: comptesParJour, ouvertLe: estOuvertLe, reperes });
+              if (b.objectif <= 0) return null;
+              return (
+                <span className="trc-carnet-mois__n" title={`Objectif : la somme des objectifs de ses ${b.joursOuverts} jours ouverts. Prévision : ${b.realise} déjà faits, puis ${b.joursRestants} jours à venir comptés chacun au plus grand de ce qui est posé (${b.poses} en tout) et de l'ordinaire de ce jour.`}>
+                  {`objectif ${b.objectif} RDV · prévision ${b.prevision}`}
+                </span>
+              );
+            })()}
             {!sansPrix && <span className="trc-carnet-mois__xof">{fmtMoney(s.xof, currency)}</span>}
           </div>,
         );
@@ -511,15 +531,17 @@ export default function Carnet() {
       if (!repliable && a.date !== jourVu) {
         jourVu = a.date;
         const duJour = liste.filter((x) => x.date === a.date);
-        const taux = signaux.charge.get(a.date);
+        const n = comptesParJour.get(a.date) ?? 0;
+        const r = reperesDe(reperes, a.date);
+        const c = chargeSurObjectif(n, r);
         out.push(
           <div key={`jour-${a.date}`} className="trc-carnet-jour">
             <span className="trc-carnet-jour__nom">{jourEnClair(a.date).replace(/^./, (c) => c.toUpperCase())}</span>
             <span>{duJour.length} rendez-vous</span>
             {!sansPrix && <span className="trc-carnet-jour__xof">{fmtMoney(duJour.reduce((n, x) => n + apptNetXof(x, byId), 0), currency)}</span>}
-            {taux !== undefined && (
-              <span className={`trc-carnet-jour__charge${taux >= 0.9 ? ' est-plein' : taux < 0.35 ? ' est-creux' : ''}`} title="La part des fauteuils occupée ce jour-là">
-                fauteuils <i aria-hidden="true"><b style={{ width: `${Math.min(100, Math.round(taux * 100))}%` }} /></i> {tauxDit(taux)}
+            {c.ton !== 'sans' && (
+              <span className={`trc-carnet-jour__charge${c.ton === 'plein' ? ' est-plein' : c.ton === 'creux' ? ' est-creux' : ''}`} title={calculDuJour(r, n)}>
+                objectif <i aria-hidden="true"><b style={{ width: `${Math.min(100, Math.round(c.part * 100))}%` }} /></i> {`${n} / ${c.objectif} RDV`}
               </span>
             )}
           </div>,

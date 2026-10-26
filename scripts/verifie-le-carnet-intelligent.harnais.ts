@@ -109,7 +109,9 @@ const carnet = sansCommentaires('src/apps/trone/routes/clients/Carnet.tsx');
 dit('les tuiles disent leur calcul : anciennete, probable, a surveiller', [true, true, true],
   [carnet.includes('ancienneteDesCreances('), carnet.includes('probable(totaux.avenirXof, honneur.taux)'), carnet.includes('À surveiller')]);
 dit('ce qui presse : des compteurs qui filtrent la liste', true, /ceQuiPresse\(/.test(carnet) && carnet.includes('setPresse(presse === x.cle ?'));
-dit('les jours disent leur charge', true, carnet.includes('chargeDuJour({'));
+/* 26 octobre 2026 : la charge d'un jour se dit sur son OBJECTIF (posés /
+   objectif, verifie-les-objectifs-des-fauteuils), plus sur fauteuils × heures. */
+dit('les jours disent leur charge, sur leur objectif', true, carnet.includes('chargeSurObjectif(n, r)'));
 dit('chaque ligne a ses signaux (calcul en infobulle) et UN geste', [true, true], [carnet.includes('title={s.pourquoi}'), carnet.includes('gesteDuRdv(')]);
 dit('« Encaisser l ancien » ouvre l encaissement du plus ancien rituel du', true, carnet.includes("if (g.cle === 'ancien') { const d = signaux.dettes.get(a.clientId); if (d) setPayAppt(appts.find((x) => x.id === d.plusAncien.id) ?? null); }"));
 dit('la recherche comprend une phrase et le dit', [true, true], [carnet.includes('comprendsLaPhrase(query,'), carnet.includes('Le Carnet comprend')]);
