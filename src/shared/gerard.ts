@@ -1,6 +1,6 @@
 import { createStore, useStore } from './store';
 import { bindDocument } from './sync';
-import { REGLAGES_LIVRES, estActif, reglagesLus, type ModeDeGerard, type ReglagesDeGerard } from './gerard-pur';
+import { REGLAGES_LIVRES, estActif, reglagesLus, type GenreDeMessage, type ModeDeGerard, type ReglagesDeGerard } from './gerard-pur';
 
 export { estActif, reglagesLus, type ModeDeGerard, type ReglagesDeGerard };
 
@@ -28,4 +28,25 @@ export function metEnPause(pause: boolean, parQui: string): void {
 /** Le plafond de la semaine : le nombre de remises, et les francs. */
 export function changeLePlafond(p: { remisesParSemaine?: number; plafondFrancs?: number }, parQui: string): void {
   reglagesDeGerardStore.set((prev) => reglagesLus({ ...reglagesLus(prev), ...p, parQui, le: new Date().toISOString() }));
+}
+
+/** « Éteindre une situation » : il ne l'écrit plus à personne ; la rallumer la rend. */
+export function eteinsLaSituation(genre: GenreDeMessage, eteinte: boolean, parQui: string): void {
+  reglagesDeGerardStore.set((prev) => {
+    const r = reglagesLus(prev);
+    const eteintes = eteinte ? [...new Set([...r.eteintes, genre])] : r.eteintes.filter((g) => g !== genre);
+    return { ...r, eteintes, parQui, le: new Date().toISOString() };
+  });
+}
+
+/** « Jamais pour elle » : cette situation ne lui sera plus écrite. `false` la lui rend. */
+export function jamaisPourElle(clientId: string, genre: GenreDeMessage, jamais: boolean, parQui: string): void {
+  reglagesDeGerardStore.set((prev) => {
+    const r = reglagesLus(prev);
+    const siens = r.jamais[clientId] ?? [];
+    const neufs = jamais ? [...new Set([...siens, genre])] : siens.filter((g) => g !== genre);
+    const tous = { ...r.jamais };
+    if (neufs.length) tous[clientId] = neufs; else delete tous[clientId];
+    return { ...r, jamais: tous, parQui, le: new Date().toISOString() };
+  });
 }

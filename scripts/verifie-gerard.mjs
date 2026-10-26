@@ -32,6 +32,7 @@ async function lanceLeBanc() {
 
 const PUR = 'src/shared/gerard-pur.ts';
 const DERNIER = 'src/shared/dernier-message-pur.ts';
+const ENVOIS = 'src/shared/envois.ts';
 const ECRAN = 'src/apps/trone/routes/clients/Gerard.tsx';
 const DONNEES = 'src/apps/trone/routes/clients/gerard-donnees.ts';
 const PANNES = [
@@ -85,6 +86,12 @@ const PANNES = [
   ['le jour lu en UTC', DERNIER, 'new Date(t + 3_600_000)', 'new Date(t)'],
   ['la fiche oublie la dette', DONNEES, '        resteDu: resteDu.get(c.id) ?? 0,\n', ''],
   ['le plafond ne compte que l Assistant', DONNEES, 'codes: codes.filter((k) => k.branchId === branch.id), lundi', "codes: codes.filter((k) => k.branchId === branch.id && k.parQui === 'Gérard'), lundi"],
+  ['une situation eteinte ecrit encore', PUR, '    if (ctx.eteintes?.includes(genre) || f.jamais?.includes(genre)) return null;\n', "    if (f.jamais?.includes(genre)) return null;\n"],
+  ['jamais pour elle oublie', PUR, '    if (ctx.eteintes?.includes(genre) || f.jamais?.includes(genre)) return null;\n', "    if (ctx.eteintes?.includes(genre)) return null;\n"],
+  ['une situation inconnue gardee', PUR, "return [...new Set(x.filter((g): g is GenreDeMessage => typeof g === 'string' && g in PRIORITE))];", "return [...new Set(x as GenreDeMessage[])];"],
+  ['la reponse perdue', PUR, '...(reponse ? { reponse } : {}) };', '};'],
+  ['la fiche oublie jamais pour elle', DONNEES, '        jamais: rg.jamais[c.id] ?? [],\n', ''],
+  ['l Assistant pris pour l equipe', ENVOIS, " || /^(assistant maison|g[ée]rard)$/i.test((parQui ?? '').trim());", ';'],
   ['l ecran perd le plafond en francs', ECRAN, '                onChange={(e) => setFrancs(e.target.value)} onBlur={posePlafond} />', '                onChange={(e) => setFrancs(e.target.value)} />'],
 ];
 

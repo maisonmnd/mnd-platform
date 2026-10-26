@@ -15,6 +15,7 @@ import {
   type ContexteDeGerard, type FicheDeGerard, type RdvDeGerard,
 } from '../src/shared/gerard-pur';
 import { attendUneReponse, derniersMessagesHorsService, dernieresRelancesDeFacture, jourACotonou } from '../src/shared/dernier-message-pur';
+import { estEnvoiAutomatique } from '../src/shared/envois';
 import { gerardSeTait } from '../src/shared/gerard-entre-deux-pur';
 
 let ko = 0;
@@ -246,6 +247,22 @@ dit('elle attend une réponse : son dernier mot a moins de 48 heures ; une répo
     attendUneReponse([{ sens: 'entrant', clientId: 'a', quand: '2026-10-26T02:00:00Z' }, { sens: 'sortant', clientId: 'a', quand: '2026-10-26T03:00:00Z' }], maintenant).has('a'),
     attendUneReponse([{ sens: 'entrant', clientId: 'a', quand: '2026-10-24T10:00:00Z' }], maintenant).has('a')]);
 
+/* ── 14 ter bis. Éteindre une situation, « jamais pour elle », sa réponse ── */
+dit('une situation éteinte par la direction : il ne l’écrit à personne ; les autres continuent', [null, 'garder'],
+  [sit(fiche(), ctx({ eteintes: ['envie'] })), sit(avecGarder({}), ctx({ eteintes: ['envie'] }))?.genre]);
+dit('« jamais pour elle » : cette situation ne lui est plus écrite, les autres oui', [null, 'envie'],
+  [sit(fiche({ jamais: ['envie'] })), sit(fiche({ jamais: ['endormie'] }))?.genre]);
+const lus = reglagesLus({ eteintes: ['envie', 'envie', 'inconnue'] as never, jamais: { a: ['creux', 'faux'], b: [] } as never });
+dit('les réglages lus sans confiance : une situation inconnue tombe, une cliente sans situation sort', [['envie'], { a: ['creux'] }, [], {}],
+  [lus.eteintes, lus.jamais, reglagesLus(undefined).eteintes, reglagesLus(undefined).jamais]);
+const trR = tracesDesEnvois([
+  { type: 'gerard', clientId: 'a', statut: 'envoyé', deposeLe: '2026-10-20T09:00:00Z', genre: 'envie', envie: 'lavage', reponse: 'jamais' },
+  { type: 'gerard', clientId: 'a', statut: 'envoyé', deposeLe: '2026-10-21T09:00:00Z', genre: 'envie', envie: 'couleur', reponse: 'peut-etre' },
+]);
+dit('la réponse se relit sur la ligne de l’envoi ; une réponse inconnue ne compte pas', ['jamais', undefined], trR.get('a')?.map((t) => t.reponse));
+dit('un modèle de l’Assistant part seul : le fil ne le prend pas pour une réponse de l’équipe', [true, true, true, false],
+  [estEnvoiAutomatique('Assistant Maison'), estEnvoiAutomatique('Gérard'), estEnvoiAutomatique('Le Trône'), estEnvoiAutomatique('Aimée')]);
+
 /* ── 14 quater. Le plafond de la semaine, tout compris ── */
 const pl = plafondDeLaSemaine({
   lundi: '2026-10-26', maintenantIso: '2026-10-28T12:00:00Z', ticketMoyenXof: 20000, remisesParSemaine: 8, plafondFrancs: 60000,
@@ -276,6 +293,8 @@ dit('la fiche lit ce qui la fait taire : dette, relance, toutes les voix, répon
   ['resteDu: resteDu.get(c.id) ?? 0,', 'derniereRelanceLe: derniereRelance.get(c.id),', 'dernierMessageHorsService: dernierHorsService.get(c.id),', 'attendUneReponse: attend.has(c.id),',
     'enfantDuFoyer: (() => {', 'carteVivante: carteSurSaFiche.has(c.id),', 'codesVivants: codesVivantsDe(codes, c.id, maintenantIso).length,'].map((x) => donnees.includes(x)));
 dit('... le plafond compte toutes les remises de la branche, quel qu’en soit l’auteur', true, donnees.includes('codes: codes.filter((k) => k.branchId === branch.id), lundi'));
+dit('... la fiche lit « jamais pour elle », le contexte les situations éteintes, le code est signé « Assistant Maison »', [true, true, true],
+  [donnees.includes('jamais: rg.jamais[c.id] ?? [],'), donnees.includes('eteintes: rg.eteintes }'), donnees.includes("parQui: 'Assistant Maison'")]);
 dit('l’écran : Pause ou Actif, plus d’essai à cinq ; le plafond en nombre et en francs', [true, false, 2],
   [/metEnPause\(m\.pause/.test(ecran), /essai/i.test(ecran), (ecran.match(/onBlur=\{posePlafond\}/g) ?? []).length]);
 dit('Entre deux séances : la fiche lit le souci ouvert, l’écran montre ce que Gérard en sait', [true, true],

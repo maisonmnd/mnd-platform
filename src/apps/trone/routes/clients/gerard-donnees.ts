@@ -96,6 +96,7 @@ export function useCerveauDeGerard(): CerveauDeGerard {
     const abonnee = (c: Client) => abonnes.has(c.id) || (!!c.authUserId && abonnes.has(c.authUserId));
     const maintenantMs = Date.now();
     const maintenantIso = new Date(maintenantMs).toISOString();
+    const rg = reglagesLus(brutGerard);
 
     /* CE QUI LA FAIT TAIRE. */
     const resteDu = new Map<string, number>();
@@ -152,6 +153,7 @@ export function useCerveauDeGerard(): CerveauDeGerard {
         })(),
         carteVivante: carteSurSaFiche.has(c.id),
         codesVivants: codesVivantsDe(codes, c.id, maintenantIso).length,
+        jamais: rg.jamais[c.id] ?? [],
         rdvs,
         traces: traces.get(c.id) ?? [],
         /* La date ATTENDUE : pour une cliente en retard, la Cadence reporte
@@ -167,7 +169,6 @@ export function useCerveauDeGerard(): CerveauDeGerard {
        de la branche depuis lundi, et leurs francs (le ticket moyen des
        factures de 90 jours sert de base à un code encore vivant). */
     const lundi = lundiDe(today);
-    const rg = reglagesLus(brutGerard);
     const ilYA90 = addDaysISO(today, -90);
     const tickets = pieces.filter((p) => seRelance(p) && p.date >= ilYA90).map(invoiceTotal).filter((x) => x > 0);
     const ticketMoyenXof = tickets.length ? Math.round(tickets.reduce((a, b) => a + b, 0) / tickets.length) : 0;
@@ -206,7 +207,7 @@ export function useCerveauDeGerard(): CerveauDeGerard {
     const parId = new Map(clients.map((c) => [c.id, c]));
     return {
       fiches,
-      ctx: { aujourdhui: today, creux, remisesRestantes, placesDe },
+      ctx: { aujourdhui: today, creux, remisesRestantes, placesDe, eteintes: rg.eteintes },
       nomDe: (id: string) => parId.get(id)?.name ?? '',
       clientDe: (id: string) => parId.get(id),
       compteDe: (id: string) => { const c = parId.get(id); return c?.authUserId && abonnes.has(c.authUserId) ? c.authUserId : id; },
@@ -229,7 +230,7 @@ export function fabriqueLeCodeDe(s: Situation, o: { branchId: string; nom: strin
   if (!s.code) return undefined;
   const code = fabriqueLeCode({
     branchId: o.branchId, clientId: s.clientId, clientNom: o.nom, mot: s.code.mot, remisePct: s.code.pct,
-    heures: heuresJusquA(s.code.jusquau, o.maintenantMs), parQui: 'Gérard', note: GENRE_DIT[s.genre],
+    heures: heuresJusquA(s.code.jusquau, o.maintenantMs), parQui: 'Assistant Maison', note: GENRE_DIT[s.genre],
     maintenant: new Date(o.maintenantMs).toISOString(),
   }, codesPromoStore.get());
   codesPromoStore.set((prev) => [...prev, code]);

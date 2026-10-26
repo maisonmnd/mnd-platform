@@ -205,9 +205,12 @@ export function compteDuJournal(envois: readonly EnvoiLu[]): CompteDuJournal {
 /* ── LE MESSAGE AUTOMATIQUE DANS LE FIL ──────────────────────────────────
    Les rappels s'y écrivent depuis le 11 septembre avec la signature « la
    Maison, automatiquement », les confirmations et les accusés depuis le 18
-   avec « Le Trône ». Les deux se lisent de la même façon. */
+   avec « Le Trône ». Les deux se lisent de la même façon. Depuis le 26
+   octobre 2026, l'Assistant Maison aussi (« Assistant Maison », et
+   « Gérard » sur les lignes d'avant) : un modèle qu'il envoie n'est pas une
+   réponse de l'équipe. */
 export const estEnvoiAutomatique = (parQui?: string): boolean =>
-  parQui === 'Le Trône' || /automatiquement/i.test(parQui ?? '');
+  parQui === 'Le Trône' || /automatiquement/i.test(parQui ?? '') || /^(assistant maison|g[ée]rard)$/i.test((parQui ?? '').trim());
 
 /** Le nom d'un modèle Meta, dit en français dans le fil. */
 const MODELE_DIT: Record<string, string> = {

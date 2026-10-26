@@ -126,12 +126,18 @@ export type ReglagesDeGerard = {
       remises, tout compris, et les francs qu'elles peuvent coûter. */
   remisesParSemaine: number;
   plafondFrancs: number;
+  /** LES SITUATIONS ÉTEINTES par la direction (« Éteindre une situation ») :
+      il ne les écrit plus à personne. */
+  eteintes: GenreDeMessage[];
+  /** « JAMAIS POUR ELLE » : par cliente, les situations qu'il ne lui écrira
+      plus. La ligne de l'envoi garde aussi sa réponse, pour l'histoire. */
+  jamais: Record<string, GenreDeMessage[]>;
   parQui?: string;
   le?: string;
 };
 export const ESSAI_MAX = 5;
 export const PLAFOND_FRANCS_PAR_DEFAUT = 60_000;
-export const REGLAGES_LIVRES: ReglagesDeGerard = { mode: 'eteint', essai: [], remisesParSemaine: REMISES_PAR_SEMAINE, plafondFrancs: PLAFOND_FRANCS_PAR_DEFAUT };
+export const REGLAGES_LIVRES: ReglagesDeGerard = { mode: 'eteint', essai: [], remisesParSemaine: REMISES_PAR_SEMAINE, plafondFrancs: PLAFOND_FRANCS_PAR_DEFAUT, eteintes: [], jamais: {} };
 const entierBorne = (x: unknown, defaut: number, max: number): number =>
   typeof x === 'number' && Number.isFinite(x) && x >= 0 ? Math.min(max, Math.round(x)) : defaut;
 
@@ -143,8 +149,16 @@ export const reglagesLus = (r: Partial<ReglagesDeGerard> | null | undefined): Re
   dernierPassage: typeof r?.dernierPassage === 'string' ? r.dernierPassage : undefined,
   remisesParSemaine: entierBorne(r?.remisesParSemaine, REMISES_PAR_SEMAINE, 30),
   plafondFrancs: entierBorne(r?.plafondFrancs, PLAFOND_FRANCS_PAR_DEFAUT, 1_000_000),
+  eteintes: genresLus(r?.eteintes),
+  jamais: Object.fromEntries(Object.entries(r?.jamais && typeof r.jamais === 'object' ? r.jamais : {})
+    .map(([id, g]) => [id, genresLus(g)] as const).filter(([, g]) => g.length > 0)),
   parQui: r?.parQui, le: r?.le,
 });
+/** Une liste de situations lue sans confiance : seules les connues restent, une fois chacune. */
+function genresLus(x: unknown): GenreDeMessage[] {
+  if (!Array.isArray(x)) return [];
+  return [...new Set(x.filter((g): g is GenreDeMessage => typeof g === 'string' && g in PRIORITE))];
+}
 
 /* ── LE PLAFOND DE LA SEMAINE, TOUT COMPRIS ─────────────────────────────
    Toutes les remises à son nom de la semaine (lundi à lundi) comptent, qui
@@ -224,8 +238,10 @@ const moisDit = (j: string): string => `${MOIS[Number(j.slice(5, 7)) - 1]} ${j.s
 
 /* ── CE QUE GÉRARD LIT ───────────────────────────────────────────────── */
 export type RdvDeGerard = { id: string; date: string; time: string; status: string; creeLe?: string; familles: FamilleDeSoin[]; venu: boolean };
-/** Ce que Gérard a déjà écrit (le journal du lot 2) ; `reponse` : ce qu'elle a fait. */
-export type TraceDeGerard = { quand: string; genre: GenreDeMessage; envie?: EnvieDeGerard; reponse?: 'oui' | 'non' };
+/** Ce que Gérard a déjà écrit (le journal du lot 2) ; `reponse` : ce qu'elle a
+    fait (« oui », « non » = pas maintenant, « jamais » = jamais pour elle). */
+export type ReponseDeLaCliente = 'oui' | 'non' | 'jamais';
+export type TraceDeGerard = { quand: string; genre: GenreDeMessage; envie?: EnvieDeGerard; reponse?: ReponseDeLaCliente };
 export type FicheDeGerard = {
   id: string;
   /** Comment on s'adresse à elle (`appelDe`) : la civilité notée, sinon le prénom. */
@@ -264,6 +280,8 @@ export type FicheDeGerard = {
   carteVivante?: boolean;
   /** Ses remises à son nom encore valables : pas de seconde remise, jamais de cumul. */
   codesVivants?: number;
+  /** « Jamais pour elle » : les situations qu'il ne lui écrit plus (`mnd_gerard.jamais`). */
+  jamais?: readonly GenreDeMessage[];
   rdvs: RdvDeGerard[];
   traces: TraceDeGerard[];
   /** La Cadence : la date ATTENDUE d'après son rythme (pour une cliente en
@@ -281,6 +299,8 @@ export type ContexteDeGerard = {
   remisesRestantes: number;
   /** Deux places libres pour elle (sa durée, son maître), un jour donné ou les 7 prochains. */
   placesDe: (clientId: string, jour?: string) => readonly Place[];
+  /** Les situations éteintes par la direction (`mnd_gerard.eteintes`). */
+  eteintes?: readonly GenreDeMessage[];
 };
 
 export type CodeAFaire = { mot: 'CREUX' | 'ANNIV'; pct: number; jusquau: string; jour?: string };
@@ -440,6 +460,8 @@ export function situationDuJour(f: FicheDeGerard, ctx: ContexteDeGerard): Situat
      foyer : jamais écrite. Le parent payeur reçoit pour elle. */
   if (f.ecartee || f.enfantDuFoyer) return null;
   const fait = (genre: GenreDeMessage, modele: CleDeModele, variables: string[], pourquoi: [string, string][], extra: Partial<Situation> = {}): Situation | null => {
+    /* Éteinte par la direction, ou « jamais pour elle » : il se tait. */
+    if (ctx.eteintes?.includes(genre) || f.jamais?.includes(genre)) return null;
     const canal = canalDe(f, genre);
     if (!canal) return null;
     return { clientId: f.id, genre, canal, modele, variables, texte: remplis(MODELES_DE_GERARD[modele].corps, variables), pourquoi, priorite: PRIORITE[genre], ...extra };
@@ -650,12 +672,13 @@ export const ligneALaMain = (s: Situation, o: OutilsDeLaLigne): LigneDeGerard =>
 
 /** CE QUE GÉRARD A DÉJÀ ÉCRIT, relu dans les envois : ce qu'une main a
     écarté, ce que le facteur a périmé ou n'a pas pu porter ne compte pas. */
-export function tracesDesEnvois(envois: readonly { type?: string; clientId?: string; statut?: string; quand?: string; deposeLe?: string; genre?: string; envie?: string }[]): Map<string, TraceDeGerard[]> {
+export function tracesDesEnvois(envois: readonly { type?: string; clientId?: string; statut?: string; quand?: string; deposeLe?: string; genre?: string; envie?: string; reponse?: string }[]): Map<string, TraceDeGerard[]> {
   const m = new Map<string, TraceDeGerard[]>();
   for (const e of envois) {
     if (e.type !== 'gerard' || !e.clientId || !e.genre) continue;
     if (e.statut === 'écarté' || e.statut === 'périmé' || e.statut === 'échec') continue;
-    const t: TraceDeGerard = { quand: e.deposeLe ?? e.quand ?? '', genre: e.genre as GenreDeMessage, ...(e.envie ? { envie: e.envie as EnvieDeGerard } : {}) };
+    const reponse = e.reponse === 'oui' || e.reponse === 'non' || e.reponse === 'jamais' ? e.reponse : undefined;
+    const t: TraceDeGerard = { quand: e.deposeLe ?? e.quand ?? '', genre: e.genre as GenreDeMessage, ...(e.envie ? { envie: e.envie as EnvieDeGerard } : {}), ...(reponse ? { reponse } : {}) };
     const l = m.get(e.clientId);
     if (l) l.push(t); else m.set(e.clientId, [t]);
   }
