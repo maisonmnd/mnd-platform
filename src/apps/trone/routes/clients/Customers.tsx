@@ -32,7 +32,7 @@ import { CourbeDesJauges, CourbeDeLaPousse } from '../../../../ds/courbes';
 import { derniereCouleur, dernierDeclencheur, ouvertureDuProgramme, suivreLeProtocole, useProtocoles, protocoleNatif, protocolesDeLaTete, etapesPourLaTete, aSonEcart, MOT_DE_L_ETAT } from '../../../../shared/protocoles';
 import { useAuth } from '../../../../shared/auth';
 import { useStaff } from '../equipe/data';
-import { useInvoices, invoiceTotal, invoiceRegleXof, type Invoice } from '../../../../shared/finance';
+import { useInvoices, invoiceTotal, invoiceRegleXof, invoiceResteXof, type Invoice } from '../../../../shared/finance';
 import { piecesParAnnee, toutesLesAnnees } from './documents-par-annee-pur';
 import { usePointsHistory, cercleSeuilStore, foyerSeuilStore, estDuCercle, pointsEnabledStore, useFoyerTiers, meilleurPalierFoyer, cercleActifStore, foyerActifStore } from '../../../../shared/offers';
 import { dernierBilanDe, useBilans, seancesSansBilan } from '../../../../shared/bilans';
@@ -2566,6 +2566,8 @@ function Customer360({
   const [bilanOpen, setBilanOpen] = useState(false);
   const [registreOuvert, setRegistreOuvert] = useState(false);
   const [demanderOuvert, setDemanderOuvert] = useState(false);
+  /* Documents : l'année dépliée, une seule à la fois ; null = la plus récente. */
+  const [anneeOuverte, setAnneeOuverte] = useState<{ de: string; annee: string } | null>(null);
   const [tousBilans] = useBilans();
   const dernierBilan = dernierBilanDe(tousBilans, client.id);
   /* SES BILANS À ELLE, dans l'ordre du temps — c'est la suite qui fait la
@@ -2765,6 +2767,51 @@ function Customer360({
      Chacun s'ouvre depuis la fiche : la maison n'a plus à quitter la cliente
      pour retrouver une pièce. ----- */
   const documents = [...myInvoices].sort((a, b) => b.date.localeCompare(a.date));
+
+  /* UNE PIÈCE, UNE LIGNE — 26 octobre 2026 (« mieux voir chaque rubrique, que
+     tout soit mieux écrit ») : la date d'abord, le numéro en petit, ce que la
+     pièce paie, le montant, et son état en mots. « Réglée » se dit doucement ;
+     un reste se lit en rouge avec son montant. Un devis reste gris : il ne
+     compte dans aucun total. */
+  const prestationDe = (o: Invoice): string => {
+    const ls = (o.lines ?? []).map((l) => (l.label ?? '').trim()).filter(Boolean);
+    if (ls.length === 0) return '';
+    return ls.length === 1 ? ls[0] : `${ls[0]} et ${ls.length - 1} autre${ls.length > 2 ? 's' : ''}`;
+  };
+  const etatDeLaPiece = (o: Invoice): { texte: string; ton: 'ok' | 'du' | 'doux' } => {
+    if (o.kind === 'devis') return { texte: o.status === 'acceptée' ? 'Accepté' : 'Devis', ton: 'doux' };
+    if (o.status === 'brouillon') return { texte: 'Brouillon', ton: 'doux' };
+    const reste = invoiceResteXof(o);
+    return reste > 0 ? { texte: `Reste ${fmtMoney(reste, currency)}`, ton: 'du' } : { texte: 'Réglée', ton: 'ok' };
+  };
+  const piecesEnLignes = (pieces: Invoice[], o2: { avecPour: boolean; avecQui?: boolean }) => (
+    <div className="trc-lignes-doc">
+      <div className="trc-lignes-doc__legende" aria-hidden="true">
+        <span>Date</span><span>Pièce</span><span>{o2.avecQui ? 'Pour qui · prestation' : 'Prestation'}</span>
+        <span className="num">Montant</span><span className="num">État</span>
+      </div>
+      {pieces.map((o) => {
+        const etat = etatDeLaPiece(o);
+        const avecPour = o2.avecPour;
+        const quoi = `${o.kind === 'devis' ? 'Devis · ' : ''}${o2.avecQui ? `${nomTete(o.clientId)} · ` : ''}${prestationDe(o)}${avecPour && pourUneAutre(o) ? ` · pour ${pourUneAutre(o)}` : ''}`;
+        return (
+          <button
+            type="button"
+            key={o.id}
+            className={`trc-ligne-doc${o.kind === 'devis' ? ' est-devis' : ''}`}
+            title={`Ouvrir ${o.kind === 'devis' ? 'le devis' : 'la facture'} ${o.number}`}
+            onClick={() => navigate(`/factures?id=${o.id}`)}
+          >
+            <span className="trc-ligne-doc__date">{frJourAn(o.date)}</span>
+            <span className="trc-ligne-doc__no">{o.number}</span>
+            <span className="trc-ligne-doc__quoi" title={(o.lines ?? []).map((l) => l.label).join(' · ')}>{quoi || '—'}</span>
+            <span className="trc-ligne-doc__montant">{fmtMoney(invoiceTotal(o), currency)}</span>
+            <span className={`trc-ligne-doc__etat est-${etat.ton}`}>{etat.texte}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
 
   /* ----- Rendez-vous ----- */
   const history = [...appts].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 6);
@@ -4718,124 +4765,132 @@ function Customer360({
 
 
         {tab === 'docs' && (
-        <>
-        {/* Factures & devis — tous ses documents, chacun ouvrable */}
-        <div>
-          <span className="trc-microlabel">Factures & devis · {documents.length}</span>
-          {documents.length === 0 && (
-            <div style={{ fontSize: 12, color: 'var(--ink-soft)' }}>Aucun document, ses factures et devis apparaîtront ici.</div>
-          )}
-          {/* ANNÉE PAR ANNÉE — 26 octobre 2026 (« un détail précis sur son total
-              de chaque année, bien distinct ») : le tableau d'abord, puis les
-              pièces sous l'en-tête de leur année. Un devis n'entre dans aucun
-              total (documents-par-annee-pur.ts). */}
-          {documents.length > 0 && (() => {
-            const annees = piecesParAnnee(documents, invoiceTotal, invoiceRegleXof);
-            const tout = toutesLesAnnees(annees);
-            const m = (x: number) => fmtMoney(x, currency);
-            const nFactures = (k: number, d: number) => `${k} facture${k > 1 ? 's' : ''}${d > 0 ? ` + ${d} devis` : ''}`;
-            return (
-              <>
+        <div className="trc-docs-onglet">
+        {/* ══ TROIS RUBRIQUES, CHACUNE SON TITRE ET SON TOTAL — 26 octobre 2026 ══
+            « J'ai besoin de mieux voir chaque rubrique et que tout soit mieux
+            écrit » (Yéman, sur cet onglet). Factures & devis, Factures du
+            compte, Points cercle : un titre lisible, le résumé chiffré à
+            droite, un filet entre deux. Les années se replient : la ligne de
+            l'année EST la ligne du tableau (factures, total, réglé, reste), et
+            elle s'ouvre sur ses pièces, une seule à la fois, la plus récente
+            ouverte d'emblée. La légende des colonnes est dite une fois. */}
+        {(() => {
+          /* ANNÉE PAR ANNÉE (« un détail précis sur son total de chaque année,
+             bien distinct ») : un devis n'entre dans aucun total
+             (documents-par-annee-pur.ts). */
+          const annees = piecesParAnnee(documents, invoiceTotal, invoiceRegleXof);
+          const tout = toutesLesAnnees(annees);
+          const m = (x: number) => fmtMoney(x, currency);
+          const nFactures = (k: number, d: number) => `${k} facture${k > 1 ? 's' : ''}${d > 0 ? ` + ${d} devis` : ''}`;
+          const ouverte = anneeOuverte?.de === client.id ? anneeOuverte.annee : annees[0]?.annee;
+          const bascule = (annee: string) => setAnneeOuverte({ de: client.id, annee: ouverte === annee ? '' : annee });
+          return (
+            <section className="trc-docs">
+              <header className="trc-docs__tete">
+                <h3 className="trc-docs__titre">Factures & devis</h3>
+                {documents.length > 0 && (
+                  <span className="trc-docs__resume">
+                    {nFactures(tout.factures, tout.devis)} · {m(tout.totalXof)}
+                    {tout.factures > 0 && (tout.resteXof > 0
+                      ? <> · <b className="est-du">reste {m(tout.resteXof)}</b></>
+                      : ' · tout est réglé')}
+                  </span>
+                )}
+              </header>
+              {documents.length === 0 && (
+                <div className="trc-docs__vide">Aucun document : ses factures et devis apparaîtront ici.</div>
+              )}
+              {documents.length > 0 && (
                 <div className="trc-annees-cadre">
                   <table className="trc-annees">
                     <thead>
                       <tr><th>Année</th><th className="num">Pièces</th><th className="num">Total</th><th className="num">Réglé</th><th className="num">Reste</th></tr>
                     </thead>
                     <tbody>
-                      {annees.map((a) => (
-                        <tr key={a.annee}>
-                          <td>{a.annee}</td><td className="num">{nFactures(a.factures, a.devis)}</td>
-                          <td className="num">{m(a.totalXof)}</td><td className="num">{m(a.regleXof)}</td>
-                          <td className={`num${a.resteXof > 0 ? ' est-du' : ''}`}>{m(a.resteXof)}</td>
-                        </tr>
-                      ))}
-                      {annees.length > 1 && (
+                      {annees.map((a) => {
+                        const ouvert = ouverte === a.annee;
+                        return (
+                          <Fragment key={a.annee}>
+                            <tr className={`trc-annees__an${ouvert ? ' est-ouvert' : ''}`} onClick={() => bascule(a.annee)}>
+                              <td>
+                                <button type="button" className="trc-annees__bascule" aria-expanded={ouvert} onClick={(e) => { e.stopPropagation(); bascule(a.annee); }}>
+                                  <span className="trc-chevron" aria-hidden="true" />{a.annee}
+                                </button>
+                              </td>
+                              <td className="num">{nFactures(a.factures, a.devis)}</td>
+                              <td className="num">{m(a.totalXof)}</td>
+                              <td className="num">{m(a.regleXof)}</td>
+                              <td className={`num${a.resteXof > 0 ? ' est-du' : ' est-nul'}`}>{m(a.resteXof)}</td>
+                            </tr>
+                            {ouvert && (
+                              <tr className="trc-annees__detail">
+                                <td colSpan={5}>{piecesEnLignes(a.pieces, { avecPour: true })}</td>
+                              </tr>
+                            )}
+                          </Fragment>
+                        );
+                      })}
+                    </tbody>
+                    {annees.length > 1 && (
+                      <tfoot>
                         <tr className="est-total">
                           <td>Toutes</td><td className="num">{nFactures(tout.factures, tout.devis)}</td>
                           <td className="num">{m(tout.totalXof)}</td><td className="num">{m(tout.regleXof)}</td>
                           <td className={`num${tout.resteXof > 0 ? ' est-du' : ''}`}>{m(tout.resteXof)}</td>
                         </tr>
-                      )}
-                    </tbody>
+                      </tfoot>
+                    )}
                   </table>
                 </div>
-                {annees.map((a) => (
-                  <div key={a.annee} className="trc-annee-bloc">
-                    <div className="trc-annee">
-                      <span>{a.annee}</span>
-                      <span>{nFactures(a.factures, a.devis)} · {m(a.totalXof)}{a.resteXof > 0 ? ` · reste ${m(a.resteXof)}` : ''}</span>
-                    </div>
-                    <div className="trc-orders">
-                      {a.pieces.map((o) => (
-                        <button type="button" className="trc-order trc-order--btn" key={o.id} title={`Ouvrir ${o.kind === 'devis' ? 'le devis' : 'la facture'} ${o.number}`} onClick={() => navigate(`/factures?id=${o.id}`)}>
-                          <span className="trc-order__id">
-                            <span style={{ fontFamily: 'var(--font-serif)', fontSize: 14, color: 'var(--color-indigo)' }}>{o.number}</span>
-                            <span className="trc-sub" style={{ marginLeft: 8 }}>{o.kind === 'devis' ? 'Devis' : 'Facture'} · {frJourAn(o.date)}{pourUneAutre(o) ? ` · pour ${pourUneAutre(o)}` : ''}</span>
-                          </span>
-                          <span className="trc-order__total">{fmtMoney(invoiceTotal(o), currency)}</span>
-                          <span className={orderStatusClass(o.status)}>{o.status}</span>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </>
-            );
-          })()}
-        </div>
+              )}
+            </section>
+          );
+        })()}
 
         {/* LES PIÈCES DU RESTE DU COMPTE. Chaque facture reste au nom de celle
             qu'elle concerne — c'est juste — mais elle est réglée par le parent,
             et c'est lui qui vient la réclamer. Elle ne figurait nulle part chez
             lui. Elles s'ouvrent d'ici comme les siennes. */}
         {documentsDuCompte.length > 0 && (
-          <div>
-            <span className="trc-microlabel">
-              {estLePayeur ? 'Factures du compte' : 'Réglées par le compte'} · {documentsDuCompte.length}
-            </span>
-            <div className="trc-sub" style={{ marginBottom: 6, lineHeight: 1.5 }}>
+          <section className="trc-docs">
+            <header className="trc-docs__tete">
+              <h3 className="trc-docs__titre">{estLePayeur ? 'Factures du compte' : 'Réglées par le compte'}</h3>
+              <span className="trc-docs__resume">
+                {documentsDuCompte.length} pièce{documentsDuCompte.length > 1 ? 's' : ''} · {fmtMoney(documentsDuCompte.filter((o) => o.kind !== 'devis').reduce((n, o) => n + invoiceTotal(o), 0), currency)}
+              </span>
+            </header>
+            <div className="trc-docs__note">
               {estLePayeur
                 ? 'Au nom des autres membres, réglées par elle.'
                 : `Ses rituels, au nom de ${nomTete(clientFamily?.payerClientId)}, qui règle le compte.`}
             </div>
-            <div className="trc-orders">
-              {documentsDuCompte.map((o) => (
-                <button
-                  type="button"
-                  className="trc-order trc-order--btn"
-                  key={o.id}
-                  title={`Ouvrir ${o.kind === 'devis' ? 'le devis' : 'la facture'} ${o.number}`}
-                  onClick={() => navigate(`/factures?id=${o.id}`)}
-                >
-                  <span className="trc-order__id">
-                    <span style={{ fontFamily: 'var(--font-serif)', fontSize: 14, color: 'var(--color-indigo)' }}>{o.number}</span>
-                    <span className="trc-sub" style={{ marginLeft: 8 }}>{nomTete(o.clientId)} · {frJourAn(o.date)}{estLePayeur && pourUneAutre(o) ? ` · pour ${pourUneAutre(o)}` : ''}</span>
-                  </span>
-                  <span className="trc-order__total">{fmtMoney(invoiceTotal(o), currency)}</span>
-                  <span className={orderStatusClass(o.status)}>{o.status}</span>
-                </button>
-              ))}
-            </div>
-          </div>
+            {piecesEnLignes(documentsDuCompte, { avecPour: estLePayeur, avecQui: true })}
+          </section>
         )}
 
-        <div>
-          <span className="trc-microlabel">Points cercle · {client.loyaltyPoints ?? 0}</span>
+        <section className="trc-docs">
+          <header className="trc-docs__tete">
+            <h3 className="trc-docs__titre">Points cercle</h3>
+            <span className="trc-docs__resume">{client.loyaltyPoints ?? 0} pts</span>
+          </header>
           {myPoints.length > 0 ? (
-            <div className="trc-ptlog">
+            <div className="trc-lignes-doc">
+              <div className="trc-lignes-doc__legende trc-ligne-pts" aria-hidden="true">
+                <span>Date</span><span>Derniers mouvements</span><span className="num">Points</span>
+              </div>
               {myPoints.map((e) => (
-                <div className="trc-ptlog__row" key={e.id}>
-                  <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{e.label}</span>
-                  <span className="trc-sub" style={{ flex: 'none' }}>{frJourAn(e.at.slice(0, 10))}</span>
-                  <span className="trc-ptlog__pts">{e.pts > 0 ? `+${e.pts}` : e.pts} pts</span>
+                <div className="trc-ligne-pts" key={e.id}>
+                  <span className="trc-ligne-doc__date">{frJourAn(e.at.slice(0, 10))}</span>
+                  <span className="trc-ligne-doc__quoi">{e.label}</span>
+                  <span className={`trc-ligne-pts__pts${e.pts < 0 ? ' est-moins' : ''}`}>{e.pts > 0 ? `+${e.pts}` : e.pts} pts</span>
                 </div>
               ))}
             </div>
           ) : (
-            <div style={{ fontSize: 12, color: 'var(--ink-soft)' }}>Aucun mouvement de points.</div>
+            <div className="trc-docs__vide">Aucun mouvement de points.</div>
           )}
+        </section>
         </div>
-        </>
         )}
 
         {tab === 'parcours' && (

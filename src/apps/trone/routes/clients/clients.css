@@ -3488,18 +3488,86 @@
 .trc-geste { display: inline-block; margin-top: 2px; background: none; border: 0; padding: 2px 0; font: 500 12px var(--font-sans); color: var(--copper-700); cursor: pointer; text-decoration: none; white-space: nowrap; }
 .trc-geste:hover { text-decoration: underline; }
 
-/* SES PIÈCES, ANNÉE PAR ANNÉE — 26 octobre 2026 : le tableau de l'onglet
-   Documents, puis l'en-tête de chaque année au-dessus de ses pièces. */
-.trc-annees-cadre { overflow-x: auto; margin: 6px 0 14px; }
-.trc-annees { width: 100%; border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; }
-.trc-annees th { text-align: left; font: 500 10.5px var(--font-sans); letter-spacing: .12em; text-transform: uppercase; color: var(--ink-soft); padding: 6px 8px; border-bottom: 1px solid var(--hairline); }
-.trc-annees td { padding: 8px; border-bottom: 1px solid var(--hairline); color: var(--color-indigo); }
-.trc-annees .num { text-align: right; white-space: nowrap; }
-.trc-annees td:first-child { font-family: var(--font-serif); font-size: 16px; }
-.trc-annees .est-du { color: var(--alarme, #A3402B); font-weight: 600; }
-.trc-annees tr.est-total td { border-top: 1px solid var(--color-indigo); border-bottom: 0; font-weight: 600; }
-.trc-annee-bloc { margin-top: 12px; }
-.trc-annee { display: flex; justify-content: space-between; gap: 12px; align-items: baseline; padding: 6px 2px; border-bottom: 1px solid var(--color-indigo); margin-bottom: 4px; font-variant-numeric: tabular-nums; }
-.trc-annee span:first-child { font-family: var(--font-serif); font-size: 18px; color: var(--color-indigo); }
-.trc-annee span:last-child { font-size: 12.5px; color: var(--ink-soft); text-align: right; }
+/* ══ L'ONGLET DOCUMENTS — 26 octobre 2026 ═════════════════════════════════
+   « Mieux voir chaque rubrique, que tout soit mieux écrit » : trois rubriques
+   séparées par un filet, chacune son titre et son résumé chiffré ; les années
+   se replient (la ligne de l'année est la ligne du tableau) ; une pièce, une
+   ligne, colonnes alignées. Chiffres en chiffres alignés partout : le serif
+   écrit « 2026 » en bas-de-casse par défaut, illisible dans un tableau. */
+.trc-docs-onglet { display: flex; flex-direction: column; gap: 30px; max-width: 1080px; }
+.trc-docs { display: flex; flex-direction: column; gap: 12px; }
+.trc-docs + .trc-docs { padding-top: 26px; border-top: 1px solid var(--hairline); }
+.trc-docs__tete { display: flex; justify-content: space-between; align-items: baseline; gap: 6px 16px; flex-wrap: wrap; }
+.trc-docs__titre { margin: 0; font-family: var(--font-serif); font-weight: 400; font-size: 24px; line-height: 1.15; color: var(--color-indigo); }
+.trc-docs__resume { font-size: 13.5px; color: var(--ink-soft); font-variant-numeric: lining-nums tabular-nums; }
+.trc-docs__resume .est-du { color: var(--alarme, #A3402B); font-weight: 600; }
+.trc-docs__note { font-size: 12.5px; color: var(--ink-soft); margin-top: -4px; }
+.trc-docs__vide { font-size: 13px; color: var(--ink-soft); }
 
+/* Le tableau des années : chaque ligne s'ouvre sur ses pièces. */
+.trc-annees-cadre { overflow-x: auto; }
+.trc-annees { width: 100%; border-collapse: collapse; font-size: 14px; color: var(--color-indigo); font-variant-numeric: lining-nums tabular-nums; font-feature-settings: 'lnum' 1, 'tnum' 1; }
+.trc-annees th { text-align: left; font: 500 10.5px var(--font-sans); letter-spacing: .14em; text-transform: uppercase; color: var(--ink-soft); padding: 0 12px 8px; border-bottom: 1px solid var(--color-indigo); white-space: nowrap; }
+.trc-annees .num { text-align: right; white-space: nowrap; }
+.trc-annees td { padding: 13px 12px; border-bottom: 1px solid var(--hairline); }
+.trc-annees__an { cursor: pointer; }
+.trc-annees__an:hover > td { background: var(--hover-veil); }
+.trc-annees__an.est-ouvert > td { border-bottom-color: transparent; font-weight: 500; }
+.trc-annees__an.est-ouvert > td:first-child,
+.trc-annees__detail > td { box-shadow: inset 3px 0 0 var(--color-copper); }
+.trc-annees__bascule { display: inline-flex; align-items: center; gap: 12px; border: 0; background: none; padding: 0; cursor: pointer; font-family: var(--font-serif); font-size: 20px; line-height: 1; color: var(--color-indigo); font-variant-numeric: lining-nums; font-feature-settings: 'lnum' 1; }
+.trc-annees__bascule:focus-visible { outline: 2px solid var(--color-copper); outline-offset: 4px; border-radius: 2px; }
+.trc-chevron { width: 7px; height: 7px; border-right: 1.5px solid var(--copper-700); border-bottom: 1.5px solid var(--copper-700); transform: rotate(-45deg); transition: transform var(--dur-fast) var(--ease-soft); flex: none; }
+.est-ouvert .trc-chevron { transform: translateY(-2px) rotate(45deg); }
+.trc-annees td.est-du { color: var(--alarme, #A3402B); font-weight: 600; }
+.trc-annees td.est-nul { color: var(--ink-soft); }
+.trc-annees__detail > td { padding: 0 0 14px 3px; border-bottom: 1px solid var(--hairline); }
+.trc-annees tfoot td { padding: 14px 12px; border-top: 1px solid var(--color-indigo); border-bottom: 0; font-weight: 600; }
+.trc-annees tfoot td:first-child { font-family: var(--font-serif); font-size: 18px; font-weight: 500; }
+
+/* Une pièce, une ligne. Même grille pour la légende et les lignes. */
+.trc-lignes-doc { display: flex; flex-direction: column; font-variant-numeric: lining-nums tabular-nums; font-feature-settings: 'lnum' 1, 'tnum' 1; }
+.trc-lignes-doc__legende,
+.trc-ligne-doc { display: grid; grid-template-columns: 8.2em 8.8em minmax(0, 1fr) 7.6em 9.4em; align-items: baseline; gap: 14px; }
+.trc-lignes-doc__legende { padding: 8px 16px 6px; font: 500 10px var(--font-sans); letter-spacing: .14em; text-transform: uppercase; color: var(--ink-soft); }
+.trc-lignes-doc__legende .num { text-align: right; }
+.trc-ligne-doc { width: 100%; padding: 10px 16px; border: 0; border-top: 1px solid var(--hairline); background: none; text-align: left; font: inherit; font-size: 13.5px; color: var(--ink); cursor: pointer; }
+.trc-ligne-doc:hover { background: var(--hover-veil); }
+.trc-ligne-doc:focus-visible { outline: 2px solid var(--color-copper); outline-offset: -2px; }
+.trc-ligne-doc__date { white-space: nowrap; color: var(--ink); }
+.trc-ligne-doc__no { white-space: nowrap; font-size: 12px; letter-spacing: .02em; color: var(--ink-soft); }
+.trc-ligne-doc__quoi { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--color-indigo); }
+.trc-ligne-doc__montant { text-align: right; white-space: nowrap; font-weight: 500; color: var(--color-indigo); }
+.trc-ligne-doc__etat { text-align: right; white-space: nowrap; font-size: 12.5px; }
+.trc-ligne-doc__etat.est-ok { color: var(--ink-soft); }
+.trc-ligne-doc__etat.est-du { color: var(--alarme, #A3402B); font-weight: 600; }
+.trc-ligne-doc__etat.est-doux { color: var(--ink-soft); font-style: italic; }
+.trc-ligne-doc.est-devis .trc-ligne-doc__montant,
+.trc-ligne-doc.est-devis .trc-ligne-doc__quoi { color: var(--ink-soft); }
+/* Hors d'une année dépliée (Factures du compte, Points), la liste a son cadre. */
+.trc-docs > .trc-lignes-doc { background: var(--surface-card); border: 1px solid var(--hairline); border-radius: var(--radius-sm); }
+
+/* Points cercle : date, mouvement, points. */
+.trc-ligne-pts { display: grid; grid-template-columns: 8.2em minmax(0, 1fr) 6em; align-items: baseline; gap: 14px; padding: 10px 16px; border-top: 1px solid var(--hairline); font-size: 13.5px; }
+.trc-lignes-doc__legende.trc-ligne-pts { border-top: 0; padding: 8px 16px 6px; font-size: 10px; }
+.trc-ligne-pts__pts { text-align: right; white-space: nowrap; font-weight: 500; color: var(--copper-700); }
+.trc-ligne-pts__pts.est-moins { color: var(--ink-soft); }
+.trc-lignes-doc__legende.trc-ligne-pts > span:last-child { text-align: right; }
+
+/* Étroit : la ligne d'une pièce passe sur deux lignes, la légende se tait. */
+@media (max-width: 760px) {
+  .trc-docs__titre { font-size: 21px; }
+  .trc-lignes-doc__legende { display: none; }
+  .trc-ligne-doc { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "date montant" "quoi etat" "no no"; gap: 2px 12px; padding: 11px 14px; }
+  .trc-ligne-doc__date { grid-area: date; }
+  .trc-ligne-doc__montant { grid-area: montant; }
+  .trc-ligne-doc__quoi { grid-area: quoi; }
+  .trc-ligne-doc__etat { grid-area: etat; }
+  .trc-ligne-doc__no { grid-area: no; font-size: 11.5px; }
+  .trc-ligne-pts { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "date pts" "quoi quoi"; gap: 2px 12px; }
+  .trc-ligne-pts .trc-ligne-doc__date { grid-area: date; }
+  .trc-ligne-pts .trc-ligne-doc__quoi { grid-area: quoi; }
+  .trc-ligne-pts__pts { grid-area: pts; }
+  .trc-annees { font-size: 13px; }
+  .trc-annees td, .trc-annees th { padding-left: 8px; padding-right: 8px; }
+}
