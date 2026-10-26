@@ -661,8 +661,8 @@ export default function Shell() {
       className={({ isActive }) => `tr-nav__item${isActive || (reunionDe(emplacement.pathname)?.hote === it.path) ? ' active' : ''}`}
       onClick={closeSide}
     >
-      <it.icon />
-      {it.label}
+      {/* 26 octobre 2026 : sans icône, comme la maquette des avis. */}
+      <span>{it.label}</span>
       {it.path === '/fil' && demandesQuiAttendent > 0 && (
         <span className="tr-nav__pastille" title={`${demandesQuiAttendent} demande(s) à traiter`}>
           {demandesQuiAttendent}
@@ -676,7 +676,7 @@ export default function Shell() {
      ce qu'on était en train d'arranger. */
   const lienRangeable = (cle: string, liste: TroneRoute[]) => (it: TroneRoute, i: number) => (
     <div className="tr-nav__range" key={it.path}>
-      <span className="tr-nav__range__nom"><it.icon />{it.label}</span>
+      <span className="tr-nav__range__nom">{it.label}</span>
       {/* ENVOYER AU QUOTIDIEN, OU L'EN RETIRER. Le geste n'existe qu'à deux
           étages : un menu à plat n'a pas de haut où envoyer quoi que ce soit. */}
       {deuxEtages && (cle === 'Le quotidien' ? (
@@ -788,11 +788,12 @@ export default function Shell() {
     <div className={`tr-shell ${sideOpen ? 'is-side-open' : ''} ${gestesRapides(staff?.role, mesDomaines).aucun ? '' : 'tr-shell--barre'}`}>
       {sideOpen && <div className="tr-side-veil" onClick={closeSide} />}
       <aside className="tr-side">
+        {/* 26 octobre 2026 : la marque de la maquette des avis, sans le sceau.
+            « Le Trône » remplace « Propulsé par LOKAA » sous le nom. */}
         <div className="tr-side__brand">
-          <Seal color="copper" size={34} />
           <div>
             <h1 className="mnd-serif">{identite.nom.trim() || 'Maison MND'}</h1>
-            <div className="tr-side__powered">Propulsé par LOKAA</div>
+            <div className="tr-side__powered">Le Trône</div>
           </div>
           <button className="tr-side__close" onClick={closeSide} aria-label="Fermer le menu">
             <X size={18} />
