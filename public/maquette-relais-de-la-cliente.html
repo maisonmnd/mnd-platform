@@ -76,6 +76,15 @@ td.e { color: var(--doux); }
 .regles li { position: relative; padding-left: 34px; font-size: 15px; counter-increment: r; }
 .regles li::before { content: counter(r); position: absolute; left: 0; top: 0; font: 400 22px var(--serif); color: var(--cuivre-fonce); line-height: 1.1; }
 .encadre { border-left: 3px solid var(--cuivre); background: var(--cuivre-pale); padding: 10px 14px; font-size: 14px; max-width: 68ch; }
+/* Les simulations */
+.onglets { display: flex; gap: 4px; border-bottom: 1px solid var(--filet); overflow-x: auto; }
+.onglets button { background: none; border: 0; border-bottom: 2px solid transparent; padding: 10px 14px; margin-bottom: -1px; font: 500 12px var(--sans); letter-spacing: .1em; text-transform: uppercase; color: var(--doux); cursor: pointer; white-space: nowrap; }
+.onglets button[aria-selected="true"] { color: var(--encre); border-bottom-color: var(--cuivre); }
+.onglets button:focus-visible { outline: 2px solid var(--cuivre); outline-offset: 2px; }
+.intro { font-size: 15px; color: var(--encre); margin: 12px 0 10px; }
+table.simu td.d { white-space: nowrap; color: var(--encre); font-variant-numeric: lining-nums tabular-nums; }
+tr.saute td { color: var(--doux); font-style: italic; }
+tr.saute .rond { opacity: .45; }
 @media (max-width: 720px) { h2 { font-size: 23px; } header p { font-size: 15.5px; } }
 </style>
 
@@ -324,6 +333,324 @@ td.e { color: var(--doux); }
   </section>
 
   <section>
+    <span class="sur">Trois clientes, pas à pas</span>
+    <h2>Le relais, en vrai, sur trois modèles de clientes</h2>
+    <p class="doux">Des exemples inventés, aux initiales. Les relais sautés sont écrits en gris, avec leur raison : le relais ne fait pas tout à toutes, il décide.</p>
+    <div class="onglets" role="tablist" aria-label="Les trois clientes"><button type="button" role="tab" id="t-a" aria-controls="s-a" aria-selected="true">A. K., nouvelle cliente</button><button type="button" role="tab" id="t-b" aria-controls="s-b" aria-selected="false">M. D., habituée à reconquérir</button><button type="button" role="tab" id="t-c" aria-controls="s-c" aria-selected="false">R. T., endormie puis de retour</button></div>
+<div role="tabpanel" id="s-a" aria-labelledby="t-a">
+  <p class="intro">Elle découvre la Maison par le site. Resserrage toutes les 8 semaines, Ma Couronne installée au comptoir, 5 étoiles dès la première venue.</p>
+  <div class="cadre"><table class="simu">
+    <thead><tr><th>Quand</th><th>Relais</th><th>Ce qui se passe</th><th>Ce qui part</th><th>Qui</th></tr></thead>
+    <tbody>
+<tr class="">
+  <td class="d">3 nov. 2026</td>
+  <td class="n"><span class="rond r-serveur">1</span></td>
+  <td>Elle demande un resserrage sur le site, « Me faire rappeler ». L’accusé part aussitôt. L’accueil la rappelle à 11 h et pose le RDV : samedi 7 novembre 2026 à 10 h, Nassim.</td>
+  <td><ul class="parts"><li><span class="pm pm-meta">Meta</span> l’accusé, utilitaire</li><li><span class="pm pm-srv">Serveur</span> demande-submit</li></ul></td>
+  <td class="q">Le serveur, puis l’accueil</td>
+</tr>
+<tr class="">
+  <td class="d">3 nov. 2026</td>
+  <td class="n"><span class="rond r-accueil">2</span></td>
+  <td>La confirmation part sur son WhatsApp.</td>
+  <td><ul class="parts"><li><span class="pm pm-meta">Meta</span> la confirmation, utilitaire</li><li><span class="pm pm-srv">Serveur</span> whatsapp-envoi</li></ul></td>
+  <td class="q">L’accueil</td>
+</tr>
+<tr class="saute">
+  <td class="d">31 oct. 2026</td>
+  <td class="n"><span class="rond r-gerard">3</span></td>
+  <td>Sauté : le point d’avant tombait avant sa demande, et c’est sa première séance.</td>
+  <td><ul class="parts"></ul></td>
+  <td class="q"></td>
+</tr>
+<tr class="saute">
+  <td class="d">5 nov. 2026</td>
+  <td class="n"><span class="rond r-gerard">4</span></td>
+  <td>Sauté : RDV pris depuis 2 jours seulement (il faut plus d’une semaine).</td>
+  <td><ul class="parts"></ul></td>
+  <td class="q"></td>
+</tr>
+<tr class="">
+  <td class="d">6 nov. 2026, 18 h</td>
+  <td class="n"><span class="rond r-serveur">5</span></td>
+  <td>Le rappel de la veille : samedi 10 h, Nassim, l’adresse.</td>
+  <td><ul class="parts"><li><span class="pm pm-meta">Meta</span> le rappel, utilitaire</li><li><span class="pm pm-srv">Serveur</span> rappels-j1</li></ul></td>
+  <td class="q">Le serveur</td>
+</tr>
+<tr class="">
+  <td class="d">7 nov. 2026</td>
+  <td class="n"><span class="rond r-maitre">6</span></td>
+  <td>La séance. Nassim note : mi-long, calibre micro, racines sèches.</td>
+  <td><ul class="parts"><li><span class="pm pm-rien"></span>rien ne part</li></ul></td>
+  <td class="q">Le maître</td>
+</tr>
+<tr class="">
+  <td class="d">7 nov. 2026</td>
+  <td class="n"><span class="rond r-accueil">7</span></td>
+  <td>Terminer la séance : la facture de 60 000 F part sur WhatsApp avec le lien ; elle règle par KkiaPay à 17 h 12 ; le reçu suit.</td>
+  <td><ul class="parts"><li><span class="pm pm-meta">Meta</span> facture_du_rituel · recu_de_paiement</li><li><span class="pm pm-srv">Serveur</span> regler-la-seance</li></ul></td>
+  <td class="q">L’accueil et la Caisse</td>
+</tr>
+<tr class="">
+  <td class="d">7 nov. 2026</td>
+  <td class="n"><span class="rond r-maitre">8</span></td>
+  <td>Ses conseils pour la maison : huile légère deux fois par semaine, foulard en satin la nuit, séchage complet. Quatre lignes, signées par Nassim.</td>
+  <td><ul class="parts"><li><span class="pm pm-cou">Ma Couronne</span> notification gratuite</li></ul></td>
+  <td class="q">Le maître</td>
+</tr>
+<tr class="">
+  <td class="d">8 nov. 2026</td>
+  <td class="n"><span class="rond r-gerard">9</span></td>
+  <td>Première venue réglée : la demande d’avis part. Le 9, elle laisse 5 étoiles ; le Trône propose sa fiche (demande partie la veille, même prénom), l’accueil confirme ; Gérard rédige la réponse, l’accueil la colle sur Google. Prochaine demande au plus tôt le 10 mai 2027.</td>
+  <td><ul class="parts"><li><span class="pm pm-meta">Meta</span> avis_google, utilitaire</li><li><span class="pm pm-srv">Serveur</span> avis-google</li></ul></td>
+  <td class="q">Gérard</td>
+</tr>
+<tr class="">
+  <td class="d">14 nov. 2026</td>
+  <td class="n"><span class="rond r-gerard">10</span></td>
+  <td>Le point d’après : « Comment vont vos locks ? » Elle touche « Tout va bien ». Merci.</td>
+  <td><ul class="parts"><li><span class="pm pm-meta">Meta</span> point_apres_seance, utilitaire</li><li><span class="pm pm-srv">Serveur</span> rappels-j1</li></ul></td>
+  <td class="q">Gérard</td>
+</tr>
+<tr class="">
+  <td class="d">28 nov. 2026</td>
+  <td class="n"><span class="rond r-gerard">11</span></td>
+  <td>Une envie (saison des fêtes : trois semaines après la séance) : ses racines étaient sèches, donc « un soin hydratant DÀNDÀN avant votre prochain resserrage, prévu vers le 2 janvier 2027 ? » Elle touche « Oui, l’ajouter » : noté pour son prochain RDV.</td>
+  <td><ul class="parts"><li><span class="pm pm-cou">Ma Couronne</span> notification gratuite</li></ul></td>
+  <td class="q">Gérard</td>
+</tr>
+<tr class="">
+  <td class="d">26 déc. 2026</td>
+  <td class="n"><span class="rond r-gerard">12</span></td>
+  <td>Tout combiner (cadence le 2 janvier 2027, moins 7 jours) : rien de posé. « Deux places : mercredi 6 janvier 2027 à 10 h, ou samedi 9 à 14 h, avec votre soin. » La Maison est fermée du 1er au 5 janvier : les places sont après. Elle choisit samedi 9 janvier 2027. Le RDV est posé, la confirmation part : relais 2.</td>
+  <td><ul class="parts"><li><span class="pm pm-cou">Ma Couronne</span> notification gratuite</li><li><span class="pm pm-meta">Meta</span> la confirmation</li></ul></td>
+  <td class="q">Gérard, puis l’accueil</td>
+</tr>
+<tr class="">
+  <td class="d">2 janv. 2027</td>
+  <td class="n"><span class="rond r-gerard">13</span></td>
+  <td>Sa date de cadence : le RDV est posé. Elle repart au relais 2 ; le rappel de la veille partira le 8 janvier 2027.</td>
+  <td><ul class="parts"><li><span class="pm pm-rien"></span>rien ne part</li></ul></td>
+  <td class="q">Gérard</td>
+</tr>
+    </tbody>
+  </table></div>
+</div>
+<div role="tabpanel" id="s-b" aria-labelledby="t-b" hidden>
+  <p class="intro">Cliente depuis 2025, resserrage toutes les 6 semaines, sans l’application. Elle a laissé 2 étoiles le 14 septembre 2026 (« quarante minutes d’attente »).</p>
+  <div class="cadre"><table class="simu">
+    <thead><tr><th>Quand</th><th>Relais</th><th>Ce qui se passe</th><th>Ce qui part</th><th>Qui</th></tr></thead>
+    <tbody>
+<tr class="">
+  <td class="d">7 nov. 2026</td>
+  <td class="n"><span class="rond r-accueil">2</span></td>
+  <td>Au comptoir, elle pose son prochain RDV : samedi 28 novembre 2026 à 14 h, Teckle. La confirmation part.</td>
+  <td><ul class="parts"><li><span class="pm pm-meta">Meta</span> la confirmation, utilitaire</li><li><span class="pm pm-srv">Serveur</span> whatsapp-envoi</li></ul></td>
+  <td class="q">L’accueil</td>
+</tr>
+<tr class="">
+  <td class="d">21 nov. 2026</td>
+  <td class="n"><span class="rond r-gerard">3</span></td>
+  <td>Le point d’avant (plus de 14 jours entre ses deux séances) : « Un soin, une coloration, une coiffure pour une occasion ? » Elle touche « Une coloration ». L’accueil l’ajoute à son RDV ; l’échange se lit dans les conversations.</td>
+  <td><ul class="parts"><li><span class="pm pm-meta">Meta</span> point_avant_seance, marketing</li><li><span class="pm pm-srv">Serveur</span> rappels-j1, 18 h</li></ul></td>
+  <td class="q">Gérard, puis l’accueil</td>
+</tr>
+<tr class="">
+  <td class="d">26 nov. 2026</td>
+  <td class="n"><span class="rond r-gerard">4</span></td>
+  <td>Garder le RDV (pris depuis 19 jours) : « C’est toujours bon pour vous ? » Sans l’application, le message part de la main de l’accueil, d’un toucher. « Oui. »</td>
+  <td><ul class="parts"><li><span class="pm pm-main">À la main</span> wa.me, d’un toucher</li><li><span class="pm pm-meta">Meta</span> gerard_garder, à déposer</li></ul></td>
+  <td class="q">Gérard, par l’accueil</td>
+</tr>
+<tr class="">
+  <td class="d">27 nov. 2026, 18 h</td>
+  <td class="n"><span class="rond r-serveur">5</span></td>
+  <td>Le rappel de la veille.</td>
+  <td><ul class="parts"><li><span class="pm pm-meta">Meta</span> le rappel, utilitaire</li><li><span class="pm pm-srv">Serveur</span> rappels-j1</li></ul></td>
+  <td class="q">Le serveur</td>
+</tr>
+<tr class="">
+  <td class="d">28 nov. 2026</td>
+  <td class="n"><span class="rond r-maitre">6</span></td>
+  <td>La séance : resserrage et coloration YÈKPÈ, Teckle.</td>
+  <td><ul class="parts"><li><span class="pm pm-rien"></span>rien ne part</li></ul></td>
+  <td class="q">Le maître</td>
+</tr>
+<tr class="">
+  <td class="d">28 nov. 2026</td>
+  <td class="n"><span class="rond r-accueil">7</span></td>
+  <td>Terminer : facture de 95 000 F ; elle règle 85 000 F en espèces ; reste 10 000 F. Le 29, relance J+1 ; le 30, elle règle par KkiaPay, le reçu suit. Tant qu’elle doit, Gérard ne lui propose rien.</td>
+  <td><ul class="parts"><li><span class="pm pm-meta">Meta</span> facture_du_rituel · rappel_de_reglement (à créer) · recu_de_paiement</li><li><span class="pm pm-srv">Serveur</span> regler-la-seance · relances-factures, 9 h</li></ul></td>
+  <td class="q">La Caisse</td>
+</tr>
+<tr class="">
+  <td class="d">28 nov. 2026</td>
+  <td class="n"><span class="rond r-maitre">8</span></td>
+  <td>Ses conseils pour la maison, après la couleur : pas de lavage avant sept jours, sceller, protéger la nuit.</td>
+  <td><ul class="parts"><li><span class="pm pm-meta">Meta</span> conseils_maison, à créer</li></ul></td>
+  <td class="q">Le maître</td>
+</tr>
+<tr class="">
+  <td class="d">29 nov. 2026</td>
+  <td class="n"><span class="rond r-gerard">9</span></td>
+  <td>Deux étoiles en septembre : on la reconquiert, la demande d’avis part à chaque passage. Le 1er décembre, elle laisse 5 étoiles : « cette fois, zéro attente ». Reliée à sa fiche d’un toucher ; Gérard rédige la réponse. Avec ses 5 étoiles, elle repasse au régime des six mois : prochaine demande au plus tôt le 1er juin 2027.</td>
+  <td><ul class="parts"><li><span class="pm pm-meta">Meta</span> avis_google, utilitaire</li><li><span class="pm pm-srv">Serveur</span> avis-google</li></ul></td>
+  <td class="q">Gérard</td>
+</tr>
+<tr class="">
+  <td class="d">5 déc. 2026</td>
+  <td class="n"><span class="rond r-gerard">10</span></td>
+  <td>Le point d’après : « J’ai un souci » puis « Ça gratte, plaques rouges ». Santé : l’accusé santé part, aucun conseil écrit ; Teckle la rappelle le 6 décembre à 9 h, sous 24 h ; traité. Gérard se tait tant que c’est ouvert.</td>
+  <td><ul class="parts"><li><span class="pm pm-meta">Meta</span> point_apres_seance, utilitaire</li><li><span class="pm pm-srv">Serveur</span> rappels-j1</li></ul></td>
+  <td class="q">Gérard, puis la maîtresse</td>
+</tr>
+<tr class="">
+  <td class="d">19 déc. 2026</td>
+  <td class="n"><span class="rond r-gerard">11</span></td>
+  <td>Une envie (fêtes : trois semaines après la séance) : « une coiffure pour les fêtes ? » Elle touche « Pas cette fois » : cette envie attend trois mois.</td>
+  <td><ul class="parts"><li><span class="pm pm-main">À la main</span> wa.me, d’un toucher</li><li><span class="pm pm-meta">Meta</span> gerard_envie_coiffure, à déposer</li></ul></td>
+  <td class="q">Gérard, par l’accueil</td>
+</tr>
+<tr class="">
+  <td class="d">2 janv. 2027</td>
+  <td class="n"><span class="rond r-gerard">12</span></td>
+  <td>Tout combiner (cadence le 9 janvier 2027) : rien de posé. « Deux places : samedi 9 janvier à 14 h ou mardi 12 à 10 h. » Elle pose mardi 12 janvier 2027 à 10 h ; la confirmation part.</td>
+  <td><ul class="parts"><li><span class="pm pm-main">À la main</span> wa.me, d’un toucher</li><li><span class="pm pm-meta">Meta</span> la confirmation</li></ul></td>
+  <td class="q">Gérard, puis l’accueil</td>
+</tr>
+<tr class="">
+  <td class="d">9 janv. 2027</td>
+  <td class="n"><span class="rond r-gerard">13</span></td>
+  <td>Sa date de cadence : le RDV est posé pour le 12. Elle repart au relais 2.</td>
+  <td><ul class="parts"><li><span class="pm pm-rien"></span>rien ne part</li></ul></td>
+  <td class="q">Gérard</td>
+</tr>
+    </tbody>
+  </table></div>
+</div>
+<div role="tabpanel" id="s-c" aria-labelledby="t-c" hidden>
+  <p class="intro">Dernière venue le 20 juin 2026, cadence 8 semaines : rien de posé pour le 15 août. Elle a l’application. Elle avait laissé 5 étoiles le 3 mars 2026.</p>
+  <div class="cadre"><table class="simu">
+    <thead><tr><th>Quand</th><th>Relais</th><th>Ce qui se passe</th><th>Ce qui part</th><th>Qui</th></tr></thead>
+    <tbody>
+<tr class="">
+  <td class="d">25 août 2026</td>
+  <td class="n"><span class="rond r-gerard">13</span></td>
+  <td>Cadence plus 10 jours, rien de posé : « Votre prochain resserrage était prévu vers le 15 août 2026. Deux places… » Pas de réponse.</td>
+  <td><ul class="parts"><li><span class="pm pm-cou">Ma Couronne</span> notification gratuite</li><li><span class="pm pm-meta">Meta</span> gerard_retard, à déposer</li></ul></td>
+  <td class="q">Gérard</td>
+</tr>
+<tr class="">
+  <td class="d">22 sept. 2026</td>
+  <td class="n"><span class="rond r-gerard">13</span></td>
+  <td>Relance, quatre semaines plus tard. Pas de réponse.</td>
+  <td><ul class="parts"><li><span class="pm pm-cou">Ma Couronne</span> notification gratuite</li></ul></td>
+  <td class="q">Gérard</td>
+</tr>
+<tr class="">
+  <td class="d">15 oct. 2026</td>
+  <td class="n"><span class="rond r-gerard">13</span></td>
+  <td>Elle écrit : « je suis à Paris jusqu’au 10 décembre, je reviens vers vous après ». Gérard retient : absente jusqu’au 10 décembre 2026. Plus rien jusqu’à son retour. L’accueil voit la note sur sa fiche et peut l’effacer.</td>
+  <td><ul class="parts"><li><span class="pm pm-rien"></span>rien ne part</li></ul></td>
+  <td class="q">Gérard</td>
+</tr>
+<tr class="saute">
+  <td class="d">20 oct. 2026</td>
+  <td class="n"><span class="rond r-gerard">13</span></td>
+  <td>Sauté : la relance suivante n’a pas lieu, elle est absente.</td>
+  <td><ul class="parts"></ul></td>
+  <td class="q"></td>
+</tr>
+<tr class="">
+  <td class="d">8 déc. 2026</td>
+  <td class="n"><span class="rond r-gerard">13</span></td>
+  <td>Deux jours avant son retour : « Bon retour bientôt. Deux places : samedi 12 décembre 2026 à 10 h, ou mardi 15 à 14 h. » Elle choisit samedi 12 décembre à 10 h, Aimer. La confirmation part : relais 2.</td>
+  <td><ul class="parts"><li><span class="pm pm-cou">Ma Couronne</span> notification gratuite</li><li><span class="pm pm-meta">Meta</span> la confirmation</li></ul></td>
+  <td class="q">Gérard, puis l’accueil</td>
+</tr>
+<tr class="saute">
+  <td class="d">5 déc. 2026</td>
+  <td class="n"><span class="rond r-gerard">3</span></td>
+  <td>Sauté : le point d’avant tombait avant la prise du RDV.</td>
+  <td><ul class="parts"></ul></td>
+  <td class="q"></td>
+</tr>
+<tr class="saute">
+  <td class="d">10 déc. 2026</td>
+  <td class="n"><span class="rond r-gerard">4</span></td>
+  <td>Sauté : RDV pris depuis 2 jours.</td>
+  <td><ul class="parts"></ul></td>
+  <td class="q"></td>
+</tr>
+<tr class="">
+  <td class="d">11 déc. 2026, 18 h</td>
+  <td class="n"><span class="rond r-serveur">5</span></td>
+  <td>Le rappel de la veille.</td>
+  <td><ul class="parts"><li><span class="pm pm-meta">Meta</span> le rappel, utilitaire</li><li><span class="pm pm-srv">Serveur</span> rappels-j1</li></ul></td>
+  <td class="q">Le serveur</td>
+</tr>
+<tr class="">
+  <td class="d">12 déc. 2026</td>
+  <td class="n"><span class="rond r-maitre">6</span></td>
+  <td>La séance, Aimer. Note : racines qui ont bien poussé, rien d’autre.</td>
+  <td><ul class="parts"><li><span class="pm pm-rien"></span>rien ne part</li></ul></td>
+  <td class="q">Le maître</td>
+</tr>
+<tr class="">
+  <td class="d">12 déc. 2026</td>
+  <td class="n"><span class="rond r-accueil">7</span></td>
+  <td>Terminer : facture de 60 000 F, réglée par KkiaPay, reçu.</td>
+  <td><ul class="parts"><li><span class="pm pm-meta">Meta</span> facture_du_rituel · recu_de_paiement</li><li><span class="pm pm-srv">Serveur</span> regler-la-seance</li></ul></td>
+  <td class="q">L’accueil et la Caisse</td>
+</tr>
+<tr class="">
+  <td class="d">12 déc. 2026</td>
+  <td class="n"><span class="rond r-maitre">8</span></td>
+  <td>Ses conseils pour la maison : reprendre la routine après le voyage, hydrater, protéger du froid au retour.</td>
+  <td><ul class="parts"><li><span class="pm pm-cou">Ma Couronne</span> notification gratuite</li></ul></td>
+  <td class="q">Le maître</td>
+</tr>
+<tr class="">
+  <td class="d">13 déc. 2026</td>
+  <td class="n"><span class="rond r-gerard">9</span></td>
+  <td>Son dernier avis, 5 étoiles, date du 3 mars 2026 : plus de six mois, une demande part. Elle ne répond pas cette fois. Prochaine demande au plus tôt le 13 juin 2027.</td>
+  <td><ul class="parts"><li><span class="pm pm-meta">Meta</span> avis_google, utilitaire</li><li><span class="pm pm-srv">Serveur</span> avis-google</li></ul></td>
+  <td class="q">Gérard</td>
+</tr>
+<tr class="">
+  <td class="d">19 déc. 2026</td>
+  <td class="n"><span class="rond r-gerard">10</span></td>
+  <td>Le point d’après : « Tout va bien ».</td>
+  <td><ul class="parts"><li><span class="pm pm-meta">Meta</span> point_apres_seance, utilitaire</li><li><span class="pm pm-srv">Serveur</span> rappels-j1</li></ul></td>
+  <td class="q">Gérard</td>
+</tr>
+<tr class="">
+  <td class="d">2 janv. 2027</td>
+  <td class="n"><span class="rond r-gerard">11</span></td>
+  <td>Une envie (fêtes : trois semaines après la séance) : « un lavage rituel entre deux séances ? » Elle touche « Pas cette fois ».</td>
+  <td><ul class="parts"><li><span class="pm pm-cou">Ma Couronne</span> notification gratuite</li></ul></td>
+  <td class="q">Gérard</td>
+</tr>
+<tr class="">
+  <td class="d">30 janv. 2027</td>
+  <td class="n"><span class="rond r-gerard">12</span></td>
+  <td>Tout combiner (cadence le 6 février 2027) : rien de posé. Deux places. Elle pose samedi 6 février 2027 à 10 h.</td>
+  <td><ul class="parts"><li><span class="pm pm-cou">Ma Couronne</span> notification gratuite</li><li><span class="pm pm-meta">Meta</span> la confirmation</li></ul></td>
+  <td class="q">Gérard, puis l’accueil</td>
+</tr>
+<tr class="">
+  <td class="d">6 févr. 2027</td>
+  <td class="n"><span class="rond r-gerard">13</span></td>
+  <td>Sa date de cadence : le RDV est posé. Elle repart au relais 2.</td>
+  <td><ul class="parts"><li><span class="pm pm-rien"></span>rien ne part</li></ul></td>
+  <td class="q">Gérard</td>
+</tr>
+    </tbody>
+  </table></div>
+</div>
+  </section>
+
+  <section>
     <span class="sur">Le béton armé</span>
     <h2>Les règles qui ne bougent jamais</h2>
     <ol class="regles">
@@ -338,3 +665,18 @@ td.e { color: var(--doux); }
     </ol>
   </section>
 </div>
+<script>
+(() => {
+  for (const liste of document.querySelectorAll('[role="tablist"]')) {
+    const onglets = [...liste.querySelectorAll('[role="tab"]')];
+    for (const t of onglets) t.addEventListener('click', () => {
+      for (const x of onglets) {
+        const actif = x === t;
+        x.setAttribute('aria-selected', String(actif));
+        const p = document.getElementById(x.getAttribute('aria-controls'));
+        if (p) p.hidden = !actif;
+      }
+    });
+  }
+})();
+</script>

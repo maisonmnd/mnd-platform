@@ -229,7 +229,8 @@ export type PourquoiDemander = 'premiere' | 'reconquete' | 'six-mois' | 'trop-to
 export type DemandeDAvis = { permise: boolean; pourquoi: PourquoiDemander; des?: string };
 
 /** La demande d'avis est-elle permise aujourd'hui ?
-    - son dernier avis relié fait 1 à 3 étoiles : oui, à chaque passage ;
+    - son DERNIER avis relié fait 1 à 3 étoiles : oui, à chaque passage (passée
+      à 4 ou 5 étoiles, elle revient au régime des six mois) ;
     - sa première venue réglée, rien demandé, rien laissé : oui ;
     - sinon, six mois après le plus récent de sa dernière demande partie et
       de son dernier avis ; avant, « trop tôt », avec le jour où l'on pourra. */

@@ -177,6 +177,14 @@ dit('chercher : le début des mots du nom, sans accent ; quatre chiffres du num�
     { type: 'avis-google', clientId: 'm2', quand: '2026-10-24T10:00:00.000Z', statut: 'échec' },
     { type: 'confirmation', clientId: 'm2', quand: '2026-10-25T10:00:00.000Z', statut: 'envoyé' },
   ]));
+  dit('2 étoiles en septembre, puis 5 étoiles le 1er décembre : elle repasse au régime des six mois (dès le 1er juin 2027)', { permise: false, pourquoi: 'trop-tot', des: '2027-06-01' },
+    demandeDAvisPermise({ premiereVenue: false, dernierAvis: { jour: '2026-12-01', note: 5 }, aujourdhui: '2026-12-13' }));
+  const deuxAvis: LiensDesAvis = { 'a-sept': { clientId: 'c7', le: '2026-09-15T10:00:00.000Z' }, 'a-dec': { clientId: 'c7', le: '2026-12-02T10:00:00.000Z' } };
+  const sesDeux = [
+    { auteur: 'M. D.', note: 2, texte: 'Quarante minutes d attente', quand: '2026-09-14T10:00:00.000Z', publieLe: '2026-09-14T09:00:00.000Z', cle: 'a-sept' },
+    { auteur: 'M. D.', note: 5, texte: 'Cette fois zero attente', quand: '2026-12-01T10:00:00.000Z', publieLe: '2026-12-01T09:00:00.000Z', cle: 'a-dec' },
+  ] as AvisDuReleve[];
+  dit('... son DERNIER avis fait foi, pas le pire', { jour: '2026-12-01', note: 5 }, dernierAvisDe('c7', sesDeux, deuxAvis, '2026-12-13T06:00:00.000Z'));
   const liens: LiensDesAvis = { 'a-1': { clientId: 'c1', le: '2026-10-21T10:00:00.000Z' } };
   const releve = [{ auteur: 'Awa D.', note: 3, texte: 'Bien mais long', quand: '2026-10-20T10:00:00.000Z', publieLe: '2026-10-20T09:00:00.000Z', cle: 'a-1' }] as AvisDuReleve[];
   dit('son dernier avis relié : le jour et la note', { jour: '2026-10-20', note: 3 }, dernierAvisDe('c1', releve, liens, '2026-10-26T06:00:00.000Z'));
