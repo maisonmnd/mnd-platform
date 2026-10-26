@@ -27,6 +27,11 @@ export type RdvLu = {
   dureeMin: number;
   netXof: number;
   resteXof: number;
+  /** De l'argent reçu sur ce rendez-vous (hors acompte), ou une facture qui
+      le porte : un rendez-vous passé ainsi est une venue, même jamais marqué
+      « honoré » (26 octobre 2026). */
+  encaisse?: boolean;
+  facture?: boolean;
 };
 
 /* ── LES DATES, SANS FUSEAU ─────────────────────────────────────────── */
@@ -114,13 +119,18 @@ export function dettesParCliente(rdvs: readonly RdvLu[], aujourdhui: string): Ma
 }
 
 /** L'HISTOIRE D'UNE TÊTE : ses rendez-vous passés, honorés, annulés. */
-export function historiqueParCliente(rdvs: readonly Pick<RdvLu, 'clientId' | 'date' | 'status'>[], aujourdhui: string): Map<string, { total: number; honores: number; annules: number }> {
+export function historiqueParCliente(rdvs: readonly Pick<RdvLu, 'clientId' | 'date' | 'status' | 'encaisse' | 'facture'>[], aujourdhui: string): Map<string, { total: number; honores: number; annules: number }> {
   const m = new Map<string, { total: number; honores: number; annules: number }>();
   for (const a of rdvs) {
     if (a.date >= aujourdhui && a.status !== 'honoré' && a.status !== 'annulé') continue;
     const cur = m.get(a.clientId) ?? { total: 0, honores: 0, annules: 0 };
     cur.total += 1;
-    if (a.status === 'honoré') cur.honores += 1;
+    /* UNE VENUE, C'EST AUSSI UN RENDEZ-VOUS PASSÉ ENCAISSÉ OU FACTURÉ —
+       26 octobre 2026 (« Mariette M. n'annule jamais », elle passait pour une
+       première venue) : ses rendez-vous passés n'avaient jamais été cliqués
+       « honoré ». Une cliente fidèle ne passe plus pour une inconnue faute
+       d'un clic ; `honores` compte ses venues. */
+    if (a.status === 'honoré' || (a.status !== 'annulé' && a.date < aujourdhui && (a.encaisse || a.facture))) cur.honores += 1;
     if (a.status === 'annulé') cur.annules += 1;
     m.set(a.clientId, cur);
   }

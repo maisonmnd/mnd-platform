@@ -114,6 +114,22 @@ dit('chaque ligne a ses signaux (calcul en infobulle) et UN geste', [true, true]
 dit('« Encaisser l ancien » ouvre l encaissement du plus ancien rituel du', true, carnet.includes("if (g.cle === 'ancien') { const d = signaux.dettes.get(a.clientId); if (d) setPayAppt(appts.find((x) => x.id === d.plusAncien.id) ?? null); }"));
 dit('la recherche comprend une phrase et le dit', [true, true], [carnet.includes('comprendsLaPhrase(query,'), carnet.includes('Le Carnet comprend')]);
 dit('pas de tiret cadratin dans ce que l ecran dit', false, carnet.includes('—'));
+/* UNE VENUE = UN RDV PASSÉ HONORÉ, ENCAISSÉ OU FACTURÉ — 26 octobre 2026 (Mariette M., « n'annule jamais »). */
+{
+  const AUJ_V = '2026-10-26';
+  const v = (id: string, date: string, status: string, o: { encaisse?: boolean; facture?: boolean } = {}) => ({ id, clientId: 'mm', date, status, ...o });
+  const h = (rdvs: ReturnType<typeof v>[]) => historiqueParCliente(rdvs, AUJ_V).get('mm');
+  const futur = { date: '2026-11-03', depositConfirmed: false, creeLe: '2026-10-20' };
+  dit('passes restes « confirmes » mais encaisses : des venues, plus de « premiere venue »', [2, false],
+    [h([v('a', '2026-09-03', 'confirmé', { encaisse: true }), v('b', '2026-10-03', 'confirmé', { encaisse: true })])?.honores,
+      risqueDAbsence(futur, h([v('a', '2026-09-03', 'confirmé', { encaisse: true }), v('b', '2026-10-03', 'confirmé', { encaisse: true })])).risque]);
+  dit('... une facture suffit aussi', 1, h([v('c', '2026-10-10', 'confirmé', { facture: true })])?.honores);
+  dit('... mais un passe sans argent ni facture, un annule ou un a venir ne comptent pas', [0, true],
+    [h([v('d', '2026-10-10', 'confirmé'), v('e', '2026-10-12', 'annulé', { encaisse: true }), v('f', '2026-11-10', 'confirmé', { facture: true })])?.honores,
+      risqueDAbsence(futur, h([v('d', '2026-10-10', 'confirmé')])).risque]);
+  dit('le Carnet dit au juge l argent recu et la facture de chaque RDV', true,
+    carnet.includes('encaisse: apptPaidXof(a) > 0, facture: !!a.invoiceId || rdvsFactures.has(a.id),'));
+}
 /* LA TUILE « ATTENDU » INTERROGE UN AUTRE JOUR — 26 octobre 2026 : les chiffres ET la liste suivent le jour choisi. */
 dit('« Attendu » : le chiffre et la liste suivent le jour choisi, fleches et calendrier', [true, true, true, true, true],
   [carnet.includes('})), jourVu),'), carnet.includes('jour: vivants.filter((a) => a.date === jourVu)'),

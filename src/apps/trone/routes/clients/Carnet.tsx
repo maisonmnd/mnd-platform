@@ -13,7 +13,8 @@ import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
 import { normName } from '../../../../shared/text';
 import { monthTitle } from '../finances/_shared';
-import { appointmentsStore, type Appointment } from '../../../../shared/agenda';
+import { appointmentsStore, apptPaidXof, type Appointment } from '../../../../shared/agenda';
+import { useInvoices } from '../../../../shared/finance';
 import { useCategories, useServices, useProducts, MAISONS, type Maison } from '../../../../shared/catalog';
 import { useModelBands, useBandSets } from '../../../../shared/pricing';
 import { useSettings, openingForIso } from '../../../../shared/settings';
@@ -264,11 +265,17 @@ export default function Carnet() {
      chiffré (net, reste, durée), et les signaux se calculent dessus : ce
      qu'elle doit d'avant, l'acompte qui manque à 48 h, le risque d'absence
      sur son historique, les têtes au-delà des fauteuils, l'anniversaire. */
+  /* Les rendez-vous qui portent une facture : un passé encaissé ou facturé
+     est une venue, même jamais cliqué « honoré » (26 octobre 2026). */
+  const [pieces] = useInvoices();
+  const rdvsFactures = useMemo(() => new Set(pieces
+    .filter((p) => p.apptId && p.kind === 'facture').map((p) => p.apptId as string)), [pieces]);
   const lus = useMemo(() => appts.map((a): RdvLu => ({
     id: a.id, clientId: a.clientId, date: a.date, time: a.time, status: a.status, master: a.master,
     depositXof: a.depositXof, depositConfirmed: a.depositConfirmed, creeLe: a.creeLe,
     dureeMin: apptDurationMin(a, byId), netXof: apptNetXof(a, byId), resteXof: apptDueXof(a, byId),
-  })), [appts, byId, bands, sets, produits, reglages]);
+    encaisse: apptPaidXof(a) > 0, facture: !!a.invoiceId || rdvsFactures.has(a.id),
+  })), [appts, byId, bands, sets, produits, reglages, rdvsFactures]);
   const luDe = useMemo(() => new Map(lus.map((l) => [l.id, l] as const)), [lus]);
   const signaux = useMemo(() => {
     const dettes = dettesParCliente(lus, today);
