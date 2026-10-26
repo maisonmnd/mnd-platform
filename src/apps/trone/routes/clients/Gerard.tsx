@@ -4,7 +4,7 @@ import { useStaff } from '../../../../shared/auth';
 import { DEVISE_COMPLETE } from '../../../../shared/identite';
 import { prenomSeul } from '../../../../shared/civilite';
 import { lienWaMe } from '../../../../shared/conversations';
-import { DEVENU_DIT, devenuDe } from '../../../../shared/envois';
+import { DEVENU_DIT, devenuDe, jourDuSalon } from '../../../../shared/envois';
 import {
   ENVIE_DITE, GENRE_DIT, MODELES_DE_GERARD, REMISE_ANNIV_PCT, REMISE_CREUX_PCT, REPONSE_FRANCHE, SIGNATURE,
   filDeLaCliente, jourDit, ligneALaMain, planDuJour, servie,
@@ -82,7 +82,8 @@ export default function Gerard() {
   const [envois] = useEnvois();
   /* Ce qui est parti aujourd'hui : le journal du jour. */
   const duJour = useMemo(() => (envois as unknown as (Record<string, unknown> & { id: string; type?: string; clientId?: string; statut: string; etat?: string; deposeLe?: string; quand?: string })[])
-    .filter((e) => e.type === 'gerard' && (e.deposeLe ?? e.quand ?? '').slice(0, 10) === ctx.aujourdhui)
+    /* Le jour du salon, pas la date UTC : entre minuit et 1 h à Cotonou, l'instant est encore « hier » en UTC. */
+    .filter((e) => e.type === 'gerard' && jourDuSalon(String(e.deposeLe ?? e.quand ?? '')) === ctx.aujourdhui)
     .sort((x, y) => String(x.deposeLe ?? '').localeCompare(String(y.deposeLe ?? ''))), [envois, ctx.aujourdhui]);
   /* UN TOUCHER : le message s'ouvre dans WhatsApp, déjà écrit ; il est noté au journal, et son code fabriqué. */
   const noteALaMain = (s: Situation) => {

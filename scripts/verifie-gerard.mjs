@@ -15,7 +15,22 @@ import { spawnSync } from 'node:child_process';
 const racine = path.resolve(import.meta.dirname, '..');
 const prouve = process.argv.includes('--prouve');
 
+/* LA LECTURE RESTE PURE (27 octobre 2026) : la fonction serveur
+   assistant-maison l'emporte ; un magasin, la synchronisation, React ou les
+   reglages du navigateur dans son paquet la casseraient au serveur. */
+const IMPURS = /(^|\/)(store|sync|settings|supabase|auth|branches)\.tsx?$|node_modules\/react/;
+async function lectureImpure() {
+  const r = await build({
+    entryPoints: [path.join(racine, 'src/shared/assistant-lecture-pur.ts')],
+    bundle: true, format: 'esm', platform: 'neutral', write: false, metafile: true, logLevel: 'silent',
+  });
+  return Object.keys(r.metafile.inputs).filter((f) => IMPURS.test(f.replace(/\\/g, '/')));
+}
+
 async function lanceLeBanc() {
+  const impurs = await lectureImpure().catch((e) => [`construction impossible : ${String(e?.message ?? e).slice(0, 200)}`]);
+  if (impurs.length) return { status: 1, stdout: `ECHEC la lecture de l Assistant tire : ${impurs.join(', ')}
+`, stderr: '' };
   const dossier = path.join(racine, 'node_modules', '.cache', 'verifie-gerard');
   mkdirSync(dossier, { recursive: true });
   try {
@@ -35,6 +50,7 @@ const DERNIER = 'src/shared/dernier-message-pur.ts';
 const ENVOIS = 'src/shared/envois.ts';
 const ECRAN = 'src/apps/trone/routes/clients/Gerard.tsx';
 const DONNEES = 'src/apps/trone/routes/clients/gerard-donnees.ts';
+const LECTURE = 'src/shared/assistant-lecture-pur.ts';
 const PANNES = [
   ['garder un RDV pris la veille', PUR, '>= GARDER_SI_POSE_DEPUIS)', '>= 0)'],
   ['l anniversaire fete deux fois', PUR, "&& (f.birthdayGiftAt ?? '').slice(0, 4) !== A.slice(0, 4)", ''],
@@ -52,7 +68,7 @@ const PANNES = [
   ['la date sans annee', PUR, "${MOIS[d.getUTCMonth()]} ${d.getUTCFullYear()}`;", "${MOIS[d.getUTCMonth()]}`;"],
   ['la question franche sourde', PUR, '|\\bje parle (à|a) qui\\b', ''],
   ['la signature redevient Gerard', PUR, "export const SIGNATURE = 'Maison MND';", "export const SIGNATURE = 'Gérard, Maison MND';"],
-  ['l ecran lit le cycle suivant', DONNEES, 'cad.overdueDays > 0 ? addDaysISO(today, -cad.overdueDays) : cad.iso', 'cad.iso'],
+  ['l ecran lit le cycle suivant', LECTURE, 'cad.overdueDays > 0 ? addDaysISO(today, -cad.overdueDays) : cad.iso', 'cad.iso'],
   ['les fetes au rythme ordinaire', PUR, "export const ENVIE_TOUS_LES_JOURS_EN_FETES = 21;", "export const ENVIE_TOUS_LES_JOURS_EN_FETES = 30;"],
   ['les relances des fetes a quatre semaines', PUR, "export const RELANCE_TOUS_LES_JOURS_EN_FETES = 14;", "export const RELANCE_TOUS_LES_JOURS_EN_FETES = 28;"],
   ['Noel au 1er decembre', PUR, "export const NOEL_DU = '11-15';", "export const NOEL_DU = '12-01';"],
@@ -61,9 +77,9 @@ const PANNES = [
   ['une ligne ecartee comptee', PUR, "if (e.statut === 'écarté' || e.statut === 'périmé' || e.statut === 'échec') continue;", ''],
   ['WhatsApp avant Ma Couronne', PUR, "if (EST_UN_SERVICE[genre]) return f.couronne ? 'couronne' : f.telephone ? 'whatsapp' : null;", "if (EST_UN_SERVICE[genre]) return f.telephone ? 'whatsapp' : f.couronne ? 'couronne' : null;"],
   ['le passage depose WhatsApp aussi', DONNEES, "if (s.canal !== 'couronne' || !servie(r, s.clientId)) continue;", 'if (!servie(r, s.clientId)) continue;'],
-  ['l ecran oublie ses envois', DONNEES, 'traces: traces.get(c.id) ?? [],', 'traces: [],'],
+  ['l ecran oublie ses envois', LECTURE, 'traces: traces.get(c.id) ?? [],', 'traces: [],'],
   ['un souci ouvert ne fait plus taire', PUR, '  if (f.souciOuvert) return null;\n', ''],
-  ['la fiche oublie le souci ouvert', DONNEES, '        souciOuvert: souciOuvertDe(signalements.filter((s) => s.clientId === c.id)),\n', ''],
+  ['la fiche oublie le souci ouvert', LECTURE, '      souciOuvert: souciOuvertDe(sesSignalements),\n', ''],
   ['l ecran cache Entre deux seances', ECRAN, '      <GerardEntreDeux />\n', ''],
   /* Maquette v4, lot 1 : une panne par regle nouvelle. */
   ['une relance redevient service', PUR, "garder: true, combiner: false, retard: false, 'une-venue': false,", "garder: true, combiner: false, retard: true, 'une-venue': false,"],
@@ -84,14 +100,24 @@ const PANNES = [
   ['les WhatsApp sortants oublies', DERNIER, "  for (const w of messages) if (w.sens === 'sortant') pose(w.clientId, w.quand);\n", ''],
   ['la reponse due sans fin', DERNIER, 'maintenantMs - t < 48 * 3_600_000', 'true'],
   ['le jour lu en UTC', DERNIER, 'new Date(t + 3_600_000)', 'new Date(t)'],
-  ['la fiche oublie la dette', DONNEES, '        resteDu: resteDu.get(c.id) ?? 0,\n', ''],
-  ['le plafond ne compte que l Assistant', DONNEES, 'codes: codes.filter((k) => k.branchId === branch.id), lundi', "codes: codes.filter((k) => k.branchId === branch.id && k.parQui === 'Gérard'), lundi"],
+  ['la fiche oublie la dette', LECTURE, '      resteDu: resteDu.get(c.id) ?? 0,\n', ''],
+  ['le plafond ne compte que l Assistant', LECTURE, 'codes: codes.filter((k) => k.branchId === e.branche.id), lundi', "codes: codes.filter((k) => k.branchId === e.branche.id && k.parQui === 'Gérard'), lundi"],
+  ['la lecture oublie l enfant du foyer', LECTURE, 'return !!payeur && payeur !== c.id && !(c.birthday && !estMineur(c, today));', 'return false;'],
+  ['la lecture oublie la carte cadeau', LECTURE, '      carteVivante: carteSurSaFiche.has(c.id),\n', ''],
+  ['la lecture oublie la remise vivante', LECTURE, '      codesVivants: codesVivantsDe(codes, c.id, maintenantIso).length,\n', ''],
+  ['la lecture oublie la reponse due', LECTURE, '      attendUneReponse: attend.has(c.id),\n', ''],
+  ['la lecture oublie la relance de facture', LECTURE, '      derniereRelanceLe: derniereRelance.get(c.id),\n', ''],
+  ['la lecture oublie les autres voix', LECTURE, '      dernierMessageHorsService: dernierHorsService.get(c.id),\n', ''],
+  ['la lecture ouvre les jours fermes', LECTURE, 'iso, aujourdhui: today, maintenantMin: 0, ouverture: e.ouverture(iso), durationMin: duree,', "iso, aujourdhui: today, maintenantMin: 0, ouverture: { closed: false, openMin: 540, closeMin: 1140 }, durationMin: duree,"],
+  ['le code signe Gerard', LECTURE, "parQui: 'Assistant Maison', note: GENRE_DIT[s.genre],", "parQui: 'Gérard', note: GENRE_DIT[s.genre],"],
+  ['les eteintes perdues en route', LECTURE, 'ctx: { aujourdhui: today, creux, remisesRestantes, placesDe, eteintes: rg.eteintes },', 'ctx: { aujourdhui: today, creux, remisesRestantes, placesDe },'],
   ['une situation eteinte ecrit encore', PUR, '    if (ctx.eteintes?.includes(genre) || f.jamais?.includes(genre)) return null;\n', "    if (f.jamais?.includes(genre)) return null;\n"],
   ['jamais pour elle oublie', PUR, '    if (ctx.eteintes?.includes(genre) || f.jamais?.includes(genre)) return null;\n', "    if (ctx.eteintes?.includes(genre)) return null;\n"],
   ['une situation inconnue gardee', PUR, "return [...new Set(x.filter((g): g is GenreDeMessage => typeof g === 'string' && g in PRIORITE))];", "return [...new Set(x as GenreDeMessage[])];"],
   ['la reponse perdue', PUR, '...(reponse ? { reponse } : {}) };', '};'],
-  ['la fiche oublie jamais pour elle', DONNEES, '        jamais: rg.jamais[c.id] ?? [],\n', ''],
+  ['la fiche oublie jamais pour elle', LECTURE, '      jamais: rg.jamais[c.id] ?? [],\n', ''],
   ['l Assistant pris pour l equipe', ENVOIS, " || /^(assistant maison|g[ée]rard)$/i.test((parQui ?? '').trim());", ';'],
+  ['la lecture tire les reglages du navigateur', LECTURE, "import { deuxPlaces } from './processus-pur';", "import { deuxPlaces } from './processus-pur';\nimport { openingForIso } from './settings';\nvoid openingForIso;"],
   ['l ecran perd le plafond en francs', ECRAN, '                onChange={(e) => setFrancs(e.target.value)} onBlur={posePlafond} />', '                onChange={(e) => setFrancs(e.target.value)} />'],
 ];
 

@@ -63,7 +63,7 @@ import {
   ajouteJours, ancreDeLaSemaine, bloqueLaPose, ceQuiReste, debutDeLaSemaine, placesDuJour, prestationsDeLaCase,
   raisonDeLHeure, rangeeSuivante, septJours, type Occupant, type Rangee,
 } from './rdv-fluide-pur';
-import { estUnSinsin, maitresPermis, MAITRE_DES_SINSIN } from '../../../../shared/agenda-pur';
+import { dureeDuRendezVous, estUnSinsin, maitresPermis, MAITRE_DES_SINSIN } from '../../../../shared/agenda-pur';
 
 export { ChampDeDate };
 
@@ -227,12 +227,9 @@ export const apptDurationMin = (a: Appointment, byId: Map<string, Service>) =>
      `Appointment.dureeMin` : le passé ne se recalcule pas.
      ② ③ Sinon la grille par longueur, sinon le catalogue : c'est le calcul
      d'avant, mot pour mot, et c'est lui que lisent tous les rendez-vous
-     posés avant cette règle. */
-  a.dureeMin
-  || apptServices(a, byId).reduce(
-    (sum, s) => sum + ((a.longueur ? s.dureeParLongueur?.[a.longueur] : undefined) ?? s.durationMin),
-    0,
-  ) || 60;
+     posés avant cette règle. Le calcul vit dans `agenda-pur.ts` depuis le
+     27 octobre 2026 : la fonction serveur de l'Assistant le lit aussi. */
+  dureeDuRendezVous(a, byId);
 
 /* Série multi-séances : la prestation n'est facturée qu'UNE fois.
    Le montant est porté par la séance 1 ; les séances suivantes valent 0

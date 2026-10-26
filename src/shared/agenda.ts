@@ -606,11 +606,10 @@ export const venuesDeLAnnee = (
   return jours.size;
 };
 
-/** Total réellement encaissé au salon sur un rendez-vous. Le journal fait foi dès
-    qu'il existe ; sinon on retombe sur `paidXof` — les rendez-vous d'avant le
-    journal n'ont que lui, et les ignorer effacerait leur règlement. */
-export const apptPaidXof = (a: Pick<Appointment, 'payments' | 'paidXof'>): number =>
-  a.payments?.length ? a.payments.reduce((s, p) => s + (Number(p.amountXof) || 0), 0) : Number(a.paidXof) || 0;
+/* Total réellement encaissé sur un rendez-vous : `agenda-pur.ts` le porte
+   depuis le 27 octobre 2026 (la fonction serveur de l'Assistant le lit). */
+import { apptPaidXof } from './agenda-pur';
+export { apptPaidXof };
 
 /** Ce qui est entré CE JOUR-LÀ sur ce rendez-vous — la brique de la recette du
     jour et du registre des encaissements. Un rituel de mai payé d'avance en avril

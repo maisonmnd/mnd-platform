@@ -2,38 +2,24 @@ import { useEffect, useMemo, useRef } from 'react';
 import { useBranch } from '../../../../shared/branches';
 import { useStaff } from '../../../../shared/auth';
 import { useSettings, openingForIso } from '../../../../shared/settings';
-import { apptPaidXof } from '../../../../shared/agenda';
-import { invoiceResteXof, invoiceTotal, useInvoices } from '../../../../shared/finance';
-import { seRelance } from '../../../../shared/relances-pur';
-import { estMineur } from '../../../../shared/accounts';
+import { useInvoices } from '../../../../shared/finance';
 import { useFamilies } from '../../../../shared/clients';
 import { useMessagesWa } from '../../../../shared/conversations';
 import { useCartesCadeaux } from '../../../../shared/cartes-cadeaux';
-import { estEchue, etatDeLaCarte } from '../../../../shared/cartes-cadeaux-pur';
-import { attendUneReponse, derniersMessagesHorsService, dernieresRelancesDeFacture } from '../../../../shared/dernier-message-pur';
-import { predictNextVisit } from '../../../../shared/cadence';
-import { aDefaitSesLocks, estDePassage, estDiaspora, type Client } from '../../../../shared/clients';
-import { appelDe, prenomSeul } from '../../../../shared/civilite';
-import { aAccepteLesNouvelles } from '../../../../shared/audiences-pur';
+import { prenomSeul } from '../../../../shared/civilite';
 import { useSignalements } from '../../../../shared/entre-deux';
-import { souciOuvertDe } from '../../../../shared/gerard-entre-deux-pur';
-import { useBlocages, plagesBloquees } from '../../../../shared/blocages';
-import { GESTES_EN_FRANCAIS, litLaMarqueWa } from '../../../../shared/gestes-en-francais';
-import { estUneVenue } from '../../../../shared/previsions-pur';
-import { rdvParJour, reperesDe, reperesParJour } from '../../../../shared/objectifs-des-fauteuils-pur';
+import { useBlocages } from '../../../../shared/blocages';
 import { heureDeDepart, heureDuSalon, REGLES_PAR_DEFAUT } from '../../../../shared/salle-des-envois';
-import { codesPromoStore, codesVivantsDe, fabriqueLeCode, useCodesPromo } from '../../../../shared/promos';
+import { codesPromoStore, useCodesPromo } from '../../../../shared/promos';
 import { useStore } from '../../../../shared/store';
-import {
-  GENRE_DIT, familleDuNom, joursCreux, ligneDeNotification, passageDu, planDuJour, plafondDeLaSemaine, servie, tracesDesEnvois,
-  type ContexteDeGerard, type FamilleDeSoin, type FicheDeGerard, type LigneDeGerard, type Place, type Situation,
-} from '../../../../shared/gerard-pur';
+import { ligneDeNotification, passageDu, planDuJour, servie, type LigneDeGerard, type Situation } from '../../../../shared/gerard-pur';
+import { codeDeLaSituation, lisLAssistant, type CerveauDeGerard } from '../../../../shared/assistant-lecture-pur';
 import { reglagesDeGerardStore, reglagesLus, useReglagesDeGerard } from '../../../../shared/gerard';
-import { deuxPlaces } from '../../../../shared/processus-pur';
 import { envoisStore, useEnvois } from '../equipe/data';
 import { useAbonnesAuxNotifications } from '../equipe/useAudiences';
-import { placesDuJour } from './rdv-fluide-pur';
-import { addDaysISO, apptDurationMin, timeToMin, todayISO, useBranchAppointments, useBranchClients, useServicesById } from './_shared';
+import { todayISO, useBranchAppointments, useBranchClients, useServicesById } from './_shared';
+
+export type { CerveauDeGerard };
 
 /* ══ CE QUE GÉRARD LIT, ET SON PASSAGE DU JOUR — 26 octobre 2026 ══════════
    Le cerveau est `shared/gerard-pur.ts`. Ici, ce qu'il lit autour de lui
@@ -45,29 +31,13 @@ import { addDaysISO, apptDurationMin, timeToMin, todayISO, useBranchAppointments
    relance de facture, réponse due, enfant d'un foyer, carte cadeau, remise
    déjà à son nom) et le dernier message hors service de TOUTES les voix de
    la Maison ; le plafond de la semaine compte toutes les remises à son nom
-   et leurs francs. */
+   et leurs francs.
 
-const NOM_DE_LA_FAMILLE: Record<FamilleDeSoin, string> = {
-  resserrage: 'resserrage des racines', couleur: 'couleur végétale', hydratation: 'soin hydratant',
-  lavage: 'lavage rituel', coiffure: 'coiffure', autre: 'soin',
-};
+   27 OCTOBRE 2026 : la lecture vit dans `shared/assistant-lecture-pur.ts`,
+   partagée avec la fonction serveur `assistant-maison`. Ici, la prise sur
+   les magasins du Trône, et rien d'autre. */
 
-/** Le lundi de la semaine d'un jour. */
-const lundiDe = (j: string): string => { const d = new Date(`${j}T12:00:00Z`); const s = (d.getUTCDay() + 6) % 7; return addDaysISO(j, -s); };
-
-export type CerveauDeGerard = {
-  fiches: FicheDeGerard[];
-  ctx: ContexteDeGerard;
-  nomDe: (id: string) => string;
-  clientDe: (id: string) => Client | undefined;
-  /** Le compte où elle reçoit ses notifications : sa fiche, ou son compte Ma Couronne. */
-  compteDe: (id: string) => string;
-  rdvAGarder: (clientId: string) => { id: string; date: string; time: string } | undefined;
-  /** Le plafond de la semaine : remises faites, francs engagés, et ses deux bornes. */
-  plafond: { faites: number; francs: number; restantes: number; remisesParSemaine: number; plafondFrancs: number };
-};
-
-/** LES FICHES QUE GÉRARD LIT, et ce dont il a besoin autour d'elles. */
+/** LES FICHES QUE L'ASSISTANT LIT, prises sur les magasins du Trône. */
 export function useCerveauDeGerard(): CerveauDeGerard {
   const { branch } = useBranch();
   const appts = useBranchAppointments();
@@ -86,153 +56,21 @@ export function useCerveauDeGerard(): CerveauDeGerard {
   const [brutGerard] = useReglagesDeGerard();
   const today = todayISO();
 
-  return useMemo(() => {
-    const factures = new Set(pieces.filter((p) => p.apptId && p.kind === 'facture').map((p) => p.apptId as string));
-    const parCliente = new Map<string, typeof appts>();
-    for (const a of appts) { const l = parCliente.get(a.clientId); if (l) l.push(a); else parCliente.set(a.clientId, [a]); }
-    const nomDuService = (id: string) => byId.get(id)?.name ?? '';
-    const ilYA60 = addDaysISO(today, -60);
-    const traces = tracesDesEnvois(envois as unknown as Parameters<typeof tracesDesEnvois>[0]);
-    const abonnee = (c: Client) => abonnes.has(c.id) || (!!c.authUserId && abonnes.has(c.authUserId));
-    const maintenantMs = Date.now();
-    const maintenantIso = new Date(maintenantMs).toISOString();
-    const rg = reglagesLus(brutGerard);
-
-    /* CE QUI LA FAIT TAIRE. */
-    const resteDu = new Map<string, number>();
-    for (const p of pieces) {
-      if (!seRelance(p)) continue;
-      const reste = invoiceResteXof(p);
-      if (reste > 0) resteDu.set(p.clientId, (resteDu.get(p.clientId) ?? 0) + reste);
-    }
-    const envoisLus = envois as unknown as Parameters<typeof derniersMessagesHorsService>[0];
-    const messagesLus = messages as unknown as NonNullable<Parameters<typeof derniersMessagesHorsService>[1]>;
-    const dernierHorsService = derniersMessagesHorsService(envoisLus, messagesLus);
-    const derniereRelance = dernieresRelancesDeFacture(envoisLus);
-    const attend = attendUneReponse(messagesLus, maintenantMs);
-    const payeurDe = new Map(familles.map((f) => [f.id, f.payerClientId]));
-    const carteSurSaFiche = new Set(cartes
-      .filter((k) => !!k.clientId && etatDeLaCarte(k, today) === 'sur-sa-fiche' && !estEchue(k, today))
-      .map((k) => k.clientId as string));
-
-    const fiches: FicheDeGerard[] = clients.map((c) => {
-      const siens = parCliente.get(c.id) ?? [];
-      const rdvs = siens.map((a) => ({
-        id: a.id, date: a.date, time: a.time, status: a.status, creeLe: a.creeLe,
-        familles: (a.serviceIds ?? []).map((id) => familleDuNom(nomDuService(id))),
-        venu: estUneVenue({ date: a.date, status: a.status, encaisse: apptPaidXof(a) > 0, facture: !!a.invoiceId || factures.has(a.id) }, today),
-      }));
-      const cad = siens.length ? predictNextVisit(siens, [c], c.id, today) : null;
-      /* Le nom de son soin habituel : celui de sa dernière venue, en français. */
-      const derniere = siens.filter((a) => a.status === 'honoré').sort((x, y) => x.date.localeCompare(y.date)).pop();
-      const premierNom = derniere ? nomDuService(derniere.serviceIds?.[0] ?? '') : '';
-      const geste = GESTES_EN_FRANCAIS[litLaMarqueWa(premierNom).marque];
-      const soinDit = geste ? geste.long.toLowerCase() : NOM_DE_LA_FAMILLE[familleDuNom(premierNom)];
-      return {
-        id: c.id,
-        appel: appelDe(c),
-        soinDit,
-        birthday: c.birthday,
-        birthdayGiftAt: c.birthdayGiftAt,
-        accord: aAccepteLesNouvelles(c),
-        stop: c.nouvelles?.par === 'stop' && c.nouvelles?.oui === false,
-        couronne: abonnee(c),
-        telephone: (c.phone ?? '').replace(/\D/g, '').length >= 8,
-        ecartee: estDePassage(c) || estDiaspora(c) || aDefaitSesLocks(c) || !!c.archived,
-        soucis: signalements.filter((s) => s.clientId === c.id && (s.quand ?? '') >= ilYA60).flatMap((s) => s.soucis ?? []),
-        souciOuvert: souciOuvertDe(signalements.filter((s) => s.clientId === c.id)),
-        resteDu: resteDu.get(c.id) ?? 0,
-        derniereRelanceLe: derniereRelance.get(c.id),
-        dernierMessageHorsService: dernierHorsService.get(c.id),
-        attendUneReponse: attend.has(c.id),
-        /* Enfant d'un foyer : un autre paie pour elle, et rien ne dit qu'elle
-           est majeure. Dans le doute, on n'écrit pas : le parent reçoit. */
-        enfantDuFoyer: (() => {
-          const payeur = c.familyId ? payeurDe.get(c.familyId) : undefined;
-          return !!payeur && payeur !== c.id && !(c.birthday && !estMineur(c, today));
-        })(),
-        carteVivante: carteSurSaFiche.has(c.id),
-        codesVivants: codesVivantsDe(codes, c.id, maintenantIso).length,
-        jamais: rg.jamais[c.id] ?? [],
-        rdvs,
-        traces: traces.get(c.id) ?? [],
-        /* La date ATTENDUE : pour une cliente en retard, la Cadence reporte
-           sa date au cycle suivant ; Gérard lit la date manquée. */
-        cadence: {
-          iso: cad?.predicted ? (cad.overdueDays > 0 ? addDaysISO(today, -cad.overdueDays) : cad.iso) : null,
-          rythmeJours: cad?.avgDays ?? (c.rythmeSemaines ? c.rythmeSemaines * 7 : null),
-        },
-      };
-    });
-
-    /* LE PLAFOND DE LA SEMAINE, TOUT COMPRIS : toutes les remises à son nom
-       de la branche depuis lundi, et leurs francs (le ticket moyen des
-       factures de 90 jours sert de base à un code encore vivant). */
-    const lundi = lundiDe(today);
-    const ilYA90 = addDaysISO(today, -90);
-    const tickets = pieces.filter((p) => seRelance(p) && p.date >= ilYA90).map(invoiceTotal).filter((x) => x > 0);
-    const ticketMoyenXof = tickets.length ? Math.round(tickets.reduce((a, b) => a + b, 0) / tickets.length) : 0;
-    const plafond = plafondDeLaSemaine({
-      codes: codes.filter((k) => k.branchId === branch.id), lundi, maintenantIso, ticketMoyenXof,
-      remisesParSemaine: rg.remisesParSemaine, plafondFrancs: rg.plafondFrancs,
-    });
-    const remisesRestantes = plafond.restantes;
-
-    /* Les jours creux : posés contre l'ordinaire de ce jour de la semaine. */
-    const ouvertLe = (j: string) => !openingForIso(j).closed;
-    const parJour = rdvParJour(appts.map((a) => ({ date: a.date, status: a.status })));
-    const reperes = reperesParJour({ parJour, aujourdhui: today, ouvertLe });
-    const creux = joursCreux({ aujourdhui: today, parJour, ordinaireDe: (j) => reperesDe(reperes, j).ordinaire, ouvertLe, remisesRestantes });
-
-    /* Deux places pour elle : la durée et le maître de son dernier rituel. */
-    const sieges = Math.max(0, branch.seats ?? 0);
-    const occupesDu = (iso: string) => appts.filter((a) => a.date === iso && a.status !== 'annulé')
-      .map((a) => ({ maitre: a.master, debutMin: timeToMin(a.time), dureeMin: apptDurationMin(a, byId) }));
-    const cache = new Map<string, Place[]>();
-    const placesDe = (clientId: string, jour?: string): Place[] => {
-      const dernier = (parCliente.get(clientId) ?? []).filter((a) => a.status === 'honoré').sort((x, y) => x.date.localeCompare(y.date)).pop();
-      const duree = dernier ? Math.max(30, apptDurationMin(dernier, byId)) : 120;
-      const maitre = dernier?.master || 'Team';
-      const cle = `${duree}|${maitre}|${jour ?? '7'}`;
-      if (!cache.has(cle)) {
-        const jours = jour ? [jour] : [1, 2, 3, 4, 5, 6, 7].map((k) => addDaysISO(today, k));
-        cache.set(cle, deuxPlaces(jours.map((iso) => placesDuJour({
-          iso, aujourdhui: today, maintenantMin: 0, ouverture: openingForIso(iso), durationMin: duree,
-          occupes: occupesDu(iso), bloques: plagesBloquees(blocages, branch.id, iso, maitre), sieges,
-        }))));
-      }
-      return cache.get(cle)!;
-    };
-
-    const parId = new Map(clients.map((c) => [c.id, c]));
-    return {
-      fiches,
-      ctx: { aujourdhui: today, creux, remisesRestantes, placesDe, eteintes: rg.eteintes },
-      nomDe: (id: string) => parId.get(id)?.name ?? '',
-      clientDe: (id: string) => parId.get(id),
-      compteDe: (id: string) => { const c = parId.get(id); return c?.authUserId && abonnes.has(c.authUserId) ? c.authUserId : id; },
-      rdvAGarder: (clientId: string) => (parCliente.get(clientId) ?? [])
-        .filter((a) => a.date === addDaysISO(today, 2) && a.status !== 'annulé' && a.status !== 'honoré')
-        .map((a) => ({ id: a.id, date: a.date, time: a.time }))[0],
-      plafond: { ...plafond, remisesParSemaine: rg.remisesParSemaine, plafondFrancs: rg.plafondFrancs },
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [appts, clients, byId, signalements, abonnes, envois, pieces, blocages, branch.id, branch.seats, today, reglages, familles, messages, cartes, codes, brutGerard]);
+  return useMemo(() => lisLAssistant({
+    aujourdhui: today, maintenantMs: Date.now(), branche: { id: branch.id, seats: branch.seats },
+    clients, rdvs: appts, prestations: byId, signalements, abonnes, envois, messages, pieces, blocages,
+    familles, cartes, codes, reglagesGerard: brutGerard, ouverture: openingForIso,
+  }),
+  /* Les réglages de la Maison (`reglages`) portent les heures que lit `openingForIso`. */
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  [appts, clients, byId, signalements, abonnes, envois, pieces, blocages, branch.id, branch.seats, today, reglages, familles, messages, cartes, codes, brutGerard]);
 }
 
-/** Les heures d'un code jusqu'à la fin de son dernier jour (23 h 59 à Cotonou). */
-const heuresJusquA = (jour: string, maintenantMs: number): number =>
-  Math.max(1, Math.ceil((Date.parse(`${jour}T23:59:00+01:00`) - maintenantMs) / 3_600_000));
-
 /** LE CODE NOMINATIF d'une situation (jour creux, anniversaire), fabriqué
-    au moment où le message part, à son nom. */
+    au moment où le message part, à son nom, et gardé au registre. */
 export function fabriqueLeCodeDe(s: Situation, o: { branchId: string; nom: string; maintenantMs: number }): string | undefined {
-  if (!s.code) return undefined;
-  const code = fabriqueLeCode({
-    branchId: o.branchId, clientId: s.clientId, clientNom: o.nom, mot: s.code.mot, remisePct: s.code.pct,
-    heures: heuresJusquA(s.code.jusquau, o.maintenantMs), parQui: 'Assistant Maison', note: GENRE_DIT[s.genre],
-    maintenant: new Date(o.maintenantMs).toISOString(),
-  }, codesPromoStore.get());
+  const code = codeDeLaSituation(s, o, codesPromoStore.get());
+  if (!code) return undefined;
   codesPromoStore.set((prev) => [...prev, code]);
   return code.code;
 }

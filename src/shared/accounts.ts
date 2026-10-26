@@ -2,6 +2,10 @@ import type { Client, Family } from './clients';
 import { aUnPrixConvenu } from './clients';
 import { venuesHonorees, venuesDeLAnnee, apptPayeurId, apptPaidXof, type Appointment } from './agenda';
 import type { CreditHolder } from './finance';
+/* L'âge et la minorité vivent dans `clients-pur.ts` depuis le 27 octobre
+   2026 (la fonction serveur de l'Assistant les lit) ; réexportés d'ici. */
+import { ageDe, estMineur } from './clients-pur';
+export { ageDe, estMineur };
 
 /* Comptes & avoirs — résolution du porteur d'avoir et du payeur d'une cliente.
    Le porte-monnaie d'avoir vit sur le COMPTE : compte famille (porte-monnaie du
@@ -42,21 +46,6 @@ export const sameHolder = (a: CreditHolder, b: CreditHolder): boolean => a.type 
    déjà, avec son parent payeur. Ce fichier ne fait qu'en tirer les questions
    qu'on lui pose vraiment. */
 
-/** L'âge en années révolues, ou `undefined` si la date de naissance manque. */
-export function ageDe(birthday: string | undefined, aujourdhui: string): number | undefined {
-  if (!birthday) return undefined;
-  const n = new Date(`${birthday}T00:00:00`);
-  const j = new Date(`${aujourdhui}T00:00:00`);
-  if (Number.isNaN(n.getTime()) || Number.isNaN(j.getTime())) return undefined;
-  let a = j.getFullYear() - n.getFullYear();
-  const m = j.getMonth() - n.getMonth();
-  if (m < 0 || (m === 0 && j.getDate() < n.getDate())) a -= 1;
-  return a;
-}
-
-/** Est-elle mineure ? SANS DATE DE NAISSANCE, LA RÉPONSE EST NON — et c'est
-    voulu : la minorité ouvre l'accès du parent à ses données, elle ne se
-    présume pas. La règle échoue fermée, ce qui oblige à renseigner la date. */
 /** L'ÂGE JUSQU'AUQUEL UNE TÊTE EST « MND Kids » — 3 septembre 2026.
 
     LA MAJORITÉ NE CONVIENT PAS ICI. La Maison compte les mineurs à 18 ans pour
@@ -85,10 +74,7 @@ export const estKids = (
   return age <= AGE_MND_KIDS ? 'oui' : 'non';
 };
 
-export const estMineur = (client: Pick<Client, 'birthday'>, aujourdhui: string): boolean => {
-  const a = ageDe(client.birthday, aujourdhui);
-  return a !== undefined && a < 18;
-};
+
 
 /** LES TÊTES QU'UN PARENT PORTE — les mineurs de sa famille, lui excepté.
 

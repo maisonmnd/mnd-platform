@@ -73,3 +73,23 @@ export const dortDepuisLongtemps = (
   if (estDiaspora(c)) return false;
   return derniereVenue < moisAvant(aujourdhui, mois);
 };
+
+/** L'âge en années révolues, ou `undefined` si la date de naissance manque. */
+export function ageDe(birthday: string | undefined, aujourdhui: string): number | undefined {
+  if (!birthday) return undefined;
+  const n = new Date(`${birthday}T00:00:00`);
+  const j = new Date(`${aujourdhui}T00:00:00`);
+  if (Number.isNaN(n.getTime()) || Number.isNaN(j.getTime())) return undefined;
+  let a = j.getFullYear() - n.getFullYear();
+  const m = j.getMonth() - n.getMonth();
+  if (m < 0 || (m === 0 && j.getDate() < n.getDate())) a -= 1;
+  return a;
+}
+
+/** Est-elle mineure ? SANS DATE DE NAISSANCE, LA RÉPONSE EST NON — et c'est
+    voulu : la minorité ouvre l'accès du parent à ses données, elle ne se
+    présume pas. La règle échoue fermée, ce qui oblige à renseigner la date. */
+export const estMineur = (client: { birthday?: string }, aujourdhui: string): boolean => {
+  const a = ageDe(client.birthday, aujourdhui);
+  return a !== undefined && a < 18;
+};

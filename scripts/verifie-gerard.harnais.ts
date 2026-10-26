@@ -16,6 +16,7 @@ import {
 } from '../src/shared/gerard-pur';
 import { attendUneReponse, derniersMessagesHorsService, dernieresRelancesDeFacture, jourACotonou } from '../src/shared/dernier-message-pur';
 import { estEnvoiAutomatique } from '../src/shared/envois';
+import { codeDeLaSituation, lisLAssistant, lundiDe, type EntreesDeLAssistant } from '../src/shared/assistant-lecture-pur';
 import { gerardSeTait } from '../src/shared/gerard-entre-deux-pur';
 
 let ko = 0;
@@ -278,27 +279,81 @@ dit('le plafond compte toutes les remises depuis lundi ; les francs : réels si 
 dit('... au plafond en francs, plus aucune remise', 0, plafondDeLaSemaine({ lundi: '2026-10-26', maintenantIso: '2026-10-28T12:00:00Z', ticketMoyenXof: 20000, remisesParSemaine: 8, plafondFrancs: 5000,
   codes: [{ creeLe: '2026-10-26T10:00:00Z', expireLe: '2026-10-29T10:00:00Z', remisePct: 15 }, { creeLe: '2026-10-26T10:00:00Z', expireLe: '2026-10-29T10:00:00Z', remisePct: 15 }] }).restantes);
 
+/* ── 14 quinquies. La lecture partagée (le Trône et la fonction serveur) ── */
+const LA = '2026-10-26';
+const maintenantLu = Date.parse('2026-10-26T09:00:00Z');
+const tete = (id: string, o: Record<string, unknown> = {}) => ({ id, branchId: 'b', name: `${id.toUpperCase()} X.`, phone: '+229 01 51 00 00 11', nouvelles: { oui: true, le: '2026-01-01', par: 'comptoir' }, segments: [], ...o });
+const rituel = (id: string, clientId: string, date: string, o: Record<string, unknown> = {}) => ({ id, branchId: 'b', clientId, serviceIds: ['s1'], date, time: '10:00', status: 'honoré', master: 'Aimée', ...o });
+const entrees = (o: Partial<EntreesDeLAssistant> = {}): EntreesDeLAssistant => ({
+  aujourdhui: LA, maintenantMs: maintenantLu, branche: { id: 'b', seats: 2 },
+  clients: [
+    tete('dette'), tete('enfant', { familyId: 'f1', birthday: '2015-03-01' }), tete('parent', { familyId: 'f1' }),
+    tete('carte'), tete('code'), tete('ecrit'), tete('relancee'), tete('ailleurs', { diaspora: true }), tete('jamais'),
+    tete('souci'), tete('retard'),
+  ] as never,
+  rdvs: [rituel('r1', 'retard', '2026-07-01'), rituel('r2', 'retard', '2026-08-05')] as never,
+  prestations: new Map([['s1', { name: 'SÍNSIN™ Essentiel · La Reprise', durationMin: 120 }]]) as never,
+  signalements: [{ id: 'sg', branchId: 'b', clientId: 'souci', soucis: ['chute'], canal: 'couronne', quand: '2026-10-20T09:00:00Z', etat: 'ouvert' }] as never,
+  abonnes: new Set(['u-carte']),
+  envois: [
+    { type: 'relance-facture', clientId: 'relancee', statut: 'envoyé', quand: '2026-10-23T09:00:00Z' },
+    { type: 'avis-google', clientId: 'ecrit', statut: 'envoyé', quand: '2026-10-20T09:00:00Z' },
+    { type: 'gerard', clientId: 'jamais', statut: 'envoyé', deposeLe: '2026-09-01T09:00:00Z', genre: 'envie', envie: 'lavage', reponse: 'non' },
+  ],
+  messages: [{ sens: 'entrant', clientId: 'ecrit', quand: '2026-10-26T07:00:00Z' }],
+  pieces: [
+    { id: 'p1', kind: 'facture', status: 'envoyée', clientId: 'dette', date: '2026-10-10', lines: [{ qty: 1, unitXof: 20000, discountPct: 0 }], globalDiscountPct: 0, payments: [{ id: 'v', date: '2026-10-10', amountXof: 15000 }] },
+    { id: 'p2', kind: 'facture', status: 'payée', clientId: 'carte', date: '2026-10-12', lines: [{ qty: 1, unitXof: 30000, discountPct: 0 }], globalDiscountPct: 0 },
+  ] as never,
+  blocages: [],
+  familles: [{ id: 'f1', payerClientId: 'parent' }],
+  cartes: [{ id: 'k', branchId: 'b', clientId: 'carte', statut: 'rattachee', valableJusquau: '2027-06-01' }] as never,
+  codes: [
+    { id: 'c1', branchId: 'b', code: 'CREUX15-AAA', clientId: 'code', creeLe: '2026-10-26T08:00:00Z', expireLe: '2026-10-29T22:59:00Z', remisePct: 15, parQui: 'Gérard' },
+    { id: 'c2', branchId: 'b', code: 'ROSE-BBB', clientId: 'autre', creeLe: '2026-10-26T08:30:00Z', expireLe: '2026-10-28T08:30:00Z', remisePct: 10, parQui: 'La direction' },
+    { id: 'c3', branchId: 'autre', code: 'X-CCC', clientId: 'loin', creeLe: '2026-10-26T08:30:00Z', expireLe: '2026-10-28T08:30:00Z', remisePct: 10 },
+  ] as never,
+  reglagesGerard: { mode: 'ouvert', jamais: { jamais: ['envie'] }, eteintes: ['creux'], remisesParSemaine: 8, plafondFrancs: 60000 },
+  ouverture: (iso) => ({ closed: [0, 1].includes(new Date(`${iso}T12:00:00Z`).getUTCDay()), openMin: 540, closeMin: 1140 }),
+  ...o,
+});
+const lu = lisLAssistant(entrees());
+const f = (id: string) => lu.fiches.find((x) => x.id === id)!;
+dit('la lecture : la dette (20 000 F moins 15 000 F réglés), l’enfant du foyer (pas son parent), la carte sur sa fiche, la remise vivante', [5000, true, false, true, 1],
+  [f('dette').resteDu, f('enfant').enfantDuFoyer, f('parent').enfantDuFoyer, f('carte').carteVivante, f('code').codesVivants]);
+dit('... ce qu’elle a écrit (moins de 48 heures), la relance de facture, la demande d’avis comptée, l’ailleurs écarté, « jamais pour elle »', [true, '2026-10-23', '2026-10-20', true, ['envie']],
+  [f('ecrit').attendUneReponse, f('relancee').derniereRelanceLe, f('ecrit').dernierMessageHorsService, f('ailleurs').ecartee, f('jamais').jamais]);
+dit('... le souci ouvert (chute = santé), sa réponse « non » relue, Ma Couronne par son compte', ['sante', 'non', true],
+  [f('souci').souciOuvert, f('jamais').traces[0]?.reponse, lisLAssistant(entrees({ clients: [tete('carte', { authUserId: 'u-carte' })] as never })).fiches[0].couronne]);
+dit('... la date ATTENDUE d’une cliente en retard (la date manquée, pas le cycle suivant), son rythme, son soin en français', ['2026-09-09', 35, 'resserrage'],
+  [f('retard').cadence.iso, f('retard').cadence.rythmeJours, f('retard').soinDit.split(' ')[0]]);
+dit('... le plafond compte toutes les remises de la branche, quel qu’en soit l’auteur ; les situations éteintes passent au contexte', [2, ['creux']],
+  [lu.plafond.faites, lu.ctx.eteintes]);
+dit('... deux places pour elle, jamais un jour fermé (dimanche, lundi)', true,
+  lu.ctx.placesDe('retard').length === 2 && lu.ctx.placesDe('retard').every((p) => ![0, 1].includes(new Date(`${p.iso}T12:00:00Z`).getUTCDay()))
+    && lu.ctx.placesDe('retard', '2026-11-01').length === 0 && lu.ctx.placesDe('retard', '2026-10-31').length > 0);
+dit('le lundi de la semaine', ['2026-10-26', '2026-10-26', '2026-10-19'], [lundiDe('2026-10-26'), lundiDe('2026-11-01'), lundiDe('2026-10-25')]);
+const codeFait = codeDeLaSituation({ clientId: 'retard', genre: 'creux', code: { mot: 'CREUX', pct: 15, jusquau: '2026-10-29', jour: '2026-10-29' } }, { branchId: 'b', nom: 'R. X.', maintenantMs: maintenantLu }, []);
+dit('le code d’une situation : à son nom, signé « Assistant Maison », jusqu’à minuit du jour creux à Cotonou', ['retard', 'Assistant Maison', 15, '2026-10-29T23:00'],
+  [codeFait?.clientId, codeFait?.parQui, codeFait?.remisePct, codeFait?.expireLe.slice(0, 16)]);
+
 /* ── 15. L'écran et la barre ── */
 const ecran = sansCommentaires(readFileSync('src/apps/trone/routes/clients/Gerard.tsx', 'utf8'));
 const donnees = sansCommentaires(readFileSync('src/apps/trone/routes/clients/gerard-donnees.ts', 'utf8'));
-dit('l’écran : le plan par le cerveau, la date manquée d’une cliente en retard, la venue du Carnet, ses propres envois', [true, true, true, true],
-  [/planDuJour\(fiches, ctx\)/.test(ecran), /cad\.overdueDays > 0 \? addDaysISO\(today, -cad\.overdueDays\) : cad\.iso/.test(donnees),
-    donnees.includes('encaisse: apptPaidXof(a) > 0, facture: !!a.invoiceId || factures.has(a.id)'), /traces: traces\.get\(c\.id\) \?\? \[\]/.test(donnees)]);
+const lecture = sansCommentaires(readFileSync('src/shared/assistant-lecture-pur.ts', 'utf8'));
+dit('l’écran : le plan par le cerveau ; la lecture : la venue du Carnet ; le Trône lit par la lecture partagée', [true, true, true],
+  [/planDuJour\(fiches, ctx\)/.test(ecran), lecture.includes('encaisse: apptPaidXof(a) > 0, facture: !!a.invoiceId || factures.has(a.id)'),
+    /return useMemo\(\(\) => lisLAssistant\(\{/.test(donnees)]);
 dit('... le passage ne dépose que Ma Couronne, aux clientes servies', true, /if \(s\.canal !== 'couronne' \|\| !servie\(r, s\.clientId\)\) continue;/.test(donnees));
 dit('... le passage du jour au chargement, le bouton WhatsApp, le journal du jour', [true, true, true],
   [/useLePassageDeGerard\(cerveau, plan\)/.test(ecran), /lienWaMe\(cerveau\.clientDe\(s\.clientId\)\?\.phone/.test(ecran), /<h3>Aujourd’hui <span>ce qui est parti<\/span><\/h3>/.test(ecran)]);
 const tableau = readFileSync('src/apps/trone/routes/pilotage/Dashboard.tsx', 'utf8');
 dit('... et le tableau de bord lance le passage', true, /<PassageDeGerard \/>/.test(tableau));
-dit('la fiche lit ce qui la fait taire : dette, relance, toutes les voix, réponse due, foyer, carte, remise vivante', [true, true, true, true, true, true, true],
-  ['resteDu: resteDu.get(c.id) ?? 0,', 'derniereRelanceLe: derniereRelance.get(c.id),', 'dernierMessageHorsService: dernierHorsService.get(c.id),', 'attendUneReponse: attend.has(c.id),',
-    'enfantDuFoyer: (() => {', 'carteVivante: carteSurSaFiche.has(c.id),', 'codesVivants: codesVivantsDe(codes, c.id, maintenantIso).length,'].map((x) => donnees.includes(x)));
-dit('... le plafond compte toutes les remises de la branche, quel qu’en soit l’auteur', true, donnees.includes('codes: codes.filter((k) => k.branchId === branch.id), lundi'));
-dit('... la fiche lit « jamais pour elle », le contexte les situations éteintes, le code est signé « Assistant Maison »', [true, true, true],
-  [donnees.includes('jamais: rg.jamais[c.id] ?? [],'), donnees.includes('eteintes: rg.eteintes }'), donnees.includes("parQui: 'Assistant Maison'")]);
+dit('... le Trône garde le code au registre, fabriqué par la lecture partagée', true, /const code = codeDeLaSituation\(s, o, codesPromoStore\.get\(\)\);/.test(donnees));
 dit('l’écran : Pause ou Actif, plus d’essai à cinq ; le plafond en nombre et en francs', [true, false, 2],
   [/metEnPause\(m\.pause/.test(ecran), /essai/i.test(ecran), (ecran.match(/onBlur=\{posePlafond\}/g) ?? []).length]);
 dit('Entre deux séances : la fiche lit le souci ouvert, l’écran montre ce que Gérard en sait', [true, true],
-  [/souciOuvert: souciOuvertDe\(signalements\.filter\(\(s\) => s\.clientId === c\.id\)\)/.test(donnees), /<GerardEntreDeux \/>/.test(ecran)]);
+  [/souciOuvert: souciOuvertDe\(sesSignalements\)/.test(lecture), /<GerardEntreDeux \/>/.test(ecran)]);
 const routes = readFileSync('src/apps/trone/routes/index.tsx', 'utf8');
 dit('la barre : Gérard en Clientèle, sous Clientes, et nommé parmi les écrans nés après les départements', [true, true],
   [routes.indexOf("path: '/gerard'") > routes.indexOf("path: '/customers'") && routes.indexOf("path: '/gerard'") < routes.indexOf("path: '/carnet'"),

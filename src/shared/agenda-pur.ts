@@ -212,3 +212,31 @@ export function maitresPermis(noms: readonly (string | null | undefined)[], mait
   return noms.some(estUnSinsin) && maitres.includes(MAITRE_DES_SINSIN) ? [MAITRE_DES_SINSIN] : [...maitres];
 }
 /* ⟨/agenda-pur⟩ */
+
+/* ══ L'ARGENT ET LA DURÉE D'UN RENDEZ-VOUS, PURS — 27 octobre 2026 ══════
+   Sortis d'agenda.ts et du Trône (`_shared.tsx`) pour la fonction serveur
+   de l'Assistant Maison ; les deux fichiers les réexportent ou les
+   appellent : un seul juge. */
+
+/** Total réellement encaissé au salon sur un rendez-vous. Le journal fait foi dès
+    qu'il existe ; sinon on retombe sur `paidXof` — les rendez-vous d'avant le
+    journal n'ont que lui, et les ignorer effacerait leur règlement. */
+export const apptPaidXof = (a: { payments?: readonly { amountXof?: number | string }[]; paidXof?: number | string }): number =>
+  a.payments?.length ? a.payments.reduce((s, p) => s + (Number(p.amountXof) || 0), 0) : Number(a.paidXof) || 0;
+
+/** Ce que la durée lit d'une prestation du catalogue. */
+export type PrestationDuree = { durationMin: number; dureeParLongueur?: Partial<Record<string, number>> };
+
+/** LA DURÉE D'UN RENDEZ-VOUS. ① Ce qui est écrit sur le rendez-vous fait foi
+    (1er septembre 2026, `Appointment.dureeMin` : le passé ne se recalcule
+    pas) ; ② ③ sinon la grille par longueur, sinon le catalogue ; une heure
+    si rien ne se lit. */
+export const dureeDuRendezVous = (
+  a: { dureeMin?: number; serviceIds?: readonly string[]; longueur?: string },
+  byId: ReadonlyMap<string, PrestationDuree>,
+): number =>
+  a.dureeMin
+  || (a.serviceIds ?? []).map((id) => byId.get(id)).filter((s): s is PrestationDuree => !!s).reduce(
+    (sum, s) => sum + ((a.longueur ? s.dureeParLongueur?.[a.longueur] : undefined) ?? s.durationMin),
+    0,
+  ) || 60;
