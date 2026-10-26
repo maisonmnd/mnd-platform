@@ -154,7 +154,7 @@ function LeFil({ fiche, aujourdhui }: { fiche: FicheDeGerard; aujourdhui: string
         <div className="trc-ger__trait" />
         {points.map((p, i) => (
           <div key={`${p.iso}-${i}`} className={`trc-ger__noeud${p.existant ? ' est-existant' : ' est-gerard'}${p.iso === aujourdhui ? ' est-aujourdhui' : ''}${i % 3 === 1 ? ' en-haut' : i % 3 === 2 ? ' en-bas' : ''}`}
-            style={{ left: `${5 + 90 * p.jour / fin}%` }}>
+            style={{ left: `${10 + 80 * p.jour / fin}%` }}>
             <i />
             <small><b>{p.quoi}</b>{jourDit(p.iso).replace(/^\S+ /, '')}</small>
           </div>
@@ -304,7 +304,7 @@ export default function Gerard() {
               <tr><td>Les remises</td><td>Jour creux {REMISE_CREUX_PCT} %, anniversaire {REMISE_ANNIV_PCT} % (30 jours), {REMISES_PAR_SEMAINE} remises de jour creux par semaine.</td></tr>
               <tr><td>Noël</td><td>Du 1er au 15 décembre, les places des fêtes et la carte cadeau, sans remise.</td></tr>
               <tr><td>Toujours</td><td>Jamais entre 20 h et 8 h, jamais deux messages en moins de deux semaines (hors garder son RDV), jamais de prix ni de civilité supposée ; les sollicitations vont d’abord à Ma Couronne, sinon sur WhatsApp avec l’accord des nouvelles.</td></tr>
-              <tr><td>La question franche</td><td>Il signe « {SIGNATURE} » et n’annonce rien de lui-même ; à « c’est un robot ? », il répond : « {REPONSE_FRANCHE} »</td></tr>
+              <tr><td>La question franche</td><td>Ses messages sont signés « {SIGNATURE} » et il n’annonce rien de lui-même ; à « c’est un robot ? », il répond : « {REPONSE_FRANCHE} »</td></tr>
             </tbody>
           </table>
         </div>

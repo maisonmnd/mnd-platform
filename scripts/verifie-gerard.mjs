@@ -48,6 +48,7 @@ const PANNES = [
   ['Noel avec un code', PUR, "return fait('noel', 'noel', [f.appel, A.slice(0, 4)], pourquoiDuFil);", "return fait('noel', 'noel', [f.appel, A.slice(0, 4)], pourquoiDuFil, { code: { mot: 'CREUX', pct: 15, jusquau: A } });"],
   ['la date sans annee', PUR, "${MOIS[d.getUTCMonth()]} ${d.getUTCFullYear()}`;", "${MOIS[d.getUTCMonth()]}`;"],
   ['la question franche sourde', PUR, '|\\bje parle (à|a) qui\\b', ''],
+  ['la signature redevient Gerard', PUR, "export const SIGNATURE = 'Maison MND';", "export const SIGNATURE = 'Gérard, Maison MND';"],
   ['l ecran lit le cycle suivant', ECRAN, 'cad.overdueDays > 0 ? addDaysISO(today, -cad.overdueDays) : cad.iso', 'cad.iso'],
 ];
 

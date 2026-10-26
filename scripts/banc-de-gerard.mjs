@@ -148,7 +148,7 @@ try {
   dit('la ligne de M. D. s ouvre', await evalue(String.raw`(() => { const b = [...document.querySelectorAll('.trc-ger__ligne')].find((x) => x.textContent.includes('M. D.')); if (b) b.click(); return !!b; })()`));
   await attend(400);
   const panneau = await evalue(String.raw`(document.querySelector('.trc-ger__panneau')?.innerText || '').replace(/\s+/g, ' ')`);
-  dit('... le message dit la date manquée avec l année, la signature et la devise', /devait revenir vers le \S+ \d{1,2}(er)? \S+ \d{4}\./.test(panneau) && /je vous en garde une \? Gérard, Maison MND/.test(panneau) && /mi nyɔ́ ɖɛkpɛ, votre beauté est déjà là/.test(panneau), panneau.slice(0, 260));
+  dit('... le message dit la date manquée avec l année, la signature et la devise', /était prévu vers le \S+ \d{1,2}(er)? \S+ \d{4}\./.test(panneau) && /je vous en garde une \? Maison MND/.test(panneau) && /mi nyɔ́ ɖɛkpɛ, votre beauté est déjà là/.test(panneau), panneau.slice(0, 260));
   dit('... et le pourquoi : sa dernière venue, sa date de cadence, son retard', /Dernière venue/.test(panneau) && /Sa date de cadence/.test(panneau) && /Retard \d+ jours/.test(panneau));
   await photo('1-plan');
   dit('« Mettre dans l essai »', await clique('.trc-ger__btn', 'Mettre dans l’essai'));

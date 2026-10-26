@@ -37,10 +37,11 @@ dit('les familles d’après le nom du catalogue', ['resserrage', 'hydratation',
   ['SÍNSIN™ Essentiel · La Reprise', 'DÀNDÀN™ · Le Soin Hydratant', 'KLƆKLƆ™ Essentiel · « Le Souffle »', 'Coiffure Événement', 'YÈKPÈ™ Couleur', 'Droit de service · Shampoing apporté · Essentiel'].map(familleDuNom));
 dit('une date de cliente porte l’année, le 1er se dit « 1er »', ['mardi 3 novembre 2026', 'mardi 1er décembre 2026', '12 h 15', '10 h'],
   [jourDit('2026-11-03'), jourDit('2026-12-01'), heureDite('12:15'), heureDite('10:00')]);
-dit('un modèle se remplit variable par variable, et finit par la signature', 'Bonjour Madame K., votre resserrage des racines est mardi 3 novembre 2026 à 10 h. C’est toujours bon pour vous ?\n\nGérard, Maison MND',
+dit('un modèle se remplit variable par variable, et finit par la signature « Maison MND », jamais « Gérard »', 'Bonjour Madame K., votre resserrage des racines est mardi 3 novembre 2026 à 10 h. C’est toujours bon pour vous ?\n\nMaison MND',
   remplis(MODELES_DE_GERARD.garder.corps, ['Madame K.', 'resserrage des racines', 'mardi 3 novembre 2026 à 10 h']));
-dit('chaque modèle a un nom Meta, au plus trois boutons, jamais de prix, jamais le mot « code » (Meta le rangerait en Authentification)', true,
-  Object.values(MODELES_DE_GERARD).every((m) => /^gerard_[a-z_]+$/.test(m.nom) && m.boutons.length <= 3 && !/\d\s?(F|FCFA|XOF)\b/.test(m.corps) && !/\bcodes?\b/i.test(m.corps)));
+dit('chaque modèle a un nom Meta, au plus trois boutons, jamais de prix, jamais le mot « code » (Meta le rangerait en Authentification), jamais « Gérard » ni « devait revenir »', true,
+  Object.values(MODELES_DE_GERARD).every((m) => /^gerard_[a-z_]+$/.test(m.nom) && m.boutons.length <= 3 && !/\d\s?(F|FCFA|XOF)\b/.test(m.corps) && !/\bcodes?\b/i.test(m.corps)
+    && !/Gérard|devait revenir|arrive vers/.test(m.corps)));
 
 /* ── 2. La date de cadence et le fil ── */
 const rdvPose = { id: 'p', date: '2026-12-08', time: '10:00', status: 'confirmé', familles: ['resserrage'], venu: false } as RdvDeGerard;
@@ -59,7 +60,7 @@ dit('... le point d’avant et le RDV sont « déjà au Trône », les envies et
 const rdvDans2 = (creeLe?: string): RdvDeGerard => ({ id: 'g', date: plusJours(A, 2), time: '10:00', status: 'confirmé', familles: ['resserrage'], venu: false, creeLe });
 const g = sit(fiche({ rdvs: [venue(plusJours(A, -40)), rdvDans2(`${plusJours(A, -10)}T09:00:00.000Z`)] }));
 dit('garder : deux jours avant un RDV pris depuis plus d’une semaine, sur WhatsApp, modèle utilitaire', ['garder', 'whatsapp', 'garder', true],
-  [g?.genre, g?.canal, g?.modele, /est mercredi 28 octobre 2026 à 10 h\. C’est toujours bon pour vous \?\n\nGérard, Maison MND$/.test(g?.texte ?? '')]);
+  [g?.genre, g?.canal, g?.modele, /est mercredi 28 octobre 2026 à 10 h\. C’est toujours bon pour vous \?\n\nMaison MND$/.test(g?.texte ?? '')]);
 dit('... pris il y a trois jours : on ne le garde pas', true, sit(fiche({ rdvs: [venue(plusJours(A, -40)), rdvDans2(`${plusJours(A, -3)}T09:00:00.000Z`)] }))?.genre !== 'garder');
 dit('... même « stop », un RDV se garde (c’est un service)', 'garder', sit(fiche({ stop: true, accord: false, rdvs: [venue(plusJours(A, -40)), rdvDans2()] }))?.genre);
 
@@ -78,7 +79,7 @@ dit('... une envie il y a vingt jours : pas encore', null, sit(fiche({ traces: [
 dit('... la cadence à 15 jours : pas d’envie, « tout combiner » arrive', null, sit(fiche({ cadence: { iso: plusJours(A, 15), rythmeJours: 45 } })));
 const comb = sit(fiche({ rdvs: [venue(plusJours(A, -100)), venue(plusJours(A, -49))], cadence: { iso: plusJours(A, 7), rythmeJours: 56 } }));
 dit('tout combiner, sept jours avant une date de cadence sans RDV : deux places, la coiffure offerte avec un soin', ['combiner', true],
-  [comb?.genre, /arrive vers le lundi 2 novembre 2026\. Nous avons de la place mercredi 28 octobre 2026 à 10 h ou jeudi 29 octobre 2026 à 14 h : je vous en garde une \? Avec un soin ajouté le même jour, votre coiffure de sortie est offerte\.\n\nGérard, Maison MND$/.test(comb?.texte ?? '')]);
+  [comb?.genre, /est prévu vers le lundi 2 novembre 2026\. Nous avons de la place mercredi 28 octobre 2026 à 10 h ou jeudi 29 octobre 2026 à 14 h : je vous en garde une \? Avec un soin ajouté le même jour, votre coiffure de sortie est offerte\.\n\nMaison MND$/.test(comb?.texte ?? '')]);
 dit('... RDV posé à sept jours : le point d’avant du Trône s’en charge, Gérard se tait', null,
   sit(fiche({ rdvs: [venue(plusJours(A, -50)), { ...rdvPose, date: plusJours(A, 7) }] })));
 dit('sans accord ni Ma Couronne, une envie ne part pas ; avec Ma Couronne, elle part en notification', [null, 'couronne'],
@@ -105,7 +106,7 @@ dit('un jour creux change l’envie en place à −15 %, avec son code d’un jo
 
 /* ── 8. Les relances ── */
 const retard = fiche({ rdvs: [venue(plusJours(A, -90)), venue(plusJours(A, -55))], cadence: { iso: plusJours(A, -20), rythmeJours: 35 } });
-dit('en retard : dix jours après la date attendue, deux places', ['retard', true], [sit(retard)?.genre, /devait revenir vers le mardi 6 octobre 2026\./.test(sit(retard)?.texte ?? '')]);
+dit('en retard : dix jours après la date attendue, deux places', ['retard', true], [sit(retard)?.genre, /votre prochain resserrage des racines était prévu vers le mardi 6 octobre 2026\./.test(sit(retard)?.texte ?? '')]);
 dit('... relancée il y a trois semaines : pas avant quatre', null, sit({ ...retard, traces: [{ quand: `${plusJours(A, -21)}T09:00:00Z`, genre: 'retard' }] }));
 const unique = fiche({ rdvs: [venue(plusJours(A, -70), ['autre'])], cadence: { iso: plusJours(A, -40), rythmeJours: 30 } });
 dit('une seule venue : jamais « en retard », le message de la première venue', ['une-venue', 'une_venue'], [sit(unique)?.genre, sit(unique)?.modele]);

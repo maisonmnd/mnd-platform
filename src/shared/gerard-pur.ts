@@ -29,8 +29,8 @@
    pas le code (promos.ts, au moment de l'envoi). Il DIT quoi écrire, à qui,
    pourquoi, et avec quel code.
 
-   LA RÈGLE FRANCHE, HORS DES CHOIX : Gérard signe de son prénom et n'annonce
-   rien de lui-même, mais il ne nie jamais être un assistant automatique
+   LA RÈGLE FRANCHE, HORS DES CHOIX : les messages sont signés « Maison MND »,
+   Gérard n'annonce rien de lui-même, mais il ne nie jamais être un assistant automatique
    quand une cliente le demande franchement (`estUneQuestionFranche`).
 
    Pur : `scripts/verifie-gerard.mjs` le prouve. */
@@ -62,14 +62,15 @@ export const ANNIV_VALABLE_JOURS = 30;
 export const REMISES_PAR_SEMAINE = 8;
 export const NOEL_DU = '12-01';
 export const NOEL_AU = '12-15';
-export const SIGNATURE = 'Gérard, Maison MND';
+/** La signature des messages : « Maison MND », seule (Yéman, le 26 octobre 2026 au soir : « ne signe pas Gérard »). */
+export const SIGNATURE = 'Maison MND';
 
 /* ── LES MODÈLES WHATSAPP ────────────────────────────────────────────────
    Le premier message d'une conversation doit être un modèle approuvé par
    Meta. Chaque situation a le sien ; le plan du Trône remplit le MÊME texte
    que le serveur enverra : ce qu'on lit est ce qui part. {{1}} est toujours
    l'appel (la civilité notée, sinon le prénom). Le corps finit par la
-   signature, « Gérard, Maison MND » ; le pied de page est la devise seule,
+   signature, « Maison MND » ; le pied de page est la devise seule,
    comme pour tous les modèles de la Maison (13 octobre 2026). Jamais le mot
    « code » dans un corps : Meta le range alors en Authentification. */
 export type CleDeModele = 'garder' | 'anniversaire' | 'combiner' | 'noel' | 'envie_soin' | 'envie_soin_secs' | 'envie_couleur'
@@ -79,16 +80,16 @@ const OUI_AUTRE = ['Oui', 'Une autre date', 'Pas cette fois'];
 const CORPS: Record<CleDeModele, ModeleDeGerard> = {
   garder: { nom: 'gerard_garder', categorie: 'UTILITY', corps: 'Bonjour {{1}}, votre {{2}} est {{3}}. C’est toujours bon pour vous ?', boutons: ['Oui, je viens', 'Changer l’heure', 'Je ne peux plus'] },
   anniversaire: { nom: 'gerard_anniversaire', categorie: 'MARKETING', corps: 'Joyeux anniversaire {{1}} ! Toute la Maison vous souhaite une très belle année. Pour l’occasion, votre prochain soin est à −10 % jusqu’au {{2}} : c’est déjà noté à votre nom.', boutons: ['Merci, je réserve', 'Merci'] },
-  combiner: { nom: 'gerard_combiner', categorie: 'MARKETING', corps: 'Bonjour {{1}}, votre {{2}} arrive vers le {{3}}. Nous avons de la place {{4}} : je vous en garde une ? Avec un soin ajouté le même jour, votre coiffure de sortie est offerte.', boutons: ['Oui', 'Avec le soin', 'Une autre date'] },
+  combiner: { nom: 'gerard_combiner', categorie: 'MARKETING', corps: 'Bonjour {{1}}, votre prochain {{2}} est prévu vers le {{3}}. Nous avons de la place {{4}} : je vous en garde une ? Avec un soin ajouté le même jour, votre coiffure de sortie est offerte.', boutons: ['Oui', 'Avec le soin', 'Une autre date'] },
   noel: { nom: 'gerard_noel', categorie: 'MARKETING', corps: 'Bonjour {{1}}, les fêtes approchent et les places du 15 au 24 décembre {{2}} partent vite. Je vous en garde une ? Et pour offrir, la carte cadeau de la Maison se commande en deux minutes.', boutons: ['Une place', 'La carte cadeau', 'Pas cette fois'] },
-  envie_soin: { nom: 'gerard_envie_soin', categorie: 'MARKETING', corps: 'Bonjour {{1}}, un mois après votre séance, souhaitez-vous un soin hydratant avant votre {{2}}, prévu {{3}} ? Je vous trouve une place ?', boutons: OUI_AUTRE },
-  envie_soin_secs: { nom: 'gerard_envie_soin_secs', categorie: 'MARKETING', corps: 'Bonjour {{1}}, vous nous disiez vos cheveux secs : un soin hydratant de 45 minutes les remet d’aplomb avant votre {{2}}, prévu {{3}}. Je vous trouve une place ?', boutons: OUI_AUTRE },
-  envie_couleur: { nom: 'gerard_envie_couleur', categorie: 'MARKETING', corps: 'Bonjour {{1}}, votre couleur végétale date de {{2}}. Une retouche avant votre {{3}}, prévu {{4}} ?', boutons: OUI_AUTRE },
-  envie_lavage: { nom: 'gerard_envie_lavage', categorie: 'MARKETING', corps: 'Bonjour {{1}}, un mois après votre séance, souhaitez-vous un soin ou un lavage rituel (shampoing) avant votre {{2}}, prévu {{3}} ?', boutons: ['Un soin', 'Un lavage rituel', 'Pas cette fois'] },
-  envie_midi: { nom: 'gerard_envie_midi', categorie: 'MARKETING', corps: 'Bonjour {{1}}, une coiffure express pendant votre pause déjeuner, entre midi et deux ? 45 minutes, avant votre {{2}}, prévu {{3}}.', boutons: OUI_AUTRE },
-  envie_coiffure: { nom: 'gerard_envie_coiffure', categorie: 'MARKETING', corps: 'Bonjour {{1}}, une occasion en vue ? Une coiffure de la Maison se réserve dès maintenant, avant votre {{2}}, prévu {{3}}.', boutons: ['Je réserve', 'Pas cette fois'] },
+  envie_soin: { nom: 'gerard_envie_soin', categorie: 'MARKETING', corps: 'Bonjour {{1}}, un mois après votre séance, souhaitez-vous un soin hydratant avant votre prochain {{2}}, prévu {{3}} ? Je vous trouve une place ?', boutons: OUI_AUTRE },
+  envie_soin_secs: { nom: 'gerard_envie_soin_secs', categorie: 'MARKETING', corps: 'Bonjour {{1}}, vous nous disiez vos cheveux secs : un soin hydratant de 45 minutes les remet d’aplomb avant votre prochain {{2}}, prévu {{3}}. Je vous trouve une place ?', boutons: OUI_AUTRE },
+  envie_couleur: { nom: 'gerard_envie_couleur', categorie: 'MARKETING', corps: 'Bonjour {{1}}, votre couleur végétale date de {{2}}. Une retouche avant votre prochain {{3}}, prévu {{4}} ?', boutons: OUI_AUTRE },
+  envie_lavage: { nom: 'gerard_envie_lavage', categorie: 'MARKETING', corps: 'Bonjour {{1}}, un mois après votre séance, souhaitez-vous un soin ou un lavage rituel (shampoing) avant votre prochain {{2}}, prévu {{3}} ?', boutons: ['Un soin', 'Un lavage rituel', 'Pas cette fois'] },
+  envie_midi: { nom: 'gerard_envie_midi', categorie: 'MARKETING', corps: 'Bonjour {{1}}, une coiffure express pendant votre pause déjeuner, entre midi et deux ? 45 minutes, avant votre prochain {{2}}, prévu {{3}}.', boutons: OUI_AUTRE },
+  envie_coiffure: { nom: 'gerard_envie_coiffure', categorie: 'MARKETING', corps: 'Bonjour {{1}}, une occasion en vue ? Une coiffure de la Maison se réserve dès maintenant, avant votre prochain {{2}}, prévu {{3}}.', boutons: ['Je réserve', 'Pas cette fois'] },
   creux: { nom: 'gerard_creux', categorie: 'MARKETING', corps: 'Bonjour {{1}}, une place s’est libérée {{2}} à {{3}}, et ce jour-là votre {{4}} est à −15 %. Je vous la garde ?', boutons: ['Oui', 'Pas cette fois'] },
-  retard: { nom: 'gerard_retard', categorie: 'MARKETING', corps: 'Bonjour {{1}}, votre {{2}} devait revenir vers le {{3}}. Nous avons de la place {{4}} : je vous en garde une ?', boutons: OUI_AUTRE },
+  retard: { nom: 'gerard_retard', categorie: 'MARKETING', corps: 'Bonjour {{1}}, votre prochain {{2}} était prévu vers le {{3}}. Nous avons de la place {{4}} : je vous en garde une ?', boutons: OUI_AUTRE },
   une_venue: { nom: 'gerard_une_venue', categorie: 'MARKETING', corps: 'Bonjour {{1}}, votre première venue date du {{2}}. C’est le moment de votre premier resserrage des racines : nous avons de la place {{3}}, je vous en garde une ?', boutons: OUI_AUTRE },
   endormie: { nom: 'gerard_endormie', categorie: 'MARKETING', corps: 'Bonjour {{1}}, cela fait {{2}} mois que nous n’avons pas vu vos locks. Comment vont-elles ? Si l’envie vous prend d’un soin, la Maison a de la place les semaines qui viennent.', boutons: ['Prendre un RDV', 'Pas pour l’instant'] },
 };
