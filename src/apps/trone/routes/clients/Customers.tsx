@@ -43,6 +43,7 @@ import { CarteDuClub } from './CarteDuClub';
 import { releveDeLAbonnee } from '../../../../shared/abonnee-pur';
 import { echeancierAPoser } from './gestes-de-l-abonnement';
 import { jourDeCotonou } from '../../../../shared/ia-faits-pur';
+import { facturesDuCompte, pourQui } from './factures-du-compte-pur';
 import { useClientSessions, isOnline } from '../../../../shared/activity';
 import { uid, useStore } from '../../../../shared/store';
 import { useSettings } from '../../../../shared/settings';
@@ -2616,14 +2617,24 @@ function Customer360({
   /* LES FACTURES DU COMPTE. Tout est réglé par le parent, mais chaque pièce
      reste au nom de celle qu'elle concerne : la facture d'un enfant ne
      figurait donc nulle part sur la fiche du parent, alors que c'est lui qui
-     l'a payée — et qui vient la réclamer. */
+     l'a payée — et qui vient la réclamer.
+     26 OCTOBRE 2026 : CHACUNE LES SIENNES, LE PAYEUR TOUTES. La rubrique
+     montrait, chez CHAQUE membre, toutes les pièces des autres : la fiche
+     d'une enfant portait toutes celles de sa mère (« le compte enfant doit
+     avoir juste la facture qui le concerne », Yéman). Voir
+     factures-du-compte-pur.ts. */
+  const clienteDuRdv = useMemo(() => new Map(carnetBranche.map((a) => [a.id, a.clientId])), [carnetBranche]);
   const documentsDuCompte = useMemo(() => {
     if (membresDuCompte.length === 0) return [];
-    const ids = new Set(membresDuCompte.map((m) => m.id));
-    return invoices
-      .filter((i) => ids.has(i.clientId))
-      .sort((a, b) => b.date.localeCompare(a.date));
-  }, [invoices, membresDuCompte]);
+    return facturesDuCompte(invoices, {
+      moi: client.id, autresMembres: membresDuCompte.map((m) => m.id), estLePayeur, clienteDuRdv,
+    });
+  }, [invoices, membresDuCompte, client.id, estLePayeur, clienteDuRdv]);
+  /* Pour qui est une pièce, quand ce n'est pas la tête à qui elle est adressée. */
+  const pourUneAutre = (o: (typeof invoices)[number]): string | null => {
+    const qui = pourQui(o, clienteDuRdv);
+    return qui && qui !== o.clientId ? nomTete(qui) : null;
+  };
   const payesParElle = carnetBranche.filter((a) => a.status === 'honoré' && apptPayeurId(a) === client.id);
   const offertsAElle = honored.filter((a) => a.offertPar && a.offertPar !== client.id);
   const offertsParElle = payesParElle.filter((a) => a.clientId !== client.id);
@@ -4719,7 +4730,7 @@ function Customer360({
                 <button type="button" className="trc-order trc-order--btn" key={o.id} title={`Ouvrir ${o.kind === 'devis' ? 'le devis' : 'la facture'} ${o.number}`} onClick={() => navigate(`/factures?id=${o.id}`)}>
                   <span className="trc-order__id">
                     <span style={{ fontFamily: 'var(--font-serif)', fontSize: 14, color: 'var(--color-indigo)' }}>{o.number}</span>
-                    <span className="trc-sub" style={{ marginLeft: 8 }}>{o.kind === 'devis' ? 'Devis' : 'Facture'} · {frJourAn(o.date)}</span>
+                    <span className="trc-sub" style={{ marginLeft: 8 }}>{o.kind === 'devis' ? 'Devis' : 'Facture'} · {frJourAn(o.date)}{pourUneAutre(o) ? ` · pour ${pourUneAutre(o)}` : ''}</span>
                   </span>
                   <span className="trc-order__total">{fmtMoney(invoiceTotal(o), currency)}</span>
                   <span className={orderStatusClass(o.status)}>{o.status}</span>
@@ -4736,10 +4747,12 @@ function Customer360({
         {documentsDuCompte.length > 0 && (
           <div>
             <span className="trc-microlabel">
-              Factures du compte · {documentsDuCompte.length}
+              {estLePayeur ? 'Factures du compte' : 'Réglées par le compte'} · {documentsDuCompte.length}
             </span>
             <div className="trc-sub" style={{ marginBottom: 6, lineHeight: 1.5 }}>
-              Au nom des autres membres{estLePayeur ? ', réglées par elle' : ''}.
+              {estLePayeur
+                ? 'Au nom des autres membres, réglées par elle.'
+                : `Ses rituels, au nom de ${nomTete(clientFamily?.payerClientId)}, qui règle le compte.`}
             </div>
             <div className="trc-orders">
               {documentsDuCompte.map((o) => (
@@ -4752,7 +4765,7 @@ function Customer360({
                 >
                   <span className="trc-order__id">
                     <span style={{ fontFamily: 'var(--font-serif)', fontSize: 14, color: 'var(--color-indigo)' }}>{o.number}</span>
-                    <span className="trc-sub" style={{ marginLeft: 8 }}>{nomTete(o.clientId)} · {frJourAn(o.date)}</span>
+                    <span className="trc-sub" style={{ marginLeft: 8 }}>{nomTete(o.clientId)} · {frJourAn(o.date)}{estLePayeur && pourUneAutre(o) ? ` · pour ${pourUneAutre(o)}` : ''}</span>
                   </span>
                   <span className="trc-order__total">{fmtMoney(invoiceTotal(o), currency)}</span>
                   <span className={orderStatusClass(o.status)}>{o.status}</span>
