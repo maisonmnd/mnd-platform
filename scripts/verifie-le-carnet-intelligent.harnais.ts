@@ -114,5 +114,11 @@ dit('chaque ligne a ses signaux (calcul en infobulle) et UN geste', [true, true]
 dit('« Encaisser l ancien » ouvre l encaissement du plus ancien rituel du', true, carnet.includes("if (g.cle === 'ancien') { const d = signaux.dettes.get(a.clientId); if (d) setPayAppt(appts.find((x) => x.id === d.plusAncien.id) ?? null); }"));
 dit('la recherche comprend une phrase et le dit', [true, true], [carnet.includes('comprendsLaPhrase(query,'), carnet.includes('Le Carnet comprend')]);
 dit('pas de tiret cadratin dans ce que l ecran dit', false, carnet.includes('—'));
+/* LA TUILE « ATTENDU » INTERROGE UN AUTRE JOUR — 26 octobre 2026 : les chiffres ET la liste suivent le jour choisi. */
+dit('« Attendu » : le chiffre et la liste suivent le jour choisi, fleches et calendrier', [true, true, true, true, true],
+  [carnet.includes('})), jourVu),'), carnet.includes('jour: vivants.filter((a) => a.date === jourVu)'),
+    carnet.includes('onClick={() => setJourVu(addDaysISO(jourVu, -1))}'), carnet.includes('onClick={() => setJourVu(addDaysISO(jourVu, 1))}'),
+    carnet.includes('<ChampDeDate compact value={jourVu}')]);
+dit('... aucun chiffre du jour ne reste fige a aujourd hui', false, /chiffreAttenduDuJour\([\s\S]{0,260}\}\)\), todayISO\(\)\)/.test(carnet));
 
 console.log(`\n${n - ko}/${n} verifications`);

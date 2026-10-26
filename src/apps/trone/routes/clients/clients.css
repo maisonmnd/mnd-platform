@@ -3401,6 +3401,15 @@
 .trc-tuile:hover { border-color: var(--copper-300) !important; box-shadow: 0 2px 12px rgba(30, 33, 80, .07); }
 .trc-tuile:focus-visible { outline: 2px solid var(--copper-300); outline-offset: 2px; }
 @media (prefers-reduced-motion: reduce) { .trc-tuile { transition: none; } }
+/* La tuile « Attendu » choisit son jour (26 octobre 2026) : la tuile n'est plus
+   un bouton, son corps l'est ; la flèche et le calendrier vivent au-dessus. */
+.trc-tuile--jour { cursor: default; display: flex; flex-direction: column; gap: 6px; }
+.trc-tuile__corps { display: block; width: 100%; text-align: left; font: inherit; color: inherit; cursor: pointer; background: transparent; border: 0; padding: 0; }
+.trc-tuile__corps:focus-visible { outline: 2px solid var(--copper-300); outline-offset: 2px; }
+.trc-jour-nav { display: flex; align-items: center; gap: 6px; }
+.trc-jour-pas { flex: none; width: 30px; height: 30px; border-radius: 999px; border: 1px solid var(--hairline); background: transparent; color: var(--color-indigo); font: 400 16px/1 var(--font-sans); cursor: pointer; }
+.trc-jour-pas:hover { border-color: var(--copper-300); }
+.trc-jour-auj { align-self: flex-start; border: 0; background: transparent; padding: 0; font: 500 11px var(--font-sans); letter-spacing: .06em; color: var(--copper-700, #9A6036); cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
 
 /* SES RENDEZ-VOUS — 24 octobre 2026 : l'onglet de la fenêtre du rendez-vous.
    Les totaux en chiffres d'abord, puis une ligne par rendez-vous ; toucher une

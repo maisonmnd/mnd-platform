@@ -7,6 +7,7 @@ import { PageHead } from '../_ui';
 import { gammeTouteReglee } from '../../../../shared/gamme';
 import { useLaGammePayeeRegravee } from './gamme-payee';
 import { chiffreAttenduDuJour } from './chiffre-du-jour-pur';
+import { ChampDeDate } from '../../../../ds/dates';
 import { Button, Input, alerte, refus, demande } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
@@ -151,6 +152,10 @@ export default function Carnet() {
   const [modal, setModal] = useState<{ initial?: RdvInitial; title?: string; appt?: Appointment } | null>(null);
   /* Le détail d'une tuile (24 octobre 2026, « rendre cliquables les attendus »). */
   const [detail, setDetail] = useState<Drill | null>(null);
+  /* LE JOUR DE LA TUILE « ATTENDU » — 26 octobre 2026 (« est-ce que je peux
+     changer la date et interroger un autre jour ? ») : aujourd'hui par défaut,
+     la veille et le lendemain d'une flèche, n'importe quel jour au calendrier. */
+  const [jourVu, setJourVu] = useState(() => todayISO());
   const [payAppt, setPayAppt] = useState<Appointment | null>(null); // encaissement (partiel / total / pourboire)
   const [menuFor, setMenuFor] = useState<string | null>(null);
   /* La facture à régler part seule chez elle (17 octobre 2026). */
@@ -347,13 +352,13 @@ export default function Carnet() {
          le même calcul qu'au tableau de bord (chiffre-du-jour-pur). */
       jour: chiffreAttenduDuJour(vivants.map((a) => ({
         date: a.date, status: a.status, rituelXof: apptNetXof(a, byId), resteRituelXof: apptDueXof(a, byId), gamme: a.gamme,
-      })), todayISO()),
+      })), jourVu),
       /* CE QUE CHAQUE TUILE COMPTE, pour l'ouvrir (24 octobre 2026) : les
          mêmes rendez-vous que ses chiffres, dans l'ordre de l'agenda. */
       listes: {
         creance: rendus.filter((a) => apptDueXof(a, byId) > 0)
           .sort((a, b) => b.date.localeCompare(a.date) || timeToMin(a.time) - timeToMin(b.time)),
-        jour: vivants.filter((a) => a.date === todayISO())
+        jour: vivants.filter((a) => a.date === jourVu)
           .sort((a, b) => timeToMin(a.time) - timeToMin(b.time)),
         avenir: vivants.filter(aVenir)
           .sort((a, b) => a.date.localeCompare(b.date) || timeToMin(a.time) - timeToMin(b.time)),
@@ -372,7 +377,7 @@ export default function Carnet() {
       .filter((a) => !aVenir(a) && garde(a))
       .sort((a, b) => b.date.localeCompare(a.date) || timeToMin(b.time) - timeToMin(a.time));
     return { upcoming, past, comptes, totaux };
-  }, [appts, today, query, ficheParId, maison, categories, byId, vue, bands, sets, produits, reglages, luDe, phrase, presse, signaux, manquesDuJour]);
+  }, [appts, today, query, ficheParId, maison, categories, byId, vue, bands, sets, produits, reglages, luDe, phrase, presse, signaux, manquesDuJour, jourVu]);
 
   /* ══ LES MOIS PASSÉS SE REPLIENT — 1er octobre 2026 ═════════════════
      « Quand je clique dans la barre de navigation du Trône, c'est lent »
@@ -840,8 +845,11 @@ export default function Carnet() {
     })),
     total: totaux.creanceXof,
   });
+  /** Le jour de la tuile, en clair : aujourd'hui, demain, hier, ou le jour avec l'année. */
+  const jourDeLaTuile = jourVu === today ? 'aujourd’hui' : jourVu === addDaysISO(today, 1) ? 'demain'
+    : jourVu === addDaysISO(today, -1) ? 'hier' : jourEnClair(jourVu);
   const ouvreLeJour = () => setDetail({
-    title: 'Attendu aujourd’hui',
+    title: `Attendu · ${jourDeLaTuile}`,
     sub: `Rituels du jour et Gamme posée · déjà encaissé ${fmtMoney(totaux.jour.encaisseXof, currency)} · reste ${fmtMoney(totaux.jour.resteXof, currency)}`,
     rows: totaux.listes.jour.map((a) => {
       const j = chiffreAttenduDuJour([{ date: a.date, status: a.status, rituelXof: apptNetXof(a, byId), resteRituelXof: apptDueXof(a, byId), gamme: a.gamme }], a.date);
@@ -987,8 +995,16 @@ export default function Carnet() {
                 <L g={`${anciennete.n} rituel${anciennete.n > 1 ? 's' : ''}`} d={fmtMoney(anciennete.xof, currency)} total />
               </span>
             </button>
-            <button type="button" className="trc-tuile" onClick={ouvreLeJour} title="Voir les rendez-vous du jour" style={{ background: 'var(--surface-card)', border: '1px solid var(--hairline)', borderLeft: '3px solid var(--color-indigo)', borderRadius: 'var(--radius-md)', padding: '14px 18px' }}>
-              <div className="trc-microlabel" style={{ margin: 0 }}>Attendu · aujourd’hui ›</div>
+            <div className="trc-tuile trc-tuile--jour" style={{ background: 'var(--surface-card)', border: '1px solid var(--hairline)', borderLeft: '3px solid var(--color-indigo)', borderRadius: 'var(--radius-md)', padding: '14px 18px' }}>
+              <div className="trc-jour-nav">
+                <button type="button" className="trc-jour-pas" onClick={() => setJourVu(addDaysISO(jourVu, -1))} aria-label="Le jour d’avant" title="Le jour d’avant">‹</button>
+                <ChampDeDate compact value={jourVu} onChange={(v) => { if (v) setJourVu(v); }} ariaLabel="Le jour attendu" style={{ flex: 1, minWidth: 0 }} />
+                <button type="button" className="trc-jour-pas" onClick={() => setJourVu(addDaysISO(jourVu, 1))} aria-label="Le jour d’après" title="Le jour d’après">›</button>
+              </div>
+              {jourVu !== today && <button type="button" className="trc-jour-auj" onClick={() => setJourVu(today)}>Revenir à aujourd’hui</button>}
+            <button type="button" className="trc-tuile__corps" onClick={ouvreLeJour} title="Voir les rendez-vous de ce jour">
+              {/* La date est dans le champ juste au-dessus : l'étiquette ne la répète pas. */}
+              <div className="trc-microlabel" style={{ margin: 0 }}>Attendu · {['aujourd’hui', 'demain', 'hier'].includes(jourDeLaTuile) ? jourDeLaTuile : 'ce jour'} ›</div>
               <div style={{ fontFamily: 'var(--font-serif)', fontWeight: 300, fontSize: 30, color: 'var(--color-indigo)', lineHeight: 1.1 }}>
                 {fmtMoney(totaux.jour.attenduXof, currency)}
               </div>
@@ -999,6 +1015,7 @@ export default function Carnet() {
                 <L g="Reste" d={fmtMoney(totaux.jour.resteXof, currency)} total />
               </span>
             </button>
+            </div>
             <button type="button" className="trc-tuile" onClick={ouvreLAvenir} title="Voir les rendez-vous à venir" style={{ background: 'var(--surface-card)', border: '1px solid var(--hairline)', borderLeft: '3px solid var(--color-indigo)', borderRadius: 'var(--radius-md)', padding: '14px 18px' }}>
               <div className="trc-microlabel" style={{ margin: 0 }}>À venir · probable ›</div>
               <div style={{ fontFamily: 'var(--font-serif)', fontWeight: 300, fontSize: 30, color: 'var(--color-indigo)', lineHeight: 1.1 }}>
