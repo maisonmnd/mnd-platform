@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { jourCourtAn } from '../../../../shared/calendrier';
 import { useLiensDesAvis } from '../../../../shared/avis-fiches';
-import { avisDeLaCliente, jourACotonou, jourDeLAvis } from '../../../../shared/avis-fiches-pur';
+import { avisDeLaCliente, demandeDAvisPermise, derniereDemandeDAvis, dernierAvisDe, ditLaDemandeDAvis, jourACotonou, jourDeLAvis } from '../../../../shared/avis-fiches-pur';
 import { useBrouillonsDAvis } from '../../../../shared/ia-avis';
 import { estSansReponse, idDeLAvis, jourLocalDe } from '../../../../shared/ia-avis-pur';
 import { useEnvois } from '../equipe/data';
@@ -28,12 +28,13 @@ export function SonAvisGoogle({ client }: { client: { id: string } }) {
   const [envois] = useEnvois();
 
   const siens = releve ? avisDeLaCliente(client.id, releve.avis, liens, releve.le) : [];
-  const demande = envois
-    .filter((e) => e.type === 'avis-google' && e.clientId === client.id && (e.statut === 'envoyé' || e.statut === 'à-la-main'))
-    .map((e) => jourACotonou(e.quand))
-    .filter((j): j is string => !!j)
-    .sort()
-    .pop();
+  const demande = derniereDemandeDAvis(client.id, envois) ?? undefined;
+  /* QUAND REDEMANDER (26 octobre 2026) : la même règle que le serveur. */
+  const regle = demandeDAvisPermise({
+    premiereVenue: false, derniereDemande: demande ?? null,
+    dernierAvis: releve ? dernierAvisDe(client.id, releve.avis, liens, releve.le) : null,
+    aujourdhui: jourACotonou(new Date().toISOString()) ?? '',
+  });
 
   if (siens.length === 0 && !demande) return null;
 
@@ -45,9 +46,7 @@ export function SonAvisGoogle({ client }: { client: { id: string } }) {
           Demande d’avis partie le {jourCourtAn(demande as string)} · pas encore d’avis relié.
         </p>
       )}
-      {siens.length > 0 && (
-        <p className="mnd-muted" style={{ fontSize: 12, margin: '2px 0 0' }}>Elle a laissé son avis : la Maison ne lui en redemande pas.</p>
-      )}
+      <p className="mnd-muted" style={{ fontSize: 12, margin: '2px 0 0' }}>{ditLaDemandeDAvis(regle, jourCourtAn)}</p>
       {siens.map((a) => {
         const id = idDeLAvis(a);
         const b = brouillons[id];

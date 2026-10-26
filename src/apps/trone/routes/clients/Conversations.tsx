@@ -32,8 +32,10 @@ import { adresseDesFonctions, cleAnonyme } from '../../../../shared/supabase';
 import { appelleOuGarde, gardeUnAppel } from '../../../../shared/appels-en-attente';
 import { useSettings } from '../../../../shared/settings';
 import { useStaff as useEquipe, useEnvois, useAutoConfig } from '../equipe/data';
-import { aDejaLaisseUnAvis } from '../../../../shared/avis-fiches-pur';
+import { demandeDAvisPermise, derniereDemandeDAvis, dernierAvisDe, ditLaDemandeDAvis, jourACotonou } from '../../../../shared/avis-fiches-pur';
 import { useLiensDesAvis } from '../../../../shared/avis-fiches';
+import { useReleveDesAvis } from './releve-des-avis';
+import { jourAn } from '../../../../shared/calendrier';
 import { EnvoisAutomatiques } from './EnvoisAutomatiques';
 import { compteDuJournal, envoisDeLaPeriode, jourDuSalon, estEnvoiAutomatique, modeleDit } from '../../../../shared/envois';
 import { heuresDuJour } from './_heures';
@@ -319,8 +321,9 @@ export default function Conversations() {
   const demandeLesEnvois = params.get('envois') === '1';
   useEffect(() => { if (demandeLesEnvois) setVue('envois'); }, [demandeLesEnvois]);
   const [lesEnvois] = useEnvois();
-  /* UN AVIS, UNE SEULE FOIS (26 octobre 2026) : le modèle « Demande d'avis » se cache pour une cliente déjà reliée à un avis. */
+  /* QUAND REDEMANDER UN AVIS (26 octobre 2026) : le modèle « Demande d'avis » suit la règle de la fiche (six mois ; chaque passage jusqu'à 3 étoiles). */
   const [liensDesAvis] = useLiensDesAvis();
+  const releveDesAvis = useReleveDesAvis();
   const aRegarderAujourdhui = useMemo(() => compteDuJournal(envoisDeLaPeriode(
     lesEnvois.filter((e) => e && e.canal !== 'push'), 'aujourdhui', jourDuSalon(new Date().toISOString()),
   )).aRegarder, [lesEnvois]);
@@ -481,6 +484,14 @@ export default function Conversations() {
      que la personne n'a jamais écrit. On le dit, plutôt que de faire semblant. */
   const filInterdit = !!filTrouve && !estDirection && estReserve(filTrouve.tiroir);
   const fil = filInterdit ? null : filTrouve;
+  /* La demande d'avis à la main suit la même règle que le serveur : six mois,
+     chaque passage jusqu'à trois étoiles (avis-fiches-pur, 26 octobre 2026). */
+  const demandeDAvis = demandeDAvisPermise({
+    premiereVenue: false,
+    derniereDemande: fil?.clientId ? derniereDemandeDAvis(fil.clientId, lesEnvois) : null,
+    dernierAvis: fil?.clientId && releveDesAvis ? dernierAvisDe(fil.clientId, releveDesAvis.avis, liensDesAvis, releveDesAvis.le) : null,
+    aujourdhui: jourACotonou(new Date().toISOString()) ?? '',
+  });
   /* LE TIROIR SUIT LE FIL OUVERT : un lien depuis la Paie ouvre Équipe. */
   useEffect(() => {
     if (fil && estDirection && fil.tiroir !== tiroir) setTiroir(fil.tiroir);
@@ -1708,7 +1719,7 @@ export default function Conversations() {
                     <Button variant="copper" size="sm" disabled={envoiEnCours} onClick={() => setLienOuvert(true)}>
                       Réservation préparée
                     </Button>
-                    {MODELES.filter((m) => m.nom !== 'avis_google' || !aDejaLaisseUnAvis(fil.clientId, liensDesAvis)).map((m) => (
+                    {MODELES.filter((m) => m.nom !== 'avis_google' || demandeDAvis.permise).map((m) => (
                       <Button
                         key={m.nom}
                         variant="copper"
@@ -1720,8 +1731,8 @@ export default function Conversations() {
                         {m.dit}
                       </Button>
                     ))}
-                    {aDejaLaisseUnAvis(fil.clientId, liensDesAvis) && (
-                      <span className="trc-sub" style={{ alignSelf: 'center' }}>Elle a déjà laissé son avis Google : on ne le lui redemande pas.</span>
+                    {!demandeDAvis.permise && (
+                      <span className="trc-sub" style={{ alignSelf: 'center' }}>{ditLaDemandeDAvis(demandeDAvis, jourAn)}</span>
                     )}
                   </div>
                 )}

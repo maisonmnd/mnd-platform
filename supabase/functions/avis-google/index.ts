@@ -7,8 +7,12 @@
         est éteint (`mnd_auto_config.avisAuto`) — c'est la Maison qui allume,
         pas une clé posée en douce ;
      ② lit les factures SOLDÉES des deux derniers jours (fuseau du salon) ;
-     ③ ne garde que la PREMIÈRE pièce réglée de chaque tête — une habituée
-        relancée à chaque passage finirait par ne plus rien laisser ;
+     ③ décide pour chaque tête QUAND REDEMANDER (26 octobre 2026, Yéman) :
+        sa première venue réglée ; puis une fois tous les six mois (après la
+        dernière demande partie ou le dernier avis relié) ; et à CHAQUE
+        passage pour celle qui a laissé 1 à 3 étoiles (on la reconquiert).
+        Copie de `demandeDAvisPermise` (src/shared/avis-fiches-pur.ts) ;
+        verifie-les-avis-relies tient la copie ;
      ④ envoie le modèle WhatsApp approuvé ({{1}} prénom, {{2}} lien d'avis)
         par l'API Meta SI les clés sont posées (WA_TOKEN, WA_PHONE_ID,
         WA_TEMPLATE_AVIS) — sinon elle passe, sans bruit : le comptoir garde
@@ -16,12 +20,10 @@
      ⑤ consigne CHAQUE tentative dans la table `envois` (0043), identifiant
         DÉTERMINISTE `env-<facture>-wa-avis` : le cron peut se réveiller dix
         fois, une cliente n'est jamais écrite deux fois ;
-     ⑥ UN AVIS, UNE SEULE FOIS (26 octobre 2026, Yéman : « si la cliente a
-        déjà posé son avis une fois sur Google, elle ne doit pas le reposer
-        une deuxième fois ») : une cliente reliée à un avis dans le document
-        `mnd_avis_fiches` (Vitrines › Les avis Google, « C'est elle ») n'est
-        plus jamais sollicitée ; sa pièce est consignée « sans-envoi », pour
-        ne jamais redevenir une première venue à fêter.
+     ⑥ ce qu'elle a laissé se lit dans `mnd_avis_fiches` (le lien avis ↔
+        fiche, « C'est elle ») et `mnd_avis_google` (le relevé, avec la
+        note) ; ce qu'on lui a demandé, dans `envois`. Une pièce refusée est
+        consignée « sans-envoi » avec son pourquoi.
    Un GET sans clé rend la version (405) : c'est le contrôle de santé.
 
    AUCUN SECRET ICI. Tout vient de l'environnement de la fonction
@@ -213,7 +215,42 @@ const numeroIntl = (brut: string | undefined): string | null => {
   return d;
 };
 
-const VERSION = '2026-10-26-a';
+const VERSION = '2026-10-26-b';
+
+/* ── QUAND REDEMANDER UN AVIS — copie de src/shared/avis-fiches-pur.ts ── */
+const JOURS_ENTRE_DEUX_DEMANDES = 182;
+const NOTE_A_RECONQUERIR = 3;
+const jourDecaleDe = (jour: string, n: number): string => {
+  const d = new Date(`${jour}T12:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + n);
+  return d.toISOString().slice(0, 10);
+};
+type DemandeDAvis = { permise: boolean; pourquoi: 'premiere' | 'reconquete' | 'six-mois' | 'trop-tot'; des?: string };
+function demandeDAvisPermise(o: {
+  premiereVenue: boolean;
+  derniereDemande?: string | null;
+  dernierAvis?: { jour: string | null; note: number } | null;
+  aujourdhui: string;
+}): DemandeDAvis {
+  if (o.dernierAvis && o.dernierAvis.note > 0 && o.dernierAvis.note <= NOTE_A_RECONQUERIR) return { permise: true, pourquoi: 'reconquete' };
+  const jours = [o.derniereDemande, o.dernierAvis?.jour].filter((j): j is string => !!j).sort();
+  const dernier = jours[jours.length - 1];
+  if (!dernier) return { permise: true, pourquoi: o.premiereVenue ? 'premiere' : 'six-mois' };
+  const des = jourDecaleDe(dernier, JOURS_ENTRE_DEUX_DEMANDES);
+  return des <= o.aujourdhui ? { permise: true, pourquoi: 'six-mois' } : { permise: false, pourquoi: 'trop-tot', des };
+}
+/* La clé d'un avis, recopiée de src/shared/avis-google-pur.ts (FNV-1a de
+   l'auteur et du texte) : c'est elle qui relie un lien à son avis. */
+const netAvis = (s: unknown): string => String(s ?? '').replace(/\s+/g, ' ').trim();
+function cleDeLAvis(a: { auteur?: unknown; texte?: unknown }): string {
+  const s = `${netAvis(a.auteur)}\u241e${netAvis(a.texte)}`;
+  let h = 0x811c9dc5;
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i);
+    h = Math.imul(h, 0x01000193) >>> 0;
+  }
+  return `av-${h.toString(36)}`;
+}
 
 Deno.serve(async (req) => {
   if (req.method === 'GET') {
@@ -247,7 +284,7 @@ Deno.serve(async (req) => {
 
   /* ── ① L'interrupteur de la Maison ──────────────────────────────── */
   const { data: docs } = await sb.from('documents').select('key, data')
-    .in('key', ['mnd_auto_config', 'mnd_house_identity', 'mnd_facteur', 'mnd_avis_fiches']);
+    .in('key', ['mnd_auto_config', 'mnd_house_identity', 'mnd_facteur', 'mnd_avis_fiches', 'mnd_avis_google']);
   const cfg = (docs?.find((d) => d.key === 'mnd_auto_config')?.data ?? {}) as
     { reviewLink?: string; avisAuto?: boolean; salleMin?: unknown; calmeDe?: unknown; calmeA?: unknown };
   /* LA SALLE EST OUVERTE si le facteur a donné signe de vie dans les cinq minutes. */
@@ -257,11 +294,22 @@ Deno.serve(async (req) => {
     return new Response(JSON.stringify({ actif: false }), { status: 200 });
   }
   const lien = (cfg.reviewLink ?? '').trim() || REVIEW_LINK_DEFAUT;
-  /* ⑥ Les clientes qui ont déjà laissé un avis : celles qu'un lien désigne
-     (même règle que `clientesAvecUnAvis` dans src/shared/avis-fiches-pur.ts). */
-  const liens = (docs?.find((d) => d.key === 'mnd_avis_fiches')?.data ?? {}) as Record<string, { clientId?: string } | null | undefined>;
-  const dejaUnAvis = new Set<string>();
-  for (const l of Object.values(liens)) if (l?.clientId) dejaUnAvis.add(l.clientId);
+  /* ⑥ Son dernier avis relié : le lien (fiche) et le relevé (la note, le jour). */
+  const liens = (docs?.find((d) => d.key === 'mnd_avis_fiches')?.data ?? {}) as Record<string, { clientId?: string; le?: string } | null | undefined>;
+  const releve = (docs?.find((d) => d.key === 'mnd_avis_google')?.data ?? {}) as { avis?: { auteur?: string; texte?: string; note?: number; publieLe?: string; cle?: string }[] };
+  const avisParCle = new Map<string, { note: number; jour: string | null }>();
+  for (const a of Array.isArray(releve.avis) ? releve.avis : []) {
+    const cle = typeof a?.cle === 'string' && a.cle ? a.cle : cleDeLAvis(a ?? {});
+    avisParCle.set(cle, { note: Number(a?.note) || 0, jour: String(a?.publieLe ?? '').slice(0, 10) || null });
+  }
+  const dernierAvisDe = new Map<string, { jour: string | null; note: number }>();
+  for (const [cle, l] of Object.entries(liens)) {
+    if (!l?.clientId) continue;
+    const a = avisParCle.get(cle);
+    const jour = a?.jour ?? String(l.le ?? '').slice(0, 10) ?? null;
+    const avant = dernierAvisDe.get(l.clientId);
+    if (!avant || String(jour ?? '') > String(avant.jour ?? '')) dernierAvisDe.set(l.clientId, { jour: jour || null, note: a?.note ?? 0 });
+  }
   const nomMaison: string =
     ((docs?.find((d) => d.key === 'mnd_house_identity')?.data as { nom?: string })?.nom ?? '').trim() || 'Maison MND';
 
@@ -318,12 +366,13 @@ Deno.serve(async (req) => {
     return new Response(JSON.stringify({ actif: true, jour: aujourdhui, candidates: 0 }), { status: 200 });
   }
 
-  /* ── ③ La PREMIÈRE pièce réglée de la tête, et elle seule ───────── */
-  const premieres = fraiches.filter((p) =>
+  /* ── ③ Chaque pièce fraîche se juge : première venue, six mois, reconquête ── */
+  const estPremiere = (p: Piece): boolean =>
     !toutes.some((autre) => autre.id !== p.id
       && (autre.clientId ?? '') === p.clientId
       && regleXof(autre) > 0
-      && jourDuSolde(autre) < jourDuSolde(p)));
+      && jourDuSolde(autre) < jourDuSolde(p));
+  const premieres = fraiches;
 
   /* ── Le journal — l'idempotence avant tout envoi ────────────────── */
   const cles = premieres.map((p) => `env-${p.id}-wa-avis`);
@@ -336,6 +385,16 @@ Deno.serve(async (req) => {
 
   /* ── Les fiches (prénom + téléphone), en une lecture ────────────── */
   const ids = [...new Set(aFaire.map((p) => p.clientId!).filter(Boolean))];
+  /* ── Ce qu'on leur a déjà demandé : la dernière demande partie ───── */
+  const { data: demandesRows } = await sb.from('envois').select('data')
+    .eq('data->>type', 'avis-google').in('data->>clientId', ids);
+  const derniereDemandeDe = new Map<string, string>();
+  for (const r of demandesRows ?? []) {
+    const e = r.data as { clientId?: string; statut?: string; quand?: string };
+    if (!e?.clientId || !(e.statut === 'envoyé' || e.statut === 'à-la-main')) continue;
+    const j = new Date(String(e.quand ?? '')).toLocaleDateString('en-CA', { timeZone: TZ });
+    if (j && j !== 'Invalid Date' && (derniereDemandeDe.get(e.clientId) ?? '') < j) derniereDemandeDe.set(e.clientId, j);
+  }
   const { data: cliRows } = await sb.from('clients').select('id, data').in('id', ids);
   const fiches = new Map<string, Fiche>(
     (cliRows ?? []).map((r) => [r.id as string, { id: r.id, ...(r.data as object) } as Fiche]),
@@ -371,11 +430,17 @@ Deno.serve(async (req) => {
   let nWa = 0;
   let nEcartes = 0;
   let nDeposes = 0;
-  let nDejaUnAvis = 0;
+  let nTropTot = 0;
   for (const p of aFaire) {
-    if (dejaUnAvis.has(p.clientId!)) {
-      consigne(p, 'sans-envoi', 'a déjà laissé un avis Google');
-      nDejaUnAvis++;
+    const regle = demandeDAvisPermise({
+      premiereVenue: estPremiere(p),
+      derniereDemande: derniereDemandeDe.get(p.clientId!) ?? null,
+      dernierAvis: dernierAvisDe.get(p.clientId!) ?? null,
+      aujourdhui,
+    });
+    if (!regle.permise) {
+      consigne(p, 'sans-envoi', `trop tôt : une demande d’avis au plus tôt le ${regle.des ?? ''}`);
+      nTropTot++;
       continue;
     }
     if (apresCoup(p)) {
@@ -429,7 +494,7 @@ Deno.serve(async (req) => {
   }
 
   return new Response(
-    JSON.stringify({ actif: true, version: VERSION, maison: nomMaison, jour: aujourdhui, premieres: aFaire.length, ecartes: nEcartes, dejaUnAvis: nDejaUnAvis, salle: salleOuverte, deposes: nDeposes, envoyes: nWa }),
+    JSON.stringify({ actif: true, version: VERSION, maison: nomMaison, jour: aujourdhui, premieres: aFaire.length, ecartes: nEcartes, tropTot: nTropTot, salle: salleOuverte, deposes: nDeposes, envoyes: nWa }),
     { status: 200, headers: { 'content-type': 'application/json' } },
   );
 });

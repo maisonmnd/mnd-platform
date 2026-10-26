@@ -210,21 +210,66 @@ export function etatDuLien(a: AvisDuReleve, lien: LienDAvis | undefined, releveL
 export const compteARelier = (avis: readonly AvisDuReleve[], liens: LiensDesAvis, releveLe: string | undefined): number =>
   avis.filter((a) => etatDuLien(a, liens[idDeLAvis(a)], releveLe) === 'a-relier').length;
 
-/* ── UN AVIS, UNE SEULE FOIS — 26 octobre 2026 ──────────────────────────
+/* ── QUAND REDEMANDER UN AVIS — 26 octobre 2026 ─────────────────────────
    « Si la cliente a déjà posé son avis une fois sur Google, elle ne doit
-   pas le reposer une deuxième fois » (Yéman). Le lien avis ↔ fiche est la
-   seule source : une cliente reliée à un avis n'est plus jamais sollicitée,
-   ni par la fonction du serveur (avis-google), ni par le modèle à la main
-   des Conversations, ni par l'assistant. Rien d'autre à cocher. */
+   pas le reposer une deuxième fois », puis, au sélecteur : « une fois tous
+   les 6 mois ; les clientes qui ont mis entre 1 et 3 étoiles, leur
+   redemander à chaque passage » (Yéman). Le lien avis ↔ fiche est la seule
+   source de ce qu'elle a laissé ; le journal des envois, de ce qu'on lui a
+   demandé. La même règle sert la fonction du serveur (avis-google, qui en
+   porte une copie), le modèle à la main des Conversations, et sa fiche. */
 
-/** Les clientes qui ont laissé un avis : celles qu'un lien désigne. */
-export function clientesAvecUnAvis(liens: LiensDesAvis): Set<string> {
-  const s = new Set<string>();
-  for (const l of Object.values(liens ?? {})) if (l?.clientId) s.add(l.clientId);
-  return s;
+/** Six mois entre deux demandes, pour celle qui a laissé 4 ou 5 étoiles,
+    ou qui n'a pas répondu à la dernière demande. */
+export const JOURS_ENTRE_DEUX_DEMANDES = 182;
+/** Jusqu'à trois étoiles, la Maison veut reconquérir : à chaque passage. */
+export const NOTE_A_RECONQUERIR = 3;
+
+export type PourquoiDemander = 'premiere' | 'reconquete' | 'six-mois' | 'trop-tot';
+export type DemandeDAvis = { permise: boolean; pourquoi: PourquoiDemander; des?: string };
+
+/** La demande d'avis est-elle permise aujourd'hui ?
+    - son dernier avis relié fait 1 à 3 étoiles : oui, à chaque passage ;
+    - sa première venue réglée, rien demandé, rien laissé : oui ;
+    - sinon, six mois après le plus récent de sa dernière demande partie et
+      de son dernier avis ; avant, « trop tôt », avec le jour où l'on pourra. */
+export function demandeDAvisPermise(o: {
+  premiereVenue: boolean;
+  derniereDemande?: string | null;
+  dernierAvis?: { jour: string | null; note: number } | null;
+  aujourdhui: string;
+}): DemandeDAvis {
+  if (o.dernierAvis && o.dernierAvis.note > 0 && o.dernierAvis.note <= NOTE_A_RECONQUERIR) return { permise: true, pourquoi: 'reconquete' };
+  const jours = [o.derniereDemande, o.dernierAvis?.jour].filter((j): j is string => !!j).sort();
+  const dernier = jours[jours.length - 1];
+  if (!dernier) return { permise: true, pourquoi: o.premiereVenue ? 'premiere' : 'six-mois' };
+  const des = jourDecaleDe(dernier, JOURS_ENTRE_DEUX_DEMANDES);
+  return des <= o.aujourdhui ? { permise: true, pourquoi: 'six-mois' } : { permise: false, pourquoi: 'trop-tot', des };
 }
-export const aDejaLaisseUnAvis = (clientId: string | undefined, liens: LiensDesAvis): boolean =>
-  !!clientId && clientesAvecUnAvis(liens).has(clientId);
+
+/** Le jour (à Cotonou) de la dernière demande d'avis partie à cette cliente. */
+export function derniereDemandeDAvis(clientId: string, envois: readonly EnvoiLuPourLesAvis[]): string | null {
+  let d: string | null = null;
+  for (const e of envois) {
+    if (e.type !== 'avis-google' || e.clientId !== clientId || !DEMANDE_PARTIE.has(String(e.statut ?? ''))) continue;
+    const j = jourACotonou(e.quand);
+    if (j && (!d || j > d)) d = j;
+  }
+  return d;
+}
+
+/** Son dernier avis relié : le jour et la note, pour la règle. */
+export function dernierAvisDe(clientId: string, avis: readonly AvisDuReleve[], liens: LiensDesAvis, releveLe: string | undefined): { jour: string | null; note: number } | null {
+  const a = avisDeLaCliente(clientId, avis, liens, releveLe)[0];
+  return a ? { jour: jourDeLAvis(a, releveLe), note: Number(a.note) || 0 } : null;
+}
+
+/** Ce que la fiche et les Conversations disent de la règle, en une ligne. */
+export function ditLaDemandeDAvis(d: DemandeDAvis, jourDit: (jour: string) => string): string {
+  if (d.pourquoi === 'reconquete') return 'Trois étoiles ou moins : la Maison lui redemande son avis à chaque passage.';
+  if (d.pourquoi === 'trop-tot' && d.des) return `Prochaine demande d’avis au plus tôt le ${jourDit(d.des)} : une fois tous les six mois.`;
+  return 'Une demande d’avis peut partir : rien depuis six mois.';
+}
 
 /** LE FILTRE DE L'ONGLET, et le résumé de chaque ligne : les mêmes juges. */
 export type FiltreDesAvis = 'tous' | 'sans' | 'relier' | 'repondus';

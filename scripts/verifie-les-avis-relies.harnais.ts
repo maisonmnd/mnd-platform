@@ -20,7 +20,7 @@ import { readFileSync } from 'node:fs';
 import { transformSync } from 'esbuild';
 import {
   CLE_DES_LIENS, DEPART_DES_LIENS, JOURS_DE_LA_DEMANDE, JOURS_DE_LA_VENUE, PROPOSITIONS_MAX,
-  aDejaLaisseUnAvis, clientesAvecUnAvis,
+  JOURS_ENTRE_DEUX_DEMANDES, NOTE_A_RECONQUERIR, demandeDAvisPermise, derniereDemandeDAvis, dernierAvisDe, ditLaDemandeDAvis,
   avisDeLaCliente, chercheDesFiches, compteARelier, compteParFiltre, estDepuisLeDepart, etatDuLien, fichesProposees,
   jourACotonou, jourDeLAvis, motsDuNom, passeLeFiltre, pourquoiProposee, prenomCompare,
   type AvisDuReleve, type FiltreDesAvis, type LiensDesAvis,
@@ -160,15 +160,28 @@ dit('chercher : le début des mots du nom, sans accent ; quatre chiffres du num�
 }
 
 /* ── 8. L'ALERTE DE LA DIRECTION, DANS LA FONCTION ───────────────────── */
-/* ── UN AVIS, UNE SEULE FOIS (26 octobre 2026) ── */
+/* ── QUAND REDEMANDER UN AVIS (26 octobre 2026) : six mois ; chaque passage jusqu a 3 étoiles ── */
 {
-  const liens: LiensDesAvis = {
-    'a-1': { clientId: 'c1', le: '2026-10-21T10:00:00.000Z' },
-    'a-2': { sansFiche: true, le: '2026-10-21T10:00:00.000Z' },
-    'a-3': { clientId: 'c2', le: '2026-10-22T10:00:00.000Z' },
-  };
-  dit('les clientes qui ont laissé un avis : celles qu un lien désigne, pas « aucune fiche »', ['c1', 'c2'], [...clientesAvecUnAvis(liens)].sort());
-  dit('une cliente reliée n est plus sollicitée ; une autre, si ; sans fiche, non', [true, false, false], [aDejaLaisseUnAvis('c1', liens), aDejaLaisseUnAvis('c9', liens), aDejaLaisseUnAvis(undefined, liens)]);
+  const A = '2026-10-26';
+  dit('six mois entre deux demandes, trois étoiles = reconquête', [182, 3], [JOURS_ENTRE_DEUX_DEMANDES, NOTE_A_RECONQUERIR]);
+  dit('sa première venue réglée, rien demandé, rien laissé : on demande', { permise: true, pourquoi: 'premiere' }, demandeDAvisPermise({ premiereVenue: true, aujourdhui: A }));
+  dit('2 étoiles hier : on redemande à chaque passage', { permise: true, pourquoi: 'reconquete' }, demandeDAvisPermise({ premiereVenue: false, dernierAvis: { jour: '2026-10-25', note: 2 }, aujourdhui: A }));
+  dit('5 étoiles il y a 3 mois : trop tôt, redemande dès le 28 janv. 2027', { permise: false, pourquoi: 'trop-tot', des: '2027-01-28' }, demandeDAvisPermise({ premiereVenue: false, dernierAvis: { jour: '2026-07-30', note: 5 }, aujourdhui: A }));
+  dit('5 étoiles il y a 7 mois : on redemande (six mois)', { permise: true, pourquoi: 'six-mois' }, demandeDAvisPermise({ premiereVenue: false, dernierAvis: { jour: '2026-03-20', note: 5 }, aujourdhui: A }));
+  dit('demande partie il y a 2 mois, sans avis : trop tôt ; le plus récent des deux jours compte', { permise: false, pourquoi: 'trop-tot', des: '2027-02-24' },
+    demandeDAvisPermise({ premiereVenue: false, derniereDemande: '2026-08-26', dernierAvis: { jour: '2026-03-20', note: 5 }, aujourdhui: A }));
+  dit('une habituée d avant le Trône, rien demandé, rien relié : on demande', { permise: true, pourquoi: 'six-mois' }, demandeDAvisPermise({ premiereVenue: false, aujourdhui: A }));
+  dit('la dernière demande partie : la plus récente, envoyée ou à la main, jamais un échec', '2026-10-20', derniereDemandeDAvis('m2', [
+    { type: 'avis-google', clientId: 'm2', quand: '2026-10-01T10:00:00.000Z', statut: 'envoyé' },
+    { type: 'avis-google', clientId: 'm2', quand: '2026-10-20T10:00:00.000Z', statut: 'à-la-main' },
+    { type: 'avis-google', clientId: 'm2', quand: '2026-10-24T10:00:00.000Z', statut: 'échec' },
+    { type: 'confirmation', clientId: 'm2', quand: '2026-10-25T10:00:00.000Z', statut: 'envoyé' },
+  ]));
+  const liens: LiensDesAvis = { 'a-1': { clientId: 'c1', le: '2026-10-21T10:00:00.000Z' } };
+  const releve = [{ auteur: 'Awa D.', note: 3, texte: 'Bien mais long', quand: '2026-10-20T10:00:00.000Z', publieLe: '2026-10-20T09:00:00.000Z', cle: 'a-1' }] as AvisDuReleve[];
+  dit('son dernier avis relié : le jour et la note', { jour: '2026-10-20', note: 3 }, dernierAvisDe('c1', releve, liens, '2026-10-26T06:00:00.000Z'));
+  dit('la fiche le dit en une ligne', ['Trois étoiles ou moins : la Maison lui redemande son avis à chaque passage.', 'Prochaine demande d’avis au plus tôt le 2027-01-28 : une fois tous les six mois.'],
+    [ditLaDemandeDAvis({ permise: true, pourquoi: 'reconquete' }, (j) => j), ditLaDemandeDAvis({ permise: false, pourquoi: 'trop-tot', des: '2027-01-28' }, (j) => j)]);
   const vieux = { auteur: 'Mireille Agossou', note: 5, texte: 'Merci', quand: '2026-10-25T10:00:00.000Z', publieLe: '2026-10-25T09:00:00.000Z' } as AvisDuReleve;
   const fiches = [{ id: 'm1', name: 'Mireille AGOSSOU' }, { id: 'm2', name: 'Mireille Dossou' }];
   const unSeulNom = fichesProposees(vieux, '2026-10-26T06:00:00.000Z', { clients: fiches, envois: [], rdvs: [] });
@@ -179,14 +192,19 @@ dit('chercher : le début des mots du nom, sans accent ; quatre chiffres du num�
   const avecDemande = fichesProposees(vieux, '2026-10-26T06:00:00.000Z', { clients: fiches, envois: [{ type: 'avis-google', clientId: 'm2', quand: '2026-10-20T10:00:00.000Z', statut: 'envoyé' }], rdvs: [] });
   dit('... une demande partie dans les 30 jours passe d abord, le nom entier n ajoute rien', [['m2', 'demande']], avecDemande.map((p) => [p.clientId, p.raison]));
   const envoi = sansCommentaires(lis('supabase/functions/avis-google/index.ts'));
-  dit('la fonction avis-google (2026-10-26-a) lit les liens et n écrit plus à une cliente reliée ; un GET rend la version', [true, true, true, true], [
-    envoi.includes("'mnd_avis_fiches'"), envoi.includes("consigne(p, 'sans-envoi', 'a déjà laissé un avis Google')"),
-    envoi.includes("const VERSION = '2026-10-26-a';"), /req\.method === 'GET'/.test(envoi),
+  const pur = sansCommentaires(lis('src/shared/avis-fiches-pur.ts'));
+  const corps = (src: string) => { const m = src.match(/function demandeDAvisPermise\([\s\S]*?\n\}/); return m ? m[0].replace(/\s+/g, ' ') : ''; };
+  dit('la fonction avis-google (2026-10-26-b) porte la MÊME règle, mot pour mot, lit les liens, le relevé et les demandes parties ; un GET rend la version', [true, true, true, true, true, true], [
+    corps(envoi) !== '' && corps(envoi) === corps(pur),
+    envoi.includes("'mnd_avis_fiches', 'mnd_avis_google'"), envoi.includes(".eq('data->>type', 'avis-google').in('data->>clientId', ids)"),
+    envoi.includes("consigne(p, 'sans-envoi', `trop tôt : une demande d’avis au plus tôt le ${regle.des ?? ''}`)"),
+    envoi.includes("const VERSION = '2026-10-26-b';"), /req\.method === 'GET'/.test(envoi),
   ]);
+  dit('... et la même clé d avis que le Trône (FNV-1a)', [true, true], [envoi.includes('let h = 0x811c9dc5;'), envoi.includes('h = Math.imul(h, 0x01000193) >>> 0;')]);
   const conv = sansCommentaires(lis('src/apps/trone/routes/clients/Conversations.tsx'));
-  dit('le modèle à la main « Demande d avis » se cache pour une cliente reliée', true,
-    conv.includes("MODELES.filter((m) => m.nom !== 'avis_google' || !aDejaLaisseUnAvis(fil.clientId, liensDesAvis))"));
-  dit('sa fiche le dit', true, lis('src/apps/trone/routes/clients/SonAvisGoogle.tsx').includes('la Maison ne lui en redemande pas'));
+  dit('le modèle à la main « Demande d avis » suit la règle, et dit pourquoi quand il se cache', [true, true],
+    [conv.includes("MODELES.filter((m) => m.nom !== 'avis_google' || demandeDAvis.permise)"), conv.includes('ditLaDemandeDAvis(demandeDAvis, jourAn)')]);
+  dit('sa fiche le dit', true, lis('src/apps/trone/routes/clients/SonAvisGoogle.tsx').includes('ditLaDemandeDAvis(regle, jourCourtAn)'));
 }
 
 const FONCTION = 'supabase/functions/avis-google-releve/index.ts';
