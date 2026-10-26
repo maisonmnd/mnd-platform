@@ -1,0 +1,76 @@
+/* LES PRÉVISIONS — 26 octobre 2026, maquette 1opRHqoVJHVA3oHxVw5kcM.
+   Un seul motif vedette (les barres sous le plafond), du vide autour ;
+   dessous, trois tableaux qui recomposent les chiffres de l'en-tête. */
+.trp-prev { display: flex; flex-direction: column; gap: 22px; }
+.trp-prev b, .trp-prev td.d, .trp-prev__chiffre b { font-variant-numeric: lining-nums tabular-nums; }
+
+/* ── L'en-tête ── */
+.trp-prev__chiffres { display: flex; gap: 28px; align-items: flex-end; flex-wrap: wrap; }
+.trp-prev__chiffre { display: flex; flex-direction: column; gap: 2px; }
+.trp-prev__chiffre b { font-family: var(--font-serif); font-weight: 400; font-size: 32px; line-height: 1; color: var(--color-indigo); }
+.trp-prev__chiffre small { font-size: 11.5px; color: var(--ink-soft); }
+.trp-prev__chiffre--cuivre b { color: var(--copper-700); }
+
+/* ── L'horizon ── */
+.trp-prev__horizon { display: inline-flex; align-self: flex-start; border: 1px solid var(--hairline); border-radius: 3px; background: var(--surface-card); overflow: hidden; }
+.trp-prev__horizon button { all: unset; cursor: pointer; padding: 9px 16px; font-size: 11.5px; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-soft); transition: background-color .2s ease, color .2s ease; }
+.trp-prev__horizon button.est-choisi { background: var(--color-indigo); color: var(--color-ivoire); }
+.trp-prev__horizon button:focus-visible { outline: 2px solid var(--color-copper); outline-offset: -2px; }
+
+/* ── Le motif vedette ── */
+.trp-prev__vedette { background: var(--surface-card); border: 1px solid var(--hairline); border-radius: 3px; padding: 20px 22px 16px; display: flex; flex-direction: column; gap: 12px; }
+.trp-prev__vedette-haut { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.trp-prev__vedette h3 { font-family: var(--font-serif); font-weight: 400; font-size: 24px; margin: 0; color: var(--color-indigo); }
+.trp-prev__legende { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12px; color: var(--ink-soft); }
+.trp-prev__legende i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; vertical-align: -1px; }
+.trp-prev__legende i.trp-prev__poses { background: var(--color-indigo); }
+.trp-prev__legende i.trp-prev__attendus { background: var(--indigo-200); }
+.trp-prev__legende i.trp-prev__mk { background: var(--color-copper); }
+.trp-prev__legende i.trp-prev__trait { width: 14px; height: 0; border-radius: 0; border-top: 2px dashed var(--color-indigo); vertical-align: 3px; }
+.trp-prev__graphe { width: 100%; height: auto; display: block; }
+.trp-prev__graphe text { fill: var(--ink-soft); font: 11px var(--font-sans); }
+.trp-prev__graphe .trp-prev__val { fill: var(--color-indigo); font-weight: 500; }
+.trp-prev__graphe .trp-prev__grille { stroke: var(--hairline); stroke-width: 1; }
+.trp-prev__graphe rect.trp-prev__poses { fill: var(--color-indigo); }
+.trp-prev__graphe rect.trp-prev__attendus { fill: var(--indigo-200); }
+.trp-prev__graphe rect.trp-prev__mk { fill: var(--color-copper); }
+.trp-prev__graphe .trp-prev__plafond { stroke: var(--color-indigo); stroke-width: 2; stroke-dasharray: 5 4; }
+
+/* ── Les trois tableaux ── */
+.trp-prev__trois { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; align-items: start; }
+@media (max-width: 1180px) { .trp-prev__trois { grid-template-columns: minmax(0, 1fr); } }
+.trp-prev__calcul { background: var(--surface-card); border: 1px solid var(--hairline); border-radius: 3px; padding: 18px 20px; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.trp-prev__calcul h3 { font-family: var(--font-serif); font-weight: 400; font-size: 22px; margin: 0; display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; color: var(--color-indigo); }
+.trp-prev__calcul h3 span { font-family: var(--font-sans); font-size: 10.5px; letter-spacing: .16em; text-transform: uppercase; color: var(--copper-700); }
+.trp-prev__calcul p { margin: 0; font-size: 12.5px; color: var(--ink-soft); }
+.trp-prev__calcul table { border-collapse: collapse; width: 100%; font-size: 13px; }
+.trp-prev__calcul td, .trp-prev__calcul th { padding: 7px 0; border-top: 1px solid var(--hairline); vertical-align: baseline; }
+.trp-prev__calcul th { text-align: left; font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-soft); font-weight: 500; border-top: 0; }
+.trp-prev__calcul td.d, .trp-prev__calcul th.d { text-align: right; padding-left: 10px; white-space: nowrap; }
+.trp-prev__calcul td small { display: block; color: var(--ink-soft); font-size: 11.5px; white-space: normal; }
+.trp-prev__calcul td.d small { max-width: 220px; margin-left: auto; }
+.trp-prev__calcul tr.total td { border-top: 1px solid var(--color-indigo); font-weight: 600; padding-top: 9px; }
+.trp-prev__calcul tr.total td.d { font-family: var(--font-serif); font-size: 20px; font-weight: 500; color: var(--color-indigo); }
+.trp-prev__jour { text-transform: capitalize; }
+.trp-prev__memoire td.d { color: var(--ink-soft); }
+.trp-prev__calcul td small.trp-prev__mesure { color: #3F6B4E; }
+.trp-prev__calcul td small.trp-prev__amesurer { color: var(--copper-700); }
+.trp-prev__calcul td small.trp-prev__inclus { color: var(--ink-soft); }
+
+.trp-prev__gestes { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.trp-prev__btn { all: unset; box-sizing: border-box; cursor: pointer; border-radius: 3px; padding: 8px 14px; font-size: 11px; letter-spacing: .14em; text-transform: uppercase; font-weight: 500; border: 1px solid var(--hairline); background: var(--surface-card); color: var(--color-indigo); transition: background-color .2s ease; }
+.trp-prev__btn:hover { background: var(--copper-50); }
+.trp-prev__btn--cuivre { background: var(--color-copper); border-color: var(--color-copper); color: #fff; }
+.trp-prev__btn--cuivre:hover { background: var(--copper-600); }
+.trp-prev__btn:focus-visible { outline: 2px solid var(--color-copper); outline-offset: 2px; }
+
+.trp-prev__pied { margin: 0; font-size: 12px; color: var(--ink-soft); max-width: 110ch; }
+
+@media (max-width: 640px) {
+  .trp-prev__chiffres { gap: 18px; }
+  .trp-prev__chiffre b { font-size: 26px; }
+  .trp-prev__vedette { padding: 16px 14px 12px; }
+  .trp-prev__calcul { padding: 16px 14px; }
+  /* Le dessin se réduit de moitié sur un téléphone : ses mots doublent. */
+  .trp-prev__graphe text { font-size: 21px; }
+}

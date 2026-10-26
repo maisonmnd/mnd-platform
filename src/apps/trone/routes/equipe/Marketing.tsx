@@ -1,5 +1,5 @@
 import { asset } from '../../../../shared/asset';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { OptionsPrestations, PageHead } from '../_ui';
 import { Button, Card, Eyebrow, Field, Input, Modal, Select, alerte, demande, toast } from '../../../../ds/components';
@@ -9,7 +9,7 @@ import { useSegments } from '../../../../shared/clients';
 import { useCategories, useServices } from '../../../../shared/catalog';
 import { uid } from '../../../../shared/store';
 import { pushBroadcastClients } from '../../../../shared/push';
-import { cleDuSegment } from '../../../../shared/audiences-pur';
+import { cleDuSegment, estUneAudienceConnue } from '../../../../shared/audiences-pur';
 import type { Campagne } from '../../../../shared/campagnes-pur';
 import {
   OFFER_AUDIENCES, OFFER_DAYS, OFFER_HOURS,
@@ -65,7 +65,7 @@ export default function Marketing() {
   const { branch, currency } = useBranch();
   /* ?tab=auto — permet d'arriver droit sur les automatisations depuis ailleurs
      (bouton des Paramètres). Onglet inconnu → on retombe sur les campagnes. */
-  const [params] = useSearchParams();
+  const [params, setParams] = useSearchParams();
   const asked = params.get('tab');
   const [tab, setTab] = useState<Tab>(
     asked === 'auto' || asked === 'offres' || asked === 'audience' ? asked : 'campagnes',
@@ -100,6 +100,16 @@ export default function Marketing() {
     setBrouillon(campagneNeuve(branch.id, cle));
   };
   const nouvelleCampagne = () => ecrireA(segmentList[0] ? cleDuSegment(segmentList[0]) : 'dormantes');
+  /* ?ecrire=<audience> — « Préparer la campagne des dormantes » depuis Les
+     prévisions (26 octobre 2026) : la campagne s'ouvre déjà adressée. Elle
+     reste un brouillon ; déposée, elle attend retenue le feu vert. */
+  const aEcrire = params.get('ecrire');
+  useEffect(() => {
+    if (!aEcrire) return;
+    if (estUneAudienceConnue(aEcrire)) ecrireA(aEcrire);
+    setParams((p) => { p.delete('ecrire'); return p; }, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [aEcrire]);
 
   const [offerModal, setOfferModal] = useState(false);
   const [offerEditId, setOfferEditId] = useState<string | null>(null);

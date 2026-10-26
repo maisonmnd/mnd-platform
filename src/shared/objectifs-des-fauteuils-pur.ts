@@ -16,6 +16,9 @@
      - l'ORDINAIRE, la médiane : ce qu'un mardi donne d'habitude ;
      - l'OBJECTIF ATTEIGNABLE, le troisième quartile : ce qu'elle a déjà fait
        au moins un mardi sur quatre, donc à sa portée ;
+     - le PLAFOND ATTEIGNABLE, le neuvième décile : ce qu'elle a déjà fait au
+       moins un mardi sur dix (« Les prévisions », 26 octobre 2026, choix du
+       sélecteur), plein mais vécu ;
      - le RECORD, le plus haut depuis janvier 2025, dit pour mémoire.
    Les repères se lisent sur les VINGT-SIX DERNIÈRES SEMAINES (la Maison
    d'aujourd'hui, pas celle de janvier 2025) ; un jour de la semaine trop
@@ -49,6 +52,8 @@ export type ReperesDuJour = {
   jours: number;
   ordinaire: number;
   objectif: number;
+  /** Le neuvième décile : fait au moins un jour sur dix. */
+  plafond: number;
   record: number;
   /** Combien de ces jours ont atteint l'objectif. */
   atteint: number;
@@ -108,6 +113,7 @@ export function reperesParJour(o: {
       jours: tries.length,
       ordinaire: quantile(tries, 0.5),
       objectif,
+      plafond: quantile(tries, 0.9),
       record: tous[s].length ? Math.max(...tous[s]) : 0,
       atteint: tries.filter((n) => n >= objectif).length,
       depuis,
