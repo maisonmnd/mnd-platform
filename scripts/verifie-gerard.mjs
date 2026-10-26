@@ -32,6 +32,7 @@ async function lanceLeBanc() {
 
 const PUR = 'src/shared/gerard-pur.ts';
 const ECRAN = 'src/apps/trone/routes/clients/Gerard.tsx';
+const DONNEES = 'src/apps/trone/routes/clients/gerard-donnees.ts';
 const PANNES = [
   ['garder un RDV pris la veille', PUR, '>= GARDER_SI_POSE_DEPUIS)', '>= 0)'],
   ['l anniversaire fete deux fois', PUR, "&& (f.birthdayGiftAt ?? '').slice(0, 4) !== A.slice(0, 4)", ''],
@@ -49,7 +50,16 @@ const PANNES = [
   ['la date sans annee', PUR, "${MOIS[d.getUTCMonth()]} ${d.getUTCFullYear()}`;", "${MOIS[d.getUTCMonth()]}`;"],
   ['la question franche sourde', PUR, '|\\bje parle (à|a) qui\\b', ''],
   ['la signature redevient Gerard', PUR, "export const SIGNATURE = 'Maison MND';", "export const SIGNATURE = 'Gérard, Maison MND';"],
-  ['l ecran lit le cycle suivant', ECRAN, 'cad.overdueDays > 0 ? addDaysISO(today, -cad.overdueDays) : cad.iso', 'cad.iso'],
+  ['l ecran lit le cycle suivant', DONNEES, 'cad.overdueDays > 0 ? addDaysISO(today, -cad.overdueDays) : cad.iso', 'cad.iso'],
+  ['les fetes au rythme ordinaire', PUR, "export const ENVIE_TOUS_LES_JOURS_EN_FETES = 21;", "export const ENVIE_TOUS_LES_JOURS_EN_FETES = 30;"],
+  ['les relances des fetes a quatre semaines', PUR, "export const RELANCE_TOUS_LES_JOURS_EN_FETES = 14;", "export const RELANCE_TOUS_LES_JOURS_EN_FETES = 28;"],
+  ['Noel au 1er decembre', PUR, "export const NOEL_DU = '11-15';", "export const NOEL_DU = '12-01';"],
+  ['le passage la nuit', PUR, '&& heureCotonou >= HEURE_DU_PASSAGE_DE && heureCotonou < HEURE_DU_PASSAGE_A;', ';'],
+  ['le passage deux fois par jour', PUR, "r.mode !== 'eteint' && r.dernierPassage !== aujourdhui", "r.mode !== 'eteint'"],
+  ['une ligne ecartee comptee', PUR, "if (e.statut === 'écarté' || e.statut === 'périmé' || e.statut === 'échec') continue;", ''],
+  ['WhatsApp avant Ma Couronne', PUR, "if (EST_UN_SERVICE[genre]) return f.couronne ? 'couronne' : f.telephone ? 'whatsapp' : null;", "if (EST_UN_SERVICE[genre]) return f.telephone ? 'whatsapp' : f.couronne ? 'couronne' : null;"],
+  ['le passage depose WhatsApp aussi', DONNEES, "if (s.canal !== 'couronne' || !servie(r, s.clientId)) continue;", 'if (!servie(r, s.clientId)) continue;'],
+  ['l ecran oublie ses envois', DONNEES, 'traces: traces.get(c.id) ?? [],', 'traces: [],'],
 ];
 
 const md5 = (f) => createHash('md5').update(readFileSync(path.join(racine, f))).digest('hex');

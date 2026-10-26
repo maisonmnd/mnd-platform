@@ -10,7 +10,7 @@ import {
   ANNIV_VALABLE_JOURS, ENDORMIE_FOIS_MAX, MODELES_DE_GERARD, REMISES_PAR_SEMAINE,
   choisisLEnvie, dateDeCadence, estUneQuestionFranche, familleDuNom, filDeLaCliente, heureDite, jourDit, joursCreux, planDuJour,
   plusJours, remplis, situationDuJour,
-  ESSAI_MAX, reglagesLus,
+  ESSAI_MAX, reglagesLus, estSaisonDesFetes, ligneALaMain, ligneDeNotification, passageDu, servie, texteSansSignature, tracesDesEnvois,
   type ContexteDeGerard, type FicheDeGerard, type RdvDeGerard,
 } from '../src/shared/gerard-pur';
 
@@ -141,12 +141,59 @@ dit('les réglages livrés : éteint, essai vide ; jamais plus de cinq clientes 
   [reglagesLus(undefined).mode, reglagesLus(undefined).essai.length, reglagesLus({ mode: 'essai', essai: ['1', '2', '3', '4', '5', '6', '7'] }).essai.length]);
 dit('... la limite de l’essai reste cinq', 5, ESSAI_MAX);
 
-/* ── 13. L'écran et la barre ── */
+/* ── 13. La saison des fêtes ── */
+dit('la saison des fêtes : du 1er novembre au 24 décembre', [false, true, true, false], ['2026-10-31', '2026-11-01', '2026-12-24', '2026-12-25'].map(estSaisonDesFetes));
+const AF = '2026-11-10';
+const enFetes = (o: Partial<FicheDeGerard> = {}) => fiche({ rdvs: [venue(plusJours(AF, -100)), venue(plusJours(AF, -22))], cadence: { iso: plusJours(AF, 40), rythmeJours: 62 }, ...o });
+dit('en fêtes, la première envie à trois semaines (pas un mois)', ['envie', null],
+  [situationDuJour(enFetes(), ctx({ aujourdhui: AF }))?.genre, situationDuJour(fiche({ rdvs: [venue(plusJours(A, -100)), venue(plusJours(A, -22))], cadence: { iso: plusJours(A, 40), rythmeJours: 62 } }), ctx())]);
+dit('... puis une envie toutes les trois semaines', ['envie', null],
+  [situationDuJour(enFetes({ traces: [{ quand: `${plusJours(AF, -21)}T09:00:00Z`, genre: 'envie', envie: 'lavage' }] }), ctx({ aujourdhui: AF }))?.genre,
+    situationDuJour(enFetes({ traces: [{ quand: `${plusJours(AF, -20)}T09:00:00Z`, genre: 'envie', envie: 'lavage' }] }), ctx({ aujourdhui: AF }))]);
+const retardF = fiche({ rdvs: [venue(plusJours(AF, -90)), venue(plusJours(AF, -55))], cadence: { iso: plusJours(AF, -20), rythmeJours: 35 } });
+dit('... les relances toutes les deux semaines (pas quatre)', ['retard', null],
+  [situationDuJour({ ...retardF, traces: [{ quand: `${plusJours(AF, -15)}T09:00:00Z`, genre: 'retard' }] }, ctx({ aujourdhui: AF }))?.genre,
+    situationDuJour({ ...retardF, traces: [{ quand: `${plusJours(AF, -13)}T09:00:00Z`, genre: 'retard' }] }, ctx({ aujourdhui: AF }))]);
+const noelTot = fiche({ rdvs: [venue('2026-09-01'), venue('2026-10-20')], cadence: { iso: '2026-12-20', rythmeJours: 56 } });
+dit('... Noël dès le 15 novembre, pas avant', ['noel', 'envie'],
+  [situationDuJour(noelTot, ctx({ aujourdhui: '2026-11-16' }))?.genre, situationDuJour(noelTot, ctx({ aujourdhui: '2026-11-14' }))?.genre]);
+dit('le fil des fêtes : une envie toutes les trois semaines', [21, 42],
+  filDeLaCliente(fiche({ rdvs: [venue('2026-11-02')], cadence: { iso: '2027-01-05', rythmeJours: 64 } }), '2026-11-03').filter((p) => p.quoi === 'Une envie').map((p) => p.jour));
+
+/* ── 14. Le passage du jour ── */
+dit('Ma Couronne d’abord, même pour un service : gratuite, elle part seule', ['couronne', 'couronne', 'whatsapp'],
+  [sit(fiche({ couronne: true, rdvs: [venue(plusJours(A, -40)), rdvDans2()] }))?.canal, sit(fiche({ couronne: true, accord: false }))?.canal, sit(fiche())?.canal]);
+dit('le passage est dû : allumé, pas encore fait, entre 8 h et 20 h', [true, false, false, false, false],
+  [passageDu({ mode: 'ouvert', essai: [] }, A, 9.5), passageDu({ mode: 'eteint', essai: [] }, A, 9.5), passageDu({ mode: 'ouvert', essai: [], dernierPassage: A }, A, 9.5),
+    passageDu({ mode: 'ouvert', essai: [] }, A, 7.9), passageDu({ mode: 'ouvert', essai: [] }, A, 20)]);
+dit('... ouvert sert toutes les clientes, l’essai les siennes seulement', [true, true, false], [servie({ mode: 'ouvert', essai: [] }, 'x'), servie({ mode: 'essai', essai: ['x'] }, 'x'), servie({ mode: 'essai', essai: ['y'] }, 'x')]);
+const sCou = sit(fiche({ couronne: true }))!;
+const lN = ligneDeNotification(sCou, { branchId: 'b', aujourdhui: A, maintenantIso: `${A}T09:00:00.000Z`, prenom: 'Awa', compte: 'u-1', partA: `${A}T09:10:00.000Z`, calme: false });
+dit('la notification déposée en salle : en attente, au compte abonné, titre « Maison MND », sans la signature en double', ['gerard-2026-10-26-c1-push', 'en-attente', 'gerard', 'u-1', 'Maison MND', false, '/couronne/'],
+  [lN.id, lN.statut, lN.type, lN.colis?.clientId, lN.colis?.titre, /Maison MND$/.test(lN.colis?.corps ?? ''), lN.colis?.url]);
+const lM = ligneALaMain(sit(fiche())!, { branchId: 'b', aujourdhui: A, maintenantIso: `${A}T09:00:00.000Z`, prenom: 'Awa', codePromo: 'CREUX15-ABC' });
+dit('... le message envoyé à la main : noté, sans colis, avec son code', ['gerard-2026-10-26-c1-wa-main', 'à-la-main', 'wa-main', false, 'CREUX15-ABC'], [lM.id, lM.statut, lM.canal, !!lM.colis, lM.codePromo]);
+dit('la signature s’ôte de la fin seulement', ['Bonjour.', 'Maison MND, merci.\n\nMaison MND x'], [texteSansSignature('Bonjour.\n\nMaison MND'), texteSansSignature('Maison MND, merci.\n\nMaison MND x')]);
+const tr = tracesDesEnvois([
+  { type: 'gerard', clientId: 'a', statut: 'en-attente', deposeLe: '2026-10-20T09:00:00Z', genre: 'envie', envie: 'lavage' },
+  { type: 'gerard', clientId: 'a', statut: 'écarté', deposeLe: '2026-10-21T09:00:00Z', genre: 'retard' },
+  { type: 'gerard', clientId: 'b', statut: 'à-la-main', deposeLe: '2026-10-22T09:00:00Z', genre: 'creux' },
+  { type: 'campagne', clientId: 'a', statut: 'envoyé', deposeLe: '2026-10-22T09:00:00Z', genre: 'envie' },
+]);
+dit('ce que Gérard a écrit se relit dans les envois ; une ligne écartée ne compte pas', [[['envie', 'lavage']], [['creux', undefined]]],
+  [tr.get('a')?.map((t) => [t.genre, t.envie]), tr.get('b')?.map((t) => [t.genre, t.envie])]);
+
+/* ── 15. L'écran et la barre ── */
 const ecran = sansCommentaires(readFileSync('src/apps/trone/routes/clients/Gerard.tsx', 'utf8'));
-dit('l’écran : le plan par le cerveau, la date manquée d’une cliente en retard, la venue du Carnet', [true, true, true],
-  [/planDuJour\(fiches, ctx\)/.test(ecran), /cad\.overdueDays > 0 \? addDaysISO\(today, -cad\.overdueDays\) : cad\.iso/.test(ecran),
-    ecran.includes('encaisse: apptPaidXof(a) > 0, facture: !!a.invoiceId || factures.has(a.id)')]);
-dit('... il dit qu’il n’écrit pas encore', true, /Gérard n’écrit pas encore/.test(ecran));
+const donnees = sansCommentaires(readFileSync('src/apps/trone/routes/clients/gerard-donnees.ts', 'utf8'));
+dit('l’écran : le plan par le cerveau, la date manquée d’une cliente en retard, la venue du Carnet, ses propres envois', [true, true, true, true],
+  [/planDuJour\(fiches, ctx\)/.test(ecran), /cad\.overdueDays > 0 \? addDaysISO\(today, -cad\.overdueDays\) : cad\.iso/.test(donnees),
+    donnees.includes('encaisse: apptPaidXof(a) > 0, facture: !!a.invoiceId || factures.has(a.id)'), /traces: traces\.get\(c\.id\) \?\? \[\]/.test(donnees)]);
+dit('... le passage ne dépose que Ma Couronne, aux clientes servies', true, /if \(s\.canal !== 'couronne' \|\| !servie\(r, s\.clientId\)\) continue;/.test(donnees));
+dit('... le passage du jour au chargement, le bouton WhatsApp, le journal du jour', [true, true, true],
+  [/useLePassageDeGerard\(cerveau, plan\)/.test(ecran), /lienWaMe\(cerveau\.clientDe\(s\.clientId\)\?\.phone/.test(ecran), /<h3>Aujourd’hui <span>ce qui est parti<\/span><\/h3>/.test(ecran)]);
+const tableau = readFileSync('src/apps/trone/routes/pilotage/Dashboard.tsx', 'utf8');
+dit('... et le tableau de bord lance le passage', true, /<PassageDeGerard \/>/.test(tableau));
 const routes = readFileSync('src/apps/trone/routes/index.tsx', 'utf8');
 dit('la barre : Gérard en Clientèle, sous Clientes, et nommé parmi les écrans nés après les départements', [true, true],
   [routes.indexOf("path: '/gerard'") > routes.indexOf("path: '/customers'") && routes.indexOf("path: '/gerard'") < routes.indexOf("path: '/carnet'"),

@@ -46,6 +46,7 @@ import AlarmeWhatsApp from './AlarmeWhatsApp';
 import { PrevisionDuMois, usePrevisionDuMois } from './PrevisionDuMois';
 import { DemanderALaMaison } from './DemanderALaMaison';
 import { AValiderDesAgents } from './AValiderDesAgents';
+import { PassageDeGerard } from '../clients/PassageDeGerard';
 import { useDemandes, demandesTriees, ditLeBesoin, ditLeGenre, depuisQuand, telephoneMasque, nomDeLaDemande } from '../../../../shared/demandes';
 import { appelDe } from '../../../../shared/civilite';
 import { useSignalements } from '../../../../shared/entre-deux';
@@ -938,6 +939,7 @@ export default function Dashboard() {
           le Trône calcule, chaque part se dit en clair (PrevisionDuMois.tsx). */}
       <PrevisionDuMois donnees={prevDuMois} />
       <AValiderDesAgents />
+      <PassageDeGerard />
 
       {/* Tuiles secondaires */}
       {/* LE CHIFFRE PAR MAISON — n'apparaît que s'il y a quelque chose à séparer.

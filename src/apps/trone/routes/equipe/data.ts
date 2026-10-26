@@ -607,7 +607,7 @@ export type Envoi = {
       septembre) rejoignent le journal ; « fin-de-paquet » y vivait déjà sans
       être déclaré. Le journal les lit tous (`shared/envois`). */
   type: 'rappel-j1' | 'avis-google' | 'confirmation' | 'accuse' | 'fin-de-paquet' | 'reprise-j3' | 'point-apres' | 'point-avant' | 'relance-facture'
-    | 'rappel-echeance' | 'prix-revu' | 'parrainage' | 'campagne';
+    | 'rappel-echeance' | 'prix-revu' | 'parrainage' | 'campagne' | 'gerard';
   /** La campagne du Marketing qui l'a déposé (21 octobre 2026). */
   campagneId?: string;
   canal: 'push' | 'whatsapp' | 'sms' | 'wa-main';

@@ -4,8 +4,11 @@
    et la cliente, de sa séance à sa date de cadence », « qu'elle n'ait pas le
    temps de nous oublier en six ou huit semaines » (Yéman). Maquette
    4bPVFik1ABh3TRFZ5XbHiG, choix du sélecteur :
-     · autonomie : seul après deux semaines d'essai ;
-     · le fil : UNE ENVIE PAR MOIS entre deux séances ;
+     · autonomie : seul après deux semaines d'essai, puis le soir même
+       « je n'attendrai pas deux semaines : on commence immédiatement » ;
+     · le fil : UNE ENVIE PAR MOIS entre deux séances ; pendant LA SAISON DES
+       FÊTES (1er novembre au 24 décembre), une envie toutes les TROIS
+       semaines, les relances toutes les DEUX, Noël dès le 15 novembre ;
      · les relances : quatre semaines au plus par cliente ; une endormie
        trois fois, à six semaines d'écart, puis silence ;
      · le rendez-vous : gardé DEUX JOURS AVANT (la veille reste au rappel) ;
@@ -60,8 +63,17 @@ export const REMISE_CREUX_PCT = 15;
 export const REMISE_ANNIV_PCT = 10;
 export const ANNIV_VALABLE_JOURS = 30;
 export const REMISES_PAR_SEMAINE = 8;
-export const NOEL_DU = '12-01';
+export const NOEL_DU = '11-15';
 export const NOEL_AU = '12-15';
+/** LA SAISON DES FÊTES : « un mois avant les fêtes, un marketing beaucoup plus intense ». */
+export const FETES_DU = '11-01';
+export const FETES_AU = '12-24';
+export const ENVIE_TOUS_LES_JOURS_EN_FETES = 21;
+export const RELANCE_TOUS_LES_JOURS_EN_FETES = 14;
+export const estSaisonDesFetes = (j: string): boolean => j.slice(5) >= FETES_DU && j.slice(5) <= FETES_AU;
+/** L'écart entre deux envies, et la première après la séance, au jour dit. */
+export const intervalleDesEnvies = (j: string): number => (estSaisonDesFetes(j) ? ENVIE_TOUS_LES_JOURS_EN_FETES : ENVIE_TOUS_LES_JOURS);
+export const intervalleDesRelances = (j: string): number => (estSaisonDesFetes(j) ? RELANCE_TOUS_LES_JOURS_EN_FETES : RELANCE_TOUS_LES_JOURS);
 /** La signature des messages : « Maison MND », seule (Yéman, le 26 octobre 2026 au soir : « ne signe pas Gérard »). */
 export const SIGNATURE = 'Maison MND';
 
@@ -109,6 +121,8 @@ export type ReglagesDeGerard = {
   essai: string[];
   /** Quand l'essai a commencé : deux semaines, puis la question « ouvrir ? ». */
   essaiDepuis?: string;
+  /** Le jour du dernier passage (AAAA-MM-JJ) : une fois par jour. */
+  dernierPassage?: string;
   parQui?: string;
   le?: string;
 };
@@ -120,6 +134,7 @@ export const reglagesLus = (r: Partial<ReglagesDeGerard> | null | undefined): Re
   mode: r?.mode === 'essai' || r?.mode === 'ouvert' ? r.mode : 'eteint',
   essai: Array.isArray(r?.essai) ? r!.essai.filter((x) => typeof x === 'string').slice(0, ESSAI_MAX) : [],
   essaiDepuis: typeof r?.essaiDepuis === 'string' ? r.essaiDepuis : undefined,
+  dernierPassage: typeof r?.dernierPassage === 'string' ? r.dernierPassage : undefined,
   parQui: r?.parQui, le: r?.le,
 });
 
@@ -260,7 +275,9 @@ export function filDeLaCliente(f: FicheDeGerard, aujourdhui: string): PointDuFil
     { iso: plusJours(s, 1), jour: 1, quoi: 'Le bilan de la séance', existant: true },
     { iso: plusJours(s, 7), jour: 7, quoi: 'Le point d’après', existant: true },
   ];
-  for (let j = PREMIERE_ENVIE_APRES; duree - j >= ENVIE_AVANT_CADENCE_MIN; j += ENVIE_TOUS_LES_JOURS) pts.push({ iso: plusJours(s, j), jour: j, quoi: 'Une envie', existant: false });
+  for (let j = Math.min(PREMIERE_ENVIE_APRES, intervalleDesEnvies(plusJours(s, ENVIE_TOUS_LES_JOURS_EN_FETES))); duree - j >= ENVIE_AVANT_CADENCE_MIN; j += intervalleDesEnvies(plusJours(s, j))) {
+    pts.push({ iso: plusJours(s, j), jour: j, quoi: 'Une envie', existant: false });
+  }
   if (duree > COMBINER_AVANT) pts.push({ iso: plusJours(c.iso, -COMBINER_AVANT), jour: duree - COMBINER_AVANT, quoi: c.posee ? 'Le point d’avant' : 'Tout combiner', existant: c.posee });
   if (c.posee) pts.push({ iso: plusJours(c.iso, -GARDER_AVANT), jour: duree - GARDER_AVANT, quoi: 'Garder son RDV', existant: false });
   pts.push({ iso: c.iso, jour: duree, quoi: c.posee ? 'Son rendez-vous' : 'Sa date de cadence', existant: c.posee });
@@ -354,10 +371,11 @@ const derniereTrace = (f: FicheDeGerard, genres: readonly GenreDeMessage[]): str
 const TOUS_SAUF_GARDER: GenreDeMessage[] = ['anniversaire', 'combiner', 'envie', 'creux', 'noel', 'retard', 'une-venue', 'endormie'];
 const RELANCES: GenreDeMessage[] = ['retard', 'une-venue', 'endormie', 'creux'];
 
-/** Par où lui écrire : un service part sur WhatsApp ; une sollicitation va
-    d'abord à Ma Couronne (gratuit), sinon WhatsApp avec son accord. */
+/** PAR OÙ LUI ÉCRIRE : Ma Couronne d'abord (gratuite, et elle part seule
+    dès aujourd'hui), sinon WhatsApp ; une sollicitation sur WhatsApp
+    demande son accord des nouvelles, et un « stop » la fait taire. */
 export function canalDe(f: FicheDeGerard, genre: GenreDeMessage): 'whatsapp' | 'couronne' | null {
-  if (EST_UN_SERVICE[genre]) return f.telephone ? 'whatsapp' : f.couronne ? 'couronne' : null;
+  if (EST_UN_SERVICE[genre]) return f.couronne ? 'couronne' : f.telephone ? 'whatsapp' : null;
   if (f.stop) return null;
   if (f.couronne) return 'couronne';
   return f.accord && f.telephone ? 'whatsapp' : null;
@@ -430,9 +448,10 @@ export function situationDuJour(f: FicheDeGerard, ctx: ContexteDeGerard): Situat
       return fait('noel', 'noel', [f.appel, A.slice(0, 4)], pourquoiDuFil);
     }
     const depuis = ecartJours(s0, A);
+    const premiere = Math.min(PREMIERE_ENVIE_APRES, intervalleDesEnvies(A));
     const derniereEnvie = derniereTrace(f, ['envie', 'creux']);
-    const dueLe = derniereEnvie && derniereEnvie > s0 ? plusJours(derniereEnvie, ENVIE_TOUS_LES_JOURS) : plusJours(s0, PREMIERE_ENVIE_APRES);
-    if (depuis >= PREMIERE_ENVIE_APRES && A >= dueLe && avantCadence >= ENVIE_AVANT_CADENCE_MIN) {
+    const dueLe = derniereEnvie && derniereEnvie > s0 ? plusJours(derniereEnvie, intervalleDesEnvies(A)) : plusJours(s0, premiere);
+    if (depuis >= premiere && A >= dueLe && avantCadence >= ENVIE_AVANT_CADENCE_MIN) {
       const viaCreux = offreCreux('son envie du mois tombe sur un jour creux');
       if (viaCreux) return viaCreux;
       const e = choisisLEnvie(f, A);
@@ -444,7 +463,7 @@ export function situationDuJour(f: FicheDeGerard, ctx: ContexteDeGerard): Situat
   /* ④ Hors du fil : les relances, quatre semaines au plus entre deux. */
   if (prochainRdv(f, A)) return null;
   const derniereRelance = derniereTrace(f, RELANCES);
-  if (derniereRelance && ecartJours(derniereRelance, A) < RELANCE_TOUS_LES_JOURS) return null;
+  if (derniereRelance && ecartJours(derniereRelance, A) < intervalleDesRelances(A)) return null;
   if (!s0) return null;
   const sansVenir = ecartJours(s0, A);
   if (sansVenir >= ENDORMIE_DES_JOURS) {
@@ -496,3 +515,71 @@ export function planDuJour(fiches: readonly FicheDeGerard[], ctx: ContexteDeGera
 export const estUneQuestionFranche = (texte: string): boolean =>
   /\b(robot|chatbot|bot|ia|intelligence artificielle|machine)\b|\b(message|réponse|reponse)s? automatiques?\b|\bje parle (à|a) qui\b|\bc.est (bien |vraiment )?g[ée]rard\b|\bune vraie personne\b|\bun (être )?humain\b/i.test(String(texte ?? ''));
 export const REPONSE_FRANCHE = 'Je suis l’assistant automatique de la Maison pour les rendez-vous. Si vous préférez, je préviens Gérard ou quelqu’un de l’équipe, qui vous écrit dans la journée.';
+
+/* ══ LE PASSAGE DU JOUR — 26 octobre 2026, le soir ═══════════════════════
+   « On commence immédiatement » (Yéman), et au sélecteur : « Ma Couronne +
+   bouton WhatsApp » en attendant que Meta approuve les modèles. Une fois par
+   jour, quand la direction ouvre le Trône entre 8 h et 20 h, Gérard dépose
+   dans la salle d'attente des envois une NOTIFICATION Ma Couronne pour
+   chaque ligne du plan qui passe par là ; le facteur (envois-partent) la
+   porte à son heure, jamais entre 20 h et 8 h. Une ligne WhatsApp attend un
+   toucher : « Envoyer sur WhatsApp » ouvre le message déjà écrit et la note
+   « envoyé à la main ». Chaque envoi est une ligne `envois` de type
+   « gerard » : c'est le journal, et ce que Gérard relit pour espacer. */
+export type ReglagesDuPassage = { mode: ModeDeGerard; essai: readonly string[]; dernierPassage?: string };
+export const HEURE_DU_PASSAGE_DE = 8;
+export const HEURE_DU_PASSAGE_A = 20;
+/** Le passage est-il dû : allumé, pas encore fait aujourd'hui, dans les heures. */
+export const passageDu = (r: ReglagesDuPassage, aujourdhui: string, heureCotonou: number): boolean =>
+  r.mode !== 'eteint' && r.dernierPassage !== aujourdhui && heureCotonou >= HEURE_DU_PASSAGE_DE && heureCotonou < HEURE_DU_PASSAGE_A;
+/** Une cliente que le mode laisse servir. */
+export const servie = (r: ReglagesDuPassage, clientId: string): boolean => r.mode === 'ouvert' || (r.mode === 'essai' && r.essai.includes(clientId));
+
+export const idDeLaLigne = (aujourdhui: string, clientId: string, canal: 'push' | 'wa-main'): string => `gerard-${aujourdhui}-${clientId}-${canal}`;
+/** Le texte sans sa dernière ligne de signature : la notification porte déjà « Maison MND » en titre. */
+export const texteSansSignature = (texte: string): string => texte.replace(new RegExp(`\\n\\n${SIGNATURE}$`), '');
+
+export type LigneDeGerard = {
+  id: string; branchId: string; type: 'gerard'; canal: 'push' | 'wa-main'; statut: 'en-attente' | 'à-la-main';
+  clientId: string; prenom: string; apptId: string; dateRdv: string; heure?: string;
+  partA?: string; calme?: boolean; deposeLe: string; quand: string;
+  genre: GenreDeMessage; envie?: EnvieDeGerard; modele: CleDeModele; texte: string; codePromo?: string;
+  colis?: { genre: 'push'; clientId: string; titre: string; corps: string; url: string };
+};
+type OutilsDeLaLigne = {
+  branchId: string; aujourdhui: string; maintenantIso: string; prenom: string;
+  /** Le RDV que « garder » protège : le facteur le relit, et le périme s'il a bougé. */
+  rdv?: { id: string; date: string; time: string };
+  codePromo?: string;
+};
+const communs = (s: Situation, o: OutilsDeLaLigne) => ({
+  branchId: o.branchId, type: 'gerard' as const, clientId: s.clientId, prenom: o.prenom,
+  apptId: s.genre === 'garder' && o.rdv ? o.rdv.id : '', dateRdv: s.genre === 'garder' && o.rdv ? o.rdv.date : '',
+  ...(s.genre === 'garder' && o.rdv ? { heure: o.rdv.time } : {}),
+  deposeLe: o.maintenantIso, quand: o.maintenantIso, genre: s.genre, ...(s.envie ? { envie: s.envie } : {}), modele: s.modele, texte: s.texte,
+  ...(o.codePromo ? { codePromo: o.codePromo } : {}),
+});
+/** LA NOTIFICATION DÉPOSÉE EN SALLE, au compte où elle est abonnée. */
+export function ligneDeNotification(s: Situation, o: OutilsDeLaLigne & { compte: string; partA: string; calme: boolean }): LigneDeGerard {
+  return {
+    id: idDeLaLigne(o.aujourdhui, s.clientId, 'push'), canal: 'push', statut: 'en-attente', partA: o.partA, calme: o.calme, ...communs(s, o),
+    colis: { genre: 'push', clientId: o.compte, titre: SIGNATURE, corps: texteSansSignature(s.texte), url: '/couronne/' },
+  };
+}
+/** LE MESSAGE ENVOYÉ À LA MAIN sur WhatsApp, noté au journal. */
+export const ligneALaMain = (s: Situation, o: OutilsDeLaLigne): LigneDeGerard =>
+  ({ id: idDeLaLigne(o.aujourdhui, s.clientId, 'wa-main'), canal: 'wa-main', statut: 'à-la-main', ...communs(s, o) });
+
+/** CE QUE GÉRARD A DÉJÀ ÉCRIT, relu dans les envois : ce qu'une main a
+    écarté, ce que le facteur a périmé ou n'a pas pu porter ne compte pas. */
+export function tracesDesEnvois(envois: readonly { type?: string; clientId?: string; statut?: string; quand?: string; deposeLe?: string; genre?: string; envie?: string }[]): Map<string, TraceDeGerard[]> {
+  const m = new Map<string, TraceDeGerard[]>();
+  for (const e of envois) {
+    if (e.type !== 'gerard' || !e.clientId || !e.genre) continue;
+    if (e.statut === 'écarté' || e.statut === 'périmé' || e.statut === 'échec') continue;
+    const t: TraceDeGerard = { quand: e.deposeLe ?? e.quand ?? '', genre: e.genre as GenreDeMessage, ...(e.envie ? { envie: e.envie as EnvieDeGerard } : {}) };
+    const l = m.get(e.clientId);
+    if (l) l.push(t); else m.set(e.clientId, [t]);
+  }
+  return m;
+}

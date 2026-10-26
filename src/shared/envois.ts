@@ -13,7 +13,7 @@
 import { attendEncore, ECARTE, PERIME } from './salle-des-envois';
 
 export type TypeDEnvoi = 'accuse' | 'confirmation' | 'rappel-j1' | 'avis-google' | 'fin-de-paquet' | 'reprise-j3' | 'point-apres' | 'point-avant' | 'relance-facture'
-  | 'rappel-echeance' | 'prix-revu' | 'parrainage' | 'campagne';
+  | 'rappel-echeance' | 'prix-revu' | 'parrainage' | 'campagne' | 'gerard';
 
 /** Ce que le journal lit d'une ligne `envois`. Les champs viennent de
     fonctions différentes, écrites à des dates différentes : tous facultatifs
@@ -88,6 +88,8 @@ export const TYPE_DIT: Record<string, string> = {
      les campagnes du Marketing (21 octobre 2026). */
   parrainage: 'Marraine prévenue',
   campagne: 'Campagne',
+  /* Gérard, l'assistant des clientes (26 octobre 2026). */
+  gerard: 'Gérard',
 };
 export const typeDit = (t: string): string => TYPE_DIT[t] ?? t;
 

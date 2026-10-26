@@ -133,7 +133,7 @@ try {
   const iClientes = (barre ?? []).findIndex((t) => t.startsWith('Clientes'));
   dit('la barre : « Gérard » juste sous « Clientes », allumé', iClientes >= 0 && String(barre[iClientes + 1]).startsWith('Gérard')
     && !!(await evalue(String.raw`[...document.querySelectorAll('.tr-nav__item.active')].some((a) => a.textContent.trim().startsWith('Gérard'))`)), JSON.stringify(barre?.slice(Math.max(0, iClientes), iClientes + 2)));
-  dit('il dit qu il n écrit pas encore', /Gérard n’écrit pas encore/.test(await texte()));
+  dit('éteint, il le dit : il prépare son plan, il n écrit à personne', /Gérard prépare son plan, il n’écrit à personne/.test(await texte()));
 
   /* 2. Le plan du jour. */
   const lignes = await evalue(String.raw`[...document.querySelectorAll('.trc-ger__ligne')].map((b) => [b.querySelector('.trc-ger__qui')?.firstChild?.textContent, b.querySelector('.trc-ger__genre')?.textContent, b.querySelector('.trc-ger__canal')?.textContent])`);
@@ -142,7 +142,7 @@ try {
     && /^En retard/.test(genreDe('M. D.')) && /^Une seule venue/.test(genreDe('C. U.')) && /^Endormie/.test(genreDe('F. S.')), JSON.stringify(lignes));
   dit('... garder d abord, l anniversaire porte son code de 10 %', (lignes ?? [])[0]?.[0] === 'G. A.' && /−10 % · anniversaire/.test((lignes ?? []).find((l) => l[0] === 'N. B.')?.[2] ?? ''), JSON.stringify((lignes ?? []).slice(0, 2)));
   const enTete = await evalue(String.raw`[...document.querySelectorAll('.trc-ger__chiffre b')].map((b) => b.innerText.trim())`);
-  dit('l en-tête : six à écrire, un RDV à garder', enTete?.[0] === '6' && enTete?.[1] === '1', JSON.stringify(enTete));
+  dit('l en-tête : six à écrire, rien de parti, un RDV à garder', enTete?.[0] === '6' && enTete?.[1] === '0' && enTete?.[2] === '1', JSON.stringify(enTete));
 
   /* 3. Une ligne ouverte. */
   dit('la ligne de M. D. s ouvre', await evalue(String.raw`(() => { const b = [...document.querySelectorAll('.trc-ger__ligne')].find((x) => x.textContent.includes('M. D.')); if (b) b.click(); return !!b; })()`));
@@ -162,6 +162,24 @@ try {
   dit('l onglet « L essai » ne montre que la cliente de l essai', await clique('.trc-ger__onglets button', 'L’essai'));
   await attend(300);
   dit('... une ligne, M. D.', JSON.stringify(await evalue(String.raw`[...document.querySelectorAll('.trc-ger__qui')].map((q) => q.firstChild?.textContent)`)) === JSON.stringify(['M. D.']));
+  dit('en essai, l état dit le passage du jour et le bouton WhatsApp', /Gérard dépose les notifications Ma Couronne/.test(await texte()));
+
+  /* Un toucher : le message part sur WhatsApp, noté au journal. */
+  await evalue(String.raw`(() => { if (!document.querySelector('.trc-ger__panneau')) { const b = [...document.querySelectorAll('.trc-ger__ligne')].find((x) => x.textContent.includes('M. D.')); if (b) b.click(); } return true; })()`);
+  await attend(300);
+  const lien = await evalue(String.raw`[...document.querySelectorAll('a.trc-ger__btn')].find((a) => a.textContent.trim().startsWith('Envoyer sur WhatsApp'))?.href || ''`);
+  dit('« Envoyer sur WhatsApp » ouvre le message déjà écrit, au bon numéro, signé et avec la devise', /^https:\/\/wa\.me\/229\d+\?text=/.test(lien)
+    && /était prévu vers le/.test(decodeURIComponent(lien)) && /Maison MND\nmi nyɔ́ ɖɛkpɛ, votre beauté est déjà là$/.test(decodeURIComponent(lien.split('text=')[1] ?? '')), decodeURIComponent(lien).slice(0, 200));
+  await evalue(String.raw`(() => { const a = [...document.querySelectorAll('a.trc-ger__btn')].find((x) => x.textContent.trim().startsWith('Envoyer sur WhatsApp')); if (a) { a.removeAttribute('target'); a.setAttribute('href', '#/gerard'); a.click(); } return !!a; })()`);
+  await attend(600);
+  const envoisGerard = await evalue(`JSON.parse(localStorage.getItem('trone::mnd_envois') || '[]').filter((e) => e.type === 'gerard')`);
+  dit('... noté au journal des envois : à la main, sa cliente, sa raison', (envoisGerard ?? []).length === 1 && envoisGerard[0].statut === 'à-la-main' && envoisGerard[0].clientId === 'c-retard' && envoisGerard[0].genre === 'retard',
+    JSON.stringify(envoisGerard));
+  await clique('.trc-ger__onglets button', 'Toutes');
+  await attend(400);
+  const journal = await evalue(String.raw`[...document.querySelectorAll('.trc-ger__carte')].find((c) => c.querySelector('h3')?.textContent.startsWith('Aujourd’hui'))?.innerText.replace(/\s+/g, ' ') || ''`);
+  dit('... « Aujourd hui » le montre, et M. D. sort du plan (deux semaines avant le prochain)', /M\. D\./.test(journal) && /WhatsApp, à la main/.test(journal)
+    && !(await evalue(String.raw`[...document.querySelectorAll('.trc-ger__qui')].some((q) => q.firstChild?.textContent === 'M. D.')`)), journal.slice(0, 200));
 
   /* 4. Les modèles Meta. */
   const modeles = await evalue(String.raw`[...document.querySelectorAll('.trc-ger__modeles li b')].map((b) => b.textContent)`);

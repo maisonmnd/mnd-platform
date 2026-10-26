@@ -53,6 +53,8 @@
 .trc-ger__pourquoi { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
 .trc-ger__btn { all: unset; box-sizing: border-box; cursor: pointer; border-radius: 3px; padding: 7px 12px; font-size: 11px; letter-spacing: .14em; text-transform: uppercase; font-weight: 500; border: 1px solid var(--hairline); background: var(--surface-card); color: var(--color-indigo); }
 .trc-ger__btn:hover { background: var(--copper-50); }
+.trc-ger__btn--cuivre { background: var(--color-copper); border-color: var(--color-copper); color: #fff; }
+.trc-ger__btn--cuivre:hover { background: var(--copper-600); }
 
 /* Le fil d'une cliente */
 .trc-ger__ruban { overflow-x: auto; padding: 0 50px; }
