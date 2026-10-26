@@ -131,8 +131,8 @@ try {
   dit('Gérard s ouvre, comme la direction', !!vu && !(await tombe()));
   const barre = await evalue(String.raw`[...document.querySelectorAll('.tr-nav__item')].map((a) => a.textContent.replace(/\s+/g, ' ').trim())`);
   const iClientes = (barre ?? []).findIndex((t) => t.startsWith('Clientes'));
-  dit('la barre : « Gérard » juste sous « Clientes », allumé', iClientes >= 0 && String(barre[iClientes + 1]).startsWith('Gérard')
-    && !!(await evalue(String.raw`[...document.querySelectorAll('.tr-nav__item.active')].some((a) => a.textContent.trim().startsWith('Gérard'))`)), JSON.stringify(barre?.slice(Math.max(0, iClientes), iClientes + 2)));
+  dit('la barre : « Assistant Maison » juste sous « Clientes », allumé', iClientes >= 0 && String(barre[iClientes + 1]).startsWith('Assistant Maison')
+    && !!(await evalue(String.raw`[...document.querySelectorAll('.tr-nav__item.active')].some((a) => a.textContent.trim().startsWith('Assistant Maison'))`)), JSON.stringify(barre?.slice(Math.max(0, iClientes), iClientes + 2)));
   dit('éteint, il le dit : il prépare son plan, il n écrit à personne', /Gérard prépare son plan, il n’écrit à personne/.test(await texte()));
 
   /* 2. Le plan du jour. */

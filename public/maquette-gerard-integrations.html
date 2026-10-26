@@ -19,6 +19,7 @@
   --filet: rgba(232,228,244,.16); --cuivre: #D6A06F; --cuivre-fonce: #E4BE9C; --cuivre-pale: #2A2240;
   --alarme: #E28A72; --bulle-elle: #232657; --bulle-maison: #2C3470; --ecran: #0C0D20; color-scheme: dark; }
 * { box-sizing: border-box; }
+[hidden] { display: none !important; }
 body { background: var(--papier); color: var(--texte); font: 400 15px/1.6 var(--sans); }
 .page { max-width: 1040px; margin: 0 auto; padding-block: 36px 64px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: flex; flex-direction: column; gap: 44px; }
 h1, h2, h3 { font-family: var(--serif); font-weight: 400; color: var(--encre); margin: 0; text-wrap: balance; }
@@ -126,6 +127,19 @@ tr.exemple td { color: var(--doux); font-style: italic; }
 .filtres { display: flex; flex-wrap: wrap; gap: 6px; }
 .filtres span { font-size: 12.5px; padding: 4px 10px; border: 1px solid var(--filet); border-radius: 99px; color: var(--doux); }
 .filtres .est-choisi { border-color: var(--encre); color: var(--encre); }
+td.utile { color: var(--cuivre-fonce); font-weight: 500; }
+td.peu { color: var(--alarme); }
+.stats td:first-child { font-family: var(--sans); font-size: 14px; white-space: normal; }
+.regle, .persona { margin: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px 24px; }
+.regle div, .persona div { display: flex; flex-direction: column; gap: 2px; border-top: 1px solid var(--filet); padding-top: 8px; }
+.regle dt, .persona dt { font: 500 10.5px var(--sans); letter-spacing: .14em; text-transform: uppercase; color: var(--doux); }
+.regle dd, .persona dd { margin: 0; font-size: 14px; color: var(--texte); }
+.inventaire td:first-child { font-family: var(--sans); font-size: 14.5px; white-space: normal; }
+.inventaire td:first-child small { display: block; font-size: 12px; color: var(--doux); }
+.inventaire tr.groupe td { font: 500 11px var(--sans); letter-spacing: .14em; text-transform: uppercase; color: var(--cuivre-fonce); padding-top: 18px; border-bottom: 1px solid var(--cuivre); }
+.inventaire td.reste { font-family: var(--sans); font-size: 13.5px; color: var(--doux); white-space: normal; }
+.barre li.dep { font: 500 10px var(--sans); letter-spacing: .16em; text-transform: uppercase; color: #A7ACC9; padding-top: 12px; }
+.barre li s { color: #E28A72; }
 @media (max-width: 720px) {
   .scene { grid-template-columns: 1fr; }
   h2 { font-size: 24px; }
@@ -135,64 +149,103 @@ tr.exemple td { color: var(--doux); font-style: italic; }
 
 <div class="page">
   <header class="tete">
-    <span class="sur">Maquette · v2 · 26 octobre 2026 · données d’exemple, initiales seulement</span>
+    <span class="sur">Maquette · v3 · 26 octobre 2026 · données d’exemple, initiales seulement</span>
     <h1>Ce que Gérard sait</h1>
-    <p>Gérard devient <b>l’endroit unique</b> de tout ce qui se passe entre une cliente et la Maison, de sa séance à la suivante : ce qu’il écrit, les conversations, Entre deux séances, les bilans, et les remises qu’il propose. Quand tout est prêt, <b>Conversations</b> et <b>Entre deux séances</b> quittent la barre, et le bilan se retrouve dans Gérard.</p>
+    <p>Dans la barre, la rubrique s’appelle <b>Assistant Maison</b> ; pour les clientes, il reste Gérard, et signe « Maison MND ». Il devient <b>l’endroit unique de toutes les conversations entre une cliente et la Maison</b> : ce qu’il écrit, ce qu’elle répond, ce qui part seul, Entre deux séances, les bilans, les avis Google, les campagnes et les remises. Une seule voix, qui sait ce que les autres ont déjà dit, et qui espace ses messages. Quand tout est prêt, les rubriques qu’il reprend quittent la barre.</p>
     <div class="etats">
       <span class="etat fait"><b>Aujourd’hui</b> · en ligne</span>
       <span class="etat fait"><b>Entre deux séances</b> · ce qu’il en sait : construit, à publier</span>
       <span class="etat"><b>Conversations</b> · à construire (lot 3)</span>
+      <span class="etat"><b>Ce qui part</b> · existe dans Conversations, à déplacer</span>
       <span class="etat"><b>Les bilans</b> · à construire</span>
-      <span class="etat"><b>Remises et codes</b> · à construire, les codes existent déjà</span>
+      <span class="etat"><b>Les avis</b> · existent, à déplacer</span>
+      <span class="etat"><b>Offres et codes</b> · à construire : offres flash, campagnes, codes et leurs statistiques</span>
+      <span class="etat"><b>Sa fiche, vue par Gérard</b> · à construire</span>
     </div>
   </header>
 
   <section>
-    <span class="sur">La barre</span>
-    <h2>Avant, après</h2>
+    <span class="sur">La barre, rubrique par rubrique</span>
+    <h2>Ce qui entre dans Gérard, ce qu’il lit, ce qui reste à part</h2>
+    <p class="doux">La règle : tout ce qui <b>écrit à une cliente</b> ou <b>lui répond</b> passe par Gérard ; tout ce qui <b>dit qui elle est</b>, Gérard le lit ; le reste ne change pas.</p>
+    <div class="cadre"><table class="inventaire">
+      <thead><tr><th>Rubrique d’aujourd’hui</th><th>Où elle va</th><th>Pourquoi</th></tr></thead>
+      <tbody>
+        <tr class="groupe"><td colspan="3">Entre dans Gérard · elle quitte la barre</td></tr>
+        <tr><td>Conversations <small>WhatsApp · Le chat du site · Les appels</small></td><td>Assistant Maison › Conversations</td><td>Ce sont les conversations elles-mêmes. Gérard se tait quand l’équipe parle.</td></tr>
+        <tr><td>Conversations › Les envois automatiques</td><td>Assistant Maison › Ce qui part</td><td>Confirmations, rappels de la veille, points d’étape, demandes d’avis : il compte tout ce qui part pour ne jamais écrire deux fois de suite.</td></tr>
+        <tr><td>Entre deux séances <small>La file · Les réponses</small></td><td>Assistant Maison › Entre deux séances</td><td>Il répond avec vos réponses validées et se tait sur un souci ouvert.</td></tr>
+        <tr><td>Les demandes <small>venues du site</small></td><td>Assistant Maison › Conversations, canal « Le site »</td><td>Quelqu’un dehors a tendu la main : c’est une conversation qui commence.</td></tr>
+        <tr><td>Les avis Google</td><td>Assistant Maison › Les avis</td><td>Votre demande : c’est lui qui répond aux avis. Il demande l’avis après la séance, il rédige la réponse.</td></tr>
+        <tr><td>Marketing › Campagnes et automatisations</td><td>Assistant Maison › Offres et codes</td><td>Une campagne écrit à des clientes : elle passe par lui, qui l’espace avec ses propres messages.</td></tr>
+        <tr><td>Marketing › Les offres instantanées <small>créées à la main, vues dans Ma Couronne et sur le site</small></td><td>Assistant Maison › Offres et codes</td><td>Votre demande : l’assistant génère les offres flash lui-même, sur les places qui restent vides. Les offres de saison se créent toujours à la main dans Marketing.</td></tr>
+        <tr><td>Centre de commande › Les agents <small>reprises du lundi, une seule venue, dormantes, anniversaires, avis</small></td><td>Assistant Maison</td><td>Ils écrivent exactement ce que Gérard écrit : deux voix pour une même cliente. Les agents sans cliente (encaissements, planning, comptabilité, stock) restent.</td></tr>
+        <tr><td>Le bilan <small>dans la fenêtre de chaque RDV</small></td><td>Assistant Maison › Les bilans</td><td>Il lit le bilan signé : le rituel, les propositions. La rédaction se décide plus bas.</td></tr>
+        <tr class="groupe"><td colspan="3">Gérard la lit · elle reste dans la barre</td></tr>
+        <tr><td>Clientes · la fiche</td><td>Une carte « Gérard » sur sa fiche</td><td>Sa fiche vue par Gérard (plus bas) : ce qu’il sait, ce qu’il a écrit, ce qu’il prévoit.</td></tr>
+        <tr><td>Marketing › Les personas</td><td>Il lit son persona</td><td>Le ton et l’envie suivent son archétype ; les personas se façonnent toujours dans Marketing.</td></tr>
+        <tr><td>Marketing › Les offres et les saisons</td><td>Il relaie l’offre du moment</td><td>Marketing décide quoi offrir ; Gérard décide à qui et quand (ROSE15, Noël).</td></tr>
+        <tr><td>Les consultations</td><td>Il lit le résultat</td><td>Ce qu’elle a répondu et ce qui lui a été conseillé.</td></tr>
+        <tr><td>Relances des factures · Abonnements</td><td>Il les voit, et s’espace</td><td>Une facture due : il ne propose rien. Les relances et les messages de l’abonnement partent comme aujourd’hui, à décider plus bas.</td></tr>
+        <tr><td>Le Cercle MND · Cartes cadeaux · La Cadence · Le Carnet</td><td>Il les lit</td><td>Marraine ou filleule, carte cadeau, rythme, prochain RDV : sa fiche.</td></tr>
+        <tr class="groupe"><td colspan="3">Reste à part · rien ne change</td></tr>
+        <tr><td colspan="3" class="reste">Tableau de bord, Centre de commande (le centre), Les prévisions, Les projets, Synthèse, Les tendances, À faire, Le Juste Prix, Le secrétariat, Calendrier, Catalogue, Laboratoire, Stock, Caisse, Factures, Encaissements, Avoirs, Caisses, Créances, Prêts, Dépenses, Les contenus des réseaux, Les vitrines, QR codes, Le Fil, Mes tâches, Ressources humaines, Académie, Paramètres, Les textes de la Maison, Comptoir, Accès, Journal des gestes, Branches, Marque. Ce sont des écrans de la Maison, pas des conversations.</td></tr>
+      </tbody>
+    </table></div>
     <div class="barres">
       <div class="barre">
-        <span class="barre__titre">Clientèle · aujourd’hui</span>
+        <span class="barre__titre">Aujourd’hui</span>
         <ul>
-          <li>Clientes</li>
-          <li class="est-ger">Gérard</li>
+          <li class="dep">Clientèle</li>
+          <li>Calendrier · Clientes</li>
+          <li class="est-ger">Gérard <small>devient « Assistant Maison »</small></li>
           <li>Le Carnet</li>
-          <li class="part">Conversations <small>WhatsApp · Le chat du site · Les appels</small></li>
-          <li class="part">Entre deux séances <small>La file · Les réponses</small></li>
-          <li>Demandes &amp; consultations</li>
-          <li class="doux">…</li>
+          <li class="part">Conversations <small>WhatsApp · Le chat du site · Les appels · envois automatiques</small></li>
+          <li class="part">Entre deux séances</li>
+          <li>Demandes &amp; consultations <small><s>Les demandes</s> · Les consultations</small></li>
+          <li class="dep">Marketing</li>
+          <li>Marketing <small><s>Campagnes · Automatisations</s> · Offres · Audience · Les personas</small></li>
+          <li class="part">Les avis Google</li>
+          <li class="dep">Direction</li>
+          <li>Centre de commande <small>Le centre · Les agents <s>(reprises, avis)</s> · Les contenus</small></li>
         </ul>
-        <span class="barre__note">Le bilan se rédige et se remet dans la fenêtre de chaque RDV ; « Ses bilans remis » sur la fiche.</span>
       </div>
       <div class="barre barre--apres">
-        <span class="barre__titre">Clientèle · quand tout est prêt</span>
+        <span class="barre__titre">Quand tout est prêt</span>
         <ul>
-          <li>Clientes</li>
-          <li class="est-ger">Gérard <small>Aujourd’hui · Conversations · Entre deux séances · Les bilans · Remises et codes · Ce qu’il sait</small></li>
+          <li class="dep">Clientèle</li>
+          <li>Calendrier · Clientes</li>
+          <li class="est-ger">Assistant Maison <small>Aujourd’hui · Conversations · Ce qui part · Entre deux séances · Les bilans · Les avis · Offres et codes · Sa fiche · Ce qu’il sait</small></li>
           <li>Le Carnet</li>
-          <li>Demandes &amp; consultations</li>
-          <li class="doux">…</li>
+          <li>Les consultations</li>
+          <li class="dep">Marketing</li>
+          <li>Marketing <small>Offres et saisons · Audience · Les personas</small></li>
+          <li class="dep">Direction</li>
+          <li>Centre de commande <small>Le centre · Les agents (encaissements, planning, comptabilité, stock) · Les contenus</small></li>
         </ul>
-        <span class="barre__note">Deux rubriques de moins. Rien ne se perd : chaque écran devient un onglet de Gérard, à la même adresse pour les liens déjà donnés.</span>
+        <span class="barre__note">Trois rubriques de moins (Conversations, Entre deux séances, Les avis Google). Les anciennes adresses mènent à l’onglet de Gérard.</span>
       </div>
     </div>
   </section>
 
   <section>
-    <span class="sur">La rubrique Gérard</span>
+    <span class="sur">La rubrique Assistant Maison</span>
     <h2>Onglet par onglet</h2>
     <p class="doux">Ce qui est en ligne est marqué ; le reste est à construire après vos choix.</p>
     <div class="fenetre">
       <div class="fenetre__haut">
-        <div><b>Gérard</b><small>l’assistant de la Maison · ouvert</small></div>
+        <div><b>Assistant Maison</b><small>Gérard, l’assistant de la Maison · ouvert</small></div>
         <div class="fenetre__chiffres"><span><b>12</b>à écrire aujourd’hui</span><span><b>7</b>partis</span><span><b>2</b>RDV à garder</span><span><b>3 / 8</b>remises de la semaine</span></div>
       </div>
       <div class="onglets" role="tablist" aria-label="Les onglets de Gérard">
         <button type="button" role="tab" id="g-auj" aria-controls="gp-auj" aria-selected="true">Aujourd’hui</button>
         <button type="button" role="tab" id="g-conv" aria-controls="gp-conv" aria-selected="false">Conversations</button>
+        <button type="button" role="tab" id="g-part" aria-controls="gp-part" aria-selected="false">Ce qui part</button>
         <button type="button" role="tab" id="g-entre" aria-controls="gp-entre" aria-selected="false">Entre deux séances</button>
         <button type="button" role="tab" id="g-bilans" aria-controls="gp-bilans" aria-selected="false">Les bilans</button>
-        <button type="button" role="tab" id="g-codes" aria-controls="gp-codes" aria-selected="false">Remises et codes</button>
+        <button type="button" role="tab" id="g-avis" aria-controls="gp-avis" aria-selected="false">Les avis</button>
+        <button type="button" role="tab" id="g-codes" aria-controls="gp-codes" aria-selected="false">Offres et codes</button>
+        <button type="button" role="tab" id="g-fiche" aria-controls="gp-fiche" aria-selected="false">Sa fiche</button>
         <button type="button" role="tab" id="g-sait" aria-controls="gp-sait" aria-selected="false">Ce qu’il sait</button>
       </div>
 
@@ -214,8 +267,8 @@ tr.exemple td { color: var(--doux); font-style: italic; }
       </div>
 
       <div role="tabpanel" id="gp-conv" aria-labelledby="g-conv" class="panneau" hidden>
-        <span class="badge">À construire · reprend Conversations (WhatsApp, Le chat du site, Les appels)</span>
-        <div class="filtres"><span class="est-choisi">Toutes · 24</span><span>À répondre · 2</span><span>Gérard · 15</span><span>L’équipe · 7</span><span>WhatsApp</span><span>Le chat du site</span><span>Les appels</span></div>
+        <span class="badge">À construire · reprend Conversations (WhatsApp, Le chat du site, Les appels) et Les demandes du site</span>
+        <div class="filtres"><span class="est-choisi">Toutes · 26</span><span>À répondre · 3</span><span>Gérard · 15</span><span>L’équipe · 8</span><span>WhatsApp</span><span>Le chat du site</span><span>Les appels</span><span>Le site · demandes</span></div>
         <div class="cadre"><table>
           <thead><tr><th>Cliente</th><th>Canal</th><th>Dernier mot</th><th>Qui</th><th>État</th></tr></thead>
           <tbody>
@@ -224,9 +277,27 @@ tr.exemple td { color: var(--doux); font-style: italic; }
             <tr><td class="nom">S. A.</td><td>WhatsApp</td><td>« Oui, l’ajouter »</td><td>Gérard</td><td>Soin ajouté à son RDV</td></tr>
             <tr><td class="nom">M. D.</td><td>Appel</td><td>« la rappeler pour sa reprise »</td><td>Accueil · à rappeler</td><td>Gérard attend</td></tr>
             <tr><td class="nom">R. T.</td><td>WhatsApp</td><td>« je suis à Paris jusqu’au 10 décembre »</td><td>Gérard</td><td>Noté : absente jusqu’au 10 déc. 2026</td></tr>
+            <tr><td class="nom">E. P.</td><td>Le site · demande</td><td>« Me faire rappeler : création de locks »</td><td>Gérard : accusé envoyé</td><td class="alarme">À rappeler</td></tr>
           </tbody>
         </table></div>
         <p class="doux">Chaque message de Gérard porte son étiquette ; l’équipe répond au même endroit, et Gérard se tait alors.</p>
+      </div>
+
+      <div role="tabpanel" id="gp-part" aria-labelledby="g-part" class="panneau" hidden>
+        <span class="badge">Existe (Conversations › Les envois automatiques) · à déplacer, et à compter ensemble</span>
+        <div class="filtres"><span class="est-choisi">Tout · 41 aujourd’hui</span><span>Service · 22</span><span>Gérard · 12</span><span>Argent · 4</span><span>Abonnement · 2</span><span>Campagnes · 1</span></div>
+        <div class="cadre"><table>
+          <thead><tr><th>Heure</th><th>Cliente</th><th>Quoi</th><th>Qui l’envoie</th><th>Canal</th><th>Devenu</th></tr></thead>
+          <tbody>
+            <tr><td>08:00</td><td class="nom">A. K.</td><td>Confirmation de son RDV du 28 oct.</td><td>Service</td><td>WhatsApp</td><td>Lu</td></tr>
+            <tr><td>09:00</td><td class="nom">J. M.</td><td>Point d’étape, une semaine après</td><td>Entre deux séances</td><td>WhatsApp</td><td>Délivré</td></tr>
+            <tr><td>09:10</td><td class="nom">S. A.</td><td>Une envie : Soin Hydratant DÀNDÀN</td><td>Gérard</td><td>Ma Couronne</td><td>Ouvert</td></tr>
+            <tr><td>10:00</td><td class="nom">C. Z.</td><td>Relance de facture, J+3</td><td>Argent</td><td>WhatsApp</td><td>Délivré</td></tr>
+            <tr><td>11:30</td><td class="nom">L. G.</td><td>Demande d’avis Google</td><td>Gérard</td><td>WhatsApp</td><td>Lu</td></tr>
+            <tr><td>18:00</td><td class="nom">M. D.</td><td>Rappel de la veille</td><td>Service</td><td>WhatsApp</td><td class="alarme">Échec : numéro invalide</td></tr>
+          </tbody>
+        </table></div>
+        <div class="calme"><b>Une seule voix</b> : hors service (confirmation, rappel, garder le RDV), jamais deux messages à moins de 14 jours pour la même cliente, qu’ils viennent de Gérard, d’une campagne ou d’un agent.</div>
       </div>
 
       <div role="tabpanel" id="gp-entre" aria-labelledby="g-entre" class="panneau" hidden>
@@ -257,16 +328,67 @@ tr.exemple td { color: var(--doux); font-style: italic; }
         </table></div>
       </div>
 
+      <div role="tabpanel" id="gp-avis" aria-labelledby="g-avis" class="panneau" hidden>
+        <span class="badge">Existe (Les avis Google, l’agent des avis) · à déplacer dans Gérard</span>
+        <div class="fenetre__chiffres doublure"><span><b>4,9</b>note moyenne</span><span><b>12</b>avis en octobre</span><span><b>38</b>demandes d’avis envoyées</span><span class="alarme"><b>3</b>sans réponse</span></div>
+        <div class="cadre"><table>
+          <thead><tr><th>Avis</th><th>Note</th><th>Ce qu’elle dit</th><th>La réponse de Gérard</th><th></th></tr></thead>
+          <tbody>
+            <tr><td class="nom">K. H.</td><td>5</td><td>« Accueil chaleureux, mes locks n’ont jamais été aussi belles. »</td><td>Merci Madame H., quelle joie de vous lire. Toute l’équipe vous attend pour votre prochain rituel.</td><td><span class="lien">Copier</span></td></tr>
+            <tr><td class="nom">B. A.</td><td>3</td><td>« Bon travail mais 40 minutes d’attente. »</td><td>Merci pour votre retour, et pardon pour l’attente : ce n’est pas notre façon de recevoir. Nous vous appelons pour en parler.</td><td><span class="lien">Copier</span></td></tr>
+          </tbody>
+        </table></div>
+        <p class="doux">Google ne laisse pas répondre depuis le Trône : Gérard rédige, vous copiez et collez sur la fiche Google. Un avis à 3 étoiles ou moins prévient aussi l’équipe.</p>
+      </div>
+
       <div role="tabpanel" id="gp-codes" aria-labelledby="g-codes" class="panneau" hidden>
-        <span class="badge">À construire · les codes se créent déjà à l’envoi (jour creux, anniversaire)</span>
+        <span class="badge">À construire · les codes se créent déjà à l’envoi (jour creux, anniversaire) · les campagnes viennent de Marketing</span>
+        <h3>Les offres flash qu’il génère</h3>
+        <div class="cadre"><table>
+          <thead><tr><th>Quand</th><th>Pourquoi</th><th>L’offre</th><th>Où elle se voit</th><th class="d">Places</th><th class="d">Réservées</th><th>État</th></tr></thead>
+          <tbody>
+            <tr><td>Jeudi 29 oct. 2026, 14 h à 18 h</td><td>2 posés sur 6 d’ordinaire</td><td>Lavage rituel et coiffure, −15 %</td><td>Ma Couronne · le site</td><td class="d">4</td><td class="d">2</td><td>En ligne · finit dans 2 j <span class="lien">Arrêter</span></td></tr>
+            <tr><td>Aujourd’hui, 16 h à 19 h</td><td>Deux fauteuils libres cet après-midi</td><td>Soin express DÀNDÀN, −15 %</td><td>Ma Couronne</td><td class="d">2</td><td class="d">1</td><td>En ligne · finit dans 3 h <span class="lien">Arrêter</span></td></tr>
+            <tr><td>Mardi 3 nov. 2026, 10 h à 13 h</td><td>Jour creux à 5 jours</td><td>Resserrage, −15 %</td><td>·</td><td class="d">3</td><td class="d">·</td><td class="doux">Prête, part le 31 oct.</td></tr>
+          </tbody>
+        </table></div>
+        <p class="doux">Une offre flash ne naît que sur des places qui resteraient vides (jour creux de 3 à 7 jours, ou fauteuils libres du jour), dans le plafond des remises de la semaine, jamais sur une prestation déjà réservée. Elle se voit avec son compte à rebours, comme les offres instantanées d’aujourd’hui, et s’arrête d’un geste.</p>
+        <h3>Les campagnes</h3>
+        <div class="cadre"><table>
+          <thead><tr><th>Campagne</th><th>Offre</th><th>Audience</th><th class="d">Écartées par Gérard</th><th class="d">Parties</th><th>État</th></tr></thead>
+          <tbody>
+            <tr><td>Noël, les places du 15 au 24 décembre</td><td>Places + carte cadeau, sans remise</td><td>Venues en 2026</td><td class="d">23</td><td class="d">0</td><td>Dès le 15 nov. 2026</td></tr>
+            <tr><td>Octobre Rose</td><td>ROSE15</td><td>Toutes, avec accord</td><td class="d">41</td><td class="d">96</td><td>Terminée</td></tr>
+          </tbody>
+        </table></div>
+        <p class="doux">« Écartées par Gérard » : un souci ouvert, une facture due, l’équipe lui parle, ou un message de moins de 14 jours.</p>
+        <h3>Ses remises ont-elles servi ?</h3>
+        <div class="fenetre__chiffres doublure"><span><b>23</b>codes créés depuis le 1er oct.</span><span><b>9</b>clientes les ont utilisés</span><span><b>39 %</b>taux d’usage</span><span><b>31 500 F</b>de remise accordée</span><span><b>214 000 F</b>de séances venues avec</span><span><b>6,8 ×</b>rendement</span></div>
+        <div class="cadre"><table class="stats">
+          <thead><tr><th>Sorte de code</th><th class="d">Créés</th><th class="d">Utilisés</th><th class="d">Taux</th><th class="d">Remise</th><th class="d">Séances venues</th><th class="d">Rendement</th><th class="d">Venues gagnées</th><th>Verdict</th></tr></thead>
+          <tbody>
+            <tr><td>Offres flash</td><td class="d">5</td><td class="d">7 RDV</td><td class="d">·</td><td class="d">12 600 F</td><td class="d">84 000 F</td><td class="d">6,7 ×</td><td class="d">7 places remplies</td><td class="utile">Utile</td></tr>
+            <tr><td>Jour creux · CREUX15</td><td class="d">12</td><td class="d">6</td><td class="d">50 %</td><td class="d">22 500 F</td><td class="d">150 000 F</td><td class="d">6,7 ×</td><td class="d">5 places remplies</td><td class="utile">Utile</td></tr>
+            <tr><td>Anniversaire · ANNIV10</td><td class="d">8</td><td class="d">3</td><td class="d">38 %</td><td class="d">9 000 F</td><td class="d">64 000 F</td><td class="d">7,1 ×</td><td class="d">1 en avance</td><td class="utile">Utile</td></tr>
+            <tr><td>Relayé · ROSE15 (Octobre Rose)</td><td class="d">96</td><td class="d">4</td><td class="d">4 %</td><td class="d">10 200 F</td><td class="d">58 000 F</td><td class="d">5,7 ×</td><td class="d">0</td><td class="peu">Peu utile : elles seraient venues</td></tr>
+            <tr><td>Codes du moment · Pour une cliente</td><td class="d">3</td><td class="d">0</td><td class="d">0 %</td><td class="d">0 F</td><td class="d">0 F</td><td class="d">·</td><td class="d">0</td><td class="doux">Trop tôt pour dire</td></tr>
+          </tbody>
+        </table></div>
+        <dl class="regle">
+          <div><dt>Utilisé</dt><dd>Le code est inscrit sur une facture payée, avant sa date de fin.</dd></div>
+          <div><dt>Rendement</dt><dd>Le chiffre des séances payées avec le code, divisé par la remise accordée.</dd></div>
+          <div><dt>Venue gagnée</dt><dd>Une place d’un jour creux remplie au-delà de l’ordinaire, ou une cliente en retard, endormie ou venue une seule fois qui revient avec le code. Une cliente qui serait venue à sa date ne compte pas.</dd></div>
+          <div><dt>Utile</dt><dd>Au moins une venue gagnée pour trois codes utilisés. Sinon « peu utile » : la remise a payé des venues qui auraient eu lieu.</dd></div>
+        </dl>
+        <h3>Les codes, un par un</h3>
         <div class="fenetre__chiffres doublure"><span><b>9</b>codes créés en octobre</span><span><b>4</b>utilisés</span><span><b>18 000 F</b>de remise accordée</span><span><b>186 000 F</b>de séances venues avec un code</span><span><b>3 / 8</b>remises cette semaine</span></div>
         <div class="cadre"><table>
-          <thead><tr><th>Code</th><th>Cliente</th><th>Pourquoi</th><th class="d">Remise</th><th>Valable jusqu’au</th><th>Utilisé</th><th></th></tr></thead>
+          <thead><tr><th>Code</th><th>Cliente</th><th>Pourquoi</th><th class="d">Remise</th><th>Valable jusqu’au</th><th>Utilisé</th><th>Venue gagnée ?</th><th></th></tr></thead>
           <tbody>
-            <tr><td class="code">CREUX15-7KQ</td><td class="nom">M. L.</td><td>Jour creux : 2 posés sur 6 d’ordinaire</td><td class="d">15 %</td><td>29 oct. 2026</td><td>Pas encore</td><td><span class="lien">Annuler</span></td></tr>
-            <tr><td class="code">ANNIV10-3PA</td><td class="nom">F. B.</td><td>Anniversaire, 26 oct. 2026</td><td class="d">10 %</td><td>25 nov. 2026</td><td>Pas encore</td><td><span class="lien">Annuler</span></td></tr>
-            <tr><td class="code">CREUX15-2XW</td><td class="nom">K. H.</td><td>Jour creux du 22 oct. 2026</td><td class="d">15 %</td><td>22 oct. 2026</td><td>22 oct. 2026 · −9 000 F</td><td></td></tr>
-            <tr><td class="code">ANNIV10-9TR</td><td class="nom">C. Z.</td><td>Anniversaire, 4 oct. 2026</td><td class="d">10 %</td><td>3 nov. 2026</td><td>17 oct. 2026 · −6 000 F</td><td></td></tr>
+            <tr><td class="code">CREUX15-7KQ</td><td class="nom">M. L.</td><td>Jour creux : 2 posés sur 6 d’ordinaire</td><td class="d">15 %</td><td>29 oct. 2026</td><td>Pas encore</td><td class="doux">·</td><td><span class="lien">Annuler</span></td></tr>
+            <tr><td class="code">ANNIV10-3PA</td><td class="nom">F. B.</td><td>Anniversaire, 26 oct. 2026</td><td class="d">10 %</td><td>25 nov. 2026</td><td>Pas encore</td><td class="doux">·</td><td><span class="lien">Annuler</span></td></tr>
+            <tr><td class="code">CREUX15-2XW</td><td class="nom">K. H.</td><td>Jour creux du 22 oct. 2026</td><td class="d">15 %</td><td>22 oct. 2026</td><td>22 oct. 2026 · −9 000 F</td><td class="utile">Oui · place d’un jour creux</td><td></td></tr>
+            <tr><td class="code">ANNIV10-9TR</td><td class="nom">C. Z.</td><td>Anniversaire, 4 oct. 2026</td><td class="d">10 %</td><td>3 nov. 2026</td><td>17 oct. 2026 · −6 000 F</td><td class="peu">Non · venue à sa date</td><td></td></tr>
           </tbody>
         </table></div>
         <h3>Les cartes cadeaux</h3>
@@ -280,6 +402,28 @@ tr.exemple td { color: var(--doux); font-style: italic; }
         <p class="doux">Gérard ne crée jamais de carte cadeau lui-même : il envoie le lien d’achat ; la cliente paie par KkiaPay, et la carte (son code) se crée comme aujourd’hui. Ici, vous voyez lesquelles sont venues d’un de ses messages.</p>
       </div>
 
+      <div role="tabpanel" id="gp-fiche" aria-labelledby="g-fiche" class="panneau" hidden>
+        <span class="badge">À construire · une carte sur la fiche de chaque cliente, et à côté de chaque conversation</span>
+        <h3>Madame K., vue par Gérard</h3>
+        <dl class="persona">
+          <div><dt>On l’appelle</dt><dd>Madame K. (civilité notée sur sa fiche)</dd></div>
+          <div><dt>Son persona</dt><dd>La Fidèle</dd></div>
+          <div><dt>Son rythme</dt><dd>Resserrage des racines toutes les 8 semaines · dernière venue le 3 octobre 2026</dd></div>
+          <div><dt>Son prochain RDV</dt><dd>Samedi 28 novembre 2026 à 10 h, posé · Gérard le garde le 26</dd></div>
+          <div><dt>Sa tête</dt><dd>Mi-long · Micro · couleur YÈKPÈ du 12 août 2026</dd></div>
+          <div><dt>Son bilan</dt><dd>Signé le 3 octobre 2026 · rituel « Nourrir », huile de baobab · propose un Soin DÀNDÀN</dd></div>
+          <div><dt>Entre deux séances</dt><dd>Sèches, le 10 octobre 2026 · traité</dd></div>
+          <div><dt>Ce qu’il retient</dt><dd>« Pas le samedi après-midi » · lu le 2 septembre 2026 · <span class="lien">Effacer</span></dd></div>
+          <div><dt>Ses canaux</dt><dd>Ma Couronne (notifications) · WhatsApp · nouvelles acceptées</dd></div>
+          <div><dt>Son argent</dt><dd>Rien de dû · pas d’abonnement · aucun code en cours</dd></div>
+          <div><dt>Sa famille</dt><dd>Elle règle le compte (2 membres)</dd></div>
+          <div><dt>Le Cercle</dt><dd>Marraine de 2 filleules</dd></div>
+          <div><dt>Son avis</dt><dd>5 étoiles le 12 septembre 2026 · remerciée</dd></div>
+          <div><dt>Gérard</dt><dd>Dernier message le 2 novembre 2026 (une envie) · prochain : garder son RDV le 26 · pas au calme</dd></div>
+        </dl>
+        <p class="doux">Ce que Claude reçoit de cette carte : le prénom et l’initiale, jamais le nom entier ni le numéro, ni la note de séance du maître.</p>
+      </div>
+
       <div role="tabpanel" id="gp-sait" aria-labelledby="g-sait" class="panneau" hidden>
         <span class="badge fait">Ses règles et ses 14 modèles Meta : en ligne · la carte Entre deux séances : à publier</span>
         <div class="cadre"><table>
@@ -289,6 +433,9 @@ tr.exemple td { color: var(--doux); font-style: italic; }
             <tr><td>Les 8 rubriques, vos réponses validées, leurs mots sans nom</td><td>Entre deux séances</td><td>Construit, à publier</td></tr>
             <tr><td>Son rituel, les propositions et leur « quand »</td><td>Le bilan signé</td><td>À construire</td></tr>
             <tr><td>Une absence, une envie refusée, un horaire, « ne plus m’écrire »</td><td>Les conversations</td><td>À construire</td></tr>
+            <tr><td>Son persona, l’offre du moment</td><td>Marketing</td><td>À construire</td></tr>
+            <tr><td>Une facture due, son abonnement, sa carte cadeau, le Cercle</td><td>Factures, Abonnements, Le Cercle</td><td>À construire</td></tr>
+            <tr><td>Les avis et la façon d’y répondre</td><td>Les avis Google</td><td>Existe (l’agent des avis)</td></tr>
           </tbody>
         </table></div>
       </div>
@@ -489,12 +636,33 @@ tr.exemple td { color: var(--doux); font-style: italic; }
 <script>
 (() => {
   const QUESTIONS = [
-    { cle: 'barre', titre: 'Quand Conversations et Entre deux séances quittent la barre', reco: 'apres-essai', opts: [
+    { cle: 'campagnes', titre: 'Les campagnes de Marketing', reco: 'par-gerard', opts: [
+      { v: 'par-gerard', t: 'Elles passent par Gérard', d: 'Marketing décide l’offre ; Gérard l’envoie, en écartant celles qui ont un souci, une dette, ou un message récent.' },
+      { v: 'a-part', t: 'Elles restent dans Marketing', d: 'Deux voix : une campagne peut tomber le lendemain d’un message de Gérard.' } ] },
+    { cle: 'agents', titre: 'Les agents qui écrivent aux clientes', reco: 'gerard-remplace', opts: [
+      { v: 'gerard-remplace', t: 'Gérard les remplace', d: 'Reprises du lundi, une seule venue, dormantes, anniversaires, avis : ce sont ses propres situations ; ils s’éteignent.' },
+      { v: 'coexistent', t: 'Ils restent à côté', d: 'Ils continuent ; une même cliente peut recevoir les deux.' } ] },
+    { cle: 'argent', titre: 'Relances de factures et messages de l’abonnement', reco: 'il-voit', opts: [
+      { v: 'il-voit', t: 'Ils partent comme aujourd’hui, Gérard les voit', d: 'Ils restent un geste de l’argent ; Gérard les compte et ne propose rien à une cliente qui doit.' },
+      { v: 'il-porte', t: 'Gérard les envoie lui-même', d: 'Une seule voix pour tout, l’argent compris.' } ] },
+    { cle: 'demandes', titre: 'Les demandes du site', reco: 'conversations', opts: [
+      { v: 'conversations', t: 'Dans les Conversations de Gérard', d: 'Il accuse réception tout de suite ; l’équipe rappelle. Les consultations restent à part.' },
+      { v: 'restent', t: 'Elles restent avec les consultations', d: 'Rien ne change pour elles.' } ] },
+    { cle: 'dette', titre: 'Une facture due', reco: 'se-tait', opts: [
+      { v: 'se-tait', t: 'Gérard ne propose rien', d: 'Ni envie ni remise tant qu’elle doit ; il garde son RDV.' },
+      { v: 'ecrit', t: 'Il écrit quand même', d: 'La relance de la facture et l’envie peuvent se croiser.' } ] },
+    { cle: 'barre', titre: 'Quand les rubriques reprises quittent la barre', reco: 'apres-essai', opts: [
       { v: 'apres-essai', t: 'Après une semaine d’usage', d: 'Quand chaque onglet de Gérard est en ligne et a servi une semaine ; les anciennes adresses mènent à Gérard.' },
       { v: 'tout-de-suite', t: 'Dès que les onglets sont construits', d: 'Elles quittent la barre le jour où Gérard les reprend.' } ] },
     { cle: 'bilanOu', titre: 'Où s’écrit le bilan', reco: 'rdv-et-gerard', opts: [
       { v: 'rdv-et-gerard', t: 'Depuis le RDV, la liste dans Gérard', d: 'Le maître le rédige et le signe depuis la fenêtre du RDV, comme aujourd’hui ; tous les bilans se suivent dans Gérard.' },
       { v: 'gerard-seul', t: 'Tout dans Gérard', d: 'La fenêtre du RDV ne montre plus le bilan ; on le rédige depuis l’onglet Les bilans.' } ] },
+    { cle: 'flash', titre: 'Les offres flash', reco: 'seul-plafond', opts: [
+      { v: 'seul-plafond', t: 'Il les publie seul, dans le plafond', d: 'Sur les places vides seulement, dans le plafond des remises de la semaine ; vous voyez chacune et l’arrêtez d’un geste.' },
+      { v: 'propose', t: 'Il les prépare, vous publiez', d: 'L’offre attend votre toucher avant de se montrer dans Ma Couronne et sur le site.' } ] },
+    { cle: 'utile', titre: 'Ce qui dit qu’une remise a servi', reco: 'venue-gagnee', opts: [
+      { v: 'venue-gagnee', t: 'Une venue gagnée', d: 'Une place de jour creux remplie, ou une cliente en retard ou endormie qui revient. Une venue qui aurait eu lieu ne compte pas.' },
+      { v: 'rendement', t: 'Le rendement seul', d: 'Le chiffre venu avec le code, divisé par la remise : simple, mais il compte aussi les venues qui auraient eu lieu.' } ] },
     { cle: 'codes', titre: 'Les codes que Gérard crée', reco: 'voir-annuler', opts: [
       { v: 'voir-annuler', t: 'Vous voyez tout, et annulez', d: 'Chaque code, sa cliente, sa raison, son usage ; un code pas encore servi s’annule d’un geste.' },
       { v: 'voir', t: 'Vous voyez tout', d: 'La liste et les totaux, sans annulation.' } ] },
