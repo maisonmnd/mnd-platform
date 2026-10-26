@@ -34,8 +34,11 @@ const dansLaBarre = items.filter((it) => !it.horsMenu);
    vitrines ». */
 /* 43 depuis le même jour : « Les prévisions » (maquette 1opRHqoV…, choix du
    sélecteur : en Direction, sous le Centre de commande). */
-dit('la barre montre 43 rubriques', 43, dansLaBarre.length);
+/* 44 depuis le même jour : « Gérard » (maquette 4bPVFik1…), en Clientèle,
+   sous « Clientes ». */
+dit('la barre montre 44 rubriques', 44, dansLaBarre.length);
 dit('... dont Les prévisions, en Direction', ['Direction', false], [item('/previsions')?.groupe, !!item('/previsions')?.horsMenu]);
+dit('... dont Gérard, en Clientèle', ['Clientèle', false], [item('/gerard')?.groupe, !!item('/gerard')?.horsMenu]);
 dit('... dont Les avis Google, sous Les vitrines', ['Marketing & Fidélité', false], [item('/avis-google')?.groupe, !!item('/avis-google')?.horsMenu]);
 dit('... dont Entre deux seances, dans la Clientele', ['Clientèle', false], [item('/entre-deux')?.groupe, !!item('/entre-deux')?.horsMenu]);
 dit('... dont Les projets, sous Direction ; Mes taches reste un onglet du Fil', ['Direction', false, true],

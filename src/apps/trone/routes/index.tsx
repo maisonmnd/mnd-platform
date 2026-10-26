@@ -1,5 +1,5 @@
 import { lazy, type LazyExoticComponent, type ComponentType } from 'react';
-import { Compass, Bot, TrendingUp, FolderKanban, ListTodo, Clapperboard, Activity, BadgeCheck, HeartHandshake, BarChart3, BookOpen, CalendarDays, ClipboardList, Crown, Drama, FileSignature, FileText, FlaskConical, Gift, GraduationCap, Hammer, HandCoins, Handshake, MessageCircle, Handshake as PoigneeDeMain, HeartPulse, Inbox, KeyRound, Landmark, LayoutDashboard, Lightbulb, LineChart, ListChecks, MapPin, Megaphone, MessageSquare, MessagesSquare, MonitorPlay, NotebookPen, Palette, PhoneIncoming, PieChart, PiggyBank, QrCode, ReceiptText, Repeat, Scale, ScrollText, Settings, ShieldCheck, ShoppingBag, SquareKanban, Star, Store, Users, UsersRound, Wallet, type LucideIcon } from 'lucide-react';
+import { Compass, Bot, TrendingUp, UserRoundCheck, FolderKanban, ListTodo, Clapperboard, Activity, BadgeCheck, HeartHandshake, BarChart3, BookOpen, CalendarDays, ClipboardList, Crown, Drama, FileSignature, FileText, FlaskConical, Gift, GraduationCap, Hammer, HandCoins, Handshake, MessageCircle, Handshake as PoigneeDeMain, HeartPulse, Inbox, KeyRound, Landmark, LayoutDashboard, Lightbulb, LineChart, ListChecks, MapPin, Megaphone, MessageSquare, MessagesSquare, MonitorPlay, NotebookPen, Palette, PhoneIncoming, PieChart, PiggyBank, QrCode, ReceiptText, Repeat, Scale, ScrollText, Settings, ShieldCheck, ShoppingBag, SquareKanban, Star, Store, Users, UsersRound, Wallet, type LucideIcon } from 'lucide-react';
 
 /* Registre des routes du Trône, groupées par DÉPARTEMENT.
    Le module d'un écran (routes/<dossier>/) dit d'où il vient, pas où il se range :
@@ -86,6 +86,11 @@ const NAV_DES_ECRANS: TroneGroup[] = [
       /* Ordre voulu par la maison : le jour d'abord, la lignée ensuite. */
       { path: '/calendrier', label: 'Calendrier', icon: CalendarDays, Component: lazy(() => import('./clients/Calendrier')) },
       { path: '/customers', label: 'Clientes', icon: Users, Component: lazy(() => import('./clients/Customers')) },
+      /* GÉRARD (26 octobre 2026) — l'assistant qui écrit aux clientes : le
+         fil entre deux séances, les RDV gardés, les jours creux, les
+         relances. Maquette 4bPVFik1… ; rangé sous Clientes, comme la
+         maquette le montrait. Lot 1 : le plan et les réglages. */
+      { path: '/gerard', label: 'Gérard', icon: UserRoundCheck, Component: lazy(() => import('./clients/Gerard')) },
       { path: '/carnet', label: 'Le Carnet', icon: NotebookPen, Component: lazy(() => import('./clients/Carnet')) },
       { path: '/appels', label: 'Les Appels', icon: PhoneIncoming, Component: lazy(() => import('./clients/Appels')) },
       { path: '/conversations', label: 'Conversations', icon: MessagesSquare, Component: lazy(() => import('./clients/Conversations')) },
@@ -421,7 +426,7 @@ export const ANCIENS_DOMAINES: Record<string, string[]> = {
    un : la table ci-dessus ne se met pas à jour. Il s'ouvre par son
    département seul. On les NOMME ici, pour que la barre et la photographie
    restent vérifiables : un écran absent des deux listes est un oubli. */
-export const ECRANS_NES_APRES_LES_DEPARTEMENTS: readonly string[] = ['/compte-courant', '/parrainages', '/cartes-cadeaux', '/secretariat', '/centre-de-commande', '/atelier-des-contenus', '/chiffre-des-prestations', '/prets-personnel', '/entre-deux', '/discussions', '/projets', '/mes-taches', '/agents', '/avis-google', '/previsions'];
+export const ECRANS_NES_APRES_LES_DEPARTEMENTS: readonly string[] = ['/compte-courant', '/parrainages', '/cartes-cadeaux', '/secretariat', '/centre-de-commande', '/atelier-des-contenus', '/chiffre-des-prestations', '/prets-personnel', '/entre-deux', '/discussions', '/projets', '/mes-taches', '/agents', '/avis-google', '/previsions', '/gerard'];
 
 /** L'ancien domaine d'un écran, celui d'avant les départements. */
 export const ancienDomaineDe = (path: string): string | undefined =>

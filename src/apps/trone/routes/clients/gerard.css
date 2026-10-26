@@ -1,0 +1,92 @@
+/* GÉRARD — 26 octobre 2026, maquette 4bPVFik1ABh3TRFZ5XbHiG.
+   Un seul motif vedette : le plan du jour, en liste repliée (le résumé sur
+   la ligne, un panneau ouvert à la fois). Le reste en cartes de calcul. */
+.trc-ger { display: flex; flex-direction: column; gap: 20px; }
+.trc-ger b, .trc-ger td.d { font-variant-numeric: lining-nums tabular-nums; }
+.trc-ger__doux { margin: 0; font-size: 12.5px; color: var(--ink-soft); }
+.trc-ger__vide { margin: 0; padding: 18px 0; font-size: 13px; color: var(--ink-soft); }
+
+.trc-ger__chiffres { display: flex; gap: 26px; align-items: flex-end; flex-wrap: wrap; }
+.trc-ger__chiffre { display: flex; flex-direction: column; gap: 2px; }
+.trc-ger__chiffre b { font-family: var(--font-serif); font-weight: 400; font-size: 30px; line-height: 1; color: var(--color-indigo); }
+.trc-ger__chiffre small { font-size: 11.5px; color: var(--ink-soft); }
+
+.trc-ger__etat { display: flex; gap: 8px 14px; flex-wrap: wrap; padding: 10px 14px; border: 1px solid var(--copper-300, #E3C9AE); background: var(--copper-50); border-radius: 3px; font-size: 13px; }
+.trc-ger__etat b { color: var(--copper-700); font-weight: 600; }
+
+.trc-ger__carte { background: var(--surface-card); border: 1px solid var(--hairline); border-radius: 3px; padding: 18px 20px; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.trc-ger__carte h3 { font-family: var(--font-serif); font-weight: 400; font-size: 22px; margin: 0; display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; color: var(--color-indigo); }
+.trc-ger__carte h3 span { font-family: var(--font-sans); font-size: 10.5px; letter-spacing: .16em; text-transform: uppercase; color: var(--copper-700); }
+.trc-ger__carte table { border-collapse: collapse; width: 100%; font-size: 13px; }
+.trc-ger__carte td, .trc-ger__carte th { padding: 7px 8px 7px 0; border-top: 1px solid var(--hairline); vertical-align: baseline; text-align: left; }
+.trc-ger__carte th { font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-soft); font-weight: 500; border-top: 0; }
+.trc-ger__carte td.d, .trc-ger__carte th.d { text-align: right; white-space: nowrap; padding-right: 0; }
+.trc-ger__deux { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; align-items: start; }
+@media (max-width: 1100px) { .trc-ger__deux { grid-template-columns: minmax(0, 1fr); } }
+
+.trc-ger__haut { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.trc-ger__onglets { display: inline-flex; border: 1px solid var(--hairline); border-radius: 3px; overflow: hidden; }
+.trc-ger__onglets button { all: unset; cursor: pointer; padding: 7px 14px; font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-soft); }
+.trc-ger__onglets button.est-choisi { background: var(--color-indigo); color: var(--color-ivoire); }
+.trc-ger__onglets button:focus-visible, .trc-ger__ligne:focus-visible, .trc-ger__btn:focus-visible, .trc-ger__modes button:focus-visible { outline: 2px solid var(--color-copper); outline-offset: 2px; }
+
+/* Le plan : une liste repliée */
+.trc-ger__liste { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.trc-ger__rangee { border-top: 1px solid var(--hairline); }
+.trc-ger__ligne { all: unset; box-sizing: border-box; cursor: pointer; width: 100%; display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1.3fr) minmax(0, 1fr); gap: 4px 14px; padding: 11px 0; align-items: baseline; }
+@media (max-width: 720px) { .trc-ger__ligne { grid-template-columns: minmax(0, 1fr); } }
+.trc-ger__qui { font-weight: 500; color: var(--color-indigo); overflow-wrap: anywhere; }
+.trc-ger__qui em { font-style: normal; font-size: 10px; letter-spacing: .12em; text-transform: uppercase; color: var(--copper-700); margin-left: 8px; }
+.trc-ger__genre { font-size: 12.5px; }
+.trc-ger__genre::before { content: ""; display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 8px; background: var(--color-copper); vertical-align: 1px; }
+.trc-ger__genre--garder::before, .trc-ger__genre--combiner::before { background: var(--color-indigo); }
+.trc-ger__genre--retard::before, .trc-ger__genre--une-venue::before, .trc-ger__genre--endormie::before { background: var(--indigo-200); }
+.trc-ger__canal { font-size: 12px; color: var(--ink-soft); }
+.trc-ger__panneau { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 18px; padding: 4px 0 18px; }
+@media (max-width: 900px) { .trc-ger__panneau { grid-template-columns: minmax(0, 1fr); } }
+.trc-ger__message { display: flex; flex-direction: column; gap: 8px; align-items: flex-start; min-width: 0; }
+.trc-ger__bulle { background: var(--color-indigo); color: var(--color-ivoire); border-radius: 3px; padding: 11px 14px; font-size: 13.5px; line-height: 1.5; display: flex; flex-direction: column; gap: 8px; max-width: 520px; }
+.trc-ger__boutons { display: flex; gap: 6px; flex-wrap: wrap; }
+.trc-ger__boutons i { font-style: normal; font-size: 11.5px; border: 1px solid rgba(241, 238, 232, .45); border-radius: 3px; padding: 3px 8px; }
+.trc-ger__pied { font-size: 11px; font-style: italic; opacity: .75; }
+.trc-ger__texte { white-space: pre-line; }
+.trc-ger__pourquoi { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.trc-ger__btn { all: unset; box-sizing: border-box; cursor: pointer; border-radius: 3px; padding: 7px 12px; font-size: 11px; letter-spacing: .14em; text-transform: uppercase; font-weight: 500; border: 1px solid var(--hairline); background: var(--surface-card); color: var(--color-indigo); }
+.trc-ger__btn:hover { background: var(--copper-50); }
+
+/* Le fil d'une cliente */
+.trc-ger__ruban { overflow-x: auto; padding: 0 50px; }
+.trc-ger__piste { position: relative; min-width: 520px; height: 150px; }
+.trc-ger__trait { position: absolute; left: 0; right: 0; top: 52px; height: 2px; background: var(--hairline); }
+.trc-ger__noeud { position: absolute; top: 44px; transform: translateX(-50%); width: 18px; height: 18px; }
+.trc-ger__noeud i { display: block; width: 18px; height: 18px; border-radius: 50%; border: 2px solid var(--color-copper); background: var(--color-copper); }
+.trc-ger__noeud.est-existant i { background: var(--surface-card); border-color: var(--color-indigo); }
+.trc-ger__noeud.est-aujourdhui i { outline: 2px solid var(--color-copper); outline-offset: 3px; }
+.trc-ger__noeud small { position: absolute; left: 50%; transform: translateX(-50%); top: 26px; width: 92px; font-size: 10.5px; color: var(--ink-soft); line-height: 1.25; text-align: center; }
+.trc-ger__noeud small b { display: block; color: var(--color-indigo); font-weight: 500; }
+.trc-ger__noeud.en-haut small { top: auto; bottom: 26px; }
+.trc-ger__noeud.en-bas small { top: 66px; }
+
+/* Les réglages */
+.trc-ger__modes { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+@media (max-width: 640px) { .trc-ger__modes { grid-template-columns: minmax(0, 1fr); } }
+.trc-ger__modes button { all: unset; box-sizing: border-box; cursor: pointer; border: 1px solid var(--hairline); border-radius: 3px; padding: 10px 12px; display: flex; flex-direction: column; gap: 3px; background: var(--surface-card); }
+.trc-ger__modes button b { font-weight: 600; font-size: 13.5px; color: var(--color-indigo); }
+.trc-ger__modes button span { font-size: 12px; color: var(--ink-soft); }
+.trc-ger__modes button.est-choisi { border-color: var(--color-copper); background: var(--copper-50); box-shadow: inset 0 0 0 1px var(--color-copper); }
+.trc-ger__modes button:disabled { cursor: default; opacity: .75; }
+
+/* Les modèles */
+.trc-ger__modeles { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.trc-ger__modeles li { display: grid; grid-template-columns: minmax(0, 220px) minmax(0, 1fr) auto; gap: 6px 16px; padding: 10px 0; border-top: 1px solid var(--hairline); align-items: baseline; }
+@media (max-width: 760px) { .trc-ger__modeles li { grid-template-columns: minmax(0, 1fr); } }
+.trc-ger__modeles li div { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.trc-ger__modeles li b { font-family: ui-monospace, Consolas, monospace; font-size: 12.5px; font-weight: 500; color: var(--color-indigo); overflow-wrap: anywhere; }
+.trc-ger__modeles li small { font-size: 11.5px; color: var(--ink-soft); }
+.trc-ger__modeles li p { margin: 0; font-size: 13px; }
+
+@media (max-width: 640px) {
+  .trc-ger__chiffres { gap: 16px; }
+  .trc-ger__chiffre b { font-size: 26px; }
+  .trc-ger__carte { padding: 16px 14px; }
+}
