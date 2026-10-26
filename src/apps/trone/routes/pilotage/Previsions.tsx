@@ -4,10 +4,13 @@ import { useBranch } from '../../../../shared/branches';
 import { useSettings, openingForIso } from '../../../../shared/settings';
 import { predictNextVisit, tauxDeRealisation } from '../../../../shared/cadence';
 import { dortDepuisLongtemps, estDePassage, estDiaspora, aDefaitSesLocks, MOIS_AVANT_SORTIE } from '../../../../shared/clients';
+import { apptPaidXof } from '../../../../shared/agenda';
+import { useInvoices } from '../../../../shared/finance';
 import { ajouteJours, rdvParJour, reperesParJour } from '../../../../shared/objectifs-des-fauteuils-pur';
 import {
-  bornesDeLHorizon, calculeLesPrevisions, mesureDesEnvois, nomDeLHorizon, nouvellesClientes, placeDeLaCliente,
-  HORIZONS_DES_PREVISIONS, type ColonneDesPrevisions, type HorizonDesPrevisions, type Previsions as LesPrevisions,
+  bornesDeLHorizon, calculeLesPrevisions, finDuMois, mesureDesEnvois, moisDuPasse, nomDeLHorizon, nouvellesClientes, placeDeLaCliente,
+  premierMoisJugeLisibleLe, rdvsConnusLe, rejoueLeMois, resumeDuRejeu,
+  HORIZONS_DES_PREVISIONS, type ColonneDesPrevisions, type HorizonDesPrevisions, type MoisRejoue, type Previsions as LesPrevisions, type RdvDesPrevisions,
 } from '../../../../shared/previsions-pur';
 import { useCampaigns, useEnvois } from '../equipe/data';
 import { apptDurationMin, todayISO, useBranchAppointments, useBranchClients, useServicesById } from '../clients/_shared';
@@ -25,13 +28,35 @@ import './previsions.css';
    LE MOTIF VEDETTE : les semaines (ou les mois) en barres, posés, attendus
    et marketing empilés sous le trait du plafond. Dessous, trois tableaux qui
    recomposent chaque chiffre de l'en-tête. Toutes les règles vivent dans
-   `shared/previsions-pur.ts` ; cet écran ne fait que lire et dessiner. */
+   `shared/previsions-pur.ts` ; cet écran ne fait que lire et dessiner.
+
+   « ET LES MOIS PASSÉS ? » (le même jour, choix du sélecteur : le réalisé et
+   la prévision rejouée) : un quatrième bouton, « 12 derniers mois ». Chaque
+   mois entier, ce que la prévision aurait dit au 1er avec ce que le Trône
+   savait alors, à côté de ce qui est venu, sous le plafond d'alors. */
 
 const un = (x: number) => x.toLocaleString('fr-FR', { maximumFractionDigits: 1, minimumFractionDigits: 0 });
 const entier = (x: number) => Math.round(x).toLocaleString('fr-FR');
 const pct = (x: number) => `${Math.round(x * 100)} %`;
+const signe = (x: number) => { const r = Math.round(x); return r > 0 ? `+${r}` : r < 0 ? `\u2212${-r}` : '0'; };
+const MOIS_DITS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
+const leJourDit = (j: string) => `${Number(j.slice(8, 10)) === 1 ? '1er' : Number(j.slice(8, 10))} ${MOIS_DITS[Number(j.slice(5, 7)) - 1]} ${j.slice(0, 4)}`;
 
-function usePrevisions(horizon: HorizonDesPrevisions): { p: LesPrevisions; titre: string } {
+/** LES RENDEZ-VOUS DE LA BRANCHE, avec ce qui fait une venue : l'argent reçu
+    et la facture (la règle du Carnet, `estUneVenue`). */
+function useLesRdvs(): RdvDesPrevisions[] {
+  const appts = useBranchAppointments();
+  const [pieces] = useInvoices();
+  return useMemo(() => {
+    const factures = new Set(pieces.filter((p) => p.apptId && p.kind === 'facture').map((p) => p.apptId as string));
+    return appts.map((a) => ({
+      clientId: a.clientId, date: a.date, status: a.status, creeLe: a.creeLe,
+      encaisse: apptPaidXof(a) > 0, facture: !!a.invoiceId || factures.has(a.id),
+    }));
+  }, [appts, pieces]);
+}
+
+function usePrevisions(horizon: HorizonDesPrevisions, rdvs: RdvDesPrevisions[]): { p: LesPrevisions; titre: string } {
   const { branch } = useBranch();
   const appts = useBranchAppointments();
   const clients = useBranchClients();
@@ -44,7 +69,6 @@ function usePrevisions(horizon: HorizonDesPrevisions): { p: LesPrevisions; titre
   /* Ce qui ne dépend pas de l'horizon se calcule une fois. */
   const socle = useMemo(() => {
     const estOuvertLe = (j: string) => !openingForIso(j).closed;
-    const rdvs = appts.map((a) => ({ clientId: a.clientId, date: a.date, status: a.status, creeLe: a.creeLe }));
     const parJour = rdvParJour(rdvs);
     const reperes = reperesParJour({ parJour, aujourdhui: today, ouvertLe: estOuvertLe });
     const venues = appts.filter((a) => a.status === 'honoré' && !(a.seriesIndex && a.seriesIndex > 1));
@@ -62,7 +86,7 @@ function usePrevisions(horizon: HorizonDesPrevisions): { p: LesPrevisions; titre
     for (const a of appts) { const l = parCliente.get(a.clientId); if (l) l.push(a); else parCliente.set(a.clientId, [a]); }
     return { estOuvertLe, rdvs, parJour, reperes, justesse: juste ? juste.dans14 / 100 : null, relance, reveil, dureeMoyenneMin, parCliente };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [appts, envois, campagnes, branch.id, byId, today, reglages]);
+  }, [appts, rdvs, envois, campagnes, branch.id, byId, today, reglages]);
 
   return useMemo(() => {
     const bornes = bornesDeLHorizon(horizon, today);
@@ -94,6 +118,151 @@ function usePrevisions(horizon: HorizonDesPrevisions): { p: LesPrevisions; titre
     });
     return { p, titre: bornes.titre };
   }, [horizon, today, clients, socle, branch.seats]);
+}
+
+/** LE PASSÉ REJOUÉ : chaque mois entier des douze derniers, la prévision
+    refaite au 1er avec ce que le Trône savait alors (`rejoueLeMois`). Le
+    juge de la Cadence lit les réglages : il tourne ici, mois par mois, sur
+    les rendez-vous connus ce jour-là. Ne calcule que si l'onglet est ouvert. */
+function useRejeu(actif: boolean, rdvs: RdvDesPrevisions[]): MoisRejoue[] | null {
+  const appts = useBranchAppointments();
+  const clients = useBranchClients();
+  const [reglages] = useSettings();
+  const today = todayISO();
+  return useMemo(() => {
+    if (!actif) return null;
+    const ouvertLe = (j: string) => !openingForIso(j).closed;
+    const filleules = new Set(clients.filter((c) => !!c.parraineePar).map((c) => c.id));
+    return moisDuPasse(today).map((mois) => {
+      const premier = `${mois}-01`;
+      const fin = finDuMois(mois);
+      const connus = rdvsConnusLe(appts, premier);
+      const parCliente = new Map<string, typeof connus>();
+      for (const a of connus) { const l = parCliente.get(a.clientId); if (l) l.push(a); else parCliente.set(a.clientId, [a]); }
+      const reprises: { iso: string }[] = [];
+      for (const c of clients) {
+        const siens = parCliente.get(c.id);
+        if (!siens) continue;
+        const cad = predictNextVisit(siens, [c], c.id, premier);
+        const aUnRdvAVenir = siens.some((a) => a.date >= premier && a.status !== 'annulé' && a.status !== 'honoré');
+        const place = placeDeLaCliente({ aUnRdvAVenir, predit: cad.predicted, iso: cad.iso, retardJours: cad.overdueDays, dort: false, fin });
+        if (place === 'attendue' && cad.iso) reprises.push({ iso: cad.iso });
+      }
+      const juste = tauxDeRealisation(connus.filter((a) => a.status === 'honoré' && !(a.seriesIndex && a.seriesIndex > 1)));
+      return rejoueLeMois({ mois, rdvs, ouvertLe, reprises, justesse: juste ? juste.dans14 / 100 : null, estFilleule: (id) => filleules.has(id) });
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [actif, appts, clients, rdvs, today, reglages]);
+}
+
+/** LE DESSIN DU PASSÉ : les venues en barres, la prévision du 1er en trait
+    cuivre, le plafond d'alors en tireté. */
+function GrapheDuPasse({ lignes }: { lignes: MoisRejoue[] }) {
+  const W = 1000; const HT = 260; const g = 40; const b = 28; const haut = 22;
+  const max = Math.max(1, ...lignes.map((m) => Math.max(m.plafond, m.venus, m.haut)));
+  const pas = max > 240 ? 50 : max > 120 ? 40 : max > 60 ? 20 : max > 24 ? 10 : 5;
+  const ech = (v: number) => (HT - b - haut) * v / max;
+  const large = (W - g) / Math.max(1, lignes.length);
+  const l = Math.min(60, large * 0.55);
+  const graduations: number[] = [];
+  for (let t = 0; t <= max; t += pas) graduations.push(t);
+  return (
+    <svg className="trp-prev__graphe" viewBox={`0 0 ${W} ${HT}`} role="img" aria-label="Rendez-vous venus chaque mois, la prévision du 1er et le plafond">
+      {graduations.map((t) => {
+        const y = HT - b - ech(t);
+        return (
+          <g key={t}>
+            <line x1={g} x2={W} y1={y} y2={y} className="trp-prev__grille" />
+            <text x={g - 8} y={y + 4} textAnchor="end">{t}</text>
+          </g>
+        );
+      })}
+      {lignes.map((m, i) => {
+        const x = g + large * i + (large - l) / 2; const y0 = HT - b;
+        const hv = ech(m.venus);
+        const yp = y0 - ech(m.prevu);
+        const yf = y0 - ech(m.plafond);
+        return (
+          <g key={m.mois}>
+            <title>{`${m.nom} : ${m.venus} venus, ${entier(m.prevu)} prévus au 1er (${entier(m.bas)} à ${entier(m.haut)}), plafond ${m.plafond}`}</title>
+            <rect x={x} y={y0 - hv} width={l} height={hv} className="trp-prev__poses" />
+            {m.plafond > 0 && <line x1={x - 8} x2={x + l + 8} y1={yf} y2={yf} className="trp-prev__plafond" />}
+            <line x1={x - 8} x2={x + l + 8} y1={yp} y2={yp} className={m.juge ? 'trp-prev__prevu' : 'trp-prev__prevu trp-prev__prevu--sans'} />
+            <text className="trp-prev__val" x={x + l / 2} y={Math.min(y0 - hv, yp) - 8} textAnchor="middle">{m.venus}</text>
+            <text x={x + l / 2} y={HT - 8} textAnchor="middle">{m.nomCourt}</text>
+          </g>
+        );
+      })}
+    </svg>
+  );
+}
+
+/** LE PASSÉ, l'en-tête, le dessin et le tableau. */
+function LePasse({ lignes }: { lignes: MoisRejoue[] }) {
+  const r = resumeDuRejeu(lignes);
+  const premier = lignes[0]; const dernier = lignes[lignes.length - 1];
+  return (
+    <>
+      <section className="trp-prev__vedette" aria-label="Les douze derniers mois">
+        <div className="trp-prev__vedette-haut">
+          <h3>{premier && dernier ? `De ${premier.nom.toLowerCase()} à ${dernier.nom.toLowerCase()}` : 'Les douze derniers mois'}</h3>
+          <div className="trp-prev__legende">
+            <span><i className="trp-prev__poses" />Venus</span>
+            <span><i className="trp-prev__trait-cuivre" />Prévu au 1er</span>
+            <span><i className="trp-prev__trait-cuivre trp-prev__trait-cuivre--sans" />Attendu sans les posés</span>
+            <span><i className="trp-prev__trait" />Plafond atteignable</span>
+          </div>
+        </div>
+        <GrapheDuPasse lignes={lignes} />
+      </section>
+
+      <section className="trp-prev__calcul trp-prev__passe">
+        <h3>Le passé <span>prévu au 1er, puis venu</span></h3>
+        <p>Chaque mois, ce que cet écran aurait annoncé le 1er avec ce que le Trône savait ce jour-là, à côté de ce qui est venu.</p>
+        <div className="mnd-scroll-x">
+          <table>
+            <thead>
+              <tr><th>Mois</th><th className="d">Prévu au 1er</th><th className="d">Venus</th><th className="d">Écart</th><th className="d">Annulés</th><th className="d">Plafond</th><th className="d">Part du plafond</th></tr>
+            </thead>
+            <tbody>
+              {lignes.map((m) => (
+                <tr key={m.mois}>
+                  <td>{m.nom}{m.posesConnus > 0 && <small>{m.posesConnus} posé{m.posesConnus > 1 ? 's' : ''} connu{m.posesConnus > 1 ? 's' : ''} le 1er</small>}</td>
+                  <td className="d">{entier(m.prevu)}<small>{m.juge ? `${entier(m.bas)} à ${entier(m.haut)}` : 'sans les posés'}</small></td>
+                  <td className="d">{m.venus}</td>
+                  <td className="d">{m.juge
+                    ? <>{signe(m.ecart)}<small className={m.dansLaFourchette ? 'trp-prev__mesure' : 'trp-prev__amesurer'}>{m.dansLaFourchette ? 'dans la fourchette' : 'hors fourchette'}</small></>
+                    : <>·<small className="trp-prev__inclus">non jugé</small></>}</td>
+                  <td className="d">{m.annules}</td>
+                  <td className="d">{m.plafond}</td>
+                  <td className="d">{m.plafond > 0 ? pct(m.venus / m.plafond) : '·'}</td>
+                </tr>
+              ))}
+              <tr className="total">
+                <td>Douze mois<small>{r.moisJuges
+                  ? `${r.moisJuges} mois jugé${r.moisJuges > 1 ? 's' : ''} : écart moyen ${un(r.ecartMoyen)} RDV${r.ecartPart !== null ? `, soit ${pct(r.ecartPart)} des venues` : ''}`
+                  : `aucun mois jugé encore : le premier se lit le ${leJourDit(premierMoisJugeLisibleLe())}`}</small></td>
+                <td className="d">{r.moisJuges ? entier(r.prevu) : '·'}</td>
+                <td className="d">{r.venus}</td>
+                <td className="d">{r.moisJuges ? signe(r.ecartTotal) : '·'}</td>
+                <td className="d">{r.annules}</td>
+                <td className="d">{r.plafond}</td>
+                <td className="d">{r.part !== null ? pct(r.part) : '·'}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <p className="trp-prev__pied">
+        Le 1er de chaque mois, le calcul de cet écran est refait avec ce que le Trône savait ce jour-là : l’histoire d’avant le 1er, les rendez-vous
+        déjà pris, le plafond, la justesse de la Cadence et le rythme des nouvelles d’alors. Le marketing n’est pas rejoué. Venus : honorés,
+        encaissés ou facturés, la règle du Carnet. Un écart positif : il est venu plus de monde que prévu. Jusqu’au 5 septembre 2026, un rendez-vous
+        ne notait pas quand il avait été pris : pour les mois d’avant, le Trône ne sait pas ce qui était déjà posé le 1er. Il montre ce que la
+        Cadence attendait sans ces posés, et ne juge pas ces mois.
+      </p>
+    </>
+  );
 }
 
 /** LE DESSIN : une barre par colonne, posés (indigo), attendus (indigo
@@ -146,15 +315,28 @@ function Graphe({ colonnes }: { colonnes: ColonneDesPrevisions[] }) {
 export default function Previsions() {
   const navigate = useNavigate();
   const today = todayISO();
-  const [horizon, setHorizon] = useState<HorizonDesPrevisions>('4s');
-  const { p, titre } = usePrevisions(horizon);
+  const [vue, setVue] = useState<HorizonDesPrevisions | 'passe'>('4s');
+  const rdvs = useLesRdvs();
+  const { p, titre } = usePrevisions(vue === 'passe' ? '4s' : vue, rdvs);
+  const passe = useRejeu(vue === 'passe', rdvs);
+  const resume = passe ? resumeDuRejeu(passe) : null;
 
   return (
     <div className="trp-prev">
       <PageHead
-        eyebrow="Direction · ce qui vient"
+        eyebrow={vue === 'passe' ? 'Direction · ce qui est venu' : 'Direction · ce qui vient'}
         title="Les prévisions."
-        actions={(
+        actions={resume ? (
+          <div className="trp-prev__chiffres">
+            <span className="trp-prev__chiffre"><b>{resume.venus}</b><small>RDV venus en {resume.mois} mois</small></span>
+            <span className="trp-prev__chiffre"><b>{resume.part !== null ? pct(resume.part) : '·'}</b><small>du plafond atteignable</small></span>
+            {resume.moisJuges > 0 ? (
+              <span className="trp-prev__chiffre trp-prev__chiffre--cuivre"><b>{resume.dansLaFourchette} / {resume.moisJuges}</b><small>mois jugés dans la fourchette (±{un(resume.ecartMoyen)} RDV)</small></span>
+            ) : (
+              <span className="trp-prev__chiffre trp-prev__chiffre--cuivre"><b>{leJourDit(premierMoisJugeLisibleLe()).replace(/ \d{4}$/, '')}</b><small>premier mois jugé, lisible ce jour-là</small></span>
+            )}
+          </div>
+        ) : (
           <div className="trp-prev__chiffres">
             <span className="trp-prev__chiffre" title={`De ${entier(p.bas)} à ${entier(p.haut)} selon l'honneur et la justesse`}><b>{entier(p.prevision)}</b><small>RDV prévus</small></span>
             <span className="trp-prev__chiffre"><b>{entier(p.plafond.total)}</b><small>plafond atteignable</small></span>
@@ -165,11 +347,16 @@ export default function Previsions() {
 
       <div className="trp-prev__horizon" role="tablist" aria-label="L'horizon">
         {HORIZONS_DES_PREVISIONS.map((h) => (
-          <button key={h} type="button" role="tab" aria-selected={h === horizon} className={h === horizon ? 'est-choisi' : ''} onClick={() => setHorizon(h)}>
+          <button key={h} type="button" role="tab" aria-selected={h === vue} className={h === vue ? 'est-choisi' : ''} onClick={() => setVue(h)}>
             {nomDeLHorizon(h, today)}
           </button>
         ))}
+        <button type="button" role="tab" aria-selected={vue === 'passe'} className={vue === 'passe' ? 'est-choisi' : ''} onClick={() => setVue('passe')}>
+          12 derniers mois
+        </button>
       </div>
+
+      {passe ? <LePasse lignes={passe} /> : (<>
 
       <section className="trp-prev__vedette" aria-label={titre}>
         <div className="trp-prev__vedette-haut">
@@ -195,7 +382,7 @@ export default function Previsions() {
                 <tr>
                   <td>Déjà posés<small>non annulés{p.poses.honores ? `, dont ${p.poses.honores} déjà honoré${p.poses.honores > 1 ? 's' : ''}` : ''}</small></td>
                   <td className="d">{p.poses.nombre - p.poses.honores} × {pct(p.poses.taux)}{p.poses.honores ? ` + ${p.poses.honores}` : ''}
-                    <small>{p.poses.parDefaut ? 'peu d’histoire : 90 % par défaut' : 'honorés, 12 derniers mois'}</small></td>
+                    <small>{p.poses.parDefaut ? 'peu d’histoire : 90 % par défaut' : 'venues sur RDV passés, 12 mois'}</small></td>
                   <td className="d">{un(p.poses.rdv)}</td>
                 </tr>
                 <tr>
@@ -286,6 +473,7 @@ export default function Previsions() {
         Plafond : l’historique des jours ouverts depuis janvier 2025. Marketing : les envois « reprise proposée » et les campagnes « Dormantes ». Ici on compte des
         rendez-vous ; le chiffre en francs reste à la prévision du Tableau de bord.
       </p>
+      </>)}
     </div>
   );
 }

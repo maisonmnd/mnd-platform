@@ -11,7 +11,8 @@
        chaque tableau se recompose ligne à ligne ;
      - la relance est MESURÉE sur les envois semés (25 partis, 10 revenues :
        40 %), le réveil est « à mesurer » (aucune campagne) et compte zéro ;
-     - les trois horizons redessinent les colonnes ;
+     - les trois horizons redessinent les colonnes ; « 12 derniers mois »
+       montre chaque mois entier, prévu au 1er et venu, l'écart recomposé ;
      - « Préparer la campagne des dormantes » ouvre le Marketing sur une
        campagne adressée, sans rien envoyer ;
      - au téléphone, rien ne déborde.
@@ -186,6 +187,26 @@ try {
   await attend(500);
   dit('... le mois, semaine par semaine', new RegExp(`${bouton} \\d{4}, semaine par semaine`, 'i').test(await texte()) && ((await colonnes())?.length ?? 0) >= 3, JSON.stringify(await colonnes()));
   await photo('2-le-mois');
+  /* Et les mois passés : la prévision rejouée au 1er, à côté du venu. */
+  dit('« 12 derniers mois » se clique', await clique('.trp-prev__horizon button', '12 derniers mois'));
+  await jusqua(`document.querySelectorAll('.trp-prev__passe tbody tr').length === 13`, 20000);
+  const [passe] = await tableaux();
+  const lignesPasse = passe?.[1] ?? [];
+  dit('... douze mois entiers et leur total', lignesPasse.length === 13 && /^Douze mois/.test(lignesPasse[12][0]), JSON.stringify(lignesPasse.map((l) => l[0].split(' ').slice(0, 2).join(' '))));
+  dit('... douze barres sous leur plafond, le dessin nommé de bout en bout', ((await colonnes())?.length === 12) && /^De [a-zéû]+ \d{4} à [a-zéû]+ \d{4}$/.test(await evalue(`document.querySelector('.trp-prev__vedette h3')?.innerText`)),
+    await evalue(`document.querySelector('.trp-prev__vedette h3')?.innerText`));
+  const [venusEnTete] = (await chiffres()).map(nombre);
+  dit('... l en-tête dit les venus du tableau', venusEnTete === nombre(lignesPasse[12][2]), JSON.stringify([venusEnTete, lignesPasse[12][2]]));
+  /* Un mois dont les posés du 1er ne se savaient pas (avant le 5 septembre
+     2026) n'est pas jugé : « sans les posés », écart « non jugé ». */
+  const juges = lignesPasse.slice(0, 12).filter((l) => !/non jugé/.test(l[3]));
+  const nonJuges = lignesPasse.slice(0, 12).filter((l) => /non jugé/.test(l[3]));
+  dit('... un mois d avant la date de prise n est pas jugé et le dit', nonJuges.every((l) => /sans les posés/.test(l[1]))
+    && (juges.length > 0 || /aucun mois jugé encore : le premier se lit le 1er novembre 2026/.test(lignesPasse[12][0])), JSON.stringify([juges.length, nonJuges.length, lignesPasse[12][0]]));
+  const ecarts = juges.map((l) => [nombre(l[1].split(' ')[0]), nombre(l[2]), nombre(l[3].split(' ')[0].replace('−', '-'))]);
+  dit('... chaque écart jugé = venus moins prévu, à l arrondi près', ecarts.every(([pr, v, e]) => Math.abs(v - pr - e) <= 1), JSON.stringify(ecarts));
+  dit('... la somme des venus des mois fait le total', lignesPasse.slice(0, 12).reduce((t, l) => t + nombre(l[2]), 0) === nombre(lignesPasse[12][2]));
+  await photo('2b-le-passe');
   await clique('.trp-prev__horizon button', '4 semaines');
   await attend(300);
 
@@ -205,6 +226,11 @@ try {
   await attend(800);
   dit('au téléphone (390 px), rien ne déborde', (await evalue('document.documentElement.scrollWidth > window.innerWidth + 1')) === false, String(await evalue('document.documentElement.scrollWidth')));
   await photo('4-telephone');
+  await clique('.trp-prev__horizon button', '12 derniers mois');
+  await jusqua(`document.querySelectorAll('.trp-prev__passe tbody tr').length === 13`, 20000);
+  await attend(400);
+  dit('... le passé non plus (le tableau défile dans sa carte)', (await evalue('document.documentElement.scrollWidth > window.innerWidth + 1')) === false, String(await evalue('document.documentElement.scrollWidth')));
+  await photo('5-telephone-passe');
   dit('aucune erreur dans la page', erreurs.length === 0, erreurs.slice(0, 3).join(' | ') || 'aucune');
   ws.close();
 } catch (e) {

@@ -31,9 +31,17 @@
       mesurer » et compte zéro : on n'invente pas de taux. Le total est borné
       aux places libres, le plafond moins la prévision.
 
+   UNE VENUE, LA RÈGLE DU CARNET (26 octobre 2026) : un rendez-vous honoré,
+   ou passé et encaissé ou facturé, même jamais cliqué « honoré ». Le taux
+   d'honneur se lit donc en venues sur TOUS les rendez-vous passés des douze
+   mois, annulés compris : un passé resté « confirmé » sans argent ni facture
+   n'est pas venu. C'est la même règle qui compte le réalisé des mois passés
+   (« et les mois passés ? », plus bas) : la prévision et ce qu'on lui oppose
+   se comptent pareil.
+
    Pur : `scripts/verifie-les-previsions.mjs` le prouve. */
 
-import { ajouteJours, jourDeSemaine, reperesDe, NOMS_DES_JOURS, type ReperesDuJour } from './objectifs-des-fauteuils-pur';
+import { ajouteJours, jourDeSemaine, rdvParJour, reperesDe, reperesParJour, NOMS_DES_JOURS, type ReperesDuJour } from './objectifs-des-fauteuils-pur';
 import { devenuDe, type EnvoiLu } from './envois';
 import { attendEncore } from './salle-des-envois';
 import { JUSTESSE_PAR_DEFAUT, TAUX_D_HONNEUR_PAR_DEFAUT } from './prevision-du-mois-pur';
@@ -109,22 +117,28 @@ export function bornesDeLHorizon(h: HorizonDesPrevisions, aujourdhui: string): B
 
 /* ── CE QUE LE CALCUL LIT ─────────────────────────────────────────────── */
 
-/** Un rendez-vous de la branche. `creeLe` : l'instant où il a été pris. */
-export type RdvDesPrevisions = { clientId: string; date: string; status: string; creeLe?: string };
+/** Un rendez-vous de la branche. `creeLe` : l'instant où il a été pris ;
+    `encaisse` : de l'argent reçu dessus ; `facture` : une facture le porte. */
+export type RdvDesPrevisions = { clientId: string; date: string; status: string; creeLe?: string; encaisse?: boolean; facture?: boolean };
 
-/** LE TAUX D'HONNEUR, la règle du Tableau de bord : les douze derniers mois,
-    honorés sur honorés et annulés. Sous dix rendez-vous passés, 90 %, dit. */
-export function honneurDesDouzeMois(rdvs: readonly RdvDesPrevisions[], aujourdhui: string): { honores: number; annules: number; taux: number; parDefaut: boolean } {
+/** UNE VENUE : honoré, ou passé (avant `aujourdhui`), non annulé, et encaissé
+    ou facturé. La règle du Carnet, mot pour mot. */
+export const estUneVenue = (a: Pick<RdvDesPrevisions, 'date' | 'status' | 'encaisse' | 'facture'>, aujourdhui: string): boolean =>
+  a.status === 'honoré' || (a.date < aujourdhui && a.status !== 'annulé' && (!!a.encaisse || !!a.facture));
+
+/** LE TAUX D'HONNEUR : les douze derniers mois, les venues sur TOUS les
+    rendez-vous passés, annulés compris. Sous dix rendez-vous passés, 90 %, dit. */
+export function honneurDesDouzeMois(rdvs: readonly RdvDesPrevisions[], aujourdhui: string): { venus: number; passes: number; annules: number; taux: number; parDefaut: boolean } {
   const ilYAUnAn = ajouteJours(aujourdhui, -365);
   const passes = rdvs.filter((a) => a.date >= ilYAUnAn && a.date < aujourdhui);
-  const honores = passes.filter((a) => a.status === 'honoré').length;
+  const venus = passes.filter((a) => estUneVenue(a, aujourdhui)).length;
   const annules = passes.filter((a) => a.status === 'annulé').length;
-  const parDefaut = honores + annules < 10;
-  return { honores, annules, taux: parDefaut ? TAUX_D_HONNEUR_PAR_DEFAUT : honores / (honores + annules), parDefaut };
+  const parDefaut = passes.length < 10;
+  return { venus, passes: passes.length, annules, taux: parDefaut ? TAUX_D_HONNEUR_PAR_DEFAUT : venus / passes.length, parDefaut };
 }
 
 export type NouvellesClientes = {
-  /** Clientes dont la première venue honorée tombe dans les douze derniers mois. */
+  /** Clientes dont la première venue tombe dans les douze derniers mois. */
   douzeMois: number;
   /** Parmi elles, les filleules d'une marraine. */
   filleules: number;
@@ -132,7 +146,7 @@ export type NouvellesClientes = {
   dejaPosees: number;
 };
 
-/** UNE CLIENTE EST NOUVELLE le jour de sa première venue honorée. */
+/** UNE CLIENTE EST NOUVELLE le jour de sa première venue. */
 export function nouvellesClientes(
   rdvs: readonly RdvDesPrevisions[],
   estFilleule: (clientId: string) => boolean,
@@ -141,7 +155,7 @@ export function nouvellesClientes(
 ): NouvellesClientes {
   const premiere = new Map<string, string>();
   for (const a of rdvs) {
-    if (a.status !== 'honoré' || !a.clientId) continue;
+    if (!a.clientId || !estUneVenue(a, aujourdhui)) continue;
     const p = premiere.get(a.clientId);
     if (!p || a.date < p) premiere.set(a.clientId, a.date);
   }
@@ -270,7 +284,7 @@ export function calculeLesPrevisions(e: EntreesDesPrevisions): Previsions {
   /* ① LES POSÉS */
   const h = honneurDesDouzeMois(e.rdvs, e.aujourdhui);
   const poses = e.rdvs.filter((a) => a.status !== 'annulé' && dans(a.date));
-  const honores = poses.filter((a) => a.status === 'honoré').length;
+  const honores = poses.filter((a) => estUneVenue(a, e.aujourdhui)).length;
   const venus = honores + (poses.length - honores) * h.taux;
 
   /* LES REPRISES À L'HEURE */
@@ -339,7 +353,7 @@ export function calculeLesPrevisions(e: EntreesDesPrevisions): Previsions {
   const colonnes: ColonneDesPrevisions[] = e.bornes.colonnes.map((c) => {
     const dansC = (j: string) => j >= c.debut && j <= c.fin;
     const sesPoses = poses.filter((a) => dansC(a.date));
-    const sesHonores = sesPoses.filter((a) => a.status === 'honoré').length;
+    const sesHonores = sesPoses.filter((a) => estUneVenue(a, e.aujourdhui)).length;
     let sesJours = 0; let sonPlafond = 0;
     for (const [j, v] of plafondDu) if (dansC(j)) { sesJours += 1; sonPlafond += v; }
     const attendus = reprises.filter((r) => dansC(r.iso)).length * p + (joursOuverts ? nouvellesRdv * sesJours / joursOuverts : 0);
@@ -386,3 +400,166 @@ export function placeDeLaCliente(o: {
   }
   return o.dort ? 'endormie' : 'hors';
 }
+
+/* ══ ET LES MOIS PASSÉS ? LA PRÉVISION REJOUÉE — 26 octobre 2026 ═══════
+   « Et les mois passés ? » (Yéman), au sélecteur : le réalisé ET la
+   prévision rejouée. Au 1er de chaque mois passé, le calcul d'aujourd'hui
+   est refait avec ce que le Trône SAVAIT ce jour-là :
+     - l'histoire d'avant le 1er, telle qu'elle est (statuts, venues) ;
+     - les rendez-vous du mois déjà PRIS le 1er (`creeLe` avant le 1er),
+       comptés posés, ramenés à « confirmé » : ce qu'ils sont devenus ne se
+       savait pas. La date de prise n'est notée que depuis le 5 septembre
+       2026 : avant, aucun posé ne se sait, et la Cadence attend ces clientes
+       comme des reprises ;
+     - les repères des jours (le plafond), la justesse de la Cadence et le
+       rythme des nouvelles, lus au 1er.
+   Le marketing n'est pas rejoué : ses taux ne se mesuraient pas. On oppose
+   ensuite le RÉALISÉ, les venues du mois (la règle du Carnet). L'écart dit
+   si la prévision se trompe, et de combien ; la fourchette dit si elle avait
+   prévenu.
+
+   UN MOIS NE SE JUGE QUE SI SES POSÉS SE SAVAIENT. Avant le 5 septembre 2026,
+   aucun rendez-vous ne disait quand il avait été pris (la base ne garde que
+   sa dernière écriture) : rejouer ces mois, c'est rejouer la Cadence SANS
+   les rendez-vous déjà posés, et elle sous-estime d'office. Ces mois gardent
+   leur réalisé et leur attendu, dits « sans les posés », mais n'entrent ni
+   dans l'écart moyen ni dans la fourchette. Le premier mois jugé est celui
+   dont le 1er suit cette date : octobre 2026, lisible le 1er novembre. */
+
+export const MOIS_REJOUES = 12;
+/** Le premier jour où chaque rendez-vous posé a noté sa date de prise (`estampilleLaPose`). */
+export const PRISE_NOTEE_DEPUIS = '2026-09-05';
+/** Un mois se juge si son 1er suit ce jour : ses posés du 1er se savaient. */
+export const seJuge = (mois: string): boolean => `${mois}-01` > PRISE_NOTEE_DEPUIS;
+/** Le dernier jour d'un mois (AAAA-MM). */
+export const finDuMois = dernierDuMois;
+const SANS_MESURE: MesureDuLevier = { envois: 0, revenues: 0, taux: null };
+
+/** Les mois rejoués : les douze mois ENTIERS avant le mois en cours, du plus ancien au plus récent. */
+export function moisDuPasse(aujourdhui: string, n = MOIS_REJOUES): string[] {
+  const mk = aujourdhui.slice(0, 7);
+  return Array.from({ length: n }, (_, i) => moisPlus(mk, i - n));
+}
+
+/** CE QUE LE TRÔNE SAVAIT LE 1er : le passé tel quel, et les rendez-vous
+    d'après déjà pris, ramenés à « confirmé ». Un rendez-vous sans date de
+    prise, ou pris après le 1er, ne se savait pas. */
+export function rdvsConnusLe<T extends { date: string; status: string; creeLe?: string }>(rdvs: readonly T[], premier: string): T[] {
+  const out: T[] = [];
+  for (const a of rdvs) {
+    if (a.date < premier) out.push(a);
+    else if (a.creeLe && a.creeLe.slice(0, 10) < premier) out.push({ ...a, status: 'confirmé' } as T);
+  }
+  return out;
+}
+
+export type MoisRejoue = {
+  mois: string;
+  nom: string;
+  nomCourt: string;
+  prevu: number;
+  bas: number;
+  haut: number;
+  /** Les rendez-vous du mois que le Trône savait déjà posés le 1er. */
+  posesConnus: number;
+  venus: number;
+  annules: number;
+  plafond: number;
+  /** Venus moins prévu. */
+  ecart: number;
+  dansLaFourchette: boolean;
+  /** Ses posés du 1er se savaient : le mois se juge (`seJuge`). */
+  juge: boolean;
+};
+
+/** LE MOIS REJOUÉ. Les reprises et la justesse d'alors arrivent de l'écran
+    (le juge de la Cadence lit les réglages) ; le reste se recompose ici. */
+export function rejoueLeMois(o: {
+  mois: string;
+  /** Tous les rendez-vous de la branche, tels qu'aujourd'hui. */
+  rdvs: readonly RdvDesPrevisions[];
+  ouvertLe: (j: string) => boolean;
+  /** Les reprises à l'heure que la Cadence attendait le 1er, dans le mois. */
+  reprises: readonly { iso: string }[];
+  /** La justesse du juge le 1er. */
+  justesse: number | null;
+  estFilleule: (clientId: string) => boolean;
+}): MoisRejoue {
+  const premier = `${o.mois}-01`;
+  const fin = dernierDuMois(o.mois);
+  const m = Number(o.mois.slice(5, 7)) - 1;
+  const nom = `${majuscule(NOMS_DES_MOIS[m])} ${o.mois.slice(0, 4)}`;
+  const connus = rdvsConnusLe(o.rdvs, premier);
+  const parJour = rdvParJour(connus);
+  const reperes = reperesParJour({ parJour, aujourdhui: premier, ouvertLe: o.ouvertLe });
+  const bornes: BornesDeLHorizon = {
+    horizon: 'mois', debut: premier, fin, titre: nom, colonnes: [{ cle: o.mois, nom, debut: premier, fin }],
+    mois: (joursEntre(premier, fin) + 1) / JOURS_PAR_MOIS,
+  };
+  const p = calculeLesPrevisions({
+    aujourdhui: premier, bornes, rdvs: connus, parJour, ouvertLe: o.ouvertLe, reperes,
+    reprises: o.reprises, justesse: o.justesse, nouvelles: nouvellesClientes(connus, o.estFilleule, premier, bornes),
+    retard: 0, endormies: 0, relance: SANS_MESURE, reveil: SANS_MESURE, physique: null,
+  });
+  const duMois = o.rdvs.filter((a) => a.date >= premier && a.date <= fin);
+  const lendemain = ajouteJours(fin, 1);
+  const venus = duMois.filter((a) => estUneVenue(a, lendemain)).length;
+  return {
+    mois: o.mois, nom, nomCourt: MOIS_COURTS[m],
+    prevu: p.prevision, bas: p.bas, haut: p.haut,
+    posesConnus: p.poses.nombre,
+    venus,
+    annules: duMois.filter((a) => a.status === 'annulé').length,
+    plafond: p.plafond.total,
+    ecart: venus - p.prevision,
+    dansLaFourchette: venus >= Math.floor(p.bas) && venus <= Math.ceil(p.haut),
+    juge: seJuge(o.mois),
+  };
+}
+
+export type ResumeDuRejeu = {
+  mois: number;
+  /** Les mois jugés : l'écart et la fourchette ne se lisent que sur eux. */
+  moisJuges: number;
+  prevu: number;
+  venus: number;
+  annules: number;
+  plafond: number;
+  /** L'écart moyen d'un mois jugé, en rendez-vous, sans le signe. */
+  ecartMoyen: number;
+  /** Les écarts sans signe rapportés aux venues. */
+  ecartPart: number | null;
+  /** La somme des écarts, avec leur signe : la prévision penche-t-elle ? */
+  ecartTotal: number;
+  dansLaFourchette: number;
+  /** La part du plafond atteinte. */
+  part: number | null;
+};
+
+export function resumeDuRejeu(l: readonly MoisRejoue[]): ResumeDuRejeu {
+  const somme = (liste: readonly MoisRejoue[], f: (x: MoisRejoue) => number) => liste.reduce((t, x) => t + f(x), 0);
+  const juges = l.filter((x) => x.juge);
+  const venus = somme(l, (x) => x.venus);
+  const venusJuges = somme(juges, (x) => x.venus);
+  const plafond = somme(l, (x) => x.plafond);
+  const sansSigne = somme(juges, (x) => Math.abs(x.ecart));
+  return {
+    mois: l.length,
+    moisJuges: juges.length,
+    prevu: somme(juges, (x) => x.prevu),
+    venus,
+    annules: somme(l, (x) => x.annules),
+    plafond,
+    ecartMoyen: juges.length ? sansSigne / juges.length : 0,
+    ecartPart: venusJuges > 0 ? sansSigne / venusJuges : null,
+    ecartTotal: somme(juges, (x) => x.ecart),
+    dansLaFourchette: juges.filter((x) => x.dansLaFourchette).length,
+    part: plafond > 0 ? venus / plafond : null,
+  };
+}
+
+/** Le 1er où le premier mois jugé se lit : le lendemain de sa fin. */
+export const premierMoisJugeLisibleLe = (): string => {
+  const d = new Date(`${PRISE_NOTEE_DEPUIS}T12:00:00Z`);
+  return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 2, 1)).toISOString().slice(0, 10);
+};

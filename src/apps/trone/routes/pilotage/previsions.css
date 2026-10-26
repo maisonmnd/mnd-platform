@@ -27,6 +27,8 @@
 .trp-prev__legende i.trp-prev__attendus { background: var(--indigo-200); }
 .trp-prev__legende i.trp-prev__mk { background: var(--color-copper); }
 .trp-prev__legende i.trp-prev__trait { width: 14px; height: 0; border-radius: 0; border-top: 2px dashed var(--color-indigo); vertical-align: 3px; }
+.trp-prev__legende i.trp-prev__trait-cuivre { width: 14px; height: 0; border-radius: 0; border-top: 3px solid var(--color-copper); vertical-align: 3px; }
+.trp-prev__legende i.trp-prev__trait-cuivre--sans { border-top: 2px dotted var(--color-copper); }
 .trp-prev__graphe { width: 100%; height: auto; display: block; }
 .trp-prev__graphe text { fill: var(--ink-soft); font: 11px var(--font-sans); }
 .trp-prev__graphe .trp-prev__val { fill: var(--color-indigo); font-weight: 500; }
@@ -35,6 +37,11 @@
 .trp-prev__graphe rect.trp-prev__attendus { fill: var(--indigo-200); }
 .trp-prev__graphe rect.trp-prev__mk { fill: var(--color-copper); }
 .trp-prev__graphe .trp-prev__plafond { stroke: var(--color-indigo); stroke-width: 2; stroke-dasharray: 5 4; }
+.trp-prev__graphe .trp-prev__prevu { stroke: var(--color-copper); stroke-width: 3; }
+.trp-prev__graphe .trp-prev__prevu--sans { stroke-width: 2; stroke-dasharray: 2 3; }
+
+/* ── Le passé : un seul tableau, large ── */
+.trp-prev__passe table { min-width: 640px; }
 
 /* ── Les trois tableaux ── */
 .trp-prev__trois { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; align-items: start; }
@@ -68,6 +75,9 @@
 
 @media (max-width: 640px) {
   .trp-prev__chiffres { gap: 18px; }
+  /* Quatre horizons ne tiennent pas sur une ligne : deux par deux. */
+  .trp-prev__horizon { display: grid; grid-template-columns: 1fr 1fr; align-self: stretch; }
+  .trp-prev__horizon button { text-align: center; }
   .trp-prev__chiffre b { font-size: 26px; }
   .trp-prev__vedette { padding: 16px 14px 12px; }
   .trp-prev__calcul { padding: 16px 14px; }

@@ -51,6 +51,15 @@ const PANNES = [
   ['le mois toujours en cours', PUR, 'Number(aujourdhui.slice(8, 10)) <= 15 ?', 'Number(aujourdhui.slice(8, 10)) <= 31 ?'],
   ['l ecran mesure le mauvais envoi', ECRAN, "e.type === 'reprise-j3'", "e.type === 'rappel-j1'"],
   ['la rubrique oubliee des ecrans nes apres', ROUTES, "'/avis-google', '/previsions'];", "'/avis-google'];"],
+  ['le rejeu regarde l avenir', PUR, "else if (a.creeLe && a.creeLe.slice(0, 10) < premier) out.push({ ...a, status: 'confirmé' } as T);", "else out.push({ ...a, status: 'confirmé' } as T);"],
+  ['le rejeu garde le sort d aujourd hui', PUR, "out.push({ ...a, status: 'confirmé' } as T);", 'out.push(a);'],
+  ['une venue sans la regle du Carnet', PUR, "(a.date < aujourdhui && a.status !== 'annulé' && (!!a.encaisse || !!a.facture))", 'false'],
+  ['l honneur sans les passes non venus', PUR, 'venus / passes.length', 'venus / (venus + annules)'],
+  ['la fourchette sans son bas', PUR, 'venus >= Math.floor(p.bas) && venus <= Math.ceil(p.haut)', 'venus <= Math.ceil(p.haut)'],
+  ['l ecart moyen garde son signe', PUR, 'const sansSigne = somme(juges, (x) => Math.abs(x.ecart));', 'const sansSigne = somme(juges, (x) => x.ecart);'],
+  ['un mois sans posés connus est jugé', PUR, "export const seJuge = (mois: string): boolean => `${mois}-01` > PRISE_NOTEE_DEPUIS;", 'export const seJuge = (mois: string): boolean => mois.length > 0;'],
+  ['le resume juge aussi les mois non juges', PUR, 'const juges = l.filter((x) => x.juge);', 'const juges = l;'],
+  ['l ecran rejoue avec la Cadence d aujourd hui', ECRAN, 'predictNextVisit(siens, [c], c.id, premier)', 'predictNextVisit(siens, [c], c.id, today)'],
   ['le Marketing n ouvre plus la campagne', MARKETING, 'if (estUneAudienceConnue(aEcrire)) ecrireA(aEcrire);', 'void estUneAudienceConnue;'],
 ];
 

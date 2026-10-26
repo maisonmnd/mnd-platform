@@ -8,8 +8,8 @@
 import { readFileSync } from 'node:fs';
 import { ajouteJours, jourDeSemaine, rdvParJour, reperesParJour } from '../src/shared/objectifs-des-fauteuils-pur';
 import {
-  bornesDeLHorizon, calculeLesPrevisions, honneurDesDouzeMois, mesureDesEnvois, nomDeLHorizon, nouvellesClientes, placeDeLaCliente,
-  ENVOIS_POUR_MESURER, JOURS_PAR_MOIS, type RdvDesPrevisions,
+  bornesDeLHorizon, calculeLesPrevisions, estUneVenue, honneurDesDouzeMois, mesureDesEnvois, moisDuPasse, nomDeLHorizon, nouvellesClientes, placeDeLaCliente,
+  premierMoisJugeLisibleLe, rdvsConnusLe, rejoueLeMois, resumeDuRejeu, seJuge, ENVOIS_POUR_MESURER, JOURS_PAR_MOIS, type MoisRejoue, type RdvDesPrevisions,
 } from '../src/shared/previsions-pur';
 import type { EnvoiLu } from '../src/shared/envois';
 
@@ -46,7 +46,16 @@ const hon: RdvDesPrevisions[] = [
   { clientId: 'v', date: ajouteJours(AUJ, -400), status: 'annulé' }, { clientId: 'f', date: ajouteJours(AUJ, 3), status: 'annulé' },
 ];
 const H = honneurDesDouzeMois(hon, AUJ);
-dit('honneur : honorés sur honorés et annulés, douze mois passés seulement', [18, 2, 0.9, false], [H.honores, H.annules, H.taux, H.parDefaut]);
+dit('honneur : venues sur rendez-vous passés, annulés compris, douze mois seulement', [18, 20, 2, 0.9, false], [H.venus, H.passes, H.annules, H.taux, H.parDefaut]);
+const H2 = honneurDesDouzeMois([...hon,
+  { clientId: 'e1', date: ajouteJours(AUJ, -5), status: 'confirmé', encaisse: true },
+  { clientId: 'e2', date: ajouteJours(AUJ, -6), status: 'confirmé', facture: true },
+  { clientId: 'e3', date: ajouteJours(AUJ, -7), status: 'confirmé' }], AUJ);
+dit('... la règle du Carnet : un passé encaissé ou facturé est venu, un passé resté « confirmé » sans rien ne l est pas', [20, 23, true], [H2.venus, H2.passes, Math.abs(H2.taux - 20 / 23) < 1e-12]);
+dit('une venue : honorée, ou passée, non annulée, encaissée ou facturée ; pas un à venir payé d avance', [true, true, false, false, false],
+  [estUneVenue({ date: '2026-11-01', status: 'honoré' }, AUJ), estUneVenue({ date: '2026-10-20', status: 'confirmé', facture: true }, AUJ),
+    estUneVenue({ date: '2026-10-20', status: 'annulé', encaisse: true }, AUJ), estUneVenue({ date: '2026-10-28', status: 'confirmé', encaisse: true }, AUJ),
+    estUneVenue({ date: '2026-10-20', status: 'en attente' }, AUJ)]);
 dit('... sous dix rendez-vous passés, 90 % par défaut, dit', [0.9, true], [honneurDesDouzeMois(hon.slice(0, 3).map((r) => ({ ...r, status: 'annulé' })), AUJ).taux, honneurDesDouzeMois(hon.slice(0, 3), AUJ).parDefaut]);
 
 /* ── 3. Les nouvelles ── */
@@ -148,10 +157,55 @@ dit('une place par cliente', ['posee', 'attendue', 'plus-tard', 'retard', 'endor
   placeDeLaCliente({ aUnRdvAVenir: false, predit: false, iso: null, retardJours: 0, dort: false, fin }),
 ]);
 
-/* ── 7. L'écran, la barre, la porte du Marketing ── */
+/* ── 7. Et les mois passés ? La prévision rejouée ── */
+const passe = moisDuPasse(AUJ);
+dit('les douze mois entiers avant le mois en cours, du plus ancien au plus récent', [12, '2025-10', '2026-09'], [passe.length, passe[0], passe[11]]);
+const savoir: RdvDesPrevisions[] = [
+  { clientId: 'a', date: '2026-08-20', status: 'honoré' },
+  { clientId: 'b', date: '2026-09-10', status: 'honoré', creeLe: '2026-08-25T10:00:00.000Z' },
+  { clientId: 'c', date: '2026-09-12', status: 'annulé', creeLe: '2026-08-30T10:00:00.000Z' },
+  { clientId: 'd', date: '2026-09-15', status: 'honoré' },
+  { clientId: 'e', date: '2026-09-20', status: 'honoré', creeLe: '2026-09-05T10:00:00.000Z' },
+];
+dit('ce que le Trône savait le 1er : le passé tel quel, les rendez-vous déjà pris ramenés à « confirmé », rien d autre',
+  [['a', 'honoré'], ['b', 'confirmé'], ['c', 'confirmé']], rdvsConnusLe(savoir, '2026-09-01').map((x) => [x.clientId, x.status]));
+
+/* Septembre 2026 rejoué sur l'histoire du point 5 : ses jours, vécus sans date
+   de prise, ne se savaient pas ; trois rendez-vous pris en août, si. */
+const sept: RdvDesPrevisions[] = [...histoire,
+  { clientId: 'x1', date: '2026-09-08', status: 'honoré', creeLe: '2026-08-20T09:00:00.000Z' },
+  { clientId: 'x2', date: '2026-09-09', status: 'honoré', creeLe: '2026-08-21T09:00:00.000Z' },
+  { clientId: 'x3', date: '2026-09-10', status: 'annulé', creeLe: '2026-08-22T09:00:00.000Z' },
+];
+const RS = rejoueLeMois({ mois: '2026-09', rdvs: sept, ouvertLe, reprises: [{ iso: '2026-09-15' }, { iso: '2026-10-02' }], justesse: 0.5, estFilleule: () => false });
+const t1 = honneurDesDouzeMois(rdvsConnusLe(sept, '2026-09-01'), '2026-09-01').taux;
+const duSept = sept.filter((a) => a.date >= '2026-09-01' && a.date <= '2026-09-30');
+let plafSept = 0;
+for (let j = '2026-09-01'; j <= '2026-09-30'; j = ajouteJours(j, 1)) if (ouvertLe(j)) plafSept += ({ 2: 4, 3: 3, 4: 5, 5: 6, 6: 7 } as Record<number, number>)[jourDeSemaine(j)];
+dit('rejoué : trois posés connus au taux d alors, une reprise du mois à la justesse ; les jours vécus sans date de prise n y entrent pas',
+  [3, true], [RS.posesConnus, Math.abs(RS.prevu - (3 * t1 + 0.5)) < 1e-9]);
+dit('... le réalisé : les venues du mois, les annulés ; le plafond lu au 1er', [duSept.filter((a) => a.status === 'honoré').length, duSept.filter((a) => a.status === 'annulé').length, plafSept],
+  [RS.venus, RS.annules, RS.plafond]);
+dit('... l écart = venus moins prévu ; le nom du mois', [true, 'Septembre 2026', 'sept.'], [Math.abs(RS.ecart - (RS.venus - RS.prevu)) < 1e-9, RS.nom, RS.nomCourt]);
+const nov: RdvDesPrevisions[] = [...histoire, ...Array.from({ length: 6 }, (_, i) => ({ clientId: `y${i}`, date: '2026-11-1' + String(i), status: 'confirmé', creeLe: '2026-10-20T09:00:00.000Z' }))];
+const RN = rejoueLeMois({ mois: '2026-11', rdvs: nov, ouvertLe, reprises: [], justesse: 0.5, estFilleule: () => false });
+dit('hors fourchette par le bas : six posés, aucun venu', [0, true, false], [RN.venus, Math.floor(RN.bas) >= 1, RN.dansLaFourchette]);
+dit('un mois ne se juge que si ses posés du 1er se savaient : la date de prise est notée depuis le 5 septembre 2026', [false, false, true, '2026-11-01', false, true],
+  [seJuge('2026-08'), seJuge('2026-09'), seJuge('2026-10'), premierMoisJugeLisibleLe(), RS.juge, rejoueLeMois({ mois: '2026-10', rdvs: sept, ouvertLe, reprises: [], justesse: 0.5, estFilleule: () => false }).juge]);
+const fx = (o: Partial<MoisRejoue>): MoisRejoue => ({ mois: '2026-01', nom: '', nomCourt: '', prevu: 0, bas: 0, haut: 0, posesConnus: 0, venus: 0, annules: 0, plafond: 0, ecart: 0, dansLaFourchette: false, juge: true, ...o });
+const R12 = resumeDuRejeu([fx({ venus: 10, prevu: 8, ecart: 2, plafond: 20, annules: 1, dansLaFourchette: true }), fx({ venus: 6, prevu: 9, ecart: -3, plafond: 20 }),
+  fx({ venus: 30, prevu: 2, ecart: 28, plafond: 40, annules: 2, dansLaFourchette: true, juge: false })]);
+dit('le résumé : l écart et la fourchette sur les mois jugés seuls ; le réalisé et le plafond sur tous', [3, 2, 2.5, 5 / 16, -1, 1, 17, 46, 3, 46 / 80],
+  [R12.mois, R12.moisJuges, R12.ecartMoyen, R12.ecartPart, R12.ecartTotal, R12.dansLaFourchette, R12.prevu, R12.venus, R12.annules, R12.part]);
+
+/* ── 8. L'écran, la barre, la porte du Marketing ── */
 const ecran = sansCommentaires(readFileSync('src/apps/trone/routes/pilotage/Previsions.tsx', 'utf8'));
 dit('l écran calcule par le module, une place par cliente, les deux mesures réelles', [true, true, true, true],
   [/calculeLesPrevisions\(\{/.test(ecran), /placeDeLaCliente\(\{/.test(ecran), /e\.type === 'reprise-j3'/.test(ecran), /c\.audience === 'dormantes'/.test(ecran)]);
+dit('l écran compte les venues comme le Carnet, et rejoue chaque mois au 1er', [true, true, true, true],
+  [ecran.includes('encaisse: apptPaidXof(a) > 0, facture: !!a.invoiceId || factures.has(a.id),'), /rdvsConnusLe\(appts, premier\)/.test(ecran),
+    /predictNextVisit\(siens, \[c\], c\.id, premier\)/.test(ecran), /rejoueLeMois\(\{ mois, rdvs, ouvertLe, reprises,/.test(ecran)]);
+dit('... le quatrième bouton : 12 derniers mois', true, />\s*12 derniers mois\s*</.test(ecran));
 dit('... « Préparer » ouvre une campagne adressée, sans rien envoyer', [true, false], [/navigate\('\/marketing\?ecrire=dormantes'\)/.test(ecran), /feuVert\(|envoisStore/.test(ecran)]);
 const routes = readFileSync('src/apps/trone/routes/index.tsx', 'utf8');
 const direction = routes.slice(routes.indexOf("group: 'Direction'"), routes.indexOf('group:', routes.indexOf("group: 'Direction'") + 10));
