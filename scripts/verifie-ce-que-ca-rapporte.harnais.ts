@@ -208,8 +208,8 @@ dit('qui écrit seul : onze voix, chacune avec l’état réel de ses quatre cas
     ['chat', 'ok', 'ok', 'doux', 'doux', false], ['centre', 'doux', 'ok', 'doux', 'doux', false]],
   voix.map(etats));
 const par = Object.fromEntries(voix.map((l) => [l.id, l]));
-dit('... l’Assistant : Actif, sa fonction pas encore sondée, 8 modèles dont l’état n’est pas noté, 28 partis ce mois, dernier passage le 26 octobre 2026',
-  ['Actif', 'assistant-maison · pas sondée', '8 modèles, état non noté', 28, '2026-10-26T00:00:00.000Z'],
+dit('... l’Assistant : Actif, sa fonction pas encore sondée, 10 modèles (sept plus un, et les deux cartes d’anniversaire) dont l’état n’est pas noté, 28 partis ce mois, dernier passage le 26 octobre 2026',
+  ['Actif', 'assistant-maison · pas sondée', '10 modèles, état non noté', 28, '2026-10-26T00:00:00.000Z'],
   [par.assistant.allume.dit, par.assistant.posee.dit, par.assistant.modeleMeta.dit, par.assistant.partisCeMois, par.assistant.dernierPassage]);
 dit('... l’automate : en retard sur le dépôt, dit avec les deux versions', 'whatsapp-automate 2026-10-14-b en ligne, 2026-10-24-b au dépôt', par.automate.posee.dit);
 dit('... les relances : éteintes, et le secret du modèle absent : une promesse à vide', ['éteint', 'WA_TEMPLATE_RELANCE absent', 'relances-factures 2026-10-18-b', 0], [par.relances.allume.dit, par.relances.secret.dit, par.relances.posee.dit, par.relances.partisCeMois]);
@@ -221,7 +221,7 @@ const facteurMort = quiEcritSeul(AUTOMATISATIONS_REELLES, { ...etat, facteur: { 
 dit('... le facteur muet depuis dix minutes : la confirmation passe au rouge ; non lu : inconnu', ['alarme', 'inconnu'],
   [facteurMort.find((l) => l.id === 'confirmation')?.posee.etat, quiEcritSeul(AUTOMATISATIONS_REELLES, { ...etat, facteur: undefined }).find((l) => l.id === 'confirmation')?.posee.etat]);
 const avecRegistre = quiEcritSeul(AUTOMATISATIONS_REELLES, { ...etat, modelesMeta: { gerard_garder: 'approuve', gerard_envie: 'refuse', avis_google: 'approuve' } });
-dit('... un registre des modèles posé : 1 approuvé sur 8, 1 refusé ; la demande d’avis approuvée, service dit', ['1 approuvé sur 8, 1 refusé', 'alarme', '1 approuvé sur 1', 'ok'],
+dit('... un registre des modèles posé : 1 approuvé sur 10, 1 refusé ; la demande d’avis approuvée, service dit', ['1 approuvé sur 10, 1 refusé', 'alarme', '1 approuvé sur 1', 'ok'],
   [avecRegistre.find((l) => l.id === 'assistant')?.modeleMeta.dit, avecRegistre.find((l) => l.id === 'assistant')?.modeleMeta.etat, avecRegistre.find((l) => l.id === 'avis')?.modeleMeta.dit, avecRegistre.find((l) => l.id === 'avis')?.modeleMeta.etat]);
 dit('... rien de lu : tout inconnu, aucune promesse', ['inconnu', 'inconnu', 'inconnu', 'inconnu'],
   quiEcritSeul(AUTOMATISATIONS_REELLES, { maintenantMs, mois: '2026-10', envois: [] }).filter((l) => ['assistant', 'automate', 'avis', 'chat'].includes(l.id)).map((l) => l.allume.etat));
