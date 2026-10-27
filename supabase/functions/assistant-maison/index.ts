@@ -1358,15 +1358,23 @@ var numeroWa = (brut) => {
 
 // src/shared/assistant-passage-pur.ts
 var CLE_DU_SERVEUR = "mnd_assistant_serveur";
+var HEURE_DES_CARTES = 10;
+function departDeLaCarte(maintenantMs, r) {
+  const local = new Date(maintenantMs + DECALAGE_DU_SALON_H * 36e5);
+  const dixHeures = Date.UTC(local.getUTCFullYear(), local.getUTCMonth(), local.getUTCDate(), HEURE_DES_CARTES, 0, 0) - DECALAGE_DU_SALON_H * 36e5;
+  return heureDeDepart(Math.max(maintenantMs, dixHeures - r.salleMin * 6e4), r);
+}
 function lignesDuPassage(o) {
   const r = reglagesLus(o.reglagesGerard);
   if (r.mode === "eteint") return [];
   const aujourdhui = o.cerveau.ctx.aujourdhui;
   const maintenantIso = new Date(o.maintenantMs).toISOString();
-  const { partA, calme } = heureDeDepart(o.maintenantMs, o.regles);
-  const depart = { partA: new Date(partA).toISOString(), calme };
+  const enIso = (d) => ({ partA: new Date(d.partA).toISOString(), calme: d.calme });
+  const departCommun = enIso(heureDeDepart(o.maintenantMs, o.regles));
+  const departDesCartes = enIso(departDeLaCarte(o.maintenantMs, o.regles));
   const lignes = [];
   for (const s of o.plan) {
+    const depart = s.genre === "anniversaire" ? departDesCartes : departCommun;
     const c = o.cerveau.clientDe(s.clientId);
     const outils = {
       branchId: o.branchId,
@@ -1397,7 +1405,7 @@ function remisesAFabriquer(envois) {
 }
 
 // scripts/serveur/assistant-maison.ts
-var VERSION = "2026-10-27-d";
+var VERSION = "2026-10-28-a";
 var json = (corps, status = 200) => new Response(JSON.stringify(corps), { status, headers: { "content-type": "application/json" } });
 var jourDuSalon = (ms) => new Date(ms + 36e5).toISOString().slice(0, 10);
 var heureDuSalon2 = (ms) => {

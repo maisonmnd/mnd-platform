@@ -18,7 +18,7 @@ import {
 import { attendUneReponse, derniersMessagesHorsService, dernieresRelancesDeFacture, jourACotonou } from '../src/shared/dernier-message-pur';
 import { estEnvoiAutomatique } from '../src/shared/envois';
 import { codeDeLaSituation, lisLAssistant, lundiDe, type EntreesDeLAssistant } from '../src/shared/assistant-lecture-pur';
-import { lignesDuPassage, lignesNeuves, remisesAFabriquer, serveurVivant } from '../src/shared/assistant-passage-pur';
+import { departDeLaCarte, lignesDuPassage, lignesNeuves, remisesAFabriquer, serveurVivant } from '../src/shared/assistant-passage-pur';
 import { REGLES_PAR_DEFAUT } from '../src/shared/salle-des-envois';
 import { ACCUSE_DU_STOP, charge, estUnStop, GESTE_DU_LIBELLE, lisLeBoutonDeLAssistant, retourDuBouton, reponseDuGeste } from '../src/shared/assistant-reponses-pur';
 import { copiesAJour } from './copie-dans-le-centre.mjs';
@@ -454,6 +454,20 @@ dit('... une relance à la main ne part JAMAIS seule, même son modèle approuv�
     passe({ mode: 'ouvert', approuves: ['gerard_place'] }, [{ ...sitMain, clientId: 'retard', aLaMainSeulement: undefined }]).length]);
 const lAnn = passe({ mode: 'ouvert', approuves: [] }, [{ ...sitWa!, canal: 'couronne', genre: 'anniversaire', code: { mot: 'ANNIV', pct: 10, jusquau: '2026-11-25' } }])[0];
 dit('... la remise n’est jamais fabriquée au dépôt : la ligne la porte « à faire »', ['ANNIV', undefined, 'en-attente'], [lAnn?.codeAFaire?.mot, lAnn?.codePromo, lAnn?.statut]);
+/* Les cartes d'anniversaire partent à 10 h, heure du salon (28 octobre 2026). */
+const aCotonou = (iso?: string) => (iso ? new Date(Date.parse(iso) + 3_600_000).toISOString().slice(11, 16) : '');
+dit('la carte d’anniversaire attend 10 h : déposée à 8 h 05 elle part à 10 h ; à 9 h 55, après sa salle (10 h 05) ; à 14 h, à 14 h 10 ; à 19 h 55, au matin (heures calmes)',
+  ['10:00', '10:05', '14:10', '08:00'],
+  ['2026-10-26T07:05:00Z', '2026-10-26T08:55:00Z', '2026-10-26T13:00:00Z', '2026-10-26T18:55:00Z'].map((t) => aCotonou(new Date(departDeLaCarte(Date.parse(t), REGLES_PAR_DEFAUT).partA).toISOString())));
+{
+  const aHuitHeures = Date.parse('2026-10-26T07:05:00Z');
+  const deposee = (s: NonNullable<typeof sitWa>) => lignesDuPassage({ cerveau: lu, plan: [s], reglagesGerard: { mode: 'ouvert' }, maintenantMs: aHuitHeures, branchId: 'b', regles: REGLES_PAR_DEFAUT })[0];
+  const autre = planLu.find((x) => x.genre !== 'anniversaire') ?? sitWa!;
+  dit('... au passage de 8 h 05, la carte (et celle du foyer) part à 10 h, un autre message après sa salle, à 8 h 15', ['10:00', '10:00', '08:15'],
+    [aCotonou(deposee({ ...sitWa!, canal: 'couronne', genre: 'anniversaire', modele: 'carte' } as never)?.partA),
+      aCotonou(deposee({ ...sitWa!, canal: 'couronne', genre: 'anniversaire', modele: 'carte-foyer' } as never)?.partA),
+      aCotonou(deposee({ ...autre, canal: 'couronne', genre: autre.genre === 'anniversaire' ? 'creux' : autre.genre } as never)?.partA)]);
+}
 dit('... seules les lignes neuves s’écrivent', ['b'], lignesNeuves([{ id: 'a' }, { id: 'b' }], new Set(['a'])).map((l) => l.id));
 const aFaire = remisesAFabriquer([
   { id: '1', type: 'gerard', statut: 'en-attente', clientId: 'x', codeAFaire: { mot: 'ANNIV', pct: 10, jusquau: '2026-11-25' } },

@@ -18,7 +18,7 @@
    écrivent des lignes à identifiant du jour (`idDeLaLigne`), et seulement
    si elles n'existent pas encore : un second passage ne double rien et ne
    remet jamais « en attente » une ligne déjà partie. */
-import { heureDeDepart, type ReglesDeLaSalle } from './salle-des-envois';
+import { DECALAGE_DU_SALON_H, heureDeDepart, type ReglesDeLaSalle } from './salle-des-envois';
 import { prenomSeul } from './civilite';
 import { numeroWa } from './numero-wa-pur';
 import { ligneDeNotification, ligneWhatsApp, partSeule, reglagesLus, type CodeAFaire, type LigneDeGerard, type Situation } from './gerard-pur';
@@ -34,6 +34,19 @@ export const serveurVivant = (etat: EtatDuServeur | null | undefined, maintenant
   return Number.isFinite(t) && maintenantMs - t < SERVEUR_TU_APRES_H * 3_600_000;
 };
 
+/** LES CARTES D'ANNIVERSAIRE PARTENT À 10 H — 28 octobre 2026, Yéman : « les
+    anniversaires doivent partir automatiquement le jour même à 10 h du matin ».
+    Le passage dépose dès 8 h ; la carte attend 10 h, heure du salon. Déposée
+    après 10 h (un Trône qui reprend le passage, un réveil tardif), elle part
+    comme les autres, après sa salle. La carte de rattrapage du lendemain
+    attend 10 h, elle aussi. Les heures calmes gardent le dernier mot. */
+export const HEURE_DES_CARTES = 10;
+export function departDeLaCarte(maintenantMs: number, r: ReglesDeLaSalle): { partA: number; calme: boolean } {
+  const local = new Date(maintenantMs + DECALAGE_DU_SALON_H * 3_600_000);
+  const dixHeures = Date.UTC(local.getUTCFullYear(), local.getUTCMonth(), local.getUTCDate(), HEURE_DES_CARTES, 0, 0) - DECALAGE_DU_SALON_H * 3_600_000;
+  return heureDeDepart(Math.max(maintenantMs, dixHeures - r.salleMin * 60_000), r);
+}
+
 /** LES LIGNES DU PASSAGE : une par situation qui peut partir seule. */
 export function lignesDuPassage(o: {
   cerveau: CerveauDeGerard;
@@ -47,10 +60,12 @@ export function lignesDuPassage(o: {
   if (r.mode === 'eteint') return [];
   const aujourdhui = o.cerveau.ctx.aujourdhui;
   const maintenantIso = new Date(o.maintenantMs).toISOString();
-  const { partA, calme } = heureDeDepart(o.maintenantMs, o.regles);
-  const depart = { partA: new Date(partA).toISOString(), calme };
+  const enIso = (d: { partA: number; calme: boolean }) => ({ partA: new Date(d.partA).toISOString(), calme: d.calme });
+  const departCommun = enIso(heureDeDepart(o.maintenantMs, o.regles));
+  const departDesCartes = enIso(departDeLaCarte(o.maintenantMs, o.regles));
   const lignes: LigneDeGerard[] = [];
   for (const s of o.plan) {
+    const depart = s.genre === 'anniversaire' ? departDesCartes : departCommun;
     const c = o.cerveau.clientDe(s.clientId);
     const outils = {
       branchId: o.branchId, aujourdhui, maintenantIso, prenom: prenomSeul(c?.name),
