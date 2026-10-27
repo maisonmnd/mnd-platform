@@ -51,6 +51,7 @@ const ENVOIS = 'src/shared/envois.ts';
 const ECRAN = 'src/apps/trone/routes/clients/Gerard.tsx';
 const DONNEES = 'src/apps/trone/routes/clients/gerard-donnees.ts';
 const LECTURE = 'src/shared/assistant-lecture-pur.ts';
+const PASSAGE = 'src/shared/assistant-passage-pur.ts';
 const PANNES = [
   ['garder un RDV pris la veille', PUR, '>= GARDER_SI_POSE_DEPUIS)', '>= 0)'],
   ['l anniversaire fete deux fois', PUR, "&& (f.birthdayGiftAt ?? '').slice(0, 4) !== A.slice(0, 4)", ''],
@@ -74,9 +75,15 @@ const PANNES = [
   ['Noel au 1er decembre', PUR, "export const NOEL_DU = '11-15';", "export const NOEL_DU = '12-01';"],
   ['le passage la nuit', PUR, '&& heureCotonou >= HEURE_DU_PASSAGE_DE && heureCotonou < HEURE_DU_PASSAGE_A;', ';'],
   ['le passage deux fois par jour', PUR, "r.mode !== 'eteint' && r.dernierPassage !== aujourdhui", "r.mode !== 'eteint'"],
-  ['une ligne ecartee comptee', PUR, "if (e.statut === 'écarté' || e.statut === 'périmé' || e.statut === 'échec') continue;", ''],
+  ['une ligne ecartee comptee', PUR, "if (e.statut === 'écarté' || e.statut === 'périmé' || e.statut === 'échec' || e.statut === 'sans-abonnement') continue;", ''],
   ['WhatsApp avant Ma Couronne', PUR, "if (EST_UN_SERVICE[genre]) return f.couronne ? 'couronne' : f.telephone ? 'whatsapp' : null;", "if (EST_UN_SERVICE[genre]) return f.telephone ? 'whatsapp' : f.couronne ? 'couronne' : null;"],
-  ['le passage depose WhatsApp aussi', DONNEES, "if (s.canal !== 'couronne' || !servie(r, s.clientId)) continue;", 'if (!servie(r, s.clientId)) continue;'],
+  ['WhatsApp part sans approbation de Meta', PASSAGE, "} else if (s.canal === 'whatsapp' && partSeulSurWhatsApp(r, s.modele)) {", "} else if (s.canal === 'whatsapp') {"],
+  ['le passage ecrit en pause', PASSAGE, "  if (r.mode === 'eteint') return [];\n", ''],
+  ['la remise fabriquee au depot', PASSAGE, "if (e.type !== 'gerard' || e.statut !== 'envoyé' || !e.codeAFaire", "if (e.type !== 'gerard' || !e.codeAFaire"],
+  ['la remise refabriquee', PASSAGE, '|| !e.codeAFaire || e.codePromo || !e.id', '|| !e.codeAFaire || !e.id'],
+  ['les lignes deja la reecrites', PASSAGE, 'lignes.filter((l) => !existantes.has(l.id));', 'lignes.filter(() => true);'],
+  ['le serveur toujours tenu pour vivant', PASSAGE, 'return Number.isFinite(t) && maintenantMs - t < SERVEUR_TU_APRES_H * 3_600_000;', 'return true;'],
+  ['le Trone double le serveur dans le doute', DONNEES, '      if (tue !== true) return;\n', '      if (tue === false) return;\n'],
   ['l ecran oublie ses envois', LECTURE, 'traces: traces.get(c.id) ?? [],', 'traces: [],'],
   ['un souci ouvert ne fait plus taire', PUR, '  if (f.souciOuvert) return null;\n', ''],
   ['la fiche oublie le souci ouvert', LECTURE, '      souciOuvert: souciOuvertDe(sesSignalements),\n', ''],
@@ -130,12 +137,14 @@ if (!prouve) {
 } else {
   const propre = await lanceLeBanc();
   if (propre.status !== 0) { console.log('Le banc ne passe pas sur le code propre :'); console.log(propre.stdout); process.exit(1); }
-  const fichiers = [...new Set(PANNES.map((p) => p[1]))];
+  /* --sans-ecran : l'ecran est en chantier chez une autre session ; ses fautes attendent (aucune ecriture dans Gerard.tsx). */
+  const choisies = process.argv.includes('--sans-ecran') ? PANNES.filter((p) => p[1] !== ECRAN) : PANNES;
+  const fichiers = [...new Set(choisies.map((p) => p[1]))];
   const avant = Object.fromEntries(fichiers.map((f) => [f, md5(f)]));
   const gardes = Object.fromEntries(fichiers.map((f) => [f, readFileSync(path.join(racine, f))]));
   let muettes = 0;
   try {
-    for (const [nom, fichier, a, b] of PANNES) {
+    for (const [nom, fichier, a, b] of choisies) {
       const brut = gardes[fichier].toString('utf8');
       const crlf = brut.includes('\r\n');
       const texte = brut.replace(/\r\n/g, '\n');
@@ -154,6 +163,6 @@ if (!prouve) {
   }
   const intacts = fichiers.every((f) => md5(f) === avant[f]);
   console.log(intacts ? 'Fichiers rendus a l identique.' : 'ATTENTION : un fichier n est pas revenu a l identique.');
-  console.log(muettes === 0 && intacts ? `\nLa preuve tient : ${PANNES.length} fautes, le banc crie a chacune.` : `\n${muettes} faute(s) sans cri.`);
+  console.log(muettes === 0 && intacts ? `\nLa preuve tient : ${choisies.length} fautes, le banc crie a chacune.` : `\n${muettes} faute(s) sans cri.`);
   process.exitCode = muettes === 0 && intacts ? 0 : 1;
 }

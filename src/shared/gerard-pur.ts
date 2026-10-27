@@ -132,12 +132,15 @@ export type ReglagesDeGerard = {
   /** « JAMAIS POUR ELLE » : par cliente, les situations qu'il ne lui écrira
       plus. La ligne de l'envoi garde aussi sa réponse, pour l'histoire. */
   jamais: Record<string, GenreDeMessage[]>;
+  /** LES MODÈLES APPROUVÉS CHEZ META (leurs noms, `gerard_garder`…) : seuls
+      ceux-là partent seuls sur WhatsApp ; les autres attendent un toucher. */
+  approuves: string[];
   parQui?: string;
   le?: string;
 };
 export const ESSAI_MAX = 5;
 export const PLAFOND_FRANCS_PAR_DEFAUT = 60_000;
-export const REGLAGES_LIVRES: ReglagesDeGerard = { mode: 'eteint', essai: [], remisesParSemaine: REMISES_PAR_SEMAINE, plafondFrancs: PLAFOND_FRANCS_PAR_DEFAUT, eteintes: [], jamais: {} };
+export const REGLAGES_LIVRES: ReglagesDeGerard = { mode: 'eteint', essai: [], remisesParSemaine: REMISES_PAR_SEMAINE, plafondFrancs: PLAFOND_FRANCS_PAR_DEFAUT, eteintes: [], jamais: {}, approuves: [] };
 const entierBorne = (x: unknown, defaut: number, max: number): number =>
   typeof x === 'number' && Number.isFinite(x) && x >= 0 ? Math.min(max, Math.round(x)) : defaut;
 
@@ -152,8 +155,14 @@ export const reglagesLus = (r: Partial<ReglagesDeGerard> | null | undefined): Re
   eteintes: genresLus(r?.eteintes),
   jamais: Object.fromEntries(Object.entries(r?.jamais && typeof r.jamais === 'object' ? r.jamais : {})
     .map(([id, g]) => [id, genresLus(g)] as const).filter(([, g]) => g.length > 0)),
+  approuves: Array.isArray(r?.approuves)
+    ? [...new Set(r!.approuves.filter((n): n is string => typeof n === 'string' && Object.values(CORPS).some((m) => m.nom === n)))]
+    : [],
   parQui: r?.parQui, le: r?.le,
 });
+/** Ce modèle part-il seul sur WhatsApp ? Approuvé chez Meta, et l'Assistant actif. */
+export const partSeulSurWhatsApp = (r: Pick<ReglagesDeGerard, 'mode' | 'approuves'>, cle: CleDeModele): boolean =>
+  r.mode !== 'eteint' && r.approuves.includes(CORPS[cle].nom);
 /** Une liste de situations lue sans confiance : seules les connues restent, une fois chacune. */
 function genresLus(x: unknown): GenreDeMessage[] {
   if (!Array.isArray(x)) return [];
@@ -635,16 +644,20 @@ export const passageDu = (r: ReglagesDuPassage, aujourdhui: string, heureCotonou
 export const estActif = (r: Pick<ReglagesDuPassage, 'mode'>): boolean => r.mode !== 'eteint';
 export const servie = (r: ReglagesDuPassage, _clientId: string): boolean => estActif(r);
 
-export const idDeLaLigne = (aujourdhui: string, clientId: string, canal: 'push' | 'wa-main'): string => `gerard-${aujourdhui}-${clientId}-${canal}`;
+export const idDeLaLigne = (aujourdhui: string, clientId: string, canal: 'push' | 'wa-main' | 'whatsapp'): string => `gerard-${aujourdhui}-${clientId}-${canal}`;
 /** Le texte sans sa dernière ligne de signature : la notification porte déjà « Maison MND » en titre. */
 export const texteSansSignature = (texte: string): string => texte.replace(new RegExp(`\\n\\n${SIGNATURE}$`), '');
 
 export type LigneDeGerard = {
-  id: string; branchId: string; type: 'gerard'; canal: 'push' | 'wa-main'; statut: 'en-attente' | 'à-la-main';
+  id: string; branchId: string; type: 'gerard'; canal: 'push' | 'wa-main' | 'whatsapp'; statut: 'en-attente' | 'à-la-main';
   clientId: string; prenom: string; apptId: string; dateRdv: string; heure?: string;
   partA?: string; calme?: boolean; deposeLe: string; quand: string;
   genre: GenreDeMessage; envie?: EnvieDeGerard; modele: CleDeModele; texte: string; codePromo?: string;
-  colis?: { genre: 'push'; clientId: string; titre: string; corps: string; url: string };
+  /** LA REMISE À FABRIQUER une fois la ligne partie (jamais avant le départ réel). */
+  codeAFaire?: CodeAFaire;
+  colis?:
+    | { genre: 'push'; clientId: string; titre: string; corps: string; url: string }
+    | { genre: 'whatsapp'; numero: string; modele: string; composants: { type: 'body'; parameters: { type: 'text'; text: string }[] }[]; texteAuFil: string; parQui: string };
 };
 type OutilsDeLaLigne = {
   branchId: string; aujourdhui: string; maintenantIso: string; prenom: string;
@@ -657,13 +670,26 @@ const communs = (s: Situation, o: OutilsDeLaLigne) => ({
   apptId: s.genre === 'garder' && o.rdv ? o.rdv.id : '', dateRdv: s.genre === 'garder' && o.rdv ? o.rdv.date : '',
   ...(s.genre === 'garder' && o.rdv ? { heure: o.rdv.time } : {}),
   deposeLe: o.maintenantIso, quand: o.maintenantIso, genre: s.genre, ...(s.envie ? { envie: s.envie } : {}), modele: s.modele, texte: s.texte,
-  ...(o.codePromo ? { codePromo: o.codePromo } : {}),
+  ...(o.codePromo ? { codePromo: o.codePromo } : s.code ? { codeAFaire: s.code } : {}),
 });
 /** LA NOTIFICATION DÉPOSÉE EN SALLE, au compte où elle est abonnée. */
 export function ligneDeNotification(s: Situation, o: OutilsDeLaLigne & { compte: string; partA: string; calme: boolean }): LigneDeGerard {
   return {
     id: idDeLaLigne(o.aujourdhui, s.clientId, 'push'), canal: 'push', statut: 'en-attente', partA: o.partA, calme: o.calme, ...communs(s, o),
     colis: { genre: 'push', clientId: o.compte, titre: SIGNATURE, corps: texteSansSignature(s.texte), url: '/couronne/' },
+  };
+}
+/** LE MODÈLE WHATSAPP DÉPOSÉ EN SALLE, approuvé chez Meta : le facteur le
+    porte. Les variables vont telles quelles au corps du modèle (une ligne
+    chacune, ce que Meta exige) ; le fil des conversations garde le texte. */
+export function ligneWhatsApp(s: Situation, o: OutilsDeLaLigne & { numero: string; partA: string; calme: boolean }): LigneDeGerard {
+  return {
+    id: idDeLaLigne(o.aujourdhui, s.clientId, 'whatsapp'), canal: 'whatsapp', statut: 'en-attente', partA: o.partA, calme: o.calme, ...communs(s, o),
+    colis: {
+      genre: 'whatsapp', numero: o.numero, modele: MODELES_DE_GERARD[s.modele].nom,
+      composants: [{ type: 'body', parameters: s.variables.map((v) => ({ type: 'text' as const, text: v.replace(/\s+/g, ' ').trim() })) }],
+      texteAuFil: s.texte, parQui: 'Assistant Maison',
+    },
   };
 }
 /** LE MESSAGE ENVOYÉ À LA MAIN sur WhatsApp, noté au journal. */
@@ -676,7 +702,9 @@ export function tracesDesEnvois(envois: readonly { type?: string; clientId?: str
   const m = new Map<string, TraceDeGerard[]>();
   for (const e of envois) {
     if (e.type !== 'gerard' || !e.clientId || !e.genre) continue;
-    if (e.statut === 'écarté' || e.statut === 'périmé' || e.statut === 'échec') continue;
+    /* Ce qui n'est jamais parti ne compte pas : écarté, périmé, raté, ou une
+       notification sans abonnement (le facteur n'a trouvé aucun téléphone). */
+    if (e.statut === 'écarté' || e.statut === 'périmé' || e.statut === 'échec' || e.statut === 'sans-abonnement') continue;
     const reponse = e.reponse === 'oui' || e.reponse === 'non' || e.reponse === 'jamais' ? e.reponse : undefined;
     const t: TraceDeGerard = { quand: e.deposeLe ?? e.quand ?? '', genre: e.genre as GenreDeMessage, ...(e.envie ? { envie: e.envie as EnvieDeGerard } : {}), ...(reponse ? { reponse } : {}) };
     const l = m.get(e.clientId);

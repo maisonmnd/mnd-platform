@@ -17,6 +17,8 @@ import {
 import { attendUneReponse, derniersMessagesHorsService, dernieresRelancesDeFacture, jourACotonou } from '../src/shared/dernier-message-pur';
 import { estEnvoiAutomatique } from '../src/shared/envois';
 import { codeDeLaSituation, lisLAssistant, lundiDe, type EntreesDeLAssistant } from '../src/shared/assistant-lecture-pur';
+import { lignesDuPassage, lignesNeuves, remisesAFabriquer, serveurVivant } from '../src/shared/assistant-passage-pur';
+import { REGLES_PAR_DEFAUT } from '../src/shared/salle-des-envois';
 import { gerardSeTait } from '../src/shared/gerard-entre-deux-pur';
 
 let ko = 0;
@@ -201,8 +203,9 @@ const tr = tracesDesEnvois([
   { type: 'gerard', clientId: 'a', statut: 'écarté', deposeLe: '2026-10-21T09:00:00Z', genre: 'retard' },
   { type: 'gerard', clientId: 'b', statut: 'à-la-main', deposeLe: '2026-10-22T09:00:00Z', genre: 'creux' },
   { type: 'campagne', clientId: 'a', statut: 'envoyé', deposeLe: '2026-10-22T09:00:00Z', genre: 'envie' },
+  { type: 'gerard', clientId: 'b', statut: 'sans-abonnement', deposeLe: '2026-10-23T09:00:00Z', genre: 'envie' },
 ]);
-dit('ce que Gérard a écrit se relit dans les envois ; une ligne écartée ne compte pas', [[['envie', 'lavage']], [['creux', undefined]]],
+dit('ce que Gérard a écrit se relit dans les envois ; une ligne écartée ou sans abonnement ne compte pas', [[['envie', 'lavage']], [['creux', undefined]]],
   [tr.get('a')?.map((t) => [t.genre, t.envie]), tr.get('b')?.map((t) => [t.genre, t.envie])]);
 
 /* ── 14 bis. Entre deux séances : il se tait ── */
@@ -337,6 +340,27 @@ const codeFait = codeDeLaSituation({ clientId: 'retard', genre: 'creux', code: {
 dit('le code d’une situation : à son nom, signé « Assistant Maison », jusqu’à minuit du jour creux à Cotonou', ['retard', 'Assistant Maison', 15, '2026-10-29T23:00'],
   [codeFait?.clientId, codeFait?.parQui, codeFait?.remisePct, codeFait?.expireLe.slice(0, 16)]);
 
+/* ── 14 sexies. Le passage du matin (le même au Trône et au serveur) ── */
+const planLu = planDuJour(lu.fiches, lu.ctx);
+const passe = (g: Record<string, unknown>, plan = planLu) => lignesDuPassage({ cerveau: lu, plan, reglagesGerard: g, maintenantMs: maintenantLu, branchId: 'b', regles: REGLES_PAR_DEFAUT });
+const sitWa = planLu.find((x) => x.canal === 'whatsapp');
+dit('le passage : rien en pause ; WhatsApp seulement si son modèle est approuvé chez Meta', [0, 0, 1],
+  [passe({ mode: 'eteint', approuves: [] }, sitWa ? [{ ...sitWa, canal: 'couronne' }] : []).length, passe({ mode: 'ouvert', approuves: [] }, sitWa ? [sitWa] : []).length,
+    passe({ mode: 'ouvert', approuves: ['gerard_garder', 'gerard_avant', 'gerard_envie', 'gerard_place', 'gerard_anniversaire', 'gerard_fetes', 'gerard_endormie', 'nouvelles_de_la_maison'] }, sitWa ? [sitWa] : []).length]);
+const lAnn = passe({ mode: 'ouvert', approuves: [] }, [{ ...sitWa!, canal: 'couronne', genre: 'anniversaire', code: { mot: 'ANNIV', pct: 10, jusquau: '2026-11-25' } }])[0];
+dit('... la remise n’est jamais fabriquée au dépôt : la ligne la porte « à faire »', ['ANNIV', undefined, 'en-attente'], [lAnn?.codeAFaire?.mot, lAnn?.codePromo, lAnn?.statut]);
+dit('... seules les lignes neuves s’écrivent', ['b'], lignesNeuves([{ id: 'a' }, { id: 'b' }], new Set(['a'])).map((l) => l.id));
+const aFaire = remisesAFabriquer([
+  { id: '1', type: 'gerard', statut: 'en-attente', clientId: 'x', codeAFaire: { mot: 'ANNIV', pct: 10, jusquau: '2026-11-25' } },
+  { id: '2', type: 'gerard', statut: 'envoyé', clientId: 'x', codeAFaire: { mot: 'ANNIV', pct: 10, jusquau: '2026-11-25' } },
+  { id: '3', type: 'gerard', statut: 'envoyé', clientId: 'x', codeAFaire: { mot: 'CREUX', pct: 15, jusquau: '2026-10-30' }, codePromo: 'CREUX15-A' },
+  { id: '4', type: 'gerard', statut: 'sans-abonnement', clientId: 'x', codeAFaire: { mot: 'CREUX', pct: 15, jusquau: '2026-10-30' } },
+]);
+dit('les remises à fabriquer : une ligne PARTIE, sans code encore ; ni en attente, ni sans abonnement, ni déjà servie', ['2'], aFaire.map((l) => l.id));
+const ilYA = (h2: number) => ({ vuLe: new Date(maintenantLu - h2 * 3_600_000).toISOString() });
+dit('la fonction serveur vit si elle a parlé depuis moins de 26 heures ; absente, elle se tait', [true, false, false],
+  [serveurVivant(ilYA(25), maintenantLu), serveurVivant(ilYA(27), maintenantLu), serveurVivant(null, maintenantLu)]);
+
 /* ── 15. L'écran et la barre ── */
 const ecran = sansCommentaires(readFileSync('src/apps/trone/routes/clients/Gerard.tsx', 'utf8'));
 const donnees = sansCommentaires(readFileSync('src/apps/trone/routes/clients/gerard-donnees.ts', 'utf8'));
@@ -344,7 +368,8 @@ const lecture = sansCommentaires(readFileSync('src/shared/assistant-lecture-pur.
 dit('l’écran : le plan par le cerveau ; la lecture : la venue du Carnet ; le Trône lit par la lecture partagée', [true, true, true],
   [/planDuJour\(fiches, ctx\)/.test(ecran), lecture.includes('encaisse: apptPaidXof(a) > 0, facture: !!a.invoiceId || factures.has(a.id)'),
     /return useMemo\(\(\) => lisLAssistant\(\{/.test(donnees)]);
-dit('... le passage ne dépose que Ma Couronne, aux clientes servies', true, /if \(s\.canal !== 'couronne' \|\| !servie\(r, s\.clientId\)\) continue;/.test(donnees));
+dit('... le Trône ne fait le passage et les remises que si la fonction serveur se tait (dans le doute, rien)', [2, true],
+  [(donnees.match(/if \(tue !== true\)/g) ?? []).length, /const lignes = lignesDuPassage\(\{ cerveau, plan, reglagesGerard: brut/.test(donnees)]);
 dit('... le passage du jour au chargement, le bouton WhatsApp, le journal du jour', [true, true, true],
   [/useLePassageDeGerard\(cerveau, plan\)/.test(ecran), /lienWaMe\(cerveau\.clientDe\(s\.clientId\)\?\.phone/.test(ecran), /<h3>Aujourd’hui <span>ce qui est parti<\/span><\/h3>/.test(ecran)]);
 const tableau = readFileSync('src/apps/trone/routes/pilotage/Dashboard.tsx', 'utf8');

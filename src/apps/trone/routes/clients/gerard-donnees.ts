@@ -6,14 +6,15 @@ import { useInvoices } from '../../../../shared/finance';
 import { useFamilies } from '../../../../shared/clients';
 import { useMessagesWa } from '../../../../shared/conversations';
 import { useCartesCadeaux } from '../../../../shared/cartes-cadeaux';
-import { prenomSeul } from '../../../../shared/civilite';
 import { useSignalements } from '../../../../shared/entre-deux';
 import { useBlocages } from '../../../../shared/blocages';
-import { heureDeDepart, heureDuSalon, REGLES_PAR_DEFAUT } from '../../../../shared/salle-des-envois';
+import { heureDuSalon, REGLES_PAR_DEFAUT } from '../../../../shared/salle-des-envois';
+import { supabase } from '../../../../shared/supabase';
 import { codesPromoStore, useCodesPromo } from '../../../../shared/promos';
 import { useStore } from '../../../../shared/store';
-import { ligneDeNotification, passageDu, planDuJour, servie, type LigneDeGerard, type Situation } from '../../../../shared/gerard-pur';
+import { passageDu, planDuJour, type Situation } from '../../../../shared/gerard-pur';
 import { codeDeLaSituation, lisLAssistant, type CerveauDeGerard } from '../../../../shared/assistant-lecture-pur';
+import { CLE_DU_SERVEUR, lignesDuPassage, lignesNeuves, remisesAFabriquer, serveurVivant, type EtatDuServeur } from '../../../../shared/assistant-passage-pur';
 import { reglagesDeGerardStore, reglagesLus, useReglagesDeGerard } from '../../../../shared/gerard';
 import { envoisStore, useEnvois } from '../equipe/data';
 import { useAbonnesAuxNotifications } from '../equipe/useAudiences';
@@ -68,17 +69,28 @@ export function useCerveauDeGerard(): CerveauDeGerard {
 
 /** LE CODE NOMINATIF d'une situation (jour creux, anniversaire), fabriqué
     au moment où le message part, à son nom, et gardé au registre. */
-export function fabriqueLeCodeDe(s: Situation, o: { branchId: string; nom: string; maintenantMs: number }): string | undefined {
+export function fabriqueLeCodeDe(s: Pick<Situation, 'clientId' | 'genre' | 'code'>, o: { branchId: string; nom: string; maintenantMs: number }): string | undefined {
   const code = codeDeLaSituation(s, o, codesPromoStore.get());
   if (!code) return undefined;
   codesPromoStore.set((prev) => [...prev, code]);
   return code.code;
 }
 
-/** LE PASSAGE DU JOUR : les notifications Ma Couronne du plan, déposées
-    en salle d'attente ; le facteur les porte à leur heure. Une fois par
-    jour (le document `mnd_gerard` garde le jour du dernier passage), par
-    la direction seule. Les lignes WhatsApp attendent un toucher. */
+/** LA FONCTION SERVEUR VIT-ELLE ? `null` si on ne SAIT pas (hors ligne,
+    refus) : dans le doute, le Trône ne double rien. */
+async function laFonctionServeurSeTait(): Promise<boolean | null> {
+  if (!supabase) return null;
+  const { data, error } = await supabase.from('documents').select('data').eq('key', CLE_DU_SERVEUR).maybeSingle();
+  if (error) return null;
+  return !serveurVivant((data?.data ?? null) as EtatDuServeur | null, Date.now());
+}
+
+/** LE PASSAGE DU JOUR, AU TRÔNE : le même que celui de la fonction serveur
+    (`lignesDuPassage`), fait ici seulement quand elle se tait depuis plus de
+    26 heures (pas encore collée, ou en panne). Une fois par jour (le
+    document `mnd_gerard` garde le jour du dernier passage), par la
+    direction seule. Seules les lignes neuves s'écrivent : une ligne déjà au
+    journal (partie, retenue) n'est jamais réécrite. */
 export function useLePassageDeGerard(cerveau: CerveauDeGerard | null, plan: readonly Situation[] | null): void {
   const { branch } = useBranch();
   const moi = useStaff();
@@ -92,24 +104,49 @@ export function useLePassageDeGerard(cerveau: CerveauDeGerard | null, plan: read
     const maintenant = Date.now();
     if (!passageDu(r, aujourdhui, heureDuSalon(maintenant))) return;
     fait.current = true;
-    const iso = new Date(maintenant).toISOString();
-    const { partA, calme } = heureDeDepart(maintenant, REGLES_PAR_DEFAUT);
-    const lignes: LigneDeGerard[] = [];
-    for (const s of plan) {
-      if (s.canal !== 'couronne' || !servie(r, s.clientId)) continue;
-      const c = cerveau.clientDe(s.clientId);
-      const codePromo = fabriqueLeCodeDe(s, { branchId: branch.id, nom: c?.name ?? '', maintenantMs: maintenant });
-      lignes.push(ligneDeNotification(s, {
-        branchId: branch.id, aujourdhui, maintenantIso: iso, prenom: prenomSeul(c?.name), rdv: s.genre === 'garder' ? cerveau.rdvAGarder(s.clientId) : undefined,
-        codePromo, compte: cerveau.compteDe(s.clientId), partA: new Date(partA).toISOString(), calme,
-      }));
-    }
-    if (lignes.length) {
-      const ids = new Set(lignes.map((l) => l.id));
-      envoisStore.set((prev) => [...prev.filter((e) => !ids.has(e.id)), ...(lignes as unknown as typeof prev)]);
-    }
-    reglagesDeGerardStore.set((prev) => ({ ...reglagesLus(prev), dernierPassage: aujourdhui }));
+    void laFonctionServeurSeTait().then((tue) => {
+      if (tue !== true) return;
+      const lignes = lignesDuPassage({ cerveau, plan, reglagesGerard: brut, maintenantMs: maintenant, branchId: branch.id, regles: REGLES_PAR_DEFAUT });
+      envoisStore.set((prev) => [...prev, ...(lignesNeuves(lignes, new Set(prev.map((e) => e.id))) as unknown as typeof prev)]);
+      reglagesDeGerardStore.set((prev) => ({ ...reglagesLus(prev), dernierPassage: aujourdhui }));
+    });
   }, [cerveau, plan, direction, brut, branch.id]);
+}
+
+/** LES REMISES AU DÉPART RÉEL, AU TRÔNE : une ligne de l'Assistant partie
+    (« envoyé ») qui porte une remise à faire la reçoit ici, une fois,
+    quand la fonction serveur se tait. Un jour creux passé ne se remise plus. */
+export function useLesRemisesAuDepart(): void {
+  const { branch } = useBranch();
+  const moi = useStaff();
+  const [envois] = useEnvois();
+  const [clients] = useNomsDesFiches();
+  const faites = useRef(new Set<string>());
+  const direction = moi?.role === 'souverain' || moi?.role === 'gerant';
+  const aFaire = useMemo(() => remisesAFabriquer(envois as unknown as readonly unknown[]), [envois]);
+  useEffect(() => {
+    const neuves = aFaire.filter((l) => !faites.current.has(l.id));
+    if (!direction || neuves.length === 0) return;
+    for (const l of neuves) faites.current.add(l.id);
+    void laFonctionServeurSeTait().then((tue) => {
+      if (tue !== true) { for (const l of neuves) faites.current.delete(l.id); return; }
+      const aujourdhui = todayISO();
+      const codes = new Map<string, { codePromo: string; detailRemise?: string }>();
+      for (const l of neuves) {
+        if (l.codeAFaire.jusquau < aujourdhui) { codes.set(l.id, { codePromo: '', detailRemise: 'jour passé, pas de remise' }); continue; }
+        const code = fabriqueLeCodeDe({ clientId: l.clientId, genre: l.genre, code: l.codeAFaire },
+          { branchId: l.branchId || branch.id, nom: clients.get(l.clientId) ?? '', maintenantMs: Date.now() });
+        if (code) codes.set(l.id, { codePromo: code });
+      }
+      if (codes.size) envoisStore.set((prev) => prev.map((e) => (codes.has(e.id) ? { ...e, ...codes.get(e.id) } : e)));
+    });
+  }, [aFaire, direction, branch.id, clients]);
+}
+
+/** Le nom de chaque fiche, pour signer une remise à son nom. */
+function useNomsDesFiches(): [ReadonlyMap<string, string>] {
+  const clients = useBranchClients();
+  return [useMemo(() => new Map(clients.map((c) => [c.id, c.name ?? ''])), [clients])];
 }
 
 /** Le passage, lancé du tableau de bord : la lecture des fiches ne tourne

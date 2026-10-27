@@ -32,15 +32,10 @@ import {
     chiffre, les messages d'une cliente tombent dans « inconnu » à côté de sa
     propre fiche. Même règle que `numeroIntl` des fonctions Edge, recopiée
     parce qu'une fonction Edge ne peut rien importer d'ici. */
-export const numeroWa = (brut: string | undefined): string => {
-  const d = (brut ?? '').replace(/\D/g, '');
-  if (!d) return '';
-  if (d.startsWith('00229')) return d.slice(2);
-  if (d.startsWith('229')) return d;
-  if (d.length === 10 && d.startsWith('01')) return `229${d}`;
-  if (d.length === 8) return `22901${d}`;
-  return d;
-};
+/* Le calcul vit dans `numero-wa-pur.ts` depuis le 27 octobre 2026 : la
+   fonction serveur de l'Assistant Maison le lit au même mot près. */
+import { numeroWa } from './numero-wa-pur';
+export { numeroWa };
 
 /** LA CLÉ D'UN NUMÉRO POUR LE COMPARER (13 octobre 2026) : Meta dit
     229 97 00 00 99 quand la fiche porte 229 01 97 00 00 99. Même règle que

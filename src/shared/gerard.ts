@@ -50,3 +50,13 @@ export function jamaisPourElle(clientId: string, genre: GenreDeMessage, jamais: 
     return { ...r, jamais: tous, parQui, le: new Date().toISOString() };
   });
 }
+
+/** « Approuvé chez Meta » : ce modèle part seul sur WhatsApp au passage du
+    matin ; décoché, il attend de nouveau un toucher au Trône. */
+export function marqueLeModeleApprouve(nom: string, approuve: boolean, parQui: string): void {
+  reglagesDeGerardStore.set((prev) => {
+    const r = reglagesLus(prev);
+    const approuves = approuve ? [...new Set([...r.approuves, nom])] : r.approuves.filter((n) => n !== nom);
+    return reglagesLus({ ...r, approuves, parQui, le: new Date().toISOString() });
+  });
+}
