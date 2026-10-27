@@ -317,6 +317,15 @@ export default function Gerard() {
   const garder = plan.filter((s) => s.genre === 'garder').length;
   const sommeDesCreux = ctx.creux.reduce((s, j) => ({ manque: s.manque + j.manque, remises: s.remises + j.remises }), { manque: 0, remises: 0 });
 
+  /* OUVRIR UNE LIGNE DE LOIN (« Attend un oui › Ouvrir la première », 27 octobre 2026) : la ligne vit plus
+     haut, dans « Part aujourd'hui ». L'ouvrir sans y aller ne changeait rien à l'écran : on y va. */
+  const ouvreLaLigne = (id: string | null) => {
+    setOuverte(id);
+    if (!id) return;
+    window.requestAnimationFrame(() => window.requestAnimationFrame(() => {
+      document.getElementById(`am-ligne-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }));
+  };
   /* UN TOUCHER : le message s'ouvre dans WhatsApp, déjà écrit ; il est noté au journal, et son code fabriqué. */
   const noteALaMain = (s: Situation) => {
     const c = cerveau.clientDe(s.clientId);
@@ -525,7 +534,7 @@ export default function Gerard() {
                   /* Garder son RDV : la ligne dit lequel, avec l'année (maquette l.374). */
                   const rdv = s.genre === 'garder' ? cerveau.rdvAGarder(s.clientId) : undefined;
                   return (
-                    <li key={s.clientId} className={`trc-ger__rangee${ouvert ? ' est-ouverte' : ''}`}>
+                    <li key={s.clientId} id={`am-ligne-${s.clientId}`} className={`trc-ger__rangee${ouvert ? ' est-ouverte' : ''}`}>
                       <button type="button" className="trc-ger__ligne trc-am__ligne" aria-expanded={ouvert} onClick={() => setOuverte(ouvert ? null : s.clientId)}>
                         <span className={`trc-am__avatar${s.canal === 'whatsapp' ? ' trc-am__avatar--cuivre' : ''}`} aria-hidden="true">{initiales(nom)}</span>
                         {/* La remise se dit une fois sur la ligne, dans la colonne du canal (« −15 % · jour creux »). */}
@@ -621,7 +630,7 @@ export default function Gerard() {
                       <span className="trc-am__sur">{tuiles.oui.whatsapp.n} WhatsApp à un toucher</span>
                       <b>{tuiles.oui.whatsapp.francs ? fourchetteDite(tuiles.oui.whatsapp.francs) : 'sans chiffre'}</b>
                       <p>{tuiles.oui.whatsapp.clientIds.map(nomDe).filter(Boolean).join(', ')} : à un toucher tant que le modèle Meta n’est pas approuvé.</p>
-                      <div className="trc-am__gestes"><button type="button" className="trc-ger__btn trc-ger__btn--cuivre" onClick={() => setOuverte(tuiles.oui.whatsapp.clientIds[0] ?? null)}>Ouvrir la première</button></div>
+                      <div className="trc-am__gestes"><button type="button" className="trc-ger__btn trc-ger__btn--cuivre" onClick={() => ouvreLaLigne(tuiles.oui.whatsapp.clientIds[0] ?? null)}>Ouvrir la première</button></div>
                     </div>
                   )}
                   {tuiles.oui.bilans > 0 && (

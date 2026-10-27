@@ -195,6 +195,23 @@ try {
   dit('... « Aujourd hui » le montre, et M. D. sort du plan (deux semaines avant le prochain)', /M\. D\./.test(journal) && /WhatsApp, à un toucher/.test(journal)
     && !(await evalue(String.raw`[...document.querySelectorAll('.trc-ger__qui')].some((q) => q.firstChild?.textContent === 'M. D.')`)), journal.slice(0, 200));
 
+  /* « ATTEND UN OUI › OUVRIR LA PREMIÈRE » (27 octobre 2026, « ne s'ouvre pas ») : la ligne de la
+     première cliente s'ouvre ET vient à l'écran ; elle vit plus haut, dans « Part aujourd'hui ». */
+  dit('« Ouvrir la première » est là, sous « Attend un oui »', await evalue(String.raw`(() => { const b = [...document.querySelectorAll('.trc-am__carte button')].find((x) => x.textContent.trim() === 'Ouvrir la première'); if (!b) return false; b.scrollIntoView({ block: 'center' }); return true; })()`));
+  await attend(500);
+  await clique('.trc-am__carte button', 'Ouvrir la première');
+  await attend(1500);
+  const premiere = await evalue(String.raw`(() => {
+    const li = document.querySelector('.trc-ger__rangee.est-ouverte');
+    const ligne = li?.querySelector('.trc-ger__ligne');
+    if (!li || !ligne) return null;
+    const r = ligne.getBoundingClientRect();
+    return { qui: li.querySelector('.trc-ger__qui')?.firstChild?.textContent ?? '', haut: Math.round(r.top), bas: Math.round(r.bottom), h: window.innerHeight,
+      premier: (document.querySelector('.trc-am__carte--cuivre p')?.textContent || '').split(',')[0].trim(), panneau: !!li.querySelector('.trc-ger__panneau') };
+  })()`);
+  dit('... elle ouvre la ligne de la première cliente, et la ligne est à l écran', !!premiere && premiere.qui === premiere.premier && premiere.panneau
+    && premiere.haut >= 0 && premiere.bas <= premiere.h, JSON.stringify(premiere));
+
   /* 4. Les modèles Meta. */
   const modeles = await evalue(String.raw`[...document.querySelectorAll('.trc-ger__modeles li b')].map((b) => b.textContent)`);
   dit('sept plus un modèles à déposer chez Meta, et les deux cartes d anniversaire (27 octobre 2026)', JSON.stringify(modeles) === JSON.stringify(['gerard_garder', 'gerard_avant', 'gerard_envie', 'gerard_place', 'gerard_anniversaire', 'gerard_carte_anniversaire', 'gerard_carte_foyer', 'gerard_fetes', 'gerard_endormie', 'nouvelles_de_la_maison']), JSON.stringify(modeles));
