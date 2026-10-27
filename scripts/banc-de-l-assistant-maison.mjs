@@ -244,15 +244,17 @@ try {
   /* 5. Chaque vue par son adresse ; la barre l'allume ; la vue vit (ses tuiles, sa liste ou son selecteur) ; au telephone rien ne deborde.
      `textContent`, pas `innerText` : les `h3 span` sont en petites capitales par CSS. */
   const VIVANTE = {
-    /* Trois tuiles, quatre filtres, la liste des boites : K. T. (souci Sante ouvert) en tete, avec sa puce. */
+    /* La ligne chiffree, « A traiter / Toutes », la liste a gauche et la conversation a droite (27 octobre 2026, le soir) :
+       K. T. (souci Sante ouvert) en tete du groupe « Maintenant », sa pastille Sante, et « Ce qu il faut faire » dans la conversation ouverte. */
     conversations: String.raw`(() => {
       const v = document.querySelector('.trc-am__vue'); if (!v) return 'pas de vue';
-      const tuiles = v.querySelectorAll('.trc-am__tuile').length;
-      const filtres = v.querySelectorAll('.trc-tabs [aria-pressed]').length;
-      const premiere = v.querySelector('.trc-ger__liste .trc-ger__ligne .trc-am__qui b');
-      const nom = premiere?.firstChild?.textContent?.trim();
-      const puce = premiere?.querySelector('.trc-am__puce')?.textContent;
-      return tuiles === 3 && filtres === 4 && nom === 'K. T.' && puce === 'Santé' ? true : JSON.stringify({ tuiles, filtres, nom, puce });
+      const resume = !!v.querySelector('.trc-bx__resume');
+      const segments = v.querySelectorAll('.trc-bx__segments button').length;
+      const premiere = v.querySelector('.trc-bx__liste .trc-bx__ligne');
+      const nom = premiere?.querySelector('.trc-bx__haut b')?.textContent?.trim();
+      const pastille = premiere?.querySelector('.trc-bx__pastille')?.textContent ?? '';
+      const faire = !!v.querySelector('.trc-bx__conv .trc-bx__faire');
+      return resume && segments === 2 && nom === 'K. T.' && /^Santé/.test(pastille) && faire ? true : JSON.stringify({ resume, segments, nom, pastille, faire });
     })()`,
     /* Quatre tuiles ; la liste des avis Google (vide, Supabase injoignable : elle le dit). */
     avis: String.raw`(() => {

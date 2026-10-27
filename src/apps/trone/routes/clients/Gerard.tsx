@@ -31,6 +31,8 @@ import {
   type EnvoiDuJour, type FrancsEnJeu, type LigneDuJour,
 } from '../../../../shared/assistant-aujourdhui-pur';
 import { CLE_DU_SERVEUR, serveurVivant, type EtatDuServeur } from '../../../../shared/assistant-passage-pur';
+import { cleDuFilRange, estRangee } from '../../../../shared/boite-unique-pur';
+import { useRiensARepondre } from '../../../../shared/rien-a-repondre';
 import { supabase } from '../../../../shared/supabase';
 import type { Appointment } from '../../../../shared/agenda';
 import { envoisStore, useAutoConfig, useEnvois } from '../equipe/data';
@@ -195,6 +197,7 @@ export default function Gerard() {
   const [messages] = useMessagesWa();
   const [prives] = useFilsPrives();
   const [archives] = useFilsArchives();
+  const [riens] = useRiensARepondre();
   const [lignesDeLAutomate] = useFilsAutomate();
   const signalementsTous = useSignalements();
   const [demandes] = useDemandes();
@@ -237,9 +240,12 @@ export default function Gerard() {
      `Fil.attendUneReponse` ; on le lit, on ne le refait pas. */
   const tetes = useMemo(() => tetesDeLaMaison({ clientes: clients }), [clients]);
   const automates = useMemo(() => automatesDesFils(lignesDeLAutomate, reglageDeLAutomate(cfg.automateWa).pauseHeures), [lignesDeLAutomate, cfg.automateWa]);
+  /* « Rien à répondre » (Les conversations, 27 octobre 2026) vaut ici aussi :
+     un fil rangé ne compte pas dans « attend un humain » jusqu'à son prochain mot. */
   const fils = useMemo(
-    () => filsDeLaMaison(messages, tetes, prives, tick, branch.id, automates).filter((f) => f.tiroir === 'clientes' && !estArchive(f, archives)),
-    [messages, tetes, prives, tick, branch.id, automates, archives],
+    () => filsDeLaMaison(messages, tetes, prives, tick, branch.id, automates).filter((f) => f.tiroir === 'clientes' && !estArchive(f, archives)
+      && !estRangee([cleDuFilRange(f.numero), ...(f.clientId ? [`c:${f.clientId}`] : [])], f.dernierQuiCompte?.quand, riens)),
+    [messages, tetes, prives, tick, branch.id, automates, archives, riens],
   );
   const humain = useMemo(() => attendUnHumain({
     signalements,

@@ -1,0 +1,202 @@
+/* LES CONVERSATIONS, PLUS SIMPLES · 27 octobre 2026 (le soir).
+   Maquette HCVUUyvAxSxNFqQ82FXYpp, validée : la liste à gauche, la
+   conversation à droite, sa fiche en colonne repliable ; une ligne chiffrée
+   en tête ; « Ce qu'il faut faire » au-dessus du fil. Les teintes de
+   l'Assistant (`--am-*`, assistant-maison.css) : indigo, cuivre, terre pour
+   Santé et rappeler, vert pour ce qui est rangé. Au téléphone (900 px et
+   moins) la liste OU la conversation en plein écran (`trc-am__plein`).
+   Jamais d'obsidienne ; rien ne déborde à 390 px. */
+
+/* ── La ligne chiffrée et les outils ── */
+.trc-bx__resume {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px;
+  padding: 12px 16px; border: 1px solid var(--hairline); border-radius: 8px; background: var(--surface-card);
+}
+.trc-bx__resume > p { margin: 0; flex: 1 1 420px; font-size: 14px; line-height: 1.55; }
+.trc-bx__gros { font: 600 22px var(--font-sans); color: var(--color-indigo); font-variant-numeric: tabular-nums; }
+.trc-bx__doux { color: var(--ink-soft); }
+.trc-bx__menu { position: relative; flex: none; }
+.trc-bx__menu-liste {
+  position: absolute; right: 0; top: calc(100% + 6px); z-index: 20; width: min(300px, 86vw);
+  display: flex; flex-direction: column; padding: 6px;
+  background: var(--surface-card); border: 1px solid var(--hairline); border-radius: 8px; box-shadow: 0 10px 30px rgba(20, 20, 27, .14);
+}
+.trc-bx__menu-liste button {
+  all: unset; box-sizing: border-box; cursor: pointer; display: flex; flex-direction: column; gap: 2px; padding: 9px 12px; border-radius: 6px;
+}
+.trc-bx__menu-liste button b { font: 600 13.5px var(--font-sans); color: var(--ink); }
+.trc-bx__menu-liste button span { font-size: 12.5px; color: var(--ink-soft); }
+.trc-bx__menu-liste button:hover { background: var(--hover-veil); }
+.trc-bx__menu-liste button:focus-visible { outline: 2px solid var(--color-copper); outline-offset: -2px; }
+
+/* ── La boîte : trois colonnes sur un grand écran ── */
+.trc-bx {
+  position: relative; display: grid; grid-template-columns: minmax(270px, 340px) minmax(0, 1fr);
+  /* La hauteur de l'écran, moins la barre du Trône (69 px) et la barre des
+     vues de l'Assistant, collante (84 px) : la boîte vient juste sous elle
+     quand on ouvre une conversation (`ameneLaBoite`), entière. */
+  height: calc(100dvh - 176px); min-height: 520px; max-height: 1000px; overflow: hidden; scroll-margin-top: 92px;
+  border: 1px solid var(--hairline); border-radius: 8px; background: var(--surface-card);
+}
+.trc-bx.avec-fiche { grid-template-columns: minmax(270px, 340px) minmax(0, 1fr) minmax(240px, 280px); }
+
+/* La liste */
+.trc-bx__liste { display: flex; flex-direction: column; min-height: 0; min-width: 0; border-right: 1px solid var(--hairline); }
+.trc-bx__commandes { display: flex; flex-wrap: wrap; gap: 8px; padding: 12px; border-bottom: 1px solid var(--hairline); }
+.trc-bx__cherche { flex: 1 1 220px; min-width: 0; min-height: 40px; }
+.trc-bx__segments {
+  flex: 1 1 240px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; padding: 3px;
+  border-radius: 7px; background: var(--am-indigo-pale);
+}
+.trc-bx__segments button, .trc-bx__puces button {
+  all: unset; box-sizing: border-box; cursor: pointer; text-align: center; font: 600 13px var(--font-sans); color: var(--ink-soft); font-variant-numeric: tabular-nums;
+}
+.trc-bx__segments button { min-height: 36px; padding: 0 8px; border-radius: 5px; }
+.trc-bx__segments button.est-choisi { background: var(--surface-card); color: var(--color-indigo); box-shadow: 0 1px 2px rgba(20, 20, 27, .14); }
+.trc-bx__puces { flex: 1 1 100%; display: flex; flex-wrap: wrap; gap: 6px; }
+.trc-bx__puces button { min-height: 32px; padding: 0 10px; border: 1px solid var(--hairline); border-radius: 999px; font-weight: 500; font-size: 12.5px; }
+.trc-bx__puces button.est-choisi { border-color: var(--color-indigo); color: var(--color-indigo); background: var(--am-indigo-pale); }
+.trc-bx__segments button:focus-visible, .trc-bx__puces button:focus-visible { outline: 2px solid var(--color-copper); outline-offset: 1px; }
+.trc-bx__defile { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+.trc-bx__groupe-tete { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 12px 14px 6px; }
+.trc-bx__groupe { margin: 0; font: 600 11.5px var(--font-sans); letter-spacing: .08em; text-transform: uppercase; color: var(--ink-soft); }
+.trc-bx__defile > .trc-bx__groupe { padding: 12px 14px 6px; }
+.trc-bx__groupe-tete .trc-ger__btn { padding: 5px 10px; }
+.trc-bx__lignes { list-style: none; margin: 0; padding: 0; }
+.trc-bx__ligne {
+  all: unset; box-sizing: border-box; cursor: pointer; width: 100%;
+  display: grid; grid-template-columns: 36px minmax(0, 1fr); gap: 12px; align-items: start;
+  padding: 11px 14px; border-top: 1px solid rgba(20, 20, 27, .07);
+}
+.trc-bx__ligne .trc-am__avatar { width: 36px; height: 36px; }
+.trc-bx__ligne:hover { background: var(--hover-veil); }
+.trc-bx__ligne.est-courante { background: var(--am-indigo-pale); }
+.trc-bx__ligne:focus-visible { outline: 2px solid var(--color-copper); outline-offset: -2px; }
+.trc-bx__qui { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.trc-bx__haut { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; min-width: 0; }
+.trc-bx__haut b { font: 600 14.5px var(--font-sans); color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.trc-bx__depuis { flex: none; font-size: 12px; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+.trc-bx__mot { font-size: 13px; color: var(--ink-soft); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.trc-bx__pastille {
+  align-self: flex-start; max-width: 100%; margin-top: 2px; padding: 2px 9px; border-radius: 999px; border: 1px solid transparent;
+  font: 500 12px var(--font-sans); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.trc-bx__pastille--cuivre { background: var(--am-cuivre-pale); color: var(--copper-700, #7A4C27); }
+.trc-bx__pastille--terre { background: var(--am-terre-pale); color: var(--am-terre); }
+.trc-bx__pastille--indigo { background: var(--am-indigo-pale); color: var(--color-indigo); }
+.trc-bx__pastille--contour { border-color: var(--color-indigo); color: var(--color-indigo); }
+.trc-bx__pastille--calme { background: rgba(20, 20, 27, .06); color: var(--ink-soft); }
+.trc-bx__pastille--vert { background: var(--am-vert-pale); color: var(--am-vert-fonce); }
+.trc-bx__aide { margin: 0; padding: 9px 14px; border-top: 1px solid var(--hairline); font-size: 12px; line-height: 1.45; color: var(--ink-soft); }
+
+/* La conversation */
+.trc-bx__conv { display: flex; flex-direction: column; min-width: 0; min-height: 0; background: color-mix(in srgb, var(--surface-card) 55%, #FFFFFF); }
+.trc-bx__conv--vide { display: grid; place-items: center; color: var(--ink-soft); }
+.trc-bx__tete { flex: none; display: flex; flex-wrap: wrap; align-items: center; gap: 10px 12px; padding: 12px 16px; border-bottom: 1px solid var(--hairline); }
+.trc-bx__tete .trc-am__avatar { width: 40px; height: 40px; }
+.trc-bx__nom { flex: 1 1 180px; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.trc-bx__nom b { font: 600 23px/1.1 var(--font-serif); color: var(--color-indigo); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.trc-bx__nom span { font-size: 12.5px; color: var(--ink-soft); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.trc-bx__boutons { display: flex; flex-wrap: wrap; gap: 8px; }
+.trc-bx__suivante { white-space: nowrap; }
+.trc-bx__suivante, .trc-bx__principal { background: var(--color-indigo) !important; border-color: var(--color-indigo) !important; color: #FFFFFF !important; }
+.trc-bx__suivante:hover, .trc-bx__principal:hover { background: color-mix(in srgb, var(--color-indigo) 86%, #000) !important; }
+.trc-bx__boutons .trc-ger__btn, .trc-bx__faire-gestes .trc-ger__btn, .trc-bx__autres .trc-ger__btn { min-height: 36px; display: inline-flex; align-items: center; }
+.trc-bx__boutons .trc-ger__btn[aria-pressed="true"] { background: var(--am-indigo-pale); }
+.trc-bx__conv > .trc-am__corps { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; gap: 0; padding: 0; }
+.trc-bx__faire { flex: none; margin: 12px 16px 0; padding: 12px 14px; border: 1px solid var(--hairline); border-radius: 8px; display: flex; flex-direction: column; gap: 8px; }
+.trc-bx__faire--cuivre { background: var(--am-cuivre-pale); border-color: color-mix(in srgb, var(--color-copper) 35%, transparent); }
+.trc-bx__faire--terre { background: var(--am-terre-pale); border-color: color-mix(in srgb, var(--am-terre) 30%, transparent); }
+.trc-bx__faire--calme { flex-direction: row; flex-wrap: wrap; align-items: center; padding: 8px 12px; background: rgba(20, 20, 27, .03); }
+.trc-bx__faire--calme .trc-bx__faire-titre { display: none; }
+.trc-bx__faire--calme .trc-bx__faire-phrase { font-size: 13.5px; color: var(--ink-soft); }
+.trc-bx__faire-titre { margin: 0; font: 600 11px var(--font-sans); letter-spacing: .08em; text-transform: uppercase; color: var(--ink-soft); }
+.trc-bx__faire--terre .trc-bx__faire-titre { color: var(--am-terre); }
+.trc-bx__faire-phrase { margin: 0; font-size: 14.5px; line-height: 1.5; color: var(--ink); }
+.trc-bx__faire-gestes { display: flex; flex-wrap: wrap; gap: 8px; }
+.trc-bx__conv .trc-am__corps > .trc-bulles { flex: 1 1 0; min-height: 110px; max-height: none; overflow-y: auto; overscroll-behavior: contain; padding: 14px 16px; }
+.trc-bx__conv .trc-convs__fil { flex: none; max-height: 50%; overflow-y: auto; border: 0; border-top: 1px solid var(--hairline); border-radius: 0; }
+.trc-bx__conv .trc-am__souci { flex: none; max-height: 45%; overflow-y: auto; border-top: 1px solid var(--hairline); padding: 0 16px; }
+/* LE COMPOSEUR TIENT DANS LA BOÎTE, « ENVOYER » TOUJOURS À L'ÉCRAN : la
+   règle du téléphone (assistant-maison.css), sur un grand écran aussi. La
+   saisie défile dans sa propre boîte, la rangée d'envoi se colle à son bas,
+   les gestes tiennent sur une ligne qui glisse ; la phrase qui explique la
+   fenêtre s'efface (« Ce qu'il faut faire » la dit déjà). */
+.trc-bx__conv .trc-convs__fil { display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
+.trc-bx__conv .trc-convs__fil > .trc-saisie { flex: 1 1 auto; min-height: 0; max-height: none; overflow-y: auto; border-top: 0; }
+.trc-bx__conv .trc-saisie .trc-saisie__envoi {
+  position: sticky; bottom: 0; z-index: 1; margin-top: 8px !important;
+  padding: 8px 0 6px; background: var(--surface-card); box-shadow: 0 -1px 0 var(--hairline);
+}
+.trc-bx__conv .trc-saisie .trc-saisie__q > .trc-sub { display: none; }
+.trc-bx__conv .trc-saisie .trc-gestes-rangee { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: thin; }
+.trc-bx__conv .trc-saisie .trc-gestes-rangee > * { flex: none; }
+.trc-bx__chat { flex: none; display: grid; gap: 6px; padding: 10px 16px 12px; border: 0; border-top: 1px solid var(--hairline); border-radius: 0; }
+.trc-bx__chat-ligne { display: flex; gap: 8px; align-items: flex-end; }
+.trc-bx__chat-ligne textarea { flex: 1 1 auto; min-width: 0; }
+.trc-bx__sans-fil { flex: none; margin: 0; padding: 12px 16px; border-top: 1px solid var(--hairline); font-size: 13px; line-height: 1.5; color: var(--ink-soft); }
+
+/* Sa fiche */
+.trc-bx__fiche { position: relative; min-width: 0; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; padding: 14px 14px 18px; border-left: 1px solid var(--hairline); }
+.trc-bx__fermer {
+  all: unset; box-sizing: border-box; cursor: pointer; position: absolute; top: 8px; right: 8px;
+  width: 32px; height: 32px; display: grid; place-items: center; border-radius: 50%; color: var(--ink-soft); font-size: 20px; line-height: 1;
+}
+.trc-bx__fermer:hover { background: var(--hover-veil); color: var(--color-indigo); }
+.trc-bx__fermer:focus-visible { outline: 2px solid var(--color-copper); outline-offset: 1px; }
+.trc-bx__sous { margin: 0; font: 600 11.5px var(--font-sans); letter-spacing: .08em; text-transform: uppercase; color: var(--ink-soft); }
+.trc-bx__sous span { display: block; margin-top: 2px; font-weight: 400; letter-spacing: 0; text-transform: none; font-size: 12px; }
+.trc-bx__chiffres { margin: 0; display: flex; flex-direction: column; gap: 8px; }
+.trc-bx__chiffres > div { padding-bottom: 8px; border-bottom: 1px solid rgba(20, 20, 27, .08); }
+.trc-bx__chiffres dt { font-size: 12px; color: var(--ink-soft); }
+.trc-bx__chiffres dd { margin: 1px 0 0; font-size: 13.5px; color: var(--ink); }
+.trc-bx__autres { display: flex; flex-wrap: wrap; gap: 6px; }
+.trc-bx__outil { margin: 0; }
+
+/* Un écran moyen (le Trône a sa barre de 300 px) : sa fiche passe par-dessus la conversation. */
+@media (max-width: 1280px) and (min-width: 901px) {
+  .trc-bx.avec-fiche { grid-template-columns: minmax(250px, 300px) minmax(0, 1fr); }
+  .trc-bx.avec-fiche > .trc-bx__fiche {
+    position: absolute; top: 0; right: 0; bottom: 0; width: 280px; z-index: 3;
+    background: var(--surface-card); box-shadow: -10px 0 24px rgba(20, 20, 27, .10);
+  }
+}
+
+/* ── Le téléphone (900 px et moins) : la liste, OU la conversation en plein écran ── */
+@media (max-width: 900px) {
+  .trc-bx { display: block; height: auto; overflow: visible; border: 0; border-radius: 0; background: transparent; }
+  .trc-bx.est-ouverte > .trc-bx__liste { display: none; }
+  .trc-bx__liste { border: 1px solid var(--hairline); border-radius: 8px; background: var(--surface-card); }
+  .trc-bx__defile { overflow: visible; }
+  .trc-bx__commandes { padding: 10px; }
+  .trc-bx__resume { padding: 10px 12px; }
+  .trc-bx__resume > p { flex-basis: 100%; }
+  /* La conversation : sa tête se resserre, « Ce qu'il faut faire » tient en peu de place. */
+  .trc-bx__conv.trc-am__plein { background: var(--surface-card); }
+  .trc-am__plein > .trc-bx__tete { flex-wrap: nowrap; gap: 8px; padding: 4px 10px 4px 6px; }
+  .trc-am__plein .trc-bx__nom b { font-size: 19px; }
+  .trc-am__plein .trc-bx__nom span { font-size: 11.5px; }
+  .trc-am__plein .trc-bx__tete .trc-am__avatar { width: 32px; height: 32px; }
+  .trc-am__plein .trc-bx__suivante { padding: 7px 10px; }
+  .trc-am__plein .trc-bx__faire { margin: 8px 10px 0; padding: 8px 10px; gap: 6px; }
+  .trc-am__plein .trc-bx__faire-phrase { font-size: 13.5px; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+  .trc-am__plein .trc-bx__faire-gestes { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+  .trc-am__plein .trc-bx__faire-gestes > * { flex: none; }
+  .trc-am__plein .trc-bx__chat { max-height: calc(var(--vv-h, 100dvh) * .5); overflow-y: auto; padding: 8px 12px 10px; }
+  .trc-am__plein .trc-bx__sans-fil { padding: 10px 12px; }
+}
+@media (max-width: 640px) {
+  .trc-bx__resume .trc-bx__doux { display: none; }
+}
+/* Téléphone couché (390 px de haut) : la ligne chiffrée s'efface, la recherche
+   et « À traiter / Toutes » tiennent sur une ligne, « Ce qu'il faut faire »
+   ne garde que ses gestes ; la première boîte et « Envoyer » restent à l'écran. */
+@media (max-width: 900px) and (max-height: 520px) {
+  .trc-bx__resume { display: none; }
+  .trc-bx__commandes { flex-wrap: nowrap; padding: 6px 8px; }
+  .trc-bx__cherche { min-height: 36px; }
+  .trc-bx__segments button { min-height: 32px; }
+  .trc-bx__groupe-tete { padding: 6px 12px 2px; }
+  .trc-am__plein .trc-bx__faire-titre, .trc-am__plein .trc-bx__faire-phrase { display: none; }
+  .trc-am__plein .trc-bx__faire { margin: 4px 8px 0; padding: 4px 6px; border: 0; background: transparent; }
+}

@@ -17,9 +17,10 @@
    27 OCTOBRE 2026 (lot 3, Assistant Maison) : les Conversations vivent dans
    la vue « Les conversations » de l'Assistant (`#/gerard?vue=conversations`,
    LesConversations.tsx + ComposeurWhatsApp.tsx) ; `/conversations` y
-   redirige en gardant `?n=`. Une boîte par personne, en liste repliée : le
-   fil ouvert est `.trc-ger__rangee.est-ouverte .trc-bulles`, la saisie
-   `.trc-saisie`. « Nouvelle conversation » n'est plus dans la vue (il reste
+   redirige en gardant `?n=`. Une boîte par personne ; depuis le 27 octobre
+   2026 au soir, la liste à gauche et la conversation à droite : le fil ouvert
+   est `.trc-bx__conv .trc-bulles`, la saisie `.trc-saisie`, et au téléphone
+   la liste s'efface derrière la conversation (aucune ligne visible). « Nouvelle conversation » n'est plus dans la vue (il reste
    dans `/conversations?ancien=1`) : la promesse de la liste devient « la
    première boîte est à l'écran », dite ici, pas retirée en silence.
 
@@ -140,15 +141,16 @@ const RELEVE = `(() => {
   }).slice(0, 6).map((e) => String(e.className || e.tagName).slice(0, 50) + ' (' + Math.round(e.getBoundingClientRect().right) + ' px)');
   const boite = (s) => { const e = document.querySelector(s); if (!e || !visible(e)) return null; const r = e.getBoundingClientRect(); return { haut: Math.round(r.top), bas: Math.round(r.bottom), gauche: Math.round(r.left), droite: Math.round(r.right) }; };
   return { largeur: document.documentElement.scrollWidth, dehors,
-    /* La boite ouverte de la vue : son fil fusionne, sa saisie (le composeur WhatsApp). */
-    fil: boite('.trc-ger__rangee.est-ouverte .trc-bulles'), saisie: boite('.trc-ger__rangee.est-ouverte .trc-saisie'),
-    /* Au telephone (900 px et moins), la boite ouverte reste seule dans la
-       liste : le nombre de boites a l'ecran le dit.
+    /* La conversation ouverte de la vue (27 octobre 2026, le soir : la liste
+       a gauche, la conversation a droite) : son fil fusionne, sa saisie. */
+    fil: boite('.trc-bx__conv .trc-bulles'), saisie: boite('.trc-bx__conv .trc-saisie'),
+    /* Au telephone (900 px et moins), la liste s'efface derriere la
+       conversation ouverte : le nombre de lignes VISIBLES le dit.
        (Pas d'accent grave ici : on est dans un litteral a accents graves.) */
-    boites: document.querySelectorAll('.trc-ger__liste .trc-ger__rangee').length,
-    ouverte: !!document.querySelector('.trc-ger__rangee.est-ouverte'),
-    envoyer: (() => { const b = [...document.querySelectorAll('.trc-ger__rangee.est-ouverte .trc-saisie button')].find((x) => /envoyer|envoi/i.test(x.textContent)); if (!b) return null; const r = b.getBoundingClientRect(); return { haut: Math.round(r.top), bas: Math.round(r.bottom), gauche: Math.round(r.left), droite: Math.round(r.right) }; })(),
-    premiere: boite('.trc-ger__liste .trc-ger__ligne') };
+    boites: [...document.querySelectorAll('.trc-bx__liste .trc-bx__ligne')].filter((e) => e.getClientRects().length > 0).length,
+    ouverte: !!document.querySelector('.trc-bx__conv:not(.trc-bx__conv--vide)'),
+    envoyer: (() => { const b = [...document.querySelectorAll('.trc-bx__conv .trc-saisie button')].find((x) => /envoyer|envoi/i.test(x.textContent)); if (!b) return null; const r = b.getBoundingClientRect(); return { haut: Math.round(r.top), bas: Math.round(r.bottom), gauche: Math.round(r.left), droite: Math.round(r.right) }; })(),
+    premiere: boite('.trc-bx__liste .trc-bx__ligne') };
 })()`;
 
 let ko = 0;
@@ -191,7 +193,7 @@ for (const t of TAILLES) {
          surveillance. Dans la vue, la boite ouverte reste seule dans la
          liste jusqu'a 900 px ; au-dela, la liste entiere est la bonne reponse
          et la boite ouverte garde son panneau dans sa rangee. */
-      if (L <= 900) dit(`${nom} : la liste s efface derriere la boite ouverte`, r.ouverte && r.boites === 1, `${r.boites} boite(s), ouverte : ${r.ouverte}`);
+      if (L <= 900) dit(`${nom} : la liste s efface derriere la conversation ouverte`, r.ouverte && r.boites === 0, `${r.boites} ligne(s) visible(s), ouverte : ${r.ouverte}`);
     } else {
       /* « Nouvelle conversation » vit dans /conversations?ancien=1 depuis le
          27 octobre 2026 : dans la vue, la promesse est que la liste commence

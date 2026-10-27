@@ -121,6 +121,9 @@ export type Boite = {
   questionFranche: boolean;
   quiALaMain: string;
   filtres: FiltreDeLaBoite[];
+  /** « Rien à répondre » posé depuis son dernier message (`estRangee`) : ses
+      mots ne l'attendent plus ; un souci, une demande, un appel gardent leur juge. */
+  rangee: boolean;
   /** Le fil WhatsApp le plus récent (une fiche à deux numéros en a deux). */
   fil?: Fil;
   fils: Fil[];
@@ -152,7 +155,38 @@ export type EntreeDesBoites = {
   branchId?: string;
   /** Les tiroirs montrés : la direction voit tout, le personnel les clientes. */
   tiroirs?: readonly Tiroir[];
+  /** « Rien à répondre », par clé de boîte et par fil (`cleDuFilRange`). */
+  riensARepondre?: Readonly<RiensARepondre>;
 };
+
+/* ── RIEN À RÉPONDRE · 27 octobre 2026 ───────────────────────────────────
+   « Je ne comprends pas bien la partie conversation » (Yéman) : 40 boîtes
+   « attendaient une réponse », dont des « Merci » de 7, 14 et 27 jours. Un
+   geste les range : « Rien à répondre ». MÊME RÈGLE QUE L'ARCHIVE DES FILS
+   (`estArchive`, shared/conversations) : il vaut jusqu'à son prochain
+   message, on le juge contre ses mots, pas contre une case à décocher. Il
+   ne touche QUE ses mots (WhatsApp, chat du site) : un souci, une demande,
+   un appel ont leurs propres gestes et ne se rangent pas en passant.
+   Partagé (`mnd_rien_a_repondre`), il vaut sur chaque appareil, et le
+   compte de la barre des vues (`attendUnHumain`) le lit aussi. */
+export type RienARepondre = { le: string; par?: string };
+export type RiensARepondre = Record<string, RienARepondre>;
+/** La clé d'un fil rangé : son numéro, comme les boîtes sans fiche. */
+export const cleDuFilRange = (numero: string | undefined): string => `n:${cleDuNumero(numero)}`;
+/** RANGÉE ? Oui si l'une de ses clés porte un « Rien à répondre » posé
+    après son dernier mot (ou si elle n'a jamais écrit). Les instants se
+    comparent en millisecondes, jamais en texte. */
+export function estRangee(cles: readonly string[], dernierDElle: string | undefined, riens: Readonly<RiensARepondre> | undefined): boolean {
+  if (!riens) return false;
+  const t = dernierDElle ? Date.parse(dernierDElle) : NaN;
+  return cles.some((k) => {
+    const r = riens[k];
+    if (!r) return false;
+    const le = Date.parse(r.le);
+    if (!Number.isFinite(le)) return false;
+    return !Number.isFinite(t) || t <= le;
+  });
+}
 
 /* ── QUI ÉCRIT SEUL ──────────────────────────────────────────────────────── */
 
@@ -311,7 +345,7 @@ const cleDuNumero = (brut: string | undefined): string => cleDuNumeroWa(brut);
 
 const deLaBranche = (b: string | null | undefined, branchId?: string): boolean => !branchId || !b || b === branchId;
 
-type JugementDeLaBoite = Pick<Boite, 'pourquoi' | 'niveauDuSouci' | 'enRetard' | 'fil' | 'questionFranche' | 'discussions' | 'demandes' | 'appels' | 'derniere'>;
+type JugementDeLaBoite = Pick<Boite, 'pourquoi' | 'niveauDuSouci' | 'enRetard' | 'fil' | 'questionFranche' | 'discussions' | 'demandes' | 'appels' | 'derniere'> & { rangee?: boolean };
 
 /** QUI A LA MAIN, en une phrase courte : le geste le plus pressé d'abord
     (Santé, puis un appel, une demande, le chat, WhatsApp), sinon qui tient
@@ -332,6 +366,7 @@ export function quiALaMain(b: JugementDeLaBoite): string {
     if (b.fil.automate?.tenue === 'main') return 'l’automate a passé la main, à répondre';
     return b.fil.fenetre.ouverte ? `à répondre, fenêtre ouverte encore ${resteEnClair(b.fil.fenetre.resteMs)}` : 'à répondre par un modèle, fenêtre fermée';
   }
+  if (b.rangee) return 'rien à répondre, jusqu’à son prochain message';
   if (b.fil?.automate?.tenue === 'tenu') return 'l’automate a la main';
   if (b.fil?.automate?.tenue === 'pause') return 'l’équipe a la main';
   if (!b.fil && b.discussions.length > 0 && b.discussions.every((d) => etatDeLaDiscussion(d) === 'close')) return 'discussion close';
@@ -548,9 +583,10 @@ export function boitesDeLaMaison(e: EntreeDesBoites): Boite[] {
     const derniereDElle = [...b.bulles].reverse().find((x) => x.auteur === 'elle');
     const soucisOuverts = b.signalements.filter((s) => s.etat === 'ouvert' && !s.bien && (s.soucis ?? []).length > 0);
 
+    const rangee = estRangee([b.cle, ...b.fils.map((f) => cleDuFilRange(f.numero))], derniereDElle?.quand, e.riensARepondre);
     const pourquoi: PourquoiElleAttend[] = [];
-    if (b.fils.some((f) => f.attendUneReponse)) pourquoi.push('whatsapp');
-    if (b.discussions.some((d) => etatDeLaDiscussion(d) === 'a-repondre')) pourquoi.push('chat');
+    if (!rangee && b.fils.some((f) => f.attendUneReponse)) pourquoi.push('whatsapp');
+    if (!rangee && b.discussions.some((d) => etatDeLaDiscussion(d) === 'a-repondre')) pourquoi.push('chat');
     if (b.demandes.some((d) => dansLeFiltre(d, 'a-traiter'))) pourquoi.push('demande');
     if (soucisOuverts.length > 0) pourquoi.push('souci');
     if (b.appels.some((a) => !a.fait)) pourquoi.push('appel');
@@ -571,6 +607,7 @@ export function boitesDeLaMaison(e: EntreeDesBoites): Boite[] {
 
     const sansPhrase: Omit<Boite, 'quiALaMain' | 'filtres'> = {
       cle: b.cle,
+      rangee,
       ...(b.clientId ? { clientId: b.clientId } : {}),
       ...(numero ? { numero } : {}),
       ...(b.discussionId ? { discussionId: b.discussionId } : {}),
