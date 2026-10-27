@@ -35,7 +35,8 @@ import {
   addDaysISO, apptLabel, apptNetXof, apptGammeXof, apptPayState, montantDuCarnet, apptDueXof, apptDepositCreditXof, apptDurationMin, frDay, frShort, timeToMin, todayISO, useBranchAppointments, useBranchClients, useServicesById,
   tarifsDuRituel, PortesWhatsApp, DrillModal, type Drill,
 } from './_shared';
-import { cancelAppointmentPayment, deshonoreLeRituel, factureAEnvoyer, honoreSansEncaisser, PayAppointmentModal } from './actions';
+import { cancelAppointmentPayment, deshonoreLeRituel, factureAEnvoyer, honoreSansEncaisser, PayAppointmentModal, piecesDuFoyer, prenomsDuFoyer } from './actions';
+import { rdvsDuFoyerLeJour } from '../../../../shared/facture-du-foyer-pur';
 import { SerieModal } from './SerieModal';
 import { RattraperUnCahier } from './RattraperUnCahier';
 import { useSaitIaMaison } from '../../../../shared/ia-maison';
@@ -835,6 +836,31 @@ export default function Carnet() {
                 {a.status === 'honoré' && apptDueXof(a, byId) > 0 && (
                   <button onClick={() => renvoieLaFacture(a)}>Envoyer la facture sur son WhatsApp</button>
                 )}
+                {/* LA FACTURE DU FOYER — 27 octobre 2026 : les rendez-vous du même
+                    compte ou du même numéro, ce jour-là, en une facture et un
+                    message, avec le total. Chaque tête garde sa facture. */}
+                {a.status !== 'annulé' && a.date <= todayISO() && (() => {
+                  const duJour = rdvsDuFoyerLeJour(a, appts, clients);
+                  if (duJour.length < 2) return null;
+                  const tarifsDe = (x: Appointment) => tarifsDuRituel(x, {
+                    client: clients.find((c) => c.id === x.clientId),
+                    bands, sets, cats: categories, byId, tousServices: services, produits,
+                  });
+                  const qui = prenomsDuFoyer(duJour, clients);
+                  const dus = duJour.filter((x) => x.status === 'honoré' && apptDueXof(x, byId) > 0);
+                  const envoie = (terminer: boolean) => {
+                    setMenuFor(null);
+                    void envoiDeLaPiece.foyer(piecesDuFoyer(duJour, byId, tarifsDe, { terminer }), a.date, { renvoi: !terminer });
+                  };
+                  if (duJour.some((x) => x.status !== 'honoré')) {
+                    return <button onClick={() => envoie(true)}>Terminer les séances de {qui} · une facture du foyer</button>;
+                  }
+                  return dus.length >= 2 ? (
+                    <button onClick={() => envoie(false)}>
+                      Envoyer la facture du foyer · {qui} · {fmtMoney(dus.reduce((n, x) => n + apptDueXof(x, byId), 0), currency)}
+                    </button>
+                  ) : null;
+                })()}
                 {a.status === 'honoré' && (
                   <button className="is-danger" onClick={() => { void deshonoreLeRituel(a, byId); setMenuFor(null); }}>
                     Dés-honorer le rituel

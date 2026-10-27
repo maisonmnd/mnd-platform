@@ -567,6 +567,11 @@ export type InvoicePdfData = {
       ce qu'une cliente doit, rituel par rituel. Même papier, même en-tête ;
       seuls le titre et le nom du fichier changent. */
   kind: 'facture' | 'devis' | 'releve';
+  /** LE TITRE DU PAPIER, quand le genre ne suffit pas à le dire (27 octobre
+      2026) : « FACTURE DU FOYER » est un relevé des factures d'une journée. */
+  titre?: string;
+  /** Le début du nom du fichier, avec le titre (« Facture-du-foyer »). */
+  nomDuFichier?: string;
   number: string;
   houseName: string;
   houseSub?: string;
@@ -665,7 +670,7 @@ async function construitLaFacture(d: InvoicePdfData): Promise<{ doc: any; filena
   doc.setFont('times', 'normal');
   doc.setTextColor(COPPER);
   doc.setFontSize(15);
-  doc.text(d.kind === 'devis' ? 'DEVIS' : d.kind === 'releve' ? 'RELEVÉ DE COMPTE' : 'FACTURE', W - M, y, { align: 'right' });
+  doc.text(d.titre ?? (d.kind === 'devis' ? 'DEVIS' : d.kind === 'releve' ? 'RELEVÉ DE COMPTE' : 'FACTURE'), W - M, y, { align: 'right' });
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(9);
   doc.setTextColor(SOFT);
@@ -880,7 +885,7 @@ async function construitLaFacture(d: InvoicePdfData): Promise<{ doc: any; filena
   }
   await pieDeLaMaison(doc, W, 285);
 
-  const filename = `${d.kind === 'devis' ? 'Devis' : d.kind === 'releve' ? 'Releve' : 'Facture'}-${d.number}.pdf`;
+  const filename = `${d.nomDuFichier ?? (d.kind === 'devis' ? 'Devis' : d.kind === 'releve' ? 'Releve' : 'Facture')}-${d.number}.pdf`;
   return { doc, filename };
 }
 
