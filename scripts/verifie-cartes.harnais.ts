@@ -4,7 +4,7 @@
    manqué sur la version homme, une promesse que la Maison ne tient pas, un
    prénom vide au milieu du dessin : chacun se découvre après l'envoi. */
 import {
-  texteDeLaCarte, motDeLaCarte, objetDeLaCarte, nomDuFichier, prenomDe,
+  texteDeLaCarte, texteDeLaCarteSansPrenom, motDeLaCarte, objetDeLaCarte, nomDuFichier, prenomDe,
   CARTES_DE_LA_MAISON, MOTIFS_DE_MERCI, type CleMotif,
 } from '../src/shared/cartes';
 
@@ -123,6 +123,18 @@ dit('sans prénom, il reste un nom', 'cercle.png',
   nomDuFichier({ carte: 'cercle', genre: 'femme', prenom: '  ' }));
 dit('rien d’exotique n’y survit', true,
   /^[a-z0-9.-]+$/.test(nomDuFichier({ carte: 'merci', motif: 'annee', genre: 'homme', prenom: 'Élodie N’Dah' })));
+
+/* ── LA CARTE SANS PRÉNOM (27 octobre 2026) ──────────────────────────
+   Celle que Meta joint en tête des anniversaires automatiques : son image vit
+   à une adresse publique, elle va à une cliente, à un client, ou à un enfant
+   par son parent. Elle ne nomme personne et ne choisit ni « tu » ni « vous ». */
+const sansPrenom = texteDeLaCarteSansPrenom();
+const toutSonTexte = [sansPrenom.appel, sansPrenom.prenom, sansPrenom.phrase, sansPrenom.corps, sansPrenom.signe].join(' ');
+dit('la carte sans prénom : ni appel, la place du prénom porte « Belle année »', ['', 'Belle année'], [sansPrenom.appel, sansPrenom.prenom]);
+dit('... ni « tu » ni « vous », aucun accord de genre (entouré·e, venu·e, cher·ère)', false,
+  /\b(te|tu|toi|ton|ta|tes|vous|votre|vos)\b|\bt[’']|entouré|\bvenue?\b|\bch[eè]re?\b/i.test(toutSonTexte));
+dit('... le dessin d’anniversaire de la Maison : ballons, fond clair, « Joyeux anniversaire »', ['ballons', 'clair', 'Joyeux', 'anniversaire'],
+  [sansPrenom.deco, sansPrenom.fond, sansPrenom.sur, sansPrenom.grand]);
 
 console.log(ko === 0 ? '\nTout passe.' : `\n${ko} ÉCHEC(S).`);
 process.exit(ko === 0 ? 0 : 1);

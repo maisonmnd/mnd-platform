@@ -93,7 +93,7 @@ const remplis = (gerard: Row | null = { mode: 'ouvert', approuves: ['gerard_envi
   db.clients = [
     tete('cou', { authUserId: 'u-cou' }),           // Ma Couronne : une envie, en notification
     tete('wa'),                                     // WhatsApp, modèle approuvé : part seul
-    tete('ann', { birthday: '1990-10-28' }),         // anniversaire, Ma Couronne : remise à faire
+    tete('ann', { birthday: '1990-10-28', phone: '' }), // anniversaire, Ma Couronne seule (sans numéro) : sa carte et l'attention, remise à faire
     tete('arc', { archived: true }),                // archivée : jamais lue
   ];
   db.appointments = ['cou', 'wa', 'ann', 'arc'].flatMap((c) => [rituel(`${c}-1`, c, J(-100)), rituel(`${c}-2`, c, J(-30))]);
@@ -190,6 +190,27 @@ for (const [c, num] of [['gar', '+229 01 97 00 00 32'], ['ga1', '']] as const) {
 await appelle();
 dit('deux parents : « garder » part au parent qui a pris le RDV, sinon au premier numéro', [['garder', '2290197000032'], ['garder', '2290151000041']],
   [[par('gar')[0]?.genre, par('gar')[0]?.colis?.numero], [par('ga1')[0]?.genre, par('ga1')[0]?.colis?.numero]]);
+
+/* 9. LA CARTE D'ANNIVERSAIRE, À TOUTES (27 octobre 2026) : l'enfant du
+   foyer au numéro du parent payeur, la cliente sans accord à son numéro,
+   la carte en en-tête image ; sans approbation de Meta, rien ne part seul. */
+const foyer = (approuves: string[]) => {
+  remplis({ mode: 'ouvert', approuves });
+  maintenant = Date.parse('2026-10-28T08:00:00Z');
+  db.families = [{ id: 'f1', data: { id: 'f1', branchId: 'b', name: 'Famille P.', payerClientId: 'par' } }];
+  db.clients.push(tete('par', { familyId: 'f1' }), tete('enf', { familyId: 'f1', birthday: '2016-10-28', phone: '' }), tete('adu', { birthday: '1985-10-28', nouvelles: undefined }));
+};
+foyer(['gerard_carte_foyer', 'gerard_carte_anniversaire']);
+await appelle();
+const lenf = par('enf')[0]; const ladu = par('adu')[0];
+dit('la carte de l enfant part seule au numéro du parent payeur, au modèle du foyer, l image en tête, son prénom en variable', ['whatsapp', '2290151000013', 'gerard_carte_foyer', ['header', 'body', 'button'], 'https://maisonmnd.com/trone/assets/cartes/carte-anniversaire.png', ['PAR', 'ENF'], 'par', 'gerard-2026-10-28-enf-whatsapp'],
+  [lenf?.canal, lenf?.colis?.numero, lenf?.colis?.modele, (lenf?.colis?.composants ?? []).map((k: Row) => k.type), lenf?.colis?.composants?.[0]?.parameters?.[0]?.image?.link,
+    (lenf?.colis?.composants?.[1]?.parameters ?? []).map((x: Row) => x.text), lenf?.pourId, lenf?.id]);
+dit('... la cliente sans accord des nouvelles reçoit sa carte seule, sans remise à faire ; le parent, lui, n a rien en son nom', ['whatsapp', 'gerard_carte_anniversaire', undefined, 0],
+  [ladu?.canal, ladu?.colis?.modele, ladu?.codeAFaire, par('par').filter((l) => l.genre === 'anniversaire').length]);
+foyer([]);
+await appelle();
+dit('... sans approbation de Meta, aucune carte ne part seule : elle attend un toucher au Trône', [0, 0], [par('enf').length, par('adu').length]);
 
 Date.now = vraiNow;
 console.log(ko ? `\n${ko} echec(s) sur ${n}.` : `\nL'Assistant tient au serveur (${n} controles).`);

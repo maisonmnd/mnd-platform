@@ -179,6 +179,26 @@ export function texteDeLaCarte(o: DemandeDeCarte): ContenuDeCarte {
   }
 }
 
+/** LA CARTE SANS PRÉNOM — 27 octobre 2026. Celle que Meta joint en tête des
+    messages d'anniversaire automatiques de l'Assistant Maison (« toutes les
+    cartes, directement par WhatsApp », Yéman) : son image vit à une adresse
+    publique, elle ne nomme donc personne, et le prénom voyage dans le
+    texte. Ni « tu » ni « vous », aucun accord de genre : elle va à une
+    cliente, à un client, ou à un enfant par son parent payeur. LE RYTHME DE
+    LA CARTE RESTE : la place du prénom porte « Belle année » au même corps,
+    sans quoi un grand vide s'ouvrait au milieu de la carte. */
+export function texteDeLaCarteSansPrenom(): ContenuDeCarte {
+  return {
+    fond: 'clair', deco: 'ballons',
+    sur: 'Joyeux', grand: 'anniversaire', grandTaille: 140,
+    appel: '', prenom: 'Belle année',
+    phrase: 'Qu’elle soit douce et lumineuse.',
+    corps: `Toute l’équipe de **${laMaison()}** se joint à celles et ceux qui fêtent ce jour. `
+      + 'Que la santé, la joie et la lumière accompagnent chaque jour de l’année qui commence.',
+    signe: 'Avec toute notre affection.',
+  };
+}
+
 /** LE MOT QUI ACCOMPAGNE L'IMAGE. Court : l'image dit le reste, et un message
     qui répète la carte se lit deux fois pour rien.
 

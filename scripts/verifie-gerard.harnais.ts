@@ -12,6 +12,7 @@ import {
   plusJours, remplis, situationDuJour,
   EST_UN_SERVICE, PLAFOND_FRANCS_PAR_DEFAUT, plafondDeLaSemaine,
   reglagesLus, estSaisonDesFetes, ligneALaMain, ligneDeNotification, passageDu, servie, texteSansSignature, tracesDesEnvois,
+  anniversaireDuJour, anniversairesDuJour, moisEtJourDe, partSeule, ligneWhatsApp, IMAGE_DE_LA_CARTE,
   type ContexteDeGerard, type FicheDeGerard, type RdvDeGerard,
 } from '../src/shared/gerard-pur';
 import { attendUneReponse, derniersMessagesHorsService, dernieresRelancesDeFacture, jourACotonou } from '../src/shared/dernier-message-pur';
@@ -51,9 +52,9 @@ dit('un modèle se remplit variable par variable, et finit par la signature « M
 dit('chaque modèle a un nom Meta, au plus trois boutons, jamais de prix ni de pourcentage, jamais le mot « code » (Meta le rangerait en Authentification), jamais « Gérard » ni « devait revenir »', true,
   Object.values(MODELES_DE_GERARD).every((m) => /^(gerard_[a-z_]+|nouvelles_de_la_maison)$/.test(m.nom) && m.boutons.length <= 3 && !/\d\s?(F|FCFA|XOF)\b|%/.test(m.corps) && !/\bcodes?\b/i.test(m.corps)
     && !/Gérard|devait revenir|arrive vers/.test(m.corps)));
-dit('sept plus un (maquette v4) : huit modèles, un seul utilitaire, « garder » ; un seul genre de service', [8, ['gerard_garder'], ['garder']],
+dit('sept plus un, et deux cartes (27 octobre 2026) : dix modèles, un seul utilitaire, « garder » ; un seul genre de service ; trois portent la carte en image', [10, ['gerard_garder'], ['garder'], ['anniversaire', 'carte', 'carte-foyer']],
   [Object.keys(MODELES_DE_GERARD).length, Object.values(MODELES_DE_GERARD).filter((m) => m.categorie === 'UTILITY').map((m) => m.nom),
-    Object.entries(EST_UN_SERVICE).filter(([, v]) => v).map(([k]) => k)]);
+    Object.entries(EST_UN_SERVICE).filter(([, v]) => v).map(([k]) => k), Object.entries(MODELES_DE_GERARD).filter(([, m]) => m.enTete === 'image').map(([k]) => k)]);
 
 /* ── 2. La date de cadence et le fil ── */
 const rdvPose = { id: 'p', date: '2026-12-08', time: '10:00', status: 'confirmé', familles: ['resserrage'], venu: false } as RdvDeGerard;
@@ -83,8 +84,8 @@ dit('l’anniversaire se rattrape le lendemain (dit « rattrapage »), pas le su
   [sit(fiche({ birthday: `1990-${plusJours(A, -1).slice(5)}` }))?.genre, !!sit(fiche({ birthday: `1990-${plusJours(A, -1).slice(5)}` }))?.pourquoi.some(([k]) => k === 'Rattrapage'),
     sit(fiche({ birthday: `1990-${plusJours(A, -2).slice(5)}` }))?.genre !== 'anniversaire',
     sit(fiche({ birthday: `1990-${plusJours(A, -1).slice(5)}`, traces: [{ quand: `${plusJours(A, -1)}T09:00:00Z`, genre: 'anniversaire' }] }))?.genre !== 'anniversaire']);
-dit('... déjà fêtée cette année, ou sans accord ni Ma Couronne : pas de vœux', [true, true],
-  [sit(fiche({ birthday: '1990-10-26', birthdayGiftAt: '2026-10-26T08:00:00Z' }))?.genre !== 'anniversaire', sit(fiche({ birthday: '1990-10-26', accord: false }))?.genre !== 'anniversaire']);
+dit('... séance anniversaire déjà offerte cette année, ou sans accord ni Ma Couronne : SA CARTE QUAND MÊME, sans attention ni remise', [['anniversaire', 'carte', false], ['anniversaire', 'carte', false]],
+  [sit(fiche({ birthday: '1990-10-26', birthdayGiftAt: '2026-10-26T08:00:00Z' })), sit(fiche({ birthday: '1990-10-26', accord: false }))].map((s) => [s?.genre, s?.modele, !!s?.code]));
 
 /* ── 5. Le fil : l'envie, tout combiner ── */
 const e1 = sit(fiche());
@@ -104,7 +105,64 @@ dit('... RDV posé à sept jours : le point d’avant du Trône s’en charge, G
   sit(fiche({ rdvs: [venue(plusJours(A, -50)), { ...rdvPose, date: plusJours(A, 7) }] })));
 dit('sans accord ni Ma Couronne, une envie ne part pas ; avec Ma Couronne, elle part en notification', [null, 'couronne'],
   [sit(fiche({ accord: false })), sit(fiche({ accord: false, couronne: true }))?.canal]);
-dit('une cliente écartée (passage, diaspora, locks défaits) : rien', null, sit(fiche({ ecartee: true, birthday: '1990-10-26' })));
+dit('une cliente écartée (passage, diaspora, locks défaits) : rien, sauf sa carte d’anniversaire, sans attention', [null, 'carte', false],
+  [sit(fiche({ ecartee: true })), sit(fiche({ ecartee: true, birthday: '1990-10-26' }))?.modele, !!sit(fiche({ ecartee: true, birthday: '1990-10-26' }))?.code]);
+
+/* ── 5 bis. LA CARTE D'ANNIVERSAIRE, À TOUTES (27 octobre 2026) ──
+   « Reconnaître tous les anniversaires, envoyer toutes les cartes par
+   WhatsApp ; pour un enfant, au numéro du parent payeur » (Yéman). */
+const AJ = `1990-${A.slice(5)}`;
+const payeurP = { id: 'p1', appel: 'Madame P.', telephone: true, couronne: false, stop: false };
+const enfant = (o: Partial<FicheDeGerard> = {}) => fiche({ id: 'e1', appel: 'Awa', accord: false, telephone: false, enfantDuFoyer: true, payeur: payeurP, birthday: '2016-10-26', ...o });
+const ce = sit(enfant());
+dit('l’enfant du foyer : sa carte part au parent payeur, au modèle du foyer, sans remise, et le texte la nomme', ['anniversaire', 'carte-foyer', 'whatsapp', 'p1', ['Madame P.', 'Awa'], false],
+  [ce?.genre, ce?.modele, ce?.canal, ce?.pourId, ce?.variables, !!ce?.code]);
+dit('... le texte, tel qu’il part', 'Bonjour Madame P., joyeux anniversaire à Awa ! Toute la Maison lui souhaite une très belle journée, et une année douce et lumineuse.\n\nMaison MND', ce?.texte);
+dit('... sans parent payeur noté : rien, et l’anniversaire est reconnu « sans payeur » ; le parent a dit « stop » : rien ; le parent sans numéro mais sur Ma Couronne : sa notification', [null, 'sans-payeur', null, 'stop', 'couronne', 'p1'],
+  [sit(enfant({ payeur: undefined })), anniversaireDuJour(enfant({ payeur: undefined }), ctx())?.etat,
+    sit(enfant({ payeur: { ...payeurP, stop: true } })), anniversaireDuJour(enfant({ payeur: { ...payeurP, stop: true } }), ctx())?.etat,
+    sit(enfant({ payeur: { ...payeurP, telephone: false, couronne: true } }))?.canal, sit(enfant({ payeur: { ...payeurP, telephone: false, couronne: true } }))?.pourId]);
+dit('... un membre adulte du foyer à son propre numéro reçoit chez lui ; sans numéro ni Ma Couronne, chez le payeur', [undefined, 'carte', 'p1', 'carte-foyer'],
+  [sit(fiche({ birthday: AJ, accord: false, payeur: payeurP }))?.pourId, sit(fiche({ birthday: AJ, accord: false, payeur: payeurP }))?.modele,
+    sit(fiche({ birthday: AJ, telephone: false, payeur: payeurP }))?.pourId, sit(fiche({ birthday: AJ, telephone: false, payeur: payeurP }))?.modele]);
+dit('sans accord des nouvelles, la carte part quand même par WhatsApp, et seule chez Meta une fois son modèle approuvé', ['carte', 'whatsapp', true, false],
+  [sit(fiche({ birthday: AJ, accord: false }))?.modele, sit(fiche({ birthday: AJ, accord: false }))?.canal,
+    partSeule(sit(fiche({ birthday: AJ, accord: false }))!, { mode: 'ouvert', approuves: ['gerard_carte_anniversaire'] }),
+    partSeule(sit(fiche({ birthday: AJ, accord: false }))!, { mode: 'ouvert', approuves: [] })]);
+dit('avec l’accord, l’attention l’accompagne (10 %, trente jours), au modèle « anniversaire »', ['anniversaire', 'ANNIV', 10], [an?.modele, an?.code?.mot, an?.code?.pct]);
+dit('ce qui la fait taire : « stop », « jamais pour elle », les anniversaires éteints, archivée, ni numéro ni Ma Couronne ; et chacun est reconnu', [[null, 'stop'], [null, 'jamais'], [null, 'eteinte'], [null, null], [null, 'sans-numero']],
+  [[fiche({ birthday: AJ, stop: true }), ctx()], [fiche({ birthday: AJ, jamais: ['anniversaire'] }), ctx()], [fiche({ birthday: AJ }), ctx({ eteintes: ['anniversaire'] })],
+    [fiche({ birthday: AJ, archivee: true }), ctx()], [fiche({ birthday: AJ, telephone: false }), ctx()]]
+    .map(([fi, c]) => [sit(fi as FicheDeGerard, c as ContexteDeGerard)?.genre === 'anniversaire' ? 'carte' : null, anniversaireDuJour(fi as FicheDeGerard, c as ContexteDeGerard)?.etat ?? null]));
+dit('une fois l’an : partie, ou « pas maintenant » cette année, elle ne revient pas ; l’an passé ne compte pas', [null, 'deja', 'anniversaire'],
+  [sit(fiche({ birthday: AJ, traces: [{ quand: `${A}T07:00:00Z`, genre: 'anniversaire', reponse: 'non' }] })),
+    anniversaireDuJour(fiche({ birthday: AJ, traces: [{ quand: `${A}T07:00:00Z`, genre: 'anniversaire' }] }), ctx())?.etat,
+    sit(fiche({ birthday: AJ, traces: [{ quand: '2025-10-26T07:00:00Z', genre: 'anniversaire' }] }))?.genre]);
+dit('toutes les formes de la date : AAAA-MM-JJ, avec son heure, JJ/MM/AAAA, JJ.MM.AAAA ; une date fausse ne se reconnaît pas', ['10-26', '10-26', '10-26', '03-07', undefined, undefined],
+  [moisEtJourDe('1990-10-26'), moisEtJourDe('1990-10-26T00:00:00.000Z'), moisEtJourDe('26/10/1990'), moisEtJourDe('7.3.1988'), moisEtJourDe('1990-13-02'), moisEtJourDe('bientôt')]);
+dit('le 29 février se fête le 28 les années communes, le 29 les années bissextiles, jamais deux fois', ['anniversaire', 'anniversaire', false, true],
+  [sit(fiche({ birthday: '2000-02-29' }), ctx({ aujourdhui: '2027-02-28' }))?.genre, sit(fiche({ birthday: '2000-02-29' }), ctx({ aujourdhui: '2028-02-29' }))?.genre,
+    sit(fiche({ birthday: '2000-02-29' }), ctx({ aujourdhui: '2028-02-28' }))?.genre === 'anniversaire',
+    !!sit(fiche({ birthday: '2000-02-29' }), ctx({ aujourdhui: '2027-03-01' }))?.pourquoi.some(([k]) => k === 'Rattrapage')]);
+dit('une date à la française est fêtée comme les autres', 'anniversaire', sit(fiche({ birthday: `${A.slice(8, 10)}/${A.slice(5, 7)}/1990` }))?.genre);
+const deuxAnniv = planDuJour([fiche({ id: 'a1', birthday: AJ }), fiche({ id: 'a2', birthday: AJ })], ctx({ remisesRestantes: 1 }));
+dit('le plafond à une remise : la première a son attention, la seconde sa carte seule, personne n’est oubliée', [['a1', 'anniversaire', true], ['a2', 'carte', false]],
+  deuxAnniv.map((s) => [s.clientId, s.modele, !!s.code]));
+dit('les anniversaires du jour : toutes les fiches reconnues, avec ce qu’il en advient', [['a1', 'carte'], ['e1', 'carte'], ['s1', 'stop'], ['n1', 'sans-numero']],
+  anniversairesDuJour([fiche({ id: 'a1', birthday: AJ }), enfant(), fiche({ id: 's1', birthday: AJ, stop: true }), fiche({ id: 'n1', birthday: AJ, telephone: false }), fiche({ id: 'x1' })], ctx())
+    .map((x) => [x.clientId, x.etat]));
+const ligneCarte = ligneWhatsApp(ce!, { branchId: 'b', aujourdhui: A, maintenantIso: `${A}T08:00:00Z`, prenom: 'Awa', numero: '22901510000', partA: `${A}T08:10:00Z`, calme: false });
+dit('la ligne déposée : la carte en en-tête image, le prénom de l’enfant en variable, le numéro du parent, la fiche qui reçoit notée', [['header', 'body', 'button'], IMAGE_DE_LA_CARTE, ['Madame P.', 'Awa'], '22901510000', 'p1', 'gerard_carte_foyer'],
+  [ligneCarte.colis?.genre === 'whatsapp' ? ligneCarte.colis.composants.map((k) => k.type) : [],
+    ligneCarte.colis?.genre === 'whatsapp' ? (ligneCarte.colis.composants[0] as { parameters: { image?: { link: string } }[] }).parameters[0]?.image?.link : '',
+    ligneCarte.colis?.genre === 'whatsapp' ? (ligneCarte.colis.composants[1] as { parameters: { text?: string }[] }).parameters.map((p) => p.text) : [],
+    ligneCarte.colis?.genre === 'whatsapp' ? ligneCarte.colis.numero : '', ligneCarte.pourId, ligneCarte.colis?.genre === 'whatsapp' ? ligneCarte.colis.modele : '']);
+dit('... un modèle sans image n’en porte pas (Meta refuserait l’en-tête)', false,
+  JSON.stringify(ligneWhatsApp(sit(fiche())!, { branchId: 'b', aujourdhui: A, maintenantIso: `${A}T08:00:00Z`, prenom: 'K', numero: '229', partA: A, calme: false }).colis).includes('"header"'));
+dit('l’image de la carte est servie par le Trône, en PNG, et ne nomme personne', true, /^https:\/\/maisonmnd\.com\/trone\/assets\/cartes\/carte-anniversaire\.png$/.test(IMAGE_DE_LA_CARTE));
+dit('garder un RDV le jour de son anniversaire : garder d’abord, la carte le lendemain en rattrapage', ['garder', 'anniversaire'],
+  [sit(fiche({ birthday: AJ, rdvs: [venue(plusJours(A, -40)), { id: 'g', date: plusJours(A, 2), time: '10:00', status: 'confirmé', familles: ['resserrage'], venu: false }] }))?.genre,
+    sit(fiche({ birthday: AJ, rdvs: [venue(plusJours(A, -40)), { id: 'g', date: plusJours(A, 2), time: '10:00', status: 'confirmé', familles: ['resserrage'], venu: false }], traces: [{ quand: `${A}T07:00:00Z`, genre: 'garder' }] }), ctx({ aujourdhui: plusJours(A, 1) }))?.genre]);
 
 /* ── 6. Le choix de l'envie ── */
 const avecCouleur = fiche({ rdvs: [venue('2026-06-10', ['couleur']), venue(plusJours(A, -30))] });
@@ -166,7 +224,7 @@ const planAnniv = planDuJour([fiche({ id: 'n', birthday: `1990-${A.slice(5)}` })
   ctx({ creux: [{ iso: '2026-10-29', poses: 4, ordinaire: 5, manque: 1, remises: 1 }], remisesRestantes: 1, placesDe: (_id, jour) => (jour ? [{ iso: jour, heure: '11:00' }] : places) }));
 dit('... l’anniversaire entre dans le plafond, avant le jour creux : la dernière remise est pour elle', [['n', 'anniversaire'], ['m', 'envie']],
   planAnniv.map((s) => [s.clientId, s.genre]));
-dit('... plafond atteint : pas de remise d’anniversaire', true, sit(fiche({ birthday: `1990-${A.slice(5)}` }), ctx({ remisesRestantes: 0 }))?.genre !== 'anniversaire');
+dit('... plafond atteint : pas de remise d’anniversaire, la carte seule', ['carte', false], [sit(fiche({ birthday: `1990-${A.slice(5)}` }), ctx({ remisesRestantes: 0 }))?.modele, !!sit(fiche({ birthday: `1990-${A.slice(5)}` }), ctx({ remisesRestantes: 0 }))?.code]);
 
 /* ── 11. La question franche ── */
 dit('la question franche se reconnaît', [true, true, true, true, false, false, false],
@@ -225,9 +283,9 @@ dit('ce que Gérard a écrit se relit dans les envois ; une ligne écartée ou s
   [tr.get('a')?.map((t) => [t.genre, t.envie]), tr.get('b')?.map((t) => [t.genre, t.envie]), tr.get('c')?.map((t) => [t.genre, t.envie, t.reponse])]);
 
 /* ── 14 bis. Entre deux séances : il se tait ── */
-dit('un souci Santé ou À voir encore ouvert : ni envie ni anniversaire', [null, null, null],
+dit('un souci Santé ou À voir encore ouvert : ni envie ni attention ; sa carte d’anniversaire part seule', [null, null, 'carte'],
   [sit(fiche({ souciOuvert: 'sante' }))?.genre ?? null, sit(fiche({ souciOuvert: 'a-voir' }))?.genre ?? null,
-    sit(fiche({ souciOuvert: 'sante', birthday: `1990-${A.slice(5)}` }))?.genre ?? null]);
+    sit(fiche({ souciOuvert: 'sante', birthday: `1990-${A.slice(5)}` }))?.modele ?? null]);
 dit('... mais son RDV se garde quand même', 'garder', sit(fiche({ souciOuvert: 'sante', rdvs: [venue(plusJours(A, -40)), rdvDans2()] }))?.genre);
 dit('... et le cerveau dit comme gerardSeTait (Entre deux séances)', [true, true, true],
   (['sante', 'a-voir', undefined] as const).map((x) => gerardSeTait({ souciOuvert: x }) === (sit(fiche({ souciOuvert: x })) === null)));
@@ -245,8 +303,8 @@ dit('enfant d’un foyer : jamais écrite, pas même pour garder un RDV (le pare
 dit('quatorze jours sur toutes les voix : un message de la Maison il y a dix jours fait taire, il y a quinze jours non', [null, 'envie'],
   [sit(fiche({ dernierMessageHorsService: plusJours(A, -10) })), sit(fiche({ dernierMessageHorsService: plusJours(A, -15) }))?.genre]);
 const ctxCreux = ctx({ creux: [{ iso: '2026-10-29', poses: 2, ordinaire: 5, manque: 3, remises: 3 }], placesDe: (_id, jour) => (jour ? [{ iso: jour, heure: '11:00' }] : places) });
-dit('elle porte déjà une remise à son nom : pas de seconde (ni jour creux ni anniversaire), jamais de cumul', ['envie', true],
-  [sit(fiche({ codesVivants: 1 }), ctxCreux)?.genre, sit(fiche({ codesVivants: 1, birthday: `1990-${A.slice(5)}` }))?.genre !== 'anniversaire']);
+dit('elle porte déjà une remise à son nom : pas de seconde (ni jour creux ni attention d’anniversaire), jamais de cumul ; la carte part seule', ['envie', 'carte', false],
+  [sit(fiche({ codesVivants: 1 }), ctxCreux)?.genre, sit(fiche({ codesVivants: 1, birthday: `1990-${A.slice(5)}` }))?.modele, !!sit(fiche({ codesVivants: 1, birthday: `1990-${A.slice(5)}` }))?.code]);
 
 const envoisVus = [
   { type: 'confirmation', clientId: 'a', statut: 'envoyé', quand: '2026-10-25T09:00:00Z' },
@@ -340,6 +398,33 @@ const lu = lisLAssistant(entrees());
 const f = (id: string) => lu.fiches.find((x) => x.id === id)!;
 dit('la lecture : la dette (20 000 F moins 15 000 F réglés), l’enfant du foyer (pas son parent), la carte sur sa fiche, la remise vivante', [5000, true, false, true, 1],
   [f('dette').resteDu, f('enfant').enfantDuFoyer, f('parent').enfantDuFoyer, f('carte').carteVivante, f('code').codesVivants]);
+{
+  /* LA CARTE DE L'ENFANT AU PARENT PAYEUR, lue sur de vraies fiches (27 octobre 2026). */
+  const foyer = lisLAssistant(entrees({
+    clients: [tete('enfant', { familyId: 'f1', birthday: '2016-10-26', phone: '' }), tete('parent', { familyId: 'f1', phone: '+229 01 51 22 33 44' }),
+      tete('arch', { birthday: '1990-10-26', archived: true })] as never,
+  }));
+  const plan = planDuJour(foyer.fiches, foyer.ctx);
+  const carte = plan.find((s) => s.clientId === 'enfant');
+  dit('la lecture du foyer : l’enfant connaît son parent payeur (appel, numéro, Ma Couronne, stop), le parent n’en a pas au-dessus de lui ; l’archivée est notée', [{ id: 'parent', appel: 'PARENT', telephone: true, couronne: false, stop: false }, null, true],
+    [foyer.fiches.find((x) => x.id === 'enfant')?.payeur, foyer.fiches.find((x) => x.id === 'parent')?.payeur ?? null, foyer.fiches.find((x) => x.id === 'arch')?.archivee]);
+  dit('... le plan du jour : la carte de l’enfant, au parent ; son numéro est celui du parent, jamais celui (vide) de l’enfant ; l’archivée n’a rien', ['carte-foyer', 'parent', '+229 01 51 22 33 44', false],
+    [carte?.modele, carte?.pourId, carte ? foyer.telDe(carte) : '', plan.some((s) => s.clientId === 'arch')]);
+  /* Le parent sans numéro, abonné à Ma Couronne : la notification va à SON compte. */
+  const surCouronne = lisLAssistant(entrees({
+    clients: [tete('enfant', { familyId: 'f1', birthday: '2016-10-26', phone: '' }), tete('parent', { familyId: 'f1', phone: '' })] as never,
+    abonnes: new Set(['parent']),
+  }));
+  const lignesC = lignesDuPassage({ cerveau: surCouronne, plan: planDuJour(surCouronne.fiches, surCouronne.ctx), reglagesGerard: { mode: 'ouvert' }, maintenantMs: maintenantLu, branchId: 'b', regles: REGLES_PAR_DEFAUT });
+  dit('... le parent sans numéro mais sur Ma Couronne : la notification de la carte part à son compte, la ligne reste celle de l’enfant', [['push', 'parent', 'enfant', 'parent']],
+    lignesC.map((l) => [l.canal, l.colis?.genre === 'push' ? l.colis.clientId : '', l.clientId, l.pourId]));
+  /* Approuvé chez Meta : la carte part seule, au numéro du parent, l'image en tête. */
+  const lignesW = lignesDuPassage({ cerveau: foyer, plan, reglagesGerard: { mode: 'ouvert', approuves: ['gerard_carte_foyer'] }, maintenantMs: maintenantLu, branchId: 'b', regles: REGLES_PAR_DEFAUT });
+  const lw = lignesW.find((l) => l.clientId === 'enfant');
+  dit('... approuvée chez Meta, la carte de l’enfant part seule au numéro du parent (format international), l’image en tête ; sans approbation, rien ne part seul', ['whatsapp', '22901512233' + '44', true, 0],
+    [lw?.canal, lw?.colis?.genre === 'whatsapp' ? lw.colis.numero : '', lw?.colis?.genre === 'whatsapp' && lw.colis.composants[0]?.type === 'header',
+      lignesDuPassage({ cerveau: foyer, plan, reglagesGerard: { mode: 'ouvert' }, maintenantMs: maintenantLu, branchId: 'b', regles: REGLES_PAR_DEFAUT }).filter((l) => l.clientId === 'enfant').length]);
+}
 dit('... ce qu’elle a écrit (moins de 48 heures), la relance de facture, la demande d’avis comptée, l’ailleurs écarté, « jamais pour elle »', [true, '2026-10-23', '2026-10-20', true, ['envie']],
   [f('ecrit').attendUneReponse, f('relancee').derniereRelanceLe, f('ecrit').dernierMessageHorsService, f('ailleurs').ecartee, f('jamais').jamais]);
 dit('... le souci ouvert (chute = santé), sa réponse « non » relue, Ma Couronne par son compte', ['sante', 'non', true],

@@ -23,6 +23,7 @@ import { francs as enFrancs } from '../../../../shared/ia-faits-pur';
 import {
   ENVIE_DITE, GENRE_DIT, MODELES_DE_GERARD, REMISE_ANNIV_PCT, REMISE_CREUX_PCT, REPONSE_FRANCHE, SIGNATURE,
   filDeLaCliente, heureDite, idDeLaLigne, jourDit, ligneALaMain, partSeule, planDuJour, servie,
+  anniversairesDuJour, ETAT_DE_L_ANNIVERSAIRE_DIT, IMAGE_DE_LA_CARTE,
   type FicheDeGerard, type Situation,
 } from '../../../../shared/gerard-pur';
 import { changeLePlafond, estActif, jamaisPourElle, metEnPause, reglagesLus, useReglagesDeGerard, type ReglagesDeGerard } from '../../../../shared/gerard';
@@ -45,6 +46,7 @@ import LesConversations from './LesConversations';
 import LesAvis from './LesAvis';
 import OffresEtRemises from './OffresEtRemises';
 import CeQueCaRapporte from './CeQueCaRapporte';
+import { CarteModal } from './CarteModal';
 import './gerard.css';
 import './assistant-maison.css';
 
@@ -217,6 +219,8 @@ export default function Gerard() {
   const [ouverte, setOuverte] = useState<string | null>(null);
   const [copie, setCopie] = useState<string | null>(null);
   const [rdvPour, setRdvPour] = useState<string | null>(null);
+  /* LA CARTE D'ANNIVERSAIRE, à un toucher : la fenêtre « Sa carte », au numéro du plan. */
+  const [carteDe, setCarteDe] = useState<Situation | null>(null);
   /* Un verdict par ligne touchée (« Tout laisser partir » en rend plusieurs d'un coup). */
   const [verdicts, setVerdicts] = useState<Record<string, string>>({});
   const [repli, setRepli] = useState<Repli | null>(null);
@@ -307,6 +311,9 @@ export default function Gerard() {
   }, [envoisLus, parti.jour, nomDe]);
   const portee = useMemo(() => porteeParCanal(fiches), [fiches]);
   const ficheDe = useMemo(() => new Map(fiches.map((f) => [f.id, f])), [fiches]);
+  /* LES ANNIVERSAIRES DU JOUR, tous reconnus (27 octobre 2026) : ceux dont la carte part, et pourquoi les autres se taisent. */
+  const anniversaires = useMemo(() => anniversairesDuJour(fiches, ctx), [fiches, ctx]);
+  const annivTus = anniversaires.filter((a) => a.etat !== 'carte');
   const garder = plan.filter((s) => s.genre === 'garder').length;
   const sommeDesCreux = ctx.creux.reduce((s, j) => ({ manque: s.manque + j.manque, remises: s.remises + j.remises }), { manque: 0, remises: 0 });
 
@@ -481,6 +488,12 @@ export default function Gerard() {
                   {etatServeur?.passageLe ? ` · dernier passage ${jourDit(etatServeur.passageLe)}` : ''}
                 </span>
               )}
+              {anniversaires.length > 0 && (
+                <span className="trc-am__portee">
+                  Anniversaires du jour : <b>{anniversaires.length}</b> · {anniversaires.length - annivTus.length} carte{anniversaires.length - annivTus.length > 1 ? 's' : ''} au plan
+                  {annivTus.length > 0 ? ` · sans carte : ${annivTus.map((a) => `${nomDe(a.clientId) || 'une fiche'} (${ETAT_DE_L_ANNIVERSAIRE_DIT[a.etat]})`).join(', ')}` : ''}
+                </span>
+              )}
               <span className="trc-am__portee">Portée du jour : <b>{portee.joignables}</b> cliente{portee.joignables > 1 ? 's' : ''} joignable{portee.joignables > 1 ? 's' : ''} · Ma Couronne {portee.couronne} · WhatsApp {portee.whatsapp}</span>
             </div>
 
@@ -517,7 +530,7 @@ export default function Gerard() {
                         <span className={`trc-am__avatar${s.canal === 'whatsapp' ? ' trc-am__avatar--cuivre' : ''}`} aria-hidden="true">{initiales(nom)}</span>
                         {/* La remise se dit une fois sur la ligne, dans la colonne du canal (« −15 % · jour creux »). */}
                         <span className="trc-ger__qui">{nom}</span>
-                        <span className={`trc-ger__genre trc-ger__genre--${s.genre}`}>{GENRE_DIT[s.genre]}{s.envie ? ` · ${ENVIE_DITE[s.envie]}` : ''}{rdv ? ` · ${jourDit(rdv.date)}, ${heureDite(rdv.time)}` : ''}</span>
+                        <span className={`trc-ger__genre trc-ger__genre--${s.genre}`}>{GENRE_DIT[s.genre]}{s.envie ? ` · ${ENVIE_DITE[s.envie]}` : ''}{rdv ? ` · ${jourDit(rdv.date)}, ${heureDite(rdv.time)}` : ''}{s.pourId ? ` · à ${nomDe(s.pourId) || 'son parent payeur'}` : ''}</span>
                         <span className="trc-ger__canal">{canalDuPlan(s.canal)}{s.code ? ` · ${codeDit(s)}` : ''}</span>
                         <span className="trc-am__droite">
                           <b>{l.francs ? `≈ ${enFrancs(l.francs.calibre)}` : 'sans chiffre'}</b>
@@ -542,7 +555,11 @@ export default function Gerard() {
                               {s.canal === 'whatsapp' && partSeule(s, reglages) && (
                                 <em className="trc-am__puce trc-am__puce--cuivre">Part seul sur WhatsApp au passage du matin</em>
                               )}
-                              {s.canal === 'whatsapp' && servie(reglages, s.clientId) && !partSeule(s, reglages) && (() => {
+                              {/* LA CARTE À UN TOUCHER : la fenêtre « Sa carte » (l'image à son prénom, au numéro du plan) ; noté « à la main » quand elle part. */}
+                              {s.canal === 'whatsapp' && servie(reglages, s.clientId) && !partSeule(s, reglages) && modele.enTete === 'image' && (
+                                <button type="button" className="trc-ger__btn trc-ger__btn--cuivre" onClick={() => setCarteDe(s)}>Envoyer sa carte</button>
+                              )}
+                              {s.canal === 'whatsapp' && servie(reglages, s.clientId) && !partSeule(s, reglages) && modele.enTete !== 'image' && (() => {
                                 const lien = lienWaMe(cerveau.telDe(s), `${s.texte}\n${DEVISE_COMPLETE}`);
                                 return lien ? (
                                   <a className="trc-ger__btn trc-ger__btn--cuivre" href={lien} target="_blank" rel="noreferrer" onClick={() => noteALaMain(s)}>Envoyer sur WhatsApp</a>
@@ -791,15 +808,15 @@ export default function Gerard() {
             <details className="trc-ger__carte trc-am__repli" open={repli === 'modeles'} onToggle={surRepli('modeles')}>
               <summary>
                 <h3>Ses modèles chez Meta <span>à déposer maintenant : l’approbation prend du temps</span></h3>
-                <span className="trc-am__resume"><b>{Object.keys(MODELES_DE_GERARD).length}</b> modèles · 7 + 1</span>
+                <span className="trc-am__resume"><b>{Object.keys(MODELES_DE_GERARD).length}</b> modèles · 7 + 1, et deux cartes</span>
               </summary>
               <p className="trc-ger__doux">Dans le gestionnaire WhatsApp de Meta, un modèle par ligne : le nom, la catégorie, le corps tel quel ({'{{1}}'}, {'{{2}}'}… sont les variables), le pied « {piedDeGerard} », et les boutons de réponse rapide.</p>
               <ul className="trc-ger__modeles">
                 {Object.entries(MODELES_DE_GERARD).map(([cle, m]) => {
-                  const bloc = `${m.nom}\n${m.categorie}\n\n${m.corps}\n\n${piedDeGerard}\n\nBoutons : ${m.boutons.join(' · ')}`;
+                  const bloc = `${m.nom}\n${m.categorie}${m.enTete === 'image' ? `\n\nEn-tête : image (la carte : ${IMAGE_DE_LA_CARTE})` : ''}\n\n${m.corps}\n\n${piedDeGerard}\n\nBoutons : ${m.boutons.join(' · ')}`;
                   return (
                     <li key={cle}>
-                      <div><b>{m.nom}</b><small>{m.categorie === 'UTILITY' ? 'Utilitaire' : 'Marketing'} · {m.boutons.join(' · ')}</small></div>
+                      <div><b>{m.nom}</b><small>{m.categorie === 'UTILITY' ? 'Utilitaire' : 'Marketing'}{m.enTete === 'image' ? ' · en-tête image, la carte' : ''} · {m.boutons.join(' · ')}</small></div>
                       <p className="trc-ger__texte">{m.corps}</p>
                       <button type="button" className="trc-ger__btn" onClick={() => copier(cle, bloc)}>{copie === cle ? 'Copié' : 'Copier'}</button>
                     </li>
@@ -812,6 +829,10 @@ export default function Gerard() {
       </div>
 
       {rdvPour && <RdvModal title="Poser le RDV" initial={{ clientId: rdvPour }} onClose={() => setRdvPour(null)} />}
+      {carteDe && cerveau.clientDe(carteDe.clientId) && (
+        <CarteModal client={cerveau.clientDe(carteDe.clientId)!} numero={cerveau.telDe(carteDe)} mot={carteDe.texte}
+          onEnvoye={() => noteALaMain(carteDe)} onClose={() => setCarteDe(null)} />
+      )}
     </div>
   );
 }

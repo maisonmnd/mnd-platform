@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Button, Modal, toast } from '../../../../ds/components';
 import { carteEnBlob, dessineLaCarte } from '../../../../ds/carte';
-import { clientsStore, type Client } from '../../../../shared/clients';
+import { clientsStore, familiesStore, type Client, type Family } from '../../../../shared/clients';
 import { cercleActifStore } from '../../../../shared/offers';
 import {
   CARTES_DE_LA_MAISON, MOTIFS_DE_MERCI, motDeLaCarte, nomDuFichier, objetDeLaCarte,
@@ -26,7 +26,30 @@ import { cheminDeLaConversation } from '../../../../shared/conversations';
 
 const chiffresDe = (t: string): string => (t ?? '').replace(/\D/g, '');
 
-export function CarteModal({ client, onClose }: { client: Client; onClose: () => void }) {
+/* ══ LA CARTE D'UN ENFANT VA AU PARENT PAYEUR — 27 octobre 2026 ══════════
+   « Pour le compte d'un enfant, envoyer la carte sur le numéro du parent
+   payeur » (Yéman). Une fiche d'enfant n'a souvent pas de numéro : la carte
+   part alors au parent payeur de son foyer (le compte famille), à son
+   numéro. L'Assistant Maison passe le sien (`numero`, `mot`) : celui du
+   plan du jour, le même que le serveur enverrait. */
+export function numeroDeLaCarte(client: Pick<Client, 'id' | 'phone' | 'familyId'>, clients: readonly Pick<Client, 'id' | 'phone' | 'name'>[], familles: readonly Pick<Family, 'id' | 'payerClientId'>[]): { numero: string; parent?: string } {
+  const sien = chiffresDe(client.phone ?? '');
+  if (sien.length >= 8) return { numero: sien };
+  const payeurId = client.familyId ? familles.find((f) => f.id === client.familyId)?.payerClientId : undefined;
+  const payeur = payeurId && payeurId !== client.id ? clients.find((c) => c.id === payeurId) : undefined;
+  const sienne = chiffresDe(payeur?.phone ?? '');
+  return sienne.length >= 8 ? { numero: sienne, parent: payeur?.name } : { numero: '' };
+}
+
+export function CarteModal({ client, onClose, numero, mot, onEnvoye }: {
+  client: Client; onClose: () => void;
+  /** Le numéro où l'envoyer (l'Assistant passe celui de son plan) ; sinon le sien, ou celui du parent payeur. */
+  numero?: string;
+  /** Le mot qui l'accompagne, quand l'Assistant l'a déjà écrit. */
+  mot?: string;
+  /** Appelé quand la carte part (Partager, WhatsApp) : l'Assistant le note « envoyé à la main ». */
+  onEnvoye?: () => void;
+}) {
   const [carte, setCarte] = useState<CleCarte>('anniversaire');
   const [motif, setMotif] = useState<CleMotif>('venue');
   /* SON GENRE EST SUR SA FICHE, et il y reste : le demander à chaque envoi,
@@ -35,10 +58,15 @@ export function CarteModal({ client, onClose }: { client: Client; onClose: () =>
   const [genre, setGenre] = useState<Genre>(client.auMasculin ? 'homme' : 'femme');
   const [prenom, setPrenom] = useState(prenomDe(client.name));
   const [occupe, setOccupe] = useState(false);
+  /* NOTÉE UNE FOIS : partager puis ouvrir WhatsApp ne note pas deux envois (ni deux remises). */
+  const [signalee, setSignalee] = useState(false);
+  const signale = () => { if (signalee) return; setSignalee(true); onEnvoye?.(); };
   const toile = useRef<HTMLCanvasElement>(null);
 
   const demande = useMemo(() => ({ carte, motif, genre, prenom }), [carte, motif, genre, prenom]);
   const contenu = useMemo(() => texteDeLaCarte(demande), [demande]);
+  /* Le mot de l'Assistant, quand il l'a écrit : ce qu'on lit est ce qui part. */
+  const leMot = mot && carte === 'anniversaire' ? mot : motDeLaCarte(demande);
 
   useEffect(() => {
     const el = toile.current;
@@ -78,19 +106,22 @@ export function CarteModal({ client, onClose }: { client: Client; onClose: () =>
     try {
       const f = await fichier();
       if (!navigator.canShare?.({ files: [f] })) { await telecharger(); return; }
-      await navigator.share({ files: [f], text: motDeLaCarte(demande) });
+      await navigator.share({ files: [f], text: leMot });
+      signale();
     } catch {
       /* Un partage annulé n'est pas une erreur : la main a changé d'avis. */
     } finally { setOccupe(false); }
   };
 
-  const tel = chiffresDe(client.phone ?? '');
+  const dest = numero !== undefined ? { numero: chiffresDe(numero), parent: undefined as string | undefined } : numeroDeLaCarte(client, clientsStore.get(), familiesStore.get());
+  const tel = dest.numero;
   const surWhatsApp = () => {
-    window.location.hash = `#${cheminDeLaConversation(tel, motDeLaCarte(demande)) ?? '/conversations'}`;
+    signale();
+    window.location.hash = `#${cheminDeLaConversation(tel, leMot) ?? '/conversations'}`;
   };
   const parMail = () => {
     const sujet = encodeURIComponent(objetDeLaCarte(demande));
-    const corps = encodeURIComponent(motDeLaCarte(demande));
+    const corps = encodeURIComponent(leMot);
     window.location.href = `mailto:${client.email ?? ''}?subject=${sujet}&body=${corps}`;
   };
 
@@ -186,6 +217,16 @@ export function CarteModal({ client, onClose }: { client: Client; onClose: () =>
               WhatsApp et E-mail ouvrent le message avec le mot déjà écrit, un lien ne sait pas
               porter une pièce jointe.
             </div>
+            {dest.parent && (
+              <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 6, lineHeight: 1.6 }}>
+                WhatsApp : au numéro de {dest.parent}, qui paie pour son foyer.
+              </div>
+            )}
+            {!tel && (
+              <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 6, lineHeight: 1.6 }}>
+                Ni son numéro ni celui d’un parent payeur sur sa fiche : téléchargez l’image.
+              </div>
+            )}
           </div>
 
           <div style={{
@@ -194,7 +235,7 @@ export function CarteModal({ client, onClose }: { client: Client; onClose: () =>
           }}>
             <div className="trc-microlabel" style={{ marginBottom: 6 }}>Le mot qui l’accompagne</div>
             <div style={{ fontSize: 12.5, lineHeight: 1.6, color: 'var(--ink)', whiteSpace: 'pre-wrap' }}>
-              {motDeLaCarte(demande)}
+              {leMot}
             </div>
           </div>
         </div>

@@ -661,12 +661,15 @@ var estSaisonDesFetes = (j) => j.slice(5) >= FETES_DU && j.slice(5) <= FETES_AU;
 var intervalleDesEnvies = (j) => estSaisonDesFetes(j) ? ENVIE_TOUS_LES_JOURS_EN_FETES : ENVIE_TOUS_LES_JOURS;
 var intervalleDesRelances = (j) => estSaisonDesFetes(j) ? RELANCE_TOUS_LES_JOURS_EN_FETES : RELANCE_TOUS_LES_JOURS;
 var SIGNATURE = "Maison MND";
+var IMAGE_DE_LA_CARTE = "https://maisonmnd.com/trone/assets/cartes/carte-anniversaire.png";
 var CORPS = {
   garder: { nom: "gerard_garder", categorie: "UTILITY", corps: "Bonjour {{1}}, votre {{2}} est {{3}}. C’est toujours bon pour vous ?", boutons: ["Oui, je viens", "Changer l’heure", "Je ne peux plus"] },
   avant: { nom: "gerard_avant", categorie: "MARKETING", corps: "Bonjour {{1}}, votre prochain {{2}} approche : il est prévu {{3}}. Je vous réserve votre place ? Avec un soin ajouté le même jour, votre coiffure de sortie est offerte.", boutons: ["Oui", "Avec le soin", "Pas cette fois"] },
   envie: { nom: "gerard_envie", categorie: "MARKETING", corps: "Bonjour {{1}}, pour prendre soin de vos locks avant votre prochain {{2}}, prévu {{3}}, la Maison vous propose {{4}}. Je vous trouve une place ?", boutons: ["Oui", "Pas cette fois"] },
   place: { nom: "gerard_place", categorie: "MARKETING", corps: "Bonjour {{1}}, il est temps de votre {{2}} : nous avons de la place {{3}}. Je vous en garde une ?", boutons: ["Oui", "Une autre date", "Pas cette fois"] },
-  anniversaire: { nom: "gerard_anniversaire", categorie: "MARKETING", corps: "Joyeux anniversaire {{1}} ! Toute la Maison vous souhaite une très belle année. Pour l’occasion, une attention vous attend sur votre prochain soin, jusqu’au {{2}}.", boutons: ["Merci, je réserve", "Merci"] },
+  anniversaire: { nom: "gerard_anniversaire", categorie: "MARKETING", enTete: "image", corps: "Joyeux anniversaire {{1}} ! Toute la Maison vous souhaite une très belle année. Pour l’occasion, une attention vous attend sur votre prochain soin, jusqu’au {{2}}.", boutons: ["Merci, je réserve", "Merci"] },
+  carte: { nom: "gerard_carte_anniversaire", categorie: "MARKETING", enTete: "image", corps: "Joyeux anniversaire {{1}} ! Toute la Maison vous souhaite une très belle journée, et une année douce et lumineuse.", boutons: ["Merci"] },
+  "carte-foyer": { nom: "gerard_carte_foyer", categorie: "MARKETING", enTete: "image", corps: "Bonjour {{1}}, joyeux anniversaire à {{2}} ! Toute la Maison lui souhaite une très belle journée, et une année douce et lumineuse.", boutons: ["Merci"] },
   fetes: { nom: "gerard_fetes", categorie: "MARKETING", corps: "Bonjour {{1}}, les fêtes approchent et les places du 15 au 24 décembre {{2}} partent vite. Je vous en garde une ? Et pour offrir, la carte cadeau de la Maison se commande en deux minutes.", boutons: ["Une place", "La carte cadeau", "Pas cette fois"] },
   endormie: { nom: "gerard_endormie", categorie: "MARKETING", corps: "Bonjour {{1}}, cela fait {{2}} mois que nous n’avons pas vu vos locks. Comment vont-elles ? Si l’envie vous prend d’un soin, la Maison a de la place les semaines qui viennent.", boutons: ["Prendre un RDV", "Pas pour l’instant"] },
   nouvelles: { nom: "nouvelles_de_la_maison", categorie: "MARKETING", corps: "Bonjour {{1}}, des nouvelles de la Maison : {{2}} Répondez simplement à ce message si cela vous tente.", boutons: ["Oui", "Pas cette fois"] }
@@ -779,6 +782,21 @@ var heureDite = (h) => {
 };
 var placeDite = (p) => `${jourDit(p.iso)} à ${heureDite(p.heure)}`;
 var moisDit = (j) => `${MOIS[Number(j.slice(5, 7)) - 1]} ${j.slice(0, 4)}`;
+var bissextile = (a2) => a2 % 4 === 0 && a2 % 100 !== 0 || a2 % 400 === 0;
+function moisEtJourDe(naissance) {
+  const t = String(naissance ?? "").trim();
+  const iso2 = /^(\d{4})-(\d{1,2})-(\d{1,2})/.exec(t);
+  const fr = /^(\d{1,2})[/.-](\d{1,2})[/.-](\d{4})$/.exec(t);
+  const [m, j] = iso2 ? [Number(iso2[2]), Number(iso2[3])] : fr ? [Number(fr[2]), Number(fr[1])] : [0, 0];
+  if (m < 1 || m > 12 || j < 1 || j > 31) return void 0;
+  return `${String(m).padStart(2, "0")}-${String(j).padStart(2, "0")}`;
+}
+var seFeteLe = (mj, annee) => mj === "02-29" && !bissextile(annee) ? "02-28" : mj;
+function anniversaireDansLaGrace(naissance, aujourdhui) {
+  const mj = moisEtJourDe(naissance);
+  if (!mj) return void 0;
+  return Array.from({ length: ANNIV_GRACE_JOURS + 1 }, (_, k) => plusJours(aujourdhui, -k)).find((j) => j.slice(5, 10) === seFeteLe(mj, Number(j.slice(0, 4))));
+}
 var derniereVenue = (f, aujourdhui) => f.rdvs.filter((r) => r.venu && r.date <= aujourdhui).reduce((d, r) => !d || r.date > d ? r.date : d, void 0);
 var prochainRdv = (f, aujourdhui) => f.rdvs.filter((r) => r.date >= aujourdhui && r.status !== "annulé" && !r.venu).sort((a2, b) => (a2.date + a2.time).localeCompare(b.date + b.time))[0];
 function dateDeCadence(f, aujourdhui) {
@@ -863,9 +881,54 @@ function canalDe(f, genre) {
 }
 var RELANCES_A_LA_MAIN = ["combiner", "retard", "une-venue"];
 var aLaMainSeulement = (f, genre) => !EST_UN_SERVICE[genre] && !f.stop && !f.couronne && !f.accord && RELANCES_A_LA_MAIN.includes(genre);
+function anniversaireDuJour(f, ctx) {
+  const A = ctx.aujourdhui;
+  if (f.archivee) return null;
+  const anniv = anniversaireDansLaGrace(f.birthday, A);
+  if (!anniv) return null;
+  const vu = (etat) => ({ clientId: f.id, jour: anniv, etat });
+  if (traceDe(f, ["anniversaire"]).some((t) => t.quand.slice(0, 4) === anniv.slice(0, 4))) return vu("deja");
+  if (ctx.eteintes?.includes("anniversaire")) return vu("eteinte");
+  if (f.jamais?.includes("anniversaire")) return vu("jamais");
+  if (f.enfantDuFoyer && !f.payeur) return vu("sans-payeur");
+  const auPayeur = !!f.payeur && (!!f.enfantDuFoyer || !f.telephone && !f.couronne);
+  const dest = auPayeur && f.payeur ? f.payeur : { appel: f.appel, telephone: f.telephone, couronne: f.couronne, stop: f.stop };
+  if (f.stop || dest.stop) return vu("stop");
+  const canal = dest.telephone ? "whatsapp" : dest.couronne ? "couronne" : null;
+  if (!canal) return vu("sans-numero");
+  const quand = [["Anniversaire", jourDit(anniv)], ...anniv < A ? [["Rattrapage", "pas écrit le jour même"]] : []];
+  const pose = (modele, variables, pourquoi, code) => ({
+    ...vu("carte"),
+    situation: {
+      clientId: f.id,
+      genre: "anniversaire",
+      canal,
+      modele,
+      variables,
+      texte: remplis(MODELES_DE_GERARD[modele].corps, variables),
+      pourquoi: [...quand, ...pourquoi],
+      priorite: PRIORITE.anniversaire,
+      ...code ? { code } : {},
+      ...auPayeur && f.payeur ? { pourId: f.payeur.id } : {}
+    }
+  });
+  if (auPayeur) return pose("carte-foyer", [dest.appel, f.appel], [["La carte part à", `${dest.appel}, qui paie pour le foyer`]]);
+  const silence = !!f.souciOuvert || !!f.attendUneReponse || (f.resteDu ?? 0) > 0 || !!f.derniereRelanceLe && ecartJours(f.derniereRelanceLe, A) < 7;
+  const sansAttention = f.ecartee ? "de passage, de la diaspora ou locks défaits" : silence ? "un silence en cours (souci, réponse due ou somme due)" : canal === "whatsapp" && !f.accord ? "pas d’accord des nouvelles" : (f.birthdayGiftAt ?? "").slice(0, 4) === anniv.slice(0, 4) ? "séance anniversaire déjà offerte" : (f.codesVivants ?? 0) > 0 ? "une remise déjà à son nom" : ctx.remisesRestantes <= 0 ? "plafond de la semaine atteint" : "";
+  if (!sansAttention) {
+    const jusquau = plusJours(A, ANNIV_VALABLE_JOURS);
+    return pose(
+      "anniversaire",
+      [f.appel, jourDit(jusquau)],
+      [["Remise à son nom", `${REMISE_ANNIV_PCT} %, ${ANNIV_VALABLE_JOURS} jours`]],
+      { mot: "ANNIV", pct: REMISE_ANNIV_PCT, jusquau }
+    );
+  }
+  return pose("carte", [f.appel], [["La carte seule", sansAttention]]);
+}
 function situationDuJour(f, ctx) {
   const A = ctx.aujourdhui;
-  if (f.ecartee || f.enfantDuFoyer) return null;
+  const sollicitable = !f.ecartee && !f.enfantDuFoyer;
   const fait = (genre, modele, variables, pourquoi, extra = {}) => {
     if (ctx.eteintes?.includes(genre) || f.jamais?.includes(genre)) return null;
     const canal = canalDe(f, genre);
@@ -884,7 +947,7 @@ function situationDuJour(f, ctx) {
       ...extra
     };
   };
-  const r = prochainRdv(f, A);
+  const r = sollicitable ? prochainRdv(f, A) : void 0;
   if (r && ecartJours(A, r.date) === GARDER_AVANT && (!r.creeLe || ecartJours(r.creeLe.slice(0, 10), A) >= GARDER_SI_POSE_DEPUIS) && !traceDe(f, ["garder"]).some((t) => t.quand.slice(0, 10) >= plusJours(r.date, -GARDER_AVANT - 1))) {
     const s = fait(
       "garder",
@@ -894,6 +957,9 @@ function situationDuJour(f, ctx) {
     );
     if (s) return s;
   }
+  const carte = anniversaireDuJour(f, ctx)?.situation;
+  if (carte) return carte;
+  if (!sollicitable) return null;
   if (f.souciOuvert) return null;
   if (f.attendUneReponse) return null;
   if ((f.resteDu ?? 0) > 0) return null;
@@ -902,22 +968,6 @@ function situationDuJour(f, ctx) {
   const recemment = [siens, f.dernierMessageHorsService].filter((x) => !!x).sort().pop();
   const tropTot = !!recemment && ecartJours(recemment, A) < ECART_MIN;
   const aDejaUneRemise = (f.codesVivants ?? 0) > 0;
-  const anniv = f.birthday ? Array.from({ length: ANNIV_GRACE_JOURS + 1 }, (_, k) => plusJours(A, -k)).find((j) => j.slice(5, 10) === f.birthday.slice(5, 10)) : void 0;
-  if (anniv && (f.birthdayGiftAt ?? "").slice(0, 4) !== anniv.slice(0, 4) && !aDejaUneRemise && ctx.remisesRestantes > 0 && !traceDe(f, ["anniversaire"]).some((t) => t.quand.slice(0, 4) === anniv.slice(0, 4))) {
-    const jusquau = plusJours(A, ANNIV_VALABLE_JOURS);
-    const s = fait(
-      "anniversaire",
-      "anniversaire",
-      [f.appel, jourDit(jusquau)],
-      [
-        ["Anniversaire", jourDit(anniv)],
-        ...anniv < A ? [["Rattrapage", "pas écrit le jour même"]] : [],
-        ["Remise à son nom", `${REMISE_ANNIV_PCT} %, ${ANNIV_VALABLE_JOURS} jours`]
-      ],
-      { code: { mot: "ANNIV", pct: REMISE_ANNIV_PCT, jusquau } }
-    );
-    if (s) return s;
-  }
   if (tropTot) return null;
   const s0 = derniereVenue(f, A);
   const c = dateDeCadence(f, A);
@@ -1044,6 +1094,7 @@ var communs = (s, o) => ({
   quand: o.maintenantIso,
   genre: s.genre,
   ...s.envie ? { envie: s.envie } : {},
+  ...s.pourId ? { pourId: s.pourId } : {},
   modele: s.modele,
   texte: s.texte,
   ...o.codePromo ? { codePromo: o.codePromo } : s.code ? { codeAFaire: s.code } : {}
@@ -1072,6 +1123,9 @@ function ligneWhatsApp(s, o) {
       numero: o.numero,
       modele: MODELES_DE_GERARD[s.modele].nom,
       composants: [
+        /* LA CARTE EN EN-TÊTE : un modèle déposé chez Meta avec une image en
+           tête exige son image à chaque envoi, sinon Meta refuse le message. */
+        ...MODELES_DE_GERARD[s.modele].enTete === "image" ? [{ type: "header", parameters: [{ type: "image", image: { link: IMAGE_DE_LA_CARTE } }] }] : [],
         { type: "body", parameters: s.variables.map((v) => ({ type: "text", text: v.replace(/\s+/g, " ").trim() })) },
         /* Chaque bouton porte sa ligne : la réponse s'y écrit, l'automate ne la prend pas. */
         ...MODELES_DE_GERARD[s.modele].boutons.map((b, i) => ({
@@ -1144,6 +1198,14 @@ function lisLAssistant(e) {
   const derniereRelance = dernieresRelancesDeFacture(envoisLus);
   const attend = attendUneReponse(messagesLus, e.maintenantMs);
   const payeurDe = new Map(e.familles.map((f) => [f.id, f.payerClientId]));
+  const ficheDe = new Map(clients.map((c) => [c.id, c]));
+  const stopDe = (c) => c.nouvelles?.par === "stop" && c.nouvelles?.oui === false;
+  const aUnNumero = (c) => (c.phone ?? "").replace(/\D/g, "").length >= 8;
+  const payeurDeLaFiche = (c) => {
+    const id = c.familyId ? payeurDe.get(c.familyId) : void 0;
+    const p = id && id !== c.id ? ficheDe.get(id) : void 0;
+    return p ? { id: p.id, appel: appelDe(p), telephone: aUnNumero(p), couronne: abonnee(p), stop: stopDe(p) } : void 0;
+  };
   const carteSurSaFiche = new Set(e.cartes.filter((k) => !!k.clientId && etatDeLaCarte(k, today) === "sur-sa-fiche" && !estEchue(k, today)).map((k) => k.clientId));
   const signalementsDe = /* @__PURE__ */ new Map();
   for (const s of e.signalements) {
@@ -1175,10 +1237,12 @@ function lisLAssistant(e) {
       birthday: c.birthday,
       birthdayGiftAt: c.birthdayGiftAt,
       accord: aAccepteLesNouvelles(c),
-      stop: c.nouvelles?.par === "stop" && c.nouvelles?.oui === false,
+      stop: stopDe(c),
       couronne: abonnee(c),
-      telephone: (c.phone ?? "").replace(/\D/g, "").length >= 8,
+      telephone: aUnNumero(c),
       ecartee: estDePassage(c) || estDiaspora(c) || aDefaitSesLocks(c) || !!c.archived,
+      archivee: !!c.archived,
+      payeur: payeurDeLaFiche(c),
       soucis: sesSignalements.filter((s) => (s.quand ?? "") >= ilYA60).flatMap((s) => s.soucis ?? []),
       souciOuvert: souciOuvertDe(sesSignalements),
       resteDu: resteDu.get(c.id) ?? 0,
@@ -1257,6 +1321,7 @@ function lisLAssistant(e) {
     },
     rdvAGarder,
     telDe: (s) => {
+      if (s.pourId) return (parId.get(s.pourId)?.phone ?? "").trim();
       const c = parId.get(s.clientId);
       const r = s.genre === "garder" ? rdvAGarder(s.clientId) : void 0;
       return r ? telDuRdv(r, c) : (c?.phone ?? "").trim();
@@ -1311,7 +1376,7 @@ function lignesDuPassage(o) {
       rdv: s.genre === "garder" ? o.cerveau.rdvAGarder(s.clientId) : void 0
     };
     if (s.canal === "couronne") {
-      lignes.push(ligneDeNotification(s, { ...outils, compte: o.cerveau.compteDe(s.clientId), ...depart }));
+      lignes.push(ligneDeNotification(s, { ...outils, compte: o.cerveau.compteDe(s.pourId ?? s.clientId), ...depart }));
     } else if (partSeule(s, r)) {
       const numero = numeroWa(o.cerveau.telDe(s));
       if (numero) lignes.push(ligneWhatsApp(s, { ...outils, numero, ...depart }));
@@ -1332,7 +1397,7 @@ function remisesAFabriquer(envois) {
 }
 
 // scripts/serveur/assistant-maison.ts
-var VERSION = "2026-10-27-c";
+var VERSION = "2026-10-27-d";
 var json = (corps, status = 200) => new Response(JSON.stringify(corps), { status, headers: { "content-type": "application/json" } });
 var jourDuSalon = (ms) => new Date(ms + 36e5).toISOString().slice(0, 10);
 var heureDuSalon2 = (ms) => {

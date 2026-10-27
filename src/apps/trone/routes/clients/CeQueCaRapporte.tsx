@@ -30,7 +30,7 @@ import {
   ENVIE_AVANT_CADENCE_MIN, ENVIE_REFUSEE_ATTEND, ENVIE_TOUS_LES_JOURS, ENVIE_TOUS_LES_JOURS_EN_FETES, FETES_AU, FETES_DU,
   GARDER_AVANT, GARDER_SI_POSE_DEPUIS, GENRE_DIT, MODELES_DE_GERARD, NOEL_AU, NOEL_DU, PREMIERE_ENVIE_APRES,
   RELANCE_APRES_CADENCE, RELANCE_TOUS_LES_JOURS, RELANCE_TOUS_LES_JOURS_EN_FETES, REMISE_ANNIV_PCT, REMISE_CREUX_PCT, SIGNATURE, UNE_VENUE_APRES,
-  type GenreDeMessage,
+  IMAGE_DE_LA_CARTE, type GenreDeMessage,
 } from '../../../../shared/gerard-pur';
 import { estActif, eteinsLaSituation, marqueLeModeleApprouve, metEnPause } from '../../../../shared/gerard';
 import {
@@ -548,19 +548,19 @@ export default function CeQueCaRapporte({ cerveau, reglages, moi }: PropsDUneVue
       {direction && (
         <details className="trc-ger__carte trc-am__repli" open={repli === 'modeles'} onToggle={surRepli('modeles')}>
           <summary>
-            <h3>Ses modèles chez Meta <span>7 + 1 · état noté à la main</span></h3>
+            <h3>Ses modèles chez Meta <span>7 + 1, et deux cartes · état noté à la main</span></h3>
             <span className="trc-am__resume"><b className={approuvesDeGerard === 0 ? 'trc-am__alarme' : ''}>{approuvesDeGerard}</b> approuvé{approuvesDeGerard > 1 ? 's' : ''} sur {Object.keys(MODELES_DE_GERARD).length}</span>
           </summary>
           <p className="trc-ger__doux">Dans le gestionnaire WhatsApp de Meta, un modèle par ligne : le nom, la catégorie, le corps tel quel ({'{{1}}'}, {'{{2}}'}… sont les variables), le pied « <TexteFon texte={DEVISE_COMPLETE} /> », les boutons. Notez ici ce que Meta a répondu : un modèle approuvé de l’Assistant part seul au passage du matin.</p>
           <ul className="trc-ger__modeles">
             {Object.entries(MODELES_DE_GERARD).map(([cle, m]) => {
-              const bloc = `${m.nom}\n${m.categorie}\n\n${m.corps}\n\n${DEVISE_COMPLETE}\n\nBoutons : ${m.boutons.join(' · ')}`;
+              const bloc = `${m.nom}\n${m.categorie}${m.enTete === 'image' ? `\n\nEn-tête : image (la carte : ${IMAGE_DE_LA_CARTE})` : ''}\n\n${m.corps}\n\n${DEVISE_COMPLETE}\n\nBoutons : ${m.boutons.join(' · ')}`;
               const etat: EtatDuModeleMeta = modelesNotes[m.nom] === 'approuve' ? 'approuve' : etatDuModele(registre, m.nom);
               return (
                 <li key={cle}>
                   <div>
                     <b>{m.nom}</b>
-                    <small>{m.categorie === 'UTILITY' ? 'Utilitaire · service' : 'Marketing · sous accord'} · {m.boutons.join(' · ')}</small>
+                    <small>{m.categorie === 'UTILITY' ? 'Utilitaire · service' : cle === 'carte' || cle === 'carte-foyer' ? 'Marketing · à toutes, la carte en image' : `Marketing · sous accord${m.enTete === 'image' ? ', la carte en image' : ''}`} · {m.boutons.join(' · ')}</small>
                     <label className="trc-ger__doux" style={{ display: 'inline-flex', gap: 6, alignItems: 'center' }}>
                       <span className={etat === 'approuve' ? '' : 'trc-am__alarme'}>{ETAT_DU_MODELE_DIT[etat]}</span>
                       <select aria-label={`État du modèle ${m.nom} chez Meta`} value={etat} onChange={(e) => noteLEtat(m.nom, e.target.value as EtatDuModeleMeta)} style={{ font: 'inherit', fontSize: 12 }}>

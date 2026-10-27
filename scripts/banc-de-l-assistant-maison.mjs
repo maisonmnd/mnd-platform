@@ -218,9 +218,9 @@ try {
       setTimeout(() => r(a && modeles.open && !regles.open), 250);
     }, 250));
   })()`));
-  dit('les reglages restent sur Aujourd hui : Pause et Actif deplies, le plafond, les huit modeles', JSON.stringify(await evalue(String.raw`[...document.querySelectorAll('.trc-ger__modes button b')].map((b) => b.textContent)`)) === JSON.stringify(['Pause', 'Actif'])
+  dit('les reglages restent sur Aujourd hui : Pause et Actif deplies, le plafond, les dix modeles (sept plus un, et les deux cartes d anniversaire)', JSON.stringify(await evalue(String.raw`[...document.querySelectorAll('.trc-ger__modes button b')].map((b) => b.textContent)`)) === JSON.stringify(['Pause', 'Actif'])
     && (await evalue(String.raw`[...document.querySelectorAll('.trc-ger__modes button')].every((b) => b.offsetParent !== null)`)) === true
-    && (await evalue(`document.querySelectorAll('.trc-ger__plafond input').length`)) === 2 && (await evalue(`document.querySelectorAll('.trc-ger__modeles li').length`)) === 8);
+    && (await evalue(`document.querySelectorAll('.trc-ger__plafond input').length`)) === 2 && (await evalue(`document.querySelectorAll('.trc-ger__modeles li').length`)) === 10);
 
   /* « PAS MAINTENANT » (27 octobre 2026, restes du lot 3), apres les replis (sa ligne ecartee entre au journal du jour) : en Actif, sur M. D. (retard, WhatsApp a un toucher). La ligne
      du jour nait ecartee, avec la reponse « non » (le lot 2 la compte dans les traces) ; M. D. sort du plan ; retour en Pause. */

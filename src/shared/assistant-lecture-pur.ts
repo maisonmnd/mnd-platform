@@ -80,8 +80,9 @@ export type CerveauDeGerard = {
   rdvAGarder: (clientId: string) => { id: string; date: string; time: string; numeroAPrevenir?: string } | undefined;
   /** LE NUMÉRO OÙ L'ÉCRIRE (27 octobre 2026) : « garder son RDV » part au
       parent qui a pris le rendez-vous (`telDuRdv`, comme la confirmation et
-      le rappel de la veille) ; tout le reste, au premier numéro de la fiche. */
-  telDe: (s: { clientId: string; genre: string }) => string;
+      le rappel de la veille) ; la carte d'un enfant, au parent payeur
+      (`pourId`) ; tout le reste, au premier numéro de la fiche. */
+  telDe: (s: { clientId: string; genre: string; pourId?: string }) => string;
   /** Le plafond de la semaine : remises faites, francs engagés, et ses deux bornes. */
   plafond: { faites: number; francs: number; restantes: number; remisesParSemaine: number; plafondFrancs: number };
 };
@@ -114,6 +115,16 @@ export function lisLAssistant(e: EntreesDeLAssistant): CerveauDeGerard {
   const derniereRelance = dernieresRelancesDeFacture(envoisLus);
   const attend = attendUneReponse(messagesLus, e.maintenantMs);
   const payeurDe = new Map(e.familles.map((f) => [f.id, f.payerClientId]));
+  const ficheDe = new Map(clients.map((c) => [c.id, c]));
+  const stopDe = (c: Client) => c.nouvelles?.par === 'stop' && c.nouvelles?.oui === false;
+  const aUnNumero = (c: Client) => (c.phone ?? '').replace(/\D/g, '').length >= 8;
+  /* LE PARENT PAYEUR DE SON FOYER, quand ce n'est pas elle (27 octobre 2026) :
+     la carte d'anniversaire d'un enfant part à son numéro. */
+  const payeurDeLaFiche = (c: Client): FicheDeGerard['payeur'] => {
+    const id = c.familyId ? payeurDe.get(c.familyId) : undefined;
+    const p = id && id !== c.id ? ficheDe.get(id) : undefined;
+    return p ? { id: p.id, appel: appelDe(p), telephone: aUnNumero(p), couronne: abonnee(p), stop: stopDe(p) } : undefined;
+  };
   const carteSurSaFiche = new Set(e.cartes
     .filter((k) => !!k.clientId && etatDeLaCarte(k, today) === 'sur-sa-fiche' && !estEchue(k, today))
     .map((k) => k.clientId as string));
@@ -141,10 +152,12 @@ export function lisLAssistant(e: EntreesDeLAssistant): CerveauDeGerard {
       birthday: c.birthday,
       birthdayGiftAt: c.birthdayGiftAt,
       accord: aAccepteLesNouvelles(c),
-      stop: c.nouvelles?.par === 'stop' && c.nouvelles?.oui === false,
+      stop: stopDe(c),
       couronne: abonnee(c),
-      telephone: (c.phone ?? '').replace(/\D/g, '').length >= 8,
+      telephone: aUnNumero(c),
       ecartee: estDePassage(c) || estDiaspora(c) || aDefaitSesLocks(c) || !!c.archived,
+      archivee: !!c.archived,
+      payeur: payeurDeLaFiche(c),
       soucis: sesSignalements.filter((s) => (s.quand ?? '') >= ilYA60).flatMap((s) => s.soucis ?? []),
       souciOuvert: souciOuvertDe(sesSignalements),
       resteDu: resteDu.get(c.id) ?? 0,
@@ -221,7 +234,8 @@ export function lisLAssistant(e: EntreesDeLAssistant): CerveauDeGerard {
     clientDe: (id: string) => parId.get(id),
     compteDe: (id: string) => { const c = parId.get(id); return c?.authUserId && abonnes.has(c.authUserId) ? c.authUserId : id; },
     rdvAGarder,
-    telDe: (s: { clientId: string; genre: string }) => {
+    telDe: (s: { clientId: string; genre: string; pourId?: string }) => {
+      if (s.pourId) return (parId.get(s.pourId)?.phone ?? '').trim();
       const c = parId.get(s.clientId);
       const r = s.genre === 'garder' ? rdvAGarder(s.clientId) : undefined;
       return r ? telDuRdv(r, c) : (c?.phone ?? '').trim();

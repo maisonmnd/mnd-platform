@@ -38,6 +38,8 @@ async function lanceLeBanc() {
 
 const SERVEUR = 'scripts/serveur/assistant-maison.ts';
 const PASSAGE = 'src/shared/assistant-passage-pur.ts';
+const LECTURE = 'src/shared/assistant-lecture-pur.ts';
+const PUR = 'src/shared/gerard-pur.ts';
 const PANNES = [
   ['le GET lit la base', SERVEUR, "  if (req.method === 'GET') return json({ fonction: 'assistant-maison', version: VERSION });\n", ''],
   ['une cle quelconque acceptee', SERVEUR, 'if (!service || cleRecue !== service) return json(', 'if (!service) return json('],
@@ -55,7 +57,11 @@ const PANNES = [
   ['les heures devinees', SERVEUR, 'if (!Array.isArray(reglages?.hours) || reglages!.hours.length === 0) {', 'if (false) {'],
   ['le passage note malgre une erreur', SERVEUR, 'if (rapport.erreurs.length === 0) {', 'if (true) {'],
   ['WhatsApp part sans approbation de Meta', PASSAGE, '    } else if (partSeule(s, r)) {', "    } else if (s.canal === 'whatsapp') {"],
-  ['la notification au mauvais compte', PASSAGE, 'compte: o.cerveau.compteDe(s.clientId),', 'compte: s.clientId,'],
+  ['la notification au mauvais compte', PASSAGE, 'compte: o.cerveau.compteDe(s.pourId ?? s.clientId),', 'compte: s.clientId,'],
+  /* LA CARTE D'ANNIVERSAIRE (27 octobre 2026) : au parent payeur, l'image en tête. */
+  ['la carte de l enfant au numero de l enfant', LECTURE, "      if (s.pourId) return (parId.get(s.pourId)?.phone ?? '').trim();\n", ''],
+  ['la carte sans son image', PUR, "        ...(MODELES_DE_GERARD[s.modele].enTete === 'image'\n", '        ...(false\n'],
+  ['l enfant sans carte au serveur', PUR, 'const auPayeur = !!f.payeur && (!!f.enfantDuFoyer || (!f.telephone && !f.couronne));', 'const auPayeur = false;'],
 ];
 
 const md5 = (f) => createHash('md5').update(readFileSync(path.join(racine, f))).digest('hex');

@@ -101,14 +101,27 @@ export const SIGNATURE = 'Maison MND';
    blocage par Meta (131050), et tous ses rappels avec lui. Aucun montant de
    remise ni le mot « code » dans un corps : la remise est notée à son nom et
    se propose à la Caisse. Le soin et la date vont en variables. */
-export type CleDeModele = 'garder' | 'avant' | 'envie' | 'place' | 'anniversaire' | 'fetes' | 'endormie' | 'nouvelles';
-export type ModeleDeGerard = { nom: string; categorie: 'UTILITY' | 'MARKETING'; corps: string; boutons: string[] };
+/* LA CARTE D'ANNIVERSAIRE (27 octobre 2026, Yéman : « reconnaître tous les
+   anniversaires et envoyer automatiquement toutes les cartes par WhatsApp ;
+   pour un enfant, au numéro du parent payeur »). Trois modèles portent la
+   carte en EN-TÊTE IMAGE (`enTete`) : « anniversaire » quand une attention
+   l'accompagne, « carte » seule, « carte-foyer » au parent payeur. */
+export type CleDeModele = 'garder' | 'avant' | 'envie' | 'place' | 'anniversaire' | 'carte' | 'carte-foyer' | 'fetes' | 'endormie' | 'nouvelles';
+export type ModeleDeGerard = { nom: string; categorie: 'UTILITY' | 'MARKETING'; corps: string; boutons: string[]; enTete?: 'image' };
+/** L'IMAGE DE LA CARTE, servie par le Trône : Meta va la chercher à chaque
+    envoi. Elle ne porte aucun prénom (le prénom voyage dans le texte) :
+    une adresse publique ne nomme personne. Dessinée par
+    `scripts/dessine-la-carte-d-anniversaire.mjs` avec le dessin de la
+    Maison (`ds/carte.ts`). */
+export const IMAGE_DE_LA_CARTE = 'https://maisonmnd.com/trone/assets/cartes/carte-anniversaire.png';
 const CORPS: Record<CleDeModele, ModeleDeGerard> = {
   garder: { nom: 'gerard_garder', categorie: 'UTILITY', corps: 'Bonjour {{1}}, votre {{2}} est {{3}}. C’est toujours bon pour vous ?', boutons: ['Oui, je viens', 'Changer l’heure', 'Je ne peux plus'] },
   avant: { nom: 'gerard_avant', categorie: 'MARKETING', corps: 'Bonjour {{1}}, votre prochain {{2}} approche : il est prévu {{3}}. Je vous réserve votre place ? Avec un soin ajouté le même jour, votre coiffure de sortie est offerte.', boutons: ['Oui', 'Avec le soin', 'Pas cette fois'] },
   envie: { nom: 'gerard_envie', categorie: 'MARKETING', corps: 'Bonjour {{1}}, pour prendre soin de vos locks avant votre prochain {{2}}, prévu {{3}}, la Maison vous propose {{4}}. Je vous trouve une place ?', boutons: ['Oui', 'Pas cette fois'] },
   place: { nom: 'gerard_place', categorie: 'MARKETING', corps: 'Bonjour {{1}}, il est temps de votre {{2}} : nous avons de la place {{3}}. Je vous en garde une ?', boutons: ['Oui', 'Une autre date', 'Pas cette fois'] },
-  anniversaire: { nom: 'gerard_anniversaire', categorie: 'MARKETING', corps: 'Joyeux anniversaire {{1}} ! Toute la Maison vous souhaite une très belle année. Pour l’occasion, une attention vous attend sur votre prochain soin, jusqu’au {{2}}.', boutons: ['Merci, je réserve', 'Merci'] },
+  anniversaire: { nom: 'gerard_anniversaire', categorie: 'MARKETING', enTete: 'image', corps: 'Joyeux anniversaire {{1}} ! Toute la Maison vous souhaite une très belle année. Pour l’occasion, une attention vous attend sur votre prochain soin, jusqu’au {{2}}.', boutons: ['Merci, je réserve', 'Merci'] },
+  carte: { nom: 'gerard_carte_anniversaire', categorie: 'MARKETING', enTete: 'image', corps: 'Joyeux anniversaire {{1}} ! Toute la Maison vous souhaite une très belle journée, et une année douce et lumineuse.', boutons: ['Merci'] },
+  'carte-foyer': { nom: 'gerard_carte_foyer', categorie: 'MARKETING', enTete: 'image', corps: 'Bonjour {{1}}, joyeux anniversaire à {{2}} ! Toute la Maison lui souhaite une très belle journée, et une année douce et lumineuse.', boutons: ['Merci'] },
   fetes: { nom: 'gerard_fetes', categorie: 'MARKETING', corps: 'Bonjour {{1}}, les fêtes approchent et les places du 15 au 24 décembre {{2}} partent vite. Je vous en garde une ? Et pour offrir, la carte cadeau de la Maison se commande en deux minutes.', boutons: ['Une place', 'La carte cadeau', 'Pas cette fois'] },
   endormie: { nom: 'gerard_endormie', categorie: 'MARKETING', corps: 'Bonjour {{1}}, cela fait {{2}} mois que nous n’avons pas vu vos locks. Comment vont-elles ? Si l’envie vous prend d’un soin, la Maison a de la place les semaines qui viennent.', boutons: ['Prendre un RDV', 'Pas pour l’instant'] },
   nouvelles: { nom: 'nouvelles_de_la_maison', categorie: 'MARKETING', corps: 'Bonjour {{1}}, des nouvelles de la Maison : {{2}} Répondez simplement à ce message si cela vous tente.', boutons: ['Oui', 'Pas cette fois'] },
@@ -297,6 +310,11 @@ export type FicheDeGerard = {
   attendUneReponse?: boolean;
   /** Enfant d'un foyer : jamais écrite, c'est le parent payeur qui reçoit. */
   enfantDuFoyer?: boolean;
+  /** LE PARENT PAYEUR DE SON FOYER, quand ce n'est pas elle : il reçoit la
+      carte d'anniversaire d'un enfant, ou d'un membre sans numéro. */
+  payeur?: { id: string; appel: string; telephone: boolean; couronne: boolean; stop: boolean };
+  /** Archivée : plus rien, pas même sa carte. (`ecartee` la compte aussi.) */
+  archivee?: boolean;
   /** Une carte cadeau vit sur sa fiche : pas de message de Noël. */
   carteVivante?: boolean;
   /** Ses remises à son nom encore valables : pas de seconde remise, jamais de cumul. */
@@ -340,7 +358,36 @@ export type Situation = {
   /** UNE RELANCE SANS ACCORD DES NOUVELLES : elle part à la main (le bouton
       WhatsApp du Trône), jamais seule par Meta. */
   aLaMainSeulement?: boolean;
+  /** LA FICHE QUI REÇOIT, quand ce n'est pas la sienne : la carte d'un
+      enfant part au parent payeur (son numéro, son compte Ma Couronne). */
+  pourId?: string;
 };
+
+/* ── L'ANNIVERSAIRE, RECONNU QUELLE QUE SOIT LA FORME DE LA DATE ─────────
+   « Reconnaître tous les anniversaires » (27 octobre 2026). La fiche écrit
+   AAAA-MM-JJ ; une date importée peut s'écrire JJ/MM/AAAA, ou porter son
+   heure. Un 29 février se fête le 28 les années communes : sans cela, une
+   cliente sur mille quatre cent soixante n'aurait de carte qu'une année
+   sur quatre. */
+const bissextile = (a: number): boolean => (a % 4 === 0 && a % 100 !== 0) || a % 400 === 0;
+/** Le mois et le jour d'une date de naissance (« 10-27 »), ou rien. */
+export function moisEtJourDe(naissance: string | undefined): string | undefined {
+  const t = String(naissance ?? '').trim();
+  const iso = /^(\d{4})-(\d{1,2})-(\d{1,2})/.exec(t);
+  const fr = /^(\d{1,2})[/.-](\d{1,2})[/.-](\d{4})$/.exec(t);
+  const [m, j] = iso ? [Number(iso[2]), Number(iso[3])] : fr ? [Number(fr[2]), Number(fr[1])] : [0, 0];
+  if (m < 1 || m > 12 || j < 1 || j > 31) return undefined;
+  return `${String(m).padStart(2, '0')}-${String(j).padStart(2, '0')}`;
+}
+/** Le jour où cet anniversaire se fête l'année de `j` (le 28 février pour un 29, les années communes). */
+const seFeteLe = (mj: string, annee: number): string => (mj === '02-29' && !bissextile(annee) ? '02-28' : mj);
+/** LE JOUR DE SON ANNIVERSAIRE, aujourd'hui ou dans la grâce (le lendemain) : la date fêtée, ou rien. */
+export function anniversaireDansLaGrace(naissance: string | undefined, aujourdhui: string): string | undefined {
+  const mj = moisEtJourDe(naissance);
+  if (!mj) return undefined;
+  return Array.from({ length: ANNIV_GRACE_JOURS + 1 }, (_, k) => plusJours(aujourdhui, -k))
+    .find((j) => j.slice(5, 10) === seFeteLe(mj, Number(j.slice(0, 4))));
+}
 
 /* ── LE FIL ──────────────────────────────────────────────────────────── */
 /** Sa dernière venue. */
@@ -488,12 +535,87 @@ export const RELANCES_A_LA_MAIN: readonly GenreDeMessage[] = ['combiner', 'retar
 export const aLaMainSeulement = (f: Pick<FicheDeGerard, 'couronne' | 'accord' | 'stop'>, genre: GenreDeMessage): boolean =>
   !EST_UN_SERVICE[genre] && !f.stop && !f.couronne && !f.accord && RELANCES_A_LA_MAIN.includes(genre);
 
+/* ══ LA CARTE D'ANNIVERSAIRE — 27 octobre 2026 ═══════════════════════════
+   « Reconnaître tous les anniversaires et envoyer automatiquement toutes
+   les cartes par WhatsApp ; pour un enfant, au numéro du parent payeur »
+   (Yéman). Un vœu n'est pas une sollicitation : la carte part À TOUTES,
+   sans l'accord des nouvelles, même de passage, de la diaspora ou les locks
+   défaits. Ce qui la fait taire : un « stop » (le sien, ou celui du parent
+   qui la reçoit), « jamais pour elle », la situation éteinte, une carte
+   déjà partie cette année (la trace « pas maintenant » compte), une fiche
+   archivée, ou personne à qui l'écrire.
+
+   À QUI : un enfant du foyer (un autre paie, et rien ne prouve qu'il est
+   majeur), ou un membre sans numéro ni Ma Couronne, reçoit par le parent
+   payeur, à son numéro, sinon à son compte Ma Couronne.
+
+   L'ATTENTION (10 %, trente jours) garde ses règles d'avant : l'accord des
+   nouvelles sur WhatsApp, le plafond de la semaine, aucune remise déjà
+   vivante, aucune séance anniversaire offerte cette année, rien de dû, et
+   aucun silence (un souci ouvert, une réponse due, une relance de facture
+   de moins de sept jours). Sinon : la carte seule. */
+export type EtatDeLAnniversaire = 'carte' | 'deja' | 'stop' | 'jamais' | 'eteinte' | 'sans-numero' | 'sans-payeur';
+export const ETAT_DE_L_ANNIVERSAIRE_DIT: Record<EtatDeLAnniversaire, string> = {
+  carte: 'sa carte part', deja: 'déjà fêtée cette année', stop: 'a dit « stop »', jamais: '« jamais pour elle »',
+  eteinte: 'anniversaires éteints', 'sans-numero': 'ni numéro ni Ma Couronne', 'sans-payeur': 'enfant sans parent payeur noté',
+};
+export type AnniversaireDuJour = { clientId: string; jour: string; etat: EtatDeLAnniversaire; situation?: Situation };
+
+export function anniversaireDuJour(f: FicheDeGerard, ctx: ContexteDeGerard): AnniversaireDuJour | null {
+  const A = ctx.aujourdhui;
+  if (f.archivee) return null;
+  const anniv = anniversaireDansLaGrace(f.birthday, A);
+  if (!anniv) return null;
+  const vu = (etat: EtatDeLAnniversaire): AnniversaireDuJour => ({ clientId: f.id, jour: anniv, etat });
+  if (traceDe(f, ['anniversaire']).some((t) => t.quand.slice(0, 4) === anniv.slice(0, 4))) return vu('deja');
+  if (ctx.eteintes?.includes('anniversaire')) return vu('eteinte');
+  if (f.jamais?.includes('anniversaire')) return vu('jamais');
+  if (f.enfantDuFoyer && !f.payeur) return vu('sans-payeur');
+  const auPayeur = !!f.payeur && (!!f.enfantDuFoyer || (!f.telephone && !f.couronne));
+  const dest = auPayeur && f.payeur ? f.payeur : { appel: f.appel, telephone: f.telephone, couronne: f.couronne, stop: f.stop };
+  if (f.stop || dest.stop) return vu('stop');
+  /* WhatsApp d'abord (« directement par WhatsApp »), Ma Couronne pour qui n'a pas de numéro. */
+  const canal: 'whatsapp' | 'couronne' | null = dest.telephone ? 'whatsapp' : dest.couronne ? 'couronne' : null;
+  if (!canal) return vu('sans-numero');
+
+  const quand: [string, string][] = [['Anniversaire', jourDit(anniv)], ...(anniv < A ? [['Rattrapage', 'pas écrit le jour même'] as [string, string]] : [])];
+  const pose = (modele: CleDeModele, variables: string[], pourquoi: [string, string][], code?: CodeAFaire): AnniversaireDuJour => ({
+    ...vu('carte'),
+    situation: {
+      clientId: f.id, genre: 'anniversaire', canal, modele, variables, texte: remplis(MODELES_DE_GERARD[modele].corps, variables),
+      pourquoi: [...quand, ...pourquoi], priorite: PRIORITE.anniversaire,
+      ...(code ? { code } : {}), ...(auPayeur && f.payeur ? { pourId: f.payeur.id } : {}),
+    },
+  });
+  if (auPayeur) return pose('carte-foyer', [dest.appel, f.appel], [['La carte part à', `${dest.appel}, qui paie pour le foyer`]]);
+
+  const silence = !!f.souciOuvert || !!f.attendUneReponse || (f.resteDu ?? 0) > 0
+    || (!!f.derniereRelanceLe && ecartJours(f.derniereRelanceLe, A) < 7);
+  const sansAttention = f.ecartee ? 'de passage, de la diaspora ou locks défaits'
+    : silence ? 'un silence en cours (souci, réponse due ou somme due)'
+    : canal === 'whatsapp' && !f.accord ? 'pas d’accord des nouvelles'
+    : (f.birthdayGiftAt ?? '').slice(0, 4) === anniv.slice(0, 4) ? 'séance anniversaire déjà offerte'
+    : (f.codesVivants ?? 0) > 0 ? 'une remise déjà à son nom'
+    : ctx.remisesRestantes <= 0 ? 'plafond de la semaine atteint'
+    : '';
+  if (!sansAttention) {
+    const jusquau = plusJours(A, ANNIV_VALABLE_JOURS);
+    return pose('anniversaire', [f.appel, jourDit(jusquau)], [['Remise à son nom', `${REMISE_ANNIV_PCT} %, ${ANNIV_VALABLE_JOURS} jours`]],
+      { mot: 'ANNIV', pct: REMISE_ANNIV_PCT, jusquau });
+  }
+  return pose('carte', [f.appel], [['La carte seule', sansAttention]]);
+}
+/** Les anniversaires reconnus aujourd'hui, toutes fiches, avec ce qu'il en advient. */
+export const anniversairesDuJour = (fiches: readonly FicheDeGerard[], ctx: ContexteDeGerard): AnniversaireDuJour[] =>
+  fiches.map((f) => anniversaireDuJour(f, ctx)).filter((x): x is AnniversaireDuJour => !!x);
+
 export function situationDuJour(f: FicheDeGerard, ctx: ContexteDeGerard): Situation | null {
   const A = ctx.aujourdhui;
   /* Écartée (de passage, diaspora, locks défaits, archivée) ou enfant d'un
-     foyer : jamais écrite. Le parent payeur reçoit pour elle. */
-  if (f.ecartee || f.enfantDuFoyer) return null;
-  const fait = (genre: GenreDeMessage, modele: CleDeModele, variables: string[], pourquoi: [string, string][], extra: Partial<Situation> = {}): Situation | null => {
+     foyer : jamais sollicitée. Le parent payeur reçoit pour elle, et sa
+     carte d'anniversaire part quand même (②). */
+  const sollicitable = !f.ecartee && !f.enfantDuFoyer;
+  const fait =(genre: GenreDeMessage, modele: CleDeModele, variables: string[], pourquoi: [string, string][], extra: Partial<Situation> = {}): Situation | null => {
     /* Éteinte par la direction, ou « jamais pour elle » : il se tait. */
     if (ctx.eteintes?.includes(genre) || f.jamais?.includes(genre)) return null;
     const canal = canalDe(f, genre);
@@ -507,7 +629,7 @@ export function situationDuJour(f: FicheDeGerard, ctx: ContexteDeGerard): Situat
   };
 
   /* ① Garder un RDV de dans deux jours, pris depuis plus d'une semaine. */
-  const r = prochainRdv(f, A);
+  const r = sollicitable ? prochainRdv(f, A) : undefined;
   if (r && ecartJours(A, r.date) === GARDER_AVANT && (!r.creeLe || ecartJours(r.creeLe.slice(0, 10), A) >= GARDER_SI_POSE_DEPUIS)
     && !traceDe(f, ['garder']).some((t) => t.quand.slice(0, 10) >= plusJours(r.date, -GARDER_AVANT - 1))) {
     const s = fait('garder', 'garder', [f.appel, f.soinDit, placeDite({ iso: r.date, heure: r.time })],
@@ -515,8 +637,16 @@ export function situationDuJour(f: FicheDeGerard, ctx: ContexteDeGerard): Situat
     if (s) return s;
   }
 
+  /* ② SA CARTE D'ANNIVERSAIRE, le jour même ou le lendemain, une fois l'an,
+     à toutes (`anniversaireDuJour`). Elle passe avant les silences
+     commerciaux : un vœu ne propose rien. */
+  const carte = anniversaireDuJour(f, ctx)?.situation;
+  if (carte) return carte;
+  if (!sollicitable) return null;
+
   /* Un souci À voir ou Santé encore ouvert : Gérard se tait. Le RDV
-     ci-dessus se garde quand même ; ni anniversaire, ni envie, ni relance
+     ci-dessus se garde quand même, la carte d'anniversaire aussi (sans son
+     attention) ; ni envie, ni relance
      (`gerardSeTait`, gerard-entre-deux-pur : on ne propose rien à une
      cliente qui attend qu'on la rappelle). Le test reste écrit ici : ce
      fichier n'importe rien, le banc vérifie qu'il dit comme `gerardSeTait`. */
@@ -536,21 +666,6 @@ export function situationDuJour(f: FicheDeGerard, ctx: ContexteDeGerard): Situat
   const recemment = [siens, f.dernierMessageHorsService].filter((x): x is string => !!x).sort().pop();
   const tropTot = !!recemment && ecartJours(recemment, A) < ECART_MIN;
   const aDejaUneRemise = (f.codesVivants ?? 0) > 0;
-
-  /* ② Son anniversaire, le jour même (ou le lendemain s'il n'a pas été
-     écrit à temps), une fois l'an. */
-  const anniv = f.birthday
-    ? Array.from({ length: ANNIV_GRACE_JOURS + 1 }, (_, k) => plusJours(A, -k)).find((j) => j.slice(5, 10) === f.birthday!.slice(5, 10))
-    : undefined;
-  if (anniv && (f.birthdayGiftAt ?? '').slice(0, 4) !== anniv.slice(0, 4)
-    && !aDejaUneRemise && ctx.remisesRestantes > 0
-    && !traceDe(f, ['anniversaire']).some((t) => t.quand.slice(0, 4) === anniv.slice(0, 4))) {
-    const jusquau = plusJours(A, ANNIV_VALABLE_JOURS);
-    const s = fait('anniversaire', 'anniversaire', [f.appel, jourDit(jusquau)],
-      [['Anniversaire', jourDit(anniv)], ...(anniv < A ? [['Rattrapage', 'pas écrit le jour même'] as [string, string]] : []),
-        ['Remise à son nom', `${REMISE_ANNIV_PCT} %, ${ANNIV_VALABLE_JOURS} jours`]], { code: { mot: 'ANNIV', pct: REMISE_ANNIV_PCT, jusquau } });
-    if (s) return s;
-  }
   if (tropTot) return null;
 
   const s0 = derniereVenue(f, A);
@@ -685,6 +800,7 @@ export const texteSansSignature = (texte: string): string => texte.replace(new R
 
 /** Les composants d'un modèle chez Meta : le corps et ses variables, les boutons et leur charge. */
 export type ComposantDuModele =
+  | { type: 'header'; parameters: { type: 'image'; image: { link: string } }[] }
   | { type: 'body'; parameters: { type: 'text'; text: string }[] }
   | { type: 'button'; sub_type: 'quick_reply'; index: string; parameters: { type: 'payload'; payload: string }[] };
 export type LigneDeGerard = {
@@ -692,6 +808,8 @@ export type LigneDeGerard = {
   clientId: string; prenom: string; apptId: string; dateRdv: string; heure?: string;
   partA?: string; calme?: boolean; deposeLe: string; quand: string;
   genre: GenreDeMessage; envie?: EnvieDeGerard; modele: CleDeModele; texte: string; codePromo?: string;
+  /** La fiche qui reçoit, quand ce n'est pas la sienne (le parent payeur d'un enfant). */
+  pourId?: string;
   /** LA REMISE À FABRIQUER une fois la ligne partie (jamais avant le départ réel). */
   codeAFaire?: CodeAFaire;
   colis?:
@@ -708,7 +826,7 @@ const communs = (s: Situation, o: OutilsDeLaLigne) => ({
   branchId: o.branchId, type: 'gerard' as const, clientId: s.clientId, prenom: o.prenom,
   apptId: s.genre === 'garder' && o.rdv ? o.rdv.id : '', dateRdv: s.genre === 'garder' && o.rdv ? o.rdv.date : '',
   ...(s.genre === 'garder' && o.rdv ? { heure: o.rdv.time } : {}),
-  deposeLe: o.maintenantIso, quand: o.maintenantIso, genre: s.genre, ...(s.envie ? { envie: s.envie } : {}), modele: s.modele, texte: s.texte,
+  deposeLe: o.maintenantIso, quand: o.maintenantIso, genre: s.genre, ...(s.envie ? { envie: s.envie } : {}), ...(s.pourId ? { pourId: s.pourId } : {}), modele: s.modele, texte: s.texte,
   ...(o.codePromo ? { codePromo: o.codePromo } : s.code ? { codeAFaire: s.code } : {}),
 });
 /** LA NOTIFICATION DÉPOSÉE EN SALLE, au compte où elle est abonnée. */
@@ -727,6 +845,10 @@ export function ligneWhatsApp(s: Situation, o: OutilsDeLaLigne & { numero: strin
     colis: {
       genre: 'whatsapp', numero: o.numero, modele: MODELES_DE_GERARD[s.modele].nom,
       composants: [
+        /* LA CARTE EN EN-TÊTE : un modèle déposé chez Meta avec une image en
+           tête exige son image à chaque envoi, sinon Meta refuse le message. */
+        ...(MODELES_DE_GERARD[s.modele].enTete === 'image'
+          ? [{ type: 'header' as const, parameters: [{ type: 'image' as const, image: { link: IMAGE_DE_LA_CARTE } }] }] : []),
         { type: 'body', parameters: s.variables.map((v) => ({ type: 'text' as const, text: v.replace(/\s+/g, ' ').trim() })) },
         /* Chaque bouton porte sa ligne : la réponse s'y écrit, l'automate ne la prend pas. */
         ...MODELES_DE_GERARD[s.modele].boutons.map((b, i) => ({

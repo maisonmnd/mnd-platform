@@ -57,7 +57,8 @@ export function lignesDuPassage(o: {
       rdv: s.genre === 'garder' ? o.cerveau.rdvAGarder(s.clientId) : undefined,
     };
     if (s.canal === 'couronne') {
-      lignes.push(ligneDeNotification(s, { ...outils, compte: o.cerveau.compteDe(s.clientId), ...depart }));
+      /* La carte d'un enfant : au compte du parent payeur (`pourId`). */
+      lignes.push(ligneDeNotification(s, { ...outils, compte: o.cerveau.compteDe(s.pourId ?? s.clientId), ...depart }));
     } else if (partSeule(s, r)) {
       const numero = numeroWa(o.cerveau.telDe(s));
       if (numero) lignes.push(ligneWhatsApp(s, { ...outils, numero, ...depart }));

@@ -103,6 +103,9 @@ try {
     fiche('c-retard', 'M. D.'),
     fiche('c-une', 'C. U.'),
     fiche('c-dort', 'F. S.'),
+    /* LE FOYER (27 octobre 2026) : une enfant sans numéro, son anniversaire aujourd'hui, et le parent qui paie. */
+    fiche('c-parent', 'H. P.', { familyId: 'fam-p' }),
+    fiche('c-enfant', 'A. P.', { familyId: 'fam-p', birthday: `2016-${date(0).slice(5)}`, phone: '', nouvelles: undefined }),
   ];
   let n = 0;
   const rdv = (clientId, j, status, extra = {}) => ({ id: `rdv-${++n}`, branchId: 'maison', clientId, serviceIds: [], date: date(j), time: '10:00', status, master: '', ...extra });
@@ -121,6 +124,7 @@ try {
     [`mnd_hors_ligne::tete::${CLE}`]: { uid: UID, le, tete: { user_id: UID, name: 'Banc', role: 'souverain', rubrics: [] } },
     'trone::mnd_clients': clients,
     'trone::mnd_appointments': rdvs,
+    'trone::mnd_families': [{ id: 'fam-p', branchId: 'maison', name: 'Famille P.', payerClientId: 'c-parent' }],
   };
   await cdp('Page.navigate', { url: `${origine}/` });
   await attend(2500);
@@ -143,7 +147,7 @@ try {
     && /^En retard/.test(genreDe('M. D.')) && /^Une seule venue/.test(genreDe('C. U.')) && /^Endormie/.test(genreDe('F. S.')), JSON.stringify(lignes));
   dit('... garder d abord, l anniversaire porte son code de 10 %', (lignes ?? [])[0]?.[0] === 'G. A.' && /−10 % · anniversaire/.test((lignes ?? []).find((l) => l[0] === 'N. B.')?.[2] ?? ''), JSON.stringify((lignes ?? []).slice(0, 2)));
   const enTete = await evalue(String.raw`[...document.querySelectorAll('.trc-ger__chiffre b')].map((b) => b.innerText.trim())`);
-  dit('l en-tête : six à écrire, rien de parti, un RDV à garder, 0 remise sur 8, 0 F', enTete?.[0] === '6' && enTete?.[1] === '0' && enTete?.[2] === '1'
+  dit('l en-tête : sept à écrire (six et la carte de l enfant), rien de parti, un RDV à garder, 0 remise sur 8, 0 F', enTete?.[0] === '7' && enTete?.[1] === '0' && enTete?.[2] === '1'
     && enTete?.[3] === '0 / 8' && /^0\sF$/.test(enTete?.[4] ?? ''), JSON.stringify(enTete));
 
   /* 3. Une ligne ouverte. */
@@ -193,7 +197,34 @@ try {
 
   /* 4. Les modèles Meta. */
   const modeles = await evalue(String.raw`[...document.querySelectorAll('.trc-ger__modeles li b')].map((b) => b.textContent)`);
-  dit('sept plus un modèles à déposer chez Meta', JSON.stringify(modeles) === JSON.stringify(['gerard_garder', 'gerard_avant', 'gerard_envie', 'gerard_place', 'gerard_anniversaire', 'gerard_fetes', 'gerard_endormie', 'nouvelles_de_la_maison']), JSON.stringify(modeles));
+  dit('sept plus un modèles à déposer chez Meta, et les deux cartes d anniversaire (27 octobre 2026)', JSON.stringify(modeles) === JSON.stringify(['gerard_garder', 'gerard_avant', 'gerard_envie', 'gerard_place', 'gerard_anniversaire', 'gerard_carte_anniversaire', 'gerard_carte_foyer', 'gerard_fetes', 'gerard_endormie', 'nouvelles_de_la_maison']), JSON.stringify(modeles));
+
+  /* 4 bis. LA CARTE DE L'ENFANT AU PARENT PAYEUR (27 octobre 2026) : sa
+     ligne dit à qui elle part, « Envoyer sa carte » ouvre la fenêtre de la
+     carte au numéro du parent, et le geste se note à la main, avec la fiche
+     qui reçoit. */
+  const ligneEnfant = (lignes ?? []).find((l) => l[0] === 'A. P.');
+  dit('l enfant du foyer : son anniversaire est au plan, à son parent payeur', /^Anniversaire · à H\. P\./.test(ligneEnfant?.[1] ?? ''), JSON.stringify(ligneEnfant));
+  dit('... l état compte les anniversaires du jour', /Anniversaires du jour : 2 · 2 cartes au plan/.test(await texte()));
+  await evalue(String.raw`(() => { const b = [...document.querySelectorAll('.trc-ger__ligne')].find((x) => x.textContent.includes('A. P.')); if (b) b.click(); return !!b; })()`);
+  await attend(400);
+  const panneauEnfant = await evalue(String.raw`(document.querySelector('.trc-ger__panneau')?.innerText || '').replace(/\s+/g, ' ')`);
+  dit('... le mot au parent, le prénom de l enfant, la carte en image', /Bonjour H\., joyeux anniversaire à A\. ! Toute la Maison lui souhaite une très belle journée/.test(panneauEnfant)
+    && /gerard_carte_foyer/.test(panneauEnfant), panneauEnfant.slice(0, 220));
+  dit('... « Envoyer sa carte » ouvre la fenêtre de la carte', await clique('.trc-ger__panneau button', 'Envoyer sa carte'));
+  await attend(1500);
+  const fenetre = await evalue(String.raw`(() => { const m = document.querySelector('.mnd-modal'); return m ? { canvas: !!m.querySelector('canvas'), texte: m.innerText.replace(/\s+/g, ' ') } : null; })()`);
+  dit('... la carte dessinée, le mot de l Assistant, WhatsApp au numéro du parent', !!fenetre?.canvas && /joyeux anniversaire à A\./.test(fenetre?.texte ?? '')
+    && /WhatsApp/.test(fenetre?.texte ?? ''), (fenetre?.texte ?? '').slice(0, 200));
+  await evalue(String.raw`(() => { const b = [...document.querySelectorAll('.mnd-modal button')].find((x) => x.textContent.trim() === 'WhatsApp'); if (b) b.click(); return !!b; })()`);
+  await attend(800);
+  const notee = await evalue(`JSON.parse(localStorage.getItem('trone::mnd_envois') || '[]').filter((e) => e.type === 'gerard' && e.clientId === 'c-enfant')`);
+  dit('... envoyée : notée à la main, une fois, avec le parent qui la reçoit', (notee ?? []).length === 1 && notee[0].statut === 'à-la-main' && notee[0].pourId === 'c-parent'
+    && /^gerard-\d{4}-\d{2}-\d{2}-c-enfant-wa-main$/.test(notee[0].id) && notee[0].modele === 'carte-foyer', JSON.stringify(notee));
+  dit('... et le fil WhatsApp ouvert est celui du parent', /conversations/.test(await evalue('location.hash')) && /2290151000018/.test(decodeURIComponent(await evalue('location.hash'))),
+    decodeURIComponent(await evalue('location.hash')).slice(0, 120));
+  await evalue(`location.hash = '#/gerard'; true`);
+  await jusqua(`document.querySelectorAll('.trc-ger__rangee').length > 0`, 20000);
 
   /* 5. Au téléphone. */
   await cdp('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 2, mobile: true });
