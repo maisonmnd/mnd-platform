@@ -93,8 +93,10 @@ dit('... refuse par creneau_pris, a la creation comme au deplacement', [true, tr
 /* ── Les copies des fonctions Edge ───────────────────────────────────── */
 for (const f of ['supabase/functions/demande-submit/index.ts', 'supabase/functions/whatsapp-automate/index.ts']) {
   const s = lis(f);
-  dit(`${f.split('/')[2]} : la regle, le juge a une place, la version du 24 octobre`, [true, true, true],
-    [s.includes('export const PLACES_EN_LIGNE = 1;'), s.includes('sieges: PLACES_EN_LIGNE,'), s.includes("const VERSION = '2026-10-24-")]);
+  /* La version : celle du 24 octobre ou une plus recente (la fonction avance). */
+  const version = /const VERSION = '(\d{4}-\d{2}-\d{2})-/.exec(s)?.[1] ?? '';
+  dit(`${f.split('/')[2]} : la regle, le juge a une place, la version du 24 octobre ou plus recente`, [true, true, true],
+    [s.includes('export const PLACES_EN_LIGNE = 1;'), s.includes('sieges: PLACES_EN_LIGNE,'), version >= '2026-10-24']);
 }
 
 console.log(`\n${n - ko}/${n} epreuves : une seule reservation en ligne a la fois.`);
