@@ -10,7 +10,7 @@ import { readFileSync } from 'node:fs';
 import {
   FILTRES_DE_LA_BOITE, auteurDuMessageWa, boitesDeLaMaison, boitesDuFiltre, comptesDesFiltres, estLaMainDeLAssistant, estPartiSeul,
   estUneMainHumaine, idDuSouciWa, initialesDe, repondusSousUneHeure, reponsesGratuitesRestantes, texteDeLaDemande, texteDuSouci,
-  type Boite, type EnvoiDeLaBoite,
+  cleDuFilRange, estRangee, type Boite, type EnvoiDeLaBoite,
 } from '../src/shared/boite-unique-pur';
 import { fenetreDe, filsDeLaMaison, tetesDeLaMaison, type Fil, type MessageWa } from '../src/shared/conversations';
 import type { Discussion, MessageAuTrone } from '../src/shared/discussions';
@@ -193,6 +193,28 @@ dit('… sans l’instant, ce qui attend compte comme une question', { questions
 dit('… hier : la question de B. N., jamais reprise', { questions: 1, repondues: 0, enCours: 0 }, repondusSousUneHeure(messages, '2026-10-25', maintenant));
 dit('réponses libres gratuites restantes ce mois : 1 000 moins ce que `compteDesModeles` compte (quatre sortants sans modèle)', { plafond: 1000, utilisees: 4, restantes: 996 },
   reponsesGratuitesRestantes(messages, '2026-10', 'b1'));
+
+/* ── 7 bis. Rien à répondre (27 octobre 2026) ── */
+const entree = { fils: [...filsDeMeta, filEf], discussions, messagesDesDiscussions, demandes, appelsWa, appels, signalements, envois, clientes, maintenant, branchId: 'b1' };
+const rangees = boitesDeLaMaison({ ...entree, riensARepondre: {
+  'c:ra': { le: a('11:55:00'), par: 'Aimer' },            // après son « Parfait, merci » de 11 h 50 : rangée
+  'c:ao': { le: a('09:00:00') },                          // avant sa question de 9 h 50 : elle attend toujours
+  [cleDuFilRange(N.bn)]: { le: a('09:00:00') },           // par son fil, après son mot d'hier : rangée
+  'c:kt': { le: a('12:00:00') },                          // un souci Santé ne se range pas en passant
+  'd:d1': { le: a('11:50:00') },                          // le chat du site se range aussi
+} });
+const rb = (cle: string): Boite => rangees.find((x) => x.cle === cle)!;
+dit('« Rien à répondre » après son dernier mot : elle n’attend plus, la phrase le dit ; posé avant : elle attend toujours',
+  [[false, true, 'rien à répondre, jusqu’à son prochain message'], [true, false]],
+  [[rb('c:ra').attendUneReponse, rb('c:ra').rangee, rb('c:ra').quiALaMain], [rb('c:ao').attendUneReponse, rb('c:ao').rangee]]);
+dit('… par la clé de son fil aussi ; le chat du site aussi', [[false, true], [false, true]], [[rb('c:bn').attendUneReponse, rb('c:bn').rangee], [rb('d:d1').attendUneReponse, rb('d:d1').rangee]]);
+dit('… un souci Santé et un appel manqué gardent leur juge', [true, ['souci', 'appel-wa']], [rb('c:kt').attendUneReponse, rb('c:kt').pourquoi]);
+dit('… les comptes baissent d’autant', { attend: 6, 'entre-deux': 2, site: 2, tout: 12 }, comptesDesFiltres(rangees));
+dit('estRangee : après, avant, sans date d’elle, aucune marque, date illisible', [true, false, true, false, false],
+  [estRangee(['k'], a('10:00:00'), { k: { le: a('10:00:00') } }), estRangee(['k'], a('10:00:01'), { k: { le: a('10:00:00') } }),
+    estRangee(['k'], undefined, { k: { le: a('10:00:00') } }), estRangee(['k'], a('10:00:00'), undefined), estRangee(['k'], a('10:00:00'), { k: { le: 'hier' } })]);
+dit('… les instants en millisecondes, jamais en texte (« 10:00:00Z » et « 10:00:00.000Z », dans les deux sens)', [true, true],
+  [estRangee(['k'], `${A}T10:00:00.000Z`, { k: { le: `${A}T10:00:00Z` } }), estRangee(['k'], `${A}T10:00:00Z`, { k: { le: `${A}T10:00:00.000Z` } })]);
 
 /* ── 8. La lettre ── */
 const pur = readFileSync('src/shared/boite-unique-pur.ts', 'utf8');

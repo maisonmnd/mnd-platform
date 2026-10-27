@@ -48,7 +48,12 @@ const PANNES = [
   ['un souci WhatsApp compte deux fois', PUR, '      if (souci) soucisVus.add(souci.id);\n', ''],
   ['un point recu tenu pour une main humaine', PUR, 'debut !== null && estUneMainHumaine(m)', "debut !== null && m.sens === 'sortant' && !m.modele"],
   ['le numero joint par numeroWa', PUR, 'const cleDuNumero = (brut: string | undefined): string => cleDuNumeroWa(brut);', 'const cleDuNumero = (brut: string | undefined): string => numeroWa(brut);'],
-  ['un fil WhatsApp juge hors Fil.attendUneReponse', PUR, "if (b.fils.some((f) => f.attendUneReponse)) pourquoi.push('whatsapp');", "if (b.fils.some((f) => f.dernierQuiCompte.sens === 'entrant')) pourquoi.push('whatsapp');"],
+  ['un fil WhatsApp juge hors Fil.attendUneReponse', PUR, "b.fils.some((f) => f.attendUneReponse)) pourquoi.push('whatsapp');", "b.fils.some((f) => f.dernierQuiCompte.sens === 'entrant')) pourquoi.push('whatsapp');"],
+  /* Rien à répondre (27 octobre 2026) : ignoré, étendu aux soucis, éternel. */
+  ['rien a repondre ignore par le juge', PUR, "if (!rangee && b.fils.some((f) => f.attendUneReponse))", "if (b.fils.some((f) => f.attendUneReponse))"],
+  ['rien a repondre range aussi un souci Sante', PUR, "if (soucisOuverts.length > 0) pourquoi.push('souci');", "if (!rangee && soucisOuverts.length > 0) pourquoi.push('souci');"],
+  ['rien a repondre survit a son prochain message', PUR, 'return !Number.isFinite(t) || t <= le;', 'return true;'],
+  ['rien a repondre compare en texte', PUR, 'return !Number.isFinite(t) || t <= le;', "return !Number.isFinite(t) || (dernierDElle ?? '') <= r.le;"],
   ['repondues sous 1 h compte Le Trone', PUR, 'debut !== null && estUneMainHumaine(m)', "debut !== null && m.sens === 'sortant' && !m.auto"],
   /* Le journal (`estEnvoiAutomatique`, lot 2) reconnait l'Assistant lui aussi :
      la faute plausible est un juge qui ne regarde que « Le Trone ». */
