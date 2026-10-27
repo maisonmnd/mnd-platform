@@ -36,6 +36,10 @@ const FAUTES = [
   /* #4 : la fiche se croit toujours chez le payeur ; l'enfant ne lit plus « Reglees par le compte ». */
   { n: 4, fichier: FICHE, avant: 'estLePayeur, clienteDuRdv,\n', apres: 'estLePayeur: true, clienteDuRdv,\n' },
   { n: 4, fichier: FICHE, avant: "{estLePayeur ? 'Factures du compte' : 'Réglées par le compte'}", apres: "{'Factures du compte'}" },
+  /* #5 : la ligne revient a la facture, ou la facture s'ouvre derriere la fiche restee ouverte. */
+  { n: 5, fichier: FICHE, avant: 'onClick={() => ouvreLaPiece(o)}', apres: 'onClick={() => navigate(`/factures?id=${o.id}`)}' },
+  { n: 5, fichier: FICHE, avant: '    if (rdv) { setEditAppt(rdv); return; }\n', apres: '' },
+  { n: 5, fichier: FICHE, avant: '    onClose();\n    navigate(`/factures?id=${o.id}`);', apres: '    navigate(`/factures?id=${o.id}`);' },
 ];
 
 const md5 =(rel) => createHash('md5').update(readFileSync(path.join(racine, rel))).digest('hex');

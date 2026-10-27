@@ -2789,6 +2789,20 @@ function Customer360({
     const reste = invoiceResteXof(o);
     return reste > 0 ? { texte: `Reste ${fmtMoney(reste, currency)}`, ton: 'du' } : { texte: 'Réglée', ton: 'ok' };
   };
+  /* UN CLIC OUVRE LE RENDEZ-VOUS — 27 octobre 2026 (« quand je clique sur un
+     document, il faut l'ouvrir… ouvre le RDV, pas la facture », Yéman). La
+     ligne envoyait vers Factures, DERRIÈRE la fiche restée ouverte : rien ne
+     paraissait s'ouvrir. Le rendez-vous de la pièce (son `apptId`, sinon celui
+     qui la porte en `invoiceId`) s'ouvre ici, par-dessus la fiche ; une vente
+     sans rendez-vous (la Gamme) ouvre sa facture, fiche refermée. */
+  const rdvDeLaPiece = (o: Invoice): Appointment | undefined =>
+    (o.apptId ? carnetBranche.find((a) => a.id === o.apptId) : undefined) ?? carnetBranche.find((a) => a.invoiceId === o.id);
+  const ouvreLaPiece = (o: Invoice) => {
+    const rdv = rdvDeLaPiece(o);
+    if (rdv) { setEditAppt(rdv); return; }
+    onClose();
+    navigate(`/factures?id=${o.id}`);
+  };
   const piecesEnLignes = (pieces: Invoice[], o2: { avecPour: boolean; avecQui?: boolean }) => (
     <div className="trc-lignes-doc">
       <div className="trc-lignes-doc__legende" aria-hidden="true">
@@ -2804,8 +2818,8 @@ function Customer360({
             type="button"
             key={o.id}
             className={`trc-ligne-doc${o.kind === 'devis' ? ' est-devis' : ''}`}
-            title={`Ouvrir ${o.kind === 'devis' ? 'le devis' : 'la facture'} ${o.number}`}
-            onClick={() => navigate(`/factures?id=${o.id}`)}
+            title={rdvDeLaPiece(o) ? `Ouvrir le rendez-vous de la pièce ${o.number}` : `Ouvrir ${o.kind === 'devis' ? 'le devis' : 'la facture'} ${o.number}`}
+            onClick={() => ouvreLaPiece(o)}
           >
             <span className="trc-ligne-doc__date">{frJourAn(o.date)}</span>
             <span className="trc-ligne-doc__no">{o.number}</span>

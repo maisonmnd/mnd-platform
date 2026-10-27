@@ -63,4 +63,18 @@ dit(3, 'pour qui : la soignee nommee, sinon la tete du rituel, sinon la destinat
   ]);
 }
 
+/* == #5 -- UN CLIC SUR UNE PIECE OUVRE SON RENDEZ-VOUS (27 octobre 2026) ==
+   « Ouvre le RDV, pas la facture » (Yeman) : la ligne ouvre le rendez-vous de
+   la piece par-dessus la fiche ; une vente sans rendez-vous ouvre sa facture,
+   fiche refermee (sinon elle s'ouvre derriere, invisible). */
+{
+  const fiche = source('src/apps/trone/routes/clients/Customers.tsx');
+  dit(5, 'la ligne appelle ouvreLaPiece ; le rendez-vous de la piece par apptId puis invoiceId ; sinon la fiche se ferme avant la facture', [true, true, true, true], [
+    fiche.includes('onClick={() => ouvreLaPiece(o)}') && !fiche.includes('onClick={() => navigate(`/factures?id=${o.id}`)}'),
+    fiche.includes('(o.apptId ? carnetBranche.find((a) => a.id === o.apptId) : undefined) ?? carnetBranche.find((a) => a.invoiceId === o.id)'),
+    fiche.includes('if (rdv) { setEditAppt(rdv); return; }'),
+    /onClose\(\);\s*navigate\(`\/factures\?id=\$\{o\.id\}`\);/.test(fiche),
+  ]);
+}
+
 console.log(ko === 0 ? 'Chacune ses factures, le payeur toutes.' : `${ko} constat(s) en echec.`);
