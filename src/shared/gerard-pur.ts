@@ -749,8 +749,13 @@ export function tracesDesEnvois(envois: readonly { type?: string; clientId?: str
   for (const e of envois) {
     if (e.type !== 'gerard' || !e.clientId || !e.genre) continue;
     /* Ce qui n'est jamais parti ne compte pas : écarté, périmé, raté, ou une
-       notification sans abonnement (le facteur n'a trouvé aucun téléphone). */
-    if (e.statut === 'écarté' || e.statut === 'périmé' || e.statut === 'échec' || e.statut === 'sans-abonnement') continue;
+       notification sans abonnement (le facteur n'a trouvé aucun téléphone).
+       SAUF « PAS MAINTENANT » (27 octobre 2026, spec §5.1) : la ligne du jour
+       écartée À LA MAIN qui porte la réponse « non ». Rien n'est parti, mais
+       la décision pèse : l'envie refusée attend 90 jours, la situation ne
+       revient pas le lendemain. */
+    const pasMaintenant = e.statut === 'écarté' && e.reponse === 'non';
+    if (!pasMaintenant && (e.statut === 'écarté' || e.statut === 'périmé' || e.statut === 'échec' || e.statut === 'sans-abonnement')) continue;
     const reponse = e.reponse === 'oui' || e.reponse === 'non' || e.reponse === 'jamais' ? e.reponse : undefined;
     const t: TraceDeGerard = { quand: e.deposeLe ?? e.quand ?? '', genre: e.genre as GenreDeMessage, ...(e.envie ? { envie: e.envie as EnvieDeGerard } : {}), ...(reponse ? { reponse } : {}) };
     const l = m.get(e.clientId);

@@ -219,9 +219,10 @@ const tr = tracesDesEnvois([
   { type: 'gerard', clientId: 'b', statut: 'à-la-main', deposeLe: '2026-10-22T09:00:00Z', genre: 'creux' },
   { type: 'campagne', clientId: 'a', statut: 'envoyé', deposeLe: '2026-10-22T09:00:00Z', genre: 'envie' },
   { type: 'gerard', clientId: 'b', statut: 'sans-abonnement', deposeLe: '2026-10-23T09:00:00Z', genre: 'envie' },
+  { type: 'gerard', clientId: 'c', statut: 'écarté', deposeLe: '2026-10-24T09:00:00Z', genre: 'envie', envie: 'couleur', reponse: 'non' },
 ]);
-dit('ce que Gérard a écrit se relit dans les envois ; une ligne écartée ou sans abonnement ne compte pas', [[['envie', 'lavage']], [['creux', undefined]]],
-  [tr.get('a')?.map((t) => [t.genre, t.envie]), tr.get('b')?.map((t) => [t.genre, t.envie])]);
+dit('ce que Gérard a écrit se relit dans les envois ; une ligne écartée ou sans abonnement ne compte pas, sauf « Pas maintenant » (écartée avec « non »)', [[['envie', 'lavage']], [['creux', undefined]], [['envie', 'couleur', 'non']]],
+  [tr.get('a')?.map((t) => [t.genre, t.envie]), tr.get('b')?.map((t) => [t.genre, t.envie]), tr.get('c')?.map((t) => [t.genre, t.envie, t.reponse])]);
 
 /* ── 14 bis. Entre deux séances : il se tait ── */
 dit('un souci Santé ou À voir encore ouvert : ni envie ni anniversaire', [null, null, null],

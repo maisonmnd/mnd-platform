@@ -1090,7 +1090,8 @@ function tracesDesEnvois(envois) {
   const m = /* @__PURE__ */ new Map();
   for (const e of envois) {
     if (e.type !== "gerard" || !e.clientId || !e.genre) continue;
-    if (e.statut === "écarté" || e.statut === "périmé" || e.statut === "échec" || e.statut === "sans-abonnement") continue;
+    const pasMaintenant = e.statut === "écarté" && e.reponse === "non";
+    if (!pasMaintenant && (e.statut === "écarté" || e.statut === "périmé" || e.statut === "échec" || e.statut === "sans-abonnement")) continue;
     const reponse = e.reponse === "oui" || e.reponse === "non" || e.reponse === "jamais" ? e.reponse : void 0;
     const t = { quand: e.deposeLe ?? e.quand ?? "", genre: e.genre, ...e.envie ? { envie: e.envie } : {}, ...reponse ? { reponse } : {} };
     const l = m.get(e.clientId);
@@ -1331,7 +1332,7 @@ function remisesAFabriquer(envois) {
 }
 
 // scripts/serveur/assistant-maison.ts
-var VERSION = "2026-10-27-b";
+var VERSION = "2026-10-27-c";
 var json = (corps, status = 200) => new Response(JSON.stringify(corps), { status, headers: { "content-type": "application/json" } });
 var jourDuSalon = (ms) => new Date(ms + 36e5).toISOString().slice(0, 10);
 var heureDuSalon2 = (ms) => {
