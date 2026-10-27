@@ -28,6 +28,8 @@ import { useStaff } from '../equipe/data';
 import { DEPARTEMENTS } from '../index';
 import { useExceptionsHoraires, usePointageConfig, assurerCodeDuJour, type HoraireException } from '../equipe/payroll';
 import { useBlocages, type Blocage } from '../../../../shared/blocages';
+import { reglageDeLaReception, type ModeDeLaReception } from '../../../../shared/automate-wa';
+import { receptionStore, useCompteDeLaReception, useReception } from '../../../../shared/reception-wa';
 import { uid } from '../../../../shared/store';
 import {
   useModelBands, sortedBands, ecrisCalibresPartout, modelBandsStore, bandSetsStore,
@@ -1296,6 +1298,68 @@ function LaMaisonRepondSurWhatsApp({ brut, ecris }: {
   );
 }
 
+/* ══ L'ASSISTANT RÉPOND EN PHRASES · 27 octobre 2026 ═════════════════
+   « Je veux que mon assistant WhatsApp soit conçu comme cela » (Yéman, sur
+   une vidéo de démonstration ; maquette JeSZdwemTYVLfppqhUf3TF). Là où
+   l'automate se taisait (une question, un prix, un merci), Claude répond
+   avec la voix et les règles de « Proposer une réponse ». Livré en ESSAI :
+   les numéros d'essai de l'automate seulement, puis tout le monde. */
+const MODES_DE_LA_RECEPTION: { value: ModeDeLaReception; label: string; dit: string }[] = [
+  { value: 'non', label: 'Non', dit: 'L’automate se tait comme avant sur ce qu’il ne reconnaît pas : la Maison répond elle-même.' },
+  { value: 'essai', label: 'Essai', dit: 'Seuls les numéros d’essai de l’automate, ci-dessus, reçoivent ses réponses en phrases.' },
+  { value: 'tous', label: 'Tout le monde', dit: 'Chaque personne qui écrit reçoit une réponse, jour et nuit, là où l’automate est ouvert. Jamais l’équipe ni les prestataires.' },
+];
+
+function LAssistantRepondEnPhrases() {
+  const estDirection = useEstDirection();
+  const [brut] = useReception();
+  const [compte] = useCompteDeLaReception();
+  const r = reglageDeLaReception(brut);
+  const mode = MODES_DE_LA_RECEPTION.find((m) => m.value === r.mode) ?? MODES_DE_LA_RECEPTION[1];
+  const mois = new Date(Date.now() + 3_600_000).toISOString().slice(0, 7);
+  const ceMois = compte?.[mois];
+  const change = (m: ModeDeLaReception) => {
+    if (!estDirection) { toast('Ce réglage appartient à la direction.'); return; }
+    receptionStore.set({ mode: m });
+  };
+  return (
+    <Card className="sys-section" style={{ marginTop: 18 }}>
+      <div className="sys-section__title">L’assistant répond en phrases</div>
+      <div className="sys-section__cap" style={{ maxWidth: 680 }}>
+        Là où l’automate se taisait (une question, un prix, un merci, un mot qu’il ne reconnaît pas),
+        l’assistant de la Maison répond avec la voix du site : la consultation avant tout devis de
+        création ou de réparation, le nombre de locks avant le prix de la carte, une liste à toucher pour
+        chaque choix. Sa santé, une plainte, une photo : il le dit avec égards et passe la main à l’équipe.
+        Il ne se fait jamais passer pour une personne.
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginTop: 6 }}>
+        <div className="mnd-segs" role="radiogroup" aria-label="L’assistant répond en phrases">
+          {MODES_DE_LA_RECEPTION.map((m) => (
+            <button
+              key={m.value}
+              type="button"
+              role="radio"
+              aria-checked={r.mode === m.value}
+              className={`mnd-seg ${r.mode === m.value ? 'is-active' : ''}`}
+              disabled={!estDirection}
+              style={!estDirection ? { cursor: 'not-allowed' } : undefined}
+              onClick={() => change(m.value)}
+            >
+              {m.label}
+            </button>
+          ))}
+        </div>
+        <span className="mnd-muted" style={{ fontSize: 12, maxWidth: '52ch', lineHeight: 1.5 }}>{mode.dit}</span>
+      </div>
+      <div className="mnd-muted" style={{ fontSize: 12, marginTop: 10, lineHeight: 1.55, maxWidth: 680 }}>
+        Ce mois-ci : {ceMois?.appels ?? 0} réponse{(ceMois?.appels ?? 0) > 1 ? 's' : ''} écrite{(ceMois?.appels ?? 0) > 1 ? 's' : ''}
+        {ceMois?.usd ? `, environ ${ceMois.usd.toLocaleString('fr-FR', { maximumFractionDigits: 2 })} $ pris sur les crédits API inclus` : ''}.
+        Vingt réponses au plus par numéro en vingt-quatre heures ; au-delà, la main passe à l’équipe.
+      </div>
+    </Card>
+  );
+}
+
 export default function Parametres() {
   const [exceptions, setExceptions] = useExceptionsHoraires();
   const [blocages, setBlocages] = useBlocages();
@@ -2470,6 +2534,7 @@ export default function Parametres() {
         brut={autoCfgRaw.automateWa}
         ecris={(r) => setAutoCfgRaw({ ...autoCfg, automateWa: r })}
       />
+      <LAssistantRepondEnPhrases />
       {/* LE DIAGNOSTIC PHOTO (19 octobre 2026) : l'interrupteur et la table « à valider », direction seule. */}
       <CarteDiagnosticPhoto />
 

@@ -8,6 +8,7 @@ import {
   reglageDeLAutomate, cleWa, sansAppelVide, lienMapsWa, titreEnFrancaisWa, dureeDiteWa, envoisQuiComptent, numeroServi, tenuParLAutomate, silenceDeLAlarme, titreDePlace, chargeGraph, cleCourte,
   intentionDeReserver, jourDitAvecAnnee, quiParle, motsReconnus, civiliteLue, prenomLu, renvoieAUnRdv, uneQuestionAutre,
   conseilDeLaMaison, fautesDeLaReponse, texteDeLaReponse, type ConseilDeLaMaison,
+  jugeLaParole, reglageDeLaReception, laReceptionPeutParler, reponseDeLaReception, tourPourLeParcours, prefaceDeLaReception, secoursDeLaReception,
   type AgendaDuTour, type ContexteDuTour, type EtatDuFil, type FicheDuNumero, type MessageSortant,
   type PrestationDuTour, type ReglageDeLAutomate, type SortieDuTour, type MainDuFil, type VerdictDeLaPose,
   type TiroirDuNumero, type EcritureDuTour,
@@ -2917,9 +2918,9 @@ const regles: Regle[] = [
       const resa = elle(r, t0 + 120000, { texte: 'Je voudrais réserver samedi' });
       vrai('une envie de reserver apres une reponse ouvre le parcours', ['meme', 'besoin'].includes(resa.messages[0]?.etape ?? ''), resa.messages[0]?.etape);
       const fn = lf(lit(F_AUTO));
-      vrai('la fonction lit les reponses de la Maison', fn.includes("'mnd_house_identity', 'mnd_reponses_maison']") && fn.includes("conseil: conseilDeLaMaison(docs.get('mnd_reponses_maison')),"));
+      vrai('la fonction lit les reponses de la Maison', fn.includes("'mnd_house_identity', 'mnd_reponses_maison', 'mnd_assistant_wa']") && fn.includes("conseil: conseilDeLaMaison(docs.get('mnd_reponses_maison')),"));
       vrai('la fonction donne les prix du catalogue du jour au tour', fn.includes('...(agenda ? { prix: prixDuCatalogue(agenda.lignes.services) } : {}),'));
-      vrai('le juge de la fonction ne laisse passer un prix que venu du catalogue', (fn.match(/texteSain\(toutLeTexteWa\(m\), m\.prixDuCatalogue === true\)/g) ?? []).length === 2 && !/texteSain\(toutLeTexteWa\(m\)\)/.test(fn));
+      vrai('le juge de la fonction ne laisse passer un prix que venu du catalogue', (fn.match(/texteSain\(toutLeTexteWa\(m\), m\.prixDuCatalogue === true\)/g) ?? []).length === 3 && !/texteSain\(toutLeTexteWa\(m\)\)/.test(fn));
       vrai('la trace porte la reponse envoyee', fn.includes('...(o.m.reponseId ? { reponse: o.m.reponseId } : {}),'));
       return ecarts;
     },
@@ -2929,7 +2930,7 @@ const regles: Regle[] = [
       { nom: 'merci relance', mute: [P(AUTO, "      return silence();\n    }\n    /* UNE QUESTION QUI N'EST PAS", "      return ecart();\n    }\n    /* UNE QUESTION QUI N'EST PAS")] },
       { nom: 'le juge de la fonction oublie le catalogue', mute: [P(F_AUTO, 'texteSain(toutLeTexteWa(m), m.prixDuCatalogue === true)', 'texteSain(toutLeTexteWa(m))')] },
       { nom: 'la trace oublie la reponse', mute: [P(F_AUTO, '      ...(o.m.reponseId ? { reponse: o.m.reponseId } : {}),\n', '')] },
-      { nom: 'la fonction ne lit pas le conseil', mute: [P(F_AUTO, "'mnd_house_identity', 'mnd_reponses_maison']", "'mnd_house_identity']")] },
+      { nom: 'la fonction ne lit pas le conseil', mute: [P(F_AUTO, "'mnd_house_identity', 'mnd_reponses_maison', 'mnd_assistant_wa']", "'mnd_house_identity', 'mnd_assistant_wa']")] },
     ],
   },
   /* ══ R42 · au Trône : les brouillons, la validation de la direction, 14 octobre 2026 ═══ */
@@ -2967,6 +2968,77 @@ const regles: Regle[] = [
       { nom: 'la main de l equipe redevient invisible', mute: [P(ECRAN_COMPOSEUR, 'if (pauseActive(mainDuFil, Date.now())) {', 'if (false) {')] },
       { nom: 'un numero non servi ne se dit plus', mute: [P(ECRAN_COMPOSEUR, 'if (!numeroServi(reglageAutomate, fil.numero, fil.tiroir)) {', 'if (false) {')] },
       { nom: 'un brouillon livre deja valide', mute: [P('src/shared/conseil-wa.ts', "  id, titre, ...(description ? { description } : {}), mots, texte, etat: 'brouillon',", "  id, titre, ...(description ? { description } : {}), mots, texte, etat: 'validee',")] },
+    ],
+  },
+  /* ══ R43 · la réception : l'assistant qui répond là où l'automate se taisait, 27 octobre 2026 ═══ */
+  {
+    id: 'R43', nom: 'R43 la reception : elle ne parle que la ou le juge se tait, sur un numero qu elle sert, sans main de l equipe ; sa reponse clot le fil (l alarme se tait) ou passe la main ; les calibres se touchent ; un rendez-vous ouvre le parcours ; jamais un silence',
+    eprouve: () => {
+      const { ecarts, vaut, vrai } = juge();
+      const t0 = cotonou('2026-10-27', '23:40');
+      const p = parcours(ORIGINAL, NUM_NAFFI, [NAFFI]);
+      const tour = tourDeLaCliente([{ waId: 'wamid.merci', quand: isoDe(t0), texte: 'Merci beaucoup pour hier', type: 'text', sens: 'entrant' }], []);
+      const ctx = ctxDe(p, t0);
+      vaut('un merci : le juge se tait', 'silence', jugeLaParole(null, tour, ctx).parole);
+      const TOUS = reglageDeLaReception({ mode: 'tous' });
+      vaut('le reglage : livre en essai, un mode inconnu redevient essai', ['essai', 'essai', 'tous', 'non'],
+        [reglageDeLaReception(undefined).mode, reglageDeLaReception({ mode: 'robot' }).mode, TOUS.mode, reglageDeLaReception({ mode: 'non' }).mode]);
+      vaut('qui elle sert : essai sans le numero non, essai avec oui, tous oui, non non', [false, true, true, false], [
+        laReceptionPeutParler(null, tour, ctx, reglageDeLaReception({ mode: 'essai' })),
+        laReceptionPeutParler(null, tour, { ...ctx, reglage: { ...ctx.reglage, numerosEssai: [NUM_NAFFI] } }, reglageDeLaReception({ mode: 'essai' })),
+        laReceptionPeutParler(null, tour, ctx, TOUS),
+        laReceptionPeutParler(null, tour, ctx, reglageDeLaReception({ mode: 'non' })),
+      ]);
+      const pause: MainDuFil = { numero: NUM_NAFFI, pauseLe: isoDe(t0 - 3600000), jusqua: isoDe(t0 + 3600000) } as MainDuFil;
+      const mainPassee = { ...reponseDeLaReception(null, tour, ctx, { texte: 'x', suite: 'equipe' }).etat };
+      vaut('jamais l equipe, jamais pendant la main de l equipe, jamais apres une main passee, jamais un tour perime', [false, false, false, false], [
+        laReceptionPeutParler(null, tour, { ...ctx, tiroir: 'equipe' }, TOUS),
+        laReceptionPeutParler(null, tour, { ...ctx, main: pause }, TOUS),
+        laReceptionPeutParler(mainPassee, tour, ctx, TOUS),
+        laReceptionPeutParler(null, tour, { ...ctx, maintenantMs: t0 + 20 * 60000 }, TOUS),
+      ]);
+      const rien = reponseDeLaReception(null, tour, ctx, { texte: 'Avec plaisir, Madame Naffi. À très bientôt à la Maison.', suite: 'rien' });
+      vaut('rien : son mot part tel quel, signe de la reception, le fil se dit clos', [true, 'Avec plaisir, Madame Naffi. À très bientôt à la Maison.', true, true, 'clos'],
+        [rien.pris, rien.messages[0]?.corps, rien.messages[0]?.deLaReception === true, rien.messages[0]?.prixDuCatalogue === true, rien.etat.etape]);
+      vaut('... et l alarme se tait : le fil est fini, son mot traite', ['fini', true], [tenuParLAutomate(rien.etat, null, t0), silenceDeLAlarme('fini', rien.etat, tour.quand, t0)]);
+      const eq = reponseDeLaReception(null, tour, ctx, { texte: 'Merci de nous le dire. Une personne de la Maison vous rappelle demain avant 10 h.', suite: 'equipe' });
+      vaut('equipe : la main passe, l equipe est prevenue, son mot dit qui prend le relais', ['main', 'question', 'main', 'Merci de nous le dire. Une personne de la Maison vous rappelle demain avant 10 h.', true],
+        [eq.etat.etape, eq.etat.motifMain, eq.alerte ? 'main' : null, eq.messages[0]?.corps, eq.messages[0]?.deLaReception === true]);
+      const cal = reponseDeLaReception(null, tour, ctx, { texte: 'Combien de locks portez-vous, approximativement ?', suite: 'calibre', lignes: [{ id: 'calibre:jumbo', titre: 'Jumbo', description: 'jusqu’à 80 locks' }, { id: 'calibre:inconnu', titre: 'Je ne sais pas' }] });
+      vaut('calibre : une liste a toucher, ses calibres, et toujours la Maison', ['liste', 'Choisir mon calibre', ['Jumbo', 'Je ne sais pas', 'Parler à la Maison'], 'clos'],
+        [cal.messages[0]?.forme, cal.messages[0]?.bouton, (cal.messages[0]?.lignes ?? []).map((l) => l.titre), cal.etat.etape]);
+      const idJumbo = cal.messages[0]?.lignes?.[0]?.id ?? '';
+      vrai('les calibres portent l identifiant de la Maison, sans quoi le toucher se perd', /^MND:\d+:calibre:jumbo$/.test(idJumbo), idJumbo);
+      const touche = tourDeLaCliente([{ waId: 'wamid.cal', quand: isoDe(t0 + 60000), texte: 'Jumbo', type: 'interactive', sens: 'entrant', bouton: { id: idJumbo, texte: 'Jumbo' } }], cal.etat.traites);
+      const ctx2 = ctxDe(p, t0 + 60000);
+      vaut('le calibre touche repasse par le juge, qui se tait, et la reception reprend', ['silence', true], [jugeLaParole(cal.etat, touche, ctx2).parole, laReceptionPeutParler(cal.etat, touche, ctx2, TOUS)]);
+      const tp = tourPourLeParcours(tour);
+      const s = etapeSuivante(null, tp, ctx);
+      vaut('un rendez-vous : son intention dite simplement ouvre le parcours', ['parle', true], [jugeLaParole(null, tp, ctx).parole, ['meme', 'besoin', 'qui', 'rituel'].includes(s.messages[0]?.etape ?? '')]);
+      vrai('... et son mot precede la liste, signe de la reception', prefaceDeLaReception('Avec plaisir.', 'besoin').deLaReception === true);
+      const ouvert = secoursDeLaReception(cotonou('2026-10-27', '10:00'), SEMAINE, []);
+      const ferme = secoursDeLaReception(cotonou('2026-10-26', '22:00'), SEMAINE, []);
+      vaut('jamais un silence : le secours dit quand la Maison repond, et la main passe', ['equipe', true, true],
+        [ferme.suite, /dans un instant/.test(ouvert.texte), /^Merci pour votre message\. La Maison vous répond /.test(ferme.texte)]);
+      const fn = lf(lit(F_AUTO));
+      vrai('la fonction ne demande la reception que la ou elle peut parler', fn.includes('if (!laReceptionPeutParler(fil, tour, ctxLeger, reglageDeLaReception(docs.get(CLE_DE_LA_RECEPTION)))) return { pris: false };') && fn.includes('reception = await demandeALaReception(o, { tour, fiches, docs, ms });'));
+      vrai('la fonction appelle reception-wa avec sa cle, et prend le secours sans reponse sure', fn.includes('`${base}/functions/v1/reception-wa`') && (fn.match(/return secours\(\);/g) ?? []).length >= 3);
+      vrai('un mot refuse par les juges laisse place au secours', fn.includes('if (direct && sortie.messages.some((m) => juge2(m).length > 0)) {'));
+      vrai('la trace dit Assistant Maison et se compte', fn.includes("parQui: o.m.deLaReception ? 'Assistant Maison' : 'Le Trône',") && fn.includes('...(o.m.deLaReception ? { reception: true } : {}),'));
+      return ecarts;
+    },
+    pannes: [
+      { nom: 'en essai, la reception sert un numero non liste', mute: [P(AUTO, "  if (r.mode === 'essai') return numerosEssai.some((n) => cleWa(n) === cleWa(numero));", "  if (r.mode === 'essai') return true;")] },
+      { nom: 'la reception parle pendant la main de l equipe', mute: [P(AUTO, "  if (pauseActive(ctx.main, ms)) return false;\n  if (tour.waIds.length === 0) return false;", "  if (tour.waIds.length === 0) return false;")] },
+      { nom: 'la reception parle apres une main passee', mute: [P(AUTO, "  return etapeCourante(etat, ctx.main, ms, ctx.reglage.pauseHeures) !== 'main';", '  return true;')] },
+      { nom: 'sa reponse laisse le fil au repos : l alarme sonne', mute: [P(AUTO, "    passe('clos');\n    if (r.suite === 'calibre'", "    if (r.suite === 'calibre'")] },
+      { nom: 'sa reponse ne se signe plus', mute: [P(AUTO, '    const signe = (m: MessageSortant): MessageSortant => ({ ...m, deLaReception: true, prixDuCatalogue: true });', '    const signe = (m: MessageSortant): MessageSortant => m;')] },
+      { nom: 'equipe ne passe pas la main', mute: [P(AUTO, "    if (r.suite === 'equipe') {\n      const s = laMain('question', true, r.texte);", "    if (false) {\n      const s = laMain('question', true, r.texte);")] },
+      { nom: 'la fonction ne demande jamais la reception', mute: [P(F_AUTO, 'reception = await demandeALaReception(o, { tour, fiches, docs, ms });', "reception = { texte: '', suite: 'rien' };")] },
+      { nom: 'un mot refuse laisse la cliente sans reponse', mute: [P(F_AUTO, 'if (direct && sortie.messages.some((m) => juge2(m).length > 0)) {', 'if (false) {')] },
+      { nom: 'la trace ne dit plus Assistant Maison', mute: [P(F_AUTO, "parQui: o.m.deLaReception ? 'Assistant Maison' : 'Le Trône',", "parQui: 'Le Trône',")] },
+      { nom: 'les calibres gardent leur identifiant court : le toucher se perd', mute: [P(AUTO, "id: l.id.startsWith('calibre:') ? choix('calibre', l.id.slice('calibre:'.length)) : l.id", 'id: l.id')] },
+      { nom: 'un calibre touche relance le parcours au lieu de la reception', mute: [P(AUTO, "    parle = lisLeChoix(tour.choix.id)?.geste !== 'calibre';", '    parle = true;')] },
     ],
   },
 ];

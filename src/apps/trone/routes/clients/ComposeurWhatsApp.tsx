@@ -127,7 +127,7 @@ export const etapeDite = (e: string | undefined): string =>
   (e && e in ETAPE_DITE ? ETAPE_DITE[e as EtapeDuFil] : e ?? '');
 
 export function BandeauDeLAutomate({
-  vue, etat, main, rdv, gestesDuRdv, surReprendre, surRendre, surPoser, surOuvrirRdv, pauseHeures,
+  vue, etat, main, rdv, gestesDuRdv, surReprendre, surRendre, surPoser, surOuvrirRdv, pauseHeures, parLaReception,
 }: {
   vue: VueDeLAutomate;
   etat: EtatDuFil | null;
@@ -142,6 +142,8 @@ export function BandeauDeLAutomate({
   surOuvrirRdv?: () => void;
   /** Le temps où l'automate laisse la Maison répondre après une pose. */
   pauseHeures: number;
+  /** Son dernier mot vient de la réception (l'assistant qui répond en phrases). */
+  parLaReception?: boolean;
 }) {
   const etape = etapeDite(vue.etape);
   if (vue.tenue === 'tenu') {
@@ -205,6 +207,17 @@ export function BandeauDeLAutomate({
         <span className="trc-automate__gestes">
           {rdv && surOuvrirRdv && <Button variant="ghost" size="sm" onClick={surOuvrirRdv}>Ouvrir le rendez-vous</Button>}
           {/* rendre après la pose */}<Button variant="ghost" size="sm" onClick={surRendre}>Rendre à l’automate</Button>
+        </span>
+      </div>
+    );
+  }
+  if (vue.tenue === 'fini' && parLaReception) {
+    /* LA RÉCEPTION A RÉPONDU (27 octobre 2026) : le fil est clos, l'alarme se
+       tait ; une lettre tapée ici et l'équipe a la main. */
+    return (
+      <div className="trc-automate" role="status">
+        <span className="trc-automate__dit">
+          <b>L’assistant de la Maison lui a répondu.</b> Écrivez-lui quand vous le souhaitez : il se retire dès que vous écrivez.
         </span>
       </div>
     );
@@ -660,6 +673,7 @@ export function ComposeurWhatsApp({ fil, texte, surTexte, cite, surCite, poignee
               surPoser={posable ? () => poseUnRendezVous(true) : undefined}
               surOuvrirRdv={rdv ? () => setRdvOuvert(rdv) : undefined}
               pauseHeures={reglageAutomate.pauseHeures}
+              parLaReception={[...fil.messages].reverse().find((m) => m.sens === 'sortant')?.reception === true}
             />
           );
         })()}

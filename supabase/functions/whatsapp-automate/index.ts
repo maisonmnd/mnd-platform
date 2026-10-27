@@ -88,7 +88,7 @@ import { createClient, type SupabaseClient } from 'npm:@supabase/supabase-js@2';
 
 /** LA VERSION DE CE FICHIER, dite par le contrôle de santé. Sans elle on ne
     sait pas quel code tourne vraiment. À incrémenter à chaque déploiement. */
-const VERSION = '2026-10-24-b · une seule place en ligne a la fois, les SINSIN chez Team';
+const VERSION = '2026-10-28-a · la reception repond la ou l automate se taisait';
 
 /** « En train d'écrire », puis on attend : deux messages envoyés coup sur
     coup font un seul tour, celui du dernier. */
@@ -103,7 +103,7 @@ const TRANCHE_JOURS = 7;
     est peut-être coupée, on ne s'y fie pas. */
 const PLAFOND_DE_LIGNES = 1000;
 /** Les réglages que lit un tour, en une requête. */
-const DOCUMENTS_DU_TOUR = ['mnd_auto_config', 'mnd_settings', 'mnd_horaires_exceptions', 'mnd_vitrine_config', 'mnd_house_identity', 'mnd_reponses_maison'];
+const DOCUMENTS_DU_TOUR = ['mnd_auto_config', 'mnd_settings', 'mnd_horaires_exceptions', 'mnd_vitrine_config', 'mnd_house_identity', 'mnd_reponses_maison', 'mnd_assistant_wa'];
 
 /* LE JOURNAL : des genres, des comptes, des étapes. JAMAIS un numéro,
    jamais un texte, jamais un jeton : un journal qui recopierait le message
@@ -1619,6 +1619,9 @@ type MessageSortant = {
   /** Ses prix viennent du catalogue du jour, par jetons : le juge de la
       Maison les laisse passer, et eux seuls. */
   prixDuCatalogue?: boolean;
+  /** Écrit par la réception (Claude, 27 octobre 2026) : la trace dit
+      « Assistant Maison », et les compteurs de la réception la lisent. */
+  deLaReception?: boolean;
 };
 
 const coupeWa = (t: string, n: number): string => {
@@ -2061,7 +2064,9 @@ function jugeLaParole(
     if (mots.prix && !leConseilParle(tour.texte, ctx.conseil)) return { parole: 'main-silencieuse', motif: 'prix' };
     parle = true;
   } else if (tour.choix && lisLeChoix(tour.choix.id)) {
-    parle = true;
+    /* Un calibre touché dans la liste de la réception (27 octobre 2026) :
+       c'est à elle de répondre, avec le prix de ce calibre. */
+    parle = lisLeChoix(tour.choix.id)?.geste !== 'calibre';
   } else if (tour.media || mots.retard) {
     parle = false;
     /* LA RÈGLE DES SEPT JOURS EST LEVÉE · 14 octobre 2026, décision de la
@@ -3276,7 +3281,28 @@ function atelierDuTour(ancien: EtatDuFil | null | undefined, tour: TourDeLaClien
   /** La reprise : l'étape où il en était, dite à neuf (pas la relance). */
   const reprend = (): SortieDuTour => renvoie(base.etape, false);
 
-  return { base, joue, laMain, ditLeVerdict, reprend };
+  /* LA RÉCEPTION (27 octobre 2026) : Claude a répondu là où l'automate se
+     taisait. Son message part tel qu'il l'a écrit (la fonction de réception
+     l'a jugé : la voix, les seuls montants du catalogue, ni numéro ni le mot
+     banni) ; le fil se dit « clos », répondu : l'alarme se tait, et le mot
+     suivant repasse par le juge. « equipe » : la main passe, l'équipe est
+     prévenue, et son message dit qui prend le relais. */
+  const laReception = (r: ReponseDeLaReception): SortieDuTour => {
+    const signe = (m: MessageSortant): MessageSortant => ({ ...m, deLaReception: true, prixDuCatalogue: true });
+    if (r.suite === 'equipe') {
+      const s = laMain('question', true, r.texte);
+      return { ...s, messages: s.messages.map((m) => signe({ ...m, corps: r.texte })) };
+    }
+    passe('clos');
+    if (r.suite === 'calibre' && r.lignes && r.lignes.length > 0) {
+      /* Les calibres portent un identifiant de la Maison (« MND:… »), sans quoi leur toucher n'arriverait pas jusqu'ici. */
+      const lignes = r.lignes.slice(0, 9).map((l) => ({ ...l, id: l.id.startsWith('calibre:') ? choix('calibre', l.id.slice('calibre:'.length)) : l.id }));
+      return sortie([signe({ forme: 'liste', etape: 'clos', corps: r.texte, pied: PIED, bouton: 'Choisir mon calibre', lignes: [...lignes, sortieMaison] })]);
+    }
+    return sortie([signe({ forme: 'texte', etape: 'clos', corps: r.texte })]);
+  };
+
+  return { base, joue, laMain, ditLeVerdict, reprend, laReception };
 }
 
 /** LE PRÉNOM QU'ELLE ÉCRIT : « Awa », « je m'appelle Awa », « moi c'est
@@ -3337,6 +3363,79 @@ function etapeSuivante(ancien: EtatDuFil | null, tour: TourDeLaCliente, ctx: Con
   const atelier = atelierDuTour(ancien, tour, ctx, false);
   if (juge.parole === 'main-silencieuse') return atelier.laMain(juge.motif ?? 'erreur', false);
   return atelier.joue(tour);
+}
+
+/* ── 11. LA RÉCEPTION : L'ASSISTANT QUI RÉPOND · 27 octobre 2026 ────────
+   « Est-ce que mon assistant répond aux messages WhatsApp de cette façon même
+   quand je dors ? » (Yéman, sur une vidéo de démonstration). Là où le juge
+   se tait (une question, un prix, un merci, un mot qu'il ne reconnaît pas),
+   la fonction `reception-wa` fait répondre Claude avec la voix et les règles
+   de « Proposer une réponse » (shared/reception-wa-pur), et dit la suite.
+   Le réglage vit à part (`mnd_assistant_wa`) : la base remet en forme celui
+   de l'automate et n'y garderait pas un champ neuf. Livrée en ESSAI. */
+type ModeDeLaReception = 'non' | 'essai' | 'tous';
+type ReglageDeLaReception = { mode: ModeDeLaReception };
+const CLE_DE_LA_RECEPTION = 'mnd_assistant_wa';
+const RECEPTION_LIVREE: ReglageDeLaReception = { mode: 'essai' };
+
+function reglageDeLaReception(brut: unknown): ReglageDeLaReception {
+  const m = brut && typeof brut === 'object' ? (brut as { mode?: unknown }).mode : undefined;
+  return { mode: m === 'non' || m === 'essai' || m === 'tous' ? m : RECEPTION_LIVREE.mode };
+}
+
+/** QUI ELLE SERT : personne, les numéros d'essai de l'automate, ou tout le
+    monde. Jamais l'équipe ni les prestataires. */
+function laReceptionSert(r: ReglageDeLaReception, numero: string, numerosEssai: readonly string[], tiroir: TiroirDuNumero | undefined): boolean {
+  if (tiroir === 'equipe' || tiroir === 'prestataires') return false;
+  if (r.mode === 'tous') return true;
+  if (r.mode === 'essai') return numerosEssai.some((n) => cleWa(n) === cleWa(numero));
+  return false;
+}
+
+type SuiteDeLaReception = 'rien' | 'reserver' | 'creation' | 'reparation' | 'calibre' | 'equipe';
+type ReponseDeLaReception = { texte: string; suite: SuiteDeLaReception; lignes?: { id: string; titre: string; description?: string }[] };
+/** Les suites qui ouvrent le parcours de l'automate : sa liste des prestations. */
+const SUITES_DU_PARCOURS: readonly SuiteDeLaReception[] = ['reserver', 'creation', 'reparation'];
+
+/** PEUT-ELLE PARLER ? Le juge s'est tu, et ce n'est pas un silence voulu :
+    le numéro servi par l'automate ET par la réception, aucune main de
+    l'équipe, un tour neuf, et l'automate n'a pas passé la main. */
+function laReceptionPeutParler(
+  etat: EtatDuFil | null | undefined, tour: TourDeLaCliente, ctx: ContexteLeger, r: ReglageDeLaReception,
+): boolean {
+  const ms = ctx.maintenantMs;
+  if (!numeroServi(ctx.reglage, ctx.numero, ctx.tiroir)) return false;
+  if (!laReceptionSert(r, ctx.numero, ctx.reglage.numerosEssai, ctx.tiroir)) return false;
+  if (pauseActive(ctx.main, ms)) return false;
+  if (tour.waIds.length === 0) return false;
+  const quand = msWa(tour.quand);
+  if (Number.isFinite(quand) && ms - quand > TOUR_PERIME_MS) return false;
+  return etapeCourante(etat, ctx.main, ms, ctx.reglage.pauseHeures) !== 'main';
+}
+
+/** Le tour qui ouvre le parcours après la réception : son intention dite
+    simplement (ses mots à elle passeraient de nouveau par le juge, qui s'est
+    tu), sans le choix d'une ancienne liste. */
+const INTENTION_DE_LA_RECEPTION = 'Je voudrais prendre rendez-vous.';
+const tourPourLeParcours = (tour: TourDeLaCliente): TourDeLaCliente => ({ waIds: tour.waIds, quand: tour.quand, texte: INTENTION_DE_LA_RECEPTION, media: false });
+
+/** Le mot de la réception qui précède la liste du parcours. */
+const prefaceDeLaReception = (texte: string, etape: EtapeDuFil): MessageSortant =>
+  ({ forme: 'texte', etape, corps: texte, deLaReception: true, prixDuCatalogue: true });
+
+/** LE MOT DE SECOURS : Claude absent, en retard ou fautif, jamais un silence. */
+function secoursDeLaReception(maintenantMs: number, semaine: readonly HeureDeLaSemaine[], exceptions: readonly ExceptionDHoraire[]): ReponseDeLaReception {
+  const quand = prochaineOuvertureDite(maintenantMs, semaine, exceptions);
+  return {
+    texte: quand === null
+      ? 'Merci pour votre message. Une personne de la Maison vous répond dans un instant.'
+      : `Merci pour votre message. La Maison vous répond ${quand}.`,
+    suite: 'equipe',
+  };
+}
+
+function reponseDeLaReception(ancien: EtatDuFil | null, tour: TourDeLaCliente, ctx: ContexteDuTour, r: ReponseDeLaReception): SortieDuTour {
+  return atelierDuTour(ancien, tour, ctx, false).laReception(r);
 }
 
 /** APRÈS LE VERROU : `etat` est celui que `etapeSuivante` vient de rendre
@@ -3693,8 +3792,11 @@ async function laisseLaTrace(
       quand: new Date().toISOString(),
       etat: o.rendu.waId ? 'en-route' : 'non-remis',
       ...(o.rendu.detail ? { detail: o.rendu.detail } : {}),
-      parQui: 'Le Trône',
+      /* La réception signe « Assistant Maison » (27 octobre 2026) : le Trône
+         la lit comme une main qui n'est pas humaine, et le plafond la compte. */
+      parQui: o.m.deLaReception ? 'Assistant Maison' : 'Le Trône',
       auto: 'automate',
+      ...(o.m.deLaReception ? { reception: true } : {}),
       etape: o.m.etape,
       choix: choixDuMessage(o.m),
       /* La réponse de la Maison envoyée (le conseil) : les compteurs du Trône la lisent. */
@@ -3786,6 +3888,61 @@ async function rattacheLaPose(sb: Sb, numero: string, rdvId: string, branchId: s
 
 const attends = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
+/* ══ LA RÉCEPTION, DEMANDÉE · 27 octobre 2026 ══════════════════════════
+   La fonction `reception-wa` (regroupée depuis le dépôt) fait écrire Claude.
+   Vingt-cinq secondes au plus ; sans réponse sûre, le mot de secours, et la
+   main passe à l'équipe. La porte : la même clé service que le webhook. */
+const SUITES_CONNUES = ['rien', 'reserver', 'creation', 'reparation', 'calibre', 'equipe'];
+async function demandeALaReception(
+  // deno-lint-ignore no-explicit-any
+  o: Appel, x: { tour: TourDeLaCliente; fiches: FicheDuNumero[]; docs: Map<string, any>; ms: number },
+): Promise<ReponseDeLaReception> {
+  const reglages = x.docs.get('mnd_settings') ?? {};
+  const fermetures = x.docs.get('mnd_horaires_exceptions');
+  const secours = () => secoursDeLaReception(x.ms, Array.isArray(reglages.hours) ? reglages.hours : [], Array.isArray(fermetures) ? fermetures : []);
+  const base = (Deno.env.get('SUPABASE_URL') ?? '').replace(/\/$/, '');
+  const cle = (Deno.env.get('CLE_SERVICE') ?? Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '').trim();
+  if (!base || !cle) return secours();
+  const titulaire = titulaireDuNumero(x.fiches, instantACotonou(x.ms).iso);
+  const corps = {
+    numero: o.numero,
+    ...(titulaire ? {
+      clientId: titulaire.id,
+      fiche: { name: titulaire.nom, ...(titulaire.civilite ? { civilite: titulaire.civilite } : {}), ...(titulaire.auMasculin ? { auMasculin: true } : {}) },
+      ...(titulaire.prochainRdv ? { prochainRdv: titulaire.prochainRdv } : {}),
+      ...(titulaire.derniereVenue ? { derniereVenue: { date: titulaire.derniereVenue.date } } : {}),
+    } : {}),
+    ...(x.tour.choix?.id ? { choixId: x.tour.choix.id } : {}),
+  };
+  const arret = new AbortController();
+  const minuterie = setTimeout(() => arret.abort(), 25_000);
+  try {
+    const res = await fetch(`${base}/functions/v1/reception-wa`, {
+      method: 'POST', signal: arret.signal,
+      headers: { authorization: `Bearer ${cle}`, 'content-type': 'application/json' },
+      body: JSON.stringify(corps),
+    });
+    // deno-lint-ignore no-explicit-any
+    const r: any = await res.json().catch(() => null);
+    if (!r || r.ok !== true || typeof r.texte !== 'string' || !r.texte.trim()) {
+      dis('la reception ne repond pas : le secours part', { motif: String(r?.motif ?? res.status).slice(0, 40) });
+      return secours();
+    }
+    const suite = SUITES_CONNUES.includes(r.suite) ? r.suite : 'rien';
+    const lignes = Array.isArray(r.lignes)
+      ? (r.lignes as { id?: unknown; titre?: unknown; description?: unknown }[])
+        .filter((l) => typeof l?.id === 'string' && typeof l?.titre === 'string')
+        .map((l) => ({ id: String(l.id).slice(0, 200), titre: String(l.titre).slice(0, 24), ...(typeof l.description === 'string' ? { description: l.description.slice(0, 72) } : {}) }))
+      : [];
+    return { texte: r.texte.trim(), suite, ...(lignes.length ? { lignes } : {}) };
+  } catch (e) {
+    dis('la reception ne repond pas : le secours part', { motif: arret.signal.aborted ? 'delai' : String((e as Error)?.message ?? e).slice(0, 60) });
+    return secours();
+  } finally {
+    clearTimeout(minuterie);
+  }
+}
+
 /* ══ UN NUMÉRO, UN TOUR ════════════════════════════════════════════════ */
 type Appel = { numero: string; tiroir: TiroirDuNumero; waIds: string[]; jeton: string; phoneId: string };
 type Reponse = { pris: boolean; alerte?: AlerteDeLAutomate };
@@ -3852,16 +4009,44 @@ async function unTour(
     /* Les réponses de la Maison (le conseil, 14 octobre 2026). */
     conseil: conseilDeLaMaison(docs.get('mnd_reponses_maison')),
   };
-  const juge = jugeLaParole(fil, tour, ctxLeger);
-  if (juge.parole === 'silence') return { pris: false };
+  let juge = jugeLaParole(fil, tour, ctxLeger);
+
+  /* ⑤ bis LA RÉCEPTION (27 octobre 2026). Le juge se tait, mais ce n'est
+     pas un silence voulu (`laReceptionPeutParler`) : « en train d'écrire »,
+     l'attente de la rafale, puis la fonction `reception-wa` fait répondre
+     Claude et dit la suite. Un rendez-vous, une création, une réparation :
+     son mot précède la liste du parcours, qui prend la main. Le reste part
+     seul (« clos »), ou passe la main à l'équipe. Sans réponse d'elle, son
+     mot de secours : jamais un silence. */
+  let tourDuParcours = tour;
+  let reception: ReponseDeLaReception | null = null;
+  let dejaEcrit = false;
+  if (juge.parole === 'silence') {
+    if (!laReceptionPeutParler(fil, tour, ctxLeger, reglageDeLaReception(docs.get(CLE_DE_LA_RECEPTION)))) return { pris: false };
+    if (essai === 0) {
+      await enTrainDEcrire(sb, o.jeton, o.phoneId, tour.waIds[tour.waIds.length - 1]);
+      await attends(ATTENTE_DU_TOUR_MS);
+      const apres = await leTourDuNumero(sb, o.numero, o.waIds, fil, Date.now());
+      if (apres === 'un-autre' || apres === 'traite') { dis('un message plus recent repondra', { pourquoi: apres }); return { pris: true }; }
+      if (apres === null || apres === 'pas-a-lui') return { pris: false };
+      dejaEcrit = true;
+    }
+    reception = await demandeALaReception(o, { tour, fiches, docs, ms });
+    if (SUITES_DU_PARCOURS.includes(reception.suite)) {
+      tourDuParcours = tourPourLeParcours(tour);
+      juge = jugeLaParole(fil, tourDuParcours, ctxLeger);
+      if (juge.parole === 'silence') reception = { texte: reception.texte, suite: 'rien' };
+    }
+  }
+  const direct = !!reception && !SUITES_DU_PARCOURS.includes(reception.suite);
 
   /* ⑥ ⑦ « EN TRAIN D'ÉCRIRE », l'attente, et l'agenda pendant ce temps. */
   const aujourdhui = instantACotonou(ms).iso;
   let agenda: AgendaLu | null = null;
-  if (juge.parole === 'parle') {
+  if (juge.parole === 'parle' && !direct) {
     const titulaire = fiches.find((f) => f.parPhone) ?? fiches[0];
     const lecture = litLAgenda(sb, docs, titulaire?.branchId, aujourdhui, reglage.horizonJours);
-    if (essai === 0) {
+    if (essai === 0 && !dejaEcrit) {
       await enTrainDEcrire(sb, o.jeton, o.phoneId, tour.waIds[tour.waIds.length - 1]);
       await attends(ATTENTE_DU_TOUR_MS);
       const apres = await leTourDuNumero(sb, o.numero, o.waIds, fil, Date.now());
@@ -3884,8 +4069,24 @@ async function unTour(
     /* Les prix du catalogue du jour, pour les jetons du conseil. */
     ...(agenda ? { prix: prixDuCatalogue(agenda.lignes.services) } : {}),
   };
-  let sortie = etapeSuivante(fil, tour, ctx);
+  let sortie = direct ? reponseDeLaReception(fil, tour, ctx, reception!) : etapeSuivante(fil, tourDuParcours, ctx);
   if (!sortie.pris) return { pris: false };
+  /* Les juges de la Maison passent AVANT l'écriture pour la réception : un
+     mot refusé ne laisse jamais la cliente sans réponse, le secours part. */
+  const juge2 = (m: MessageSortant): string[] => [...respecteMeta(m), ...texteSain(toutLeTexteWa(m), m.prixDuCatalogue === true)];
+  const hours = (docs.get('mnd_settings')?.hours ?? []) as HeureDeLaSemaine[];
+  const fermetures = (docs.get('mnd_horaires_exceptions') ?? []) as ExceptionDHoraire[];
+  if (direct && sortie.messages.some((m) => juge2(m).length > 0)) {
+    dis('reponse de la reception retenue par les juges : le secours part');
+    sortie = reponseDeLaReception(fil, tour, ctx, secoursDeLaReception(ms, Array.isArray(hours) ? hours : [], Array.isArray(fermetures) ? fermetures : []));
+  }
+  if (reception && !direct) {
+    const preface = prefaceDeLaReception(reception.texte, sortie.messages[0]?.etape ?? 'besoin');
+    if (juge2(preface).length === 0) {
+      sortie = { ...sortie, messages: [preface, ...sortie.messages] };
+      sortie.etat.envois.push(isoWa(ms));
+    }
+  }
   let posee: string | null = null;
   const pose = sortie.ecritures.find((e) => e.genre === 'pose');
   if (pose) {

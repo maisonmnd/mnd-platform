@@ -706,6 +706,9 @@ type MessageSortant = {
   /** Ses prix viennent du catalogue du jour, par jetons : le juge de la
       Maison les laisse passer, et eux seuls. */
   prixDuCatalogue?: boolean;
+  /** Écrit par la réception (Claude, 27 octobre 2026) : la trace dit
+      « Assistant Maison », et les compteurs de la réception la lisent. */
+  deLaReception?: boolean;
 };
 
 const coupeWa = (t: string, n: number): string => {
@@ -1148,7 +1151,9 @@ function jugeLaParole(
     if (mots.prix && !leConseilParle(tour.texte, ctx.conseil)) return { parole: 'main-silencieuse', motif: 'prix' };
     parle = true;
   } else if (tour.choix && lisLeChoix(tour.choix.id)) {
-    parle = true;
+    /* Un calibre touché dans la liste de la réception (27 octobre 2026) :
+       c'est à elle de répondre, avec le prix de ce calibre. */
+    parle = lisLeChoix(tour.choix.id)?.geste !== 'calibre';
   } else if (tour.media || mots.retard) {
     parle = false;
     /* LA RÈGLE DES SEPT JOURS EST LEVÉE · 14 octobre 2026, décision de la
@@ -2363,7 +2368,28 @@ function atelierDuTour(ancien: EtatDuFil | null | undefined, tour: TourDeLaClien
   /** La reprise : l'étape où il en était, dite à neuf (pas la relance). */
   const reprend = (): SortieDuTour => renvoie(base.etape, false);
 
-  return { base, joue, laMain, ditLeVerdict, reprend };
+  /* LA RÉCEPTION (27 octobre 2026) : Claude a répondu là où l'automate se
+     taisait. Son message part tel qu'il l'a écrit (la fonction de réception
+     l'a jugé : la voix, les seuls montants du catalogue, ni numéro ni le mot
+     banni) ; le fil se dit « clos », répondu : l'alarme se tait, et le mot
+     suivant repasse par le juge. « equipe » : la main passe, l'équipe est
+     prévenue, et son message dit qui prend le relais. */
+  const laReception = (r: ReponseDeLaReception): SortieDuTour => {
+    const signe = (m: MessageSortant): MessageSortant => ({ ...m, deLaReception: true, prixDuCatalogue: true });
+    if (r.suite === 'equipe') {
+      const s = laMain('question', true, r.texte);
+      return { ...s, messages: s.messages.map((m) => signe({ ...m, corps: r.texte })) };
+    }
+    passe('clos');
+    if (r.suite === 'calibre' && r.lignes && r.lignes.length > 0) {
+      /* Les calibres portent un identifiant de la Maison (« MND:… »), sans quoi leur toucher n'arriverait pas jusqu'ici. */
+      const lignes = r.lignes.slice(0, 9).map((l) => ({ ...l, id: l.id.startsWith('calibre:') ? choix('calibre', l.id.slice('calibre:'.length)) : l.id }));
+      return sortie([signe({ forme: 'liste', etape: 'clos', corps: r.texte, pied: PIED, bouton: 'Choisir mon calibre', lignes: [...lignes, sortieMaison] })]);
+    }
+    return sortie([signe({ forme: 'texte', etape: 'clos', corps: r.texte })]);
+  };
+
+  return { base, joue, laMain, ditLeVerdict, reprend, laReception };
 }
 
 /** LE PRÉNOM QU'ELLE ÉCRIT : « Awa », « je m'appelle Awa », « moi c'est
@@ -2426,6 +2452,79 @@ function etapeSuivante(ancien: EtatDuFil | null, tour: TourDeLaCliente, ctx: Con
   return atelier.joue(tour);
 }
 
+/* ── 11. LA RÉCEPTION : L'ASSISTANT QUI RÉPOND · 27 octobre 2026 ────────
+   « Est-ce que mon assistant répond aux messages WhatsApp de cette façon même
+   quand je dors ? » (Yéman, sur une vidéo de démonstration). Là où le juge
+   se tait (une question, un prix, un merci, un mot qu'il ne reconnaît pas),
+   la fonction `reception-wa` fait répondre Claude avec la voix et les règles
+   de « Proposer une réponse » (shared/reception-wa-pur), et dit la suite.
+   Le réglage vit à part (`mnd_assistant_wa`) : la base remet en forme celui
+   de l'automate et n'y garderait pas un champ neuf. Livrée en ESSAI. */
+type ModeDeLaReception = 'non' | 'essai' | 'tous';
+type ReglageDeLaReception = { mode: ModeDeLaReception };
+const CLE_DE_LA_RECEPTION = 'mnd_assistant_wa';
+const RECEPTION_LIVREE: ReglageDeLaReception = { mode: 'essai' };
+
+function reglageDeLaReception(brut: unknown): ReglageDeLaReception {
+  const m = brut && typeof brut === 'object' ? (brut as { mode?: unknown }).mode : undefined;
+  return { mode: m === 'non' || m === 'essai' || m === 'tous' ? m : RECEPTION_LIVREE.mode };
+}
+
+/** QUI ELLE SERT : personne, les numéros d'essai de l'automate, ou tout le
+    monde. Jamais l'équipe ni les prestataires. */
+function laReceptionSert(r: ReglageDeLaReception, numero: string, numerosEssai: readonly string[], tiroir: TiroirDuNumero | undefined): boolean {
+  if (tiroir === 'equipe' || tiroir === 'prestataires') return false;
+  if (r.mode === 'tous') return true;
+  if (r.mode === 'essai') return numerosEssai.some((n) => cleWa(n) === cleWa(numero));
+  return false;
+}
+
+type SuiteDeLaReception = 'rien' | 'reserver' | 'creation' | 'reparation' | 'calibre' | 'equipe';
+type ReponseDeLaReception = { texte: string; suite: SuiteDeLaReception; lignes?: { id: string; titre: string; description?: string }[] };
+/** Les suites qui ouvrent le parcours de l'automate : sa liste des prestations. */
+const SUITES_DU_PARCOURS: readonly SuiteDeLaReception[] = ['reserver', 'creation', 'reparation'];
+
+/** PEUT-ELLE PARLER ? Le juge s'est tu, et ce n'est pas un silence voulu :
+    le numéro servi par l'automate ET par la réception, aucune main de
+    l'équipe, un tour neuf, et l'automate n'a pas passé la main. */
+function laReceptionPeutParler(
+  etat: EtatDuFil | null | undefined, tour: TourDeLaCliente, ctx: ContexteLeger, r: ReglageDeLaReception,
+): boolean {
+  const ms = ctx.maintenantMs;
+  if (!numeroServi(ctx.reglage, ctx.numero, ctx.tiroir)) return false;
+  if (!laReceptionSert(r, ctx.numero, ctx.reglage.numerosEssai, ctx.tiroir)) return false;
+  if (pauseActive(ctx.main, ms)) return false;
+  if (tour.waIds.length === 0) return false;
+  const quand = msWa(tour.quand);
+  if (Number.isFinite(quand) && ms - quand > TOUR_PERIME_MS) return false;
+  return etapeCourante(etat, ctx.main, ms, ctx.reglage.pauseHeures) !== 'main';
+}
+
+/** Le tour qui ouvre le parcours après la réception : son intention dite
+    simplement (ses mots à elle passeraient de nouveau par le juge, qui s'est
+    tu), sans le choix d'une ancienne liste. */
+const INTENTION_DE_LA_RECEPTION = 'Je voudrais prendre rendez-vous.';
+const tourPourLeParcours = (tour: TourDeLaCliente): TourDeLaCliente => ({ waIds: tour.waIds, quand: tour.quand, texte: INTENTION_DE_LA_RECEPTION, media: false });
+
+/** Le mot de la réception qui précède la liste du parcours. */
+const prefaceDeLaReception = (texte: string, etape: EtapeDuFil): MessageSortant =>
+  ({ forme: 'texte', etape, corps: texte, deLaReception: true, prixDuCatalogue: true });
+
+/** LE MOT DE SECOURS : Claude absent, en retard ou fautif, jamais un silence. */
+function secoursDeLaReception(maintenantMs: number, semaine: readonly HeureDeLaSemaine[], exceptions: readonly ExceptionDHoraire[]): ReponseDeLaReception {
+  const quand = prochaineOuvertureDite(maintenantMs, semaine, exceptions);
+  return {
+    texte: quand === null
+      ? 'Merci pour votre message. Une personne de la Maison vous répond dans un instant.'
+      : `Merci pour votre message. La Maison vous répond ${quand}.`,
+    suite: 'equipe',
+  };
+}
+
+function reponseDeLaReception(ancien: EtatDuFil | null, tour: TourDeLaCliente, ctx: ContexteDuTour, r: ReponseDeLaReception): SortieDuTour {
+  return atelierDuTour(ancien, tour, ctx, false).laReception(r);
+}
+
 /** APRÈS LE VERROU : `etat` est celui que `etapeSuivante` vient de rendre
     avec l'écriture `pose` ; la version ne monte pas (une écriture par tour). */
 function suiteDeLaPose(etat: EtatDuFil, verdict: VerdictDeLaPose, ctx: ContexteDuTour): SortieDuTour {
@@ -2454,6 +2553,8 @@ export {
   heureDite, jourDitAvecAnnee, titreDePlace, titreDuJour, prochaineOuvertureDite,
   choixDuMessage, chargeGraph, respecteMeta, texteSain, alerteDeLAutomate, cleCourte, prenomLu,
   quiParle, jugeLaParole, etapeSuivante, suiteDeLaPose, mainApresCoup, repriseDuFil,
+  CLE_DE_LA_RECEPTION, RECEPTION_LIVREE, SUITES_DU_PARCOURS, INTENTION_DE_LA_RECEPTION, reglageDeLaReception, laReceptionSert, laReceptionPeutParler,
+  tourPourLeParcours, prefaceDeLaReception, secoursDeLaReception, reponseDeLaReception,
   MOTS_SANTE_LIVRES, TEXTE_DE_REPONSE_MAX, conseilDeLaMaison, conseilActif, prixDuCatalogue, prixDitWa,
   fautesDeLaReponse, texteDeLaReponse, reponsesEnvoyables, lisLeConseil, leConseilParle,
 };
@@ -2463,4 +2564,5 @@ export type {
   TourDeLaCliente, FormeDuMessage, MessageSortant, FicheDuNumero, PrestationDuTour, AgendaDuTour, ContexteLeger,
   ContexteDuTour, ParoleDuTour, RdvAPoser, DemandeAPoser, EnvoiAPoser, EcritureDuTour, AlerteDeLAutomate,
   SortieDuTour, VerdictDeLaPose, ReponseDeLaMaison, ConseilDeLaMaison, EtatDeLaReponse,
+  ModeDeLaReception, ReglageDeLaReception, SuiteDeLaReception, ReponseDeLaReception,
 };

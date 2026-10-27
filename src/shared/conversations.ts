@@ -87,6 +87,8 @@ export type MessageWa = {
   modele?: string;
   /** Qui l'a écrit, côté Maison. */
   parQui?: string;
+  /** Écrit par la réception de l'automate (Claude, 27 octobre 2026). */
+  reception?: boolean;
   /** PAR QUEL NUMÉRO DE LA MAISON — l'identifiant Meta du numéro qui a reçu
       ou envoyé (11 septembre 2026, question de Yéman : « je voudrais avoir
       2 numéros WhatsApp enregistrés »).
