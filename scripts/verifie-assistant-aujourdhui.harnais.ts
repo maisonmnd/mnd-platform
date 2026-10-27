@@ -106,6 +106,12 @@ const envoisWa: EnvoiDuJour[] = [
   env({ id: idDeLaLigne(A, 'zz', 'whatsapp'), clientId: 'zz', canal: 'whatsapp', statut: 'retenu', genre: 'envie' }),
 ];
 const fusionWa = fusionnePlanEtSalle({ plan: planWa, envois: envoisWa, aujourdhui: A, maintenantMs: matin, actif: true, partSeule: () => true });
+{
+  /* La carte d'anniversaire déposée à 8 h attend 10 h : la colonne le dit (28 octobre 2026). */
+  const carte = fusionnePlanEtSalle({ plan: [sit('sb', 'whatsapp', 'anniversaire')], envois: [env({ id: idDeLaLigne(A, 'sb', 'whatsapp'), clientId: 'sb', canal: 'whatsapp', statut: 'en-attente', partA: `${A}T09:00:00.000Z`, genre: 'anniversaire' })],
+    aujourdhui: A, maintenantMs: Date.parse(`${A}T07:05:00.000Z`), actif: true, partSeule: () => true });
+  dit('la carte d’anniversaire en salle dit son heure : « part à 10 h »', 'part à 10 h', carte.lignes[0].depart);
+}
 dit('le modèle parti seul par le facteur (ligne « whatsapp ») : retrouvé par son identifiant ; en salle, il « part seul au passage du matin » ; parti, le devenu et son code ; retenu, à la main ; pas encore déposé, il attend le passage, pas un toucher',
   [['gerard-2026-10-26-ra-whatsapp', 'en-salle', 'part seul au passage du matin', undefined], ['gerard-2026-10-26-sb-whatsapp', 'partie', 'lu', 'ANNIV10-SB2'],
     ['gerard-2026-10-26-zz-whatsapp', 'retenue', 'retenue à la main', undefined], [undefined, 'pas-encore', 'pas encore en salle', undefined]],

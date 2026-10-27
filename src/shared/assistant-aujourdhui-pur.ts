@@ -139,7 +139,9 @@ function etatDe(e: EnvoiDuJour | undefined, s: Situation, actif: boolean, seule:
   return PARTIE.has(d) ? 'partie' : 'echec';
 }
 
-function departDe(e: EnvoiDuJour | undefined, etat: EtatDeLaLigne, maintenantMs: number): string {
+function departDe(e: EnvoiDuJour | undefined, etat: EtatDeLaLigne, maintenantMs: number, carte: boolean): string {
+  /* La carte d'anniversaire attend 10 h en salle (`departDeLaCarte`, 28 octobre 2026) : son heure se dit. */
+  if (etat === 'en-salle' && carte && e) return quandIlPart(e, maintenantMs) || 'part à l’instant';
   switch (etat) {
     case 'en-pause': return 'en pause';
     case 'pas-encore': return 'pas encore en salle';
@@ -186,7 +188,7 @@ export function fusionnePlanEtSalle(o: {
     return {
       clientId: s.clientId, situation: s, canal: s.canal,
       ...(envoi ? { envoi } : {}),
-      etat, depart: departDe(envoi, etat, o.maintenantMs),
+      etat, depart: departDe(envoi, etat, o.maintenantMs, s.genre === 'anniversaire'),
       ...(remise ? { remise } : {}),
       ...(envoi?.codePromo ? { codePromo: envoi.codePromo } : {}),
       francs: o.francsDe ? o.francsDe(s.clientId) : null,

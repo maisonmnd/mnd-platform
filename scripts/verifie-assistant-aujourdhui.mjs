@@ -69,6 +69,10 @@ const PANNES = [
     "    parId.get(idDeLaLigne(o.aujourdhui, s.clientId, 'whatsapp')) ??\n", ''],
   ['le modele parti seul dit l heure de la salle au lieu du passage du matin', PUR,
     "e?.canal === 'whatsapp' ? 'part seul au passage du matin' : ", ''],
+  ['la carte d anniversaire tait son heure de 10 h', PUR,
+    "if (etat === 'en-salle' && carte && e) return quandIlPart(e, maintenantMs) || 'part à l’instant';", ''],
+  ['toute ligne prise pour une carte', PUR,
+    "departDe(envoi, etat, o.maintenantMs, s.genre === 'anniversaire')", 'departDe(envoi, etat, o.maintenantMs, true)'],
 ];
 
 const md5 = (f) => createHash('md5').update(readFileSync(path.join(racine, f))).digest('hex');

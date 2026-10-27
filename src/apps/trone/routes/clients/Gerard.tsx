@@ -488,7 +488,7 @@ export default function Gerard() {
               <b>{actif ? 'Actif' : 'Pause'}.</b>
               {!actif
                 ? <span>Il prépare son plan, il n’écrit à personne.</span>
-                : <span>Chaque jour, quand la direction ouvre le Trône entre 8 h et 20 h, l’Assistant dépose les notifications Ma Couronne de son plan ; le facteur les porte, jamais entre 20 h et 8 h. WhatsApp : « Envoyer sur WhatsApp », un toucher par cliente, jusqu’à l’approbation de ses modèles chez Meta ; approuvé, le modèle part seul au passage du matin.{reglages.dernierPassage ? ` Dernier passage : ${reglages.dernierPassage === ctx.aujourdhui ? 'aujourd’hui' : jourDit(reglages.dernierPassage)}.` : ''}</span>}
+                : <span>Chaque jour, quand la direction ouvre le Trône entre 8 h et 20 h, l’Assistant dépose les notifications Ma Couronne de son plan ; le facteur les porte, jamais entre 20 h et 8 h. WhatsApp : « Envoyer sur WhatsApp », un toucher par cliente, jusqu’à l’approbation de ses modèles chez Meta ; approuvé, le modèle part seul au passage du matin, et la carte d’anniversaire à 10 h.{reglages.dernierPassage ? ` Dernier passage : ${reglages.dernierPassage === ctx.aujourdhui ? 'aujourd’hui' : jourDit(reglages.dernierPassage)}.` : ''}</span>}
               {/* QUI FAIT LE PASSAGE (lot 2) : la fonction serveur si elle a parlé depuis moins de 26 h, sinon le Trône.
                   Rien tant que le document n'est pas lu : pas de fausse phrase le temps d'un chargement. */}
               {etatServeur !== undefined && (
@@ -562,7 +562,7 @@ export default function Gerard() {
                               {/* LOT 2 : un modèle approuvé chez Meta part seul au passage du matin (`partSeule`) ; le
                                   bouton se tait, sinon le message partirait deux fois. Pas approuvé : un toucher par cliente. */}
                               {s.canal === 'whatsapp' && partSeule(s, reglages) && (
-                                <em className="trc-am__puce trc-am__puce--cuivre">Part seul sur WhatsApp au passage du matin</em>
+                                <em className="trc-am__puce trc-am__puce--cuivre">{s.genre === 'anniversaire' ? 'Part seule sur WhatsApp à 10 h' : 'Part seul sur WhatsApp au passage du matin'}</em>
                               )}
                               {/* LA CARTE À UN TOUCHER : la fenêtre « Sa carte » (l'image à son prénom, au numéro du plan) ; noté « à la main » quand elle part. */}
                               {s.canal === 'whatsapp' && servie(reglages, s.clientId) && !partSeule(s, reglages) && modele.enTete === 'image' && (
