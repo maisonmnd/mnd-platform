@@ -22,9 +22,9 @@ const sansCommentaires = (t: string) => t.replace(/\/\*[\s\S]*?\*\//g, '').repla
 dit('un merci, sans question : merci, merci beaucoup, « Ok je confirme à demain inchaalla merci », d’accord, parfait, un pouce, des mains jointes',
   [true, true, true, true, true, true, true, true],
   ['Merci', 'Merci beaucoup !', 'Ok je confirme à demain inchaalla merci', 'D’accord, merci', 'Parfait, merci', 'Merci bcp', '👍', '🙏🏾'].map(estUnMerci));
-dit('… pas un merci : une question, « oui », une suite, un bonjour, un ok qui demande, trop long, vide',
-  [false, false, false, false, false, false, false],
-  ['Merci, c’est possible samedi ?', 'oui', 'Merci. Je voudrais aussi une couleur', 'Bonjour', 'Ok mais à quelle heure', `Merci ${'beaucoup '.repeat(12)}`, ''].map(estUnMerci));
+dit('… pas un merci : une question, « oui », « oui merci » (il répond souvent à une question), une suite, un bonjour, un ok qui demande, trop long, vide, un « ? » en mots de merci',
+  [false, false, false, false, false, false, false, false, false],
+  ['Merci, c’est possible samedi ?', 'oui', 'Oui merci', 'Merci. Je voudrais aussi une couleur', 'Bonjour', 'Ok mais à quelle heure', `Merci ${'beaucoup '.repeat(12)}`, '', 'Ok pour demain ?'].map(estUnMerci));
 
 /* ── 2. Les groupes ── */
 const maintenant = Date.parse('2026-10-27T12:00:00Z');
@@ -42,9 +42,11 @@ const merci = boite({ derniereDElle: bulle('Merci beaucoup !', 7 * 24) as never,
 const sante = boite({ pourquoi: ['souci'], sante: true, niveauDuSouci: 'sante', derniereDElle: bulle('Ça gratte', 50) as never, soucisOuverts: [{ quand: il(50) }] as never, enRetard: true });
 const mercietSouci = boite({ pourquoi: ['whatsapp', 'souci'], niveauDuSouci: 'conseil', derniereDElle: bulle('Merci', 3) as never });
 const rangee = boite({ attendUneReponse: false, pourquoi: [], rangee: true, derniereDElle: bulle('Merci', 3) as never });
-dit('les groupes : moins de 24 h, plus anciennes, un merci ; Santé en retard reste en tête ; un merci qui porte aussi un souci n’est pas un merci ; rangée : aucun',
-  ['maintenant', 'plus', 'merci', 'maintenant', 'maintenant', null],
-  [recente, ancienne, merci, sante, mercietSouci, rangee].map((b) => groupeDe(b, maintenant)));
+/* Elle a écrit il y a 30 h ; un modèle parti seul de la Maison il y a 1 h ne la rajeunit pas. */
+const relanceeParLaMaison = boite({ derniereDElle: bulle('Et pour une coloration ?', 30) as never, derniere: { ...bulle('Bonjour, une envie de soin ?', 1), auteur: 'modele' } as never, fil: { fenetre: fenetre(false) } as never });
+dit('les groupes : moins de 24 h, plus anciennes, un merci ; Santé en retard reste en tête ; un merci qui porte aussi un souci n’est pas un merci ; rangée : aucun ; l’âge est celui de SON dernier mot',
+  ['maintenant', 'plus', 'merci', 'maintenant', 'maintenant', null, 'plus'],
+  [recente, ancienne, merci, sante, mercietSouci, rangee, relanceeParLaMaison].map((b) => groupeDe(b, maintenant)));
 dit('… attendre pour un merci : seulement pour ses mots', [true, false], [attendPourUnMerci(merci), attendPourUnMerci(mercietSouci)]);
 
 /* ── 3. La pastille ── */

@@ -213,7 +213,8 @@ dit('… les comptes baissent d’autant', { attend: 6, 'entre-deux': 2, site: 2
 dit('estRangee : après, avant, sans date d’elle, aucune marque, date illisible', [true, false, true, false, false],
   [estRangee(['k'], a('10:00:00'), { k: { le: a('10:00:00') } }), estRangee(['k'], a('10:00:01'), { k: { le: a('10:00:00') } }),
     estRangee(['k'], undefined, { k: { le: a('10:00:00') } }), estRangee(['k'], a('10:00:00'), undefined), estRangee(['k'], a('10:00:00'), { k: { le: 'hier' } })]);
-dit('… les instants en millisecondes, jamais en texte (« 10:00:00Z » et « 10:00:00.000Z »)', true, estRangee(['k'], `${A}T10:00:00.000Z`, { k: { le: `${A}T10:00:00Z` } }));
+dit('… les instants en millisecondes, jamais en texte (« 10:00:00Z » et « 10:00:00.000Z », dans les deux sens)', [true, true],
+  [estRangee(['k'], `${A}T10:00:00.000Z`, { k: { le: `${A}T10:00:00Z` } }), estRangee(['k'], `${A}T10:00:00Z`, { k: { le: `${A}T10:00:00.000Z` } })]);
 
 /* ── 8. La lettre ── */
 const pur = readFileSync('src/shared/boite-unique-pur.ts', 'utf8');
