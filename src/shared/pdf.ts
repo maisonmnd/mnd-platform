@@ -615,7 +615,10 @@ export type InvoicePdfData = {
       compose montant compris, et le marchand se nomme. */
   /** `genre: 'tapgo'` (17 octobre 2026) : le QR ouvre la page qui compose le
       numéro Tap & Go ; il se scanne à l'appareil photo, pas dans MoMo. */
-  momo?: { qr: string; code?: string; marchand?: string; genre?: 'tapgo' };
+  /** `codeDit` (28 octobre 2026) : la ligne qui présente le code quand il n'est
+      pas celui du QR. Le QR porte le MoMoPay de la Maison (909099), le code
+      celui de Tap & Go, tout réseau, frais compris. */
+  momo?: { qr: string; code?: string; marchand?: string; genre?: 'tapgo'; codeDit?: string };
   /** LA LIGNE LÉGALE au pied (10 octobre 2026) : la raison de la Maison, RCCM
       et IFU, comme la facture à l'écran. Seulement pour une pièce datée de
       la bascule ou après (`maisonRaisonDuPdfAu`) : le PDF d'une facture
@@ -774,6 +777,17 @@ async function construitLaFacture(d: InvoicePdfData): Promise<{ doc: any; filena
 
   // — Totaux —
   y += 10;
+  /* LE SCEAU DE LA MAISON SUR SES FACTURES — 28 octobre 2026. « Il faut
+     rajouter le tampon de la Maison aussi » (Yéman) : au sélecteur, le sceau
+     dentelé des contrats, posé à gauche des totaux, dans la place que leur
+     colonne laisse libre. Une pièce trop longue s'en passe plutôt que de
+     pousser le QR de paiement hors de la page. Un papier qui ne porte pas le
+     nom de la Maison ne reçoit pas son sceau. */
+  const yDuSceau = y - 4;
+  const sceau = estLaMaisonMND(d.houseName) && yDuSceau + TAILLE_DU_SCEAU < 228 ? await chargeImageDuSite(SCEAU_DES_FACTURES) : null;
+  if (sceau) {
+    try { doc.addImage(sceau, 'PNG', M + 4, yDuSceau, TAILLE_DU_SCEAU, TAILLE_DU_SCEAU, undefined, 'FAST'); } catch { /* image indisponible */ }
+  }
   const rx = W - M;
   /* LA COLONNE DES INTITULÉS S'EST ÉLARGIE — 17 août 2026. Elle tenait sur
      70 mm, taillée pour « Sous-total » et « Total ». Depuis que les règlements
@@ -819,6 +833,8 @@ async function construitLaFacture(d: InvoicePdfData): Promise<{ doc: any; filena
      travaillé, le bas dit COMMENT et PAR QUI c'est réglé. */
   if (d.payeurName) row('Au compte de', pdfSafe(d.payeurName), false, COPPER);
   if (d.status) row('Statut', d.status);
+  /* La note commence sous le sceau, jamais par-dessus. */
+  if (sceau) y = Math.max(y, yDuSceau + TAILLE_DU_SCEAU + 2);
 
   // — Note —
   if (d.note) {
@@ -848,7 +864,8 @@ async function construitLaFacture(d: InvoicePdfData): Promise<{ doc: any; filena
     try {
       const T = 30;
       const xQr = W - M - T;
-      const yQr = 246;
+      /* Une ligne de plus sous le QR quand le code n'est pas le sien : le QR remonte d'autant. */
+      const yQr = d.momo.codeDit ? 243 : 246;
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(7);
       doc.setTextColor(SOFT);
@@ -862,6 +879,10 @@ async function construitLaFacture(d: InvoicePdfData): Promise<{ doc: any; filena
       doc.setTextColor(SOFT);
       if (d.momo.marchand) {
         doc.text(pdfSafe(d.momo.marchand), xQr + T, yTxt, { align: 'right' });
+        yTxt += 3.2;
+      }
+      if (d.momo.codeDit) {
+        doc.text(pdfSafe(d.momo.codeDit), xQr + T, yTxt, { align: 'right' });
         yTxt += 3.2;
       }
       if (d.momo.code) {
@@ -999,6 +1020,12 @@ export async function receiptPdf(d: ReceiptPdfData): Promise<string> {
   doc.text(d.amount, W - M, y + 9, { align: 'right' });
 
   y += 20;
+  /* LE TAMPON PAYÉ SUR LES REÇUS — 28 octobre 2026. « Il faut rajouter le
+     tampon de la Maison aussi. Sur les reçus aussi » (Yéman) ; au sélecteur,
+     « PAYÉ » : le reçu prouve que l'argent est entré. Il se pose en bas à
+     droite, au-dessus du pied, et les valeurs des lignes lui laissent sa place. */
+  const paye = estLaMaisonMND(d.houseName) ? await chargeImageDuSite(TAMPON_PAYE.chemin) : null;
+  const placeDuTampon = paye ? 42 : 0;
   /* « Objet » porte des noms de prestations : ils gardent leurs lettres fon. */
   await assureFon(doc);
   const row = (label: string, value?: string) => {
@@ -1014,7 +1041,7 @@ export async function receiptPdf(d: ReceiptPdfData): Promise<string> {
        se superposait à la ligne suivante. On le replie sur deux lignes au plus,
        et la hauteur du bloc suit ce qu'il a réellement écrit. */
     const VX = M + 36;
-    const bouts = doc.splitTextToSize(pdfSafeGardeFon(value), W - M - VX) as string[];
+    const bouts = doc.splitTextToSize(pdfSafeGardeFon(value), W - M - VX - placeDuTampon) as string[];
     const vues = bouts.slice(0, 2);
     if (bouts.length > 2) vues[1] = `${vues[1].slice(0, -1)}…`;
     vues.forEach((t, i) => texteFon(doc, t, VX, y + i * 4.2));
@@ -1026,6 +1053,11 @@ export async function receiptPdf(d: ReceiptPdfData): Promise<string> {
   row('Caisse', d.cashbox);
   row('Référence', d.ref);
   if (d.note) row('Note', d.note);
+
+  if (paye) {
+    const l = 38;
+    try { doc.addImage(paye, 'PNG', W - M - l, 119 - l / TAMPON_PAYE.ratio, l, l / TAMPON_PAYE.ratio, undefined, 'FAST'); } catch { /* image indisponible */ }
+  }
 
   doc.setDrawColor('#e3dacb');
   doc.setLineWidth(0.3);
@@ -2277,6 +2309,11 @@ const PICTO_ACADEMIE = { chemin: '/assets/academie/pictogramme.png', ratio: 2048
 const SCEAU_ACADEMIE = '/assets/tampons/academie-dentele.png';
 /** Le tampon des contrats de la Maison (13 octobre 2026) : le sceau dentelé. */
 const SCEAU_DES_CONTRATS = '/assets/tampons/mnd-6-dentele.png';
+/** Le même sceau sur les factures, devis et relevés (28 octobre 2026), en millimètres. */
+const SCEAU_DES_FACTURES = SCEAU_DES_CONTRATS;
+const TAILLE_DU_SCEAU = 30;
+/** Le tampon des reçus (28 octobre 2026) : « Maison MND · PAYÉ », 600 × 323. */
+const TAMPON_PAYE = { chemin: '/assets/tampons/mnd-paye.png', ratio: 600 / 323 };
 export const SIGNATURE_ACADEMIE_PDF = 'Former. Transmettre. Affirmer.';
 
 const IMAGES_DU_SITE: Record<string, Promise<string | null>> = {};

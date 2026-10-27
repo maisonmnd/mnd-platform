@@ -57,7 +57,7 @@ const FAUTES = [
   { n: 55, fichier: F, avant: 'disabled={caisseManquante(payCaisse, boxesBranche.length)}', apres: '' },
   /* #56 : les dates de la payeuse sans l'annee. */
   { n: 56, fichier: F, avant: '${frShortAn(i.date)}', apres: '${frDay(i.date)}' },
-  { n: 56, fichier: F, avant: '${frShortAn(jourDuPassage(i))}', apres: '${frDay(jourDuPassage(i))}' },
+  { n: 56, fichier: F, avant: 'jourDe: jourDuPassage,', apres: '' },
   /* #47 : signer a l'ecran un formulaire non enregistre, perdre la signature. */
   { n: 47, fichier: L, avant: 'return memesTermes(enregistre, formulaire);', apres: 'return true;' },
   { n: 47, fichier: L, avant: 'if (!enregistre || plan.trop) return false;', apres: 'if (!enregistre) return false;' },

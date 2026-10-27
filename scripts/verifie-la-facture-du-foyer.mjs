@@ -25,6 +25,7 @@ const P = 'src/shared/facture-du-foyer-pur.ts';
 const ENVOI = 'src/apps/trone/routes/vente/envoi-de-la-piece.ts';
 const CARNET = 'src/apps/trone/routes/clients/Carnet.tsx';
 const ACTIONS = 'src/apps/trone/routes/clients/actions.tsx';
+const PIECE = 'src/apps/trone/routes/vente/pdf-de-la-piece.ts';
 
 const FAUTES = [
   /* #1 : deux fiches sans vrai numero deviennent un foyer. */
@@ -59,9 +60,26 @@ const FAUTES = [
   { n: 9, fichier: 'src/shared/pdf.ts', avant: 'doc.text(d.titre ?? (', apres: 'doc.text((' },
   { n: 9, fichier: ENVOI, avant: "titre: 'FACTURE DU FOYER',", apres: '' },
   { n: 9, fichier: 'src/shared/facture-whatsapp.ts', avant: 'dateDite(o.jourIso), FACTURE_DU_FOYER_JOINTE, o.totalDit]', apres: "dateDite(o.jourIso), 'ci-jointe', o.totalDit]" },
+  /* #10 a #12 (28 octobre 2026) : le papier du foyer, son QR, les tampons. */
+  { n: 10, fichier: PIECE, avant: '${fmtDateFr(o.jourDe ? o.jourDe(p) : p.date)}', apres: '${(o.jourDe ? o.jourDe(p) : p.date).slice(5)}' },
+  { n: 10, fichier: PIECE, avant: "      if (deja > 0) detail.push(`Déjà réglé · − ${o.fmt(deja)}`);\n", apres: '' },
+  { n: 10, fichier: PIECE, avant: '  const totalXof = o.pieces.reduce((n, p) => n + invoiceResteXof(p), 0);', apres: '  const totalXof = o.pieces.reduce((n, p) => n + invoiceTotal(p), 0);' },
+  { n: 11, fichier: PIECE, avant: '    qr: momopay.qr,', apres: '    qr: tg.qr,' },
+  { n: 11, fichier: PIECE, avant: '    code: tg.code,', apres: '    code: momopay.code,' },
+  { n: 12, fichier: 'src/shared/pdf.ts', avant: '  if (sceau) y = Math.max(y, yDuSceau + TAILLE_DU_SCEAU + 2);', apres: '' },
+  { n: 12, fichier: 'src/shared/pdf.ts', avant: 'const paye = estLaMaisonMND(d.houseName) ? await chargeImageDuSite(TAMPON_PAYE.chemin) : null;', apres: 'const paye = null;' },
+  { n: 12, fichier: 'src/apps/trone/routes/vente/Factures.tsx', avant: 'await invoicePdf(pdfDuFoyer({', apres: 'await invoicePdf(({' },
 ];
 
 const md5 =(rel) => createHash('md5').update(readFileSync(path.join(racine, rel))).digest('hex');
+
+/* Le papier du foyer (#10 a #12) charge les magasins du Trone : un navigateur
+   de banc, comme verifie-l-arrondi-du-code (28 octobre 2026). */
+const BANNIERE = `const __m = new Map();
+globalThis.localStorage = { getItem: (k) => (__m.has(k) ? __m.get(k) : null), setItem: (k, v) => __m.set(k, String(v)), removeItem: (k) => __m.delete(k) };
+globalThis.window = { addEventListener() {}, removeEventListener() {}, dispatchEvent() { return true; }, location: { href: '', hash: '' }, setTimeout: () => 0 };
+globalThis.document = { body: { dataset: {}, appendChild() {} }, addEventListener() {}, createElement: () => ({ setAttribute() {}, style: {}, classList: { add() {} }, remove() {} }), querySelectorAll: () => [] };
+globalThis.CustomEvent = class { constructor(t, o) { this.type = t; Object.assign(this, o); } };`;
 
 async function banc(faute) {
   const dossier = mkdtempSync(path.join(tmpdir(), 'verifie-la-facture-du-foyer-'));
@@ -81,7 +99,11 @@ async function banc(faute) {
           });
         },
       }] : [],
-      define: { __FAUTE__: JSON.stringify(faute ?? null) },
+      define: {
+        'import.meta.env': JSON.stringify({ VITE_SUPABASE_URL: '', VITE_SUPABASE_ANON_KEY: '', BASE_URL: '/' }),
+        __FAUTE__: JSON.stringify(faute ?? null),
+      },
+      banner: { js: BANNIERE },
     });
     const r = spawnSync(process.execPath, [sortie], { cwd: racine, encoding: 'utf8' });
     return { status: r.status, sortie: `${r.stdout ?? ''}${r.stderr ?? ''}` };

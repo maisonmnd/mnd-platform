@@ -12,6 +12,8 @@ import path from 'node:path';
 import {
   memeFoyer, rdvsDuFoyerLeJour, cleDuFoyer, motDuFoyer, FACTURE_DU_FOYER_JOINTE, type RdvDuFoyer, type TeteDuFoyer,
 } from '../src/shared/facture-du-foyer-pur';
+import { pdfDuFoyer } from '../src/apps/trone/routes/vente/pdf-de-la-piece';
+import type { Invoice } from '../src/shared/finance';
 
 declare const __FAUTE__: { fichier: string; avant: string; apres: string } | null;
 
@@ -144,6 +146,44 @@ dit(5, 'cleDuFoyer : les deux ecritures du numero donnent la meme cle',
       fois(envoi, "titre: 'FACTURE DU FOYER',"),
       fois(wa, 'variables: [appelDe(o.client), dateDite(o.jourIso), FACTURE_DU_FOYER_JOINTE, o.totalDit]'),
       FACTURE_DU_FOYER_JOINTE]);
+}
+
+/* == #10 a #12 -- LE PAPIER DU FOYER, CELUI DES FACTURES (28 octobre 2026) ==
+   « La facture du recapitulatif du foyer doit etre pareil que les factures
+   PDF ; le code QR a celui de Maison MND 909099 ; le tampon de la Maison, sur
+   les recus aussi » (Yeman). Au selecteur : le code Tap & Go garde sous le QR,
+   le sceau dentele sur les factures, PAYE sur les recus. */
+{
+  const piece = (pour: string, number: string, label: string, unitXof: number, deja = 0) => ({
+    id: `f-${pour}`, number, clientId: 'mere', forClientId: pour, date: '2026-10-28', status: 'envoyée', kind: 'facture', globalDiscountPct: 0,
+    lines: [{ id: 'l1', label, qty: 1, unitXof, discountPct: 0 }, { id: 'l2', label: 'La sortie soignée', qty: 1, unitXof: 2000, discountPct: 0 }],
+    payments: deja ? [{ id: 'v1', date: '2026-10-27', amountXof: deja, method: 'Espèces' }] : [],
+  }) as unknown as Invoice;
+  const papier = pdfDuFoyer({
+    titre: 'RÉCAPITULATIF DU FOYER', nomDuFichier: 'Recapitulatif-du-foyer',
+    pieces: [piece('aine', 'MND-2026-0163', 'SÍNSIN Signature', 35000), piece('cadet', 'MND-2026-0162', 'KLƆKLƆ Essentiel', 5000, 3000)],
+    jourIso: '2026-10-28', client: { name: 'Famille A', phone: '+229 01 51 22 33 44' },
+    nomDe: (p) => (p.forClientId === 'aine' ? 'Aine A' : 'Cadet A'), jourDe: () => '2026-10-27',
+    fmt: (n) => `${n} F`, reglages: undefined, note: '',
+  });
+  dit(10, 'le papier du foyer : celui des factures, une ligne par facture (le jour du rituel avec son annee, le numero), ses prestations a leur prix, le deja regle, le total des restes',
+    ['releve', 'RÉCAPITULATIF DU FOYER', ['Aine A · 27 octobre 2026 · MND-2026-0163', 'Cadet A · 27 octobre 2026 · MND-2026-0162'],
+      [['SÍNSIN Signature · 35000 F', 'La sortie soignée · 2000 F'], ['KLƆKLƆ Essentiel · 5000 F', 'La sortie soignée · 2000 F', 'Déjà réglé · − 3000 F']],
+      ['37000 F', '4000 F'], '41000 F', '20261028-3344'],
+    [papier.kind, papier.titre, papier.lines.map((l) => l.label), papier.lines.map((l) => l.detail), papier.lines.map((l) => l.total), papier.total, papier.number]);
+  dit(11, 'de quoi payer : le QR MoMoPay de la Maison (909099) ; dessous, le code Tap & Go tout reseau, frais compris',
+    ['909099@momopay', 'MoMoPay · MAISON MND · 909099', true, true],
+    [papier.momo?.qr, papier.momo?.marchand, /^Tout réseau · .+ frais compris$/.test(papier.momo?.codeDit ?? ''), /^\*601\*14\*\d+\*\d+#$/.test(papier.momo?.code ?? '')]);
+  const pdf = source('src/shared/pdf.ts');
+  const fac = source('src/apps/trone/routes/vente/Factures.tsx');
+  dit(12, 'les tampons : le sceau dentele sur les factures, la note sous lui ; PAYE sur les recus ; la Maison seulement ; le recapitulatif sur ce papier',
+    [1, 1, 1, 1, 1, 0],
+    [fois(pdf, 'const sceau = estLaMaisonMND(d.houseName) && yDuSceau + TAILLE_DU_SCEAU < 228 ? await chargeImageDuSite(SCEAU_DES_FACTURES) : null;'),
+      fois(pdf, 'if (sceau) y = Math.max(y, yDuSceau + TAILLE_DU_SCEAU + 2);'),
+      fois(pdf, 'const paye = estLaMaisonMND(d.houseName) ? await chargeImageDuSite(TAMPON_PAYE.chemin) : null;'),
+      fois(pdf, 'const SCEAU_DES_FACTURES = SCEAU_DES_CONTRATS;'),
+      fois(fac, 'await invoicePdf(pdfDuFoyer({'),
+      fois(fac, 'summaryPdf(')]);
 }
 
 if (process.exitCode) console.log('La facture du foyer ne tient pas.');

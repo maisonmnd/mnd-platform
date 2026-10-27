@@ -2,16 +2,15 @@ import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
 import { useClients } from '../../../../shared/clients';
 import { useSettings } from '../../../../shared/settings';
-import { maisonNom, maisonRaisonDuPdfAu } from '../../../../shared/identite';
+import { maisonNom } from '../../../../shared/identite';
 import { invoiceResteXof, invoicesStore, quiEncaisse } from '../../../../shared/finance';
 import { demandeLePaiement, mndPayOuvert, versionDeMndPay } from '../../../../shared/mnd-pay';
 import { jourLocal, paiementTapGoDeLaPiece, parametreTapGo, saitLesFactures } from '../../../../shared/mnd-pay-pur';
 import { envoieLeRecu, recuAEnvoyer } from '../../../../shared/recu-whatsapp';
 import { envoieLaFactureARegler, envoieLaFactureDuFoyer, MODELE_FACTURE, type ResultatDeLaFacture } from '../../../../shared/facture-whatsapp';
 import { cleDuFoyer } from '../../../../shared/facture-du-foyer-pur';
-import { dateDite } from '../../../../shared/bilan-document';
 import { toast } from '../../../../ds/components';
-import { fmtDateFr, paiementDeLaPiece, useLaPieceEnPdf } from './pdf-de-la-piece';
+import { pdfDuFoyer, useLaPieceEnPdf } from './pdf-de-la-piece';
 import { adresseDuLien, noteLEnvoiDuLien, poseLeLienDeReglement } from '../../../../shared/regler-la-seance';
 import { saitRegler, versionDuReglement } from '../../../../shared/regler-la-seance-serveur';
 import { parametreDuLien } from '../../../../shared/regler-la-seance-pur';
@@ -35,7 +34,7 @@ export function useEnvoiDeLaPiece() {
   const { branch, currency } = useBranch();
   const [clients] = useClients();
   const [settings] = useSettings();
-  const { buildPdfData } = useLaPieceEnPdf();
+  const { buildPdfData, sousLeVerrou } = useLaPieceEnPdf();
   /* Le jour LOCAL (celui du comptoir), jamais celui de Greenwich. */
   const aujourdhui = () => jourLocal(new Date().toISOString());
 
@@ -139,31 +138,21 @@ export function useEnvoiDeLaPiece() {
     const tg = paiementTapGoDeLaPiece(totalXof, settings.mndPay);
     const tapgo = tg ? { parametre: parametreTapGo(tg.totalXof, settings.mndPay), lien: tg.qr, totalDit: fmtMoney(tg.totalXof, currency) } : undefined;
     const lignes = ouvertes.map((p) => ({ prenom: prenomDe(p), resteDit: fmtMoney(invoiceResteXof(p), currency) }));
-    /* LE PAPIER : un relevé titré « FACTURE DU FOYER », une ligne par facture
-       (le PDF, lui, peut porter les numéros), le total, et de quoi payer. */
-    const pdf = {
-      kind: 'releve' as const,
+    /* LE PAPIER : un relevé titré « FACTURE DU FOYER » sur le papier des
+       factures (`pdfDuFoyer`, le même que le récapitulatif) : une ligne par
+       facture (le PDF, lui, peut porter les numéros), le total, et de quoi payer. */
+    const pdf = pdfDuFoyer({
       titre: 'FACTURE DU FOYER',
       nomDuFichier: 'Facture-du-foyer',
-      number: `${jourDuRituel.replace(/-/g, '')}-${(destinataire.phone ?? '').replace(/\D/g, '').slice(-4)}`,
-      houseName: maisonNom(),
-      date: fmtDateFr(jourDuRituel),
-      clientName: destinataire.name,
-      clientPhone: destinataire.phone,
-      lines: ouvertes.map((p) => ({
-        label: `${prenomDe(p)} · facture ${p.number} du ${dateDite(p.date)}`,
-        qty: 1,
-        unit: fmtMoney(invoiceResteXof(p), currency),
-        total: fmtMoney(invoiceResteXof(p), currency),
-      })),
-      subtotal: fmtMoney(totalXof, currency),
-      total: fmtMoney(totalXof, currency),
-      reste: fmtMoney(totalXof, currency),
-      status: 'à régler',
+      pieces: ouvertes,
+      jourIso: jourDuRituel,
+      client: destinataire,
+      houseSub: sousLeVerrou,
+      nomDe: (p) => clients.find((c) => c.id === (p.forClientId ?? p.clientId))?.name ?? p.clientName ?? prenomDe(p),
+      fmt: (n) => fmtMoney(n, currency),
+      reglages: settings.mndPay,
       note: `${ouvertes.length} factures de la journée, réunies en une. Chacune reste au nom de celle ou celui qu'elle concerne.`,
-      momo: paiementDeLaPiece(totalXof, settings.mndPay),
-      legal: maisonRaisonDuPdfAu(jourDuRituel),
-    };
+    });
     const r = await envoieLaFactureDuFoyer({
       client: { ...destinataire, branchId: destinataire.branchId }, pdf, lignes,
       totalDit: fmtMoney(totalXof, currency), jourIso: jourDuRituel, tapgo,

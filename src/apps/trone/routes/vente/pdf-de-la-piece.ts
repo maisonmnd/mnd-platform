@@ -47,16 +47,90 @@ export const fmtDateFr = (iso: string) => {
   return s.replace(/^1 /, '1ᵉʳ ');
 };
 
-/** DE QUOI PAYER LE RESTE : Tap & Go quand il est ouvert (le code et le QR de
-    la page qui le compose, frais compris) ; sinon l'ancien MoMoPay. */
+/** DE QUOI PAYER LE RESTE — 28 octobre 2026 : « il faut mettre à jour le code
+    QR à celui de Maison MND 909099 » (Yéman), et au sélecteur, le code Tap &
+    Go gardé dessous. Le QR porte l'identifiant MoMoPay de la Maison, que
+    l'appli MoMo lit ; le code est celui de Tap & Go, tout réseau, frais
+    compris, pour qui ne paie pas chez MTN. Tap & Go éteint : le MoMoPay seul,
+    son QR et son code. */
 export function paiementDeLaPiece(resteXof: number, reglages: ReglagesMndPay | undefined): InvoicePdfData['momo'] {
+  const momopay = paiementMomoDeLaMaison(resteXof);
   const tg = paiementTapGoDeLaPiece(resteXof, reglages);
-  if (!tg) return paiementMomoDeLaMaison(resteXof);
+  if (!tg) return momopay;
+  const codeMarchand = /^(\d+)@/.exec(momopay.qr)?.[1];
   return {
-    genre: 'tapgo',
-    qr: tg.qr,
+    qr: momopay.qr,
+    marchand: ['MoMoPay', momopay.marchand, codeMarchand].filter(Boolean).join(' · '),
+    codeDit: `Tout réseau · ${fmtMoney(tg.totalXof, 'XOF')}${tg.fraisXof > 0 ? ' frais compris' : ''}`,
     code: tg.code,
-    marchand: `${maisonNom()} · ${fmtMoney(tg.totalXof, 'XOF')}${tg.fraisXof > 0 ? ' frais compris' : ''}`,
+  };
+}
+
+/** LE FOYER SUR LE PAPIER DES FACTURES — 28 octobre 2026. « La facture du
+    récapitulatif du foyer doit être pareille que les factures PDF : même
+    schéma, mêmes couleurs, pas de différence avec le code QR » (Yéman).
+
+    Le récapitulatif (l'écran des Factures) et la facture du foyer (l'envoi
+    WhatsApp) sortent de ce seul constructeur, sur le papier des factures :
+    une ligne par facture, au nom de la tête soignée, avec sa date et son
+    numéro ; ses prestations dessous, chacune à son prix ; la remise et le
+    déjà réglé s'il y en a. La ligne porte le reste dû, et le total est la
+    somme des restes, celle que le QR et le code font payer. */
+export function pdfDuFoyer(o: {
+  pieces: readonly Invoice[];
+  titre: string;
+  nomDuFichier: string;
+  /** Le jour du papier. */
+  jourIso: string;
+  client: { name: string; phone?: string };
+  /** La ligne sous le verrou, comme sur la facture (« Suru-Lere · l'art de la couronne »). */
+  houseSub?: string;
+  /** Le nom de la tête soignée d'une pièce. */
+  nomDe: (p: Invoice) => string;
+  /** Le jour du rituel d'une pièce (sa date, par défaut). */
+  jourDe?: (p: Invoice) => string;
+  /** Ce que contient une ligne de forfait (`contenuDeLaLigne`) : c'est ce
+      papier-là que le parent lit avant de payer. */
+  contenuDe?: (p: Invoice, l: InvoiceLine) => string[];
+  fmt: (n: number) => string;
+  reglages: ReglagesMndPay | undefined;
+  note: string;
+}): InvoicePdfData {
+  const totalXof = o.pieces.reduce((n, p) => n + invoiceResteXof(p), 0);
+  return {
+    kind: 'releve',
+    titre: o.titre,
+    nomDuFichier: o.nomDuFichier,
+    number: `${o.jourIso.replace(/-/g, '')}-${(o.client.phone ?? '').replace(/\D/g, '').slice(-4)}`,
+    houseName: maisonNom(),
+    ...(o.houseSub ? { houseSub: o.houseSub } : {}),
+    date: fmtDateFr(o.jourIso),
+    clientName: o.client.name,
+    clientPhone: o.client.phone,
+    lines: o.pieces.map((p) => {
+      const detail = p.lines.flatMap((l) => [
+        `${l.qty > 1 ? `${l.label} ×${l.qty}` : l.label} · ${o.fmt(Math.round(ligneNetXof(l)))}`,
+        ...(o.contenuDe ? o.contenuDe(p, l).map((t) => `dont ${t}`) : []),
+      ]);
+      const remise = Math.round(p.lines.reduce((s, l) => s + ligneNetXof(l), 0)) - invoiceTotal(p);
+      if (remise > 0) detail.push(`Remise · − ${o.fmt(remise)}`);
+      const deja = invoiceTotal(p) - invoiceResteXof(p);
+      if (deja > 0) detail.push(`Déjà réglé · − ${o.fmt(deja)}`);
+      return {
+        label: `${o.nomDe(p)} · ${fmtDateFr(o.jourDe ? o.jourDe(p) : p.date)} · ${p.number}`,
+        qty: 1,
+        unit: o.fmt(invoiceTotal(p)),
+        total: o.fmt(invoiceResteXof(p)),
+        detail,
+      };
+    }),
+    subtotal: o.fmt(totalXof),
+    total: o.fmt(totalXof),
+    reste: o.fmt(totalXof),
+    status: 'à régler',
+    note: o.note,
+    ...(totalXof > 0 ? { momo: paiementDeLaPiece(totalXof, o.reglages) } : {}),
+    legal: maisonRaisonDuPdfAu(o.jourIso),
   };
 }
 
@@ -126,6 +200,9 @@ export function useLaPieceEnPdf() {
   const defaultNoteFor = (d: Invoice) =>
     `${appelOf(d)}, ce fut un honneur de veiller sur votre couronne. Elle vous va à merveille.\n${d.master ?? branch.masters[0] ?? 'la Maison'}`;
 
+  /** La ligne sous le verrou : la même sur la facture et sur le papier du foyer. */
+  const sousLeVerrou = branch.city ? `${branch.city} · l'art de la couronne` : undefined;
+
   /* Construit les données du vrai PDF de marque à partir d'un document. */
   const buildPdfData = (d: Invoice): InvoicePdfData => {
     const gross = d.lines.reduce((s, l) => s + l.qty * l.unitXof, 0);
@@ -135,7 +212,7 @@ export function useLaPieceEnPdf() {
       kind: d.kind,
       number: d.number,
       houseName: branch.name,
-      houseSub: branch.city ? `${branch.city} · l'art de la couronne` : undefined,
+      houseSub: sousLeVerrou,
       date: fmtDateFr(d.date),
       /* Le registre au pied du PDF (10 oct. 2026), pour une pièce datée de la
          bascule ou après : le PDF d'avant n'avait pas de ligne légale. */
@@ -208,6 +285,6 @@ export function useLaPieceEnPdf() {
 
   return {
     payeurDe, clientOf, clientNameOf, prenomOf, appelOf, payeurAutreQue, clientNameForPdf,
-    defaultNoteFor, contenuDeLaLigne, buildPdfData,
+    defaultNoteFor, contenuDeLaLigne, buildPdfData, reglagesMnd, sousLeVerrou,
   };
 }

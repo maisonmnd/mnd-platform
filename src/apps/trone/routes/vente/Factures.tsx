@@ -21,13 +21,13 @@ import { retirerPourboiresDesFactures, repointerPourboires } from '../../../../s
 import { adresseDe, lienPaiementMomo } from '../equipe/data';
 import { LienMndPay } from './LienMndPay';
 import { BlocRelances } from './BlocRelances';
-import { fmtDateFr, useLaPieceEnPdf } from './pdf-de-la-piece';
+import { fmtDateFr, pdfDuFoyer, useLaPieceEnPdf } from './pdf-de-la-piece';
 import { filStore, nouveauMessage } from '../../../../shared/fil';
 import { useAuth } from '../../../../shared/auth';
 import { useStaff } from '../equipe/data';
 import { coffreStore, useCashboxes, caissesPourLaDate, useInvoices, usePaymentMethods, invoiceTotal, ligneNetXof, invoiceReglements, invoiceRegleXof, invoiceResteXof, invoiceSoldee, type Invoice, type InvoiceLine, type PaymentMethod , nextInvoiceNumber, nouvelleFacture, ligneFacture, invoicesStore } from '../../../../shared/finance';
 import { appointmentsStore, useAppointments, type Appointment, estampilleLaPose } from '../../../../shared/agenda';
-import { invoicePdf, summaryPdf, type InvoicePdfData } from '../../../../shared/pdf';
+import { invoicePdf, type InvoicePdfData } from '../../../../shared/pdf';
 import { uid } from '../../../../shared/store';
 import './vente.css';
 import { retirerParReferences } from '../../../../shared/stock';
@@ -616,7 +616,7 @@ export default function Factures() {
 
   const {
     payeurDe, clientOf, clientNameOf, prenomOf, appelOf, payeurAutreQue, clientNameForPdf,
-    defaultNoteFor, contenuDeLaLigne, buildPdfData,
+    defaultNoteFor, contenuDeLaLigne, buildPdfData, reglagesMnd, sousLeVerrou,
   } = useLaPieceEnPdf();
 
   /* Génère & télécharge le vrai PDF du document sélectionné. */
@@ -2258,42 +2258,33 @@ export default function Factures() {
            porte le montant ÉCRIT sur sa facture, et le total est la somme des
            restes dus, celui-là même que le lien va porter. Deux chiffres qui ne
            se rejoignent pas sur un même envoi se lisent comme une erreur. */
+        /* 28 OCTOBRE 2026 : SUR LE PAPIER DES FACTURES. « La facture du
+           récapitulatif du foyer doit être pareille que les factures PDF :
+           même schéma, mêmes couleurs, pas de différence avec le code QR »
+           (Yéman). Il était un résumé à part (`summaryPdf`) ; il sort
+           désormais du constructeur de la facture du foyer (`pdfDuFoyer`) :
+           l'en-tête, le tableau, les totaux, le sceau, le QR et le pied des
+           factures. Chaque ligne garde la tête, son jour (avec l'année), le
+           numéro, les prestations à leur prix et le déjà réglé. */
         const recapDuFoyer = async () => {
           if (prises.length === 0) return;
           const foyer = payeur?.familyId
             ? families.find((f) => f.id === payeur.familyId)
             : undefined;
-          const sections = prises.map((i) => {
-            const regle = invoiceRegleXof(i);
-            const rows: { label: string; value?: string; strong?: boolean; sub?: boolean }[] = [];
-            for (const l of i.lines) {
-              rows.push({
-                label: l.qty > 1 ? `${l.label} ×${l.qty}` : l.label,
-                value: fmtMoney(Math.round(ligneNetXof(l)), currency),
-              });
-              /* CE QUE LE FORFAIT CONTIENT SUIT SUR LE RÉCAPITULATIF AUSSI :
-                 c'est là que la Maison montre ce qu'elle donne, et c'est ce
-                 papier-là que le parent lit avant de payer. */
-              for (const t of contenuDeLaLigne(i, l)) rows.push({ label: t, sub: true });
-            }
-            if (regle > 0) rows.push({ label: 'Déjà réglé', value: `− ${fmtMoney(regle, currency)}` });
-            rows.push({ label: 'Reste à régler', value: fmtMoney(invoiceResteXof(i), currency), strong: true });
-            /* L'année sur toute date remise à la payeuse (10 octobre 2026, revue). */
-            return { heading: `${clientNameOf(i)} · ${frShortAn(jourDuPassage(i))} · ${i.number}`, rows };
-          });
-          await summaryPdf({
-            eyebrow: 'Avant règlement',
-            title: foyer?.name ?? `Le foyer de ${(payeur?.name ?? '').split(' ')[0]}`,
-            houseName: maisonNom(),
-            meta: [
-              `${prises.length} rituels · ${branch.name}`,
-              `Références ${prises.map((i) => i.number).join(', ')}`,
-            ],
-            sections,
-            total: { label: 'À régler pour le foyer', value: fmtMoney(total, currency) },
-            footer: 'Ce récapitulatif ne réclame rien de plus que les pièces qu’il résume.',
-            filename: `recapitulatif-foyer-${prises.map((i) => i.number).join('-')}.pdf`,
-          });
+          await invoicePdf(pdfDuFoyer({
+            titre: 'RÉCAPITULATIF DU FOYER',
+            nomDuFichier: 'Recapitulatif-du-foyer',
+            pieces: prises,
+            jourIso: jourLocalIso(),
+            client: { name: foyer?.name ?? payeur?.name ?? clientNameOf(prises[0]), phone: payeur?.phone },
+            houseSub: sousLeVerrou,
+            nomDe: clientNameOf,
+            jourDe: jourDuPassage,
+            contenuDe: contenuDeLaLigne,
+            fmt: (n) => fmtMoney(n, currency),
+            reglages: reglagesMnd,
+            note: `${prises.length} rituels, à régler en une fois. Ce récapitulatif ne réclame rien de plus que les pièces qu’il résume.`,
+          }));
           toast('Récapitulatif téléchargé.');
         };
 

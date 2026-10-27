@@ -285,11 +285,14 @@ const byId = new Map<string, Service>();
 {
   dit(56, 'la date dite porte son annee (frShortAn), frDay ne la porte pas', [true, false], [frShortAn('2026-09-12').includes('2026'), frDay('2026-09-12').includes('2026')]);
   const i = factures.indexOf('{lienFoyer && (() => {');
-  const bloc = i < 0 ? '' : factures.slice(i, factures.indexOf('await summaryPdf(', i));
-  dit(56, 'Factures : le message et le recapitulatif du foyer disent l annee, sans frDay', [true, true, true, false], [
+  /* 28 octobre 2026 : le recapitulatif sort du papier des factures (`pdfDuFoyer`,
+     verifie-la-facture-du-foyer en eprouve les dates, avec l'annee) ; Factures
+     lui donne le jour du passage. */
+  const bloc = i < 0 ? '' : factures.slice(i, factures.indexOf('await invoicePdf(pdfDuFoyer(', i));
+  dit(56, 'Factures : le message du foyer dit l annee, sans frDay ; le recapitulatif donne le jour du passage a pdfDuFoyer', [true, true, true, false], [
     bloc.length > 500,
     /`· \$\{clientNameOf\(i\)\} · \$\{frShortAn\(i\.date\)\} · /.test(bloc),
-    /heading: `\$\{clientNameOf\(i\)\} · \$\{frShortAn\(jourDuPassage\(i\)\)\} · /.test(bloc),
+    /await invoicePdf\(pdfDuFoyer\(\{[\s\S]{0,700}jourDe: jourDuPassage,/.test(factures),
     /frDay\(/.test(bloc),
   ]);
   /* LA REGLE, PAS LE CAS DU JOUR (reprise du 10 octobre 2026). La relecture
@@ -303,7 +306,7 @@ const byId = new Map<string, Service>();
   const AVEC_ANNEE = new Set(['frShortAn', 'frLongAn', 'frJourAn', 'jourCourtAn', 'jourAn', 'jourEnLettres']);
   const formateurs = [...fenetre.matchAll(/\b(fr[A-Z]\w*|toLocale\w*String|fmtDate\w*)\(/g)].map((m) => m[1]);
   dit(56, 'Factures : dans toute la fenetre du foyer, chaque date porte son annee', [true, true, []],
-    [fenetre.length > 3000, formateurs.length >= 3, [...new Set(formateurs.filter((n) => !AVEC_ANNEE.has(n)))]]);
+    [fenetre.length > 3000, formateurs.length >= 2, [...new Set(formateurs.filter((n) => !AVEC_ANNEE.has(n)))]]);
   dit(56, '... la liste a cocher dit l annee de chaque piece', true, /\{frShortAn\(i\.date\)\} · \{i\.number\}/.test(fenetre));
 }
 
