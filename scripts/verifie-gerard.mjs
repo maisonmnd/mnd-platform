@@ -82,7 +82,7 @@ const PANNES = [
   ['Noel au 1er decembre', PUR, "export const NOEL_DU = '11-15';", "export const NOEL_DU = '12-01';"],
   ['le passage la nuit', PUR, '&& heureCotonou >= HEURE_DU_PASSAGE_DE && heureCotonou < HEURE_DU_PASSAGE_A;', ';'],
   ['le passage deux fois par jour', PUR, "r.mode !== 'eteint' && r.dernierPassage !== aujourdhui", "r.mode !== 'eteint'"],
-  ['une ligne ecartee comptee', PUR, "if (e.statut === 'écarté' || e.statut === 'périmé' || e.statut === 'échec' || e.statut === 'sans-abonnement') continue;", ''],
+  ['une ligne ecartee comptee', PUR, "    if (!pasMaintenant && (e.statut === 'écarté' || e.statut === 'périmé' || e.statut === 'échec' || e.statut === 'sans-abonnement')) continue;\n", ''],
   ['WhatsApp avant Ma Couronne', PUR, "if (EST_UN_SERVICE[genre]) return f.couronne ? 'couronne' : f.telephone ? 'whatsapp' : null;", "if (EST_UN_SERVICE[genre]) return f.telephone ? 'whatsapp' : f.couronne ? 'couronne' : null;"],
   ['WhatsApp part sans approbation de Meta', PASSAGE, '    } else if (partSeule(s, r)) {', "    } else if (s.canal === 'whatsapp') {"],
   ['le passage ecrit en pause', PASSAGE, "  if (r.mode === 'eteint') return [];\n", ''],
