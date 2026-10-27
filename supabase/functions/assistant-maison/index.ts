@@ -547,6 +547,9 @@ function placesDuJour(o) {
   return { iso: o.iso, ferme: false, passe: false, heures };
 }
 
+// src/shared/numero-a-prevenir-pur.ts
+var telDuRdv = (a2, fiche) => (a2.numeroAPrevenir ?? "").trim() || (fiche?.phone ?? "").trim();
+
 // src/shared/dernier-message-pur.ts
 var SERVICES_DES_ENVOIS = [
   "confirmation",
@@ -1241,6 +1244,7 @@ function lisLAssistant(e) {
     return cache.get(cle);
   };
   const parId = new Map(clients.map((c) => [c.id, c]));
+  const rdvAGarder = (clientId) => (parCliente.get(clientId) ?? []).filter((a2) => a2.date === addDaysISO(today, 2) && a2.status !== "annulé" && a2.status !== "honoré").map((a2) => ({ id: a2.id, date: a2.date, time: a2.time, numeroAPrevenir: a2.numeroAPrevenir }))[0];
   return {
     fiches,
     ctx: { aujourdhui: today, creux, remisesRestantes, placesDe, eteintes: rg.eteintes },
@@ -1250,7 +1254,12 @@ function lisLAssistant(e) {
       const c = parId.get(id);
       return c?.authUserId && abonnes2.has(c.authUserId) ? c.authUserId : id;
     },
-    rdvAGarder: (clientId) => (parCliente.get(clientId) ?? []).filter((a2) => a2.date === addDaysISO(today, 2) && a2.status !== "annulé" && a2.status !== "honoré").map((a2) => ({ id: a2.id, date: a2.date, time: a2.time }))[0],
+    rdvAGarder,
+    telDe: (s) => {
+      const c = parId.get(s.clientId);
+      const r = s.genre === "garder" ? rdvAGarder(s.clientId) : void 0;
+      return r ? telDuRdv(r, c) : (c?.phone ?? "").trim();
+    },
     plafond: { ...plafond, remisesParSemaine: rg.remisesParSemaine, plafondFrancs: rg.plafondFrancs }
   };
 }
@@ -1303,7 +1312,7 @@ function lignesDuPassage(o) {
     if (s.canal === "couronne") {
       lignes.push(ligneDeNotification(s, { ...outils, compte: o.cerveau.compteDe(s.clientId), ...depart }));
     } else if (partSeule(s, r)) {
-      const numero = numeroWa(c?.phone);
+      const numero = numeroWa(o.cerveau.telDe(s));
       if (numero) lignes.push(ligneWhatsApp(s, { ...outils, numero, ...depart }));
     }
   }
@@ -1322,7 +1331,7 @@ function remisesAFabriquer(envois) {
 }
 
 // scripts/serveur/assistant-maison.ts
-var VERSION = "2026-10-27-a";
+var VERSION = "2026-10-27-b";
 var json = (corps, status = 200) => new Response(JSON.stringify(corps), { status, headers: { "content-type": "application/json" } });
 var jourDuSalon = (ms) => new Date(ms + 36e5).toISOString().slice(0, 10);
 var heureDuSalon2 = (ms) => {

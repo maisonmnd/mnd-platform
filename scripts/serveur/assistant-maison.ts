@@ -32,7 +32,7 @@ declare const Deno: {
   serve(f: (req: Request) => Promise<Response>): void;
 };
 
-const VERSION = '2026-10-27-a';
+const VERSION = '2026-10-27-b';
 
 type Ligne = { id: string; branch_id?: string | null; data: Record<string, unknown> };
 // deno-lint-ignore no-explicit-any

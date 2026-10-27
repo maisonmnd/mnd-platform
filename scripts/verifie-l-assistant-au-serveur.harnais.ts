@@ -178,6 +178,19 @@ remplis();
 maintenant = Date.parse('2026-10-28T20:30:00Z'); // 21 h 30 au salon
 dit('à 21 h 30 au salon : pas de passage', ['pas maintenant', 0], [(await appelle()).corps.passage, lignes().length]);
 
+/* 8. Deux parents (27 octobre 2026) : « garder son RDV » part au parent qui
+   a pris le rendez-vous, comme la confirmation et le rappel de la veille ;
+   sans numéro retenu, au premier numéro de la fiche. */
+remplis({ mode: 'ouvert', approuves: ['gerard_envie', 'gerard_garder'] });
+maintenant = Date.parse('2026-10-28T08:00:00Z');
+db.clients.push(tete('gar', { phone: '+229 01 51 00 00 31', phone2: '+229 01 97 00 00 32' }), tete('ga1', { phone: '+229 01 51 00 00 41', phone2: '+229 01 97 00 00 42' }));
+for (const [c, num] of [['gar', '+229 01 97 00 00 32'], ['ga1', '']] as const) {
+  db.appointments.push(rituel(`${c}-1`, c, J(-60)), { id: `${c}-g`, branch_id: 'b', data: { id: `${c}-g`, branchId: 'b', clientId: c, serviceIds: ['s1'], date: J(2), time: '10:00', status: 'confirmé', master: 'Aimée', ...(num ? { numeroAPrevenir: num } : {}) } });
+}
+await appelle();
+dit('deux parents : « garder » part au parent qui a pris le RDV, sinon au premier numéro', [['garder', '2290197000032'], ['garder', '2290151000041']],
+  [[par('gar')[0]?.genre, par('gar')[0]?.colis?.numero], [par('ga1')[0]?.genre, par('ga1')[0]?.colis?.numero]]);
+
 Date.now = vraiNow;
 console.log(ko ? `\n${ko} echec(s) sur ${n}.` : `\nL'Assistant tient au serveur (${n} controles).`);
 if (ko) process.exitCode = 1;

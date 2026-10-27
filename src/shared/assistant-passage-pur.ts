@@ -59,7 +59,7 @@ export function lignesDuPassage(o: {
     if (s.canal === 'couronne') {
       lignes.push(ligneDeNotification(s, { ...outils, compte: o.cerveau.compteDe(s.clientId), ...depart }));
     } else if (partSeule(s, r)) {
-      const numero = numeroWa(c?.phone);
+      const numero = numeroWa(o.cerveau.telDe(s));
       if (numero) lignes.push(ligneWhatsApp(s, { ...outils, numero, ...depart }));
     }
     /* Sinon : un modèle pas encore approuvé chez Meta, ou une relance sans accord, attend un toucher au Trône. */

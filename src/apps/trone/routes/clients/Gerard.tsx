@@ -469,7 +469,7 @@ export default function Gerard() {
                   const nom = nomDe(s.clientId);
                   const ouvert = ouverte === s.clientId;
                   const modele = MODELES_DE_GERARD[s.modele];
-                  const tel = lienTel(cerveau.clientDe(s.clientId)?.phone);
+                  const tel = lienTel(cerveau.telDe(s));
                   const enSalle = l.etat === 'en-salle' || l.etat === 'retenue';
                   /* Garder son RDV : la ligne dit lequel, avec l'année (maquette l.374). */
                   const rdv = s.genre === 'garder' ? cerveau.rdvAGarder(s.clientId) : undefined;
@@ -505,7 +505,7 @@ export default function Gerard() {
                                 <em className="trc-am__puce trc-am__puce--cuivre">Part seul sur WhatsApp au passage du matin</em>
                               )}
                               {s.canal === 'whatsapp' && servie(reglages, s.clientId) && !partSeule(s, reglages) && (() => {
-                                const lien = lienWaMe(cerveau.clientDe(s.clientId)?.phone, `${s.texte}\n${DEVISE_COMPLETE}`);
+                                const lien = lienWaMe(cerveau.telDe(s), `${s.texte}\n${DEVISE_COMPLETE}`);
                                 return lien ? (
                                   <a className="trc-ger__btn trc-ger__btn--cuivre" href={lien} target="_blank" rel="noreferrer" onClick={() => noteALaMain(s)}>Envoyer sur WhatsApp</a>
                                 ) : null;

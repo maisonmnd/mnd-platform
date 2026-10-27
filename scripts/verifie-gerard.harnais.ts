@@ -416,7 +416,7 @@ dit('l’écran : le plan par le cerveau ; la lecture : la venue du Carnet ; le 
 dit('... le Trône ne fait le passage et les remises que si la fonction serveur se tait (dans le doute, rien)', [2, true],
   [(donnees.match(/if \(tue !== true\)/g) ?? []).length, /const lignes = lignesDuPassage\(\{ cerveau, plan, reglagesGerard: brut/.test(donnees)]);
 dit('... le passage du jour au chargement, le bouton WhatsApp, le journal du jour', [true, true, true],
-  [/useLePassageDeGerard\(cerveau, plan\)/.test(ecran), /lienWaMe\(cerveau\.clientDe\(s\.clientId\)\?\.phone/.test(ecran), /<h3>Aujourd’hui <span>ce qui est parti<\/span><\/h3>/.test(ecran)]);
+  [/useLePassageDeGerard\(cerveau, plan\)/.test(ecran), /lienWaMe\(cerveau\.telDe\(s\)/.test(ecran), /<h3>Aujourd’hui <span>ce qui est parti<\/span><\/h3>/.test(ecran)]);
 const tableau = readFileSync('src/apps/trone/routes/pilotage/Dashboard.tsx', 'utf8');
 dit('... et le tableau de bord lance le passage', true, /<PassageDeGerard \/>/.test(tableau));
 dit('... le Trône garde le code au registre, fabriqué par la lecture partagée', true, /const code = codeDeLaSituation\(s, o, codesPromoStore\.get\(\)\);/.test(donnees));

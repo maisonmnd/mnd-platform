@@ -30,6 +30,7 @@ import { estEchue, etatDeLaCarte, type CarteCadeau } from './cartes-cadeaux-pur'
 import { codesVivantsDe, fabriqueLeCode, type CodePromo } from './promos-pur';
 import { deuxPlaces } from './processus-pur';
 import { placesDuJour } from '../apps/trone/routes/clients/rdv-fluide-pur';
+import { telDuRdv } from './numero-a-prevenir-pur';
 import { attendUneReponse, derniersMessagesHorsService, dernieresRelancesDeFacture } from './dernier-message-pur';
 import {
   GENRE_DIT, familleDuNom, joursCreux, plafondDeLaSemaine, reglagesLus, tracesDesEnvois,
@@ -76,7 +77,11 @@ export type CerveauDeGerard = {
   clientDe: (id: string) => Client | undefined;
   /** Le compte où elle reçoit ses notifications : sa fiche, ou son compte Ma Couronne. */
   compteDe: (id: string) => string;
-  rdvAGarder: (clientId: string) => { id: string; date: string; time: string } | undefined;
+  rdvAGarder: (clientId: string) => { id: string; date: string; time: string; numeroAPrevenir?: string } | undefined;
+  /** LE NUMÉRO OÙ L'ÉCRIRE (27 octobre 2026) : « garder son RDV » part au
+      parent qui a pris le rendez-vous (`telDuRdv`, comme la confirmation et
+      le rappel de la veille) ; tout le reste, au premier numéro de la fiche. */
+  telDe: (s: { clientId: string; genre: string }) => string;
   /** Le plafond de la semaine : remises faites, francs engagés, et ses deux bornes. */
   plafond: { faites: number; francs: number; restantes: number; remisesParSemaine: number; plafondFrancs: number };
 };
@@ -206,15 +211,21 @@ export function lisLAssistant(e: EntreesDeLAssistant): CerveauDeGerard {
   };
 
   const parId = new Map(clients.map((c) => [c.id, c]));
+  const rdvAGarder = (clientId: string) => (parCliente.get(clientId) ?? [])
+    .filter((a) => a.date === addDaysISO(today, 2) && a.status !== 'annulé' && a.status !== 'honoré')
+    .map((a) => ({ id: a.id, date: a.date, time: a.time, numeroAPrevenir: a.numeroAPrevenir }))[0];
   return {
     fiches,
     ctx: { aujourdhui: today, creux, remisesRestantes, placesDe, eteintes: rg.eteintes },
     nomDe: (id: string) => parId.get(id)?.name ?? '',
     clientDe: (id: string) => parId.get(id),
     compteDe: (id: string) => { const c = parId.get(id); return c?.authUserId && abonnes.has(c.authUserId) ? c.authUserId : id; },
-    rdvAGarder: (clientId: string) => (parCliente.get(clientId) ?? [])
-      .filter((a) => a.date === addDaysISO(today, 2) && a.status !== 'annulé' && a.status !== 'honoré')
-      .map((a) => ({ id: a.id, date: a.date, time: a.time }))[0],
+    rdvAGarder,
+    telDe: (s: { clientId: string; genre: string }) => {
+      const c = parId.get(s.clientId);
+      const r = s.genre === 'garder' ? rdvAGarder(s.clientId) : undefined;
+      return r ? telDuRdv(r, c) : (c?.phone ?? '').trim();
+    },
     plafond: { ...plafond, remisesParSemaine: rg.remisesParSemaine, plafondFrancs: rg.plafondFrancs },
   };
 }
