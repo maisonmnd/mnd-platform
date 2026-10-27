@@ -4,6 +4,7 @@ import { maisonNom, signeLeMessage } from './identite';
 import { envoieSurWhatsApp, type ResultatDEnvoi } from './whatsapp';
 import { MODELE_TAPGO, variablesTapGo } from './mnd-pay-pur';
 import type { InvoicePdfData } from './pdf';
+import { motDuFoyer, FACTURE_DU_FOYER_JOINTE } from './facture-du-foyer-pur';
 
 /* ══ LA FACTURE À RÉGLER PART SEULE SUR SON WHATSAPP — 17 octobre 2026 ══
    « Une facture sans aucun paiement (Honorer sans encaisser) ne part pas
@@ -109,6 +110,48 @@ export async function envoieLaFactureARegler(o: {
   if (m.ok || !refusDuModele(m.erreur)) return m;
 
   /* Le modèle neuf n'est pas (encore) approuvé : le lien de paiement, sans le PDF. */
+  const l = await envoie({
+    ...base, modele: MODELE_TAPGO, variables: variablesTapGo(appelDe(o.client), o.tapgo.totalDit), boutonUrl: o.tapgo.parametre, ...cle('lien'),
+  });
+  return l.ok ? { ...l, repli: 'lien' } : { ok: false, erreur: `${l.erreur} (et « ${MODELE_FACTURE} » : ${m.erreur})` };
+}
+
+/** LA FACTURE DU FOYER — 27 octobre 2026 : un PDF qui liste les factures de
+    la journée, un seul message, le total (facture-du-foyer-pur.ts). Même
+    chemin que la facture à régler : le mot dans la fenêtre de 24 heures ;
+    hors fenêtre, le modèle `facture_du_rituel` déjà approuvé, le PDF en
+    tête, « du foyer ci-jointe » et le total en variables, le Tap & Go du
+    total en bouton ; puis le lien seul. `cle` : un jour, un numéro. */
+export async function envoieLaFactureDuFoyer(o: {
+  client: Porteuse;
+  pdf: InvoicePdfData;
+  lignes: readonly { prenom: string; resteDit: string }[];
+  totalDit: string;
+  jourIso: string;
+  tapgo?: { parametre: string; lien: string; totalDit: string };
+  cle: string;
+  parQui?: string;
+  envoie?: typeof envoieSurWhatsApp;
+}): Promise<ResultatDeLaFacture> {
+  const envoie = o.envoie ?? envoieSurWhatsApp;
+  const tel = (o.client.phone ?? '').trim();
+  if (!tel) return { ok: false, erreur: 'Pas de numéro sur la fiche : la facture du foyer n’est pas partie.' };
+  const { invoiceEnPiece } = await import('./pdf');
+  const piece = await invoiceEnPiece(o.pdf);
+  const base = { numero: tel, clientId: o.client.id, branchId: o.client.branchId, parQui: o.parQui };
+  const cle = (etape: string) => ({ cleUnique: `${o.cle}-${etape}` });
+  const mot = motDuFoyer({ appel: appelDe(o.client), quand: dateDite(o.jourIso), lignes: o.lignes, totalDit: o.totalDit, lien: o.tapgo?.lien });
+
+  const r = await envoie({ ...base, piece, texte: signeLeMessage(`${maisonNom()} · facture du foyer\n${mot}`), ...cle('mot') });
+  if (r.ok || !/fenêtre/i.test(r.erreur)) return r;
+  if (!o.tapgo) return { ok: false, erreur: 'la fenêtre de 24 heures est fermée et Tap & Go est éteint : le modèle de la facture a besoin de son bouton de paiement.' };
+
+  const m = await envoie({
+    ...base, piece, enTete: 'document', modele: MODELE_FACTURE,
+    variables: [appelDe(o.client), dateDite(o.jourIso), FACTURE_DU_FOYER_JOINTE, o.totalDit], boutonUrl: o.tapgo.parametre, ...cle('modele'),
+  });
+  if (m.ok || !refusDuModele(m.erreur)) return m;
+
   const l = await envoie({
     ...base, modele: MODELE_TAPGO, variables: variablesTapGo(appelDe(o.client), o.tapgo.totalDit), boutonUrl: o.tapgo.parametre, ...cle('lien'),
   });

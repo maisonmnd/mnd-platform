@@ -47,6 +47,7 @@ import { PanneauMndPay } from '../vente/MndPay';
 import { CAISSE_MND_PAY, moyenDeLaPiece, type DemandeMndPay } from '../../../../shared/mnd-pay-pur';
 import { mndPayOuvert } from '../../../../shared/mnd-pay';
 import { useEnvoiDeLaPiece } from '../vente/envoi-de-la-piece';
+import { rdvsDuFoyerLeJour } from '../../../../shared/facture-du-foyer-pur';
 import { argentHorsDuCarnet, versementsAInscrireAuCarnet } from '../../../../shared/caisse-du-versement';
 import { ditCeQuiManque, familleDeTrace, traceAEcrire, traceSuffit, type TraceDuMoyen } from '../../../../shared/trace-du-moyen-pur';
 import { ChampsDeLaTrace } from '../vente/TraceDuMoyen';
@@ -371,6 +372,44 @@ export function honoreSansEncaisser(
     reprise.pose ? `reprise posée le ${frShortAn(reprise.pose.date)} à ${reprise.pose.time}` : '',
   ].filter(Boolean).join(' · ') + '.');
   return { honore: true, facture, deja, erreur, reprise };
+}
+
+/* ══ LES PIÈCES DU FOYER — 27 octobre 2026 ═══════════════════════════════
+   « La facture de N. et de son frère A. en un message, avec le total »
+   (Yéman). Les rendez-vous du foyer ce jour-là (facture-du-foyer-pur.ts)
+   donnent chacun SA pièce, au tarif de SA tête : `terminer` honore d'abord
+   ceux qui ne le sont pas (le même geste que « Terminer la séance ») ; un
+   rituel honoré qui doit encore donne sa pièce telle quelle. Un rituel qui
+   ne doit rien n'en donne pas. L'envoi, lui, est `envoiDeLaPiece.foyer`. */
+export function piecesDuFoyer(
+  rdvs: readonly Appointment[],
+  byId: Map<string, Service>,
+  tarifsDe: (a: Appointment) => Pick<ReturnType<typeof tarifsDuRituel>, 'prixPlein' | 'gesteDe'>,
+  o: { terminer: boolean },
+): string[] {
+  const ids: string[] = [];
+  for (const a of rdvs) {
+    const frais = appointmentsStore.get().find((x) => x.id === a.id) ?? a;
+    if (frais.status === 'annulé') continue;
+    if (frais.status !== 'honoré') {
+      if (!o.terminer) continue;
+      const h = honoreSansEncaisser(frais, byId, tarifsDe(frais));
+      if (h.facture) ids.push(h.facture.id);
+      continue;
+    }
+    if (apptDueXof(frais, byId) <= 0) continue;
+    const t = tarifsDe(frais);
+    const r = factureAEnvoyer(frais, byId, frais.branchId, t.prixPlein, t.gesteDe);
+    if (r.ok) ids.push(r.inv.id);
+    else toast(`Facture non émise : ${r.erreur}`);
+  }
+  return ids;
+}
+
+/** Les prénoms du foyer, pour le libellé du bouton : « Nathael et Aloys ». */
+export function prenomsDuFoyer(rdvs: readonly Appointment[], clients: readonly { id: string; name: string }[]): string {
+  const qui = [...new Set(rdvs.map((a) => (clients.find((c) => c.id === a.clientId)?.name ?? '').split(' ')[0]).filter(Boolean))];
+  return qui.length > 1 ? `${qui.slice(0, -1).join(', ')} et ${qui[qui.length - 1]}` : qui.join('');
 }
 
 /* ══ DÉ-HONORER — 13 septembre 2026 ══════════════════════════════════════
@@ -773,6 +812,11 @@ export function resetAllPaidInvoices(branchId: string): { invoices: number; appt
    (lien de paiement, devise, dates, reprogrammer, honorer sans encaisser)
    vivent dans « Et ensuite ». */
 type EtapeEncId = 'du' | 'paie' | 'suite';
+
+/* Un bouton au long libellé passe à la ligne au lieu de déborder de la
+   fenêtre (27 octobre 2026 : « Terminer les séances de… » la faisait défiler
+   de côté). */
+const LIBELLE_LONG = { whiteSpace: 'normal', lineHeight: 1.45, height: 'auto', paddingBlock: 10 } as const;
 
 function EtapeEnc({ n, titre, resume, alerte, ouvert, onBascule, children }: {
   n: number; titre: string; resume: string; alerte?: boolean; ouvert: boolean; onBascule: () => void; children: ReactNode;
@@ -3025,6 +3069,31 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour, init
           {/* HONORER, SANS QUITTER L'ENCAISSEMENT (13 septembre) : le même geste
               que le carnet. Honorer sans encaisser émet la facture (4 octobre) ;
               un rituel à venir ne s'honore pas. */}
+          {/* LA FACTURE DU FOYER — 27 octobre 2026 : un frère, une sœur, le
+              même compte ou le même numéro, le même jour ; une facture qui
+              les réunit, un seul message, le total. */}
+          {appt.status !== 'annulé' && appt.date <= todayISO() && (() => {
+            const duJour = rdvsDuFoyerLeJour(appt, tousLesRdv, clients);
+            if (duJour.length < 2) return null;
+            const tarifsDe = (x: Appointment) => tarifsDuRituel(x, {
+              client: clients.find((c) => c.id === x.clientId), bands, sets, cats: categories, byId, tousServices: [...byId.values()], produits: produitsCatalogue,
+            });
+            const aTerminer = duJour.some((x) => x.status !== 'honoré');
+            const dus = duJour.filter((x) => x.status === 'honoré' && apptDueXof(x, byId) > 0);
+            const qui = prenomsDuFoyer(duJour, clients);
+            if (aTerminer) {
+              return (
+                <Button variant="ghost" style={LIBELLE_LONG} onClick={() => { void envoiDeLaPiece.foyer(piecesDuFoyer(duJour, byId, tarifsDe, { terminer: true }), appt.date); }}>
+                  Terminer les séances de {qui} · une facture du foyer
+                </Button>
+              );
+            }
+            return dus.length >= 2 ? (
+              <Button variant="ghost" style={LIBELLE_LONG} onClick={() => { void envoiDeLaPiece.foyer(piecesDuFoyer(duJour, byId, tarifsDe, { terminer: false }), appt.date, { renvoi: true }); }}>
+                Envoyer la facture du foyer · {qui} · {fmtMoney(dus.reduce((n, x) => n + apptDueXof(x, byId), 0), currency)}
+              </Button>
+            ) : null;
+          })()}
           {appt.status !== 'honoré' && appt.status !== 'annulé' && appt.date <= todayISO() && (() => {
             /* « TERMINER LA SÉANCE » (25 octobre 2026) : honorer, émettre la
                facture, et l'envoyer sur son WhatsApp. UN RENDEZ-VOUS PASSÉ A DEUX
@@ -3038,10 +3107,10 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour, init
               if (envoyer && h.facture && !h.deja) void envoiDeLaPiece.aRegler(h.facture.id, appt.date, { memePasse: true });
             };
             return appt.date === todayISO() ? (
-              <Button variant="ghost" onClick={() => termine(true)}>Terminer la séance · le reste part sur son WhatsApp</Button>
+              <Button variant="ghost" style={LIBELLE_LONG} onClick={() => termine(true)}>Terminer la séance · le reste part sur son WhatsApp</Button>
             ) : (
               <>
-                <Button variant="ghost" onClick={() => termine(true)}>Terminer la séance · envoyer la facture</Button>
+                <Button variant="ghost" style={LIBELLE_LONG} onClick={() => termine(true)}>Terminer la séance · envoyer la facture</Button>
                 <Button variant="ghost" onClick={() => termine(false)}>Honorer sans prévenir</Button>
               </>
             );

@@ -2,14 +2,16 @@ import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
 import { useClients } from '../../../../shared/clients';
 import { useSettings } from '../../../../shared/settings';
-import { maisonNom } from '../../../../shared/identite';
+import { maisonNom, maisonRaisonDuPdfAu } from '../../../../shared/identite';
 import { invoiceResteXof, invoicesStore, quiEncaisse } from '../../../../shared/finance';
 import { demandeLePaiement, mndPayOuvert, versionDeMndPay } from '../../../../shared/mnd-pay';
 import { jourLocal, paiementTapGoDeLaPiece, parametreTapGo, saitLesFactures } from '../../../../shared/mnd-pay-pur';
 import { envoieLeRecu, recuAEnvoyer } from '../../../../shared/recu-whatsapp';
-import { envoieLaFactureARegler, MODELE_FACTURE, type ResultatDeLaFacture } from '../../../../shared/facture-whatsapp';
+import { envoieLaFactureARegler, envoieLaFactureDuFoyer, MODELE_FACTURE, type ResultatDeLaFacture } from '../../../../shared/facture-whatsapp';
+import { cleDuFoyer } from '../../../../shared/facture-du-foyer-pur';
+import { dateDite } from '../../../../shared/bilan-document';
 import { toast } from '../../../../ds/components';
-import { useLaPieceEnPdf } from './pdf-de-la-piece';
+import { fmtDateFr, paiementDeLaPiece, useLaPieceEnPdf } from './pdf-de-la-piece';
 import { adresseDuLien, noteLEnvoiDuLien, poseLeLienDeReglement } from '../../../../shared/regler-la-seance';
 import { saitRegler, versionDuReglement } from '../../../../shared/regler-la-seance-serveur';
 import { parametreDuLien } from '../../../../shared/regler-la-seance-pur';
@@ -108,5 +110,72 @@ export function useEnvoiDeLaPiece() {
     dit(p.piece.number, r);
   };
 
-  return { apresReglement, aRegler };
+  /** LA FACTURE DU FOYER — 27 octobre 2026 (« la facture de N. et de son
+      frère A. en un message, avec le total »). Les pièces de la journée qui
+      doivent encore, en un PDF et un message ; chaque enfant garde sa
+      facture. Une seule pièce à régler : elle part seule, comme avant. Le
+      geste est exprès (un bouton), donc il part même pour une journée
+      passée ; la clé (un jour, un numéro) en empêche un second envoi.
+      `renvoi` : le bouton d'après coup la renvoie, même déjà partie (clé à
+      la minute, comme la facture seule). */
+  const foyer = async (pieceIds: readonly string[], jourDuRituel: string, o?: { renvoi?: boolean }) => {
+    const toutes = invoicesStore.get();
+    const ouvertes = pieceIds
+      .map((id) => toutes.find((i) => i.id === id))
+      .filter((p): p is NonNullable<typeof p> => !!p && p.kind === 'facture' && invoiceResteXof(p) > 0);
+    if (ouvertes.length === 0) { toast('Rien à régler pour ce foyer : aucune facture n’est partie.'); return; }
+    if (ouvertes.length === 1) { await aRegler(ouvertes[0].id, jourDuRituel, { memePasse: true, renvoi: o?.renvoi }); return; }
+    /* À qui : le parent qui paie la première pièce, sinon la tête soignée (la règle de la facture). */
+    const p0 = ouvertes[0];
+    const payeuse = clients.find((c) => c.id === p0.clientId);
+    const soignee = clients.find((c) => c.id === (p0.forClientId ?? p0.clientId));
+    const destinataire = payeuse?.phone?.trim() ? payeuse : soignee;
+    if (!destinataire?.phone?.trim()) { toast('Facture du foyer non envoyée : pas de numéro sur la fiche.'); return; }
+    const prenomDe = (p: typeof p0) => {
+      const tete = clients.find((c) => c.id === (p.forClientId ?? p.clientId));
+      return (tete?.name ?? 'Une tête').split(' ')[0];
+    };
+    const totalXof = ouvertes.reduce((n, p) => n + invoiceResteXof(p), 0);
+    const tg = paiementTapGoDeLaPiece(totalXof, settings.mndPay);
+    const tapgo = tg ? { parametre: parametreTapGo(tg.totalXof, settings.mndPay), lien: tg.qr, totalDit: fmtMoney(tg.totalXof, currency) } : undefined;
+    const lignes = ouvertes.map((p) => ({ prenom: prenomDe(p), resteDit: fmtMoney(invoiceResteXof(p), currency) }));
+    /* LE PAPIER : un relevé titré « FACTURE DU FOYER », une ligne par facture
+       (le PDF, lui, peut porter les numéros), le total, et de quoi payer. */
+    const pdf = {
+      kind: 'releve' as const,
+      titre: 'FACTURE DU FOYER',
+      nomDuFichier: 'Facture-du-foyer',
+      number: `${jourDuRituel.replace(/-/g, '')}-${(destinataire.phone ?? '').replace(/\D/g, '').slice(-4)}`,
+      houseName: maisonNom(),
+      date: fmtDateFr(jourDuRituel),
+      clientName: destinataire.name,
+      clientPhone: destinataire.phone,
+      lines: ouvertes.map((p) => ({
+        label: `${prenomDe(p)} · facture ${p.number} du ${dateDite(p.date)}`,
+        qty: 1,
+        unit: fmtMoney(invoiceResteXof(p), currency),
+        total: fmtMoney(invoiceResteXof(p), currency),
+      })),
+      subtotal: fmtMoney(totalXof, currency),
+      total: fmtMoney(totalXof, currency),
+      reste: fmtMoney(totalXof, currency),
+      status: 'à régler',
+      note: `${ouvertes.length} factures de la journée, réunies en une. Chacune reste au nom de celle ou celui qu'elle concerne.`,
+      momo: paiementDeLaPiece(totalXof, settings.mndPay),
+      legal: maisonRaisonDuPdfAu(jourDuRituel),
+    };
+    const r = await envoieLaFactureDuFoyer({
+      client: { ...destinataire, branchId: destinataire.branchId }, pdf, lignes,
+      totalDit: fmtMoney(totalXof, currency), jourIso: jourDuRituel, tapgo,
+      cle: `${cleDuFoyer(jourDuRituel, destinataire.phone)}${o?.renvoi ? `-${new Date().toISOString().slice(0, 16)}` : ''}`,
+      parQui: quiEncaisse(),
+    });
+    toast(r.ok
+      ? (r.enAttente ? 'Facture du foyer gardée : elle partira sur son WhatsApp au retour du réseau.'
+        : r.repli === 'lien' ? `Facture du foyer : le lien de paiement est parti sur son WhatsApp, sans le PDF tant que Meta n’a pas approuvé « ${MODELE_FACTURE} ».`
+          : `Facture du foyer envoyée sur son WhatsApp : ${ouvertes.length} factures, ${fmtMoney(totalXof, currency)}.`)
+      : `Facture du foyer non envoyée : ${r.erreur}`);
+  };
+
+  return { apresReglement, aRegler, foyer };
 }
