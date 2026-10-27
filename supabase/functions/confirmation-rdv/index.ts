@@ -49,6 +49,8 @@ type Rdv = {
   branchId?: string;
   clientId: string;
   clientName?: string;
+  /** Le numéro du parent qui a pris le rendez-vous (fiche à deux numéros). */
+  numeroAPrevenir?: string;
   date: string;
   time: string;
   status: string;
@@ -127,7 +129,7 @@ const confirmationEstNeuve = (
 /** La version de ce fichier, rendue dans chaque réponse : dire ce qui tourne
     vraiment évite de chercher une panne dans un fichier qui n'est pas celui
     qu'on croit déployé. */
-const VERSION = '2026-10-13-a · le prenom seul quand la civilite est inconnue';
+const VERSION = '2026-10-27-a · le parent qui a pris le rendez-vous';
 
 /* UNE RAFALE NE PART JAMAIS TOUTE SEULE — 21 septembre 2026. Le soir du
    21, une écriture en bloc a fait partir des dizaines de confirmations d'un
@@ -270,6 +272,13 @@ const appelDe = (d: { name?: unknown; civilite?: unknown; auMasculin?: unknown }
     Même règle que `rappels-j1` : 229… reste tel quel · 01XXXXXXXX se préfixe
     229 · XXXXXXXX (ancien plan) se préfixe 22901. Autre forme : on la laisse,
     mieux vaut un échec consigné qu'une correction muette. */
+/* LE PARENT QUI A PRIS LE RENDEZ-VOUS — 27 octobre 2026 (« la personne qui a
+   pris le RDV reçoit la confirmation et le rappel », Yéman). Une fiche à deux
+   numéros (papa, maman) : le rendez-vous retient celui à prévenir. Copie
+   conforme de `telDuRdv` (src/shared/numero-a-prevenir-pur.ts). */
+const telDuRdv = (a: { numeroAPrevenir?: string }, fiche?: { phone?: string }): string =>
+  (a.numeroAPrevenir ?? '').trim() || (fiche?.phone ?? '').trim();
+
 const numeroIntl = (brut: string | undefined): string | null => {
   const d = (brut ?? '').replace(/\D/g, '');
   if (!d) return null;
@@ -529,7 +538,7 @@ Deno.serve(async (req) => {
     /* ② WHATSAPP — seulement si la Maison a posé ses clés Meta. Le modèle
        approuvé attend deux variables : {{1}} le prénom, {{2}} le moment
        (« vendredi 28 août à 14:00 »). Sans les clés, on passe sans bruit. */
-    const tel = numeroIntl(fiche?.phone);
+    const tel = numeroIntl(telDuRdv(a, fiche));
     /* SANS NUMÉRO, ON LE DIT AU JOURNAL (18 septembre) : la Maison voit qu'une
        confirmation n'a pas pu partir, et peut appeler. « sans-numero »
        verrouille comme « sans-abonnement » : réessayer ne l'inventera pas. */

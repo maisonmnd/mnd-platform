@@ -3,6 +3,7 @@ import { ENVIES_AVANT } from '../../../../shared/entre-deux-pur';
 import { Link, useNavigate } from 'react-router-dom';
 import { createPortal } from 'react-dom';
 import { rangeSesRendezVous, totauxDeSesRendezVous, parAnnee } from './ses-rendez-vous-pur';
+import { numerosDeLaFiche, numeroAPrevenirDuRdv } from '../../../../shared/numero-a-prevenir-pur';
 import { Bell, BellOff, Check } from 'lucide-react';
 import { Button, Field, Input, Modal, Select, toast, demande, demandeUnTexte } from '../../../../ds/components';
 import { clefDeRecherche, prestationRepond } from '../../../../shared/recherche';
@@ -1878,6 +1879,10 @@ export function RdvModal({
      PAR-DESSUS celui-ci (`autre`), et le fermer ramène ici, la saisie
      intacte. Voir ses-rendez-vous-pur.ts. */
   const sesRdv = useMemo(() => (clientId ? branchAppts.filter((a) => a.clientId === clientId) : []), [clientId, branchAppts]);
+  /* LE PARENT QUI A PRIS LE RENDEZ-VOUS — 27 octobre 2026. Sur une fiche à
+     deux numéros, le choix touché ; vide = celui du dernier rendez-vous, sinon
+     le premier numéro (numero-a-prevenir-pur.ts). */
+  const [numeroAPrevenir, setNumeroAPrevenir] = useState(appt?.numeroAPrevenir ?? '');
   const [autre, setAutre] = useState<{ appt?: Appointment; initial?: RdvInitial } | null>(null);
   const [serviceIds, setServiceIds] = useState<string[]>(appt?.serviceIds ?? initial?.serviceIds ?? []);
   /* LES MAINS, prestation par prestation. Un tableau parallele a `serviceIds` :
@@ -2215,6 +2220,9 @@ export function RdvModal({
      son Juste Prix personnalisent le tarif de référence. Quand il n'y a rien à
      personnaliser, la référence reste le catalogue — comportement inchangé. */
   const rdvClient = clients.find((c) => c.id === clientId);
+  const numerosDuRdv = numerosDeLaFiche(rdvClient);
+  const numeroRetenu = numeroAPrevenirDuRdv({ choisi: numeroAPrevenir, fiche: rdvClient, derniers: sesRdv.filter((a) => a.id !== appt?.id) });
+  const nomDuNumeroRetenu = numerosDuRdv.find((n) => n.numero === numeroRetenu)?.nom;
   /* LES RITUELS AUXQUELS RATTACHER UNE SUITE — les siens, non annulés, hors
      celui-ci et hors séances de suite (on se rattache à la tête, pas au
      wagon). Du plus récent au plus ancien : la suite d'aujourd'hui appartient
@@ -2959,6 +2967,8 @@ export function RdvModal({
         prev.map((x) =>
           x.id === appt.id
             ? { ...x, clientId, serviceIds, date, time, master, status: chosenStatus, note: note.trim() || undefined,
+                /* Le parent qui a pris le rendez-vous (fiche à deux numéros). */
+                numeroAPrevenir: numeroRetenu,
                 /* La longueur ne s'inscrit que si une prestation s'y facture :
                    la poser partout salirait tous les rituels d'une donnee qui
                    ne commande rien chez eux. */
@@ -3101,6 +3111,8 @@ export function RdvModal({
         branchId: branch.id,
         clientId,
         serviceIds,
+        /* Le parent qui a pris le rendez-vous (fiche à deux numéros). */
+        numeroAPrevenir: numeroRetenu,
         longueur: longueurPertinente ? longueur : undefined,
         /* La durée figée, comme sur la branche de modification ci-dessus. */
         dureeMin: dureeRetenue,
@@ -3407,6 +3419,7 @@ export function RdvModal({
               rdvClient.name,
               pricing.band && rdvClient.lockCount ? `${bandLabel(pricing.band, bands)} · ${rdvClient.lockCount} locks` : null,
               membership ? `abonnée · ${membershipPlan?.name ?? 'formule'}` : null,
+              nomDuNumeroRetenu ? `prévenir ${nomDuNumeroRetenu}` : null,
             ].filter(Boolean).join(' · ')
             : 'La cliente, à chercher dans la case'}
         >
@@ -3423,6 +3436,25 @@ export function RdvModal({
                   <div className="trc-rdv3__meta">
                     {[rdvClient.phone, estDePassage(rdvClient) ? 'de passage' : null].filter(Boolean).join(' · ') || 'sans téléphone'}
                   </div>
+                  {/* QUI A PRIS LE RENDEZ-VOUS (27 octobre 2026) : sur une fiche à
+                      deux numéros, il reçoit la confirmation et le rappel. La
+                      facture, elle, va au parent qui paie. */}
+                  {numerosDuRdv.length > 1 && (
+                    <div className="trc-rdv3__prevenir">
+                      <span className="trc-rdv3__petit">Qui a pris le rendez-vous ? Il reçoit la confirmation et le rappel</span>
+                      <div className="trc-rdv3__prevenir-choix" role="radiogroup" aria-label="Qui a pris le rendez-vous">
+                        {numerosDuRdv.map((n) => (
+                          <button
+                            key={n.numero} type="button" role="radio" aria-checked={numeroRetenu === n.numero}
+                            className={`trc-rdv3__prevenir-bouton${numeroRetenu === n.numero ? ' is-on' : ''}`}
+                            onClick={() => setNumeroAPrevenir(n.numero)}
+                          >
+                            <b>{n.nom}</b><span>{n.numero}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                   {/* ON NOMME LE CONTRAT QUI PORTE, pas seulement la formule : deux
                       Juste Cadence dans l'année se ressemblent trait pour trait, et
                       celle qui décompte doit se lire sans ouvrir une autre page. */}

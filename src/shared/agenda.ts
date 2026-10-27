@@ -98,6 +98,11 @@ export type Appointment = {
   dureeMin?: number;
   date: string; // YYYY-MM-DD
   time: string; // HH:mm
+  /** LE NUMÉRO À PRÉVENIR — 27 octobre 2026. Sur la fiche d'un enfant à deux
+      numéros (papa, maman), celui du parent qui a pris le rendez-vous : la
+      confirmation et le rappel y partent. Absent : le premier numéro de la
+      fiche, comme avant. Voir shared/numero-a-prevenir-pur.ts. */
+  numeroAPrevenir?: string;
   master: string;
   status: 'confirmé' | 'en attente' | 'honoré' | 'annulé';
   /** Acompte Mobile Money DEMANDÉ (montant). Tant que `depositConfirmed` n'est

@@ -21,6 +21,11 @@ export type Client = {
       part. Le premier reste le contact principal (messages, rappels) ; celui-ci
       n'est qu'un recours, appelable et joignable sur WhatsApp depuis la fiche. */
   phone2?: string;
+  /** QUI RÉPOND À CHAQUE NUMÉRO — 27 octobre 2026 : « Maman », « Papa ». Sur la
+      fiche d'un enfant, le rendez-vous propose de prévenir l'un ou l'autre ;
+      le nom évite de choisir entre deux suites de chiffres. Facultatifs. */
+  phoneNom?: string;
+  phone2Nom?: string;
   email?: string;
   /** D'OÙ ELLE VIENT — 17 septembre 2026. Le site public dépose des prospects
       (`shared/demandes`) ; sans provenance, la Maison ne sait pas ce qui l'a

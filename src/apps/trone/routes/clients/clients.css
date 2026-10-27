@@ -3273,6 +3273,17 @@
 .trc-rdv3__note--cuivre { color: var(--copper-700); }
 .trc-rdv3__petit { font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-soft); }
 .trc-rdv3__fiche { display: grid; grid-template-columns: minmax(0, 1fr) 124px; gap: 12px; align-items: start; }
+/* Qui a pris le rendez-vous (27 octobre 2026) : deux numéros, un seul touché. */
+.trc-rdv3__prevenir { display: grid; gap: 6px; margin-top: 10px; }
+.trc-rdv3__prevenir-choix { display: flex; gap: 8px; flex-wrap: wrap; }
+.trc-rdv3__prevenir-bouton {
+  display: grid; gap: 1px; text-align: left; padding: 8px 12px; min-height: 44px; border-radius: 6px; cursor: pointer;
+  border: 1px solid var(--hairline); background: var(--surface-card); font-family: var(--font-sans); color: var(--ink);
+}
+.trc-rdv3__prevenir-bouton b { font-size: 13px; font-weight: 600; }
+.trc-rdv3__prevenir-bouton span { font-size: 11.5px; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+.trc-rdv3__prevenir-bouton.is-on { border-color: var(--color-indigo); background: var(--indigo-50, #EDEEF4); box-shadow: inset 0 0 0 1px var(--color-indigo); }
+.trc-rdv3__prevenir-bouton:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
 .trc-rdv3__nom { font-family: var(--font-serif); font-size: 20px; color: var(--color-indigo); line-height: 1.2; }
 .trc-rdv3__meta { font-size: 12px; color: var(--ink-soft); line-height: 1.5; }
 .trc-rdv3__auto {

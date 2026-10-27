@@ -34,13 +34,15 @@ const TZ = 'Africa/Porto-Novo'; // le fuseau du salon — pas celui du serveur
     vraiment évite de chercher une panne dans un fichier qui n'est pas celui
     qu'on croit déployé. 10 octobre 2026 : le passage du soir ne dépose plus
     un rappel que les heures calmes retiendraient jusqu'au jour même. */
-const VERSION = '2026-10-17-a · les points d etape entre deux seances';
+const VERSION = '2026-10-27-a · le parent qui a pris le rendez-vous';
 
 type Rdv = {
   id: string;
   branchId?: string;
   clientId: string;
   clientName?: string;
+  /** Le numéro du parent qui a pris le rendez-vous (fiche à deux numéros). */
+  numeroAPrevenir?: string;
   date: string;
   time: string;
   status: string;
@@ -53,6 +55,13 @@ type Fiche = { id: string; name?: string; phone?: string };
     229… reste tel quel · 01XXXXXXXX (10 chiffres) se préfixe 229 ·
     XXXXXXXX (8 chiffres, ancien plan) se préfixe 22901. Autre forme :
     on la laisse — mieux vaut un échec consigné qu'une correction muette. */
+/* LE PARENT QUI A PRIS LE RENDEZ-VOUS — 27 octobre 2026 (« la personne qui a
+   pris le RDV reçoit la confirmation et le rappel », Yéman). Une fiche à deux
+   numéros (papa, maman) : le rendez-vous retient celui à prévenir. Copie
+   conforme de `telDuRdv` (src/shared/numero-a-prevenir-pur.ts). */
+const telDuRdv = (a: { numeroAPrevenir?: string }, fiche?: { phone?: string }): string =>
+  (a.numeroAPrevenir ?? '').trim() || (fiche?.phone ?? '').trim();
+
 const numeroIntl = (brut: string | undefined): string | null => {
   const d = (brut ?? '').replace(/\D/g, '');
   if (!d) return null;
@@ -245,7 +254,7 @@ async function proposeLesReprises(sb: ReturnType<typeof createClient>, salleOuve
     const idEnvoi = `rep3-${a.id}-whatsapp`;
     if (deja.has(idEnvoi)) continue;
     const fiche = fiches.get(a.clientId);
-    const tel = numeroIntl(fiche?.phone);
+    const tel = numeroIntl(telDuRdv(a, fiche));
     const prenom = appelDe(fiche, a.clientName);
     const quand = `${jourEnClair(a.date)} à ${heureLisible(a.time)}`;
     const gestes = (a.serviceIds ?? []).map((id) => nomDe.get(id)).filter(Boolean).join(', ') || 'votre rituel';
@@ -722,7 +731,7 @@ Deno.serve(async (req) => {
     /* ② WHATSAPP — seulement si la Maison a posé ses clés Meta.
        Le modèle approuvé attend deux variables : {{1}} le prénom,
        {{2}} l'heure (voir docs/BRANCHER-ENVOIS.md). */
-    const tel = numeroIntl(fiche?.phone);
+    const tel = numeroIntl(telDuRdv(a, fiche));
     if (partiraitLeJourMeme) {
       const motif = 'heures calmes : déposé ce soir, il partirait le jour même du rendez-vous';
       if (WA_TOKEN && WA_PHONE_ID && tel && !deja.has(`env-${a.id}-whatsapp`)) consigne('whatsapp', a, 'périmé', motif);

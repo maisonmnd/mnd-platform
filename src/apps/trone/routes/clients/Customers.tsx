@@ -2309,12 +2309,17 @@ function Customer360({
   const [idName, setIdName] = useState(client.name);
   const [idPhone, setIdPhone] = useState(client.phone);
   const [idPhone2, setIdPhone2] = useState(client.phone2 ?? '');
+  /* Qui répond à chaque numéro (« Maman », « Papa »), 27 octobre 2026. */
+  const [idPhoneNom, setIdPhoneNom] = useState(client.phoneNom ?? '');
+  const [idPhone2Nom, setIdPhone2Nom] = useState(client.phone2Nom ?? '');
   const [idEmail, setIdEmail] = useState(client.email ?? '');
   const [idCity, setIdCity] = useState(client.city);
   useEffect(() => {
     setIdName(client.name);
     setIdPhone(client.phone);
     setIdPhone2(client.phone2 ?? '');
+    setIdPhoneNom(client.phoneNom ?? '');
+    setIdPhone2Nom(client.phone2Nom ?? '');
     setIdEmail(client.email ?? '');
     setIdCity(client.city);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -2409,7 +2414,8 @@ function Customer360({
      principal remplace le premier segment (ou le retire si laissé vide). */
   const idDirty =
     idName !== client.name || numeroTelReel(idPhone) !== client.phone || idCity !== client.city
-    || numeroTelReel(idPhone2) !== (client.phone2 ?? '') || idEmail !== (client.email ?? '');
+    || numeroTelReel(idPhone2) !== (client.phone2 ?? '') || idEmail !== (client.email ?? '')
+    || idPhoneNom.trim() !== (client.phoneNom ?? '') || idPhone2Nom.trim() !== (client.phone2Nom ?? '');
   /* UN ENREGISTREMENT MUET SE LIT COMME UNE PANNE. L'écriture se faisait bien,
      mais rien ne le disait : le bouton se grisait, et l'on croyait que le clic
      n'avait servi à rien. On le dit donc, brièvement. */
@@ -2420,7 +2426,11 @@ function Customer360({
     return () => window.clearTimeout(t);
   }, [idSaved]);
   const saveIdentity = () => {
-    patch({ name: idName.trim() || client.name, phone: numeroTelReel(idPhone), phone2: numeroTelReel(idPhone2) || undefined, email: idEmail.trim() || undefined, city: idCity.trim() });
+    patch({
+      name: idName.trim() || client.name, phone: numeroTelReel(idPhone), phone2: numeroTelReel(idPhone2) || undefined,
+      phoneNom: idPhoneNom.trim() || undefined, phone2Nom: numeroTelReel(idPhone2) ? idPhone2Nom.trim() || undefined : undefined,
+      email: idEmail.trim() || undefined, city: idCity.trim(),
+    });
     setIdSaved(true);
   };
 
@@ -3603,7 +3613,10 @@ function Customer360({
                     onClick={() => patch(ficheAvecCivilite(x.cle))}>{x.dit}</button>
                 ))}
               </span></div>
-              <div className="trc-v"><u>Tél.</u><span className={client.phone ? '' : 'is-vide'}>{client.phone || '—'}</span></div>
+              <div className="trc-v"><u>Tél.</u><span className={client.phone ? '' : 'is-vide'}>{client.phone ? `${client.phoneNom ? `${client.phoneNom} · ` : ''}${client.phone}` : '—'}</span></div>
+              {client.phone2 && (
+                <div className="trc-v"><u>Tél. 2</u><span>{`${client.phone2Nom ? `${client.phone2Nom} · ` : ''}${client.phone2}`}</span></div>
+              )}
               <div className="trc-v"><u>E-mail</u><span className={client.email ? '' : 'is-vide'}>{client.email || '—'}</span></div>
               <div className="trc-v"><u>Ville</u><span className={client.city ? '' : 'is-vide'}>{client.city || '—'}</span></div>
               <div className="trc-v"><u>Anniv.</u><span className={client.birthday ? '' : 'is-vide'}>{client.birthday ? frBirthday(client.birthday) : '—'}</span></div>
@@ -3618,9 +3631,20 @@ function Customer360({
             <Field label="Téléphone">
               <ChampTelephone id="c360-phone" value={idPhone} onChange={setIdPhone} dialDefaut={branch.dial} />
             </Field>
+            {/* QUI RÉPOND (27 octobre 2026) : sur la fiche d'un enfant, le
+                rendez-vous prévient le parent qui l'a pris. Le premier numéro
+                est celui du parent qui paie : la facture y part. */}
+            <Field label="Qui répond à ce numéro (facultatif)">
+              <Input value={idPhoneNom} onChange={(e) => setIdPhoneNom(e.target.value)} placeholder="Maman, papa… (celui qui paie)" />
+            </Field>
             <Field label="Deuxième téléphone (facultatif)">
               <ChampTelephone id="c360-phone2" value={idPhone2} onChange={setIdPhone2} dialDefaut={branch.dial} />
             </Field>
+            {numeroTelReel(idPhone2) && (
+              <Field label="Qui répond au deuxième (facultatif)">
+                <Input value={idPhone2Nom} onChange={(e) => setIdPhone2Nom(e.target.value)} placeholder="Papa, maman…" />
+              </Field>
+            )}
             <Field label="Adresse e-mail">
               <Input type="email" value={idEmail} onChange={(e) => setIdEmail(e.target.value)} placeholder="—" autoComplete="email" />
             </Field>
