@@ -119,7 +119,15 @@ dit('l objectif du mois : le sien, sinon le dernier fixe avant ; jamais un mois 
 /* ── Au tableau de bord (texte) ───────────────────────────────────── */
 const tableau = sansCommentaires('src/apps/trone/routes/pilotage/Dashboard.tsx');
 const bloc = sansCommentaires('src/apps/trone/routes/pilotage/PrevisionDuMois.tsx');
-dit('la prevision vit au tableau de bord, sous les chiffres du mois, calculee une fois', true, /\{kpis\.map[\s\S]*<PrevisionDuMois donnees=\{prevDuMois\} \/>/.test(tableau) && tableau.includes('const prevDuMois = usePrevisionDuMois();'));
+/* 27 OCTOBRE 2026, au sélecteur : « le mois, puis les leviers ». La
+   prévision passe en tête, ses quatre chiffres la suivent, puis les lignes
+   repliées (Aujourd'hui, À traiter, Le détail du mois). */
+dit('la prevision ouvre le tableau de bord, avant ses quatre chiffres et les lignes repliees, calculee une fois', true,
+  /<nav className="trd-nav"[\s\S]*<PrevisionDuMois donnees=\{prevDuMois\} \/>[\s\S]*\{kpis\.map[\s\S]*<GroupeDeReplis id="aujourdhui"[\s\S]*<GroupeDeReplis id="a-traiter"[\s\S]*<GroupeDeReplis id="le-detail-du-mois"/.test(tableau)
+  && tableau.includes('const prevDuMois = usePrevisionDuMois();'));
+dit('un seul panneau ouvert par groupe ; « Voir » sur les impayes echus ouvre leur ligne', [true, true],
+  [sansCommentaires('src/apps/trone/routes/pilotage/Replis.tsx').includes('const ouvert = g ? g.ouvert === cle : seul;'),
+    tableau.includes("go: () => { setOuvertATraiter('impayes');")]);
 dit('l entre se lit avec la regle des Revenus du mois', true, bloc.includes('revenuDuMois(args, mk, { cut: d })'));
 /* LE TRÔNE CALCULE, CLAUDE EXPLIQUE (24 octobre 2026) : le calcul de la
    prévision ne touche ni un serveur ni un modèle ; l'assistant ne parle que

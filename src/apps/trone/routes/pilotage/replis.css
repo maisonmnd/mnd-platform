@@ -1,0 +1,34 @@
+/* LES LIGNES REPLIÉES DU TABLEAU DE BORD — 27 octobre 2026. Une ligne,
+   son résumé chiffré, son geste ; un seul panneau ouvert par groupe. */
+.trd-groupe { margin-top: 26px; display: flex; flex-direction: column; gap: 10px; scroll-margin-top: 80px; }
+.trd-groupe__titre { margin: 0; font: 400 28px/1.1 var(--font-serif); color: var(--color-indigo); }
+.trd-groupe__titre span { display: block; margin-top: 4px; font: 400 12.5px var(--font-sans); color: var(--ink-soft); }
+.trd-groupe__lignes { display: flex; flex-direction: column; gap: 8px; }
+.trd-repli { border: 1px solid var(--hairline); border-radius: 6px; background: var(--surface-card); }
+.trd-repli.est-presse { border-left: 0; box-shadow: inset 3px 0 0 var(--color-copper); }
+.trd-repli__ligne { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 6px 12px 6px 6px; }
+.trd-repli__bascule { flex: 1 1 320px; min-width: 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; min-height: 44px; padding: 8px 8px; border: 0; border-radius: 4px; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.trd-repli__bascule:hover .trd-repli__titre { text-decoration: underline; }
+.trd-repli__bascule:focus-visible { outline: 2px solid var(--color-copper); outline-offset: 1px; }
+.trd-repli__chevron { color: var(--copper-700, #8A5A32); width: 12px; }
+.trd-repli__titre { font: 600 15px var(--font-sans); color: var(--color-indigo); }
+.trd-repli__compte { min-width: 22px; padding: 1px 7px; border-radius: 11px; background: var(--color-copper); color: #FFFFFF; font: 600 12px/18px var(--font-sans); text-align: center; font-variant-numeric: tabular-nums; }
+.trd-repli__resume { flex: 1 1 200px; font-size: 13.5px; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+.trd-repli__geste { min-height: 40px; padding: 0 14px; border: 1px solid var(--hairline); border-radius: 4px; background: transparent; color: var(--color-indigo); font: 500 13px var(--font-sans); cursor: pointer; white-space: nowrap; }
+.trd-repli__geste:hover { border-color: var(--color-indigo); }
+.trd-repli__geste:focus-visible { outline: 2px solid var(--color-copper); outline-offset: 2px; }
+.trd-repli__panneau { padding: 4px 16px 16px; border-top: 1px solid var(--hairline); }
+/* Les panneaux d'avant, rangés dedans : plus de marge du haut, plus de cadre en double. */
+.trd-repli__panneau > :first-child { margin-top: 12px !important; }
+.trd-repli__panneau > .trp-panel, .trd-repli__panneau > .tr-card { border: 0 !important; padding-left: 0 !important; padding-right: 0 !important; background: transparent !important; box-shadow: none !important; }
+.trd-repli__panneau > .trp-panel > .trp-panel__title { display: none; }
+
+/* La navigation de la page : des ancres, pas une barre collante (un écran long, pas un formulaire). */
+.trd-nav { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+.trd-nav a { display: inline-flex; align-items: center; min-height: 40px; padding: 0 14px; border: 1px solid var(--hairline); border-radius: 4px; color: var(--color-indigo); font: 500 13px var(--font-sans); text-decoration: none; }
+.trd-nav a:hover { border-color: var(--color-indigo); }
+.trd-nav a:focus-visible { outline: 2px solid var(--color-copper); outline-offset: 2px; }
+
+/* Les impayés : échus et à venir côte à côte seulement s'il y a la place
+   (six colonnes par ligne ; en dessous de 560 px le nom s'écrasait). */
+.trd-impayes { grid-template-columns: repeat(auto-fit, minmax(min(100%, 560px), 1fr)); }

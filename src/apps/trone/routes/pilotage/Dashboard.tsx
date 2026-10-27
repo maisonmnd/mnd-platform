@@ -20,6 +20,7 @@ import { usePrets, pretsASurveiller, joursEntre } from '../../../../shared/foyer
 import { useCoffre, useObjectifs, objectifsASurveiller } from '../../../../shared/finance';
 import { totalsOf, MAISON_BUCKETS, emptyTotals, sumTotals, type Part } from '../../../../shared/maisons';
 import { chiffreAttenduDuJour } from '../clients/chiffre-du-jour-pur';
+import { GroupeDeReplis, Repli } from './Replis';
 import {
   Avatar, PayStatusPill, RdvModal, ReminderBell, SourceBadge, StatusPill, tarifsDuRituel, apptLabel, apptTotalXof, apptNetXof, apptDueXof, addDaysISO, frShort, frShortAn, fromISO,
   facturesQuiAttendent,
@@ -333,6 +334,9 @@ export default function Dashboard() {
      & Achats. Ce panneau ne garde que ce qui presse VRAIMENT le matin :
      l'argent qui doit rentrer, et la parole due à une cliente. */
   const unpaidRef = useRef<HTMLDivElement>(null);
+  /* « À traiter » se pilote d'ici : « Voir » sur les impayés échus ouvre leur
+     ligne repliée, puis la page y descend (27 octobre 2026). */
+  const [ouvertATraiter, setOuvertATraiter] = useState<string | null>(null);
 
   /* « Têtes couronnées » comptait les FICHES de la branche — donc aussi les
      comptes ouverts sur Ma Couronne sans jamais venir. Une tête est couronnée
@@ -605,7 +609,7 @@ export default function Dashboard() {
       k: 'impayes',
       label: `${unpaid.overdue.rows.length} impayé${unpaid.overdue.rows.length > 1 ? 's' : ''} échu${unpaid.overdue.rows.length > 1 ? 's' : ''}`,
       sub: `${fmtMoney(unpaid.overdue.total, currency)} dus`,
-      action: 'Voir', go: () => unpaidRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }),
+      action: 'Voir', go: () => { setOuvertATraiter('impayes'); setTimeout(() => unpaidRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 60); },
     }] : []),
   ];
 
@@ -822,6 +826,15 @@ export default function Dashboard() {
   const jourDuChiffre = chiffreAttenduDuJour(todayRows.map((a) => ({
     date: a.date, status: a.status, rituelXof: apptNetXof(a, byId), resteRituelXof: apptDueXof(a, byId), gamme: a.gamme,
   })), today);
+  /* LES RÉSUMÉS DES LIGNES REPLIÉES — 27 octobre 2026 : chaque ligne dit, en
+     chiffres, ce que son panneau contient ; le panneau lit les mêmes. */
+  const appelsEnRetard = appelsAFaire.filter((a) => a.suite === 'rappel' && !!a.quand && a.quand < today).length;
+  const rappelsALaMain = demainRows.filter((a) => {
+    const e = etatDeLaTournee(envois.filter((x) => x.apptId === a.id && x.type === 'rappel-j1' && !attendEncore(x)));
+    return e.rate || e.muet;
+  }).length;
+  const aEncaisserXof = aEncaisser.resteRituels + aEncaisser.resteFactures;
+  const pluriel = (n: number, mot: string) => `${n} ${mot}${n > 1 ? 's' : ''}`;
   const jourPourLAssistant = `${jourDuChiffre.nombre} rendez-vous, ${fmtMoney(jourDuChiffre.attenduXof, currency)} attendus, dont ${fmtMoney(jourDuChiffre.encaisseXof, currency)} déjà encaissés ; reste ${fmtMoney(jourDuChiffre.resteXof, currency)}.`;
 
   return (
@@ -835,18 +848,21 @@ export default function Dashboard() {
         {greeting}{who ? `, ${who}` : ''}.
       </h2>
 
-      {/* LES PONTS DU MATIN — des boutons, pas des phrases (9 septembre) :
-          « je veux des boutons qui appellent une action » (Yéman).
-          27 octobre 2026 : À faire et La Cadence ont quitté la barre (lot 3 de
-          l'Assistant Maison) ; leurs pilules partent avec, « Ce qui presse »
-          porte ce qui servait. */}
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 14 }}>
+      {/* LA PAGE EN ORDRE — 27 octobre 2026 (maquette Q9Nkir2cdF4jSP6QDTH3cG,
+          au sélecteur : « le mois, puis les leviers ») : des ancres, les
+          alarmes du moment, LE MOIS (la prévision, ses leviers, son calcul,
+          puis ses quatre chiffres), et en dessous des lignes repliées qui
+          disent chacune en chiffres ce qu'elles cachent. « Je veux des
+          boutons qui appellent une action » (Yéman, 9 septembre 2026). Les
+          pilules À faire et La Cadence sont parties avec la barre (lot 3 de
+          l'Assistant Maison, 27 octobre) ; « + Le calendrier » reste. */}
+      <nav className="trd-nav" aria-label="Le tableau de bord">
+        <a href="#le-mois">Le mois</a>
+        <a href="#aujourdhui">Aujourd’hui</a>
+        <a href="#a-traiter">À traiter</a>
+        <a href="#le-detail-du-mois">Le détail du mois</a>
         <button type="button" className="trp-af-pill" onClick={() => navigate('/calendrier')}>+ Le calendrier</button>
-      </div>
-
-      {/* DEMANDER À LA MAISON — 24 octobre 2026, maquette VJ5PJEGU… : une
-          question, et l'assistant répond avec les seules sommes du Trône. */}
-      <DemanderALaMaison prevision={prevDuMois} jour={jourPourLAssistant} />
+      </nav>
 
       {/* L'ALARME DES MESSAGES SANS RÉPONSE — 18 septembre 2026. En tête,
           avant tout le reste : une fenêtre de 24 h ne se rattrape pas, un
@@ -858,65 +874,21 @@ export default function Dashboard() {
           du soir, et les tiroirs restés ouverts hier. La direction seule. */}
       <LaVeilleAValider />
 
-      {/* APPELS À TRAITER — posés à la volée, ils restent ici jusqu'à ce qu'ils
-          soient faits ou transformés en rendez-vous. Rien ne s'oublie entre deux clientes. */}
-      {appelsAFaire.length > 0 && (
-        <div style={{ marginTop: 22, border: '1px solid var(--hairline)', borderRadius: 4, overflow: 'hidden' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', padding: '12px 16px', borderBottom: '1px solid var(--hairline)', background: 'var(--copper-50, #FAF1E9)' }}>
-            <span style={{ fontFamily: 'var(--font-serif)', fontSize: 19, color: 'var(--color-indigo)' }}>Appels à traiter</span>
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 12 }}>
-              <span className="mnd-muted" style={{ fontSize: 12 }}>{appelsAFaire.length} en attente</span>
-              <button type="button" onClick={() => navigate('/appels')} style={{ background: 'none', border: 'none', color: 'var(--color-copper)', fontSize: 12.5, cursor: 'pointer', padding: 0 }}>Voir tout →</button>
-            </span>
-          </div>
-          {appelsAFaire.map((a) => {
-            const enRetard = a.suite === 'rappel' && !!a.quand && a.quand < todayISO();
-            const tag = a.suite === 'rdv'
-              ? { t: 'RDV à caler', bg: '#ECEEF6', c: 'var(--color-indigo)', b: '#C7CCE2' }
-              : { t: 'à rappeler', bg: 'var(--copper-50, #FAF1E9)', c: '#8A5A32', b: 'var(--copper-300, #E3C9AE)' };
-            const chip = { border: '1px solid var(--hairline)', borderRadius: 3, padding: '6px 11px', fontSize: 12, color: 'var(--ink-soft)', background: 'var(--surface, #fff)', cursor: 'pointer' } as const;
-            return (
-              <div key={a.id} style={{ display: 'grid', gridTemplateColumns: '30px 1fr auto', gap: 12, alignItems: 'center', padding: '12px 16px', borderTop: '1px solid var(--hairline)' }}>
-                <span style={{ width: 30, height: 30, borderRadius: 999, background: 'var(--color-indigo)', color: '#fff', display: 'grid', placeItems: 'center', fontSize: 12 }}>{a.nom.slice(0, 1)}</span>
-                <div style={{ minWidth: 0 }}>
-                  <div style={{ fontWeight: 500 }}>
-                    {a.nom}
-                    <span style={{ fontSize: 10, borderRadius: 999, padding: '1px 8px', marginLeft: 8, background: tag.bg, color: tag.c, border: `1px solid ${tag.b}` }}>{tag.t}</span>
-                  </div>
-                  <div className="mnd-muted" style={{ fontSize: 12.5 }}>{a.motif || 'Sans note'}{a.phone ? ` · ${a.phone}` : ''}</div>
-                  {a.suite === 'rappel' && a.quand && (
-                    <div style={{ fontSize: 11, fontWeight: 500, color: enRetard ? 'var(--color-brique, #96412E)' : 'var(--ink-soft)' }}>
-                      {a.quand === todayISO() ? "Aujourd'hui" : a.quand === demainAppel ? 'Demain' : a.quand}{enRetard ? ' · en retard' : ''}
-                    </div>
-                  )}
-                </div>
-                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-                  {a.phone && (
-                    <a href={`#${cheminDeLaConversation(a.phone.replace(/\D/g, ''), signeLeMessage(messageAppel(a))) ?? '/conversations'}`} style={{ ...chip, textDecoration: 'none' }}>WhatsApp</a>
-                  )}
-                  {a.clientId && a.suite === 'rdv' && (
-                    <button type="button" style={{ ...chip, borderColor: 'var(--color-copper)', color: '#8A5A32', background: 'var(--copper-50, #FAF1E9)' }} onClick={() => ouvrirRdv(a.clientId!, a.id)}>
-                      Créer le RDV
-                    </button>
-                  )}
-                  {a.clientId && a.suite === 'rappel' && (
-                    <button type="button" style={{ ...chip, borderColor: 'var(--color-copper)', color: '#8A5A32', background: 'var(--copper-50, #FAF1E9)' }} onClick={() => navigate(`/customers?id=${a.clientId}`)}>
-                      Ouvrir la fiche
-                    </button>
-                  )}
-                  {a.suite === 'rappel' && a.quand !== demainAppel && (
-                    <button type="button" style={chip} onClick={() => reporterAppel(a.id, demainAppel)}>Demain</button>
-                  )}
-                  <button type="button" style={chip} onClick={() => marquerAppelFait(a.id)}>Fait</button>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
+      {/* LA PRÉVISION DU MOIS — 24 octobre 2026, maquette VJ5PJEGUPDbYKUgEdMUNbS :
+          le Trône calcule, chaque part se dit en clair (PrevisionDuMois.tsx). */}
+      <PrevisionDuMois donnees={prevDuMois} />
+      {/* « À VALIDER · LES AGENTS » A QUITTÉ LE TABLEAU DE BORD (27 octobre
+          2026, lot 3 de l'Assistant Maison, maquette « 4 tuiles replacées ») :
+          quatre tuiles le remplacent, chacune chez elle : « À encaisser » dans
+          Ce qui presse ci-dessous, « Sans justificatif · Divers à ranger » aux
+          Dépenses, « Bons à préparer » au Stock & Achats, « Les 14 prochains
+          jours » aux Prévisions. Le passage dû des processus se fait depuis
+          Les agents (Centre de commande). */}
+      <PassageDeGerard />
 
       {/* KPI majeurs */}
-      <div className="tr-grid" style={{ marginTop: 24, gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))' }}>
+      {/* Les quatre chiffres du mois sur une ligne dès 1 000 px (à 240 px, 3 + 1). */}
+      <div className="tr-grid" style={{ marginTop: 24, gridTemplateColumns: 'repeat(auto-fit, minmax(215px, 1fr))' }}>
         {kpis.map((k) => (
           <div
             className="trp-kpi trp-kpi--click"
@@ -939,334 +911,425 @@ export default function Dashboard() {
         ))}
       </div>
 
-      {/* LA PRÉVISION DU MOIS — 24 octobre 2026, maquette VJ5PJEGUPDbYKUgEdMUNbS :
-          le Trône calcule, chaque part se dit en clair (PrevisionDuMois.tsx). */}
-      <PrevisionDuMois donnees={prevDuMois} />
-      {/* « À VALIDER · LES AGENTS » A QUITTÉ LE TABLEAU DE BORD (27 octobre
-          2026, lot 3 de l'Assistant Maison, maquette « 4 tuiles replacées ») :
-          quatre tuiles le remplacent, chacune chez elle : « À encaisser » dans
-          Ce qui presse ci-dessous, « Sans justificatif · Divers à ranger » aux
-          Dépenses, « Bons à préparer » au Stock & Achats, « Les 14 prochains
-          jours » aux Prévisions. Le passage dû des processus se fait depuis
-          Les agents (Centre de commande). */}
-      <PassageDeGerard />
-
-      {/* Tuiles secondaires */}
-      {/* LE CHIFFRE PAR MAISON — n'apparaît que s'il y a quelque chose à séparer.
-          Une Maison qui ne vend que des locks n'a pas à lire une ligne « Studio
-          0 F » tous les matins. */}
-      {sumTotals(revMaison) > 0 && (revMaison.studio > 0 || revMaison.plateau > 0) && (
-        <div className="tr-card" style={{ marginTop: 14, padding: '14px 18px' }}>
-          <Eyebrow>Le mois, par maison</Eyebrow>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 28, marginTop: 10 }}>
-            {MAISON_BUCKETS.map((m) => (
-              <div key={m.k}>
-                <div style={{ fontFamily: 'var(--font-sans)', fontSize: 11, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--ink-soft)' }}>
-                  {m.label}
-                </div>
-                <div style={{ fontSize: 19, marginTop: 3, fontVariantNumeric: 'tabular-nums' }}>
-                  {fmtMoney(revMaison[m.k], currency)}
-                </div>
-              </div>
-            ))}
-          </div>
-          <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 8, lineHeight: 1.5 }}>
-            Prestations du carnet, ventilées ligne à ligne. « Plateau seul » : les soins et lavages
-            vendus sans rituel d’une maison, rien ne permet de les rattacher, on ne devine pas.
-          </div>
-        </div>
-      )}
-      {/* Ce qui presse — chaque alerte porte son GESTE : réassort → le bon,
-          impayés échus → la section qui les encaisse. L'ancienne tuile
-          « Alertes stock : 5 » constatait ; ici l'écran tend la main. */}
-      <div className="trp-panel" style={{ marginTop: 14 }}>
-        <div className="trp-panel__title">
-          Demandes du site · rendez-vous et rappels{demandesRows.length > 0 ? ` · ${demandesRows.length}` : ''}
-        </div>
-        {demandesRows.length === 0
-          ? <div className="trp-empty">Aucune demande en attente. Celles du site arrivent ici, dès qu’elles sont envoyées.</div>
-          : demandesRows.map((d, i) => (
-            <div
-              key={d.id}
-              style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '9px 0', borderTop: i === 0 ? 'none' : '1px solid var(--hairline)', flexWrap: 'wrap' }}
-            >
-              <div style={{ minWidth: 0 }}>
-                <span style={{ fontWeight: 500 }}>{nomDeLaDemande(d) || 'Sans prénom'}</span>
-                <span className="mnd-muted" style={{ marginLeft: 10, fontSize: 12 }}>
-                  {ditLeGenre(d.genre)} · {ditLeBesoin(d.besoin)}
-                  {/* L'année aussi (10 octobre 2026) : une demande de décembre pour
-                      janvier se lisait comme une date passée. */}
-                  {d.date ? ` · le ${d.date.slice(8, 10)}/${d.date.slice(5, 7)}/${d.date.slice(0, 4)}${d.time ? ` à ${d.time}` : ''}` : ''}
-                  {' · '}{telephoneMasque(d.telephone)} · {depuisQuand(d.createdAt)}
-                </span>
-              </div>
-              <div style={{ display: 'flex', gap: 8 }}>
-                {d.apptId && <button className="trp-af-pill" onClick={() => navigate('/calendrier')}>Le calendrier</button>}
-                <button className="trp-pay__cta" onClick={() => navigate('/demandes')}>Traiter</button>
-              </div>
-            </div>
-          ))}
-      </div>
-      <div className="trp-panel" style={{ marginTop: 14 }}>
-        <div className="trp-panel__title">Ce qui presse</div>
-        {/* « À ENCAISSER » : la tuile de l'agent des encaissements (27 octobre
-            2026). Le carnet encaisse les rituels, la page Factures ouvre
-            exactement celles qui gardent un reste. */}
-        {aEncaisser.rituels + aEncaisser.factures > 0 && (
-          <div className="trp-agents" style={{ marginTop: 0, marginBottom: 10, cursor: 'default' }} aria-label="À encaisser">
-            <span className="trp-prev__sur">À encaisser</span>
-            <span><b>{aEncaisser.rituels}</b> rituel{aEncaisser.rituels > 1 ? 's' : ''} honoré{aEncaisser.rituels > 1 ? 's' : ''} sans versement · {fmtMoney(aEncaisser.resteRituels, currency)}</span>
-            <span><b>{aEncaisser.factures}</b> facture{aEncaisser.factures > 1 ? 's' : ''} avec un reste · {fmtMoney(aEncaisser.resteFactures, currency)}</span>
-            <span><b>{fmtMoney(aEncaisser.resteRituels + aEncaisser.resteFactures, currency)}</b> à encaisser</span>
-            <button type="button" className="trp-prev__lien" onClick={() => navigate('/carnet')}>Le carnet ›</button>
-            <button type="button" className="trp-prev__lien" onClick={() => navigate('/factures?filtre=a-regler')}>Les factures ›</button>
-          </div>
-        )}
-        {presseRows.length === 0 && aEncaisser.rituels + aEncaisser.factures === 0 && <div className="trp-empty">Rien ne presse, tout est réglé.</div>}
-        {presseRows.map((r, i) => (
-            <div
-              key={r.k}
-              style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '9px 0', borderTop: i === 0 ? 'none' : '1px solid var(--hairline)' }}
-            >
-              <div style={{ minWidth: 0 }}>
-                <span style={{ fontWeight: 500 }}>{r.label}</span>
-                <span className="mnd-muted" style={{ marginLeft: 10, fontSize: 12 }}>{r.sub}</span>
-              </div>
-              <button className="trp-pay__cta" onClick={r.go}>{r.action}</button>
-            </div>
-          ))}
-      </div>
-
-      {/* ── LA TOURNÉE DU MATIN — les rappels de demain, réunis (13 août).
-          Les cloches existaient, dispersées sur le Carnet et le Calendrier ;
-          ici elles s'alignent : un tap par cliente, et la pastille dit si le
-          rappel PUSH est déjà parti tout seul (fonction `rappels-j1`). */}
-      <div className="trp-panel" style={{ marginTop: 14 }}>
-        <div className="trp-panel__title">
-          La tournée du matin · rappels de demain{demainRows.length > 0 ? ` · ${demainRows.length}` : ''}
-        </div>
-        {demainRows.length === 0
-          ? <div className="trp-empty">Rien à rappeler, le carnet de demain est libre.</div>
-          : demainRows.map((a, i) => {
-            const c = clientOf(a.clientId);
-            const nom = a.clientName ?? c?.name ?? 'Cliente';
-            /* ══ UNE LIGNE NUE VOULAIT DIRE TROIS CHOSES — 11 sept. 2026 ══
-               L'écran n'affichait une pastille que par SUCCÈS : « pas encore
-               passé », « a échoué » et « personne à joindre » se ressemblaient
-               tous les trois, et se ressemblaient à « tout va bien ». Le juge
-               est pur (`shared/tournee.ts`), éprouvé, et l'écran ne fait que
-               le lire. */
-            /* Un rappel qui attend en salle n'est pas encore passé (2 octobre 2026). */
-            const lignes = envois.filter((e) => e.apptId === a.id && e.type === 'rappel-j1' && !attendEncore(e));
-            const etat = etatDeLaTournee(lignes);
-            const tag = (texte: string, ton?: 'alerte' | 'cuivre') => (
-              <span
-                className={ton ? undefined : 'mnd-muted'}
-                style={{
-                  fontSize: 11, borderRadius: 3, padding: '2px 7px', whiteSpace: 'nowrap',
-                  border: `1px solid ${ton === 'alerte' ? '#E0B3A9' : ton === 'cuivre' ? 'var(--copper-300)' : 'var(--hairline)'}`,
-                  background: ton === 'alerte' ? '#F7E4E0' : ton === 'cuivre' ? 'var(--copper-50)' : undefined,
-                  color: ton === 'alerte' ? 'var(--color-brique, #96412E)' : ton === 'cuivre' ? 'var(--copper-700)' : undefined,
-                }}
-              >
-                {texte}
-              </span>
-            );
-            return (
-              <div
-                key={a.id}
-                style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '9px 0', borderTop: i === 0 ? 'none' : '1px solid var(--hairline)' }}
-              >
-                <span style={{ fontFamily: 'var(--font-serif)', fontSize: 15, color: 'var(--color-indigo)', minWidth: 46 }}>{a.time}</span>
-                <span style={{ minWidth: 0, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{nom}</span>
-                {/* L'ACCUSÉ DE META PASSE DEVANT — 11 septembre 2026.
-                    « Remis » et « lu » sont des faits rapportés par le
-                    téléphone de la cliente ; « WhatsApp auto » ne disait que
-                    « Meta a accepté notre requête ». Quand l'accusé existe,
-                    c'est lui qu'il faut lire, et le canal devient un détail. */}
-                {etat.accuse === 'lu' && tag('Lu')}
-                {etat.accuse === 'remis' && tag('Remis')}
-                {etat.accuse === 'en-route' && tag('En route')}
-                {etat.partis.includes('push') && tag('Push parti seul')}
-                {etat.sansAppli && tag('Sans l’appli')}
-                {etat.partis.includes('whatsapp') && tag('WhatsApp auto')}
-                {etat.partis.includes('sms') && tag('SMS auto')}
-                {/* LES TROIS SILENCES, ENFIN ÉCRITS. Chacun appelle un geste
-                    différent : attendre, taper la cloche, ou poser un numéro. */}
-                {etat.rate && tag('Échec · à la main', 'alerte')}
-                {etat.muet && tag('Rien n’est parti', 'cuivre')}
-                {etat.jamaisPasse && tag('Pas encore passé')}
-                <ReminderBell appt={a} client={c} byId={byId} />
-              </div>
-            );
-          })}
-        {demainRows.length > 0 && (
-          <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 10, lineHeight: 1.5 }}>
-            Le passage automatique ne voit que les rendez-vous posés avant son heure.
-            <b>Pas encore passé</b> dit qu’il ne l’a pas encore vu ; si plus aucun passage
-            n’est prévu aujourd’hui, ce rappel ne partira pas tout seul.
-            {' '}<b>Échec</b> et <b>Rien n’est parti</b> appellent ta main tout de suite :
-            la cloche ouvre WhatsApp pré-rempli, un tap, Envoyer, et elle se souvient
-            de ton geste.
-          </div>
-        )}
-      </div>
-
-      {/* Carnet du jour + revenu 7 jours */}
-      {/* LE CHIFFRE ATTENDU DE LA JOURNÉE — 24 octobre 2026 (voir
-          clients/chiffre-du-jour-pur.ts) : rituels du jour et Gamme posée, ce
-          qui est déjà entré et ce qui reste. Le même calcul qu'au Carnet. */}
-      <div className="tr-cols" style={{ '--cols': '1.55fr 1fr', gap: 18, marginTop: 24, alignItems: 'start' } as CSSProperties}>
-        <div className="trp-day">
-          <div className="trp-day__head">
-            <span className="trp-day__title">Le carnet du jour{todayRows.length > 0 ? ` · ${todayRows.length}` : ''}</span>
-            <button className="trp-kpi__link" onClick={() => navigate('/carnet')}>
-              Tout voir →
-            </button>
-          </div>
-          {(() => {
-            const j = chiffreAttenduDuJour(todayRows.map((a) => ({
-              date: a.date, status: a.status, rituelXof: apptNetXof(a, byId), resteRituelXof: apptDueXof(a, byId), gamme: a.gamme,
-            })), today);
-            /* Il s'ouvre sur ses rendez-vous (24 octobre 2026, « rendre
-               cliquables les attendus »). */
-            const ouvre = () => setDrill({
-              title: 'Attendu aujourd’hui',
-              sub: `Rituels du jour et Gamme posée · déjà encaissé ${fmtMoney(j.encaisseXof, currency)} · reste ${fmtMoney(j.resteXof, currency)}`,
-              rows: todayRows.map((a) => {
-                const u = chiffreAttenduDuJour([{ date: a.date, status: a.status, rituelXof: apptNetXof(a, byId), resteRituelXof: apptDueXof(a, byId), gamme: a.gamme }], a.date);
-                return {
-                  who: clientOf(a.clientId)?.name ?? 'Cliente de passage',
-                  sub: `${a.time} · ${apptLabel(a, byId)}${u.gammeXof > 0 ? ` · dont Gamme ${fmtMoney(u.gammeXof, currency)}` : ''} · ${u.resteXof > 0 ? `reste ${fmtMoney(u.resteXof, currency)}` : 'réglé'}`,
-                  amount: u.attenduXof, onOpen: () => { setDrill(null); setEditAppt(a); },
-                };
-              }),
-              total: j.attenduXof,
-            });
-            return j.attenduXof > 0 ? (
-              <button type="button" className="trp-day__chiffre" onClick={ouvre} title="Voir les rendez-vous du jour">
-                <span className="trp-day__chiffre-lab">Attendu aujourd’hui ›</span>
-                <b>{fmtMoney(j.attenduXof, currency)}</b>
-                <span className="trp-day__chiffre-sub">
-                  déjà encaissé {fmtMoney(j.encaisseXof, currency)} · reste {fmtMoney(j.resteXof, currency)}
-                  {j.gammeXof > 0 ? ` · dont Gamme ${fmtMoney(j.gammeXof, currency)}` : ''}
-                </span>
-              </button>
-            ) : null;
-          })()}
-          {/* UN ÉTAT VIDE PROPOSE, il ne constate pas : un carnet libre est
-              l'occasion de relancer les couronnes qui ont passé leur cadence. */}
-          {todayRows.length === 0 && (
-            relances > 0 ? (
-              <div className="trp-day__empty">
-                Le carnet est libre, {relances === 1 ? 'une couronne a dépassé sa cadence' : `${relances} couronnes ont dépassé leur cadence`}.
-                {' '}
-                <button className="trp-kpi__link" onClick={() => navigate('/customers')}>Voir les relances →</button>
-              </div>
-            ) : (
-              <div className="trp-day__empty">Le carnet est libre aujourd’hui.</div>
-            )
-          )}
-          {todayRows.map((a) => {
-            const c = clientOf(a.clientId);
-            return (
-              <div
-                className="trp-day__row trp-day__row--click"
-                key={a.id}
-                onClick={() => setEditAppt(a)}
-                title="Modifier ce rendez-vous"
-              >
-                <div className="trp-day__time">{a.time}</div>
-                {c && <Avatar client={c} size={34} />}
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div className="trp-day__client">{c?.name ?? 'Cliente de passage'}</div>
-                  <div className="trp-day__meta">
-                    {apptLabel(a, byId)} · {a.master}
-                  </div>
-                </div>
-                <SourceBadge source={a.source} />
-                <PayStatusPill a={a} byId={byId} />
-                <StatusPill status={a.status} />
-                <ReminderBell appt={a} client={c} byId={byId} />
-                {/* LA PAIRE DANGEREUSE, SÉPARÉE (maquette du 10 août). « Honorer »
-                    (un ÉTAT, indigo) vient d'abord ; « Encaisser » (de l'ARGENT,
-                    cuivre) ferme la ligne, à l'écart — NN/g : deux actions
-                    opposées qui se touchent, au pouce, c'est l'erreur assurée. */}
-                {a.status !== 'honoré' && (
-                  <button
-                    onClick={(e) => { e.stopPropagation(); advance(a); }}
-                    style={{
-                      cursor: 'pointer', flex: 'none', borderRadius: 2, padding: '10px 14px',
-                      fontFamily: 'var(--font-sans)', fontSize: 10, letterSpacing: '.1em', textTransform: 'uppercase', fontWeight: 500,
-                      background: a.status === 'en attente' ? 'var(--color-copper)' : 'transparent',
-                      color: a.status === 'en attente' ? 'var(--color-ivoire)' : 'var(--color-indigo)',
-                      border: a.status === 'en attente' ? '1px solid transparent' : '1px solid var(--color-indigo)',
-                    }}
-                  >
-                    {/* « Terminer » le jour même : le reste part sur son WhatsApp (25 octobre 2026). */}
-                    {a.status === 'en attente' ? 'Confirmer' : a.date === todayISO() ? 'Terminer' : 'Honorer'}
-                  </button>
-                )}
-                <button
-                  onClick={(e) => { e.stopPropagation(); setPayAppt(a); }}
-                  title="Encaisser, paiement partiel ou total"
-                  style={{
-                    cursor: 'pointer', flex: 'none', borderRadius: 2, padding: '10px 14px', marginLeft: 12,
-                    fontFamily: 'var(--font-sans)', fontSize: 10, letterSpacing: '.1em', textTransform: 'uppercase', fontWeight: 500,
-                    background: 'transparent', color: 'var(--copper-700)', border: '1px solid var(--color-copper)',
-                  }}
-                >
-                  Encaisser
+      <GroupeDeReplis id="aujourdhui" titre="Aujourd’hui" sousTitre="Le carnet, les appels, les demandes, les rappels de demain" ouvertAuDepart="carnet">
+        <Repli
+          cle="carnet" titre="Le carnet du jour" compte={todayRows.length}
+          resume={todayRows.length === 0 ? 'Le carnet est libre aujourd’hui.' : `${pluriel(todayRows.length, 'rendez-vous')} · ${fmtMoney(jourDuChiffre.attenduXof, currency)} attendus · reste ${fmtMoney(jourDuChiffre.resteXof, currency)}`}
+          geste={{ dit: 'Le carnet', faire: () => navigate('/carnet') }}
+        >
+          {/* Carnet du jour + revenu 7 jours */}
+          {/* LE CHIFFRE ATTENDU DE LA JOURNÉE — 24 octobre 2026 (voir
+              clients/chiffre-du-jour-pur.ts) : rituels du jour et Gamme posée, ce
+              qui est déjà entré et ce qui reste. Le même calcul qu'au Carnet. */}
+          <div className="tr-cols" style={{ '--cols': '1.55fr 1fr', gap: 18, marginTop: 24, alignItems: 'start' } as CSSProperties}>
+            <div className="trp-day">
+              <div className="trp-day__head">
+                <span className="trp-day__title">Le carnet du jour{todayRows.length > 0 ? ` · ${todayRows.length}` : ''}</span>
+                <button className="trp-kpi__link" onClick={() => navigate('/carnet')}>
+                  Tout voir →
                 </button>
               </div>
-            );
-          })}
-        </div>
+              {(() => {
+                const j = chiffreAttenduDuJour(todayRows.map((a) => ({
+                  date: a.date, status: a.status, rituelXof: apptNetXof(a, byId), resteRituelXof: apptDueXof(a, byId), gamme: a.gamme,
+                })), today);
+                /* Il s'ouvre sur ses rendez-vous (24 octobre 2026, « rendre
+                   cliquables les attendus »). */
+                const ouvre = () => setDrill({
+                  title: 'Attendu aujourd’hui',
+                  sub: `Rituels du jour et Gamme posée · déjà encaissé ${fmtMoney(j.encaisseXof, currency)} · reste ${fmtMoney(j.resteXof, currency)}`,
+                  rows: todayRows.map((a) => {
+                    const u = chiffreAttenduDuJour([{ date: a.date, status: a.status, rituelXof: apptNetXof(a, byId), resteRituelXof: apptDueXof(a, byId), gamme: a.gamme }], a.date);
+                    return {
+                      who: clientOf(a.clientId)?.name ?? 'Cliente de passage',
+                      sub: `${a.time} · ${apptLabel(a, byId)}${u.gammeXof > 0 ? ` · dont Gamme ${fmtMoney(u.gammeXof, currency)}` : ''} · ${u.resteXof > 0 ? `reste ${fmtMoney(u.resteXof, currency)}` : 'réglé'}`,
+                      amount: u.attenduXof, onOpen: () => { setDrill(null); setEditAppt(a); },
+                    };
+                  }),
+                  total: j.attenduXof,
+                });
+                return j.attenduXof > 0 ? (
+                  <button type="button" className="trp-day__chiffre" onClick={ouvre} title="Voir les rendez-vous du jour">
+                    <span className="trp-day__chiffre-lab">Attendu aujourd’hui ›</span>
+                    <b>{fmtMoney(j.attenduXof, currency)}</b>
+                    <span className="trp-day__chiffre-sub">
+                      déjà encaissé {fmtMoney(j.encaisseXof, currency)} · reste {fmtMoney(j.resteXof, currency)}
+                      {j.gammeXof > 0 ? ` · dont Gamme ${fmtMoney(j.gammeXof, currency)}` : ''}
+                    </span>
+                  </button>
+                ) : null;
+              })()}
+              {/* UN ÉTAT VIDE PROPOSE, il ne constate pas : un carnet libre est
+                  l'occasion de relancer les couronnes qui ont passé leur cadence. */}
+              {todayRows.length === 0 && (
+                relances > 0 ? (
+                  <div className="trp-day__empty">
+                    Le carnet est libre, {relances === 1 ? 'une couronne a dépassé sa cadence' : `${relances} couronnes ont dépassé leur cadence`}.
+                    {' '}
+                    <button className="trp-kpi__link" onClick={() => navigate('/customers')}>Voir les relances →</button>
+                  </div>
+                ) : (
+                  <div className="trp-day__empty">Le carnet est libre aujourd’hui.</div>
+                )
+              )}
+              {todayRows.map((a) => {
+                const c = clientOf(a.clientId);
+                return (
+                  <div
+                    className="trp-day__row trp-day__row--click"
+                    key={a.id}
+                    onClick={() => setEditAppt(a)}
+                    title="Modifier ce rendez-vous"
+                  >
+                    <div className="trp-day__time">{a.time}</div>
+                    {c && <Avatar client={c} size={34} />}
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div className="trp-day__client">{c?.name ?? 'Cliente de passage'}</div>
+                      <div className="trp-day__meta">
+                        {apptLabel(a, byId)} · {a.master}
+                      </div>
+                    </div>
+                    <SourceBadge source={a.source} />
+                    <PayStatusPill a={a} byId={byId} />
+                    <StatusPill status={a.status} />
+                    <ReminderBell appt={a} client={c} byId={byId} />
+                    {/* LA PAIRE DANGEREUSE, SÉPARÉE (maquette du 10 août). « Honorer »
+                        (un ÉTAT, indigo) vient d'abord ; « Encaisser » (de l'ARGENT,
+                        cuivre) ferme la ligne, à l'écart — NN/g : deux actions
+                        opposées qui se touchent, au pouce, c'est l'erreur assurée. */}
+                    {a.status !== 'honoré' && (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); advance(a); }}
+                        style={{
+                          cursor: 'pointer', flex: 'none', borderRadius: 2, padding: '10px 14px',
+                          fontFamily: 'var(--font-sans)', fontSize: 10, letterSpacing: '.1em', textTransform: 'uppercase', fontWeight: 500,
+                          background: a.status === 'en attente' ? 'var(--color-copper)' : 'transparent',
+                          color: a.status === 'en attente' ? 'var(--color-ivoire)' : 'var(--color-indigo)',
+                          border: a.status === 'en attente' ? '1px solid transparent' : '1px solid var(--color-indigo)',
+                        }}
+                      >
+                        {/* « Terminer » le jour même : le reste part sur son WhatsApp (25 octobre 2026). */}
+                        {a.status === 'en attente' ? 'Confirmer' : a.date === todayISO() ? 'Terminer' : 'Honorer'}
+                      </button>
+                    )}
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setPayAppt(a); }}
+                      title="Encaisser, paiement partiel ou total"
+                      style={{
+                        cursor: 'pointer', flex: 'none', borderRadius: 2, padding: '10px 14px', marginLeft: 12,
+                        fontFamily: 'var(--font-sans)', fontSize: 10, letterSpacing: '.1em', textTransform: 'uppercase', fontWeight: 500,
+                        background: 'transparent', color: 'var(--copper-700)', border: '1px solid var(--color-copper)',
+                      }}
+                    >
+                      Encaisser
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
 
-        <div>
-        <div className="trp-rev">
-          <button className="trp-rev__open" onClick={openWeek} title="Voir le détail des 7 jours">
-            <div className="trp-rev__eyebrow">Revenu · 7 jours</div>
-            <div className="trp-rev__value">{fmtMoney(rev7Total, currency)}</div>
-          </button>
-          <svg viewBox="0 0 280 150" style={{ width: '100%', height: 150, marginTop: 18, display: 'block' }} role="group" aria-label="Revenu des 7 derniers jours">
-            {rev7.map((d, i) => {
-              const h = Math.max(4, Math.round((d.total / rev7Max) * 118));
-              const x = 8 + i * 39;
-              const isBest = d.iso === best.iso && d.total > 0;
-              return (
-                <g key={d.iso} role="button" tabIndex={0} style={{ cursor: 'pointer' }} onClick={() => openDay(d.iso)}>
-                  <title>{`${frShort(d.iso)} · ${fmtMoney(d.total, currency)}`}</title>
-                  {/* Cible de clic sur toute la colonne : une journée creuse n'a
-                      qu'un trait de 4 px, impossible à viser au doigt. */}
-                  <rect x={x - 6} y={4} width={38} height={142} fill="transparent" />
-                  <rect x={x} y={130 - h} width={26} height={h} rx={2} fill={isBest ? 'var(--color-copper)' : 'rgba(246,241,231,0.28)'} />
-                  <text x={x + 13} y={146} textAnchor="middle" fontSize={9.5} fontFamily="var(--font-sans)" fill="var(--indigo-200)">
-                    {d.label}
-                  </text>
-                </g>
-              );
-            })}
-          </svg>
-          <button className="trp-rev__foot trp-rev__foot--btn" onClick={() => openDay(best.iso)} title="Voir le meilleur jour">
-            <span>Meilleur jour · {bestName}</span>
-            <span className="trp-rev__best">{fmtMoney(best.total, currency)}</span>
-          </button>
-        </div>
-        <div className="trp-tile" style={{ marginTop: 12 }}>
-          <div className="trp-tile__label">Têtes couronnées</div>
-          <div className="trp-tile__value">{tetesCouronnees}</div>
-          <div className="trp-tile__cap">venues au moins une fois</div>
-        </div>
-        </div>
-      </div>
+            <div>
+            <div className="trp-rev">
+              <button className="trp-rev__open" onClick={openWeek} title="Voir le détail des 7 jours">
+                <div className="trp-rev__eyebrow">Revenu · 7 jours</div>
+                <div className="trp-rev__value">{fmtMoney(rev7Total, currency)}</div>
+              </button>
+              <svg viewBox="0 0 280 150" style={{ width: '100%', height: 150, marginTop: 18, display: 'block' }} role="group" aria-label="Revenu des 7 derniers jours">
+                {rev7.map((d, i) => {
+                  const h = Math.max(4, Math.round((d.total / rev7Max) * 118));
+                  const x = 8 + i * 39;
+                  const isBest = d.iso === best.iso && d.total > 0;
+                  return (
+                    <g key={d.iso} role="button" tabIndex={0} style={{ cursor: 'pointer' }} onClick={() => openDay(d.iso)}>
+                      <title>{`${frShort(d.iso)} · ${fmtMoney(d.total, currency)}`}</title>
+                      {/* Cible de clic sur toute la colonne : une journée creuse n'a
+                          qu'un trait de 4 px, impossible à viser au doigt. */}
+                      <rect x={x - 6} y={4} width={38} height={142} fill="transparent" />
+                      <rect x={x} y={130 - h} width={26} height={h} rx={2} fill={isBest ? 'var(--color-copper)' : 'rgba(246,241,231,0.28)'} />
+                      <text x={x + 13} y={146} textAnchor="middle" fontSize={9.5} fontFamily="var(--font-sans)" fill="var(--indigo-200)">
+                        {d.label}
+                      </text>
+                    </g>
+                  );
+                })}
+              </svg>
+              <button className="trp-rev__foot trp-rev__foot--btn" onClick={() => openDay(best.iso)} title="Voir le meilleur jour">
+                <span>Meilleur jour · {bestName}</span>
+                <span className="trp-rev__best">{fmtMoney(best.total, currency)}</span>
+              </button>
+            </div>
+            <div className="trp-tile" style={{ marginTop: 12 }}>
+              <div className="trp-tile__label">Têtes couronnées</div>
+              <div className="trp-tile__value">{tetesCouronnees}</div>
+              <div className="trp-tile__cap">venues au moins une fois</div>
+            </div>
+            </div>
+          </div>
+        </Repli>
+        {/* APPELS À TRAITER — posés à la volée, ils restent ici jusqu'à ce qu'ils
+            soient faits ou transformés en rendez-vous. Rien ne s'oublie entre deux clientes. */}
+        {appelsAFaire.length > 0 && (
+          <Repli
+            cle="appels" titre="Appels à traiter" compte={appelsAFaire.length} ton={appelsEnRetard > 0 ? 'presse' : 'calme'}
+            resume={`${pluriel(appelsAFaire.length, 'appel')} en attente${appelsEnRetard ? ` · ${appelsEnRetard} en retard` : ''}`}
+            geste={{ dit: 'Voir tout', faire: () => navigate('/appels') }}
+          >
+              <div style={{ marginTop: 22, border: '1px solid var(--hairline)', borderRadius: 4, overflow: 'hidden' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', padding: '12px 16px', borderBottom: '1px solid var(--hairline)', background: 'var(--copper-50, #FAF1E9)' }}>
+                  <span style={{ fontFamily: 'var(--font-serif)', fontSize: 19, color: 'var(--color-indigo)' }}>Appels à traiter</span>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 12 }}>
+                    <span className="mnd-muted" style={{ fontSize: 12 }}>{appelsAFaire.length} en attente</span>
+                    <button type="button" onClick={() => navigate('/appels')} style={{ background: 'none', border: 'none', color: 'var(--color-copper)', fontSize: 12.5, cursor: 'pointer', padding: 0 }}>Voir tout →</button>
+                  </span>
+                </div>
+                {appelsAFaire.map((a) => {
+                  const enRetard = a.suite === 'rappel' && !!a.quand && a.quand < todayISO();
+                  const tag = a.suite === 'rdv'
+                    ? { t: 'RDV à caler', bg: '#ECEEF6', c: 'var(--color-indigo)', b: '#C7CCE2' }
+                    : { t: 'à rappeler', bg: 'var(--copper-50, #FAF1E9)', c: '#8A5A32', b: 'var(--copper-300, #E3C9AE)' };
+                  const chip = { border: '1px solid var(--hairline)', borderRadius: 3, padding: '6px 11px', fontSize: 12, color: 'var(--ink-soft)', background: 'var(--surface, #fff)', cursor: 'pointer' } as const;
+                  return (
+                    <div key={a.id} style={{ display: 'grid', gridTemplateColumns: '30px 1fr auto', gap: 12, alignItems: 'center', padding: '12px 16px', borderTop: '1px solid var(--hairline)' }}>
+                      <span style={{ width: 30, height: 30, borderRadius: 999, background: 'var(--color-indigo)', color: '#fff', display: 'grid', placeItems: 'center', fontSize: 12 }}>{a.nom.slice(0, 1)}</span>
+                      <div style={{ minWidth: 0 }}>
+                        <div style={{ fontWeight: 500 }}>
+                          {a.nom}
+                          <span style={{ fontSize: 10, borderRadius: 999, padding: '1px 8px', marginLeft: 8, background: tag.bg, color: tag.c, border: `1px solid ${tag.b}` }}>{tag.t}</span>
+                        </div>
+                        <div className="mnd-muted" style={{ fontSize: 12.5 }}>{a.motif || 'Sans note'}{a.phone ? ` · ${a.phone}` : ''}</div>
+                        {a.suite === 'rappel' && a.quand && (
+                          <div style={{ fontSize: 11, fontWeight: 500, color: enRetard ? 'var(--color-brique, #96412E)' : 'var(--ink-soft)' }}>
+                            {a.quand === todayISO() ? "Aujourd'hui" : a.quand === demainAppel ? 'Demain' : a.quand}{enRetard ? ' · en retard' : ''}
+                          </div>
+                        )}
+                      </div>
+                      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                        {a.phone && (
+                          <a href={`#${cheminDeLaConversation(a.phone.replace(/\D/g, ''), signeLeMessage(messageAppel(a))) ?? '/conversations'}`} style={{ ...chip, textDecoration: 'none' }}>WhatsApp</a>
+                        )}
+                        {a.clientId && a.suite === 'rdv' && (
+                          <button type="button" style={{ ...chip, borderColor: 'var(--color-copper)', color: '#8A5A32', background: 'var(--copper-50, #FAF1E9)' }} onClick={() => ouvrirRdv(a.clientId!, a.id)}>
+                            Créer le RDV
+                          </button>
+                        )}
+                        {a.clientId && a.suite === 'rappel' && (
+                          <button type="button" style={{ ...chip, borderColor: 'var(--color-copper)', color: '#8A5A32', background: 'var(--copper-50, #FAF1E9)' }} onClick={() => navigate(`/customers?id=${a.clientId}`)}>
+                            Ouvrir la fiche
+                          </button>
+                        )}
+                        {a.suite === 'rappel' && a.quand !== demainAppel && (
+                          <button type="button" style={chip} onClick={() => reporterAppel(a.id, demainAppel)}>Demain</button>
+                        )}
+                        <button type="button" style={chip} onClick={() => marquerAppelFait(a.id)}>Fait</button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+          </Repli>
+        )}
+        <Repli
+          cle="demandes" titre="Demandes du site" compte={demandesRows.length}
+          resume={demandesRows.length === 0 ? 'Aucune demande en attente.' : `${pluriel(demandesRows.length, 'demande')} en attente · la plus ancienne ${depuisQuand(demandesRows[demandesRows.length - 1].createdAt)}`}
+          geste={{ dit: 'Traiter', faire: () => navigate('/demandes') }}
+        >
+          {/* Ce qui presse — chaque alerte porte son GESTE : réassort → le bon,
+              impayés échus → la section qui les encaisse. L'ancienne tuile
+              « Alertes stock : 5 » constatait ; ici l'écran tend la main. */}
+          <div className="trp-panel" style={{ marginTop: 14 }}>
+            <div className="trp-panel__title">
+              Demandes du site · rendez-vous et rappels{demandesRows.length > 0 ? ` · ${demandesRows.length}` : ''}
+            </div>
+            {demandesRows.length === 0
+              ? <div className="trp-empty">Aucune demande en attente. Celles du site arrivent ici, dès qu’elles sont envoyées.</div>
+              : demandesRows.map((d, i) => (
+                <div
+                  key={d.id}
+                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '9px 0', borderTop: i === 0 ? 'none' : '1px solid var(--hairline)', flexWrap: 'wrap' }}
+                >
+                  <div style={{ minWidth: 0 }}>
+                    <span style={{ fontWeight: 500 }}>{nomDeLaDemande(d) || 'Sans prénom'}</span>
+                    <span className="mnd-muted" style={{ marginLeft: 10, fontSize: 12 }}>
+                      {ditLeGenre(d.genre)} · {ditLeBesoin(d.besoin)}
+                      {/* L'année aussi (10 octobre 2026) : une demande de décembre pour
+                          janvier se lisait comme une date passée. */}
+                      {d.date ? ` · le ${d.date.slice(8, 10)}/${d.date.slice(5, 7)}/${d.date.slice(0, 4)}${d.time ? ` à ${d.time}` : ''}` : ''}
+                      {' · '}{telephoneMasque(d.telephone)} · {depuisQuand(d.createdAt)}
+                    </span>
+                  </div>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    {d.apptId && <button className="trp-af-pill" onClick={() => navigate('/calendrier')}>Le calendrier</button>}
+                    <button className="trp-pay__cta" onClick={() => navigate('/demandes')}>Traiter</button>
+                  </div>
+                </div>
+              ))}
+          </div>
+        </Repli>
+        <Repli
+          cle="tournee" titre="La tournée du matin" compte={demainRows.length} ton={rappelsALaMain > 0 ? 'presse' : 'calme'}
+          resume={demainRows.length === 0 ? 'Rien à rappeler, le carnet de demain est libre.' : `${pluriel(demainRows.length, 'rappel')} de demain${rappelsALaMain ? ` · ${rappelsALaMain} à faire à la main` : ' · tous partis ou en route'}`}
+        >
+          {/* ── LA TOURNÉE DU MATIN — les rappels de demain, réunis (13 août).
+              Les cloches existaient, dispersées sur le Carnet et le Calendrier ;
+              ici elles s'alignent : un tap par cliente, et la pastille dit si le
+              rappel PUSH est déjà parti tout seul (fonction `rappels-j1`). */}
+          <div className="trp-panel" style={{ marginTop: 14 }}>
+            <div className="trp-panel__title">
+              La tournée du matin · rappels de demain{demainRows.length > 0 ? ` · ${demainRows.length}` : ''}
+            </div>
+            {demainRows.length === 0
+              ? <div className="trp-empty">Rien à rappeler, le carnet de demain est libre.</div>
+              : demainRows.map((a, i) => {
+                const c = clientOf(a.clientId);
+                const nom = a.clientName ?? c?.name ?? 'Cliente';
+                /* ══ UNE LIGNE NUE VOULAIT DIRE TROIS CHOSES — 11 sept. 2026 ══
+                   L'écran n'affichait une pastille que par SUCCÈS : « pas encore
+                   passé », « a échoué » et « personne à joindre » se ressemblaient
+                   tous les trois, et se ressemblaient à « tout va bien ». Le juge
+                   est pur (`shared/tournee.ts`), éprouvé, et l'écran ne fait que
+                   le lire. */
+                /* Un rappel qui attend en salle n'est pas encore passé (2 octobre 2026). */
+                const lignes = envois.filter((e) => e.apptId === a.id && e.type === 'rappel-j1' && !attendEncore(e));
+                const etat = etatDeLaTournee(lignes);
+                const tag = (texte: string, ton?: 'alerte' | 'cuivre') => (
+                  <span
+                    className={ton ? undefined : 'mnd-muted'}
+                    style={{
+                      fontSize: 11, borderRadius: 3, padding: '2px 7px', whiteSpace: 'nowrap',
+                      border: `1px solid ${ton === 'alerte' ? '#E0B3A9' : ton === 'cuivre' ? 'var(--copper-300)' : 'var(--hairline)'}`,
+                      background: ton === 'alerte' ? '#F7E4E0' : ton === 'cuivre' ? 'var(--copper-50)' : undefined,
+                      color: ton === 'alerte' ? 'var(--color-brique, #96412E)' : ton === 'cuivre' ? 'var(--copper-700)' : undefined,
+                    }}
+                  >
+                    {texte}
+                  </span>
+                );
+                return (
+                  <div
+                    key={a.id}
+                    style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '9px 0', borderTop: i === 0 ? 'none' : '1px solid var(--hairline)' }}
+                  >
+                    <span style={{ fontFamily: 'var(--font-serif)', fontSize: 15, color: 'var(--color-indigo)', minWidth: 46 }}>{a.time}</span>
+                    <span style={{ minWidth: 0, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{nom}</span>
+                    {/* L'ACCUSÉ DE META PASSE DEVANT — 11 septembre 2026.
+                        « Remis » et « lu » sont des faits rapportés par le
+                        téléphone de la cliente ; « WhatsApp auto » ne disait que
+                        « Meta a accepté notre requête ». Quand l'accusé existe,
+                        c'est lui qu'il faut lire, et le canal devient un détail. */}
+                    {etat.accuse === 'lu' && tag('Lu')}
+                    {etat.accuse === 'remis' && tag('Remis')}
+                    {etat.accuse === 'en-route' && tag('En route')}
+                    {etat.partis.includes('push') && tag('Push parti seul')}
+                    {etat.sansAppli && tag('Sans l’appli')}
+                    {etat.partis.includes('whatsapp') && tag('WhatsApp auto')}
+                    {etat.partis.includes('sms') && tag('SMS auto')}
+                    {/* LES TROIS SILENCES, ENFIN ÉCRITS. Chacun appelle un geste
+                        différent : attendre, taper la cloche, ou poser un numéro. */}
+                    {etat.rate && tag('Échec · à la main', 'alerte')}
+                    {etat.muet && tag('Rien n’est parti', 'cuivre')}
+                    {etat.jamaisPasse && tag('Pas encore passé')}
+                    <ReminderBell appt={a} client={c} byId={byId} />
+                  </div>
+                );
+              })}
+            {demainRows.length > 0 && (
+              <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 10, lineHeight: 1.5 }}>
+                Le passage automatique ne voit que les rendez-vous posés avant son heure.
+                <b>Pas encore passé</b> dit qu’il ne l’a pas encore vu ; si plus aucun passage
+                n’est prévu aujourd’hui, ce rappel ne partira pas tout seul.
+                {' '}<b>Échec</b> et <b>Rien n’est parti</b> appellent ta main tout de suite :
+                la cloche ouvre WhatsApp pré-rempli, un tap, Envoyer, et elle se souvient
+                de ton geste.
+              </div>
+            )}
+          </div>
+        </Repli>
+      </GroupeDeReplis>
 
-      {/* Rendez-vous impayés — échus (en retard) d'un côté, à venir de l'autre, chacun son total.
-          `unpaidRef` : la ligne « impayés échus » de Ce qui presse descend ici. */}
-      <div ref={unpaidRef} className="tr-grid tr-grid--2" style={{ marginTop: 18, alignItems: 'start' }}>
-        {renderUnpaidGroup('Impayés échus · en retard', unpaid.overdue, 'Aucun impayé échu, rien en retard.')}
-        {renderUnpaidGroup('Soldes à venir', unpaid.upcoming, 'Aucun solde à venir.')}
-      </div>
+      <GroupeDeReplis id="a-traiter" titre="À traiter" sousTitre="L’argent qui doit rentrer, et ce qui presse" ouvert={ouvertATraiter} onOuvre={setOuvertATraiter}>
+        <Repli
+          cle="presse" titre="Ce qui presse" compte={presseRows.length + (aEncaisserXof > 0 ? 1 : 0)} ton={presseRows.length > 0 || aEncaisserXof > 0 ? 'presse' : 'calme'}
+          resume={presseRows.length === 0 && aEncaisserXof === 0 ? 'Rien ne presse, tout est réglé.' : [aEncaisserXof > 0 ? `${fmtMoney(aEncaisserXof, currency)} à encaisser` : '', presseRows.length ? pluriel(presseRows.length, 'alerte') : ''].filter(Boolean).join(' · ')}
+        >
+          <div className="trp-panel" style={{ marginTop: 14 }}>
+            <div className="trp-panel__title">Ce qui presse</div>
+            {/* « À ENCAISSER » : la tuile de l'agent des encaissements (27 octobre
+                2026). Le carnet encaisse les rituels, la page Factures ouvre
+                exactement celles qui gardent un reste. */}
+            {aEncaisser.rituels + aEncaisser.factures > 0 && (
+              <div className="trp-agents" style={{ marginTop: 0, marginBottom: 10, cursor: 'default' }} aria-label="À encaisser">
+                <span className="trp-prev__sur">À encaisser</span>
+                <span><b>{aEncaisser.rituels}</b> rituel{aEncaisser.rituels > 1 ? 's' : ''} honoré{aEncaisser.rituels > 1 ? 's' : ''} sans versement · {fmtMoney(aEncaisser.resteRituels, currency)}</span>
+                <span><b>{aEncaisser.factures}</b> facture{aEncaisser.factures > 1 ? 's' : ''} avec un reste · {fmtMoney(aEncaisser.resteFactures, currency)}</span>
+                <span><b>{fmtMoney(aEncaisser.resteRituels + aEncaisser.resteFactures, currency)}</b> à encaisser</span>
+                <button type="button" className="trp-prev__lien" onClick={() => navigate('/carnet')}>Le carnet ›</button>
+                <button type="button" className="trp-prev__lien" onClick={() => navigate('/factures?filtre=a-regler')}>Les factures ›</button>
+              </div>
+            )}
+            {presseRows.length === 0 && aEncaisser.rituels + aEncaisser.factures === 0 && <div className="trp-empty">Rien ne presse, tout est réglé.</div>}
+            {presseRows.map((r, i) => (
+                <div
+                  key={r.k}
+                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '9px 0', borderTop: i === 0 ? 'none' : '1px solid var(--hairline)' }}
+                >
+                  <div style={{ minWidth: 0 }}>
+                    <span style={{ fontWeight: 500 }}>{r.label}</span>
+                    <span className="mnd-muted" style={{ marginLeft: 10, fontSize: 12 }}>{r.sub}</span>
+                  </div>
+                  <button className="trp-pay__cta" onClick={r.go}>{r.action}</button>
+                </div>
+              ))}
+          </div>
+        </Repli>
+        <Repli
+          cle="impayes" titre="Rendez-vous impayés" compte={unpaid.overdue.rows.length} ton={unpaid.overdue.rows.length > 0 ? 'presse' : 'calme'}
+          resume={`Échus : ${unpaid.overdue.rows.length} · ${fmtMoney(unpaid.overdue.total, currency)} · à venir : ${unpaid.upcoming.rows.length} · ${fmtMoney(unpaid.upcoming.total, currency)}`}
+        >
+          {/* Rendez-vous impayés — échus (en retard) d'un côté, à venir de l'autre, chacun son total.
+              `unpaidRef` : la ligne « impayés échus » de Ce qui presse descend ici. */}
+          <div ref={unpaidRef} className="tr-grid trd-impayes" style={{ marginTop: 18, alignItems: 'start' }}>
+            {renderUnpaidGroup('Impayés échus · en retard', unpaid.overdue, 'Aucun impayé échu, rien en retard.')}
+            {renderUnpaidGroup('Soldes à venir', unpaid.upcoming, 'Aucun solde à venir.')}
+          </div>
+        </Repli>
+      </GroupeDeReplis>
+
+      <GroupeDeReplis id="le-detail-du-mois" titre="Le détail du mois">
+        {/* LE CHIFFRE PAR MAISON — n'apparaît que s'il y a quelque chose à séparer.
+            Une Maison qui ne vend que des locks n'a pas à lire une ligne « Studio
+            0 F » tous les matins. */}
+        {sumTotals(revMaison) > 0 && (revMaison.studio > 0 || revMaison.plateau > 0) && (
+          <Repli
+            cle="maisons" titre="Le mois, par maison"
+            resume={MAISON_BUCKETS.map((m) => `${m.label} ${fmtMoney(revMaison[m.k], currency)}`).join(' · ')}
+          >
+              <div className="tr-card" style={{ marginTop: 14, padding: '14px 18px' }}>
+                <Eyebrow>Le mois, par maison</Eyebrow>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 28, marginTop: 10 }}>
+                  {MAISON_BUCKETS.map((m) => (
+                    <div key={m.k}>
+                      <div style={{ fontFamily: 'var(--font-sans)', fontSize: 11, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--ink-soft)' }}>
+                        {m.label}
+                      </div>
+                      <div style={{ fontSize: 19, marginTop: 3, fontVariantNumeric: 'tabular-nums' }}>
+                        {fmtMoney(revMaison[m.k], currency)}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 8, lineHeight: 1.5 }}>
+                  Prestations du carnet, ventilées ligne à ligne. « Plateau seul » : les soins et lavages
+                  vendus sans rituel d’une maison, rien ne permet de les rattacher, on ne devine pas.
+                </div>
+              </div>
+          </Repli>
+        )}
+        <Repli cle="demander" titre="Demander aux chiffres" resume="Une question ; la réponse avec les seules sommes du Trône.">
+          {/* DEMANDER À LA MAISON — 24 octobre 2026, maquette VJ5PJEGU… : une
+              question, et l'assistant répond avec les seules sommes du Trône. */}
+          <DemanderALaMaison prevision={prevDuMois} jour={jourPourLAssistant} />
+        </Repli>
+      </GroupeDeReplis>
 
       {/* Décomposition du revenu du mois */}
       {breakOpen && (

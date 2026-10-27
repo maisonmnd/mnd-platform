@@ -66,6 +66,16 @@ try {
   const dit = (nom, ok, detail) => { if (!ok) ko++; console.log(`${ok ? 'OK   ' : 'ECHEC'} ${nom}${detail !== undefined ? ' -> ' + String(detail).slice(0, 260) : ''}`); };
   const photo = async (etape) => {
     if (!capture) return;
+    if (etape === '5-page') {
+      /* La page défile dans son conteneur : la fenêtre s'allonge le temps de la photo. */
+      const h = await evalue(`Math.max(...[document.documentElement, ...document.querySelectorAll('*')].map((e) => e.scrollHeight))`);
+      await cdp('Emulation.setDeviceMetricsOverride', { width: 1366, height: Math.min(h, 12000), deviceScaleFactor: 1, mobile: false });
+      await attend(400);
+      const img = await cdp('Page.captureScreenshot', { format: 'png' });
+      writeFileSync(`${capture}-${etape}.png`, Buffer.from(img.result.data, 'base64'));
+      await cdp('Emulation.setDeviceMetricsOverride', { width: 1366, height: 1000, deviceScaleFactor: 1, mobile: false });
+      return;
+    }
     const r = await evalue(`(() => { const s = document.querySelector('.trd-mois'); if (!s) return null; const b = s.getBoundingClientRect(); return { x: b.left + window.scrollX, y: b.top + window.scrollY, w: b.width, h: b.height }; })()`);
     const img = await cdp('Page.captureScreenshot', { format: 'png', captureBeyondViewport: true, ...(r ? { clip: { x: r.x, y: r.y, width: r.w, height: r.h, scale: 1 } } : {}) });
     writeFileSync(`${capture}-${etape}.png`, Buffer.from(img.result.data, 'base64'));
@@ -169,7 +179,23 @@ try {
   dit('... l écart à combler s affiche, et la ligne d objectif sur la courbe', /Il manque/.test(await evalue(`document.querySelector('.trd-mois__ecart')?.innerText || ''`)) && !!(await evalue(`!!document.querySelector('.trd-mois__ligne-objectif')`)));
   await photo('3-objectif');
 
-  /* 5. Au téléphone. */
+  /* 5. La page en ordre : des ancres, trois groupes de lignes repliées, un seul panneau ouvert. */
+  dit('les ancres de la page et ses trois groupes', JSON.stringify(await evalue(`[...document.querySelectorAll('.trd-nav a')].map((a) => a.getAttribute('href'))`)) === JSON.stringify(['#le-mois', '#aujourdhui', '#a-traiter', '#le-detail-du-mois'])
+    && !!(await evalue(`!!document.getElementById('aujourdhui') && !!document.getElementById('a-traiter') && !!document.getElementById('le-detail-du-mois') && !!document.getElementById('le-mois')`)));
+  const ouverts = (groupe) => evalue(`[...document.querySelectorAll('#${groupe} .trd-repli__bascule')].filter((b) => b.getAttribute('aria-expanded') === 'true').map((b) => b.querySelector('.trd-repli__titre').innerText)`);
+  dit('Aujourd hui s ouvre sur le carnet du jour, avec son résumé chiffré', JSON.stringify(await ouverts('aujourdhui')) === JSON.stringify(['Le carnet du jour'])
+    && /rendez-vous|libre/.test(await evalue(`document.querySelector('#aujourdhui .trd-repli__resume')?.innerText || ''`)), JSON.stringify(await ouverts('aujourdhui')));
+  await evalue(`(() => { const b = [...document.querySelectorAll('#aujourdhui .trd-repli__bascule')].find((x) => /Demandes du site/.test(x.innerText)); if (b) b.click(); return !!b; })()`);
+  await attend(250);
+  dit('un seul panneau ouvert à la fois : les demandes ouvertes, le carnet replié', JSON.stringify(await ouverts('aujourdhui')) === JSON.stringify(['Demandes du site']), JSON.stringify(await ouverts('aujourdhui')));
+  await evalue(`(() => { const b = [...document.querySelectorAll('#a-traiter .trd-repli__bascule')].find((x) => /Ce qui presse/.test(x.innerText)); if (b) b.click(); return !!b; })()`);
+  await attend(250);
+  const voir = await evalue(`(() => { const p = document.querySelector('#a-traiter .trd-repli.est-ouvert'); const b = p && [...p.querySelectorAll('button')].find((x) => /^voir$/i.test(x.innerText.trim()) && /impay/i.test(x.parentElement?.innerText || '')); if (b) b.click(); return !!b; })()`);
+  await attend(500);
+  dit('« Voir » sur les impayés échus ouvre leur ligne repliée', voir && JSON.stringify(await ouverts('a-traiter')) === JSON.stringify(['Rendez-vous impayés']), JSON.stringify(await ouverts('a-traiter')));
+  await photo('5-page');
+
+  /* 6. Au téléphone. */
   await cdp('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 2, mobile: true });
   await attend(900);
   dit('au téléphone (390 px), rien ne déborde', (await evalue('document.documentElement.scrollWidth > window.innerWidth + 1')) === false, String(await evalue('document.documentElement.scrollWidth')));
