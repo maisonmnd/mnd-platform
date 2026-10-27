@@ -363,8 +363,9 @@ dit('le passage : rien en pause ; WhatsApp seulement si son modèle est approuv�
   [passe({ mode: 'eteint', approuves: [] }, sitWa ? [{ ...sitWa, canal: 'couronne' }] : []).length, passe({ mode: 'ouvert', approuves: [] }, sitWa ? [sitWa] : []).length,
     passe({ mode: 'ouvert', approuves: ['gerard_garder', 'gerard_avant', 'gerard_envie', 'gerard_place', 'gerard_anniversaire', 'gerard_fetes', 'gerard_endormie', 'nouvelles_de_la_maison'] }, sitWa ? [sitWa] : []).length]);
 const sitMain = sit({ ...retard, accord: false })!;
-dit('... une relance à la main ne part JAMAIS seule, même son modèle approuvé chez Meta', 0,
-  passe({ mode: 'ouvert', approuves: ['gerard_place'] }, [sitMain]).length);
+dit('... une relance à la main ne part JAMAIS seule, même son modèle approuvé chez Meta (accordée, elle part)', [0, 1],
+  [passe({ mode: 'ouvert', approuves: ['gerard_place'] }, [{ ...sitMain, clientId: 'retard' }]).length,
+    passe({ mode: 'ouvert', approuves: ['gerard_place'] }, [{ ...sitMain, clientId: 'retard', aLaMainSeulement: undefined }]).length]);
 const lAnn = passe({ mode: 'ouvert', approuves: [] }, [{ ...sitWa!, canal: 'couronne', genre: 'anniversaire', code: { mot: 'ANNIV', pct: 10, jusquau: '2026-11-25' } }])[0];
 dit('... la remise n’est jamais fabriquée au dépôt : la ligne la porte « à faire »', ['ANNIV', undefined, 'en-attente'], [lAnn?.codeAFaire?.mot, lAnn?.codePromo, lAnn?.statut]);
 dit('... seules les lignes neuves s’écrivent', ['b'], lignesNeuves([{ id: 'a' }, { id: 'b' }], new Set(['a'])).map((l) => l.id));

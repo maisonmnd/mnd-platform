@@ -900,7 +900,7 @@ function situationDuJour(f, ctx) {
   const tropTot = !!recemment && ecartJours(recemment, A) < ECART_MIN;
   const aDejaUneRemise = (f.codesVivants ?? 0) > 0;
   const anniv = f.birthday ? Array.from({ length: ANNIV_GRACE_JOURS + 1 }, (_, k) => plusJours(A, -k)).find((j) => j.slice(5, 10) === f.birthday.slice(5, 10)) : void 0;
-  if (anniv && (f.birthdayGiftAt ?? "").slice(0, 4) !== anniv.slice(0, 4) && !aDejaUneRemise && ctx.remisesRestantes > 0 && !traceDe(f, ["anniversaire"]).some((t) => t.quand.slice(0, 4) === anniv.slice(0, 4) || ecartJours(t.quand.slice(0, 10), A) <= ANNIV_GRACE_JOURS + 1)) {
+  if (anniv && (f.birthdayGiftAt ?? "").slice(0, 4) !== anniv.slice(0, 4) && !aDejaUneRemise && ctx.remisesRestantes > 0 && !traceDe(f, ["anniversaire"]).some((t) => t.quand.slice(0, 4) === anniv.slice(0, 4))) {
     const jusquau = plusJours(A, ANNIV_VALABLE_JOURS);
     const s = fait(
       "anniversaire",

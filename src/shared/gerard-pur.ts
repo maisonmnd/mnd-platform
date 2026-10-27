@@ -544,7 +544,7 @@ export function situationDuJour(f: FicheDeGerard, ctx: ContexteDeGerard): Situat
     : undefined;
   if (anniv && (f.birthdayGiftAt ?? '').slice(0, 4) !== anniv.slice(0, 4)
     && !aDejaUneRemise && ctx.remisesRestantes > 0
-    && !traceDe(f, ['anniversaire']).some((t) => t.quand.slice(0, 4) === anniv.slice(0, 4) || ecartJours(t.quand.slice(0, 10), A) <= ANNIV_GRACE_JOURS + 1)) {
+    && !traceDe(f, ['anniversaire']).some((t) => t.quand.slice(0, 4) === anniv.slice(0, 4))) {
     const jusquau = plusJours(A, ANNIV_VALABLE_JOURS);
     const s = fait('anniversaire', 'anniversaire', [f.appel, jourDit(jusquau)],
       [['Anniversaire', jourDit(anniv)], ...(anniv < A ? [['Rattrapage', 'pas écrit le jour même'] as [string, string]] : []),
