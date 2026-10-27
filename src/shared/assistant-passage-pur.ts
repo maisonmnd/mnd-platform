@@ -21,7 +21,7 @@
 import { heureDeDepart, type ReglesDeLaSalle } from './salle-des-envois';
 import { prenomSeul } from './civilite';
 import { numeroWa } from './numero-wa-pur';
-import { ligneDeNotification, ligneWhatsApp, partSeulSurWhatsApp, reglagesLus, type CodeAFaire, type LigneDeGerard, type Situation } from './gerard-pur';
+import { ligneDeNotification, ligneWhatsApp, partSeule, reglagesLus, type CodeAFaire, type LigneDeGerard, type Situation } from './gerard-pur';
 import type { CerveauDeGerard } from './assistant-lecture-pur';
 
 /** Le document où la fonction serveur dit qu'elle vit, et quand elle est passée. */
@@ -58,11 +58,11 @@ export function lignesDuPassage(o: {
     };
     if (s.canal === 'couronne') {
       lignes.push(ligneDeNotification(s, { ...outils, compte: o.cerveau.compteDe(s.clientId), ...depart }));
-    } else if (s.canal === 'whatsapp' && partSeulSurWhatsApp(r, s.modele)) {
+    } else if (partSeule(s, r)) {
       const numero = numeroWa(c?.phone);
       if (numero) lignes.push(ligneWhatsApp(s, { ...outils, numero, ...depart }));
     }
-    /* Sinon : un modèle pas encore approuvé chez Meta attend un toucher au Trône. */
+    /* Sinon : un modèle pas encore approuvé chez Meta, ou une relance sans accord, attend un toucher au Trône. */
   }
   return lignes;
 }

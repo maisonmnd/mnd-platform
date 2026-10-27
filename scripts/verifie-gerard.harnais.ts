@@ -79,6 +79,10 @@ dit('... même « stop », un RDV se garde (c’est un service)', 'garder', sit(
 /* ── 4. L'anniversaire ── */
 const an = sit(fiche({ birthday: '1990-10-26' }));
 dit('l’anniversaire, le jour même : son code de 10 %, trente jours', ['anniversaire', 'ANNIV', 10, plusJours(A, ANNIV_VALABLE_JOURS)], [an?.genre, an?.code?.mot, an?.code?.pct, an?.code?.jusquau]);
+dit('l’anniversaire se rattrape le lendemain (dit « rattrapage »), pas le surlendemain ; déjà souhaité hier : rien', ['anniversaire', true, true, true],
+  [sit(fiche({ birthday: `1990-${plusJours(A, -1).slice(5)}` }))?.genre, !!sit(fiche({ birthday: `1990-${plusJours(A, -1).slice(5)}` }))?.pourquoi.some(([k]) => k === 'Rattrapage'),
+    sit(fiche({ birthday: `1990-${plusJours(A, -2).slice(5)}` }))?.genre !== 'anniversaire',
+    sit(fiche({ birthday: `1990-${plusJours(A, -1).slice(5)}`, traces: [{ quand: `${plusJours(A, -1)}T09:00:00Z`, genre: 'anniversaire' }] }))?.genre !== 'anniversaire']);
 dit('... déjà fêtée cette année, ou sans accord ni Ma Couronne : pas de vœux', [true, true],
   [sit(fiche({ birthday: '1990-10-26', birthdayGiftAt: '2026-10-26T08:00:00Z' }))?.genre !== 'anniversaire', sit(fiche({ birthday: '1990-10-26', accord: false }))?.genre !== 'anniversaire']);
 
@@ -92,6 +96,10 @@ dit('... la cadence à 15 jours : pas d’envie, « tout combiner » arrive', nu
 const comb = sit(fiche({ rdvs: [venue(plusJours(A, -100)), venue(plusJours(A, -49))], cadence: { iso: plusJours(A, 7), rythmeJours: 56 } }));
 dit('tout combiner, sept jours avant une date de cadence sans RDV : le modèle « avant », la coiffure offerte avec un soin', ['combiner', 'avant', true],
   [comb?.genre, comb?.modele, /^Bonjour Madame K\., votre prochain resserrage des racines approche : il est prévu vers le lundi 2 novembre 2026\. Je vous réserve votre place \? Avec un soin ajouté le même jour, votre coiffure de sortie est offerte\.\n\nMaison MND$/.test(comb?.texte ?? '')]);
+const combA = (j: number) => fiche({ rdvs: [venue(plusJours(A, -100)), venue(plusJours(A, -56 + j))], cadence: { iso: plusJours(A, j), rythmeJours: 56 } });
+dit('« avant sa date » se rattrape jusqu’à J-4, avec la date prévue ; à J-3, plus rien ; une fois écrit, il ne revient pas', ['combiner', true, 'combiner', null, null],
+  [sit(combA(5))?.genre, !!sit(combA(5))?.pourquoi.some(([k, v]) => k === 'Rattrapage' && /prévu le samedi 24 octobre 2026/.test(v)), sit(combA(4))?.genre, sit(combA(3)),
+    sit({ ...combA(5), traces: [{ quand: `${plusJours(A, -2)}T09:00:00Z`, genre: 'combiner' }] })]);
 dit('... RDV posé à sept jours : le point d’avant du Trône s’en charge, Gérard se tait', null,
   sit(fiche({ rdvs: [venue(plusJours(A, -50)), { ...rdvPose, date: plusJours(A, 7) }] })));
 dit('sans accord ni Ma Couronne, une envie ne part pas ; avec Ma Couronne, elle part en notification', [null, 'couronne'],
@@ -121,8 +129,9 @@ dit('un jour creux change l’envie en place remisée, notée à son nom pour un
 const retard = fiche({ rdvs: [venue(plusJours(A, -90)), venue(plusJours(A, -55))], cadence: { iso: plusJours(A, -20), rythmeJours: 35 } });
 dit('en retard : dix jours après la date attendue, deux places, le modèle « place »', ['retard', 'place', true],
   [sit(retard)?.genre, sit(retard)?.modele, /^Bonjour Madame K\., il est temps de votre resserrage des racines : nous avons de la place mercredi 28 octobre 2026 à 10 h ou jeudi 29 octobre 2026 à 14 h\. Je vous en garde une \?/.test(sit(retard)?.texte ?? '')]);
-dit('... une relance n’est plus un service : sans accord ni Ma Couronne, ou « stop », elle ne part pas', [null, null],
-  [sit({ ...retard, accord: false }), sit({ ...retard, stop: true, couronne: true })]);
+dit('... une relance n’est plus un service : sans accord, elle part À LA MAIN seulement ; « stop » la fait taire', [['whatsapp', true], null, [true, undefined]],
+  [[sit({ ...retard, accord: false })?.canal, sit({ ...retard, accord: false })?.aLaMainSeulement], sit({ ...retard, stop: true, couronne: true, accord: false }),
+    [!!sit({ ...retard, accord: false })?.pourquoi.some(([k]) => k === 'Accord des nouvelles'), sit(retard)?.aLaMainSeulement]]);
 dit('... relancée il y a trois semaines : pas avant quatre', null, sit({ ...retard, traces: [{ quand: `${plusJours(A, -21)}T09:00:00Z`, genre: 'retard' }] }));
 const unique = fiche({ rdvs: [venue(plusJours(A, -70), ['autre'])], cadence: { iso: plusJours(A, -40), rythmeJours: 30 } });
 dit('une seule venue : jamais « en retard », son premier resserrage', ['une-venue', 'place', true], [sit(unique)?.genre, sit(unique)?.modele, /votre premier resserrage des racines :/.test(sit(unique)?.texte ?? '')]);
@@ -131,6 +140,10 @@ dit('endormie (5 mois et plus) : trois fois au plus, six semaines d’écart', [
   [sit(dort)?.genre,
     sit({ ...dort, traces: Array.from({ length: ENDORMIE_FOIS_MAX }, (_, i) => ({ quand: `${plusJours(A, -60 - 50 * i)}T09:00:00Z`, genre: 'endormie' as const })) }),
     sit({ ...dort, traces: [{ quand: `${plusJours(A, -35)}T09:00:00Z`, genre: 'endormie' }] })]);
+dit('... à la main seulement : en retard, une seule venue, avant sa date ; jamais une envie, une remise ou une endormie', [true, true, true, null, null, null],
+  [sit({ ...retard, accord: false })?.aLaMainSeulement, sit({ ...unique, accord: false })?.aLaMainSeulement,
+    sit({ ...combA(7), accord: false })?.aLaMainSeulement, sit(fiche({ accord: false })), sit({ ...dort, accord: false }),
+    sit(fiche({ accord: false }), ctx({ creux: [{ iso: '2026-10-29', poses: 2, ordinaire: 5, manque: 3, remises: 3 }], placesDe: (_id, jour) => (jour ? [{ iso: jour, heure: '11:00' }] : places) }))]);
 
 /* ── 9. Noël ── */
 const decembre = fiche({ rdvs: [venue('2026-10-20'), venue('2026-11-20')], cadence: { iso: '2027-01-10', rythmeJours: 51 } });
@@ -349,6 +362,9 @@ const sitWa = planLu.find((x) => x.canal === 'whatsapp');
 dit('le passage : rien en pause ; WhatsApp seulement si son modèle est approuvé chez Meta', [0, 0, 1],
   [passe({ mode: 'eteint', approuves: [] }, sitWa ? [{ ...sitWa, canal: 'couronne' }] : []).length, passe({ mode: 'ouvert', approuves: [] }, sitWa ? [sitWa] : []).length,
     passe({ mode: 'ouvert', approuves: ['gerard_garder', 'gerard_avant', 'gerard_envie', 'gerard_place', 'gerard_anniversaire', 'gerard_fetes', 'gerard_endormie', 'nouvelles_de_la_maison'] }, sitWa ? [sitWa] : []).length]);
+const sitMain = sit({ ...retard, accord: false })!;
+dit('... une relance à la main ne part JAMAIS seule, même son modèle approuvé chez Meta', 0,
+  passe({ mode: 'ouvert', approuves: ['gerard_place'] }, [sitMain]).length);
 const lAnn = passe({ mode: 'ouvert', approuves: [] }, [{ ...sitWa!, canal: 'couronne', genre: 'anniversaire', code: { mot: 'ANNIV', pct: 10, jusquau: '2026-11-25' } }])[0];
 dit('... la remise n’est jamais fabriquée au dépôt : la ligne la porte « à faire »', ['ANNIV', undefined, 'en-attente'], [lAnn?.codeAFaire?.mot, lAnn?.codePromo, lAnn?.statut]);
 dit('... seules les lignes neuves s’écrivent', ['b'], lignesNeuves([{ id: 'a' }, { id: 'b' }], new Set(['a'])).map((l) => l.id));

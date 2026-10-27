@@ -54,7 +54,7 @@ const PANNES = [
   ['le jour creux passe remise quand meme', SERVEUR, 'if (l.codeAFaire.jusquau < aujourdhui) {', 'if (false) {'],
   ['les heures devinees', SERVEUR, 'if (!Array.isArray(reglages?.hours) || reglages!.hours.length === 0) {', 'if (false) {'],
   ['le passage note malgre une erreur', SERVEUR, 'if (rapport.erreurs.length === 0) {', 'if (true) {'],
-  ['WhatsApp part sans approbation de Meta', PASSAGE, "} else if (s.canal === 'whatsapp' && partSeulSurWhatsApp(r, s.modele)) {", "} else if (s.canal === 'whatsapp') {"],
+  ['WhatsApp part sans approbation de Meta', PASSAGE, '    } else if (partSeule(s, r)) {', "    } else if (s.canal === 'whatsapp') {"],
   ['la notification au mauvais compte', PASSAGE, 'compte: o.cerveau.compteDe(s.clientId),', 'compte: s.clientId,'],
 ];
 

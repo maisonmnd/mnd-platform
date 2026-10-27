@@ -48,6 +48,12 @@ export const PREMIERE_ENVIE_APRES = 30;
 /** Une envie ne part pas si la date de cadence est à moins de tant de jours : « tout combiner » arrive. */
 export const ENVIE_AVANT_CADENCE_MIN = 21;
 export const COMBINER_AVANT = 7;
+/** RATTRAPAGE (27 octobre 2026, au sélecteur : « quelques jours de grâce ») :
+    « avant sa date » pas écrit à J-7 reste dans le plan jusqu'à J-4 ;
+    l'anniversaire, jusqu'au lendemain. « Garder » ne se rattrape pas : la
+    veille, le rappel habituel part de toute façon. */
+export const COMBINER_JUSQUA = 4;
+export const ANNIV_GRACE_JOURS = 1;
 export const GARDER_AVANT = 2;
 /** Un RDV pris depuis moins de tant de jours n'a pas besoin d'être gardé. */
 export const GARDER_SI_POSE_DEPUIS = 7;
@@ -166,6 +172,9 @@ export const reglagesLus = (r: Partial<ReglagesDeGerard> | null | undefined): Re
 /** Ce modèle part-il seul sur WhatsApp ? Approuvé chez Meta, et l'Assistant actif. */
 export const partSeulSurWhatsApp = (r: Pick<ReglagesDeGerard, 'mode' | 'approuves'>, cle: CleDeModele): boolean =>
   r.mode !== 'eteint' && r.approuves.includes(CORPS[cle].nom);
+/** CETTE SITUATION part-elle seule sur WhatsApp ? Son modèle approuvé, et jamais une relance sans accord. */
+export const partSeule = (s: { canal: 'whatsapp' | 'couronne'; modele: CleDeModele; aLaMainSeulement?: boolean }, r: Pick<ReglagesDeGerard, 'mode' | 'approuves'>): boolean =>
+  s.canal === 'whatsapp' && !s.aLaMainSeulement && partSeulSurWhatsApp(r, s.modele);
 /** Une liste de situations lue sans confiance : seules les connues restent, une fois chacune. */
 function genresLus(x: unknown): GenreDeMessage[] {
   if (!Array.isArray(x)) return [];
@@ -328,6 +337,9 @@ export type Situation = {
   pourquoi: [string, string][];
   code?: CodeAFaire;
   priorite: number;
+  /** UNE RELANCE SANS ACCORD DES NOUVELLES : elle part à la main (le bouton
+      WhatsApp du Trône), jamais seule par Meta. */
+  aLaMainSeulement?: boolean;
 };
 
 /* ── LE FIL ──────────────────────────────────────────────────────────── */
@@ -463,8 +475,18 @@ export function canalDe(f: FicheDeGerard, genre: GenreDeMessage): 'whatsapp' | '
   if (EST_UN_SERVICE[genre]) return f.couronne ? 'couronne' : f.telephone ? 'whatsapp' : null;
   if (f.stop) return null;
   if (f.couronne) return 'couronne';
-  return f.accord && f.telephone ? 'whatsapp' : null;
+  if (f.accord && f.telephone) return 'whatsapp';
+  return aLaMainSeulement(f, genre) && f.telephone ? 'whatsapp' : null;
 }
+
+/** LES RELANCES À LA MAIN (27 octobre 2026, au sélecteur : « à la main, sans
+    accord ») : une cliente déjà venue reçoit sa relance (en retard, une
+    seule venue, avant sa date) par le bouton WhatsApp, comme avant la v4,
+    et peut répondre STOP. L'accord des nouvelles reste exigé pour les
+    envies, les remises et tout envoi automatique par Meta. */
+export const RELANCES_A_LA_MAIN: readonly GenreDeMessage[] = ['combiner', 'retard', 'une-venue'];
+export const aLaMainSeulement = (f: Pick<FicheDeGerard, 'couronne' | 'accord' | 'stop'>, genre: GenreDeMessage): boolean =>
+  !EST_UN_SERVICE[genre] && !f.stop && !f.couronne && !f.accord && RELANCES_A_LA_MAIN.includes(genre);
 
 export function situationDuJour(f: FicheDeGerard, ctx: ContexteDeGerard): Situation | null {
   const A = ctx.aujourdhui;
@@ -476,7 +498,12 @@ export function situationDuJour(f: FicheDeGerard, ctx: ContexteDeGerard): Situat
     if (ctx.eteintes?.includes(genre) || f.jamais?.includes(genre)) return null;
     const canal = canalDe(f, genre);
     if (!canal) return null;
-    return { clientId: f.id, genre, canal, modele, variables, texte: remplis(MODELES_DE_GERARD[modele].corps, variables), pourquoi, priorite: PRIORITE[genre], ...extra };
+    const main = canal === 'whatsapp' && aLaMainSeulement(f, genre);
+    return {
+      clientId: f.id, genre, canal, modele, variables, texte: remplis(MODELES_DE_GERARD[modele].corps, variables),
+      pourquoi: main ? [...pourquoi, ['Accord des nouvelles', 'pas encore : à la main seulement']] : pourquoi,
+      priorite: PRIORITE[genre], ...(main ? { aLaMainSeulement: true } : {}), ...extra,
+    };
   };
 
   /* ① Garder un RDV de dans deux jours, pris depuis plus d'une semaine. */
@@ -510,12 +537,18 @@ export function situationDuJour(f: FicheDeGerard, ctx: ContexteDeGerard): Situat
   const tropTot = !!recemment && ecartJours(recemment, A) < ECART_MIN;
   const aDejaUneRemise = (f.codesVivants ?? 0) > 0;
 
-  /* ② Son anniversaire, le jour même, une fois l'an. */
-  if (f.birthday && f.birthday.slice(5, 10) === A.slice(5, 10) && (f.birthdayGiftAt ?? '').slice(0, 4) !== A.slice(0, 4)
-    && !aDejaUneRemise && ctx.remisesRestantes > 0 && !traceDe(f, ['anniversaire']).some((t) => t.quand.slice(0, 4) === A.slice(0, 4))) {
+  /* ② Son anniversaire, le jour même (ou le lendemain s'il n'a pas été
+     écrit à temps), une fois l'an. */
+  const anniv = f.birthday
+    ? Array.from({ length: ANNIV_GRACE_JOURS + 1 }, (_, k) => plusJours(A, -k)).find((j) => j.slice(5, 10) === f.birthday!.slice(5, 10))
+    : undefined;
+  if (anniv && (f.birthdayGiftAt ?? '').slice(0, 4) !== anniv.slice(0, 4)
+    && !aDejaUneRemise && ctx.remisesRestantes > 0
+    && !traceDe(f, ['anniversaire']).some((t) => t.quand.slice(0, 4) === anniv.slice(0, 4) || ecartJours(t.quand.slice(0, 10), A) <= ANNIV_GRACE_JOURS + 1)) {
     const jusquau = plusJours(A, ANNIV_VALABLE_JOURS);
     const s = fait('anniversaire', 'anniversaire', [f.appel, jourDit(jusquau)],
-      [['Anniversaire', jourDit(A)], ['Remise à son nom', `${REMISE_ANNIV_PCT} %, ${ANNIV_VALABLE_JOURS} jours`]], { code: { mot: 'ANNIV', pct: REMISE_ANNIV_PCT, jusquau } });
+      [['Anniversaire', jourDit(anniv)], ...(anniv < A ? [['Rattrapage', 'pas écrit le jour même'] as [string, string]] : []),
+        ['Remise à son nom', `${REMISE_ANNIV_PCT} %, ${ANNIV_VALABLE_JOURS} jours`]], { code: { mot: 'ANNIV', pct: REMISE_ANNIV_PCT, jusquau } });
     if (s) return s;
   }
   if (tropTot) return null;
@@ -546,8 +579,11 @@ export function situationDuJour(f: FicheDeGerard, ctx: ContexteDeGerard): Situat
   /* ③ Dans le fil : de sa dernière venue à sa date de cadence. */
   if (s0 && c && A > s0 && A <= c.iso && (c.posee || venues >= 2)) {
     const avantCadence = ecartJours(A, c.iso);
-    if (avantCadence === COMBINER_AVANT && !c.posee) {
-      return fait('combiner', 'avant', [f.appel, f.soinDit, `vers le ${jourDit(c.iso)}`], pourquoiDuFil);
+    if (avantCadence <= COMBINER_AVANT && avantCadence >= COMBINER_JUSQUA && !c.posee
+      && !traceDe(f, ['combiner']).some((t) => t.quand.slice(0, 10) > s0)) {
+      const rattrape: [string, string][] = avantCadence < COMBINER_AVANT
+        ? [['Rattrapage', `prévu le ${jourDit(plusJours(c.iso, -COMBINER_AVANT))}, pas écrit à temps`]] : [];
+      return fait('combiner', 'avant', [f.appel, f.soinDit, `vers le ${jourDit(c.iso)}`], [...pourquoiDuFil, ...rattrape]);
     }
     /* Le mois de Noël : les places des fêtes, la carte cadeau, sans remise. */
     if (A.slice(5) >= NOEL_DU && A.slice(5) <= NOEL_AU && !traceDe(f, ['noel']).some((t) => t.quand.slice(0, 4) === A.slice(0, 4))
