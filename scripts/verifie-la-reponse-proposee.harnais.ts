@@ -37,7 +37,9 @@ const sansCommentaires = (t: string) => t.replace(/\/\*[\s\S]*?\*\//g, '').repla
 const PUR = 'src/shared/ia-reponse-wa-pur.ts';
 const COMPOSANT = 'src/apps/trone/routes/clients/ReponseProposee.tsx';
 const CSS = 'src/apps/trone/routes/clients/reponse-proposee.css';
-const CONVERSATIONS = 'src/apps/trone/routes/clients/Conversations.tsx';
+/* Le composeur du fil a quitté Conversations.tsx pour ComposeurWhatsApp.tsx le
+   27 octobre 2026 (lot 3, Assistant Maison) : la promesse suit, mêmes mots. */
+const COMPOSEUR = 'src/apps/trone/routes/clients/ComposeurWhatsApp.tsx';
 const AUTOMATE = 'src/shared/automate-wa.ts';
 const AUTOMATE_EDGE = 'supabase/functions/whatsapp-automate/index.ts';
 
@@ -265,15 +267,16 @@ dit('la direction demande ; un maître, s il a la Clientèle ; les Finances n y 
 
 /* ── 8. LA STRUCTURE : LE BOUTON DANS LE COMPOSEUR, L'ENVOI EXISTANT, L'AUTOMATE INTACT ── */
 {
-  const conv = sansCommentaires(lis(CONVERSATIONS));
-  dit('Conversations importe le composant, et le monte une fois', [true, 1],
+  const conv = sansCommentaires(lis(COMPOSEUR));
+  dit('le composeur du fil (ComposeurWhatsApp) importe le composant, et le monte une fois', [true, 1],
     [/import \{ ReponseProposee \} from '\.\/ReponseProposee';/.test(conv), (conv.match(/<ReponseProposee\b/g) ?? []).length]);
   const iSaisie = conv.indexOf('className="trc-saisie__envoi"');
   const iComp = conv.indexOf('<ReponseProposee');
   const iEnvoyer = conv.indexOf("{envoiEnCours ? 'Envoi…' : 'Envoyer'}");
   dit('... dans le composeur du fil ouvert, avant le bouton Envoyer', true, iSaisie > 0 && iComp > iSaisie && iEnvoyer > iComp && iEnvoyer - iSaisie < 2000);
+  /* La zone est tenue par l'hôte (`surTexte`, LesConversations) depuis le 27 octobre 2026 : la proposition la remplit par lui. */
   dit('... la proposition remplit la zone de saisie existante (la zone vidée sans réveiller personne), et l équipe prend la main sur l automate', true,
-    /<ReponseProposee key=\{fil\.numero\} fil=\{fil\} texte=\{texte\} occupe=\{envoiEnCours\} surProposition=\{\(t\) => \{ if \(t\) prendsLaMain\('proposition'\); setTexte\(t\); \}\} \/>/.test(conv));
+    /<ReponseProposee key=\{fil\.numero\} fil=\{fil\} texte=\{texte\} occupe=\{envoiEnCours\} surProposition=\{\(t\) => \{ if \(t\) prendsLaMain\('proposition'\); surTexte\(t\); \}\} \/>/.test(conv));
   dit('... « Envoyer » est le bouton qui existait, inchangé, par `envoie()`', true,
     /disabled=\{!!refus \|\| envoiEnCours\}\s*onClick=\{\(\) => void envoie\(\)\}\s*>\s*\{envoiEnCours \? 'Envoi…' : 'Envoyer'\}/.test(conv));
 

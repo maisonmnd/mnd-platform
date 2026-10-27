@@ -1,19 +1,23 @@
-/* LE BANC DES AVIS GOOGLE — `node scripts/banc-des-avis-google.mjs [capture]`.
+/* LE BANC DES AVIS GOOGLE · `node scripts/banc-des-avis-google.mjs [capture]`.
 
    26 octobre 2026 : la rubrique « Les avis Google » (maquette YaWfiqou…,
-   « Tout me va »). Les harnais éprouvent les règles (`verifie-le-pont-des-avis`,
-   `verifie-les-avis-choisis`) ; ce banc ouvre le VRAI Trône comme la
-   direction et fait les gestes d'une main :
+   « Tout me va »). 27 octobre 2026, lot 3 : les avis sont la vue « Les avis »
+   de l'Assistant Maison (`#/gerard?vue=avis`, `LesAvis.tsx`) ; l'ancienne
+   adresse `#/avis-google` y mène. Les harnais éprouvent les règles
+   (`verifie-le-pont-des-avis`, `verifie-les-avis-choisis`) ; ce banc ouvre
+   le VRAI Trône comme la direction et fait les gestes d'une main :
 
-     - la rubrique est dans la barre, sous « Les vitrines » ;
-     - la liste montre TOUS les avis de Make, du plus récent au plus ancien ;
-       « Sans réponse » s'ouvre d'abord, « Répondus » montre les autres ;
-     - la case « Site » COPIE l'avis dans le document de la vitrine ;
+     - `#/avis-google` mène à la vue ; la barre allume « Assistant Maison »
+       sous « Clientes », « Les avis Google » n'y est plus ;
+     - UNE liste repliée de TOUS les avis de Make : ce qui attend un geste
+       d'abord, 1 à 3 étoiles en tête, le répondu en dernier ; un seul
+       panneau ouvert à la fois ; quatre tuiles au-dessus ;
+     - la case « Montrer sur maisonmnd.com » du panneau COPIE l'avis dans le
+       document de la vitrine ;
      - « Publier sur Google » pose la question, « Oui, publier » envoie le
        NOM de l'avis chez Google à la fonction ;
      - un avis répondu montre sa réponse et « Modifier la réponse » ;
-     - l'onglet des Vitrines mène à la rubrique ; au téléphone, rien ne
-       déborde.
+     - l'onglet des Vitrines mène à la vue ; au téléphone, rien ne déborde.
 
    Le serveur du banc sert le Trône ET répond comme Supabase sur quelques
    adresses (la session, le personnel, le relevé, les avis de Make, l'état du
@@ -131,9 +135,10 @@ const clique = (selecteur, texte, dans = 'document') => evalue(`(() => {
 })()`);
 const lis = (cle) => evalue(`JSON.parse(localStorage.getItem(${JSON.stringify(cle)}) || 'null')`);
 const texte = (sel) => evalue(String.raw`(document.querySelector(${JSON.stringify(sel)})?.innerText || '').replace(/\s+/g, ' ')`);
-const rangees = () => evalue(String.raw`[...document.querySelectorAll('.trc-avr__rangee')].map((d) => [d.querySelector('.trc-avr__qui b')?.textContent, d.querySelector('.trc-avr__etat')?.textContent, d.querySelector('.trc-avr__site span')?.textContent])`);
+/* La liste repliée de la vue : une ligne `li.trc-am__avis`, le prénom dans `.trc-ger__qui b`, l'état dans `.trc-am__droite b`. */
+const rangees = () => evalue(String.raw`[...document.querySelectorAll('li.trc-am__avis')].map((d) => [d.querySelector('.trc-ger__qui b')?.textContent, d.querySelector('.trc-am__droite b')?.textContent, d.getAttribute('class')])`);
 const rangee = (auteur, sel) => evalue(`(() => {
-  const d = [...document.querySelectorAll('.trc-avr__rangee')].find((x) => x.querySelector('.trc-avr__qui b')?.textContent === ${JSON.stringify(auteur)});
+  const d = [...document.querySelectorAll('li.trc-am__avis')].find((x) => x.querySelector('.trc-ger__qui b')?.textContent === ${JSON.stringify(auteur)});
   const e = d?.querySelector(${JSON.stringify(sel)});
   if (e) e.click();
   return !!e;
@@ -151,81 +156,94 @@ const semence = {
 await evalue(`(() => { for (const [k, v] of Object.entries(${JSON.stringify(semence)})) localStorage.setItem(k, typeof v === 'string' ? v : JSON.stringify(v)); return true; })()`);
 await evalue('location.reload()');
 await jusqua(`!!document.querySelector('.tr-top__sync, .tr-side, nav')`, 20000);
+/* 27 octobre 2026 (lot 3) : l'ancienne adresse mène à la vue « Les avis » de l'Assistant Maison, qui garde l'avis demandé. */
 await evalue(`location.hash = '#/avis-google'; true`);
-const vu = await jusqua(`document.querySelectorAll('.trc-avr__rangee').length > 0`, 40000);
-dit('Les avis Google, comme la direction : la rubrique s ouvre', !!vu);
+const versLaVue = await jusqua(String.raw`location.hash.startsWith('#/gerard') && /vue=avis/.test(location.hash)`, 20000);
+dit('#/avis-google mène à la vue « Les avis » de l Assistant Maison', !!versLaVue, await evalue('location.hash'));
+const vu = await jusqua(`document.querySelectorAll('li.trc-am__avis').length > 0`, 40000);
+dit('Les avis, comme la direction : la liste s ouvre', !!vu);
 
-/* La barre. */
+/* La barre : la rubrique n'y est plus ; « Assistant Maison », sous « Clientes », est allumée. */
 const barre = await evalue(String.raw`(() => { const l = [...document.querySelectorAll('.tr-nav__item')].map((a) => a.textContent.replace(/\s+/g, ' ').trim()); return l; })()`);
-const iVitrines = (barre ?? []).findIndex((t) => t.startsWith('Les vitrines'));
-dit('la barre : « Les avis Google » juste sous « Les vitrines », allumée', iVitrines >= 0 && String(barre[iVitrines + 1]).startsWith('Les avis Google')
-  && !!(await evalue(String.raw`[...document.querySelectorAll('.tr-nav__item.active')].some((a) => a.textContent.includes('Les avis Google'))`)), JSON.stringify(barre?.slice(iVitrines, iVitrines + 2)));
+const iClientes = (barre ?? []).findIndex((t) => t.startsWith('Clientes'));
+dit('la barre : « Assistant Maison » juste sous « Clientes », allumée ; « Les avis Google » n y est plus', iClientes >= 0 && String(barre[iClientes + 1]).startsWith('Assistant Maison')
+  && !(barre ?? []).some((t) => t.startsWith('Les avis Google'))
+  && !!(await evalue(String.raw`[...document.querySelectorAll('.tr-nav__item.active')].some((a) => a.textContent.includes('Assistant Maison'))`)), JSON.stringify(barre?.slice(iClientes, iClientes + 2)));
+dit('... l onglet « Les avis » de la barre des vues est choisi', await evalue(String.raw`document.querySelector('.trc-am__vues [aria-selected="true"]')?.id === 'am-ong-avis'`));
 
-/* La liste. */
+/* Les tuiles et la liste. */
+const tuiles = await evalue(String.raw`[...document.querySelectorAll('#am-vue-avis .trc-am__tuile b')].map((b) => b.innerText.replace(/\s+/g, ' ').trim())`);
+dit('quatre tuiles : 5 reçus sans réponse, 0 prête, 0 publiée ce mois, la note 4,9', (tuiles ?? []).length === 4 && tuiles[0] === '5' && tuiles[1] === '0' && tuiles[2] === '0' && tuiles[3] === '4,9', JSON.stringify(tuiles));
+dit('... la ligne résumé compte 6 avis, 5 sans réponse, 0 sur le site', /6 avis · sans réponse 5 · prêtes 0 · 0 sur le site/.test(await texte('#am-vue-avis .trc-am__resume')), await texte('#am-vue-avis .trc-am__resume'));
 const sans = await rangees();
-dit('« Sans réponse » d abord : tous les avis sans réponse, du plus récent au plus ancien, avec leur état',
-  JSON.stringify(sans.map((x) => x[0])) === JSON.stringify(['N. M.', 'S. H.', 'G. J.', 'B. F.', 'K. O.']) && sans[1][1] !== 'Répondu', JSON.stringify(sans));
-dit('... l onglet compte 5, « Répondus » 1, « Tous » 6', /Sansréponse5/i.test(await texte('.trc-avr__onglets').then((t) => t.replace(/\s/g, ''))) && /Répondus1/i.test((await texte('.trc-avr__onglets')).replace(/\s/g, '')) && /Tous6/i.test((await texte('.trc-avr__onglets')).replace(/\s/g, '')),
-  await texte('.trc-avr__onglets'));
-dit('« Répondus » se clique', await clique('.trc-avr__onglet', 'Répondus'));
+dit('l ordre : ce qui attend un geste d abord, 1 à 3 étoiles en tête, du plus récent au plus ancien ; le répondu en dernier',
+  JSON.stringify(sans.map((x) => x[0])) === JSON.stringify(['S. H.', 'N. M.', 'G. J.', 'B. F.', 'K. O.', 'A. L.']) && sans[5][1] === 'Répondu' && sans[1][1] !== 'Répondu', JSON.stringify(sans.map((x) => [x[0], x[1]])));
+dit('... aucun panneau ouvert à l arrivée', (await evalue(`document.querySelectorAll('#am-vue-avis .trc-ger__panneau').length`)) === 0);
+dit('le panneau de A. L. (répondu) s ouvre', await rangee('A. L.', '.trc-ger__ligne'));
 await attend(300);
-const rep = await rangees();
-dit('... et montre l avis répondu', JSON.stringify(rep.map((x) => [x[0], x[1]])) === JSON.stringify([['A. L.', 'Répondu']]), JSON.stringify(rep));
-dit('son panneau s ouvre', await rangee('A. L.', '.trc-avr__ligne'));
-await attend(300);
-const pub = await texte('.trc-avr__avis');
+const pub = await texte('#am-vue-avis .trc-ger__panneau');
 dit('... il montre la réponse publiée sur Google, et « Modifier la réponse »', /Publiée sur Google/.test(pub) && /Merci A\. L\., à bientôt à la Maison\./.test(pub) && /Modifier la réponse/i.test(pub), pub.slice(0, 220));
+dit('... un seul panneau ouvert', (await evalue(`document.querySelectorAll('#am-vue-avis .trc-ger__panneau').length`)) === 1);
 await photo('1-repondu');
 
-/* Le site : la case copie l'avis. */
-dit('« Sans réponse » se clique', await clique('.trc-avr__onglet', 'Sans réponse'));
+/* Le site : la case du panneau copie l'avis. */
+dit('le panneau de N. M. s ouvre', await rangee('N. M.', '.trc-ger__ligne'));
 await attend(300);
-dit('la case « Site » de N. M. se coche', await rangee('N. M.', '.trc-avr__site input'));
+dit('... et celui de A. L. s est fermé : un seul panneau', (await evalue(`document.querySelectorAll('#am-vue-avis .trc-ger__panneau').length`)) === 1);
+dit('la case « Montrer sur maisonmnd.com » de N. M. se coche', await rangee('N. M.', '.trc-avr__case input'));
 await attend(500);
 const cfg = await lis('trone::mnd_vitrine_config');
 const copie = (cfg?.avisDuSite ?? [])[0];
 dit('... l avis est COPIÉ dans le document de la vitrine, l ancien choix par clés vidé',
   cfg?.avisDuSite?.length === 1 && copie?.auteur === 'N. M.' && /^Amazing experience/.test(copie?.texte ?? '') && !/Translated/.test(copie?.texte ?? '') && Array.isArray(cfg?.avisChoisis) && cfg.avisChoisis.length === 0,
   JSON.stringify(cfg?.avisDuSite));
-dit('... la case dit sa place, l onglet « Sur le site » compte 1', (await rangees()).find((x) => x[0] === 'N. M.')?.[2] === 'Site · 1' && /Surlesite1/i.test((await texte('.trc-avr__onglets')).replace(/\s/g, '')));
+dit('... la case dit sa place, la ligne résumé compte 1 sur le site', /Sur maisonmnd\.com, 1er avis/.test(await texte('#am-vue-avis .trc-avr__case')) && /1 sur le site/.test(await texte('#am-vue-avis .trc-am__resume')),
+  await texte('#am-vue-avis .trc-avr__case'));
 
 /* Répondre et publier. */
-dit('le panneau de S. H. (2 étoiles) s ouvre', await rangee('S. H.', '.trc-avr__ligne'));
+dit('le panneau de S. H. (2 étoiles) s ouvre', await rangee('S. H.', '.trc-ger__ligne'));
 await attend(400);
-dit('... il prévient : la réponse attend votre lecture', /Avis de 2 étoiles/.test(await texte('.trc-avr__avis')));
-dit('« Écrire moi-même »', await clique('.trc-avr__avis button', 'Écrire moi-même'));
+dit('... il prévient : la réponse attend votre lecture', /Avis de 2 étoiles/.test(await texte('#am-vue-avis .trc-ger__panneau')));
+dit('« Écrire moi-même »', await clique('#am-vue-avis .trc-ger__panneau button', 'Écrire moi-même'));
 await attend(300);
 await evalue(String.raw`(() => {
-  const z = document.querySelector('.trc-avr__avis textarea');
+  const z = document.querySelector('#am-vue-avis .trc-ger__panneau textarea');
   const poser = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value').set;
   poser.call(z, 'Merci de nous l’avoir dit ; pardon pour cette attente.');
   z.dispatchEvent(new Event('input', { bubbles: true }));
   return true;
 })()`);
 await attend(400);
-dit('« Publier sur Google » pose la question, qui nomme l autrice, sans rien envoyer', await clique('.trc-avr__avis button', 'Publier sur Google')
-  && publications.length === 0 && /Publier cette réponse sous l’avis de S\. H\. \?/.test(await texte('.trc-avr__avis [role="group"]')));
+dit('« Publier sur Google » pose la question, qui nomme l autrice, sans rien envoyer', await clique('#am-vue-avis .trc-ger__panneau button', 'Publier sur Google')
+  && publications.length === 0 && /Publier cette réponse sous l’avis de S\. H\. \?/.test(await texte('#am-vue-avis .trc-ger__panneau [role="group"]')));
 await photo('2-question');
-dit('« Oui, publier »', await clique('.trc-avr__avis [role="group"] button', 'Oui, publier'));
-await jusqua(`/Publié sur Google depuis le Trône/.test(document.querySelector('.trc-avr__avis')?.innerText || '')`, 8000);
+dit('« Oui, publier »', await clique('#am-vue-avis .trc-ger__panneau [role="group"] button', 'Oui, publier'));
+await jusqua(`/Publié sur Google depuis le Trône/.test(document.querySelector('#am-vue-avis .trc-ger__panneau')?.innerText || '')`, 8000);
 dit('... la fonction reçoit le NOM de l avis chez Google et la réponse, une fois',
   publications.length === 1 && publications[0].avis?.name === NOM('v2') && publications[0].reponse === 'Merci de nous l’avoir dit ; pardon pour cette attente.', JSON.stringify(publications));
-dit('... et l écran dit « Publié sur Google depuis le Trône »', /Publié sur Google depuis le Trône/.test(await texte('.trc-avr__avis')));
+dit('... et l écran dit « Publié sur Google depuis le Trône »', /Publié sur Google depuis le Trône/.test(await texte('#am-vue-avis .trc-ger__panneau')));
 await photo('3-publie');
 
-/* Les Vitrines mènent à la rubrique. */
+/* Les Vitrines mènent à la vue (par l'ancienne adresse, qui redirige). */
 await evalue(`location.hash = '#/vitrine?onglet=avis'; true`);
-const redirige = await jusqua(`location.hash.startsWith('#/avis-google')`, 8000);
-dit('l onglet des Vitrines (et ses liens d avant) mène à la rubrique', !!redirige, await evalue('location.hash'));
+const redirige = await jusqua(String.raw`location.hash.startsWith('#/gerard') && /vue=avis/.test(location.hash)`, 8000);
+dit('l onglet des Vitrines (et ses liens d avant) mène à la vue « Les avis »', !!redirige, await evalue('location.hash'));
+
+/* L'ancienne adresse avec un avis demandé ouvre son panneau (le lien de la fiche cliente). */
+await evalue(`location.hash = '#/avis-google?avis=${encodeURIComponent('g-v6')}'; true`);
+const ouvertParLeLien = await jusqua(String.raw`/vue=avis/.test(location.hash) && [...document.querySelectorAll('li.trc-am__avis.est-ouverte .trc-ger__qui b')].map((b) => b.textContent).join('|') === 'K. O.'`, 8000);
+dit('#/avis-google?avis=<clé> ouvre cet avis dans la vue, lui seul', !!ouvertParLeLien && (await evalue(`document.querySelectorAll('#am-vue-avis .trc-ger__panneau').length`)) === 1, await evalue('location.hash'));
 
 /* Au téléphone. */
-await jusqua(`document.querySelectorAll('.trc-avr__rangee').length > 0`, 15000);
+await evalue(`location.hash = '#/gerard?vue=avis'; true`);
+await jusqua(`document.querySelectorAll('li.trc-am__avis').length > 0`, 15000);
 await cdp('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 2, mobile: true });
 await attend(800);
 dit('au téléphone (390 px), rien ne déborde', (await evalue('document.documentElement.scrollWidth > window.innerWidth + 1')) === false, String(await evalue('document.documentElement.scrollWidth')));
-await rangee('G. J.', '.trc-avr__ligne');
+await rangee('G. J.', '.trc-ger__ligne');
 await attend(400);
-dit('... un avis ouvert prend le volet, la liste se retire', await evalue(`getComputedStyle(document.querySelector('.trc-avr__liste')).display === 'none' && getComputedStyle(document.querySelector('.trc-avr__avis')).display !== 'none'`));
+dit('... un avis ouvert déplie son panneau sous la ligne, seul, et rien ne déborde', (await evalue(`document.querySelectorAll('#am-vue-avis .trc-ger__panneau').length`)) === 1
+  && (await evalue('document.documentElement.scrollWidth > window.innerWidth + 1')) === false, String(await evalue('document.documentElement.scrollWidth')));
 await photo('4-telephone');
 dit('aucune erreur dans la page', erreurs.length === 0, erreurs.slice(0, 3).join(' | ') || 'aucune');
 

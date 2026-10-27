@@ -61,18 +61,21 @@ async function banc(muet) {
 /* LES FAUTES D'AVANT, une par constat (ou par chemin d'un constat). `cri`
    est le debut du nom de l'epreuve qui doit tomber. */
 const FAUTES = [
-  { n: 'n7', f: 'src/apps/trone/routes/clients/Conversations.tsx', cri: 'n7 le demontage',
+  /* Le composeur du fil vit dans ComposeurWhatsApp.tsx depuis le 27 octobre
+     2026 (lot 3, Assistant Maison) : n7, n8 et n9 (ecran) s'y plantent. */
+  { n: 'n7', f: 'src/apps/trone/routes/clients/ComposeurWhatsApp.tsx', cri: 'n7 le demontage',
     paires: [['  useEffect(() => () => {\n    const a = attenteEnCours.current;\n    if (a) partirUneFoisRef.current(a);\n  }, []);', '']] },
-  { n: 'n8', f: 'src/apps/trone/routes/clients/Conversations.tsx', cri: 'n8 le message suivant',
+  { n: 'n8', f: 'src/apps/trone/routes/clients/ComposeurWhatsApp.tsx', cri: 'n8 le message suivant',
     paires: [['if (enAttente) { const a = enAttente; setEnAttente(null); partirUneFois(a); }', 'if (enAttente) void partir(enAttente);']] },
-  { n: 'n9 (ecran)', f: 'src/apps/trone/routes/clients/Conversations.tsx', cri: 'n9 la borne de taille',
+  { n: 'n9 (ecran)', f: 'src/apps/trone/routes/clients/ComposeurWhatsApp.tsx', cri: 'n9 la borne de taille',
     paires: [['      if (!partEnFermant(JSON.stringify(corps))) { gardeUnAppel(\'whatsapp-envoi\', corps, `WhatsApp au ${a.numero}`); return; }\n', '']] },
   { n: 'n9 (borne)', f: 'src/shared/conversations.ts', cri: 'n9 une photo de 50 Ko',
     paires: [['  new TextEncoder().encode(corpsJson).length <= KEEPALIVE_MAX_OCTETS;', '  true;']] },
   { n: 'n10 (juge)', f: 'src/shared/conversations.ts', cri: 'n10 fiche a deux numeros',
     paires: [['  return { geste: \'remplacer\', champ: \'phone2\', ancien: second };', '  return { geste: \'ecrire\', champ: \'phone2\' };']] },
+  /* `attache` est sortie au premier niveau de Conversations.tsx le 27 octobre 2026 (lot 3) : deux espaces, plus quatre. */
   { n: 'n10 (ecran)', f: 'src/apps/trone/routes/clients/Conversations.tsx', cri: 'n10 l ecran demande',
-    paires: [['    if (r.geste === \'remplacer\' && !await demande({', '    if (false && !await demande({']] },
+    paires: [['  if (r.geste === \'remplacer\' && !await demande({', '  if (false && !await demande({']] },
   { n: 'n11', f: 'src/shared/gestes-conversation.ts', cri: 'n11 un jour du geste',
     paires: [['  return `${JOURS[d.getDay()]} ${j} ${MOIS[m - 1]} ${a}`;', '  return `${JOURS[d.getDay()]} ${j} ${MOIS[m - 1]}`;']] },
   { n: 'n12 (juge)', f: 'src/shared/conversations.ts', cri: 'n12 le dernier qui compte',
@@ -94,11 +97,15 @@ const FAUTES = [
     paires: [['}, toujoursLAnnee = true): string {', '}, toujoursLAnnee = false): string {']] },
   { n: 'n74', f: 'src/shared/fin-de-paquet.ts', cri: 'n74 n75 un abonne',
     paires: [['`valable jusqu’au ${jourEtAn(f.jusquau)}`', '`valable jusqu’au ${jourDit(f.jusquau)}`']] },
-  { n: 'n75', f: 'src/shared/fin-de-paquet.ts', cri: 'n75 une fiche muette',
+  /* La faute d'avant rend « K. » a un abonne marque Monsieur : c'est l'epreuve
+     « n74 n75 un abonne marque Monsieur » qui tombe (la fiche muette, elle,
+     rend deja le prenom seul). Cri corrige le 27 octobre 2026. */
+  { n: 'n75', f: 'src/shared/fin-de-paquet.ts', cri: 'n74 n75 un abonne',
     paires: [['  appelDe(fiche, f.nom),', '  (f.nom.trim().split(/\\s+/)[0] || \'Madame\'),']] },
   { n: 'n76', f: 'src/shared/demandes.ts', cri: 'n76 une demande ou',
     paires: [['  const appel = appelDe({ name: d.prenom, civilite: d.civilite });', '  const appel = d.prenom.trim() || \'Madame\';']] },
-  { n: 'n80 (annee)', f: 'src/shared/promos.ts', cri: 'n80 l instant porte',
+  /* `instantDit` vit dans promos-pur.ts (le pur sans magasin) : la faute s'y plante (27 octobre 2026). */
+  { n: 'n80 (annee)', f: 'src/shared/promos-pur.ts', cri: 'n80 l instant porte',
     paires: [['${mois[d.getUTCMonth()]} ${d.getUTCFullYear()} à ${heure}', '${mois[d.getUTCMonth()]} à ${heure}']] },
   { n: 'n80 (appel)', f: 'src/apps/trone/routes/clients/_gestes.tsx', cri: 'n80 le message du code',
     paires: [['const message = `${appel}, la Maison vous offre', 'const message = `${prenom}, la Maison vous offre']] },

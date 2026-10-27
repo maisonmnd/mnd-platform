@@ -12,7 +12,16 @@
    Il tient la PROMESSE faite à Yéman, pas ce que le code calcule :
      - rien ne dépasse à droite de l'écran (les rangées qui glissent exceptées) ;
      - le fil ouvert tient dans l'écran, sa saisie et « Envoyer » aussi ;
-     - « Nouvelle conversation » est à portée de pouce dans la liste.
+     - la liste commence dans l'écran, sa première boîte à portée de pouce.
+
+   27 OCTOBRE 2026 (lot 3, Assistant Maison) : les Conversations vivent dans
+   la vue « Les conversations » de l'Assistant (`#/gerard?vue=conversations`,
+   LesConversations.tsx + ComposeurWhatsApp.tsx) ; `/conversations` y
+   redirige en gardant `?n=`. Une boîte par personne, en liste repliée : le
+   fil ouvert est `.trc-ger__rangee.est-ouverte .trc-bulles`, la saisie
+   `.trc-saisie`. « Nouvelle conversation » n'est plus dans la vue (il reste
+   dans `/conversations?ancien=1`) : la promesse de la liste devient « la
+   première boîte est à l'écran », dite ici, pas retirée en silence.
 
    Il attend le même Trône construit que le banc de la barre :
      VITE_APPS=trone VITE_SUPABASE_URL= VITE_SUPABASE_ANON_KEY= \
@@ -131,13 +140,15 @@ const RELEVE = `(() => {
   }).slice(0, 6).map((e) => String(e.className || e.tagName).slice(0, 50) + ' (' + Math.round(e.getBoundingClientRect().right) + ' px)');
   const boite = (s) => { const e = document.querySelector(s); if (!e || !visible(e)) return null; const r = e.getBoundingClientRect(); return { haut: Math.round(r.top), bas: Math.round(r.bottom), gauche: Math.round(r.left), droite: Math.round(r.right) }; };
   return { largeur: document.documentElement.scrollWidth, dehors,
-    fil: boite('.trc-convs.a-fil .trc-convs__fil'), saisie: boite('.trc-convs.a-fil .trc-saisie'),
-    /* La mesure rend null quand l'element est masque : c'est ce qu'on attend
-       de la liste tant qu'un fil est ouvert sur une colonne unique.
+    /* La boite ouverte de la vue : son fil fusionne, sa saisie (le composeur WhatsApp). */
+    fil: boite('.trc-ger__rangee.est-ouverte .trc-bulles'), saisie: boite('.trc-ger__rangee.est-ouverte .trc-saisie'),
+    /* Au telephone (900 px et moins), la boite ouverte reste seule dans la
+       liste : le nombre de boites a l'ecran le dit.
        (Pas d'accent grave ici : on est dans un litteral a accents graves.) */
-    boite: boite('.trc-convs.a-fil .trc-convs__boite'),
-    envoyer: (() => { const b = [...document.querySelectorAll('.trc-saisie button')].find((x) => /envoyer|envoi/i.test(x.textContent)); if (!b) return null; const r = b.getBoundingClientRect(); return { haut: Math.round(r.top), bas: Math.round(r.bottom), gauche: Math.round(r.left), droite: Math.round(r.right) }; })(),
-    nouveau: boite('.trc-nouveau') };
+    boites: document.querySelectorAll('.trc-ger__liste .trc-ger__rangee').length,
+    ouverte: !!document.querySelector('.trc-ger__rangee.est-ouverte'),
+    envoyer: (() => { const b = [...document.querySelectorAll('.trc-ger__rangee.est-ouverte .trc-saisie button')].find((x) => /envoyer|envoi/i.test(x.textContent)); if (!b) return null; const r = b.getBoundingClientRect(); return { haut: Math.round(r.top), bas: Math.round(r.bottom), gauche: Math.round(r.left), droite: Math.round(r.right) }; })(),
+    premiere: boite('.trc-ger__liste .trc-ger__ligne') };
 })()`;
 
 let ko = 0;
@@ -148,10 +159,11 @@ const dit = (nom, ok, detail) => {
 const dedans = (b) => !!b && b.haut >= 0 && b.bas <= H && b.gauche >= 0 && b.droite <= L;
 const dire = (b) => (b ? `${b.gauche}..${b.droite} x ${b.haut}..${b.bas}` : 'absent');
 
+/* La vue de l'Assistant, directement ; `filtre=tout` pour la liste entiere. */
 const ECRANS = [
-  { route: 'conversations', nom: 'la liste' },
-  { route: 'conversations?n=2290151000001', nom: 'un fil a la fenetre ouverte', fil: true, envoyer: true },
-  { route: 'conversations?n=2290151000002', nom: 'un fil a la fenetre fermee', fil: true },
+  { route: 'gerard?vue=conversations&filtre=tout', nom: 'la liste' },
+  { route: 'gerard?vue=conversations&n=2290151000001', nom: 'un fil a la fenetre ouverte', fil: true, envoyer: true },
+  { route: 'gerard?vue=conversations&n=2290151000002', nom: 'un fil a la fenetre fermee', fil: true },
 ];
 let premier = true;
 for (const t of TAILLES) {
@@ -174,13 +186,17 @@ for (const t of TAILLES) {
     if (e.fil) {
       dit(`${nom} : le fil tient dans l ecran`, dedans(r.fil), dire(r.fil));
       dit(`${nom} : la saisie aussi`, dedans(r.saisie), dire(r.saisie));
-      /* LA LISTE ET LE FIL NE COHABITENT PAS quand la grille n'a qu'une
-         colonne : c'est la panne du 13 octobre, et c'est elle qu'on garde
-         sous surveillance. Au-delà de 900 px, les deux colonnes sont la
-         bonne réponse et la boîte doit rester là. */
-      if (L <= 900) dit(`${nom} : la liste s efface derriere le fil`, r.boite === null, dire(r.boite));
+      /* LA LISTE ET LE FIL NE COHABITENT PAS quand l'ecran est etroit :
+         c'est la panne du 13 octobre, et c'est elle qu'on garde sous
+         surveillance. Dans la vue, la boite ouverte reste seule dans la
+         liste jusqu'a 900 px ; au-dela, la liste entiere est la bonne reponse
+         et la boite ouverte garde son panneau dans sa rangee. */
+      if (L <= 900) dit(`${nom} : la liste s efface derriere la boite ouverte`, r.ouverte && r.boites === 1, `${r.boites} boite(s), ouverte : ${r.ouverte}`);
     } else {
-      dit(`${nom} : « Nouvelle conversation » est a l ecran`, dedans(r.nouveau), dire(r.nouveau));
+      /* « Nouvelle conversation » vit dans /conversations?ancien=1 depuis le
+         27 octobre 2026 : dans la vue, la promesse est que la liste commence
+         dans l'ecran, sa premiere boite entiere a portee de pouce. */
+      dit(`${nom} : la premiere boite de la liste est a l ecran`, dedans(r.premiere), dire(r.premiere));
     }
     if (e.envoyer) dit(`${nom} : « Envoyer » est a l ecran`, dedans(r.envoyer), dire(r.envoyer));
     if (capture) {

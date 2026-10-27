@@ -6,8 +6,8 @@ import { ceQueGerardSait, consigneEntreDeux, souciOuvertDe } from '../../../../s
 import { useBranchClients } from './_shared';
 import './gerard-entre-deux.css';
 
-/* ══ CE QUE GÉRARD SAIT D'« ENTRE DEUX SÉANCES » — 26 octobre 2026 ════════
-   Une carte de sa rubrique : les huit rubriques avec ce que Gérard répond
+/* ══ CE QUE L'ASSISTANT SAIT D'« ENTRE DEUX SÉANCES », 26 octobre 2026 ═════
+   Une carte de sa rubrique : les huit rubriques avec ce que l'Assistant répond
    (la réponse validée, sinon l'accusé), ce qui s'est dit en soixante jours,
    les clientes qu'il laisse tranquilles tant qu'un souci est ouvert, et ce
    que disent les clientes, en leurs mots, sans nom ni numéro. Plus bas, la
@@ -27,7 +27,7 @@ export function GerardEntreDeux() {
     noms: clientes.map((c) => c.name ?? ''),
     maintenant: new Date().toISOString(),
   }), [signalements, reponses, clientes]);
-  /* Les clientes que Gérard laisse tranquilles : un souci À voir ou Santé encore ouvert. */
+  /* Les clientes que l'Assistant laisse tranquilles : un souci À voir ou Santé encore ouvert. */
   const auCalme = useMemo(() => {
     const parCliente = new Map<string, typeof signalements>();
     for (const s of signalements) parCliente.set(s.clientId, [...(parCliente.get(s.clientId) ?? []), s]);
@@ -37,7 +37,8 @@ export function GerardEntreDeux() {
   const t = sait.total;
   return (
     <section className="trc-ger__carte trc-gerd">
-      <h3>Entre deux séances <span>ce que Gérard en sait</span></h3>
+      {/* « l'Assistant », jamais « Gérard » devant l'équipe (spec §1 : un salarié porte ce prénom ; 27 octobre 2026). */}
+      <h3>Entre deux séances <span>ce que l’Assistant en sait</span></h3>
       <div className="trc-gerd__chiffres">
         <span><b>{t.dits}</b><small>soucis dits en 60 jours</small></span>
         <span><b>{t.ouverts}</b><small>encore ouverts</small></span>
@@ -49,7 +50,7 @@ export function GerardEntreDeux() {
       <div className="trc-gerd__cadre">
         <table>
           <thead>
-            <tr><th>Rubrique</th><th>Niveau</th><th>Ce que Gérard répond</th><th className="d">Dits</th><th className="d">Ouverts</th></tr>
+            <tr><th>Rubrique</th><th>Niveau</th><th>Ce que l’Assistant répond</th><th className="d">Dits</th><th className="d">Ouverts</th></tr>
           </thead>
           <tbody>
             {sait.rubriques.map((r) => (
@@ -91,7 +92,7 @@ export function GerardEntreDeux() {
       </div>
 
       <ul className="trc-gerd__regles">
-        <li>Un souci <b>À voir</b> ou <b>Santé</b> encore ouvert : Gérard ne propose ni envie ni remise, il garde seulement son rendez-vous.</li>
+        <li>Un souci <b>À voir</b> ou <b>Santé</b> encore ouvert : l’Assistant ne propose ni envie ni remise, il garde seulement son rendez-vous.</li>
         <li>Elle lui parle de ses cheveux : il répond avec votre réponse validée, jamais un brouillon ; en Santé, jamais de conseil écrit.</li>
         <li>Sèches ou cassantes : son envie du mois devient un soin hydratant.</li>
       </ul>

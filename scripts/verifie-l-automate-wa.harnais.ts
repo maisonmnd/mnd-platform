@@ -99,6 +99,13 @@ const F_HOOK = 'supabase/functions/whatsapp-webhook/index.ts';
 const F_ENVOI = 'supabase/functions/whatsapp-envoi/index.ts';
 const F_CONF = 'supabase/functions/confirmation-rdv/index.ts';
 const ECRAN_CONV = 'src/apps/trone/routes/clients/Conversations.tsx';
+/* Le composeur du fil (la saisie, la main, le bandeau de l'automate) a quitté
+   Conversations.tsx pour ComposeurWhatsApp.tsx le 27 octobre 2026 (lot 3,
+   Assistant Maison) : les promesses qui le lisent le suivent, mêmes mots. */
+const ECRAN_COMPOSEUR = 'src/apps/trone/routes/clients/ComposeurWhatsApp.tsx';
+/* L'hôte du composeur dans l'Assistant Maison (la vue « Les conversations ») :
+   « Continuer dans WhatsApp » y vit, et pose la main par la poignée du composeur. */
+const ECRAN_LES_CONVERSATIONS = 'src/apps/trone/routes/clients/LesConversations.tsx';
 const ECRAN_ALARME = 'src/apps/trone/routes/pilotage/AlarmeWhatsApp.tsx';
 const ECRAN_REGLAGES = 'src/apps/trone/routes/systeme/Parametres.tsx';
 /* Le mot que la Maison a banni, écrit sans sa forme littérale. */
@@ -1440,9 +1447,11 @@ const regles: Regle[] = [
       const iTrace = envoi.indexOf("from('messages_wa').upsert(");
       const iPause = envoi.indexOf("await sb.rpc('pause_le_fil', {");
       vrai('whatsapp-envoi pose la main apres sa trace, sans jamais faire echouer l envoi', iTrace > 0 && iPause > iTrace && /try \{\s*const \{ error: errPause \} = await sb\.rpc\('pause_le_fil', \{[\s\S]{0,200}\} catch \(e\) \{/.test(envoi));
-      const ecran = sansCommentaires(lit(ECRAN_CONV));
-      vrai('l ecran pose la main a la premiere lettre, sur un geste, un envoi, Continuer dans WhatsApp, Reprendre la main',
-        ["prendsLaMain('frappe')", "prendsLaMain('geste')", "prendsLaMain(modele ? 'modele' : 'envoi')", "prendsLaMain('whatsapp')", "prendsLaMain('reprendre', true)"].every((x) => ecran.includes(x)));
+      const ecran = sansCommentaires(lit(ECRAN_COMPOSEUR));
+      const hote = sansCommentaires(lit(ECRAN_LES_CONVERSATIONS));
+      vrai('l ecran pose la main a la premiere lettre, sur un geste, un envoi, Continuer dans WhatsApp (l hote, par la poignee du composeur), Reprendre la main',
+        ["prendsLaMain('frappe')", "prendsLaMain('geste')", "prendsLaMain(modele ? 'modele' : 'envoi')", "prendsLaMain('reprendre', true)"].every((x) => ecran.includes(x))
+        && hote.includes("poignee.current?.prendsLaMain('whatsapp')"));
       /* EXÉCUTÉ : l'équipe écrit par whatsapp-envoi, l'automate se tait. */
       await auBanc(ecarts, async () => {
         avecTacheDeFond(true);
@@ -1471,7 +1480,7 @@ const regles: Regle[] = [
       { nom: 'une main rendue tient encore', mute: [P(AUTO, '  return !(Number.isFinite(rendue) && rendue >= pose);', '  return true;')] },
       { nom: 'avance_le_fil ecrit pendant la pause (0125)', mute: [P(M0125, '  if public.pause_du_fil_active(la_main, ici) then\n    return null;\n  end if;\n', '')] },
       { nom: 'whatsapp-envoi ne pose plus la main', mute: [P(F_ENVOI, "    const { error: errPause } = await sb.rpc('pause_le_fil', {", "    const { error: errPause } = await sb.rpc('pause_le_fil_oubliee', {")] },
-      { nom: 'l ecran ne pose plus la main a la frappe', mute: [P(ECRAN_CONV, "if (e.target.value.trim()) prendsLaMain('frappe');", 'if (e.target.value.trim()) void 0;')] },
+      { nom: 'l ecran ne pose plus la main a la frappe', mute: [P(ECRAN_COMPOSEUR, "if (e.target.value.trim()) prendsLaMain('frappe');", 'if (e.target.value.trim()) void 0;')] },
     ],
   },
 
@@ -1705,7 +1714,8 @@ const regles: Regle[] = [
       return ecarts;
     },
     pannes: [
-      { nom: 'un message de l automate repond a la place de la Maison', mute: [P(CONV, "        && ((!!x.modele && estEnvoiAutomatique(x.parQui)) || x.auto === 'automate'))) ?? dernier;", '        && ((!!x.modele && estEnvoiAutomatique(x.parQui))))) ?? dernier;')] },
+      /* Le juge compte aussi les points du chat du site (`point-avant`, `point-recu`) ; la panne retire tous les `auto` d'un coup (motif remis à jour le 27 octobre 2026). */
+      { nom: 'un message de l automate repond a la place de la Maison', mute: [P(CONV, "        && ((!!x.modele && estEnvoiAutomatique(x.parQui)) || x.auto === 'automate' || x.auto === 'point-avant' || x.auto === 'point-recu'))) ?? dernier;", '        && ((!!x.modele && estEnvoiAutomatique(x.parQui))))) ?? dernier;')] },
       { nom: 'la main passee se tait', mute: [P(AUTO, "  if (tenue !== 'tenu' && tenue !== 'fini') return false;", "  if (tenue === 'aucun') return false;")] },
       { nom: 'un mot apres la confirmation se tait', mute: [P(AUTO, '  if (Number.isFinite(elle) && Number.isFinite(traite) && elle <= traite) return true;', '  if (Number.isFinite(elle)) return true;')] },
       { nom: 'la sonnette sonne sur un fil mene', mute: [P(CONV, '    && !(ouvert && numeroWa(m.numero) === ouvert)\n    && !tenus.has(numeroWa(m.numero)));', '    && !(ouvert && numeroWa(m.numero) === ouvert));')] },
@@ -1740,7 +1750,7 @@ const regles: Regle[] = [
       vaut('aucune ligne fil- ne nait du Trone', 1, filsAutomateStore.get().filter((l) => String(l.id).startsWith('fil-')).length);
       filsAutomateStore.set([]);
       /* Les écrans n'écrivent la table que par ces deux gestes. */
-      for (const f of [ECRAN_CONV, ECRAN_ALARME, ECRAN_REGLAGES]) {
+      for (const f of [ECRAN_CONV, ECRAN_COMPOSEUR, ECRAN_ALARME, ECRAN_REGLAGES]) {
         vrai(`${f} n ecrit jamais filsAutomateStore lui-meme`, !/filsAutomateStore\.set\(/.test(sansCommentaires(lit(f))));
       }
       const reglages = sansCommentaires(lit(ECRAN_REGLAGES));
@@ -1863,7 +1873,8 @@ const regles: Regle[] = [
       { nom: 'pas de notification de repli', mute: [P(F_HOOK, '    await alerteLePersonnel(sb, repli);', '')] },
       { nom: 'l en-tete oublie que Pas de robot a change', mute: [P(F_HOOK, '   « PAS DE ROBOT » A VALU JUSQU\'À CE JOUR. Depuis, pour les CLIENTES', '   Depuis, pour les CLIENTES')] },
       { nom: 'l en-tete ne dit plus que l annulation n est jamais automatique', mute: [P(F_HOOK, "     · L'ANNULATION N'EST JAMAIS AUTOMATIQUE : elle se transmet à l'équipe ;\n", '')] },
-      { nom: 'la version du webhook n est pas celle du 9 octobre', mute: [P(F_HOOK, "const VERSION = '2026-10-13-", "const VERSION = '2026-10-08-")] },
+      /* Le webhook dit sa version du jour (2026-10-27-a, l'Assistant Maison entend) : la panne la recule avant le 9 octobre. */
+      { nom: 'la version du webhook n est pas celle du 9 octobre', mute: [P(F_HOOK, "const VERSION = '2026-10-27-", "const VERSION = '2026-10-08-")] },
     ],
   },
 
@@ -2588,7 +2599,7 @@ const regles: Regle[] = [
       vaut('le compte du plafond : les messages d avant la main rendue ne comptent plus', [3, 1],
         [envoisQuiComptent([isoDe(t1 - 3 * 3600000), isoDe(t1 - 2 * 3600000), isoDe(t1 - 3600000)], null, t1),
           envoisQuiComptent([isoDe(t1 - 3 * 3600000), isoDe(t1 - 2 * 3600000), isoDe(t1 - 3600000)], { rendueLe: isoDe(t1 - 90 * 60000) }, t1)]);
-      const conv = lit('src/apps/trone/routes/clients/Conversations.tsx');
+      const conv = lit(ECRAN_COMPOSEUR);
       const debut = conv.indexOf("if (vue.tenue === 'fini' && vue.etape === 'confirme')");
       const suite = conv.indexOf('  if (vue.tenue', debut + 20);
       const bandeau = debut < 0 ? '' : conv.slice(debut, suite > debut ? suite : debut + 2400);
@@ -2601,7 +2612,7 @@ const regles: Regle[] = [
       { nom: 'non merci oublie le mercredi', mute: [P(AUTO, '          if (desMots) retiensLesMots();\n          return dire(msgPlaces({}));', '          return dire(msgPlaces({}));')] },
       { nom: 'un fil confirme ne se rend pas', mute: [P(AUTO, "    if (Number.isFinite(rendue) && Number.isFinite(maj) && rendue >= maj) return 'repos';\n", '')] },
       { nom: 'le plafond compte les messages d avant la main rendue', mute: [P(AUTO, '    return ms - t < JOUR_WA && !(Number.isFinite(rendue) && t <= rendue);', '    return ms - t < JOUR_WA;')] },
-      { nom: 'le Trone n offre pas Rendre a l automate apres la pose', mute: [P('src/apps/trone/routes/clients/Conversations.tsx', '{/* rendre après la pose */}<Button variant="ghost" size="sm" onClick={surRendre}>Rendre à l’automate</Button>', '')] },
+      { nom: 'le Trone n offre pas Rendre a l automate apres la pose', mute: [P(ECRAN_COMPOSEUR, '{/* rendre après la pose */}<Button variant="ghost" size="sm" onClick={surRendre}>Rendre à l’automate</Button>', '')] },
     ],
   },
   /* ══ R34 · le lien Google Maps de la Maison, 13 octobre 2026 ═══════════ */
@@ -2756,7 +2767,7 @@ const regles: Regle[] = [
       vrai('la fonction : seul le personnel demande la reprise (is_staff, refus sinon)', /if \(demande\?\.reprise && service && urlBase && anon && recue\) \{[\s\S]{0,300}commeAppelant\.rpc\('is_staff'\);\s*if \(errStaff \|\| estPersonnel !== true\) return jsonCors\(\{ repris: false, erreur: 'réservé au personnel' \}, 403\);/.test(fn));
       vrai('la fonction : la fenetre de 24 heures fermee, rien ne part', fn.includes("if (!Number.isFinite(quand) || ms - quand >= JOUR_WA) return { repris: false, raison: 'fenetre' };"));
       vrai('la fonction : elle attend la main rendue par le Trone', fn.includes('if (Number.isFinite(voulue) && Number.isFinite(rendue) && rendue >= voulue) break;'));
-      vrai('le Trone demande la reprise en rendant', lit(ECRAN_CONV).includes("supabase.functions.invoke('whatsapp-automate', { body: { reprise: { numero: fil.numero, tiroir: fil.tiroir, rendueLe } } })"));
+      vrai('le Trone demande la reprise en rendant', lit(ECRAN_COMPOSEUR).includes("supabase.functions.invoke('whatsapp-automate', { body: { reprise: { numero: fil.numero, tiroir: fil.tiroir, rendueLe } } })"));
       return ecarts;
     },
     pannes: [
@@ -2764,7 +2775,7 @@ const regles: Regle[] = [
       { nom: 'la reprise passe pendant une pause', mute: [P(AUTO, '  if (!numeroServi(ctx.reglage, ctx.numero, ctx.tiroir) || pauseActive(ctx.main, ctx.maintenantMs)) return rien(ancien);', '  if (!numeroServi(ctx.reglage, ctx.numero, ctx.tiroir)) return rien(ancien);')] },
       { nom: 'n importe quel jeton demande la reprise', mute: [P(F_AUTO, "      if (errStaff || estPersonnel !== true) return jsonCors({ repris: false, erreur: 'réservé au personnel' }, 403);\n", '')] },
       { nom: 'la reprise ecrit hors de la fenetre', mute: [P(F_AUTO, "  if (!Number.isFinite(quand) || ms - quand >= JOUR_WA) return { repris: false, raison: 'fenetre' };\n", '')] },
-      { nom: 'le Trone ne demande pas la reprise', mute: [P(ECRAN_CONV, "    void supabase.functions.invoke('whatsapp-automate', { body: { reprise: { numero: fil.numero, tiroir: fil.tiroir, rendueLe } } })\n", '    void Promise.resolve({ data: {} })\n')] },
+      { nom: 'le Trone ne demande pas la reprise', mute: [P(ECRAN_COMPOSEUR, "    void supabase.functions.invoke('whatsapp-automate', { body: { reprise: { numero: fil.numero, tiroir: fil.tiroir, rendueLe } } })\n", '    void Promise.resolve({ data: {} })\n')] },
     ],
   },
   /* ══ R38 · le conseil : « Une question ? », les réponses validées, mot pour mot, 14 octobre 2026 ═══ */
@@ -2944,7 +2955,7 @@ const regles: Regle[] = [
       vrai('la direction seule voit Valider', ecran.includes("{direction && r.etat !== 'validee' && ("));
       vrai('Valider se refuse a une reponse fautive', ecran.includes('variant="copper" size="sm" disabled={fautes.length > 0}'));
       vrai('l onglet vit dans les Conversations', lf(lit(ECRAN_CONV)).includes('<ReponsesDeLaMaison'));
-      const conv = lf(lit(ECRAN_CONV));
+      const conv = lf(lit(ECRAN_COMPOSEUR));
       vrai('un fil qu il n a jamais mene dit la main de l equipe, et la rend', conv.includes('if (pauseActive(mainDuFil, Date.now())) {') && conv.includes('rendsALAutomate(fil.numero, { branchId: branch.id });'));
       vrai('un numero que l automate ne sert pas le dit, avec le reglage', conv.includes('if (!numeroServi(reglageAutomate, fil.numero, fil.tiroir)) {') && conv.includes('L’automate ne répond pas à ce numéro'));
       return ecarts;
@@ -2953,8 +2964,8 @@ const regles: Regle[] = [
       { nom: 'toucher une reponse validee la laisse validee', mute: [P('src/shared/conseil-wa.ts', "      if (!sensChange || r.etat !== 'validee') return neuve;", '      return neuve;')] },
       { nom: 'tout le personnel valide', mute: [P('src/apps/trone/routes/clients/ReponsesDeLaMaison.tsx', "{direction && r.etat !== 'validee' && (", "{r.etat !== 'validee' && (")] },
       { nom: 'une reponse fautive se valide', mute: [P('src/apps/trone/routes/clients/ReponsesDeLaMaison.tsx', 'variant="copper" size="sm" disabled={fautes.length > 0}', 'variant="copper" size="sm" disabled={false}')] },
-      { nom: 'la main de l equipe redevient invisible', mute: [P(ECRAN_CONV, 'if (pauseActive(mainDuFil, Date.now())) {', 'if (false) {')] },
-      { nom: 'un numero non servi ne se dit plus', mute: [P(ECRAN_CONV, 'if (!numeroServi(reglageAutomate, fil.numero, fil.tiroir)) {', 'if (false) {')] },
+      { nom: 'la main de l equipe redevient invisible', mute: [P(ECRAN_COMPOSEUR, 'if (pauseActive(mainDuFil, Date.now())) {', 'if (false) {')] },
+      { nom: 'un numero non servi ne se dit plus', mute: [P(ECRAN_COMPOSEUR, 'if (!numeroServi(reglageAutomate, fil.numero, fil.tiroir)) {', 'if (false) {')] },
       { nom: 'un brouillon livre deja valide', mute: [P('src/shared/conseil-wa.ts', "  id, titre, ...(description ? { description } : {}), mots, texte, etat: 'brouillon',", "  id, titre, ...(description ? { description } : {}), mots, texte, etat: 'validee',")] },
     ],
   },

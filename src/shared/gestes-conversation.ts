@@ -584,7 +584,8 @@ export function lesGestes(ctx: ContexteDesGestes): Geste[] {
   const vivant = ctx.codesVivants[0];
   g.push({
     cle: 'promo',
-    mot: 'Promo flash',
+    /* « Remise à son nom » depuis le 27 octobre 2026 (spec de l'Assistant Maison §11) : la clé `promo` reste. */
+    mot: 'Remise à son nom',
     dit: vivant ? vivant.code : undefined,
     attend: vivant ? 'déjà envoyé' : undefined,
     eteint: barre(!tete ? 'Un code appartient à une tête : rattachez d’abord ce fil à une fiche.' : null),

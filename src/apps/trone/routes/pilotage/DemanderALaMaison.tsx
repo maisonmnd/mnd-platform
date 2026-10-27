@@ -79,11 +79,14 @@ export function DemanderALaMaison({ prevision, jour }: { prevision: DonneesDeLaP
     setQuestion('');
   };
 
+  /* « Demander aux chiffres » depuis le 27 octobre 2026 (spec de l'Assistant
+     Maison, §11) : l'assistant ne répond qu'avec les sommes du Trône, le nom
+     le dit. Le composant et le fichier gardent leur nom. */
   return (
-    <section className="trp-demander" aria-label="Demander à la Maison">
+    <section className="trp-demander" aria-label="Demander aux chiffres">
       <form className="trp-demander__champ" onSubmit={(e) => { e.preventDefault(); void demander(); }}>
-        <label htmlFor="trp-demander" className="trp-demander__masque">Demander à la Maison</label>
-        <input id="trp-demander" value={question} onChange={(e) => setQuestion(e.target.value)} placeholder="Demander à la Maison… « pourquoi novembre s’annonce plus calme ? »" disabled={enCours} />
+        <label htmlFor="trp-demander" className="trp-demander__masque">Demander aux chiffres</label>
+        <input id="trp-demander" value={question} onChange={(e) => setQuestion(e.target.value)} placeholder="Demander aux chiffres… « pourquoi novembre s’annonce plus calme ? »" disabled={enCours} />
         <button type="submit" disabled={enCours || !question.trim()}>{enCours ? 'L’assistant lit…' : 'Demander'}</button>
       </form>
       {refus && <p className="trp-prev__note">{refus}</p>}

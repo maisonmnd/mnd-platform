@@ -10,6 +10,7 @@ import { fmtMoney } from '../../../../shared/currency';
 import { cheminDeLaConversation, numeroWa } from '../../../../shared/conversations';
 import { appelDe } from '../../../../shared/civilite';
 import { KKIAPAY_CASHBOX } from '../../../../shared/kkiapay';
+import { jourACotonou } from '../../../../shared/dernier-message-pur';
 import {
   useCartesCadeaux, etatDeLaCarte, ETAT_DIT, objetDeLaCarte, messageDeLaCarte, montantTape, nouvelIdDeCarte,
   type CarteCadeau, type EtatDeCarte,
@@ -32,7 +33,47 @@ import './vente.css';
 const jour = (iso?: string): string =>
   iso ? new Date(iso.length > 10 ? iso : `${iso}T12:00:00Z`).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' }) : '';
 
-const A_TRAITER: readonly EtatDeCarte[] = ['a-regler', 'a-envoyer', 'a-remettre', 'echue'];
+export const A_TRAITER: readonly EtatDeCarte[] = ['a-regler', 'a-envoyer', 'a-remettre', 'echue'];
+/** CE QUE LA MAISON DOIT ENCORE EN SOINS : les cartes réglées que personne
+    n'est encore venu dépenser. Une carte rattachée vit dans l'avoir de sa
+    fiche, avec le reste de son compte. */
+export const ENCORE_DUES: readonly EtatDeCarte[] = ['a-envoyer', 'a-remettre', 'attend-sa-visite'];
+
+/* ── LES COMPTEURS, EXPORTÉS (27 octobre 2026, lot 3 de l'Assistant Maison) ──
+   La vue « Offres et remises » lit les mêmes chiffres que cet écran : les
+   états, ce qui est encore dû en soins, les cartes vendues. Un seul calcul,
+   deux endroits qui le montrent. */
+export type CompteDesCartes = {
+  aRegler: number;
+  aEnvoyerOuRemettre: number;
+  attendentLeurVisite: number;
+  surSaFiche: number;
+  echues: number;
+  /** Les cartes réglées (réglées en ligne, au comptoir, ou déjà rattachées), hors annulées. */
+  vendues: number;
+  /** Celles réglées dans le mois de `aujourdhui`, à l'heure de Cotonou. */
+  venduesCeMois: number;
+  encoreDuXof: number;
+};
+
+export function compteDesCartes(siennes: readonly CarteCadeau[], aujourdhui: string): CompteDesCartes {
+  const mois = jourACotonou(aujourdhui).slice(0, 7);
+  const c: CompteDesCartes = { aRegler: 0, aEnvoyerOuRemettre: 0, attendentLeurVisite: 0, surSaFiche: 0, echues: 0, vendues: 0, venduesCeMois: 0, encoreDuXof: 0 };
+  for (const carte of siennes) {
+    const e = etatDeLaCarte(carte, aujourdhui);
+    if (e === 'a-regler') c.aRegler += 1;
+    else if (e === 'a-envoyer' || e === 'a-remettre') c.aEnvoyerOuRemettre += 1;
+    else if (e === 'attend-sa-visite') c.attendentLeurVisite += 1;
+    else if (e === 'sur-sa-fiche') c.surSaFiche += 1;
+    else if (e === 'echue') c.echues += 1;
+    if (e !== 'a-regler' && e !== 'annulee') {
+      c.vendues += 1;
+      if (carte.payeLe && jourACotonou(carte.payeLe).slice(0, 7) === mois) c.venduesCeMois += 1;
+    }
+    if (ENCORE_DUES.includes(e)) c.encoreDuXof += carte.montantXof ?? 0;
+  }
+  return c;
+}
 
 type Encaisser = { carte: CarteCadeau; neuve: boolean; montant: string; cashbox: string; methode: string };
 
@@ -56,12 +97,9 @@ export default function CartesCadeaux() {
   );
   const etat = (c: CarteCadeau) => etatDeLaCarte(c, aujourdhui);
   const compte = (e: EtatDeCarte[]) => siennes.filter((c) => e.includes(etat(c))).length;
-  /* CE QUE LA MAISON DOIT ENCORE EN SOINS : les cartes réglées que personne
-     n'est encore venu dépenser. Une carte rattachée vit dans l'avoir de sa
-     fiche, avec le reste de son compte. */
-  const encoreDu = siennes
-    .filter((c) => ['a-envoyer', 'a-remettre', 'attend-sa-visite'].includes(etat(c)))
-    .reduce((s, c) => s + (c.montantXof ?? 0), 0);
+  /* Ce que la Maison doit encore en soins : le même compte que la vue
+     « Offres et remises » de l'Assistant (`compteDesCartes`). */
+  const encoreDu = compteDesCartes(siennes, aujourdhui).encoreDuXof;
   const liste = vue === 'traiter' ? siennes.filter((c) => A_TRAITER.includes(etat(c))) : siennes.filter((c) => etat(c) !== 'annulee');
 
   const boxes = cashboxes.filter((b) => b.branchId === branch.id);

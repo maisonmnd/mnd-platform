@@ -51,23 +51,27 @@ const source = (rel: string): string => readFileSync(rel, 'utf8')
   .replace(/\{\s*\}/g, '{}');
 
 const conversations = source('src/apps/trone/routes/clients/Conversations.tsx');
+/* Le composeur du fil (la retenue, le départ, l'envoi en fermant) a quitté
+   Conversations.tsx pour ComposeurWhatsApp.tsx le 27 octobre 2026 (lot 3,
+   Assistant Maison) : n7, n8 et n9 (écran) le lisent là, mêmes motifs. */
+const composeur = source('src/apps/trone/routes/clients/ComposeurWhatsApp.tsx');
 const alarme = source('src/apps/trone/routes/pilotage/AlarmeWhatsApp.tsx');
 const gestes = source('src/apps/trone/routes/clients/_gestes.tsx');
 
 /* ── n7 · L'ÉCRAN QU'ON QUITTE NE MANGE PAS LE MESSAGE ─────────────────
    Un effet dont le NETTOYAGE (le démontage) fait partir l'attente en cours. */
 dit('n7 le demontage fait partir le message retenu', true,
-  new RegExp(String.raw`useEffect\(\(\) => \(\) => \{\s*const a = attenteEnCours\.current;\s*if \(a\) partirUneFoisRef\.current\(a\);\s*\}, \[\]\);`).test(conversations));
+  new RegExp(String.raw`useEffect\(\(\) => \(\) => \{\s*const a = attenteEnCours\.current;\s*if \(a\) partirUneFoisRef\.current\(a\);\s*\}, \[\]\);`).test(composeur));
 dit('n7 ... par la reference du dernier rendu, pas la copie du premier', true,
-  new RegExp(String.raw`partirUneFoisRef\.current = partirUneFois;`).test(conversations));
+  new RegExp(String.raw`partirUneFoisRef\.current = partirUneFois;`).test(composeur));
 
 /* ── n8 · UN MESSAGE RETENU NE PART QU'UNE FOIS ───────────────────────── */
 dit('n8 le message suivant vide l attente avant de la faire partir', true,
-  new RegExp(String.raw`if \(enAttente\) \{ const a = enAttente; setEnAttente\(null\); partirUneFois\(a\); \}`).test(conversations));
+  new RegExp(String.raw`if \(enAttente\) \{ const a = enAttente; setEnAttente\(null\); partirUneFois\(a\); \}`).test(composeur));
 dit('n8 ... et plus aucun partir(enAttente) nu', [],
-  conversations.match(new RegExp(String.raw`void partir\(enAttente\)`, 'g')) ?? []);
+  [...(conversations.match(new RegExp(String.raw`void partir\(enAttente\)`, 'g')) ?? []), ...(composeur.match(new RegExp(String.raw`void partir\(enAttente\)`, 'g')) ?? [])]);
 dit('n8 une attente partie ne repart plus', true,
-  new RegExp(String.raw`if \(dejaPartis\.current\.has\(a\)\) return;\s*dejaPartis\.current\.add\(a\);\s*void partir\(a, enFermant\);`).test(conversations));
+  new RegExp(String.raw`if \(dejaPartis\.current\.has\(a\)\) return;\s*dejaPartis\.current\.add\(a\);\s*void partir\(a, enFermant\);`).test(composeur));
 
 /* ── n9 · EN FERMANT, UNE PIÈCE TROP LOURDE SE GARDE ───────────────────── */
 const petit = JSON.stringify({ numero: '2290197000088', texte: 'Bonjour' });
@@ -76,7 +80,7 @@ const accents = JSON.stringify({ texte: 'é'.repeat(31_000) });
 dit('n9 un texte court part par keepalive', true, partEnFermant(petit));
 dit('n9 une photo de 50 Ko en base64 ne part pas par keepalive', false, partEnFermant(photo));
 dit('n9 la borne se compte en octets (31 000 accents = 62 000 octets)', false, partEnFermant(accents));
-const fermant = conversations.slice(conversations.indexOf('if (enFermant) {'), conversations.indexOf('keepalive: true'));
+const fermant = composeur.slice(composeur.indexOf('if (enFermant) {'), composeur.indexOf('keepalive: true'));
 dit('n9 la borne de taille garde l appel AVANT le keepalive', true,
   new RegExp(String.raw`if \(!partEnFermant\(JSON\.stringify\(corps\)\)\) \{ gardeUnAppel\('whatsapp-envoi', corps,`).test(fermant));
 

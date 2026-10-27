@@ -1611,21 +1611,24 @@ export default function Caisse() {
                 <span style={{ fontFamily: 'var(--font-sans)', fontSize: 11, color: 'var(--ink-soft)' }}>{currency}</span>
               </div>
 
-              {/* ── LE CODE DE PROMOTION ──────────────────────────────────
+              {/* ── LA REMISE À SON NOM (son code) ────────────────────────
+                  Dit « Code de promotion » jusqu'au 27 octobre 2026 ; la spec
+                  de l'Assistant Maison (§5.4, §8) nomme ce qui baisse un prix :
+                  le champ garde sa mécanique, il reçoit aussi un code d'offre.
                   Un code par cliente, à usage unique, valable 48 heures. Le
                   REFUS DIT POURQUOI : « déjà utilisé mardi à 11 h », « ce code
                   appartient à une autre cliente », « expiré dimanche à 14 h ».
                   Un refus muet fait accuser la caisse devant tout le monde. */}
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '16px 0', borderBottom: '1px solid var(--hairline)', flexWrap: 'wrap' }}>
                 <span style={{ fontFamily: 'var(--font-sans)', fontSize: 9.5, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--ink-soft)', maxWidth: 84, lineHeight: 1.3 }}>
-                  Code de promotion
+                  Remise à son nom
                 </span>
                 <input
                   className="mnd-input"
                   value={codeTape}
                   onChange={(e) => setCodeTape(e.target.value.toUpperCase().slice(0, 40))}
                   style={{ width: 180, letterSpacing: '.06em' }}
-                  aria-label="Code de promotion de la cliente"
+                  aria-label="Remise à son nom · le code de la cliente"
                 />
                 {promoXof > 0 && (
                   <span style={{ fontFamily: 'var(--font-sans)', fontSize: 12, color: '#41604A', fontWeight: 600 }}>

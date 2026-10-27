@@ -1,0 +1,291 @@
+/* L'ASSISTANT MAISON, CINQ VUES · 27 octobre 2026, lot 3.
+   Maquette validée `public/maquette-assistant-maison.html` (v5 : moins de
+   texte, plus de couleur ; cinq teintes et pas une de plus : indigo pour la
+   Maison et Ma Couronne, cuivre pour l'accent, Meta et ce qui attend son oui,
+   vert d'eau pour ce qui est gratuit ou utile, terre pour Santé et l'alarme,
+   or pour les francs). Ici les classes `trc-am__*` : la barre des vues, les
+   tuiles, les avatars à initiales, les puces, la ligne résumé, les cartes,
+   les replis. `gerard.css` garde le plan (`trc-ger__*`). Jamais d'obsidienne ;
+   rien ne déborde à 390 px. */
+.trc-am {
+  --am-terre: var(--alarme, #A3402B);
+  --am-or: #C9A227;
+  --am-or-fonce: #7A5F0E;
+  --am-vert: #0A9483;
+  --am-vert-fonce: #086B5F;
+  --am-indigo-pale: var(--indigo-50, #EDEEF4);
+  --am-cuivre-pale: var(--copper-50, #FAF1E9);
+  --am-terre-pale: color-mix(in srgb, var(--am-terre) 12%, var(--surface-card));
+  --am-or-pale: color-mix(in srgb, var(--am-or) 16%, var(--surface-card));
+  --am-vert-pale: color-mix(in srgb, var(--am-vert) 13%, var(--surface-card));
+}
+.trc-am__alarme { color: var(--am-terre); font-style: normal; }
+
+/* ── La barre des cinq vues, collante dans le défilement de l'écran ── */
+.trc-am__vues {
+  position: sticky; top: 0; z-index: 4;
+  display: flex; gap: 4px; align-items: stretch;
+  margin: -6px 0 0; padding: 6px 0 0;
+  background: var(--color-ivoire, var(--paper));
+  border-bottom: 1px solid var(--hairline);
+  overflow-x: auto; scrollbar-width: none;
+}
+.trc-am__vues::-webkit-scrollbar { display: none; }
+.trc-am__vues button {
+  all: unset; box-sizing: border-box; cursor: pointer; white-space: nowrap;
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 10px 12px 11px; margin-bottom: -1px;
+  border-bottom: 3px solid transparent;
+  font-size: 13px; font-weight: 500; color: var(--ink-soft);
+}
+.trc-am__vues button.est-choisi { color: var(--color-indigo); border-bottom-color: var(--color-copper); }
+.trc-am__vues button:focus-visible { outline: 2px solid var(--color-copper); outline-offset: -2px; }
+.trc-am__n {
+  display: inline-grid; place-items: center; min-width: 22px; height: 22px; padding: 0 7px;
+  border-radius: 999px; background: var(--am-indigo-pale); color: var(--color-indigo);
+  font-size: 11.5px; font-weight: 600; font-variant-numeric: tabular-nums;
+}
+.trc-am__n--cuivre { background: var(--am-cuivre-pale); color: var(--copper-700); }
+.trc-am__n--terre { background: var(--am-terre-pale); color: var(--am-terre); }
+.trc-am__n--or { background: var(--am-or-pale); color: var(--am-or-fonce); }
+.trc-am__vue { display: flex; flex-direction: column; gap: 20px; min-width: 0; }
+
+/* ── Les tuiles : une couleur = un sens ── */
+.trc-am__tuiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+.trc-am__tuile {
+  --c: var(--color-indigo); --c-pale: var(--am-indigo-pale);
+  position: relative; min-width: 0; display: flex; flex-direction: column; gap: 2px;
+  padding: 14px 16px 12px 18px; border: 1px solid var(--hairline); border-radius: 3px;
+  background: color-mix(in srgb, var(--c-pale) 35%, var(--surface-card));
+}
+.trc-am__tuile::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: var(--c); border-radius: 3px 0 0 3px; }
+.trc-am__tuile b { font-family: var(--font-serif); font-weight: 400; font-size: 34px; line-height: 1; color: var(--color-indigo); white-space: nowrap; font-variant-numeric: lining-nums tabular-nums; }
+.trc-am__tuile b small { font-size: 16px; color: var(--ink-soft); }
+.trc-am__tuile span { font-size: 12.5px; color: var(--ink-soft); line-height: 1.3; }
+.trc-am__tuile--cuivre { --c: var(--color-copper); --c-pale: var(--am-cuivre-pale); }
+.trc-am__tuile--cuivre b { color: var(--copper-700); }
+.trc-am__tuile--terre { --c: var(--am-terre); --c-pale: var(--am-terre-pale); }
+.trc-am__tuile--terre.est-alarme b { color: var(--am-terre); }
+.trc-am__tuile--or { --c: var(--am-or); --c-pale: var(--am-or-pale); }
+.trc-am__tuile--or b { color: var(--am-or-fonce); }
+.trc-am__tuile--vert { --c: var(--am-vert); --c-pale: var(--am-vert-pale); }
+.trc-am__tuile--vert b { color: var(--am-vert-fonce); }
+.trc-am__barre { height: 5px; border-radius: 99px; background: var(--hairline); margin-top: 8px; overflow: hidden; }
+.trc-am__barre i { display: block; height: 100%; background: var(--c); border-radius: 99px; max-width: 100%; }
+
+/* ── La ligne d'état et la ligne résumé ── */
+.trc-am__portee { flex: 1 1 100%; color: var(--ink-soft); }
+.trc-am__portee b { color: var(--color-indigo); }
+.trc-am__resume { font-size: 12.5px; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+.trc-am__resume b { color: var(--color-indigo); font-weight: 600; }
+
+/* ── Avatars à initiales, puces ── */
+.trc-am__avatar {
+  display: inline-grid; place-items: center; width: 34px; height: 34px; border-radius: 50%; flex: none;
+  background: var(--am-indigo-pale); color: var(--color-indigo);
+  font-size: 12px; font-weight: 600; letter-spacing: .04em; font-family: var(--font-sans);
+}
+.trc-am__avatar--cuivre { background: var(--am-cuivre-pale); color: var(--copper-700); }
+.trc-am__avatar--terre { background: var(--am-terre-pale); color: var(--am-terre); }
+.trc-am__avatar--indigo { background: var(--am-indigo-pale); color: var(--color-indigo); }
+.trc-am__puce {
+  display: inline-flex; align-items: center; gap: 5px; padding: 2px 9px; border-radius: 999px; white-space: nowrap; vertical-align: middle;
+  font-size: 11px; font-weight: 500; font-style: normal; letter-spacing: .04em;
+  background: var(--am-indigo-pale); color: var(--color-indigo);
+}
+.trc-am__puce--cuivre { background: var(--am-cuivre-pale); color: var(--copper-700); }
+.trc-am__puce--terre { background: var(--am-terre-pale); color: var(--am-terre); }
+.trc-am__puce--indigo { background: var(--am-indigo-pale); color: var(--color-indigo); }
+
+/* ── La ligne du plan : avatar, qui, situation, canal, francs et départ ── */
+.trc-ger__ligne.trc-am__ligne {
+  grid-template-columns: 34px minmax(0, 1.2fr) minmax(0, 1.3fr) minmax(0, 1fr) auto;
+  align-items: center; gap: 4px 12px;
+}
+.trc-am__droite { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; white-space: nowrap; }
+.trc-am__droite b { font-family: var(--font-serif); font-weight: 400; font-size: 19px; line-height: 1; color: var(--color-indigo); }
+.trc-am__droite small { font-size: 11.5px; color: var(--ink-soft); }
+@media (max-width: 720px) {
+  .trc-ger__ligne.trc-am__ligne { grid-template-columns: 34px minmax(0, 1fr); }
+  .trc-ger__ligne.trc-am__ligne > .trc-ger__genre, .trc-ger__ligne.trc-am__ligne > .trc-ger__canal { grid-column: 2; }
+  .trc-am__droite { grid-column: 2; flex-direction: row; align-items: baseline; gap: 10px; white-space: normal; }
+}
+
+/* ── Le panneau : les gestes, le pourquoi en puces ── */
+.trc-am__gestes { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.trc-am__btn--calme { border-style: dashed; color: var(--ink-soft); }
+.trc-ger__btn:disabled { cursor: not-allowed; opacity: .6; }
+.trc-ger__btn--alarme { background: var(--am-terre); border-color: var(--am-terre); color: #fff; }
+.trc-am__sous { margin: 0; font-size: 13px; font-weight: 600; color: var(--color-indigo); display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+.trc-am__sous span { font-weight: 500; font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-soft); }
+.trc-am__puces { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; font-size: 13px; }
+.trc-am__puces li { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; padding-left: 14px; position: relative; min-width: 0; }
+.trc-am__puces li::before { content: ""; position: absolute; left: 0; top: .55em; width: 6px; height: 6px; border-radius: 50%; background: var(--color-copper); }
+.trc-am__cle { color: var(--ink-soft); }
+.trc-am__puces li > span:last-child { color: var(--ink); overflow-wrap: anywhere; }
+
+/* ── Attend un oui : des cartes ── */
+.trc-am__deux { align-items: stretch; }
+.trc-am__cartes { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; }
+.trc-am__carte {
+  --c: var(--color-indigo); --c-pale: var(--am-indigo-pale);
+  display: flex; flex-direction: column; gap: 6px; min-width: 0;
+  padding: 14px 16px; border: 1px solid var(--hairline); border-left: 3px solid var(--c); border-radius: 3px;
+  background: color-mix(in srgb, var(--c-pale) 30%, var(--surface-card));
+}
+.trc-am__carte--cuivre { --c: var(--color-copper); --c-pale: var(--am-cuivre-pale); }
+.trc-am__carte--or { --c: var(--am-or); --c-pale: var(--am-or-pale); }
+.trc-am__carte > b { font-family: var(--font-serif); font-weight: 400; font-size: 24px; line-height: 1.1; color: var(--color-indigo); overflow-wrap: anywhere; }
+.trc-am__carte p { margin: 0; font-size: 13px; color: var(--ink); }
+.trc-am__sur { font-size: 10.5px; letter-spacing: .14em; text-transform: uppercase; font-weight: 600; color: var(--copper-700); }
+
+/* ── Attend un humain : une ligne par personne ── */
+.trc-am__attente { display: grid; grid-template-columns: 34px minmax(0, 1fr) auto; gap: 4px 12px; align-items: center; padding: 10px 0; }
+.trc-am__attente.est-en-retard .trc-am__qui > span { color: var(--am-terre); }
+.trc-am__qui { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.trc-am__qui b { font-weight: 500; color: var(--color-indigo); display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.trc-am__qui > span { font-size: 12.5px; color: var(--ink-soft); overflow-wrap: anywhere; }
+@media (max-width: 560px) {
+  .trc-am__attente { grid-template-columns: 34px minmax(0, 1fr); }
+  .trc-am__attente > .trc-am__gestes { grid-column: 2; }
+}
+
+/* ── Les replis : un résumé chiffré sur la ligne, le détail dessous ── */
+.trc-am__repli > summary { list-style: none; cursor: pointer; display: flex; justify-content: space-between; align-items: baseline; gap: 8px 16px; flex-wrap: wrap; }
+.trc-am__repli > summary::-webkit-details-marker { display: none; }
+.trc-am__repli > summary::before { content: "›"; display: inline-block; width: 14px; color: var(--copper-700); font-size: 18px; line-height: 1; transition: transform .15s; margin-right: 2px; }
+.trc-am__repli[open] > summary::before { transform: rotate(90deg); }
+.trc-am__repli > summary h3 { flex: 1 1 auto; }
+.trc-am__repli > summary:focus-visible { outline: 2px solid var(--color-copper); outline-offset: 2px; border-radius: 3px; }
+.trc-am__noms { color: var(--ink-soft); font-size: 12.5px; overflow-wrap: anywhere; }
+/* Un repli qui héberge une carte entière (Entre deux séances) : la carte du dedans perd son cadre, pas de carte dans la carte. */
+.trc-am__repli--hote > .trc-ger__carte { border: 0; padding: 0; background: transparent; }
+
+/* ── Les conversations : les filtres de la boîte unique ──
+   Quatre onglets ; en classe et non en style inline, parce qu'un `flexWrap`
+   inline est inatteignable par la feuille du téléphone. */
+.trc-am__filtres { flex-wrap: wrap; }
+/* Le corps d'une boîte ouverte : le fil, sa fiche et ses gestes, le souci, le composeur. */
+.trc-am__corps { display: flex; flex-direction: column; gap: 12px; padding: 4px 0 18px; min-width: 0; }
+.trc-am__corps > .trc-bulles { min-height: 0; }
+/* Les trois tuiles repliées au téléphone : le résumé chiffré sur la ligne, les tuiles dessous à la demande. */
+.trc-am__chiffres > summary { padding: 8px 0; }
+.trc-am__chiffres > .trc-am__tuiles { margin: 8px 0 4px; }
+
+/* ── Le téléphone : la liste commence dans l'écran (27 octobre 2026, banc du téléphone) ──
+   Jusqu'à 900 px (téléphone debout 390, couché 844, tablette debout 820) les
+   filtres tiennent sur une ligne qui glisse, et sous 640 px le sous-titre de
+   la liste s'efface : la première boîte naissait à 911 px d'un écran de 844. */
+@media (max-width: 900px) {
+  .trc-am__filtres { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+  .trc-am__filtres::-webkit-scrollbar { display: none; }
+  .trc-am__filtres .trc-tab { flex: none; white-space: nowrap; }
+}
+@media (max-width: 640px) {
+  .trc-am__boites > .trc-ger__haut h3 span { display: none; }
+}
+
+/* ── Le téléphone : la boîte ouverte couvre l'écran (27 octobre 2026, banc du téléphone) ──
+   Jusqu'à 900 px, la rangée ouverte sort de la liste et prend tout l'écran,
+   comme le fil des Conversations d'avant depuis le 2 octobre 2026 : la tête
+   en haut (retour, avatar, nom), les bulles qui défilent seules, sa fiche et
+   ses gestes repliés, la saisie sous le pouce avec « Envoyer » dedans. La
+   hauteur est celle que le clavier laisse (`--vv-h`, `--vv-top`, posées par
+   la vue). Au-dessus de la barre de l'équipe et de la barre des vues (4),
+   sous les fenêtres du Trône (1000 et plus) ; les fenêtres propres à cet
+   écran (`trc-modal-fond`, 60) montent à 140 pour passer devant.
+   Compte à 390 px de haut (couché) : tête 47, repli 37, saisie 183 ; il
+   reste 123 px aux bulles. Debout (844) : il leur en reste plus de 500. */
+@media (max-width: 900px) {
+  .trc-am__plein {
+    position: fixed; left: 0; right: 0; top: var(--vv-top, 0px);
+    height: var(--vv-h, 100dvh); z-index: 130; box-sizing: border-box;
+    display: flex; flex-direction: column; min-height: 0; overflow: hidden;
+    border-top: 0; background: var(--surface-card);
+    padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  .trc-am__tete { flex: none; display: flex; align-items: center; gap: 4px; padding: 4px 10px 4px 6px; border-bottom: 1px solid var(--hairline); }
+  .trc-am__retour {
+    all: unset; box-sizing: border-box; cursor: pointer; flex: none;
+    width: 38px; height: 38px; display: grid; place-items: center;
+    border: 1px solid var(--hairline); border-radius: 999px; color: var(--color-indigo); font-size: 18px; line-height: 1;
+  }
+  .trc-am__retour:focus-visible { outline: 2px solid var(--color-copper); outline-offset: 2px; }
+  .trc-am__tete > .trc-ger__ligne.trc-am__attente { flex: 1 1 auto; min-width: 0; padding: 6px 0; grid-template-columns: 34px minmax(0, 1fr); gap: 2px 10px; }
+  .trc-am__tete .trc-am__attente > .trc-am__gestes { display: none; }
+  .trc-am__tete .trc-am__qui > span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .trc-am__plein > .trc-am__corps { flex: 1 1 auto; min-height: 0; gap: 0; padding: 0; }
+  .trc-am__plein .trc-am__corps > .trc-bulles { flex: 1 1 auto; min-height: 0; max-height: none; overflow-y: auto; overscroll-behavior: contain; padding: 12px; }
+  .trc-am__fiche { flex: none; min-height: 0; border-top: 1px solid var(--hairline); padding: 0 12px; }
+  .trc-am__fiche > summary { padding: 9px 0; }
+  .trc-am__fiche > summary h4 { flex: 1 1 auto; }
+  .trc-am__fiche[open] { max-height: calc(var(--vv-h, 100dvh) * .45); overflow-y: auto; }
+  .trc-am__fiche-corps { display: flex; flex-direction: column; gap: 12px; padding: 2px 0 12px; }
+  .trc-am__souci { flex: none; max-height: calc(var(--vv-h, 100dvh) * .45); overflow-y: auto; border-top: 1px solid var(--hairline); padding: 0 12px; }
+  .trc-am__plein .trc-convs__fil {
+    flex: 0 1 auto; min-height: 0; max-height: calc(var(--vv-h, 100dvh) * .58);
+    display: flex; flex-direction: column; border: 0; border-top: 1px solid var(--hairline); border-radius: 0;
+  }
+  .trc-am__plein .trc-convs__fil > .trc-saisie { flex: 1 1 auto; min-height: 0; max-height: none; overflow-y: auto; border-top: 0; }
+  .trc-am__plein > .trc-am__corps > form.trc-saisie { flex: none; max-height: calc(var(--vv-h, 100dvh) * .5); overflow-y: auto; }
+  /* « ENVOYER » TOUJOURS SOUS LE POUCE (27 octobre 2026, banc du téléphone) :
+     la note de l'automate, la fenêtre de 24 h et les dix gestes passaient
+     avant la zone d'écriture, et la saisie, bornée, cachait « Envoyer » sous
+     son bord (18 px debout, 91 px couché). La rangée d'envoi se colle au bas
+     de la saisie ; les gestes tiennent sur une ligne qui glisse ; la phrase
+     d'explication de la fenêtre, la note de la devise et le second « Lien de
+     réservation » (déjà dans la rangée des gestes) s'effacent au téléphone. */
+  .trc-am__plein .trc-saisie .trc-saisie__envoi {
+    position: sticky; bottom: 0; z-index: 1; margin-top: 8px !important;
+    padding: 8px 0 6px; background: var(--surface-card); box-shadow: 0 -1px 0 var(--hairline);
+  }
+  .trc-am__plein .trc-saisie .trc-saisie__note,
+  .trc-am__plein .trc-saisie .trc-saisie__lien,
+  .trc-am__plein .trc-saisie .trc-saisie__q > .trc-sub { display: none; }
+  .trc-am__plein .trc-saisie .trc-gestes-rangee { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+  .trc-am__plein .trc-saisie .trc-gestes-rangee > * { flex: none; }
+  .trc-am__plein .trc-saisie .trc-automate { padding-block: 6px; font-size: 12.5px; }
+  /* La saisie ne rétrécit pas : elle prend sa hauteur (bornée plus haut) et
+     les bulles, qui défilent seules, prennent ce qui reste. Sans cela les
+     deux rétrécissaient ensemble et la saisie tombait à 35 px couché. */
+  .trc-am__plein .trc-am__corps > .trc-bulles { flex: 1 1 0; }
+  .trc-am__plein .trc-convs__fil { flex: none; }
+  .trc-am .trc-modal-fond { z-index: 140; }
+}
+/* Téléphone couché (390 px de haut) : la saisie n'a que ~120 px. La note de
+   l'automate qui ne fait que DIRE (« il ne répond pas à ce numéro… », sans
+   bouton) cède sa place à la zone d'écriture ; celle qui porte un geste
+   (« Rendre à l'automate », « Reprendre la main ») reste. */
+@media (max-width: 900px) and (max-height: 520px) {
+  .trc-am__plein .trc-saisie .trc-automate:not(:has(button)) { display: none; }
+}
+
+/* ── Le téléphone couché (390 px de haut) : l'en-tête se resserre ──
+   La barre du Trône prend déjà 85 px ; l'en-tête de la page (titre et ses
+   cinq chiffres), la barre des vues et les espaces laissaient la première
+   boîte de la liste hors de l'écran. Ici les cinq chiffres s'effacent (ils
+   vivent dans les tuiles d'Aujourd'hui), le titre se fait petit, les espaces
+   se serrent et la liste des boîtes passe avant le repli des chiffres.
+   Compte : 85 + 20 + 23 + 10 + 33 + 10 = 181, puis 12 + 26 + 10 + 33 + 10 =
+   91 ; la première boîte commence vers 272 px et finit vers 331 pour 390. */
+@media (max-width: 900px) and (max-height: 520px) {
+  .trc-ger.trc-am { gap: 10px; }
+  .trc-am > .tr-page-head { margin-bottom: 0; }
+  .trc-am > .tr-page-head .mnd-eyebrow { display: none; }
+  .trc-am > .tr-page-head h2 { font-size: 22px; margin-top: 0; }
+  .trc-am > .tr-page-head .tr-page-head__actions { display: none; }
+  .trc-am__vues button { padding: 6px 10px 7px; }
+  .trc-am__vue { gap: 10px; }
+  .trc-am__boites { order: -1; padding-top: 12px; }
+  .trc-am__boites > .trc-ger__haut h3 span { display: none; }
+  .trc-am__filtres .trc-tab { padding: 8px 14px; }
+}
+
+/* ── Une vue en construction ── */
+.trc-am__chantier { border-style: dashed; }
+
+@media (max-width: 640px) {
+  .trc-am__tuile b { white-space: normal; font-size: 28px; }
+  .trc-am__tuiles > .trc-am__tuile:nth-child(odd):last-child { grid-column: 1 / -1; }
+  .trc-am__vues button { padding: 9px 10px 10px; font-size: 12.5px; }
+}

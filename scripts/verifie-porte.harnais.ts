@@ -165,6 +165,13 @@ dit('… et chaque écran né après est bien dans la barre', [],
   ECRANS_NES_APRES_LES_DEPARTEMENTS.filter((p) => !NAV.some((g) => g.items.some((it) => it.path === p))));
 dit('… et aucun ancien domaine ne cite un écran disparu', true,
   Object.values(ANCIENS_DOMAINES).flat().every((p) => NAV.some((g) => g.items.some((it) => it.path === p))));
+/* 27 octobre 2026 (lot 3 de l'Assistant Maison) : l'Audience quitte le
+   Marketing pour un onglet des Clientes. Née après la photographie, elle se
+   nomme parmi les écrans nés après et s'ouvre par la Clientèle seule. */
+dit('l’Audience, née le 27 octobre 2026, est nommée parmi les écrans nés après et vit en Clientèle, hors barre (onglet des Clientes)', [true, 'Clientèle', true],
+  [ECRANS_NES_APRES_LES_DEPARTEMENTS.includes('/audience'),
+    NAV.find((g) => g.items.some((it) => it.path === '/audience'))?.group,
+    NAV.flatMap((g) => g.items).find((it) => it.path === '/audience')?.horsMenu === true]);
 
 /* ── ⑦ ON NE RENVOIE QUE VERS UNE PORTE OUVERTE ────────────────────
    LE PIÈGE ÉTAIT UNE BOUCLE : le Shell renvoyait vers l'accueil du rôle, soit

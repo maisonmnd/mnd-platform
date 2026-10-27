@@ -17,6 +17,8 @@
 import { apparie, texteDeGoogle, type AvisDeGoogle } from './avis-google-pont-pur';
 import { estSansReponse, idDeLAvis, verrouTenu, type BrouillonDAvis, type BrouillonsDAvis } from './ia-avis-pur';
 import type { AvisDuReleve } from './avis-fiches-pur';
+import { NOTE_A_RECONQUERIR } from './avis-fiches-pur';
+import { moisACotonou } from './ia-budget-pur';
 
 /** Un avis de la rubrique : ce que lisent la fiche et la réponse, plus sa clé,
     son nom chez Google et sa réponse publiée. */
@@ -131,3 +133,87 @@ export function anciensAApreter(
     seuls (synchronisés partout), sans lire les 299 avis à chaque écran. */
 export const reponsesARelire = (brouillons: BrouillonsDAvis): number =>
   Object.values(brouillons).filter((b) => !!b?.reponse && !b.publieeLe && !b.ecarte).length;
+
+/* ══ LA VUE « LES AVIS » DE L'ASSISTANT MAISON, SES CHIFFRES, 26 octobre 2026 ══
+   Lot 3 (spec §5.3) : « reçus sans réponse n · prêtes à relire n · publiées
+   ce mois n · note Google et note des 10 derniers », la liste « sans réponse
+   d'abord, 1 à 3 étoiles en tête », l'âge en un mot sur la ligne. Les deux
+   premiers chiffres viennent de `comptesDeLaRubrique` ; voici les autres.
+   Le mois se lit à l'heure de Cotonou (`moisACotonou`), jamais en UTC. */
+
+/** Les réponses publiées dans un mois (« AAAA-MM », à l'heure de Cotonou) :
+    la date de Google (`reponduLe`, que Make apporte) ou, à défaut, celle que
+    le Trône a notée (`publieeLe` du brouillon). Un avis compte une fois.
+    « parLeTrone » : parties par le pont (« Publier sur Google »), pas les
+    réponses collées à la main. */
+export type PublieesDuMois = { total: number; parLeTrone: number };
+
+const moisDe = (iso: string | undefined): string | null => {
+  const t = tempsDe(iso);
+  return t > 0 ? moisACotonou(new Date(t)) : null;
+};
+
+export function publieesCeMois(
+  avis: readonly AvisDeLaRubrique[], brouillons: BrouillonsDAvis, mois: string,
+): PublieesDuMois {
+  let total = 0;
+  let parLeTrone = 0;
+  for (const a of avis) {
+    const b = brouillons[a.cle];
+    const le = a.reponduLe || b?.publieeLe;
+    if (moisDe(le) !== mois) continue;
+    total++;
+    if (a.parLeTrone || b?.parLeTrone) parLeTrone++;
+  }
+  return { total, parLeTrone };
+}
+
+/** LA NOTE DES DIX DERNIERS : la moyenne, à une décimale, des dix avis notés
+    les plus récents, triés sur `publieLe` (la date de Google), jamais sur
+    `quand` (« il y a 3 mois », que Places écrit en lettres : `etatDesAvis`
+    s'y trompe). Une note hors de 1 à 5 n'est pas une note. */
+export type NoteDesDerniers = { note: number | null; n: number };
+
+export function noteDesDixDerniers(avis: readonly AvisDeLaRubrique[], n = 10): NoteDesDerniers {
+  const notes = avis.filter((a) => a.note >= 1 && a.note <= 5)
+    .sort((x, y) => tempsDe(y.publieLe) - tempsDe(x.publieLe)).slice(0, n);
+  if (notes.length === 0) return { note: null, n: 0 };
+  return { note: Math.round((notes.reduce((s, a) => s + a.note, 0) / notes.length) * 10) / 10, n: notes.length };
+}
+
+/** « 1 à 3 étoiles » : le même seuil que la redemande d'avis ; 0 n'est pas une note. */
+export const estUneNoteBasse = (note: number): boolean => note > 0 && note <= NOTE_A_RECONQUERIR;
+
+/** L'ORDRE DE LA LISTE : ce qui attend un geste d'abord, et parmi eux les
+    1 à 3 étoiles en tête ; puis les écartés ; puis les répondus. À rang égal,
+    le plus récent d'abord. Ne touche pas la liste reçue. */
+export function ordreDeLaListe(
+  avis: readonly AvisDeLaRubrique[], brouillons: BrouillonsDAvis, maintenant: number,
+): AvisDeLaRubrique[] {
+  const rangDe = (a: AvisDeLaRubrique): number => {
+    const e = etatDeLAvis(a, brouillons[a.cle], maintenant);
+    if (e === 'publiee') return 3;
+    if (e === 'ecartee') return 2;
+    return estUneNoteBasse(a.note) ? 0 : 1;
+  };
+  const rangs = new Map(avis.map((a) => [a, rangDe(a)] as const));
+  return [...avis].sort((x, y) => (rangs.get(x) ?? 1) - (rangs.get(y) ?? 1) || tempsDe(y.publieLe) - tempsDe(x.publieLe));
+}
+
+/** L'ÂGE EN UN MOT, pour la ligne : « 5 min », « 5 h », « 2 j », « 3 mois »,
+    « 1 an » ; rien si la date manque ou est à venir. C'est un âge, pas une
+    date : la date, avec son année, reste dans le panneau. */
+const JOURS_PAR_MOIS = 30.4375;
+export function ageCourt(publieLe: string | undefined, maintenant: number): string {
+  const t = tempsDe(publieLe);
+  if (t <= 0 || maintenant < t) return '';
+  const min = Math.floor((maintenant - t) / 60_000);
+  if (min < 60) return `${min} min`;
+  const h = Math.floor(min / 60);
+  if (h < 24) return `${h} h`;
+  const j = Math.floor(h / 24);
+  if (j < 31) return `${j} j`;
+  if (j < 365) return `${Math.floor(j / JOURS_PAR_MOIS)} mois`;
+  const ans = Math.floor(j / 365);
+  return `${ans} an${ans > 1 ? 's' : ''}`;
+}

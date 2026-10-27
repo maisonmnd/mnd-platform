@@ -4,7 +4,7 @@ import { PageHead } from '../_ui';
 import { Button, demande, toast } from '../../../../ds/components';
 import { useStaff } from '../../../../shared/auth';
 import { appelDe } from '../../../../shared/civilite';
-import { clientsStore, ensureInitiePersona } from '../../../../shared/clients';
+import { clientsStore, ensureInitiePersona, type Client } from '../../../../shared/clients';
 import { signeLeMessage } from '../../../../shared/identite';
 import { depuisQuand, ficheDepuisLaDemande, telephoneMasque, telephoneNormalise, type Demande } from '../../../../shared/demandes';
 import { etatDeLaDiscussion, numeroDit, type EtatDeLaDiscussion } from '../../../../shared/chat-du-site-pur';
@@ -67,6 +67,30 @@ const commeUneDemande = (d: Discussion): Demande => ({
   ...(d.page ? { page: d.page } : {}), consentementLe: d.cree_le, statut: 'nouvelle',
 });
 
+/** LA FICHE CONNUE D'UNE DISCUSSION : celle qu'elle désigne, sinon celle qui
+    porte son numéro. Lue au magasin des fiches, hors de tout crochet. */
+export const ficheConnueDe = (d: Discussion): Client | undefined => {
+  if (d.client_id) return clientsStore.get().find((c) => c.id === d.client_id);
+  const numero = telephoneNormalise(d.telephone ?? '');
+  return numero ? clientsStore.get().find((c) => !c.archived && telephoneNormalise(c.phone) === numero) : undefined;
+};
+
+/** OUVRIR SA FICHE, OU LA CRÉER (segment Prospect, par le geste des demandes),
+    et relier la discussion. Hors du composant depuis le 27 octobre 2026 (lot
+    3 de l'Assistant Maison) : la vue « Les conversations » fait le même geste. */
+export const ouvreLaFiche = (d: Discussion, ficheConnue: Client | undefined, navigate: (chemin: string) => void): void => {
+  if (ficheConnue) {
+    if (!d.client_id) void relieALaFiche(d.id, ficheConnue.id);
+    navigate(`/customers?id=${ficheConnue.id}`);
+    return;
+  }
+  const fiche = ficheDepuisLaDemande(commeUneDemande(d), ensureInitiePersona());
+  clientsStore.set((prev) => (prev.some((c) => c.id === fiche.id) ? prev : [...prev, fiche]));
+  void relieALaFiche(d.id, fiche.id);
+  toast(`${fiche.name} entre au carnet, au segment Prospect.`);
+  navigate(`/customers?id=${fiche.id}`);
+};
+
 export default function Discussions() {
   const { discussions, permanences, pret, erreur } = useDiscussions();
   const moi = useStaff();
@@ -114,12 +138,7 @@ export default function Discussions() {
     return filtre === 'toutes' || (filtre === 'a-repondre' ? e === 'a-repondre' : filtre === 'closes' ? e === 'close' : e !== 'close');
   }), [discussions, filtre]);
   const d = discussions.find((x) => x.id === choisie) ?? null;
-  const ficheConnue = useMemo(() => {
-    if (!d) return undefined;
-    if (d.client_id) return clientsStore.get().find((c) => c.id === d.client_id);
-    const numero = telephoneNormalise(d.telephone ?? '');
-    return numero ? clientsStore.get().find((c) => !c.archived && telephoneNormalise(c.phone) === numero) : undefined;
-  }, [d]);
+  const ficheConnue = useMemo(() => (d ? ficheConnueDe(d) : undefined), [d]);
 
   /* ── Les gestes ── */
   const basculeLaPermanence = async () => {
@@ -138,20 +157,6 @@ export default function Discussions() {
     setEnVol(false);
     if (motif) { toast(motif); return; }
     setBrouillon('');
-  };
-
-  const ouvreLaFiche = () => {
-    if (!d) return;
-    if (ficheConnue) {
-      if (!d.client_id) void relieALaFiche(d.id, ficheConnue.id);
-      navigate(`/customers?id=${ficheConnue.id}`);
-      return;
-    }
-    const fiche = ficheDepuisLaDemande(commeUneDemande(d), ensureInitiePersona());
-    clientsStore.set((prev) => (prev.some((c) => c.id === fiche.id) ? prev : [...prev, fiche]));
-    void relieALaFiche(d.id, fiche.id);
-    toast(`${fiche.name} entre au carnet, au segment Prospect.`);
-    navigate(`/customers?id=${fiche.id}`);
   };
 
   const lienWhatsApp = (x: Discussion): string =>
@@ -234,7 +239,7 @@ export default function Discussions() {
                   </small>
                 </div>
                 <div className="trc-chat-gestes">
-                  <Button size="sm" variant="ghost" onClick={ouvreLaFiche}>{ficheConnue ? 'Ouvrir sa fiche' : 'Créer sa fiche'}</Button>
+                  <Button size="sm" variant="ghost" onClick={() => ouvreLaFiche(d, ficheConnue, navigate)}>{ficheConnue ? 'Ouvrir sa fiche' : 'Créer sa fiche'}</Button>
                   {d.telephone && <a className="mnd-btn mnd-btn--ghost mnd-btn--sm" href={lienWhatsApp(d)} target="_blank" rel="noopener">Passer sur WhatsApp</a>}
                   <Button size="sm" variant="ghost" onClick={() => void changeLEtat(d.id, d.etat === 'close' ? 'ouverte' : 'close').then((m) => { if (m) toast(m); })}>
                     {d.etat === 'close' ? 'Rouvrir' : 'Clore'}

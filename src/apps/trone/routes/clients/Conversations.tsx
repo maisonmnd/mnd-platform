@@ -1,58 +1,45 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import { PageHead, WaGlyph } from '../_ui';
 import { Button, toast, demande } from '../../../../ds/components';
 import { autoriserLaPurge } from '../../../../shared/sync';
 import { useBranch } from '../../../../shared/branches';
 import { useAuth, useStaff } from '../../../../shared/auth';
-import { supabase } from '../../../../shared/supabase';
-import { clientsStore, useClients } from '../../../../shared/clients';
+import { clientsStore, useClients, type Client } from '../../../../shared/clients';
 import {
   useMessagesWa, useFilsPrives, basculeLeSecret, filsDeLaMaison, resteEnClair,
-  pourquoiLEnvoiEstImpossible, numeroWa, messagesWaStore, type Fil,
-  delaiDeRetenue, resteDeLaRetenue, pourquoiOnNeReecritPas, texteDeLaCorrection,
+  numeroWa, messagesWaStore, type Fil,
+  pourquoiOnNeReecritPas, texteDeLaCorrection,
   messagesQuiSonnent, messageCite, filNeuf, lienWaMe, compteDesModeles, type MessageWa,
   laFenetreSePaie, REPONSES_GRATUITES_DU_MOIS,
   useFilsArchives, estArchive, archiveLeFil, desarchiveLeFil, filCorrespond, filEffacable,
   tetesDeLaMaison, teteDuNumero, estReserve, TIROIRS, TIROIR_DIT, type Tiroir, type PieceRecue,
-  useFilsAutomate, automatesDesFils, numerosTenus, poseLaMain, rendsALAutomate,
-  sonnentApresLAutomate, type VueDeLaSonnette, partEnFermant, rattachementDuNumero,
+  useFilsAutomate, automatesDesFils, numerosTenus,
+  sonnentApresLAutomate, type VueDeLaSonnette, rattachementDuNumero,
 } from '../../../../shared/conversations';
-import {
-  ETAPE_DITE, MOTIF_DIT, ETAPES_EN_COURS, reglageDeLAutomate, jourDitAvecAnnee, heureDite, numeroServi, pauseActive,
-  type EtapeDuFil, type EtatDuFil, type MainDuFil, type VueDeLAutomate,
-} from '../../../../shared/automate-wa';
-import { appointmentsStore, useAppointments, type Appointment } from '../../../../shared/agenda';
+import { reglageDeLAutomate } from '../../../../shared/automate-wa';
+import { supabase } from '../../../../shared/supabase';
 import { motifDuRefus, adresseDeLaPieceRecue } from '../../../../shared/whatsapp';
 import { useProviders } from '../../../../shared/prestataires';
 import { useFournisseurs } from '../../../../shared/stock';
 import { useEngagements } from '../../../../shared/engagements';
 import { armeLaSonnette, sonne, cestLaNuit } from '../../../../shared/sonnette';
-import { adresseDesFonctions, cleAnonyme } from '../../../../shared/supabase';
-import { appelleOuGarde, gardeUnAppel } from '../../../../shared/appels-en-attente';
 import { useSettings } from '../../../../shared/settings';
 import { useStaff as useEquipe, useEnvois, useAutoConfig } from '../equipe/data';
-import { demandeDAvisPermise, derniereDemandeDAvis, dernierAvisDe, ditLaDemandeDAvis, jourACotonou } from '../../../../shared/avis-fiches-pur';
-import { useLiensDesAvis } from '../../../../shared/avis-fiches';
-import { useReleveDesAvis } from './releve-des-avis';
-import { jourAn } from '../../../../shared/calendrier';
 import { EnvoisAutomatiques } from './EnvoisAutomatiques';
 import { compteDuJournal, envoisDeLaPeriode, jourDuSalon, estEnvoiAutomatique, modeleDit } from '../../../../shared/envois';
 import { heuresDuJour } from './_heures';
-import { ClientPicker, RdvModal, useServicesById, type RdvInitial } from './_shared';
+import { ClientPicker } from './_shared';
 import { useEstDirection } from '../_vie';
-import {
-  useGestesDuFil, BarreDesGestes, ChoisirUnFichier, PanneauDeLaPromo,
-  type PieceRendue, type Geste,
-} from './_gestes';
 import './clients.css';
-import { LienDeReservation } from './LienDeReservation';
-import { appelDe } from '../../../../shared/civilite';
 import ReponsesDeLaMaison from './ReponsesDeLaMaison';
-import { invoicesStore } from '../../../../shared/finance';
-import { useLaPieceEnPdf } from '../vente/pdf-de-la-piece';
-import { ReponseProposee } from './ReponseProposee';
 import { CaptureLue } from './CaptureLue';
+import { ComposeurWhatsApp, etapeDite, heureDuMessage as heure, jourDuMessage as jour, type PoigneeDuComposeur } from './ComposeurWhatsApp';
+
+/* LE BANDEAU DE L'AUTOMATE vit avec le composeur depuis le 27 octobre 2026
+   (lot 3 de l'Assistant Maison) ; il reste exporté d'ici pour qui le montait
+   par cet écran. */
+export { BandeauDeLAutomate } from './ComposeurWhatsApp';
 
 /* ═══════════════════════════════════════════════════════════════════
    LES CONVERSATIONS — maquette `public/maquette-les-conversations.html`,
@@ -73,28 +60,10 @@ import { CaptureLue } from './CaptureLue';
    zone de saisie se ferme AVANT qu'on ait tapé, plutôt qu'après.
    ═══════════════════════════════════════════════════════════════════ */
 
-/** Les trois modèles approuvés de la Maison. Ce sont les seules phrases que
-    WhatsApp accepte hors fenêtre, et chacune rouvre une conversation que Meta
-    facture : l'écran le dit, il ne le cache pas. */
-const MODELES = [
-  { nom: 'rappel_rdv', dit: 'Rappel de rendez-vous', variables: 2 },
-  { nom: 'confirmation_rdv', dit: 'Confirmation de rendez-vous', variables: 2 },
-  { nom: 'avis_google', dit: 'Demande d’avis Google', variables: 1 },
-] as const;
-
-const heure = (iso: string) => {
-  const d = new Date(iso);
-  return `${d.getHours()} h ${String(d.getMinutes()).padStart(2, '0')}`;
-};
-const jour = (iso: string) => {
-  const d = new Date(iso);
-  const auj = new Date();
-  const memeJour = d.toDateString() === auj.toDateString();
-  if (memeJour) return 'Aujourd’hui';
-  const hier = new Date(auj.getTime() - 86_400_000);
-  if (d.toDateString() === hier.toDateString()) return 'Hier';
-  return d.toLocaleDateString('fr-FR', { day: '2-digit', month: 'long' });
-};
+/* LES TROIS MODÈLES APPROUVÉS, LA RETENUE DE HUIT SECONDES ET TOUTE LA
+   ZONE DE SAISIE vivent dans `ComposeurWhatsApp.tsx` depuis le 27 octobre
+   2026 (lot 3 de l'Assistant Maison) : la vue « Les conversations » de
+   l'Assistant les monte aussi, et un composeur ne s'écrit qu'une fois. */
 
 const initiales = (nom: string) =>
   nom.split(/\s+/).map((m) => m.charAt(0)).slice(0, 2).join('').toUpperCase() || '·';
@@ -108,7 +77,7 @@ const initiales = (nom: string) =>
    webhook le range désormais dans le coffre (0102) ; ici on le montre, par
    une adresse signée qui vaut une heure et que la base refuse à qui n'a pas
    le droit de lire. Une image se voit, un vocal s'écoute, le reste s'ouvre. */
-function PieceDuFil({ piece }: { piece: PieceRecue }) {
+export function PieceDuFil({ piece }: { piece: PieceRecue }) {
   const [url, setUrl] = useState<string | null>(null);
   useEffect(() => {
     let vivant = true;
@@ -159,149 +128,64 @@ const REACTIONS = [
   { mot: 'Pouce', signe: String.fromCodePoint(0x1f44d) },
 ] as const;
 
-/** CE QU'UN MESSAGE RETENU PORTE, le temps de son compte à rebours. */
-type Attente = {
-  texte: string;
-  piece: PieceRendue | null;
-  citeWaId?: string;
-  modele?: string;
-  variables: string[];
-  /** Le mot ajouté à l'URL du bouton d'un modèle (reservation_preparee). */
-  boutonUrl?: string;
-  /** Ce que le fil affiche d'un modèle parti, à la place de « Modèle « x » ». */
-  texteAffiche?: string;
-  numero: string;
-  clientId?: string;
-  posteLe: number;
-};
-
-/* ══ LA MAISON RÉPOND SEULE · 9 octobre 2026 ════════════════════════
-   Maquette « Réserver sur WhatsApp », validée le 9 octobre 2026. Quand la
-   réponse automatique mène un fil, l'équipe le voit et reprend la main d'un
-   geste : une pastille dans la liste, ce bandeau dans la zone de saisie (au
-   téléphone aussi, jamais derrière « ⋯ »), des bulles qui disent leur étape.
-   Une main passée rallume l'alarme en rouge brique. */
-
-/** « 21 h 04 » (ou « à 21 h 04 »), « hier à 21 h 04 », « le 7 octobre 2026
-    à 21 h 04 ». */
-const quandDuBandeau = (iso: string | undefined, aLHeure = ''): string => {
-  const t = Date.parse(iso ?? '');
-  if (!iso || !Number.isFinite(t)) return '';
-  const j = jour(iso);
-  if (j === 'Aujourd’hui') return `${aLHeure}${heure(iso)}`;
-  if (j === 'Hier') return `hier à ${heure(iso)}`;
-  return `le ${new Date(t).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })} à ${heure(iso)}`;
-};
-
-/** La fin d'une pause : « jusqu’à 21 h 04 », « jusqu’à demain 21 h 04 »,
-    « jusqu’au 11 octobre 2026, 21 h 04 ». */
-const finDuBandeau = (iso: string | undefined): string => {
-  const t = Date.parse(iso ?? '');
-  if (!iso || !Number.isFinite(t)) return '';
-  const d = new Date(t);
-  const auj = new Date();
-  if (d.toDateString() === auj.toDateString()) return `jusqu’à ${heure(iso)}`;
-  if (d.toDateString() === new Date(auj.getTime() + 86_400_000).toDateString()) return `jusqu’à demain ${heure(iso)}`;
-  return `jusqu’au ${d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}, ${heure(iso)}`;
-};
-
-const etapeDite = (e: string | undefined): string =>
-  (e && e in ETAPE_DITE ? ETAPE_DITE[e as EtapeDuFil] : e ?? '');
-
-function BandeauDeLAutomate({
-  vue, etat, main, rdv, gestesDuRdv, surReprendre, surRendre, surPoser, surOuvrirRdv, pauseHeures,
-}: {
-  vue: VueDeLAutomate;
-  etat: EtatDuFil | null;
-  main: MainDuFil | null;
-  /** Le rendez-vous qu'il a posé, s'il est déjà arrivé sur ce poste. */
-  rdv?: Appointment;
-  gestesDuRdv: string;
-  surReprendre: () => void;
-  surRendre: () => void;
-  /** Absent : le panier ne porte encore aucun geste à poser. */
-  surPoser?: () => void;
-  surOuvrirRdv?: () => void;
-  /** Le temps où l'automate laisse la Maison répondre après une pose. */
-  pauseHeures: number;
-}) {
-  const etape = etapeDite(vue.etape);
-  if (vue.tenue === 'tenu') {
-    return (
-      <div className="trc-automate" role="status">
-        <span className="trc-automate__dit">
-          La Maison répond seule{vue.depuis ? ` depuis ${quandDuBandeau(vue.depuis)}` : ''} · étape : <b>{etape}</b>
-        </span>
-        <span className="trc-automate__gestes">
-          {surPoser && <Button variant="ghost" size="sm" onClick={surPoser}>Poser ce rendez-vous</Button>}
-          <Button size="sm" onClick={surReprendre}>Reprendre la main</Button>
-        </span>
-      </div>
-    );
+/* RATTACHER UN NUMÉRO INCONNU À UNE FICHE — jamais l'inverse, et jamais
+   tout seul. On écrit le numéro sur la fiche choisie ; les messages
+   rejoignent sa tête au prochain rendu, sans qu'aucun message ne bouge.
+   Rend vrai quand c'est fait (l'écran ferme alors sa fenêtre), faux quand
+   la main a dit non ou que la fiche manque. Exporté le 27 octobre 2026 : la
+   vue « Les conversations » de l'Assistant Maison fait le même geste. */
+export async function attache(clientId: string, numero: string, clients: readonly Client[]): Promise<boolean> {
+  const c = clients.find((x) => x.id === clientId);
+  if (!c) return false;
+  const n = numeroWa(numero);
+  /* LE PREMIER NUMÉRO NE S'ÉCRASE PAS : c'est le contact principal, celui
+     des rappels. Un numéro qui écrit devient le SECOND, à moins que la
+     fiche n'en ait aucun. LE SECOND NE S'ÉCRASE PLUS EN SILENCE (10 octobre
+     2026, revue) : s'il est pris, une main lit le numéro qu'elle remplace
+     et dit oui, sinon rien ne bouge. */
+  const r = rattachementDuNumero(c, numero);
+  if (r.geste === 'remplacer' && !await demande({
+    quoi: 'Rattacher un numéro',
+    titre: `Remplacer le second numéro de ${c.name.split(' ')[0]} ?`,
+    dit: `Sa fiche porte déjà deux numéros : le second, +${r.ancien}, laisserait sa place à +${n}.`,
+    suite: 'Son numéro principal ne change pas. L’ancien second disparaîtra de la fiche : ses messages ne la rejoindront plus.',
+    accepter: 'Remplacer le second',
+    refuser: 'Ne rien changer',
+    dur: true,
+  })) return false;
+  if (r.geste !== 'deja') {
+    const champ = r.champ;
+    clientsStore.set((prev) => prev.map((x) => (x.id === clientId ? { ...x, [champ]: `+${n}` } : x)));
   }
-  if (vue.tenue === 'main') {
-    return (
-      <div className="trc-automate trc-automate--main" role="status">
-        <span className="trc-automate__dit">
-          <span className="trc-horloge trc-horloge--main">Main passée</span>{' '}
-          L’automate a passé la main{etat?.mainPasseeLe ? ` ${quandDuBandeau(etat.mainPasseeLe, 'à ')}` : ''}
-          {vue.motif ? ` · ${MOTIF_DIT[vue.motif] ?? vue.motif}` : ''}. Elle attend une personne de la Maison.
-        </span>
-        <span className="trc-automate__gestes">
-          {surPoser && <Button size="sm" onClick={surPoser}>Poser ce rendez-vous</Button>}
-          <Button variant="ghost" size="sm" onClick={surRendre}>Rendre à l’automate</Button>
-        </span>
-      </div>
-    );
-  }
-  if (vue.tenue === 'pause') {
-    const enRoute = !!etat && (ETAPES_EN_COURS as readonly string[]).includes(etat.etape);
-    return (
-      <div className="trc-automate trc-automate--pause" role="status">
-        <span className="trc-automate__dit">
-          L’équipe a la main{main?.jusqua ? ` ${finDuBandeau(main.jusqua)}` : ''} : l’automate se tait sur ce fil.
-          {enRoute ? ` Il en était à : ${etapeDite(etat?.etape)}.` : ''}
-        </span>
-        <span className="trc-automate__gestes">
-          {surPoser && <Button variant="ghost" size="sm" onClick={surPoser}>Poser ce rendez-vous</Button>}
-          <Button variant="ghost" size="sm" onClick={surRendre}>Rendre à l’automate</Button>
-        </span>
-      </div>
-    );
-  }
-  if (vue.tenue === 'fini' && vue.etape === 'confirme') {
-    /* APRÈS LA POSE (13 octobre 2026) : il laisse la Maison répondre
-       `pauseHeures` ; on le dit, et on peut le lui rendre. */
-    const pose = Date.parse(etat?.majLe ?? '');
-    const fin = Number.isFinite(pose) ? new Date(pose + pauseHeures * 3_600_000).toISOString() : undefined;
-    return (
-      <div className="trc-automate trc-automate--pose" role="status">
-        <span className="trc-automate__dit">
-          <b>Rendez-vous posé</b>
-          {rdv
-            ? <> · {jourDitAvecAnnee(rdv.date)} à {heureDite(rdv.time)}{gestesDuRdv ? ` · ${gestesDuRdv}` : ''} · « Pris sur WhatsApp, réponse automatique »
-                {rdv.status === 'annulé' ? ' · annulé depuis par la Maison' : ''}</>
-            : ' par la réponse automatique. Il paraîtra au calendrier dès qu’il arrive sur ce poste.'}
-          {' '}L’automate laisse la Maison répondre{fin ? ` ${finDuBandeau(fin)}` : ''}.
-        </span>
-        <span className="trc-automate__gestes">
-          {rdv && surOuvrirRdv && <Button variant="ghost" size="sm" onClick={surOuvrirRdv}>Ouvrir le rendez-vous</Button>}
-          {/* rendre après la pose */}<Button variant="ghost" size="sm" onClick={surRendre}>Rendre à l’automate</Button>
-        </span>
-      </div>
-    );
-  }
-  if (vue.tenue === 'fini') {
-    return (
-      <div className="trc-automate trc-automate--pause" role="status">
-        <span className="trc-automate__dit">Parcours arrêté à sa demande : rien n’a été réservé.</span>
-      </div>
-    );
-  }
-  return null;
+  /* ON RATTACHE AUSSI L'HISTOIRE : les messages déjà reçus portent un
+     `clientId` vide, et le rapprochement par numéro suffirait à l'écran,
+     mais la fiche, le carnet et tout ce qui lira ces lignes demain veut
+     l'identifiant écrit. */
+  messagesWaStore.set((prev) => prev.map((m) => (numeroWa(m.numero) === n
+    ? { ...m, clientId, branchId: m.branchId ?? c.branchId }
+    : m)));
+  toast(`Ce numéro est désormais celui de ${c.name.split(' ')[0]}.`);
+  return true;
 }
 
+/* ══ LA ROUTE RESTE, L'ÉCRAN A DÉMÉNAGÉ · 27 octobre 2026, lot 3 ═══════════
+   Les conversations vivent dans l'Assistant Maison (`/gerard?vue=
+   conversations`, `LesConversations.tsx`) : une boîte par personne,
+   WhatsApp, chat du site, demandes, appels et soucis réunis. Dix-neuf
+   appelants (les fonctions serveur, la pastille de la salle, le Marketing,
+   `cheminDeLaConversation`) mènent encore ici avec `?n=`, `?t=`, `?envois=1`,
+   `?reponses=1` : la route les garde tous et les porte à la vue. L'écran
+   d'avant reste à portée de main par `?ancien=1`, le temps que la vue fasse
+   ses preuves. */
 export default function Conversations() {
+  const [params] = useSearchParams();
+  if (params.get('ancien') === '1') return <ConversationsDAvant />;
+  const suivants = new URLSearchParams(params);
+  suivants.set('vue', 'conversations');
+  return <Navigate replace to={`/gerard?${suivants.toString()}`} />;
+}
+
+export function ConversationsDAvant() {
   const navigate = useNavigate();
   const { branch } = useBranch();
   const { session } = useAuth();
@@ -321,16 +205,10 @@ export default function Conversations() {
   const demandeLesEnvois = params.get('envois') === '1';
   useEffect(() => { if (demandeLesEnvois) setVue('envois'); }, [demandeLesEnvois]);
   const [lesEnvois] = useEnvois();
-  /* QUAND REDEMANDER UN AVIS (26 octobre 2026) : le modèle « Demande d'avis » suit la règle de la fiche (six mois ; chaque passage jusqu'à 3 étoiles). */
-  const [liensDesAvis] = useLiensDesAvis();
-  const releveDesAvis = useReleveDesAvis();
   const aRegarderAujourdhui = useMemo(() => compteDuJournal(envoisDeLaPeriode(
     lesEnvois.filter((e) => e && e.canal !== 'push'), 'aujourdhui', jourDuSalon(new Date().toISOString()),
   )).aRegarder, [lesEnvois]);
   const [texte, setTexte] = useState('');
-  /* Le lien de réservation préparé (28 septembre 2026). */
-  const [lienOuvert, setLienOuvert] = useState(false);
-  const [envoiEnCours, setEnvoi] = useState(false);
   const [voirPrives, setVoirPrives] = useState(false);
   /* LES FILS ARCHIVÉS — 15 septembre 2026. La vue les retrouve ; la
      direction seule les range et les rend. */
@@ -338,19 +216,12 @@ export default function Conversations() {
   const [archives, setArchives] = useFilsArchives();
   const quiArchive = useStaff();
   const [rattacher, setRattacher] = useState<Fil | null>(null);
-  /* LA PIÈCE EN ATTENTE — choisie, pas encore envoyée. Elle se relit comme
-     le texte : on doit pouvoir la retirer avant d'appuyer. */
-  const [piece, setPiece] = useState<PieceRendue | null>(null);
-  /* La facture ou le devis d'un geste, tel que les Factures le font (18 octobre 2026). */
-  const { buildPdfData } = useLaPieceEnPdf();
-  const [promoOuverte, setPromoOuverte] = useState(false);
   const estDirection = useEstDirection();
   const [reglages] = useSettings();
-  /* LE MESSAGE RETENU — il paraît dans le fil, mais n'a pas encore quitté la
-     Maison. Un seul à la fois : « retenir » n'a de sens que sur le dernier. */
-  const [enAttente, setEnAttente] = useState<Attente | null>(null);
   /** Le message qu'on cite en répondant, s'il y en a un. */
   const [cite, setCite] = useState<MessageWa | null>(null);
+  /* Les deux gestes du composeur que la tête du fil appelle (27 octobre 2026). */
+  const poignee = useRef<PoigneeDuComposeur | null>(null);
   /** Le message qu'on est en train de réécrire, et son texte neuf. */
   const [reecrit, setReecrit] = useState<{ m: MessageWa; texte: string } | null>(null);
   /* ── COMMENCER UNE CONVERSATION — 15 septembre 2026 ────────────────
@@ -381,13 +252,6 @@ export default function Conversations() {
     () => automatesDesFils(lignesDeLAutomate, reglageAutomate.pauseHeures),
     [lignesDeLAutomate, reglageAutomate.pauseHeures],
   );
-  const [rendezVous] = useAppointments();
-  const servicesParId = useServicesById();
-  /* « POSER UN RENDEZ-VOUS » DEPUIS LE FIL : la fenêtre du rendez-vous,
-     pré-remplie (la fiche, et le panier de l'automate s'il y en a un). La
-     création se lit en comptant, comme depuis un appel. */
-  const [rdvDuFil, setRdvDuFil] = useState<{ initial: RdvInitial; avant: number } | null>(null);
-  const [rdvOuvert, setRdvOuvert] = useState<Appointment | null>(null);
 
   /* ══ CE QUE LES MODÈLES COÛTENT CE MOIS-CI — 15 septembre 2026 ═════
      « Combien Meta facture une conversation de 24 h ? » (Yéman).
@@ -399,17 +263,6 @@ export default function Conversations() {
      ON COMPTE DES MESSAGES, PAS DES FRANCS. La Maison n'a pas les tarifs du
      Bénin, ils bougent, et les inventer mettrait un chiffre faux sous les
      yeux de quelqu'un qui déciderait dessus. */
-  /* ── UN MODÈLE SE CONFIRME AVANT DE PARTIR — 15 septembre 2026 ────
-     « Si j'appuie un des modèles je dois avoir un message qui m'avertit que
-     je vais être facturé » (Yéman).
-
-     ICI, C'EST TOUJOURS VRAI. Les modèles ne paraissent que lorsque la
-     fenêtre est FERMÉE — un modèle envoyé dans une fenêtre ouverte serait
-     gratuit, mais ce cas-là n'existe pas à cet endroit de l'écran. Chaque
-     clic engage donc une dépense, et un geste qui coûte ne doit pas partir
-     d'un seul clic. */
-  const [modeleAConfirmer, setModeleAConfirmer] = useState<{ nom: string; dit: string; variables?: string[]; boutonUrl?: string; texteAffiche?: string } | null>(null);
-
   const moisCourant = new Date().toISOString().slice(0, 7);
   const modelesDuMois = useMemo(
     () => compteDesModeles(messages, moisCourant, branch.id),
@@ -484,14 +337,6 @@ export default function Conversations() {
      que la personne n'a jamais écrit. On le dit, plutôt que de faire semblant. */
   const filInterdit = !!filTrouve && !estDirection && estReserve(filTrouve.tiroir);
   const fil = filInterdit ? null : filTrouve;
-  /* La demande d'avis à la main suit la même règle que le serveur : six mois,
-     chaque passage jusqu'à trois étoiles (avis-fiches-pur, 26 octobre 2026). */
-  const demandeDAvis = demandeDAvisPermise({
-    premiereVenue: false,
-    derniereDemande: fil?.clientId ? derniereDemandeDAvis(fil.clientId, lesEnvois) : null,
-    dernierAvis: fil?.clientId && releveDesAvis ? dernierAvisDe(fil.clientId, releveDesAvis.avis, liensDesAvis, releveDesAvis.le) : null,
-    aujourdhui: jourACotonou(new Date().toISOString()) ?? '',
-  });
   /* LE TIROIR SUIT LE FIL OUVERT : un lien depuis la Paie ouvre Équipe. */
   useEffect(() => {
     if (fil && estDirection && fil.tiroir !== tiroir) setTiroir(fil.tiroir);
@@ -500,63 +345,6 @@ export default function Conversations() {
   const ouvre = (n: string) => {
     setParams(n ? { n } : {}, { replace: true });
     setTexte('');
-  };
-
-  /* ══ L'ÉQUIPE PREND LA MAIN · 9 octobre 2026 ═══════════════════════
-     DÈS LA PREMIÈRE LETTRE, et non au départ du message : la retenue de huit
-     secondes vit dans ce navigateur, le serveur ne la voit pas. Un geste, un
-     lien, un modèle, « Continuer dans WhatsApp » (l'automate ne voit pas
-     cette sortie) font de même. `whatsapp-envoi` pose aussi la pause côté
-     serveur : elle tient même si cet écran a perdu le réseau.
-
-     SEULEMENT SUR UN FIL QUE L'AUTOMATE MÈNE : ailleurs il n'y a personne à
-     faire taire, et une ligne de plus par fil ne servirait à rien. Une fois
-     par fil et par demi-minute : la frappe ne réécrit pas la ligne à chaque
-     touche. */
-  const mainPriseLe = useRef<Map<string, number>>(new Map());
-  const prendsLaMain = (motif: string, explicite = false): void => {
-    if (!fil || fil.automate?.tenue !== 'tenu') return;
-    if (estReserve(fil.tiroir) && !estDirection) return;
-    const avant = mainPriseLe.current.get(fil.numero) ?? 0;
-    if (!explicite && Date.now() - avant < 30_000) return;
-    mainPriseLe.current.set(fil.numero, Date.now());
-    poseLaMain(fil.numero, motif, { pauseHeures: reglageAutomate.pauseHeures, branchId: branch.id });
-    if (explicite) toast(`Vous avez la main : l’automate se tait sur ce fil pendant ${reglageAutomate.pauseHeures} h.`);
-  };
-  const rendsLaMain = (): void => {
-    if (!fil?.automate) return;
-    mainPriseLe.current.delete(fil.numero);
-    const rendueLe = rendsALAutomate(fil.numero, { mainPasseeLe: automates.get(fil.numero)?.fil?.mainPasseeLe, branchId: branch.id });
-    /* IL REPREND TOUT DE SUITE (13 octobre 2026) : la fonction renvoie l'étape
-       où il en était, si la fenêtre de 24 heures est ouverte. */
-    const attendre = 'Rendu à l’automate. Il reprendra au prochain message de la cliente, sans rien lui écrire d’ici là.';
-    if (!supabase || !rendueLe) { toast(attendre); return; }
-    toast('Rendu à l’automate : il reprend où il en était…');
-    void supabase.functions.invoke('whatsapp-automate', { body: { reprise: { numero: fil.numero, tiroir: fil.tiroir, rendueLe } } })
-      .then(({ data }) => {
-        const r = (data ?? {}) as { repris?: boolean; raison?: string; etape?: string };
-        if (r.repris) toast(`L’automate a repris : il a renvoyé « ${etapeDite(r.etape)} ».`);
-        else if (r.raison === 'fenetre') toast('Rendu à l’automate. Elle n’a pas écrit depuis plus de 24 h : WhatsApp l’empêche d’écrire le premier, il reprendra à son prochain message.');
-        else toast(attendre);
-      }, () => toast(attendre));
-  };
-  /* LE RENDEZ-VOUS SE POSE À LA MAIN, depuis le fil. Pré-rempli du panier
-     quand l'automate en a un ; jamais de maître choisi d'avance, la Maison
-     attribue. Pour un fil sans fiche, la fenêtre fait choisir la tête :
-     aucune fiche ne naît ici. */
-  const poseUnRendezVous = (depuisLePanier: boolean): void => {
-    if (!fil) return;
-    const p = depuisLePanier ? fil.automate?.panier : undefined;
-    if (depuisLePanier) prendsLaMain('rendez-vous');
-    setRdvDuFil({
-      initial: {
-        clientId: p?.clientId ?? fil.clientId,
-        ...(p?.serviceIds?.length ? { serviceIds: [...p.serviceIds] } : {}),
-        ...(p?.date ? { date: p.date } : {}),
-        ...(p?.time ? { time: p.time } : {}),
-      },
-      avant: appointmentsStore.get().length,
-    });
   };
 
   /* ── LE MESSAGE PRÉ-ÉCRIT QUI ARRIVE D'AILLEURS ────────────────────
@@ -622,243 +410,6 @@ export default function Conversations() {
   const [menuDuFil, setMenuDuFil] = useState(false);
   useEffect(() => { setBulleTouchee(null); setMenuDuFil(false); }, [fil?.numero]);
 
-  /* ── LES DIX GESTES ────────────────────────────────────────────────
-     Maquette `public/maquette-la-conversation-outillee.html`, validée le
-     14 septembre 2026. Le juge est pur et vit dans `shared/gestes-conversation` :
-     ici on ne fait que le nourrir et dessiner ce qu'il rend. */
-  const { gestes, codesVivants } = useGestesDuFil(fil
-    ? { numero: fil.numero, nom: fil.nom, clientId: fil.clientId, fenetreOuverte: fil.fenetre.ouverte }
-    : null);
-
-  /* UNE PIÈCE SEULE EST UN MESSAGE : WhatsApp accepte un fichier sans
-     légende, et refuser ici obligerait à écrire « voici » pour rien. */
-  const refus = fil
-    ? (piece && fil.fenetre.ouverte
-      ? null
-      : pourquoiLEnvoiEstImpossible({ texte, fenetre: fil.fenetre, numero: fil.numero }))
-    : 'Choisissez un fil.';
-
-  /* UN GESTE REMPLIT LA ZONE, IL N'ENVOIE PAS. C'est une main qui relit.
-     Ce qu'il AVERTIT se dit tout de suite : un compteur que la cliente
-     contestera est pire qu'un silence, et l'écran doit le dire AVANT. */
-  const poseLeGeste = (g: Geste) => {
-    if (g.eteint) { toast(g.eteint); return; }
-    prendsLaMain('geste');
-    if (g.compose) setTexte(g.compose);
-    if (g.avertit) toast(g.avertit);
-    /* LA FACTURE ET LE DEVIS SE JOIGNENT POUR DE VRAI — 18 octobre 2026.
-       « Sa facture sur ce message n'attache pas la facture en PDF » (Yéman) :
-       le geste écrivait le texte et laissait la pièce de côté. Le PDF est
-       celui des Factures (numéro, QR Tap & Go du reste), posé comme une pièce
-       choisie à la main : il se relit, se retire, et part avec le texte. */
-    if (g.piece && (g.piece.quoi === 'facture' || g.piece.quoi === 'devis')) {
-      const id = g.piece.invoiceId;
-      const nom = g.piece.nom;
-      const doc = invoicesStore.get().find((i) => i.id === id);
-      if (!doc) { toast(`${nom} introuvable : le texte est prêt, sans la pièce.`); return; }
-      void (async () => {
-        try {
-          const { invoiceEnPiece } = await import('../../../../shared/pdf');
-          setPiece(await invoiceEnPiece(buildPdfData(doc)));
-        } catch {
-          toast(`${nom} : le PDF n’a pas pu se faire. Joignez-le avec « + Pièce jointe ».`);
-        }
-      })();
-    } else if (g.piece) {
-      /* ON NE PROMET PAS UN FICHIER QU'ON N'A PAS. Le bilan vit dans une page
-         imprimable, les photos de séance n'ont pas encore de logement : le
-         message part seul, et l'écran le dit plutôt que d'annoncer une pièce
-         absente. Voir la maquette, « où vivent les photos d'une séance ». */
-      toast(`${g.piece.nom} : le texte est prêt, la pièce ne se joint pas encore.`);
-    }
-  };
-
-  /* ══ LES HUIT SECONDES QUI SAUVENT — 14 septembre 2026 ═══════════════
-     « J'aimerais éditer des messages qui sont partis » (Yéman). Un message
-     parti ne se modifie pas chez la cliente : le meilleur remède n'est donc
-     pas de le corriger, c'est de ne pas l'envoyer. */
-  const delaiMs = delaiDeRetenue(reglages.retenueSecondes);
-
-  /* L'HORLOGE DU COMPTE À REBOURS. Elle ne tourne QUE tant qu'un message
-     attend : un intervalle qui bat pour rien réveille l'onglet toute la
-     journée et vide la batterie de la tablette. */
-  const [tacTac, setTacTac] = useState(0);
-  useEffect(() => {
-    if (!enAttente) return undefined;
-    const t = window.setInterval(() => setTacTac((n) => n + 1), 500);
-    return () => window.clearInterval(t);
-  }, [enAttente]);
-  void tacTac;
-
-  const partir = async (a: Attente, enFermant = false) => {
-    const corps = {
-      numero: a.numero,
-      texte: a.modele ? (a.texteAffiche ?? '') : a.texte,
-      modele: a.modele ?? '',
-      variables: a.variables,
-      ...(a.boutonUrl ? { boutonUrl: a.boutonUrl } : {}),
-      clientId: a.clientId,
-      branchId: branch.id,
-      parQui: session?.user?.email ?? undefined,
-      ...(a.citeWaId ? { citeWaId: a.citeWaId } : {}),
-      /* RIEN DE PUBLIC : les octets traversent la fonction, qui les dépose
-         chez Meta. Aucune adresse n'existe, ni chez nous ni ailleurs. */
-      ...(a.piece && !a.modele ? { piece: a.piece } : {}),
-    };
-    /* ── EN FERMANT L'ONGLET, ON PART QUAND MÊME ──────────────────────
-       Le navigateur annule les requêtes en vol d'une page qui se ferme ;
-       `keepalive` les laisse finir. Un message qu'on croit envoyé et qui
-       n'est jamais parti est pire qu'un message qu'on aurait voulu retenir. */
-    if (enFermant) {
-      /* Hors ligne, le message ne peut pas finir sa course : il se garde, et
-         part à la prochaine ouverture avec réseau (4 octobre 2026). */
-      if (typeof navigator !== 'undefined' && navigator.onLine === false) { gardeUnAppel('whatsapp-envoi', corps, `WhatsApp au ${a.numero}`); return; }
-      /* UNE PIÈCE TROP LOURDE POUR `keepalive` SE GARDE AUSSI (10 octobre
-         2026, revue) : au-delà de 64 Kio le navigateur refuse la requête, et
-         le refus se perdait avec l'onglet. Gardée, elle part à la prochaine
-         ouverture du Trône. */
-      if (!partEnFermant(JSON.stringify(corps))) { gardeUnAppel('whatsapp-envoi', corps, `WhatsApp au ${a.numero}`); return; }
-      const base = adresseDesFonctions;
-      const jeton = (await supabase?.auth.getSession())?.data.session?.access_token;
-      if (!base || !jeton) return;
-      void fetch(`${base}/whatsapp-envoi`, {
-        method: 'POST',
-        keepalive: true,
-        headers: {
-          'content-type': 'application/json',
-          authorization: `Bearer ${jeton}`,
-          ...(cleAnonyme ? { apikey: cleAnonyme } : {}),
-        },
-        body: JSON.stringify(corps),
-      });
-      return;
-    }
-    setEnvoi(true);
-    try {
-      /* HORS LIGNE, IL ATTEND (4 octobre 2026) : gardé sur l'appareil, il part
-         de lui-même au retour du réseau ; la pastille le compte. */
-      const issue = await appelleOuGarde('whatsapp-envoi', corps, `WhatsApp au ${a.numero}`);
-      if ('erreur' in issue) throw issue.erreur;
-      toast('enAttente' in issue
-        ? 'Hors ligne : le message partira au retour du réseau.'
-        : a.modele ? `Modèle « ${a.modele} » envoyé.` : 'Message envoyé.');
-    } catch (e) {
-      toast(`Non envoyé : ${await motifDuRefus(e)}`);
-    } finally {
-      setEnvoi(false);
-    }
-  };
-
-  /* UN MESSAGE RETENU NE PART QU'UNE FOIS — 10 octobre 2026 (revue). Cinq
-     chemins le font partir : le bout du compte, « Envoyer maintenant », le
-     message suivant, l'onglet qui se ferme, l'écran qu'on quitte. Un oubli
-     de l'un d'eux l'envoyait deux fois à la cliente (un modèle posé pendant
-     la retenue) : chaque attente partie se note, et ne repart plus. */
-  const dejaPartis = useRef(new WeakSet<Attente>());
-  const partirUneFois = (a: Attente, enFermant = false) => {
-    if (dejaPartis.current.has(a)) return;
-    dejaPartis.current.add(a);
-    void partir(a, enFermant);
-  };
-  /* `partir` lit la branche et la session du rendu : les écoutes posées une
-     fois pour toutes l'appellent par cette référence, jamais par la copie du
-     premier rendu. */
-  const partirUneFoisRef = useRef(partirUneFois);
-  partirUneFoisRef.current = partirUneFois;
-
-  /* LE DÉPART SE DÉCLENCHE AU BOUT DU COMPTE. */
-  const attenteEnCours = useRef<Attente | null>(null);
-  attenteEnCours.current = enAttente;
-  useEffect(() => {
-    if (!enAttente) return undefined;
-    const t = window.setTimeout(() => {
-      setEnAttente(null);
-      partirUneFois(enAttente);
-    }, Math.max(0, enAttente.posteLe + delaiMs - Date.now()));
-    return () => window.clearTimeout(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [enAttente, delaiMs]);
-
-  /* L'ONGLET QUI SE FERME NE MANGE PAS LE MESSAGE. `pagehide` plutôt que
-     `beforeunload` : c'est le seul que les navigateurs mobiles honorent. */
-  useEffect(() => {
-    const surFermeture = () => {
-      const a = attenteEnCours.current;
-      if (a) partirUneFoisRef.current(a, true);
-    };
-    window.addEventListener('pagehide', surFermeture);
-    return () => window.removeEventListener('pagehide', surFermeture);
-  }, []);
-
-  /* L'ÉCRAN QU'ON QUITTE NE MANGE PAS LE MESSAGE NON PLUS — 10 octobre 2026
-     (revue). Les Conversations se démontent dès qu'on change d'écran
-     (« Ouvrir sa fiche », la barre) : le compte à rebours s'effaçait avec
-     elles, et le message annoncé « part dans 5 secondes » ne partait jamais,
-     sans un mot. Il part donc au démontage, comme à la fermeture. */
-  useEffect(() => () => {
-    const a = attenteEnCours.current;
-    if (a) partirUneFoisRef.current(a);
-  }, []);
-
-  /* ── L'ENVOI PASSE PAR LA FONCTION, JAMAIS PAR LE NAVIGATEUR ────────
-     Le jeton Meta autorise à écrire au nom de la Maison à n'importe quel
-     numéro : le poser ici, ce serait le publier. */
-  const envoie = async (modele?: string, variables: string[] = [], extra: { boutonUrl?: string; texteAffiche?: string } = {}) => {
-    if (!fil || envoiEnCours) return;
-    if (!modele && refus) { toast(refus); return; }
-    /* SANS SUPABASE, RIEN NE PART, et l'écran le dit. La Maison peut tourner
-       hors ligne pour lire son carnet ; écrire à une cliente, non. */
-    if (!supabase) { toast('Pas de connexion à la Maison : le message n’est pas parti.'); return; }
-    /* UN MESSAGE DE L'ÉQUIPE FAIT TAIRE L'AUTOMATE, même posé sans frappe
-       (un texte venu d'ailleurs, un modèle). */
-    prendsLaMain(modele ? 'modele' : 'envoi');
-
-    /* ON POSTE, ON N'ENVOIE PAS ENCORE. Le message paraît dans le fil tout de
-       suite ; il ne quitte la Maison qu'au bout du délai. C'est le seul vrai
-       « annuler l'envoi » qui existe, et il ne demande la permission de
-       personne — ni celle de Meta, ni celle de la cliente.
-
-       LE MOTIF D'UN REFUS VIT DANS LE CORPS, PAS DANS LE MESSAGE : voir
-       `motifDuRefus`, plus haut. C'est `partir` qui le lit désormais. */
-    const aPoster: Attente = {
-      texte: texte.trim(),
-      piece: modele ? null : piece,
-      citeWaId: cite?.waId,
-      modele,
-      variables,
-      ...extra,
-      numero: fil.numero,
-      clientId: fil.clientId,
-      posteLe: Date.now(),
-    };
-    setTexte('');
-    setPiece(null);
-    setCite(null);
-
-    /* UN SEUL MESSAGE RETENU À LA FOIS : le précédent part tout de suite,
-       sinon « retenir » ne désignerait plus rien. */
-    /* ET L'ATTENTE SE VIDE (10 octobre 2026, revue) : sur le chemin d'un
-       modèle, rien d'autre ne la vidait, et le compte à rebours déjà armé
-       renvoyait le même message à son terme. */
-    if (enAttente) { const a = enAttente; setEnAttente(null); partirUneFois(a); }
-    /* UN MODÈLE NE SE RETIENT PAS. Son texte est fixe et approuvé par Meta :
-       il n'y a aucune faute de frappe à rattraper, et la confirmation qui
-       vient de l'annoncer a déjà joué ce rôle, mieux. Lui imposer huit
-       secondes de plus ferait attendre pour rien. */
-    if (modele) { void partir(aPoster); return; }
-    if (delaiMs <= 0) { void partir(aPoster); return; }
-    setEnAttente(aPoster);
-  };
-
-  /* RETENIR — le texte revient dans la zone de saisie, tel quel. */
-  const retenir = () => {
-    if (!enAttente) return;
-    setTexte(enAttente.texte);
-    setPiece(enAttente.piece);
-    setEnAttente(null);
-    toast('Retenu. Il n’est pas parti.');
-  };
-
   /* ══ LA SONNETTE — 14 septembre 2026 ═══════════════════════════════
      « Je voudrais une sonnette quand un nouveau message vient dans le
      Trône » (Yéman). Les quatre pièges sont jugés dans
@@ -921,20 +472,6 @@ export default function Conversations() {
       window.removeEventListener('keydown', arme);
     };
   }, []);
-
-  /* ══ MARQUER LU — les deux coches bleues ═══════════════════════════
-     Elle voit qu'on l'a lue, donc elle attend au lieu de réécrire. Et elle
-     voit aussi qu'on l'a lue SANS répondre : d'où le réglage. */
-  useEffect(() => {
-    if (!fil || !supabase || reglages.cochesBleues === false) return;
-    const aDire = fil.messages.filter((m) => m.sens === 'entrant' && m.waId && !m.luParLaMaisonLe);
-    if (aDire.length === 0) return;
-    /* LE DERNIER SUFFIT : Meta marque lu tout ce qui le précède, et le dire
-       message par message multiplierait les appels pour rien. */
-    const dernier = aDire[aDire.length - 1];
-    void supabase.functions.invoke('whatsapp-envoi', { body: { marquerLu: dernier.waId } });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fil?.numero, fil?.messages.length, reglages.cochesBleues]);
 
   /* ══ RÉÉCRIRE UN MESSAGE PARTI — décision de Yéman, 14 septembre ════
      Le fil du Trône porte le texte juste, sans rature ni mention. Le prix est
@@ -1014,43 +551,6 @@ export default function Conversations() {
     toast('Conversation archivée. Rien n’est effacé, et elle revient seule au prochain message.');
   };
 
-  /* RATTACHER UN NUMÉRO INCONNU À UNE FICHE — jamais l'inverse, et jamais
-     tout seul. On écrit le numéro sur la fiche choisie ; les messages
-     rejoignent sa tête au prochain rendu, sans qu'aucun message ne bouge. */
-  const attache = async (clientId: string, numero: string) => {
-    const c = clients.find((x) => x.id === clientId);
-    if (!c) return;
-    const n = numeroWa(numero);
-    /* LE PREMIER NUMÉRO NE S'ÉCRASE PAS : c'est le contact principal, celui
-       des rappels. Un numéro qui écrit devient le SECOND, à moins que la
-       fiche n'en ait aucun. LE SECOND NE S'ÉCRASE PLUS EN SILENCE (10 octobre
-       2026, revue) : s'il est pris, une main lit le numéro qu'elle remplace
-       et dit oui, sinon rien ne bouge. */
-    const r = rattachementDuNumero(c, numero);
-    if (r.geste === 'remplacer' && !await demande({
-      quoi: 'Rattacher un numéro',
-      titre: `Remplacer le second numéro de ${c.name.split(' ')[0]} ?`,
-      dit: `Sa fiche porte déjà deux numéros : le second, +${r.ancien}, laisserait sa place à +${n}.`,
-      suite: 'Son numéro principal ne change pas. L’ancien second disparaîtra de la fiche : ses messages ne la rejoindront plus.',
-      accepter: 'Remplacer le second',
-      refuser: 'Ne rien changer',
-      dur: true,
-    })) return;
-    if (r.geste !== 'deja') {
-      const champ = r.champ;
-      clientsStore.set((prev) => prev.map((x) => (x.id === clientId ? { ...x, [champ]: `+${n}` } : x)));
-    }
-    /* ON RATTACHE AUSSI L'HISTOIRE : les messages déjà reçus portent un
-       `clientId` vide, et le rapprochement par numéro suffirait à l'écran —
-       mais la fiche, le carnet et tout ce qui lira ces lignes demain veut
-       l'identifiant écrit. */
-    messagesWaStore.set((prev) => prev.map((m) => (numeroWa(m.numero) === n
-      ? { ...m, clientId, branchId: m.branchId ?? c.branchId }
-      : m)));
-    setRattacher(null);
-    toast(`Ce numéro est désormais celui de ${c.name.split(' ')[0]}.`);
-  };
-
   return (
     <div className={`tr-page trc-page-convs${fil ? ' a-fil' : ''}`}>
       <PageHead
@@ -1072,7 +572,7 @@ export default function Conversations() {
               Les clientes
             </Button>
             <Button variant={vue === 'reponses' ? 'copper' : 'ghost'} size="sm" onClick={() => setVue((v) => (v === 'reponses' ? 'fils' : 'reponses'))}>
-              {vue === 'reponses' ? 'Revenir aux conversations' : 'Réponses de la Maison'}
+              {vue === 'reponses' ? 'Revenir aux conversations' : 'Ce que la Maison répond'}
             </Button>
             <Button variant={vue === 'envois' ? 'copper' : 'ghost'} size="sm" onClick={() => setVue((v) => (v === 'envois' ? 'fils' : 'envois'))}>
               {vue === 'envois'
@@ -1325,7 +825,7 @@ export default function Conversations() {
                     title="Continuer dans l’application WhatsApp. Ce qui s’y écrit n’entre pas dans le fil de la Maison."
                     aria-label="Ouvrir cette conversation dans l’application WhatsApp"
                     /* L'automate ne voit pas cette sortie : il se tait (9 octobre 2026). */
-                    onClick={() => prendsLaMain('whatsapp')}
+                    onClick={() => poignee.current?.prendsLaMain('whatsapp')}
                   >
                     <WaGlyph taille={15} />
                     <span className="trc-wa__mot">Continuer dans WhatsApp</span>
@@ -1358,7 +858,7 @@ export default function Conversations() {
                       fenêtre du rendez-vous, la fiche déjà posée. Pas pour
                       l'équipe ni les prestataires. */}
                   {!estReserve(fil.tiroir) && (
-                    <button type="button" className="trv-minibtn" onClick={() => poseUnRendezVous(false)}>
+                    <button type="button" className="trv-minibtn" onClick={() => poignee.current?.poseUnRendezVous(false)}>
                       Poser un rendez-vous
                     </button>
                   )}
@@ -1510,333 +1010,16 @@ export default function Conversations() {
                     </div>
                   );
                 })}
-                {/* LE MESSAGE RETENU — il paraît, mais n'a pas encore quitté
-                    la Maison. Quelques secondes pour se raviser. */}
-                {enAttente && enAttente.numero === fil.numero && (
-                  <div className="trc-b trc-b--attente">
-                    {enAttente.texte || enAttente.piece?.nom || `Modèle ${enAttente.modele}`}
-                    <span className="trc-b__h">
-                      part dans {resteDeLaRetenue(enAttente.posteLe, delaiMs, Date.now())} secondes
-                    </span>
-                    <span className="trc-b__gestes">
-                      <button type="button" onClick={retenir}>Retenir</button>
-                      <button
-                        type="button"
-                        onClick={() => { const a = enAttente; setEnAttente(null); partirUneFois(a); }}
-                      >
-                        Envoyer maintenant
-                      </button>
-                    </span>
-                  </div>
-                )}
                 <div ref={finDuFil} />
               </div>
 
-              {/* ── LA SAISIE, ET LA RÈGLE QU'ELLE PORTE ── */}
-              <div className={`trc-saisie${fil.fenetre.ouverte ? '' : ' est-close'}`}>
-                {/* LE BANDEAU DE L'AUTOMATE, DANS LA SAISIE (9 octobre 2026) :
-                    c'est là qu'on reprend la main, au téléphone aussi. */}
-                {fil.automate && fil.automate.tenue !== 'aucun' && (() => {
-                  const vue = fil.automate;
-                  const a = automates.get(fil.numero);
-                  const rdv = vue.rdvId ? rendezVous.find((x) => x.id === vue.rdvId) : undefined;
-                  const noms = (rdv?.serviceIds ?? []).map((id) => servicesParId.get(id)?.name ?? '').filter(Boolean);
-                  const gestesDuRdv = noms.length <= 1 ? (noms[0] ?? '') : `${noms.slice(0, -1).join(', ')} et ${noms[noms.length - 1]}`;
-                  /* Un rendez-vous déjà posé par l'automate (même si la main
-                     a passé juste après) ne se pose pas deux fois. */
-                  const posable = vue.tenue !== 'fini' && !vue.rdvId && !estReserve(fil.tiroir) && (vue.panier?.serviceIds?.length ?? 0) > 0;
-                  return (
-                    <BandeauDeLAutomate
-                      vue={vue}
-                      etat={a?.fil ?? null}
-                      main={a?.main ?? null}
-                      rdv={rdv}
-                      gestesDuRdv={gestesDuRdv}
-                      surReprendre={() => prendsLaMain('reprendre', true)}
-                      surRendre={rendsLaMain}
-                      surPoser={posable ? () => poseUnRendezVous(true) : undefined}
-                      surOuvrirRdv={rdv ? () => setRdvOuvert(rdv) : undefined}
-                      pauseHeures={reglageAutomate.pauseHeures}
-                    />
-                  );
-                })()}
-                {/* POURQUOI L'AUTOMATE SE TAIT SUR CE FIL (14 octobre 2026). Un numéro
-                    qu'il n'a jamais mené n'avait ni bandeau ni bouton : l'essai sur le
-                    numéro de Brice est resté muet sans que rien le dise. La main de
-                    l'équipe (la pause posée quand une personne écrit) se lève ici ;
-                    un numéro qu'il ne sert pas le dit, avec le réglage à toucher. */}
-                {(!fil.automate || fil.automate.tenue === 'aucun') && fil.tiroir !== 'prestataires' && (() => {
-                  const mainDuFil = automates.get(fil.numero)?.main ?? null;
-                  if (pauseActive(mainDuFil, Date.now())) {
-                    return (
-                      <div className="trc-automate trc-automate--pause" role="status">
-                        <span className="trc-automate__dit">
-                          L’équipe a la main{mainDuFil?.jusqua ? ` ${finDuBandeau(mainDuFil.jusqua)}` : ''} : l’automate se tait sur ce fil.
-                        </span>
-                        <span className="trc-automate__gestes">
-                          <Button variant="ghost" size="sm" onClick={() => {
-                            mainPriseLe.current.delete(fil.numero);
-                            rendsALAutomate(fil.numero, { branchId: branch.id });
-                            toast('Rendu à l’automate : il répondra au prochain message de ce numéro.');
-                          }}>Rendre à l’automate</Button>
-                        </span>
-                      </div>
-                    );
-                  }
-                  if (!numeroServi(reglageAutomate, fil.numero, fil.tiroir)) {
-                    const pourquoi = reglageAutomate.mode === 'eteint' ? 'il est éteint'
-                      : reglageAutomate.mode === 'essai' ? 'il est en Essai, et ce numéro n’est pas dans sa liste'
-                      : 'il est Ouvert, mais ne sert que les clientes et les numéros de sa liste';
-                    return (
-                      <div className="trc-automate trc-automate--pause" role="status">
-                        <span className="trc-automate__dit">L’automate ne répond pas à ce numéro : {pourquoi} (Système › Paramètres).</span>
-                      </div>
-                    );
-                  }
-                  return null;
-                })()}
-                <div className="trc-saisie__q">
-                  {fil.fenetre.ouverte ? (
-                    <>
-                      <span className="trc-horloge trc-horloge--ouverte">
-                        Fenêtre ouverte · {resteEnClair(fil.fenetre.resteMs)}
-                      </span>
-                      <span className="trc-sub" style={{ fontSize: 12 }}>
-                        Elle a écrit à {heure(fil.fenetre.depuis ?? fil.dernier.quand)}. Vous pouvez répondre
-                        librement jusque-là demain.
-                      </span>
-                    </>
-                  ) : (
-                    <>
-                      <span className="trc-horloge trc-horloge--close">
-                        {fil.fenetre.depuis ? 'Fenêtre fermée' : 'Elle ne vous a jamais écrit'}
-                      </span>
-                      {/* ── CE QUE META FACTURE VRAIMENT — 15 septembre 2026 ──
-                          Cette phrase disait « un modèle rouvre une conversation
-                          de 24 h, et Meta LA facture ». C'était vrai jusqu'en
-                          juin 2025 ; depuis le 1er juillet 2025 Meta facture AU
-                          MESSAGE, et la conversation n'est plus l'unité.
-
-                          LA NUANCE CHANGE LA DÉCISION : sous l'ancien modèle,
-                          une fois la conversation payée on pouvait tout dire.
-                          Aujourd'hui c'est chaque modèle hors fenêtre qui
-                          compte — et répondre ensuite dans la fenêtre qu'il
-                          ouvre ne coûte rien. */}
-                      <span className="trc-sub" style={{ fontSize: 12 }}>
-                        WhatsApp n’accepte plus que vos modèles approuvés. <b>Meta facture
-                        le modèle</b>, pas la conversation : une fois qu’elle vous aura
-                        répondu, {laFenetreSePaie()
-                          ? `vos réponses entrent dans les ${REPONSES_GRATUITES_DU_MOIS.toLocaleString('fr-FR')} gratuites du mois.`
-                          : `les 24 h qui suivent sont gratuites jusqu’au 30 septembre, puis ${REPONSES_GRATUITES_DU_MOIS.toLocaleString('fr-FR')} réponses gratuites par mois.`}
-                      </span>
-                    </>
-                  )}
-                </div>
-
-                {fil.fenetre.ouverte ? (
-                  <>
-                    {/* ── LA BARRE D'OUTILS ──────────────────────────────
-                        Dix gestes, chacun disant son état, et deux portes
-                        pour les fichiers. Un geste REMPLIT la zone ; c'est
-                        une main qui relit et qui envoie. */}
-                    <div className="trc-gestes-rangee">
-                      <ChoisirUnFichier surFichier={setPiece} occupe={envoiEnCours} />
-                      <button type="button" className="trc-geste trc-geste--tel" onClick={() => setLienOuvert(true)}>
-                        <b>Lien de réservation</b>
-                      </button>
-                      <BarreDesGestes
-                        gestes={gestes}
-                        surGeste={poseLeGeste}
-                        surPromo={() => setPromoOuverte(true)}
-                        occupe={envoiEnCours}
-                      />
-                    </div>
-
-                    {/* CE QU'ON CITE, au-dessus de ce qu'on écrit — comme
-                        WhatsApp le montre à la cliente. */}
-                    {cite && (
-                      <div className="trc-piece">
-                        <span className="trc-piece__v">Cite</span>
-                        <span className="trc-piece__n">{cite.texte}</span>
-                        <button type="button" className="trc-piece__x" onClick={() => setCite(null)}>
-                          Ne plus citer
-                        </button>
-                      </div>
-                    )}
-
-                    {piece && (
-                      <div className="trc-piece">
-                        <span className="trc-piece__v">{piece.type.startsWith('image/') ? 'IMG' : 'PDF'}</span>
-                        <span className="trc-piece__n">{piece.nom}</span>
-                        <button type="button" className="trc-piece__x" onClick={() => setPiece(null)}>
-                          Retirer
-                        </button>
-                      </div>
-                    )}
-
-                    <textarea
-                      className="mnd-input trc-saisie__texte"
-                      rows={2}
-                      value={texte}
-                      placeholder={`Écrivez à ${fil.nom.split(' ')[0]}…`}
-                      onChange={(e) => {
-                        /* La première lettre fait taire l'automate (9 octobre 2026). */
-                        if (e.target.value.trim()) prendsLaMain('frappe');
-                        setTexte(e.target.value);
-                      }}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); void envoie(); }
-                      }}
-                    />
-                    <div className="trc-saisie__envoi" style={{ display: 'flex', gap: 8, marginTop: 10, justifyContent: 'flex-end', alignItems: 'center', flexWrap: 'wrap' }}>
-                      <span className="trc-sub trc-saisie__note" style={{ fontSize: 11, marginRight: 'auto' }}>
-                        La devise ne se pose pas ici : elle signe ce que la Maison écrit seule.
-                      </span>
-                      {/* « Proposer une réponse » (19 octobre 2026) : Claude remplit la zone, la main relit et envoie par le bouton d'à côté. */}
-                      <ReponseProposee key={fil.numero} fil={fil} texte={texte} occupe={envoiEnCours} surProposition={(t) => { if (t) prendsLaMain('proposition'); setTexte(t); }} />
-                      <Button className="trc-saisie__lien" variant="ghost" size="sm" onClick={() => setLienOuvert(true)}>Lien de réservation</Button>
-                      <Button
-                        variant="copper"
-                        size="sm"
-                        disabled={!!refus || envoiEnCours}
-                        onClick={() => void envoie()}
-                      >
-                        {envoiEnCours ? 'Envoi…' : 'Envoyer'}
-                      </Button>
-                    </div>
-                  </>
-                ) : estReserve(fil.tiroir) ? (
-                  /* LES MODÈLES DES CLIENTES NE SERVENT PAS ICI : un rappel de
-                     rendez-vous à une employée n'aurait pas de sens. Ses
-                     modèles à elle partent de l'écran qui décide. */
-                  <p className="trc-sub" style={{ margin: 0 }}>
-                    Hors fenêtre, écrivez-lui depuis l’écran qui décide : <b>la Paie</b> pour un bulletin,
-                    <b> Temps & absences</b> pour un congé, <b>les Engagements</b> pour un versement.
-                    Chacun part par son modèle approuvé. Ou attendez qu’elle écrive : la fenêtre se rouvre.
-                  </p>
-                ) : (
-                  <div className="trc-saisie__modeles" style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                    <Button variant="copper" size="sm" disabled={envoiEnCours} onClick={() => setLienOuvert(true)}>
-                      Réservation préparée
-                    </Button>
-                    {MODELES.filter((m) => m.nom !== 'avis_google' || demandeDAvis.permise).map((m) => (
-                      <Button
-                        key={m.nom}
-                        variant="copper"
-                        size="sm"
-                        disabled={envoiEnCours}
-                        title={`${m.dit} · ${m.nom}`}
-                        onClick={() => setModeleAConfirmer({ nom: m.nom, dit: m.dit })}
-                      >
-                        {m.dit}
-                      </Button>
-                    ))}
-                    {!demandeDAvis.permise && (
-                      <span className="trc-sub" style={{ alignSelf: 'center' }}>{ditLaDemandeDAvis(demandeDAvis, jourAn)}</span>
-                    )}
-                  </div>
-                )}
-              </div>
+              {/* LA SAISIE, ET LA RÈGLE QU'ELLE PORTE : le composeur, extrait tel quel le
+                  27 octobre 2026 (`ComposeurWhatsApp.tsx`), partagé avec la vue de l'Assistant. */}
+              <ComposeurWhatsApp fil={fil} texte={texte} surTexte={setTexte} cite={cite} surCite={setCite} poignee={poignee} />
             </>
           )}
         </div>
       </div>
-
-      {/* LA PROMO FLASH — un code par cliente, à usage unique, 48 heures.
-          La direction seule en crée : une remise est de l'argent qui sort.
-          La vraie barrière est la RLS (0093) ; celle-ci n'est que la
-          politesse de ne pas montrer un bouton qui refusera. */}
-      {lienOuvert && fil && (
-        <LienDeReservation
-          prenom={appelDe(clients.find((c) => c.id === fil.clientId), fil.nom)}
-          fenetreOuverte={fil.fenetre.ouverte}
-          surMessage={(m) => { prendsLaMain('lien'); setTexte(m); setLienOuvert(false); toast('Lien posé. Relisez le message avant de l’envoyer.'); }}
-          surModele={(variables, boutonUrl, texteAffiche) => {
-            setLienOuvert(false);
-            setModeleAConfirmer({ nom: 'reservation_preparee', dit: 'Réservation préparée', variables, boutonUrl, texteAffiche });
-          }}
-          surFermer={() => setLienOuvert(false)}
-        />
-      )}
-      {promoOuverte && fil?.clientId && (
-        <PanneauDeLaPromo
-          tete={{ id: fil.clientId, name: fil.nom }}
-          estDirection={estDirection}
-          parQui={session?.user?.email ?? undefined}
-          vivants={codesVivants}
-          surCode={(c, message) => {
-            prendsLaMain('geste');
-            setTexte(message);
-            setPromoOuverte(false);
-            toast(`Code ${c.code} posé. Relisez le message avant de l’envoyer.`);
-          }}
-          surFermer={() => setPromoOuverte(false)}
-        />
-      )}
-
-      {/* ══ UN MODÈLE SE CONFIRME AVANT DE PARTIR — 15 septembre 2026 ═══
-          « Si j'appuie un des modèles je dois avoir un message qui m'avertit
-          que je vais être facturé » (Yéman).
-
-          ON DIT COMBIEN, PAS EN FRANCS. La Maison n'a pas les tarifs du Bénin
-          et les inventer mettrait un chiffre faux sous les yeux de quelqu'un
-          qui déciderait dessus. Le RANG dans le mois, lui, est exact et rend
-          la dépense tangible : « le douzième ce mois-ci » se comprend mieux
-          qu'un tarif hors contexte.
-
-          ET L'ON RAPPELLE CE QUI EST GRATUIT, parce que c'est souvent la
-          meilleure décision : attendre qu'elle écrive ne coûte rien. */}
-      {modeleAConfirmer && fil && (
-        <div className="trc-modal-fond" onClick={() => setModeleAConfirmer(null)}>
-          <div className="trc-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="trc-modal__t">Ce modèle sera facturé</div>
-            <p className="trc-sub" style={{ marginTop: 0 }}>
-              <b>{modeleAConfirmer.dit}</b> partira à <b>{fil.nom}</b>.
-              Sa fenêtre est fermée : WhatsApp n’accepte qu’un modèle approuvé, et
-              <b> Meta facture ce message</b> au tarif de sa catégorie.
-            </p>
-            <p className="trc-sub">
-              Ce sera le <b>{modelesDuMois.factures + 1}<sup>e</sup></b> modèle facturé
-              de la Maison ce mois-ci.
-              {modelesDuMois.gratuits > 0
-                ? ` ${modelesDuMois.gratuits} autre${modelesDuMois.gratuits > 1 ? 's sont partis' : ' est parti'} sans rien coûter.`
-                : ''}
-            </p>
-            <p className="trc-sub">
-              {laFenetreSePaie() ? (
-                <>
-                  <b>Ce qui peut ne rien coûter :</b> attendre qu’elle vous écrive. Vos réponses
-                  entrent alors dans les {REPONSES_GRATUITES_DU_MOIS.toLocaleString('fr-FR')} gratuites
-                  du mois, dont <b>{modelesDuMois.reponses}</b> déjà utilisée{modelesDuMois.reponses > 1 ? 's' : ''}.
-                </>
-              ) : (
-                <>
-                  <b>Ce qui ne coûte rien :</b> attendre qu’elle vous écrive. Les 24 heures qui
-                  suivent son message sont gratuites jusqu’au 30 septembre, puis
-                  {' '}{REPONSES_GRATUITES_DU_MOIS.toLocaleString('fr-FR')} réponses gratuites par mois.
-                </>
-              )}
-            </p>
-            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
-              <Button variant="ghost" size="sm" onClick={() => setModeleAConfirmer(null)}>
-                Ne pas envoyer
-              </Button>
-              <Button
-                variant="copper"
-                size="sm"
-                disabled={envoiEnCours}
-                onClick={() => {
-                  const m = modeleAConfirmer;
-                  setModeleAConfirmer(null);
-                  void envoie(m.nom, m.variables ?? [], { boutonUrl: m.boutonUrl, texteAffiche: m.texteAffiche });
-                }}
-              >
-                Envoyer quand même
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* ══ COMMENCER UNE CONVERSATION — 15 septembre 2026 ═══════════════
           « Me permettre de commencer une nouvelle discussion WhatsApp »
@@ -1944,23 +1127,6 @@ export default function Conversations() {
         </div>
       )}
 
-      {/* LE RENDEZ-VOUS DEPUIS LA CONVERSATION · 9 octobre 2026. La création
-          se lit en comptant, comme depuis un appel. */}
-      {rdvDuFil && (
-        <RdvModal
-          title="Rendez-vous depuis une conversation"
-          initial={rdvDuFil.initial}
-          onClose={() => {
-            const apres = appointmentsStore.get().length;
-            if (apres > rdvDuFil.avant) toast('Rendez-vous posé depuis la conversation.');
-            setRdvDuFil(null);
-          }}
-        />
-      )}
-      {rdvOuvert && (
-        <RdvModal appt={rdvOuvert} onClose={() => setRdvOuvert(null)} />
-      )}
-
       {/* RATTACHER — on choisit une tête EXISTANTE. Créer une fiche depuis un
           numéro qui écrit remplirait la base de démarcheurs en un mois. */}
       {rattacher && (
@@ -1978,7 +1144,7 @@ export default function Conversations() {
             </p>
             <ClientPicker
               value=""
-              onChange={(id) => { if (id) void attache(id, rattacher.numero); }}
+              onChange={(id) => { if (id) void attache(id, rattacher.numero, clients).then((fait) => { if (fait) setRattacher(null); }); }}
               placeholder="Cherchez une cliente…"
             />
           </div>

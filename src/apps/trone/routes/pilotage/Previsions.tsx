@@ -6,7 +6,7 @@ import { predictNextVisit, tauxDeRealisation } from '../../../../shared/cadence'
 import { dortDepuisLongtemps, estDePassage, estDiaspora, aDefaitSesLocks, MOIS_AVANT_SORTIE } from '../../../../shared/clients';
 import { apptPaidXof } from '../../../../shared/agenda';
 import { useInvoices } from '../../../../shared/finance';
-import { ajouteJours, rdvParJour, reperesParJour } from '../../../../shared/objectifs-des-fauteuils-pur';
+import { NOMS_DES_JOURS, ajouteJours, chargeSurObjectif, jourDeSemaine, rdvParJour, reperesDe, reperesParJour } from '../../../../shared/objectifs-des-fauteuils-pur';
 import {
   bornesDeLHorizon, calculeLesPrevisions, finDuMois, mesureDesEnvois, moisDuPasse, nomDeLHorizon, nouvellesClientes, placeDeLaCliente,
   premierMoisJugeLisibleLe, rdvsConnusLe, rejoueLeMois, resumeDuRejeu,
@@ -56,7 +56,11 @@ function useLesRdvs(): RdvDesPrevisions[] {
   }, [appts, pieces]);
 }
 
-function usePrevisions(horizon: HorizonDesPrevisions, rdvs: RdvDesPrevisions[]): { p: LesPrevisions; titre: string } {
+/** UN DES QUATORZE PROCHAINS JOURS : ses posés contre l'ordinaire de son jour
+    de la semaine, et le verdict « creux » du Carnet. */
+type JourProchain = { iso: string; nom: string; poses: number; ferme: boolean; ordinaire: number; creux: boolean; manque: number };
+
+function usePrevisions(horizon: HorizonDesPrevisions, rdvs: RdvDesPrevisions[]): { p: LesPrevisions; titre: string; quatorze: JourProchain[] } {
   const { branch } = useBranch();
   const appts = useBranchAppointments();
   const clients = useBranchClients();
@@ -116,7 +120,20 @@ function usePrevisions(horizon: HorizonDesPrevisions, rdvs: RdvDesPrevisions[]):
       retard, endormies, relance: socle.relance, reveil: socle.reveil,
       physique: { sieges: Math.max(0, branch.seats ?? 0), dureeMoyenneMin: socle.dureeMoyenneMin, ouverture: openingForIso },
     });
-    return { p, titre: bornes.titre };
+    /* « LES 14 PROCHAINS JOURS » (27 octobre 2026, lot 3 de l'Assistant
+       Maison, maquette « 4 tuiles replacées ») : dès demain, jour par jour,
+       les posés contre l'ORDINAIRE du jour de la semaine (la médiane des 26
+       dernières semaines, `reperesParJour`). Le jour creux est celui du
+       Carnet (`chargeSurObjectif`) : une seule définition. Le manque est ce
+       qui sépare les posés de l'ordinaire, un jour creux seulement. */
+    const quatorze: JourProchain[] = Array.from({ length: 14 }, (_, k) => ajouteJours(today, k + 1)).map((iso) => {
+      const poses = socle.parJour.get(iso) ?? 0;
+      const ferme = !socle.estOuvertLe(iso) && poses === 0;
+      const r = reperesDe(socle.reperes, iso);
+      const creux = !ferme && chargeSurObjectif(poses, r).ton === 'creux';
+      return { iso, nom: NOMS_DES_JOURS[jourDeSemaine(iso)], poses, ferme, ordinaire: ferme ? 0 : r.ordinaire, creux, manque: creux ? r.ordinaire - poses : 0 };
+    });
+    return { p, titre: bornes.titre, quatorze };
   }, [horizon, today, clients, socle, branch.seats]);
 }
 
@@ -317,9 +334,11 @@ export default function Previsions() {
   const today = todayISO();
   const [vue, setVue] = useState<HorizonDesPrevisions | 'passe'>('4s');
   const rdvs = useLesRdvs();
-  const { p, titre } = usePrevisions(vue === 'passe' ? '4s' : vue, rdvs);
+  const { p, titre, quatorze } = usePrevisions(vue === 'passe' ? '4s' : vue, rdvs);
   const passe = useRejeu(vue === 'passe', rdvs);
   const resume = passe ? resumeDuRejeu(passe) : null;
+  const joursCreux = quatorze.filter((j) => j.creux).length;
+  const totalQuatorze = quatorze.reduce((t, j) => ({ poses: t.poses + j.poses, ordinaire: t.ordinaire + j.ordinaire, manque: t.manque + j.manque }), { poses: 0, ordinaire: 0, manque: 0 });
 
   return (
     <div className="trp-prev">
@@ -465,6 +484,38 @@ export default function Previsions() {
             </button>
             <button type="button" className="trp-prev__btn" onClick={() => navigate('/cadence')}>Voir les reprises en retard</button>
           </div>
+        </div>
+      </section>
+
+      {/* LES 14 PROCHAINS JOURS : la tuile qui remplace l'agent du planning
+          (27 octobre 2026). Un seul lien, le calendrier ; aucun geste de
+          relance ici, les reprises ont leur rubrique. */}
+      <section className="trp-prev__calcul" aria-label="Les 14 prochains jours">
+        <h3>Les 14 prochains jours <span>posés sur ordinaire</span></h3>
+        <p>Dès demain, jour par jour : ce qui est posé, contre ce qu’un tel jour donne d’habitude (la médiane des 26 dernières semaines). Un jour creux, comme au Carnet : moins de posés que l’ordinaire.</p>
+        <div className="mnd-scroll-x">
+          <table>
+            <thead><tr><th>Jour</th><th className="d">Posés</th><th className="d">Ordinaire</th><th className="d">Manque</th></tr></thead>
+            <tbody>
+              {quatorze.map((j) => (
+                <tr key={j.iso}>
+                  <td><span className="trp-prev__jour">{j.nom}</span> {leJourDit(j.iso)}{j.creux && <small className="trp-prev__amesurer">jour creux</small>}</td>
+                  <td className="d">{j.ferme ? '·' : j.poses}</td>
+                  <td className="d">{j.ferme ? 'fermé' : j.ordinaire}</td>
+                  <td className="d">{j.ferme ? '·' : j.manque}</td>
+                </tr>
+              ))}
+              <tr className="total">
+                <td>Quatorze jours<small>{joursCreux} jour{joursCreux > 1 ? 's' : ''} creux</small></td>
+                <td className="d">{totalQuatorze.poses}</td>
+                <td className="d">{totalQuatorze.ordinaire}</td>
+                <td className="d">{totalQuatorze.manque}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div className="trp-prev__gestes">
+          <button type="button" className="trp-prev__btn" onClick={() => navigate('/calendrier')}>Le calendrier</button>
         </div>
       </section>
 

@@ -21,6 +21,7 @@ import {
   type CommandeFournisseur, type FamilleProduit, type ProduitStock, type MouvementStock, type EtatReserve,
 } from '../../../../shared/stock';
 import { uid } from '../../../../shared/store';
+import { gammeAReassortir } from '../../../../shared/agents-maison-pur';
 import { frDay, todayISO } from '../clients/_shared';
 import './vente.css';
 
@@ -101,6 +102,24 @@ export default function HomeRituals() {
   );
   const bcOuverts = commandes.filter((c) => c.branchId === branch.id && (c.statut === 'envoyee' || c.statut === 'partielle')).length;
 
+  /* « BONS À PRÉPARER » (27 octobre 2026, lot 3 de l'Assistant Maison,
+     maquette « 4 tuiles replacées ») : la tuile qui remplace l'agent du
+     stock, avec SON calcul, tel quel : la liste de courses (`reappro`) groupée
+     par fournisseur et son coût estimé, la Gamme sous son seuil
+     (`gammeAReassortir`). La tuile mène aux Achats, où le bon se prépare. */
+  const [gamme] = useProducts();
+  const groupes = useMemo(() => reappro(produits, mouvements, branch.id), [produits, mouvements, branch.id]);
+  const gammeBasse = useMemo(() => gammeAReassortir(gamme, SEUIL), [gamme]);
+  const bons = useMemo(() => {
+    const listes = [...groupes.values()];
+    return {
+      fournisseurs: [...groupes.keys()].filter(Boolean).length,
+      sansFournisseur: [...groupes.entries()].filter(([fid]) => !fid).reduce((s, [, l]) => s + l.length, 0),
+      produits: listes.reduce((s, l) => s + l.length, 0),
+      coutXof: listes.reduce((s, l) => s + l.reduce((n, x) => n + x.coutEstimeXof, 0), 0),
+    };
+  }, [groupes]);
+
   return (
     <>
       <PageHead
@@ -108,6 +127,26 @@ export default function HomeRituals() {
         title="Stock &amp; Achats."
         sub="Stock · achats · coûts · marges."
       />
+
+      {(bons.produits > 0 || gammeBasse.length > 0) && (
+        <button
+          type="button"
+          className={`trv-mag-kpi${bons.produits ? ' trv-mag-kpi--alerte' : ''}`}
+          style={{ display: 'block', width: '100%', textAlign: 'left', cursor: 'pointer', font: 'inherit', marginTop: 14 }}
+          onClick={() => setOnglet('achats')}
+          title="Ouvre les Achats, où chaque bon se prépare"
+          aria-label="Bons à préparer"
+        >
+          <small>Bons à préparer</small>
+          <b>{bons.fournisseurs} bon{bons.fournisseurs > 1 ? 's' : ''} · {fmtMoney(bons.coutXof, currency)}</b>
+          <i>
+            {bons.produits} produit{bons.produits > 1 ? 's' : ''} sous le seuil
+            {bons.sansFournisseur ? `, dont ${bons.sansFournisseur} sans fournisseur` : ''}
+            {' · '}Gamme à {SEUIL} ou moins : {gammeBasse.length}
+            {' · '}Préparer ›
+          </i>
+        </button>
+      )}
 
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 16, marginBottom: 4 }}>
         <Chip actif={onglet === 'vue'} onClick={() => setOnglet('vue')}>

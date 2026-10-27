@@ -146,7 +146,28 @@ dit('ce que l assistant propose repasse par les briques du Trone avant de s affi
 dit('le gardien de la marque relit chaque message, un prix bloque', [true, true],
   [(agents.match(/relisLaMarque\([a-z.]*message, \{ campagne: true \}\)/g) ?? []).length === 2, agents.includes('if (bloquant(remarques))')]);
 dit('les passages ne se font que pour un souverain', [true, true], [agents.includes('useLancePassagesDus(estSouverain, processus, passages, tetes)'), avalider.includes("if (monProfil?.role !== 'souverain') return null;")]);
-dit('au tableau de bord : Demander a la Maison et A valider', [true, true], [tableau.includes('<DemanderALaMaison prevision={prevDuMois} jour={jourPourLAssistant} />'), tableau.includes('<AValiderDesAgents />')]);
+dit('au tableau de bord : Demander a la Maison ; A valider n y est plus', [true, false],
+  [tableau.includes('<DemanderALaMaison prevision={prevDuMois} jour={jourPourLAssistant} />'), tableau.includes('<AValiderDesAgents />')]);
+/* LES QUATRE TUILES LE REMPLACENT (27 octobre 2026, lot 3 de l'Assistant
+   Maison, maquette « 4 tuiles replacees ») : chacune lit le calcul de son
+   agent, tel quel, et porte un lien ; aucune ne relance les reprises. */
+const depenses = sansCommentaires('src/apps/trone/routes/finances/Depenses.tsx');
+const stock = sansCommentaires('src/apps/trone/routes/vente/HomeRituals.tsx');
+const previsions = sansCommentaires('src/apps/trone/routes/pilotage/Previsions.tsx');
+dit('... A encaisser, dans Ce qui presse : le calcul de l agent des encaissements, deux liens', [true, true, true, true],
+  [tableau.includes("const rituels = appts.filter((a) => a.status === 'honoré' && !a.invoiceId && a.date < today && apptDueXof(a, byId) > 0);"),
+    tableau.includes("invoices.filter((i) => i.branchId === branch.id && i.kind === 'facture' && invoiceResteXof(i) > 0)"),
+    tableau.includes('<span className="trp-prev__sur">À encaisser</span>'),
+    /navigate\('\/carnet'\)\}>Le carnet ›<\/button>[\s\S]*navigate\('\/factures\?filtre=a-regler'\)\}>Les factures ›<\/button>/.test(tableau)]);
+dit('... Sans justificatif et Divers a ranger, aux Depenses : le calcul de l agent de la comptabilite, comptes et francs', [true, true, true],
+  [depenses.includes('depensesSansJustificatif(toutesLesDepenses, branch.id, debutDuMoisEnCours)'), depenses.includes('rangementsProposes(toutesLesDepenses, branch.id)'),
+    depenses.includes("'Sans justificatif · Divers à ranger', `${sansJustificatif.length} · ${diversARanger.length}`")]);
+dit('... Bons a preparer, au Stock & Achats : le calcul de l agent du stock, la tuile ouvre les Achats', [true, true, true],
+  [stock.includes('reappro(produits, mouvements, branch.id)'), stock.includes('gammeAReassortir(gamme, SEUIL)'),
+    /<small>Bons à préparer<\/small>/.test(stock) && /onClick=\{\(\) => setOnglet\('achats'\)\}[^>]*title="Ouvre les Achats/.test(stock)]);
+dit('... Les 14 prochains jours, aux Previsions : l ordinaire par reperesParJour, le jour creux du Carnet, pas de Proposer aux reprises', [true, true, true, false],
+  [previsions.includes('<h3>Les 14 prochains jours <span>posés sur ordinaire</span></h3>'), /chargeSurObjectif\(poses, r\)\.ton === 'creux'/.test(previsions),
+    /<th>Jour<\/th><th className="d">Posés<\/th><th className="d">Ordinaire<\/th><th className="d">Manque<\/th>/.test(previsions), previsions.includes('Proposer aux reprises')]);
 dit('chez Claude, jamais le texte d une tache (il pourrait nommer une cliente)', true, demander.includes("texte: '', projetId: m.projetId"));
 dit('la fonction se dit 2026-10-24-a et connait les trois chantiers', [true, true],
   [fonction.includes("const VERSION = '2026-10-24-a';"), fonction.includes("'fiche-du-jour', 'lettre', 'prevision', 'question', 'processus'] as const;")]);

@@ -19,7 +19,8 @@ import {
   type AvisDeGoogle, type DocumentDesAvisDeGoogle,
 } from '../src/shared/avis-google-pont-pur';
 import {
-  anciensAApreter, avisDeLaRubrique, cleDeGoogle, comptesDeLaRubrique, estRecent, etatDeLAvis, reponsesARelire,
+  ageCourt, anciensAApreter, avisDeLaRubrique, cleDeGoogle, comptesDeLaRubrique, estRecent, estUneNoteBasse, etatDeLAvis,
+  noteDesDixDerniers, ordreDeLaListe, publieesCeMois, reponsesARelire, type AvisDeLaRubrique,
 } from '../src/shared/avis-rubrique-pur';
 import { cleDeLAvis } from '../src/shared/avis-google-pur';
 // @ts-expect-error module .mjs sans types
@@ -280,7 +281,72 @@ const textes = [ecran, sansCommentaires(lis('src/shared/avis-google-pont.ts')), 
   dit('le chiffre de la barre : les réponses prêtes, ni publiées ni écartées', 1,
     reponsesARelire({ a: { reponse: 'x' }, b: { reponse: 'y', publieeLe: 'L' }, c: { reponse: 'z', ecarte: true }, d: {} }));
 }
-dit('pas de tiret cadratin ni de « salon » dans le texte affiché', [false, false], [/—/.test(textes), /\bsalon/i.test(textes)]);
+
+/* ── 5 (suite). LES CHIFFRES DE LA VUE « LES AVIS » DE L'ASSISTANT MAISON (26 octobre 2026, lot 3) ── */
+{
+  const A = '2026-10-26';
+  const MAINT = Date.parse(`${A}T08:00:00Z`);
+  /* Un avis de la rubrique posé à la main : sa clé, sa note, la date de Google. */
+  const R = (cle: string, note: number, publieLe: string | undefined, x: Partial<AvisDeLaRubrique> = {}): AvisDeLaRubrique =>
+    ({ cle, auteur: 'X.', texte: 'Un mot.', quand: '', note, ...(publieLe ? { publieLe } : {}), ...x });
+
+  /* Publiées ce mois : la date de Google d'abord, celle du Trône à défaut ; le mois à l'heure de Cotonou. */
+  const PUBLIEES = [
+    R('p1', 5, '2026-10-01T10:00:00Z', { reponduLe: '2026-10-05T10:00:00Z' }),
+    R('p2', 5, '2026-09-20T10:00:00Z', { reponduLe: '2026-09-30T23:30:00Z' }),
+    R('p3', 4, '2026-10-20T10:00:00Z', { reponduLe: '2026-10-31T23:30:00Z' }),
+    R('p4', 5, '2026-10-18T10:00:00Z'),
+    R('p5', 5, '2026-10-21T10:00:00Z', { reponduLe: '2026-10-22T09:00:00Z', parLeTrone: true }),
+    R('p6', 5, '2026-07-23T10:00:00Z', { reponduLe: '2026-07-24T10:00:00Z' }),
+    R('p7', 3, '2026-10-25T07:30:00Z'),
+    R('p8', 5, '2026-10-02T10:00:00Z'),
+  ];
+  const BP = {
+    p4: { reponse: 'Merci.', publieeLe: '2026-10-20T09:00:00Z', parLeTrone: true },
+    p5: { reponse: 'Merci.', publieeLe: '2026-10-22T09:00:00Z', parLeTrone: true },
+    p7: { reponse: 'Pardon.' },
+    p8: { reponse: 'Merci.', publieeLe: '2026-10-03T09:00:00Z' },
+  };
+  dit('publiées ce mois : Google (reponduLe) ou le Trône (publieeLe), un avis une fois, la part partie par le pont', { total: 5, parLeTrone: 2 },
+    publieesCeMois(PUBLIEES, BP, A.slice(0, 7)));
+  dit('... le mois se lit à Cotonou : 23 h 30 UTC le 30 septembre est déjà octobre, le 31 octobre déjà novembre', [{ total: 0, parLeTrone: 0 }, { total: 1, parLeTrone: 0 }],
+    [publieesCeMois(PUBLIEES, BP, '2026-09'), publieesCeMois(PUBLIEES, BP, '2026-11')]);
+  dit('... sans brouillon, la date de Google suffit ; sans Google, celle du Trône suffit (collée à la main : pas par le pont)', [{ total: 1, parLeTrone: 0 }, { total: 1, parLeTrone: 0 }],
+    [publieesCeMois([PUBLIEES[0]], {}, '2026-10'), publieesCeMois([PUBLIEES[7]], BP, '2026-10')]);
+
+  /* La note des dix derniers : triés sur la date de Google, pas sur l'ordre reçu. */
+  const DIX = Array.from({ length: 10 }, (_, i) => R(`n${i}`, 5, `2026-10-${String(10 + i).padStart(2, '0')}T10:00:00Z`));
+  const vieille = R('n-vieille', 1, '2025-01-10T10:00:00Z');
+  dit('la note des dix derniers : les dix plus récents sur publieLe ; la vieille 1 étoile reçue en premier n y est pas, dans un sens comme dans l autre', [{ note: 5, n: 10 }, { note: 5, n: 10 }],
+    [noteDesDixDerniers([vieille, ...DIX]), noteDesDixDerniers([...DIX].reverse().concat(vieille))]);
+  const trois = [R('a', 5, '2026-10-01T10:00:00Z'), R('b', 4, '2026-10-02T10:00:00Z'), R('c', 5, '2026-10-03T10:00:00Z')];
+  dit('... moins de dix : tous, à une décimale ; une note hors de 1 à 5 n est pas une note ; rien : null', [{ note: 4.7, n: 3 }, { note: 4.7, n: 3 }, { note: null, n: 0 }],
+    [noteDesDixDerniers(trois), noteDesDixDerniers([...trois, R('d', 0, '2026-10-04T10:00:00Z')]), noteDesDixDerniers([])]);
+
+  /* L'ordre : ce qui attend un geste d'abord, 1 à 3 étoiles en tête, puis les écartés, puis les répondus. */
+  const ORDRE = [
+    R('o1', 5, '2026-10-25T10:00:00Z'),
+    R('o2', 3, '2026-10-20T10:00:00Z'),
+    R('o3', 5, '2026-10-24T10:00:00Z', { reponse: 'Merci.', reponduLe: '2026-10-24T12:00:00Z' }),
+    R('o4', 2, '2026-07-01T10:00:00Z'),
+    R('o5', 5, '2026-10-23T10:00:00Z'),
+    R('o6', 1, '2026-10-10T10:00:00Z', { reponse: 'Pardon.', reponduLe: '2026-10-11T12:00:00Z' }),
+    R('o7', 4, '2026-10-01T10:00:00Z'),
+  ];
+  const BO = { o5: { ecarte: true }, o7: { reponse: 'Merci.' } };
+  dit('l ordre de la liste : sans réponse d abord, 1 à 3 étoiles en tête, puis les écartés, puis les répondus ; le plus récent d abord à rang égal',
+    ['o2', 'o4', 'o1', 'o7', 'o5', 'o3', 'o6'], ordreDeLaListe(ORDRE, BO, MAINT).map((a) => a.cle));
+  dit('... la liste reçue n est pas touchée', ['o1', 'o2', 'o3', 'o4', 'o5', 'o6', 'o7'], ORDRE.map((a) => a.cle));
+  dit('... « 1 à 3 étoiles » : le seuil de la redemande d avis ; 0 n est pas une note', [false, true, true, true, false, false], [0, 1, 2, 3, 4, 5].map((n) => estUneNoteBasse(n)));
+
+  /* L'âge en un mot sur la ligne. */
+  dit('l âge en un mot : minutes, heures, jours, mois, années ; rien sans date ou à venir',
+    ['0 min', '5 min', '5 h', '2 j', '9 j', '30 j', '1 mois', '3 mois', '1 an', '2 ans', '', '', ''],
+    ['2026-10-26T08:00:00Z', '2026-10-26T07:55:00Z', '2026-10-26T03:00:00Z', '2026-10-24T07:00:00Z', '2026-10-17T08:00:00Z', '2026-09-26T08:00:00Z',
+      '2026-09-20T08:00:00Z', '2026-07-23T10:00:00Z', '2025-10-26T08:00:00Z', '2024-01-10T10:00:00Z', undefined, '', '2026-10-27T08:00:00Z'].map((d) => ageCourt(d, MAINT)));
+}
+const textesAvecLePur = [textes, sansCommentaires(lis('src/shared/avis-rubrique-pur.ts'))].join('\n');
+dit('pas de tiret cadratin ni de « salon » dans le texte affiché', [false, false], [textesAvecLePur.includes(String.fromCharCode(0x2014)), /\bsalon/i.test(textesAvecLePur)]);
 
 console.log(ko === 0 ? '\nTOUT VA BIEN : le pont des avis tient ses promesses.' : `\n${ko} ÉCHEC(S)`);
 if (ko) process.exitCode = 1;

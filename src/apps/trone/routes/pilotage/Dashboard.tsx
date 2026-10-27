@@ -26,7 +26,6 @@ import {
   predictNextVisit, timeToMin, todayISO, useBranchAppointments, useBranchClients, useServicesById,
   DrillModal, revenuDuMois, revenusProjetesDuMois, useClefDuTarif, type Drill, type DrillRow,
 } from '../clients/_shared';
-import { useBilans, seancesSansBilan } from '../../../../shared/bilans';
 import { relancesAReprendre } from '../../../../shared/afaire';
 import { composeStore, compositionsRecuesStore } from '../../../../shared/bridges';
 import { useEnfantsDeclares, nomPropose } from '../../../../shared/enfants';
@@ -45,7 +44,6 @@ import { cheminDeLaConversation } from '../../../../shared/conversations';
 import AlarmeWhatsApp from './AlarmeWhatsApp';
 import { PrevisionDuMois, usePrevisionDuMois } from './PrevisionDuMois';
 import { DemanderALaMaison } from './DemanderALaMaison';
-import { AValiderDesAgents } from './AValiderDesAgents';
 import { PassageDeGerard } from '../clients/PassageDeGerard';
 import { useDemandes, demandesTriees, ditLeBesoin, ditLeGenre, depuisQuand, telephoneMasque, nomDeLaDemande } from '../../../../shared/demandes';
 import { appelDe } from '../../../../shared/civilite';
@@ -334,7 +332,6 @@ export default function Dashboard() {
      alors qu'un manque de flacons se voit au comptoir et se traite dans Stock
      & Achats. Ce panneau ne garde que ce qui presse VRAIMENT le matin :
      l'argent qui doit rentrer, et la parole due à une cliente. */
-  const [bilans] = useBilans();
   const unpaidRef = useRef<HTMLDivElement>(null);
 
   /* « Têtes couronnées » comptait les FICHES de la branche — donc aussi les
@@ -366,12 +363,26 @@ export default function Dashboard() {
     return { count: rows.length, total };
   }, [invoices, appts, byId, branch.id, today, clefDuTarif]);
 
-  /* LES BILANS DUS — un rituel honoré est une séance dont la cliente attend le
-     mot de la maison. On se borne aux TRENTE DERNIERS JOURS : au-delà, le
-     bilan a perdu son sens, et une liste sans fin ne se traite jamais. */
-  /* LE JUGE EST PARTAGÉ avec le carnet (`seancesSansBilan`) : le bouton mène
-     aux têtes de ces séances-là, et le carnet redit le même nombre. */
-  const bilansARemettre = useMemo(() => seancesSansBilan(appts, bilans, today).length, [appts, bilans, today]);
+  /* « À ENCAISSER » (27 octobre 2026, lot 3 de l'Assistant Maison, maquette
+     « 4 tuiles replacées ») : la tuile qui remplace l'agent des encaissements
+     au tableau de bord, avec SON calcul, tel quel (Agents.tsx) : les factures
+     de la branche qui gardent un reste, et les rituels honorés d'avant
+     aujourd'hui sans facture ni versement. Des chiffres, deux liens. */
+  const aEncaisser = useMemo(() => {
+    const factures = invoices.filter((i) => i.branchId === branch.id && i.kind === 'facture' && invoiceResteXof(i) > 0);
+    const rituels = appts.filter((a) => a.status === 'honoré' && !a.invoiceId && a.date < today && apptDueXof(a, byId) > 0);
+    return {
+      factures: factures.length,
+      resteFactures: factures.reduce((s, i) => s + invoiceResteXof(i), 0),
+      rituels: rituels.length,
+      resteRituels: rituels.reduce((s, a) => s + apptDueXof(a, byId), 0),
+    };
+  }, [clefDuTarif, invoices, appts, byId, branch.id, today]);
+
+  /* LES BILANS DUS ne sont plus une alerte du tableau de bord (27 octobre 2026,
+     lot 3 de l'Assistant Maison, spec §12) : le juge `seancesSansBilan` reste
+     partagé par le Carnet (`/customers?focus=bilans`) et par « Attend un oui »
+     de l'Assistant, qui remet le bilan par la salle des envois. */
   /* LE MÊME JUGE QU'À FAIRE (`relancesAReprendre`) : la tuile mène à la même
      liste, en tête de page. */
   const reprisesARelancer = useMemo(
@@ -558,14 +569,6 @@ export default function Dashboard() {
       /* EXACTEMENT CELLES-LÀ — « les 17 factures à régler doivent mener aux
          17 » (Yéman). La page ouvre le même juge par `?filtre=a-regler`. */
       action: 'Voir', go: () => navigate('/factures?filtre=a-regler'),
-    }] : []),
-    ...(bilansARemettre > 0 ? [{
-      k: 'bilans',
-      label: `${bilansARemettre} bilan${bilansARemettre > 1 ? 's' : ''} à remettre`,
-      sub: bilansARemettre > 1 ? 'séances honorées des 30 derniers jours' : 'séance honorée des 30 derniers jours',
-      /* EXACTEMENT CELLES-LÀ : le carnet s'ouvre sur les têtes de ces séances,
-         par le focus « bilans », qui lit le même juge. */
-      action: 'Voir', go: () => navigate('/customers?focus=bilans'),
     }] : []),
     ...(reprisesARelancer > 0 ? [{
       k: 'relances-j3',
@@ -833,11 +836,12 @@ export default function Dashboard() {
       </h2>
 
       {/* LES PONTS DU MATIN — des boutons, pas des phrases (9 septembre) :
-          « je veux des boutons qui appellent une action » (Yéman). */}
+          « je veux des boutons qui appellent une action » (Yéman).
+          27 octobre 2026 : À faire et La Cadence ont quitté la barre (lot 3 de
+          l'Assistant Maison) ; leurs pilules partent avec, « Ce qui presse »
+          porte ce qui servait. */}
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 14 }}>
         <button type="button" className="trp-af-pill" onClick={() => navigate('/calendrier')}>+ Le calendrier</button>
-        <button type="button" className="trp-af-pill" onClick={() => navigate('/a-faire')}>À faire</button>
-        <button type="button" className="trp-af-pill" onClick={() => navigate('/cadence')}>La Cadence</button>
       </div>
 
       {/* DEMANDER À LA MAISON — 24 octobre 2026, maquette VJ5PJEGU… : une
@@ -938,7 +942,13 @@ export default function Dashboard() {
       {/* LA PRÉVISION DU MOIS — 24 octobre 2026, maquette VJ5PJEGUPDbYKUgEdMUNbS :
           le Trône calcule, chaque part se dit en clair (PrevisionDuMois.tsx). */}
       <PrevisionDuMois donnees={prevDuMois} />
-      <AValiderDesAgents />
+      {/* « À VALIDER · LES AGENTS » A QUITTÉ LE TABLEAU DE BORD (27 octobre
+          2026, lot 3 de l'Assistant Maison, maquette « 4 tuiles replacées ») :
+          quatre tuiles le remplacent, chacune chez elle : « À encaisser » dans
+          Ce qui presse ci-dessous, « Sans justificatif · Divers à ranger » aux
+          Dépenses, « Bons à préparer » au Stock & Achats, « Les 14 prochains
+          jours » aux Prévisions. Le passage dû des processus se fait depuis
+          Les agents (Centre de commande). */}
       <PassageDeGerard />
 
       {/* Tuiles secondaires */}
@@ -999,9 +1009,21 @@ export default function Dashboard() {
       </div>
       <div className="trp-panel" style={{ marginTop: 14 }}>
         <div className="trp-panel__title">Ce qui presse</div>
-        {presseRows.length === 0
-          ? <div className="trp-empty">Rien ne presse, tout est réglé, et chaque séance a son bilan.</div>
-          : presseRows.map((r, i) => (
+        {/* « À ENCAISSER » : la tuile de l'agent des encaissements (27 octobre
+            2026). Le carnet encaisse les rituels, la page Factures ouvre
+            exactement celles qui gardent un reste. */}
+        {aEncaisser.rituels + aEncaisser.factures > 0 && (
+          <div className="trp-agents" style={{ marginTop: 0, marginBottom: 10, cursor: 'default' }} aria-label="À encaisser">
+            <span className="trp-prev__sur">À encaisser</span>
+            <span><b>{aEncaisser.rituels}</b> rituel{aEncaisser.rituels > 1 ? 's' : ''} honoré{aEncaisser.rituels > 1 ? 's' : ''} sans versement · {fmtMoney(aEncaisser.resteRituels, currency)}</span>
+            <span><b>{aEncaisser.factures}</b> facture{aEncaisser.factures > 1 ? 's' : ''} avec un reste · {fmtMoney(aEncaisser.resteFactures, currency)}</span>
+            <span><b>{fmtMoney(aEncaisser.resteRituels + aEncaisser.resteFactures, currency)}</b> à encaisser</span>
+            <button type="button" className="trp-prev__lien" onClick={() => navigate('/carnet')}>Le carnet ›</button>
+            <button type="button" className="trp-prev__lien" onClick={() => navigate('/factures?filtre=a-regler')}>Les factures ›</button>
+          </div>
+        )}
+        {presseRows.length === 0 && aEncaisser.rituels + aEncaisser.factures === 0 && <div className="trp-empty">Rien ne presse, tout est réglé.</div>}
+        {presseRows.map((r, i) => (
             <div
               key={r.k}
               style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '9px 0', borderTop: i === 0 ? 'none' : '1px solid var(--hairline)' }}

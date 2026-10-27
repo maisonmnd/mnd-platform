@@ -20,6 +20,7 @@ import { expenseOccurrences,
   type ValidationDepense } from '../../../../shared/finance';
 import { CAISSE_POURBOIRES } from '../../../../shared/receipts';
 import { useStaff } from '../../../../shared/auth';
+import { depensesSansJustificatif, rangementsProposes, SEUIL_DU_JUSTIFICATIF_XOF } from '../../../../shared/agents-maison-pur';
 import { staffAccessStore, useMaFiche } from '../equipe/data';
 import { useStore } from '../../../../shared/store';
 import { usePrets } from '../../../../shared/foyer';
@@ -140,6 +141,15 @@ export default function Depenses() {
   const expenses = useMemo(() => depensesComptees(siennes), [siennes]);
   const enAttente = useMemo(() => aValider(siennes, branch.id), [siennes, branch.id]);
   const refusees = useMemo(() => siennes.filter(estRefusee), [siennes]);
+  /* « SANS JUSTIFICATIF · DIVERS À RANGER » (27 octobre 2026, lot 3 de
+     l'Assistant Maison, maquette « 4 tuiles replacées ») : la tuile qui
+     remplace l'agent de la comptabilité, avec SON calcul, tel quel
+     (agents-maison-pur) : les dépenses du mois en cours dès le seuil, sans
+     pièce jointe ; et celles laissées en « Divers » qu'un même fournisseur ou
+     un même libellé range ailleurs d'habitude. Comptes et francs. */
+  const debutDuMoisEnCours = `${todayISO().slice(0, 7)}-01`;
+  const sansJustificatif = useMemo(() => depensesSansJustificatif(toutesLesDepenses, branch.id, debutDuMoisEnCours), [toutesLesDepenses, branch.id, debutDuMoisEnCours]);
+  const diversARanger = useMemo(() => rangementsProposes(toutesLesDepenses, branch.id), [toutesLesDepenses, branch.id]);
 
   /* L'HEURE SE PREND UNE FOIS PAR MINUTE, pas à chaque rendu : la jauge des 72
      heures doit avancer sans que l'écran se redessine cinquante fois par
@@ -1623,6 +1633,30 @@ export default function Depenses() {
                   'var(--trf-warning)', 'var(--color-indigo)',
                   `${fmtMoney(enAttente.reduce((n, e) => n + expenseTotal(e), 0), currency)}, pas encore dans les comptes`,
                   '', () => window.scrollTo({ top: 0, behavior: 'smooth' }),
+                ),
+              });
+            }
+            /* LA TUILE DE L'AGENT DE LA COMPTABILITÉ (27 octobre 2026) : elle
+               ne paraît que si elle a quelque chose à dire, comme les autres ;
+               son lien ouvre les dépenses qui la composent. */
+            if (voitToutesLesDepenses && sansJustificatif.length + diversARanger.length > 0) {
+              const francsSansPiece = sansJustificatif.reduce((n, e) => n + e.amountXof, 0);
+              const idsSansPiece = new Set(sansJustificatif.map((e) => e.id));
+              const idsARanger = new Set(diversARanger.map((r) => r.depenseId));
+              const depensesARanger = toutesLesDepenses.filter((e) => idsARanger.has(e.id));
+              const francsARanger = depensesARanger.reduce((n, e) => n + e.amountXof, 0);
+              cartes.push({
+                k: 'comptabilite',
+                n: kpiCard(
+                  'Sans justificatif · Divers à ranger', `${sansJustificatif.length} · ${diversARanger.length}`,
+                  'var(--color-copper)', 'var(--color-indigo)',
+                  `${fmtMoney(francsSansPiece, currency)} sans pièce dès ${fmtMoney(SEUIL_DU_JUSTIFICATIF_XOF, currency)} · ${fmtMoney(francsARanger, currency)} en Divers`,
+                  '',
+                  () => openExp(
+                    'Sans justificatif · Divers à ranger',
+                    `Ce mois, les dépenses dès ${fmtMoney(SEUIL_DU_JUSTIFICATIF_XOF, currency)} sans pièce jointe ; puis celles laissées en « Divers » qu’un même fournisseur ou un même libellé range ailleurs d’habitude. Le même compte que l’agent de la comptabilité du Centre de commande.`,
+                    [...sansJustificatif, ...depensesARanger.filter((e) => !idsSansPiece.has(e.id))],
+                  ),
                 ),
               });
             }

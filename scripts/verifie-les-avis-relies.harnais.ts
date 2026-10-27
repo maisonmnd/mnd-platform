@@ -209,7 +209,10 @@ dit('chercher : le début des mots du nom, sans accent ; quatre chiffres du num�
     envoi.includes("const VERSION = '2026-10-26-b';"), /req\.method === 'GET'/.test(envoi),
   ]);
   dit('... et la même clé d avis que le Trône (FNV-1a)', [true, true], [envoi.includes('let h = 0x811c9dc5;'), envoi.includes('h = Math.imul(h, 0x01000193) >>> 0;')]);
-  const conv = sansCommentaires(lis('src/apps/trone/routes/clients/Conversations.tsx'));
+  /* 27 octobre 2026 (lot 3 de l'Assistant Maison) : le composeur WhatsApp a
+     quitté Conversations.tsx pour ComposeurWhatsApp.tsx, logique inchangée ;
+     la promesse le suit, même intention. */
+  const conv = sansCommentaires(lis('src/apps/trone/routes/clients/ComposeurWhatsApp.tsx'));
   dit('le modèle à la main « Demande d avis » suit la règle, et dit pourquoi quand il se cache', [true, true],
     [conv.includes("MODELES.filter((m) => m.nom !== 'avis_google' || demandeDAvis.permise)"), conv.includes('ditLaDemandeDAvis(demandeDAvis, jourAn)')]);
   dit('sa fiche le dit', true, lis('src/apps/trone/routes/clients/SonAvisGoogle.tsx').includes('ditLaDemandeDAvis(regle, jourCourtAn)'));

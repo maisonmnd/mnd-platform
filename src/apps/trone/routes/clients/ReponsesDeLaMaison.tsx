@@ -11,16 +11,47 @@ import {
 } from '../../../../shared/conseil-wa';
 import { automatesDesFils, numeroWa, useFilsAutomate, useMessagesWa } from '../../../../shared/conversations';
 import type { Besoin } from '../../../../shared/qualification';
+import { useStaff } from '../../../../shared/auth';
+import { SOUCIS } from '../../../../shared/entre-deux-pur';
+import { useReponsesEntreDeux } from '../../../../shared/entre-deux';
 import { useEstDirection } from '../_vie';
 import { frShortAn, useServicesById } from './_shared';
+import { UneReponse } from './EntreDeuxSeances';
 
-/* ══ LES RÉPONSES DE LA MAISON · 14 octobre 2026 ═════════════════════════
-   L'onglet des Conversations où la Maison écrit ce que l'automate répond
-   sur WhatsApp (maquette « Prendre RDV & Conseil Locks », choix n° 5).
-   Une ligne par réponse, repliée ; une seule ouverte à la fois, et la barre
-   du bas dit laquelle on règle. Le personnel prépare ; la direction seule
-   valide, et rien ne part sans sa validation. Toucher au sens d'une réponse
-   validée la renvoie en brouillon (`modifieLaReponse`). */
+/* ══ CE QUE LA MAISON RÉPOND · 14 octobre 2026 ; une seule liste le 27 ═════
+   Ce que l'automate répond sur WhatsApp (maquette « Prendre RDV & Conseil
+   Locks », choix n° 5). Une ligne par réponse, repliée ; une seule ouverte à
+   la fois, et la barre du bas dit laquelle on règle. Le personnel prépare ;
+   la direction seule valide, et rien ne part sans sa validation. Toucher au
+   sens d'une réponse validée la renvoie en brouillon (`modifieLaReponse`).
+
+   27 OCTOBRE 2026 (Assistant Maison, spec §5.2) : UNE SEULE LISTE à l'écran,
+   les treize réponses du conseil WhatsApp et les huit réponses des soucis
+   d'Entre deux séances, avec le compteur « n validées sur 21 ». Chaque
+   écriture reste à sa place (`conseilStore` pour les treize,
+   `reponsesEntreDeuxStore` pour les huit) : l'automate, le webhook et Ma
+   Couronne lisent chacun la sienne ; la fusion en une table est hors lot. */
+
+/** « n VALIDÉES SUR 21 » : les treize du conseil (validées ET sans faute,
+    comme l'automate les lit) plus les huit des soucis (un texte validé). */
+export function useCompteDesReponses(): { validees: number; total: number; conseil: { validees: number; total: number }; soucis: { validees: number; total: number } } {
+  const [conseil] = useConseil();
+  const byId = useServicesById();
+  const reponsesEntreDeux = useReponsesEntreDeux();
+  return useMemo(() => {
+    const prix = prixDuCatalogue([...byId.values()].map((s) => ({ id: s.id, data: s as unknown as Record<string, unknown> })));
+    const reponses = conseil?.reponses ?? [];
+    const lue = (r: ReponseBrute): ReponseDeLaMaison | undefined => conseilDeLaMaison({ reponses: [r] }).reponses[0];
+    const vConseil = reponses.filter((r) => { if (r.etat !== 'validee') return false; const x = lue(r); return !!x && fautesDeLaReponse(x, prix).length === 0; }).length;
+    const vSoucis = reponsesEntreDeux.filter((r) => (r.texteValide ?? '').trim()).length;
+    return {
+      validees: vConseil + vSoucis,
+      total: reponses.length + SOUCIS.length,
+      conseil: { validees: vConseil, total: reponses.length },
+      soucis: { validees: vSoucis, total: SOUCIS.length },
+    };
+  }, [conseil, byId, reponsesEntreDeux]);
+}
 
 const MENE: { v: '' | Besoin; l: string }[] = [
   { v: '', l: 'Le menu de la Maison' },
@@ -41,6 +72,9 @@ export default function ReponsesDeLaMaison({ onOuvrirLeFil }: { onOuvrirLeFil: (
   const byId = useServicesById();
   const { session } = useAuth();
   const direction = useEstDirection();
+  const moi = useStaff();
+  const reponsesEntreDeux = useReponsesEntreDeux();
+  const compte = useCompteDesReponses();
   const [ouverte, setOuverte] = useState<string | null>(null);
   const [retrait, setRetrait] = useState<string | null>(null);
   const [santeOuverte, setSanteOuverte] = useState(false);
@@ -107,14 +141,16 @@ export default function ReponsesDeLaMaison({ onOuvrirLeFil }: { onOuvrirLeFil: (
   return (
     <div style={{ display: 'grid', gap: 14, paddingBottom: laOuverte ? 70 : 0 }}>
       <Card style={{ padding: 16, display: 'grid', gap: 8 }}>
-        <div className="tre-sec-label">Ce que l’automate répond sur WhatsApp</div>
+        <div className="tre-sec-label">Ce que la Maison répond</div>
         <p style={{ margin: 0, fontSize: 14, lineHeight: 1.6 }}>
+          Une seule bibliothèque : les {reponses.length} réponses du conseil WhatsApp et les {SOUCIS.length} réponses des soucis d’Entre deux séances.
           Quand une cliente pose une question que l’une de ces réponses reconnaît, l’automate l’envoie telle quelle,
           avec « Réserver » et « Une autre question ». Seules les réponses <b>validées par la direction</b> partent ; les prix se
           lisent au catalogue du jour. Le cuir chevelu qui inquiète ne reçoit jamais de conseil : la main passe à l’équipe.
         </p>
         <div style={{ display: 'flex', gap: 18, flexWrap: 'wrap', fontSize: 13.5 }} className="mnd-muted">
-          <span><b style={{ color: 'var(--color-indigo)' }}>{validees}</b> validée{validees > 1 ? 's' : ''} sur {reponses.length}</span>
+          <span><b style={{ color: 'var(--color-indigo)' }}>{compte.validees}</b> validée{compte.validees > 1 ? 's' : ''} sur {compte.total}</span>
+          <span>conseil {validees} sur {reponses.length} · soucis {compte.soucis.validees} sur {compte.soucis.total}</span>
           <span><b style={{ color: 'var(--color-indigo)' }}>{totalDuMois}</b> envoyée{totalDuMois > 1 ? 's' : ''} ce mois</span>
           <span><b style={{ color: 'var(--color-indigo)' }}>{sansReponse.length}</b> passée{sansReponse.length > 1 ? 's' : ''} à l’équipe cette semaine</span>
         </div>
@@ -211,6 +247,21 @@ export default function ReponsesDeLaMaison({ onOuvrirLeFil }: { onOuvrirLeFil: (
           );
         })}
       </div>
+
+      {/* LES HUIT RÉPONSES DES SOUCIS (Entre deux séances), dans la même liste :
+          chacune s'écrit à sa place (`poseLaReponse`), la direction seule valide. */}
+      <Card style={{ padding: 16, display: 'grid', gap: 10 }}>
+        <div className="tre-sec-label">Les {SOUCIS.length} réponses des soucis · {compte.soucis.validees} validée{compte.soucis.validees > 1 ? 's' : ''}</div>
+        <p className="mnd-muted" style={{ margin: 0, fontSize: 13.5 }}>
+          Ce qu’une cliente reçoit tout de suite quand elle dit un souci de ses locks, depuis Ma Couronne ou la liste WhatsApp. En Santé, aucun conseil n’est jamais envoyé.
+        </p>
+        <div style={{ display: 'grid', gap: 8 }}>
+          {SOUCIS.map((s) => (
+            <UneReponse key={s.cle} cle={s.cle} dit={s.dit} niveau={s.niveau} brouillon={s.brouillon}
+              r={reponsesEntreDeux.find((x) => x.id === s.cle)} souverain={moi?.role === 'souverain'} moi={moi?.name ?? ''} />
+          ))}
+        </div>
+      </Card>
 
       <Card style={{ padding: 0, overflow: 'hidden' }}>
         <button type="button" onClick={() => setSanteOuverte((v) => !v)} aria-expanded={santeOuverte}

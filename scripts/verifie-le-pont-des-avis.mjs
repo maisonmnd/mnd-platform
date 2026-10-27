@@ -33,6 +33,7 @@ async function lanceLeBanc() {
 const PUR = 'src/shared/avis-google-pont-pur.ts';
 const FONCTION = 'supabase/functions/avis-google-pont/index.ts';
 const ECRAN = 'src/apps/trone/routes/clients/ReponseAUnAvis.tsx';
+const RUBRIQUE = 'src/shared/avis-rubrique-pur.ts';
 const PANNES = [
   ['deux avis a egalite : on devine', PUR, 'if (proches.length > 1 && proches[0].d === proches[1].d) return null;', ''],
   ['le nom d avis n est plus verifie', PUR, 'const NOM_D_AVIS = /^accounts\\/[0-9]+\\/locations\\/[0-9]+\\/reviews\\/[A-Za-z0-9_-]+$/;', 'const NOM_D_AVIS = /^accounts\\/.+$/;'],
@@ -49,6 +50,11 @@ const PANNES = [
   ['le chemin de Make publie', FONCTION, "if (req.headers.has('x-jeton')) return await recoisUnAvis(req);", "if (req.headers.has('x-jeton') && !req.headers.get('content-type')?.includes('json')) return await recoisUnAvis(req);"],
   ['publier sans la question', ECRAN, '<Button variant="copper" size="sm" onClick={() => setConfirme(true)}', '<Button variant="copper" size="sm" onClick={() => void publier()}'],
   ['publie note avant le oui', ECRAN, 'if (r.ok) {\n        marquePublieeParLeTrone(id, r.le);', 'marquePublieeParLeTrone(id, r.le);\n      if (r.ok) {'],
+  /* 26 octobre 2026, lot 3 : les chiffres de la vue « Les avis » de l Assistant Maison. */
+  ['le mois des publiees lu en UTC', RUBRIQUE, 'return t > 0 ? moisACotonou(new Date(t)) : null;', 'return t > 0 ? new Date(t).toISOString().slice(0, 7) : null;'],
+  ['les dix derniers tries sur quand', RUBRIQUE, '.sort((x, y) => tempsDe(y.publieLe) - tempsDe(x.publieLe)).slice(0, n);', '.sort((x, y) => tempsDe(y.quand) - tempsDe(x.quand)).slice(0, n);'],
+  ['les 1 a 3 etoiles noyees dans la liste', RUBRIQUE, '    return estUneNoteBasse(a.note) ? 0 : 1;', '    return 1;'],
+  ['publiees : publieeLe seul, sans reponduLe', RUBRIQUE, '    const le = a.reponduLe || b?.publieeLe;', '    const le = b?.publieeLe;'],
 ];
 
 const md5 = (f) => createHash('md5').update(readFileSync(path.join(racine, f))).digest('hex');

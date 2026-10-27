@@ -6,7 +6,7 @@
    sème six mois de rendez-vous, des relances « reprise proposée » et des
    endormies, puis lit l'écran comme Yéman le lirait :
 
-     - la rubrique est en Direction, juste sous le Centre de commande ;
+     - la rubrique est en Direction, juste sous le Tableau de bord ;
      - les trois chiffres de l'en-tête sont les totaux des trois tableaux, et
        chaque tableau se recompose ligne à ligne ;
      - la relance est MESURÉE sur les envois semés (25 partis, 10 revenues :
@@ -144,8 +144,11 @@ try {
   /* 1. La rubrique. */
   dit('Les prévisions s ouvrent, comme la direction', !!vu && !(await tombe()));
   const barre = await evalue(String.raw`[...document.querySelectorAll('.tr-nav__item')].map((a) => a.textContent.replace(/\s+/g, ' ').trim())`);
-  const iCentre = (barre ?? []).findIndex((t) => t.startsWith('Centre de commande'));
-  dit('la barre : « Les prévisions » juste sous « Centre de commande », allumée',
+  /* Le Centre de commande a quitté la barre le 27 octobre 2026 (lot 3 de
+     l'Assistant Maison, barre à 28) : la rubrique vient juste sous le
+     Tableau de bord, en tête de la Direction. Même promesse, autre voisin. */
+  const iCentre = (barre ?? []).findIndex((t) => t.startsWith('Tableau de bord'));
+  dit('la barre : « Les prévisions » juste sous « Tableau de bord », allumée',
     iCentre >= 0 && String(barre[iCentre + 1]).startsWith('Les prévisions')
     && !!(await evalue(String.raw`[...document.querySelectorAll('.tr-nav__item.active')].some((a) => a.textContent.includes('Les prévisions'))`)), JSON.stringify(barre?.slice(Math.max(0, iCentre), iCentre + 2)));
   await photo('1-quatre-semaines');

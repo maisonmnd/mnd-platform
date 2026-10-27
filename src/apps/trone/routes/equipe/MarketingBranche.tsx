@@ -276,7 +276,7 @@ export function OngletAudience({ abonnes, onEcrire }: { abonnes: ReadonlySet<str
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
       <p className="mnd-muted" style={{ fontSize: 13, maxWidth: 760, lineHeight: 1.6, margin: 0 }}>
-        Une audience est une liste de gens à qui l’on écrit. « Voir » ouvre ses têtes au registre des Clientes, « Écrire » prépare une campagne déjà adressée. Les clientes de passage n’en font pas partie.
+        Une audience est une liste de gens à qui l’on écrit. « Voir » ouvre ses têtes au registre des Clientes, « Écrire » ouvre Offres et remises de l’Assistant Maison. Les clientes de passage n’en font pas partie.
       </p>
 
       <Card style={{ overflow: 'hidden' }}>

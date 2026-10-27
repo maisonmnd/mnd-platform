@@ -72,8 +72,10 @@ const ai = readFileSync('src/shared/ai.ts', 'utf8');
 dit('la suggestion de l IA refuse hors ligne', true, /navigator\.onLine === false\) throw new Error\('Hors ligne/.test(ai));
 const wa = readFileSync('src/shared/whatsapp.ts', 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
 dit('le WhatsApp partage passe par la file des envois', true, /appelleOuGarde<[^>]*>\('whatsapp-envoi'/.test(wa) && !/functions\.invoke\('whatsapp-envoi'/.test(wa));
-const conv = readFileSync('src/apps/trone/routes/clients/Conversations.tsx', 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
-dit('Conversations envoie par la file, meme en fermant l onglet hors ligne', true,
+/* Le composeur du fil (l'envoi) a quitté Conversations.tsx pour
+   ComposeurWhatsApp.tsx le 27 octobre 2026 (lot 3) : même promesse, même motif. */
+const conv = readFileSync('src/apps/trone/routes/clients/ComposeurWhatsApp.tsx', 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+dit('le composeur WhatsApp envoie par la file, meme en fermant l onglet hors ligne', true,
   /appelleOuGarde\('whatsapp-envoi', corps/.test(conv) && /navigator\.onLine === false\) \{ gardeUnAppel\('whatsapp-envoi'/.test(conv));
 const push = readFileSync('src/shared/push.ts', 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
 /* LA RÈGLE, PAS LE COMPTE (14 octobre 2026) : le contrôle attendait « 4 », le

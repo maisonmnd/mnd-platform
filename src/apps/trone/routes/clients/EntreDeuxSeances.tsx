@@ -111,7 +111,10 @@ function LaFile({ moi }: { moi: string }) {
   );
 }
 
-function LeSouci({ s, client, appts, moi, onClose }: { s: Signalement; client?: Client; appts: Appointment[]; moi: string; onClose: () => void }) {
+/* Exportés le 27 octobre 2026 (lot 3 de l'Assistant Maison) : la vue « Les
+   conversations » monte le souci ouvert d'une cliente, la note au téléphone
+   et les huit réponses dans la même liste que les treize du conseil. */
+export function LeSouci({ s, client, appts, moi, onClose }: { s: Signalement; client?: Client; appts: Appointment[]; moi: string; onClose: () => void }) {
   const [services] = useServices();
   const [bilans] = useBilans();
   const [note, setNote] = useState(s.note ?? '');
@@ -161,7 +164,7 @@ function LeSouci({ s, client, appts, moi, onClose }: { s: Signalement; client?: 
   );
 }
 
-function NoterUnSouci({ clients, moi, onClose }: { clients: Client[]; moi: string; onClose: () => void }) {
+export function NoterUnSouci({ clients, moi, onClose }: { clients: Client[]; moi: string; onClose: () => void }) {
   const [clientId, setClientId] = useState('');
   const [pris, setPris] = useState<CleDeSouci[]>([]);
   const [texte, setTexte] = useState('');
@@ -195,7 +198,7 @@ function NoterUnSouci({ clients, moi, onClose }: { clients: Client[]; moi: strin
   );
 }
 
-function LesReponses({ souverain, moi }: { souverain: boolean; moi: string }) {
+export function LesReponses({ souverain, moi }: { souverain: boolean; moi: string }) {
   const reponses = useReponsesEntreDeux();
   return (
     <div style={{ display: 'grid', gap: 12 }}>
@@ -208,7 +211,7 @@ function LesReponses({ souverain, moi }: { souverain: boolean; moi: string }) {
   );
 }
 
-function UneReponse({ cle, dit, niveau, brouillon, r, souverain, moi }: {
+export function UneReponse({ cle, dit, niveau, brouillon, r, souverain, moi }: {
   cle: CleDeSouci; dit: string; niveau: Niveau; brouillon: string; r?: ReponseEntreDeux; souverain: boolean; moi: string;
 }) {
   const [texte, setTexte] = useState(r?.texte ?? brouillon);

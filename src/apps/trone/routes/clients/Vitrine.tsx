@@ -1653,10 +1653,10 @@ function ReglagesDeLaCarte() {
                   wifiSsid: auto.wifiSsid ?? '', wifiPass: auto.wifiPass ?? '',
                   wifi2Ssid: auto.wifi2Ssid ?? '', wifi2Pass: auto.wifi2Pass ?? '',
                 });
-                toast('Réseau repris depuis les QR Codes.');
+                toast('Réseau repris depuis les QR de la Maison.');
               }}
             >
-              Reprendre le réseau des QR Codes
+              Reprendre le réseau des QR de la Maison
             </Button>
           )}
         </div>

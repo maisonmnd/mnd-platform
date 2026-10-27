@@ -348,7 +348,7 @@ export function PanneauDeLaPromo({
   return (
     <div className="trc-modal-fond" onClick={surFermer}>
       <div className="trc-modal" onClick={(e) => e.stopPropagation()}>
-        <div className="trc-modal__t">Promo flash pour {prenom}</div>
+        <div className="trc-modal__t">Remise à son nom pour {prenom}</div>
 
         {vivants.length > 0 && (
           <p className="trc-sub" style={{ marginTop: 0 }}>

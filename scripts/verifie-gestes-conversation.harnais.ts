@@ -236,6 +236,9 @@ dit('dix gestes, dans l’ordre où ils servent',
   ['paiement', 'devis', 'facture', 'bilan', 'photos', 'abonnement', 'foyer', 'rendezvous', 'itineraire', 'promo'],
   g.map((x) => x.cle));
 
+/* Le dixième geste se nomme « Remise à son nom » depuis le 27 octobre 2026 (Assistant Maison, spec §11) : plus de « promo flash » à l'écran. */
+dit('le dixième geste se nomme « Remise à son nom », sa clé reste promo', ['promo', 'Remise à son nom'], [gesteDit(g, 'promo')?.cle, gesteDit(g, 'promo')?.mot]);
+
 dit('le lien de paiement porte ce qui reste dû, pas le total',
   'Madame Akouavi, il reste 37 000 F sur votre rituel. Voici le lien pour régler par Mobile Money : https://exemple/payer?montant=37000',
   gesteDit(g, 'paiement')?.compose);
@@ -311,9 +314,11 @@ dit('un compteur sain n’avertit de rien', undefined,
 /* ── LA PIÈCE DU GESTE SE JOINT POUR DE VRAI (18 octobre 2026) ──
    « Sa facture sur ce message n'attache pas la facture en PDF » (Yéman) : le
    geste écrivait le texte et laissait la pièce de côté. La surface lit la
-   pièce du geste, fabrique le PDF des Factures et le pose dans la zone. */
+   pièce du geste, fabrique le PDF des Factures et le pose dans la zone.
+   La surface est le composeur (`ComposeurWhatsApp.tsx`) depuis le 27 octobre
+   2026 : les Conversations d'avant et la vue de l'Assistant le montent. */
 {
-  const brut = readFileSync('src/apps/trone/routes/clients/Conversations.tsx', 'utf8');
+  const brut = readFileSync('src/apps/trone/routes/clients/ComposeurWhatsApp.tsx', 'utf8');
   const src = brut.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
   const pose = src.slice(src.indexOf('const poseLeGeste = (g: Geste) => {'), src.indexOf('const delaiMs ='));
   dit('le geste Sa facture / Son devis joint le PDF des Factures (fabriqué, posé dans la zone)', [true, true, true, true],

@@ -880,7 +880,8 @@ export default function QrCodes() {
 
   return (
     <div className="mnd-rise">
-      <PageHead eyebrow="Clients & Agenda · Les portes" title="Les codes de la Maison." sub="Que veut la cliente ? Un geste, le bon code." />
+      {/* « QR de la Maison » depuis le 27 octobre 2026 (barre à vingt-huit), dans Marketing & Fidélité. */}
+      <PageHead eyebrow="Marketing & Fidélité · QR de la Maison" title="Les codes de la Maison." sub="Que veut la cliente ? Un geste, le bon code." />
 
       {/* LE BANDEAU : les codes des clientes et la cliente à qui on les
           envoie, puis ce que l'agenda du moment demande. */}

@@ -667,8 +667,8 @@ export default function Shell() {
     >
       {/* 26 octobre 2026 : sans icône, comme la maquette des avis. */}
       <span>{it.label}</span>
-      {/* 26 octobre 2026 : les réponses aux avis prêtes à relire. */}
-      {it.path === '/avis-google' && aRelire > 0 && (
+      {/* 26 octobre 2026 : les réponses aux avis prêtes à relire ; sur l'Assistant Maison depuis le lot 3 (27 octobre). */}
+      {it.path === '/gerard' && aRelire > 0 && (
         <span className="tr-nav__pastille" title={`${aRelire} réponse(s) à relire`}>{aRelire}</span>
       )}
       {it.path === '/fil' && demandesQuiAttendent > 0 && (

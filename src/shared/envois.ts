@@ -13,7 +13,11 @@
 import { attendEncore, ECARTE, PERIME } from './salle-des-envois';
 
 export type TypeDEnvoi = 'accuse' | 'confirmation' | 'rappel-j1' | 'avis-google' | 'fin-de-paquet' | 'reprise-j3' | 'point-apres' | 'point-avant' | 'relance-facture'
-  | 'rappel-echeance' | 'prix-revu' | 'parrainage' | 'campagne' | 'gerard';
+  | 'rappel-echeance' | 'prix-revu' | 'parrainage' | 'campagne' | 'gerard'
+  /* La fête de couronne (`supabase/functions/fete-de-couronne`, 21 octobre
+     2026) écrivait ce type sans qu'il soit déclaré : le journal le nomme
+     depuis le 27 octobre 2026 (lot 3 de l'Assistant Maison). */
+  | 'fete-de-couronne';
 
 /** Ce que le journal lit d'une ligne `envois`. Les champs viennent de
     fonctions différentes, écrites à des dates différentes : tous facultatifs
@@ -61,7 +65,9 @@ export const devenuDe = (e: Pick<EnvoiLu, 'statut' | 'etat'>): DevenuDeLEnvoi =>
 
 export const DEVENU_DIT: Record<DevenuDeLEnvoi, string> = {
   lu: 'lu', remis: 'remis', 'en-route': 'en route', 'non-remis': 'non remis', echec: 'échec',
-  personne: 'personne à joindre', 'a-la-main': 'envoyé à la main', 'en-cours': 'en cours',
+  /* « À un toucher » (27 octobre 2026, spec §11) : le message s'ouvre déjà
+     écrit dans WhatsApp, une main l'envoie. Rien n'a été tapé « à la main ». */
+  personne: 'personne à joindre', 'a-la-main': 'WhatsApp, à un toucher', 'en-cours': 'en cours',
   ecarte: 'écarté, pas envoyé', perime: 'pas envoyé',
 };
 
@@ -88,13 +94,19 @@ export const TYPE_DIT: Record<string, string> = {
      les campagnes du Marketing (21 octobre 2026). */
   parrainage: 'Marraine prévenue',
   campagne: 'Campagne',
-  /* Gérard, l'assistant des clientes (26 octobre 2026). */
-  gerard: 'Gérard',
+  /* L'assistant des clientes (26 octobre 2026), nommé « Assistant Maison »
+     depuis la spécification du 27 octobre 2026 (§11) : la valeur `gerard`
+     écrite dans la table ne change pas, seul le mot à l'écran. */
+  gerard: 'Assistant Maison',
+  'fete-de-couronne': 'Fête de couronne',
 };
 export const typeDit = (t: string): string => TYPE_DIT[t] ?? t;
 
 export const CANAL_DIT: Record<string, string> = {
-  whatsapp: 'WhatsApp', push: 'Notification', sms: 'SMS', 'wa-main': 'WhatsApp, à la main',
+  /* `push` = la notification Ma Couronne : un seul mot pour le même canal dans
+     toute la rubrique de l'Assistant (Aujourd'hui disait « Ma Couronne », le
+     journal « Notification » ; relecture du 27 octobre 2026). */
+  whatsapp: 'WhatsApp', push: 'Ma Couronne', sms: 'SMS', 'wa-main': 'WhatsApp, à un toucher',
 };
 export const canalDit = (c: string): string => CANAL_DIT[c] ?? c;
 
@@ -158,7 +170,8 @@ export const jourDecale = (jour: string, n: number): string => {
 };
 
 export type FiltreDuJournal = {
-  jour: 'aujourdhui' | 'hier' | 'semaine';
+  /** `30-jours` : le compte de « Ce que ça rapporte » (27 octobre 2026), trente jours glissants, aujourd'hui compris. */
+  jour: 'aujourdhui' | 'hier' | 'semaine' | '30-jours';
   type: 'tout' | TypeDEnvoi;
   seulementARegarder: boolean;
 };
@@ -166,7 +179,7 @@ export type FiltreDuJournal = {
 /** Les envois d'une période, sans autre filtre : c'est sur eux que se font
     les comptes, pour qu'un filtre de type ne fasse pas mentir le total. */
 export function envoisDeLaPeriode<T extends EnvoiLu>(envois: readonly T[], jour: FiltreDuJournal['jour'], aujourdhui: string): T[] {
-  const depuis = jour === 'semaine' ? jourDecale(aujourdhui, -6) : jour === 'hier' ? jourDecale(aujourdhui, -1) : aujourdhui;
+  const depuis = jour === '30-jours' ? jourDecale(aujourdhui, -29) : jour === 'semaine' ? jourDecale(aujourdhui, -6) : jour === 'hier' ? jourDecale(aujourdhui, -1) : aujourdhui;
   const jusqua = jour === 'hier' ? jourDecale(aujourdhui, -1) : aujourdhui;
   return envois.filter((e) => {
     /* Ce qui attend en salle n'est pas encore un envoi : il a son écran. */

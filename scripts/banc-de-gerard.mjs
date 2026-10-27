@@ -188,7 +188,7 @@ try {
     JSON.stringify(envoisGerard));
   await attend(400);
   const journal = await evalue(String.raw`[...document.querySelectorAll('.trc-ger__carte')].find((c) => c.querySelector('h3')?.textContent.startsWith('Aujourd’hui'))?.innerText.replace(/\s+/g, ' ') || ''`);
-  dit('... « Aujourd hui » le montre, et M. D. sort du plan (deux semaines avant le prochain)', /M\. D\./.test(journal) && /WhatsApp, à la main/.test(journal)
+  dit('... « Aujourd hui » le montre, et M. D. sort du plan (deux semaines avant le prochain)', /M\. D\./.test(journal) && /WhatsApp, à un toucher/.test(journal)
     && !(await evalue(String.raw`[...document.querySelectorAll('.trc-ger__qui')].some((q) => q.firstChild?.textContent === 'M. D.')`)), journal.slice(0, 200));
 
   /* 4. Les modèles Meta. */

@@ -7,7 +7,7 @@ import { signeLeMessage } from '../../../../shared/identite';
 import { clientsStore, ensureInitiePersona } from '../../../../shared/clients';
 import { appointmentsStore } from '../../../../shared/agenda';
 import {
-  useDemandes, demandesTriees, ditLeBesoin, ditLeGenre, messageDeRappel, ficheDepuisLaDemande,
+  useDemandes, demandesStore, demandesTriees, ditLeBesoin, ditLeGenre, messageDeRappel, ficheDepuisLaDemande,
   telephoneMasque, telephoneNormalise, depuisQuand, BESOINS, dansLeFiltre, nomDeLaDemande,
   type Demande, type BesoinDeLaDemande, type StatutDeLaDemande, type FiltreDesDemandes,
 } from '../../../../shared/demandes';
@@ -78,6 +78,38 @@ const debutDeMois = (maintenant: number): number => {
 
 const lienWhatsApp = (d: Demande): string =>
   `https://wa.me/${d.telephone.replace(/\D/g, '')}?text=${encodeURIComponent(signeLeMessage(messageDeRappel(d)))}`;
+
+/* EN FAIRE UNE CLIENTE. Si une fiche porte déjà ce numéro, on s'y rattache
+   au lieu d'en ouvrir une seconde : deux fiches pour une tête, c'est deux
+   histoires qui ne se retrouvent plus. Hors du composant depuis le 27
+   octobre 2026 (lot 3 de l'Assistant Maison) : la vue « Les conversations »
+   fait le même geste depuis la boîte d'une demande ; la demande s'écrit au
+   magasin (`demandesStore`), le même que `useDemandes`. */
+export const convertir = (d: Demande, navigate: (chemin: string) => void): void => {
+  const numero = telephoneNormalise(d.telephone);
+  const existante = numero
+    ? clientsStore.get().find((c) => !c.archived && telephoneNormalise(c.phone) === numero)
+    : undefined;
+  let id: string;
+  if (existante) {
+    id = existante.id;
+    toast(`${existante.name} a déjà sa fiche : la demande y est rattachée.`);
+  } else {
+    const fiche = ficheDepuisLaDemande(d, ensureInitiePersona());
+    clientsStore.set((prev) => (prev.some((c) => c.id === fiche.id) ? prev : [...prev, fiche]));
+    id = fiche.id;
+    toast(`${fiche.name} entre au carnet, au segment Prospect.`);
+  }
+  /* LE RENDEZ-VOUS SUIT LA FICHE. Posé par le site sans `clientId` (aucune
+     fiche n'existait), il s'y rattache maintenant : sans ce geste, le
+     carnet garderait « Cliente de passage » sur une tête qu'on connaît. */
+  if (d.apptId) {
+    appointmentsStore.set((prev) => prev.map((a) =>
+      (a.id === d.apptId ? { ...a, clientId: id, clientName: nomDeLaDemande(d) || a.clientName } : a)));
+  }
+  demandesStore.set((prev) => prev.map((x) => (x.id === d.id ? { ...x, statut: 'convertie', clientId: id } : x)));
+  navigate(`/customers?id=${id}`);
+};
 
 export default function Demandes() {
   const { branch } = useBranch();
@@ -166,35 +198,6 @@ export default function Demandes() {
     if (suite.has(id)) suite.delete(id); else suite.add(id);
     return suite;
   });
-
-  /* EN FAIRE UNE CLIENTE. Si une fiche porte déjà ce numéro, on s'y rattache
-     au lieu d'en ouvrir une seconde : deux fiches pour une tête, c'est deux
-     histoires qui ne se retrouvent plus. */
-  const convertir = (d: Demande) => {
-    const numero = telephoneNormalise(d.telephone);
-    const existante = numero
-      ? clientsStore.get().find((c) => !c.archived && telephoneNormalise(c.phone) === numero)
-      : undefined;
-    let id: string;
-    if (existante) {
-      id = existante.id;
-      toast(`${existante.name} a déjà sa fiche : la demande y est rattachée.`);
-    } else {
-      const fiche = ficheDepuisLaDemande(d, ensureInitiePersona());
-      clientsStore.set((prev) => (prev.some((c) => c.id === fiche.id) ? prev : [...prev, fiche]));
-      id = fiche.id;
-      toast(`${fiche.name} entre au carnet, au segment Prospect.`);
-    }
-    /* LE RENDEZ-VOUS SUIT LA FICHE. Posé par le site sans `clientId` (aucune
-       fiche n'existait), il s'y rattache maintenant : sans ce geste, le
-       carnet garderait « Cliente de passage » sur une tête qu'on connaît. */
-    if (d.apptId) {
-      appointmentsStore.set((prev) => prev.map((a) =>
-        (a.id === d.apptId ? { ...a, clientId: id, clientName: nomDeLaDemande(d) || a.clientName } : a)));
-    }
-    poser(d, { statut: 'convertie', clientId: id });
-    navigate(`/customers?id=${id}`);
-  };
 
   const noteDe = (d: Demande) => brouillons[d.id] ?? d.note ?? '';
   const poserLaNote = (d: Demande) => {
@@ -336,7 +339,7 @@ export default function Demandes() {
                   </Button>
                 )}
                 {d.statut !== 'convertie' && d.statut !== 'ecartee' && (
-                  <Button variant="copper" size="sm" onClick={() => convertir(d)}>En faire une cliente</Button>
+                  <Button variant="copper" size="sm" onClick={() => convertir(d, navigate)}>En faire une cliente</Button>
                 )}
                 {d.statut === 'convertie' && d.clientId && (
                   <button type="button" className="trc-c360-linkbtn" onClick={() => navigate(`/customers?id=${d.clientId}`)}>

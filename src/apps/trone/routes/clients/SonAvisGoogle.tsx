@@ -7,10 +7,12 @@ import { estSansReponse, idDeLAvis, jourLocalDe } from '../../../../shared/ia-av
 import { useEnvois } from '../equipe/data';
 import { useReleveDesAvis } from './releve-des-avis';
 
-/* ══ SON AVIS GOOGLE, SUR SA FICHE — 20 octobre 2026 ═════════════════════
+/* ══ SON AVIS GOOGLE, SUR SA FICHE · 20 octobre 2026 ═════════════════════
    « Lier un avis à une fiche » (Yéman, maquette DNVVXdkd…). L'avis relié
-   dans Vitrines › Les avis Google paraît ici : les étoiles, le jour, le
-   texte, et ce qu'est devenue la réponse de la Maison.
+   dans la vue « Les avis » de l'Assistant Maison (lot 3, 27 octobre 2026 ;
+   avant, Vitrines › Les avis Google) paraît ici : les étoiles, le jour, le
+   texte, et ce qu'est devenue la réponse de la Maison. Le lien ouvre le bon
+   avis dans la vue (`/gerard?vue=avis&avis=<clé>`).
 
    Sans avis relié, le bloc ne dit quelque chose que si la demande d'avis
    lui est partie (« demande partie le …, pas encore d'avis relié ») ; sinon
@@ -65,8 +67,8 @@ export function SonAvisGoogle({ client }: { client: { id: string } }) {
               : <span className="mnd-muted" style={{ fontSize: 12 }}>Une note seulement, sans texte.</span>}
             <span className="mnd-muted" style={{ fontSize: 11.5 }}>{reponse}</span>
             <span>
-              <button type="button" className="trc-c360-linkbtn" onClick={() => navigate(`/avis-google?avis=${encodeURIComponent(id)}`)}>
-                Ouvrir l’avis dans « Les avis Google » →
+              <button type="button" className="trc-c360-linkbtn" onClick={() => navigate(`/gerard?vue=avis&avis=${encodeURIComponent(id)}`)}>
+                Ouvrir l’avis dans « Les avis » de l’Assistant Maison →
               </button>
             </span>
           </div>

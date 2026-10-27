@@ -38,8 +38,10 @@ import { SalleDesEnvois } from './SalleDesEnvois';
 
 const FUSEAU = 'Africa/Porto-Novo';
 
+/* « 30 jours » : le compte de « Ce que ça rapporte » (27 octobre 2026, lot 3 de
+   l'Assistant Maison) lit le journal sur trente jours glissants. */
 const JOURS: [FiltreDuJournal['jour'], string][] = [
-  ['aujourdhui', 'Aujourd’hui'], ['hier', 'Hier'], ['semaine', '7 jours'],
+  ['aujourdhui', 'Aujourd’hui'], ['hier', 'Hier'], ['semaine', '7 jours'], ['30-jours', '30 jours'],
 ];
 const TYPES: [FiltreDuJournal['type'], string][] = [
   ['tout', 'Tous les messages'], ['confirmation', 'Confirmations'], ['rappel-j1', 'Rappels de la veille'],
@@ -47,9 +49,11 @@ const TYPES: [FiltreDuJournal['type'], string][] = [
   ['fin-de-paquet', 'Fins de paquet'], ['point-apres', 'Points d’après séance'], ['point-avant', 'Points d’avant séance'],
   ['relance-facture', 'Relances de facture'], ['rappel-echeance', 'Rappels d’échéance'], ['prix-revu', 'Prix revus'],
   ['parrainage', 'Marraines prévenues'], ['campagne', 'Campagnes'],
+  /* L'Assistant Maison et la fête de couronne (27 octobre 2026). */
+  ['gerard', 'Assistant Maison'], ['fete-de-couronne', 'Fêtes de couronne'],
 ];
 const PERIODE_DITE: Record<FiltreDuJournal['jour'], string> = {
-  aujourdhui: 'aujourd’hui', hier: 'hier', semaine: 'ces 7 derniers jours',
+  aujourdhui: 'aujourd’hui', hier: 'hier', semaine: 'ces 7 derniers jours', '30-jours': 'ces 30 derniers jours',
 };
 
 /** « jeu. 8 oct. 2026 · 10 h ». L'année depuis le 10 octobre 2026 : une
@@ -74,17 +78,19 @@ const pastille = (texte: string, ton: { fond: string; encre: string; bord: strin
   }}>{texte}</span>
 );
 
-export function EnvoisAutomatiques({ onOuvrirLeFil, typeInitial }: {
+export function EnvoisAutomatiques({ onOuvrirLeFil, typeInitial, jourInitial }: {
   onOuvrirLeFil: (numero: string) => void;
   /** `?type=` — le Marketing ouvre le journal sur une automatisation (21 octobre 2026), sur sept jours. */
   typeInitial?: string | null;
+  /** La période d'ouverture : « Ce que ça rapporte » ouvre sur trente jours (27 octobre 2026). */
+  jourInitial?: FiltreDuJournal['jour'];
 }) {
   const { branch } = useBranch();
   const [envois] = useEnvois();
   const [clients] = useClients();
   const typeDemande = TYPES.find(([k]) => k === typeInitial)?.[0];
   const [filtre, setFiltre] = useState<FiltreDuJournal>({
-    jour: typeDemande && typeDemande !== 'tout' ? 'semaine' : 'aujourdhui', type: typeDemande ?? 'tout', seulementARegarder: false,
+    jour: jourInitial ?? (typeDemande && typeDemande !== 'tout' ? 'semaine' : 'aujourdhui'), type: typeDemande ?? 'tout', seulementARegarder: false,
   });
   const aujourdhui = jourDuSalon(new Date().toISOString(), FUSEAU);
 
@@ -97,6 +103,7 @@ export function EnvoisAutomatiques({ onOuvrirLeFil, typeInitial }: {
   const lignes = lignesDuJournal(ici, filtre, aujourdhui);
   const ficheDe = useMemo(() => new Map(clients.map((c) => [c.id, c])), [clients]);
   const surLaSemaine = envoisDeLaPeriode(ici, 'semaine', aujourdhui).length;
+  const surTrenteJours = envoisDeLaPeriode(ici, '30-jours', aujourdhui).length;
 
   const segment = (actif: boolean): React.CSSProperties => ({
     font: 'inherit', fontSize: 12.5, padding: '6px 14px', cursor: 'pointer', border: 'none',
@@ -164,9 +171,14 @@ export function EnvoisAutomatiques({ onOuvrirLeFil, typeInitial }: {
               {filtre.type !== 'tout' && (
                 <button type="button" className="trc-chip" onClick={() => setFiltre((f) => ({ ...f, type: 'tout' }))}>Voir tous les messages</button>
               )}
-              {filtre.jour !== 'semaine' && surLaSemaine > 0 && (
+              {filtre.jour !== 'semaine' && filtre.jour !== '30-jours' && surLaSemaine > 0 && (
                 <button type="button" className="trc-chip" onClick={() => setFiltre((f) => ({ ...f, jour: 'semaine' }))}>
                   Voir les 7 derniers jours ({surLaSemaine})
+                </button>
+              )}
+              {filtre.jour !== '30-jours' && surLaSemaine === 0 && surTrenteJours > 0 && (
+                <button type="button" className="trc-chip" onClick={() => setFiltre((f) => ({ ...f, jour: '30-jours' }))}>
+                  Voir les 30 derniers jours ({surTrenteJours})
                 </button>
               )}
             </div>

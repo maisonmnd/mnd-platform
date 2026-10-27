@@ -1,5 +1,5 @@
 import { lazy, type LazyExoticComponent, type ComponentType } from 'react';
-import { Compass, Bot, TrendingUp, UserRoundCheck, FolderKanban, ListTodo, Clapperboard, Activity, BadgeCheck, HeartHandshake, BarChart3, BookOpen, CalendarDays, ClipboardList, Crown, Drama, FileSignature, FileText, FlaskConical, Gift, GraduationCap, Hammer, HandCoins, Handshake, MessageCircle, Handshake as PoigneeDeMain, HeartPulse, Inbox, KeyRound, Landmark, LayoutDashboard, Lightbulb, LineChart, ListChecks, MapPin, Megaphone, MessageSquare, MessagesSquare, MonitorPlay, NotebookPen, Palette, PhoneIncoming, PieChart, PiggyBank, QrCode, ReceiptText, Repeat, Scale, ScrollText, Settings, ShieldCheck, ShoppingBag, SquareKanban, Star, Store, Users, UsersRound, Wallet, type LucideIcon } from 'lucide-react';
+import { Compass, Bot, TrendingUp, UserRoundCheck, FolderKanban, ListTodo, Clapperboard, Activity, BadgeCheck, HeartHandshake, BarChart3, BookOpen, CalendarDays, ClipboardList, Crown, Drama, FileSignature, FileText, FlaskConical, Gift, GraduationCap, Hammer, HandCoins, Handshake, MessageCircle, Handshake as PoigneeDeMain, HeartPulse, Inbox, KeyRound, Landmark, LayoutDashboard, Lightbulb, LineChart, ListChecks, MapPin, Megaphone, MessageSquare, MessagesSquare, MonitorPlay, NotebookPen, Palette, PhoneIncoming, PieChart, PiggyBank, QrCode, Radio, ReceiptText, Repeat, Scale, ScrollText, Settings, ShieldCheck, ShoppingBag, SquareKanban, Star, Store, Users, UsersRound, Wallet, type LucideIcon } from 'lucide-react';
 
 /* Registre des routes du Trône, groupées par DÉPARTEMENT.
    Le module d'un écran (routes/<dossier>/) dit d'où il vient, pas où il se range :
@@ -86,6 +86,17 @@ const NAV_DES_ECRANS: TroneGroup[] = [
       /* Ordre voulu par la maison : le jour d'abord, la lignée ensuite. */
       { path: '/calendrier', label: 'Calendrier', icon: CalendarDays, Component: lazy(() => import('./clients/Calendrier')) },
       { path: '/customers', label: 'Clientes', icon: Users, Component: lazy(() => import('./clients/Customers')) },
+      /* L'AUDIENCE (27 octobre 2026, lot 3 de l'Assistant Maison) : à qui la
+         Maison peut écrire, segments et audiences calculées. C'était un onglet
+         du Marketing ; le Marketing quitte la barre, l'audience vit avec les
+         Clientes, en onglet (REUNIONS). « Écrire » mène à l'Assistant. */
+      { path: '/audience', label: 'Audience', icon: Radio, Component: lazy(() => import('./clients/Audience')) },
+      /* LES PARRAINAGES, 28 septembre 2026 : marraines, filleules, cadeaux.
+         Hors de la barre depuis le Cercle réuni (29 septembre) ; depuis le
+         27 octobre 2026, onglet « Ambassadrices » des Clientes : le Cercle
+         quitte la barre, les ambassadrices restent à portée de main, et
+         l'adresse reste (les alertes du site y mènent). */
+      { path: '/parrainages', horsMenu: true, label: 'Ambassadrices', icon: HeartHandshake, Component: lazy(() => import('./equipe/Parrainages')) },
       /* GÉRARD (26 octobre 2026) — l'assistant qui écrit aux clientes : le
          fil entre deux séances, les RDV gardés, les jours creux, les
          relances. Maquette 4bPVFik1… ; rangé sous Clientes, comme la
@@ -168,7 +179,9 @@ const NAV_DES_ECRANS: TroneGroup[] = [
       /* Ce que la Maison commande à un prestataire — 15 septembre 2026. */
       { path: '/engagements', label: 'Les engagements', icon: Hammer, Component: lazy(() => import('./vente/Engagements')) },
       { path: '/depenses', label: 'Dépenses', icon: ReceiptText, Component: lazy(() => import('./finances/Depenses')) },
-      { path: '/salon-foyer', label: 'Salon & Foyer', icon: PiggyBank, Component: lazy(() => import('./finances/SalonFoyer')) },
+      /* Le libellé ne porte plus le mot banni (27 octobre 2026) : Accès & rôles
+         et Trouver le montrent encore, hors barre. Le chemin ne bouge pas. */
+      { path: '/salon-foyer', label: 'Maison & Foyer', icon: PiggyBank, Component: lazy(() => import('./finances/SalonFoyer')) },
     ],
   },
   {
@@ -181,17 +194,15 @@ const NAV_DES_ECRANS: TroneGroup[] = [
       /* LE CERCLE RÉUNI — 29 septembre 2026 : le Cercle et les ambassadrices,
          un seul écran à deux onglets. */
       { path: '/cercle', label: 'Le Cercle MND', icon: Crown, Component: lazy(() => import('./equipe/Cercle')) },
-      /* LES PARRAINAGES — 28 septembre 2026 : marraines, filleules, cadeaux. */
-      /* Hors de la barre depuis le Cercle réuni : l'onglet « Les ambassadrices »
-         du Cercle le porte. L'adresse reste (les alertes du site y mènent). */
-      { path: '/parrainages', horsMenu: true, label: 'Ambassadrices', icon: HeartHandshake, Component: lazy(() => import('./equipe/Parrainages')) },
+      /* Les parrainages (`/parrainages`) vivent en Clientèle depuis le 27 octobre 2026. */
       { path: '/personas', label: 'Personas', icon: Drama, Component: lazy(() => import('./clients/Personas')) },
       { path: '/vitrine', label: 'Les vitrines', icon: MonitorPlay, Component: lazy(() => import('./clients/Vitrine')) },
       /* LES AVIS GOOGLE, UNE RUBRIQUE À PART — 26 octobre 2026 (maquette
          YaWfiqou…, « Tout me va ») : sous « Les vitrines », dont l'onglet des
          avis devient un lien vers elle. Reçoit, apprête, publie. */
       { path: '/avis-google', label: 'Les avis Google', icon: Star, Component: lazy(() => import('./clients/AvisGoogle')) },
-      { path: '/qr-codes', label: 'QR Codes', icon: QrCode, Component: lazy(() => import('./clients/QrCodes')) },
+      /* « QR de la Maison » depuis le 27 octobre 2026 (spec de l'Assistant Maison, §11) : le chemin ne bouge pas. */
+      { path: '/qr-codes', label: 'QR de la Maison', icon: QrCode, Component: lazy(() => import('./clients/QrCodes')) },
     ],
   },
   {
@@ -266,11 +277,24 @@ const NAV_DES_ECRANS: TroneGroup[] = [
    restent dans NAV, hors de la barre : un ancien domaine ne cite jamais un
    écran disparu (verifie-porte). Les Recommandations, vides depuis toujours,
    quittent seulement la barre. */
+/* LA BARRE À VINGT-HUIT, 27 octobre 2026, lot 3 de l'Assistant Maison
+   (spec §3, maquette validée). Quarante-quatre rubriques le matin, vingt-huit
+   après : seize quittent la barre (RETIRES_DE_LA_BARRE), toutes gardent leur
+   adresse (hors ligne, liens profonds, notifications). Trois réunions
+   grandissent : Synthèse reçoit le chiffre des prestations, les Ressources
+   humaines les prestataires, et les Clientes gagnent deux onglets, l'Audience
+   (venue du Marketing) et les Ambassadrices (venues du Cercle).
+
+   Cinq hôtes de réunion quittent la barre avec leurs onglets (le Centre de
+   commande, les Tendances, Conversations, Demandes, Marketing) : leurs écrans
+   restent joignables par l'adresse, avec la barre d'onglets. */
 export type Reunion = { hote: string; titre: string; onglets: { path: string; label: string }[] };
 export const REUNIONS: readonly Reunion[] = [
   { hote: '/centre-de-commande', titre: 'Centre de commande', onglets: [{ path: '/centre-de-commande', label: 'Le centre' }, { path: '/agents', label: 'Les agents' }, { path: '/atelier-des-contenus', label: 'Les contenus' }] },
-  { hote: '/synthese', titre: 'Synthèse & bilan', onglets: [{ path: '/synthese', label: 'Le résultat' }, { path: '/bilan-mensuel', label: 'Le mois jour par jour' }] },
+  { hote: '/synthese', titre: 'Synthèse & bilan', onglets: [{ path: '/synthese', label: 'Le résultat' }, { path: '/bilan-mensuel', label: 'Le mois jour par jour' }, { path: '/chiffre-des-prestations', label: 'Les prestations' }] },
   { hote: '/analytics', titre: 'Les tendances', onglets: [{ path: '/analytics', label: 'L’analyse' }, { path: '/cadence', label: 'La cadence' }] },
+  /* LES CLIENTES (27 octobre 2026) : le registre, l'audience, les ambassadrices. */
+  { hote: '/customers', titre: 'Clientes', onglets: [{ path: '/customers', label: 'Les clientes' }, { path: '/audience', label: 'Audience' }, { path: '/parrainages', label: 'Ambassadrices' }] },
   /* LE CHAT DU SITE (19 octobre 2026) entre dans Conversations, sans rubrique de plus : tout ce que les clientes écrivent au même endroit. */
   { hote: '/conversations', titre: 'Conversations', onglets: [{ path: '/conversations', label: 'WhatsApp' }, { path: '/discussions', label: 'Le chat du site' }, { path: '/appels', label: 'Les appels' }] },
   { hote: '/demandes', titre: 'Demandes & consultations', onglets: [{ path: '/demandes', label: 'Les demandes' }, { path: '/consultations', label: 'Les consultations' }] },
@@ -280,11 +304,23 @@ export const REUNIONS: readonly Reunion[] = [
   { hote: '/prets', titre: 'Prêts & compte courant', onglets: [{ path: '/prets', label: 'Les prêts' }, { path: '/compte-courant', label: 'Le compte courant' }] },
   { hote: '/marketing', titre: 'Marketing', onglets: [{ path: '/marketing', label: 'Le marketing' }, { path: '/personas', label: 'Les personas' }] },
   { hote: '/fil', titre: 'Le Fil', onglets: [{ path: '/fil', label: 'Le fil' }, { path: '/tableau', label: 'Le tableau' }, { path: '/mes-taches', label: 'Mes tâches' }] },
-  { hote: '/personnel', titre: 'Ressources humaines', onglets: [{ path: '/personnel', label: 'Ressources humaines' }, { path: '/prets-personnel', label: 'Les prêts au personnel' }] },
+  { hote: '/personnel', titre: 'Ressources humaines', onglets: [{ path: '/personnel', label: 'Ressources humaines' }, { path: '/prets-personnel', label: 'Les prêts au personnel' }, { path: '/prestataires', label: 'Les prestataires' }] },
   { hote: '/parametres', titre: 'Paramètres', onglets: [{ path: '/parametres', label: 'Les réglages' }, { path: '/marque', label: 'La marque et le thème' }, { path: '/branches', label: 'Les branches' }] },
 ];
-/** Hors de la barre sans réunion : l'adresse reste, l'écran aussi. */
-export const RETIRES_DE_LA_BARRE: readonly string[] = ['/recommandations'];
+/** Hors de la barre : l'adresse reste, l'écran aussi, et la réunion s'il en
+    a une. Les Recommandations depuis le 14 octobre 2026 ; les seize autres
+    depuis le 27 octobre 2026 (audit du 26 : 13 mort-nées, 17 dormantes ;
+    « jamais une rubrique sans geste en 14 jours qui reste dans la barre »). */
+export const RETIRES_DE_LA_BARRE: readonly string[] = [
+  '/recommandations',
+  '/centre-de-commande', '/analytics', '/a-faire', '/juste-prix',
+  '/conversations', '/entre-deux', '/demandes',
+  '/laboratoire',
+  '/encaissements',
+  '/creances', '/chiffre-des-prestations', '/salon-foyer',
+  '/marketing', '/cercle', '/avis-google',
+  '/prestataires',
+];
 
 /* Les écrans d'avant, gardés pour l'écran réuni qui les montre en onglets. */
 const ECRANS_D_AVANT = new Map<string, LazyExoticComponent<ComponentType>>();
@@ -296,12 +332,17 @@ function reunisLaBarre(nav: TroneGroup[]): TroneGroup[] {
   return nav.map((g) => ({
     ...g,
     items: g.items.map((it) => {
-      if (RETIRES_DE_LA_BARRE.includes(it.path)) return { ...it, horsMenu: true };
+      /* UN HÔTE RETIRÉ GARDE SES ONGLETS, 27 octobre 2026. Le retrait
+         rendait l'écran avant la réunion : un hôte retiré (le Centre de
+         commande, Conversations…) perdait l'écran réuni et ses onglets ne
+         trouvaient plus l'écran d'avant (`_reuni.tsx` rendait null). On juge
+         d'abord la réunion, puis le retrait ne touche que `horsMenu`. */
+      const retire = RETIRES_DE_LA_BARRE.includes(it.path);
       const r = reunionDuChemin.get(it.path);
-      if (!r) return it;
+      if (!r) return retire ? { ...it, horsMenu: true } : it;
       ECRANS_D_AVANT.set(it.path, it.Component);
       return r.hote === it.path
-        ? { ...it, label: r.titre, Component: EcranReuni }
+        ? { ...it, label: r.titre, horsMenu: retire || it.horsMenu, Component: EcranReuni }
         : { ...it, horsMenu: true, Component: EcranReuni };
     }),
   }));
@@ -427,7 +468,7 @@ export const ANCIENS_DOMAINES: Record<string, string[]> = {
    un : la table ci-dessus ne se met pas à jour. Il s'ouvre par son
    département seul. On les NOMME ici, pour que la barre et la photographie
    restent vérifiables : un écran absent des deux listes est un oubli. */
-export const ECRANS_NES_APRES_LES_DEPARTEMENTS: readonly string[] = ['/compte-courant', '/parrainages', '/cartes-cadeaux', '/secretariat', '/centre-de-commande', '/atelier-des-contenus', '/chiffre-des-prestations', '/prets-personnel', '/entre-deux', '/discussions', '/projets', '/mes-taches', '/agents', '/avis-google', '/previsions', '/gerard'];
+export const ECRANS_NES_APRES_LES_DEPARTEMENTS: readonly string[] = ['/compte-courant', '/parrainages', '/cartes-cadeaux', '/secretariat', '/centre-de-commande', '/atelier-des-contenus', '/chiffre-des-prestations', '/prets-personnel', '/entre-deux', '/discussions', '/projets', '/mes-taches', '/agents', '/avis-google', '/previsions', '/gerard', '/audience'];
 
 /** L'ancien domaine d'un écran, celui d'avant les départements. */
 export const ancienDomaineDe = (path: string): string | undefined =>
