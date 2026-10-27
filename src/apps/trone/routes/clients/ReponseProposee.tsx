@@ -7,13 +7,14 @@ import { demandeAClaude, useSaitIaMaison } from '../../../../shared/ia-maison';
 import { peutDemander } from '../../../../shared/ia-maison-pur';
 import { useClients, useFamilies } from '../../../../shared/clients';
 import { useCategories, useServices } from '../../../../shared/catalog';
+import { personalPriceXof, pricingOf, useBandSets, useModelBands } from '../../../../shared/pricing';
 import { useInvoices } from '../../../../shared/finance';
 import { ecrituresDeLaTete, ecrituresDuCompte, lignesImpayees, tetesDuCompte } from '../../../../shared/compte';
 import type { Fil } from '../../../../shared/conversations';
 import { apptDueXof, apptNetXof, todayISO, useBranchAppointments, useServicesById } from './_shared';
 import {
   SCHEMA_DE_LA_REPONSE, consigneDeLaReponse, contextePourClaude, derniereVenueDe, etatDeLaZone, filOuvertAClaude,
-  lectureDeLaReponse, lignesDuCataloguePourClaude, prochainRdvDe, zoneAProteger,
+  lectureDeLaReponse, lignesDuCataloguePourClaude, paliersDeLocks, prochainRdvDe, zoneAProteger,
 } from '../../../../shared/ia-reponse-wa-pur';
 import './reponse-proposee.css';
 
@@ -63,6 +64,8 @@ export function ReponseProposee({ fil, texte, occupe, surProposition }: {
   const [services] = useServices();
   const [categories] = useCategories();
   const [factures] = useInvoices();
+  const [bandes] = useModelBands();
+  const [jeux] = useBandSets();
   const [etat, setEtat] = useState<'' | 'cherche'>('');
   /** La dernière proposition posée dans la zone. */
   const [derniere, setDerniere] = useState<string | null>(null);
@@ -120,7 +123,19 @@ export function ReponseProposee({ fil, texte, occupe, surProposition }: {
       /* Sans agenda : les places libres dépendent du geste voulu (sa durée,
          le maître), et c'est le serveur qui les juge pour le site et pour
          l'automate. Claude n'en promet donc aucune. */
-      catalogue: lignesDuCataloguePourClaude(services, categories),
+      /* LES PRIX PAR PALIER DE LOCKS (27 octobre 2026), comme la réservation du
+         site : le barème du Trône à chaque palier, et son prix à elle quand la
+         Maison a compté ses locks. Claude ne cote qu'une fois le nombre connu. */
+      catalogue: lignesDuCataloguePourClaude(services.map((sv) => {
+        if (sv.archived === true || sv.hidePrice === true) return sv;
+        const prixParPalier = paliersDeLocks(bandes).map((b) => ({
+          palier: b.palier,
+          prixXof: personalPriceXof(sv, pricingOf({ lockCount: b.locks, priceCoef: 1 }, bandes, jeux, categories), services),
+        }));
+        const pourElle = fiche?.lockCount && fiche.lockCount > 0 ? personalPriceXof(sv, pricingOf(fiche, bandes, jeux, categories), services) : 0;
+        return { ...sv, prixParPalier, ...(pourElle > 0 ? { prixPourElle: pourElle } : {}) };
+      }), categories),
+      locks: fiche ? { compte: fiche.lockCount, declare: fiche.lockCountDeclare } : undefined,
       aujourdhui,
       dejaProposee: aEcarter ?? undefined,
     });

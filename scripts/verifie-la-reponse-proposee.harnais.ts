@@ -5,7 +5,9 @@
    (civilité, prochain rendez-vous, reste dû), l'agenda et le catalogue, et
    écrit dans la voix de la Maison. Vous relisez, changez un mot, envoyez.
    Rien ne part seul : l'automate de réservation reste comme il est. »
-   Prix : ceux du catalogue, « à partir de » pour les créations (14 octobre).
+   Prix : ceux du catalogue ; depuis le 27 octobre 2026, une création ou une
+   réparation n'en porte aucun (la consultation, puis le devis écrit), le reste
+   se dit par palier de locks, son nombre de locks d'abord, la voix premium.
    Chez Claude : prénom et initiale, jamais un numéro (11 octobre).
 
    « Ne pas faire voir mon retard aux clients » (18 octobre) : ce qu'elle doit
@@ -23,6 +25,7 @@ import {
   FIL_MAX, MOTS_MAX, SIGNES_MAX, SCHEMA_DE_LA_REPONSE,
   consigneDeLaReponse, contextePourClaude, dateDitePourClaude, derniereVenueDe, etatDeLaZone, filOuvertAClaude, filPourClaude,
   lectureDeLaReponse, lignesDuCataloguePourClaude, motsDe, prochainRdvDe, zoneAProteger,
+  LIENS_DE_LA_MAISON, paliersDeLocks,
 } from '../src/shared/ia-reponse-wa-pur';
 import { DEPARTEMENTS_PAR_CHANTIER, peutDemander } from '../src/shared/ia-maison-pur';
 
@@ -52,7 +55,7 @@ const fil = (n: number) => Array.from({ length: n }, (_, i) => ({
   texte: `Message numéro ${i + 1}${i === 0 ? ` de Clarisse Dossou, joignable au ${NUMERO_DIT}` : ''}${i === n - 1 ? ` : DOSSOU Clarisse demande un prix, rappel au ${NUMERO_E164}` : ''}`,
 }));
 const AUJOURDHUI = '2026-10-19';
-const CATALOGUE = ['SÍNSIN™ Essentiel : 35 000 F', 'VÈKPÈ™ Jumbo : à partir de 135 000 F'];
+const CATALOGUE = ['SÍNSIN™ Essentiel : 35 000 F', 'VÈKPÈ™ Jumbo : consultation d’abord, devis remis par écrit après la consultation (aucun prix avant)'];
 
 /* ── 1. L'ANONYMISATION : CE QUI PART CHEZ CLAUDE ─────────────────────── */
 {
@@ -78,7 +81,7 @@ const CATALOGUE = ['SÍNSIN™ Essentiel : 35 000 F', 'VÈKPÈ™ Jumbo : à par
     [c.includes('Agenda : non consulté. Ne promets aucune place'), c.includes('maisonmnd.com/reserver/')]);
   dit('aujourd hui se dit avec son année', true, c.includes('Aujourd’hui : lundi 19 octobre 2026.'));
   dit('le catalogue est là, tel quel, et dit qu il est le seul prix permis', [true, true, true],
-    [c.includes('- SÍNSIN™ Essentiel : 35 000 F'), c.includes('- VÈKPÈ™ Jumbo : à partir de 135 000 F'), c.includes('les seuls prix que tu peux donner')]);
+    [c.includes('- SÍNSIN™ Essentiel : 35 000 F'), c.includes('- VÈKPÈ™ Jumbo : consultation d’abord, devis remis par écrit après la consultation (aucun prix avant)'), c.includes('les seuls prix que tu peux donner')]);
 }
 {
   const texte = 'Bonjour Clarisse Dossou, rappelez-nous au 01 97 00 00 00 pour votre reprise.';
@@ -185,11 +188,39 @@ dit('une fiche muette dit le prénom seul (jamais « Madame » supposé) ; un mo
     { id: 'sv-koko-ori', name: 'KÒKÒ™ Origine', categoryId: 'koko', priceXof: 5000, hidePrice: false },
     { id: 'sv-var', name: 'Lavage profond', categoryId: 'atl-ii', priceXof: 8000, hidePrice: false, priceMode: 'variable' as const },
   ];
-  dit('un entretien au prix du catalogue ; une création, une réparation, une « consultation avant », un prix variable : « à partir de » ; un devis le dit ; masquée et archivée : rien',
-    ['SÍNSIN™ Essentiel : 35 000 F', 'VÈKPÈ™ Jumbo : à partir de 135 000 F', 'FÍNFÍN™ Reprise : à partir de 50 000 F', 'Soin sur mesure : à partir de 20 000 F', 'Extensions : sur devis, après consultation', 'KÒKÒ™ Origine : 5 000 F', 'Lavage profond : à partir de 8 000 F'],
+  const AUCUN = 'consultation d’abord, devis remis par écrit après la consultation (aucun prix avant)';
+  dit('un entretien au prix du catalogue ; une création, une réparation, une « consultation avant », un devis : AUCUN prix, la consultation puis le devis écrit ; un prix variable : « à partir de » ; masquée et archivée : rien',
+    ['SÍNSIN™ Essentiel : 35 000 F', `VÈKPÈ™ Jumbo : ${AUCUN}`, `FÍNFÍN™ Reprise : ${AUCUN}`, `Soin sur mesure : ${AUCUN}`, `Extensions : ${AUCUN}`, 'KÒKÒ™ Origine : 5 000 F', 'Lavage profond : à partir de 8 000 F'],
     lignesDuCataloguePourClaude(services, cats));
+  dit('... aucun montant ne survit pour une création ou une réparation, même porteur d un prix de palier', [false, false],
+    [lignesDuCataloguePourClaude([{ ...services[1], prixParPalier: [{ palier: 'jusqu’à 80 locks', prixXof: 135000 }] }], cats)[0].includes('F'),
+      lignesDuCataloguePourClaude([{ ...services[2], prixPourElle: 50000 }], cats)[0].includes('50 000')]);
+  const paliers = [{ palier: 'jusqu’à 80 locks', prixXof: 35000 }, { palier: '81 à 150 locks', prixXof: 40000 }, { palier: 'plus de 550 locks', prixXof: 60000 }];
+  dit('le reste au prix de la carte PAR PALIER de locks ; un prix qui ne bouge pas se dit seul ; son prix à elle quand son nombre est connu',
+    ['SÍNSIN™ Essentiel, selon le nombre de locks : jusqu’à 80 locks, 35 000 F ; 81 à 150 locks, 40 000 F ; plus de 550 locks, 60 000 F', 'KÒKÒ™ Origine : 5 000 F', 'SÍNSIN™ Essentiel : 40 000 F pour elle, d’après son nombre de locks'],
+    [lignesDuCataloguePourClaude([{ ...services[0], prixParPalier: paliers }], cats)[0],
+      lignesDuCataloguePourClaude([{ ...services[7], prixParPalier: [{ palier: 'jusqu’à 80 locks', prixXof: 5000 }, { palier: '81 à 150 locks', prixXof: 5000 }] }], cats)[0],
+      lignesDuCataloguePourClaude([{ ...services[0], prixParPalier: paliers, prixPourElle: 40000 }], cats)[0]]);
+  dit('les paliers se nomment comme sur la réservation du site, et chacun a son nombre représentatif', [['jusqu’à 80 locks', 80], ['81 à 150 locks', 150], ['plus de 550 locks', 650]],
+    paliersDeLocks([{ id: 'c', maxLocks: 550 }, { id: 'a', maxLocks: 80 }, { id: 'b', maxLocks: 150 }, { id: 'd', maxLocks: null }]).filter((x) => x.id !== 'c').map((x) => [x.palier, x.locks]));
   dit('sans catalogue, Claude ne donne aucun montant', true,
     contextePourClaude({ fil: fil(1), fiche: CLARISSE, catalogue: [], aujourdhui: AUJOURDHUI }).includes('Catalogue : aucun prix disponible. Ne donne aucun montant'));
+}
+
+/* ── LA VOIX DU 27 OCTOBRE 2026 : SON NOMBRE DE LOCKS, LES LIENS, LA CIVILITÉ ── */
+{
+  const base = { fil: fil(2), fiche: CLARISSE, catalogue: CATALOGUE, aujourdhui: AUJOURDHUI };
+  dit('son nombre de locks : compté à la Maison, sinon annoncé par elle, sinon à lui demander', [true, true, true],
+    [contextePourClaude({ ...base, locks: { compte: 140, declare: 90 } }).includes('Son nombre de locks, compté à la Maison : environ 140.'),
+      contextePourClaude({ ...base, locks: { declare: 90 } }).includes('Son nombre de locks, annoncé par elle : environ 90 (pas encore compté à la Maison).'),
+      contextePourClaude(base).includes('Son nombre de locks : inconnu. Avant tout prix qui en dépend, demande-le-lui, approximativement.')]);
+  const c = contextePourClaude(base);
+  dit('les trois liens de la Maison, tels que le site les ouvre', [true, true, true, 'https://maisonmnd.com/reserver/?besoin=entretien'],
+    [c.includes(LIENS_DE_LA_MAISON.catalogue), c.includes(LIENS_DE_LA_MAISON.creation), c.includes(LIENS_DE_LA_MAISON.reparation), LIENS_DE_LA_MAISON.catalogue]);
+  dit('une fiche sans civilité notée le dit ; une civilité notée ne le dit pas', [true, false],
+    [contextePourClaude({ ...base, fiche: { name: 'Clarisse Dossou' } }).includes('Sa civilité n’est pas notée sur sa fiche.'), c.includes('Sa civilité n’est pas notée')]);
+  dit('un lien de la Maison passe la lecture (aucun numéro, aucun mot banni)', 'Avec plaisir. Nos soins et leurs prix : https://maisonmnd.com/reserver/?besoin=entretien',
+    lectureDeLaReponse({ reponse: 'Avec plaisir. Nos soins et leurs prix : https://maisonmnd.com/reserver/?besoin=entretien' }));
 }
 
 /* ── 5. LA CONSIGNE : LA VOIX DE LA MAISON ET SES INTERDITS ───────────── */
@@ -197,8 +228,17 @@ dit('une fiche muette dit le prénom seul (jamais « Madame » supposé) ; un mo
   const c = consigneDeLaReponse();
   dit('elle propose, elle n envoie rien ; la Maison, jamais « salon » ; le vouvoiement', [true, true, true],
     [c.includes('tu PROPOSES, tu n’envoies rien'), c.includes('On dit « la Maison », JAMAIS « salon »'), c.includes('Le vouvoiement, toujours')]);
-  dit('les prix : ceux du catalogue seulement, « à partir de » pour une création ou une réparation', [true, true],
-    [c.includes('uniquement ceux du catalogue donnés dans le contexte'), c.includes('Pour une création ou une réparation, le prix se dit toujours « à partir de »')]);
+  dit('les prix comme sur maisonmnd.com : création et réparation, la consultation puis le devis écrit, aucun « à partir de » ; le reste au prix de la carte, avec le lien du catalogue ; son nombre de locks demandé avant tout prix',
+    [true, true, true, true, false],
+    [c.includes('Une création de locks ou une réparation commence TOUJOURS par une consultation. N’en donne AUCUN prix, ni « à partir de »'),
+      c.includes('la Maison remet son devis par écrit après la consultation'),
+      c.includes('Tu peux donner le lien du catalogue en ligne'),
+      c.includes('demande-lui d’abord, avec délicatesse, combien de locks elle porte approximativement, sans citer de montant'),
+      c.includes('le prix se dit toujours « à partir de »')]);
+  dit('la voix premium de la Maison : une maison d exception, jamais familière ni commerciale, un exemple du ton', [true, true, true],
+    [c.includes('celle d’une maison d’exception : élégante, posée, attentionnée'), c.includes('Jamais familière, jamais commerciale, jamais pressante'), c.includes('Le ton, par exemple : « Avec plaisir, Madame Clarisse.')]);
+  dit('pour inscrire un rendez-vous : comment devons-nous vous appeler, puis Madame ou Monsieur, jamais une civilité supposée', true,
+    c.includes('« Pour inscrire votre rendez-vous, comment devons-nous vous appeler ? », puis « Madame ou Monsieur ? »'));
   dit('jamais une place promise sans l agenda ; la réservation en ligne sinon', [true, true],
     [c.includes('ne promets JAMAIS une place, une heure ni un jour qui ne figure pas dans l’agenda'), c.includes('maisonmnd.com/reserver/')]);
   dit('pas de diagnostic du cuir chevelu : on invite à passer ou à consulter', [true, true],
@@ -208,8 +248,8 @@ dit('une fiche muette dit le prénom seul (jamais « Madame » supposé) ; un mo
     [c.includes('Ce qu’elle doit : n’en parle jamais de toi-même'), c.includes('aucune relance')]);
   dit('une photo ou un vocal : Claude ne les voit pas, ne décrit ni ne juge rien', [true, true],
     [c.includes('tu ne les vois pas et ne les entends pas'), c.includes('Ne décris rien, ne juge rien')]);
-  dit('pas d émoji, pas de tiret long, 60 mots au plus, rien d inventé, pas de signature', [true, true, true, true, true],
-    [c.includes('Pas d’émoji'), c.includes('pas de tiret long'), c.includes(`${MOTS_MAX} mots au plus`) && MOTS_MAX === 60, c.includes('N’invente rien'), c.includes('Ne signe pas')]);
+  dit('pas d émoji, pas de tiret long, 70 mots au plus, rien d inventé, pas de signature', [true, true, true, true, true],
+    [c.includes('Pas d’émoji'), c.includes('pas de tiret long'), c.includes(`${MOTS_MAX} mots au plus`) && MOTS_MAX === 70, c.includes('N’invente rien'), c.includes('Ne signe pas')]);
   dit('le schéma attend un seul champ : la réponse', [['reponse'], 'object', false],
     [SCHEMA_DE_LA_REPONSE.required, SCHEMA_DE_LA_REPONSE.type, SCHEMA_DE_LA_REPONSE.additionalProperties]);
 }
@@ -239,8 +279,8 @@ dit('une fiche muette dit le prénom seul (jamais « Madame » supposé) ; un mo
   const phrase = 'Votre couronne mérite ce soin et nous serons heureuses de vous recevoir bientôt à la Maison.';
   const longue = Array.from({ length: 6 }, () => phrase).join(' ');
   const coupee = lectureDeLaReponse({ reponse: longue }) ?? '';
-  /* Seize mots par phrase, comptés à la main : trois tiennent (48), la quatrième ferait 64 > 60. */
-  dit('trop longue : coupée aux phrases, soixante mots au plus, finie par un point (trois phrases de seize mots)', [true, true, true, 48],
+  /* Seize mots par phrase, comptés à la main : quatre tiennent (64), la cinquième ferait 80 > 70. */
+  dit('trop longue : coupée aux phrases, soixante-dix mots au plus, finie par un point (quatre phrases de seize mots)', [true, true, true, 64],
     [motsDe(coupee) <= MOTS_MAX, coupee.length <= SIGNES_MAX, coupee.endsWith('.'), motsDe(coupee)]);
   const uneSeule = Array.from({ length: 90 }, (_, i) => `mot${i}`).join(' ');
   const c1 = lectureDeLaReponse({ reponse: uneSeule }) ?? '';

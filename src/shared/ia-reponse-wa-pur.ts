@@ -33,6 +33,23 @@ import type { PriceMode } from './catalogue-pur';
      · ce que Claude rend est une PROPOSITION qui remplit la zone de saisie ;
        « Envoyer » reste le bouton existant ; « Une autre » redemande.
 
+   LA VOIX DU 27 OCTOBRE 2026 (Yéman : « un ton beaucoup plus premium qui
+   ressemble à la Maison MND. La création des locks et la réparation ont
+   besoin d'une consultation avant le devis, comme sur le site. Pour les
+   soins, coiffures, reprises et autres, le catalogue s'ouvre pour accéder
+   aux prix. Demander à la cliente son nombre de locks approximatif avant de
+   faire une quotation ») :
+     · une création ou une réparation ne porte PLUS AUCUN prix, pas même
+       « à partir de » : la consultation d'abord, le devis par écrit après,
+       comme le dit le site (« Pourquoi certains prix sont-ils sur devis ? ») ;
+     · le reste se dit au prix de la carte, PAR PALIER DE LOCKS comme la
+       réservation du site, et le lien du catalogue en ligne l'accompagne ;
+     · son nombre de locks (compté à la Maison, ou annoncé par elle) entre au
+       contexte ; inconnu, Claude le lui demande avant tout prix ;
+     · la consigne et le contexte restent purs et exportés : l'assistant
+       WhatsApp qui répond seul (le-trone-35) parle de la même voix. Les prix
+       par palier y entrent déjà calculés (`prixParPalier`, `prixPourElle`).
+
    CE MODULE EST PUR : ni écran, ni réseau, ni magasin. Le composant
    `ReponseProposee` (routes/clients) compose la demande avec lui, et le banc
    `verifie-la-reponse-proposee` l'éprouve seul. */
@@ -41,10 +58,19 @@ import type { PriceMode } from './catalogue-pur';
 export const FIL_MAX = 12;
 /** Un message du fil ne part pas entier s'il est une lettre. */
 export const SIGNES_MAX_PAR_MESSAGE = 600;
-/** Soixante mots au plus : une réponse WhatsApp, pas une page. */
-export const MOTS_MAX = 60;
-/** Et jamais au-delà de 500 signes, même en une seule phrase. */
-export const SIGNES_MAX = 500;
+/** Soixante-dix mots au plus : une réponse WhatsApp, pas une page ; la voix
+    soignée et le lien du catalogue demandent un peu plus que soixante. */
+export const MOTS_MAX = 70;
+/** Et jamais au-delà de 600 signes, même en une seule phrase. */
+export const SIGNES_MAX = 600;
+/** LES LIENS DE LA MAISON (27 octobre 2026), tels que le site les ouvre :
+    le catalogue des prestations directes avec leurs prix par palier de
+    locks, et la consultation de chaque porte. */
+export const LIENS_DE_LA_MAISON = {
+  catalogue: 'https://maisonmnd.com/reserver/?besoin=entretien',
+  creation: 'https://maisonmnd.com/reserver/?besoin=creation',
+  reparation: 'https://maisonmnd.com/reserver/?besoin=reparation',
+} as const;
 /** Le catalogue se borne : au-delà, Claude a assez de repères. */
 export const LIGNES_DE_CATALOGUE_MAX = 40;
 /** Les places dites, comme sur le site : six. */
@@ -57,7 +83,26 @@ export type JourDePlaces = { iso: string; heures: readonly { heure: string }[] }
 export type PrestationPourClaude = {
   id: string; name: string; categoryId: string;
   priceXof?: number; hidePrice?: boolean; priceMode?: PriceMode; archived?: boolean; consultationAvant?: boolean; code?: string;
+  /** Le prix de la carte à chaque palier de locks, déjà calculé par l'appelant
+      (le Trône avec `pricing`, le serveur avec `prix-calibre`). */
+  prixParPalier?: readonly PrixDuPalier[];
+  /** Son prix à elle, quand son nombre de locks est connu. */
+  prixPourElle?: number;
 };
+export type PrixDuPalier = { palier: string; prixXof: number };
+
+/** LES PALIERS DE LOCKS, comme la réservation du site les nomme (« jusqu’à
+    80 locks », « 81 à 150 locks », « plus de 550 locks ») et le nombre qui
+    représente chacun (son plafond ; cent de plus pour le dernier). */
+export function paliersDeLocks(bandes: readonly { id: string; maxLocks?: number | null }[]): { id: string; palier: string; locks: number }[] {
+  const tri = [...bandes].sort((a, b) => (a.maxLocks ?? Infinity) - (b.maxLocks ?? Infinity));
+  return tri.map((b, i) => {
+    const avant = i > 0 ? tri[i - 1].maxLocks ?? 0 : 0;
+    const max = b.maxLocks ?? null;
+    const palier = max == null ? `plus de ${avant} locks` : avant === 0 ? `jusqu’à ${max} locks` : `${avant + 1} à ${max} locks`;
+    return { id: b.id, palier, locks: max ?? avant + 100 };
+  });
+}
 
 export type ContexteDeLaReponse = {
   fil: readonly MessageDuFilPourClaude[];
@@ -72,6 +117,8 @@ export type ContexteDeLaReponse = {
   places?: readonly JourDePlaces[];
   /** Les lignes du catalogue, déjà écrites par `lignesDuCataloguePourClaude`. */
   catalogue: readonly string[];
+  /** SON NOMBRE DE LOCKS : compté à la Maison, ou annoncé par elle ; absent = inconnu. */
+  locks?: { compte?: number | null; declare?: number | null };
   /** AAAA-MM-JJ, le jour de la Maison. */
   aujourdhui: string;
   /** La proposition qu'on vient d'écarter (« Une autre ») : la suivante diffère. */
@@ -114,17 +161,20 @@ export function derniereVenueDe(appts: readonly RdvLisible[], clientId: string, 
 }
 
 /* ── LE CATALOGUE, AUX PRIX DU JOUR ────────────────────────────────────── */
-/** « SÍNSIN™ Essentiel : 35 000 F », « VÈKPÈ™ Jumbo : à partir de 135 000 F »
-    (une création, une réparation, une prestation « consultation avant » :
-    la porte est la consultation, le prix se dit « à partir de », choix du
-    14 octobre 2026), « … : sur devis, après consultation ». Masquée,
-    archivée : rien. Les prix sont ceux de `prixDuCatalogue`, les mêmes que
-    l'automate envoie.
+/** UNE CRÉATION, UNE RÉPARATION, UN DEVIS, UNE « CONSULTATION AVANT » (la
+    porte de `qualification`) : AUCUN PRIX, la consultation d'abord et le
+    devis par écrit après (27 octobre 2026, comme le site ; avant ce jour
+    on disait « à partir de »).
 
-    UN PRIX « VARIABLE » SE DIT AUSSI « À PARTIR DE » (reprise du 19 octobre
-    2026) : c'est ce que le Catalogue promet (« affiché "à partir de",
-    montant fixé au fauteuil ») et ce que Ma Couronne affiche. L'écrire comme
-    un prix fixe ferait dire à Claude un montant que le fauteuil corrigera. */
+    LE RESTE AU PRIX DE LA CARTE, comme la réservation du site :
+      · son prix à elle quand son nombre de locks est connu (`prixPourElle`) ;
+      · sinon, s'il change d'un palier de locks à l'autre, chaque palier
+        (« SÍNSIN™ Essentiel, selon le nombre de locks : jusqu’à 80 locks,
+        35 000 F ; 81 à 150 locks, 40 000 F ») ;
+      · sinon le prix seul, « à partir de » s'il est variable (le Catalogue
+        promet « montant fixé au fauteuil »).
+    Masquée, archivée : rien. Les prix de base sont ceux de `prixDuCatalogue`,
+    les mêmes que l'automate envoie. */
 export function lignesDuCataloguePourClaude(
   services: readonly PrestationPourClaude[],
   categories: readonly { id: string; parentId?: string }[],
@@ -135,10 +185,18 @@ export function lignesDuCataloguePourClaude(
   for (const s of services) {
     if (s.archived === true || s.hidePrice === true || !s.name?.trim()) continue;
     const nom = s.name.trim();
-    const p = prix[s.id];
-    const aPartirDe = porteDe(s, cats) === 'consultation' || s.priceMode === 'variable';
-    if (p > 0) out.push(`${nom} : ${aPartirDe ? 'à partir de ' : ''}${prixDitWa(p)}`);
-    else if (s.priceMode === 'devis') out.push(`${nom} : sur devis, après consultation`);
+    if (porteDe(s, cats) === 'consultation') {
+      out.push(`${nom} : consultation d’abord, devis remis par écrit après la consultation (aucun prix avant)`);
+    } else {
+      const p = prix[s.id];
+      const paliers = (s.prixParPalier ?? []).filter((x) => x.prixXof > 0 && x.palier.trim());
+      const distincts = new Set(paliers.map((x) => x.prixXof));
+      if ((s.prixPourElle ?? 0) > 0) out.push(`${nom} : ${prixDitWa(s.prixPourElle!)} pour elle, d’après son nombre de locks`);
+      else if (distincts.size > 1) out.push(`${nom}, selon le nombre de locks : ${paliers.map((x) => `${x.palier}, ${prixDitWa(x.prixXof)}`).join(' ; ')}`);
+      else if (paliers.length > 0) out.push(`${nom} : ${s.priceMode === 'variable' ? 'à partir de ' : ''}${prixDitWa(paliers[0].prixXof)}`);
+      else if (p > 0) out.push(`${nom} : ${s.priceMode === 'variable' ? 'à partir de ' : ''}${prixDitWa(p)}`);
+      else continue;
+    }
     if (out.length >= LIGNES_DE_CATALOGUE_MAX) break;
   }
   return out;
@@ -257,6 +315,7 @@ export function contextePourClaude(o: ContexteDeLaReponse): string {
   const lignes: string[] = [];
   lignes.push('CONTEXTE, pour écrire la réponse de la Maison.');
   lignes.push(`La cliente : ${elle || 'sans fiche'}. On l’appelle : ${appel}.`);
+  if (o.fiche && !o.fiche.civilite) lignes.push('Sa civilité n’est pas notée sur sa fiche.');
   lignes.push(`Aujourd’hui : ${dateDitePourClaude(o.aujourdhui)}.`);
   if (o.fiche) {
     const rdv = o.prochainRdv;
@@ -290,9 +349,20 @@ export function contextePourClaude(o: ContexteDeLaReponse): string {
     lignes.push('Agenda : non consulté. Ne promets aucune place : invite à réserver sur maisonmnd.com/reserver/ ou dis que la Maison confirme l’heure.');
   }
 
+  /* SON NOMBRE DE LOCKS (27 octobre 2026) : le prix d'un soin en dépend,
+     comme sur la réservation du site. Inconnu, Claude le lui demande. */
+  const compte = o.locks?.compte && o.locks.compte > 0 ? Math.round(o.locks.compte) : 0;
+  const declare = o.locks?.declare && o.locks.declare > 0 ? Math.round(o.locks.declare) : 0;
+  lignes.push(compte
+    ? `Son nombre de locks, compté à la Maison : environ ${compte}.`
+    : declare
+      ? `Son nombre de locks, annoncé par elle : environ ${declare} (pas encore compté à la Maison).`
+      : 'Son nombre de locks : inconnu. Avant tout prix qui en dépend, demande-le-lui, approximativement.');
+
   lignes.push(o.catalogue.length
     ? `Catalogue (les seuls prix que tu peux donner, tels quels) :\n${o.catalogue.slice(0, LIGNES_DE_CATALOGUE_MAX).map((l) => `- ${l}`).join('\n')}`
     : 'Catalogue : aucun prix disponible. Ne donne aucun montant ; dis que l’équipe précise.');
+  lignes.push(`Liens de la Maison, à donner tels quels, un seul par message : le catalogue en ligne, où elle voit les prix et réserve un soin, un entretien, une reprise ou une coiffure : ${LIENS_DE_LA_MAISON.catalogue} ; la consultation de création : ${LIENS_DE_LA_MAISON.creation} ; la consultation de réparation : ${LIENS_DE_LA_MAISON.reparation}.`);
 
   const lui = o.fiche?.civilite === 'monsieur' || o.fiche?.auMasculin === true;
   const tours = filPourClaude(o.fil, personnes, lui ? 'Lui' : 'Elle');
@@ -309,17 +379,27 @@ export function contextePourClaude(o: ContexteDeLaReponse): string {
 /* ── LA CONSIGNE : LA VOIX DE LA MAISON ────────────────────────────────── */
 export function consigneDeLaReponse(): string {
   return [
-    'Tu écris, au nom de la Maison MND (maison de soin des locks à Cotonou, Bénin), la réponse WhatsApp à une cliente.',
+    'Tu écris, au nom de la Maison MND, maison de soin et de création de locks à Cotonou, la réponse WhatsApp à une cliente.',
     'Une personne de l’équipe la relira, la corrigera et décidera seule de l’envoyer : tu PROPOSES, tu n’envoies rien.',
     '',
-    'La voix de la Maison : chaleureuse, simple, courte. Le vouvoiement, toujours. On dit « la Maison », JAMAIS « salon ».',
+    'La voix de la Maison MND est celle d’une maison d’exception : élégante, posée, attentionnée. Jamais familière, jamais commerciale, jamais pressante.',
+    'Des phrases complètes et soignées, un français choisi : la Maison accueille, prend soin, parle de « votre couronne » et de « vos locks », d’un « rituel » plutôt que d’une prestation.',
+    'Le vouvoiement, toujours. On dit « la Maison », JAMAIS « salon ». Ni « coucou », ni « ok », ni abréviation, ni point d’exclamation répété.',
     `Pas d’émoji, pas de tiret long, pas de liste, pas de titre. ${MOTS_MAX} mots au plus, en français (ou dans la langue de la cliente).`,
+    'Le ton, par exemple : « Avec plaisir, Madame Clarisse. Pour vous indiquer le juste prix de votre entretien, pourriez-vous nous dire combien de locks vous portez, approximativement ? »',
     '',
     'Ce que tu sais d’elle est dans le contexte : comment on l’appelle (reprends cet appel tel quel, n’invente ni nom ni civilité),',
-    'son prochain rendez-vous, ce qui lui reste à régler, les places libres si l’agenda a été consulté, et les prix du catalogue.',
+    'son prochain rendez-vous, ce qui lui reste à régler, son nombre de locks s’il est connu, les places libres si l’agenda a été consulté, les prix du catalogue et les liens de la Maison.',
+    '',
+    'Les prix, comme sur maisonmnd.com :',
+    '- Une création de locks ou une réparation commence TOUJOURS par une consultation. N’en donne AUCUN prix, ni « à partir de », ni estimation : la Maison remet son devis par écrit après la consultation. Propose de réserver la consultation, avec son lien.',
+    '- Les soins, les entretiens, les reprises, les coiffures et le reste se réservent au prix de la carte : ceux du catalogue du contexte, écrits tels quels. Tu peux donner le lien du catalogue en ligne, où elle retrouve les prix et réserve.',
+    '- Avant tout prix qui dépend du nombre de locks, il te faut son nombre de locks. S’il n’est ni dans le contexte ni dans le fil, demande-lui d’abord, avec délicatesse, combien de locks elle porte approximativement, sans citer de montant. Une fois le nombre connu, donne le prix du palier qui lui correspond.',
+    '- Aucun autre montant, aucune estimation, aucune remise que le contexte ne donne pas.',
+    '',
+    'Pour inscrire un rendez-vous, si elle n’a pas de fiche ou si sa civilité n’est pas notée : demande d’abord « Pour inscrire votre rendez-vous, comment devons-nous vous appeler ? », puis « Madame ou Monsieur ? ». Jamais une civilité supposée, jamais un simple prénom à sa place.',
     '',
     'Règles absolues :',
-    '- Les prix : uniquement ceux du catalogue donnés dans le contexte, écrits tels quels. Pour une création ou une réparation, le prix se dit toujours « à partir de » (la consultation fixe le prix exact). Aucun autre montant, aucune estimation.',
     '- Les places : ne promets JAMAIS une place, une heure ni un jour qui ne figure pas dans l’agenda du contexte. Sans agenda, invite à réserver sur maisonmnd.com/reserver/ ou dis que la Maison lui confirme l’heure.',
     '- Le cuir chevelu et les cheveux : aucun diagnostic ni avis à distance (démangeaison, plaque, chute, douleur). Invite à passer à la Maison ou à prendre une consultation.',
     '- Ne cite JAMAIS un numéro de facture, de reçu ou de devis, ni aucun numéro de téléphone.',
