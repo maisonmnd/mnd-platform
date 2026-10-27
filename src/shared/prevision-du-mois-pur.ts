@@ -187,3 +187,112 @@ export function calculDeLaPrevision(p: Prevision): { lignes: LigneDuCalcul[]; to
   if (p.versementsXof > 0) lignes.push({ cle: 'versements', libelle: 'Versements déjà inscrits', baseXof: p.versementsXof, taux: null, compteXof: p.versementsXof, basXof: p.versementsXof, hautXof: p.versementsXof });
   return { lignes, total: { compteXof: p.centraleXof, basXof: p.basXof, hautXof: p.hautXof } };
 }
+
+/* ══ LA PRÉVISION QUI DÉCIDE — 27 octobre 2026 ═══════════════════════════
+   « Le graphe des prévisions doit absolument être professionnel avec les
+   calculs. Rendre cliquable chaque jour. Dans le calcul, c'est quoi bas et
+   haut ? D'où viennent les écarts ? Que chaque bouton serve à prendre des
+   décisions : la finalité est de grandir » (Yéman). Maquette
+   Q9Nkir2cdF4jSP6QDTH3cG ; au sélecteur : fourchette MESURÉE sur les mois
+   rejoués, le détail d'un jour sous le graphe, un objectif qu'elle fixe
+   chaque mois, le mois et les leviers en haut de la page. */
+
+/** Un mois passé rejoué au même jour du mois : ce qui restait prévu ce
+    jour-là (au-delà de l'entré), et ce qui est réellement rentré ensuite. */
+export type MoisRejoueEnArgent = { mois: string; resteprevuXof: number; resteRealiseXof: number };
+/** Sous trois mois jugés, la fourchette garde ses règles, et le dit. */
+export const MOIS_POUR_MESURER = 3;
+
+export type Fourchette =
+  | { mode: 'regles'; moisJuges: number }
+  | { mode: 'mesuree'; moisJuges: number; ratioBas: number; ratioHaut: number };
+
+/** LA FOURCHETTE MESURÉE : le rapport « rentré ensuite / restait prévu » de
+    chaque mois rejoué ; bas = le plus faible, haut = le plus fort (au-delà
+    de dix mois, le 10e et le 90e centile). Un mois où rien ne restait
+    prévu ne dit rien et ne compte pas. */
+export function fourchetteMesuree(rejeux: readonly MoisRejoueEnArgent[]): Fourchette {
+  const r = rejeux.filter((m) => m.resteprevuXof > 0).map((m) => Math.max(0, m.resteRealiseXof) / m.resteprevuXof).sort((a, b) => a - b);
+  if (r.length < MOIS_POUR_MESURER) return { mode: 'regles', moisJuges: r.length };
+  const centile = (q: number) => r[Math.min(r.length - 1, Math.max(0, Math.round(q * (r.length - 1))))];
+  return r.length >= 10
+    ? { mode: 'mesuree', moisJuges: r.length, ratioBas: centile(0.1), ratioHaut: centile(0.9) }
+    : { mode: 'mesuree', moisJuges: r.length, ratioBas: r[0], ratioHaut: r[r.length - 1] };
+}
+
+/** LA PRÉVISION, SA FOURCHETTE MESURÉE POSÉE : l'entré ne bouge pas ; le
+    reste prévu se multiplie par le plus faible et le plus fort rapport
+    constatés. En mode « règles », la prévision reste telle quelle. */
+export function avecLaFourchette(p: Prevision, f: Fourchette): Prevision {
+  if (f.mode !== 'mesuree') return p;
+  const reste = p.centraleXof - p.encaisseXof;
+  const part = (x: number, ratio: number) => arrondi(x * ratio);
+  return {
+    ...p,
+    basXof: arrondi(p.encaisseXof + reste * f.ratioBas),
+    hautXof: arrondi(p.encaisseXof + reste * f.ratioHaut),
+    rdv: { ...p.rdv, basXof: part(p.rdv.comptesXof, f.ratioBas), hautXof: part(p.rdv.comptesXof, f.ratioHaut) },
+    reprises: { ...p.reprises, basXof: part(p.reprises.comptesXof, f.ratioBas), hautXof: part(p.reprises.comptesXof, f.ratioHaut) },
+    creances: { ...p.creances, basXof: part(p.creances.medianeXof, f.ratioBas), hautXof: part(p.creances.medianeXof, f.ratioHaut) },
+  };
+}
+
+/** D'OÙ VIENT L'ÉCART ENTRE BAS ET HAUT : la part de chaque morceau, du plus lourd au plus léger. */
+export type PartDeLEcart = { cle: 'rdv' | 'reprises' | 'creances'; xof: number; pct: number };
+export function ecartDecompose(p: Prevision): { totalXof: number; parts: PartDeLEcart[] } {
+  const parts = ([
+    { cle: 'creances', xof: Math.max(0, p.creances.hautXof - p.creances.basXof) },
+    { cle: 'reprises', xof: Math.max(0, p.reprises.hautXof - p.reprises.basXof) },
+    { cle: 'rdv', xof: Math.max(0, p.rdv.hautXof - p.rdv.basXof) },
+  ] as const).map((x) => ({ ...x }));
+  const somme = parts.reduce((s, x) => s + x.xof, 0);
+  return {
+    totalXof: Math.max(0, p.hautXof - p.basXof),
+    parts: parts.map((x) => ({ ...x, pct: somme > 0 ? Math.round((x.xof / somme) * 100) : 0 })).sort((a, b) => b.xof - a.xof),
+  };
+}
+
+/** LE CUMUL DU MOIS, jour par jour : entré jusqu'à hier, prévu ensuite (les
+    créances tombent le dernier jour, on ne sait pas quand), et la
+    fourchette qui s'ouvre d'aujourd'hui jusqu'au dernier jour. */
+export type PointDuCumul = { iso: string; entreXof: number | null; prevuXof: number | null; basXof: number | null; hautXof: number | null };
+export function cumulDuMois(p: Prevision, aujourdhui: string): PointDuCumul[] {
+  const avant = p.jours.filter((j) => j.iso < aujourdhui);
+  const apres = p.jours.filter((j) => j.iso >= aujourdhui);
+  let c = 0;
+  const out: PointDuCumul[] = avant.map((j) => { c += j.encaisseXof; return { iso: j.iso, entreXof: c, prevuXof: null, basXof: null, hautXof: null }; });
+  const depart = c;
+  /* L'argent déjà entré aujourd'hui compte dans le prévu du jour. */
+  let prevu = depart;
+  const n = apres.length;
+  apres.forEach((j, i) => {
+    prevu += j.encaisseXof + j.prevuXof + (i === n - 1 ? p.creances.medianeXof + p.versementsXof : 0);
+    const k = (i + 1) / n;
+    out.push({ iso: j.iso, entreXof: null, prevuXof: arrondi(prevu, 1), basXof: arrondi(depart + (p.basXof - depart) * k, 1), hautXof: arrondi(depart + (p.hautXof - depart) * k, 1) });
+  });
+  return out;
+}
+
+/** LES LEVIERS D'ICI LA FIN DU MOIS, rangés par ce qu'ils rapportent. Le
+    montant dit ce que la prévision gagnerait si le geste réussit en entier. */
+export type LevierDuMois = { cle: 'reprises' | 'creances' | 'places' | 'garder'; gainXof: number; nombre: number };
+export function leviersDuMois(p: Prevision, o: { placesLibres: number; rdvAGarder: number }): LevierDuMois[] {
+  const l: LevierDuMois[] = [
+    { cle: 'reprises', gainXof: Math.max(0, p.reprises.valeurXof - p.reprises.comptesXof), nombre: p.reprises.nombre },
+    { cle: 'creances', gainXof: Math.max(0, p.creances.hautXof - p.creances.medianeXof), nombre: p.creances.mois },
+    { cle: 'places', gainXof: 0, nombre: o.placesLibres },
+    { cle: 'garder', gainXof: Math.max(0, p.rdv.comptesXof - p.rdv.basXof), nombre: o.rdvAGarder },
+  ];
+  return l.filter((x) => x.nombre > 0).sort((a, b) => b.gainXof - a.gainXof);
+}
+
+/** L'OBJECTIF DU MOIS : celui qu'elle a fixé pour ce mois, sinon le dernier
+    fixé avant ; il tient d'un mois sur l'autre jusqu'à ce qu'elle le change.
+    Un 0 posé pour un mois dit « pas d'objectif » à partir de ce mois. */
+export type ObjectifsDuMois = Record<string, number>;
+export function objectifDuMois(doc: ObjectifsDuMois | null | undefined, mk: string): number | null {
+  const cles = Object.keys(doc ?? {}).filter((k) => /^\d{4}-\d{2}$/.test(k) && k <= mk).sort();
+  if (!cles.length) return null;
+  const v = Number((doc as ObjectifsDuMois)[cles[cles.length - 1]]);
+  return Number.isFinite(v) && v > 0 ? v : null;
+}

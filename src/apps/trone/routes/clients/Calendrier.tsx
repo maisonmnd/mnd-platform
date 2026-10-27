@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { PageHead } from '../_ui';
 import { Button, Segs } from '../../../../ds/components';
 import { useBranch, maitreParDefaut } from '../../../../shared/branches';
@@ -82,8 +82,12 @@ export default function Calendrier() {
   const aEncaisser = (a: Appointment) => (a.status === 'honoré' ? doitEncore(a) : apptPayState(a, byId) !== 'payé');
 
   const isPhone = useIsPhone();
+  /* OUVRIR À UN JOUR — 27 octobre 2026 : le tableau de bord (la prévision
+     du mois) mène ici sur le jour touché, `?jour=AAAA-MM-JJ`, en vue jour. */
+  const [params] = useSearchParams();
+  const jourDemande = /^\d{4}-\d{2}-\d{2}$/.test(params.get('jour') ?? '') ? (params.get('jour') as string) : null;
   const [view, setView] = useState<'jour' | 'semaine' | 'mois'>('jour');
-  const [anchor, setAnchor] = useState(today);
+  const [anchor, setAnchor] = useState(jourDemande ?? today);
   /* Prise de RDV : pré-remplissage du nouveau rendez-vous (jour touché, et en vue
      jour l'heure + le maître de la colonne). null = pas de création en cours. */
   const [createInit, setCreateInit] = useState<RdvInitial | null>(null);

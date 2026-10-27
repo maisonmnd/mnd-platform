@@ -1,0 +1,166 @@
+/* LA PRÉVISION QUI DÉCIDE — 27 octobre 2026 (maquette Q9Nkir2cdF4jSP6QDTH3cG).
+   Les encres du Trône, une seule couleur par série : l'entré en indigo, le
+   cumul en cuivre, l'attendu en indigo pâle (RDV posés) et en cuivre pâle
+   (reprises), l'objectif en vert. Le texte garde ses encres, jamais celle
+   d'une série. */
+.trd-mois {
+  --trd-entre: var(--indigo-500, #3D4BA3);
+  --trd-rdv: var(--indigo-200, #9AA0D2);
+  --trd-reprises: #E0C3A2;
+  --trd-cumul: var(--color-copper, #B97A4A);
+  --trd-objectif: #2E7D5B;
+  margin-top: 14px; padding: 22px 24px; display: flex; flex-direction: column; gap: 22px;
+  background: var(--surface-card); border: 1px solid var(--hairline); border-radius: var(--radius-md, 8px);
+  font-family: var(--font-sans); color: var(--ink);
+}
+.trd-mois__sur { font: 500 11px/1.25 var(--font-sans); letter-spacing: .2em; text-transform: uppercase; color: var(--copper-700, #8A5A32); }
+.trd-mois__titre { margin: 0; font: 500 26px/1.15 var(--font-serif); color: var(--color-indigo); }
+.trd-mois__titre span { display: block; margin-top: 4px; font: 400 12.5px var(--font-sans); color: var(--ink-soft); letter-spacing: 0; }
+.trd-mois__lien { color: var(--copper-700, #8A5A32); }
+.trd-mois__note { font-size: 12.5px; color: var(--ink-soft); }
+.trd-mois__vide { margin: 0; font-size: 13.5px; color: var(--ink-soft); }
+
+/* L'en-tête : trois colonnes qui se rangent l'une sous l'autre au téléphone. */
+.trd-mois__tete { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px 28px; align-items: center; }
+.trd-mois__chiffre { display: flex; flex-direction: column; gap: 6px; }
+.trd-mois__gros { font: 400 44px/1 var(--font-serif); color: var(--color-indigo); font-variant-numeric: tabular-nums; }
+.trd-mois__gros--petit { font-size: 28px; }
+.trd-mois__dit { font-size: 13.5px; line-height: 1.45; }
+.trd-mois__avance { display: flex; flex-direction: column; gap: 8px; }
+.trd-mois__avance-ligne { display: flex; justify-content: space-between; gap: 10px; font-size: 13px; color: var(--ink-soft); }
+.trd-mois__avance-ligne b { color: var(--ink); font-weight: 500; font-variant-numeric: tabular-nums; }
+.trd-mois__barre { position: relative; height: 12px; border-radius: 6px; overflow: hidden; background: repeating-linear-gradient(135deg, var(--trd-rdv) 0 4px, transparent 4px 8px), var(--hairline); }
+.trd-mois__barre i { position: absolute; inset: 0 auto 0 0; background: var(--trd-entre); }
+.trd-mois__objectif { display: flex; flex-direction: column; gap: 8px; }
+.trd-mois__objectif-champ { display: flex; flex-wrap: wrap; gap: 8px; }
+.trd-mois__objectif-champ input { flex: 1 1 130px; min-width: 0; min-height: 44px; box-sizing: border-box; padding: 0 12px; font: 400 16px var(--font-sans); font-variant-numeric: tabular-nums; color: var(--ink); background: var(--surface-card); border: 1px solid var(--hairline); border-radius: 4px; }
+.trd-mois__objectif-champ input:focus-visible { outline: 2px solid var(--color-copper); outline-offset: 1px; }
+.trd-mois__ecart { font-size: 13.5px; line-height: 1.45; color: var(--ink-soft); }
+.trd-mois__ecart.est-manque { color: #9A3B2E; font-weight: 500; }
+.trd-mois__ecart.est-atteint { color: var(--trd-objectif); font-weight: 500; }
+
+/* Les boutons : 44 px de haut, trois tons. */
+.trd-mois__btn { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; padding: 0 16px; border-radius: 4px; border: 1px solid var(--hairline); background: transparent; color: var(--color-indigo); font: 500 13px var(--font-sans); cursor: pointer; text-align: center; }
+.trd-mois__btn:hover { border-color: var(--color-indigo); }
+.trd-mois__btn:focus-visible { outline: 2px solid var(--color-copper); outline-offset: 2px; }
+.trd-mois__btn:disabled { opacity: .6; cursor: progress; }
+.trd-mois__btn--plein { background: var(--color-indigo); border-color: var(--color-indigo); color: var(--color-ivoire, #F6F1E7); }
+.trd-mois__btn--plein:hover { background: var(--color-indigo-deep, #15173A); }
+.trd-mois__btn--cuivre { background: var(--color-copper); border-color: var(--color-copper); color: #FFFFFF; }
+.trd-mois__gestes { display: flex; flex-wrap: wrap; gap: 8px; }
+.trd-mois__gestes--colonne { flex-direction: column; justify-content: center; }
+
+/* Le graphe : cumul en haut (180 px), jour par jour en bas (120 px). */
+.trd-mois__graphe { margin: 0; display: flex; flex-direction: column; gap: 10px; }
+.trd-mois__legende { display: flex; flex-wrap: wrap; gap: 8px 18px; font-size: 12.5px; color: var(--ink-soft); }
+.trd-mois__legende span { display: inline-flex; align-items: center; gap: 7px; }
+.trd-cle { display: inline-block; width: 16px; height: 8px; border-radius: 2px; }
+.trd-cle--cumul { height: 3px; background: var(--trd-cumul); }
+.trd-cle--prevu { height: 0; border-top: 3px dashed var(--trd-cumul); border-radius: 0; }
+.trd-cle--bande { background: color-mix(in srgb, var(--trd-cumul) 22%, transparent); }
+.trd-cle--objectif { height: 0; border-top: 2px solid var(--trd-objectif); border-radius: 0; }
+.trd-cle--entre { width: 10px; height: 10px; background: var(--trd-entre); }
+.trd-cle--rdv { width: 10px; height: 10px; background: var(--trd-rdv); }
+.trd-cle--reprises { width: 10px; height: 10px; background: var(--trd-reprises); }
+.trd-mois__aire { display: grid; grid-template-columns: 46px minmax(0, 1fr) 52px; gap: 6px; margin-top: 18px; }
+.trd-mois__axe { position: relative; height: 344px; font-size: 10.5px; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+.trd-mois__axe span { position: absolute; white-space: nowrap; }
+.trd-mois__axe--gauche span { right: 0; }
+.trd-mois__axe--droite span { left: 0; }
+.trd-mois__axe-titre { font-size: 10px; letter-spacing: .08em; text-transform: uppercase; color: var(--copper-700, #8A5A32); }
+/* Au-dessus de leur zone, jamais sur une graduation. */
+.trd-mois__axe--droite .trd-mois__axe-titre { top: -20px; }
+.trd-mois__axe--gauche .trd-mois__axe-titre { top: 160px; }
+.trd-mois__plan { position: relative; height: 344px; min-width: 0; }
+.trd-mois__haut { position: absolute; left: 0; right: 0; top: 0; height: 180px; border-bottom: 1px solid var(--hairline); }
+.trd-mois__bas { position: absolute; left: 0; right: 0; top: 200px; height: 120px; border-bottom: 1px solid var(--ink-soft); }
+.trd-mois__grille { position: absolute; left: 0; right: 0; height: 0; border-top: 1px dashed var(--hairline); }
+.trd-mois__svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.trd-mois__bande { fill: color-mix(in srgb, var(--trd-cumul) 18%, transparent); stroke: none; }
+.trd-mois__cumul { fill: none; stroke: var(--trd-cumul); stroke-width: 2.5; }
+.trd-mois__prevu { fill: none; stroke: var(--trd-cumul); stroke-width: 2.5; stroke-dasharray: 6 5; }
+.trd-mois__ligne-objectif { stroke: var(--trd-objectif); stroke-width: 2; }
+.trd-mois__colonnes { position: absolute; inset: 0; display: grid; gap: 2px; }
+.trd-mois__jour { display: flex; flex-direction: column; justify-content: flex-end; align-items: center; gap: 6px; height: 100%; padding: 0; border: 0; border-radius: 4px; background: transparent; cursor: pointer; color: inherit; font: inherit; }
+.trd-mois__jour:hover { background: color-mix(in srgb, var(--color-indigo) 6%, transparent); }
+.trd-mois__jour:focus-visible { outline: 2px solid var(--color-copper); outline-offset: 1px; }
+.trd-mois__jour.est-aujourdhui { box-shadow: inset 0 3px 0 var(--color-copper); }
+.trd-mois__jour.est-choisi { background: color-mix(in srgb, var(--color-copper) 14%, transparent); box-shadow: inset 0 0 0 2px var(--color-copper); }
+.trd-mois__pile { display: flex; flex-direction: column; justify-content: flex-end; width: 72%; height: 120px; }
+.trd-b { display: block; width: 100%; }
+.trd-b--entre { background: var(--trd-entre); border-radius: 2px 2px 0 0; }
+.trd-b--rdv { background: var(--trd-rdv); }
+.trd-b--reprises { background: var(--trd-reprises); border-radius: 2px 2px 0 0; }
+.trd-b--ferme { height: 6px; background: repeating-linear-gradient(135deg, var(--ink-soft) 0 2px, transparent 2px 5px); opacity: .6; }
+.trd-mois__date { height: 18px; font-size: 10.5px; line-height: 18px; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+.trd-mois__jour.est-choisi .trd-mois__date, .trd-mois__jour.est-aujourdhui .trd-mois__date { color: var(--copper-700, #8A5A32); font-weight: 600; }
+
+/* Le jour choisi. */
+.trd-mois__jour-detail { border-top: 1px solid var(--hairline); padding-top: 18px; display: flex; flex-direction: column; gap: 14px; }
+.trd-mois__jour-tete { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 6px 16px; }
+.trd-mois__jour-tete h3 { margin: 0; font: 500 24px/1.2 var(--font-serif); color: var(--color-indigo); }
+.trd-mois__jour-tete span { font-size: 13px; color: var(--ink-soft); }
+.trd-mois__cartes { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+.trd-mois__cartes--deux { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.trd-mois__carte { display: flex; flex-direction: column; gap: 8px; padding: 14px 16px; border: 1px solid var(--hairline); border-radius: 6px; min-width: 0; }
+.trd-mois__carte h4 { margin: 0; font: 600 15px var(--font-sans); color: var(--color-indigo); }
+.trd-mois__carte p { margin: 0; font-size: 13.5px; line-height: 1.55; }
+.trd-mois__carte > span:not(.trd-mois__sur) { font-size: 12.5px; color: var(--ink-soft); }
+.trd-mois__moyen { font: 500 24px var(--font-sans); font-variant-numeric: tabular-nums; color: var(--color-indigo); }
+.trd-mois__aveu { color: var(--copper-700, #8A5A32); }
+.trd-mois__mini { border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; width: 100%; }
+.trd-mois__mini td { padding: 4px 0; border-top: 1px solid var(--hairline); }
+.trd-mois__mini td:last-child { text-align: right; white-space: nowrap; }
+.trd-mois__item { display: flex; justify-content: space-between; gap: 10px; width: 100%; min-height: 36px; padding: 6px 0; border: 0; border-top: 1px solid var(--hairline); background: transparent; color: inherit; font: 400 13.5px var(--font-sans); text-align: left; cursor: pointer; }
+.trd-mois__item span:last-child { color: var(--ink-soft); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.trd-mois__item:hover span:first-child { text-decoration: underline; }
+.trd-mois__item:focus-visible { outline: 2px solid var(--color-copper); outline-offset: 1px; }
+
+/* Les leviers. */
+.trd-mois__leviers { display: flex; flex-direction: column; gap: 14px; border-top: 1px solid var(--hairline); padding-top: 20px; }
+.trd-mois__leviers-grille { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.trd-mois__levier { display: flex; flex-direction: column; gap: 10px; padding: 16px 18px; border: 1px solid var(--hairline); border-radius: 8px; min-width: 0; }
+.trd-mois__levier-tete { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 4px 12px; }
+.trd-mois__levier-tete h4 { margin: 0; font: 600 15.5px var(--font-sans); color: var(--color-indigo); }
+.trd-mois__levier-tete b { font: 600 15.5px var(--font-sans); color: var(--trd-objectif); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.trd-mois__levier p { margin: 0; font-size: 13.5px; line-height: 1.55; }
+
+/* Le calcul. */
+.trd-mois__calcul { display: flex; flex-direction: column; gap: 16px; border-top: 1px solid var(--hairline); padding-top: 20px; }
+.trd-mois__defile { overflow-x: auto; }
+.trd-calc { width: 100%; min-width: 720px; border-collapse: collapse; font-size: 13.5px; font-variant-numeric: tabular-nums; }
+.trd-calc thead th { padding: 8px 10px; font: 500 11px var(--font-sans); letter-spacing: .14em; text-transform: uppercase; color: var(--copper-700, #8A5A32); text-align: right; border-bottom: 1px solid var(--hairline); }
+.trd-calc thead th:first-child { text-align: left; }
+.trd-calc tbody th, .trd-calc tbody td, .trd-calc tfoot th, .trd-calc tfoot td { padding: 10px; text-align: right; border-bottom: 1px solid var(--hairline); }
+.trd-calc tbody th, .trd-calc tfoot th { text-align: left; font-weight: 500; }
+.trd-calc__bascule { display: inline-flex; gap: 8px; align-items: center; min-height: 32px; padding: 0; border: 0; background: transparent; color: var(--color-indigo); font: 500 13.5px var(--font-sans); cursor: pointer; text-align: left; }
+.trd-calc__bascule:hover { text-decoration: underline; }
+.trd-calc__bascule:focus-visible { outline: 2px solid var(--color-copper); outline-offset: 2px; }
+.trd-calc__compte { font-weight: 600; }
+.trd-calc__fourchette { color: var(--ink-soft); }
+.trd-calc__ecart { color: var(--copper-700, #8A5A32); }
+.trd-calc tfoot th, .trd-calc tfoot td { border-top: 2px solid var(--color-indigo); border-bottom: 0; font-weight: 600; }
+.trd-calc__detail td { text-align: left !important; padding: 4px 10px 16px 32px !important; }
+.trd-calc__detail p { margin: 0 0 8px; font-size: 13.5px; line-height: 1.55; max-width: 760px; }
+.trd-calc__detail .trd-mois__item { max-width: 680px; }
+.trd-calc__detail .trd-mois__gestes { margin-top: 10px; }
+.trd-mois__empile { display: flex; height: 22px; border-radius: 4px; overflow: hidden; }
+.trd-e { display: block; height: 100%; }
+.trd-e-cle { display: inline-block; width: 10px; height: 10px; margin-right: 8px; border-radius: 2px; vertical-align: -1px; }
+.trd-e--creances { background: var(--trd-entre); }
+.trd-e--reprises { background: var(--trd-reprises); }
+.trd-e--rdv { background: var(--trd-rdv); }
+.trd-mois__claude { display: flex; flex-direction: column; gap: 6px; background: var(--copper-50, #FAF1E9); border-radius: 6px; padding: 12px 14px; font-size: 13.5px; line-height: 1.5; color: var(--color-indigo); }
+.trd-mois__claude p { margin: 0; }
+.trd-mois__claude ul { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 4px; list-style: disc; }
+
+@media (max-width: 900px) {
+  .trd-mois__tete, .trd-mois__cartes, .trd-mois__cartes--deux, .trd-mois__leviers-grille { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 640px) {
+  .trd-mois { padding: 16px; }
+  .trd-mois__gros { font-size: 36px; }
+  .trd-mois__aire { grid-template-columns: 34px minmax(0, 1fr) 40px; }
+  .trd-mois__date:not(.est-repere) { visibility: hidden; }
+  .trd-mois__colonnes { gap: 1px; }
+}

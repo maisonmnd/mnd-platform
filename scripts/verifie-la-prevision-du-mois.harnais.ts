@@ -4,7 +4,10 @@
    maquette VJ5PJEGUPDbYKUgEdMUNbS, « construis ». Choix au sélecteur : le
    Trône calcule, Claude explique. La règle (shared/prevision-du-mois-pur.ts)
    et sa place au tableau de bord (texte). Tout est inventé. Sortie ASCII. */
-import { calculDeLaPrevision, ceQuiFaitLaPrevision, prevoisLeMois, type EntreesDeLaPrevision } from '../src/shared/prevision-du-mois-pur';
+import {
+  avecLaFourchette, calculDeLaPrevision, ceQuiFaitLaPrevision, cumulDuMois, ecartDecompose, fourchetteMesuree, leviersDuMois, objectifDuMois,
+  prevoisLeMois, type EntreesDeLaPrevision,
+} from '../src/shared/prevision-du-mois-pur';
 import { readFileSync } from 'node:fs';
 
 let ko = 0;
@@ -80,6 +83,39 @@ dit('la ligne des rendez-vous dit le nombre, le du, le taux et ce qui est compte
   lignes[1].dit === '2 rendez-vous posés d’ici le 31 doivent encore 300 000 F, comptés à 94 % (vos venues honorées des douze derniers mois) : 282 000 F.');
 dit('les parts expliquees refont la prevision centrale', p.centraleXof, Math.round(lignes.reduce((s, l) => s + l.xof, 0) / 1000) * 1000);
 
+/* ── 27 octobre 2026 : la prévision qui décide ──────────────────────── */
+const pq = prevoisLeMois(base);
+dit('la fourchette garde ses regles sous trois mois juges, et dit combien il y en a', [{ mode: 'regles', moisJuges: 2 }, { mode: 'regles', moisJuges: 1 }],
+  [fourchetteMesuree([{ mois: '2026-09', resteprevuXof: 400000, resteRealiseXof: 380000 }, { mois: '2026-08', resteprevuXof: 300000, resteRealiseXof: 330000 }]),
+    fourchetteMesuree([{ mois: '2026-09', resteprevuXof: 400000, resteRealiseXof: 380000 }, { mois: '2026-08', resteprevuXof: 0, resteRealiseXof: 50000 }])]);
+const f3 = fourchetteMesuree([
+  { mois: '2026-09', resteprevuXof: 400000, resteRealiseXof: 320000 },
+  { mois: '2026-08', resteprevuXof: 500000, resteRealiseXof: 600000 },
+  { mois: '2026-07', resteprevuXof: 200000, resteRealiseXof: 190000 },
+]);
+dit('mesuree des trois mois : le plus faible et le plus fort rapport constates', { mode: 'mesuree', moisJuges: 3, ratioBas: 0.8, ratioHaut: 1.2 }, f3);
+const f12 = fourchetteMesuree(Array.from({ length: 12 }, (_, i) => ({ mois: `2025-${String(i + 1).padStart(2, '0')}`, resteprevuXof: 100, resteRealiseXof: 50 + i * 10 })));
+dit('au-dela de dix mois, le 10e et le 90e centile (un mois hors norme ne fait pas la fourchette)', [0.6, 1.5], f12.mode === 'mesuree' ? [f12.ratioBas, f12.ratioHaut] : null);
+const pm = avecLaFourchette(pq, f3);
+const reste = pq.centraleXof - pq.encaisseXof;
+dit('la fourchette mesuree : l entre ne bouge pas, le reste prevu se multiplie par les deux rapports', [pq.centraleXof, Math.round((pq.encaisseXof + reste * 0.8) / 1000) * 1000, Math.round((pq.encaisseXof + reste * 1.2) / 1000) * 1000],
+  [pm.centraleXof, pm.basXof, pm.hautXof]);
+dit('... et en mode regles, la prevision reste telle quelle', true, avecLaFourchette(pq, { mode: 'regles', moisJuges: 1 }) === pq);
+const capture = { ...pq, rdv: { ...pq.rdv, basXof: 173000, hautXof: 192000 }, reprises: { ...pq.reprises, basXof: 128000, hautXof: 383000 }, creances: { ...pq.creances, basXof: 0, hautXof: 334000 }, basXof: 1878000, hautXof: 2488000 };
+dit('d ou vient l ecart (la capture du 27 octobre 2026) : creances 55 %, reprises 42 %, RDV 3 %, du plus lourd au plus leger', [610000, ['creances', 'reprises', 'rdv'], [55, 42, 3]],
+  (() => { const e = ecartDecompose(capture); return [e.totalXof, e.parts.map((x) => x.cle), e.parts.map((x) => x.pct)]; })());
+const cu = cumulDuMois(pq, '2026-10-24');
+const dernier = cu[cu.length - 1];
+dit('le cumul : l entre jusqu a hier, puis le prevu jusqu au 31, qui rejoint la prevision ; la fourchette finit sur bas et haut', [23, true, pq.basXof, pq.hautXof],
+  [cu.filter((c) => c.entreXof !== null).length, Math.abs((dernier.prevuXof ?? 0) - pq.centraleXof) <= 1000, dernier.basXof, dernier.hautXof]);
+dit('... le cumul entre ne fait que monter', true, cu.filter((c) => c.entreXof !== null).every((c, i, l) => i === 0 || (c.entreXof ?? 0) >= (l[i - 1].entreXof ?? 0)));
+const lv = leviersDuMois(pq, { placesLibres: 9, rdvAGarder: 2 });
+dit('les leviers : ranges par ce qu ils rapportent, reprises = valeur moins compte ; un levier sans objet tombe', [['creances', 'reprises', 'garder', 'places'], pq.reprises.valeurXof - pq.reprises.comptesXof, 3],
+  [lv.map((x) => x.cle), lv.find((x) => x.cle === 'reprises')?.gainXof, leviersDuMois(pq, { placesLibres: 0, rdvAGarder: 2 }).length]);
+dit('l objectif du mois : le sien, sinon le dernier fixe avant ; jamais un mois a venir ; 0 = pas d objectif', [2400000, 2000000, null, null, null],
+  [objectifDuMois({ '2026-09': 2000000, '2026-10': 2400000 }, '2026-10'), objectifDuMois({ '2026-09': 2000000, '2026-11': 9 }, '2026-10'),
+    objectifDuMois({ '2026-11': 9 }, '2026-10'), objectifDuMois({ '2026-09': 2000000, '2026-10': 0 }, '2026-10'), objectifDuMois(undefined, '2026-10')]);
+
 /* ── Au tableau de bord (texte) ───────────────────────────────────── */
 const tableau = sansCommentaires('src/apps/trone/routes/pilotage/Dashboard.tsx');
 const bloc = sansCommentaires('src/apps/trone/routes/pilotage/PrevisionDuMois.tsx');
@@ -94,6 +130,9 @@ dit('le Trone calcule : le calcul ne part vers aucun serveur ni modele', [true, 
 dit('Claude n explique que sur un clic, apres le calcul', true,
   bloc.split('demandeAClaude(').length === 2 && /const expliquer = async \(\) => \{[^}]*demandeAClaude\(demandeDExplication/.test(bloc) && bloc.includes('onClick={() => { void expliquer(); }}'));
 dit('les reprises viennent du juge de la Cadence, sa justesse aussi', true, bloc.includes('predictNextVisit(siens, [c], c.id, today)') && bloc.includes('tauxDeRealisation(venues)'));
+dit('la carte pose la fourchette mesuree, chaque jour est un bouton qui ouvre son detail, les gestes menent au calendrier du jour', [true, true, true, true],
+  [bloc.includes('const prevision = avecLaFourchette(brute, fourchette);'), /<button key=\{j\.iso\} type="button" className=\{`trd-mois__jour/.test(bloc) && bloc.includes('onClick={() => choisirJour(j.iso)}'),
+    bloc.includes("navigate(`/calendrier?jour=${d.iso}`)"), sansCommentaires('src/apps/trone/routes/clients/Calendrier.tsx').includes("const [anchor, setAnchor] = useState(jourDemande ?? today);")]);
 dit('pas de tiret cadratin dans ce que le bloc et la regle disent', [false, false],
   [bloc.includes('—'), sansCommentaires('src/shared/prevision-du-mois-pur.ts').includes('—')]);
 
