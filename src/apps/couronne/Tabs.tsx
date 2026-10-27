@@ -792,11 +792,11 @@ export function HomeTab({
           })()}
         </div>
 
-        {/* offres instantanées — créées au Trône (Marketing), fenêtre jour/heure vivante */}
+        {/* offres de saison, créées au Trône (Assistant Maison › Offres et remises), fenêtre jour/heure vivante ; « Offres instantanées » jusqu'au 27 octobre 2026 */}
         {offers.length > 0 && !moduleHidden(client, 'offres') && (
           <>
         <div className="mc-offershead">
-          <span className="mc-offershead__label">{t('Offres instantanées')}</span>
+          <span className="mc-offershead__label">{t('Offres de saison')}</span>
           {countdown && <span className="mc-offershead__timer">{t('Expire dans {temps}', { temps: countdown })}</span>}
         </div>
         <div className="mc-scroll mc-offersrail">

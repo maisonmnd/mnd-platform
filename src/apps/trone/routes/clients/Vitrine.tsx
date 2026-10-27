@@ -966,7 +966,7 @@ const COURONNE_MODULES: { k: string; label: string; sub: string }[] = [
   { k: 'suivi', label: 'Carnet de Suivi', sub: 'Onglet Suivi, parcours, photos, recommandation.' },
   { k: 'gamme', label: 'La Gamme', sub: 'La Boutique de la Maison : articles et commandes.' },
   { k: 'cercle', label: 'Le Cercle', sub: 'Onglet fidélité, points et paliers.' },
-  { k: 'offres', label: 'Offres instantanées', sub: 'Les offres du Marketing sur son accueil.' },
+  { k: 'offres', label: 'Offres de saison', sub: 'Les offres de saison (Assistant Maison › Offres et remises) sur son accueil.' },
 ];
 
 const fmtDur = (min: number): string =>

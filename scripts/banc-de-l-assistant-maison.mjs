@@ -170,7 +170,7 @@ try {
     && /Maison MND/.test(await evalue(String.raw`document.querySelector('.trc-ger__panneau .trc-ger__bulle')?.innerText || ''`))
     && (await evalue(`document.querySelectorAll('.trc-ger__panneau .trc-am__puces li').length`)) >= 3
     && /Dernière venue/.test(await evalue(String.raw`document.querySelector('.trc-ger__panneau .trc-am__puces')?.innerText || ''`)));
-  /* « Pas maintenant » n'a pas de porte serveur (la reponse sur la ligne envois) : pas de bouton mort ; « Jamais pour elle »
+  /* En pause, « Pas maintenant » se tait (rien ne part de toute facon : il vit en Actif, voir plus bas) ; « Jamais pour elle »
      ecrit dans les reglages (`jamais[clientId]`, lot 2) et vit, pour la direction (27 octobre 2026). */
   const gestes = await evalue(String.raw`[...document.querySelectorAll('.trc-ger__panneau .trc-am__gestes > *')].map((b) => [b.textContent.trim(), b.hasAttribute('disabled'), b.getAttribute('href') || ''])`);
   dit('... les gestes : Poser le RDV, Appeler (tel:), Jamais pour elle (vivant, direction) ; ni Pas maintenant ni bouton mort ; en pause, pas d envoi WhatsApp',
@@ -189,6 +189,7 @@ try {
   dit('... ecrit dans ses reglages : jamais « anniversaire » pour c-anniv, signe de la direction', JSON.stringify(reglagesApres?.jamais?.['c-anniv']) === JSON.stringify(['anniversaire']) && typeof reglagesApres?.parQui === 'string', JSON.stringify(reglagesApres?.jamais));
   dit('... et N. B. sort du plan du jour : cinq lignes', (await jusqua(String.raw`document.querySelectorAll('.trc-ger__ligne').length === 5 && ![...document.querySelectorAll('.trc-ger__qui')].some((q) => q.firstChild?.textContent === 'N. B.')`, 4000)) === true,
     String(await evalue(`document.querySelectorAll('.trc-ger__ligne').length`)));
+
 
   /* 4. Attend un humain : la Sante d'abord, Appeler, chaque ligne vers Les conversations. */
   const humain = await evalue(String.raw`[...document.querySelectorAll('.trc-am__attente')].map((l) => [l.querySelector('.trc-am__qui b')?.firstChild?.textContent?.trim(), l.querySelector('.trc-am__puce')?.textContent, [...l.querySelectorAll('.trc-am__gestes a')].map((a) => [a.textContent, a.getAttribute('href')])])`);
@@ -220,6 +221,25 @@ try {
   dit('les reglages restent sur Aujourd hui : Pause et Actif deplies, le plafond, les huit modeles', JSON.stringify(await evalue(String.raw`[...document.querySelectorAll('.trc-ger__modes button b')].map((b) => b.textContent)`)) === JSON.stringify(['Pause', 'Actif'])
     && (await evalue(String.raw`[...document.querySelectorAll('.trc-ger__modes button')].every((b) => b.offsetParent !== null)`)) === true
     && (await evalue(`document.querySelectorAll('.trc-ger__plafond input').length`)) === 2 && (await evalue(`document.querySelectorAll('.trc-ger__modeles li').length`)) === 8);
+
+  /* « PAS MAINTENANT » (27 octobre 2026, restes du lot 3), apres les replis (sa ligne ecartee entre au journal du jour) : en Actif, sur M. D. (retard, WhatsApp a un toucher). La ligne
+     du jour nait ecartee, avec la reponse « non » (le lot 2 la compte dans les traces) ; M. D. sort du plan ; retour en Pause. */
+  const mode = (mot) => evalue(String.raw`(() => { const b = [...document.querySelectorAll('.trc-ger__modes button')].find((x) => x.textContent.includes(${JSON.stringify(mot)})); if (b) b.click(); return !!b; })()`);
+  dit('« Pas maintenant » : passer en Actif', await mode('Actif'));
+  await attend(700);
+  dit('... la ligne de M. D. s ouvre', await ouvre('M. D.'));
+  await attend(400);
+  const gestesActifs = await evalue(String.raw`[...document.querySelectorAll('.trc-ger__panneau .trc-am__gestes > *')].map((b) => b.textContent.trim())`);
+  dit('... en Actif, « Pas maintenant » est parmi ses gestes', (gestesActifs ?? []).includes('Pas maintenant'), JSON.stringify(gestesActifs));
+  dit('... et se touche', await evalue(String.raw`(() => { const b = [...document.querySelectorAll('.trc-ger__panneau .trc-am__gestes button')].find((x) => x.textContent.trim() === 'Pas maintenant'); if (b) b.click(); return !!b; })()`));
+  await attend(700);
+  const envoisApres = await evalue(`JSON.parse(localStorage.getItem('trone::mnd_envois') || '[]')`);
+  const ligneNon = (envoisApres ?? []).find((e) => /^gerard-\d{4}-\d{2}-\d{2}-c-retard-wa-main$/.test(e.id));
+  dit('... ecrit la ligne du jour : ecartee, reponse « non », pas maintenant, son genre', !!ligneNon && ligneNon.statut === 'écarté' && ligneNon.reponse === 'non'
+    && ligneNon.pasMaintenant === true && ligneNon.genre === 'retard' && ligneNon.type === 'gerard', JSON.stringify(ligneNon));
+  dit('... et M. D. sort du plan du jour', (await jusqua(String.raw`![...document.querySelectorAll('.trc-ger__qui')].some((q) => q.firstChild?.textContent === 'M. D.')`, 4000)) === true);
+  dit('... retour en Pause', await mode('Pause'));
+  await attend(700);
 
   /* 5. Chaque vue par son adresse ; la barre l'allume ; la vue vit (ses tuiles, sa liste ou son selecteur) ; au telephone rien ne deborde.
      `textContent`, pas `innerText` : les `h3 span` sont en petites capitales par CSS. */

@@ -22,7 +22,7 @@ import { useBrouillonsDAvis } from '../../../../shared/ia-avis';
 import { francs as enFrancs } from '../../../../shared/ia-faits-pur';
 import {
   ENVIE_DITE, GENRE_DIT, MODELES_DE_GERARD, REMISE_ANNIV_PCT, REMISE_CREUX_PCT, REPONSE_FRANCHE, SIGNATURE,
-  filDeLaCliente, heureDite, jourDit, ligneALaMain, partSeule, planDuJour, servie,
+  filDeLaCliente, heureDite, idDeLaLigne, jourDit, ligneALaMain, partSeule, planDuJour, servie,
   type FicheDeGerard, type Situation,
 } from '../../../../shared/gerard-pur';
 import { changeLePlafond, estActif, jamaisPourElle, metEnPause, reglagesLus, useReglagesDeGerard, type ReglagesDeGerard } from '../../../../shared/gerard';
@@ -331,6 +331,38 @@ export default function Gerard() {
      conditionnelle et un verdict par ligne ; jamais par le magasin. */
   const partantes = fusion.lignes.filter((l) => l.envoi && l.canal === 'couronne' && (l.etat === 'en-salle' || l.etat === 'retenue'));
   const toutLaisserPartir = async () => { for (const l of partantes) await geste(l, 'envoyer'); };
+  /* « PAS MAINTENANT » (spec §5.1, 27 octobre 2026) : la trace « non » du
+     jour, sur la ligne que le passage écrirait pour elle (`idDeLaLigne`, le
+     canal du serveur : push pour Ma Couronne, whatsapp pour un modèle qui part
+     seul, wa-main pour un toucher). Déjà en salle : écartée sous condition,
+     par le geste de la salle, avec la réponse. Pas encore de ligne : elle naît
+     écartée, et le passage du jour (Trône ou serveur) ne la redépose pas.
+     Écartée, elle ne compte jamais comme partie ; portant « non », elle pèse
+     dans les traces (`tracesDesEnvois`, lot 2, b3796ae1) : l'envie refusée
+     attend 90 jours, la situation ne revient pas le lendemain. */
+  const pasMaintenant = async (l: LigneDuJour, s: Situation) => {
+    const qui = moi?.name ?? 'La direction';
+    const maintenant = new Date().toISOString();
+    const marque = { reponse: 'non', pasMaintenant: true, reponduLe: maintenant, reponduPar: qui };
+    if (l.envoi) {
+      if (l.etat !== 'en-salle' && l.etat !== 'retenue') return;
+      const id = l.envoi.id;
+      const v = await gesteDeLaSalle(id, 'ecarter', qui, regles, marque);
+      setVerdicts((prev) => ({
+        ...prev,
+        [id]: v === 'fait' ? 'Pas maintenant : écartée, et la réponse « non » est notée.' : v === 'trop-tard' ? 'Trop tard : elle vient de partir, ou une autre main l’a reprise.' : 'Panne : le serveur n’a pas répondu, rien n’a changé.',
+      }));
+      return;
+    }
+    const canal = s.canal === 'couronne' ? 'push' : partSeule(s, reglages) ? 'whatsapp' : 'wa-main';
+    const ligne = {
+      id: idDeLaLigne(ctx.aujourdhui, s.clientId, canal), branchId: branch.id, type: 'gerard', canal, statut: 'écarté',
+      clientId: s.clientId, genre: s.genre, ...(s.envie ? { envie: s.envie } : {}), modele: s.modele, texte: s.texte,
+      deposeLe: maintenant, quand: maintenant, ecartePar: qui, ecarteLe: maintenant, ...marque,
+    };
+    envoisStore.set((prev) => (prev.some((e) => e.id === ligne.id) ? prev : [...prev, ligne as unknown as (typeof prev)[number]]));
+    toast(`Pas maintenant : rien ne part pour ${cerveau.nomDe(s.clientId) || 'elle'} aujourd’hui${s.genre === 'envie' ? ', et cette envie attend 90 jours' : ''}.`);
+  };
   const surRepli = (cle: Repli) => (e: SyntheticEvent<HTMLDetailsElement>) => {
     if (e.currentTarget.open) setRepli(cle);
     else setRepli((r) => (r === cle ? null : r));
@@ -434,7 +466,7 @@ export default function Gerard() {
               <b>{actif ? 'Actif' : 'Pause'}.</b>
               {!actif
                 ? <span>Il prépare son plan, il n’écrit à personne.</span>
-                : <span>Chaque jour, quand la direction ouvre le Trône entre 8 h et 20 h, Gérard dépose les notifications Ma Couronne de son plan ; le facteur les porte, jamais entre 20 h et 8 h. WhatsApp : « Envoyer sur WhatsApp », un toucher par cliente, jusqu’à l’approbation de ses modèles chez Meta ; approuvé, le modèle part seul au passage du matin.{reglages.dernierPassage ? ` Dernier passage : ${reglages.dernierPassage === ctx.aujourdhui ? 'aujourd’hui' : jourDit(reglages.dernierPassage)}.` : ''}</span>}
+                : <span>Chaque jour, quand la direction ouvre le Trône entre 8 h et 20 h, l’Assistant dépose les notifications Ma Couronne de son plan ; le facteur les porte, jamais entre 20 h et 8 h. WhatsApp : « Envoyer sur WhatsApp », un toucher par cliente, jusqu’à l’approbation de ses modèles chez Meta ; approuvé, le modèle part seul au passage du matin.{reglages.dernierPassage ? ` Dernier passage : ${reglages.dernierPassage === ctx.aujourdhui ? 'aujourd’hui' : jourDit(reglages.dernierPassage)}.` : ''}</span>}
               {/* QUI FAIT LE PASSAGE (lot 2) : la fonction serveur si elle a parlé depuis moins de 26 h, sinon le Trône.
                   Rien tant que le document n'est pas lu : pas de fausse phrase le temps d'un chargement. */}
               {etatServeur !== undefined && (
@@ -516,10 +548,17 @@ export default function Gerard() {
                               {enSalle && <button type="button" className="trc-ger__btn" onClick={() => { void geste(l, 'ecarter'); }}>Écarter</button>}
                               <button type="button" className="trc-ger__btn" onClick={() => setRdvPour(s.clientId)}>Poser le RDV</button>
                               {tel && <a className="trc-ger__btn" href={tel}>Appeler</a>}
+                              {/* PAS MAINTENANT : la trace « non » du jour (voir `pasMaintenant`) ; tant que rien n'est parti,
+                                  et en Actif seulement (en pause, rien ne part de toute façon). */}
+                              {actif && (!l.envoi || enSalle) && (
+                                <button type="button" className="trc-ger__btn"
+                                  title={s.genre === 'envie' ? 'Rien ne part aujourd’hui ; cette envie attend 90 jours.' : 'Rien ne part aujourd’hui ; il ne lui réécrit pas avant quatorze jours.'}
+                                  onClick={() => { void pasMaintenant(l, s); }}>
+                                  Pas maintenant
+                                </button>
+                              )}
                               {/* JAMAIS POUR ELLE (direction) : s'écrit dans ses réglages, `jamais[clientId]`
-                                  (gerard.ts, lot 2), et la situation sort de son plan. « Pas maintenant »
-                                  n'a toujours pas de porte serveur pour `reponse` sur la ligne envois :
-                                  pas de bouton mort à sa place (27 octobre 2026). */}
+                                  (gerard.ts, lot 2), et la situation sort de son plan. */}
                               {direction && (
                                 <button type="button" className="trc-ger__btn trc-am__btn--calme"
                                   title={`Il ne lui écrira plus jamais « ${GENRE_DIT[s.genre]} » ; noté dans ses réglages.`}

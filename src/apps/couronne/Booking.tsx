@@ -714,7 +714,7 @@ export default function Booking({ prefill, onClose, toast, onVoirRdv }: Props) {
     if (!selected.length || sessionDates.length < totalSessions) return;
     const finalize = async () => {
       const baseNotes: string[] = [];
-      if (offerLabel) baseNotes.push(`Offre instantanée · ${offerLabel}`);
+      if (offerLabel) baseNotes.push(`Offre de saison · ${offerLabel}`);
       /* CE QU'ELLE EST VENUE CHERCHER, porté par le rituel : le maître le lit au
          Calendrier avant qu'elle ne s'assoie. */
       if (envie) baseNotes.push(`Envie · ${envieLabel(envie)}`);
@@ -1666,7 +1666,7 @@ export default function Booking({ prefill, onClose, toast, onVoirRdv }: Props) {
               ))}
               {discountPct > 0 && knownTotal > 0 && (
                 <div className="mc-recapcard__deal">
-                  {offerLabel ?? t('Offre instantanée')} · −{discountPct} % <s>{prix(knownTotal, currency)}</s>
+                  {offerLabel ?? t('Offre de saison')} · −{discountPct} % <s>{prix(knownTotal, currency)}</s>
                 </div>
               )}
               {/* LE PRIX FAMILLE SE LIT (14 août) : la remise du compte, dite

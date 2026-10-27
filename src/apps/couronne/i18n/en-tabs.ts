@@ -73,7 +73,7 @@ export const EN_TABS: Record<string, string> = {
   'Membre du Cercle · votre première amie vous fera Pousse': 'Circle member · your first friend will make you a Sprout',
   'Encore {n} amies pour devenir {rang}': '{n} more friends to become {rang}',
   'Encore {n} amie pour devenir {rang}': '{n} more friend to become {rang}',
-  'Offres instantanées': 'Instant offers',
+  'Offres de saison': 'Seasonal offers',
   'Expire dans {temps}': 'Ends in {temps}',
   'Réserver un rituel': 'Book a ritual',
   '✦ Rituel sur-mesure': '✦ Bespoke ritual',

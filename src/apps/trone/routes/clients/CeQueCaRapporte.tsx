@@ -476,7 +476,9 @@ export default function CeQueCaRapporte({ cerveau, reglages, moi }: PropsDUneVue
                     <td>{v.alarme ? <span className="trc-am__puce trc-am__puce--terre" aria-label="une promesse à vide">!</span> : null} {v.nom}</td>
                     <td>
                       <span className={classeDeLaCase(v.allume)}>{v.allume.dit}</span>
-                      {mot && <button type="button" className="trc-ger__btn" style={{ marginLeft: 8 }} onClick={() => bascule(v)}>{mot}</button>}
+                      {mot && <button type="button" className="trc-ger__btn" style={{ marginLeft: 8 }} onClick={() => bascule(v)}
+                        /* L'interrupteur de l'avis venait de Paramètres (27 octobre 2026) : son sens y était dit, il se dit ici. */
+                        title={v.id === 'avis' ? 'Allumée : la Maison écrit elle-même à chaque première venue soldée, le comptoir n’ouvre plus WhatsApp. Éteinte : WhatsApp s’ouvre au comptoir, un toucher pour envoyer.' : undefined}>{mot}</button>}
                     </td>
                     <td className={classeDeLaCase(v.posee)}>{v.posee.dit}</td>
                     <td className={classeDeLaCase(v.secret)}>{v.secret.dit}</td>

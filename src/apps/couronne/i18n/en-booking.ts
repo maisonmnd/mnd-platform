@@ -100,7 +100,7 @@ export const EN_BOOKING: Record<string, string> = {
 
   // Le moment : le récapitulatif.
   'Votre rituel': 'Your ritual',
-  'Offre instantanée': 'Instant offer',
+  'Offre de saison': 'Seasonal offer',
   'Remise famille · −{pct} % (hors forfaits) · −{montant}': 'Family discount · −{pct}% (packages excluded) · −{montant}',
   'Remise famille · −{pct} % · −{montant}': 'Family discount · −{pct}% · −{montant}',
   'Total connu': 'Known total',

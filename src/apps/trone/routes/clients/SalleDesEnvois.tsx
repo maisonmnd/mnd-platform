@@ -37,15 +37,22 @@ type Geste = 'retenir' | 'relacher' | 'envoyer' | 'ecarter';
 type Verdict = 'fait' | 'trop-tard' | 'panne';
 
 /** Le geste, écrit au serveur sous condition (voir l'en-tête). */
-export async function gesteDeLaSalle(id: string, geste: Geste, qui: string, regles: ReglesDeLaSalle): Promise<Verdict> {
+export async function gesteDeLaSalle(
+  id: string, geste: Geste, qui: string, regles: ReglesDeLaSalle,
+  /* CE QUE LE GESTE DIT EN PLUS (27 octobre 2026) : « Pas maintenant » de
+     l'Assistant écarte la ligne ET y pose sa réponse (`reponse: 'non'`),
+     dans la même écriture conditionnelle. */
+  enPlus?: Record<string, unknown>,
+): Promise<Verdict> {
   const ligne = envoisStore.get().find((e) => e.id === id);
   if (!ligne) return 'trop-tard';
   const maintenant = Date.now();
   const iso = new Date(maintenant).toISOString();
-  const apres = geste === 'retenir' ? retiens(ligne, qui, iso)
+  const brut = geste === 'retenir' ? retiens(ligne, qui, iso)
     : geste === 'relacher' ? relache(ligne, maintenant, regles)
       : geste === 'envoyer' ? envoieMaintenant(ligne, maintenant)
         : ecarte(ligne, qui, iso);
+  const apres = brut && enPlus ? { ...brut, ...enPlus } : brut;
   if (!apres) return 'trop-tard';
   if (!supabase) {
     /* Sans serveur (poste de démonstration), le magasin est la seule vérité. */

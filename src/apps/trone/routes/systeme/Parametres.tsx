@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ChangeEvent, type CSSProperties, type ReactNode } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { PageHead } from '../_ui';
 import { Button, Card, Eyebrow, Field, Input, Select, Textarea, toast, demande } from '../../../../ds/components';
 import { Toggle } from '../equipe/ui';
@@ -2397,23 +2397,14 @@ export default function Parametres() {
             <span className="mnd-field__label">Lien Google Avis</span>
             <Input value={autoCfg.reviewLink} onChange={(e) => setAuto('reviewLink', e.target.value)} />
           </label>
-          {/* L'AVIS SANS MAIN — 19 août 2026. Allumé : la fonction planifiée
-              `avis-google` envoie elle-même le WhatsApp à chaque PREMIÈRE
-              venue soldée, et le comptoir cesse d'ouvrir WhatsApp à
-              l'encaissement. Ne l'allumer qu'une fois les clés Meta posées
-              (docs/BRANCHER-ENVOIS.md, étape 5) — sinon plus personne
-              n'envoie rien. */}
-          <div style={{ gridColumn: '1 / -1', display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-            <Toggle
-              on={autoCfgRaw.avisAuto === true}
-              onToggle={() => setAutoCfgRaw({ ...autoCfg, avisAuto: autoCfgRaw.avisAuto !== true })}
-              label="Avis Google sans main · API WhatsApp"
-            />
-            <span className="mnd-muted" style={{ fontSize: 12, maxWidth: '46ch' }}>
-              {autoCfgRaw.avisAuto === true
-                ? 'La Maison écrit elle-même à chaque première venue soldée, le comptoir n’ouvre plus WhatsApp.'
-                : 'Éteint : à l’encaissement d’une première venue, WhatsApp s’ouvre au comptoir, un tap pour envoyer. N’allumer qu’avec les clés Meta posées.'}
-            </span>
+          {/* L'AVIS SANS MAIN (19 août 2026) : son interrupteur a quitté cet
+              écran le 27 octobre 2026 (restes du lot 3 de l'Assistant Maison).
+              Les voix qui écrivent seules s'allument à UN endroit : Assistant
+              Maison › Ce que ça rapporte › « Qui écrit seul », qui écrit la
+              même clé (`mnd_auto_config.avisAuto`). Ici, l'état seul se lit. */}
+          <div style={{ gridColumn: '1 / -1', fontSize: 12, lineHeight: 1.5 }} className="mnd-muted">
+            Demande d’avis sans main : <b>{autoCfgRaw.avisAuto === true ? 'allumée' : 'éteinte'}</b>.
+            {' '}Elle s’allume et s’éteint dans <Link to="/gerard?vue=rapporte">Assistant Maison › Ce que ça rapporte › Qui écrit seul</Link>.
           </div>
           <label className="mnd-field" style={{ gridColumn: '1 / -1' }}>
             <span className="mnd-field__label">Itinéraire · texte libre</span>

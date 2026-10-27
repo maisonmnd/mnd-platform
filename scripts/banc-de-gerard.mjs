@@ -160,7 +160,7 @@ try {
   await attend(400);
   const apres = await evalue(`JSON.parse(localStorage.getItem('trone::mnd_gerard') || 'null')`);
   dit('... écrit « ouvert » dans les réglages, avec le plafond par défaut', apres?.mode === 'ouvert' && apres?.remisesParSemaine === 8 && apres?.plafondFrancs === 60000, JSON.stringify(apres));
-  dit('actif, l état dit le passage du jour et le bouton WhatsApp', /Actif\.\s*Chaque jour/.test(await texte()) && /Gérard dépose les notifications Ma Couronne/.test(await texte()));
+  dit('actif, l état dit le passage du jour et le bouton WhatsApp', /Actif\.\s*Chaque jour/.test(await texte()) && /l’Assistant dépose les notifications Ma Couronne/.test(await texte()));
   /* Le plafond en francs : tapé, puis posé à la sortie du champ. */
   await evalue(String.raw`(() => {
     const champ = [...document.querySelectorAll('.trc-ger__plafond input')][1];
