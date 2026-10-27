@@ -606,6 +606,25 @@ function dernieresRelancesDeFacture(envois) {
   return m;
 }
 
+// src/shared/assistant-reponses-pur.ts
+var GESTE_DU_LIBELLE = {
+  "Oui, je viens": "OUI",
+  "Changer l’heure": "AUTRE",
+  "Je ne peux plus": "NON",
+  "Oui": "OUI",
+  "Avec le soin": "SOIN",
+  "Pas cette fois": "NON",
+  "Une autre date": "AUTRE",
+  "Merci, je réserve": "OUI",
+  "Merci": "MERCI",
+  "Une place": "OUI",
+  "La carte cadeau": "CARTE",
+  "Prendre un RDV": "OUI",
+  "Pas pour l’instant": "NON"
+};
+var PREFIXE_DU_BOUTON = "GERARD";
+var charge = (ligneId, libelle) => `${PREFIXE_DU_BOUTON}:${ligneId}:${GESTE_DU_LIBELLE[libelle] ?? "OUI"}`.slice(0, 128);
+
 // src/shared/gerard-pur.ts
 var ENVIE_TOUS_LES_JOURS = 30;
 var PREMIERE_ENVIE_APRES = 30;
@@ -1025,7 +1044,16 @@ function ligneWhatsApp(s, o) {
       genre: "whatsapp",
       numero: o.numero,
       modele: MODELES_DE_GERARD[s.modele].nom,
-      composants: [{ type: "body", parameters: s.variables.map((v) => ({ type: "text", text: v.replace(/\s+/g, " ").trim() })) }],
+      composants: [
+        { type: "body", parameters: s.variables.map((v) => ({ type: "text", text: v.replace(/\s+/g, " ").trim() })) },
+        /* Chaque bouton porte sa ligne : la réponse s'y écrit, l'automate ne la prend pas. */
+        ...MODELES_DE_GERARD[s.modele].boutons.map((b, i) => ({
+          type: "button",
+          sub_type: "quick_reply",
+          index: String(i),
+          parameters: [{ type: "payload", payload: charge(idDeLaLigne(o.aujourdhui, s.clientId, "whatsapp"), b) }]
+        }))
+      ],
       texteAuFil: s.texte,
       parQui: "Assistant Maison"
     }

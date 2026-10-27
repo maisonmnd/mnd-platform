@@ -356,7 +356,8 @@ reprise();
     i = src.indexOf('for (const e of entrants) {', i + 1);
   }
   const nues = boucles.filter((b) => !/^for \(const e of entrants\) \{ (if \(!estNeuf\(e\)|if \(!neufs\.has\(`wa-\$\{e\.waId\}`\))/.test(b));
-  dit('n4 chaque boucle de gestes ne joue que les messages neufs (6 boucles)', boucles.length === 6 && nues.length === 0, { boucles: boucles.length, nues });
+  /* 27 octobre 2026 : trois boucles de plus, l'Assistant Maison entend (ses boutons, STOP, la question franche). */
+  dit('n4 chaque boucle de gestes ne joue que les messages neufs (9 boucles)', boucles.length === 9 && nues.length === 0, { boucles: boucles.length, nues });
 }
 
 /* ── n79 · la cle d'unicite ────────────────────────────────────────── */

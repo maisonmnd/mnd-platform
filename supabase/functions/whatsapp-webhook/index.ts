@@ -127,7 +127,7 @@ import webpush from 'npm:web-push@3.6.7';
 
 /** LA VERSION DE CE FICHIER, dite par le contrôle de santé. Sans elle on ne
     sait pas quel code tourne vraiment. À incrémenter à chaque déploiement. */
-const VERSION = '2026-10-17-a · les points d etape entre deux seances';
+const VERSION = '2026-10-27-a · l Assistant Maison entend : ses boutons, STOP, la question franche';
 
 /** LE POIDS QU'UNE PIÈCE REÇUE PEUT FAIRE : le plafond du compartiment
     `whatsapp` (0102). Au-delà, le fichier reste chez Meta et le fil le dit. */
@@ -397,10 +397,14 @@ const heureDeLaReprise = (hhmm: string | undefined): string => {
    envoie, signée « Le Trône » — la direction voit ce qui est parti sans
    elle. JAMAIS DEUX FOIS EN VINGT-QUATRE HEURES pour un même numéro et un
    même motif : un prestataire qui envoie trois photos reçoit un seul merci. */
+/** Les messages qui partent seuls, chacun une fois par jour et par numéro. */
+type AutoDuTrone = 'accuse' | 'formulaire' | 'transmis' | 'reprise-ok' | 'reprise-autre' | 'point-bien' | 'point-souci' | 'point-recu' | 'point-avant'
+  | 'assistant-oui' | 'assistant-autre' | 'assistant-non' | 'assistant-carte' | 'stop' | 'franche';
+
 async function ditDepuisLeTrone(
   sb: ReturnType<typeof createClient>, jeton: string, phoneId: string,
   o: {
-    numero: string; texte: string; auto: 'accuse' | 'formulaire' | 'transmis' | 'reprise-ok' | 'reprise-autre' | 'point-bien' | 'point-souci' | 'point-recu' | 'point-avant';
+    numero: string; texte: string; auto: AutoDuTrone;
     branchId?: string; interactive?: Record<string, unknown>;
   },
 ): Promise<void> {
@@ -799,6 +803,77 @@ export async function litToutesLesPages<L extends { id: string }>(
   return { data: null, error: { message: 'lecture interminable : la table ne finit pas' } };
 }
 /* ⟨/lecture-entiere⟩ */
+
+/* ══ CE QUE L'ASSISTANT MAISON ENTEND — 27 octobre 2026 ══════════════════
+   Ses boutons (« GERARD:<ligne>:<geste> »), « STOP », la question franche.
+   Copie de src/shared/assistant-reponses-pur.ts, refaite par
+   `node scripts/copie-dans-le-centre.mjs --fonction supabase/functions/whatsapp-webhook/index.ts` ;
+   `verifie-gerard` crie si elle a pris du retard. */
+// ── DÉBUT DE LA COPIE : src/shared/assistant-reponses-pur.ts ──
+/* ══ CE QUE L'ASSISTANT MAISON ENTEND — 27 octobre 2026 ══════════════════
+   Maquette v4, lot 2 : « l'oreille ». Ce module ne dépend de rien : le
+   webhook WhatsApp le porte en COPIE entre ses repères
+   (`node scripts/copie-dans-le-centre.mjs --fonction supabase/functions/whatsapp-webhook/index.ts`),
+   et `verifie-gerard` crie si la copie a pris du retard.
+
+     · LES BOUTONS de ses modèles portent l'identifiant de leur ligne
+       d'envoi (« GERARD:<ligne>:<geste> ») : la réponse s'écrit sur la
+       ligne (oui, non), l'automate de réservation ne la prend pas (il ne
+       lit que les boutons « MND: »), et la Maison répond d'une phrase.
+     · « STOP » : plus aucune nouvelle de la Maison, les rappels de RDV
+       continuent (ce sont des services).
+     · LA QUESTION FRANCHE : à « c'est un robot ? », il ne ment jamais. */
+
+/** Le geste d'un bouton, d'après son libellé. */
+export type GesteDuBouton = 'OUI' | 'SOIN' | 'AUTRE' | 'NON' | 'MERCI' | 'CARTE';
+export const GESTE_DU_LIBELLE: Record<string, GesteDuBouton> = {
+  'Oui, je viens': 'OUI', 'Changer l’heure': 'AUTRE', 'Je ne peux plus': 'NON',
+  'Oui': 'OUI', 'Avec le soin': 'SOIN', 'Pas cette fois': 'NON', 'Une autre date': 'AUTRE',
+  'Merci, je réserve': 'OUI', 'Merci': 'MERCI', 'Une place': 'OUI', 'La carte cadeau': 'CARTE',
+  'Prendre un RDV': 'OUI', 'Pas pour l’instant': 'NON',
+};
+export const PREFIXE_DU_BOUTON = 'GERARD';
+
+/** L'identifiant qu'un bouton porte chez Meta (128 signes au plus). */
+export const charge = (ligneId: string, libelle: string): string =>
+  `${PREFIXE_DU_BOUTON}:${ligneId}:${GESTE_DU_LIBELLE[libelle] ?? 'OUI'}`.slice(0, 128);
+
+/** Le bouton touché, relu : sa ligne d'envoi et son geste ; `null` si ce n'est pas un bouton de l'Assistant. */
+export function lisLeBoutonDeLAssistant(id: string | undefined): { ligneId: string; geste: GesteDuBouton } | null {
+  const m = /^GERARD:(gerard-\d{4}-\d{2}-\d{2}-.+-(?:whatsapp|push|wa-main)):(OUI|SOIN|AUTRE|NON|MERCI|CARTE)$/.exec(String(id ?? ''));
+  return m ? { ligneId: m[1], geste: m[2] as GesteDuBouton } : null;
+}
+
+/** Ce que la ligne retient : oui (elle veut une place), non (pas maintenant), rien pour un merci. */
+export const reponseDuGeste = (g: GesteDuBouton): 'oui' | 'non' | undefined =>
+  g === 'NON' ? 'non' : g === 'MERCI' ? undefined : 'oui';
+
+/** « STOP » et ses variantes, seuls dans le message. */
+export const estUnStop = (texte: string): boolean =>
+  /^\s*(stop|arr[eê]t(ez|er)?|d[ée]sabonne(r|z)?(-| )?(moi)?|unsubscribe|plus de messages?)\s*[.!]*\s*$/i.test(String(texte ?? ''));
+export const ACCUSE_DU_STOP = 'C’est noté : la Maison ne vous enverra plus ses nouvelles. Les rappels de vos rendez-vous continuent.';
+
+/** Une cliente qui demande franchement si elle parle à une personne. */
+export const estUneQuestionFranche = (texte: string): boolean =>
+  /\b(robot|chatbot|bot|ia|intelligence artificielle|machine)\b|\b(message|réponse|reponse)s? automatiques?\b|\bje parle (à|a) qui\b|\bc.est (bien |vraiment )?g[ée]rard\b|\bune vraie personne\b|\bun (être )?humain\b/i.test(String(texte ?? ''));
+export const REPONSE_FRANCHE = 'Je suis l’assistant automatique de la Maison pour les rendez-vous. Si vous préférez, je préviens Gérard ou quelqu’un de l’équipe, qui vous écrit dans la journée.';
+
+/** LA PHRASE DE RETOUR à un bouton, et sa clé de réservation (une par jour et par numéro). */
+export function retourDuBouton(o: {
+  geste: GesteDuBouton; garder: boolean; appel: string; quand?: string; couronneUrl: string; offrirUrl: string;
+}): { auto: string; texte: string } | null {
+  const { appel } = o;
+  if (o.geste === 'MERCI') return null;
+  if (o.garder) {
+    if (o.geste === 'OUI' && o.quand) return { auto: 'assistant-oui', texte: `C’est noté, ${appel} : la Maison vous attend ${o.quand}.` };
+    return { auto: 'assistant-autre', texte: `Bien sûr, ${appel}. Choisissez votre nouveau moment dans Ma Couronne : ${o.couronneUrl}\nOu répondez ici avec le jour qui vous va, la Maison vous propose une heure.` };
+  }
+  if (o.geste === 'NON') return { auto: 'assistant-non', texte: `C’est noté, ${appel}. La Maison reste là quand l’envie vous prend.` };
+  if (o.geste === 'CARTE') return { auto: 'assistant-carte', texte: `Avec plaisir, ${appel} ! La carte cadeau de la Maison se commande ici : ${o.offrirUrl}` };
+  const soin = o.geste === 'SOIN' ? ', nous notons le soin' : '';
+  return { auto: 'assistant-oui', texte: `Avec plaisir, ${appel}${soin} ! Choisissez votre place dans Ma Couronne : ${o.couronneUrl}\nOu répondez ici avec le jour et l’heure qui vous vont, la Maison vous confirme.` };
+}
+// ── FIN DE LA COPIE ──
 
 /** UN LECTEUR DE FICHES POUR UN APPEL : une RPC par numéro, gardée ; la
     table par pages une seule fois, si la RPC manque. Ne lève jamais : une
@@ -1524,6 +1599,9 @@ Deno.serve(async (req) => {
       const confies = new Map<string, Confie>();
       for (const e of entrants) {
         if (!neufs.has(`wa-${e.waId}`) || !tetes.has(e.numero)) continue;
+        /* STOP et la question franche ne vont pas à l'automate (27 octobre 2026) :
+           la Maison y répond elle-même (⑤ bis·4), et le personnel est prévenu. */
+        if (!e.bouton && (estUnStop(e.texte) || estUneQuestionFranche(e.texte))) continue;
         const tiroir = tiroirDe(e.numero);
         if (tiroir !== 'clientes' && tiroir !== 'equipe') continue;
         const c = confies.get(e.numero) ?? { numero: e.numero, tiroir, waIds: [], nom: nomDe(e) };
@@ -1795,6 +1873,84 @@ Deno.serve(async (req) => {
         });
       }
     }
+  }
+
+  /* ── ⑤ bis·4 L'ASSISTANT MAISON ENTEND — 27 octobre 2026 ──────────────
+     Maquette v4, lot 2.
+       · SES BOUTONS portent leur ligne d'envoi : la réponse s'y écrit (oui,
+         non ; un merci ne dit rien), pour « garder » aussi sur le rendez-vous
+         (comme la reprise : confirmée, ou un autre moment demandé ; jamais
+         annulé ici), et la Maison répond d'une phrase.
+       · STOP : plus aucune nouvelle de la Maison sur chacune de ses fiches
+         (`nouvelles` = non, par « stop ») ; ses rappels de RDV continuent.
+       · LA QUESTION FRANCHE (« c'est un robot ? ») : si le dernier message
+         parti vers ce numéro est parti seul, la réponse franche ; si une
+         personne de l'équipe écrivait, rien : elle répond elle-même.
+     SEUL SON NUMÉRO RÉPOND POUR ELLE, comparé sous sa forme courte. */
+  const couronneUrl = (Deno.env.get('COURONNE_URL') ?? 'https://maisonmnd.com/couronne/').trim();
+  const offrirUrl = (Deno.env.get('OFFRIR_URL') ?? 'https://maisonmnd.com/offrir/').trim();
+  for (const e of entrants) {
+    if (!estNeuf(e)) continue;
+    const b = lisLeBoutonDeLAssistant(e.bouton?.id);
+    if (!b) continue;
+    const { data: l } = await sb.from('envois').select('id, branch_id, data').eq('id', b.ligneId).limit(1);
+    const ligne = (l ?? [])[0] as { id: string; branch_id?: string; data: Record<string, any> } | undefined;
+    if (!ligne || ligne.data?.type !== 'gerard') { dis('assistant · ligne introuvable'); continue; }
+    const fiche = fiches.find((f) => f.id === ligne.data.clientId);
+    if (!fiche || !fiche.numeros.some((n) => cleWa(n) === cleWa(e.numero))) { dis('assistant · numéro étranger à la ligne'); continue; }
+    const reponse = reponseDuGeste(b.geste);
+    const { error } = await sb.from('envois').update({
+      data: { ...ligne.data, ...(reponse ? { reponse } : {}), bouton: b.geste, reponduLe: e.quand },
+    }).eq('id', ligne.id);
+    if (error) { dis('assistant · réponse refusée', { motif: error.message.slice(0, 120) }); continue; }
+    dis('assistant · réponse', { geste: b.geste, genre: ligne.data.genre });
+    const garder = ligne.data.genre === 'garder' && !!ligne.data.apptId;
+    let quand: string | undefined;
+    if (garder) {
+      const { data: r } = await sb.from('appointments').select('id, data').eq('id', ligne.data.apptId).limit(1);
+      const rdvLigne = (r ?? [])[0] as { id: string; data: Record<string, any> } | undefined;
+      const rdv = rdvLigne?.data;
+      if (rdvLigne && rdv && rdv.status !== 'annulé' && rdv.status !== 'honoré') {
+        const patch = b.geste === 'OUI'
+          ? { confirmeeParLaClienteLe: e.quand, autreMomentDemandeLe: undefined }
+          : { autreMomentDemandeLe: e.quand, confirmeeParLaClienteLe: undefined };
+        const { error: errRdv } = await sb.from('appointments').update({ data: { ...rdv, ...patch } }).eq('id', rdvLigne.id);
+        if (errRdv) dis('assistant · rendez-vous refusé', { motif: errRdv.message.slice(0, 120) });
+        quand = `${jourDeLaReprise(rdv.date ?? '')} à ${heureDeLaReprise(rdv.time)}`;
+      }
+    }
+    if (!jetonMeta || !phoneIdMeta) continue;
+    const appel = appelDe({ name: fiche.nom, civilite: fiche.civilite, auMasculin: fiche.auMasculin });
+    const retour = retourDuBouton({ geste: b.geste, garder, appel, quand, couronneUrl, offrirUrl });
+    if (retour) await ditDepuisLeTrone(sb, jetonMeta, phoneIdMeta, { numero: e.numero, branchId: fiche.branchId, auto: retour.auto as AutoDuTrone, texte: retour.texte });
+  }
+  for (const e of entrants) {
+    if (!estNeuf(e) || e.bouton || !estUnStop(e.texte) || tiroirDe(e.numero) !== 'clientes') continue;
+    const siennes = fichesParNumero.get(e.numero) ?? [];
+    let tues = 0;
+    for (const f of siennes) {
+      const { data: c } = await sb.from('clients').select('id, data').eq('id', f.id).limit(1);
+      const row = (c ?? [])[0] as { id: string; data: Record<string, any> } | undefined;
+      if (!row) continue;
+      const { error } = await sb.from('clients').update({ data: { ...row.data, nouvelles: { oui: false, le: aujourdhui, par: 'stop' } } }).eq('id', row.id);
+      if (error) dis('assistant · stop refusé', { motif: error.message.slice(0, 120) });
+      else tues++;
+    }
+    dis('assistant · stop', { fiches: tues });
+    if (tues > 0 && jetonMeta && phoneIdMeta) {
+      await ditDepuisLeTrone(sb, jetonMeta, phoneIdMeta, { numero: e.numero, branchId: siennes[0].branchId, auto: 'stop', texte: ACCUSE_DU_STOP });
+    }
+  }
+  for (const e of entrants) {
+    if (!estNeuf(e) || e.bouton || !estUneQuestionFranche(e.texte) || tiroirDe(e.numero) !== 'clientes') continue;
+    const { data: avant } = await sb.from('messages_wa').select('data')
+      .eq('data->>numero', e.numero).eq('data->>sens', 'sortant').order('data->>quand', { ascending: false }).limit(1);
+    const dernier = ((avant ?? [])[0] as { data?: Record<string, any> } | undefined)?.data;
+    const partiSeul = !!dernier && (!!dernier.auto || ['Le Trône', 'Assistant Maison', 'Gérard'].includes(String(dernier.parQui ?? ''))
+      || /automatiquement/i.test(String(dernier.parQui ?? '')));
+    dis('assistant · question franche', { partiSeul });
+    if (!partiSeul || !jetonMeta || !phoneIdMeta) continue;
+    await ditDepuisLeTrone(sb, jetonMeta, phoneIdMeta, { numero: e.numero, branchId: teteDuNumero(e.numero)?.branchId, auto: 'franche', texte: REPONSE_FRANCHE });
   }
 
   /* ── ⑥ LES ACCUSÉS. Ils corrigent DEUX journaux, et c'est voulu : les

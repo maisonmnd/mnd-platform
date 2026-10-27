@@ -19,6 +19,8 @@ import { estEnvoiAutomatique } from '../src/shared/envois';
 import { codeDeLaSituation, lisLAssistant, lundiDe, type EntreesDeLAssistant } from '../src/shared/assistant-lecture-pur';
 import { lignesDuPassage, lignesNeuves, remisesAFabriquer, serveurVivant } from '../src/shared/assistant-passage-pur';
 import { REGLES_PAR_DEFAUT } from '../src/shared/salle-des-envois';
+import { ACCUSE_DU_STOP, charge, estUnStop, GESTE_DU_LIBELLE, lisLeBoutonDeLAssistant, retourDuBouton, reponseDuGeste } from '../src/shared/assistant-reponses-pur';
+import { copiesAJour } from './copie-dans-le-centre.mjs';
 import { gerardSeTait } from '../src/shared/gerard-entre-deux-pur';
 
 let ko = 0;
@@ -360,6 +362,32 @@ dit('les remises à fabriquer : une ligne PARTIE, sans code encore ; ni en atten
 const ilYA = (h2: number) => ({ vuLe: new Date(maintenantLu - h2 * 3_600_000).toISOString() });
 dit('la fonction serveur vit si elle a parlé depuis moins de 26 heures ; absente, elle se tait', [true, false, false],
   [serveurVivant(ilYA(25), maintenantLu), serveurVivant(ilYA(27), maintenantLu), serveurVivant(null, maintenantLu)]);
+
+/* ── 14 septies. Ce que l'Assistant entend (le webhook en porte la copie) ── */
+const idWa = 'gerard-2026-10-28-c1-whatsapp';
+dit('chaque libellé de bouton de ses modèles a son geste ; la charge porte la ligne et se relit', [true, { ligneId: idWa, geste: 'NON' }, null, null],
+  [Object.values(MODELES_DE_GERARD).every((m) => m.boutons.every((b) => b in GESTE_DU_LIBELLE)), lisLeBoutonDeLAssistant(charge(idWa, 'Pas cette fois')),
+    lisLeBoutonDeLAssistant('MND:1:jour:2026-10-28'), lisLeBoutonDeLAssistant('GERARD:autre-chose:OUI')]);
+dit('... la réponse retenue : oui, non, rien pour un merci', ['oui', 'oui', 'non', undefined, 'oui'], (['OUI', 'SOIN', 'NON', 'MERCI', 'CARTE'] as const).map(reponseDuGeste));
+const lW = passe({ mode: 'ouvert', approuves: ['gerard_envie', 'gerard_avant', 'gerard_place', 'gerard_endormie'] }, sitWa ? [sitWa] : [])[0];
+const boutonsW = (lW?.colis as { composants?: { type: string; parameters: { payload?: string }[] }[] } | undefined)?.composants?.filter((c) => c.type === 'button') ?? [];
+dit('la ligne WhatsApp : un bouton de réponse rapide par libellé du modèle, chacun portant sa ligne', [MODELES_DE_GERARD[sitWa!.modele].boutons.length, true],
+  [boutonsW.length, boutonsW.every((b) => lisLeBoutonDeLAssistant(b.parameters[0]?.payload)?.ligneId === lW?.id)]);
+dit('STOP se reconnaît seul dans le message, jamais au milieu d’une phrase', [true, true, true, true, false, false],
+  ['STOP', ' stop.', 'Arrêtez', 'désabonnez-moi', 'je stoppe le resserrage', 'stop ou encore ?'].map(estUnStop));
+const ret = (g: Parameters<typeof retourDuBouton>[0]['geste'], garder = false, quand?: string) => retourDuBouton({ geste: g, garder, appel: 'Madame K.', quand, couronneUrl: 'C/', offrirUrl: 'O/' });
+dit('le retour d’une phrase : garder confirmé avec sa date ; un autre moment par Ma Couronne ; non sans insister ; la carte cadeau ; rien pour un merci',
+  ['C’est noté, Madame K. : la Maison vous attend mardi 3 novembre 2026 à 10 h.', 'assistant-autre', 'C’est noté, Madame K.. La Maison reste là quand l’envie vous prend.', true, null, true],
+  [ret('OUI', true, 'mardi 3 novembre 2026 à 10 h')?.texte, ret('NON', true)?.auto, ret('NON')?.texte, /O\/$/.test(ret('CARTE')?.texte ?? ''), ret('MERCI'), /nous notons le soin/.test(ret('SOIN')?.texte ?? '')]);
+dit('... aucun retour ne dit « salon », ni un tiret cadratin', true,
+  (['OUI', 'SOIN', 'AUTRE', 'NON', 'CARTE'] as const).flatMap((g) => [ret(g), ret(g, true, 'x')]).every((x) => !x || !/salon|—/i.test(x.texte)) && !/salon|—/i.test(ACCUSE_DU_STOP));
+const webhook = readFileSync('supabase/functions/whatsapp-webhook/index.ts', 'utf8');
+dit('le webhook porte la copie à jour de ce que l’Assistant entend, et ses trois oreilles ne jouent que les messages neufs', [[], true, true, true],
+  [copiesAJour(webhook, (p: string) => readFileSync(p, 'utf8')).ecarts, /const b = lisLeBoutonDeLAssistant\(e\.bouton\?\.id\);/.test(webhook),
+    /if \(!estNeuf\(e\) \|\| e\.bouton \|\| !estUnStop\(e\.texte\) \|\| tiroirDe\(e\.numero\) !== 'clientes'\) continue;/.test(webhook),
+    /if \(!e\.bouton && \(estUnStop\(e\.texte\) \|\| estUneQuestionFranche\(e\.texte\)\)\) continue;/.test(webhook)]);
+dit('... STOP pose « non, par stop » sur ses fiches ; la question franche ne répond que si le dernier message est parti seul', [true, true],
+  [webhook.includes("nouvelles: { oui: false, le: aujourdhui, par: 'stop' }"), /if \(!partiSeul \|\| !jetonMeta \|\| !phoneIdMeta\) continue;/.test(webhook)]);
 
 /* ── 15. L'écran et la barre ── */
 const ecran = sansCommentaires(readFileSync('src/apps/trone/routes/clients/Gerard.tsx', 'utf8'));

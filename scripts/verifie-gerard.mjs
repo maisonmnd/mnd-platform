@@ -48,6 +48,8 @@ async function lanceLeBanc() {
 const PUR = 'src/shared/gerard-pur.ts';
 const DERNIER = 'src/shared/dernier-message-pur.ts';
 const ENVOIS = 'src/shared/envois.ts';
+const OREILLE = 'src/shared/assistant-reponses-pur.ts';
+const WEBHOOK = 'supabase/functions/whatsapp-webhook/index.ts';
 const ECRAN = 'src/apps/trone/routes/clients/Gerard.tsx';
 const DONNEES = 'src/apps/trone/routes/clients/gerard-donnees.ts';
 const LECTURE = 'src/shared/assistant-lecture-pur.ts';
@@ -67,7 +69,7 @@ const PANNES = [
   ['l endormie sans fin', PUR, 'if (fois.length >= ENDORMIE_FOIS_MAX) return null;', ''],
   ['Noel avec un code', PUR, "return fait('noel', 'fetes', [f.appel, A.slice(0, 4)], pourquoiDuFil);", "return fait('noel', 'fetes', [f.appel, A.slice(0, 4)], pourquoiDuFil, { code: { mot: 'CREUX', pct: 15, jusquau: A } });"],
   ['la date sans annee', PUR, "${MOIS[d.getUTCMonth()]} ${d.getUTCFullYear()}`;", "${MOIS[d.getUTCMonth()]}`;"],
-  ['la question franche sourde', PUR, '|\\bje parle (à|a) qui\\b', ''],
+  ['la question franche sourde', OREILLE, '|\\bje parle (à|a) qui\\b', ''],
   ['la signature redevient Gerard', PUR, "export const SIGNATURE = 'Maison MND';", "export const SIGNATURE = 'Gérard, Maison MND';"],
   ['l ecran lit le cycle suivant', LECTURE, 'cad.overdueDays > 0 ? addDaysISO(today, -cad.overdueDays) : cad.iso', 'cad.iso'],
   ['les fetes au rythme ordinaire', PUR, "export const ENVIE_TOUS_LES_JOURS_EN_FETES = 21;", "export const ENVIE_TOUS_LES_JOURS_EN_FETES = 30;"],
@@ -125,6 +127,13 @@ const PANNES = [
   ['la fiche oublie jamais pour elle', LECTURE, '      jamais: rg.jamais[c.id] ?? [],\n', ''],
   ['l Assistant pris pour l equipe', ENVOIS, " || /^(assistant maison|g[ée]rard)$/i.test((parQui ?? '').trim());", ';'],
   ['la lecture tire les reglages du navigateur', LECTURE, "import { deuxPlaces } from './processus-pur';", "import { deuxPlaces } from './processus-pur';\nimport { openingForIso } from './settings';\nvoid openingForIso;"],
+  ['un merci compte pour un oui', OREILLE, "g === 'NON' ? 'non' : g === 'MERCI' ? undefined : 'oui';", "g === 'NON' ? 'non' : 'oui';"],
+  ['STOP au milieu d une phrase', OREILLE, '/^\\s*(stop|arr[eê]t(ez|er)?', '/\\b(stop|arr[eê]t(ez|er)?'],
+  ['un bouton etranger pris pour l Assistant', OREILLE, '/^GERARD:(gerard-\\d{4}', '/GERARD:(gerard-\\d{4}'],
+  ['les boutons sans leur ligne', PUR, "parameters: [{ type: 'payload' as const, payload: charge(idDeLaLigne(o.aujourdhui, s.clientId, 'whatsapp'), b) }],", "parameters: [{ type: 'payload' as const, payload: b }],"],
+  ['la copie du webhook en retard', WEBHOOK, "export const ACCUSE_DU_STOP = 'C’est noté : la Maison ne vous enverra plus ses nouvelles. Les rappels de vos rendez-vous continuent.';", "export const ACCUSE_DU_STOP = 'C’est noté.';"],
+  ['STOP pris par l automate', WEBHOOK, "        if (!e.bouton && (estUnStop(e.texte) || estUneQuestionFranche(e.texte))) continue;\n", ''],
+  ['la franchise repond a la place d une personne', WEBHOOK, "    if (!partiSeul || !jetonMeta || !phoneIdMeta) continue;", "    if (!jetonMeta || !phoneIdMeta) continue;"],
   ['l ecran perd le plafond en francs', ECRAN, '                onChange={(e) => setFrancs(e.target.value)} onBlur={posePlafond} />', '                onChange={(e) => setFrancs(e.target.value)} />'],
 ];
 

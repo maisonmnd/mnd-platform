@@ -37,6 +37,9 @@
    quand une cliente le demande franchement (`estUneQuestionFranche`).
 
    Pur : `scripts/verifie-gerard.mjs` le prouve. */
+import { charge, estUneQuestionFranche, REPONSE_FRANCHE } from './assistant-reponses-pur';
+
+export { estUneQuestionFranche, REPONSE_FRANCHE };
 
 /* ── LES RÈGLES CHOISIES ─────────────────────────────────────────────── */
 export const ENVIE_TOUS_LES_JOURS = 30;
@@ -617,11 +620,7 @@ export function planDuJour(fiches: readonly FicheDeGerard[], ctx: ContexteDeGera
   return out;
 }
 
-/* ── LA RÈGLE FRANCHE ────────────────────────────────────────────────── */
-/** Une cliente qui demande franchement si elle parle à une personne. */
-export const estUneQuestionFranche = (texte: string): boolean =>
-  /\b(robot|chatbot|bot|ia|intelligence artificielle|machine)\b|\b(message|réponse|reponse)s? automatiques?\b|\bje parle (à|a) qui\b|\bc.est (bien |vraiment )?g[ée]rard\b|\bune vraie personne\b|\bun (être )?humain\b/i.test(String(texte ?? ''));
-export const REPONSE_FRANCHE = 'Je suis l’assistant automatique de la Maison pour les rendez-vous. Si vous préférez, je préviens Gérard ou quelqu’un de l’équipe, qui vous écrit dans la journée.';
+/* ── LA RÈGLE FRANCHE : `assistant-reponses-pur.ts` (27 octobre 2026), avec ce que l'Assistant entend. */
 
 /* ══ LE PASSAGE DU JOUR — 26 octobre 2026, le soir ═══════════════════════
    « On commence immédiatement » (Yéman), et au sélecteur : « Ma Couronne +
@@ -648,6 +647,10 @@ export const idDeLaLigne = (aujourdhui: string, clientId: string, canal: 'push' 
 /** Le texte sans sa dernière ligne de signature : la notification porte déjà « Maison MND » en titre. */
 export const texteSansSignature = (texte: string): string => texte.replace(new RegExp(`\\n\\n${SIGNATURE}$`), '');
 
+/** Les composants d'un modèle chez Meta : le corps et ses variables, les boutons et leur charge. */
+export type ComposantDuModele =
+  | { type: 'body'; parameters: { type: 'text'; text: string }[] }
+  | { type: 'button'; sub_type: 'quick_reply'; index: string; parameters: { type: 'payload'; payload: string }[] };
 export type LigneDeGerard = {
   id: string; branchId: string; type: 'gerard'; canal: 'push' | 'wa-main' | 'whatsapp'; statut: 'en-attente' | 'à-la-main';
   clientId: string; prenom: string; apptId: string; dateRdv: string; heure?: string;
@@ -657,7 +660,7 @@ export type LigneDeGerard = {
   codeAFaire?: CodeAFaire;
   colis?:
     | { genre: 'push'; clientId: string; titre: string; corps: string; url: string }
-    | { genre: 'whatsapp'; numero: string; modele: string; composants: { type: 'body'; parameters: { type: 'text'; text: string }[] }[]; texteAuFil: string; parQui: string };
+    | { genre: 'whatsapp'; numero: string; modele: string; composants: ComposantDuModele[]; texteAuFil: string; parQui: string };
 };
 type OutilsDeLaLigne = {
   branchId: string; aujourdhui: string; maintenantIso: string; prenom: string;
@@ -687,7 +690,14 @@ export function ligneWhatsApp(s: Situation, o: OutilsDeLaLigne & { numero: strin
     id: idDeLaLigne(o.aujourdhui, s.clientId, 'whatsapp'), canal: 'whatsapp', statut: 'en-attente', partA: o.partA, calme: o.calme, ...communs(s, o),
     colis: {
       genre: 'whatsapp', numero: o.numero, modele: MODELES_DE_GERARD[s.modele].nom,
-      composants: [{ type: 'body', parameters: s.variables.map((v) => ({ type: 'text' as const, text: v.replace(/\s+/g, ' ').trim() })) }],
+      composants: [
+        { type: 'body', parameters: s.variables.map((v) => ({ type: 'text' as const, text: v.replace(/\s+/g, ' ').trim() })) },
+        /* Chaque bouton porte sa ligne : la réponse s'y écrit, l'automate ne la prend pas. */
+        ...MODELES_DE_GERARD[s.modele].boutons.map((b, i) => ({
+          type: 'button' as const, sub_type: 'quick_reply' as const, index: String(i),
+          parameters: [{ type: 'payload' as const, payload: charge(idDeLaLigne(o.aujourdhui, s.clientId, 'whatsapp'), b) }],
+        })),
+      ],
       texteAuFil: s.texte, parQui: 'Assistant Maison',
     },
   };
