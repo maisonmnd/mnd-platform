@@ -4,7 +4,7 @@
    manqué sur la version homme, une promesse que la Maison ne tient pas, un
    prénom vide au milieu du dessin : chacun se découvre après l'envoi. */
 import {
-  texteDeLaCarte, texteDeLaCarteSansPrenom, motDeLaCarte, objetDeLaCarte, nomDuFichier, prenomDe,
+  texteDeLaCarte, texteDeLaCarteSansPrenom, motDeLaCarte, objetDeLaCarte, nomDuFichier, prenomDe, numeroDeLaCarte,
   CARTES_DE_LA_MAISON, MOTIFS_DE_MERCI, type CleMotif,
 } from '../src/shared/cartes';
 
@@ -135,6 +135,23 @@ dit('... ni « tu » ni « vous », aucun accord de genre (entouré·e, venu·e,
   /\b(te|tu|toi|ton|ta|tes|vous|votre|vos)\b|\bt[’']|entouré|\bvenue?\b|\bch[eè]re?\b/i.test(toutSonTexte));
 dit('... le dessin d’anniversaire de la Maison : ballons, fond clair, « Joyeux anniversaire »', ['ballons', 'clair', 'Joyeux', 'anniversaire'],
   [sansPrenom.deco, sansPrenom.fond, sansPrenom.sur, sansPrenom.grand]);
+
+/* ── À QUEL NUMÉRO PART LA CARTE (27 octobre 2026) ───────────────────
+   « Pour le compte d'un enfant, au numéro du parent payeur » (Yéman), comme
+   l'Assistant Maison : l'enfant du foyer va au parent même avec son numéro. */
+const tetes = [{ id: 'p', name: 'H. P.', phone: '+229 01 51 00 00 18' }, { id: 'q', name: 'Q. Q.', phone: '' }];
+const foyers = [{ id: 'f', payerClientId: 'p' }, { id: 'g', payerClientId: 'q' }];
+const J = '2026-10-27';
+dit('l’enfant du foyer, même avec un numéro sur sa fiche : au parent payeur', { numero: '2290151000018', parent: 'H. P.' },
+  numeroDeLaCarte({ id: 'e', phone: '+229 01 97 00 00 01', familyId: 'f', birthday: '2016-10-27' }, tetes, foyers, J));
+dit('... sans date de naissance, rien ne prouve sa majorité : au parent payeur aussi', '2290151000018',
+  numeroDeLaCarte({ id: 'e', phone: '+229 01 97 00 00 01', familyId: 'f' }, tetes, foyers, J).numero);
+dit('... un adulte du foyer à son propre numéro reçoit chez lui ; sans numéro, chez le payeur', ['2290197000001', '2290151000018'],
+  [numeroDeLaCarte({ id: 'a', phone: '+229 01 97 00 00 01', familyId: 'f', birthday: '1980-10-27' }, tetes, foyers, J).numero,
+    numeroDeLaCarte({ id: 'a', phone: '', familyId: 'f', birthday: '1980-10-27' }, tetes, foyers, J).numero]);
+dit('... un parent payeur sans numéro : la carte de l’enfant reste à son numéro ; personne : rien', ['2290197000001', ''],
+  [numeroDeLaCarte({ id: 'e', phone: '+229 01 97 00 00 01', familyId: 'g', birthday: '2016-10-27' }, tetes, foyers, J).numero,
+    numeroDeLaCarte({ id: 'e', phone: '', familyId: 'g', birthday: '2016-10-27' }, tetes, foyers, J).numero]);
 
 console.log(ko === 0 ? '\nTout passe.' : `\n${ko} ÉCHEC(S).`);
 process.exit(ko === 0 ? 0 : 1);

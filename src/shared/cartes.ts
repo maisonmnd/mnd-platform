@@ -24,6 +24,31 @@
 
 import { maisonNom, signeLeMessage } from './identite';
 import { deLaMaison } from './rappel';
+import { estMineur } from './clients-pur';
+
+/* ══ À QUEL NUMÉRO PART LA CARTE — 27 octobre 2026 ═══════════════════════
+   « Pour le compte d'un enfant, envoyer la carte sur le numéro du parent
+   payeur » (Yéman). L'ENFANT DU FOYER se lit comme dans l'Assistant Maison
+   (assistant-lecture-pur, `enfantDuFoyer`) : un autre paie pour son foyer,
+   et rien ne prouve qu'il est majeur. Il reçoit au numéro du parent payeur,
+   même si sa fiche porte un numéro. Les autres reçoivent au leur ; sans
+   numéro, au parent payeur s'il en a un. */
+export function numeroDeLaCarte(
+  client: { id: string; phone?: string; familyId?: string; birthday?: string },
+  clients: readonly { id: string; phone?: string; name?: string }[],
+  familles: readonly { id: string; payerClientId?: string }[],
+  aujourdhui: string,
+): { numero: string; parent?: string } {
+  const chiffres = (t?: string): string => (t ?? '').replace(/\D/g, '');
+  const payeurId = client.familyId ? familles.find((f) => f.id === client.familyId)?.payerClientId : undefined;
+  const payeur = payeurId && payeurId !== client.id ? clients.find((c) => c.id === payeurId) : undefined;
+  const auParent = chiffres(payeur?.phone).length >= 8 ? { numero: chiffres(payeur?.phone), parent: payeur?.name } : undefined;
+  const enfantDuFoyer = !!payeur && !(client.birthday && !estMineur(client, aujourdhui));
+  if (enfantDuFoyer && auParent) return auParent;
+  const sien = chiffres(client.phone);
+  if (sien.length >= 8) return { numero: sien };
+  return auParent ?? { numero: '' };
+}
 
 /* LE NOM VIENT DES PARAMÈTRES, jamais d'un littéral — 23 septembre 2026.
    Les cartes disaient « L'atelier MND » en dur pendant que la Maison signait

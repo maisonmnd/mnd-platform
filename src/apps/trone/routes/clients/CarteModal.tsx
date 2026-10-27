@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Button, Modal, toast } from '../../../../ds/components';
 import { carteEnBlob, dessineLaCarte } from '../../../../ds/carte';
-import { clientsStore, familiesStore, type Client, type Family } from '../../../../shared/clients';
+import { clientsStore, familiesStore, type Client } from '../../../../shared/clients';
 import { cercleActifStore } from '../../../../shared/offers';
 import {
-  CARTES_DE_LA_MAISON, MOTIFS_DE_MERCI, motDeLaCarte, nomDuFichier, objetDeLaCarte,
+  CARTES_DE_LA_MAISON, MOTIFS_DE_MERCI, motDeLaCarte, nomDuFichier, numeroDeLaCarte, objetDeLaCarte,
   prenomDe, texteDeLaCarte, type CleCarte, type CleMotif, type Genre,
 } from '../../../../shared/cartes';
 import { cheminDeLaConversation } from '../../../../shared/conversations';
@@ -28,18 +28,14 @@ const chiffresDe = (t: string): string => (t ?? '').replace(/\D/g, '');
 
 /* ══ LA CARTE D'UN ENFANT VA AU PARENT PAYEUR — 27 octobre 2026 ══════════
    « Pour le compte d'un enfant, envoyer la carte sur le numéro du parent
-   payeur » (Yéman). Une fiche d'enfant n'a souvent pas de numéro : la carte
-   part alors au parent payeur de son foyer (le compte famille), à son
-   numéro. L'Assistant Maison passe le sien (`numero`, `mot`) : celui du
-   plan du jour, le même que le serveur enverrait. */
-export function numeroDeLaCarte(client: Pick<Client, 'id' | 'phone' | 'familyId'>, clients: readonly Pick<Client, 'id' | 'phone' | 'name'>[], familles: readonly Pick<Family, 'id' | 'payerClientId'>[]): { numero: string; parent?: string } {
-  const sien = chiffresDe(client.phone ?? '');
-  if (sien.length >= 8) return { numero: sien };
-  const payeurId = client.familyId ? familles.find((f) => f.id === client.familyId)?.payerClientId : undefined;
-  const payeur = payeurId && payeurId !== client.id ? clients.find((c) => c.id === payeurId) : undefined;
-  const sienne = chiffresDe(payeur?.phone ?? '');
-  return sienne.length >= 8 ? { numero: sienne, parent: payeur?.name } : { numero: '' };
-}
+   payeur » (Yéman). La règle vit dans `numeroDeLaCarte` (shared/cartes),
+   la même que l'Assistant Maison : l'enfant du foyer reçoit au numéro du
+   parent payeur, même si sa fiche porte un numéro. L'Assistant passe le
+   sien (`numero`, `mot`) : celui du plan du jour, que le serveur enverrait. */
+const aujourdhuiLocal = (): string => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
 
 export function CarteModal({ client, onClose, numero, mot, onEnvoye }: {
   client: Client; onClose: () => void;
@@ -113,7 +109,7 @@ export function CarteModal({ client, onClose, numero, mot, onEnvoye }: {
     } finally { setOccupe(false); }
   };
 
-  const dest = numero !== undefined ? { numero: chiffresDe(numero), parent: undefined as string | undefined } : numeroDeLaCarte(client, clientsStore.get(), familiesStore.get());
+  const dest = numero !== undefined ? { numero: chiffresDe(numero), parent: undefined as string | undefined } : numeroDeLaCarte(client, clientsStore.get(), familiesStore.get(), aujourdhuiLocal());
   const tel = dest.numero;
   const surWhatsApp = () => {
     signale();
