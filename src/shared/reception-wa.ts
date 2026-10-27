@@ -10,7 +10,8 @@ import { CLE_DE_LA_RECEPTION, RECEPTION_LIVREE, type ReglageDeLaReception } from
    personnel les lit ; la direction seule change le réglage (garde d'écran,
    comme celui de l'automate). */
 
-export const receptionStore = createStore<ReglageDeLaReception>(CLE_DE_LA_RECEPTION, RECEPTION_LIVREE);
+/* La clé écrite en toutes lettres (verifie-cles-uniques) : c'est CLE_DE_LA_RECEPTION. */
+export const receptionStore = createStore<ReglageDeLaReception>('mnd_assistant_wa', RECEPTION_LIVREE);
 export const useReception = () => useStore(receptionStore);
 bindDocument(receptionStore, CLE_DE_LA_RECEPTION);
 

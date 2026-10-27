@@ -67,10 +67,12 @@ dit('fauteuils pleins : « Poser quand meme » leve le blocage, pour cette heure
 /* ── Les copies des fonctions Edge ───────────────────────────────────── */
 for (const f of ['supabase/functions/demande-submit/index.ts', 'supabase/functions/whatsapp-automate/index.ts']) {
   const s = lis(f);
-  dit(`${f.split('/')[2]} : la regle des SINSIN, son juge, la version 2026-10-24-b`, [true, true, true], [
+  /* La version : celle des SINSIN ou une plus recente (la fonction avance). */
+  const version = /const VERSION = '(\d{4}-\d{2}-\d{2}-[a-z])/.exec(s)?.[1] ?? '';
+  dit(`${f.split('/')[2]} : la regle des SINSIN, son juge, la version 2026-10-24-b ou plus recente`, [true, true, true], [
     s.includes("export const MAITRE_DES_SINSIN = 'Team';"),
     s.includes('if (serviceIds.some((id) => estUnSinsin(agenda.services.find((s) => s.id === id)?.name))) return [MAITRE_DES_SINSIN];'),
-    s.includes("const VERSION = '2026-10-24-b")]);
+    version >= '2026-10-24-b']);
 }
 
 console.log(`\n${n - ko}/${n} epreuves : les SINSIN chez Team, aujourd hui d abord, la main du Trone.`);
