@@ -3033,12 +3033,56 @@ const regles: Regle[] = [
       { nom: 'la reception parle apres une main passee', mute: [P(AUTO, "  return etapeCourante(etat, ctx.main, ms, ctx.reglage.pauseHeures) !== 'main';", '  return true;')] },
       { nom: 'sa reponse laisse le fil au repos : l alarme sonne', mute: [P(AUTO, "    passe('clos');\n    if (r.suite === 'calibre'", "    if (r.suite === 'calibre'")] },
       { nom: 'sa reponse ne se signe plus', mute: [P(AUTO, '    const signe = (m: MessageSortant): MessageSortant => ({ ...m, deLaReception: true, prixDuCatalogue: true });', '    const signe = (m: MessageSortant): MessageSortant => m;')] },
-      { nom: 'equipe ne passe pas la main', mute: [P(AUTO, "    if (r.suite === 'equipe') {\n      const s = laMain('question', true, r.texte);", "    if (false) {\n      const s = laMain('question', true, r.texte);")] },
+      { nom: 'equipe ne passe pas la main', mute: [P(AUTO, "    if (r.suite === 'equipe') {\n      const s = laMain('question', true, r.texte, true);", "    if (false) {\n      const s = laMain('question', true, r.texte, true);")] },
       { nom: 'la fonction ne demande jamais la reception', mute: [P(F_AUTO, 'reception = await demandeALaReception(o, { tour, fiches, docs, ms });', "reception = { texte: '', suite: 'rien' };")] },
       { nom: 'un mot refuse laisse la cliente sans reponse', mute: [P(F_AUTO, 'if (direct && sortie.messages.some((m) => juge2(m).length > 0)) {', 'if (false) {')] },
       { nom: 'la trace ne dit plus Assistant Maison', mute: [P(F_AUTO, "parQui: o.m.deLaReception ? 'Assistant Maison' : 'Le Trône',", "parQui: 'Le Trône',")] },
       { nom: 'les calibres gardent leur identifiant court : le toucher se perd', mute: [P(AUTO, "id: l.id.startsWith('calibre:') ? choix('calibre', l.id.slice('calibre:'.length)) : l.id", 'id: l.id')] },
       { nom: 'un calibre touche relance le parcours au lieu de la reception', mute: [P(AUTO, "    parle = lisLeChoix(tour.choix.id)?.geste !== 'calibre';", '    parle = true;')] },
+    ],
+  },
+
+  /* ══ R44 · une main passée par la réception n'arrête pas une réservation, 28 octobre 2026 ═══
+     L'essai de Yéman, à 0 h 41 : sur « Bonjour », la réception a passé la
+     main à l'équipe, la Maison fermée ; « Je veux un RDV » puis « Pour le
+     jeudi à 9h » sont restés sans réponse. */
+  {
+    id: 'R44', nom: 'R44 la main de la reception : une envie de reserver rouvre le parcours, sans second bonjour ; la main d une personne ou de l automate tient',
+    eprouve: () => {
+      const { ecarts, vaut, vrai } = juge();
+      const t0 = cotonou('2026-10-28', '00:41');
+      const p = parcours(ORIGINAL, NUM_NAFFI, [NAFFI]);
+      const ctx = ctxDe(p, t0);
+      const bonjour = tourDeLaCliente([{ waId: 'wamid.bj', quand: isoDe(t0), texte: 'Bonjour', type: 'text', sens: 'entrant' }], []);
+      const eq = reponseDeLaReception(null, bonjour, ctx, { texte: 'Une personne de la Maison prend le relais dès 8 h.', suite: 'equipe' });
+      vaut('la reception passe la main en le disant', ['main', true], [eq.etat.etape, eq.etat.mainDeLaReception === true]);
+      const sec = reponseDeLaReception(null, bonjour, ctx, secoursDeLaReception(t0, SEMAINE, []));
+      vrai('son secours aussi', sec.etat.mainDeLaReception === true);
+      const t1 = t0 + 60000;
+      const ctx1 = ctxDe(p, t1);
+      const rdv = tourDeLaCliente([{ waId: 'wamid.rdv', quand: isoDe(t1), texte: 'Je veux un RDV', type: 'text', sens: 'entrant' }], eq.etat.traites);
+      vaut('« Je veux un RDV » apres sa main : le juge parle', 'parle', jugeLaParole(eq.etat, rdv, ctx1).parole);
+      const s = etapeSuivante(eq.etat, rdv, ctx1);
+      vaut('... et le parcours s ouvre, la main de la reception levee', [true, true, false, undefined], [
+        s.pris, ['meme', 'besoin', 'qui', 'rituel'].includes(s.messages[0]?.etape ?? ''), s.etat.etape === 'main', s.etat.mainDeLaReception]);
+      const merci = tourDeLaCliente([{ waId: 'wamid.mc', quand: isoDe(t1), texte: 'Merci', type: 'text', sens: 'entrant' }], eq.etat.traites);
+      const sienne = { ...eq.etat, mainDeLaReception: undefined };
+      const pause: MainDuFil = { numero: NUM_NAFFI, pauseLe: isoDe(t1 - 30000), jusqua: isoDe(t1 + 3600000) } as MainDuFil;
+      vaut('ce qui tient : un merci apres sa main, la main de l automate, la pause d une personne', ['silence', 'silence', 'silence'], [
+        jugeLaParole(eq.etat, merci, ctx1).parole, jugeLaParole(sienne, rdv, ctx1).parole, jugeLaParole(eq.etat, rdv, { ...ctx1, main: pause }).parole]);
+      const ouvert = etapeSuivante(null, tourPourLeParcours(bonjour), ctx);
+      const seul = etapeSuivante(null, { ...bonjour, texte: 'Je voudrais prendre rendez-vous.' }, ctx);
+      vaut('apres le mot de la reception, le parcours ne salue pas une seconde fois ; seul, il salue', [false, true], [
+        /^(Bonjour|Bonsoir)\b/.test(ouvert.messages[0]?.corps ?? ''), /^(Bonjour|Bonsoir)\b/.test(seul.messages[0]?.corps ?? '')]);
+      return ecarts;
+    },
+    pannes: [
+      { nom: 'la main de la reception arrete encore la reservation', mute: [P(AUTO, "  if (courante === 'main' && etat?.mainDeLaReception && tour && intentionDeReserver(tour.texte)) return 'repos';\n", '')] },
+      { nom: 'toute main cede a une envie de reserver', mute: [P(AUTO, "  if (courante === 'main' && etat?.mainDeLaReception && tour && intentionDeReserver(tour.texte)) return 'repos';", "  if (courante === 'main' && tour && intentionDeReserver(tour.texte)) return 'repos';")] },
+      { nom: 'la reception ne dit plus qu elle a passe la main', mute: [P(AUTO, "      const s = laMain('question', true, r.texte, true);", "      const s = laMain('question', true, r.texte);")] },
+      { nom: 'l atelier garde la main de la reception', mute: [P(AUTO, "  const courante = tour || reprise ? etapeDuTour(ancien, tour, ctx.main, ms, pauseH) : (ancien?.etape ?? 'repos');", "  const courante = tour || reprise ? etapeCourante(ancien, ctx.main, ms, pauseH) : (ancien?.etape ?? 'repos');")] },
+      { nom: 'le parcours resalue apres le mot de la reception', mute: [P(AUTO, '    const salue = !tour?.deLaReception;', '    const salue = true;')] },
+      { nom: 'le tour du parcours ne se dit plus de la reception', mute: [P(AUTO, 'media: false, deLaReception: true });', 'media: false });')] },
     ],
   },
 ];

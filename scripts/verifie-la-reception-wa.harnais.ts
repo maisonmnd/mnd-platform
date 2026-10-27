@@ -30,6 +30,11 @@ dit('chaque repere de la consigne partagee existe la-bas', REPERES_DE_LA_CONSIGN
 const c = consigneDeLaReception();
 dit('la consigne de la reception : elle repond elle-meme, dit qu elle est l assistant, et la suite', [true, false, true, true, true],
   [c.includes('Tu es l’assistant de la Maison MND'), c.includes('tu PROPOSES'), c.includes('"suite"'), c.includes('« l’assistant de la Maison »'), c.includes('Une création de locks ou une réparation commence TOUJOURS par une consultation')]);
+/* L'essai du 28 octobre 2026, 0 h 41 : sur « Bonjour », Claude s'est excusé
+   d'un ancien message et a passé la main, la Maison fermée. */
+dit('la consigne : un ancien message ni la Maison fermee ne passent la main ; un bonjour ouvre la liste ; equipe jamais pour un rendez-vous', [true, true, true],
+  [c.includes('Ni ce retard ni la Maison fermée ne sont une raison de passer la main'), c.includes('Un simple bonjour, sans autre demande : accueille-la en une phrase, sans question ; suite "reserver"'),
+    c.includes('Jamais pour un bonjour, un rendez-vous, un prix, les heures ou l’adresse')]);
 const PERMIS = new Set([35000, 40000, 50000, 15000]);
 dit('les montants d un texte', [35000, 40000, 15000], montantsDe('De 35 000 F à 40000 FCFA, et 15 000 francs.'));
 dit('une reponse sure passe telle quelle', { texte: 'Avec plaisir, Madame Naffi. Pour votre calibre, le resserrage est à 40 000 F.', suite: 'rien' },
@@ -58,7 +63,7 @@ const ctx = contexteDeLaReception({
   semaine: SEMAINE, exceptions: [], maintenantMs: lundiSoir, premiereReponse: true,
 });
 dit('le contexte : l adresse, les heures, la Maison fermee et quand elle repond, la premiere reponse', [true, true, true, true],
-  [ctx.includes('Ilot 130-F, Maison 88, Portail Marron'), /Heures d’ouverture : .*08h00 à 20h30/.test(ctx), /la Maison est fermée ; une personne de l’équipe lui répondra demain/.test(ctx), ctx.includes('présente-toi comme l’assistant de la Maison')]);
+  [ctx.includes('Ilot 130-F, Maison 88, Portail Marron'), /Heures d’ouverture : .*08h00 à 20h30/.test(ctx), /la Maison est fermée, et tu réponds pour elle ; si la suite revient à l’équipe, une personne lui répondra demain/.test(ctx), ctx.includes('présente-toi comme l’assistant de la Maison')]);
 
 /* ── ② LE VRAI FICHIER, CONTRE UNE BASE ET UN CLAUDE SIMULÉS ── */
 type Row = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any

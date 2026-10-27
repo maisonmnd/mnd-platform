@@ -468,6 +468,8 @@ function consigneDeLaReception() {
     "Tu es un programme, et tu ne le caches jamais : dans ta première réponse d’une conversation, présente-toi comme « l’assistant de la Maison » ; à une question sincère (« êtes-vous un robot ? »), dis-le franchement, et qu’une personne de l’équipe peut prendre le relais à tout moment.",
     "Les heures de la Maison et son adresse sont dans le contexte. Quand la suite revient à l’équipe et que la Maison est fermée, dis quand une personne lui répondra : à la réouverture que le contexte indique.",
     "Quand un choix suit (la liste des prestations, celle des calibres), ne l’énumère pas : il part juste après ton message, à toucher.",
+    'Réponds à son dernier message. Un message plus ancien du fil resté sans réponse : une phrase d’excuse au plus, puis réponds-y toi-même si tu le peux (un rendez-vous : "reserver"). Ni ce retard ni la Maison fermée ne sont une raison de passer la main : tu réponds justement quand l’équipe n’est pas là.',
+    'Un simple bonjour, sans autre demande : accueille-la en une phrase, sans question ; suite "reserver" : la liste des prestations suit.',
     "",
     "Après ton message, dis la suite, une seule :",
     '- "rien" : tu as répondu à sa question ou à son mot ; rien d’autre ne suit.',
@@ -475,7 +477,7 @@ function consigneDeLaReception() {
     '- "creation" : elle veut créer ses locks ; tu dis la consultation d’abord et le devis écrit après ; la liste suit pour réserver la consultation.',
     '- "reparation" : ses locks ont besoin d’être réparées ; même chose, la consultation d’abord.',
     '- "calibre" : elle demande un prix qui dépend de ses locks et son nombre de locks n’est pas connu ; ton message le lui demande avec délicatesse, sans aucun montant ; la liste des calibres de la Maison suit.',
-    '- "equipe" : sa santé ou une gêne, une plainte, un remboursement, un règlement, une photo ou un vocal, ou ce que tu ne sais pas faire : ton message dit, avec égards, qu’une personne de la Maison prend le relais.',
+    '- "equipe" : sa santé ou une gêne, une plainte, un remboursement, un règlement, une photo ou un vocal, ou ce que tu ne sais pas faire : ton message dit, avec égards, qu’une personne de la Maison prend le relais. Jamais pour un bonjour, un rendez-vous, un prix, les heures ou l’adresse : à ceux-là, tu réponds toi-même.',
     "",
     'Réponds uniquement par l’objet demandé : { "texte": "ton message", "suite": "rien" }.'
   ].join("\n");
@@ -500,7 +502,7 @@ function contexteDeLaReception(o) {
     "LA MAISON :",
     `- Adresse : ${ADRESSE_DE_LA_MAISON}.`,
     heures.length ? `- Heures d’ouverture : ${heures.join(" ; ")}.` : "- Heures d’ouverture : non communiquées ; ne donne aucune heure.",
-    reouverture === null ? "- En ce moment, la Maison est ouverte : une personne de l’équipe peut répondre dans la journée." : `- En ce moment, la Maison est fermée ; une personne de l’équipe lui répondra ${reouverture}.`,
+    reouverture === null ? "- En ce moment, la Maison est ouverte : une personne de l’équipe peut répondre dans la journée." : `- En ce moment, la Maison est fermée, et tu réponds pour elle ; si la suite revient à l’équipe, une personne lui répondra ${reouverture}.`,
     o.premiereReponse ? "- C’est ta première réponse dans cette conversation : présente-toi comme l’assistant de la Maison." : "- La Maison a déjà répondu dans cette conversation : ne te présente pas de nouveau, ne salue pas une seconde fois."
   ];
   return lignes.join("\n");
@@ -594,7 +596,7 @@ function prixSelonLeCalibre(s, ctx) {
 }
 
 // scripts/serveur/reception-wa.ts
-var VERSION = "2026-10-28-a";
+var VERSION = "2026-10-28-b";
 var MODELES = ["claude-haiku-5-5", "claude-sonnet-5-5"];
 var TARIFS = {
   "claude-haiku-5-5": { entree: 1, sortie: 5 },

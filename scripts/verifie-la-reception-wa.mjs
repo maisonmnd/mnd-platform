@@ -51,6 +51,9 @@ const PANNES = [
   ['la consigne garde « tu proposes »', PUR, "  for (const [avant, apres] of REPERES_DE_LA_CONSIGNE) c = c.replace(avant, apres);\n", ''],
   ['les calibres dans le desordre', PUR, '  const paliers = paliersDeLocks(bandes);\n  const nomDe', '  const paliers = paliersDeLocks(bandes).reverse();\n  const nomDe'],
   ['l adresse oubliee', PUR, '    `- Adresse : ${ADRESSE_DE_LA_MAISON}.`,\n', ''],
+  ['la consigne laisse un ancien message passer la main', PUR, "    'Réponds à son dernier message. Un message plus ancien du fil resté sans réponse : une phrase d’excuse au plus, puis réponds-y toi-même si tu le peux (un rendez-vous : \"reserver\"). Ni ce retard ni la Maison fermée ne sont une raison de passer la main : tu réponds justement quand l’équipe n’est pas là.',\n", ''],
+  ['un bonjour sans la liste', PUR, "    'Un simple bonjour, sans autre demande : accueille-la en une phrase, sans question ; suite \"reserver\" : la liste des prestations suit.',\n", ''],
+  ['la Maison fermee pousse a passer la main', PUR, 'la Maison est fermée, et tu réponds pour elle ; si la suite revient à l’équipe, une personne lui répondra', 'la Maison est fermée ; une personne de l’équipe lui répondra'],
 ];
 
 const md5 = (f) => createHash('md5').update(readFileSync(path.join(racine, f))).digest('hex');

@@ -211,6 +211,9 @@ type EtatDuFil = {
   rdvId?: string;
   mainPasseeLe?: string;
   motifMain?: MotifDeLaMain;
+  /** La main passée par la réception (Claude ou son secours), pas par une
+      personne : une envie de réserver la reprend (28 octobre 2026). */
+  mainDeLaReception?: boolean;
   /** L'étape où il en était quand la main est passée : « Rendre à
       l'automate » la reprend. */
   etapeAvantLaMain?: EtapeDuFil;
@@ -572,6 +575,8 @@ type TourDeLaCliente = {
   texte: string;
   choix?: ChoixDuTour;
   media: boolean;
+  /** Le parcours ouvert par la réception : son mot a déjà salué. */
+  deLaReception?: boolean;
 };
 
 const MEDIAS_WA = ['image', 'audio', 'video', 'document', 'sticker', 'location', 'contacts'];
@@ -1130,6 +1135,20 @@ function plafondDuFil(etat: EtatDuFil | null | undefined): number {
   return PLAFOND_DE_L_AUTOMATE + Math.min(6, Math.max(0, etat?.panier?.horsPlafond ?? 0));
 }
 
+/** L'ÉTAPE DU TOUR (28 octobre 2026). Sur un « bonjour », la réception
+    avait passé la main à l'équipe, la Maison fermée ; « Je veux un RDV » puis
+    « Pour le jeudi à 9h » sont restés sans réponse (essai de Yéman, 0 h 42).
+    Une main passée par la réception n'arrête pas une réservation : une envie
+    de réserver rouvre le parcours. Celle qu'une personne a prise (la pause)
+    tient toujours, et celle de l'automate aussi. */
+function etapeDuTour(
+  etat: EtatDuFil | null | undefined, tour: TourDeLaCliente | null, main: MainDuFil | null | undefined, maintenantMs: number, pauseHeures: number,
+): EtapeDuFil {
+  const courante = etapeCourante(etat, main, maintenantMs, pauseHeures);
+  if (courante === 'main' && etat?.mainDeLaReception && tour && intentionDeReserver(tour.texte)) return 'repos';
+  return courante;
+}
+
 function jugeLaParole(
   etat: EtatDuFil | null | undefined, tour: TourDeLaCliente, ctx: ContexteLeger,
 ): { parole: ParoleDuTour; motif?: MotifDeLaMain } {
@@ -1139,7 +1158,7 @@ function jugeLaParole(
   if (tour.waIds.length === 0) return { parole: 'silence' };
   const quand = msWa(tour.quand);
   if (Number.isFinite(quand) && ms - quand > TOUR_PERIME_MS) return { parole: 'silence' };
-  const courante = etapeCourante(etat, ctx.main, ms, ctx.reglage.pauseHeures);
+  const courante = etapeDuTour(etat, tour, ctx.main, ms, ctx.reglage.pauseHeures);
   if (courante === 'main' || courante === 'confirme') return { parole: 'silence' };
   const mots = motsReconnus(tour.texte, ms);
   const fiches = fichesServies(ctx);
@@ -1401,7 +1420,7 @@ function atelierDuTour(ancien: EtatDuFil | null | undefined, tour: TourDeLaClien
   const maintenant = isoWa(ms);
   const pauseH = ctx.reglage.pauseHeures;
   const aujourdhui = instantACotonou(ms).iso;
-  const courante = tour || reprise ? etapeCourante(ancien, ctx.main, ms, pauseH) : (ancien?.etape ?? 'repos');
+  const courante = tour || reprise ? etapeDuTour(ancien, tour, ctx.main, ms, pauseH) : (ancien?.etape ?? 'repos');
   const version = (ancien?.version ?? 0) + (memeVersion ? 0 : 1);
 
   const base: EtatDuFil = ancien
@@ -1502,7 +1521,7 @@ function atelierDuTour(ancien: EtatDuFil | null | undefined, tour: TourDeLaClien
       ? `Une personne de la Maison vous répond ici, ${appel()}.`
       : `La Maison vous répond ${quand}, ${appel()}.`;
   };
-  const laMain = (motif: MotifDeLaMain, dire: boolean, corps?: string): SortieDuTour => {
+  const laMain = (motif: MotifDeLaMain, dire: boolean, corps?: string, parLaReception = false): SortieDuTour => {
     if (ETAPES_EN_COURS.includes(base.etape)) {
       base.etapeAvantLaMain = base.etape;
       base.versionAvantLaMain = base.versionDeLEtape;
@@ -1513,6 +1532,7 @@ function atelierDuTour(ancien: EtatDuFil | null | undefined, tour: TourDeLaClien
     passe('main');
     base.mainPasseeLe = maintenant;
     base.motifMain = motif;
+    base.mainDeLaReception = parLaReception || undefined;
     const messages = dire ? [texte('main', corps ?? laMainDite())] : [];
     return sortie(messages, alerteDeLAutomate({ genre: 'main', prenom: prenomPourAlerte(), numero: ctx.numero, motif }));
   };
@@ -1937,11 +1957,14 @@ function atelierDuTour(ancien: EtatDuFil | null | undefined, tour: TourDeLaClien
     base.rdvId = undefined;
     base.mainPasseeLe = undefined;
     base.motifMain = undefined;
+    base.mainDeLaReception = undefined;
     base.etapeAvantLaMain = undefined;
     base.versionAvantLaMain = undefined;
-    if (fiches.length === 0) return dire(msgBesoin(false, true));
-    if (fiches.length === 1 && titulaire) return pourLaFiche(titulaire, true);
-    return dire(msgQui(false, true));
+    /* Ouvert par la réception, dont le mot précède : il a déjà salué. */
+    const salue = !tour?.deLaReception;
+    if (fiches.length === 0) return dire(msgBesoin(false, salue));
+    if (fiches.length === 1 && titulaire) return pourLaFiche(titulaire, salue);
+    return dire(msgQui(false, salue));
   };
 
   const introDeLaConsultation = (b: Besoin, nom: string): string => {
@@ -2377,7 +2400,7 @@ function atelierDuTour(ancien: EtatDuFil | null | undefined, tour: TourDeLaClien
   const laReception = (r: ReponseDeLaReception): SortieDuTour => {
     const signe = (m: MessageSortant): MessageSortant => ({ ...m, deLaReception: true, prixDuCatalogue: true });
     if (r.suite === 'equipe') {
-      const s = laMain('question', true, r.texte);
+      const s = laMain('question', true, r.texte, true);
       return { ...s, messages: s.messages.map((m) => signe({ ...m, corps: r.texte })) };
     }
     passe('clos');
@@ -2504,7 +2527,7 @@ function laReceptionPeutParler(
     simplement (ses mots à elle passeraient de nouveau par le juge, qui s'est
     tu), sans le choix d'une ancienne liste. */
 const INTENTION_DE_LA_RECEPTION = 'Je voudrais prendre rendez-vous.';
-const tourPourLeParcours = (tour: TourDeLaCliente): TourDeLaCliente => ({ waIds: tour.waIds, quand: tour.quand, texte: INTENTION_DE_LA_RECEPTION, media: false });
+const tourPourLeParcours = (tour: TourDeLaCliente): TourDeLaCliente => ({ waIds: tour.waIds, quand: tour.quand, texte: INTENTION_DE_LA_RECEPTION, media: false, deLaReception: true });
 
 /** Le mot de la réception qui précède la liste du parcours. */
 const prefaceDeLaReception = (texte: string, etape: EtapeDuFil): MessageSortant =>
