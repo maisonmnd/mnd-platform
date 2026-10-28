@@ -24,7 +24,8 @@ const francs = (x: number): string => `${Math.round(x).toLocaleString('fr-FR').r
 const deLaCliente = (prenom: string): string => (!prenom ? '' : /^[aeiouàâäéèêëîïôöûü]/i.test(prenom) ? `d’${prenom}` : `de ${prenom}`);
 /** LE FOYER (28 octobre 2026) : « de Nael et d’Aloys », « de Nael, de Sena et d’Aloys ». */
 const desTetes = (prenoms: readonly string[]): string => {
-  const dits = prenoms.filter(Boolean).map(deLaCliente);
+  /* Chaque prénom une fois : le point d'un compte porte plusieurs séances de la même tête (28 octobre 2026). */
+  const dits = [...new Set(prenoms.filter(Boolean))].map(deLaCliente);
   return dits.length <= 1 ? (dits[0] ?? '') : `${dits.slice(0, -1).join(', ')} et ${dits[dits.length - 1]}`;
 };
 

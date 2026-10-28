@@ -296,6 +296,16 @@ export function repartitionDuFoyer(payeXof: number, restes: readonly { id: strin
 export const idDuVersementDuFoyer = (transactionId: string, pieceId: string): string =>
   `${PREFIXE_DU_VERSEMENT}${transactionId}-${pieceId}`;
 
+/** LE JOUR D'UNE LIGNE, AVEC SON ANNÉE — 28 octobre 2026 : « 13 juin 2026 »
+    (le 1er se dit 1er). Le point d'un compte couvre plusieurs jours : chaque
+    ligne dit le sien, sinon la page ne dirait pas de quelle séance il s'agit. */
+export function jourCourtDit(iso: string): string {
+  const mois = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
+  const j = Number((iso ?? '').slice(8, 10)); const m = Number((iso ?? '').slice(5, 7));
+  if (!j || !m || m > 12) return '';
+  return `${j === 1 ? '1er' : j} ${mois[m - 1]} ${iso.slice(0, 4)}`;
+}
+
 /** Une tête du foyer, telle que la page la montre : son prénom, son jour, ses lignes, son reste. */
 export type TeteDuFoyer = { prenom: string; jour: string; lignes: { label: string; montantXof: number }[]; resteXof: number };
 
@@ -318,12 +328,16 @@ export function pageDuFoyer(o: {
     prenom: prenomDe(t.nom ?? t.rdv.clientName), jour: t.rdv.date ?? '', lignes: lignesDites(t.piece!), resteXof: etats[i].resteXof,
   }));
   const jours = [...new Set(tetes.map((t) => t.jour).filter(Boolean))];
+  /* Plusieurs jours (le point d'un compte, 28 octobre 2026) : chaque ligne dit le sien. */
+  const plusieursJours = jours.length > 1;
   return {
     etat,
     prenom: '',
     maitre: '',
     jour: jours.length === 1 ? jours[0] : '',
-    lignes: tetes.flatMap((t) => t.lignes.map((l) => ({ label: t.prenom ? `${t.prenom} · ${l.label}` : l.label, montantXof: l.montantXof }))),
+    lignes: tetes.flatMap((t) => t.lignes.map((l) => ({
+      label: [t.prenom, plusieursJours ? jourCourtDit(t.jour) : '', l.label].filter(Boolean).join(' · '), montantXof: l.montantXof,
+    }))),
     totalXof,
     recuXof,
     resteXof,

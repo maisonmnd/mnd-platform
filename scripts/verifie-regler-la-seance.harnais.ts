@@ -13,7 +13,7 @@ import {
   ALPHABET_DU_JETON, LONGUEUR_DU_JETON, jetonDe, estUnJeton, parametreDuLien, jetonDuParametre, referenceDuRdv,
   totalDeLaPiece, regleDeLaPiece, resteDeLaPiece, laPieceDuRdv, etatDuLien, partageDuPaiement, versementEnLigne,
   pieceReglee, rdvRegle, pageDuLien, moyenDit, dejaInscrit,
-  repartitionDuFoyer, pageDuFoyer, referenceDuFoyer, idDuVersementDuFoyer,
+  repartitionDuFoyer, pageDuFoyer, referenceDuFoyer, idDuVersementDuFoyer, jourCourtDit,
   type PieceLue, type RdvLu, type ReglementEnLigne,
 } from '../src/shared/regler-la-seance-pur';
 import { reglementsATraiter, partsDuReglement, marqueLeReglement, aAnnoncer, idDeLaPart } from '../src/shared/reglements-en-ligne-pur';
@@ -251,7 +251,7 @@ const remplis = () => {
 };
 remplis();
 const sante = await appelle();
-dit('GET : la version et les secrets en booleens, sans valeur', ['2026-10-28-a', { public: true, private: true, secret: true, service: true }], [sante.corps.version, sante.corps.secrets]);
+dit('GET : la version et les secrets en booleens, sans valeur', ['2026-10-28-b', { public: true, private: true, secret: true, service: true }], [sante.corps.version, sante.corps.secrets]);
 const lu = await appelle({ action: 'lire', jeton: j });
 dit('lire : le juste reste et le prenom, et la premiere ouverture se note sur le rendez-vous',
   [200, 'a-regler', 23500, 'Awa', true], [lu.status, lu.corps.page?.etat, lu.corps.page?.resteXof, lu.corps.page?.prenom, !!db.appointments[0].data.lienDeReglement.ouvertLe]);
@@ -357,6 +357,21 @@ const pf = pageDuFoyer({
 });
 dit('la page du foyer : les tetes vivantes avec leur piece, un seul reste, le jour commun, les lignes au prenom, pas de pourboire si une piece en porte deja', ['a-regler', 17000, '2026-10-27', ['Nael', 'Aloys'], 'Nael · Le Souffle', false, 'reg-foyer-abc'],
   [pf.etat, pf.resteXof, pf.jour, pf.tetes.map((x) => x.prenom), pf.lignes[0]?.label, pf.pourboire, pf.reference]);
+/* LE POINT D'UN COMPTE SUR PLUSIEURS JOURS (28 octobre 2026, 2026-10-28-b) :
+   la meme tete deux fois, a deux jours : chaque ligne dit son jour, avec son
+   annee ; le titre de la page dit chaque prenom une fois ; un seul jour, rien
+   ne change. */
+const pp = pageDuFoyer({
+  tetes: [
+    { rdv: { id: 'r1', date: '2026-06-13', status: 'honoré', clientName: 'M. D.' }, piece: { id: 'p1', lines: [{ label: 'Le Souffle', qty: 1, unitXof: 20000, discountPct: 0 }] }, nom: 'Merline D.' },
+    { rdv: { id: 'r2', date: '2026-09-01', status: 'honoré', clientName: 'M. D.' }, piece: { id: 'p2', lines: [{ label: 'La Reprise', qty: 1, unitXof: 30000, discountPct: 0 }] }, nom: 'Merline D.' },
+  ], jeton: 'abc', branchId: 'b1', maintenant: new Date('2026-10-28T09:00:00Z'),
+});
+dit('le point sur plusieurs jours : chaque ligne dit son jour avec l annee, pas de jour commun ; le 1er se dit 1er ; un seul jour garde le prenom seul', [['Merline · 13 juin 2026 · Le Souffle', 'Merline · 1er septembre 2026 · La Reprise'], '', 50000, 'Nael · Le Souffle', ''],
+  [pp.lignes.map((l) => l.label), pp.jour, pp.resteXof, pf.lignes[0]?.label, jourCourtDit('')]);
+dit('... la page dit chaque prenom une fois ; le Trone attend 2026-10-28-b pour un point de plusieurs jours', [true, true],
+  [/const dits = \[\.\.\.new Set\(prenoms\.filter\(Boolean\)\)\]\.map\(deLaCliente\);/.test(sansCommentaires(lis('src/apps/regler/App.tsx'))),
+    /export const saitReglerLePoint = \(v: string\): boolean => v >= '2026-10-28-b';/.test(lis('src/shared/regler-la-seance-serveur.ts'))]);
 dit('... tout annule : annule ; aucune piece : sans-piece', ['annule', 'sans-piece'],
   [pageDuFoyer({ tetes: [{ rdv: { id: 'r3', status: 'annulé' }, piece: null }], jeton: 'abc', maintenant: new Date() }).etat,
     pageDuFoyer({ tetes: [{ rdv: { id: 'r1', status: 'honoré' }, piece: null }], jeton: 'abc', maintenant: new Date() }).etat]);

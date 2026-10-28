@@ -23,7 +23,7 @@ export const NOMS = [
   'RdvLu', 'LienDuFoyer', 'jetonDe', 'estUnJeton', 'parametreDuLien', 'jetonDuParametre', 'referenceDuRdv', 'referenceDuFoyer', 'jourDeCotonou', 'heureDeCotonou',
   'n', 'netDeLaLigne', 'totalDeLaPiece', 'regleDeLaPiece', 'resteDeLaPiece', 'laPieceDuRdv', 'EtatDuLien', 'etatDuLien',
   'partageDuPaiement', 'moyenDit', 'versementEnLigne', 'dejaInscrit', 'pieceReglee', 'rdvRegle', 'prenomDe', 'maitreDit',
-  'lignesDites', 'pageDuLien', 'repartitionDuFoyer', 'idDuVersementDuFoyer', 'TeteDuFoyer', 'pageDuFoyer',
+  'lignesDites', 'pageDuLien', 'repartitionDuFoyer', 'idDuVersementDuFoyer', 'jourCourtDit', 'TeteDuFoyer', 'pageDuFoyer',
 ];
 
 const TETE = /^(?:export )?(?:type|const|function|async function) ([A-Za-z_][\w]*)/;

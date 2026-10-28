@@ -35,7 +35,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
  * KKIAPAY_API_BASE) et SERVICE_KEY, déjà posés sur le projet : rien à ajouter.
  */
 
-const VERSION = '2026-10-28-a';
+const VERSION = '2026-10-28-b';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SERVICE_KEY = Deno.env.get('SERVICE_KEY') ?? Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -289,6 +289,13 @@ export function repartitionDuFoyer(payeXof: number, restes: readonly { id: strin
 export const idDuVersementDuFoyer = (transactionId: string, pieceId: string): string =>
   `${PREFIXE_DU_VERSEMENT}${transactionId}-${pieceId}`;
 
+export function jourCourtDit(iso: string): string {
+  const mois = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
+  const j = Number((iso ?? '').slice(8, 10)); const m = Number((iso ?? '').slice(5, 7));
+  if (!j || !m || m > 12) return '';
+  return `${j === 1 ? '1er' : j} ${mois[m - 1]} ${iso.slice(0, 4)}`;
+}
+
 export type TeteDuFoyer = { prenom: string; jour: string; lignes: { label: string; montantXof: number }[]; resteXof: number };
 
 export function pageDuFoyer(o: {
@@ -308,12 +315,16 @@ export function pageDuFoyer(o: {
     prenom: prenomDe(t.nom ?? t.rdv.clientName), jour: t.rdv.date ?? '', lignes: lignesDites(t.piece!), resteXof: etats[i].resteXof,
   }));
   const jours = [...new Set(tetes.map((t) => t.jour).filter(Boolean))];
+  /* Plusieurs jours (le point d'un compte, 28 octobre 2026) : chaque ligne dit le sien. */
+  const plusieursJours = jours.length > 1;
   return {
     etat,
     prenom: '',
     maitre: '',
     jour: jours.length === 1 ? jours[0] : '',
-    lignes: tetes.flatMap((t) => t.lignes.map((l) => ({ label: t.prenom ? `${t.prenom} · ${l.label}` : l.label, montantXof: l.montantXof }))),
+    lignes: tetes.flatMap((t) => t.lignes.map((l) => ({
+      label: [t.prenom, plusieursJours ? jourCourtDit(t.jour) : '', l.label].filter(Boolean).join(' · '), montantXof: l.montantXof,
+    }))),
     totalXof,
     recuXof,
     resteXof,
