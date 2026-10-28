@@ -1067,9 +1067,11 @@ export async function receiptPdf(d: ReceiptPdfData): Promise<string> {
   row('Référence', d.ref);
   if (d.note) row('Note', d.note);
 
+  /* « Légèrement monter le cachet payé » (Yéman, 28 octobre 2026) : son pied
+     passe de 119 à 114 mm, il ne frôle plus le filet du bas. */
   if (paye) {
     const l = 38;
-    try { doc.addImage(paye, 'PNG', W - M - l, 119 - l / TAMPON_PAYE.ratio, l, l / TAMPON_PAYE.ratio, undefined, 'FAST'); } catch { /* image indisponible */ }
+    try { doc.addImage(paye, 'PNG', W - M - l, 114 - l / TAMPON_PAYE.ratio, l, l / TAMPON_PAYE.ratio, undefined, 'FAST'); } catch { /* image indisponible */ }
   }
 
   doc.setDrawColor('#e3dacb');
