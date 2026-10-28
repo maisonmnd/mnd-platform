@@ -43,7 +43,7 @@
    POST|PUT ?rappel=<ref>  l'annonce de MTN pour une demande ou un virement.
    ═══════════════════════════════════════════════════════════════════ */
 
-const VERSION = '2026-10-29-a';
+const VERSION = '2026-10-29-b';
 
 const json = (o: unknown, status = 200) =>
   new Response(JSON.stringify(o, null, 2), { status, headers: { 'content-type': 'application/json' } });
@@ -63,8 +63,16 @@ const EN_COURS = new Set(['PENDING', 'ONGOING']);
     « vous pouvez laisser le champ du callback vide en sandbox » ; le target
     environment est « sandbox »). Trois essais du 28 octobre l'avaient
     rempli : toute opération qui devait réussir tombait en
-    INVALID_CALLBACK_URL_HOST, quel que soit l'hôte. */
-const HOTE_SANDBOX = '';
+    INVALID_CALLBACK_URL_HOST, quel que soit l'hôte. Le 29 (2026-10-29-a),
+    le champ envoyé vide ("") est refusé à la création (400). Désormais
+    (-29-b, « ne mettre aucune valeur ») : la création sans le champ, puis
+    sans corps du tout, puis le champ vide ; la première que MTN accepte
+    sert à la suite, et chaque tentative est au rapport. */
+const CREATIONS_SANS_HOTE: { nom: string; corps: unknown }[] = [
+  { nom: 'sans le champ du rappel', corps: {} },
+  { nom: 'sans corps', corps: undefined },
+  { nom: 'champ du rappel vide', corps: { providerCallbackHost: '' } },
+];
 
 type Etape = { produit: string; etape: string; requete: string; http: number | null; ok: boolean; detail: string };
 type Outils = {
@@ -103,11 +111,12 @@ async function produit(nom: 'collection' | 'disbursement', cle: string, o: Outil
     }
   };
 
-  /** L'utilisateur d'API du Sandbox, sa clé, le jeton. `detaille` : une étape par appel. */
-  const entree = async (hoteRappel: string, detaille: boolean, titre: string) => {
+  /** L'utilisateur d'API du Sandbox, sa clé, le jeton. `detaille` : une étape par appel.
+      `creation` : le corps de la création (avec ou sans le champ du rappel, ou aucun). */
+  const entree = async (creation: { nom: string; corps: unknown }, detaille: boolean, titre: string) => {
     const u = o.uuid();
-    let r = await appel('POST', '/v1_0/apiuser', { 'X-Reference-Id': u }, { providerCallbackHost: hoteRappel });
-    if (detaille) note('Créer l’utilisateur d’API', 'POST /v1_0/apiuser', r.http, r.http === 201, r.http === 201 ? `utilisateur ${court(u)}` : motif(r.corps) || `réponse ${r.http}`);
+    let r = await appel('POST', '/v1_0/apiuser', { 'X-Reference-Id': u }, creation.corps);
+    if (detaille) note(`Créer l’utilisateur d’API, ${creation.nom}`, 'POST /v1_0/apiuser', r.http, r.http === 201, r.http === 201 ? `utilisateur ${court(u)}` : motif(r.corps) || `réponse ${r.http}`);
     if (r.http !== 201) { if (!detaille) note(titre, 'POST /v1_0/apiuser', r.http, false, motif(r.corps)); return null; }
     r = await appel('GET', `/v1_0/apiuser/${u}`, {});
     if (detaille) note('Relire l’utilisateur', 'GET /v1_0/apiuser/{id}', r.http, r.http === 200,
@@ -119,12 +128,17 @@ async function produit(nom: 'collection' | 'disbursement', cle: string, o: Outil
     r = await appel('POST', `/${nom}/token/`, { Authorization: 'Basic ' + btoa(`${u}:${apiKey}`) });
     const jeton = r.http === 200 ? String(r.corps?.access_token ?? '') : '';
     if (detaille) note('Obtenir le jeton d’accès', `POST /${nom}/token/`, r.http, !!jeton, jeton ? `jeton reçu, valable ${r.corps?.expires_in ?? '?'} s` : motif(r.corps));
-    else note(titre, 'POST /v1_0/apiuser, puis sa clé et son jeton', r.http, !!jeton, jeton ? `utilisateur ${court(u)}, rappels vers ${hoteRappel}` : motif(r.corps));
+    else note(titre, 'POST /v1_0/apiuser, puis sa clé et son jeton', r.http, !!jeton, jeton ? `utilisateur ${court(u)}, ${creation.nom}` : motif(r.corps));
     return jeton ? { Authorization: `Bearer ${jeton}`, 'X-Target-Environment': ENV_CIBLE } : null;
   };
 
-  // Le champ du rappel vide, comme MTN le conseille ; l'hôte du projet si MTN refuse le vide.
-  const auth = await entree(HOTE_SANDBOX, true, '') ?? await entree(o.hoteRappel, false, `Utilisateur de repli, rappels vers ${o.hoteRappel}`);
+  // Sans valeur de rappel, comme MTN le conseille ; l'hôte du projet si MTN refuse toutes les formes sans valeur.
+  let auth: Record<string, string> | null = null;
+  for (const creation of CREATIONS_SANS_HOTE) {
+    auth = await entree(creation, true, '');
+    if (auth) break;
+  }
+  auth = auth ?? await entree({ nom: `rappels vers ${o.hoteRappel}`, corps: { providerCallbackHost: o.hoteRappel } }, false, `Utilisateur de repli, rappels vers ${o.hoteRappel}`);
   if (!auth) return;
 
   // Ce numéro a-t-il un compte MoMo ?
