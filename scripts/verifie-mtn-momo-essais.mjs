@@ -10,9 +10,12 @@ import { spawnSync } from 'node:child_process';
    (supabase/functions/mtn-momo-essais/index.ts) tourne ici contre un faux
    Sandbox MTN et une fausse base. On y verifie : la version au GET sans
    aucune cle montree ; le lancement refuse sans la cle du projet ; le
-   parcours complet (utilisateur, cle, jeton, compte actif, demande reussie,
-   demande refusee, virement, soldes) ; le bac a sable seul ; l'euro ; le
-   rappel garde ; aucun secret au rapport ; une cle absente dite, pas cassee.
+   parcours complet ; le bac a sable seul ; l'euro ; le rappel garde ; aucun
+   secret au rapport ; une cle absente dite, pas cassee.
+   Deux Sandbox simules : l'IDEAL (tout passe du premier coup) et celui du
+   PREMIER ESSAI REEL du 28 octobre (l'hote nu refuse au rappel, le virement et
+   le solde refuses) : la fonction doit alors retenter avec l'origine complete,
+   en depot, et le solde par sa devise.
    `--prouve` : chaque faute est remise une a une dans le vrai fichier (copie
    gardee, restauration dans un finally, empreintes comparees), et le banc
    doit crier a chacune. */
@@ -27,12 +30,16 @@ const PANNES = [
   ['la cle de l utilisateur au rapport', "apiKey ? 'clé reçue (gardée sur le serveur)'", 'apiKey ? apiKey'],
   ['le mauvais environnement cible', "const ENV_CIBLE = 'sandbox';", "const ENV_CIBLE = 'mtnbenin';"],
   ['le statut lu une seule fois', '      if (!EN_COURS.has(statut)) break;', '      break;'],
-  ['le refus compte comme un echec', "(s) => s === 'REJECTED' || s === 'FAILED');", "(s) => s === 'SUCCESSFUL');"],
+  ['le refus compte comme un echec', "(s) => s === 'REJECTED' || s === 'FAILED', auth, false);", "(s) => s === 'SUCCESSFUL', auth, false);"],
   ['un rappel sans reference lisible', '    if (!REF.test(ref) || (req.method', '    if ((req.method'],
   ['le franc dans le bac a sable', "const DEVISE = 'EUR';", "const DEVISE = 'XOF';"],
-  ['la demande sans adresse de rappel', ", 'X-Callback-Url': o.adresseRappel(ref) }", ' }'],
+  ['la demande de rappel sans adresse de rappel', "    if (rappel) { entetes['X-Callback-Url'] = o.adresseRappel(ref); refs.push(ref); }", '    if (rappel) { refs.push(ref); }'],
   ['les cles montrees au GET', 'cles: { collection: !!k.collection, disbursement: !!k.disbursement }', 'cles: { collection: k.collection, disbursement: k.disbursement }'],
   ['le jeton au rapport', "jeton ? `jeton reçu, valable ${r.corps?.expires_in ?? '?'} s`", 'jeton ? jeton'],
+  ['pas de second essai du rappel', "    if (avec.pourquoi === 'INVALID_CALLBACK_URL_HOST') {", '    if (false) {'],
+  ['pas de depot apres un virement refuse', '    if (!reussie(v.statut)) await suis(', '    if (false) await suis('],
+  ['pas de solde par sa devise', '  if (r.http !== 200) {\n    r = await appel(\'GET\', `/${nom}/v1_0/account/balance/${DEVISE}`', '  if (false) {\n    r = await appel(\'GET\', `/${nom}/v1_0/account/balance/${DEVISE}`'],
+  ['les demandes ordinaires avec rappel', "demande('MND-ESSAI-1', NUMERO_REUSSI), reussie, auth, false);", "demande('MND-ESSAI-1', NUMERO_REUSSI), reussie, auth, true);"],
 ];
 
 const md5 = (f) => createHash('md5').update(readFileSync(path.join(racine, f))).digest('hex');
@@ -80,10 +87,12 @@ const ENV = {
 const REFUSE = '46733123451';
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+/** Le Sandbox simule : `ideal`, ou celui du premier essai reel. */
+let sandbox = 'ideal';
 let journal = [];
-const utilisateurs = new Map();   // id -> { cle, apiKey, hote }
-const jetons = new Map();          // jeton -> produit
-const operations = new Map();      // ref -> { lu, refuse, produit }
+const utilisateurs = new Map();   // id -> { cle, hote, apiKey }
+const jetons = new Map();          // jeton -> { produit, hote }
+const operations = new Map();      // ref -> { lu, issue }
 const base = new Map();            // key -> data
 let secretsVus = [];
 
@@ -123,29 +132,36 @@ async function fauxFetch(entree, init = {}) {
     const [id, k] = Buffer.from((h.authorization ?? '').replace(/^Basic /, ''), 'base64').toString().split(':');
     const u = utilisateurs.get(id);
     if (!u || u.apiKey !== k || u.cle !== cle || (m[1] === 'collection' ? KC : KD) !== cle) return rep(401, { error: 'login_failed' });
-    const jeton = `JETON-SECRET-${randomUUID().slice(0, 8)}`; secretsVus.push(jeton); jetons.set(jeton, m[1]);
+    const jeton = `JETON-SECRET-${randomUUID().slice(0, 8)}`; secretsVus.push(jeton); jetons.set(jeton, { produit: m[1], hote: u.hote });
     return rep(200, { access_token: jeton, token_type: 'access_token', expires_in: 3600 });
   }
   const produit = p.split('/')[1];
-  const jeton = (h.authorization ?? '').replace(/^Bearer /, '');
-  if (jetons.get(jeton) !== produit) return rep(401, { message: 'jeton refuse' });
+  const jeton = jetons.get((h.authorization ?? '').replace(/^Bearer /, ''));
+  if (jeton?.produit !== produit) return rep(401, { message: 'jeton refuse' });
   if (h['x-target-environment'] !== 'sandbox') return rep(400, { code: 'TARGET_ENVIRONMENT_INVALID' });
   if ((m = p.match(/^\/(collection|disbursement)\/v1_0\/accountholder\/msisdn\/(\d+)\/active$/))) return rep(200, { result: true });
-  if (p.match(/^\/(collection|disbursement)\/v1_0\/account\/balance$/)) return rep(200, { availableBalance: '1000', currency: 'EUR' });
-  if ((p === '/collection/v1_0/requesttopay' || p === '/disbursement/v1_0/transfer') && methode === 'POST') {
+  if (p.match(/^\/(collection|disbursement)\/v1_0\/account\/balance$/)) {
+    return sandbox === 'ideal' ? rep(200, { availableBalance: '1000', currency: 'EUR' }) : rep(500, { code: 'NOT_ALLOWED_TARGET_ENVIRONMENT' });
+  }
+  if (p.match(/^\/(collection|disbursement)\/v1_0\/account\/balance\/EUR$/)) return rep(200, { availableBalance: '1000', currency: 'EUR' });
+  if (['/collection/v1_0/requesttopay', '/disbursement/v1_0/transfer', '/disbursement/v1_0/deposit'].includes(p) && methode === 'POST') {
     const ref = h['x-reference-id'];
     if (!UUID.test(ref ?? '')) return rep(400, { code: 'REFERENCE_ID_INVALID' });
     if (corps?.currency !== 'EUR') return rep(500, { code: 'NOT_ALLOWED_TARGET_ENVIRONMENT' });
-    if (!(h['x-callback-url'] ?? '').startsWith(`${PROJET}/functions/v1/mtn-momo-essais?rappel=${ref}`)) return rep(400, { code: 'CALLBACK_ATTENDU' });
+    const rappel = h['x-callback-url'];
+    if (rappel && !rappel.startsWith(`${PROJET}/functions/v1/mtn-momo-essais?rappel=${ref}`)) return rep(400, { code: 'RAPPEL_MAL_FORME' });
     const numero = (corps.payer ?? corps.payee)?.partyId;
-    operations.set(ref, { lu: 0, refuse: numero === REFUSE, produit });
+    let issue = numero === REFUSE ? { status: 'FAILED', reason: 'APPROVAL_REJECTED' } : { status: 'SUCCESSFUL', financialTransactionId: '1234567' };
+    /* Le Sandbox du premier essai : l'hote nu ne vaut pas pour un rappel, l'origine complete oui ; le virement est refuse, le depot non. */
+    if (sandbox === 'reel' && rappel && jeton.hote !== new URL(rappel).origin && issue.status === 'SUCCESSFUL') issue = { status: 'FAILED', reason: 'INVALID_CALLBACK_URL_HOST' };
+    if (sandbox === 'reel' && p.endsWith('/transfer')) issue = { status: 'FAILED', reason: 'NOT_ALLOWED_TARGET_ENVIRONMENT' };
+    operations.set(ref, { lu: 0, issue });
     return rep(202);
   }
-  if ((m = p.match(/^\/(collection\/v1_0\/requesttopay|disbursement\/v1_0\/transfer)\/([^/]+)$/)) && methode === 'GET') {
+  if ((m = p.match(/^\/(collection\/v1_0\/requesttopay|disbursement\/v1_0\/transfer|disbursement\/v1_0\/deposit)\/([^/]+)$/)) && methode === 'GET') {
     const op = operations.get(m[2]); if (!op) return rep(404, { code: 'RESOURCE_NOT_FOUND' });
     op.lu++;
-    if (op.lu === 1) return rep(200, { status: 'PENDING' });
-    return rep(200, op.refuse ? { status: 'REJECTED', reason: 'APPROVAL_REJECTED' } : { status: 'SUCCESSFUL', financialTransactionId: '1234567' });
+    return op.lu === 1 ? rep(200, { status: 'PENDING' }) : rep(200, op.issue);
   }
   return rep(404, { message: `inattendu ${methode} ${p}` });
 }
@@ -169,6 +185,8 @@ let echecs = 0;
 const dit = (nom, ok, vu = '') => { console.log(`${ok ? 'OK   ' : 'ECHEC'} ${nom}${ok ? '' : ` -> ${vu}`}`); if (!ok) echecs++; };
 const appelle = (chemin, init = {}) => gestionnaire(new Request(`${PROJET}/functions/v1/mtn-momo-essais${chemin}`, init));
 const lance = (cle = ANON) => appelle('?lancer=1', { method: 'POST', headers: cle ? { Authorization: `Bearer ${cle}` } : {} });
+const etapeDe = (o, produit, nom) => o.etapes?.find((e) => e.produit === produit && e.etape === nom);
+const ratees = (o) => JSON.stringify((o.etapes ?? []).filter((e) => !e.ok)).slice(0, 400);
 
 dit('le fichier se charge et sert', typeof gestionnaire === 'function');
 
@@ -187,38 +205,53 @@ dit('sans cle du projet, rien ne se lance (401) et MTN n est pas appele', r.stat
 r = await lance('une-autre-cle');
 dit('une autre cle est refusee aussi', r.status === 401, String(r.status));
 
-// 3. Le parcours complet.
-journal = []; secretsVus = [];
+// 3. Le Sandbox ideal : tout passe du premier coup, aucune seconde tentative.
+sandbox = 'ideal'; journal = []; secretsVus = [];
 r = await lance();
 t = await r.text();
 o = JSON.parse(t);
-const etape = (produit, nom) => o.etapes?.find((e) => e.produit === produit && e.etape === nom);
-dit('le parcours tient : toutes les etapes reussies', r.status === 200 && o.total === 15 && o.reussis === 15,
-  `${r.status} ${o.reussis}/${o.total} ${JSON.stringify((o.etapes ?? []).filter((e) => !e.ok)).slice(0, 300)}`);
-dit('la demande qui reussit va jusqu a SUCCESSFUL, malgre un premier PENDING', /statut SUCCESSFUL, transaction 1234567/.test(etape('collection', 'Demande de paiement qui réussit')?.detail ?? ''), etape('collection', 'Demande de paiement qui réussit')?.detail);
-dit('la demande refusee dit REJECTED et son motif', /statut REJECTED, motif APPROVAL_REJECTED/.test(etape('collection', 'Demande de paiement refusée par la cliente')?.detail ?? '') && etape('collection', 'Demande de paiement refusée par la cliente')?.ok === true,
-  etape('collection', 'Demande de paiement refusée par la cliente')?.detail);
-dit('le virement va jusqu a SUCCESSFUL', /statut SUCCESSFUL/.test(etape('disbursement', 'Virement vers un compte MoMo')?.detail ?? ''), etape('disbursement', 'Virement vers un compte MoMo')?.detail);
-dit('les soldes sont lus des deux cotes', /solde 1000 EUR/.test(etape('collection', 'Lire le solde du compte')?.detail ?? '') && /solde 1000 EUR/.test(etape('disbursement', 'Lire le solde du compte')?.detail ?? ''));
+dit('ideal : seize etapes, toutes reussies', r.status === 200 && o.total === 16 && o.reussis === 16, `${r.status} ${o.reussis}/${o.total} ${ratees(o)}`);
+dit('ideal : la demande ordinaire va jusqu a SUCCESSFUL, malgre un premier PENDING', /statut SUCCESSFUL, transaction 1234567/.test(etapeDe(o, 'collection', 'Demande de paiement qui réussit')?.detail ?? ''), etapeDe(o, 'collection', 'Demande de paiement qui réussit')?.detail);
+dit('ideal : la demande refusee dit FAILED et son motif', /statut FAILED, motif APPROVAL_REJECTED/.test(etapeDe(o, 'collection', 'Demande de paiement refusée par la cliente')?.detail ?? '') && etapeDe(o, 'collection', 'Demande de paiement refusée par la cliente')?.ok === true,
+  etapeDe(o, 'collection', 'Demande de paiement refusée par la cliente')?.detail);
+dit('ideal : ni second utilisateur, ni depot, ni solde par devise', !o.etapes.some((e) => /Second utilisateur|Dépôt|solde en euros/.test(e.etape)), ratees(o));
+dit('ideal : la relecture dit l hote de nos rappels', /environnement sandbox, rappels vers projet-essai\.supabase\.co/.test(etapeDe(o, 'collection', 'Relire l’utilisateur')?.detail ?? ''), etapeDe(o, 'collection', 'Relire l’utilisateur')?.detail);
+const avecRappel = journal.filter((j) => j.h['x-callback-url']);
+dit('ideal : une seule demande porte l adresse de rappel, les autres non', avecRappel.length === 1 && avecRappel[0].corps?.externalId === 'MND-ESSAI-3', avecRappel.map((j) => j.corps?.externalId).join(','));
+dit('ideal : un rappel attendu, pas encore recu', o.rappels?.length === 1 && o.rappels[0].recu === false, JSON.stringify(o.rappels));
 const versMtn = journal.filter((j) => !j.url.startsWith(PROJET));
 dit('tout appel vers MTN va au bac a sable, et a lui seul', versMtn.length > 0 && versMtn.every((j) => j.url.startsWith('https://sandbox.momodeveloper.mtn.com/')), versMtn.map((j) => j.url).find((u) => !u.startsWith('https://sandbox.')));
 dit('chaque appel d operation porte l environnement sandbox', versMtn.filter((j) => j.h.authorization?.startsWith('Bearer ')).every((j) => j.h['x-target-environment'] === 'sandbox'));
 dit('les montants sont en euros d essai', versMtn.filter((j) => j.corps?.amount).every((j) => j.corps.currency === 'EUR' && j.corps.amount === '100'));
-dit('l hote de rappel est celui du projet', journal.find((j) => j.url.endsWith('/v1_0/apiuser'))?.corps?.providerCallbackHost === 'projet-essai.supabase.co');
-const tout = t;
-dit('aucun secret au rapport : ni cles d abonnement, ni cle d utilisateur, ni jeton', ![KC, KD, SERVICE, ...secretsVus].some((s) => tout.includes(s)),
-  [KC, KD, SERVICE, ...secretsVus].find((s) => tout.includes(s)));
-dit('l utilisateur n y parait qu en huit signes', /utilisateur [0-9a-f]{8}…/.test(etape('collection', 'Créer l’utilisateur d’API')?.detail ?? '') && !UUID.test(etape('collection', 'Créer l’utilisateur d’API')?.detail ?? ''));
-dit('trois rappels attendus, aucun recu encore', o.rappels?.length === 3 && o.rappels.every((x) => x.recu === false), JSON.stringify(o.rappels));
+dit('aucun secret au rapport : ni cles d abonnement, ni cle d utilisateur, ni jeton', ![KC, KD, SERVICE, ...secretsVus].some((s) => t.includes(s)), [KC, KD, SERVICE, ...secretsVus].find((s) => t.includes(s)));
+dit('l utilisateur n y parait qu en huit signes', /utilisateur [0-9a-f]{8}…/.test(etapeDe(o, 'collection', 'Créer l’utilisateur d’API')?.detail ?? '') && !UUID.test(etapeDe(o, 'collection', 'Créer l’utilisateur d’API')?.detail ?? ''));
 
-// 4. Le rappel de MTN : garde, puis relu au rapport suivant.
-const refs = journal.filter((j) => j.h['x-callback-url']).map((j) => j.h['x-reference-id']);
-r = await appelle(`?rappel=${refs[0]}`, { method: 'PUT', body: JSON.stringify({ status: 'SUCCESSFUL', financialTransactionId: '1234567' }) });
-dit('un rappel de MTN est recu sans jeton et garde', r.status === 200 && base.get('mtn_momo_essais_rappels')?.parRef?.[refs[0]]?.status === 'SUCCESSFUL', `${r.status} ${JSON.stringify(base.get('mtn_momo_essais_rappels'))}`);
+// 4. Le rappel de MTN : garde sans jeton.
+const refRappel = avecRappel[0]?.h['x-reference-id'];
+r = await appelle(`?rappel=${refRappel}`, { method: 'PUT', body: JSON.stringify({ status: 'SUCCESSFUL', financialTransactionId: '1234567' }) });
+dit('un rappel de MTN est recu sans jeton et garde', r.status === 200 && base.get('mtn_momo_essais_rappels')?.parRef?.[refRappel]?.status === 'SUCCESSFUL', `${r.status} ${JSON.stringify(base.get('mtn_momo_essais_rappels'))}`);
 r = await appelle('?rappel=pas-une-reference', { method: 'POST', body: '{}' });
 dit('un rappel sans reference lisible est refuse (400)', r.status === 400, String(r.status));
 
-// 5. Une cle absente se dit, rien ne casse.
+// 5. Le Sandbox du premier essai reel : la fonction retente ce qu il faut.
+sandbox = 'reel'; journal = []; secretsVus = [];
+r = await lance();
+t = await r.text();
+o = JSON.parse(t);
+dit('reel : vingt et une etapes, les deux refus du Sandbox dits et retentes', r.status === 200 && o.total === 21 && o.reussis === 17, `${o.reussis}/${o.total} ${ratees(o)}`);
+dit('reel : le rappel avec l hote nu est dit INVALID_CALLBACK_URL_HOST', /statut FAILED, motif INVALID_CALLBACK_URL_HOST/.test(etapeDe(o, 'collection', 'Demande avec adresse de rappel')?.detail ?? ''), etapeDe(o, 'collection', 'Demande avec adresse de rappel')?.detail);
+dit('reel : un second utilisateur annonce l origine complete, et sa demande avec rappel reussit',
+  /rappels vers https:\/\/projet-essai\.supabase\.co/.test(etapeDe(o, 'collection', 'Second utilisateur, rappels vers l’origine complète')?.detail ?? '')
+  && /statut SUCCESSFUL/.test(etapeDe(o, 'collection', 'Demande avec adresse de rappel (origine complète)')?.detail ?? ''),
+  ratees(o));
+dit('reel : le virement refuse est dit, puis le depot reussit', /NOT_ALLOWED_TARGET_ENVIRONMENT/.test(etapeDe(o, 'disbursement', 'Virement vers un compte MoMo')?.detail ?? '')
+  && /statut SUCCESSFUL/.test(etapeDe(o, 'disbursement', 'Dépôt vers un compte MoMo')?.detail ?? ''), ratees(o));
+dit('reel : le solde refuse se lit par sa devise, des deux cotes', ['collection', 'disbursement'].every((p) => etapeDe(o, p, 'Lire le solde du compte')?.ok === false && /solde 1000 EUR/.test(etapeDe(o, p, 'Lire le solde en euros')?.detail ?? '')), ratees(o));
+dit('reel : deux rappels attendus', o.rappels?.length === 2, JSON.stringify(o.rappels));
+dit('reel : aucun secret au rapport', ![KC, KD, SERVICE, ...secretsVus].some((s) => t.includes(s)));
+
+// 6. Une cle absente se dit, rien ne casse.
+sandbox = 'ideal';
 const garde = ENV.MOMO_SANDBOX_DISBURSEMENT_KEY;
 ENV.MOMO_SANDBOX_DISBURSEMENT_KEY = '';
 r = await lance();

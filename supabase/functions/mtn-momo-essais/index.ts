@@ -42,7 +42,7 @@
    POST|PUT ?rappel=<ref>  l'annonce de MTN pour une demande ou un virement.
    ═══════════════════════════════════════════════════════════════════ */
 
-const VERSION = '2026-10-28-a';
+const VERSION = '2026-10-28-b';
 
 const json = (o: unknown, status = 200) =>
   new Response(JSON.stringify(o, null, 2), { status, headers: { 'content-type': 'application/json' } });
@@ -65,8 +65,8 @@ type Outils = {
   attendre: (ms: number) => Promise<void>;
   uuid: () => string;
   pause: number;
-  /** L'hôte de nos rappels, et l'adresse complète pour une référence. */
-  hoteRappel: string;
+  /** L'origine de nos rappels (https://<projet>.supabase.co), et l'adresse complète pour une référence. */
+  origineRappel: string;
   adresseRappel: (ref: string) => string;
   lireRappels: () => Promise<Record<string, { status?: string; quand?: string }>>;
 };
@@ -81,6 +81,13 @@ async function lis(r: Response): Promise<any> {
 /** Le motif d'un échec, tel que MTN le dit, sans rien d'autre. */
 const motif = (o: any): string => (o && typeof o === 'object' ? String(o.reason?.code ?? o.reason ?? o.code ?? o.message ?? '') : '').slice(0, 120);
 
+/* 28 octobre 2026, premier essai réel (2026-10-28-a, 11 étapes sur 15) : une
+   demande portant notre adresse de rappel est tombée en INVALID_CALLBACK_URL_HOST,
+   le virement et les soldes en NOT_ALLOWED_TARGET_ENVIRONMENT. Désormais :
+   les opérations se font d'abord SANS rappel ; le rappel s'éprouve à part,
+   avec l'hôte nu puis, s'il est refusé, avec l'origine complète ; le solde
+   se lit aussi par sa devise ; un virement refusé s'essaie en dépôt. Chaque
+   tentative est au rapport, réussie ou non. */
 async function produit(nom: 'collection' | 'disbursement', cle: string, o: Outils, etapes: Etape[]): Promise<string[]> {
   const refs: string[] = [];
   const note = (etape: string, requete: string, http: number | null, ok: boolean, detail: string) =>
@@ -99,38 +106,46 @@ async function produit(nom: 'collection' | 'disbursement', cle: string, o: Outil
     }
   };
 
-  // 1. L'utilisateur d'API du Sandbox, sa clé, le jeton.
-  const u = o.uuid();
-  let r = await appel('POST', '/v1_0/apiuser', { 'X-Reference-Id': u }, { providerCallbackHost: o.hoteRappel });
-  note('Créer l’utilisateur d’API', 'POST /v1_0/apiuser', r.http, r.http === 201, r.http === 201 ? `utilisateur ${court(u)}` : motif(r.corps));
-  if (r.http !== 201) return refs;
-  r = await appel('GET', `/v1_0/apiuser/${u}`, {});
-  note('Relire l’utilisateur', 'GET /v1_0/apiuser/{id}', r.http, r.http === 200, r.http === 200 ? `environnement ${r.corps?.targetEnvironment ?? '?'}` : motif(r.corps));
-  r = await appel('POST', `/v1_0/apiuser/${u}/apikey`, {});
-  const apiKey = r.http === 201 ? String(r.corps?.apiKey ?? '') : '';
-  note('Obtenir la clé de l’utilisateur', 'POST /v1_0/apiuser/{id}/apikey', r.http, !!apiKey, apiKey ? 'clé reçue (gardée sur le serveur)' : motif(r.corps));
-  if (!apiKey) return refs;
-  r = await appel('POST', `/${nom}/token/`, { Authorization: 'Basic ' + btoa(`${u}:${apiKey}`) });
-  const jeton = r.http === 200 ? String(r.corps?.access_token ?? '') : '';
-  note('Obtenir le jeton d’accès', `POST /${nom}/token/`, r.http, !!jeton, jeton ? `jeton reçu, valable ${r.corps?.expires_in ?? '?'} s` : motif(r.corps));
-  if (!jeton) return refs;
-  const auth = { Authorization: `Bearer ${jeton}`, 'X-Target-Environment': ENV_CIBLE };
+  /** L'utilisateur d'API du Sandbox, sa clé, le jeton. `detaille` : une étape par appel. */
+  const entree = async (hoteRappel: string, detaille: boolean, titre: string) => {
+    const u = o.uuid();
+    let r = await appel('POST', '/v1_0/apiuser', { 'X-Reference-Id': u }, { providerCallbackHost: hoteRappel });
+    if (detaille) note('Créer l’utilisateur d’API', 'POST /v1_0/apiuser', r.http, r.http === 201, r.http === 201 ? `utilisateur ${court(u)}` : motif(r.corps));
+    if (r.http !== 201) { if (!detaille) note(titre, 'POST /v1_0/apiuser', r.http, false, motif(r.corps)); return null; }
+    r = await appel('GET', `/v1_0/apiuser/${u}`, {});
+    if (detaille) note('Relire l’utilisateur', 'GET /v1_0/apiuser/{id}', r.http, r.http === 200,
+      r.http === 200 ? `environnement ${r.corps?.targetEnvironment ?? '?'}, rappels vers ${r.corps?.providerCallbackHost ?? '?'}` : motif(r.corps));
+    r = await appel('POST', `/v1_0/apiuser/${u}/apikey`, {});
+    const apiKey = r.http === 201 ? String(r.corps?.apiKey ?? '') : '';
+    if (detaille) note('Obtenir la clé de l’utilisateur', 'POST /v1_0/apiuser/{id}/apikey', r.http, !!apiKey, apiKey ? 'clé reçue (gardée sur le serveur)' : motif(r.corps));
+    if (!apiKey) { if (!detaille) note(titre, 'POST /v1_0/apiuser/{id}/apikey', r.http, false, motif(r.corps)); return null; }
+    r = await appel('POST', `/${nom}/token/`, { Authorization: 'Basic ' + btoa(`${u}:${apiKey}`) });
+    const jeton = r.http === 200 ? String(r.corps?.access_token ?? '') : '';
+    if (detaille) note('Obtenir le jeton d’accès', `POST /${nom}/token/`, r.http, !!jeton, jeton ? `jeton reçu, valable ${r.corps?.expires_in ?? '?'} s` : motif(r.corps));
+    else note(titre, 'POST /v1_0/apiuser, puis sa clé et son jeton', r.http, !!jeton, jeton ? `utilisateur ${court(u)}, rappels vers ${hoteRappel}` : motif(r.corps));
+    return jeton ? { Authorization: `Bearer ${jeton}`, 'X-Target-Environment': ENV_CIBLE } : null;
+  };
 
-  // 2. Ce numéro a-t-il un compte MoMo ?
-  r = await appel('GET', `/${nom}/v1_0/accountholder/msisdn/${NUMERO_REUSSI}/active`, auth);
+  const auth = await entree(new URL(o.origineRappel).host, true, '');
+  if (!auth) return refs;
+
+  // Ce numéro a-t-il un compte MoMo ?
+  let r = await appel('GET', `/${nom}/v1_0/accountholder/msisdn/${NUMERO_REUSSI}/active`, auth);
   note('Vérifier qu’un numéro a un compte', `GET /${nom}/v1_0/accountholder/msisdn/{numéro}/active`, r.http, r.http === 200, r.http === 200 ? `compte actif : ${r.corps?.result === true ? 'oui' : 'non'}` : motif(r.corps));
 
-  // 3. Les opérations, suivies jusqu'à leur statut.
-  const suis = async (etape: string, cheminPost: string, cheminGet: string, corps: unknown, attendu: (s: string) => boolean) => {
+  /** Une opération, suivie jusqu'à son statut. */
+  const suis = async (etape: string, cheminPost: string, corps: unknown, attendu: (s: string) => boolean, a: Record<string, string>, rappel: boolean) => {
     const ref = o.uuid();
-    refs.push(ref);
-    const p = await appel('POST', cheminPost, { ...auth, 'X-Reference-Id': ref, 'X-Callback-Url': o.adresseRappel(ref) }, corps);
-    if (p.http !== 202) { note(etape, `POST ${cheminPost}`, p.http, false, motif(p.corps)); return; }
+    const entetes: Record<string, string> = { ...a, 'X-Reference-Id': ref };
+    if (rappel) { entetes['X-Callback-Url'] = o.adresseRappel(ref); refs.push(ref); }
+    const p = await appel('POST', cheminPost, entetes, corps);
+    const requete = `POST ${cheminPost}${rappel ? ' (avec adresse de rappel)' : ''} puis GET ${cheminPost}/{référence}`;
+    if (p.http !== 202) { note(etape, requete, p.http, false, motif(p.corps)); return { statut: 'REFUSEE', pourquoi: motif(p.corps) }; }
     let statut = 'PENDING';
     let lu: any = null;
     let http: number | null = null;
     for (let k = 0; k < 6; k++) {
-      const g = await appel('GET', `${cheminGet}/${ref}`, auth);
+      const g = await appel('GET', `${cheminPost}/${ref}`, a);
       http = g.http; lu = g.corps;
       statut = String(lu?.status ?? (g.http === 200 ? 'PENDING' : 'INCONNU'));
       if (!EN_COURS.has(statut)) break;
@@ -138,28 +153,37 @@ async function produit(nom: 'collection' | 'disbursement', cle: string, o: Outil
     }
     const piece = lu?.financialTransactionId ? `, transaction ${lu.financialTransactionId}` : '';
     const pourquoi = motif(lu);
-    note(etape, `POST ${cheminPost} puis GET ${cheminGet}/{référence}`, http, attendu(statut),
-      `acceptée (202), statut ${statut}${piece}${pourquoi ? `, motif ${pourquoi}` : ''}`);
+    note(etape, requete, http, attendu(statut), `acceptée (202), statut ${statut}${piece}${pourquoi ? `, motif ${pourquoi}` : ''}`);
+    return { statut, pourquoi };
   };
-
+  const reussie = (s: string) => s === 'SUCCESSFUL';
   const montant = { amount: MONTANT, currency: DEVISE };
+  const message = { payerMessage: 'Maison MND, essai', payeeNote: 'Essai Sandbox' };
+
   if (nom === 'collection') {
-    await suis('Demande de paiement qui réussit', '/collection/v1_0/requesttopay', '/collection/v1_0/requesttopay',
-      { ...montant, externalId: 'MND-ESSAI-1', payer: { partyIdType: 'MSISDN', partyId: NUMERO_REUSSI }, payerMessage: 'Maison MND, essai', payeeNote: 'Essai Sandbox' },
-      (s) => s === 'SUCCESSFUL');
-    await suis('Demande de paiement refusée par la cliente', '/collection/v1_0/requesttopay', '/collection/v1_0/requesttopay',
-      { ...montant, externalId: 'MND-ESSAI-2', payer: { partyIdType: 'MSISDN', partyId: NUMERO_REFUSE }, payerMessage: 'Maison MND, essai', payeeNote: 'Essai Sandbox' },
-      (s) => s === 'REJECTED' || s === 'FAILED');
+    const demande = (externalId: string, numero: string) => ({ ...montant, externalId, payer: { partyIdType: 'MSISDN', partyId: numero }, ...message });
+    await suis('Demande de paiement qui réussit', '/collection/v1_0/requesttopay', demande('MND-ESSAI-1', NUMERO_REUSSI), reussie, auth, false);
+    await suis('Demande de paiement refusée par la cliente', '/collection/v1_0/requesttopay', demande('MND-ESSAI-2', NUMERO_REFUSE), (s) => s === 'REJECTED' || s === 'FAILED', auth, false);
+    const avec = await suis('Demande avec adresse de rappel', '/collection/v1_0/requesttopay', demande('MND-ESSAI-3', NUMERO_REUSSI), reussie, auth, true);
+    if (avec.pourquoi === 'INVALID_CALLBACK_URL_HOST') {
+      const auth2 = await entree(o.origineRappel, false, 'Second utilisateur, rappels vers l’origine complète');
+      if (auth2) await suis('Demande avec adresse de rappel (origine complète)', '/collection/v1_0/requesttopay', demande('MND-ESSAI-4', NUMERO_REUSSI), reussie, auth2, true);
+    }
   } else {
-    await suis('Virement vers un compte MoMo', '/disbursement/v1_0/transfer', '/disbursement/v1_0/transfer',
-      { ...montant, externalId: 'MND-ESSAI-3', payee: { partyIdType: 'MSISDN', partyId: NUMERO_REUSSI }, payerMessage: 'Maison MND, essai', payeeNote: 'Essai Sandbox' },
-      (s) => s === 'SUCCESSFUL');
+    const vers = (externalId: string) => ({ ...montant, externalId, payee: { partyIdType: 'MSISDN', partyId: NUMERO_REUSSI }, ...message });
+    const v = await suis('Virement vers un compte MoMo', '/disbursement/v1_0/transfer', vers('MND-ESSAI-5'), reussie, auth, false);
+    if (!reussie(v.statut)) await suis('Dépôt vers un compte MoMo', '/disbursement/v1_0/deposit', vers('MND-ESSAI-6'), reussie, auth, false);
   }
 
-  // 4. Le solde.
+  // Le solde, puis le solde par sa devise si le premier est refusé.
   r = await appel('GET', `/${nom}/v1_0/account/balance`, auth);
   note('Lire le solde du compte', `GET /${nom}/v1_0/account/balance`, r.http, r.http === 200,
     r.http === 200 ? `solde ${r.corps?.availableBalance ?? '?'} ${r.corps?.currency ?? ''}`.trim() : motif(r.corps));
+  if (r.http !== 200) {
+    r = await appel('GET', `/${nom}/v1_0/account/balance/${DEVISE}`, auth);
+    note('Lire le solde en euros', `GET /${nom}/v1_0/account/balance/${DEVISE}`, r.http, r.http === 200,
+      r.http === 200 ? `solde ${r.corps?.availableBalance ?? '?'} ${r.corps?.currency ?? ''}`.trim() : motif(r.corps));
+  }
   return refs;
 }
 
@@ -240,13 +264,12 @@ Deno.serve(async (req: Request) => {
   if (req.method === 'POST' && url.searchParams.get('lancer') === '1') {
     const jeton = (req.headers.get('authorization') ?? '').replace(/^Bearer\s+/i, '').trim();
     if (!ANON || jeton !== ANON) return json({ erreur: 'clé du projet attendue' }, 401);
-    const hote = new URL(URL_PROJET).host;
     const rapport = await deroule(k, {
       f: fetch,
       attendre: (ms) => new Promise((ok) => setTimeout(ok, ms)),
       uuid: () => crypto.randomUUID(),
       pause: Number(Deno.env.get('MOMO_ESSAIS_PAUSE_MS') ?? '2000'),
-      hoteRappel: hote,
+      origineRappel: new URL(URL_PROJET).origin,
       adresseRappel: (r) => `${URL_PROJET}/functions/v1/mtn-momo-essais?rappel=${r}`,
       lireRappels: rappelsGardes,
     });
