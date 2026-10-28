@@ -20,7 +20,9 @@
 .trc-ger__carte table { border-collapse: collapse; width: 100%; font-size: 13px; }
 .trc-ger__carte td, .trc-ger__carte th { padding: 7px 8px 7px 0; border-top: 1px solid var(--hairline); vertical-align: baseline; text-align: left; }
 .trc-ger__carte th { font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-soft); font-weight: 500; border-top: 0; }
-.trc-ger__carte td.d, .trc-ger__carte th.d { text-align: right; white-space: nowrap; padding-right: 0; }
+/* Un chiffre à droite garde son air avec la colonne suivante (28 octobre 2026 : « LIGNESDEVENU », « 3en route 1 »). */
+.trc-ger__carte td.d, .trc-ger__carte th.d { text-align: right; white-space: nowrap; padding-right: 16px; }
+.trc-ger__carte tr > .d:last-child { padding-right: 0; }
 .trc-ger__deux { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; align-items: start; }
 @media (max-width: 1100px) { .trc-ger__deux { grid-template-columns: minmax(0, 1fr); } }
 

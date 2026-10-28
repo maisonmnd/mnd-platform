@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type KeyboardEvent, type SyntheticEvent } from 'react';
+import { Fragment, useEffect, useMemo, useState, type KeyboardEvent, type SyntheticEvent } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { toast } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
@@ -29,7 +29,7 @@ import {
 } from '../../../../shared/gerard-pur';
 import { changeLePlafond, estActif, jamaisPourElle, metEnPause, reglagesLus, useReglagesDeGerard, type ReglagesDeGerard } from '../../../../shared/gerard';
 import {
-  GENRE_D_ATTENTE_DIT, attendUnHumain, fourchetteDite, francsEnJeu, fusionnePlanEtSalle, partiAujourdhui, porteeParCanal, tuilesDuJour,
+  GENRE_D_ATTENTE_DIT, attendUnHumain, detailDuParti, fourchetteDite, francsEnJeu, fusionnePlanEtSalle, partiAujourdhui, porteeParCanal, tuilesDuJour,
   type EnvoiDuJour, type FrancsEnJeu, type LigneDuJour,
 } from '../../../../shared/assistant-aujourdhui-pur';
 import { CLE_DU_SERVEUR, serveurVivant, type EtatDuServeur } from '../../../../shared/assistant-passage-pur';
@@ -308,6 +308,9 @@ export default function Gerard() {
   );
   /* Ce qui est parti aujourd'hui, tous types, à l'heure de Cotonou (`jourDuSalon`) ; et qui, par rangée. */
   const parti = useMemo(() => partiAujourdhui(envoisLus, tick), [envoisLus, tick]);
+  /* LE DÉTAIL D'UNE RANGÉE (28 octobre 2026, « j'ai besoin de tout le détail ») : une seule ouverte à la fois. */
+  const [rangeeOuverte, setRangeeOuverte] = useState<string | null>(null);
+  const detailOuvert = useMemo(() => (rangeeOuverte ? detailDuParti(envoisLus, rangeeOuverte, tick) : []), [envoisLus, rangeeOuverte, tick]);
   const clientesDuParti = useMemo(() => {
     const m = new Map<string, string[]>();
     for (const e of envoisDeLaPeriode(envoisLus, 'aujourdhui', parti.jour)) {
@@ -734,9 +737,16 @@ export default function Gerard() {
                       {parti.rangees.map((r) => {
                         const puce = puceDuCanal(r.cle.split('|')[1] ?? '');
                         const noms = clientesDuParti.get(r.cle) ?? [];
+                        const ouverte = rangeeOuverte === r.cle;
                         return (
-                          <tr key={r.cle}>
-                            <td>{r.heure}</td>
+                          <Fragment key={r.cle}>
+                          <tr className={`trc-am__rangee${ouverte ? ' is-open' : ''}`} onClick={() => setRangeeOuverte(ouverte ? null : r.cle)}>
+                            <td>
+                              <button type="button" className="trc-am__ouvre" aria-expanded={ouverte} aria-label={`${ouverte ? 'Fermer' : 'Ouvrir'} le détail : ${r.quoi}`}
+                                onClick={(ev) => { ev.stopPropagation(); setRangeeOuverte(ouverte ? null : r.cle); }}>
+                                {r.heure}
+                              </button>
+                            </td>
                             <td>{r.quoi}</td>
                             <td><span className={`trc-am__puce trc-am__puce--${puce.ton}`}>{puce.dit}</span></td>
                             <td className="d">{r.lignes}</td>
@@ -745,6 +755,35 @@ export default function Gerard() {
                             <td>{r.codes.join(', ')}</td>
                             <td className="trc-am__noms">{noms.length > 8 ? `${noms.slice(0, 8).join(', ')} et ${noms.length - 8} autres` : noms.join(', ')}</td>
                           </tr>
+                          {ouverte && (
+                            <tr className="trc-am__detail">
+                              <td colSpan={7}>
+                                <ol className="trc-am__messages">
+                                  {detailOuvert.map((l) => {
+                                    const qui = (l.clientId ? nomDe(l.clientId) : '') || l.prenom || 'Sans fiche';
+                                    const chemin = cheminDeLaConversation(l.numero);
+                                    return (
+                                      <li key={l.id} className={l.aRegarder ? 'is-alarme' : undefined}>
+                                        <div className="trc-am__message-tete">
+                                          <b>{l.heure}</b>
+                                          <span>{qui}</span>
+                                          {l.numero && <span className="trc-am__numero">+{chiffresSeuls(l.numero)}</span>}
+                                          <span className={l.aRegarder ? 'trc-am__alarme' : 'trc-am__devenu'}>{l.devenu}{l.motif ? ` · ${l.motif}` : ''}</span>
+                                          {l.code && <span>code {l.code}</span>}
+                                          {chemin && <Link className="trc-ger__btn" to={chemin}>La conversation</Link>}
+                                        </div>
+                                        {l.texte
+                                          ? <p className="trc-am__texte">{l.texte}</p>
+                                          : <p className="trc-ger__doux">Le texte n’est pas gardé pour ce message (modèle Meta sans copie au fil).</p>}
+                                        {l.modele && <small className="trc-ger__doux">modèle {l.modele}</small>}
+                                      </li>
+                                    );
+                                  })}
+                                </ol>
+                              </td>
+                            </tr>
+                          )}
+                          </Fragment>
                         );
                       })}
                     </tbody>

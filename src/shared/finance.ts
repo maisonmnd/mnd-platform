@@ -189,6 +189,10 @@ export type Invoice = {
       Posée au comptoir par toute personne qui encaisse ; la tournée du
       serveur ne relance plus cette facture tant qu'elle est là. */
   relancesPause?: { le: string; par?: string };
+  /** LA PROCHAINE RELANCE DÉCALÉE (28 octobre 2026) : « il paie le 5 ». La
+      relance de rang `rang` part le jour `au`, les suivantes gardent leurs
+      écarts (relances-pur.ts, `jourDeLaRelance`). */
+  relancesDecalage?: { au: string; rang: number; le: string; par?: string };
   /** UNE PRESTATION REMPLACÉE APRÈS COUP (26 octobre 2026) : les lignes d'avant
       chaque remplacement, pour le défaire (remplacer-une-prestation-pur.ts). */
   remplacements?: { le: string; de: string; vers: string; lines: InvoiceLine[]; globalDiscountXof?: number }[];

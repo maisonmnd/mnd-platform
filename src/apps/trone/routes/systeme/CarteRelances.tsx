@@ -8,7 +8,10 @@ import { fmtMoney } from '../../../../shared/currency';
 import { invoiceResteXof, quiEncaisse, useInvoices } from '../../../../shared/finance';
 import { jourDit } from '../../../../shared/gestes-conversation';
 import { jourLocal } from '../../../../shared/mnd-pay-pur';
-import { CADENCE_DES_RELANCES, JOURS_DE_RATTRAPAGE, jourPlusR, seRelance, type ReglagesRelances } from '../../../../shared/relances-pur';
+import {
+  CADENCE_DES_FAMILLES, CADENCE_DES_RELANCES, JOURS_AU_PLUS, JOURS_DE_RATTRAPAGE, RELANCES_AU_PLUS, jourPlusR, rythmeDe, rythmeValide, seRelance,
+  type ReglagesRelances,
+} from '../../../../shared/relances-pur';
 import { useEstDirection } from '../_vie';
 
 /* ══ LES RELANCES DES FACTURES, LEUR INTERRUPTEUR — 18 octobre 2026 ═════
@@ -29,6 +32,10 @@ export function CarteRelances() {
   const aujourdhui = jourLocal(new Date().toISOString());
   const [verdict, setVerdict] = useState<string | null>(null);
   const [ecartees, setEcartees] = useState<Set<string>>(new Set());
+  /* LES RYTHMES (28 octobre 2026) : « 1, 3, 7, 14 » se tape, se relit, s'enregistre. */
+  const dit = (c: readonly number[]) => c.join(', ');
+  const [saisie, setSaisie] = useState<{ seule: string; famille: string }>(() => ({ seule: dit(rythmeDe(r, false)), famille: dit(rythmeDe(r, true)) }));
+  const lu = (t: string) => rythmeValide(t.split(/[^\d]+/).filter(Boolean).map(Number));
 
   const tapGoPret = settings.mndPay?.actif === true && settings.mndPay?.tapgo?.actif !== false;
 
@@ -60,21 +67,36 @@ export function CarteRelances() {
     if (!supabase) { setVerdict('Pas de connexion à la Maison.'); return; }
     const { data, error } = await supabase.functions.invoke('relances-factures', { method: 'GET' });
     if (error) { setVerdict('La fonction relances-factures ne répond pas : elle n’est pas encore posée.'); return; }
-    const d = data as { version?: string; secrets?: { WA_TEMPLATE_RELANCE?: number } };
+    const d = data as { version?: string; secrets?: { WA_TEMPLATE_RELANCE?: number; WA_TEMPLATE_RAPPEL_DU_POINT?: number } };
+    /* Ce que la fonction voit du modèle du point : les factures le lisent pour dire juste (28 octobre 2026). */
+    const point = (d.secrets?.WA_TEMPLATE_RAPPEL_DU_POINT ?? 0) > 0;
+    if (estDirection && point !== !!r.modelePoint) pose({ modelePoint: point });
     setVerdict(d.secrets?.WA_TEMPLATE_RELANCE
-      ? `relances-factures ${d.version ?? ''} répond, le modèle est nommé.`
+      ? `relances-factures ${d.version ?? ''} répond, le modèle est nommé. ${point
+        ? 'Le rappel groupé est nommé : un payeur reçoit un seul rappel pour toutes ses factures.'
+        : 'Le rappel groupé (rappel_du_point) n’est pas encore nommé : seules les factures d’un même jour partent ensemble.'}`
       : `relances-factures ${d.version ?? ''} répond, mais le secret WA_TEMPLATE_RELANCE n’est pas posé : rien ne part.`);
   };
 
+  const enregistreLeRythme = (cle: 'seule' | 'famille') => {
+    if (!estDirection) { toast('Ce réglage appartient à la direction.'); return; }
+    const c = lu(saisie[cle]);
+    if (!c) { toast(`Des jours croissants, de 1 à ${JOURS_AU_PLUS}, ${RELANCES_AU_PLUS} au plus : par exemple « ${dit(cle === 'seule' ? CADENCE_DES_RELANCES : CADENCE_DES_FAMILLES)} ».`); return; }
+    pose({ rythmes: { ...(r.rythmes ?? {}), [cle]: c } });
+    setSaisie((avant) => ({ ...avant, [cle]: dit(c) }));
+    toast(`Rythme ${cle === 'seule' ? 'des clientes seules' : 'des comptes famille'} : ${c.map((j) => `J+${j}`).join(', ')}.`);
+  };
+
   const nomDe = (id: string, repli?: string) => clients.find((c) => c.id === id)?.name || repli || 'Cliente';
-  const cadence = CADENCE_DES_RELANCES.map((j) => `J+${j}`).join(', ');
+  const cadence = rythmeDe(r, false).map((j) => `J+${j}`).join(', ');
 
   return (
     <Card className="sys-section" style={{ marginTop: 18 }}>
       <div className="sys-section__title">Relances des factures</div>
       <div className="sys-section__cap">
-        Une facture qui reste à régler se rappelle seule à la cliente sur WhatsApp, à 10 h : {cadence}, avec le bouton « Régler ».
-        Tout s’arrête dès qu’elle paie ou qu’elle écrit à la Maison ; une pause se pose sur la facture.
+        Une facture qui reste à régler se rappelle seule sur WhatsApp, à 10 h ({cadence} pour une cliente seule), avec le bouton « Régler ».
+        Celle d’un enfant part au payeur de son compte famille, et ses factures du même jour ne font qu’un rappel.
+        Tout s’arrête dès qu’on paie ou qu’on écrit à la Maison ; une pause se pose sur la facture.
       </div>
       <div className="sys-row">
         <div>
@@ -88,6 +110,28 @@ export function CarteRelances() {
         </div>
         <Toggle on={!!r.actives} onToggle={bascule} />
       </div>
+      {([['seule', 'Rythme · cliente seule', 'Une cliente qui paie pour elle-même.'],
+        ['famille', 'Rythme · compte famille', 'Le payeur d’un compte famille : ses enfants, ses proches.']] as const).map(([cle, titre, sous]) => (
+        <div className="sys-row" key={cle} data-rythme={cle}>
+          <div>
+            <div className="sys-row__label">{titre}</div>
+            <div className="sys-row__sub">
+              {sous} Les jours après la facture : {rythmeDe(r, cle === 'famille').map((j) => `J+${j}`).join(', ')}, à 10 h. Sur une facture, « Décaler la prochaine relance » fixe le jour de la suivante.
+            </div>
+          </div>
+          <span style={{ display: 'inline-flex', gap: 6, alignItems: 'center' }}>
+            <input
+              aria-label={titre}
+              value={saisie[cle]}
+              disabled={!estDirection}
+              onChange={(e) => setSaisie((avant) => ({ ...avant, [cle]: e.target.value }))}
+              style={{ width: 120 }}
+            />
+            <button type="button" className="mnd-btn mnd-btn--ghost mnd-btn--sm" disabled={!estDirection || dit(lu(saisie[cle]) ?? []) === dit(rythmeDe(r, cle === 'famille'))}
+              onClick={() => enregistreLeRythme(cle)}>Enregistrer</button>
+          </span>
+        </div>
+      ))}
       <div className="sys-row">
         <div>
           <div className="sys-row__label">Vérifier le branchement</div>

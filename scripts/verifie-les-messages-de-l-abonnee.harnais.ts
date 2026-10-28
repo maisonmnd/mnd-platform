@@ -452,24 +452,34 @@ const sansNumeroDePiece = (t: string) => !/MND-\d|ABO-\d|\d{4}-\d{3,4}/.test(t);
     clients: [fiche('c-na', undefined, { name: 'Nadia Essai', familyId: 'fam-1' }), fiche('c-ak', '0197000014')], families: [{ id: 'fam-1', data: { payerClientId: 'c-ak' } }],
   });
   dit('tête portée sans numéro : la relance va à celle qui paie pour son foyer', '2290197000014', G.lignes('envois')[0]?.data?.numero);
-  /* Une facture ORDINAIRE garde son destinataire d'avant : la payeuse, sinon
-     la soignée ; jamais celle qui paie pour le foyer (aucune règle nouvelle
-     sur ce que reçoivent les clientes hors formule). */
+  /* UNE FACTURE ORDINAIRE VA AU PAYEUR DU COMPTE FAMILLE (28 octobre 2026,
+     « les messages de relance doivent partir au parent », Yéman), au rythme
+     des comptes famille (J+7 d'origine) ; la formule, elle, garde le rythme
+     de son échéancier (plus haut, G). */
   const ordinaireDeNadia = pieceL({ id: 'inv-n', kind: 'facture', status: 'envoyée', date: '2026-10-20', creeeLe: '2026-10-20T11:00:00Z', number: 'MND-2026-0301', branchId: 'b1', clientId: 'c-na', lines: [{ qty: 1, unitXof: 25000, discountPct: 0 }], globalDiscountPct: 0, payments: [] });
   const H = await joueL(Date.parse('2026-10-21T09:00:00Z'), {
     subscribers: [], invoices: [ordinaireDeNadia],
     clients: [fiche('c-na', undefined, { name: 'Nadia Essai', familyId: 'fam-1' }), fiche('c-ak', '0197000014')], families: [{ id: 'fam-1', data: { payerClientId: 'c-ak' } }],
   });
-  dit('facture ordinaire d une tête sans numéro : aucune relance vers le foyer, comme avant (sans numéro)', [0, 0, 1],
-    [H.r.relances, H.lignes('envois').length, H.r.sautes?.['sans-numero']]);
+  const H7 = await joueL(Date.parse('2026-10-27T09:00:00Z'), {
+    subscribers: [], invoices: [ordinaireDeNadia],
+    clients: [fiche('c-na', undefined, { name: 'Nadia Essai', familyId: 'fam-1' }), fiche('c-ak', '0197000014')], families: [{ id: 'fam-1', data: { payerClientId: 'c-ak' } }],
+  });
+  dit('facture ordinaire d une tête sans numéro : au payeur de son compte famille, à J+7 (rien à J+1)', [0, 1, '2290197000014'],
+    [H.r.relances, H7.r.relances, H7.lignes('envois')[0]?.data?.numero]);
   const ordinaireSoignee = pieceL({ id: 'inv-s', kind: 'facture', status: 'envoyée', date: '2026-10-20', creeeLe: '2026-10-20T11:00:00Z', number: 'MND-2026-0302', branchId: 'b1', clientId: 'c-pa', forClientId: 'c-so', lines: [{ qty: 1, unitXof: 25000, discountPct: 0 }], globalDiscountPct: 0, payments: [] });
   const I = await joueL(Date.parse('2026-10-21T09:00:00Z'), {
     subscribers: [], invoices: [ordinaireSoignee],
     clients: [fiche('c-pa', undefined, { name: 'Payeuse Essai', familyId: 'fam-2' }), fiche('c-so', '0197000099', { name: 'Soignee Essai' }), fiche('c-fo', '0197000077')],
     families: [{ id: 'fam-2', data: { payerClientId: 'c-fo' } }],
   });
-  dit('facture ordinaire, payeuse sans numéro : la soignée, comme avant, jamais le foyer', ['2290197000099', 'c-so'],
-    [I.lignes('envois')[0]?.data?.numero, I.lignes('envois')[0]?.data?.clientId]);
+  const I7 = await joueL(Date.parse('2026-10-27T09:00:00Z'), {
+    subscribers: [], invoices: [ordinaireSoignee],
+    clients: [fiche('c-pa', undefined, { name: 'Payeuse Essai', familyId: 'fam-2' }), fiche('c-so', '0197000099', { name: 'Soignee Essai' }), fiche('c-fo', '0197000077')],
+    families: [{ id: 'fam-2', data: { payerClientId: 'c-fo' } }],
+  });
+  dit('facture ordinaire, payeuse d un compte famille : au payeur du compte, jamais la soignée, à J+7', [0, '2290197000077', 'c-fo'],
+    [I.r.relances, I7.lignes('envois')[0]?.data?.numero, I7.lignes('envois')[0]?.data?.clientId]);
 }
 
 /* ── 3ter. LES REGLES DU 20 OCTOBRE AU SOIR (tranchees au selecteur, et la reponse a la sonde) ── */

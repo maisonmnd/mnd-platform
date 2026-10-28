@@ -27,7 +27,8 @@ import { appelDe } from '../../../../shared/civilite';
 import { invoiceResteXof, useInvoices } from '../../../../shared/finance';
 import { useSettings } from '../../../../shared/settings';
 import { jourDuSalon } from '../../../../shared/envois';
-import { aAppeler, departDesRelances, etatDesRelancesDeLaPiece, seRelance } from '../../../../shared/relances-pur';
+import { aAppeler, departDesRelances, etatDesRelancesDeLaPiece, relanceDeLaPiece, seRelance } from '../../../../shared/relances-pur';
+import { useSubscribers } from '../../../../shared/abonnements';
 import { useEnvois } from '../equipe/data';
 import { TuileCapturesAInscrire } from './TuileCapturesAInscrire';
 /** LES GESTES QUI SE LISENT TÊTE PAR TÊTE. Les mains, le prix d'achat et les
@@ -116,18 +117,39 @@ export default function AFaire() {
   const [factures] = useInvoices();
   const [envoisDuJournal] = useEnvois();
   const [reglagesMaison] = useSettings();
+  const [contrats] = useSubscribers();
+  /* 28 octobre 2026 : un rappel groupé (le payeur d'un compte famille, ses
+     factures du même numéro) ne fait qu'UNE ligne, au total, au nom de celui
+     qui le reçoit ; le rythme de son type dit quand la dernière est partie. */
   const aAppelerListe = useMemo(() => {
     const auj = todayISO();
-    return factures.filter((f) => {
-      if (f.branchId !== branch.id || !seRelance(f)) return false;
-      const depart = departDesRelances(f, reglagesMaison.relances, jourDuSalon);
+    const piecesDesContrats = new Set(contrats.map((c) => c.invoiceId).filter((x): x is string => !!x));
+    const estFormule = (f: (typeof factures)[number]) => piecesDesContrats.has(f.id) || /^Abonnement/.test(f.note ?? '');
+    const vues = new Set<string>();
+    const liste: { f: (typeof factures)[number]; nom?: string; tel?: string; n: number; resteXof: number }[] = [];
+    for (const f of factures) {
+      if (f.branchId !== branch.id || !seRelance(f) || vues.has(f.id)) continue;
       const reste = invoiceResteXof(f);
-      if (!depart || !(reste > 0)) return false;
       const enPause = !!f.relancesPause;
-      const e = etatDesRelancesDeLaPiece({ factureId: f.id, depart, journal: envoisDuJournal, resteXof: reste, enPause, aujourdhui: auj, jourDe: jourDuSalon });
-      return aAppeler(e, { resteXof: reste, enPause, aujourdhui: auj });
-    });
-  }, [factures, envoisDuJournal, reglagesMaison.relances, branch.id]);
+      if (estFormule(f)) {
+        const depart = departDesRelances(f, reglagesMaison.relances, jourDuSalon);
+        if (!depart || !(reste > 0)) continue;
+        const e = etatDesRelancesDeLaPiece({ factureId: f.id, depart, journal: envoisDuJournal, resteXof: reste, enPause, aujourdhui: auj, jourDe: jourDuSalon });
+        if (aAppeler(e, { resteXof: reste, enPause, aujourdhui: auj })) liste.push({ f, n: 1, resteXof: reste });
+        continue;
+      }
+      const rel = relanceDeLaPiece({
+        piece: f, pieces: factures, fiches: clients, familles, reglages: reglagesMaison.relances, journal: envoisDuJournal,
+        aujourdhui: auj, jourDe: jourDuSalon, resteDe: invoiceResteXof, estFormule,
+      });
+      if (!rel) continue;
+      for (const m of rel.membres) vues.add(m.id);
+      if (aAppeler(rel.etat, { resteXof: rel.resteXof, enPause: rel.enPause, aujourdhui: auj })) {
+        liste.push({ f, nom: rel.destinataire?.name, tel: rel.destinataire?.phone, n: rel.membres.length, resteXof: rel.resteXof });
+      }
+    }
+    return liste;
+  }, [factures, envoisDuJournal, reglagesMaison.relances, branch.id, clients, familles, contrats]);
 
   const travail = useMemo(() => leTravail({
     branchId: branch.id,
@@ -328,12 +350,12 @@ export default function AFaire() {
         <section id="a-appeler" className="trp-af-bloc">
           <div className="trp-af-bloc__t">
             <b>À appeler</b>
-            <span>Quatre relances sont parties sur WhatsApp, rien n’est réglé : la voix prend le relais.</span>
+            <span>Toutes les relances de son rythme sont parties sur WhatsApp, rien n’est réglé : la voix prend le relais.</span>
           </div>
-          {aAppelerListe.map((f) => {
+          {aAppelerListe.map(({ f, nom: nomDuRappel, tel: telDuRappel, n, resteXof }) => {
             const fiche = clients.find((c) => c.id === f.clientId);
-            const nom = fiche?.name || f.clientName || 'Cliente';
-            const tel = (fiche?.phone ?? '').trim();
+            const nom = nomDuRappel || fiche?.name || f.clientName || 'Cliente';
+            const tel = (telDuRappel ?? fiche?.phone ?? '').trim();
             return (
               <div key={f.id} className="trp-af-tete">
                 <span className="trp-af-av">
@@ -341,7 +363,7 @@ export default function AFaire() {
                 </span>
                 <span className="trp-af-tete__n"><b>{nom}</b></span>
                 <span className="trp-af-tete__vient">
-                  facture du {frJourAn(f.date)} · reste {fmtMoney(invoiceResteXof(f), currency)}{tel ? ` · ${tel}` : ''}
+                  {n > 1 ? `${n} factures` : `facture du ${frJourAn(f.date)}`} · reste {fmtMoney(resteXof, currency)}{tel ? ` · ${tel}` : ''}
                 </span>
                 <span className="trp-af-micro">
                   {tel && <a className="trp-af-mbtn" href={`tel:${tel.replace(/[^\d+]/g, '')}`}>Appeler</a>}

@@ -16,7 +16,9 @@ import { transformSync } from 'esbuild';
 import {
   CADENCE_DES_RELANCES, departDesRelances, relanceDuJour, aReponduDepuis, etatDesRelances, aAppeler, idDeLaRelance, seRelance,
   etatDesRelancesDeLaPiece, idDuRappelDuPoint, departDuPoint,
-  type ReglagesRelances,
+  rythmeDe, rythmeValide, jourDeLaRelance, partiesDuCycle, destinataireDeLaRelance, foyersParNumero, formeDuRappel, relanceDeLaPiece, decalageDe,
+  CADENCE_DES_FAMILLES,
+  type ReglagesRelances, type PieceDeRelance,
 } from '../src/shared/relances-pur';
 import { invoiceResteXof, type Invoice } from '../src/shared/finance';
 import { compteDeLaDemande } from '../src/shared/mnd-pay-pur';
@@ -79,9 +81,12 @@ const SERVEUR = 'supabase/functions/relances-factures/index.ts';
     { id: idDeLaRelance('f1', 2), statut: 'échec', quand: '2026-10-21T09:00:00Z' },
   ];
   const e = etatDesRelances({ factureId: 'f1', depart: '2026-10-18', journal, resteXof: 2000, enPause: false, aujourdhui: '2026-10-22', jourDe });
-  dit('l écran : un échec ne compte pas, la 2e se retente aujourd hui', { parties: 1, derniereLe: '2026-10-19', prochaine: '2026-10-22', fini: false }, e);
+  dit('l écran : un échec ne compte pas, la 2e se retente aujourd hui', { parties: 1, derniereLe: '2026-10-19', prochaine: '2026-10-22', fini: false, total: 4 }, e);
   const quatre = [1, 2, 3, 4].map((n) => ({ id: idDeLaRelance('f2', n), statut: 'envoyé', quand: `2026-11-0${n}T09:00:00Z` }));
   const e4 = etatDesRelances({ factureId: 'f2', depart: '2026-10-18', journal: quatre, resteXof: 2000, enPause: false, aujourdhui: '2026-11-05', jourDe });
+  const trois = [1, 2, 3].map((n) => ({ id: idDeLaRelance('f3', n), statut: 'envoyé', quand: `2026-11-0${n}T09:00:00Z` }));
+  const e3 = etatDesRelances({ factureId: 'f3', depart: '2026-10-18', journal: trois, resteXof: 2000, enPause: false, aujourdhui: '2026-11-05', jourDe, cadence: [7, 14, 30] });
+  dit('au rythme de trois relances : fini après la troisième, et à appeler', [3, true, 3, true], [e3.parties, e3.fini, e3.total, aAppeler(e3, { resteXof: 2000, enPause: false, aujourdhui: '2026-11-05' })]);
   dit('après la quatrième : fini, et à appeler le lendemain, sauf réglée ou en pause', [true, true, false, false, false],
     [e4.fini, aAppeler(e4, { resteXof: 2000, enPause: false, aujourdhui: '2026-11-05' }), aAppeler(e4, { resteXof: 2000, enPause: false, aujourdhui: '2026-11-04' }),
       aAppeler(e4, { resteXof: 0, enPause: false, aujourdhui: '2026-11-05' }), aAppeler(e4, { resteXof: 2000, enPause: true, aujourdhui: '2026-11-05' })]);
@@ -195,7 +200,7 @@ const ordinaire = () => ({ documents: [reglages(ALLUMEES), facteur()], invoices:
   dit('J+1 : une relance déposée en salle, rang 1, son identifiant, « en-attente », sans rendez-vous à vérifier',
     [1, 1, 'rl-inv-1-1-whatsapp', 'en-attente', 'relance-facture', '', 1], [C.r.relances, env.length, l?.id, l?.statut, l?.type, l?.apptId, l?.rang]);
   dit('le colis : le modèle, son nom d appel, le jour AVEC l année, le reste, et le bouton qui compose code et total',
-    ['rappel_de_reglement', ['Madame Awa', '18 octobre 2026', `${(2000).toLocaleString('fr-FR')} F`], '51166-2032'],
+    ['rappel_de_reglement', ['Mme Awa', '18 octobre 2026', `${(2000).toLocaleString('fr-FR')} F`], '51166-2032'],
     [l?.colis?.modele, l?.colis?.composants?.[0]?.parameters?.map((p: { text: string }) => p.text), l?.colis?.composants?.[1]?.parameters?.[0]?.text]);
   dit('l attente Tap & Go du reste est posée pour cette facture, au même total que le bouton', ['tapgo', 'lien', 'inv-1', 2032, 'en_attente'],
     [att?.moyen, att?.genre, att?.pieceId, att?.totalXof, att?.statut]);
@@ -223,9 +228,13 @@ const ordinaire = () => ({ documents: [reglages(ALLUMEES), facteur()], invoices:
   const H = await joue({ ...ordinaire(), invoices: [facture('inv-1', { relancesPause: { le: '2026-10-18T18:00:00Z', par: 'Gérard' } })] });
   dit('en pause : rien', 0, H.r.relances);
 
-  /* I. Deux factures de la même cliente, toutes deux à J+1. */
+  /* I. Deux factures de la même cliente, du même jour, sans le modèle du point : UN rappel avec
+     l'ancien modèle, leur jour, leur total (son choix au sélecteur, 28 octobre 2026). */
   const I = await joue({ ...ordinaire(), invoices: [facture('inv-1'), facture('inv-2', { number: 'MND-2026-0161' })] });
-  dit('deux factures, une cliente : une seule relance aujourd hui', [1, 1], [I.r.relances, (I.r.sautes as Record<string, number>)?.['deja-relancee-aujourdhui']]);
+  const li = I.lignes('envois')[0]?.data as Record<string, any> | undefined;
+  dit('deux factures du même jour, une cliente, sans le modèle du point : un seul rappel, l ancien modèle, leur jour, leur total',
+    [1, 1, 1, 'rl-pt-c1-2026-10-18-1-whatsapp', 'rappel_de_reglement', ['Mme Awa', '18 octobre 2026', serveur.enFrancs(4000)], ['inv-1', 'inv-2']],
+    [I.r.relances, I.r.points, I.lignes('envois').length, I.lignes('envois')[0]?.id, li?.colis?.modele, li?.colis?.composants?.[0]?.parameters?.map((p: { text: string }) => p.text), li?.invoiceIds]);
 
   /* J. D'avant le lancement : rien, sauf rattrapée (comptée depuis la validation). */
   const vieille = facture('inv-old', { date: '2026-10-05' });
@@ -285,7 +294,7 @@ const ordinaire = () => ({ documents: [reglages(ALLUMEES), facteur()], invoices:
     [Q.r.relances, Q.r.points, Q.r.enLice, env[0]?.id, l?.point, l?.invoiceIds, l?.invoiceId, env.length, Q.ecrit.filter((x) => x.t === 'mnd_pay').length]);
   const total = 4000 + serveur.fraisTapGo(4000, { actif: true });
   dit('le rappel du point : son modèle, l appel, le total, ce qu il couvre avec l année, et le bouton au total frais compris',
-    [POINT, ['Madame Awa', serveur.enFrancs(4000), 'vos 2 factures, du 18 octobre 2026'], `51166-${total}`],
+    [POINT, ['Mme Awa', serveur.enFrancs(4000), 'vos 2 factures, du 18 octobre 2026'], `51166-${total}`],
     [l?.colis?.modele, l?.colis?.composants?.[0]?.parameters?.map((p: { text: string }) => p.text), l?.colis?.composants?.[1]?.parameters?.[0]?.text]);
   dit('jamais le numéro d une pièce dans le rappel du point', false, /MND-2026-016[01]/.test(String(l?.colis?.texteAuFil ?? '') + JSON.stringify(l?.colis?.composants)));
 
@@ -306,13 +315,20 @@ const ordinaire = () => ({ documents: [reglages(ALLUMEES), facteur()], invoices:
     clients: [fiche('enfant', '', { familyId: 'fa', name: 'Merline D.' }), fiche('pere', '0190000001', { name: 'Paul D.', civilite: 'monsieur' })],
     families: [{ id: 'fa', data: { name: 'Famille D.', payerClientId: 'pere' } }],
   };
-  const T = await joue(famille, { point: POINT });
+  /* Un compte famille suit son rythme (J+7, J+14, J+30 d'origine) : rien à J+1, le rappel à J+7. */
+  const J7 = Date.parse('2026-10-25T09:00:00Z');
+  const famille7 = { ...famille, documents: [reglages(ALLUMEES), facteur(true, J7)] };
+  const T1 = await joue(famille, { point: POINT });
+  const T = await joue(famille7, { point: POINT, maintenantMs: J7 });
   const lt = T.lignes('envois')[0]?.data as Record<string, any> | undefined;
-  dit('les factures d une enfant sans numéro : le rappel va au payeur du compte famille, et dit « rituels »',
-    [1, 'rl-pt-pere-2026-10-18-1-whatsapp', '2290190000001', 'Monsieur Paul', 'vos 2 rituels, du 18 octobre 2026'],
-    [T.r.relances, T.lignes('envois')[0]?.id, lt?.numero, lt?.colis?.composants?.[0]?.parameters?.[0]?.text, lt?.colis?.composants?.[0]?.parameters?.[2]?.text]);
-  const T0 = await joue(famille);
-  dit('... sans le modèle du point, chacune garde son chemin d avant (l enfant sans numéro n a personne) : rien', [0], [T0.r.relances]);
+  dit('les factures d une enfant sans numéro : le rappel va au payeur du compte famille, à son rythme (rien à J+1, J+7), et dit « rituels »',
+    [0, 1, 'rl-pt-pere-2026-10-18-1-whatsapp', '2290190000001', 'M. Paul', 'vos 2 rituels, du 18 octobre 2026'],
+    [T1.r.relances, T.r.relances, T.lignes('envois')[0]?.id, lt?.numero, lt?.colis?.composants?.[0]?.parameters?.[0]?.text, lt?.colis?.composants?.[0]?.parameters?.[2]?.text]);
+  const T0 = await joue(famille7, { maintenantMs: J7 });
+  const lt0 = T0.lignes('envois')[0]?.data as Record<string, any> | undefined;
+  dit('... sans le modèle du point, le même jour : au payeur quand même, l ancien modèle au total (28 octobre 2026)',
+    [1, 'rl-pt-pere-2026-10-18-1-whatsapp', 'rappel_de_reglement', ['M. Paul', '18 octobre 2026', serveur.enFrancs(4000)]],
+    [T0.r.relances, T0.lignes('envois')[0]?.id, lt0?.colis?.modele, lt0?.colis?.composants?.[0]?.parameters?.map((p: { text: string }) => p.text)]);
 
   const U = await joue({ ...deux(), invoices: [facture('inv-1'), facture('inv-3', { date: '2026-10-20', creeeLe: '2026-10-20T11:00:00Z', number: 'MND-2026-0163' })],
     documents: [reglages(ALLUMEES), facteur(true, Date.parse('2026-10-21T09:00:00Z'))] }, { point: POINT, maintenantMs: Date.parse('2026-10-21T09:00:00Z') });
@@ -331,9 +347,165 @@ const ordinaire = () => ({ documents: [reglages(ALLUMEES), facteur()], invoices:
   ];
   const sur = (factureId: string) => etatDesRelancesDeLaPiece({ factureId, depart: '2026-10-18', journal: journalPt, resteXof: 2000, enPause: false, aujourdhui: '2026-10-22', jourDe: jd });
   dit('au Trône, la facture lit le rappel du point qui la porte : 2 parties, la prochaine à J+7, marquée « point »',
-    { parties: 2, derniereLe: '2026-10-21', prochaine: '2026-10-25', fini: false, point: true }, sur('inv-2'));
+    { parties: 2, derniereLe: '2026-10-21', prochaine: '2026-10-25', fini: false, total: 4, point: true }, sur('inv-2'));
   dit('... une facture qu aucun point ne porte garde sa suite à elle ; le départ du point est celui de la plus récente', [undefined, 0, '2026-10-20', null],
     [sur('autre').point, sur('autre').parties, departDuPoint(['2026-10-18', null, '2026-10-20']), departDuPoint([null])]);
+}
+
+/* ── 3 quater. AU PARENT, UN RYTHME PAR TYPE, LE DÉCALAGE — 28 octobre 2026 ──
+   « Ce message ne devait pas partir. Les messages de relance doivent partir au
+   parent : bonjour M. Ranti, pas M. Aloys, et pour Nathael aussi : un total de
+   2 factures, pas une facture individuelle » (Yéman, devant le rappel parti à
+   l'enfant). Ses choix au sélecteur : sans le modèle du point, les factures du
+   même jour en un rappel avec l'ancien modèle, des jours différents attendent ;
+   un rythme pour la cliente seule, un pour le compte famille (J+7, J+14,
+   J+30) ; « Décaler la prochaine relance » sur la facture. */
+{
+  const jd = (iso: string) => iso.slice(0, 10);
+  dit('le rythme : d origine J+1, 3, 7, 14 et J+7, 14, 30 ; le sien s il est sain ; malformé, celui d origine', [
+    [1, 3, 7, 14], [7, 14, 30], [2, 5], [7, 14, 30], [1, 3, 7, 14], null, null, null,
+  ], [
+    rythmeDe(undefined, false), rythmeDe(undefined, true), rythmeDe({ rythmes: { seule: [2, 5] } }, false),
+    rythmeDe({ rythmes: { famille: [5, 3] } }, true), rythmeDe({ rythmes: { seule: [] } }, false),
+    rythmeValide([1, 1]), rythmeValide([1, 2, 3, 4, 5, 6, 7]), rythmeValide([3, 120]),
+  ]);
+  const dec = { au: '2026-11-05', rang: 2, le: '2026-10-30T10:00:00Z' };
+  dit('le décalage : la relance de son rang part à son jour, les suivantes gardent leurs écarts, celles d avant ne bougent pas', [
+    '2026-10-19', '2026-11-05', '2026-11-09', '2026-11-16', null,
+  ], [
+    jourDeLaRelance('2026-10-18', [1, 3, 7, 14], 1, dec), jourDeLaRelance('2026-10-18', [1, 3, 7, 14], 2, dec),
+    jourDeLaRelance('2026-10-18', [1, 3, 7, 14], 3, dec), jourDeLaRelance('2026-10-18', [1, 3, 7, 14], 4, dec),
+    jourDeLaRelance('2026-10-18', [1, 3, 7, 14], 5, dec),
+  ]);
+  const base2 = { depart: '2026-10-18', parties: 1, derniereLe: '2026-10-19', resteXof: 2000, enPause: false, aRepondu: false };
+  dit('décalée au 5 novembre : rien le 21 (son J+3), la 2e le 5 ; au rythme des familles, la 1re à J+7 seulement', [null, 2, null, 1],
+    [relanceDuJour({ ...base2, aujourdhui: '2026-10-21', decalage: dec }), relanceDuJour({ ...base2, aujourdhui: '2026-11-05', decalage: dec }),
+      relanceDuJour({ ...base2, parties: 0, derniereLe: undefined, aujourdhui: '2026-10-24', cadence: [...CADENCE_DES_FAMILLES] }),
+      relanceDuJour({ ...base2, parties: 0, derniereLe: undefined, aujourdhui: '2026-10-25', cadence: [...CADENCE_DES_FAMILLES] })]);
+  dit('le décalage d un rappel groupé : le plus récent posé sur l une de ses factures', '2026-11-09',
+    decalageDe([{ relancesDecalage: dec }, {}, { relancesDecalage: { au: '2026-11-09', rang: 1, le: '2026-10-31T08:00:00Z' } }])?.au);
+
+  const journalDuCycle = [
+    { id: 'rl-a-1-whatsapp', statut: 'envoyé', quand: '2026-10-19T09:10:00Z', numero: '2290190000001' },
+    { id: 'rl-pt-p-2026-10-18-2-whatsapp', statut: 'envoyé', quand: '2026-10-21T09:10:00Z', numero: '2290190000001', invoiceIds: ['a', 'b'] },
+    { id: 'rl-b-1-whatsapp', statut: 'échec', quand: '2026-10-19T09:10:00Z', numero: '2290190000001' },
+    { id: 'rl-b-2-whatsapp', statut: 'envoyé', quand: '2026-10-20T09:10:00Z', numero: '33608152805' },
+    { id: 'rl-a-3-whatsapp', statut: 'envoyé', quand: '2026-10-10T09:10:00Z', numero: '2290190000001' },
+    { id: 'rl-c-1-whatsapp', statut: 'envoyé', quand: '2026-10-19T09:10:00Z', numero: '2290190000001' },
+  ];
+  dit('la suite d un cycle : ses lignes à elles et les rappels groupés qui la portent, à ce numéro, depuis son départ ; ni un échec, ni un autre numéro, ni d avant, ni une autre facture',
+    { parties: 2, derniereLe: '2026-10-21', premiereQuand: '2026-10-19T09:10:00Z' },
+    partiesDuCycle({ factureIds: ['a', 'b'], depart: '2026-10-18', journal: journalDuCycle, jourDe: jd, numero: '+229 01 90 00 00 01' }));
+  dit('... la facture seule, après le rappel groupé : la suite continue (2 parties), elle ne recommence pas', 2,
+    partiesDuCycle({ factureIds: ['a'], depart: '2026-10-18', journal: journalDuCycle, jourDe: jd, numero: '2290190000001' }).parties);
+
+  const fichesA = [
+    { id: 'pere', name: 'Ranti Shegun Akindes', phone: '+229 0199774949', familyId: 'fam' },
+    { id: 'nath', name: 'Nathael Akindes', phone: '+33608152805', familyId: 'fam' },
+    { id: 'aloys', name: 'Aloys Akindes', phone: '+33608152805' },
+    { id: 'seule', name: 'Awa Dossou', phone: '0197000012' },
+    { id: 'x1', phone: '0190000077', familyId: 'f1' }, { id: 'x2', phone: '0190000077', familyId: 'f2' }, { id: 'x3', phone: '0190000077' },
+  ];
+  const parId = new Map(fichesA.map((f) => [f.id, f]));
+  const payeurs = new Map([['fam', 'pere'], ['f1', 'x1'], ['f2', 'x2']]);
+  const parNum = foyersParNumero(fichesA);
+  const qui = (ids: string[]) => { const d = destinataireDeLaRelance(ids, parId, payeurs, parNum); return [d.fiche?.id, d.famille]; };
+  dit('à qui : l enfant du compte, au payeur ; l enfant hors du compte mais au numéro de son frère, au payeur ; la cliente seule, à elle ; un numéro de deux comptes, à personne d autre',
+    [['pere', true], ['pere', true], ['seule', false], ['x3', false], ['pere', true]],
+    [qui(['nath', 'nath']), qui(['aloys', 'aloys']), qui(['seule', 'seule']), qui(['x3', 'x3']), qui(['pere', 'pere'])]);
+  dit('la forme du rappel groupé : le modèle du point toujours ; sans lui, le même jour avec l ancien, sinon il attend',
+    ['point', 'jour', 'attend'], [formeDuRappel(['2026-10-18', '2026-10-20'], true), formeDuRappel(['2026-10-27', '2026-10-27'], false), formeDuRappel(['2026-10-18', '2026-10-20'], false)]);
+}
+{
+  /* LA FAMILLE A., EN VRAI : Aloys (6 000 F) hors du compte, au numéro de Nathael (34 000 F), dans le
+     compte de M. Ranti ; la relance d'Aloys partie le 28 octobre 2026 au +33. */
+  const ALLUME_18: ReglagesRelances = { actives: true, depuis: '2026-10-18' };
+  const fichesFamille: Ligne[] = [
+    { id: 'MND-UUGM', data: { name: 'Ranti Shegun Akindes', phone: '+229 0199774949', auMasculin: true, familyId: 'fam-a' } },
+    { id: 'MND-ZQ5R', data: { name: 'Nathael Akindes', phone: '+33608152805', familyId: 'fam-a' } },
+    { id: 'MND-ALOY', data: { name: 'Aloys Akindes', phone: '+33608152805', auMasculin: true } },
+  ];
+  const fA = (id: string, client: string, xof: number) => facture(id, { clientId: client, clientName: client, date: '2026-10-27', creeeLe: '2026-10-27T15:00:00Z', apptId: `r-${id}`, number: `MND-2026-${id}`, lines: [{ qty: 1, unitXof: xof, discountPct: 0 }] });
+  const partieA: Ligne = { id: 'rl-i162-1-whatsapp', data: { id: 'rl-i162-1-whatsapp', type: 'relance-facture', statut: 'envoyé', numero: '33608152805', quand: '2026-10-28T09:10:00Z', invoiceId: 'i162' } };
+  const akindes = (ms: number) => ({
+    documents: [reglages(ALLUME_18), facteur(true, ms)], clients: fichesFamille,
+    families: [{ id: 'fam-a', data: { name: 'Famille Akindes', payerClientId: 'MND-UUGM' } }],
+    invoices: [fA('i162', 'MND-ALOY', 6000), fA('i163', 'MND-ZQ5R', 34000)], envois: [partieA],
+  });
+  const LE_29 = Date.parse('2026-10-29T09:00:00Z');
+  const LE_3 = Date.parse('2026-11-03T09:00:00Z');
+  const A29 = await joue(akindes(LE_29), { maintenantMs: LE_29 });
+  dit('famille A., le 29 octobre 2026 : plus rien à l enfant ni au +33, et rien au parent avant son J+7', [0, 1],
+    [A29.r.relances, A29.lignes('envois').length]);
+  const A3 = await joue(akindes(LE_3), { maintenantMs: LE_3 });
+  const l3 = A3.lignes('envois').find((x) => x.id !== partieA.id)?.data as Record<string, any> | undefined;
+  dit('famille A., le 3 novembre 2026 (J+7) : UN rappel, à M. Ranti, à son numéro, les 2 factures au total, l ancien modèle, jamais le numéro d une pièce',
+    [1, 'rl-pt-MND-UUGM-2026-10-27-1-whatsapp', '2290199774949', 'rappel_de_reglement', ['M. Ranti', '27 octobre 2026', serveur.enFrancs(40000)], ['i162', 'i163'], true, false],
+    [A3.r.relances, l3?.id, l3?.numero, l3?.colis?.modele, l3?.colis?.composants?.[0]?.parameters?.map((p: { text: string }) => p.text), l3?.invoiceIds,
+      String(l3?.colis?.texteAuFil ?? '').startsWith('Bonjour M. Ranti, un petit rappel de la Maison MND : votre facture du 27 octobre 2026 attend encore son règlement, reste 40'),
+      /MND-2026-i16/.test(String(l3?.colis?.texteAuFil ?? ''))]);
+  const AP = await joue(akindes(LE_3), { maintenantMs: LE_3, point: 'rappel_du_point' });
+  dit('... avec le modèle du point : « vos 2 rituels, du 27 octobre 2026 »', ['rappel_du_point', 'vos 2 rituels, du 27 octobre 2026'],
+    (() => { const l = AP.lignes('envois').find((x) => x.id !== partieA.id)?.data as Record<string, any> | undefined; return [l?.colis?.modele, l?.colis?.composants?.[0]?.parameters?.[2]?.text]; })());
+
+  /* Le Trône dit la même chose que la tournée. */
+  const pieces = akindes(LE_3).invoices.map((l) => ({ ...(l.data as object), id: l.id }) as PieceDeRelance & { lines: unknown[] });
+  const rel = relanceDeLaPiece({
+    piece: pieces[1], pieces, fiches: fichesFamille.map((l) => ({ ...(l.data as object), id: l.id as string })),
+    familles: [{ id: 'fam-a', payerClientId: 'MND-UUGM' }], reglages: ALLUME_18, journal: [partieA].map((l) => ({ ...(l.data as object), id: l.id as string })),
+    aujourdhui: '2026-10-29', jourDe: (iso: string) => iso.slice(0, 10), resteDe: (p) => serveur.resteDeLaFacture(p),
+  });
+  dit('au Trône, la facture de Nathael dit : un rappel pour les 2, à M. Ranti, rythme des familles, aucune partie (le +33 ne compte pas), prochaine le 3 novembre 2026',
+    ['jour', 2, 'MND-UUGM', true, [7, 14, 30], 40000, 0, '2026-11-03'],
+    [rel?.forme, rel?.membres.length, rel?.destinataire?.id, rel?.famille, rel?.cadence, rel?.resteXof, rel?.etat.parties, rel?.etat.prochaine]);
+
+  /* Une pause sur l'une (la seconde lue), et le rappel groupé se tait ; un décalage sur l'une le repousse. */
+  const enPause = akindes(LE_3); (enPause.invoices[1].data as Record<string, unknown>).relancesPause = { le: '2026-10-30T10:00:00Z', par: 'Gérard' };
+  const AQ = await joue(enPause, { maintenantMs: LE_3 });
+  dit('une seule en pause : le rappel groupé se tait', [0, 1], [AQ.r.relances, (AQ.r.sautes as Record<string, number>)?.['en-pause']]);
+  const decale = akindes(LE_3); (decale.invoices[1].data as Record<string, unknown>).relancesDecalage = { au: '2026-11-06', rang: 1, le: '2026-10-30T10:00:00Z' };
+  const AD = await joue(decale, { maintenantMs: LE_3 });
+  const LE_6 = Date.parse('2026-11-06T09:00:00Z');
+  const AD6 = await joue({ ...decale, documents: [reglages(ALLUME_18), facteur(true, LE_6)] }, { maintenantMs: LE_6 });
+  dit('décalée au 6 novembre 2026 : rien le 3, le rappel le 6', [0, 1], [AD.r.relances, AD6.r.relances]);
+  /* La relance de la seconde facture, déjà partie au payeur, compte pour tout le rappel groupé. */
+  const LE_4 = Date.parse('2026-11-04T09:00:00Z');
+  const dejaAuPayeur = { ...akindes(LE_4), envois: [partieA, { id: 'rl-i163-1-whatsapp', data: { id: 'rl-i163-1-whatsapp', type: 'relance-facture', statut: 'envoyé', numero: '2290199774949', quand: '2026-11-03T09:10:00Z' } }] };
+  const A4 = await joue(dejaAuPayeur, { maintenantMs: LE_4 });
+  dit('la 1re déjà partie au payeur pour la seconde facture : le lendemain, rien (la suivante à J+14)', 0, A4.r.relances);
+}
+{
+  /* Des jours différents, sans le modèle du point : il attend ; et un payeur dont les relances étaient
+     faites une à une ne reçoit pas quatre messages de suite en entrant dans un rappel groupé. */
+  const deuxJours = { ...ordinaire(), documents: [reglages(ALLUMEES), facteur(true, Date.parse('2026-10-21T09:00:00Z'))],
+    invoices: [facture('inv-1'), facture('inv-3', { date: '2026-10-20', creeeLe: '2026-10-20T11:00:00Z', number: 'MND-2026-0163' })] };
+  const W = await joue(deuxJours, { maintenantMs: Date.parse('2026-10-21T09:00:00Z') });
+  dit('deux jours différents, sans le modèle du point : rien ne part, et la réponse le dit', [0, 2, 1],
+    [W.r.relances, W.r.attendLeModele, (W.r.sautes as Record<string, number>)?.['attend-le-modele-du-point']]);
+  const AVANT: ReglagesRelances = { actives: true, depuis: '2026-09-25' };
+  const vieilles = [facture('v-1', { date: '2026-10-01', creeeLe: '2026-10-01T11:00:00Z' }), facture('v-2', { date: '2026-10-01', creeeLe: '2026-10-01T12:00:00Z', number: 'MND-2026-0170' })];
+  const faites = vieilles.flatMap((f) => [1, 2, 3, 4].map((n) => ({ id: `rl-${f.id}-${n}-whatsapp`, data: { id: `rl-${f.id}-${n}-whatsapp`, type: 'relance-facture', statut: 'envoyé', numero: '2290197000012', quand: `2026-10-${String(1 + [1, 3, 7, 14][n - 1]).padStart(2, '0')}T09:10:0${f.id === 'v-1' ? 0 : 5}Z` } })));
+  const X = await joue({ ...ordinaire(), documents: [reglages(AVANT), facteur(true, Date.parse('2026-10-19T09:00:00Z'))], invoices: vieilles, envois: faites }, { point: 'rappel_du_point' });
+  dit('le trou du lot 3 : deux factures déjà relancées quatre fois chacune, le rappel groupé ne recommence pas', [0, 1], [X.r.relances, X.r.points]);
+
+  /* Une relance d'une facture seule partie à l'enfant : son rang revient au payeur, sous une ligne à son nom. */
+  const Y = await joue({
+    documents: [reglages(ALLUMEES), facteur(true, Date.parse('2026-10-25T09:00:00Z'))],
+    clients: [fiche('enf', '+33608152805', { familyId: 'fy', name: 'Aloys A.' }), fiche('papa', '0190000001', { name: 'Ranti A.', civilite: 'monsieur' })],
+    families: [{ id: 'fy', data: { payerClientId: 'papa' } }],
+    invoices: [facture('f-seule', { clientId: 'enf' })],
+    envois: [{ id: 'rl-f-seule-1-whatsapp', data: { id: 'rl-f-seule-1-whatsapp', type: 'relance-facture', statut: 'envoyé', numero: '33608152805', quand: '2026-10-19T09:10:00Z' } }],
+  }, { maintenantMs: Date.parse('2026-10-25T09:00:00Z') });
+  const ly = Y.lignes('envois').find((x) => x.id !== 'rl-f-seule-1-whatsapp');
+  dit('la relance partie à l enfant ne compte pas pour le payeur : sa 1re part à J+7, à lui, sous une ligne à son nom, la ligne de l enfant intacte',
+    [1, 'rl-pt-papa-2026-10-18-1-whatsapp', '2290190000001', ['f-seule'], '33608152805'],
+    [Y.r.relances, ly?.id, (ly?.data as Record<string, any>)?.numero, (ly?.data as Record<string, any>)?.invoiceIds, Y.lignes('envois').find((x) => x.id === 'rl-f-seule-1-whatsapp')?.data?.numero]);
+
+  /* Son rythme à elle, réglé dans Paramètres. */
+  const RYTHME: ReglagesRelances = { ...ALLUMEES, rythmes: { seule: [2, 5] } };
+  const Z1 = await joue({ ...ordinaire(), documents: [reglages(RYTHME), facteur()] });
+  const Z2 = await joue({ ...ordinaire(), documents: [reglages(RYTHME), facteur(true, Date.parse('2026-10-20T09:00:00Z'))] }, { maintenantMs: Date.parse('2026-10-20T09:00:00Z') });
+  dit('un rythme « 2, 5 » pour les clientes seules : rien à J+1, la 1re à J+2', [0, 1], [Z1.r.relances, Z2.r.relances]);
 }
 
 /* ── 4. LA FONCTION ET LES ÉCRANS ── */
@@ -358,7 +530,7 @@ const ordinaire = () => ({ documents: [reglages(ALLUMEES), facteur()], invoices:
       /departDesRelances\(facture, settings\.relances, jourDuSalon\)/.test(bloc), /useEstDirection/.test(bloc)]);
   const af = lis('src/apps/trone/routes/pilotage/AFaire.tsx');
   dit('À faire : « À appeler » pour la direction, après la quatrième relance', [true, true],
-    [/return aAppeler\(e, \{ resteXof: reste, enPause, aujourdhui: auj \}\);/.test(af), /\{estDirection && aAppelerListe\.length > 0 && \(\s*<section id="a-appeler"/.test(af)]);
+    [/if \(aAppeler\(rel\.etat, \{ resteXof: rel\.resteXof, enPause: rel\.enPause, aujourdhui: auj \}\)\)/.test(af), /\{estDirection && aAppelerListe\.length > 0 && \(\s*<section id="a-appeler"/.test(af)]);
   const carte = lis('src/apps/trone/routes/systeme/CarteRelances.tsx');
   const param = lis('src/apps/trone/routes/systeme/Parametres.tsx');
   dit('Paramètres : la carte, l interrupteur à la direction, le jour du lancement écrit, le rattrapage validé une fois', [true, true, true, true],

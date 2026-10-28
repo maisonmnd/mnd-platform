@@ -54,7 +54,23 @@
    factures d'un même payeur, dès deux, partent en un seul rappel.
    Variables : {{1}} son appel, {{2}} le total des restes, {{3}} ce qu'il
    couvre (« vos 2 rituels, du 18 au 20 octobre 2026 ») ; même bouton.
-   Sans ce secret, tout part facture par facture, comme avant.
+   Sans ce secret (son choix au sélecteur, 28 octobre 2026), les factures
+   d'un même payeur et du même jour partent en un seul rappel avec le modèle
+   `rappel_de_reglement` (« votre facture du 27 octobre 2026 attend encore son
+   règlement, reste 40 000 F ») ; des jours différents attendent le modèle.
+
+   AU PARENT (28 octobre 2026, « les messages de relance doivent partir au
+   parent ») : une facture va au payeur du compte famille de l'une de ses
+   fiches s'il a un numéro, modèle ou pas (`destinataireDeLaRelance`). Un
+   enfant hors du compte mais au numéro d'un frère qui y est le suit.
+
+   UN RYTHME PAR TYPE (28 octobre 2026) : Paramètres › Relances dit les jours
+   d'une cliente seule (J+1, J+3, J+7, J+14 d'origine) et ceux d'un compte
+   famille (J+7, J+14, J+30 d'origine) ; « Décaler la prochaine relance » sur
+   la facture fixe le jour de la suivante, les autres gardent leurs écarts.
+   Une suite se compte sur toutes ses factures, seules ou groupées
+   (`partiesDuCycle`) : entrer dans un rappel groupé ou en sortir ne la
+   recommence jamais.
 
    AUCUN SECRET ICI. Tout vient de l'environnement de la fonction.
    Déploiement : Supabase → Edge Functions → New function
@@ -69,7 +85,7 @@ import { createClient } from 'npm:@supabase/supabase-js@2';
 const TZ = 'Africa/Porto-Novo'; // le fuseau du salon, pas celui du serveur
 
 /** La version de ce fichier, rendue dans chaque réponse. */
-const VERSION = '2026-10-28-a · un seul rappel par payeur (le point du compte), quand son modèle est nommé';
+const VERSION = '2026-10-28-b · au payeur du compte famille, un rappel pour les factures du même jour, un rythme par type, le décalage';
 
 /** Numéro béninois → format international sans « + » (copie de rappels-j1). */
 const numeroIntl = (brut: string | undefined): string | null => {
@@ -90,8 +106,9 @@ const appelDe = (d: { name?: unknown; civilite?: unknown; auMasculin?: unknown }
   const prenom = String(d?.name ?? repli ?? '').trim().split(/\s+/)[0] ?? '';
   /* La civilité inconnue ne se suppose plus (13 octobre 2026) : le prénom seul. */
   if (!civ) return prenom || 'Madame, Monsieur';
-  const mot = civ === 'monsieur' ? 'Monsieur' : civ === 'mademoiselle' ? 'Mademoiselle' : 'Madame';
-  return prenom ? `${mot} ${prenom}` : mot;
+  /* Abrégée devant le prénom (28 octobre 2026) : « M. Jean-Luc », « Mme Shadé » ; seule, en entier. */
+  if (prenom) return `${civ === 'monsieur' ? 'M.' : civ === 'mademoiselle' ? 'Mlle' : 'Mme'} ${prenom}`;
+  return civ === 'monsieur' ? 'Monsieur' : civ === 'mademoiselle' ? 'Mademoiselle' : 'Madame';
 };
 
 /** « 18 octobre 2026 » : le jour de la facture, L'ANNÉE DITE (règle de la Maison). */
@@ -161,12 +178,58 @@ export type ReglagesRelances = {
   depuis?: string;
   /** Les trente jours d'avant le lancement, validés une fois, facture par facture. */
   rattrapage?: { valideLe: string; par?: string; ids: string[] };
+  /** LES RYTHMES — 28 octobre 2026, « comment je réajuste les dates de relances
+      pour les particuliers, les comptes famille » (Yéman) : les jours des
+      relances, comptés depuis le départ, réglés dans Paramètres. Absents ou
+      malformés, ceux d'origine. */
+  rythmes?: { seule?: number[]; famille?: number[] };
+  /** Ce que « Vérifier » a vu : le modèle du rappel du point est nommé au
+      serveur. Le Trône le lit pour dire juste ; le serveur, lui, lit son secret. */
+  modelePoint?: boolean;
 };
 
-/** J+1, J+3, J+7, J+14 : les jours des quatre relances, comptés depuis le départ. */
+/** J+1, J+3, J+7, J+14 : les jours des quatre relances d'une cliente seule, comptés depuis le départ. */
 export const CADENCE_DES_RELANCES: readonly number[] = [1, 3, 7, 14];
+/** Le rythme d'un compte famille, son choix au sélecteur le 28 octobre 2026 :
+    une semaine, deux semaines, un mois. Trois relances. */
+export const CADENCE_DES_FAMILLES: readonly number[] = [7, 14, 30];
+/** Au plus six relances, la dernière au plus quatre-vingt-dix jours après le départ. */
+export const RELANCES_AU_PLUS = 6;
+export const JOURS_AU_PLUS = 90;
 /** Ce que le rattrapage peut reprendre avant le lancement. */
 export const JOURS_DE_RATTRAPAGE = 30;
+
+/** Un rythme sain : des jours entiers, croissants, de 1 à 90, six au plus ; sinon `null`. */
+export function rythmeValide(xs: unknown): number[] | null {
+  if (!Array.isArray(xs) || xs.length === 0 || xs.length > RELANCES_AU_PLUS) return null;
+  let avant = 0;
+  for (const x of xs) {
+    if (typeof x !== 'number' || !Number.isInteger(x) || x <= avant || x > JOURS_AU_PLUS) return null;
+    avant = x;
+  }
+  return [...xs] as number[];
+}
+
+/** LE RYTHME D'UNE RELANCE : celui des comptes famille quand elle part à une
+    fiche d'un compte famille, sinon celui des clientes seules. */
+export const rythmeDe = (r: ReglagesRelances | undefined, famille: boolean): number[] =>
+  famille ? rythmeValide(r?.rythmes?.famille) ?? [...CADENCE_DES_FAMILLES] : rythmeValide(r?.rythmes?.seule) ?? [...CADENCE_DES_RELANCES];
+
+/** UNE RELANCE DÉCALÉE AU COMPTOIR (« il paie le 5 ») : la relance de rang
+    `rang` part le jour `au`, et les suivantes gardent leurs écarts depuis elle. */
+export type DecalageDesRelances = { au: string; rang: number; le: string; par?: string };
+
+/** LE JOUR DE LA RELANCE n (1 à la longueur du rythme), décalage compris. */
+export function jourDeLaRelance(depart: string, cadence: readonly number[], n: number, decalage?: DecalageDesRelances | null): string | null {
+  if (!(n >= 1 && n <= cadence.length)) return null;
+  const d = decalage && /^\d{4}-\d{2}-\d{2}$/.test(decalage.au) && decalage.rang >= 1 && decalage.rang <= cadence.length ? decalage : null;
+  if (!d || n < d.rang) return jourPlusR(depart, cadence[n - 1]);
+  return jourPlusR(d.au, cadence[n - 1] - cadence[d.rang - 1]);
+}
+
+/** Le décalage d'un rappel qui porte plusieurs factures : le plus récent posé sur l'une d'elles. */
+export const decalageDe = (pieces: readonly { relancesDecalage?: DecalageDesRelances }[]): DecalageDesRelances | null =>
+  pieces.map((p) => p.relancesDecalage).filter((x): x is DecalageDesRelances => !!x?.le).sort((a, b) => a.le.localeCompare(b.le)).pop() ?? null;
 
 export const jourPlusR = (iso: string, j: number): string => {
   const d = new Date(`${iso}T12:00:00Z`);
@@ -199,23 +262,125 @@ export function departDesRelances(f: { id: string; date: string; creeeLe?: strin
   return null;
 }
 
-/** LA RELANCE À POSER AUJOURD'HUI (1 à 4), ou null.
+/** LA RELANCE À POSER AUJOURD'HUI (1 à la longueur du rythme), ou null.
     `parties` : les relances déjà déposées (un échec ne compte pas, il se
     retente) ; `derniereLe` : le jour de la dernière, pour qu'aucune cliente
-    n'en reçoive deux le même jour. */
+    n'en reçoive deux le même jour. Sans rythme dit, celui d'une cliente seule. */
 export function relanceDuJour(o: {
   depart: string | null; parties: number; derniereLe?: string; aujourdhui: string;
   resteXof: number; enPause: boolean; aRepondu: boolean;
+  cadence?: readonly number[]; decalage?: DecalageDesRelances | null;
 }): number | null {
+  const cadence = o.cadence ?? CADENCE_DES_RELANCES;
   if (!o.depart || !(o.resteXof > 0) || o.enPause || o.aRepondu) return null;
-  if (o.parties >= CADENCE_DES_RELANCES.length) return null;
+  if (o.parties >= cadence.length) return null;
   if (o.derniereLe && o.derniereLe >= o.aujourdhui) return null;
-  return jourPlusR(o.depart, CADENCE_DES_RELANCES[o.parties]) <= o.aujourdhui ? o.parties + 1 : null;
+  const jour = jourDeLaRelance(o.depart, cadence, o.parties + 1, o.decalage);
+  return jour !== null && jour <= o.aujourdhui ? o.parties + 1 : null;
 }
 
 /** Elle a écrit à la Maison depuis la première relance : tout s'arrête. */
 export const aReponduDepuis = (messages: readonly { sens?: string; quand?: string }[], depuisIso: string | undefined): boolean =>
   !!depuisIso && messages.some((m) => m.sens === 'entrant' && (m.quand ?? '') > depuisIso);
+
+/** Les verdicts du journal qui ne comptent pas comme une relance partie. */
+export const RELANCE_A_RETENTER = new Set(['échec', 'périmé']);
+
+export type LigneDeRelance = { id: string; statut?: string; quand?: string; numero?: string; invoiceIds?: readonly string[] };
+
+/** LES RELANCES DÉJÀ PARTIES D'UN CYCLE — 28 octobre 2026. Celles de ses
+    factures (leurs suites à elles, et les rappels groupés qui les portent),
+    parties depuis son départ À CE NUMÉRO. Passer d'une facture seule à un
+    rappel groupé, ou l'inverse, ne recommence jamais la suite : sinon un
+    payeur dont les relances étaient faites en recevrait une par jour, quatre
+    jours de suite (le trou vu par le-trone-15 au lot 3). Une relance partie
+    à quelqu'un d'autre (l'enfant, avant que la règle du parent ne tienne) ne
+    compte pas pour le payeur. Un échec ne compte pas, il se retente. */
+export function partiesDuCycle(o: {
+  factureIds: readonly string[]; depart: string; journal: readonly LigneDeRelance[]; jourDe: (iso: string) => string; numero?: string | null;
+}): { parties: number; derniereLe?: string; premiereQuand?: string } {
+  const chiffres = (t?: string | null) => (t ?? '').replace(/\D/g, '');
+  const leNumero = chiffres(o.numero);
+  const portees = new Set(o.factureIds);
+  const siennes = new Set(o.factureIds.flatMap((id) => Array.from({ length: RELANCES_AU_PLUS }, (_, k) => idDeLaRelance(id, k + 1))));
+  const vues = new Set<string>();
+  let derniereLe: string | undefined;
+  let premiereQuand: string | undefined;
+  for (const l of o.journal) {
+    if (vues.has(l.id) || !l.quand || RELANCE_A_RETENTER.has(l.statut ?? '')) continue;
+    if (!siennes.has(l.id) && !(l.id.startsWith('rl-pt-') && (l.invoiceIds ?? []).some((x) => portees.has(x)))) continue;
+    if (leNumero && l.numero && chiffres(l.numero) !== leNumero) continue;
+    const jour = o.jourDe(l.quand);
+    if (!jour || jour < o.depart) continue;
+    vues.add(l.id);
+    if (!derniereLe || jour > derniereLe) derniereLe = jour;
+    if (!premiereQuand || l.quand < premiereQuand) premiereQuand = l.quand;
+  }
+  return { parties: vues.size, ...(derniereLe ? { derniereLe } : {}), ...(premiereQuand ? { premiereQuand } : {}) };
+}
+
+/** Numéro béninois → format international sans « + » (copie de numeroIntl des fonctions). */
+export const numeroDeRelance = (brut: string | null | undefined): string | null => {
+  const d = (brut ?? '').replace(/\D/g, '');
+  if (!d) return null;
+  if (d.startsWith('00229')) return d.slice(2);
+  if (d.startsWith('229')) return d;
+  if (d.length === 10 && d.startsWith('01')) return `229${d}`;
+  if (d.length === 8) return `22901${d}`;
+  return d;
+};
+
+export type TeteDeRelance = { id: string; name?: string; phone?: string; familyId?: string; archived?: boolean };
+
+/** LES COMPTES FAMILLE PAR NUMÉRO : deux frères inscrits au numéro du parent,
+    l'un dans le compte famille, l'autre pas encore. Un numéro qui désigne
+    deux comptes ne désigne personne. */
+export function foyersParNumero(fiches: Iterable<TeteDeRelance>): Map<string, string> {
+  const vus = new Map<string, string | null>();
+  for (const f of fiches) {
+    const n = numeroDeRelance(f.phone);
+    if (!n || n.length < 8 || !f.familyId) continue;
+    const avant = vus.get(n);
+    vus.set(n, avant === undefined || avant === f.familyId ? f.familyId : null);
+  }
+  const m = new Map<string, string>();
+  for (const [n, foyer] of vus) if (foyer) m.set(n, foyer);
+  return m;
+}
+
+/** Le compte famille d'une fiche : le sien, sinon celui de son numéro. */
+export const foyerDeLaFiche = (f: TeteDeRelance | undefined, parNumero: ReadonlyMap<string, string>): string | undefined =>
+  f?.familyId ?? parNumero.get(numeroDeRelance(f?.phone) ?? '');
+
+/** À QUI VA UNE RELANCE — 28 octobre 2026, « les messages de relance doivent
+    partir au parent » (Yéman, après un rappel parti à l'enfant). Au payeur du
+    compte famille de l'une de ses fiches, s'il a un numéro ; sinon la première
+    de ses fiches qui a un numéro ; sinon la dernière. `ids` : la payeuse de la
+    pièce, puis celle qu'elle concerne. `famille` : l'une d'elles est d'un
+    compte famille qui a son payeur (le rythme des familles s'applique). */
+export function destinataireDeLaRelance(
+  ids: readonly (string | undefined)[], fiches: ReadonlyMap<string, TeteDeRelance>,
+  payeurDuFoyer: ReadonlyMap<string, string>, parNumero: ReadonlyMap<string, string>,
+): { fiche?: TeteDeRelance; famille: boolean } {
+  const connues = ids.filter((x): x is string => !!x).map((id) => fiches.get(id)).filter((x): x is TeteDeRelance => !!x);
+  let famille = false;
+  for (const f of connues) {
+    const payeurId = payeurDuFoyer.get(foyerDeLaFiche(f, parNumero) ?? '');
+    if (!payeurId) continue;
+    famille = true;
+    const payeur = fiches.get(payeurId);
+    if (payeur && numeroDeRelance(payeur.phone)) return { fiche: payeur, famille };
+  }
+  return { fiche: connues.find((f) => !!numeroDeRelance(f.phone)) ?? connues[connues.length - 1], famille };
+}
+
+/** UN RAPPEL POUR PLUSIEURS FACTURES D'UN MÊME PAYEUR (28 octobre 2026, son
+    choix au sélecteur) : avec le modèle du point, toujours ; sans lui,
+    seulement si toutes sont du même jour, avec le modèle déjà approuvé
+    (« votre facture du 27 octobre 2026 attend encore son règlement, reste
+    40 000 F ») ; des jours différents attendent le modèle du point. */
+export const formeDuRappel = (jours: readonly string[], modelePoint: boolean): 'point' | 'jour' | 'attend' =>
+  modelePoint ? 'point' : new Set(jours).size === 1 ? 'jour' : 'attend';
 
 /** LE RAPPEL DU POINT — 28 octobre 2026, « un seul rappel par payeur »
     (maquette du point du compte VZ7F7MNJ…) : les factures ordinaires d'un
@@ -269,6 +434,7 @@ type FactureLue = {
   lines: LigneLue[]; globalDiscountPct: number; globalDiscountXof?: number;
   payments?: { id: string; amountXof: number; date: string }[];
   relancesPause?: { le: string; par?: string };
+  relancesDecalage?: DecalageDesRelances;
   creeeLe?: string;
   apptId?: string;
   note?: string;
@@ -604,21 +770,7 @@ function echeanceARelancer(
   return { numero: premiere.numero, depart: premiere.dueIso, resteXof: argent.enRetardXof };
 }
 
-/** À QUI ÉCRIRE : la payeuse si elle a un numéro, sinon la cliente soignée,
-    sinon celle qui paie pour son foyer (la tête portée n'a pas de numéro). */
 type FicheLue = { id: string; name?: string; phone?: string; civilite?: string; auMasculin?: boolean; archived?: boolean; familyId?: string };
-function destinataireDe(
-  ids: readonly (string | undefined)[], fiches: ReadonlyMap<string, FicheLue>, payeurDuFoyer: ReadonlyMap<string, string>,
-): FicheLue | undefined {
-  const connues = ids.filter((x): x is string => !!x).map((id) => fiches.get(id)).filter((x): x is FicheLue => !!x);
-  const avecNumero = connues.find((f) => !!numeroIntl(f.phone));
-  if (avecNumero) return avecNumero;
-  for (const f of connues) {
-    const payeur = f.familyId ? fiches.get(payeurDuFoyer.get(f.familyId) ?? '') : undefined;
-    if (payeur && numeroIntl(payeur.phone)) return payeur;
-  }
-  return connues[connues.length - 1];
-}
 
 /** Les verdicts du journal qui ne comptent pas comme une relance partie. */
 const SE_RETENTE = new Set(['échec', 'périmé']);
@@ -696,12 +848,13 @@ async function tournee(sb: any, o: { maintenantMs: number; MODELE: string; MODEL
   /* LES DOSSIERS DU JOUR : une facture ordinaire, sa suite à elle ; une
      échéance de formule en retard, la sienne. */
   type Dossier = { f: FactureLue; depart: string | null; resteXof: number; idDe: (n: number) => string; subId?: string; echeance?: number; resiliation?: true; tete?: string;
-    /* Le rappel du point : ses factures, sa fiche et son numéro, déjà choisis. */
-    membres?: Dossier[]; fiche?: FicheLue; tel?: string };
+    /* Le rappel groupé : ses factures, sa fiche, son numéro, sa forme (`formeDuRappel`) et son rythme, déjà choisis. */
+    membres?: Dossier[]; fiche?: FicheLue; tel?: string; forme?: 'point' | 'jour'; famille?: boolean };
   const dossiers: Dossier[] = [];
   for (const f of factures) {
     if (estUnePieceDeFormule(f, piecesDesContrats)) continue;
-    if (!seRelance(f) || f.relancesPause || departDesRelances(f, r, jourDuSalon) === null || !(resteDeLaFacture(f) > 0)) continue;
+    /* En pause, elle reste lue (28 octobre 2026) : le rappel groupé qui la porterait se tait avec elle. */
+    if (!seRelance(f) || departDesRelances(f, r, jourDuSalon) === null || !(resteDeLaFacture(f) > 0)) continue;
     dossiers.push({ f, depart: departDesRelances(f, r, jourDuSalon), resteXof: resteDeLaFacture(f), idDe: (n) => idDeLaRelance(f.id, n) });
   }
   for (const c of contrats) {
@@ -748,8 +901,12 @@ async function tournee(sb: any, o: { maintenantMs: number; MODELE: string; MODEL
     payeParPiece.set(f.id, (payeParPiece.get(f.id) ?? 0) + Math.round(Number(l.data?.montantXof) || 0));
   }
 
-  /* Les fiches : la payeuse si elle a un numéro, sinon la cliente soignée ;
-     pour une échéance de formule seulement, sinon celle qui paie pour son foyer. */
+  /* LES FICHES, ET LES COMPTES FAMILLE TOUJOURS LUS — 28 octobre 2026, « les
+     messages de relance doivent partir au parent » (Yéman, après un rappel
+     parti à l'enfant d'un compte famille). Une facture va au payeur du compte
+     famille de l'une de ses fiches s'il a un numéro, sinon où elle allait :
+     la payeuse si elle a un numéro, sinon la cliente soignée ; une échéance
+     de formule, sa tête portée (`destinataireDeLaRelance`). */
   const idsFiches = [...new Set(dossiers.flatMap((d) => [d.f.clientId, d.f.forClientId, d.tete]).filter((x): x is string => !!x))];
   const fiches = new Map<string, FicheLue>();
   const litLesFiches = async (ids: string[]) => {
@@ -759,111 +916,111 @@ async function tournee(sb: any, o: { maintenantMs: number; MODELE: string; MODEL
     }
   };
   await litLesFiches(idsFiches);
-  const tetesDesFormules = new Set(dossiers.filter((d) => d.subId).flatMap((d) => [d.f.clientId, d.f.forClientId, d.tete]).filter((x): x is string => !!x));
-  const foyers = [...new Set([...fiches.values()].filter((x) => tetesDesFormules.has(x.id) && !numeroIntl(x.phone) && x.familyId).map((x) => x.familyId as string))];
+  const parNumero = foyersParNumero(fiches.values());
+  const foyers = [...new Set([...fiches.values()].map((x) => foyerDeLaFiche(x, parNumero)).filter((x): x is string => !!x))];
   const payeurDuFoyer = new Map<string, string>();
-  if (foyers.length) {
-    const { data: lignesDesFoyers } = await sb.from('families').select('id, data').in('id', foyers);
+  for (let i = 0; i < foyers.length; i += 200) {
+    const { data: lignesDesFoyers } = await sb.from('families').select('id, data').in('id', foyers.slice(i, i + 200));
     for (const l of (lignesDesFoyers ?? []) as { id: string; data: { payerClientId?: string } }[]) {
       if (l.data?.payerClientId) payeurDuFoyer.set(l.id, l.data.payerClientId);
     }
-    await litLesFiches([...payeurDuFoyer.values()].filter((id) => !fiches.has(id)));
   }
-
-  /* ⑤bis LE RAPPEL DU POINT — 28 octobre 2026, « un seul rappel par payeur »
-     (maquette du point du compte) : seulement quand son modèle est nommé
-     (WA_TEMPLATE_RAPPEL_DU_POINT). Une facture ordinaire va alors au payeur de
-     son compte famille s'il a un numéro, comme le point du compte du Trône,
-     sinon où elle allait ; celles d'un même numéro, dès deux, ne font plus
-     qu'un rappel, au total de leurs restes. Sans le modèle, tout reste comme
-     avant, facture par facture. */
-  if (MODELE_POINT) {
-    const foyersSansPayeur = [...new Set(dossiers.filter((d) => !d.subId)
-      .flatMap((d) => [fiches.get(d.f.forClientId ?? d.f.clientId), fiches.get(d.f.clientId)])
-      .filter((x): x is FicheLue => !!x?.familyId).map((x) => x.familyId as string))].filter((id) => !payeurDuFoyer.has(id));
-    if (foyersSansPayeur.length) {
-      const { data: lesFoyers } = await sb.from('families').select('id, data').in('id', foyersSansPayeur);
-      for (const l of (lesFoyers ?? []) as { id: string; data: { payerClientId?: string } }[]) {
-        if (l.data?.payerClientId) payeurDuFoyer.set(l.id, l.data.payerClientId);
-      }
-      await litLesFiches([...payeurDuFoyer.values()].filter((id) => !fiches.has(id)));
-    }
-  }
-  const destinationOrdinaire = (f: FactureLue): FicheLue | undefined => {
-    const payeuse = fiches.get(f.clientId);
-    const soignee = fiches.get(f.forClientId ?? f.clientId);
-    if (MODELE_POINT) {
-      const foyer = soignee?.familyId ?? payeuse?.familyId;
-      const duCompte = foyer ? fiches.get(payeurDuFoyer.get(foyer) ?? '') : undefined;
-      if (duCompte && numeroIntl(duCompte.phone)) return duCompte;
-    }
-    return numeroIntl(payeuse?.phone) ? payeuse : soignee;
-  };
-  const points: Dossier[] = [];
-  if (MODELE_POINT) {
-    const parNumero = new Map<string, Dossier[]>();
-    for (const d of dossiers) {
-      if (d.subId) continue;
-      const fiche = destinationOrdinaire(d.f);
-      const tel = numeroIntl(fiche?.phone);
-      if (!fiche || !tel || fiche.archived) continue;
-      if (!(Math.max(0, d.resteXof - (payeParPiece.get(d.f.id) ?? 0)) > 0)) continue;
-      parNumero.set(tel, [...(parNumero.get(tel) ?? []), { ...d, fiche, tel }]);
-    }
-    for (const [tel, membres] of parNumero) {
-      if (membres.length < 2) continue;
-      const depart = departDuPoint(membres.map((m) => m.depart));
-      if (!depart) continue;
-      /* La fiche du point : la même d'un passage à l'autre, pour que son identifiant ne change pas. */
-      const fiche = membres.map((m) => m.fiche as FicheLue).sort((a, b) => a.id.localeCompare(b.id))[0];
-      points.push({
-        f: membres[0].f, depart, membres, fiche, tel,
-        resteXof: membres.reduce((s, m) => s + Math.max(0, m.resteXof - (payeParPiece.get(m.f.id) ?? 0)), 0),
-        idDe: (n) => idDuRappelDuPoint(fiche.id, depart, n),
-      });
-    }
-  }
-  const dansUnPoint = new Set(points.flatMap((p) => (p.membres ?? []).map((m) => m.f.id)));
-  const aTraiter: Dossier[] = [...points, ...dossiers.filter((d) => !!d.subId || !dansUnPoint.has(d.f.id))];
-
-  /* Le journal : les relances déjà posées, et celles d'aujourd'hui (une cliente, une relance par jour). */
-  const idsJournal = aTraiter.flatMap((d) => CADENCE_DES_RELANCES.map((_, k) => d.idDe(k + 1)));
-  const journal = new Map<string, { statut?: string; quand?: string }>();
-  for (let i = 0; i < idsJournal.length; i += 200) {
-    const { data } = await sb.from('envois').select('id, data').in('id', idsJournal.slice(i, i + 200));
-    for (const l of data ?? []) journal.set(l.id as string, l.data as { statut?: string; quand?: string });
-  }
-  const debutDuJour = new Date(Date.parse(`${aujourdhui}T00:00:00Z`) - DECALAGE_DU_SALON_H * 3_600_000).toISOString();
-  const { data: duJour } = await sb.from('envois').select('id, data').eq('data->>type', 'relance-facture').gte('data->>quand', debutDuJour);
-  const relanceesAujourdhui = new Set(((duJour ?? []) as { data: { numero?: string; statut?: string } }[])
-    .filter((l) => !SE_RETENTE.has(l.data?.statut ?? '')).map((l) => l.data?.numero ?? '').filter(Boolean));
+  await litLesFiches([...payeurDuFoyer.values()].filter((id) => !fiches.has(id)));
+  const destinationDe = (d: Dossier): { fiche?: FicheLue; famille: boolean } => destinataireDeLaRelance(
+    d.subId ? [d.f.clientId, d.f.forClientId ?? d.tete ?? d.f.clientId] : [d.f.clientId, d.f.forClientId ?? d.f.clientId],
+    fiches, payeurDuFoyer, parNumero,
+  ) as { fiche?: FicheLue; famille: boolean };
 
   let parties = 0;
   let bornee = false;
   const sautes: Record<string, number> = {};
   const saute = (pourquoi: string) => { sautes[pourquoi] = (sautes[pourquoi] ?? 0) + 1; };
 
+  /* ⑤bis UN SEUL RAPPEL PAR PAYEUR — 28 octobre 2026 (maquette du point du
+     compte, et ses choix au sélecteur le même jour) : les factures ordinaires
+     d'un même numéro, dès deux, ne font qu'un rappel, au total de leurs restes.
+     Avec le modèle du point, toujours ; sans lui, seulement quand toutes sont
+     du même jour, avec le modèle déjà approuvé ; des jours différents
+     attendent le modèle du point (`formeDuRappel`). Une seule en pause, et le
+     rappel se tait. */
+  const points: Dossier[] = [];
+  const attendLeModele = new Set<string>();
+  const parNumeroDuPayeur = new Map<string, Dossier[]>();
+  for (const d of dossiers) {
+    if (d.subId) continue;
+    const { fiche, famille } = destinationDe(d);
+    const tel = numeroIntl(fiche?.phone);
+    if (!fiche || !tel || fiche.archived) continue;
+    if (!(Math.max(0, d.resteXof - (payeParPiece.get(d.f.id) ?? 0)) > 0)) continue;
+    parNumeroDuPayeur.set(tel, [...(parNumeroDuPayeur.get(tel) ?? []), { ...d, fiche, tel, famille }]);
+  }
+  for (const [tel, membres] of parNumeroDuPayeur) {
+    if (membres.length < 2) continue;
+    const depart = departDuPoint(membres.map((m) => m.depart));
+    if (!depart) continue;
+    const forme = formeDuRappel(membres.map((m) => m.f.date), !!MODELE_POINT);
+    if (forme === 'attend') { for (const m of membres) attendLeModele.add(m.f.id); saute('attend-le-modele-du-point'); continue; }
+    /* La fiche du rappel : la même d'un passage à l'autre, pour que son identifiant ne change pas. */
+    const fiche = membres.map((m) => m.fiche as FicheLue).sort((a, b) => a.id.localeCompare(b.id))[0];
+    points.push({
+      f: membres[0].f, depart, membres, fiche, tel, forme, famille: membres.some((m) => !!m.famille),
+      resteXof: membres.reduce((s, m) => s + Math.max(0, m.resteXof - (payeParPiece.get(m.f.id) ?? 0)), 0),
+      idDe: (n) => idDuRappelDuPoint(fiche.id, depart, n),
+    });
+  }
+  const dansUnPoint = new Set(points.flatMap((p) => (p.membres ?? []).map((m) => m.f.id)));
+  const aTraiter: Dossier[] = [...points, ...dossiers.filter((d) => !!d.subId || (!dansUnPoint.has(d.f.id) && !attendLeModele.has(d.f.id)))];
+
+  /* Le journal : toutes les relances posées depuis le plus ancien départ (une
+     suite se compte sur toutes ses factures, `partiesDuCycle`), par pages ; et
+     celles d'aujourd'hui (une cliente, une relance par jour). */
+  const lesDeparts = aTraiter.map((d) => d.depart).filter((x): x is string => !!x).sort();
+  const lignesDuJournal: LigneDeRelance[] = [];
+  if (lesDeparts.length) {
+    const depuisLe = new Date(Date.parse(`${lesDeparts[0]}T00:00:00Z`) - DECALAGE_DU_SALON_H * 3_600_000).toISOString();
+    for (let de = 0; ; de += 1000) {
+      const { data, error } = await sb.from('envois').select('id, data').eq('data->>type', 'relance-facture').gte('data->>quand', depuisLe).range(de, de + 999);
+      if (error) return { version: VERSION, relances: 'lecture-refusee', motif: error.message.slice(0, 120) };
+      lignesDuJournal.push(...((data ?? []) as { id: string; data: Omit<LigneDeRelance, 'id'> }[]).map((l) => ({ ...l.data, id: l.id })));
+      if ((data ?? []).length < 1000) break;
+    }
+  }
+  const journal = new Map(lignesDuJournal.map((l) => [l.id, l]));
+  const debutDuJour = new Date(Date.parse(`${aujourdhui}T00:00:00Z`) - DECALAGE_DU_SALON_H * 3_600_000).toISOString();
+  const { data: duJour } = await sb.from('envois').select('id, data').eq('data->>type', 'relance-facture').gte('data->>quand', debutDuJour);
+  const relanceesAujourdhui = new Set(((duJour ?? []) as { data: { numero?: string; statut?: string } }[])
+    .filter((l) => !SE_RETENTE.has(l.data?.statut ?? '')).map((l) => l.data?.numero ?? '').filter(Boolean));
+
   for (const d of aTraiter) {
     if (parties >= BORNE_DES_RELANCES) { bornee = true; break; }
     const { f, depart } = d;
     /* Le reste d'un point est déjà net de ce que ses liens ont payé. */
     const reste = d.membres ? d.resteXof : Math.max(0, d.resteXof - (payeParPiece.get(f.id) ?? 0));
-    /* UNE FACTURE ORDINAIRE va où elle allait : la payeuse si elle a un
-       numéro, sinon la cliente soignée. Seule une échéance de formule peut
-       aller à celle qui paie pour le foyer d'une tête portée. */
-    const fiche = d.fiche ?? (d.subId ? destinataireDe([f.clientId, f.forClientId ?? d.tete ?? f.clientId], fiches, payeurDuFoyer) : destinationOrdinaire(f));
+    /* À QUI : le payeur du compte famille d'abord (`destinataireDeLaRelance`) ; le rythme suit. */
+    const dest = d.fiche ? { fiche: d.fiche, famille: !!d.famille } : destinationDe(d);
+    const fiche = dest.fiche;
     const tel = numeroIntl(fiche?.phone);
     if (!fiche || !tel) { saute('sans-numero'); continue; }
     if (fiche.archived) { saute('archivee'); continue; }
+    /* Une échéance de formule garde le rythme de son échéancier (le parcours de l'abonnée) ; les réglages de Paramètres sont ceux des factures. */
+    const cadence = d.subId ? [...CADENCE_DES_RELANCES] : rythmeDe(r, dest.famille);
+    const lesSiennes = d.membres ? d.membres.map((m) => m.f) : [f];
 
+    /* LA SUITE : une échéance de formule, la sienne ; une facture ordinaire,
+       seule ou groupée, celle de toutes ses factures (`partiesDuCycle`). */
     let partiesDeLaFacture = 0;
     let derniereLe: string | undefined;
     let premiereQuand: string | undefined;
-    for (let n = 1; n <= CADENCE_DES_RELANCES.length; n++) {
-      const l = journal.get(d.idDe(n));
-      if (!l || SE_RETENTE.has(l.statut ?? '')) break;
-      partiesDeLaFacture = n;
-      if (l.quand) { derniereLe = jourDuSalon(l.quand); if (n === 1) premiereQuand = l.quand; }
+    if (d.subId) {
+      for (let n = 1; n <= cadence.length; n++) {
+        const l = journal.get(d.idDe(n));
+        if (!l || SE_RETENTE.has(l.statut ?? '')) break;
+        partiesDeLaFacture = n;
+        if (l.quand) { derniereLe = jourDuSalon(l.quand); if (n === 1) premiereQuand = l.quand; }
+      }
+    } else if (depart) {
+      const c = partiesDuCycle({ factureIds: lesSiennes.map((x) => x.id), depart, journal: lignesDuJournal, jourDe: jourDuSalon, numero: tel });
+      partiesDeLaFacture = c.parties; derniereLe = c.derniereLe; premiereQuand = c.premiereQuand;
     }
     let aRepondu = false;
     if (premiereQuand) {
@@ -871,9 +1028,25 @@ async function tournee(sb: any, o: { maintenantMs: number; MODELE: string; MODEL
         .eq('data->>numero', tel).eq('data->>sens', 'entrant').gt('data->>quand', premiereQuand).limit(1);
       aRepondu = aReponduDepuis(((msgs ?? []) as { data: { sens?: string; quand?: string } }[]).map((m) => m.data), premiereQuand);
     }
-    const n = relanceDuJour({ depart, parties: partiesDeLaFacture, derniereLe, aujourdhui, resteXof: reste, enPause: !!f.relancesPause, aRepondu });
-    if (n === null) { saute(aRepondu ? 'a-repondu' : reste <= 0 ? 'payee' : 'pas-aujourdhui'); continue; }
+    const enPause = lesSiennes.some((x) => !!x.relancesPause);
+    const n = relanceDuJour({
+      depart, parties: partiesDeLaFacture, derniereLe, aujourdhui, resteXof: reste, enPause, aRepondu,
+      cadence, decalage: d.subId ? null : decalageDe(lesSiennes),
+    });
+    if (n === null) { saute(enPause ? 'en-pause' : aRepondu ? 'a-repondu' : reste <= 0 ? 'payee' : 'pas-aujourdhui'); continue; }
     if (relanceesAujourdhui.has(tel)) { saute('deja-relancee-aujourdhui'); continue; }
+    /* UN RANG DÉJÀ POSÉ NE S'ÉCRASE JAMAIS (une ligne partie garde son
+       histoire) ; un échec, lui, se retente. Celui d'une facture seule, parti
+       à un autre numéro (l'enfant, avant la règle du parent), cède la place à
+       une ligne au nom du payeur, qui porte la facture (`invoiceIds`). */
+    const prise = (id: string) => { const l = journal.get(id); return !!l && !SE_RETENTE.has(l.statut ?? ''); };
+    let idEnvoi = d.idDe(n);
+    let auNomDuPayeur = false;
+    if (prise(idEnvoi)) {
+      if (d.subId || d.membres || !depart || prise(idDuRappelDuPoint(fiche.id, depart, n))) { saute('rang-deja-pose'); continue; }
+      idEnvoi = idDuRappelDuPoint(fiche.id, depart, n);
+      auNomDuPayeur = true;
+    }
 
     /* ⑤ L'ATTENTE TAP & GO DU RESTE, comme mnd-pay : la même facture au même
        total, c'est la même attente ; un reste qui a changé la remplace ; une
@@ -905,28 +1078,30 @@ async function tournee(sb: any, o: { maintenantMs: number; MODELE: string; MODEL
     }
 
     /* ⑥ LE MESSAGE. */
-    const idEnvoi = d.idDe(n);
     const appel = appelDe(fiche, f.clientName);
     const jour = dateDite(f.date);
     const resteDit = enFrancs(reste);
     const parametre = `${codeTapGo(reglages.mndPay)}-${totalXof}`;
     /* LE RAPPEL DU POINT : {{1}} l'appel, {{2}} le total, {{3}} ce qu'il couvre (« vos 6 rituels, du
        13 juin au 1er septembre 2026 », l'année dite) ; jamais un numéro de pièce. */
-    const pour = d.membres ? `vos ${phraseDuPoint(d.membres.map((m) => ({ id: m.f.id, date: m.f.date, apptId: m.f.apptId })))}` : '';
-    const modele = d.membres ? MODELE_POINT : MODELE;
+    /* LES FACTURES D'UN MÊME JOUR, sans le modèle du point : l'ancien modèle,
+       leur jour, leur total (son choix au sélecteur, 28 octobre 2026). */
+    const auPoint = d.forme === 'point';
+    const pour = auPoint && d.membres ? `vos ${phraseDuPoint(d.membres.map((m) => ({ id: m.f.id, date: m.f.date, apptId: m.f.apptId })))}` : '';
+    const modele = auPoint ? MODELE_POINT : MODELE;
     const composants = [
-      { type: 'body', parameters: d.membres
+      { type: 'body', parameters: auPoint
         ? [{ type: 'text', text: appel }, { type: 'text', text: resteDit }, { type: 'text', text: pour }]
         : [{ type: 'text', text: appel }, { type: 'text', text: jour }, { type: 'text', text: resteDit }] },
       { type: 'button', sub_type: 'url', index: '0', parameters: [{ type: 'text', text: parametre }] },
     ];
-    const texteDuFil = d.membres
+    const texteDuFil = auPoint
       ? `Bonjour ${appel}, petit rappel de la Maison MND : ${resteDit} restent à régler pour ${pour}. Touchez « Régler » pour payer en une fois. Si c'est déjà fait, merci, et ne tenez pas compte de ce message. [Régler]`
       : `Bonjour ${appel}, un petit rappel de la Maison MND : votre facture du ${jour} attend encore son règlement, reste ${resteDit}. Touchez « Régler » : votre téléphone compose le numéro de paiement, frais compris. Si c'est déjà fait, merci, et ne tenez pas compte de ce message. [Régler]`;
     const maintenant = new Date(maintenantMs).toISOString();
     const commun = {
       id: idEnvoi, branchId: f.branchId, type: 'relance-facture', canal: 'whatsapp', apptId: '', dateRdv: '', invoiceId: d.membres ? '' : f.id, rang: n,
-      ...(d.membres ? { point: true, invoiceIds: d.membres.map((m) => m.f.id) } : {}),
+      ...(d.membres ? { point: true, invoiceIds: d.membres.map((m) => m.f.id) } : auNomDuPayeur ? { invoiceIds: [f.id] } : {}),
       ...(d.subId ? { subId: d.subId, ...(d.resiliation ? { resiliation: true } : { echeance: d.echeance }) } : {}),
       clientId: fiche.id, numero: tel, dateFacture: d.membres ? (depart ?? f.date) : f.date, quand: maintenant,
     };
@@ -981,7 +1156,7 @@ async function tournee(sb: any, o: { maintenantMs: number; MODELE: string; MODEL
   }
 
   return {
-    version: VERSION, jour: aujourdhui, relances: parties, enLice: aTraiter.length, points: points.length, salle: salleOuverte, sautes,
+    version: VERSION, jour: aujourdhui, relances: parties, enLice: aTraiter.length, points: points.length, attendLeModele: attendLeModele.size, salle: salleOuverte, sautes,
     ...(bornee ? { borne: BORNE_DES_RELANCES } : {}),
   };
 }

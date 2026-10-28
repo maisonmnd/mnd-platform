@@ -40,6 +40,9 @@ export type EnvoiDuJour = EnvoiLu & {
   genre?: string; envie?: string; codePromo?: string; partA?: string; calme?: boolean; deposeLe?: string;
   /** La remise à faire au départ réel (lot 2), et ce que sa fabrication a dit (« jour passé, pas de remise »). */
   codeAFaire?: CodeAFaire; detailRemise?: string;
+  /** De quoi l'envoyer, déposé par la fonction qui a jugé : le numéro, le texte au fil, le modèle ; ou le titre et le corps d'une notification. */
+  colis?: { numero?: string; texteAuFil?: string; modele?: string; parQui?: string; titre?: string; corps?: string };
+  ecartePar?: string;
 };
 
 /* ── LES FRANCS EN JEU : un calibre, une fourchette ──────────────────────── */
@@ -526,4 +529,31 @@ export function partiAujourdhui(envois: readonly EnvoiDuJour[], maintenantMs: nu
   }).sort((x, y) => (x.premier || 0) - (y.premier || 0) || y.lignes - x.lignes)
     .map(({ premier: _p, ...r }) => r);
   return { jour, rangees, lignes: duJour.length, compte: compteDuJournal(duJour) };
+}
+
+/** LE DÉTAIL D'UNE RANGÉE, 28 octobre 2026 : « dans Aujourd'hui j'ai besoin
+    de tout le détail » (Yéman) : chaque message de la rangée, à son heure, à
+    qui, par quel numéro, ce qu'il disait, ce qu'il est devenu et pourquoi. */
+export type LigneDuParti = {
+  id: string; heure: string; clientId?: string; prenom?: string; numero?: string;
+  devenu: string; aRegarder: boolean; motif: string; texte: string; modele?: string; code: string;
+};
+export function detailDuParti(envois: readonly EnvoiDuJour[], cle: string, maintenantMs: number): LigneDuParti[] {
+  const jour = jourDuSalon(new Date(maintenantMs).toISOString());
+  return envoisDeLaPeriode(envois, 'aujourdhui', jour)
+    .filter((e) => `${e.type}|${e.canal}` === cle)
+    .sort((a, b) => (a.quand ?? '').localeCompare(b.quand ?? ''))
+    .map((e) => {
+      const c = e.colis ?? {};
+      const t = Date.parse(e.quand);
+      const d = devenuDe(e);
+      const texte = (c.texteAuFil ?? [c.titre, c.corps].filter(Boolean).join(' · ')).trim();
+      const numero = e.numero || c.numero;
+      return {
+        id: e.id, heure: Number.isFinite(t) ? heureDuSalonDite(t) : '',
+        ...(e.clientId ? { clientId: e.clientId } : {}), ...(e.prenom ? { prenom: e.prenom } : {}), ...(numero ? { numero } : {}),
+        devenu: DEVENU_DIT[d], aRegarder: estARegarder(d), motif: motifEnClair(e), texte,
+        ...(c.modele ? { modele: c.modele } : {}), code: codeDeLaLigne(e),
+      };
+    });
 }
