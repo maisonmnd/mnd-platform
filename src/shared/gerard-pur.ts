@@ -114,16 +114,20 @@ export type ModeleDeGerard = { nom: string; categorie: 'UTILITY' | 'MARKETING'; 
     `scripts/dessine-la-carte-d-anniversaire.mjs` avec le dessin de la
     Maison (`ds/carte.ts`). */
 export const IMAGE_DE_LA_CARTE = 'https://maisonmnd.com/trone/assets/cartes/carte-anniversaire.png';
+/* LES NOMS CHEZ META (28 octobre 2026, Yéman : « refais les cartes et enlève
+   Gérard, mais Assistant Maison ») : `assistant_maison_*` pour tous ses
+   modèles. Un ancien `gerard_*` noté approuvé ne compte plus : Meta ne
+   connaît que le nom sous lequel le modèle a été déposé. */
 const CORPS: Record<CleDeModele, ModeleDeGerard> = {
-  garder: { nom: 'gerard_garder', categorie: 'UTILITY', corps: 'Bonjour {{1}}, votre {{2}} est {{3}}. C’est toujours bon pour vous ?', boutons: ['Oui, je viens', 'Changer l’heure', 'Je ne peux plus'] },
-  avant: { nom: 'gerard_avant', categorie: 'MARKETING', corps: 'Bonjour {{1}}, votre prochain {{2}} approche : il est prévu {{3}}. Je vous réserve votre place ? Avec un soin ajouté le même jour, votre coiffure de sortie est offerte.', boutons: ['Oui', 'Avec le soin', 'Pas cette fois'] },
-  envie: { nom: 'gerard_envie', categorie: 'MARKETING', corps: 'Bonjour {{1}}, pour prendre soin de vos locks avant votre prochain {{2}}, prévu {{3}}, la Maison vous propose {{4}}. Je vous trouve une place ?', boutons: ['Oui', 'Pas cette fois'] },
-  place: { nom: 'gerard_place', categorie: 'MARKETING', corps: 'Bonjour {{1}}, il est temps de votre {{2}} : nous avons de la place {{3}}. Je vous en garde une ?', boutons: ['Oui', 'Une autre date', 'Pas cette fois'] },
-  anniversaire: { nom: 'gerard_anniversaire', categorie: 'MARKETING', enTete: 'image', corps: 'Joyeux anniversaire {{1}} ! Toute la Maison vous souhaite une très belle année. Pour l’occasion, une attention vous attend sur votre prochain soin, jusqu’au {{2}}.', boutons: ['Merci, je réserve', 'Merci'] },
-  carte: { nom: 'gerard_carte_anniversaire', categorie: 'MARKETING', enTete: 'image', corps: 'Joyeux anniversaire {{1}} ! Toute la Maison vous souhaite une très belle journée, et une année douce et lumineuse.', boutons: ['Merci'] },
-  'carte-foyer': { nom: 'gerard_carte_foyer', categorie: 'MARKETING', enTete: 'image', corps: 'Bonjour {{1}}, joyeux anniversaire à {{2}} ! Toute la Maison lui souhaite une très belle journée, et une année douce et lumineuse.', boutons: ['Merci'] },
-  fetes: { nom: 'gerard_fetes', categorie: 'MARKETING', corps: 'Bonjour {{1}}, les fêtes approchent et les places du 15 au 24 décembre {{2}} partent vite. Je vous en garde une ? Et pour offrir, la carte cadeau de la Maison se commande en deux minutes.', boutons: ['Une place', 'La carte cadeau', 'Pas cette fois'] },
-  endormie: { nom: 'gerard_endormie', categorie: 'MARKETING', corps: 'Bonjour {{1}}, cela fait {{2}} mois que nous n’avons pas vu vos locks. Comment vont-elles ? Si l’envie vous prend d’un soin, la Maison a de la place les semaines qui viennent.', boutons: ['Prendre un RDV', 'Pas pour l’instant'] },
+  garder: { nom: 'assistant_maison_garder', categorie: 'UTILITY', corps: 'Bonjour {{1}}, votre {{2}} est {{3}}. C’est toujours bon pour vous ?', boutons: ['Oui, je viens', 'Changer l’heure', 'Je ne peux plus'] },
+  avant: { nom: 'assistant_maison_avant', categorie: 'MARKETING', corps: 'Bonjour {{1}}, votre prochain {{2}} approche : il est prévu {{3}}. Je vous réserve votre place ? Avec un soin ajouté le même jour, votre coiffure de sortie est offerte.', boutons: ['Oui', 'Avec le soin', 'Pas cette fois'] },
+  envie: { nom: 'assistant_maison_envie', categorie: 'MARKETING', corps: 'Bonjour {{1}}, pour prendre soin de vos locks avant votre prochain {{2}}, prévu {{3}}, la Maison vous propose {{4}}. Je vous trouve une place ?', boutons: ['Oui', 'Pas cette fois'] },
+  place: { nom: 'assistant_maison_place', categorie: 'MARKETING', corps: 'Bonjour {{1}}, il est temps de votre {{2}} : nous avons de la place {{3}}. Je vous en garde une ?', boutons: ['Oui', 'Une autre date', 'Pas cette fois'] },
+  anniversaire: { nom: 'assistant_maison_anniversaire', categorie: 'MARKETING', enTete: 'image', corps: 'Joyeux anniversaire {{1}} ! Toute la Maison vous souhaite une très belle année. Pour l’occasion, une attention vous attend sur votre prochain soin, jusqu’au {{2}}.', boutons: ['Merci, je réserve', 'Merci'] },
+  carte: { nom: 'assistant_maison_carte_anniversaire', categorie: 'MARKETING', enTete: 'image', corps: 'Joyeux anniversaire {{1}} ! Toute la Maison vous souhaite une très belle journée, et une année douce et lumineuse.', boutons: ['Merci'] },
+  'carte-foyer': { nom: 'assistant_maison_carte_foyer', categorie: 'MARKETING', enTete: 'image', corps: 'Bonjour {{1}}, joyeux anniversaire à {{2}} ! Toute la Maison lui souhaite une très belle journée, et une année douce et lumineuse.', boutons: ['Merci'] },
+  fetes: { nom: 'assistant_maison_fetes', categorie: 'MARKETING', corps: 'Bonjour {{1}}, les fêtes approchent et les places du 15 au 24 décembre {{2}} partent vite. Je vous en garde une ? Et pour offrir, la carte cadeau de la Maison se commande en deux minutes.', boutons: ['Une place', 'La carte cadeau', 'Pas cette fois'] },
+  endormie: { nom: 'assistant_maison_endormie', categorie: 'MARKETING', corps: 'Bonjour {{1}}, cela fait {{2}} mois que nous n’avons pas vu vos locks. Comment vont-elles ? Si l’envie vous prend d’un soin, la Maison a de la place les semaines qui viennent.', boutons: ['Prendre un RDV', 'Pas pour l’instant'] },
   nouvelles: { nom: 'nouvelles_de_la_maison', categorie: 'MARKETING', corps: 'Bonjour {{1}}, des nouvelles de la Maison : {{2}} Répondez simplement à ce message si cela vous tente.', boutons: ['Oui', 'Pas cette fois'] },
 };
 /** Chaque corps finit par la signature de Gérard, sur sa ligne. */
@@ -154,7 +158,7 @@ export type ReglagesDeGerard = {
   /** « JAMAIS POUR ELLE » : par cliente, les situations qu'il ne lui écrira
       plus. La ligne de l'envoi garde aussi sa réponse, pour l'histoire. */
   jamais: Record<string, GenreDeMessage[]>;
-  /** LES MODÈLES APPROUVÉS CHEZ META (leurs noms, `gerard_garder`…) : seuls
+  /** LES MODÈLES APPROUVÉS CHEZ META (leurs noms, `assistant_maison_garder`…) : seuls
       ceux-là partent seuls sur WhatsApp ; les autres attendent un toucher. */
   approuves: string[];
   parQui?: string;
@@ -484,7 +488,7 @@ export function joursCreux(o: {
 export const deuxPlacesDites = (p: readonly Place[]): string =>
   p.length >= 2 ? `${placeDite(p[0])} ou ${placeDite(p[1])}` : p.length === 1 ? placeDite(p[0]) : 'cette semaine';
 
-/** CE QUE LA MAISON PROPOSE, selon l'envie : le {{4}} du modèle gerard_envie. */
+/** CE QUE LA MAISON PROPOSE, selon l'envie : le {{4}} du modèle assistant_maison_envie. */
 export function propositionDeLEnvie(e: EnvieDeGerard, f: FicheDeGerard, aujourdhui: string): string {
   switch (e) {
     case 'hydratation':
@@ -499,7 +503,7 @@ export function propositionDeLEnvie(e: EnvieDeGerard, f: FicheDeGerard, aujourdh
   }
 }
 
-/** L'ENVIE EN MODÈLE : gerard_envie et ses variables. */
+/** L'ENVIE EN MODÈLE : assistant_maison_envie et ses variables. */
 export function modeleDeLEnvie(e: EnvieDeGerard, f: FicheDeGerard, c: { iso: string; posee: boolean } | null, aujourdhui: string): { modele: CleDeModele; variables: string[] } {
   const prevu = !c ? 'bientôt' : c.posee ? `le ${jourDit(c.iso)}` : `vers le ${jourDit(c.iso)}`;
   return { modele: 'envie', variables: [f.appel, f.soinDit, prevu, propositionDeLEnvie(e, f, aujourdhui)] };

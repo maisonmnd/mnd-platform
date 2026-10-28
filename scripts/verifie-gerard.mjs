@@ -55,6 +55,7 @@ const DONNEES = 'src/apps/trone/routes/clients/gerard-donnees.ts';
 const LECTURE = 'src/shared/assistant-lecture-pur.ts';
 const PASSAGE = 'src/shared/assistant-passage-pur.ts';
 const PANNES = [
+  ['une carte reprend le nom gerard chez Meta', PUR, "nom: 'assistant_maison_carte_anniversaire'", "nom: 'gerard_carte_anniversaire'"],
   ['garder un RDV pris la veille', PUR, '>= GARDER_SI_POSE_DEPUIS)', '>= 0)'],
   ['l anniversaire fete deux fois', PUR, "  if (traceDe(f, ['anniversaire']).some((t) => t.quand.slice(0, 4) === anniv.slice(0, 4))) return vu('deja');\n", ''],
   ['une envie chaque semaine', PUR, 'export const ENVIE_TOUS_LES_JOURS = 30;', 'export const ENVIE_TOUS_LES_JOURS = 7;'],

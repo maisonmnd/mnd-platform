@@ -85,7 +85,7 @@ const HEURES = ['dim', 'lun', 'mar', 'mer', 'jeu', 'ven', 'sam'].map((key) => ({
 const accord = { oui: true, le: '2026-01-01', par: 'comptoir' };
 const tete = (id: string, o: Row = {}) => ({ id, branch_id: 'b', data: { id, branchId: 'b', name: `${id.toUpperCase()} X.`, phone: `+229 01 51 00 00 ${String(10 + id.length)}`, nouvelles: accord, segments: [], ...o } });
 const rituel = (id: string, clientId: string, date: string) => ({ id, branch_id: 'b', data: { id, branchId: 'b', clientId, serviceIds: ['s1'], date, time: '10:00', status: 'honoré', master: 'Aimée' } });
-const remplis = (gerard: Row | null = { mode: 'ouvert', approuves: ['gerard_envie'] }) => {
+const remplis = (gerard: Row | null = { mode: 'ouvert', approuves: ['assistant_maison_envie'] }) => {
   for (const k of Object.keys(db)) delete db[k];
   db.documents = [{ key: 'mnd_settings', data: { hours: HEURES } }, { key: 'mnd_auto_config', data: {} }];
   if (gerard) db.documents.push({ key: 'mnd_gerard', data: gerard });
@@ -122,7 +122,7 @@ const par = (id: string) => lignes().filter((l) => l.clientId === id);
 dit('le passage du matin : Ma Couronne pour cou et ann, WhatsApp approuvé pour wa, rien pour l archivée', [['push'], ['whatsapp'], ['push'], []],
   [par('cou').map((l) => l.canal), par('wa').map((l) => l.canal), par('ann').map((l) => l.canal), par('arc').map((l) => l.canal)]);
 const lwa = par('wa')[0];
-dit('... la ligne WhatsApp : en attente, au numéro de Meta, le modèle gerard_envie et ses quatre variables, signée Assistant Maison au fil', ['en-attente', '2290151000012', 'gerard_envie', 4, 'Assistant Maison', true],
+dit('... la ligne WhatsApp : en attente, au numéro de Meta, le modèle assistant_maison_envie et ses quatre variables, signée Assistant Maison au fil', ['en-attente', '2290151000012', 'assistant_maison_envie', 4, 'Assistant Maison', true],
   [lwa?.statut, lwa?.colis?.numero, lwa?.colis?.modele, lwa?.colis?.composants?.[0]?.parameters?.length, lwa?.colis?.parQui, /Maison MND$/.test(lwa?.colis?.texteAuFil ?? '')]);
 dit('... la notification va au compte Ma Couronne (u-cou), titre Maison MND', ['u-cou', 'Maison MND'], [par('cou')[0]?.colis?.clientId, par('cou')[0]?.colis?.titre]);
 const lann = par('ann')[0];
@@ -181,7 +181,7 @@ dit('à 21 h 30 au salon : pas de passage', ['pas maintenant', 0], [(await appel
 /* 8. Deux parents (27 octobre 2026) : « garder son RDV » part au parent qui
    a pris le rendez-vous, comme la confirmation et le rappel de la veille ;
    sans numéro retenu, au premier numéro de la fiche. */
-remplis({ mode: 'ouvert', approuves: ['gerard_envie', 'gerard_garder'] });
+remplis({ mode: 'ouvert', approuves: ['assistant_maison_envie', 'assistant_maison_garder'] });
 maintenant = Date.parse('2026-10-28T08:00:00Z');
 db.clients.push(tete('gar', { phone: '+229 01 51 00 00 31', phone2: '+229 01 97 00 00 32' }), tete('ga1', { phone: '+229 01 51 00 00 41', phone2: '+229 01 97 00 00 42' }));
 for (const [c, num] of [['gar', '+229 01 97 00 00 32'], ['ga1', '']] as const) {
@@ -200,13 +200,13 @@ const foyer = (approuves: string[]) => {
   db.families = [{ id: 'f1', data: { id: 'f1', branchId: 'b', name: 'Famille P.', payerClientId: 'par' } }];
   db.clients.push(tete('par', { familyId: 'f1' }), tete('enf', { familyId: 'f1', birthday: '2016-10-28', phone: '' }), tete('adu', { birthday: '1985-10-28', nouvelles: undefined }));
 };
-foyer(['gerard_carte_foyer', 'gerard_carte_anniversaire']);
+foyer(['assistant_maison_carte_foyer', 'assistant_maison_carte_anniversaire']);
 await appelle();
 const lenf = par('enf')[0]; const ladu = par('adu')[0];
-dit('la carte de l enfant part seule au numéro du parent payeur, au modèle du foyer, l image en tête, son prénom en variable', ['whatsapp', '2290151000013', 'gerard_carte_foyer', ['header', 'body', 'button'], 'https://maisonmnd.com/trone/assets/cartes/carte-anniversaire.png', ['PAR', 'ENF'], 'par', 'gerard-2026-10-28-enf-whatsapp'],
+dit('la carte de l enfant part seule au numéro du parent payeur, au modèle du foyer, l image en tête, son prénom en variable', ['whatsapp', '2290151000013', 'assistant_maison_carte_foyer', ['header', 'body', 'button'], 'https://maisonmnd.com/trone/assets/cartes/carte-anniversaire.png', ['PAR', 'ENF'], 'par', 'gerard-2026-10-28-enf-whatsapp'],
   [lenf?.canal, lenf?.colis?.numero, lenf?.colis?.modele, (lenf?.colis?.composants ?? []).map((k: Row) => k.type), lenf?.colis?.composants?.[0]?.parameters?.[0]?.image?.link,
     (lenf?.colis?.composants?.[1]?.parameters ?? []).map((x: Row) => x.text), lenf?.pourId, lenf?.id]);
-dit('... la cliente sans accord des nouvelles reçoit sa carte seule, sans remise à faire ; le parent, lui, n a rien en son nom', ['whatsapp', 'gerard_carte_anniversaire', undefined, 0],
+dit('... la cliente sans accord des nouvelles reçoit sa carte seule, sans remise à faire ; le parent, lui, n a rien en son nom', ['whatsapp', 'assistant_maison_carte_anniversaire', undefined, 0],
   [ladu?.canal, ladu?.colis?.modele, ladu?.codeAFaire, par('par').filter((l) => l.genre === 'anniversaire').length]);
 foyer([]);
 await appelle();

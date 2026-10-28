@@ -154,7 +154,7 @@ try {
   dit('la ligne de M. D. s ouvre', await evalue(String.raw`(() => { const b = [...document.querySelectorAll('.trc-ger__ligne')].find((x) => x.textContent.includes('M. D.')); if (b) b.click(); return !!b; })()`));
   await attend(400);
   const panneau = await evalue(String.raw`(document.querySelector('.trc-ger__panneau')?.innerText || '').replace(/\s+/g, ' ')`);
-  dit('... le modèle « place » : il est temps, deux places, la signature et la devise', /Bonjour M\., il est temps de votre .+ : nous avons de la place .+\. Je vous en garde une \? Maison MND/.test(panneau) && /mi nyɔ́ ɖɛkpɛ, votre beauté est déjà là/.test(panneau) && /gerard_place/.test(panneau), panneau.slice(0, 260));
+  dit('... le modèle « place » : il est temps, deux places, la signature et la devise', /Bonjour M\., il est temps de votre .+ : nous avons de la place .+\. Je vous en garde une \? Maison MND/.test(panneau) && /mi nyɔ́ ɖɛkpɛ, votre beauté est déjà là/.test(panneau) && /assistant_maison_place/.test(panneau), panneau.slice(0, 260));
   dit('... et le pourquoi : sa dernière venue, sa date attendue avec l année, son retard', /Dernière venue/.test(panneau) && /Date attendue \S+ \d{1,2}(er)? \S+ \d{4}/.test(panneau) && /Retard \d+ jours/.test(panneau));
   await photo('1-plan');
   dit('plus d essai à cinq : ni bouton, ni onglet', !(await evalue(String.raw`/essai/i.test(document.querySelector('.trc-ger')?.innerText || '')`)));
@@ -214,7 +214,7 @@ try {
 
   /* 4. Les modèles Meta. */
   const modeles = await evalue(String.raw`[...document.querySelectorAll('.trc-ger__modeles li b')].map((b) => b.textContent)`);
-  dit('sept plus un modèles à déposer chez Meta, et les deux cartes d anniversaire (27 octobre 2026)', JSON.stringify(modeles) === JSON.stringify(['gerard_garder', 'gerard_avant', 'gerard_envie', 'gerard_place', 'gerard_anniversaire', 'gerard_carte_anniversaire', 'gerard_carte_foyer', 'gerard_fetes', 'gerard_endormie', 'nouvelles_de_la_maison']), JSON.stringify(modeles));
+  dit('sept plus un modèles à déposer chez Meta, et les deux cartes d anniversaire (27 octobre 2026)', JSON.stringify(modeles) === JSON.stringify(['assistant_maison_garder', 'assistant_maison_avant', 'assistant_maison_envie', 'assistant_maison_place', 'assistant_maison_anniversaire', 'assistant_maison_carte_anniversaire', 'assistant_maison_carte_foyer', 'assistant_maison_fetes', 'assistant_maison_endormie', 'nouvelles_de_la_maison']), JSON.stringify(modeles));
 
   /* 4 bis. LA CARTE DE L'ENFANT AU PARENT PAYEUR (27 octobre 2026) : sa
      ligne dit à qui elle part, « Envoyer sa carte » ouvre la fenêtre de la
@@ -227,7 +227,7 @@ try {
   await attend(400);
   const panneauEnfant = await evalue(String.raw`(document.querySelector('.trc-ger__panneau')?.innerText || '').replace(/\s+/g, ' ')`);
   dit('... le mot au parent, le prénom de l enfant, la carte en image', /Bonjour H\., joyeux anniversaire à A\. ! Toute la Maison lui souhaite une très belle journée/.test(panneauEnfant)
-    && /gerard_carte_foyer/.test(panneauEnfant), panneauEnfant.slice(0, 220));
+    && /assistant_maison_carte_foyer/.test(panneauEnfant), panneauEnfant.slice(0, 220));
   dit('... « Envoyer sa carte » ouvre la fenêtre de la carte', await clique('.trc-ger__panneau button', 'Envoyer sa carte'));
   await attend(1500);
   const fenetre = await evalue(String.raw`(() => { const m = document.querySelector('.mnd-modal'); return m ? { canvas: !!m.querySelector('canvas'), texte: m.innerText.replace(/\s+/g, ' ') } : null; })()`);

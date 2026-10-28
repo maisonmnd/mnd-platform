@@ -52,7 +52,7 @@ dit('la catégorie Meta : rien pour Ma Couronne, le SMS et le toucher ; « garde
     categorieMetaDe({ type: 'gerard', canal: 'whatsapp', modele: 'garder' }), categorieMetaDe({ type: 'gerard', canal: 'whatsapp', modele: 'envie' }),
     categorieMetaDe({ type: 'avis-google', canal: 'whatsapp' }, categorie), categorieMetaDe({ type: 'confirmation', canal: 'whatsapp' }, categorie), categorieMetaDe({ type: 'fete-de-couronne', canal: 'whatsapp' }, categorie)]);
 dit('le type qu’un modèle Meta écrit, pour le juger service ou non', [{ type: 'gerard', genre: 'garder' }, { type: 'confirmation' }, { type: 'avis-google' }, { type: 'inconnu' }],
-  ['gerard_garder', 'confirmation_rdv', 'avis_google', 'inconnu'].map(typeDuModeleMeta));
+  ['assistant_maison_garder', 'confirmation_rdv', 'avis_google', 'inconnu'].map(typeDuModeleMeta));
 
 /* ── 3. Par situation ── */
 const T = (j: string, h = '09:00') => `${j}T${h}:00.000Z`;
@@ -161,7 +161,7 @@ const voixEnvois: EnvoiDuCompte[] = [
   ligne({ id: 's1', clientId: 's', quand: T('2026-10-01') }), ligne({ id: 's2', clientId: 's', type: 'campagne', genre: undefined, quand: T('2026-10-08') }),
 ];
 const voixMessages: MessageDuCompte[] = [
-  { sens: 'sortant', clientId: 'w', quand: T('2026-10-05'), modele: 'gerard_envie' },        // le même message, vu par le fil
+  { sens: 'sortant', clientId: 'w', quand: T('2026-10-05'), modele: 'assistant_maison_envie' },        // le même message, vu par le fil
   { sens: 'sortant', clientId: 'w', quand: T('2026-10-08'), modele: 'confirmation_rdv' },    // un service
   { sens: 'sortant', clientId: 'w', quand: T('2026-10-09') },                                 // une réponse libre de l'équipe : une conversation
   { sens: 'entrant', clientId: 'w', quand: T('2026-10-09', '08:00'), modele: 'avis_google' },
@@ -220,7 +220,7 @@ dit('... le chat : Claude répond ; le Centre : coupé ; ce qu’`envois` ne com
 const facteurMort = quiEcritSeul(AUTOMATISATIONS_REELLES, { ...etat, facteur: { vuLe: new Date(maintenantMs - 10 * 60_000).toISOString() } });
 dit('... le facteur muet depuis dix minutes : la confirmation passe au rouge ; non lu : inconnu', ['alarme', 'inconnu'],
   [facteurMort.find((l) => l.id === 'confirmation')?.posee.etat, quiEcritSeul(AUTOMATISATIONS_REELLES, { ...etat, facteur: undefined }).find((l) => l.id === 'confirmation')?.posee.etat]);
-const avecRegistre = quiEcritSeul(AUTOMATISATIONS_REELLES, { ...etat, modelesMeta: { gerard_garder: 'approuve', gerard_envie: 'refuse', avis_google: 'approuve' } });
+const avecRegistre = quiEcritSeul(AUTOMATISATIONS_REELLES, { ...etat, modelesMeta: { assistant_maison_garder: 'approuve', assistant_maison_envie: 'refuse', avis_google: 'approuve' } });
 dit('... un registre des modèles posé : 1 approuvé sur 10, 1 refusé ; la demande d’avis approuvée, service dit', ['1 approuvé sur 10, 1 refusé', 'alarme', '1 approuvé sur 1', 'ok'],
   [avecRegistre.find((l) => l.id === 'assistant')?.modeleMeta.dit, avecRegistre.find((l) => l.id === 'assistant')?.modeleMeta.etat, avecRegistre.find((l) => l.id === 'avis')?.modeleMeta.dit, avecRegistre.find((l) => l.id === 'avis')?.modeleMeta.etat]);
 dit('... rien de lu : tout inconnu, aucune promesse', ['inconnu', 'inconnu', 'inconnu', 'inconnu'],

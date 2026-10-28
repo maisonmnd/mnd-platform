@@ -664,15 +664,15 @@ var intervalleDesRelances = (j) => estSaisonDesFetes(j) ? RELANCE_TOUS_LES_JOURS
 var SIGNATURE = "Maison MND";
 var IMAGE_DE_LA_CARTE = "https://maisonmnd.com/trone/assets/cartes/carte-anniversaire.png";
 var CORPS = {
-  garder: { nom: "gerard_garder", categorie: "UTILITY", corps: "Bonjour {{1}}, votre {{2}} est {{3}}. C’est toujours bon pour vous ?", boutons: ["Oui, je viens", "Changer l’heure", "Je ne peux plus"] },
-  avant: { nom: "gerard_avant", categorie: "MARKETING", corps: "Bonjour {{1}}, votre prochain {{2}} approche : il est prévu {{3}}. Je vous réserve votre place ? Avec un soin ajouté le même jour, votre coiffure de sortie est offerte.", boutons: ["Oui", "Avec le soin", "Pas cette fois"] },
-  envie: { nom: "gerard_envie", categorie: "MARKETING", corps: "Bonjour {{1}}, pour prendre soin de vos locks avant votre prochain {{2}}, prévu {{3}}, la Maison vous propose {{4}}. Je vous trouve une place ?", boutons: ["Oui", "Pas cette fois"] },
-  place: { nom: "gerard_place", categorie: "MARKETING", corps: "Bonjour {{1}}, il est temps de votre {{2}} : nous avons de la place {{3}}. Je vous en garde une ?", boutons: ["Oui", "Une autre date", "Pas cette fois"] },
-  anniversaire: { nom: "gerard_anniversaire", categorie: "MARKETING", enTete: "image", corps: "Joyeux anniversaire {{1}} ! Toute la Maison vous souhaite une très belle année. Pour l’occasion, une attention vous attend sur votre prochain soin, jusqu’au {{2}}.", boutons: ["Merci, je réserve", "Merci"] },
-  carte: { nom: "gerard_carte_anniversaire", categorie: "MARKETING", enTete: "image", corps: "Joyeux anniversaire {{1}} ! Toute la Maison vous souhaite une très belle journée, et une année douce et lumineuse.", boutons: ["Merci"] },
-  "carte-foyer": { nom: "gerard_carte_foyer", categorie: "MARKETING", enTete: "image", corps: "Bonjour {{1}}, joyeux anniversaire à {{2}} ! Toute la Maison lui souhaite une très belle journée, et une année douce et lumineuse.", boutons: ["Merci"] },
-  fetes: { nom: "gerard_fetes", categorie: "MARKETING", corps: "Bonjour {{1}}, les fêtes approchent et les places du 15 au 24 décembre {{2}} partent vite. Je vous en garde une ? Et pour offrir, la carte cadeau de la Maison se commande en deux minutes.", boutons: ["Une place", "La carte cadeau", "Pas cette fois"] },
-  endormie: { nom: "gerard_endormie", categorie: "MARKETING", corps: "Bonjour {{1}}, cela fait {{2}} mois que nous n’avons pas vu vos locks. Comment vont-elles ? Si l’envie vous prend d’un soin, la Maison a de la place les semaines qui viennent.", boutons: ["Prendre un RDV", "Pas pour l’instant"] },
+  garder: { nom: "assistant_maison_garder", categorie: "UTILITY", corps: "Bonjour {{1}}, votre {{2}} est {{3}}. C’est toujours bon pour vous ?", boutons: ["Oui, je viens", "Changer l’heure", "Je ne peux plus"] },
+  avant: { nom: "assistant_maison_avant", categorie: "MARKETING", corps: "Bonjour {{1}}, votre prochain {{2}} approche : il est prévu {{3}}. Je vous réserve votre place ? Avec un soin ajouté le même jour, votre coiffure de sortie est offerte.", boutons: ["Oui", "Avec le soin", "Pas cette fois"] },
+  envie: { nom: "assistant_maison_envie", categorie: "MARKETING", corps: "Bonjour {{1}}, pour prendre soin de vos locks avant votre prochain {{2}}, prévu {{3}}, la Maison vous propose {{4}}. Je vous trouve une place ?", boutons: ["Oui", "Pas cette fois"] },
+  place: { nom: "assistant_maison_place", categorie: "MARKETING", corps: "Bonjour {{1}}, il est temps de votre {{2}} : nous avons de la place {{3}}. Je vous en garde une ?", boutons: ["Oui", "Une autre date", "Pas cette fois"] },
+  anniversaire: { nom: "assistant_maison_anniversaire", categorie: "MARKETING", enTete: "image", corps: "Joyeux anniversaire {{1}} ! Toute la Maison vous souhaite une très belle année. Pour l’occasion, une attention vous attend sur votre prochain soin, jusqu’au {{2}}.", boutons: ["Merci, je réserve", "Merci"] },
+  carte: { nom: "assistant_maison_carte_anniversaire", categorie: "MARKETING", enTete: "image", corps: "Joyeux anniversaire {{1}} ! Toute la Maison vous souhaite une très belle journée, et une année douce et lumineuse.", boutons: ["Merci"] },
+  "carte-foyer": { nom: "assistant_maison_carte_foyer", categorie: "MARKETING", enTete: "image", corps: "Bonjour {{1}}, joyeux anniversaire à {{2}} ! Toute la Maison lui souhaite une très belle journée, et une année douce et lumineuse.", boutons: ["Merci"] },
+  fetes: { nom: "assistant_maison_fetes", categorie: "MARKETING", corps: "Bonjour {{1}}, les fêtes approchent et les places du 15 au 24 décembre {{2}} partent vite. Je vous en garde une ? Et pour offrir, la carte cadeau de la Maison se commande en deux minutes.", boutons: ["Une place", "La carte cadeau", "Pas cette fois"] },
+  endormie: { nom: "assistant_maison_endormie", categorie: "MARKETING", corps: "Bonjour {{1}}, cela fait {{2}} mois que nous n’avons pas vu vos locks. Comment vont-elles ? Si l’envie vous prend d’un soin, la Maison a de la place les semaines qui viennent.", boutons: ["Prendre un RDV", "Pas pour l’instant"] },
   nouvelles: { nom: "nouvelles_de_la_maison", categorie: "MARKETING", corps: "Bonjour {{1}}, des nouvelles de la Maison : {{2}} Répondez simplement à ce message si cela vous tente.", boutons: ["Oui", "Pas cette fois"] }
 };
 var MODELES_DE_GERARD = Object.fromEntries(
@@ -1406,7 +1406,7 @@ function remisesAFabriquer(envois) {
 }
 
 // scripts/serveur/assistant-maison.ts
-var VERSION = "2026-10-28-b";
+var VERSION = "2026-10-28-c";
 var json = (corps, status = 200) => new Response(JSON.stringify(corps), { status, headers: { "content-type": "application/json" } });
 var jourDuSalon = (ms) => new Date(ms + 36e5).toISOString().slice(0, 10);
 var heureDuSalon2 = (ms) => {

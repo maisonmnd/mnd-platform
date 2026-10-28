@@ -24,7 +24,7 @@ export const ETAT_DU_MODELE_DIT: Record<EtatDuModeleMeta, string> = {
 
 export type NoteDuModele = { etat: EtatDuModeleMeta; le?: string; parQui?: string };
 export type RegistreDesModelesMeta = {
-  /** Par nom Meta (`gerard_garder`, `confirmation_rdv`…). Absent : à déposer. */
+  /** Par nom Meta (`assistant_maison_garder`, `confirmation_rdv`…). Absent : à déposer. */
   modeles: Record<string, NoteDuModele>;
   parQui?: string;
   le?: string;

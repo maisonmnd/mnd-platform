@@ -49,10 +49,10 @@ dit('une date de cliente porte l’année, le 1er se dit « 1er »', ['mardi 3 n
   [jourDit('2026-11-03'), jourDit('2026-12-01'), heureDite('12:15'), heureDite('10:00')]);
 dit('un modèle se remplit variable par variable, et finit par la signature « Maison MND », jamais « Gérard »', 'Bonjour Madame K., votre resserrage des racines est mardi 3 novembre 2026 à 10 h. C’est toujours bon pour vous ?\n\nMaison MND',
   remplis(MODELES_DE_GERARD.garder.corps, ['Madame K.', 'resserrage des racines', 'mardi 3 novembre 2026 à 10 h']));
-dit('chaque modèle a un nom Meta, au plus trois boutons, jamais de prix ni de pourcentage, jamais le mot « code » (Meta le rangerait en Authentification), jamais « Gérard » ni « devait revenir »', true,
-  Object.values(MODELES_DE_GERARD).every((m) => /^(gerard_[a-z_]+|nouvelles_de_la_maison)$/.test(m.nom) && m.boutons.length <= 3 && !/\d\s?(F|FCFA|XOF)\b|%/.test(m.corps) && !/\bcodes?\b/i.test(m.corps)
+dit('chaque modèle a un nom Meta « assistant_maison_… », jamais « gerard » (28 octobre 2026), au plus trois boutons, jamais de prix ni de pourcentage, jamais le mot « code » (Meta le rangerait en Authentification), jamais « Gérard » ni « devait revenir »', true,
+  Object.values(MODELES_DE_GERARD).every((m) => /^(assistant_maison_[a-z_]+|nouvelles_de_la_maison)$/.test(m.nom) && m.boutons.length <= 3 && !/\d\s?(F|FCFA|XOF)\b|%/.test(m.corps) && !/\bcodes?\b/i.test(m.corps)
     && !/Gérard|devait revenir|arrive vers/.test(m.corps)));
-dit('sept plus un, et deux cartes (27 octobre 2026) : dix modèles, un seul utilitaire, « garder » ; un seul genre de service ; trois portent la carte en image', [10, ['gerard_garder'], ['garder'], ['anniversaire', 'carte', 'carte-foyer']],
+dit('sept plus un, et deux cartes (27 octobre 2026) : dix modèles, un seul utilitaire, « garder » ; un seul genre de service ; trois portent la carte en image', [10, ['assistant_maison_garder'], ['garder'], ['anniversaire', 'carte', 'carte-foyer']],
   [Object.keys(MODELES_DE_GERARD).length, Object.values(MODELES_DE_GERARD).filter((m) => m.categorie === 'UTILITY').map((m) => m.nom),
     Object.entries(EST_UN_SERVICE).filter(([, v]) => v).map(([k]) => k), Object.entries(MODELES_DE_GERARD).filter(([, m]) => m.enTete === 'image').map(([k]) => k)]);
 
@@ -127,7 +127,7 @@ dit('... un membre adulte du foyer à son propre numéro reçoit chez lui ; sans
     sit(fiche({ birthday: AJ, telephone: false, payeur: payeurP }))?.pourId, sit(fiche({ birthday: AJ, telephone: false, payeur: payeurP }))?.modele]);
 dit('sans accord des nouvelles, la carte part quand même par WhatsApp, et seule chez Meta une fois son modèle approuvé', ['carte', 'whatsapp', true, false],
   [sit(fiche({ birthday: AJ, accord: false }))?.modele, sit(fiche({ birthday: AJ, accord: false }))?.canal,
-    partSeule(sit(fiche({ birthday: AJ, accord: false }))!, { mode: 'ouvert', approuves: ['gerard_carte_anniversaire'] }),
+    partSeule(sit(fiche({ birthday: AJ, accord: false }))!, { mode: 'ouvert', approuves: ['assistant_maison_carte_anniversaire'] }),
     partSeule(sit(fiche({ birthday: AJ, accord: false }))!, { mode: 'ouvert', approuves: [] })]);
 dit('avec l’accord, l’attention l’accompagne (10 %, trente jours), au modèle « anniversaire »', ['anniversaire', 'ANNIV', 10], [an?.modele, an?.code?.mot, an?.code?.pct]);
 dit('ce qui la fait taire : « stop », « jamais pour elle », les anniversaires éteints, archivée, ni numéro ni Ma Couronne ; et chacun est reconnu', [[null, 'stop'], [null, 'jamais'], [null, 'eteinte'], [null, null], [null, 'sans-numero']],
@@ -152,7 +152,7 @@ dit('les anniversaires du jour : toutes les fiches reconnues, avec ce qu’il en
   anniversairesDuJour([fiche({ id: 'a1', birthday: AJ }), enfant(), fiche({ id: 's1', birthday: AJ, stop: true }), fiche({ id: 'n1', birthday: AJ, telephone: false }), fiche({ id: 'x1' })], ctx())
     .map((x) => [x.clientId, x.etat]));
 const ligneCarte = ligneWhatsApp(ce!, { branchId: 'b', aujourdhui: A, maintenantIso: `${A}T08:00:00Z`, prenom: 'Awa', numero: '22901510000', partA: `${A}T08:10:00Z`, calme: false });
-dit('la ligne déposée : la carte en en-tête image, le prénom de l’enfant en variable, le numéro du parent, la fiche qui reçoit notée', [['header', 'body', 'button'], IMAGE_DE_LA_CARTE, ['Madame P.', 'Awa'], '22901510000', 'p1', 'gerard_carte_foyer'],
+dit('la ligne déposée : la carte en en-tête image, le prénom de l’enfant en variable, le numéro du parent, la fiche qui reçoit notée', [['header', 'body', 'button'], IMAGE_DE_LA_CARTE, ['Madame P.', 'Awa'], '22901510000', 'p1', 'assistant_maison_carte_foyer'],
   [ligneCarte.colis?.genre === 'whatsapp' ? ligneCarte.colis.composants.map((k) => k.type) : [],
     ligneCarte.colis?.genre === 'whatsapp' ? (ligneCarte.colis.composants[0] as { parameters: { image?: { link: string } }[] }).parameters[0]?.image?.link : '',
     ligneCarte.colis?.genre === 'whatsapp' ? (ligneCarte.colis.composants[1] as { parameters: { text?: string }[] }).parameters.map((p) => p.text) : [],
@@ -419,7 +419,7 @@ dit('la lecture : la dette (20 000 F moins 15 000 F réglés), l’enfant du foy
   dit('... le parent sans numéro mais sur Ma Couronne : la notification de la carte part à son compte, la ligne reste celle de l’enfant', [['push', 'parent', 'enfant', 'parent']],
     lignesC.map((l) => [l.canal, l.colis?.genre === 'push' ? l.colis.clientId : '', l.clientId, l.pourId]));
   /* Approuvé chez Meta : la carte part seule, au numéro du parent, l'image en tête. */
-  const lignesW = lignesDuPassage({ cerveau: foyer, plan, reglagesGerard: { mode: 'ouvert', approuves: ['gerard_carte_foyer'] }, maintenantMs: maintenantLu, branchId: 'b', regles: REGLES_PAR_DEFAUT });
+  const lignesW = lignesDuPassage({ cerveau: foyer, plan, reglagesGerard: { mode: 'ouvert', approuves: ['assistant_maison_carte_foyer'] }, maintenantMs: maintenantLu, branchId: 'b', regles: REGLES_PAR_DEFAUT });
   const lw = lignesW.find((l) => l.clientId === 'enfant');
   dit('... approuvée chez Meta, la carte de l’enfant part seule au numéro du parent (format international), l’image en tête ; sans approbation, rien ne part seul', ['whatsapp', '22901512233' + '44', true, 0],
     [lw?.canal, lw?.colis?.genre === 'whatsapp' ? lw.colis.numero : '', lw?.colis?.genre === 'whatsapp' && lw.colis.composants[0]?.type === 'header',
@@ -447,11 +447,11 @@ const passe = (g: Record<string, unknown>, plan = planLu) => lignesDuPassage({ c
 const sitWa = planLu.find((x) => x.canal === 'whatsapp');
 dit('le passage : rien en pause ; WhatsApp seulement si son modèle est approuvé chez Meta', [0, 0, 1],
   [passe({ mode: 'eteint', approuves: [] }, sitWa ? [{ ...sitWa, canal: 'couronne' }] : []).length, passe({ mode: 'ouvert', approuves: [] }, sitWa ? [sitWa] : []).length,
-    passe({ mode: 'ouvert', approuves: ['gerard_garder', 'gerard_avant', 'gerard_envie', 'gerard_place', 'gerard_anniversaire', 'gerard_fetes', 'gerard_endormie', 'nouvelles_de_la_maison'] }, sitWa ? [sitWa] : []).length]);
+    passe({ mode: 'ouvert', approuves: ['assistant_maison_garder', 'assistant_maison_avant', 'assistant_maison_envie', 'assistant_maison_place', 'assistant_maison_anniversaire', 'assistant_maison_fetes', 'assistant_maison_endormie', 'nouvelles_de_la_maison'] }, sitWa ? [sitWa] : []).length]);
 const sitMain = sit({ ...retard, accord: false })!;
 dit('... une relance à la main ne part JAMAIS seule, même son modèle approuvé chez Meta (accordée, elle part)', [0, 1],
-  [passe({ mode: 'ouvert', approuves: ['gerard_place'] }, [{ ...sitMain, clientId: 'retard' }]).length,
-    passe({ mode: 'ouvert', approuves: ['gerard_place'] }, [{ ...sitMain, clientId: 'retard', aLaMainSeulement: undefined }]).length]);
+  [passe({ mode: 'ouvert', approuves: ['assistant_maison_place'] }, [{ ...sitMain, clientId: 'retard' }]).length,
+    passe({ mode: 'ouvert', approuves: ['assistant_maison_place'] }, [{ ...sitMain, clientId: 'retard', aLaMainSeulement: undefined }]).length]);
 const lAnn = passe({ mode: 'ouvert', approuves: [] }, [{ ...sitWa!, canal: 'couronne', genre: 'anniversaire', code: { mot: 'ANNIV', pct: 10, jusquau: '2026-11-25' } }])[0];
 dit('... la remise n’est jamais fabriquée au dépôt : la ligne la porte « à faire »', ['ANNIV', undefined, 'en-attente'], [lAnn?.codeAFaire?.mot, lAnn?.codePromo, lAnn?.statut]);
 /* Les cartes d'anniversaire partent à 10 h, heure du salon (28 octobre 2026). */
@@ -486,7 +486,7 @@ dit('chaque libellé de bouton de ses modèles a son geste ; la charge porte la 
   [Object.values(MODELES_DE_GERARD).every((m) => m.boutons.every((b) => b in GESTE_DU_LIBELLE)), lisLeBoutonDeLAssistant(charge(idWa, 'Pas cette fois')),
     lisLeBoutonDeLAssistant('MND:1:jour:2026-10-28'), lisLeBoutonDeLAssistant('GERARD:autre-chose:OUI')]);
 dit('... la réponse retenue : oui, non, rien pour un merci', ['oui', 'oui', 'non', undefined, 'oui'], (['OUI', 'SOIN', 'NON', 'MERCI', 'CARTE'] as const).map(reponseDuGeste));
-const lW = passe({ mode: 'ouvert', approuves: ['gerard_envie', 'gerard_avant', 'gerard_place', 'gerard_endormie'] }, sitWa ? [sitWa] : [])[0];
+const lW = passe({ mode: 'ouvert', approuves: ['assistant_maison_envie', 'assistant_maison_avant', 'assistant_maison_place', 'assistant_maison_endormie'] }, sitWa ? [sitWa] : [])[0];
 const boutonsW = (lW?.colis as { composants?: { type: string; parameters: { payload?: string }[] }[] } | undefined)?.composants?.filter((c) => c.type === 'button') ?? [];
 dit('la ligne WhatsApp : un bouton de réponse rapide par libellé du modèle, chacun portant sa ligne', [MODELES_DE_GERARD[sitWa!.modele].boutons.length, true],
   [boutonsW.length, boutonsW.every((b) => lisLeBoutonDeLAssistant(b.parameters[0]?.payload)?.ligneId === lW?.id)]);
