@@ -77,6 +77,24 @@ export type RdvLu = {
   id: string; clientId?: string; clientName?: string; date?: string; time?: string;
   master?: string; status?: string; payments?: VersementLu[]; paidXof?: number;
   lienDeReglement?: LienDeReglement;
+  lienDuFoyer?: LienDuFoyer;
+};
+
+/* ══ LE RÈGLEMENT DU FOYER — 28 octobre 2026 ═════════════════════════════
+   « Le bouton lien de paiement doit mener au bouton Régler pour passer par
+   KkiaPay » (Yéman, sur la fenêtre « Un seul lien pour le foyer »). UN jeton
+   pour plusieurs rendez-vous, posé sur chacun (`lienDuFoyer`) : la page dit
+   chaque tête, sa pièce et son reste, et n'en fait qu'un montant. L'argent se
+   répartit pièce par pièce, dans l'ordre des rendez-vous ; ce qui dépasse le
+   tout est le pourboire de l'équipe, sur la dernière pièce. */
+export type LienDuFoyer = {
+  jeton: string;
+  /** Les rendez-vous que le lien règle ensemble, tels que le Trône les a cochés. */
+  apptIds: string[];
+  creeLe: string;
+  envoyeLe?: string;
+  ouvertLe?: string;
+  payeLe?: string;
 };
 
 /** Un jeton neuf, tiré de quatorze aléas (crypto.getRandomValues). */
@@ -100,6 +118,10 @@ export function jetonDuParametre(tg: unknown): string | null {
 }
 
 export const referenceDuRdv = (rdvId: string): string => `${PREFIXE_DE_LA_REFERENCE}${rdvId}`;
+
+/** La référence d'un règlement du foyer au registre (`reg-foyer-<jeton>`) :
+    jamais l'identifiant d'un rendez-vous, le filet de KkiaPay n'y pose rien. */
+export const referenceDuFoyer = (jeton: string): string => `${PREFIXE_DE_LA_REFERENCE}foyer-${jeton}`;
 
 /** Le jour et l'heure de Cotonou (UTC+1, sans heure d'été). */
 export const jourDeCotonou = (d: Date): string => new Date(d.getTime() + DECALAGE_DE_COTONOU_MS).toISOString().slice(0, 10);
@@ -203,15 +225,18 @@ export function pieceReglee(p: PieceLue, v: VersementLu, pourboireXof: number, t
 }
 
 /** LE RENDEZ-VOUS SUIT SA PIÈCE : le même versement, sous le même
-    identifiant (la règle de `rendezVousRegles`), et le lien dit qu'il a payé. */
-export function rdvRegle(r: RdvLu, v: VersementLu, pieceId: string): RdvLu {
+    identifiant (la règle de `rendezVousRegles`), et le lien dit qu'il a payé :
+    celui du rendez-vous, ou celui du foyer quand l'argent vient de lui. */
+export function rdvRegle(r: RdvLu, v: VersementLu, pieceId: string, parLeFoyer = false): RdvLu {
   if ((r.payments ?? []).some((x) => x.id === v.id)) return r;
   const payes = r.payments?.length ? r.payments.reduce((s, x) => s + n(x.amountXof), 0) : n(r.paidXof);
+  const payeLe = `${v.date}T${v.time ?? '00:00'}`;
   return {
     ...r,
     paidXof: payes + n(v.amountXof),
     payments: [...(r.payments ?? []), { id: v.id, amountXof: v.amountXof, date: v.date, method: v.method, cashbox: v.cashbox, invoiceId: pieceId }],
-    ...(r.lienDeReglement ? { lienDeReglement: { ...r.lienDeReglement, payeLe: `${v.date}T${v.time ?? '00:00'}` } } : {}),
+    ...(!parLeFoyer && r.lienDeReglement ? { lienDeReglement: { ...r.lienDeReglement, payeLe } } : {}),
+    ...(parLeFoyer && r.lienDuFoyer ? { lienDuFoyer: { ...r.lienDuFoyer, payeLe } } : {}),
   };
 }
 
@@ -248,5 +273,63 @@ export function pageDuLien(o: { rdv: RdvLu | null; piece: PieceLue | null; nomDe
     reference: o.rdv ? referenceDuRdv(o.rdv.id) : '',
     branchId: o.branchId ?? '',
     ...(tapgo ? { tapgo } : {}),
+  };
+}
+
+/** LA RÉPARTITION DU FOYER : chaque pièce reçoit son reste, dans l'ordre
+    donné ; un franc d'arrondi absorbé, comme pour une pièce seule ; ce qui
+    dépasse le tout est le pourboire. Un argent qui ne couvre pas le tout ne
+    se pose pas : il reste au registre, « à rapprocher » au comptoir. */
+export function repartitionDuFoyer(payeXof: number, restes: readonly { id: string; resteXof: number }[]):
+  { ok: true; parts: { id: string; montantXof: number }[]; pourboireXof: number } | { ok: false; raison: 'deja_reglee' | 'montant' } {
+  const paye = Math.round(n(payeXof));
+  const parts = restes.map((r) => ({ id: r.id, montantXof: Math.round(n(r.resteXof)) })).filter((r) => r.montantXof > 0);
+  const total = parts.reduce((s, r) => s + r.montantXof, 0);
+  if (total <= 0) return { ok: false, raison: 'deja_reglee' };
+  if (paye + 1 < total) return { ok: false, raison: 'montant' };
+  return { ok: true, parts, pourboireXof: Math.max(0, paye - total) };
+}
+
+/** LE VERSEMENT DU FOYER SUR UNE DE SES PIÈCES : son identifiant porte la
+    pièce (kkia-<transaction>-<pièce>), pour que deux pièces réglées par la
+    même transaction ne se confondent jamais, ni en caisse ni au comptoir. */
+export const idDuVersementDuFoyer = (transactionId: string, pieceId: string): string =>
+  `${PREFIXE_DU_VERSEMENT}${transactionId}-${pieceId}`;
+
+/** Une tête du foyer, telle que la page la montre : son prénom, son jour, ses lignes, son reste. */
+export type TeteDuFoyer = { prenom: string; jour: string; lignes: { label: string; montantXof: number }[]; resteXof: number };
+
+/** CE QUE LA PAGE DU FOYER REÇOIT : les têtes dont la pièce existe, le tout
+    en un montant, et la référence du foyer. Ni numéro, ni nom de famille. */
+export function pageDuFoyer(o: {
+  tetes: readonly { rdv: RdvLu; piece: PieceLue | null; nom?: string }[]; jeton: string; branchId?: string; maintenant: Date;
+}) {
+  const vivantes = o.tetes.filter((t) => t.rdv.status !== 'annulé');
+  const avecPiece = vivantes.filter((t) => !!t.piece);
+  const etats = avecPiece.map((t) => etatDuLien(t.rdv, t.piece));
+  const totalXof = etats.reduce((s, e) => s + e.totalXof, 0);
+  const recuXof = etats.reduce((s, e) => s + e.recuXof, 0);
+  const resteXof = etats.reduce((s, e) => s + e.resteXof, 0);
+  const etat: EtatDuLien = o.tetes.length === 0 ? 'introuvable'
+    : vivantes.length === 0 ? 'annule'
+      : avecPiece.length === 0 ? 'sans-piece'
+        : resteXof > 0 ? 'a-regler' : 'reglee';
+  const tetes: TeteDuFoyer[] = avecPiece.map((t, i) => ({
+    prenom: prenomDe(t.nom ?? t.rdv.clientName), jour: t.rdv.date ?? '', lignes: lignesDites(t.piece!), resteXof: etats[i].resteXof,
+  }));
+  const jours = [...new Set(tetes.map((t) => t.jour).filter(Boolean))];
+  return {
+    etat,
+    prenom: '',
+    maitre: '',
+    jour: jours.length === 1 ? jours[0] : '',
+    lignes: tetes.flatMap((t) => t.lignes.map((l) => ({ label: t.prenom ? `${t.prenom} · ${l.label}` : l.label, montantXof: l.montantXof }))),
+    totalXof,
+    recuXof,
+    resteXof,
+    pourboire: avecPiece.length > 0 && !avecPiece.some((t) => n(t.piece!.tipXof) > 0),
+    reference: referenceDuFoyer(o.jeton),
+    branchId: o.branchId ?? '',
+    tetes,
   };
 }

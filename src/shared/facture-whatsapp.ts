@@ -129,6 +129,9 @@ export async function envoieLaFactureDuFoyer(o: {
   totalDit: string;
   jourIso: string;
   tapgo?: { parametre: string; lien: string; totalDit: string };
+  /** Le paramètre du bouton mène à la page « Régler » du foyer (r-<jeton>,
+      28 octobre 2026) : le mot le dit. */
+  enLigne?: boolean;
   cle: string;
   parQui?: string;
   envoie?: typeof envoieSurWhatsApp;
@@ -140,7 +143,7 @@ export async function envoieLaFactureDuFoyer(o: {
   const piece = await invoiceEnPiece(o.pdf);
   const base = { numero: tel, clientId: o.client.id, branchId: o.client.branchId, parQui: o.parQui };
   const cle = (etape: string) => ({ cleUnique: `${o.cle}-${etape}` });
-  const mot = motDuFoyer({ appel: appelDe(o.client), quand: dateDite(o.jourIso), lignes: o.lignes, totalDit: o.totalDit, lien: o.tapgo?.lien });
+  const mot = motDuFoyer({ appel: appelDe(o.client), quand: dateDite(o.jourIso), lignes: o.lignes, totalDit: o.totalDit, lien: o.tapgo?.lien, enLigne: o.enLigne });
 
   const r = await envoie({ ...base, piece, texte: signeLeMessage(`${maisonNom()} · facture du foyer\n${mot}`), ...cle('mot') });
   if (r.ok || !/fenêtre/i.test(r.erreur)) return r;

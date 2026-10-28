@@ -23,12 +23,19 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
  *                pièce. Rejouable : un rejeu ne double rien.
  *   rattraper  — comme lire, sans noter d'ouverture (le Trône s'en sert).
  *
+ * LE FOYER (28 octobre 2026, « le bouton lien de paiement doit mener au
+ * bouton Régler pour passer par KkiaPay ») : un jeton posé sur plusieurs
+ * rendez-vous (`lienDuFoyer`). Lire rend chaque tête et un seul montant ;
+ * régler répartit l'argent pièce par pièce, dans l'ordre des rendez-vous
+ * (référence reg-foyer-<jeton> au registre). Un jeton de rendez-vous passe
+ * toujours d'abord : rien ne change pour lui.
+ *
  * Verify JWT : ÉTEINT (la cliente n'a pas de compte). Secrets : ceux de
  * kkiapay-verify (KKIAPAY_PUBLIC_KEY, KKIAPAY_PRIVATE_KEY, KKIAPAY_SECRET_KEY,
  * KKIAPAY_API_BASE) et SERVICE_KEY, déjà posés sur le projet : rien à ajouter.
  */
 
-const VERSION = '2026-10-25-a';
+const VERSION = '2026-10-28-a';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SERVICE_KEY = Deno.env.get('SERVICE_KEY') ?? Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -101,6 +108,17 @@ export type RdvLu = {
   id: string; clientId?: string; clientName?: string; date?: string; time?: string;
   master?: string; status?: string; payments?: VersementLu[]; paidXof?: number;
   lienDeReglement?: LienDeReglement;
+  lienDuFoyer?: LienDuFoyer;
+};
+
+export type LienDuFoyer = {
+  jeton: string;
+  /** Les rendez-vous que le lien règle ensemble, tels que le Trône les a cochés. */
+  apptIds: string[];
+  creeLe: string;
+  envoyeLe?: string;
+  ouvertLe?: string;
+  payeLe?: string;
 };
 
 export function jetonDe(aleas: ArrayLike<number>): string {
@@ -122,6 +140,8 @@ export function jetonDuParametre(tg: unknown): string | null {
 }
 
 export const referenceDuRdv = (rdvId: string): string => `${PREFIXE_DE_LA_REFERENCE}${rdvId}`;
+
+export const referenceDuFoyer = (jeton: string): string => `${PREFIXE_DE_LA_REFERENCE}foyer-${jeton}`;
 
 export const jourDeCotonou = (d: Date): string => new Date(d.getTime() + DECALAGE_DE_COTONOU_MS).toISOString().slice(0, 10);
 
@@ -211,14 +231,16 @@ export function pieceReglee(p: PieceLue, v: VersementLu, pourboireXof: number, t
   };
 }
 
-export function rdvRegle(r: RdvLu, v: VersementLu, pieceId: string): RdvLu {
+export function rdvRegle(r: RdvLu, v: VersementLu, pieceId: string, parLeFoyer = false): RdvLu {
   if ((r.payments ?? []).some((x) => x.id === v.id)) return r;
   const payes = r.payments?.length ? r.payments.reduce((s, x) => s + n(x.amountXof), 0) : n(r.paidXof);
+  const payeLe = `${v.date}T${v.time ?? '00:00'}`;
   return {
     ...r,
     paidXof: payes + n(v.amountXof),
     payments: [...(r.payments ?? []), { id: v.id, amountXof: v.amountXof, date: v.date, method: v.method, cashbox: v.cashbox, invoiceId: pieceId }],
-    ...(r.lienDeReglement ? { lienDeReglement: { ...r.lienDeReglement, payeLe: `${v.date}T${v.time ?? '00:00'}` } } : {}),
+    ...(!parLeFoyer && r.lienDeReglement ? { lienDeReglement: { ...r.lienDeReglement, payeLe } } : {}),
+    ...(parLeFoyer && r.lienDuFoyer ? { lienDuFoyer: { ...r.lienDuFoyer, payeLe } } : {}),
   };
 }
 
@@ -251,6 +273,54 @@ export function pageDuLien(o: { rdv: RdvLu | null; piece: PieceLue | null; nomDe
     reference: o.rdv ? referenceDuRdv(o.rdv.id) : '',
     branchId: o.branchId ?? '',
     ...(tapgo ? { tapgo } : {}),
+  };
+}
+
+export function repartitionDuFoyer(payeXof: number, restes: readonly { id: string; resteXof: number }[]):
+  { ok: true; parts: { id: string; montantXof: number }[]; pourboireXof: number } | { ok: false; raison: 'deja_reglee' | 'montant' } {
+  const paye = Math.round(n(payeXof));
+  const parts = restes.map((r) => ({ id: r.id, montantXof: Math.round(n(r.resteXof)) })).filter((r) => r.montantXof > 0);
+  const total = parts.reduce((s, r) => s + r.montantXof, 0);
+  if (total <= 0) return { ok: false, raison: 'deja_reglee' };
+  if (paye + 1 < total) return { ok: false, raison: 'montant' };
+  return { ok: true, parts, pourboireXof: Math.max(0, paye - total) };
+}
+
+export const idDuVersementDuFoyer = (transactionId: string, pieceId: string): string =>
+  `${PREFIXE_DU_VERSEMENT}${transactionId}-${pieceId}`;
+
+export type TeteDuFoyer = { prenom: string; jour: string; lignes: { label: string; montantXof: number }[]; resteXof: number };
+
+export function pageDuFoyer(o: {
+  tetes: readonly { rdv: RdvLu; piece: PieceLue | null; nom?: string }[]; jeton: string; branchId?: string; maintenant: Date;
+}) {
+  const vivantes = o.tetes.filter((t) => t.rdv.status !== 'annulé');
+  const avecPiece = vivantes.filter((t) => !!t.piece);
+  const etats = avecPiece.map((t) => etatDuLien(t.rdv, t.piece));
+  const totalXof = etats.reduce((s, e) => s + e.totalXof, 0);
+  const recuXof = etats.reduce((s, e) => s + e.recuXof, 0);
+  const resteXof = etats.reduce((s, e) => s + e.resteXof, 0);
+  const etat: EtatDuLien = o.tetes.length === 0 ? 'introuvable'
+    : vivantes.length === 0 ? 'annule'
+      : avecPiece.length === 0 ? 'sans-piece'
+        : resteXof > 0 ? 'a-regler' : 'reglee';
+  const tetes: TeteDuFoyer[] = avecPiece.map((t, i) => ({
+    prenom: prenomDe(t.nom ?? t.rdv.clientName), jour: t.rdv.date ?? '', lignes: lignesDites(t.piece!), resteXof: etats[i].resteXof,
+  }));
+  const jours = [...new Set(tetes.map((t) => t.jour).filter(Boolean))];
+  return {
+    etat,
+    prenom: '',
+    maitre: '',
+    jour: jours.length === 1 ? jours[0] : '',
+    lignes: tetes.flatMap((t) => t.lignes.map((l) => ({ label: t.prenom ? `${t.prenom} · ${l.label}` : l.label, montantXof: l.montantXof }))),
+    totalXof,
+    recuXof,
+    resteXof,
+    pourboire: avecPiece.length > 0 && !avecPiece.some((t) => n(t.piece!.tipXof) > 0),
+    reference: referenceDuFoyer(o.jeton),
+    branchId: o.branchId ?? '',
+    tetes,
   };
 }
 // ── FIN copie de shared/regler-la-seance-pur.ts
@@ -383,12 +453,126 @@ async function rattrapeLeRegistre(rdv: Ligne): Promise<number> {
   return poses;
 }
 
+/* ══ LE FOYER : UN JETON, PLUSIEURS RENDEZ-VOUS (28 octobre 2026) ═════════ */
+
+/** Les rendez-vous du jeton du foyer, dans l'ordre du jour et de l'heure :
+    ceux qui portent ce jeton ET se nomment dans sa liste. */
+async function lesRdvsDuFoyer(jeton: string): Promise<Ligne[]> {
+  const { data, error } = await admin.from('appointments').select('id,branch_id,data')
+    .eq('data->lienDuFoyer->>jeton', jeton).limit(12);
+  if (error) throw new Error(error.message);
+  return ((data ?? []) as Ligne[])
+    .filter((l) => Array.isArray(l.data?.lienDuFoyer?.apptIds) && l.data.lienDuFoyer.apptIds.includes(l.id))
+    .sort((a, b) => `${a.data?.date ?? ''} ${a.data?.time ?? ''} ${a.id}`.localeCompare(`${b.data?.date ?? ''} ${b.data?.time ?? ''} ${b.id}`));
+}
+
+/** L'ARGENT DU FOYER POSÉ : le registre d'abord (référence du foyer), puis
+    chaque pièce relue à l'instant reçoit son reste, dans l'ordre ; le
+    pourboire va sur la dernière. Une pièce où la transaction est déjà posée
+    ne se repose pas (un rejeu ne double rien) ; un argent qui ne couvre pas
+    le tout reste au registre, « à rapprocher » au comptoir. */
+async function appliquerAuFoyer(jeton: string, rdvs: Ligne[], t: { id: string; amountXof: number; feesXof: number; source?: string }): Promise<
+  { ok: true; deja?: boolean; versementXof: number; pourboireXof: number } | { ok: false; erreur: string; status: number }
+> {
+  const reference = referenceDuFoyer(jeton);
+  const { error: insErr } = await admin.from('payments').insert({
+    id: t.id, branch_id: rdvs[0]?.branch_id,
+    data: {
+      id: t.id, branchId: rdvs[0]?.branch_id, provider: 'kkiapay', amountXof: t.amountXof, feesXof: t.feesXof,
+      method: t.source ?? undefined, partnerId: reference, status: 'success', at: new Date().toISOString(),
+    },
+  });
+  if (insErr) {
+    if (insErr.code !== '23505') throw new Error(insErr.message);
+    const { data: inscrit } = await admin.from('payments').select('data').eq('id', t.id).maybeSingle();
+    if (String(inscrit?.data?.partnerId ?? '') !== reference) return { ok: false, erreur: 'transaction_deja_utilisee', status: 409 };
+  }
+
+  const pieces: { rdv: Ligne; piece: PieceLue }[] = [];
+  for (const rdv of rdvs) {
+    const pl = await laPiece(rdv.id);
+    if (pl) pieces.push({ rdv, piece: { ...(pl.data ?? {}), id: pl.id } });
+  }
+  if (pieces.length === 0) return { ok: false, erreur: 'sans_piece', status: 409 };
+  const posee = (p: PieceLue) => (p.payments ?? []).filter((v) => v.id === idDuVersementDuFoyer(t.id, p.id));
+  const dejaRecu = pieces.reduce((s, x) => s + posee(x.piece).reduce((a, v) => a + n(v.amountXof), 0), 0);
+  const aPoser = pieces.filter((x) => posee(x.piece).length === 0);
+  if (dejaRecu > 0 && aPoser.every((x) => resteDeLaPiece(x.piece) <= 0)) return { ok: true, deja: true, versementXof: 0, pourboireXof: 0 };
+  const rep = repartitionDuFoyer(t.amountXof - dejaRecu, aPoser.map((x) => ({ id: x.piece.id, resteXof: resteDeLaPiece(x.piece) })));
+  if (!rep.ok) return dejaRecu > 0 ? { ok: true, deja: true, versementXof: 0, pourboireXof: 0 } : { ok: false, erreur: rep.raison, status: 409 };
+
+  const quand = new Date();
+  const derniere = rep.parts[rep.parts.length - 1].id;
+  let verse = 0;
+  for (const part of rep.parts) {
+    const x = aPoser.find((y) => y.piece.id === part.id);
+    if (!x) continue;
+    const v = { ...versementEnLigne({ transactionId: t.id, montantXof: part.montantXof, source: t.source, quand }), id: idDuVersementDuFoyer(t.id, x.piece.id) };
+    const pourboire = part.id === derniere ? rep.pourboireXof : 0;
+    const trace: ReglementEnLigne = {
+      id: v.id, transactionId: t.id, payeLe: quand.toISOString(), montantXof: part.montantXof,
+      pourboireXof: pourboire, fraisXof: part.id === derniere ? t.feesXof : 0, ...(moyenDit(t.source) ? { moyen: moyenDit(t.source) } : {}),
+    };
+    const neuve = pieceReglee(x.piece, v, pourboire, trace);
+    const { error: e1 } = await admin.from('invoices').update({ data: neuve }).eq('id', x.piece.id);
+    if (e1) throw new Error(e1.message);
+    const { data: frais } = await admin.from('appointments').select('id,data').eq('id', x.rdv.id).maybeSingle();
+    if (frais) {
+      const avant: RdvLu = { ...(frais.data ?? {}), id: frais.id };
+      const apres = rdvRegle(avant, v, x.piece.id, true);
+      if (apres !== avant) {
+        const { error: e2 } = await admin.from('appointments').update({ data: apres }).eq('id', x.rdv.id);
+        if (e2) throw new Error(e2.message);
+      }
+    }
+    verse += part.montantXof;
+  }
+  return { ok: true, versementXof: verse, pourboireXof: rep.pourboireXof };
+}
+
+/** LE FILET DU FOYER : les transactions du registre à sa référence, pas encore posées. */
+async function rattrapeLeFoyer(jeton: string, rdvs: Ligne[]): Promise<number> {
+  const { data } = await admin.from('payments').select('id,data').eq('data->>partnerId', referenceDuFoyer(jeton)).limit(20);
+  let poses = 0;
+  for (const row of data ?? []) {
+    const d = row.data ?? {};
+    if (String(d.status ?? '') !== 'success' || String(d.provider ?? 'kkiapay') !== 'kkiapay') continue;
+    const r = await appliquerAuFoyer(jeton, rdvs, { id: String(row.id), amountXof: Math.round(Number(d.amountXof) || 0), feesXof: Math.round(Number(d.feesXof) || 0), source: d.method });
+    if (r.ok && !r.deja) poses += 1;
+  }
+  return poses;
+}
+
+async function lireLeFoyer(jeton: string, rdvsLus: Ligne[], noteLOuverture: boolean) {
+  let rdvs = rdvsLus;
+  const rattrapes = await rattrapeLeFoyer(jeton, rdvs);
+  if (rattrapes > 0) rdvs = await lesRdvsDuFoyer(jeton);
+  if (noteLOuverture) {
+    const ouvert = new Date().toISOString();
+    for (const rdv of rdvs) {
+      const lien = rdv.data?.lienDuFoyer;
+      if (lien && !lien.ouvertLe) await admin.from('appointments').update({ data: { ...(rdv.data ?? {}), lienDuFoyer: { ...lien, ouvertLe: ouvert } } }).eq('id', rdv.id);
+    }
+  }
+  const tetes: { rdv: RdvLu; piece: PieceLue | null; nom?: string }[] = [];
+  for (const rdv of rdvs) {
+    const r: RdvLu = { ...(rdv.data ?? {}), id: rdv.id };
+    const pl = await laPiece(rdv.id);
+    tetes.push({ rdv: r, piece: pl ? { ...(pl.data ?? {}), id: pl.id } : null, nom: (await nomDe(r.clientId)) || r.clientName || '' });
+  }
+  return json({ ok: true, rattrapes, page: pageDuFoyer({ tetes, jeton, branchId: rdvs[0]?.branch_id, maintenant: new Date() }) });
+}
+
 async function lire(req: Request, b: any, noteLOuverture: boolean) {
   if (!(await permis(ipOf(req), 'regler-lire', 60))) return json({ error: 'trop' }, 429);
   const jeton = String(b.jeton ?? '').trim();
   if (!estUnJeton(jeton)) return json({ error: 'lien' }, 400);
   let rdv = await leRdvDuJeton(jeton);
-  if (!rdv) return json({ ok: true, page: pageDuLien({ rdv: null, piece: null, maintenant: new Date() }) });
+  if (!rdv) {
+    const foyer = await lesRdvsDuFoyer(jeton);
+    if (foyer.length > 0) return await lireLeFoyer(jeton, foyer, noteLOuverture);
+    return json({ ok: true, page: pageDuLien({ rdv: null, piece: null, maintenant: new Date() }) });
+  }
   const rattrapes = await rattrapeLeRegistre(rdv);
   if (rattrapes > 0) rdv = (await leRdvDuJeton(jeton)) ?? rdv;
   const r: RdvLu = { ...(rdv.data ?? {}), id: rdv.id };
@@ -408,12 +592,12 @@ async function regler(req: Request, b: any) {
   const transactionId = String(b.transactionId ?? '').trim();
   if (!estUnJeton(jeton) || !transactionId) return json({ error: 'bad_request' }, 400);
   const rdv = await leRdvDuJeton(jeton);
-  if (!rdv) return json({ error: 'lien_introuvable' }, 404);
+  const foyer = rdv ? [] : await lesRdvsDuFoyer(jeton);
+  if (!rdv && foyer.length === 0) return json({ error: 'lien_introuvable' }, 404);
   const tx = await transaction(transactionId);
   if ((tx.status ?? '').toUpperCase() !== 'SUCCESS') return json({ error: 'echec', detail: tx.failureMessage ?? tx.status ?? '' }, 402);
-  const r = await appliquer(rdv, {
-    id: transactionId, amountXof: Math.round(Number(tx.amount ?? 0)), feesXof: Math.round(Number(tx.fees ?? 0)), source: tx.source,
-  });
+  const argent = { id: transactionId, amountXof: Math.round(Number(tx.amount ?? 0)), feesXof: Math.round(Number(tx.fees ?? 0)), source: tx.source };
+  const r = rdv ? await appliquer(rdv, argent) : await appliquerAuFoyer(jeton, foyer, argent);
   if (!r.ok) return json({ error: r.erreur }, r.status);
   return json({ ok: true, deja: !!r.deja, versementXof: r.versementXof, pourboireXof: r.pourboireXof, moyen: moyenDit(tx.source) });
 }

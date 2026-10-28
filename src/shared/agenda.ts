@@ -1,7 +1,7 @@
 import { createStore, useStore } from './store';
 import type { LongueurId } from './catalog';
 import type { LigneGamme } from './gamme';
-import type { LienDeReglement } from './regler-la-seance-pur';
+import type { LienDeReglement, LienDuFoyer } from './regler-la-seance-pur';
 
 /* Le Carnet — rendez-vous multi-services, 08:00–18:00.
    Les semences sont générées autour d'aujourd'hui : le carnet vit toujours. */
@@ -130,6 +130,9 @@ export type Appointment = {
       posé par le Trône à « Terminer la séance » ; la fonction
       `regler-la-seance` y note la première ouverture et le règlement. */
   lienDeReglement?: LienDeReglement;
+  /** LE LIEN DU FOYER (28 octobre 2026) : un jeton commun à plusieurs
+      rendez-vous, qu'un seul paiement KkiaPay règle ensemble. */
+  lienDuFoyer?: LienDuFoyer;
   /** QUI A OFFERT CE RITUEL — l'identifiant de celle qui l'a payé pour une
       autre.
 

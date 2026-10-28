@@ -35,6 +35,8 @@ import { detacherFacture } from '../../../../shared/laboratoire';
 import { ChampDeDate } from '../../../../ds/dates';
 import { VieDeLaFacture, useEstDirection } from '../_vie';
 import { cheminDeLaConversation, lienWaMe } from '../../../../shared/conversations';
+import { adresseDuLien, noteLEnvoiDuFoyer, poseLeLienDeReglement, poseLeLienDuFoyer } from '../../../../shared/regler-la-seance';
+import { saitRegler, saitReglerLeFoyer, versionDuReglement } from '../../../../shared/regler-la-seance-serveur';
 import { appelDe } from '../../../../shared/civilite';
 import { aligneLeRituel, corrigeLeVersement, estLieALaPiece, sansTiroir, type CorrectionDeVersement } from '../../../../shared/caisse-du-versement';
 import { soldeDeLaPiece, caisseManquante } from './encaissement-pur';
@@ -404,6 +406,14 @@ export default function Factures() {
      LE LIEN NE FAIT QU'UNE CHOSE : il porte un montant. C'est donc à l'écran de
      dire ce que ce montant couvre, pièce par pièce, dans le message. */
   const [lienFoyer, setLienFoyer] = useState<{ pieces: Invoice[]; prises: string[] } | null>(null);
+  /* ══ LE LIEN DE PAIEMENT MÈNE À « RÉGLER » — 28 octobre 2026 ═══════════
+     « Le bouton lien de paiement doit mener au bouton Régler pour passer par
+     KkiaPay » (Yéman). Quand la fonction `regler-la-seance` répond, une
+     facture liée à son rendez-vous part avec la page de sa séance, et le
+     foyer avec un seul lien qui règle chaque pièce (version 2026-10-28-a).
+     Sans elle, ou sans rendez-vous, la page Mobile Money comme avant. */
+  const [versionDeRegler, setVersionDeRegler] = useState('');
+  useEffect(() => { void versionDuReglement().then(setVersionDeRegler); }, []);
   /* ══ UN LIEN POUR UN MONTANT, SANS PIÈCE DERRIÈRE — 4 septembre 2026 ═
      « Pose un endroit où taper simplement 45 000 et obtenir un lien, et
      l'envoi WhatsApp d'un geste » (Yéman).
@@ -1589,10 +1599,57 @@ export default function Factures() {
                   message de facture, lui, reste sobre (décision du 22 août) :
                   ceci est un geste séparé, pour quand on RÉCLAME un règlement. */}
               {selected.kind === 'facture' && invoiceResteXof(selected) > 0 && (() => {
-                const lien = lienPaiementMomo(invoiceResteXof(selected));
+                const reste = invoiceResteXof(selected);
                 const tel = clientOf(selected)?.phone.replace(/\D/g, '') ?? '';
-                if (!lien || !tel) return null;
-                /* ══ LA RÉFÉRENCE N'EST QU'UNE RÉFÉRENCE — 2 septembre 2026 ══
+                /* « RÉGLER » D'ABORD (28 octobre 2026) : une facture liée à son
+                   rendez-vous mène à la page de sa séance, KkiaPay (MTN, Moov,
+                   Celtiis, carte), qui solde la pièce seule. Sans rendez-vous,
+                   ou sans la fonction, la page Mobile Money comme avant. */
+                const parRegler = !!selected.apptId && saitRegler(versionDeRegler)
+                  && appointmentsStore.get().some((a) => a.id === selected.apptId);
+                const lienMomo = parRegler ? null : lienPaiementMomo(reste);
+                if (!tel || (!parRegler && !lienMomo)) return null;
+                const motPour = (l: string) => signeLeMessage(`${maisonNom()}\n` + (parRegler
+                  ? `Bonjour ${appelOf(selected)}, pour régler ${fmtMoney(reste, currency)} depuis votre téléphone (MTN, Moov, Celtiis ou carte), touchez « Régler » sur cette page :\n${l}`
+                  : `Bonjour ${appelOf(selected)}, pour régler ${fmtMoney(reste, currency)} par Mobile Money, ouvrez cette page : le code à composer s'y affiche, montant compris.\n${l}`));
+                /* Le jeton se pose AU TOUCHER, jamais à l'affichage : ouvrir une facture n'écrit rien. */
+                const lienAuToucher = (): string | null => {
+                  if (!parRegler) return lienMomo;
+                  const j = poseLeLienDeReglement(selected.apptId!);
+                  return j ? adresseDuLien(j) : null;
+                };
+                const versLeFil = () => {
+                  const l = lienAuToucher();
+                  if (!l) { toast('Le lien n’a pas pu se poser : le rendez-vous de cette facture est introuvable.'); return; }
+                  window.location.hash = `#${cheminDeLaConversation(tel, motPour(l)) ?? '/conversations'}`;
+                };
+                const versLApplication = () => {
+                  const l = lienAuToucher();
+                  const u = l ? lienWaMe(tel, motPour(l)) : null;
+                  if (u) window.open(u, '_blank', 'noreferrer');
+                };
+                return (
+                  <div className="trv-doc-actions__row" style={{ display: 'flex', gap: 8 }}>
+                    <a className="trv-wa-btn" style={{ textDecoration: 'none', flex: 1 }} href="#" role="button"
+                      title={parRegler ? 'La page « Régler » de sa séance : KkiaPay, Mobile Money ou carte. La pièce se solde seule.' : 'La page Mobile Money : le code à composer, montant compris.'}
+                      onClick={(e) => { e.preventDefault(); versLeFil(); }}>
+                      Envoyer le lien de paiement
+                    </a>
+                    {lienWaMe(tel, 'Maison MND') && (
+                      <a
+                        className="trv-wa-btn trv-wa-btn--app"
+                        href="#"
+                        role="button"
+                        onClick={(e) => { e.preventDefault(); versLApplication(); }}
+                        title="Ouvrir l’application WhatsApp. Ce qui s’y écrit n’entre pas dans le fil de la Maison."
+                      >
+                        App
+                      </a>
+                    )}
+                  </div>
+                );
+              })()}
+              {/* ══ LA RÉFÉRENCE N'EST QU'UNE RÉFÉRENCE — 2 septembre 2026 ══
                    « Sur le message de lien de paiement il ne faut pas mettre en
                    gras la référence de facture, car ce n'est qu'une référence »
                    (Yéman).
@@ -1606,31 +1663,7 @@ export default function Factures() {
 
                    LE MONTANT ET LE LIEN D'ABORD. Puis, le 18 octobre 2026 :
                    « seul le PDF garde son numéro de pièce » (Yéman) ; la
-                   référence a quitté le message. */
-                const msg = signeLeMessage(
-                  `${maisonNom()}\n` +
-                  `Bonjour ${appelOf(selected)}, pour régler ${fmtMoney(invoiceResteXof(selected), currency)} par Mobile Money, ouvrez cette page : le code à composer s'y affiche, montant compris.\n${lien}`,
-                );
-                const versLApp = lienWaMe(tel, msg);
-                return (
-                  <div className="trv-doc-actions__row" style={{ display: 'flex', gap: 8 }}>
-                    <a className="trv-wa-btn" style={{ textDecoration: 'none', flex: 1 }} href={`#${cheminDeLaConversation(tel, msg) ?? '/conversations'}`}>
-                      Envoyer le lien de paiement
-                    </a>
-                    {versLApp && (
-                      <a
-                        className="trv-wa-btn trv-wa-btn--app"
-                        href={versLApp}
-                        target="_blank"
-                        rel="noreferrer"
-                        title="Ouvrir l’application WhatsApp. Ce qui s’y écrit n’entre pas dans le fil de la Maison."
-                      >
-                        App
-                      </a>
-                    )}
-                  </div>
-                );
-              })()}
+                   référence a quitté le message. */}
               {/* MND PAY (16 octobre 2026) : le lien de FedaPay, carte ou mobile
                   money, qui règle la pièce seul quand elle a payé. */}
               {selected.kind === 'facture' && invoiceResteXof(selected) > 0 && (
@@ -2231,18 +2264,46 @@ export default function Factures() {
       {lienFoyer && (() => {
         const prises = lienFoyer.pieces.filter((i) => lienFoyer.prises.includes(i.id));
         const total = prises.reduce((n, i) => n + invoiceResteXof(i), 0);
-        const lien = lienPaiementMomo(total);
+        /* « RÉGLER » POUR LE FOYER (28 octobre 2026) : quand la fonction sait
+           le foyer et que chaque pièce cochée a son rendez-vous, un seul lien
+           mène à la page « Régler » (KkiaPay), qui solde chaque pièce à son
+           montant. Sinon, la page Mobile Money comme avant. */
+        const rdvsDuFoyer = prises.map((i) => i.apptId ?? '');
+        const lesRdvs = appointmentsStore.get();
+        const parRegler = prises.length > 0 && saitReglerLeFoyer(versionDeRegler)
+          && rdvsDuFoyer.every((id) => !!id && lesRdvs.some((a) => a.id === id));
+        const lien = parRegler ? null : lienPaiementMomo(total);
         /* LA PAYEUSE DU FOYER, PAS LA DERNIÈRE TÊTE SERVIE. C'est elle qui
            règle, et c'est son téléphone qu'on ouvre. */
         const premiere = clientOf(prises[0] ?? lienFoyer.pieces[0]);
         const payeur = premiere ? clients.find((c) => c.id === payerClientIdOf(premiere, families)) ?? premiere : undefined;
         const tel = payeur?.phone.replace(/\D/g, '') ?? '';
-        const msg = signeLeMessage(
+        /* Aucun numéro de pièce dans le message (18 octobre 2026, « seul le
+           PDF garde son numéro de pièce ») : la tête, le jour, le montant. */
+        const msgPour = (l: string) => signeLeMessage(
           `${maisonNom()}\n`
-          + `Bonjour ${appelDe(payeur)}, pour régler ${fmtMoney(total, currency)} par Mobile Money, ouvrez cette page : le code à composer s'y affiche, montant compris.\n${lien ?? ''}\n`
-          + `Ce règlement couvre :\n${prises.map((i) => `· ${clientNameOf(i)} · ${frShortAn(i.date)} · ${fmtMoney(invoiceResteXof(i), currency)}`).join('\n')}\n`
-          + `Références ${prises.map((i) => i.number).join(', ')}`,
+          + (parRegler
+            ? `Bonjour ${appelDe(payeur)}, pour régler ${fmtMoney(total, currency)} en une fois depuis votre téléphone (MTN, Moov, Celtiis ou carte), touchez « Régler » sur cette page :\n${l}\n`
+            : `Bonjour ${appelDe(payeur)}, pour régler ${fmtMoney(total, currency)} par Mobile Money, ouvrez cette page : le code à composer s'y affiche, montant compris.\n${l}\n`)
+          + `Ce règlement couvre :\n${prises.map((i) => `· ${clientNameOf(i)} · ${frShortAn(i.date)} · ${fmtMoney(invoiceResteXof(i), currency)}`).join('\n')}`,
         );
+        /* Le jeton du foyer se pose AU TOUCHER, jamais à l'affichage. */
+        const lienAuToucher = (): string | null => {
+          if (!parRegler) return lien;
+          const j = poseLeLienDuFoyer(rdvsDuFoyer);
+          return j ? adresseDuLien(j) : null;
+        };
+        const adresser = () => {
+          const l = lienAuToucher();
+          if (!l) { toast('Le lien du foyer n’a pas pu se poser : un rendez-vous est introuvable.'); return; }
+          if (parRegler) noteLEnvoiDuFoyer(rdvsDuFoyer);
+          window.location.hash = `#${cheminDeLaConversation(tel, msgPour(l)) ?? '/conversations'}`;
+        };
+        const copier = () => {
+          const l = lienAuToucher();
+          if (!l) { toast('Le lien du foyer n’a pas pu se poser : un rendez-vous est introuvable.'); return; }
+          void navigator.clipboard?.writeText(l).then(() => toast('Lien copié.'), () => toast(l));
+        };
         /* ══ LE RÉCAPITULATIF DU FOYER — 4 septembre 2026 ══════════════
            « Je veux un PDF qui résume leurs 3 RDV avant que j'envoie le lien de
            paiement » (Yéman).
@@ -2296,8 +2357,9 @@ export default function Factures() {
           <Modal title="Un seul lien pour le foyer" onClose={() => setLienFoyer(null)} width={520}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 15 }}>
               <div className="mnd-muted" style={{ fontSize: 12.5, lineHeight: 1.65 }}>
-                Cochez ce que ce règlement couvre. Un seul code à composer, un seul montant, et le
-                message dit à qui appartient chaque ligne.
+                {parRegler
+                  ? 'Cochez ce que ce règlement couvre. Un seul lien, un seul montant : la page « Régler » (KkiaPay, Mobile Money ou carte) solde chaque pièce, et le message dit à qui appartient chaque ligne.'
+                  : 'Cochez ce que ce règlement couvre. Un seul code à composer, un seul montant, et le message dit à qui appartient chaque ligne.'}
               </div>
               <div style={{ border: '1px solid var(--hairline)', borderRadius: 3 }}>
                 {lienFoyer.pieces.map((i) => {
@@ -2329,18 +2391,26 @@ export default function Factures() {
                 <span className="mnd-eyebrow" style={{ fontSize: 9.5 }}>Un seul règlement</span>
                 <span style={{ fontFamily: 'var(--font-serif)', fontSize: 26, color: 'var(--color-indigo)' }}>{fmtMoney(total, currency)}</span>
               </div>
-              {!lien && (
+              {!parRegler && !lien && (
                 <div className="tre-inline-note">
                   <span className="mark">!</span>
                   <span>Le paiement Mobile Money n’est pas réglé pour cette Maison. Paramètres → Automatisations.</span>
                 </div>
               )}
-              {/* CE QUI RESTE À FAIRE À LA MAIN SE DIT. Le lien porte un montant,
-                  il ne solde rien : l'argent arrivé se pointe pièce par pièce. */}
+              {/* CE QUI RESTE À FAIRE À LA MAIN SE DIT. Le lien Mobile Money porte
+                  un montant, il ne solde rien : l'argent arrivé se pointe pièce
+                  par pièce. Le lien « Régler » encaisse, et solde chaque pièce. */}
               <div className="mnd-muted" style={{ fontSize: 11.5, lineHeight: 1.55 }}>
-                Ce lien <b>réclame</b>, il n’encaisse pas. Quand l’argent arrive, pointez chaque
-                pièce à son montant : c’est ce qui garde les comptes de chaque tête justes.
+                {parRegler
+                  ? <>Ce lien <b>encaisse</b> : payé par KkiaPay, chaque pièce est soldée à son montant, sans rien à pointer.</>
+                  : <>Ce lien <b>réclame</b>, il n’encaisse pas. Quand l’argent arrive, pointez chaque
+                    pièce à son montant : c’est ce qui garde les comptes de chaque tête justes.</>}
               </div>
+              {!parRegler && prises.length > 0 && rdvsDuFoyer.every(Boolean) && !saitReglerLeFoyer(versionDeRegler) && (
+                <div className="mnd-muted" style={{ fontSize: 11, lineHeight: 1.5 }}>
+                  La page « Régler » du foyer attend la fonction regler-la-seance en version 2026-10-28-a.
+                </div>
+              )}
               {/* LE RÉCAPITULATIF PART AVANT LE LIEN, et le bouton est donc
                   AVANT lui : l'ordre des gestes à l'écran est l'ordre de la
                   conversation avec la payeuse. */}
@@ -2349,16 +2419,17 @@ export default function Factures() {
               </Button>
               <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
                 <Button variant="ghost" style={{ flex: 1 }} onClick={() => setLienFoyer(null)}>Fermer</Button>
-                {lien && tel && (
+                {(parRegler || lien) && tel && (
                   <a
                     className="trv-wa-btn" style={{ textDecoration: 'none', flex: 1, textAlign: 'center' }}
-                    href={`#${cheminDeLaConversation(tel, msg) ?? '/conversations'}`}
+                    href="#" role="button"
+                    onClick={(e) => { e.preventDefault(); adresser(); }}
                   >
                     Adresser à {(payeur?.name ?? '').split(' ')[0]}
                   </a>
                 )}
-                {lien && (
-                  <Button onClick={() => { void navigator.clipboard?.writeText(lien); toast('Lien copié.'); }}>
+                {(parRegler || lien) && (
+                  <Button onClick={copier}>
                     Copier le lien
                   </Button>
                 )}

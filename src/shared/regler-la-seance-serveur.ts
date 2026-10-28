@@ -21,6 +21,8 @@ export type PageDuLien = {
   reference: string;
   branchId: string;
   tapgo?: { parametre: string; totalXof: number };
+  /** Le foyer (28 octobre 2026) : chaque tête, son jour, ses lignes, son reste. */
+  tetes?: { prenom: string; jour: string; lignes: { label: string; montantXof: number }[]; resteXof: number }[];
 };
 
 export type Reponse = { ok?: boolean; error?: string; version?: string; page?: PageDuLien; [k: string]: unknown };
@@ -67,3 +69,6 @@ export function versionDuReglement(): Promise<string> {
 
 /** La fonction répond, et sait régler une séance après coup (lot 1). */
 export const saitRegler = (v: string): boolean => v >= '2026-10-25-a';
+
+/** Elle sait régler un foyer d'un seul paiement (28 octobre 2026). */
+export const saitReglerLeFoyer = (v: string): boolean => v >= '2026-10-28-a';

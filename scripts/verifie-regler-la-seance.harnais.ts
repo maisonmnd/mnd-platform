@@ -13,6 +13,7 @@ import {
   ALPHABET_DU_JETON, LONGUEUR_DU_JETON, jetonDe, estUnJeton, parametreDuLien, jetonDuParametre, referenceDuRdv,
   totalDeLaPiece, regleDeLaPiece, resteDeLaPiece, laPieceDuRdv, etatDuLien, partageDuPaiement, versementEnLigne,
   pieceReglee, rdvRegle, pageDuLien, moyenDit, dejaInscrit,
+  repartitionDuFoyer, pageDuFoyer, referenceDuFoyer, idDuVersementDuFoyer,
   type PieceLue, type RdvLu, type ReglementEnLigne,
 } from '../src/shared/regler-la-seance-pur';
 import { reglementsATraiter, partsDuReglement, marqueLeReglement, aAnnoncer, idDeLaPart } from '../src/shared/reglements-en-ligne-pur';
@@ -20,6 +21,7 @@ import { invoiceTotal, invoiceRegleXof, invoiceResteXof, type Invoice } from '..
 import { repartirPourboire } from '../src/shared/tips';
 import { buildReceipts } from '../src/shared/receipts';
 import { motDeLaFacture } from '../src/shared/facture-whatsapp';
+import { motDuFoyer } from '../src/shared/facture-du-foyer-pur';
 import { DEVISE_COMPLETE } from '../src/shared/identite';
 // @ts-expect-error module .mjs sans types
 import { copieAttendue, copieDuServeur } from './regler-copie-serveur.mjs';
@@ -177,7 +179,9 @@ const elision = new RegExp(/const deLaCliente = [^?]+\? '' : \/(\^\[[^\]]+\])\/i
 dit('« la seance d Awa », mais « de Yeman » : l elision devant une voyelle seulement', ['d', 'd', 'de', 'de', 'de'],
   ['Awa', 'Inès', 'Yéman', 'Sena', 'Hélène'].map((p) => (elision.test(p) ? 'd' : 'de')));
 dit('plus de Tap & Go sur la page : un seul bouton de paiement, et « Quelqu un regle pour moi » explique (25 octobre 2026)', [false, true],
-  [/Tap &amp; Go|payer\.html\?tg=/.test(sansCommentaires(appTexte)), /la personne voit la séance et le montant, jamais votre numéro/.test(appTexte)]);
+  [/Tap &amp; Go|payer\.html\?tg=/.test(sansCommentaires(appTexte)), /la personne voit \{p\.tetes \? 'les séances' : 'la séance'\} et le montant, jamais votre numéro/.test(appTexte)]);
+dit('la page du foyer : « Les séances de N. et d’A. », le pluriel partout, un seul bouton Régler (28 octobre 2026)', [true, true, true],
+  [/Les séances \{desTetes\(p\.tetes\.map\(\(x\) => x\.prenom\)\)\}/.test(appTexte), /'Régler les séances'/.test(appTexte), /Il n’y a plus rien à régler pour ces séances\./.test(appTexte)]);
 dit('la page ne decide d aucun montant : elle lit le reste au serveur', [true, false], [/p\.resteXof \+ \(p\.pourboire \? pourboire : 0\)/.test(lis('src/apps/regler/App.tsx')), /resteXof\s*=/.test(sansCommentaires(lis('src/apps/regler/App.tsx')))]);
 
 /* ── 10. La fonction porte la même règle, et se rejoue ─────────────────── */
@@ -247,7 +251,7 @@ const remplis = () => {
 };
 remplis();
 const sante = await appelle();
-dit('GET : la version et les secrets en booleens, sans valeur', ['2026-10-25-a', { public: true, private: true, secret: true, service: true }], [sante.corps.version, sante.corps.secrets]);
+dit('GET : la version et les secrets en booleens, sans valeur', ['2026-10-28-a', { public: true, private: true, secret: true, service: true }], [sante.corps.version, sante.corps.secrets]);
 const lu = await appelle({ action: 'lire', jeton: j });
 dit('lire : le juste reste et le prenom, et la premiere ouverture se note sur le rendez-vous',
   [200, 'a-regler', 23500, 'Awa', true], [lu.status, lu.corps.page?.etat, lu.corps.page?.resteXof, lu.corps.page?.prenom, !!db.appointments[0].data.lienDeReglement.ouvertLe]);
@@ -278,5 +282,98 @@ db.payments.push({ id: 'txF', branch_id: 'b1', data: { id: 'txF', partnerId: 're
 const filet = await appelle({ action: 'rattraper', jeton: j });
 dit('le filet : un paiement que seul le webhook a vu se pose a la lecture, sans noter d ouverture',
   [1, 'reglee', true, false], [filet.corps.rattrapes, filet.corps.page?.etat, f1().payments.some((p: any) => p.id === 'kkia-txF'), !!db.appointments[0].data.lienDeReglement.ouvertLe]);
+
+/* ── LE FOYER : UN JETON, PLUSIEURS RENDEZ-VOUS (28 octobre 2026) ─────────
+   « Le bouton lien de paiement doit mener au bouton Régler pour passer par
+   KkiaPay » (Yéman, fenêtre « Un seul lien pour le foyer »). Deux enfants
+   (initiales), deux pièces, un seul paiement KkiaPay. */
+const jf = jetonDe([5, 9, 11, 13, 17, 19, 3, 40, 7, 100, 0, 30, 31, 62]);
+const foyerLien = { jeton: jf, apptIds: ['rdv-a', 'rdv-b'], creeLe: '2026-10-27T18:00:00Z' };
+const remplisLeFoyer = () => {
+  db.appointments = [
+    { id: 'rdv-b', branch_id: 'b1', data: { id: 'rdv-b', branchId: 'b1', clientId: 'cb', clientName: 'A. A.', date: '2026-10-27', time: '15:00', status: 'honoré', lienDuFoyer: structuredClone(foyerLien) } },
+    { id: 'rdv-a', branch_id: 'b1', data: { id: 'rdv-a', branchId: 'b1', clientId: 'ca', clientName: 'N. A.', date: '2026-10-27', time: '14:00', status: 'honoré', lienDuFoyer: structuredClone(foyerLien) } },
+    { id: 'rdv-x', branch_id: 'b1', data: { id: 'rdv-x', branchId: 'b1', clientId: 'cx', clientName: 'X. X.', date: '2026-10-27', time: '16:00', status: 'honoré', lienDuFoyer: { ...structuredClone(foyerLien), apptIds: ['rdv-y'] } } },
+  ];
+  db.invoices = [
+    { id: 'fa', branch_id: 'b1', data: { id: 'fa', kind: 'facture', status: 'envoyée', apptId: 'rdv-a', clientId: 'ca', date: '2026-10-27', lines: [{ label: 'La Reprise Longue', qty: 1, unitXof: 25000, discountPct: 0 }, { label: 'Le Souffle', qty: 1, unitXof: 12000, discountPct: 0 }], globalDiscountPct: 0 } },
+    { id: 'fb', branch_id: 'b1', data: { id: 'fb', kind: 'facture', status: 'envoyée', apptId: 'rdv-b', clientId: 'cb', date: '2026-10-27', lines: [{ label: 'Coiffure quotidien', qty: 1, unitXof: 7000, discountPct: 0 }], globalDiscountPct: 0 } },
+    { id: 'fx', branch_id: 'b1', data: { id: 'fx', kind: 'facture', status: 'envoyée', apptId: 'rdv-x', clientId: 'cx', date: '2026-10-27', lines: [{ label: 'Etranger', qty: 1, unitXof: 9000, discountPct: 0 }], globalDiscountPct: 0 } },
+  ];
+  db.clients = [{ id: 'ca', branch_id: 'b1', data: { name: 'Nael A.' } }, { id: 'cb', branch_id: 'b1', data: { name: 'Aloys A.' } }];
+  db.payments = [];
+  db.edge_rate_limits = [];
+};
+remplisLeFoyer();
+const lf = await appelle({ action: 'lire', jeton: jf });
+dit('le foyer : un seul reste (37 000 + 7 000), les deux tetes dans l ordre de l heure, la reference du foyer, jamais un rendez-vous qui ne se nomme pas dans la liste',
+  [200, 'a-regler', 44000, ['Nael', 'Aloys'], [37000, 7000], `reg-foyer-${jf}`, true],
+  [lf.status, lf.corps.page?.etat, lf.corps.page?.resteXof, (lf.corps.page?.tetes ?? []).map((x: any) => x.prenom), (lf.corps.page?.tetes ?? []).map((x: any) => x.resteXof), lf.corps.page?.reference,
+    !JSON.stringify(lf.corps.page).includes('Etranger')]);
+dit('... la premiere ouverture se note sur chaque rendez-vous du foyer', [true, true],
+  [!!db.appointments.find((a) => a.id === 'rdv-a')?.data.lienDuFoyer.ouvertLe, !!db.appointments.find((a) => a.id === 'rdv-b')?.data.lienDuFoyer.ouvertLe]);
+transactions.txF1 = { status: 'SUCCESS', amount: 45000, fees: 855, source: 'MTN_BENIN' };
+const rf = await appelle({ action: 'regler', jeton: jf, transactionId: 'txF1' });
+const fa = () => db.invoices.find((x) => x.id === 'fa')!.data;
+const fb = () => db.invoices.find((x) => x.id === 'fb')!.data;
+dit('regler le foyer : chaque piece recoit son reste et se solde, le pourboire (1 000) sur la derniere, le registre a la reference du foyer',
+  [200, 44000, 1000, 'payée', 'payée', 0, 1000, `reg-foyer-${jf}`],
+  [rf.status, rf.corps.versementXof, rf.corps.pourboireXof, fa().status, fb().status, Number(fa().tipXof ?? 0), fb().tipXof, db.payments.find((x) => x.id === 'txF1')?.data?.partnerId]);
+dit('... deux versements distincts, qui portent leur piece (la caisse ne les confond jamais), et les rendez-vous les suivent, lien du foyer paye',
+  [['kkia-txF1-fa'], ['kkia-txF1-fb'], ['kkia-txF1-fa'], true, true, false],
+  [fa().payments.map((v: any) => v.id), fb().payments.map((v: any) => v.id), db.appointments.find((a) => a.id === 'rdv-a')!.data.payments.map((v: any) => v.id),
+    !!db.appointments.find((a) => a.id === 'rdv-a')!.data.lienDuFoyer.payeLe, !!db.appointments.find((a) => a.id === 'rdv-b')!.data.lienDuFoyer.payeLe,
+    !!db.appointments.find((a) => a.id === 'rdv-a')!.data.lienDeReglement]);
+const rf2 = await appelle({ action: 'regler', jeton: jf, transactionId: 'txF1' });
+dit('un rejeu du foyer ne double rien', [200, true, 1, 1, 1000], [rf2.status, rf2.corps.deja, fa().payments.length, fb().payments.length, fb().tipXof]);
+dit('lire apres coup : le foyer est regle', 'reglee', (await appelle({ action: 'lire', jeton: jf })).corps.page?.etat);
+remplisLeFoyer();
+transactions.txF2 = { status: 'SUCCESS', amount: 40000, fees: 760, source: 'MTN_BENIN' };
+const rf3 = await appelle({ action: 'regler', jeton: jf, transactionId: 'txF2' });
+dit('un argent qui ne couvre pas le foyer ne pose rien ; il reste au registre, a rapprocher', [409, 'montant', 0, 0, true],
+  [rf3.status, rf3.corps.error, (fa().payments ?? []).length, (fb().payments ?? []).length, db.payments.some((x) => x.id === 'txF2')]);
+remplisLeFoyer();
+db.payments.push({ id: 'txF3', branch_id: 'b1', data: { id: 'txF3', partnerId: `reg-foyer-${jf}`, amountXof: 44000, feesXof: 836, method: 'MOOV_BJ', status: 'success', provider: 'kkiapay' } });
+const ff = await appelle({ action: 'rattraper', jeton: jf });
+dit('le filet du foyer : un paiement que seul le webhook a vu se pose a la lecture, sans noter d ouverture', [1, 'reglee', ['kkia-txF3-fa'], false],
+  [ff.corps.rattrapes, ff.corps.page?.etat, fa().payments.map((v: any) => v.id), !!db.appointments.find((a) => a.id === 'rdv-a')?.data.lienDuFoyer.ouvertLe]);
+dit('un jeton de rendez-vous passe toujours d abord : la seance seule se lit comme avant', 'a-regler',
+  (remplis(), (await appelle({ action: 'lire', jeton: j })).corps.page?.etat));
+
+/* ── LE FOYER, EN RÈGLES PURES (28 octobre 2026) ── */
+dit('la repartition du foyer : chaque piece son reste, un franc d arrondi absorbe, le pourboire au-dela, un argent court ne pose rien',
+  [{ ok: true, parts: [{ id: 'a', montantXof: 37000 }, { id: 'b', montantXof: 7000 }], pourboireXof: 1000 }, true, { ok: false, raison: 'montant' }, { ok: false, raison: 'deja_reglee' }],
+  [repartitionDuFoyer(45000, [{ id: 'a', resteXof: 37000 }, { id: 'b', resteXof: 7000 }, { id: 'c', resteXof: 0 }]),
+    repartitionDuFoyer(43999, [{ id: 'a', resteXof: 37000 }, { id: 'b', resteXof: 7000 }]).ok,
+    repartitionDuFoyer(40000, [{ id: 'a', resteXof: 37000 }, { id: 'b', resteXof: 7000 }]),
+    repartitionDuFoyer(5000, [{ id: 'a', resteXof: 0 }])]);
+dit('la reference et le versement du foyer : jamais un rendez-vous nu, chaque piece son identifiant', ['reg-foyer-abc', 'kkia-tx9-fa'], [referenceDuFoyer('abc'), idDuVersementDuFoyer('tx9', 'fa')]);
+const pf = pageDuFoyer({
+  tetes: [
+    { rdv: { id: 'r1', date: '2026-10-27', status: 'honoré', clientName: 'N. A.' }, piece: { id: 'p1', lines: [{ label: 'Le Souffle', qty: 1, unitXof: 10000, discountPct: 0 }] }, nom: 'Nael A.' },
+    { rdv: { id: 'r2', date: '2026-10-27', status: 'honoré', clientName: 'A. A.' }, piece: { id: 'p2', lines: [{ label: 'Coiffure', qty: 1, unitXof: 7000, discountPct: 0 }], tipXof: 500 }, nom: 'Aloys A.' },
+    { rdv: { id: 'r3', date: '2026-10-27', status: 'annulé', clientName: 'X. X.' }, piece: null },
+  ], jeton: 'abc', branchId: 'b1', maintenant: new Date('2026-10-28T09:00:00Z'),
+});
+dit('la page du foyer : les tetes vivantes avec leur piece, un seul reste, le jour commun, les lignes au prenom, pas de pourboire si une piece en porte deja', ['a-regler', 17000, '2026-10-27', ['Nael', 'Aloys'], 'Nael · Le Souffle', false, 'reg-foyer-abc'],
+  [pf.etat, pf.resteXof, pf.jour, pf.tetes.map((x) => x.prenom), pf.lignes[0]?.label, pf.pourboire, pf.reference]);
+dit('... tout annule : annule ; aucune piece : sans-piece', ['annule', 'sans-piece'],
+  [pageDuFoyer({ tetes: [{ rdv: { id: 'r3', status: 'annulé' }, piece: null }], jeton: 'abc', maintenant: new Date() }).etat,
+    pageDuFoyer({ tetes: [{ rdv: { id: 'r1', status: 'honoré' }, piece: null }], jeton: 'abc', maintenant: new Date() }).etat]);
+dit('le mot de la facture du foyer : « Régler » quand le lien mene a la page, Mobile Money sinon (le texte d avant ne bouge pas)', [true, true, false],
+  [/\(MTN, Moov, Celtiis ou carte\), touchez ce lien :\nL$/.test(motDuFoyer({ appel: 'Madame P.', quand: 'mardi 27 octobre 2026', lignes: [{ prenom: 'Nael', resteDit: '37 000 F' }], totalDit: '37 000 F', lien: 'L', enLigne: true })),
+    /votre téléphone compose le numéro de paiement, frais compris\.\nL$/.test(motDuFoyer({ appel: 'Madame P.', quand: 'mardi 27 octobre 2026', lignes: [{ prenom: 'Nael', resteDit: '37 000 F' }], totalDit: '37 000 F', lien: 'L' })),
+    /Celtiis/.test(motDuFoyer({ appel: 'Madame P.', quand: 'mardi 27 octobre 2026', lignes: [{ prenom: 'Nael', resteDit: '37 000 F' }], totalDit: '37 000 F', lien: 'L' }))]);
+{
+  const fact = sansCommentaires(lis('src/apps/trone/routes/vente/Factures.tsx'));
+  const envoi = sansCommentaires(lis('src/apps/trone/routes/vente/envoi-de-la-piece.ts'));
+  dit('les boutons du Trone menent a « Régler » quand la fonction repond : la facture liee a son rendez-vous, le foyer d un seul lien, la facture du foyer envoyee ; le jeton se pose au toucher ; aucun numero de piece dans le message du foyer',
+    [true, true, true, true, false],
+    [/saitRegler\(versionDeRegler\)/.test(fact) && /const j = poseLeLienDeReglement\(selected\.apptId!\);/.test(fact),
+      /saitReglerLeFoyer\(versionDeRegler\)/.test(fact) && /const j = poseLeLienDuFoyer\(rdvsDuFoyer\);/.test(fact),
+      /saitReglerLeFoyer\(await versionDuReglement\(\)\) \? poseLeLienDuFoyer\(rdvs\)/.test(envoi) && /enLigne: !!parRegler/.test(envoi),
+      /touchez « Régler » sur cette page/.test(fact),
+      /Références \$\{prises/.test(fact)]);
+}
 
 console.log(ko ? `\n${ko} echec(s) sur ${n}.` : `\nTout tient (${n} controles).`);

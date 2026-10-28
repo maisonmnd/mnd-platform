@@ -65,11 +65,16 @@ export function motDuFoyer(o: {
   lignes: readonly { prenom: string; resteDit: string }[];
   totalDit: string;
   lien?: string;
+  /** Le lien mène à la page « Régler » du foyer (KkiaPay), 28 octobre 2026 :
+      le mot le dit, comme celui de la facture seule. */
+  enLigne?: boolean;
 }): string {
   const qui = o.lignes.map((l) => l.prenom);
   const noms = qui.length > 1 ? `${qui.slice(0, -1).join(', ')} et ${qui[qui.length - 1]}` : qui.join('');
   const detail = o.lignes.map((l) => `${l.prenom} : ${l.resteDit}`).join('\n');
   return `Bonjour ${o.appel}, merci de la visite de ${noms} du ${o.quand}. Voici votre facture du foyer ci-jointe.\n${detail}\nTotal à régler : ${o.totalDit}.${o.lien
-    ? `\nPour régler par mobile money, tout réseau, touchez ce lien : votre téléphone compose le numéro de paiement, frais compris.\n${o.lien}`
+    ? (o.enLigne
+      ? `\nPour régler en une fois depuis votre téléphone (MTN, Moov, Celtiis ou carte), touchez ce lien :\n${o.lien}`
+      : `\nPour régler par mobile money, tout réseau, touchez ce lien : votre téléphone compose le numéro de paiement, frais compris.\n${o.lien}`)
     : ''}`;
 }

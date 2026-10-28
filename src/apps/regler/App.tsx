@@ -22,6 +22,11 @@ const francs = (x: number): string => `${Math.round(x).toLocaleString('fr-FR').r
     L'élision devant une voyelle seulement (25 octobre 2026, « j'ai vu d'Yeman ») :
     « de Yéman », « de Hélène » plutôt qu'une élision fautive. */
 const deLaCliente = (prenom: string): string => (!prenom ? '' : /^[aeiouàâäéèêëîïôöûü]/i.test(prenom) ? `d’${prenom}` : `de ${prenom}`);
+/** LE FOYER (28 octobre 2026) : « de Nael et d’Aloys », « de Nael, de Sena et d’Aloys ». */
+const desTetes = (prenoms: readonly string[]): string => {
+  const dits = prenoms.filter(Boolean).map(deLaCliente);
+  return dits.length <= 1 ? (dits[0] ?? '') : `${dits.slice(0, -1).join(', ')} et ${dits[dits.length - 1]}`;
+};
 
 /** Les montants du merci (sa liste du 25 octobre 2026), puis « Autre ». Aucun
     n'est choisi d'avance : le merci reste libre, et se retire d'un second toucher. */
@@ -66,7 +71,7 @@ export default function App() {
     }
     if (p.etat === 'reglee') setEcran({ k: 'reglee', page: p });
     else if (p.etat === 'a-regler') setEcran({ k: 'page', page: p });
-    else if (p.etat === 'annule') setEcran({ k: 'erreur', dit: 'Ce rendez-vous a été annulé : il n’y a rien à régler.' });
+    else if (p.etat === 'annule') setEcran({ k: 'erreur', dit: p.tetes ? 'Ces rendez-vous ont été annulés : il n’y a rien à régler.' : 'Ce rendez-vous a été annulé : il n’y a rien à régler.' });
     else if (p.etat === 'sans-piece') setEcran({ k: 'erreur', dit: 'Votre facture n’est pas encore prête. Réessayez dans un instant.' });
     else setEcran({ k: 'erreur', dit: 'Ce lien n’est plus valable. Demandez-en un nouveau à la Maison.' });
   }, [jeton]);
@@ -100,7 +105,7 @@ export default function App() {
 
   const partager = async () => {
     const adresse = window.location.href;
-    const mot = 'Peux-tu régler ma séance à la Maison MND ? Le lien :';
+    const mot = ecran.k === 'page' && ecran.page.tetes ? 'Peux-tu régler nos séances à la Maison MND ? Le lien :' : 'Peux-tu régler ma séance à la Maison MND ? Le lien :';
     try {
       if (navigator.share) { await navigator.share({ title: 'Maison MND', text: mot, url: adresse }); return; }
     } catch { /* fermé par elle : rien à dire */ return; }
@@ -126,9 +131,11 @@ export default function App() {
         const p = ecran.page;
         const total = p.resteXof + (p.pourboire ? pourboire : 0);
         return (
-          <section className="rg-bloc" aria-label="Régler la séance">
-            <p className="rg-sur">Régler la séance</p>
-            <h1 className="rg-titre">La séance {deLaCliente(p.prenom)}{p.jour ? `, ${jourDit(p.jour)}` : ''}.</h1>
+          <section className="rg-bloc" aria-label={p.tetes ? 'Régler les séances' : 'Régler la séance'}>
+            <p className="rg-sur">{p.tetes ? 'Régler les séances' : 'Régler la séance'}</p>
+            {p.tetes
+              ? <h1 className="rg-titre">Les séances {desTetes(p.tetes.map((x) => x.prenom))}{p.jour ? `, ${jourDit(p.jour)}` : ''}.</h1>
+              : <h1 className="rg-titre">La séance {deLaCliente(p.prenom)}{p.jour ? `, ${jourDit(p.jour)}` : ''}.</h1>}
             {p.maitre && <p className="rg-doux">Avec {p.maitre}.</p>}
 
             <div className="rg-lignes">
@@ -186,7 +193,7 @@ export default function App() {
                 les trois réseaux et la carte ; deux boutons de paiement à deux
                 montants faisaient douter. Tap & Go reste au comptoir. */}
             <button type="button" className="rg-autre" onClick={() => { void partager(); }}>Quelqu’un règle pour moi</button>
-            <p className="rg-doux rg-petit rg-centre">Envoyez-lui ce lien : la personne voit la séance et le montant, jamais votre numéro.</p>
+            <p className="rg-doux rg-petit rg-centre">Envoyez-lui ce lien : la personne voit {p.tetes ? 'les séances' : 'la séance'} et le montant, jamais votre numéro.</p>
             {partage && <p className="rg-doux rg-petit rg-centre">{partage}</p>}
           </section>
         );
@@ -194,10 +201,12 @@ export default function App() {
 
       {ecran.k === 'reglee' && (
         <section className="rg-bloc" aria-label="Séance réglée">
-          <p className="rg-sur">Régler la séance</p>
+          <p className="rg-sur">{ecran.page.tetes ? 'Régler les séances' : 'Régler la séance'}</p>
           <div className="rg-ok">
             <strong>{ecran.paye ? `Réglé, ${francs(ecran.paye)}.` : 'Déjà réglée.'}{ecran.page.prenom ? ` Merci, ${ecran.page.prenom}.` : ' Merci.'}</strong>
-            <span>{ecran.paye ? 'Votre reçu arrive sur WhatsApp, la facture jointe.' : 'Il n’y a plus rien à régler pour cette séance.'}</span>
+            <span>{ecran.page.tetes
+              ? (ecran.paye ? 'Vos reçus arrivent sur WhatsApp, chaque facture jointe.' : 'Il n’y a plus rien à régler pour ces séances.')
+              : (ecran.paye ? 'Votre reçu arrive sur WhatsApp, la facture jointe.' : 'Il n’y a plus rien à régler pour cette séance.')}</span>
           </div>
         </section>
       )}

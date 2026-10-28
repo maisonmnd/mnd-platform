@@ -11,8 +11,8 @@ import { envoieLaFactureARegler, envoieLaFactureDuFoyer, MODELE_FACTURE, type Re
 import { cleDuFoyer } from '../../../../shared/facture-du-foyer-pur';
 import { toast } from '../../../../ds/components';
 import { pdfDuFoyer, useLaPieceEnPdf } from './pdf-de-la-piece';
-import { adresseDuLien, noteLEnvoiDuLien, poseLeLienDeReglement } from '../../../../shared/regler-la-seance';
-import { saitRegler, versionDuReglement } from '../../../../shared/regler-la-seance-serveur';
+import { adresseDuLien, noteLEnvoiDuFoyer, noteLEnvoiDuLien, poseLeLienDeReglement, poseLeLienDuFoyer } from '../../../../shared/regler-la-seance';
+import { saitRegler, saitReglerLeFoyer, versionDuReglement } from '../../../../shared/regler-la-seance-serveur';
 import { parametreDuLien } from '../../../../shared/regler-la-seance-pur';
 
 /* ══ LA PIÈCE PART SEULE CHEZ ELLE — 17 octobre 2026 ═════════════════════
@@ -137,6 +137,13 @@ export function useEnvoiDeLaPiece() {
     const totalXof = ouvertes.reduce((n, p) => n + invoiceResteXof(p), 0);
     const tg = paiementTapGoDeLaPiece(totalXof, settings.mndPay);
     const tapgo = tg ? { parametre: parametreTapGo(tg.totalXof, settings.mndPay), lien: tg.qr, totalDit: fmtMoney(tg.totalXof, currency) } : undefined;
+    /* LE BOUTON MÈNE À « RÉGLER » (28 octobre 2026, « le bouton lien de
+       paiement doit mener au bouton Régler pour passer par KkiaPay ») : quand
+       la fonction sait le foyer et que chaque pièce a son rendez-vous, un seul
+       lien règle tout, pièce par pièce. Sinon, le Tap & Go comme avant. */
+    const rdvs = ouvertes.map((p) => p.apptId ?? '');
+    const jetonDuFoyer = rdvs.every(Boolean) && saitReglerLeFoyer(await versionDuReglement()) ? poseLeLienDuFoyer(rdvs) : null;
+    const parRegler = jetonDuFoyer ? { parametre: parametreDuLien(jetonDuFoyer), lien: adresseDuLien(jetonDuFoyer), totalDit: fmtMoney(totalXof, currency) } : undefined;
     const lignes = ouvertes.map((p) => ({ prenom: prenomDe(p), resteDit: fmtMoney(invoiceResteXof(p), currency) }));
     /* LE PAPIER : un relevé titré « FACTURE DU FOYER » sur le papier des
        factures (`pdfDuFoyer`, le même que le récapitulatif) : une ligne par
@@ -155,10 +162,11 @@ export function useEnvoiDeLaPiece() {
     });
     const r = await envoieLaFactureDuFoyer({
       client: { ...destinataire, branchId: destinataire.branchId }, pdf, lignes,
-      totalDit: fmtMoney(totalXof, currency), jourIso: jourDuRituel, tapgo,
+      totalDit: fmtMoney(totalXof, currency), jourIso: jourDuRituel, tapgo: parRegler ?? tapgo, enLigne: !!parRegler,
       cle: `${cleDuFoyer(jourDuRituel, destinataire.phone)}${o?.renvoi ? `-${new Date().toISOString().slice(0, 16)}` : ''}`,
       parQui: quiEncaisse(),
     });
+    if (r.ok && jetonDuFoyer) noteLEnvoiDuFoyer(rdvs);
     toast(r.ok
       ? (r.enAttente ? 'Facture du foyer gardée : elle partira sur son WhatsApp au retour du réseau.'
         : r.repli === 'lien' ? `Facture du foyer : le lien de paiement est parti sur son WhatsApp, sans le PDF tant que Meta n’a pas approuvé « ${MODELE_FACTURE} ».`

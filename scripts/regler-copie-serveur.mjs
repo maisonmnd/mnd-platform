@@ -20,10 +20,10 @@ export const FIN = '// ── FIN copie de shared/regler-la-seance-pur.ts';
 export const NOMS = [
   'ALPHABET_DU_JETON', 'LONGUEUR_DU_JETON', 'PREFIXE_DU_PARAMETRE', 'PREFIXE_DE_LA_REFERENCE', 'PREFIXE_DU_VERSEMENT',
   'CAISSE_EN_LIGNE', 'DECALAGE_DE_COTONOU_MS', 'LienDeReglement', 'ReglementEnLigne', 'LigneLue', 'VersementLu', 'PieceLue',
-  'RdvLu', 'jetonDe', 'estUnJeton', 'parametreDuLien', 'jetonDuParametre', 'referenceDuRdv', 'jourDeCotonou', 'heureDeCotonou',
+  'RdvLu', 'LienDuFoyer', 'jetonDe', 'estUnJeton', 'parametreDuLien', 'jetonDuParametre', 'referenceDuRdv', 'referenceDuFoyer', 'jourDeCotonou', 'heureDeCotonou',
   'n', 'netDeLaLigne', 'totalDeLaPiece', 'regleDeLaPiece', 'resteDeLaPiece', 'laPieceDuRdv', 'EtatDuLien', 'etatDuLien',
   'partageDuPaiement', 'moyenDit', 'versementEnLigne', 'dejaInscrit', 'pieceReglee', 'rdvRegle', 'prenomDe', 'maitreDit',
-  'lignesDites', 'pageDuLien',
+  'lignesDites', 'pageDuLien', 'repartitionDuFoyer', 'idDuVersementDuFoyer', 'TeteDuFoyer', 'pageDuFoyer',
 ];
 
 const TETE = /^(?:export )?(?:type|const|function|async function) ([A-Za-z_][\w]*)/;
