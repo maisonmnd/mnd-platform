@@ -184,6 +184,13 @@ dit(5, 'cleDuFoyer : les deux ecritures du numero donnent la meme cle',
       fois(pdf, 'const SCEAU_DES_FACTURES = SCEAU_DES_CONTRATS;'),
       fois(fac, 'await invoicePdf(pdfDuFoyer({'),
       fois(fac, 'summaryPdf(')]);
+  /* #13 (28 octobre 2026) : « celui d'aujourd'hui mais avec le tampon à droite au lieu du gauche »,
+     et « tout en bas des factures il faut écrire Maison MND Code Marchand 909099 » (Yéman). */
+  dit(13, 'le sceau a droite, sous les totaux, la note sous lui ; le code marchand tout en bas de chaque papier de la Maison',
+    [true, 1, true],
+    [/if \(d\.status\) row\('Statut', d\.status\);\s*const yDuSceau = y - 2;/.test(pdf),
+      fois(pdf, "doc.addImage(sceau, 'PNG', rx - TAILLE_DU_SCEAU, yDuSceau, TAILLE_DU_SCEAU, TAILLE_DU_SCEAU, undefined, 'FAST');"),
+      /await pieDeLaMaison\(doc, W, 285\);\s*if \(estLaMaisonMND\(d\.houseName\)\) \{\s*doc\.setFont\('helvetica', 'bold'\);\s*doc\.setFontSize\(8\);\s*doc\.setTextColor\(INDIGO\);\s*doc\.text\(`\$\{maisonNom\(\)\} · Code Marchand \$\{CODE_MOMOPAY\}`, W \/ 2, 290\.5, \{ align: 'center' \}\);/.test(pdf)]);
 }
 
 if (process.exitCode) console.log('La facture du foyer ne tient pas.');

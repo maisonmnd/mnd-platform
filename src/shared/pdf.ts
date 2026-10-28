@@ -9,6 +9,7 @@ import { maisonNom, DEVISE_COMPLETE, estLaMaisonMND } from './identite';
 import { ligneLegaleSousLeNom } from './registre';
 import { DEVISE_FON_B64 } from './devise-fon-b64';
 import { estIdentifiantMomo } from './momo';
+import { CODE_MOMOPAY } from './momopay-de-la-maison-pur';
 
 const INDIGO = '#1E2150';
 const COPPER = '#B97A4A';
@@ -777,17 +778,6 @@ async function construitLaFacture(d: InvoicePdfData): Promise<{ doc: any; filena
 
   // — Totaux —
   y += 10;
-  /* LE SCEAU DE LA MAISON SUR SES FACTURES — 28 octobre 2026. « Il faut
-     rajouter le tampon de la Maison aussi » (Yéman) : au sélecteur, le sceau
-     dentelé des contrats, posé à gauche des totaux, dans la place que leur
-     colonne laisse libre. Une pièce trop longue s'en passe plutôt que de
-     pousser le QR de paiement hors de la page. Un papier qui ne porte pas le
-     nom de la Maison ne reçoit pas son sceau. */
-  const yDuSceau = y - 4;
-  const sceau = estLaMaisonMND(d.houseName) && yDuSceau + TAILLE_DU_SCEAU < 228 ? await chargeImageDuSite(SCEAU_DES_FACTURES) : null;
-  if (sceau) {
-    try { doc.addImage(sceau, 'PNG', M + 4, yDuSceau, TAILLE_DU_SCEAU, TAILLE_DU_SCEAU, undefined, 'FAST'); } catch { /* image indisponible */ }
-  }
   const rx = W - M;
   /* LA COLONNE DES INTITULÉS S'EST ÉLARGIE — 17 août 2026. Elle tenait sur
      70 mm, taillée pour « Sous-total » et « Total ». Depuis que les règlements
@@ -833,6 +823,19 @@ async function construitLaFacture(d: InvoicePdfData): Promise<{ doc: any; filena
      travaillé, le bas dit COMMENT et PAR QUI c'est réglé. */
   if (d.payeurName) row('Au compte de', pdfSafe(d.payeurName), false, COPPER);
   if (d.status) row('Statut', d.status);
+  /* LE SCEAU DE LA MAISON SUR SES FACTURES — 28 octobre 2026. « Il faut
+     rajouter le tampon de la Maison aussi » (Yéman) : au sélecteur, le sceau
+     dentelé des contrats. Il se posait à gauche des totaux ; quatre modèles
+     montrés le même jour, elle a gardé celui-là « avec le tampon à droite au
+     lieu du gauche » : sous les totaux, au bord droit, au-dessus du QR.
+     Une pièce trop longue s'en passe plutôt que de pousser le QR de paiement
+     hors de la page. Un papier qui ne porte pas le nom de la Maison ne reçoit
+     pas son sceau. */
+  const yDuSceau = y - 2;
+  const sceau = estLaMaisonMND(d.houseName) && yDuSceau + TAILLE_DU_SCEAU < 228 ? await chargeImageDuSite(SCEAU_DES_FACTURES) : null;
+  if (sceau) {
+    try { doc.addImage(sceau, 'PNG', rx - TAILLE_DU_SCEAU, yDuSceau, TAILLE_DU_SCEAU, TAILLE_DU_SCEAU, undefined, 'FAST'); } catch { /* image indisponible */ }
+  }
   /* La note commence sous le sceau, jamais par-dessus. */
   if (sceau) y = Math.max(y, yDuSceau + TAILLE_DU_SCEAU + 2);
 
@@ -905,6 +908,16 @@ async function construitLaFacture(d: InvoicePdfData): Promise<{ doc: any; filena
     doc.text(pdfSafe(ligneLegaleSousLeNom(d.legal, maisonNom())), W / 2, 280.5, { align: 'center' });
   }
   await pieDeLaMaison(doc, W, 285);
+  /* LE CODE MARCHAND, TOUT EN BAS — 28 octobre 2026. « Tout en bas des
+     factures il faut écrire Maison MND Code Marchand 909099 » (Yéman) : sur
+     chaque papier de la Maison, soldé ou non, devis et relevés compris. Le QR
+     ne vit que sur une pièce à régler ; le code, lui, reste lisible partout. */
+  if (estLaMaisonMND(d.houseName)) {
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8);
+    doc.setTextColor(INDIGO);
+    doc.text(`${maisonNom()} · Code Marchand ${CODE_MOMOPAY}`, W / 2, 290.5, { align: 'center' });
+  }
 
   const filename = `${d.nomDuFichier ?? (d.kind === 'devis' ? 'Devis' : d.kind === 'releve' ? 'Releve' : 'Facture')}-${d.number}.pdf`;
   return { doc, filename };

@@ -69,6 +69,11 @@ const FAUTES = [
   { n: 12, fichier: 'src/shared/pdf.ts', avant: '  if (sceau) y = Math.max(y, yDuSceau + TAILLE_DU_SCEAU + 2);', apres: '' },
   { n: 12, fichier: 'src/shared/pdf.ts', avant: 'const paye = estLaMaisonMND(d.houseName) ? await chargeImageDuSite(TAMPON_PAYE.chemin) : null;', apres: 'const paye = null;' },
   { n: 12, fichier: 'src/apps/trone/routes/vente/Factures.tsx', avant: 'await invoicePdf(pdfDuFoyer({', apres: 'await invoicePdf(({' },
+  /* #13 : le sceau repart a gauche, ou au-dessus des totaux ; le code marchand se perd, ou se pose sur un papier qui n'est pas de la Maison. */
+  { n: 13, fichier: 'src/shared/pdf.ts', avant: "doc.addImage(sceau, 'PNG', rx - TAILLE_DU_SCEAU, yDuSceau,", apres: "doc.addImage(sceau, 'PNG', M + 4, yDuSceau," },
+  { n: 13, fichier: 'src/shared/pdf.ts', avant: '  const yDuSceau = y - 2;', apres: '  const yDuSceau = y - 40;' },
+  { n: 13, fichier: 'src/shared/pdf.ts', avant: 'Code Marchand ${CODE_MOMOPAY}', apres: '${CODE_MOMOPAY}' },
+  { n: 13, fichier: 'src/shared/pdf.ts', avant: "  if (estLaMaisonMND(d.houseName)) {\n    doc.setFont('helvetica', 'bold');\n    doc.setFontSize(8);\n    doc.setTextColor(INDIGO);", apres: "  {\n    doc.setFont('helvetica', 'bold');\n    doc.setFontSize(8);\n    doc.setTextColor(INDIGO);" },
 ];
 
 const md5 =(rel) => createHash('md5').update(readFileSync(path.join(racine, rel))).digest('hex');
