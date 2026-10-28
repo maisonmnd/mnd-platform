@@ -1,18 +1,19 @@
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
-import { useClients } from '../../../../shared/clients';
+import { useClients, useFamilies } from '../../../../shared/clients';
 import { useSettings } from '../../../../shared/settings';
 import { maisonNom } from '../../../../shared/identite';
 import { invoiceResteXof, invoicesStore, quiEncaisse } from '../../../../shared/finance';
 import { demandeLePaiement, mndPayOuvert, versionDeMndPay } from '../../../../shared/mnd-pay';
 import { jourLocal, paiementTapGoDeLaPiece, parametreTapGo, saitLesFactures } from '../../../../shared/mnd-pay-pur';
 import { envoieLeRecu, recuAEnvoyer } from '../../../../shared/recu-whatsapp';
-import { envoieLaFactureARegler, envoieLaFactureDuFoyer, MODELE_FACTURE, type ResultatDeLaFacture } from '../../../../shared/facture-whatsapp';
+import { envoieLaFactureARegler, envoieLaFactureDuFoyer, envoieLePointDuCompte, MODELE_FACTURE, type ResultatDeLaFacture } from '../../../../shared/facture-whatsapp';
 import { cleDuFoyer } from '../../../../shared/facture-du-foyer-pur';
+import { cleDuPoint, MODELE_DU_POINT, phraseDuPoint, prenomsDuPoint } from '../../../../shared/point-du-compte-pur';
 import { toast } from '../../../../ds/components';
 import { pdfDuFoyer, useLaPieceEnPdf } from './pdf-de-la-piece';
 import { adresseDuLien, noteLEnvoiDuFoyer, noteLEnvoiDuLien, poseLeLienDeReglement, poseLeLienDuFoyer } from '../../../../shared/regler-la-seance';
-import { saitRegler, saitReglerLeFoyer, versionDuReglement } from '../../../../shared/regler-la-seance-serveur';
+import { saitRegler, saitReglerLeFoyer, saitReglerLePoint, versionDuReglement } from '../../../../shared/regler-la-seance-serveur';
 import { parametreDuLien } from '../../../../shared/regler-la-seance-pur';
 
 /* ══ LA PIÈCE PART SEULE CHEZ ELLE — 17 octobre 2026 ═════════════════════
@@ -33,8 +34,9 @@ import { parametreDuLien } from '../../../../shared/regler-la-seance-pur';
 export function useEnvoiDeLaPiece() {
   const { branch, currency } = useBranch();
   const [clients] = useClients();
+  const [families] = useFamilies();
   const [settings] = useSettings();
-  const { buildPdfData, sousLeVerrou } = useLaPieceEnPdf();
+  const { buildPdfData, sousLeVerrou, contenuDeLaLigne } = useLaPieceEnPdf();
   /* Le jour LOCAL (celui du comptoir), jamais celui de Greenwich. */
   const aujourdhui = () => jourLocal(new Date().toISOString());
 
@@ -174,5 +176,64 @@ export function useEnvoiDeLaPiece() {
       : `Facture du foyer non envoyée : ${r.erreur}`);
   };
 
-  return { apresReglement, aRegler, foyer };
+  /** LE POINT DU COMPTE — 28 octobre 2026 (point-du-compte-pur.ts) : toutes
+      les factures qu'un payeur laisse courir, en un PDF et un message, au
+      payeur d'aujourd'hui du compte. Une seule facture : elle part seule,
+      comme avant. Le lien mène à « Régler » quand chaque facture a son
+      rendez-vous et que la fonction sait les montrer (un seul jour : celle du
+      foyer ; plusieurs jours : 2026-10-28-b, chaque ligne avec son jour) ;
+      sinon le Tap & Go du total, qui se pointe à la main. `renvoi` : la clé
+      à la minute, pour renvoyer un point déjà parti aujourd'hui. */
+  const point = async (payeurId: string, pieceIds: readonly string[], o?: { renvoi?: boolean }): Promise<ResultatDeLaFacture | null> => {
+    const toutes = invoicesStore.get();
+    const ouvertes = pieceIds
+      .map((id) => toutes.find((i) => i.id === id))
+      .filter((p): p is NonNullable<typeof p> => !!p && p.kind === 'facture' && invoiceResteXof(p) > 0)
+      .sort((a, b) => a.date.localeCompare(b.date) || a.id.localeCompare(b.id));
+    if (ouvertes.length === 0) { toast('Rien à régler : le point n’est pas parti.'); return null; }
+    if (ouvertes.length === 1) { await aRegler(ouvertes[0].id, ouvertes[0].date, { memePasse: true, renvoi: o?.renvoi }); return null; }
+    const payeur = clients.find((c) => c.id === payeurId);
+    if (!payeur?.phone?.trim()) { toast('Point non envoyé : le payeur du compte n’a pas de numéro sur sa fiche.'); return null; }
+    const jour = aujourdhui();
+    const totalXof = ouvertes.reduce((n, p) => n + invoiceResteXof(p), 0);
+    const tg = paiementTapGoDeLaPiece(totalXof, settings.mndPay);
+    const tapgo = tg ? { parametre: parametreTapGo(tg.totalXof, settings.mndPay), lien: tg.qr, totalDit: fmtMoney(tg.totalXof, currency) } : undefined;
+    const rdvs = ouvertes.map((p) => p.apptId ?? '');
+    const unSeulJour = new Set(ouvertes.map((p) => p.date)).size === 1;
+    const version = rdvs.every(Boolean) ? await versionDuReglement() : '';
+    const jeton = rdvs.every(Boolean) && (unSeulJour ? saitReglerLeFoyer(version) : saitReglerLePoint(version)) ? poseLeLienDuFoyer(rdvs) : null;
+    const parRegler = jeton ? { parametre: parametreDuLien(jeton), lien: adresseDuLien(jeton), totalDit: fmtMoney(totalXof, currency) } : undefined;
+    const famille = families.find((f) => f.payerClientId === payeur.id) ?? families.find((f) => f.id === payeur.familyId);
+    const phrase = phraseDuPoint(ouvertes);
+    const pdf = pdfDuFoyer({
+      titre: 'POINT DU COMPTE',
+      nomDuFichier: 'Point-du-compte',
+      pieces: ouvertes,
+      jourIso: jour,
+      client: { name: famille?.name ?? payeur.name, phone: payeur.phone },
+      houseSub: sousLeVerrou,
+      nomDe: (p) => clients.find((c) => c.id === (p.forClientId ?? p.clientId))?.name ?? p.clientName ?? 'Une tête',
+      contenuDe: contenuDeLaLigne,
+      fmt: (n) => fmtMoney(n, currency),
+      reglages: settings.mndPay,
+      note: `${phrase}. Ce point ne réclame rien de plus que les factures qu’il résume.`,
+    });
+    const r = await envoieLePointDuCompte({
+      client: { ...payeur, branchId: payeur.branchId }, pdf,
+      prenoms: prenomsDuPoint(ouvertes, clients),
+      payeurParmiLesTetes: ouvertes.some((p) => (p.forClientId ?? p.clientId) === payeur.id),
+      phrase, totalDit: fmtMoney(totalXof, currency), jourIso: jour, tapgo: parRegler ?? tapgo, enLigne: !!parRegler,
+      cle: `${cleDuPoint(jour, payeur.phone)}${o?.renvoi ? `-${new Date().toISOString().slice(0, 16)}` : ''}`,
+      parQui: quiEncaisse(),
+    });
+    if (r.ok && jeton) noteLEnvoiDuFoyer(rdvs);
+    toast(r.ok
+      ? (r.enAttente ? 'Point du compte gardé : il partira sur son WhatsApp au retour du réseau.'
+        : r.repli === 'lien' ? `Point du compte : le lien de paiement est parti sur son WhatsApp, sans le PDF tant que Meta n’a pas approuvé « ${MODELE_DU_POINT} ».`
+          : `Point du compte envoyé sur son WhatsApp : ${ouvertes.length} factures, ${fmtMoney(totalXof, currency)}.`)
+      : `Point du compte non envoyé : ${r.erreur}`);
+    return r;
+  };
+
+  return { apresReglement, aRegler, foyer, point };
 }

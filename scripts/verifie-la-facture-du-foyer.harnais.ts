@@ -125,7 +125,9 @@ dit(5, 'cleDuFoyer : les deux ecritures du numero donnent la meme cle',
 
 /* == #8 -- L ENVOI : seules les pieces qui doivent ; une seule = la facture seule ; la cle du foyer == */
 {
-  const envoi = source('src/apps/trone/routes/vente/envoi-de-la-piece.ts');
+  /* Le corps de `foyer` seul : `point` (le point du compte, 28 octobre 2026) lui ressemble. */
+  const tout = source('src/apps/trone/routes/vente/envoi-de-la-piece.ts');
+  const envoi = tout.slice(tout.indexOf('const foyer = async'), tout.indexOf('const point = async'));
   dit(8, 'foyer : filtre les pieces soldees, une seule part seule, la cle du jour et du numero, le total des restes',
     [1, 1, 1, 1],
     [fois(envoi, "p.kind === 'facture' && invoiceResteXof(p) > 0);"),
@@ -180,14 +182,16 @@ dit(5, 'cleDuFoyer : les deux ecritures du numero donnent la meme cle',
       [eteint?.qr, eteint?.marchand ?? null, /909099/.test(eteint?.code ?? '')]]);
   const pdf = source('src/shared/pdf.ts');
   const fac = source('src/apps/trone/routes/vente/Factures.tsx');
-  dit(12, 'les tampons : le sceau dentele sur les factures, la note sous lui ; PAYE sur les recus ; la Maison seulement ; le recapitulatif sur ce papier',
+  /* Le recapitulatif vit dans la fenetre du point du compte depuis le 28 octobre 2026. */
+  const fen = source('src/apps/trone/routes/vente/FenetreDuPoint.tsx');
+  dit(12, 'les tampons : le sceau dentele sur les factures, la note sous lui ; PAYE sur les recus ; la Maison seulement ; le recapitulatif (point du compte) sur ce papier',
     [1, 1, 1, 1, 1, 0],
     [fois(pdf, 'const sceau = estLaMaisonMND(d.houseName) && yDuSceau + TAILLE_DU_SCEAU < 228 ? await chargeImageDuSite(SCEAU_DES_FACTURES) : null;'),
       fois(pdf, 'if (sceau) y = Math.max(y, yDuSceau + TAILLE_DU_SCEAU + 2);'),
       fois(pdf, 'const paye = estLaMaisonMND(d.houseName) ? await chargeImageDuSite(TAMPON_PAYE.chemin) : null;'),
       fois(pdf, 'const SCEAU_DES_FACTURES = SCEAU_DES_CONTRATS;'),
-      fois(fac, 'await invoicePdf(pdfDuFoyer({'),
-      fois(fac, 'summaryPdf(')]);
+      fois(fen, 'await invoicePdf(pdfDuFoyer({'),
+      fois(fac, 'summaryPdf(') + fois(fen, 'summaryPdf(')]);
   /* #13 (28 octobre 2026) : « celui d'aujourd'hui mais avec le tampon à droite au lieu du gauche »,
      et « tout en bas des factures il faut écrire Maison MND Code Marchand 909099 » (Yéman). */
   dit(13, 'le sceau a droite, sous les totaux, la note sous lui ; le code marchand juste sous le RCCM, la devise dessous, sur chaque papier de la Maison',

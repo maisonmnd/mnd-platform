@@ -42,6 +42,7 @@ import { RattraperUnCahier } from './RattraperUnCahier';
 import { useSaitIaMaison } from '../../../../shared/ia-maison';
 import { peutDemander } from '../../../../shared/ia-maison-pur';
 import { useEnvoiDeLaPiece } from '../vente/envoi-de-la-piece';
+import { BoutonDuPoint, FenetreDuPoint } from '../vente/FenetreDuPoint';
 import { rituelDeLaRepriseEffacee } from '../../../../shared/reprise-nue';
 import { cheminDeLaConversation } from '../../../../shared/conversations';
 
@@ -161,6 +162,8 @@ export default function Carnet() {
   const [jourVu, setJourVu] = useState(() => todayISO());
   const [payAppt, setPayAppt] = useState<Appointment | null>(null); // encaissement (partiel / total / pourboire)
   const [menuFor, setMenuFor] = useState<string | null>(null);
+  /* LE POINT DU COMPTE (28 octobre 2026) : la tête dont on ouvre le point. */
+  const [pointDe, setPointDe] = useState<string | null>(null);
   /* La facture à régler part seule chez elle (17 octobre 2026). */
   const envoiDeLaPiece = useEnvoiDeLaPiece();
   /* LA SAISIE EN SÉRIE vit ici, à côté de « + RDV passé » — arbitrage du
@@ -861,6 +864,12 @@ export default function Carnet() {
                     </button>
                   ) : null;
                 })()}
+                {/* LE POINT DU COMPTE — 28 octobre 2026 : toutes les factures que
+                    son compte doit encore, en un PDF et un lien, au payeur. */}
+                <BoutonDuPoint
+                  teteId={a.clientId} className="" libelle="Envoyer le point du compte"
+                  onOpen={(id) => { setMenuFor(null); setPointDe(id); }}
+                />
                 {a.status === 'honoré' && (
                   <button className="is-danger" onClick={() => { void deshonoreLeRituel(a, byId); setMenuFor(null); }}>
                     Dés-honorer le rituel
@@ -1188,6 +1197,7 @@ export default function Carnet() {
           l'a déjà fait vieillir. */}
       {detail && <DrillModal drill={detail} onClose={() => setDetail(null)} />}
       {serieOuverte && <SerieModal onClose={() => setSerieOuverte(false)} />}
+      {pointDe && <FenetreDuPoint teteId={pointDe} onClose={() => setPointDe(null)} />}
       {cahierOuvert && peutRattraperUnCahier && <RattraperUnCahier onClose={() => setCahierOuvert(false)} />}
 
       {payAppt && !sansPrix && (

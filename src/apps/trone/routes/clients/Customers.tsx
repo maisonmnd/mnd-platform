@@ -56,6 +56,7 @@ import {
 } from '../../../../shared/paliers';
 import { pushToClient } from '../../../../shared/push';
 import { PayAppointmentModal } from './actions';
+import { BoutonDuPoint, FenetreDuPoint } from '../vente/FenetreDuPoint';
 import { useSubscribers, usePlans, prixVenduXof, type Subscriber } from '../equipe/data';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Camera, Search } from 'lucide-react';
@@ -2197,6 +2198,8 @@ function Customer360({
   const [adjust, setAdjust] = useState<RdvInitial | null>(null);
   const [editAppt, setEditAppt] = useState<Appointment | null>(null);
   const [payAppt, setPayAppt] = useState<Appointment | null>(null);
+  /* LE POINT DU COMPTE (28 octobre 2026) : la tête dont on ouvre le point. */
+  const [pointDe, setPointDe] = useState<string | null>(null);
   const [pickPersona, setPickPersona] = useState(false);
   /* LA SAISIE D'UN COMPTAGE — le jour proposé est celui du dernier rituel, pas
      celui du clic : on compte au fauteuil et l'on saisit parfois le soir. */
@@ -3119,6 +3122,10 @@ function Customer360({
             </span>
           </span>
           <span className="trc-presse__acts">
+            {/* LE POINT DU COMPTE — 28 octobre 2026 : dès deux factures à
+                régler sur son compte (famille ou elle seule), un PDF et un
+                lien, en un toucher, au payeur du compte. */}
+            <BoutonDuPoint teteId={client.id} className="mnd-btn mnd-btn--copper mnd-btn--sm" libelle="Envoyer le point" court onOpen={setPointDe} />
             {due > 0 ? (
               <>
                 {/* LE RELEVÉ DE COMPTE (15 août) — « comme ça il voit toutes les
@@ -5678,6 +5685,7 @@ function Customer360({
       {adjust && <RdvModal onClose={() => setAdjust(null)} initial={adjust} title={`Rendez-vous · ${client.name.split(' ')[0]}.`} />}
       {editAppt && <RdvModal onClose={() => setEditAppt(null)} appt={editAppt} />}
       {payAppt && <PayAppointmentModal appt={payAppt} onClose={() => setPayAppt(null)} />}
+      {pointDe && <FenetreDuPoint teteId={pointDe} onClose={() => setPointDe(null)} />}
       {editBlock && (
         <EditConsultModal block={editBlock} onSave={saveConsult} onDelete={deleteConsult} onClose={() => setEditIdx(null)} />
       )}

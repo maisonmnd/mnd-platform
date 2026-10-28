@@ -284,29 +284,30 @@ const byId = new Map<string, Service>();
 /* ══ #56 — L'ANNEE SUR LES DATES ENVOYEES A LA PAYEUSE ══ */
 {
   dit(56, 'la date dite porte son annee (frShortAn), frDay ne la porte pas', [true, false], [frShortAn('2026-09-12').includes('2026'), frDay('2026-09-12').includes('2026')]);
-  const i = factures.indexOf('{lienFoyer && (() => {');
-  /* 28 octobre 2026 : le recapitulatif sort du papier des factures (`pdfDuFoyer`,
-     verifie-la-facture-du-foyer en eprouve les dates, avec l'annee) ; Factures
-     lui donne le jour du passage. */
-  const bloc = i < 0 ? '' : factures.slice(i, factures.indexOf('await invoicePdf(pdfDuFoyer(', i));
-  dit(56, 'Factures : le message du foyer dit l annee, sans frDay ; le recapitulatif donne le jour du passage a pdfDuFoyer', [true, true, true, false], [
-    bloc.length > 500,
-    /`· \$\{clientNameOf\(i\)\} · \$\{frShortAn\(i\.date\)\} · /.test(bloc),
-    /await invoicePdf\(pdfDuFoyer\(\{[\s\S]{0,700}jourDe: jourDuPassage,/.test(factures),
-    /frDay\(/.test(bloc),
+  /* 28 octobre 2026 : la fenetre du foyer devient celle du POINT DU COMPTE
+     (vente/FenetreDuPoint.tsx), ouverte de Factures, de la fiche et du
+     Carnet ; son message nait de motDuPoint (shared/point-du-compte-pur.ts),
+     le jour dit par dateDite, l'etendue des jours par etendueDite, chacun
+     avec son annee. La regle reste la meme : toute date remise a la payeuse
+     porte son annee. */
+  const fenetre = source('src/apps/trone/routes/vente/FenetreDuPoint.tsx');
+  const wa = source('src/shared/facture-whatsapp.ts');
+  const pointPur = source('src/shared/point-du-compte-pur.ts');
+  dit(56, 'le point du compte : le message dit le jour avec son annee, et l etendue des jours avec la sienne ; Factures ouvre la fenetre du point ; sans frDay', [true, true, true, true, false], [
+    fenetre.length > 2000,
+    /quand: dateDite\(o\.jourIso\), prenoms: o\.prenoms/.test(wa),
+    /\? `du \$\{jourEtMois\(a\)\} au \$\{jourEtMois\(b\)\} \$\{b\.slice\(0, 4\)\}`/.test(pointPur) && /`du \$\{jourEtMois\(a\)\} \$\{a\.slice\(0, 4\)\}`/.test(pointPur),
+    /<FenetreDuPoint teteId=\{pointDe\}/.test(factures),
+    /frDay\(/.test(fenetre),
   ]);
-  /* LA REGLE, PAS LE CAS DU JOUR (reprise du 10 octobre 2026). La relecture
-     a trouve une date sans annee dans la liste a cocher de la meme fenetre,
-     hors du motif d'avant. Dans TOUTE la fenetre du reglement du foyer (le
-     message, le recapitulatif, la liste des pieces), une date ne se forme
-     que par un formateur qui porte l'annee : tout autre formateur crie,
-     qu'il s'appelle frDay, frShort ou toLocaleDateString. */
-  const j = factures.indexOf('{lienFoyer && (() => {');
-  const fenetre = j < 0 ? '' : factures.slice(j, factures.indexOf('\n      })()}', j));
+  /* LA REGLE, PAS LE CAS DU JOUR (reprise du 10 octobre 2026) : dans toute la
+     fenetre du point, une date ne se forme que par un formateur qui porte
+     l'annee ; tout autre formateur crie, qu'il s'appelle frDay, frShort ou
+     toLocaleDateString. */
   const AVEC_ANNEE = new Set(['frShortAn', 'frLongAn', 'frJourAn', 'jourCourtAn', 'jourAn', 'jourEnLettres']);
   const formateurs = [...fenetre.matchAll(/\b(fr[A-Z]\w*|toLocale\w*String|fmtDate\w*)\(/g)].map((m) => m[1]);
-  dit(56, 'Factures : dans toute la fenetre du foyer, chaque date porte son annee', [true, true, []],
-    [fenetre.length > 3000, formateurs.length >= 2, [...new Set(formateurs.filter((n) => !AVEC_ANNEE.has(n)))]]);
+  dit(56, 'le point du compte : dans toute la fenetre, chaque date porte son annee', [true, true, []],
+    [fenetre.length > 2000, formateurs.length >= 1, [...new Set(formateurs.filter((n) => !AVEC_ANNEE.has(n)))]]);
   dit(56, '... la liste a cocher dit l annee de chaque piece', true, /\{frShortAn\(i\.date\)\} · \{i\.number\}/.test(fenetre));
 }
 

@@ -5,6 +5,7 @@ import { envoieSurWhatsApp, type ResultatDEnvoi } from './whatsapp';
 import { MODELE_TAPGO, variablesTapGo } from './mnd-pay-pur';
 import type { InvoicePdfData } from './pdf';
 import { motDuFoyer, FACTURE_DU_FOYER_JOINTE } from './facture-du-foyer-pur';
+import { motDuPoint, MODELE_DU_POINT, variablesDuPoint } from './point-du-compte-pur';
 
 /* ══ LA FACTURE À RÉGLER PART SEULE SUR SON WHATSAPP — 17 octobre 2026 ══
    « Une facture sans aucun paiement (Honorer sans encaisser) ne part pas
@@ -159,4 +160,54 @@ export async function envoieLaFactureDuFoyer(o: {
     ...base, modele: MODELE_TAPGO, variables: variablesTapGo(appelDe(o.client), o.tapgo.totalDit), boutonUrl: o.tapgo.parametre, ...cle('lien'),
   });
   return l.ok ? { ...l, repli: 'lien' } : { ok: false, erreur: `${l.erreur} (et « ${MODELE_FACTURE} » : ${m.erreur})` };
+}
+
+/** LE POINT DU COMPTE — 28 octobre 2026 : toutes les factures qu'un payeur
+    laisse courir, en un PDF et un message, avec un seul lien
+    (point-du-compte-pur.ts). Le chemin du foyer : le mot dans la fenêtre de
+    24 heures ; hors fenêtre, le modèle `point_du_compte` (à créer chez Meta),
+    le PDF en tête, ses quatre variables, le lien en bouton ; tant que Meta ne
+    l'a pas approuvé, le lien seul (`paiement_en_attente`). `cle` : un jour,
+    un numéro. */
+export async function envoieLePointDuCompte(o: {
+  client: Porteuse;
+  pdf: InvoicePdfData;
+  prenoms: readonly string[];
+  payeurParmiLesTetes: boolean;
+  /** « 6 rituels, du 13 juin au 1er septembre 2026 » (`phraseDuPoint`). */
+  phrase: string;
+  totalDit: string;
+  jourIso: string;
+  tapgo?: { parametre: string; lien: string; totalDit: string };
+  enLigne?: boolean;
+  cle: string;
+  parQui?: string;
+  envoie?: typeof envoieSurWhatsApp;
+}): Promise<ResultatDeLaFacture> {
+  const envoie = o.envoie ?? envoieSurWhatsApp;
+  const tel = (o.client.phone ?? '').trim();
+  if (!tel) return { ok: false, erreur: 'Pas de numéro sur la fiche du payeur : le point n’est pas parti.' };
+  const { invoiceEnPiece } = await import('./pdf');
+  const piece = await invoiceEnPiece(o.pdf);
+  const base = { numero: tel, clientId: o.client.id, branchId: o.client.branchId, parQui: o.parQui };
+  const cle = (etape: string) => ({ cleUnique: `${o.cle}-${etape}` });
+  const mot = motDuPoint({
+    appel: appelDe(o.client), quand: dateDite(o.jourIso), prenoms: o.prenoms, payeurParmiLesTetes: o.payeurParmiLesTetes,
+    phrase: o.phrase, totalDit: o.totalDit, lien: o.tapgo?.lien, enLigne: o.enLigne,
+  });
+
+  const r = await envoie({ ...base, piece, texte: signeLeMessage(`${maisonNom()} · point du compte\n${mot}`), ...cle('mot') });
+  if (r.ok || !/fenêtre/i.test(r.erreur)) return r;
+  if (!o.tapgo) return { ok: false, erreur: 'la fenêtre de 24 heures est fermée et Tap & Go est éteint : le modèle du point a besoin de son bouton de paiement.' };
+
+  const m = await envoie({
+    ...base, piece, enTete: 'document', modele: MODELE_DU_POINT,
+    variables: variablesDuPoint(appelDe(o.client), dateDite(o.jourIso), o.phrase, o.totalDit), boutonUrl: o.tapgo.parametre, ...cle('modele'),
+  });
+  if (m.ok || !refusDuModele(m.erreur)) return m;
+
+  const l = await envoie({
+    ...base, modele: MODELE_TAPGO, variables: variablesTapGo(appelDe(o.client), o.tapgo.totalDit), boutonUrl: o.tapgo.parametre, ...cle('lien'),
+  });
+  return l.ok ? { ...l, repli: 'lien' } : { ok: false, erreur: `${l.erreur} (et « ${MODELE_DU_POINT} » : ${m.erreur})` };
 }

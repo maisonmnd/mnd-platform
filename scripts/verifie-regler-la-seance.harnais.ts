@@ -367,12 +367,18 @@ dit('le mot de la facture du foyer : « Régler » quand le lien mene a la page,
 {
   const fact = sansCommentaires(lis('src/apps/trone/routes/vente/Factures.tsx'));
   const envoi = sansCommentaires(lis('src/apps/trone/routes/vente/envoi-de-la-piece.ts'));
-  dit('les boutons du Trone menent a « Régler » quand la fonction repond : la facture liee a son rendez-vous, le foyer d un seul lien, la facture du foyer envoyee ; le jeton se pose au toucher ; aucun numero de piece dans le message du foyer',
+  /* 28 octobre 2026 : « Un seul lien pour le foyer » devient le POINT DU
+     COMPTE (vente/FenetreDuPoint.tsx, envoi-de-la-piece.ts `point`) : un seul
+     jour, la version du foyer suffit ; plusieurs jours, celle qui dit le jour
+     de chaque ligne (saitReglerLePoint). Le jeton se pose a l'envoi, au toucher. */
+  const point = envoi.slice(envoi.indexOf('const point = async'));
+  const pur = sansCommentaires(lis('src/shared/point-du-compte-pur.ts'));
+  dit('les boutons du Trone menent a « Régler » quand la fonction repond : la facture liee a son rendez-vous, le point du compte d un seul lien, la facture du foyer envoyee ; le jeton se pose au toucher ; aucun numero de piece dans le message du foyer',
     [true, true, true, true, false],
     [/saitRegler\(versionDeRegler\)/.test(fact) && /const j = poseLeLienDeReglement\(selected\.apptId!\);/.test(fact),
-      /saitReglerLeFoyer\(versionDeRegler\)/.test(fact) && /const j = poseLeLienDuFoyer\(rdvsDuFoyer\);/.test(fact),
+      /\(unSeulJour \? saitReglerLeFoyer\(version\) : saitReglerLePoint\(version\)\) \? poseLeLienDuFoyer\(rdvs\) : null/.test(point) && /enLigne: !!parRegler/.test(point),
       /saitReglerLeFoyer\(await versionDuReglement\(\)\) \? poseLeLienDuFoyer\(rdvs\)/.test(envoi) && /enLigne: !!parRegler/.test(envoi),
-      (fact.match(/touchez « Régler » sur cette page/g) ?? []).length === 2 && /en une fois depuis votre téléphone \(MTN, Moov, Celtiis ou carte\), touchez « Régler »/.test(fact),
+      (fact.match(/touchez « Régler » sur cette page/g) ?? []).length === 1 && /en une fois depuis votre téléphone \(MTN, Moov, Celtiis ou carte\), touchez ce lien/.test(pur),
       /Références \$\{prises/.test(fact)]);
 }
 

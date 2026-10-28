@@ -21,7 +21,8 @@ import { retirerPourboiresDesFactures, repointerPourboires } from '../../../../s
 import { adresseDe, lienPaiementMomo } from '../equipe/data';
 import { LienMndPay } from './LienMndPay';
 import { BlocRelances } from './BlocRelances';
-import { fmtDateFr, pdfDuFoyer, useLaPieceEnPdf } from './pdf-de-la-piece';
+import { fmtDateFr, useLaPieceEnPdf } from './pdf-de-la-piece';
+import { BoutonDuPoint, FenetreDuPoint } from './FenetreDuPoint';
 import { filStore, nouveauMessage } from '../../../../shared/fil';
 import { useAuth } from '../../../../shared/auth';
 import { useStaff } from '../equipe/data';
@@ -405,7 +406,8 @@ export default function Factures() {
 
      LE LIEN NE FAIT QU'UNE CHOSE : il porte un montant. C'est donc à l'écran de
      dire ce que ce montant couvre, pièce par pièce, dans le message. */
-  const [lienFoyer, setLienFoyer] = useState<{ pieces: Invoice[]; prises: string[] } | null>(null);
+  /* LE POINT DU COMPTE (28 octobre 2026) : la tête dont on ouvre le point. */
+  const [pointDe, setPointDe] = useState<string | null>(null);
   /* ══ LE LIEN DE PAIEMENT MÈNE À « RÉGLER » — 28 octobre 2026 ═══════════
      « Le bouton lien de paiement doit mener au bouton Régler pour passer par
      KkiaPay » (Yéman). Quand la fonction `regler-la-seance` répond, une
@@ -433,18 +435,6 @@ export default function Factures() {
   >(null);
   const [scanEnCours, setScanEnCours] = useState(false);
 
-  /* LES PIÈCES DU FOYER QUI RÉCLAMENT ENCORE. Toutes les têtes rattachées au
-     même compte, la payeuse comprise, et seulement ce qui n'est pas soldé : on
-     ne redemande pas ce qui est déjà entré. */
-  const piecesDuFoyer = (inv: Invoice): Invoice[] => {
-    const tete = clients.find((c) => c.id === inv.clientId);
-    if (!tete?.familyId) return [];
-    const membres = new Set(clients.filter((c) => c.familyId === tete.familyId && !c.archived).map((c) => c.id));
-    return invoices
-      .filter((i) => i.branchId === branch.id && i.kind === 'facture'
-        && !!i.clientId && membres.has(i.clientId) && invoiceResteXof(i) > 0)
-      .sort((a, b) => a.date.localeCompare(b.date));
-  };
 
   const parcourirLesRituels = (simuler: boolean): EcartDeConformite[] => {
     const trouves: EcartDeConformite[] = [];
@@ -1683,22 +1673,14 @@ export default function Factures() {
               {selected.kind === 'facture' && invoiceResteXof(selected) > 0 && (
                 <BlocRelances facture={selected} qui={monNomFil} pose={patchSelected} />
               )}
-              {/* ══ UN SEUL LIEN POUR TOUT LE FOYER ═══════════════════════════
-                  Une mère ne paie pas trois fois. Le bouton ne paraît que si le
-                  foyer a plus d'une pièce qui réclame : sur une seule, il ne
-                  ferait que doubler celui du dessus. */}
-              {selected.kind === 'facture' && (() => {
-                const duFoyer = piecesDuFoyer(selected);
-                if (duFoyer.length < 2) return null;
-                return (
-                  <button
-                    type="button" className="trv-act"
-                    onClick={() => setLienFoyer({ pieces: duFoyer, prises: duFoyer.map((i) => i.id) })}
-                  >
-                    Un seul lien pour le foyer · {duFoyer.length} pièces
-                  </button>
-                );
-              })()}
+              {/* ══ LE POINT DU COMPTE — 28 octobre 2026 ══════════════════════
+                  À la place de « Un seul lien pour le foyer » : toutes les
+                  factures que le compte doit encore, famille ou cliente seule,
+                  au payeur d'aujourd'hui. Le bouton ne paraît qu'à partir de
+                  deux factures : sur une seule, il doublerait celui du dessus. */}
+              {selected.kind === 'facture' && (
+                <BoutonDuPoint teteId={selected.forClientId ?? selected.clientId} onOpen={setPointDe} />
+              )}
               {geoDest && (
                 <a
                   className="trv-route-btn"
@@ -2261,183 +2243,7 @@ export default function Factures() {
         );
       })()}
 
-      {lienFoyer && (() => {
-        const prises = lienFoyer.pieces.filter((i) => lienFoyer.prises.includes(i.id));
-        const total = prises.reduce((n, i) => n + invoiceResteXof(i), 0);
-        /* « RÉGLER » POUR LE FOYER (28 octobre 2026) : quand la fonction sait
-           le foyer et que chaque pièce cochée a son rendez-vous, un seul lien
-           mène à la page « Régler » (KkiaPay), qui solde chaque pièce à son
-           montant. Sinon, la page Mobile Money comme avant. */
-        const rdvsDuFoyer = prises.map((i) => i.apptId ?? '');
-        const lesRdvs = appointmentsStore.get();
-        const parRegler = prises.length > 0 && saitReglerLeFoyer(versionDeRegler)
-          && rdvsDuFoyer.every((id) => !!id && lesRdvs.some((a) => a.id === id));
-        const lien = parRegler ? null : lienPaiementMomo(total);
-        /* LA PAYEUSE DU FOYER, PAS LA DERNIÈRE TÊTE SERVIE. C'est elle qui
-           règle, et c'est son téléphone qu'on ouvre. */
-        const premiere = clientOf(prises[0] ?? lienFoyer.pieces[0]);
-        const payeur = premiere ? clients.find((c) => c.id === payerClientIdOf(premiere, families)) ?? premiere : undefined;
-        const tel = payeur?.phone.replace(/\D/g, '') ?? '';
-        /* Aucun numéro de pièce dans le message (18 octobre 2026, « seul le
-           PDF garde son numéro de pièce ») : la tête, le jour, le montant. */
-        const msgPour = (l: string) => signeLeMessage(
-          `${maisonNom()}\n`
-          + (parRegler
-            ? `Bonjour ${appelDe(payeur)}, pour régler ${fmtMoney(total, currency)} en une fois depuis votre téléphone (MTN, Moov, Celtiis ou carte), touchez « Régler » sur cette page :\n${l}\n`
-            : `Bonjour ${appelDe(payeur)}, pour régler ${fmtMoney(total, currency)} par Mobile Money, ouvrez cette page : le code à composer s'y affiche, montant compris.\n${l}\n`)
-          + `Ce règlement couvre :\n${prises.map((i) => `· ${clientNameOf(i)} · ${frShortAn(i.date)} · ${fmtMoney(invoiceResteXof(i), currency)}`).join('\n')}`,
-        );
-        /* Le jeton du foyer se pose AU TOUCHER, jamais à l'affichage. */
-        const lienAuToucher = (): string | null => {
-          if (!parRegler) return lien;
-          const j = poseLeLienDuFoyer(rdvsDuFoyer);
-          return j ? adresseDuLien(j) : null;
-        };
-        const adresser = () => {
-          const l = lienAuToucher();
-          if (!l) { toast('Le lien du foyer n’a pas pu se poser : un rendez-vous est introuvable.'); return; }
-          if (parRegler) noteLEnvoiDuFoyer(rdvsDuFoyer);
-          window.location.hash = `#${cheminDeLaConversation(tel, msgPour(l)) ?? '/conversations'}`;
-        };
-        const copier = () => {
-          const l = lienAuToucher();
-          if (!l) { toast('Le lien du foyer n’a pas pu se poser : un rendez-vous est introuvable.'); return; }
-          void navigator.clipboard?.writeText(l).then(() => toast('Lien copié.'), () => toast(l));
-        };
-        /* ══ LE RÉCAPITULATIF DU FOYER — 4 septembre 2026 ══════════════
-           « Je veux un PDF qui résume leurs 3 RDV avant que j'envoie le lien de
-           paiement » (Yéman).
-
-           TROIS PIÈCES SÉPARÉES NE FONT PAS UNE DEMANDE. Envoyer trois PDF puis
-           un montant unique oblige la payeuse à additionner elle-même pour
-           vérifier ce qu'on lui réclame, et une mère qui additionne de tête
-           devant trois papiers finit par appeler la Maison. Le récapitulatif
-           dit d'un seul tenant : qui est venue, quel jour, ce qu'elle a reçu,
-           ce que cela vaut, et la somme au bas.
-
-           IL NE RÉCLAME RIEN DE PLUS QUE LES PIÈCES QU'IL RÉSUME. Chaque ligne
-           porte le montant ÉCRIT sur sa facture, et le total est la somme des
-           restes dus, celui-là même que le lien va porter. Deux chiffres qui ne
-           se rejoignent pas sur un même envoi se lisent comme une erreur. */
-        /* 28 OCTOBRE 2026 : SUR LE PAPIER DES FACTURES. « La facture du
-           récapitulatif du foyer doit être pareille que les factures PDF :
-           même schéma, mêmes couleurs, pas de différence avec le code QR »
-           (Yéman). Il était un résumé à part (`summaryPdf`) ; il sort
-           désormais du constructeur de la facture du foyer (`pdfDuFoyer`) :
-           l'en-tête, le tableau, les totaux, le sceau, le QR et le pied des
-           factures. Chaque ligne garde la tête, son jour (avec l'année), le
-           numéro, les prestations à leur prix et le déjà réglé. */
-        const recapDuFoyer = async () => {
-          if (prises.length === 0) return;
-          const foyer = payeur?.familyId
-            ? families.find((f) => f.id === payeur.familyId)
-            : undefined;
-          await invoicePdf(pdfDuFoyer({
-            titre: 'RÉCAPITULATIF DU FOYER',
-            nomDuFichier: 'Recapitulatif-du-foyer',
-            pieces: prises,
-            jourIso: jourLocalIso(),
-            client: { name: foyer?.name ?? payeur?.name ?? clientNameOf(prises[0]), phone: payeur?.phone },
-            houseSub: sousLeVerrou,
-            nomDe: clientNameOf,
-            jourDe: jourDuPassage,
-            contenuDe: contenuDeLaLigne,
-            fmt: (n) => fmtMoney(n, currency),
-            reglages: reglagesMnd,
-            note: `${prises.length} rituels, à régler en une fois. Ce récapitulatif ne réclame rien de plus que les pièces qu’il résume.`,
-          }));
-          toast('Récapitulatif téléchargé.');
-        };
-
-        const bascule = (id: string) => setLienFoyer((prev) => (prev ? {
-          ...prev,
-          prises: prev.prises.includes(id) ? prev.prises.filter((x) => x !== id) : [...prev.prises, id],
-        } : prev));
-        return (
-          <Modal title="Un seul lien pour le foyer" onClose={() => setLienFoyer(null)} width={520}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 15 }}>
-              <div className="mnd-muted" style={{ fontSize: 12.5, lineHeight: 1.65 }}>
-                {parRegler
-                  ? 'Cochez ce que ce règlement couvre. Un seul lien, un seul montant : la page « Régler » (KkiaPay, Mobile Money ou carte) solde chaque pièce, et le message dit à qui appartient chaque ligne.'
-                  : 'Cochez ce que ce règlement couvre. Un seul code à composer, un seul montant, et le message dit à qui appartient chaque ligne.'}
-              </div>
-              <div style={{ border: '1px solid var(--hairline)', borderRadius: 3 }}>
-                {lienFoyer.pieces.map((i) => {
-                  const prise = lienFoyer.prises.includes(i.id);
-                  return (
-                    <label
-                      key={i.id}
-                      style={{
-                        display: 'flex', alignItems: 'center', gap: 11, padding: '10px 13px',
-                        borderTop: '1px solid var(--hairline)', cursor: 'pointer', fontSize: 13,
-                        opacity: prise ? 1 : 0.55,
-                      }}
-                    >
-                      <input type="checkbox" checked={prise} onChange={() => bascule(i.id)} style={{ accentColor: 'var(--color-copper)' }} />
-                      <span style={{ flex: 1, minWidth: 0 }}>
-                        <b style={{ fontWeight: 500, color: 'var(--color-indigo)' }}>{clientNameOf(i)}</b>
-                        <span className="mnd-muted" style={{ display: 'block', fontSize: 11 }}>
-                          {frShortAn(i.date)} · {i.number}
-                        </span>
-                      </span>
-                      <span style={{ fontFamily: 'var(--font-serif)', fontSize: 17, color: 'var(--color-indigo)', fontVariantNumeric: 'tabular-nums' }}>
-                        {fmtMoney(invoiceResteXof(i), currency)}
-                      </span>
-                    </label>
-                  );
-                })}
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12, borderTop: '1px solid var(--hairline)', paddingTop: 12 }}>
-                <span className="mnd-eyebrow" style={{ fontSize: 9.5 }}>Un seul règlement</span>
-                <span style={{ fontFamily: 'var(--font-serif)', fontSize: 26, color: 'var(--color-indigo)' }}>{fmtMoney(total, currency)}</span>
-              </div>
-              {!parRegler && !lien && (
-                <div className="tre-inline-note">
-                  <span className="mark">!</span>
-                  <span>Le paiement Mobile Money n’est pas réglé pour cette Maison. Paramètres → Automatisations.</span>
-                </div>
-              )}
-              {/* CE QUI RESTE À FAIRE À LA MAIN SE DIT. Le lien Mobile Money porte
-                  un montant, il ne solde rien : l'argent arrivé se pointe pièce
-                  par pièce. Le lien « Régler » encaisse, et solde chaque pièce. */}
-              <div className="mnd-muted" style={{ fontSize: 11.5, lineHeight: 1.55 }}>
-                {parRegler
-                  ? <>Ce lien <b>encaisse</b> : payé par KkiaPay, chaque pièce est soldée à son montant, sans rien à pointer.</>
-                  : <>Ce lien <b>réclame</b>, il n’encaisse pas. Quand l’argent arrive, pointez chaque
-                    pièce à son montant : c’est ce qui garde les comptes de chaque tête justes.</>}
-              </div>
-              {!parRegler && prises.length > 0 && rdvsDuFoyer.every(Boolean) && !saitReglerLeFoyer(versionDeRegler) && (
-                <div className="mnd-muted" style={{ fontSize: 11, lineHeight: 1.5 }}>
-                  La page « Régler » du foyer attend la fonction regler-la-seance en version 2026-10-28-a.
-                </div>
-              )}
-              {/* LE RÉCAPITULATIF PART AVANT LE LIEN, et le bouton est donc
-                  AVANT lui : l'ordre des gestes à l'écran est l'ordre de la
-                  conversation avec la payeuse. */}
-              <Button variant="ghost" disabled={prises.length === 0} onClick={() => void recapDuFoyer()}>
-                Récapitulatif des {prises.length} rituels · PDF
-              </Button>
-              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-                <Button variant="ghost" style={{ flex: 1 }} onClick={() => setLienFoyer(null)}>Fermer</Button>
-                {(parRegler || lien) && tel && (
-                  <a
-                    className="trv-wa-btn" style={{ textDecoration: 'none', flex: 1, textAlign: 'center' }}
-                    href="#" role="button"
-                    onClick={(e) => { e.preventDefault(); adresser(); }}
-                  >
-                    Adresser à {(payeur?.name ?? '').split(' ')[0]}
-                  </a>
-                )}
-                {(parRegler || lien) && (
-                  <Button onClick={copier}>
-                    Copier le lien
-                  </Button>
-                )}
-              </div>
-            </div>
-          </Modal>
-        );
-      })()}
+      {pointDe && <FenetreDuPoint teteId={pointDe} onClose={() => setPointDe(null)} />}
 
       {/* L'APERÇU DE LA FUSION. « Reçu avant » et « reçu après » doivent être
           ÉGAUX sur chaque ligne : c'est l'argent de la cliente, il ne peut ni

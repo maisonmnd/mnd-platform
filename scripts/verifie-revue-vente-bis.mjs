@@ -56,8 +56,9 @@ const FAUTES = [
   { n: 55, fichier: F, avant: "useEffect(() => { setPayCaisse(''); }, [selectedId]);", apres: '' },
   { n: 55, fichier: F, avant: 'disabled={caisseManquante(payCaisse, boxesBranche.length)}', apres: '' },
   /* #56 : les dates de la payeuse sans l'annee. */
-  { n: 56, fichier: F, avant: '${frShortAn(i.date)}', apres: '${frDay(i.date)}' },
-  { n: 56, fichier: F, avant: 'jourDe: jourDuPassage,', apres: '' },
+  { n: 56, fichier: 'src/shared/facture-whatsapp.ts', avant: 'quand: dateDite(o.jourIso), prenoms: o.prenoms', apres: 'quand: o.jourIso, prenoms: o.prenoms' },
+  { n: 56, fichier: 'src/shared/point-du-compte-pur.ts', avant: '? `du ${jourEtMois(a)} au ${jourEtMois(b)} ${b.slice(0, 4)}`', apres: '? `du ${jourEtMois(a)} au ${jourEtMois(b)}`' },
+  { n: 56, fichier: F, avant: '<FenetreDuPoint teteId={pointDe}', apres: '<div data-x={pointDe}' },
   /* #47 : signer a l'ecran un formulaire non enregistre, perdre la signature. */
   { n: 47, fichier: L, avant: 'return memesTermes(enregistre, formulaire);', apres: 'return true;' },
   { n: 47, fichier: L, avant: 'if (!enregistre || plan.trop) return false;', apres: 'if (!enregistre) return false;' },
@@ -92,9 +93,9 @@ const FAUTES = [
   { n: 52, fichier: C, avant: 'const retireLeSoin = () => {\n    if (!soinPose) return;', apres: 'const retireLeSoin = () => {\n    return;' },
   { n: 52, fichier: C, avant: '      posesParRituel.current = [];\n    }\n    setApptToSettle(id);', apres: '      posesParRituel.current = [];\n    }\n    if (id) setApptToSettle(id);' },
   /* #56 : la REGLE de la fenetre du foyer, prouvee par deux formateurs sans annee. */
-  { n: 56, fichier: F, avant: '{frShortAn(i.date)} · {i.number}', apres: '{frDay(i.date)} · {i.number}' },
-  { n: 56, fichier: F, avant: '{frShortAn(i.date)} · {i.number}', apres: '{frShortAn(i.date)} · {i.number} · {frShort(i.date)}' },
-  { n: 56, fichier: F, avant: '{frShortAn(i.date)} · {i.number}', apres: "{frShortAn(i.date)} · {i.number} · {new Date(i.date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}" },
+  { n: 56, fichier: 'src/apps/trone/routes/vente/FenetreDuPoint.tsx', avant: '{frShortAn(i.date)} · {i.number}', apres: '{frDay(i.date)} · {i.number}' },
+  { n: 56, fichier: 'src/apps/trone/routes/vente/FenetreDuPoint.tsx', avant: '{frShortAn(i.date)} · {i.number}', apres: '{frShortAn(i.date)} · {i.number} · {frShort(i.date)}' },
+  { n: 56, fichier: 'src/apps/trone/routes/vente/FenetreDuPoint.tsx', avant: '{frShortAn(i.date)} · {i.number}', apres: "{frShortAn(i.date)} · {i.number} · {new Date(i.date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}" },
 ];
 
 /* Le gel de l'encaissement, retire de la lecture du banc du Carnet. */

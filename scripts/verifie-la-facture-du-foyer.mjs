@@ -54,7 +54,7 @@ const FAUTES = [
   { n: 7, fichier: ACTIONS, avant: '    if (apptDueXof(frais, byId) <= 0) continue;\n', apres: '' },
   /* #8 : une piece soldee entre au total ; la piece seule part en foyer ; plus de cle. */
   { n: 8, fichier: ENVOI, avant: "p.kind === 'facture' && invoiceResteXof(p) > 0);", apres: "p.kind === 'facture');" },
-  { n: 8, fichier: ENVOI, avant: '    if (ouvertes.length === 1) { await aRegler(', apres: '    if (false) { await aRegler(' },
+  { n: 8, fichier: ENVOI, avant: '    if (ouvertes.length === 1) { await aRegler(ouvertes[0].id, jourDuRituel,', apres: '    if (false) { await aRegler(ouvertes[0].id, jourDuRituel,' },
   { n: 8, fichier: ENVOI, avant: 'cle: `${cleDuFoyer(jourDuRituel, destinataire.phone)}', apres: 'cle: `${Date.now()}' },
   /* #9 : le papier redit « RELEVE DE COMPTE » ; le modele dit « ci-jointe » seul. */
   { n: 9, fichier: 'src/shared/pdf.ts', avant: 'doc.text(d.titre ?? (', apres: 'doc.text((' },
@@ -70,7 +70,7 @@ const FAUTES = [
   { n: 11, fichier: PIECE, avant: '  if (!tg) return { qr: momopay.qr, code: momopay.code };', apres: '  if (!tg) return momopay;' },
   { n: 12, fichier: 'src/shared/pdf.ts', avant: '  if (sceau) y = Math.max(y, yDuSceau + TAILLE_DU_SCEAU + 2);', apres: '' },
   { n: 12, fichier: 'src/shared/pdf.ts', avant: 'const paye = estLaMaisonMND(d.houseName) ? await chargeImageDuSite(TAMPON_PAYE.chemin) : null;', apres: 'const paye = null;' },
-  { n: 12, fichier: 'src/apps/trone/routes/vente/Factures.tsx', avant: 'await invoicePdf(pdfDuFoyer({', apres: 'await invoicePdf(({' },
+  { n: 12, fichier: 'src/apps/trone/routes/vente/FenetreDuPoint.tsx', avant: 'await invoicePdf(pdfDuFoyer({', apres: 'await invoicePdf(({' },
   /* #13 : le sceau repart a gauche, ou au-dessus des totaux ; le code marchand se perd, ou se pose sur un papier qui n'est pas de la Maison. */
   { n: 13, fichier: 'src/shared/pdf.ts', avant: "doc.addImage(sceau, 'PNG', rx - TAILLE_DU_SCEAU, yDuSceau,", apres: "doc.addImage(sceau, 'PNG', M + 4, yDuSceau," },
   { n: 13, fichier: 'src/shared/pdf.ts', avant: '  const yDuSceau = y - 2;', apres: '  const yDuSceau = y - 40;' },

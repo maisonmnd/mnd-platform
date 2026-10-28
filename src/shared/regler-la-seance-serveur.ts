@@ -72,3 +72,8 @@ export const saitRegler = (v: string): boolean => v >= '2026-10-25-a';
 
 /** Elle sait régler un foyer d'un seul paiement (28 octobre 2026). */
 export const saitReglerLeFoyer = (v: string): boolean => v >= '2026-10-28-a';
+
+/** Elle sait régler le point d'un compte sur PLUSIEURS jours : chaque ligne
+    porte son jour, chaque prénom une fois (28 octobre 2026, 2026-10-28-b).
+    Avant elle, un point de plusieurs jours garde le Tap & Go du total. */
+export const saitReglerLePoint = (v: string): boolean => v >= '2026-10-28-b';
