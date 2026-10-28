@@ -42,7 +42,7 @@
    POST|PUT ?rappel=<ref>  l'annonce de MTN pour une demande ou un virement.
    ═══════════════════════════════════════════════════════════════════ */
 
-const VERSION = '2026-10-28-b';
+const VERSION = '2026-10-28-c';
 
 const json = (o: unknown, status = 200) =>
   new Response(JSON.stringify(o, null, 2), { status, headers: { 'content-type': 'application/json' } });
@@ -58,6 +58,10 @@ const NUMERO_REUSSI = '46733123459';
 const NUMERO_REFUSE = '46733123451';
 const MONTANT = '100';
 const EN_COURS = new Set(['PENDING', 'ONGOING']);
+/** Les hôtes de rappel essayés quand le Sandbox refuse celui du projet :
+    le domaine de la Maison, puis example.com, réservé aux essais. */
+const HOTES_D_ESSAI = ['maisonmnd.com', 'example.com'];
+const HOTE_REFUSE = 'INVALID_CALLBACK_URL_HOST';
 
 type Etape = { produit: string; etape: string; requete: string; http: number | null; ok: boolean; detail: string };
 type Outils = {
@@ -65,8 +69,8 @@ type Outils = {
   attendre: (ms: number) => Promise<void>;
   uuid: () => string;
   pause: number;
-  /** L'origine de nos rappels (https://<projet>.supabase.co), et l'adresse complète pour une référence. */
-  origineRappel: string;
+  /** L'hôte de nos rappels (<projet>.supabase.co), et l'adresse complète pour une référence. */
+  hoteRappel: string;
   adresseRappel: (ref: string) => string;
   lireRappels: () => Promise<Record<string, { status?: string; quand?: string }>>;
 };
@@ -81,12 +85,16 @@ async function lis(r: Response): Promise<any> {
 /** Le motif d'un échec, tel que MTN le dit, sans rien d'autre. */
 const motif = (o: any): string => (o && typeof o === 'object' ? String(o.reason?.code ?? o.reason ?? o.code ?? o.message ?? '') : '').slice(0, 120);
 
-/* 28 octobre 2026, premier essai réel (2026-10-28-a, 11 étapes sur 15) : une
-   demande portant notre adresse de rappel est tombée en INVALID_CALLBACK_URL_HOST,
-   le virement et les soldes en NOT_ALLOWED_TARGET_ENVIRONMENT. Désormais :
-   les opérations se font d'abord SANS rappel ; le rappel s'éprouve à part,
-   avec l'hôte nu puis, s'il est refusé, avec l'origine complète ; le solde
-   se lit aussi par sa devise ; un virement refusé s'essaie en dépôt. Chaque
+/* 28 octobre 2026, deux essais réels. -28-a : 11 étapes sur 15 ; -28-b :
+   13 sur 20. Le Sandbox fait tomber en INVALID_CALLBACK_URL_HOST toute
+   opération qui devrait réussir, AVEC ou SANS adresse de rappel, dès que
+   l'utilisateur d'API déclare l'hôte du projet ; l'origine complète
+   (https://…) est refusée d'emblée (500). Le virement tombe en
+   NOT_ALLOWED_TARGET_ENVIRONMENT, le solde Disbursement en 503.
+   Désormais (-28-c) : si l'hôte du projet est refusé, un utilisateur d'essai
+   par hôte de HOTES_D_ESSAI, jusqu'au premier qui passe ; la suite se fait
+   avec lui ; le rappel ne s'éprouve qu'avec l'hôte du projet (c'est le seul
+   qui nous joint) ; un solde indisponible se redemande une fois. Chaque
    tentative est au rapport, réussie ou non. */
 async function produit(nom: 'collection' | 'disbursement', cle: string, o: Outils, etapes: Etape[]): Promise<string[]> {
   const refs: string[] = [];
@@ -126,7 +134,7 @@ async function produit(nom: 'collection' | 'disbursement', cle: string, o: Outil
     return jeton ? { Authorization: `Bearer ${jeton}`, 'X-Target-Environment': ENV_CIBLE } : null;
   };
 
-  const auth = await entree(new URL(o.origineRappel).host, true, '');
+  const auth = await entree(o.hoteRappel, true, '');
   if (!auth) return refs;
 
   // Ce numéro a-t-il un compte MoMo ?
@@ -160,30 +168,45 @@ async function produit(nom: 'collection' | 'disbursement', cle: string, o: Outil
   const montant = { amount: MONTANT, currency: DEVISE };
   const message = { payerMessage: 'Maison MND, essai', payeeNote: 'Essai Sandbox' };
 
+  /** L'opération qui doit réussir ; si l'hôte du projet est refusé, un
+      utilisateur d'essai par hôte, jusqu'au premier qui passe. Rend
+      l'accès retenu pour la suite, et son hôte. */
+  const reussirAvecUnHote = async (etape: string, essaie: (a: Record<string, string>, titre: string) => Promise<{ statut: string; pourquoi: string }>) => {
+    const premier = await essaie(auth, etape);
+    if (reussie(premier.statut) || premier.pourquoi !== HOTE_REFUSE) return { a: auth, hote: o.hoteRappel };
+    for (const h of HOTES_D_ESSAI) {
+      const a2 = await entree(h, false, `Utilisateur d’essai, rappels vers ${h}`);
+      if (!a2) continue;
+      const res = await essaie(a2, `${etape} (rappels vers ${h})`);
+      if (reussie(res.statut)) return { a: a2, hote: h };
+      if (res.pourquoi !== HOTE_REFUSE) break;
+    }
+    return { a: auth, hote: o.hoteRappel };
+  };
+
   if (nom === 'collection') {
     const demande = (externalId: string, numero: string) => ({ ...montant, externalId, payer: { partyIdType: 'MSISDN', partyId: numero }, ...message });
-    await suis('Demande de paiement qui réussit', '/collection/v1_0/requesttopay', demande('MND-ESSAI-1', NUMERO_REUSSI), reussie, auth, false);
-    await suis('Demande de paiement refusée par la cliente', '/collection/v1_0/requesttopay', demande('MND-ESSAI-2', NUMERO_REFUSE), (s) => s === 'REJECTED' || s === 'FAILED', auth, false);
-    const avec = await suis('Demande avec adresse de rappel', '/collection/v1_0/requesttopay', demande('MND-ESSAI-3', NUMERO_REUSSI), reussie, auth, true);
-    if (avec.pourquoi === 'INVALID_CALLBACK_URL_HOST') {
-      const auth2 = await entree(o.origineRappel, false, 'Second utilisateur, rappels vers l’origine complète');
-      if (auth2) await suis('Demande avec adresse de rappel (origine complète)', '/collection/v1_0/requesttopay', demande('MND-ESSAI-4', NUMERO_REUSSI), reussie, auth2, true);
-    }
+    const chemin = '/collection/v1_0/requesttopay';
+    const retenu = await reussirAvecUnHote('Demande de paiement qui réussit', (a, titre) => suis(titre, chemin, demande('MND-ESSAI-1', NUMERO_REUSSI), reussie, a, false));
+    await suis('Demande de paiement refusée par la cliente', chemin, demande('MND-ESSAI-2', NUMERO_REFUSE), (s) => s === 'REJECTED' || s === 'FAILED', retenu.a, false);
+    if (retenu.hote === o.hoteRappel) await suis('Demande avec adresse de rappel', chemin, demande('MND-ESSAI-3', NUMERO_REUSSI), reussie, auth, true);
+    else note('Demande avec adresse de rappel', `POST ${chemin} (avec adresse de rappel)`, null, false, `non éprouvée : le Sandbox refuse l’hôte ${o.hoteRappel}, le seul qui nous joint`);
   } else {
     const vers = (externalId: string) => ({ ...montant, externalId, payee: { partyIdType: 'MSISDN', partyId: NUMERO_REUSSI }, ...message });
     const v = await suis('Virement vers un compte MoMo', '/disbursement/v1_0/transfer', vers('MND-ESSAI-5'), reussie, auth, false);
-    if (!reussie(v.statut)) await suis('Dépôt vers un compte MoMo', '/disbursement/v1_0/deposit', vers('MND-ESSAI-6'), reussie, auth, false);
+    if (!reussie(v.statut)) {
+      await reussirAvecUnHote('Dépôt vers un compte MoMo', (a, titre) => suis(titre, '/disbursement/v1_0/deposit', vers('MND-ESSAI-6'), reussie, a, false));
+    }
   }
 
-  // Le solde, puis le solde par sa devise si le premier est refusé.
-  r = await appel('GET', `/${nom}/v1_0/account/balance`, auth);
-  note('Lire le solde du compte', `GET /${nom}/v1_0/account/balance`, r.http, r.http === 200,
-    r.http === 200 ? `solde ${r.corps?.availableBalance ?? '?'} ${r.corps?.currency ?? ''}`.trim() : motif(r.corps));
-  if (r.http !== 200) {
-    r = await appel('GET', `/${nom}/v1_0/account/balance/${DEVISE}`, auth);
-    note('Lire le solde en euros', `GET /${nom}/v1_0/account/balance/${DEVISE}`, r.http, r.http === 200,
-      r.http === 200 ? `solde ${r.corps?.availableBalance ?? '?'} ${r.corps?.currency ?? ''}`.trim() : motif(r.corps));
-  }
+  // Le solde : redemandé une fois s'il est indisponible, puis par sa devise s'il est refusé.
+  const solde = async (etape: string, chemin: string) => {
+    let s = await appel('GET', chemin, auth);
+    if (s.http === 503) { await o.attendre(o.pause); s = await appel('GET', chemin, auth); }
+    note(etape, `GET ${chemin}`, s.http, s.http === 200, s.http === 200 ? `solde ${s.corps?.availableBalance ?? '?'} ${s.corps?.currency ?? ''}`.trim() : motif(s.corps) || `réponse ${s.http}`);
+    return s.http === 200;
+  };
+  if (!await solde('Lire le solde du compte', `/${nom}/v1_0/account/balance`)) await solde('Lire le solde en euros', `/${nom}/v1_0/account/balance/${DEVISE}`);
   return refs;
 }
 
@@ -269,7 +292,7 @@ Deno.serve(async (req: Request) => {
       attendre: (ms) => new Promise((ok) => setTimeout(ok, ms)),
       uuid: () => crypto.randomUUID(),
       pause: Number(Deno.env.get('MOMO_ESSAIS_PAUSE_MS') ?? '2000'),
-      origineRappel: new URL(URL_PROJET).origin,
+      hoteRappel: new URL(URL_PROJET).host,
       adresseRappel: (r) => `${URL_PROJET}/functions/v1/mtn-momo-essais?rappel=${r}`,
       lireRappels: rappelsGardes,
     });

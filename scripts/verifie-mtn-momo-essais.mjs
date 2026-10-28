@@ -12,10 +12,13 @@ import { spawnSync } from 'node:child_process';
    aucune cle montree ; le lancement refuse sans la cle du projet ; le
    parcours complet ; le bac a sable seul ; l'euro ; le rappel garde ; aucun
    secret au rapport ; une cle absente dite, pas cassee.
-   Deux Sandbox simules : l'IDEAL (tout passe du premier coup) et celui du
-   PREMIER ESSAI REEL du 28 octobre (l'hote nu refuse au rappel, le virement et
-   le solde refuses) : la fonction doit alors retenter avec l'origine complete,
-   en depot, et le solde par sa devise.
+   Deux Sandbox simules : l'IDEAL (tout passe du premier coup) et celui des
+   ESSAIS REELS du 28 octobre (-28-a et -28-b) : l'hote du projet et
+   maisonmnd.com refuses pour toute operation qui devrait reussir, avec ou
+   sans rappel, l'origine complete refusee d'emblee, le virement refuse, le
+   solde Disbursement indisponible puis refuse. La fonction doit alors
+   essayer les hotes d'essai jusqu'au premier qui passe, deposer, redemander
+   le solde puis le lire par sa devise.
    `--prouve` : chaque faute est remise une a une dans le vrai fichier (copie
    gardee, restauration dans un finally, empreintes comparees), et le banc
    doit crier a chacune. */
@@ -30,16 +33,18 @@ const PANNES = [
   ['la cle de l utilisateur au rapport', "apiKey ? 'clé reçue (gardée sur le serveur)'", 'apiKey ? apiKey'],
   ['le mauvais environnement cible', "const ENV_CIBLE = 'sandbox';", "const ENV_CIBLE = 'mtnbenin';"],
   ['le statut lu une seule fois', '      if (!EN_COURS.has(statut)) break;', '      break;'],
-  ['le refus compte comme un echec', "(s) => s === 'REJECTED' || s === 'FAILED', auth, false);", "(s) => s === 'SUCCESSFUL', auth, false);"],
+  ['le refus compte comme un echec', "(s) => s === 'REJECTED' || s === 'FAILED', retenu.a, false);", "(s) => s === 'SUCCESSFUL', retenu.a, false);"],
   ['un rappel sans reference lisible', '    if (!REF.test(ref) || (req.method', '    if ((req.method'],
   ['le franc dans le bac a sable', "const DEVISE = 'EUR';", "const DEVISE = 'XOF';"],
   ['la demande de rappel sans adresse de rappel', "    if (rappel) { entetes['X-Callback-Url'] = o.adresseRappel(ref); refs.push(ref); }", '    if (rappel) { refs.push(ref); }'],
   ['les cles montrees au GET', 'cles: { collection: !!k.collection, disbursement: !!k.disbursement }', 'cles: { collection: k.collection, disbursement: k.disbursement }'],
   ['le jeton au rapport', "jeton ? `jeton reçu, valable ${r.corps?.expires_in ?? '?'} s`", 'jeton ? jeton'],
-  ['pas de second essai du rappel', "    if (avec.pourquoi === 'INVALID_CALLBACK_URL_HOST') {", '    if (false) {'],
-  ['pas de depot apres un virement refuse', '    if (!reussie(v.statut)) await suis(', '    if (false) await suis('],
-  ['pas de solde par sa devise', '  if (r.http !== 200) {\n    r = await appel(\'GET\', `/${nom}/v1_0/account/balance/${DEVISE}`', '  if (false) {\n    r = await appel(\'GET\', `/${nom}/v1_0/account/balance/${DEVISE}`'],
-  ['les demandes ordinaires avec rappel', "demande('MND-ESSAI-1', NUMERO_REUSSI), reussie, auth, false);", "demande('MND-ESSAI-1', NUMERO_REUSSI), reussie, auth, true);"],
+  ['pas d autre hote quand celui du projet est refuse', '    for (const h of HOTES_D_ESSAI) {', '    for (const h of []) {'],
+  ['pas de depot apres un virement refuse', '    if (!reussie(v.statut)) {', '    if (false) {'],
+  ['le solde indisponible non redemande', '    if (s.http === 503) {', '    if (false) {'],
+  ['pas de solde par sa devise', "  if (!await solde('Lire le solde du compte', `/${nom}/v1_0/account/balance`)) await solde(", "  await solde('Lire le solde du compte', `/${nom}/v1_0/account/balance`); if (false) await solde("],
+  ['le rappel essaye avec un hote qui ne nous joint pas', '    if (retenu.hote === o.hoteRappel) await suis(', '    if (true) await suis('],
+  ['les demandes ordinaires avec rappel', "demande('MND-ESSAI-1', NUMERO_REUSSI), reussie, a, false)", "demande('MND-ESSAI-1', NUMERO_REUSSI), reussie, a, true)"],
 ];
 
 const md5 = (f) => createHash('md5').update(readFileSync(path.join(racine, f))).digest('hex');
@@ -89,6 +94,9 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /** Le Sandbox simule : `ideal`, ou celui du premier essai reel. */
 let sandbox = 'ideal';
+/** Les hotes que le Sandbox reel refuse pour une operation qui devrait reussir. */
+const HOTES_REFUSES = new Set(['projet-essai.supabase.co', 'maisonmnd.com']);
+let soldesDemandes = 0;
 let journal = [];
 const utilisateurs = new Map();   // id -> { cle, hote, apiKey }
 const jetons = new Map();          // jeton -> { produit, hote }
@@ -141,7 +149,8 @@ async function fauxFetch(entree, init = {}) {
   if (h['x-target-environment'] !== 'sandbox') return rep(400, { code: 'TARGET_ENVIRONMENT_INVALID' });
   if ((m = p.match(/^\/(collection|disbursement)\/v1_0\/accountholder\/msisdn\/(\d+)\/active$/))) return rep(200, { result: true });
   if (p.match(/^\/(collection|disbursement)\/v1_0\/account\/balance$/)) {
-    return sandbox === 'ideal' ? rep(200, { availableBalance: '1000', currency: 'EUR' }) : rep(500, { code: 'NOT_ALLOWED_TARGET_ENVIRONMENT' });
+    if (sandbox === 'ideal' || produit === 'collection') return rep(200, { availableBalance: '1000', currency: 'EUR' });
+    return ++soldesDemandes === 1 ? rep(503, { code: 'SERVICE_UNAVAILABLE' }) : rep(500, { code: 'NOT_ALLOWED' });
   }
   if (p.match(/^\/(collection|disbursement)\/v1_0\/account\/balance\/EUR$/)) return rep(200, { availableBalance: '1000', currency: 'EUR' });
   if (['/collection/v1_0/requesttopay', '/disbursement/v1_0/transfer', '/disbursement/v1_0/deposit'].includes(p) && methode === 'POST') {
@@ -150,10 +159,11 @@ async function fauxFetch(entree, init = {}) {
     if (corps?.currency !== 'EUR') return rep(500, { code: 'NOT_ALLOWED_TARGET_ENVIRONMENT' });
     const rappel = h['x-callback-url'];
     if (rappel && !rappel.startsWith(`${PROJET}/functions/v1/mtn-momo-essais?rappel=${ref}`)) return rep(400, { code: 'RAPPEL_MAL_FORME' });
+    if (rappel && new URL(rappel).host !== jeton.hote) return rep(500, { code: 'INVALID_CALLBACK_URL_HOST' });
     const numero = (corps.payer ?? corps.payee)?.partyId;
     let issue = numero === REFUSE ? { status: 'FAILED', reason: 'APPROVAL_REJECTED' } : { status: 'SUCCESSFUL', financialTransactionId: '1234567' };
-    /* Le Sandbox du premier essai : l'hote nu ne vaut pas pour un rappel, l'origine complete oui ; le virement est refuse, le depot non. */
-    if (sandbox === 'reel' && rappel && jeton.hote !== new URL(rappel).origin && issue.status === 'SUCCESSFUL') issue = { status: 'FAILED', reason: 'INVALID_CALLBACK_URL_HOST' };
+    /* Le Sandbox des essais reels : l'hote du projet et maisonmnd.com refuses, avec ou sans rappel ; le virement refuse. */
+    if (sandbox === 'reel' && HOTES_REFUSES.has(jeton.hote) && issue.status === 'SUCCESSFUL') issue = { status: 'FAILED', reason: 'INVALID_CALLBACK_URL_HOST' };
     if (sandbox === 'reel' && p.endsWith('/transfer')) issue = { status: 'FAILED', reason: 'NOT_ALLOWED_TARGET_ENVIRONMENT' };
     operations.set(ref, { lu: 0, issue });
     return rep(202);
@@ -233,21 +243,27 @@ dit('un rappel de MTN est recu sans jeton et garde', r.status === 200 && base.ge
 r = await appelle('?rappel=pas-une-reference', { method: 'POST', body: '{}' });
 dit('un rappel sans reference lisible est refuse (400)', r.status === 400, String(r.status));
 
-// 5. Le Sandbox du premier essai reel : la fonction retente ce qu il faut.
-sandbox = 'reel'; journal = []; secretsVus = [];
+// 5. Le Sandbox des essais reels : la fonction cherche un hote qui passe.
+sandbox = 'reel'; journal = []; secretsVus = []; soldesDemandes = 0;
 r = await lance();
 t = await r.text();
 o = JSON.parse(t);
-dit('reel : vingt et une etapes, les deux refus du Sandbox dits et retentes', r.status === 200 && o.total === 21 && o.reussis === 17, `${o.reussis}/${o.total} ${ratees(o)}`);
-dit('reel : le rappel avec l hote nu est dit INVALID_CALLBACK_URL_HOST', /statut FAILED, motif INVALID_CALLBACK_URL_HOST/.test(etapeDe(o, 'collection', 'Demande avec adresse de rappel')?.detail ?? ''), etapeDe(o, 'collection', 'Demande avec adresse de rappel')?.detail);
-dit('reel : un second utilisateur annonce l origine complete, et sa demande avec rappel reussit',
-  /rappels vers https:\/\/projet-essai\.supabase\.co/.test(etapeDe(o, 'collection', 'Second utilisateur, rappels vers l’origine complète')?.detail ?? '')
-  && /statut SUCCESSFUL/.test(etapeDe(o, 'collection', 'Demande avec adresse de rappel (origine complète)')?.detail ?? ''),
-  ratees(o));
-dit('reel : le virement refuse est dit, puis le depot reussit', /NOT_ALLOWED_TARGET_ENVIRONMENT/.test(etapeDe(o, 'disbursement', 'Virement vers un compte MoMo')?.detail ?? '')
-  && /statut SUCCESSFUL/.test(etapeDe(o, 'disbursement', 'Dépôt vers un compte MoMo')?.detail ?? ''), ratees(o));
-dit('reel : le solde refuse se lit par sa devise, des deux cotes', ['collection', 'disbursement'].every((p) => etapeDe(o, p, 'Lire le solde du compte')?.ok === false && /solde 1000 EUR/.test(etapeDe(o, p, 'Lire le solde en euros')?.detail ?? '')), ratees(o));
-dit('reel : deux rappels attendus', o.rappels?.length === 2, JSON.stringify(o.rappels));
+dit('reel : vingt-six etapes, dix-neuf reussies, chaque refus dit', r.status === 200 && o.total === 26 && o.reussis === 19, `${o.reussis}/${o.total} ${ratees(o)}`);
+dit('reel : la demande avec l hote du projet est dite INVALID_CALLBACK_URL_HOST', /statut FAILED, motif INVALID_CALLBACK_URL_HOST/.test(etapeDe(o, 'collection', 'Demande de paiement qui réussit')?.detail ?? ''), etapeDe(o, 'collection', 'Demande de paiement qui réussit')?.detail);
+dit('reel : maisonmnd.com essaye puis refuse, example.com retenu et la demande reussit',
+  etapeDe(o, 'collection', 'Utilisateur d’essai, rappels vers maisonmnd.com')?.ok === true
+  && /INVALID_CALLBACK_URL_HOST/.test(etapeDe(o, 'collection', 'Demande de paiement qui réussit (rappels vers maisonmnd.com)')?.detail ?? '')
+  && /statut SUCCESSFUL/.test(etapeDe(o, 'collection', 'Demande de paiement qui réussit (rappels vers example.com)')?.detail ?? ''), ratees(o));
+const refusReel = journal.find((j) => j.corps?.externalId === 'MND-ESSAI-2');
+dit('reel : la demande refusee part avec l acces retenu (example.com)', etapeDe(o, 'collection', 'Demande de paiement refusée par la cliente')?.ok === true
+  && [...jetons.entries()].find(([k]) => refusReel?.h.authorization === `Bearer ${k}`)?.[1]?.hote === 'example.com', refusReel?.h.authorization?.slice(0, 20));
+dit('reel : le rappel n est pas essaye avec un hote qui ne nous joint pas, et cela se dit', /non éprouvée/.test(etapeDe(o, 'collection', 'Demande avec adresse de rappel')?.detail ?? '')
+  && !journal.some((j) => j.h['x-callback-url']), etapeDe(o, 'collection', 'Demande avec adresse de rappel')?.detail);
+dit('reel : le virement refuse est dit, puis le depot trouve son hote', /NOT_ALLOWED_TARGET_ENVIRONMENT/.test(etapeDe(o, 'disbursement', 'Virement vers un compte MoMo')?.detail ?? '')
+  && /statut SUCCESSFUL/.test(etapeDe(o, 'disbursement', 'Dépôt vers un compte MoMo (rappels vers example.com)')?.detail ?? ''), ratees(o));
+dit('reel : le solde indisponible est redemande, puis lu par sa devise', soldesDemandes === 2 && etapeDe(o, 'disbursement', 'Lire le solde du compte')?.ok === false
+  && /solde 1000 EUR/.test(etapeDe(o, 'disbursement', 'Lire le solde en euros')?.detail ?? ''), `${soldesDemandes} ${ratees(o)}`);
+dit('reel : aucun rappel attendu', o.rappels?.length === 0, JSON.stringify(o.rappels));
 dit('reel : aucun secret au rapport', ![KC, KD, SERVICE, ...secretsVus].some((s) => t.includes(s)));
 
 // 6. Une cle absente se dit, rien ne casse.
