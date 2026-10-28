@@ -1,0 +1,43 @@
+/* LES CIVILITÉS À POSER (28 octobre 2026) : la fenêtre de tri, et les boutons
+   d'une ligne de l'Assistant Maison. Une ligne par fiche, le nom à gauche,
+   les trois civilités à droite ; la barre du haut reste collée. */
+.trc-civ { display: grid; gap: 12px; }
+.trc-civ__haut {
+  position: sticky; top: 0; z-index: 1;
+  display: grid; gap: 10px; padding-bottom: 10px;
+  background: var(--surface, var(--color-ivoire));
+  border-bottom: 1px solid var(--hairline);
+}
+.trc-civ__dit { margin: 0; font-size: 13px; line-height: 1.5; color: var(--ink-soft); }
+.trc-civ__dit b { color: var(--color-indigo); }
+.trc-civ__filtres { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.trc-civ__cherche {
+  flex: 1 1 180px; min-width: 0;
+  font: inherit; font-size: 13px;
+  padding: 8px 12px; border: 1px solid var(--hairline); border-radius: var(--radius-pill);
+  background: transparent; color: var(--ink);
+}
+.trc-civ__liste { list-style: none; margin: 0; padding: 0; display: grid; }
+.trc-civ__ligne {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 14px;
+  padding: 10px 2px; border-bottom: 1px solid var(--hairline);
+}
+.trc-civ__ligne.est-posee { opacity: 0.72; }
+.trc-civ__qui { display: grid; gap: 2px; min-width: 0; }
+.trc-civ__qui b { font-weight: 500; color: var(--color-indigo); overflow-wrap: anywhere; }
+.trc-civ__qui small { font-size: 12px; color: var(--ink-soft); }
+.trc-civ__choix { display: inline-flex; flex-wrap: wrap; gap: 6px; }
+.trc-civ__vide { margin: 8px 0; font-size: 13px; color: var(--ink-soft); }
+.trc-civ__pied { display: flex; justify-content: flex-end; padding-top: 4px; }
+
+/* Sur une ligne de l'Assistant Maison, au-dessus du message. */
+.trc-civ__surligne {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px;
+  margin-bottom: 10px; font-size: 12px; color: var(--ink-soft);
+}
+.trc-civ__surligne b { font-weight: 500; color: var(--copper-700, var(--color-cuivre)); }
+.trc-civ__bandeau { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
+
+/* Les trois boutons tiennent sur une ligne, dans la fenêtre comme sur une ligne de l'Assistant. */
+.trc-civ__surligne .trc-chip,
+.trc-civ__choix .trc-chip { padding: 5px 11px; }

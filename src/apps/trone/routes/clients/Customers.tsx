@@ -57,6 +57,7 @@ import {
 import { pushToClient } from '../../../../shared/push';
 import { PayAppointmentModal } from './actions';
 import { BoutonDuPoint, FenetreDuPoint } from '../vente/FenetreDuPoint';
+import { FenetreDesCivilites } from './FenetreDesCivilites';
 import { useSubscribers, usePlans, prixVenduXof, type Subscriber } from '../equipe/data';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Camera, Search } from 'lucide-react';
@@ -79,7 +80,7 @@ import { contratPdf } from '../../../../shared/pdf';
 import { ChampDeDate, DateEnClair } from '../../../../ds/dates';
 import { cheminDeLaConversation, lienWaMe } from '../../../../shared/conversations';
 import { appelDe } from '../../../../shared/civilite';
-import { CIVILITES, civiliteDe, ficheAvecCivilite, type Civilite } from '../../../../shared/civilite';
+import { CIVILITES, civiliteNotee, estMuette, ficheAvecCivilite, type Civilite } from '../../../../shared/civilite';
 
 /* Customers — le CRM 360 : recherche, tri, indicateurs, segments, persona attribué,
    prochain RDV prédit, fiche complète (finances, présence Ma Couronne, commandes,
@@ -572,6 +573,8 @@ export default function Customers() {
   }, [params]);
   const [rdvFor, setRdvFor] = useState<Client | null>(null);
   const [intake, setIntake] = useState(false);
+  /* Les civilités à poser (28 octobre 2026) : la même fenêtre que dans l'Assistant Maison. */
+  const [civilites, setCivilites] = useState(false);
   /* `?nouvelle=1` — le « + Cliente » de la barre du haut (20 octobre 2026)
      ouvre la fiche d'ajout. Le paramètre s'efface aussitôt : un
      rafraîchissement ne la rouvre pas, un second toucher la rouvre bien. */
@@ -1017,7 +1020,14 @@ export default function Customers() {
       <PageHead
         eyebrow="CRM · Le Suivi"
         title="Têtes couronnées."
-        actions={<Button variant="indigo" onClick={() => setIntake(true)}>+ Nouvelle cliente</Button>}
+        actions={(
+          <>
+            {clients.some((c) => !c.archived && estMuette(c)) && (
+              <Button variant="ghost" onClick={() => setCivilites(true)}>Civilités à poser ({clients.filter((c) => !c.archived && estMuette(c)).length})</Button>
+            )}
+            <Button variant="indigo" onClick={() => setIntake(true)}>+ Nouvelle cliente</Button>
+          </>
+        )}
       />
 
       {/* LES ENFANTS QUI ATTENDENT. Un parent a déclaré depuis Ma Couronne ; tant
@@ -1563,6 +1573,7 @@ export default function Customers() {
 
 
       {intake && <IntakeModal onClose={() => setIntake(false)} personas={personas} />}
+      {civilites && <FenetreDesCivilites onClose={() => setCivilites(false)} />}
     </div>
   );
 }
@@ -3616,7 +3627,7 @@ function Customer360({
                   Un clic suffit et s'enregistre aussitôt, comme le genre des cartes. */}
               <div className="trc-v"><u>Civilité</u><span style={{ display: 'inline-flex', gap: 6, flexWrap: 'wrap' }}>
                 {CIVILITES.map((x) => (
-                  <button key={x.cle} type="button" className={`trc-chip ${civiliteDe(client) === x.cle ? 'is-active' : ''}`}
+                  <button key={x.cle} type="button" className={`trc-chip ${civiliteNotee(client) === x.cle ? 'is-active' : ''}`}
                     onClick={() => patch(ficheAvecCivilite(x.cle))}>{x.dit}</button>
                 ))}
               </span></div>

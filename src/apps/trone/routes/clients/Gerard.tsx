@@ -4,7 +4,8 @@ import { toast } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { useStaff, type Staff } from '../../../../shared/auth';
 import { DEVISE_COMPLETE } from '../../../../shared/identite';
-import { prenomSeul } from '../../../../shared/civilite';
+import { CIVILITES, appelDe, estMuette, ficheAvecCivilite, prenomSeul, type Civilite } from '../../../../shared/civilite';
+import { clientsStore, type Client } from '../../../../shared/clients';
 import {
   automatesDesFils, cheminDeLaConversation, estArchive, filsDeLaMaison, lienWaMe, tetesDeLaMaison,
   useFilsArchives, useFilsAutomate, useFilsPrives, useMessagesWa,
@@ -47,6 +48,7 @@ import LesAvis from './LesAvis';
 import OffresEtRemises from './OffresEtRemises';
 import CeQueCaRapporte from './CeQueCaRapporte';
 import { CarteModal } from './CarteModal';
+import { FenetreDesCivilites } from './FenetreDesCivilites';
 import './gerard.css';
 import './assistant-maison.css';
 
@@ -224,6 +226,14 @@ export default function Gerard() {
   /* Un verdict par ligne touchée (« Tout laisser partir » en rend plusieurs d'un coup). */
   const [verdicts, setVerdicts] = useState<Record<string, string>>({});
   const [repli, setRepli] = useState<Repli | null>(null);
+  /* LES CIVILITÉS (28 octobre 2026, « dire Mr ou Mme avant le prénom ») : les
+     fiches qu'un message peut joindre et qui ne disent rien, et leur fenêtre. */
+  const [civilites, setCivilites] = useState(false);
+  const muettes = useMemo(() => clients.filter((c) => estMuette(c) && !!c.phone?.trim()).length, [clients]);
+  const poseLaCivilite = (c: Client, civ: Civilite) => {
+    clientsStore.set((prev) => prev.map((x) => (x.id === c.id ? { ...x, ...ficheAvecCivilite(civ) } : x)));
+    toast(`Noté sur sa fiche : le message dit « ${appelDe({ ...c, ...ficheAvecCivilite(civ) })} ».`);
+  };
   const actif = estActif(reglages);
   const serveurVit = serveurVivant(etatServeur ?? null, tick);
   const { plafond } = cerveau;
@@ -504,6 +514,12 @@ export default function Gerard() {
                 </span>
               )}
               <span className="trc-am__portee">Portée du jour : <b>{portee.joignables}</b> cliente{portee.joignables > 1 ? 's' : ''} joignable{portee.joignables > 1 ? 's' : ''} · Ma Couronne {portee.couronne} · WhatsApp {portee.whatsapp}</span>
+              {muettes > 0 && (
+                <span className="trc-am__portee trc-civ__bandeau">
+                  Civilités : <b>{muettes}</b> fiche{muettes > 1 ? 's' : ''} avec un numéro sans civilité ; leurs messages disent le prénom seul.
+                  <button type="button" className="trc-ger__btn" onClick={() => setCivilites(true)}>Poser les civilités</button>
+                </span>
+              )}
             </div>
 
             {/* PART AUJOURD'HUI : le plan du jour, ligne par ligne, avec ce que la salle en sait. Un panneau ouvert à la fois. */}
@@ -549,6 +565,19 @@ export default function Gerard() {
                       {ouvert && f && (
                         <div className="trc-ger__panneau">
                           <div className="trc-ger__message">
+                            {/* SA CIVILITÉ, tant que la fiche de celle qui reçoit n'en dit rien et que rien n'est encore
+                                en salle : un toucher la pose sur sa fiche, et le message dit aussitôt « M. Jean-Luc ». */}
+                            {(() => {
+                              const dest = clients.find((c) => c.id === (s.pourId ?? s.clientId));
+                              if (!dest || !estMuette(dest) || l.envoi) return null;
+                              return (
+                                <div className="trc-civ__surligne">
+                                  <b>Sa civilité</b>
+                                  <span>{s.pourId ? `${nomDe(dest.id) || 'son parent payeur'}, ` : ''}le message dit le prénom seul :</span>
+                                  {CIVILITES.map((x) => <button key={x.cle} type="button" className="trc-chip" onClick={() => poseLaCivilite(dest, x.cle)}>{x.dit}</button>)}
+                                </div>
+                              );
+                            })()}
                             <div className="trc-ger__bulle">
                               <span className="trc-ger__texte">{s.texte}</span>
                               {modele.boutons.length > 0 && <span className="trc-ger__boutons">{modele.boutons.map((b) => <i key={b}>{b}</i>)}</span>}
@@ -838,6 +867,7 @@ export default function Gerard() {
       </div>
 
       {rdvPour && <RdvModal title="Poser le RDV" initial={{ clientId: rdvPour }} onClose={() => setRdvPour(null)} />}
+      {civilites && <FenetreDesCivilites onClose={() => setCivilites(false)} />}
       {carteDe && cerveau.clientDe(carteDe.clientId) && (
         <CarteModal client={cerveau.clientDe(carteDe.clientId)!} numero={cerveau.telDe(carteDe)} mot={carteDe.texte}
           onEnvoye={() => noteALaMain(carteDe)} onClose={() => setCarteDe(null)} />
