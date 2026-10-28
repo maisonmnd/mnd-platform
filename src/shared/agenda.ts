@@ -103,6 +103,9 @@ export type Appointment = {
       confirmation et le rappel y partent. Absent : le premier numéro de la
       fiche, comme avant. Voir shared/numero-a-prevenir-pur.ts. */
   numeroAPrevenir?: string;
+  /** LA CONFIRMATION DÉCOCHÉE au « + RDV » (28 octobre 2026) : confirmation-rdv
+      ne l'envoie pas ; le rappel de la veille suit comme pour toutes. */
+  sansConfirmation?: boolean;
   master: string;
   status: 'confirmé' | 'en attente' | 'honoré' | 'annulé';
   /** Acompte Mobile Money DEMANDÉ (montant). Tant que `depositConfirmed` n'est

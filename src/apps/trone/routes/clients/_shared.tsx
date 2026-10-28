@@ -58,10 +58,10 @@ import { appelDe } from '../../../../shared/civilite';
 import { rituelDeLaRepriseEffacee } from '../../../../shared/reprise-nue';
 import { LeBilanDeLaSeance } from './LeBilanDeLaSeance';
 import { FicheDuJour } from './FicheDuJour';
-import { predictNextVisit, cadenceLabel } from '../../../../shared/cadence';
+import { predictNextVisit, cadenceLabel, jourFavoriDe } from '../../../../shared/cadence';
 import { litLaPhrase, estUnePhrase, departage, type LectureDeLaPhrase } from '../../../../shared/phrase-de-rendez-vous-pur';
 import {
-  ajouteJours, ancreDeLaSemaine, bloqueLaPose, ceQuiReste, debutDeLaSemaine, placesDuJour, prestationsDeLaCase,
+  ajouteJours, ancreDeLaSemaine, bloqueLaPose, ceQuiReste, debutDeLaSemaine, heureHabituelle, placesDuJour, prestationsDeLaCase, propositionsDuRdv,
   raisonDeLHeure, rangeeSuivante, septJours, type Occupant, type Rangee,
 } from './rdv-fluide-pur';
 import { dureeDuRendezVous, estUnSinsin, maitresPermis, MAITRE_DES_SINSIN } from '../../../../shared/agenda-pur';
@@ -1724,31 +1724,15 @@ function PalierRdv({ n, titre, aide }: { n?: number; titre: string; aide?: strin
   );
 }
 
-/* UNE RANGÉE DU « + RDV » — 24 octobre 2026 (maquette X5FzkB4m…). Fermée,
-   elle garde son résumé ; ouverte, ses champs. Le corps reste MONTÉ quand il
-   se replie (`hidden`) : une note à moitié écrite, un bilan en cours ou des
-   locks qu'on saisit ne se perdent pas en ouvrant la rangée voisine. */
-function RangeeRdv({ n, titre, resume, fait, etat, ouverte, onBascule, children }: {
-  n: string;
-  titre: string;
-  resume: string;
-  fait: boolean;
-  etat?: string;
-  ouverte: boolean;
-  onBascule: () => void;
-  children: ReactNode;
-}) {
+/* UN VOLET DU « + RDV » — 28 octobre 2026 (maquette HAgAvCcs…). Les
+   rangées Qui / Quoi / Quand ont quitté l'écran : la prestation, le moment
+   et le reste s'ouvrent, au besoin, sous trois boutons. Le corps reste MONTÉ
+   quand il se replie (`hidden`) : une note à moitié écrite, un bilan en
+   cours ou des locks qu'on saisit ne se perdent pas en ouvrant le voisin. */
+function VoletRdv({ ouvert, titre, children }: { ouvert: boolean; titre: string; children: ReactNode }) {
   return (
-    <section className={`trc-rang${ouverte ? ' is-open' : ''}`}>
-      <button type="button" className="trc-rang__ligne" aria-expanded={ouverte} onClick={onBascule}>
-        <span className="trc-rang__num" aria-hidden="true">{n}</span>
-        <span className="trc-rang__txt">
-          <span className="trc-rang__titre">{titre}</span>
-          <span className={`trc-rang__resume${fait ? ' is-fait' : ''}`}>{resume}</span>
-        </span>
-        <span className={`trc-rang__etat${fait ? ' is-ok' : ''}`}>{etat ?? (fait ? 'fait' : 'à remplir')}</span>
-      </button>
-      <div className="trc-rang__corps" hidden={!ouverte}>{children}</div>
+    <section className="trc-rdv4__volet" aria-label={titre} hidden={!ouvert}>
+      {children}
     </section>
   );
 }
@@ -1794,6 +1778,9 @@ export type RdvInitial = Partial<Pick<Appointment, 'clientId' | 'serviceIds' | '
   & { suiteDe?: string };
 
 const RDV_STATUSES: Appointment['status'][] = ['en attente', 'confirmé', 'honoré', 'annulé'];
+const NOMS_DES_JOURS = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'];
+/** « Mireille Adjovi » → « MA ». */
+const initialesDe = (nom: string): string => nom.trim().split(/\s+/).slice(0, 2).map((m) => m.charAt(0)).join('').toUpperCase();
 
 /* ══ LA PORTE DU FOYER, OUVERTE DE PARTOUT — 2 septembre 2026 ═══════
    La modale du rendez-vous est montée à DIX endroits : la fiche, le carnet, le
@@ -1820,14 +1807,47 @@ const marqueLaDeduction = (acteId: string, d: RegardADeduire): void => {
   }));
 };
 
-export function RdvModal({
+type ProprietesDuRdv = {
+  onClose: () => void;
+  sansPrix?: boolean;
+  initial?: RdvInitial;
+  appt?: Appointment;
+  title?: string;
+  onEncaisser?: (a: Appointment) => void;
+};
+
+/* ══ APRÈS LA POSE — 28 octobre 2026 ══════════════════════════════════
+   L'écran « posé » offre « Un autre rendez-vous » et « Le modifier » sans
+   fermer la fenêtre : la fiche repart à neuf (une nouvelle clé), ou rouvre
+   au même écran le rendez-vous qu'on vient de poser. */
+export function RdvModal(p: ProprietesDuRdv) {
+  const [tour, setTour] = useState<{ n: number; appt?: Appointment }>({ n: 0 });
+  return (
+    <RdvModalCorps
+      key={tour.n}
+      {...p}
+      appt={tour.n ? tour.appt : p.appt}
+      initial={tour.n ? undefined : p.initial}
+      title={tour.n ? undefined : p.title}
+      onAutreRdv={() => setTour((t) => ({ n: t.n + 1 }))}
+      onModifier={(a) => setTour((t) => ({ n: t.n + 1, appt: a }))}
+    />
+  );
+}
+
+function RdvModalCorps({
   onClose,
   initial,
   appt,
   title,
   onEncaisser,
   sansPrix,
+  onAutreRdv,
+  onModifier,
 }: {
+  /** Après la pose : un autre rendez-vous, ou celui-ci à modifier. */
+  onAutreRdv?: () => void;
+  onModifier?: (a: Appointment) => void;
   onClose: () => void;
   /** LA FICHE SANS SES MONTANTS. Un maître ouvre le rituel pour lire sa
       journée et désigner ses mains, pas pour lire le chiffre de la Maison.
@@ -2667,11 +2687,17 @@ export function RdvModal({
      depuis une case de l'agenda, a déjà le sien. */
   const [momentChoisi, setMomentChoisi] = useState(!!appt || !!initial?.time);
   const [forcePlein, setForcePlein] = useState(false);
-  const [rang, setRang] = useState<Rangee>(() => (appt ? '' : rangeeSuivante({
-    qui: !!initial?.clientId,
-    quoi: (initial?.serviceIds?.length ?? 0) > 0,
-    quand: !!initial?.time,
-  })));
+  /* LE VOLET OUVERT (28 octobre 2026) : aucun d'office ; « Choisir la
+     prestation » s'ouvre seul pour une cliente sans habitude. */
+  const [rang, setRang] = useState<Rangee>('');
+  /* La case revient quand on change de cliente ; sinon, sa fiche. */
+  const [changeQui, setChangeQui] = useState(false);
+  /* LA CONFIRMATION WHATSAPP, COCHÉE D'OFFICE (arbitrage du 28 octobre 2026). */
+  const [avecConfirmation, setAvecConfirmation] = useState(true);
+  /* L'écran « posé » : le rendez-vous qu'on vient d'écrire. */
+  const [poseLe, setPoseLe] = useState<Appointment | null>(null);
+  /* Son rituel habituel se pose une fois par cliente choisie, jamais par-dessus une saisie. */
+  const [habitudeDe, setHabitudeDe] = useState<string>(appt?.clientId ?? '');
   const basculeRang = (r: Rangee) => setRang((x) => (x === r ? '' : r));
   const [debutChoisi, setDebutChoisi] = useState<string | null>(null);
   const [jourVu, setJourVu] = useState<string | null>(null);
@@ -2778,9 +2804,9 @@ export function RdvModal({
     setClientId(id);
     setDebutChoisi(null);
     setJourVu(null);
+    setChangeQui(false);
     if (appt) return;
-    const habituee = branchAppts.some((a) => a.clientId === id && a.status !== 'annulé' && (a.serviceIds?.length ?? 0) > 0);
-    setRang(serviceIds.length === 0 && habituee ? 'qui' : rangeeSuivante({ qui: true, quoi: serviceIds.length > 0, quand: momentChoisi }));
+    setRang('');
   };
   const habitude = rituelsHabituels[0];
   const habitudePosee = !!habitude && [...habitude.ids].sort().join('|') === [...serviceIds].sort().join('|');
@@ -2788,6 +2814,66 @@ export function RdvModal({
      chez Team, 24 octobre 2026). */
   const maitreHabituel = habitude?.master && maitresPermis(habitude.ids.map((id) => byId.get(id)?.name), branch.masters).includes(habitude.master)
     ? habitude.master : null;
+
+  /* ══ LA MAISON PROPOSE — 28 octobre 2026 ═══════════════════════════════
+     « La prise de RDV qui, quoi, quand ne nous convient toujours pas »,
+     « simplifié, interactif, et toujours smart ready » (Yéman ; maquette
+     HAgAvCcszQjS1CK8CLPbHN). La cliente choisie, son rituel habituel se pose
+     de lui-même avec son maître (une fois, jamais par-dessus une saisie), et
+     trois rendez-vous tout prêts se proposent : un toucher pose le moment.
+     Sans habitude, « Choisir la prestation » s'ouvre. Les règles vivent dans
+     `rdv-fluide-pur.ts` (`propositionsDuRdv`). */
+  useEffect(() => {
+    if (appt || !clientId || habitudeDe === clientId) return;
+    setHabitudeDe(clientId);
+    if (serviceIds.length > 0 || estSuite) return;
+    if (habitude) {
+      poseLesPrestations(habitude.ids);
+      if (maitreHabituel) setMaster(maitreHabituel);
+      setRang('');
+    } else {
+      setRang('quoi');
+    }
+  }, [appt, clientId, habitudeDe, habitude, maitreHabituel, serviceIds.length, estSuite]);
+  const sesVenues = useMemo(
+    () => (clientId ? tousLesRdv.filter((a) => a.clientId === clientId && a.status === 'honoré' && a.id !== appt?.id) : []),
+    [clientId, tousLesRdv, appt?.id],
+  );
+  const propositions = useMemo(() => {
+    if (appt || !clientId || serviceIds.length === 0) return [];
+    return propositionsDuRdv({
+      aujourdhui,
+      placesDe: (iso) => { const p = placesDe(iso); return { ferme: p.ferme, heures: p.heures }; },
+      reprise: reprise?.iso ?? null,
+      heureHabituelle: heureHabituelle(sesVenues),
+      jourHabituel: jourFavoriDe(sesVenues, clientId, aujourdhui)?.jour ?? null,
+      jourDit,
+      nomDuJour: (j) => NOMS_DES_JOURS[j],
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [appt, clientId, serviceIds, dureeRetenue, master, branchAppts, blocages, sieges, reprise?.iso, sesVenues, aujourdhui]);
+  /* LES ATTENDUES DE LA SEMAINE : leur reprise tombe dans les sept jours (ou
+     est passée depuis moins d'une semaine) et rien n'est posé pour elles.
+     Elles se montrent sous la case, avant même qu'on tape. */
+  const attendues = useMemo(() => {
+    if (appt || clientId) return [];
+    const honores = tousLesRdv.filter((a) => a.status === 'honoré');
+    const aVenir = new Set(branchAppts.filter((a) => a.status !== 'annulé' && a.status !== 'honoré' && a.date >= aujourdhui).map((a) => a.clientId));
+    const fiches = new Map(clients.map((c) => [c.id, c]));
+    const debut = ajouteJours(aujourdhui, -7);
+    const fin = ajouteJours(aujourdhui, 7);
+    const vues = new Set<string>();
+    const out: { id: string; name: string; iso: string }[] = [];
+    for (const a of branchAppts) {
+      if (a.status !== 'honoré' || vues.has(a.clientId)) continue;
+      vues.add(a.clientId);
+      const c = fiches.get(a.clientId);
+      if (!c || c.archived || aVenir.has(c.id)) continue;
+      const p = predictNextVisit(honores, clients, c.id, aujourdhui);
+      if (p.predicted && p.iso && p.iso >= debut && p.iso <= fin) out.push({ id: c.id, name: c.name, iso: p.iso });
+    }
+    return out.sort((x, y) => x.iso.localeCompare(y.iso)).slice(0, 6);
+  }, [appt, clientId, tousLesRdv, branchAppts, clients, aujourdhui]);
   /* REPRENDRE NE REMPLACE PAS EN SILENCE : des prestations déjà posées
      demandent confirmation, sous le modèle, à la question « Quoi ? ». */
   const reprendsSonRituel = () => {
@@ -2804,7 +2890,7 @@ export function RdvModal({
   };
   const poseDeLaCase = (id: string) => {
     poserSv(id);
-    setRang(clientId ? 'quoi' : 'qui');
+    setRang(clientId ? 'quoi' : '');
   };
   /* ══ LA PHRASE ENTIÈRE — 24 octobre 2026 ══════════════════════════════
      « Mireille retwist mercredi à 10h » : la lecture vit dans
@@ -2839,9 +2925,9 @@ export function RdvModal({
       setRang('quoi');
       return;
     }
-    const qui = !!(id || clientId);
     const quoi = serviceIds.length + lecture.prestations.length > 0;
-    setRang(jour && lecture.heure ? 'quand' : rangeeSuivante({ qui, quoi, quand: momentChoisi }));
+    if (id) { setChangeQui(false); if (quoi) setHabitudeDe(id); }
+    setRang(quoi ? '' : 'quoi');
   };
   /* « Retwist » désigne plusieurs SÍNSIN™ : chez une cliente connue, celui
      qui revient dans ses venues l'emporte (`departage`) ; sinon chaque
@@ -3126,6 +3212,8 @@ export function RdvModal({
         master,
         status: chosenStatus,
         source: 'trone',
+        /* LA CONFIRMATION DÉCOCHÉE (28 octobre 2026) : confirmation-rdv la saute. */
+        sansConfirmation: chosenStatus === 'confirmé' && !avecConfirmation ? true : undefined,
         note: note.trim() || undefined,
         coveredBySub: effCovered || undefined,
         coverKind: effCovered ? ('abonnement' as const) : undefined,
@@ -3207,6 +3295,10 @@ export function RdvModal({
       });
       reglerLeSalon(created.id, chosenStatus);
       if (deduction) marqueLaDeduction(created.id, deduction);
+      /* L'ÉCRAN « POSÉ » (28 octobre 2026) : la fenêtre reste, dit ce qui
+         part vers la cliente et offre la suite. */
+      setPoseLe(appointmentsStore.get().find((x) => x.id === created.id) ?? created);
+      return true;
     }
     onClose();
     return true;
@@ -3315,10 +3407,16 @@ export function RdvModal({
     onClose();
   };
 
+  /* CE QUI PART VERS ELLE, dit sur l'écran « posé ». */
+  const messageDeLaPose = !poseLe ? ''
+    : poseLe.status !== 'confirmé' ? 'Rien ne part vers la cliente tant qu’il attend sa confirmation.'
+      : momentDuRdv(poseLe) <= Date.now() ? 'Posé après son heure : ni confirmation ni rappel ne partiront.'
+        : poseLe.sansConfirmation ? 'Aucune confirmation ne part : la Maison la prévient elle-même. Le rappel de la veille suit.'
+          : `La confirmation part sur WhatsApp${nomDuNumeroRetenu ? `, à ${nomDuNumeroRetenu}` : ''} ; la veille, son rappel suit.`;
   const montreSaVie = !!appt && estDirection;
   const montreSiens = !!clientId && sesRdv.some((a) => a.id !== appt?.id);
   return (
-    <Modal title={title ?? (appt ? 'Modifier le rendez-vous.' : 'Nouveau rendez-vous.')} onClose={onClose} width={640}>
+    <Modal title={title ?? (appt ? 'Modifier le rendez-vous.' : 'Nouveau rendez-vous.')} onClose={onClose} width={720}>
       {(montreSaVie || montreSiens) && (
         <div className="tvie-entete">
           {montreSaVie && appt && (
@@ -3369,6 +3467,25 @@ export function RdvModal({
           onOuvrir={(a) => setAutre({ appt: a })}
           onNouveau={() => setAutre({ initial: { clientId } })}
         />
+      ) : poseLe ? (
+        <div className="trc-rdv4__pose" role="status">
+          <span className="trc-rdv3__petit trc-rdv4__pose-etat">{poseLe.status === 'en attente' ? 'Gardé en attente' : 'Posé au Carnet'}</span>
+          <h3 className="trc-rdv4__pose-titre">
+            {`Le rendez-vous de ${rdvClient?.name ?? 'la cliente'} ${poseLe.status === 'en attente' ? 'attend sa confirmation.' : 'est posé.'}`}
+          </h3>
+          <p className="trc-rdv4__pose-phrase">
+            {[courts.join(' + '), `${jourDit(poseLe.date)} à ${poseLe.time}`, poseLe.master ? `avec ${poseLe.master}` : null, fmtDureeCourte(dureeRetenue), prixDuRituelDit]
+              .filter(Boolean).join(' · ')}
+          </p>
+          <p className="trc-rdv3__note">{messageDeLaPose}</p>
+          <div className="trc-rdv3__boutons">
+            <Button variant="copper" onClick={onAutreRdv ?? onClose}>Un autre rendez-vous</Button>
+            <Button variant="ghost" onClick={() => (onModifier ? onModifier(appointmentsStore.get().find((x) => x.id === poseLe.id) ?? poseLe) : onClose())}>
+              Le modifier
+            </Button>
+            <Button variant="ghost" onClick={onClose}>Fermer</Button>
+          </div>
+        </div>
       ) : (
       <div className="trc-rdv3">
         {/* LA SÉANCE DE SA FORMULE — 20 octobre 2026 : « Incluse · séance 3 sur
@@ -3390,6 +3507,7 @@ export function RdvModal({
         {/* ══ LA CASE UNIQUE — 24 octobre 2026 ══════════════════════════════
             Un nom, un numéro ou une prestation : la même case trouve la
             cliente (ou en inscrit une nouvelle) et pose une prestation. */}
+        {(!rdvClient || changeQui) && (
         <div className="trc-rdv3__case">
           <ClientPicker
             value={clientId}
@@ -3408,31 +3526,30 @@ export function RdvModal({
             }}
           />
         </div>
-        <RangeeRdv
-          n="1"
-          titre="Qui ?"
-          ouverte={rang === 'qui'}
-          onBascule={() => basculeRang('qui')}
-          fait={!!rdvClient}
-          resume={rdvClient
-            ? [
-              rdvClient.name,
-              pricing.band && rdvClient.lockCount ? `${bandLabel(pricing.band, bands)} · ${rdvClient.lockCount} locks` : null,
-              membership ? `abonnée · ${membershipPlan?.name ?? 'formule'}` : null,
-              nomDuNumeroRetenu ? `prévenir ${nomDuNumeroRetenu}` : null,
-            ].filter(Boolean).join(' · ')
-            : 'La cliente, à chercher dans la case'}
-        >
-          {!rdvClient ? (
-            <p className="trc-rdv3__note">
-              Cherchez-la dans la case ci-dessus, par son nom ou son numéro. Une première venue
-              s’inscrit d’un geste, prénom et téléphone suffisent.
-            </p>
-          ) : (
-            <>
+        )}
+        {/* LES ATTENDUES DE LA SEMAINE, sous la case : un toucher la choisit. */}
+        {!rdvClient && !appt && attendues.length > 0 && (
+          <div className="trc-rdv4__attendues">
+            <span className="trc-rdv3__petit">Attendues cette semaine</span>
+            {attendues.map((x) => (
+              <button key={x.id} type="button" className="trc-rdv4__attendue" onClick={() => choisisLaCliente(x.id)}>
+                <span className="trc-rdv4__initiales" aria-hidden="true">{initialesDe(x.name)}</span>
+                <span className="trc-rdv4__attendue-txt">
+                  <b>{x.name}</b>
+                  <span>{x.iso < aujourdhui ? `Sa reprise était due le ${jourDit(x.iso)}` : `Sa reprise : ${jourDit(x.iso)}`}</span>
+                </span>
+              </button>
+            ))}
+          </div>
+        )}
+        {rdvClient && !changeQui && (
+          <section className="trc-rdv4__qui" aria-label="Pour qui">
               <div className="trc-rdv3__fiche">
                 <div style={{ minWidth: 0 }}>
-                  <div className="trc-rdv3__nom">{rdvClient.name}</div>
+                  <div className="trc-rdv4__nom-ligne">
+                    <span className="trc-rdv3__nom">{rdvClient.name}</span>
+                    <button type="button" className="trc-rdv3__lien" onClick={() => setChangeQui(true)}>Changer</button>
+                  </div>
                   <div className="trc-rdv3__meta">
                     {[rdvClient.phone, estDePassage(rdvClient) ? 'de passage' : null].filter(Boolean).join(' · ') || 'sans téléphone'}
                   </div>
@@ -3499,53 +3616,56 @@ export function RdvModal({
                   Déjà au carnet : {jourDit(dejaPose.date)} à {dejaPose.time}{dejaPose.master ? `, avec ${dejaPose.master}` : ''}.
                 </div>
               )}
-              {/* SON RITUEL HABITUEL, à reprendre d'un geste : ses prestations
-                  et son maître ; la question « Quand ? » s'ouvre ensuite sur la
-                  semaine de son jour de reprise. Pas sur une séance incluse :
-                  la suite ne propose que ce qui y donne droit. */}
-              {!estSuite && habitude && (
-                <div className="trc-rdv3__habitude">
-                  <span className="trc-rdv3__petit">Son rituel habituel</span>
-                  <span className="trc-rdv3__habitude-rituel">
-                    {habitude.ids.map((id) => byId.get(id)?.name).filter(Boolean).join(' + ')}
-                    {habitude.master ? ` avec ${habitude.master}` : ''}
-                  </span>
-                  <span className="trc-rdv3__meta">
-                    {[
-                      reprise?.jours ? cadenceLabel(reprise.jours) : `${habitude.n} fois`,
-                      `dernière fois le ${jourDit(habitude.dernier)}`,
-                      reprise?.iso ? `elle revient d’habitude vers le ${jourDit(reprise.iso)}` : null,
-                    ].filter(Boolean).join(' · ')}
-                  </span>
-                  <div className="trc-rdv3__boutons">
-                    {habitudePosee
-                      ? <span className="trc-rdv3__meta">C’est le rituel posé.</span>
-                      : <Button size="sm" variant="copper" onClick={reprendsSonRituel}>Reprendre son rituel</Button>}
-                    <Button size="sm" variant="ghost" onClick={() => setRang('quoi')}>
-                      {habitudePosee ? 'Voir les prestations' : 'Autre chose'}
-                    </Button>
-                  </div>
-                </div>
-              )}
-              {!estSuite && !habitude && (
-                <div className="trc-rdv3__boutons">
-                  <Button size="sm" variant="ghost" onClick={() => setRang('quoi')}>Choisir les prestations</Button>
-                </div>
-              )}
-            </>
-          )}
-        </RangeeRdv>
+          </section>
+        )}
+        {/* ══ CE QUE LA MAISON PROPOSE — 28 octobre 2026 ══════════════════
+            Trois rendez-vous tout prêts sur des places libres : un toucher
+            pose le jour et l'heure, jamais le maître. */}
+        {rdvClient && !appt && propositions.length > 0 && (
+          <section className="trc-rdv4__propose" aria-label="Ce que la Maison propose">
+            <div className="trc-rdv4__propose-tete">
+              <span className="trc-rdv3__petit">Ce que la Maison propose</span>
+              <span className="trc-rdv3__meta">{[courts.join(' + '), fmtDureeCourte(dureeRetenue)].filter(Boolean).join(' · ')}</span>
+            </div>
+            <div className="trc-rdv4__cartes">
+              {propositions.map((p) => {
+                const on = momentChoisi && date === p.iso && time === p.heure;
+                return (
+                  <button
+                    key={p.cle}
+                    type="button"
+                    aria-pressed={on}
+                    className={`trc-rdv4__carte${on ? ' is-on' : ''}`}
+                    onClick={() => poseLeMoment(p.iso, p.heure)}
+                  >
+                    <span className="trc-rdv4__carte-titre">{p.titre}</span>
+                    <span className="trc-rdv4__carte-date">{jourCourtAn(p.iso)}</span>
+                    <span className="trc-rdv4__carte-quand">{p.heure}{master ? ` · avec ${master}` : ''}</span>
+                    <span className="trc-rdv4__carte-pourquoi">{p.pourquoi}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </section>
+        )}
+        {rdvClient && !appt && serviceIds.length > 0 && propositions.length === 0 && (
+          <p className="trc-rdv3__note">Aucune place libre dans les six semaines pour {fmtDureeCourte(dureeRetenue)} : choisissez le moment à la main.</p>
+        )}
+        {(rdvClient || appt) && (
+          <div className="trc-rdv4__changer" role="group" aria-label="Changer le rendez-vous">
+            <button type="button" aria-expanded={rang === 'quoi'} className={`trc-rdv4__bouton${rang === 'quoi' ? ' is-on' : ''}`} onClick={() => basculeRang('quoi')}>
+              {chosen.length ? 'Changer la prestation' : 'Choisir la prestation'}
+            </button>
+            <button type="button" aria-expanded={rang === 'quand'} className={`trc-rdv4__bouton${rang === 'quand' ? ' is-on' : ''}`} onClick={() => basculeRang('quand')}>
+              Changer le jour, l’heure ou le maître
+            </button>
+            <button type="button" aria-expanded={rang === 'plus'} className={`trc-rdv4__bouton${rang === 'plus' ? ' is-on' : ''}`} onClick={() => basculeRang('plus')}>
+              Prix, formule, note{optionsDites.length ? ` · ${optionsDites.length}` : ''}
+            </button>
+          </div>
+        )}
 
-        <RangeeRdv
-          n="2"
-          titre="Quoi ?"
-          ouverte={rang === 'quoi'}
-          onBascule={() => basculeRang('quoi')}
-          fait={chosen.length > 0}
-          resume={chosen.length
-            ? [courts.join(' + '), fmtDureeCourte(dureeRetenue), prixDuRituelDit].filter(Boolean).join(' · ')
-            : 'Les prestations du rituel'}
-        >
+        <VoletRdv ouvert={rang === 'quoi'} titre="La prestation">
           {/* SES HABITUDES, À UN CLIC — À LA CRÉATION COMME À LA RELECTURE.
               Demande de Yéman, 17 août : ouvrir un rituel existant doit aussi
               montrer ses combinaisons. Elles servent alors à comparer autant
@@ -4331,19 +4451,9 @@ export function RdvModal({
               ({argent(grossBase)}), l’ancien prix de {argent(frozenXof)} sera abandonné.
             </div>
           )}
-        </RangeeRdv>
+        </VoletRdv>
 
-        <RangeeRdv
-          n="3"
-          titre="Quand ?"
-          ouverte={rang === 'quand'}
-          onBascule={() => basculeRang('quand')}
-          fait={momentChoisi && !bloque}
-          etat={bloque ? 'à changer' : undefined}
-          resume={momentChoisi
-            ? [jourCourtAn(date), time, master || 'sans maître', bloque ? 'fauteuils pleins' : raison?.bloque ? 'fauteuils pleins, posé quand même' : raison ? 'posé quand même' : null].filter(Boolean).join(' · ')
-            : 'Le jour, l’heure, le maître'}
-        >
+        <VoletRdv ouvert={rang === 'quand'} titre="Le jour, l’heure, le maître">
           {rdvClient && reprise?.iso && !appt && (
             <p className="trc-rdv3__note trc-rdv3__note--cuivre">
               Elle revient d’habitude vers le {jourDit(reprise.iso)}{maitreHabituel ? `, avec ${maitreHabituel}` : ''}.
@@ -4512,17 +4622,9 @@ export function RdvModal({
               {t}
             </div>
           ))}
-        </RangeeRdv>
+        </VoletRdv>
 
-        <RangeeRdv
-          n="+"
-          titre="Plus d’options"
-          ouverte={rang === 'plus'}
-          onBascule={() => basculeRang('plus')}
-          fait={optionsDites.length > 0}
-          etat="facultatif"
-          resume={optionsDites.join(' · ') || 'Rien de plus'}
-        >
+        <VoletRdv ouvert={rang === 'plus'} titre="Prix, formule, note">
           {/* LE MAÎTRE A QUITTÉ LE BAS DE PAGE (14 août, Yéman) : il se lisait
               déjà trois fois — dans le bandeau, sous chaque prestation, et là.
               Le choix vit désormais AU RITUEL, où la main le désigne ; ici ne
@@ -5048,7 +5150,20 @@ export function RdvModal({
             )}
           </div>
           )}
-        </RangeeRdv>
+        </VoletRdv>
+
+        {raison && rang !== 'quand' && (
+          <div className={`trc-rdv3__raison${bloque ? ' is-bloque' : ''}`} role={bloque ? 'alert' : undefined}>
+            {raison.texte}
+            {raison.bloque && !forcePlein && (
+              <span style={{ display: 'block', marginTop: 8 }}>
+                <button type="button" className="mnd-btn mnd-btn--sm mnd-btn--ghost trc-rdv3__forcer" onClick={() => setForcePlein(true)}>
+                  Poser quand même à {time}
+                </button>
+              </span>
+            )}
+          </div>
+        )}
 
         {/* LA DESTRUCTION RESTE EN PETIT (14 août) : annuler et supprimer ne
             s'alignent pas avec Enregistrer, ils gardent leur mot de
@@ -5078,7 +5193,9 @@ export function RdvModal({
               </>
             ) : (
               <>
-                <b>{rdvClient?.name ?? 'Le rendez-vous se compose'}</b>
+                {/* Ce qui est déjà posé se dit (28 octobre 2026) : son rituel habituel
+                    se pose seul, la barre le montre avant même le moment. */}
+                <b>{[rdvClient?.name, courts.length ? courts.join(' + ') : null].filter(Boolean).join(' · ') || 'Le rendez-vous se compose'}</b>
                 <span>{ceQuiReste({ qui: !!clientId, quoi: serviceIds.length > 0, quand: momentChoisi })}</span>
               </>
             )}
@@ -5104,11 +5221,15 @@ export function RdvModal({
               </>
             ) : (
               <>
+                <label className="trc-rdv4__wa">
+                  <input type="checkbox" checked={avecConfirmation} onChange={(e) => setAvecConfirmation(e.target.checked)} />
+                  Confirmation WhatsApp
+                </label>
                 <Button variant="ghost" onClick={() => save('en attente')} disabled={!pret || bloque}>
                   En attente
                 </Button>
                 <Button variant="copper" onClick={() => save('confirmé')} disabled={!pret || bloque}>
-                  {hasDeposit ? 'Confirmer & demander l’acompte' : 'Confirmer'}
+                  {hasDeposit ? 'Poser et demander l’acompte' : 'Poser le rendez-vous'}
                 </Button>
               </>
             )}

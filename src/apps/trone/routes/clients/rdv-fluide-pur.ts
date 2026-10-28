@@ -205,3 +205,113 @@ export function prestationsDeLaCase<T extends { id: string; name: string }>(
   if (t.length < 2 || /^[\d\s+().-]+$/.test(t)) return [];
   return proposables.filter((sv) => !dejaPosees.includes(sv.id) && repond(sv, t)).slice(0, 6);
 }
+
+/* ══ LA MAISON PROPOSE — 28 octobre 2026 ═══════════════════════════════
+   « La prise de RDV qui, quoi, quand ne nous convient toujours pas »,
+   « simplifié, interactif », « et toujours smart ready » (Yéman). Maquette
+   https://claude.ai/artifact/HAgAvCcszQjS1CK8CLPbHN, ses arbitrages : trois
+   propositions en tête, la fenêtre au centre, la confirmation WhatsApp
+   cochée d'office, le même écran pour modifier.
+
+   Trois rendez-vous tout prêts, chacun sur une place libre aux fauteuils :
+   À SA DATE (sa reprise ; un jour fermé ou complet passe au suivant), LE
+   PLUS TÔT, SON JOUR (celui où elle vient le plus souvent). Une heure
+   habituelle prend la place la plus proche. Deux propositions au même
+   moment n'en font qu'une ; une nouvelle venue reçoit les jours suivants. */
+export type Proposition = { cle: 'date' | 'tot' | 'jour' | 'autre'; titre: string; iso: string; heure: string; pourquoi: string };
+
+/** Le jour de la semaine d'une date, 0 = dimanche. */
+export const jourDeLaSemaine = (iso: string): number => new Date(`${iso}T12:00:00`).getDay();
+
+/** SON HEURE : celle qui revient le plus dans ses venues ; à égalité, la plus
+    récente. Aucune venue : `null`. */
+export function heureHabituelle(venues: readonly { date: string; time?: string }[]): string | null {
+  const compte = new Map<string, { n: number; dernier: string }>();
+  for (const v of venues) {
+    if (!v.time || !/^\d{2}:\d{2}$/.test(v.time)) continue;
+    const c = compte.get(v.time);
+    if (!c) compte.set(v.time, { n: 1, dernier: v.date });
+    else { c.n += 1; if (v.date > c.dernier) c.dernier = v.date; }
+  }
+  let mieux: [string, { n: number; dernier: string }] | null = null;
+  for (const e of compte) {
+    if (!mieux || e[1].n > mieux[1].n || (e[1].n === mieux[1].n && e[1].dernier > mieux[1].dernier)) mieux = e;
+  }
+  return mieux ? mieux[0] : null;
+}
+
+/** La place la plus proche d'une heure voulue ; sans heure, la première. */
+export function placeLaPlusProche(heures: readonly string[], voulue?: string | null): string | null {
+  if (!heures.length) return null;
+  if (!voulue) return heures[0];
+  const cible = minutesDeHhmm(voulue);
+  return [...heures].sort((a, b) => Math.abs(minutesDeHhmm(a) - cible) - Math.abs(minutesDeHhmm(b) - cible) || minutesDeHhmm(a) - minutesDeHhmm(b))[0];
+}
+
+export function propositionsDuRdv(o: {
+  aujourdhui: string;
+  /** Les places libres d'un jour pour la durée de sa tête ; vide quand il est fermé, complet ou passé. */
+  placesDe: (iso: string) => { ferme: boolean; heures: readonly string[] };
+  reprise?: string | null;
+  heureHabituelle?: string | null;
+  /** Son jour, 0 = dimanche ; `null` quand ses venues ne le disent pas. */
+  jourHabituel?: number | null;
+  /** « lundi 2 novembre 2026 » */
+  jourDit: (iso: string) => string;
+  /** « samedi » */
+  nomDuJour: (jour: number) => string;
+  horizonJours?: number;
+}): Proposition[] {
+  const horizon = o.horizonJours ?? 42;
+  const lues = new Map<string, { ferme: boolean; heures: readonly string[] }>();
+  const places = (iso: string) => { let p = lues.get(iso); if (!p) { p = o.placesDe(iso); lues.set(iso, p); } return p; };
+  const premierJour = (debut: string, garde: (iso: string) => boolean = () => true): string | null => {
+    for (let i = 0; i <= horizon; i += 1) {
+      const iso = ajouteJours(debut, i);
+      if (iso < o.aujourdhui) continue;
+      if (places(iso).heures.length > 0 && garde(iso)) return iso;
+    }
+    return null;
+  };
+  const props: Proposition[] = [];
+  const pose = (p: Omit<Proposition, 'heure'> & { heure: string | null }) => {
+    if (!p.heure || props.length >= 3) return;
+    if (props.some((x) => x.iso === p.iso && x.heure === p.heure)) return;
+    props.push({ ...p, heure: p.heure });
+  };
+  const sonHeure = (iso: string) => placeLaPlusProche(places(iso).heures, o.heureHabituelle);
+
+  const reprise = o.reprise && /^\d{4}-\d{2}-\d{2}$/.test(o.reprise) ? o.reprise : null;
+  if (reprise && reprise >= o.aujourdhui) {
+    const iso = premierJour(reprise);
+    if (iso) {
+      const pourquoi = iso === reprise
+        ? (o.heureHabituelle ? 'Le jour de sa reprise, à son heure.' : 'Le jour de sa reprise.')
+        : `Sa reprise tombe le ${o.jourDit(reprise)}, ${places(reprise).ferme ? 'jour de fermeture' : 'complet'} : la place suivante.`;
+      pose({ cle: 'date', titre: 'À sa date', iso, heure: sonHeure(iso), pourquoi });
+    }
+  }
+  const tot = premierJour(o.aujourdhui);
+  /* Sa date est déjà le premier jour libre : elle dit aussi « le plus tôt ». */
+  if (tot && !props.some((p) => p.iso === tot)) {
+    pose({
+      cle: 'tot', titre: 'Le plus tôt', iso: tot, heure: places(tot).heures[0] ?? null,
+      pourquoi: reprise && reprise < o.aujourdhui ? `Sa reprise était due le ${o.jourDit(reprise)} : la première place libre.` : 'La première place libre.',
+    });
+  }
+  if (o.jourHabituel !== null && o.jourHabituel !== undefined) {
+    const j = o.jourHabituel;
+    const iso = premierJour(o.aujourdhui, (x) => jourDeLaSemaine(x) === j && !props.some((p) => p.iso === x));
+    if (iso) pose({ cle: 'jour', titre: `Son ${o.nomDuJour(j)}`, iso, heure: sonHeure(iso), pourquoi: `Elle vient le plus souvent le ${o.nomDuJour(j)}.` });
+  }
+  /* Une nouvelle venue, ou des habitudes qui ne donnent qu'une place : les
+     jours suivants, chacun à sa première place. */
+  let depuis = props.length ? [...props].sort((a, b) => b.iso.localeCompare(a.iso))[0].iso : o.aujourdhui;
+  while (props.length < 3) {
+    const iso = premierJour(ajouteJours(depuis, 1), (x) => !props.some((p) => p.iso === x));
+    if (!iso) break;
+    pose({ cle: 'autre', titre: 'Un autre jour', iso, heure: sonHeure(iso), pourquoi: 'Si les autres dates ne lui vont pas.' });
+    depuis = iso;
+  }
+  return props;
+}

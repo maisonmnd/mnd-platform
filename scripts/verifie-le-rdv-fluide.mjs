@@ -52,9 +52,19 @@ const FAUTES = [
   { n: 7, fichier: C, avant: "    if (bloque && chosenStatus !== 'annulé') {", apres: '    if (false) {' },
   { n: 7, fichier: C, avant: "onClick={() => save('confirmé')} disabled={!pret || bloque}", apres: "onClick={() => save('confirmé')}" },
   { n: 7, fichier: C, avant: 'const [momentChoisi, setMomentChoisi] = useState(!!appt || !!initial?.time);', apres: 'const [momentChoisi, setMomentChoisi] = useState(true);' },
-  { n: 7, fichier: C, avant: '<div className="trc-rang__corps" hidden={!ouverte}>{children}</div>', apres: '{ouverte && <div className="trc-rang__corps">{children}</div>}' },
+  { n: 7, fichier: C, avant: '<section className="trc-rdv4__volet" aria-label={titre} hidden={!ouvert}>', apres: '<section className="trc-rdv4__volet" aria-label={titre}>' },
+  { n: 7, fichier: C, avant: "      poseLesPrestations(habitude.ids);\n      if (maitreHabituel) setMaster(maitreHabituel);\n      setRang('');", apres: "      setRang('');" },
   { n: 7, fichier: C, avant: '    setJourVu(iso);\n    setMomentChoisi(true);\n  };', apres: "    setJourVu(iso);\n    setMomentChoisi(true);\n    setMaster(branch.masters[0] ?? '');\n  };" },
   { n: 7, fichier: C, avant: "predictNextVisit(tousLesRdv.filter((a) => a.status === 'honoré' && a.id !== appt?.id)", apres: 'predictNextVisit(tousLesRdv.filter((a) => a.id !== appt?.id)' },
+  /* #8 : sa date ne saute pas un jour ferme, le plus tot double sa date, son jour oublie, son heure ignoree,
+     l egalite des heures, la confirmation decochee perdue au Trone ou a la fonction. */
+  { n: 8, fichier: P, avant: '    const iso = premierJour(reprise);', apres: '    const iso = places(reprise).heures.length ? reprise : null;' },
+  { n: 8, fichier: P, avant: '  if (tot && !props.some((p) => p.iso === tot)) {', apres: '  if (tot) {' },
+  { n: 8, fichier: P, avant: '  if (o.jourHabituel !== null && o.jourHabituel !== undefined) {', apres: '  if (false) {' },
+  { n: 8, fichier: P, avant: '  if (!voulue) return heures[0];', apres: '  return heures[0];' },
+  { n: 8, fichier: P, avant: ' || (e[1].n === mieux[1].n && e[1].dernier > mieux[1].dernier)', apres: '' },
+  { n: 8, fichier: C, avant: "        sansConfirmation: chosenStatus === 'confirmé' && !avecConfirmation ? true : undefined,\n", apres: '' },
+  { n: 8, fichier: 'supabase/functions/confirmation-rdv/index.ts', avant: '  const rdvs = candidats.filter((a) => !a.sansConfirmation && !poseApresSonHeure(', apres: '  const rdvs = candidats.filter((a) => !poseApresSonHeure(' },
 ];
 
 const md5 = (rel) => createHash('md5').update(readFileSync(path.join(racine, rel))).digest('hex');

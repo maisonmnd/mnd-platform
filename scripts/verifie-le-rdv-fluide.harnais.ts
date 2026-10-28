@@ -13,8 +13,8 @@
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import {
-  ancreDeLaSemaine, bloqueLaPose, ceQuiReste, debutDeLaSemaine, lundiDe, placesDuJour, prestationsDeLaCase,
-  raisonDeLHeure, rangeeSuivante, septJours, type Occupant,
+  ancreDeLaSemaine, bloqueLaPose, ceQuiReste, debutDeLaSemaine, heureHabituelle, lundiDe, placeLaPlusProche, placesDuJour, prestationsDeLaCase,
+  propositionsDuRdv, raisonDeLHeure, rangeeSuivante, septJours, type Occupant,
 } from '../src/apps/trone/routes/clients/rdv-fluide-pur';
 
 declare const __FAUTE__: { fichier: string; avant: string; apres: string } | null;
@@ -178,13 +178,61 @@ dit(5, 'la barre dit ce qui reste', ['Reste : la cliente, les prestations, puis 
     (fenetre.match(/disabled=\{!pret \|\| bloque\}/g) ?? []).length,
     /const \[momentChoisi, setMomentChoisi\] = useState\(!!appt \|\| !!initial\?\.time\);/.test(fenetre),
   ]);
-  dit(7, 'cree replie sur la bonne question, relu tout replie ; les rangees gardent leur saisie ; une place ne change jamais de maitre ; la reprise sur ses venues honorees ; la case unique', [true, true, true, true, true, true], [
-    /useState<Rangee>\(\(\) => \(appt \? '' : rangeeSuivante\(\{/.test(fenetre),
-    /<div className="trc-rang__corps" hidden=\{!ouverte\}>\{children\}<\/div>/.test(fenetre),
+  /* 28 octobre 2026 (maquette HAgAvCcs...) : plus de rangees ; aucun volet ouvert d'office, son rituel
+     habituel se pose de lui-meme, les volets gardent leur saisie. */
+  dit(7, 'aucun volet d office, son rituel pose seul ; les volets gardent leur saisie ; une place ne change jamais de maitre ; la reprise sur ses venues honorees ; la case unique', [true, true, true, true, true, true], [
+    fenetre.includes("const [rang, setRang] = useState<Rangee>('');") && fenetre.includes("poseLesPrestations(habitude.ids);\n      if (maitreHabituel) setMaster(maitreHabituel);\n      setRang('');"),
+    /<section className="trc-rdv4__volet" aria-label=\{titre\} hidden=\{!ouvert\}>/.test(fenetre),
     poseLeMoment.includes('setMomentChoisi(true)') && !/setMaster/.test(poseLeMoment),
     /predictNextVisit\(tousLesRdv\.filter\(\(a\) => a\.status === 'honoré' && a\.id !== appt\?\.id\)/.test(fenetre),
     /caseUnique=\{\{\n\s*prestations: \(q\) => prestationsDeLaCase\(q, proposables,/.test(fenetre) && /const display = open \? query : caseUnique \? '' :/.test(fenetre),
     !/position: 'sticky', top: -1/.test(fenetre),
+  ]);
+}
+
+/* ══ #8 — LA MAISON PROPOSE (28 octobre 2026) : trois rendez-vous tout prets ══
+   Mercredi 28 octobre 2026 ; dimanche 1er et lundi 2 novembre fermes. */
+{
+  const PLACES: Record<string, string[]> = {
+    '2026-10-28': ['10:00', '16:30'], '2026-10-29': ['09:00', '11:00', '14:00'], '2026-10-30': ['09:00', '10:00'],
+    '2026-10-31': ['09:00', '10:00', '11:30'], '2026-11-03': ['08:30', '10:00', '13:00'],
+  };
+  const placesDe = (iso: string) => {
+    const j = new Date(`${iso}T12:00:00`).getDay();
+    if (j === 0 || j === 1) return { ferme: true, heures: [] as string[] };
+    return { ferme: false, heures: PLACES[iso] ?? ['09:00'] };
+  };
+  const NOMS = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'];
+  const base = { aujourdhui: '2026-10-28', placesDe, jourDit: (iso: string) => iso, nomDuJour: (j: number) => NOMS[j] };
+  const court = (l: ReturnType<typeof propositionsDuRdv>) => l.map((p) => [p.cle, p.titre, p.iso, p.heure]);
+  dit(8, 'sa reprise un lundi ferme : le lendemain a son heure ; le plus tot ; son samedi a son heure', [
+    ['date', 'À sa date', '2026-11-03', '10:00'], ['tot', 'Le plus tôt', '2026-10-28', '10:00'], ['jour', 'Son samedi', '2026-10-31', '10:00'],
+  ], court(propositionsDuRdv({ ...base, reprise: '2026-11-02', heureHabituelle: '10:00', jourHabituel: 6 })));
+  dit(8, '... et le dit', 'Sa reprise tombe le 2026-11-02, jour de fermeture : la place suivante.',
+    propositionsDuRdv({ ...base, reprise: '2026-11-02', heureHabituelle: '10:00', jourHabituel: 6 })[0]?.pourquoi);
+  dit(8, 'une nouvelle venue : le plus tot, puis les jours suivants a leur premiere place', [
+    ['tot', 'Le plus tôt', '2026-10-28', '10:00'], ['autre', 'Un autre jour', '2026-10-29', '09:00'], ['autre', 'Un autre jour', '2026-10-30', '09:00'],
+  ], court(propositionsDuRdv({ ...base })));
+  dit(8, 'sa reprise passee : pas de « a sa date », le plus tot le dit', ['Le plus tôt', 'Sa reprise était due le 2026-10-20 : la première place libre.'],
+    (() => { const l = propositionsDuRdv({ ...base, reprise: '2026-10-20' }); return [l[0]?.titre, l[0]?.pourquoi]; })());
+  dit(8, 'sa reprise aujourd hui : « le plus tot » ne double pas le meme jour ; les jours suivants a son heure', [
+    ['date', 'À sa date', '2026-10-28', '16:30'], ['autre', 'Un autre jour', '2026-10-29', '14:00'], ['autre', 'Un autre jour', '2026-10-30', '10:00'],
+  ], court(propositionsDuRdv({ ...base, reprise: '2026-10-28', heureHabituelle: '16:00' })));
+  dit(8, 'son heure : la plus frequente ; a egalite, la plus recente ; aucune venue : rien', ['10:00', '15:00', null], [
+    heureHabituelle([{ date: '2026-09-01', time: '10:00' }, { date: '2026-09-20', time: '14:00' }, { date: '2026-10-01', time: '10:00' }]),
+    heureHabituelle([{ date: '2026-09-01', time: '09:00' }, { date: '2026-10-01', time: '15:00' }]),
+    heureHabituelle([]),
+  ]);
+  dit(8, 'la place la plus proche : a egalite la plus tot ; sans heure, la premiere', ['09:00', '14:00', '09:00', null], [
+    placeLaPlusProche(['09:00', '11:00', '14:00'], '10:00'), placeLaPlusProche(['09:00', '11:00', '14:00'], '13:00'),
+    placeLaPlusProche(['09:00', '11:00'], null), placeLaPlusProche([], '10:00'),
+  ]);
+  /* La confirmation decochee s'ecrit sur le rendez-vous, et la fonction la saute. */
+  const conf = source('supabase/functions/confirmation-rdv/index.ts');
+  dit(8, 'la confirmation decochee s ecrit, et confirmation-rdv la saute', [true, true, true], [
+    fenetre.includes("sansConfirmation: chosenStatus === 'confirmé' && !avecConfirmation ? true : undefined,"),
+    fenetre.includes('const [avecConfirmation, setAvecConfirmation] = useState(true);'),
+    conf.includes('const rdvs = candidats.filter((a) => !a.sansConfirmation && !poseApresSonHeure(a, poses.get(a.id))'),
   ]);
 }
 

@@ -56,6 +56,8 @@ type Rdv = {
   status: string;
   creeLe?: string;
   source?: string;
+  /** La confirmation décochée au « + RDV » du Trône (28 octobre 2026). */
+  sansConfirmation?: boolean;
 };
 
 /* ══ UN RENDEZ-VOUS POSÉ APRÈS SON HEURE NE SE DIT À PERSONNE — 13 sept. 2026 ══
@@ -129,7 +131,7 @@ const confirmationEstNeuve = (
 /** La version de ce fichier, rendue dans chaque réponse : dire ce qui tourne
     vraiment évite de chercher une panne dans un fichier qui n'est pas celui
     qu'on croit déployé. */
-const VERSION = '2026-10-27-a · le parent qui a pris le rendez-vous';
+const VERSION = '2026-10-28-a · la confirmation decochee au Trone ne part pas';
 
 /* UNE RAFALE NE PART JAMAIS TOUTE SEULE — 21 septembre 2026. Le soir du
    21, une écriture en bloc a fait partir des dizaines de confirmations d'un
@@ -379,7 +381,10 @@ Deno.serve(async (req) => {
      PAS POSÉ RÉCEMMENT NON PLUS : une écriture en bloc ne réveille pas des
      rendez-vous d'octobre (voir `confirmationEstNeuve`, 21 septembre). */
   const poses = await posesSignees(sb, candidats.map((a) => a.id));
-  const rdvs = candidats.filter((a) => !poseApresSonHeure(a, poses.get(a.id))
+  /* LA CONFIRMATION DÉCOCHÉE — 28 octobre 2026 : au « + RDV », l'accueil
+     peut dire « la Maison la prévient elle-même ». Rien ne part ; le rappel
+     de la veille suit comme pour toutes. */
+  const rdvs = candidats.filter((a) => !a.sansConfirmation && !poseApresSonHeure(a, poses.get(a.id))
     && confirmationEstNeuve(a, poses.get(a.id), maintenant, FENETRE_MS));
 
   if (rdvs.length === 0) {
