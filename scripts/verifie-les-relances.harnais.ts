@@ -15,6 +15,7 @@ import { readFileSync } from 'node:fs';
 import { transformSync } from 'esbuild';
 import {
   CADENCE_DES_RELANCES, departDesRelances, relanceDuJour, aReponduDepuis, etatDesRelances, aAppeler, idDeLaRelance, seRelance,
+  etatDesRelancesDeLaPiece, idDuRappelDuPoint, departDuPoint,
   type ReglagesRelances,
 } from '../src/shared/relances-pur';
 import { invoiceResteXof, type Invoice } from '../src/shared/finance';
@@ -90,13 +91,15 @@ const SERVEUR = 'supabase/functions/relances-factures/index.ts';
 {
   dit('le bloc des règles : même texte au Trône et dans relances-factures', true,
     sansPremiere(extrais('src/shared/relances-pur.ts', 'relances')) === sansPremiere(extrais(SERVEUR, 'relances')));
+  dit('le bloc du point (ce que le rappel du point couvre) : même texte au Trône et dans relances-factures', true,
+    sansPremiere(extrais('src/shared/point-du-compte-pur.ts', 'point')) === sansPremiere(extrais(SERVEUR, 'point')));
 }
 const charge = (nom: string, rend: string) => {
   const js = transformSync(extrais(SERVEUR, nom).replace(/^export /gm, ''), { loader: 'ts' }).code;
   return new Function(`${js}; return ${rend};`)();
 };
 const serveur = charge('tournee', '{ tournee, resteDeLaFacture, fraisTapGo, dateDite, enFrancs }') as {
-  tournee: (sb: unknown, o: { maintenantMs: number; MODELE: string; WA_TOKEN: string; WA_PHONE_ID: string; envoie?: unknown }) => Promise<Record<string, unknown>>;
+  tournee: (sb: unknown, o: { maintenantMs: number; MODELE: string; MODELE_POINT?: string; WA_TOKEN: string; WA_PHONE_ID: string; envoie?: unknown }) => Promise<Record<string, unknown>>;
   resteDeLaFacture: (f: unknown) => number; fraisTapGo: (b: number, r: unknown) => number; dateDite: (iso: string) => string; enFrancs: (x: number) => string;
 };
 {
@@ -171,9 +174,9 @@ const reglages = (rel: ReglagesRelances | undefined, mndPay: Record<string, unkn
 const facteur = (vivant = true, ms = MAINTENANT): Ligne => ({ key: 'mnd_facteur', data: { vuLe: new Date(ms - (vivant ? 60_000 : 3_600_000)).toISOString() } });
 const J3 = Date.parse('2026-10-21T09:00:00Z');
 const ALLUMEES: ReglagesRelances = { actives: true, depuis: '2026-10-18' };
-const joue = async (tables: Record<string, Ligne[]>, o: { maintenantMs?: number; WA?: boolean; envoie?: unknown } = {}) => {
+const joue = async (tables: Record<string, Ligne[]>, o: { maintenantMs?: number; WA?: boolean; envoie?: unknown; point?: string } = {}) => {
   const b = base(tables);
-  const r = await serveur.tournee(b.sb, { maintenantMs: o.maintenantMs ?? MAINTENANT, MODELE: 'rappel_de_reglement', WA_TOKEN: o.WA ? 't' : '', WA_PHONE_ID: o.WA ? 'p' : '', envoie: o.envoie });
+  const r = await serveur.tournee(b.sb, { maintenantMs: o.maintenantMs ?? MAINTENANT, MODELE: 'rappel_de_reglement', ...(o.point ? { MODELE_POINT: o.point } : {}), WA_TOKEN: o.WA ? 't' : '', WA_PHONE_ID: o.WA ? 'p' : '', envoie: o.envoie });
   return { r, ...b };
 };
 const ordinaire = () => ({ documents: [reglages(ALLUMEES), facteur()], invoices: [facture('inv-1')], clients: [fiche('c1', '0197000012')] });
@@ -267,9 +270,78 @@ const ordinaire = () => ({ documents: [reglages(ALLUMEES), facteur()], invoices:
     [O.lignes('mnd_pay').find((x) => x.id === 'mp-v')?.data?.statut, O.lignes('mnd_pay').find((x) => x.id !== 'mp-v')?.data?.totalXof]);
 }
 
+/* ── 3 bis. UN SEUL RAPPEL PAR PAYEUR (28 octobre 2026, le point du compte) ──
+   Seulement quand le modèle du rappel du point est nommé ; sinon, facture par
+   facture, comme avant (« deux factures, une cliente : une seule relance
+   aujourd hui », plus haut). */
+{
+  const POINT = 'rappel_du_point';
+  const deux = () => ({ ...ordinaire(), invoices: [facture('inv-1'), facture('inv-2', { number: 'MND-2026-0161' })] });
+  const Q = await joue(deux(), { point: POINT });
+  const env = Q.lignes('envois');
+  const l = env[0]?.data as Record<string, any> | undefined;
+  dit('deux factures, une payeuse, le modèle nommé : UN rappel (un seul dossier en lice), son identifiant de point, ses deux factures, aucune attente Tap & Go',
+    [1, 1, 1, 'rl-pt-c1-2026-10-18-1-whatsapp', true, ['inv-1', 'inv-2'], '', 1, 0],
+    [Q.r.relances, Q.r.points, Q.r.enLice, env[0]?.id, l?.point, l?.invoiceIds, l?.invoiceId, env.length, Q.ecrit.filter((x) => x.t === 'mnd_pay').length]);
+  const total = 4000 + serveur.fraisTapGo(4000, { actif: true });
+  dit('le rappel du point : son modèle, l appel, le total, ce qu il couvre avec l année, et le bouton au total frais compris',
+    [POINT, ['Madame Awa', serveur.enFrancs(4000), 'vos 2 factures, du 18 octobre 2026'], `51166-${total}`],
+    [l?.colis?.modele, l?.colis?.composants?.[0]?.parameters?.map((p: { text: string }) => p.text), l?.colis?.composants?.[1]?.parameters?.[0]?.text]);
+  dit('jamais le numéro d une pièce dans le rappel du point', false, /MND-2026-016[01]/.test(String(l?.colis?.texteAuFil ?? '') + JSON.stringify(l?.colis?.composants)));
+
+  const R = await joue({ ...deux(), documents: [reglages(ALLUMEES), facteur(true, J3)], envois: env.map((x) => structuredClone(x)) }, { point: POINT, maintenantMs: J3 });
+  dit('J+3 : le 2e rappel du point, au même identifiant de point', [1, 'rl-pt-c1-2026-10-18-2-whatsapp'],
+    [R.r.relances, R.lignes('envois').find((x) => x.id !== env[0]?.id)?.id]);
+
+  const S = await joue({ ...deux(), mnd_pay: [{ id: 'mp-2', data: { pieceId: 'inv-2', genre: 'lien', moyen: 'tapgo', statut: 'payee', montantXof: 2000, totalXof: 2032 } }] }, { point: POINT });
+  dit('l une payée par son lien : il n en reste qu une, elle repart seule, comme avant', [1, 0, 'rl-inv-1-1-whatsapp'],
+    [S.r.relances, S.r.points, S.lignes('envois')[0]?.id]);
+  const V = await joue({ ...deux(), mnd_pay: [{ id: 'mp-1', data: { pieceId: 'inv-1', genre: 'lien', moyen: 'tapgo', statut: 'payee', montantXof: 1000, totalXof: 1016 } }] }, { point: POINT });
+  dit('l une payée en partie par son lien : le point réclame le reste des deux, payé compté une seule fois', [1, serveur.enFrancs(3000)],
+    [V.r.points, (V.lignes('envois')[0]?.data as Record<string, any>)?.colis?.composants?.[0]?.parameters?.[1]?.text]);
+
+  const famille = {
+    documents: [reglages(ALLUMEES), facteur()],
+    invoices: [facture('e-1', { clientId: 'enfant', apptId: 'r1' }), facture('e-2', { clientId: 'enfant', apptId: 'r2', number: 'MND-2026-0162' })],
+    clients: [fiche('enfant', '', { familyId: 'fa', name: 'Merline D.' }), fiche('pere', '0190000001', { name: 'Paul D.', civilite: 'monsieur' })],
+    families: [{ id: 'fa', data: { name: 'Famille D.', payerClientId: 'pere' } }],
+  };
+  const T = await joue(famille, { point: POINT });
+  const lt = T.lignes('envois')[0]?.data as Record<string, any> | undefined;
+  dit('les factures d une enfant sans numéro : le rappel va au payeur du compte famille, et dit « rituels »',
+    [1, 'rl-pt-pere-2026-10-18-1-whatsapp', '2290190000001', 'Monsieur Paul', 'vos 2 rituels, du 18 octobre 2026'],
+    [T.r.relances, T.lignes('envois')[0]?.id, lt?.numero, lt?.colis?.composants?.[0]?.parameters?.[0]?.text, lt?.colis?.composants?.[0]?.parameters?.[2]?.text]);
+  const T0 = await joue(famille);
+  dit('... sans le modèle du point, chacune garde son chemin d avant (l enfant sans numéro n a personne) : rien', [0], [T0.r.relances]);
+
+  const U = await joue({ ...deux(), invoices: [facture('inv-1'), facture('inv-3', { date: '2026-10-20', creeeLe: '2026-10-20T11:00:00Z', number: 'MND-2026-0163' })],
+    documents: [reglages(ALLUMEES), facteur(true, Date.parse('2026-10-21T09:00:00Z'))] }, { point: POINT, maintenantMs: Date.parse('2026-10-21T09:00:00Z') });
+  dit('une nouvelle visite relance le cycle : le point se compte depuis la plus récente (J+1 du 20)', [1, 'rl-pt-c1-2026-10-20-1-whatsapp', 'vos 2 factures, du 18 au 20 octobre 2026'],
+    [U.r.relances, U.lignes('envois')[0]?.id, (U.lignes('envois')[0]?.data as Record<string, any>)?.colis?.composants?.[0]?.parameters?.[2]?.text]);
+}
+
+/* ── 3 ter. LE TRÔNE LIT LE RAPPEL DU POINT ── */
+{
+  const jd = (iso: string) => iso.slice(0, 10);
+  const journalPt = [
+    /* Un point d'avant, fini, qui portait déjà inv-2 : le plus récent fait foi. */
+    ...[1, 2, 3, 4].map((n) => ({ id: idDuRappelDuPoint('c1', '2026-10-01', n), statut: 'envoyé', quand: `2026-10-0${n + 1}T09:10:00Z`, invoiceIds: ['inv-0', 'inv-2'] })),
+    { id: idDuRappelDuPoint('c1', '2026-10-18', 1), statut: 'envoyé', quand: '2026-10-19T09:10:00Z', invoiceIds: ['inv-1', 'inv-2'] },
+    { id: idDuRappelDuPoint('c1', '2026-10-18', 2), statut: 'envoyé', quand: '2026-10-21T09:10:00Z', invoiceIds: ['inv-1', 'inv-2'] },
+  ];
+  const sur = (factureId: string) => etatDesRelancesDeLaPiece({ factureId, depart: '2026-10-18', journal: journalPt, resteXof: 2000, enPause: false, aujourdhui: '2026-10-22', jourDe: jd });
+  dit('au Trône, la facture lit le rappel du point qui la porte : 2 parties, la prochaine à J+7, marquée « point »',
+    { parties: 2, derniereLe: '2026-10-21', prochaine: '2026-10-25', fini: false, point: true }, sur('inv-2'));
+  dit('... une facture qu aucun point ne porte garde sa suite à elle ; le départ du point est celui de la plus récente', [undefined, 0, '2026-10-20', null],
+    [sur('autre').point, sur('autre').parties, departDuPoint(['2026-10-18', null, '2026-10-20']), departDuPoint([null])]);
+}
+
 /* ── 4. LA FONCTION ET LES ÉCRANS ── */
 {
   const src = lis(SERVEUR);
+  dit('le rappel du point : son modèle se lit dans WA_TEMPLATE_RAPPEL_DU_POINT, le contrôle de santé en dit la longueur, la tournée le reçoit', [true, true, true],
+    [/const MODELE_POINT = \(Deno\.env\.get\('WA_TEMPLATE_RAPPEL_DU_POINT'\) \?\? ''\)\.trim\(\);/.test(src),
+      /WA_TEMPLATE_RAPPEL_DU_POINT: MODELE_POINT\.length/.test(src), /tournee\(sb, \{ maintenantMs: Date\.now\(\), MODELE, MODELE_POINT, WA_TOKEN, WA_PHONE_ID \}\)/.test(src)]);
   const serve = src.slice(src.indexOf('Deno.serve('));
   const iGet = serve.indexOf("  if (req.method === 'GET') {");
   const brancheGet = iGet < 0 ? '' : serve.slice(iGet, serve.indexOf('\n  }\n', iGet));

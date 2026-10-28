@@ -84,6 +84,16 @@ export function relanceDuJour(o: {
 /** Elle a écrit à la Maison depuis la première relance : tout s'arrête. */
 export const aReponduDepuis = (messages: readonly { sens?: string; quand?: string }[], depuisIso: string | undefined): boolean =>
   !!depuisIso && messages.some((m) => m.sens === 'entrant' && (m.quand ?? '') > depuisIso);
+
+/** LE RAPPEL DU POINT — 28 octobre 2026, « un seul rappel par payeur »
+    (maquette du point du compte VZ7F7MNJ…) : les factures ordinaires d'un
+    même payeur se rappellent ensemble dès deux, en un message et un total.
+    Leur suite J+1, J+3, J+7, J+14 se compte depuis la plus récente : une
+    nouvelle visite relance le cycle, sous un identifiant neuf. */
+export const idDuRappelDuPoint = (payeurId: string, depart: string, n: number): string => `rl-pt-${payeurId}-${depart}-${n}-whatsapp`;
+/** Le départ du rappel du point : celui de sa facture la plus récente. */
+export const departDuPoint = (departs: readonly (string | null)[]): string | null =>
+  departs.filter((d): d is string => !!d).sort().pop() ?? null;
 // ── FIN relances
 
 /* ══ LES RELANCES D'UNE ÉCHÉANCE DE FORMULE — 20 octobre 2026 ══════════════
@@ -115,7 +125,10 @@ export const idDeLaRelanceDeResiliation = (factureId: string, n: number): string
 /** CE QUE L'ÉCRAN DIT DES RELANCES D'UNE PIÈCE, la pièce d'une formule
     comprise : la suite du reste de résiliation s'il est relancé (il vient en
     dernier), sinon celle de sa plus récente échéance relancée, sinon la sienne. */
-export function etatDesRelancesDeLaPiece(o: Parameters<typeof etatDesRelances>[0]): ReturnType<typeof etatDesRelances> {
+export function etatDesRelancesDeLaPiece(o: Parameters<typeof etatDesRelances>[0]): ReturnType<typeof etatDesRelances> & { point?: true } {
+  /* Rappelée avec ses autres factures (le rappel du point, 28 octobre 2026) : la suite du point fait foi. */
+  const pt = rappelDuPointDeLaPiece(o.factureId, o.journal);
+  if (pt) return { ...etatDesRelances({ ...o, depart: pt.depart, journal: pt.lignes }), point: true };
   const resiliation = o.journal.some((x) => x.id.startsWith(`rl-${o.factureId}-r-`));
   const k = resiliation ? null : derniereEcheanceRelancee(o.factureId, o.journal);
   if (!resiliation && k === null) return etatDesRelances(o);
@@ -134,7 +147,26 @@ export type PauseDesRelances = { le: string; par?: string };
 /** Les verdicts du journal qui ne comptent pas comme une relance partie. */
 export const RELANCE_A_RETENTER = new Set(['échec', 'périmé']);
 
-export type LigneDeRelance = { id: string; statut?: string; quand?: string };
+export type LigneDeRelance = { id: string; statut?: string; quand?: string; invoiceIds?: readonly string[] };
+
+/** LE RAPPEL DU POINT D'UNE PIÈCE — 28 octobre 2026 : la suite la plus récente
+    d'un rappel du point qui la porte (`invoiceIds`), relue comme une suite
+    ordinaire de la pièce ; `null` si aucun rappel du point ne la porte. */
+export function rappelDuPointDeLaPiece(factureId: string, journal: readonly LigneDeRelance[]): { depart: string; lignes: LigneDeRelance[] } | null {
+  let tete: { depart: string; prefixe: string } | null = null;
+  for (const l of journal) {
+    if (!l.invoiceIds?.includes(factureId)) continue;
+    const m = /^(rl-pt-.+-(\d{4}-\d{2}-\d{2}))-\d+-whatsapp$/.exec(l.id);
+    if (m && (!tete || m[2] > tete.depart)) tete = { depart: m[2], prefixe: m[1] };
+  }
+  if (!tete) return null;
+  const lignes: LigneDeRelance[] = [];
+  for (let n = 1; n <= CADENCE_DES_RELANCES.length; n++) {
+    const l = journal.find((x) => x.id === `${tete.prefixe}-${n}-whatsapp`);
+    if (l) lignes.push({ ...l, id: idDeLaRelance(factureId, n) });
+  }
+  return { depart: tete.depart, lignes };
+}
 
 /** CE QUE L'ÉCRAN DIT D'UNE FACTURE : combien sont parties, la dernière, la
     prochaine, et si tout est fini. Lu du journal des envois. */

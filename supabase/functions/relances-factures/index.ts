@@ -49,6 +49,13 @@
    URL dynamique « Régler » (payer.html?tg={{1}}). Jamais le numéro de la
    pièce dans le texte : WhatsApp le prend pour un téléphone.
 
+   UN SEUL RAPPEL PAR PAYEUR (28 octobre 2026) : quand le secret
+   WA_TEMPLATE_RAPPEL_DU_POINT nomme son modèle (`rappel_du_point`), les
+   factures d'un même payeur, dès deux, partent en un seul rappel.
+   Variables : {{1}} son appel, {{2}} le total des restes, {{3}} ce qu'il
+   couvre (« vos 2 rituels, du 18 au 20 octobre 2026 ») ; même bouton.
+   Sans ce secret, tout part facture par facture, comme avant.
+
    AUCUN SECRET ICI. Tout vient de l'environnement de la fonction.
    Déploiement : Supabase → Edge Functions → New function
    « relances-factures » → coller CE FICHIER ENTIER → Deploy. Puis le cron
@@ -62,7 +69,7 @@ import { createClient } from 'npm:@supabase/supabase-js@2';
 const TZ = 'Africa/Porto-Novo'; // le fuseau du salon, pas celui du serveur
 
 /** La version de ce fichier, rendue dans chaque réponse. */
-const VERSION = '2026-10-20-b · les formules relancées sur leur échéancier, le reste d’une résiliation, jamais un paquet sans échéancier';
+const VERSION = '2026-10-28-a · un seul rappel par payeur (le point du compte), quand son modèle est nommé';
 
 /** Numéro béninois → format international sans « + » (copie de rappels-j1). */
 const numeroIntl = (brut: string | undefined): string | null => {
@@ -209,7 +216,50 @@ export function relanceDuJour(o: {
 /** Elle a écrit à la Maison depuis la première relance : tout s'arrête. */
 export const aReponduDepuis = (messages: readonly { sens?: string; quand?: string }[], depuisIso: string | undefined): boolean =>
   !!depuisIso && messages.some((m) => m.sens === 'entrant' && (m.quand ?? '') > depuisIso);
+
+/** LE RAPPEL DU POINT — 28 octobre 2026, « un seul rappel par payeur »
+    (maquette du point du compte VZ7F7MNJ…) : les factures ordinaires d'un
+    même payeur se rappellent ensemble dès deux, en un message et un total.
+    Leur suite J+1, J+3, J+7, J+14 se compte depuis la plus récente : une
+    nouvelle visite relance le cycle, sous un identifiant neuf. */
+export const idDuRappelDuPoint = (payeurId: string, depart: string, n: number): string => `rl-pt-${payeurId}-${depart}-${n}-whatsapp`;
+/** Le départ du rappel du point : celui de sa facture la plus récente. */
+export const departDuPoint = (departs: readonly (string | null)[]): string | null =>
+  departs.filter((d): d is string => !!d).sort().pop() ?? null;
 // ── FIN relances
+
+// ── DEBUT point (copie de src/shared/point-du-compte-pur.ts, éprouvée par scripts/verifie-les-relances)
+export type PieceDuPoint = { id: string; kind?: string; clientId?: string; forClientId?: string; branchId?: string; date: string; apptId?: string };
+const MOIS_DU_POINT = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
+const jourEtMois = (iso: string): string => {
+  const j = Number(iso.slice(8, 10));
+  return `${j === 1 ? '1er' : j} ${MOIS_DU_POINT[Number(iso.slice(5, 7)) - 1] ?? ''}`;
+};
+
+/** L'ÉTENDUE DES JOURS, avec l'année (règle de la Maison sur toute date
+    qu'une cliente lit) : « du 13 juin au 1er septembre 2026 », « du 20
+    décembre 2025 au 5 janvier 2026 », « du 5 septembre 2026 ». */
+export function etendueDite(jours: readonly string[]): string {
+  const tries = [...jours].filter((j) => /^\d{4}-\d{2}-\d{2}/.test(j)).sort();
+  if (tries.length === 0) return '';
+  const a = tries[0]; const b = tries[tries.length - 1];
+  if (a.slice(0, 10) === b.slice(0, 10)) return `du ${jourEtMois(a)} ${a.slice(0, 4)}`;
+  /* Le même mois ne se dit qu'une fois : « du 18 au 20 octobre 2026 ». */
+  if (a.slice(0, 7) === b.slice(0, 7)) return `du ${jourEtMois(a).split(' ')[0]} au ${jourEtMois(b)} ${b.slice(0, 4)}`;
+  return a.slice(0, 4) === b.slice(0, 4)
+    ? `du ${jourEtMois(a)} au ${jourEtMois(b)} ${b.slice(0, 4)}`
+    : `du ${jourEtMois(a)} ${a.slice(0, 4)} au ${jourEtMois(b)} ${b.slice(0, 4)}`;
+}
+
+/** CE QUE LE POINT COUVRE, pour le {{3}} du modèle et le message : « 6
+    rituels, du 13 juin au 1er septembre 2026 ». « Factures » quand l'une
+    n'est pas un rituel (une vente de produits). */
+export function phraseDuPoint(pieces: readonly PieceDuPoint[]): string {
+  const n = pieces.length;
+  const mot = pieces.every((p) => !!p.apptId) ? (n > 1 ? 'rituels' : 'rituel') : (n > 1 ? 'factures' : 'facture');
+  return `${n} ${mot}, ${etendueDite(pieces.map((p) => p.date))}`;
+}
+// ── FIN point
 
 // ── DEBUT resteDeLaFacture (copie de src/shared/finance.ts, éprouvée par scripts/verifie-les-relances)
 type LigneLue = { qty: number; unitXof: number; discountPct: number; discountXof?: number };
@@ -220,6 +270,7 @@ type FactureLue = {
   payments?: { id: string; amountXof: number; date: string }[];
   relancesPause?: { le: string; par?: string };
   creeeLe?: string;
+  apptId?: string;
   note?: string;
 };
 const ligneNetXof = (l: LigneLue): number =>
@@ -583,8 +634,10 @@ const jourDuSalon = (iso: string): string => new Date(iso).toLocaleDateString('e
 /** LA TOURNÉE : lit, juge, pose les attentes, dépose. `sb` est le client
     service ; le banc lui passe une base simulée, et un faux `envoie`. */
 // deno-lint-ignore no-explicit-any
-async function tournee(sb: any, o: { maintenantMs: number; MODELE: string; WA_TOKEN: string; WA_PHONE_ID: string; envoie?: typeof fetch }): Promise<Record<string, unknown>> {
+async function tournee(sb: any, o: { maintenantMs: number; MODELE: string; MODELE_POINT?: string; WA_TOKEN: string; WA_PHONE_ID: string; envoie?: typeof fetch }): Promise<Record<string, unknown>> {
   const { maintenantMs, MODELE, WA_TOKEN, WA_PHONE_ID } = o;
+  /* Le modèle du rappel du point (28 octobre 2026) : sans lui, rien ne se regroupe. */
+  const MODELE_POINT = (o.MODELE_POINT ?? '').trim();
   const envoie = o.envoie ?? fetch;
   const aujourdhui = new Date(maintenantMs).toLocaleDateString('en-CA', { timeZone: TZ });
 
@@ -642,7 +695,9 @@ async function tournee(sb: any, o: { maintenantMs: number; MODELE: string; WA_TO
 
   /* LES DOSSIERS DU JOUR : une facture ordinaire, sa suite à elle ; une
      échéance de formule en retard, la sienne. */
-  type Dossier = { f: FactureLue; depart: string | null; resteXof: number; idDe: (n: number) => string; subId?: string; echeance?: number; resiliation?: true; tete?: string };
+  type Dossier = { f: FactureLue; depart: string | null; resteXof: number; idDe: (n: number) => string; subId?: string; echeance?: number; resiliation?: true; tete?: string;
+    /* Le rappel du point : ses factures, sa fiche et son numéro, déjà choisis. */
+    membres?: Dossier[]; fiche?: FicheLue; tel?: string };
   const dossiers: Dossier[] = [];
   for (const f of factures) {
     if (estUnePieceDeFormule(f, piecesDesContrats)) continue;
@@ -715,8 +770,64 @@ async function tournee(sb: any, o: { maintenantMs: number; MODELE: string; WA_TO
     await litLesFiches([...payeurDuFoyer.values()].filter((id) => !fiches.has(id)));
   }
 
+  /* ⑤bis LE RAPPEL DU POINT — 28 octobre 2026, « un seul rappel par payeur »
+     (maquette du point du compte) : seulement quand son modèle est nommé
+     (WA_TEMPLATE_RAPPEL_DU_POINT). Une facture ordinaire va alors au payeur de
+     son compte famille s'il a un numéro, comme le point du compte du Trône,
+     sinon où elle allait ; celles d'un même numéro, dès deux, ne font plus
+     qu'un rappel, au total de leurs restes. Sans le modèle, tout reste comme
+     avant, facture par facture. */
+  if (MODELE_POINT) {
+    const foyersSansPayeur = [...new Set(dossiers.filter((d) => !d.subId)
+      .flatMap((d) => [fiches.get(d.f.forClientId ?? d.f.clientId), fiches.get(d.f.clientId)])
+      .filter((x): x is FicheLue => !!x?.familyId).map((x) => x.familyId as string))].filter((id) => !payeurDuFoyer.has(id));
+    if (foyersSansPayeur.length) {
+      const { data: lesFoyers } = await sb.from('families').select('id, data').in('id', foyersSansPayeur);
+      for (const l of (lesFoyers ?? []) as { id: string; data: { payerClientId?: string } }[]) {
+        if (l.data?.payerClientId) payeurDuFoyer.set(l.id, l.data.payerClientId);
+      }
+      await litLesFiches([...payeurDuFoyer.values()].filter((id) => !fiches.has(id)));
+    }
+  }
+  const destinationOrdinaire = (f: FactureLue): FicheLue | undefined => {
+    const payeuse = fiches.get(f.clientId);
+    const soignee = fiches.get(f.forClientId ?? f.clientId);
+    if (MODELE_POINT) {
+      const foyer = soignee?.familyId ?? payeuse?.familyId;
+      const duCompte = foyer ? fiches.get(payeurDuFoyer.get(foyer) ?? '') : undefined;
+      if (duCompte && numeroIntl(duCompte.phone)) return duCompte;
+    }
+    return numeroIntl(payeuse?.phone) ? payeuse : soignee;
+  };
+  const points: Dossier[] = [];
+  if (MODELE_POINT) {
+    const parNumero = new Map<string, Dossier[]>();
+    for (const d of dossiers) {
+      if (d.subId) continue;
+      const fiche = destinationOrdinaire(d.f);
+      const tel = numeroIntl(fiche?.phone);
+      if (!fiche || !tel || fiche.archived) continue;
+      if (!(Math.max(0, d.resteXof - (payeParPiece.get(d.f.id) ?? 0)) > 0)) continue;
+      parNumero.set(tel, [...(parNumero.get(tel) ?? []), { ...d, fiche, tel }]);
+    }
+    for (const [tel, membres] of parNumero) {
+      if (membres.length < 2) continue;
+      const depart = departDuPoint(membres.map((m) => m.depart));
+      if (!depart) continue;
+      /* La fiche du point : la même d'un passage à l'autre, pour que son identifiant ne change pas. */
+      const fiche = membres.map((m) => m.fiche as FicheLue).sort((a, b) => a.id.localeCompare(b.id))[0];
+      points.push({
+        f: membres[0].f, depart, membres, fiche, tel,
+        resteXof: membres.reduce((s, m) => s + Math.max(0, m.resteXof - (payeParPiece.get(m.f.id) ?? 0)), 0),
+        idDe: (n) => idDuRappelDuPoint(fiche.id, depart, n),
+      });
+    }
+  }
+  const dansUnPoint = new Set(points.flatMap((p) => (p.membres ?? []).map((m) => m.f.id)));
+  const aTraiter: Dossier[] = [...points, ...dossiers.filter((d) => !!d.subId || !dansUnPoint.has(d.f.id))];
+
   /* Le journal : les relances déjà posées, et celles d'aujourd'hui (une cliente, une relance par jour). */
-  const idsJournal = dossiers.flatMap((d) => CADENCE_DES_RELANCES.map((_, k) => d.idDe(k + 1)));
+  const idsJournal = aTraiter.flatMap((d) => CADENCE_DES_RELANCES.map((_, k) => d.idDe(k + 1)));
   const journal = new Map<string, { statut?: string; quand?: string }>();
   for (let i = 0; i < idsJournal.length; i += 200) {
     const { data } = await sb.from('envois').select('id, data').in('id', idsJournal.slice(i, i + 200));
@@ -732,16 +843,15 @@ async function tournee(sb: any, o: { maintenantMs: number; MODELE: string; WA_TO
   const sautes: Record<string, number> = {};
   const saute = (pourquoi: string) => { sautes[pourquoi] = (sautes[pourquoi] ?? 0) + 1; };
 
-  for (const d of dossiers) {
+  for (const d of aTraiter) {
     if (parties >= BORNE_DES_RELANCES) { bornee = true; break; }
     const { f, depart } = d;
-    const reste = Math.max(0, d.resteXof - (payeParPiece.get(f.id) ?? 0));
+    /* Le reste d'un point est déjà net de ce que ses liens ont payé. */
+    const reste = d.membres ? d.resteXof : Math.max(0, d.resteXof - (payeParPiece.get(f.id) ?? 0));
     /* UNE FACTURE ORDINAIRE va où elle allait : la payeuse si elle a un
        numéro, sinon la cliente soignée. Seule une échéance de formule peut
        aller à celle qui paie pour le foyer d'une tête portée. */
-    const payeuse = fiches.get(f.clientId);
-    const soignee = fiches.get(f.forClientId ?? f.clientId);
-    const fiche = d.subId ? destinataireDe([f.clientId, f.forClientId ?? d.tete ?? f.clientId], fiches, payeurDuFoyer) : (numeroIntl(payeuse?.phone) ? payeuse : soignee);
+    const fiche = d.fiche ?? (d.subId ? destinataireDe([f.clientId, f.forClientId ?? d.tete ?? f.clientId], fiches, payeurDuFoyer) : destinationOrdinaire(f));
     const tel = numeroIntl(fiche?.phone);
     if (!fiche || !tel) { saute('sans-numero'); continue; }
     if (fiche.archived) { saute('archivee'); continue; }
@@ -770,8 +880,12 @@ async function tournee(sb: any, o: { maintenantMs: number; MODELE: string; WA_TO
        attente trop vieille pour finir sa fenêtre se refait. */
     const fraisXof = fraisTapGo(reste, reglages.mndPay);
     const totalXof = reste + fraisXof;
-    const { data: attentes } = await sb.from('mnd_pay').select('id, data')
-      .eq('data->>moyen', 'tapgo').eq('data->>statut', 'en_attente').eq('data->>pieceId', f.id).limit(20);
+    /* UN POINT N'A PAS D'ATTENTE : elle se pose pièce par pièce ; payé par son bouton, l'argent
+       arrive à rapprocher au comptoir, et se pointe facture par facture. */
+    const { data: attentes } = d.membres
+      ? { data: [{ id: '', data: { totalXof, creeLe: new Date(maintenantMs).toISOString() } }] }
+      : await sb.from('mnd_pay').select('id, data')
+        .eq('data->>moyen', 'tapgo').eq('data->>statut', 'en_attente').eq('data->>pieceId', f.id).limit(20);
     const meme = ((attentes ?? []) as { id: string; data: { totalXof?: number; creeLe?: string } }[])
       .find((l) => Math.round(Number(l.data?.totalXof ?? 0)) === totalXof && maintenantMs - Date.parse(l.data?.creeLe ?? '') < ATTENTE_RAFRAICHIE_MS);
     if (!meme) {
@@ -796,23 +910,32 @@ async function tournee(sb: any, o: { maintenantMs: number; MODELE: string; WA_TO
     const jour = dateDite(f.date);
     const resteDit = enFrancs(reste);
     const parametre = `${codeTapGo(reglages.mndPay)}-${totalXof}`;
+    /* LE RAPPEL DU POINT : {{1}} l'appel, {{2}} le total, {{3}} ce qu'il couvre (« vos 6 rituels, du
+       13 juin au 1er septembre 2026 », l'année dite) ; jamais un numéro de pièce. */
+    const pour = d.membres ? `vos ${phraseDuPoint(d.membres.map((m) => ({ id: m.f.id, date: m.f.date, apptId: m.f.apptId })))}` : '';
+    const modele = d.membres ? MODELE_POINT : MODELE;
     const composants = [
-      { type: 'body', parameters: [{ type: 'text', text: appel }, { type: 'text', text: jour }, { type: 'text', text: resteDit }] },
+      { type: 'body', parameters: d.membres
+        ? [{ type: 'text', text: appel }, { type: 'text', text: resteDit }, { type: 'text', text: pour }]
+        : [{ type: 'text', text: appel }, { type: 'text', text: jour }, { type: 'text', text: resteDit }] },
       { type: 'button', sub_type: 'url', index: '0', parameters: [{ type: 'text', text: parametre }] },
     ];
-    const texteDuFil = `Bonjour ${appel}, un petit rappel de la Maison MND : votre facture du ${jour} attend encore son règlement, reste ${resteDit}. Touchez « Régler » : votre téléphone compose le numéro de paiement, frais compris. Si c'est déjà fait, merci, et ne tenez pas compte de ce message. [Régler]`;
+    const texteDuFil = d.membres
+      ? `Bonjour ${appel}, petit rappel de la Maison MND : ${resteDit} restent à régler pour ${pour}. Touchez « Régler » pour payer en une fois. Si c'est déjà fait, merci, et ne tenez pas compte de ce message. [Régler]`
+      : `Bonjour ${appel}, un petit rappel de la Maison MND : votre facture du ${jour} attend encore son règlement, reste ${resteDit}. Touchez « Régler » : votre téléphone compose le numéro de paiement, frais compris. Si c'est déjà fait, merci, et ne tenez pas compte de ce message. [Régler]`;
     const maintenant = new Date(maintenantMs).toISOString();
     const commun = {
-      id: idEnvoi, branchId: f.branchId, type: 'relance-facture', canal: 'whatsapp', apptId: '', dateRdv: '', invoiceId: f.id, rang: n,
+      id: idEnvoi, branchId: f.branchId, type: 'relance-facture', canal: 'whatsapp', apptId: '', dateRdv: '', invoiceId: d.membres ? '' : f.id, rang: n,
+      ...(d.membres ? { point: true, invoiceIds: d.membres.map((m) => m.f.id) } : {}),
       ...(d.subId ? { subId: d.subId, ...(d.resiliation ? { resiliation: true } : { echeance: d.echeance }) } : {}),
-      clientId: fiche.id, numero: tel, dateFacture: f.date, quand: maintenant,
+      clientId: fiche.id, numero: tel, dateFacture: d.membres ? (depart ?? f.date) : f.date, quand: maintenant,
     };
     if (salleOuverte) {
       await sb.from('envois').upsert({
         id: idEnvoi, branch_id: f.branchId ?? null,
         data: {
           ...commun, statut: 'en-attente',
-          ...depot(maintenantMs, regles, { genre: 'whatsapp', numero: tel, modele: MODELE, parQui: 'la Maison, automatiquement', texteAuFil: texteDuFil, composants }, appel),
+          ...depot(maintenantMs, regles, { genre: 'whatsapp', numero: tel, modele, parQui: 'la Maison, automatiquement', texteAuFil: texteDuFil, composants }, appel),
         },
       }, { onConflict: 'id' });
       relanceesAujourdhui.add(tel);
@@ -828,7 +951,7 @@ async function tournee(sb: any, o: { maintenantMs: number; MODELE: string; WA_TO
       const rep = await envoie(`https://graph.facebook.com/v20.0/${WA_PHONE_ID}/messages`, {
         method: 'POST',
         headers: { 'content-type': 'application/json', authorization: `Bearer ${WA_TOKEN}` },
-        body: JSON.stringify({ messaging_product: 'whatsapp', to: tel, type: 'template', template: { name: MODELE, language: { code: 'fr' }, components: composants } }),
+        body: JSON.stringify({ messaging_product: 'whatsapp', to: tel, type: 'template', template: { name: modele, language: { code: 'fr' }, components: composants } }),
         signal: AbortSignal.timeout(10_000),
       });
       const corps = await rep.json().catch(() => ({}));
@@ -851,14 +974,14 @@ async function tournee(sb: any, o: { maintenantMs: number; MODELE: string; WA_TO
         id: idFil, branch_id: f.branchId ?? null,
         data: {
           id: idFil, waId, branchId: f.branchId, sens: 'sortant', numero: tel, clientId: fiche.id, texte: texteDuFil,
-          type: 'text', quand: maintenant, etat: 'en-route', modele: MODELE, parQui: 'la Maison, automatiquement',
+          type: 'text', quand: maintenant, etat: 'en-route', modele, parQui: 'la Maison, automatiquement',
         },
       }, { onConflict: 'id' });
     }
   }
 
   return {
-    version: VERSION, jour: aujourdhui, relances: parties, enLice: dossiers.length, salle: salleOuverte, sautes,
+    version: VERSION, jour: aujourdhui, relances: parties, enLice: aTraiter.length, points: points.length, salle: salleOuverte, sautes,
     ...(bornee ? { borne: BORNE_DES_RELANCES } : {}),
   };
 }
@@ -868,6 +991,8 @@ Deno.serve(async (req) => {
   const service = (Deno.env.get('CLE_SERVICE') ?? Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '').trim();
   const urlBase = Deno.env.get('SUPABASE_URL') ?? '';
   const MODELE = (Deno.env.get('WA_TEMPLATE_RELANCE') ?? '').trim();
+  /* Le modèle du rappel du point (28 octobre 2026) : absent, les relances restent facture par facture. */
+  const MODELE_POINT = (Deno.env.get('WA_TEMPLATE_RAPPEL_DU_POINT') ?? '').trim();
   const WA_TOKEN = Deno.env.get('WA_TOKEN') ?? '';
   const WA_PHONE_ID = Deno.env.get('WA_PHONE_ID') ?? '';
 
@@ -876,7 +1001,7 @@ Deno.serve(async (req) => {
   if (req.method === 'GET') {
     return json({
       fonction: 'relances-factures', version: VERSION,
-      secrets: { WA_TEMPLATE_RELANCE: MODELE.length, CLE_SERVICE: service.length, WA_TOKEN: WA_TOKEN.length, WA_PHONE_ID: WA_PHONE_ID.length },
+      secrets: { WA_TEMPLATE_RELANCE: MODELE.length, WA_TEMPLATE_RAPPEL_DU_POINT: MODELE_POINT.length, CLE_SERVICE: service.length, WA_TOKEN: WA_TOKEN.length, WA_PHONE_ID: WA_PHONE_ID.length },
     });
   }
 
@@ -889,7 +1014,7 @@ Deno.serve(async (req) => {
 
   const sb = createClient(urlBase, service);
   try {
-    const r = await tournee(sb, { maintenantMs: Date.now(), MODELE, WA_TOKEN, WA_PHONE_ID });
+    const r = await tournee(sb, { maintenantMs: Date.now(), MODELE, MODELE_POINT, WA_TOKEN, WA_PHONE_ID });
     return json(r, r.relances === 'lecture-refusee' ? 500 : 200);
   } catch (e) {
     return json({ version: VERSION, relances: 'echec', motif: String(e).slice(0, 200) }, 500);

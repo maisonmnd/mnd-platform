@@ -20,7 +20,6 @@
 
 export type TeteDuPoint = { id: string; name?: string; familyId?: string; phone?: string; archived?: boolean };
 export type CompteDuPoint = { id: string; name?: string; payerClientId?: string };
-export type PieceDuPoint = { id: string; kind?: string; clientId?: string; forClientId?: string; branchId?: string; date: string; apptId?: string };
 
 /** Il n'y a de point qu'à partir de deux factures : une seule part comme avant. */
 export const SEUIL_DU_POINT = 2;
@@ -66,10 +65,12 @@ export function piecesDuPoint<P extends PieceDuPoint>(o: {
     .sort((a, b) => a.date.localeCompare(b.date) || a.id.localeCompare(b.id));
 }
 
-const MOIS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
+// ── DEBUT point (copie dans supabase/functions/relances-factures, éprouvée par scripts/verifie-les-relances)
+export type PieceDuPoint = { id: string; kind?: string; clientId?: string; forClientId?: string; branchId?: string; date: string; apptId?: string };
+const MOIS_DU_POINT = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
 const jourEtMois = (iso: string): string => {
   const j = Number(iso.slice(8, 10));
-  return `${j === 1 ? '1er' : j} ${MOIS[Number(iso.slice(5, 7)) - 1] ?? ''}`;
+  return `${j === 1 ? '1er' : j} ${MOIS_DU_POINT[Number(iso.slice(5, 7)) - 1] ?? ''}`;
 };
 
 /** L'ÉTENDUE DES JOURS, avec l'année (règle de la Maison sur toute date
@@ -80,6 +81,8 @@ export function etendueDite(jours: readonly string[]): string {
   if (tries.length === 0) return '';
   const a = tries[0]; const b = tries[tries.length - 1];
   if (a.slice(0, 10) === b.slice(0, 10)) return `du ${jourEtMois(a)} ${a.slice(0, 4)}`;
+  /* Le même mois ne se dit qu'une fois : « du 18 au 20 octobre 2026 ». */
+  if (a.slice(0, 7) === b.slice(0, 7)) return `du ${jourEtMois(a).split(' ')[0]} au ${jourEtMois(b)} ${b.slice(0, 4)}`;
   return a.slice(0, 4) === b.slice(0, 4)
     ? `du ${jourEtMois(a)} au ${jourEtMois(b)} ${b.slice(0, 4)}`
     : `du ${jourEtMois(a)} ${a.slice(0, 4)} au ${jourEtMois(b)} ${b.slice(0, 4)}`;
@@ -93,6 +96,7 @@ export function phraseDuPoint(pieces: readonly PieceDuPoint[]): string {
   const mot = pieces.every((p) => !!p.apptId) ? (n > 1 ? 'rituels' : 'rituel') : (n > 1 ? 'factures' : 'facture');
   return `${n} ${mot}, ${etendueDite(pieces.map((p) => p.date))}`;
 }
+// ── FIN point
 
 /** Les prénoms des têtes, chacun une fois, dans l'ordre des factures. */
 export function prenomsDuPoint(pieces: readonly PieceDuPoint[], tetes: readonly TeteDuPoint[]): string[] {

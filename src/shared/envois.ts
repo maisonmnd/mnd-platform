@@ -237,5 +237,7 @@ const MODELE_DIT: Record<string, string> = {
   point_avant_seance: 'point d’avant séance',
   recu_de_paiement: 'reçu de paiement',
   rappel_de_reglement: 'relance de facture',
+  rappel_du_point: 'rappel du point',
+  point_du_compte: 'point du compte',
 };
 export const modeleDit = (nom: string): string => MODELE_DIT[nom] ?? nom;

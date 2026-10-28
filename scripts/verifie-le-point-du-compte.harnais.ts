@@ -80,9 +80,9 @@ dit(3, 'les factures : celles de Merline et de Djidjoho (meme ecrites au nom de 
   [du('pere'), du('sarah'), du('voisine')]);
 
 /* == #4 -- L'ETENDUE DES JOURS, AVEC L'ANNEE == */
-dit(4, 'l etendue : la meme annee, deux annees, un seul jour (le 1er se dit 1er)',
-  ['du 13 juin au 1er septembre 2026', 'du 20 décembre 2025 au 5 janvier 2026', 'du 5 septembre 2026', ''],
-  [etendueDite(['2026-09-01', '2026-06-13', '2026-07-04']), etendueDite(['2026-01-05', '2025-12-20']), etendueDite(['2026-09-05', '2026-09-05']), etendueDite([])]);
+dit(4, 'l etendue : la meme annee, deux annees, un seul jour (le 1er se dit 1er), le meme mois dit une fois',
+  ['du 13 juin au 1er septembre 2026', 'du 20 décembre 2025 au 5 janvier 2026', 'du 5 septembre 2026', '', 'du 1er au 20 octobre 2026'],
+  [etendueDite(['2026-09-01', '2026-06-13', '2026-07-04']), etendueDite(['2026-01-05', '2025-12-20']), etendueDite(['2026-09-05', '2026-09-05']), etendueDite([]), etendueDite(['2026-10-20', '2026-10-01'])]);
 
 /* == #5 -- CE QUE LE POINT COUVRE : des rituels, ou des factures quand l'une n'en est pas un == */
 const lesQuatre = pieces.filter((p) => ['i1', 'i2', 'i3', 'i4'].includes(p.id));

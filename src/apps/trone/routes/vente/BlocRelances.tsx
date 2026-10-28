@@ -34,10 +34,12 @@ export function BlocRelances({ facture, qui, pose }: {
     : e.fini
       ? `Les ${total} relances sont parties, la dernière le ${jourDit(e.derniereLe ?? aujourdhui)}. La direction l’appelle.`
       : `${e.parties === 0 ? 'Aucune relance partie' : `${e.parties} sur ${total} partie${e.parties > 1 ? 's' : ''}`}${prochaine ? ` · prochaine le ${jourDit(prochaine)} à 10 h` : ''}.`;
+  /* Rappelée avec ses autres factures, en un seul message (le rappel du point, 28 octobre 2026). */
+  const avecLePoint = e.point && !enPause ? ' Avec ses autres factures, en un seul rappel.' : '';
   return (
     <div className="trv-doc-actions__row" style={{ display: 'grid', gap: 6, padding: '10px 12px', border: '1px solid var(--hairline, #E2D8C6)', borderRadius: 8 }} data-relances={enPause ? 'pause' : e.fini ? 'fini' : String(e.parties)}>
       <span style={{ fontSize: 10.5, letterSpacing: '.16em', textTransform: 'uppercase', color: 'var(--color-cuivre, #9A6036)' }}>Relances sur WhatsApp</span>
-      <span style={{ fontSize: 13 }}>{dit}</span>
+      <span style={{ fontSize: 13 }}>{dit}{avecLePoint}</span>
       {!e.fini && (
         <button
           type="button"
