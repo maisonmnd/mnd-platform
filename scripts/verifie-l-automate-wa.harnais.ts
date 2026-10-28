@@ -1155,7 +1155,7 @@ const regles: Regle[] = [
       return ecarts;
     },
     pannes: [
-      { nom: 'une connue repasse par le besoin (plus de La meme chose)', mute: [P(AUTO, '    if (fiches.length === 1 && titulaire) return pourLaFiche(titulaire, true);', '    if (fiches.length === 1 && titulaire) return dire(msgBesoin(false, true));')] },
+      { nom: 'une connue repasse par le besoin (plus de La meme chose)', mute: [P(AUTO, '    if (fiches.length === 1 && titulaire) return pourLaFiche(titulaire, salue);', '    if (fiches.length === 1 && titulaire) return dire(msgBesoin(false, salue));')] },
       { nom: 'l inconnue sans civilite (le prenom d abord)', mute: [P(AUTO, '      if (!base.panier.civilite) return dire(msgCivilite(false));', '      if (!base.panier.civilite && base.panier.prenom) return dire(msgCivilite(false));')] },
     ],
   },
@@ -3080,7 +3080,6 @@ const regles: Regle[] = [
       { nom: 'la main de la reception arrete encore la reservation', mute: [P(AUTO, "  if (courante === 'main' && etat?.mainDeLaReception && tour && intentionDeReserver(tour.texte)) return 'repos';\n", '')] },
       { nom: 'toute main cede a une envie de reserver', mute: [P(AUTO, "  if (courante === 'main' && etat?.mainDeLaReception && tour && intentionDeReserver(tour.texte)) return 'repos';", "  if (courante === 'main' && tour && intentionDeReserver(tour.texte)) return 'repos';")] },
       { nom: 'la reception ne dit plus qu elle a passe la main', mute: [P(AUTO, "      const s = laMain('question', true, r.texte, true);", "      const s = laMain('question', true, r.texte);")] },
-      { nom: 'l atelier garde la main de la reception', mute: [P(AUTO, "  const courante = tour || reprise ? etapeDuTour(ancien, tour, ctx.main, ms, pauseH) : (ancien?.etape ?? 'repos');", "  const courante = tour || reprise ? etapeCourante(ancien, ctx.main, ms, pauseH) : (ancien?.etape ?? 'repos');")] },
       { nom: 'le parcours resalue apres le mot de la reception', mute: [P(AUTO, '    const salue = !tour?.deLaReception;', '    const salue = true;')] },
       { nom: 'le tour du parcours ne se dit plus de la reception', mute: [P(AUTO, 'media: false, deLaReception: true });', 'media: false });')] },
     ],

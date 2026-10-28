@@ -1139,8 +1139,9 @@ function plafondDuFil(etat: EtatDuFil | null | undefined): number {
     avait passé la main à l'équipe, la Maison fermée ; « Je veux un RDV » puis
     « Pour le jeudi à 9h » sont restés sans réponse (essai de Yéman, 0 h 42).
     Une main passée par la réception n'arrête pas une réservation : une envie
-    de réserver rouvre le parcours. Celle qu'une personne a prise (la pause)
-    tient toujours, et celle de l'automate aussi. */
+    de réserver rouvre le parcours (l'atelier, hors parcours, la reçoit comme
+    au repos). Celle qu'une personne a prise (la pause) tient toujours, et
+    celle de l'automate aussi. */
 function etapeDuTour(
   etat: EtatDuFil | null | undefined, tour: TourDeLaCliente | null, main: MainDuFil | null | undefined, maintenantMs: number, pauseHeures: number,
 ): EtapeDuFil {
@@ -1420,7 +1421,7 @@ function atelierDuTour(ancien: EtatDuFil | null | undefined, tour: TourDeLaClien
   const maintenant = isoWa(ms);
   const pauseH = ctx.reglage.pauseHeures;
   const aujourdhui = instantACotonou(ms).iso;
-  const courante = tour || reprise ? etapeDuTour(ancien, tour, ctx.main, ms, pauseH) : (ancien?.etape ?? 'repos');
+  const courante = tour || reprise ? etapeCourante(ancien, ctx.main, ms, pauseH) : (ancien?.etape ?? 'repos');
   const version = (ancien?.version ?? 0) + (memeVersion ? 0 : 1);
 
   const base: EtatDuFil = ancien
