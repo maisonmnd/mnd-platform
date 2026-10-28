@@ -127,7 +127,7 @@ import webpush from 'npm:web-push@3.6.7';
 
 /** LA VERSION DE CE FICHIER, dite par le contrôle de santé. Sans elle on ne
     sait pas quel code tourne vraiment. À incrémenter à chaque déploiement. */
-const VERSION = '2026-10-27-a · l Assistant Maison entend : ses boutons, STOP, la question franche';
+const VERSION = '2026-10-28-a · M. et Mme devant le prénom';
 
 /** LE POIDS QU'UNE PIÈCE REÇUE PEUT FAIRE : le plafond du compartiment
     `whatsapp` (0102). Au-delà, le fichier reste chez Meta et le fil le dit. */
@@ -379,8 +379,9 @@ const appelDe = (d: { name?: unknown; civilite?: unknown; auMasculin?: unknown }
   const prenom = String(d?.name ?? repli ?? '').trim().split(/\s+/)[0] ?? '';
   /* La civilité inconnue ne se suppose plus (13 octobre 2026) : le prénom seul. */
   if (!civ) return prenom || 'Madame, Monsieur';
-  const mot = civ === 'monsieur' ? 'Monsieur' : civ === 'mademoiselle' ? 'Mademoiselle' : 'Madame';
-  return prenom ? `${mot} ${prenom}` : mot;
+  /* Abrégée devant le prénom (28 octobre 2026) : « M. Jean-Luc », « Mme Shadé » ; seule, en entier. */
+  if (prenom) return `${civ === 'monsieur' ? 'M.' : civ === 'mademoiselle' ? 'Mlle' : 'Mme'} ${prenom}`;
+  return civ === 'monsieur' ? 'Monsieur' : civ === 'mademoiselle' ? 'Mademoiselle' : 'Madame';
 };
 const heureDeLaReprise = (hhmm: string | undefined): string => {
   if (!/^\d{1,2}:\d{2}$/.test(hhmm ?? '')) return hhmm ?? '';

@@ -390,11 +390,11 @@ dit('le webhook range la transaction inconnue après l avoir relue chez FedaPay'
 const PARAM = parametreTapGo(25_400, undefined);
 dit('le paramètre du lien : code-total, un seul mot que la fonction d envoi accepte', ['51166-25400', true],
   [PARAM, /^[A-Za-z0-9._~-]{1,500}$/.test(PARAM)]);
-const MOT = motTapGo('Madame Awa', '25 400 F', `${LIEN_TAPGO}${PARAM}`);
+const MOT = motTapGo('Mme Awa', '25 400 F', `${LIEN_TAPGO}${PARAM}`);
 dit('le mot libre : le lien, le montant, ni étoile (WhatsApp les mettrait en gras) ni le mot « code »', [true, true, false, false],
   [MOT.includes('https://maisonmnd.com/trone/payer.html?tg=51166-25400'), MOT.includes('25 400 F'), MOT.includes('*'), /code/i.test(MOT)]);
-dit('le modèle Meta : paiement_en_attente (Utilitaire), deux variables (son appel, le montant)', ['paiement_en_attente', ['Madame Awa', '25 400 F']],
-  [MODELE_TAPGO, variablesTapGo('Madame Awa', '25 400 F')]);
+dit('le modèle Meta : paiement_en_attente (Utilitaire), deux variables (son appel, le montant)', ['paiement_en_attente', ['Mme Awa', '25 400 F']],
+  [MODELE_TAPGO, variablesTapGo('Mme Awa', '25 400 F')]);
 
 /* L'envoi : un faux envoi note ce qui part. Dans la fenêtre : le mot seul. */
 const faux = (reponses: ResultatDEnvoi[]) => {
@@ -409,7 +409,7 @@ dit('dans la fenêtre : un seul message, libre, avec le lien, et sa clé d unici
   [r1.ok, f1.appels.length, (f1.appels[0].texte ?? '').includes('payer.html?tg=51166-25400'), f1.appels[0].modele, f1.appels[0].cleUnique]);
 const f2 = faux([{ ok: false, erreur: 'La fenêtre de 24 heures est fermée : seul un modèle approuvé passe.' }, { ok: true, id: 'm2' }]);
 const r2 = await envoieLeNumeroTapGo({ ...base, envoie: f2.envoie });
-dit('hors fenêtre : le modèle, ses variables, le paramètre du bouton, une autre clé', [true, 2, 'paiement_en_attente', ['Madame Awa', '25 400 F'], '51166-25400', 'tapgo-mp-1-modele'],
+dit('hors fenêtre : le modèle, ses variables, le paramètre du bouton, une autre clé', [true, 2, 'paiement_en_attente', ['Mme Awa', '25 400 F'], '51166-25400', 'tapgo-mp-1-modele'],
   [r2.ok, f2.appels.length, f2.appels[1].modele, f2.appels[1].variables, f2.appels[1].boutonUrl, f2.appels[1].cleUnique]);
 const f3 = faux([{ ok: false, erreur: 'Ce numéro n’est pas lisible.' }]);
 const r3 = await envoieLeNumeroTapGo({ ...base, envoie: f3.envoie });
@@ -552,7 +552,7 @@ dit('l envoi transporte le paramètre du bouton jusqu à la fonction', true, /\.
 {
   const cliente = { id: 'cl-1', name: 'Awa Dossou', civilite: 'madame' as const, phone: '0197000012', branchId: 'cot' };
   dit('le modèle de la facture à régler : facture_du_rituel, réécrit et resoumis le 18 octobre (elle l a modifié, pas créé facture_a_regler)', 'facture_du_rituel', MODELE_FACTURE);
-  dit('ses QUATRE variables : son appel, le jour AVEC l année, « ci-jointe » (jamais le numéro), le reste dû', ['Madame Awa', '17 octobre 2026', 'ci-jointe', '10 000 F'],
+  dit('ses QUATRE variables : son appel, le jour AVEC l année, « ci-jointe » (jamais le numéro), le reste dû', ['Mme Awa', '17 octobre 2026', 'ci-jointe', '10 000 F'],
     variablesDeLaFacture(cliente, '2026-10-17', '10 000 F'));
   dit('un refus qui tient au modèle (#132xxx) se reconnaît ; la fenêtre et un numéro injoignable, non', [true, true, true, false, false],
     ['(#132000) Number of parameters does not match the expected number of params', '(#132001) Template name does not exist in the translation',
@@ -581,7 +581,7 @@ dit('l envoi transporte le paramètre du bouton jusqu à la fonction', true, /\.
 
   /* C. Le modèle pas encore approuvé (ou ses variables refusées) : le lien de paiement, sans PDF. */
   const C = await joue([FENETRE, { ok: false, erreur: '(#132001) Template name does not exist in the translation' }, { ok: true, id: 'l' }]);
-  dit('modèle pas encore approuvé : paiement_en_attente part, sans PDF, total frais compris, même bouton, et l écran le dit', [true, 'lien', 3, 'paiement_en_attente', false, ['Madame Awa', '10 160 F'], '51166-10160'],
+  dit('modèle pas encore approuvé : paiement_en_attente part, sans PDF, total frais compris, même bouton, et l écran le dit', [true, 'lien', 3, 'paiement_en_attente', false, ['Mme Awa', '10 160 F'], '51166-10160'],
     [C.r.ok, (C.r as { repli?: string }).repli, C.appels.length, C.appels[2].modele, !!C.appels[2].piece, C.appels[2].variables, C.appels[2].boutonUrl]);
   const C2 = await joue([FENETRE, { ok: false, erreur: '(#132000) Number of parameters does not match the expected number of params' }, { ok: true, id: 'l' }]);
   dit('... le refus du 18 octobre (#132000) bascule lui aussi sur le lien', [true, 'lien'], [C2.r.ok, (C2.r as { repli?: string }).repli]);

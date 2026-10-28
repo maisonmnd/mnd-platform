@@ -1121,15 +1121,15 @@ const regles: Regle[] = [
       const { ecarts, vaut, vrai } = juge();
       const a = scnConnue(ORIGINAL);
       vrai('A1 la meme chose ? Bonsoir, la civilite, la derniere venue avec son annee', a.s1.messages[0]?.etape === 'meme'
-        && corps(a.s1).startsWith('Bonsoir Madame Naffi, merci de votre message. Votre dernière venue : Lavage rituel (KLƆKLƆ™ Essentiel) et Resserrage des racines (SÍNSIN™ Essentiel), le samedi 12 septembre 2026.'), corps(a.s1));
+        && corps(a.s1).startsWith('Bonsoir Mme Naffi, merci de votre message. Votre dernière venue : Lavage rituel (KLƆKLƆ™ Essentiel) et Resserrage des racines (SÍNSIN™ Essentiel), le samedi 12 septembre 2026.'), corps(a.s1));
       vaut('A1 ... ses trois boutons', ['La même chose', 'Autre chose', 'Parler à la Maison'], boutonsDe(a.s1));
       vrai('A2 les places : le samedi voulu d abord, deux par jour, l annee dans le titre', a.s2.messages[0]?.etape === 'places'
         && lignesDe(a.s2)[0] === 'Sam. 10 oct. 2026 · 9 h' && lignesDe(a.s2)[1] === 'Sam. 10 oct. 2026 · 14 h' && (lignesDe(a.s2)[2] ?? '').startsWith('Sam. 17 oct. 2026'), lignesDe(a.s2).join(' | '));
       vrai('A2 ... sept places au plus, puis Un autre jour et Parler a la Maison', lignesDe(a.s2).length <= 9 && lignesDe(a.s2).at(-2) === 'Un autre jour' && lignesDe(a.s2).at(-1) === 'Parler à la Maison');
-      vaut('A3 le recapitulatif', 'Voici votre rendez-vous, Madame Naffi : Lavage rituel (KLƆKLƆ™ Essentiel) et Resserrage des racines (SÍNSIN™ Essentiel), samedi 10 octobre 2026 à 9 h, à la Maison MND. Nous le posons ?', corps(a.s3));
+      vaut('A3 le recapitulatif', 'Voici votre rendez-vous, Mme Naffi : Lavage rituel (KLƆKLƆ™ Essentiel) et Resserrage des racines (SÍNSIN™ Essentiel), samedi 10 octobre 2026 à 9 h, à la Maison MND. Nous le posons ?', corps(a.s3));
       vaut('A3 ... Je confirme, Une autre heure, Parler a la Maison', ['Je confirme', 'Une autre heure', 'Parler à la Maison'], boutonsDe(a.s3));
       vrai('A4 c est confirme, avec la devise', a.s4.messages[0]?.etape === 'confirme'
-        && corps(a.s4).startsWith("C'est confirmé, Madame Naffi : votre rendez-vous est retenu le samedi 10 octobre 2026 à 9 h. Nous vous attendons. Merci de nous prévenir en cas d'empêchement.")
+        && corps(a.s4).startsWith("C'est confirmé, Mme Naffi : votre rendez-vous est retenu le samedi 10 octobre 2026 à 9 h. Nous vous attendons. Merci de nous prévenir en cas d'empêchement.")
         && corps(a.s4).endsWith(DEVISE), corps(a.s4));
       vaut('A4 l alerte au personnel : le prenom seul, la date avec l annee', { titre: 'Nouveau rendez-vous par WhatsApp', corps: 'Naffi, samedi 10 octobre 2026 à 9 h' },
         { titre: a.s4.alerte?.titre, corps: a.s4.alerte?.corps });
@@ -1145,8 +1145,8 @@ const regles: Regle[] = [
       vrai('B4 la civilite, en liste', b.s4.messages[0]?.etape === 'civilite' && b.s4.messages[0]?.forme === 'liste'
         && corps(b.s4) === 'Pour inscrire votre rendez-vous, comment devons-nous vous appeler ?', corps(b.s4));
       vaut('B5 et votre prenom, Mademoiselle, a ecrire en message', 'Et votre prénom, Mademoiselle ? Écrivez-le simplement dans un message, en réponse.', corps(b.s5));
-      vaut('B6 le recapitulatif dit Mademoiselle Awa', 'Voici votre rendez-vous, Mademoiselle Awa : Lavage rituel (KLƆKLƆ™ Essentiel), mardi 13 octobre 2026 à 9 h, à la Maison MND. Nous le posons ?', corps(b.s6));
-      vrai('B7 c est confirme, Mademoiselle Awa', corps(b.s7).startsWith("C'est confirmé, Mademoiselle Awa : votre rendez-vous est retenu le mardi 13 octobre 2026 à 9 h."), corps(b.s7));
+      vaut('B6 le recapitulatif dit Mlle Awa', 'Voici votre rendez-vous, Mlle Awa : Lavage rituel (KLƆKLƆ™ Essentiel), mardi 13 octobre 2026 à 9 h, à la Maison MND. Nous le posons ?', corps(b.s6));
+      vrai('B7 c est confirme, Mlle Awa', corps(b.s7).startsWith("C'est confirmé, Mlle Awa : votre rendez-vous est retenu le mardi 13 octobre 2026 à 9 h."), corps(b.s7));
       vaut('B  huit messages de la Maison', 8, b.p.envoyes.length);
       const d = b.p.poses[0]?.demande;
       vaut('B  la demande : whatsapp, rdv, sa civilite, son prenom, +229, le consentement a l heure du Je confirme, sans fiche',
@@ -1170,7 +1170,7 @@ const regles: Regle[] = [
       vaut('une seule ecriture, et c est le toucher Je confirme (geste oui)', ['oui'], a.p.gestesDesPoses);
       const o = scnOuiTape(ORIGINAL);
       vrai('un oui tape au recapitulatif ne pose rien : la relance, la meme etape', o.s1.ecritures.length === 0 && o.s1.messages[0]?.etape === 'recap'
-        && corps(o.s1) === "Touchez l'un des choix ci-dessous, Madame Naffi, ou Parler à la Maison.", corps(o.s1));
+        && corps(o.s1) === "Touchez l'un des choix ci-dessous, Mme Naffi, ou Parler à la Maison.", corps(o.s1));
       vrai('« Je confirme » tape (un second ecart) ne pose rien : la main passe', o.s2.ecritures.length === 0 && o.p.etat?.motifMain === 'ecarts' && o.p.poses.length === 0);
       const v = scnVieuxToucher(ORIGINAL);
       vrai('un Je confirme d un ancien recapitulatif ne pose rien, il renvoie le recapitulatif', v.posesApresVieuxOui === 0 && v.sOui.ecritures.length === 0 && v.sOui.messages[0]?.etape === 'recap', corps(v.sOui));
@@ -1242,9 +1242,9 @@ const regles: Regle[] = [
       const { ecarts, vaut, vrai } = juge();
       const c = scnPlacePrise(ORIGINAL);
       vrai('samedi matin d abord, deux par jour', lignesDe(c.s2)[0] === 'Sam. 10 oct. 2026 · 9 h' && lignesDe(c.s2)[1] === 'Sam. 10 oct. 2026 · 10 h' && lignesDe(c.s2)[2] === 'Sam. 17 oct. 2026 · 9 h', lignesDe(c.s2).join(' | '));
-      vaut('prise avant le Je confirme : les places les plus proches', "Cette heure vient d'être prise, Madame Naffi. Voici les places les plus proches.", corps(c.s4));
+      vaut('prise avant le Je confirme : les places les plus proches', "Cette heure vient d'être prise, Mme Naffi. Voici les places les plus proches.", corps(c.s4));
       vrai('... rien n est pose, et l heure prise n est plus proposee', c.posesApresPrise === 0 && c.s4.ecritures.length === 0 && !lignesDe(c.s4).includes('Sam. 10 oct. 2026 · 9 h') && lignesDe(c.s4)[0] === 'Sam. 10 oct. 2026 · 10 h', lignesDe(c.s4).join(' | '));
-      vaut('refusee par le verrou : les places les plus proches', "Cette heure vient d'être prise, Madame Naffi. Voici les places les plus proches.", corps(c.s6));
+      vaut('refusee par le verrou : les places les plus proches', "Cette heure vient d'être prise, Mme Naffi. Voici les places les plus proches.", corps(c.s6));
       vrai('... sans la place refusee, et l etape revient aux places', !lignesDe(c.s6).includes('Sam. 10 oct. 2026 · 10 h') && c.etapeApresRefus === 'places', lignesDe(c.s6).join(' | '));
       vrai('... aucune alerte de rendez-vous pose', !c.s6.alerte && !c.s4.alerte);
       vrai('une autre erreur du verrou : la main passe, dite', c.s7.messages[0]?.etape === 'recap' && c.s8.messages[0]?.etape === 'main' && c.p.etat?.motifMain === 'erreur', corps(c.s8));
@@ -1279,7 +1279,7 @@ const regles: Regle[] = [
       const toutes = tousLesParcours(ORIGINAL).flatMap((p) => p.poses);
       vaut('dans tous les parcours, aucune creation, restauration ni devis pose', [], toutes.flatMap((x) => x.rdv.serviceIds).filter((id) => ['vekpe-crea', 'finfin', 'sur-devis'].includes(id)));
       const an = scnAnnulations(ORIGINAL);
-      vrai('le jour meme : la main passe, dite, rien n est pose', corps(an.s1) === "Pour aujourd'hui, une personne de la Maison vous répond ici, Madame Naffi." && an.jm.etat?.motifMain === 'jour-meme' && an.jm.poses.length === 0, corps(an.s1));
+      vrai('le jour meme : la main passe, dite, rien n est pose', corps(an.s1) === "Pour aujourd'hui, une personne de la Maison vous répond ici, Mme Naffi." && an.jm.etat?.motifMain === 'jour-meme' && an.jm.poses.length === 0, corps(an.s1));
       return ecarts;
     },
     pannes: [
@@ -1296,8 +1296,8 @@ const regles: Regle[] = [
     eprouve: () => {
       const { ecarts, vaut, vrai } = juge();
       const d = scnEcarts(ORIGINAL);
-      vrai('premier ecart : la relance, la meme etape', d.s2.messages[0]?.etape === 'meme' && corps(d.s2) === "Touchez l'un des choix ci-dessous, Madame Naffi, ou Parler à la Maison." && d.ecarts1 === 1, corps(d.s2));
-      vaut('second ecart : une personne de la Maison repond ici (le jour)', 'Une personne de la Maison vous répond ici, Madame Naffi.', corps(d.s3));
+      vrai('premier ecart : la relance, la meme etape', d.s2.messages[0]?.etape === 'meme' && corps(d.s2) === "Touchez l'un des choix ci-dessous, Mme Naffi, ou Parler à la Maison." && d.ecarts1 === 1, corps(d.s2));
+      vaut('second ecart : une personne de la Maison repond ici (le jour)', 'Une personne de la Maison vous répond ici, Mme Naffi.', corps(d.s3));
       vaut('... motif ecarts, alerte au prenom seul, le fil en main passee', ['ecarts', 'Naffi · deux réponses non comprises', 'main'], [d.motif, d.s3.alerte?.corps, d.tenue]);
       vrai('apres la main, l automate se tait', !d.s4.pris && d.s4.messages.length === 0);
       vaut('rendue a l automate, il reprend l etape ou il en etait', 'places', d.s5.messages[0]?.etape);
@@ -1336,9 +1336,9 @@ const regles: Regle[] = [
     eprouve: () => {
       const { ecarts, vaut, vrai } = juge();
       const an = scnAnnulations(ORIGINAL);
-      vrai('annuler un rendez-vous : transmis, la main passe, aucune ecriture', corps(an.s2) === 'Nous transmettons votre demande, Madame Naffi. La Maison vous répond ici.'
+      vrai('annuler un rendez-vous : transmis, la main passe, aucune ecriture', corps(an.s2) === 'Nous transmettons votre demande, Mme Naffi. La Maison vous répond ici.'
         && an.k.etat?.motifMain === 'annulation' && an.s2.ecritures.length === 0 && an.k.poses.length === 0, corps(an.s2));
-      vrai('annuler en plein parcours : rien n est reserve, le parcours s arrete', corps(an.s3) === "C'est noté, Madame Naffi : rien n'est réservé. Écrivez-nous quand vous le souhaitez." && an.k2.etat?.etape === 'clos' && an.s3.ecritures.length === 0, corps(an.s3));
+      vrai('annuler en plein parcours : rien n est reserve, le parcours s arrete', corps(an.s3) === "C'est noté, Mme Naffi : rien n'est réservé. Écrivez-nous quand vous le souhaitez." && an.k2.etat?.etape === 'clos' && an.s3.ecritures.length === 0, corps(an.s3));
       vrai('decaler en plein parcours : transmis', corps(an.s4).startsWith('Nous transmettons votre demande') && an.s4.ecritures.length === 0, corps(an.s4));
       vrai('annuler juste apres la confirmation : il se tait, l alarme sonnera', !an.s7.pris && an.s7.messages.length === 0 && an.s7.ecritures.length === 0);
       const ecritures = tousLesParcours(ORIGINAL).flatMap((p) => p.poses);
@@ -1464,7 +1464,7 @@ const regles: Regle[] = [
         const envoyer = await chargeLaFonction('whatsapp-envoi');
         const r = await envoyer(new Request('https://banc/functions/v1/whatsapp-envoi', {
           method: 'POST', headers: { authorization: 'Bearer staff-direction', 'content-type': 'application/json' },
-          body: JSON.stringify({ numero: NAFFI_E, texte: 'Avec plaisir, Madame Naffi.', parQui: 'Y. B.' }),
+          body: JSON.stringify({ numero: NAFFI_E, texte: 'Avec plaisir, Mme Naffi.', parQui: 'Y. B.' }),
         }));
         const main = T('fils_automate').get(`main-${NAFFI_E}`)?.data;
         vrai('banc : le message de l equipe part, et la main se pose (24 h, motif, signature)', r.status === 200 && main?.motif === 'envoi-equipe' && main?.par === 'Y. B.'
@@ -1533,11 +1533,11 @@ const regles: Regle[] = [
     eprouve: () => {
       const { ecarts, vaut, vrai } = juge();
       const n = scnNuit(ORIGINAL);
-      vrai('a 23 h 10, il repond (Bonsoir)', corps(n.s1).startsWith('Bonsoir Madame Naffi'), corps(n.s1));
-      vaut('Parler a la Maison la nuit : demain des 9 h', 'La Maison vous répond demain dès 9 h, Madame Naffi.', corps(n.s2));
-      vaut('samedi soir (dimanche et lundi fermes) : mardi, avec l annee', 'La Maison vous répond mardi 13 octobre 2026 dès 9 h, Madame Naffi.', corps(n.s3));
-      vaut('a 2 h un mardi : aujourd hui des 9 h', "La Maison vous répond aujourd'hui dès 9 h, Madame Naffi.", corps(n.s4));
-      vaut('le jour : une personne repond ici', 'Une personne de la Maison vous répond ici, Madame Naffi.', corps(n.s5));
+      vrai('a 23 h 10, il repond (Bonsoir)', corps(n.s1).startsWith('Bonsoir Mme Naffi'), corps(n.s1));
+      vaut('Parler a la Maison la nuit : demain des 9 h', 'La Maison vous répond demain dès 9 h, Mme Naffi.', corps(n.s2));
+      vaut('samedi soir (dimanche et lundi fermes) : mardi, avec l annee', 'La Maison vous répond mardi 13 octobre 2026 dès 9 h, Mme Naffi.', corps(n.s3));
+      vaut('a 2 h un mardi : aujourd hui des 9 h', "La Maison vous répond aujourd'hui dès 9 h, Mme Naffi.", corps(n.s4));
+      vaut('le jour : une personne repond ici', 'Une personne de la Maison vous répond ici, Mme Naffi.', corps(n.s5));
       vrai('a 23 h 40, elle reserve jusqu au bout, confirme', n.s6.messages[0]?.etape === 'confirme' && n.n.poses.length === 1, corps(n.s6));
       const q = scnDiaspora(ORIGINAL);
       vaut('hors du Benin, « heure de Cotonou » dans la liste', 'samedi 10 octobre 2026 à 9 h (heure de Cotonou)', q.s2.messages[0]?.lignes?.[0]?.description);
@@ -1674,7 +1674,7 @@ const regles: Regle[] = [
       const MAINT = T0 + 5 * 60000;
       const tete: TeteConnue = { id: 'c-naffi', name: 'Naffi Morou', phone: '+229 01 97 00 00 01', branchId: 'b1' };
       const elleEcrit: MessageWa = { id: 'wa-1', sens: 'entrant', numero: NUM, texte: 'Je voudrais un rendez-vous samedi', quand: isoDe(T0) } as MessageWa;
-      const repond: MessageWa = { id: 'wa-2', sens: 'sortant', numero: NUM, texte: 'Bonsoir Madame Naffi', quand: isoDe(T0 + 3000), parQui: 'Le Trône', auto: 'automate' } as MessageWa;
+      const repond: MessageWa = { id: 'wa-2', sens: 'sortant', numero: NUM, texte: 'Bonsoir Mme Naffi', quand: isoDe(T0 + 3000), parQui: 'Le Trône', auto: 'automate' } as MessageWa;
       const etat = (o: Partial<EtatDuFil>): LigneDesFilsAutomate => ({
         id: `fil-${NUM}`, numero: NUM, version: 2, etape: 'places', depuis: isoDe(T0 + 3000), versionDeLEtape: 2, majLe: isoDe(T0 + 3000),
         prisLe: isoDe(T0 + 3000), traites: ['wamid.1'], dernierEntrantQuand: isoDe(T0), panier: {}, ecarts: 0, envois: [isoDe(T0 + 3000)], ...o,
@@ -1896,7 +1896,7 @@ const regles: Regle[] = [
         const p0 = B().pushs.length;
         await ecrit(NAFFI_E, 'Bonsoir, je voudrais passer samedi');
         const b1 = dernierA(NAFFI_E);
-        vrai('banc : la meme chose ? avec la civilite, la derniere venue et son annee', /Madame Naffi/.test(corpsDe(b1)) && /12 septembre 2026/.test(corpsDe(b1)) && j(choixDe(b1).map((x) => x.titre)) === j(['La même chose', 'Autre chose', 'Parler à la Maison']), corpsDe(b1));
+        vrai('banc : la meme chose ? avec la civilite, la derniere venue et son annee', /Mme Naffi/.test(corpsDe(b1)) && /12 septembre 2026/.test(corpsDe(b1)) && j(choixDe(b1).map((x) => x.titre)) === j(['La même chose', 'Autre chose', 'Parler à la Maison']), corpsDe(b1));
         vrai('banc : l etat ecrit par avance_le_fil (meme, version 1), avec son id', fil(NAFFI_E)?.etape === 'meme' && fil(NAFFI_E)?.version === 1 && fil(NAFFI_E)?.id === `fil-${NAFFI_E}`);
         const trace = [...T('messages_wa').values()].find((l: Any) => l.data.sens === 'sortant');
         vrai('banc : la trace dit Le Trone, automate, l etape et les choix', trace?.data.parQui === 'Le Trône' && trace?.data.auto === 'automate' && trace?.data.etape === 'meme' && trace?.data.choix?.length === 3);
@@ -1914,7 +1914,7 @@ const regles: Regle[] = [
         /* Son rituel est un SÍNSIN : chez Team, seul (24 octobre 2026). */
         vaut('banc : ... la Maison attribue : un SINSIN va chez Team seul, et le verrou le prend', [['Team'], 'Team'], [B().poses[0]?.p_maitres, rdv?.data.master]);
         const b4 = dernierA(NAFFI_E);
-        vrai('banc : la confirmation en texte, l annee, l itineraire, la devise', b4?.type === 'text' && /^C'est confirmé, Madame Naffi/.test(corpsDe(b4)) && /2026 à/.test(corpsDe(b4)) && /Akpakpa/.test(corpsDe(b4)) && corpsDe(b4).endsWith(DEVISE), corpsDe(b4));
+        vrai('banc : la confirmation en texte, l annee, l itineraire, la devise', b4?.type === 'text' && /^C'est confirmé, Mme Naffi/.test(corpsDe(b4)) && /2026 à/.test(corpsDe(b4)) && /Akpakpa/.test(corpsDe(b4)) && corpsDe(b4).endsWith(DEVISE), corpsDe(b4));
         vrai('banc : le lien Google Maps de la branche suit l itineraire, sans le parametre de partage', corpsDe(b4).includes('face à la pharmacie.\n\nItinéraire sur Google Maps : https://maps.app.goo.gl/AbCdEf12345\n\n'), corpsDe(b4));
         const ligne = T('envois').get(`conf-${rdv?.id}-whatsapp`)?.data;
         vrai('banc : la ligne de confirmation passe a envoye, avec l identifiant de Meta', ligne?.statut === 'envoyé' && /^wamid\.out-/.test(ligne?.waMessageId ?? ''), ligne);
@@ -1953,7 +1953,7 @@ const regles: Regle[] = [
         for (const [i, m] of [[1, 'Team'], [2, 'Expert']] as const) T('appointments').set(`rdv-x${i}`, { id: `rdv-x${i}`, data: { id: `rdv-x${i}`, branchId: 'maison', date, time: heure, status: 'confirmé', master: m, dureeMin: 150 } });
         await touche(NAFFI_E, choix(NAFFI_E, 'Je confirme'));
         vrai('banc : la place prise entre-temps : rien n est pose, les places les plus proches sans elle', ![...T('appointments').keys()].some((k) => k.startsWith('rdv-wa-'))
-          && /Cette heure vient d'être prise, Madame Naffi/.test(corpsDe(dernierA(NAFFI_E))) && !choixDe(dernierA(NAFFI_E)).some((x) => x.id.endsWith(arg)), corpsDe(dernierA(NAFFI_E)));
+          && /Cette heure vient d'être prise, Mme Naffi/.test(corpsDe(dernierA(NAFFI_E))) && !choixDe(dernierA(NAFFI_E)).some((x) => x.id.endsWith(arg)), corpsDe(dernierA(NAFFI_E)));
         /* ═ Meta refuse : la main passe, sans un mot de plus. ═ */
         remetsLaBase({ mode: 'ouvert', numerosEssai: [] });
         B().refuseGraph = 1;
@@ -2015,7 +2015,7 @@ const regles: Regle[] = [
       const s8 = elle(m, t0 + 7000, { touche: 'Je confirme' });
       vaut('... la pose est sans fiche, sa demande a son prenom (jamais sur la fiche de Kemi)', { clientId: '', clientName: 'Grâce', demande: 'Grâce' },
         { clientId: m.poses[0]?.rdv.clientId, clientName: m.poses[0]?.rdv.clientName, demande: m.poses[0]?.demande?.prenom });
-      vrai('... c est confirme, Madame Grace', corps(s8).startsWith("C'est confirmé, Madame Grâce"), corps(s8));
+      vrai('... c est confirme, Mme Grace', corps(s8).startsWith("C'est confirmé, Mme Grâce"), corps(s8));
       const k = parcours(ORIGINAL, NUM_NAFFI, [KEMI_SEULE]);
       elle(k, t0, { texte: 'Bonjour, je voudrais un rendez-vous' });
       const k2 = elle(k, t0 + 1000, { touche: 'Pour Kemi' });
@@ -2024,7 +2024,7 @@ const regles: Regle[] = [
       const AWA: FicheDuNumero = { id: 'c-awa', nom: 'Awa Sossa', civilite: 'madame', parPhone: false, numeros: ['2290196000000', NUM_NAFFI], derniereVenue: { date: '2026-09-12', serviceIds: ['plt-05'] } };
       const a = parcours(ORIGINAL, NUM_NAFFI, [AWA]);
       const a1 = elle(a, t0, { texte: 'je voudrais prendre rendez-vous pour moi' });
-      vrai('un second numero : Pour qui, ni Madame Awa ni la venue d Awa', a1.messages[0]?.etape === 'qui' && !/Awa/.test(corps(a1)) && !/septembre/.test(corps(a1)), corps(a1));
+      vrai('un second numero : Pour qui, ni Mme Awa ni la venue d Awa', a1.messages[0]?.etape === 'qui' && !/Awa/.test(corps(a1)) && !/septembre/.test(corps(a1)), corps(a1));
       vaut('... Pour Awa, Pour moi, Une autre personne', ['Pour Awa', 'Pour moi', 'Une autre personne', 'Parler à la Maison'], lignesDe(a1));
       /* Deux adultes sur le meme premier numero : on demande, sans Pour moi. */
       const deux = parcours(ORIGINAL, NUM_NAFFI, [NAFFI, { id: 'c-soeur', nom: 'Sika Morou', parPhone: true, numeros: [NUM_NAFFI] }]);
@@ -2094,7 +2094,7 @@ const regles: Regle[] = [
         vrai('banc : la Maison a ecrit hier : l automate prend quand meme (14 octobre 2026)', appelsAutomate === 1 && ecritsA(NAFFI_E).length === 1 && fil(NAFFI_E)?.etape === 'meme', { ecrits: ecritsA(NAFFI_E).length, etape: fil(NAFFI_E)?.etape });
         /* Ses propres messages ne comptent pas : l automate d hier n empeche rien. */
         remetsLaBase({ mode: 'ouvert', numerosEssai: [] });
-        T('messages_wa').set('wa-auto', { id: 'wa-auto', data: { id: 'wa-auto', sens: 'sortant', numero: NAFFI_E, texte: 'Bonjour Madame Naffi', quand: hier, parQui: 'Le Trône', auto: 'automate' } });
+        T('messages_wa').set('wa-auto', { id: 'wa-auto', data: { id: 'wa-auto', sens: 'sortant', numero: NAFFI_E, texte: 'Bonjour Mme Naffi', quand: hier, parQui: 'Le Trône', auto: 'automate' } });
         await ecrit(NAFFI_E, 'Je voudrais un rendez-vous samedi');
         vrai('banc : un message de l automate d hier n empeche rien', ecritsA(NAFFI_E).length === 1 && fil(NAFFI_E)?.etape === 'meme');
         /* Un rendez-vous a venir sur sa fiche : il prend quand meme (14 octobre 2026). */
@@ -2123,7 +2123,7 @@ const regles: Regle[] = [
       elle(p, t0 + 1000, { touche: 'La même chose' });
       const q = elle(p, t0 + 2000, { texte: 'Je dois venir avec les cheveux lavés ?' });
       vrai('en plein parcours : la main passe, dite, motif question, l equipe alertee', q.messages[0]?.etape === 'main'
-        && corps(q) === 'Une personne de la Maison vous répond ici, Madame Naffi.' && p.etat?.motifMain === 'question'
+        && corps(q) === 'Une personne de la Maison vous répond ici, Mme Naffi.' && p.etat?.motifMain === 'question'
         && q.alerte?.corps === 'Naffi · une question à lire', j({ corps: corps(q), motif: p.etat?.motifMain, alerte: q.alerte }));
       vrai('... et l alarme sonne (le fil est en main passee)', tenuParLAutomate(p.etat, null, t0 + 3000) === 'main');
       const r = parcours(ORIGINAL, NUM_NAFFI, [NAFFI]);
@@ -2364,7 +2364,7 @@ const regles: Regle[] = [
       const recap = elle(p, t0 + 9000, { texte: 'Awa' });
       vaut('le recapitulatif est son onzieme message : dix, plus la question d un autre soin', [11, 'recap'], [p.envoyes.length, recap.messages[0]?.etape]);
       const oui = elle(p, t0 + 10000, { touche: 'Je confirme' });
-      vrai('Je confirme pose et confirme quand meme', p.poses.length === 1 && oui.messages[0]?.etape === 'confirme' && corps(oui).startsWith("C'est confirmé, Madame Awa"), corps(oui));
+      vrai('Je confirme pose et confirme quand meme', p.poses.length === 1 && oui.messages[0]?.etape === 'confirme' && corps(oui).startsWith("C'est confirmé, Mme Awa"), corps(oui));
       const q = parcours(ORIGINAL, NUM_INCONNUE, []);
       for (const [i, x] of [[0, { texte: 'Bonjour, je voudrais prendre rendez-vous' }], [1, { touche: 'Entretenir mes locks' }], [2, { touche: 'Lavage · Essentiel' }],
         [2.5, { touche: "Non, c'est tout" }], [3, { touche: 'Un autre jour' }], [4, { touche: 'Mardi 13 oct. 2026' }], [5, { touche: 'Un autre jour' }],
@@ -2397,7 +2397,7 @@ const regles: Regle[] = [
       const s3 = elle(p, t0 + 2000, { texte: 'Je ne peux pas samedi' });
       vrai('« Je ne peux pas samedi » : plus aucun samedi dans la liste', s3.messages[0]?.etape === 'places' && !lignesDe(s3).some((x) => x.startsWith('Sam.')) && lignesDe(s3).some((x) => x.startsWith('Mar.')), lignesDe(s3).join(' | '));
       const s4 = elle(p, t0 + 3000, { texte: 'non pas samedi svp' });
-      vrai('les memes mots encore : un ecart (la relance)', corps(s4) === "Touchez l'un des choix ci-dessous, Madame Naffi, ou Parler à la Maison." && p.etat?.ecarts === 1, corps(s4));
+      vrai('les memes mots encore : un ecart (la relance)', corps(s4) === "Touchez l'un des choix ci-dessous, Mme Naffi, ou Parler à la Maison." && p.etat?.ecarts === 1, corps(s4));
       elle(p, t0 + 4000, { texte: 'je ne peux pas samedi' });
       vaut('... et la troisieme fois, la main passe (deux ecarts), bien avant le plafond', ['main', 'ecarts', true], [p.etat?.etape, p.etat?.motifMain, p.envoyes.length < 10]);
       const r = parcours(ORIGINAL, NUM_NAFFI, [NAFFI]);
@@ -2437,11 +2437,11 @@ const regles: Regle[] = [
       const a = jusquALaCivilite('Madame');
       vaut('« Madame » ecrit a la civilite : et votre prenom, Madame', 'Et votre prénom, Madame ? Écrivez-le simplement dans un message, en réponse.', corps(a.s));
       const a2 = elle(a.p, a.t0 + 5000, { texte: 'Je m appelle Grace' });
-      vrai('... « Je m appelle Grace » : le recapitulatif de Madame Grace', a2.messages[0]?.etape === 'recap' && corps(a2).startsWith('Voici votre rendez-vous, Madame Grace'), corps(a2));
+      vrai('... « Je m appelle Grace » : le recapitulatif de Mme Grace', a2.messages[0]?.etape === 'recap' && corps(a2).startsWith('Voici votre rendez-vous, Mme Grace'), corps(a2));
       const b = jusquALaCivilite('Mme Grace');
-      vrai('« Mme Grace » ecrit a la civilite : directement le recapitulatif', b.s.messages[0]?.etape === 'recap' && corps(b.s).startsWith('Voici votre rendez-vous, Madame Grace'), corps(b.s));
+      vrai('« Mme Grace » ecrit a la civilite : directement le recapitulatif', b.s.messages[0]?.etape === 'recap' && corps(b.s).startsWith('Voici votre rendez-vous, Mme Grace'), corps(b.s));
       const c = jusquALaCivilite('M. Koffi');
-      vrai('« M. Koffi » : Monsieur Koffi', corps(c.s).startsWith('Voici votre rendez-vous, Monsieur Koffi'), corps(c.s));
+      vrai('« M. Koffi » : M. Koffi', corps(c.s).startsWith('Voici votre rendez-vous, M. Koffi'), corps(c.s));
       const d = jusquALaCivilite('euh');
       vrai('un texte qui n est pas une civilite reste un ecart', corps(d.s) === "Touchez l'un des choix ci-dessous, ou Parler à la Maison." && d.p.etat?.ecarts === 1, corps(d.s));
       return ecarts;
@@ -2523,7 +2523,7 @@ const regles: Regle[] = [
       vrai('le second soin s ajoute au premier : la question revient', d.s5.messages[0]?.etape === 'encore', corps(d.s5));
       vaut('le troisieme soin ferme le panier : droit aux places, sans question', 'places', d.s7.messages[0]?.etape);
       vaut('le recapitulatif dit les trois soins, en francais puis la marque',
-        'Voici votre rendez-vous, Madame Afi : Lavage rituel (KLƆKLƆ™ Essentiel), Resserrage des racines (SÍNSIN™ Essentiel) et Hydratation (DÀNDÀN™ Essentiel), mardi 13 octobre 2026 à 9 h, à la Maison MND. Nous le posons ?', corps(d.recap));
+        'Voici votre rendez-vous, Mme Afi : Lavage rituel (KLƆKLƆ™ Essentiel), Resserrage des racines (SÍNSIN™ Essentiel) et Hydratation (DÀNDÀN™ Essentiel), mardi 13 octobre 2026 à 9 h, à la Maison MND. Nous le posons ?', corps(d.recap));
       vaut('la pose porte les trois soins, dans l ordre choisi, et leur duree', [['plt-05', 'sinsin-ess', 'dandan-ess'], 135, 'confirme'],
         [d.p.poses[0]?.rdv.serviceIds, d.p.poses[0]?.rdv.dureeMin, d.oui.messages[0]?.etape]);
       /* Ecrit au lieu de touche : « non » file aux places, « oui » ouvre les soins. */
@@ -2566,7 +2566,7 @@ const regles: Regle[] = [
       const desc = (v.liste.messages[0]?.lignes ?? []).map((l) => l.description ?? '');
       vrai('une formule longue : les noms se coupent, la duree reste, en 72 signes', desc[0].endsWith(' · 1 h 45') && desc[0].length <= 72 && desc[1] === 'DÀNDÀN™ · Le Soin Hydratant · 1 h', desc.slice(0, 2).join(' | '));
       vrai('« Non merci, plutot mercredi » : les places, le mercredi d abord (sans lui, samedi viendrait en tete)', v.mercredi.messages[0]?.etape === 'places' && lignesDe(v.mercredi)[0] === 'Mer. 14 oct. 2026 · 9 h', lignesDe(v.mercredi).join(' | '));
-      vaut('le recapitulatif dit le geste en francais, le nom reel entre parentheses', 'Voici votre rendez-vous, Madame Afi : Hydratation (DÀNDÀN™ · Le Soin Hydratant), mercredi 14 octobre 2026 à 9 h, à la Maison MND. Nous le posons ?', corps(v.recap));
+      vaut('le recapitulatif dit le geste en francais, le nom reel entre parentheses', 'Voici votre rendez-vous, Mme Afi : Hydratation (DÀNDÀN™ · Le Soin Hydratant), mercredi 14 octobre 2026 à 9 h, à la Maison MND. Nous le posons ?', corps(v.recap));
       /* Ecrit a « un autre soin ? » */
       const ecrit = (texte: string) => {
         const q = parcours(ORIGINAL, NUM_INCONNUE, []);
@@ -2657,14 +2657,14 @@ const regles: Regle[] = [
       const b = scnInconnue(ORIGINAL);
       vaut('une inconnue : bonjour, sans Madame', 'Bonjour, bienvenue à la Maison MND. Comment pouvons-nous prendre soin de votre couronne ?', corps(b.s1));
       vaut('... quel rituel, sans Madame', 'Quel rituel souhaitez-vous ?', corps(b.s2));
-      vrai('... la civilite choisie, elle est dite (Mademoiselle Awa au recapitulatif)', corps(b.s6).startsWith('Voici votre rendez-vous, Mademoiselle Awa :'), corps(b.s6));
+      vrai('... la civilite choisie, elle est dite (Mlle Awa au recapitulatif)', corps(b.s6).startsWith('Voici votre rendez-vous, Mlle Awa :'), corps(b.s6));
       const muette: FicheDuNumero = { ...NAFFI, civilite: undefined };
       const p = parcours(ORIGINAL, NUM_NAFFI, [muette]);
       const t0 = cotonou('2026-10-09', '11:00');
       const s1 = elle(p, t0, { texte: 'Je voudrais un rendez-vous' });
       vrai('une fiche muette : son prenom seul, jamais Madame', corps(s1).startsWith('Bonjour Naffi, merci de votre message.') && !/Madame/.test(corps(s1)), corps(s1));
       const c = scnConnue(ORIGINAL);
-      vrai('une fiche dite Madame : sa civilite est dite, Madame Naffi', corps(c.s1).startsWith('Bonsoir Madame Naffi, merci de votre message.'), corps(c.s1));
+      vrai('une fiche dite Madame : sa civilite est dite, Mme Naffi', corps(c.s1).startsWith('Bonsoir Mme Naffi, merci de votre message.'), corps(c.s1));
       vaut('sansAppelVide : virgules et espaces sans appel', ['Quel rituel souhaitez-vous ?', 'Bonjour, merci.', "C'est confirmé : retenu.", 'Voici les places.', 'Touchez, ou Parler.'],
         ['Quel rituel souhaitez-vous,  ?', 'Bonjour , merci.', "C'est confirmé,  : retenu.", 'Voici les places, .', 'Touchez, , ou Parler.'].map(sansAppelVide));
       return ecarts;
@@ -2997,8 +2997,8 @@ const regles: Regle[] = [
         laReceptionPeutParler(mainPassee, tour, ctx, TOUS),
         laReceptionPeutParler(null, tour, { ...ctx, maintenantMs: t0 + 20 * 60000 }, TOUS),
       ]);
-      const rien = reponseDeLaReception(null, tour, ctx, { texte: 'Avec plaisir, Madame Naffi. À très bientôt à la Maison.', suite: 'rien' });
-      vaut('rien : son mot part tel quel, signe de la reception, le fil se dit clos', [true, 'Avec plaisir, Madame Naffi. À très bientôt à la Maison.', true, true, 'clos'],
+      const rien = reponseDeLaReception(null, tour, ctx, { texte: 'Avec plaisir, Mme Naffi. À très bientôt à la Maison.', suite: 'rien' });
+      vaut('rien : son mot part tel quel, signe de la reception, le fil se dit clos', [true, 'Avec plaisir, Mme Naffi. À très bientôt à la Maison.', true, true, 'clos'],
         [rien.pris, rien.messages[0]?.corps, rien.messages[0]?.deLaReception === true, rien.messages[0]?.prixDuCatalogue === true, rien.etat.etape]);
       vaut('... et l alarme se tait : le fil est fini, son mot traite', ['fini', true], [tenuParLAutomate(rien.etat, null, t0), silenceDeLAlarme('fini', rien.etat, tour.quand, t0)]);
       const eq = reponseDeLaReception(null, tour, ctx, { texte: 'Merci de nous le dire. Une personne de la Maison vous rappelle demain avant 10 h.', suite: 'equipe' });

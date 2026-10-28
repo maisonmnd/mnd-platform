@@ -97,7 +97,7 @@ dit('A4 diaspora, passage et locks defaits disent pourquoi rien ne se posera', [
 ]);
 
 /* ── B. LA CIVILITE ─────────────────────────────────────────────────── */
-dit('B0 sans nom ni civilite, Madame, Monsieur ; une fiche muette, le prenom seul ; jamais « Elle »', ['Madame, Monsieur', 'Naffi', 'Madame Naffi'], [appelDe({ name: '' }), appelDe({ name: 'Naffi K.' }), appelDe({ name: 'Naffi K.', civilite: 'madame' })]);
+dit('B0 sans nom ni civilite, Madame, Monsieur ; une fiche muette, le prenom seul ; jamais « Elle »', ['Madame, Monsieur', 'Naffi', 'Mme Naffi'], [appelDe({ name: '' }), appelDe({ name: 'Naffi K.' }), appelDe({ name: 'Naffi K.', civilite: 'madame' })]);
 dit('B1 aucun « Bonjour » de la fiche ne nomme la cliente sans appelDe', [],
   fiche.match(/Bonjour \$\{(?!appelDe\()[^}]*\}/g) ?? []);
 dit('B2 le studio et la relance d impaye disent sa civilite', [1, 1], [

@@ -386,7 +386,7 @@ export function consigneDeLaReponse(): string {
     'Des phrases complètes et soignées, un français choisi : la Maison accueille, prend soin, parle de « votre couronne » et de « vos locks », d’un « rituel » plutôt que d’une prestation.',
     'Le vouvoiement, toujours. On dit « la Maison », JAMAIS « salon ». Ni « coucou », ni « ok », ni abréviation, ni point d’exclamation répété.',
     `Pas d’émoji, pas de tiret long, pas de liste, pas de titre. ${MOTS_MAX} mots au plus, en français (ou dans la langue de la cliente).`,
-    'Le ton, par exemple : « Avec plaisir, Madame Clarisse. Pour vous indiquer le juste prix de votre entretien, pourriez-vous nous dire combien de locks vous portez, approximativement ? »',
+    'Le ton, par exemple : « Avec plaisir, Mme Clarisse. Pour vous indiquer le juste prix de votre entretien, pourriez-vous nous dire combien de locks vous portez, approximativement ? »',
     '',
     'Ce que tu sais d’elle est dans le contexte : comment on l’appelle (reprends cet appel tel quel, n’invente ni nom ni civilité),',
     'son prochain rendez-vous, ce qui lui reste à régler, son nombre de locks s’il est connu, les places libres si l’agenda a été consulté, les prix du catalogue et les liens de la Maison.',

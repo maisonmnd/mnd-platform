@@ -246,14 +246,15 @@ function predictNextVisitSelon(appts, cliente, clientId, today, estFerme) {
 
 // src/shared/civilite.ts
 var DIT = { madame: "Madame", mademoiselle: "Mademoiselle", monsieur: "Monsieur" };
+var ABREGE = { madame: "Mme", mademoiselle: "Mlle", monsieur: "M." };
 var civiliteDe = (c) => c?.civilite && DIT[c.civilite] ? c.civilite : c?.auMasculin ? "monsieur" : "madame";
 var prenomSeul = (nom) => (nom ?? "").trim().split(/\s+/)[0] ?? "";
 var appelDe = (c, repli) => {
   const prenom = prenomSeul(c?.name ?? repli);
   const connue = !!c?.civilite && !!DIT[c.civilite] || !!c?.auMasculin;
   if (!connue) return prenom || "Madame, Monsieur";
-  const mot = DIT[civiliteDe(c)];
-  return prenom ? `${mot} ${prenom}` : mot;
+  const civ = civiliteDe(c);
+  return prenom ? `${ABREGE[civ]} ${prenom}` : DIT[civ];
 };
 
 // src/shared/audiences-pur.ts
@@ -1405,7 +1406,7 @@ function remisesAFabriquer(envois) {
 }
 
 // scripts/serveur/assistant-maison.ts
-var VERSION = "2026-10-28-a";
+var VERSION = "2026-10-28-b";
 var json = (corps, status = 200) => new Response(JSON.stringify(corps), { status, headers: { "content-type": "application/json" } });
 var jourDuSalon = (ms) => new Date(ms + 36e5).toISOString().slice(0, 10);
 var heureDuSalon2 = (ms) => {

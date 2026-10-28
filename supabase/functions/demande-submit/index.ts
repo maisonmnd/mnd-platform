@@ -181,7 +181,7 @@ const admin = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: 
 /** La version de ce fichier : ouvrir l'adresse de la fonction la dit (405),
     pour ne jamais chercher une panne dans un fichier qui n'est pas celui
     qu'on croit déployé. */
-const VERSION = '2026-10-24-b · une seule place en ligne a la fois, les SINSIN chez Team';
+const VERSION = '2026-10-28-a · M. et Mme devant le prénom';
 
 /** `EdgeRuntime.waitUntil`, s'il existe (la même garde que le webhook) : ce
     qui n'a pas besoin d'être attendu continue après la réponse. Sans lui, la
@@ -1444,8 +1444,9 @@ const appelDe = (d: { name?: unknown; civilite?: unknown; auMasculin?: unknown }
   const prenom = String(d?.name ?? repli ?? '').trim().split(/\s+/)[0] ?? '';
   /* La civilité inconnue ne se suppose plus (13 octobre 2026) : le prénom seul. */
   if (!civ) return prenom || 'Madame, Monsieur';
-  const mot = civ === 'monsieur' ? 'Monsieur' : civ === 'mademoiselle' ? 'Mademoiselle' : 'Madame';
-  return prenom ? `${mot} ${prenom}` : mot;
+  /* Abrégée devant le prénom (28 octobre 2026) : « M. Jean-Luc », « Mme Shadé » ; seule, en entier. */
+  if (prenom) return `${civ === 'monsieur' ? 'M.' : civ === 'mademoiselle' ? 'Mlle' : 'Mme'} ${prenom}`;
+  return civ === 'monsieur' ? 'Monsieur' : civ === 'mademoiselle' ? 'Mademoiselle' : 'Madame';
 };
 
 const premierMot = (t: unknown): string => String(t ?? '').trim().split(/\s+/)[0] ?? '';

@@ -151,7 +151,7 @@ const envois = (b: { lignes: (t: string) => Ligne[] }) => b.lignes('envois');
   dit('... a celle qui paie pour le foyer, sur son numero, au modele de la fete',
     ['p-abla', '22901970000' + '01', MODELE, 'fete-de-couronne', 'k-ama'], [e?.clientId, e?.colis?.numero, e?.colis?.modele, e?.type, e?.teteId]);
   dit('... les quatre variables : son appel, le prenom de l enfant, ses annees, le jour de sa Premiere Couronne avec l annee',
-    ['Madame Abla', 'Ama', 'un an', 'mardi 21 octobre 2025'], e?.colis?.composants?.[0]?.parameters?.map((p: { text: string }) => p.text));
+    ['Mme Abla', 'Ama', 'un an', 'mardi 21 octobre 2025'], e?.colis?.composants?.[0]?.parameters?.map((p: { text: string }) => p.text));
   const texte = String(e?.colis?.texteAuFil ?? '');
   dit('... le texte du fil : la fete, la prochaine visite, l annee ; ni tiret cadratin, ni « salon », ni « code », ni numero de piece',
     [true, true, true, false, false, false, false],

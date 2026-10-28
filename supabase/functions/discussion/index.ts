@@ -47,7 +47,7 @@ const MODELES = ['claude-sonnet-5-5', 'claude-haiku-5-5'];
 
 const admin = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } });
 
-const VERSION = '2026-10-19-a · le chat du site';
+const VERSION = '2026-10-28-a · M. et Mme devant le prénom';
 
 function enTacheDeFond(p: Promise<unknown>): void {
   const er = (globalThis as { EdgeRuntime?: { waitUntil?: (p: Promise<unknown>) => void } }).EdgeRuntime;
@@ -102,8 +102,9 @@ const appelDe = (d: { name?: unknown; civilite?: unknown; auMasculin?: unknown }
   const prenom = String(d?.name ?? repli ?? '').trim().split(/\s+/)[0] ?? '';
   /* La civilité inconnue ne se suppose plus (13 octobre 2026) : le prénom seul. */
   if (!civ) return prenom || 'Madame, Monsieur';
-  const mot = civ === 'monsieur' ? 'Monsieur' : civ === 'mademoiselle' ? 'Mademoiselle' : 'Madame';
-  return prenom ? `${mot} ${prenom}` : mot;
+  /* Abrégée devant le prénom (28 octobre 2026) : « M. Jean-Luc », « Mme Shadé » ; seule, en entier. */
+  if (prenom) return `${civ === 'monsieur' ? 'M.' : civ === 'mademoiselle' ? 'Mlle' : 'Mme'} ${prenom}`;
+  return civ === 'monsieur' ? 'Monsieur' : civ === 'mademoiselle' ? 'Mademoiselle' : 'Madame';
 };
 
 /* LES RÈGLES DU CHAT, RECOPIÉES de `src/shared/chat-du-site-pur.ts`.

@@ -1,11 +1,11 @@
 /* MADAME NAFFI, EPROUVE — `node scripts/verifie-civilite.mjs`.
 
-   2 octobre 2026 : la Maison ecrit « Madame Naffi » dans ses messages (la
+   2 octobre 2026 : la Maison ecrit « Mme Naffi » dans ses messages (la
    civilite de la fiche, puis le prenom), Madame par defaut, trois civilites.
    Le harnais tient la regle, la copie a l'identique dans chaque fonction
    Edge, et les ecrans qui ecrivent a une cliente. */
 import { readFileSync } from 'node:fs';
-import { appelDe, civiliteDe, ficheAvecCivilite, prenomSeul } from '../src/shared/civilite';
+import { appelDe, civiliteDe, civiliteNotee, civilitesAPoser, estMuette, ficheAvecCivilite, prenomSeul } from '../src/shared/civilite';
 
 let ko = 0;
 const dit = (nom: string, attendu: unknown, obtenu: unknown) => {
@@ -17,19 +17,45 @@ const dit = (nom: string, attendu: unknown, obtenu: unknown) => {
 
 /* ── 1. La regle ── */
 dit('une fiche muette : le prenom seul, jamais Madame suppose (13 octobre 2026)', 'Naffi', appelDe({ name: 'Naffi Morou' }));
-dit('une fiche dite Madame', 'Madame Naffi', appelDe({ name: 'Naffi Morou', civilite: 'madame' }));
-dit('Mademoiselle', 'Mademoiselle Grace', appelDe({ name: 'Grace Ahouansou', civilite: 'mademoiselle' }));
-dit('Monsieur', 'Monsieur Keli', appelDe({ name: 'Keli Ahouansou', civilite: 'monsieur' }));
-dit('une fiche marquee au masculin avant ce jour est Monsieur', 'Monsieur Keli', appelDe({ name: 'Keli A', auMasculin: true }));
-dit('la civilite posee l emporte sur l ancienne marque', 'Madame Keli', appelDe({ name: 'Keli A', auMasculin: true, civilite: 'madame' }));
+dit('une fiche dite Madame', 'Mme Naffi', appelDe({ name: 'Naffi Morou', civilite: 'madame' }));
+dit('Mademoiselle', 'Mlle Grace', appelDe({ name: 'Grace Ahouansou', civilite: 'mademoiselle' }));
+dit('Monsieur', 'M. Keli', appelDe({ name: 'Keli Ahouansou', civilite: 'monsieur' }));
+dit('une fiche marquee au masculin avant ce jour est Monsieur', 'M. Keli', appelDe({ name: 'Keli A', auMasculin: true }));
+dit('la civilite posee l emporte sur l ancienne marque', 'Mme Keli', appelDe({ name: 'Keli A', auMasculin: true, civilite: 'madame' }));
 dit('sans fiche, le prenom de repli seul', 'Awa', appelDe(null, 'Awa Kossou'));
 dit('rien de connu : Madame, Monsieur, jamais un blanc', 'Madame, Monsieur', appelDe(null));
 dit('une civilite sans prenom : la civilite seule', 'Monsieur', appelDe({ civilite: 'monsieur' }));
-dit('les espaces en trop ne comptent pas', 'Madame Awa', appelDe({ name: '  Awa   Kossou ', civilite: 'madame' }));
+dit('les espaces en trop ne comptent pas', 'Mme Awa', appelDe({ name: '  Awa   Kossou ', civilite: 'madame' }));
 dit('une civilite inconnue retombe sur Madame', 'madame', civiliteDe({ civilite: 'docteur' as never }));
 dit('le prenom seul', 'Naffi', prenomSeul('Naffi Morou'));
 dit('poser Monsieur marque la fiche au masculin (les cartes suivent)', { civilite: 'monsieur', auMasculin: true }, ficheAvecCivilite('monsieur'));
 dit('poser Madame retire la marque', { civilite: 'madame', auMasculin: undefined }, ficheAvecCivilite('madame'));
+
+/* 28 octobre 2026 : « dire Mr ou Mme avant le prénom ». Abrégée devant le prénom, entière seule. */
+dit('sans prenom, la civilite s ecrit en entier', ['Madame', 'Monsieur', 'Mademoiselle'],
+  [appelDe({ civilite: 'madame' }), appelDe({ civilite: 'monsieur' }), appelDe({ civilite: 'mademoiselle' })]);
+dit('une fiche muette ne dit toujours rien de suppose', ['Jean-Luc', 'Madame, Monsieur'], [appelDe({ name: 'Jean-Luc KINIFFO' }), appelDe(null)]);
+
+/* La fenetre des civilites a poser (FenetreDesCivilites) : les muettes, un RDV a venir d abord. */
+dit('la civilite notee : jamais le Madame des cartes', [undefined, 'monsieur', 'mademoiselle'],
+  [civiliteNotee({ name: 'Awa' }), civiliteNotee({ auMasculin: true }), civiliteNotee({ civilite: 'mademoiselle', auMasculin: true })]);
+dit('muette : rien de note ; une ancienne marque au masculin ne l est pas', [true, false, false],
+  [estMuette({ name: 'Awa' }), estMuette({ auMasculin: true }), estMuette({ civilite: 'madame' })]);
+{
+  const fiches = [
+    { id: 'a', name: 'Awa', phone: '0197000001' },
+    { id: 'b', name: 'Bio', phone: '' },
+    { id: 'c', name: 'Cica', phone: '0197000003' },
+    { id: 'd', name: 'Dede', phone: '0197000004' },
+    { id: 'e', name: 'Eli', phone: '0197000005' },
+  ];
+  const prochainRdv = new Map([['c', '2026-11-02'], ['d', '2026-10-30']]);
+  const derniereVenue = new Map([['a', '2026-09-01'], ['e', '2026-10-01'], ['b', '2026-10-20']]);
+  dit('le tri : RDV le plus proche, puis la venue la plus recente, puis le nom ; sans numero ecartee', ['d', 'c', 'e', 'a'],
+    civilitesAPoser({ fiches, prochainRdv, derniereVenue, avecNumero: true }).map((c) => c.id));
+  dit('... toutes : la fiche sans numero revient a sa place', ['d', 'c', 'b', 'e', 'a'],
+    civilitesAPoser({ fiches, prochainRdv, derniereVenue, avecNumero: false }).map((c) => c.id));
+}
 
 /* ── 2. Les fonctions Edge portent la meme regle, a l'identique ── */
 {
@@ -40,9 +66,9 @@ dit('poser Madame retire la marque', { civilite: 'madame', auMasculin: undefined
     if (a < 0) return null;
     return t.slice(a, t.indexOf('\n};\n', a) + 3);
   };
-  /* 9 octobre 2026 : la reprise du webhook dit « Madame Naffi », et la
+  /* 9 octobre 2026 : la reprise du webhook dit « Mme Naffi », et la
      réponse automatique (whatsapp-automate) parle à chaque cliente. */
-  /* 19 octobre 2026 : le chat du site appelle la visiteuse « Madame Clarisse ». */
+  /* 19 octobre 2026 : le chat du site appelle la visiteuse « Mme Clarisse ». */
   const FONCTIONS = ['confirmation-rdv', 'rappels-j1', 'avis-google', 'demande-submit', 'whatsapp-webhook', 'whatsapp-automate', 'relances-factures', 'discussion', 'rappels-d-echeance', 'fete-de-couronne'];
   const copies = FONCTIONS.map(copie);
   dit('chaque fonction porte appelDe', [], FONCTIONS.filter((_, i) => !copies[i]));
@@ -55,12 +81,12 @@ dit('poser Madame retire la marque', { civilite: 'madame', auMasculin: undefined
 return appelDe;`)() as any;
   const cas: [unknown, unknown, string][] = [
     [{ name: 'Naffi Morou' }, undefined, 'Naffi'],
-    [{ name: 'Naffi Morou', civilite: 'madame' }, undefined, 'Madame Naffi'],
-    [{ name: 'Keli A', auMasculin: true }, undefined, 'Monsieur Keli'],
-    [{ name: 'Grace A', civilite: 'mademoiselle' }, undefined, 'Mademoiselle Grace'],
+    [{ name: 'Naffi Morou', civilite: 'madame' }, undefined, 'Mme Naffi'],
+    [{ name: 'Keli A', auMasculin: true }, undefined, 'M. Keli'],
+    [{ name: 'Grace A', civilite: 'mademoiselle' }, undefined, 'Mlle Grace'],
     [null, 'Awa Kossou', 'Awa'],
     [null, undefined, 'Madame, Monsieur'],
-    [{ civilite: 'monsieur' }, 'Ola', 'Monsieur Ola'],
+    [{ civilite: 'monsieur' }, 'Ola', 'M. Ola'],
   ];
   dit('la copie Edge rend ce que rend le depot', cas.map((c) => c[2]), cas.map(([d, r]) => appelEdge(d, r)));
   for (const f of ['confirmation-rdv', 'rappels-j1', 'avis-google']) {
@@ -109,5 +135,5 @@ return appelDe;`)() as any;
   dit('le Trone pose la civilite choisie sur une fiche muette du meme prenom', true, /civiliteAPoser\(fiche, r\.demande\)/.test(crochet) && /\.\.\.ficheAvecCivilite\(civ\)/.test(crochet));
 }
 
-console.log(ko === 0 ? '\nLa Maison dit Madame Naffi.' : `\n${ko} controle(s) en echec.`);
+console.log(ko === 0 ? '\nLa Maison dit Mme Naffi.' : `\n${ko} controle(s) en echec.`);
 process.exit(ko === 0 ? 0 : 1);

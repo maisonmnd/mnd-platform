@@ -264,7 +264,7 @@ const rappels = (c: ContratLu, j: string, p = pieces, lien = 0) => R.rappelsDuCo
   dit('l annonce, mot pour mot (le jour du comptage dit avec l année)',
     'Bonjour Akouavi,\nLe mardi 27 octobre 2026, la Maison a compté votre calibre : Micro, de 251 à 350 locks.\nLe prix de votre GBÈJÍ™ · Carnet de Six passe de 140 000 F à 190 000 F. L’écart, 50 000 F, s’ajoute à votre prochaine échéance, le lundi 2 novembre 2026 : elle passe de 70 000 F à 120 000 F.\nRien d’autre ne change. Le détail vous attend dans Ma Couronne.',
     R.texteDuPrixRevu(vp));
-  const vn = R.variablesDuPrixRevu({ appel: 'Madame Akouavi', le: '2026-10-27', calibre: null, formule: 'GBÈJÍ™ · Carnet de Quatre', pourQui: 'Nadia', ancienXof: 126000, nouveauXof: 140000, effet: 'x' }) as string[];
+  const vn = R.variablesDuPrixRevu({ appel: 'Mme Akouavi', le: '2026-10-27', calibre: null, formule: 'GBÈJÍ™ · Carnet de Quatre', pourQui: 'Nadia', ancienXof: 126000, nouveauXof: 140000, effet: 'x' }) as string[];
   dit('pour une tête portée : le calibre et la formule de Nadia', ['le calibre de Nadia', 'la formule de Nadia, GBÈJÍ™ · Carnet de Quatre'], [vn[2], vn[3]]);
 }
 
@@ -373,7 +373,7 @@ const sansNumeroDePiece = (t: string) => !/MND-\d|ABO-\d|\d{4}-\d{3,4}/.test(t);
   }));
   const lj = J.lignes('envois')[0]?.data;
   dit('tête portée : le rappel va à celle qui paie, appelée par sa civilité connue, la formule dite pour Nadia',
-    ['2290197000014', 'c-ak', 'Madame Akouavi', 'GBÈJÍ™ · Carnet de Quatre, pour Nadia'],
+    ['2290197000014', 'c-ak', 'Mme Akouavi', 'GBÈJÍ™ · Carnet de Quatre, pour Nadia'],
     [lj?.numero, lj?.clientId, lj?.colis?.composants?.[0]?.parameters?.[0]?.text, lj?.colis?.composants?.[0]?.parameters?.[3]?.text]);
   /* Le prix revu. */
   const e = echeancierApresPrixRevu(akouavi(), CARNET, [pieceAk()] as unknown as Invoice[], 190000, '2026-10-27');

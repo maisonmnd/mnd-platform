@@ -202,11 +202,11 @@ dit('chercher : le début des mots du nom, sans accent ; quatre chiffres du num�
   const envoi = sansCommentaires(lis('supabase/functions/avis-google/index.ts'));
   const pur = sansCommentaires(lis('src/shared/avis-fiches-pur.ts'));
   const corps = (src: string) => { const m = src.match(/function demandeDAvisPermise\([\s\S]*?\n\}/); return m ? m[0].replace(/\s+/g, ' ') : ''; };
-  dit('la fonction avis-google (2026-10-26-b) porte la MÊME règle, mot pour mot, lit les liens, le relevé et les demandes parties ; un GET rend la version', [true, true, true, true, true, true], [
+  dit('la fonction avis-google (2026-10-28-a) porte la MÊME règle, mot pour mot, lit les liens, le relevé et les demandes parties ; un GET rend la version', [true, true, true, true, true, true], [
     corps(envoi) !== '' && corps(envoi) === corps(pur),
     envoi.includes("'mnd_avis_fiches', 'mnd_avis_google'"), envoi.includes(".eq('data->>type', 'avis-google').in('data->>clientId', ids)"),
     envoi.includes("consigne(p, 'sans-envoi', `trop tôt : une demande d’avis au plus tôt le ${regle.des ?? ''}`)"),
-    envoi.includes("const VERSION = '2026-10-26-b';"), /req\.method === 'GET'/.test(envoi),
+    envoi.includes("const VERSION = '2026-10-28-a · M. et Mme devant le prénom';"), /req\.method === 'GET'/.test(envoi),
   ]);
   dit('... et la même clé d avis que le Trône (FNV-1a)', [true, true], [envoi.includes('let h = 0x811c9dc5;'), envoi.includes('h = Math.imul(h, 0x01000193) >>> 0;')]);
   /* 27 octobre 2026 (lot 3 de l'Assistant Maison) : le composeur WhatsApp a

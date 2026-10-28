@@ -47,7 +47,7 @@ import { createClient } from 'npm:@supabase/supabase-js@2';
 const TZ = 'Africa/Porto-Novo'; // le fuseau de la Maison, pas celui du serveur
 
 /** La version de ce fichier, rendue dans chaque réponse. */
-const VERSION = '2026-10-21-a · la fête de couronne, chaque année, aux parents';
+const VERSION = '2026-10-28-a · M. et Mme devant le prénom';
 
 /** Numéro béninois → format international sans « + » (copie de rappels-j1). */
 const numeroIntl = (brut: string | undefined): string | null => {
@@ -68,8 +68,9 @@ const appelDe = (d: { name?: unknown; civilite?: unknown; auMasculin?: unknown }
   const prenom = String(d?.name ?? repli ?? '').trim().split(/\s+/)[0] ?? '';
   /* La civilité inconnue ne se suppose plus (13 octobre 2026) : le prénom seul. */
   if (!civ) return prenom || 'Madame, Monsieur';
-  const mot = civ === 'monsieur' ? 'Monsieur' : civ === 'mademoiselle' ? 'Mademoiselle' : 'Madame';
-  return prenom ? `${mot} ${prenom}` : mot;
+  /* Abrégée devant le prénom (28 octobre 2026) : « M. Jean-Luc », « Mme Shadé » ; seule, en entier. */
+  if (prenom) return `${civ === 'monsieur' ? 'M.' : civ === 'mademoiselle' ? 'Mlle' : 'Mme'} ${prenom}`;
+  return civ === 'monsieur' ? 'Monsieur' : civ === 'mademoiselle' ? 'Mademoiselle' : 'Madame';
 };
 
 /* ══ LA SALLE D'ATTENTE — recopiée de rappels-j1 (src/shared/salle-des-envois.ts) ══ */

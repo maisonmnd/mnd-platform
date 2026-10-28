@@ -52,14 +52,15 @@ var pourClaude = (texte, personnes = []) => sansCoordonnees(nomsEnInitiales(text
 
 // src/shared/civilite.ts
 var DIT = { madame: "Madame", mademoiselle: "Mademoiselle", monsieur: "Monsieur" };
+var ABREGE = { madame: "Mme", mademoiselle: "Mlle", monsieur: "M." };
 var civiliteDe = (c) => c?.civilite && DIT[c.civilite] ? c.civilite : c?.auMasculin ? "monsieur" : "madame";
 var prenomSeul = (nom) => (nom ?? "").trim().split(/\s+/)[0] ?? "";
 var appelDe = (c, repli) => {
   const prenom = prenomSeul(c?.name ?? repli);
   const connue = !!c?.civilite && !!DIT[c.civilite] || !!c?.auMasculin;
   if (!connue) return prenom || "Madame, Monsieur";
-  const mot = DIT[civiliteDe(c)];
-  return prenom ? `${mot} ${prenom}` : mot;
+  const civ = civiliteDe(c);
+  return prenom ? `${ABREGE[civ]} ${prenom}` : DIT[civ];
 };
 
 // src/shared/agenda-pur.ts
@@ -341,7 +342,7 @@ function consigneDeLaReponse() {
     "Des phrases complètes et soignées, un français choisi : la Maison accueille, prend soin, parle de « votre couronne » et de « vos locks », d’un « rituel » plutôt que d’une prestation.",
     "Le vouvoiement, toujours. On dit « la Maison », JAMAIS « salon ». Ni « coucou », ni « ok », ni abréviation, ni point d’exclamation répété.",
     `Pas d’émoji, pas de tiret long, pas de liste, pas de titre. ${MOTS_MAX} mots au plus, en français (ou dans la langue de la cliente).`,
-    "Le ton, par exemple : « Avec plaisir, Madame Clarisse. Pour vous indiquer le juste prix de votre entretien, pourriez-vous nous dire combien de locks vous portez, approximativement ? »",
+    "Le ton, par exemple : « Avec plaisir, Mme Clarisse. Pour vous indiquer le juste prix de votre entretien, pourriez-vous nous dire combien de locks vous portez, approximativement ? »",
     "",
     "Ce que tu sais d’elle est dans le contexte : comment on l’appelle (reprends cet appel tel quel, n’invente ni nom ni civilité),",
     "son prochain rendez-vous, ce qui lui reste à régler, son nombre de locks s’il est connu, les places libres si l’agenda a été consulté, les prix du catalogue et les liens de la Maison.",
@@ -596,7 +597,7 @@ function prixSelonLeCalibre(s, ctx) {
 }
 
 // scripts/serveur/reception-wa.ts
-var VERSION = "2026-10-28-b";
+var VERSION = "2026-10-28-c";
 var MODELES = ["claude-haiku-5-5", "claude-sonnet-5-5"];
 var TARIFS = {
   "claude-haiku-5-5": { entree: 1, sortie: 5 },

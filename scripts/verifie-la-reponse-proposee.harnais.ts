@@ -60,8 +60,8 @@ const CATALOGUE = ['SÍNSIN™ Essentiel : 35 000 F', 'VÈKPÈ™ Jumbo : consul
 /* ── 1. L'ANONYMISATION : CE QUI PART CHEZ CLAUDE ─────────────────────── */
 {
   const c = contextePourClaude({ fil: fil(15), fiche: CLARISSE, prochainRdv: null, resteDu: 15000, catalogue: CATALOGUE, aujourdhui: AUJOURDHUI });
-  dit('la cliente se dit « Clarisse D. », et on dit comment on l appelle : « Madame Clarisse »', [true, true],
-    [c.includes('La cliente : Clarisse D.'), c.includes('On l’appelle : Madame Clarisse.')]);
+  dit('la cliente se dit « Clarisse D. », et on dit comment on l appelle : « Mme Clarisse »', [true, true],
+    [c.includes('La cliente : Clarisse D.'), c.includes('On l’appelle : Mme Clarisse.')]);
   dit('son nom entier n atteint jamais le contexte, dans aucun ordre', [false, false],
     [/dossou/i.test(c), /Clarisse Dossou|DOSSOU Clarisse/.test(c)]);
   dit('son numéro n atteint jamais le contexte, ni dit, ni au format de Meta', [false, false, false],
@@ -114,8 +114,8 @@ dit('le fil : son nom de famille seul ne passe pas non plus (« Madame Dossou »
   filPourClaude([{ sens: 'entrant', texte: 'C est Madame Dossou, la maman de Clarisse DOSSOU' }], [{ prenom: 'Clarisse', nom: 'Dossou' }]));
 {
   const c = contextePourClaude({ fil: [{ sens: 'entrant', texte: 'Bonjour, ici DOSSOU Clarisse' }], fiche: { name: 'DOSSOU Clarisse', civilite: 'madame' }, catalogue: [], aujourdhui: AUJOURDHUI });
-  dit('une fiche écrite à la façon des papiers (« DOSSOU Clarisse ») : « Clarisse D. », « Madame Clarisse », et le nom de famille jamais', [true, true, false],
-    [c.includes('La cliente : Clarisse D.'), c.includes('On l’appelle : Madame Clarisse.'), /dossou/i.test(c)]);
+  dit('une fiche écrite à la façon des papiers (« DOSSOU Clarisse ») : « Clarisse D. », « Mme Clarisse », et le nom de famille jamais', [true, true, false],
+    [c.includes('La cliente : Clarisse D.'), c.includes('On l’appelle : Mme Clarisse.'), /dossou/i.test(c)]);
 }
 dit('seuls les fils des clientes s ouvrent à Claude : ni l équipe, ni les prestataires, ni un fil marqué privé',
   [true, true, false, false, false, false],
@@ -123,7 +123,7 @@ dit('seuls les fils des clientes s ouvrent à Claude : ni l équipe, ni les pres
     filOuvertAClaude({ tiroir: 'prestataires', prive: false }), filOuvertAClaude({ tiroir: 'clientes', prive: true }), filOuvertAClaude(null)]);
 dit('une fiche muette dit le prénom seul (jamais « Madame » supposé) ; un monsieur se dit « Lui »', [true, true, true],
   [contextePourClaude({ fil: fil(1), fiche: { name: 'Ola Kossou' }, catalogue: [], aujourdhui: AUJOURDHUI }).includes('On l’appelle : Ola.'),
-    contextePourClaude({ fil: fil(1), fiche: { name: 'Koffi Agbo', civilite: 'monsieur' }, catalogue: [], aujourdhui: AUJOURDHUI }).includes('On l’appelle : Monsieur Koffi.'),
+    contextePourClaude({ fil: fil(1), fiche: { name: 'Koffi Agbo', civilite: 'monsieur' }, catalogue: [], aujourdhui: AUJOURDHUI }).includes('On l’appelle : M. Koffi.'),
     contextePourClaude({ fil: fil(1), fiche: { name: 'Koffi Agbo', civilite: 'monsieur' }, catalogue: [], aujourdhui: AUJOURDHUI }).includes('Lui : Message numéro 1')]);
 {
   const sansFiche = contextePourClaude({ fil: [{ sens: 'entrant', texte: 'Bonjour, Awa Dossou, sœur de Madame DOSSOU' }], nomProfil: 'Awa Dossou', catalogue: [], aujourdhui: AUJOURDHUI });
@@ -236,7 +236,7 @@ dit('une fiche muette dit le prénom seul (jamais « Madame » supposé) ; un mo
       c.includes('demande-lui d’abord, avec délicatesse, combien de locks elle porte approximativement, sans citer de montant'),
       c.includes('le prix se dit toujours « à partir de »')]);
   dit('la voix premium de la Maison : une maison d exception, jamais familière ni commerciale, un exemple du ton', [true, true, true],
-    [c.includes('celle d’une maison d’exception : élégante, posée, attentionnée'), c.includes('Jamais familière, jamais commerciale, jamais pressante'), c.includes('Le ton, par exemple : « Avec plaisir, Madame Clarisse.')]);
+    [c.includes('celle d’une maison d’exception : élégante, posée, attentionnée'), c.includes('Jamais familière, jamais commerciale, jamais pressante'), c.includes('Le ton, par exemple : « Avec plaisir, Mme Clarisse.')]);
   dit('pour inscrire un rendez-vous : comment devons-nous vous appeler, puis Madame ou Monsieur, jamais une civilité supposée', true,
     c.includes('« Pour inscrire votre rendez-vous, comment devons-nous vous appeler ? », puis « Madame ou Monsieur ? »'));
   dit('jamais une place promise sans l agenda ; la réservation en ligne sinon', [true, true],
@@ -256,7 +256,7 @@ dit('une fiche muette dit le prénom seul (jamais « Madame » supposé) ; un mo
 
 /* ── 6. LA LECTURE : CE QUE CLAUDE A ÉCRIT, AVANT QU'ON LE RELISE ─────── */
 {
-  const bonne = 'Bonjour Madame Clarisse, votre resserrage SÍNSIN™ Essentiel est à 35 000 F. Votre rendez-vous du mercredi 21 octobre 2026 à 14:00 est bien noté. À très vite à la Maison.';
+  const bonne = 'Bonjour Mme Clarisse, votre resserrage SÍNSIN™ Essentiel est à 35 000 F. Votre rendez-vous du mercredi 21 octobre 2026 à 14:00 est bien noté. À très vite à la Maison.';
   dit('une bonne réponse passe telle quelle, par l objet du schéma ou par un texte nu', [bonne, bonne], [lectureDeLaReponse({ reponse: bonne }), lectureDeLaReponse(bonne)]);
   dit('un numéro de téléphone : refusée, dit ou au format de Meta', [null, null],
     [lectureDeLaReponse({ reponse: 'Appelez-nous au 01 97 00 00 00.' }), lectureDeLaReponse({ reponse: 'WhatsApp +2290197000000' })]);
@@ -285,17 +285,17 @@ dit('une fiche muette dit le prénom seul (jamais « Madame » supposé) ; un mo
   const uneSeule = Array.from({ length: 90 }, (_, i) => `mot${i}`).join(' ');
   const c1 = lectureDeLaReponse({ reponse: uneSeule }) ?? '';
   dit('une seule phrase trop longue : coupée au mot, avec des points', [true, true, true], [motsDe(c1) <= MOTS_MAX, c1.endsWith('…'), c1.startsWith('mot0 mot1')]);
-  dit('les sauts de ligne se fondent : un message WhatsApp, pas une lettre', 'Bonjour Madame Clarisse, bien reçu. À bientôt.',
-    lectureDeLaReponse({ reponse: 'Bonjour Madame Clarisse,\n\nbien reçu.\nÀ bientôt.' }));
+  dit('les sauts de ligne se fondent : un message WhatsApp, pas une lettre', 'Bonjour Mme Clarisse, bien reçu. À bientôt.',
+    lectureDeLaReponse({ reponse: 'Bonjour Mme Clarisse,\n\nbien reçu.\nÀ bientôt.' }));
 }
 
 /* ── 6 bis. LA ZONE DE SAISIE : LA PROPOSITION À VÉRIFIER, LA MAIN PROTÉGÉE ── */
 {
-  const p = 'Bonjour Madame Clarisse, bien reçu.';
+  const p = 'Bonjour Mme Clarisse, bien reçu.';
   dit('la zone : vide ; la proposition mot pour mot (à vérifier) ; un mot changé (la sienne) ; écrite seule', ['vide', 'proposee', 'retouchee', 'a-la-main', 'vide'],
-    [etatDeLaZone('', p), etatDeLaZone(p, p), etatDeLaZone('Bonjour Madame Clarisse, bien reçu, merci.', p), etatDeLaZone('Je vous rappelle.', null), etatDeLaZone('   ', null)]);
+    [etatDeLaZone('', p), etatDeLaZone(p, p), etatDeLaZone('Bonjour Mme Clarisse, bien reçu, merci.', p), etatDeLaZone('Je vous rappelle.', null), etatDeLaZone('   ', null)]);
   dit('une proposition ne remplace jamais en silence ce que la main a écrit ou retouché ; elle remplace la sienne, ou une zone vide', [true, true, false, false],
-    [zoneAProteger('Je vous rappelle.', null), zoneAProteger('Bonjour Madame Clarisse, bien reçu, merci.', p), zoneAProteger(p, p), zoneAProteger('', p)]);
+    [zoneAProteger('Je vous rappelle.', null), zoneAProteger('Bonjour Mme Clarisse, bien reçu, merci.', p), zoneAProteger(p, p), zoneAProteger('', p)]);
 }
 
 /* ── 7. LA PORTE : QUI PEUT DEMANDER (la direction, la Clientèle) ──────── */

@@ -82,10 +82,10 @@ dit('les heures pour Claude : les jours pareils ensemble, fermé dit fermé, rie
     { key: 'dim', open: '10h00', close: '16h00', closed: true },
   ]), heuresPourClaude(undefined)]);
 {
-  const c = consigneDeClaude({ appel: 'Madame Clarisse', heures: ['du lundi au samedi : 09h00 à 19h00'], maintenant: 'lundi 19 octobre 2026 à 10:00' });
+  const c = consigneDeClaude({ appel: 'Mme Clarisse', heures: ['du lundi au samedi : 09h00 à 19h00'], maintenant: 'lundi 19 octobre 2026 à 10:00' });
   dit('la consigne de Claude : jamais un prix, jamais une place, pas de diagnostic, il se dit automatique, il passe la main par WhatsApp, jamais « salon »',
     [true, true, true, true, true, true, true],
-    [/JAMAIS de prix/.test(c), /JAMAIS une place/.test(c), /aucun avis médical/.test(c), /réponse automatique/.test(c), /répondra sur WhatsApp/.test(c), /jamais le mot « salon »/.test(c), /Madame Clarisse/.test(c)]);
+    [/JAMAIS de prix/.test(c), /JAMAIS une place/.test(c), /aucun avis médical/.test(c), /réponse automatique/.test(c), /répondra sur WhatsApp/.test(c), /jamais le mot « salon »/.test(c), /Mme Clarisse/.test(c)]);
   dit('... et il connaît les heures, l adresse, la réservation en ligne', [true, true, true],
     [/09h00 à 19h00/.test(c), /Suru-Léré/.test(c), /maisonmnd\.com\/reserver/.test(c)]);
   dit('... sans heures, il n en donne aucune', true, /ne donne aucune heure/.test(consigneDeClaude({ appel: 'Ola', heures: [], maintenant: 'x' })));
@@ -160,7 +160,7 @@ function serveur(o: { presents?: string[]; claude?: (s: string) => string } = {}
     alerte: async (a: Record<string, unknown>) => { j.alertes.push(a); return 1; },
     claude: async (systeme: string, messages: unknown[]) => {
       j.claudes.push({ systeme, messages });
-      return o.claude ? o.claude(systeme) : 'Bonjour Madame Clarisse, ici la réponse automatique de la Maison MND. Vous pouvez choisir votre heure sur maisonmnd.com/reserver/. Une personne de l’équipe vous répondra sur WhatsApp dès son retour.';
+      return o.claude ? o.claude(systeme) : 'Bonjour Mme Clarisse, ici la réponse automatique de la Maison MND. Vous pouvez choisir votre heure sur maisonmnd.com/reserver/. Une personne de l’équipe vous répondra sur WhatsApp dès son retour.';
     },
     fond: (p: Promise<unknown>) => { j.fonds += 1; void p; },
   };
@@ -174,7 +174,7 @@ const essais = async () => {
     const s = serveur();
     const [st, r] = await s.ouvrir(s.outils, CLARISSE, 'br-maison');
     const ligne = s.j.discussions.get(String(r.id)) ?? {} as Ligne;
-    dit('ouvrir : un identifiant, un jeton, l appel « Madame Clarisse », hors ligne sans permanence', [200, true, true, 'Madame Clarisse', false],
+    dit('ouvrir : un identifiant, un jeton, l appel « Mme Clarisse », hors ligne sans permanence', [200, true, true, 'Mme Clarisse', false],
       [st, /^disc-[0-9a-f-]{36}$/.test(String(r.id)), String(r.jeton).length >= 20, r.appel, r.enLigne]);
     dit('la base ne garde que l empreinte du jeton, jamais le jeton', [true, false],
       [ligne.jeton_hash === createHash('sha256').update(String(r.jeton)).digest('hex'), Object.values(ligne).includes(r.jeton)]);
@@ -204,7 +204,7 @@ const essais = async () => {
     dit('personne n est là : son message, puis la réponse automatique de Claude, rendus aussitôt', [200, ['visiteuse', 'auto'], false],
       [st, msgs.map((m) => m.de), e.enLigne]);
     dit('Claude a reçu la consigne et la conversation, sans jamais son numéro', [1, true, false, false, 'Bonjour, il vous reste de la place samedi ?'],
-      [s.j.claudes.length, /Madame Clarisse/.test(s.j.claudes[0]?.systeme ?? ''), /97 00 00 00|2290197/.test(s.j.claudes[0]?.systeme ?? ''),
+      [s.j.claudes.length, /Mme Clarisse/.test(s.j.claudes[0]?.systeme ?? ''), /97 00 00 00|2290197/.test(s.j.claudes[0]?.systeme ?? ''),
         /97 00 00 00|2290197/.test(JSON.stringify(s.j.claudes[0]?.messages)), (s.j.claudes[0]?.messages as { content: string }[])[0]?.content]);
     dit('l équipe l apprend (personne de permanence), sans restriction', [1, true, undefined, String(r.id)],
       [s.j.alertes.length, /personne de permanence/.test(String(s.j.alertes[0]?.titre)), s.j.alertes[0]?.seulement, s.j.alertes[0]?.discussionId]);
@@ -266,7 +266,7 @@ const essais = async () => {
 /* ── 4. LA FONCTION, LA MIGRATION, LE SITE, LE TRÔNE ─────────────────── */
 const structure = () => {
   const f = sansCommentaires(lis(SERVEUR));
-  dit('la fonction dit sa version et répond 405 à un GET', [true, true], [/const VERSION = '2026-10-19-a/.test(f), /json\(\{ error: 'method', version: VERSION \}, 405\)/.test(f)]);
+  dit('la fonction dit sa version et répond 405 à un GET', [true, true], [/const VERSION = '2026-10-28-a · M\. et Mme/.test(f), /json\(\{ error: 'method', version: VERSION \}, 405\)/.test(f)]);
   dit('ouvrir, écrire et l état ont leur seau ; la lecture, non (le jeton seul l ouvre)', [true, true, true, true],
     [/allowRate\(ip, 'chat_ouvrir', 6\)/.test(f), /allowRate\(ip, 'chat_ecrire', 40\)/.test(f), /allowRate\(ip, 'chat_etat', 60\)/.test(f), /case 'lire':\s*r = await lire\(outils, body\);/.test(f)]);
   dit('Claude ne reçoit jamais le numéro', false, /consigneDeClaude\(\{[^}]*telephone/.test(f));

@@ -149,12 +149,12 @@ w.AudioContext = FauxContexte;
 
 /* ── n73 · LA RELANCE ET LE RAPPEL DISENT L'ANNÉE ─────────────────────── */
 const relance = texteDeLaRelance({
-  prenom: 'Madame R.', jourIso: '2026-11-13', heure: '10:00', aujourdhuiIso: '2026-10-10', maison: 'Maison MND',
+  prenom: 'Mme R.', jourIso: '2026-11-13', heure: '10:00', aujourdhuiIso: '2026-10-10', maison: 'Maison MND',
 });
 dit('n73 la relance J-3 porte l annee, meme celle de cette annee', true,
   relance.includes('prévu le vendredi 13 novembre 2026 à 10 h.'));
 const rappel = texteDuRappel({
-  prenom: 'Madame R.', jourIso: '2026-10-20', heure: '09:00', aujourdhuiIso: '2026-10-10', demainIso: '2026-10-11',
+  prenom: 'Mme R.', jourIso: '2026-10-20', heure: '09:00', aujourdhuiIso: '2026-10-10', demainIso: '2026-10-11',
   rituels: [], maison: 'Maison MND',
 });
 dit('n73 le rappel au-dela de demain porte l annee', true,
@@ -168,19 +168,19 @@ const paquet = (o: Partial<FinDePaquet>): FinDePaquet => ({
   jusquau: '2027-01-12', motif: 'date-proche', ...o,
 } as unknown as FinDePaquet);
 dit('n74 n75 un abonne marque Monsieur, un paquet qui finit l an prochain',
-  ['Monsieur K.', '1 séance', 'Prolongement 6 soins', 'valable jusqu’au 12 janvier 2027'],
+  ['M. K.', '1 séance', 'Prolongement 6 soins', 'valable jusqu’au 12 janvier 2027'],
   variablesDeLaFinDePaquet(paquet({}), { name: 'K. K.', civilite: 'monsieur' }));
 dit('n75 une fiche muette : le prenom seul (13 octobre 2026)', 'R.',
   variablesDeLaFinDePaquet(paquet({ nom: 'R. A.' }), { name: 'R. A.' })[0]);
 dit('n75 sans fiche, le nom du contrat seul', 'R.',
   variablesDeLaFinDePaquet(paquet({ nom: 'R. A.' }))[0]);
 dit('n74 n75 la phrase du fil suit',
-  'Bonjour Monsieur K., il vous reste 1 séance sur votre Prolongement 6 soins, valable jusqu’au 12 janvier 2027. Pensez à réserver : nous vous gardons votre place.',
+  'Bonjour M. K., il vous reste 1 séance sur votre Prolongement 6 soins, valable jusqu’au 12 janvier 2027. Pensez à réserver : nous vous gardons votre place.',
   phraseDeLaFinDePaquet(paquet({}), { name: 'K. K.', civilite: 'monsieur' }));
 
 /* ── n76 · LE RAPPEL D'UNE DEMANDE, AVEC SA CIVILITÉ ──────────────────── */
 dit('n76 une demande ou il a choisi Monsieur', true,
-  messageDeRappel({ prenom: 'K.', besoin: 'creation', civilite: 'monsieur' }).startsWith('Bonjour Monsieur K., ici la Maison MND.'));
+  messageDeRappel({ prenom: 'K.', besoin: 'creation', civilite: 'monsieur' }).startsWith('Bonjour M. K., ici la Maison MND.'));
 dit('n76 une demande du site sans civilite : le prenom seul', true,
   messageDeRappel({ prenom: 'A.', besoin: 'inconnu' }).startsWith('Bonjour A., ici la Maison MND.'));
 dit('n76 sans prenom ni civilite, Madame, Monsieur', true,
@@ -199,9 +199,9 @@ const bilan = { id: 'b1', branchId: 'b1', clientId: 'c1', numero: 'MND-BS-2026-0
 const awa = { name: 'Awa K.', civilite: 'madame' as const };
 dit('n86 le mot du bilan porte l annee', true,
   messageDuBilan(bilan, awa).includes('voici le bilan de votre séance du 4 octobre 2026,'));
-dit('n86 les variables du modele Meta', ['Madame Awa', '4 octobre 2026'], variablesDuModeleBilan(bilan, awa));
+dit('n86 les variables du modele Meta', ['Mme Awa', '4 octobre 2026'], variablesDuModeleBilan(bilan, awa));
 dit('n86 la notification de Ma Couronne',
-  'Madame Awa, votre bilan du 4 octobre 2026 est prêt, avec votre routine à la maison.', annonceDuBilan(bilan, awa));
+  'Mme Awa, votre bilan du 4 octobre 2026 est prêt, avec votre routine à la maison.', annonceDuBilan(bilan, awa));
 
 /* ── REPRISE (10 octobre 2026) · L'ÉCHANTILLON DOCUMENTÉ EST CE QUE LE CODE
    ENVOIE ─────────────────────────────────────────────────────────────────
@@ -226,7 +226,7 @@ const echantillon = (section: string, v: number) =>
   section.match(new RegExp(String.raw`\{\{${v}\}\} = [^«]*« ([^»]+) »`))?.[1] ?? '(absent)';
 
 dit('reprise code fin_de_paquet, la cliente des echantillons',
-  ['Madame Awa', '2 séances', 'formule Entretien', 'valable jusqu’au 12 juin 2027'],
+  ['Mme Awa', '2 séances', 'formule Entretien', 'valable jusqu’au 12 juin 2027'],
   variablesDeLaFinDePaquet(
     paquet({ nom: 'Awa K.', reste: 2, formule: 'formule Entretien', jusquau: '2027-06-12' }), awa));
 dit('reprise doc fin_de_paquet v1 montre la civilite', 'Madame Awa', echantillon(docPaquet, 1));
