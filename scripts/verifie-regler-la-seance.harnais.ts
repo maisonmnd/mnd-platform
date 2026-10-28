@@ -372,7 +372,7 @@ dit('le mot de la facture du foyer : « Régler » quand le lien mene a la page,
     [/saitRegler\(versionDeRegler\)/.test(fact) && /const j = poseLeLienDeReglement\(selected\.apptId!\);/.test(fact),
       /saitReglerLeFoyer\(versionDeRegler\)/.test(fact) && /const j = poseLeLienDuFoyer\(rdvsDuFoyer\);/.test(fact),
       /saitReglerLeFoyer\(await versionDuReglement\(\)\) \? poseLeLienDuFoyer\(rdvs\)/.test(envoi) && /enLigne: !!parRegler/.test(envoi),
-      /touchez « Régler » sur cette page/.test(fact),
+      (fact.match(/touchez « Régler » sur cette page/g) ?? []).length === 2 && /en une fois depuis votre téléphone \(MTN, Moov, Celtiis ou carte\), touchez « Régler »/.test(fact),
       /Références \$\{prises/.test(fact)]);
 }
 
