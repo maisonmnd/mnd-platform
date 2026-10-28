@@ -280,8 +280,9 @@ dit('D. la facture : l ecran dit la raison de son jour, le PDF la ligne de son j
 dit('D. le recu-facture de la caisse aussi', true, sansCommentaires('src/apps/trone/routes/vente/Caisse.tsx').includes('legal: maisonRaisonDuPdfAu(inv.date),'));
 dit('D. sous un pied qui nomme deja la Maison, la ligne legale ne la renomme pas', ['RCCM RB/COT/26 A 120676 · IFU 1 2010 0097 2809', ANCIENNE],
   [ligneLegaleSousLeNom(NOUVELLE, 'Maison MND'), ligneLegaleSousLeNom(ANCIENNE, 'Maison MND')]);
-dit('D. le PDF de facture pose la ligne legale juste au-dessus de la devise', true,
-  /if \(d\.legal\?\.trim\(\)\) \{[\s\S]{0,200}doc\.text\(pdfSafe\(ligneLegaleSousLeNom\(d\.legal, maisonNom\(\)\)\), W \/ 2, 280\.5, \{ align: 'center' \}\);\s*\}\s*await pieDeLaMaison\(doc, W, 285\);/
+/* 28 octobre 2026 : « Maison MND · Code Marchand 909099 » juste sous le RCCM (Yéman), la devise dessous. */
+dit('D. le PDF de facture pose la ligne legale, le code marchand juste dessous, puis la devise', true,
+  /if \(d\.legal\?\.trim\(\)\) \{[\s\S]{0,200}doc\.text\(pdfSafe\(ligneLegaleSousLeNom\(d\.legal, maisonNom\(\)\)\), W \/ 2, 280\.5, \{ align: 'center' \}\);\s*\}\s*if \(estLaMaisonMND\(d\.houseName\)\) \{[\s\S]{0,200}?Code Marchand[\s\S]{0,80}?\}\s*await pieDeLaMaison\(doc, W, 290\);/
     .test(sansCommentaires('src/shared/pdf.ts')));
 dit('D. « Entre … » ne repete pas le nom de la Maison',
   'Entre Maison MND (RCCM RB/COT/26 A 120676 · IFU 1 2010 0097 2809), dont le siège est à Cotonou, ci-après « la Maison »,',

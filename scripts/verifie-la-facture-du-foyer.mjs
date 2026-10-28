@@ -64,8 +64,10 @@ const FAUTES = [
   { n: 10, fichier: PIECE, avant: '${fmtDateFr(o.jourDe ? o.jourDe(p) : p.date)}', apres: '${(o.jourDe ? o.jourDe(p) : p.date).slice(5)}' },
   { n: 10, fichier: PIECE, avant: "      if (deja > 0) detail.push(`Déjà réglé · − ${o.fmt(deja)}`);\n", apres: '' },
   { n: 10, fichier: PIECE, avant: '  const totalXof = o.pieces.reduce((n, p) => n + invoiceResteXof(p), 0);', apres: '  const totalXof = o.pieces.reduce((n, p) => n + invoiceTotal(p), 0);' },
-  { n: 11, fichier: PIECE, avant: '    qr: momopay.qr,', apres: '    qr: tg.qr,' },
+  { n: 11, fichier: PIECE, avant: '    qr: tg.qr,', apres: '    qr: momopay.qr,' },
+  { n: 11, fichier: PIECE, avant: "    genre: 'tapgo',\n", apres: '' },
   { n: 11, fichier: PIECE, avant: '    code: tg.code,', apres: '    code: momopay.code,' },
+  { n: 11, fichier: PIECE, avant: '  if (!tg) return { qr: momopay.qr, code: momopay.code };', apres: '  if (!tg) return momopay;' },
   { n: 12, fichier: 'src/shared/pdf.ts', avant: '  if (sceau) y = Math.max(y, yDuSceau + TAILLE_DU_SCEAU + 2);', apres: '' },
   { n: 12, fichier: 'src/shared/pdf.ts', avant: 'const paye = estLaMaisonMND(d.houseName) ? await chargeImageDuSite(TAMPON_PAYE.chemin) : null;', apres: 'const paye = null;' },
   { n: 12, fichier: 'src/apps/trone/routes/vente/Factures.tsx', avant: 'await invoicePdf(pdfDuFoyer({', apres: 'await invoicePdf(({' },
@@ -73,6 +75,7 @@ const FAUTES = [
   { n: 13, fichier: 'src/shared/pdf.ts', avant: "doc.addImage(sceau, 'PNG', rx - TAILLE_DU_SCEAU, yDuSceau,", apres: "doc.addImage(sceau, 'PNG', M + 4, yDuSceau," },
   { n: 13, fichier: 'src/shared/pdf.ts', avant: '  const yDuSceau = y - 2;', apres: '  const yDuSceau = y - 40;' },
   { n: 13, fichier: 'src/shared/pdf.ts', avant: 'Code Marchand ${CODE_MOMOPAY}', apres: '${CODE_MOMOPAY}' },
+  { n: 13, fichier: 'src/shared/pdf.ts', avant: '  await pieDeLaMaison(doc, W, 290);', apres: '  await pieDeLaMaison(doc, W, 285);' },
   { n: 13, fichier: 'src/shared/pdf.ts', avant: "  if (estLaMaisonMND(d.houseName)) {\n    doc.setFont('helvetica', 'bold');\n    doc.setFontSize(8);\n    doc.setTextColor(INDIGO);", apres: "  {\n    doc.setFont('helvetica', 'bold');\n    doc.setFontSize(8);\n    doc.setTextColor(INDIGO);" },
 ];
 

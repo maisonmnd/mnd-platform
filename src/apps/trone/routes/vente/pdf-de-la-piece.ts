@@ -52,16 +52,20 @@ export const fmtDateFr = (iso: string) => {
     Go gardé dessous. Le QR porte l'identifiant MoMoPay de la Maison, que
     l'appli MoMo lit ; le code est celui de Tap & Go, tout réseau, frais
     compris, pour qui ne paie pas chez MTN. Tap & Go éteint : le MoMoPay seul,
-    son QR et son code. */
+    son QR et son code.
+
+    LE MÊME JOUR, ÉPREUVE EN MAIN : « remets le code QR de FedaPay et enlève
+    Maison MND du bas du QR code » (Yéman). Le QR redevient celui de Tap &
+    Go, montant compris ; dessous, le montant et le code, sans le nom :
+    « Maison MND · Code Marchand 909099 » se lit au pied, sous le RCCM. */
 export function paiementDeLaPiece(resteXof: number, reglages: ReglagesMndPay | undefined): InvoicePdfData['momo'] {
   const momopay = paiementMomoDeLaMaison(resteXof);
   const tg = paiementTapGoDeLaPiece(resteXof, reglages);
-  if (!tg) return momopay;
-  const codeMarchand = /^(\d+)@/.exec(momopay.qr)?.[1];
+  if (!tg) return { qr: momopay.qr, code: momopay.code };
   return {
-    qr: momopay.qr,
-    marchand: ['MoMoPay', momopay.marchand, codeMarchand].filter(Boolean).join(' · '),
-    codeDit: `Tout réseau · ${fmtMoney(tg.totalXof, 'XOF')}${tg.fraisXof > 0 ? ' frais compris' : ''}`,
+    genre: 'tapgo',
+    qr: tg.qr,
+    codeDit: `${fmtMoney(tg.totalXof, 'XOF')}${tg.fraisXof > 0 ? ' frais compris' : ''}`,
     code: tg.code,
   };
 }

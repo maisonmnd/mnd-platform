@@ -907,17 +907,19 @@ async function construitLaFacture(d: InvoicePdfData): Promise<{ doc: any; filena
     doc.setTextColor(SOFT);
     doc.text(pdfSafe(ligneLegaleSousLeNom(d.legal, maisonNom())), W / 2, 280.5, { align: 'center' });
   }
-  await pieDeLaMaison(doc, W, 285);
-  /* LE CODE MARCHAND, TOUT EN BAS — 28 octobre 2026. « Tout en bas des
-     factures il faut écrire Maison MND Code Marchand 909099 » (Yéman) : sur
-     chaque papier de la Maison, soldé ou non, devis et relevés compris. Le QR
-     ne vit que sur une pièce à régler ; le code, lui, reste lisible partout. */
+  /* LE CODE MARCHAND AU PIED — 28 octobre 2026. « Tout en bas des factures il
+     faut écrire Maison MND Code Marchand 909099 » (Yéman) : sur chaque papier
+     de la Maison, soldé ou non, devis et relevés compris. Le QR ne vit que sur
+     une pièce à régler ; le code, lui, reste lisible partout. Épreuve en main,
+     le même jour : « le maintenir juste en dessous du RCCM ». La devise passe
+     dessous. */
   if (estLaMaisonMND(d.houseName)) {
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(8);
     doc.setTextColor(INDIGO);
-    doc.text(`${maisonNom()} · Code Marchand ${CODE_MOMOPAY}`, W / 2, 290.5, { align: 'center' });
+    doc.text(`${maisonNom()} · Code Marchand ${CODE_MOMOPAY}`, W / 2, 285, { align: 'center' });
   }
+  await pieDeLaMaison(doc, W, 290);
 
   const filename = `${d.nomDuFichier ?? (d.kind === 'devis' ? 'Devis' : d.kind === 'releve' ? 'Releve' : 'Facture')}-${d.number}.pdf`;
   return { doc, filename };
