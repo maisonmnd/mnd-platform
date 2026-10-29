@@ -297,10 +297,11 @@ remetsLaBase();
   const carte = { nom: 'carte.jpg', type: 'image/jpeg', donnees: Buffer.from([1, 2, 3]).toString('base64') };
   const r = await envoi(unEnvoi({ televerseSeulement: true, piece: carte }));
   const j = await r.json();
-  dit('n1b le depot seul rend l identifiant de la carte, sans numero, et n envoie rien', [200, 'media-1', 1, 0, 0],
-    [r.status, j.mediaId, medias, envois.length, [...table('messages_wa').values()].length]);
+  const vu = [r.status, j.mediaId, medias, envois.length, [...table('messages_wa').values()].length];
+  dit('n1b le depot seul rend l identifiant de la carte, sans numero, et n envoie rien', JSON.stringify(vu) === JSON.stringify([200, 'media-1', 1, 0, 0]), vu);
   const sans = await envoi(unEnvoi({ televerseSeulement: true }));
-  dit('n1b ... sans piece, refuse, rien chez Meta', [400, 1, 0], [sans.status, medias, envois.length]);
+  const vu2 = [sans.status, medias, envois.length];
+  dit('n1b ... sans piece, refuse, rien chez Meta', JSON.stringify(vu2) === JSON.stringify([400, 1, 0]), vu2);
 }
 
 /* ── n2 · une demande du site n'ouvre pas la fenetre ───────────────── */
