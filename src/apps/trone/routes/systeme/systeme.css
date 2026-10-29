@@ -684,14 +684,17 @@
 .prm-trouve { font-family: var(--font-sans); font-size: 12.5px; color: var(--ink-soft); margin: 8px 4px 0; line-height: 1.5; }
 
 .prm-gestes { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+/* LA COULEUR, 29 octobre 2026 : « cette page manque de couleurs » (Yéman),
+   variante A choisie au sélecteur (5TyL4JN9…) : les tuiles prennent l'indigo
+   plein de la barre, texte ivoire ; les gestes passent au cuivre. */
 .prm-geste {
-  font-family: var(--font-sans); font-size: 13px; color: var(--color-indigo);
-  background: transparent; border: 1px solid var(--color-indigo); border-radius: 999px;
+  font-family: var(--font-sans); font-size: 13px; color: var(--color-ivoire);
+  background: var(--color-copper); border: 1px solid var(--color-copper); border-radius: 999px;
   padding: 8px 14px; cursor: pointer;
 }
-.prm-geste:hover:not(:disabled) { background: var(--color-indigo); color: var(--color-ivoire); }
+.prm-geste:hover:not(:disabled) { background: var(--copper-600); border-color: var(--copper-600); }
 .prm-geste:disabled { opacity: .45; cursor: not-allowed; }
-.prm-geste.is-pause { border-color: var(--copper-700); color: var(--copper-700); }
+.prm-geste.is-pause { background: var(--copper-700); border-color: var(--copper-700); }
 .prm-geste:focus-visible { outline: 2px solid var(--copper-600); outline-offset: 2px; }
 
 .prm-verifs { margin-top: 12px; border: 1px solid var(--hairline); border-radius: 4px; padding: 10px 14px; background: var(--surface-card); display: grid; gap: 6px; }
@@ -704,19 +707,19 @@
 @media (max-width: 980px) { .prm-tuiles { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 .prm-tuile {
   text-align: left; display: grid; gap: 5px; align-content: start; min-width: 0;
-  background: var(--surface-card); border: 1px solid var(--hairline); border-radius: 4px;
-  padding: 13px 14px 12px; cursor: pointer; color: var(--ink);
-  transition: border-color .15s ease, background .15s ease;
+  background: var(--color-indigo); border: 1px solid var(--color-indigo); border-radius: 4px;
+  padding: 13px 14px 12px; cursor: pointer; color: var(--color-ivoire);
+  transition: border-color .15s ease, background .15s ease, box-shadow .15s ease;
 }
-.prm-tuile:hover { border-color: var(--copper-300); }
-.prm-tuile.is-ouverte { border-color: var(--copper-600); background: var(--copper-50); }
-.prm-tuile:focus-visible { outline: 2px solid var(--copper-600); outline-offset: 2px; }
-.prm-tuile__nom { font-family: var(--font-serif); font-size: 18px; line-height: 1.2; color: var(--color-indigo); }
-.prm-tuile__resume { font-family: var(--font-sans); font-size: 12px; line-height: 1.45; color: var(--ink-soft); overflow-wrap: anywhere; }
+.prm-tuile:hover { background: var(--indigo-500); border-color: var(--indigo-500); }
+.prm-tuile.is-ouverte { background: var(--indigo-500); border-color: var(--copper-300); box-shadow: inset 0 -3px 0 var(--copper-300); }
+.prm-tuile:focus-visible { outline: 2px solid var(--copper-300); outline-offset: 2px; }
+.prm-tuile__nom { font-family: var(--font-serif); font-size: 18px; line-height: 1.2; color: var(--color-ivoire); }
+.prm-tuile__resume { font-family: var(--font-sans); font-size: 12px; line-height: 1.45; color: var(--indigo-200); overflow-wrap: anywhere; }
 .prm-etat { justify-self: start; font-family: var(--font-sans); font-size: 10.5px; letter-spacing: .06em; border-radius: 999px; padding: 1px 9px; white-space: nowrap; border: 1px solid transparent; }
-.prm-etat--ok { color: var(--color-indigo); border-color: var(--color-indigo); }
-.prm-etat--attention { color: var(--copper-700); background: var(--copper-100); border-color: var(--copper-300); }
-.prm-etat--neutre { color: var(--ink-soft); border-color: var(--hairline); }
+.prm-etat--ok { color: var(--color-ivoire); border-color: var(--indigo-200); }
+.prm-etat--attention { color: var(--color-ivoire); background: var(--color-copper); border-color: var(--color-copper); }
+.prm-etat--neutre { color: var(--indigo-200); border-color: var(--indigo-400); }
 
 .prm-panneau { margin-top: 16px; scroll-margin-top: 12px; }
 .prm-panneau__tete {
