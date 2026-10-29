@@ -17,10 +17,13 @@ import {
   TUILES, RAREMENT, NOTIFICATIONS, verrouOuvert, heureLisible, resumeDesHeures, tuilesTrouvees, rarementTrouves, resumeEnvois,
 } from '../src/apps/trone/routes/systeme/parametres-pur';
 
-const ECRAN = readFileSync('src/apps/trone/routes/systeme/Parametres.tsx', 'utf8');
-const CLOCHE = readFileSync('src/apps/trone/shell/Notifications.tsx', 'utf8');
-const MARKETING = readFileSync('src/apps/trone/routes/equipe/MarketingBranche.tsx', 'utf8');
-const TEXTES = readFileSync('src/apps/trone/routes/systeme/Textes.tsx', 'utf8');
+/* LES FINS DE LIGNE DE WINDOWS (CRLF) dans une copie propre faite par git :
+   le harnais lit des retours « \n », il les rend tous pareils d'abord. */
+const lit = (f: string) => readFileSync(f, 'utf8').replace(/\r\n/g, '\n');
+const ECRAN = lit('src/apps/trone/routes/systeme/Parametres.tsx');
+const CLOCHE = lit('src/apps/trone/shell/Notifications.tsx');
+const MARKETING = lit('src/apps/trone/routes/equipe/MarketingBranche.tsx');
+const TEXTES = lit('src/apps/trone/routes/systeme/Textes.tsx');
 
 const sansCommentaires = (s: string) => s.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\{\/\*[\s\S]*?\*\/\}/g, '').replace(/^\s*\/\/.*$/gm, '');
 
