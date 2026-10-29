@@ -50,7 +50,7 @@ export type AutomatisationReelle = {
 
 export const AUTOMATISATIONS_REELLES: readonly AutomatisationReelle[] = [
   { id: 'confirmation', groupe: 'avant', quand: 'Un rendez-vous passe « confirmé »', quoi: 'Confirmation WhatsApp, et notification avec l’itinéraire', modeles: ['confirmation_rdv'], types: ['confirmation'], allumage: 'toujours' },
-  { id: 'rappel-j1', groupe: 'avant', quand: 'La veille du rendez-vous, 18 h et 21 h', quoi: 'Rappel WhatsApp, et SMS quand il est posé', modeles: ['rappel_rdv'], types: ['rappel-j1'], allumage: 'toujours' },
+  { id: 'rappel-j1', groupe: 'avant', quand: 'La veille du rendez-vous, 18 h et 19 h', quoi: 'Rappel WhatsApp, et SMS quand il est posé', modeles: ['rappel_rdv'], types: ['rappel-j1'], allumage: 'toujours' },
   { id: 'reprise-j3', groupe: 'avant', quand: '3 jours avant une reprise', quoi: 'La séance suivante proposée, deux boutons', modeles: ['reprise_proposee'], types: ['reprise-j3'], allumage: 'avec-son-modele' },
   { id: 'push-rappels', groupe: 'avant', quand: '22 h puis 2 h avant', quoi: 'Rappel sur Ma Couronne', modeles: [], types: [], allumage: 'toujours', pasCompte: 'compté par le serveur seulement' },
   { id: 'point-apres', groupe: 'entre', quand: '7 jours après une séance', quoi: 'Point d’étape, la tête répond d’un toucher', modeles: ['point_apres_seance'], types: ['point-apres'], allumage: 'avec-son-modele' },

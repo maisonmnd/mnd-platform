@@ -165,7 +165,7 @@ export function EnvoisAutomatiques({ onOuvrirLeFil, typeInitial, jourInitial }: 
             <p className="mnd-muted" style={{ fontSize: 12.5, margin: '8px auto 0', maxWidth: 460, lineHeight: 1.6 }}>
               {filtre.type !== 'tout' && periode.length > 0
                 ? `${periode.length} autre${periode.length > 1 ? 's' : ''} message${periode.length > 1 ? 's sont partis' : ' est parti'} sur cette période.`
-                : 'Les confirmations partent quand un rendez-vous est posé, les rappels de la veille à 18 h, les demandes d’avis dans l’heure qui suit un règlement.'}
+                : 'Les confirmations partent quand un rendez-vous est posé, les rappels de la veille aux heures réglées au Marketing, les demandes d’avis dans l’heure qui suit un règlement.'}
             </p>
             <div style={{ display: 'flex', gap: 8, justifyContent: 'center', flexWrap: 'wrap', marginTop: 14 }}>
               {filtre.type !== 'tout' && (

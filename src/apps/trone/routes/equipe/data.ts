@@ -512,6 +512,11 @@ export type AutoConfig = {
   salleMin?: number;
   calmeDe?: number;
   calmeA?: number;
+  /** LES HEURES DU RAPPEL DE LA VEILLE (29 octobre 2026), à l'heure du salon,
+      de 9 h à 19 h ; `rappelSecond` à 0 : aucun second passage. Absentes :
+      18 h et 19 h. Lues par `rappels-j1` (`shared/heures-des-rappels-pur`). */
+  rappelPremier?: number;
+  rappelSecond?: number;
   momoLink: string;
   mapsLink: string;
   reviewLink: string;

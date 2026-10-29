@@ -13,7 +13,7 @@
      Clientes, qui s'ouvre sur l'audience par « Voir » ;
    · Campagnes : déposées dans la salle d'attente des envois, retenues, et
      portées par le facteur au feu vert (`campagnes-pur`). */
-import { useMemo, useState } from 'react';
+import { Fragment, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button, Card, Eyebrow, Field, Input, Modal, Select, Textarea, demande, toast } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
@@ -38,7 +38,13 @@ import {
   ETAT_DE_LA_CAMPAGNE_DIT, ceQuiManque, etatDeLaCampagne, feuVert, lignesDuDepot, resultatDeLaCampagne, texteDuModele,
   type Campagne, type CanalDeCampagne,
 } from '../../../../shared/campagnes-pur';
-import { automationsActiveStore, autoConfigStore, envoisStore, segmentNotesStore, useCampaigns, useEnvois, type SegmentNote } from './data';
+import {
+  heuresDesRappels, quandDuRappelDeLaVeille, heuresDuPremierEnvoi, heuresDuSecondPassage, ceQueRecoitLaCliente, heuresDites,
+  type HeuresDesRappels,
+} from '../../../../shared/heures-des-rappels-pur';
+import { reglesDepuis } from '../../../../shared/salle-des-envois';
+import { automationsActiveStore, autoConfigStore, envoisStore, segmentNotesStore, useCampaigns, useEnvois, type AutoConfig, type SegmentNote } from './data';
+import { useEstDirection } from '../_vie';
 import { useAudiences } from './useAudiences';
 import { Pill, Toggle } from './ui';
 
@@ -58,6 +64,66 @@ const qui = (): string => identiteCourante().nom || 'Le Trône';
 
 /* ══════════════════════════ LES AUTOMATISATIONS ══════════════════════════ */
 
+/* LES HEURES DU RAPPEL DE LA VEILLE — 29 octobre 2026. Maquette « Heures des
+   rappels » validée : le premier envoi et le second passage se choisissent
+   ici, de 9 h à 19 h (à 20 h commencent les heures calmes) ; la même heure
+   toute la semaine ; la Direction seule les change, les autres les lisent.
+   Gardées dans `mnd_auto_config`, lues chaque heure par `rappels-j1`. */
+function ReglageDesHeuresDesRappels({ autoCfg, setAutoCfg, onFermer }: {
+  autoCfg: AutoConfig; setAutoCfg: (c: AutoConfig) => void; onFermer: () => void;
+}) {
+  const navigate = useNavigate();
+  const direction = useEstDirection();
+  const enPlace = heuresDesRappels(autoCfg);
+  const [brouillon, setBrouillon] = useState<HeuresDesRappels>(enPlace);
+  const salleMin = reglesDepuis(autoCfg).salleMin;
+  const dit = ceQueRecoitLaCliente(brouillon, salleMin);
+  const change = brouillon.premier !== enPlace.premier || brouillon.second !== enPlace.second;
+  const choisisLePremier = (premier: number) =>
+    setBrouillon((b) => ({ premier, second: b.second !== null && b.second > premier ? b.second : null }));
+  const enregistre = () => {
+    setAutoCfg({ ...autoCfg, rappelPremier: brouillon.premier, rappelSecond: brouillon.second ?? 0 });
+    toast(`Heures des rappels enregistrées : la veille, ${heuresDites(brouillon)}.`);
+  };
+  const seconds = heuresDuSecondPassage(brouillon.premier);
+  return (
+    <div style={{ margin: '0 20px 14px', border: '1px solid var(--hairline)', borderRadius: 4, padding: '16px 18px', background: 'var(--color-sable)', display: 'grid', gap: 14 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 14 }}>
+        <Field label="Premier envoi, la veille">
+          <Select value={String(brouillon.premier)} disabled={!direction} onChange={(e) => choisisLePremier(Number(e.target.value))}>
+            {heuresDuPremierEnvoi().map((h) => <option key={h} value={h}>{h} h</option>)}
+          </Select>
+        </Field>
+        <Field label="Second passage, la veille">
+          <Select value={String(brouillon.second ?? 0)} disabled={!direction} onChange={(e) => setBrouillon((b) => ({ ...b, second: Number(e.target.value) || null }))}>
+            <option value={0}>Aucun</option>
+            {seconds.map((h) => <option key={h} value={h}>{h} h</option>)}
+          </Select>
+        </Field>
+      </div>
+      <p className="mnd-muted" style={{ fontSize: 12, margin: 0, lineHeight: 1.6 }}>
+        De 9 h à 19 h : à 20 h commencent les heures calmes, rien ne part avant 8 h. Le second passage rattrape les rendez-vous posés après le premier envoi, et un envoi qui a échoué. Un rappel déjà parti ne repart jamais.
+      </p>
+      <div style={{ display: 'grid', gap: 4 }}>
+        <p style={{ margin: 0, fontSize: 14, color: 'var(--color-indigo)' }}>{dit.veille}</p>
+        <p style={{ margin: 0, fontSize: 14, color: brouillon.second !== null ? 'var(--color-indigo)' : 'var(--copper-700)' }}>{dit.tardif}</p>
+      </div>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center' }}>
+        {direction ? (
+          <>
+            <Button onClick={enregistre} disabled={!change}>Enregistrer</Button>
+            {change && <Button variant="ghost" onClick={() => setBrouillon(enPlace)}>Annuler</Button>}
+          </>
+        ) : (
+          <span className="mnd-muted" style={{ fontSize: 12.5 }}>Seule la Direction change ces heures.</span>
+        )}
+        <button type="button" onClick={() => navigate('/conversations?envois=1&type=rappel-j1')} style={{ background: 'none', border: 'none', padding: 0, color: 'var(--copper-700)', fontSize: 12.5, cursor: 'pointer' }}>Les rappels partis ›</button>
+        <button type="button" onClick={onFermer} style={{ background: 'none', border: 'none', padding: 0, color: 'var(--ink-soft)', fontSize: 12.5, cursor: 'pointer', marginLeft: 'auto' }}>Fermer</button>
+      </div>
+    </div>
+  );
+}
+
 export function OngletAutomatisations() {
   const { branch } = useBranch();
   const navigate = useNavigate();
@@ -65,6 +131,8 @@ export function OngletAutomatisations() {
   const [autoActive, setAutoActive] = useStore(automationsActiveStore);
   const [autoCfg, setAutoCfg] = useStore(autoConfigStore);
   const [settings] = useStore(settingsStore);
+  const [heuresOuvertes, setHeuresOuvertes] = useState(false);
+  const heuresEnPlace = heuresDesRappels(autoCfg);
   const mois = moisDuSalon(new Date().toISOString());
   const total = useMemo(() => compteDeTout(envois, mois, branch.id), [envois, mois, branch.id]);
   const remisPct = total.partis > 0 ? Math.round((total.remis / total.partis) * 100) : null;
@@ -119,8 +187,9 @@ export function OngletAutomatisations() {
             {AUTOMATISATIONS_REELLES.filter((a) => a.groupe === g.k).map((a) => {
               const c = a.types.length ? compteDuMois(envois, a.types, mois, branch.id) : null;
               return (
-                <div key={a.id} style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap', padding: '13px 20px', borderTop: '1px solid var(--hairline)' }}>
-                  <span style={{ fontSize: 12.5, background: 'var(--color-sable)', borderRadius: 2, padding: '7px 11px', flex: '0 1 220px' }}>{a.quand}</span>
+                <Fragment key={a.id}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap', padding: '13px 20px', borderTop: '1px solid var(--hairline)' }}>
+                  <span style={{ fontSize: 12.5, background: 'var(--color-sable)', borderRadius: 2, padding: '7px 11px', flex: '0 1 220px' }}>{a.id === 'rappel-j1' ? quandDuRappelDeLaVeille(heuresEnPlace) : a.quand}</span>
                   <span style={{ flex: '1 1 220px', minWidth: 0 }}>
                     <span style={{ fontSize: 13, color: 'var(--color-indigo)' }}>{a.quoi}</span>
                     {a.modeles.length > 0 && (
@@ -144,13 +213,19 @@ export function OngletAutomatisations() {
                     )}
                   </span>
                   <span style={{ flex: '0 0 90px', textAlign: 'right' }}>
-                    {a.reglage ? (
+                    {a.id === 'rappel-j1' ? (
+                      <button type="button" onClick={() => setHeuresOuvertes((o) => !o)} aria-expanded={heuresOuvertes} title="Les heures du rappel de la veille" style={{ background: 'none', border: 'none', padding: 0, color: 'var(--copper-700)', fontSize: 12.5, cursor: 'pointer' }}>{heuresOuvertes ? 'Fermer' : 'Réglages ›'}</button>
+                    ) : a.reglage ? (
                       <button type="button" onClick={() => navigate(a.reglage!.vers)} title={a.reglage.dit} style={{ background: 'none', border: 'none', padding: 0, color: 'var(--copper-700)', fontSize: 12.5, cursor: 'pointer' }}>Réglages ›</button>
                     ) : a.types.length ? (
                       <button type="button" onClick={() => navigate(`/conversations?envois=1&type=${encodeURIComponent(a.types[0])}`)} title={`Le journal : ${typeDit(a.types[0])}`} style={{ background: 'none', border: 'none', padding: 0, color: 'var(--copper-700)', fontSize: 12.5, cursor: 'pointer' }}>Les envois ›</button>
                     ) : null}
                   </span>
                 </div>
+                {a.id === 'rappel-j1' && heuresOuvertes && (
+                  <ReglageDesHeuresDesRappels autoCfg={autoCfg} setAutoCfg={setAutoCfg} onFermer={() => setHeuresOuvertes(false)} />
+                )}
+                </Fragment>
               );
             })}
           </div>

@@ -34,7 +34,7 @@ const TZ = 'Africa/Porto-Novo'; // le fuseau du salon — pas celui du serveur
     vraiment évite de chercher une panne dans un fichier qui n'est pas celui
     qu'on croit déployé. 10 octobre 2026 : le passage du soir ne dépose plus
     un rappel que les heures calmes retiendraient jusqu'au jour même. */
-const VERSION = '2026-10-28-a · M. et Mme devant le prénom';
+const VERSION = '2026-10-29-a · les heures des rappels réglées au Trône';
 
 type Rdv = {
   id: string;
@@ -159,6 +159,51 @@ const facteurVivant = (vuLe: string | undefined | null, maintenantMs: number): b
   return Number.isFinite(t) && maintenantMs - t <= FACTEUR_VIVANT_MS && t - maintenantMs <= FACTEUR_VIVANT_MS;
 };
 /* ── fin du calcul recopié ── */
+
+/* ══ LES HEURES DES RAPPELS — 29 octobre 2026 ═══════════════════════════
+   « Redonne-moi là où je dois aller pour régler les paramètres des relances
+   de rendez-vous » (Yéman). Les heures se règlent désormais au Trône
+   (Marketing › Automatisations), dans `mnd_auto_config` : `rappelPremier`,
+   `rappelSecond` (0 = aucun). Le cron réveille cette fonction CHAQUE HEURE
+   (0143) ; elle ne fait son passage qu'aux heures choisies, et se tait aux
+   autres sans rien lire de plus. Le passage de 21 h n'envoyait rien depuis
+   le 10 octobre (heures calmes) : sans réglage, le second passage est à 19 h.
+
+   RECOPIÉ À L'IDENTIQUE de `src/shared/heures-des-rappels-pur.ts` ; le banc
+   `verifie-les-heures-des-rappels` tient les deux ensemble. */
+/* ══ COPIE DANS rappels-j1 : DÉBUT ══ */
+/** Les heures du rappel de la veille, à l'heure du salon. `second` : null
+    quand il n'y a pas de second passage. */
+type HeuresDesRappels = { premier: number; second: number | null };
+/** Sans réglage : 18 h comme avant, et le second passage à 19 h, avant les
+    heures calmes, au lieu de 21 h qui n'envoyait rien. */
+const HEURES_DES_RAPPELS_PAR_DEFAUT: HeuresDesRappels = { premier: 18, second: 19 };
+/** De 9 h à 19 h : à 20 h commencent les heures calmes, rien ne part. */
+const PREMIERE_HEURE_DES_RAPPELS = 9;
+const DERNIERE_HEURE_DES_RAPPELS = 19;
+
+/** Les heures lues dans `mnd_auto_config`. Une valeur absente prend le
+    défaut ; une valeur hors de 9 h à 19 h aussi, pour le premier envoi ; un
+    second passage à 0, hors bornes, ou pas après le premier, n'existe pas. */
+function heuresDesRappels(cfg: { rappelPremier?: unknown; rappelSecond?: unknown } | null | undefined): HeuresDesRappels {
+  const heure = (v: unknown): number | null => {
+    if (typeof v !== 'number' && typeof v !== 'string') return null;
+    const x = Number(v);
+    return v !== '' && Number.isInteger(x) && x >= PREMIERE_HEURE_DES_RAPPELS && x <= DERNIERE_HEURE_DES_RAPPELS ? x : null;
+  };
+  const premier = heure(cfg?.rappelPremier) ?? HEURES_DES_RAPPELS_PAR_DEFAUT.premier;
+  const brut = cfg?.rappelSecond;
+  const second = brut === undefined || brut === null ? HEURES_DES_RAPPELS_PAR_DEFAUT.second : heure(brut);
+  return { premier, second: second !== null && second > premier ? second : null };
+}
+
+/** Le passage de cette heure du salon : le premier, le second, ou aucun. */
+function passageDeLHeure(heure: number, h: HeuresDesRappels): 'premier' | 'second' | null {
+  if (heure === h.premier) return 'premier';
+  if (h.second !== null && heure === h.second) return 'second';
+  return null;
+}
+/* ══ COPIE DANS rappels-j1 : FIN ══ */
 
 /** Ce qu'une ligne déposée porte en plus de son identité : quand elle part,
     à qui (le prénom, pour l'écran de la salle) et de quoi l'envoyer. */
@@ -591,6 +636,16 @@ Deno.serve(async (req) => {
   }
 
   const sb = createClient(urlBase, service);
+
+  /* ── L'heure du passage : réveillée chaque heure, elle ne passe qu'aux
+     heures choisies au Trône. Aux autres, elle le dit et s'arrête. ── */
+  const { data: reglage } = await sb.from('documents').select('data').eq('key', 'mnd_auto_config').maybeSingle();
+  const heures = heuresDesRappels(reglage?.data as { rappelPremier?: unknown; rappelSecond?: unknown } | undefined);
+  const heureDeCePassage = Math.floor(heureDuSalon(Date.now()));
+  const passage = passageDeLHeure(heureDeCePassage, heures);
+  if (!passage) {
+    return new Response(JSON.stringify({ version: VERSION, passage: null, heure: heureDeCePassage, heures }), { status: 200 });
+  }
 
   /* ── Demain, au fuseau du salon ─────────────────────────────────── */
   const demain = new Date(Date.now() + 86_400_000).toLocaleDateString('en-CA', { timeZone: TZ });
