@@ -324,30 +324,40 @@ const appelCron = (porte: Porte, nom: string) => porte(new Request(`https://banc
   suspendreLeGraphAuNumero = 0; auNieme = null;
 }
 
-/* ══ 19 · LE PASSAGE DE 21 H NE DEPOSE PAS CE QUI PARTIRAIT LE JOUR MEME ══ */
+/* ══ 19 · LE PASSAGE DE 21 H NE DEPOSE PAS CE QUI PARTIRAIT LE JOUR MEME ══
+   Depuis le 29 octobre 2026, rappels-j1 ne passe qu'aux heures reglees au
+   Trone (mnd_auto_config : rappelPremier, rappelSecond ; 9 h a 19 h). La
+   garde des heures calmes s'eprouve donc a 19 h avec une salle d'une heure et
+   une minute (le depart tomberait a 20 h 01) ; et a 21 h, la fonction se tait. */
 const rappels = await charge('rappels-j1', ENV_CRON);
 {
-  const prepare = () => {
+  const prepare = (reglage: Record<string, unknown> = {}) => {
     remetLaBase();
     pose('documents', { key: 'mnd_facteur', data: { vuLe: new Date().toISOString() } });
+    pose('documents', { key: 'mnd_auto_config', data: reglage });
     pose('appointments', { id: 'a-demain', branch_id: 'br', data: { id: 'a-demain', branchId: 'br', clientId: 'c-1', date: '2026-10-13', time: '10:00', status: 'confirmé' } });
     pose('clients', { id: 'c-1', data: { id: 'c-1', name: 'Awa Test', phone: '0197000001' } });
   };
-  await aLHeure('2026-10-12T20:00:00Z', async () => {
-    prepare();
+  await aLHeure('2026-10-12T18:00:00Z', async () => {
+    prepare({ rappelPremier: 19, salleMin: 61 });
     await appelCron(rappels, 'rappels-j1');
     const l = ligne('envois', 'env-a-demain-whatsapp')?.data ?? {};
-    dit('19 : 21 h, salle ouverte : le rappel n est pas depose pour le matin du rendez-vous, le journal le dit', ['périmé', true],
+    dit('19 : 19 h, salle d une heure et une minute : le rappel n est pas depose pour le matin du rendez-vous, le journal le dit', ['périmé', true],
       [l.statut, /heures calmes/.test(String(l.detail ?? ''))]);
   });
-  await aLHeure('2026-10-12T16:00:00Z', async () => {
+  await aLHeure('2026-10-12T20:00:00Z', async () => {
     prepare();
+    const r = await corpsDe(await appelCron(rappels, 'rappels-j1'));
+    dit('19 : 21 h, sans reglage (18 h et 19 h) : la fonction se tait, rien au journal', [null, 21, 0], [r && 'passage' in r ? r.passage : 'absent', r?.heure, table('envois').size]);
+  });
+  await aLHeure('2026-10-12T16:00:00Z', async () => {
+    prepare({ rappelPremier: 17 });
     await appelCron(rappels, 'rappels-j1');
     const l = ligne('envois', 'env-a-demain-whatsapp')?.data ?? {};
     /* A la minute pres (10 octobre 2026) : l'horloge du banc est un decalage sur
        la vraie, qui avance pendant l'appel ; une milliseconde d'ecart faisait
        crier le banc une fois sur deux sans faute dans la fonction. */
-    dit('19 : 17 h, salle ouverte : le rappel est depose et part a 17 h 10', ['en-attente', '2026-10-12T16:10'], [l.statut, String(l.partA ?? '').slice(0, 16)]);
+    dit('19 : 17 h, premier envoi regle a 17 h, salle ouverte : le rappel est depose et part a 17 h 10', ['en-attente', '2026-10-12T16:10'], [l.statut, String(l.partA ?? '').slice(0, 16)]);
   });
 }
 
