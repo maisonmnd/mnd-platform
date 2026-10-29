@@ -3157,6 +3157,11 @@ const regles: Regle[] = [
       const { ecarts, vaut, vrai } = juge();
       const t0 = cotonou('2026-10-30', '00:06');
       const LAVAGES = ['plt-05', 'klk-int', 'klk-souffle'];
+      /* Les vrais messages du 8 et du 23 octobre 2026 : un s de moins, une racine au singulier. */
+      vaut('les vrais messages : Shampooing et reserrage, Shampooing et reprise de racine, un champoing', [
+        [...LAVAGES, 'sinsin-ess', 'sinsin-reprise'].sort(), [...LAVAGES, 'sinsin-ess', 'sinsin-reprise'].sort(), LAVAGES], [
+        prestationsDitesWa('Bonjour, / Shampooing et reserrage.', PRESTATIONS).sort(), prestationsDitesWa('Shampooing et reprise  de racine', PRESTATIONS).sort(),
+        prestationsDitesWa('je veux un champoing', PRESTATIONS)]);
       vaut('les gestes nommes : un shampoing, des racines, rien', [LAVAGES, ['sinsin-ess', 'sinsin-reprise'], [], []], [
         prestationsDitesWa('Prend moi RDV pour demain 8h30 pour un shampoing', PRESTATIONS),
         prestationsDitesWa('Je voudrais refaire mes racines', PRESTATIONS),
@@ -3191,7 +3196,8 @@ const regles: Regle[] = [
     },
     pannes: [
       { nom: 'les gestes nommes sont ignores', mute: [P(AUTO, '    return dire(msgDits(avecSalut) ?? msgMeme(false, avecSalut) ?? msgBesoin(false, avecSalut));', '    return dire(msgMeme(false, avecSalut) ?? msgBesoin(false, avecSalut));')] },
-      { nom: 'shampoing ne se lit plus', mute: [P(AUTO, '(?:shampo+ings?|shampoo|lavages?|laver|kloklo)', '(?:lavages?|laver|kloklo)')] },
+      { nom: 'shampoing ne se lit plus', mute: [P(AUTO, '(?:(?:sh|ch)ampo+ings?|shampoo|lavages?|laver|kloklo)', '(?:lavages?|laver|kloklo)')] },
+      { nom: 'reserrage et racine au singulier ne se lisent plus', mute: [P(AUTO, '(?:res+errages?|res+errer|retwists?|racines?|sinsin)', '(?:resserrages?|resserrer|retwists?|racines|sinsin)')] },
       { nom: 'l heure dite est oubliee', mute: [P(AUTO, '    const voulue = o.proche ? null : placeVoulue(offertes);', '    const voulue = o.proche ? null : null;')] },
       { nom: 'la reception perd ses mots', mute: [P(AUTO, 'texteDOrigine: tour.texte, ', '')] },
       { nom: 'ce qui etait dans sa venue ne propose plus la meme chose', mute: [P(AUTO, '    if (v && dits.some(([id]) => v.serviceIds.includes(id) || siennes.has(marqueDe(id)))) return null;\n', '')] },

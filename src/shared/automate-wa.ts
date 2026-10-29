@@ -1452,8 +1452,8 @@ function demandeLeCheminWa(texte: string): boolean {
     le nom porte (coiffure, tresses, nattes, vanilles, manucure, pédicure).
     Rien de reconnu : aucun. */
 const MOTS_DES_GESTES_WA: Readonly<Record<string, RegExp>> = {
-  'KLƆKLƆ': /(?<!\p{L})(?:shampo+ings?|shampoo|lavages?|laver|kloklo)(?!\p{L})/u,
-  'SÍNSIN': /(?<!\p{L})(?:resserrages?|resserrer|retwists?|racines|sinsin)(?!\p{L})/u,
+  'KLƆKLƆ': /(?<!\p{L})(?:(?:sh|ch)ampo+ings?|shampoo|lavages?|laver|kloklo)(?!\p{L})/u,
+  'SÍNSIN': /(?<!\p{L})(?:res+errages?|res+errer|retwists?|racines?|sinsin)(?!\p{L})/u,
   'DÀNDÀN': /(?<!\p{L})(?:hydratation|hydrater|dandan)(?!\p{L})/u,
   'WÈWÈ': /(?<!\p{L})(?:purification|detox|wewe)(?!\p{L})/u,
   'VÍVÍVÓ': /(?<!\p{L})(?:activateur|vivivo)(?!\p{L})/u,
