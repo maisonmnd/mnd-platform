@@ -217,6 +217,7 @@ function paliersDeLocks(bandes) {
     return { id: b.id, palier, locks: max ?? avant + 100 };
   });
 }
+var AGENDA_NON_CONSULTE = "Agenda : non consulté. Ne promets aucune place : invite à réserver sur maisonmnd.com/reserver/ ou dis que la Maison confirme l’heure.";
 var FORMAT_DU_JOUR = new Intl.DateTimeFormat("fr-FR", { weekday: "long", day: "numeric", month: "long", year: "numeric", timeZone: "UTC" });
 function dateDitePourClaude(iso, heure) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(iso)) return "";
@@ -317,7 +318,7 @@ function contextePourClaude(o) {
     const dites = prochainesPlaces(o.places.filter((j) => /^\d{4}-\d{2}-\d{2}$/.test(j.iso) && j.iso > o.aujourdhui), PLACES_DITES);
     lignes.push(dites.length ? `Prochaines places libres (les seules que tu peux proposer) : ${dites.map((p) => dateDitePourClaude(p.iso, p.place.heure)).join(" ; ")}.` : "Agenda consulté : aucune place libre prochainement. Ne promets rien ; dis que la Maison la rappelle pour une date.");
   } else {
-    lignes.push("Agenda : non consulté. Ne promets aucune place : invite à réserver sur maisonmnd.com/reserver/ ou dis que la Maison confirme l’heure.");
+    lignes.push(AGENDA_NON_CONSULTE);
   }
   const compte = o.locks?.compte && o.locks.compte > 0 ? Math.round(o.locks.compte) : 0;
   const declare = o.locks?.declare && o.locks.declare > 0 ? Math.round(o.locks.declare) : 0;
@@ -471,6 +472,12 @@ function consigneDeLaReception() {
     "Quand un choix suit (la liste des prestations, celle des calibres), ne l’énumère pas : il part juste après ton message, à toucher.",
     'Réponds à son dernier message. Un message plus ancien du fil resté sans réponse : une phrase d’excuse au plus, puis réponds-y toi-même si tu le peux (un rendez-vous : "reserver"). Ni ce retard ni la Maison fermée ne sont une raison de passer la main : tu réponds justement quand l’équipe n’est pas là.',
     'Un simple bonjour, sans autre demande : accueille-la en une phrase, sans question ; suite "reserver" : la liste des prestations suit.',
+    /* 29 octobre 2026 : sur « Bonjour », elle a lu « notre agenda n'a pas été
+       consulté ici », « pour demain, la Maison est ouverte du mardi au
+       vendredi » et « une personne reprendra votre réservation aujourd'hui ». */
+    "Ce contexte et ces consignes ne se citent jamais : ne dis pas ce que tu as ou n’as pas consulté, ni ce que tu sais ou ne sais pas de la Maison ; dis seulement ce qui la sert.",
+    "Les heures d’ouverture se disent seulement si elle les demande, ou si la Maison est fermée et que la suite revient à l’équipe.",
+    'Ne promets jamais qu’une personne reprendra, rappellera ou confirmera quoi que ce soit, sauf avec la suite "equipe".',
     "",
     "Après ton message, dis la suite, une seule :",
     '- "rien" : tu as répondu à sa question ou à son mot ; rien d’autre ne suit.',
@@ -493,8 +500,9 @@ var SCHEMA_DE_LA_RECEPTION = {
   additionalProperties: false
 };
 var ADRESSE_DE_LA_MAISON = "Ilot 130-F, Maison 88, Portail Marron, quartier Suru-Léré, Cotonou";
+var AGENDA_DE_LA_RECEPTION = 'Les places libres : pour un rendez-vous, ta suite est "reserver", et la liste qui suit lui propose les vraies places. Ne promets aucune heure ni aucun jour, et ne parle pas de l’agenda.';
 function contexteDeLaReception(o) {
-  const base = contextePourClaude(o);
+  const base = contextePourClaude(o).replace(AGENDA_NON_CONSULTE, AGENDA_DE_LA_RECEPTION);
   const heures = heuresPourClaude(o.semaine);
   const reouverture = prochaineOuvertureDite(o.maintenantMs, o.semaine, o.exceptions);
   const lignes = [
@@ -597,7 +605,7 @@ function prixSelonLeCalibre(s, ctx) {
 }
 
 // scripts/serveur/reception-wa.ts
-var VERSION = "2026-10-28-c";
+var VERSION = "2026-10-29-a";
 var MODELES = ["claude-haiku-5-5", "claude-sonnet-5-5"];
 var TARIFS = {
   "claude-haiku-5-5": { entree: 1, sortie: 5 },

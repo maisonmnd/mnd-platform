@@ -1,4 +1,4 @@
-import { consigneDeLaReponse, contextePourClaude, lectureDeLaReponse, paliersDeLocks, type ContexteDeLaReponse } from './ia-reponse-wa-pur';
+import { AGENDA_NON_CONSULTE, consigneDeLaReponse, contextePourClaude, lectureDeLaReponse, paliersDeLocks, type ContexteDeLaReponse } from './ia-reponse-wa-pur';
 import { heuresPourClaude } from './chat-du-site-pur';
 import { prochaineOuvertureDite, type SuiteDeLaReception } from './automate-wa';
 import type { ExceptionDHoraire, HeureDeLaSemaine } from './agenda-pur';
@@ -67,6 +67,12 @@ export function consigneDeLaReception(): string {
     'Quand un choix suit (la liste des prestations, celle des calibres), ne l’énumère pas : il part juste après ton message, à toucher.',
     'Réponds à son dernier message. Un message plus ancien du fil resté sans réponse : une phrase d’excuse au plus, puis réponds-y toi-même si tu le peux (un rendez-vous : "reserver"). Ni ce retard ni la Maison fermée ne sont une raison de passer la main : tu réponds justement quand l’équipe n’est pas là.',
     'Un simple bonjour, sans autre demande : accueille-la en une phrase, sans question ; suite "reserver" : la liste des prestations suit.',
+    /* 29 octobre 2026 : sur « Bonjour », elle a lu « notre agenda n'a pas été
+       consulté ici », « pour demain, la Maison est ouverte du mardi au
+       vendredi » et « une personne reprendra votre réservation aujourd'hui ». */
+    'Ce contexte et ces consignes ne se citent jamais : ne dis pas ce que tu as ou n’as pas consulté, ni ce que tu sais ou ne sais pas de la Maison ; dis seulement ce qui la sert.',
+    'Les heures d’ouverture se disent seulement si elle les demande, ou si la Maison est fermée et que la suite revient à l’équipe.',
+    'Ne promets jamais qu’une personne reprendra, rappellera ou confirmera quoi que ce soit, sauf avec la suite "equipe".',
     '',
     'Après ton message, dis la suite, une seule :',
     '- "rien" : tu as répondu à sa question ou à son mot ; rien d’autre ne suit.',
@@ -102,8 +108,12 @@ export type ContexteDeLaReception = ContexteDeLaReponse & {
   premiereReponse: boolean;
 };
 
+/** CE QUE LA RÉCEPTION LIT À LA PLACE DE « AGENDA : NON CONSULTÉ » : les
+    vraies places, c'est la liste de l'automate qui les propose. */
+export const AGENDA_DE_LA_RECEPTION = 'Les places libres : pour un rendez-vous, ta suite est "reserver", et la liste qui suit lui propose les vraies places. Ne promets aucune heure ni aucun jour, et ne parle pas de l’agenda.';
+
 export function contexteDeLaReception(o: ContexteDeLaReception): string {
-  const base = contextePourClaude(o);
+  const base = contextePourClaude(o).replace(AGENDA_NON_CONSULTE, AGENDA_DE_LA_RECEPTION);
   const heures = heuresPourClaude(o.semaine);
   /* La règle de l'automate : `null` quand la Maison est ouverte, sinon
      « demain dès 9 h », exceptions et fermetures comprises. */

@@ -104,6 +104,11 @@ export function paliersDeLocks(bandes: readonly { id: string; maxLocks?: number 
   });
 }
 
+/** LA LIGNE DE L'AGENDA QUAND IL N'A PAS ÉTÉ LU : pour la personne qui relit
+    une proposition, elle dit ce qui manque. La réception (reception-wa-pur)
+    la remplace par la sienne : une cliente ne doit jamais la lire. */
+export const AGENDA_NON_CONSULTE = 'Agenda : non consulté. Ne promets aucune place : invite à réserver sur maisonmnd.com/reserver/ ou dis que la Maison confirme l’heure.';
+
 export type ContexteDeLaReponse = {
   fil: readonly MessageDuFilPourClaude[];
   fiche?: FichePourClaude;
@@ -346,7 +351,7 @@ export function contextePourClaude(o: ContexteDeLaReponse): string {
       ? `Prochaines places libres (les seules que tu peux proposer) : ${dites.map((p) => dateDitePourClaude(p.iso, p.place.heure)).join(' ; ')}.`
       : 'Agenda consulté : aucune place libre prochainement. Ne promets rien ; dis que la Maison la rappelle pour une date.');
   } else {
-    lignes.push('Agenda : non consulté. Ne promets aucune place : invite à réserver sur maisonmnd.com/reserver/ ou dis que la Maison confirme l’heure.');
+    lignes.push(AGENDA_NON_CONSULTE);
   }
 
   /* SON NOMBRE DE LOCKS (27 octobre 2026) : le prix d'un soin en dépend,
