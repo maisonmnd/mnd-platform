@@ -1,0 +1,663 @@
+<title>Paramètres du Trône</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500&family=Jost:wght@300;400;500&display=swap">
+<style>
+/* L'écran d'abord, à manipuler : la recherche, les gestes rapides, huit tuiles du quotidien, un seul panneau ouvert ;
+   puis ce qui disparaît, ce qui se répare, et vos choix. Ivoire pour lire, indigo pour l'écran, cuivre pour ce qu'on décide. */
+:root {
+  --fond:#F6F1E7; --carte:#FFFDF9; --encre:#1E2150; --texte:#2A2722; --doux:#5E5750; --filet:#E3DACB;
+  --cuivre:#9A6036; --cuivre-clair:#F3E6D8; --vert:#2F6B4F; --vert-clair:#E3F0E8; --rouge:#8E2F2F; --rouge-clair:#F4E3E1;
+  --barre:#1E2150; --barre-texte:#F6F1E7; --barre-doux:#C9C4DC; --tuile:#FFFDF9; --tuile-ouverte:#F3E6D8; --interrupteur:#C9C1B3;
+  --serif:"Cormorant Garamond", Georgia, "Times New Roman", serif; --sans:"Jost", system-ui, -apple-system, "Segoe UI", sans-serif;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --fond:#15173A; --carte:#1E2150; --encre:#F6F1E7; --texte:#E9E3D7; --doux:#B9B4C9; --filet:#2E3266;
+  --cuivre:#D6A06F; --cuivre-clair:#3A2E3A; --vert:#8FD1AE; --vert-clair:#1F3B3A; --rouge:#E7A1A1; --rouge-clair:#3B2433;
+  --barre:#0F1130; --barre-texte:#F6F1E7; --barre-doux:#B9B4C9; --tuile:#232659; --tuile-ouverte:#3A2E3A; --interrupteur:#4A4E7E; color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --fond:#15173A; --carte:#1E2150; --encre:#F6F1E7; --texte:#E9E3D7; --doux:#B9B4C9; --filet:#2E3266;
+  --cuivre:#D6A06F; --cuivre-clair:#3A2E3A; --vert:#8FD1AE; --vert-clair:#1F3B3A; --rouge:#E7A1A1; --rouge-clair:#3B2433;
+  --barre:#0F1130; --barre-texte:#F6F1E7; --barre-doux:#B9B4C9; --tuile:#232659; --tuile-ouverte:#3A2E3A; --interrupteur:#4A4E7E; color-scheme: dark; }
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { margin: 0; background: var(--fond); color: var(--texte); font: 300 16px/1.6 var(--sans);
+  padding-block: 28px 90px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.page { max-width: 1040px; margin: 0 auto; display: grid; gap: 52px; }
+.page > * { min-width: 0; }
+section { display: grid; gap: 16px; }
+section > * { min-width: 0; }
+.sur { font-size: 11.5px; letter-spacing: .18em; text-transform: uppercase; color: var(--cuivre); margin: 0; font-weight: 400; }
+h1 { font: 300 clamp(44px, 8vw, 72px)/1 var(--serif); color: var(--encre); margin: 8px 0 0; text-wrap: balance; }
+h2 { font: 400 clamp(27px, 4.4vw, 35px)/1.12 var(--serif); color: var(--encre); margin: 4px 0 0; text-wrap: balance; }
+h3 { font: 500 20px/1.22 var(--serif); color: var(--encre); margin: 0; text-wrap: balance; }
+p { margin: 0; }
+b { font-weight: 500; }
+.chapeau { color: var(--doux); max-width: 68ch; margin-top: 14px; font-size: 17px; }
+.lu { max-width: 70ch; }
+.doux { color: var(--doux); }
+.petit { font-size: 14px; }
+.bandeau { background: var(--cuivre-clair); border-radius: 8px; padding: 10px 14px; font-size: 14.5px; max-width: 78ch; }
+button { font-family: inherit; }
+:focus-visible { outline: 2px solid var(--cuivre); outline-offset: 2px; }
+
+/* ── L'ÉCRAN ── */
+.ecran { border: 1px solid var(--filet); border-radius: 14px; overflow: hidden; background: var(--carte); box-shadow: 0 14px 36px rgba(15, 17, 48, .12); }
+.e-barre { background: var(--barre); color: var(--barre-texte); padding: 12px 18px; display: flex; flex-wrap: wrap; gap: 6px 22px; align-items: baseline; }
+.e-barre .titre { font: 400 21px/1 var(--serif); letter-spacing: .03em; }
+.e-barre .depts { display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: 10.5px; letter-spacing: .2em; text-transform: uppercase; color: var(--barre-doux); }
+.e-barre .depts b { color: var(--barre-texte); font-weight: 500; border-bottom: 1px solid var(--cuivre); }
+.e-corps { padding: 20px 18px 22px; display: grid; gap: 20px; }
+.e-corps > * { min-width: 0; }
+.e-tete { display: grid; gap: 4px; }
+.e-tete h3 { font: 400 32px/1.05 var(--serif); }
+.e-tete p { font-size: 14px; color: var(--doux); }
+
+.cherche { position: relative; }
+.cherche input { width: 100%; font: 300 16px/1.3 var(--sans); color: var(--texte); background: var(--fond); border: 1px solid var(--filet); border-radius: 999px; padding: 11px 16px 11px 40px; }
+.cherche svg { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); width: 16px; height: 16px; }
+.trouve { font-size: 13.5px; color: var(--doux); margin-top: -12px; }
+.trouve:empty { display: none; }
+
+.gestes { display: flex; flex-wrap: wrap; gap: 8px; }
+.geste { border: 1px solid var(--encre); color: var(--encre); background: transparent; border-radius: 999px; padding: 8px 14px; font-size: 14px; cursor: pointer; }
+.geste:hover { background: var(--encre); color: var(--carte); }
+.retour { font-size: 14px; border-left: 2px solid var(--vert); padding: 6px 12px; color: var(--texte); background: var(--vert-clair); border-radius: 0 6px 6px 0; }
+
+.tuiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+@media (max-width: 860px) { .tuiles { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.tuile { text-align: left; background: var(--tuile); border: 1px solid var(--filet); border-radius: 10px; padding: 13px 14px 12px; display: grid; gap: 5px; align-content: start; cursor: pointer; color: var(--texte); min-width: 0; }
+.tuile:hover { border-color: var(--cuivre); }
+.tuile[aria-expanded="true"] { background: var(--tuile-ouverte); border-color: var(--cuivre); }
+.tuile .nom { font: 500 15.5px/1.25 var(--sans); color: var(--encre); }
+.tuile .resume { font-size: 13px; color: var(--doux); line-height: 1.4; overflow-wrap: anywhere; }
+.tuile .etat { justify-self: start; font-size: 11.5px; border-radius: 999px; padding: 1px 9px; white-space: nowrap; }
+.e-ok { background: var(--vert-clair); color: var(--vert); }
+.e-attention { background: var(--cuivre-clair); color: var(--cuivre); border: 1px solid var(--cuivre); }
+.e-neutre { border: 1px solid var(--filet); color: var(--doux); }
+.tuile.cachee { display: none; }
+
+.panneau { border: 1px solid var(--cuivre); border-radius: 10px; padding: 16px; display: grid; gap: 14px; background: var(--carte); }
+.panneau-tete { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.panneau-tete button { border: 0; background: none; color: var(--doux); font-size: 14px; cursor: pointer; text-decoration: underline; }
+.groupe { display: grid; gap: 2px; }
+.groupe > .titre-g { font-size: 11px; letter-spacing: .16em; text-transform: uppercase; color: var(--cuivre); margin: 6px 0 2px; }
+.ligne { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px 16px; align-items: center; padding: 9px 0; border-top: 1px solid var(--filet); }
+.ligne:first-of-type { border-top: 0; }
+.ligne .l { display: grid; gap: 1px; min-width: 0; }
+.ligne .l span { font-size: 15px; color: var(--texte); }
+.ligne .l small { font-size: 12.5px; color: var(--doux); }
+.ligne .c { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; justify-content: flex-end; }
+.ligne.cachee { display: none; }
+@media (max-width: 560px) { .ligne { grid-template-columns: minmax(0, 1fr); } .ligne .c { justify-content: flex-start; } }
+.inter { width: 46px; height: 26px; border-radius: 999px; border: 0; background: var(--interrupteur); position: relative; cursor: pointer; flex: none; transition: background .2s; }
+.inter::after { content: ""; position: absolute; top: 3px; left: 3px; width: 20px; height: 20px; border-radius: 50%; background: #FFFFFF; transition: left .2s; }
+.inter[aria-checked="true"] { background: var(--vert); }
+.inter[aria-checked="true"]::after { left: 23px; }
+.segs { display: inline-flex; border: 1px solid var(--filet); border-radius: 999px; overflow: hidden; }
+.segs button { border: 0; background: transparent; padding: 6px 12px; font-size: 13.5px; color: var(--doux); cursor: pointer; }
+.segs button[aria-pressed="true"] { background: var(--encre); color: var(--carte); }
+.champ { font: 300 14.5px/1.3 var(--sans); color: var(--texte); background: var(--fond); border: 1px solid var(--filet); border-radius: 6px; padding: 6px 9px; width: 7.5em; font-variant-numeric: tabular-nums; }
+.champ.large { width: min(100%, 22em); }
+textarea.champ { width: 100%; min-height: 120px; resize: vertical; }
+.puce { font-size: 13px; border: 1px solid var(--filet); border-radius: 999px; padding: 2px 10px; background: var(--fond); white-space: nowrap; }
+.lien { border: 0; background: none; color: var(--cuivre); font-size: 14px; cursor: pointer; padding: 0; text-decoration: underline; text-underline-offset: 3px; }
+.jours { display: grid; gap: 0; }
+.jour { display: grid; grid-template-columns: 6.5em auto minmax(0, 1fr); gap: 10px; align-items: center; padding: 7px 0; border-top: 1px solid var(--filet); font-size: 14.5px; }
+.jour:first-child { border-top: 0; }
+.jour .heures { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.jour .heures .champ { width: 5.4em; }
+.jour .ferme { color: var(--doux); font-size: 13.5px; }
+@media (max-width: 460px) { .jour { grid-template-columns: 5.5em auto; } .jour .heures { grid-column: 1 / -1; } }
+.passe { color: var(--doux); font-size: 13px; }
+
+.rarement { border-top: 1px solid var(--filet); padding-top: 6px; }
+.rarement summary { cursor: pointer; padding: 10px 0; font-size: 15px; color: var(--encre); list-style: none; display: flex; justify-content: space-between; gap: 10px; }
+.rarement summary::-webkit-details-marker { display: none; }
+.rarement summary::after { content: "Ouvrir"; font-size: 13px; color: var(--cuivre); }
+.rarement[open] summary::after { content: "Fermer"; }
+.rarement .ligne .l span { font-size: 14.5px; }
+.verrou { border: 1px dashed var(--rouge); border-radius: 10px; padding: 14px 16px; display: grid; gap: 10px; }
+.verrou h4 { margin: 0; font: 500 16px/1.3 var(--sans); color: var(--rouge); }
+.verrou .champ { width: 10em; }
+.danger { border: 1px solid var(--rouge); color: var(--rouge); background: transparent; border-radius: 7px; padding: 7px 12px; font-size: 13.5px; cursor: pointer; }
+.danger:disabled { opacity: .45; cursor: not-allowed; }
+
+/* ── CE QUI DISPARAÎT, CE QUI SE RÉPARE ── */
+.deux { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+@media (max-width: 760px) { .deux { grid-template-columns: minmax(0, 1fr); } }
+.carte { background: var(--carte); border: 1px solid var(--filet); border-radius: 8px; padding: 16px 18px; display: grid; gap: 10px; align-content: start; min-width: 0; }
+.table-boite { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 14.5px; }
+th { text-align: left; font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--doux); font-weight: 400; padding: 6px 10px 6px 0; border-bottom: 1px solid var(--filet); white-space: nowrap; }
+td { padding: 8px 10px 8px 0; border-bottom: 1px solid var(--filet); vertical-align: top; }
+.carte ul { margin: 0; padding-left: 18px; display: grid; gap: 7px; font-size: 15px; }
+.carte li::marker { color: var(--cuivre); }
+.chiffres { display: flex; flex-wrap: wrap; gap: 10px 28px; }
+.chiffres div { display: grid; }
+.chiffres strong { font: 300 38px/1.1 var(--sans); color: var(--encre); font-variant-numeric: tabular-nums; }
+.chiffres span { font-size: 13.5px; color: var(--doux); }
+
+/* ── LES DÉCISIONS ── */
+.avance { display: grid; gap: 6px; }
+.avance .jauge-d { height: 6px; border-radius: 999px; background: var(--filet); overflow: hidden; }
+.avance .jauge-d span { display: block; height: 100%; width: 0; background: var(--cuivre); transition: width .3s; }
+#decisions { display: grid; gap: 12px; }
+.decision { background: var(--carte); border: 1px solid var(--filet); border-radius: 8px; padding: 14px 16px; display: grid; gap: 8px; }
+.decision.tranchee { border-color: var(--cuivre); }
+.decision .pq { font-size: 14px; color: var(--doux); max-width: 78ch; }
+.choix-ligne { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 10px; align-items: start; padding: 8px 0; border-top: 1px solid var(--filet); cursor: pointer; font-size: 15px; }
+.choix-ligne:first-of-type { border-top: 0; }
+.choix-ligne input { margin-top: 5px; accent-color: var(--cuivre); }
+.choix-ligne em { font-style: normal; font-size: 12px; color: var(--cuivre); border: 1px solid var(--cuivre); border-radius: 999px; padding: 0 7px; margin-left: 4px; white-space: nowrap; }
+.choix-ligne small { display: block; font-size: 13px; color: var(--doux); }
+.decision .etat-d { font-size: 12.5px; color: var(--vert); min-height: 1em; }
+.mot { display: grid; gap: 6px; }
+.mot textarea { font: 300 15px/1.5 var(--sans); color: var(--texte); background: var(--carte); border: 1px solid var(--filet); border-radius: 8px; padding: 10px 12px; min-height: 90px; resize: vertical; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div class="page">
+  <header>
+    <p class="sur">Le Trône · maquette du 29 octobre 2026, à valider</p>
+    <h1>Paramètres</h1>
+    <p class="chapeau">Aujourd’hui, 90 contrôles sur une seule longue page, dont 8 ne font rien. Demain, ce que vous réglez vraiment tient en huit tuiles, avec leur état sous les yeux, et cinq gestes rapides. Le reste se range sous « Rarement », et les zones qui effacent restent verrouillées.</p>
+  </header>
+
+  <section aria-labelledby="t-ecran">
+    <p class="sur">Essayez</p>
+    <h2 id="t-ecran">L’écran, tel qu’il serait</h2>
+    <p class="bandeau">Les valeurs sont les vôtres, lues dans la sauvegarde du 26 octobre 2026 ; les numéros et les codes sont masqués. Rien de ce que vous touchez ici ne change le Trône. Cherchez « wifi », « acompte » ou « relance », touchez une tuile, basculez un interrupteur : les résumés suivent.</p>
+
+    <div class="ecran" role="region" aria-label="Maquette de l’écran Paramètres">
+      <div class="e-barre">
+        <span class="titre">Le Trône</span>
+        <span class="depts"><span>Clientèle</span><span>Atelier</span><span>Caisse</span><span>Direction</span><b>Système</b></span>
+      </div>
+      <div class="e-corps">
+        <div class="e-tete">
+          <h3>Paramètres</h3>
+          <p>Maison MND · tout s’enregistre à la frappe.</p>
+        </div>
+
+        <div class="cherche">
+          <svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="5" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M11 11 L15 15" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+          <input id="recherche" type="search" placeholder="Chercher un réglage : heures, acompte, WhatsApp…" aria-label="Chercher un réglage" autocomplete="off">
+        </div>
+        <p class="trouve" id="trouve" aria-live="polite"></p>
+
+        <div class="gestes" role="group" aria-label="Gestes rapides">
+          <button class="geste" type="button" data-geste="fermer">Fermer la Maison un jour</button>
+          <button class="geste" type="button" data-geste="bloquer">Bloquer un créneau</button>
+          <button class="geste" type="button" data-geste="pause">Mettre WhatsApp en pause</button>
+          <button class="geste" type="button" data-geste="verifier">Tout vérifier</button>
+          <button class="geste" type="button" data-geste="sauver">Sauvegarder la Maison</button>
+        </div>
+        <p class="retour" id="retour" hidden></p>
+
+        <div class="tuiles" id="tuiles"></div>
+        <div id="panneau"></div>
+
+        <details class="rarement" id="rarement">
+          <summary>Rarement · identité, calibres, segments, livraison, cet appareil</summary>
+          <div class="groupe" id="rare"></div>
+        </details>
+
+        <details class="rarement">
+          <summary>Sauvegarde et zones sensibles</summary>
+          <div class="groupe">
+            <div class="ligne"><div class="l"><span>Exporter toute la Maison</span><small>Un fichier sur ce poste. Dernière sauvegarde : 26 octobre 2026.</small></div><div class="c"><button class="geste" type="button" data-geste="sauver">Exporter</button></div></div>
+            <div class="ligne"><div class="l"><span>Photographie du serveur</span><small>La copie complète, souveraine seulement.</small></div><div class="c"><button class="geste" type="button" data-geste="photo">Télécharger</button></div></div>
+            <div class="verrou">
+              <h4>Ce qui efface</h4>
+              <p class="petit">Remplacer la Maison par un fichier, annuler les encaissements, vider les rendez-vous de la branche, tout réinitialiser. Pour les montrer, écrivez <b>EFFACER</b>.</p>
+              <label class="petit doux" for="mot-verrou">Le mot</label>
+              <input class="champ" id="mot-verrou" type="text" autocomplete="off" spellcheck="false" placeholder="EFFACER">
+              <div class="gestes" id="sensibles" hidden>
+                <button class="danger" type="button" disabled>Remplacer par un fichier…</button>
+                <button class="danger" type="button" disabled>Annuler les encaissements…</button>
+                <button class="danger" type="button" disabled>Vider les rendez-vous de la Maison…</button>
+                <button class="danger" type="button" disabled>Tout réinitialiser…</button>
+              </div>
+              <p class="petit doux" id="sensibles-note" hidden>Chaque bouton redemande le mot, puis une sauvegarde faite aujourd’hui. Grisés ici : c’est une maquette.</p>
+            </div>
+          </div>
+        </details>
+      </div>
+    </div>
+  </section>
+
+  <section aria-labelledby="t-compte">
+    <p class="sur">Le compte</p>
+    <h2 id="t-compte">Avant, après</h2>
+    <div class="chiffres">
+      <div><strong>90</strong><span>contrôles aujourd’hui, sur une page</span></div>
+      <div><strong>8</strong><span>tuiles pour le quotidien</span></div>
+      <div><strong>5</strong><span>gestes rapides, nouveaux</span></div>
+      <div><strong>12</strong><span>contrôles qui disparaissent</span></div>
+    </div>
+  </section>
+
+  <section aria-labelledby="t-part">
+    <p class="sur">Ce qui disparaît</p>
+    <h2 id="t-part">Douze contrôles qui ne servent à rien</h2>
+    <p class="lu">Huit ne sont reliés à rien : le Trône écrit leur valeur et personne ne la lit. Quatre ne font que répéter ce qu’un autre écran dit déjà.</p>
+    <div class="table-boite">
+      <table>
+        <thead><tr><th>Contrôle</th><th>Pourquoi il part</th></tr></thead>
+        <tbody>
+          <tr><td>Durée standard d’un rituel</td><td>grisé « à venir », relié à rien ; chaque prestation a déjà sa durée</td></tr>
+          <tr><td>Fenêtre d’annulation</td><td>grisé « à venir », relié à rien</td></tr>
+          <tr><td>Rappels automatiques</td><td>« à venir », relié à rien ; les vrais rappels se règlent dans Marketing › Automatisations</td></tr>
+          <tr><td>Nouvelle introduction du Cercle</td><td>« à venir », relié à rien</td></tr>
+          <tr><td>Double authentification</td><td>« à venir », relié à rien ; l’entrée par l’empreinte existe déjà</td></tr>
+          <tr><td>Sauvegarde quotidienne</td><td>« à venir », relié à rien ; la sauvegarde de nuit tourne déjà sur le serveur</td></tr>
+          <tr><td>Export souverain autorisé</td><td>« à venir », relié à rien</td></tr>
+          <tr><td>Lien de paiement Mobile Money</td><td>écrit, jamais lu ; le QR et le code USSD font ce travail</td></tr>
+          <tr><td>Hébergement des données</td><td>une phrase fixe, rien à régler</td></tr>
+          <tr><td>Devise de référence</td><td>lecture seule ; elle se règle dans Système › Branches</td></tr>
+          <tr><td>Accès ERP du personnel</td><td>lecture seule et figée ; les vrais accès sont dans Accès &amp; rôles</td></tr>
+          <tr><td>La carte « Les textes de la Maison »</td><td>un simple renvoi ; les Textes ont leur place dans la barre</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="petit doux">Aucune donnée n’est effacée : seuls les contrôles quittent l’écran.</p>
+  </section>
+
+  <section aria-labelledby="t-repare">
+    <p class="sur">Ce qui se répare</p>
+    <h2 id="t-repare">Cinq défauts trouvés en chemin</h2>
+    <div class="deux">
+      <div class="carte">
+        <ul>
+          <li><b>Trois notifications marchent, mais sont affichées « à venir »</b> : nouveau rendez-vous, stock bas, factures en attente. Elles deviennent de vrais interrupteurs.</li>
+          <li><b>« Clôture de paie » commande en réalité les factures en attente</b> : la ligne prend son vrai nom.</li>
+          <li><b>« Vider les rendez-vous » efface toutes les branches</b>, alors que son texte ne nommait que la branche affichée. C’est voulu depuis l’origine, pour ne laisser aucun rendez-vous orphelin : son texte le dit désormais, « tous les rendez-vous de la Maison, toutes branches ».</li>
+        </ul>
+      </div>
+      <div class="carte">
+        <ul>
+          <li><b>« Mettre à jour depuis un fichier » écrase sans rien demander</b> : il passe derrière le mot EFFACER.</li>
+          <li><b>« Repartir du serveur » n’efface pas la mémoire qu’il annonce</b> : il effacera vraiment la mémoire du poste et demandera de se reconnecter, comme il le dit.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section aria-labelledby="t-non">
+    <p class="sur">Les limites</p>
+    <h2 id="t-non">Ce que la refonte ne fera pas</h2>
+    <div class="carte">
+      <ul>
+        <li>Elle ne change aucune valeur : vos heures, vos modes de paiement, vos réglages WhatsApp restent ce qu’ils sont.</li>
+        <li>Elle ne touche ni à l’Assistant Maison, ni à Accès &amp; rôles, ni aux Textes, ni à Marque.</li>
+        <li>Les réglages réservés à la direction le restent ; la carte MND PAY le devient aussi, ce qu’elle n’était pas.</li>
+      </ul>
+    </div>
+  </section>
+
+  <section aria-labelledby="t-decisions">
+    <p class="sur">À trancher</p>
+    <h2 id="t-decisions">Vos choix</h2>
+    <p class="lu doux">Mes propositions sont marquées. Vos choix s’enregistrent ici ; je les relis avant de construire.</p>
+    <div class="avance"><span class="petit" id="compte-decisions">0 sur 5 tranchées</span><div class="jauge-d"><span id="barre-decisions"></span></div></div>
+    <div id="decisions"></div>
+    <div class="mot">
+      <label for="d-note"><h3>Un mot, si besoin</h3></label>
+      <textarea id="d-note" placeholder="Un réglage que vous voulez en tuile, un geste rapide qui manque, un mot à changer."></textarea>
+      <span class="petit doux" id="d-note-etat"></span>
+    </div>
+  </section>
+</div>
+
+<script>
+(function () {
+  function t(tag, cls, txt) { var e = document.createElement(tag); if (cls) e.className = cls; if (txt !== undefined) e.textContent = txt; return e; }
+
+  /* Vos réglages, lus dans la sauvegarde du 26 octobre 2026 (numéros et codes masqués). */
+  var S = {
+    jours: [
+      { k: 'Lundi', ouvert: false, de: '08h00', a: '19h00' }, { k: 'Mardi', ouvert: true, de: '08h00', a: '20h30' },
+      { k: 'Mercredi', ouvert: true, de: '08h00', a: '20h30' }, { k: 'Jeudi', ouvert: true, de: '08h00', a: '20h30' },
+      { k: 'Vendredi', ouvert: true, de: '08h00', a: '20h30' }, { k: 'Samedi', ouvert: true, de: '09h00', a: '20h00' },
+      { k: 'Dimanche', ouvert: false, de: '10h00', a: '16h00' }
+    ],
+    exceptions: [{ d: '6 août 2026', quoi: 'Toute la Maison, ouverte' }],
+    blocages: [{ d: '13 août 2026', quoi: 'Toute la Maison, 12 h à 14 h' }],
+    automate: 'ouvert', assistant: 'non', essais: 2, horizon: 7, main: 1,
+    modes: ['Espèces', 'MTN MoMo', 'Momopay', 'Moov', 'Celtis', 'Carte', 'Virement bancaire', 'Chèque'],
+    mndPay: true, tapgo: true, zelle: true, devise: true, relances: true, relancesDepuis: '18 octobre 2026',
+    acompte: 30, livraison: 1500, preuve: true, rayon: 150, diagnostic: true, tableValidee: false,
+    notifRdv: true, notifStock: true, notifFactures: true,
+    itineraire: 'À quelques minutes du rond-point PK3, la Maison MND vous ouvre ses portes. Le chemin est simple ! Laissez-vous guider.\n\n1. Rond-point PK3, direction Super U Akpakpa\n2. Tout droit, dépassez le croisement de la voie du Ciné Concorde\n3. Tout droit, dépassez la Pharmacie St Martin à droite\n4. À l’intersection en T : à gauche, puis à droite, puis à gauche\n\nArrivée : la Maison n° 88 à gauche, portail marron, face à Sica Assurance.'
+  };
+  var MODES_WA = [['eteint', 'Éteint'], ['essai', 'Essai'], ['ouvert', 'Ouvert']];
+  var MODES_ASS = [['non', 'Non'], ['essai', 'Essai'], ['tous', 'Tout le monde']];
+  var nomDe = function (l, v) { for (var i = 0; i < l.length; i++) if (l[i][0] === v) return l[i][1]; return v; };
+  var h = function (s) { return s.replace(/^0/, '').replace('h00', ' h').replace(/h(\d\d)/, ' h $1'); };
+
+  function resumeHeures() {
+    var ouverts = S.jours.filter(function (j) { return j.ouvert; });
+    var fermes = S.jours.filter(function (j) { return !j.ouvert; }).map(function (j) { return j.k.toLowerCase(); });
+    var groupes = {};
+    ouverts.forEach(function (j) { var c = h(j.de) + ' à ' + h(j.a); (groupes[c] = groupes[c] || []).push(j.k.slice(0, 3).toLowerCase() + '.'); });
+    var parts = Object.keys(groupes).map(function (c) { var g = groupes[c]; return (g.length > 2 ? g[0] + ' au ' + g[g.length - 1] : g.join(' et ')) + ' ' + c; });
+    return (parts.join(' · ') || 'Fermée toute la semaine') + (fermes.length ? ' · fermée ' + fermes.join(' et ') : '');
+  }
+
+  var TUILES = [
+    { id: 'heures', nom: 'Heures et jours', mots: 'heures horaires ouverture fermeture jour exceptionnel journée fermer bloquer créneau congé',
+      resume: function () { return resumeHeures(); }, etat: function () { return ['e-ok', S.jours.filter(function (j) { return j.ouvert; }).length + ' jours sur 7']; } },
+    { id: 'wa', nom: 'WhatsApp', mots: 'whatsapp automate assistant phrases numéros essai places main équipe pause claude',
+      resume: function () { return 'Automate ' + nomDe(MODES_WA, S.automate).toLowerCase() + ' · assistant : ' + nomDe(MODES_ASS, S.assistant).toLowerCase() + ' · places sur ' + S.horizon + ' jours'; },
+      etat: function () { return S.automate === 'eteint' ? ['e-attention', 'en pause'] : ['e-ok', 'répond']; } },
+    { id: 'paiements', nom: 'Paiements', mots: 'paiement modes espèces momo moov celtis carte chèque virement mnd pay tap go zelle devise relance relances facture',
+      resume: function () { return S.modes.length + ' modes · MND PAY ' + (S.mndPay ? 'allumé' : 'éteint') + ' · relances ' + (S.relances ? 'allumées' : 'éteintes'); },
+      etat: function () { return S.mndPay && S.relances ? ['e-ok', 'tout allumé'] : ['e-attention', 'à regarder']; } },
+    { id: 'envoyer', nom: 'Ce qu’on envoie aux clientes', mots: 'itinéraire chemin adresse maps google avis lien momo qr ussd marchand wifi',
+      resume: function () { return 'Itinéraire, Google Maps, avis Google, QR et code MoMo'; }, etat: function () { return ['e-ok', '4 sur 4 posés']; } },
+    { id: 'resa', nom: 'Réservation et acompte', mots: 'réservation acompte pourcentage prestations plafond maître jour paliers élévation souveraineté habilitée',
+      resume: function () { return 'Acompte en ligne ' + S.acompte + ' % · aucun plafond par jour'; }, etat: function () { return ['e-neutre', 'réglé']; } },
+    { id: 'pointage', nom: 'Pointage de l’équipe', mots: 'pointage présence position rayon code du jour comptoir équipe',
+      resume: function () { return S.preuve ? 'Présence vérifiée · rayon de ' + S.rayon + ' m' : 'Confiance, aucune vérification'; }, etat: function () { return S.preuve ? ['e-ok', 'vérifiée'] : ['e-neutre', 'confiance']; } },
+    { id: 'diag', nom: 'Diagnostic photo', mots: 'diagnostic photo locks ma couronne table rituel produit claude',
+      resume: function () { return (S.diagnostic ? 'Proposé aux clientes' : 'Fermé aux clientes') + ' · table ' + (S.tableValidee ? 'validée' : 'à valider'); },
+      etat: function () { return S.diagnostic && !S.tableValidee ? ['e-attention', 'allumé, table à valider'] : (S.diagnostic ? ['e-ok', 'allumé'] : ['e-neutre', 'éteint']); } },
+    { id: 'notifs', nom: 'Notifications', mots: 'notification cloche rendez-vous stock réassort factures attente',
+      resume: function () { var n = [S.notifRdv, S.notifStock, S.notifFactures].filter(Boolean).length; return n + ' sur 3 dans la cloche'; }, etat: function () { return ['e-ok', 'reliées']; } }
+  ];
+
+  var RARE = [
+    ['Identité de la Maison', 'Nom, raison sociale, employeur, ville du siège', 'identité nom raison sociale employeur ville siège'],
+    ['Fuseau horaire', 'Cotonou', 'fuseau horaire heure voyage'],
+    ['Les calibres des modèles', '7 calibres, de Jumbo à Galaxy', 'calibres modèles locks barème'],
+    ['Segments de clientèle', '9 segments', 'segments crm clientèle vip diaspora'],
+    ['Frais de livraison', '1 500 F, sur Ma Couronne', 'livraison frais boutique'],
+    ['Le poids des photos', 'Alléger les photos des fiches', 'photos poids alléger'],
+    ['Cet appareil', 'Compte, mémoire du poste, repartir du serveur', 'appareil poste mémoire serveur compte']
+  ];
+  var rare = document.getElementById('rare');
+  RARE.forEach(function (r) {
+    var l = t('div', 'ligne'); l.dataset.mots = (r[0] + ' ' + r[2]).toLowerCase();
+    var a = t('div', 'l'); a.appendChild(t('span', '', r[0])); a.appendChild(t('small', '', r[1])); l.appendChild(a);
+    var c = t('div', 'c'); c.appendChild(t('button', 'lien', 'Ouvrir')); l.appendChild(c);
+    rare.appendChild(l);
+  });
+
+  var ouvert = null;
+  var boite = document.getElementById('tuiles'), panneau = document.getElementById('panneau');
+  function dessineTuiles() {
+    boite.textContent = '';
+    TUILES.forEach(function (u) {
+      var b = t('button', 'tuile'); b.type = 'button'; b.id = 'tuile-' + u.id; b.dataset.mots = (u.nom + ' ' + u.mots).toLowerCase();
+      b.setAttribute('aria-expanded', ouvert === u.id ? 'true' : 'false'); b.setAttribute('aria-controls', 'panneau');
+      b.appendChild(t('span', 'nom', u.nom));
+      b.appendChild(t('span', 'resume', u.resume()));
+      var e = u.etat(); b.appendChild(t('span', 'etat ' + e[0], e[1]));
+      b.addEventListener('click', function () { ouvert = ouvert === u.id ? null : u.id; tout(); if (ouvert) panneau.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); });
+      boite.appendChild(b);
+    });
+    filtre();
+  }
+
+  function ligne(lab, sous, ctrl, mots) {
+    var l = t('div', 'ligne'); l.dataset.mots = (lab + ' ' + (mots || '')).toLowerCase();
+    var a = t('div', 'l'); a.appendChild(t('span', '', lab)); if (sous) a.appendChild(t('small', '', sous)); l.appendChild(a);
+    var c = t('div', 'c'); (Array.isArray(ctrl) ? ctrl : [ctrl]).forEach(function (x) { c.appendChild(x); }); l.appendChild(c);
+    return l;
+  }
+  function inter(cle, apres) {
+    var b = t('button', 'inter'); b.type = 'button'; b.setAttribute('role', 'switch'); b.setAttribute('aria-checked', S[cle] ? 'true' : 'false');
+    b.setAttribute('aria-label', cle);
+    b.addEventListener('click', function () { S[cle] = !S[cle]; if (apres) apres(); tout(); var n = document.querySelector('[data-cle="' + cle + '"]'); if (n) n.focus(); });
+    b.dataset.cle = cle; return b;
+  }
+  function segs(liste, cle) {
+    var g = t('div', 'segs'); g.setAttribute('role', 'group');
+    liste.forEach(function (m) {
+      var b = t('button', '', m[1]); b.type = 'button'; b.setAttribute('aria-pressed', S[cle] === m[0] ? 'true' : 'false');
+      b.addEventListener('click', function () { S[cle] = m[0]; tout(); });
+      g.appendChild(b);
+    });
+    return g;
+  }
+  function champ(val, cls, apres) { var i = t('input', 'champ' + (cls ? ' ' + cls : '')); i.value = val; if (apres) i.addEventListener('change', function () { apres(i.value); tout(); }); return i; }
+  function groupe(titre) { var g = t('div', 'groupe'); if (titre) g.appendChild(t('p', 'titre-g', titre)); return g; }
+  function puce(x) { return t('span', 'puce', x); }
+  function lien(x, f) { var b = t('button', 'lien', x); b.type = 'button'; if (f) b.addEventListener('click', f); return b; }
+
+  var CONTENU = {
+    heures: function (p) {
+      var g = groupe('Les heures du salon'), js = t('div', 'jours');
+      S.jours.forEach(function (j) {
+        var r = t('div', 'jour'); r.appendChild(t('span', '', j.k));
+        var b = t('button', 'inter'); b.type = 'button'; b.setAttribute('role', 'switch'); b.setAttribute('aria-checked', j.ouvert ? 'true' : 'false'); b.setAttribute('aria-label', j.k + ' ouvert');
+        b.addEventListener('click', function () { j.ouvert = !j.ouvert; tout(); });
+        r.appendChild(b);
+        var hs = t('div', 'heures');
+        if (j.ouvert) { hs.appendChild(champ(j.de, '', function (v) { j.de = v; })); hs.appendChild(t('span', 'doux', 'à')); hs.appendChild(champ(j.a, '', function (v) { j.a = v; })); }
+        else hs.appendChild(t('span', 'ferme', 'Fermé ce jour'));
+        r.appendChild(hs); js.appendChild(r);
+      });
+      g.appendChild(js); p.appendChild(g);
+      var g2 = groupe('Journées exceptionnelles');
+      S.exceptions.forEach(function (x) { g2.appendChild(ligne(x.d, x.quoi, t('span', 'passe', 'passée'), 'exception')); });
+      g2.appendChild(ligne('Fermer ou ouvrir un jour précis', 'Un jour férié, un inventaire, une fermeture.', lien('+ Une journée', function () { geste('fermer'); }), 'fermer exception congé'));
+      p.appendChild(g2);
+      var g3 = groupe('Créneaux bloqués');
+      S.blocages.forEach(function (x) { g3.appendChild(ligne(x.d, x.quoi, t('span', 'passe', 'passé'), 'bloqué')); });
+      g3.appendChild(ligne('Bloquer une plage', 'Pour toute la Maison ou pour un maître.', lien('+ Un créneau', function () { geste('bloquer'); }), 'bloquer créneau'));
+      p.appendChild(g3);
+    },
+    wa: function (p) {
+      var g = groupe('L’automate');
+      g.appendChild(ligne('La Maison répond sur WhatsApp', 'Éteint : personne ne répond seul. Essai : vos numéros d’essai seulement.', segs(MODES_WA, 'automate'), 'automate mode'));
+      g.appendChild(ligne('Les numéros d’essai', S.essais + ' numéros, masqués ici', [puce('+229 01 •• •• •• ••'), puce('+229 01 •• •• •• ••'), lien('+ Ajouter')], 'numéros essai'));
+      g.appendChild(ligne('Les places proposées, jusqu’à', 'Combien de jours à l’avance l’automate propose des places.', champ(S.horizon + ' jours'), 'places horizon'));
+      g.appendChild(ligne('La main de l’équipe tient', 'Quand quelqu’un de l’équipe écrit, l’automate se tait pendant :', champ(S.main + ' h'), 'main équipe pause'));
+      p.appendChild(g);
+      var g2 = groupe('L’assistant qui répond en phrases');
+      g2.appendChild(ligne('Il répond avec Claude', 'Là où l’automate se taisait : une question, un prix, un merci.', segs(MODES_ASS, 'assistant'), 'assistant claude phrases'));
+      g2.appendChild(ligne('Vérifier le branchement', 'L’assistant, l’automate et la clé de Claude.', lien('Vérifier', function () { geste('verifier'); }), 'vérifier'));
+      p.appendChild(g2);
+    },
+    paiements: function (p) {
+      var g = groupe('Les modes de paiement');
+      g.appendChild(ligne('Proposés à la Caisse', 'Glissez pour changer l’ordre.', S.modes.map(puce).concat([lien('+ Ajouter')]), 'modes'));
+      g.appendChild(ligne('Paiement en devise étrangère', 'Euro et dollar à la Caisse.', inter('devise'), 'devise étrangère euro dollar'));
+      p.appendChild(g);
+      var g2 = groupe('MND PAY');
+      g2.appendChild(ligne('MND PAY', 'La cliente paie sur son téléphone, la Caisse le sait aussitôt.', inter('mndPay'), 'mnd pay fedapay'));
+      g2.appendChild(ligne('Tap & Go, le code USSD', 'Code marchand et commission réglés dedans.', inter('tapgo'), 'tap go ussd'));
+      g2.appendChild(ligne('Zelle, noté à la main', 'Adresse masquée ici.', inter('zelle'), 'zelle'));
+      p.appendChild(g2);
+      var g3 = groupe('Les relances des factures');
+      g3.appendChild(ligne('Relancer les factures restées dues', S.relances ? 'Allumées depuis le ' + S.relancesDepuis + '.' : 'Éteintes.', inter('relances'), 'relances relance factures dues'));
+      g3.appendChild(ligne('Le rythme', 'Cliente seule, compte famille.', lien('Régler'), 'rythme'));
+      p.appendChild(g3);
+    },
+    envoyer: function (p) {
+      var g = groupe('Le chemin');
+      var ta = t('textarea', 'champ'); ta.value = S.itineraire; ta.setAttribute('aria-label', 'Itinéraire');
+      var l = ligne('L’itinéraire, en texte', 'Envoyé dans la confirmation du rendez-vous.', [], 'itinéraire chemin adresse');
+      l.style.gridTemplateColumns = 'minmax(0, 1fr)'; l.querySelector('.c').appendChild(ta); l.querySelector('.c').style.justifyContent = 'stretch';
+      g.appendChild(l);
+      g.appendChild(ligne('Lien Google Maps', 'maps.app.goo.gl/…', lien('Ouvrir'), 'maps google lien'));
+      g.appendChild(ligne('Lien Google Avis', 'g.page/r/…/review', lien('Ouvrir'), 'avis google lien'));
+      p.appendChild(g);
+      var g2 = groupe('Payer par MoMo');
+      g2.appendChild(ligne('Le QR et le code USSD', 'MAISON MND · code marchand 909099', lien('Voir le QR'), 'momo qr ussd marchand'));
+      p.appendChild(g2);
+    },
+    resa: function (p) {
+      var g = groupe('L’acompte');
+      g.appendChild(ligne('Acompte en ligne, par défaut', 'Proposé quand on ajoute une prestation.', champ(S.acompte + ' %'), 'acompte pourcentage'));
+      g.appendChild(ligne('Prestations qui exigent un acompte', 'Aucune aujourd’hui.', lien('Choisir'), 'prestations acompte'));
+      p.appendChild(g);
+      var g2 = groupe('Le calendrier de réservation');
+      g2.appendChild(ligne('Plafond par maître et par jour', 'Vide : pas de plafond.', champ(''), 'plafond maître'));
+      g2.appendChild(ligne('Plafond pour toute la Maison, par jour', 'Vide : pas de plafond.', champ(''), 'plafond maison'));
+      p.appendChild(g2);
+      var g3 = groupe('Les paliers de la couronne');
+      g3.appendChild(ligne('Élévation, Souveraineté', 'Au nombre de rituels honorés et de mois de couronne.', lien('Régler'), 'paliers élévation souveraineté'));
+      g3.appendChild(ligne('Une main non habilitée sur un acte', 'Avertir, la direction tranche.', lien('Changer'), 'habilitée main'));
+      p.appendChild(g3);
+    },
+    pointage: function (p) {
+      var g = groupe('');
+      g.appendChild(ligne('Vérifier la présence', 'Sinon, confiance : aucune vérification.', inter('preuve'), 'preuve présence'));
+      if (S.preuve) {
+        g.appendChild(ligne('Position du salon', 'Posée ; à refaire DEPUIS le salon si besoin.', lien('Utiliser ma position'), 'position'));
+        g.appendChild(ligne('Rayon accepté', 'En mètres autour du salon.', champ(S.rayon + ' m'), 'rayon'));
+        g.appendChild(ligne('Code du jour', 'Affiché au comptoir, masqué ici.', [puce('••••'), lien('Ouvrir le comptoir')], 'code jour comptoir'));
+      }
+      p.appendChild(g);
+    },
+    diag: function (p) {
+      var g = groupe('');
+      g.appendChild(ligne('Proposer le diagnostic aux clientes', S.diagnostic ? 'Allumé : visible dans Ma Couronne.' : 'Fermé aux clientes.', inter('diagnostic'), 'diagnostic clientes'));
+      g.appendChild(ligne('La table observation, rituel, produit', S.tableValidee ? 'Validée.' : 'Encore la table par défaut, à valider.', lien(S.tableValidee ? 'Revoir' : 'Valider la table', function () { S.tableValidee = true; tout(); }), 'table valider'));
+      g.appendChild(ligne('Vérifier le branchement', 'La fonction du diagnostic et la clé de Claude.', lien('Vérifier', function () { geste('verifier'); }), 'vérifier'));
+      p.appendChild(g);
+    },
+    notifs: function (p) {
+      var g = groupe('Dans la cloche du Trône');
+      g.appendChild(ligne('Nouveau rendez-vous', 'Un rendez-vous pris en ligne ou par WhatsApp.', inter('notifRdv'), 'rendez-vous'));
+      g.appendChild(ligne('Stock bas', 'Un produit sous son seuil de réassort.', inter('notifStock'), 'stock réassort'));
+      g.appendChild(ligne('Factures en attente', 'Une facture envoyée et pas encore réglée.', inter('notifFactures'), 'factures attente'));
+      p.appendChild(g);
+    }
+  };
+
+  function dessinePanneau() {
+    panneau.textContent = '';
+    if (!ouvert) return;
+    var u = TUILES.filter(function (x) { return x.id === ouvert; })[0];
+    var p = t('div', 'panneau'); p.id = 'panneau-' + u.id;
+    var tete = t('div', 'panneau-tete'); tete.appendChild(t('h3', '', u.nom));
+    var f = t('button', '', 'Fermer'); f.type = 'button'; f.addEventListener('click', function () { ouvert = null; tout(); document.getElementById('tuile-' + u.id).focus(); });
+    tete.appendChild(f); p.appendChild(tete);
+    CONTENU[u.id](p);
+    panneau.appendChild(p);
+  }
+
+  /* La recherche : les tuiles, les lignes du panneau ouvert et celles de « Rarement » se filtrent ensemble. */
+  var champRecherche = document.getElementById('recherche'), trouve = document.getElementById('trouve');
+  var sansAccent = function (s) { return s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, ''); };
+  function filtre() {
+    var q = sansAccent(champRecherche.value.trim());
+    var n = 0;
+    Array.prototype.forEach.call(boite.children, function (b) { var ok = !q || sansAccent(b.dataset.mots).indexOf(q) >= 0; b.classList.toggle('cachee', !ok); if (ok && q) n++; });
+    var r = 0;
+    Array.prototype.forEach.call(document.querySelectorAll('#rare .ligne'), function (l) { var ok = !q || sansAccent(l.dataset.mots).indexOf(q) >= 0; l.classList.toggle('cachee', !ok); if (ok && q) r++; });
+    if (q && r) document.getElementById('rarement').open = true;
+    if (!q) trouve.textContent = '';
+    else if (n + r === 0) trouve.textContent = 'Rien pour « ' + champRecherche.value.trim() + ' ». Essayez un autre mot : heures, acompte, momo, pointage.';
+    else trouve.textContent = n + (n > 1 ? ' tuiles' : ' tuile') + (r ? ' et ' + r + ' réglage' + (r > 1 ? 's' : '') + ' dans « Rarement »' : '') + '.';
+    if (q === 'wifi' || q === 'wi-fi') trouve.textContent = 'Le Wi-Fi des clientes se règle dans « QR de la Maison », pas ici.';
+  }
+  champRecherche.addEventListener('input', filtre);
+
+  /* Les gestes rapides : chacun dit ce qu'il ferait au vrai Trône. */
+  var retour = document.getElementById('retour');
+  var DIT = {
+    fermer: 'Au vrai Trône : un calendrier s’ouvre, vous touchez le jour, « Toute la Maison » ou un maître, et c’est posé. Les clientes ne peuvent plus réserver ce jour-là.',
+    bloquer: 'Au vrai Trône : le jour, la plage et le maître, en trois touchers. Le créneau disparaît des places en ligne et de l’automate.',
+    pause: '',
+    verifier: 'Au vrai Trône : MND PAY, les relances, l’automate, l’assistant et le diagnostic sont interrogés ensemble. Ici, tout répondrait « branché », sauf l’assistant : sa nouvelle version attend d’être recollée.',
+    sauver: 'Au vrai Trône : un fichier de sauvegarde se télécharge sur ce poste, avec la date du jour.',
+    photo: 'Au vrai Trône : la photographie complète du serveur se télécharge, pour la direction seulement.'
+  };
+  function geste(g) {
+    if (g === 'pause') {
+      var avant = S.automate;
+      S.automate = avant === 'eteint' ? 'ouvert' : 'eteint';
+      DIT.pause = S.automate === 'eteint' ? 'L’automate est en pause : plus aucune réponse seule sur WhatsApp. Touchez encore pour le rallumer.' : 'L’automate répond de nouveau, comme avant la pause.';
+      tout();
+    }
+    retour.hidden = false; retour.textContent = DIT[g];
+  }
+  Array.prototype.forEach.call(document.querySelectorAll('[data-geste]'), function (b) { b.addEventListener('click', function () { geste(b.dataset.geste); }); });
+
+  var verrou = document.getElementById('mot-verrou');
+  verrou.addEventListener('input', function () { var ok = verrou.value.trim().toUpperCase() === 'EFFACER'; document.getElementById('sensibles').hidden = !ok; document.getElementById('sensibles-note').hidden = !ok; });
+
+  function tout() { dessineTuiles(); dessinePanneau(); }
+  tout();
+
+  /* Les décisions : enregistrées ici (base de la page), relues avant de construire. */
+  var DECISIONS = [
+    { id: 'forme', titre: 'La forme de l’écran', pq: 'Aujourd’hui : une seule longue page et une rangée de pastilles en haut.',
+      options: [['tuiles', 'Huit tuiles et un panneau ouvert à la fois', 'Chaque tuile montre l’état du réglage ; on ouvre, on règle, on referme.', true],
+                ['liste', 'Une liste repliée, une ligne par famille', 'Plus sobre, moins visuel ; même idée d’un seul panneau ouvert.']] },
+    { id: 'doublons', titre: 'Un réglage, un seul endroit', pq: 'Le nom, la raison sociale et la ville sont aussi dans les Textes ; l’itinéraire et les liens, aussi dans Marketing.',
+      options: [['ici', 'Ici seulement, les autres écrans renvoient ici', 'On ne se demande plus lequel fait foi.', true],
+                ['garder', 'Garder les deux endroits', 'Rien ne change ailleurs.']] },
+    { id: 'sensibles', titre: 'Les zones qui effacent', pq: 'Aujourd’hui, deux ou trois clics suffisent à tout vider, sans rien écrire.',
+      options: [['mot', 'En bas des Paramètres, derrière le mot EFFACER', 'Le mot, puis une sauvegarde du jour exigée avant chaque geste.', true],
+                ['ecran', 'Un écran à part, Système › Zones sensibles', 'Hors de la vue de tous les jours, pour la direction seule.']] },
+    { id: 'gestes', titre: 'Les gestes rapides', pq: 'Fermer un jour, bloquer un créneau, mettre WhatsApp en pause, tout vérifier, sauvegarder.',
+      options: [['cinq', 'Les cinq, en haut de l’écran', 'Ceux que vous faites sans vouloir chercher la bonne carte.', true],
+                ['moins', 'Seulement fermer un jour et la pause WhatsApp', 'Les autres restent dans leur tuile.']] },
+    { id: 'notifs', titre: 'Les trois notifications', pq: 'Elles marchent déjà, mais l’écran les montre grisées « à venir ».',
+      options: [['vraies', 'Trois vrais interrupteurs, avec leur vrai nom', 'Nouveau rendez-vous, stock bas, factures en attente.', true],
+                ['retirer', 'Les retirer : la cloche montre tout', 'Un réglage de moins.']] }
+  ];
+  var choix = {};
+  var CLE = 'parametres-choix';
+  try { var vu = JSON.parse(localStorage.getItem(CLE) || '{}') || {}; Object.keys(vu).forEach(function (k) { choix[k] = vu[k]; }); } catch (e) { /* sans mémoire */ }
+  var docRef = null, file = Promise.resolve();
+  function garde() {
+    try { localStorage.setItem(CLE, JSON.stringify(choix)); } catch (e) { /* sans mémoire */ }
+    if (!docRef) return;
+    var corps = {}; Object.keys(choix).forEach(function (k) { if (choix[k]) corps[k] = choix[k]; });
+    corps.enregistre = new Date().toISOString();
+    file = file.then(function () { return docRef.set(corps); }).catch(function () { /* hors ligne */ });
+  }
+  var boiteD = document.getElementById('decisions');
+  function dessineDecisions() {
+    boiteD.textContent = '';
+    DECISIONS.forEach(function (dd) {
+      var c = t('div', 'decision' + (choix[dd.id] ? ' tranchee' : ''));
+      c.appendChild(t('h3', '', dd.titre));
+      c.appendChild(t('p', 'pq', dd.pq));
+      var g = document.createElement('div'); g.setAttribute('role', 'radiogroup'); g.setAttribute('aria-label', dd.titre);
+      dd.options.forEach(function (o) {
+        var l = t('label', 'choix-ligne');
+        var i = document.createElement('input'); i.type = 'radio'; i.name = 'd-' + dd.id; i.id = 'd-' + dd.id + '-' + o[0]; i.value = o[0]; i.checked = choix[dd.id] === o[0];
+        i.addEventListener('change', function () { choix[dd.id] = o[0]; garde(); dessineDecisions(); });
+        var s = document.createElement('span');
+        s.appendChild(document.createTextNode(o[1]));
+        if (o[3]) { s.appendChild(document.createTextNode(' ')); s.appendChild(t('em', '', 'ma proposition')); }
+        s.appendChild(t('small', '', o[2]));
+        l.appendChild(i); l.appendChild(s); g.appendChild(l);
+      });
+      c.appendChild(g);
+      c.appendChild(t('span', 'etat-d', choix[dd.id] ? 'Choix enregistré.' : ''));
+      boiteD.appendChild(c);
+    });
+    var k = DECISIONS.filter(function (dd) { return choix[dd.id]; }).length;
+    document.getElementById('compte-decisions').textContent = k + ' sur ' + DECISIONS.length + ' tranchées';
+    document.getElementById('barre-decisions').style.width = Math.round((k / DECISIONS.length) * 100) + '%';
+  }
+  var note = document.getElementById('d-note');
+  if (choix.note) note.value = choix.note;
+  var minuterie = null;
+  note.addEventListener('input', function () { clearTimeout(minuterie); minuterie = setTimeout(function () { choix.note = note.value.trim(); garde(); document.getElementById('d-note-etat').textContent = 'Mot enregistré.'; }, 600); });
+  dessineDecisions();
+  if (window.claude && typeof window.claude.use === 'function') {
+    window.claude.use('db').then(function (db) {
+      if (!db) return;
+      docRef = db.doc('maquette/parametres');
+      return docRef.get().then(function (s) {
+        if (!s || !s.exists) return;
+        var v = s.data() || {};
+        Object.keys(v).forEach(function (k) { if (k !== 'enregistre' && typeof v[k] === 'string') choix[k] = v[k]; });
+        if (choix.note) note.value = choix.note;
+        dessineDecisions();
+      });
+    }).catch(function () { /* sans base : les choix restent sur cet appareil */ });
+  }
+})();
+</script>

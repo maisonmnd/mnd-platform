@@ -14,7 +14,7 @@
    · Campagnes : déposées dans la salle d'attente des envois, retenues, et
      portées par le facteur au feu vert (`campagnes-pur`). */
 import { Fragment, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Button, Card, Eyebrow, Field, Input, Modal, Select, Textarea, demande, toast } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
@@ -246,22 +246,25 @@ export function OngletAutomatisations() {
 
       <Card style={{ marginTop: 18, padding: '22px 24px' }}>
         <Eyebrow>Liens insérés dans les messages</Eyebrow>
+        {/* UN RÉGLAGE, UN SEUL ENDROIT (29 octobre 2026, refonte des Paramètres) :
+            l'itinéraire et les liens se règlent dans Paramètres › « Ce qu'on
+            envoie aux clientes ». Ici, on les lit ; le lien de paiement MoMo,
+            écrit mais jamais lu, a disparu : le QR et le code USSD font ce travail. */}
         <p className="mnd-muted" style={{ fontSize: 12, marginTop: 3, maxWidth: 640, lineHeight: 1.6 }}>
-          Le lien MoMo, l’itinéraire et le lien d’avis Google sont insérés tels quels dans les messages automatiques, rappels, relances, invitations. Ils se règlent aussi dans Paramètres → Automatisations.
+          L’itinéraire, le lien Google Maps et le lien d’avis Google sont insérés tels quels dans les messages automatiques, rappels, relances, invitations.
+          {' '}Ils se règlent dans <Link to="/parametres?ouvre=envoyer">Paramètres › Ce qu’on envoie aux clientes</Link>.
         </p>
-        <div className="tr-grid tr-grid--2" style={{ marginTop: 16 }}>
-          <Field label="Lien de paiement MoMo">
-            <Input value={autoCfg.momoLink} onChange={(e) => setAutoCfg({ ...autoCfg, momoLink: e.target.value })} />
-          </Field>
-          <Field label="Lien Google Maps · itinéraire">
-            <Input value={autoCfg.mapsLink} onChange={(e) => setAutoCfg({ ...autoCfg, mapsLink: e.target.value })} />
-          </Field>
-          <Field label="Lien Google Avis">
-            <Input value={autoCfg.reviewLink} onChange={(e) => setAutoCfg({ ...autoCfg, reviewLink: e.target.value })} />
-          </Field>
-          <Field label="Itinéraire · texte libre">
-            <Textarea rows={2} value={autoCfg.itineraire} onChange={(e) => setAutoCfg({ ...autoCfg, itineraire: e.target.value })} />
-          </Field>
+        <div style={{ display: 'grid', gap: 6, marginTop: 12, fontSize: 13 }}>
+          {([
+            ['Lien Google Maps', autoCfg.mapsLink],
+            ['Lien Google Avis', autoCfg.reviewLink],
+            ['Itinéraire', autoCfg.itineraire],
+          ] as [string, string | undefined][]).map(([l, v]) => (
+            <div key={l} style={{ display: 'flex', gap: 10, alignItems: 'baseline', flexWrap: 'wrap' }}>
+              <span className="mnd-muted" style={{ minWidth: 130 }}>{l}</span>
+              <span style={{ flex: 1, minWidth: 0, overflowWrap: 'anywhere' }}>{(v ?? '').trim() ? (v ?? '').trim().split('\n')[0] : 'pas encore posé'}</span>
+            </div>
+          ))}
         </div>
       </Card>
     </div>

@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Card } from '../../../../ds/components';
+import { Card, toast } from '../../../../ds/components';
+import { useEstDirection } from '../_vie';
 import { Toggle } from '../equipe/ui';
 import { supabase } from '../../../../shared/supabase';
 import { useSettings } from '../../../../shared/settings';
@@ -14,8 +15,16 @@ import { CODE_TAPGO_DEFAUT, MODES_DEFAUT, TAUX_MOBILE_DEFAUT, TAUX_TAPGO_DEFAUT,
    (jamais une clé, seulement « posée », « live » ou « sandbox »). */
 export function CarteMndPay() {
   const [settings, setSettings] = useSettings();
+  const estDirection = useEstDirection();
   const r: ReglagesMndPay = settings.mndPay ?? {};
-  const pose = (patch: Partial<ReglagesMndPay>) => setSettings((s) => ({ ...s, mndPay: { ...(s.mndPay ?? {}), ...patch } }));
+  /* LA DIRECTION SEULE (29 octobre 2026) : les frais ajoutés pour la cliente,
+     le code marchand et l'adresse Zelle s'écrivaient depuis n'importe quel
+     compte du personnel, quand les relances, l'automate et le diagnostic
+     voisins gardaient déjà la main de la direction. */
+  const pose = (patch: Partial<ReglagesMndPay>) => {
+    if (!estDirection) { toast('Ce réglage appartient à la direction.'); return; }
+    setSettings((s) => ({ ...s, mndPay: { ...(s.mndPay ?? {}), ...patch } }));
+  };
   const poseZelle = (patch: NonNullable<ReglagesMndPay['zelle']>) => pose({ zelle: { ...(r.zelle ?? {}), ...patch } });
   const poseTapGo = (patch: NonNullable<ReglagesMndPay['tapgo']>) => pose({ tapgo: { ...(r.tapgo ?? {}), ...patch } });
   const poseMode = (k: 'mtn' | 'moov' | 'celtiis', v: string) => pose({ modes: { ...(r.modes ?? {}), [k]: v.trim().toLowerCase() } });

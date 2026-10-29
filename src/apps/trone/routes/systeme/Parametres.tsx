@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ChangeEvent, type CSSProperties, type ReactNode } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { PageHead } from '../_ui';
 import { Button, Card, Eyebrow, Field, Input, Select, Textarea, toast, demande } from '../../../../ds/components';
 import { Toggle } from '../equipe/ui';
@@ -19,13 +19,12 @@ import { bilanDesPhotos, enVignette, photoTropLourde, poidsLisible } from '../..
 import { useServices, servicesStore } from '../../../../shared/catalog';
 import { usePaymentMethods, paymentMethodsStore, invoicesStore } from '../../../../shared/finance';
 import { appointmentsStore, wipeAppointments } from '../../../../shared/agenda';
-import { createStore, useStore, magasinsEnMemoireSeule } from '../../../../shared/store';
+import { createStore, useStore, magasinsEnMemoireSeule, estCleDeLaMaison } from '../../../../shared/store';
 import { downloadBackup, restoreBackup, LAST_BACKUP_KEY, type RestoreReport } from '../../backup';
 import { resetAllPaidInvoices } from '../clients/actions';
 import { factoryResetServer, activateBlankAndReload, replaceHouseFromFile } from '../../houseReset';
 import '../equipe/equipe.css'; // styles des composants partagés (Toggle, tre-*)
 import { useStaff } from '../equipe/data';
-import { DEPARTEMENTS } from '../index';
 import { useExceptionsHoraires, usePointageConfig, assurerCodeDuJour, type HoraireException } from '../equipe/payroll';
 import { useBlocages, type Blocage } from '../../../../shared/blocages';
 import { reglageDeLaReception, type ModeDeLaReception } from '../../../../shared/automate-wa';
@@ -39,12 +38,15 @@ import './systeme.css';
 import { CarteMndPay } from './CarteMndPay';
 import { CarteRelances } from './CarteRelances';
 import { CarteDiagnosticPhoto } from './CarteDiagnosticPhoto';
+import {
+  TUILES, RAREMENT, NOTIFICATIONS, MOT_DU_VERROU, estIdTuile, verrouOuvert, sansAccent, tuilesTrouvees, rarementTrouves,
+  resumeDesHeures, etatDesHeures, resumeWhatsApp, etatWhatsApp, resumePaiements, etatPaiements, resumeEnvois,
+  resumeReservation, resumePointage, resumeDiagnostic, resumeNotifications, type Etat, type IdTuile,
+} from './parametres-pur';
 
-/* Système · Paramètres — jours & heures d'ouverture, accès ERP du personnel par
-   rubrique de domaine (codes d'accès envoyables), et les liens d'automatisation. */
-
-type FieldRow = { l: string; v: string };
-type ToggleRow = { k: string; l: string; sub: string };
+/* Système · Paramètres — depuis le 29 octobre 2026, huit tuiles pour ce qui se
+   règle au quotidien, cinq gestes rapides, « Rarement » pour le reste, et ce
+   qui efface derrière un mot (maquette 5aXKK3Eu…, `parametres-pur.ts`). */
 
 /* ---------- Identité de la Maison — DÉMÉNAGÉE dans `shared/identite` ----------
    Branchée le 13 août : le nom signe la barre latérale, l'écran de connexion,
@@ -62,65 +64,10 @@ const FUSEAU_OPTIONS = [
   'Cotonou · GMT+1', 'Abidjan · GMT', 'Lomé · GMT', 'Dakar · GMT',
   'Lagos · GMT+1', 'Douala · GMT+1', 'Paris · GMT+2',
 ];
-const DUREE_OPTIONS = [
-  '45 min', '1 h', '1 h 30', '2 h', '2 h 30', '3 h', '3 h 30', '4 h', '4 h 30', '5 h', '6 h',
-];
-const ANNULATION_OPTIONS = ['24 h avant', '48 h avant', '72 h avant', 'Aucune fenêtre'];
-
-const RITUEL_TOGGLES: ToggleRow[] = [
-  { k: 'rappel', l: 'Rappels automatiques', sub: 'SMS + WhatsApp · J-1 et H-2 · les vrais rappels se règlent dans Marketing' },
-];
-const NOTIF_TOGGLES: ToggleRow[] = [
-  { k: 'notifRdv', l: 'Nouveau rendez-vous', sub: 'au Maître concerné' },
-  { k: 'notifStock', l: 'Seuil de réassort atteint', sub: 'à l’Atelier & à l’Accueil' },
-  { k: 'notifPaie', l: 'Clôture de paie', sub: 'à la matriarche' },
-  { k: 'notifCercle', l: 'Nouvelle introduction du Cercle', sub: 'à toute la Maison' },
-];
-const ACCES_TOGGLES: ToggleRow[] = [
-  { k: 'auth', l: 'Double authentification', sub: 'requise pour les Maîtres' },
-  { k: 'sauvegarde', l: 'Sauvegarde quotidienne', sub: 'chiffrée · conservée 90 jours' },
-  { k: 'export', l: 'Export souverain autorisé', sub: 'la Maison peut tout emporter' },
-];
-
 const JOUR_LABEL: Record<string, string> = {
   lun: 'Lundi', mar: 'Mardi', mer: 'Mercredi', jeu: 'Jeudi',
   ven: 'Vendredi', sam: 'Samedi', dim: 'Dimanche',
 };
-
-/* ----- Accès ERP · ce que chaque rang ouvre -----
-
-   CE TABLEAU DISAIT AUTRE CHOSE QUE LE SYSTÈME. Il annonçait cinq rangs et
-   sept domaines — Praticien·ne, Accueil, Académie — quand l'application en
-   porte trois et six ; et il promettait qu'un maître ouvre le Pilotage et la
-   Vente, alors qu'il n'atteint que son mois et son calendrier.
-
-   Écrit en dur, il ne commandait rien : c'était une intention, pas une règle.
-   Tant que rien n'appliquait les accès, l'écart ne se voyait pas. Depuis que
-   la barre les applique, un tableau qui ment est pire qu'un tableau absent. */
-/* LES DÉPARTEMENTS DE LA BARRE, à leur source (22 septembre 2026) : ce
-   tableau montre ce qu'un rang ouvre, il doit dire la même chose qu'elle. */
-const DOMAINS = DEPARTEMENTS;
-type Role = { k: string; label: string; desc: string; perms: string[] };
-const TOUS = DEPARTEMENTS.map((d) => d.k);
-const ROLE_DEFS: Role[] = [
-  { k: 'souverain', label: 'Souverain·e', desc: 'Accès total, la Maison entière.', perms: TOUS },
-  { k: 'gerant', label: 'Gérant·e', desc: 'Pilote tout sauf l’âme système.', perms: TOUS.filter((k) => k !== 'dept-systeme') },
-  {
-    k: 'maitre',
-    label: 'Maître',
-    desc: 'Son Quotidien, sans les montants. Le reste s’ouvre département par département, personne par personne, depuis Accès & rôles.',
-    perms: [],
-  },
-];
-
-function FieldRowView({ l, v }: FieldRow) {
-  return (
-    <div className="sys-row">
-      <div className="sys-row__label">{l}</div>
-      <span className="sys-row__value">{v}</span>
-    </div>
-  );
-}
 
 /** Ligne de réglage éditable — libellé (+ sous-titre) à gauche, contrôle à droite. */
 function EditRow({ l, sub, children }: { l: string; sub?: string; children: ReactNode }) {
@@ -194,22 +141,6 @@ function LigneListe({ nom, existe, premier, dernier, renomme, bouge, retire, ari
     </div>
   );
 }
-
-/* ── LA MARQUE DES RÉGLAGES PAS ENCORE RELIÉS (13 août) ─────────────────
-   L'audit de la page a trouvé des commandes que RIEN ne lit : l'identité,
-   la durée standard, la fenêtre d'annulation, huit interrupteurs. Décision
-   de Yéman : les garder visibles — ce sont des promesses — mais marqués et
-   INERTES. Un interrupteur qui accepte le geste sans rien commander est
-   pire qu'absent : il fait croire qu'une protection existe. */
-const AVenir = () => (
-  <span style={{
-    fontFamily: 'var(--font-sans)', fontSize: 9.5, fontWeight: 600,
-    letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--ink-soft)',
-    border: '1px solid var(--hairline)', borderRadius: 3, padding: '2px 7px', whiteSpace: 'nowrap',
-  }}>
-    À venir
-  </span>
-);
 
 /* ---------- Les calibres des modèles — LA BASE (13 août, demande de Yéman) ----------
 
@@ -496,7 +427,7 @@ function LePoidsDesPhotos({ toast }: { toast: (m: string) => void }) {
 }
 
 
-function SauvegardeCard() {
+function SauvegardeCard({ deverrouille }: { deverrouille: boolean }) {
   const [clients] = useStore(clientsStore);
   const [appts] = useStore(appointmentsStore);
   const [invoices] = useStore(invoicesStore);
@@ -626,8 +557,15 @@ function SauvegardeCard() {
           Photographie du serveur (complète)
         </Button>
         <Button variant="ghost" onClick={() => openPicker('add')}>Restaurer depuis un fichier…</Button>
-        <Button variant="ghost" onClick={() => openPicker('update')}>Mettre à jour depuis un fichier (écrase l’existant)…</Button>
-        <Button variant="ghost" onClick={() => openPicker('replace')}>Remplacer toute la Maison par un fichier…</Button>
+        {/* CE QUI ÉCRASE SE MONTRE AU MOT EFFACER (29 octobre 2026) : « Mettre à
+            jour » partait sans rien demander, et « Remplacer » reconstruit toute
+            la Maison. Restaurer, qui n'ajoute que ce qui manque, reste à portée. */}
+        {deverrouille && (
+          <>
+            <Button variant="ghost" onClick={() => openPicker('update')}>Mettre à jour depuis un fichier (écrase l’existant)…</Button>
+            <Button variant="ghost" onClick={() => openPicker('replace')}>Remplacer toute la Maison par un fichier…</Button>
+          </>
+        )}
         <input
           ref={fileRef}
           type="file"
@@ -728,9 +666,14 @@ function CetAppareil() {
       accepter: 'Repartir du serveur',
       refuser: 'Garder la mémoire',
     })) return;
+    /* LA MÉMOIRE ENTIÈRE ET LA SESSION, comme le bouton le promet (29 octobre
+       2026) : les magasins vivent sous « trone::mnd_* », que l'ancien filtre
+       `mnd_` ne voyait pas, et la session restait ouverte alors que le texte
+       annonce qu'il faudra se reconnecter. La déconnexion ne vise que CE poste. */
     for (const k of Object.keys(localStorage)) {
-      if (k.startsWith('mnd_')) localStorage.removeItem(k);
+      if (estCleDeLaMaison(k)) localStorage.removeItem(k);
     }
+    try { await supabase?.auth.signOut({ scope: 'local' }); } catch { /* hors ligne : la page rechargée redemandera */ }
     location.reload();
   };
 
@@ -815,7 +758,7 @@ function CetAppareil() {
               )}
               {memoire.presDuBout && (
                 <span className="sys-appareil__note">
-                  {' '}· la place arrive au bout : « Le poids des photos », plus haut, en rend le plus.
+                  {' '}· la place arrive au bout : « Le poids des photos », juste en dessous, en rend le plus.
                 </span>
               )}
             </span>
@@ -937,8 +880,8 @@ function ViderRdvCard() {
     <Card className="sys-section" style={{ marginTop: 18, borderColor: 'var(--copper-300)' }}>
       <div className="sys-section__title" style={{ color: 'var(--copper-700)' }}>Zone sensible · vider tous les rendez-vous</div>
       <div className="sys-section__cap" style={{ maxWidth: 660 }}>
-        Supprime <b>tous les rendez-vous</b> de {branch.name}, définitivement, côté serveur, pour repartir
-        d’un carnet vide avant un nouvel import. <b>Exportez d’abord une sauvegarde</b> (carte plus haut) :
+        Supprime <b>tous les rendez-vous de la Maison</b>, toutes branches comprises, définitivement,
+        côté serveur, pour repartir d’un carnet vide avant un nouvel import. <b>Exportez d’abord une sauvegarde</b> (carte ci-dessus) :
         sans elle, c’est irréversible. Les factures, clientes et le catalogue ne sont pas touchés.
       </div>
       <div style={{ marginTop: 14 }}>
@@ -954,7 +897,7 @@ function ViderRdvCard() {
         ) : (
           <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
             <span style={{ fontSize: 12.5, color: 'var(--copper-700)' }}>
-              Supprimer définitivement {count} rendez-vous de {branch.name} ? (Avez-vous exporté la sauvegarde ?)
+              Supprimer définitivement les {count} rendez-vous de la Maison, toutes branches ? (Avez-vous exporté la sauvegarde ?)
             </span>
             <Button variant="copper" onClick={() => void doWipe()} disabled={busy}>{busy ? 'Suppression…' : 'Oui, tout vider'}</Button>
             <Button variant="ghost" onClick={() => setArmed(false)} disabled={busy}>Annuler</Button>
@@ -1029,85 +972,6 @@ function FactoryResetCard() {
   );
 }
 
-/* ── LA PAGE SE LIT PAR FAMILLES (13 août) ─────────────────────────────
-   Quatorze cartes empilées dans l'ordre où elles étaient nées : les zones
-   dangereuses au milieu, le calendrier éparpillé en trois endroits, et une
-   grille à deux colonnes dont l'une finissait en désert d'écrans. Désormais :
-   une seule colonne, des familles annoncées par un intertitre cuivre, un
-   sommaire collant pour sauter à la bonne, et les zones sensibles À LA FIN —
-   là où on ne les croise pas par accident.
-
-   ── LE SOMMAIRE RATTRAPE LA PAGE — 6 septembre 2026 ──────────────────
-   « Il y a plus de grandes rubriques dans les Paramètres, j'ai rajouté des
-   choses au fur et à mesure » (Yéman). Sept familles avaient été taillées pour
-   quatorze cartes ; il y en a vingt, et la dernière famille en avalait six
-   sans rapport les unes avec les autres.
-
-   TROIS CORRECTIONS. « Données & zones sensibles » se coupe en trois : LES
-   DONNÉES (ce qu'on sauvegarde), CET APPAREIL (ce que ce poste peut encore
-   écrire), et LES ZONES SENSIBLES (ce qui détruit). Mélangées, on cherchait un
-   export en frôlant « réinitialiser toute la Maison », et deux réglages
-   n'apparaissaient nulle part dans le sommaire. Les CALIBRES DES MODÈLES
-   rejoignent le Catalogue : ils décrivent des tailles de couronne, pas des
-   données ; ils étaient là par accident d'écriture.
-
-   UN SOMMAIRE QUI NE DIT PAS TOUT EST PIRE QU'AUCUN : on croit avoir vu la
-   page. `verifie-sommaire` refuse désormais qu'une famille existe sans entrée,
-   ou l'inverse. */
-const FAMILLES_SOMMAIRE = [
-  { id: 'fam-maison', l: 'La Maison' },
-  { id: 'fam-calendrier', l: 'Le calendrier' },
-  { id: 'fam-catalogue', l: 'Catalogue & clientèle' },
-  { id: 'fam-encaissement', l: 'L’encaissement' },
-  { id: 'fam-equipe', l: 'L’équipe' },
-  { id: 'fam-notifs', l: 'Notifications & automatisations' },
-  { id: 'fam-donnees', l: 'Les données' },
-  { id: 'fam-appareil', l: 'Cet appareil' },
-  { id: 'fam-sensible', l: 'Zones sensibles' },
-];
-
-/** L'intertitre d'une famille — le motif des mondes de la Caisse : un mot
-    cuivre, un filet, et l'œil sait où il est. `scrollMarginTop` laisse la
-    place du sommaire collant quand on saute à l'ancre. */
-function Intertitre({ id, children }: { id: string; children: ReactNode }) {
-  return (
-    <div id={id} style={{ display: 'flex', alignItems: 'center', gap: 14, margin: '34px 0 0', scrollMarginTop: 64 }}>
-      <span style={{ fontFamily: 'var(--font-sans)', fontSize: 11, fontWeight: 600, letterSpacing: '.18em', textTransform: 'uppercase', color: 'var(--copper-700)', whiteSpace: 'nowrap' }}>
-        {children}
-      </span>
-      <span style={{ flex: 1, height: 1, background: 'var(--hairline)' }} aria-hidden="true" />
-    </div>
-  );
-}
-
-/** Le sommaire — collant sous le haut de page, il suit pendant qu'on défile.
-    Des ancres, pas des onglets : la page reste UNE page, la recherche du
-    navigateur voit tout, et un réglage se retrouve d'un geste. */
-function SommaireParametres() {
-  return (
-    <nav
-      aria-label="Sommaire des paramètres"
-      style={{
-        position: 'sticky', top: 0, zIndex: 40,
-        background: 'var(--color-ivoire)',
-        display: 'flex', flexWrap: 'wrap', gap: 8,
-        padding: '10px 0 12px', marginBottom: 4,
-        borderBottom: '1px solid var(--hairline)',
-      }}
-    >
-      {FAMILLES_SOMMAIRE.map((f) => (
-        <button
-          key={f.id}
-          type="button"
-          className="tre-chip"
-          onClick={() => document.getElementById(f.id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
-        >
-          {f.l}
-        </button>
-      ))}
-    </nav>
-  );
-}
 
 /* ══ LA MAISON RÉPOND SUR WHATSAPP · 9 octobre 2026 ═══════════════════
    Maquette « Réserver sur WhatsApp », validée le 9 octobre 2026. Décision de
@@ -1386,11 +1250,6 @@ export default function Parametres() {
   const [segEditVal, setSegEditVal] = useState('');
   const [newPay, setNewPay] = useState('');
 
-  const curName = currencyByCode(currency)?.name ?? currency;
-
-  const toggle = (k: string) =>
-    setSettings((s) => ({ ...s, toggles: { ...s.toggles, [k]: !s.toggles[k] } }));
-
   /** Écrit un champ d'identité / de rituel dans le magasin dédié (persistance immédiate). */
   const setIdent = (field: keyof HouseIdentity, val: string) =>
     setIdentity((s) => ({ ...s, [field]: val }));
@@ -1571,27 +1430,165 @@ export default function Parametres() {
 
   const openDays = useMemo(() => settings.hours.filter((d) => !d.closed).length, [settings.hours]);
 
-  /* `aVenir` : rangée grisée, interrupteur INERTE — le réglage n'est encore
-     relié à rien, et un interrupteur qui accepte le geste sans rien commander
-     fait croire qu'une protection existe. */
-  const ToggleRows = ({ rows, aVenir }: { rows: ToggleRow[]; aVenir?: boolean }) => (
-    <>
-      {rows.map((r) => (
-        <div key={r.k} className="sys-row" style={aVenir ? { opacity: 0.55 } : undefined}>
-          <div>
-            <div className="sys-row__label" style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-              {r.l}
-              {aVenir && <AVenir />}
-            </div>
-            <div className="sys-row__sub">{aVenir ? `${r.sub}, pas encore relié.` : r.sub}</div>
-          </div>
-          <div style={aVenir ? { pointerEvents: 'none' } : undefined} aria-disabled={aVenir || undefined}>
-            <Toggle on={!!settings.toggles[r.k]} onToggle={() => toggle(r.k)} />
-          </div>
-        </div>
-      ))}
-    </>
-  );
+  /* ══ LES TUILES, LA RECHERCHE ET LES GESTES — 29 octobre 2026 ══════════
+     Maquette 5aXKK3Eu… : la tuile ouverte se lit dans l'adresse
+     (`/parametres?ouvre=paiements`), pour qu'un autre écran puisse y mener
+     et que le retour du navigateur la referme. */
+  const estDirection = useEstDirection();
+  const [params, setParams] = useSearchParams();
+  const brutOuverte = params.get('ouvre');
+  const ouverte: IdTuile | null = estIdTuile(brutOuverte) ? brutOuverte : null;
+  const ouvre = (id: IdTuile | null) => {
+    const p = new URLSearchParams(params);
+    if (id) p.set('ouvre', id); else p.delete('ouvre');
+    setParams(p, { replace: true });
+  };
+  const panneauRef = useRef<HTMLElement>(null);
+  useEffect(() => {
+    if (ouverte) panneauRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, [ouverte]);
+
+  const [recherche, setRecherche] = useState('');
+  const question = recherche.trim();
+  const tuilesVues = question ? tuilesTrouvees(question) : TUILES.map((t) => t.id);
+  const raresVus = question ? rarementTrouves(question) : RAREMENT.map((r) => r.id);
+  /* `?ouvre=identite` (depuis les Textes) déplie « Rarement » d'arrivée. */
+  const rareDemande = RAREMENT.some((r) => r.id === brutOuverte);
+  const [rarementOuvert, setRarementOuvert] = useState(rareDemande);
+  const rarementDeplie = rarementOuvert || (!!question && raresVus.length > 0);
+  const rarementRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (rareDemande) rarementRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, [rareDemande]);
+  const [mot, setMot] = useState('');
+  const deverrouille = verrouOuvert(mot);
+  const [sensiblesOuvert, setSensiblesOuvert] = useState(false);
+
+  /* Le WhatsApp : la carte et le geste « pause » écrivent par le même chemin. */
+  const reglageWa = reglageDeLAutomate(autoCfgRaw.automateWa);
+  const ecrisLAutomate = (r: ReglageDeLAutomate) => setAutoCfgRaw({ ...autoCfg, automateWa: r });
+  const [reception] = useReception();
+  const modeAssistant = reglageDeLaReception(reception).mode;
+
+  const resumes: Record<IdTuile, { dit: string; etat: Etat }> = {
+    heures: { dit: resumeDesHeures(settings.hours), etat: etatDesHeures(settings.hours) },
+    whatsapp: { dit: resumeWhatsApp(reglageWa.mode, modeAssistant, reglageWa.horizonJours), etat: etatWhatsApp(reglageWa.mode) },
+    paiements: {
+      dit: resumePaiements(payMethods.length, !!settings.mndPay?.actif, !!settings.relances?.actives),
+      etat: etatPaiements(!!settings.mndPay?.actif, !!settings.relances?.actives),
+    },
+    envoyer: resumeEnvois(autoCfg),
+    reservation: {
+      dit: resumeReservation(settings.onlineDepositPct ?? 0, depositIds.length, settings.maxRdvParJourMaitre ?? 0, settings.maxRdvParJourMaison ?? 0),
+      etat: { ton: 'neutre', dit: 'réglée' },
+    },
+    pointage: resumePointage(!!preuve.exigerPreuve, preuve.rayonM),
+    diagnostic: resumeDiagnostic((autoCfgRaw as { diagnosticPhoto?: unknown }).diagnosticPhoto === true),
+    notifications: { dit: resumeNotifications(settings.toggles), etat: { ton: 'ok', dit: 'reliées' } },
+  };
+  const nomDe = (id: IdTuile) => TUILES.find((t) => t.id === id)?.nom ?? id;
+
+  /* ── LES GESTES RAPIDES ── */
+  const [formulaire, setFormulaire] = useState<'fermer' | 'bloquer' | null>(null);
+  const demain = new Date(Date.now() + 86_400_000).toISOString().slice(0, 10);
+  const [ferme, setFerme] = useState<{ date: string; staffId: string; note: string }>({ date: demain, staffId: '', note: '' });
+  const [bloque, setBloque] = useState<{ date: string; master: string; debut: string; fin: string; motif: string }>({ date: demain, master: '', debut: '12h00', fin: '14h00', motif: '' });
+  const dateLisible = (iso: string) =>
+    new Date(`${iso}T12:00:00`).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+  const geste = (g: 'fermer' | 'bloquer') => { setFormulaire(g); ouvre('heures'); };
+  const fermeLeJour = () => {
+    if (!ferme.date) { toast('Choisissez le jour à fermer.'); return; }
+    setExceptions([...exceptions, {
+      id: `hx-${uid()}`, date: ferme.date, open: '', close: '', closed: true,
+      ...(ferme.staffId ? { staffId: ferme.staffId } : {}), ...(ferme.note.trim() ? { note: ferme.note.trim() } : {}),
+    }]);
+    toast(ferme.staffId
+      ? `Journée posée le ${dateLisible(ferme.date)} pour ${equipe.find((m) => m.id === ferme.staffId)?.name ?? 'cette personne'}.`
+      : `La Maison est fermée le ${dateLisible(ferme.date)} : la réservation en ligne ne propose plus ce jour.`);
+    setFormulaire(null);
+    setFerme({ date: demain, staffId: '', note: '' });
+  };
+  const bloqueLeCreneau = () => {
+    if (!bloque.date) { toast('Choisissez le jour du créneau.'); return; }
+    setBlocages([...blocages, {
+      id: `blk-${uid()}`, branchId: branch?.id ?? '', date: bloque.date,
+      ...(bloque.master ? { master: bloque.master } : {}),
+      ...(bloque.debut.trim() || bloque.fin.trim() ? { debut: bloque.debut.trim() || undefined, fin: bloque.fin.trim() || undefined } : {}),
+      ...(bloque.motif.trim() ? { motif: bloque.motif.trim() } : {}),
+    }]);
+    toast(`Créneau bloqué le ${dateLisible(bloque.date)}${bloque.debut && bloque.fin ? `, de ${bloque.debut} à ${bloque.fin}` : ', toute la journée'}.`);
+    setFormulaire(null);
+    setBloque({ date: demain, master: '', debut: '12h00', fin: '14h00', motif: '' });
+  };
+
+  /* La pause se souvient, sur ce poste, de ce que l'automate faisait avant :
+     « Rallumer » le remet là, et à défaut en essai, le plus prudent. */
+  const CLE_AVANT_PAUSE = 'trone-pause-whatsapp-avant';
+  const pauseWhatsApp = () => {
+    if (!estDirection) { toast('Ce réglage appartient à la direction.'); return; }
+    if (reglageWa.mode === 'eteint') {
+      let avant: ModeDeLAutomate = 'essai';
+      try { const v = localStorage.getItem(CLE_AVANT_PAUSE); if (v === 'ouvert' || v === 'essai') avant = v; } catch { /* sans mémoire */ }
+      ecrisLAutomate({ ...reglageWa, mode: avant });
+      toast(avant === 'ouvert' ? 'WhatsApp répond de nouveau à toutes les clientes.' : 'WhatsApp répond de nouveau, en essai.');
+    } else {
+      try { localStorage.setItem(CLE_AVANT_PAUSE, reglageWa.mode); } catch { /* sans mémoire */ }
+      ecrisLAutomate({ ...reglageWa, mode: 'eteint' });
+      toast('WhatsApp est en pause : l’automate ne répond plus seul, l’équipe répond à tout.');
+    }
+  };
+
+  /* « Tout vérifier » : une question à chaque fonction, sans rien déclencher
+     (les mêmes que `scripts/sonde-les-fonctions.mjs`). */
+  type Verif = { nom: string; ok: boolean; dit: string };
+  const [verifs, setVerifs] = useState<Verif[] | null>(null);
+  const toutVerifier = async () => {
+    if (!supabase) { setVerifs([{ nom: 'La Maison', ok: false, dit: 'pas de connexion au serveur.' }]); return; }
+    setVerifs([]);
+    const sonde = async (fonction: string): Promise<Record<string, unknown> | null> => {
+      const { data, error } = await supabase!.functions.invoke(fonction, { method: 'GET' });
+      if (!error) return (data ?? {}) as Record<string, unknown>;
+      /* Une fonction qui refuse le GET répond quand même : elle existe. */
+      const rep = (error as { context?: Response }).context;
+      if (rep && typeof rep.status === 'number' && rep.status !== 404) {
+        try { return (await rep.clone().json()) as Record<string, unknown>; } catch { return {}; }
+      }
+      return null;
+    };
+    const version = (c: Record<string, unknown>) => (typeof c.version === 'string' ? ` (${c.version.split(' ')[0]})` : '');
+    const liste: [string, string, (c: Record<string, unknown>) => string][] = [
+      ['L’automate WhatsApp', 'whatsapp-automate', (c) => `répond${version(c)}.`],
+      ['L’assistant qui répond', 'reception-wa', (c) => `répond${version(c)}, clé de Claude ${c.claude === 'oui' ? 'posée' : 'absente'}.`],
+      ['MND PAY', 'mnd-pay', (c) => `répond${version(c)}, clé FedaPay ${(c.secrets as { fedapay?: boolean } | undefined)?.fedapay ? 'posée' : 'pas posée'}.`],
+      ['Les relances', 'relances-factures', (c) => `répond${version(c)}.`],
+      ['Le diagnostic photo', 'diagnostic-locks', (c) => `répond${version(c)}.`],
+    ];
+    const resultats = await Promise.all(liste.map(async ([nom, fonction, dit]) => {
+      try {
+        const c = await sonde(fonction);
+        return c ? { nom, ok: true, dit: dit(c) } : { nom, ok: false, dit: 'ne répond pas : la fonction n’est pas déployée.' };
+      } catch {
+        return { nom, ok: false, dit: 'ne répond pas.' };
+      }
+    }));
+    setVerifs(resultats);
+  };
+  const sauvegarder = () => {
+    const { fileName } = downloadBackup();
+    toast(`Sauvegarde téléchargée, ${fileName}. Rangez-la en lieu sûr (Drive, clé USB…).`);
+  };
+
+  /* Ce qui ne se règle pas ici : la recherche dit où aller plutôt que « rien ». */
+  const AILLEURS: { mots: string; ou: string; vers: string }[] = [
+    { mots: 'wifi wi-fi reseau mot de passe', ou: 'QR de la Maison', vers: '/qr-codes' },
+    { mots: 'texte textes reglement fiche poste contrat', ou: 'Les textes de la Maison', vers: '/textes' },
+    { mots: 'acces role roles droits personnel compte', ou: 'Accès & rôles', vers: '/acces' },
+    { mots: 'rappel rappels veille anniversaire marketing', ou: 'Marketing › Automatisations', vers: '/marketing' },
+    { mots: 'devise branche branches monnaie', ou: 'Branches', vers: '/branches' },
+  ];
+  const ailleurs = question
+    ? AILLEURS.filter((a) => sansAccent(question).split(/\s+/).some((t) => t.length > 2 && sansAccent(a.mots).includes(t)))
+    : [];
 
   return (
     <div className="mnd-rise">
@@ -1605,983 +1602,1058 @@ export default function Parametres() {
         sub={`${branch.name} · tout s'enregistre à la frappe.`}
       />
 
-      <SommaireParametres />
+      <div className="prm-cherche">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="5" fill="none" stroke="currentColor" strokeWidth="1.5" /><path d="M11 11 L15 15" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></svg>
+        <input
+          type="search"
+          value={recherche}
+          onChange={(e) => setRecherche(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && tuilesVues.length === 1) ouvre(tuilesVues[0]);
+            if (e.key === 'Escape') setRecherche('');
+          }}
+          placeholder="Chercher un réglage : heures, acompte, WhatsApp, relances…"
+          aria-label="Chercher un réglage"
+          autoComplete="off"
+        />
+      </div>
+      {question && (
+        <p className="prm-trouve" aria-live="polite">
+          {tuilesVues.length + raresVus.length === 0 && ailleurs.length === 0
+            ? `Rien pour « ${question} ». Essayez un autre mot : heures, acompte, momo, pointage.`
+            : `${tuilesVues.length} tuile${tuilesVues.length > 1 ? 's' : ''}${raresVus.length ? `, ${raresVus.length} réglage${raresVus.length > 1 ? 's' : ''} dans « Rarement »` : ''}.`}
+          {ailleurs.map((a) => (
+            <span key={a.vers}> Ce réglage-là vit ailleurs : <Link to={a.vers}>{a.ou}</Link>.</span>
+          ))}
+        </p>
+      )}
 
-      {/* ══ LA MAISON ═══════════════════════════════════════════════ */}
-      <Intertitre id="fam-maison">La Maison</Intertitre>
-
-      <Card className="sys-section" style={{ marginTop: 18 }}>
-        <div className="sys-section__title">Identité de la Maison</div>
-          <div className="sys-section__cap">
-            Le nom signe la barre latérale, l’écran de connexion, les factures et les reçus PDF ;
-            la raison sociale, la ligne légale au pied des factures ; le fuseau, la date affichée
-            en haut du Trône. La branche (Système → Branches) garde son propre nom de lieu.
+      {/* ── LES GESTES RAPIDES ─────────────────────────────────────────
+          Ceux qu'on fait sans vouloir chercher la bonne carte. */}
+      <div className="prm-gestes" role="group" aria-label="Gestes rapides">
+        <button type="button" className="prm-geste" onClick={() => geste('fermer')}>Fermer la Maison un jour</button>
+        <button type="button" className="prm-geste" onClick={() => geste('bloquer')}>Bloquer un créneau</button>
+        <button
+          type="button"
+          className={`prm-geste${reglageWa.mode === 'eteint' ? ' is-pause' : ''}`}
+          onClick={pauseWhatsApp}
+          disabled={!estDirection}
+          title={estDirection ? undefined : 'Réservé à la direction'}
+        >
+          {reglageWa.mode === 'eteint' ? 'Rallumer WhatsApp' : 'Mettre WhatsApp en pause'}
+        </button>
+        <button type="button" className="prm-geste" onClick={() => void toutVerifier()}>Tout vérifier</button>
+        <button type="button" className="prm-geste" onClick={sauvegarder}>Sauvegarder la Maison</button>
+      </div>
+      {verifs && (
+        <div className="prm-verifs" aria-live="polite">
+          <div className="prm-verifs__tete">
+            <span>Tout vérifier</span>
+            <button type="button" className="tre-link-btn" onClick={() => setVerifs(null)}>Fermer</button>
           </div>
-          <EditRow l="Nom de la Maison" sub="Il se propage à la frappe, regarde la barre latérale.">
-            <input
-              className="sys-input"
-              value={identity.nom}
-              onChange={(e) => setIdent('nom', e.target.value)}
-              aria-label="Nom de la Maison"
-            />
-          </EditRow>
-          <EditRow l="Raison sociale" sub="La ligne légale des factures, RCCM et IFU compris.">
-            <input
-              className="sys-input"
-              value={identity.raison}
-              onChange={(e) => setIdent('raison', e.target.value)}
-              aria-label="Raison sociale"
-            />
-          </EditRow>
-          {/* L'EMPLOYEUR, SÉPARÉ DE LA RAISON — champ ouvert le 10 octobre 2026
-              précisément pour pouvoir basculer sans toucher à la raison, puis
-              basculé le 13 : l'équipe est employée par la Maison. Le champ
-              reste libre, le code ne contredira pas le comptable. */}
-          <EditRow l="Employeur de l’équipe" sub="Nommé au règlement intérieur, aux lettres du prêt et aux pièces d’employeur du Secrétariat. Les pièces déjà signées gardent l’employeur de leur jour.">
-            <input
-              className="sys-input"
-              value={identity.employeur ?? ''}
-              placeholder={RAISON_MAISON_MND}
-              onChange={(e) => setIdent('employeur', e.target.value)}
-              aria-label="Employeur de l’équipe"
-            />
-          </EditRow>
-          {/* LA VILLE DU SIÈGE, PAS CELLE DU FAUTEUIL. L'atelier est à Suru-Léré,
-              la Maison signe Cotonou : c'est le siège qui figure sur un tampon
-              et au bas d'un contrat. */}
-          <EditRow l="Ville du siège" sub="Celle qui signe le tampon et les documents. La branche garde la sienne.">
-            <input
-              className="sys-input"
-              value={identity.ville ?? ''}
-              onChange={(e) => setIdent('ville', e.target.value)}
-              aria-label="Ville du siège"
-            />
-          </EditRow>
-          <EditRow l="Fuseau horaire" sub="L’horloge du Trône : en voyage, tu vois le jour du salon.">
-            <select
-              className="sys-select"
-              value={identity.fuseau}
-              onChange={(e) => setIdent('fuseau', e.target.value)}
-              aria-label="Fuseau horaire"
-            >
-              {FUSEAU_OPTIONS.map((f) => <option key={f} value={f}>{f}</option>)}
-            </select>
-          </EditRow>
-          <FieldRowView l="Devise de référence" v={`${curName} · ${currency}`} />
-        </Card>
-
-      {/* ── LES HEURES DU SALON ─────────────────────────────────────
-          UNE SEULE CARTE, UNE SEULE DONNÉE. Il en existait deux : celle-ci,
-          qui commande les créneaux réservables (`openingForIso`), et une autre
-          branchée sur un second document jamais lu par la réservation. « Mon
-          mois » lisait la seconde, restée à ses valeurs de départ, et
-          annonçait 9 h quand la Maison ouvrait à 8 h.
-
-          Deux sources d'horaires pour une seule maison, c'est une de trop.
-          Celle-ci reste, et tout s'y branche : la réservation, l'amplitude du
-          Calendrier, la ponctualité au pointage et les heures au-delà. */}
-      <Card className="sys-section" style={{ marginTop: 18 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 4 }}>
-          <div>
-            <div className="sys-section__title">Les heures du salon</div>
-            <div className="sys-section__cap">
-              Le salon n’accepte des rendez-vous que pendant ces plages. Elles décident aussi de
-              l’amplitude du Calendrier, de l’heure à laquelle on est « à l’heure » au pointage,
-              et de ce qui compte comme heure au-delà.
-            </div>
-          </div>
-          <span className="sys-badge-count">{openDays} / 7 jours</span>
+          {verifs.length === 0
+            ? <div className="prm-verif">Je demande à chaque fonction…</div>
+            : verifs.map((v) => (
+              <div key={v.nom} className={`prm-verif${v.ok ? '' : ' is-ko'}`}>
+                <b>{v.nom}</b> {v.dit}
+              </div>
+            ))}
         </div>
+      )}
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 12 }}>
-          {settings.hours.map((d) => (
-            <div key={d.key} style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-              <span style={{ width: 92, fontFamily: 'var(--font-sans)', fontSize: 13 }}>{JOUR_LABEL[d.key] ?? d.key}</span>
-              <button
-                className={`tre-chip ${d.closed ? '' : 'is-on'}`}
-                onClick={() => setHour(d.key, 'closed', !d.closed)}
-                style={{ fontSize: 11.5, minWidth: 78 }}
-              >
-                {d.closed ? 'Fermé' : 'Ouvert'}
-              </button>
-              {!d.closed && (
-                <>
-                  <Input value={d.open} onChange={(e) => setHour(d.key, 'open', e.target.value)} placeholder="hh h mm" style={{ width: 92, textAlign: 'center' }} />
-                  <span className="mnd-muted" style={{ fontSize: 12 }}>→</span>
-                  <Input value={d.close} onChange={(e) => setHour(d.key, 'close', e.target.value)} placeholder="hh h mm" style={{ width: 92, textAlign: 'center' }} />
-                </>
+      {/* ── LES HUIT TUILES ── */}
+      <div className="prm-tuiles">
+        {TUILES.filter((t) => tuilesVues.includes(t.id)).map((t) => {
+          const r = resumes[t.id];
+          return (
+            <button
+              type="button"
+              key={t.id}
+              className={`prm-tuile${ouverte === t.id ? ' is-ouverte' : ''}`}
+              aria-expanded={ouverte === t.id}
+              aria-controls="prm-panneau"
+              onClick={() => { setFormulaire(null); ouvre(ouverte === t.id ? null : t.id); }}
+            >
+              <span className="prm-tuile__nom">{t.nom}</span>
+              <span className="prm-tuile__resume">{r.dit}</span>
+              <span className={`prm-etat prm-etat--${r.etat.ton}`}>{r.etat.dit}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* ── LE PANNEAU OUVERT ─────────────────────────────────────────
+          Un seul à la fois ; sa tête reste collée en haut tant qu'on règle. */}
+      {ouverte && (
+        <section id="prm-panneau" ref={panneauRef} className="prm-panneau" aria-label={nomDe(ouverte)}>
+          <div className="prm-panneau__tete">
+            <span className="prm-panneau__nom">{nomDe(ouverte)}</span>
+            <button type="button" className="tre-link-btn" onClick={() => { setFormulaire(null); ouvre(null); }}>Fermer</button>
+          </div>
+
+          {ouverte === 'heures' && (
+            <>
+              {formulaire === 'fermer' && (
+                <Card className="sys-section prm-formulaire">
+                  <div className="sys-section__title">Fermer la Maison un jour</div>
+                  <div className="sys-section__cap">Un jour férié, un inventaire, une fermeture. Ce jour-là, la réservation en ligne ne propose plus rien ; une personne seule garde son horaire.</div>
+                  <div className="prm-formulaire__ligne">
+                    <ChampDeDate compact value={ferme.date} onChange={(iso) => setFerme({ ...ferme, date: iso })} style={{ width: 170 }} />
+                    <Select value={ferme.staffId} onChange={(e) => setFerme({ ...ferme, staffId: e.target.value })} style={{ width: 200 }} aria-label="Pour qui">
+                      <option value="">Toute la Maison</option>
+                      {equipe.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
+                    </Select>
+                    <Input value={ferme.note} onChange={(e) => setFerme({ ...ferme, note: e.target.value })} placeholder="Note lue par les clientes, par exemple : inventaire" style={{ flex: 1, minWidth: 200 }} aria-label="Note" />
+                  </div>
+                  <div className="prm-formulaire__gestes">
+                    <Button variant="copper" onClick={fermeLeJour}>Fermer ce jour</Button>
+                    <Button variant="ghost" onClick={() => setFormulaire(null)}>Annuler</Button>
+                  </div>
+                </Card>
               )}
-              {d.closed && <span className="mnd-muted" style={{ fontSize: 12 }}>Fermé ce jour</span>}
-            </div>
-          ))}
-        </div>
+              {formulaire === 'bloquer' && (
+                <Card className="sys-section prm-formulaire">
+                  <div className="sys-section__title">Bloquer un créneau</div>
+                  <div className="sys-section__cap">Une pause de midi, un maître pris ailleurs : la plage disparaît de la réservation en ligne et de l’automate. Laissez les heures vides pour toute la journée.</div>
+                  <div className="prm-formulaire__ligne">
+                    <ChampDeDate compact value={bloque.date} onChange={(iso) => setBloque({ ...bloque, date: iso })} style={{ width: 170 }} />
+                    <Select value={bloque.master} onChange={(e) => setBloque({ ...bloque, master: e.target.value })} style={{ width: 200 }} aria-label="Pour qui">
+                      <option value="">Toute la Maison</option>
+                      {maitresDuCalendrier.map((nom) => <option key={nom} value={nom}>{nom}</option>)}
+                    </Select>
+                    <Input value={bloque.debut} onChange={(e) => setBloque({ ...bloque, debut: e.target.value })} placeholder="hh h mm" style={{ width: 92, textAlign: 'center' }} aria-label="De" />
+                    <span className="mnd-muted" style={{ fontSize: 12 }}>→</span>
+                    <Input value={bloque.fin} onChange={(e) => setBloque({ ...bloque, fin: e.target.value })} placeholder="hh h mm" style={{ width: 92, textAlign: 'center' }} aria-label="À" />
+                    <Input value={bloque.motif} onChange={(e) => setBloque({ ...bloque, motif: e.target.value })} placeholder="Motif lu par les clientes" style={{ flex: 1, minWidth: 180 }} aria-label="Motif" />
+                  </div>
+                  <div className="prm-formulaire__gestes">
+                    <Button variant="copper" onClick={bloqueLeCreneau}>Bloquer ce créneau</Button>
+                    <Button variant="ghost" onClick={() => setFormulaire(null)}>Annuler</Button>
+                  </div>
+                </Card>
+              )}
 
-        <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 12, lineHeight: 1.55 }}>
-          Écris l’heure comme « 08h00 ». Le Calendrier couvre la plus large amplitude de la
-          semaine : un seul jour ouvert à 8 h suffit à faire commencer la grille à 8 h.
-        </div>
-      </Card>
+              {/* ── LES HEURES DU SALON ─────────────────────────────────────
+                  UNE SEULE CARTE, UNE SEULE DONNÉE. Il en existait deux : celle-ci,
+                  qui commande les créneaux réservables (`openingForIso`), et une autre
+                  branchée sur un second document jamais lu par la réservation. « Mon
+                  mois » lisait la seconde, restée à ses valeurs de départ, et
+                  annonçait 9 h quand la Maison ouvrait à 8 h. */}
+              <Card className="sys-section" style={{ marginTop: 18 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 4 }}>
+                  <div>
+                    <div className="sys-section__title">Les heures du salon</div>
+                    <div className="sys-section__cap">
+                      Le salon n’accepte des rendez-vous que pendant ces plages. Elles décident aussi de
+                      l’amplitude du Calendrier, de l’heure à laquelle on est « à l’heure » au pointage,
+                      et de ce qui compte comme heure au-delà.
+                    </div>
+                  </div>
+                  <span className="sys-badge-count">{openDays} / 7 jours</span>
+                </div>
 
-      {/* ══ LE CALENDRIER ═══════════════════════════════════════════
-          Tout ce qui régit un rendez-vous, au même endroit : ses règles et
-          son acompte, les journées qui dérogent, et les murs de la
-          réservation en ligne. */}
-      <Intertitre id="fam-calendrier">Le calendrier</Intertitre>
-
-        <Card className="sys-section" style={{ marginTop: 18 }}>
-          <div className="sys-section__title">Le rendez-vous & l’acompte</div>
-          <div className="sys-section__cap">Les règles qui cadrent chaque rendez-vous, et ce que Ma Couronne exige à la réservation.</div>
-          {/* Ces deux rangées ne pilotent RIEN (audit du 13 août) : chaque
-              prestation du Catalogue porte SA durée, et aucun code n'applique
-              la fenêtre d'annulation. Gardées comme promesses, inertes. */}
-          <div style={{ opacity: 0.55 }}>
-          <EditRow l="Durée standard d’un rituel" sub="Le temps réservé au fauteuil par défaut, pas encore relié : chaque prestation du Catalogue porte sa durée.">
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <AVenir />
-              <select
-                className="sys-select"
-                value={identity.dureeRituel}
-                onChange={(e) => setIdent('dureeRituel', e.target.value)}
-                aria-label="Durée standard d’un rituel"
-                disabled
-              >
-                {DUREE_OPTIONS.map((d) => <option key={d} value={d}>{d}</option>)}
-              </select>
-            </div>
-          </EditRow>
-          <EditRow l="Fenêtre d’annulation" sub="Délai au-delà duquel l’acompte serait retenu, pas encore relié : rien ne l’applique pour l’instant.">
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <AVenir />
-              <select
-                className="sys-select"
-                value={identity.fenetreAnnulation}
-                onChange={(e) => setIdent('fenetreAnnulation', e.target.value)}
-                aria-label="Fenêtre d’annulation"
-                disabled
-              >
-                {ANNULATION_OPTIONS.map((a) => <option key={a} value={a}>{a}</option>)}
-              </select>
-            </div>
-          </EditRow>
-          </div>
-          <div className="sys-row">
-            <div>
-              <div className="sys-row__label">Acompte exigé en ligne (%)</div>
-              <div className="sys-row__sub">Ce que la cliente règle à la réservation sur Ma Couronne.</div>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <input
-                className="sys-select"
-                type="number"
-                min={0}
-                max={100}
-                step={1}
-                value={settings.onlineDepositPct}
-                onChange={(e) => setDepositPct(e.target.value)}
-                style={{ width: 78, textAlign: 'right', fontFamily: 'var(--font-serif)' }}
-                aria-label="Acompte exigé en ligne en pourcentage"
-              />
-              <span className="sys-row__value">%</span>
-            </div>
-          </div>
-          {/* ══ LES PALIERS — 16 septembre 2026 ═══════════════════════════
-              Trois nombres, et une règle qui ne redescend jamais. */}
-          {([
-            ['elevationRituels', 'Élévation au Nᵉ rituel honoré', 'ou à N mois de couronne, le premier des deux. Souveraineté au premier acte de Souveraineté honoré, ou à N mois.', 'rituels'],
-            ['elevationMois', 'Élévation à N mois de couronne', 'compté depuis la naissance de sa couronne, quand elle est datée sur la fiche.', 'mois'],
-            ['souveraineteMois', 'Souveraineté à N mois de couronne', 'un acte de Souveraineté honoré l’y mène aussi, plus tôt.', 'mois'],
-          ] as [keyof SeuilsDePalier, string, string, string][]).map(([champ, label, sub, unite]) => (
-            <div className="sys-row" key={champ}>
-              <div>
-                <div className="sys-row__label">{label}</div>
-                <div className="sys-row__sub">{sub}</div>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <input
-                  className="sys-select"
-                  type="number"
-                  min={1}
-                  step={1}
-                  value={seuilsPaliers[champ]}
-                  onChange={(e) => setSeuilPalier(champ, e.target.value)}
-                  style={{ width: 78, textAlign: 'right', fontFamily: 'var(--font-serif)' }}
-                  aria-label={label}
-                />
-                <span className="sys-row__value">{unite}</span>
-              </div>
-            </div>
-          ))}
-          <div className="sys-row">
-            <div>
-              <div className="sys-row__label">Une main non habilitée sur un acte</div>
-              <div className="sys-row__sub">Au rendez-vous, quand l’acte dépasse l’habilitation de toutes les mains posées. Sans habilitation posée, rien ne se dit.</div>
-            </div>
-            <select
-              className="sys-select"
-              value={settings.paliersStrict ? 'refuser' : 'avertir'}
-              onChange={(e) => setSettings((s) => ({ ...s, paliersStrict: e.target.value === 'refuser' }))}
-              aria-label="Une main non habilitée sur un acte"
-            >
-              <option value="avertir">Avertir, la direction tranche</option>
-              <option value="refuser">Refuser le rendez-vous</option>
-            </select>
-          </div>
-          <div className="sys-row" style={{ display: 'block' }}>
-            <div style={{ marginBottom: 8 }}>
-              <div className="sys-row__label">Prestations exigeant un acompte</div>
-              <div className="sys-row__sub">
-                Sélectionnez les prestations, puis fixez le taux de CHACUNE, au Trône comme sur
-                Ma Couronne. Aucune sélectionnée = aucun acompte, confirmation directe. Le taux
-                ci-dessus ne sert plus que de valeur proposée à l’ajout.
-              </div>
-            </div>
-            {services.length === 0 ? (
-              <div className="sys-row__sub">Aucune prestation au catalogue.</div>
-            ) : (
-              <>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                  {services.map((sv) => {
-                    const on = depositIds.includes(sv.id);
-                    return (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 12 }}>
+                  {settings.hours.map((d) => (
+                    <div key={d.key} style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                      <span style={{ width: 92, fontFamily: 'var(--font-sans)', fontSize: 13 }}>{JOUR_LABEL[d.key] ?? d.key}</span>
                       <button
-                        key={sv.id}
-                        type="button"
-                        onClick={() => toggleDepositService(sv.id)}
-                        style={{
-                          border: `1px solid ${on ? 'var(--color-copper)' : 'var(--hairline)'}`,
-                          borderRadius: 3,
-                          padding: '7px 12px',
-                          fontSize: 12,
-                          cursor: 'pointer',
-                          fontFamily: 'var(--font-sans)',
-                          background: on ? 'var(--color-copper)' : 'var(--surface-card)',
-                          color: on ? 'var(--color-ivoire)' : 'var(--ink)',
-                        }}
+                        className={`tre-chip ${d.closed ? '' : 'is-on'}`}
+                        onClick={() => setHour(d.key, 'closed', !d.closed)}
+                        style={{ fontSize: 11.5, minWidth: 78 }}
                       >
-                        {sv.name}
+                        {d.closed ? 'Fermé' : 'Ouvert'}
                       </button>
+                      {!d.closed && (
+                        <>
+                          <Input value={d.open} onChange={(e) => setHour(d.key, 'open', e.target.value)} placeholder="hh h mm" style={{ width: 92, textAlign: 'center' }} />
+                          <span className="mnd-muted" style={{ fontSize: 12 }}>→</span>
+                          <Input value={d.close} onChange={(e) => setHour(d.key, 'close', e.target.value)} placeholder="hh h mm" style={{ width: 92, textAlign: 'center' }} />
+                        </>
+                      )}
+                      {d.closed && <span className="mnd-muted" style={{ fontSize: 12 }}>Fermé ce jour</span>}
+                    </div>
+                  ))}
+                </div>
+
+                <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 12, lineHeight: 1.55 }}>
+                  Écris l’heure comme « 08h00 ». Le Calendrier couvre la plus large amplitude de la
+                  semaine : un seul jour ouvert à 8 h suffit à faire commencer la grille à 8 h.
+                </div>
+              </Card>
+
+              {/* ── LES JOURNÉES EXCEPTIONNELLES ────────────────────────────
+                  Un inventaire, une fermeture, une personne à qui l'on a demandé de
+                  venir plus tard. Sans elles, le pointage jugeait en retard quelqu'un
+                  qui faisait exactement ce qu'on lui avait demandé. */}
+              <Card className="sys-section" style={{ marginTop: 18 }}>
+                <div className="sys-section__title">Journées exceptionnelles</div>
+                <div className="sys-section__cap">
+                  Un inventaire, une fermeture, une arrivée décalée pour une personne. Ce jour-là,
+                  l’horaire ci-dessous remplace celui de la semaine, et le pointage juge sur lui.
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 12 }}>
+                  {exceptions.length === 0 && (
+                    <div className="mnd-muted" style={{ fontSize: 12.5 }}>
+                      Aucune. La semaine type s’applique tous les jours.
+                    </div>
+                  )}
+                  {[...exceptions].sort((a, b) => (a.date < b.date ? 1 : -1)).map((ex) => {
+                    const maj = (patch: Partial<HoraireException>) =>
+                      setExceptions(exceptions.map((x) => (x.id === ex.id ? { ...x, ...patch } : x)));
+                    return (
+                      <div key={ex.id} style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', border: '1px solid var(--hairline)', borderRadius: 4, padding: '10px 12px' }}>
+                        <ChampDeDate compact sens="avant" value={ex.date} onChange={(iso) => maj({ date: iso })} style={{ width: 150 }} />
+                        <Select
+                          value={ex.staffId ?? ''}
+                          onChange={(e) => maj({ staffId: e.target.value || undefined })}
+                          style={{ width: 190 }}
+                        >
+                          <option value="">Toute la Maison</option>
+                          {equipe.map((m) => (
+                            <option key={m.id} value={m.id}>{m.name}</option>
+                          ))}
+                        </Select>
+                        <button
+                          className={`tre-chip ${ex.closed ? '' : 'is-on'}`}
+                          onClick={() => maj({ closed: !ex.closed })}
+                          style={{ fontSize: 11.5, minWidth: 78 }}
+                        >
+                          {ex.closed ? 'Fermé' : 'Ouvert'}
+                        </button>
+                        {!ex.closed && (
+                          <>
+                            <Input value={ex.open ?? ''} onChange={(e) => maj({ open: e.target.value })} placeholder="hh h mm" style={{ width: 86, textAlign: 'center' }} />
+                            <span className="mnd-muted" style={{ fontSize: 12 }}>→</span>
+                            <Input value={ex.close ?? ''} onChange={(e) => maj({ close: e.target.value })} placeholder="hh h mm" style={{ width: 86, textAlign: 'center' }} />
+                          </>
+                        )}
+                        <Input value={ex.note ?? ''} onChange={(e) => maj({ note: e.target.value })} placeholder="Inventaire" style={{ flex: 1, minWidth: 130 }} />
+                        <button
+                          className="tre-link-btn tre-link-btn--danger"
+                          onClick={() => setExceptions(exceptions.filter((x) => x.id !== ex.id))}
+                          aria-label="Retirer cette journée"
+                        >
+                          ×
+                        </button>
+                      </div>
                     );
                   })}
                 </div>
 
-                {depositIds.length > 0 && (
-                  <div style={{ marginTop: 12, display: 'grid', gap: 6 }}>
-                    <div className="sys-row__sub" style={{ marginBottom: 2 }}>Taux par prestation</div>
-                    {depositIds.map((id) => {
-                      const sv = services.find((x) => x.id === id);
-                      if (!sv) return null; // prestation retirée du catalogue depuis
-                      return (
-                        <div
-                          key={id}
-                          style={{
-                            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                            gap: 10, borderBottom: '1px solid var(--hairline)', paddingBottom: 6,
-                          }}
+                <div style={{ marginTop: 12 }}>
+                  <button className="tre-link-btn" onClick={() => setFormulaire('fermer')}>
+                    + Journée exceptionnelle
+                  </button>
+                </div>
+
+                <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 12, lineHeight: 1.55 }}>
+                  Une heure laissée vide garde celle de la semaine : décaler la seule ouverture est donc
+                  possible sans retoucher la fermeture. Une exception nominative l’emporte sur celle de la
+                  Maison, le plus précis gagne. Une exception de la Maison ferme aussi la réservation
+                  en ligne ce jour-là : sa note peut être lue par les clientes, écris-la pour elles.
+                </div>
+              </Card>
+
+              {/* ── LES CRÉNEAUX BLOQUÉS ── un mur posé à la main dans la réservation. */}
+              <Card className="sys-section" style={{ marginTop: 18 }}>
+                <div className="sys-section__title">Créneaux bloqués</div>
+                <div className="sys-section__cap">
+                  Une pause de midi, un maître pris ailleurs : la plage disparaît de la réservation,
+                  comme si un rendez-vous l’occupait. Pour fermer une date entière à toute la Maison,
+                  préfère la journée exceptionnelle ci-dessus, une seule vérité par question.
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 12 }}>
+                  {blocages.length === 0 && (
+                    <div className="mnd-muted" style={{ fontSize: 12.5 }}>Aucun créneau bloqué.</div>
+                  )}
+                  {[...blocages].sort((a, b) => (a.date < b.date ? 1 : -1)).map((bl) => {
+                    const maj = (patch: Partial<Blocage>) =>
+                      setBlocages(blocages.map((x) => (x.id === bl.id ? { ...x, ...patch } : x)));
+                    const journee = !bl.debut && !bl.fin;
+                    return (
+                      <div key={bl.id} style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', border: '1px solid var(--hairline)', borderRadius: 4, padding: '10px 12px' }}>
+                        <ChampDeDate compact sens="avant" value={bl.date} onChange={(iso) => maj({ date: iso })} style={{ width: 150 }} />
+                        <Select
+                          value={bl.master ?? ''}
+                          onChange={(e) => maj({ master: e.target.value || undefined })}
+                          style={{ width: 190 }}
                         >
-                          <span style={{ fontSize: 13 }}>{sv.name}</span>
-                          <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                            <input
-                              className="sys-select"
-                              type="number"
-                              min={0}
-                              max={100}
-                              value={depositMap[id] ?? 0}
-                              onChange={(e) => setDepositPctFor(id, e.target.value)}
-                              style={{ width: 78, textAlign: 'right', fontFamily: 'var(--font-serif)' }}
-                              aria-label={`Acompte de ${sv.name} en pourcentage`}
-                            />
-                            <span className="sys-row__value">%</span>
-                          </span>
-                        </div>
-                      );
-                    })}
+                          <option value="">Toute la Maison</option>
+                          {maitresDuCalendrier.map((nom) => (
+                            <option key={nom} value={nom}>{nom}</option>
+                          ))}
+                        </Select>
+                        <button
+                          className={`tre-chip ${journee ? 'is-on' : ''}`}
+                          onClick={() => maj(journee ? { debut: '12h00', fin: '14h00' } : { debut: undefined, fin: undefined })}
+                          style={{ fontSize: 11.5, minWidth: 106 }}
+                        >
+                          {journee ? 'Journée entière' : 'Une plage'}
+                        </button>
+                        {!journee && (
+                          <>
+                            <Input value={bl.debut ?? ''} onChange={(e) => maj({ debut: e.target.value })} placeholder="hh h mm" style={{ width: 86, textAlign: 'center' }} />
+                            <span className="mnd-muted" style={{ fontSize: 12 }}>→</span>
+                            <Input value={bl.fin ?? ''} onChange={(e) => maj({ fin: e.target.value })} placeholder="hh h mm" style={{ width: 86, textAlign: 'center' }} />
+                          </>
+                        )}
+                        <Input value={bl.motif ?? ''} onChange={(e) => maj({ motif: e.target.value })} style={{ flex: 1, minWidth: 130 }} />
+                        <button
+                          className="tre-link-btn tre-link-btn--danger"
+                          onClick={() => setBlocages(blocages.filter((x) => x.id !== bl.id))}
+                          aria-label="Retirer ce créneau"
+                        >
+                          ×
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <div style={{ marginTop: 12 }}>
+                  <button className="tre-link-btn" onClick={() => setFormulaire('bloquer')}>
+                    + Bloquer un créneau
+                  </button>
+                </div>
+
+                <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 12, lineHeight: 1.55 }}>
+                  Le motif peut être lu par les clientes, écris ce qui peut se dire à une cliente,
+                  jamais les affaires de la maison. Une absence de plusieurs jours se pose jour par
+                  jour : on voit ce qu’on bloque.
+                </div>
+              </Card>
+            </>
+          )}
+
+          {ouverte === 'whatsapp' && (
+            <>
+              {/* ══ LA MAISON RÉPOND SUR WHATSAPP · 9 octobre 2026 ═══════════ */}
+              <LaMaisonRepondSurWhatsApp
+                brut={autoCfgRaw.automateWa}
+                ecris={ecrisLAutomate}
+              />
+              <LAssistantRepondEnPhrases />
+            </>
+          )}
+
+          {ouverte === 'paiements' && (
+            <>
+              {/* ---------- Encaissement · modes de paiement ---------- */}
+              <Card className="sys-section" style={{ marginTop: 18 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 4 }}>
+                  <div>
+                    <div className="sys-section__title">Les modes de paiement</div>
+                    <div className="sys-section__cap">
+                      Les moyens de règlement proposés PARTOUT où l’argent se dit : encaissement,
+                      Caisse, Factures, Académie, avoirs, prêts, paie du personnel et prestataires.
+                      Écris directement dans la ligne : chaque lettre s’enregistre ; ▲▼ règlent l’ordre
+                      des boutons à la Caisse. Les pièces déjà encaissées gardent leur libellé.
+                    </div>
                   </div>
-                )}
+                  <span className="sys-badge-count">{payMethods.length} mode{payMethods.length > 1 ? 's' : ''}</span>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                  {payMethods.map((s, i) => (
+                    <LigneListe
+                      key={i}
+                      nom={s}
+                      existe={(c) => payMethods.some((x, k) => k !== i && x.trim().toLowerCase() === c.toLowerCase())}
+                      premier={i === 0}
+                      dernier={i === payMethods.length - 1}
+                      renomme={(v) => renommePay(i, v)}
+                      bouge={(d) => bougePay(i, d)}
+                      retire={() => removePay(i, s)}
+                      aria={`Nom du mode de paiement ${i + 1}`}
+                    />
+                  ))}
+                  {payMethods.length === 0 && (
+                    <div className="sys-row" style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', color: 'var(--ink-soft)' }}>
+                      Aucun mode de paiement, ajoutez le premier ci-dessous.
+                    </div>
+                  )}
+                </div>
+
+                <div className="sys-additem" style={{ display: 'flex', gap: 8, marginTop: 14 }}>
+                  <Input
+                    value={newPay}
+                    onChange={(e) => setNewPay(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter') addPay(); }}
+                    placeholder="Nouveau mode"
+                    style={{ flex: 1 }}
+                  />
+                  <Button variant="copper" onClick={addPay} disabled={!newPay.trim()}>Ajouter</Button>
+                </div>
+
+                {/* Exceptionnel, d'où une bascule : on l'ouvre le temps d'une facture,
+                    on la referme après. Fermée, la Caisse n'encaisse qu'en {currency}. */}
+                <div className="sys-row" style={{ marginTop: 14 }}>
+                  <div>
+                    <div className="sys-row__label">Paiement en devise étrangère</div>
+                    <div className="sys-row__sub">
+                      Ouvre à la Caisse le règlement dans une autre devise que le {currency}, la cliente
+                      paie en euros, en dollars… La facture reste en {currency} ; la devise reçue et son
+                      taux sont consignés. À refermer une fois la facture réglée.
+                    </div>
+                  </div>
+                  <Toggle on={!!settings.fxEnabled} onToggle={() => setSettings((s) => ({ ...s, fxEnabled: !s.fxEnabled }))} />
+                </div>
+              </Card>
+
+              {/* MND PAY — 16 octobre 2026 : la caisse qui demande le paiement. */}
+              <CarteMndPay />
+              {/* LES RELANCES DES FACTURES (18 octobre 2026) : leur interrupteur et le rattrapage. */}
+              <CarteRelances />
+            </>
+          )}
+
+          {ouverte === 'envoyer' && (
+            /* LES INFORMATIONS QUE LES MESSAGES AUTOMATIQUES GLISSENT. Elles se
+               règlent ICI seulement depuis le 29 octobre 2026 : Marketing ›
+               Automatisations les montre et renvoie ici (un réglage, un seul
+               endroit). Le « lien de paiement Mobile Money » n'est plus
+               demandé : écrit, jamais lu ; le QR et le code USSD font ce travail. */
+            <Card className="sys-section" style={{ marginTop: 18 }}>
+              <div className="sys-section__title">Ce qu’on envoie aux clientes</div>
+              <div className="sys-section__cap" style={{ maxWidth: 640 }}>
+                Le chemin et les liens que le Trône glisse tels quels dans la confirmation du rendez-vous,
+                les rappels et les demandes d’avis, sur WhatsApp et par SMS.
+              </div>
+              <div className="tr-grid tr-grid--2" style={{ marginTop: 8 }}>
+                <label className="mnd-field" style={{ gridColumn: '1 / -1' }}>
+                  <span className="mnd-field__label">Itinéraire · texte libre</span>
+                  <Textarea rows={5} value={autoCfg.itineraire} onChange={(e) => setAuto('itineraire', e.target.value)} />
+                </label>
+                <label className="mnd-field">
+                  <span className="mnd-field__label">Lien Google Maps (itinéraire)</span>
+                  <Input value={autoCfg.mapsLink} onChange={(e) => setAuto('mapsLink', e.target.value)} />
+                </label>
+                <label className="mnd-field">
+                  <span className="mnd-field__label">Lien Google Avis</span>
+                  <Input value={autoCfg.reviewLink} onChange={(e) => setAuto('reviewLink', e.target.value)} />
+                </label>
+                {/* L'AVIS SANS MAIN (19 août 2026) : son interrupteur a quitté cet
+                    écran le 27 octobre 2026 (restes du lot 3 de l'Assistant Maison).
+                    Les voix qui écrivent seules s'allument à UN endroit : Assistant
+                    Maison › Ce que ça rapporte › « Qui écrit seul », qui écrit la
+                    même clé (`mnd_auto_config.avisAuto`). Ici, l'état seul se lit. */}
+                <div style={{ gridColumn: '1 / -1', fontSize: 12, lineHeight: 1.5 }} className="mnd-muted">
+                  Demande d’avis sans main : <b>{autoCfgRaw.avisAuto === true ? 'allumée' : 'éteinte'}</b>.
+                  {' '}Elle s’allume et s’éteint dans <Link to="/gerard?vue=rapporte">Assistant Maison › Ce que ça rapporte › Qui écrit seul</Link>.
+                </div>
+              </div>
+
+              {/* ── LE QR MARCHAND MoMo ──────────────────────────────────
+                  Le « lien de paiement » de la Maison n'est pas un lien : c'est le
+                  QR du compte marchand MTN, décodé du document officiel
+                  (« Scannez et payez ») puis REDESSINÉ par le moteur QR de la
+                  maison — même donnée, même lecture au scan, mais net à toutes les
+                  tailles et jamais dépendant d'une capture d'écran. */}
+              <div style={{ borderTop: '1px solid var(--hairline)', marginTop: 16, paddingTop: 14 }}>
+                <div style={{ fontFamily: 'var(--font-serif)', fontSize: 17, color: 'var(--color-indigo)' }}>
+                  Paiement Mobile Money · le QR de la Maison
+                </div>
+                <div className="mnd-muted" style={{ fontSize: 12, marginTop: 2, lineHeight: 1.5, maxWidth: 640 }}>
+                  Le code du compte marchand MTN MoMo, redessiné par la maison, la même donnée que
+                  l’affiche « Scannez et payez ». Montre-le à l’écran quand une cliente règle en MoMo ;
+                  le code USSD est le chemin sans appareil photo.
+                </div>
+
+                <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap', alignItems: 'flex-start', marginTop: 14 }}>
+                  <div style={{ border: '1px solid var(--hairline)', borderRadius: 4, padding: '12px 14px' }}>
+                    <QrSvg valeur={autoCfg.momoQr || MOMO_QR_DEFAUT} style={{ width: 148, height: 148, display: 'block' }} />
+                    <div style={{ textAlign: 'center', marginTop: 8, fontFamily: 'var(--font-serif)', fontSize: 16, color: 'var(--color-indigo)' }}>
+                      {autoCfg.momoMarchand}
+                    </div>
+                    <div className="mnd-muted" style={{ textAlign: 'center', fontSize: 11.5, marginTop: 2 }}>
+                      {autoCfg.momoUssd}
+                    </div>
+                  </div>
+
+                  <div style={{ flex: 1, minWidth: 240, display: 'flex', flexDirection: 'column', gap: 10 }}>
+                    <label className="mnd-field">
+                      <span className="mnd-field__label">Nom affiché, compte marchand</span>
+                      <Input value={autoCfg.momoMarchand ?? ''} onChange={(e) => setAuto('momoMarchand', e.target.value)} />
+                    </label>
+                    <label className="mnd-field">
+                      <span className="mnd-field__label">Code USSD, sans appareil photo</span>
+                      <Input value={autoCfg.momoUssd ?? ''} onChange={(e) => setAuto('momoUssd', e.target.value)} />
+                    </label>
+                    <label className="mnd-field">
+                      <span className="mnd-field__label">Donnée du QR, identifiant marchand</span>
+                      <Input value={autoCfg.momoQr ?? ''} onChange={(e) => setAuto('momoQr', e.target.value)} />
+                    </label>
+                    <div className="mnd-muted" style={{ fontSize: 11.5, lineHeight: 1.55 }}>
+                      Dans le code USSD, « montant » se remplace par la somme en francs, 15 000 F se
+                      compose *880*41*909099*15000#. Ne touche à la donnée du QR que si MTN te remet
+                      un nouveau document marchand.
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 14 }}>
+                Le Wi-Fi des clientes se règle dans <Link to="/qr-codes">QR de la Maison</Link>.
+              </div>
+            </Card>
+          )}
+
+          {ouverte === 'reservation' && (
+            <>
+              <Card className="sys-section" style={{ marginTop: 18 }}>
+                <div className="sys-section__title">Le rendez-vous & l’acompte</div>
+                <div className="sys-section__cap">Les règles qui cadrent chaque rendez-vous, et ce que Ma Couronne exige à la réservation.</div>
+                <div className="sys-row">
+                  <div>
+                    <div className="sys-row__label">Acompte exigé en ligne (%)</div>
+                    <div className="sys-row__sub">Ce que la cliente règle à la réservation sur Ma Couronne.</div>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <input
+                      className="sys-select"
+                      type="number"
+                      min={0}
+                      max={100}
+                      step={1}
+                      value={settings.onlineDepositPct}
+                      onChange={(e) => setDepositPct(e.target.value)}
+                      style={{ width: 78, textAlign: 'right', fontFamily: 'var(--font-serif)' }}
+                      aria-label="Acompte exigé en ligne en pourcentage"
+                    />
+                    <span className="sys-row__value">%</span>
+                  </div>
+                </div>
+                <div className="sys-row" style={{ display: 'block' }}>
+                  <div style={{ marginBottom: 8 }}>
+                    <div className="sys-row__label">Prestations exigeant un acompte</div>
+                    <div className="sys-row__sub">
+                      Sélectionnez les prestations, puis fixez le taux de CHACUNE, au Trône comme sur
+                      Ma Couronne. Aucune sélectionnée = aucun acompte, confirmation directe. Le taux
+                      ci-dessus ne sert plus que de valeur proposée à l’ajout.
+                    </div>
+                  </div>
+                  {services.length === 0 ? (
+                    <div className="sys-row__sub">Aucune prestation au catalogue.</div>
+                  ) : (
+                    <>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                        {services.map((sv) => {
+                          const on = depositIds.includes(sv.id);
+                          return (
+                            <button
+                              key={sv.id}
+                              type="button"
+                              onClick={() => toggleDepositService(sv.id)}
+                              style={{
+                                border: `1px solid ${on ? 'var(--color-copper)' : 'var(--hairline)'}`,
+                                borderRadius: 3,
+                                padding: '7px 12px',
+                                fontSize: 12,
+                                cursor: 'pointer',
+                                fontFamily: 'var(--font-sans)',
+                                background: on ? 'var(--color-copper)' : 'var(--surface-card)',
+                                color: on ? 'var(--color-ivoire)' : 'var(--ink)',
+                              }}
+                            >
+                              {sv.name}
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      {depositIds.length > 0 && (
+                        <div style={{ marginTop: 12, display: 'grid', gap: 6 }}>
+                          <div className="sys-row__sub" style={{ marginBottom: 2 }}>Taux par prestation</div>
+                          {depositIds.map((id) => {
+                            const sv = services.find((x) => x.id === id);
+                            if (!sv) return null; // prestation retirée du catalogue depuis
+                            return (
+                              <div
+                                key={id}
+                                style={{
+                                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                                  gap: 10, borderBottom: '1px solid var(--hairline)', paddingBottom: 6,
+                                }}
+                              >
+                                <span style={{ fontSize: 13 }}>{sv.name}</span>
+                                <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                  <input
+                                    className="sys-select"
+                                    type="number"
+                                    min={0}
+                                    max={100}
+                                    value={depositMap[id] ?? 0}
+                                    onChange={(e) => setDepositPctFor(id, e.target.value)}
+                                    style={{ width: 78, textAlign: 'right', fontFamily: 'var(--font-serif)' }}
+                                    aria-label={`Acompte de ${sv.name} en pourcentage`}
+                                  />
+                                  <span className="sys-row__value">%</span>
+                                </span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+              </Card>
+
+              {/* ── LE CALENDRIER DE RÉSERVATION ────────────────────────────
+                  Ce que les horaires ne savent pas dire : combien de rendez-vous la
+                  Maison accepte par jour. Le comptoir, lui, n'est pas bridé : poser
+                  un rendez-vous à la main reste un geste du personnel. */}
+              <Card className="sys-section" style={{ marginTop: 18 }}>
+                <div className="sys-section__title">Le calendrier de réservation</div>
+                <div className="sys-section__cap">
+                  Ce que la réservation en ligne peut proposer, au-delà des heures d’ouverture : le
+                  nombre de rendez-vous que la journée accepte. Les créneaux fermés à la main sont
+                  dans la tuile « Heures et jours ».
+                </div>
+                <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap', marginTop: 12 }}>
+                  <Field label="Plafond par maître et par jour">
+                    <Input
+                      inputMode="numeric"
+                      value={String(settings.maxRdvParJourMaitre ?? 0)}
+                      onChange={(e) => setCapacite('maxRdvParJourMaitre', e.target.value)}
+                      style={{ width: 90, textAlign: 'right' }}
+                    />
+                  </Field>
+                  <Field label="Plafond pour toute la Maison, par jour">
+                    <Input
+                      inputMode="numeric"
+                      value={String(settings.maxRdvParJourMaison ?? 0)}
+                      onChange={(e) => setCapacite('maxRdvParJourMaison', e.target.value)}
+                      style={{ width: 90, textAlign: 'right' }}
+                    />
+                  </Field>
+                </div>
+                <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 6, lineHeight: 1.55 }}>
+                  0 = sans limite. Le plafond compte les rendez-vous non annulés du jour : atteint,
+                  la réservation en ligne ne propose plus aucun créneau, même si des heures restent.
+                </div>
+              </Card>
+
+              {/* ══ LES PALIERS — 16 septembre 2026 ═══════════════════════════
+                  Trois nombres, et une règle qui ne redescend jamais. */}
+              <Card className="sys-section" style={{ marginTop: 18 }}>
+                <div className="sys-section__title">Les paliers de la couronne</div>
+                <div className="sys-section__cap">Ce qui fait monter une cliente d’un palier, lu sur son carnet, et ce qu’on fait d’une main non habilitée.</div>
+                {([
+                  ['elevationRituels', 'Élévation au Nᵉ rituel honoré', 'ou à N mois de couronne, le premier des deux. Souveraineté au premier acte de Souveraineté honoré, ou à N mois.', 'rituels'],
+                  ['elevationMois', 'Élévation à N mois de couronne', 'compté depuis la naissance de sa couronne, quand elle est datée sur la fiche.', 'mois'],
+                  ['souveraineteMois', 'Souveraineté à N mois de couronne', 'un acte de Souveraineté honoré l’y mène aussi, plus tôt.', 'mois'],
+                ] as [keyof SeuilsDePalier, string, string, string][]).map(([champ, label, sub, unite]) => (
+                  <div className="sys-row" key={champ}>
+                    <div>
+                      <div className="sys-row__label">{label}</div>
+                      <div className="sys-row__sub">{sub}</div>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <input
+                        className="sys-select"
+                        type="number"
+                        min={1}
+                        step={1}
+                        value={seuilsPaliers[champ]}
+                        onChange={(e) => setSeuilPalier(champ, e.target.value)}
+                        style={{ width: 78, textAlign: 'right', fontFamily: 'var(--font-serif)' }}
+                        aria-label={label}
+                      />
+                      <span className="sys-row__value">{unite}</span>
+                    </div>
+                  </div>
+                ))}
+                <div className="sys-row">
+                  <div>
+                    <div className="sys-row__label">Une main non habilitée sur un acte</div>
+                    <div className="sys-row__sub">Au rendez-vous, quand l’acte dépasse l’habilitation de toutes les mains posées. Sans habilitation posée, rien ne se dit.</div>
+                  </div>
+                  <select
+                    className="sys-select"
+                    value={settings.paliersStrict ? 'refuser' : 'avertir'}
+                    onChange={(e) => setSettings((s) => ({ ...s, paliersStrict: e.target.value === 'refuser' }))}
+                    aria-label="Une main non habilitée sur un acte"
+                  >
+                    <option value="avertir">Avertir, la direction tranche</option>
+                    <option value="refuser">Refuser le rendez-vous</option>
+                  </select>
+                </div>
+              </Card>
+            </>
+          )}
+
+          {ouverte === 'pointage' && (
+            /* ── LA PREUVE DE PRÉSENCE ───────────────────────────────────
+               Sans elle, le pointage n'est qu'une déclaration : rien n'empêche de
+               l'écrire depuis son lit. La position d'abord — aucun geste quotidien —
+               et le code en secours, parce qu'une journée de travail ne peut pas
+               dépendre d'un satellite. */
+            <Card className="sys-section" style={{ marginTop: 18 }}>
+              <div className="sys-section__title">Preuve de présence au pointage</div>
+              <div className="sys-section__cap">
+                Sans elle, « Arrivée » est une déclaration que rien ne vérifie. On demande d’abord la
+                position du téléphone ; le code affiché au comptoir prend le relais quand le GPS refuse.
+              </div>
+
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', margin: '14px 0 10px' }}>
+                <button
+                  className={`tre-chip ${preuve.exigerPreuve ? '' : 'is-on'}`}
+                  onClick={() => setPreuve({ ...preuve, exigerPreuve: false })}
+                >
+                  Confiance, aucune vérification
+                </button>
+                <button
+                  className={`tre-chip ${preuve.exigerPreuve ? 'is-on' : ''}`}
+                  onClick={() => setPreuve({ ...preuve, exigerPreuve: true })}
+                >
+                  Vérifier la présence
+                </button>
+              </div>
+
+              {preuve.exigerPreuve && (
+                <>
+                  <div className="tr-grid tr-grid--2" style={{ marginTop: 6 }}>
+                    <Field label="Position du salon">
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                        <Input
+                          value={preuve.lat !== undefined ? String(preuve.lat) : ''}
+                          onChange={(e) => setPreuve({ ...preuve, lat: Number(e.target.value) || undefined })}
+                          placeholder="latitude"
+                          style={{ width: 118 }}
+                        />
+                        <Input
+                          value={preuve.lng !== undefined ? String(preuve.lng) : ''}
+                          onChange={(e) => setPreuve({ ...preuve, lng: Number(e.target.value) || undefined })}
+                          placeholder="longitude"
+                          style={{ width: 118 }}
+                        />
+                      </div>
+                      {/* LA POSITION SE CAPTURE DEPUIS LE SALON — saisir des
+                          coordonnées à la main est le meilleur moyen de se tromper
+                          d'un chiffre et de rendre le pointage impossible. */}
+                      <button
+                        className="tre-link-btn"
+                        style={{ marginTop: 8 }}
+                        onClick={() => {
+                          if (!navigator.geolocation) { toast('Position indisponible sur cet appareil.'); return; }
+                          navigator.geolocation.getCurrentPosition(
+                            (pos) => {
+                              setPreuve({
+                                ...preuve,
+                                lat: Math.round(pos.coords.latitude * 1e6) / 1e6,
+                                lng: Math.round(pos.coords.longitude * 1e6) / 1e6,
+                              });
+                              toast('Position du salon enregistrée.');
+                            },
+                            () => toast('Position refusée, autorisez-la dans le navigateur.'),
+                            { enableHighAccuracy: true, timeout: 8000 },
+                          );
+                        }}
+                      >
+                        Utiliser ma position actuelle, à faire DEPUIS le salon
+                      </button>
+                    </Field>
+                    <Field label="Rayon accepté (mètres)">
+                      <Input
+                        inputMode="numeric"
+                        value={String(preuve.rayonM)}
+                        onChange={(e) => setPreuve({ ...preuve, rayonM: Math.max(20, parseInt(e.target.value.replace(/[^0-9]/g, ''), 10) || 150) })}
+                        style={{ width: 110, textAlign: 'right' }}
+                      />
+                      <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 6, lineHeight: 1.5 }}>
+                        150 m est un bon départ : le GPS hésite de quelques dizaines de mètres en intérieur,
+                        et un rayon trop serré refuserait des gens réellement présents.
+                      </div>
+                    </Field>
+                  </div>
+
+                  {/* LE BOUTON DU MATIN A DISPARU le 6 août. Il fallait le presser
+                      chaque jour — donc on l'oubliait, et le jour de l'oubli
+                      personne ne pouvait plus pointer sans GPS. */}
+                  <Field label="Code du jour">
+                    <div style={{ display: 'flex', alignItems: 'baseline', gap: 14, flexWrap: 'wrap' }}>
+                      <span style={{ fontFamily: 'var(--font-serif)', fontSize: 30, letterSpacing: '.22em', color: 'var(--color-indigo)' }}>
+                        {codeAujourdhui || '— — — —'}
+                      </span>
+                      <button className="tre-link-btn" onClick={() => navigate('/comptoir')}>
+                        Ouvrir l’affichage du comptoir
+                      </button>
+                    </div>
+                    <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 8, lineHeight: 1.55 }}>
+                      Il se renouvelle seul chaque jour, rien à presser. Il ne sert qu’à celles et ceux
+                      dont le téléphone ne donne pas sa position ; ce qu’il prouve, c’est d’être passé
+                      le lire. Pose l’affichage du comptoir sur une tablette au salon, ou recopie ces
+                      quatre chiffres à la main.
+                    </div>
+                    <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 6, lineHeight: 1.55 }}>
+                      L’équipe ne le voit jamais dans l’application : un code que le logiciel montre au
+                      téléphone qui s’en sert ne prouve plus rien.
+                    </div>
+                  </Field>
+                </>
+              )}
+            </Card>
+          )}
+
+          {/* LE DIAGNOSTIC PHOTO (19 octobre 2026) : l'interrupteur et la table « à valider », direction seule. */}
+          {ouverte === 'diagnostic' && <CarteDiagnosticPhoto />}
+
+          {ouverte === 'notifications' && (
+            /* LES TROIS SUJETS QUE LA CLOCHE SAIT TAIRE. Ils étaient affichés
+               grisés « à venir », alors que la cloche du Trône
+               (shell/Notifications.tsx) les lisait déjà ; « Clôture de paie »
+               commandait en réalité les factures en attente. Ils deviennent de
+               vrais interrupteurs, sous leur vrai nom (29 octobre 2026). */
+            <Card className="sys-section" style={{ marginTop: 18 }}>
+              <div className="sys-section__title">La cloche du Trône</div>
+              <div className="sys-section__cap">Ce que la cloche annonce en haut de l’écran. Éteint, le sujet n’y paraît plus ; rien d’autre ne change.</div>
+              {NOTIFICATIONS.map((r) => (
+                <div key={r.k} className="sys-row">
+                  <div>
+                    <div className="sys-row__label">{r.l}</div>
+                    <div className="sys-row__sub">{r.sub}</div>
+                  </div>
+                  <Toggle on={settings.toggles[r.k] !== false} onToggle={() => setSettings((s) => ({ ...s, toggles: { ...s.toggles, [r.k]: s.toggles[r.k] === false } }))} />
+                </div>
+              ))}
+            </Card>
+          )}
+        </section>
+      )}
+
+      {/* ══ RAREMENT ════════════════════════════════════════════════════
+          Ce qui se règle une fois l'an : replié, mais la recherche y entre. */}
+      <div className="prm-repli" ref={rarementRef}>
+        <button
+          type="button"
+          className="prm-repli__tete"
+          aria-expanded={rarementDeplie}
+          onClick={() => setRarementOuvert(!rarementDeplie)}
+        >
+          <span>Rarement · identité, calibres, segments, livraison, cet appareil</span>
+          <span className="prm-repli__geste">{rarementDeplie ? 'Fermer' : 'Ouvrir'}</span>
+        </button>
+        {rarementDeplie && (
+          <div className="prm-repli__corps">
+            {raresVus.includes('identite') && (
+              <Card className="sys-section" style={{ marginTop: 18 }}>
+                <div className="sys-section__title">Identité de la Maison</div>
+                <div className="sys-section__cap">
+                  Le nom signe la barre latérale, l’écran de connexion, les factures et les reçus PDF ;
+                  la raison sociale, la ligne légale au pied des factures ; le fuseau, la date affichée
+                  en haut du Trône. Les textes de la Maison les lisent ici. La branche (Système → Branches)
+                  garde son propre nom de lieu et sa devise.
+                </div>
+                <EditRow l="Nom de la Maison" sub="Il se propage à la frappe, regarde la barre latérale.">
+                  <input
+                    className="sys-input"
+                    value={identity.nom}
+                    onChange={(e) => setIdent('nom', e.target.value)}
+                    aria-label="Nom de la Maison"
+                  />
+                </EditRow>
+                <EditRow l="Raison sociale" sub="La ligne légale des factures, RCCM et IFU compris.">
+                  <input
+                    className="sys-input"
+                    value={identity.raison}
+                    onChange={(e) => setIdent('raison', e.target.value)}
+                    aria-label="Raison sociale"
+                  />
+                </EditRow>
+                {/* L'EMPLOYEUR, SÉPARÉ DE LA RAISON — champ ouvert le 10 octobre 2026
+                    précisément pour pouvoir basculer sans toucher à la raison, puis
+                    basculé le 13 : l'équipe est employée par la Maison. Le champ
+                    reste libre, le code ne contredira pas le comptable. */}
+                <EditRow l="Employeur de l’équipe" sub="Nommé au règlement intérieur, aux lettres du prêt et aux pièces d’employeur du Secrétariat. Les pièces déjà signées gardent l’employeur de leur jour.">
+                  <input
+                    className="sys-input"
+                    value={identity.employeur ?? ''}
+                    placeholder={RAISON_MAISON_MND}
+                    onChange={(e) => setIdent('employeur', e.target.value)}
+                    aria-label="Employeur de l’équipe"
+                  />
+                </EditRow>
+                {/* LA VILLE DU SIÈGE, PAS CELLE DU FAUTEUIL. L'atelier est à Suru-Léré,
+                    la Maison signe Cotonou : c'est le siège qui figure sur un tampon
+                    et au bas d'un contrat. */}
+                <EditRow l="Ville du siège" sub="Celle qui signe le tampon et les documents. La branche garde la sienne.">
+                  <input
+                    className="sys-input"
+                    value={identity.ville ?? ''}
+                    onChange={(e) => setIdent('ville', e.target.value)}
+                    aria-label="Ville du siège"
+                  />
+                </EditRow>
+                <EditRow l="Fuseau horaire" sub="L’horloge du Trône : en voyage, tu vois le jour du salon.">
+                  <select
+                    className="sys-select"
+                    value={identity.fuseau}
+                    onChange={(e) => setIdent('fuseau', e.target.value)}
+                    aria-label="Fuseau horaire"
+                  >
+                    {FUSEAU_OPTIONS.map((f) => <option key={f} value={f}>{f}</option>)}
+                  </select>
+                </EditRow>
+              </Card>
+            )}
+
+            {/* LES CALIBRES DÉCRIVENT DES TAILLES DE COURONNE, pas des données. */}
+            {raresVus.includes('calibres') && <CalibresCard />}
+
+            {raresVus.includes('segments') && (
+              <Card className="sys-section" style={{ marginTop: 18 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 4 }}>
+                  <div>
+                    <div className="sys-section__title">Segments de clientèle</div>
+                    <div className="sys-section__cap">
+                      Les segments proposés dans les fiches clientes (VIP, Prospect, Cercle…). Ajoutez, renommez, retirez ;
+                      une fiche déjà taguée conserve ses segments même s’ils sont retirés d’ici.
+                    </div>
+                  </div>
+                  <span className="sys-badge-count">{segments.length} segment{segments.length > 1 ? 's' : ''}</span>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                  {segments.map((s, i) => (
+                    <div key={`${s}-${i}`} className="sys-row sys-row--items">
+                      {segEditIdx === i ? (
+                        <>
+                          <input
+                            className="sys-select"
+                            value={segEditVal}
+                            autoFocus
+                            onChange={(e) => setSegEditVal(e.target.value)}
+                            onKeyDown={(e) => { if (e.key === 'Enter') commitSegRename(i); if (e.key === 'Escape') setSegEditIdx(null); }}
+                            style={{ flex: 1, marginRight: 12 }}
+                            aria-label="Renommer le segment"
+                          />
+                          <div style={{ display: 'flex', gap: 8 }}>
+                            <Button size="sm" variant="copper" onClick={() => commitSegRename(i)}>Valider</Button>
+                            <Button size="sm" variant="ghost" onClick={() => setSegEditIdx(null)}>Annuler</Button>
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <div className="sys-row__label" style={{ fontFamily: 'var(--font-serif)', fontSize: 16, color: 'var(--color-indigo)' }}>{s}</div>
+                          <div style={{ display: 'flex', gap: 8 }}>
+                            <Button size="sm" variant="ghost" onClick={() => { setSegEditIdx(i); setSegEditVal(s); }}>Renommer</Button>
+                            <Button size="sm" variant="ghost" style={{ color: 'var(--copper-700)' }} onClick={() => removeSeg(i, s)}>Retirer</Button>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  ))}
+                  {segments.length === 0 && (
+                    <div className="sys-row" style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', color: 'var(--ink-soft)' }}>
+                      Aucun segment, ajoutez le premier ci-dessous.
+                    </div>
+                  )}
+                </div>
+
+                <div className="sys-additem" style={{ display: 'flex', gap: 8, marginTop: 14 }}>
+                  <Input
+                    value={newSeg}
+                    onChange={(e) => setNewSeg(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter') addSeg(); }}
+                    placeholder="Nouveau segment"
+                    style={{ flex: 1 }}
+                  />
+                  <Button variant="copper" onClick={addSeg} disabled={!newSeg.trim()}>Ajouter</Button>
+                </div>
+              </Card>
+            )}
+
+            {raresVus.includes('livraison') && (
+              <Card className="sys-section" style={{ marginTop: 18 }}>
+                <div className="sys-row" style={{ borderTop: 0 }}>
+                  <div>
+                    <div className="sys-section__title">Frais de livraison à domicile</div>
+                    <div className="sys-row__sub">Ajoutés en ligne à la commande produits sur Ma Couronne. 0 = livraison offerte.</div>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <input
+                      className="sys-select"
+                      type="number"
+                      min={0}
+                      step={500}
+                      value={settings.deliveryFeeXof}
+                      onChange={(e) => setDeliveryFee(e.target.value)}
+                      style={{ width: 96, textAlign: 'right', fontFamily: 'var(--font-serif)' }}
+                      aria-label="Frais de livraison à domicile en francs CFA"
+                    />
+                    <span className="sys-row__value">F</span>
+                  </div>
+                </div>
+              </Card>
+            )}
+
+            {/* ══ CET APPAREIL ══ ce que CE poste peut encore écrire, et ce qui pèse dessus. */}
+            {raresVus.includes('appareil') && (
+              <>
+                <CetAppareil />
+                <LePoidsDesPhotos toast={toast} />
               </>
             )}
           </div>
-          <ToggleRows rows={RITUEL_TOGGLES} aVenir />
-        </Card>
-
-      {/* ── LES JOURNÉES EXCEPTIONNELLES ────────────────────────────
-          Un inventaire, une fermeture, une personne à qui l'on a demandé de
-          venir plus tard. Sans elles, le pointage jugeait en retard quelqu'un
-          qui faisait exactement ce qu'on lui avait demandé — et une prime se
-          perdait sur un malentendu. */}
-      <Card className="sys-section" style={{ marginTop: 18 }}>
-        <div className="sys-section__title">Journées exceptionnelles</div>
-        <div className="sys-section__cap">
-          Un inventaire, une fermeture, une arrivée décalée pour une personne. Ce jour-là,
-          l’horaire ci-dessous remplace celui de la semaine, et le pointage juge sur lui.
-        </div>
-
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 12 }}>
-          {exceptions.length === 0 && (
-            <div className="mnd-muted" style={{ fontSize: 12.5 }}>
-              Aucune. La semaine type s’applique tous les jours.
-            </div>
-          )}
-          {[...exceptions].sort((a, b) => (a.date < b.date ? 1 : -1)).map((ex) => {
-            const maj = (patch: Partial<HoraireException>) =>
-              setExceptions(exceptions.map((x) => (x.id === ex.id ? { ...x, ...patch } : x)));
-            return (
-              <div key={ex.id} style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', border: '1px solid var(--hairline)', borderRadius: 4, padding: '10px 12px' }}>
-                <ChampDeDate compact sens="avant" value={ex.date} onChange={(iso) => maj({ date: iso })} style={{ width: 150 }} />
-                <Select
-                  value={ex.staffId ?? ''}
-                  onChange={(e) => maj({ staffId: e.target.value || undefined })}
-                  style={{ width: 190 }}
-                >
-                  <option value="">Toute la Maison</option>
-                  {equipe.map((m) => (
-                    <option key={m.id} value={m.id}>{m.name}</option>
-                  ))}
-                </Select>
-                <button
-                  className={`tre-chip ${ex.closed ? '' : 'is-on'}`}
-                  onClick={() => maj({ closed: !ex.closed })}
-                  style={{ fontSize: 11.5, minWidth: 78 }}
-                >
-                  {ex.closed ? 'Fermé' : 'Ouvert'}
-                </button>
-                {!ex.closed && (
-                  <>
-                    <Input value={ex.open ?? ''} onChange={(e) => maj({ open: e.target.value })} placeholder="hh h mm" style={{ width: 86, textAlign: 'center' }} />
-                    <span className="mnd-muted" style={{ fontSize: 12 }}>→</span>
-                    <Input value={ex.close ?? ''} onChange={(e) => maj({ close: e.target.value })} placeholder="hh h mm" style={{ width: 86, textAlign: 'center' }} />
-                  </>
-                )}
-                <Input value={ex.note ?? ''} onChange={(e) => maj({ note: e.target.value })} placeholder="Inventaire" style={{ flex: 1, minWidth: 130 }} />
-                <button
-                  className="tre-link-btn tre-link-btn--danger"
-                  onClick={() => setExceptions(exceptions.filter((x) => x.id !== ex.id))}
-                >
-                  ×
-                </button>
-              </div>
-            );
-          })}
-        </div>
-
-        <div style={{ marginTop: 12 }}>
-          <button
-            className="tre-link-btn"
-            onClick={() => setExceptions([
-              ...exceptions,
-              { id: `hx-${uid()}`, date: new Date().toISOString().slice(0, 10), open: '', close: '', closed: false },
-            ])}
-          >
-            + Journée exceptionnelle
-          </button>
-        </div>
-
-        <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 12, lineHeight: 1.55 }}>
-          Une heure laissée vide garde celle de la semaine : décaler la seule ouverture est donc
-          possible sans retoucher la fermeture. Une exception nominative l’emporte sur celle de la
-          Maison, le plus précis gagne. Une exception de la Maison ferme aussi la réservation
-          en ligne ce jour-là : sa note peut être lue par les clientes, écris-la pour elles.
-        </div>
-      </Card>
-
-      {/* ── LE CALENDRIER DE RÉSERVATION ────────────────────────────
-          Ce que les horaires ne savent pas dire : combien de rendez-vous la
-          Maison accepte par jour, et les murs posés à la main — une pause de
-          midi, un maître absent. Ma Couronne lit ces deux registres pour ne
-          jamais proposer un créneau qu'on refuserait. Le comptoir, lui, n'est
-          pas bridé : poser un rendez-vous à la main reste un geste du
-          personnel, qui voit son carnet. */}
-      <Card className="sys-section" style={{ marginTop: 18 }}>
-        <div className="sys-section__title">Le calendrier de réservation</div>
-        <div className="sys-section__cap">
-          Ce que la réservation en ligne peut proposer, au-delà des heures d’ouverture :
-          le nombre de rendez-vous que la journée accepte, et les créneaux qu’on ferme à la main.
-        </div>
-
-        <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap', marginTop: 12 }}>
-          <Field label="Plafond par maître et par jour">
-            <Input
-              inputMode="numeric"
-              value={String(settings.maxRdvParJourMaitre ?? 0)}
-              onChange={(e) => setCapacite('maxRdvParJourMaitre', e.target.value)}
-              style={{ width: 90, textAlign: 'right' }}
-            />
-          </Field>
-          <Field label="Plafond pour toute la Maison, par jour">
-            <Input
-              inputMode="numeric"
-              value={String(settings.maxRdvParJourMaison ?? 0)}
-              onChange={(e) => setCapacite('maxRdvParJourMaison', e.target.value)}
-              style={{ width: 90, textAlign: 'right' }}
-            />
-          </Field>
-        </div>
-        <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 6, lineHeight: 1.55 }}>
-          0 = sans limite. Le plafond compte les rendez-vous non annulés du jour : atteint,
-          la réservation en ligne ne propose plus aucun créneau, même si des heures restent.
-        </div>
-
-        <div style={{ borderTop: '1px solid var(--hairline)', marginTop: 16, paddingTop: 14 }}>
-          <div style={{ fontFamily: 'var(--font-serif)', fontSize: 17, color: 'var(--color-indigo)' }}>Créneaux bloqués</div>
-          <div className="mnd-muted" style={{ fontSize: 12, marginTop: 2, lineHeight: 1.5 }}>
-            Une pause de midi, un maître pris ailleurs : la plage disparaît de la réservation,
-            comme si un rendez-vous l’occupait. Pour fermer une date entière à toute la Maison,
-            préfère la journée exceptionnelle ci-dessus, une seule vérité par question.
-          </div>
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 12 }}>
-            {blocages.length === 0 && (
-              <div className="mnd-muted" style={{ fontSize: 12.5 }}>Aucun créneau bloqué.</div>
-            )}
-            {[...blocages].sort((a, b) => (a.date < b.date ? 1 : -1)).map((bl) => {
-              const maj = (patch: Partial<Blocage>) =>
-                setBlocages(blocages.map((x) => (x.id === bl.id ? { ...x, ...patch } : x)));
-              const journee = !bl.debut && !bl.fin;
-              return (
-                <div key={bl.id} style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', border: '1px solid var(--hairline)', borderRadius: 4, padding: '10px 12px' }}>
-                  <ChampDeDate compact sens="avant" value={bl.date} onChange={(iso) => maj({ date: iso })} style={{ width: 150 }} />
-                  <Select
-                    value={bl.master ?? ''}
-                    onChange={(e) => maj({ master: e.target.value || undefined })}
-                    style={{ width: 190 }}
-                  >
-                    <option value="">Toute la Maison</option>
-                    {maitresDuCalendrier.map((nom) => (
-                      <option key={nom} value={nom}>{nom}</option>
-                    ))}
-                  </Select>
-                  <button
-                    className={`tre-chip ${journee ? 'is-on' : ''}`}
-                    onClick={() => maj(journee ? { debut: '12h00', fin: '14h00' } : { debut: undefined, fin: undefined })}
-                    style={{ fontSize: 11.5, minWidth: 106 }}
-                  >
-                    {journee ? 'Journée entière' : 'Une plage'}
-                  </button>
-                  {!journee && (
-                    <>
-                      <Input value={bl.debut ?? ''} onChange={(e) => maj({ debut: e.target.value })} placeholder="hh h mm" style={{ width: 86, textAlign: 'center' }} />
-                      <span className="mnd-muted" style={{ fontSize: 12 }}>→</span>
-                      <Input value={bl.fin ?? ''} onChange={(e) => maj({ fin: e.target.value })} placeholder="hh h mm" style={{ width: 86, textAlign: 'center' }} />
-                    </>
-                  )}
-                  <Input value={bl.motif ?? ''} onChange={(e) => maj({ motif: e.target.value })} style={{ flex: 1, minWidth: 130 }} />
-                  <button
-                    className="tre-link-btn tre-link-btn--danger"
-                    onClick={() => setBlocages(blocages.filter((x) => x.id !== bl.id))}
-                  >
-                    ×
-                  </button>
-                </div>
-              );
-            })}
-          </div>
-
-          <div style={{ marginTop: 12 }}>
-            <button
-              className="tre-link-btn"
-              onClick={() => setBlocages([
-                ...blocages,
-                { id: `blk-${uid()}`, branchId: branch?.id ?? '', date: new Date().toISOString().slice(0, 10) },
-              ])}
-            >
-              + Bloquer un créneau
-            </button>
-          </div>
-
-          <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 12, lineHeight: 1.55 }}>
-            Le motif peut être lu par les clientes, écris ce qui peut se dire à une cliente,
-            jamais les affaires de la maison. Une absence de plusieurs jours se pose jour par
-            jour : on voit ce qu’on bloque.
-          </div>
-        </div>
-      </Card>
-
-      {/* LA SECONDE CARTE D'HORAIRES A ÉTÉ RETIRÉE le 6 août (même donnée
-          montrée deux fois — une maison n'a qu'un horaire) ; la carte qui
-          reste vit dans LA MAISON, en tête de page, depuis le 13 août. */}
-
-      {/* ══ CATALOGUE & CLIENTÈLE ═══════════════════════════════════ */}
-      <Intertitre id="fam-catalogue">Catalogue & clientèle</Intertitre>
-
-      {/* LES CALIBRES DÉCRIVENT DES TAILLES DE COURONNE, pas des données : ils
-          vivaient au fond, avec les sauvegardes et les zones sensibles, par
-          accident d'écriture. Ils se règlent en même temps que le catalogue. */}
-      <CalibresCard />
-
-      {/* ---------- Catalogue · styles de couronne ---------- */}
-      {/* ---------- CRM · segments de clientèle ---------- */}
-      <Card className="sys-section" style={{ marginTop: 18 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 4 }}>
-          <div>
-            <div className="sys-section__title">CRM · segments de clientèle</div>
-            <div className="sys-section__cap">
-              Les segments proposés dans les fiches clientes (VIP, Prospect, Cercle…). Ajoutez, renommez, retirez ;
-              une fiche déjà taguée conserve ses segments même s’ils sont retirés d’ici.
-            </div>
-          </div>
-          <span className="sys-badge-count">{segments.length} segment{segments.length > 1 ? 's' : ''}</span>
-        </div>
-
-        <div style={{ display: 'flex', flexDirection: 'column' }}>
-          {segments.map((s, i) => (
-            <div key={`${s}-${i}`} className="sys-row sys-row--items">
-              {segEditIdx === i ? (
-                <>
-                  <input
-                    className="sys-select"
-                    value={segEditVal}
-                    autoFocus
-                    onChange={(e) => setSegEditVal(e.target.value)}
-                    onKeyDown={(e) => { if (e.key === 'Enter') commitSegRename(i); if (e.key === 'Escape') setSegEditIdx(null); }}
-                    style={{ flex: 1, marginRight: 12 }}
-                    aria-label="Renommer le segment"
-                  />
-                  <div style={{ display: 'flex', gap: 8 }}>
-                    <Button size="sm" variant="copper" onClick={() => commitSegRename(i)}>Valider</Button>
-                    <Button size="sm" variant="ghost" onClick={() => setSegEditIdx(null)}>Annuler</Button>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div className="sys-row__label" style={{ fontFamily: 'var(--font-serif)', fontSize: 16, color: 'var(--color-indigo)' }}>{s}</div>
-                  <div style={{ display: 'flex', gap: 8 }}>
-                    <Button size="sm" variant="ghost" onClick={() => { setSegEditIdx(i); setSegEditVal(s); }}>Renommer</Button>
-                    <Button size="sm" variant="ghost" style={{ color: 'var(--copper-700)' }} onClick={() => removeSeg(i, s)}>Retirer</Button>
-                  </div>
-                </>
-              )}
-            </div>
-          ))}
-          {segments.length === 0 && (
-            <div className="sys-row" style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', color: 'var(--ink-soft)' }}>
-              Aucun segment, ajoutez le premier ci-dessous.
-            </div>
-          )}
-        </div>
-
-        <div className="sys-additem" style={{ display: 'flex', gap: 8, marginTop: 14 }}>
-          <Input
-            value={newSeg}
-            onChange={(e) => setNewSeg(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Enter') addSeg(); }}
-            placeholder="Nouveau segment"
-            style={{ flex: 1 }}
-          />
-          <Button variant="copper" onClick={addSeg} disabled={!newSeg.trim()}>Ajouter</Button>
-        </div>
-      </Card>
-
-      {/* ══ L'ENCAISSEMENT ══════════════════════════════════════════ */}
-      <Intertitre id="fam-encaissement">L’encaissement</Intertitre>
-
-      {/* ---------- Encaissement · modes de paiement ---------- */}
-      <Card className="sys-section" style={{ marginTop: 18 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 4 }}>
-          <div>
-            <div className="sys-section__title">Encaissement · modes de paiement</div>
-            <div className="sys-section__cap">
-              Les moyens de règlement proposés PARTOUT où l’argent se dit : encaissement,
-              Caisse, Factures, Académie, avoirs, prêts, paie du personnel et prestataires.
-              Écris directement dans la ligne : chaque lettre s’enregistre ; ▲▼ règlent l’ordre
-              des boutons à la Caisse. Les pièces déjà encaissées gardent leur libellé.
-            </div>
-          </div>
-          <span className="sys-badge-count">{payMethods.length} mode{payMethods.length > 1 ? 's' : ''}</span>
-        </div>
-
-        <div style={{ display: 'flex', flexDirection: 'column' }}>
-          {payMethods.map((s, i) => (
-            <LigneListe
-              key={i}
-              nom={s}
-              existe={(c) => payMethods.some((x, k) => k !== i && x.trim().toLowerCase() === c.toLowerCase())}
-              premier={i === 0}
-              dernier={i === payMethods.length - 1}
-              renomme={(v) => renommePay(i, v)}
-              bouge={(d) => bougePay(i, d)}
-              retire={() => removePay(i, s)}
-              aria={`Nom du mode de paiement ${i + 1}`}
-            />
-          ))}
-          {payMethods.length === 0 && (
-            <div className="sys-row" style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', color: 'var(--ink-soft)' }}>
-              Aucun mode de paiement, ajoutez le premier ci-dessous.
-            </div>
-          )}
-        </div>
-
-        <div className="sys-additem" style={{ display: 'flex', gap: 8, marginTop: 14 }}>
-          <Input
-            value={newPay}
-            onChange={(e) => setNewPay(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Enter') addPay(); }}
-            placeholder="Nouveau mode"
-            style={{ flex: 1 }}
-          />
-          <Button variant="copper" onClick={addPay} disabled={!newPay.trim()}>Ajouter</Button>
-        </div>
-      </Card>
-
-      {/* Ces deux réglages vivaient perdus dans la carte du rendez-vous — ils
-          parlent de la Caisse et de la Gamme, pas du fauteuil (13 août). */}
-      <Card className="sys-section" style={{ marginTop: 18 }}>
-        <div className="sys-section__title">Devise étrangère & livraison</div>
-        <div className="sys-section__cap">L’exception de la Caisse, et le geste de la Gamme.</div>
-        {/* Exceptionnel, d'où une bascule : on l'ouvre le temps d'une facture,
-            on la referme après. Fermée, la Caisse n'encaisse qu'en {currency}. */}
-        <div className="sys-row">
-          <div>
-            <div className="sys-row__label">Paiement en devise étrangère</div>
-            <div className="sys-row__sub">
-              Ouvre à la Caisse le règlement dans une autre devise que le {currency}, la cliente
-              paie en euros, en dollars… La facture reste en {currency} ; la devise reçue et son
-              taux sont consignés. À refermer une fois la facture réglée.
-            </div>
-          </div>
-          <Toggle on={!!settings.fxEnabled} onToggle={() => setSettings((s) => ({ ...s, fxEnabled: !s.fxEnabled }))} />
-        </div>
-        <div className="sys-row">
-          <div>
-            <div className="sys-row__label">Frais de livraison à domicile</div>
-            <div className="sys-row__sub">Ajoutés en ligne à la commande produits sur Ma Couronne. 0 = livraison offerte.</div>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <input
-              className="sys-select"
-              type="number"
-              min={0}
-              step={500}
-              value={settings.deliveryFeeXof}
-              onChange={(e) => setDeliveryFee(e.target.value)}
-              style={{ width: 96, textAlign: 'right', fontFamily: 'var(--font-serif)' }}
-              aria-label="Frais de livraison à domicile en francs CFA"
-            />
-            <span className="sys-row__value">F</span>
-          </div>
-        </div>
-      </Card>
-
-      {/* MND PAY — 16 octobre 2026 : la caisse qui demande le paiement. */}
-      <CarteMndPay />
-      {/* LES RELANCES DES FACTURES (18 octobre 2026) : leur interrupteur et le rattrapage. */}
-      <CarteRelances />
-
-      {/* ══ L'ÉQUIPE ════════════════════════════════════════════════ */}
-      <Intertitre id="fam-equipe">L’équipe</Intertitre>
-
-      {/* ══ LES TEXTES DE LA MAISON — 6 septembre 2026 ═══════════════
-          « Comment modifier la fiche de poste et le règlement intérieur ? »
-          (Yéman). Ils vivaient dans le code. Ils ont leur écran, ouvert d'ici
-          et depuis Personnel & paie : un écran qu'on ne trouve pas n'existe
-          pas, et celui-ci ne s'ouvre que trois fois par an. */}
-      <Card className="sys-section" style={{ marginTop: 18 }}>
-        <div className="sys-section__title">Les textes de la Maison</div>
-        <div className="sys-section__cap" style={{ maxWidth: 680 }}>
-          Les douze fiches de poste et le règlement intérieur. Une fiche décrit un métier et
-          n’engage personne : elle se corrige quand vous voulez. Le règlement engage et se
-          signe : chaque modification publie une version, et rappelle celles et ceux qui
-          avaient signé la précédente.
-        </div>
-        <div style={{ marginTop: 14 }}>
-          <Button variant="ghost" onClick={() => navigate('/textes')}>Ouvrir les textes</Button>
-        </div>
-      </Card>
-
-      {/* ── LA PREUVE DE PRÉSENCE ───────────────────────────────────
-          Sans elle, le pointage n'est qu'une déclaration : rien n'empêche de
-          l'écrire depuis son lit. La position d'abord — aucun geste quotidien —
-          et le code en secours, parce qu'une journée de travail ne peut pas
-          dépendre d'un satellite. */}
-      <Card className="sys-section" style={{ marginTop: 18 }}>
-        <div className="sys-section__title">Preuve de présence au pointage</div>
-        <div className="sys-section__cap">
-          Sans elle, « Arrivée » est une déclaration que rien ne vérifie. On demande d’abord la
-          position du téléphone ; le code affiché au comptoir prend le relais quand le GPS refuse.
-        </div>
-
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', margin: '14px 0 10px' }}>
-          <button
-            className={`tre-chip ${preuve.exigerPreuve ? '' : 'is-on'}`}
-            onClick={() => setPreuve({ ...preuve, exigerPreuve: false })}
-          >
-            Confiance, aucune vérification
-          </button>
-          <button
-            className={`tre-chip ${preuve.exigerPreuve ? 'is-on' : ''}`}
-            onClick={() => setPreuve({ ...preuve, exigerPreuve: true })}
-          >
-            Vérifier la présence
-          </button>
-        </div>
-
-        {preuve.exigerPreuve && (
-          <>
-            <div className="tr-grid tr-grid--2" style={{ marginTop: 6 }}>
-              <Field label="Position du salon">
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                  <Input
-                    value={preuve.lat !== undefined ? String(preuve.lat) : ''}
-                    onChange={(e) => setPreuve({ ...preuve, lat: Number(e.target.value) || undefined })}
-                    placeholder="latitude"
-                    style={{ width: 118 }}
-                  />
-                  <Input
-                    value={preuve.lng !== undefined ? String(preuve.lng) : ''}
-                    onChange={(e) => setPreuve({ ...preuve, lng: Number(e.target.value) || undefined })}
-                    placeholder="longitude"
-                    style={{ width: 118 }}
-                  />
-                </div>
-                {/* LA POSITION SE CAPTURE DEPUIS LE SALON — saisir des
-                    coordonnées à la main est le meilleur moyen de se tromper
-                    d'un chiffre et de rendre le pointage impossible. */}
-                <button
-                  className="tre-link-btn"
-                  style={{ marginTop: 8 }}
-                  onClick={() => {
-                    if (!navigator.geolocation) { toast('Position indisponible sur cet appareil.'); return; }
-                    navigator.geolocation.getCurrentPosition(
-                      (pos) => {
-                        setPreuve({
-                          ...preuve,
-                          lat: Math.round(pos.coords.latitude * 1e6) / 1e6,
-                          lng: Math.round(pos.coords.longitude * 1e6) / 1e6,
-                        });
-                        toast('Position du salon enregistrée.');
-                      },
-                      () => toast('Position refusée, autorisez-la dans le navigateur.'),
-                      { enableHighAccuracy: true, timeout: 8000 },
-                    );
-                  }}
-                >
-                  Utiliser ma position actuelle, à faire DEPUIS le salon
-                </button>
-              </Field>
-              <Field label="Rayon accepté (mètres)">
-                <Input
-                  inputMode="numeric"
-                  value={String(preuve.rayonM)}
-                  onChange={(e) => setPreuve({ ...preuve, rayonM: Math.max(20, parseInt(e.target.value.replace(/[^0-9]/g, ''), 10) || 150) })}
-                  style={{ width: 110, textAlign: 'right' }}
-                />
-                <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 6, lineHeight: 1.5 }}>
-                  150 m est un bon départ : le GPS hésite de quelques dizaines de mètres en intérieur,
-                  et un rayon trop serré refuserait des gens réellement présents.
-                </div>
-              </Field>
-            </div>
-
-            {/* LE BOUTON DU MATIN A DISPARU le 6 août. Il fallait le presser
-                chaque jour — donc on l'oubliait, et le jour de l'oubli
-                personne ne pouvait plus pointer sans GPS. Une vérification
-                suspendue à un geste humain répété finit toujours par céder. */}
-            <Field label="Code du jour">
-              <div style={{ display: 'flex', alignItems: 'baseline', gap: 14, flexWrap: 'wrap' }}>
-                <span style={{ fontFamily: 'var(--font-serif)', fontSize: 30, letterSpacing: '.22em', color: 'var(--color-indigo)' }}>
-                  {codeAujourdhui || '— — — —'}
-                </span>
-                <button className="tre-link-btn" onClick={() => navigate('/comptoir')}>
-                  Ouvrir l’affichage du comptoir
-                </button>
-              </div>
-              <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 8, lineHeight: 1.55 }}>
-                Il se renouvelle seul chaque jour, rien à presser. Il ne sert qu’à celles et ceux
-                dont le téléphone ne donne pas sa position ; ce qu’il prouve, c’est d’être passé
-                le lire. Pose l’affichage du comptoir sur une tablette au salon, ou recopie ces
-                quatre chiffres à la main.
-              </div>
-              <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 6, lineHeight: 1.55 }}>
-                L’équipe ne le voit jamais dans l’application : un code que le logiciel montre au
-                téléphone qui s’en sert ne prouve plus rien.
-              </div>
-            </Field>
-          </>
         )}
-      </Card>
+      </div>
 
-      <Card className="sys-section" style={{ marginTop: 18 }}>
-        <div className="sys-section__title">Accès ERP du personnel</div>
-        <div className="sys-section__cap">
-          Un membre rejoint le Trône avec son e-mail et son mot de passe, puis un souverain le
-          rattache au personnel depuis Accès &amp; rôles, il entre avec exactement les droits
-          de son rang, rien de plus. C’est là aussi qu’on donne à un maître les départements
-          supplémentaires dont il a besoin : le secrétariat et le fauteuil tiennent sur un seul
-          compte, jamais sur deux.
-        </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 8 }}>
-          {ROLE_DEFS.map((role) => (
-            <div key={role.k} style={{ borderTop: '1px solid var(--hairline)', paddingTop: 14 }}>
-              <div style={{ fontFamily: 'var(--font-serif)', fontSize: 19, color: 'var(--color-indigo)' }}>{role.label}</div>
-              <div className="sys-row__sub">{role.desc}</div>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 10 }}>
-                {DOMAINS.map((dom) => {
-                  const on = role.perms.includes(dom.k);
-                  return (
-                    <span key={dom.k} className={`tre-chip ${on ? 'is-on' : ''}`} style={{ cursor: 'default', opacity: on ? 1 : 0.55 }}>
-                      {dom.l}
-                    </span>
-                  );
-                })}
-              </div>
-            </div>
-          ))}
-        </div>
-      </Card>
-
-      {/* ══ NOTIFICATIONS & AUTOMATISATIONS ═════════════════════════ */}
-      <Intertitre id="fam-notifs">Notifications & automatisations</Intertitre>
-
-      <Card className="sys-section" style={{ marginTop: 18 }}>
-        <div className="sys-section__title" style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-          Notifications <AVenir />
-        </div>
-        <div className="sys-section__cap">
-          Qui sera prévenu, et quand, pas encore relié : les seules alertes réelles sont la
-          cloche du Trône et les notifications de Ma Couronne.
-        </div>
-        <ToggleRows rows={NOTIF_TOGGLES} aVenir />
-      </Card>
-
-      {/* ---------- Automatisations · IA ---------- */}
-      <Card className="sys-section" style={{ marginTop: 18 }}>
-        <div className="sys-section__title">Automatisations · informations pour l’IA</div>
-        <div className="sys-section__cap" style={{ maxWidth: 640 }}>
-          Renseignez les liens et le texte utilisés par les messages automatiques (rappels, relances,
-          invitations). Le Trône les insère tels quels dans les envois WhatsApp et SMS.
-        </div>
-        <div className="tr-grid tr-grid--2" style={{ marginTop: 8 }}>
-          <label className="mnd-field">
-            <span className="mnd-field__label">Lien de paiement Mobile Money</span>
-            <Input value={autoCfg.momoLink} onChange={(e) => setAuto('momoLink', e.target.value)} />
-          </label>
-          <label className="mnd-field">
-            <span className="mnd-field__label">Lien Google Maps (itinéraire)</span>
-            <Input value={autoCfg.mapsLink} onChange={(e) => setAuto('mapsLink', e.target.value)} />
-          </label>
-          <label className="mnd-field" style={{ gridColumn: '1 / -1' }}>
-            <span className="mnd-field__label">Lien Google Avis</span>
-            <Input value={autoCfg.reviewLink} onChange={(e) => setAuto('reviewLink', e.target.value)} />
-          </label>
-          {/* L'AVIS SANS MAIN (19 août 2026) : son interrupteur a quitté cet
-              écran le 27 octobre 2026 (restes du lot 3 de l'Assistant Maison).
-              Les voix qui écrivent seules s'allument à UN endroit : Assistant
-              Maison › Ce que ça rapporte › « Qui écrit seul », qui écrit la
-              même clé (`mnd_auto_config.avisAuto`). Ici, l'état seul se lit. */}
-          <div style={{ gridColumn: '1 / -1', fontSize: 12, lineHeight: 1.5 }} className="mnd-muted">
-            Demande d’avis sans main : <b>{autoCfgRaw.avisAuto === true ? 'allumée' : 'éteinte'}</b>.
-            {' '}Elle s’allume et s’éteint dans <Link to="/gerard?vue=rapporte">Assistant Maison › Ce que ça rapporte › Qui écrit seul</Link>.
-          </div>
-          <label className="mnd-field" style={{ gridColumn: '1 / -1' }}>
-            <span className="mnd-field__label">Itinéraire · texte libre</span>
-            <Textarea rows={2} value={autoCfg.itineraire} onChange={(e) => setAuto('itineraire', e.target.value)} />
-          </label>
-        </div>
-        <div style={{ marginTop: 4 }}>
-          <Eyebrow>Insérés tels quels dans chaque envoi automatique</Eyebrow>
-        </div>
-
-        {/* ── LE QR MARCHAND MoMo ──────────────────────────────────
-            Le « lien de paiement » de la Maison n'est pas un lien : c'est le
-            QR du compte marchand MTN, décodé du document officiel
-            (« Scannez et payez ») puis REDESSINÉ par le moteur QR de la
-            maison — même donnée, même lecture au scan, mais net à toutes les
-            tailles et jamais dépendant d'une capture d'écran. */}
-        <div style={{ borderTop: '1px solid var(--hairline)', marginTop: 16, paddingTop: 14 }}>
-          <div style={{ fontFamily: 'var(--font-serif)', fontSize: 17, color: 'var(--color-indigo)' }}>
-            Paiement Mobile Money · le QR de la Maison
-          </div>
-          <div className="mnd-muted" style={{ fontSize: 12, marginTop: 2, lineHeight: 1.5, maxWidth: 640 }}>
-            Le code du compte marchand MTN MoMo, redessiné par la maison, la même donnée que
-            l’affiche « Scannez et payez ». Montre-le à l’écran quand une cliente règle en MoMo ;
-            le code USSD est le chemin sans appareil photo.
-          </div>
-
-          <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap', alignItems: 'flex-start', marginTop: 14 }}>
-            <div style={{ border: '1px solid var(--hairline)', borderRadius: 4, padding: '12px 14px' }}>
-              <QrSvg valeur={autoCfg.momoQr || MOMO_QR_DEFAUT} style={{ width: 148, height: 148, display: 'block' }} />
-              <div style={{ textAlign: 'center', marginTop: 8, fontFamily: 'var(--font-serif)', fontSize: 16, color: 'var(--color-indigo)' }}>
-                {autoCfg.momoMarchand}
-              </div>
-              <div className="mnd-muted" style={{ textAlign: 'center', fontSize: 11.5, marginTop: 2 }}>
-                {autoCfg.momoUssd}
-              </div>
-            </div>
-
-            <div style={{ flex: 1, minWidth: 240, display: 'flex', flexDirection: 'column', gap: 10 }}>
-              <label className="mnd-field">
-                <span className="mnd-field__label">Nom affiché, compte marchand</span>
-                <Input value={autoCfg.momoMarchand ?? ''} onChange={(e) => setAuto('momoMarchand', e.target.value)} />
-              </label>
-              <label className="mnd-field">
-                <span className="mnd-field__label">Code USSD, sans appareil photo</span>
-                <Input value={autoCfg.momoUssd ?? ''} onChange={(e) => setAuto('momoUssd', e.target.value)} />
-              </label>
-              <label className="mnd-field">
-                <span className="mnd-field__label">Donnée du QR, identifiant marchand</span>
-                <Input value={autoCfg.momoQr ?? ''} onChange={(e) => setAuto('momoQr', e.target.value)} />
-              </label>
-              <div className="mnd-muted" style={{ fontSize: 11.5, lineHeight: 1.55 }}>
-                Dans le code USSD, « montant » se remplace par la somme en francs, 15 000 F se
-                compose *880*41*909099*15000#. Ne touche à la donnée du QR que si MTN te remet
-                un nouveau document marchand.
-              </div>
-            </div>
-          </div>
-        </div>
-      </Card>
-
-      {/* ══ LA MAISON RÉPOND SUR WHATSAPP · 9 octobre 2026 ═══════════ */}
-      <LaMaisonRepondSurWhatsApp
-        brut={autoCfgRaw.automateWa}
-        ecris={(r) => setAutoCfgRaw({ ...autoCfg, automateWa: r })}
-      />
-      <LAssistantRepondEnPhrases />
-      {/* LE DIAGNOSTIC PHOTO (19 octobre 2026) : l'interrupteur et la table « à valider », direction seule. */}
-      <CarteDiagnosticPhoto />
-
-      {/* ══ LES DONNÉES ═════════════════════════════════════════════
-          Ce qu'on garde et ce qu'on emporte. Le destructif est plus bas, et
-          séparé : on ne cherche pas un export en frôlant « réinitialiser toute
-          la Maison ». */}
-      <Intertitre id="fam-donnees">Les données</Intertitre>
-
-      <Card className="sys-section" style={{ marginTop: 18 }}>
-        <div className="sys-section__title" style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-          Accès & souveraineté <AVenir />
-        </div>
-        <div className="sys-section__cap">
-          La Maison reste maîtresse de ses données, ces bascules ne sont pas encore reliées ;
-          la vraie sauvegarde est la carte « Sauvegarde de la Maison » ci-dessous.
-        </div>
-        <ToggleRows rows={ACCES_TOGGLES} aVenir />
-        <FieldRowView l="Hébergement des données" v="Souverain · Afrique de l’Ouest" />
-      </Card>
-
-      {/* ---------- Sauvegarde de la Maison ---------- */}
-      <SauvegardeCard />
-
-      {/* ══ CET APPAREIL ════════════════════════════════════════════
-          Ce que CE poste peut encore écrire, et ce qui pèse dessus. Rangés
-          sous « Sauvegarde », les deux ne s'annonçaient nulle part : on les
-          découvrait en défilant, le jour où le navigateur avait déjà refusé
-          d'écrire. */}
-      <Intertitre id="fam-appareil">Cet appareil</Intertitre>
-
-      <CetAppareil />
-      <LePoidsDesPhotos toast={toast} />
-
-      {/* ══ ZONES SENSIBLES ═════════════════════════════════════════
+      {/* ══ SAUVEGARDE ET ZONES SENSIBLES ═══════════════════════════════
           À LA FIN, délibérément : on ne croise pas « réinitialiser toute la
-          Maison » en cherchant un horaire. Qui vient ici vient pour ça. */}
-      <Intertitre id="fam-sensible">Zones sensibles</Intertitre>
+          Maison » en cherchant un horaire. Et ce qui efface ne se montre
+          qu'au mot EFFACER, écrit en entier (29 octobre 2026). */}
+      <div className="prm-repli">
+        <button
+          type="button"
+          className="prm-repli__tete"
+          aria-expanded={sensiblesOuvert}
+          onClick={() => setSensiblesOuvert(!sensiblesOuvert)}
+        >
+          <span>Sauvegarde et zones sensibles</span>
+          <span className="prm-repli__geste">{sensiblesOuvert ? 'Fermer' : 'Ouvrir'}</span>
+        </button>
+        {sensiblesOuvert && (
+          <div className="prm-repli__corps">
+            <SauvegardeCard deverrouille={deverrouille} />
 
-      {/* ---------- Zone sensible — annuler les encaissements ---------- */}
-      <ResetEncaissementsCard />
+            <div className="prm-verrou">
+              <div className="prm-verrou__titre">Ce qui efface</div>
+              <p>
+                Mettre à jour ou remplacer la Maison depuis un fichier, annuler les encaissements,
+                vider les rendez-vous, tout réinitialiser. Exportez d’abord une sauvegarde. Pour
+                montrer ces gestes, écrivez <b>{MOT_DU_VERROU}</b>.
+              </p>
+              <div className="prm-verrou__ligne">
+                <Input
+                  value={mot}
+                  onChange={(e) => setMot(e.target.value)}
+                  placeholder={MOT_DU_VERROU}
+                  aria-label={`Écrire ${MOT_DU_VERROU} pour montrer ce qui efface`}
+                  autoComplete="off"
+                  spellCheck={false}
+                  style={{ width: 160 }}
+                />
+                {deverrouille && <Button variant="ghost" onClick={() => setMot('')}>Reverrouiller</Button>}
+              </div>
+            </div>
 
-      {/* ---------- Zone sensible — vider tous les rendez-vous ---------- */}
-      <ViderRdvCard />
+            {deverrouille && (
+              <>
+                {/* ---------- Zone sensible — annuler les encaissements ---------- */}
+                <ResetEncaissementsCard />
 
-      {/* ---------- Zone critique — réinitialiser toute la Maison ---------- */}
-      <FactoryResetCard />
+                {/* ---------- Zone sensible — vider tous les rendez-vous ---------- */}
+                <ViderRdvCard />
+
+                {/* ---------- Zone critique — réinitialiser toute la Maison ---------- */}
+                <FactoryResetCard />
+              </>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

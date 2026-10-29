@@ -134,7 +134,7 @@ t = await texte();
 dit('une facture d avant le lancement, non rattrapée, ne montre rien', !/Relances sur WhatsApp|RELANCES SUR WHATSAPP/.test(t));
 
 /* ── B. PARAMÈTRES › RELANCES ── */
-await ouvre('/parametres', 7000);
+await ouvre('/parametres?ouvre=paiements', 7000);
 t = await texte();
 dit('la carte dit le lancement', /Allumées depuis le \S+ \d{1,2} \S+ \d{4}/.test(t), t.match(/Allumées depuis le [^:]*/)?.[0]);
 dit('le rattrapage liste la facture des trente jours d avant, pas celle d il y a quarante jours, pas celle du lancement',

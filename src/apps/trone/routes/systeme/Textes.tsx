@@ -1,4 +1,5 @@
 import { useMemo, useState, type ReactNode } from 'react';
+import { Link } from 'react-router-dom';
 import { TexteFon } from '../../../../ds/fon';
 import { PageHead } from '../_ui';
 import { Button, Card, Modal, toast, demande } from '../../../../ds/components';
@@ -1085,27 +1086,30 @@ function OngletContrats() {
    papier. Un champ qu'on règle sans savoir ce qu'il imprime se règle à
    l'aveugle, et l'on découvre l'erreur sur un contrat déjà signé. */
 function OngletIdentite() {
-  const [id, setId] = useHouseIdentity();
+  const [id] = useHouseIdentity();
 
   return (
     <div>
+      {/* UN RÉGLAGE, UN SEUL ENDROIT (29 octobre 2026, refonte des Paramètres) :
+          l'identité se modifie dans Paramètres › Rarement › Identité ; ici, on la
+          lit à l'endroit où l'on écrit les textes, avec ce qu'elle imprime. */}
       <div className="txt-garde">
-        <u>Le même réglage qu’à Paramètres · La Maison</u>
-        Ce ne sont pas deux identités : c’est le même champ, montré ici à l’endroit où l’on écrit
-        les textes, avec ce qu’il imprime. Le modifier ici le modifie partout, à la frappe.
+        <u>Le même réglage qu’à Paramètres › Rarement › Identité</u>
+        Ce ne sont pas deux identités : c’est le même champ, montré ici avec ce qu’il imprime.
+        Il se modifie à un seul endroit : <Link to="/parametres?ouvre=identite">ouvrir l’identité dans les Paramètres</Link>.
       </div>
 
       <div className="txt-identite">
         <label className="txt-nombre">
           <span className="txt-rub__t">Le nom de la Maison</span>
-          <input className="mnd-input" value={id.nom} onChange={(e) => setId({ ...id, nom: e.target.value })} />
+          <input className="mnd-input" value={id.nom} readOnly aria-readonly="true" title="Se modifie dans Paramètres › Rarement › Identité" />
           <span className="txt-rub__aide">
             En tête de chaque contrat, sur les factures, les reçus, et au centre du tampon.
           </span>
         </label>
         <label className="txt-nombre">
           <span className="txt-rub__t">La raison sociale</span>
-          <input className="mnd-input" value={id.raison} onChange={(e) => setId({ ...id, raison: e.target.value })} />
+          <input className="mnd-input" value={id.raison} readOnly aria-readonly="true" title="Se modifie dans Paramètres › Rarement › Identité" />
           <span className="txt-rub__aide">
             La ligne légale, RCCM et IFU compris. Elle nomme la partie qui s’engage dans « entre les
             parties » : sans elle, un contrat ne dit pas sous quel registre la Maison s’engage.
@@ -1113,7 +1117,7 @@ function OngletIdentite() {
         </label>
         <label className="txt-nombre">
           <span className="txt-rub__t">La ville du siège</span>
-          <input className="mnd-input" value={id.ville} onChange={(e) => setId({ ...id, ville: e.target.value })} />
+          <input className="mnd-input" value={id.ville} readOnly aria-readonly="true" title="Se modifie dans Paramètres › Rarement › Identité" />
           <span className="txt-rub__aide">
             Celle qui signe le tampon. Distincte de la branche : l’atelier est à Suru-Léré, la
             Maison signe Cotonou. Un tampon porte un siège, pas l’adresse du fauteuil.
