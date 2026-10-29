@@ -9,7 +9,7 @@ import {
   intentionDeReserver, jourDitAvecAnnee, quiParle, motsReconnus, civiliteLue, prenomLu, renvoieAUnRdv, uneQuestionAutre,
   conseilDeLaMaison, fautesDeLaReponse, texteDeLaReponse, type ConseilDeLaMaison,
   jugeLaParole, reglageDeLaReception, laReceptionPeutParler, reponseDeLaReception, tourPourLeParcours, prefaceDeLaReception, secoursDeLaReception,
-  demandeLeCheminWa,
+  demandeLeCheminWa, prestationsDitesWa,
   type AgendaDuTour, type ContexteDuTour, type EtatDuFil, type FicheDuNumero, type MessageSortant,
   type PrestationDuTour, type ReglageDeLAutomate, type SortieDuTour, type MainDuFil, type VerdictDeLaPose,
   type TiroirDuNumero, type EcritureDuTour,
@@ -1526,7 +1526,7 @@ const regles: Regle[] = [
       { nom: 'une date sans son annee', mute: [P(AUTO, '${MOIS_LONGS_WA[d.getUTCMonth()]} ${d.getUTCFullYear()}`', '${MOIS_LONGS_WA[d.getUTCMonth()]}`')] },
       { nom: 'la devise sur tous les textes', mute: [P(AUTO, "  const texte = (etape: EtapeDuFil, corps: string): MessageSortant => ({ forme: 'texte', etape, corps: propre(corps) });", "  const texte = (etape: EtapeDuFil, corps: string): MessageSortant => ({ forme: 'texte', etape, corps: [propre(corps), DEVISE].join(' ') });")] },
       { nom: 'un titre de place trop long', mute: [P(AUTO, '  if (a.length <= 24) return a;', '  return a;')] },
-      { nom: 'l itineraire part sans les juges', mute: [P(AUTO, "        itineraire && texteSain(itineraire).length === 0 ? coupeWa(itineraire, 600) : '',", "        itineraire ? coupeWa(itineraire, 600) : '',")] },
+      { nom: 'le plan signe la confirmation a sa place (accessoire perdu)', mute: [P(AUTO, "{ forme: 'image', etape: 'confirme', corps: '', image: PLAN_POUR_VENIR, accessoire: true },", "{ forme: 'image', etape: 'confirme', corps: '', image: PLAN_POUR_VENIR },")] },
       { nom: 'le juge ne voit plus le tiret cadratin', mute: [P(AUTO, "  if (s.includes(String.fromCharCode(0x2014))) fautes.push('un tiret cadratin');", '')] },
     ],
   },
@@ -1879,7 +1879,7 @@ const regles: Regle[] = [
       { nom: 'l en-tete oublie que Pas de robot a change', mute: [P(F_HOOK, '   « PAS DE ROBOT » A VALU JUSQU\'À CE JOUR. Depuis, pour les CLIENTES', '   Depuis, pour les CLIENTES')] },
       { nom: 'l en-tete ne dit plus que l annulation n est jamais automatique', mute: [P(F_HOOK, "     · L'ANNULATION N'EST JAMAIS AUTOMATIQUE : elle se transmet à l'équipe ;\n", '')] },
       /* Le webhook dit sa version du jour (2026-10-27-a, l'Assistant Maison entend) : la panne la recule avant le 9 octobre. */
-      { nom: 'la version du webhook n est pas celle du 9 octobre', mute: [P(F_HOOK, "const VERSION = '2026-10-27-", "const VERSION = '2026-10-08-")] },
+      { nom: 'la version du webhook n est pas celle du 9 octobre', mute: [P(F_HOOK, "const VERSION = '2026-10-28-", "const VERSION = '2026-10-08-")] },
     ],
   },
 
@@ -2656,7 +2656,7 @@ const regles: Regle[] = [
       return ecarts;
     },
     pannes: [
-      { nom: 'le lien Google Maps ne part pas', mute: [P(AUTO, '        ligneGoogleMapsWa(lienMapsWa(ctx.maison.carte)),\n', '')] },
+      { nom: 'le lien pour venir ne part pas', mute: [P(AUTO, "        ...(lienPourVenir ? [{ ...texte('confirme', lienPourVenir), accessoire: true }] : []),\n", '')] },
       { nom: 'le parametre de partage reste', mute: [P(AUTO, "      if (!u.searchParams.has('g_st')) return brut;", '      return brut;')] },
       { nom: 'un lien etranger passe', mute: [P(AUTO, '    if (!google.test(brut)) continue;', '    if (!brut) continue;')] },
       { nom: 'la fonction ignore le lien de la branche', mute: [P(F_AUTO, 'const carte = lienMapsWa(agenda?.lignes.branche.data?.mapsUrl, maison.carte);', 'const carte = lienMapsWa(maison.carte);')] },
@@ -2943,7 +2943,7 @@ const regles: Regle[] = [
       { nom: 'merci relance', mute: [P(AUTO, "      return silence();\n    }\n    /* UNE QUESTION QUI N'EST PAS", "      return ecart();\n    }\n    /* UNE QUESTION QUI N'EST PAS")] },
       { nom: 'le juge de la fonction oublie le catalogue', mute: [P(F_AUTO, 'texteSain(toutLeTexteWa(m), m.prixDuCatalogue === true)', 'texteSain(toutLeTexteWa(m))')] },
       { nom: 'la trace oublie la reponse', mute: [P(F_AUTO, '      ...(o.m.reponseId ? { reponse: o.m.reponseId } : {}),\n', '')] },
-      { nom: 'la fonction ne lit pas le conseil', mute: [P(F_AUTO, "'mnd_house_identity', 'mnd_reponses_maison', 'mnd_assistant_wa']", "'mnd_house_identity', 'mnd_assistant_wa']")] },
+      { nom: 'la fonction ne lit pas le conseil', mute: [P(F_AUTO, "'mnd_house_identity', 'mnd_reponses_maison', 'mnd_assistant_wa', 'mnd_tri_des_messages']", "'mnd_house_identity', 'mnd_assistant_wa', 'mnd_tri_des_messages']")] },
     ],
   },
   /* ══ R42 · au Trône : les brouillons, la validation de la direction, 14 octobre 2026 ═══ */
@@ -3143,6 +3143,59 @@ const regles: Regle[] = [
       { nom: 'une adresse e-mail se lit comme un chemin', mute: [P(AUTO, "(?!\\p{L})(?! ?(?:e-?mail|mail|courriel|[ée]lectronique))/u,", '(?!\\p{L})/u,')] },
       { nom: 'ou se lit avec un bord d ASCII et rate', mute: [P(AUTO, "    /(?<!\\p{L})(?:vous [êe]tes|c'est|la maison est|se trouve)(?: situ[ée]e?s?)? o[uù](?!\\p{L})/u,", "    /\\b(?:vous [êe]tes|c'est|la maison est|se trouve)(?: situ[ée]e?s?)? o[uù]\\b/,")] },
       { nom: 'la fonction ignore la suite venir', mute: [P(F_AUTO, "const SUITES_CONNUES = ['rien', 'reserver', 'creation', 'reparation', 'calibre', 'equipe', 'venir'];", "const SUITES_CONNUES = ['rien', 'reserver', 'creation', 'reparation', 'calibre', 'equipe'];")] },
+    ],
+  },
+
+  /* ══ R46 · le service qu'elle nomme, 30 octobre 2026 ══════════════════
+     L'essai de Yéman, à 0 h 06 : « Prend moi RDV pour demain 8h30 pour un
+     shampoing » ; l'automate a répondu par sa dernière venue (une coiffure),
+     « Souhaitez-vous la même chose ? ». « Il faut absolument qu'il puisse
+     lire et reconnaître les services du catalogue. » */
+  {
+    id: 'R46', nom: 'R46 le service nomme : un shampoing ouvre les lavages avant la meme chose (sauf s il etait dans sa derniere venue), l heure dite entoure les places, la reception garde ses mots',
+    eprouve: () => {
+      const { ecarts, vaut, vrai } = juge();
+      const t0 = cotonou('2026-10-30', '00:06');
+      const LAVAGES = ['plt-05', 'klk-int', 'klk-souffle'];
+      vaut('les gestes nommes : un shampoing, des racines, rien', [LAVAGES, ['sinsin-ess', 'sinsin-reprise'], [], []], [
+        prestationsDitesWa('Prend moi RDV pour demain 8h30 pour un shampoing', PRESTATIONS),
+        prestationsDitesWa('Je voudrais refaire mes racines', PRESTATIONS),
+        prestationsDitesWa('Je voudrais un rendez-vous samedi', PRESTATIONS),
+        prestationsDitesWa('Merci beaucoup pour hier', PRESTATIONS),
+      ]);
+      vaut('l heure dite : 8h30, a 15 h, ni 48h, ni 5h, ni une heure niee', ['08:30', '15:00', undefined, undefined, undefined], [
+        motsReconnus('Prend moi RDV pour demain 8h30', t0).heure, motsReconnus('samedi à 15 h', t0).heure,
+        motsReconnus('je reponds sous 48h', t0).heure, motsReconnus('il est 5h, je dors encore', t0).heure, motsReconnus('demain mais pas à 9h', t0).heure]);
+      const FIFI: FicheDuNumero = { ...NAFFI, derniereVenue: { date: '2026-10-25', serviceIds: ['dandan-soin'] } };
+      const p = parcours(ORIGINAL, NUM_NAFFI, [FIFI]);
+      const s1 = elle(p, t0, { texte: 'Prend moi RDV pour demain 8h30 pour un shampoing' });
+      vaut('un shampoing apres une hydratation : les lavages, pas la meme chose', ['liste', 'rituel', 'Bonsoir Mme Naffi, merci de votre message. Pour votre lavage, quel rituel souhaitez-vous ?'],
+        [s1.messages[0]?.forme, s1.etat.etape, s1.messages[0]?.corps]);
+      vaut('... chaque lavage du catalogue, Kids et produit apporte ecartes', LAVAGES, (s1.etat.panier.rituels ?? []).map((ids) => ids[0]));
+      elle(p, t0 + 30000, { touche: (s1.messages[0]?.lignes ?? [])[0]?.titre ?? '' });
+      const s3 = elle(p, t0 + 60000, { touche: 'Non' });
+      vaut('... et les places entourent demain 8 h 30', [true, 'Sam. 31 oct. 2026 · 9 h'],
+        [/^Voici les places les plus proches de demain à 8 h 30, Mme Naffi\.$/.test(s3.messages[0]?.corps ?? ''), s3.messages[0]?.lignes?.[0]?.titre]);
+      const q = parcours(ORIGINAL, NUM_NAFFI, [NAFFI]);
+      const m = elle(q, t0, { texte: 'Prend moi RDV pour demain 8h30 pour un shampoing' });
+      vaut('un shampoing quand sa derniere venue avait un lavage : la meme chose reste la question', 'meme', m.etat.etape);
+      const r = parcours(ORIGINAL, NUM_NAFFI, [FIFI]);
+      const ctx = ctxDe(r, t0);
+      const tour = tourDeLaCliente([{ waId: 'wamid.shp', quand: isoDe(t0), texte: 'Bonsoir, je voudrais un shampoing samedi', type: 'text', sens: 'entrant' }], []);
+      const viaReception = etapeSuivante(null, tourPourLeParcours(tour), ctx);
+      vaut('ouvert par la reception : ses mots a elle comptent encore (le lavage, samedi)', ['rituel', 'samedi'], [viaReception.etat.etape, viaReception.etat.panier.jourVoulu]);
+      const inconnue = parcours(ORIGINAL, '22997000111', []);
+      const i1 = elle(inconnue, t0, { texte: 'Je veux un shampoing' });
+      vrai('une inconnue qui nomme un shampoing voit les lavages', i1.etat.etape === 'rituel' && /^Bonsoir, merci de votre message\. Pour votre lavage, quel rituel souhaitez-vous \?$/.test(i1.messages[0]?.corps ?? ''), i1.messages[0]?.corps);
+      return ecarts;
+    },
+    pannes: [
+      { nom: 'les gestes nommes sont ignores', mute: [P(AUTO, '    return dire(msgDits(avecSalut) ?? msgMeme(false, avecSalut) ?? msgBesoin(false, avecSalut));', '    return dire(msgMeme(false, avecSalut) ?? msgBesoin(false, avecSalut));')] },
+      { nom: 'shampoing ne se lit plus', mute: [P(AUTO, '(?:shampo+ings?|shampoo|lavages?|laver|kloklo)', '(?:lavages?|laver|kloklo)')] },
+      { nom: 'l heure dite est oubliee', mute: [P(AUTO, '    const voulue = o.proche ? null : placeVoulue(offertes);', '    const voulue = o.proche ? null : null;')] },
+      { nom: 'la reception perd ses mots', mute: [P(AUTO, 'texteDOrigine: tour.texte, ', '')] },
+      { nom: 'ce qui etait dans sa venue ne propose plus la meme chose', mute: [P(AUTO, '    if (v && dits.some(([id]) => v.serviceIds.includes(id) || siennes.has(marqueDe(id)))) return null;\n', '')] },
+      { nom: 'une heure hors de la journee se lit', mute: [P(AUTO, '    if (n < 7 || n > 21 || nieLeMotWa(t, debut, debut + h[0].length)) continue;', '    if (nieLeMotWa(t, debut, debut + h[0].length)) continue;')] },
     ],
   },
 ];

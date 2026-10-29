@@ -88,7 +88,7 @@ import { createClient, type SupabaseClient } from 'npm:@supabase/supabase-js@2';
 
 /** LA VERSION DE CE FICHIER, dite par le contrôle de santé. Sans elle on ne
     sait pas quel code tourne vraiment. À incrémenter à chaque déploiement. */
-const VERSION = '2026-10-30-a · le plan pour venir, aussi quand elle demande le chemin';
+const VERSION = '2026-10-30-b · le chemin, et le service nommé';
 
 /** « En train d'écrire », puis on attend : deux messages envoyés coup sur
     coup font un seul tour, celui du dernier. */
@@ -1073,6 +1073,11 @@ type PanierDuFil = {
       ses places ne sont plus proposées, tant qu'il en reste d'autres. */
   jourEvite?: string;
   moment?: 'matin' | 'apres-midi';
+  /** L'heure qu'elle a dite (HH:MM) : les places proposées l'entourent. */
+  heureVoulue?: string;
+  /** Les gestes du catalogue qu'elle a nommés dans son premier message
+      (« un shampoing ») : ils passent avant « la même chose ». */
+  dits?: string[][];
   /** Le jour touché dans « Un autre jour ». */
   jourChoisi?: string;
   /** Les rituels ou consultations proposés, dans l'ordre de la liste. */
@@ -1363,6 +1368,8 @@ type MotsDuTour = {
   /** Le jour qu'elle écarte : « pas samedi », « samedi je ne peux pas ». */
   jourEvite?: string;
   moment?: 'matin' | 'apres-midi';
+  /** L'heure qu'elle dit (« demain 8h30 ») : HH:MM. */
+  heure?: string;
   annuler: boolean;
   /** Décaler, reporter, déplacer, changer d'heure : jamais fait seul. */
   deplacer: boolean;
@@ -1404,11 +1411,22 @@ function motsReconnus(texte: string, maintenantMs: number): MotsDuTour {
   }
   /* « Pas le matin » : l'après-midi, donc. */
   if (!moment && momentEvite) moment = momentEvite === 'matin' ? 'apres-midi' : 'matin';
+  /* L'HEURE QU'ELLE DIT (30 octobre 2026) : « demain 8h30 », « à 15 h ».
+     Hors des heures d'une journée (une durée, « 48h ») : rien. */
+  let heure: string | undefined;
+  for (const h of t.matchAll(/(?<![\d:])([01]?\d|2[0-3]) ?h(?:eures?)? ?([0-5]\d)?(?!\d)/g)) {
+    const n = Number(h[1]);
+    const debut = h.index ?? 0;
+    if (n < 7 || n > 21 || nieLeMotWa(t, debut, debut + h[0].length)) continue;
+    heure = `${String(n).padStart(2, '0')}:${h[2] ?? '00'}`;
+    break;
+  }
   return {
     jourMeme: ditAujourdhui && !jourVoulu,
     ...(jourVoulu ? { jourVoulu } : {}),
     ...(jourEvite ? { jourEvite } : {}),
     ...(moment ? { moment } : {}),
+    ...(heure ? { heure } : {}),
     annuler: /\bannul/.test(t),
     deplacer: /\b(decal|report|deplac)/.test(t) || /\bchanger (de |mon |le |la |l'|d')?(rendez|rdv|heure|jour|date|creneau)/.test(t),
     prix: /\b(prix|combien|cout|coute|coutent|couter|tarif|tarifs|fcfa|cfa|montant)\b/.test(t),
@@ -1491,6 +1509,9 @@ type TourDeLaCliente = {
   media: boolean;
   /** Le parcours ouvert par la réception : son mot a déjà salué. */
   deLaReception?: boolean;
+  /** Ses mots à elle, quand la réception a ouvert le parcours : le jour,
+      l'heure et la prestation qu'elle a nommés s'y lisent encore. */
+  texteDOrigine?: string;
 };
 
 const MEDIAS_WA = ['image', 'audio', 'video', 'document', 'sticker', 'location', 'contacts'];
@@ -2337,6 +2358,34 @@ function demandeLeCheminWa(texte: string): boolean {
   ].some((r) => r.test(t));
 }
 
+/** LES GESTES QU'ELLE NOMME (30 octobre 2026, Yéman : « Je veux un
+    shampoing », et l'automate lui proposait sa coiffure de la dernière
+    fois ; « il faut absolument qu'il puisse lire et reconnaître les services
+    du catalogue et comprendre le besoin du client »). Ses mots désignent une
+    famille du catalogue par sa marque (un shampoing : KLƆKLƆ), ou un mot que
+    le nom porte (coiffure, tresses, nattes, vanilles, manucure, pédicure).
+    Rien de reconnu : aucun. */
+const MOTS_DES_GESTES_WA: Readonly<Record<string, RegExp>> = {
+  'KLƆKLƆ': /(?<!\p{L})(?:shampo+ings?|shampoo|lavages?|laver|kloklo)(?!\p{L})/u,
+  'SÍNSIN': /(?<!\p{L})(?:resserrages?|resserrer|retwists?|racines|sinsin)(?!\p{L})/u,
+  'DÀNDÀN': /(?<!\p{L})(?:hydratation|hydrater|dandan)(?!\p{L})/u,
+  'WÈWÈ': /(?<!\p{L})(?:purification|detox|wewe)(?!\p{L})/u,
+  'VÍVÍVÓ': /(?<!\p{L})(?:activateur|vivivo)(?!\p{L})/u,
+  'GBÌGBÌ': /(?<!\p{L})(?:reconstruction|renfort|gbigbi)(?!\p{L})/u,
+  'YÈKPÈ': /(?<!\p{L})(?:couleur|coloration|yekpe)(?!\p{L})/u,
+};
+const MOTS_DANS_LE_NOM_WA: readonly string[] = ['coiffure', 'tresse', 'natte', 'vanille', 'manucure', 'pedicure'];
+
+function prestationsDitesWa(texte: string, prestations: readonly { id: string; name: string }[]): string[] {
+  const t = sansAccentsWa(texte);
+  if (!t) return [];
+  const marques = new Set(Object.keys(MOTS_DES_GESTES_WA).filter((m) => MOTS_DES_GESTES_WA[m].test(t)));
+  const mots = MOTS_DANS_LE_NOM_WA.filter((m) => new RegExp(`(?<!\\p{L})${m}s?(?!\\p{L})`, 'u').test(t));
+  if (marques.size === 0 && mots.length === 0) return [];
+  return prestations.filter((s) => marques.has(litLaMarqueWa(s.name).marque)
+    || mots.some((m) => new RegExp(`(?<!\\p{L})${m}`, 'u').test(sansAccentsWa(s.name)))).map((s) => s.id);
+}
+
 /** La consultation nommée dans une phrase : « la consultation Origine
     (KÒKÒ™ Origine) » ; sans mot français, « le Conseil et diagnostic ». */
 const laConsultationDiteWa = (nom: string): string => {
@@ -2412,6 +2461,12 @@ function atelierDuTour(ancien: EtatDuFil | null | undefined, tour: TourDeLaClien
     !!s && s.reservable && (estUneConsultation(s, cats) || (!exigeConsultation(s, cats) && priceModeOf(s) !== 'devis'));
   const directe = (s: PrestationDuTour | undefined): boolean => reservableWa(s) && !estUneConsultation(s!, cats);
   const nomsDe = (ids: readonly string[]): string[] => ids.map((id) => prestation(id)?.name ?? '').filter(Boolean);
+  /** CE QU'ELLE A NOMMÉ (30 octobre 2026) : les gestes du catalogue que ses
+      mots désignent, réservables ici, sans les versions Kids ni « avec votre
+      produit » ; huit au plus, comme une liste. */
+  const ditsDuTexte = (texte: string): string[][] =>
+    prestationsDitesWa(texte, (agenda?.prestations ?? []).filter((s) => directe(s) && !/\bkids\b|avec votre produit/i.test(s.name)))
+      .slice(0, 8).map((id) => [id]);
 
   /* ── Qui écrit, et comment on l'appelle ── */
   const fiches = fichesServies(ctx);
@@ -2582,6 +2637,15 @@ function atelierDuTour(ancien: EtatDuFil | null | undefined, tour: TourDeLaClien
     const j = base.panier.jourEvite;
     return !!j && (/^\d{4}-\d{2}-\d{2}$/.test(j) ? p.iso === j : JOURS_LONGS_WA[dowDeIsoWa(p.iso)] === j);
   };
+  /** Le jour et l'heure qu'elle a dits, quand les deux se lisent : un jour
+      de la semaine se cherche parmi les places offertes. */
+  const placeVoulue = (offertes: readonly PlaceLibre[]): PlaceLibre | null => {
+    const h = base.panier.heureVoulue;
+    const j = base.panier.jourVoulu;
+    if (!h || !j || base.panier.jourChoisi) return null;
+    const iso = /^\d{4}-\d{2}-\d{2}$/.test(j) ? j : offertes.find((p) => JOURS_LONGS_WA[dowDeIsoWa(p.iso)] === j)?.iso;
+    return iso ? { iso, heure: h } : null;
+  };
   const preferenceDite = (): string => {
     const j = base.panier.jourVoulu;
     const m = base.panier.moment;
@@ -2608,10 +2672,17 @@ function atelierDuTour(ancien: EtatDuFil | null | undefined, tour: TourDeLaClien
     const offertes = horsEvite.length > 0 ? horsEvite : toutes;
     let sel: PlaceLibre[];
     let intro = o.intro;
-    if (o.proche) {
-      const t0 = tempsDe(o.proche);
+    /* L'HEURE QU'ELLE A DITE (30 octobre 2026, « demain 8h30 ») : les places
+       qui l'entourent, tant qu'elle n'a pas choisi un autre jour. */
+    const voulue = o.proche ? null : placeVoulue(offertes);
+    if (o.proche || voulue) {
+      const t0 = tempsDe(o.proche ?? voulue!);
       sel = [...offertes].sort((a, b) => Math.abs(tempsDe(a) - t0) - Math.abs(tempsDe(b) - t0) || chrono(a, b))
         .slice(0, PLACES_PROPOSEES).sort(chrono);
+      if (voulue) {
+        const jour = voulue.iso === isoPlusJoursWa(aujourdhui, 1) ? 'demain' : `le ${jourDitAvecAnnee(voulue.iso)}`;
+        intro = intro ?? `Voici les places les plus proches de ${jour} à ${heureDite(voulue.heure)}, ${appel()}.`;
+      }
     } else {
       const jour = base.panier.jourChoisi;
       const duJour = jour ? offertes.filter((p) => p.iso === jour) : [];
@@ -2891,19 +2962,49 @@ function atelierDuTour(ancien: EtatDuFil | null | undefined, tour: TourDeLaClien
   };
 
   /* ── Les gestes ── */
+  /** CE QU'ELLE A NOMMÉ PASSE AVANT « LA MÊME CHOSE » (30 octobre 2026) :
+      la liste de ces gestes-là (« Pour votre lavage, quel rituel
+      souhaitez-vous ? »). Ajouter un soin puise ensuite dans les soins du
+      cheveu, jamais un second lavage. */
+  const msgDits = (avecSalut: boolean): MessageSortant | null => {
+    const dits = (base.panier.dits ?? []).filter((ids) => ids.every((id) => directe(prestation(id))));
+    base.panier.dits = undefined;
+    if (dits.length === 0) return null;
+    /* Ce qu'elle nomme était dans sa dernière venue (« pour mes racines »,
+       après un resserrage) : « la même chose » reste la bonne question. */
+    const v = venueReprenable(ficheChoisie());
+    const marqueDe = (id: string): string => litLaMarqueWa(prestation(id)?.name ?? '').marque;
+    const siennes = new Set((v?.serviceIds ?? []).map(marqueDe).filter((x) => !!GESTES_EN_FRANCAIS[x]));
+    if (v && dits.some(([id]) => v.serviceIds.includes(id) || siennes.has(marqueDe(id)))) return null;
+    const m = msgRituel(false, dits);
+    if (!m) return null;
+    base.panier.besoin = 'entretien';
+    base.panier.offerts = [];
+    const marques = [...new Set(dits.map((ids) => litLaMarqueWa(prestation(ids[0])?.name ?? '').marque))];
+    const g = marques.length === 1 ? GESTES_EN_FRANCAIS[marques[0]] : undefined;
+    const question = g ? `Pour votre ${g.court.toLowerCase()}, quel rituel souhaitez-vous` : 'Quel rituel souhaitez-vous';
+    return { ...m, corps: propre(avecSalut ? `${salut()} ${appel()}, merci de votre message. ${question} ?` : `${question}, ${appel()} ?`) };
+  };
+
   const pourLaFiche = (f: FicheDuNumero, avecSalut: boolean): SortieDuTour => {
     base.panier.clientId = f.id;
     /* Sans titulaire, celle qui écrit n'est pas cette fiche : on parle
        « de Kemi », jamais « de votre » dernière venue. */
     base.panier.pourQui = f.id !== titulaire?.id ? prenomDuNomWa(f.nom) : undefined;
-    return dire(msgMeme(false, avecSalut) ?? msgBesoin(false, avecSalut));
+    return dire(msgDits(avecSalut) ?? msgMeme(false, avecSalut) ?? msgBesoin(false, avecSalut));
   };
 
   const accueil = (mots: MotsDuTour): SortieDuTour => {
+    /* Le parcours ouvert par la réception garde ses mots à elle : le jour,
+       l'heure et la prestation qu'elle a nommés (30 octobre 2026). */
+    const lu = tour?.texteDOrigine ? motsReconnus(tour.texteDOrigine, ms) : mots;
+    const dits = ditsDuTexte(tour?.texteDOrigine ?? tour?.texte ?? '');
     base.panier = {
-      ...(mots.jourVoulu ? { jourVoulu: mots.jourVoulu } : {}),
-      ...(mots.jourEvite ? { jourEvite: mots.jourEvite } : {}),
-      ...(mots.moment ? { moment: mots.moment } : {}),
+      ...(lu.jourVoulu ? { jourVoulu: lu.jourVoulu } : {}),
+      ...(lu.jourEvite ? { jourEvite: lu.jourEvite } : {}),
+      ...(lu.moment ? { moment: lu.moment } : {}),
+      ...(lu.heure ? { heureVoulue: lu.heure } : {}),
+      ...(dits.length > 0 ? { dits } : {}),
     };
     base.prisLe = maintenant;
     base.rdvId = undefined;
@@ -2914,7 +3015,7 @@ function atelierDuTour(ancien: EtatDuFil | null | undefined, tour: TourDeLaClien
     base.versionAvantLaMain = undefined;
     /* Ouvert par la réception, dont le mot précède : il a déjà salué. */
     const salue = !tour?.deLaReception;
-    if (fiches.length === 0) return dire(msgBesoin(false, salue));
+    if (fiches.length === 0) return dire(msgDits(salue) ?? msgBesoin(false, salue));
     if (fiches.length === 1 && titulaire) return pourLaFiche(titulaire, salue);
     return dire(msgQui(false, salue));
   };
@@ -3138,7 +3239,7 @@ function atelierDuTour(ancien: EtatDuFil | null | undefined, tour: TourDeLaClien
           if (g === 'moi' && pourMoiPossible) {
             base.panier.clientId = undefined;
             base.panier.pourQui = undefined;
-            return dire(msgBesoin(false, false));
+            return dire(msgDits(false) ?? msgBesoin(false, false));
           }
           if (g === 'autre-personne') return laMain('autre-personne', true);
           break;
@@ -3496,7 +3597,7 @@ function laReceptionPeutParler(
     simplement (ses mots à elle passeraient de nouveau par le juge, qui s'est
     tu), sans le choix d'une ancienne liste. */
 const INTENTION_DE_LA_RECEPTION = 'Je voudrais prendre rendez-vous.';
-const tourPourLeParcours = (tour: TourDeLaCliente): TourDeLaCliente => ({ waIds: tour.waIds, quand: tour.quand, texte: INTENTION_DE_LA_RECEPTION, media: false, deLaReception: true });
+const tourPourLeParcours = (tour: TourDeLaCliente): TourDeLaCliente => ({ waIds: tour.waIds, quand: tour.quand, texte: INTENTION_DE_LA_RECEPTION, texteDOrigine: tour.texte, media: false, deLaReception: true });
 
 /** Le mot de la réception qui précède la liste du parcours. */
 const prefaceDeLaReception = (texte: string, etape: EtapeDuFil): MessageSortant =>
