@@ -202,8 +202,11 @@ try {
   const w4 = lance(W, { FAUX_RESEAU: '1', FAUX_REFUS_FONCTION: 'whatsapp-envoi', GESTES: JSON.stringify([['whatsapp', 'Refuse']]) });
   dit('IV : un refus du serveur ne se garde JAMAIS (pas de doublon), et se dit', [0, false], [w4.envois, w4.dernier?.ok]);
   seanceAvec(W, { reseau: false, gestes: [['whatsapp', 'Plus tard']] });
-  const w6 = lance(W, { FAUX_RESEAU: '1', FAUX_REFUS_FONCTION: 'whatsapp-envoi', APRES: '7500' });
-  dit('V : garde puis refuse au retour : sort de la file, note comme refuse', [0, 1, ['Un', 'Deux', 'Direct']], [w6.envois, w6.refus, w6.recus]);
+  /* Le motif est celui de la FONCTION, jamais « Edge Function returned a
+     non-2xx status code » (29 octobre 2026, le refus du 5 octobre). */
+  const w6 = lance(W, { FAUX_RESEAU: '1', FAUX_REFUS_FONCTION: 'whatsapp-envoi', FAUX_MOTIF: 'Hors de la fenetre de 24 h', APRES: '7500' });
+  dit('V : garde puis refuse au retour : sort de la file, note comme refuse, avec le motif de la fonction',
+    [0, 1, ['Un', 'Deux', 'Direct'], ['Hors de la fenetre de 24 h']], [w6.envois, w6.refus, w6.recus, w6.refusDits]);
 } finally {
   rmSync(travail, { recursive: true, force: true });
 }

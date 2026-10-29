@@ -195,8 +195,12 @@ export const supabase = {
     invoke: async (nom: string, opts?: { body?: unknown }) => {
       await new Promise((r) => setTimeout(r, 1));
       if (!faux.enLigne) return { data: null, error: { name: 'FunctionsFetchError', message: 'Failed to send a request to the Edge Function', context: { message: 'TypeError: Failed to fetch' } } };
-      if ((globalThis as { process?: { env: Record<string, string | undefined> } }).process?.env.FAUX_REFUS_FONCTION === nom) {
-        return { data: null, error: { name: 'FunctionsHttpError', message: 'Edge Function returned a non-2xx status code' } };
+      const env = (globalThis as { process?: { env: Record<string, string | undefined> } }).process?.env;
+      if (env?.FAUX_REFUS_FONCTION === nom) {
+        /* `FAUX_MOTIF` : la fonction dit pourquoi, dans le corps, comme la
+           vraie ; supabase-js le porte sous `context` (29 octobre 2026). */
+        return { data: null, error: { name: 'FunctionsHttpError', message: 'Edge Function returned a non-2xx status code',
+          ...(env.FAUX_MOTIF ? { context: new Response(JSON.stringify({ erreur: env.FAUX_MOTIF }), { status: 400 }) } : {}) } };
       }
       const id = `recu-${table('__appels').size + 1}`;
       table('__appels').set(id, { id, data: { nom, corps: opts?.body ?? null }, updated_at: heureServeur() });

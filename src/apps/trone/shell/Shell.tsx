@@ -101,7 +101,7 @@ import { abonneLaFile, versionDeLaFile, gestesEnAttente, gestesParTable, lisLesC
 /* Le miroir du stock déclare ses champs dérivés au chargement : la pastille
    doit le savoir dès l'ouverture, avant qu'un écran de vente ne l'importe. */
 import '../../../shared/stock';
-import { abonneLesAppels, versionDesAppels, appelsEnAttente, lisLesAppels, lisLesRefus, oublieLeRefus, type AppelRefuse } from '../../../shared/appels-en-attente';
+import { abonneLesAppels, versionDesAppels, appelsEnAttente, lisLesAppels, lisLesRefus, oublieLeRefus, refusEnFrancais, type AppelRefuse } from '../../../shared/appels-en-attente';
 import { CARTE_DES_TABLES } from '../../../shared/journal';
 import { ecouteLesPauses, pausesDites } from '../../../shared/ecriture-automatique';
 import { useClients, clientsStore } from '../../../shared/clients';
@@ -252,7 +252,9 @@ function LaFileDAttente({ conflits, refus, onClose }: { conflits: Conflit[]; ref
   const ecranDe = (t: string) => (t.startsWith('doc:') ? 'Réglages' : CARTE_DES_TABLES[t]?.ecran ?? t);
   return (
     <Modal title="La file d’attente" onClose={onClose} width={640}>
-      <p className="mnd-muted" style={{ fontSize: 12.5, marginTop: 0 }}>
+      {/* L'air sous la phrase d'entrée (29 octobre 2026) : le premier titre
+          (« Envois refusés par la Maison ») s'y collait. */}
+      <p className="mnd-muted" style={{ fontSize: 12.5, marginTop: 0, marginBottom: 16 }}>
         Ce qui est fait sur ce téléphone et n’a pas encore atteint la Maison. Tout part de soi-même au retour du réseau, même si l’application se ferme entre-temps.
       </p>
       {parTable.length === 0 && envoisEnAttente.length === 0 && conflits.length === 0 && refus.length === 0 && (
@@ -286,7 +288,7 @@ function LaFileDAttente({ conflits, refus, onClose }: { conflits: Conflit[]; ref
           {refus.map((r) => (
             <div key={r.id} style={{ display: 'grid', gap: 4, fontSize: 13, borderTop: '1px solid var(--hairline)', padding: '6px 0' }}>
               <span>{r.dit} · {heureCourte(r.at)}</span>
-              <span className="mnd-muted" style={{ fontSize: 12 }}>{r.refus} · il n’est pas parti, refaites-le si besoin.</span>
+              <span className="mnd-muted" style={{ fontSize: 12 }}>{refusEnFrancais(r.refus)} · il n’est pas parti, refaites-le si besoin.</span>
               <span><button className="mnd-btn mnd-btn--sm" onClick={() => oublieLeRefus(r.id)}>Compris</button></span>
             </div>
           ))}

@@ -21,6 +21,7 @@ import {
   declareLecteurDeLigne, dejaTranche,
 } from '../src/shared/file-d-attente';
 import { produitsStockStore } from '../src/shared/stock';
+import { lisLesRefus, oublieLeRefus, refusEnFrancais, motifDuRefus } from '../src/shared/appels-en-attente';
 
 let ko = 0;
 const dit = (nom: string, attendu: unknown, obtenu: unknown) => {
@@ -34,8 +35,11 @@ const sansCommentaires = (f: string) => readFileSync(f, 'utf8').replace(/\/\*[\s
 produitsStockStore.set([{ id: 'ps-1', branchId: 'b', code: 'SPR-01', nom: 'Recharge Spray', famille: 'gamme', unite: 'flacon', actif: true, catalogProductId: 'gp-relie' } as never]);
 
 const produit = (id: string, champs: Record<string, unknown>) => JSON.stringify({ id, categoryId: 'cat-gamme', name: 'Recharge Spray', priceXof: 9500, stock: 12, order: 3, ...champs });
+/* Noté à l'instant : passé une semaine, un conflit se tait de lui-même
+   (29 octobre 2026, section 7), et ce n'est pas ce que les sections 1 à 6
+   éprouvent. */
 const conflit = (table: string, id: string, notre: string | null, leur: string): Conflit =>
-  ({ table, id, notre, notreAt: '2026-10-04T18:23:00Z', leur, leurAt: '2026-10-04T18:23:05Z', vuLe: '2026-10-04T18:23:06Z' });
+  ({ table, id, notre, notreAt: '2026-10-04T18:23:00Z', leur, leurAt: '2026-10-04T18:23:05Z', vuLe: new Date().toISOString() });
 
 /* ── 1. L'ORDRE DES CHAMPS ──────────────────────────────────────────── */
 const melange = JSON.stringify({ order: 3, stock: 12, priceXof: 9500, name: 'Recharge Spray', categoryId: 'cat-gamme', id: 'gp-libre' });
@@ -146,6 +150,45 @@ dit('un magasin vide ne prouve rien : le conflit reste montre', [false, true],
   [dejaTranche({ ...supprime, table: 'banc_vide' }), conflitUtile({ ...supprime, table: 'banc_vide' })]);
 localStorage.setItem('trone::mnd_banc_disparu', JSON.stringify([{ id: 'autre-doc', objet: 'Autre' }]));
 dit('ecran ferme, ligne absente du magasin de l appareil : tranche', false, conflitUtile({ ...supprime, table: 'banc_disparu' }));
+
+/* ── 7. UNE QUESTION SE POSE UNE SEMAINE — 29 octobre 2026 ─────────────
+   « Fix the bug » (Yéman) : une note de séance et un rituel en conflit
+   depuis le 4 et le 5 octobre, un WhatsApp refusé le 5, encore comptés le
+   29, sur des lignes que personne n'avait réécrites. L'attente vient de la
+   règle écrite : sept jours, pas un de plus ; une heure illisible garde la
+   question ; un vieux conflit sort de l'appareil à la prochaine écriture ;
+   un envoi refusé suit la même règle ; un refus se dit en français, dans
+   les mots de la fonction quand elle en a. */
+const JOUR = 24 * 3600 * 1000;
+const ilYa = (jours: number) => new Date(Date.now() - jours * JOUR).toISOString();
+const ouvert = (id: string, vuLe: string): Conflit => ({ ...conflit('catalog_products', id, produit(id, { priceXof: 1 }), produit(id, {})), vuLe });
+oublieTousLesConflits();
+localStorage.setItem('trone::file::conflits', JSON.stringify([
+  ouvert('gp-6j', ilYa(6)), ouvert('gp-8j', ilYa(8)), ouvert('gp-25j', ilYa(25)), ouvert('gp-illisible', 'hier'),
+]));
+dit('six jours : la question reste ; huit et vingt-cinq jours : elle se tait ; heure illisible : elle reste',
+  ['gp-6j', 'gp-illisible'], lisLesConflits().map((c) => c.id));
+noteLesConflits([ouvert('gp-neuf', ilYa(0))]);
+dit('... et a la prochaine ecriture, les vieux sortent de l appareil', ['gp-neuf', 'gp-6j', 'gp-illisible'],
+  (JSON.parse(localStorage.getItem('trone::file::conflits') || '[]') as Conflit[]).map((c) => c.id));
+oublieTousLesConflits();
+
+const refuse = (id: string, le: string) => ({ id, fonction: 'whatsapp-envoi', corps: null, dit: 'WhatsApp', at: le, refus: 'x', le });
+localStorage.setItem('trone::appels-refuses', JSON.stringify([refuse('r-2j', ilYa(2)), refuse('r-24j', ilYa(24))]));
+dit('un envoi refuse se montre une semaine, comme un conflit', ['r-2j'], lisLesRefus().map((r) => r.id));
+oublieLeRefus('r-2j');
+dit('... et « Compris » le retire, les vieux avec', '[]', localStorage.getItem('trone::appels-refuses'));
+
+dit('le message de supabase-js se dit en francais, meme sur un refus note avant le 29 octobre',
+  ['Refusé par la Maison, sans motif dit', 'Numéro injoignable'],
+  [refusEnFrancais('Edge Function returned a non-2xx status code'), refusEnFrancais('Numéro injoignable')]);
+const refusHttp = (corps: string, status: number) =>
+  ({ name: 'FunctionsHttpError', message: 'Edge Function returned a non-2xx status code', context: new Response(corps, { status }) });
+dit('le motif vient du corps de la reponse ; illisible, une phrase francaise et le code',
+  ['Hors de la fenêtre de 24 h', 'Refusé par la Maison, sans motif dit (code 500)'],
+  [await motifDuRefus(refusHttp(JSON.stringify({ erreur: 'Hors de la fenêtre de 24 h' }), 400)), await motifDuRefus(refusHttp('<html>', 500))]);
+const panneau = sansCommentaires('src/apps/trone/shell/Shell.tsx');
+dit('le panneau dit le refus en francais', true, /\{refusEnFrancais\(r\.refus\)\}/.test(panneau));
 
 console.log(ko === 0 ? '\nCe que la Maison calcule ne se dispute pas.' : `\n${ko} controle(s) en echec.`);
 process.exit(ko === 0 ? 0 : 1);

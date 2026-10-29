@@ -20,6 +20,7 @@
    réseau au moment où la cliente paie, et une suggestion n'a plus de sens une
    heure après. Ils refusent hors ligne, et le disent. */
 import { supabase } from './supabase';
+import { encoreUneQuestion } from './file-d-attente';
 
 export type AppelEnAttente = {
   id: string;
@@ -65,6 +66,49 @@ export const estHorsLigne = (err: unknown): boolean => {
   return m.includes('failed to fetch') || m.includes('fetcherror') || m.includes('networkerror') || m.includes('load failed')
     || m.includes('network request failed') || m.includes('err_internet_disconnected');
 };
+
+/* ══ LE REFUS SE DIT EN FRANÇAIS, ET DANS LES MOTS DE LA FONCTION ══════
+   29 octobre 2026, « Fix the bug » (Yéman, capture de la file d'attente) :
+   « Edge Function returned a non-2xx status code ». Un WhatsApp gardé hors
+   ligne, refusé au retour du réseau, notait le message de `supabase-js`,
+   toujours le même et en anglais : la vraie phrase est dans le corps de la
+   réponse, sous `context`. L'envoi direct allait l'y chercher
+   (`motifDuRefus`, alors dans whatsapp.ts) ; le départ différé, non. Les
+   deux lisent désormais la même fonction, ici. */
+const PHRASES_DE_SUPABASE: [RegExp, string][] = [
+  [/non-2xx status code/i, 'Refusé par la Maison, sans motif dit'],
+  [/relay error/i, 'La Maison n’a pas pu joindre sa fonction'],
+];
+
+/** Le message générique de `supabase-js`, en français ; tout autre motif
+    passe tel quel. Sert aussi aux refus notés avant le 29 octobre 2026. */
+export function refusEnFrancais(motif: string): string {
+  for (const [motifAnglais, phrase] of PHRASES_DE_SUPABASE) if (motifAnglais.test(motif)) return phrase;
+  return motif;
+}
+
+/** POURQUOI LA FONCTION A REFUSÉ, dans ses mots à elle.
+
+    `supabase-js` emballe un refus dans une `FunctionsHttpError` dont le
+    message est toujours identique ; la vraie phrase est dans le corps de la
+    réponse, qu'il porte sous `context`. On va l'y chercher, et l'on retombe
+    sur le message générique, en français, seulement si le corps est
+    illisible : un refus sans motif est la panne la plus longue à nommer. */
+export async function motifDuRefus(e: unknown): Promise<string> {
+  const rep = (e as { context?: Response })?.context;
+  const brut = (e as { message?: string })?.message ?? String(e);
+  const generique = refusEnFrancais(brut)
+    + (/non-2xx/i.test(brut) && typeof rep?.status === 'number' ? ` (code ${rep.status})` : '');
+  if (!rep || typeof rep.json !== 'function') return generique;
+  try {
+    const corps = await rep.json();
+    const dit = (corps as { erreur?: string; error?: string })?.erreur
+      ?? (corps as { error?: string })?.error;
+    return dit ? String(dit) : generique;
+  } catch {
+    return generique;
+  }
+}
 
 /** Ce que dit un envoi que l'appareil n'a pas pu garder. */
 export const TROP_LOURD_POUR_ATTENDRE = 'Hors ligne, et la pièce est trop lourde pour attendre sur cet appareil : renvoyez-la au retour du réseau.';
@@ -134,8 +178,11 @@ export async function appelleOuGarde<D = unknown>(fonction: string, corps: unkno
    pour qu'on sache qu'il n'est pas parti. */
 export type AppelRefuse = AppelEnAttente & { refus: string; le: string };
 const CLE_REFUS = (): string => `${surface()}::appels-refuses`;
+/* Un refus se montre une semaine, comme un conflit (`encoreUneQuestion`) :
+   celui du 5 octobre se comptait encore le 29. Il sort de l'appareil à la
+   prochaine écriture. */
 export function lisLesRefus(): AppelRefuse[] {
-  try { return JSON.parse(localStorage.getItem(CLE_REFUS()) || '[]') as AppelRefuse[]; } catch { return []; }
+  try { return (JSON.parse(localStorage.getItem(CLE_REFUS()) || '[]') as AppelRefuse[]).filter((r) => encoreUneQuestion(r.le)); } catch { return []; }
 }
 export function oublieLeRefus(id: string): void {
   try { localStorage.setItem(CLE_REFUS(), JSON.stringify(lisLesRefus().filter((r) => r.id !== id))); } catch { /* idem */ }
@@ -187,9 +234,9 @@ async function videSousVerrou(): Promise<number> {
     let issue: 'parti' | 'coupure' | string;
     try {
       const { error } = await supabase.functions.invoke(a.fonction, { body: a.corps as Record<string, unknown> });
-      issue = !error ? 'parti' : estHorsLigne(error) ? 'coupure' : String((error as { message?: string }).message ?? error);
+      issue = !error ? 'parti' : estHorsLigne(error) ? 'coupure' : await motifDuRefus(error);
     } catch (err) {
-      issue = estHorsLigne(err) ? 'coupure' : String((err as { message?: string })?.message ?? err);
+      issue = estHorsLigne(err) ? 'coupure' : await motifDuRefus(err);
     }
     if (issue === 'coupure') { ecris([a, ...lisLesAppels().filter((x) => x.id !== a.id)]); break; }
     if (issue !== 'parti') noteUnRefus(a, issue);

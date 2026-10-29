@@ -69,7 +69,9 @@ if (process.env.ETAPE === 'tranche-doc') {
   laFile.noteLesConflits([{
     table: 'documents', id: 'reglage_essai', ...(process.env.LECTEUR === '1' ? {} : { magasin: 'mnd_reglage_essai' }),
     notre: JSON.stringify({ wifiSsid: 'MAISON_', v: 0 }), notreAt: '2026-10-16T14:09:00.000Z',
-    leur: JSON.stringify({ v: 0, wifiSsid: 'MAISON' }), leurAt: '2026-10-16T14:09:01.000Z', vuLe: '2026-10-16T14:09:02.000Z',
+    /* Noté à l'instant : un conflit de plus d'une semaine se tait de lui-même
+       (29 octobre 2026), ce n'est pas ce que K éprouve. */
+    leur: JSON.stringify({ v: 0, wifiSsid: 'MAISON' }), leurAt: '2026-10-16T14:09:01.000Z', vuLe: new Date().toISOString(),
   }]);
   dit({ montres: lisLesConflits().length });
 }
@@ -143,6 +145,7 @@ dit({
   docServeur: (faux.base.get('documents')?.get('reglage_essai')?.data as { v?: number } | undefined)?.v ?? null,
   envois: appelsEnAttente(),
   refus: lisLesRefus().length,
+  refusDits: lisLesRefus().map((r) => r.refus),
   recus: [...(faux.base.get('__appels')?.values() ?? [])].sort((x, y) => (x.updated_at < y.updated_at ? -1 : 1)).map((l) => ((l.data as { corps?: { texte?: string } }).corps?.texte ?? '')),
   dernier,
 });

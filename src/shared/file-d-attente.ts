@@ -327,6 +327,25 @@ export function dejaTranche(c: Pick<Conflit, 'table' | 'id' | 'notre' | 'leur'> 
   return champsQuiDifferent(c).some((k) => canonique(ligne[k]) !== canonique(gardee[k]));
 }
 
+/* ══ UNE QUESTION SE POSE UNE SEMAINE — 29 octobre 2026 ═══════════════
+   « Fix the bug » (Yéman, capture de la file d'attente) : deux conflits du
+   4 et du 5 octobre, une note de séance et un rituel, encore comptés le 29
+   sur un navigateur peu ouvert. Notés aux premiers jours de la file, avant
+   les corrections du 6 et du 17 octobre, sur des lignes que personne n'a
+   réécrites depuis : la règle du 6 octobre n'avait rien pour les trancher,
+   et ils restaient pour toujours. Or la version gardée est celle de la
+   Maison, partout, depuis des semaines : reprendre la nôtre défairait tout
+   ce qui s'est fait depuis. Passé une semaine, le temps a tranché : le
+   conflit ne se compte plus, ne se montre plus, et sort de l'appareil à la
+   prochaine écriture. Les envois refusés suivent la même règle. */
+export const UNE_SEMAINE_MS = 7 * 24 * 3600 * 1000;
+
+/** Notée il y a moins d'une semaine. Une heure illisible garde la question. */
+export const encoreUneQuestion = (vuLe: string, maintenant: number = Date.now()): boolean => {
+  const t = Date.parse(vuLe);
+  return !Number.isFinite(t) || maintenant - t < UNE_SEMAINE_MS;
+};
+
 /** Un conflit qui DIFFÈRE : au moins un champ tenu à la main. C'est le
     seul filtre au moment de NOTER : à cet instant, la ligne affichée porte
     encore notre version (la version gardée s'applique juste après), et
@@ -344,7 +363,7 @@ export function lisLesConflitsNotes(): Conflit[] {
 }
 
 export function lisLesConflits(): Conflit[] {
-  try { return (JSON.parse(localStorage.getItem(CLE_DES_CONFLITS()) || '[]') as Conflit[]).filter(conflitUtile); } catch { return []; }
+  try { return (JSON.parse(localStorage.getItem(CLE_DES_CONFLITS()) || '[]') as Conflit[]).filter((c) => encoreUneQuestion(c.vuLe) && conflitUtile(c)); } catch { return []; }
 }
 
 /** « Tout garder ainsi » : la liste se vide d'un geste. Rien n'est défait —

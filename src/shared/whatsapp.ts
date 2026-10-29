@@ -1,4 +1,4 @@
-import { appelleOuGarde } from './appels-en-attente';
+import { appelleOuGarde, motifDuRefus } from './appels-en-attente';
 import { supabase } from './supabase';
 import { numeroWa, type PieceRecue } from './conversations';
 import type { PieceRendue } from './pdf';
@@ -52,26 +52,10 @@ export type ResultatDEnvoi =
   | { ok: true; id: string; waId?: string; quand?: string; enAttente?: true }
   | { ok: false; erreur: string };
 
-/** POURQUOI LA FONCTION A REFUSÉ, dans ses mots à elle.
-
-    `supabase-js` emballe un refus dans une `FunctionsHttpError` dont le
-    message est toujours identique ; la vraie phrase est dans le corps de la
-    réponse, qu'il porte sous `context`. On va l'y chercher, et l'on retombe
-    sur le message générique seulement si le corps est illisible — un refus
-    sans motif est la panne la plus longue à nommer. */
-export async function motifDuRefus(e: unknown): Promise<string> {
-  const generique = (e as { message?: string })?.message ?? String(e);
-  const rep = (e as { context?: Response })?.context;
-  if (!rep || typeof rep.json !== 'function') return generique;
-  try {
-    const corps = await rep.json();
-    const dit = (corps as { erreur?: string; error?: string })?.erreur
-      ?? (corps as { error?: string })?.error;
-    return dit ? String(dit) : generique;
-  } catch {
-    return generique;
-  }
-}
+/* `motifDuRefus` vit dans `appels-en-attente` depuis le 29 octobre 2026 : le
+   départ différé d'un WhatsApp gardé hors ligne le lit aussi. Il reste
+   importable d'ici. */
+export { motifDuRefus };
 
 /** ENVOYER, ET DIRE CE QUI S'EST PASSÉ. Jamais une exception : un écran qui
     envoie sept bulletins d'affilée doit pouvoir continuer après un refus,
