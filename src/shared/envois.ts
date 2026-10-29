@@ -13,7 +13,7 @@
 import { attendEncore, ECARTE, PERIME } from './salle-des-envois';
 
 export type TypeDEnvoi = 'accuse' | 'confirmation' | 'rappel-j1' | 'avis-google' | 'fin-de-paquet' | 'reprise-j3' | 'point-apres' | 'point-avant' | 'relance-facture'
-  | 'rappel-echeance' | 'prix-revu' | 'parrainage' | 'campagne' | 'gerard'
+  | 'rappel-echeance' | 'prix-revu' | 'parrainage' | 'merci-marraine' | 'campagne' | 'gerard'
   /* La fête de couronne (`supabase/functions/fete-de-couronne`, 21 octobre
      2026) écrivait ce type sans qu'il soit déclaré : le journal le nomme
      depuis le 27 octobre 2026 (lot 3 de l'Assistant Maison). */
@@ -93,6 +93,8 @@ export const TYPE_DIT: Record<string, string> = {
   /* La marraine prévenue (demande-submit l'écrivait sans qu'on le nomme), et
      les campagnes du Marketing (21 octobre 2026). */
   parrainage: 'Marraine prévenue',
+  /* Le merci à la marraine, par la salle d'attente depuis le 29 octobre 2026. */
+  'merci-marraine': 'Merci à la marraine',
   campagne: 'Campagne',
   /* L'assistant des clientes (26 octobre 2026), nommé « Assistant Maison »
      depuis la spécification du 27 octobre 2026 (§11) : la valeur `gerard`

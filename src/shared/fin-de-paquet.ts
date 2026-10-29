@@ -9,6 +9,7 @@ import { clientsStore } from './clients';
 import { numeroWa, MODELE_FIN_DE_PAQUET } from './conversations';
 import { envoieSurWhatsApp, jourDit } from './whatsapp';
 import { appelDe } from './civilite';
+import { EN_ATTENTE, REGLES_PAR_DEFAUT, facteurVivant, heureDeDepart } from './salle-des-envois';
 
 /* ══ LA FIN DE PAQUET, ENVOYÉE PAR LE TRÔNE — 15 septembre 2026 ═══════
    Maquette `public/maquette-la-fin-de-paquet.html`, validée.
@@ -34,7 +35,14 @@ import { appelDe } from './civilite';
    poste ouvert à 7 h attend le prochain passage.
 
    PAS DE VENTE DANS LE MESSAGE : il informe (utilitaire chez Meta), la suite
-   se propose au fauteuil. Une fois par paquet, jamais de relance. */
+   se propose au fauteuil. Une fois par paquet, jamais de relance.
+
+   PAR LA SALLE D'ATTENTE (29 octobre 2026, Yéman au sélecteur : « pour que
+   je contrôle toujours avant qu'ils partent ») : le message ne part plus
+   tout de suite. Il est DÉPOSÉ dans la salle, dix minutes, comme les autres
+   envois automatiques ; on peut l'y retenir ou l'écarter, et le facteur
+   (`envois-partent`) le porte. Le contrat se dit « prévenu » seulement quand
+   le facteur l'a envoyé. Facteur muet : il part comme avant, tout de suite. */
 
 /** L'heure qu'il est au salon, en heures décimales (9 h 30 = 9,5). */
 export const heureAuSalon = (instant: Date = new Date()): number => {
@@ -84,17 +92,32 @@ export const phraseDeLaFinDePaquet = (f: FinDePaquet, fiche?: Parameters<typeof 
 /** L'identifiant du verrou, une ligne par contrat, pour la vie du paquet. */
 export const idDuVerrou = (subId: string): string => `env-paquet-${subId}`;
 
-/** LES CONTRATS DÉJÀ TRAITÉS DANS CE CHARGEMENT : un passage toutes les six
-    heures ne relit pas ce qu'il a déjà posé. Le verrou en base tient de toute
-    façon. */
-const dejaCeChargement = new Set<string>();
+/** LE COLIS DE LA SALLE : le modèle et ses quatre variables, et les mots
+    qu'elle lit, que le facteur écrit dans son fil. */
+export const colisDeLaFinDePaquet = (f: FinDePaquet, fiche: Parameters<typeof appelDe>[0], numero: string) => ({
+  genre: 'whatsapp' as const, numero, modele: MODELE_FIN_DE_PAQUET,
+  composants: [{ type: 'body' as const, parameters: variablesDeLaFinDePaquet(f, fiche).map((text) => ({ type: 'text' as const, text })) }],
+  texteAuFil: phraseDeLaFinDePaquet(f, fiche), parQui: 'la Maison, automatiquement',
+});
 
-export type BilanDuPassage = { envoyes: number; refus: number; sansNumero: number; verrouilles: number };
+/** CE QUE LE PASSAGE FAIT D'UN CONTRAT, selon la ligne déjà posée à son nom :
+    rien encore, la déposer ; envoyée par le facteur, la dire prévenue ; un
+    échec d'avant-hier, la redéposer une fois par jour ; tout le reste (en
+    salle, retenue, écartée par une main, périmée, en cours), attendre. */
+export type GesteDuPassage = 'deposer' | 'prevenue' | 'reprendre' | 'attendre';
+export function gesteDuPassage(ligne: { statut?: string; quand?: string } | null | undefined, hierIso: string): GesteDuPassage {
+  if (!ligne) return 'deposer';
+  if (ligne.statut === 'envoyé') return 'prevenue';
+  if (ligne.statut === 'échec' && (ligne.quand ?? '') < hierIso) return 'reprendre';
+  return 'attendre';
+}
+
+export type BilanDuPassage = { envoyes: number; deposes: number; refus: number; sansNumero: number; verrouilles: number };
 
 /** UN PASSAGE : juge, verrouille, envoie, consigne. Ne lance jamais rien
     hors des heures du salon, ni sans connexion. */
 export async function previensLesFinsDePaquet(o: { branchId: string }): Promise<BilanDuPassage> {
-  const bilan: BilanDuPassage = { envoyes: 0, refus: 0, sansNumero: 0, verrouilles: 0 };
+  const bilan: BilanDuPassage = { envoyes: 0, deposes: 0, refus: 0, sansNumero: 0, verrouilles: 0 };
   if (!supabase || !estLHeureDEcrire()) return bilan;
   const sb = supabase;
   const aujourdhui = jourLocal();
@@ -103,40 +126,67 @@ export async function previensLesFinsDePaquet(o: { branchId: string }): Promise<
   const comptes = comptesAbonnement({
     subs, plans: plansStore.get(), appts: appointmentsStore.get(), aujourdhui, invoices: invoicesStore.get(),
   });
-  const alertes = paquetsEnFin(comptes.flatMap((c) => c.contrats), aujourdhui);
+  const alertes = paquetsEnFin(comptes.flatMap((c) => c.contrats), aujourdhui).filter((f) => !f.sub.finPrevenueLe);
+  if (alertes.length === 0) return bilan;
   const clients = clientsStore.get();
 
+  /* Les lignes déjà posées à leur nom, et le facteur : vivant, on dépose. */
+  const { data: posees } = await sb.from('envois').select('id, data').in('id', alertes.map((f) => idDuVerrou(f.sub.id)));
+  const ligneDe = new Map(((posees ?? []) as { id: string; data: { statut?: string; quand?: string } }[]).map((l) => [l.id, l.data]));
+  const { data: facteur } = await sb.from('documents').select('data').eq('key', 'mnd_facteur').maybeSingle();
+  const parLaSalle = facteurVivant((facteur?.data as { vuLe?: string } | null)?.vuLe, Date.now());
+  const hier = new Date(Date.now() - 24 * 3600_000).toISOString();
+
   for (const f of alertes) {
-    if (dejaCeChargement.has(f.sub.id)) continue;
-    dejaCeChargement.add(f.sub.id);
-    /* DÉJÀ PRÉVENUE : le raccourci de l'écran suffit à ne pas retenter. */
-    if (f.sub.finPrevenueLe) continue;
+    const id = idDuVerrou(f.sub.id);
+    const ligne = ligneDe.get(id);
+    const geste = gesteDuPassage(ligne, hier);
+    /* PARTIE PAR LE FACTEUR : le contrat se dit prévenu, au jour de l'envoi. */
+    if (geste === 'prevenue') {
+      const le = ligne?.quand ?? new Date().toISOString();
+      subscribersStore.set((prev) => prev.map((s) => (s.id === f.sub.id ? { ...s, finPrevenueLe: le } : s)));
+      bilan.envoyes += 1;
+      continue;
+    }
+    if (geste === 'attendre') { bilan.verrouilles += 1; continue; }
     const fiche = clients.find((c) => c.id === f.clientId);
     const numero = numeroWa(fiche?.phone) || numeroWa(fiche?.phone2);
     if (!numero) { bilan.sansNumero += 1; continue; }
 
-    const id = idDuVerrou(f.sub.id);
     const quand = new Date().toISOString();
     const socle = {
       id, branchId: o.branchId, type: 'fin-de-paquet', canal: 'whatsapp',
       clientId: f.clientId, subId: f.sub.id, motif: f.motif, reste: f.reste, jusquau: f.jusquau,
+      prenom: (fiche?.name ?? f.nom ?? '').trim().split(/\s+/)[0] ?? '',
     };
-    /* ── ① LE VERROU : une insertion, un seul gagnant ────────────────── */
-    const { error: errPose } = await sb.from('envois').insert({
-      id, branch_id: o.branchId, data: { ...socle, statut: 'en cours', quand },
-    });
-    if (errPose) {
-      /* Déjà posé. Un ÉCHEC d'hier se reprend, une fois par jour ; la mise
-         à jour conditionnelle ne rend une ligne qu'à un seul poste. */
-      const hier = new Date(Date.now() - 24 * 3600_000).toISOString();
-      const { data: reprise } = await sb.from('envois')
-        .update({ data: { ...socle, statut: 'en cours', quand, reprise: true }, updated_at: quand })
-        .eq('id', id).eq('data->>statut', 'échec').lt('data->>quand', hier)
-        .select('id');
-      if (!(reprise ?? []).length) { bilan.verrouilles += 1; continue; }
+
+    /* ── PAR LA SALLE D'ATTENTE : déposé, le facteur le porte ────────── */
+    if (parLaSalle) {
+      const depart = heureDeDepart(Date.now(), REGLES_PAR_DEFAUT);
+      const enSalle = {
+        ...socle, statut: EN_ATTENTE, quand, deposeLe: quand,
+        partA: new Date(depart.partA).toISOString(), calme: depart.calme,
+        colis: colisDeLaFinDePaquet(f, fiche, numero),
+      };
+      /* Une insertion, un seul gagnant ; un échec d'avant-hier se redépose
+         par une mise à jour qui ne réussit qu'à un seul poste. */
+      const { data: pose } = geste === 'deposer'
+        ? await sb.from('envois').insert({ id, branch_id: o.branchId, data: enSalle }).select('id')
+        : await sb.from('envois').update({ data: { ...enSalle, reprise: true }, updated_at: quand })
+          .eq('id', id).eq('data->>statut', 'échec').lt('data->>quand', hier).select('id');
+      if ((pose ?? []).length) bilan.deposes += 1; else bilan.verrouilles += 1;
+      continue;
     }
 
-    /* ── ② L'ENVOI, par la porte qui existe ────────────────────────── */
+    /* ── FACTEUR MUET : comme avant, tout de suite ──────────────────── */
+    /* ① LE VERROU : une insertion, un seul gagnant. */
+    const { data: verrou } = geste === 'deposer'
+      ? await sb.from('envois').insert({ id, branch_id: o.branchId, data: { ...socle, statut: 'en cours', quand } }).select('id')
+      : await sb.from('envois').update({ data: { ...socle, statut: 'en cours', quand, reprise: true }, updated_at: quand })
+        .eq('id', id).eq('data->>statut', 'échec').lt('data->>quand', hier).select('id');
+    if (!(verrou ?? []).length) { bilan.verrouilles += 1; continue; }
+
+    /* ② L'ENVOI, par la porte qui existe. */
     const r = await envoieSurWhatsApp({
       numero,
       modele: MODELE_FIN_DE_PAQUET,
@@ -148,7 +198,7 @@ export async function previensLesFinsDePaquet(o: { branchId: string }): Promise<
       parQui: 'la Maison, automatiquement',
     });
 
-    /* ── ③ LE VERDICT, consigné même raté ──────────────────────────── */
+    /* ③ LE VERDICT, consigné même raté. */
     const fin = new Date().toISOString();
     await sb.from('envois').update({
       data: {

@@ -97,7 +97,7 @@ import { createClient } from 'npm:@supabase/supabase-js@2';
     s'est perdue le 14 septembre à chercher dans le dépôt une panne qui venait
     d'une version plus ancienne restée en ligne. À incrémenter à chaque
     déploiement. */
-const VERSION = '2026-10-10-a · Meta borne dans le temps, la fenetre sans le site, une cle d unicite';
+const VERSION = '2026-10-29-a · le depot seul d une carte, pour la salle d attente';
 
 const FENETRE_MS = 24 * 60 * 60 * 1000;
 
@@ -349,6 +349,41 @@ Deno.serve(async (req) => {
   const pieceNom = piece ? String(piece.nom ?? 'piece').slice(0, 120) : '';
   const pieceType = piece ? String(piece.type ?? 'application/octet-stream') : '';
   const pieceB64 = piece ? String(piece.donnees ?? '') : '';
+
+  /* ══ LE DÉPÔT SEUL — 29 octobre 2026 ══════════════════════════════
+     Le merci d'une ambassadrice passe par la salle d'attente, comme les
+     autres envois automatiques (« pour que je contrôle toujours avant
+     qu'ils partent », Yéman). Sa carte, dessinée au Trône, se dépose ici
+     chez Meta, qui rend un identifiant valable trente jours ; le Trône range
+     le message en salle avec cet identifiant, et le facteur
+     (`envois-partent`) l'envoie à son heure. RIEN NE PART D'ICI. Une
+     version d'avant, qui ne connaît pas ce geste, refuse la demande faute de
+     numéro : rien ne part non plus, et le Trône envoie comme avant. */
+  if (corps.televerseSeulement === true) {
+    if (!piece || !pieceB64) return refus('rien à déposer');
+    let brut: Uint8Array;
+    try { brut = enOctets(pieceB64); } catch { return refus('la pièce jointe est illisible'); }
+    if (brut.length > TAILLE_MAX) return refus('la pièce dépasse 5 Mo', 413);
+    try {
+      const fd = new FormData();
+      fd.append('messaging_product', 'whatsapp');
+      fd.append('type', pieceType);
+      fd.append('file', new Blob([brut], { type: pieceType }), pieceNom);
+      const r = await fetch(`https://graph.facebook.com/v20.0/${WA_PHONE_ID}/media`, {
+        method: 'POST',
+        headers: { authorization: `Bearer ${WA_TOKEN}` },
+        body: fd,
+        signal: AbortSignal.timeout(DELAI_DU_DEPOT_MS),
+      });
+      const rep = await r.json().catch(() => ({}));
+      if (!r.ok || !rep?.id) return refus(String(rep?.error?.message ?? `dépôt refusé (HTTP ${r.status})`).slice(0, 300), 502);
+      return new Response(JSON.stringify({ mediaId: String(rep.id), version: VERSION }), {
+        status: 200, headers: { ...CORS, 'content-type': 'application/json' },
+      });
+    } catch (e) {
+      return refus(`le dépôt de la pièce a échoué : ${String(e).slice(0, 200)}`, 502);
+    }
+  }
 
   const sb0 = createClient(urlBase, service);
 

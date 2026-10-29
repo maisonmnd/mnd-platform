@@ -10,8 +10,10 @@ import {
   paquetsEnFin, SEUIL_FIN_DE_PAQUET, type ContratPourLaFin, type Plan, type Subscriber,
 } from '../src/shared/abonnements';
 import {
-  variablesDeLaFinDePaquet, phraseDeLaFinDePaquet, estLHeureDEcrire, idDuVerrou,
+  variablesDeLaFinDePaquet, phraseDeLaFinDePaquet, estLHeureDEcrire, idDuVerrou, colisDeLaFinDePaquet, gesteDuPassage,
 } from '../src/shared/fin-de-paquet';
+import { colisDuMerci, idDuMerci, MODELE_DU_MERCI } from '../src/shared/merci-en-salle';
+import { readFileSync } from 'node:fs';
 
 let ko = 0;
 const dit = (nom: string, attendu: unknown, obtenu: unknown) => {
@@ -97,5 +99,41 @@ dit('à 21 h 29, encore', true, estLHeureDEcrire(21 + 29 / 60));
 dit('à 21 h 30, plus', false, estLHeureDEcrire(21.5));
 dit('à 3 h du matin, jamais', false, estLHeureDEcrire(3));
 dit('le verrou porte le contrat', 'env-paquet-s1', idDuVerrou('s1'));
+
+/* ── ⑦ PAR LA SALLE D'ATTENTE (29 octobre 2026) ──────────────────────
+   « Pour que je contrôle toujours avant qu'ils partent » : la fin de paquet
+   et le merci à la marraine se déposent dix minutes en salle, comme les
+   autres envois automatiques ; le facteur les porte. */
+const colis = colisDeLaFinDePaquet(avecDate, undefined, '22990000001');
+dit('le colis de la salle : le modèle, ses quatre variables, et la phrase du fil',
+  ['whatsapp', '22990000001', 'fin_de_paquet', ['R.', '1 séance', 'Prolongement 6 soins', 'valable jusqu’au 12 octobre 2026'], phraseDeLaFinDePaquet(avecDate), 'la Maison, automatiquement'],
+  [colis.genre, colis.numero, colis.modele, colis.composants[0].parameters.map((x) => x.text), colis.texteAuFil, colis.parQui]);
+const HIER = '2026-10-28T09:00:00.000Z';
+dit('le passage, ligne par ligne : rien posé, la déposer ; envoyée, prévenue ; échec d avant-hier, la reprendre ; le reste, attendre',
+  ['deposer', 'prevenue', 'reprendre', 'attendre', 'attendre', 'attendre', 'attendre', 'attendre', 'attendre'],
+  [undefined, { statut: 'envoyé' }, { statut: 'échec', quand: '2026-10-27T09:00:00.000Z' }, { statut: 'échec', quand: '2026-10-28T10:00:00.000Z' },
+    { statut: 'en-attente' }, { statut: 'retenu' }, { statut: 'écarté' }, { statut: 'périmé' }, { statut: 'en cours' }].map((l) => gesteDuPassage(l, HIER)));
+const fdp = readFileSync('src/shared/fin-de-paquet.ts', 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+dit('la fin de paquet se dépose en salle quand le facteur vit, et part tout de suite sinon', [true, true, true, true],
+  [/const parLaSalle = facteurVivant\(/.test(fdp), /statut: EN_ATTENTE, quand, deposeLe: quand,/.test(fdp),
+    fdp.indexOf('if (parLaSalle)') >= 0 && fdp.indexOf('if (parLaSalle)') < fdp.indexOf('await envoieSurWhatsApp('),
+    /heureDeDepart\(Date\.now\(\), REGLES_PAR_DEFAUT\)/.test(fdp)]);
+dit('... prévenue seulement quand le facteur l a envoyée', true, /if \(geste === 'prevenue'\) \{[\s\S]{0,200}finPrevenueLe: le/.test(fdp));
+
+dit('le merci : une ligne par récompense, la carte déposée en en-tête, les trois variables', [
+  'env-merci-c-1-rec-2', 'parrainage_merci',
+  [{ type: 'header', parameters: [{ type: 'image', image: { id: 'media-9' } }] }, { type: 'body', parameters: [{ type: 'text', text: 'Mme Awa' }, { type: 'text', text: 'Grâce' }, { type: 'text', text: 'un soin offert' }] }],
+], [idDuMerci('c-1', 'rec-2'), MODELE_DU_MERCI, colisDuMerci({ numero: '22990000001', variables: ['Mme Awa', 'Grâce', 'un soin offert'], mediaId: 'media-9' }).composants]);
+dit('... sans carte, pas d en-tête', ['body'], colisDuMerci({ numero: '2', variables: ['a', 'b', 'c'] }).composants.map((c) => c.type));
+dit('... le fil garde les mots du modèle approuvé',
+  'Bonjour Mme Awa, Grâce est venue à la Maison grâce à vous. Merci ! Votre récompense vous attend : un soin offert. Choisissez-la dans Ma Couronne, ou dites-le simplement à l’accueil.',
+  colisDuMerci({ numero: '2', variables: ['Mme Awa', 'Grâce', 'un soin offert'] }).texteAuFil);
+const merci = readFileSync('src/shared/merci-en-salle.ts', 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+const crochet = readFileSync('src/apps/trone/shell/useParrainageVivant.ts', 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+dit('le merci se dépose en salle ; facteur muet, carte non déposée ou erreur : comme avant', [true, true, true, true, true],
+  [/if \(!facteurVivant\(\(facteur\?\.data[\s\S]{0,60}Date\.now\(\)\)\) return 'repli';/.test(merci), /if \(o\.piece && !mediaId\) return 'repli';/.test(merci),
+    /statut: EN_ATTENTE,/.test(merci), /=== '23505' \? 'deja' : 'repli'/.test(merci),
+    /if \(issue !== 'repli'\) return;\s*await envoieSurWhatsApp\(/.test(crochet)]);
+dit('... la carte se dépose chez Meta sans rien envoyer', true, /televerseSeulement: true, piece/.test(merci));
 
 console.log(ko === 0 ? '\nLa fin de paquet tient.' : `\n${ko} épreuve(s) en échec.`);

@@ -8,6 +8,7 @@ import { useProducts, useServices } from '../../../shared/catalog';
 import { useAuth } from '../../../shared/auth';
 import { documentDescendu, tablePrete } from '../../../shared/sync';
 import { envoieSurWhatsApp } from '../../../shared/whatsapp';
+import { deposeLeMerci } from '../../../shared/merci-en-salle';
 import { jourDuSalon } from '../../../shared/envois';
 import { useParrainage, type DemandeParrainee } from '../../../shared/parrainage';
 import {
@@ -197,8 +198,18 @@ export function useParrainageVivant(): void {
           const piece = fiche && code
             ? await carteDeMarraineEnPiece({ prenom: m.prenomMarraine, code, depuis: (fiche.since ?? '').slice(0, 4), modele: fiche.carteModele, rang: fiche.parrainage?.rang }).catch(() => undefined)
             : undefined;
+          const variables = [fiche ? appelDe(fiche) : m.prenomMarraine, m.prenomFilleule, m.libelle];
+          /* PAR LA SALLE D'ATTENTE (29 octobre 2026, « pour que je contrôle
+             toujours avant qu'ils partent ») : le merci s'y dépose dix
+             minutes, retenable et écartable, et le facteur le porte. Facteur
+             muet, fonction d'avant ou carte non déposée : comme avant. */
+          const issue = await deposeLeMerci({
+            cle: recompenseId ?? m.prenomFilleule, branchId: fiche?.branchId ?? '', clientId: m.clientId,
+            prenom: m.prenomMarraine, numero: m.telephone, variables, piece,
+          });
+          if (issue !== 'repli') return;
           await envoieSurWhatsApp({
-            numero: m.telephone, modele: 'parrainage_merci', variables: [fiche ? appelDe(fiche) : m.prenomMarraine, m.prenomFilleule, m.libelle],
+            numero: m.telephone, modele: 'parrainage_merci', variables,
             ...(piece ? { enTete: 'image' as const, piece } : {}), clientId: m.clientId, parQui: 'Le Trône · ambassadrices',
             /* UNE CLÉ PAR RÉCOMPENSE (10 octobre 2026) : deux postes ouverts
                peuvent calculer le même merci au même instant. La fonction

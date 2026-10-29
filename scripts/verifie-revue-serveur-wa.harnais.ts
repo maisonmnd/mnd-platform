@@ -161,6 +161,8 @@ const RPC: Record<string, (a: Any, auth: string) => Any> = {
 type Graph = { pieces: 'pend' | 'ok'; envoi: 'ok' | 'pend' | 'lent'; refus: number };
 let graph: Graph = { pieces: 'ok', envoi: 'ok', refus: 0 };
 let envois: { to: string; body: Any }[] = [];
+/** Les cartes déposées chez Meta (le dépôt seul, 29 octobre 2026). */
+let medias = 0;
 let bornes: number[] = [];
 /** Une requete qui ne repond jamais. Seul un signal la libere : sans borne
     de temps, elle tient la fonction pour toujours, comme un Graph qui pend. */
@@ -182,6 +184,7 @@ const pendante = (init: Any): Promise<Response> => new Promise((_ok, ko) => {
     return new Response(JSON.stringify({ messages: [{ id: `wamid.out-${envois.length}` }] }), { status: 200 });
   }
   if (u.startsWith('https://graph.facebook.com/') && u.endsWith('/media')) {
+    medias += 1;
     return new Response(JSON.stringify({ id: 'media-1' }), { status: 200 });
   }
   if (u.startsWith('https://graph.facebook.com/')) {
@@ -217,7 +220,7 @@ const webhook = await charge('whatsapp-webhook');
 const envoi = await charge('whatsapp-envoi');
 
 const remetsLaBase = () => {
-  tables = new Map(); rpcs = []; tetes = {}; fiches = []; envois = []; bornes = [];
+  tables = new Map(); rpcs = []; tetes = {}; fiches = []; envois = []; bornes = []; medias = 0;
   graph = { pieces: 'ok', envoi: 'ok', refus: 0 };
 };
 const livraison = (messages: Any[]): Request => {
@@ -269,7 +272,7 @@ const appelsReseau = (src: string): string[] => {
   return out;
 };
 const racine = process.cwd();
-for (const [n, f, combien] of [['n0', 'whatsapp-webhook', 9], ['n1', 'whatsapp-envoi', 5]] as const) {
+for (const [n, f, combien] of [['n0', 'whatsapp-webhook', 9], ['n1', 'whatsapp-envoi', 6]] as const) {
   const appels = appelsReseau(readFileSync(path.join(racine, `supabase/functions/${f}/index.ts`), 'utf8'));
   const nus = appels.filter((a) => !a.includes('signal: AbortSignal.timeout('));
   dit(`${n} chaque fetch de ${f} porte une borne de temps (${combien} appels)`, appels.length === combien && nus.length === 0,
@@ -286,6 +289,18 @@ graph.envoi = 'pend';
   dit('n1 un envoi qui pend chez Graph rend la main : non remis, trace, pause', r !== PEND && (r as Response).status === 502
     && traces.length === 1 && traces[0].data.etat === 'non-remis' && rpcs.some((x) => x.nom === 'pause_le_fil'),
   r === PEND ? 'whatsapp-envoi pend toujours apres 2 s' : { statut: (r as Response).status, traces: traces.map((t) => t.data.etat) });
+}
+
+/* ── n1b · le depot seul : la carte chez Meta, aucun message (29 octobre 2026) ── */
+remetsLaBase();
+{
+  const carte = { nom: 'carte.jpg', type: 'image/jpeg', donnees: Buffer.from([1, 2, 3]).toString('base64') };
+  const r = await envoi(unEnvoi({ televerseSeulement: true, piece: carte }));
+  const j = await r.json();
+  dit('n1b le depot seul rend l identifiant de la carte, sans numero, et n envoie rien', [200, 'media-1', 1, 0, 0],
+    [r.status, j.mediaId, medias, envois.length, [...table('messages_wa').values()].length]);
+  const sans = await envoi(unEnvoi({ televerseSeulement: true }));
+  dit('n1b ... sans piece, refuse, rien chez Meta', [400, 1, 0], [sans.status, medias, envois.length]);
 }
 
 /* ── n2 · une demande du site n'ouvre pas la fenetre ───────────────── */
