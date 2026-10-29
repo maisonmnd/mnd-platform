@@ -37,7 +37,11 @@ async function appelle<T>(corps: Record<string, unknown>): Promise<Issue<T>> {
   if (!supabase) return { ok: false, erreur: 'Pas de connexion à la Maison.' };
   try {
     const { data, error } = await supabase.functions.invoke('tri-des-messages', { body: corps });
-    if (error) return { ok: false, erreur: /404|not found/i.test(String(error.message)) ? 'La fonction tri-des-messages n’est pas encore collée.' : 'Le serveur n’a pas répondu.' };
+    if (error) {
+      /* La réponse du serveur porte son statut : 404, la fonction n'est pas encore collée. */
+      const statut = (error as { context?: { status?: number } }).context?.status;
+      return { ok: false, erreur: statut === 404 || /404|not found/i.test(String(error.message)) ? 'La fonction tri-des-messages n’est pas encore collée (dossier du Bureau « A recoller - Tri des demarcheurs »).' : 'Le serveur n’a pas répondu.' };
+    }
     const d = (data ?? {}) as { ok?: boolean; motif?: string } & T;
     if (d.ok !== true) return { ok: false, erreur: d.motif === 'cle-claude-absente' ? 'La clé de Claude manque aux secrets.' : 'Le serveur a refusé.' };
     return { ok: true, data: d };
