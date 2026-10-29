@@ -252,14 +252,15 @@ dit('la facture dit ce qui reste',
 dit('la facture voyage en pièce jointe',
   { quoi: 'facture', invoiceId: 'i2', nom: 'Facture FA-2026-0412' }, gesteDit(g, 'facture')?.piece);
 dit('le bilan de la séance la plus fraîche', 'à remettre', gesteDit(g, 'bilan')?.attend);
-dit('l’itinéraire est le même pour tout le monde',
-  'Mme Akouavi, voici comment nous rejoindre : Rue 12.34, Suru-Léré, Cotonou\n\nItinéraire sur Google Maps : https://maps.app.goo.gl/AbCdEf12345',
-  gesteDit(g, 'itineraire')?.compose);
-dit('sans chemin écrit, le lien Google Maps seul',
-  'Mme Akouavi, voici comment nous rejoindre sur Google Maps : https://maps.app.goo.gl/AbCdEf12345',
-  gesteDit(lesGestes(ctx({ itineraire: '  ' })), 'itineraire')?.compose);
-dit('un lien qui n’est pas Google Maps ne part pas',
-  'Mme Akouavi, voici comment nous rejoindre : Rue 12.34, Suru-Léré, Cotonou',
+/* LE PLAN D'ABORD (29 octobre 2026) : le plan en pièce, une phrase courte,
+   la Maison sur Google Maps par le site ; le long chemin écrit ne part plus. */
+dit('l’itinéraire : le plan, une phrase courte, la Maison sur Google Maps par le site',
+  ['Mme Akouavi, voici le plan pour venir à la Maison.\n\nMaison MND sur Google Maps : https://maisonmnd.com/venir/', { quoi: 'plan', nom: 'Plan pour venir à la Maison' }],
+  [gesteDit(g, 'itineraire')?.compose, gesteDit(g, 'itineraire')?.piece]);
+dit('… le long chemin écrit aux Paramètres ne part plus',
+  false, (gesteDit(g, 'itineraire')?.compose ?? '').includes('Rue 12.34'));
+dit('un lien qui n’est pas Google Maps ne part pas : le plan et la phrase seuls',
+  'Mme Akouavi, voici le plan pour venir à la Maison.',
   gesteDit(lesGestes(ctx({ carte: 'https://exemple.com/piege' })), 'itineraire')?.compose);
 dit('le rendez-vous du soir, pas celui de ce matin',
   'Mme Akouavi, nous vous attendons lundi 14 septembre 2026 à 17 h.', gesteDit(g, 'rendezvous')?.compose);
@@ -278,7 +279,7 @@ dit('aucune photo', 'Aucune photo d’elle dans la Maison.', gesteDit(sansRien, 
 dit('aucun rendez-vous', 'Aucun rendez-vous à venir.', gesteDit(sansRien, 'rendezvous')?.eteint);
 dit('pas abonnée', 'Elle n’est pas abonnée.', gesteDit(sansRien, 'abonnement')?.eteint);
 dit('aucun foyer', 'Elle n’appartient à aucun compte de famille.', gesteDit(sansRien, 'foyer')?.eteint);
-dit('pas d’itinéraire réglé', 'Le chemin du salon n’est pas écrit dans les Paramètres.',
+dit('sans chemin ni lien réglés, l’itinéraire reste possible : le plan suffit', null,
   gesteDit(lesGestes(ctx({ itineraire: '  ', carte: '' })), 'itineraire')?.eteint);
 
 /* ── LA FENÊTRE FERMÉE ÉTEINT TOUT ───────────────────────────────── */

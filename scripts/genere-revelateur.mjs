@@ -1790,6 +1790,34 @@ writeFileSync(path.join(SORTIE, 'm', 'index.html'), pageAccentuee({
   noeuds: [noeudSite()],
 }).replace('<link rel="canonical"', '<meta name="robots" content="noindex" /><link rel="canonical"'));
 
+/* VENIR À LA MAISON — 29 octobre 2026. « Quand l'itinéraire part à la
+   cliente, il y a cette photo moche de Google Maps » (Yéman) : WhatsApp
+   montrait l'aperçu du lien maps.app.goo.gl, avec la photo que Google choisit
+   sur la fiche. Les messages portent désormais `maisonmnd.com/venir/` : sa
+   carte de lien est celle de la Maison (Yéman, `venir-carte.jpg`, petite pour
+   la vignette à gauche), et la page ouvre aussitôt Google Maps sur la porte.
+   Le lien suivi est celui de la branche (Système › Branches), lu à la
+   construction comme l'agenda ; sans lui, celui de la fiche publique.
+   Hors des moteurs et hors du plan, comme `/m/`. */
+const GOOGLE_MAPS = /^https:\/\/(?:maps\.app\.goo\.gl|goo\.gl\/maps|(?:www\.)?google\.(?:com|[a-z]{2}|com?\.[a-z]{2})\/maps|maps\.google\.(?:com|[a-z]{2}|com?\.[a-z]{2}))(?:[/?#]|$)/i;
+const lignesDesBranches = statique ? await tablePublique('branches', 'id,data') : null;
+const brancheDuSite = (lignesDesBranches ?? []).find((l) => l.data?.flagship && l.data?.status !== 'paused') ?? (lignesDesBranches ?? [])[0];
+/* Sans le paramètre de partage `g_st` que l'application ajoute, comme
+   `lienMapsWa` le retire des messages. */
+const sansPartage = (brut) => { try { const u = new URL(brut); u.searchParams.delete('g_st'); return u.toString(); } catch { return brut; } };
+const lienDeLaBranche = sansPartage(String(brancheDuSite?.data?.mapsUrl ?? '').trim());
+const VERS_LA_PORTE = GOOGLE_MAPS.test(lienDeLaBranche) ? lienDeLaBranche : COMMUN.comptes.google;
+mkdirSync(path.join(SORTIE, 'venir'), { recursive: true });
+writeFileSync(path.join(SORTIE, 'venir', 'index.html'), pageAccentuee({
+  chemin: '/venir/', transition: false, titre: 'Maison MND · Cotonou',
+  description: 'Venir à la Maison : l’itinéraire s’ouvre dans Google Maps, jusqu’à la porte.',
+  image: 'venir-carte.jpg',
+  corps: `<section class="page-hero page-hero--simple"><div class="conteneur"><div><p class="sur">Venir à la Maison</p><h1>L’itinéraire s’ouvre.</h1><p class="ligne">Google Maps vous mène jusqu’à la porte de la Maison MND.</p><div class="rangee" style="margin-top:22px"><a class="btn btn--plein" id="vers-la-porte" href="${attr(VERS_LA_PORTE)}" rel="noopener">Ouvrir Google Maps</a></div></div></div></section>
+      <script>if('onpageswap' in window)addEventListener('pageswap',function(e){if(e.viewTransition)e.viewTransition.skipTransition()});location.replace(${JSON.stringify(VERS_LA_PORTE)});</script>`,
+  noeuds: [noeudSite()],
+}).replace('<link rel="canonical"', '<meta name="robots" content="noindex" /><link rel="canonical"'));
+console.log(`  /venir/ : ${VERS_LA_PORTE === lienDeLaBranche ? 'le lien de la branche' : 'le lien de la fiche publique (branche sans lien lu)'}`);
+
 /* LE PLAN DU SITE — 18 septembre 2026, demandé par Yéman au pied de page.
 
    Il s'écrit APRÈS toutes les boucles, et c'est la seule place possible : il

@@ -88,6 +88,9 @@ type Attente = {
   boutonUrl?: string;
   /** Ce que le fil affiche d'un modèle parti, à la place de « Modèle « x » ». */
   texteAffiche?: string;
+  /** LE PLAN D'ABORD (29 octobre 2026) : la pièce part seule, puis le texte
+      dans sa propre bulle, pour que le lien pour venir garde sa carte. */
+  planDAbord?: boolean;
   numero: string;
   clientId?: string;
   posteLe: number;
@@ -266,6 +269,11 @@ export function ComposeurWhatsApp({ fil, texte, surTexte, cite, surCite, poignee
   /* LA PIÈCE EN ATTENTE · choisie, pas encore envoyée. Elle se relit comme
      le texte : on doit pouvoir la retirer avant d'appuyer. */
   const [piece, setPiece] = useState<PieceRendue | null>(null);
+  /* La pièce posée par le geste « Itinéraire » est le plan : elle part avant
+     le texte. Retirée ou remplacée à la main, elle redevient une pièce comme
+     une autre. */
+  const [planDAbord, setPlanDAbord] = useState(false);
+  useEffect(() => { if (!piece) setPlanDAbord(false); }, [piece]);
   /* La facture ou le devis d'un geste, tel que les Factures le font (18 octobre 2026). */
   const { buildPdfData } = useLaPieceEnPdf();
   const [promoOuverte, setPromoOuverte] = useState(false);
@@ -415,6 +423,28 @@ export function ComposeurWhatsApp({ fil, texte, surTexte, cite, surCite, poignee
           toast(`${nom} : le PDF n’a pas pu se faire. Joignez-le avec « + Pièce jointe ».`);
         }
       })();
+    } else if (g.piece?.quoi === 'plan') {
+      /* LE PLAN POUR VENIR · 29 octobre 2026. L'image du Trône lui-même,
+         dessinée par la Maison : elle se relit, se retire, et part avant le
+         texte. */
+      const nom = g.piece.nom;
+      void (async () => {
+        try {
+          const r = await fetch(`${import.meta.env.BASE_URL}assets/itineraire/plan-depuis-super-u.png`);
+          if (!r.ok) throw new Error(String(r.status));
+          const b = await r.blob();
+          const donnees = await new Promise<string>((ok, ko) => {
+            const l = new FileReader();
+            l.onload = () => ok(String(l.result));
+            l.onerror = () => ko(l.error);
+            l.readAsDataURL(b);
+          });
+          setPiece({ nom: `${nom}.png`, type: 'image/png', donnees });
+          setPlanDAbord(true);
+        } catch {
+          toast(`${nom} : l’image n’a pas pu se joindre. Le texte est prêt.`);
+        }
+      })();
     } else if (g.piece) {
       /* ON NE PROMET PAS UN FICHIER QU'ON N'A PAS. Le bilan vit dans une page
          imprimable, les photos de séance n'ont pas encore de logement : le
@@ -442,6 +472,12 @@ export function ComposeurWhatsApp({ fil, texte, surTexte, cite, surCite, poignee
   void tacTac;
 
   const partir = async (a: Attente, enFermant = false) => {
+    /* LE PLAN D'ABORD : deux envois, la pièce seule puis le texte seul. */
+    if (a.planDAbord && a.piece && !a.modele && a.texte) {
+      await partir({ ...a, texte: '', planDAbord: false }, enFermant);
+      await partir({ ...a, piece: null, planDAbord: false }, enFermant);
+      return;
+    }
     const corps = {
       numero: a.numero,
       texte: a.modele ? (a.texteAffiche ?? '') : a.texte,
@@ -574,6 +610,7 @@ export function ComposeurWhatsApp({ fil, texte, surTexte, cite, surCite, poignee
     const aPoster: Attente = {
       texte: texte.trim(),
       piece: modele ? null : piece,
+      ...(planDAbord && !modele ? { planDAbord: true } : {}),
       citeWaId: cite?.waId,
       modele,
       variables,

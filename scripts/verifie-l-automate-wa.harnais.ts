@@ -595,8 +595,10 @@ function fautesDesTextes(messages: readonly MessageSortant[]): string[] {
        trace de l'appel absent. */
     if (TRACE_D_APPEL_VIDE.test(m.corps)) fautes.push(`trace d un appel vide : « ${m.corps} »`);
     const devise = m.corps.includes(DEVISE);
-    if (devise !== (m.etape === 'confirme')) fautes.push(`devise ${devise ? 'hors de' : 'absente de'} la confirmation : « ${m.corps} »`);
-    if (m.forme !== 'texte' && m.pied !== PIED) fautes.push('pied absent');
+    /* Le plan et le lien qui suivent la confirmation (29 octobre 2026) ne la
+       signent pas : la devise est sur la confirmation, une fois. */
+    if (devise !== (m.etape === 'confirme' && !m.accessoire)) fautes.push(`devise ${devise ? 'hors de' : 'absente de'} la confirmation : « ${m.corps} »`);
+    if (m.forme !== 'texte' && m.forme !== 'image' && m.pied !== PIED) fautes.push('pied absent');
     if (!j(chargeGraph(m, NUM_NAFFI)).includes('"messaging_product":"whatsapp"')) fautes.push('charge Graph malformee');
   }
   return fautes;
@@ -1133,7 +1135,7 @@ const regles: Regle[] = [
         && corps(a.s4).endsWith(DEVISE), corps(a.s4));
       vaut('A4 l alerte au personnel : le prenom seul, la date avec l annee', { titre: 'Nouveau rendez-vous par WhatsApp', corps: 'Naffi, samedi 10 octobre 2026 à 9 h' },
         { titre: a.s4.alerte?.titre, corps: a.s4.alerte?.corps });
-      vaut('A  quatre messages de la Maison pour toute la reservation', 4, a.avantMerci);
+      vaut('A  quatre messages de la Maison pour toute la reservation, et le plan qui suit la confirmation', 5, a.avantMerci);
       vaut('A  une pose, sur sa fiche, confirmee, source whatsapp, sa duree, sans demande', { n: 1, clientId: 'c-naffi', status: 'confirmé', source: 'whatsapp', dureeMin: 105, date: '2026-10-10', time: '09:00', demande: false },
         { n: a.p.poses.length, clientId: a.p.poses[0]?.rdv.clientId, status: a.p.poses[0]?.rdv.status, source: a.p.poses[0]?.rdv.source, dureeMin: a.p.poses[0]?.rdv.dureeMin, date: a.p.poses[0]?.rdv.date, time: a.p.poses[0]?.rdv.time, demande: !!a.p.poses[0]?.demande });
       vrai('A  jamais le maitre : la Maison attribue (aucun champ master)', !a.p.poses.some((x) => 'master' in x.rdv));
@@ -1147,7 +1149,7 @@ const regles: Regle[] = [
       vaut('B5 et votre prenom, Mademoiselle, a ecrire en message', 'Et votre prénom, Mademoiselle ? Écrivez-le simplement dans un message, en réponse.', corps(b.s5));
       vaut('B6 le recapitulatif dit Mlle Awa', 'Voici votre rendez-vous, Mlle Awa : Lavage rituel (KLƆKLƆ™ Essentiel), mardi 13 octobre 2026 à 9 h, à la Maison MND. Nous le posons ?', corps(b.s6));
       vrai('B7 c est confirme, Mlle Awa', corps(b.s7).startsWith("C'est confirmé, Mlle Awa : votre rendez-vous est retenu le mardi 13 octobre 2026 à 9 h."), corps(b.s7));
-      vaut('B  huit messages de la Maison', 8, b.p.envoyes.length);
+      vaut('B  huit messages de la Maison, et le plan qui suit la confirmation', 9, b.p.envoyes.length);
       const d = b.p.poses[0]?.demande;
       vaut('B  la demande : whatsapp, rdv, sa civilite, son prenom, +229, le consentement a l heure du Je confirme, sans fiche',
         { source: 'whatsapp', genre: 'rdv', civilite: 'mademoiselle', prenom: 'Awa', telephone: `+${NUM_INCONNUE}`, consentementLe: isoDe(b.t0 + 120000), besoin: 'entretien', clientId: '', clientName: 'Awa', apptId: b.p.poses[0]?.rdv.id },
@@ -1494,7 +1496,8 @@ const regles: Regle[] = [
       const messages = tous.flatMap((p) => p.envoyes);
       vrai(`les ${messages.length} messages de tous les parcours passent les juges`, messages.length >= 60 && fautesDesTextes(messages).length === 0, fautesDesTextes(messages).slice(0, 4).join(' | '));
       vaut('la devise est celle de la Maison (DEVISE_COMPLETE)', /DEVISE_COMPLETE = '([^']+)'/.exec(lit('src/shared/identite.ts'))?.[1], DEVISE);
-      vaut('chaque confirmation est signee de la devise', [], messages.filter((m) => m.etape === 'confirme' && !m.corps.endsWith(DEVISE)).map((m) => m.corps));
+      vaut('chaque confirmation est signee de la devise', [], messages.filter((m) => m.etape === 'confirme' && !m.accessoire && !m.corps.endsWith(DEVISE)).map((m) => m.corps));
+      vaut('... le plan qui la suit est une image, a son adresse publique, sans legende', [], messages.filter((m) => m.forme === 'image' && !(m.accessoire && m.corps === '' && m.image === 'https://maisonmnd.com/assets/itineraire/plan-depuis-super-u.png')).map((m) => m.image));
       const titres = [titreDePlace('2026-10-17', '09:00'), titreDePlace('2026-09-23', '14:30'), titreDePlace('2026-03-17', '14:30'), titreDePlace('2026-11-01', '09:00'), titreDePlace('2026-02-28', '16:45')];
       vrai('un titre de place : 24 signes au plus, l annee toujours', titres.every((t) => t.length <= 24 && /2026/.test(t)), titres.join(' | '));
       vaut('le premier du mois se dit 1er, avec l annee', 'dimanche 1er novembre 2026', jourDitAvecAnnee('2026-11-01'));
@@ -1913,13 +1916,18 @@ const regles: Regle[] = [
           { id: rdv?.id, status: rdv?.data.status, source: rdv?.data.source, clientId: rdv?.data.clientId, dureeMin: rdv?.data.dureeMin, note: rdv?.data.note });
         /* Son rituel est un SÍNSIN : chez Team, seul (24 octobre 2026). */
         vaut('banc : ... la Maison attribue : un SINSIN va chez Team seul, et le verrou le prend', [['Team'], 'Team'], [B().poses[0]?.p_maitres, rdv?.data.master]);
-        const b4 = dernierA(NAFFI_E);
-        vrai('banc : la confirmation en texte, l annee, l itineraire, la devise', b4?.type === 'text' && /^C'est confirmé, Mme Naffi/.test(corpsDe(b4)) && /2026 à/.test(corpsDe(b4)) && /Akpakpa/.test(corpsDe(b4)) && corpsDe(b4).endsWith(DEVISE), corpsDe(b4));
-        vrai('banc : le lien Google Maps de la branche suit l itineraire, sans le parametre de partage', corpsDe(b4).includes('face à la pharmacie.\n\nItinéraire sur Google Maps : https://maps.app.goo.gl/AbCdEf12345\n\n'), corpsDe(b4));
+        /* TROIS BULLES (29 octobre 2026) : la confirmation courte, le plan en
+           image, puis la Maison sur Google Maps par le site. */
+        const [b4, plan, venir] = ecritsA(NAFFI_E).slice(-3);
+        vrai('banc : la confirmation en texte, l annee, le plan annonce, la devise, plus le long itineraire', b4?.type === 'text' && /^C'est confirmé, Mme Naffi/.test(corpsDe(b4)) && /2026 à/.test(corpsDe(b4))
+          && corpsDe(b4).includes('Le plan pour venir à la Maison suit ce message.') && !/Akpakpa/.test(corpsDe(b4)) && corpsDe(b4).endsWith(DEVISE), corpsDe(b4));
+        vaut('banc : puis le plan en image, puis la Maison sur Google Maps par le site, jamais le lien de Google lui-meme',
+          ['image', 'https://maisonmnd.com/assets/itineraire/plan-depuis-super-u.png', 'text', 'Maison MND sur Google Maps : https://maisonmnd.com/venir/'],
+          [plan?.type, plan?.image?.link, venir?.type, corpsDe(venir)]);
         const ligne = T('envois').get(`conf-${rdv?.id}-whatsapp`)?.data;
         vrai('banc : la ligne de confirmation passe a envoye, avec l identifiant de Meta', ligne?.statut === 'envoyé' && /^wamid\.out-/.test(ligne?.waMessageId ?? ''), ligne);
         vrai('banc : la seule alerte, le rendez-vous pose, au prenom seul', pushsDepuis(p0).length === 2 && pushsDepuis(p0).every((x: Any) => x.title === 'Nouveau rendez-vous par WhatsApp' && /^Naffi, /.test(x.body) && /2026/.test(x.body)), pushsDepuis(p0));
-        vaut('banc : quatre messages de la Maison', 4, ecritsA(NAFFI_E).length);
+        vaut('banc : quatre messages de la Maison, le plan et le lien pour venir', 6, ecritsA(NAFFI_E).length);
         vaut('banc : les juges de la Maison passent sur chaque message', [], fautesDuBanc(NAFFI_E));
         await livre(corpsOui);
         vaut('banc : une seconde livraison du Je confirme ne pose rien de plus', 1, [...T('appointments').keys()].filter((k) => k.startsWith('rdv-wa-')).length);
@@ -1937,10 +1945,10 @@ const regles: Regle[] = [
         const { m: ouiB } = await touche(INCONNUE_E, choix(INCONNUE_E, 'Je confirme'));
         const rdvB = [...T('appointments').values()].find((a: Any) => a.id.startsWith('rdv-wa-'));
         const dem = T('demandes').get(`dem-wa-${cleCourte(ouiB.id)}`);
-        vaut('banc : l inconnue : sept messages, le rendez-vous sans fiche, la demande avec sa civilite, aucune fiche creee',
-          { messages: 7, clientId: '', clientName: 'Awa', source: 'whatsapp', civilite: 'mademoiselle', telephone: `+${INCONNUE_E}`, apptId: rdvB?.id, fiches: 1 },
+        vaut('banc : l inconnue : sept messages et les deux qui suivent la confirmation, le rendez-vous sans fiche, la demande avec sa civilite, aucune fiche creee',
+          { messages: 9, clientId: '', clientName: 'Awa', source: 'whatsapp', civilite: 'mademoiselle', telephone: `+${INCONNUE_E}`, apptId: rdvB?.id, fiches: 1 },
           { messages: ecritsA(INCONNUE_E).length, clientId: rdvB?.data.clientId, clientName: rdvB?.data.clientName, source: dem?.data.source, civilite: dem?.data.civilite, telephone: dem?.data.telephone, apptId: dem?.data.apptId, fiches: T('clients').size });
-        vaut('banc : les juges de la Maison, sur ses sept messages', [], fautesDuBanc(INCONNUE_E));
+        vaut('banc : les juges de la Maison, sur ses neuf messages', [], fautesDuBanc(INCONNUE_E));
         /* ═ La place prise entre-temps (les deux fauteuils) : rien n'est posé. ═ */
         remetsLaBase({ mode: 'ouvert', numerosEssai: [] });
         await ecrit(NAFFI_E, 'Je voudrais passer samedi');
@@ -2273,7 +2281,9 @@ const regles: Regle[] = [
         await touche(NAFFI_E, choix(NAFFI_E, 'La même chose'));
         await touche(NAFFI_E, choixDe(dernierA(NAFFI_E)).find((x) => /:place:/.test(x.id)));
         await touche(NAFFI_E, choix(NAFFI_E, 'Je confirme'));
-        const conf = dernierSortant(NAFFI_E);
+        /* La confirmation est la premiere des trois bulles : c'est elle qui revient non remise. */
+        const conf = [...T('messages_wa').values()].map((l: Any) => l.data)
+          .find((d: Any) => d.sens === 'sortant' && d.numero === NAFFI_E && d.etape === 'confirme' && /^C'est confirmé/.test(d.texte ?? ''));
         const p2 = B().pushs.length;
         await livre(statuts([{ id: conf?.waId, status: 'failed', recipient_id: NAFFI_E, timestamp: String(Math.floor(Date.now() / 1000)) }]));
         const rdv = [...T('appointments').values()].find((x: Any) => x.id.startsWith('rdv-wa-'));
@@ -2621,17 +2631,19 @@ const regles: Regle[] = [
     id: 'R34', nom: 'R34 la confirmation porte le lien Google Maps de la Maison, sans le parametre de partage, et jamais un lien etranger',
     eprouve: () => {
       const { ecarts, vaut, vrai } = juge();
-      const confirme = (carte?: string): string => {
+      const confirme = (carte?: string): string => laConfirmation(carte).messages.map((m) => m.corps).join('\n\n');
+      const laConfirmation = (carte?: string): SortieDuTour => {
         const a = parcours(ORIGINAL, NUM_NAFFI, [NAFFI]);
         if (carte !== undefined) a.carte = carte;
         const t0 = cotonou('2026-10-09', '11:00');
         elle(a, t0, { texte: 'Je voudrais un rendez-vous' });
         elle(a, t0 + 1000, { touche: 'La même chose' });
         elle(a, t0 + 2000, { touche: 'Sam. 10 oct. 2026 · 9 h' });
-        return corps(elle(a, t0 + 3000, { touche: 'Je confirme' }));
+        return elle(a, t0 + 3000, { touche: 'Je confirme' });
       };
-      const c = confirme('https://maps.app.goo.gl/AbCdEf12345?g_st=ac');
-      vrai('le lien suit l itineraire, avant la devise, sans g_st', c.includes('derrière la pharmacie.\n\nItinéraire sur Google Maps : https://maps.app.goo.gl/AbCdEf12345\n\n' + DEVISE), c);
+      const s = laConfirmation('https://maps.app.goo.gl/AbCdEf12345?g_st=ac');
+      vaut('la Maison sur Google Maps ferme la confirmation, apres le plan, par le site (la photo de Google ne part plus)',
+        ['texte', 'image', 'Maison MND sur Google Maps : https://maisonmnd.com/venir/'], [s.messages[0]?.forme, s.messages[1]?.forme, s.messages[2]?.corps]);
       vrai('sans lien, aucune ligne', !confirme().includes('Google Maps'));
       vrai('un lien qui n est pas Google Maps ne part jamais', !confirme('https://exemple.com/piege').includes('exemple.com'));
       vaut('lienMapsWa : la branche d abord, puis les Parametres ; un lien sans g_st reste tel quel ; http et le reste refuses',

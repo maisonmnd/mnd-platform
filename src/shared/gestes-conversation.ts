@@ -55,7 +55,9 @@ export type PieceAJoindre =
   | { quoi: 'devis'; invoiceId: string; nom: string }
   | { quoi: 'bilan'; bilanId?: string; apptId: string; nom: string }
   | { quoi: 'bilans-du-foyer'; apptIds: string[]; nom: string }
-  | { quoi: 'photos'; clientId: string; nom: string };
+  | { quoi: 'photos'; clientId: string; nom: string }
+  /** Le plan pour venir, l'image du Trône (29 octobre 2026). */
+  | { quoi: 'plan'; nom: string };
 
 export type Geste = {
   cle: CleDuGeste;
@@ -567,16 +569,18 @@ export function lesGestes(ctx: ContexteDesGestes): Geste[] {
   });
 
   /* ⑨ L'ITINÉRAIRE — le même pour tout le monde, suivi du lien Google Maps
-        de la Maison (13 octobre 2026). */
-  const chemin = ctx.itineraire.trim();
+        de la Maison (13 octobre 2026).
+        LE PLAN D'ABORD (29 octobre 2026, Yéman : « enlève le long texte, les
+        gens comprendront le plan ») : le plan part en image, puis une phrase
+        courte et la Maison sur Google Maps, par le site, dont la carte de
+        lien est celle de la Maison. */
   const carte = lienMapsWa(ctx.carte);
   g.push({
     cle: 'itineraire',
     mot: 'Itinéraire',
-    eteint: barre(chemin || carte ? null : 'Le chemin du salon n’est pas écrit dans les Paramètres.'),
-    compose: chemin
-      ? [`${prenom}, voici comment nous rejoindre : ${chemin}`, ligneGoogleMapsWa(carte)].filter(Boolean).join('\n\n')
-      : carte ? `${prenom}, voici comment nous rejoindre sur Google Maps : ${carte}` : undefined,
+    eteint: barre(null),
+    compose: [`${prenom}, voici le plan pour venir à la Maison.`, ligneGoogleMapsWa(carte)].filter(Boolean).join('\n\n'),
+    piece: { quoi: 'plan', nom: 'Plan pour venir à la Maison' },
   });
 
   /* ⑩ LA PROMOTION — elle OUVRE un panneau, elle ne compose pas. Un avantage

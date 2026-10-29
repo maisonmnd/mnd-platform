@@ -88,7 +88,7 @@ import { createClient, type SupabaseClient } from 'npm:@supabase/supabase-js@2';
 
 /** LA VERSION DE CE FICHIER, dite par le contrôle de santé. Sans elle on ne
     sait pas quel code tourne vraiment. À incrémenter à chaque déploiement. */
-const VERSION = '2026-10-29-a · le tri des démarcheurs avant toute réponse';
+const VERSION = '2026-10-29-b · le plan pour venir, en image';
 
 /** « En train d'écrire », puis on attend : deux messages envoyés coup sur
     coup font un seul tour, celui du dernier. */
@@ -1608,7 +1608,7 @@ const PIED = 'Réponse automatique · Parler à la Maison à tout moment';
     shared/identite) : elle signe la confirmation, et elle seule. */
 const DEVISE = 'mi nyɔ́ ɖɛkpɛ, votre beauté est déjà là';
 
-type FormeDuMessage = 'texte' | 'boutons' | 'liste';
+type FormeDuMessage = 'texte' | 'boutons' | 'liste' | 'image';
 
 type MessageSortant = {
   forme: FormeDuMessage;
@@ -1628,6 +1628,12 @@ type MessageSortant = {
   /** Écrit par la réception (Claude, 27 octobre 2026) : la trace dit
       « Assistant Maison », et les compteurs de la réception la lisent. */
   deLaReception?: boolean;
+  /** UNE IMAGE (29 octobre 2026, le plan pour venir) : son adresse publique,
+      que Meta va chercher ; `corps` en est alors la légende, vide permis. */
+  image?: string;
+  /** UN MESSAGE QUI ACCOMPAGNE : refusé par Meta, il ne fait pas passer la
+      main, la confirmation est déjà partie (le plan, le lien pour venir). */
+  accessoire?: boolean;
 };
 
 const coupeWa = (t: string, n: number): string => {
@@ -1649,6 +1655,9 @@ function chargeGraph(m: MessageSortant, numero: string): Record<string, unknown>
   const base = { messaging_product: 'whatsapp', recipient_type: 'individual', to: numero };
   if (m.forme === 'texte') {
     return { ...base, type: 'text', text: { body: m.corps, preview_url: /https?:\/\//.test(m.corps) } };
+  }
+  if (m.forme === 'image') {
+    return { ...base, type: 'image', image: { link: m.image ?? '', ...(m.corps.trim() ? { caption: m.corps } : {}) } };
   }
   const pied = m.pied ? { footer: { text: m.pied } } : {};
   if (m.forme === 'boutons') {
@@ -1679,8 +1688,10 @@ function chargeGraph(m: MessageSortant, numero: string): Record<string, unknown>
 /** CE QUE META REFUSERAIT, avant de l'envoyer : une liste vide = conforme. */
 function respecteMeta(m: MessageSortant): string[] {
   const fautes: string[] = [];
-  const corpsMax = m.forme === 'boutons' ? 1024 : 4096;
-  if (!m.corps.trim()) fautes.push('corps vide');
+  const corpsMax = m.forme === 'boutons' || m.forme === 'image' ? 1024 : 4096;
+  if (m.forme === 'image') {
+    if (!/^https:\/\/\S+$/.test(m.image ?? '')) fautes.push('image sans adresse publique');
+  } else if (!m.corps.trim()) fautes.push('corps vide');
   if (m.corps.length > corpsMax) fautes.push(`corps de ${m.corps.length} signes (${corpsMax} au plus)`);
   if (m.pied && m.pied.length > 60) fautes.push(`pied de ${m.pied.length} signes (60 au plus)`);
   if (m.forme === 'boutons') {
@@ -2297,8 +2308,17 @@ const sansAppelVide = (t: string): string => t
   .replace(/,[ \t]*\./g, '.')
   .replace(/ {2,}/g, ' ');
 
-/** La ligne du lien, telle que la cliente la lit. */
-const ligneGoogleMapsWa = (lien: string): string => (lien ? `Itinéraire sur Google Maps : ${lien}` : '');
+/* VENIR À LA MAISON (29 octobre 2026, Yéman : « il y a cette photo moche de
+   Google Maps qui va avec ») : le lien envoyé est celui du site, dont la carte
+   est la Maison et qui ouvre aussitôt Google Maps sur la porte (le lien de la
+   branche, lu à la construction du site). Le plan, dessiné par la Maison, part
+   en image ; le long texte de l'itinéraire ne part plus, le plan le dit. */
+const LIEN_POUR_VENIR = 'https://maisonmnd.com/venir/';
+const PLAN_POUR_VENIR = 'https://maisonmnd.com/assets/itineraire/plan-depuis-super-u.png';
+
+/** La ligne du lien, telle que la cliente la lit : la Maison sur Google Maps,
+    par le site, seulement quand la Maison a donné son lien. */
+const ligneGoogleMapsWa = (lien: string): string => (lien ? `Maison MND sur Google Maps : ${LIEN_POUR_VENIR}` : '');
 
 /** La consultation nommée dans une phrase : « la consultation Origine
     (KÒKÒ™ Origine) » ; sans mot français, « le Conseil et diagnostic ». */
@@ -3009,14 +3029,20 @@ function atelierDuTour(ancien: EtatDuFil | null | undefined, tour: TourDeLaClien
       base.rdvId = verdict.id;
       passe('confirme');
       const de = p.pourQui ? `le rendez-vous de ${p.pourQui}` : 'votre rendez-vous';
-      const itineraire = String(ctx.maison.itineraire ?? '').trim();
+      /* TROIS BULLES (29 octobre 2026, choix de Yéman) : la confirmation,
+         courte ; le plan, en image ; enfin la Maison sur Google Maps, dont la
+         carte de lien est celle de la Maison. */
       const corps = [
         `C'est confirmé, ${appel()} : ${de} est retenu le ${quandDuPanier()}. Nous vous attendons. Merci de nous prévenir en cas d'empêchement.`,
-        itineraire && texteSain(itineraire).length === 0 ? coupeWa(itineraire, 600) : '',
-        ligneGoogleMapsWa(lienMapsWa(ctx.maison.carte)),
+        'Le plan pour venir à la Maison suit ce message.',
         DEVISE,
-      ].filter(Boolean).join('\n\n');
-      return sortie([texte('confirme', corps)], alerteDeLAutomate({
+      ].join('\n\n');
+      const lienPourVenir = ligneGoogleMapsWa(lienMapsWa(ctx.maison.carte));
+      return sortie([
+        texte('confirme', corps),
+        { forme: 'image', etape: 'confirme', corps: '', image: PLAN_POUR_VENIR, accessoire: true },
+        ...(lienPourVenir ? [{ ...texte('confirme', lienPourVenir), accessoire: true }] : []),
+      ], alerteDeLAutomate({
         genre: 'pose', prenom: prenomPourAlerte(), numero: ctx.numero, date: p.date, time: p.time,
       }));
     }
@@ -3812,8 +3838,10 @@ async function laisseLaTrace(
       sens: 'sortant',
       numero: o.numero,
       ...(o.clientId ? { clientId: o.clientId } : {}),
-      texte: o.m.corps,
-      type: o.m.forme === 'texte' ? 'text' : 'interactive',
+      /* Le plan part en image, sans légende : le fil du Trône le dit en mots. */
+      texte: o.m.corps || (o.m.forme === 'image' ? 'Le plan pour venir à la Maison (image)' : ''),
+      type: o.m.forme === 'texte' ? 'text' : o.m.forme === 'image' ? 'image' : 'interactive',
+      ...(o.m.image ? { lienImage: o.m.image } : {}),
       quand: new Date().toISOString(),
       etat: o.rendu.waId ? 'en-route' : 'non-remis',
       ...(o.rendu.detail ? { detail: o.rendu.detail } : {}),
@@ -4215,7 +4243,13 @@ async function unTour(
     }
     const rendu = await envoieAGraph(o.jeton, o.phoneId, chargeGraph(m, o.numero));
     await laisseLaTrace(sb, { numero: o.numero, m, rendu, ...(branchId ? { branchId } : {}), ...(clientIdDuFil ? { clientId: clientIdDuFil } : {}) });
-    if (m.etape === 'confirme') laConfirmation = rendu;
+    /* La confirmation, c'est la première bulle : le plan et le lien qui la
+       suivent ne la remplacent pas (29 octobre 2026). */
+    if (m.etape === 'confirme' && !laConfirmation) laConfirmation = rendu;
+    if (!rendu.waId && m.accessoire) {
+      dis('Meta refuse un message qui accompagne', { etape: m.etape, forme: m.forme, code: rendu.code ?? null });
+      continue;
+    }
     if (!rendu.waId) {
       dis('Meta refuse le message', { etape: m.etape, code: rendu.code ?? null });
       refus = 'envoi-refuse';
@@ -4358,6 +4392,7 @@ async function reprendLeFil(
     if ([...respecteMeta(m), ...texteSain(toutLeTexteWa(m), m.prixDuCatalogue === true)].length > 0) return { repris: false, raison: 'message retenu par les juges' };
     const rendu = await envoieAGraph(o.jeton, o.phoneId, chargeGraph(m, o.numero));
     await laisseLaTrace(sb, { numero: o.numero, m, rendu, ...(branchId ? { branchId } : {}), ...(clientId ? { clientId } : {}) });
+    if (!rendu.waId && m.accessoire) continue;
     if (!rendu.waId) {
       const apres = mainApresCoup({ ...sortie.etat, version }, 'envoi-refuse', ctx);
       await sb.rpc('avance_le_fil', { p_numero: o.numero, p_version: version, p_data: apres.etat, p_branch: branchId });
