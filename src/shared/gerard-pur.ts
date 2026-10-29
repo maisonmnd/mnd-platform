@@ -118,8 +118,13 @@ export const IMAGE_DE_LA_CARTE = 'https://maisonmnd.com/trone/assets/cartes/cart
    Gérard, mais Assistant Maison ») : `assistant_maison_*` pour tous ses
    modèles. Un ancien `gerard_*` noté approuvé ne compte plus : Meta ne
    connaît que le nom sous lequel le modèle a été déposé. */
+/* « GARDER » EN RAPPEL (29 octobre 2026) : Meta rangeait « C’est toujours
+   bon pour vous ? » en Marketing et refusait l'Utilitaire. Le corps dit
+   désormais « rendez-vous » et demande la confirmation, comme rappel_rdv,
+   approuvé en Utilitaire ; les boutons ne changent pas, le webhook les
+   reconnaît à leurs mots. */
 const CORPS: Record<CleDeModele, ModeleDeGerard> = {
-  garder: { nom: 'assistant_maison_garder', categorie: 'UTILITY', corps: 'Bonjour {{1}}, votre {{2}} est {{3}}. C’est toujours bon pour vous ?', boutons: ['Oui, je viens', 'Changer l’heure', 'Je ne peux plus'] },
+  garder: { nom: 'assistant_maison_garder', categorie: 'UTILITY', corps: 'Bonjour {{1}}, petit rappel de la Maison : votre rendez-vous de {{2}} est prévu {{3}}. Pouvez-vous nous confirmer votre venue ?', boutons: ['Oui, je viens', 'Changer l’heure', 'Je ne peux plus'] },
   avant: { nom: 'assistant_maison_avant', categorie: 'MARKETING', corps: 'Bonjour {{1}}, votre prochain {{2}} approche : il est prévu {{3}}. Je vous réserve votre place ? Avec un soin ajouté le même jour, votre coiffure de sortie est offerte.', boutons: ['Oui', 'Avec le soin', 'Pas cette fois'] },
   envie: { nom: 'assistant_maison_envie', categorie: 'MARKETING', corps: 'Bonjour {{1}}, pour prendre soin de vos locks avant votre prochain {{2}}, prévu {{3}}, la Maison vous propose {{4}}. Je vous trouve une place ?', boutons: ['Oui', 'Pas cette fois'] },
   place: { nom: 'assistant_maison_place', categorie: 'MARKETING', corps: 'Bonjour {{1}}, il est temps de votre {{2}} : nous avons de la place {{3}}. Je vous en garde une ?', boutons: ['Oui', 'Une autre date', 'Pas cette fois'] },

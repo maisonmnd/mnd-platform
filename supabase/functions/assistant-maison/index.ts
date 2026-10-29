@@ -664,7 +664,7 @@ var intervalleDesRelances = (j) => estSaisonDesFetes(j) ? RELANCE_TOUS_LES_JOURS
 var SIGNATURE = "Maison MND";
 var IMAGE_DE_LA_CARTE = "https://maisonmnd.com/trone/assets/cartes/carte-anniversaire.png";
 var CORPS = {
-  garder: { nom: "assistant_maison_garder", categorie: "UTILITY", corps: "Bonjour {{1}}, votre {{2}} est {{3}}. C’est toujours bon pour vous ?", boutons: ["Oui, je viens", "Changer l’heure", "Je ne peux plus"] },
+  garder: { nom: "assistant_maison_garder", categorie: "UTILITY", corps: "Bonjour {{1}}, petit rappel de la Maison : votre rendez-vous de {{2}} est prévu {{3}}. Pouvez-vous nous confirmer votre venue ?", boutons: ["Oui, je viens", "Changer l’heure", "Je ne peux plus"] },
   avant: { nom: "assistant_maison_avant", categorie: "MARKETING", corps: "Bonjour {{1}}, votre prochain {{2}} approche : il est prévu {{3}}. Je vous réserve votre place ? Avec un soin ajouté le même jour, votre coiffure de sortie est offerte.", boutons: ["Oui", "Avec le soin", "Pas cette fois"] },
   envie: { nom: "assistant_maison_envie", categorie: "MARKETING", corps: "Bonjour {{1}}, pour prendre soin de vos locks avant votre prochain {{2}}, prévu {{3}}, la Maison vous propose {{4}}. Je vous trouve une place ?", boutons: ["Oui", "Pas cette fois"] },
   place: { nom: "assistant_maison_place", categorie: "MARKETING", corps: "Bonjour {{1}}, il est temps de votre {{2}} : nous avons de la place {{3}}. Je vous en garde une ?", boutons: ["Oui", "Une autre date", "Pas cette fois"] },
@@ -1406,7 +1406,7 @@ function remisesAFabriquer(envois) {
 }
 
 // scripts/serveur/assistant-maison.ts
-var VERSION = "2026-10-28-c";
+var VERSION = "2026-10-29-a";
 var json = (corps, status = 200) => new Response(JSON.stringify(corps), { status, headers: { "content-type": "application/json" } });
 var jourDuSalon = (ms) => new Date(ms + 36e5).toISOString().slice(0, 10);
 var heureDuSalon2 = (ms) => {

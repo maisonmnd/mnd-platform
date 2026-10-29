@@ -47,7 +47,7 @@ dit('les familles d’après le nom du catalogue', ['resserrage', 'hydratation',
   ['SÍNSIN™ Essentiel · La Reprise', 'DÀNDÀN™ · Le Soin Hydratant', 'KLƆKLƆ™ Essentiel · « Le Souffle »', 'Coiffure Événement', 'YÈKPÈ™ Couleur', 'Droit de service · Shampoing apporté · Essentiel'].map(familleDuNom));
 dit('une date de cliente porte l’année, le 1er se dit « 1er »', ['mardi 3 novembre 2026', 'mardi 1er décembre 2026', '12 h 15', '10 h'],
   [jourDit('2026-11-03'), jourDit('2026-12-01'), heureDite('12:15'), heureDite('10:00')]);
-dit('un modèle se remplit variable par variable, et finit par la signature « Maison MND », jamais « Gérard »', 'Bonjour Madame K., votre resserrage des racines est mardi 3 novembre 2026 à 10 h. C’est toujours bon pour vous ?\n\nMaison MND',
+dit('un modèle se remplit variable par variable, et finit par la signature « Maison MND », jamais « Gérard »', 'Bonjour Madame K., petit rappel de la Maison : votre rendez-vous de resserrage des racines est prévu mardi 3 novembre 2026 à 10 h. Pouvez-vous nous confirmer votre venue ?\n\nMaison MND',
   remplis(MODELES_DE_GERARD.garder.corps, ['Madame K.', 'resserrage des racines', 'mardi 3 novembre 2026 à 10 h']));
 dit('chaque modèle a un nom Meta « assistant_maison_… », jamais « gerard » (28 octobre 2026), au plus trois boutons, jamais de prix ni de pourcentage, jamais le mot « code » (Meta le rangerait en Authentification), jamais « Gérard » ni « devait revenir »', true,
   Object.values(MODELES_DE_GERARD).every((m) => /^(assistant_maison_[a-z_]+|nouvelles_de_la_maison)$/.test(m.nom) && m.boutons.length <= 3 && !/\d\s?(F|FCFA|XOF)\b|%/.test(m.corps) && !/\bcodes?\b/i.test(m.corps)
@@ -73,7 +73,7 @@ dit('... le point d’avant et le RDV sont « déjà au Trône », les envies et
 const rdvDans2 = (creeLe?: string): RdvDeGerard => ({ id: 'g', date: plusJours(A, 2), time: '10:00', status: 'confirmé', familles: ['resserrage'], venu: false, creeLe });
 const g = sit(fiche({ rdvs: [venue(plusJours(A, -40)), rdvDans2(`${plusJours(A, -10)}T09:00:00.000Z`)] }));
 dit('garder : deux jours avant un RDV pris depuis plus d’une semaine, sur WhatsApp, modèle utilitaire', ['garder', 'whatsapp', 'garder', true],
-  [g?.genre, g?.canal, g?.modele, /est mercredi 28 octobre 2026 à 10 h\. C’est toujours bon pour vous \?\n\nMaison MND$/.test(g?.texte ?? '')]);
+  [g?.genre, g?.canal, g?.modele, /est prévu mercredi 28 octobre 2026 à 10 h\. Pouvez-vous nous confirmer votre venue \?\n\nMaison MND$/.test(g?.texte ?? '')]);
 dit('... pris il y a trois jours : on ne le garde pas', true, sit(fiche({ rdvs: [venue(plusJours(A, -40)), rdvDans2(`${plusJours(A, -3)}T09:00:00.000Z`)] }))?.genre !== 'garder');
 dit('... même « stop », un RDV se garde (c’est un service)', 'garder', sit(fiche({ stop: true, accord: false, rdvs: [venue(plusJours(A, -40)), rdvDans2()] }))?.genre);
 
