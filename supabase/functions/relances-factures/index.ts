@@ -85,7 +85,7 @@ import { createClient } from 'npm:@supabase/supabase-js@2';
 const TZ = 'Africa/Porto-Novo'; // le fuseau du salon, pas celui du serveur
 
 /** La version de ce fichier, rendue dans chaque réponse. */
-const VERSION = '2026-10-28-b · au payeur du compte famille, un rappel pour les factures du même jour, un rythme par type, le décalage';
+const VERSION = '2026-10-29-a · jamais une relance le dimanche, elle passe au lundi';
 
 /** Numéro béninois → format international sans « + » (copie de rappels-j1). */
 const numeroIntl = (brut: string | undefined): string | null => {
@@ -223,8 +223,8 @@ export type DecalageDesRelances = { au: string; rang: number; le: string; par?: 
 export function jourDeLaRelance(depart: string, cadence: readonly number[], n: number, decalage?: DecalageDesRelances | null): string | null {
   if (!(n >= 1 && n <= cadence.length)) return null;
   const d = decalage && /^\d{4}-\d{2}-\d{2}$/.test(decalage.au) && decalage.rang >= 1 && decalage.rang <= cadence.length ? decalage : null;
-  if (!d || n < d.rang) return jourPlusR(depart, cadence[n - 1]);
-  return jourPlusR(d.au, cadence[n - 1] - cadence[d.rang - 1]);
+  if (!d || n < d.rang) return horsDuDimanche(jourPlusR(depart, cadence[n - 1]));
+  return horsDuDimanche(jourPlusR(d.au, cadence[n - 1] - cadence[d.rang - 1]));
 }
 
 /** Le décalage d'un rappel qui porte plusieurs factures : le plus récent posé sur l'une d'elles. */
@@ -236,6 +236,13 @@ export const jourPlusR = (iso: string, j: number): string => {
   d.setUTCDate(d.getUTCDate() + j);
   return d.toISOString().slice(0, 10);
 };
+
+/** JAMAIS LE DIMANCHE — 29 octobre 2026, « jamais une relance de facture le
+    dimanche. Il faut toujours aller le jour suivant » (Yéman). Un jour de
+    relance qui tombe un dimanche passe au lundi, et la tournée du dimanche
+    ne relance rien : celle du lundi reprend ce qui tombait la veille. */
+export const estUnDimanche = (iso: string): boolean => new Date(`${iso}T12:00:00Z`).getUTCDay() === 0;
+export const horsDuDimanche = (iso: string): string => (estUnDimanche(iso) ? jourPlusR(iso, 1) : iso);
 
 /** L'identifiant d'une relance au journal des envois : une par facture et par rang. */
 export const idDeLaRelance = (factureId: string, n: number): string => `rl-${factureId}-${n}-whatsapp`;
@@ -272,6 +279,7 @@ export function relanceDuJour(o: {
   cadence?: readonly number[]; decalage?: DecalageDesRelances | null;
 }): number | null {
   const cadence = o.cadence ?? CADENCE_DES_RELANCES;
+  if (estUnDimanche(o.aujourdhui)) return null;
   if (!o.depart || !(o.resteXof > 0) || o.enPause || o.aRepondu) return null;
   if (o.parties >= cadence.length) return null;
   if (o.derniereLe && o.derniereLe >= o.aujourdhui) return null;
@@ -792,6 +800,9 @@ async function tournee(sb: any, o: { maintenantMs: number; MODELE: string; MODEL
   const MODELE_POINT = (o.MODELE_POINT ?? '').trim();
   const envoie = o.envoie ?? fetch;
   const aujourdhui = new Date(maintenantMs).toLocaleDateString('en-CA', { timeZone: TZ });
+  /* JAMAIS LE DIMANCHE (29 octobre 2026, Yéman) : la tournée du dimanche ne
+     lit rien, ne pose rien, ne dépose rien ; celle du lundi reprend tout. */
+  if (estUnDimanche(aujourdhui)) return { version: VERSION, relances: 'dimanche', jour: aujourdhui };
 
   const { data: docs } = await sb.from('documents').select('key, data')
     .in('key', ['mnd_settings', 'mnd_auto_config', 'mnd_facteur']);

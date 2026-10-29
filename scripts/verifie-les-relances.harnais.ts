@@ -16,7 +16,7 @@ import { transformSync } from 'esbuild';
 import {
   CADENCE_DES_RELANCES, departDesRelances, relanceDuJour, aReponduDepuis, etatDesRelances, aAppeler, idDeLaRelance, seRelance,
   etatDesRelancesDeLaPiece, idDuRappelDuPoint, departDuPoint,
-  rythmeDe, rythmeValide, jourDeLaRelance, partiesDuCycle, destinataireDeLaRelance, foyersParNumero, formeDuRappel, relanceDeLaPiece, decalageDe,
+  rythmeDe, rythmeValide, jourDeLaRelance, estUnDimanche, horsDuDimanche, partiesDuCycle, destinataireDeLaRelance, foyersParNumero, formeDuRappel, relanceDeLaPiece, decalageDe,
   CADENCE_DES_FAMILLES,
   type ReglagesRelances, type PieceDeRelance,
 } from '../src/shared/relances-pur';
@@ -60,9 +60,20 @@ const SERVEUR = 'supabase/functions/relances-factures/index.ts';
       departDesRelances({ id: 'x', date: '2026-10-01', creeeLe: '2026-10-27T09:00:00Z' }, { ...r, rattrapage: { valideLe: '2026-10-28', ids: ['x'] } }, jd)]);
   const base = { depart: '2026-10-18', parties: 0, aujourdhui: '2026-10-18', resteXof: 2000, enPause: false, aRepondu: false };
   const jour = (j: string, parties: number, derniereLe?: string) => relanceDuJour({ ...base, aujourdhui: j, parties, derniereLe });
-  dit('le jour même rien ; J+1 la 1re ; J+2 rien ; J+3 la 2e ; J+7 la 3e ; J+14 la 4e ; puis plus rien', [null, 1, null, 2, 3, 4, null],
+  dit('le jour même rien ; J+1 la 1re ; J+2 rien ; J+3 la 2e ; J+7 la 3e ; J+14 la 4e ; puis plus rien (J+7 et J+14 tombent un dimanche : le lundi)', [null, 1, null, 2, 3, 4, null],
     [jour('2026-10-18', 0), jour('2026-10-19', 0), jour('2026-10-20', 1, '2026-10-19'), jour('2026-10-21', 1, '2026-10-19'),
-      jour('2026-10-25', 2, '2026-10-21'), jour('2026-11-01', 3, '2026-10-25'), jour('2026-12-01', 4, '2026-11-01')]);
+      jour('2026-10-26', 2, '2026-10-21'), jour('2026-11-02', 3, '2026-10-26'), jour('2026-12-01', 4, '2026-11-02')]);
+  /* JAMAIS LE DIMANCHE — 29 octobre 2026, « jamais une relance de facture le
+     dimanche. Il faut toujours aller le jour suivant » (Yéman). */
+  dit('jamais le dimanche : le 25 octobre (J+7) rien, le lundi 26 la 3e ; le 1er novembre (J+14) rien, le lundi 2 la 4e', [null, 3, null, 4],
+    [jour('2026-10-25', 2, '2026-10-21'), jour('2026-10-26', 2, '2026-10-21'), jour('2026-11-01', 3, '2026-10-26'), jour('2026-11-02', 3, '2026-10-26')]);
+  dit('une relance en retard ne se rattrape pas un dimanche : le lundi', [null, 2],
+    [jour('2026-10-25', 1, '2026-10-19'), jour('2026-10-26', 1, '2026-10-19')]);
+  dit('le dimanche se reconnaît, et passe au lundi', [true, false, '2026-11-02', '2026-10-31', '2026-10-26'],
+    [estUnDimanche('2026-11-01'), estUnDimanche('2026-11-02'), horsDuDimanche('2026-11-01'), horsDuDimanche('2026-10-31'), jourDeLaRelance('2026-10-18', [1, 3, 7, 14], 3)]);
+  dit('décalée à un dimanche : elle part le lundi, et les suivantes gardent leurs écarts depuis le dimanche dit', ['2026-11-02', '2026-11-05'],
+    [jourDeLaRelance('2026-10-18', [1, 3, 7, 14], 2, { au: '2026-11-01', rang: 2, le: '2026-10-30T10:00:00Z' }),
+      jourDeLaRelance('2026-10-18', [1, 3, 7, 14], 3, { au: '2026-11-01', rang: 2, le: '2026-10-30T10:00:00Z' })]);
   dit('jamais deux le même jour : une relance partie aujourd hui ferme la journée, même en retard', [null, 1],
     [jour('2026-10-30', 1, '2026-10-30'), jour('2026-10-30', 0)]);
   dit('payée, en pause, ou elle a répondu : rien', [null, null, null],
@@ -316,12 +327,14 @@ const ordinaire = () => ({ documents: [reglages(ALLUMEES), facteur()], invoices:
     families: [{ id: 'fa', data: { name: 'Famille D.', payerClientId: 'pere' } }],
   };
   /* Un compte famille suit son rythme (J+7, J+14, J+30 d'origine) : rien à J+1, le rappel à J+7. */
-  const J7 = Date.parse('2026-10-25T09:00:00Z');
+  const J7 = Date.parse('2026-10-26T09:00:00Z'); // J+7 tombe le dimanche 25 : le lundi 26
   const famille7 = { ...famille, documents: [reglages(ALLUMEES), facteur(true, J7)] };
   const T1 = await joue(famille, { point: POINT });
   const T = await joue(famille7, { point: POINT, maintenantMs: J7 });
   const lt = T.lignes('envois')[0]?.data as Record<string, any> | undefined;
-  dit('les factures d une enfant sans numéro : le rappel va au payeur du compte famille, à son rythme (rien à J+1, J+7), et dit « rituels »',
+  const TD = await joue({ ...famille, documents: [reglages(ALLUMEES), facteur(true, Date.parse('2026-10-25T09:00:00Z'))] }, { point: POINT, maintenantMs: Date.parse('2026-10-25T09:00:00Z') });
+  dit('le dimanche 25 octobre, la tournée ne relance rien et ne dépose rien', ['dimanche', 0], [TD.r.relances, TD.lignes('envois').length]);
+  dit('les factures d une enfant sans numéro : le rappel va au payeur du compte famille, à son rythme (rien à J+1, J+7 le lundi), et dit « rituels »',
     [0, 1, 'rl-pt-pere-2026-10-18-1-whatsapp', '2290190000001', 'M. Paul', 'vos 2 rituels, du 18 octobre 2026'],
     [T1.r.relances, T.r.relances, T.lignes('envois')[0]?.id, lt?.numero, lt?.colis?.composants?.[0]?.parameters?.[0]?.text, lt?.colis?.composants?.[0]?.parameters?.[2]?.text]);
   const T0 = await joue(famille7, { maintenantMs: J7 });
@@ -346,8 +359,8 @@ const ordinaire = () => ({ documents: [reglages(ALLUMEES), facteur()], invoices:
     { id: idDuRappelDuPoint('c1', '2026-10-18', 2), statut: 'envoyé', quand: '2026-10-21T09:10:00Z', invoiceIds: ['inv-1', 'inv-2'] },
   ];
   const sur = (factureId: string) => etatDesRelancesDeLaPiece({ factureId, depart: '2026-10-18', journal: journalPt, resteXof: 2000, enPause: false, aujourdhui: '2026-10-22', jourDe: jd });
-  dit('au Trône, la facture lit le rappel du point qui la porte : 2 parties, la prochaine à J+7, marquée « point »',
-    { parties: 2, derniereLe: '2026-10-21', prochaine: '2026-10-25', fini: false, total: 4, point: true }, sur('inv-2'));
+  dit('au Trône, la facture lit le rappel du point qui la porte : 2 parties, la prochaine à J+7 (dimanche 25 : lundi 26), marquée « point »',
+    { parties: 2, derniereLe: '2026-10-21', prochaine: '2026-10-26', fini: false, total: 4, point: true }, sur('inv-2'));
   dit('... une facture qu aucun point ne porte garde sa suite à elle ; le départ du point est celui de la plus récente', [undefined, 0, '2026-10-20', null],
     [sur('autre').point, sur('autre').parties, departDuPoint(['2026-10-18', null, '2026-10-20']), departDuPoint([null])]);
 }
@@ -378,10 +391,11 @@ const ordinaire = () => ({ documents: [reglages(ALLUMEES), facteur()], invoices:
     jourDeLaRelance('2026-10-18', [1, 3, 7, 14], 5, dec),
   ]);
   const base2 = { depart: '2026-10-18', parties: 1, derniereLe: '2026-10-19', resteXof: 2000, enPause: false, aRepondu: false };
-  dit('décalée au 5 novembre : rien le 21 (son J+3), la 2e le 5 ; au rythme des familles, la 1re à J+7 seulement', [null, 2, null, 1],
+  dit('décalée au 5 novembre : rien le 21 (son J+3), la 2e le 5 ; au rythme des familles, la 1re à J+7 seulement (le lundi 26, J+7 étant un dimanche)', [null, 2, null, null, 1],
     [relanceDuJour({ ...base2, aujourdhui: '2026-10-21', decalage: dec }), relanceDuJour({ ...base2, aujourdhui: '2026-11-05', decalage: dec }),
       relanceDuJour({ ...base2, parties: 0, derniereLe: undefined, aujourdhui: '2026-10-24', cadence: [...CADENCE_DES_FAMILLES] }),
-      relanceDuJour({ ...base2, parties: 0, derniereLe: undefined, aujourdhui: '2026-10-25', cadence: [...CADENCE_DES_FAMILLES] })]);
+      relanceDuJour({ ...base2, parties: 0, derniereLe: undefined, aujourdhui: '2026-10-25', cadence: [...CADENCE_DES_FAMILLES] }),
+      relanceDuJour({ ...base2, parties: 0, derniereLe: undefined, aujourdhui: '2026-10-26', cadence: [...CADENCE_DES_FAMILLES] })]);
   dit('le décalage d un rappel groupé : le plus récent posé sur l une de ses factures', '2026-11-09',
     decalageDe([{ relancesDecalage: dec }, {}, { relancesDecalage: { au: '2026-11-09', rang: 1, le: '2026-10-31T08:00:00Z' } }])?.au);
 
@@ -490,12 +504,12 @@ const ordinaire = () => ({ documents: [reglages(ALLUMEES), facteur()], invoices:
 
   /* Une relance d'une facture seule partie à l'enfant : son rang revient au payeur, sous une ligne à son nom. */
   const Y = await joue({
-    documents: [reglages(ALLUMEES), facteur(true, Date.parse('2026-10-25T09:00:00Z'))],
+    documents: [reglages(ALLUMEES), facteur(true, Date.parse('2026-10-26T09:00:00Z'))],
     clients: [fiche('enf', '+33608152805', { familyId: 'fy', name: 'Aloys A.' }), fiche('papa', '0190000001', { name: 'Ranti A.', civilite: 'monsieur' })],
     families: [{ id: 'fy', data: { payerClientId: 'papa' } }],
     invoices: [facture('f-seule', { clientId: 'enf' })],
     envois: [{ id: 'rl-f-seule-1-whatsapp', data: { id: 'rl-f-seule-1-whatsapp', type: 'relance-facture', statut: 'envoyé', numero: '33608152805', quand: '2026-10-19T09:10:00Z' } }],
-  }, { maintenantMs: Date.parse('2026-10-25T09:00:00Z') });
+  }, { maintenantMs: Date.parse('2026-10-26T09:00:00Z') });
   const ly = Y.lignes('envois').find((x) => x.id !== 'rl-f-seule-1-whatsapp');
   dit('la relance partie à l enfant ne compte pas pour le payeur : sa 1re part à J+7, à lui, sous une ligne à son nom, la ligne de l enfant intacte',
     [1, 'rl-pt-papa-2026-10-18-1-whatsapp', '2290190000001', ['f-seule'], '33608152805'],
