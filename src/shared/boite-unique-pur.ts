@@ -45,6 +45,7 @@ import { jourACotonou } from './dernier-message-pur';
 import { estUneQuestionFranche, heureDite, jourDit } from './gerard-pur';
 import type { Discussion, MessageAuTrone } from './discussions';
 import type { AppelRecu } from './appels';
+import { cleDuTri, etatDuNumero, type EntreeDuTri, type TriDesMessages } from './tri-des-messages-pur';
 
 /* ── LES MOTS ────────────────────────────────────────────────────────────── */
 
@@ -80,10 +81,14 @@ export type Bulle = {
 };
 
 export type PourquoiElleAttend = 'whatsapp' | 'chat' | 'demande' | 'souci' | 'appel' | 'appel-wa';
-export type FiltreDeLaBoite = 'attend' | 'entre-deux' | 'site' | 'tout';
-export const FILTRES_DE_LA_BOITE: readonly FiltreDeLaBoite[] = ['attend', 'entre-deux', 'site', 'tout'];
+/* « Propositions » et « Bloqués » (29 octobre 2026, le tri des démarcheurs) :
+   un numéro bloqué ne paraît QUE dans « Bloqués » ; une proposition sort de
+   « À traiter » et reste dans « Toutes ». */
+export type FiltreDeLaBoite = 'attend' | 'entre-deux' | 'site' | 'tout' | 'propositions' | 'bloques';
+export const FILTRES_DE_LA_BOITE: readonly FiltreDeLaBoite[] = ['attend', 'entre-deux', 'site', 'tout', 'propositions', 'bloques'];
 export const FILTRE_DIT: Record<FiltreDeLaBoite, string> = {
   attend: 'Attend une réponse', 'entre-deux': 'Entre deux séances', site: 'Depuis le site', tout: 'Tout',
+  propositions: 'Propositions', bloques: 'Bloqués',
 };
 
 export type Boite = {
@@ -121,6 +126,8 @@ export type Boite = {
   questionFranche: boolean;
   quiALaMain: string;
   filtres: FiltreDeLaBoite[];
+  /** Le tri des démarcheurs : bloqué ou rangé dans les propositions, avec sa ligne du registre. */
+  tri?: { etat: 'bloque' | 'proposition'; entree: EntreeDuTri };
   /** « Rien à répondre » posé depuis son dernier message (`estRangee`) : ses
       mots ne l'attendent plus ; un souci, une demande, un appel gardent leur juge. */
   rangee: boolean;
@@ -157,6 +164,8 @@ export type EntreeDesBoites = {
   tiroirs?: readonly Tiroir[];
   /** « Rien à répondre », par clé de boîte et par fil (`cleDuFilRange`). */
   riensARepondre?: Readonly<RiensARepondre>;
+  /** Le registre du tri des démarcheurs (`mnd_tri_des_messages`). */
+  tri?: Readonly<TriDesMessages>;
 };
 
 /* ── RIEN À RÉPONDRE · 27 octobre 2026 ───────────────────────────────────
@@ -376,7 +385,9 @@ export function quiALaMain(b: JugementDeLaBoite): string {
 
 /** Les filtres où la boîte paraît. « Entre deux séances » : un souci encore
     ouvert. « Depuis le site » : un chat, une demande ou un vocal du site. */
-export function filtresDe(b: Pick<Boite, 'attendUneReponse' | 'soucisOuverts' | 'discussions' | 'demandes' | 'bulles'>): FiltreDeLaBoite[] {
+export function filtresDe(b: Pick<Boite, 'attendUneReponse' | 'soucisOuverts' | 'discussions' | 'demandes' | 'bulles' | 'tri'>): FiltreDeLaBoite[] {
+  if (b.tri?.etat === 'bloque') return ['bloques'];
+  if (b.tri?.etat === 'proposition') return ['propositions', 'tout'];
   const f: FiltreDeLaBoite[] = [];
   if (b.attendUneReponse) f.push('attend');
   if (b.soucisOuverts.length > 0) f.push('entre-deux');
@@ -389,7 +400,7 @@ export function filtresDe(b: Pick<Boite, 'attendUneReponse' | 'soucisOuverts' | 
 export const boitesDuFiltre = (boites: readonly Boite[], filtre: FiltreDeLaBoite): Boite[] => boites.filter((b) => b.filtres.includes(filtre));
 
 export function comptesDesFiltres(boites: readonly Boite[]): Record<FiltreDeLaBoite, number> {
-  const c: Record<FiltreDeLaBoite, number> = { attend: 0, 'entre-deux': 0, site: 0, tout: 0 };
+  const c: Record<FiltreDeLaBoite, number> = { attend: 0, 'entre-deux': 0, site: 0, tout: 0, propositions: 0, bloques: 0 };
   for (const b of boites) for (const f of b.filtres) c[f] += 1;
   return c;
 }
@@ -605,9 +616,14 @@ export function boitesDeLaMaison(e: EntreeDesBoites): Boite[] {
     const canaux: SourceDeBulle[] = [];
     for (const x of b.bulles) if (!canaux.includes(x.source)) canaux.push(x.source);
 
+    /* LE TRI DES DÉMARCHEURS : seulement une boîte sans fiche, par son numéro WhatsApp. */
+    const etatDuTri = !b.clientId && e.tri && fil?.numero ? etatDuNumero(e.tri as TriDesMessages, fil.numero) : 'inconnu';
+    const entreeDuTri = etatDuTri === 'bloque' ? e.tri?.bloques[cleDuTri(fil?.numero)] : etatDuTri === 'proposition' ? e.tri?.propositions[cleDuTri(fil?.numero)] : undefined;
+    const tri = entreeDuTri && (etatDuTri === 'bloque' || etatDuTri === 'proposition') ? { etat: etatDuTri, entree: entreeDuTri } : undefined;
     const sansPhrase: Omit<Boite, 'quiALaMain' | 'filtres'> = {
       cle: b.cle,
       rangee,
+      ...(tri ? { tri } : {}),
       ...(b.clientId ? { clientId: b.clientId } : {}),
       ...(numero ? { numero } : {}),
       ...(b.discussionId ? { discussionId: b.discussionId } : {}),
@@ -621,7 +637,7 @@ export function boitesDeLaMaison(e: EntreeDesBoites): Boite[] {
       ...(derniere ? { derniere } : {}),
       ...(derniereDElle ? { derniereDElle } : {}),
       ...(Number.isFinite(t) ? { depuisMs: Math.max(0, e.maintenant - t) } : {}),
-      attendUneReponse: pourquoi.length > 0,
+      attendUneReponse: !tri && pourquoi.length > 0,
       pourquoi,
       sante: niveauDuSouci === 'sante',
       ...(niveauDuSouci ? { niveauDuSouci } : {}),

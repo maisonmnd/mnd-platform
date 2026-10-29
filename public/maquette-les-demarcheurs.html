@@ -1,0 +1,148 @@
+<title>Le tri des démarcheurs</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600&family=Jost:wght@400;500;600&display=swap">
+<style>
+/* Mise en page : une colonne de lecture, l'écran du Trône en vignette, les arbitrages en fiches. */
+:root {
+  --fond: #f6f1e7; --papier: #fffdf8; --encre: #232044; --doux: #5f5a76; --trait: #e3dccd;
+  --indigo: #232a5c; --cuivre: #a4643a; --cuivre-pale: #f3e3d3; --vert: #2f6b4f; --rouge: #9b3b2f;
+  --titre: 'Cormorant Garamond', Georgia, serif; --texte: 'Jost', 'Segoe UI', system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --fond: #15152a; --papier: #1d1d36; --encre: #ece7f7; --doux: #a9a3c2; --trait: #343456;
+  --indigo: #b9c0ff; --cuivre: #e0a06f; --cuivre-pale: #3a2a20; --vert: #7fc8a2; --rouge: #e59585; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --fond: #15152a; --papier: #1d1d36; --encre: #ece7f7; --doux: #a9a3c2; --trait: #343456;
+  --indigo: #b9c0ff; --cuivre: #e0a06f; --cuivre-pale: #3a2a20; --vert: #7fc8a2; --rouge: #e59585; color-scheme: dark }
+body { background: var(--fond); color: var(--encre); font-family: var(--texte); font-size: 15px; line-height: 1.55; }
+.page { max-width: 880px; margin: 0 auto; padding-block: 28px 56px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: grid; gap: 28px; }
+.sur { font-size: 11px; letter-spacing: .18em; text-transform: uppercase; color: var(--cuivre); font-weight: 600; }
+h1, h2 { font-family: var(--titre); font-weight: 600; color: var(--indigo); text-wrap: balance; margin: 0; }
+h1 { font-size: clamp(30px, 5vw, 42px); line-height: 1.1; }
+h2 { font-size: 26px; }
+p { margin: 0; max-width: 66ch; }
+.bandeau { background: var(--cuivre-pale); border: 1px solid var(--cuivre); border-radius: 6px; padding: 10px 14px; font-size: 13px; }
+section { display: grid; gap: 14px; }
+.exemples { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+@media (max-width: 720px) { .exemples { grid-template-columns: 1fr; } }
+.ex { text-align: left; font: inherit; color: inherit; background: var(--papier); border: 1px solid var(--trait); border-radius: 8px; padding: 14px; cursor: pointer; display: grid; gap: 8px; }
+.ex:focus-visible, button:focus-visible { outline: 2px solid var(--cuivre); outline-offset: 2px; }
+.ex.est-choisi { border-color: var(--indigo); box-shadow: 0 0 0 1px var(--indigo); }
+.ex small { color: var(--doux); }
+.ex q { font-size: 14px; }
+.verdict { background: var(--papier); border: 1px solid var(--trait); border-radius: 8px; padding: 16px; display: grid; gap: 6px; }
+.puce { display: inline-block; font-size: 11px; letter-spacing: .12em; text-transform: uppercase; font-weight: 600; padding: 3px 9px; border-radius: 99px; }
+.puce--bloque { background: var(--rouge); color: var(--papier); }
+.puce--prop { background: var(--cuivre); color: var(--papier); }
+.puce--traiter { background: var(--vert); color: var(--papier); }
+.ecran { background: var(--papier); border: 1px solid var(--trait); border-radius: 10px; overflow: hidden; }
+.onglets { display: flex; flex-wrap: wrap; gap: 6px; padding: 12px; border-bottom: 1px solid var(--trait); }
+.onglet { font: inherit; font-size: 13px; padding: 7px 12px; border-radius: 6px; border: 1px solid var(--trait); background: transparent; color: var(--encre); cursor: pointer; }
+.onglet.est-actif { background: var(--indigo); color: var(--papier); border-color: var(--indigo); }
+.liste { display: grid; }
+.fil { display: grid; grid-template-columns: 38px minmax(0, 1fr) auto; gap: 4px 12px; align-items: start; padding: 12px 14px; border-bottom: 1px solid var(--trait); }
+.av { width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; background: var(--fond); color: var(--indigo); font-size: 12px; font-weight: 600; }
+.fil b { font-weight: 500; }
+.fil .mot { color: var(--doux); font-size: 13px; overflow-wrap: anywhere; }
+.fil .pourquoi { font-size: 12px; color: var(--cuivre); }
+.gestes { display: flex; gap: 6px; flex-wrap: wrap; grid-column: 2 / 4; }
+.geste { font: inherit; font-size: 11px; letter-spacing: .12em; text-transform: uppercase; padding: 6px 10px; border: 1px solid var(--indigo); background: transparent; color: var(--indigo); border-radius: 4px; cursor: pointer; }
+.vide { padding: 18px 14px; color: var(--doux); font-size: 13px; }
+ul.jamais { margin: 0; padding-left: 18px; display: grid; gap: 6px; max-width: 70ch; }
+.fiches { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+@media (max-width: 720px) { .fiches { grid-template-columns: 1fr; } }
+.fiche { background: var(--papier); border: 1px solid var(--trait); border-radius: 8px; padding: 14px; display: grid; gap: 6px; }
+.fiche h3 { margin: 0; font-size: 15px; font-weight: 600; }
+.fiche .prop { font-size: 13px; color: var(--vert); }
+.chiffres { font-variant-numeric: tabular-nums; }
+</style>
+
+<div class="page">
+  <header style="display:grid;gap:10px">
+    <span class="sur">Maquette · Clientèle · Les conversations</span>
+    <h1>Le tri des démarcheurs</h1>
+    <p>Quand un numéro inconnu écrit pour la première fois, Claude lit son message avant que rien ne lui réponde. Une publicité qui ne parle pas de cheveux est bloquée chez WhatsApp : le numéro ne peut plus vous écrire. Une proposition qui parle de cheveux (un fournisseur, une formation) est rangée à part. Tout le reste arrive dans « À traiter », comme aujourd'hui.</p>
+    <p class="bandeau">Vos sept choix du 29 octobre 2026 sont appliqués ici, les quatre arbitrages du bas compris.</p>
+  </header>
+
+  <section aria-labelledby="t1">
+    <h2 id="t1">Trois messages, trois sorts</h2>
+    <p>Touchez un message pour voir ce que le tri en fait.</p>
+    <div class="exemples" role="list">
+      <button class="ex est-choisi" type="button" data-v="0" role="listitem"><small>B. digital · numéro inconnu</small><q>Bonjour, je suis B., créateur digital à Cotonou. Je crée affiches, vidéos et sites web pour les salons. Puis-je vous montrer des exemples ?</q></button>
+      <button class="ex" type="button" data-v="1" role="listitem"><small>Huilerie K. · numéro inconnu</small><q>Bonjour, nous fabriquons des huiles naturelles pour locks. Voulez-vous notre catalogue de prix pour les professionnels ?</q></button>
+      <button class="ex" type="button" data-v="2" role="listitem"><small>A. S. · numéro inconnu</small><q>Bonjour, je voudrais un rendez-vous pour un resserrage, vous avez de la place samedi ?</q></button>
+    </div>
+    <div class="verdict" id="verdict" aria-live="polite"></div>
+  </section>
+
+  <section aria-labelledby="t2">
+    <h2 id="t2">Dans les conversations</h2>
+    <p>Deux listes nouvelles à côté de « À traiter » et « Toutes ». Rien n'est effacé : un mauvais tri se défait d'un toucher.</p>
+    <div class="ecran">
+      <div class="onglets" role="tablist" aria-label="Les listes">
+        <button class="onglet" type="button" data-l="traiter" role="tab">À traiter · 42</button>
+        <button class="onglet" type="button" data-l="toutes" role="tab">Toutes · 120</button>
+        <button class="onglet" type="button" data-l="prop" role="tab">Propositions · 1</button>
+        <button class="onglet est-actif" type="button" data-l="bloques" role="tab">Bloqués · 1</button>
+      </div>
+      <div class="liste" id="liste"></div>
+    </div>
+  </section>
+
+  <section aria-labelledby="t3">
+    <h2 id="t3">Ce que le tri ne fera jamais</h2>
+    <ul class="jamais">
+      <li>Juger un numéro qui a une fiche, un rendez-vous, une facture, ou qui a déjà échangé avec la Maison.</li>
+      <li>Juger l'équipe ou les prestataires, ni un numéro déjà débloqué une fois par vous.</li>
+      <li>Répondre à un démarcheur : ni l'automate, ni l'assistant WhatsApp ne lui écrivent.</li>
+      <li>Bloquer quand Claude hésite : dans le doute, le message va dans « À traiter ».</li>
+      <li>Effacer un message : les bloqués restent lisibles, avec le motif et l'heure.</li>
+    </ul>
+    <p class="chiffres">Coût : environ 0,5 F par premier message d'un inconnu, sur les crédits Claude inclus. Les messages des clientes connues ne passent jamais par Claude pour ce tri.</p>
+  </section>
+
+  <section aria-labelledby="t4">
+    <h2 id="t4">Les quatre arbitrages, tranchés</h2>
+    <div class="fiches">
+      <div class="fiche"><h3>1. Les démarcheurs déjà là</h3><p>B. digital et les autres fils sans fiche arrivés avant le tri.</p><p class="prop">Choisi : un bouton « Bloquer ce numéro » sur chaque fil sans fiche, et une seule passe de Claude sur les fils sans fiche des 24 dernières heures, qui vous propose une liste à valider. WhatsApp ne bloque que dans les 24 heures qui suivent leur message.</p></div>
+      <div class="fiche"><h3>2. Être prévenue</h3><p>Faut-il une notification à chaque blocage ?</p><p class="prop">Choisi : non. Le nombre sur l'onglet « Bloqués » suffit ; une notification ne part que pour une « Proposition ».</p></div>
+      <div class="fiche"><h3>3. Débloquer</h3><p>Ce qui se passe quand vous débloquez un numéro.</p><p class="prop">Choisi : débloqué chez WhatsApp, le fil revient dans « À traiter », et le tri ne juge plus jamais ce numéro.</p></div>
+      <div class="fiche"><h3>4. Le site et le chat</h3><p>Le chat du site reçoit aussi de la publicité.</p><p class="prop">Choisi : même tri pour le chat du site ; le message est rangé dans « Bloqués » (le chat n'a pas de blocage WhatsApp).</p></div>
+    </div>
+  </section>
+</div>
+
+<script>
+const VERDICTS = [
+  { puce: 'puce--bloque', dit: 'Bloqué', pourquoi: 'Démarchage : services numériques (affiches, vidéos, sites web), sans rapport avec les cheveux.', suite: 'Le numéro est bloqué chez WhatsApp : il ne peut plus vous écrire. Le fil va dans « Bloqués », personne ne lui répond.' },
+  { puce: 'puce--prop', dit: 'Proposition', pourquoi: 'Démarchage qui parle de cheveux : un fournisseur d’huiles pour locks.', suite: 'Rien ne lui répond, le numéro n’est pas bloqué. Le fil va dans « Propositions », que vous lisez quand vous voulez.' },
+  { puce: 'puce--traiter', dit: 'À traiter', pourquoi: 'Une cliente : elle demande un rendez-vous.', suite: 'Comme aujourd’hui : l’automate ou l’assistant WhatsApp lui répond, et le fil est dans « À traiter ».' },
+];
+const verdict = document.getElementById('verdict');
+const montre = (i) => {
+  const v = VERDICTS[i];
+  verdict.innerHTML = `<span><span class="puce ${v.puce}">${v.dit}</span></span><p><b>Pourquoi :</b> ${v.pourquoi}</p><p>${v.suite}</p>`;
+  document.querySelectorAll('.ex').forEach((b) => b.classList.toggle('est-choisi', Number(b.dataset.v) === i));
+};
+document.querySelectorAll('.ex').forEach((b) => b.addEventListener('click', () => montre(Number(b.dataset.v))));
+montre(0);
+
+const LISTES = {
+  bloques: [{ av: 'BD', nom: 'B. digital', mot: '« Je crée affiches, vidéos et sites web pour les salons… »', pourquoi: 'Démarchage : services numériques · bloqué le 29 oct. 2026 à 21 h 06', gestes: ['Débloquer', 'C’est une cliente'] }],
+  prop: [{ av: 'HK', nom: 'Huilerie K.', mot: '« Des huiles naturelles pour locks, notre catalogue professionnel… »', pourquoi: 'Proposition : fournisseur de produits capillaires', gestes: ['Lui répondre', 'Bloquer', 'Archiver'] }],
+  traiter: [{ av: 'AS', nom: 'A. S.', mot: '« Je voudrais un rendez-vous pour un resserrage… »', pourquoi: '', gestes: ['Lui répondre'] }],
+  toutes: [],
+};
+const liste = document.getElementById('liste');
+const ouvre = (cle) => {
+  document.querySelectorAll('.onglet').forEach((b) => b.classList.toggle('est-actif', b.dataset.l === cle));
+  const l = LISTES[cle];
+  liste.innerHTML = l.length ? l.map((f) => `<div class="fil"><span class="av">${f.av}</span><div><b>${f.nom}</b><div class="mot">${f.mot}</div>${f.pourquoi ? `<div class="pourquoi">${f.pourquoi}</div>` : ''}</div><span></span><div class="gestes">${f.gestes.map((g) => `<button class="geste" type="button">${g}</button>`).join('')}</div></div>`).join('')
+    : '<p class="vide">Toutes vos conversations, comme aujourd’hui (les bloqués n’y sont pas).</p>';
+};
+document.querySelectorAll('.onglet').forEach((b) => b.addEventListener('click', () => ouvre(b.dataset.l)));
+ouvre('bloques');
+</script>

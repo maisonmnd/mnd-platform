@@ -88,7 +88,7 @@ import { createClient, type SupabaseClient } from 'npm:@supabase/supabase-js@2';
 
 /** LA VERSION DE CE FICHIER, dite par le contrôle de santé. Sans elle on ne
     sait pas quel code tourne vraiment. À incrémenter à chaque déploiement. */
-const VERSION = '2026-10-28-c · M. et Mme devant le prénom';
+const VERSION = '2026-10-29-a · le tri des démarcheurs avant toute réponse';
 
 /** « En train d'écrire », puis on attend : deux messages envoyés coup sur
     coup font un seul tour, celui du dernier. */
@@ -103,7 +103,7 @@ const TRANCHE_JOURS = 7;
     est peut-être coupée, on ne s'y fie pas. */
 const PLAFOND_DE_LIGNES = 1000;
 /** Les réglages que lit un tour, en une requête. */
-const DOCUMENTS_DU_TOUR = ['mnd_auto_config', 'mnd_settings', 'mnd_horaires_exceptions', 'mnd_vitrine_config', 'mnd_house_identity', 'mnd_reponses_maison', 'mnd_assistant_wa'];
+const DOCUMENTS_DU_TOUR = ['mnd_auto_config', 'mnd_settings', 'mnd_horaires_exceptions', 'mnd_vitrine_config', 'mnd_house_identity', 'mnd_reponses_maison', 'mnd_assistant_wa', 'mnd_tri_des_messages'];
 
 /* LE JOURNAL : des genres, des comptes, des étapes. JAMAIS un numéro,
    jamais un texte, jamais un jeton : un journal qui recopierait le message
@@ -3972,9 +3972,56 @@ async function demandeALaReception(
 type Appel = { numero: string; tiroir: TiroirDuNumero; waIds: string[]; jeton: string; phoneId: string };
 type Reponse = { pris: boolean; alerte?: AlerteDeLAutomate };
 
+/** LA CLÉ DU TRI : la même règle que `cleDuTri` (shared/tri-des-messages-pur). */
+const cleDuTriWa = (numero: string): string => {
+  const d = String(numero ?? '').replace(/\D/g, '');
+  return d.length === 13 && d.startsWith('22901') ? `229${d.slice(5)}` : d;
+};
+
+/** LE TRI DES DÉMARCHEURS : vrai quand le numéro est bloqué ou rangé dans
+    les propositions (personne ne lui répond). Rien n'est appelé pour un
+    numéro déjà jugé, rendu par la direction, ou qui a une fiche. */
+// deno-lint-ignore no-explicit-any
+async function estRangeParLeTri(sb: Sb, o: Appel, brut: any): Promise<boolean> {
+  const tri = brut && typeof brut === 'object' ? brut : {};
+  const k = cleDuTriWa(o.numero);
+  if (!k || tri.blancs?.[k] || tri.juges?.[k]) return false;
+  if (tri.bloques?.[k] || tri.propositions?.[k]) { dis('tri : deja range'); return true; }
+  const fiches = await lesFichesDuNumero(sb, o.numero);
+  if (!fiches || fiches.length > 0) return false;
+  const { data: lus } = await sb.from('messages_wa').select('data').in('id', o.waIds.map((w) => `wa-${w}`));
+  // deno-lint-ignore no-explicit-any
+  const siens = ((lus ?? []) as { data: any }[]).map((l) => l.data).filter((x) => x?.sens === 'entrant');
+  const textes = siens.map((x) => String(x?.texte ?? '').trim()).filter(Boolean).slice(0, 3);
+  if (textes.length === 0) return false;
+  const base = (Deno.env.get('SUPABASE_URL') ?? '').replace(/\/$/, '');
+  const cle = (Deno.env.get('CLE_SERVICE') ?? Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '').trim();
+  if (!base || !cle) return false;
+  try {
+    const res = await fetch(`${base}/functions/v1/tri-des-messages`, {
+      method: 'POST', signal: AbortSignal.timeout(25_000),
+      headers: { authorization: `Bearer ${cle}`, 'content-type': 'application/json' },
+      body: JSON.stringify({ numero: o.numero, textes, nomProfil: siens.find((x) => x?.nomProfil)?.nomProfil ?? '' }),
+    });
+    // deno-lint-ignore no-explicit-any
+    const r: any = await res.json().catch(() => null);
+    const verdict = String(r?.verdict ?? '');
+    dis('tri', { verdict: verdict || `illisible ${res.status}` });
+    return verdict === 'bloque' || verdict === 'proposition';
+  } catch (e) {
+    dis('tri injoignable : comme avant', { motif: String((e as Error)?.message ?? e).slice(0, 60) });
+    return false;
+  }
+}
+
 async function servirLeNumero(sb: Sb, o: Appel): Promise<Reponse> {
   const docs = await litLesDocuments(sb);
   if (!docs) return { pris: false };
+  /* ⓪ LE TRI DES DÉMARCHEURS (29 octobre 2026, maquette Re299vtp… validée),
+     AVANT l'interrupteur : un numéro inconnu est jugé même quand l'automate
+     ne le sert pas. Bloqué ou rangé dans les propositions, personne ne lui
+     répond. La fonction `tri-des-messages` injoignable : comme avant. */
+  if (o.tiroir === 'clientes' && await estRangeParLeTri(sb, o, docs.get('mnd_tri_des_messages'))) return { pris: true };
   const cfg = docs.get('mnd_auto_config') ?? {};
   const reglage = reglageDeLAutomate(cfg?.automateWa);
   /* ① L'INTERRUPTEUR, avant toute autre lecture : éteint, personne ; en

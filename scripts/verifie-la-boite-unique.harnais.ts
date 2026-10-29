@@ -179,11 +179,12 @@ dit('le chat du site : la visiteuse, puis la réponse automatique (« chat », g
 dit('depuis : la dernière bulle, en millisecondes (K. T. : l’appel de 11 h 30)', 30 * 60_000, boite('c:kt').depuisMs);
 
 /* ── 6. Les filtres ── */
-dit('les quatre filtres', ['attend', 'entre-deux', 'site', 'tout'], FILTRES_DE_LA_BOITE);
+/* 29 octobre 2026 : « Propositions » et « Bloqués », le tri des démarcheurs (verifie-le-tri-des-messages). */
+dit('les six filtres', ['attend', 'entre-deux', 'site', 'tout', 'propositions', 'bloques'], FILTRES_DE_LA_BOITE);
 dit('les filtres d’une boîte : Santé ∈ attend + entre-deux ; la visiteuse ∈ attend + site ; l’Assistant seul ∈ tout',
   [['attend', 'entre-deux', 'tout'], ['attend', 'site', 'tout'], ['attend', 'site', 'tout'], ['tout']],
   ['c:kt', 'd:d1', 'n:22997000044', 'c:md'].map((c) => boite(c).filtres));
-dit('les comptes des filtres', { attend: 9, 'entre-deux': 2, site: 2, tout: 12 }, comptesDesFiltres(boites));
+dit('les comptes des filtres', { attend: 9, 'entre-deux': 2, site: 2, tout: 12, propositions: 0, bloques: 0 }, comptesDesFiltres(boites));
 dit('le filtre « Entre deux séances » rend les deux soucis ouverts', ['c:kt', 'c:sa'], boitesDuFiltre(boites, 'entre-deux').map((b) => b.cle));
 
 /* ── 7. Les tuiles ── */
@@ -209,7 +210,7 @@ dit('« Rien à répondre » après son dernier mot : elle n’attend plus, la p
   [[rb('c:ra').attendUneReponse, rb('c:ra').rangee, rb('c:ra').quiALaMain], [rb('c:ao').attendUneReponse, rb('c:ao').rangee]]);
 dit('… par la clé de son fil aussi ; le chat du site aussi', [[false, true], [false, true]], [[rb('c:bn').attendUneReponse, rb('c:bn').rangee], [rb('d:d1').attendUneReponse, rb('d:d1').rangee]]);
 dit('… un souci Santé et un appel manqué gardent leur juge', [true, ['souci', 'appel-wa']], [rb('c:kt').attendUneReponse, rb('c:kt').pourquoi]);
-dit('… les comptes baissent d’autant', { attend: 6, 'entre-deux': 2, site: 2, tout: 12 }, comptesDesFiltres(rangees));
+dit('… les comptes baissent d’autant', { attend: 6, 'entre-deux': 2, site: 2, tout: 12, propositions: 0, bloques: 0 }, comptesDesFiltres(rangees));
 dit('estRangee : après, avant, sans date d’elle, aucune marque, date illisible', [true, false, true, false, false],
   [estRangee(['k'], a('10:00:00'), { k: { le: a('10:00:00') } }), estRangee(['k'], a('10:00:01'), { k: { le: a('10:00:00') } }),
     estRangee(['k'], undefined, { k: { le: a('10:00:00') } }), estRangee(['k'], a('10:00:00'), undefined), estRangee(['k'], a('10:00:00'), { k: { le: 'hier' } })]);

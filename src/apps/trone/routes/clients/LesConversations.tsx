@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { Button, toast } from '../../../../ds/components';
+import { Button, Modal, toast } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { prenomSeul } from '../../../../shared/civilite';
 import { useSettings } from '../../../../shared/settings';
@@ -45,6 +45,8 @@ import { EnvoisAutomatiques } from './EnvoisAutomatiques';
 import type { PropsDUneVue } from './Gerard';
 import './clients.css';
 import './les-conversations.css';
+import { bloqueLesNumeros, debloqueLeNumero, relisLesDernieresHeures, rendsLaCliente, useTriDesMessages, type ProposeParLaPasse } from '../../../../shared/tri-des-messages';
+import { motifDit } from '../../../../shared/tri-des-messages-pur';
 
 /* ══ LES CONVERSATIONS, VUE DE L'ASSISTANT MAISON ══════════════════════════
    27 octobre 2026, lot 3 : spécification `docs/spec-assistant-maison.md`
@@ -161,7 +163,7 @@ export default function LesConversations({ cerveau, moi }: PropsDUneVue) {
   }, []);
   const [filtre, setFiltre] = useState<FiltreDeLaBoite>(() => {
     const f = params.get('filtre');
-    return f === 'tout' || f === 'site' || f === 'entre-deux' ? f : 'attend';
+    return f === 'tout' || f === 'site' || f === 'entre-deux' || f === 'propositions' || f === 'bloques' ? f : 'attend';
   });
   const [cherche, setCherche] = useState('');
   /* UNE CONVERSATION OUVERTE À LA FOIS : la clé de la boîte. */
@@ -209,11 +211,15 @@ export default function LesConversations({ cerveau, moi }: PropsDUneVue) {
     }
     return vus;
   }, [tous, archives, nDemande, tetes]);
+  /* LE TRI DES DÉMARCHEURS (29 octobre 2026) : le registre du serveur, et la passe des dernières 24 heures. */
+  const { tri, relis: relisLeTri } = useTriDesMessages();
+  const [passe, setPasse] = useState<{ enCours: boolean; lus?: number; proposes: ProposeParLaPasse[]; coches: string[]; erreur?: string } | null>(null);
+  const [aConfirmer, setAConfirmer] = useState<string | null>(null);
   const envoisLus = envois as unknown as EnvoiDeLaBoite[];
   const entreeDesBoites = useMemo(() => ({
     fils, discussions, demandes, appelsWa, appels, signalements, envois: envoisLus, clientes: clients, maintenant: tick, branchId: branch.id, tiroirs: ['clientes'] as const,
-    riensARepondre: riens,
-  }), [fils, discussions, demandes, appelsWa, appels, signalements, envoisLus, clients, tick, branch.id, riens]);
+    riensARepondre: riens, tri,
+  }), [fils, discussions, demandes, appelsWa, appels, signalements, envoisLus, clients, tick, branch.id, riens, tri]);
   const boitesBrutes = useMemo(() => boitesDeLaMaison(entreeDesBoites), [entreeDesBoites]);
 
   /* LA BOÎTE QU'UN LIEN DÉSIGNE : `?n=` (un numéro), `?c=` (une fiche), `?d=` (une discussion). */
@@ -267,6 +273,7 @@ export default function LesConversations({ cerveau, moi }: PropsDUneVue) {
     return boitesDeLaMaison({ ...entreeDesBoites, messagesDesDiscussions: { [id]: messagesDuChat } });
   }, [boitesBrutes, entreeDesBoites, ouverteBrute?.discussionId, messagesDuChat]);
   const comptes = useMemo(() => comptesDesFiltres(boites), [boites]);
+  const dansToutes = filtre === 'tout' || filtre === 'site' || filtre === 'entre-deux';
   const visibles = useMemo(() => boitesDuFiltre(boites, filtre), [boites, filtre]);
 
   /* LA LISTE DANS SON ORDRE : la recherche d'abord (dans toutes les boîtes),
@@ -599,12 +606,76 @@ export default function LesConversations({ cerveau, moi }: PropsDUneVue) {
     );
   };
 
+  /* ── Les gestes du tri des démarcheurs ── */
+  const bloqueLaBoite = async (b: Boite) => {
+    if (!b.numero) return;
+    setAConfirmer(null);
+    const r = await bloqueLesNumeros([b.numero]);
+    if (!r.ok) { toast(r.erreur); return; }
+    relisLeTri();
+    toast(r.data.bloques > 0 ? 'Numéro bloqué : il ne peut plus écrire à la Maison.' : 'Pas bloqué : ce numéro a une fiche ou a déjà échangé avec la Maison.');
+  };
+  const rendLaBoite = async (b: Boite) => {
+    if (!b.numero || !b.tri) return;
+    const r = b.tri.etat === 'bloque' ? await debloqueLeNumero(b.numero) : await rendsLaCliente(b.numero);
+    if (!r.ok) { toast(r.erreur); return; }
+    relisLeTri();
+    toast(b.tri.etat === 'bloque'
+      ? (r.data.meta ? 'Débloqué : le fil revient dans « À traiter », et ce numéro ne sera plus jugé.' : 'Rendu à « À traiter », mais WhatsApp n’a pas confirmé le déblocage.')
+      : 'Rendu à « À traiter » : ce numéro ne sera plus jugé.');
+  };
+  const lanceLaPasse = async () => {
+    setPasse({ enCours: true, proposes: [], coches: [] });
+    const r = await relisLesDernieresHeures();
+    if (!r.ok) { setPasse({ enCours: false, proposes: [], coches: [], erreur: r.erreur }); return; }
+    setPasse({ enCours: false, lus: r.data.lus, proposes: r.data.proposes, coches: r.data.proposes.filter((x) => x.verdict === 'demarchage').map((x) => x.numero) });
+  };
+  const bloqueLesCoches = async () => {
+    if (!passe || passe.coches.length === 0) return;
+    const r = await bloqueLesNumeros(passe.coches);
+    if (!r.ok) { toast(r.erreur); return; }
+    relisLeTri();
+    setPasse(null);
+    toast(`${r.data.bloques} numéro${r.data.bloques > 1 ? 's' : ''} bloqué${r.data.bloques > 1 ? 's' : ''}${r.data.refuses ? ` ; ${r.data.refuses} gardé${r.data.refuses > 1 ? 's' : ''} (fiche ou échange passé)` : ''}.`);
+  };
+  /** Ce que le tri dit d'une boîte, en tête de sa fiche. */
+  const leTri = (b: Boite) => {
+    if (b.tri) {
+      const e = b.tri.entree;
+      const le = jourDit(e.quand.slice(0, 10));
+      return (
+        <div className="trc-bx__tri" role="note">
+          <b>{b.tri.etat === 'bloque' ? 'Bloqué' : 'Proposition'}</b>
+          <span>{motifDit(e, b.tri.etat)} · {b.tri.etat === 'bloque' ? 'bloqué' : 'rangé'} le {le}</span>
+          {b.tri.etat === 'bloque' && e.meta === 'echec' && <span className="trc-am__alarme">WhatsApp a refusé le blocage : le fil est rangé, mais le numéro peut encore écrire.</span>}
+          {estDirection && (
+            <span className="trc-bx__tri-gestes">
+              <button type="button" className="trc-ger__btn" onClick={() => void rendLaBoite(b)}>{b.tri.etat === 'bloque' ? 'Débloquer' : 'C’est une cliente'}</button>
+              {b.tri.etat === 'proposition' && <button type="button" className="trc-ger__btn trc-am__btn--calme" onClick={() => void bloqueLaBoite(b)}>Bloquer</button>}
+            </span>
+          )}
+        </div>
+      );
+    }
+    if (!estDirection || !b.sansFiche || !b.fil || !b.numero) return null;
+    return aConfirmer === b.cle ? (
+      <div className="trc-bx__tri" role="note">
+        <span>Bloquer ce numéro chez WhatsApp : il ne pourra plus écrire à la Maison. Ses messages restent lisibles dans « Bloqués ».</span>
+        <span className="trc-bx__tri-gestes">
+          <button type="button" className="trc-ger__btn trc-ger__btn--cuivre" onClick={() => void bloqueLaBoite(b)}>Bloquer</button>
+          <button type="button" className="trc-ger__btn trc-am__btn--calme" onClick={() => setAConfirmer(null)}>Annuler</button>
+        </span>
+      </div>
+    ) : null;
+  };
+
   /** SA FICHE ET LES AUTRES GESTES : la colonne de droite sur un grand écran, un repli au téléphone. */
   const ficheEtGestes = (b: Boite) => {
     const demandeATraiter = b.demandes.find((d) => dansLeFiltre(d, 'a-traiter'));
     const discussion = b.discussions[0];
     return (
       <>
+        {leTri(b)}
         <h3 className="trc-bx__sous">Sa fiche, en chiffres <span>{b.clientId ? 'lue sur sa fiche' : 'sans fiche'}</span></h3>
         {b.clientId ? (
           <dl className="trc-bx__chiffres">
@@ -638,6 +709,9 @@ export default function LesConversations({ cerveau, moi }: PropsDUneVue) {
           )}
           {b.fil && estDirection && b.fil.messages.length > 0 && (
             <button type="button" className="trc-ger__btn trc-am__btn--calme" onClick={() => basculeLArchive(b.fil!)}>{estArchive(b.fil, archives) ? 'Désarchiver' : 'Archiver'}</button>
+          )}
+          {estDirection && b.sansFiche && b.fil && b.numero && !b.tri && aConfirmer !== b.cle && (
+            <button type="button" className="trc-ger__btn trc-am__btn--calme" onClick={() => setAConfirmer(b.cle)}>Bloquer ce numéro</button>
           )}
         </div>
       </>
@@ -820,9 +894,17 @@ export default function LesConversations({ cerveau, moi }: PropsDUneVue) {
             />
             <div className="trc-bx__segments" role="group" aria-label="Quelles conversations">
               <button type="button" aria-pressed={filtre === 'attend'} className={filtre === 'attend' ? 'est-choisi' : ''} onClick={() => choisitLeFiltre('attend')}>À traiter · {comptes.attend}</button>
-              <button type="button" aria-pressed={filtre !== 'attend'} className={filtre !== 'attend' ? 'est-choisi' : ''} onClick={() => choisitLeFiltre('tout')}>Toutes · {comptes.tout}</button>
+              <button type="button" aria-pressed={dansToutes} className={dansToutes ? 'est-choisi' : ''} onClick={() => choisitLeFiltre('tout')}>Toutes · {comptes.tout}</button>
             </div>
-            {filtre !== 'attend' && (
+            {/* LE TRI DES DÉMARCHEURS (29 octobre 2026) : ce que Claude a rangé, et ce qui est bloqué. */}
+            <div className="trc-bx__puces" role="group" aria-label="Le tri">
+              {(['propositions', 'bloques'] as const).map((f) => (
+                <button key={f} type="button" aria-pressed={filtre === f} className={filtre === f ? 'est-choisi' : ''} onClick={() => choisitLeFiltre(filtre === f ? 'attend' : f)}>
+                  {FILTRE_DIT[f]} · {comptes[f]}
+                </button>
+              ))}
+            </div>
+            {dansToutes && (
               <div className="trc-bx__puces" role="group" aria-label="Seulement">
                 {(['site', 'entre-deux'] as const).map((f) => (
                   <button key={f} type="button" aria-pressed={filtre === f} className={filtre === f ? 'est-choisi' : ''} onClick={() => choisitLeFiltre(filtre === f ? 'tout' : f)}>
@@ -851,6 +933,18 @@ export default function LesConversations({ cerveau, moi }: PropsDUneVue) {
                     <ul className="trc-bx__lignes">{x.boites.map(ligneDe)}</ul>
                   </div>
                 ))
+            ) : filtre === 'bloques' || filtre === 'propositions' ? (
+              <>
+                <p className="trc-ger__doux trc-bx__tri-aide">
+                  {filtre === 'bloques'
+                    ? 'Les démarcheurs bloqués chez WhatsApp : ils ne peuvent plus écrire à la Maison. « Débloquer » les rend à « À traiter ».'
+                    : 'Les propositions qui parlent de cheveux (fournisseurs, formations) : personne ne leur répond, vous les lisez quand vous voulez.'}
+                </p>
+                {filtre === 'bloques' && estDirection && (
+                  <button type="button" className="trc-ger__btn trc-bx__tri-passe" onClick={() => void lanceLaPasse()}>Relire les dernières 24 h</button>
+                )}
+                {ordre.length === 0 ? <p className="trc-ger__vide">{filtre === 'bloques' ? 'Aucun numéro bloqué.' : 'Aucune proposition.'}</p> : <ul className="trc-bx__lignes">{ordre.map(ligneDe)}</ul>}
+              </>
             ) : (
               ordre.length === 0 ? <p className="trc-ger__vide">Aucune conversation ici.</p> : <ul className="trc-bx__lignes">{ordre.map(ligneDe)}</ul>
             )}
@@ -861,6 +955,39 @@ export default function LesConversations({ cerveau, moi }: PropsDUneVue) {
         {boite ? conversation(boite) : !etroit ? (
           <div className="trc-bx__conv trc-bx__conv--vide"><p>Choisissez une conversation dans la liste.</p></div>
         ) : null}
+
+        {passe && (
+          <Modal title="Les fils sans fiche des dernières 24 heures" onClose={() => setPasse(null)} width={600}>
+            <div className="trc-bx__passe">
+              {passe.enCours && <p className="trc-ger__doux">Claude relit les premiers messages des numéros inconnus…</p>}
+              {passe.erreur && <p className="trc-am__alarme">{passe.erreur}</p>}
+              {!passe.enCours && !passe.erreur && (
+                passe.proposes.length === 0
+                  ? <p className="trc-ger__doux">{passe.lus ?? 0} numéro{(passe.lus ?? 0) > 1 ? 's' : ''} relu{(passe.lus ?? 0) > 1 ? 's' : ''} : aucun démarcheur.</p>
+                  : (
+                    <>
+                      <p className="trc-ger__doux">{passe.lus} numéro{(passe.lus ?? 0) > 1 ? 's' : ''} relu{(passe.lus ?? 0) > 1 ? 's' : ''}. Cochez ceux à bloquer : rien n’est bloqué sans vous.</p>
+                      <ul className="trc-bx__passe-liste">
+                        {passe.proposes.map((x) => (
+                          <li key={x.numero}>
+                            <label>
+                              <input type="checkbox" checked={passe.coches.includes(x.numero)}
+                                onChange={(ev) => setPasse((p) => p && ({ ...p, coches: ev.target.checked ? [...p.coches, x.numero] : p.coches.filter((n) => n !== x.numero) }))} />
+                              <span><b>{x.nom || `+${x.numero}`}</b> · {x.verdict === 'demarchage' ? 'Démarchage' : 'Proposition'} : {x.motif}<small>« {x.extrait} »</small></span>
+                            </label>
+                          </li>
+                        ))}
+                      </ul>
+                      <div className="trc-am__gestes">
+                        <button type="button" className="trc-ger__btn trc-ger__btn--cuivre" disabled={passe.coches.length === 0} onClick={() => void bloqueLesCoches()}>Bloquer les cochés ({passe.coches.length})</button>
+                        <button type="button" className="trc-ger__btn trc-am__btn--calme" onClick={() => setPasse(null)}>Fermer</button>
+                      </div>
+                    </>
+                  )
+              )}
+            </div>
+          </Modal>
+        )}
 
         {boite && ficheOuverte && !etroit && (
           <aside className="trc-bx__fiche" aria-label="Sa fiche">

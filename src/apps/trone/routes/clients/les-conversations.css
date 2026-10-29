@@ -200,3 +200,18 @@
   .trc-am__plein .trc-bx__faire-titre, .trc-am__plein .trc-bx__faire-phrase { display: none; }
   .trc-am__plein .trc-bx__faire { margin: 4px 8px 0; padding: 4px 6px; border: 0; background: transparent; }
 }
+
+/* LE TRI DES DÉMARCHEURS (29 octobre 2026) : ce que le tri dit d'une boîte, en tête de sa fiche, et la passe des dernières 24 heures. */
+.trc-bx__tri {
+  display: grid; gap: 6px; margin-bottom: 14px; padding: 10px 12px;
+  border: 1px solid var(--hairline, #E2D8C6); border-left: 3px solid var(--color-cuivre, #9A6036); border-radius: 6px;
+  font-size: 13px; line-height: 1.45;
+}
+.trc-bx__tri b { font-weight: 600; color: var(--color-indigo, #1E2350); }
+.trc-bx__tri-gestes { display: flex; flex-wrap: wrap; gap: 6px; }
+.trc-bx__tri-aide { margin: 4px 0 10px; padding-inline: 12px; font-size: 12.5px; }
+.trc-bx__tri-passe { margin: 0 12px 12px; }
+.trc-bx__passe { display: grid; gap: 12px; }
+.trc-bx__passe-liste { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.trc-bx__passe-liste label { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 10px; align-items: start; cursor: pointer; font-size: 13px; }
+.trc-bx__passe-liste small { display: block; margin-top: 2px; color: var(--ink-soft, #6B6478); overflow-wrap: anywhere; }
