@@ -13,7 +13,9 @@ import { spawnSync } from 'node:child_process';
    parcours complet ; le bac a sable seul ; l'euro ; le champ du rappel VIDE
    (conseil de MTN du 29 octobre) et aucune adresse de rappel envoyee ; le
    repli sur l'hote du projet si MTN refusait le vide ; le rappel garde ;
-   aucun secret au rapport ; une cle absente dite, pas cassee.
+   aucun secret au rapport ; une cle absente dite, pas cassee ; l'annexe des
+   erreurs (29 octobre, MTN demande « les erreurs ») : l'heure, la reference
+   complete, l'envoi et la reponse de MTN a chaque etape, sans cle ni jeton.
    Trois Sandbox simules : l'IDEAL ; celui des ESSAIS REELS du 28 octobre
    (tout hote declare fait tomber les operations en INVALID_CALLBACK_URL_HOST,
    le vide passe ; virement refuse ; solde Disbursement indisponible puis
@@ -42,6 +44,9 @@ const PANNES = [
   ['une adresse de rappel envoyee', "{ ...auth, 'X-Reference-Id': ref }", "{ ...auth, 'X-Reference-Id': ref, 'X-Callback-Url': 'https://' + o.hoteRappel + '/rappel' }"],
   ['pas de depot apres un virement refuse', '    if (!reussie(v.statut)) await suis(', '    if (false) await suis('],
   ['le solde indisponible non redemande', '    if (s.http === 503) {', '    if (false) {'],
+  ['la cle de l utilisateur dans l annexe', "(SECRETS_DE_REPONSE.has(k) ? '[gardé sur le serveur]' : v)", 'v'],
+  ['une operation sans sa reference', ", { reference: ref, envoye: corps, reponse: lu });", ", { envoye: corps, reponse: lu });"],
+  ['une etape sans son heure', 'detail, quand: new Date().toISOString(),', 'detail,'],
   ['pas de solde par sa devise', "  if (!await solde('Lire le solde du compte', `/${nom}/v1_0/account/balance`)) await solde(", "  await solde('Lire le solde du compte', `/${nom}/v1_0/account/balance`); if (false) await solde("],
 ];
 
@@ -230,6 +235,18 @@ dit('chaque appel d operation porte l environnement sandbox', versMtn().filter((
 dit('les montants sont en euros d essai', versMtn().filter((j) => j.corps?.amount).every((j) => j.corps.currency === 'EUR' && j.corps.amount === '100'));
 dit('aucun secret au rapport : ni cles d abonnement, ni cle d utilisateur, ni jeton', ![KC, KD, SERVICE, ...secretsVus].some((s) => t.includes(s)), [KC, KD, SERVICE, ...secretsVus].find((s) => t.includes(s)));
 dit('l utilisateur n y parait qu en huit signes', /utilisateur [0-9a-f]{8}…/.test(etapeDe(o, 'collection', 'Créer l’utilisateur d’API')?.detail ?? '') && !UUID.test(etapeDe(o, 'collection', 'Créer l’utilisateur d’API')?.detail ?? ''));
+
+// L'annexe des erreurs : l'heure, la reference complete, l'envoi et la reponse de MTN.
+const envoisOp = versMtn().filter((j) => j.methode === 'POST' && /requesttopay|transfer|deposit/.test(j.url)).map((j) => j.h['x-reference-id']);
+const refus = etapeDe(o, 'collection', 'Demande de paiement refusée par la cliente');
+dit('annexe : chaque operation porte sa reference complete, celle envoyee a MTN', [etapeDe(o, 'collection', 'Demande de paiement qui réussit'), refus, etapeDe(o, 'disbursement', 'Virement vers un compte MoMo')]
+  .every((e) => UUID.test(e?.reference ?? '') && envoisOp.includes(e.reference)), JSON.stringify([refus?.reference, envoisOp]));
+const creation = etapeDe(o, 'collection', 'Créer l’utilisateur d’API');
+dit('annexe : la creation porte l utilisateur complet et ce qui a ete envoye', UUID.test(creation?.reference ?? '') && creation?.envoye === '{"providerCallbackHost":""}', JSON.stringify(creation));
+dit('annexe : la reponse de MTN est gardee telle quelle (statut et motif)', /"status":"FAILED"/.test(refus?.reponse ?? '') && /APPROVAL_REJECTED/.test(refus?.reponse ?? ''), refus?.reponse);
+dit('annexe : chaque etape porte son heure', o.etapes.every((e) => /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(e.quand ?? '')), JSON.stringify(o.etapes.map((e) => e.quand)));
+dit('annexe : la cle et le jeton sont dits gardes, jamais montres', /\[gardé sur le serveur\]/.test(etapeDe(o, 'collection', 'Obtenir la clé de l’utilisateur')?.reponse ?? '')
+  && /\[gardé sur le serveur\]/.test(etapeDe(o, 'collection', 'Obtenir le jeton d’accès')?.reponse ?? ''), etapeDe(o, 'collection', 'Obtenir le jeton d’accès')?.reponse);
 
 // 4. Le rappel de MTN (pour la production) : garde sans jeton.
 const refRappel = randomUUID();

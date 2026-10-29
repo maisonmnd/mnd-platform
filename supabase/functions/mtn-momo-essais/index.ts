@@ -26,8 +26,13 @@
    l'euro fictif du Sandbox. Aucun franc ne bouge, jamais.
 
    LES SECRETS NE SORTENT PAS : ni les clés d'abonnement, ni la clé de
-   l'utilisateur d'API, ni le jeton ne figurent au rapport ; l'identifiant
-   de l'utilisateur n'y paraît qu'en ses huit premiers signes.
+   l'utilisateur d'API, ni le jeton ne figurent au rapport.
+
+   L'ANNEXE DES ERREURS (29 octobre 2026, MTN demande « les erreurs ») :
+   chaque étape porte l'heure, la référence complète (l'utilisateur d'API,
+   ou le X-Reference-Id de l'opération), ce qui a été envoyé et la réponse
+   de MTN telle quelle, pour que MTN retrouve chaque essai chez lui. Le
+   texte court (`detail`) garde l'identifiant en huit signes.
 
    À DÉPLOYER SANS VÉRIFICATION DU JWT (« Verify JWT » éteint) : les rappels
    de MTN ne présentent pas de jeton Supabase. Le lancement, lui, demande la
@@ -43,7 +48,7 @@
    POST|PUT ?rappel=<ref>  l'annonce de MTN pour une demande ou un virement.
    ═══════════════════════════════════════════════════════════════════ */
 
-const VERSION = '2026-10-29-a';
+const VERSION = '2026-10-29-c';
 
 const json = (o: unknown, status = 200) =>
   new Response(JSON.stringify(o, null, 2), { status, headers: { 'content-type': 'application/json' } });
@@ -66,7 +71,11 @@ const EN_COURS = new Set(['PENDING', 'ONGOING']);
     INVALID_CALLBACK_URL_HOST, quel que soit l'hôte. */
 const HOTE_SANDBOX = '';
 
-type Etape = { produit: string; etape: string; requete: string; http: number | null; ok: boolean; detail: string };
+type Etape = {
+  produit: string; etape: string; requete: string; http: number | null; ok: boolean; detail: string;
+  /** Pour l'annexe des erreurs : l'heure, la référence complète, l'envoi et la réponse de MTN. */
+  quand?: string; reference?: string; envoye?: string; reponse?: string;
+};
 type Outils = {
   f: typeof fetch;
   attendre: (ms: number) => Promise<void>;
@@ -86,9 +95,23 @@ async function lis(r: Response): Promise<any> {
 /** Le motif d'un échec, tel que MTN le dit, sans rien d'autre. */
 const motif = (o: any): string => (o && typeof o === 'object' ? String(o.reason?.code ?? o.reason ?? o.code ?? o.message ?? '') : '').slice(0, 120);
 
+/** Une réponse (ou un envoi) telle quelle pour l'annexe, sans jamais la clé de l'utilisateur ni le jeton. */
+const SECRETS_DE_REPONSE = new Set(['apiKey', 'access_token']);
+const tel = (o: any): string => {
+  if (o === undefined || o === null || o === '') return '';
+  const t = typeof o === 'string' ? o : JSON.stringify(o, (k, v) => (SECRETS_DE_REPONSE.has(k) ? '[gardé sur le serveur]' : v));
+  return t.slice(0, 400);
+};
+
 async function produit(nom: 'collection' | 'disbursement', cle: string, o: Outils, etapes: Etape[]) {
-  const note = (etape: string, requete: string, http: number | null, ok: boolean, detail: string) =>
-    etapes.push({ produit: nom, etape, requete, http, ok, detail });
+  const note = (etape: string, requete: string, http: number | null, ok: boolean, detail: string,
+    plus: { reference?: string; envoye?: unknown; reponse?: unknown } = {}) =>
+    etapes.push({
+      produit: nom, etape, requete, http, ok, detail, quand: new Date().toISOString(),
+      ...(plus.reference ? { reference: plus.reference } : {}),
+      ...(plus.envoye !== undefined ? { envoye: tel(plus.envoye) } : {}),
+      ...(plus.reponse !== undefined ? { reponse: tel(plus.reponse) } : {}),
+    });
   const abo = { 'Ocp-Apim-Subscription-Key': cle };
   const appel = async (methode: string, chemin: string, entetes: Record<string, string>, corps?: unknown) => {
     try {
@@ -106,20 +129,21 @@ async function produit(nom: 'collection' | 'disbursement', cle: string, o: Outil
   /** L'utilisateur d'API du Sandbox, sa clé, le jeton. `detaille` : une étape par appel. */
   const entree = async (hoteRappel: string, detaille: boolean, titre: string) => {
     const u = o.uuid();
-    let r = await appel('POST', '/v1_0/apiuser', { 'X-Reference-Id': u }, { providerCallbackHost: hoteRappel });
-    if (detaille) note('Créer l’utilisateur d’API', 'POST /v1_0/apiuser', r.http, r.http === 201, r.http === 201 ? `utilisateur ${court(u)}` : motif(r.corps) || `réponse ${r.http}`);
-    if (r.http !== 201) { if (!detaille) note(titre, 'POST /v1_0/apiuser', r.http, false, motif(r.corps)); return null; }
+    const envoi = { providerCallbackHost: hoteRappel };
+    let r = await appel('POST', '/v1_0/apiuser', { 'X-Reference-Id': u }, envoi);
+    if (detaille) note('Créer l’utilisateur d’API', 'POST /v1_0/apiuser', r.http, r.http === 201, r.http === 201 ? `utilisateur ${court(u)}` : motif(r.corps) || `réponse ${r.http}`, { reference: u, envoye: envoi, reponse: r.corps });
+    if (r.http !== 201) { if (!detaille) note(titre, 'POST /v1_0/apiuser', r.http, false, motif(r.corps), { reference: u, envoye: envoi, reponse: r.corps }); return null; }
     r = await appel('GET', `/v1_0/apiuser/${u}`, {});
     if (detaille) note('Relire l’utilisateur', 'GET /v1_0/apiuser/{id}', r.http, r.http === 200,
-      r.http === 200 ? `environnement ${r.corps?.targetEnvironment ?? '?'}, champ du rappel ${r.corps?.providerCallbackHost ? r.corps.providerCallbackHost : 'vide'}` : motif(r.corps));
+      r.http === 200 ? `environnement ${r.corps?.targetEnvironment ?? '?'}, champ du rappel ${r.corps?.providerCallbackHost ? r.corps.providerCallbackHost : 'vide'}` : motif(r.corps), { reference: u, reponse: r.corps });
     r = await appel('POST', `/v1_0/apiuser/${u}/apikey`, {});
     const apiKey = r.http === 201 ? String(r.corps?.apiKey ?? '') : '';
-    if (detaille) note('Obtenir la clé de l’utilisateur', 'POST /v1_0/apiuser/{id}/apikey', r.http, !!apiKey, apiKey ? 'clé reçue (gardée sur le serveur)' : motif(r.corps));
-    if (!apiKey) { if (!detaille) note(titre, 'POST /v1_0/apiuser/{id}/apikey', r.http, false, motif(r.corps)); return null; }
+    if (detaille) note('Obtenir la clé de l’utilisateur', 'POST /v1_0/apiuser/{id}/apikey', r.http, !!apiKey, apiKey ? 'clé reçue (gardée sur le serveur)' : motif(r.corps), { reference: u, reponse: r.corps });
+    if (!apiKey) { if (!detaille) note(titre, 'POST /v1_0/apiuser/{id}/apikey', r.http, false, motif(r.corps), { reference: u, reponse: r.corps }); return null; }
     r = await appel('POST', `/${nom}/token/`, { Authorization: 'Basic ' + btoa(`${u}:${apiKey}`) });
     const jeton = r.http === 200 ? String(r.corps?.access_token ?? '') : '';
-    if (detaille) note('Obtenir le jeton d’accès', `POST /${nom}/token/`, r.http, !!jeton, jeton ? `jeton reçu, valable ${r.corps?.expires_in ?? '?'} s` : motif(r.corps));
-    else note(titre, 'POST /v1_0/apiuser, puis sa clé et son jeton', r.http, !!jeton, jeton ? `utilisateur ${court(u)}, rappels vers ${hoteRappel}` : motif(r.corps));
+    if (detaille) note('Obtenir le jeton d’accès', `POST /${nom}/token/`, r.http, !!jeton, jeton ? `jeton reçu, valable ${r.corps?.expires_in ?? '?'} s` : motif(r.corps), { reference: u, reponse: r.corps });
+    else note(titre, 'POST /v1_0/apiuser, puis sa clé et son jeton', r.http, !!jeton, jeton ? `utilisateur ${court(u)}, rappels vers ${hoteRappel}` : motif(r.corps), { reference: u, envoye: envoi, reponse: r.corps });
     return jeton ? { Authorization: `Bearer ${jeton}`, 'X-Target-Environment': ENV_CIBLE } : null;
   };
 
@@ -129,14 +153,14 @@ async function produit(nom: 'collection' | 'disbursement', cle: string, o: Outil
 
   // Ce numéro a-t-il un compte MoMo ?
   let r = await appel('GET', `/${nom}/v1_0/accountholder/msisdn/${NUMERO_REUSSI}/active`, auth);
-  note('Vérifier qu’un numéro a un compte', `GET /${nom}/v1_0/accountholder/msisdn/{numéro}/active`, r.http, r.http === 200, r.http === 200 ? `compte actif : ${r.corps?.result === true ? 'oui' : 'non'}` : motif(r.corps));
+  note('Vérifier qu’un numéro a un compte', `GET /${nom}/v1_0/accountholder/msisdn/{numéro}/active`, r.http, r.http === 200, r.http === 200 ? `compte actif : ${r.corps?.result === true ? 'oui' : 'non'}` : motif(r.corps), { envoye: NUMERO_REUSSI, reponse: r.corps });
 
   /** Une opération, suivie jusqu'à son statut, sans adresse de rappel. */
   const suis = async (etape: string, cheminPost: string, corps: unknown, attendu: (s: string) => boolean) => {
     const ref = o.uuid();
     const p = await appel('POST', cheminPost, { ...auth, 'X-Reference-Id': ref }, corps);
     const requete = `POST ${cheminPost} puis GET ${cheminPost}/{référence}`;
-    if (p.http !== 202) { note(etape, requete, p.http, false, motif(p.corps)); return { statut: 'REFUSEE' }; }
+    if (p.http !== 202) { note(etape, requete, p.http, false, motif(p.corps), { reference: ref, envoye: corps, reponse: p.corps }); return { statut: 'REFUSEE' }; }
     let statut = 'PENDING';
     let lu: any = null;
     let http: number | null = null;
@@ -149,7 +173,7 @@ async function produit(nom: 'collection' | 'disbursement', cle: string, o: Outil
     }
     const piece = lu?.financialTransactionId ? `, transaction ${lu.financialTransactionId}` : '';
     const pourquoi = motif(lu);
-    note(etape, requete, http, attendu(statut), `acceptée (202), statut ${statut}${piece}${pourquoi ? `, motif ${pourquoi}` : ''}`);
+    note(etape, requete, http, attendu(statut), `acceptée (202), statut ${statut}${piece}${pourquoi ? `, motif ${pourquoi}` : ''}`, { reference: ref, envoye: corps, reponse: lu });
     return { statut };
   };
   const reussie = (s: string) => s === 'SUCCESSFUL';
@@ -170,7 +194,7 @@ async function produit(nom: 'collection' | 'disbursement', cle: string, o: Outil
   const solde = async (etape: string, chemin: string) => {
     let s = await appel('GET', chemin, auth);
     if (s.http === 503) { await o.attendre(o.pause); s = await appel('GET', chemin, auth); }
-    note(etape, `GET ${chemin}`, s.http, s.http === 200, s.http === 200 ? `solde ${s.corps?.availableBalance ?? '?'} ${s.corps?.currency ?? ''}`.trim() : motif(s.corps) || `réponse ${s.http}`);
+    note(etape, `GET ${chemin}`, s.http, s.http === 200, s.http === 200 ? `solde ${s.corps?.availableBalance ?? '?'} ${s.corps?.currency ?? ''}`.trim() : motif(s.corps) || `réponse ${s.http}`, { reponse: s.corps });
     return s.http === 200;
   };
   if (!await solde('Lire le solde du compte', `/${nom}/v1_0/account/balance`)) await solde('Lire le solde en euros', `/${nom}/v1_0/account/balance/${DEVISE}`);
