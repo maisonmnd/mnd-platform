@@ -32,7 +32,10 @@ export type { ModeDeLaReception, ReglageDeLaReception, SuiteDeLaReception, Repon
                      des calibres de la grille tarifaire suit ;
      · equipe      : santé, plainte, argent, photo ou vocal, ce qu'elle ne
                      sait pas : une personne de la Maison prend le relais,
-                     et l'équipe est prévenue.
+                     et l'équipe est prévenue ;
+     · venir       : elle demande le chemin ou la localisation ; le plan
+                     pour venir et la Maison sur Google Maps suivent, comme
+                     après une confirmation (30 octobre 2026).
    JAMAIS UN SILENCE : sans Claude (clé absente, délai, réponse illisible ou
    fautive), un mot de secours part, et la main passe à l'équipe.
 
@@ -40,7 +43,7 @@ export type { ModeDeLaReception, ReglageDeLaReception, SuiteDeLaReception, Repon
    regroupe, et `verifie-la-reception-wa` l'éprouve seul. */
 
 /* ── LA SUITE ──────────────────────────────────────────────────────────── */
-const SUITES: readonly SuiteDeLaReception[] = ['rien', 'reserver', 'creation', 'reparation', 'calibre', 'equipe'];
+const SUITES: readonly SuiteDeLaReception[] = ['rien', 'reserver', 'creation', 'reparation', 'calibre', 'equipe', 'venir'];
 
 /* ── LA CONSIGNE ───────────────────────────────────────────────────────── */
 /** Ce que la consigne partagée dit d'une PROPOSITION relue, et ce que la
@@ -81,6 +84,9 @@ export function consigneDeLaReception(): string {
     '- "reparation" : ses locks ont besoin d’être réparées ; même chose, la consultation d’abord.',
     '- "calibre" : elle demande un prix qui dépend de ses locks et son nombre de locks n’est pas connu ; ton message le lui demande avec délicatesse, sans aucun montant ; la liste des calibres de la Maison suit.',
     '- "equipe" : sa santé ou une gêne, une plainte, un remboursement, un règlement, une photo ou un vocal, ou ce que tu ne sais pas faire : ton message dit, avec égards, qu’une personne de la Maison prend le relais. Jamais pour un bonjour, un rendez-vous, un prix, les heures ou l’adresse : à ceux-là, tu réponds toi-même.',
+    /* 30 octobre 2026 : à « Envoie-moi la localisation », elle a lu « je ne
+       peux pas vous transmettre de localisation ». */
+    '- "venir" : elle demande l’adresse, le chemin, la localisation ou un itinéraire ; ton message donne l’adresse en une phrase et dit que le plan pour venir suit ; le plan de la Maison et la Maison sur Google Maps partent juste après ton message. Ne dis jamais que tu ne peux pas envoyer la localisation, et ne promets aucune personne pour guider.',
     '',
     'Réponds uniquement par l’objet demandé : { "texte": "ton message", "suite": "rien" }.',
   ].join('\n');

@@ -1406,6 +1406,23 @@ const PLAN_POUR_VENIR = 'https://maisonmnd.com/assets/itineraire/plan-depuis-sup
     par le site, seulement quand la Maison a donné son lien. */
 const ligneGoogleMapsWa = (lien: string): string => (lien ? `Maison MND sur Google Maps : ${LIEN_POUR_VENIR}` : '');
 
+/** ELLE DEMANDE LE CHEMIN (30 octobre 2026, Yéman : « comment venir chez
+    vous », « envoie-moi la localisation ») : l'adresse, la localisation, un
+    itinéraire, « vous êtes où ». Une adresse e-mail n'est pas un chemin.
+    Les bords sont ceux des lettres (« où » finit sur une lettre accentuée,
+    que `\b` ne voit pas). */
+function demandeLeCheminWa(texte: string): boolean {
+  const t = String(texte ?? '').toLowerCase().replace(/’/g, "'").replace(/\s+/g, ' ');
+  return [
+    /(?<!\p{L})(?:localisation|localiser|g[ée]olocalisation|itin[ée]raire|google ?maps|plan d'acc[èe]s)(?!\p{L})/u,
+    /(?<!\p{L})comment (?:venir|arriver|vous (?:trouver|rejoindre)|on (?:vient|arrive)|faire pour (?:venir|arriver|vous trouver))(?!\p{L})/u,
+    /(?<!\p{L})o[uù] (?:[êe]tes[- ]vous|vous (?:trouvez|situez|[êe]tes)|se (?:trouve|situe) (?:la maison|votre)|est (?:la maison|situ[ée]e))(?!\p{L})/u,
+    /(?<!\p{L})(?:vous [êe]tes|c'est|la maison est|se trouve)(?: situ[ée]e?s?)? o[uù](?!\p{L})/u,
+    /(?<!\p{L})(?:votre|l'|ton|son) ?adresse(?!\p{L})(?! ?(?:e-?mail|mail|courriel|[ée]lectronique))/u,
+    /(?<!\p{L})(?:envoie|envoyez|partage|partagez|donne|donnez)(?:[- ]?(?:moi|nous))? (?:la |votre |ta )?(?:loc|position)(?!\p{L})/u,
+  ].some((r) => r.test(t));
+}
+
 /** La consultation nommée dans une phrase : « la consultation Origine
     (KÒKÒ™ Origine) » ; sans mot français, « le Conseil et diagnostic ». */
 const laConsultationDiteWa = (nom: string): string => {
@@ -2431,6 +2448,17 @@ function atelierDuTour(ancien: EtatDuFil | null | undefined, tour: TourDeLaClien
       return { ...s, messages: s.messages.map((m) => signe({ ...m, corps: r.texte })) };
     }
     passe('clos');
+    /* LE CHEMIN (30 octobre 2026) : son mot dit l'adresse, puis le plan et
+       la Maison sur Google Maps, comme après une confirmation. Claude dit
+       « rien » à une question de chemin : le plan part quand même. */
+    if (r.suite === 'venir' || (r.suite === 'rien' && !!tour && demandeLeCheminWa(tour.texte))) {
+      const lien = ligneGoogleMapsWa(lienMapsWa(ctx.maison.carte));
+      return sortie([
+        signe({ forme: 'texte', etape: 'clos', corps: r.texte }),
+        signe({ forme: 'image', etape: 'clos', corps: '', image: PLAN_POUR_VENIR, accessoire: true }),
+        ...(lien ? [signe({ forme: 'texte', etape: 'clos', corps: lien, accessoire: true })] : []),
+      ]);
+    }
     if (r.suite === 'calibre' && r.lignes && r.lignes.length > 0) {
       /* Les calibres portent un identifiant de la Maison (« MND:… »), sans quoi leur toucher n'arriverait pas jusqu'ici. */
       const lignes = r.lignes.slice(0, 9).map((l) => ({ ...l, id: l.id.startsWith('calibre:') ? choix('calibre', l.id.slice('calibre:'.length)) : l.id }));
@@ -2529,7 +2557,7 @@ function laReceptionSert(r: ReglageDeLaReception, numero: string, numerosEssai: 
   return false;
 }
 
-type SuiteDeLaReception = 'rien' | 'reserver' | 'creation' | 'reparation' | 'calibre' | 'equipe';
+type SuiteDeLaReception = 'rien' | 'reserver' | 'creation' | 'reparation' | 'calibre' | 'equipe' | 'venir';
 type ReponseDeLaReception = { texte: string; suite: SuiteDeLaReception; lignes?: { id: string; titre: string; description?: string }[] };
 /** Les suites qui ouvrent le parcours de l'automate : sa liste des prestations. */
 const SUITES_DU_PARCOURS: readonly SuiteDeLaReception[] = ['reserver', 'creation', 'reparation'];
@@ -2596,7 +2624,7 @@ function mainApresCoup(etat: EtatDuFil, motif: MotifDeLaMain, ctx: ContexteDuTou
 export {
   REGLAGE_LIVRE, PLAFOND_DE_L_AUTOMATE, ECARTS_AVANT_LA_MAIN, PLACES_PROPOSEES, JOURS_PROPOSES,
   PARCOURS_PERIME_MS, TOUR_PERIME_MS, TOUR_EN_COURS_MS, ETAPES_EN_COURS, ETAPE_DITE, MOTIF_DIT, PIED, DEVISE,
-  reglageDeLAutomate, cleWa, sansAppelVide, lienMapsWa, ligneGoogleMapsWa, titreEnFrancaisWa, gesteDitEnFrancaisWa, dureeDiteWa, envoisQuiComptent, numeroServi, pauseActive, etapeCourante, tenuParLAutomate, vueDeLAutomate, silenceDeLAlarme,
+  reglageDeLAutomate, cleWa, sansAppelVide, lienMapsWa, ligneGoogleMapsWa, demandeLeCheminWa, titreEnFrancaisWa, gesteDitEnFrancaisWa, dureeDiteWa, envoisQuiComptent, numeroServi, pauseActive, etapeCourante, tenuParLAutomate, vueDeLAutomate, silenceDeLAlarme,
   LA_MAISON_A_PARLE_MS, mineureWa, fichesServies, titulaireDuNumero, laMaisonAParle, confirmeValide,
   renvoieAUnRdv, uneQuestionAutre, civiliteLue,
   motsReconnus, intentionDeReserver, tourDeLaCliente, lisLeChoix, idDeChoix, instantACotonou,

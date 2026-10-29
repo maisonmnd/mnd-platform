@@ -445,7 +445,7 @@ function heuresPourClaude(semaine) {
 }
 
 // src/shared/reception-wa-pur.ts
-var SUITES = ["rien", "reserver", "creation", "reparation", "calibre", "equipe"];
+var SUITES = ["rien", "reserver", "creation", "reparation", "calibre", "equipe", "venir"];
 var REPERES_DE_LA_CONSIGNE = [
   [
     "Tu écris, au nom de la Maison MND, maison de soin et de création de locks à Cotonou, la réponse WhatsApp à une cliente.",
@@ -486,6 +486,9 @@ function consigneDeLaReception() {
     '- "reparation" : ses locks ont besoin d’être réparées ; même chose, la consultation d’abord.',
     '- "calibre" : elle demande un prix qui dépend de ses locks et son nombre de locks n’est pas connu ; ton message le lui demande avec délicatesse, sans aucun montant ; la liste des calibres de la Maison suit.',
     '- "equipe" : sa santé ou une gêne, une plainte, un remboursement, un règlement, une photo ou un vocal, ou ce que tu ne sais pas faire : ton message dit, avec égards, qu’une personne de la Maison prend le relais. Jamais pour un bonjour, un rendez-vous, un prix, les heures ou l’adresse : à ceux-là, tu réponds toi-même.',
+    /* 30 octobre 2026 : à « Envoie-moi la localisation », elle a lu « je ne
+       peux pas vous transmettre de localisation ». */
+    '- "venir" : elle demande l’adresse, le chemin, la localisation ou un itinéraire ; ton message donne l’adresse en une phrase et dit que le plan pour venir suit ; le plan de la Maison et la Maison sur Google Maps partent juste après ton message. Ne dis jamais que tu ne peux pas envoyer la localisation, et ne promets aucune personne pour guider.',
     "",
     'Réponds uniquement par l’objet demandé : { "texte": "ton message", "suite": "rien" }.'
   ].join("\n");
@@ -605,7 +608,7 @@ function prixSelonLeCalibre(s, ctx) {
 }
 
 // scripts/serveur/reception-wa.ts
-var VERSION = "2026-10-29-a";
+var VERSION = "2026-10-30-a";
 var MODELES = ["claude-haiku-5-5", "claude-sonnet-5-5"];
 var TARIFS = {
   "claude-haiku-5-5": { entree: 1, sortie: 5 },

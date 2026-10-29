@@ -53,6 +53,8 @@ const PANNES = [
   ['l adresse oubliee', PUR, '    `- Adresse : ${ADRESSE_DE_LA_MAISON}.`,\n', ''],
   ['la consigne laisse un ancien message passer la main', PUR, "    'Réponds à son dernier message. Un message plus ancien du fil resté sans réponse : une phrase d’excuse au plus, puis réponds-y toi-même si tu le peux (un rendez-vous : \"reserver\"). Ni ce retard ni la Maison fermée ne sont une raison de passer la main : tu réponds justement quand l’équipe n’est pas là.',\n", ''],
   ['un bonjour sans la liste', PUR, "    'Un simple bonjour, sans autre demande : accueille-la en une phrase, sans question ; suite \"reserver\" : la liste des prestations suit.',\n", ''],
+  ['la suite venir inconnue', PUR, "'calibre', 'equipe', 'venir'];", "'calibre', 'equipe'];"],
+  ['la consigne oublie le chemin', PUR, "    '- \"venir\" : elle demande l’adresse, le chemin, la localisation ou un itinéraire ; ton message donne l’adresse en une phrase et dit que le plan pour venir suit ; le plan de la Maison et la Maison sur Google Maps partent juste après ton message. Ne dis jamais que tu ne peux pas envoyer la localisation, et ne promets aucune personne pour guider.',\n", ''],
   ['la Maison fermee pousse a passer la main', PUR, 'la Maison est fermée, et tu réponds pour elle ; si la suite revient à l’équipe, une personne lui répondra', 'la Maison est fermée ; une personne de l’équipe lui répondra'],
 ];
 

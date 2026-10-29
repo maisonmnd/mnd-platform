@@ -9,6 +9,7 @@ import {
   intentionDeReserver, jourDitAvecAnnee, quiParle, motsReconnus, civiliteLue, prenomLu, renvoieAUnRdv, uneQuestionAutre,
   conseilDeLaMaison, fautesDeLaReponse, texteDeLaReponse, type ConseilDeLaMaison,
   jugeLaParole, reglageDeLaReception, laReceptionPeutParler, reponseDeLaReception, tourPourLeParcours, prefaceDeLaReception, secoursDeLaReception,
+  demandeLeCheminWa,
   type AgendaDuTour, type ContexteDuTour, type EtatDuFil, type FicheDuNumero, type MessageSortant,
   type PrestationDuTour, type ReglageDeLAutomate, type SortieDuTour, type MainDuFil, type VerdictDeLaPose,
   type TiroirDuNumero, type EcritureDuTour,
@@ -3043,7 +3044,7 @@ const regles: Regle[] = [
       { nom: 'en essai, la reception sert un numero non liste', mute: [P(AUTO, "  if (r.mode === 'essai') return numerosEssai.some((n) => cleWa(n) === cleWa(numero));", "  if (r.mode === 'essai') return true;")] },
       { nom: 'la reception parle pendant la main de l equipe', mute: [P(AUTO, "  if (pauseActive(ctx.main, ms)) return false;\n  if (tour.waIds.length === 0) return false;", "  if (tour.waIds.length === 0) return false;")] },
       { nom: 'la reception parle apres une main passee', mute: [P(AUTO, "  return etapeCourante(etat, ctx.main, ms, ctx.reglage.pauseHeures) !== 'main';", '  return true;')] },
-      { nom: 'sa reponse laisse le fil au repos : l alarme sonne', mute: [P(AUTO, "    passe('clos');\n    if (r.suite === 'calibre'", "    if (r.suite === 'calibre'")] },
+      { nom: 'sa reponse laisse le fil au repos : l alarme sonne', mute: [P(AUTO, "    passe('clos');\n    /* LE CHEMIN (30 octobre 2026)", "    /* LE CHEMIN (30 octobre 2026)")] },
       { nom: 'sa reponse ne se signe plus', mute: [P(AUTO, '    const signe = (m: MessageSortant): MessageSortant => ({ ...m, deLaReception: true, prixDuCatalogue: true });', '    const signe = (m: MessageSortant): MessageSortant => m;')] },
       { nom: 'equipe ne passe pas la main', mute: [P(AUTO, "    if (r.suite === 'equipe') {\n      const s = laMain('question', true, r.texte, true);", "    if (false) {\n      const s = laMain('question', true, r.texte, true);")] },
       { nom: 'la fonction ne demande jamais la reception', mute: [P(F_AUTO, 'reception = await demandeALaReception(o, { tour, fiches, docs, ms });', "reception = { texte: '', suite: 'rien' };")] },
@@ -3094,6 +3095,54 @@ const regles: Regle[] = [
       { nom: 'la reception ne dit plus qu elle a passe la main', mute: [P(AUTO, "      const s = laMain('question', true, r.texte, true);", "      const s = laMain('question', true, r.texte);")] },
       { nom: 'le parcours resalue apres le mot de la reception', mute: [P(AUTO, '    const salue = !tour?.deLaReception;', '    const salue = true;')] },
       { nom: 'le tour du parcours ne se dit plus de la reception', mute: [P(AUTO, 'media: false, deLaReception: true });', 'media: false });')] },
+    ],
+  },
+
+  /* ══ R45 · le chemin demandé à la réception, 30 octobre 2026 ═══════════
+     L'essai de Yéman, à 0 h 05 : « Comment venir chez vous? » puis « Envoie
+     moi la localisation » ; la réception a donné l'adresse en mots, et
+     « je ne peux pas vous transmettre de localisation ». */
+  {
+    id: 'R45', nom: 'R45 le chemin : a « comment venir » ou « la localisation », la reception dit l adresse, puis le plan et la Maison sur Google Maps, comme apres une confirmation',
+    eprouve: () => {
+      const { ecarts, vaut, vrai } = juge();
+      const t0 = cotonou('2026-10-30', '00:05');
+      const p = parcours(ORIGINAL, NUM_NAFFI, [NAFFI]);
+      p.carte = 'https://maps.app.goo.gl/AbCdEf12345?g_st=ac';
+      const ctx = ctxDe(p, t0);
+      const dit = (texte: string) => tourDeLaCliente([{ waId: `wamid.${texte.length}`, quand: isoDe(t0), texte, type: 'text', sens: 'entrant' }], []);
+      const OUI = ['Comment venir chez vous?', 'Envoie moi la localisation', 'Envoie-moi la loc', 'Vous êtes où exactement ?', 'C’est où ?',
+        'Quelle est votre adresse ?', 'Je veux l’itinéraire', 'Où êtes-vous situés ?', 'Comment faire pour vous trouver'];
+      const NON = ['Prend moi RDV pour demain 8h30 pour un shampoing', 'Merci beaucoup pour hier', 'Quelle est votre adresse mail ?', 'Comment allez-vous ?',
+        'Bonjour', 'Où est mon rendez-vous de samedi ?', 'Combien pour refaire mes racines ?'];
+      vaut('les questions de chemin se reconnaissent', [], OUI.filter((x) => !demandeLeCheminWa(x)));
+      vaut('... et rien d autre', [], NON.filter((x) => demandeLeCheminWa(x)));
+      const mot = 'Avec plaisir, Mme Naffi. La Maison MND vous reçoit à l’Ilot 130-F, Maison 88, Portail Marron, quartier Suru-Léré, à Cotonou. Le plan pour venir suit ce message.';
+      const v = reponseDeLaReception(null, dit('Comment venir chez vous?'), ctx, { texte: mot, suite: 'venir' });
+      vaut('venir : son mot, le plan en image, puis la Maison sur Google Maps par le site', [
+        ['texte', mot, false], ['image', 'https://maisonmnd.com/assets/itineraire/plan-depuis-super-u.png', true], ['texte', 'Maison MND sur Google Maps : https://maisonmnd.com/venir/', true],
+      ], v.messages.map((m) => [m.forme, m.forme === 'image' ? m.image : m.corps, m.accessoire === true]));
+      vaut('... les trois signes de la reception, le fil clos, l alarme se tait', [[true, true, true], 'clos', 'fini'],
+        [v.messages.map((m) => m.deLaReception === true), v.etat.etape, tenuParLAutomate(v.etat, null, t0)]);
+      vaut('... et chacun passe les juges de Meta et de la Maison', [], v.messages.flatMap((m) => [...respecteMeta(m), ...texteSain(m.corps, true)]));
+      const r = reponseDeLaReception(null, dit('Envoie moi la localisation'), ctx, { texte: 'Mme Naffi, la Maison MND se trouve à l’Ilot 130-F, Maison 88.', suite: 'rien' });
+      vaut('Claude dit rien a une question de chemin : le plan part quand meme', ['texte', 'image', 'texte'], r.messages.map((m) => m.forme));
+      const merci = reponseDeLaReception(null, dit('Merci beaucoup pour hier'), ctx, { texte: 'Avec plaisir, Mme Naffi.', suite: 'rien' });
+      vaut('un merci reste un seul mot', ['texte'], merci.messages.map((m) => m.forme));
+      const sans = reponseDeLaReception(null, dit('Comment venir chez vous?'), ctxDe({ ...p, carte: '' }, t0), { texte: mot, suite: 'venir' });
+      vaut('sans lien Google Maps de la Maison : le plan seul, comme la confirmation', ['texte', 'image'], sans.messages.map((m) => m.forme));
+      const fn = lf(lit(F_AUTO));
+      vrai('la fonction connait la suite venir', fn.includes("const SUITES_CONNUES = ['rien', 'reserver', 'creation', 'reparation', 'calibre', 'equipe', 'venir'];"));
+      return ecarts;
+    },
+    pannes: [
+      { nom: 'la suite venir n envoie plus le plan', mute: [P(AUTO, "    if (r.suite === 'venir' || (r.suite === 'rien' && !!tour && demandeLeCheminWa(tour.texte))) {", '    if (false) {')] },
+      { nom: 'seul venir envoie le plan, pas une question de chemin dite rien', mute: [P(AUTO, "    if (r.suite === 'venir' || (r.suite === 'rien' && !!tour && demandeLeCheminWa(tour.texte))) {", "    if (r.suite === 'venir') {")] },
+      { nom: 'le plan part sans le lien', mute: [P(AUTO, "        ...(lien ? [signe({ forme: 'texte', etape: 'clos', corps: lien, accessoire: true })] : []),\n", '')] },
+      { nom: 'le plan n est plus un accessoire', mute: [P(AUTO, "        signe({ forme: 'image', etape: 'clos', corps: '', image: PLAN_POUR_VENIR, accessoire: true }),", "        signe({ forme: 'image', etape: 'clos', corps: '', image: PLAN_POUR_VENIR }),")] },
+      { nom: 'une adresse e-mail se lit comme un chemin', mute: [P(AUTO, "(?!\\p{L})(?! ?(?:e-?mail|mail|courriel|[ée]lectronique))/u,", '(?!\\p{L})/u,')] },
+      { nom: 'ou se lit avec un bord d ASCII et rate', mute: [P(AUTO, "    /(?<!\\p{L})(?:vous [êe]tes|c'est|la maison est|se trouve)(?: situ[ée]e?s?)? o[uù](?!\\p{L})/u,", "    /\\b(?:vous [êe]tes|c'est|la maison est|se trouve)(?: situ[ée]e?s?)? o[uù]\\b/,")] },
+      { nom: 'la fonction ignore la suite venir', mute: [P(F_AUTO, "const SUITES_CONNUES = ['rien', 'reserver', 'creation', 'reparation', 'calibre', 'equipe', 'venir'];", "const SUITES_CONNUES = ['rien', 'reserver', 'creation', 'reparation', 'calibre', 'equipe'];")] },
     ],
   },
 ];

@@ -88,7 +88,7 @@ import { createClient, type SupabaseClient } from 'npm:@supabase/supabase-js@2';
 
 /** LA VERSION DE CE FICHIER, dite par le contrôle de santé. Sans elle on ne
     sait pas quel code tourne vraiment. À incrémenter à chaque déploiement. */
-const VERSION = '2026-10-29-b · le plan pour venir, en image';
+const VERSION = '2026-10-30-a · le plan pour venir, aussi quand elle demande le chemin';
 
 /** « En train d'écrire », puis on attend : deux messages envoyés coup sur
     coup font un seul tour, celui du dernier. */
@@ -2320,6 +2320,23 @@ const PLAN_POUR_VENIR = 'https://maisonmnd.com/assets/itineraire/plan-depuis-sup
     par le site, seulement quand la Maison a donné son lien. */
 const ligneGoogleMapsWa = (lien: string): string => (lien ? `Maison MND sur Google Maps : ${LIEN_POUR_VENIR}` : '');
 
+/** ELLE DEMANDE LE CHEMIN (30 octobre 2026, Yéman : « comment venir chez
+    vous », « envoie-moi la localisation ») : l'adresse, la localisation, un
+    itinéraire, « vous êtes où ». Une adresse e-mail n'est pas un chemin.
+    Les bords sont ceux des lettres (« où » finit sur une lettre accentuée,
+    que `\b` ne voit pas). */
+function demandeLeCheminWa(texte: string): boolean {
+  const t = String(texte ?? '').toLowerCase().replace(/’/g, "'").replace(/\s+/g, ' ');
+  return [
+    /(?<!\p{L})(?:localisation|localiser|g[ée]olocalisation|itin[ée]raire|google ?maps|plan d'acc[èe]s)(?!\p{L})/u,
+    /(?<!\p{L})comment (?:venir|arriver|vous (?:trouver|rejoindre)|on (?:vient|arrive)|faire pour (?:venir|arriver|vous trouver))(?!\p{L})/u,
+    /(?<!\p{L})o[uù] (?:[êe]tes[- ]vous|vous (?:trouvez|situez|[êe]tes)|se (?:trouve|situe) (?:la maison|votre)|est (?:la maison|situ[ée]e))(?!\p{L})/u,
+    /(?<!\p{L})(?:vous [êe]tes|c'est|la maison est|se trouve)(?: situ[ée]e?s?)? o[uù](?!\p{L})/u,
+    /(?<!\p{L})(?:votre|l'|ton|son) ?adresse(?!\p{L})(?! ?(?:e-?mail|mail|courriel|[ée]lectronique))/u,
+    /(?<!\p{L})(?:envoie|envoyez|partage|partagez|donne|donnez)(?:[- ]?(?:moi|nous))? (?:la |votre |ta )?(?:loc|position)(?!\p{L})/u,
+  ].some((r) => r.test(t));
+}
+
 /** La consultation nommée dans une phrase : « la consultation Origine
     (KÒKÒ™ Origine) » ; sans mot français, « le Conseil et diagnostic ». */
 const laConsultationDiteWa = (nom: string): string => {
@@ -3345,6 +3362,17 @@ function atelierDuTour(ancien: EtatDuFil | null | undefined, tour: TourDeLaClien
       return { ...s, messages: s.messages.map((m) => signe({ ...m, corps: r.texte })) };
     }
     passe('clos');
+    /* LE CHEMIN (30 octobre 2026) : son mot dit l'adresse, puis le plan et
+       la Maison sur Google Maps, comme après une confirmation. Claude dit
+       « rien » à une question de chemin : le plan part quand même. */
+    if (r.suite === 'venir' || (r.suite === 'rien' && !!tour && demandeLeCheminWa(tour.texte))) {
+      const lien = ligneGoogleMapsWa(lienMapsWa(ctx.maison.carte));
+      return sortie([
+        signe({ forme: 'texte', etape: 'clos', corps: r.texte }),
+        signe({ forme: 'image', etape: 'clos', corps: '', image: PLAN_POUR_VENIR, accessoire: true }),
+        ...(lien ? [signe({ forme: 'texte', etape: 'clos', corps: lien, accessoire: true })] : []),
+      ]);
+    }
     if (r.suite === 'calibre' && r.lignes && r.lignes.length > 0) {
       /* Les calibres portent un identifiant de la Maison (« MND:… »), sans quoi leur toucher n'arriverait pas jusqu'ici. */
       const lignes = r.lignes.slice(0, 9).map((l) => ({ ...l, id: l.id.startsWith('calibre:') ? choix('calibre', l.id.slice('calibre:'.length)) : l.id }));
@@ -3443,7 +3471,7 @@ function laReceptionSert(r: ReglageDeLaReception, numero: string, numerosEssai: 
   return false;
 }
 
-type SuiteDeLaReception = 'rien' | 'reserver' | 'creation' | 'reparation' | 'calibre' | 'equipe';
+type SuiteDeLaReception = 'rien' | 'reserver' | 'creation' | 'reparation' | 'calibre' | 'equipe' | 'venir';
 type ReponseDeLaReception = { texte: string; suite: SuiteDeLaReception; lignes?: { id: string; titre: string; description?: string }[] };
 /** Les suites qui ouvrent le parcours de l'automate : sa liste des prestations. */
 const SUITES_DU_PARCOURS: readonly SuiteDeLaReception[] = ['reserver', 'creation', 'reparation'];
@@ -3945,7 +3973,7 @@ const attends = (ms: number) => new Promise((r) => setTimeout(r, ms));
    La fonction `reception-wa` (regroupée depuis le dépôt) fait écrire Claude.
    Vingt-cinq secondes au plus ; sans réponse sûre, le mot de secours, et la
    main passe à l'équipe. La porte : la même clé service que le webhook. */
-const SUITES_CONNUES = ['rien', 'reserver', 'creation', 'reparation', 'calibre', 'equipe'];
+const SUITES_CONNUES = ['rien', 'reserver', 'creation', 'reparation', 'calibre', 'equipe', 'venir'];
 async function demandeALaReception(
   // deno-lint-ignore no-explicit-any
   o: Appel, x: { tour: TourDeLaCliente; fiches: FicheDuNumero[]; docs: Map<string, any>; ms: number },
