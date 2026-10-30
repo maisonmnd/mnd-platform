@@ -19,7 +19,7 @@ import {
   rendsALAutomate, filsSansReponse, sonnentApresLAutomate, type MessageWa, type TeteConnue, type LigneDesFilsAutomate,
 } from '../src/shared/conversations';
 import { rattachementsAFaire, type Demande } from '../src/shared/demandes';
-import { BROUILLONS_DU_CONSEIL, modifieLaReponse, valideLaReponse } from '../src/shared/conseil-wa';
+import { BROUILLONS_DU_CONSEIL, TEXTES_PROPOSES, correctionProposee, modifieLaReponse, valideLaReponse, valideLesReponses } from '../src/shared/conseil-wa';
 import { sansCommentaires } from './un-geste-par-passage';
 
 /* LA MAISON RÉPOND ET RÉSERVE SUR WHATSAPP, ÉPROUVÉE · 9 octobre 2026.
@@ -3292,6 +3292,36 @@ const regles: Regle[] = [
       { nom: 'le tour plafonne encore les essais', mute: [P(AUTO, ' && !confirme && !sansPlafondWa(ctx.reglage, ctx.numero)) return laMain', ' && !confirme) return laMain')] },
       { nom: 'les clientes perdent leur plafond', mute: [P(AUTO, '  reglage.numerosEssai.some((n) => cleWa(n) === cleWa(numero));', '  true;')] },
       { nom: 'reprogrammer redevient une envie de reserver', mute: [P(AUTO, '(annul|decal|report|deplac|reprogramm|retard)', '(annul|decal|report|deplac|retard)')] },
+    ],
+  },
+
+  /* ══ R49 · valider les réponses de la Maison en cochant, 30 octobre 2026 ══
+     « Montre-moi les 13 réponses à valider », puis « sur un écran à cocher ». */
+  {
+    id: 'R49', nom: 'R49 valider en cochant : la direction seule, seules les reponses qui peuvent partir se cochent, la correction proposee retire la phrase au prix introuvable ou remplit le texte vide',
+    eprouve: () => {
+      const { ecarts, vaut, vrai } = juge();
+      const PRIX = { 'sv-koko-ori': 15000, 'sv-atl-ii-e': 20000 };
+      const creation = BROUILLONS_DU_CONSEIL.find((r) => r.id === 'r-prix-creation')!;
+      const corr = correctionProposee(creation, PRIX);
+      vaut('la creation : la phrase aux prix introuvables s en va, le reste demeure', [true, false, true],
+        [!!corr, (corr?.texte ?? '').includes('À titre de repère'), (corr?.texte ?? '').startsWith('Une création se chiffre après la consultation Origine (KÒKÒ™ Origine, {prix:sv-koko-ori})')]);
+      vaut('la longueur vide : le texte propose (une photo) ; une reponse qui peut partir : rien a proposer', [TEXTES_PROPOSES['r-longueur'], null],
+        [correctionProposee({ id: 'r-longueur', texte: '' }, PRIX)?.texte, correctionProposee(BROUILLONS_DU_CONSEIL.find((r) => r.id === 'r-duree')!, PRIX)]);
+      const c = valideLesReponses({ reponses: [...BROUILLONS_DU_CONSEIL] }, ['r-duree', 'r-consultation'], 'direction', '2026-10-30T09:00:00Z');
+      vaut('valider les cochees : celles-la, et elles seules', ['validee', 'validee', 'brouillon'],
+        [c.reponses.find((r) => r.id === 'r-duree')?.etat, c.reponses.find((r) => r.id === 'r-consultation')?.etat, c.reponses.find((r) => r.id === 'r-formation')?.etat]);
+      const ecran = lf(lit('src/apps/trone/routes/clients/ReponsesDeLaMaison.tsx'));
+      vrai('l ecran : la carte a cocher pour la direction seule, une case grisee quand la reponse ne peut pas partir',
+        ecran.includes('{direction && brouillons.length > 0 && (') && ecran.includes('disabled={fautes.length > 0} onChange={() => coche(r.id)}'));
+      return ecarts;
+    },
+    pannes: [
+      { nom: 'la correction garde la phrase au prix introuvable', mute: [P('src/shared/conseil-wa.ts', '  const reste = phrases.filter((p) => !introuvable(p)).join', '  const reste = phrases.join')] },
+      { nom: 'le texte vide n a rien de propose', mute: [P('src/shared/conseil-wa.ts', '    return p ? { texte: p, pourquoi:', '    return false ? { texte: p, pourquoi:')] },
+      { nom: 'valider les cochees valide tout', mute: [P('src/shared/conseil-wa.ts', '  return ids.reduce((acc, id) => valideLaReponse(acc, id, par, quand), c);', '  return c.reponses.reduce((acc, r) => valideLaReponse(acc, r.id, par, quand), c);')] },
+      { nom: 'le personnel coche aussi', mute: [P('src/apps/trone/routes/clients/ReponsesDeLaMaison.tsx', '{direction && brouillons.length > 0 && (', '{brouillons.length > 0 && (')] },
+      { nom: 'une reponse fautive se coche', mute: [P('src/apps/trone/routes/clients/ReponsesDeLaMaison.tsx', 'disabled={fautes.length > 0} onChange={() => coche(r.id)}', 'disabled={false} onChange={() => coche(r.id)}')] },
     ],
   },
 ];

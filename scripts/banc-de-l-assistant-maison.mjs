@@ -340,6 +340,24 @@ try {
   await photo('3-banque');
   await cdp('Emulation.setDeviceMetricsOverride', { width: 1366, height: 1000, deviceScaleFactor: 1, mobile: false });
 
+  /* 7. Valider en cochant (30 octobre 2026) : `?reponses=1`, les treize brouillons de depart, une case par reponse ;
+     « Duree d une creation » (sans prix) se coche et se valide ; « Ma longueur suffit ? » (vide) propose son texte. */
+  await evalue(`location.hash = '#/gerard?vue=conversations&reponses=1'; location.reload(); true`);
+  const cocher = await jusqua(String.raw`document.querySelectorAll('.trc-cocher__ligne').length`, 40000);
+  dit('valider en cochant : les treize brouillons, une case chacun', cocher === 13 && !(await tombe()), String(cocher));
+  dit('... « Ma longueur suffit ? », vide, propose son texte', await evalue(String.raw`[...document.querySelectorAll('.trc-cocher__ligne')].some((l) => l.querySelector('.trc-cocher__titre')?.textContent === 'Ma longueur suffit ?' && [...l.querySelectorAll('button')].some((b) => b.textContent.trim() === 'Accepter la correction'))`));
+  dit('... « Duree d une creation » se coche', await evalue(String.raw`(() => { const l = [...document.querySelectorAll('.trc-cocher__ligne')].find((x) => x.querySelector('.trc-cocher__titre')?.textContent === 'Durée d’une création'); const c = l?.querySelector('input[type="checkbox"]'); if (!c || c.disabled) return false; c.click(); return true; })()`));
+  await attend(200);
+  dit('... et « Valider la reponse cochee » la valide', await evalue(String.raw`(() => { const b = [...document.querySelectorAll('.trc-cocher button')].find((x) => x.textContent.trim() === 'Valider la réponse cochée'); if (!b) return false; b.click(); return true; })()`));
+  await attend(500);
+  const conseilEcrit = await evalue(`JSON.parse(localStorage.getItem('trone::mnd_reponses_maison') || '{}')`);
+  dit('... ecrit : validee, par la direction, les autres restent en brouillon', (conseilEcrit?.reponses ?? []).find((r) => r.id === 'r-duree')?.etat === 'validee'
+    && (conseilEcrit?.reponses ?? []).filter((r) => r.etat === 'validee').length === 1, JSON.stringify((conseilEcrit?.reponses ?? []).map((r) => [r.id, r.etat])));
+  await cdp('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 2, mobile: true });
+  await attend(400);
+  dit('au telephone (390 px), valider en cochant ne deborde pas', !(await deborde()), String(await evalue('document.documentElement.scrollWidth')));
+  await cdp('Emulation.setDeviceMetricsOverride', { width: 1366, height: 1000, deviceScaleFactor: 1, mobile: false });
+
   await cdp('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 2, mobile: true });
   for (let i = 0; i < VUES.length; i++) {
     await evalue(`location.hash = '#/gerard${i ? `?vue=${VUES[i]}` : ''}'; true`);

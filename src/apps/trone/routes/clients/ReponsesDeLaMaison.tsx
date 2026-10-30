@@ -6,8 +6,8 @@ import {
   type ReponseDeLaMaison,
 } from '../../../../shared/automate-wa';
 import {
-  ajouteUneReponse, changeLesMotsSante, conseilStore, deplaceLaReponse, modifieLaReponse, motsDUnePhrase,
-  nouvelIdDeReponse, repasseEnBrouillon, retireLaReponse, useConseil, valideLaReponse, type ReponseBrute,
+  ajouteUneReponse, changeLesMotsSante, conseilStore, correctionProposee, deplaceLaReponse, modifieLaReponse, motsDUnePhrase,
+  nouvelIdDeReponse, repasseEnBrouillon, retireLaReponse, useConseil, valideLaReponse, valideLesReponses, type ReponseBrute,
 } from '../../../../shared/conseil-wa';
 import { automatesDesFils, numeroWa, useFilsAutomate, useMessagesWa } from '../../../../shared/conversations';
 import type { Besoin } from '../../../../shared/qualification';
@@ -78,6 +78,8 @@ export default function ReponsesDeLaMaison({ onOuvrirLeFil }: { onOuvrirLeFil: (
   const [ouverte, setOuverte] = useState<string | null>(null);
   const [retrait, setRetrait] = useState<string | null>(null);
   const [santeOuverte, setSanteOuverte] = useState(false);
+  /* VALIDER EN COCHANT (30 octobre 2026) : les brouillons cochés. */
+  const [cochees, setCochees] = useState<string[]>([]);
   const zone = useRef<HTMLTextAreaElement>(null);
   const maintenant = Date.now();
   const mois = new Date().toISOString().slice(0, 7);
@@ -136,6 +138,16 @@ export default function ReponsesDeLaMaison({ onOuvrirLeFil }: { onOuvrirLeFil: (
 
   const validees = reponses.filter((r) => r.etat === 'validee' && fautesDe(r).length === 0).length;
   const laOuverte = reponses.find((r) => r.id === ouverte) ?? null;
+  const brouillons = reponses.filter((r) => r.etat !== 'validee');
+  const pretes = brouillons.filter((r) => fautesDe(r).length === 0);
+  const aValider = cochees.filter((id) => pretes.some((r) => r.id === id));
+  const coche = (id: string) => setCochees((c) => (c.includes(id) ? c.filter((x) => x !== id) : [...c, id]));
+  const valideLesCochees = () => {
+    if (aValider.length === 0) return;
+    ecris((c) => valideLesReponses(c, aValider, session?.user?.id ?? 'direction', new Date().toISOString()));
+    toast(`${aValider.length} réponse${aValider.length > 1 ? 's' : ''} validée${aValider.length > 1 ? 's' : ''} : l’automate peut les envoyer.`);
+    setCochees([]);
+  };
   const motsSante = conseil?.motsSante?.length ? conseil.motsSante : [...MOTS_SANTE_LIVRES];
 
   return (
@@ -156,6 +168,48 @@ export default function ReponsesDeLaMaison({ onOuvrirLeFil }: { onOuvrirLeFil: (
         </div>
         <div><Button variant="copper" size="sm" onClick={() => ajoute('Nouvelle question', [])}>Ajouter une réponse</Button></div>
       </Card>
+
+      {/* VALIDER EN COCHANT (30 octobre 2026, « sur un écran à cocher ») : chaque
+          brouillon, ce qu'elle lira, une case ; ceux qui ne peuvent pas partir
+          disent pourquoi, et leur correction proposée s'accepte d'un toucher. */}
+      {direction && brouillons.length > 0 && (
+        <Card className="trc-cocher" style={{ padding: 16, display: 'grid', gap: 10 }}>
+          <div className="tre-sec-label">Valider en cochant · {brouillons.length} brouillon{brouillons.length > 1 ? 's' : ''}, {pretes.length} prêt{pretes.length > 1 ? 's' : ''} à partir</div>
+          <ul className="trc-cocher__liste">
+            {brouillons.map((r) => {
+              const fautes = fautesDe(r);
+              const correction = fautes.length > 0 ? correctionProposee(r, prix) : null;
+              const oui = cochees.includes(r.id);
+              return (
+                <li key={r.id} className={`trc-cocher__ligne${oui ? ' est-cochee' : ''}`}>
+                  <label className="trc-cocher__case">
+                    <input type="checkbox" id={`cocher-${r.id}`} checked={oui} disabled={fautes.length > 0} onChange={() => coche(r.id)} />
+                    <span className="trc-cocher__titre">{r.titre || 'Sans titre'}</span>
+                  </label>
+                  <p className="trc-cocher__texte">{r.texte ? apercu(r.texte) : <span className="mnd-muted">La réponse n’est pas encore écrite.</span>}</p>
+                  {fautes.length > 0 && !correction && (
+                    <p className="trc-cocher__faute">Ne peut pas partir : {fautes.join(' ; ')}. <button type="button" className="trc-cocher__lien" onClick={() => setOuverte(r.id)}>La corriger</button></p>
+                  )}
+                  {correction && (
+                    <div className="trc-cocher__correction">
+                      <span className="mnd-muted">{correction.pourquoi} Proposé :</span>
+                      <p>{apercu(correction.texte)}</p>
+                      <Button variant="ghost" size="sm" onClick={() => { modifie(r.id, { texte: correction.texte }); toast('Correction posée : la réponse peut maintenant se cocher.'); }}>Accepter la correction</Button>
+                    </div>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+            <Button variant="copper" size="sm" disabled={aValider.length === 0} onClick={valideLesCochees}>
+              {aValider.length === 1 ? 'Valider la réponse cochée' : aValider.length > 1 ? `Valider les ${aValider.length} réponses cochées` : 'Valider les réponses cochées'}
+            </Button>
+            <Button variant="ghost" size="sm" disabled={pretes.length === 0} onClick={() => setCochees(pretes.map((r) => r.id))}>Cocher les {pretes.length} prêtes</Button>
+            <span className="mnd-muted" style={{ fontSize: 12.5 }}>Une réponse validée part mot pour mot, avec « Réserver » et « Une autre question ».</span>
+          </div>
+        </Card>
+      )}
 
       <div style={{ display: 'grid', gap: 6 }}>
         {reponses.map((r, i) => {

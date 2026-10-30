@@ -3669,3 +3669,21 @@
   .trc-remplace__champs label:not(.est-court) { grid-column: 1 / -1; }
 }
 
+
+/* VALIDER EN COCHANT · 30 octobre 2026 (« sur un écran à cocher ») : chaque
+   brouillon des réponses toutes prêtes, ce qu'elle lira, une case ; la
+   correction proposée en cuivre pâle. Rien ne déborde à 390 px. */
+.trc-cocher__liste { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.trc-cocher__ligne { border: 1px solid var(--hairline); border-radius: 6px; padding: 10px 12px; display: grid; gap: 6px; min-width: 0; background: var(--surface-card); }
+.trc-cocher__ligne.est-cochee { border-color: var(--color-copper); }
+.trc-cocher__case { display: flex; align-items: center; gap: 10px; cursor: pointer; }
+.trc-cocher__case input { width: 18px; height: 18px; accent-color: var(--color-copper); flex: none; }
+.trc-cocher__case input:disabled + .trc-cocher__titre { color: var(--ink-soft); }
+.trc-cocher__case input:focus-visible { outline: 2px solid var(--color-copper); outline-offset: 2px; }
+.trc-cocher__titre { font-weight: 500; color: var(--color-indigo); }
+.trc-cocher__texte { margin: 0; font-size: 14px; line-height: 1.5; color: var(--ink); white-space: pre-wrap; overflow-wrap: anywhere; }
+.trc-cocher__faute { margin: 0; font-size: 13px; color: var(--am-terre, #A3402B); }
+.trc-cocher__lien { all: unset; cursor: pointer; text-decoration: underline; color: var(--color-indigo); }
+.trc-cocher__lien:focus-visible { outline: 2px solid var(--color-copper); outline-offset: 2px; }
+.trc-cocher__correction { display: grid; gap: 6px; justify-items: start; background: var(--copper-50, #faf1e9); border-radius: 6px; padding: 8px 10px; font-size: 13px; }
+.trc-cocher__correction p { margin: 0; font-size: 14px; line-height: 1.5; color: var(--ink); overflow-wrap: anywhere; }

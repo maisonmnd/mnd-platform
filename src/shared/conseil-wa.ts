@@ -118,6 +118,37 @@ export function valideLaReponse(c: ConseilBrut, id: string, par: string, quand: 
   return { ...c, reponses: c.reponses.map((r) => (r.id === id ? { ...r, etat: 'validee', valideeLe: quand, valideePar: par } : r)) };
 }
 
+/** VALIDER EN COCHANT (30 octobre 2026, « sur un écran à cocher ») : les
+    réponses cochées, d'un coup. L'écran ne laisse cocher que celles qui
+    peuvent partir ; l'automate rejuge de toute façon chaque texte. */
+export function valideLesReponses(c: ConseilBrut, ids: readonly string[], par: string, quand: string): ConseilBrut {
+  return ids.reduce((acc, id) => valideLaReponse(acc, id, par, quand), c);
+}
+
+/** LES TEXTES PROPOSÉS d'une réponse encore vide (30 octobre 2026, choix de
+    la direction sur « ma longueur suffit ? » : une photo, l'équipe regarde). */
+export const TEXTES_PROPOSES: Readonly<Record<string, string>> = {
+  'r-longueur': 'Envoyez-nous une photo de vos cheveux, de face et de dos : une personne de la Maison regarde et vous dit si la longueur suffit.',
+};
+
+/** LA CORRECTION PROPOSÉE d'un brouillon qui ne peut pas partir : un texte
+    vide reçoit le texte proposé ; une phrase dont un prix est introuvable au
+    catalogue du jour (une création, sur devis) s'en va, le reste demeure.
+    Rien à proposer : `null`. */
+export function correctionProposee(r: Pick<ReponseBrute, 'id' | 'texte'>, prix: Readonly<Record<string, number>>): { texte: string; pourquoi: string } | null {
+  const texte = String(r.texte ?? '').trim();
+  if (!texte) {
+    const p = TEXTES_PROPOSES[r.id];
+    return p ? { texte: p, pourquoi: 'La réponse est vide.' } : null;
+  }
+  const introuvable = (phrase: string): boolean =>
+    [...phrase.matchAll(/\{prix:([^}]{1,80})\}/g)].some((m) => !((prix[m[1].trim()] ?? 0) > 0));
+  const phrases = texte.split(/(?<=[.!?])\s+/);
+  if (!phrases.some(introuvable)) return null;
+  const reste = phrases.filter((p) => !introuvable(p)).join(' ').trim();
+  return reste ? { texte: reste, pourquoi: 'Une phrase cite un prix introuvable au catalogue : elle s’en va.' } : null;
+}
+
 export function repasseEnBrouillon(c: ConseilBrut, id: string): ConseilBrut {
   return {
     ...c,
