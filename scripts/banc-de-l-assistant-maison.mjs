@@ -322,6 +322,11 @@ try {
   dit('... « C est juste » se touche (la direction)', await evalue(String.raw`(() => { const b = [...document.querySelectorAll('.trc-bq__cas.est-ouvert .trc-bq__gestes button')].find((x) => x.textContent.trim() === 'C’est juste'); if (b) b.click(); return !!b; })()`));
   dit('... et le cas passe en Valides', (await jusqua(String.raw`[...document.querySelectorAll('.trc-bq__filtres button')].map((b) => b.textContent.trim()).join('|') === 'À valider · 0|À reprendre · 0|Validés · 2|Tous · 2'`, 4000)) === true,
     await evalue(String.raw`[...document.querySelectorAll('.trc-bq__filtres button')].map((b) => b.textContent.trim()).join('|')`));
+  await evalue(String.raw`(() => { const t = [...document.querySelectorAll('.trc-bq__filtres button')].find((b) => b.textContent.startsWith('Validés')); t?.click(); return true; })()`);
+  await attend(300);
+  await evalue(String.raw`document.querySelector('#cas-cas-banc0001 .trc-bq__tete')?.click(); true`);
+  await attend(300);
+  dit('... un cas valide offre « Ecrire 20 variantes » a la direction', await evalue(String.raw`[...document.querySelectorAll('.trc-bq__cas.est-ouvert .trc-bq__variantes button')].some((b) => b.textContent.trim() === 'Écrire 20 variantes')`));
   const ecrit = await evalue(`JSON.parse(localStorage.getItem('trone::mnd_scenarios_wa') || '{}')`);
   const valideBq = (ecrit?.cas ?? []).find((c) => c.id === 'cas-banc0001');
   dit('... ecrit : valide, son attendu, qui l a valide', valideBq?.etat === 'valide' && valideBq?.attendu?.qui === 'assistant' && (valideBq?.attendu?.signes ?? []).includes('en-route') && !!valideBq?.valideLe, JSON.stringify(valideBq));

@@ -82,6 +82,7 @@ export function consigneDeLaReception(): string {
     'Elle est en route ou arrive : un mot bref (« Bien noté, nous vous attendons. »), suite "venir" : le plan suit.',
     'Les extensions de locks se décident à la consultation (la teinte, le calibre, le nombre), puis un devis écrit : ne donne aucun prix, suite "creation".',
     'Elle demande si sa longueur suffit : demande-lui une photo de ses cheveux, qu’une personne de la Maison regardera ; suite "equipe".',
+    'Elle demande comment payer : réponds avec les moyens de paiement du contexte, sans en ajouter ; un paiement à distance seulement s’il y est dit.',
     '',
     'Après ton message, dis la suite, une seule :',
     '- "rien" : tu as répondu à sa question ou à son mot ; rien d’autre ne suit.',
@@ -118,6 +119,11 @@ export type ContexteDeLaReception = ContexteDeLaReponse & {
   maintenantMs: number;
   /** La Maison a-t-elle déjà écrit dans ce fil ? Sinon, l'assistant se présente. */
   premiereReponse: boolean;
+  /** Les moyens de paiement de la Maison (`mnd_payment_methods`, Système ›
+      Paramètres › Paiements), et le lien de paiement en ligne quand MND PAY
+      est allumé (30 octobre 2026 : « Can I pay with a card ? »). */
+  paiements?: readonly string[];
+  paiementEnLigne?: boolean;
 };
 
 /** CE QUE LA RÉCEPTION LIT À LA PLACE DE « AGENDA : NON CONSULTÉ » : les
@@ -139,6 +145,8 @@ export function contexteDeLaReception(o: ContexteDeLaReception): string {
     reouverture === null
       ? '- En ce moment, la Maison est ouverte : une personne de l’équipe peut répondre dans la journée.'
       : `- En ce moment, la Maison est fermée, et tu réponds pour elle ; si la suite revient à l’équipe, une personne lui répondra ${reouverture}.`,
+    ...((o.paiements ?? []).length > 0 ? [`- Moyens de paiement à la Maison : ${(o.paiements ?? []).join(', ')}.`] : []),
+    ...(o.paiementEnLigne ? ['- Paiement à distance : la Maison envoie un lien de paiement en ligne (MND PAY), sur demande.'] : []),
     o.premiereReponse
       ? '- C’est ta première réponse dans cette conversation : présente-toi comme l’assistant de la Maison.'
       : '- La Maison a déjà répondu dans cette conversation : ne te présente pas de nouveau, ne salue pas une seconde fois.',

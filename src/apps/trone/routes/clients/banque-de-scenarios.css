@@ -68,3 +68,11 @@
 .trc-bq__texte { width: 100%; box-sizing: border-box; font: 400 14px/1.5 var(--font-sans); color: var(--ink); background: var(--surface-card); border: 1px solid var(--hairline); border-radius: 6px; padding: 8px 10px; }
 .trc-bq__texte:focus-visible { outline: 2px solid var(--color-copper); outline-offset: 1px; }
 .trc-bq__plus { align-self: flex-start; }
+
+/* Les variantes de Claude : comprises en vert, à renforcer en terre. */
+.trc-bq__variantes { grid-column: 1 / -1; display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
+.trc-bq__variantes ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; width: 100%; }
+.trc-bq__variantes li { display: grid; grid-template-columns: 18px minmax(0, 1fr); gap: 6px; font-size: 13.5px; color: var(--ink); overflow-wrap: anywhere; }
+.trc-bq__variantes li small { display: block; color: var(--am-terre); font-size: 12.5px; }
+.trc-bq__variantes li.est-comprise .trc-bq__marque { color: var(--am-vert-fonce); font-weight: 600; }
+.trc-bq__variantes li.est-ratee .trc-bq__marque { color: var(--am-terre); font-weight: 600; }

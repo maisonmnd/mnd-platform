@@ -15,8 +15,9 @@
 import { readFileSync } from 'node:fs';
 import {
   ajouteDesCas, banqueLue, casDUnExport, clienteDeLExport, ecartsDuCas, idDuCas, litLeCas, litUnExport, passeLaBanque,
-  reprendsLeCas, retireLeCas, texteDuCas, toursDesConversations, valideLeCas, type BanqueBrute,
+  poseLesVariantes, reprendsLeCas, retireLeCas, texteDuCas, toursDesConversations, valideLeCas, type BanqueBrute,
 } from '../src/shared/banque-scenarios-pur';
+import { lectureDesVariantes } from '../src/shared/variantes-wa-pur';
 
 let ko = 0;
 const dit = (nom: string, attendu: unknown, obtenu: unknown) => {
@@ -132,6 +133,74 @@ dit('la direction seule valide, reprend ou retire', true, ecran.includes('{direc
 dit('la banque dans son propre document, que le serveur ne lit pas', [true, true],
   [magasin.includes("createStore<BanqueBrute>('mnd_scenarios_wa', BANQUE_VIDE)") && magasin.includes("bindDocument(banqueStore, 'mnd_scenarios_wa')"),
     !lit('supabase/functions/whatsapp-automate/index.ts').includes('mnd_scenarios_wa')]);
+
+dit('les variantes : la direction seule les demande', true, ecran.includes('{direction && (\n                        <button type="button" className="trc-ger__btn" disabled={enVol === c.id}'));
+
+/* ── ⑤ LES VARIANTES DE CLAUDE ── */
+dit('ce qui se garde : sans numero, sans doublon ni l original, sans vide ni trop long, vingt au plus', [
+  ['je veux un shampoing stp', 'appelez moi au [numéro]', 'Can I get a shampoo tomorrow?'], 20,
+], [
+  lectureDesVariantes({ variantes: ['Je veux un shampoing', 'je veux un shampoing stp', 'JE VEUX UN SHAMPOING STP', 'appelez moi au 01 97 00 00 11', '', 'x'.repeat(301), 42, 'Can I get a shampoo tomorrow?'] }, 'Je veux un shampoing'),
+  lectureDesVariantes({ variantes: Array.from({ length: 30 }, (_, i) => `variante ${i}`) }, 'original').length,
+]);
+const loc0 = b.cas.find((c) => c.texte.startsWith('Envoie'))!;
+let bv = valideLeCas(b, loc0.id, litLeCas(loc0.texte, loc0.quand), 'direction', T);
+bv = poseLesVariantes(bv, loc0.id, ['Envoie-moi ta loc stp', 'vous êtes où exactement', 'merci beaucoup']);
+const pv = passeLaBanque(bv);
+dit('les variantes d un cas valide : comprises, ou a renforcer, sans rien bloquer', [2, 1, 'merci beaucoup', 0],
+  [pv.variantesJustes, pv.variantesRatees.length, pv.variantesRatees[0]?.variante, pv.casses.filter((x) => x.cas.id === loc0.id).length]);
+
+/* La fonction `variantes-wa`, regroupee depuis le depot, contre une base et un Claude simules. */
+type Ligne = { key: string; data: unknown };
+const docs: Ligne[] = [];
+const fabrique = (_url: string, _cle: string, o?: { global?: { headers?: { authorization?: string } } }) => {
+  const jeton = String(o?.global?.headers?.authorization ?? '').replace(/^Bearer\s+/i, '');
+  return {
+    rpc: async (n: string) => (n === 'is_staff' ? { data: jeton === 'staff', error: null } : { data: null, error: { message: n } }),
+    from: () => {
+      const filtres: [string, unknown][] = [];
+      const q = {
+        select: () => q,
+        eq: (c: string, v: unknown) => { filtres.push([c, v]); return q; },
+        maybeSingle: async () => ({ data: docs.find((d) => filtres.every(([c, v]) => (d as Record<string, unknown>)[c] === v)) ?? null, error: null }),
+        upsert: async (row: Ligne) => { const i = docs.findIndex((d) => d.key === row.key); if (i >= 0) docs[i] = row; else docs.push(row); return { error: null }; },
+      };
+      return q;
+    },
+  };
+};
+let claude: () => { status: number; corps: unknown } = () => ({ status: 200, corps: {} });
+const recusDeClaude: { model: string; system: string; messages: { content: string }[] }[] = [];
+(globalThis as unknown as { fetch: unknown }).fetch = async (url: string, init: { body: string }) => {
+  if (!String(url).startsWith('https://api.anthropic.com/')) throw new Error(`appel inattendu : ${url}`);
+  recusDeClaude.push(JSON.parse(init.body));
+  const r = claude();
+  return { status: r.status, text: async () => JSON.stringify(r.corps) };
+};
+let handler: ((req: Request) => Promise<Response>) | null = null;
+const env: Record<string, string> = { SUPABASE_URL: 'http://base', SUPABASE_ANON_KEY: 'anon', CLE_SERVICE: 'service', ANTHROPIC_API_KEY: 'cle-de-test' };
+const sourceF = readFileSync(process.env.VARIANTES_FONCTION as string, 'utf8').replace(/^import \{ createClient \} from "npm:@supabase\/supabase-js@2";$/m, '');
+new Function('createClient', 'Deno', sourceF)(fabrique, { env: { get: (k: string) => env[k] }, serve: (h: typeof handler) => { handler = h; } });
+const appelle = async (jeton: string, corps: unknown = { texte: 'Je veux un shampoing demain' }) => {
+  const r = await handler!(new Request('http://f/variantes-wa', { method: 'POST', headers: { authorization: `Bearer ${jeton}`, 'content-type': 'application/json' }, body: JSON.stringify(corps) }));
+  return { status: r.status, corps: await r.json() as { ok?: boolean; variantes?: string[]; motif?: string } };
+};
+const outilV = (variantes: unknown[]) => ({ status: 200, corps: { content: [{ type: 'tool_use', name: 'variantes', input: { variantes } }], usage: { input_tokens: 800, output_tokens: 600 } } });
+const g = await handler!(new Request('http://f/variantes-wa', { method: 'GET' }));
+dit('GET : la version, et si la cle de Claude est posee', ['variantes-wa', 'oui'], await g.json().then((x: { fonction?: string; claude?: string }) => [x.fonction, x.claude]));
+claude = () => outilV(['je veux un shampoing demain stp', 'je veux un shampoing demain stp', 'bjr shampoing demain svp', 'call me 01 97 00 00 11']);
+dit('sans session du personnel : refuse, et Claude n est pas appele', [403, 'reserve-au-personnel', 0], await appelle('inconnu').then((r) => [r.status, r.corps.motif, recusDeClaude.length]));
+const ok = await appelle('staff');
+dit('le personnel : les variantes triees, Haiku, la consigne des variantes', [true, ['je veux un shampoing demain stp', 'bjr shampoing demain svp', 'call me [numéro]'], 'claude-haiku-5-5', true],
+  [ok.corps.ok, ok.corps.variantes, recusDeClaude[0]?.model, (recusDeClaude[0]?.system ?? '').includes('la MÊME demande, dite autrement')]);
+const compteV = (docs.find((d) => d.key === 'mnd_variantes_wa_compte')?.data ?? {}) as Record<string, { appels?: number; entree?: number }>;
+dit('... le compte du mois : un appel, ses jetons', [1, 800], [Object.values(compteV)[0]?.appels, Object.values(compteV)[0]?.entree]);
+const moisV = Object.keys(compteV)[0];
+docs.splice(0, docs.length, { key: 'mnd_variantes_wa_compte', data: { [moisV]: { appels: 400 } } });
+dit('le plafond du mois : rien n est demande a Claude', ['plafond', 1], await appelle('staff').then((r) => [r.corps.motif, recusDeClaude.length]));
+docs.splice(0, docs.length);
+claude = () => ({ status: 529, corps: { error: { type: 'overloaded_error' } } });
+dit('Claude surcharge : le dit, sans variantes', [false, 'claude'], await appelle('staff').then((r) => [r.corps.ok, r.corps.motif]));
 
 console.log(ko === 0 ? '\nLa banque tient.' : `\n${ko} ECHEC.`);
 process.exit(ko ? 1 : 0);

@@ -23,5 +23,9 @@ console.log(`${p.justes} valides tiennent · ${p.casses.length} ne tiennent plus
 for (const x of p.casses) console.log(`CASSE      « ${court(x.cas.texte)} » : ${x.ecarts.join(' ; ')}`);
 for (const x of p.aReprendre) console.log(`A REPRENDRE « ${court(x.cas.texte)} » : ${x.ecarts.join(' ; ')}${x.cas.note ? ` · attendu : ${court(x.cas.note)}` : ''}`);
 for (const c of p.reprisAValider) console.log(`A REVALIDER « ${court(c.texte)} »`);
+if (p.variantesJustes + p.variantesRatees.length > 0) {
+  console.log(`Variantes : ${p.variantesJustes} comprises comme l original, ${p.variantesRatees.length} a renforcer (elles ne bloquent pas).`);
+  for (const v of p.variantesRatees.slice(0, 40)) console.log(`A RENFORCER « ${court(v.variante)} » (cas « ${court(v.cas.texte)} ») : ${v.ecarts.join(' ; ')}`);
+}
 console.log(p.casses.length === 0 ? '\nLes cas valides tiennent.' : `\n${p.casses.length} CAS VALIDE(S) NE TIENNENT PLUS : ne pas mettre en ligne.`);
 process.exit(p.casses.length ? 1 : 0);

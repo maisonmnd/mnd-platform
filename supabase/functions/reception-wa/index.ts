@@ -484,6 +484,7 @@ function consigneDeLaReception() {
     'Elle est en route ou arrive : un mot bref (« Bien noté, nous vous attendons. »), suite "venir" : le plan suit.',
     'Les extensions de locks se décident à la consultation (la teinte, le calibre, le nombre), puis un devis écrit : ne donne aucun prix, suite "creation".',
     'Elle demande si sa longueur suffit : demande-lui une photo de ses cheveux, qu’une personne de la Maison regardera ; suite "equipe".',
+    "Elle demande comment payer : réponds avec les moyens de paiement du contexte, sans en ajouter ; un paiement à distance seulement s’il y est dit.",
     "",
     "Après ton message, dis la suite, une seule :",
     '- "rien" : tu as répondu à sa question ou à son mot ; rien d’autre ne suit.',
@@ -521,6 +522,8 @@ function contexteDeLaReception(o) {
     `- Adresse : ${ADRESSE_DE_LA_MAISON}.`,
     heures.length ? `- Heures d’ouverture : ${heures.join(" ; ")}.` : "- Heures d’ouverture : non communiquées ; ne donne aucune heure.",
     reouverture === null ? "- En ce moment, la Maison est ouverte : une personne de l’équipe peut répondre dans la journée." : `- En ce moment, la Maison est fermée, et tu réponds pour elle ; si la suite revient à l’équipe, une personne lui répondra ${reouverture}.`,
+    ...(o.paiements ?? []).length > 0 ? [`- Moyens de paiement à la Maison : ${(o.paiements ?? []).join(", ")}.`] : [],
+    ...o.paiementEnLigne ? ["- Paiement à distance : la Maison envoie un lien de paiement en ligne (MND PAY), sur demande."] : [],
     o.premiereReponse ? "- C’est ta première réponse dans cette conversation : présente-toi comme l’assistant de la Maison." : "- La Maison a déjà répondu dans cette conversation : ne te présente pas de nouveau, ne salue pas une seconde fois."
   ];
   return lignes.join("\n");
@@ -614,7 +617,7 @@ function prixSelonLeCalibre(s, ctx) {
 }
 
 // scripts/serveur/reception-wa.ts
-var VERSION = "2026-10-30-b";
+var VERSION = "2026-10-30-c";
 var MODELES = ["claude-haiku-5-5", "claude-sonnet-5-5"];
 var TARIFS = {
   "claude-haiku-5-5": { entree: 1, sortie: 5 },
@@ -719,13 +722,15 @@ Deno.serve(async (req) => {
     }
     const [msgs, docs, services, categories, fiche] = await Promise.all([
       sb.from("messages_wa").select("data").eq("data->>numero", d.numero).order("data->>quand", { ascending: false }).limit(12),
-      sb.from("documents").select("key, data").in("key", ["mnd_settings", "mnd_horaires_exceptions", "mnd_model_bands", "mnd_model_band_sets"]),
+      sb.from("documents").select("key, data").in("key", ["mnd_settings", "mnd_horaires_exceptions", "mnd_model_bands", "mnd_model_band_sets", "mnd_payment_methods"]),
       toutes(sb, "catalog_services"),
       toutes(sb, "catalog_categories"),
       d.clientId ? sb.from("clients").select("data").eq("id", d.clientId).maybeSingle() : Promise.resolve({ data: null })
     ]);
     const doc = (k) => (docs.data ?? []).find((x) => x.key === k)?.data;
     const reglages = doc("mnd_settings") ?? {};
+    const modes = Array.isArray(doc("mnd_payment_methods")) ? doc("mnd_payment_methods") : [];
+    const paiements = modes.filter((x) => typeof x === "string" && x.trim().length > 0 && x.length < 40).map((x) => x.trim()).slice(0, 12);
     const exceptions = doc("mnd_horaires_exceptions") ?? [];
     const bandes = Array.isArray(doc("mnd_model_bands")) ? doc("mnd_model_bands") : [];
     const sets = doc("mnd_model_band_sets") ?? {};
@@ -760,7 +765,9 @@ Deno.serve(async (req) => {
       semaine: Array.isArray(reglages.hours) ? reglages.hours : [],
       exceptions: Array.isArray(exceptions) ? exceptions : [],
       maintenantMs,
-      premiereReponse: !fil.some((m) => m.sens === "sortant")
+      premiereReponse: !fil.some((m) => m.sens === "sortant"),
+      paiements,
+      paiementEnLigne: reglages.mndPay?.actif === true
     });
     const corps = {
       max_tokens: 700,

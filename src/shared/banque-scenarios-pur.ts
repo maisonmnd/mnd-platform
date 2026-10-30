@@ -163,6 +163,9 @@ export type CasDeLaBanque = {
   creeLe: string;
   valideLe?: string;
   valideePar?: string;
+  /** Vingt façons de dire la même demande, écrites par Claude
+      (`variantes-wa`) : rejouées, elles disent où l'automate est fragile. */
+  variantes?: string[];
 };
 export type BanqueBrute = { cas: CasDeLaBanque[] };
 export const BANQUE_VIDE: BanqueBrute = { cas: [] };
@@ -205,9 +208,16 @@ export function banqueLue(brut: unknown): BanqueBrute {
       creeLe: typeof c.creeLe === 'string' ? c.creeLe : '',
       ...(typeof c.valideLe === 'string' ? { valideLe: c.valideLe } : {}),
       ...(typeof c.valideePar === 'string' ? { valideePar: c.valideePar } : {}),
+      ...(Array.isArray(c.variantes) ? { variantes: (c.variantes as unknown[]).filter((v): v is string => typeof v === 'string' && v.trim().length > 0 && v.length <= 300).slice(0, 20) } : {}),
     });
   }
   return { cas };
+}
+
+/** LES VARIANTES D'UN CAS, posées (elles remplacent les précédentes). */
+export function poseLesVariantes(b: BanqueBrute, id: string, variantes: readonly string[]): BanqueBrute {
+  const propres = [...new Set(variantes.map((v) => texteDuCas(v)).filter(Boolean))].slice(0, 20);
+  return { cas: b.cas.map((c) => (c.id === id ? { ...c, variantes: propres } : c)) };
 }
 
 /** Des cas neufs, proposés : un texte déjà dans la banque ne revient pas. */
@@ -251,15 +261,28 @@ export type PassageDeLaBanque = {
   aReprendre: { cas: CasDeLaBanque; ecarts: string[] }[];
   reprisAValider: CasDeLaBanque[];
   proposes: number;
+  /** Les variantes des cas validés : comprises comme l'original, ou non.
+      Elles ne bloquent rien : elles disent quoi renforcer. */
+  variantesJustes: number;
+  variantesRatees: { cas: CasDeLaBanque; variante: string; ecarts: string[] }[];
 };
+/** Une variante dite comme l'original : qui répond, et ce qu'il comprend. */
+export const ecartsDeLaVariante = (c: CasDeLaBanque, variante: string, conseil?: ConseilDeLaMaison): string[] =>
+  (c.attendu ? ecartsDuCas(c.attendu, litLeCas(variante, c.quand, conseil)) : []);
+
 export function passeLaBanque(b: BanqueBrute, conseil?: ConseilDeLaMaison): PassageDeLaBanque {
-  const out: PassageDeLaBanque = { justes: 0, casses: [], aReprendre: [], reprisAValider: [], proposes: 0 };
+  const out: PassageDeLaBanque = { justes: 0, casses: [], aReprendre: [], reprisAValider: [], proposes: 0, variantesJustes: 0, variantesRatees: [] };
   for (const c of b.cas) {
     if (!c.attendu) { out.proposes += 1; continue; }
     const e = ecartsDuCas(c.attendu, litLeCas(c.texte, c.quand, conseil));
     if (c.etat === 'valide') {
       if (e.length === 0) out.justes += 1;
       else out.casses.push({ cas: c, ecarts: e });
+      for (const v of c.variantes ?? []) {
+        const ev = ecartsDeLaVariante(c, v, conseil);
+        if (ev.length === 0) out.variantesJustes += 1;
+        else out.variantesRatees.push({ cas: c, variante: v, ecarts: ev });
+      }
     } else if (c.etat === 'a-reprendre') {
       if (e.length === 0) out.reprisAValider.push(c);
       else out.aReprendre.push({ cas: c, ecarts: e });

@@ -6,10 +6,11 @@ import { useConseil } from '../../../../shared/conseil-wa';
 import { useMessagesWa } from '../../../../shared/conversations';
 import { banqueStore, useBanque } from '../../../../shared/banque-scenarios';
 import {
-  GESTES_LUS, QUI_DIT, SIGNES, SOURCE_DITE, ajouteDesCas, banqueLue, casDUnExport, clienteDeLExport, ecartsDuCas,
-  litLeCas, litUnExport, passeLaBanque, reprendsLeCas, retireLeCas, signeDit, toursDesConversations, valideLeCas,
+  GESTES_LUS, QUI_DIT, SIGNES, SOURCE_DITE, ajouteDesCas, banqueLue, casDUnExport, clienteDeLExport, ecartsDeLaVariante, ecartsDuCas,
+  litLeCas, litUnExport, passeLaBanque, poseLesVariantes, reprendsLeCas, retireLeCas, signeDit, toursDesConversations, valideLeCas,
   type BanqueBrute, type CasDeLaBanque, type EtatDuCas, type Lecture, type Qui,
 } from '../../../../shared/banque-scenarios-pur';
+import { supabase } from '../../../../shared/supabase';
 import { useEstDirection } from '../_vie';
 import './banque-de-scenarios.css';
 
@@ -49,6 +50,7 @@ export default function BanqueDeScenarios({ casAOuvrir }: { casAOuvrir?: { id: s
   const [ouvert, setOuvert] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   const [reprise, setReprise] = useState<{ id: string; qui: Qui; signes: string[]; note: string } | null>(null);
+  const [enVol, setEnVol] = useState<string | null>(null);
   const fichier = useRef<HTMLInputElement | null>(null);
 
   /* « Mauvaise réponse » ouvre son cas, où qu'il soit rangé. */
@@ -112,6 +114,29 @@ export default function BanqueDeScenarios({ casAOuvrir }: { casAOuvrir?: { id: s
     setReprise(null);
     toast('Noté : ce cas dit maintenant ce que la Maison attend.');
   };
+  /** VINGT VARIANTES PAR CLAUDE (`variantes-wa`, sur les crédits API inclus). */
+  const ecritLesVariantes = async (c: CasDeLaBanque) => {
+    if (!supabase) { toast('Hors ligne : les variantes demandent le serveur.'); return; }
+    setEnVol(c.id);
+    try {
+      const { data, error } = await supabase.functions.invoke('variantes-wa', { body: { texte: c.texte } });
+      const r = (data ?? null) as { ok?: boolean; variantes?: unknown; motif?: string } | null;
+      if (error || !r?.ok || !Array.isArray(r.variantes)) {
+        const motif = r?.motif ?? '';
+        toast(motif === 'plafond' ? 'Le plafond du mois est atteint : 400 demandes de variantes.'
+          : motif === 'reserve-au-personnel' ? 'Réservé au personnel connecté.'
+            : motif === 'cle-claude-absente' ? 'La clé de Claude n’est pas posée dans Supabase.'
+              : error && !r ? 'La fonction variantes-wa ne répond pas : est-elle collée dans Supabase ?'
+                : 'Claude n’a pas répondu. Réessayez dans un instant.');
+        return;
+      }
+      const variantes = (r.variantes as unknown[]).filter((v): v is string => typeof v === 'string');
+      ecris((b) => poseLesVariantes(b, c.id, variantes));
+      toast(`${variantes.length} variantes écrites : le banc les rejouera.`);
+    } finally {
+      setEnVol(null);
+    }
+  };
   const retire = (c: CasDeLaBanque) => {
     ecris((b) => retireLeCas(b, c.id));
     setOuvert(null);
@@ -128,6 +153,8 @@ export default function BanqueDeScenarios({ casAOuvrir }: { casAOuvrir?: { id: s
               ? `${passage.casses.length} cas validé${passage.casses.length > 1 ? 's' : ''} ne tien${passage.casses.length > 1 ? 'nent' : 't'} plus`
               : passage.justes === 1 ? 'le cas validé tient' : `les ${passage.justes} cas validés tiennent`}
             {passage.reprisAValider.length > 0 ? ` · ${passage.reprisAValider.length} repris à revalider` : ''}
+            {passage.variantesJustes + passage.variantesRatees.length > 0
+              ? ` · variantes : ${passage.variantesJustes} comprises, ${passage.variantesRatees.length} à renforcer` : ''}
           </span>
         )}
       </p>
@@ -210,6 +237,30 @@ export default function BanqueDeScenarios({ casAOuvrir }: { casAOuvrir?: { id: s
                     </div>
                   )}
                   {!direction && <p className="trc-bq__doux">La direction valide ou reprend ce cas.</p>}
+
+                  {c.etat === 'valide' && (direction || (c.variantes ?? []).length > 0) && (
+                    <div className="trc-bq__variantes">
+                      <h4>Les variantes{(c.variantes ?? []).length > 0 ? ` · ${(c.variantes ?? []).filter((v) => ecartsDeLaVariante(c, v, conseil).length === 0).length} sur ${(c.variantes ?? []).length} comprises comme l’original` : ''}</h4>
+                      {(c.variantes ?? []).length > 0 && (
+                        <ul>
+                          {(c.variantes ?? []).map((v) => {
+                            const ev = ecartsDeLaVariante(c, v, conseil);
+                            return (
+                              <li key={v} className={ev.length === 0 ? 'est-comprise' : 'est-ratee'}>
+                                <span className="trc-bq__marque" aria-label={ev.length === 0 ? 'comprise' : 'à renforcer'}>{ev.length === 0 ? '✓' : '✗'}</span>
+                                <span>« {v} »{ev.length > 0 ? <small> {ev.join(' ; ')}</small> : null}</span>
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      )}
+                      {direction && (
+                        <button type="button" className="trc-ger__btn" disabled={enVol === c.id} onClick={() => { void ecritLesVariantes(c); }}>
+                          {enVol === c.id ? 'Claude écrit…' : (c.variantes ?? []).length > 0 ? 'Écrire 20 nouvelles variantes' : 'Écrire 20 variantes'}
+                        </button>
+                      )}
+                    </div>
+                  )}
 
                   {enReprise && (
                     <div className="trc-bq__reprise">

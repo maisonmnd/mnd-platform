@@ -2385,8 +2385,8 @@ const regles: Regle[] = [
       return ecarts;
     },
     pannes: [
-      { nom: 'le plafond avale Je confirme (le tour)', mute: [P(AUTO, "    if (envoisQuiComptent(base.envois, ctx.main, ms) >= plafondDuFil(base) && !confirme) return laMain('plafond', false);", "    if (envoisQuiComptent(base.envois, ctx.main, ms) >= plafondDuFil(base)) return laMain('plafond', false);")] },
-      { nom: 'le plafond avale Je confirme (la porte)', mute: [P(AUTO, '  if (envois >= plafondDuFil(etat) && !confirmeValide(etat, tour, courante))', '  if (envois >= plafondDuFil(etat))')] },
+      { nom: 'le plafond avale Je confirme (le tour)', mute: [P(AUTO, "    if (envoisQuiComptent(base.envois, ctx.main, ms) >= plafondDuFil(base) && !confirme && !sansPlafondWa(ctx.reglage, ctx.numero)) return laMain('plafond', false);", "    if (envoisQuiComptent(base.envois, ctx.main, ms) >= plafondDuFil(base) && !sansPlafondWa(ctx.reglage, ctx.numero)) return laMain('plafond', false);")] },
+      { nom: 'le plafond avale Je confirme (la porte)', mute: [P(AUTO, '  if (envois >= plafondDuFil(etat) && !confirmeValide(etat, tour, courante) && !sansPlafondWa(ctx.reglage, ctx.numero))', '  if (envois >= plafondDuFil(etat) && !sansPlafondWa(ctx.reglage, ctx.numero))')] },
       { nom: 'la question d un autre soin mange la marge du plafond', mute: [P(AUTO, '  return PLAFOND_DE_L_AUTOMATE + Math.min(6, Math.max(0, etat?.panier?.horsPlafond ?? 0));', '  return PLAFOND_DE_L_AUTOMATE;')] },
     ],
   },
@@ -3259,6 +3259,39 @@ const regles: Regle[] = [
       { nom: 'reprogrammer ne se lit plus', mute: [P(AUTO, '(decal|report|deplac|reprogramm)', '(decal|report|deplac)')] },
       { nom: 'le jour de la semaine passe devant la date ecrite', mute: [P(AUTO, '    jourVoulu = iso;\n    break;', '    jourVoulu = jourVoulu ?? iso;\n    break;')] },
       { nom: 'en route ne recoit plus le plan', mute: [P(AUTO, ' || enRouteWa(tour.texte)', '')] },
+    ],
+  },
+
+  /* ══ R48 · le plafond levé pour les numéros d'essai, 30 octobre 2026 ══
+     Les essais de Yéman, à 1 h 31 : après « Shampooing et reserrage », son
+     choix, « reprogrammer » et « en route » sont restés sans réponse, le
+     dixième message de la nuit passé. */
+  {
+    id: 'R48', nom: 'R48 les numeros d essai n ont pas de plafond, les clientes le gardent ; reprogrammer n est pas une envie de reserver',
+    eprouve: () => {
+      const { ecarts, vaut } = juge();
+      const t0 = cotonou('2026-10-30', '01:31');
+      const p = parcours(ORIGINAL, NUM_NAFFI, [NAFFI]);
+      const plein: EtatDuFil = {
+        numero: NUM_NAFFI, version: 9, etape: 'repos', depuis: isoDe(t0 - 3600000), versionDeLEtape: 9, majLe: isoDe(t0 - 60000),
+        traites: [], panier: {}, ecarts: 0, envois: Array.from({ length: 12 }, (_, i) => isoDe(t0 - (i + 1) * 60000)),
+      };
+      const tour = tourDeLaCliente([{ waId: 'wamid.plafond', quand: isoDe(t0), texte: 'Je voudrais un rendez-vous', type: 'text', sens: 'entrant' }], []);
+      const essai = { ...ctxDe(p, t0), reglage: { ...OUVERT, numerosEssai: [NUM_NAFFI] } };
+      const cliente = ctxDe(p, t0);
+      vaut('douze messages dans la nuit : le numero d essai est servi, la cliente passe la main sans un mot', ['parle', 'main-silencieuse'],
+        [jugeLaParole(plein, tour, essai).parole, jugeLaParole(plein, tour, cliente).parole]);
+      const s = etapeSuivante(plein, tour, essai);
+      vaut('... et le tour du numero d essai repond vraiment', [true, true], [s.pris, s.messages.length > 0 && s.etat.etape !== 'main']);
+      vaut('reprogrammer : un report, pas une envie de reserver', [false, true],
+        [intentionDeReserver('Je vais devoir reprogrammer mon RDV'), motsReconnus('Je vais devoir reprogrammer mon RDV', t0).deplacer]);
+      return ecarts;
+    },
+    pannes: [
+      { nom: 'le juge plafonne encore les essais', mute: [P(AUTO, ' && !sansPlafondWa(ctx.reglage, ctx.numero)) return { parole', ') return { parole')] },
+      { nom: 'le tour plafonne encore les essais', mute: [P(AUTO, ' && !confirme && !sansPlafondWa(ctx.reglage, ctx.numero)) return laMain', ' && !confirme) return laMain')] },
+      { nom: 'les clientes perdent leur plafond', mute: [P(AUTO, '  reglage.numerosEssai.some((n) => cleWa(n) === cleWa(numero));', '  true;')] },
+      { nom: 'reprogrammer redevient une envie de reserver', mute: [P(AUTO, '(annul|decal|report|deplac|reprogramm|retard)', '(annul|decal|report|deplac|retard)')] },
     ],
   },
 ];

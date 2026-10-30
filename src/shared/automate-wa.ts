@@ -547,7 +547,7 @@ function motsReconnus(texte: string, maintenantMs: number): MotsDuTour {
 function intentionDeReserver(texte: string): boolean {
   const t = sansAccentsWa(texte);
   if (!t) return false;
-  if (/\b(annul|decal|report|deplac|retard)/.test(t)) return false;
+  if (/\b(annul|decal|report|deplac|reprogramm|retard)/.test(t)) return false;
   if (/rendez[- ]?vous|\brdv\b|\breserv|\bune place\b|\bdes places\b|\bcreneau|\bdisponib|\bdispo\b/.test(t)) return true;
   if (/\bje (voudrais|veux|souhaite|souhaiterais|aimerais|peux|pourrais|compte) (passer|venir)\b/.test(t)) return true;
   if (/\best[- ]ce que je (peux|pourrais) (passer|venir)\b/.test(t)) return true;
@@ -1189,6 +1189,13 @@ function plafondDuFil(etat: EtatDuFil | null | undefined): number {
   return PLAFOND_DE_L_AUTOMATE + Math.min(6, Math.max(0, etat?.panier?.horsPlafond ?? 0));
 }
 
+/** LES NUMÉROS D'ESSAI N'ONT PAS DE PLAFOND (30 octobre 2026, choix de
+    Yéman : ses essais de la nuit coupés au dixième message, sans un mot).
+    Le plafond garde les clientes d'une boucle avec un autre robot ; les
+    numéros d'essai sont ceux de la direction. */
+const sansPlafondWa = (reglage: ReglageDeLAutomate, numero: string): boolean =>
+  reglage.numerosEssai.some((n) => cleWa(n) === cleWa(numero));
+
 /** L'ÉTAPE DU TOUR (28 octobre 2026). Sur un « bonjour », la réception
     avait passé la main à l'équipe, la Maison fermée ; « Je veux un RDV » puis
     « Pour le jeudi à 9h » sont restés sans réponse (essai de Yéman, 0 h 42).
@@ -1265,7 +1272,7 @@ function jugeLaParole(
   }
   if (!parle) return { parole: 'silence' };
   const envois = envoisQuiComptent(etat?.envois ?? [], ctx.main, ms);
-  if (envois >= plafondDuFil(etat) && !confirmeValide(etat, tour, courante)) return { parole: 'main-silencieuse', motif: 'plafond' };
+  if (envois >= plafondDuFil(etat) && !confirmeValide(etat, tour, courante) && !sansPlafondWa(ctx.reglage, ctx.numero)) return { parole: 'main-silencieuse', motif: 'plafond' };
   return { parole: 'parle' };
 }
 
@@ -2354,7 +2361,7 @@ function atelierDuTour(ancien: EtatDuFil | null | undefined, tour: TourDeLaClien
     /* « Je confirme » du récapitulatif en cours passe même au-delà du
        plafond : elle a confirmé, elle reçoit sa confirmation. */
     const confirme = base.etape === 'recap' && ch?.geste === 'oui' && ch.version >= base.versionDeLEtape && ch.version < version;
-    if (envoisQuiComptent(base.envois, ctx.main, ms) >= plafondDuFil(base) && !confirme) return laMain('plafond', false);
+    if (envoisQuiComptent(base.envois, ctx.main, ms) >= plafondDuFil(base) && !confirme && !sansPlafondWa(ctx.reglage, ctx.numero)) return laMain('plafond', false);
     if (enCours && t.media) return laMain('media', false);
     if (enCours && mots.prix && !ch) {
       /* Le conseil a peut-être la réponse (14 octobre 2026). */

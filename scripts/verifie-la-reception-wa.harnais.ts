@@ -152,8 +152,9 @@ const il = (min: number) => new Date(maintenant - min * 60000).toISOString();
 const remplis = () => {
   for (const k of Object.keys(db)) delete db[k];
   db.documents = [
-    { key: 'mnd_settings', data: { hours: SEMAINE } },
+    { key: 'mnd_settings', data: { hours: SEMAINE, mndPay: { actif: true } } },
     { key: 'mnd_model_bands', data: BANDES.map((b) => ({ ...b, coef: 1, durCoef: 1 })) },
+    { key: 'mnd_payment_methods', data: ['Espèces', 'MTN MoMo', 'Carte', 42] },
   ];
   db.catalog_categories = [{ id: 'atl-ii', data: {} }, { id: 'atl-i-vekpe', data: {} }, { id: 'koko', data: {} }];
   db.catalog_services = [
@@ -182,11 +183,19 @@ dit('ce que Claude recoit : la consigne de la reception, Haiku d abord, le conte
 dit('... les prix de chaque calibre, la creation sans prix, et jamais son numero', [true, true, false],
   [/SÍNSIN™ Essentiel, selon le nombre de locks : jusqu’à 80 locks, 35 000 F ; 81 à 150 locks, 40 000 F/.test(envoye?.messages[0]?.content ?? ''),
     /VÈKPÈ™ Création : consultation d’abord/.test(envoye?.messages[0]?.content ?? ''), JSON.stringify(envoye).includes(NUM)]);
+/* Le 30 octobre 2026, la banque : « Can i pay with a card ». */
+dit('... les moyens de paiement des Parametres (des mots seulement), et le lien en ligne quand MND PAY est allume', [true, true],
+  [(envoye?.messages[0]?.content ?? '').includes('- Moyens de paiement à la Maison : Espèces, MTN MoMo, Carte.'),
+    (envoye?.messages[0]?.content ?? '').includes('- Paiement à distance : la Maison envoie un lien de paiement en ligne (MND PAY), sur demande.')]);
 dit('le compte du mois : un appel, ses jetons, son cout', [1, 2000, 100], (() => {
   const d = db.documents.find((x) => x.key === 'mnd_assistant_wa_compte')?.data ?? {};
   const m = Object.values(d)[0] as { appels?: number; entree?: number; sortie?: number } | undefined;
   return [m?.appels, m?.entree, m?.sortie];
 })());
+db.documents = db.documents.map((x: { key: string; data: unknown }) => (x.key === 'mnd_settings' ? { ...x, data: { hours: SEMAINE, mndPay: { actif: false } } } : x));
+await appelle({ corps: demande });
+dit('... MND PAY eteint : aucun lien en ligne promis', false, (recus[recus.length - 1]?.messages[0]?.content ?? '').includes('Paiement à distance'));
+remplis();
 
 reponseDeClaude = () => outil('Une création de locks est à 80 000 F.', 'creation');
 dit('un prix de creation : les juges l ecartent, rien ne part', [false, 'juges'], [(await appelle({ corps: demande })).corps.ok, (await appelle({ corps: demande })).corps.motif]);

@@ -47,7 +47,7 @@ declare const Deno: {
   serve(f: (req: Request) => Promise<Response>): void;
 };
 
-const VERSION = '2026-10-30-b';
+const VERSION = '2026-10-30-c';
 /** Haïku d'abord (rapide, sur les crédits inclus) ; Sonnet si l'identifiant n'est pas reconnu. */
 const MODELES = ['claude-haiku-5-5', 'claude-sonnet-5-5'];
 /** Le prix d'un million de jetons, en dollars, pour le compte du mois. */
@@ -176,13 +176,16 @@ Deno.serve(async (req) => {
     /* ② CE QU'ELLE SAIT. */
     const [msgs, docs, services, categories, fiche] = await Promise.all([
       sb.from('messages_wa').select('data').eq('data->>numero', d.numero).order('data->>quand', { ascending: false }).limit(12),
-      sb.from('documents').select('key, data').in('key', ['mnd_settings', 'mnd_horaires_exceptions', 'mnd_model_bands', 'mnd_model_band_sets']),
+      sb.from('documents').select('key, data').in('key', ['mnd_settings', 'mnd_horaires_exceptions', 'mnd_model_bands', 'mnd_model_band_sets', 'mnd_payment_methods']),
       toutes(sb, 'catalog_services'),
       toutes(sb, 'catalog_categories'),
       d.clientId ? sb.from('clients').select('data').eq('id', d.clientId).maybeSingle() : Promise.resolve({ data: null }),
     ]);
     const doc = (k: string): unknown => ((docs.data ?? []) as { key: string; data: unknown }[]).find((x) => x.key === k)?.data;
-    const reglages = (doc('mnd_settings') ?? {}) as { hours?: HeureDeLaSemaine[]; baremeSuspendu?: boolean };
+    const reglages = (doc('mnd_settings') ?? {}) as { hours?: HeureDeLaSemaine[]; baremeSuspendu?: boolean; mndPay?: { actif?: boolean } };
+    /* Les moyens de paiement des Paramètres (30 octobre 2026) : des mots, rien d'autre. */
+    const modes = Array.isArray(doc('mnd_payment_methods')) ? (doc('mnd_payment_methods') as unknown[]) : [];
+    const paiements = modes.filter((x): x is string => typeof x === 'string' && x.trim().length > 0 && x.length < 40).map((x) => x.trim()).slice(0, 12);
     const exceptions = (doc('mnd_horaires_exceptions') ?? []) as ExceptionDHoraire[];
     const bandes = (Array.isArray(doc('mnd_model_bands')) ? doc('mnd_model_bands') : []) as Bande[];
     const sets = (doc('mnd_model_band_sets') ?? {}) as Record<string, Bande[]>;
@@ -214,6 +217,7 @@ Deno.serve(async (req) => {
       catalogue, locks: { compte, declare }, aujourdhui: jourDeLaMaison(maintenantMs),
       semaine: Array.isArray(reglages.hours) ? reglages.hours : [], exceptions: Array.isArray(exceptions) ? exceptions : [],
       maintenantMs, premiereReponse: !fil.some((m) => m.sens === 'sortant'),
+      paiements, paiementEnLigne: reglages.mndPay?.actif === true,
     });
 
     /* ③ CLAUDE. */
