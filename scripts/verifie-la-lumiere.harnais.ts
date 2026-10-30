@@ -30,6 +30,11 @@ const dit = (nom: string, ecarts: string[]) => {
 const sansCommentaires = (s: string) => s.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
 const copie = (e: Entrees): Entrees => ({ ...e, pages: new Map(e.pages) });
 const page = (e: Entrees, chemin: string) => e.pages.get(chemin) ?? '';
+/* Les pages qui ne fondent pas : les deux renvois (/m/ vers le Trône, /venir/
+   vers Google Maps, 29 octobre 2026) et la 404. Elles partent ou s'excusent,
+   elles ne finissent pas comme une page du site. */
+const RENVOIS = new Set(['/m/', '/venir/']);
+const horsTransition = (chemin: string) => RENVOIS.has(chemin) || chemin === '/404.html';
 
 /* ── Les entrees ─────────────────────────────────────────────────────────── */
 function lisLesEntrees(): Entrees {
@@ -213,7 +218,7 @@ const regles: Regle[] = [
       if (contraste(titre, cuivre) < 4.5) ecarts.push(`indigo profond sur cuivre : ${contraste(titre, cuivre).toFixed(2)} < 4,5`);
       if (contraste(ivoire, cuivre) < 3) ecarts.push(`ivoire sur cuivre : ${contraste(ivoire, cuivre).toFixed(2)} < 3`);
       for (const [chemin, html] of e.pages) {
-        if (chemin === '/m/' || chemin === '/404.html') { if (html.includes('class="appel"')) ecarts.push(`${chemin} : un appel sur une page hors transition`); continue; }
+        if (horsTransition(chemin)) { if (html.includes('class="appel"')) ecarts.push(`${chemin} : un appel sur une page hors transition`); continue; }
         const blocs = enfantsDeMain(html).filter((x) => x.balise === 'section');
         const dernier = blocs[blocs.length - 1];
         if (!dernier) { ecarts.push(`${chemin} : main sans section`); continue; }
@@ -225,6 +230,7 @@ const regles: Regle[] = [
       { nom: 'l appel revenu au sable', mute: (e) => ({ ...copie(e), feuille: e.feuille.replace('background: linear-gradient(180deg, transparent 0, var(--accent) var(--plume), var(--accent) 100%); }', 'background: linear-gradient(180deg, transparent 0, var(--sable-cuivre) var(--plume), var(--sable-cuivre) 100%); }') }) },
       { nom: 'la galerie sans appel de fin', mute: (e) => { const c = copie(e); const g = page(e, '/galerie/'); const i = g.lastIndexOf('<section class="appel">'); c.pages.set('/galerie/', g.slice(0, i) + g.slice(g.indexOf('</section>', i) + 10)); return c; } },
       { nom: 'un appel sur /m/', mute: (e) => { const c = copie(e); c.pages.set('/m/', page(e, '/m/').replace('</main>', '<section class="appel"></section></main>')); return c; } },
+      { nom: 'un appel sur /venir/', mute: (e) => { const c = copie(e); c.pages.set('/venir/', page(e, '/venir/').replace('</main>', '<section class="appel"></section></main>')); return c; } },
     ],
   },
   {
@@ -425,7 +431,7 @@ const regles: Regle[] = [
     ],
   },
   {
-    nom: 'l opt-in sous no-preference, les deux opt-out (/m/ et 404) apres la feuille, rien de nomme',
+    nom: 'l opt-in sous no-preference, les opt-out (/m/, /venir/ et 404) apres la feuille, rien de nomme',
     eprouve: (e) => {
       const ecarts: string[] = [];
       const sans = sansCommentaires(e.feuille);
@@ -436,14 +442,14 @@ const regles: Regle[] = [
       if (!/::view-transition-group\(\*\), ::view-transition-old\(\*\), ::view-transition-new\(\*\) \{ animation: none !important; \}/.test(reduce)) ecarts.push('sous reduce, les pseudo-elements ne sont pas coupes');
       if (/view-transition-name/.test(sans)) ecarts.push('quelque chose est nomme (premiere livraison : rien)');
       for (const [chemin, html] of e.pages) {
-        const horsTransition = chemin === '/m/' || chemin === '/404.html';
         const i = html.indexOf('@view-transition{navigation:none}');
         const feuille = html.lastIndexOf('<link rel="stylesheet"');
-        if (horsTransition) {
+        if (horsTransition(chemin)) {
           if (i < 0) ecarts.push(`${chemin} : pas d opt-out`);
           else if (i < feuille) ecarts.push(`${chemin} : l opt-out est ecrit AVANT la feuille (il perdrait)`);
           if (!html.includes('skipTransition')) ecarts.push(`${chemin} : pas de skipTransition`);
-          if (chemin === '/m/' && html.indexOf('skipTransition') > html.indexOf('location.replace(')) ecarts.push('/m/ : skipTransition apres location.replace');
+          if (RENVOIS.has(chemin) && !html.includes('location.replace(')) ecarts.push(`${chemin} : un renvoi sans location.replace`);
+          if (RENVOIS.has(chemin) && html.indexOf('skipTransition') > html.indexOf('location.replace(')) ecarts.push(`${chemin} : skipTransition apres location.replace`);
         } else if (i >= 0 || html.includes('skipTransition')) ecarts.push(`${chemin} : un opt-out sur une page qui doit fondre`);
       }
       return ecarts;
@@ -451,6 +457,8 @@ const regles: Regle[] = [
     pannes: [
       { nom: 'l opt-out dans <head>', mute: (e) => { const c = copie(e); const h = page(e, '/m/'); const ligne = /<style>@view-transition\{navigation:none\}<\/style>/.exec(h)![0]; c.pages.set('/m/', h.replace(ligne, '').replace('<meta name="viewport"', ligne + '<meta name="viewport"')); return c; } },
       { nom: 'la ligne pageswap retiree de /m/', mute: (e) => { const c = copie(e); c.pages.set('/m/', page(e, '/m/').replace(/if\('onpageswap' in window\)addEventListener\('pageswap',function\(e\)\{if\(e\.viewTransition\)e\.viewTransition\.skipTransition\(\)\}\);/, '')); return c; } },
+      { nom: 'la ligne pageswap retiree de /venir/', mute: (e) => { const c = copie(e); c.pages.set('/venir/', page(e, '/venir/').replace(/if\('onpageswap' in window\)addEventListener\('pageswap',function\(e\)\{if\(e\.viewTransition\)e\.viewTransition\.skipTransition\(\)\}\);/, '')); return c; } },
+      { nom: 'le skip de /venir/ apres son renvoi', mute: (e) => { const c = copie(e); const h = page(e, '/venir/'); const ligne = "if('onpageswap' in window)addEventListener('pageswap',function(e){if(e.viewTransition)e.viewTransition.skipTransition()});"; const r = /location\.replace\([^)]*\);/.exec(h)![0]; c.pages.set('/venir/', h.replace(ligne + r, r + ligne)); return c; } },
       { nom: 'l opt-out sur toutes les pages', mute: (e) => { const c = copie(e); c.pages.set('/soins-locks/', page(e, '/soins-locks/').replace('</body>', '<style>@view-transition{navigation:none}</style></body>')); return c; } },
       { nom: 'une barre nommee', mute: (e) => ({ ...copie(e), feuille: e.feuille + '\n.barre { view-transition-name: barre; }\n' }) },
       { nom: 'un second opt-in', mute: (e) => ({ ...copie(e), feuille: e.feuille + '\n@view-transition { navigation: auto; }\n' }) },
