@@ -10,6 +10,7 @@ import type { Bande } from './prix-calibre';
 import { client } from './maison';
 import { litToutesLesPages } from '../../shared/lecture-entiere';
 import { assembleLAgenda, type LigneLue } from './agenda-assemble';
+import { estUnGesteDeLaCouleur, titreDeLaFamille } from './couleur-pure';
 
 /* LE CALENDRIER DU SITE, SANS COMPTE — 17 septembre 2026.
 
@@ -394,6 +395,8 @@ export type GroupeDeGestes = {
   items: PrestationPublique[];
   /** La porte l’ouvre d’emblée : c’est ce pour quoi la visiteuse est venue. */
   deLaPorte: boolean;
+  /** La famille de la couleur (YÈKPÈ™), reconnue à sa marque (30 octobre 2026). */
+  couleur: boolean;
 };
 
 /** Les mêmes, rangées par famille : une liste de trente gestes à plat ne se
@@ -418,8 +421,9 @@ export function groupesDePrestations(
     return i < 0 ? dabord.length : i;
   };
   return [...par.entries()]
-    .map(([cle, items]) => ({ cle, titre: nom(cle), items }))
-    .map(({ cle, titre, items }) => ({ id: cle, titre, items, deLaPorte: rang(titre) < dabord.length }))
+    /* La couleur se dit couleur, quel que soit le nom de sa famille (30 octobre 2026). */
+    .map(([cle, items]) => ({ cle, titre: titreDeLaFamille(nom(cle), items), items }))
+    .map(({ cle, titre, items }) => ({ id: cle, titre, items, deLaPorte: rang(titre) < dabord.length, couleur: items.some(estUnGesteDeLaCouleur) }))
     /* À intention égale, la famille la plus fournie d’abord : c’est l’ordre
        qui valait pour toutes avant le 18 septembre, et il reste bon ici. */
     .sort((a, b) => (rang(a.titre) - rang(b.titre)) || (b.items.length - a.items.length));

@@ -18,6 +18,9 @@ export { QUESTIONS as QUESTIONS_DU_DIAGNOSTIC } from './ilots/Triage';
 export { assembleLAgenda, elagueLAgenda } from './agenda-assemble';
 /* La remise qui revient (11 octobre 2026) : la construction écrit les remises par la même règle que le navigateur. */
 export { remisesAEcrire, REMISE_EXCLUE, FENETRE_RETENUE, jourACotonou } from './remise-pure';
+/* La couleur a sa page (30 octobre 2026) : ses gestes et leurs prix, lus au catalogue à la construction. */
+export { gestesDeLaCouleurPourLaPage, GESTES_DE_LA_COULEUR_DITS } from './couleur-pure';
+export { fmtMoney } from '../../shared/currency';
 
 export function rendsLesOffres(offres: OffreDuSite[], genre?: string): string {
   return renderToString(<Offres genre={genre} initiales={offres} />);

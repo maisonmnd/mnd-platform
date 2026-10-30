@@ -700,7 +700,7 @@ function clubParents(s) {
    c'est Conseil et diagnostic » (Yéman). L'échange avec les parents reste le
    premier geste, il se prend simplement au calendrier. */
 const RESERVABLES = new Set(['creation', 'reparation', 'entretien', 'enfant']);
-const versLaReservation = (besoin) => `${lien('/reserver/')}?besoin=${besoin ?? 'inconnu'}`;
+const versLaReservation = (besoin, famille) => `${lien('/reserver/')}?besoin=${besoin ?? 'inconnu'}${famille ? `&famille=${famille}` : ''}`;
 /* LE RAPPEL A SA PAGE (22 septembre 2026) : « Me faire rappeler » y mène,
    au lieu du calendrier qui n'offrait que des consultations à choisir. */
 const versLeRappel = (besoin) => `${lien('/rappel/')}?besoin=${besoin ?? 'inconnu'}`;
@@ -1073,6 +1073,28 @@ function ilot(nom, p) {
   return '';
 }
 
+/* ── LA COULEUR — 30 octobre 2026 ─────────────────────────────────────
+   Le nuancier tient la place d'une photo (henné, indigo, la couronne
+   naturelle) ; la liste dit chaque geste de la couleur qui se réserve en
+   ligne, avec son prix au catalogue du jour de la construction. Sans base
+   lue, la liste se tait : la page garde ses mots et son bouton. */
+const NUANCIER = '<div class="nuancier" role="img" aria-label="Le nuancier de la couleur végétale : henné, indigo, la couronne naturelle"><span></span><span></span><span></span></div>';
+const LONGUEURS_DITES = { court: 'Court', 'mi-long': 'Mi-long', long: 'Long' };
+function rendLaCouleur(c) {
+  const gestes = AGENDA_PAGE && statique?.gestesDeLaCouleurPourLaPage ? statique.gestesDeLaCouleurPourLaPage(AGENDA_PAGE) : [];
+  if (!gestes.length) return '';
+  const xof = (n) => statique.fmtMoney(n, 'XOF');
+  const lignes = gestes.map((g) => {
+    const titre = statique.GESTES_DE_LA_COULEUR_DITS[g.geste] ?? g.nom;
+    const bas = g.prix.length ? Math.min(...g.prix.map((x) => x.xof)) : 0;
+    const prix = !g.prix.length ? 'Prix à la Maison' : g.prix.length > 1 ? `dès ${xof(bas)}` : xof(bas);
+    const grille = g.prix.length > 1 ? `<span class="grille">${g.prix.map((x) => `${LONGUEURS_DITES[x.longueur] ?? x.longueur} ${xof(x.xof)}`).join(' · ')}</span>` : '';
+    const dit = c.gestes[g.geste] ? `<span class="dit">${echappe(c.gestes[g.geste])}</span>` : '';
+    return `<li><span><b>${echappe(titre)}</b><span class="fon">${echappe(g.nom)}</span></span><span class="prix">${echappe(prix)}</span>${grille}${dit}</li>`;
+  }).join('');
+  return `<section class="serre"><div class="conteneur"><div class="tete"><p class="sur">${echappe(c.sur)}</p><h2>${echappe(c.titre)}</h2></div><div class="gestes-couleur"><ul>${lignes}</ul></div></div></section>`;
+}
+
 /* ── Une page de service ─────────────────────────────────────────────── */
 function rendService(p) {
   const reservable = RESERVABLES.has(p.besoin ?? '');
@@ -1087,7 +1109,7 @@ function rendService(p) {
      prend pas au calendrier. Avec `vers`, on passe par `bouton()`. */
   const cta = p.cta
     ? (reservable && !p.cta.vers
-      ? `<a class="btn btn--plein" href="${attr(versLaReservation(p.besoin))}" data-mesure="parcours_choisi" data-parcours="${attr(p.besoin ?? 'inconnu')}">${echappe(p.cta.texte)}</a>`
+      ? `<a class="btn btn--plein" href="${attr(versLaReservation(p.besoin, p.cta.famille))}" data-mesure="parcours_choisi" data-parcours="${attr(p.besoin ?? 'inconnu')}">${echappe(p.cta.texte)}</a>`
       /* LA DESTINATION DU CTA L'EMPORTE — 18 septembre 2026. `bouton()` a
          toujours su suivre n'importe quelle adresse, `soeur:` comprise ;
          c'est ICI qu'on l'écrasait en codant WhatsApp en dur. Sans `vers`,
@@ -1100,7 +1122,7 @@ function rendService(p) {
     : '';
   /* Le second geste : écrire à la Maison, toujours possible, jamais le premier. */
   const secondaire = bouton({ texte: 'Écrire sur WhatsApp', vers: `whatsapp:${p.besoin ?? 'inconnu'}` }, 'btn btn--lien');
-  const visuel = p.image ? image(p.image, '', ' fetchpriority="high"').replace(' loading="lazy"', '') : `<div class="tuile">${echappe(p.court)}<small>Photo de la séance à venir</small></div>`;
+  const visuel = p.image ? image(p.image, '', ' fetchpriority="high"').replace(' loading="lazy"', '') : p.nuancier ? NUANCIER : `<div class="tuile">${echappe(p.court)}<small>Photo de la séance à venir</small></div>`;
   const pas = p.pas ? `<section class="serre"><div class="conteneur"><div class="tete"><p class="sur">${echappe(p.pas.sur)}</p><h2>${echappe(p.pas.titre)}</h2></div><ol class="pas${p.pas.liste ? ' pas--liste' : ''}">${p.pas.items.map(([t, l]) => `<li><div><b>${echappe(t)}</b><span>${echappe(l)}</span></div></li>`).join('')}</ol></div></section>` : '';
   const geste = p.geste ? `<section class="serre"><div class="conteneur"><div class="geste"><span>${p.geste}</span>${p.temps ? '<div class="temps"><span>Purifier</span><span>Nourrir</span><span>Sceller</span><span>Couronner</span></div>' : ''}</div></div></section>` : '';
   const rassure = p.rassure ? `<section class="serre"><div class="conteneur"><div class="rassure"><p>${echappe(p.rassure)}</p><div class="colonne">${cta}${p.cta?.note ? `<span class="legende">${echappe(p.cta.note)}</span>` : ''}</div></div></div></section>` : '';
@@ -1124,6 +1146,7 @@ function rendService(p) {
       </div></section>
 ${avant}
 ${geste}
+${p.couleur ? rendLaCouleur(p.couleur) : ''}
 ${pas}
 ${rassure}
 ${sections}
@@ -1207,7 +1230,7 @@ function rendAccueil(articles) {
     const temps = c.comment.split('·').map((t) => t.trim()).filter(Boolean);
     const phrase = `${c.ligne.replace(/\.$/, '')} : ${temps.map((t) => t.charAt(0).toLowerCase() + t.slice(1)).join(', ')}.`;
     return `<div class="petite">
-          ${image(c.image)}
+          ${c.image ? image(c.image) : c.nuancier ? NUANCIER : ''}
           <div class="petite__texte"><p class="petite__pour">${echappe(c.pour)}</p><h3>${echappe(c.titre)}</h3><p>${echappe(phrase)}</p>${suite(c, p)}</div>
         </div>`;
   }).join('\n        ');
@@ -1248,7 +1271,7 @@ function rendAccueil(articles) {
         <div class="entrees">
         ${entrees}
         </div>
-        ${petites ? `<div class="aussi">${a.portes.aussi ? `<p class="sur aussi__titre">${echappe(a.portes.aussi)}</p>` : ''}
+        ${petites ? `<div class="aussi${a.portes.cartes.filter((c) => !c.mot).length === 3 ? ' aussi--trois' : ''}">${a.portes.aussi ? `<p class="sur aussi__titre">${echappe(a.portes.aussi)}</p>` : ''}
         ${petites}
         </div>` : ''}
         <div class="repli"><p>${echappe(a.portes.repli)}</p>${bouton(a.portes.repliBouton, 'btn btn--fort')}${a.portes.repliNote ? `<small>${echappe(a.portes.repliNote)}</small>` : ''}</div>

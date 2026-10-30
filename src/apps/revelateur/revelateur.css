@@ -486,6 +486,24 @@ footer .logo img { height: 34px; }
 @media (max-width: 860px) { .page-hero .conteneur { grid-template-columns: 1fr; } }
 .page-hero img, .page-hero .tuile { width: 100%; aspect-ratio: 4 / 5; object-fit: cover; border-radius: 4px; box-shadow: var(--ombre); }
 .page-hero .tuile { font-size: 44px; }
+/* LE NUANCIER (30 octobre 2026) : la couleur sans photo, en trois bandes
+   (henné, indigo, la couronne naturelle), jusqu'à la photo choisie. */
+.nuancier { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); overflow: hidden; border-radius: 4px; }
+.nuancier span { display: block; }
+.nuancier span:nth-child(1) { background: #9A4A22; }
+.nuancier span:nth-child(2) { background: var(--sombre); }
+.nuancier span:nth-child(3) { background: #3B2A21; }
+.page-hero .nuancier { width: 100%; aspect-ratio: 4 / 5; box-shadow: var(--ombre); }
+.petite .nuancier { width: 112px; height: 112px; border-radius: 2px; }
+/* LES GESTES DE LA COULEUR ET LEURS PRIX, lus au catalogue à la construction. */
+.gestes-couleur { display: grid; border-top: 1px solid var(--filet); max-width: 760px; }
+.gestes-couleur li { list-style: none; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 20px; padding: 18px 0; border-bottom: 1px solid var(--filet); }
+.gestes-couleur ul { margin: 0; padding: 0; }
+.gestes-couleur b { font-family: var(--serif); font-weight: 400; font-size: 25px; line-height: 1.15; color: var(--titre); }
+.gestes-couleur .prix { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; color: var(--accent-profond); }
+.gestes-couleur .dit { grid-column: 1 / -1; color: var(--texte-doux); font-size: 15px; line-height: 1.5; }
+.gestes-couleur .fon { display: block; font-size: 12.5px; letter-spacing: .02em; color: var(--texte-doux); margin-top: 2px; }
+.gestes-couleur .grille { grid-column: 1 / -1; font-size: 13.5px; color: var(--accent-profond); font-variant-numeric: tabular-nums; }
 .page-hero h1 { margin-block: 12px 14px; }
 .page-hero--simple .conteneur { grid-template-columns: 1fr; }
 .geste { background: var(--accent-clair); border: 1px solid var(--filet); border-radius: 4px; padding: 20px clamp(18px, 3vw, 30px); display: flex; flex-wrap: wrap; gap: 10px 22px; align-items: center; }
@@ -583,6 +601,13 @@ footer .logo img { height: 34px; }
    au survol : la vitrine ne sautille pas. */
 .formules { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
 @media (max-width: 420px) { .formules { grid-template-columns: 1fr; } }
+/* UNE COULEUR ? (30 octobre 2026) : sa porte sous les tuiles, un trait
+   cuivre en pointillé, ce que la couleur offre dessous. */
+.porte-couleur { display: grid; gap: 2px; width: 100%; margin-top: 10px; text-align: left; cursor: pointer; font: inherit; color: var(--titre); background: none; border: 1px dashed var(--accent); border-radius: 6px; padding: 12px 16px; transition: background var(--t); }
+.porte-couleur:hover { background: var(--accent-clair); }
+.porte-couleur:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.porte-couleur b { font-family: var(--serif); font-weight: 400; font-size: 21px; line-height: 1.1; }
+.porte-couleur small { font-size: 13px; color: var(--texte-doux); line-height: 1.35; }
 .formule { display: flex; flex-direction: column; align-items: flex-start; justify-content: space-between; gap: 6px; min-height: 108px; text-align: left; cursor: pointer; font: inherit; color: var(--titre); background: var(--fond); border: 1px solid var(--filet); border-radius: 6px; padding: 16px; transition: border-color var(--t), background var(--t); }
 .formule:hover { border-color: var(--accent); background: var(--accent-clair); }
 .formule b { font-family: var(--serif); font-weight: 400; font-size: 21px; line-height: 1.1; overflow-wrap: anywhere; }
@@ -2168,6 +2193,7 @@ a.reponse { text-decoration: none; }
   .petite picture, .petite img { width: 84px; height: 84px; }
   .petite h3 { font-size: 25px; }
   .petite p { font-size: 14px; }
+  .petite .nuancier { width: 84px; height: 84px; }
 }
 
 /* ══ LA RÉSERVATION SANS FRICTION · 11 octobre 2026, maquette validée ════
@@ -2583,3 +2609,12 @@ footer ul { gap: 12px; }
 .phrase-du-site__lu p { margin: 0; }
 .phrase-du-site__doute { margin-top: 6px !important; color: var(--texte-doux); }
 .phrase-du-site__doute .btn--lien { margin-right: 10px; }
+
+/* « ET AUSSI » À TROIS CARTES (30 octobre 2026, la couleur à côté des Soins
+   et de MND Kids) : trois colonnes au large, une seule colonne en dessous,
+   jamais une carte seule sur sa rangée. */
+.aussi--trois { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.aussi--trois .petite { grid-template-columns: 84px minmax(0, 1fr); gap: 16px; padding: 12px 14px 6px 12px; }
+.aussi--trois .petite picture, .aussi--trois .petite img, .aussi--trois .petite .nuancier { width: 84px; height: 84px; }
+.aussi--trois .petite h3 { font-size: 24px; }
+@media (max-width: 1080px) { .aussi--trois { grid-template-columns: 1fr; } }

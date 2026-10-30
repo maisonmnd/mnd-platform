@@ -87,7 +87,12 @@ export type Page = {
   /** L'appel principal de la page. Sans `vers`, il ouvre WhatsApp avec le
       message du besoin ; avec, il mène où on lui dit, y compris une sœur de
       la Maison (`soeur:academie`). */
-  cta?: { texte: string; note?: string; vers?: string };
+  /** `famille` (30 octobre 2026) : la réservation s'ouvre sur cette famille seule (`couleur`). */
+  cta?: { texte: string; note?: string; vers?: string; famille?: 'couleur' };
+  /** LA COULEUR (30 octobre 2026) : sans photo, le nuancier tient sa place ;
+      `gestes` dit ce que fait chaque geste, le prix vient du catalogue. */
+  nuancier?: boolean;
+  couleur?: { sur: string; titre: string; gestes: Readonly<Record<string, string>> };
   /** Une ligne sur le geste (HTML léger : `<b>` seulement) et les quatre temps. */
   geste?: string;
   temps?: boolean;
@@ -183,7 +188,7 @@ export type Accueil = {
       son `accroche`, et un bouton `reserver` vers le calendrier de son
       parcours, dont `porte` dit ce qui commence. Les autres se rangent sous
       `aussi`, en petites cartes. */
-  portes: { sur: string; titre: string; ligne?: string; cartes: { titre: string; pour: string; ligne: string; comment: string; suite: string; vers: string; image?: string; mot?: string; accroche?: string; reserver?: string; porte?: string }[]; aussi?: string; repli: string; repliNote?: string; repliBouton: Lien };
+  portes: { sur: string; titre: string; ligne?: string; cartes: { titre: string; pour: string; ligne: string; comment: string; suite: string; vers: string; image?: string; nuancier?: boolean; mot?: string; accroche?: string; reserver?: string; porte?: string }[]; aussi?: string; repli: string; repliNote?: string; repliBouton: Lien };
   confiance: { sur: string; citation: string; gages: { titre: string; ligne: string }[] };
   fondateurs: { sur: string; titre: string; ligne: string; message: string; legende?: string; trois: string[]; image: string };
   journal: { sur: string; titre: string };

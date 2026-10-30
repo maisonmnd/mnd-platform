@@ -26,6 +26,7 @@ import {
   CLE_MEMOIRE_DU_SITE, memoireAEcrire, memoireLue, prochainesPlaces, type MemoireDuSite,
 } from '../../../shared/reservation-express';
 import { bandesTriees, etendueDeLaBande, representantDeLaBande, prixSelonLeCalibre, seCompteAuLock, type ContexteDuCalibre } from '../prix-calibre';
+import { ceQueLaCouleurOffre } from '../couleur-pure';
 
 /* RÉSERVER DIRECTEMENT, SANS COMPTE ET SANS WHATSAPP — 17 septembre 2026.
 
@@ -253,6 +254,11 @@ const invitationDe = (e: EtatDeLInvitation): Invitation | null => (e && typeof e
 const codeDeLAdresse = (): string => {
   try { return codeNormalise(new URLSearchParams(location.search).get('code') ?? ''); } catch { return ''; }
 };
+/** `?famille=couleur` (30 octobre 2026) : la page de la couleur ouvre la
+    réservation sur ses gestes seuls. */
+const laCouleurDeLAdresse = (): boolean => {
+  try { return new URLSearchParams(location.search).get('famille') === 'couleur'; } catch { return false; }
+};
 
 /** LE PRIX FERME D'UNE PRESTATION, ou zéro. Un devis, un prix absent : la
     Maison ne l'invente pas. C'est le même juge pour la ligne et pour le
@@ -367,7 +373,10 @@ function Calendrier({ besoin: besoinInitial, initiales, surLaPorte }: Props) {
   const [codeOuvert, setCodeOuvert] = useState(false);
   /* LE CHEMIN : les formules en grandes cartes, ou « composer moi-même »
      (l'assistant par famille, tel qu'avant). */
-  const [composer, setComposer] = useState(false);
+  const [composer, setComposer] = useState(laCouleurDeLAdresse);
+  /* LA COULEUR SEULE (30 octobre 2026) : « Une couleur ? » sous les tuiles,
+     ou la page de la couleur, n'ouvrent que ses gestes. */
+  const [laCouleur, setLaCouleur] = useState(laCouleurDeLAdresse);
   const [autreJour, setAutreJour] = useState(false);
   const [moi, setMoi] = useState<MemoireDuSite | null>(memoireDuSite);
   /* « Bon retour » : sa dernière venue est cochée, elle n'a qu'à toucher une place. */
@@ -488,9 +497,14 @@ function Calendrier({ besoin: besoinInitial, initiales, surLaPorte }: Props) {
     [agenda, bandeChoisie, bandes],
   );
   const lockCountAnnonce = bandeChoisie ? representantDeLaBande(bandeChoisie, bandes) : 0;
-  const groupes = useMemo(
+  const tousLesGroupes = useMemo(
     () => (agenda ? groupesDePrestations(agenda, prestations, besoin) : []),
     [agenda, prestations, besoin],
+  );
+  const groupeDeLaCouleur = tousLesGroupes.find((g) => g.couleur);
+  const groupes = useMemo(
+    () => (laCouleur && groupeDeLaCouleur ? [groupeDeLaCouleur] : tousLesGroupes),
+    [laCouleur, groupeDeLaCouleur, tousLesGroupes],
   );
   const familles = useMemo(() => ordonneParLeSoin(groupes), [groupes]);
 
@@ -1146,8 +1160,17 @@ function Calendrier({ besoin: besoinInitial, initiales, surLaPorte }: Props) {
               );
             })}
           </div>
+          {/* UNE COULEUR ? — 30 octobre 2026 (maquette 8BpT93dX…, au
+              sélecteur : une ligne sous les tuiles). Les tuiles restent les
+              venues les plus prises ; la couleur a sa porte. */}
+          {groupeDeLaCouleur && (
+            <button type="button" className="porte-couleur" onClick={() => { setLaCouleur(true); setComposer(true); setRepondu(false); setRang(0); }}>
+              <b>Une couleur ?</b>
+              <small>{ceQueLaCouleurOffre(groupeDeLaCouleur.items)}</small>
+            </button>
+          )}
           <PhraseDuSite onLire={lisLaPhrase} />
-          <p><button type="button" className="btn btn--lien" onClick={() => { setComposer(true); setRepondu(false); setRang(0); }}>Composer moi-même, geste par geste</button></p>
+          <p><button type="button" className="btn btn--lien" onClick={() => { setLaCouleur(false); setComposer(true); setRepondu(false); setRang(0); }}>Composer moi-même, geste par geste</button></p>
         </div>
       ) : express && choisi ? (
         <div className="bloc-reservation">
@@ -1187,8 +1210,14 @@ function Calendrier({ besoin: besoinInitial, initiales, surLaPorte }: Props) {
           {assistant && !repondu && familleEnCours ? `Question ${rang + 1} sur ${familles.length}` : consultation ? 'La consultation' : 'Vos gestes'}
         </p>
         <h3>
-          {assistant && !repondu && familleEnCours ? questionPour(familleEnCours.titre) : assistant ? 'Ce que vous avez choisi' : consultation ? 'Ce que nous allons regarder' : 'Ce dont votre couronne a besoin'}
+          {assistant && !repondu && familleEnCours ? questionPour(familleEnCours.titre) : assistant ? 'Ce que vous avez choisi' : consultation ? 'Ce que nous allons regarder' : laCouleur && groupeDeLaCouleur ? 'Votre couleur' : 'Ce dont votre couronne a besoin'}
         </h3>
+        {laCouleur && groupeDeLaCouleur && (
+          <p className="legende" style={{ marginBottom: 14 }}>
+            Henné, indigo et plantes, sans ammoniaque. Un test sur mèche se fait avant ; la couleur demande une couronne saine.{' '}
+            <button type="button" className="btn btn--lien" onClick={() => { setLaCouleur(false); setRepondu(false); setRang(0); }}>Voir tous les gestes</button>
+          </p>
+        )}
         {assistant && !repondu && familleEnCours && (
           <p className="legende" style={{ marginBottom: 14 }}>
             {familleEnCours.titre} · cochez ce que vous voulez, ou passez. La Maison additionne la durée et le prix.

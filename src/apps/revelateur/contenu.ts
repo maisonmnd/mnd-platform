@@ -125,6 +125,7 @@ export const COMMUN: Commun = {
           { texte: 'Réparation', vers: '/reparation-locks/' },
           { texte: 'Entretien', vers: '/entretien-locks/' },
           { texte: 'Soins', vers: '/soins-locks/' },
+          { texte: 'Couleur végétale', vers: '/couleur-locks/' },
           { texte: 'MND Kids', vers: '/mnd-kids/' },
           { texte: 'Abonnements', vers: '/abonnements/' },
           { texte: 'Formations', vers: '/formations/' },
@@ -447,6 +448,10 @@ export const ACCUEIL: Accueil = {
       { titre: 'Réparation', mot: 'Réparer', pour: 'Mes locks m’inquiètent', accroche: 'Rendre à vos locks leur force et leur équilibre.', ligne: "Casse, amincissement, racines : on regarde d'abord, zone par zone.", comment: 'Diagnostic zone par zone · Devis · Réparation', reserver: 'Réserver ma consultation', porte: 'Commence par une consultation, réservée en ligne.', suite: 'La réparation', vers: '/reparation-locks/', image: 'regard.jpg' },
       { titre: 'Entretien', mot: 'Entretenir', pour: 'Mes locks vont bien', accroche: 'Garder leur beauté, saison après saison.', ligne: 'Leur rendez-vous, au rythme de votre couronne.', comment: 'Lavage · Resserrage · Hydratation', reserver: 'Réserver mon entretien', porte: 'Se réserve directement, sans consultation.', suite: 'L’entretien', vers: '/entretien-locks/', image: 'entretien.jpg' },
       { titre: 'Soins', pour: 'Cuir chevelu et longueurs', ligne: 'En profondeur, selon la saison.', comment: 'Purifier · Nourrir · Sceller · Couronner', suite: 'Les soins', vers: '/soins-locks/', image: 'attention.jpg' },
+      /* LA COULEUR (30 octobre 2026, au sélecteur : « oui, sans photo ») :
+         le nuancier tient la place de la photo, jusqu'à celle que la Maison
+         choisira, avec l'accord de la personne et sa ligne au registre. */
+      { titre: 'Couleur végétale', pour: 'Ma couleur', ligne: 'Henné, indigo et plantes, sans ammoniaque.', comment: 'Couleur · Éclat · Brillance', suite: 'La couleur', vers: '/couleur-locks/', nuancier: true },
       { titre: 'MND Kids', pour: 'Pour mon enfant', ligne: 'Tout va plus doucement.', comment: 'Un échange avec vous · Une séance courte · Le temps qu’il faut', suite: 'MND Kids', vers: '/mnd-kids/', image: 'mnd-kids.jpg' },
     ],
     repli: 'Vous hésitez entre deux chemins ?',
@@ -671,7 +676,7 @@ export const PAGES: Page[] = [
       items: [
         ['Le lavage · KLƆKLƆ™', 'En profondeur, sans agresser.'],
         ["L'hydratation · DÀNDÀN™", 'Sept huiles, de la racine à la pointe.'],
-        ['La couleur végétale · YÈKPÈ™', 'Réservée aux couronnes saines, après un regard.'],
+        ['La couleur végétale · YÈKPÈ™', 'Réservée aux couronnes saines, après un regard. Ses gestes et ses prix ont leur page, Couleur végétale.'],
         ['Les soins', 'Selon ce que votre couronne demande ce jour-là.'],
         ['À la maison', 'Des gestes simples entre deux visites.'],
       ],
@@ -684,6 +689,40 @@ export const PAGES: Page[] = [
     ],
     jsonld: 'service',
     court: 'Soins',
+  },
+  /* LA COULEUR VÉGÉTALE A SA PAGE — 30 octobre 2026. « En ligne, la couleur
+     n'est pas évidente, on ne voit pas ses services » (Yéman). Maquette
+     8BpT93dX…, au sélecteur : une page à elle. Ses gestes et leurs prix se
+     lisent au catalogue à chaque construction ; les mots de chaque geste
+     viennent de ses fiches (test sur mèche, DÀNDÀN™ post couleur, tenue de
+     la brillance). Sans photo : le nuancier, jusqu'à la photo choisie. */
+  {
+    chemin: '/couleur-locks/',
+    titre: 'Coloration végétale des locks à Cotonou · Maison MND',
+    description: 'Colorez vos locks à Cotonou avec YÈKPÈ™, la couleur végétale de la Maison MND : henné, indigo et plantes, sans ammoniaque. Gestes et prix.',
+    h1: 'La couleur végétale des locks, à Cotonou',
+    sur: 'Je veux colorer mes locks',
+    ligne: 'Henné, indigo et plantes africaines, sans ammoniaque. Un test sur mèche se fait avant ; la couleur demande une couronne saine.',
+    besoin: 'entretien',
+    cta: { texte: 'Réserver ma couleur', note: 'Se réserve directement, sans consultation.', famille: 'couleur' },
+    nuancier: true,
+    couleur: {
+      sur: 'Les gestes',
+      titre: 'La couleur, ses gestes et leurs prix',
+      gestes: {
+        Couleur: 'Sur toute la couronne, après un test sur mèche. L’hydratation DÀNDÀN™, votre carte colorimétrique et la coiffure de sortie sont comprises.',
+        'Éclat': 'Entre deux colorations : ravive une couleur déjà posée et referme la cuticule. L’hydratation et la coiffure de sortie sont comprises.',
+        'Lumière': 'Effet miroir, protéines de soie, finition à l’huile. Tenue de 3 à 4 semaines.',
+      },
+    },
+    rassure: 'Vos locks sont fragiles, ou vous hésitez ? Commencez par une consultation : la couleur se pose sur une couronne saine.',
+    faq: [
+      ['La couleur abîme-t-elle les locks ?', 'YÈKPÈ™ est végétale, sans ammoniaque. Elle demande une couronne saine, et un test sur mèche se fait avant la première couleur.'],
+      ['Combien de temps tient la brillance ?', 'De 3 à 4 semaines.'],
+      ['Faites-vous la décoloration ?', 'La décoloration n’est pas une couleur végétale : elle ne se réserve pas en ligne. Écrivez-nous, la Maison regarde d’abord vos locks.'],
+    ],
+    jsonld: 'service',
+    court: 'Couleur végétale',
   },
   {
     chemin: '/mnd-kids/',
