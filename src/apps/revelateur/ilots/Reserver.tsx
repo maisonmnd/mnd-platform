@@ -937,7 +937,9 @@ function Calendrier({ besoin: besoinInitial, initiales, surLaPorte }: Props) {
   const assistant = !consultation && !seuleFamille;
   /* Le calibre se demande avant tout geste, hors consultation (elle compte
      les locks au fauteuil) et quand la Maison a un barème. */
-  const demandeLeCalibre = !consultation && bandes.length > 0 && calibreId === '';
+  /* La couleur seule ne le demande pas (30 octobre 2026) : son prix suit la
+     longueur, jamais le nombre de locks ; ses gestes viennent tout de suite. */
+  const demandeLeCalibre = !consultation && !(laCouleur && groupeDeLaCouleur) && bandes.length > 0 && calibreId === '';
   const pret = choisi && (!assistant || repondu);
   const familleEnCours = familles[Math.min(rang, Math.max(0, familles.length - 1))];
   const suivant = () => {

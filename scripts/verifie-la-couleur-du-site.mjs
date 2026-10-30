@@ -30,6 +30,7 @@ const PANNES = [
   ['la porte dit ses gestes en desordre', PUR, '    .sort((a, b) => (ORDRE.indexOf(a) < 0 ? 9 : ORDRE.indexOf(a)) - (ORDRE.indexOf(b) < 0 ? 9 : ORDRE.indexOf(b)))\n', ''],
   ['la porte de la reservation disparait', RES, '{groupeDeLaCouleur && (', '{false && ('],
   ['l adresse famille=couleur ignoree', RES, ".get('famille') === 'couleur'", ".get('famille') === 'jamais'"],
+  ['la couleur seule redemande les locks', RES, ' && !(laCouleur && groupeDeLaCouleur)', ''],
   ['le bouton de la page n ouvre pas la couleur', CONTENU, ", famille: 'couleur' }", ' }'],
   ['le lien perd la famille', GEN, 'versLaReservation(p.besoin, p.cta.famille)', 'versLaReservation(p.besoin)'],
   ['la carte de l accueil disparait', CONTENU, "{ titre: 'Couleur végétale', pour: 'Ma couleur'", "{ titre: 'Couleur', pour: 'Ma couleur'"],

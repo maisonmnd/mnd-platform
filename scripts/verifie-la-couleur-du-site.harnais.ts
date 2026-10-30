@@ -77,6 +77,7 @@ const generateur = lis('scripts/genere-revelateur.mjs');
 dit('la reservation : la porte « Une couleur ? » sous les tuiles ouvre la couleur seule', true,
   reserver.includes('{groupeDeLaCouleur && (') && reserver.includes('onClick={() => { setLaCouleur(true); setComposer(true); setRepondu(false); setRang(0); }}'));
 dit('la reservation lit ?famille=couleur', true, reserver.includes(".get('famille') === 'couleur'") && reserver.includes('useState(laCouleurDeLAdresse)'));
+dit('la couleur seule ne demande pas le nombre de locks', true, reserver.includes('const demandeLeCalibre = !consultation && !(laCouleur && groupeDeLaCouleur) && bandes.length > 0'));
 dit('la page /couleur-locks/ existe, son bouton ouvre la couleur', true,
   contenu.includes("chemin: '/couleur-locks/'") && contenu.includes("cta: { texte: 'Réserver ma couleur', note: 'Se réserve directement, sans consultation.', famille: 'couleur' }"));
 dit('le generateur porte la famille jusqu au lien de reservation', true, generateur.includes('versLaReservation(p.besoin, p.cta.famille)'));
