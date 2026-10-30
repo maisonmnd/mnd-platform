@@ -1324,6 +1324,12 @@ function jugeLaParole(
        message ; et un rendez-vous à venir sur sa fiche ne le fait plus
        taire : elle peut en réserver un autre. */
     parle = leConseilParle(tour.texte, ctx.conseil);
+  } else if (mots.prix && familleNommeeWa(tour.texte)) {
+    /* LE PRIX D'UNE FAMILLE NOMMÉE (30 octobre 2026) : « une coloration,
+       c'est combien ? » ouvre la liste de ces gestes, et le prix se dit au
+       choix. Avant le conseil : ses mots de prix (« combien », « prix »)
+       menaient au prix d'une création. */
+    parle = true;
   } else if (leConseilParle(tour.texte, ctx.conseil)) {
     /* LE CONSEIL (14 octobre 2026) : une question qu'une réponse validée
        reconnaît, ou le cuir chevelu qui inquiète. */
@@ -1565,9 +1571,19 @@ const MOTS_DES_GESTES_WA: Readonly<Record<string, RegExp>> = {
   'WÈWÈ': /(?<!\p{L})(?:purification|detox|wewe)(?!\p{L})/u,
   'VÍVÍVÓ': /(?<!\p{L})(?:activateur|vivivo)(?!\p{L})/u,
   'GBÌGBÌ': /(?<!\p{L})(?:reconstruction|renfort|gbigbi)(?!\p{L})/u,
-  'YÈKPÈ': /(?<!\p{L})(?:couleur|coloration|yekpe)(?!\p{L})/u,
+  /* « des colorations », « teinture », « henné » (30 octobre 2026). */
+  'YÈKPÈ': /(?<!\p{L})(?:couleurs?|colorations?|colorer|teintures?|teindre|henne|yekpe)(?!\p{L})/u,
 };
 const MOTS_DANS_LE_NOM_WA: readonly string[] = ['coiffure', 'tresse', 'natte', 'vanille', 'manucure', 'pedicure'];
+
+/** UNE FAMILLE NOMMÉE, aux mots seuls (30 octobre 2026, Yéman : « quand un
+    client veut faire une coloration et veut connaître les prix, le
+    catalogue de la coloration ne s'ouvre pas ») : le juge parle avant toute
+    lecture de l'agenda, il ne lit que les marques des familles. */
+const familleNommeeWa = (texte: string): boolean => {
+  const t = sansAccentsWa(texte);
+  return !!t && Object.values(MOTS_DES_GESTES_WA).some((re) => re.test(t));
+};
 
 function prestationsDitesWa(texte: string, prestations: readonly { id: string; name: string }[]): string[] {
   const t = sansAccentsWa(texte);
@@ -1626,7 +1642,22 @@ const PROMESSES_WA: Readonly<Record<string, string>> = {
   'WÈWÈ': 'Détox du cuir chevelu et de la fibre',
   'VÍVÍVÓ': 'Massage crânien, plantes qui stimulent la pousse',
   'GBÌGBÌ': 'Renfort de la fibre',
+  /* La couleur (30 octobre 2026), d'après les fiches du catalogue. */
+  'YÈKPÈ Couleur': 'Henné, indigo et plantes, sans ammoniaque',
+  'YÈKPÈ Éclat': 'Ravive une couleur déjà posée',
+  'YÈKPÈ Lumière': 'Effet miroir, protéines de soie',
 };
+/** LES TITRES DE LA COULEUR (30 octobre 2026) : ses gestes ne sont pas des
+    gammes ; « Couleur · Couleur » ne se lit pas. */
+const TITRES_WA: Readonly<Record<string, string>> = {
+  'YÈKPÈ Couleur': 'Couleur végétale',
+  'YÈKPÈ Éclat': 'Raviver la couleur',
+  'YÈKPÈ Lumière': 'Brillance des locks',
+};
+/** La famille de la couleur, dans la liste de l'entretien. */
+const MARQUE_DE_LA_COULEUR = 'YÈKPÈ';
+/** L'ordre des gestes de la couleur. */
+const GESTES_DE_LA_COULEUR: readonly string[] = ['Couleur', 'Éclat', 'Lumière'];
 /** L'ordre des gammes dans une rubrique. */
 const GAMMES_WA: readonly string[] = ['Essentiel', 'Signature', 'Prestige'];
 /** La longueur, telle qu'elle se touche et se lit. */
@@ -1723,7 +1754,7 @@ function atelierDuTour(ancien: EtatDuFil | null | undefined, tour: TourDeLaClien
       mots désignent, réservables ici, sans les versions Kids ni « avec votre
       produit » ; huit au plus, comme une liste. */
   const ditsDuTexte = (texte: string): string[][] =>
-    prestationsDitesWa(texte, (agenda?.prestations ?? []).filter((s) => directe(s) && !/\bkids\b|avec votre produit/i.test(s.name)))
+    prestationsDitesWa(texte, (agenda?.prestations ?? []).filter((s) => directe(s) && !/\bkids\b|avec votre (?:produit|couleur)/i.test(s.name)))
       .slice(0, 8).map((id) => [id]);
 
   /* ── Qui écrit, et comment on l'appelle ── */
@@ -2115,6 +2146,19 @@ function atelierDuTour(ancien: EtatDuFil | null | undefined, tour: TourDeLaClien
       .sort((a, b) => rang(a) - rang(b) || a.name.localeCompare(b.name, 'fr'))
       .slice(0, max);
   };
+  /** LES GESTES DE LA COULEUR (30 octobre 2026) : Couleur, Éclat, Lumière ;
+      celui que la Maison a nommé passe avant l'ancien du même geste. */
+  const gestesDeLaCouleur = (): PrestationDuTour[] => {
+    const rang = (s: PrestationDuTour): number => {
+      const i = GESTES_DE_LA_COULEUR.indexOf(gammeEtNomWa(s.name).gamme);
+      return i < 0 ? GESTES_DE_LA_COULEUR.length : i;
+    };
+    const sansNom = (s: PrestationDuTour): number => (gammeEtNomWa(s.name).nomMaison ? 0 : 1);
+    return (agenda?.prestations ?? [])
+      .filter((s) => directe(s) && litLaMarqueWa(s.name).marque === MARQUE_DE_LA_COULEUR && !/\bkids\b|avec votre (?:produit|couleur)/i.test(s.name))
+      .sort((a, b) => rang(a) - rang(b) || sansNom(a) - sansNom(b) || a.name.localeCompare(b.name, 'fr'))
+      .slice(0, 8);
+  };
   /** La ligne du dessous : ce que fait le geste, la durée, le nom fon en dernier. */
   const dessousDuGeste = (s: PrestationDuTour): string => {
     const { marque, gamme } = gammeEtNomWa(s.name);
@@ -2132,6 +2176,8 @@ function atelierDuTour(ancien: EtatDuFil | null | undefined, tour: TourDeLaClien
   /** « Lavage · Essentiel », « Racines · Signature » ; sans gamme, le geste. */
   const titreDuGeste = (s: PrestationDuTour): string => {
     const { marque, gamme } = gammeEtNomWa(s.name);
+    const propre = TITRES_WA[`${marque} ${gamme}`];
+    if (propre) return propre;
     const g = GESTES_EN_FRANCAIS[marque];
     if (!g || !gamme) return titreEnFrancaisWa(s.name);
     return [`${g.court} · ${gamme}`, `${g.court} ${gamme}`].find((x) => x.length <= 24) ?? titreEnFrancaisWa(s.name);
@@ -2176,8 +2222,11 @@ function atelierDuTour(ancien: EtatDuFil | null | undefined, tour: TourDeLaClien
       .filter((ids) => ids.length >= 2 && ids.length <= 6 && ids.every((id) => directe(prestation(id))))
       .slice(0, 2);
     const desSoins = soinsDuCheveu().length > 0;
+    /* La couleur a sa ligne, à côté d'un soin (30 octobre 2026) : sans elle,
+       une cliente venue pour sa couleur ne la trouvait nulle part. */
+    const couleurs = gestesDeLaCouleur();
     /* Dix lignes au plus avec la Maison : les reprises cèdent d'abord. */
-    const place = 10 - venues.length - lavages.length - (desSoins ? 1 : 0) - 1;
+    const place = 10 - venues.length - lavages.length - (desSoins ? 1 : 0) - (couleurs.length > 0 ? 1 : 0) - 1;
     const rangees: { ids: string[]; section: string; titre: string; description: string }[] = [
       ...venues.map((ids) => ({ ids, section: RUBRIQUES_WA.venues, ...ligneDeLaVenue(ids) })),
       ...lavages.map((s) => ({ ids: [s.id], section: RUBRIQUES_WA.lavages, titre: titreDuGeste(s), description: dessousDuGeste(s) })),
@@ -2198,6 +2247,7 @@ function atelierDuTour(ancien: EtatDuFil | null | undefined, tour: TourDeLaClien
     const lignes = [
       ...rangees.map((r, i) => ({ id: choix('rituel', String(i)), titre: r.titre, description: r.description, section: r.section })),
       ...(desSoins ? [{ id: choix('autre-soin'), titre: 'Un soin', description: coupeWa(gestesDitsWa(quels.map((q, i) => (i === 0 ? q : q.toLowerCase()))), 72), section: RUBRIQUES_WA.autre }] : []),
+      ...(couleurs.length > 0 ? [{ id: choix('couleur'), titre: 'Une couleur', description: coupeWa(gestesDitsWa([...new Set(couleurs.map(titreDuGeste))].map((q, i) => (i === 0 ? q : q.toLowerCase()))), 72), section: RUBRIQUES_WA.autre }] : []),
     ];
     return {
       forme: 'liste', etape: 'rituel', pied: PIED, bouton: 'Choisir',
@@ -2509,12 +2559,20 @@ function atelierDuTour(ancien: EtatDuFil | null | undefined, tour: TourDeLaClien
       souhaitez-vous ? »). Ajouter un soin puise ensuite dans les soins du
       cheveu, jamais un second lavage. */
   const msgDits = (avecSalut: boolean): MessageSortant | null => {
-    const dits = (base.panier.dits ?? []).filter((ids) => ids.every((id) => directe(prestation(id))));
+    const couleur = gestesDeLaCouleur().map((s) => s.id);
+    const dits = (base.panier.dits ?? []).filter((ids) => ids.every((id) => directe(prestation(id))))
+      /* La couleur dans son ordre : Couleur, Éclat, Lumière. */
+      .sort((a, b) => (couleur.includes(a[0]) && couleur.includes(b[0]) ? couleur.indexOf(a[0]) - couleur.indexOf(b[0]) : 0));
     base.panier.dits = undefined;
     if (dits.length === 0) return null;
+    /* Elle demande le prix (30 octobre 2026) : la liste, même si le geste
+       était dans sa dernière venue, et le prix vient au choix. */
+    const auPrix = motsReconnus(tour?.texteDOrigine ?? tour?.texte ?? '', ms).prix;
+    const prixAuChoix = auPrix && !!agenda?.prixDe
+      && dits.every((ids) => ids.every((id) => { const s = prestation(id); return !!s && !s.hidePrice && priceModeOf(s) !== 'devis'; }));
     /* Ce qu'elle nomme était dans sa dernière venue (« pour mes racines »,
        après un resserrage) : « la même chose » reste la bonne question. */
-    const v = venueReprenable(ficheChoisie());
+    const v = auPrix ? null : venueReprenable(ficheChoisie());
     const marqueDe = (id: string): string => litLaMarqueWa(prestation(id)?.name ?? '').marque;
     const siennes = new Set((v?.serviceIds ?? []).map(marqueDe).filter((x) => !!GESTES_EN_FRANCAIS[x]));
     const marques = [...new Set(dits.map(([id]) => marqueDe(id)).filter((x) => !!GESTES_EN_FRANCAIS[x]))];
@@ -2538,7 +2596,8 @@ function atelierDuTour(ancien: EtatDuFil | null | undefined, tour: TourDeLaClien
     /* « votre lavage », « vos racines » (le pluriel du 30 octobre 2026). */
     const noms = sansMarque.length === 0 ? marques.map((x) => GESTES_EN_FRANCAIS[x].court.toLowerCase()).map((n) => (/s$/.test(n) ? `vos ${n}` : `votre ${n}`)) : [];
     const question = noms.length > 0 ? `Pour ${noms.join(' et ')}, quel rituel souhaitez-vous` : 'Quel rituel souhaitez-vous';
-    return { ...m, corps: propre(avecSalut ? `${salut()} ${appel()}, merci de votre message. ${question} ?` : `${question}, ${appel()} ?`) };
+    const prixDit = prixAuChoix ? ' Choisissez-en un : nous vous donnons son prix.' : '';
+    return { ...m, corps: propre(avecSalut ? `${salut()} ${appel()}, merci de votre message. ${question} ?${prixDit}` : `${question}, ${appel()} ?${prixDit}`) };
   };
 
   const pourLaFiche = (f: FicheDuNumero, avecSalut: boolean): SortieDuTour => {
@@ -2797,12 +2856,18 @@ function atelierDuTour(ancien: EtatDuFil | null | undefined, tour: TourDeLaClien
     if (!enCours) {
       /* LE CONSEIL AU REPOS (14 octobre 2026) : une question qu'il reconnaît,
          le cuir chevelu, ou, la nuit, une question qu'il ne sait pas. */
-      if (!ch && conseilActif(ctx.conseil)) {
+      /* Le prix d'un geste qu'elle nomme et qui se réserve ici : sa liste,
+         avant les réponses du conseil (30 octobre 2026, « une coloration,
+         c'est combien ? »). Le cuir chevelu passe toujours devant. */
+      const dits = ditsDuTexte(t.texte);
+      const auPrixDUnGeste = mots.prix && dits.length > 0 && !lisLeConseil(t.texte, ctx.conseil).sante;
+      if (!ch && conseilActif(ctx.conseil) && !auPrixDUnGeste) {
         const neuve = ctx.premierMessage && fiches.length === 0;
         const q = questionDuTour(t.texte, neuve);
         if (q) {
-          /* Un parcours neuf : rien de l'ancien panier ne suit la réponse. */
-          base.panier = {};
+          /* Un parcours neuf : rien de l'ancien panier ne suit la réponse,
+             sauf les gestes qu'elle a nommés : « Réserver » les propose. */
+          base.panier = dits.length > 0 ? { dits } : {};
           base.prisLe = maintenant;
           base.rdvId = undefined;
           return q;
@@ -2856,7 +2921,8 @@ function atelierDuTour(ancien: EtatDuFil | null | undefined, tour: TourDeLaClien
           if (g === 'reserver') {
             base.panier.reprendre = undefined;
             if (arg === 'entretien' || arg === 'creation' || arg === 'reparation' || arg === 'enfant') return choisisLeBesoin(arg);
-            return dire(msgBesoin(false, false));
+            /* La réponse parlait d'un geste qu'elle a nommé (la couleur) : sa liste. */
+            return dire(msgDits(false) ?? msgBesoin(false, false));
           }
           if (g === 'reprendre') {
             const e = base.panier.reprendre;
@@ -2901,6 +2967,12 @@ function atelierDuTour(ancien: EtatDuFil | null | undefined, tour: TourDeLaClien
             const dejaLa = (ids: string[]): boolean => montres.some((v) => v.length === ids.length && v.every((x, k) => x === ids[k]));
             if (!base.panier.dansLesSoins && soinsDuCheveu().some((ids) => !dejaLa(ids))) return dire(msgRituel(false, soinsDuCheveu(), !!base.panier.enAjout, true) ?? msgPlaces({}));
             return laMain('autre-soin', true);
+          }
+          if (g === 'couleur') {
+            /* « Une couleur », dans la liste de l'entretien (30 octobre 2026) :
+               ses gestes, le prix au choix. */
+            const m = msgRituel(false, gestesDeLaCouleur().map((s) => [s.id]));
+            return dire(m ? { ...m, corps: propre(`Pour votre couleur, quel rituel souhaitez-vous, ${appel()} ?`) } : null, 'autre-soin');
           }
           break;
         }

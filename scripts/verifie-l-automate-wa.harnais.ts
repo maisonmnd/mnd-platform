@@ -3488,6 +3488,95 @@ const regles: Regle[] = [
       { nom: 'le Juste Prix touche aussi le plateau', mute: [P(F_AUTO, ' && deLAtelierWa(String(d.categoryId ?? \'\'), catsBrutes) ? tete.coef : 1;', ' ? tete.coef : 1;')] },
     ],
   },
+
+  /* ══ R51 · la couleur s'ouvre au prix, 30 octobre 2026 ═══════════════
+     Yéman : « quand un client veut faire une coloration et veut connaître
+     les prix, le catalogue de la coloration ne s'ouvre pas. Vérifie et
+     construis. » L'automate se taisait sur « c'est combien ? », la liste de
+     l'entretien ne menait jamais à la couleur, et ses titres disaient
+     « Couleur · Couleur ». */
+  {
+    id: 'R51', nom: 'R51 la couleur : son prix demande ouvre sa liste (avant le conseil), « Une couleur » dans la liste de l entretien, des titres lisibles, le prix au choix, Reserver apres la reponse ouvre sa liste',
+    eprouve: () => {
+      const { ecarts, vaut, vrai } = juge();
+      const COULEURS: PrestationDuTour[] = [
+        { id: 'yek-lum', name: 'YÈKPÈ™ Lumière · La Brillance Signature', categoryId: 'atl-iii-yekpe', durationMin: 60, reservable: true },
+        { id: 'yek-ecl', name: 'YÈKPÈ™ Éclat · Le Raviveur de Couleur · Court', categoryId: 'atl-iii-yekpe', durationMin: 75, reservable: true },
+        { id: 'yek-cou', name: 'YÈKPÈ™ Couleur · La Révélation Végétale', categoryId: 'atl-iii-yekpe', durationMin: 150, reservable: true, prixALaLongueur: true },
+        { id: 'yek-apportee', name: 'YÈKPÈ™ avec votre couleur · couleur apportée', categoryId: 'atl-iii-yekpe', durationMin: 30, reservable: true },
+      ];
+      const COULEUR: Record<string, number> = { court: 15000, 'mi-long': 20000, long: 25000 };
+      const prixDe = (id: string, tete: { longueur?: string }): number | undefined =>
+        (id === 'yek-cou' ? (tete.longueur ? COULEUR[tete.longueur] : undefined) : id === 'yek-ecl' ? 8000 : id === 'yek-lum' ? 15000 : undefined);
+      const avecLaCouleur = (p: Parcours): Parcours => { p.agenda = { prixDe, prestations: [...PRESTATIONS, ...COULEURS] }; return p; };
+      const t0 = cotonou('2026-10-30', '11:40');
+      const TITRES = ['Couleur végétale', 'Raviver la couleur', 'Brillance des locks', 'Autre soin', 'Parler à la Maison'];
+      const QUESTION = 'Pour votre couleur, quel rituel souhaitez-vous ?';
+      const AU_PRIX = 'Bonjour, merci de votre message. Pour votre couleur, quel rituel souhaitez-vous ? Choisissez-en un : nous vous donnons son prix.';
+
+      /* 1. Le juge : le prix d'une famille nommee parle, un prix sans famille se tait. */
+      const pj = avecLaCouleur(parcours(ORIGINAL, NUM_NAFFI, [NAFFI]));
+      pj.premier = false;
+      const dit = (texte: string): string => jugeLaParole(null, tourDeLaCliente([{ waId: `wamid.j${texte.length}`, quand: isoDe(t0), texte, type: 'text', sens: 'entrant' }], []), ctxDe(pj, t0)).parole;
+      vaut('le juge : coloration et combien, colorations au pluriel, teinture parlent ; une creation au prix se tait comme avant', ['parle', 'parle', 'parle', 'silence'],
+        [dit('Bonjour, je voudrais faire une coloration. C’est combien ?'), dit('Quel est le prix de vos colorations ?'), dit('Une teinture au henné, c’est quel tarif ?'), dit('Combien coûte une création ?')]);
+
+      /* 2. Une inconnue demande le prix : la liste de la couleur, puis sa longueur, puis le prix. */
+      const p1 = avecLaCouleur(parcours(ORIGINAL, NUM_INCONNUE, []));
+      const s1 = elle(p1, t0, { texte: 'Bonjour, je voudrais faire une coloration. C’est combien ?' });
+      vaut('le prix demande : la liste de la couleur, dans son ordre, sans la couleur apportee', ['rituel', AU_PRIX, TITRES], [s1.etat.etape, corps(s1), lignesDe(s1)]);
+      vaut('la liste de la couleur passe les juges de Meta', [], respecteMeta(s1.messages[0]!));
+      const s2 = elle(p1, t0 + 1000, { touche: 'Couleur végétale' });
+      vaut('la couleur choisie : sa longueur d abord', 'longueur', s2.messages[0]?.etape);
+      const s3 = elle(p1, t0 + 2000, { touche: 'Long' });
+      vaut('puis son prix, et un autre soin ?', ['Couleur végétale : 25 000 F.', 'encore'], [corps(s3), s3.messages[1]?.etape]);
+
+      /* 3. Sa couleur etait dans sa derniere venue : au prix, la liste ; sans prix, la meme chose. */
+      const venue: FicheDuNumero = { ...NAFFI, derniereVenue: { date: '2026-10-03', serviceIds: ['yek-cou'] } };
+      const p2 = avecLaCouleur(parcours(ORIGINAL, NUM_NAFFI, [venue]));
+      p2.premier = false;
+      const v1 = elle(p2, t0, { texte: 'Combien pour ma couleur ?' });
+      vaut('une habituee demande le prix : la liste, pas la meme chose', ['rituel', TITRES], [v1.etat.etape, lignesDe(v1)]);
+      const p3 = avecLaCouleur(parcours(ORIGINAL, NUM_NAFFI, [venue]));
+      p3.premier = false;
+      vaut('sans prix demande : la meme chose reste la question', 'meme', elle(p3, t0, { texte: 'Je voudrais un rendez-vous samedi pour ma couleur' }).etat.etape);
+
+      /* 4. La liste de l entretien mene a la couleur. */
+      const p4 = avecLaCouleur(parcours(ORIGINAL, NUM_INCONNUE, []));
+      elle(p4, t0, { texte: 'Bonjour, je voudrais prendre rendez-vous' });
+      const e1 = elle(p4, t0 + 1000, { touche: 'Entretenir mes locks' });
+      const ligne = (e1.messages[0]?.lignes ?? []).find((l) => l.titre === 'Une couleur');
+      vaut('« Une couleur » dans Autre chose, ce qu elle offre dessous', ['Autre chose', 'Couleur végétale, raviver la couleur et brillance des locks'], [ligne?.section, ligne?.description]);
+      vaut('la liste de l entretien avec la couleur passe les juges de Meta', [], respecteMeta(e1.messages[0]!));
+      const e2 = elle(p4, t0 + 2000, { touche: 'Une couleur' });
+      vaut('« Une couleur » ouvre sa liste', ['rituel', QUESTION, TITRES], [e2.etat.etape, corps(e2), lignesDe(e2)]);
+
+      /* 5. Le conseil : le prix de la couleur passe avant ses mots de prix ; Reserver apres sa reponse ouvre la liste. */
+      const p5 = avecConseil(avecLaCouleur(parcours(ORIGINAL, NUM_INCONNUE, [])));
+      const c1 = elle(p5, t0, { texte: 'Combien coûte une coloration ?' });
+      vaut('avec le conseil : le prix de la couleur ouvre sa liste, jamais le prix d une creation', ['rituel', TITRES], [c1.etat.etape, lignesDe(c1)]);
+      const p6 = avecConseil(avecLaCouleur(parcours(ORIGINAL, NUM_INCONNUE, [])), {
+        reponses: [{ id: 'r-couleur', titre: 'La couleur végétale', mots: ['couleur', 'coloration'], texte: 'Oui, avec YÈKPÈ™, notre couleur 100 % végétale.', etat: 'validee', ordre: 1 }],
+      });
+      const r1 = elle(p6, t0, { texte: 'Vous faites des colorations ?' });
+      vrai('une question sur la couleur : la reponse de la Maison, et Reserver', r1.etat.etape === 'reponse' && boutonsDe(r1).includes('Réserver'), `${r1.etat.etape} ${boutonsDe(r1).join('/')}`);
+      const r2 = elle(p6, t0 + 1000, { touche: 'Réserver' });
+      vaut('Reserver apres la reponse : la liste de la couleur', ['rituel', QUESTION, TITRES], [r2.etat.etape, corps(r2), lignesDe(r2)]);
+      return ecarts;
+    },
+    pannes: [
+      { nom: 'le juge se tait sur le prix d une famille nommee', mute: [P(AUTO, '  } else if (mots.prix && familleNommeeWa(tour.texte)) {', '  } else if (false && familleNommeeWa(tour.texte)) {')] },
+      { nom: 'le conseil passe avant la liste de la couleur', mute: [P(AUTO, ' && !auPrixDUnGeste) {', ') {')] },
+      { nom: 'la liste de l entretien perd la couleur', mute: [P(AUTO, "...(couleurs.length > 0 ? [{ id: choix('couleur')", "...(false ? [{ id: choix('couleur')")] },
+      { nom: 'Une couleur ne mene a rien', mute: [P(AUTO, "          if (g === 'couleur') {", "          if (g === 'couleur-jamais') {")] },
+      { nom: 'les titres redeviennent Couleur · Couleur', mute: [P(AUTO, '    if (propre) return propre;\n', '')] },
+      { nom: 'Reserver apres la reponse mene au menu', mute: [P(AUTO, '            return dire(msgDits(false) ?? msgBesoin(false, false));\n          }\n          if (g === \'reprendre\') {', '            return dire(msgBesoin(false, false));\n          }\n          if (g === \'reprendre\') {')] },
+      { nom: 'les colorations au pluriel ne se lisent plus', mute: [P(AUTO, '(?:couleurs?|colorations?|colorer|teintures?|teindre|henne|yekpe)', '(?:couleur|coloration|yekpe)')] },
+      { nom: 'au prix, une habituee recoit la meme chose', mute: [P(AUTO, 'const v = auPrix ? null : venueReprenable(ficheChoisie());', 'const v = venueReprenable(ficheChoisie());')] },
+      { nom: 'la phrase du prix au choix disparait', mute: [P(AUTO, "const prixDit = prixAuChoix ? ' Choisissez-en un : nous vous donnons son prix.' : '';", "const prixDit = '';")] },
+      { nom: 'la couleur apportee entre dans la liste', mute: [P(AUTO, 'avec votre (?:produit|couleur)/i', 'avec votre produit/i')] },
+    ],
+  },
 ];
 
 /* ── Le passage ─────────────────────────────────────────────────────── */
