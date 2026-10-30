@@ -88,7 +88,7 @@ import { createClient, type SupabaseClient } from 'npm:@supabase/supabase-js@2';
 
 /** LA VERSION DE CE FICHIER, dite par le contrôle de santé. Sans elle on ne
     sait pas quel code tourne vraiment. À incrémenter à chaque déploiement. */
-const VERSION = '2026-10-30-b · le chemin, et le service nommé';
+const VERSION = '2026-10-30-c · les vrais messages de la banque';
 
 /** « En train d'écrire », puis on attend : deux messages envoyés coup sur
     coup font un seul tour, celui du dernier. */
@@ -1078,6 +1078,9 @@ type PanierDuFil = {
   /** Les gestes du catalogue qu'elle a nommés dans son premier message
       (« un shampoing ») : ils passent avant « la même chose ». */
   dits?: string[][];
+  /** Elle déplace un rendez-vous (30 octobre 2026) : la date de celui-ci,
+      vide si on ne la sait pas. La place touchée passe à l'équipe. */
+  deplace?: string;
   /** Le jour touché dans « Un autre jour ». */
   jourChoisi?: string;
   /** Les rituels ou consultations proposés, dans l'ordre de la liste. */
@@ -1399,6 +1402,23 @@ function motsReconnus(texte: string, maintenantMs: number): MotsDuTour {
     if (nieLeMotWa(t, debut, debut + j[0].length)) jourEvite = jourEvite ?? v;
     else jourVoulu = jourVoulu ?? v;
   }
+  /* UNE DATE ÉCRITE (30 octobre 2026) : « le 30 octobre 2026 », « mardi 13
+     octobre », « le 1er novembre ». Elle passe avant le jour de la semaine ;
+     sans année, la prochaine ; jamais une date passée ni impossible. */
+  const MOIS = MOIS_LONGS_WA.map(sansAccentsWa);
+  for (const d of t.matchAll(/\b(1er|[0-3]?\d) (janvier|fevrier|mars|avril|mai|juin|juillet|aout|septembre|octobre|novembre|decembre)(?: (20\d\d))?\b/g)) {
+    const jour = d[1] === '1er' ? 1 : Number(d[1]);
+    const mois = MOIS.indexOf(d[2]) + 1;
+    const an0 = d[3] ? Number(d[3]) : Number(aujourdhui.slice(0, 4));
+    const isoDe = (an: number): string => `${an}-${String(mois).padStart(2, '0')}-${String(jour).padStart(2, '0')}`;
+    const iso = !d[3] && isoDe(an0) < aujourdhui ? isoDe(an0 + 1) : isoDe(an0);
+    const vraie = new Date(`${iso}T12:00:00Z`);
+    if (jour < 1 || Number.isNaN(vraie.getTime()) || vraie.toISOString().slice(0, 10) !== iso || iso < aujourdhui) continue;
+    const debut = d.index ?? 0;
+    if (nieLeMotWa(t, debut, debut + d[0].length)) { jourEvite = jourEvite ?? iso; continue; }
+    jourVoulu = iso;
+    break;
+  }
   if (jourEvite && jourEvite === jourVoulu) jourEvite = undefined;
   const ditAujourdhui = /aujourd ?'? ?hui|\bce soir\b|tout de suite|\bce matin\b|\bcet apres[- ]?midi\b|tout a l'heure|\btantot\b/.test(t);
   let moment: 'matin' | 'apres-midi' | undefined;
@@ -1428,7 +1448,7 @@ function motsReconnus(texte: string, maintenantMs: number): MotsDuTour {
     ...(moment ? { moment } : {}),
     ...(heure ? { heure } : {}),
     annuler: /\bannul/.test(t),
-    deplacer: /\b(decal|report|deplac)/.test(t) || /\bchanger (de |mon |le |la |l'|d')?(rendez|rdv|heure|jour|date|creneau)/.test(t),
+    deplacer: /\b(decal|report|deplac|reprogramm)/.test(t) || /\bchanger (de |mon |le |la |l'|d')?(rendez|rdv|heure|jour|date|creneau)/.test(t),
     prix: /\b(prix|combien|cout|coute|coutent|couter|tarif|tarifs|fcfa|cfa|montant)\b/.test(t),
     retard: /\bretard\b/.test(t),
     parleDUnRdv: /rendez[- ]?vous|\brdv\b/.test(t),
@@ -1446,8 +1466,10 @@ function intentionDeReserver(texte: string): boolean {
   if (/\bje (voudrais|veux|souhaite|souhaiterais|aimerais|peux|pourrais|compte) (passer|venir)\b/.test(t)) return true;
   if (/\best[- ]ce que je (peux|pourrais) (passer|venir)\b/.test(t)) return true;
   if (/\bprendre (un |une )?(rendez|rdv|place|creneau)/.test(t)) return true;
+  /* « Lundi prochain m'arrangerait », « samedi me conviendrait » (30 octobre
+     2026, un vrai message du 6 octobre resté sans parcours). */
   return /\b(lundi|mardi|mercredi|jeudi|vendredi|samedi|dimanche|demain)\b/.test(t)
-    && /\b(passer|venir|libre|possible)\b/.test(t);
+    && /\b(passer|venir|libre|possible|m'?arrangerait|m'?arrange|me conviendrait|me convient|m'?irait|me va)\b/.test(t);
 }
 
 /** ELLE PARLE D'UN RENDEZ-VOUS QU'ELLE A DÉJÀ (relecture du 9 octobre
@@ -2358,6 +2380,14 @@ function demandeLeCheminWa(texte: string): boolean {
   ].some((r) => r.test(t));
 }
 
+/** ELLE EST EN ROUTE (30 octobre 2026, choix de Yéman sur « Je suis en
+    route pour le shampooing » : « Bien noté », et le plan) : en route, en
+    chemin, j'arrive, je quitte. Arrivée, devant la porte : pas de plan. */
+function enRouteWa(texte: string): boolean {
+  const t = String(texte ?? '').toLowerCase().replace(/’/g, "'").replace(/\s+/g, ' ');
+  return /(?<!\p{L})(?:en route|en chemin|j'arrive|je quitte|je me mets? en route|je me mettais en route)(?!\p{L})/u.test(t);
+}
+
 /** LES GESTES QU'ELLE NOMME (30 octobre 2026, Yéman : « Je veux un
     shampoing », et l'automate lui proposait sa coiffure de la dernière
     fois ; « il faut absolument qu'il puisse lire et reconnaître les services
@@ -2625,8 +2655,18 @@ function atelierDuTour(ancien: EtatDuFil | null | undefined, tour: TourDeLaClien
     if (!agenda || ids.length === 0) return [];
     return [...agenda.places(ids)].filter((p) => p.iso > aujourdhui).sort(chrono);
   };
-  const convient = (p: PlaceLibre): boolean => {
+  /** LE JOUR VOULU OÙ LA MAISON EST FERMÉE (30 octobre 2026, « lundi
+      prochain m'arrangerait dans l'après-midi ») : il ne trie plus les
+      places, le moment reste. Son nom (« lundi »), ou rien. */
+  const jourFermeVoulu = (): string | null => {
     const j = base.panier.jourVoulu;
+    if (!j) return null;
+    const dow = /^\d{4}-\d{2}-\d{2}$/.test(j) ? dowDeIsoWa(j) : JOURS_LONGS_WA.indexOf(j);
+    const h = (agenda?.semaine ?? []).find((x) => x.key === ['dim', 'lun', 'mar', 'mer', 'jeu', 'ven', 'sam'][dow]);
+    return h?.closed ? JOURS_LONGS_WA[dow] : null;
+  };
+  const convient = (p: PlaceLibre): boolean => {
+    const j = jourFermeVoulu() ? undefined : base.panier.jourVoulu;
     const okJour = !j || (/^\d{4}-\d{2}-\d{2}$/.test(j) ? p.iso === j : JOURS_LONGS_WA[dowDeIsoWa(p.iso)] === j);
     const m = base.panier.moment;
     const okMoment = !m || (m === 'matin' ? p.heure < '13:00' : p.heure >= '13:00');
@@ -2703,7 +2743,11 @@ function atelierDuTour(ancien: EtatDuFil | null | undefined, tour: TourDeLaClien
           if (sel.length >= PLACES_PROPOSEES) break;
           if (!pris.has(cle(p))) { sel.push(p); pris.add(cle(p)); }
         }
-        if ((base.panier.jourVoulu || base.panier.moment) && voulues.length === 0) {
+        const ferme = jourFermeVoulu();
+        if (ferme) {
+          const m = base.panier.moment;
+          intro = intro ?? `La Maison est fermée le ${ferme}, ${appel()}. Voici les places les plus proches${m ? (m === 'matin' ? ', le matin' : ", l'après-midi") : ''}.`;
+        } else if ((base.panier.jourVoulu || base.panier.moment) && voulues.length === 0) {
           intro = intro ?? `Nous n'avons plus de place ${preferenceDite()} dans les ${ctx.reglage.horizonJours} prochains jours, ${appel()}. Voici les prochaines places.`;
         }
       }
@@ -2975,14 +3019,26 @@ function atelierDuTour(ancien: EtatDuFil | null | undefined, tour: TourDeLaClien
     const v = venueReprenable(ficheChoisie());
     const marqueDe = (id: string): string => litLaMarqueWa(prestation(id)?.name ?? '').marque;
     const siennes = new Set((v?.serviceIds ?? []).map(marqueDe).filter((x) => !!GESTES_EN_FRANCAIS[x]));
-    if (v && dits.some(([id]) => v.serviceIds.includes(id) || siennes.has(marqueDe(id)))) return null;
-    const m = msgRituel(false, dits);
+    const marques = [...new Set(dits.map(([id]) => marqueDe(id)).filter((x) => !!GESTES_EN_FRANCAIS[x]))];
+    const sansMarque = dits.filter(([id]) => !GESTES_EN_FRANCAIS[marqueDe(id)]);
+    const dansSaVenue = marques.every((x) => siennes.has(x)) && (sansMarque.length === 0 || sansMarque.some(([id]) => !!v?.serviceIds.includes(id)));
+    if (v && dansSaVenue) return null;
+    /* DEUX GESTES NOMMÉS ENSEMBLE (30 octobre 2026, « Shampooing et
+       reserrage ») : les formules qui les réunissent, en un seul choix ;
+       sans formule, les gestes un à un, et « Ajouter un soin » repropose
+       les autres. */
+    const ensemble = marques.length > 1
+      ? (agenda?.formules ?? []).map((f) => [...f.serviceIds])
+        .filter((ids) => ids.length > 0 && ids.length <= SOINS_PAR_RENDEZ_VOUS && ids.every((id) => directe(prestation(id)))
+          && marques.every((x) => ids.some((id) => marqueDe(id) === x)))
+        .slice(0, 8)
+      : [];
+    const m = msgRituel(false, ensemble.length > 0 ? ensemble : dits);
     if (!m) return null;
     base.panier.besoin = 'entretien';
-    base.panier.offerts = [];
-    const marques = [...new Set(dits.map((ids) => litLaMarqueWa(prestation(ids[0])?.name ?? '').marque))];
-    const g = marques.length === 1 ? GESTES_EN_FRANCAIS[marques[0]] : undefined;
-    const question = g ? `Pour votre ${g.court.toLowerCase()}, quel rituel souhaitez-vous` : 'Quel rituel souhaitez-vous';
+    base.panier.offerts = ensemble.length === 0 && marques.length > 1 ? dits : [];
+    const noms = sansMarque.length === 0 ? marques.map((x) => GESTES_EN_FRANCAIS[x].court.toLowerCase()) : [];
+    const question = noms.length > 0 ? `Pour votre ${noms.join(' et votre ')}, quel rituel souhaitez-vous` : 'Quel rituel souhaitez-vous';
     return { ...m, corps: propre(avecSalut ? `${salut()} ${appel()}, merci de votre message. ${question} ?` : `${question}, ${appel()} ?`) };
   };
 
@@ -2992,6 +3048,35 @@ function atelierDuTour(ancien: EtatDuFil | null | undefined, tour: TourDeLaClien
        « de Kemi », jamais « de votre » dernière venue. */
     base.panier.pourQui = f.id !== titulaire?.id ? prenomDuNomWa(f.nom) : undefined;
     return dire(msgDits(avecSalut) ?? msgMeme(false, avecSalut) ?? msgBesoin(false, avecSalut));
+  };
+
+  /** DÉCALER (30 octobre 2026, choix de Yéman : « proposer de nouvelles
+      places ») : les places de sa dernière venue, à toucher ; la place
+      touchée passe à l'équipe, qui déplace le rendez-vous. L'automate ne
+      déplace jamais seul. Sans titulaire, sans venue ou sans place : rien
+      ici, la main passe comme avant. */
+  const deplaceLeRendezVous = (mots: MotsDuTour): SortieDuTour | null => {
+    const f = titulaire;
+    const v = venueReprenable(f);
+    if (!f || !v || !agenda) return null;
+    base.panier = {
+      clientId: f.id, besoin: 'entretien', serviceIds: [...v.serviceIds], deplace: f.prochainRdv?.date ?? '',
+      ...(mots.jourVoulu ? { jourVoulu: mots.jourVoulu } : {}),
+      ...(mots.jourEvite ? { jourEvite: mots.jourEvite } : {}),
+      ...(mots.moment ? { moment: mots.moment } : {}),
+      ...(mots.heure ? { heureVoulue: mots.heure } : {}),
+    };
+    const rdv = f.prochainRdv?.date;
+    const m = msgPlaces({ intro: `Pour déplacer votre rendez-vous${rdv ? ` du ${jourDitAvecAnnee(rdv)}` : ''}, voici les prochaines places, ${appel()}. Touchez celle qui vous convient : une personne de la Maison déplace le rendez-vous.` });
+    if (!m) { base.panier = {}; return null; }
+    base.prisLe = maintenant;
+    base.rdvId = undefined;
+    base.mainPasseeLe = undefined;
+    base.motifMain = undefined;
+    base.mainDeLaReception = undefined;
+    base.etapeAvantLaMain = undefined;
+    base.versionAvantLaMain = undefined;
+    return dire(m);
   };
 
   const accueil = (mots: MotsDuTour): SortieDuTour => {
@@ -3061,6 +3146,10 @@ function atelierDuTour(ancien: EtatDuFil | null | undefined, tour: TourDeLaClien
   const choisisLaPlace = (p: PlaceLibre): SortieDuTour => {
     const libre = p.iso > aujourdhui && placesLibresDuPanier().some((x) => x.iso === p.iso && x.heure === p.heure);
     if (!libre) return placePrise(p);
+    /* Un déplacement : la place touchée passe à l'équipe, rien n'est posé. */
+    if (base.panier.deplace !== undefined) {
+      return laMain('annulation', true, `Bien noté, ${appel()} : vous souhaitez venir le ${jourDitAvecAnnee(p.iso)} à ${heureDite(p.heure)}${cotonou}. Une personne de la Maison déplace votre rendez-vous et vous le confirme ici.`);
+    }
     base.panier.date = p.iso;
     base.panier.time = p.heure;
     base.panier.dureeMin = dureeDesPrestations(base.panier.serviceIds ?? [], agenda?.prestations ?? []);
@@ -3194,6 +3283,10 @@ function atelierDuTour(ancien: EtatDuFil | null | undefined, tour: TourDeLaClien
       return laMain('jour-meme', true, prochaineOuvertureDite(ms, agenda?.semaine ?? [], agenda?.exceptions ?? []) === null
         ? `Pour aujourd'hui, une personne de la Maison vous répond ici, ${appel()}.`
         : laMainDite());
+    }
+    if (mots.deplacer && !mots.annuler && !enCours) {
+      const d = deplaceLeRendezVous(mots);
+      if (d) return d;
     }
     if (mots.deplacer || (mots.annuler && (!enCours || mots.parleDUnRdv))) {
       return laMain('annulation', true, `Nous transmettons votre demande, ${appel()}. La Maison vous répond ici.`);
@@ -3466,7 +3559,7 @@ function atelierDuTour(ancien: EtatDuFil | null | undefined, tour: TourDeLaClien
     /* LE CHEMIN (30 octobre 2026) : son mot dit l'adresse, puis le plan et
        la Maison sur Google Maps, comme après une confirmation. Claude dit
        « rien » à une question de chemin : le plan part quand même. */
-    if (r.suite === 'venir' || (r.suite === 'rien' && !!tour && demandeLeCheminWa(tour.texte))) {
+    if (r.suite === 'venir' || (r.suite === 'rien' && !!tour && (demandeLeCheminWa(tour.texte) || enRouteWa(tour.texte)))) {
       const lien = ligneGoogleMapsWa(lienMapsWa(ctx.maison.carte));
       return sortie([
         signe({ forme: 'texte', etape: 'clos', corps: r.texte }),

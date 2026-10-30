@@ -3136,8 +3136,8 @@ const regles: Regle[] = [
       return ecarts;
     },
     pannes: [
-      { nom: 'la suite venir n envoie plus le plan', mute: [P(AUTO, "    if (r.suite === 'venir' || (r.suite === 'rien' && !!tour && demandeLeCheminWa(tour.texte))) {", '    if (false) {')] },
-      { nom: 'seul venir envoie le plan, pas une question de chemin dite rien', mute: [P(AUTO, "    if (r.suite === 'venir' || (r.suite === 'rien' && !!tour && demandeLeCheminWa(tour.texte))) {", "    if (r.suite === 'venir') {")] },
+      { nom: 'la suite venir n envoie plus le plan', mute: [P(AUTO, "    if (r.suite === 'venir' || (r.suite === 'rien' && !!tour && (demandeLeCheminWa(tour.texte) || enRouteWa(tour.texte)))) {", '    if (false) {')] },
+      { nom: 'seul venir envoie le plan, pas une question de chemin dite rien', mute: [P(AUTO, "    if (r.suite === 'venir' || (r.suite === 'rien' && !!tour && (demandeLeCheminWa(tour.texte) || enRouteWa(tour.texte)))) {", "    if (r.suite === 'venir') {")] },
       { nom: 'le plan part sans le lien', mute: [P(AUTO, "        ...(lien ? [signe({ forme: 'texte', etape: 'clos', corps: lien, accessoire: true })] : []),\n", '')] },
       { nom: 'le plan n est plus un accessoire', mute: [P(AUTO, "        signe({ forme: 'image', etape: 'clos', corps: '', image: PLAN_POUR_VENIR, accessoire: true }),", "        signe({ forme: 'image', etape: 'clos', corps: '', image: PLAN_POUR_VENIR }),")] },
       { nom: 'une adresse e-mail se lit comme un chemin', mute: [P(AUTO, "(?!\\p{L})(?! ?(?:e-?mail|mail|courriel|[ée]lectronique))/u,", '(?!\\p{L})/u,')] },
@@ -3200,8 +3200,65 @@ const regles: Regle[] = [
       { nom: 'reserrage et racine au singulier ne se lisent plus', mute: [P(AUTO, '(?:res+errages?|res+errer|retwists?|racines?|sinsin)', '(?:resserrages?|resserrer|retwists?|racines|sinsin)')] },
       { nom: 'l heure dite est oubliee', mute: [P(AUTO, '    const voulue = o.proche ? null : placeVoulue(offertes);', '    const voulue = o.proche ? null : null;')] },
       { nom: 'la reception perd ses mots', mute: [P(AUTO, 'texteDOrigine: tour.texte, ', '')] },
-      { nom: 'ce qui etait dans sa venue ne propose plus la meme chose', mute: [P(AUTO, '    if (v && dits.some(([id]) => v.serviceIds.includes(id) || siennes.has(marqueDe(id)))) return null;\n', '')] },
+      { nom: 'ce qui etait dans sa venue ne propose plus la meme chose', mute: [P(AUTO, '    if (v && dansSaVenue) return null;\n', '')] },
       { nom: 'une heure hors de la journee se lit', mute: [P(AUTO, '    if (n < 7 || n > 21 || nieLeMotWa(t, debut, debut + h[0].length)) continue;', '    if (nieLeMotWa(t, debut, debut + h[0].length)) continue;')] },
+    ],
+  },
+  /* ══ R47 · les vrais messages de la banque, 30 octobre 2026 ═══════════
+     La maquette « Banque de scénarios » (8c48d9mc…) : 32 vrais messages
+     rejoués, et les réponses que Yéman a choisies pour ceux à corriger. */
+  {
+    id: 'R47', nom: 'R47 la banque : lavage et resserrage ensemble en formule, lundi ferme propose les places voisines, decaler propose des places que l equipe deplace, une date ecrite se lit, en route recoit le plan',
+    eprouve: () => {
+      const { ecarts, vaut, vrai } = juge();
+      const t0 = cotonou('2026-10-30', '10:00');
+      const FIFI: FicheDuNumero = { ...NAFFI, derniereVenue: { date: '2026-10-25', serviceIds: ['dandan-soin'] } };
+      const dit = (texte: string, ms = t0) => tourDeLaCliente([{ waId: `wamid.${texte.length}`, quand: isoDe(ms), texte, type: 'text', sens: 'entrant' }], []);
+      /* « Bonjour, / Shampooing et reserrage. » : par la reception, qui ouvre le parcours. */
+      const r = parcours(ORIGINAL, NUM_NAFFI, [FIFI]);
+      const f = etapeSuivante(null, tourPourLeParcours(dit('Bonjour, / Shampooing et reserrage.')), ctxDe(r, t0));
+      vaut('lavage et resserrage nommes ensemble : la formule qui les reunit, en un seul choix', ['rituel', [['plt-05', 'sinsin-ess']], 'Pour votre lavage et votre resserrage, quel rituel souhaitez-vous, Mme Naffi ?'],
+        [f.etat.etape, f.etat.panier.rituels, f.messages[0]?.corps]);
+      /* « Lundi prochain m'arrangerait dans l'apres midi » : la Maison est fermee le lundi. */
+      vrai('m arrangerait se lit comme une envie de reserver', intentionDeReserver('Lundi prochain m’arrangerait dans l’apres midi'));
+      const l = parcours(ORIGINAL, NUM_NAFFI, [NAFFI]);
+      elle(l, t0, { texte: 'Lundi prochain m’arrangerait dans l’apres midi' });
+      const lp = elle(l, t0 + 30000, { touche: 'La même chose' });
+      vaut('lundi ferme : il le dit, et les places voisines gardent l apres-midi', [true, true],
+        [lp.messages[0]?.corps === 'La Maison est fermée le lundi, Mme Naffi. Voici les places les plus proches, l’après-midi.'.replace('’', "'"), /à 1[4-7] h/.test(lp.messages[0]?.lignes?.[0]?.description ?? '')]);
+      /* « Je vais devoir reprogrammer ça pour un autre jour » : des places, puis l'equipe. */
+      const d = parcours(ORIGINAL, NUM_NAFFI, [NAFFI]);
+      const d1 = elle(d, t0, { texte: 'Je ne pourrai malheureusement pas passer demain, je vais devoir reprogrammer ça pour un autre jour.' });
+      vaut('decaler : les places de sa derniere venue, a toucher', ['places', true], [d1.etat.etape, (d1.messages[0]?.corps ?? '').startsWith('Pour déplacer votre rendez-vous, voici les prochaines places, Mme Naffi.')]);
+      const d2 = elle(d, t0 + 30000, { touche: (d1.messages[0]?.lignes ?? [])[0]?.titre ?? '' });
+      vaut('... la place touchee passe a l equipe, rien n est pose', ['main', 'annulation', 0, true],
+        [d2.etat.etape, d2.etat.motifMain, d2.ecritures.filter((e) => e.genre === 'pose').length, /^Bien noté, Mme Naffi : vous souhaitez venir le .+\. Une personne de la Maison déplace votre rendez-vous et vous le confirme ici\.$/.test(d2.messages[0]?.corps ?? '')]);
+      vaut('reprogrammer se lit comme decaler', true, motsReconnus('je vais devoir reprogrammer', t0).deplacer);
+      /* Les dates ecrites. */
+      const t2 = cotonou('2026-10-02', '10:00');
+      vaut('une date ecrite : 30 octobre 2026, mardi 13 octobre, le 1er novembre, ni le 31 septembre, pas le 3 novembre', ['2026-10-30', '2026-10-13', '2026-11-01', undefined, '2026-11-03'], [
+        motsReconnus('Pourriez-vous reporter au 30 octobre 2026 à 9h30 ?', t2).jourVoulu, motsReconnus('Et le mardi 13 octobre a 13 h est ce possible ?', t2).jourVoulu,
+        motsReconnus('le 1er novembre', t2).jourVoulu, motsReconnus('le 31 septembre', t2).jourVoulu, motsReconnus('pas le 3 novembre', t2).jourEvite]);
+      /* « Je suis en route pour le shampooing » : bien note, et le plan. */
+      const p = parcours(ORIGINAL, NUM_NAFFI, [NAFFI]);
+      p.carte = 'https://maps.app.goo.gl/AbCdEf12345';
+      const ctx = ctxDe(p, t0);
+      const route = reponseDeLaReception(null, dit('Je suis en route pour le shampooing'), ctx, { texte: 'Bien noté, Mme Naffi, nous vous attendons.', suite: 'rien' });
+      vaut('en route : son mot, le plan, le lien', ['texte', 'image', 'texte'], route.messages.map((m) => m.forme));
+      const la = reponseDeLaReception(null, dit('Je suis arrivée devant la porte'), ctx, { texte: 'Bien noté, Mme Naffi.', suite: 'rien' });
+      vaut('... arrivee devant la porte : un mot seul', ['texte'], la.messages.map((m) => m.forme));
+      return ecarts;
+    },
+    pannes: [
+      { nom: 'deux gestes nommes ensemble restent separes', mute: [P(AUTO, '    const m = msgRituel(false, ensemble.length > 0 ? ensemble : dits);', '    const m = msgRituel(false, dits);')] },
+      { nom: 'le lundi ferme trie encore les places', mute: [P(AUTO, '    const j = jourFermeVoulu() ? undefined : base.panier.jourVoulu;', '    const j = base.panier.jourVoulu;')] },
+      { nom: 'le lundi ferme ne se dit plus', mute: [P(AUTO, '        if (ferme) {', '        if (false) {')] },
+      { nom: 'm arrangerait ne se lit plus', mute: [P(AUTO, "|m'?arrangerait|m'?arrange|me conviendrait", '|me conviendrait')] },
+      { nom: 'decaler passe la main sans proposer de places', mute: [P(AUTO, '      const d = deplaceLeRendezVous(mots);', '      const d = null;')] },
+      { nom: 'la place d un deplacement se pose comme un rendez-vous', mute: [P(AUTO, '    if (base.panier.deplace !== undefined) {', '    if (false) {')] },
+      { nom: 'reprogrammer ne se lit plus', mute: [P(AUTO, '(decal|report|deplac|reprogramm)', '(decal|report|deplac)')] },
+      { nom: 'le jour de la semaine passe devant la date ecrite', mute: [P(AUTO, '    jourVoulu = iso;\n    break;', '    jourVoulu = jourVoulu ?? iso;\n    break;')] },
+      { nom: 'en route ne recoit plus le plan', mute: [P(AUTO, ' || enRouteWa(tour.texte)', '')] },
     ],
   },
 ];
