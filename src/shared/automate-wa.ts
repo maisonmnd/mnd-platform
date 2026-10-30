@@ -2818,7 +2818,7 @@ function mainApresCoup(etat: EtatDuFil, motif: MotifDeLaMain, ctx: ContexteDuTou
 export {
   REGLAGE_LIVRE, PLAFOND_DE_L_AUTOMATE, ECARTS_AVANT_LA_MAIN, PLACES_PROPOSEES, JOURS_PROPOSES,
   PARCOURS_PERIME_MS, TOUR_PERIME_MS, TOUR_EN_COURS_MS, ETAPES_EN_COURS, ETAPE_DITE, MOTIF_DIT, PIED, DEVISE,
-  reglageDeLAutomate, cleWa, sansAppelVide, lienMapsWa, ligneGoogleMapsWa, demandeLeCheminWa, prestationsDitesWa, titreEnFrancaisWa, gesteDitEnFrancaisWa, dureeDiteWa, envoisQuiComptent, numeroServi, pauseActive, etapeCourante, tenuParLAutomate, vueDeLAutomate, silenceDeLAlarme,
+  reglageDeLAutomate, cleWa, sansAppelVide, lienMapsWa, ligneGoogleMapsWa, demandeLeCheminWa, enRouteWa, prestationsDitesWa, MOTS_DES_GESTES_WA, MOTS_DANS_LE_NOM_WA, sansAccentsWa, titreEnFrancaisWa, gesteDitEnFrancaisWa, dureeDiteWa, envoisQuiComptent, numeroServi, pauseActive, etapeCourante, tenuParLAutomate, vueDeLAutomate, silenceDeLAlarme,
   LA_MAISON_A_PARLE_MS, mineureWa, fichesServies, titulaireDuNumero, laMaisonAParle, confirmeValide,
   renvoieAUnRdv, uneQuestionAutre, civiliteLue,
   motsReconnus, intentionDeReserver, tourDeLaCliente, lisLeChoix, idDeChoix, instantACotonou,

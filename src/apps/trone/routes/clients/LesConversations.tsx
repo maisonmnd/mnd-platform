@@ -41,6 +41,9 @@ import { LeSouci } from './EntreDeuxSeances';
 import { convertir } from './Demandes';
 import { ficheConnueDe, ouvreLaFiche } from './Discussions';
 import ReponsesDeLaMaison, { useCompteDesReponses } from './ReponsesDeLaMaison';
+import BanqueDeScenarios from './BanqueDeScenarios';
+import { banqueStore, useBanque } from '../../../../shared/banque-scenarios';
+import { ajouteDesCas, banqueLue, idDuCas, texteDuCas } from '../../../../shared/banque-scenarios-pur';
 import { EnvoisAutomatiques } from './EnvoisAutomatiques';
 import type { PropsDUneVue } from './Gerard';
 import './clients.css';
@@ -129,7 +132,7 @@ function useEtroit(largeur = 900): boolean {
 
 /** Les six lignes chiffrées de « Sa fiche ». */
 type Retenu = { cle: string; valeur: string; alarme?: boolean };
-type Outil = 'reponses' | 'envois' | 'mots';
+type Outil = 'reponses' | 'envois' | 'mots' | 'scenarios';
 
 export default function LesConversations({ cerveau, moi }: PropsDUneVue) {
   /* Les crochets, tous, AVANT le premier retour (banc verifie-l-ordre-des-crochets). */
@@ -178,7 +181,12 @@ export default function LesConversations({ cerveau, moi }: PropsDUneVue) {
   /* Sa fiche s'ouvre d'elle-même sur un grand écran ; plus étroit, elle passerait par-dessus la conversation. */
   const [ficheOuverte, setFicheOuverte] = useState(() => typeof window === 'undefined' || window.innerWidth > 1280);
   const [menuOutils, setMenuOutils] = useState(false);
-  const [outil, setOutil] = useState<Outil | null>(() => (params.get('envois') === '1' ? 'envois' : params.get('reponses') === '1' ? 'reponses' : null));
+  const [outil, setOutil] = useState<Outil | null>(() => (params.get('envois') === '1' ? 'envois' : params.get('reponses') === '1' ? 'reponses' : params.get('scenarios') === '1' ? 'scenarios' : null));
+  /* LA BANQUE DE SCÉNARIOS (30 octobre 2026) : « Mauvaise réponse » y range
+     le message d'elle et l'ouvre ; le compteur dit ce qui attend. */
+  const [casAOuvrir, setCasAOuvrir] = useState<{ id: string; n: number } | null>(null);
+  const [banqueBrute] = useBanque();
+  const banqueAValider = useMemo(() => banqueLue(banqueBrute).cas.filter((c) => c.etat === 'propose').length, [banqueBrute]);
   const poignee = useRef<PoigneeDuComposeur | null>(null);
   /* La conversation ouverte : au téléphone, elle couvre l'écran et lit la hauteur que le clavier laisse. */
   const convOuverte = useRef<HTMLElement | null>(null);
@@ -516,6 +524,22 @@ export default function LesConversations({ cerveau, moi }: PropsDUneVue) {
     setMenuOutils(false);
     window.setTimeout(() => outilRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 60);
   };
+  /** « MAUVAISE RÉPONSE » sur une bulle de l'automate ou de l'assistant : le
+      dernier message d'elle avant cette réponse entre dans la banque, et la
+      banque s'ouvre sur lui pour dire ce qu'il fallait répondre. */
+  const mauvaiseReponse = (m: MessageWa) => {
+    const limite = Date.parse(m.quand);
+    const n = numeroWa(m.numero);
+    const elle = messages
+      .filter((x) => x.sens === 'entrant' && numeroWa(x.numero) === n && Date.parse(x.quand) <= limite && (x.texte ?? '').trim())
+      .sort((x, y) => y.quand.localeCompare(x.quand))[0];
+    const texte = texteDuCas(elle?.texte ?? '');
+    if (!elle || !texte) { toast('Aucun message écrit d’elle avant cette réponse.'); return; }
+    banqueStore.set((bq) => ajouteDesCas(banqueLue(bq), [{ texte, quand: elle.quand, source: 'mauvaise-reponse' }], new Date().toISOString()).banque);
+    setCasAOuvrir((c) => ({ id: idDuCas(texte), n: (c?.n ?? 0) + 1 }));
+    ouvreLOutil('scenarios');
+    toast('Son message est dans la banque : dites ce qu’il fallait répondre.');
+  };
   const ouvreLeFilDe = (numero: string) => {
     const n = numeroWa(numero);
     const b = n ? boites.find((x) => x.numero === n || x.fils.some((f) => f.numero === n)) : undefined;
@@ -806,9 +830,12 @@ export default function LesConversations({ cerveau, moi }: PropsDUneVue) {
                         {SOURCE_DITE[x.source]}{x.niveau ? ` · ${NIVEAUX[x.niveau]}` : ''} · {AUTEUR_DIT[x.auteur]}{x.parQui && x.auteur !== 'elle' ? ` (${x.parQui})` : ''}
                         {x.modele ? ` · modèle ${x.modele}` : ''} · {heureACotonou(x.quand)}{x.etat ? ` · ${x.etat}` : ''}
                       </span>
-                      {m && b.fil?.fenetre.ouverte && m.waId && (
+                      {m && ((b.fil?.fenetre.ouverte && m.waId) || (m.sens === 'sortant' && (x.auteur === 'automate' || x.auteur === 'assistant'))) && (
                         <span className="trc-b__gestes">
-                          <button type="button" onClick={() => setCite(m)}>Répondre</button>
+                          {b.fil?.fenetre.ouverte && m.waId && <button type="button" onClick={() => setCite(m)}>Répondre</button>}
+                          {m.sens === 'sortant' && (x.auteur === 'automate' || x.auteur === 'assistant') && (
+                            <button type="button" onClick={(e) => { e.stopPropagation(); mauvaiseReponse(m); }}>Mauvaise réponse</button>
+                          )}
                         </span>
                       )}
                     </div>
@@ -879,6 +906,7 @@ export default function LesConversations({ cerveau, moi }: PropsDUneVue) {
               <button type="button" role="menuitem" onClick={() => ouvreLOutil('reponses')}><b>Réponses toutes prêtes</b><span>{compteDesReponses.validees} validée{compteDesReponses.validees > 1 ? 's' : ''} sur {compteDesReponses.total}</span></button>
               <button type="button" role="menuitem" onClick={() => ouvreLOutil('envois')}><b>Ce qui part</b><span>la salle d’attente et le journal des envois</span></button>
               <button type="button" role="menuitem" onClick={() => ouvreLOutil('mots')}><b>Ce qu’elles disent</b><span>leurs mots des {JOURS_DE_LEURS_MOTS} derniers jours</span></button>
+              <button type="button" role="menuitem" onClick={() => ouvreLOutil('scenarios')}><b>Banque de scénarios</b><span>{banqueAValider > 0 ? `${banqueAValider} cas à valider` : 'les vrais messages, rejoués à chaque changement'}</span></button>
             </div>
           )}
         </div>
@@ -1026,6 +1054,15 @@ export default function LesConversations({ cerveau, moi }: PropsDUneVue) {
             {leursMots.length === 0
               ? <p className="trc-ger__doux">Aucun mot de cliente sur WhatsApp ces {JOURS_DE_LEURS_MOTS} derniers jours.</p>
               : <p className="trc-ger__doux" style={{ fontSize: 13.5, color: 'var(--ink)' }}>{leursMots.map((m) => `« ${m.texte} »`).join(' · ')}</p>}
+          </section>
+        )}
+        {outil === 'scenarios' && (
+          <section className="trc-ger__carte trc-bx__outil">
+            <div className="trc-ger__haut">
+              <h3>Banque de scénarios <span>les vrais messages, rejoués à chaque changement</span></h3>
+              <button type="button" className="trc-ger__btn trc-am__btn--calme" onClick={() => setOutil(null)}>Fermer</button>
+            </div>
+            <BanqueDeScenarios casAOuvrir={casAOuvrir} />
           </section>
         )}
       </div>

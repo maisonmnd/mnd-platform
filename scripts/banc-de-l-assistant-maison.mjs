@@ -294,6 +294,47 @@ try {
   dit('un clic sur l onglet Aujourd hui revient a la vue d entree, sans ?vue=', await evalue(String.raw`(() => { const b = [...document.querySelectorAll('.trc-am__vues [role="tab"]')][0]; b.click(); return true; })()`)
     && (await jusqua(String.raw`document.querySelectorAll('.trc-am__tuile').length === 5`, 4000)) === true && !/vue=/.test(await evalue('location.hash')), await evalue('location.hash'));
 
+  /* 6. La banque de scenarios (30 octobre 2026) : `?scenarios=1` l'ouvre sous la boite ; le menu la propose ;
+     deux cas semes (des exemples), un a valider, un valide ; « C'est juste » le valide, la direction le peut. */
+  const BANQUE = { cas: [
+    { id: 'cas-banc0001', texte: 'Je suis en route pour le shampooing', quand: instant(-1), source: 'maison', etat: 'propose', creeLe: instant(-1) },
+    { id: 'cas-banc0002', texte: 'Envoie moi la localisation', quand: instant(-1), source: 'export', etat: 'valide', attendu: { qui: 'assistant', signes: ['chemin'] }, creeLe: instant(-1) },
+  ] };
+  await evalue(`localStorage.setItem('trone::mnd_scenarios_wa', ${JSON.stringify(JSON.stringify(BANQUE))}); location.hash = '#/gerard?vue=conversations&scenarios=1'; location.reload(); true`);
+  const bq = await jusqua(String.raw`!!document.querySelector('.trc-bq .trc-bq__liste')`, 40000);
+  dit('la banque de scenarios s ouvre par ?scenarios=1, sous la boite', !!bq && !(await tombe()));
+  const filtresBq = await evalue(String.raw`[...document.querySelectorAll('.trc-bq__filtres button')].map((b) => [b.textContent.trim(), b.getAttribute('aria-selected') === 'true'])`);
+  dit('... quatre filtres, « A valider · 1 » choisi', JSON.stringify((filtresBq ?? []).map((f) => f[0])) === JSON.stringify(['À valider · 1', 'À reprendre · 0', 'Validés · 1', 'Tous · 2']) && filtresBq?.[0]?.[1] === true, JSON.stringify(filtresBq));
+  dit('... le resume dit que le cas valide tient', /1 validé · 0 à reprendre · 1 à valider · le cas validé tient/.test(await evalue(String.raw`document.querySelector('.trc-bq__resume')?.textContent.replace(/\s+/g, ' ') ?? ''`)), await evalue(String.raw`document.querySelector('.trc-bq__resume')?.textContent ?? ''`));
+  await evalue(String.raw`document.querySelector('.trc-bq__cas .trc-bq__tete')?.click(); true`);
+  await attend(400);
+  const puces = await evalue(String.raw`[...document.querySelectorAll('.trc-bq__cas.est-ouvert .trc-bq__panneau .trc-bq__puce')].map((p) => p.textContent.trim())`);
+  dit('... le cas ouvert dit ce qu il comprend : en route, le lavage', (puces ?? []).includes('en route') && (puces ?? []).includes('Lavage'), JSON.stringify(puces));
+  await evalue(String.raw`document.querySelector('.trc-bq')?.scrollIntoView({ block: 'start' }); true`);
+  await attend(300);
+  if (capture) {
+    const zone = await evalue(String.raw`(() => { const r = document.querySelector('.trc-bx__outil')?.getBoundingClientRect(); return r ? { x: r.x, y: r.y + scrollY, w: r.width, h: r.height } : null; })()`);
+    if (zone) {
+      const img = await cdp('Page.captureScreenshot', { format: 'png', captureBeyondViewport: true, clip: { x: zone.x, y: zone.y, width: zone.w, height: Math.min(zone.h, 1400), scale: 1 } });
+      writeFileSync(`${capture}-3-banque-ordi.png`, Buffer.from(img.result.data, 'base64'));
+    }
+  }
+  dit('... « C est juste » se touche (la direction)', await evalue(String.raw`(() => { const b = [...document.querySelectorAll('.trc-bq__cas.est-ouvert .trc-bq__gestes button')].find((x) => x.textContent.trim() === 'C’est juste'); if (b) b.click(); return !!b; })()`));
+  dit('... et le cas passe en Valides', (await jusqua(String.raw`[...document.querySelectorAll('.trc-bq__filtres button')].map((b) => b.textContent.trim()).join('|') === 'À valider · 0|À reprendre · 0|Validés · 2|Tous · 2'`, 4000)) === true,
+    await evalue(String.raw`[...document.querySelectorAll('.trc-bq__filtres button')].map((b) => b.textContent.trim()).join('|')`));
+  const ecrit = await evalue(`JSON.parse(localStorage.getItem('trone::mnd_scenarios_wa') || '{}')`);
+  const valideBq = (ecrit?.cas ?? []).find((c) => c.id === 'cas-banc0001');
+  dit('... ecrit : valide, son attendu, qui l a valide', valideBq?.etat === 'valide' && valideBq?.attendu?.qui === 'assistant' && (valideBq?.attendu?.signes ?? []).includes('en-route') && !!valideBq?.valideLe, JSON.stringify(valideBq));
+  await evalue(String.raw`document.querySelector('.trc-bx__menu > button')?.click(); true`);
+  await attend(300);
+  dit('le menu des outils propose la banque', await evalue(String.raw`[...document.querySelectorAll('.trc-bx__menu-liste button b')].some((b) => b.textContent.trim() === 'Banque de scénarios')`));
+  await evalue(String.raw`document.querySelector('.trc-bx__menu > button')?.click(); true`);
+  await cdp('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 2, mobile: true });
+  await attend(500);
+  dit('au telephone (390 px), la banque ne deborde pas', !(await deborde()), String(await evalue('document.documentElement.scrollWidth')));
+  await photo('3-banque');
+  await cdp('Emulation.setDeviceMetricsOverride', { width: 1366, height: 1000, deviceScaleFactor: 1, mobile: false });
+
   await cdp('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 2, mobile: true });
   for (let i = 0; i < VUES.length; i++) {
     await evalue(`location.hash = '#/gerard${i ? `?vue=${VUES[i]}` : ''}'; true`);

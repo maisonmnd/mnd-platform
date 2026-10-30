@@ -1,0 +1,70 @@
+/* LA BANQUE DE SCÉNARIOS · 30 octobre 2026. Maquette 8c48d9mc… : un registre,
+   une ligne repliée par cas, son tampon à droite (à valider, validé, à
+   reprendre). Les teintes de l'Assistant (`--am-*`) : indigo pour ce que
+   l'automate lit, cuivre pour ce que la direction tranche, terre pour ce qui
+   ne tient plus. Rien ne déborde à 390 px. */
+.trc-bq { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.trc-bq__resume { margin: 0; font-size: 14px; line-height: 1.55; font-variant-numeric: tabular-nums; }
+.trc-bq__resume b { font-weight: 600; color: var(--color-indigo); }
+.trc-bq__doux { color: var(--ink-soft); font-size: 13px; margin: 0; }
+.trc-bq__aide { max-width: 70ch; }
+.trc-bq__alarme { color: var(--am-terre); }
+.trc-bq__bon { color: var(--am-vert-fonce); }
+.trc-bq__ajouts { display: flex; flex-wrap: wrap; gap: 8px; }
+.trc-bq__fichier { position: relative; overflow: hidden; }
+.trc-bq__fichier input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+.trc-bq__fichier:focus-within { outline: 2px solid var(--color-copper); outline-offset: 2px; }
+
+.trc-bq__filtres { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px; padding: 3px; border-radius: 7px; background: var(--am-indigo-pale); }
+@media (max-width: 520px) { .trc-bq__filtres { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.trc-bq__filtres button {
+  all: unset; box-sizing: border-box; cursor: pointer; text-align: center; min-height: 36px; padding: 0 8px; border-radius: 5px;
+  font: 600 13px var(--font-sans); color: var(--ink-soft); font-variant-numeric: tabular-nums;
+}
+.trc-bq__filtres button.est-choisi { background: var(--surface-card); color: var(--color-indigo); box-shadow: 0 1px 2px rgba(20, 20, 27, .14); }
+.trc-bq__filtres button:focus-visible { outline: 2px solid var(--color-copper); outline-offset: 1px; }
+
+.trc-bq__liste { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.trc-bq__cas { border: 1px solid var(--hairline); border-radius: 6px; background: var(--surface-card); min-width: 0; }
+.trc-bq__cas.est-ouvert { border-color: var(--color-indigo); }
+.trc-bq__tete {
+  all: unset; box-sizing: border-box; cursor: pointer; width: 100%;
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 12px; align-items: center; padding: 11px 12px;
+}
+.trc-bq__tete:focus-visible { outline: 2px solid var(--color-copper); outline-offset: -2px; }
+.trc-bq__citation { font-size: 14.5px; color: var(--ink); overflow-wrap: anywhere; white-space: pre-line; }
+.trc-bq__source { grid-column: 1; font-size: 12px; color: var(--ink-soft); }
+.trc-bq__tampon {
+  grid-row: 1 / span 2; grid-column: 2; justify-self: end; white-space: nowrap;
+  font: 600 10.5px var(--font-sans); letter-spacing: .12em; text-transform: uppercase;
+  border: 1.5px solid currentColor; border-radius: 3px; padding: 5px 7px; transform: rotate(-2deg);
+}
+.trc-bq__tampon--propose { color: var(--color-copper); }
+.trc-bq__tampon--valide { color: var(--am-vert-fonce); }
+.trc-bq__tampon--a-reprendre { color: var(--am-terre); }
+
+.trc-bq__panneau { border-top: 1px solid var(--hairline); padding: 12px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+@media (max-width: 760px) { .trc-bq__panneau { grid-template-columns: minmax(0, 1fr); } }
+.trc-bq__panneau > * { min-width: 0; }
+.trc-bq__panneau h4 { margin: 0 0 6px; font: 600 11px var(--font-sans); letter-spacing: .12em; text-transform: uppercase; color: var(--ink-soft); }
+.trc-bq__qui { margin: 0 0 6px; font-size: 14px; color: var(--color-indigo); }
+.trc-bq__puces { display: flex; flex-wrap: wrap; gap: 6px; }
+.trc-bq__puce { font-size: 12.5px; background: var(--am-indigo-pale); color: var(--color-indigo); border-radius: 4px; padding: 3px 8px; }
+.trc-bq__puce--vide { background: transparent; border: 1px dashed var(--hairline); color: var(--ink-soft); }
+.trc-bq__puce--choix { all: unset; box-sizing: border-box; cursor: pointer; font-size: 12.5px; border: 1px solid var(--hairline); border-radius: 999px; padding: 4px 10px; color: var(--ink-soft); }
+.trc-bq__puce--choix.est-choisie { border-color: var(--color-indigo); background: var(--am-indigo-pale); color: var(--color-indigo); }
+.trc-bq__puce--choix:focus-visible { outline: 2px solid var(--color-copper); outline-offset: 1px; }
+.trc-bq__note, .trc-bq__ecarts, .trc-bq__gestes, .trc-bq__reprise { grid-column: 1 / -1; }
+.trc-bq__note { margin: 0; font-size: 13.5px; color: var(--ink); border-left: 2px solid var(--color-copper); padding-left: 10px; }
+.trc-bq__ecarts { margin: 0; font-size: 13.5px; }
+.trc-bq__gestes { display: flex; flex-wrap: wrap; gap: 8px; }
+.trc-ger__btn.trc-bq__btn--cuivre { background: var(--color-copper); border-color: var(--color-copper); color: #fff; }
+.trc-bq__reprise { display: flex; flex-direction: column; gap: 10px; }
+.trc-bq__reprise fieldset { border: 1px solid var(--hairline); border-radius: 6px; padding: 8px 10px; margin: 0; min-width: 0; }
+.trc-bq__reprise legend { font: 600 11px var(--font-sans); letter-spacing: .12em; text-transform: uppercase; color: var(--ink-soft); padding: 0 4px; }
+.trc-bq__choix { display: flex; align-items: center; gap: 8px; font-size: 14px; padding: 4px 0; cursor: pointer; }
+.trc-bq__choix input { accent-color: var(--color-copper); }
+.trc-bq__etiquette { font: 600 11px var(--font-sans); letter-spacing: .12em; text-transform: uppercase; color: var(--ink-soft); }
+.trc-bq__texte { width: 100%; box-sizing: border-box; font: 400 14px/1.5 var(--font-sans); color: var(--ink); background: var(--surface-card); border: 1px solid var(--hairline); border-radius: 6px; padding: 8px 10px; }
+.trc-bq__texte:focus-visible { outline: 2px solid var(--color-copper); outline-offset: 1px; }
+.trc-bq__plus { align-self: flex-start; }
