@@ -1290,7 +1290,7 @@ const regles: Regle[] = [
     },
     pannes: [
       { nom: 'une creation devient reservable', mute: [P(AUTO, "    !!s && s.reservable && (estUneConsultation(s, cats) || (!exigeConsultation(s, cats) && priceModeOf(s) !== 'devis'));", '    !!s && s.reservable;')] },
-      { nom: 'creer passe par les rituels, sans consultation', mute: [P(AUTO, "    if (b === 'entretien') return dire(msgRituel(false, formulesOffertes()), 'autre-soin');", "    if (b === 'entretien' || b === 'creation') return dire(msgRituel(false, formulesOffertes()), 'autre-soin');")] },
+      { nom: 'creer passe par les rituels, sans consultation', mute: [P(AUTO, "    if (b === 'entretien') return dire(msgEntretien(false) ?? msgRituel(false, formulesOffertes()), 'autre-soin');", "    if (b === 'entretien' || b === 'creation') return dire(msgEntretien(false) ?? msgRituel(false, formulesOffertes()), 'autre-soin');")] },
       { nom: 'l enfant recoit la consultation de la creation', mute: [P(AUTO, '    const laSienne = sienne ? toutes.filter((s) => s.id === sienne) : [];', '    const laSienne = toutes.filter((s) => s.id === agenda?.consultationParParcours?.creation);')] },
       { nom: 'le jour meme se reserve', mute: [P(AUTO, '    jourMeme: ditAujourdhui && !jourVoulu,', '    jourMeme: false,')] },
     ],
@@ -2562,7 +2562,7 @@ const regles: Regle[] = [
     },
     pannes: [
       { nom: 'la liste revient aux marques fon', mute: [P(AUTO, "    if (noms.length <= 1) return titreEnFrancaisWa(noms[0] ?? '');", "    if (noms.length <= 1) return coupeWa(noms[0] ?? '', 24);")] },
-      { nom: 'un rituel choisi file aux places sans proposer un autre soin', mute: [P(AUTO, '            return apresLeRituel();', '            return dire(msgPlaces({}));')] },
+      { nom: 'un rituel choisi file aux places sans proposer un autre soin', mute: [P(AUTO, "            return apresLeChoix('rituel');", '            return dire(msgPlaces({}));')] },
       { nom: 'le second soin remplace le premier', mute: [P(AUTO, '            const deja = base.panier.enAjout ? (base.panier.serviceIds ?? []) : [];', '            const deja: string[] = [];')] },
       { nom: 'le panier n a plus de plafond : un quatrieme soin se propose', mute: [P(AUTO, 'const SOINS_PAR_RENDEZ_VOUS = 3;', 'const SOINS_PAR_RENDEZ_VOUS = 9;')] },
       { nom: 'le prenom ne dit plus qu il se repond en message', mute: [P(AUTO, '      : `Et votre prénom, ${civ} ? Écrivez-le simplement dans un message, en réponse.`, []);', '      : `Et votre prénom, ${civ} ?`, []);')] },
@@ -2586,6 +2586,13 @@ const regles: Regle[] = [
         ['Lavage Le Souffle et reprise des racines · 1 h 45 · KLƆKLƆ™ + SÍNSIN™', 'Cuir chevelu et longueurs, rinçage soigné · 1 h · KLƆKLƆ™ · Le Souffle'], [desc[0], desc[2]]);
       vrai('« Non merci, plutot mercredi » : les places, le mercredi d abord (sans lui, samedi viendrait en tete)', v.mercredi.messages[0]?.etape === 'places' && lignesDe(v.mercredi)[0] === 'Mer. 14 oct. 2026 · 9 h', lignesDe(v.mercredi).join(' | '));
       vaut('le recapitulatif dit le geste en francais, le nom reel entre parentheses', 'Voici votre rendez-vous, Mme Afi : Hydratation (DÀNDÀN™ · Le Soin Hydratant), mercredi 14 octobre 2026 à 9 h, à la Maison MND. Nous le posons ?', corps(v.recap));
+      /* Une venue de trois gestes garde la ligne de ses noms : ils se coupent, la duree reste. */
+      const longue = parcours(ORIGINAL, NUM_INCONNUE, []);
+      longue.agenda = { formules: [{ serviceIds: ['klk-souffle', 'sinsin-reprise', 'dandan-soin'] }] };
+      const tl = cotonou('2026-10-09', '10:12');
+      elle(longue, tl, { texte: 'Bonjour, je voudrais prendre rendez-vous' });
+      const d0 = elle(longue, tl + 1000, { touche: 'Entretenir mes locks' }).messages[0]?.lignes?.[0]?.description ?? '';
+      vrai('une formule longue : les noms se coupent, la duree reste, en 72 signes', d0.endsWith(' · 2 h 15') && d0.length <= 72, d0);
       /* Ecrit a « un autre soin ? » */
       const ecrit = (texte: string) => {
         const q = parcours(ORIGINAL, NUM_INCONNUE, []);
