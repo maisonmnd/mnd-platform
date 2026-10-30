@@ -352,7 +352,7 @@ function souciOuvertDe(siens) {
 // src/shared/gestes-en-francais.ts
 var GESTES_EN_FRANCAIS = {
   "VÈKPÈ": { court: "Création", long: "Création de locks" },
-  "SÍNSIN": { court: "Resserrage", long: "Resserrage des racines" },
+  "SÍNSIN": { court: "Racines", long: "Reprise des racines" },
   "FÍNFÍN": { court: "Restauration", long: "Restauration" },
   "YÈKPÈ": { court: "Couleur", long: "Couleur végétale" },
   "GBÀTÀ": { court: "Défaisage", long: "Défaisage" },
@@ -1406,7 +1406,7 @@ function remisesAFabriquer(envois) {
 }
 
 // scripts/serveur/assistant-maison.ts
-var VERSION = "2026-10-29-a";
+var VERSION = "2026-10-30-a";
 var json = (corps, status = 200) => new Response(JSON.stringify(corps), { status, headers: { "content-type": "application/json" } });
 var jourDuSalon = (ms) => new Date(ms + 36e5).toISOString().slice(0, 10);
 var heureDuSalon2 = (ms) => {

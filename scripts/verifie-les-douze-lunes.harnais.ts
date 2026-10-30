@@ -613,6 +613,8 @@ const regles: Regle[] = [
         'automate-wa': { fichier: 'src/shared/automate-wa.ts', extrait: (s) => entre(s, 'automate-wa') },
         /* Les gestes dits en francais (13 octobre 2026), recopies dans whatsapp-automate. */
         'gestes-en-francais': { fichier: 'src/shared/gestes-en-francais.ts', extrait: (s) => entre(s, 'gestes-en-francais') },
+        /* Le bareme du site (30 octobre 2026), recopie dans whatsapp-automate : le prix dit des le choix. */
+        'prix-calibre': { fichier: 'src/apps/revelateur/prix-calibre.ts', extrait: (s) => entre(s, 'prix-calibre') },
         /* Le secretariat administratif (14 octobre 2026) : ce qui tombe, recopie dans push-notify. */
         'ce-qui-tombe': { fichier: 'src/shared/secretariat-admin-pur.ts', extrait: (s) => entre(s, 'ce-qui-tombe') },
         /* L'accuse d'une demande du site (15 octobre 2026), recopie dans demande-submit. */

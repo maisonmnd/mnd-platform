@@ -16,9 +16,10 @@
      · la cliente (au Trône) : un prénom, un nom ou un numéro de sa fiche ;
        deux homonymes restent deux, la main choisit ;
      · les prestations : un mot de leur nom (« kloklo » pour KLƆKLƆ™, sans
-       accents ni ™), ou de leur nom en français (« resserrage » pour SÍNSIN™,
+       accents ni ™), ou de leur nom en français (« racines » pour SÍNSIN™,
        shared/gestes-en-francais), ou du petit lexique de la main (« retwist »
-       se dit « resserrage », « shampoing » se dit « lavage »…). Un mot qui en
+       et « resserrage » se disent « racines », « shampoing » se dit
+       « lavage »…). Un mot qui en
        désigne plusieurs autant l'une que l'autre devient un DOUTE, jamais un
        choix ; `departage` le lève par l'habitude de la cliente.
    Rien ne s'enregistre ici : l'écran propose, la main pose.
@@ -31,8 +32,10 @@ import { nomEnFrancaisWa } from './gestes-en-francais';
 
 /* LE LEXIQUE DE LA MAIN : les mots qu'on tape pour un geste dont le nom dit
    autre chose. Chaque mot cherche aussi ses équivalents. */
+/* LE SÍNSIN™ SE DIT « Reprise des racines » depuis le 30 octobre 2026 : la
+   main tape encore « resserrage », il cherche les racines. */
 const LEXIQUE: Record<string, string[]> = {
-  retwist: ['resserrage'], twist: ['resserrage'], resserrer: ['resserrage'],
+  retwist: ['racines'], twist: ['racines'], resserrer: ['racines'], resserrage: ['racines'],
   shampoing: ['lavage'], shampooing: ['lavage'], laver: ['lavage'],
   coloration: ['couleur'], teinture: ['couleur'], colorer: ['couleur'],
   diagnostic: ['consultation'], diag: ['consultation'],
@@ -203,7 +206,7 @@ export function litLaPhrase(phrase: string, o: {
 
   const motsDesNoms = (o.prestations ?? []).map((p) => ({
     id: p.id,
-    /* Son nom, et son nom en français : « SÍNSIN™ Essentiel » se lit aussi « Resserrage des racines · Essentiel ». */
+    /* Son nom, et son nom en français : « SÍNSIN™ Essentiel » se lit aussi « Reprise des racines · Essentiel ». */
     mots: clefDeRecherche(`${p.name} ${nomEnFrancaisWa(p.name).francais}`).split(' ').filter((w) => w.length >= 3 && !VIDES_DES_NOMS.has(w)),
   }));
   const motsDesClientes = (o.clientes ?? []).map((c) => ({ id: c.id, mots: clefDeRecherche(c.name).split(' ').filter((w) => w.length >= 2) }));

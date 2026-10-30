@@ -314,7 +314,7 @@ function scnTroisSoins(m: Moteur) {
   const s2 = elle(p, t0 + 1000, { touche: 'Entretenir mes locks' });
   const s3 = elle(p, t0 + 2000, { touche: 'Lavage · Essentiel' });
   const s4 = elle(p, t0 + 3000, { touche: 'Ajouter un soin' });
-  const s5 = elle(p, t0 + 4000, { touche: 'Resserrage · Essentiel' });
+  const s5 = elle(p, t0 + 4000, { touche: 'Racines · Essentiel' });
   const s6 = elle(p, t0 + 5000, { touche: 'Ajouter un soin' });
   const s7 = elle(p, t0 + 6000, { touche: 'Hydratation · Essentiel' });
   const s8 = elle(p, t0 + 7000, { touche: 'Mar. 13 oct. 2026 · 9 h' });
@@ -330,6 +330,8 @@ function scnVraisNoms(m: Moteur) {
   const t0 = cotonou('2026-10-09', '10:12');
   elle(p, t0, { texte: 'Bonjour, je voudrais prendre rendez-vous' });
   const liste = elle(p, t0 + 1000, { touche: 'Entretenir mes locks' });
+  /* Les soins vivent sous « Un soin » depuis la liste en rubriques (30 octobre 2026). */
+  elle(p, t0 + 1500, { touche: 'Un soin' });
   elle(p, t0 + 2000, { touche: 'Hydratation' });
   const mercredi = elle(p, t0 + 3000, { texte: 'Non merci, plutôt mercredi' });
   elle(p, t0 + 4000, { touche: 'Mer. 14 oct. 2026 · 9 h' });
@@ -1124,12 +1126,12 @@ const regles: Regle[] = [
       const { ecarts, vaut, vrai } = juge();
       const a = scnConnue(ORIGINAL);
       vrai('A1 la meme chose ? Bonsoir, la civilite, la derniere venue avec son annee', a.s1.messages[0]?.etape === 'meme'
-        && corps(a.s1).startsWith('Bonsoir Mme Naffi, merci de votre message. Votre dernière venue : Lavage rituel (KLƆKLƆ™ Essentiel) et Resserrage des racines (SÍNSIN™ Essentiel), le samedi 12 septembre 2026.'), corps(a.s1));
+        && corps(a.s1).startsWith('Bonsoir Mme Naffi, merci de votre message. Votre dernière venue : Lavage rituel (KLƆKLƆ™ Essentiel) et Reprise des racines (SÍNSIN™ Essentiel), le samedi 12 septembre 2026.'), corps(a.s1));
       vaut('A1 ... ses trois boutons', ['La même chose', 'Autre chose', 'Parler à la Maison'], boutonsDe(a.s1));
       vrai('A2 les places : le samedi voulu d abord, deux par jour, l annee dans le titre', a.s2.messages[0]?.etape === 'places'
         && lignesDe(a.s2)[0] === 'Sam. 10 oct. 2026 · 9 h' && lignesDe(a.s2)[1] === 'Sam. 10 oct. 2026 · 14 h' && (lignesDe(a.s2)[2] ?? '').startsWith('Sam. 17 oct. 2026'), lignesDe(a.s2).join(' | '));
       vrai('A2 ... sept places au plus, puis Un autre jour et Parler a la Maison', lignesDe(a.s2).length <= 9 && lignesDe(a.s2).at(-2) === 'Un autre jour' && lignesDe(a.s2).at(-1) === 'Parler à la Maison');
-      vaut('A3 le recapitulatif', 'Voici votre rendez-vous, Mme Naffi : Lavage rituel (KLƆKLƆ™ Essentiel) et Resserrage des racines (SÍNSIN™ Essentiel), samedi 10 octobre 2026 à 9 h, à la Maison MND. Nous le posons ?', corps(a.s3));
+      vaut('A3 le recapitulatif', 'Voici votre rendez-vous, Mme Naffi : Lavage rituel (KLƆKLƆ™ Essentiel) et Reprise des racines (SÍNSIN™ Essentiel), samedi 10 octobre 2026 à 9 h, à la Maison MND. Nous le posons ?', corps(a.s3));
       vaut('A3 ... Je confirme, Une autre heure, Parler a la Maison', ['Je confirme', 'Une autre heure', 'Parler à la Maison'], boutonsDe(a.s3));
       vrai('A4 c est confirme, avec la devise', a.s4.messages[0]?.etape === 'confirme'
         && corps(a.s4).startsWith("C'est confirmé, Mme Naffi : votre rendez-vous est retenu le samedi 10 octobre 2026 à 9 h. Nous vous attendons. Merci de nous prévenir en cas d'empêchement.")
@@ -1143,7 +1145,8 @@ const regles: Regle[] = [
       const b = scnInconnue(ORIGINAL);
       vaut('B1 bienvenue, comment prendre soin de votre couronne', 'Bonjour, bienvenue à la Maison MND. Comment pouvons-nous prendre soin de votre couronne ?', corps(b.s1));
       vaut('B1 ... les quatre besoins et la Maison', ['Entretenir mes locks', 'Créer mes locks', 'Réparer mes locks', 'Pour mon enfant', 'Parler à la Maison'], lignesDe(b.s1));
-      vaut('B2 quel rituel : les formules reservables, en francais d abord, Autre soin, la Maison', ['Lavage · Essentiel', 'Lavage · Essentiel + 1', 'Autre soin', 'Parler à la Maison'], lignesDe(b.s2));
+      vaut('B2 quel entretien : la liste en rubriques (30 octobre 2026), la venue, chaque lavage, chaque reprise, un soin, la Maison', ['Entretien · Essentiel', 'Lavage · Essentiel', 'Lavage · Le Souffle', 'Lavage · Intégral', 'Racines · Essentiel', 'Racines · La Reprise', 'Un soin', 'Parler à la Maison'], lignesDe(b.s2));
+      vaut('B2 ... ses rubriques, dans l ordre', ['Lavage et racines', 'Lavage seul', 'Lavage seul', 'Lavage seul', 'Racines seules', 'Racines seules', 'Autre chose', 'Autre chose'], (b.s2.messages[0]?.lignes ?? []).map((l) => l.section));
       vrai('B3 un rituel choisi : un autre soin le meme jour ?', b.s3.messages[0]?.etape === 'encore' && boutonsDe(b.s3).join(' | ') === "Ajouter un soin | Non, c'est tout | Parler à la Maison", `${corps(b.s3)} ${boutonsDe(b.s3).join(' | ')}`);
       vrai('B4 la civilite, en liste', b.s4.messages[0]?.etape === 'civilite' && b.s4.messages[0]?.forme === 'liste'
         && corps(b.s4) === 'Pour inscrire votre rendez-vous, comment devons-nous vous appeler ?', corps(b.s4));
@@ -1274,7 +1277,7 @@ const regles: Regle[] = [
       vaut('pour un enfant : la consultation MND Kids, Conseil et diagnostic', 'Pour un enfant, tout commence par un échange avec ses parents : le Conseil et diagnostic. Voici les prochaines places.', corps(f.s2));
       vaut('... et c est elle qui se pose', [['svc-doto-conseil'], 'enfant'], [f.p.poses[0]?.rdv.serviceIds, f.p.poses[0]?.demande?.besoin]);
       const r = scnPorte(ORIGINAL);
-      vaut('des formules qui nomment creation, restauration ou devis ne sont jamais proposees', ['Lavage · Essentiel', 'Autre soin', 'Parler à la Maison'], lignesDe(r.s2));
+      vaut('des formules qui nomment creation, restauration ou devis ne sont jamais proposees', ['Lavage · Essentiel', 'Lavage · Le Souffle', 'Lavage · Intégral', 'Racines · Essentiel', 'Racines · La Reprise', 'Un soin', 'Parler à la Maison'], lignesDe(r.s2));
       vrai('une consultation renommee : toutes les consultations, jamais la creation', corps(r.s3) === 'Quelle consultation souhaitez-vous ?'
         && j(lignesDe(r.s3)) === j(['Consultation · Origine', 'Consultation · Suivi', 'Conseil et diagnostic', 'Parler à la Maison']), `${corps(r.s3)} ${lignesDe(r.s3).join(' | ')}`);
       vaut('... et la pose est la consultation choisie', ['sv-koko-ori'], r.q.poses[0]?.rdv.serviceIds);
@@ -1560,7 +1563,7 @@ const regles: Regle[] = [
     eprouve: async () => {
       const { ecarts, vaut, vrai } = juge();
       const edge = lf(lit(F_AUTO));
-      const ORDRE = ['lecture-entiere', 'agenda-pur', 'catalogue-pur', 'qualification', 'place-du-serveur', 'prochaines-places', 'gestes-en-francais', 'automate-wa'];
+      const ORDRE = ['lecture-entiere', 'agenda-pur', 'catalogue-pur', 'qualification', 'place-du-serveur', 'prochaines-places', 'gestes-en-francais', 'automate-wa', 'prix-calibre'];
       const ORIGINAUX: Record<string, { fichier: string; extrait: (s: string) => string | null }> = {
         'lecture-entiere': { fichier: 'src/shared/lecture-entiere.ts', extrait: (s) => { const i = s.indexOf('export const PAGE_DE_LECTURE'); return i < 0 ? null : s.slice(i).trimEnd(); } },
         'agenda-pur': { fichier: 'src/shared/agenda-pur.ts', extrait: (s) => entre(s, 'agenda-pur') },
@@ -1570,9 +1573,11 @@ const regles: Regle[] = [
         'place-du-serveur': { fichier: 'src/shared/place-du-serveur.ts', extrait: (s) => entre(s, 'place-du-serveur') },
         'prochaines-places': { fichier: RESA, extrait: (s) => entre(s, 'prochaines-places') },
         'automate-wa': { fichier: AUTO, extrait: (s) => entre(s, 'automate-wa') },
+        /* Le barème du site, pour le prix dit dès le choix (30 octobre 2026). */
+        'prix-calibre': { fichier: 'src/apps/revelateur/prix-calibre.ts', extrait: (s) => entre(s, 'prix-calibre') },
       };
       const positions = ORDRE.map((n) => edge.indexOf(`/* ⟨${n}⟩ */\n`));
-      vrai('whatsapp-automate porte les sept blocs, dans l ordre ou ils s appuient', positions.every((x, i) => x > 0 && (i === 0 || x > positions[i - 1])), ORDRE.map((n, i) => `${n}:${positions[i]}`).join(' '));
+      vrai('whatsapp-automate porte ses neuf blocs, dans l ordre ou ils s appuient', positions.every((x, i) => x > 0 && (i === 0 || x > positions[i - 1])), ORDRE.map((n, i) => `${n}:${positions[i]}`).join(' '));
       for (const n of ORDRE) {
         const copie = entre(edge, n);
         const ori = ORIGINAUX[n].extrait(lf(lit(ORIGINAUX[n].fichier)));
@@ -2518,8 +2523,9 @@ const regles: Regle[] = [
     eprouve: () => {
       const { ecarts, vaut, vrai } = juge();
       const b = scnInconnue(ORIGINAL);
-      vaut('la liste dit le geste en francais : Lavage · Essentiel', ['Lavage · Essentiel', 'Lavage · Essentiel + 1', 'Autre soin', 'Parler à la Maison'], lignesDe(b.s2));
-      vaut('... et dessous, la marque fon et la duree reservee (une heure au moins)', ['KLƆKLƆ™ Essentiel · 1 h', 'KLƆKLƆ™ Essentiel et SÍNSIN™ Essentiel · 1 h 45'],
+      vaut('la liste dit le geste en francais : Lavage · Essentiel', ['Entretien · Essentiel', 'Lavage · Essentiel', 'Lavage · Le Souffle', 'Lavage · Intégral', 'Racines · Essentiel', 'Racines · La Reprise', 'Un soin', 'Parler à la Maison'], lignesDe(b.s2));
+      vaut('... et dessous, ce que fait le geste, la duree reservee (une heure au moins), le nom fon en dernier',
+        ['Lavage et reprise des racines · 1 h 45 · KLƆKLƆ™ + SÍNSIN™', 'Cuir chevelu et longueurs, rinçage soigné · 1 h · KLƆKLƆ™'],
         (b.s2.messages[0]?.lignes ?? []).slice(0, 2).map((l) => l.description));
       const lignes = tousLesParcours(ORIGINAL).flatMap((p) => p.envoyes).flatMap((m) => m.lignes ?? []);
       vrai('dans tous les parcours, chaque titre tient en 24 signes et chaque description en 72', lignes.length > 20 && lignes.every((l) => l.titre.length <= 24 && (l.description ?? '').length <= 72),
@@ -2529,12 +2535,13 @@ const regles: Regle[] = [
       vrai('Non, c est tout : les places', b.s3b.messages[0]?.etape === 'places', corps(b.s3b));
       vaut('le prenom se repond en message, et c est dit', 'Et votre prénom, Mademoiselle ? Écrivez-le simplement dans un message, en réponse.', corps(b.s5));
       const d = scnTroisSoins(ORIGINAL);
-      vrai('Ajouter un soin : quel soin ajouter, les soins restants en francais, jamais celui deja pris', corps(d.s4) === 'Quel soin ajouter ?'
-        && j(lignesDe(d.s4)) === j(['Resserrage · Essentiel', 'Hydratation · Essentiel', 'Lavage · Intégral', 'Réparer mes locks', 'Autre soin', 'Parler à la Maison']), `${corps(d.s4)} ${lignesDe(d.s4).join(' | ')}`);
+      vrai('Ajouter un soin : quel soin ajouter, les soins restants en francais, jamais celui deja pris ni un second lavage', corps(d.s4) === 'Quel soin ajouter ?'
+        && j(lignesDe(d.s4)) === j(['Racines · Essentiel', 'Racines · La Reprise', 'Réparer mes locks', 'Autre soin', 'Parler à la Maison']), `${corps(d.s4)} ${lignesDe(d.s4).join(' | ')}`);
+      vrai('le lavage et les racines pris : les soins du cheveu viennent d eux-memes', lignesDe(d.s6).includes('Hydratation · Essentiel') && !lignesDe(d.s6).some((x) => x.startsWith('Lavage') || x.startsWith('Racines')), lignesDe(d.s6).join(' | '));
       vrai('le second soin s ajoute au premier : la question revient', d.s5.messages[0]?.etape === 'encore', corps(d.s5));
       vaut('le troisieme soin ferme le panier : droit aux places, sans question', 'places', d.s7.messages[0]?.etape);
       vaut('le recapitulatif dit les trois soins, en francais puis la marque',
-        'Voici votre rendez-vous, Mme Afi : Lavage rituel (KLƆKLƆ™ Essentiel), Resserrage des racines (SÍNSIN™ Essentiel) et Hydratation (DÀNDÀN™ Essentiel), mardi 13 octobre 2026 à 9 h, à la Maison MND. Nous le posons ?', corps(d.recap));
+        'Voici votre rendez-vous, Mme Afi : Lavage rituel (KLƆKLƆ™ Essentiel), Reprise des racines (SÍNSIN™ Essentiel) et Hydratation (DÀNDÀN™ Essentiel), mardi 13 octobre 2026 à 9 h, à la Maison MND. Nous le posons ?', corps(d.recap));
       vaut('la pose porte les trois soins, dans l ordre choisi, et leur duree', [['plt-05', 'sinsin-ess', 'dandan-ess'], 135, 'confirme'],
         [d.p.poses[0]?.rdv.serviceIds, d.p.poses[0]?.rdv.dureeMin, d.oui.messages[0]?.etape]);
       /* Ecrit au lieu de touche : « non » file aux places, « oui » ouvre les soins. */
@@ -2569,13 +2576,14 @@ const regles: Regle[] = [
       const { ecarts, vaut, vrai } = juge();
       vaut('un nom a sous-titre : le geste seul, jamais « · · »', ['Hydratation', 'Reconstruction', 'Lavage · Chaque Lune', 'Lavage · Essentiel', 'Consultation · Origine'],
         ['DÀNDÀN™ · Le Soin Hydratant', 'GBÌGBÌ™ · Le Renfort', 'KLƆKLƆ™ · Chaque Lune', 'KLƆKLƆ™ Essentiel · « Le Souffle » · Court', 'KÒKÒ™ Origine · Avant Création'].map((n) => titreEnFrancaisWa(n)));
-      vaut('devant « + 1 », le titre se compose dans sa place, sans mot coupe', ['Resserrage Essentiel', 'Reconstruction'],
-        [titreEnFrancaisWa('SÍNSIN™ Essentiel', 20), titreEnFrancaisWa('GBÌGBÌ™ Essentiel', 20)]);
+      vaut('devant « + 1 », le titre se compose dans sa place, sans mot coupe', ['Racines Essentiel', 'Reconstruction'],
+        [titreEnFrancaisWa('SÍNSIN™ Essentiel', 18), titreEnFrancaisWa('GBÌGBÌ™ Essentiel', 18)]);
       vaut('la duree dite', ['45 min', '1 h', '1 h 45', ''], [dureeDiteWa(45), dureeDiteWa(60), dureeDiteWa(105), dureeDiteWa(0)]);
       const v = scnVraisNoms(ORIGINAL);
-      vaut('la liste des vrais noms : en francais, en 24 signes', ['Lavage · Essentiel + 1', 'Hydratation', 'Lavage · Essentiel', 'Autre soin', 'Parler à la Maison'], lignesDe(v.liste));
+      vaut('la liste des vrais noms : en francais, en 24 signes, deux gammes pareilles distinguees par le nom de la Maison', ['Entretien · Essentiel', 'Lavage · Essentiel', 'Lavage · Le Souffle', 'Lavage · Intégral', 'Racines · Essentiel', 'Racines · La Reprise', 'Un soin', 'Parler à la Maison'], lignesDe(v.liste));
       const desc = (v.liste.messages[0]?.lignes ?? []).map((l) => l.description ?? '');
-      vrai('une formule longue : les noms se coupent, la duree reste, en 72 signes', desc[0].endsWith(' · 1 h 45') && desc[0].length <= 72 && desc[1] === 'DÀNDÀN™ · Le Soin Hydratant · 1 h', desc.slice(0, 2).join(' | '));
+      vaut('la venue : ses gestes en francais, la duree, les marques en dernier ; un lavage : ce qu il fait, la duree, son nom fon',
+        ['Lavage Le Souffle et reprise des racines · 1 h 45 · KLƆKLƆ™ + SÍNSIN™', 'Cuir chevelu et longueurs, rinçage soigné · 1 h · KLƆKLƆ™ · Le Souffle'], [desc[0], desc[2]]);
       vrai('« Non merci, plutot mercredi » : les places, le mercredi d abord (sans lui, samedi viendrait en tete)', v.mercredi.messages[0]?.etape === 'places' && lignesDe(v.mercredi)[0] === 'Mer. 14 oct. 2026 · 9 h', lignesDe(v.mercredi).join(' | '));
       vaut('le recapitulatif dit le geste en francais, le nom reel entre parentheses', 'Voici votre rendez-vous, Mme Afi : Hydratation (DÀNDÀN™ · Le Soin Hydratant), mercredi 14 octobre 2026 à 9 h, à la Maison MND. Nous le posons ?', corps(v.recap));
       /* Ecrit a « un autre soin ? » */
@@ -2669,7 +2677,7 @@ const regles: Regle[] = [
       const { ecarts, vaut, vrai } = juge();
       const b = scnInconnue(ORIGINAL);
       vaut('une inconnue : bonjour, sans Madame', 'Bonjour, bienvenue à la Maison MND. Comment pouvons-nous prendre soin de votre couronne ?', corps(b.s1));
-      vaut('... quel rituel, sans Madame', 'Quel rituel souhaitez-vous ?', corps(b.s2));
+      vaut('... quel entretien, sans Madame', 'Quel entretien souhaitez-vous ?', corps(b.s2));
       vrai('... la civilite choisie, elle est dite (Mlle Awa au recapitulatif)', corps(b.s6).startsWith('Voici votre rendez-vous, Mlle Awa :'), corps(b.s6));
       const muette: FicheDuNumero = { ...NAFFI, civilite: undefined };
       const p = parcours(ORIGINAL, NUM_NAFFI, [muette]);
@@ -2698,9 +2706,9 @@ const regles: Regle[] = [
       const p = parcours(ORIGINAL, NUM_INCONNUE, []);
       elle(p, t0, { texte: 'Bonjour, je voudrais prendre rendez-vous' });
       const r1 = elle(p, t0 + 1000, { touche: 'Entretenir mes locks' });
-      const autre = (r1.messages[0]?.lignes ?? []).find((l) => l.titre === 'Autre soin');
-      vaut('Autre soin dit les soins qu il ouvre', 'Hydratation, Activateur de pousse, Purification et Reconstruction', autre?.description);
-      const s = elle(p, t0 + 2000, { touche: 'Autre soin' });
+      const autre = (r1.messages[0]?.lignes ?? []).find((l) => l.titre === 'Un soin');
+      vaut('Un soin dit les soins qu il ouvre', 'Hydratation, activateur de pousse, purification et reconstruction', autre?.description);
+      const s = elle(p, t0 + 2000, { touche: 'Un soin' });
       vrai('Autre soin : la liste des soins, en francais, sans Kids ni « avec votre produit »', corps(s) === 'Quel soin souhaitez-vous ?'
         && j(lignesDe(s)) === j(['Hydratation', 'Hydratation · Essentiel', 'Activateur de pousse', 'Purification', 'Reconstruction', 'Autre soin', 'Parler à la Maison']), `${corps(s)} ${lignesDe(s).join(' | ')}`);
       const v = elle(p, t0 + 3000, { touche: 'Activateur de pousse' });
@@ -2716,7 +2724,7 @@ const regles: Regle[] = [
       const q = parcours(ORIGINAL, NUM_INCONNUE, []);
       elle(q, t0, { texte: 'Bonjour, je voudrais prendre rendez-vous' });
       elle(q, t0 + 1000, { touche: 'Entretenir mes locks' });
-      elle(q, t0 + 2000, { touche: 'Autre soin' });
+      elle(q, t0 + 2000, { touche: 'Un soin' });
       const main = elle(q, t0 + 3000, { touche: 'Autre soin' });
       vrai('depuis la liste des soins, Autre soin : une personne de la Maison', q.etat?.etape === 'main' && q.etat?.motifMain === 'autre-soin', corps(main));
       /* Entretenir ET reparer : la consultation de reparation dans Ajouter un soin. */
@@ -2740,8 +2748,8 @@ const regles: Regle[] = [
       return ecarts;
     },
     pannes: [
-      { nom: 'Autre soin passe toujours la main', mute: [P(AUTO, "            if (!base.panier.dansLesSoins && soinsDuCheveu().length > 0) return dire(msgRituel(false, soinsDuCheveu(), !!base.panier.enAjout, true) ?? msgPlaces({}));\n", '')] },
-      { nom: 'la reparation ne se joint pas', mute: [P(AUTO, '    const liste = [...soinsAAjouter(), ...(r ? [[r]] : [])];', '    const liste = [...soinsAAjouter()];')] },
+      { nom: 'Autre soin passe toujours la main', mute: [P(AUTO, "            if (!base.panier.dansLesSoins && soinsDuCheveu().some((ids) => !dejaLa(ids))) return dire(msgRituel(false, soinsDuCheveu(), !!base.panier.enAjout, true) ?? msgPlaces({}));\n", '')] },
+      { nom: 'la reparation ne se joint pas', mute: [P(AUTO, '    const liste = [...restes, ...soins, ...(r ? [[r]] : [])];', '    const liste = [...restes, ...soins];')] },
       { nom: 'les versions Kids entrent dans la liste des soins', mute: [P(AUTO, "&& !/\\bkids\\b|avec votre produit/i.test(s.name))", '&& true)')] },
       { nom: 'le sous-titre se colle au geste', mute: [P(AUTO, '    : sansNiveau ? [`${g.court} · ${variante}`, g.long, g.court]\n', '    : sansNiveau ? [`${g.court} · ${variante}`, `${g.court} ${variante}`, g.long, g.court]\n')] },
     ],
@@ -2931,7 +2939,7 @@ const regles: Regle[] = [
       const resa = elle(r, t0 + 120000, { texte: 'Je voudrais réserver samedi' });
       vrai('une envie de reserver apres une reponse ouvre le parcours', ['meme', 'besoin'].includes(resa.messages[0]?.etape ?? ''), resa.messages[0]?.etape);
       const fn = lf(lit(F_AUTO));
-      vrai('la fonction lit les reponses de la Maison', fn.includes("'mnd_house_identity', 'mnd_reponses_maison', 'mnd_assistant_wa', 'mnd_tri_des_messages']") && fn.includes("conseil: conseilDeLaMaison(docs.get('mnd_reponses_maison')),"));
+      vrai('la fonction lit les reponses de la Maison', fn.includes("'mnd_house_identity', 'mnd_reponses_maison', 'mnd_assistant_wa', 'mnd_tri_des_messages', 'mnd_model_bands', 'mnd_model_band_sets']") && fn.includes("conseil: conseilDeLaMaison(docs.get('mnd_reponses_maison')),"));
       vrai('la fonction donne les prix du catalogue du jour au tour', fn.includes('...(agenda ? { prix: prixDuCatalogue(agenda.lignes.services) } : {}),'));
       vrai('le juge de la fonction ne laisse passer un prix que venu du catalogue', (fn.match(/texteSain\(toutLeTexteWa\(m\), m\.prixDuCatalogue === true\)/g) ?? []).length === 3 && !/texteSain\(toutLeTexteWa\(m\)\)/.test(fn));
       vrai('la trace porte la reponse envoyee', fn.includes('...(o.m.reponseId ? { reponse: o.m.reponseId } : {}),'));
@@ -2943,7 +2951,7 @@ const regles: Regle[] = [
       { nom: 'merci relance', mute: [P(AUTO, "      return silence();\n    }\n    /* UNE QUESTION QUI N'EST PAS", "      return ecart();\n    }\n    /* UNE QUESTION QUI N'EST PAS")] },
       { nom: 'le juge de la fonction oublie le catalogue', mute: [P(F_AUTO, 'texteSain(toutLeTexteWa(m), m.prixDuCatalogue === true)', 'texteSain(toutLeTexteWa(m))')] },
       { nom: 'la trace oublie la reponse', mute: [P(F_AUTO, '      ...(o.m.reponseId ? { reponse: o.m.reponseId } : {}),\n', '')] },
-      { nom: 'la fonction ne lit pas le conseil', mute: [P(F_AUTO, "'mnd_house_identity', 'mnd_reponses_maison', 'mnd_assistant_wa', 'mnd_tri_des_messages']", "'mnd_house_identity', 'mnd_assistant_wa', 'mnd_tri_des_messages']")] },
+      { nom: 'la fonction ne lit pas le conseil', mute: [P(F_AUTO, "'mnd_house_identity', 'mnd_reponses_maison', 'mnd_assistant_wa', 'mnd_tri_des_messages', 'mnd_model_bands', 'mnd_model_band_sets']", "'mnd_house_identity', 'mnd_assistant_wa', 'mnd_tri_des_messages', 'mnd_model_bands', 'mnd_model_band_sets']")] },
     ],
   },
   /* ══ R42 · au Trône : les brouillons, la validation de la direction, 14 octobre 2026 ═══ */
@@ -3217,7 +3225,7 @@ const regles: Regle[] = [
       /* « Bonjour, / Shampooing et reserrage. » : par la reception, qui ouvre le parcours. */
       const r = parcours(ORIGINAL, NUM_NAFFI, [FIFI]);
       const f = etapeSuivante(null, tourPourLeParcours(dit('Bonjour, / Shampooing et reserrage.')), ctxDe(r, t0));
-      vaut('lavage et resserrage nommes ensemble : la formule qui les reunit, en un seul choix', ['rituel', [['plt-05', 'sinsin-ess']], 'Pour votre lavage et votre resserrage, quel rituel souhaitez-vous, Mme Naffi ?'],
+      vaut('lavage et resserrage nommes ensemble : la formule qui les reunit, en un seul choix', ['rituel', [['plt-05', 'sinsin-ess']], 'Pour votre lavage et vos racines, quel rituel souhaitez-vous, Mme Naffi ?'],
         [f.etat.etape, f.etat.panier.rituels, f.messages[0]?.corps]);
       /* « Lundi prochain m'arrangerait dans l'apres midi » : la Maison est fermee le lundi. */
       vrai('m arrangerait se lit comme une envie de reserver', intentionDeReserver('Lundi prochain m’arrangerait dans l’apres midi'));
@@ -3322,6 +3330,155 @@ const regles: Regle[] = [
       { nom: 'valider les cochees valide tout', mute: [P('src/shared/conseil-wa.ts', '  return ids.reduce((acc, id) => valideLaReponse(acc, id, par, quand), c);', '  return c.reponses.reduce((acc, r) => valideLaReponse(acc, r.id, par, quand), c);')] },
       { nom: 'le personnel coche aussi', mute: [P('src/apps/trone/routes/clients/ReponsesDeLaMaison.tsx', '{direction && brouillons.length > 0 && (', '{brouillons.length > 0 && (')] },
       { nom: 'une reponse fautive se coche', mute: [P('src/apps/trone/routes/clients/ReponsesDeLaMaison.tsx', 'disabled={fautes.length > 0} onChange={() => coche(r.id)}', 'disabled={false} onChange={() => coche(r.id)}')] },
+    ],
+  },
+
+  /* ══ R50 · la liste de l'entretien en rubriques, le prix dès le choix, 30 octobre 2026 ══
+     « Il y a trois lavage essentiel, le client ne saura pas quoi choisir »,
+     « rajoute le prix une fois le client sélectionné », « si c'est un ancien
+     client, le système reconnaît son nombre de locks grâce au numéro ; si
+     c'est un nouveau client, demander le nombre de locks avant de finaliser
+     le RDV » (Yéman, maquette S6XZotKV…). */
+  {
+    id: 'R50', nom: 'R50 la liste de l entretien en rubriques ; le prix des le choix, lu sur la fiche, sinon apres son nombre de locks et sa longueur ; un prix ferme passe avant ; jamais celui d une consultation ; le serveur suit le bareme du site',
+    eprouve: async () => {
+      const { ecarts, vaut, vrai } = juge();
+      const PALIERS = [{ palier: 'jusqu’à 80 locks', nom: 'Jumbo', locks: 80 }, { palier: '81 à 150 locks', nom: 'Medium', locks: 150 },
+        { palier: '151 à 250 locks', nom: 'Mini', locks: 250 }, { palier: 'plus de 250 locks', nom: 'Micro', locks: 350 }];
+      const RACINES = [20000, 20000, 20000, 30000];
+      const LAVAGE: Record<string, number> = { court: 8000, 'mi-long': 10000, long: 12000 };
+      const prixDe = (id: string, tete: { locks?: number; longueur?: string }): number | undefined => {
+        if (id === 'plt-05') return LAVAGE[tete.longueur ?? 'court'];
+        if (id === 'sinsin-ess') { const i = PALIERS.findIndex((p) => (tete.locks ?? 0) <= p.locks); return RACINES[tete.locks ? (i < 0 ? 3 : i) : 0]; }
+        if (id === 'dandan-ess') return 6000;
+        if (id === 'sv-koko-ori' || id === 'sv-koko-sui') return 15000;
+        return undefined;
+      };
+      const avecLePrix = (p: Parcours): Parcours => {
+        p.agenda = {
+          prixDe, paliers: PALIERS,
+          prestations: PRESTATIONS.map((s) => (s.id === 'plt-05' ? { ...s, prixALaLongueur: true } : s.id === 'sinsin-ess' ? { ...s, prixAuxLocks: true } : s)),
+        };
+        return p;
+      };
+      const tousLesTextes = (p: Parcours): string[] => p.envoyes.map((m) => m.corps);
+      const sainsEtConformes = (p: Parcours): string[] => p.envoyes.flatMap((m) => [...respecteMeta(m), ...texteSain(m.corps, m.prixDuCatalogue === true)]);
+      const t0 = cotonou('2026-10-30', '10:12');
+
+      /* 1. La liste en rubriques, telle que Meta la recoit. */
+      const p0 = avecLePrix(parcours(ORIGINAL, NUM_INCONNUE, []));
+      elle(p0, t0, { texte: 'Bonjour, je voudrais prendre rendez-vous' });
+      const l0 = elle(p0, t0 + 1000, { touche: 'Entretenir mes locks' });
+      const sections = ((chargeGraph(l0.messages[0]!, NUM_INCONNUE).interactive as { action: { sections: { title?: string; rows: unknown[] }[] } }).action.sections);
+      vaut('Meta recoit une section par rubrique, dans l ordre', [['Lavage et racines', 1], ['Lavage seul', 3], ['Racines seules', 2], ['Autre chose', 2]], sections.map((s) => [s.title, s.rows.length]));
+      vaut('la liste en rubriques passe les juges de Meta', [], respecteMeta(l0.messages[0]!));
+
+      /* 2. Une cliente connue : sa fiche dit ses locks et sa longueur, le prix vient aussitot. */
+      const connue: FicheDuNumero = { id: 'c-awa', nom: 'Awa Dossou', civilite: 'madame', parPhone: true, numeros: [NUM_INCONNUE], tete: { locks: 120, longueur: 'mi-long' } };
+      const p1 = avecLePrix(parcours(ORIGINAL, NUM_INCONNUE, [connue]));
+      elle(p1, t0, { texte: 'Bonjour, je voudrais prendre rendez-vous' });
+      elle(p1, t0 + 1000, { touche: 'Entretenir mes locks' });
+      const c1 = elle(p1, t0 + 2000, { touche: 'Entretien · Essentiel' });
+      vaut('connue : le prix d apres sa fiche, puis un autre soin ?', [
+        'Votre rendez-vous : 30 000 F, d’après votre fiche (environ 120 locks, mi-long).\nLavage Essentiel 10 000 F · Racines Essentiel 20 000 F', 'encore',
+      ], [c1.messages[0]?.corps, c1.messages[1]?.etape]);
+      elle(p1, t0 + 3000, { touche: "Non, c'est tout" });
+      const r1 = elle(p1, t0 + 4000, { touche: 'Sam. 31 oct. 2026 · 9 h' });
+      vrai('connue : le recapitulatif redit le prix', corps(r1).includes('Reprise des racines (SÍNSIN™ Essentiel), 30 000 F, samedi 31 octobre 2026'), corps(r1));
+      vaut('connue : chaque message passe les juges (le prix vient du catalogue)', [], sainsEtConformes(p1));
+
+      /* 3. Une nouvelle cliente : son nombre de locks (ecrit), puis sa longueur, puis le prix. */
+      const p2 = avecLePrix(parcours(ORIGINAL, NUM_INCONNUE, []));
+      elle(p2, t0, { texte: 'Bonjour, je voudrais prendre rendez-vous' });
+      elle(p2, t0 + 1000, { touche: 'Entretenir mes locks' });
+      const q1 = elle(p2, t0 + 2000, { touche: 'Entretien · Essentiel' });
+      vaut('nouvelle : combien de locks, les paliers et Je ne sais pas', ['locks', 'Pour vous donner le prix juste : combien de locks environ ? Comptez vos locks à peu près, ou touchez « Je ne sais pas ».',
+        ['Jusqu’à 80 locks', '81 à 150 locks', '151 à 250 locks', 'Plus de 250 locks', 'Je ne sais pas', 'Parler à la Maison']], [q1.messages[0]?.etape, corps(q1), lignesDe(q1)]);
+      const q2 = elle(p2, t0 + 3000, { texte: 'environ 120' });
+      vaut('nouvelle : 120 ecrit se lit, puis sa longueur', ['longueur', 'Et leur longueur ?', ['Court', 'Mi-long', 'Long', 'Parler à la Maison']], [q2.messages[0]?.etape, corps(q2), lignesDe(q2)]);
+      const q3 = elle(p2, t0 + 4000, { touche: 'Mi-long' });
+      vaut('nouvelle : le prix juste, puis un autre soin ?', ['Votre rendez-vous : 30 000 F.\nLavage Essentiel 10 000 F · Racines Essentiel 20 000 F', 'encore'], [q3.messages[0]?.corps, q3.messages[1]?.etape]);
+      vaut('nouvelle : chaque message passe les juges', [], sainsEtConformes(p2));
+
+      /* 4. Elle ne sait pas : la fourchette, et le comptage a la Maison. */
+      const p3 = avecLePrix(parcours(ORIGINAL, NUM_INCONNUE, []));
+      elle(p3, t0, { texte: 'Bonjour, je voudrais prendre rendez-vous' });
+      elle(p3, t0 + 1000, { touche: 'Entretenir mes locks' });
+      elle(p3, t0 + 2000, { touche: 'Entretien · Essentiel' });
+      elle(p3, t0 + 3000, { touche: 'Je ne sais pas' });
+      const f3 = elle(p3, t0 + 4000, { texte: 'elles sont courtes' });
+      vaut('ne sait pas : de 28 000 a 38 000 F, et le comptage a la Maison',
+        'Votre rendez-vous : de 28 000 à 38 000 F.\nLavage Essentiel 8 000 F · Racines Essentiel de 20 000 à 30 000 F\nSelon votre nombre de locks : nous les compterons ensemble à la Maison.', f3.messages[0]?.corps);
+
+      /* 5. Un prix ferme : rien a demander, son prix a elle. */
+      const ferme: FicheDuNumero = { ...connue, tete: undefined, prixFixes: { 'sinsin-ess': 15000 } };
+      const p4 = avecLePrix(parcours(ORIGINAL, NUM_INCONNUE, [ferme]));
+      elle(p4, t0, { texte: 'Bonjour, je voudrais prendre rendez-vous' });
+      elle(p4, t0 + 1000, { touche: 'Entretenir mes locks' });
+      const f4 = elle(p4, t0 + 2000, { touche: 'Racines · Essentiel' });
+      vaut('un prix ferme : aucune question, son prix', ['Racines · Essentiel : 15 000 F.', 'encore'], [f4.messages[0]?.corps, f4.messages[1]?.etape]);
+
+      /* 6. Une consultation : jamais de prix, seule ou jointe a l entretien. */
+      const p5 = avecLePrix(parcours(ORIGINAL, NUM_INCONNUE, []));
+      elle(p5, t0, { texte: 'Bonjour, je voudrais prendre rendez-vous' });
+      elle(p5, t0 + 1000, { touche: 'Créer mes locks' });
+      vrai('une consultation : aucun prix dit', !tousLesTextes(p5).some((t) => /\d\s?F\b/.test(t)), tousLesTextes(p5).join(' | '));
+      const p7 = avecLePrix(parcours(ORIGINAL, NUM_INCONNUE, [connue]));
+      elle(p7, t0, { texte: 'Bonjour, je voudrais prendre rendez-vous' });
+      elle(p7, t0 + 1000, { touche: 'Entretenir mes locks' });
+      const l7 = elle(p7, t0 + 2000, { touche: 'Lavage · Essentiel' });
+      elle(p7, t0 + 3000, { touche: 'Ajouter un soin' });
+      const r7 = elle(p7, t0 + 4000, { touche: 'Réparer mes locks' });
+      vaut('le lavage seul a son prix (sa longueur seule compte) ; la reparation jointe, plus aucun prix (la consultation d abord)', ['Lavage · Essentiel : 10 000 F, d’après votre fiche (mi-long).', 1, 'encore'],
+        [l7.messages[0]?.corps, r7.messages.length, r7.messages[0]?.etape]);
+
+      /* 7. Sans prix du serveur : ni question ni prix, comme avant. */
+      const p6 = parcours(ORIGINAL, NUM_INCONNUE, []);
+      elle(p6, t0, { texte: 'Bonjour, je voudrais prendre rendez-vous' });
+      elle(p6, t0 + 1000, { touche: 'Entretenir mes locks' });
+      const s6 = elle(p6, t0 + 2000, { touche: 'Entretien · Essentiel' });
+      vaut('sans prix du serveur : directement un autre soin ?', [1, 'encore'], [s6.messages.length, s6.messages[0]?.etape]);
+
+      /* 8. Le serveur : le bareme du site, la marge, le Juste Prix sur l Atelier seul, la longueur. */
+      const fn = lf(lit(F_AUTO));
+      vrai('la fonction lit le bareme et la tete des fiches', fn.includes('return { lignes, agenda, tarif: tarifDesDocuments(docs) };')
+        && fn.includes(".select('id, locks:data->lockCount, longueur:data->>longueur, marge:data->margeCalibre, coef:data->priceCoef, fixes:data->prixFixes')")
+        && fn.includes('...depend(s.id),') && fn.includes('...(prixDe ? { prixDe, paliers } : {}),'));
+      const a = fn.indexOf('/* ⟨prix-calibre⟩ */');
+      const b = fn.indexOf('/* ⟨/prix-calibre⟩ */');
+      const c = fn.indexOf('type TarifDuTour = ');
+      const d = fn.indexOf('function agendaDuTourWa(');
+      if (a < 0 || b < 0 || c < 0 || d < 0) ecarts.push('le bareme ou le prix du serveur est introuvable dans la fonction');
+      else {
+        const { transform } = await esbuild();
+        const { code } = await transform(`${fn.slice(a, b)}\n${fn.slice(c, d)}\nexport { prixPourLaTeteWa as __prix };\n`, { loader: 'ts', format: 'esm' });
+        const f = path.join(dossier(), `prix-du-serveur-${Date.now()}.mjs`);
+        writeFileSync(f, code);
+        const m = await import(pathToFileURL(f).href) as Any;
+        const bande = (id: string, maxLocks: number) => ({ id, name: id, maxLocks, coef: 1, durCoef: 1 });
+        const tarif = { bandes: [bande('cal-jumbo', 80), bande('cal-medium', 150), bande('cal-mini', 250), bande('cal-micro', 350)], sets: {}, baremeSuspendu: false };
+        const cats = [{ id: 'atl-ii-gbeji', parentId: 'atl-ii' }, { id: 'atl-ii' }, { id: 'plt-05' }];
+        const brutes = [{ id: 'atl-ii-gbeji', data: { parentId: 'atl-ii' } }, { id: 'atl-ii', data: { maison: 'atelier' } }, { id: 'plt-05', data: {} }];
+        const racines = { id: 'sv-atl-ii-e', data: { categoryId: 'atl-ii-gbeji', priceXof: 20000, tarifMode: 'calibre', priceFloors: { 'cal-jumbo': 20000, 'cal-medium': 20000, 'cal-mini': 20000, 'cal-micro': 30000 } } };
+        const lavage = { id: 'sv-plt-05-ess-c', data: { categoryId: 'plt-05', priceXof: 8000, prixParLongueur: { court: 8000, 'mi-long': 10000, long: 12000 } } };
+        const px = (l: unknown, tete: unknown) => m.__prix(l, tete, tarif, cats, brutes);
+        vaut('le serveur : au calibre, la marge d un cran, le Juste Prix sur l Atelier seul, la longueur avant tout', [20000, 30000, 20000, 18000, 10000, 12000, 8000, 10000],
+          [px(racines, { locks: 120 }), px(racines, { locks: 260 }), px(racines, { locks: 260, marge: true }), px(racines, { locks: 120, coef: 0.9 }),
+            px(lavage, { longueur: 'mi-long' }), px(lavage, { longueur: 'long' }), px(lavage, {}), px(lavage, { longueur: 'mi-long', coef: 0.9 })]);
+      }
+      return ecarts;
+    },
+    pannes: [
+      { nom: 'la liste de l entretien revient a plat', mute: [P(AUTO, "    if (b === 'entretien') return dire(msgEntretien(false) ?? msgRituel(", "    if (b === 'entretien') return dire(null ?? msgRituel(")] },
+      { nom: 'les rubriques ne partent pas chez Meta', mute: [P(AUTO, '  if (lignes.some((l) => l.section)) {', '  if (false) {')] },
+      { nom: 'le prix ne se dit pas apres le choix', mute: [P(AUTO, '    const prix = msgPrix();\n', '    const prix = null as MessageSortant | null;\n')] },
+      { nom: 'la fiche n est pas lue : on demande a une cliente connue', mute: [P(AUTO, '    const f = ficheChoisie()?.tete;', '    const f = undefined as TeteDuPrix | undefined;')] },
+      { nom: 'la longueur n est jamais demandee', mute: [P(AUTO, "    if (ps.some((s) => s.prixALaLongueur) && !tete.longueur) return 'longueur';\n", '')] },
+      { nom: 'le prix ferme est ignore', mute: [P(AUTO, '    return typeof v === \'number\' && v > 0 ? Math.round(v) : undefined;\n  };\n  /** CE QU\'IL MANQUE', '    return undefined;\n  };\n  /** CE QU\'IL MANQUE')] },
+      { nom: 'une consultation recoit un prix', mute: [P(AUTO, 'ps.some((s) => !s || estUneConsultation(s, cats) || s.hidePrice', 'ps.some((s) => !s || s.hidePrice')] },
+      { nom: 'le prix part sans son drapeau du catalogue', mute: [P(AUTO, "corps: lignes.join('\\n'), prixDuCatalogue: true };", "corps: lignes.join('\\n') };")] },
+      { nom: 'le serveur oublie la marge', mute: [P(F_AUTO, '  if (!marge || brut <= 0) return tri[brut];', '  return tri[brut];')] },
+      { nom: 'le Juste Prix touche aussi le plateau', mute: [P(F_AUTO, ' && deLAtelierWa(String(d.categoryId ?? \'\'), catsBrutes) ? tete.coef : 1;', ' ? tete.coef : 1;')] },
     ],
   },
 ];

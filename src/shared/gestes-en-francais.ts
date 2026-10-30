@@ -13,13 +13,15 @@
 /* ── 9 bis. LES GESTES DITS EN FRANÇAIS (13 octobre 2026) ───────────────
    Les clientes ne lisent pas les marques fon : « SÍNSIN™ Essentiel » ne dit
    rien à qui ne connaît pas encore la Maison. Dans les listes, le français
-   vient d'abord (« Resserrage · Essentiel »), la marque et la durée en
+   vient d'abord (« Racines · Essentiel »), la marque et la durée en
    dessous ; dans le récapitulatif, le français puis la marque entre
    parenthèses. Mots donnés par Yéman ; une marque absente d'ici garde son
-   nom tel quel. */
+   nom tel quel. Le SÍNSIN™ se dit « Reprise des racines » (« Racines »
+   dans un titre de liste) depuis le 30 octobre 2026, sur WhatsApp et sur
+   le site : son mot, et celui des clientes (« faire mes racines »). */
 const GESTES_EN_FRANCAIS: Record<string, { court: string; long: string }> = {
   'VÈKPÈ': { court: 'Création', long: 'Création de locks' },
-  'SÍNSIN': { court: 'Resserrage', long: 'Resserrage des racines' },
+  'SÍNSIN': { court: 'Racines', long: 'Reprise des racines' },
   'FÍNFÍN': { court: 'Restauration', long: 'Restauration' },
   'YÈKPÈ': { court: 'Couleur', long: 'Couleur végétale' },
   'GBÀTÀ': { court: 'Défaisage', long: 'Défaisage' },

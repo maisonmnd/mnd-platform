@@ -88,7 +88,7 @@ import { createClient, type SupabaseClient } from 'npm:@supabase/supabase-js@2';
 
 /** LA VERSION DE CE FICHIER, dite par le contrôle de santé. Sans elle on ne
     sait pas quel code tourne vraiment. À incrémenter à chaque déploiement. */
-const VERSION = '2026-10-30-d · le plafond levé pour les essais';
+const VERSION = '2026-10-30-e · la liste de l entretien en rubriques, le prix dès le choix';
 
 /** « En train d'écrire », puis on attend : deux messages envoyés coup sur
     coup font un seul tour, celui du dernier. */
@@ -103,7 +103,7 @@ const TRANCHE_JOURS = 7;
     est peut-être coupée, on ne s'y fie pas. */
 const PLAFOND_DE_LIGNES = 1000;
 /** Les réglages que lit un tour, en une requête. */
-const DOCUMENTS_DU_TOUR = ['mnd_auto_config', 'mnd_settings', 'mnd_horaires_exceptions', 'mnd_vitrine_config', 'mnd_house_identity', 'mnd_reponses_maison', 'mnd_assistant_wa', 'mnd_tri_des_messages'];
+const DOCUMENTS_DU_TOUR = ['mnd_auto_config', 'mnd_settings', 'mnd_horaires_exceptions', 'mnd_vitrine_config', 'mnd_house_identity', 'mnd_reponses_maison', 'mnd_assistant_wa', 'mnd_tri_des_messages', 'mnd_model_bands', 'mnd_model_band_sets'];
 
 /* LE JOURNAL : des genres, des comptes, des étapes. JAMAIS un numéro,
    jamais un texte, jamais un jeton : un journal qui recopierait le message
@@ -900,13 +900,15 @@ const appelDe = (d: { name?: unknown; civilite?: unknown; auMasculin?: unknown }
 /* ── 9 bis. LES GESTES DITS EN FRANÇAIS (13 octobre 2026) ───────────────
    Les clientes ne lisent pas les marques fon : « SÍNSIN™ Essentiel » ne dit
    rien à qui ne connaît pas encore la Maison. Dans les listes, le français
-   vient d'abord (« Resserrage · Essentiel »), la marque et la durée en
+   vient d'abord (« Racines · Essentiel »), la marque et la durée en
    dessous ; dans le récapitulatif, le français puis la marque entre
    parenthèses. Mots donnés par Yéman ; une marque absente d'ici garde son
-   nom tel quel. */
+   nom tel quel. Le SÍNSIN™ se dit « Reprise des racines » (« Racines »
+   dans un titre de liste) depuis le 30 octobre 2026, sur WhatsApp et sur
+   le site : son mot, et celui des clientes (« faire mes racines »). */
 const GESTES_EN_FRANCAIS: Record<string, { court: string; long: string }> = {
   'VÈKPÈ': { court: 'Création', long: 'Création de locks' },
-  'SÍNSIN': { court: 'Resserrage', long: 'Resserrage des racines' },
+  'SÍNSIN': { court: 'Racines', long: 'Reprise des racines' },
   'FÍNFÍN': { court: 'Restauration', long: 'Restauration' },
   'YÈKPÈ': { court: 'Couleur', long: 'Couleur végétale' },
   'GBÀTÀ': { court: 'Défaisage', long: 'Défaisage' },
@@ -1049,7 +1051,25 @@ type EtapeDuFil =
   | 'repos' | 'qui' | 'besoin' | 'meme' | 'rituel' | 'encore' | 'places' | 'jours'
   | 'civilite' | 'prenom' | 'recap' | 'confirme' | 'main' | 'clos'
   /* Le conseil (14 octobre 2026) : la liste des questions, puis une réponse. */
-  | 'questions' | 'reponse';
+  | 'questions' | 'reponse'
+  /* Le prix (30 octobre 2026) : son nombre de locks, puis sa longueur, quand
+     sa fiche ne les dit pas. */
+  | 'locks' | 'longueur';
+
+/** LA LONGUEUR, comme le catalogue la nomme (`LongueurId`). */
+type LongueurWa = 'court' | 'mi-long' | 'long';
+
+/** CE QUE LA MAISON SAIT DE SA TÊTE POUR LE PRIX (30 octobre 2026) : lu sur
+    sa fiche (son numéro), ou dit par elle dans le parcours. */
+type TeteDuPrix = {
+  /** Son nombre de locks (compté, ou le représentant du palier qu'elle a touché). */
+  locks?: number;
+  longueur?: LongueurWa;
+  /** La marge de calibre accordée par la Maison (`Client.margeCalibre`). */
+  marge?: boolean;
+  /** Son Juste Prix (`Client.priceCoef`), sur les gestes de l'Atelier. */
+  coef?: number;
+};
 
 type MotifDeLaMain =
   | 'demande' | 'ecarts' | 'prix' | 'media' | 'jour-meme' | 'autre-soin' | 'autre-personne'
@@ -1107,6 +1127,14 @@ type PanierDuFil = {
   /** L'étape du parcours où elle a posé sa question : « Continuer » l'y
       ramène (le conseil, 14 octobre 2026). */
   reprendre?: EtapeDuFil;
+  /** La liste de l'entretien, en rubriques (30 octobre 2026) : elle revient
+      telle quelle à la relance. */
+  rubriques?: boolean;
+  /** Ce qu'elle a dit de sa tête pour le prix : un nombre de locks, une
+      longueur, ou qu'elle ne sait pas son nombre de locks. */
+  tete?: { locks?: number; longueur?: LongueurWa; locksInconnus?: boolean };
+  /** Après le prix : « un autre soin ? » (`rituel`) ou les places (`places`). */
+  apresLePrix?: 'rituel' | 'places';
 };
 
 type EtatDuFil = {
@@ -1176,7 +1204,7 @@ const TOUR_EN_COURS_MS = MINUTE_WA;
     parcours neuf (relecture du 9 octobre 2026). */
 const LA_MAISON_A_PARLE_MS = 7 * JOUR_WA;
 
-const ETAPES_EN_COURS: readonly EtapeDuFil[] = ['qui', 'besoin', 'meme', 'rituel', 'encore', 'places', 'jours', 'civilite', 'prenom', 'recap', 'questions', 'reponse'];
+const ETAPES_EN_COURS: readonly EtapeDuFil[] = ['qui', 'besoin', 'meme', 'rituel', 'locks', 'longueur', 'encore', 'places', 'jours', 'civilite', 'prenom', 'recap', 'questions', 'reponse'];
 
 const ETAPE_DITE: Record<EtapeDuFil, string> = {
   repos: 'au repos',
@@ -1184,6 +1212,8 @@ const ETAPE_DITE: Record<EtapeDuFil, string> = {
   besoin: 'le besoin',
   meme: 'la même chose ?',
   rituel: 'le rituel',
+  locks: 'son nombre de locks',
+  longueur: 'sa longueur',
   encore: 'un autre soin ?',
   places: "choix de l'heure",
   jours: 'choix du jour',
@@ -1661,7 +1691,9 @@ type MessageSortant = {
   pied?: string;
   boutons?: { id: string; titre: string }[];
   bouton?: string;
-  lignes?: { id: string; titre: string; description?: string }[];
+  /** `section` : la rubrique de la ligne (« Lavage seul »), 24 signes au
+      plus ; les lignes d'une même rubrique se suivent (30 octobre 2026). */
+  lignes?: { id: string; titre: string; description?: string; section?: string }[];
   /** Une réponse de la Maison (le conseil) : son identifiant, pour la trace
       et les compteurs du Trône. */
   reponseId?: string;
@@ -1713,17 +1745,25 @@ function chargeGraph(m: MessageSortant, numero: string): Record<string, unknown>
       },
     };
   }
+  /* LES RUBRIQUES (30 octobre 2026) : une section par rubrique, dans l'ordre
+     des lignes ; sans rubrique, une seule section sans titre, comme avant. */
+  const rangee = (l: NonNullable<MessageSortant['lignes']>[number]) => ({ id: l.id, title: l.titre, ...(l.description ? { description: l.description } : {}) });
+  const lignes = m.lignes ?? [];
+  const sections: { title?: string; rows: ReturnType<typeof rangee>[] }[] = [];
+  if (lignes.some((l) => l.section)) {
+    for (const l of lignes) {
+      const titre = l.section ?? '';
+      const derniere = sections[sections.length - 1];
+      if (derniere && derniere.title === titre) derniere.rows.push(rangee(l));
+      else sections.push({ title: titre, rows: [rangee(l)] });
+    }
+  } else sections.push({ rows: lignes.map(rangee) });
   return {
     ...base,
     type: 'interactive',
     interactive: {
       type: 'list', body: { text: m.corps }, ...pied,
-      action: {
-        button: m.bouton ?? 'Choisir',
-        sections: [{
-          rows: (m.lignes ?? []).map((l) => ({ id: l.id, title: l.titre, ...(l.description ? { description: l.description } : {}) })),
-        }],
-      },
+      action: { button: m.bouton ?? 'Choisir', sections },
     },
   };
 }
@@ -1759,6 +1799,15 @@ function respecteMeta(m: MessageSortant): string[] {
     }
     if (new Set(l.map((x) => x.id)).size !== l.length) fautes.push('deux lignes au même identifiant');
     if (!l.some((x) => lisLeChoix(x.id)?.geste === 'maison')) fautes.push('pas de sortie « Parler à la Maison »');
+    /* Des rubriques : toutes les lignes en portent une, de 1 à 24 signes, et
+       une rubrique ne revient pas après une autre (Meta en ferait deux). */
+    if (l.some((x) => x.section)) {
+      if (l.some((x) => !x.section || x.section.length > 24)) fautes.push('rubrique : de 1 à 24 signes, sur chaque ligne');
+      const vues: string[] = [];
+      for (const x of l) if (vues[vues.length - 1] !== x.section) vues.push(x.section ?? '');
+      if (new Set(vues).size !== vues.length) fautes.push('une rubrique coupée en deux');
+      if (new Set(l.map((x) => x.titre)).size !== l.length) fautes.push('deux lignes au même titre');
+    }
   }
   return fautes;
 }
@@ -1973,6 +2022,12 @@ type FicheDuNumero = {
       plus tard (fiches_du_numero, 0125) : elle en a déjà un, la Maison
       répond elle-même. */
   prochainRdv?: { date: string; time?: string };
+  /** SA TÊTE POUR LE PRIX (30 octobre 2026, Yéman : « si c'est un ancien
+      client, le système reconnaît son nombre de locks grâce au numéro ») :
+      son comptage, sa longueur, sa marge, son Juste Prix (`clients`). */
+  tete?: TeteDuPrix;
+  /** Ses prix fermes (`Client.prixFixes`) : ils passent avant tout calcul. */
+  prixFixes?: Readonly<Record<string, number>>;
 };
 
 type PrestationDuTour = {
@@ -1986,7 +2041,15 @@ type PrestationDuTour = {
   /** Ouverte à la réservation en ligne, au jugement du serveur (la règle du
       site : non masquée, et une consultation ou un atelier réservable). */
   reservable: boolean;
+  /** Son prix dépend de la longueur (`prixParLongueur`) ou du nombre de
+      locks (calibre, tarif au lock, marches) : il faut le savoir pour le dire. */
+  prixALaLongueur?: boolean;
+  prixAuxLocks?: boolean;
 };
+
+/** UN PALIER DE LOCKS, comme la réservation du site le nomme : « jusqu’à 80
+    locks », le calibre (« Jumbo ») et le nombre qui le représente. */
+type PalierDuTour = { palier: string; nom: string; locks: number };
 
 type AgendaDuTour = {
   branchId: string;
@@ -2003,6 +2066,13 @@ type AgendaDuTour = {
       plafonds, murs et maîtres compris). Ni l'écran ni la cliente ne les
       calculent. */
   places: (serviceIds: readonly string[]) => readonly PlaceLibre[];
+  /** LE PRIX DU CATALOGUE pour cette tête (30 octobre 2026), calculé par le
+      serveur comme la réservation du site (calibre, longueur, Juste Prix sur
+      l'Atelier). `undefined` : pas de prix à dire. Absent : l'automate ne dit
+      aucun prix, comme avant. */
+  prixDe?: (serviceId: string, tete: TeteDuPrix) => number | undefined;
+  /** Les paliers de locks de la Maison, du plus petit au plus grand. */
+  paliers?: readonly PalierDuTour[];
 };
 
 type ContexteLeger = {
@@ -2309,7 +2379,7 @@ const gestesDitsWa = (noms: readonly string[]): string =>
    geste en toutes lettres vivent dans `gestes-en-francais.ts` (13 octobre
    2026), partagés avec le site. */
 /** Le titre d'une ligne de liste, dans `place` signes (24, ou moins devant
-    « + 1 ») : « Resserrage · Essentiel », sinon « Resserrage Essentiel »,
+    « + 1 ») : « Racines · Essentiel », sinon « Racines Essentiel »,
     sinon le geste seul, « Hydratation ». Jamais de mot coupé quand le geste
     tient. Sans mot français, le nom du catalogue. */
 const titreEnFrancaisWa = (nom: string, place = 24): string => {
@@ -2448,6 +2518,71 @@ const SOINS_PAR_RENDEZ_VOUS = 3;
 
 /** Les marques des soins du cheveu, dans l'ordre où la liste les montre. */
 const MARQUES_DES_SOINS: readonly string[] = ['DÀNDÀN', 'VÍVÍVÓ', 'WÈWÈ', 'GBÌGBÌ'];
+
+/* ── LA LISTE DE L'ENTRETIEN, EN RUBRIQUES (30 octobre 2026) ────────────
+   Yéman, sur la liste de son téléphone : « des noms qui ne sont pas
+   facilement compréhensibles, le nom fon vient en fin ; il y a trois lavage
+   essentiel, le client ne saura pas quoi choisir ». Maquette S6XZotKV…,
+   ses choix : une liste en rubriques (Lavage et racines, Lavage seul,
+   Racines seules, Autre chose), les titres par la gamme, la ligne du
+   dessous dit ce que fait le geste, sa durée, puis le nom fon EN DERNIER.
+   Jamais « express » : « ça dévalorise le service ». */
+const RUBRIQUES_WA = { venues: 'Lavage et racines', lavages: 'Lavage seul', racines: 'Racines seules', autre: 'Autre chose' } as const;
+/** Ce que fait chaque gamme, en mots simples (marque et gamme). */
+const PROMESSES_WA: Readonly<Record<string, string>> = {
+  'KLƆKLƆ Essentiel': 'Cuir chevelu et longueurs, rinçage soigné',
+  'KLƆKLƆ Signature': 'Double shampoing, massage, huile de finition',
+  'KLƆKLƆ Prestige': 'Bain d’huile, masque sous chaleur, styling',
+  'SÍNSIN Essentiel': 'Lock par lock, coiffure de sortie',
+  'SÍNSIN Signature': 'Tenue prolongée, visites espacées',
+  /* Les soins, sans gamme : la marque seule. */
+  'DÀNDÀN': 'Masque aux sept huiles végétales',
+  'WÈWÈ': 'Détox du cuir chevelu et de la fibre',
+  'VÍVÍVÓ': 'Massage crânien, plantes qui stimulent la pousse',
+  'GBÌGBÌ': 'Renfort de la fibre',
+};
+/** L'ordre des gammes dans une rubrique. */
+const GAMMES_WA: readonly string[] = ['Essentiel', 'Signature', 'Prestige'];
+/** La longueur, telle qu'elle se touche et se lit. */
+const LONGUEURS_WA: readonly { id: LongueurWa; titre: string; dite: string; indice: string }[] = [
+  { id: 'court', titre: 'Court', dite: 'court', indice: 'Jusqu’aux épaules' },
+  { id: 'mi-long', titre: 'Mi-long', dite: 'mi-long', indice: 'Des épaules aux omoplates' },
+  { id: 'long', titre: 'Long', dite: 'long', indice: 'Au-delà des omoplates' },
+];
+
+/** « KLƆKLƆ™ Essentiel · Le Souffle » : la gamme « Essentiel » et le nom de
+    la Maison « Le Souffle » (le premier segment après le point). */
+const gammeEtNomWa = (nom: string): { marque: string; gamme: string; nomMaison: string } => {
+  const { marque, variante, sansNiveau } = litLaMarqueWa(nom);
+  const morceaux = String(nom ?? '').split(' · ').map((x) => x.trim());
+  return { marque, gamme: sansNiveau ? '' : variante, nomMaison: (morceaux[1] ?? '').replace(/[«»"]/g, '').replace(/\s+/g, ' ').trim() };
+};
+
+/** Le nom fon, en dernier : « KLƆKLƆ™ · Le Souffle », ou la marque seule. */
+const fonEnDernierWa = (nom: string): string => {
+  const { marque, nomMaison } = gammeEtNomWa(nom);
+  return nomMaison ? `${marque}™ · ${nomMaison}` : `${marque}™`;
+};
+
+/** UN NOMBRE DE LOCKS ÉCRIT (« environ 120 », « 200 locks ») : de 10 à 3 000. */
+function locksEcritsWa(texte: string): number | null {
+  const m = /(?<!\d)(\d{2,4})(?!\d)/.exec(String(texte ?? '').replace(/(\d)[\s.](\d{3})(?!\d)/g, '$1$2'));
+  const n = m ? Number(m[1]) : Number.NaN;
+  return Number.isFinite(n) && n >= 10 && n <= 3000 ? n : null;
+}
+
+/** UNE LONGUEUR ÉCRITE : « courtes », « mi-longues », « longues ». */
+function longueurEcriteWa(texte: string): LongueurWa | null {
+  const t = sansAccentsWa(texte);
+  if (/\bmi[\s-]?longs?(ues?)?\b|\bmoyen(ne)?s?\b|\bomoplates?\b/.test(t)) return 'mi-long';
+  if (/\bcourt(e|es|s)?\b|\bepaules?\b/.test(t)) return 'court';
+  if (/\blong(ue|ues|s)?\b|\btres longs?\b/.test(t)) return 'long';
+  return null;
+}
+
+/** « Je ne sais pas », « aucune idée », « pas compté ». */
+const neSaitPasWa = (texte: string): boolean =>
+  /\b(je ne sais pas|je sais pas|sais pas|aucune idee|pas d'idee|jamais compte|pas compte|je ne connais pas)\b/.test(sansAccentsWa(texte));
 
 /* ── 10. L'ATELIER DU TOUR ──────────────────────────────────────────────
    Toutes les étapes se fabriquent ici, autour d'un état de travail `base`.
@@ -2881,6 +3016,241 @@ function atelierDuTour(ancien: EtatDuFil | null | undefined, tour: TourDeLaClien
     return reservableWa(prestation(id)) ? id : null;
   };
 
+  /* ── La liste de l'entretien, en rubriques (30 octobre 2026) ── */
+  /** Les gestes d'une famille qui se réservent ici, sans Kids ni « avec votre
+      produit », rangés par gamme (Essentiel, Signature, Prestige). */
+  const gestesDeLaFamille = (marque: string, max: number): PrestationDuTour[] => {
+    const rang = (s: PrestationDuTour): number => {
+      const i = GAMMES_WA.indexOf(gammeEtNomWa(s.name).gamme);
+      return i < 0 ? GAMMES_WA.length : i;
+    };
+    return (agenda?.prestations ?? [])
+      .filter((s) => directe(s) && litLaMarqueWa(s.name).marque === marque && !/\bkids\b|avec votre produit/i.test(s.name))
+      .sort((a, b) => rang(a) - rang(b) || a.name.localeCompare(b.name, 'fr'))
+      .slice(0, max);
+  };
+  /** La ligne du dessous : ce que fait le geste, la durée, le nom fon en dernier. */
+  const dessousDuGeste = (s: PrestationDuTour): string => {
+    const { marque, gamme } = gammeEtNomWa(s.name);
+    const promesse = gamme ? PROMESSES_WA[`${marque} ${gamme}`] : PROMESSES_WA[marque];
+    const duree = dureeDiteWa(dureeDesPrestations([s.id], agenda?.prestations ?? []));
+    if (!promesse) return descriptionDesGestes([s.id]);
+    /* Trop long : le nom de la Maison tombe d'abord, la phrase reste entière. */
+    for (const fon of [fonEnDernierWa(s.name), `${marque}™`]) {
+      const fin = [duree, fon].filter(Boolean).join(' · ');
+      if (promesse.length + 3 + fin.length <= 72) return `${promesse} · ${fin}`;
+    }
+    const fin = [duree, `${marque}™`].filter(Boolean).join(' · ');
+    return `${coupeWa(promesse, 72 - fin.length - 3)} · ${fin}`;
+  };
+  /** « Lavage · Essentiel », « Racines · Signature » ; sans gamme, le geste. */
+  const titreDuGeste = (s: PrestationDuTour): string => {
+    const { marque, gamme } = gammeEtNomWa(s.name);
+    const g = GESTES_EN_FRANCAIS[marque];
+    if (!g || !gamme) return titreEnFrancaisWa(s.name);
+    return [`${g.court} · ${gamme}`, `${g.court} ${gamme}`].find((x) => x.length <= 24) ?? titreEnFrancaisWa(s.name);
+  };
+  /** DEUX LIGNES NE PORTENT JAMAIS LE MÊME TITRE : la seconde prend le nom de
+      la Maison (« Lavage · Le Souffle »), sinon ses gestes, sinon son nom. */
+  const titreDistinct = (titre: string, ids: readonly string[], vus: Set<string>): string => {
+    if (!vus.has(titre)) return titre;
+    const s = ids.length === 1 ? prestation(ids[0]) : undefined;
+    const { marque, nomMaison } = gammeEtNomWa(s?.name ?? '');
+    const g = GESTES_EN_FRANCAIS[marque];
+    const essais = [...(g && nomMaison ? [`${g.court} · ${nomMaison}`] : []), titreDesGestes(ids), coupeWa(s?.name ?? titre, 24)];
+    return essais.find((x) => x.length <= 24 && !vus.has(x)) ?? titre;
+  };
+  /** UNE VENUE LAVAGE ET RACINES (les formules de la Maison) : « Entretien ·
+      Essentiel », la gamme de la reprise ; dessous « Lavage Le Souffle et
+      reprise des racines · 2 h 20 · KLƆKLƆ™ + SÍNSIN™ ». Une autre formule
+      garde le titre de ses gestes. */
+  const ligneDeLaVenue = (ids: readonly string[]): { titre: string; description: string } => {
+    const ps = ids.map((id) => prestation(id)).filter((s): s is PrestationDuTour => !!s);
+    const lavage = ps.find((s) => litLaMarqueWa(s.name).marque === 'KLƆKLƆ');
+    const racines = ps.find((s) => litLaMarqueWa(s.name).marque === 'SÍNSIN');
+    if (ps.length !== 2 || !lavage || !racines) return { titre: titreDesGestes(ids), description: descriptionDesGestes(ids) };
+    const r = gammeEtNomWa(racines.name);
+    const l = gammeEtNomWa(lavage.name);
+    const reprise = !r.nomMaison || /^la reprise$/i.test(r.nomMaison) ? 'reprise des racines' : r.nomMaison.replace(/^(la|le|l’|l')\s*/i, '').toLowerCase();
+    const duree = dureeDiteWa(dureeDesPrestations(ids, agenda?.prestations ?? []));
+    const fin = [duree, 'KLƆKLƆ™ + SÍNSIN™'].filter(Boolean).join(' · ');
+    const debut = `Lavage${l.nomMaison ? ` ${l.nomMaison}` : ''} et ${reprise}`;
+    return { titre: r.gamme ? `Entretien · ${r.gamme}` : titreDesGestes(ids), description: `${coupeWa(debut, 72 - fin.length - 3)} · ${fin}` };
+  };
+
+  /** LA LISTE EN RUBRIQUES : les deux venues que les clientes prennent le
+      plus (les formules de la Maison), chaque lavage, chaque reprise, un
+      soin, la Maison. `null` quand le catalogue n'a ni lavage ni reprise ici :
+      la liste d'avant reprend. */
+  const msgEntretien = (relance: boolean): MessageSortant | null => {
+    const lavages = gestesDeLaFamille('KLƆKLƆ', 3);
+    const racines = gestesDeLaFamille('SÍNSIN', 3);
+    if (lavages.length === 0 && racines.length === 0) return null;
+    const venues = (agenda?.formules ?? []).map((f) => [...f.serviceIds])
+      .filter((ids) => ids.length >= 2 && ids.length <= 6 && ids.every((id) => directe(prestation(id))))
+      .slice(0, 2);
+    const desSoins = soinsDuCheveu().length > 0;
+    /* Dix lignes au plus avec la Maison : les reprises cèdent d'abord. */
+    const place = 10 - venues.length - lavages.length - (desSoins ? 1 : 0) - 1;
+    const rangees: { ids: string[]; section: string; titre: string; description: string }[] = [
+      ...venues.map((ids) => ({ ids, section: RUBRIQUES_WA.venues, ...ligneDeLaVenue(ids) })),
+      ...lavages.map((s) => ({ ids: [s.id], section: RUBRIQUES_WA.lavages, titre: titreDuGeste(s), description: dessousDuGeste(s) })),
+      ...racines.slice(0, Math.max(0, place)).map((s) => ({ ids: [s.id], section: RUBRIQUES_WA.racines, titre: titreDuGeste(s), description: dessousDuGeste(s) })),
+    ];
+    const vus = new Set<string>();
+    for (const r of rangees) {
+      r.titre = titreDistinct(r.titre, r.ids, vus);
+      vus.add(r.titre);
+    }
+    passe('rituel');
+    base.panier.rituels = rangees.map((r) => [...r.ids]);
+    base.panier.offerts = rangees.map((r) => [...r.ids]);
+    base.panier.enAjout = false;
+    base.panier.dansLesSoins = false;
+    base.panier.rubriques = true;
+    const quels = [...new Set(soinsDuCheveu().map((ids) => GESTES_EN_FRANCAIS[litLaMarqueWa(prestation(ids[0])?.name ?? '').marque]?.long ?? '').filter(Boolean))];
+    const lignes = [
+      ...rangees.map((r, i) => ({ id: choix('rituel', String(i)), titre: r.titre, description: r.description, section: r.section })),
+      ...(desSoins ? [{ id: choix('autre-soin'), titre: 'Un soin', description: coupeWa(gestesDitsWa(quels.map((q, i) => (i === 0 ? q : q.toLowerCase()))), 72), section: RUBRIQUES_WA.autre }] : []),
+    ];
+    return {
+      forme: 'liste', etape: 'rituel', pied: PIED, bouton: 'Choisir',
+      corps: propre(relance ? relanceDite() : `Quel entretien souhaitez-vous, ${appel()} ?`),
+      lignes: [...lignes.slice(0, 9), { ...sortieMaison, description: 'Une personne de la Maison vous répond', section: RUBRIQUES_WA.autre }],
+    };
+  };
+
+  /* ── Le prix, dès le choix (30 octobre 2026) ──
+     « Rajoute le prix une fois le client sélectionné » ; « si c'est un ancien
+     client, le système reconnaît son nombre de locks grâce au numéro ; si
+     c'est un nouveau client, demander le nombre de locks avant de finaliser
+     le RDV » (Yéman). Sa fiche d'abord, puis ce qu'elle a dit ; la longueur
+     n'est demandée que si un geste choisi se paie à la longueur. */
+  const teteConnue = (): TeteDuPrix & { inconnus?: boolean } => {
+    const f = ficheChoisie()?.tete;
+    const dit = base.panier.tete ?? {};
+    const locks = f?.locks && f.locks > 0 ? f.locks : dit.locks;
+    const longueur = f?.longueur ?? dit.longueur;
+    return {
+      ...(locks ? { locks } : {}),
+      ...(longueur ? { longueur } : {}),
+      ...(f?.marge ? { marge: true } : {}),
+      ...(f?.coef && f.coef > 0 && f.coef !== 1 ? { coef: f.coef } : {}),
+      ...(dit.locksInconnus && !locks ? { inconnus: true } : {}),
+    };
+  };
+  /** Les gestes du panier dont on dit le prix : aucun si une consultation,
+      un devis ou un prix masqué s'y trouve (la consultation d'abord). */
+  const gestesAuPrix = (): PrestationDuTour[] => {
+    const ps = (base.panier.serviceIds ?? []).map((id) => prestation(id));
+    if (!agenda?.prixDe || ps.length === 0 || ps.some((s) => !s || estUneConsultation(s, cats) || s.hidePrice || priceModeOf(s) === 'devis')) return [];
+    return ps as PrestationDuTour[];
+  };
+  const prixFixeDuGeste = (id: string): number | undefined => {
+    const v = ficheChoisie()?.prixFixes?.[id];
+    return typeof v === 'number' && v > 0 ? Math.round(v) : undefined;
+  };
+  /** CE QU'IL MANQUE pour dire le prix : son nombre de locks, sa longueur, rien. */
+  const ilManque = (): 'locks' | 'longueur' | null => {
+    const tete = teteConnue();
+    const ps = gestesAuPrix().filter((s) => prixFixeDuGeste(s.id) === undefined);
+    if (ps.some((s) => s.prixAuxLocks) && !tete.locks && !tete.inconnus) return 'locks';
+    if (ps.some((s) => s.prixALaLongueur) && !tete.longueur) return 'longueur';
+    return null;
+  };
+  /** Le prix de chaque geste, [bas, haut] : égaux quand la tête est connue ;
+      son nombre de locks ignoré, du plus petit palier au plus grand. */
+  const prixDesGestes = (): { s: PrestationDuTour; prix: [number, number] }[] | null => {
+    const tete = teteConnue();
+    const paliers = agenda?.paliers ?? [];
+    const out: { s: PrestationDuTour; prix: [number, number] }[] = [];
+    for (const s of gestesAuPrix()) {
+      const ferme = prixFixeDuGeste(s.id);
+      if (ferme !== undefined) { out.push({ s, prix: [ferme, ferme] }); continue; }
+      const { inconnus, ...pour } = tete;
+      const essais = s.prixAuxLocks && !pour.locks
+        ? paliers.map((p) => agenda!.prixDe!(s.id, { ...pour, locks: p.locks }))
+        : [agenda!.prixDe!(s.id, pour)];
+      const lus = essais.filter((x): x is number => typeof x === 'number' && x > 0);
+      if (lus.length === 0) return null;
+      out.push({ s, prix: [Math.min(...lus), Math.max(...lus)] });
+    }
+    return out.length > 0 ? out : null;
+  };
+  const prixDuPanierDit = (): string | null => {
+    const p = prixDesGestes();
+    if (!p) return null;
+    const bas = p.reduce((n, x) => n + x.prix[0], 0);
+    const haut = p.reduce((n, x) => n + x.prix[1], 0);
+    return bas === haut ? prixDitWa(bas) : `de ${prixDitWa(bas).replace(/ F$/, '')} à ${prixDitWa(haut)}`;
+  };
+  const msgPrix = (): MessageSortant | null => {
+    const p = prixDesGestes();
+    const total = prixDuPanierDit();
+    if (!p || !total) return null;
+    const tete = teteConnue();
+    const dit = (x: [number, number]): string => (x[0] === x[1] ? prixDitWa(x[0]) : `de ${prixDitWa(x[0]).replace(/ F$/, '')} à ${prixDitWa(x[1])}`);
+    /* Ce que sa fiche a donné, et seulement ce qui a servi au prix. */
+    const f = ficheChoisie()?.tete;
+    const calcules = p.filter((x) => prixFixeDuGeste(x.s.id) === undefined);
+    const deLaFiche = [
+      calcules.some((x) => x.s.prixAuxLocks) && f?.locks ? `environ ${f.locks} locks` : '',
+      calcules.some((x) => x.s.prixALaLongueur) && f?.longueur ? LONGUEURS_WA.find((l) => l.id === f.longueur)?.dite ?? '' : '',
+    ].filter(Boolean).join(', ');
+    const sa = base.panier.pourQui ? `la fiche de ${base.panier.pourQui}` : 'votre fiche';
+    const selon = deLaFiche ? `, d’après ${sa} (${deLaFiche})` : '';
+    const lignes = [
+      p.length === 1 ? `${titreDuGeste(p[0].s)} : ${total}${selon}.` : `Votre rendez-vous : ${total}${selon}.`,
+      ...(p.length > 1 ? [p.map((x) => `${titreDuGeste(x.s).replace(' · ', ' ')} ${dit(x.prix)}`).join(' · ')] : []),
+      ...(tete.inconnus && p.some((x) => x.prix[0] !== x.prix[1]) ? ['Selon votre nombre de locks : nous les compterons ensemble à la Maison.'] : []),
+    ];
+    base.panier.horsPlafond = (base.panier.horsPlafond ?? 0) + 1;
+    return { forme: 'texte', etape: base.etape, corps: lignes.join('\n'), prixDuCatalogue: true };
+  };
+  /** SON NOMBRE DE LOCKS, quand la fiche ne le dit pas : les paliers du site,
+      et « Je ne sais pas ». */
+  const msgLocks = (relance: boolean): MessageSortant | null => {
+    const paliers = (agenda?.paliers ?? []).slice(0, 7);
+    if (paliers.length === 0) return null;
+    passe('locks');
+    if (!relance) base.panier.horsPlafond = (base.panier.horsPlafond ?? 0) + 1;
+    const pour = base.panier.pourQui ? `les locks de ${base.panier.pourQui}` : 'vos locks';
+    return liste('locks', relance ? relanceDite() : `Pour vous donner le prix juste, ${appel()} : combien de locks environ ? Comptez ${pour} à peu près, ou touchez « Je ne sais pas ».`, 'Choisir', [
+      ...paliers.map((p) => ({ id: choix('locks', String(p.locks)), titre: coupeWa(p.palier.charAt(0).toUpperCase() + p.palier.slice(1), 24), description: `Calibre ${p.nom}` })),
+      { id: choix('locks', 'inconnu'), titre: 'Je ne sais pas', description: 'Nous les compterons ensemble à la Maison' },
+    ]);
+  };
+  const msgLongueur = (relance: boolean): MessageSortant => {
+    passe('longueur');
+    if (!relance) base.panier.horsPlafond = (base.panier.horsPlafond ?? 0) + 1;
+    const deja = !!(base.panier.tete?.locks || base.panier.tete?.locksInconnus);
+    const question = deja ? `Et leur longueur, ${appel()} ?` : `Pour vous donner le prix juste, ${appel()} : quelle est la longueur de vos locks ?`;
+    return liste('longueur', relance ? relanceDite() : question, 'Choisir',
+      LONGUEURS_WA.map((l) => ({ id: choix('longueur', l.id), titre: l.titre, description: l.indice })));
+  };
+  /** APRÈS LE CHOIX : ce qu'il manque se demande ; sinon le prix, puis la
+      suite (« un autre soin ? » ou les places). */
+  const apresLeChoix = (suite: 'rituel' | 'places'): SortieDuTour => {
+    base.panier.apresLePrix = suite;
+    const manque = ilManque();
+    if (manque === 'locks') { const m = msgLocks(false); if (m) return dire(m); }
+    if (manque === 'longueur') return dire(msgLongueur(false));
+    return avecLePrix(suite);
+  };
+  const avecLePrix = (suite: 'rituel' | 'places'): SortieDuTour => {
+    base.panier.apresLePrix = undefined;
+    const prix = msgPrix();
+    const apres = suite === 'places' ? dire(msgPlaces({})) : apresLeRituel();
+    if (!prix || apres.messages.length === 0) return apres;
+    base.envois.push(maintenant);
+    return { ...apres, messages: [prix, ...apres.messages] };
+  };
+  /** Sa réponse sur sa tête : la question suivante, ou le prix et la suite. */
+  const teteDite = (dit: { locks?: number; longueur?: LongueurWa; locksInconnus?: boolean }): SortieDuTour => {
+    base.panier.tete = { ...(base.panier.tete ?? {}), ...dit };
+    return apresLeChoix(base.panier.apresLePrix ?? 'rituel');
+  };
+
   const sontDesConsultations = (offres: readonly string[][]): boolean =>
     offres.length > 0 && offres.every((ids) => ids.length === 1 && !!prestation(ids[0]) && estUneConsultation(prestation(ids[0])!, cats));
 
@@ -2890,6 +3260,7 @@ function atelierDuTour(ancien: EtatDuFil | null | undefined, tour: TourDeLaClien
     passe('rituel');
     base.panier.rituels = valables.map((ids) => [...ids]);
     if (!ajout && !soins) base.panier.offerts = valables.map((ids) => [...ids]);
+    if (!ajout && !soins) base.panier.rubriques = undefined;
     base.panier.enAjout = ajout;
     base.panier.dansLesSoins = soins;
     if ((ajout || soins) && !relance) base.panier.horsPlafond = (base.panier.horsPlafond ?? 0) + 1;
@@ -2899,14 +3270,30 @@ function atelierDuTour(ancien: EtatDuFil | null | undefined, tour: TourDeLaClien
         : soins ? `Quel soin souhaitez-vous, ${appel()} ?`
           : consultations ? `Quelle consultation souhaitez-vous, ${appel()} ?` : `Quel rituel souhaitez-vous, ${appel()} ?`;
     const reparation = agenda?.consultationParParcours?.reparation;
-    /* « Autre soin » ouvre la liste des soins, s'il y en a et qu'on n'y est
-       pas déjà ; sinon il passe la main, comme avant. */
-    const desSoins = !soins && soinsDuCheveu().length > 0;
+    /* « Autre soin » ouvre la liste des soins, s'il y en a, qu'on n'y est
+       pas déjà et qu'elle n'est pas déjà toute là ; sinon il passe la main,
+       comme avant. */
+    const dejaLa = (ids: string[]): boolean => valables.some((v) => v.length === ids.length && v.every((x, k) => x === ids[k]));
+    const desSoins = !soins && soinsDuCheveu().some((ids) => !dejaLa(ids));
     const quels = [...new Set(soinsDuCheveu().map((ids) => GESTES_EN_FRANCAIS[litLaMarqueWa(prestation(ids[0])?.name ?? '').marque]?.long ?? '').filter(Boolean))];
-    return liste('rituel', corps, 'Choisir', [
-      ...valables.map((ids, i) => (ids.length === 1 && ids[0] === reparation && ajout
+    /* Le nom fon en dernier (30 octobre 2026) : un geste dit ce qu'il fait,
+       une venue lavage et racines se nomme comme dans la liste en rubriques. */
+    const ligneDe = (ids: string[]): { titre: string; description: string } => {
+      const s = ids.length === 1 ? prestation(ids[0]) : undefined;
+      if (s && !estUneConsultation(s, cats)) return { titre: titreDuGeste(s), description: dessousDuGeste(s) };
+      return ids.length > 1 ? ligneDeLaVenue(ids) : { titre: titreDesGestes(ids), description: descriptionDesGestes(ids) };
+    };
+    const vus = new Set<string>();
+    const rangees = valables.map((ids, i) => {
+      const r = ids.length === 1 && ids[0] === reparation && ajout
         ? { id: choix('rituel', String(i)), titre: 'Réparer mes locks', description: coupeWa(`consultation d'abord · ${descriptionDesGestes(ids)}`, 72) }
-        : { id: choix('rituel', String(i)), titre: titreDesGestes(ids), description: descriptionDesGestes(ids) })),
+        : { id: choix('rituel', String(i)), ...ligneDe(ids) };
+      r.titre = titreDistinct(r.titre, ids, vus);
+      vus.add(r.titre);
+      return r;
+    });
+    return liste('rituel', corps, 'Choisir', [
+      ...rangees,
       ...(consultations ? [] : [{ id: choix('autre-soin'), titre: 'Autre soin',
         description: desSoins ? coupeWa(gestesDitsWa(quels), 72) : 'une personne de la Maison vous répond' }]),
     ]);
@@ -2914,12 +3301,16 @@ function atelierDuTour(ancien: EtatDuFil | null | undefined, tour: TourDeLaClien
 
   /** LES SOINS QU'ELLE PEUT ENCORE AJOUTER : les offres du premier choix,
       moins ce qu'elle a déjà pris (une formule dont elle a pris un geste
-      offre le reste), sans dépasser trois soins, sans doublon. */
+      offre le reste), sans dépasser trois soins, sans doublon. Jamais un
+      second geste d'une famille déjà prise (30 octobre 2026 : la liste en
+      rubriques offre trois lavages, un seul se prend). */
   const soinsAAjouter = (): string[][] => {
     const pris = base.panier.serviceIds ?? [];
+    const marqueDe = (id: string): string => litLaMarqueWa(prestation(id)?.name ?? '').marque;
+    const prises = new Set(pris.map(marqueDe).filter((m) => !!GESTES_EN_FRANCAIS[m]));
     const vus = new Set<string>();
     return (base.panier.offerts ?? [])
-      .map((ids) => ids.filter((id) => !pris.includes(id)))
+      .map((ids) => ids.filter((id) => !pris.includes(id) && !prises.has(marqueDe(id))))
       .filter((ids) => ids.length > 0 && pris.length + ids.length <= SOINS_PAR_RENDEZ_VOUS && ids.every((id) => directe(prestation(id))))
       .filter((ids) => { const cle = [...ids].sort().join('+'); if (vus.has(cle)) return false; vus.add(cle); return true; });
   };
@@ -2942,7 +3333,12 @@ function atelierDuTour(ancien: EtatDuFil | null | undefined, tour: TourDeLaClien
       de réparation ; à défaut, les soins du cheveu (13 octobre 2026). */
   const aAjouter = (): string[][] => {
     const r = reparationAAjouter();
-    const liste = [...soinsAAjouter(), ...(r ? [[r]] : [])];
+    const restes = soinsAAjouter();
+    /* La liste en rubriques ne porte pas les soins (30 octobre 2026) : le
+       lavage et les racines pris, les soins du cheveu viennent d'eux-mêmes. */
+    const pris = base.panier.serviceIds ?? [];
+    const soins = restes.length > 0 ? [] : soinsDuCheveu().filter((ids) => !ids.some((id) => pris.includes(id)));
+    const liste = [...restes, ...soins, ...(r ? [[r]] : [])];
     return liste.length > 0 ? liste : soinsDuCheveu();
   };
 
@@ -2976,12 +3372,14 @@ function atelierDuTour(ancien: EtatDuFil | null | undefined, tour: TourDeLaClien
     passe('recap');
     const gestes = gestesDitsEnFrancaisWa(nomsDe(p.serviceIds));
     const de = p.pourQui ? `le rendez-vous de ${p.pourQui}` : 'votre rendez-vous';
+    /* Le prix dit au choix se redit ici (30 octobre 2026). */
+    const prix = prixDuPanierDit();
     const corps = relance ? relanceDite()
-      : `Voici ${de}, ${appel()} : ${gestes}, ${quandDuPanier()}, à la ${maisonNomWa}. Nous le posons ?`;
-    return boutons('recap', corps, [
+      : `Voici ${de}, ${appel()} : ${gestes}${prix ? `, ${prix}` : ''}, ${quandDuPanier()}, à la ${maisonNomWa}. Nous le posons ?`;
+    return { ...boutons('recap', corps, [
       { id: choix('oui'), titre: 'Je confirme' },
       { id: choix('autre-heure'), titre: 'Une autre heure' },
-    ]);
+    ]), ...(prix ? { prixDuCatalogue: true } : {}) };
   };
 
   const renvoie = (etape: EtapeDuFil, relance: boolean): SortieDuTour => {
@@ -2993,7 +3391,14 @@ function atelierDuTour(ancien: EtatDuFil | null | undefined, tour: TourDeLaClien
         ? dire(msgRituel(relance, soinsDuCheveu(), !!base.panier.enAjout, true) ?? msgPlaces({}))
         : base.panier.enAjout
         ? ajouteUnSoin(relance)
+        : base.panier.rubriques
+        ? dire(msgEntretien(relance) ?? msgRituel(relance, base.panier.rituels ?? []), 'autre-soin')
         : dire(msgRituel(relance, base.panier.rituels ?? []), 'autre-soin');
+      case 'locks': {
+        const m = msgLocks(relance);
+        return m ? dire(m) : avecLePrix(base.panier.apresLePrix ?? 'rituel');
+      }
+      case 'longueur': return dire(msgLongueur(relance));
       case 'encore': return dire(msgEncore(relance));
       case 'places': return dire(msgPlaces({ relance }));
       case 'jours': return dire(msgJours(relance));
@@ -3044,8 +3449,9 @@ function atelierDuTour(ancien: EtatDuFil | null | undefined, tour: TourDeLaClien
     if (!m) return null;
     base.panier.besoin = 'entretien';
     base.panier.offerts = ensemble.length === 0 && marques.length > 1 ? dits : [];
-    const noms = sansMarque.length === 0 ? marques.map((x) => GESTES_EN_FRANCAIS[x].court.toLowerCase()) : [];
-    const question = noms.length > 0 ? `Pour votre ${noms.join(' et votre ')}, quel rituel souhaitez-vous` : 'Quel rituel souhaitez-vous';
+    /* « votre lavage », « vos racines » (le pluriel du 30 octobre 2026). */
+    const noms = sansMarque.length === 0 ? marques.map((x) => GESTES_EN_FRANCAIS[x].court.toLowerCase()).map((n) => (/s$/.test(n) ? `vos ${n}` : `votre ${n}`)) : [];
+    const question = noms.length > 0 ? `Pour ${noms.join(' et ')}, quel rituel souhaitez-vous` : 'Quel rituel souhaitez-vous';
     return { ...m, corps: propre(avecSalut ? `${salut()} ${appel()}, merci de votre message. ${question} ?` : `${question}, ${appel()} ?`) };
   };
 
@@ -3139,7 +3545,7 @@ function atelierDuTour(ancien: EtatDuFil | null | undefined, tour: TourDeLaClien
 
   const choisisLeBesoin = (b: Besoin): SortieDuTour => {
     base.panier.besoin = b;
-    if (b === 'entretien') return dire(msgRituel(false, formulesOffertes()), 'autre-soin');
+    if (b === 'entretien') return dire(msgEntretien(false) ?? msgRituel(false, formulesOffertes()), 'autre-soin');
     const consult = consultationsPour(b);
     if (consult.length === 0) return laMain('sans-place', true);
     if (consult.length > 1) return dire(msgRituel(false, consult.map((s) => [s.id])), 'sans-place');
@@ -3383,7 +3789,7 @@ function atelierDuTour(ancien: EtatDuFil | null | undefined, tour: TourDeLaClien
             if (!v) return dire(msgBesoin(false, false));
             base.panier.besoin = 'entretien';
             base.panier.serviceIds = [...v.serviceIds];
-            return dire(msgPlaces({}));
+            return apresLeChoix('places');
           }
           if (g === 'autre') return dire(msgBesoin(false, false));
           break;
@@ -3400,14 +3806,27 @@ function atelierDuTour(ancien: EtatDuFil | null | undefined, tour: TourDeLaClien
             const unique = ids.length === 1 ? prestation(ids[0]) : undefined;
             const consultation = unique && estUneConsultation(unique, cats);
             if (consultation && !ajoutee) return dire(msgPlaces(base.panier.besoin ? { intro: introDeLaConsultation(base.panier.besoin, unique.name) } : {}));
-            return apresLeRituel();
+            return apresLeChoix('rituel');
           }
           if (g === 'autre-soin') {
             /* Depuis une liste de rituels : les soins du cheveu ; depuis la
                liste des soins elle-même : une personne de la Maison. */
-            if (!base.panier.dansLesSoins && soinsDuCheveu().length > 0) return dire(msgRituel(false, soinsDuCheveu(), !!base.panier.enAjout, true) ?? msgPlaces({}));
+            const montres = base.panier.rituels ?? [];
+            const dejaLa = (ids: string[]): boolean => montres.some((v) => v.length === ids.length && v.every((x, k) => x === ids[k]));
+            if (!base.panier.dansLesSoins && soinsDuCheveu().some((ids) => !dejaLa(ids))) return dire(msgRituel(false, soinsDuCheveu(), !!base.panier.enAjout, true) ?? msgPlaces({}));
             return laMain('autre-soin', true);
           }
+          break;
+        }
+        case 'locks': {
+          if (g === 'locks' && arg === 'inconnu') return teteDite({ locksInconnus: true });
+          const n = g === 'locks' ? Number(arg) : Number.NaN;
+          if (Number.isFinite(n) && n > 0) return teteDite({ locks: n, locksInconnus: undefined });
+          break;
+        }
+        case 'longueur': {
+          const l = LONGUEURS_WA.find((x) => x.id === arg);
+          if (g === 'longueur' && l) return teteDite({ longueur: l.id });
           break;
         }
         case 'encore': {
@@ -3512,6 +3931,20 @@ function atelierDuTour(ancien: EtatDuFil | null | undefined, tour: TourDeLaClien
           return dire(base.panier.prenom ? (msgRecap(false) ?? msgPlaces({})) : msgPrenom(false));
         }
         if (desMots) return retiensLesMots() ? renvoie(base.etape, false) : ecart();
+        break;
+      }
+      case 'locks': {
+        /* ÉCRIT AU LIEU D'ÊTRE TOUCHÉ (30 octobre 2026) : « environ 120 »,
+           « je ne sais pas » ; une longueur dite en même temps se garde. */
+        const l = longueurEcriteWa(t.texte);
+        if (neSaitPasWa(t.texte)) return teteDite({ locksInconnus: true, ...(l ? { longueur: l } : {}) });
+        const n = locksEcritsWa(t.texte);
+        if (n) return teteDite({ locks: n, locksInconnus: undefined, ...(l ? { longueur: l } : {}) });
+        break;
+      }
+      case 'longueur': {
+        const l = longueurEcriteWa(t.texte);
+        if (l) return teteDite({ longueur: l });
         break;
       }
       case 'encore': {
@@ -3736,6 +4169,131 @@ function mainApresCoup(etat: EtatDuFil, motif: MotifDeLaMain, ctx: ContexteDuTou
 }
 /* ⟨/automate-wa⟩ */
 
+/* LE BARÈME DU SITE, recopié de src/apps/revelateur/prix-calibre.ts entre ses
+   repères (30 octobre 2026) : le prix dit dès le choix est celui du site. */
+/* ⟨prix-calibre⟩ */
+export type Bande ={ id: string; name: string; maxLocks: number | null; coef: number; durCoef: number };
+
+export type PrestationTarifee = {
+  id: string;
+  categoryId: string;
+  priceXof?: number;
+  priceMode?: 'fixe' | 'variable' | 'devis';
+  scalesWithModel?: boolean;
+  priceFloors?: Record<string, number>;
+  bandId?: string;
+  bandIds?: string[];
+  ratePerLock?: number;
+  tarifMode?: 'lock' | 'calibre';
+  prixParLongueur?: Partial<Record<string, number>>;
+  paliersDeLocks?: { auDela: number; prixXof: number }[];
+};
+
+export type ContexteDuCalibre = {
+  bande?: Bande;
+  lockCount?: number;
+  sets?: Record<string, Bande[]>;
+  cats?: { id: string; parentId?: string }[];
+  baremeSuspendu?: boolean;
+};
+
+/* Les mêmes exemptions que `shared/pricing` (FIXED_PRICE_SERVICE_IDS) : ces
+   quatre-là ne bougent ni au calibre ni au coefficient, par identifiant. */
+const PRIX_FIXES = new Set(['sv-gbigbi-essentiel', 'sv-rituel-mq6wbusw', 'sv-rituel-mq6zu12s', 'sv-rituel-mp2qnjwa']);
+
+export const bandesTriees = (bandes: readonly Bande[]): Bande[] =>
+  [...bandes].sort((a, b) => (a.maxLocks ?? Infinity) - (b.maxLocks ?? Infinity));
+
+/** « ≤ 80 locks », « 81 – 150 locks », « > 550 locks » : la définition de la tranche. */
+export function etendueDeLaBande(bande: Bande, bandes: readonly Bande[]): string {
+  const tri = bandesTriees(bandes);
+  const i = tri.findIndex((b) => b.id === bande.id);
+  const avant = i > 0 ? tri[i - 1].maxLocks ?? 0 : 0;
+  if (bande.maxLocks == null) return `plus de ${avant} locks`;
+  return avant === 0 ? `jusqu’à ${bande.maxLocks} locks` : `${avant + 1} à ${bande.maxLocks} locks`;
+}
+
+/** Le nombre de locks qui représente la tranche : son plafond, ou cent de
+    plus que la tranche d'en dessous pour la dernière, sans plafond. */
+export function representantDeLaBande(bande: Bande, bandes: readonly Bande[]): number {
+  if (bande.maxLocks != null) return bande.maxLocks;
+  const tri = bandesTriees(bandes);
+  const i = tri.findIndex((b) => b.id === bande.id);
+  return (i > 0 ? tri[i - 1].maxLocks ?? 0 : 0) + 100;
+}
+
+const bandeDuCompte = (lockCount: number | undefined, bandes: readonly Bande[]): Bande | undefined => {
+  if (!lockCount || lockCount <= 0 || bandes.length === 0) return undefined;
+  const tri = bandesTriees(bandes);
+  return tri.find((b) => lockCount <= (b.maxLocks ?? Infinity)) ?? tri[tri.length - 1];
+};
+
+/* `bandForService` : la famille hérite du barème de son atelier, en remontant
+   les parents ; sans barème propre, la tranche de la tête. */
+const bandeDeLaPrestation = (s: PrestationTarifee, ctx: ContexteDuCalibre): Bande | undefined => {
+  let id: string | undefined = s.categoryId;
+  for (let i = 0; id && i < 8; i += 1) {
+    const propre = ctx.sets?.[id];
+    if (propre?.length) return bandeDuCompte(ctx.lockCount, propre);
+    id = ctx.cats?.find((c) => c.id === id)?.parentId;
+  }
+  return ctx.bande;
+};
+
+const sertLaBande = (s: PrestationTarifee, bande: Bande | undefined): boolean => {
+  if (s.bandIds?.length) return !!bande && s.bandIds.includes(bande.id);
+  if (!bande) return true;
+  if (s.bandId) return s.bandId === bande.id;
+  const cles = Object.keys(s.priceFloors ?? {});
+  return cles.length === 0 || cles.includes(bande.id);
+};
+
+const modeDuTarif = (s: PrestationTarifee): 'lock' | 'calibre' => s.tarifMode ?? (s.ratePerLock ? 'lock' : 'calibre');
+
+const arrondi = (x: number): number => {
+  const r = Math.round(x / 500) * 500;
+  return r === 0 && x > 0 ? Math.round(x) : r;
+};
+
+const prixSelonLesLocks = (s: PrestationTarifee, lockCount: number | undefined): number | undefined => {
+  if (!s.paliersDeLocks?.length || !lockCount || lockCount <= 0) return undefined;
+  let gagnant: { auDela: number; prixXof: number } | undefined;
+  for (const pal of s.paliersDeLocks) {
+    if (lockCount > pal.auDela && (!gagnant || pal.auDela > gagnant.auDela)) gagnant = pal;
+  }
+  return gagnant?.prixXof;
+};
+
+const suitLeModele = (s: PrestationTarifee, ctx: ContexteDuCalibre): boolean =>
+  !PRIX_FIXES.has(s.id) && !ctx.baremeSuspendu && s.scalesWithModel === true;
+
+/** Le prix de la prestation pour ce calibre, au franc près comme au Trône.
+    `undefined` quand la prestation n'a aucun prix ; sinon le nombre. */
+export function prixSelonLeCalibre(s: PrestationTarifee, ctx: ContexteDuCalibre): number | undefined {
+  const base = Number(s.priceXof ?? 0);
+  if (PRIX_FIXES.has(s.id)) return base || undefined;
+  const bande = bandeDeLaPrestation(s, ctx);
+  const deBase = prixSelonLesLocks(s, ctx.lockCount) ?? base;
+  if (!sertLaBande(s, bande)) return deBase || undefined;
+  if (modeDuTarif(s) === 'calibre' && bande && s.priceFloors?.[bande.id] !== undefined) return s.priceFloors[bande.id];
+  const auLock = modeDuTarif(s) === 'lock'
+    ? (ctx.lockCount && ctx.lockCount > 0 && s.ratePerLock ? ctx.lockCount * s.ratePerLock : undefined)
+    : (s.ratePerLock && ctx.lockCount && ctx.lockCount > 0
+      ? Math.max(ctx.lockCount * s.ratePerLock, bande ? s.priceFloors?.[bande.id] ?? 0 : 0)
+      : undefined);
+  if (auLock !== undefined) return auLock;
+  const grilleLongueur = !!s.prixParLongueur && Object.keys(s.prixParLongueur).length > 0;
+  const coef = !grilleLongueur && suitLeModele(s, ctx) && bande ? bande.coef : 1;
+  const prix = arrondi(deBase * coef);
+  return prix || undefined;
+}
+
+/** Vrai quand le prix dépend du compte exact de locks, que le site ne
+    connaît pas : on dit alors « à partir de ». */
+export const seCompteAuLock = (s: PrestationTarifee): boolean =>
+  !PRIX_FIXES.has(s.id) && (modeDuTarif(s) === 'lock' || !!s.paliersDeLocks?.length);
+/* ⟨/prix-calibre⟩ */
+
 /* ══ CE QUE LE DIALOGUE VOIT DE L'AGENDA ═══════════════════════════════
    Ni l'écran ni la cliente ne calculent une place : ce serveur la calcule
    sur l'instantané qu'il vient de lire, par le juge recopié ci-dessus
@@ -3745,11 +4303,95 @@ function mainApresCoup(etat: EtatDuFil, motif: MotifDeLaMain, ctx: ContexteDuTou
    la consultation de chaque parcours. Les places se calculent à la demande
    et se gardent le temps du tour ; `oublie` les efface quand un instantané
    plus frais des créneaux pris est arrivé. */
-type AgendaLu = { lignes: LignesDeLAgenda; agenda: AgendaDuServeur };
+type AgendaLu = { lignes: LignesDeLAgenda; agenda: AgendaDuServeur; tarif?: TarifDuTour };
+
+/* ══ LE PRIX DU CATALOGUE POUR UNE TÊTE · 30 octobre 2026 ═════════════
+   « Rajoute le prix une fois le client sélectionné » (Yéman). Le barème de
+   la réservation du site (⟨prix-calibre⟩, recopié plus bas, celui que
+   `verifie-prix` confronte au Trône) : le calibre de la tête, marge
+   comprise si la Maison l'a accordée ; la longueur passe avant tout, comme
+   `prixDeBase` ; puis son Juste Prix sur les seuls gestes de l'Atelier,
+   arrondi au 500 F, comme `personalPriceXof`. Ses prix fermes passent
+   avant, dans le dialogue. Sans barème lu : aucun prix, jamais un faux. */
+type TarifDuTour = { bandes: Bande[]; sets: Record<string, Bande[]>; baremeSuspendu: boolean };
+
+// deno-lint-ignore no-explicit-any
+function tarifDesDocuments(docs: Map<string, any>): TarifDuTour {
+  const bande = (b: unknown): b is Bande => !!b && typeof b === 'object' && typeof (b as Bande).id === 'string';
+  const bandes = Array.isArray(docs.get('mnd_model_bands')) ? (docs.get('mnd_model_bands') as unknown[]).filter(bande) : [];
+  const brut = docs.get('mnd_model_band_sets');
+  const sets: Record<string, Bande[]> = {};
+  if (brut && typeof brut === 'object' && !Array.isArray(brut)) {
+    for (const [k, v] of Object.entries(brut as Record<string, unknown>)) if (Array.isArray(v)) sets[k] = v.filter(bande);
+  }
+  return { bandes, sets, baremeSuspendu: docs.get('mnd_settings')?.baremeSuspendu === true };
+}
+
+/** La marge de calibre (`MARGE_CALIBRE_LOCKS`, shared/pricing) : quinze locks. */
+const MARGE_CALIBRE_WA = 15;
+
+/** Le calibre de la tête, marge comprise (`calibreDeLaTete`) : un cran au plus. */
+function calibreDeLaTeteWa(locks: number | undefined, bandes: readonly Bande[], marge: boolean | undefined): Bande | undefined {
+  if (!locks || locks <= 0 || bandes.length === 0) return undefined;
+  const tri = bandesTriees(bandes);
+  const k = tri.findIndex((b) => locks <= (b.maxLocks ?? Infinity));
+  const brut = k < 0 ? tri.length - 1 : k;
+  if (!marge || brut <= 0) return tri[brut];
+  const dessous = tri[brut - 1];
+  if (dessous.maxLocks == null) return tri[brut];
+  return locks - dessous.maxLocks <= MARGE_CALIBRE_WA ? dessous : tri[brut];
+}
+
+/** L'Atelier, par la maison de la racine (`mondeDeCat`). */
+function deLAtelierWa(categoryId: string, cats: readonly { id: string; data?: Record<string, unknown> | null }[]): boolean {
+  let cur = cats.find((c) => c.id === categoryId);
+  for (let i = 0; cur && typeof cur.data?.parentId === 'string' && cur.data.parentId && i < 8; i += 1) {
+    const p = cats.find((c) => c.id === cur!.data!.parentId);
+    if (!p) break;
+    cur = p;
+  }
+  return cur?.data?.maison === 'atelier';
+}
+
+function prixPourLaTeteWa(
+  ligne: { id: string; data?: Record<string, unknown> | null }, tete: TeteDuPrix, tarif: TarifDuTour,
+  cats: { id: string; parentId?: string }[], catsBrutes: readonly { id: string; data?: Record<string, unknown> | null }[],
+): number | undefined {
+  const d = (ligne.data ?? {}) as Record<string, unknown>;
+  if (d.hidePrice || d.priceMode === 'devis') return undefined;
+  const s = { ...d, id: ligne.id } as unknown as PrestationTarifee;
+  const parLongueur = tete.longueur ? Number((d.prixParLongueur as Record<string, unknown> | undefined)?.[tete.longueur]) : Number.NaN;
+  const bande = calibreDeLaTeteWa(tete.locks, tarif.bandes, tete.marge);
+  const prix = prixSelonLeCalibre(Number.isFinite(parLongueur) && parLongueur > 0 ? { ...s, priceXof: parLongueur } : s,
+    { bande, lockCount: tete.locks, sets: tarif.sets, cats, baremeSuspendu: tarif.baremeSuspendu });
+  if (!prix || prix <= 0) return undefined;
+  const coef = tete.coef && tete.coef > 0 && tete.coef !== 1 && !PRIX_FIXES.has(ligne.id) && deLAtelierWa(String(d.categoryId ?? ''), catsBrutes) ? tete.coef : 1;
+  return coef === 1 ? prix : arrondi(prix * coef);
+}
 
 function agendaDuTourWa(lu: AgendaLu, ms: number, horizon: number): { agenda: AgendaDuTour; oublie: () => void } {
   const gardees = new Map<string, PlaceLibre[]>();
   const a = lu.agenda;
+  const tarif = lu.tarif;
+  const brutes = new Map((lu.lignes.services ?? []).map((l) => [String(l.id), l as { id: string; data?: Record<string, unknown> | null }]));
+  const catsBrutes = (lu.lignes.categories ?? []) as { id: string; data?: Record<string, unknown> | null }[];
+  const paliers = tarif ? bandesTriees(tarif.bandes).map((b) => ({ palier: etendueDeLaBande(b, tarif.bandes), nom: String(b.name ?? ''), locks: representantDeLaBande(b, tarif.bandes) })) : [];
+  const prixDe = tarif && paliers.length > 0
+    ? (id: string, tete: TeteDuPrix): number | undefined => {
+      const l = brutes.get(id);
+      return l ? prixPourLaTeteWa(l, tete, tarif, a.categories, catsBrutes) : undefined;
+    }
+    : undefined;
+  /* Ce dont son prix dépend : il change d'un bout à l'autre des paliers, ou
+     du court au long. */
+  const depend = (id: string): { prixALaLongueur?: boolean; prixAuxLocks?: boolean } => {
+    if (!prixDe) return {};
+    const premier = paliers[0].locks;
+    const dernier = paliers[paliers.length - 1].locks;
+    const aux = prixDe(id, { locks: premier, longueur: 'mi-long' }) !== prixDe(id, { locks: dernier, longueur: 'mi-long' });
+    const lon = prixDe(id, { locks: premier, longueur: 'court' }) !== prixDe(id, { locks: premier, longueur: 'long' });
+    return { ...(aux ? { prixAuxLocks: true } : {}), ...(lon ? { prixALaLongueur: true } : {}) };
+  };
   const agenda: AgendaDuTour = {
     branchId: a.branchId,
     prestations: a.services.map((s): PrestationDuTour => ({
@@ -3761,12 +4403,14 @@ function agendaDuTourWa(lu: AgendaLu, ms: number, horizon: number): { agenda: Ag
       ...(s.consultationAvant ? { consultationAvant: true } : {}),
       ...(s.durationMin !== undefined ? { durationMin: s.durationMin } : {}),
       reservable: reservableSurLeSite(s, a.categories, a.masques),
+      ...depend(s.id),
     })),
     categories: a.categories,
     formules: a.formules,
     consultationParParcours: CONSULTATION_PAR_PARCOURS,
     semaine: a.semaine,
     exceptions: a.exceptions,
+    ...(prixDe ? { prixDe, paliers } : {}),
     /* `lu.agenda` se lit à chaque appel : après un instantané frais, les
        places le savent. */
     places: (ids) => {
@@ -3865,7 +4509,7 @@ async function litLAgenda(sb: Sb, docs: Map<string, any>, voulue: string | undef
   };
   const agenda = agendaDepuisLesLignes(lignes);
   if (!agenda) { dis('agenda illisible'); return null; }
-  return { lignes, agenda };
+  return { lignes, agenda, tarif: tarifDesDocuments(docs) };
 }
 
 /** LES MESSAGES REÇUS DE CE NUMÉRO, des 15 dernières minutes. */
@@ -3927,6 +4571,36 @@ async function lesFichesDuNumero(sb: Sb, numero: string): Promise<FicheDuNumero[
     dis('fiches_du_numero illisible', { motif: String(error?.message ?? 'reponse illisible').slice(0, 120) });
     return null;
   }
+  /* SA TÊTE POUR LE PRIX (30 octobre 2026) : « si c'est un ancien client, le
+     système reconnaît son nombre de locks grâce au numéro » (Yéman). Lue sur
+     ses fiches seules ; illisible, le prix se demande comme à une nouvelle. */
+  const ids = (data as Record<string, unknown>[]).map((f) => String(f?.id ?? '')).filter(Boolean);
+  const tetes = new Map<string, { tete?: TeteDuPrix; prixFixes?: Record<string, number> }>();
+  if (ids.length > 0) {
+    const { data: lignes, error: err } = await sb.from('clients')
+      .select('id, locks:data->lockCount, longueur:data->>longueur, marge:data->margeCalibre, coef:data->priceCoef, fixes:data->prixFixes')
+      .in('id', ids);
+    if (err) dis('tetes illisibles', { motif: err.message.slice(0, 120) });
+    for (const l of (lignes ?? []) as Record<string, unknown>[]) {
+      const locks = Number(l.locks);
+      const longueur = l.longueur === 'court' || l.longueur === 'mi-long' || l.longueur === 'long' ? l.longueur : undefined;
+      const coef = Number(l.coef);
+      const fixes: Record<string, number> = {};
+      if (l.fixes && typeof l.fixes === 'object' && !Array.isArray(l.fixes)) {
+        for (const [k, v] of Object.entries(l.fixes as Record<string, unknown>)) if (typeof v === 'number' && v > 0) fixes[k] = v;
+      }
+      const tete: TeteDuPrix = {
+        ...(Number.isFinite(locks) && locks > 0 ? { locks: Math.round(locks) } : {}),
+        ...(longueur ? { longueur } : {}),
+        ...(l.marge === true ? { marge: true } : {}),
+        ...(Number.isFinite(coef) && coef > 0 && coef !== 1 ? { coef } : {}),
+      };
+      tetes.set(String(l.id), {
+        ...(Object.keys(tete).length > 0 ? { tete } : {}),
+        ...(Object.keys(fixes).length > 0 ? { prixFixes: fixes } : {}),
+      });
+    }
+  }
   return (data as Record<string, unknown>[]).filter((f) => f && typeof f.id === 'string' && f.id).map((f): FicheDuNumero => {
     const civ = f.civilite === 'madame' || f.civilite === 'mademoiselle' || f.civilite === 'monsieur' ? f.civilite : undefined;
     const v = f.derniereVenue as { date?: unknown; serviceIds?: unknown } | null | undefined;
@@ -3950,6 +4624,7 @@ async function lesFichesDuNumero(sb: Sb, numero: string): Promise<FicheDuNumero[
       numeros: Array.isArray(f.numeros) ? (f.numeros as unknown[]).map((x) => String(x ?? '')).filter(Boolean) : [],
       ...(venue ? { derniereVenue: venue } : {}),
       ...(prochain ? { prochainRdv: prochain } : {}),
+      ...(tetes.get(String(f.id)) ?? {}),
     };
   });
 }

@@ -32,7 +32,9 @@ declare const Deno: {
   serve(f: (req: Request) => Promise<Response>): void;
 };
 
-const VERSION = '2026-10-29-a';
+/* 30-a (30 octobre 2026) : le SÍNSIN™ se dit « Reprise des racines »
+   (shared/gestes-en-francais), rien d'autre. */
+const VERSION = '2026-10-30-a';
 
 type Ligne = { id: string; branch_id?: string | null; data: Record<string, unknown> };
 // deno-lint-ignore no-explicit-any

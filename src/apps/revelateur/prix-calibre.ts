@@ -17,9 +17,14 @@
    Ce que le site ne sait pas : la longueur (choisie au rendez-vous), le
    compte exact de locks (compté au fauteuil). Il prend pour représentant de
    la tranche son plafond, et dit « à partir de » quand le geste se compte
-   au lock. */
+   au lock.
 
-export type Bande = { id: string; name: string; maxLocks: number | null; coef: number; durCoef: number };
+   ENTRE SES REPÈRES ⟨prix-calibre⟩, CE FICHIER SE RECOPIE TEL QUEL dans la
+   fonction whatsapp-automate (30 octobre 2026 : le prix dit dès le choix,
+   le même que celui du site). Le banc de l'automate tient la copie (R13). */
+
+/* ⟨prix-calibre⟩ */
+export type Bande ={ id: string; name: string; maxLocks: number | null; coef: number; durCoef: number };
 
 export type PrestationTarifee = {
   id: string;
@@ -139,3 +144,4 @@ export function prixSelonLeCalibre(s: PrestationTarifee, ctx: ContexteDuCalibre)
     connaît pas : on dit alors « à partir de ». */
 export const seCompteAuLock = (s: PrestationTarifee): boolean =>
   !PRIX_FIXES.has(s.id) && (modeDuTarif(s) === 'lock' || !!s.paliersDeLocks?.length);
+/* ⟨/prix-calibre⟩ */
