@@ -109,7 +109,7 @@ dit('un mot qui n etait que l adresse devient le mot bref', 'Bien noté, nous vo
 dit('... et la suite venir reste a l automate, qui ne renvoie le plan que si elle demande le chemin', 'venir', reponseSelonLeLieu({ texte: 'Le plan pour venir suit ce message.', suite: 'venir' }, true).suite);
 const automate = readFileSync('src/shared/automate-wa.ts', 'utf8');
 dit('l automate : jamais le plan a une cliente deja venue sauf si elle demande le chemin, et un mot bref quand le plan ne part pas', [true, true],
-  [automate.includes('if (titulaire?.derniereVenue && !demandeLeChemin) return [];'), automate.includes("corps: plan.length > 0 ? r.texte : (sansLAnnonce || 'Bien noté, nous vous attendons.')")]);
+  [automate.includes('if (titulaire?.derniereVenue && !(tour && demandeLeCheminWa(tour.texte))) return [];'), automate.includes("corps: plan.length > 0 ? r.texte : sansLAnnonce || 'Bien noté, nous vous attendons.'")]);
 
 /* ── ② LE VRAI FICHIER, CONTRE UNE BASE ET UN CLAUDE SIMULÉS ── */
 type Row = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
