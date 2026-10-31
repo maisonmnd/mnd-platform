@@ -108,8 +108,10 @@ casser ni demander aucune modification de code.
 
 Yéman ne colle plus rien dans Supabase et ne valide plus les publications.
 Une fois le code commité et les bancs verts, la session confie aussitôt la mise
-en ligne à un agent : « Lis docs/MISE-EN-LIGNE.md et mets en ligne, au commit
-<sha> : … ». Cela couvre :
+en ligne à l'agent « mise-en-ligne » (ou, s'il manque, à un agent ordinaire) :
+« Lis docs/MISE-EN-LIGNE.md et mets en ligne, au commit <sha> : … ».
+`publie.mjs` et `mise-en-ligne.mjs` sont autorisés dans ses réglages de Claude
+Code depuis le 31 octobre 2026. Cela couvre :
 
 - les fonctions Edge ;
 - le SQL ;

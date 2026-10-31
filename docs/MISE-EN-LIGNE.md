@@ -13,7 +13,8 @@ ligne elle-même, aussitôt commité et vérifié :
 Plus jamais de dossier « A recoller » sur le bureau, plus de question
 « Je publie ? ».
 
-La session confie ce travail à un agent dès qu'elle a commité. Le brief tient
+La session confie ce travail à l'agent « mise-en-ligne », ou à défaut à un
+agent ordinaire, dès qu'elle a commité. Le brief tient
 en une phrase : « Lis docs/MISE-EN-LIGNE.md et mets en ligne, au commit <sha> :
 fonctions …, SQL …, secrets …, réglages …, sites … ; bancs : … ».
 
