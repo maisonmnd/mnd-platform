@@ -3594,9 +3594,14 @@ const regles: Regle[] = [
       const QUESTION = { texte: 'Souhaitez-vous que nous gardions mardi à 10 h ?', quand: isoDe(t0 - 60_000) };
       vaut('Ok, Merci beaucoup, un pouce apres la confirmation : rien a repondre', [true, true, true],
         [unMerciSansSuite(tour('Ok'), CONFIRMATION), unMerciSansSuite(tour('Merci beaucoup !'), CONFIRMATION), unMerciSansSuite(tour('👍'), CONFIRMATION)]);
-      vaut('ok apres une question, une question, une demande, une photo, aucun mot de la Maison : la reception parle', [false, false, false, false, false],
+      /* Une photo puis « Merci », dans la même rafale : la photo attend un regard. */
+      const photoPuisMerci = tourDeLaCliente([
+        { waId: 'wamid.photo', quand: isoDe(t0 - 5_000), texte: '', type: 'image', sens: 'entrant' },
+        { waId: 'wamid.merci', quand: isoDe(t0), texte: 'Merci', type: 'text', sens: 'entrant' },
+      ], []);
+      vaut('ok apres une question, une question, une demande, une photo puis merci, aucun mot de la Maison : la reception parle', [false, false, false, false, false],
         [unMerciSansSuite(tour('Ok'), QUESTION), unMerciSansSuite(tour('Ok, et pour une couleur ?'), CONFIRMATION), unMerciSansSuite(tour('Merci. Je voudrais aussi une couleur'), CONFIRMATION),
-          unMerciSansSuite(tour('Merci', 'image'), CONFIRMATION), unMerciSansSuite(tour('Ok'), null)]);
+          unMerciSansSuite(photoPuisMerci, CONFIRMATION), unMerciSansSuite(tour('Ok'), null)]);
       vaut('oui n est pas un merci', false, estUnMerci('oui'));
       const pur = lf(lit('src/shared/a-traiter-pur.ts'));
       vrai('le Trone lit le merci de l automate, sans copie de ses mots', pur.includes("import { estUnMerci } from './automate-wa';") && !pur.includes('MOTS_DU_MERCI'));
