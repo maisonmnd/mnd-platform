@@ -88,7 +88,7 @@ import { createClient, type SupabaseClient } from 'npm:@supabase/supabase-js@2';
 
 /** LA VERSION DE CE FICHIER, dite par le contrôle de santé. Sans elle on ne
     sait pas quel code tourne vraiment. À incrémenter à chaque déploiement. */
-const VERSION = '2026-10-31-a · un merci sans question n attend rien, par-dessus la couleur';
+const VERSION = '2026-10-31-b · le plan une fois par numero, le prix d une famille en plein parcours';
 
 /** « En train d'écrire », puis on attend : deux messages envoyés coup sur
     coup font un seul tour, celui du dernier. */
@@ -1168,6 +1168,9 @@ type EtatDuFil = {
       l'automate » la reprend. */
   etapeAvantLaMain?: EtapeDuFil;
   versionAvantLaMain?: number;
+  /** Quand le plan pour venir est parti vers ce numéro (31 octobre 2026) :
+      il ne repart plus d'office, seulement quand elle demande le chemin. */
+  planEnvoyeLe?: string;
 };
 
 type MainDuFil = {
@@ -2212,8 +2215,11 @@ function jugeLaParole(
   if (ETAPES_EN_COURS.includes(courante)) {
     if (tour.media) return { parole: 'main-silencieuse', motif: 'media' };
     /* Une question de prix en plein parcours : la réponse validée si le
-       conseil en a une, sinon la main passe, comme avant (14 octobre 2026). */
-    if (mots.prix && !leConseilParle(tour.texte, ctx.conseil)) return { parole: 'main-silencieuse', motif: 'prix' };
+       conseil en a une, sinon la main passe, comme avant (14 octobre 2026).
+       Le prix d'une famille nommée ouvre sa liste, comme au repos (31 octobre
+       2026, essai de Yéman : « Combien coûte une coloration ? » au
+       récapitulatif passait la main en silence, et le fil se taisait). */
+    if (mots.prix && !leConseilParle(tour.texte, ctx.conseil) && !familleNommeeWa(tour.texte)) return { parole: 'main-silencieuse', motif: 'prix' };
     parle = true;
   } else if (tour.choix && lisLeChoix(tour.choix.id)) {
     /* Un calibre touché dans la liste de la réception (27 octobre 2026) :
@@ -2445,6 +2451,12 @@ const PLAN_POUR_VENIR = 'https://maisonmnd.com/assets/itineraire/plan-depuis-sup
 /** La ligne du lien, telle que la cliente la lit : la Maison sur Google Maps,
     par le site, seulement quand la Maison a donné son lien. */
 const ligneGoogleMapsWa = (lien: string): string => (lien ? `Maison MND sur Google Maps : ${LIEN_POUR_VENIR}` : '');
+
+/** Le mot sans la phrase qui annonce le plan (« Le plan pour venir suit ce
+    message. »), quand le plan déjà reçu ne repart pas (31 octobre 2026).
+    Vide si le mot n'était que cette phrase. */
+const sansLAnnonceDuPlanWa = (texte: string): string =>
+  texte.replace(/[^.!?\n]*\bplan\b[^.!?\n]*\bsui(?:t|vra|vent)\b[^.!?\n]*[.!?]?[ \t]*/giu, '').replace(/\n{3,}/g, '\n\n').trim();
 
 /** ELLE DEMANDE LE CHEMIN (30 octobre 2026, Yéman : « comment venir chez
     vous », « envoie-moi la localisation ») : l'adresse, la localisation, un
@@ -3702,6 +3714,23 @@ function atelierDuTour(ancien: EtatDuFil | null | undefined, tour: TourDeLaClien
   /** LE VERDICT DU VERROU. Posé : la confirmation, signée de la devise.
       L'heure prise entre-temps : les places les plus proches, rien n'est
       posé. Autre chose : la main passe. */
+  /** LE PLAN UNE FOIS (31 octobre 2026, Yéman : « si le map a déjà été
+      envoyé à une adresse ne pas le renvoyer à chaque fois sinon ça devient
+      ennuyant ») : le plan et la Maison sur Google Maps partent une fois par
+      numéro, puis seulement quand elle demande le chemin. « Je suis en
+      route » ne le renvoie plus : elle l'a déjà. `force` : le mot qui
+      précède ne tient que par lui. Ce qui est rendu est vide quand ils ne
+      repartent pas. */
+  const lePlan = (etape: EtapeDuFil, habille: (m: MessageSortant) => MessageSortant = (m) => m, force = false): MessageSortant[] => {
+    if (base.planEnvoyeLe && !force && !(tour && demandeLeCheminWa(tour.texte))) return [];
+    base.planEnvoyeLe = maintenant;
+    const lien = ligneGoogleMapsWa(lienMapsWa(ctx.maison.carte));
+    return [
+      habille({ forme: 'image', etape, corps: '', image: PLAN_POUR_VENIR, accessoire: true }),
+      ...(lien ? [habille({ forme: 'texte', etape, corps: lien, accessoire: true })] : []),
+    ];
+  };
+
   const ditLeVerdict = (verdict: VerdictDeLaPose): SortieDuTour => {
     const p = base.panier;
     if (verdict.ok) {
@@ -3710,17 +3739,17 @@ function atelierDuTour(ancien: EtatDuFil | null | undefined, tour: TourDeLaClien
       const de = p.pourQui ? `le rendez-vous de ${p.pourQui}` : 'votre rendez-vous';
       /* TROIS BULLES (29 octobre 2026, choix de Yéman) : la confirmation,
          courte ; le plan, en image ; enfin la Maison sur Google Maps, dont la
-         carte de lien est celle de la Maison. */
+         carte de lien est celle de la Maison. Le plan déjà reçu ne repart
+         pas, et la confirmation ne l'annonce plus (31 octobre 2026). */
+      const plan = lePlan('confirme');
       const corps = [
         `C'est confirmé, ${appel()} : ${de} est retenu le ${quandDuPanier()}. Nous vous attendons. Merci de nous prévenir en cas d'empêchement.`,
-        'Le plan pour venir à la Maison suit ce message.',
+        ...(plan.length > 0 ? ['Le plan pour venir à la Maison suit ce message.'] : []),
         DEVISE,
       ].join('\n\n');
-      const lienPourVenir = ligneGoogleMapsWa(lienMapsWa(ctx.maison.carte));
       return sortie([
         texte('confirme', corps),
-        { forme: 'image', etape: 'confirme', corps: '', image: PLAN_POUR_VENIR, accessoire: true },
-        ...(lienPourVenir ? [{ ...texte('confirme', lienPourVenir), accessoire: true }] : []),
+        ...plan,
       ], alerteDeLAutomate({
         genre: 'pose', prenom: prenomPourAlerte(), numero: ctx.numero, date: p.date, time: p.time,
       }));
@@ -3746,6 +3775,11 @@ function atelierDuTour(ancien: EtatDuFil | null | undefined, tour: TourDeLaClien
       /* Le conseil a peut-être la réponse (14 octobre 2026). */
       const q = questionDuTour(t.texte, false);
       if (q) return q;
+      /* Sinon, le prix d'une famille qu'elle nomme : sa liste, comme au
+         repos, plutôt que la main en silence ; le panier en cours est
+         laissé, rien n'était posé (31 octobre 2026). Le cuir chevelu passe
+         toujours devant. */
+      if (ditsDuTexte(t.texte).length > 0 && !lisLeConseil(t.texte, ctx.conseil).sante) return accueil(mots);
       return laMain('prix', false);
     }
     if (ch?.geste === 'maison') return laMain('demande', true);
@@ -4072,11 +4106,14 @@ function atelierDuTour(ancien: EtatDuFil | null | undefined, tour: TourDeLaClien
        la Maison sur Google Maps, comme après une confirmation. Claude dit
        « rien » à une question de chemin : le plan part quand même. */
     if (r.suite === 'venir' || (r.suite === 'rien' && !!tour && (demandeLeCheminWa(tour.texte) || enRouteWa(tour.texte)))) {
-      const lien = ligneGoogleMapsWa(lienMapsWa(ctx.maison.carte));
+      /* Le plan déjà reçu ne repart pas d'office (31 octobre 2026), et son
+         mot perd la phrase qui l'annonce : jamais un « le plan suit » sans
+         le plan. Un mot qui n'est que cette phrase garde le plan. */
+      const sansLAnnonce = sansLAnnonceDuPlanWa(r.texte);
+      const plan = lePlan('clos', signe, !sansLAnnonce);
       return sortie([
-        signe({ forme: 'texte', etape: 'clos', corps: r.texte }),
-        signe({ forme: 'image', etape: 'clos', corps: '', image: PLAN_POUR_VENIR, accessoire: true }),
-        ...(lien ? [signe({ forme: 'texte', etape: 'clos', corps: lien, accessoire: true })] : []),
+        signe({ forme: 'texte', etape: 'clos', corps: plan.length > 0 ? r.texte : sansLAnnonce }),
+        ...plan,
       ]);
     }
     if (r.suite === 'calibre' && r.lignes && r.lignes.length > 0) {

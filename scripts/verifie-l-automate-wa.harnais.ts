@@ -1529,7 +1529,7 @@ const regles: Regle[] = [
       { nom: 'une date sans son annee', mute: [P(AUTO, '${MOIS_LONGS_WA[d.getUTCMonth()]} ${d.getUTCFullYear()}`', '${MOIS_LONGS_WA[d.getUTCMonth()]}`')] },
       { nom: 'la devise sur tous les textes', mute: [P(AUTO, "  const texte = (etape: EtapeDuFil, corps: string): MessageSortant => ({ forme: 'texte', etape, corps: propre(corps) });", "  const texte = (etape: EtapeDuFil, corps: string): MessageSortant => ({ forme: 'texte', etape, corps: [propre(corps), DEVISE].join(' ') });")] },
       { nom: 'un titre de place trop long', mute: [P(AUTO, '  if (a.length <= 24) return a;', '  return a;')] },
-      { nom: 'le plan signe la confirmation a sa place (accessoire perdu)', mute: [P(AUTO, "{ forme: 'image', etape: 'confirme', corps: '', image: PLAN_POUR_VENIR, accessoire: true },", "{ forme: 'image', etape: 'confirme', corps: '', image: PLAN_POUR_VENIR },")] },
+      { nom: 'le plan signe la confirmation a sa place (accessoire perdu)', mute: [P(AUTO, "      habille({ forme: 'image', etape, corps: '', image: PLAN_POUR_VENIR, accessoire: true }),", "      habille({ forme: 'image', etape, corps: '', image: PLAN_POUR_VENIR }),")] },
       { nom: 'le juge ne voit plus le tiret cadratin', mute: [P(AUTO, "  if (s.includes(String.fromCharCode(0x2014))) fautes.push('un tiret cadratin');", '')] },
     ],
   },
@@ -2671,7 +2671,7 @@ const regles: Regle[] = [
       return ecarts;
     },
     pannes: [
-      { nom: 'le lien pour venir ne part pas', mute: [P(AUTO, "        ...(lienPourVenir ? [{ ...texte('confirme', lienPourVenir), accessoire: true }] : []),\n", '')] },
+      { nom: 'le lien pour venir ne part pas', mute: [P(AUTO, "      ...(lien ? [habille({ forme: 'texte', etape, corps: lien, accessoire: true })] : []),\n", '')] },
       { nom: 'le parametre de partage reste', mute: [P(AUTO, "      if (!u.searchParams.has('g_st')) return brut;", '      return brut;')] },
       { nom: 'un lien etranger passe', mute: [P(AUTO, '    if (!google.test(brut)) continue;', '    if (!brut) continue;')] },
       { nom: 'la fonction ignore le lien de la branche', mute: [P(F_AUTO, 'const carte = lienMapsWa(agenda?.lignes.branche.data?.mapsUrl, maison.carte);', 'const carte = lienMapsWa(maison.carte);')] },
@@ -2937,7 +2937,15 @@ const regles: Regle[] = [
       elle(q, t0, { texte: 'Bonjour, je voudrais prendre rendez-vous' });
       elle(q, t0 + 1000, { touche: 'Entretenir mes locks' });
       const q3 = elle(q, t0 + 2000, { texte: 'c’est combien le resserrage ?' });
-      vrai('sans conseil, comme avant : la main passe sans un mot', q3.messages.length === 0 && q.etat?.etape === 'main' && q.etat?.motifMain === 'prix', `${q3.messages.length} ${q.etat?.etape} ${q.etat?.motifMain}`);
+      /* 31 octobre 2026 : sans conseil, le prix d'une famille nommée ouvre sa
+         liste au lieu de passer la main en silence ; un prix sans famille
+         passe la main comme avant. */
+      vaut('sans conseil, le prix d une famille nommee : sa liste, pas le silence', ['rituel', 'rituel'], [q3.messages[0]?.etape, q.etat?.etape]);
+      const q2 = parcours(ORIGINAL, NUM_INCONNUE, []);
+      elle(q2, t0, { texte: 'Bonjour, je voudrais prendre rendez-vous' });
+      elle(q2, t0 + 1000, { touche: 'Entretenir mes locks' });
+      const q4 = elle(q2, t0 + 2000, { texte: 'c’est combien en tout ?' });
+      vrai('sans conseil, un prix sans famille : la main passe sans un mot, comme avant', q4.messages.length === 0 && q2.etat?.etape === 'main' && q2.etat?.motifMain === 'prix', `${q4.messages.length} ${q2.etat?.etape} ${q2.etat?.motifMain}`);
       const r = avecConseil(parcours(ORIGINAL, NUM_NAFFI, [NAFFI]));
       elle(r, t0, { texte: 'Combien pour des microlocks ?' });
       const avant = r.envoyes.length;
@@ -2954,7 +2962,7 @@ const regles: Regle[] = [
     },
     pannes: [
       { nom: 'Continuer est perdu', mute: [P(AUTO, '    const suite = base.panier.reprendre\n', '    const suite = false && base.panier.reprendre\n')] },
-      { nom: 'en plein parcours, le prix passe la main malgre le conseil', mute: [P(AUTO, '    if (mots.prix && !leConseilParle(tour.texte, ctx.conseil)) return', '    if (mots.prix) return')] },
+      { nom: 'en plein parcours, le prix passe la main malgre le conseil', mute: [P(AUTO, '    if (mots.prix && !leConseilParle(tour.texte, ctx.conseil) && !familleNommeeWa(tour.texte)) return', '    if (mots.prix && !familleNommeeWa(tour.texte)) return')] },
       { nom: 'merci relance', mute: [P(AUTO, "      return silence();\n    }\n    /* UNE QUESTION QUI N'EST PAS", "      return ecart();\n    }\n    /* UNE QUESTION QUI N'EST PAS")] },
       { nom: 'le juge de la fonction oublie le catalogue', mute: [P(F_AUTO, 'texteSain(toutLeTexteWa(m), m.prixDuCatalogue === true)', 'texteSain(toutLeTexteWa(m))')] },
       { nom: 'la trace oublie la reponse', mute: [P(F_AUTO, '      ...(o.m.reponseId ? { reponse: o.m.reponseId } : {}),\n', '')] },
@@ -3153,8 +3161,8 @@ const regles: Regle[] = [
     pannes: [
       { nom: 'la suite venir n envoie plus le plan', mute: [P(AUTO, "    if (r.suite === 'venir' || (r.suite === 'rien' && !!tour && (demandeLeCheminWa(tour.texte) || enRouteWa(tour.texte)))) {", '    if (false) {')] },
       { nom: 'seul venir envoie le plan, pas une question de chemin dite rien', mute: [P(AUTO, "    if (r.suite === 'venir' || (r.suite === 'rien' && !!tour && (demandeLeCheminWa(tour.texte) || enRouteWa(tour.texte)))) {", "    if (r.suite === 'venir') {")] },
-      { nom: 'le plan part sans le lien', mute: [P(AUTO, "        ...(lien ? [signe({ forme: 'texte', etape: 'clos', corps: lien, accessoire: true })] : []),\n", '')] },
-      { nom: 'le plan n est plus un accessoire', mute: [P(AUTO, "        signe({ forme: 'image', etape: 'clos', corps: '', image: PLAN_POUR_VENIR, accessoire: true }),", "        signe({ forme: 'image', etape: 'clos', corps: '', image: PLAN_POUR_VENIR }),")] },
+      { nom: 'le plan part sans le lien', mute: [P(AUTO, "      ...(lien ? [habille({ forme: 'texte', etape, corps: lien, accessoire: true })] : []),\n", '')] },
+      { nom: 'le plan n est plus un accessoire', mute: [P(AUTO, "      habille({ forme: 'image', etape, corps: '', image: PLAN_POUR_VENIR, accessoire: true }),", "      habille({ forme: 'image', etape, corps: '', image: PLAN_POUR_VENIR }),")] },
       { nom: 'une adresse e-mail se lit comme un chemin', mute: [P(AUTO, "(?!\\p{L})(?! ?(?:e-?mail|mail|courriel|[ée]lectronique))/u,", '(?!\\p{L})/u,')] },
       { nom: 'ou se lit avec un bord d ASCII et rate', mute: [P(AUTO, "    /(?<!\\p{L})(?:vous [êe]tes|c'est|la maison est|se trouve)(?: situ[ée]e?s?)? o[uù](?!\\p{L})/u,", "    /\\b(?:vous [êe]tes|c'est|la maison est|se trouve)(?: situ[ée]e?s?)? o[uù]\\b/,")] },
       { nom: 'la fonction ignore la suite venir', mute: [P(F_AUTO, "const SUITES_CONNUES = ['rien', 'reserver', 'creation', 'reparation', 'calibre', 'equipe', 'venir'];", "const SUITES_CONNUES = ['rien', 'reserver', 'creation', 'reparation', 'calibre', 'equipe'];")] },
@@ -3626,6 +3634,83 @@ const regles: Regle[] = [
       ] },
       { nom: 'un message refuse par Meta compte comme le dernier mot', mute: [P(F_AUTO, "find((x) => x.etat !== 'non-remis' && typeof x.quand === 'string')", "find((x) => typeof x.quand === 'string')")] },
       { nom: 'le Trone garde sa copie des mots', mute: [P('src/shared/a-traiter-pur.ts', "export { estUnMerci };\n", "export { estUnMerci };\nconst MOTS_DU_MERCI = new Set(['merci']);\n")] },
+    ],
+  },
+
+  /* ══ R53 · le plan une fois, le prix d'une famille en plein parcours, 31 octobre 2026 ══
+     L'essai réel de Yéman, depuis son WhatsApp : son « Bonjour » du matin
+     de son rendez-vous a reçu le plan et le lien Maps qu'elle avait déjà
+     (« si le map a déjà été envoyé à une adresse ne pas le renvoyer à
+     chaque fois sinon ça devient ennuyant ») ; « Combien coûte une
+     coloration ? » au récapitulatif a passé la main sans un mot, et le fil
+     s'est tu, même à « Annuler ». */
+  {
+    id: 'R53', nom: 'R53 le plan part une fois par numero, puis seulement quand elle demande le chemin, jamais annonce sans lui ; en plein parcours, le prix d une famille nommee ouvre sa liste au lieu du silence',
+    eprouve: () => {
+      const { ecarts, vaut, vrai } = juge();
+      const PLAN = 'https://maisonmnd.com/assets/itineraire/plan-depuis-super-u.png';
+      const ANNONCE = 'Le plan pour venir à la Maison suit ce message.';
+      const formes = (s: SortieDuTour): string[] => s.messages.map((m) => m.forme);
+
+      /* 1. La premiere confirmation porte le plan, et le numero le garde. */
+      const a = scnConnue(ORIGINAL);
+      vrai('la premiere confirmation : son texte annonce le plan, puis le plan', corps(a.s4).includes(ANNONCE) && a.s4.messages.some((m) => m.image === PLAN), formes(a.s4).join('/'));
+      vrai('... et le numero garde la date du plan', !!a.p.etat?.planEnvoyeLe, String(a.p.etat?.planEnvoyeLe));
+
+      /* 2. Un numero qui a deja le plan : la confirmation seule, sans annonce. */
+      const t0 = cotonou('2026-10-09', '21:04');
+      const p = parcours(ORIGINAL, NUM_NAFFI, [NAFFI]);
+      elle(p, t0, { texte: 'Bonsoir, je voudrais passer samedi pour mes racines' });
+      p.etat!.planEnvoyeLe = isoDe(t0 - 3 * 86400000);
+      elle(p, t0 + 60000, { touche: 'La même chose' });
+      elle(p, t0 + 90000, { touche: 'Sam. 10 oct. 2026 · 9 h' });
+      const c = elle(p, t0 + 120000, { touche: 'Je confirme' });
+      vaut('le plan deja recu : la confirmation seule', ['texte'], formes(c));
+      vrai('... qui ne l annonce plus, et garde sa devise', /^C'est confirmé/.test(corps(c)) && !corps(c).includes('plan') && corps(c).endsWith(DEVISE), corps(c));
+
+      /* 3. La reception : le chemin redemande renvoie le plan ; en route ou un bonjour, non. */
+      const pr = parcours(ORIGINAL, NUM_NAFFI, [NAFFI]);
+      pr.carte = 'https://maps.app.goo.gl/AbCdEf12345?g_st=ac';
+      const t1 = cotonou('2026-10-31', '07:20');
+      const ctx = ctxDe(pr, t1);
+      let n = 0;
+      const dit = (texte: string) => tourDeLaCliente([{ waId: `wamid.r53-${(n += 1)}`, quand: isoDe(t1), texte, type: 'text', sens: 'entrant' }], []);
+      const mot = 'Avec plaisir, Mme Naffi. La Maison MND vous reçoit à l’Ilot 130-F, Maison 88, à Cotonou. Le plan pour venir suit ce message.';
+      const v1 = reponseDeLaReception(null, dit('Comment venir chez vous?'), ctx, { texte: mot, suite: 'venir' });
+      vaut('la premiere fois : le mot, le plan, la Maison sur Google Maps', ['texte', 'image', 'texte'], formes(v1));
+      const deja = v1.etat;
+      const v2 = reponseDeLaReception(deja, dit('Je suis en route'), ctx, { texte: 'Bien noté, Mme Naffi, nous vous attendons.', suite: 'venir' });
+      vaut('en route, le plan deja recu : le mot seul', ['texte'], formes(v2));
+      const v3 = reponseDeLaReception(deja, dit('Bonjour'), ctx, { texte: 'Bien noté, Mme Naffi. Et à bientôt pour votre entretien ce matin à 9 h. Le plan pour venir suit ce message.', suite: 'venir' });
+      vaut('un bonjour le matin du rendez-vous : le mot seul, sans l annonce du plan', [['texte'], 'Bien noté, Mme Naffi. Et à bientôt pour votre entretien ce matin à 9 h.'], [formes(v3), v3.messages[0]?.corps]);
+      const v4 = reponseDeLaReception(deja, dit('Vous êtes où exactement ?'), ctx, { texte: mot, suite: 'venir' });
+      vaut('elle redemande le chemin : le plan repart', ['texte', 'image', 'texte'], formes(v4));
+      const v5 = reponseDeLaReception(deja, dit('Bonjour'), ctx, { texte: 'Le plan pour venir suit ce message.', suite: 'venir' });
+      vaut('un mot qui n est que l annonce garde le plan : jamais un message vide', ['texte', 'image', 'texte'], formes(v5));
+      vaut('... et chacun passe les juges de Meta et de la Maison', [], [v2, v3, v4, v5].flatMap((v) => v.messages.flatMap((m) => [...respecteMeta(m), ...texteSain(m.corps, true)])));
+
+      /* 4. En plein parcours, le prix d une famille nommee : sa liste, rien de pose. */
+      const q = parcours(ORIGINAL, NUM_NAFFI, [NAFFI]);
+      elle(q, t0, { texte: 'Bonsoir, je voudrais passer samedi pour mes racines' });
+      elle(q, t0 + 60000, { touche: 'La même chose' });
+      const recap = elle(q, t0 + 90000, { touche: 'Sam. 10 oct. 2026 · 9 h' });
+      vaut('le recapitulatif est la', 'recap', recap.messages[0]?.etape);
+      const prix = 'Combien coûte un shampoing ?';
+      const tour = tourDeLaCliente([{ waId: 'wamid.r53-prix', quand: isoDe(t0 + 100000), texte: prix, type: 'text', sens: 'entrant' }], []);
+      vaut('le juge parle au prix d une famille en plein parcours', 'parle', jugeLaParole(q.etat, tour, ctxDe(q, t0 + 100000)).parole);
+      const s = elle(q, t0 + 100000, { texte: prix });
+      vaut('... sa liste, pas le silence, et rien n est pose', ['rituel', 0], [s.messages[0]?.etape, s.ecritures.length]);
+      return ecarts;
+    },
+    pannes: [
+      { nom: 'le plan repart a chaque fois', mute: [P(AUTO, '    if (base.planEnvoyeLe && !force && !(tour && demandeLeCheminWa(tour.texte))) return [];', '    if (false) return [];')] },
+      { nom: 'le plan envoye ne se note plus', mute: [P(AUTO, '    base.planEnvoyeLe = maintenant;\n', '')] },
+      { nom: 'la confirmation annonce un plan qui ne vient pas', mute: [P(AUTO, "        ...(plan.length > 0 ? ['Le plan pour venir à la Maison suit ce message.'] : []),\n", "        'Le plan pour venir à la Maison suit ce message.',\n")] },
+      { nom: 'le mot de la reception garde l annonce sans le plan', mute: [P(AUTO, 'corps: plan.length > 0 ? r.texte : sansLAnnonce', 'corps: r.texte')] },
+      { nom: 'le chemin redemande ne renvoie plus le plan', mute: [P(AUTO, '!(tour && demandeLeCheminWa(tour.texte))', 'true')] },
+      { nom: 'un mot qui n est que l annonce perd le plan', mute: [P(AUTO, "lePlan('clos', signe, !sansLAnnonce)", "lePlan('clos', signe)")] },
+      { nom: 'le juge passe la main au prix d une famille en plein parcours', mute: [P(AUTO, " && !familleNommeeWa(tour.texte)) return { parole: 'main-silencieuse', motif: 'prix' };", ") return { parole: 'main-silencieuse', motif: 'prix' };")] },
+      { nom: 'en plein parcours, le prix d une famille passe la main', mute: [P(AUTO, '      if (ditsDuTexte(t.texte).length > 0 && !lisLeConseil(t.texte, ctx.conseil).sante) return accueil(mots);\n', '')] },
     ],
   },
 ];
