@@ -305,4 +305,6 @@ async function principal() {
   }
 }
 
-process.exit(await principal());
+/* Sortie naturelle : sous Windows, process.exit() pendant la fermeture des poignées réseau
+   de fetch fait tomber Node (assertion UV_HANDLE_CLOSING) et rend 127 au lieu du code voulu. */
+process.exitCode = await principal();
