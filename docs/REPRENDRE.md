@@ -2,7 +2,11 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
-## AVANT LE FAUTEUIL — 31 octobre 2026, à mettre en ligne (0147, 0148)
+## AVANT LE FAUTEUIL — 31 octobre 2026, EN LIGNE (0147 et 0148 PASSÉES, Trône publié)
+
+Trône publié au 125c9e96, build 20261031212755, le 31 octobre 2026 : 515
+fichiers, 515/515 octets identiques au servi (https://maisonmnd.com/trone/).
+Le site public n'a pas été republié (rien de lui dans ce chantier).
 
 « Fais-moi un résumé de ce que je dois savoir avant un RDV d'un client.
 Exemple : Credo vient le 13 novembre, il faut que je me souvienne de relire
@@ -54,7 +58,7 @@ tranchés au sélecteur, puis « construis ».
   cliente. C'est Opale (la session) qui pose en « Note du carnet » et en
   pièces ce qu'elle lit sur WhatsApp, le jour même.
 
-### SQL `0147_les_pieces_des_clientes.sql` : À PASSER (coffre privé `pieces-des-clientes`, 60 Mo, JPEG/PNG/WebP/HEIC/MP4/MOV ; voir et déposer = `is_staff()`, effacer = `est_direction()` ; rejouable). Sans elle, les liens marchent, les photos sont refusées.
+### SQL `0147_les_pieces_des_clientes.sql` : PASSÉE le 31 octobre 2026 (commit 125c9e96). NE PAS RELANCER. Coffre privé `pieces-des-clientes`, 60 Mo, JPEG/PNG/WebP/HEIC/MP4/MOV ; voir et déposer = `is_staff()`, effacer = `est_direction()`. Relu après passage : coffre fermé au public, 60 000 000 octets, six types, trois politiques `pieces_des_clientes_*` (SELECT, INSERT, DELETE).
 
 ### LA FACTURE D'ABONNEMENT QUI PLANTAIT L'ÉCRAN FACTURES — 31 octobre 2026
 
@@ -66,7 +70,7 @@ MND-2026-0165 (Carnet des Trois de C., ABO-2026-001) faisait crier
 toujours un tableau), `Factures.tsx` lit `detailPorte`. Banc
 `scripts/verifie-le-contenu-de-la-ligne.mjs` (20 contrôles, 11 fautes).
 
-### SQL `0148_le_contenu_de_la_ligne_en_tableau.sql` : À PASSER (la fonction réécrite en `jsonb_agg`, un élément par prestation dans les mots de `libellesInclus`, puis la reprise rejouable des lignes déjà écrites en chaîne, dont 0165). 0138 reste passée, jamais relancée.
+### SQL `0148_le_contenu_de_la_ligne_en_tableau.sql` : PASSÉE le 31 octobre 2026 (commit 125c9e96). NE PAS RELANCER. La fonction réécrite en `jsonb_agg`, un élément par prestation dans les mots de `libellesInclus`, puis la reprise rejouable des lignes déjà écrites en chaîne. Relu après passage : `verse_sur_l_abonnement` porte `jsonb_agg` et plus `string_agg` ; MND-2026-0165 a son `detail` en tableau (6 éléments) ; plus aucune pièce en chaîne. 0138 reste passée, jamais relancée.
 
 Reste : dater MND-2026-0165 au 24 octobre 2026 (le versement l'est déjà),
 depuis l'éditeur de facture une fois 0148 passée. Le banc `verifie-gerard.mjs`
