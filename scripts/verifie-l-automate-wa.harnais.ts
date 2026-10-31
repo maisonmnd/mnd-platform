@@ -2962,7 +2962,7 @@ const regles: Regle[] = [
     },
     pannes: [
       { nom: 'Continuer est perdu', mute: [P(AUTO, '    const suite = base.panier.reprendre\n', '    const suite = false && base.panier.reprendre\n')] },
-      { nom: 'en plein parcours, le prix passe la main malgre le conseil', mute: [P(AUTO, '    if (mots.prix && !leConseilParle(tour.texte, ctx.conseil) && !familleNommeeWa(tour.texte)) return', '    if (mots.prix && !familleNommeeWa(tour.texte)) return')] },
+      { nom: 'en plein parcours, le prix passe la main malgre le conseil', mute: [P(AUTO, '    if (mots.prix && !leConseilParle(tour.texte, ctx.conseil) && !familleNommeeWa(tour.texte)) return', '    if (mots.prix) return')] },
       { nom: 'merci relance', mute: [P(AUTO, "      return silence();\n    }\n    /* UNE QUESTION QUI N'EST PAS", "      return ecart();\n    }\n    /* UNE QUESTION QUI N'EST PAS")] },
       { nom: 'le juge de la fonction oublie le catalogue', mute: [P(F_AUTO, 'texteSain(toutLeTexteWa(m), m.prixDuCatalogue === true)', 'texteSain(toutLeTexteWa(m))')] },
       { nom: 'la trace oublie la reponse', mute: [P(F_AUTO, '      ...(o.m.reponseId ? { reponse: o.m.reponseId } : {}),\n', '')] },
