@@ -70,7 +70,7 @@ dit('② « la paie attend votre oui » part à la direction seule', [true, fals
 const pn = sansCommentaires('supabase/functions/push-notify/index.ts');
 dit('… et la fonction exige un compte du personnel avant de l envoyer au souverain', [true, true, true], [
   /if \(body\.mode === 'direction'\) \{\s+if \(!parLeService\(req\)\) \{[\s\S]{0,500}from\('staff'\)[\s\S]{0,200}return json\(\{ error: 'forbidden' \}, 403\);/.test(pn),
-  /mode === 'direction'[\s\S]{0,900}sendToDirection\(/.test(pn), pn.includes("const VERSION = '2026-10-14-b';"),
+  /mode === 'direction'[\s\S]{0,900}sendToDirection\(/.test(pn), pn.includes("const VERSION = '2026-10-31-a';"),
 ]);
 dit('③ la base : le dossier au souverain ou à elle, les primes au souverain', [true, true, true], [
   sql.includes('using (public.is_souverain() or public.est_ma_fiche(id));'),

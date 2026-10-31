@@ -57,6 +57,10 @@ const NAV_DES_ECRANS: TroneGroup[] = [
          souverains seuls : À valider, les agents (encaissements, reprises),
          les processus et l'assistant qui les construit. Maquette VJ5PJEGU…. */
       { path: '/agents', label: 'Les agents', icon: Bot, Component: lazy(() => import('./pilotage/Agents')) },
+      /* LES ASSISTANTS RELIÉS (31 octobre 2026) — Opale et Onyx : qui veille,
+         les décisions en attente, les relais, le journal du jour, les jetons.
+         Maquette TtHPKpjCqovrn8nookJ7eu ; les souverains seuls. */
+      { path: '/assistants', label: 'Les assistants', icon: Radio, Component: lazy(() => import('./pilotage/Assistants')) },
       { path: '/bilan-mensuel', label: 'Bilan mensuel', icon: BarChart3, Component: lazy(() => import('./pilotage/BilanMensuel')) },
       { path: '/synthese', label: 'Synthèse & résultat', icon: PieChart, Component: lazy(() => import('./finances/Synthese')) },
       { path: '/analytics', label: 'Analytics', icon: LineChart, Component: lazy(() => import('./pilotage/Analytics')) },
@@ -473,7 +477,7 @@ export const ANCIENS_DOMAINES: Record<string, string[]> = {
    un : la table ci-dessus ne se met pas à jour. Il s'ouvre par son
    département seul. On les NOMME ici, pour que la barre et la photographie
    restent vérifiables : un écran absent des deux listes est un oubli. */
-export const ECRANS_NES_APRES_LES_DEPARTEMENTS: readonly string[] = ['/compte-courant', '/parrainages', '/cartes-cadeaux', '/secretariat', '/centre-de-commande', '/atelier-des-contenus', '/chiffre-des-prestations', '/prets-personnel', '/entre-deux', '/discussions', '/projets', '/mes-taches', '/agents', '/avis-google', '/previsions', '/gerard', '/audience', '/dictee'];
+export const ECRANS_NES_APRES_LES_DEPARTEMENTS: readonly string[] = ['/compte-courant', '/parrainages', '/cartes-cadeaux', '/secretariat', '/centre-de-commande', '/atelier-des-contenus', '/chiffre-des-prestations', '/prets-personnel', '/entre-deux', '/discussions', '/projets', '/mes-taches', '/agents', '/avis-google', '/previsions', '/gerard', '/audience', '/dictee', '/assistants'];
 
 /** L'ancien domaine d'un écran, celui d'avant les départements. */
 export const ancienDomaineDe = (path: string): string | undefined =>
@@ -505,7 +509,7 @@ const ouvertParSonGroupe = (path: string, acces: Record<string, boolean>): boole
 /* LE CENTRE DE COMMANDE AUSSI (11 octobre 2026) : Yéman ou Brice valident,
    il porte les chiffres du mois et les décisions de la Maison. L'atelier des
    contenus de même : ce qui part au nom de la Maison passe par eux. */
-export const ROUTES_SOUVERAIN = ['/salon-foyer', '/centre-de-commande', '/atelier-des-contenus', '/agents'];
+export const ROUTES_SOUVERAIN = ['/salon-foyer', '/centre-de-commande', '/atelier-des-contenus', '/agents', '/assistants'];
 
 /* Le journal dit qui fait quoi : le rendre lisible de tous changerait le
    climat de la Maison — on ne travaille pas pareil quand chaque geste est

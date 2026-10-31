@@ -23,8 +23,11 @@ const TZ = 'Africa/Porto-Novo';
     qu'on croit déployé. 10 octobre 2026 (revue de nuit) : le rappel dit la
     date en clair avec l'année ; le rappel de 21 h ne compte plus les caisses
     hors bilan et voit les mouvements hors activité. 14 octobre 2026 : le
-    passage de 8 h du secrétariat administratif (J-7 et la veille). */
-const VERSION = '2026-10-14-b';
+    passage de 8 h du secrétariat administratif (J-7 et la veille).
+    31 octobre 2026 : le mode `to-staff` (un seul membre du personnel, le
+    porteur d'un assistant) et le chien de garde des assistants reliés, au
+    cron du personnel. */
+const VERSION = '2026-10-31-a';
 
 /* LA DATE ET L'HEURE TELLES QU'ON LES DIT — 10 octobre 2026 (revue de nuit).
    Le rappel disait « Rendez-vous le 2026-10-11 à 09:00 », puis un tiret
@@ -490,6 +493,185 @@ async function rappelDuSecretariat(): Promise<number> {
   return envoyes;
 }
 
+/* ══ LES ASSISTANTS RELIÉS, 31 octobre 2026 ═══════════════════════════
+   Chaque personne de la direction a son assistant : une session de Claude
+   Code sur son ordinateur, qui passe toutes les dix minutes par la fonction
+   `assistants-maison` et laisse son état dans la table `assistants`. Deux
+   maillons vivent ici :
+     - le mode `to-staff` (plus bas, dans la porte) : la fonction
+       `assistants-maison` (clé service) ou l'écran « Les assistants » (JWT
+       d'un souverain) prévient UN membre du personnel, le porteur, sur son
+       téléphone : une place tenue à confirmer, une décision qui attend, un
+       assistant empêché ;
+     - le chien de garde : à chaque passage du cron du personnel (quart
+       d'heure), un assistant relié (empreinte posée) dont le dernier passage
+       date de plus de `silenceMin`, entre les heures de veille, fait prévenir
+       son porteur, une seule fois par sommeil (`etat.dortPrevenuLe`).
+   Les petites fonctions pures qui suivent sont RECOPIÉES à l'identique de
+   src/shared/assistants-pur.ts (une fonction Edge n'importe rien du dépôt) :
+   l'original fait foi, le banc des assistants veille dessus. Aucun nom de
+   cliente, aucun extrait de message ne passe par ici : des faits de la
+   Maison, et le prénom de l'assistant. */
+
+/* RECOPIÉ de assistants-pur.ts : les réglages (mnd_settings.assistants). */
+export type ReglagesAssistants = {
+  /** Minutes entre deux passages. */
+  rythmeMin?: number;
+  /** Heures de Cotonou entre lesquelles un assistant veille. */
+  veilleDe?: number;
+  veilleA?: number;
+  /** Minutes de silence après lesquelles le Trône prévient le porteur. */
+  silenceMin?: number;
+  /** Heures ouvrées pendant lesquelles une place tenue attend son toucher. */
+  tenueHeures?: number;
+};
+
+export const REGLAGES_PAR_DEFAUT: Required<ReglagesAssistants> = {
+  rythmeMin: 10, veilleDe: 8, veilleA: 20, silenceMin: 30, tenueHeures: 2,
+};
+
+export const reglagesComplets = (r?: ReglagesAssistants | null): Required<ReglagesAssistants> => {
+  const n = (v: unknown, d: number, min: number, max: number) =>
+    typeof v === 'number' && Number.isFinite(v) && v >= min && v <= max ? Math.round(v) : d;
+  return {
+    rythmeMin: n(r?.rythmeMin, REGLAGES_PAR_DEFAUT.rythmeMin, 5, 60),
+    veilleDe: n(r?.veilleDe, REGLAGES_PAR_DEFAUT.veilleDe, 0, 23),
+    veilleA: n(r?.veilleA, REGLAGES_PAR_DEFAUT.veilleA, 1, 24),
+    silenceMin: n(r?.silenceMin, REGLAGES_PAR_DEFAUT.silenceMin, 15, 240),
+    tenueHeures: n(r?.tenueHeures, REGLAGES_PAR_DEFAUT.tenueHeures, 1, 12),
+  };
+};
+
+/* RECOPIÉ de assistants-pur.ts : l'heure de Cotonou (UTC+1, sans heure d'été). */
+export const DECALAGE_COTONOU_MIN = 60;
+
+/** L'heure (0-23) et le jour de la semaine (0 = dimanche) à Cotonou. */
+export function aCotonou(ms: number): { heure: number; minute: number; jour: number; dateISO: string } {
+  const d = new Date(ms + DECALAGE_COTONOU_MIN * 60_000);
+  return {
+    heure: d.getUTCHours(), minute: d.getUTCMinutes(), jour: d.getUTCDay(),
+    dateISO: d.toISOString().slice(0, 10),
+  };
+}
+
+/* RECOPIÉ de assistants-pur.ts : l'état d'un assistant, tel que la table le porte. */
+export type Controles = { chrome: boolean; lie: boolean; nonLus: boolean };
+
+export type Assistant = {
+  id: string;
+  nom: string;
+  porteurTeamId?: string | null;
+  porteurUserId?: string | null;
+  appareil?: string | null;
+  aUnJeton: boolean;
+  /** Dernier passage noté par la fonction (ISO UTC). */
+  vuLe?: string | null;
+  /** Depuis quand la série de passages tient sans trou (ISO UTC). */
+  eveilleDepuis?: string | null;
+  etat: {
+    controles?: Controles;
+    empeche?: string | null;
+    version?: string;
+    /** Messages traités aujourd'hui (un compteur, jamais un nom). */
+    traites?: number;
+    /** Quand le porteur a été prévenu du sommeil en cours (ISO UTC). */
+    dortPrevenuLe?: string | null;
+  };
+};
+
+/* RECOPIÉ de assistants-pur.ts : une durée dite. */
+export const dureeDite = (min: number): string => {
+  if (min < 1) return 'moins d\'une minute';
+  if (min < 60) return `${min} min`;
+  const h = Math.floor(min / 60); const m = min % 60;
+  if (h < 48) return m ? `${h} h ${String(m).padStart(2, '0')}` : `${h} h`;
+  return `${Math.floor(h / 24)} jours`;
+};
+
+/* RECOPIÉ de assistants-pur.ts : la règle du chien de garde. */
+/** Le chien de garde du Trône prévient le porteur : entre les heures de veille,
+    après `silenceMin` de silence, une seule fois par sommeil. */
+export function doitPrevenirDuSommeil(
+  a: Pick<Assistant, 'aUnJeton' | 'vuLe' | 'etat'>,
+  maintenantMs: number,
+  r: Required<ReglagesAssistants>,
+): boolean {
+  if (!a.aUnJeton) return false;
+  const vu = Date.parse(a.vuLe ?? '');
+  if (!Number.isFinite(vu)) return false;
+  if (maintenantMs - vu < r.silenceMin * 60_000) return false;
+  const { heure } = aCotonou(maintenantMs);
+  if (heure < r.veilleDe || heure >= r.veilleA) return false;
+  const prevenu = Date.parse(a.etat?.dortPrevenuLe ?? '');
+  return !(Number.isFinite(prevenu) && prevenu >= vu);
+}
+
+/* RECOPIÉ de assistants-pur.ts : les genres de relais, pour le corps d'une notification. */
+export const GENRES_DE_RELAIS = [
+  'rdv-pose-pour-toi', 'rdv-deplace', 'rdv-annule',
+  'place-tenue', 'place-confirmee', 'place-refusee',
+  'fil-ouvert', 'hermine-a-prevenir', 'envie-lue', 'argent-a-trancher', 'assistant-endormi',
+] as const;
+export type GenreDeRelais = typeof GENRES_DE_RELAIS[number];
+
+/* RECOPIÉ de assistants-pur.ts : le corps d'une notification au porteur ; ici, le cas 'sommeil'. */
+/** Le corps d'une notification au porteur : jamais un nom, jamais un extrait. */
+export function corpsDeNotification(genre: GenreDeRelais | 'decision' | 'sommeil' | 'empeche', detail?: { heure?: string; nom?: string; depuis?: string; empeche?: string }): { titre: string; corps: string } {
+  const qui = detail?.nom ?? 'Votre assistant';
+  switch (genre) {
+    case 'place-tenue': return { titre: 'Une place tenue pour vous', corps: `${detail?.heure ?? 'Une place'} : confirmez d'un toucher dans Les assistants.` };
+    case 'place-confirmee': return { titre: 'Place confirmée', corps: `${detail?.heure ?? 'La place'} est confirmée par l'autre fauteuil.` };
+    case 'place-refusee': return { titre: 'Place refusée', corps: `${detail?.heure ?? 'La place'} n'est pas tenue : une autre heure est à proposer.` };
+    case 'rdv-pose-pour-toi': return { titre: 'Rendez-vous posé pour vous', corps: detail?.heure ?? 'Un rendez-vous vous attend au Trône.' };
+    case 'rdv-deplace': return { titre: 'Rendez-vous déplacé', corps: detail?.heure ?? 'Un de vos rendez-vous a bougé.' };
+    case 'rdv-annule': return { titre: 'Rendez-vous annulé', corps: detail?.heure ?? 'Un de vos rendez-vous est annulé.' };
+    case 'hermine-a-prevenir': return { titre: 'Tresses posées', corps: 'Hermine est à prévenir depuis votre fil.' };
+    case 'argent-a-trancher': return { titre: 'Une question d\'argent', corps: 'Un relais vous attend au Trône.' };
+    case 'fil-ouvert': return { titre: 'La même personne vous écrit à tous les deux', corps: 'L\'autre assistant répond ; un relais le dit.' };
+    case 'envie-lue': return { titre: 'Une envie notée', corps: 'Une Note du carnet a été posée sur un rendez-vous.' };
+    case 'assistant-endormi': return { titre: 'L\'autre assistant dort', corps: 'Des fils attendent de son côté.' };
+    case 'decision': return { titre: 'Une décision vous attend', corps: `${qui} a laissé une proposition dans Les assistants.` };
+    case 'sommeil': return { titre: `${qui} dort`, corps: `Aucun passage depuis ${detail?.depuis ?? 'un moment'}. Relancez-le d'un clic.` };
+    case 'empeche': return { titre: `${qui} est empêché`, corps: detail?.empeche ?? 'Un contrôle a échoué au dernier passage.' };
+  }
+}
+
+/** Où mène la notification d'un assistant, et sa clé de regroupement. */
+const ASSISTANTS_URL = '/trone/#/assistants';
+const ASSISTANTS_TAG = 'mnd-assistants';
+
+/** Le chien de garde : rend le nombre de porteurs prévenus à ce passage.
+    Sans la table (0148 pas encore passée) ou sans assistant relié, rien ne
+    part. Les réglages viennent de `documents.mnd_settings → data.assistants`,
+    complétés par les valeurs par défaut du module pur. */
+async function chienDeGardeDesAssistants(): Promise<number> {
+  const { data: lignes, error: sansTable } = await admin.from('assistants').select('id,nom,porteur_user_id,empreinte,vu_le,etat');
+  if (sansTable || !lignes || lignes.length === 0) return 0;
+  const { data: doc } = await admin.from('documents').select('data').eq('key', 'mnd_settings').maybeSingle();
+  const reglages = reglagesComplets((doc?.data as { assistants?: ReglagesAssistants | null } | null)?.assistants);
+  const maintenant = Date.now();
+  type Ligne = { id: string; nom: string; porteur_user_id: string | null; empreinte: string | null; vu_le: string | null; etat: Assistant['etat'] | null };
+  let prevenus = 0;
+  for (const l of lignes as Ligne[]) {
+    if (!l.empreinte) continue;
+    const etat = l.etat ?? {};
+    if (!doitPrevenirDuSommeil({ aUnJeton: true, vuLe: l.vu_le, etat }, maintenant, reglages)) continue;
+    if (!l.porteur_user_id) continue;
+    const depuis = dureeDite(Math.floor((maintenant - Date.parse(l.vu_le ?? '')) / 60_000));
+    const { titre, corps } = corpsDeNotification('sommeil', { nom: l.nom, depuis });
+    await sendToUsers([l.porteur_user_id], { title: titre, body: corps, url: ASSISTANTS_URL, tag: ASSISTANTS_TAG });
+    /* Une seule notification par sommeil : `dortPrevenuLe` ≥ `vu_le` fait
+       taire les passages suivants, jusqu'au prochain réveil. L'écriture ne
+       porte que si le passage n'a pas repris entre-temps (même `vu_le`) : on
+       n'écrase pas l'état frais d'un assistant qui vient de se réveiller. */
+    await admin.from('assistants')
+      .update({ etat: { ...etat, dortPrevenuLe: new Date(maintenant).toISOString() } })
+      .eq('id', l.id).eq('vu_le', l.vu_le);
+    prevenus += 1;
+  }
+  return prevenus;
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
   const body = await req.json().catch(() => ({} as Record<string, unknown>));
@@ -498,7 +680,7 @@ Deno.serve(async (req) => {
   // la passerelle exige déjà la clé publishable, et ces balayages sont idempotents
   // (journal push_reminders + fenêtre horaire) — les rejouer est sans effet.
   if (body.mode === 'reminders') return json({ version: VERSION, sent: await runReminders() });
-  if (body.mode === 'staff-cron') return json({ version: VERSION, sent: await runStaffCron(), tiroirs: await rappelDesTiroirs(), secretariat: await rappelDuSecretariat() });
+  if (body.mode === 'staff-cron') return json({ version: VERSION, sent: await runStaffCron(), tiroirs: await rappelDesTiroirs(), secretariat: await rappelDuSecretariat(), assistants: await chienDeGardeDesAssistants() });
 
   // Mode diffusion — annonce (offre/promo) à TOUTES les clientes. Réservé au personnel.
   if (body.mode === 'broadcast') {
@@ -623,6 +805,34 @@ Deno.serve(async (req) => {
       body: (body.body as string) ?? '',
       url: (body.url as string) ?? '/trone/',
       tag: 'mnd-direction',
+    }) });
+  }
+
+  /* UN SEUL MEMBRE DU PERSONNEL, LE PORTEUR (31 octobre 2026, les assistants
+     reliés). La fonction `assistants-maison` parle avec la clé service ;
+     l'écran « Les assistants » avec le JWT d'un souverain (même garde que
+     `direction`, le rôle en plus). `userId` doit être un compte du
+     personnel : on ne pousse jamais vers une cliente par cette porte. Le
+     corps passe tel quel : il n'est ni réécrit ni journalisé. */
+  if (body.mode === 'to-staff') {
+    if (!parLeService(req)) {
+      const jwt = (req.headers.get('Authorization') ?? '').replace('Bearer ', '');
+      const { data: userData } = await admin.auth.getUser(jwt);
+      const uid = userData?.user?.id;
+      if (!uid) return json({ error: 'forbidden', version: VERSION }, 403);
+      const { data: souverain } = await admin.from('staff').select('user_id,role').eq('user_id', uid).eq('role', 'souverain').maybeSingle();
+      if (!souverain) return json({ error: 'forbidden', version: VERSION }, 403);
+    }
+    const userId = typeof body.userId === 'string' ? body.userId.trim() : '';
+    const title = typeof body.title === 'string' ? body.title : '';
+    if (!userId || !title) return json({ error: 'bad request', version: VERSION }, 400);
+    const { data: porteur } = await admin.from('staff').select('user_id').eq('user_id', userId).maybeSingle();
+    if (!porteur) return json({ error: 'not staff', version: VERSION }, 404);
+    return json({ version: VERSION, sent: await sendToUsers([userId], {
+      title,
+      body: typeof body.body === 'string' ? body.body : '',
+      url: typeof body.url === 'string' && body.url ? body.url : '/trone/',
+      tag: typeof body.tag === 'string' && body.tag ? body.tag : 'mnd-staff',
     }) });
   }
 

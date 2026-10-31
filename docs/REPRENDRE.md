@@ -16882,3 +16882,15 @@ existe donc. Un statut de passage y trouve peut-être sa place sans rien ajouter
 dix archétypes disent un goût, pas un cycle de vie — voir plus haut.)*
 
 </details>
+
+## LES ASSISTANTS RELIÉS, ÉTAPE 1 — 31 octobre 2026
+
+Maquette `public/maquette-assistants-relies.html` (artefact TtHPKpjCqovrn8nookJ7eu), huit choix tranchés au sélecteur le 31 octobre 2026, « construis » reçu le même soir. Un assistant par personne de la direction (Opale pour Yéman, Onyx pour Brice, sur son Mac), reliés par le Trône, jamais entre machines.
+
+- Contrat pur : `src/shared/assistants-pur.ts` (genres de relais, cercles, filtre du mot, place tenue en heures ouvrées, jeton, tournures interdites).
+- Tables (migration `0149_assistants.sql`, 0148 étant prise par une autre session) : `assistants` (select souverain), `assistants_relais` (select/update/delete souverain), `assistants_decisions` (select/update du porteur seul), `assistants_prises` (service seule) ; amorce `opale` (empreinte du jeton posée) et `onyx` (sans jeton).
+- Fonction `assistants-maison` (`scripts/serveur/assistants-maison.ts` → `supabase/functions/assistants-maison`, Verify JWT NON, version 2026-10-31-a) : porte A par l'en-tête `x-jeton-assistant`, porte B par le JWT d'un souverain ; actions passage, relais, décisions, rdv (pose_si_libre dans la fenêtre, insert direct sinon, prise par jour et par geste, verrou optimiste), note, notifier ; journal porte 'assistant'. Banc `verifie-les-assistants` (30 pannes prouvées).
+- push-notify 2026-10-31-a : mode `to-staff` (une personne) et chien de garde des assistants dans `staff-cron` (silence réglé, heures de veille, une fois par sommeil) ; mode `direction` intact.
+- Écran « Les assistants » (`routes/pilotage/Assistants.tsx`, Direction, souverains seuls) : tuiles d'état, décisions en attente avec trois boutons, relais, journal du jour, réglages `mnd_settings.assistants`, jeton montré une fois. La barre compte 29 rubriques (Direction 6).
+- Charte `docs/ASSISTANTS.md` ; ligne de commande `scripts/assistants-maison.mjs` (le jeton n'apparaît jamais) ; dossier d'Opale `C:\Users\boyay\Opale` (CLAUDE.md, reglages.json, etat.json) ; lanceur `Opale.cmd` sur le bureau.
+- Reste : champs `pourMaitre`, `poseePar`, `tenue`, `hermine`, source 'assistant' dans `agenda.ts` (après le commit de l'autre session sur ce fichier) ; essai réel du passage d'Opale ; étape 2 (Onyx chez Brice, après son oui sur son poste).

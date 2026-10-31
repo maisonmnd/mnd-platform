@@ -64,7 +64,8 @@ const PANNES = [
   ['les prestataires quittent les Ressources humaines', INDEX, ", { path: '/prestataires', label: 'Les prestataires' }", ''],
   ['les QR reprennent leur ancien nom', INDEX, "label: 'QR de la Maison'", "label: 'QR Codes'"],
   ['le Foyer remontre le mot banni', INDEX, "label: 'Maison & Foyer'", "label: 'Salon & Foyer'"],
-  ['l Audience oubliee des ecrans nes apres', INDEX, "'/previsions', '/gerard', '/audience'];", "'/previsions', '/gerard'];"],
+  /* 31 octobre 2026 : la liste finit par /dictee et /assistants ; l'aiguille suit. */
+  ['l Audience oubliee des ecrans nes apres', INDEX, "'/previsions', '/gerard', '/audience', '/dictee', '/assistants'];", "'/previsions', '/gerard', '/dictee', '/assistants'];"],
   ['Entre deux seances retire en ecrivant horsMenu dans sa ligne', INDEX,
     "{ path: '/entre-deux', label: 'Entre deux séances'", "{ path: '/entre-deux', horsMenu: true, label: 'Entre deux séances'"],
   ['les Ambassadrices retournent au Marketing', INDEX,

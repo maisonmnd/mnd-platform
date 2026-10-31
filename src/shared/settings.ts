@@ -3,6 +3,7 @@ import type { Plan } from './bascule-des-caisses-pur';
 import type { ReglagesMndPay } from './mnd-pay-pur';
 import type { ReglagesRelances } from './relances-pur';
 import type { ReglagesDictee } from './dictee-pur';
+import type { ReglagesAssistants } from './assistants-pur';
 
 /* Paramètres de la Maison — persistés en localStorage (clé `mnd_settings`).
    Jours & heures d'ouverture, bascules de rituel/notifications, et les liens
@@ -136,6 +137,11 @@ export type Settings = {
       Maison, le mode et le modèle par défaut, l'empreinte du jeton de la
       Dictée du bureau. La fonction `dictee-au-propre` les lit. */
   dictee?: ReglagesDictee;
+  /** LES ASSISTANTS RELIÉS — 31 octobre 2026 (maquette TtHPKpjC…) : le rythme
+      des passages, les heures de veille, le silence avant d'avertir, la durée
+      d'une place tenue. La fonction `assistants-maison` et l'écran
+      « Les assistants » les lisent. */
+  assistants?: ReglagesAssistants;
 };
 
 /** Créneaux d'ouverture proposés — repris du prototype. */

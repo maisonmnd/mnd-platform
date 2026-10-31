@@ -47,9 +47,12 @@ const dansLaBarre = items.filter((it) => !it.horsMenu);
    26 octobre : 13 mort-nées, 17 dormantes ; spec de l'Assistant Maison §3),
    l'Audience entre en onglet des Clientes, pas en rubrique. Le groupe
    Marketing & Fidélité reste, à deux rubriques (maquette validée). */
-dit('la barre montre 28 rubriques', 28, dansLaBarre.length);
-dit('... par département : Direction 5, Clientèle 4, Atelier 2, Vente & Caisse 4, Finances 4, Marketing & Fidélité 2, Équipe 3, Académie 1, Système 3',
-  { Direction: 5, 'Clientèle': 4, Atelier: 2, 'Vente & Caisse': 4, Finances: 4, 'Marketing & Fidélité': 2, 'Équipe': 3, 'Académie': 1, 'Système': 3 },
+/* 29 depuis le 31 octobre 2026 : « Les assistants » (maquette TtHPKpjC…,
+   Opale et Onyx reliés par le Trône), en Direction, sous Les agents ; les
+   souverains seuls. */
+dit('la barre montre 29 rubriques', 29, dansLaBarre.length);
+dit('... par département : Direction 6, Clientèle 4, Atelier 2, Vente & Caisse 4, Finances 4, Marketing & Fidélité 2, Équipe 3, Académie 1, Système 3',
+  { Direction: 6, 'Clientèle': 4, Atelier: 2, 'Vente & Caisse': 4, Finances: 4, 'Marketing & Fidélité': 2, 'Équipe': 3, 'Académie': 1, 'Système': 3 },
   Object.fromEntries(NAV.map((g) => [g.group, g.items.filter((it) => !it.horsMenu).length])));
 dit('... dont Les prévisions, en Direction', ['Direction', false], [item('/previsions')?.groupe, !!item('/previsions')?.horsMenu]);
 dit('... dont l Assistant Maison, en Clientèle, juste sous Clientes', ['Clientèle', false, 'Assistant Maison', true],

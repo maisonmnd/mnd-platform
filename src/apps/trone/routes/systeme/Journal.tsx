@@ -38,6 +38,9 @@ const DIT_VERBE: Record<GesteVerbe, string> = {
 
 const PORTES: Record<Geste['porte'], string> = {
   trone: 'Le Trône', couronne: 'Ma Couronne', consultation: 'La Consultation',
+  /* 31 octobre 2026 : un geste écrit par la fonction assistants-maison au nom
+     d'Opale ou d'Onyx (rendez-vous posé, note, relais). */
+  assistant: 'Un assistant de la Maison',
 };
 
 const heure = (iso: string): string => (iso ? iso.slice(11, 16) : '—');

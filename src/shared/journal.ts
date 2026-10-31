@@ -30,7 +30,7 @@ export type Geste = {
       un geste d'hier. Même règle que la provenance des dépenses. */
   parNom: string;
   /** Par quelle porte le geste est entré. */
-  porte: 'trone' | 'couronne' | 'consultation';
+  porte: 'trone' | 'couronne' | 'consultation' | 'assistant';
   verbe: GesteVerbe;
   /** Le nom technique de la collection — pour filtrer sans ambiguïté. */
   table: string;

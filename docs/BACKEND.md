@@ -125,3 +125,7 @@ moment-là.
 - **Multi-tenant LOKAA** : ajouter `org_id` (colonne + RLS) pour le SaaS white-label.
 - **Colonnes normalisées / vues** : le JSONB est requêtable ; des vues SQL pourront
   exposer des colonnes plates pour la BI si besoin.
+
+## Les assistants reliés (31 octobre 2026, migration 0149)
+
+Quatre tables réservées à la direction : `assistants` (select `is_souverain()` ; écrite par la fonction seule), `assistants_relais` (select, update, delete `is_souverain()` ; insert par la fonction), `assistants_decisions` (select et update du porteur seul : `assistants.porteur_user_id = auth.uid()` ; insert par la fonction), `assistants_prises` (aucune politique : service seule). La fonction `assistants-maison` (Verify JWT non) reconnaît un assistant à l'empreinte SHA-256 de son jeton d'appareil (en-tête `x-jeton-assistant`) et la direction à son JWT (`staff.role = 'souverain'`). Les notifications aux porteurs passent par `push-notify` mode `to-staff` (clé service ou JWT souverain) ; le chien de garde des assistants vit dans `staff-cron`.
