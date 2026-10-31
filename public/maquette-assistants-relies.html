@@ -1,0 +1,402 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Les assistants reliés</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500&family=Jost:wght@400;500&display=swap">
+</head>
+<body>
+<style>
+/* Mise en page : une colonne de lecture ; au milieu, la journée reliée qui se rejoue pas à pas (deux téléphones, le Trône entre eux). */
+:root {
+  --fond: #efe4d3;        /* le sable du site */
+  --papier: #fbf7f0;
+  --encre: #1f2350;       /* indigo de la Maison */
+  --encre-douce: #4b4f72;
+  --cuivre: #a8622f;
+  --trait: #d9cbb5;
+  --vieux: #8a8270;
+  --vert: #3b8f5a;
+  --ecran: #1f2350;
+  --ecran-texte: #f3ece0;
+  --ecran-doux: #b9b6cf;
+  --ecran-trait: #3a3e6e;
+  --bulle-eux: #2b2f62;
+  --bulle-nous: #3b6b4f;
+  --display: 'Cormorant Garamond', 'Times New Roman', serif;
+  --texte: 'Jost', 'Segoe UI', system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --fond: #15173a; --papier: #1f2250; --encre: #f3ece0; --encre-douce: #c9c4d8; --cuivre: #d38a52; --trait: #34386a; --vieux: #9d97b0; --vert: #5fb57f;
+  --ecran: #0f1130; --ecran-texte: #f3ece0; --ecran-doux: #a9a6c4; --ecran-trait: #2c3060; --bulle-eux: #23264f; --bulle-nous: #2f5a42; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --fond: #15173a; --papier: #1f2250; --encre: #f3ece0; --encre-douce: #c9c4d8; --cuivre: #d38a52; --trait: #34386a; --vieux: #9d97b0; --vert: #5fb57f;
+  --ecran: #0f1130; --ecran-texte: #f3ece0; --ecran-doux: #a9a6c4; --ecran-trait: #2c3060; --bulle-eux: #23264f; --bulle-nous: #2f5a42; color-scheme: dark }
+body { background: var(--fond); color: var(--encre); font-family: var(--texte); font-size: 15px; line-height: 1.6; }
+.page { max-width: 980px; margin: 0 auto; padding-block: 40px 72px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: grid; gap: 56px; }
+h1, h2, h3 { font-family: var(--display); font-weight: 500; text-wrap: balance; margin: 0; }
+h1 { font-size: clamp(34px, 6vw, 52px); line-height: 1.05; }
+h2 { font-size: clamp(26px, 4.5vw, 34px); line-height: 1.1; }
+h3 { font-size: 21px; line-height: 1.2; }
+p { margin: 0; }
+.sur { font-size: 11px; letter-spacing: .18em; text-transform: uppercase; color: var(--cuivre); }
+.chapo { color: var(--encre-douce); max-width: 64ch; }
+.bandeau { background: var(--encre); color: #f3ece0; padding: 10px 14px; border-radius: 4px; font-size: 13px; }
+:root[data-theme="dark"] .bandeau { background: var(--papier); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .bandeau { background: var(--papier); } }
+.section { display: grid; gap: 18px; }
+.constat { border-left: 2px solid var(--cuivre); padding: 4px 0 4px 14px; color: var(--encre-douce); max-width: 68ch; }
+.constat b { color: var(--encre); font-weight: 500; }
+.etiquette { font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--vieux); }
+ul.net { margin: 0; padding-left: 18px; display: grid; gap: 6px; color: var(--encre-douce); }
+ul.net b { color: var(--encre); font-weight: 500; }
+.arbitrage { display: grid; gap: 6px; padding: 14px 16px; border-radius: 4px; background: color-mix(in srgb, var(--cuivre) 10%, var(--papier)); border: 1px solid color-mix(in srgb, var(--cuivre) 35%, var(--trait)); }
+.arbitrage b { font-weight: 500; }
+.deux { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 18px; }
+.carte { background: var(--papier); border: 1px solid var(--trait); border-radius: 4px; padding: 16px 18px; display: grid; gap: 8px; align-content: start; }
+.carte h3 { font-size: 19px; }
+.carte p, .carte li { color: var(--encre-douce); font-size: 14px; }
+.carte b { color: var(--encre); font-weight: 500; }
+button:focus-visible { outline: 2px solid var(--cuivre); outline-offset: 2px; }
+
+/* La journée reliée */
+.scene { display: grid; gap: 14px; }
+.pas-barre { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.pas-barre .heure { font-family: var(--display); font-size: 24px; min-width: 80px; }
+.pas-barre .titre { color: var(--encre-douce); flex: 1 1 240px; min-width: 0; }
+.commandes { display: flex; gap: 8px; }
+.cmd { border: 1px solid var(--trait); background: var(--papier); color: var(--encre); border-radius: 99px; padding: 6px 16px; font: inherit; font-size: 13px; cursor: pointer; }
+.cmd.plein { background: var(--cuivre); border-color: var(--cuivre); color: #fff; }
+.cmd:disabled { opacity: .4; cursor: default; }
+.trio { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr) minmax(0, 1fr); gap: 14px; align-items: start; }
+@media (max-width: 760px) { .trio { grid-template-columns: 1fr; } }
+.tel { background: var(--ecran); color: var(--ecran-texte); border-radius: 26px; border: 5px solid #0b0c22; padding: 16px 14px 14px; display: grid; gap: 10px; min-height: 440px; align-content: start; }
+.tel .qui { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.tel .qui b { font-family: var(--display); font-size: 19px; font-weight: 500; }
+.tel .qui small { color: var(--ecran-doux); font-size: 11px; letter-spacing: .12em; text-transform: uppercase; text-align: right; }
+.bulle { max-width: 92%; border-radius: 12px; padding: 7px 10px; font-size: 13.5px; line-height: 1.45; }
+.bulle.eux { background: var(--bulle-eux); justify-self: start; border-bottom-left-radius: 3px; }
+.bulle.nous { background: var(--bulle-nous); justify-self: end; border-bottom-right-radius: 3px; }
+.bulle small { display: block; color: var(--ecran-doux); font-size: 10.5px; margin-top: 2px; }
+.assist { border: 1px dashed var(--cuivre); border-radius: 10px; padding: 9px 11px; display: grid; gap: 6px; font-size: 13px; }
+.assist .nom { color: var(--cuivre); font-size: 11px; letter-spacing: .14em; text-transform: uppercase; }
+.assist .resume { color: var(--ecran-doux); }
+.assist .prop { background: rgba(255,255,255,.06); border-radius: 8px; padding: 6px 9px; }
+.choix { display: flex; flex-wrap: wrap; gap: 5px; }
+.choix span { border: 1px solid var(--ecran-trait); border-radius: 99px; padding: 2px 9px; font-size: 11.5px; color: var(--ecran-doux); }
+.choix span.oui { border-color: var(--cuivre); color: var(--ecran-texte); }
+.notif { background: rgba(255,255,255,.08); border-left: 2px solid var(--cuivre); border-radius: 6px; padding: 7px 10px; font-size: 12.5px; color: var(--ecran-texte); }
+.notif small { display: block; color: var(--ecran-doux); font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase; margin-bottom: 2px; }
+.tel.dort { opacity: .45; }
+.tel .vide { color: var(--ecran-doux); font-size: 13px; }
+.trone { background: var(--papier); border: 1px solid var(--trait); border-radius: 4px; padding: 14px 16px; display: grid; gap: 10px; min-height: 440px; align-content: start; }
+.trone .tete { display: flex; justify-content: space-between; align-items: baseline; border-bottom: 1px solid var(--trait); padding-bottom: 8px; }
+.trone .tete b { font-family: var(--display); font-size: 19px; font-weight: 500; }
+.etat { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.etat .a { border: 1px solid var(--trait); border-radius: 4px; padding: 8px 10px; font-size: 12.5px; color: var(--encre-douce); display: grid; gap: 2px; }
+.etat .a b { color: var(--encre); font-weight: 500; }
+.etat .a .point { display: inline-block; width: 8px; height: 8px; border-radius: 99px; background: var(--vert); margin-right: 6px; vertical-align: middle; }
+.etat .a.dort .point { background: var(--vieux); }
+.etat .a.empeche .point { background: var(--cuivre); }
+.ligne { display: grid; grid-template-columns: 56px minmax(0, 1fr); gap: 8px; font-size: 13px; color: var(--encre-douce); align-items: start; }
+.ligne i { font-style: normal; color: var(--cuivre); font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase; padding-top: 3px; }
+.ligne.relais { background: color-mix(in srgb, var(--cuivre) 10%, var(--papier)); border-radius: 4px; padding: 6px 8px; }
+.ligne.decision { border: 1px solid var(--trait); border-radius: 4px; padding: 6px 8px; }
+.ligne b { color: var(--encre); font-weight: 500; }
+.ligne .boutons { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 4px; }
+.ligne .boutons span { border: 1px solid var(--trait); border-radius: 99px; padding: 1px 9px; font-size: 11.5px; }
+.ligne .boutons span:first-child { border-color: var(--cuivre); color: var(--cuivre); }
+.legende { color: var(--encre-douce); font-size: 14px; max-width: 70ch; }
+
+/* L'écran « Les assistants » */
+.ecran { background: var(--papier); border: 1px solid var(--trait); border-radius: 4px; display: grid; }
+.ecran .barre { background: var(--encre); color: #f3ece0; padding: 10px 16px; font-size: 12px; letter-spacing: .14em; text-transform: uppercase; display: flex; gap: 18px; flex-wrap: wrap; }
+.ecran .barre span.ici { color: #e9b58d; }
+.ecran .corps { padding: 16px; display: grid; gap: 14px; }
+.tuiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+.tuile { border: 1px solid var(--trait); border-radius: 4px; padding: 12px 14px; display: grid; gap: 4px; font-size: 13.5px; color: var(--encre-douce); }
+.tuile b { color: var(--encre); font-weight: 500; font-family: var(--display); font-size: 20px; }
+.tuile .chiffres { display: flex; gap: 14px; flex-wrap: wrap; font-variant-numeric: tabular-nums; }
+.tuile .chiffres span b { font-family: var(--texte); font-size: 15px; }
+.tuile .geste { color: var(--cuivre); font-size: 12px; }
+.tableau { display: grid; gap: 6px; font-size: 13.5px; }
+.tableau .r { display: grid; grid-template-columns: 64px 92px minmax(0, 1fr) auto; gap: 10px; color: var(--encre-douce); align-items: baseline; padding: 4px 0; border-bottom: 1px solid var(--trait); }
+.tableau .r:last-child { border-bottom: 0; }
+.tableau .r b { color: var(--encre); font-weight: 500; }
+.tableau .r .geste { font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--cuivre); }
+.tableau .r .act { font-size: 12px; color: var(--cuivre); white-space: nowrap; }
+.tableau .r .act.trois { display: flex; gap: 6px; }
+@media (max-width: 560px) { .tableau .r { grid-template-columns: 56px minmax(0, 1fr); } .tableau .r .geste, .tableau .r .act { display: none; } }
+
+/* Les étapes */
+.etapes { display: grid; gap: 12px; }
+.etape { display: grid; grid-template-columns: 110px minmax(0, 1fr); gap: 14px; align-items: start; }
+.etape .quand { font-family: var(--display); font-size: 20px; color: var(--cuivre); }
+.etape p { color: var(--encre-douce); }
+.etape b { color: var(--encre); font-weight: 500; }
+@media (max-width: 560px) { .etape { grid-template-columns: 1fr; gap: 4px; } }
+@media (prefers-reduced-motion: no-preference) { .tel, .trone { transition: opacity .2s; } }
+</style>
+
+<main class="page">
+
+  <!-- 1. Le parti pris -->
+  <header class="section">
+    <p class="sur">Maison MND · maquette · 31 octobre 2026 · v1, après trois relectures · huit choix tranchés au sélecteur</p>
+    <h1>Les assistants reliés</h1>
+    <p class="chapo">Deux téléphones, deux ordinateurs, un seul Trône. Chacun de vous deux a son assistant, qui lit son WhatsApp et répond dans sa voix. Les deux assistants ne se parlent jamais entre machines : ils se parlent par le Trône, qui garde la trace de tout, et qui devient la télécommande dans votre poche.</p>
+    <p class="bandeau">Opale existe depuis ce matin sur ton ordinateur, mais sa mémoire vit dans une session : une session fermée, et plus rien ne sait qu'elle dort. Cette page la pose sur un socle solide au Trône, donne à Brice un second assistant bâti sur la même charte, et relie les deux.</p>
+    <div class="constat">
+      <p><b>Pourquoi pas un groupe WhatsApp entre vous deux.</b> Dans un groupe, l'un recopie ce que l'autre doit savoir, rien ne finit dans l'agenda, personne ne sait ce qui a été fait, et la même cliente peut être posée deux fois. Ici, le relais s'écrit au Trône, compte ce qui est traité, reconnaît la cliente par son numéro et ne transporte jamais un message privé. Le groupe reste bon pour ce qui n'est pas un fait.</p>
+    </div>
+  </header>
+
+  <!-- 2. La journée reliée -->
+  <section class="section" aria-labelledby="journee">
+    <p class="sur">Comment ça se vit</p>
+    <h2 id="journee">Une journée reliée, pas à pas</h2>
+    <p class="chapo">À gauche ton téléphone et Opale, à droite celui de Brice et son assistant (appelé Onyx ici, le nom se choisit plus bas). Au milieu, ce que le Trône voit et montre à vous deux seulement. Les prénoms sont inventés.</p>
+    <div class="scene">
+      <div class="pas-barre">
+        <span class="heure" id="heure">8 h 45</span>
+        <span class="titre" id="titre">Les deux ordinateurs s'allument</span>
+        <span class="commandes">
+          <button class="cmd" type="button" id="prec" disabled>Précédent</button>
+          <button class="cmd plein" type="button" id="suiv">Suivant</button>
+        </span>
+      </div>
+      <div class="trio">
+        <div class="tel" id="tel-y" aria-live="polite"></div>
+        <div class="trone" id="trone" aria-live="polite"></div>
+        <div class="tel" id="tel-b" aria-live="polite"></div>
+      </div>
+      <p class="legende" id="legende"></p>
+    </div>
+  </section>
+
+  <!-- 3. Comment c'est bâti -->
+  <section class="section" aria-labelledby="bati">
+    <p class="sur">Comment c'est bâti</p>
+    <h2 id="bati">Six pièces, et rien de plus</h2>
+    <div class="deux">
+      <div class="carte">
+        <h3>L'assistant, chez chacun</h3>
+        <p>Une session de Claude Code sur l'ordinateur de la personne, avec Chrome et le WhatsApp Web de <b>son</b> téléphone, sous <b>son</b> compte Claude. Il passe toutes les 10 minutes de 8 h à 20 h, personnes seulement, messages nouveaux seulement, sans capture d'écran tant que rien n'a bougé. À chaque passage, trois contrôles : Chrome répond, WhatsApp Web est lié, la liste des non-lus se charge. Au moindre non, il dit « empêché », jamais « rien de nouveau ».</p>
+      </div>
+      <div class="carte">
+        <h3>La charte, commune</h3>
+        <p>Un seul texte dans le dépôt, relu par les deux au démarrage : accusé reçu = un pouce sans demander ; tout le reste = résumé d'une ligne et réponse proposée, jamais envoyée sans le oui du porteur ; un client parle de RDV = le RDV se pose au Trône d'abord. <b>Chaque assistant exclut le fil de l'autre porteur et celui de la Maison</b> : vos messages entre vous restent entre vous. Au premier message d'un contact, le porteur dit son cercle (cliente, proche, famille, fournisseur) : pour un proche, l'assistant propose un mot dans la voix du porteur, mais ne pose rien et n'écrit rien au Trône.</p>
+      </div>
+      <div class="carte">
+        <h3>La voix, à chacun la sienne</h3>
+        <p>« Exactement comme Opale » veut dire même procédure et mêmes garde-fous, jamais même voix. L'assistant de Brice apprend la sienne sur <b>son</b> ordinateur, de ses propres messages envoyés, et se corrige à chaque « Je modifie ». La fiche de voix ne quitte jamais son poste ; tu n'écris pas celle de Brice ; le dépôt ne porte que la méthode et la liste des tournures interdites.</p>
+      </div>
+      <div class="carte">
+        <h3>Le relais et les décisions, au Trône</h3>
+        <p>Quand un assistant apprend quelque chose qui regarde l'autre, il dépose un <b>relais</b> : une cliente (par son numéro), un jour, une heure, une prestation, un genre fermé (RDV posé pour toi, RDV déplacé, fil ouvert, tresses à prévenir, argent à trancher, assistant endormi). Jamais la phrase d'un message. Et quand il propose une réponse, il la dépose comme une <b>décision en attente</b> : la veille continue au lieu de s'arrêter sur la question, et tu réponds quand tu veux, de l'ordinateur ou du téléphone.</p>
+      </div>
+      <div class="carte">
+        <h3>Une seule porte vers la base</h3>
+        <p>Les assistants n'écrivent jamais au Trône à la souris. Une fonction, <b>assistants-maison</b>, reçoit leur jeton d'appareil (comme la Dictée : la base n'en garde que l'empreinte, un bouton le retire) et fait pour eux : noter le passage, poser le RDV sous prise (deux assistants ne posent jamais deux fois la même cliente le même jour), déposer relais et décisions, écrire au journal, prévenir une personne sur son téléphone. Elle signe chaque geste du nom de l'assistant.</p>
+      </div>
+      <div class="carte">
+        <h3>L'écran « Les assistants »</h3>
+        <p>Au Trône, pour vous deux seulement, sur l'ordinateur comme sur le téléphone : qui est éveillé, le dernier passage, les décisions en attente avec trois boutons, les relais, le journal des gestes de la Maison (RDV posés, notes, relais, confirmations), les compteurs sans nom (« 9 messages traités »), le jeton de chaque assistant. <b>Un assistant qui dort se voit</b>, et un chien de garde au Trône prévient le porteur sur son téléphone après 30 minutes de silence.</p>
+      </div>
+    </div>
+    <div class="ecran" role="img" aria-label="L'écran Les assistants du Trône, tel qu'il paraîtrait">
+      <div class="barre"><span>Direction</span><span class="ici">Les assistants</span><span>Paramètres</span></div>
+      <div class="corps">
+        <div class="tuiles">
+          <div class="tuile"><b>Opale</b><span>Yéman · éveillée · dernier passage 18 h 52</span><span class="chiffres"><span><b>9</b> traités</span><span><b>1</b> RDV</span><span><b>1</b> relais</span><span><b>0</b> en attente</span></span><span class="geste">Retirer le jeton</span></div>
+          <div class="tuile"><b>Onyx</b><span>Brice · endormi depuis 18 h 50</span><span class="chiffres"><span><b>6</b> traités</span><span><b>2</b> RDV</span><span><b>1</b> relais</span><span><b>1</b> en attente</span></span><span class="geste">Prévenu sur son téléphone à 19 h 21</span></div>
+        </div>
+        <p class="etiquette">Décisions en attente</p>
+        <div class="tableau">
+          <div class="r"><span>18 h 40</span><span class="geste">Onyx · réponse</span><span><b>M. R.</b> demande à décaler mercredi. Réponse proposée : « jeudi 16h ça te va ? »</span><span class="act trois"><span>Envoyer</span><span>Modifier</span><span>Non</span></span></div>
+        </div>
+        <p class="etiquette">Le journal du jour</p>
+        <div class="tableau">
+          <div class="r"><span>9 h 02</span><span class="geste">Opale · RDV</span><span><b>Mme A.</b>, samedi 10 h, SÍNSIN, pour Yéman</span><span class="act">Ouvrir</span></div>
+          <div class="r"><span>9 h 02</span><span class="geste">Opale · relais</span><span>Pour Onyx : création à poser pour la sœur de Mme A.</span><span class="act">Traité 9 h 10</span></div>
+          <div class="r"><span>9 h 10</span><span class="geste">Onyx · relais</span><span>Pour Opale : place tenue mardi 14 h, à confirmer avant 11 h 10</span><span class="act">Confirmé 9 h 40</span></div>
+          <div class="r"><span>11 h 31</span><span class="geste">Onyx · RDV</span><span><b>M. R.</b>, mercredi 16 h, SÍNSIN, pour Brice</span><span class="act">Ouvrir</span></div>
+          <div class="r"><span>18 h 50</span><span class="geste">Trône · briefing</span><span>Demain, Yéman : 1 rendez-vous. Brice : aucun. Envoyé à chacun</span><span class="act">Relire</span></div>
+        </div>
+        <p class="etiquette">Réglages</p>
+        <p class="legende">Rythme 10 min · veille de 8 h à 20 h · accusés sans demander · relais lus à chaque passage · silence de 30 min = le porteur est prévenu · une place tenue dure 2 h ouvrées.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 4. Trois idées -->
+  <section class="section" aria-labelledby="idees">
+    <p class="sur">Ce qui mérite le mot « innovateur »</p>
+    <h2 id="idees">Trois idées qui ne sont pas des gadgets</h2>
+    <div class="deux">
+      <div class="carte"><h3>La place tenue</h3><p>Quand un assistant pose sur le fauteuil de l'autre, le rendez-vous naît <b>en attente</b>, tenu deux heures ouvrées. La cliente a sa réponse en minutes (« je te confirme avant 11h »). L'autre reçoit un toucher sur son téléphone : il confirme, et la confirmation de la Maison part. Son silence revient au sélecteur de celui qui a posé. Personne ne découvre un rendez-vous dans son dos, personne n'attend que l'autre réponde pour parler à la cliente.</p></div>
+      <div class="carte"><h3>Le foyer de parole</h3><p>Le Trône retient, par cliente, le fil où elle a écrit en dernier : ton privé, celui de Brice, ou la Maison. Chaque message de la Maison à son sujet dit « elle te lira chez Brice », et le briefing ouvre le bon fil. <b>Le canal suit la cliente, pas le maître.</b></p></div>
+      <div class="carte"><h3>Le passage de main</h3><p>Quand une cliente de l'un passe chez l'autre, le briefing du second porte ce qu'elle a dit au premier, au niveau des faits (sa Note du carnet, ses photos, ses envies), jamais le texte. <b>Elle ne se répète jamais.</b> Pour elle, la Maison a une seule mémoire.</p></div>
+    </div>
+  </section>
+
+  <!-- 5. Ce que ça ne fera pas -->
+  <section class="section" aria-labelledby="pas">
+    <p class="sur">Les limites, dites avant</p>
+    <h2 id="pas">Ce que ça ne fera pas</h2>
+    <ul class="net">
+      <li><b>Opale ne lira jamais le WhatsApp de Brice</b>, et l'assistant de Brice ne lira jamais le tien. Ni la discussion entre vous deux, ni « Maison MND », ni groupes, statuts, chaînes ; les vocaux ne s'écoutent pas.</li>
+      <li><b>Aucun texte de message privé ne quitte l'ordinateur du porteur</b> : ni dans le relais, ni dans le journal, ni dans une note, ni dans une notification. Seulement des faits de la Maison. La fonction refuse un relais qui porte des guillemets, un numéro ou un mot hors catalogue.</li>
+      <li><b>Famille, proches et amis n'existent nulle part au Trône</b> : pas de journal, pas de relais, pas de fiche, pas de RDV. L'assistant propose un mot dans ta voix, que tu valides, et ne pose rien.</li>
+      <li><b>Rien ne part sans le oui du porteur</b>, hormis le pouce sur un accusé. Jamais la nuit, jamais en moins de dix minutes. La Note du carnet se borne à l'envie, la longueur, la couleur, les tresses, le retard, et se montre avant d'être posée.</li>
+      <li><b>Un assistant ne pose jamais un rendez-vous à la souris</b> : seulement par la fonction, sous prise. Aucun fait de rendez-vous n'est gardé chez lui : le Trône se relit à chaque passage, et celui qui entend un changement l'applique.</li>
+      <li><b>Un assistant dort quand l'ordinateur dort</b>, Chrome fermé ou WhatsApp délié. Le Trône le dit, l'autre assistant ne le remplace pas (il ne peut pas lire ce téléphone-là), et ce qui est arrivé pendant le sommeil est listé au réveil, jamais traité en silence.</li>
+      <li><b>Hermine n'est prévenue que depuis ton fil</b>, une seule fois par rendez-vous : le fait s'écrit sur le rendez-vous, et des tresses posées par l'assistant de Brice te reviennent par un relais.</li>
+      <li>Une seule confirmation officielle par rendez-vous, celle de la Maison (le modèle Meta, avec le rappel de la veille) ; le mot privé reste court et ne redit pas les faits.</li>
+      <li>L'assistant de Brice ne démarre pas sans le oui de Brice, donné sur son poste ; il sait que l'ouverture d'un fil pose les coches bleues chez ses contacts. Un compte Claude par personne : les 200 $ d'API du forfait ne paient pas Claude Code.</li>
+      <li>Les assistants ne remplacent pas l'automate du numéro de la Maison, qui reste le seul à répondre la nuit.</li>
+    </ul>
+  </section>
+
+  <!-- 6. Les étapes -->
+  <section class="section" aria-labelledby="etapes">
+    <p class="sur">Dans l'ordre</p>
+    <h2 id="etapes">Trois étapes, et une semaine tenue entre chacune</h2>
+    <div class="etapes">
+      <div class="etape"><span class="quand">Étape 1</span><p><b>Opale sur un socle solide, montrée tôt.</b> Son état, ses relais et ses décisions au Trône ; la fonction et ses bancs ; la charte ; l'écran « Les assistants » en première version ; Opale repose les RDV par la fonction et reprend au réveil depuis son dernier passage. Tu la relances d'un clic sur le bureau. Rien ne change pour toi dans la façon de valider.</p></div>
+      <div class="etape"><span class="quand">Étape 2</span><p><b>Brice a son assistant, et les deux sont reliés.</b> Son oui sur son poste, son compte Claude, une page cochable pour l'installation (Claude Code, l'extension Chrome, WhatsApp Web lié, le Trône sur son téléphone avec les notifications), le lanceur d'un clic, sa voix apprise sur sa machine. Les relais réels, la place tenue, le briefing « Avant le fauteuil » envoyé au bon maître, la question « Pour qui ? » quand un parent écrit pour un enfant.</p></div>
+      <div class="etape"><span class="quand">Horizon</span><p><b>Le moteur à la Maison, la télécommande dans la poche.</b> Les décisions en attente se tranchent depuis le téléphone, dans l'écran « Les assistants » : la réponse proposée, trois boutons, et l'assistant l'envoie au passage suivant. Puis un ordinateur toujours allumé à la Maison porte les deux assistants, avec deux comptes Windows chiffrés et deux Chrome : plus d'ordinateur à laisser ouvert. Le foyer de parole et le passage de main viennent ici.</p></div>
+    </div>
+    <div class="constat">
+      <p><b>Ce qui reste fragile, même après tout cela.</b> WhatsApp Web n'est pas une porte faite pour une machine : un changement chez Meta casse la lecture du jour au lendemain, et les contrôles disent la panne sans la guérir. Jusqu'à l'horizon, tout repose sur deux ordinateurs qui dorment. Le coût n'est pas mesuré : une journée d'Opale sur le nouveau socle le dira avant de fixer le rythme de Brice. Et la voix de Brice prendra des semaines : au début, il modifiera presque tout.</p>
+    </div>
+  </section>
+
+  <!-- 7. Les arbitrages -->
+  <section class="section" aria-labelledby="arbitrages">
+    <p class="sur">Tranché au sélecteur le 31 octobre 2026</p>
+    <h2 id="arbitrages">Huit choix, et ce que Yéman a dit</h2>
+    <div class="arbitrage">
+      <p class="etiquette">1 · Où vivent les relais</p>
+      <p><b>Tranché : une table à part, lisible et retouchable de vous deux seulement</b>, écrite par la fonction. Écarté : un canal dans Le Fil d'équipe, lu des sept et retouchable par tous.</p>
+    </div>
+    <div class="arbitrage">
+      <p class="etiquette">2 · Un assistant pose sur le fauteuil de l'autre</p>
+      <p><b>Tranché : la place tenue</b>, en attente deux heures ouvrées, confirmée d'un toucher sur le téléphone de l'autre ; le silence revient au sélecteur de celui qui a posé.</p>
+    </div>
+    <div class="arbitrage">
+      <p class="etiquette">3 · Qui confirme un rendez-vous posé par un assistant</p>
+      <p><b>Tranché : la Maison garde la confirmation officielle</b> (le modèle Meta, avec le rappel de la veille, l'année et l'adresse), et le mot privé reste court et ne redit pas les faits.</p>
+    </div>
+    <div class="arbitrage">
+      <p class="etiquette">4 · La famille et les proches</p>
+      <p><b>Tranché par Yéman, contre la proposition : une réponse proposée dans sa voix, qu'elle valide ; mais jamais de RDV, de relais ni de trace au Trône.</b> Le cercle se dit au sélecteur au premier message et reste sur son ordinateur. La même règle vaut pour Brice avec ses proches.</p>
+    </div>
+    <div class="arbitrage">
+      <p class="etiquette">5 · Le nom de l'assistant de Brice</p>
+      <p><b>Tranché : Onyx.</b> Une pierre, comme Opale ; sombre là où l'opale est claire ; court. Brice pourra le changer sur la page cochable s'il y tient.</p>
+    </div>
+    <div class="arbitrage">
+      <p class="etiquette">6 · Qui valide les réponses d'Onyx</p>
+      <p><b>Tranché : Brice, comme Yéman avec Opale</b>, de son ordinateur ou de son téléphone. Rien ne part sans son oui, hormis le pouce sur un accusé.</p>
+    </div>
+    <div class="arbitrage">
+      <p class="etiquette">7 · Le poste de Brice et son oui</p>
+      <p><b>Dit par Yéman : un Mac.</b> Le lanceur d'Onyx sera un raccourci Mac ; Claude Code et l'extension Chrome s'installent pareil. Le reste se lit sur son poste et c'est à lui qu'on le demande : un compte Claude à lui, WhatsApp Web lié, le Trône sur son téléphone avec les notifications, et son accord pour qu'une machine lise son WhatsApp. Rien ne se lit avant son oui.</p>
+    </div>
+    <div class="arbitrage">
+      <p class="etiquette">8 · L'horizon</p>
+      <p><b>Tranché : oui, par étapes.</b> Les décisions au Trône d'abord, sur vos ordinateurs actuels ; la machine de la Maison après une semaine tenue à deux, avec deux comptes chiffrés et deux Chrome.</p>
+    </div>
+  </section>
+
+  <!-- 8. Ce qui vous attend -->
+  <section class="section" aria-labelledby="attend">
+    <p class="sur">Après ton « construis »</p>
+    <h2 id="attend">Ce qui vous attend, à vous deux</h2>
+    <div class="deux">
+      <div class="carte"><h3>Toi</h3><p>Rien à installer. Opale passe sur le nouveau socle, et tu la relances d'un clic sur le bureau. Au premier message d'un contact, elle te demande son cercle, une fois.</p></div>
+      <div class="carte"><h3>Brice</h3><p>D'abord son oui. Puis une page cochable sur son Mac : son compte Claude, Claude Code, l'extension Chrome, lier son WhatsApp Web, installer le Trône sur son téléphone, cliquer sur « Onyx ». Son assistant lit d'abord ses propres messages envoyés pour prendre sa voix, puis se met en veille.</p></div>
+      <div class="carte"><h3>Moi</h3><p>La charte, les tables, la fonction et ses bancs, l'écran, les lanceurs, la mise en ligne, Opale sur le nouveau socle, et le premier essai réel entre les deux téléphones.</p></div>
+    </div>
+  </section>
+</main>
+
+<script>
+(() => {
+  const telY = document.getElementById('tel-y'), telB = document.getElementById('tel-b'), trone = document.getElementById('trone');
+  const heure = document.getElementById('heure'), titre = document.getElementById('titre'), legende = document.getElementById('legende');
+  const prec = document.getElementById('prec'), suiv = document.getElementById('suiv');
+
+  const qui = (nom, sous) => `<div class="qui"><b>${nom}</b><small>${sous}</small></div>`;
+  const eux = (t, h) => `<div class="bulle eux">${t}<small>${h}</small></div>`;
+  const nous = (t, h) => `<div class="bulle nous">${t}<small>${h}</small></div>`;
+  const assist = (nom, resume, prop, choix) => `<div class="assist"><span class="nom">${nom}</span>${resume ? `<span class="resume">${resume}</span>` : ''}${prop ? `<div class="prop">${prop}</div>` : ''}${choix ? `<div class="choix">${choix.map((c, i) => `<span class="${i === 0 ? 'oui' : ''}">${c}</span>`).join('')}</div>` : ''}</div>`;
+  const notif = (t) => `<div class="notif"><small>Le Trône · notification</small>${t}</div>`;
+  const etat = (o, n, oCls, nCls) => `<div class="etat"><div class="a ${oCls || ''}"><b><span class="point"></span>Opale</b>${o}</div><div class="a ${nCls || ''}"><b><span class="point"></span>Onyx</b>${n}</div></div>`;
+  const ligne = (g, t, cls) => `<div class="ligne ${cls || ''}"><i>${g}</i><span>${t}</span></div>`;
+  const decision = (t, boutons) => `<div class="ligne decision"><i>décision</i><span>${t}<span class="boutons">${boutons.map((b) => `<span>${b}</span>`).join('')}</span></span></div>`;
+  const tete = '<div class="tete"><b>Le Trône</b><span class="etiquette">Les assistants</span></div>';
+
+  const pas = [
+    { h: '8 h 45', t: 'Les deux ordinateurs s\'allument',
+      y: qui('Yéman', 'ton ordinateur') + assist('Opale', 'Chrome répond, WhatsApp Web lié, non-lus chargés.', 'Je veille. Dernier passage hier 19 h 58. Arrivé pendant mon sommeil : 2 personnes. Je te les liste.'),
+      b: qui('Brice', 'son ordinateur') + assist('Onyx', 'Chrome répond, WhatsApp Web lié, non-lus chargés.', 'Je veille. Un relais d\'hier à lire : rien d\'urgent.'),
+      r: tete + etat('éveillée · 8 h 45', 'éveillé · 8 h 46') + ligne('registre', 'Chaque passage se note ici, par la fonction. C\'est ainsi que le Trône sait qui veille, et depuis quand.'),
+      l: 'Un clic sur le bureau. Chaque assistant fait ses trois contrôles, reprend depuis son dernier passage noté au Trône, et liste ce qui est arrivé pendant son sommeil au lieu de le traiter en silence.' },
+    { h: '9 h 02', t: 'Une cliente écrit à Yéman',
+      y: qui('Yéman', 'WhatsApp · Mme A.') + eux('Coucou Yéman, je peux venir samedi pour mon retwist ? et ma soeur veut voir Brice pour une création', '9 h 01')
+        + assist('Opale', 'Mme A., cliente (fiche trouvée par son numéro). Retwist samedi : 10 h est libre, je pose. Sa sœur veut une création avec Brice : je relaie.', 'coucou A. oui samedi 10h c\'est ok. pour ta soeur je demande a Brice et je te dis. Bises', ['Envoyer tel quel', 'Je modifie', 'Ne pas répondre']),
+      b: qui('Brice', 'son ordinateur') + '<p class="vide">Rien de nouveau de son côté. Onyx ne voit pas le fil de Mme A.</p>',
+      r: tete + etat('éveillée · 9 h 02', 'éveillé · 8 h 56') + ligne('RDV', '<b>Mme A.</b>, samedi 10 h, SÍNSIN, pour Yéman. Posé par Opale, sous prise.') + decision('Réponse à Mme A. proposée par Opale, en attente.', ['Envoyer', 'Modifier', 'Non']) + ligne('relais', 'Pour Onyx : création à poser, sœur de Mme A., consultation d\'abord.', 'relais'),
+      l: 'Opale pose le RDV par la fonction, dépose la réponse comme une décision en attente (la veille continue), et un relais pour Onyx : un genre, un numéro, un fait. Pas le message.' },
+    { h: '9 h 10', t: 'Onyx lit le relais et tient une place',
+      y: qui('Yéman', 'ton ordinateur') + nous('coucou A. oui samedi 10h c\'est ok. pour ta soeur je demande a Brice et je te dis. Bises', '9 h 03 · envoyé'),
+      b: qui('Brice', 'son ordinateur') + assist('Onyx', 'Relais d\'Opale : création pour la sœur de Mme A. Mardi 14 h et jeudi 9 h sont libres chez toi.', 'Je tiens mardi 14 h pour elle, deux heures. Tu confirmes d\'un toucher quand tu veux.', ['Confirmer mardi 14 h', 'Plutôt jeudi 9 h', 'Non']),
+      r: tete + etat('éveillée · 9 h 02', 'éveillé · 9 h 10') + ligne('relais', 'Traité par Onyx à 9 h 10.') + ligne('RDV', 'Sœur de Mme A., mardi 14 h, création, pour Brice : <b>place tenue jusqu\'à 11 h 10</b>.') + ligne('relais', 'Pour Opale : place tenue mardi 14 h, Brice confirme avant 11 h 10.', 'relais'),
+      l: 'La place tenue : le rendez-vous existe, en attente, deux heures ouvrées. Brice n\'a pas besoin d\'être devant son écran, un toucher sur son téléphone suffit. Son silence reviendra au sélecteur d\'Opale.' },
+    { h: '9 h 20', t: 'Opale revient vers Mme A.',
+      y: qui('Yéman', 'WhatsApp · Mme A.') + assist('Opale', 'Relais d\'Onyx : mardi 14 h tenu pour la sœur, Brice confirme avant 11 h.', 'cc A. pour ta soeur Brice peut mardi 14h, je te confirme avant 11h', ['Envoyer tel quel', 'Je modifie', 'Ne pas répondre']),
+      b: qui('Brice', 'son téléphone') + notif('Place tenue pour vous mardi 14 h, création. Confirmer · Jeudi 9 h · Non'),
+      r: tete + etat('éveillée · 9 h 20', 'éveillé · 9 h 10') + ligne('journal', 'Opale : réponse envoyée à Mme A. (9 h 21). Relais d\'Onyx traité.') + decision('Place tenue mardi 14 h, à confirmer par Brice avant 11 h 10.', ['Confirmer', 'Jeudi 9 h', 'Non']),
+      l: 'Dix-huit minutes entre la question de Mme A. et sa réponse, sans que vous vous soyez parlé. À 9 h 40, Brice confirme depuis son téléphone : la confirmation de la Maison part à la sœur.' },
+    { h: '11 h 30', t: 'Un client écrit à Brice',
+      y: qui('Yéman', 'ton ordinateur') + '<p class="vide">Rien. Ce fil ne regarde que Brice : Opale n\'en saura rien.</p>',
+      b: qui('Brice', 'WhatsApp · M. R.') + eux('Bonjour Brice, je voudrais un RDV pour mes racines la semaine prochaine', '11 h 29')
+        + assist('Onyx', 'M. R., client (fiche trouvée par son numéro), dernière venue SÍNSIN avec toi. Mercredi 16 h est libre, je pose.', 'Bonjour R., mercredi 16h ça te va ? (dans la voix de Brice, apprise de ses fils)', ['Envoyer tel quel', 'Je modifie', 'Ne pas répondre']),
+      r: tete + etat('éveillée · 11 h 22', 'éveillé · 11 h 30') + ligne('RDV', '<b>M. R.</b>, mercredi 16 h, SÍNSIN, pour Brice. Posé par Onyx, sous prise.') + ligne('relais', 'Aucun : rien à relayer, cela ne regarde que Brice.'),
+      l: 'Même geste, même charte, autre voix. Pas de relais : un relais ne part que si l\'autre a quelque chose à savoir ou à faire. Si une parente de Brice avait écrit « on se voit samedi ? », Onyx aurait proposé un mot dans sa voix, sans rien poser ni écrire au Trône.' },
+    { h: '18 h 50', t: 'Le briefing du soir, chacun le sien',
+      y: qui('Yéman', 'ton téléphone') + notif('Demain, 1 rendez-vous. Mme A., 10 h, SÍNSIN. Elle apporte sa couleur ; sa sœur viendra peut-être pour voir Brice.'),
+      b: qui('Brice', 'son téléphone') + notif('Demain, aucun rendez-vous. Mardi 14 h : la sœur de Mme A., création, consultation d\'abord. Mercredi 16 h : M. R., SÍNSIN.'),
+      r: tete + etat('éveillée · 18 h 52', 'éveillé · 18 h 50') + ligne('briefing', 'Envoyé par le Trône, à chacun pour ses rendez-vous. Opale et Onyx y ont ajouté leurs faits : la couleur apportée, la sœur.') + ligne('journal', 'Opale : 9 traités, 1 RDV, 1 relais. Onyx : 6 traités, 2 RDV, 1 relais.'),
+      l: 'Le briefing « Avant le fauteuil » est au Trône, envoyé à chaque maître pour ses rendez-vous. Les assistants n\'y ajoutent que ce qu\'ils ont appris sur WhatsApp, en faits.' },
+    { h: '22 h 04', t: 'L\'ordinateur de Brice se ferme',
+      y: qui('Yéman', 'ton ordinateur') + assist('Opale', '', 'Onyx dort depuis 22 h 04. Un relais l\'attend pour demain : Mme A. demande jeudi 9 h pour sa sœur. Je te le redirai au briefing du matin.'),
+      b: qui('Brice', 'ordinateur fermé') + '<p class="vide">Plus de passage. Demain à 8 h 30, s\'il n\'a pas relancé Onyx, son téléphone le lui dira.</p>',
+      r: tete + etat('éveillée · 22 h 10', 'endormi depuis 22 h 04', '', 'dort') + ligne('relais', 'Pour Onyx : Mme A. demande jeudi 9 h pour sa sœur. En attente.', 'relais') + ligne('garde', 'Le chien de garde du Trône préviendra Brice à 8 h 30 si Onyx dort encore.'),
+      l: 'Un assistant qui dort se voit. Rien ne se perd : le relais attend au Trône, Opale te le dit, et le Trône prévient Brice. L\'horizon plus bas supprime cette attente : les décisions depuis le téléphone, puis la machine de la Maison.', dort: true },
+  ];
+
+  let i = 0;
+  const montre = () => {
+    const p = pas[i];
+    heure.textContent = p.h; titre.textContent = p.t; legende.textContent = p.l;
+    telY.innerHTML = p.y; telB.innerHTML = p.b; trone.innerHTML = p.r;
+    telB.classList.toggle('dort', !!p.dort);
+    prec.disabled = i === 0;
+    suiv.textContent = i === pas.length - 1 ? 'Rejouer' : 'Suivant';
+  };
+  prec.addEventListener('click', () => { if (i > 0) { i -= 1; montre(); } });
+  suiv.addEventListener('click', () => { i = i === pas.length - 1 ? 0 : i + 1; montre(); });
+  document.addEventListener('keydown', (e) => {
+    if (e.target && /input|textarea/i.test(e.target.tagName)) return;
+    if (e.key === 'ArrowRight') { suiv.click(); } else if (e.key === 'ArrowLeft') { prec.click(); }
+  });
+  montre();
+})();
+</script>
+</body>
+</html>
