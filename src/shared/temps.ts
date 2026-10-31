@@ -104,8 +104,12 @@ export const horodatageLisible = (isoOuHorodatage: string): string => {
     celle de la RESPONSABILITÉ : une demande que la cliente a posée seule
     s'accueille, une date que la Maison a posée elle-même s'assume. « Posée au
     comptoir » disait l'un et l'autre à la fois. */
-export const porteDuRendezVous = (source?: 'trone' | 'couronne' | 'consultation' | 'site' | 'whatsapp'): string =>
+export const porteDuRendezVous = (source?: 'trone' | 'couronne' | 'consultation' | 'site' | 'whatsapp' | 'assistant'): string =>
   (source === 'couronne' ? 'Réservée par la cliente · Ma Couronne'
+    /* UN ASSISTANT RELIÉ, depuis le 31 octobre 2026 : Opale ou Onyx a posé la
+       place depuis le WhatsApp privé de son porteur, après son oui ; la Maison
+       l assume comme une pose du Trône. */
+    : source === 'assistant' ? 'Posée par un assistant de la Maison'
     : source === 'consultation' ? 'Née d’une consultation'
     /* WHATSAPP, depuis le 9 octobre 2026 : elle a choisi sa place dans la
        conversation et touché « Je confirme » ; la réponse automatique l'a

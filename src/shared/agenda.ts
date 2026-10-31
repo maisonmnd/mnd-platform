@@ -107,6 +107,18 @@ export type Appointment = {
   /** LA CONFIRMATION DÉCOCHÉE au « + RDV » (28 octobre 2026) : confirmation-rdv
       ne l'envoie pas ; le rappel de la veille suit comme pour toutes. */
   sansConfirmation?: boolean;
+  /** LES ASSISTANTS RELIÉS — 31 octobre 2026 (docs/ASSISTANTS.md). Un rendez-vous
+      posé par Opale ou Onyx (fonction assistants-maison) dit POUR QUI il est
+      (`pourMaitre`, l identifiant team du maître attendu : `master` n est que le
+      calendrier de la branche), QUI l a posé (`poseePar`, le nom de l assistant),
+      et s il n est qu une PLACE TENUE sur le fauteuil de l autre : `tenue` porte
+      l échéance en heures ouvrées, le poseur, l assistant visé, puis l heure où
+      l autre porteur a confirmé ou refusé d un toucher. `hermine` dit que la
+      coiffeuse des tresses a été prévenue, par qui et quand : une seule fois. */
+  pourMaitre?: string;
+  poseePar?: string;
+  tenue?: { jusqua: string; par: string; pour?: string; confirmeeLe?: string; refuseeLe?: string };
+  hermine?: { prevenueLe: string; par: string; reponse?: string };
   master: string;
   status: 'confirmé' | 'en attente' | 'honoré' | 'annulé';
   /** Acompte Mobile Money DEMANDÉ (montant). Tant que `depositConfirmed` n'est
@@ -324,7 +336,10 @@ export type Appointment = {
   note?: string;
   /* 'whatsapp' · 9 octobre 2026 : posé confirmé par la réponse automatique
      de WhatsApp (`shared/automate-wa`), au toucher « Je confirme ». */
-  source?: 'trone' | 'couronne' | 'consultation' | 'site' | 'whatsapp';
+  /* 'assistant' · 31 octobre 2026 : posé par la fonction assistants-maison au nom
+     d Opale ou d Onyx ; la confirmation officielle suit la fenêtre des poses du
+     Trône, et la fonction dépose elle-même la pièce d une place tenue confirmée. */
+  source?: 'trone' | 'couronne' | 'consultation' | 'site' | 'whatsapp' | 'assistant';
   /** QUAND LA RÉSERVATION A ÉTÉ PRISE — 5 septembre 2026.
 
       « J'ai besoin de voir plus d'informations quand le client a fait la
