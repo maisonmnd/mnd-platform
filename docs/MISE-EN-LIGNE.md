@@ -76,8 +76,9 @@ Ne jamais chercher la clé ailleurs.
    - ce qui est en ligne (version, numéro chez Supabase) ;
    - le build publié et le compte d'octets identiques ;
    - ce qui n'est pas parti, et pourquoi ;
-   - ce qui ne se fait qu'à la main : un essai réel depuis un téléphone, un
-     modèle à faire approuver chez Meta.
+   - le résultat de l'essai réel, fait depuis son WhatsApp Web lié dans son
+     Chrome : on écrit au numéro de la Maison et on ne lit QUE ce fil, jamais
+     toute la page.
 
 ## Les modèles WhatsApp chez Meta (31 octobre 2026)
 

@@ -121,7 +121,8 @@ en ligne à un agent : « Lis docs/MISE-EN-LIGNE.md et mets en ligne, au commit
 
 L'outil est `scripts/mise-en-ligne.mjs`. Ne plus jamais poser de dossier
 « A recoller » sur son bureau, ni lui demander « Je publie ? ». Lui dire
-seulement ce qui est en ligne, et ce qu'un essai réel lui laisse à faire.
+seulement ce qui est en ligne, et ce qu'a donné l'essai réel, fait par son
+WhatsApp Web (voir docs/MISE-EN-LIGNE.md).
 
 ## Références
 
