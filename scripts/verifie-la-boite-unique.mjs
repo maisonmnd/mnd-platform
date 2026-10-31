@@ -59,6 +59,7 @@ const PANNES = [
      la faute plausible est un juge qui ne regarde que « Le Trone ». */
   ['l Assistant tenu pour une main humaine', PUR, "m.sens === 'sortant' && !m.auto && !estPartiSeul(m.parQui);", "m.sens === 'sortant' && !m.auto && m.parQui !== 'Le Trône';"],
   /* Un numéro partagé (31 octobre 2026) : la première fiche du numéro, pas son fil. */
+  ['un fil d equipe designe reste cache', 'src/apps/trone/routes/clients/LesConversations.tsx', "(f.tiroir === 'clientes' || (estDirection && f.numero === nDemande))", "f.tiroir === 'clientes'"],
   ['un numero partage ouvre la premiere fiche', PUR, '(boites.find((b) => b.fils.some((f) => f.numero === numero)) ?? boites.find((b) => b.numero === numero))', 'boites.find((b) => b.numero === numero || b.fils.some((f) => f.numero === numero))'],
 ];
 

@@ -211,21 +211,24 @@ export default function LesConversations({ cerveau, moi }: PropsDUneVue) {
      repliés (« tout le personnel, sauf ce que je marque privé », 11 sept.),
      sauf celui qu'un lien désigne. */
   const nDemande = numeroWa(params.get('n') ?? '');
+  /* Un fil d'équipe ou de prestataire (le numéro de la direction, 31 octobre
+     2026) reste à la direction seule : un lien qui le désigne l'ouvre pour
+     elle, comme l'écran d'avant, au lieu de la fiche qui partage son numéro. */
   const fils = useMemo(() => {
-    const vus = tous.filter((f) => f.tiroir === 'clientes' && !estArchive(f, archives) && (!f.prive || f.numero === nDemande));
+    const vus = tous.filter((f) => (f.tiroir === 'clientes' || (estDirection && f.numero === nDemande)) && !estArchive(f, archives) && (!f.prive || f.numero === nDemande));
     if (nDemande && !tous.some((f) => f.numero === nDemande)) {
       const neuf = filNeuf(nDemande, teteDuNumero(nDemande, tetes));
       if (neuf && !estReserve(neuf.tiroir)) vus.push(neuf);
     }
     return vus;
-  }, [tous, archives, nDemande, tetes]);
+  }, [tous, archives, nDemande, tetes, estDirection]);
   /* LE TRI DES DÉMARCHEURS (29 octobre 2026) : le registre du serveur, et la passe des dernières 24 heures. */
   const { tri, relis: relisLeTri } = useTriDesMessages();
   const [passe, setPasse] = useState<{ enCours: boolean; lus?: number; proposes: ProposeParLaPasse[]; coches: string[]; erreur?: string } | null>(null);
   const [aConfirmer, setAConfirmer] = useState<string | null>(null);
   const envoisLus = envois as unknown as EnvoiDeLaBoite[];
   const entreeDesBoites = useMemo(() => ({
-    fils, discussions, demandes, appelsWa, appels, signalements, envois: envoisLus, clientes: clients, maintenant: tick, branchId: branch.id, tiroirs: ['clientes'] as const,
+    fils, discussions, demandes, appelsWa, appels, signalements, envois: envoisLus, clientes: clients, maintenant: tick, branchId: branch.id, tiroirs: [...new Set(['clientes' as const, ...fils.map((f) => f.tiroir)])],
     riensARepondre: riens, tri,
   }), [fils, discussions, demandes, appelsWa, appels, signalements, envoisLus, clients, tick, branch.id, riens, tri]);
   const boitesBrutes = useMemo(() => boitesDeLaMaison(entreeDesBoites), [entreeDesBoites]);

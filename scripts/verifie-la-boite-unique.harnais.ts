@@ -225,8 +225,10 @@ const partage = [
 ];
 dit('un numéro partagé : la boîte qui porte son fil, pas la première fiche du numéro ; sans fil, la fiche ; ailleurs, rien', ['c:yb', 'c:kk', null],
   [boiteDuNumero(partage, NUM_PARTAGE), boiteDuNumero([partage[0]], NUM_PARTAGE), boiteDuNumero(partage, '22900000099')]);
-dit('… et le Trône ouvre la boîte d’un lien `?n=` par elle', true,
-  readFileSync('src/apps/trone/routes/clients/LesConversations.tsx', 'utf8').includes('if (nDemande) return boiteDuNumero(boitesBrutes, nDemande);'));
+const ecran = readFileSync('src/apps/trone/routes/clients/LesConversations.tsx', 'utf8');
+dit('… et le Trône ouvre la boîte d’un lien `?n=` par elle', true, ecran.includes('if (nDemande) return boiteDuNumero(boitesBrutes, nDemande);'));
+dit('… un fil d’équipe désigné par un lien s’ouvre pour la direction, et ses tiroirs suivent ; jamais pour le personnel', [true, true],
+  [ecran.includes("(f.tiroir === 'clientes' || (estDirection && f.numero === nDemande))"), ecran.includes("tiroirs: [...new Set(['clientes' as const, ...fils.map((f) => f.tiroir)])]")]);
 
 /* ── 8. La lettre ── */
 const pur = readFileSync('src/shared/boite-unique-pur.ts', 'utf8');
