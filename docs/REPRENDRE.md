@@ -72,8 +72,9 @@ toujours un tableau), `Factures.tsx` lit `detailPorte`. Banc
 
 ### SQL `0148_le_contenu_de_la_ligne_en_tableau.sql` : PASSÉE le 31 octobre 2026 (commit 125c9e96). NE PAS RELANCER. La fonction réécrite en `jsonb_agg`, un élément par prestation dans les mots de `libellesInclus`, puis la reprise rejouable des lignes déjà écrites en chaîne. Relu après passage : `verse_sur_l_abonnement` porte `jsonb_agg` et plus `string_agg` ; MND-2026-0165 a son `detail` en tableau (6 éléments) ; plus aucune pièce en chaîne. 0138 reste passée, jamais relancée.
 
-Reste : dater MND-2026-0165 au 24 octobre 2026 (le versement l'est déjà),
-depuis l'éditeur de facture une fois 0148 passée. Le banc `verifie-gerard.mjs`
+MND-2026-0165 datée au 24 octobre 2026 le 31 octobre au soir (éditeur de
+facture, relue dans la liste). Les six dépenses du 31 octobre (27 825 F,
+Caisse Principale) sont inscrites ; Gérard et Aimé rejoignent les porteurs. Le banc `verifie-gerard.mjs`
 crie une fois depuis 0369fbcc (« resserrage » attendu, « reprise » obtenu) :
 panne antérieure, à traiter par la session qui tient Gérard.
 
