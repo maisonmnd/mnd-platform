@@ -13,7 +13,9 @@
 
 export type IdTuile =
   | 'heures' | 'whatsapp' | 'paiements' | 'envoyer'
-  | 'reservation' | 'pointage' | 'diagnostic' | 'notifications';
+  | 'reservation' | 'pointage' | 'diagnostic' | 'notifications'
+  /* La neuvième, née le 31 octobre 2026 : la Dictée MND (maquette F7LksMC3…). */
+  | 'dictee';
 
 export type Tuile = { id: IdTuile; nom: string; mots: string };
 
@@ -27,6 +29,7 @@ export const TUILES: readonly Tuile[] = [
   { id: 'pointage', nom: 'Pointage de l’équipe', mots: 'pointage présence preuve position gps rayon mètres code du jour comptoir arrivée équipe' },
   { id: 'diagnostic', nom: 'Diagnostic photo', mots: 'diagnostic photo photos locks ma couronne table observation rituel produit claude' },
   { id: 'notifications', nom: 'Notifications', mots: 'notification notifications cloche alerte rendez-vous stock réassort factures attente' },
+  { id: 'dictee', nom: 'Dictée MND', mots: 'dictée dictee dicter voix micro parler oreille claude mots vocabulaire mode note message liste anglais jeton bureau ordinateur téléphone wispr' },
 ];
 
 /** Ce qui se règle rarement : replié sous « Rarement », cherchable aussi. */
@@ -152,6 +155,14 @@ export function resumeDiagnostic(allume: boolean): { dit: string; etat: Etat } {
   return allume
     ? { dit: 'Proposé aux clientes dans Ma Couronne', etat: { ton: 'ok', dit: 'allumé' } }
     : { dit: 'Fermé aux clientes', etat: { ton: 'neutre', dit: 'éteint' } };
+}
+
+/** La Dictée : combien de mots elle connaît, le mode au départ, si le bureau est relié par son jeton. */
+export function resumeDictee(nbMots: number, mode: string, bureauRelie: boolean): { dit: string; etat: Etat } {
+  return {
+    dit: `${nbMots} mot${nbMots > 1 ? 's' : ''} de la Maison · mode ${mode} · bureau ${bureauRelie ? 'relié' : 'sans jeton'}`,
+    etat: bureauRelie ? { ton: 'ok', dit: 'téléphone et bureau' } : { ton: 'neutre', dit: 'téléphone' },
+  };
 }
 
 /** Les trois sujets que la cloche du Trône sait taire (shell/Notifications.tsx). */

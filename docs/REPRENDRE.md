@@ -2,6 +2,45 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## LA DICTÉE MND AU TRÔNE — 31 octobre 2026
+
+« Dictee MND.bat doit être également sur mon téléphone et doit être beaucoup
+plus puissant que Wispr Flow » (Yéman). Maquette F7LksMC35bqVm9S6Rwgy15
+(`public/maquette-dictee-telephone.html`), ses choix au sélecteur : une appli
+du Trône (Copier et WhatsApp, pas de clavier), l'oreille du téléphone (Web
+Speech, celle du micro du clavier), Claude Sonnet 5.5 partout, les mots et les
+modes réglés au Trône pour toute l'équipe.
+
+- `shared/dictee-pur.ts` (pur) : les modes (Note, Message, Liste, Anglais),
+  la commande de mode dite en parlant (`litLaCommandeDeMode` : « mode
+  message, … », « en anglais »), les mots de la Maison, la consigne que Claude
+  suit (`consigneDeLaDictee`, les règles d'écriture de la Maison), ce qu'il
+  rend mis au net, la mise au propre de secours (`auPropreIci`), le jeton de la
+  Dictée du bureau (`nouveauJeton`, `empreinteDuJeton` : la base ne garde que
+  l'empreinte).
+- Fonction `dictee-au-propre` (source `scripts/serveur/dictee-au-propre.ts`,
+  regroupée par `dictee-au-propre-serveur.mjs`, Verify JWT NON) : la porte est
+  `is_staff` OU l'en-tête `x-jeton-dictee` dont l'empreinte est dans
+  `mnd_settings.dictee.bureau` ; lit les prestations (`catalog_services`,
+  `catalog_categories` : label et fon) et les prénoms de l'équipe (`team`) ;
+  compte du mois `mnd_dictee_compte`, plafond `DICTEES_PAR_MOIS` (3000). Le
+  texte n'est ni gardé ni anonymisé : c'est la personne qui dicte.
+- Écran `/dictee` (`routes/equipe/Dictee.tsx`, hors menu, dans
+  `ECRANS_NES_APRES_LES_DEPARTEMENTS` et `ROUTES_MAITRE_FERMABLES`) : tenir le
+  bouton cuivre, parler, relâcher ; Copier, WhatsApp (`wa.me/?text=`), « Ce que
+  j'ai entendu », Refaire ; sans oreille ou micro refusé, une zone à taper.
+  Rien n'est gardé. Bouton « Dicter » dans la barre du haut
+  (`shell/BoutonDictee.tsx`, tenue `rc-bouton`) ; raccourci `./#/dictee` dans
+  le manifeste du Trône.
+- Paramètres › Dictée (neuvième tuile, `CarteDictee.tsx`) : les mots, le mode
+  et le cerveau au départ, « Donner un jeton au bureau » (montré une fois),
+  Vérifier. `banc-des-parametres` compte désormais neuf tuiles.
+- La Dictée du bureau (`C:\Users\boyay\Dictee\dictee.py`, hors dépôt) passe
+  par la fonction dès que `reglages.json › trone.jeton` est posé ; sinon
+  Claude Haiku par la clé Windows, sinon les règles locales.
+- Bancs : `verifie-la-dictee` (16 pannes prouvées en mémoire), `verifie-sommaire`,
+  `verifie-porte`, `verifie-la-barre-reunie`, `verifie-le-trone-hors-ligne`.
+
 ## LA MAISON A SON REGISTRE : « MAISON MND », SEULE — 10 octobre 2026
 
 La Maison est immatriculée depuis le 9 octobre 2026 (greffe de Cotonou,

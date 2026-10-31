@@ -1,5 +1,5 @@
 import { lazy, type LazyExoticComponent, type ComponentType } from 'react';
-import { Compass, Bot, TrendingUp, UserRoundCheck, FolderKanban, ListTodo, Clapperboard, Activity, BadgeCheck, HeartHandshake, BarChart3, BookOpen, CalendarDays, ClipboardList, Crown, Drama, FileSignature, FileText, FlaskConical, Gift, GraduationCap, Hammer, HandCoins, Handshake, MessageCircle, Handshake as PoigneeDeMain, HeartPulse, Inbox, KeyRound, Landmark, LayoutDashboard, Lightbulb, LineChart, ListChecks, MapPin, Megaphone, MessageSquare, MessagesSquare, MonitorPlay, NotebookPen, Palette, PhoneIncoming, PieChart, PiggyBank, QrCode, Radio, ReceiptText, Repeat, Scale, ScrollText, Settings, ShieldCheck, ShoppingBag, SquareKanban, Star, Store, Users, UsersRound, Wallet, type LucideIcon } from 'lucide-react';
+import { Compass, Bot, TrendingUp, UserRoundCheck, FolderKanban, ListTodo, Clapperboard, Activity, BadgeCheck, HeartHandshake, BarChart3, BookOpen, CalendarDays, ClipboardList, Crown, Drama, FileSignature, FileText, FlaskConical, Gift, GraduationCap, Hammer, HandCoins, Handshake, MessageCircle, Handshake as PoigneeDeMain, HeartPulse, Inbox, KeyRound, Landmark, LayoutDashboard, Lightbulb, LineChart, ListChecks, MapPin, Megaphone, MessageSquare, MessagesSquare, Mic, MonitorPlay, NotebookPen, Palette, PhoneIncoming, PieChart, PiggyBank, QrCode, Radio, ReceiptText, Repeat, Scale, ScrollText, Settings, ShieldCheck, ShoppingBag, SquareKanban, Star, Store, Users, UsersRound, Wallet, type LucideIcon } from 'lucide-react';
 
 /* Registre des routes du Trône, groupées par DÉPARTEMENT.
    Le module d'un écran (routes/<dossier>/) dit d'où il vient, pas où il se range :
@@ -225,6 +225,11 @@ const NAV_DES_ECRANS: TroneGroup[] = [
          l'accès (`peutVoir`). */
       { path: '/prets-personnel', horsMenu: true, label: 'Les prêts au personnel', icon: PoigneeDeMain, Component: lazy(() => import('./finances/Prets')) },
       { path: '/prestataires', label: 'Prestataires', icon: Handshake, Component: lazy(() => import('./equipe/Prestataires')) },
+      /* LA DICTÉE MND (31 octobre 2026) — hors menu : on la tient par le
+         bouton « Dicter » de la barre du haut, sur chaque écran, et par le
+         raccourci du téléphone. Maquette F7LksMC3… ; ouverte à toute l'équipe
+         (ROUTES_MAITRE_FERMABLES), les réglages dans Paramètres › Dictée. */
+      { path: '/dictee', label: 'Dictée MND', icon: Mic, horsMenu: true, Component: lazy(() => import('./equipe/Dictee')) },
     ],
   },
   {
@@ -403,7 +408,7 @@ export const reunionDe = (path: string): Reunion | undefined => REUNIONS.find((r
 export const ROUTES_MAITRE: string[] = [];
 
 /** Ouverts d'office, mais qu'un souverain peut refermer un par un. */
-export const ROUTES_MAITRE_FERMABLES = ['/mon-mois', '/calendrier', '/fil', '/tableau', '/mes-taches'];
+export const ROUTES_MAITRE_FERMABLES = ['/mon-mois', '/calendrier', '/fil', '/tableau', '/mes-taches', '/dictee'];
 
 /* ── DEUX CASQUETTES, UN SEUL COMPTE ────────────────────────────────────
    Gerard tient le secrétariat et le fauteuil. Lui donner deux comptes
@@ -468,7 +473,7 @@ export const ANCIENS_DOMAINES: Record<string, string[]> = {
    un : la table ci-dessus ne se met pas à jour. Il s'ouvre par son
    département seul. On les NOMME ici, pour que la barre et la photographie
    restent vérifiables : un écran absent des deux listes est un oubli. */
-export const ECRANS_NES_APRES_LES_DEPARTEMENTS: readonly string[] = ['/compte-courant', '/parrainages', '/cartes-cadeaux', '/secretariat', '/centre-de-commande', '/atelier-des-contenus', '/chiffre-des-prestations', '/prets-personnel', '/entre-deux', '/discussions', '/projets', '/mes-taches', '/agents', '/avis-google', '/previsions', '/gerard', '/audience'];
+export const ECRANS_NES_APRES_LES_DEPARTEMENTS: readonly string[] = ['/compte-courant', '/parrainages', '/cartes-cadeaux', '/secretariat', '/centre-de-commande', '/atelier-des-contenus', '/chiffre-des-prestations', '/prets-personnel', '/entre-deux', '/discussions', '/projets', '/mes-taches', '/agents', '/avis-google', '/previsions', '/gerard', '/audience', '/dictee'];
 
 /** L'ancien domaine d'un écran, celui d'avant les départements. */
 export const ancienDomaineDe = (path: string): string | undefined =>

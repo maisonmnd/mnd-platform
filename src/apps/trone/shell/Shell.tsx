@@ -7,6 +7,7 @@ import { createStore, useStore } from '../../../shared/store';
 import NotificationsBell from './Notifications';
 import Trouver from './Trouver';
 import Recherche from './Recherche';
+import BoutonDictee from './BoutonDictee';
 import BarreEquipe from './BarreEquipe';
 import { AppelRecuModal } from './AppelRecuModal';
 import { AppelQuiSonne } from './AppelQuiSonne';
@@ -905,6 +906,8 @@ export default function Shell() {
           </div>
           {/* Trouver — la recherche globale (Ctrl K), chantier ② de la refonte. */}
           <Trouver />
+          {/* Dicter (31 octobre 2026) : la Dictée MND depuis chaque écran ; l'écran est hors menu. */}
+          {peutVoir(role, '/dictee', mesDomaines) && <BoutonDictee />}
           {/* Rechercher (13 octobre 2026) : Claude ou ChatGPT à côté du Trône, sur l'abonnement de la personne ; fondateurs seuls. */}
           <Recherche />
           <SyncDot />

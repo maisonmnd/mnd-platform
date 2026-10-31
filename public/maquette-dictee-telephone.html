@@ -1,0 +1,378 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Dictée MND au téléphone</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500&family=Jost:wght@400;500&display=swap">
+</head>
+<body>
+<style>
+/* Mise en page : une colonne de lecture ; le téléphone qui se manipule, puis la comparaison, puis les arbitrages. */
+:root {
+  --fond: #efe4d3;        /* le sable du site */
+  --papier: #fbf7f0;
+  --encre: #1f2350;       /* indigo de la Maison */
+  --encre-douce: #4b4f72;
+  --cuivre: #a8622f;
+  --trait: #d9cbb5;
+  --vieux: #8a8270;
+  --ecran: #1f2350;       /* l'écran du téléphone, indigo */
+  --ecran-texte: #f3ece0;
+  --ecran-doux: #b9b6cf;
+  --ecran-trait: #3a3e6e;
+  --display: 'Cormorant Garamond', 'Times New Roman', serif;
+  --texte: 'Jost', 'Segoe UI', system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --fond: #15173a; --papier: #1f2250; --encre: #f3ece0; --encre-douce: #c9c4d8; --cuivre: #d38a52; --trait: #34386a; --vieux: #9d97b0;
+  --ecran: #0f1130; --ecran-texte: #f3ece0; --ecran-doux: #a9a6c4; --ecran-trait: #2c3060; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --fond: #15173a; --papier: #1f2250; --encre: #f3ece0; --encre-douce: #c9c4d8; --cuivre: #d38a52; --trait: #34386a; --vieux: #9d97b0;
+  --ecran: #0f1130; --ecran-texte: #f3ece0; --ecran-doux: #a9a6c4; --ecran-trait: #2c3060; color-scheme: dark }
+body { background: var(--fond); color: var(--encre); font-family: var(--texte); font-size: 15px; line-height: 1.6; }
+.page { max-width: 920px; margin: 0 auto; padding-block: 40px 72px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: grid; gap: 56px; }
+h1, h2, h3 { font-family: var(--display); font-weight: 500; text-wrap: balance; margin: 0; }
+h1 { font-size: clamp(34px, 6vw, 50px); line-height: 1.05; }
+h2 { font-size: clamp(26px, 4.5vw, 34px); line-height: 1.1; }
+h3 { font-size: 22px; line-height: 1.2; }
+p { margin: 0; }
+.sur { font-size: 11px; letter-spacing: .18em; text-transform: uppercase; color: var(--cuivre); }
+.chapo { color: var(--encre-douce); max-width: 62ch; }
+.bandeau { background: var(--encre); color: #f3ece0; padding: 10px 14px; border-radius: 4px; font-size: 13px; }
+:root[data-theme="dark"] .bandeau { background: var(--papier); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .bandeau { background: var(--papier); } }
+.section { display: grid; gap: 18px; }
+.constat { border-left: 2px solid var(--cuivre); padding: 4px 0 4px 14px; color: var(--encre-douce); max-width: 66ch; }
+.constat b { color: var(--encre); font-weight: 500; }
+.etiquette { font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--vieux); }
+ul.net { margin: 0; padding-left: 18px; display: grid; gap: 6px; color: var(--encre-douce); }
+ul.net b { color: var(--encre); font-weight: 500; }
+.arbitrage { display: grid; gap: 6px; padding: 14px 16px; border-radius: 4px; background: color-mix(in srgb, var(--cuivre) 10%, var(--papier)); border: 1px solid color-mix(in srgb, var(--cuivre) 35%, var(--trait)); }
+.arbitrage b { font-weight: 500; }
+
+/* Le téléphone et son mode d'emploi */
+.duo { display: grid; grid-template-columns: 340px minmax(0, 1fr); gap: 28px; align-items: start; }
+.essais { display: flex; flex-wrap: wrap; gap: 8px; }
+.essai { border: 1px solid var(--trait); background: var(--papier); color: var(--encre); border-radius: 99px; padding: 6px 14px; font: inherit; font-size: 13px; cursor: pointer; }
+.essai[aria-pressed="true"] { border-color: var(--cuivre); color: var(--cuivre); }
+.essai:focus-visible, .mode:focus-visible, .tenir:focus-visible, .act:focus-visible { outline: 2px solid var(--cuivre); outline-offset: 2px; }
+.telephone { width: 100%; max-width: 340px; aspect-ratio: 9 / 18.5; background: var(--ecran); color: var(--ecran-texte); border-radius: 34px; border: 6px solid #0b0c22; box-shadow: 0 18px 40px rgba(20, 22, 60, .28); display: grid; grid-template-rows: auto auto minmax(0, 1fr) auto; padding: 22px 16px 18px; gap: 12px; user-select: none; -webkit-user-select: none; }
+.tel-haut { display: flex; justify-content: space-between; align-items: baseline; }
+.tel-haut b { font-family: var(--display); font-size: 21px; font-weight: 500; }
+.tel-haut small { color: var(--ecran-doux); font-size: 11px; letter-spacing: .12em; text-transform: uppercase; }
+.modes { display: flex; gap: 6px; flex-wrap: wrap; }
+.mode { border: 1px solid var(--ecran-trait); background: none; color: var(--ecran-doux); border-radius: 99px; padding: 4px 11px; font: inherit; font-size: 12px; cursor: pointer; }
+.mode[aria-pressed="true"] { background: var(--cuivre); border-color: var(--cuivre); color: #fff; }
+.feuille { background: rgba(255,255,255,.04); border: 1px solid var(--ecran-trait); border-radius: 14px; padding: 14px; display: grid; align-content: start; gap: 10px; min-height: 0; overflow: auto; }
+.feuille .consigne { color: var(--ecran-doux); font-size: 13px; }
+.feuille .brut { color: var(--ecran-doux); font-size: 14px; line-height: 1.5; }
+.feuille .brut .heard { color: var(--ecran-texte); }
+.feuille .propre { font-size: 15.5px; line-height: 1.5; white-space: pre-line; }
+.feuille .etat { display: flex; align-items: center; gap: 8px; color: var(--ecran-doux); font-size: 12px; letter-spacing: .08em; text-transform: uppercase; }
+.point { width: 8px; height: 8px; border-radius: 99px; background: var(--cuivre); }
+.ecoute .point { animation: bat 1s ease-in-out infinite; }
+@keyframes bat { 50% { transform: scale(1.7); opacity: .5; } }
+.commande { font-size: 12px; color: var(--cuivre); border: 1px dashed var(--cuivre); border-radius: 6px; padding: 4px 8px; width: max-content; max-width: 100%; }
+.actions { display: flex; gap: 6px; flex-wrap: wrap; }
+.act { border: 1px solid var(--ecran-trait); background: none; color: var(--ecran-texte); border-radius: 99px; padding: 5px 12px; font: inherit; font-size: 12.5px; cursor: pointer; }
+.act.plein { background: var(--cuivre); border-color: var(--cuivre); color: #fff; }
+.tel-bas { display: grid; justify-items: center; gap: 8px; }
+.tenir { width: 96px; height: 96px; border-radius: 99px; border: 0; background: var(--cuivre); color: #fff; font: inherit; font-size: 12px; letter-spacing: .1em; text-transform: uppercase; line-height: 1.2; cursor: pointer; touch-action: none; box-shadow: 0 0 0 0 rgba(168, 98, 47, .5); transition: transform .12s; }
+.ecoute .tenir { transform: scale(1.06); animation: onde 1.1s ease-out infinite; }
+@keyframes onde { to { box-shadow: 0 0 0 22px rgba(168, 98, 47, 0); } }
+.tel-bas small { color: var(--ecran-doux); font-size: 11.5px; text-align: center; }
+.toast { position: fixed; left: 50%; bottom: calc(24px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--encre); color: #f3ece0; padding: 10px 16px; border-radius: 99px; font-size: 13px; box-shadow: 0 8px 24px rgba(0,0,0,.25); z-index: 20; max-width: calc(100vw - 32px); text-align: center; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .toast { background: var(--cuivre); color: #fff; } }
+:root[data-theme="dark"] .toast { background: var(--cuivre); color: #fff; }
+.legende { display: grid; gap: 14px; }
+.legende .pas { display: grid; grid-template-columns: 28px minmax(0, 1fr); gap: 10px; align-items: start; }
+.legende .num { font-family: var(--display); font-size: 24px; color: var(--cuivre); line-height: 1; padding-top: 2px; }
+.legende b { font-weight: 500; }
+.legende p { color: var(--encre-douce); }
+
+/* La comparaison */
+.tableau { overflow-x: auto; border: 1px solid var(--trait); border-radius: 6px; background: var(--papier); }
+table { border-collapse: collapse; width: 100%; min-width: 640px; font-size: 14px; }
+th, td { text-align: left; vertical-align: top; padding: 12px 14px; border-bottom: 1px solid var(--trait); }
+th { font-weight: 500; font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--vieux); }
+tr:last-child td { border-bottom: 0; }
+td.quoi { font-family: var(--display); font-size: 19px; white-space: nowrap; }
+td.eux { color: var(--encre-douce); }
+.verdict { display: inline-block; font-size: 10.5px; letter-spacing: .14em; text-transform: uppercase; border-radius: 99px; padding: 1px 9px; border: 1px solid; white-space: nowrap; }
+.verdict.plus { color: var(--cuivre); border-color: var(--cuivre); }
+.verdict.egal { color: var(--vieux); border-color: var(--trait); }
+.verdict.moins { color: var(--encre); border-color: var(--encre); }
+
+/* Les deux colonnes de texte */
+.deux { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.carte { border: 1px solid var(--trait); border-radius: 6px; padding: 18px; background: var(--papier); display: grid; gap: 10px; align-content: start; }
+
+@media (max-width: 720px) {
+  .duo, .deux { grid-template-columns: minmax(0, 1fr); }
+  .telephone { justify-self: center; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ecoute .point, .ecoute .tenir { animation: none; }
+  .tenir { transition: none; }
+}
+</style>
+
+<div class="page">
+  <header class="section">
+    <p class="sur">Maquette · la Dictée · 31 octobre 2026</p>
+    <h1>La Dictée MND sur le téléphone aussi, et plus forte que Wispr Flow</h1>
+    <p class="chapo">« Dictee MND.bat doit être également sur mon téléphone et doit être beaucoup plus puissant que Wispr Flow. » Voici ce que cela donnerait, à manipuler ci-dessous, puis ce qui la rend plus forte, point par point, et quatre choix à trancher.</p>
+    <p class="bandeau">Un fichier .bat ne tourne que sur Windows. Sur le téléphone, la Dictée devient une appli du Trône, à poser sur l'écran d'accueil comme le Trône lui-même. La force vient de Claude, qui connaît la Maison ; l'oreille reste celle de la machine qui écoute.</p>
+  </header>
+
+  <!-- 1. Le téléphone -->
+  <section class="section">
+    <p class="sur">1 · Sur le téléphone</p>
+    <h2>Tenez le bouton, parlez, relâchez</h2>
+    <p class="constat"><b>Essayez :</b> ce téléphone fait semblant d'entendre une dictée. Tenez le bouton cuivre avec le doigt ou la souris, relâchez, puis changez de mode. La vraie appli écoute votre voix.</p>
+    <div class="essais" role="group" aria-label="Choisir la dictée d'essai">
+      <button class="essai" type="button" data-essai="message" aria-pressed="true">Dictée 1 · un message</button>
+      <button class="essai" type="button" data-essai="commande" aria-pressed="false">Dictée 2 · une note, avec une commande</button>
+    </div>
+    <div class="duo">
+      <div class="telephone" id="telephone">
+        <div class="tel-haut"><b>Dictée MND</b><small>Le Trône</small></div>
+        <div class="modes" role="group" aria-label="Mode">
+          <button class="mode" type="button" data-mode="note" aria-pressed="true">Note</button>
+          <button class="mode" type="button" data-mode="message" aria-pressed="false">Message</button>
+          <button class="mode" type="button" data-mode="liste" aria-pressed="false">Liste</button>
+          <button class="mode" type="button" data-mode="anglais" aria-pressed="false">Anglais</button>
+        </div>
+        <div class="feuille" id="feuille">
+          <p class="consigne" id="consigne">Tenez le bouton et parlez. Le texte s'écrit ici, mis au propre par Claude avec les mots de la Maison.</p>
+          <p class="brut" id="brut" hidden></p>
+          <p class="etat" id="etat" hidden><span class="point"></span><span id="etat-texte"></span></p>
+          <p class="commande" id="commande" hidden></p>
+          <p class="propre" id="propre" hidden></p>
+          <div class="actions" id="actions" hidden>
+            <button class="act plein" type="button" id="copier">Copier</button>
+            <button class="act" type="button" id="whatsapp">WhatsApp</button>
+            <button class="act" type="button" id="voir">Ce que j'ai entendu</button>
+            <button class="act" type="button" id="refaire">Refaire</button>
+          </div>
+        </div>
+        <div class="tel-bas">
+          <button class="tenir" type="button" id="tenir" aria-label="Tenir pour dicter">Tenez et parlez</button>
+          <small id="aide">Une pression courte ne fait rien : il faut tenir.</small>
+        </div>
+      </div>
+      <div class="legende">
+        <div class="pas"><span class="num">1</span><div><b>Une appli du Trône, connectée.</b><p>Elle s'ouvre depuis le Trône, déjà sur votre écran d'accueil, avec sa propre icône si vous la voulez. Seule l'équipe y entre : la clé Claude ne quitte jamais le serveur.</p></div></div>
+        <div class="pas"><span class="num">2</span><div><b>L'oreille du téléphone.</b><p>Le téléphone transcrit lui-même, avec la reconnaissance de Google ou d'Apple, celle du micro de votre clavier. Vous voyez les mots arriver pendant que vous parlez.</p></div></div>
+        <div class="pas"><span class="num">3</span><div><b>Claude met au propre.</b><p>Le texte part au Trône, Claude Sonnet 5.5 le rend propre avec vos mots, vos prestations et vos règles d'écriture, et le téléphone l'affiche. Une à deux secondes.</p></div></div>
+        <div class="pas"><span class="num">4</span><div><b>Copier, ou WhatsApp.</b><p>Copier met le texte dans le presse-papiers, prêt à coller où vous voulez. WhatsApp ouvre WhatsApp avec le texte, vous choisissez la discussion. Sur le téléphone, c'est le geste de plus par rapport à l'ordinateur, où le texte s'écrit sous le curseur.</p></div></div>
+        <div class="pas"><span class="num">5</span><div><b>Les modes et les commandes.</b><p>Note, Message à une cliente, Liste, Anglais : d'un geste, ou dits en commençant par « mode message ». Et en parlant : « efface ça », « plus court », « plus poli », « remplace jeudi par vendredi ».</p></div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 2. La comparaison -->
+  <section class="section">
+    <p class="sur">2 · Face à Wispr Flow</p>
+    <h2>Où elle est plus forte, et où elle ne l'est pas</h2>
+    <p class="constat"><b>Pour être juste :</b> Wispr Flow écrit dans toutes les applis du téléphone, et la Dictée MND ne le fera pas sur iPhone. Sa force est ailleurs : dans ce qu'elle sait de la Maison, et dans ce qu'on peut lui dire.</p>
+    <div class="tableau">
+      <table>
+        <thead><tr><th>Quoi</th><th>Wispr Flow</th><th>Dictée MND</th><th></th></tr></thead>
+        <tbody>
+          <tr><td class="quoi">Écrire sous le curseur</td><td class="eux">Ordinateur et iPhone, dans toutes les applis.</td><td>Ordinateur : oui, Ctrl droite. Téléphone : Copier puis coller, ou le bouton WhatsApp.</td><td><span class="verdict moins">Moins, au téléphone</span></td></tr>
+          <tr><td class="quoi">L'oreille</td><td class="eux">Leur modèle, en ligne.</td><td>Ordinateur : Whisper chez vous, la voix ne sort pas. Téléphone : l'oreille du téléphone, celle du clavier.</td><td><span class="verdict egal">Égal</span></td></tr>
+          <tr><td class="quoi">Le cerveau</td><td class="eux">Une correction automatique, la même pour tout le monde.</td><td>Claude Sonnet 5.5, avec les règles d'écriture de la Maison : pas de tiret long, l'année sur les dates, la civilité jamais supposée, des chiffres.</td><td><span class="verdict plus">Plus</span></td></tr>
+          <tr><td class="quoi">Ce qu'elle sait de vous</td><td class="eux">Un dictionnaire de mots.</td><td>Vos mots fon, les prénoms de la famille et de l'équipe, les prestations et les prix du catalogue du Trône. Elle écrit KLƆKLƆ, Kèliji et YÈKPÈ du premier coup.</td><td><span class="verdict plus">Plus</span></td></tr>
+          <tr><td class="quoi">Les modes</td><td class="eux">Un ton par application.</td><td>Note, Message à une cliente, Liste, Anglais. D'un geste ou à la voix : « mode message ».</td><td><span class="verdict plus">Plus</span></td></tr>
+          <tr><td class="quoi">Les commandes</td><td class="eux">Quelques-unes.</td><td>« Efface ça », « plus court », « plus poli », « en anglais », « remplace jeudi par vendredi ».</td><td><span class="verdict plus">Plus</span></td></tr>
+          <tr><td class="quoi">Le même outil partout</td><td class="eux">Oui, un compte par personne.</td><td>Ordinateur et téléphone, les mêmes mots et les mêmes modes, réglés une fois au Trône. Brice et Gérard l'ont aussi, avec leur entrée.</td><td><span class="verdict plus">Plus</span></td></tr>
+          <tr><td class="quoi">Le prix</td><td class="eux">Un abonnement par mois et par personne.</td><td>Les crédits Claude déjà inclus dans votre forfait : quelques dollars par mois sur les 200 inclus, pour toute l'équipe.</td><td><span class="verdict plus">Plus</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- 3. L'ordinateur et ce qu'elle ne fera pas -->
+  <section class="section">
+    <p class="sur">3 · L'ordinateur, et les limites</p>
+    <h2>La même force sur l'ordinateur</h2>
+    <div class="deux">
+      <div class="carte">
+        <p class="etiquette">Ce qui change sur l'ordinateur</p>
+        <ul class="net">
+          <li><b>Le même cerveau.</b> La Dictée du bureau passe par le Trône au lieu d'appeler Claude en direct : mêmes mots, mêmes modes, même style. Plus de clé à poser dans Windows ; le Trône lui donne un jeton une fois.</li>
+          <li><b>Les modes à la voix.</b> « Mode message, bonjour madame… » et le texte sort comme un message.</li>
+          <li><b>Les commandes.</b> « Efface ça », « plus court », « en anglais », comme au téléphone.</li>
+          <li><b>L'oreille reste chez vous.</b> Whisper en local, le modèle plus juste quand vous le voulez.</li>
+        </ul>
+      </div>
+      <div class="carte">
+        <p class="etiquette">Ce qu'elle ne fera pas</p>
+        <ul class="net">
+          <li><b>Écrire directement dans WhatsApp sur le téléphone.</b> Il faudrait un clavier : possible sur Android (une appli à installer à la main), interdit sur iPhone sans compte développeur Apple. Un chantier à part, si l'essai vous donne envie.</li>
+          <li><b>Écouter en continu.</b> On tient, on parle, on relâche.</li>
+          <li><b>Garder vos dictées.</b> Rien n'est conservé, ni au Trône ni chez Claude ; seule la durée est notée pour mesurer la vitesse. « Refaire » garde la dernière, sur le téléphone, le temps que l'appli reste ouverte.</li>
+          <li><b>Entendre mieux que le téléphone n'entend.</b> Si son oreille bute sur les mots fon, on lui ajoute Whisper large en ligne, choix 2 ci-dessous.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- 4. Les arbitrages -->
+  <section class="section">
+    <p class="sur">4 · À trancher</p>
+    <h2>Quatre choix, une proposition pour chacun</h2>
+    <div class="arbitrage">
+      <b>1. Sur le téléphone : une appli du Trône, ou un clavier ?</b>
+      <p>Ma proposition : l'appli du Trône d'abord, Copier et WhatsApp. Elle marche sur Android et iPhone, elle est prête en quelques jours, et elle garde la clé Claude à l'abri. Le clavier Android viendrait après, si Copier vous pèse.</p>
+    </div>
+    <div class="arbitrage">
+      <b>2. L'oreille du téléphone : la sienne, ou Whisper en ligne ?</b>
+      <p>Ma proposition : la sienne, gratuite et immédiate, et on mesure sur vos mots fon au premier essai. Si elle déçoit, Whisper large en ligne chez Groq, gratuit à ce volume, mais un compte de plus à ouvrir.</p>
+    </div>
+    <div class="arbitrage">
+      <b>3. Le cerveau : Claude Sonnet 5.5 partout ?</b>
+      <p>Ma proposition : oui, partout. Une à deux secondes par dictée, quelques dollars par mois sur les 200 inclus. Haiku, plus léger, garderait la note rapide si la vitesse compte plus que la plume.</p>
+    </div>
+    <div class="arbitrage">
+      <b>4. Les mots et les modes : réglés au Trône, pour toute l'équipe ?</b>
+      <p>Ma proposition : oui, dans Paramètres › Dictée. Un seul vocabulaire pour l'ordinateur et les téléphones, et Brice et Gérard dictent avec les mêmes mots. Chacun entre avec sa propre entrée au Trône.</p>
+    </div>
+  </section>
+</div>
+
+<script>
+(function () {
+  var DICTEES = {
+    message: {
+      brut: ['euh', 'bonjour', 'madame,', 'euh', 'votre', 'retwist', "c'est", 'bon', 'pour', 'mercredi', 'à', 'dix', 'heures,', 'euh', 'pensez', 'à', 'venir', 'avec', 'les', 'cheveux', 'propres,', 'à', 'la', 'ligne,', 'on', 'vous', 'attend', 'à', 'la', 'maison,', 'euh', 'bonne', 'journée'],
+      commande: '',
+      propre: {
+        note: "Bonjour madame, votre retwist est bon pour mercredi à 10 h. Pensez à venir avec les cheveux propres.\nOn vous attend à la Maison. Bonne journée.",
+        message: "Bonjour Madame, votre retwist est confirmé pour mercredi à 10 h. Venez avec les cheveux propres, nous nous occupons du reste.\nÀ mercredi, à la Maison MND. Belle journée.",
+        liste: "Retwist : mercredi à 10 h\nVenir avec les cheveux propres\nRendez-vous à la Maison",
+        anglais: "Good morning Madam, your retwist is confirmed for Wednesday at 10 a.m. Please come with clean hair.\nSee you at the Maison. Have a good day."
+      }
+    },
+    commande: {
+      brut: ['la', 'cliente', 'de', 'dix', 'heures', 'a', 'reporté', 'à', 'jeudi,', 'euh', 'non,', 'efface', 'ça,', 'a', 'reporté', 'à', 'vendredi,', 'à', 'la', 'ligne,', 'prévenir', 'Gérard', 'et', 'libérer', 'le', 'fauteuil', 'de', 'Nassim'],
+      commande: 'Commande entendue : « efface ça ». La fin de phrase est remplacée.',
+      propre: {
+        note: "La cliente de 10 h a reporté à vendredi.\nPrévenir Gérard et libérer le fauteuil de Nassim.",
+        message: "Bonjour Gérard, la cliente de 10 h a reporté à vendredi. Peux-tu libérer le fauteuil de Nassim ? Merci.",
+        liste: "Cliente de 10 h : reportée à vendredi\nPrévenir Gérard\nLibérer le fauteuil de Nassim",
+        anglais: "The 10 a.m. client moved to Friday.\nLet Gérard know and free Nassim's chair."
+      }
+    }
+  };
+  var essai = 'message', mode = 'note', phase = 'repos', mots = 0, minuteur = null, attente = null;
+  var tel = document.getElementById('telephone');
+  var consigne = document.getElementById('consigne'), brut = document.getElementById('brut'), etat = document.getElementById('etat'),
+      etatTexte = document.getElementById('etat-texte'), commande = document.getElementById('commande'), propre = document.getElementById('propre'),
+      actions = document.getElementById('actions'), tenir = document.getElementById('tenir'), aide = document.getElementById('aide'), voir = document.getElementById('voir');
+  var reduit = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  function montre(el, oui) { el.hidden = !oui; }
+  function texteBrut(n) {
+    var liste = DICTEES[essai].brut;
+    var vus = liste.slice(0, n).join(' ');
+    var reste = liste.slice(n).join(' ');
+    brut.innerHTML = '<span class="heard"></span><span></span>';
+    brut.firstChild.textContent = vus;
+    brut.lastChild.textContent = reste ? ' ' + reste : '';
+  }
+  function repos() {
+    phase = 'repos'; mots = 0; clearInterval(minuteur); clearTimeout(attente);
+    tel.classList.remove('ecoute');
+    montre(consigne, true); montre(brut, false); montre(etat, false); montre(commande, false); montre(propre, false); montre(actions, false);
+    voir.textContent = "Ce que j'ai entendu"; voir.setAttribute('aria-pressed', 'false');
+    aide.textContent = 'Une pression courte ne fait rien : il faut tenir.';
+  }
+  function demarre() {
+    if (phase === 'ecoute') return;
+    phase = 'ecoute'; mots = 0; clearTimeout(attente);
+    tel.classList.add('ecoute');
+    montre(consigne, false); montre(commande, false); montre(propre, false); montre(actions, false);
+    montre(brut, true); brut.textContent = '';
+    montre(etat, true); etatTexte.textContent = "J'écoute";
+    aide.textContent = 'Relâchez quand vous avez fini.';
+    var liste = DICTEES[essai].brut;
+    minuteur = setInterval(function () {
+      if (mots < liste.length) { mots += 1; texteBrut(mots); }
+    }, reduit ? 120 : 170);
+  }
+  function termine() {
+    if (phase !== 'ecoute') return;
+    clearInterval(minuteur);
+    tel.classList.remove('ecoute');
+    if (mots < 3) { repos(); aide.textContent = 'Trop court : tenez le bouton le temps de parler.'; return; }
+    phase = 'propre';
+    texteBrut(DICTEES[essai].brut.length);
+    etatTexte.textContent = 'Claude met au propre';
+    aide.textContent = 'Une à deux secondes, en vrai.';
+    attente = setTimeout(montreLePropre, reduit ? 400 : 900);
+  }
+  function montreLePropre() {
+    phase = 'fini';
+    montre(etat, false); montre(brut, false);
+    var d = DICTEES[essai];
+    if (d.commande) { commande.textContent = d.commande; montre(commande, true); }
+    propre.textContent = d.propre[mode]; montre(propre, true); montre(actions, true);
+    aide.textContent = 'Copiez, ou tenez à nouveau pour recommencer.';
+  }
+  function changeDeMode(nouveau) {
+    mode = nouveau;
+    Array.prototype.forEach.call(document.querySelectorAll('.mode'), function (b) { b.setAttribute('aria-pressed', String(b.dataset.mode === mode)); });
+    if (phase === 'fini') {
+      montre(propre, false); montre(actions, false); montre(etat, true); etatTexte.textContent = 'Claude reprend en mode ' + nouveau;
+      clearTimeout(attente);
+      attente = setTimeout(function () { montre(etat, false); montreLePropre(); }, reduit ? 200 : 600);
+    }
+  }
+  var toast = null, toastMinuteur = null;
+  function dis(message) {
+    if (!toast) { toast = document.createElement('div'); toast.className = 'toast'; toast.setAttribute('role', 'status'); document.body.appendChild(toast); }
+    toast.textContent = message; toast.hidden = false;
+    clearTimeout(toastMinuteur); toastMinuteur = setTimeout(function () { toast.hidden = true; }, 2600);
+  }
+
+  tenir.addEventListener('pointerdown', function (e) { e.preventDefault(); try { tenir.setPointerCapture(e.pointerId); } catch (_) {} demarre(); });
+  ['pointerup', 'pointercancel'].forEach(function (ev) { tenir.addEventListener(ev, function () { termine(); }); });
+  tenir.addEventListener('keydown', function (e) { if ((e.key === ' ' || e.key === 'Enter') && !e.repeat) { e.preventDefault(); demarre(); } });
+  tenir.addEventListener('keyup', function (e) { if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); termine(); } });
+  tenir.addEventListener('contextmenu', function (e) { e.preventDefault(); });
+
+  Array.prototype.forEach.call(document.querySelectorAll('.mode'), function (b) { b.addEventListener('click', function () { changeDeMode(b.dataset.mode); }); });
+  Array.prototype.forEach.call(document.querySelectorAll('.essai'), function (b) {
+    b.addEventListener('click', function () {
+      essai = b.dataset.essai;
+      Array.prototype.forEach.call(document.querySelectorAll('.essai'), function (x) { x.setAttribute('aria-pressed', String(x === b)); });
+      repos();
+    });
+  });
+  document.getElementById('copier').addEventListener('click', function () {
+    var t = propre.textContent;
+    function secours() {
+      var r = document.createRange(); r.selectNodeContents(propre);
+      var s = window.getSelection(); s.removeAllRanges(); s.addRange(r);
+      dis('Texte sélectionné : copiez-le.');
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(t).then(function () { dis('Copié. Collez-le où vous voulez.'); }, secours);
+    } else { secours(); }
+  });
+  document.getElementById('whatsapp').addEventListener('click', function () { dis("Dans la vraie appli : WhatsApp s'ouvre avec ce texte, vous choisissez la discussion."); });
+  voir.addEventListener('click', function () {
+    var ouvert = voir.getAttribute('aria-pressed') === 'true';
+    if (ouvert) { montre(brut, false); voir.textContent = "Ce que j'ai entendu"; voir.setAttribute('aria-pressed', 'false'); }
+    else { texteBrut(DICTEES[essai].brut.length); montre(brut, true); voir.textContent = 'Masquer'; voir.setAttribute('aria-pressed', 'true'); }
+  });
+  document.getElementById('refaire').addEventListener('click', repos);
+})();
+</script>
+
+</body>
+</html>

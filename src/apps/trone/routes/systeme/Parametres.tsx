@@ -38,10 +38,12 @@ import './systeme.css';
 import { CarteMndPay } from './CarteMndPay';
 import { CarteRelances } from './CarteRelances';
 import { CarteDiagnosticPhoto } from './CarteDiagnosticPhoto';
+import { CarteDictee } from './CarteDictee';
+import { MOTS_DE_LA_MAISON, motsPropres, nomDuMode } from '../../../../shared/dictee-pur';
 import {
   TUILES, RAREMENT, NOTIFICATIONS, MOT_DU_VERROU, estIdTuile, verrouOuvert, sansAccent, tuilesTrouvees, rarementTrouves,
   resumeDesHeures, etatDesHeures, resumeWhatsApp, etatWhatsApp, resumePaiements, etatPaiements, resumeEnvois,
-  resumeReservation, resumePointage, resumeDiagnostic, resumeNotifications, type Etat, type IdTuile,
+  resumeReservation, resumePointage, resumeDiagnostic, resumeNotifications, resumeDictee, type Etat, type IdTuile,
 } from './parametres-pur';
 
 /* Système · Paramètres — depuis le 29 octobre 2026, huit tuiles pour ce qui se
@@ -1485,6 +1487,7 @@ export default function Parametres() {
     pointage: resumePointage(!!preuve.exigerPreuve, preuve.rayonM),
     diagnostic: resumeDiagnostic((autoCfgRaw as { diagnosticPhoto?: unknown }).diagnosticPhoto === true),
     notifications: { dit: resumeNotifications(settings.toggles), etat: { ton: 'ok', dit: 'reliées' } },
+    dictee: resumeDictee(motsPropres([...MOTS_DE_LA_MAISON, ...(settings.dictee?.mots ?? [])]).length, nomDuMode(settings.dictee?.modeParDefaut ?? 'note'), !!settings.dictee?.bureau),
   };
   const nomDe = (id: IdTuile) => TUILES.find((t) => t.id === id)?.nom ?? id;
 
@@ -2399,6 +2402,9 @@ export default function Parametres() {
 
           {/* LE DIAGNOSTIC PHOTO (19 octobre 2026) : l'interrupteur et la table « à valider », direction seule. */}
           {ouverte === 'diagnostic' && <CarteDiagnosticPhoto />}
+
+          {/* LA DICTÉE MND (31 octobre 2026) : les mots de la Maison, le mode et le cerveau au départ, le jeton du bureau. */}
+          {ouverte === 'dictee' && <CarteDictee />}
 
           {ouverte === 'notifications' && (
             /* LES TROIS SUJETS QUE LA CLOCHE SAIT TAIRE. Ils étaient affichés

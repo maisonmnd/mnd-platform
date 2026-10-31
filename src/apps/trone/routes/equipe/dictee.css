@@ -1,0 +1,41 @@
+/* ── LA DICTÉE MND — 31 octobre 2026 ──────────────────────────────────────
+   Préfixe dct-. Le bouton cuivre qu'on tient, la feuille ivoire où le texte
+   s'écrit, les modes en chips indigo. Pensé pour le téléphone d'abord. */
+
+.dct-page { display: grid; gap: 16px; max-width: 720px; }
+.dct-modes { display: flex; flex-wrap: wrap; gap: 6px; }
+.dct-mode { border: 1px solid var(--hairline); background: #fff; color: var(--ink-soft); border-radius: 999px; padding: 7px 14px; font: 400 13px var(--font-sans, inherit); cursor: pointer; }
+.dct-mode[aria-pressed="true"] { background: var(--color-indigo); border-color: var(--color-indigo); color: var(--color-ivoire, #F6F1E7); }
+.dct-mode:focus-visible, .dct-tenir:focus-visible, .dct-lien:focus-visible { outline: 2px solid var(--color-copper, #B97A4A); outline-offset: 2px; }
+
+.dct-feuille { display: grid; gap: 12px; align-content: start; min-height: 140px; }
+.dct-consigne { margin: 0; font-size: 13.5px; line-height: 1.55; color: var(--ink-soft); }
+.dct-entendu { margin: 0; font-size: 14.5px; line-height: 1.55; color: var(--ink-soft); white-space: pre-wrap; word-break: break-word; }
+.dct-entendu__sur { display: block; font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--copper-700, #7C4C2C); margin-bottom: 4px; }
+.dct-suspens { opacity: .6; }
+.dct-etat { margin: 0; display: flex; align-items: center; gap: 8px; font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-soft); }
+.dct-point { width: 8px; height: 8px; border-radius: 50%; background: var(--color-copper, #B97A4A); }
+.dct-etat.is-ecoute .dct-point { animation: dct-bat 1s ease-in-out infinite; }
+@keyframes dct-bat { 50% { transform: scale(1.6); opacity: .5; } }
+.dct-commande { margin: 0; font-size: 12.5px; color: var(--copper-700, #7C4C2C); }
+.dct-erreur { margin: 0; font-size: 13px; line-height: 1.5; color: var(--copper-700, #7C4C2C); border-left: 2px solid var(--color-copper, #B97A4A); padding-left: 10px; }
+.dct-propre { margin: 0; font: 400 16px/1.6 var(--font-sans, inherit); color: var(--color-indigo); white-space: pre-wrap; word-break: break-word; }
+.dct-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+
+.dct-bas { display: grid; justify-items: center; gap: 10px; padding: 8px 0 4px; }
+.dct-tenir { width: 128px; height: 128px; border-radius: 50%; border: 0; background: var(--color-copper, #B97A4A); color: #fff; display: grid; place-items: center; align-content: center; gap: 6px; font: 500 11px/1.2 var(--font-sans, inherit); letter-spacing: .12em; text-transform: uppercase; cursor: pointer; touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; box-shadow: 0 0 0 0 rgba(185, 122, 74, .45); transition: transform .15s ease, background .15s ease; }
+.dct-tenir:hover { background: var(--copper-700, #7C4C2C); }
+.dct-tenir:disabled { opacity: .6; cursor: progress; }
+.dct-tenir.is-ecoute { transform: scale(1.06); animation: dct-onde 1.1s ease-out infinite; }
+@keyframes dct-onde { to { box-shadow: 0 0 0 24px rgba(185, 122, 74, 0); } }
+.dct-aide { margin: 0; font-size: 12.5px; color: var(--ink-soft); text-align: center; max-width: 42ch; }
+.dct-lien { border: 0; background: transparent; padding: 4px 0; font: 400 12px var(--font-sans, inherit); color: var(--copper-700, #7C4C2C); cursor: pointer; }
+.dct-lien:hover { color: var(--color-indigo); }
+
+.dct-sans-micro { display: grid; gap: 10px; }
+.dct-sans-micro textarea { width: 100%; resize: vertical; }
+
+@media (prefers-reduced-motion: reduce) {
+  .dct-etat.is-ecoute .dct-point, .dct-tenir.is-ecoute { animation: none; }
+  .dct-tenir { transition: none; }
+}

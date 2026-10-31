@@ -2,6 +2,7 @@ import { createStore, useStore } from './store';
 import type { Plan } from './bascule-des-caisses-pur';
 import type { ReglagesMndPay } from './mnd-pay-pur';
 import type { ReglagesRelances } from './relances-pur';
+import type { ReglagesDictee } from './dictee-pur';
 
 /* Paramètres de la Maison — persistés en localStorage (clé `mnd_settings`).
    Jours & heures d'ouverture, bascules de rituel/notifications, et les liens
@@ -131,6 +132,10 @@ export type Settings = {
       allumées par la direction, le jour du lancement, et le rattrapage des
       trente jours d'avant validé une fois. La tournée du serveur les lit. */
   relances?: ReglagesRelances;
+  /** LA DICTÉE MND — 31 octobre 2026 (maquette F7LksMC3…) : les mots de la
+      Maison, le mode et le modèle par défaut, l'empreinte du jeton de la
+      Dictée du bureau. La fonction `dictee-au-propre` les lit. */
+  dictee?: ReglagesDictee;
 };
 
 /** Créneaux d'ouverture proposés — repris du prototype. */
