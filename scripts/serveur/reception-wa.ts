@@ -33,8 +33,8 @@
    GET sans clé : la version, et si la clé de Claude est posée (oui ou non). */
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import {
-  RECEPTIONS_PAR_JOUR, SCHEMA_DE_LA_RECEPTION, calibreDuChoix, consigneDeLaReception, contexteDeLaReception,
-  filDeLaFenetre, lectureDeLaReception, listeDesCalibres, type Calibre,
+  RECEPTIONS_PAR_JOUR, SCHEMA_DE_LA_RECEPTION, calibreDuChoix, connaitLeLieuDe, consigneDeLaReception, contexteDeLaReception,
+  filDeLaFenetre, lectureDeLaReception, listeDesCalibres, reponseSelonLeLieu, type Calibre,
 } from '../../src/shared/reception-wa-pur';
 import {
   lignesDuCataloguePourClaude, paliersDeLocks, type MessageDuFilPourClaude, type PrestationPourClaude, type PrixDuPalier,
@@ -48,7 +48,7 @@ declare const Deno: {
   serve(f: (req: Request) => Promise<Response>): void;
 };
 
-const VERSION = '2026-10-31-a';
+const VERSION = '2026-11-01-a';
 /** Haïku d'abord (rapide, sur les crédits inclus) ; Sonnet si l'identifiant n'est pas reconnu. */
 const MODELES = ['claude-haiku-5-5', 'claude-sonnet-5-5'];
 /** Le prix d'un million de jetons, en dollars, pour le compte du mois. */
@@ -201,6 +201,10 @@ Deno.serve(async (req) => {
     /* Les 48 dernières heures seules (31 octobre 2026) : un vieux vocal n'est
        plus une question qui attend. La première réponse se juge sur tout. */
     const fil: MessageDuFilPourClaude[] = filDeLaFenetre(tout, maintenantMs).map(({ quand: _q, ...m }) => m);
+    /* ELLE CONNAÎT LE LIEU (1er novembre 2026) : déjà venue, ou l'adresse
+       déjà partie dans ce fil : l'adresse sort du contexte, et la phrase qui
+       la porterait quand même tombe (reception-wa-pur). */
+    const connaitLeLieu = connaitLeLieuDe({ derniereVenue: d.derniereVenue, fil: tout });
 
     /* Son nombre de locks : compté à la Maison, annoncé par elle, ou le calibre qu'elle vient de toucher. */
     const f = ((fiche as { data?: { data?: Record<string, unknown> } | null }).data?.data ?? {}) as { lockCount?: number; lockCountDeclare?: number };
@@ -223,6 +227,7 @@ Deno.serve(async (req) => {
       semaine: Array.isArray(reglages.hours) ? reglages.hours : [], exceptions: Array.isArray(exceptions) ? exceptions : [],
       maintenantMs, premiereReponse: !tout.some((m) => m.sens === 'sortant'),
       paiements, paiementEnLigne: reglages.mndPay?.actif === true,
+      connaitLeLieu,
     });
 
     /* ③ CLAUDE. */
@@ -246,13 +251,14 @@ Deno.serve(async (req) => {
 
     /* ④ LE JUGEMENT. */
     const entree = lu.corps.content?.find((c) => c.type === 'tool_use' && c.name === 'reponds')?.input;
-    const reponse = lectureDeLaReception(entree, permis);
-    if (!reponse) { dis('reponse ecartee par les juges'); return json({ ok: false, motif: 'juges', version: VERSION }); }
+    const lue = lectureDeLaReception(entree, permis);
+    if (!lue) { dis('reponse ecartee par les juges'); return json({ ok: false, motif: 'juges', version: VERSION }); }
+    const reponse = reponseSelonLeLieu(lue, connaitLeLieu);
 
     /* ⑤ LA SUITE : les calibres de la grille, à toucher. Sans grille, la question reste écrite. */
     const lignes = reponse.suite === 'calibre' ? listeDesCalibres(bandes as Calibre[]) : [];
     const suite = reponse.suite === 'calibre' && lignes.length <= 1 ? 'rien' : reponse.suite;
-    dis('reponse', { suite, modele: lu.modele, lignes: lignes.length });
+    dis('reponse', { suite, modele: lu.modele, lignes: lignes.length, connaitLeLieu, adresseOtee: reponse.texte !== lue.texte });
     return json({ ok: true, texte: reponse.texte, suite, ...(suite === 'calibre' ? { lignes } : {}), version: VERSION });
   } catch (e) {
     dis('erreur', { motif: String((e as Error)?.message ?? e).slice(0, 160) });

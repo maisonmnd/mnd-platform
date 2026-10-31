@@ -291,8 +291,9 @@ function scnConnue(m: Moteur, reglage: ReglageDeLAutomate = OUVERT, tiroir: Tiro
   const merci = elle(p, t0 + 200000, { texte: 'Merci beaucoup !' });
   return { p, t0, s1, s2, s3, s4, merci, avantMerci };
 }
-function scnInconnue(m: Moteur) {
+function scnInconnue(m: Moteur, carte?: string) {
   const p = parcours(m, NUM_INCONNUE, []);
+  if (carte !== undefined) p.carte = carte;
   const t0 = cotonou('2026-10-09', '10:12');
   const s1 = elle(p, t0, { texte: 'Bonjour, je voudrais prendre rendez-vous' });
   const s2 = elle(p, t0 + 30000, { touche: 'Entretenir mes locks' });
@@ -1138,7 +1139,8 @@ const regles: Regle[] = [
         && corps(a.s4).endsWith(DEVISE), corps(a.s4));
       vaut('A4 l alerte au personnel : le prenom seul, la date avec l annee', { titre: 'Nouveau rendez-vous par WhatsApp', corps: 'Naffi, samedi 10 octobre 2026 à 9 h' },
         { titre: a.s4.alerte?.titre, corps: a.s4.alerte?.corps });
-      vaut('A  quatre messages de la Maison pour toute la reservation, et le plan qui suit la confirmation', 5, a.avantMerci);
+      /* Elle est déjà venue : le plan ne suit plus sa confirmation (1er novembre 2026, « jamais pour une ancienne cliente, elle connaît le lieu »). */
+      vaut('A  quatre messages de la Maison pour toute la reservation ; deja venue, aucun plan ne suit', 4, a.avantMerci);
       vaut('A  une pose, sur sa fiche, confirmee, source whatsapp, sa duree, sans demande', { n: 1, clientId: 'c-naffi', status: 'confirmé', source: 'whatsapp', dureeMin: 105, date: '2026-10-10', time: '09:00', demande: false },
         { n: a.p.poses.length, clientId: a.p.poses[0]?.rdv.clientId, status: a.p.poses[0]?.rdv.status, source: a.p.poses[0]?.rdv.source, dureeMin: a.p.poses[0]?.rdv.dureeMin, date: a.p.poses[0]?.rdv.date, time: a.p.poses[0]?.rdv.time, demande: !!a.p.poses[0]?.demande });
       vrai('A  jamais le maitre : la Maison attribue (aucun champ master)', !a.p.poses.some((x) => 'master' in x.rdv));
@@ -1922,18 +1924,19 @@ const regles: Regle[] = [
           { id: rdv?.id, status: rdv?.data.status, source: rdv?.data.source, clientId: rdv?.data.clientId, dureeMin: rdv?.data.dureeMin, note: rdv?.data.note });
         /* Son rituel est un SÍNSIN : chez Team, seul (24 octobre 2026). */
         vaut('banc : ... la Maison attribue : un SINSIN va chez Team seul, et le verrou le prend', [['Team'], 'Team'], [B().poses[0]?.p_maitres, rdv?.data.master]);
-        /* TROIS BULLES (29 octobre 2026) : la confirmation courte, le plan en
-           image, puis la Maison sur Google Maps par le site. */
-        const [b4, plan, venir] = ecritsA(NAFFI_E).slice(-3);
-        vrai('banc : la confirmation en texte, l annee, le plan annonce, la devise, plus le long itineraire', b4?.type === 'text' && /^C'est confirmé, Mme Naffi/.test(corpsDe(b4)) && /2026 à/.test(corpsDe(b4))
-          && corpsDe(b4).includes('Le plan pour venir à la Maison suit ce message.') && !/Akpakpa/.test(corpsDe(b4)) && corpsDe(b4).endsWith(DEVISE), corpsDe(b4));
-        vaut('banc : puis le plan en image, puis la Maison sur Google Maps par le site, jamais le lien de Google lui-meme',
-          ['image', 'https://maisonmnd.com/assets/itineraire/plan-depuis-super-u.png', 'text', 'Maison MND sur Google Maps : https://maisonmnd.com/venir/'],
-          [plan?.type, plan?.image?.link, venir?.type, corpsDe(venir)]);
+        /* DÉJÀ VENUE, LA CONFIRMATION SEULE (1er novembre 2026, « l'itinéraire ne
+           s'envoie qu'une fois pour les nouvelles clientes, jamais pour une
+           ancienne cliente ») : ni le plan annoncé, ni le plan, ni la Maison sur
+           Google Maps. Les trois bulles du 29 octobre 2026 restent à la nouvelle
+           cliente (R1, R34, R53). */
+        const b4 = ecritsA(NAFFI_E).slice(-1)[0];
+        vrai('banc : la confirmation en texte, l annee, la devise ; deja venue, ni plan annonce ni long itineraire', b4?.type === 'text' && /^C'est confirmé, Mme Naffi/.test(corpsDe(b4)) && /2026 à/.test(corpsDe(b4))
+          && !corpsDe(b4).includes('Le plan pour venir') && !/Akpakpa/.test(corpsDe(b4)) && corpsDe(b4).endsWith(DEVISE), corpsDe(b4));
+        vrai('banc : ... ni le plan en image, ni la Maison sur Google Maps', !ecritsA(NAFFI_E).some((m: Any) => m?.type === 'image' || /Google Maps/.test(corpsDe(m))), ecritsA(NAFFI_E).map((m: Any) => m?.type));
         const ligne = T('envois').get(`conf-${rdv?.id}-whatsapp`)?.data;
         vrai('banc : la ligne de confirmation passe a envoye, avec l identifiant de Meta', ligne?.statut === 'envoyé' && /^wamid\.out-/.test(ligne?.waMessageId ?? ''), ligne);
         vrai('banc : la seule alerte, le rendez-vous pose, au prenom seul', pushsDepuis(p0).length === 2 && pushsDepuis(p0).every((x: Any) => x.title === 'Nouveau rendez-vous par WhatsApp' && /^Naffi, /.test(x.body) && /2026/.test(x.body)), pushsDepuis(p0));
-        vaut('banc : quatre messages de la Maison, le plan et le lien pour venir', 6, ecritsA(NAFFI_E).length);
+        vaut('banc : quatre messages de la Maison, sans plan ni lien (deja venue)', 4, ecritsA(NAFFI_E).length);
         vaut('banc : les juges de la Maison passent sur chaque message', [], fautesDuBanc(NAFFI_E));
         await livre(corpsOui);
         vaut('banc : une seconde livraison du Je confirme ne pose rien de plus', 1, [...T('appointments').keys()].filter((k) => k.startsWith('rdv-wa-')).length);
@@ -2648,15 +2651,9 @@ const regles: Regle[] = [
     eprouve: () => {
       const { ecarts, vaut, vrai } = juge();
       const confirme = (carte?: string): string => laConfirmation(carte).messages.map((m) => m.corps).join('\n\n');
-      const laConfirmation = (carte?: string): SortieDuTour => {
-        const a = parcours(ORIGINAL, NUM_NAFFI, [NAFFI]);
-        if (carte !== undefined) a.carte = carte;
-        const t0 = cotonou('2026-10-09', '11:00');
-        elle(a, t0, { texte: 'Je voudrais un rendez-vous' });
-        elle(a, t0 + 1000, { touche: 'La même chose' });
-        elle(a, t0 + 2000, { touche: 'Sam. 10 oct. 2026 · 9 h' });
-        return elle(a, t0 + 3000, { touche: 'Je confirme' });
-      };
+      /* La confirmation d'une NOUVELLE cliente : le plan et le lien ne vont plus
+         à celle qui est déjà venue (1er novembre 2026, voir R53). */
+      const laConfirmation = (carte?: string): SortieDuTour => scnInconnue(ORIGINAL, carte).s7;
       const s = laConfirmation('https://maps.app.goo.gl/AbCdEf12345?g_st=ac');
       vaut('la Maison sur Google Maps ferme la confirmation, apres le plan, par le site (la photo de Google ne part plus)',
         ['texte', 'image', 'Maison MND sur Google Maps : https://maisonmnd.com/venir/'], [s.messages[0]?.forme, s.messages[1]?.forme, s.messages[2]?.corps]);
@@ -3262,12 +3259,18 @@ const regles: Regle[] = [
       vaut('une date ecrite : 30 octobre 2026, mardi 13 octobre, le 1er novembre, ni le 31 septembre, pas le 3 novembre', ['2026-10-30', '2026-10-13', '2026-11-01', undefined, '2026-11-03'], [
         motsReconnus('Pourriez-vous reporter au 30 octobre 2026 à 9h30 ?', t2).jourVoulu, motsReconnus('Et le mardi 13 octobre a 13 h est ce possible ?', t2).jourVoulu,
         motsReconnus('le 1er novembre', t2).jourVoulu, motsReconnus('le 31 septembre', t2).jourVoulu, motsReconnus('pas le 3 novembre', t2).jourEvite]);
-      /* « Je suis en route pour le shampooing » : bien note, et le plan. */
-      const p = parcours(ORIGINAL, NUM_NAFFI, [NAFFI]);
+      /* « Je suis en route pour le shampooing » : bien note, et le plan, a une
+         nouvelle cliente ; a une cliente deja venue, le mot seul (1er novembre
+         2026 : « elle connait le lieu »). */
+      const p = parcours(ORIGINAL, NUM_INCONNUE, []);
       p.carte = 'https://maps.app.goo.gl/AbCdEf12345';
       const ctx = ctxDe(p, t0);
-      const route = reponseDeLaReception(null, dit('Je suis en route pour le shampooing'), ctx, { texte: 'Bien noté, Mme Naffi, nous vous attendons.', suite: 'rien' });
-      vaut('en route : son mot, le plan, le lien', ['texte', 'image', 'texte'], route.messages.map((m) => m.forme));
+      const route = reponseDeLaReception(null, dit('Je suis en route pour le shampooing'), ctx, { texte: 'Bien noté, nous vous attendons.', suite: 'rien' });
+      vaut('en route, une nouvelle cliente : son mot, le plan, le lien', ['texte', 'image', 'texte'], route.messages.map((m) => m.forme));
+      const pv = parcours(ORIGINAL, NUM_NAFFI, [NAFFI]);
+      pv.carte = 'https://maps.app.goo.gl/AbCdEf12345';
+      const routeVenue = reponseDeLaReception(null, dit('Je suis en route et serai un peu en retard. Merci beaucoup'), ctxDe(pv, t0), { texte: 'Bien noté, Mme Naffi, nous vous attendons.', suite: 'venir' });
+      vaut('... en retard, une cliente deja venue : le mot seul, jamais le plan', ['texte'], routeVenue.messages.map((m) => m.forme));
       const la = reponseDeLaReception(null, dit('Je suis arrivée devant la porte'), ctx, { texte: 'Bien noté, Mme Naffi.', suite: 'rien' });
       vaut('... arrivee devant la porte : un mot seul', ['texte'], la.messages.map((m) => m.forme));
       return ecarts;
@@ -3652,24 +3655,32 @@ const regles: Regle[] = [
       const ANNONCE = 'Le plan pour venir à la Maison suit ce message.';
       const formes = (s: SortieDuTour): string[] => s.messages.map((m) => m.forme);
 
-      /* 1. La premiere confirmation porte le plan, et le numero le garde. */
-      const a = scnConnue(ORIGINAL);
-      vrai('la premiere confirmation : son texte annonce le plan, puis le plan', corps(a.s4).includes(ANNONCE) && a.s4.messages.some((m) => m.image === PLAN), formes(a.s4).join('/'));
+      /* 1. La premiere confirmation d une nouvelle cliente porte le plan, et le numero le garde. */
+      const a = scnInconnue(ORIGINAL);
+      vrai('la premiere confirmation : son texte annonce le plan, puis le plan', corps(a.s7).includes(ANNONCE) && a.s7.messages.some((m) => m.image === PLAN), formes(a.s7).join('/'));
       vrai('... et le numero garde la date du plan', !!a.p.etat?.planEnvoyeLe, String(a.p.etat?.planEnvoyeLe));
+      /* 1 bis. Une cliente deja venue (1er novembre 2026) : la confirmation seule, sans annonce ni plan. */
+      const av = scnConnue(ORIGINAL);
+      vaut('deja venue : la confirmation seule, sans annonce ni plan', [['texte'], false], [formes(av.s4), corps(av.s4).includes('plan')]);
 
       /* 2. Un numero qui a deja le plan : la confirmation seule, sans annonce. */
       const t0 = cotonou('2026-10-09', '21:04');
-      const p = parcours(ORIGINAL, NUM_NAFFI, [NAFFI]);
-      elle(p, t0, { texte: 'Bonsoir, je voudrais passer samedi pour mes racines' });
-      p.etat!.planEnvoyeLe = isoDe(t0 - 3 * 86400000);
-      elle(p, t0 + 60000, { touche: 'La même chose' });
-      elle(p, t0 + 90000, { touche: 'Sam. 10 oct. 2026 · 9 h' });
-      const c = elle(p, t0 + 120000, { touche: 'Je confirme' });
+      const tn = cotonou('2026-10-09', '10:12');
+      const p = parcours(ORIGINAL, NUM_INCONNUE, []);
+      elle(p, tn, { texte: 'Bonjour, je voudrais prendre rendez-vous' });
+      p.etat!.planEnvoyeLe = isoDe(tn - 3 * 86400000);
+      elle(p, tn + 30000, { touche: 'Entretenir mes locks' });
+      elle(p, tn + 60000, { touche: 'Lavage · Essentiel' });
+      elle(p, tn + 75000, { touche: "Non, c'est tout" });
+      elle(p, tn + 90000, { touche: 'Mar. 13 oct. 2026 · 9 h' });
+      elle(p, tn + 100000, { touche: 'Mademoiselle' });
+      elle(p, tn + 110000, { texte: 'awa' });
+      const c = elle(p, tn + 120000, { touche: 'Je confirme' });
       vaut('le plan deja recu : la confirmation seule', ['texte'], formes(c));
       vrai('... qui ne l annonce plus, et garde sa devise', /^C'est confirmé/.test(corps(c)) && !corps(c).includes('plan') && corps(c).endsWith(DEVISE), corps(c));
 
       /* 3. La reception : le chemin redemande renvoie le plan ; en route ou un bonjour, non. */
-      const pr = parcours(ORIGINAL, NUM_NAFFI, [NAFFI]);
+      const pr = parcours(ORIGINAL, NUM_INCONNUE, []);
       pr.carte = 'https://maps.app.goo.gl/AbCdEf12345?g_st=ac';
       const t1 = cotonou('2026-10-31', '07:20');
       const ctx = ctxDe(pr, t1);
@@ -3687,7 +3698,17 @@ const regles: Regle[] = [
       vaut('elle redemande le chemin : le plan repart', ['texte', 'image', 'texte'], formes(v4));
       const v5 = reponseDeLaReception(deja, dit('Bonjour'), ctx, { texte: 'Le plan pour venir suit ce message.', suite: 'venir' });
       vaut('un mot qui n est que l annonce garde le plan : jamais un message vide', ['texte', 'image', 'texte'], formes(v5));
-      vaut('... et chacun passe les juges de Meta et de la Maison', [], [v2, v3, v4, v5].flatMap((v) => v.messages.flatMap((m) => [...respecteMeta(m), ...texteSain(m.corps, true)])));
+      /* 3 bis. Deja venue (1er novembre 2026) : en retard ou un bonjour, jamais le plan ; seulement si elle demande le chemin. */
+      const pv = parcours(ORIGINAL, NUM_NAFFI, [NAFFI]);
+      pv.carte = pr.carte;
+      const ctxv = ctxDe(pv, t1);
+      const w1 = reponseDeLaReception(null, dit('Je suis en route et serai un peu en retard. Merci beaucoup'), ctxv, { texte: 'Bien noté, Mme Naffi. Merci de nous prévenir.', suite: 'venir' });
+      vaut('deja venue, en retard, sans plan recu : le mot seul', ['texte'], formes(w1));
+      const w2 = reponseDeLaReception(null, dit('Bonjour'), ctxv, { texte: 'Le plan pour venir suit ce message.', suite: 'venir' });
+      vaut('deja venue, un mot qui n etait que l annonce : le mot bref, jamais vide', [['texte'], 'Bien noté, nous vous attendons.'], [formes(w2), w2.messages[0]?.corps]);
+      const w3 = reponseDeLaReception(null, dit('Comment venir chez vous?'), ctxv, { texte: mot, suite: 'venir' });
+      vaut('deja venue, elle demande le chemin : le plan part', ['texte', 'image', 'texte'], formes(w3));
+      vaut('... et chacun passe les juges de Meta et de la Maison', [], [v2, v3, v4, v5, w1, w2, w3].flatMap((v) => v.messages.flatMap((m) => [...respecteMeta(m), ...texteSain(m.corps, true)])));
 
       /* 4. En plein parcours, le prix d une famille nommee : sa liste, rien de pose. */
       const q = parcours(ORIGINAL, NUM_NAFFI, [NAFFI]);
@@ -3728,6 +3749,8 @@ const regles: Regle[] = [
     pannes: [
       { nom: 'le plan repart a chaque fois', mute: [P(AUTO, '    if (base.planEnvoyeLe && !force && !(tour && demandeLeCheminWa(tour.texte))) return [];', '    if (false) return [];')] },
       { nom: 'le plan envoye ne se note plus', mute: [P(AUTO, '    base.planEnvoyeLe = maintenant;\n', '')] },
+      { nom: 'le plan part a une cliente deja venue', mute: [P(AUTO, '    if (titulaire?.derniereVenue && !(tour && demandeLeCheminWa(tour.texte))) return [];\n', '')] },
+      { nom: 'un mot qui n etait que l annonce part vide', mute: [P(AUTO, " || 'Bien noté, nous vous attendons.'", '')] },
       { nom: 'la confirmation annonce un plan qui ne vient pas', mute: [P(AUTO, "        ...(plan.length > 0 ? ['Le plan pour venir à la Maison suit ce message.'] : []),\n", "        'Le plan pour venir à la Maison suit ce message.',\n")] },
       { nom: 'le mot de la reception garde l annonce sans le plan', mute: [P(AUTO, 'corps: plan.length > 0 ? r.texte : sansLAnnonce', 'corps: r.texte')] },
       { nom: 'le chemin redemande ne renvoie plus le plan', mute: [P(AUTO, '!(tour && demandeLeCheminWa(tour.texte))', 'true')] },

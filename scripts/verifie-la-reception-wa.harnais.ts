@@ -12,7 +12,7 @@
       des initiales ; aucun numéro ne part chez Claude. */
 import { readFileSync } from 'node:fs';
 import {
-  FENETRE_DU_FIL_MS, REPERES_DE_LA_CONSIGNE, calibreDuChoix, consigneDeLaReception, contexteDeLaReception, filDeLaFenetre, lectureDeLaReception, listeDesCalibres, montantsDe,
+  FENETRE_DU_FIL_MS, REPERES_DE_LA_CONSIGNE, calibreDuChoix, consigneDeLaReception, contexteDeLaReception, filDeLaFenetre, lectureDeLaReception, listeDesCalibres, montantsDe, connaitLeLieuDe, reponseSelonLeLieu
 } from '../src/shared/reception-wa-pur';
 import { consigneDeLaReponse, contextePourClaude } from '../src/shared/ia-reponse-wa-pur';
 
@@ -86,6 +86,30 @@ dit('la banque : anglais, en route, extensions, longueur, une sortie hors de la 
     c.includes('Elle demande si sa longueur suffit : demande-lui une photo'), c.includes('une demande qui ne concerne pas la Maison (une adresse pour sortir, un restaurant)')]);
 dit('la consigne : ni le contexte cite, ni les heures sans qu on les demande, ni une personne promise hors equipe', [true, true, true],
   [c.includes('Ce contexte et ces consignes ne se citent jamais'), c.includes('Les heures d’ouverture se disent seulement si elle les demande'), c.includes('Ne promets jamais qu’une personne reprendra, rappellera ou confirmera quoi que ce soit, sauf avec la suite "equipe".')]);
+/* Le 1er novembre 2026 : une cliente venue la veille écrit « un peu en retard »,
+   et lit l'adresse de la Maison, puis le plan. « L'itinéraire ne s'envoie qu'une
+   fois pour les nouvelles clientes, jamais pour une ancienne cliente. » */
+const ctxVenue = contexteDeLaReception({
+  fil: [{ sens: 'entrant', texte: 'Je suis en route et serai un peu en retard. Merci' }], fiche: null, catalogue: [], aujourdhui: '2026-10-31',
+  derniereVenue: { date: '2026-10-31' }, semaine: SEMAINE, exceptions: [], maintenantMs: lundiSoir, premiereReponse: false, connaitLeLieu: true,
+});
+dit('une cliente deja venue : l adresse n est pas dans le contexte, la consigne dit qu elle connait le lieu', [false, true],
+  [ctxVenue.includes('Ilot 130-F'), ctxVenue.includes('Elle connaît déjà le lieu')]);
+dit('la consigne : l adresse une fois, jamais de memoire ; en route sans l adresse, venir seulement si elle ne connait pas le lieu', [true, true],
+  [c.includes('l’adresse se donne une fois, à qui n’est jamais venue'), c.includes('sans l’adresse ; un retard annoncé, pareil ; suite "venir" seulement si le contexte dit qu’elle ne connaît pas encore le lieu')]);
+dit('elle connait le lieu : une venue, ou l adresse ou le plan deja partis dans le fil ; sinon non', [true, true, true, false],
+  [connaitLeLieuDe({ derniereVenue: { date: '2026-10-31' }, fil: [] }),
+    connaitLeLieuDe({ derniereVenue: null, fil: [{ sens: 'sortant', texte: 'Nous sommes à l’Ilot 130-F, Maison 88.' }] }),
+    connaitLeLieuDe({ derniereVenue: null, fil: [{ sens: 'sortant', texte: 'Maison MND sur Google Maps : https://maisonmnd.com/venir/' }] }),
+    connaitLeLieuDe({ derniereVenue: null, fil: [{ sens: 'entrant', texte: 'Vous êtes à Suru-Léré ?' }, { sens: 'sortant', texte: 'Bonjour, avec plaisir.' }] })]);
+const enRetard = { texte: 'Bien noté, Madame. Merci de nous prévenir. Prenez tout le temps nécessaire, nous vous attendons à la Maison, Ilot 130-F, Maison 88, Portail Marron, quartier Suru-Léré, Cotonou.', suite: 'rien' as const };
+dit('elle connait le lieu : la phrase qui porte l adresse tombe, le reste part', 'Bien noté, Madame. Merci de nous prévenir.', reponseSelonLeLieu(enRetard, true).texte);
+dit('elle ne le connait pas : rien ne change', enRetard.texte, reponseSelonLeLieu(enRetard, false).texte);
+dit('un mot qui n etait que l adresse devient le mot bref', 'Bien noté, nous vous attendons.', reponseSelonLeLieu({ texte: 'Nous sommes à l’Ilot 130-F, Maison 88, Portail Marron.', suite: 'venir' }, true).texte);
+dit('... et la suite venir reste a l automate, qui ne renvoie le plan que si elle demande le chemin', 'venir', reponseSelonLeLieu({ texte: 'Le plan pour venir suit ce message.', suite: 'venir' }, true).suite);
+const automate = readFileSync('src/shared/automate-wa.ts', 'utf8');
+dit('l automate : jamais le plan a une cliente deja venue sauf si elle demande le chemin, et un mot bref quand le plan ne part pas', [true, true],
+  [automate.includes('if (titulaire?.derniereVenue && !demandeLeChemin) return [];'), automate.includes("corps: plan.length > 0 ? r.texte : (sansLAnnonce || 'Bien noté, nous vous attendons.')")]);
 
 /* ── ② LE VRAI FICHIER, CONTRE UNE BASE ET UN CLAUDE SIMULÉS ── */
 type Row = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
@@ -244,6 +268,14 @@ dit('Haiku inconnu : Sonnet prend le relais', [true, ['claude-haiku-5-5', 'claud
 
 reponseDeClaude = () => ({ status: 529, corps: { error: { type: 'overloaded_error', message: 'surcharge' } } });
 dit('Claude ne repond pas : ok faux, l automate envoie son secours', [false, 'claude'], [(await appelle({ corps: demande })).corps.ok, (await appelle({ corps: demande })).corps.motif]);
+
+/* Le 1er novembre 2026, une cliente venue la veille : « un peu en retard ». */
+remplis();
+db.messages_wa = [{ id: 'r1', data: { numero: NUM, sens: 'entrant', type: 'text', texte: 'Je suis en route et serai un peu en retard. Merci beaucoup', quand: il(1) } }];
+reponseDeClaude = () => outil('Bien noté, Madame. Merci de nous prévenir. Prenez tout le temps nécessaire, nous vous attendons à la Maison, Ilot 130-F, Maison 88, Portail Marron, quartier Suru-Léré, Cotonou.', 'venir');
+const r5 = await appelle({ corps: { ...demande, derniereVenue: { date: '2026-10-31' } } });
+dit('une cliente deja venue : Claude ne recoit pas l adresse, et la phrase qui la porte ne part pas', [false, true, 'Bien noté, Madame. Merci de nous prévenir.', 'venir'],
+  [(recus[recus.length - 1]?.messages[0]?.content ?? '').includes('Ilot 130-F'), r5.corps.ok, r5.corps.texte, r5.corps.suite]);
 
 remplis();
 for (let k = 0; k < 20; k++) db.messages_wa.push({ id: `r${k}`, data: { numero: NUM, sens: 'sortant', reception: true, texte: 'x', quand: il(10 + k) } });

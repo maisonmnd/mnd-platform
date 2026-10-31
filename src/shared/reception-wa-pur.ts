@@ -66,7 +66,11 @@ export function consigneDeLaReception(): string {
     c.trimEnd(),
     '',
     'Tu es un programme, et tu ne le caches jamais : dans ta première réponse d’une conversation, présente-toi comme « l’assistant de la Maison » ; à une question sincère (« êtes-vous un robot ? »), dis-le franchement, et qu’une personne de l’équipe peut prendre le relais à tout moment.',
-    'Les heures de la Maison et son adresse sont dans le contexte. Quand la suite revient à l’équipe et que la Maison est fermée, dis quand une personne lui répondra : à la réouverture que le contexte indique.',
+    /* 1er novembre 2026 : une cliente venue la veille a lu l'adresse de la
+       Maison en réponse à « un peu en retard ». « L'itinéraire ne s'envoie
+       qu'une fois pour les nouvelles clientes, jamais pour une ancienne
+       cliente : elle connaît le lieu » (Yéman). */
+    'Les heures de la Maison sont dans le contexte, et son adresse seulement quand elle ne la connaît pas encore : l’adresse se donne une fois, à qui n’est jamais venue, jamais de mémoire ni par morceaux. Quand la suite revient à l’équipe et que la Maison est fermée, dis quand une personne lui répondra : à la réouverture que le contexte indique.',
     'Quand un choix suit (la liste des prestations, celle des calibres), ne l’énumère pas : il part juste après ton message, à toucher.',
     'Réponds à son dernier message. Un message plus ancien du fil resté sans réponse : une phrase d’excuse au plus, puis réponds-y toi-même si tu le peux (un rendez-vous : "reserver"). Ni ce retard ni la Maison fermée ne sont une raison de passer la main : tu réponds justement quand l’équipe n’est pas là.',
     'Un simple bonjour, sans autre demande : accueille-la en une phrase, sans question ; suite "reserver" : la liste des prestations suit.',
@@ -79,7 +83,7 @@ export function consigneDeLaReception(): string {
     /* 30 octobre 2026, la banque de scénarios (maquette 8c48d9mc…) : les
        réponses que Yéman a choisies pour les vrais messages. */
     'Elle écrit en anglais : réponds en anglais, dans la même voix. Le jour même ne se réserve pas ici : dis-le, et propose les jours suivants (suite "reserver").',
-    'Elle est en route ou arrive : un mot bref (« Bien noté, nous vous attendons. »), suite "venir" : le plan suit.',
+    'Elle est en route ou arrive : un mot bref (« Bien noté, nous vous attendons. »), sans l’adresse ; un retard annoncé, pareil ; suite "venir" seulement si le contexte dit qu’elle ne connaît pas encore le lieu, sinon "rien".',
     'Les extensions de locks se décident à la consultation (la teinte, le calibre, le nombre), puis un devis écrit : ne donne aucun prix, suite "creation".',
     'Elle demande si sa longueur suffit : demande-lui une photo de ses cheveux, qu’une personne de la Maison regardera ; suite "equipe".',
     'Elle demande comment payer : réponds avec les moyens de paiement du contexte, sans en ajouter ; un paiement à distance seulement s’il y est dit.',
@@ -124,6 +128,10 @@ export type ContexteDeLaReception = ContexteDeLaReponse & {
       est allumé (30 octobre 2026 : « Can I pay with a card ? »). */
   paiements?: readonly string[];
   paiementEnLigne?: boolean;
+  /** ELLE CONNAÎT LE LIEU (1er novembre 2026) : déjà venue, ou l'adresse ou
+      le plan déjà envoyés dans ce fil. L'adresse sort alors du contexte, et
+      la consigne dit de ne pas la redonner. Voir `connaitLeLieuDe`. */
+  connaitLeLieu?: boolean;
 };
 
 /** CE QUE LA RÉCEPTION LIT À LA PLACE DE « AGENDA : NON CONSULTÉ » : les
@@ -140,7 +148,9 @@ export function contexteDeLaReception(o: ContexteDeLaReception): string {
     base,
     '',
     'LA MAISON :',
-    `- Adresse : ${ADRESSE_DE_LA_MAISON}.`,
+    o.connaitLeLieu
+      ? '- Elle connaît déjà le lieu (elle est déjà venue, ou l’adresse lui a déjà été donnée) : ne redonne ni l’adresse ni le chemin, même en partie, et ne dis pas qu’un plan suit. Si elle redemande expressément le chemin, un mot bref sans l’adresse, suite "venir".'
+      : `- Adresse : ${ADRESSE_DE_LA_MAISON}.`,
     heures.length ? `- Heures d’ouverture : ${heures.join(' ; ')}.` : '- Heures d’ouverture : non communiquées ; ne donne aucune heure.',
     reouverture === null
       ? '- En ce moment, la Maison est ouverte : une personne de l’équipe peut répondre dans la journée.'
@@ -179,6 +189,43 @@ export function lectureDeLaReception(brut: unknown, montantsPermis: ReadonlySet<
   if ((suite === 'creation' || suite === 'reparation' || suite === 'calibre') && montants.length > 0) return null;
   if (montants.some((n) => !montantsPermis.has(n))) return null;
   return { texte, suite };
+}
+
+/* ── LE LIEU, UNE FOIS, À QUI NE LE CONNAÎT PAS (1er novembre 2026) ────────
+   « L'itinéraire ne s'envoie qu'une fois pour les nouvelles clientes. Jamais
+   pour une ancienne cliente. Elle connaît le lieu » (Yéman) : une cliente
+   venue la veille a lu, en réponse à « je serai un peu en retard », l'adresse
+   entière de la Maison, et le plan a suivi. Trois gardes : l'adresse sort du
+   contexte de Claude quand elle connaît le lieu (`contexteDeLaReception`),
+   la phrase qui la porterait quand même tombe (`reponseSelonLeLieu`), et
+   l'automate ne renvoie le plan à une tête déjà venue que si elle demande
+   le chemin (`lePlan`, shared/automate-wa). */
+const MOTS_DE_L_ADRESSE = /ilot\s*130|maison\s*88|portail\s*marron|suru[\s-]*l[ée]r[ée]|maisonmnd\.com\/venir/iu;
+
+/** Ce texte porte l'adresse de la Maison, le plan ou son lien. */
+export const parleDeLAdresse = (texte: string): boolean => MOTS_DE_L_ADRESSE.test(String(texte ?? ''));
+
+/** Elle connaît le lieu : une venue à la Maison, ou l'adresse (le plan, le
+    lien) déjà partie de la Maison dans ce fil. */
+export function connaitLeLieuDe(o: { derniereVenue?: unknown; fil: readonly { sens: 'entrant' | 'sortant'; texte: string }[] }): boolean {
+  if (o.derniereVenue) return true;
+  return o.fil.some((m) => m.sens === 'sortant' && parleDeLAdresse(m.texte));
+}
+
+/** Le mot bref quand la phrase ôtée était tout le message. */
+export const MOT_SANS_ADRESSE = 'Bien noté, nous vous attendons.';
+
+/** Le texte sans les phrases qui portent l'adresse ; vide s'il n'en reste rien. */
+export function sansLAdresse(texte: string): string {
+  const phrases = String(texte ?? '').match(/[^.!?\n]+[.!?]*[ \t]*|\n+/g) ?? [];
+  return phrases.filter((p) => !parleDeLAdresse(p)).join('').replace(/\n{3,}/g, '\n\n').replace(/[ \t]{2,}/g, ' ').trim();
+}
+
+/** Ce qui part quand elle connaît le lieu : jamais l'adresse. La suite reste
+    à l'automate, qui ne renvoie le plan que si elle demande le chemin. */
+export function reponseSelonLeLieu(r: LaReception, connaitLeLieu: boolean): LaReception {
+  if (!connaitLeLieu || !parleDeLAdresse(r.texte)) return r;
+  return { texte: sansLAdresse(r.texte) || MOT_SANS_ADRESSE, suite: r.suite };
 }
 
 /* ── LA LISTE DES CALIBRES ─────────────────────────────────────────────── */

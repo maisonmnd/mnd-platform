@@ -88,7 +88,7 @@ import { createClient, type SupabaseClient } from 'npm:@supabase/supabase-js@2';
 
 /** LA VERSION DE CE FICHIER, dite par le contrôle de santé. Sans elle on ne
     sait pas quel code tourne vraiment. À incrémenter à chaque déploiement. */
-const VERSION = '2026-10-31-c · la longueur de la couleur se demande, le long sans prix ne copie pas le court';
+const VERSION = '2026-11-01-a · le plan et l adresse ne partent plus a une cliente deja venue';
 
 /** « En train d'écrire », puis on attend : deux messages envoyés coup sur
     coup font un seul tour, celui du dernier. */
@@ -3722,6 +3722,12 @@ function atelierDuTour(ancien: EtatDuFil | null | undefined, tour: TourDeLaClien
       précède ne tient que par lui. Ce qui est rendu est vide quand ils ne
       repartent pas. */
   const lePlan = (etape: EtapeDuFil, habille: (m: MessageSortant) => MessageSortant = (m) => m, force = false): MessageSortant[] => {
+    /* JAMAIS À UNE CLIENTE DÉJÀ VENUE (1er novembre 2026, Yéman : « l'itinéraire
+       ne s'envoie qu'une fois pour les nouvelles clientes, jamais pour une
+       ancienne cliente, elle connaît le lieu ») : une cliente venue la veille
+       a reçu l'adresse et le plan en réponse à « un peu en retard ». Une tête
+       qui a déjà une venue ne reçoit le plan que si elle demande le chemin. */
+    if (titulaire?.derniereVenue && !(tour && demandeLeCheminWa(tour.texte))) return [];
     if (base.planEnvoyeLe && !force && !(tour && demandeLeCheminWa(tour.texte))) return [];
     base.planEnvoyeLe = maintenant;
     const lien = ligneGoogleMapsWa(lienMapsWa(ctx.maison.carte));
@@ -4106,13 +4112,15 @@ function atelierDuTour(ancien: EtatDuFil | null | undefined, tour: TourDeLaClien
        la Maison sur Google Maps, comme après une confirmation. Claude dit
        « rien » à une question de chemin : le plan part quand même. */
     if (r.suite === 'venir' || (r.suite === 'rien' && !!tour && (demandeLeCheminWa(tour.texte) || enRouteWa(tour.texte)))) {
-      /* Le plan déjà reçu ne repart pas d'office (31 octobre 2026), et son
-         mot perd la phrase qui l'annonce : jamais un « le plan suit » sans
-         le plan. Un mot qui n'est que cette phrase garde le plan. */
+      /* Le plan déjà reçu ne repart pas d'office (31 octobre 2026), ni jamais
+         à une cliente déjà venue sauf si elle demande le chemin (1er novembre
+         2026, voir `lePlan`) ; son mot perd la phrase qui l'annonce : jamais
+         un « le plan suit » sans le plan. Un mot qui n'était que cette phrase
+         garde le plan, ou devient le mot bref quand le plan ne part pas. */
       const sansLAnnonce = sansLAnnonceDuPlanWa(r.texte);
       const plan = lePlan('clos', signe, !sansLAnnonce);
       return sortie([
-        signe({ forme: 'texte', etape: 'clos', corps: plan.length > 0 ? r.texte : sansLAnnonce }),
+        signe({ forme: 'texte', etape: 'clos', corps: plan.length > 0 ? r.texte : sansLAnnonce || 'Bien noté, nous vous attendons.' }),
         ...plan,
       ]);
     }
