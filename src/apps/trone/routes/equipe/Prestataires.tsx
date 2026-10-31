@@ -3,10 +3,12 @@ import { PageHead } from '../_ui';
 import { Button, Card, Field, Input, Modal, Select, demande } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
-import { createStore, uid, useStore } from '../../../../shared/store';
-import { bindDocument } from '../../../../shared/sync';
+import { uid, useStore } from '../../../../shared/store';
 import { providersStore, type Provider, type ProviderMode } from '../../../../shared/prestataires';
-import { expensesStore, expenseCategoriesStore, useCashboxes, cashboxCurrency, usePaymentMethods, moyensAOffrir, type Expense} from '../../../../shared/finance';
+import { expensesStore, expenseCategoriesStore, useCashboxes, cashboxCurrency, usePaymentMethods, moyensAOffrir } from '../../../../shared/finance';
+import { missionsStore, type MissionDuPrestataire as Mission } from '../../../../shared/missions-prestataires';
+import { CHARGE_CATEGORY, ID_CATEGORIE_CHARGE, chargeDeLaMission, type ReglementDuPrestataire } from '../../../../shared/missions-prestataires-pur';
+import { useServices, useCategories } from '../../../../shared/catalog';
 import { MontantDuTiroir, montantsDuTiroir } from '../finances/tiroirs';
 import { useStaff as useMyStaff, useAuth } from '../../../../shared/auth';
 import { payslipPdf, summaryPdf, type PayslipRow, type SummarySection } from '../../../../shared/pdf';
@@ -26,12 +28,24 @@ import { ChampDeDate } from '../../../../ds/dates';
    les Conversations WhatsApp le lisent pour reconnaître un numéro. On le
    réexporte pour les Textes de la Maison, qui l'importaient d'ici. */
 export { providersStore };
-type Mission = { id: string; branchId: string; providerId: string; label: string; date: string; qty?: number; amountXof: number; paidAt?: string; byName?: string; method?: string; note?: string; expenseId?: string };
 
-const CHARGE_CATEGORY = 'Sous-traitance';
+/* LE REGISTRE DES MISSIONS VIT DANS `shared/missions-prestataires` depuis le
+   1er novembre 2026 : l'honneur d'un rituel y écrit la mission du prestataire
+   dont une prestation figure au rituel (la règle : `missions-prestataires-pur`).
+   Ici, on la lit, on la complète, on la paie. */
 
-const missionsStore = createStore<Mission[]>('mnd_prestations', []);
-bindDocument(missionsStore, 'mnd_prestations');
+type ProvForm = {
+  name: string; specialty: string; phone: string; mode: ProviderMode; rate: string; note: string;
+  /** Ses prestations du catalogue (identifiants) et le prix convenu de chacune, tel que saisi. */
+  prestations: string[]; grille: Record<string, string>; reglement: ReglementDuPrestataire;
+};
+const PROV_FORM_VIDE: ProvForm = { name: '', specialty: '', phone: '', mode: 'prestation', rate: '', note: '', prestations: [], grille: {}, reglement: 'a-payer' };
+/** La grille saisie devient des francs, pour les prestations cochées seulement ; une case vide n'est pas un prix. */
+const grilleDuFormulaire = (g: Record<string, string>, prestations: string[]): Record<string, number> | undefined => {
+  const out: Record<string, number> = {};
+  for (const id of prestations) { const v = (g[id] ?? '').trim(); if (v !== '') out[id] = Math.max(0, parseInt(v, 10) || 0); }
+  return Object.keys(out).length ? out : undefined;
+};
 
 const MODE_LABEL: Record<ProviderMode, string> = {
   prestation: 'Par prestation', forfait: 'Forfait', pourcentage: 'Pourcentage', horaire: 'À l’heure / jour',
@@ -66,9 +80,7 @@ export default function Prestataires() {
   const contratDuJour = enVigueurDe(reglagesContrats.prestataire, PRESTATAIRE_V1);
 
   const [provEditId, setProvEditId] = useState<string | null>(null);
-  const [provForm, setProvForm] = useState<{ name: string; specialty: string; phone: string; mode: ProviderMode; rate: string; note: string }>(
-    { name: '', specialty: '', phone: '', mode: 'prestation', rate: '', note: '' },
-  );
+  const [provForm, setProvForm] = useState<ProvForm>(PROV_FORM_VIDE);
   const [missionFor, setMissionFor] = useState<Provider | null>(null);
   const [missionEditId, setMissionEditId] = useState<string | null>(null);
   const [missionForm, setMissionForm] = useState<{ label: string; date: string; qty: string; amount: string; note: string }>(
@@ -97,20 +109,31 @@ export default function Prestataires() {
   );
 
   /* ---------- Prestataires ---------- */
-  const openNewProvider = () => { setProvEditId(null); setProvForm({ name: '', specialty: '', phone: '', mode: 'prestation', rate: '', note: '' }); setProvModal(true); };
+  const openNewProvider = () => { setProvEditId(null); setProvForm(PROV_FORM_VIDE); setProvModal(true); };
   const openEditProvider = (p: Provider) => {
     setProvEditId(p.id);
-    setProvForm({ name: p.name, specialty: p.specialty ?? '', phone: p.phone ?? '', mode: p.mode, rate: p.rateXof ? String(p.rateXof) : '', note: p.note ?? '' });
+    setProvForm({
+      name: p.name, specialty: p.specialty ?? '', phone: p.phone ?? '', mode: p.mode, rate: p.rateXof ? String(p.rateXof) : '', note: p.note ?? '',
+      prestations: [...(p.prestations ?? [])],
+      grille: Object.fromEntries(Object.entries(p.grille ?? {}).map(([id, v]) => [id, String(v)])),
+      reglement: p.reglement ?? 'a-payer',
+    });
     setProvModal(true);
   };
   const saveProvider = () => {
     const name = provForm.name.trim();
     if (!name) return;
     const rateXof = parseXof(provForm.rate) || undefined;
+    /* SES PRESTATIONS, SA GRILLE, SON RÈGLEMENT — 1er novembre 2026 : c'est ce
+       qui fait naître sa mission à l'honneur du rituel (shared/missions-prestataires). */
+    const prestations = provForm.prestations.length ? [...provForm.prestations] : undefined;
+    const grille = grilleDuFormulaire(provForm.grille, provForm.prestations);
+    const reglement = provForm.reglement === 'jour-meme' ? 'jour-meme' as const : undefined;
+    const champs = { name, specialty: provForm.specialty.trim() || undefined, phone: provForm.phone.trim() || undefined, mode: provForm.mode, rateXof, note: provForm.note.trim() || undefined, prestations, grille, reglement };
     if (provEditId) {
-      setProviders((prev) => prev.map((p) => (p.id === provEditId ? { ...p, name, specialty: provForm.specialty.trim() || undefined, phone: provForm.phone.trim() || undefined, mode: provForm.mode, rateXof, note: provForm.note.trim() || undefined } : p)));
+      setProviders((prev) => prev.map((p) => (p.id === provEditId ? { ...p, ...champs } : p)));
     } else {
-      setProviders((prev) => [...prev, { id: `pv-${uid()}`, branchId: branch.id, name, specialty: provForm.specialty.trim() || undefined, phone: provForm.phone.trim() || undefined, mode: provForm.mode, rateXof, note: provForm.note.trim() || undefined }]);
+      setProviders((prev) => [...prev, { id: `pv-${uid()}`, branchId: branch.id, ...champs }]);
     }
     setProvModal(false);
   };
@@ -220,20 +243,15 @@ export default function Prestataires() {
     if (!payFor) return;
     const byName = me?.name?.trim() || session?.user?.email?.split('@')[0] || 'La maison';
     const paidAt = new Date().toISOString();
-    const expId = `exp-ms-${payFor.id}`;
-    const charge: Expense = {
-      id: expId,
-      branchId: payFor.branchId,
-      label: `Prestataire · ${providerName(payFor.providerId)}, ${payFor.label}`,
-      amountXof: payFor.amountXof,
-      date: paidAt.slice(0, 10),
-      cashbox: caisseActive,
-      fx: montantsDuTiroir(caissePayee, currency, payDevise, String(payFor.amountXof)).fx,
-      category: CHARGE_CATEGORY,
-    };
+    /* LA MÊME CHARGE QUE L'HONNEUR — 1er novembre 2026 : une mission payée le
+       jour même par le rituel et une mission payée ici écrivent la même ligne
+       (shared/missions-prestataires-pur), au même identifiant. */
+    const charge = chargeDeLaMission(payFor, providerName(payFor.providerId), caisseActive, paidAt.slice(0, 10),
+      montantsDuTiroir(caissePayee, currency, payDevise, String(payFor.amountXof)).fx);
+    const expId = charge.id;
     // La charge remonte dans les Dépenses & la Synthèse (résultat).
     expensesStore.set((prev) => (prev.some((e) => e.id === expId) ? prev.map((e) => (e.id === expId ? charge : e)) : [charge, ...prev]));
-    expenseCategoriesStore.set((prev) => (prev.some((c) => c.name === CHARGE_CATEGORY) ? prev : [...prev, { id: 'ec-sous-traitance', name: CHARGE_CATEGORY, subs: [] }]));
+    expenseCategoriesStore.set((prev) => (prev.some((c) => c.name === CHARGE_CATEGORY) ? prev : [...prev, { id: ID_CATEGORIE_CHARGE, name: CHARGE_CATEGORY, subs: [] }]));
     setMissions((prev) => prev.map((m) => (m.id === payFor.id ? { ...m, paidAt, byName, method: payMethod, expenseId: expId } : m)));
     setPayFor(null);
   };
@@ -351,6 +369,12 @@ export default function Prestataires() {
                   <div style={{ minWidth: 0, flex: 1 }}>
                     <div className="tre-prov__name">{p.name}</div>
                     <div className="tre-prov__meta">{MODE_LABEL[p.mode]}{p.rateXof ? ` · ${fmtMoney(p.rateXof, currency)}` : ''}{p.specialty ? ` · ${p.specialty}` : ''}</div>
+                    {/* CE QUI FAIT NAÎTRE SES MISSIONS — 1er novembre 2026. */}
+                    <div className="tre-prov__meta">
+                      {p.prestations?.length
+                        ? `${p.prestations.length} prestation${p.prestations.length > 1 ? 's' : ''} du catalogue · ${p.reglement === 'jour-meme' ? 'payée le jour même' : 'à payer'}`
+                        : 'Missions saisies à la main · « Modifier » pour cocher ses prestations'}
+                    </div>
                   </div>
                   {due > 0 && <span className="tre-prov__due-pill">À payer · {fmtMoney(due, currency)}</span>}
                 </div>
@@ -394,8 +418,8 @@ export default function Prestataires() {
                 <tr key={m.id}>
                   <td className="mnd-muted" style={{ whiteSpace: 'nowrap' }}>{frDate(m.date)}</td>
                   <td>{providerName(m.providerId)}</td>
-                  <td>{m.label}{m.note ? <span className="mnd-muted"> · {m.note}</span> : ''}</td>
-                  <td className="num">{fmtMoney(m.amountXof, currency)}</td>
+                  <td>{m.label}{m.nee === 'rituel' ? <span className="mnd-muted" title="Née de l’honneur du rituel"> · du rituel</span> : ''}{m.note ? <span className="mnd-muted"> · {m.note}</span> : ''}</td>
+                  <td className="num">{m.amountXof > 0 ? fmtMoney(m.amountXof, currency) : <span style={{ color: 'var(--color-copper)', fontSize: 12 }}>montant à écrire</span>}</td>
                   <td>
                     {m.paidAt ? (
                       <span className="tre-pay__ok" title={`${m.method ?? ''}`}>✓ Payé · {m.byName}</span>
@@ -412,7 +436,7 @@ export default function Prestataires() {
                           <button className="tre-link-btn tre-link-btn--danger" onClick={() => unpay(m)}>↺</button>
                         </>
                       ) : (
-                        <button className="tre-link-btn" onClick={() => { setPayMethod(PAY_METHODS[0]); setPayFor(m); }}>Payer</button>
+                        <button className="tre-link-btn" disabled={m.amountXof <= 0} title={m.amountXof <= 0 ? 'Écrivez d’abord son montant (Modifier).' : undefined} onClick={() => { setPayMethod(PAY_METHODS[0]); setPayFor(m); }}>Payer</button>
                       )}
                       <button className="tre-link-btn tre-link-btn--danger" onClick={() => removeMission(m.id)} aria-label="Retirer">×</button>
                     </div>
@@ -451,7 +475,7 @@ export default function Prestataires() {
       )}
 
       {provModal && (
-        <Modal title={provEditId ? 'Modifier le prestataire.' : 'Nouveau prestataire.'} onClose={() => setProvModal(false)} width={520}>
+        <Modal title={provEditId ? 'Modifier le prestataire.' : 'Nouveau prestataire.'} onClose={() => setProvModal(false)} width={580}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             <div className="tr-grid tr-grid--2">
               <Field label="Nom"><Input value={provForm.name} onChange={(e) => setProvForm({ ...provForm, name: e.target.value })} /></Field>
@@ -469,6 +493,29 @@ export default function Prestataires() {
               </div>
             </Field>
             <Field label="Note (facultatif)"><Input value={provForm.note} onChange={(e) => setProvForm({ ...provForm, note: e.target.value })} placeholder="Précision…" /></Field>
+            {/* ══ SES PRESTATIONS ET SON RÈGLEMENT — 1er novembre 2026 ═══════
+                « Quand Hermine ou Ziadath travaille, c'est forcément une
+                mission qu'elle a prise. » La fiche dit ce qu'elle réalise et
+                ce que la Maison lui doit par tête : l'honneur du rituel fait
+                le reste (shared/missions-prestataires-pur). */}
+            <PrestationsDuPrestataire
+              valeur={provForm.prestations}
+              grille={provForm.grille}
+              devise={currency === 'XOF' ? 'F' : currency}
+              onChange={(prestations, grille) => setProvForm({ ...provForm, prestations, grille })}
+            />
+            <Field label="Son paiement">
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
+                {([['a-payer', 'À payer, réglée par « Payer »'], ['jour-meme', 'Payée le jour même, de la caisse de l’encaissement']] as [ReglementDuPrestataire, string][]).map(([k, label]) => (
+                  <button key={k} type="button" className={`tre-chip ${provForm.reglement === k ? 'is-on' : ''}`} onClick={() => setProvForm({ ...provForm, reglement: k })}>{label}</button>
+                ))}
+              </div>
+              <div className="mnd-muted" style={{ fontSize: 11.5, lineHeight: 1.5, marginTop: 6 }}>
+                {provForm.reglement === 'jour-meme'
+                  ? 'La mission naît payée quand le rituel est honoré ; la charge « Sous-traitance » sort de la caisse de l’encaissement, le jour même.'
+                  : 'La mission attend dans « À payer » ; « Payer » fait naître la charge « Sous-traitance », de la caisse choisie ce jour-là.'}
+              </div>
+            </Field>
             <div style={{ display: 'flex', gap: 10, marginTop: 4, justifyContent: 'flex-end' }}>
               <Button variant="ghost" onClick={() => setProvModal(false)}>Annuler</Button>
               <Button variant="copper" onClick={saveProvider} disabled={!provForm.name.trim()}>{provEditId ? 'Enregistrer' : 'Ajouter'}</Button>
@@ -542,7 +589,7 @@ export default function Prestataires() {
                           <button className="tre-link-btn" onClick={() => { openEditMission(m); setProviderFor(null); }}>Modifier</button>
                           {m.paidAt
                             ? <button className="tre-link-btn" onClick={() => void downloadReceipt(m)}>Reçu</button>
-                            : <button className="tre-link-btn" onClick={() => { setPayMethod(PAY_METHODS[0]); setPayFor(m); setProviderFor(null); }}>Payer</button>}
+                            : <button className="tre-link-btn" disabled={m.amountXof <= 0} title={m.amountXof <= 0 ? 'Écrivez d’abord son montant (Modifier).' : undefined} onClick={() => { setPayMethod(PAY_METHODS[0]); setPayFor(m); setProviderFor(null); }}>Payer</button>}
                         </div>
                       </td>
                     </tr>
@@ -610,5 +657,97 @@ export default function Prestataires() {
         </Modal>
       )}
     </div>
+  );
+}
+
+/* ══ SES PRESTATIONS AU CATALOGUE ET LE PRIX CONVENU — 1er novembre 2026 ═══
+   Les prestations cochées d'abord, chacune avec son prix convenu par tête ;
+   le catalogue entier dans le sélecteur du dessous, par famille. Les
+   prestations archivées s'y voient aussi, marquées : une tresse archivée se
+   rétablit au Catalogue, pas ici, mais la fiche peut déjà la porter. */
+function PrestationsDuPrestataire({ valeur, grille, devise, onChange }: {
+  valeur: string[];
+  grille: Record<string, string>;
+  devise: string;
+  onChange: (prestations: string[], grille: Record<string, string>) => void;
+}) {
+  const [services] = useServices();
+  const [categories] = useCategories();
+  const parId = useMemo(() => new Map(services.map((s) => [s.id, s])), [services]);
+  const catParId = useMemo(() => new Map(categories.map((c) => [c.id, c])), [categories]);
+  const familleDe = (serviceId: string): string => {
+    const s = parId.get(serviceId);
+    const c = s ? catParId.get(s.categoryId) : undefined;
+    return c ? `${c.fon} · ${c.label}` : 'Hors catalogue';
+  };
+  const familles = useMemo(() => {
+    const restants = services.filter((s) => !valeur.includes(s.id)).sort((a, b) => a.name.localeCompare(b.name, 'fr'));
+    const parFamille = new Map<string, typeof restants>();
+    for (const s of restants) {
+      const c = catParId.get(s.categoryId);
+      const nom = c ? `${c.fon} · ${c.label}` : 'Hors catalogue';
+      parFamille.set(nom, [...(parFamille.get(nom) ?? []), s]);
+    }
+    return [...parFamille.entries()].sort((a, b) => a[0].localeCompare(b[0], 'fr'));
+  }, [services, catParId, valeur]);
+  const retirer = (id: string) => {
+    const g = { ...grille };
+    delete g[id];
+    onChange(valeur.filter((x) => x !== id), g);
+  };
+  return (
+    <Field label="Ses prestations au catalogue et le prix convenu">
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <div className="mnd-muted" style={{ fontSize: 11.5, lineHeight: 1.55 }}>
+          Quand un rituel honoré porte l’une d’elles, sa mission naît d’elle-même, au prix écrit ici, par tête.
+          Une prestation sans prix donne une mission à compléter avant de la payer. Zéro est un prix écrit.
+        </div>
+        {valeur.length === 0 ? (
+          <div className="mnd-muted" style={{ fontSize: 12 }}>Aucune prestation cochée : ses missions se saisissent à la main (« + Mission »).</div>
+        ) : (
+          <div className="mnd-scroll-x">
+            <table className="tre-table">
+              <thead><tr><th>Prestation</th><th className="num">Prix convenu · {devise}</th><th aria-label="Retirer" /></tr></thead>
+              <tbody>
+                {valeur.map((id) => {
+                  const s = parId.get(id);
+                  return (
+                    <tr key={id}>
+                      <td>
+                        {s?.name ?? 'Prestation retirée du catalogue'}
+                        <span className="mnd-muted"> · {familleDe(id)}{s?.archived ? ' · archivée' : ''}</span>
+                      </td>
+                      <td className="num">
+                        <Input
+                          inputMode="numeric"
+                          value={grille[id] ?? ''}
+                          placeholder="à écrire"
+                          onChange={(e) => onChange(valeur, { ...grille, [id]: e.target.value.replace(/[^0-9]/g, '') })}
+                          aria-label={`Prix convenu pour ${s?.name ?? 'cette prestation'}`}
+                          style={{ width: 110, textAlign: 'right', marginLeft: 'auto' }}
+                        />
+                      </td>
+                      <td><button type="button" className="tre-link-btn tre-link-btn--danger" onClick={() => retirer(id)} aria-label="Retirer cette prestation">×</button></td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+        <Select
+          value=""
+          onChange={(e) => { if (e.target.value) onChange([...valeur, e.target.value], grille); }}
+          aria-label="Ajouter une prestation du catalogue"
+        >
+          <option value="">+ Ajouter une prestation du catalogue</option>
+          {familles.map(([nom, liste]) => (
+            <optgroup key={nom} label={nom}>
+              {liste.map((s) => <option key={s.id} value={s.id}>{s.name}{s.archived ? ' (archivée)' : ''}</option>)}
+            </optgroup>
+          ))}
+        </Select>
+      </div>
+    </Field>
   );
 }

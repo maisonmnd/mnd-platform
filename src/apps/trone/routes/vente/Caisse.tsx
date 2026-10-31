@@ -1035,7 +1035,7 @@ export default function Caisse() {
       }));
       /* ENCAISSER, C'EST HONORER — 13 septembre 2026. Le ticket solde le
          rituel ; il le clôture du même geste (voir `honoreALEncaissement`). */
-      if (partNette > 0) honoreALEncaissement(apptToSettle, svcById);
+      if (partNette > 0) honoreALEncaissement(apptToSettle, svcById, { caisse: activeCashbox || undefined });
     }
 
     /* LE STOCK SUIT LA VENTE — par le JOURNAL. La vente écrit un mouvement de

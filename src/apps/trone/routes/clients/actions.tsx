@@ -25,6 +25,8 @@ import { uid } from '../../../../shared/store';
 import { sameName, normName } from '../../../../shared/text';
 import { addTipPartage, repartirPourboire, retirerPourboiresDesFactures, PART_POURBOIRE_DEFAUT } from '../../../../shared/tips';
 import { pourboireDejaRecu } from '../../../../shared/pourboire-du-rituel';
+import { poseLesMissionsDuRituel, retireLesMissionsDuRituel } from '../../../../shared/missions-prestataires';
+import { ditLesMissionsRetirees } from '../../../../shared/missions-prestataires-pur';
 import { Link } from 'react-router-dom';
 import { autoConfigStore, automationsActiveStore, REVIEW_LINK_DEFAUT, lienPaiementMomo, MOMO_QR_DEFAUT, MOMO_MARCHAND_DEFAUT } from '../equipe/data';
 import { LIEN_CHAPCHAP, MARCHAND_CHAPCHAP, RESEAUX_CHAPCHAP } from '../../../../shared/kkiapay-chapchap-pur';
@@ -207,7 +209,7 @@ export function honorAppointment(
   /* MUET quand un autre écran annonce le geste : l'encaissement dit « réglé,
      rituel honoré, reprise posée » en une seule ligne, plutôt que deux
      bandeaux qui se chevauchent. */
-  opts: { muet?: boolean } = {},
+  opts: { muet?: boolean; caisse?: string } = {},
 ): { points: number; reprise: ReprisePosee } {
   /* ══ ON N'HONORE PAS CE QUI N'A PAS EU LIEU — 4 octobre 2026 ══════════════
      Nadège K. : sa reprise du 5 décembre honorée le 3 octobre à 15 h 10 a posé
@@ -260,6 +262,20 @@ export function honorAppointment(
      déjà consommé ne reconsomme rien. Un service sans recette ne décrémente
      rien, sans erreur. Voir shared/stock.ts. */
   consommerPourRituel({ id: appt.id, branchId: appt.branchId, serviceIds: appt.serviceIds }, todayISO());
+
+  /* ══ LA MISSION DU PRESTATAIRE NAÎT ICI — 1er novembre 2026 ═════════════
+     « Quand Hermine ou Ziadath travaille, c'est forcément une mission qu'elle
+     a prise. Il faut créer la mission et le paiement, qui sont transférés en
+     dépenses » (Yéman). Le rituel honoré donne sa mission à chaque prestataire
+     extérieur dont une prestation y figure (sa fiche : ses prestations du
+     catalogue, le prix convenu de chacune, son règlement), UNE FOIS par
+     rendez-vous : ré-honorer ne redonne rien. « Payée le jour même », la
+     charge sort de la caisse de l'encaissement (`opts.caisse`) et entre dans
+     les Dépenses ; « à payer », elle attend le bouton Payer. Le mot se dit
+     même en muet : aucun autre écran n'annonce ce fait-là. La règle :
+     shared/missions-prestataires-pur.ts. */
+  const missions = poseLesMissionsDuRituel(appt, (id) => byId.get(id)?.name, { caisse: opts.caisse });
+  if (missions.dit) toast(missions.dit);
 
   /* LA REPRISE SE POSE ICI, à la clôture et nulle part ailleurs : c'est le seul
      moment où la Maison sait que la tête est venue, et donc quand la suivante
@@ -316,7 +332,7 @@ export type HonneurDeLEncaissement = {
 export function honoreALEncaissement(
   apptId: string,
   byId: Map<string, Service>,
-  opts: { muet?: boolean } = {},
+  opts: { muet?: boolean; caisse?: string } = {},
 ): HonneurDeLEncaissement {
   const a = appointmentsStore.get().find((x) => x.id === apptId);
   if (!a) return { etat: 'absent' };
@@ -439,6 +455,8 @@ export type HonneurRetire = {
   repriseRetiree?: Appointment;
   repriseGardee?: Appointment;
   couronneEffacee: boolean;
+  /** Les missions de prestataires nées de l'honneur et encore à payer, retirées (1er novembre 2026). */
+  missionsRetirees: number;
 };
 
 /** Défait tout ce que l'honneur a posé, SAUF le statut : le sélecteur de la
@@ -447,6 +465,9 @@ export function retireLHonneur(appt: Appointment, byId: Map<string, Service>): H
   const points = reverseHonorPoints(appt, 'Rituel dés-honoré');
   appointmentsStore.set((prev) => prev.map((a) => (a.id === appt.id ? { ...a, pointsAwarded: false } : a)));
   rembobinerRituel(appt.id);
+  /* LES MISSIONS NÉES DE L'HONNEUR REPARTENT AVEC LUI, sauf celles déjà payées :
+     l'argent est sorti, la ligne reste (1er novembre 2026). */
+  const missionsRetirees = retireLesMissionsDuRituel(appt.id);
 
   const tous = appointmentsStore.get();
   const reprise = tous.find((a) => a.repriseDe === appt.id && a.status !== 'annulé');
@@ -475,7 +496,7 @@ export function retireLHonneur(appt: Appointment, byId: Map<string, Service>): H
     clientsStore.set((prev) => prev.map((c) => (c.id === cliente.id ? { ...c, crownSince: undefined } : c)));
     couronneEffacee = true;
   }
-  return { points, repriseRetiree, repriseGardee, couronneEffacee };
+  return { points, repriseRetiree, repriseGardee, couronneEffacee, missionsRetirees };
 }
 
 /** Ce que le retrait a fait, en une ligne pour l'écran. */
@@ -485,6 +506,7 @@ export const ditLeRetrait = (r: HonneurRetire): string => `${[
   r.repriseRetiree ? `sa reprise du ${frShortAn(r.repriseRetiree.date)} est retirée` : '',
   r.repriseGardee ? `sa reprise du ${frShortAn(r.repriseGardee.date)} reste, elle a déjà été honorée ou réglée` : '',
   r.couronneEffacee ? '« Couronne depuis » effacée de sa fiche' : '',
+  ditLesMissionsRetirees(r.missionsRetirees),
 ].filter(Boolean).join(' · ')}.`;
 
 /** Le bouton « Dés-honorer » : refus si le rituel est encaissé, confirmation,

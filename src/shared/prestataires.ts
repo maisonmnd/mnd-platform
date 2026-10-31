@@ -1,6 +1,7 @@
 import { createStore, useStore } from './store';
 import { bindDocument } from './sync';
 import type { SignatureTracee } from './contrats';
+import type { ReglementDuPrestataire } from './missions-prestataires-pur';
 
 /* ══ LE RÉPERTOIRE DES PRESTATAIRES EXTÉRIEURS ═══════════════════════
    Il vivait dans l'écran `equipe/Prestataires.tsx`. Il en sort le
@@ -25,6 +26,21 @@ export type Provider = {
       têtes ou ses protocoles : les trois protections ne vivent que dans un
       papier signé. Voir `shared/contrat-prestataire`. */
   contrat?: SignatureTracee;
+  /** ══ SES PRESTATIONS AU CATALOGUE ET LE PRIX CONVENU — 1er novembre 2026 ══
+      « Quand Hermine ou Ziadath travaille, c'est forcément une mission qu'elle
+      a prise » (Yéman). La fiche dit QUELLES prestations du catalogue elle
+      réalise (identifiants de services) : tout rituel honoré qui en porte une
+      lui donne sa mission, d'elle-même. Tranché au sélecteur le 1er novembre
+      2026 : la fiche, pas le rendez-vous. Voir `missions-prestataires-pur`. */
+  prestations?: string[];
+  /** Le prix convenu de chacune (identifiant → francs), comme la grille d'une
+      prestataire de l'équipe. Une prestation cochée sans prix donne une mission
+      sans montant, à écrire avant de la payer. Zéro est un prix écrit. */
+  grille?: Record<string, number>;
+  /** Comment elle est payée : « à payer » (le bouton Payer, de la caisse
+      choisie ce jour-là) ou « payée le jour même » (la mission naît payée, la
+      charge sort de la caisse de l'encaissement). Absent = à payer. */
+  reglement?: ReglementDuPrestataire;
 };
 
 /* EXPORTÉ POUR LES TEXTES DE LA MAISON : l'écran des contrats compte combien
