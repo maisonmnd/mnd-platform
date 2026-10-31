@@ -562,6 +562,14 @@ function calibreDuChoix(id, bandes) {
   return p ? { locks: p.locks, palier: p.palier } : null;
 }
 var RECEPTIONS_PAR_JOUR = 20;
+var FENETRE_DU_FIL_MS = 48 * 36e5;
+function filDeLaFenetre(fil, maintenantMs) {
+  const depuis = maintenantMs - FENETRE_DU_FIL_MS;
+  return fil.filter((m) => {
+    const q = Date.parse(String(m.quand ?? ""));
+    return Number.isFinite(q) && q >= depuis;
+  });
+}
 
 // src/apps/revelateur/prix-calibre.ts
 var PRIX_FIXES = /* @__PURE__ */ new Set(["sv-gbigbi-essentiel", "sv-rituel-mq6wbusw", "sv-rituel-mq6zu12s", "sv-rituel-mp2qnjwa"]);
@@ -617,7 +625,7 @@ function prixSelonLeCalibre(s, ctx) {
 }
 
 // scripts/serveur/reception-wa.ts
-var VERSION = "2026-10-30-c";
+var VERSION = "2026-10-31-a";
 var MODELES = ["claude-haiku-5-5", "claude-sonnet-5-5"];
 var TARIFS = {
   "claude-haiku-5-5": { entree: 1, sortie: 5 },
@@ -735,12 +743,14 @@ Deno.serve(async (req) => {
     const bandes = Array.isArray(doc("mnd_model_bands")) ? doc("mnd_model_bands") : [];
     const sets = doc("mnd_model_band_sets") ?? {};
     const cats = categories.map((c) => ({ ...c.data, id: c.id }));
-    const fil = (msgs.data ?? []).map((m) => m.data).reverse().filter((m) => m && (m.sens === "entrant" || m.sens === "sortant")).map((m) => ({
+    const tout = (msgs.data ?? []).map((m) => m.data).reverse().filter((m) => m && (m.sens === "entrant" || m.sens === "sortant")).map((m) => ({
       sens: m.sens,
       texte: String(m.texte ?? ""),
       ...typeof m.type === "string" ? { type: m.type } : {},
-      ...typeof m.etat === "string" ? { etat: m.etat } : {}
+      ...typeof m.etat === "string" ? { etat: m.etat } : {},
+      ...typeof m.quand === "string" ? { quand: m.quand } : {}
     }));
+    const fil = filDeLaFenetre(tout, maintenantMs).map(({ quand: _q, ...m }) => m);
     const f = fiche.data?.data ?? {};
     const touche = calibreDuChoix(d.choixId, bandes);
     const declare = touche && touche !== "inconnu" ? touche.locks : Number(f.lockCountDeclare ?? 0) || 0;
@@ -765,7 +775,7 @@ Deno.serve(async (req) => {
       semaine: Array.isArray(reglages.hours) ? reglages.hours : [],
       exceptions: Array.isArray(exceptions) ? exceptions : [],
       maintenantMs,
-      premiereReponse: !fil.some((m) => m.sens === "sortant"),
+      premiereReponse: !tout.some((m) => m.sens === "sortant"),
       paiements,
       paiementEnLigne: reglages.mndPay?.actif === true
     });

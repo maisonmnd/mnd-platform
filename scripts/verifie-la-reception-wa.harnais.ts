@@ -12,7 +12,7 @@
       des initiales ; aucun numéro ne part chez Claude. */
 import { readFileSync } from 'node:fs';
 import {
-  REPERES_DE_LA_CONSIGNE, calibreDuChoix, consigneDeLaReception, contexteDeLaReception, lectureDeLaReception, listeDesCalibres, montantsDe,
+  FENETRE_DU_FIL_MS, REPERES_DE_LA_CONSIGNE, calibreDuChoix, consigneDeLaReception, contexteDeLaReception, filDeLaFenetre, lectureDeLaReception, listeDesCalibres, montantsDe,
 } from '../src/shared/reception-wa-pur';
 import { consigneDeLaReponse, contextePourClaude } from '../src/shared/ia-reponse-wa-pur';
 
@@ -35,6 +35,12 @@ dit('la consigne de la reception : elle repond elle-meme, dit qu elle est l assi
 dit('la consigne : un ancien message ni la Maison fermee ne passent la main ; un bonjour ouvre la liste ; equipe jamais pour un rendez-vous', [true, true, true],
   [c.includes('Ni ce retard ni la Maison fermée ne sont une raison de passer la main'), c.includes('Un simple bonjour, sans autre demande : accueille-la en une phrase, sans question ; suite "reserver"'),
     c.includes('Jamais pour un bonjour, un rendez-vous, un prix, les heures ou l’adresse')]);
+/* Le 31 octobre 2026 : un « Ok » de W. N. après sa confirmation, et Claude a
+   répondu à un vocal et à un shampoing du 21 septembre. */
+const midi = Date.parse('2026-10-31T12:00:00Z');
+const aLHeure = (h: number) => new Date(midi - h * 3_600_000).toISOString();
+dit('la fenetre du fil : 48 heures, un message sans date n entre pas', [48 * 3_600_000, ['47 h', '1 h']],
+  [FENETRE_DU_FIL_MS, filDeLaFenetre([{ t: 'sept', quand: '2026-09-21T09:47:00Z' }, { t: '49 h', quand: aLHeure(49) }, { t: '47 h', quand: aLHeure(47) }, { t: 'sans date' }, { t: 'illisible', quand: 'hier' }, { t: '1 h', quand: aLHeure(1) }], midi).map((m) => m.t)]);
 const PERMIS = new Set([35000, 40000, 50000, 15000]);
 dit('les montants d un texte', [35000, 40000, 15000], montantsDe('De 35 000 F à 40000 FCFA, et 15 000 francs.'));
 dit('une reponse sure passe telle quelle', { texte: 'Avec plaisir, Madame Naffi. Pour votre calibre, le resserrage est à 40 000 F.', suite: 'rien' },
@@ -195,6 +201,26 @@ dit('le compte du mois : un appel, ses jetons, son cout', [1, 2000, 100], (() =>
 db.documents = db.documents.map((x: { key: string; data: unknown }) => (x.key === 'mnd_settings' ? { ...x, data: { hours: SEMAINE, mndPay: { actif: false } } } : x));
 await appelle({ corps: demande });
 dit('... MND PAY eteint : aucun lien en ligne promis', false, (recus[recus.length - 1]?.messages[0]?.content ?? '').includes('Paiement à distance'));
+remplis();
+
+/* W. N., le 30 octobre 2026 : son vocal et le shampoing du 21 septembre,
+   puis la confirmation du Trône et son « Ok ». */
+db.messages_wa = [
+  { id: 'v1', data: { numero: NUM, sens: 'entrant', type: 'audio', texte: '', quand: il(40 * 1440) } },
+  { id: 'v2', data: { numero: NUM, sens: 'sortant', texte: 'Brice sera là', quand: il(40 * 1440 - 1) } },
+  { id: 'v3', data: { numero: NUM, sens: 'sortant', texte: 'W., j’ai ajouté ton shampoing sur ton RDV comme d’habitude', quand: il(40 * 1440 - 9) } },
+  { id: 'v4', data: { numero: NUM, sens: 'sortant', type: 'template', texte: 'Bonjour W., c’est confirmé : votre rendez-vous est retenu samedi 31 octobre 2026 à 9 h.', quand: il(3) } },
+  { id: 'v5', data: { numero: NUM, sens: 'entrant', type: 'text', texte: 'Ok', quand: il(1) } },
+];
+reponseDeClaude = () => outil('Avec plaisir, à demain.', 'rien');
+await appelle({ corps: demande });
+const vieux = recus[recus.length - 1]?.messages[0]?.content ?? '';
+dit('un ancien vocal et un ancien shampoing ne vont plus chez Claude ; la confirmation et son Ok, si ; la Maison ne se represente pas', [false, false, true, true, true],
+  [vieux.includes('message vocal'), vieux.includes('shampoing'), vieux.includes('c’est confirmé'), /Elle : Ok/.test(vieux), vieux.includes('La Maison a déjà répondu dans cette conversation')]);
+db.messages_wa = db.messages_wa.filter((m: { id: string }) => m.id !== 'v4');
+await appelle({ corps: demande });
+dit('... la Maison n a ecrit qu en septembre : elle ne se presente pas pour autant', true,
+  (recus[recus.length - 1]?.messages[0]?.content ?? '').includes('La Maison a déjà répondu dans cette conversation'));
 remplis();
 
 reponseDeClaude = () => outil('Une création de locks est à 80 000 F.', 'creation');

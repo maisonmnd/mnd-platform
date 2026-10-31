@@ -3284,6 +3284,47 @@ function laReceptionPeutParler(
   return etapeCourante(etat, ctx.main, ms, ctx.reglage.pauseHeures) !== 'main';
 }
 
+/* ── LE MERCI SANS QUESTION (le Trône, 27 octobre 2026 ; l'automate, 31) ──
+   Les mots d'un message qui clôt sans rien demander. « oui » n'en est pas :
+   il répond souvent à une question qui attend une suite. Le Trône les range
+   dans « Un merci, sans question » (a-traiter-pur, qui les lit ici). */
+const MOTS_DU_MERCI = new Set([
+  'merci', 'mercii', 'merciii', 'thanks', 'thank', 'you', 'amen', 'beaucoup', 'bcp', 'infiniment', 'mille', 'fois', 'encore',
+  'ok', 'okay', 'oki', 'okk', 'dac', 'daccord', 'd', 'accord', 'super', 'parfait', 'top', 'cool', 'genial', 'tres', 'bien',
+  'recu', 'note', 'entendu', 'ca', 'marche', 'je', 'confirme', 'pour', 'a', 'demain', 'bientot', 'tout', 'l', 'heure', 'tantot',
+  'vous', 'aussi', 'de', 'meme', 'bonne', 'journee', 'soiree', 'nuit', 'fin', 'semaine', 'et', 'inchallah', 'inchaalla', 'inchalla',
+  'insha', 'allah', 'dieu', 'benisse', 'vous', 'madame', 'maman', 'tata', 'ma', 'chere', 'c', 'est', 'gentil', 'vraiment',
+]);
+/** Ce qui fait d'un message un merci (au moins un de ces mots, ou un pouce, des mains jointes, un cœur). */
+const MARQUES_DU_MERCI = new Set(['merci', 'mercii', 'merciii', 'thanks', 'amen', 'ok', 'okay', 'oki', 'okk', 'dac', 'daccord', 'super', 'parfait', 'top', 'cool', 'recu', 'note', 'entendu', 'marche', 'confirme']);
+const EMOJI_DU_MERCI = /[\u{1F44D}\u{1F64F}\u{2764}\u{1F49B}\u{1F49C}\u{1F49A}\u{1F499}\u{1F60A}\u{1F970}\u{1F44C}\u{1F917}\u{2665}]/u;
+
+/** UN MERCI, SANS QUESTION : court (80 signes au plus), sans « ? », fait
+    seulement de mots qui remercient ou acquiescent, avec au moins une marque
+    (merci, ok, d'accord, parfait…) ou un emoji de remerciement seul. */
+function estUnMerci(texte: string | undefined): boolean {
+  const brut = (texte ?? '').trim();
+  if (!brut || brut.length > 80 || brut.includes('?')) return false;
+  const plat = brut.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+  const mots = plat.replace(/[’']/g, ' ').split(/[^a-z]+/).filter(Boolean);
+  if (mots.length === 0) return EMOJI_DU_MERCI.test(brut);
+  return mots.every((m) => MOTS_DU_MERCI.has(m)) && mots.some((m) => MARQUES_DU_MERCI.has(m));
+}
+
+/** Le dernier message parti de la Maison vers ce numéro, tel que la base le garde. */
+type DernierMotDeLaMaison = { texte: string; quand: string } | null;
+
+/** RIEN À RÉPONDRE (31 octobre 2026). « Ok » de W. N. après la confirmation
+    de son rendez-vous : la réception a écrit trois phrases, dont un vieux
+    vocal. Un merci qui suit un mot de la Maison sans question n'attend rien :
+    l'automate se tait (avant même « en train d'écrire »), la notification
+    habituelle part, le Trône le range dans « Un merci, sans question ».
+    Après une question de la Maison, « ok » est un oui : la réception parle. */
+function unMerciSansSuite(tour: TourDeLaCliente, dernier: DernierMotDeLaMaison): boolean {
+  if (tour.media || tour.choix || !dernier) return false;
+  return estUnMerci(tour.texte) && !dernier.texte.includes('?');
+}
+
 /** Le tour qui ouvre le parcours après la réception : son intention dite
     simplement (ses mots à elle passeraient de nouveau par le juge, qui s'est
     tu), sans le choix d'une ancienne liste. */
@@ -3338,7 +3379,7 @@ export {
   choixDuMessage, chargeGraph, respecteMeta, texteSain, alerteDeLAutomate, cleCourte, prenomLu,
   quiParle, jugeLaParole, etapeSuivante, suiteDeLaPose, mainApresCoup, repriseDuFil,
   CLE_DE_LA_RECEPTION, RECEPTION_LIVREE, SUITES_DU_PARCOURS, INTENTION_DE_LA_RECEPTION, reglageDeLaReception, laReceptionSert, laReceptionPeutParler,
-  tourPourLeParcours, prefaceDeLaReception, secoursDeLaReception, reponseDeLaReception,
+  estUnMerci, unMerciSansSuite, tourPourLeParcours, prefaceDeLaReception, secoursDeLaReception, reponseDeLaReception,
   MOTS_SANTE_LIVRES, TEXTE_DE_REPONSE_MAX, conseilDeLaMaison, conseilActif, prixDuCatalogue, prixDitWa,
   fautesDeLaReponse, texteDeLaReponse, reponsesEnvoyables, lisLeConseil, leConseilParle,
 };
@@ -3348,5 +3389,5 @@ export type {
   TourDeLaCliente, FormeDuMessage, MessageSortant, FicheDuNumero, PrestationDuTour, AgendaDuTour, ContexteLeger,
   ContexteDuTour, ParoleDuTour, RdvAPoser, DemandeAPoser, EnvoiAPoser, EcritureDuTour, AlerteDeLAutomate,
   SortieDuTour, VerdictDeLaPose, ReponseDeLaMaison, ConseilDeLaMaison, EtatDeLaReponse,
-  ModeDeLaReception, ReglageDeLaReception, SuiteDeLaReception, ReponseDeLaReception,
+  ModeDeLaReception, ReglageDeLaReception, SuiteDeLaReception, ReponseDeLaReception, DernierMotDeLaMaison,
 };

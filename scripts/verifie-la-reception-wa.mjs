@@ -60,6 +60,10 @@ const PANNES = [
   ['les paiements non lus au serveur', SERVEUR, "'mnd_model_band_sets', 'mnd_payment_methods']", "'mnd_model_band_sets']"],
   ['la suite venir inconnue', PUR, "'calibre', 'equipe', 'venir'];", "'calibre', 'equipe'];"],
   ['la consigne oublie le chemin', PUR, "    '- \"venir\" : elle demande l’adresse, le chemin, la localisation ou un itinéraire ; ton message donne l’adresse en une phrase et dit que le plan pour venir suit ; le plan de la Maison et la Maison sur Google Maps partent juste après ton message. Ne dis jamais que tu ne peux pas envoyer la localisation, et ne promets aucune personne pour guider.',\n", ''],
+  ['le fil sans fenetre', SERVEUR, 'filDeLaFenetre(tout, maintenantMs).map(', 'tout.map('],
+  ['la premiere reponse jugee sur la fenetre seule', SERVEUR, "premiereReponse: !tout.some((m) => m.sens === 'sortant'),", "premiereReponse: !fil.some((m) => m.sens === 'sortant'),"],
+  ['un message sans date entre dans la fenetre', PUR, 'return Number.isFinite(q) && q >= depuis;', 'return !Number.isFinite(q) || q >= depuis;'],
+  ['une fenetre de 48 jours', PUR, 'export const FENETRE_DU_FIL_MS = 48 * 3_600_000;', 'export const FENETRE_DU_FIL_MS = 48 * 86_400_000;'],
   ['la Maison fermee pousse a passer la main', PUR, 'la Maison est fermée, et tu réponds pour elle ; si la suite revient à l’équipe, une personne lui répondra', 'la Maison est fermée ; une personne de l’équipe lui répondra'],
 ];
 

@@ -43,9 +43,11 @@ globalThis.CustomEvent = class { constructor(t, o) { this.type = t; Object.assig
 }
 
 const PUR = 'src/shared/a-traiter-pur.ts';
+/* Les mots du merci vivent dans l'automate depuis le 31 octobre 2026. */
+const MERCI = 'src/shared/automate-wa.ts';
 const PANNES = [
-  ['oui tenu pour un merci', PUR, "'ok', 'okay', 'oki', 'okk',", "'ok', 'okay', 'oki', 'okk', 'oui',"],
-  ['une question tenue pour un merci', PUR, "if (!brut || brut.length > 80 || brut.includes('?')) return false;", "if (!brut || brut.length > 80) return false;"],
+  ['oui tenu pour un merci', MERCI, "'ok', 'okay', 'oki', 'okk',", "'ok', 'okay', 'oki', 'okk', 'oui',"],
+  ['une question tenue pour un merci', MERCI, "if (!brut || brut.length > 80 || brut.includes('?')) return false;", "if (!brut || brut.length > 80) return false;"],
   ['un merci qui porte un souci range avec les merci', PUR, "b.attendUneReponse && b.pourquoi.every((p) => p === 'whatsapp' || p === 'chat') && estUnMerci", "b.attendUneReponse && estUnMerci"],
   ['Sante ancienne releguee', PUR, "if (b.sante || b.enRetard) return 'maintenant';", ''],
   ['le groupe juge sur la derniere bulle de la Maison', PUR, 'const quand = b.derniereDElle?.quand ?? b.derniere?.quand;', 'const quand = b.derniere?.quand ?? b.derniereDElle?.quand;'],

@@ -17,34 +17,14 @@
    Pur : `scripts/verifie-a-traiter.mjs` le prouve (et `--prouve`). */
 
 import { resteEnClair } from './conversations';
+import { estUnMerci } from './automate-wa';
 import type { Boite } from './boite-unique-pur';
 
 /* ── LE MERCI SANS QUESTION ─────────────────────────────────────────────── */
 
-/** Les mots d'un message qui clôt sans rien demander. « oui » n'en est pas :
-    il répond souvent à une question qui attend une suite. */
-const MOTS_DU_MERCI = new Set([
-  'merci', 'mercii', 'merciii', 'thanks', 'thank', 'you', 'amen', 'beaucoup', 'bcp', 'infiniment', 'mille', 'fois', 'encore',
-  'ok', 'okay', 'oki', 'okk', 'dac', 'daccord', 'd', 'accord', 'super', 'parfait', 'top', 'cool', 'genial', 'tres', 'bien',
-  'recu', 'note', 'entendu', 'ca', 'marche', 'je', 'confirme', 'pour', 'a', 'demain', 'bientot', 'tout', 'l', 'heure', 'tantot',
-  'vous', 'aussi', 'de', 'meme', 'bonne', 'journee', 'soiree', 'nuit', 'fin', 'semaine', 'et', 'inchallah', 'inchaalla', 'inchalla',
-  'insha', 'allah', 'dieu', 'benisse', 'vous', 'madame', 'maman', 'tata', 'ma', 'chere', 'c', 'est', 'gentil', 'vraiment',
-]);
-/** Ce qui fait d'un message un merci (au moins un de ces mots, ou un pouce, des mains jointes, un cœur). */
-const MARQUES_DU_MERCI = new Set(['merci', 'mercii', 'merciii', 'thanks', 'amen', 'ok', 'okay', 'oki', 'okk', 'dac', 'daccord', 'super', 'parfait', 'top', 'cool', 'recu', 'note', 'entendu', 'marche', 'confirme']);
-const EMOJI_DU_MERCI = /[\u{1F44D}\u{1F64F}\u{2764}\u{1F49B}\u{1F49C}\u{1F49A}\u{1F499}\u{1F60A}\u{1F970}\u{1F44C}\u{1F917}\u{2665}]/u;
-
-/** UN MERCI, SANS QUESTION : court (80 signes au plus), sans « ? », fait
-    seulement de mots qui remercient ou acquiescent, avec au moins une marque
-    (merci, ok, d'accord, parfait…) ou un emoji de remerciement seul. */
-export function estUnMerci(texte: string | undefined): boolean {
-  const brut = (texte ?? '').trim();
-  if (!brut || brut.length > 80 || brut.includes('?')) return false;
-  const plat = brut.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
-  const mots = plat.replace(/[’']/g, ' ').split(/[^a-z]+/).filter(Boolean);
-  if (mots.length === 0) return EMOJI_DU_MERCI.test(brut);
-  return mots.every((m) => MOTS_DU_MERCI.has(m)) && mots.some((m) => MARQUES_DU_MERCI.has(m));
-}
+/* Ses mots et sa règle vivent dans l'automate depuis le 31 octobre 2026 :
+   l'automate se tait sur le même merci que le Trône range ici. */
+export { estUnMerci };
 
 /* ── LES GROUPES DE « À TRAITER » ─────────────────────────────────────────── */
 

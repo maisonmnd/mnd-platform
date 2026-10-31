@@ -12,7 +12,8 @@
    CE QU'ELLE FAIT, à chaque appel :
      ① le plafond : vingt réponses au plus par numéro en vingt-quatre
         heures (une boucle avec un autre robot ne coûte rien) ;
-     ② relit le fil (les douze derniers messages), la fiche (son nombre de
+     ② relit le fil (les douze derniers messages, dont seuls ceux des
+        48 dernières heures vont à Claude), la fiche (son nombre de
         locks), le catalogue et la grille tarifaire (les prix de chaque
         calibre, avec `prix-calibre`, la copie pure que tient verifie-prix),
         les heures de la Maison ;
@@ -33,7 +34,7 @@
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import {
   RECEPTIONS_PAR_JOUR, SCHEMA_DE_LA_RECEPTION, calibreDuChoix, consigneDeLaReception, contexteDeLaReception,
-  lectureDeLaReception, listeDesCalibres, type Calibre,
+  filDeLaFenetre, lectureDeLaReception, listeDesCalibres, type Calibre,
 } from '../../src/shared/reception-wa-pur';
 import {
   lignesDuCataloguePourClaude, paliersDeLocks, type MessageDuFilPourClaude, type PrestationPourClaude, type PrixDuPalier,
@@ -47,7 +48,7 @@ declare const Deno: {
   serve(f: (req: Request) => Promise<Response>): void;
 };
 
-const VERSION = '2026-10-30-c';
+const VERSION = '2026-10-31-a';
 /** Haïku d'abord (rapide, sur les crédits inclus) ; Sonnet si l'identifiant n'est pas reconnu. */
 const MODELES = ['claude-haiku-5-5', 'claude-sonnet-5-5'];
 /** Le prix d'un million de jetons, en dollars, pour le compte du mois. */
@@ -190,12 +191,16 @@ Deno.serve(async (req) => {
     const bandes = (Array.isArray(doc('mnd_model_bands')) ? doc('mnd_model_bands') : []) as Bande[];
     const sets = (doc('mnd_model_band_sets') ?? {}) as Record<string, Bande[]>;
     const cats = categories.map((c) => ({ ...(c.data as { parentId?: string }), id: c.id }));
-    const fil: MessageDuFilPourClaude[] = ((msgs.data ?? []) as { data: Record<string, unknown> }[]).map((m) => m.data).reverse()
+    const tout: (MessageDuFilPourClaude & { quand?: string })[] = ((msgs.data ?? []) as { data: Record<string, unknown> }[]).map((m) => m.data).reverse()
       .filter((m) => m && (m.sens === 'entrant' || m.sens === 'sortant'))
       .map((m) => ({
         sens: m.sens as 'entrant' | 'sortant', texte: String(m.texte ?? ''),
         ...(typeof m.type === 'string' ? { type: m.type } : {}), ...(typeof m.etat === 'string' ? { etat: m.etat } : {}),
+        ...(typeof m.quand === 'string' ? { quand: m.quand } : {}),
       }));
+    /* Les 48 dernières heures seules (31 octobre 2026) : un vieux vocal n'est
+       plus une question qui attend. La première réponse se juge sur tout. */
+    const fil: MessageDuFilPourClaude[] = filDeLaFenetre(tout, maintenantMs).map(({ quand: _q, ...m }) => m);
 
     /* Son nombre de locks : compté à la Maison, annoncé par elle, ou le calibre qu'elle vient de toucher. */
     const f = ((fiche as { data?: { data?: Record<string, unknown> } | null }).data?.data ?? {}) as { lockCount?: number; lockCountDeclare?: number };
@@ -216,7 +221,7 @@ Deno.serve(async (req) => {
       prochainRdv: d.prochainRdv ?? null, derniereVenue: d.derniereVenue ?? null,
       catalogue, locks: { compte, declare }, aujourdhui: jourDeLaMaison(maintenantMs),
       semaine: Array.isArray(reglages.hours) ? reglages.hours : [], exceptions: Array.isArray(exceptions) ? exceptions : [],
-      maintenantMs, premiereReponse: !fil.some((m) => m.sens === 'sortant'),
+      maintenantMs, premiereReponse: !tout.some((m) => m.sens === 'sortant'),
       paiements, paiementEnLigne: reglages.mndPay?.actif === true,
     });
 

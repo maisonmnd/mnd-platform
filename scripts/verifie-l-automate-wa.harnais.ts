@@ -9,7 +9,7 @@ import {
   intentionDeReserver, jourDitAvecAnnee, quiParle, motsReconnus, civiliteLue, prenomLu, renvoieAUnRdv, uneQuestionAutre,
   conseilDeLaMaison, fautesDeLaReponse, texteDeLaReponse, type ConseilDeLaMaison,
   jugeLaParole, reglageDeLaReception, laReceptionPeutParler, reponseDeLaReception, tourPourLeParcours, prefaceDeLaReception, secoursDeLaReception,
-  demandeLeCheminWa, prestationsDitesWa,
+  demandeLeCheminWa, prestationsDitesWa, estUnMerci, unMerciSansSuite,
   type AgendaDuTour, type ContexteDuTour, type EtatDuFil, type FicheDuNumero, type MessageSortant,
   type PrestationDuTour, type ReglageDeLAutomate, type SortieDuTour, type MainDuFil, type VerdictDeLaPose,
   type TiroirDuNumero, type EcritureDuTour,
@@ -3575,6 +3575,52 @@ const regles: Regle[] = [
       { nom: 'au prix, une habituee recoit la meme chose', mute: [P(AUTO, 'const v = auPrix ? null : venueReprenable(ficheChoisie());', 'const v = venueReprenable(ficheChoisie());')] },
       { nom: 'la phrase du prix au choix disparait', mute: [P(AUTO, "const prixDit = prixAuChoix ? ' Choisissez-en un : nous vous donnons son prix.' : '';", "const prixDit = '';")] },
       { nom: 'la couleur apportee entre dans la liste', mute: [P(AUTO, 'avec votre (?:produit|couleur)/i', 'avec votre produit/i')] },
+    ],
+  },
+  /* ══ R52 · un merci sans question n'attend rien, 31 octobre 2026 ═════
+     W. N. a reçu la confirmation de son rendez-vous (le modèle du Trône) et
+     a répondu « Ok ». La réception a écrit trois phrases, dont un vocal et
+     un shampoing du 21 septembre : « très peu professionnel pour Maison
+     MND » (Yéman). Un merci après un mot de la Maison sans question : rien
+     ne part, avant même « en train d'écrire » ; la notification habituelle
+     sonne, et le Trône le range avec les merci (les mêmes mots). */
+  {
+    id: 'R52', nom: 'R52 un merci apres un mot sans question : l automate se tait avant d ecrire ; apres une question, ok est un oui ; les memes mots que le Trone',
+    eprouve: () => {
+      const { ecarts, vaut, vrai } = juge();
+      const t0 = cotonou('2026-10-30', '18:50');
+      const tour = (texte: string, type = 'text') => tourDeLaCliente([{ waId: `wamid.m${texte.length}${type}`, quand: isoDe(t0), texte, type, sens: 'entrant' }], []);
+      const CONFIRMATION = { texte: 'Bonjour W., c’est confirmé : votre rendez-vous est retenu samedi 31 octobre 2026 à 9 h. Nous vous attendons. Merci de nous prévenir en cas d’empêchement.', quand: isoDe(t0 - 60_000) };
+      const QUESTION = { texte: 'Souhaitez-vous que nous gardions mardi à 10 h ?', quand: isoDe(t0 - 60_000) };
+      vaut('Ok, Merci beaucoup, un pouce apres la confirmation : rien a repondre', [true, true, true],
+        [unMerciSansSuite(tour('Ok'), CONFIRMATION), unMerciSansSuite(tour('Merci beaucoup !'), CONFIRMATION), unMerciSansSuite(tour('👍'), CONFIRMATION)]);
+      vaut('ok apres une question, une question, une demande, une photo, aucun mot de la Maison : la reception parle', [false, false, false, false, false],
+        [unMerciSansSuite(tour('Ok'), QUESTION), unMerciSansSuite(tour('Ok, et pour une couleur ?'), CONFIRMATION), unMerciSansSuite(tour('Merci. Je voudrais aussi une couleur'), CONFIRMATION),
+          unMerciSansSuite(tour('Merci', 'image'), CONFIRMATION), unMerciSansSuite(tour('Ok'), null)]);
+      vaut('oui n est pas un merci', false, estUnMerci('oui'));
+      const pur = lf(lit('src/shared/a-traiter-pur.ts'));
+      vrai('le Trone lit le merci de l automate, sans copie de ses mots', pur.includes("import { estUnMerci } from './automate-wa';") && !pur.includes('MOTS_DU_MERCI'));
+      const src = lf(lit(F_AUTO));
+      const recep = src.indexOf('/* ⑤ bis LA RÉCEPTION');
+      const silence = src.indexOf('if (unMerciSansSuite(tour, await leDernierMotDeLaMaison(sb, o.numero))) {', recep);
+      const peut = src.indexOf('if (!laReceptionPeutParler(fil, tour, ctxLeger,', recep);
+      const ecrit = src.indexOf('await enTrainDEcrire(', recep);
+      vrai('le serveur se tait sur le merci apres laReceptionPeutParler et avant en train d ecrire', recep > 0 && peut > recep && silence > peut && ecrit > silence, { peut, silence, ecrit });
+      vrai('... sans un mot ni le secours : pris faux, la notification habituelle', /if \(unMerciSansSuite\(tour, await leDernierMotDeLaMaison\(sb, o\.numero\)\)\) \{ dis\('[^']+'\); return \{ pris: false \}; \}/.test(src));
+      const dernier = corpsTs(src, 'async function leDernierMotDeLaMaison(');
+      vrai('le dernier mot de la Maison : un message sortant, le plus recent, remis', dernier.includes(".eq('data->>sens', 'sortant')") && dernier.includes(".order('data->>quand', { ascending: false })") && dernier.includes("x.etat !== 'non-remis'"));
+      return ecarts;
+    },
+    pannes: [
+      { nom: 'ok apres une question tenu pour un merci', mute: [P(AUTO, "return estUnMerci(tour.texte) && !dernier.texte.includes('?');", 'return estUnMerci(tour.texte);')] },
+      { nom: 'une photo avec merci tenue pour un merci', mute: [P(AUTO, 'if (tour.media || tour.choix || !dernier) return false;', 'if (!dernier) return false;')] },
+      { nom: 'le serveur oublie le merci', mute: [P(F_AUTO, "    if (unMerciSansSuite(tour, await leDernierMotDeLaMaison(sb, o.numero))) { dis('un merci sans question : rien a repondre'); return { pris: false }; }\n", '')] },
+      { nom: 'le merci juge apres en train d ecrire', mute: [
+        P(F_AUTO, "    if (unMerciSansSuite(tour, await leDernierMotDeLaMaison(sb, o.numero))) { dis('un merci sans question : rien a repondre'); return { pris: false }; }\n", ''),
+        P(F_AUTO, '      dejaEcrit = true;\n', "      dejaEcrit = true;\n    if (unMerciSansSuite(tour, await leDernierMotDeLaMaison(sb, o.numero))) { dis('un merci sans question : rien a repondre'); return { pris: false }; }\n"),
+      ] },
+      { nom: 'un message refuse par Meta compte comme le dernier mot', mute: [P(F_AUTO, "find((x) => x.etat !== 'non-remis' && typeof x.quand === 'string')", "find((x) => typeof x.quand === 'string')")] },
+      { nom: 'le Trone garde sa copie des mots', mute: [P('src/shared/a-traiter-pur.ts', "export { estUnMerci };\n", "export { estUnMerci };\nconst MOTS_DU_MERCI = new Set(['merci']);\n")] },
     ],
   },
 ];

@@ -216,3 +216,15 @@ export function calibreDuChoix(id: string | undefined, bandes: readonly Calibre[
 /** PAS PLUS DE VINGT RÉPONSES PAR NUMÉRO EN VINGT-QUATRE HEURES : au-delà,
     la main passe (une boucle avec un autre robot, un abus) et rien ne coûte. */
 export const RECEPTIONS_PAR_JOUR = 20;
+
+/** LA FENÊTRE DU FIL (31 octobre 2026). Sur un « Ok » de W. N. après sa
+    confirmation, l'assistant a répondu à un vocal et à un shampoing du
+    21 septembre, sans date dans le fil : « il a répondu à un vieux message,
+    d'avant l'automate ; très peu professionnel pour Maison MND » (Yéman).
+    Claude ne lit plus que les messages des 48 dernières heures ; un message
+    sans date n'entre pas. Ce qui est plus ancien, la Maison l'a déjà traité. */
+export const FENETRE_DU_FIL_MS = 48 * 3_600_000;
+export function filDeLaFenetre<M extends { quand?: string }>(fil: readonly M[], maintenantMs: number): M[] {
+  const depuis = maintenantMs - FENETRE_DU_FIL_MS;
+  return fil.filter((m) => { const q = Date.parse(String(m.quand ?? '')); return Number.isFinite(q) && q >= depuis; });
+}

@@ -88,7 +88,7 @@ import { createClient, type SupabaseClient } from 'npm:@supabase/supabase-js@2';
 
 /** LA VERSION DE CE FICHIER, dite par le contrôle de santé. Sans elle on ne
     sait pas quel code tourne vraiment. À incrémenter à chaque déploiement. */
-const VERSION = '2026-10-30-f · la couleur s ouvre au prix, par-dessus la liste en rubriques';
+const VERSION = '2026-10-31-a · un merci sans question n attend rien, par-dessus la couleur';
 
 /** « En train d'écrire », puis on attend : deux messages envoyés coup sur
     coup font un seul tour, celui du dernier. */
@@ -4198,6 +4198,47 @@ function laReceptionPeutParler(
   return etapeCourante(etat, ctx.main, ms, ctx.reglage.pauseHeures) !== 'main';
 }
 
+/* ── LE MERCI SANS QUESTION (le Trône, 27 octobre 2026 ; l'automate, 31) ──
+   Les mots d'un message qui clôt sans rien demander. « oui » n'en est pas :
+   il répond souvent à une question qui attend une suite. Le Trône les range
+   dans « Un merci, sans question » (a-traiter-pur, qui les lit ici). */
+const MOTS_DU_MERCI = new Set([
+  'merci', 'mercii', 'merciii', 'thanks', 'thank', 'you', 'amen', 'beaucoup', 'bcp', 'infiniment', 'mille', 'fois', 'encore',
+  'ok', 'okay', 'oki', 'okk', 'dac', 'daccord', 'd', 'accord', 'super', 'parfait', 'top', 'cool', 'genial', 'tres', 'bien',
+  'recu', 'note', 'entendu', 'ca', 'marche', 'je', 'confirme', 'pour', 'a', 'demain', 'bientot', 'tout', 'l', 'heure', 'tantot',
+  'vous', 'aussi', 'de', 'meme', 'bonne', 'journee', 'soiree', 'nuit', 'fin', 'semaine', 'et', 'inchallah', 'inchaalla', 'inchalla',
+  'insha', 'allah', 'dieu', 'benisse', 'vous', 'madame', 'maman', 'tata', 'ma', 'chere', 'c', 'est', 'gentil', 'vraiment',
+]);
+/** Ce qui fait d'un message un merci (au moins un de ces mots, ou un pouce, des mains jointes, un cœur). */
+const MARQUES_DU_MERCI = new Set(['merci', 'mercii', 'merciii', 'thanks', 'amen', 'ok', 'okay', 'oki', 'okk', 'dac', 'daccord', 'super', 'parfait', 'top', 'cool', 'recu', 'note', 'entendu', 'marche', 'confirme']);
+const EMOJI_DU_MERCI = /[\u{1F44D}\u{1F64F}\u{2764}\u{1F49B}\u{1F49C}\u{1F49A}\u{1F499}\u{1F60A}\u{1F970}\u{1F44C}\u{1F917}\u{2665}]/u;
+
+/** UN MERCI, SANS QUESTION : court (80 signes au plus), sans « ? », fait
+    seulement de mots qui remercient ou acquiescent, avec au moins une marque
+    (merci, ok, d'accord, parfait…) ou un emoji de remerciement seul. */
+function estUnMerci(texte: string | undefined): boolean {
+  const brut = (texte ?? '').trim();
+  if (!brut || brut.length > 80 || brut.includes('?')) return false;
+  const plat = brut.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+  const mots = plat.replace(/[’']/g, ' ').split(/[^a-z]+/).filter(Boolean);
+  if (mots.length === 0) return EMOJI_DU_MERCI.test(brut);
+  return mots.every((m) => MOTS_DU_MERCI.has(m)) && mots.some((m) => MARQUES_DU_MERCI.has(m));
+}
+
+/** Le dernier message parti de la Maison vers ce numéro, tel que la base le garde. */
+type DernierMotDeLaMaison = { texte: string; quand: string } | null;
+
+/** RIEN À RÉPONDRE (31 octobre 2026). « Ok » de W. N. après la confirmation
+    de son rendez-vous : la réception a écrit trois phrases, dont un vieux
+    vocal. Un merci qui suit un mot de la Maison sans question n'attend rien :
+    l'automate se tait (avant même « en train d'écrire »), la notification
+    habituelle part, le Trône le range dans « Un merci, sans question ».
+    Après une question de la Maison, « ok » est un oui : la réception parle. */
+function unMerciSansSuite(tour: TourDeLaCliente, dernier: DernierMotDeLaMaison): boolean {
+  if (tour.media || tour.choix || !dernier) return false;
+  return estUnMerci(tour.texte) && !dernier.texte.includes('?');
+}
+
 /** Le tour qui ouvre le parcours après la réception : son intention dite
     simplement (ses mots à elle passeraient de nouveau par le juge, qui s'est
     tu), sans le choix d'une ancienne liste. */
@@ -4633,6 +4674,18 @@ async function leTourDuNumero(
   if (tour.waIds.length === 0) return 'pas-a-lui';
   if (!waIds.includes(tour.waIds[tour.waIds.length - 1])) return 'un-autre';
   return tour;
+}
+
+/** LE DERNIER MOT DE LA MAISON (31 octobre 2026) : le dernier message parti
+    vers ce numéro et remis (un refus de Meta n'a rien dit). `null` : aucun,
+    ou la base ne répond pas ; la réception parle alors comme avant. */
+async function leDernierMotDeLaMaison(sb: Sb, numero: string): Promise<DernierMotDeLaMaison> {
+  const { data, error } = await sb.from('messages_wa').select('data')
+    .eq('data->>numero', numero).eq('data->>sens', 'sortant')
+    .order('data->>quand', { ascending: false }).limit(5);
+  if (error) { dis('dernier mot illisible', { motif: error.message.slice(0, 120) }); return null; }
+  const d = ((data ?? []) as Ligne[]).map((l) => l.data ?? {}).find((x) => x.etat !== 'non-remis' && typeof x.quand === 'string');
+  return d ? { texte: String(d.texte ?? ''), quand: String(d.quand) } : null;
 }
 
 /** LES FICHES DU NUMÉRO (0125), telles que le dialogue les lit. `null` :
@@ -5099,6 +5152,8 @@ async function unTour(
   let dejaEcrit = false;
   if (juge.parole === 'silence') {
     if (!laReceptionPeutParler(fil, tour, ctxLeger, reglageDeLaReception(docs.get(CLE_DE_LA_RECEPTION)))) return { pris: false };
+    /* Un « Ok » après un mot sans question : rien à répondre (31 octobre 2026). */
+    if (unMerciSansSuite(tour, await leDernierMotDeLaMaison(sb, o.numero))) { dis('un merci sans question : rien a repondre'); return { pris: false }; }
     if (essai === 0) {
       await enTrainDEcrire(sb, o.jeton, o.phoneId, tour.waIds[tour.waIds.length - 1]);
       await attends(ATTENTE_DU_TOUR_MS);
