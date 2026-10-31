@@ -134,6 +134,14 @@ dit('la banque dans son propre document, que le serveur ne lit pas', [true, true
   [magasin.includes("createStore<BanqueBrute>('mnd_scenarios_wa', BANQUE_VIDE)") && magasin.includes("bindDocument(banqueStore, 'mnd_scenarios_wa')"),
     !lit('supabase/functions/whatsapp-automate/index.ts').includes('mnd_scenarios_wa')]);
 
+/* Le champ posé par-dessus son bouton couvrait toute la page dès que
+   `.trc-ger__btn` (all: unset) défaisait son cadre (1er novembre 2026). */
+dit('le fichier : un vrai bouton ouvre un champ caché, jamais un champ invisible par-dessus la page', [true, true, true], [
+  ecran.includes('onClick={() => fichier.current?.click()}'),
+  /<input ref=\{fichier\}[^>]*\shidden\s/.test(ecran),
+  !/inset:\s*0[^}]*opacity:\s*0/.test(lit('src/apps/trone/routes/clients/banque-de-scenarios.css')),
+]);
+
 dit('les variantes : la direction seule les demande', true, ecran.includes('{direction && (\n                        <button type="button" className="trc-ger__btn" disabled={enVol === c.id}'));
 
 /* ── ⑤ LES VARIANTES DE CLAUDE ── */

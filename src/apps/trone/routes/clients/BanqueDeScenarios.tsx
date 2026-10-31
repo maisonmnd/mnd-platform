@@ -161,10 +161,10 @@ export default function BanqueDeScenarios({ casAOuvrir }: { casAOuvrir?: { id: s
 
       <div className="trc-bq__ajouts">
         <button type="button" className="trc-ger__btn" onClick={ajouteDuNumeroDeLaMaison}>Ajouter les messages du numéro de la Maison</button>
-        <label className="trc-ger__btn trc-bq__fichier">
-          Ajouter une discussion exportée (.txt)
-          <input ref={fichier} id="bq-export" type="file" accept=".txt,text/plain" multiple onChange={(e) => { void ajouteDesExports(e.target.files); }} />
-        </label>
+        {/* Un vrai bouton et un champ caché : `.trc-ger__btn` (all: unset) défaisait le
+            cadre du champ posé par-dessus, qui couvrait alors toute la page (1er nov. 2026). */}
+        <button type="button" className="trc-ger__btn" onClick={() => fichier.current?.click()}>Ajouter une discussion exportée (.txt)</button>
+        <input ref={fichier} id="bq-export" type="file" accept=".txt,text/plain" multiple hidden onChange={(e) => { void ajouteDesExports(e.target.files); }} />
       </div>
       <p className="trc-bq__doux trc-bq__aide">Sur le téléphone de Brice : ouvrir la discussion d’une cliente, ⋮, Plus, Exporter la discussion, Sans médias. Les numéros et les adresses e-mail sont ôtés à l’entrée.</p>
 

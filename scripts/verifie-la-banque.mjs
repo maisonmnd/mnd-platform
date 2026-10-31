@@ -41,6 +41,10 @@ const PANNES = [
   ['le compte du mois oublie', SERVEUR, '    await sb.from(\'documents\').upsert({\n      key: CLE_DU_COMPTE,', '    void ({\n      key: CLE_DU_COMPTE,'],
   ['mauvaise reponse sur toutes les bulles', CONV, "{m.sens === 'sortant' && (x.auteur === 'automate' || x.auteur === 'assistant') && (", '{m.sens === \'sortant\' && ('],
   ['le personnel valide', ECRAN, '{direction && !enReprise && (', '{!enReprise && ('],
+  /* Le fichier (1er novembre 2026) : le champ invisible couvrait toute la page. */
+  ['le bouton n ouvre plus le champ', ECRAN, 'onClick={() => fichier.current?.click()}', 'onClick={() => undefined}'],
+  ['le champ du fichier redevient visible', ECRAN, ' multiple hidden onChange=', ' multiple onChange='],
+  ['le champ se repose par-dessus la page', 'src/apps/trone/routes/clients/banque-de-scenarios.css', '.trc-bq__ajouts { display: flex; flex-wrap: wrap; gap: 8px; }\n', '.trc-bq__ajouts { display: flex; flex-wrap: wrap; gap: 8px; }\n.trc-bq__fichier input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }\n'],
   ['le personnel demande des variantes', ECRAN, '{direction && (\n                        <button type="button" className="trc-ger__btn" disabled={enVol === c.id}', '{(\n                        <button type="button" className="trc-ger__btn" disabled={enVol === c.id}'],
 ];
 

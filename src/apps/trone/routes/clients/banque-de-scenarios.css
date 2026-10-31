@@ -11,9 +11,6 @@
 .trc-bq__alarme { color: var(--am-terre); }
 .trc-bq__bon { color: var(--am-vert-fonce); }
 .trc-bq__ajouts { display: flex; flex-wrap: wrap; gap: 8px; }
-.trc-bq__fichier { position: relative; overflow: hidden; }
-.trc-bq__fichier input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
-.trc-bq__fichier:focus-within { outline: 2px solid var(--color-copper); outline-offset: 2px; }
 
 .trc-bq__filtres { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px; padding: 3px; border-radius: 7px; background: var(--am-indigo-pale); }
 @media (max-width: 520px) { .trc-bq__filtres { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
