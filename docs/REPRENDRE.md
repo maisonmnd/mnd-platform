@@ -16984,3 +16984,13 @@ Maquette `public/maquette-assistants-relies.html` (artefact TtHPKpjCqovrn8nookJ7
 - Banc : `node scripts/verifie-les-missions-des-prestataires.mjs` (49 épreuves, panne prouvée sur l'idempotence).
 - Rien en base à coller : `mnd_prestations` est un document existant, les champs de la fiche sont dans `data`.
 - À FAIRE PAR YÉMAN : cocher les prestations d'Hermine (« Tresses Moyennes · Mi-dos », seule tresse rétablie) et de Ziadath, écrire les prix convenus et le règlement de chacune ; les cinq missions de septembre restent à payer par « Payer ».
+
+## L'ITINÉRAIRE UNE FOIS, AUX NOUVELLES CLIENTES — 1er novembre 2026
+
+« L'itinéraire ne s'envoie qu'une fois pour les nouvelles clientes. Jamais pour une ancienne cliente. Elle connaît le lieu » (Yéman), après qu'une cliente venue plusieurs fois a reçu l'adresse entière en réponse à « un peu en retard ».
+
+- reception-wa **2026-11-01-a** (v9) : `connaitLeLieuDe` (une venue honorée, ou l'adresse/le plan déjà partis dans le fil) ôte l'adresse du contexte ; consigne : en route ou en retard = mot bref sans adresse ; `reponseSelonLeLieu` retire toute phrase qui la porterait.
+- whatsapp-automate **2026-11-01-a** (v32) : `lePlan` ne part plus à une tête qui a une `derniereVenue`, sauf chemin demandé ; un mot qui n'était que l'annonce du plan devient « Bien noté, nous vous attendons. ».
+- EN LIGNE le 1er novembre 2026 au commit 5b5478c4 (mise-en-ligne.mjs). Bancs : verifie-la-reception-wa 43 (+ 6 pannes prouvées en copie), verifie-l-automate-wa tient avec 267 pannes (R1, R19, R34, R47, R53 réécrites : les trois bulles restent à la nouvelle cliente).
+- Non touché : `mnd_auto_config.itineraire` part encore dans la notification Ma Couronne de chaque confirmation (confirmation-rdv, assistants-maison).
+- Le Trône a aussi été publié au 97c6fd81 (missions des prestataires, build 20261031232300), puis par le-trone-be au c7132c30.
