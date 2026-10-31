@@ -1,9 +1,9 @@
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
 import { maisonNom, maisonRaisonDuPdfAu } from '../../../../shared/identite';
-import { useServices } from '../../../../shared/catalog';
+import { useServices, type Service } from '../../../../shared/catalog';
 import { useClients } from '../../../../shared/clients';
-import { useSubscribers, usePlans, libellesInclus } from '../../../../shared/abonnements';
+import { useSubscribers, usePlans, libellesInclus, type Plan, type Subscriber } from '../../../../shared/abonnements';
 import { detailDuForfait } from '../../../../shared/kids';
 import { invoiceTotal, ligneNetXof, invoiceReglements, invoiceResteXof, type Invoice, type InvoiceLine } from '../../../../shared/finance';
 import { appelDe } from '../../../../shared/civilite';
@@ -138,6 +138,60 @@ export function pdfDuFoyer(o: {
   };
 }
 
+/** CE QUE LA LIGNE PORTE, TOUJOURS EN TABLEAU — 31 octobre 2026.
+
+    La pièce MND-2026-0165 (Carnet des Trois, ABO-2026-001, 100 000 F) a fait
+    planter l'écran Factures : « .map is not a function ». Son `detail` était
+    une CHAÎNE, « 3 × Resserrage · 2 × Lavage », pas un tableau : la fonction
+    du serveur qui écrit la pièce au premier versement d'un abonnement
+    (`verse_sur_l_abonnement`, migration 0138) agrégeait les prestations par
+    `string_agg` dans un `text`, et `data jsonb` arrive au Trône tel quel.
+    `l.detail?.length` était vrai sur une chaîne, l'écran lui appliquait
+    `.map`, et la page tombait. La migration 0148 écrit désormais un tableau ;
+    les pièces déjà en base, et toute forme inattendue à venir, passent ici :
+    une chaîne non vide devient un tableau d'un élément, tout ce qui n'est
+    ni chaîne ni tableau devient vide. L'écran ne tombe plus pour une pièce. */
+export const detailPorte = (detail: unknown): string[] => {
+  if (Array.isArray(detail)) {
+    return detail.filter((t): t is string => typeof t === 'string' && t.trim().length > 0);
+  }
+  if (typeof detail === 'string') {
+    const t = detail.trim();
+    return t ? [t] : [];
+  }
+  return [];
+};
+
+/** De quoi retrouver le contenu d'une ligne qui n'en porte pas (voir
+    `contenuDUneLigne`) : le catalogue, les contrats, les formules, l'argent. */
+export type SourcesDuContenu = {
+  services: readonly Service[];
+  abonnes: readonly Subscriber[];
+  formules: readonly Plan[];
+  fmt: (x: number) => string;
+  nomDuService: (id: string) => string;
+};
+
+/** CE QUE CONTIENT UNE LIGNE, sans prix en face : ce qu'elle porte (`detail`),
+    sinon le forfait du même nom, sinon l'abonnement né de cette pièce.
+    Toujours un tableau de chaînes, quoi qu'ait écrit la base. Pure : c'est
+    elle que le banc éprouve ; le crochet `useLaPieceEnPdf` lui tend ses
+    magasins. */
+export const contenuDUneLigne = (piece: Invoice, l: InvoiceLine, s: SourcesDuContenu): string[] => {
+  const porte = detailPorte(l.detail);
+  if (porte.length > 0) return porte;
+  /* UN FORFAIT ÉMIS AVANT LE 4 SEPTEMBRE NE PORTE RIEN. On retrouve son
+     contenu par la prestation qui porte le même nom, faute de mieux, et
+     jamais à la place de ce qui est écrit. */
+  const forfait = s.services.find((sv) => sv.name === l.label && (sv.includes?.length ?? 0) > 0);
+  /* LE PRIX DE LA LIGNE, pas celui du catalogue d'aujourd'hui : c'est déjà la
+     règle du prix d'époque, et le PACK Kids a maintenant deux prix. */
+  if (forfait) return detailPorte(detailDuForfait(forfait, s.services, s.fmt, l.unitXof));
+  const abo = s.abonnes.find((a) => a.invoiceId === piece.id);
+  if (!abo || piece.lines.length !== 1) return [];
+  return detailPorte(libellesInclus(abo, s.formules.find((f) => f.id === abo.planId), s.nomDuService));
+};
+
 export function useLaPieceEnPdf() {
   const { branch, currency } = useBranch();
   const [clients] = useClients();
@@ -154,19 +208,10 @@ export function useLaPieceEnPdf() {
   const [abonnes] = useSubscribers();
   const [formules] = usePlans();
   const nomDuService = (id: string) => services.find((sv) => sv.id === id)?.name ?? 'Prestation retirée';
-  const contenuDeLaLigne = (piece: Invoice, l: InvoiceLine): string[] => {
-    if (l.detail?.length) return l.detail;
-    /* UN FORFAIT ÉMIS AVANT LE 4 SEPTEMBRE NE PORTE RIEN. On retrouve son
-       contenu par la prestation qui porte le même nom, faute de mieux, et
-       jamais à la place de ce qui est écrit. */
-    const forfait = services.find((sv) => sv.name === l.label && (sv.includes?.length ?? 0) > 0);
-    /* LE PRIX DE LA LIGNE, pas celui du catalogue d'aujourd'hui : c'est déjà la
-       règle du prix d'époque, et le PACK Kids a maintenant deux prix. */
-    if (forfait) return detailDuForfait(forfait, services, (x) => fmtMoney(x, currency), l.unitXof);
-    const abo = abonnes.find((a) => a.invoiceId === piece.id);
-    if (!abo || piece.lines.length !== 1) return [];
-    return libellesInclus(abo, formules.find((f) => f.id === abo.planId), nomDuService);
-  };
+  /* La règle est dans `contenuDUneLigne` (pure, éprouvée au banc) ; ici,
+     seulement les magasins qu'elle lit. */
+  const contenuDeLaLigne = (piece: Invoice, l: InvoiceLine): string[] =>
+    contenuDUneLigne(piece, l, { services, abonnes, formules, fmt: (x) => fmtMoney(x, currency), nomDuService });
   /* ── LA TÊTE SOIGNÉE ET CELLE QUI RÈGLE — 28 août 2026 ─────────────
      « Comment garder le nom des enfants sur la facture mais dire que c'est
      Merine le parent qui paye ? Sinon cela sème la confusion : le parent

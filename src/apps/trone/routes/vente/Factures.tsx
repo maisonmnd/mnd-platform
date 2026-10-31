@@ -21,7 +21,7 @@ import { retirerPourboiresDesFactures, repointerPourboires } from '../../../../s
 import { adresseDe, lienPaiementMomo } from '../equipe/data';
 import { LienMndPay } from './LienMndPay';
 import { BlocRelances } from './BlocRelances';
-import { fmtDateFr, useLaPieceEnPdf } from './pdf-de-la-piece';
+import { fmtDateFr, useLaPieceEnPdf, detailPorte } from './pdf-de-la-piece';
 import { BoutonDuPoint, FenetreDuPoint } from './FenetreDuPoint';
 import { filStore, nouveauMessage } from '../../../../shared/fil';
 import { useAuth } from '../../../../shared/auth';
@@ -1148,9 +1148,12 @@ export default function Factures() {
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
                         <span style={{ minWidth: 0, fontFamily: 'var(--font-sans)', fontSize: 12.5, color: 'var(--color-indigo)' }}>
                           {l.label}
-                          {(l.detail ?? []).length > 0 && (
+                          {/* PAR `detailPorte`, JAMAIS `l.detail` NU — 31 octobre 2026 :
+                              la pièce MND-2026-0165 portait une chaîne, et
+                              `.join` sur une chaîne tombait comme `.map`. */}
+                          {detailPorte(l.detail).length > 0 && (
                             <span className="mnd-muted" style={{ display: 'block', fontSize: 10.5, marginTop: 3 }}>
-                              {l.detail!.join(' · ')}
+                              {detailPorte(l.detail).join(' · ')}
                             </span>
                           )}
                         </span>
