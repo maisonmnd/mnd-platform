@@ -2,6 +2,21 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## LE FÍNFÍN™ LÉGÈRE À 20 000 F — 31 octobre 2026, SQL PASSÉE
+
+« Change le prix de Finfin réparation léger à 20000F à partir d'aujourd'hui »
+(Yéman). `sv-finfin-legere` passe de 15 000 à 20 000 F au catalogue ; le
+Trône, la réservation du site et l'automate WhatsApp le lisent en direct, rien
+n'est republié. Les 43 RDV passés gardent leur prix enregistré ; les trois déjà
+posés au 31 oct., 14 nov. et 5 déc. 2026 passent à +5 000 F (son choix au
+sélecteur ; ni facture ni paiement sur eux).
+
+### SQL — `0146_finfin_legere_a_20000.sql` : PASSÉE le 31 octobre 2026 (commit 64981ce0). NE PAS RELANCER.
+
+Repli `repli_0146_finfin_legere` (4 lignes, RLS) ; le retour en arrière est en
+commentaire à la fin du fichier. Relu après passage : 20000, 29000, 70000,
+65000 ; les 43 autres RDV inchangés (même somme, même empreinte).
+
 ## LA DICTÉE MND AU TRÔNE — 31 octobre 2026
 
 « Dictee MND.bat doit être également sur mon téléphone et doit être beaucoup
