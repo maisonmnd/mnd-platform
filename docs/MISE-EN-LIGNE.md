@@ -79,6 +79,39 @@ Ne jamais chercher la clé ailleurs.
    - ce qui ne se fait qu'à la main : un essai réel depuis un téléphone, un
      modèle à faire approuver chez Meta.
 
+## Les modèles WhatsApp chez Meta (31 octobre 2026)
+
+Quand le code envoie un modèle qui n'existe pas encore chez Meta, la session le
+fait elle-même, comme le reste. Yéman l'a demandé le 31 octobre 2026 : « écrire
+un modèle chez Meta, fais-le aussi ».
+
+1. **Le rédiger.** Les règles de la Maison :
+   - le pied de page est « mi nyɔ́ ɖɛkpɛ, votre beauté est déjà là » ;
+   - jamais le mot « code » dans un corps, et jamais la catégorie
+     Authentification ;
+   - `{{1}}` porte la civilité et le prénom, ou le prénom seul quand la
+     civilité est inconnue ;
+   - langue « French » ;
+   - catégorie Utilitaire pour un rappel ou une transaction, Marketing pour le
+     reste.
+
+   Le nom et les variables doivent être exactement ceux que lit le code.
+2. **Le déposer.** Par Chrome, dans le Gestionnaire WhatsApp (compte Maison MND,
+   business_id 2031981230728230), comme le 29 octobre 2026. Le corps se pose par
+   le setter natif suivi d'un événement input : taper « {{ » double les
+   accolades. Les échantillons et les boutons se remplissent en JS. Si Meta
+   annonce un changement de catégorie (« will be rejected »), corriger avant de
+   déposer.
+3. **Suivre son approbation.** En cas de refus, reformuler et redéposer sans
+   rien lui demander. Seule exception : si la reformulation change le fond du
+   message, il faut le lui dire.
+4. **Une fois approuvé :**
+   - le noter au Trône (« Approuvé chez Meta ») ;
+   - poser le secret `WA_TEMPLATE_*` que lit la fonction
+     (`mise-en-ligne.mjs secret`) ;
+   - mettre à jour le document Claude Docs « Modèles WhatsApp de la Maison MND »
+     (tableau, fiche, journal).
+
 ## Les règles qui tiennent toujours
 
 - **Dépôt partagé.** Les autres sessions travaillent dans le même dépôt. Donner

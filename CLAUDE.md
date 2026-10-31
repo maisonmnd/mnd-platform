@@ -115,7 +115,9 @@ en ligne à un agent : « Lis docs/MISE-EN-LIGNE.md et mets en ligne, au commit
 - le SQL ;
 - les secrets ;
 - les réglages du Trône en base ;
-- la publication du Trône et du site public.
+- la publication du Trône et du site public ;
+- les modèles WhatsApp chez Meta : la session les rédige, les dépose, suit
+  leur approbation et les coche au Trône.
 
 L'outil est `scripts/mise-en-ligne.mjs`. Ne plus jamais poser de dossier
 « A recoller » sur son bureau, ni lui demander « Je publie ? ». Lui dire
