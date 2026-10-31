@@ -3646,7 +3646,7 @@ const regles: Regle[] = [
      s'est tu, même à « Annuler ». */
   {
     id: 'R53', nom: 'R53 le plan part une fois par numero, puis seulement quand elle demande le chemin, jamais annonce sans lui ; en plein parcours, le prix d une famille nommee ouvre sa liste au lieu du silence',
-    eprouve: () => {
+    eprouve: async () => {
       const { ecarts, vaut, vrai } = juge();
       const PLAN = 'https://maisonmnd.com/assets/itineraire/plan-depuis-super-u.png';
       const ANNONCE = 'Le plan pour venir à la Maison suit ce message.';
@@ -3700,6 +3700,29 @@ const regles: Regle[] = [
       vaut('le juge parle au prix d une famille en plein parcours', 'parle', jugeLaParole(q.etat, tour, ctxDe(q, t0 + 100000)).parole);
       const s = elle(q, t0 + 100000, { texte: prix });
       vaut('... sa liste, pas le silence, et rien n est pose', ['rituel', 0], [s.messages[0]?.etape, s.ecritures.length]);
+
+      /* 5. Le serveur, essai reel du 31 octobre 2026 : la Revelation Vegetale n a de prix
+         qu en court et mi-long. Sa longueur se demande (les trois longueurs comparees),
+         et le long n emprunte pas le prix du court. */
+      const fn = lf(lit(F_AUTO));
+      vrai('la dependance a la longueur compare les trois longueurs', fn.includes("const lon = new Set((['court', 'mi-long', 'long'] as const).map((longueur) => prixDe(id, { locks: premier, longueur }))).size > 1;"));
+      const ia = fn.indexOf('/* ⟨prix-calibre⟩ */');
+      const ib = fn.indexOf('/* ⟨/prix-calibre⟩ */');
+      const ic = fn.indexOf('type TarifDuTour = ');
+      const id = fn.indexOf('function agendaDuTourWa(');
+      if (ia < 0 || ib < 0 || ic < 0 || id < 0) ecarts.push('le bareme ou le prix du serveur est introuvable dans la fonction');
+      else {
+        const { transform } = await esbuild();
+        const { code } = await transform(`${fn.slice(ia, ib)}\n${fn.slice(ic, id)}\nexport { prixPourLaTeteWa as __prix };\n`, { loader: 'ts', format: 'esm' });
+        const f = path.join(dossier(), `prix-r53-${Date.now()}.mjs`);
+        writeFileSync(f, code);
+        const m = await import(pathToFileURL(f).href) as Any;
+        const tarif = { bandes: [{ id: 'cal-medium', name: 'cal-medium', maxLocks: 150, coef: 1, durCoef: 1 }], sets: {}, baremeSuspendu: false };
+        const couleur = { id: 'sv-atl-iii-cou-c', data: { categoryId: 'plt-05', priceXof: 15000, prixParLongueur: { court: 15000, 'mi-long': 20000 } } };
+        const px = (tete: unknown) => m.__prix(couleur, tete, tarif, [{ id: 'plt-05' }], [{ id: 'plt-05', data: {} }]);
+        vaut('la Revelation Vegetale : court, mi-long, et le long sans prix plutot que celui du court', [15000, 20000, undefined],
+          [px({ longueur: 'court' }), px({ longueur: 'mi-long' }), px({ longueur: 'long' })]);
+      }
       return ecarts;
     },
     pannes: [
@@ -3711,6 +3734,8 @@ const regles: Regle[] = [
       { nom: 'un mot qui n est que l annonce perd le plan', mute: [P(AUTO, "lePlan('clos', signe, !sansLAnnonce)", "lePlan('clos', signe)")] },
       { nom: 'le juge passe la main au prix d une famille en plein parcours', mute: [P(AUTO, " && !familleNommeeWa(tour.texte)) return { parole: 'main-silencieuse', motif: 'prix' };", ") return { parole: 'main-silencieuse', motif: 'prix' };")] },
       { nom: 'en plein parcours, le prix d une famille passe la main', mute: [P(AUTO, '      if (ditsDuTexte(t.texte).length > 0 && !lisLeConseil(t.texte, ctx.conseil).sante) return accueil(mots);\n', '')] },
+      { nom: 'la longueur ne compare que le court et le long', mute: [P(F_AUTO, "    const lon = new Set((['court', 'mi-long', 'long'] as const).map((longueur) => prixDe(id, { locks: premier, longueur }))).size > 1;", "    const lon = prixDe(id, { locks: premier, longueur: 'court' }) !== prixDe(id, { locks: premier, longueur: 'long' });")] },
+      { nom: 'le long emprunte le prix du court', mute: [P(F_AUTO, '  if (tete.longueur && grille && Object.keys(grille).length > 0 && !(Number(grille[tete.longueur]) > 0)) return undefined;\n', '')] },
     ],
   },
 ];

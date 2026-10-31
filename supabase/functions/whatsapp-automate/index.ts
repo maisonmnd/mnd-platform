@@ -88,7 +88,7 @@ import { createClient, type SupabaseClient } from 'npm:@supabase/supabase-js@2';
 
 /** LA VERSION DE CE FICHIER, dite par le contrôle de santé. Sans elle on ne
     sait pas quel code tourne vraiment. À incrémenter à chaque déploiement. */
-const VERSION = '2026-10-31-b · le plan une fois par numero, le prix d une famille en plein parcours';
+const VERSION = '2026-10-31-c · la longueur de la couleur se demande, le long sans prix ne copie pas le court';
 
 /** « En train d'écrire », puis on attend : deux messages envoyés coup sur
     coup font un seul tour, celui du dernier. */
@@ -4509,6 +4509,10 @@ function prixPourLaTeteWa(
 ): number | undefined {
   const d = (ligne.data ?? {}) as Record<string, unknown>;
   if (d.hidePrice || d.priceMode === 'devis') return undefined;
+  /* Une grille par longueur sans la sienne : pas de prix, plutôt qu'un prix
+     d'une autre longueur (31 octobre 2026). */
+  const grille = d.prixParLongueur as Record<string, unknown> | undefined;
+  if (tete.longueur && grille && Object.keys(grille).length > 0 && !(Number(grille[tete.longueur]) > 0)) return undefined;
   const s = { ...d, id: ligne.id } as unknown as PrestationTarifee;
   const parLongueur = tete.longueur ? Number((d.prixParLongueur as Record<string, unknown> | undefined)?.[tete.longueur]) : Number.NaN;
   const bande = calibreDeLaTeteWa(tete.locks, tarif.bandes, tete.marge);
@@ -4533,13 +4537,16 @@ function agendaDuTourWa(lu: AgendaLu, ms: number, horizon: number): { agenda: Ag
     }
     : undefined;
   /* Ce dont son prix dépend : il change d'un bout à l'autre des paliers, ou
-     du court au long. */
+     d'une longueur à l'autre. Les trois longueurs, pas seulement le court et
+     le long (31 octobre 2026, essai réel : la Révélation Végétale n'a de prix
+     qu'en court et mi-long, le long retombait sur le prix du court, et la
+     longueur n'était jamais demandée, ni le prix dit). */
   const depend = (id: string): { prixALaLongueur?: boolean; prixAuxLocks?: boolean } => {
     if (!prixDe) return {};
     const premier = paliers[0].locks;
     const dernier = paliers[paliers.length - 1].locks;
     const aux = prixDe(id, { locks: premier, longueur: 'mi-long' }) !== prixDe(id, { locks: dernier, longueur: 'mi-long' });
-    const lon = prixDe(id, { locks: premier, longueur: 'court' }) !== prixDe(id, { locks: premier, longueur: 'long' });
+    const lon = new Set((['court', 'mi-long', 'long'] as const).map((longueur) => prixDe(id, { locks: premier, longueur }))).size > 1;
     return { ...(aux ? { prixAuxLocks: true } : {}), ...(lon ? { prixALaLongueur: true } : {}) };
   };
   const agenda: AgendaDuTour = {
