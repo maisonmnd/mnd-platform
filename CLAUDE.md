@@ -104,6 +104,23 @@ GitHub Pages, quatre sites depuis `scripts/build-sites.mjs` : `mnd-platform`
 `/couronne/`). Aucun nom de domaine en dur : changer de compte GitHub ne doit
 casser ni demander aucune modification de code.
 
+## Mise en ligne : c'est la session qui la fait (31 octobre 2026)
+
+Yéman ne colle plus rien dans Supabase et ne valide plus les publications.
+Une fois le code commité et les bancs verts, la session confie aussitôt la mise
+en ligne à un agent : « Lis docs/MISE-EN-LIGNE.md et mets en ligne, au commit
+<sha> : … ». Cela couvre :
+
+- les fonctions Edge ;
+- le SQL ;
+- les secrets ;
+- les réglages du Trône en base ;
+- la publication du Trône et du site public.
+
+L'outil est `scripts/mise-en-ligne.mjs`. Ne plus jamais poser de dossier
+« A recoller » sur son bureau, ni lui demander « Je publie ? ». Lui dire
+seulement ce qui est en ligne, et ce qu'un essai réel lui laisse à faire.
+
 ## Références
 
 - `docs/REPRENDRE.md` — état du chantier, à jour
