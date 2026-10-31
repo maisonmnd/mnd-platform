@@ -52,7 +52,7 @@ declare const Deno: {
   serve(f: (req: Request) => Promise<Response>): void;
 };
 
-const VERSION = '2026-10-31-a';
+const VERSION = '2026-10-31-b';
 const ECRAN = 'Les assistants';
 const ADRESSE_DES_ASSISTANTS = '/trone/#/assistants';
 const ETIQUETTE_DES_NOTIFICATIONS = 'mnd-assistants';
@@ -698,6 +698,18 @@ async function jetonDonner(s: Serveur, qui: Souverain, d: Corps): Promise<Respon
   const id = chaine(d.id).toLowerCase();
   if (!/^[a-z][a-z0-9-]{1,30}$/.test(id)) return refus('id-invalide');
   const present = await s.assistant(id);
+  /* LE JETON D UN ASSISTANT SE DONNE DEPUIS LE COMPTE DE SON PORTEUR (31 octobre
+     2026, étape 2) : Yéman qui cliquerait « Donner un jeton » pour Onyx en
+     deviendrait la porteuse et recevrait ses décisions. Refus si l assistant est
+     déjà porté par un autre compte, ou si le maître visé (team) ne porte pas le
+     nom du souverain connecté. Un assistant neuf, sans porteur, est à qui le relie. */
+  if (present?.porteur_user_id && present.porteur_user_id !== qui.userId) return refus('pas-ton-assistant', 403);
+  const teamVise = chaine(d.porteurTeamId) || present?.porteur_team_id || '';
+  if (teamVise) {
+    const { data: t } = await s.sb.from('team').select('data').eq('id', teamVise).maybeSingle();
+    const nomDuMaitre = chaine((t as { data?: { name?: unknown } } | null)?.data?.name).trim().toLowerCase();
+    if (nomDuMaitre && nomDuMaitre !== qui.nom.trim().toLowerCase()) return refus('pas-ton-assistant', 403);
+  }
   const jeton = nouveauJetonAssistant(id);
   const empreinte = await empreinteDuJetonAssistant(jeton);
   const maintenant = new Date().toISOString();

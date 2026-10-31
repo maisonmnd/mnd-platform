@@ -197,6 +197,7 @@ const DIT_DU_MOTIF: Record<string, string> = {
   'assistant-inconnu': 'Cet assistant n’existe pas dans la table.',
   'decision-inconnue': 'Cette décision n’existe plus.',
   'pas-ta-decision': 'Cette décision n’est pas la vôtre.',
+  'pas-ton-assistant': 'Le jeton de cet assistant se donne depuis le compte de son porteur.',
   'deja-tranchee': 'Cette décision est déjà tranchée.',
   'choix-inconnu': 'Ce choix n’est pas proposé pour cette décision.',
   'decision-ou-rdv': 'Il faut dire la décision ou le rendez-vous.',

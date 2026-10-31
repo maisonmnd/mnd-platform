@@ -90,7 +90,7 @@ dit('un jeton neuf : la forme, jamais deux fois le même', [true, true], [/^assi
 type Row = Record<string, unknown>;
 let tic = 0;
 const horloge = () => new Date(Date.now() + (tic++)).toISOString();
-const CLES: Record<string, string> = { assistants: 'id', assistants_relais: 'id', assistants_decisions: 'id', assistants_prises: 'cle', documents: 'key', appointments: 'id', envois: 'id', journal_gestes: 'id', staff: 'user_id', clients: 'id', branches: 'id', catalog_services: 'id', catalog_categories: 'id' };
+const CLES: Record<string, string> = { assistants: 'id', assistants_relais: 'id', assistants_decisions: 'id', assistants_prises: 'cle', documents: 'key', appointments: 'id', envois: 'id', journal_gestes: 'id', staff: 'user_id', clients: 'id', branches: 'id', catalog_services: 'id', catalog_categories: 'id', team: 'id' };
 const JETON_OPALE = 'assistant-opale-test';
 const JETON_ONYX = 'assistant-onyx-test';
 const tables: Record<string, Row[]> = {
@@ -101,6 +101,7 @@ const tables: Record<string, Row[]> = {
   assistants_relais: [], assistants_decisions: [], assistants_prises: [], journal_gestes: [], envois: [], appointments: [],
   documents: [{ key: 'mnd_settings', data: { assistants: { rythmeMin: 15 } } }, { key: 'mnd_house_identity', data: { nom: 'Maison du banc' } }, { key: 'mnd_auto_config', data: { itineraire: 'Au bout de la rue.' } }],
   staff: [{ user_id: 'u-yeman', name: 'Y. B.', role: 'souverain' }, { user_id: 'u-brice', name: 'B. A.', role: 'souverain' }, { user_id: 'u-maitre', name: 'M. T.', role: 'maitre' }],
+  team: [{ id: 'st-5qduae5jef', data: { name: 'Y. B.' } }, { id: 'st-d4t24p6inh', data: { name: 'B. A.' } }],
   branches: [{ id: 'br-test', data: { name: 'Maison du banc', flagship: true, status: 'active', masters: ['Team', 'Expert'], masterParDefaut: 'Team' } }],
   catalog_categories: [{ id: 'c-soin', data: { label: 'Reprise de racines', fon: 'KLƆKLƆ' } }, { id: 'c-tresses', data: { label: 'Tresses et nattes' } }],
   catalog_services: [{ id: 's-creation', data: { name: 'Création', categoryId: 'c-soin' } }, { id: 's-sinsin', data: { name: 'SÍNSIN Essentiel', categoryId: 'c-soin' } }, { id: 's-nattes', data: { name: 'Nattes collées', categoryId: 'c-tresses' } }],
@@ -246,7 +247,7 @@ const aujourdhui = dateDans(0);
 const sansNom = (texte: string) => !/Awa|Codjo|Dossi|Efua|Fifa|Gbessi|Hola|Banc/.test(texte);
 
 const g = await handler!(new Request('http://f/assistants-maison', { method: 'GET' }));
-dit('GET : la santé, la version, le nombre d assistants, aucun secret', ['assistants-maison', '2026-10-31-a', 2, false],
+dit('GET : la santé, la version, le nombre d assistants, aucun secret', ['assistants-maison', '2026-10-31-b', 2, false],
   await g.json().then((x: { fonction?: string; version?: string; assistants?: number }) => [x.fonction, x.version, x.assistants, JSON.stringify(x).includes('service')]));
 dit('sans porte : refusé', [403, 'reserve-aux-assistants'], await appelle({}, { action: 'passage', controles: {} }).then((r) => [r.status, r.corps.motif]));
 dit('un jeton inconnu : refusé', [403, 'reserve-aux-assistants'], await appelle({ 'x-jeton-assistant': 'assistant-opale-faux' }, { action: 'passage', controles: {} }).then((r) => [r.status, r.corps.motif]));
@@ -445,6 +446,11 @@ dit('jeton.donner : un jeton rendu une fois, l empreinte écrite, jamais le jeto
   [true, true, true, 'u-brice', 'Jaspe', false, false],
   [don.corps.ok, /^assistant-jaspe-[0-9a-f]{48}$/.test(String(don.corps.jeton)), jaspe?.empreinte === await empreinteDuJetonAssistant(String(don.corps.jeton)), jaspe?.porteur_user_id, jaspe?.nom,
     JSON.stringify(tables).includes(String(don.corps.jeton)), JSON.stringify(tables.journal_gestes).includes('jaspe')]);
+dit('jeton.donner : le jeton d un assistant se donne depuis le compte de son porteur', [403, 'pas-ton-assistant', 403, 'pas-ton-assistant', true], [
+  ...(await appelle(yeman, { action: 'jeton.donner', id: 'onyx' }).then((r) => [r.status, r.corps.motif])),
+  ...(await appelle(yeman, { action: 'jeton.donner', id: 'grenat', porteurTeamId: 'st-d4t24p6inh' }).then((r) => [r.status, r.corps.motif])),
+  (await appelle(brice, { action: 'jeton.donner', id: 'grenat', porteurTeamId: 'st-d4t24p6inh' })).corps.ok,
+]);
 dit('… le jeton ouvre la porte A ; retiré, il ne l ouvre plus', [true, true, 403], [
   (await appelle({ 'x-jeton-assistant': String(don.corps.jeton) }, { action: 'passage', controles: {} })).corps.ok,
   (await appelle(brice, { action: 'jeton.retirer', id: 'jaspe' })).corps.ok,

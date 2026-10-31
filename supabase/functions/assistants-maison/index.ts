@@ -575,7 +575,7 @@ function heureDeDepart(maintenantMs, r) {
 }
 
 // scripts/serveur/assistants-maison.ts
-var VERSION = "2026-10-31-a";
+var VERSION = "2026-10-31-b";
 var ECRAN = "Les assistants";
 var ADRESSE_DES_ASSISTANTS = "/trone/#/assistants";
 var ETIQUETTE_DES_NOTIFICATIONS = "mnd-assistants";
@@ -1266,6 +1266,13 @@ async function jetonDonner(s, qui, d) {
   const id = chaine(d.id).toLowerCase();
   if (!/^[a-z][a-z0-9-]{1,30}$/.test(id)) return refus("id-invalide");
   const present = await s.assistant(id);
+  if (present?.porteur_user_id && present.porteur_user_id !== qui.userId) return refus("pas-ton-assistant", 403);
+  const teamVise = chaine(d.porteurTeamId) || present?.porteur_team_id || "";
+  if (teamVise) {
+    const { data: t } = await s.sb.from("team").select("data").eq("id", teamVise).maybeSingle();
+    const nomDuMaitre = chaine(t?.data?.name).trim().toLowerCase();
+    if (nomDuMaitre && nomDuMaitre !== qui.nom.trim().toLowerCase()) return refus("pas-ton-assistant", 403);
+  }
   const jeton = nouveauJetonAssistant(id);
   const empreinte = await empreinteDuJetonAssistant(jeton);
   const maintenant = (/* @__PURE__ */ new Date()).toISOString();
