@@ -58,6 +58,8 @@ const PANNES = [
   /* Le journal (`estEnvoiAutomatique`, lot 2) reconnait l'Assistant lui aussi :
      la faute plausible est un juge qui ne regarde que « Le Trone ». */
   ['l Assistant tenu pour une main humaine', PUR, "m.sens === 'sortant' && !m.auto && !estPartiSeul(m.parQui);", "m.sens === 'sortant' && !m.auto && m.parQui !== 'Le Trône';"],
+  /* Un numéro partagé (31 octobre 2026) : la première fiche du numéro, pas son fil. */
+  ['un numero partage ouvre la premiere fiche', PUR, '(boites.find((b) => b.fils.some((f) => f.numero === numero)) ?? boites.find((b) => b.numero === numero))', 'boites.find((b) => b.numero === numero || b.fils.some((f) => f.numero === numero))'],
 ];
 
 const md5 = (f) => createHash('md5').update(readFileSync(path.join(racine, f))).digest('hex');

@@ -10,7 +10,7 @@ import { readFileSync } from 'node:fs';
 import {
   FILTRES_DE_LA_BOITE, auteurDuMessageWa, boitesDeLaMaison, boitesDuFiltre, comptesDesFiltres, estLaMainDeLAssistant, estPartiSeul,
   estUneMainHumaine, idDuSouciWa, initialesDe, repondusSousUneHeure, reponsesGratuitesRestantes, texteDeLaDemande, texteDuSouci,
-  cleDuFilRange, estRangee, type Boite, type EnvoiDeLaBoite,
+  cleDuFilRange, estRangee, boiteDuNumero, type Boite, type EnvoiDeLaBoite,
 } from '../src/shared/boite-unique-pur';
 import { fenetreDe, filsDeLaMaison, tetesDeLaMaison, type Fil, type MessageWa } from '../src/shared/conversations';
 import type { Discussion, MessageAuTrone } from '../src/shared/discussions';
@@ -216,6 +216,17 @@ dit('estRangee : après, avant, sans date d’elle, aucune marque, date illisibl
     estRangee(['k'], undefined, { k: { le: a('10:00:00') } }), estRangee(['k'], a('10:00:00'), undefined), estRangee(['k'], a('10:00:00'), { k: { le: 'hier' } })]);
 dit('… les instants en millisecondes, jamais en texte (« 10:00:00Z » et « 10:00:00.000Z », dans les deux sens)', [true, true],
   [estRangee(['k'], `${A}T10:00:00.000Z`, { k: { le: `${A}T10:00:00Z` } }), estRangee(['k'], `${A}T10:00:00Z`, { k: { le: `${A}T10:00:00.000Z` } })]);
+
+/* ── 7 bis. Un numéro partagé (31 octobre 2026) ── */
+const NUM_PARTAGE = '22900000077';
+const partage = [
+  { cle: 'c:kk', numero: NUM_PARTAGE, fils: [] },
+  { cle: 'c:yb', numero: NUM_PARTAGE, fils: [{ numero: NUM_PARTAGE }] },
+];
+dit('un numéro partagé : la boîte qui porte son fil, pas la première fiche du numéro ; sans fil, la fiche ; ailleurs, rien', ['c:yb', 'c:kk', null],
+  [boiteDuNumero(partage, NUM_PARTAGE), boiteDuNumero([partage[0]], NUM_PARTAGE), boiteDuNumero(partage, '22900000099')]);
+dit('… et le Trône ouvre la boîte d’un lien `?n=` par elle', true,
+  readFileSync('src/apps/trone/routes/clients/LesConversations.tsx', 'utf8').includes('if (nDemande) return boiteDuNumero(boitesBrutes, nDemande);'));
 
 /* ── 8. La lettre ── */
 const pur = readFileSync('src/shared/boite-unique-pur.ts', 'utf8');

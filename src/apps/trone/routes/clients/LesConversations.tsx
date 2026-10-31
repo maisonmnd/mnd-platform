@@ -26,7 +26,7 @@ import { jourDit, heureDite, type FicheDeGerard } from '../../../../shared/gerar
 import { francs as enFrancs } from '../../../../shared/ia-faits-pur';
 import { dureeDite as depuisDit } from '../../../../shared/assistant-aujourdhui-pur';
 import {
-  FILTRE_DIT, boitesDeLaMaison, boitesDuFiltre, cleDuFilRange, comptesDesFiltres, heureACotonou, repondusSousUneHeure,
+  FILTRE_DIT, boiteDuNumero, boitesDeLaMaison, boitesDuFiltre, cleDuFilRange, comptesDesFiltres, heureACotonou, repondusSousUneHeure,
   reponsesGratuitesRestantes, type AuteurDeBulle, type Boite, type Bulle, type EnvoiDeLaBoite, type FiltreDeLaBoite, type SourceDeBulle,
 } from '../../../../shared/boite-unique-pur';
 import {
@@ -235,7 +235,7 @@ export default function LesConversations({ cerveau, moi }: PropsDUneVue) {
   const dDemande = params.get('d');
   const cleDemandee = useMemo(() => {
     if (cDemande) return boitesBrutes.find((b) => b.clientId === cDemande)?.cle ?? null;
-    if (nDemande) return boitesBrutes.find((b) => b.numero === nDemande || b.fils.some((f) => f.numero === nDemande))?.cle ?? null;
+    if (nDemande) return boiteDuNumero(boitesBrutes, nDemande);
     if (dDemande) return boitesBrutes.find((b) => b.discussions.some((d) => d.id === dDemande))?.cle ?? null;
     return null;
   }, [boitesBrutes, cDemande, nDemande, dDemande]);

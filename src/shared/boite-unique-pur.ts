@@ -399,6 +399,15 @@ export function filtresDe(b: Pick<Boite, 'attendUneReponse' | 'soucisOuverts' | 
 
 export const boitesDuFiltre = (boites: readonly Boite[], filtre: FiltreDeLaBoite): Boite[] => boites.filter((b) => b.filtres.includes(filtre));
 
+/** LA BOÎTE D'UN NUMÉRO (`?n=`), 31 octobre 2026 : celle qui porte son fil
+    WhatsApp d'abord, sinon la fiche de ce numéro. Une mère et sa fille
+    partagent un numéro : « Répondre » ouvrait la fiche de la fille, « Pas de
+    fil WhatsApp avec elle », et le fil de la mère, avec « Rendre à
+    l'automate », restait introuvable. */
+export const boiteDuNumero = (
+  boites: readonly { cle: string; numero?: string; fils: readonly { numero: string }[] }[], numero: string,
+): string | null => (boites.find((b) => b.fils.some((f) => f.numero === numero)) ?? boites.find((b) => b.numero === numero))?.cle ?? null;
+
 export function comptesDesFiltres(boites: readonly Boite[]): Record<FiltreDeLaBoite, number> {
   const c: Record<FiltreDeLaBoite, number> = { attend: 0, 'entre-deux': 0, site: 0, tout: 0, propositions: 0, bloques: 0 };
   for (const b of boites) for (const f of b.filtres) c[f] += 1;
