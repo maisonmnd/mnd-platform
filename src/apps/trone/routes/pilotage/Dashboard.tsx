@@ -46,6 +46,7 @@ import AlarmeWhatsApp from './AlarmeWhatsApp';
 import { PrevisionDuMois, usePrevisionDuMois } from './PrevisionDuMois';
 import { DemanderALaMaison } from './DemanderALaMaison';
 import { PassageDeGerard } from '../clients/PassageDeGerard';
+import { PassageAvantLeFauteuil } from '../clients/PassageAvantLeFauteuil';
 import { useDemandes, demandesTriees, ditLeBesoin, ditLeGenre, depuisQuand, telephoneMasque, nomDeLaDemande } from '../../../../shared/demandes';
 import { appelDe } from '../../../../shared/civilite';
 import { useSignalements } from '../../../../shared/entre-deux';
@@ -885,6 +886,10 @@ export default function Dashboard() {
           jours » aux Prévisions. Le passage dû des processus se fait depuis
           Les agents (Centre de commande). */}
       <PassageDeGerard />
+      {/* « AVANT LE FAUTEUIL » (31 octobre 2026) : le soir dès 18 h 50 pour
+          les têtes de demain, le matin dès 6 h 45 pour celles d'aujourd'hui,
+          la direction reçoit la notification sur son téléphone, une fois. */}
+      <PassageAvantLeFauteuil />
 
       {/* KPI majeurs */}
       {/* Les quatre chiffres du mois sur une ligne dès 1 000 px (à 240 px, 3 + 1). */}

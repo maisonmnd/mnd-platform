@@ -3687,3 +3687,66 @@
 .trc-cocher__lien:focus-visible { outline: 2px solid var(--color-copper); outline-offset: 2px; }
 .trc-cocher__correction { display: grid; gap: 6px; justify-items: start; background: var(--copper-50, #faf1e9); border-radius: 6px; padding: 8px 10px; font-size: 13px; }
 .trc-cocher__correction p { margin: 0; font-size: 14px; line-height: 1.5; color: var(--ink); overflow-wrap: anywhere; }
+
+/* ══ AVANT LE FAUTEUIL · 31 octobre 2026 ═══════════════════════════════════
+   « Il faut que je me souvienne de relire notre conversation » (Yéman). Sous
+   chaque rendez-vous à venir du Carnet et de Parcours, le briefing d'Opale :
+   un bloc cuivre pâle, filet cuivre à gauche, replié en une ligne, ouvert
+   d'un toucher. Cinq lignes en grille (étiquette minuscule, valeur), les
+   pièces en vignettes trois par rang, deux gestes. Tout tient à 390 px. */
+.trc-avant-rangee { padding: 0 18px 12px; background: var(--surface-card); border-bottom: 1px solid var(--hairline); min-width: 0; }
+/* La rangée qui précède garde son filet pour elle : le bloc le porte à sa place. */
+.trc-sheet__row:has(+ .trc-avant-rangee) { border-bottom-color: transparent; }
+.trc-avant { background: var(--copper-50); border: 1px solid var(--copper-300); border-left: 3px solid var(--color-copper); border-radius: 3px; min-width: 0; }
+.trc-avant > summary { list-style: none; cursor: pointer; display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 9px 12px; font-size: 12.5px; color: var(--copper-700); min-width: 0; }
+.trc-avant > summary::-webkit-details-marker { display: none; }
+.trc-avant > summary:focus-visible { outline: 2px solid var(--color-copper); outline-offset: 2px; }
+.trc-avant__titre { font-weight: var(--weight-medium); font-size: 10.5px; letter-spacing: .16em; text-transform: uppercase; white-space: nowrap; }
+.trc-avant__n { font-size: 11.5px; color: var(--ink-soft); text-align: right; min-width: 0; overflow-wrap: anywhere; }
+.trc-avant[open] > summary { border-bottom: 1px solid var(--copper-300); }
+.trc-avant__dl { margin: 0; padding: 10px 12px 12px; display: grid; grid-template-columns: 84px minmax(0, 1fr); gap: 7px 10px; font-size: 13px; line-height: 1.45; }
+.trc-avant__dl dt { font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: var(--copper-700); padding-top: 2px; }
+.trc-avant__dl dd { margin: 0; color: var(--ink); min-width: 0; overflow-wrap: anywhere; display: grid; gap: 4px; align-content: start; }
+.trc-avant__dl dd.est-vide { color: var(--ink-soft); font-style: italic; }
+.trc-avant__dl dd.est-attention { color: var(--color-brique, #96412E); }
+.trc-avant__lu { display: inline-block; font-size: 9.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--copper-700); border: 1px solid var(--copper-300); border-radius: 2px; padding: 1px 6px; margin-right: 6px; background: var(--surface-card); vertical-align: middle; font-style: normal; }
+.trc-avant__pieces { padding: 0 12px 12px; }
+.trc-avant__t { margin: 0 0 7px; font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: var(--copper-700); }
+.trc-avant__grille { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.trc-avant__piece { display: block; background: var(--surface-card); border: 1px solid var(--copper-300); border-radius: 4px; overflow: hidden; min-width: 0; color: inherit; text-decoration: none; transition: border-color var(--dur-fast) var(--ease-soft); }
+.trc-avant__piece:hover { border-color: var(--color-copper); }
+.trc-avant__piece[aria-disabled='true'] { cursor: default; opacity: .7; }
+.trc-avant__vignette { aspect-ratio: 4 / 3; display: grid; place-items: center; position: relative; overflow: hidden; }
+.trc-avant__vignette.est-video { background: linear-gradient(160deg, #3A3F72, #1E2150); }
+.trc-avant__vignette.est-photo { background: linear-gradient(160deg, #C9875A, #8C5A33); }
+.trc-avant__vignette.est-lien { background: var(--indigo-50); }
+.trc-avant__vignette svg { width: 30px; height: 30px; display: block; }
+.trc-avant__vignette img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.trc-avant__legende { display: block; padding: 5px 7px 6px; font-size: 10.5px; line-height: 1.35; color: var(--ink); overflow-wrap: anywhere; }
+.trc-avant__legende small { display: block; color: var(--ink-soft); font-size: 9.5px; letter-spacing: .06em; }
+.trc-avant__gestes { display: flex; gap: 8px; flex-wrap: wrap; padding: 0 12px 12px; }
+.trc-avant__geste { cursor: pointer; font-family: var(--font-sans); font-weight: var(--weight-medium); font-size: 11px; letter-spacing: .1em; text-transform: uppercase; border: 1px solid var(--color-copper); color: var(--copper-700); border-radius: 3px; padding: 7px 11px; background: var(--surface-card); transition: background var(--dur-fast) var(--ease-soft); }
+.trc-avant__geste:hover:not(:disabled) { background: var(--copper-50); }
+.trc-avant__geste.est-plein { background: var(--color-indigo); color: var(--color-ivoire); border-color: var(--color-indigo); }
+.trc-avant__geste.est-plein:hover:not(:disabled) { background: var(--indigo-700, #191B43); }
+.trc-avant__geste:disabled { opacity: .5; cursor: default; }
+@media (max-width: 760px) {
+  .trc-avant-rangee, .trc-carnet .trc-avant-rangee { padding: 0 16px 12px; }
+  .trc-avant__dl { grid-template-columns: 74px minmax(0, 1fr); }
+}
+
+/* Ce qu'elle a envoyé, dans la fenêtre du rendez-vous (volet « Prix,
+   formule, note ») : une pièce par ligne, deux gestes d'ajout en cuivre. */
+.trc-pieces-rdv { display: grid; gap: 8px; }
+.trc-pieces-rdv__liste { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.trc-pieces-rdv__ligne { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border: 1px solid var(--hairline); border-radius: var(--radius-md); background: var(--surface-card); min-width: 0; }
+.trc-pieces-rdv__ligne > svg { width: 18px; height: 18px; flex: none; color: var(--copper-700); }
+.trc-pieces-rdv__texte { flex: 1; min-width: 0; display: grid; font-size: 12.5px; }
+.trc-pieces-rdv__texte b { font-weight: var(--weight-medium); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink); }
+.trc-pieces-rdv__texte small { font-size: 11px; color: var(--ink-soft); }
+.trc-pieces-rdv__retirer { flex: none; border: 0; background: none; padding: 0; font: inherit; font-size: 12px; color: var(--copper-700); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.trc-pieces-rdv__gestes { display: flex; gap: 14px; flex-wrap: wrap; align-items: center; }
+.trc-pieces-rdv__ajout { background: none; border: none; padding: 0; cursor: pointer; font: inherit; font-size: 12.5px; font-weight: 600; color: var(--copper-700); }
+.trc-pieces-rdv__ajout:disabled { opacity: .5; cursor: default; }
+.trc-pieces-rdv__lien { display: grid; gap: 8px; padding: 10px 12px; border: 1px solid var(--copper-300); border-radius: var(--radius-md); background: var(--copper-50); }
+.trc-pieces-rdv__attente { font-size: 12px; color: var(--ink-soft); }

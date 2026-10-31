@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type CSSProperties, type KeyboardEvent, type ReactNode } from 'react';
+import { Fragment, useEffect, useMemo, useState, type CSSProperties, type KeyboardEvent, type ReactNode } from 'react';
 import { Search } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useBilans } from '../../../../shared/bilans';
@@ -45,6 +45,8 @@ import { useEnvoiDeLaPiece } from '../vente/envoi-de-la-piece';
 import { BoutonDuPoint, FenetreDuPoint } from '../vente/FenetreDuPoint';
 import { rituelDeLaRepriseEffacee } from '../../../../shared/reprise-nue';
 import { cheminDeLaConversation } from '../../../../shared/conversations';
+import { PassageAvantLeFauteuil } from './PassageAvantLeFauteuil';
+import { AvantLeFauteuil } from './AvantLeFauteuil';
 
 /* Le Carnet — le registre des rendez-vous : multi-services, duplication, statuts. */
 
@@ -568,10 +570,16 @@ export default function Carnet() {
     const showReste = !isSeriesIncluded && dueX > 0 && (partlyPaid || a.date <= today);
     const canEncaisser = a.status !== 'annulé' && !isSeriesIncluded;
     return (
+      /* ══ AVANT LE FAUTEUIL — 31 octobre 2026 ═══════════════════════════
+         « Credo vient le 13 novembre, il faut que je me souvienne de relire
+         notre conversation » (Yéman). Sous chaque rendez-vous à venir, le
+         briefing d'Opale, en frère de la rangée : la grille de la rangée ne
+         sait pas accueillir une ligne pleine largeur, et le bloc arrête ses
+         clics avant qu'ils n'ouvrent la fenêtre du rendez-vous. */
+      <Fragment key={a.id}>
       <div
         className="trc-sheet__row"
         style={{ gridTemplateColumns: GRID, cursor: 'pointer' }}
-        key={a.id}
         onClick={() => setModal({ appt: a })}
         title="Modifier ce rendez-vous"
       >
@@ -891,6 +899,12 @@ export default function Carnet() {
           </span>
         </span>
       </div>
+      {/* Replié par défaut ; ouvert d'office le jour même quand il y a quelque
+          chose à relire. Seulement sur ce qui vient : on ne se prépare pas à
+          un rendez-vous passé, honoré ni annulé (le passage du soir ne les
+          compte pas non plus). */}
+      {a.status !== 'annulé' && a.status !== 'honoré' && a.date >= today && <AvantLeFauteuil appt={a} />}
+      </Fragment>
     );
   };
 
@@ -937,6 +951,10 @@ export default function Carnet() {
 
   return (
     <div className="mnd-rise">
+      {/* « AVANT LE FAUTEUIL » (31 octobre 2026) : le Carnet ouvert à 19 h ou
+          à 7 h fait partir la notification du soir ou du matin, comme le
+          tableau de bord. Une fois par passage, par la direction seule. */}
+      <PassageAvantLeFauteuil />
       <PageHead
         eyebrow="Le Carnet · Agenda"
         title="Rendez-vous."

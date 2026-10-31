@@ -44,6 +44,7 @@ import { SonAvisGoogle } from './SonAvisGoogle';
 import { CarteAbonnement } from './CarteAbonnement';
 import { CarteDuClub } from './CarteDuClub';
 import { releveDeLAbonnee } from '../../../../shared/abonnee-pur';
+import { AvantLeFauteuil } from './AvantLeFauteuil';
 import { echeancierAPoser } from './gestes-de-l-abonnement';
 import { jourDeCotonou } from '../../../../shared/ia-faits-pur';
 import { facturesDuCompte, pourQui } from './factures-du-compte-pur';
@@ -5632,7 +5633,8 @@ function Customer360({
           {history.length === 0 && <div style={{ fontSize: 12, color: 'var(--ink-soft)' }}>Aucun passage enregistré.</div>}
           <div className="trc-timeline" style={{ flexDirection: 'column', gap: 0 }}>
             {history.map((a, i) => (
-              <div key={a.id} style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+              <Fragment key={a.id}>
+              <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
                 <div className="trc-timeline__rail">
                   <span className="trc-timeline__dot" style={{ background: a.status === 'honoré' ? 'var(--color-copper)' : 'var(--indigo-200)' }} />
                   {i < history.length - 1 && <span className="trc-timeline__line" />}
@@ -5668,6 +5670,15 @@ function Customer360({
                   </button>
                 )}
               </div>
+              {/* AVANT LE FAUTEUIL (31 octobre 2026, choix 1) : sous chaque
+                  passage à venir, le même briefing qu'au Carnet, en retrait
+                  du rail. */}
+              {a.status !== 'annulé' && a.status !== 'honoré' && a.date >= today && (
+                <div style={{ marginLeft: 22, marginBottom: 14 }}>
+                  <AvantLeFauteuil appt={a} />
+                </div>
+              )}
+              </Fragment>
             ))}
           </div>
         </div>

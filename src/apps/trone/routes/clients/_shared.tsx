@@ -50,6 +50,8 @@ import { releveDeLAbonnee, formuleProposeePourReserver, dansLaVie } from '../../
 import { jourDeCotonou } from '../../../../shared/ia-faits-pur';
 import { PALIER_DU_CODE_XOF } from '../vente/encaissement-pur';
 import { SeanceDeLaFormule } from './SeanceDeLaFormule';
+import { PiecesDuRendezVous } from './PiecesDuRendezVous';
+import type { PieceEnvoyee } from '../../../../shared/avant-le-fauteuil-pur';
 import { SignalDuClub } from './CarteDuClub';
 import { effetDeLAnnulation } from './gestes-de-l-abonnement';
 import './clients.css';
@@ -1959,6 +1961,10 @@ function RdvModalCorps({
   const [master, setMaster] = useState(appt?.master ?? initial?.master ?? maitreParDefaut(branch));
   const [status, setStatus] = useState<Appointment['status']>(appt?.status ?? 'confirmé');
   const [note, setNote] = useState(appt?.note ?? initial?.note ?? '');
+  /* CE QU'ELLE A ENVOYÉ POUR CETTE SÉANCE (31 octobre 2026, « Avant le
+     fauteuil », choix 5) : les photos, vidéos et liens attachés au
+     rendez-vous, écrits avec la note sur les deux chemins d'enregistrement. */
+  const [pieces, setPieces] = useState<PieceEnvoyee[]>(appt?.pieces ?? []);
   const [discountPct, setDiscountPct] = useState<number>(appt?.discountPct ?? 0);
   const [discountXof, setDiscountXof] = useState<number>(appt?.discountXof ?? 0);
   /* LE FORFAIT PONCTUEL — un total négocié pour l'ensemble des gestes. Il
@@ -3053,6 +3059,8 @@ function RdvModalCorps({
         prev.map((x) =>
           x.id === appt.id
             ? { ...x, clientId, serviceIds, date, time, master, status: chosenStatus, note: note.trim() || undefined,
+                /* Ce qu'elle a envoyé : rien ne s'écrit plutôt qu'une liste vide. */
+                pieces: pieces.length > 0 ? pieces : undefined,
                 /* Le parent qui a pris le rendez-vous (fiche à deux numéros). */
                 numeroAPrevenir: numeroRetenu,
                 /* La longueur ne s'inscrit que si une prestation s'y facture :
@@ -3215,6 +3223,8 @@ function RdvModalCorps({
         /* LA CONFIRMATION DÉCOCHÉE (28 octobre 2026) : confirmation-rdv la saute. */
         sansConfirmation: chosenStatus === 'confirmé' && !avecConfirmation ? true : undefined,
         note: note.trim() || undefined,
+        /* Ce qu'elle a envoyé (31 octobre 2026), comme sur la branche de modification. */
+        pieces: pieces.length > 0 ? pieces : undefined,
         coveredBySub: effCovered || undefined,
         coverKind: effCovered ? ('abonnement' as const) : undefined,
         /* LE LIEN EXPLICITE VERS SON CONTRAT — voir la note du chemin des
@@ -4659,6 +4669,11 @@ function RdvModalCorps({
               + Une note au carnet
             </button>
           )}
+          {/* CE QU'ELLE A ENVOYÉ — 31 octobre 2026, « Avant le fauteuil »
+              (choix 5). Après la Note du carnet : les pièces attachées au
+              rendez-vous, un lien à garder, une photo ou une vidéo à déposer
+              au coffre. Le dépôt ne retient jamais l'enregistrement. */}
+          <PiecesDuRendezVous pieces={pieces} onChange={setPieces} clientId={clientId} apptId={appt?.id} />
           {/* LE BILAN DE LA SÉANCE — 4 octobre 2026. Après la séance, sous la
               note du carnet : ce que le maître a vu, et l'assistant qui rédige.
               La note vit dans sa table (0115), jamais dans le rendez-vous. */}

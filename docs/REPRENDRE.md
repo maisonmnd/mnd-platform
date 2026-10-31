@@ -2,6 +2,77 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## AVANT LE FAUTEUIL — 31 octobre 2026, à mettre en ligne (0147, 0148)
+
+« Fais-moi un résumé de ce que je dois savoir avant un RDV d'un client.
+Exemple : Credo vient le 13 novembre, il faut que je me souvienne de relire
+notre conversation. » (Yéman). Maquette Jx3pJY3ZkzWkr9a9RXUFf3, cinq choix
+tranchés au sélecteur, puis « construis ».
+
+- `shared/avant-le-fauteuil-pur.ts` (pur, aucun import) : le juge
+  `avantLeFauteuil` rend six lignes par rendez-vous à venir (Elle a dit ·
+  Son compte · Dernière note · Attention · À préparer · pièces) et un résumé
+  replié ; `notificationAvantLeFauteuil` écrit « Demain, 3 têtes » / «
+  Aujourd'hui, 1 tête ». Règles d'attention dans l'ordre : dette, enfant
+  (moins de 16 ans), tresses (Hermine, coiffeuse externe), hors des heures
+  d'ouverture, numéro étranger, plus de 120 jours sans venir (recompter les
+  locks). Banc `scripts/verifie-avant-le-fauteuil.mjs` (34 contrôles, 27
+  fautes prouvées ; `--prouve` réécrit agenda.ts un instant : pas pendant
+  qu'une autre session l'édite).
+- `Appointment.pieces?: PieceEnvoyee[]` (agenda.ts) : ce que la cliente a
+  envoyé (photo, vidéo, lien) attaché au rendez-vous. Les liens restent des
+  liens avec leur titre ; photos et vidéos vont au coffre privé Storage
+  `pieces-des-clientes` (`shared/pieces-des-clientes.ts`, adresse signée une
+  heure). Éditeur dans la fenêtre du RDV, volet « Prix, formule, note » :
+  `routes/clients/PiecesDuRendezVous.tsx` (« + Un lien », « + Une photo ou
+  une vidéo » ; hors ligne : rien d'ajouté, l'enregistrement n'est jamais
+  retenu). « Retirer » n'efface pas le fichier du coffre.
+- UNE SEULE PRISE SUR LE TRÔNE : `routes/clients/avant-le-fauteuil-lecture.ts`
+  (`useLecteurAvantLeFauteuil().lis(rdv)`, `useEntreesAvantLeFauteuil(jour)`)
+  assemble l'entrée du juge pour l'écran ET la notification : ses rendez-vous
+  toutes branches (dernière venue, dernière note), le dû par la méthode de la
+  fiche (`ecrituresDuCompte` + `lignesImpayees`, branche de la cliente, ce
+  rendez-vous-ci écarté), le carnet par `comptesAbonnement` +
+  `contratDeLaSeance` (mêmes chiffres que la fenêtre du RDV et Abonnements),
+  tresses par nom ou catégorie (chaîne des parents).
+- Écran `routes/clients/AvantLeFauteuil.tsx` : ligne cuivre repliable
+  (`<details class="trc-avant">`) sous chaque rendez-vous à venir non honoré
+  du Carnet (`Carnet.tsx`, frère de la rangée, le clic n'ouvre pas la
+  fenêtre) et dans Parcours (`Customers.tsx`) ; ouverte d'office le jour même
+  s'il y a quelque chose à relire ; gestes « Relire le fil » (Conversations)
+  et « Sa fiche ». Styles `clients.css` (`trc-avant*`, `trc-pieces-rdv*`).
+- Notifications : `shared/avant-le-fauteuil-passage-pur.ts` (soir dès 18 h 50
+  pour demain, jusqu'à minuit ; matin dès 6 h 45 pour aujourd'hui, jusqu'à
+  midi ; mémoire document `mnd_avant_le_fauteuil`, `shared/avant-le-fauteuil.ts`),
+  `routes/clients/avant-le-fauteuil-donnees.ts` (direction seule, une fois
+  par passage et par jour, mémoire écrite AVANT l'envoi, `pushNotifyDirection`
+  → push-notify mode direction, rôle souverain), `<PassageAvantLeFauteuil />`
+  monté au tableau de bord et en tête du Carnet. Pas de réveil au serveur :
+  la notification part si un poste de la direction a le Trône ouvert dans la
+  fenêtre (comme Gérard).
+- Ce que le Trône ne fera jamais : lire son WhatsApp personnel, écrire à la
+  cliente. C'est Opale (la session) qui pose en « Note du carnet » et en
+  pièces ce qu'elle lit sur WhatsApp, le jour même.
+
+### SQL `0147_les_pieces_des_clientes.sql` : À PASSER (coffre privé `pieces-des-clientes`, 60 Mo, JPEG/PNG/WebP/HEIC/MP4/MOV ; voir et déposer = `is_staff()`, effacer = `est_direction()` ; rejouable). Sans elle, les liens marchent, les photos sont refusées.
+
+### LA FACTURE D'ABONNEMENT QUI PLANTAIT L'ÉCRAN FACTURES — 31 octobre 2026
+
+MND-2026-0165 (Carnet des Trois de C., ABO-2026-001) faisait crier
+« Wt(...).map is not a function » : `verse_sur_l_abonnement` (0138) écrit
+`detail` de la ligne en CHAÎNE (« 3 × Resserrage · 2 × Lavage ») alors que
+`InvoiceLine.detail` est `string[]`. Corrigé des deux côtés :
+`detailPorte(detail)` et `contenuDUneLigne` (pdf-de-la-piece.ts, purs,
+toujours un tableau), `Factures.tsx` lit `detailPorte`. Banc
+`scripts/verifie-le-contenu-de-la-ligne.mjs` (20 contrôles, 11 fautes).
+
+### SQL `0148_le_contenu_de_la_ligne_en_tableau.sql` : À PASSER (la fonction réécrite en `jsonb_agg`, un élément par prestation dans les mots de `libellesInclus`, puis la reprise rejouable des lignes déjà écrites en chaîne, dont 0165). 0138 reste passée, jamais relancée.
+
+Reste : dater MND-2026-0165 au 24 octobre 2026 (le versement l'est déjà),
+depuis l'éditeur de facture une fois 0148 passée. Le banc `verifie-gerard.mjs`
+crie une fois depuis 0369fbcc (« resserrage » attendu, « reprise » obtenu) :
+panne antérieure, à traiter par la session qui tient Gérard.
+
 ## LE FÍNFÍN™ LÉGÈRE À 20 000 F — 31 octobre 2026, SQL PASSÉE
 
 « Change le prix de Finfin réparation léger à 20000F à partir d'aujourd'hui »

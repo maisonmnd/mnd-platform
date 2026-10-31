@@ -2,6 +2,7 @@ import { createStore, useStore } from './store';
 import type { LongueurId } from './catalog';
 import type { LigneGamme } from './gamme';
 import type { LienDeReglement, LienDuFoyer } from './regler-la-seance-pur';
+import type { PieceEnvoyee } from './avant-le-fauteuil-pur';
 
 /* Le Carnet — rendez-vous multi-services, 08:00–18:00.
    Les semences sont générées autour d'aujourd'hui : le carnet vit toujours. */
@@ -307,6 +308,15 @@ export type Appointment = {
       sur WhatsApp) : un soin, une coloration, une coiffure spéciale, ou autre
       chose, dite sept jours avant. Écrite par le webhook WhatsApp. */
   envieAvantSeance?: { envie: 'soin' | 'coloration' | 'coiffure' | 'autre'; quand: string };
+  /** CE QU'ELLE A ENVOYÉ POUR CETTE SÉANCE : 31 octobre 2026, « Avant le
+      fauteuil » (« Credo vient le 13 novembre, il faut que je me souvienne
+      de relire notre conversation », Yéman). Une photo ou une vidéo reçue
+      vit dans le coffre `pieces-des-clientes` et s'attache ici ; un lien
+      Facebook, TikTok ou Instagram est gardé avec son titre, jamais copié.
+      Posées par Opale depuis son WhatsApp personnel, par les Conversations
+      de la Maison, ou à la main. Le type vit dans
+      `shared/avant-le-fauteuil-pur.ts`, qui n'importe rien d'ici. */
+  pieces?: PieceEnvoyee[];
   foyerId?: string;
   seriesId?: string;
   seriesIndex?: number; // n° de la séance (1..N)
