@@ -671,6 +671,22 @@ function Calendrier({ besoin: besoinInitial, initiales, surLaPorte }: Props) {
     setHeure(null);
     setAutreJour(false);
   };
+  /* AJOUTER UN GESTE À UNE FORMULE — 1er novembre 2026. « Sur certains
+     boutons on ne peut pas sélectionner plusieurs services » (Yéman) : une
+     formule touchée, ou sa dernière venue refaite, ne laissait que
+     « modifier », qui effaçait tout. Ici les gestes déjà pris RESTENT cochés
+     et la composition s'ouvre famille par famille : elle ajoute un soin, une
+     couleur, et la Maison additionne. */
+  const ajouterUnGeste = () => {
+    setRetour(false);
+    setLaCouleur(false);
+    setComposer(true);
+    setRepondu(false);
+    setRang(0);
+    setJour('');
+    setHeure(null);
+    setAutreJour(false);
+  };
   /* « CE N'EST PAS MOI » ROUVRE LA PORTE — 11 octobre 2026 : une autre
      personne sur le même téléphone ne sortait de l'entretien qu'en retapant
      l'adresse. */
@@ -1132,6 +1148,7 @@ function Calendrier({ besoin: besoinInitial, initiales, surLaPorte }: Props) {
           <p className="corps">Refaire votre dernière venue ? <b>{recapitulatif}</b></p>
           {moi?.numero && <p className="legende">Votre numéro : <b>{numeroMasque(moi.numero)}</b>, en entier une fois votre place choisie.</p>}
           <p className="bon-retour__liens">
+            <button type="button" className="btn btn--lien" onClick={ajouterUnGeste}>Ajouter un geste</button>
             <button type="button" className="btn btn--lien" onClick={autreChose}>Autre chose</button>
             <button type="button" className="btn btn--lien" onClick={pasMoi}>Ce n’est pas moi</button>
           </p>
@@ -1178,6 +1195,7 @@ function Calendrier({ besoin: besoinInitial, initiales, surLaPorte }: Props) {
         <div className="bloc-reservation">
           <p className="sur">Vos gestes</p>
           <p className="corps"><b>{recapitulatif}</b>{' '}<button type="button" className="btn btn--lien" onClick={autreChose}>modifier</button></p>
+          <p><button type="button" className="btn btn--lien" onClick={ajouterUnGeste}>Ajouter un geste à cette venue</button></p>
           {lesCalibres}
         </div>
       ) : demandeLeCalibre ? (
