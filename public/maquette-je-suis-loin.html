@@ -1,0 +1,444 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+</head>
+<body>
+<title>Je suis loin</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500&family=Jost:wght@400;500&display=swap">
+<style>
+/* Mise en page : une colonne de lecture ; deux scènes qui se manipulent (le téléphone et le Trône pour Opale, l'écran d'achat pour Stock et Achats), puis les arbitrages. */
+:root {
+  --fond: #efe4d3;
+  --papier: #fbf7f0;
+  --encre: #1f2350;
+  --encre-douce: #4b4f72;
+  --cuivre: #a8622f;
+  --trait: #d9cbb5;
+  --vieux: #8a8270;
+  --vert: #3b8f5a;
+  --rouge: #a8433a;
+  --ecran: #1f2350;
+  --ecran-texte: #f3ece0;
+  --ecran-doux: #b9b6cf;
+  --ecran-trait: #3a3e6e;
+  --bulle-eux: #2b2f62;
+  --bulle-nous: #3b6b4f;
+  --vignette: #e7dccb;
+  --display: 'Cormorant Garamond', 'Times New Roman', serif;
+  --texte: 'Jost', 'Segoe UI', system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --fond: #15173a; --papier: #1f2250; --encre: #f3ece0; --encre-douce: #c9c4d8; --cuivre: #d38a52; --trait: #34386a; --vieux: #9d97b0; --vert: #5fb57f; --rouge: #d9776c;
+  --ecran: #0f1130; --ecran-texte: #f3ece0; --ecran-doux: #a9a6c4; --ecran-trait: #2c3060; --bulle-eux: #23264f; --bulle-nous: #2f5a42; --vignette: #2a2e5e; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --fond: #15173a; --papier: #1f2250; --encre: #f3ece0; --encre-douce: #c9c4d8; --cuivre: #d38a52; --trait: #34386a; --vieux: #9d97b0; --vert: #5fb57f; --rouge: #d9776c;
+  --ecran: #0f1130; --ecran-texte: #f3ece0; --ecran-doux: #a9a6c4; --ecran-trait: #2c3060; --bulle-eux: #23264f; --bulle-nous: #2f5a42; --vignette: #2a2e5e; color-scheme: dark }
+body { background: var(--fond); color: var(--encre); font-family: var(--texte); font-size: 15px; line-height: 1.6; }
+.page { max-width: 1000px; margin: 0 auto; padding-block: 40px 72px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: grid; gap: 56px; }
+h1, h2, h3 { font-family: var(--display); font-weight: 500; text-wrap: balance; margin: 0; }
+h1 { font-size: clamp(34px, 6vw, 52px); line-height: 1.05; }
+h2 { font-size: clamp(26px, 4.5vw, 34px); line-height: 1.1; }
+h3 { font-size: 21px; line-height: 1.2; }
+p { margin: 0; }
+.sur { font-size: 11px; letter-spacing: .18em; text-transform: uppercase; color: var(--cuivre); }
+.chapo { color: var(--encre-douce); max-width: 66ch; }
+.citation { font-family: var(--display); font-style: italic; font-size: 21px; line-height: 1.35; max-width: 60ch; }
+.bandeau { background: var(--encre); color: var(--fond); padding: 10px 14px; border-radius: 4px; font-size: 13px; }
+.entete { display: grid; gap: 16px; }
+.section { display: grid; gap: 18px; }
+.constat { border-left: 2px solid var(--cuivre); padding: 4px 0 4px 14px; color: var(--encre-douce); max-width: 70ch; display: grid; gap: 8px; }
+.constat b { color: var(--encre); font-weight: 500; }
+.etiquette { font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--vieux); }
+ul.net { margin: 0; padding-left: 18px; display: grid; gap: 6px; color: var(--encre-douce); max-width: 72ch; }
+ul.net b { color: var(--encre); font-weight: 500; }
+.deux { display: grid; grid-template-columns: repeat(auto-fit, minmax(270px, 1fr)); gap: 18px; }
+.carte { background: var(--papier); border: 1px solid var(--trait); border-radius: 4px; padding: 16px 18px; display: grid; gap: 8px; align-content: start; }
+.carte h3 { font-size: 19px; }
+.carte p, .carte li { color: var(--encre-douce); font-size: 14px; }
+.carte b { color: var(--encre); font-weight: 500; }
+button { font: inherit; }
+button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid var(--cuivre); outline-offset: 2px; }
+.num { font-variant-numeric: tabular-nums; }
+
+/* ── La scène d'Opale ── */
+.scene { display: grid; gap: 14px; }
+.pas-barre { display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: center; }
+.pas-barre .heure { font-family: var(--display); font-size: 26px; min-width: 84px; }
+.pas-barre .titre { color: var(--encre-douce); flex: 1 1 260px; min-width: 0; }
+.commandes { display: flex; gap: 8px; }
+.cmd { border: 1px solid var(--trait); background: var(--papier); color: var(--encre); border-radius: 99px; padding: 6px 16px; font-size: 13px; cursor: pointer; }
+.cmd.plein { background: var(--cuivre); border-color: var(--cuivre); color: #fff; }
+.cmd:disabled { opacity: .4; cursor: default; }
+.points { display: flex; gap: 6px; }
+.points i { width: 8px; height: 8px; border-radius: 99px; background: var(--trait); }
+.points i.ici { background: var(--cuivre); }
+.duo { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr); gap: 16px; align-items: start; }
+@media (max-width: 760px) { .duo { grid-template-columns: 1fr; } }
+.tel { background: var(--ecran); color: var(--ecran-texte); border-radius: 26px; border: 5px solid #0b0c22; padding: 16px 14px 14px; display: grid; gap: 10px; min-height: 470px; align-content: start; }
+.tel .qui { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; border-bottom: 1px solid var(--ecran-trait); padding-bottom: 8px; }
+.tel .qui b { font-family: var(--display); font-size: 19px; font-weight: 500; }
+.tel .qui small { color: var(--ecran-doux); font-size: 11px; letter-spacing: .12em; text-transform: uppercase; text-align: right; }
+.bulle { max-width: 92%; border-radius: 12px; padding: 7px 10px; font-size: 13.5px; line-height: 1.45; }
+.bulle.eux { background: var(--bulle-eux); justify-self: start; border-bottom-left-radius: 3px; }
+.bulle.nous { background: var(--bulle-nous); justify-self: end; border-bottom-right-radius: 3px; }
+.bulle small { display: block; color: var(--ecran-doux); font-size: 10.5px; margin-top: 2px; }
+.bulle .recu { display: block; margin-top: 6px; border: 1px dashed var(--ecran-trait); border-radius: 6px; padding: 10px; color: var(--ecran-doux); font-size: 11.5px; text-align: center; }
+.assist { border: 1px dashed var(--cuivre); border-radius: 10px; padding: 9px 11px; display: grid; gap: 7px; font-size: 13px; }
+.assist .nom { color: var(--cuivre); font-size: 11px; letter-spacing: .14em; text-transform: uppercase; }
+.assist .resume { color: var(--ecran-doux); }
+.assist .lu { background: rgba(255,255,255,.06); border-radius: 8px; padding: 6px 9px; display: grid; gap: 2px; }
+.assist .lu b { font-weight: 500; }
+.choix { display: flex; flex-wrap: wrap; gap: 5px; }
+.choix span { border: 1px solid var(--ecran-trait); border-radius: 99px; padding: 2px 10px; font-size: 11.5px; color: var(--ecran-doux); }
+.choix span.oui { border-color: var(--cuivre); color: var(--ecran-texte); background: rgba(211,138,82,.18); }
+.trone { background: var(--papier); border: 1px solid var(--trait); border-radius: 4px; display: grid; min-height: 470px; align-content: start; }
+.trone .barre { background: var(--encre); color: var(--fond); padding: 9px 14px; font-size: 11.5px; letter-spacing: .14em; text-transform: uppercase; display: flex; gap: 16px; flex-wrap: wrap; border-radius: 4px 4px 0 0; }
+.trone .barre .ici { color: #e9b58d; }
+.trone .corps { padding: 14px; display: grid; gap: 12px; }
+.tuiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+.tuile { border: 1px solid var(--trait); border-radius: 4px; padding: 10px 12px; display: grid; gap: 2px; font-size: 12.5px; color: var(--encre-douce); }
+.tuile b { color: var(--encre); font-weight: 500; font-family: var(--display); font-size: 22px; }
+.tuile.vive { border-color: var(--cuivre); }
+.liste { display: grid; gap: 0; font-size: 13px; }
+.liste .r { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 12px; padding: 8px 0; border-bottom: 1px solid var(--trait); color: var(--encre-douce); }
+.liste .r:last-child { border-bottom: 0; }
+.liste .r b { color: var(--encre); font-weight: 500; }
+.liste .r .montant { color: var(--encre); font-weight: 500; text-align: right; }
+.liste .r .trace { grid-column: 1 / -1; font-size: 11.5px; color: var(--vieux); }
+.liste .r .gestes { grid-column: 1 / -1; display: flex; gap: 6px; flex-wrap: wrap; }
+.liste .r .gestes span { border: 1px solid var(--trait); border-radius: 99px; padding: 1px 10px; font-size: 11.5px; }
+.liste .r .gestes span.oui { border-color: var(--cuivre); color: var(--cuivre); }
+.liste .r.attente { background: color-mix(in srgb, var(--cuivre) 8%, var(--papier)); padding-inline: 8px; border-radius: 4px; border-bottom: 0; margin-bottom: 6px; }
+.liste .vide { color: var(--vieux); font-size: 12.5px; padding: 6px 0; }
+.legende { color: var(--encre-douce); font-size: 14px; max-width: 72ch; }
+
+/* ── L'écran d'achat ── */
+.achat { background: var(--papier); border: 1px solid var(--trait); border-radius: 4px; display: grid; }
+.achat .barre { background: var(--encre); color: var(--fond); padding: 9px 14px; font-size: 11.5px; letter-spacing: .14em; text-transform: uppercase; display: flex; gap: 16px; flex-wrap: wrap; border-radius: 4px 4px 0 0; }
+.achat .barre .ici { color: #e9b58d; }
+.achat .corps { padding: 16px; display: grid; gap: 16px; }
+.champs { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px 14px; }
+.champ { display: grid; gap: 3px; min-width: 0; }
+.champ label { font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--vieux); }
+.champ input, .champ select { border: 1px solid var(--trait); background: var(--fond); color: var(--encre); border-radius: 3px; padding: 6px 8px; font: inherit; font-size: 14px; min-width: 0; width: 100%; box-sizing: border-box; }
+.photos { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.photo { width: 92px; height: 70px; border-radius: 4px; background: var(--vignette); border: 1px solid var(--trait); display: grid; place-items: center; font-size: 11px; color: var(--vieux); position: relative; overflow: hidden; }
+.photo svg { width: 70%; height: 70%; }
+.photo.ajout { border-style: dashed; background: transparent; }
+.lecture { font-size: 12.5px; color: var(--encre-douce); border-left: 2px solid var(--cuivre); padding-left: 10px; }
+.tab { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; min-width: 680px; font-size: 13.5px; }
+th { text-align: left; font-weight: 500; font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--vieux); padding: 6px 8px; border-bottom: 1px solid var(--trait); }
+td { padding: 6px 8px; border-bottom: 1px solid var(--trait); vertical-align: middle; color: var(--encre-douce); }
+td.n { text-align: right; font-variant-numeric: tabular-nums; color: var(--encre); }
+td input { border: 1px solid var(--trait); background: var(--fond); color: var(--encre); border-radius: 3px; padding: 4px 6px; font: inherit; font-size: 13.5px; width: 100%; box-sizing: border-box; min-width: 0; }
+td input.q { width: 56px; text-align: right; }
+td input.p { width: 84px; text-align: right; }
+.vig { width: 44px; height: 44px; border-radius: 4px; background: var(--vignette); display: grid; place-items: center; }
+.vig svg { width: 30px; height: 30px; }
+.fiche { font-size: 11.5px; border-radius: 99px; padding: 1px 9px; border: 1px solid var(--trait); white-space: nowrap; }
+.fiche.neuve { border-color: var(--cuivre); color: var(--cuivre); }
+.compteur { display: flex; flex-wrap: wrap; gap: 8px 22px; align-items: baseline; padding: 10px 14px; border-radius: 4px; background: color-mix(in srgb, var(--vert) 12%, var(--papier)); border: 1px solid color-mix(in srgb, var(--vert) 40%, var(--trait)); font-size: 14px; }
+.compteur.ecart { background: color-mix(in srgb, var(--rouge) 10%, var(--papier)); border-color: color-mix(in srgb, var(--rouge) 45%, var(--trait)); }
+.compteur b { font-family: var(--display); font-size: 22px; font-weight: 500; }
+.compteur .dit { flex: 1 1 220px; color: var(--encre-douce); min-width: 0; }
+.actions { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.bouton { border: 0; background: var(--cuivre); color: #fff; padding: 10px 22px; border-radius: 3px; font-size: 13px; letter-spacing: .14em; text-transform: uppercase; cursor: pointer; }
+.bouton:disabled { opacity: .45; cursor: default; }
+.bouton.doux { background: transparent; color: var(--encre); border: 1px solid var(--trait); }
+.resultat { border: 1px solid var(--vert); border-radius: 4px; padding: 14px 16px; display: grid; gap: 8px; background: color-mix(in srgb, var(--vert) 8%, var(--papier)); }
+.resultat ul { margin: 0; padding-left: 18px; display: grid; gap: 4px; color: var(--encre-douce); font-size: 14px; }
+.resultat b { color: var(--encre); font-weight: 500; }
+
+/* ── Arbitrages ── */
+.arbitrages { display: grid; gap: 14px; }
+.arbitrage { display: grid; gap: 8px; padding: 16px 18px; border-radius: 4px; background: var(--papier); border: 1px solid var(--trait); }
+.arbitrage h3 { font-size: 20px; }
+.arbitrage .q { color: var(--encre-douce); max-width: 72ch; }
+.options { display: grid; gap: 6px; }
+.option { display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 6px; font-size: 14px; color: var(--encre-douce); }
+.option i { font-style: normal; color: var(--vieux); }
+.option.propose { color: var(--encre); }
+.option.propose i { color: var(--cuivre); }
+.option b { font-weight: 500; }
+.etapes { display: grid; gap: 12px; }
+.etape { display: grid; grid-template-columns: 120px minmax(0, 1fr); gap: 14px; align-items: start; }
+.etape .quand { font-family: var(--display); font-size: 20px; color: var(--cuivre); }
+.etape p { color: var(--encre-douce); }
+.etape b { color: var(--encre); font-weight: 500; }
+@media (max-width: 560px) { .etape { grid-template-columns: 1fr; gap: 4px; } }
+@media (prefers-reduced-motion: no-preference) { .tel, .trone, .resultat { transition: opacity .2s; } }
+</style>
+<style>
+/* Ajouts propres à cette maquette : les cartes « à valider » du téléphone et le journal de l'ordinateur. */
+.trio { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr) minmax(0, 1fr); gap: 14px; align-items: start; }
+@media (max-width: 860px) { .trio { grid-template-columns: 1fr; } }
+.pc { background: var(--papier); border: 1px solid var(--trait); border-radius: 4px; min-height: 470px; display: grid; align-content: start; }
+.pc .barre { background: #2a2e3f; color: #e9e4da; padding: 8px 12px; font-size: 11px; letter-spacing: .12em; text-transform: uppercase; border-radius: 4px 4px 0 0; display: flex; justify-content: space-between; gap: 8px; }
+.pc .corps { padding: 12px; display: grid; gap: 8px; font-size: 12.5px; color: var(--encre-douce); }
+.pc .log { display: grid; grid-template-columns: 52px minmax(0, 1fr); gap: 8px; }
+.pc .log i { font-style: normal; color: var(--cuivre); font-variant-numeric: tabular-nums; }
+.pc .rien { border: 1px dashed var(--trait); border-radius: 4px; padding: 8px 10px; color: var(--vieux); font-size: 12px; }
+.notif { background: rgba(255,255,255,.1); border-left: 2px solid var(--cuivre); border-radius: 8px; padding: 8px 10px; font-size: 12.5px; }
+.notif small { display: block; color: var(--ecran-doux); font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase; margin-bottom: 2px; }
+.carte-v { background: var(--papier); color: var(--encre); border-radius: 10px; padding: 10px 12px; display: grid; gap: 6px; font-size: 13px; }
+.carte-v .genre { font-size: 10.5px; letter-spacing: .14em; text-transform: uppercase; color: var(--cuivre); }
+.carte-v .qui { font-family: var(--display); font-size: 18px; }
+.carte-v .msg { border-left: 2px solid var(--trait); padding-left: 8px; color: var(--encre-douce); font-size: 12.5px; }
+.carte-v .prop { background: color-mix(in srgb, var(--vert) 12%, var(--papier)); border-radius: 6px; padding: 6px 8px; }
+.carte-v .boutons { display: flex; flex-wrap: wrap; gap: 5px; }
+.carte-v .boutons span { border: 1px solid var(--trait); border-radius: 99px; padding: 2px 10px; font-size: 11.5px; }
+.carte-v .boutons span.oui { background: var(--cuivre); border-color: var(--cuivre); color: #fff; }
+.carte-v.faite { opacity: .55; }
+.carte-v .fait { color: var(--vert); font-size: 12px; }
+.ecran-tel { background: var(--fond); border-radius: 12px; padding: 8px; display: grid; gap: 8px; }
+.ecran-tel .titre-ecran { font-size: 10.5px; letter-spacing: .14em; text-transform: uppercase; color: var(--encre-douce); display: flex; justify-content: space-between; }
+.deux-porteurs { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; }
+</style>
+
+<div class="page">
+
+  <header class="entete">
+    <p class="sur">Maquette v0 · 1er novembre 2026 · à valider</p>
+    <h1>Je suis loin : tout arrive au Trône.</h1>
+    <p class="citation">« Les messages ne peuvent pas venir ici. Ils doivent pouvoir venir quelque part, comme le Trône, où je reçois ça pour validation. Mon ordinateur est toujours allumé et il continue de travailler derrière moi sans avoir besoin de ma permission. »</p>
+    <p class="chapo">Opale, puis Onyx chez Brice, ne posent plus aucune question sur l'ordinateur. Chaque réponse, chaque rendez-vous, chaque dépense devient une carte au Trône, sur ton téléphone. Tu touches, et l'ordinateur exécute à son tour suivant, dans les dix minutes.</p>
+    <p class="bandeau">Première version, publiée tôt. Ce que tu corriges se refait à la même adresse.</p>
+  </header>
+
+  <section class="section">
+    <p class="etiquette">Ce qui bloque aujourd'hui</p>
+    <div class="constat">
+      <p><b>Une question posée sur l'ordinateur arrête Opale.</b> Quand elle te demande « Envoyer, Modifier, Ne pas répondre » à l'écran, toute sa veille attend ta réponse. Si tu n'es pas là, plus rien ne bouge, même ce que tu as déjà tranché au Trône.</p>
+      <p><b>Le Trône ne reçoit qu'un résumé sans nom.</b> C'était la règle du 31 octobre 2026 pour protéger tes messages privés. Loin de l'ordinateur, un résumé sans nom ne suffit pas pour décider.</p>
+      <p><b>Ton téléphone ne sonne pas à chaque carte.</b> Le Trône sait envoyer la notification, mais Opale ne la déclenche pas encore à chaque fois.</p>
+      <p><b>Une fenêtre de permission peut aussi l'arrêter.</b> L'ordinateur doit pouvoir faire seul les gestes d'Opale, et seulement ceux-là.</p>
+    </div>
+  </section>
+
+  <section class="section" aria-labelledby="t-scene">
+    <p class="sur">Une journée d'exemple</p>
+    <h2 id="t-scene">Ton téléphone, l'ordinateur, et WhatsApp.</h2>
+    <div class="scene">
+      <div class="pas-barre">
+        <span class="heure num" id="s-heure"></span>
+        <span class="titre" id="s-titre"></span>
+        <span class="points" id="s-points" aria-hidden="true"></span>
+        <span class="commandes">
+          <button class="cmd" id="s-avant" type="button">Précédent</button>
+          <button class="cmd plein" id="s-apres" type="button">Suivant</button>
+        </span>
+      </div>
+      <div class="trio">
+        <div class="tel" id="s-wa" aria-live="polite"></div>
+        <div class="tel" id="s-trone" aria-live="polite"></div>
+        <div class="pc" id="s-pc" aria-live="polite"></div>
+      </div>
+      <p class="legende" id="s-legende"></p>
+    </div>
+  </section>
+
+  <section class="section">
+    <p class="etiquette">Les cartes que tu reçois</p>
+    <div class="deux">
+      <div class="carte">
+        <h3>Une réponse</h3>
+        <p>Le nom du contact, son message, la réponse proposée dans ta voix. <b>Envoyer · Modifier · Ne pas répondre.</b></p>
+      </div>
+      <div class="carte">
+        <h3>Un rendez-vous</h3>
+        <p>La fiche, la prestation, la place libre trouvée, et la réponse qui l'annonce. <b>Poser et répondre · Autre heure · Non.</b> La confirmation part ensuite de la Maison.</p>
+      </div>
+      <div class="carte">
+        <h3>Une dépense</h3>
+        <p>Le montant, l'objet, la catégorie, la caisse, qui a payé, le reçu. <b>Valider · Corriger · Ce n'est pas une dépense.</b></p>
+      </div>
+      <div class="carte">
+        <h3>Un contact nouveau</h3>
+        <p>Son nom tel qu'il est enregistré, son premier message. <b>Cliente · Proche · Famille · Fournisseur · Inconnu.</b> Opale le retient ensuite.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <p class="etiquette">Pour toi et pour Brice</p>
+    <div class="deux-porteurs">
+      <div class="carte">
+        <h3>Opale, chez toi</h3>
+        <p>Tes cartes arrivent dans ton Trône, sur ton téléphone. <b>Brice ne les voit pas.</b></p>
+      </div>
+      <div class="carte">
+        <h3>Onyx, chez Brice</h3>
+        <p>Le même mode, par la même charte. Ses cartes arrivent dans son Trône, et <b>tu ne vois pas les siennes.</b> Onyx attend encore que Brice fasse les dix étapes de son Mac ; le mode y sera actif dès son premier réveil.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <p class="etiquette">L'ordinateur travaille seul</p>
+    <ul class="net">
+      <li><b>Il ne demande plus rien à l'écran.</b> Son tour de dix minutes va jusqu'au bout, chaque fois.</li>
+      <li><b>Ses gestes sont permis d'avance, et seulement eux</b> : lire et écrire dans WhatsApp Web, et parler au Trône par sa ligne de commande. Aucune fenêtre de permission ne l'arrête ; tout autre geste reste interdit.</li>
+      <li><b>S'il est empêché</b>, parce que WhatsApp Web s'est délié ou que Chrome est fermé, le Trône te le dit sur ton téléphone, comme aujourd'hui.</li>
+    </ul>
+  </section>
+
+  <section class="section">
+    <p class="etiquette">Ce que le mode ne fait pas</p>
+    <ul class="net">
+      <li>Rien ne part sans ton toucher, sauf le pouce posé sur un simple « Ok », déjà permis.</li>
+      <li>Une carte que tu ne tranches pas attend : Opale ne répond jamais à ta place par défaut.</li>
+      <li>Aucune notification entre 22 h et 7 h : les cartes de la nuit t'attendent le matin.</li>
+      <li>La notification ne porte jamais un nom ni un extrait : on la voit sur un écran verrouillé.</li>
+      <li>Le texte d'un message quitte le Trône dès ta décision, et au plus tard après sept jours.</li>
+      <li>Les vocaux ne s'écoutent pas : la carte dit « vocal reçu », tu l'écoutes sur ton téléphone.</li>
+    </ul>
+  </section>
+
+  <section class="section">
+    <p class="etiquette">Quatre choix à trancher</p>
+    <div class="arbitrages">
+      <div class="arbitrage">
+        <h3>1. Quand les cartes vont au Trône</h3>
+        <p class="q">Tu as dit « je suis loin ». Faut-il un interrupteur, ou le Trône tout le temps ?</p>
+        <div class="options">
+          <div class="option propose"><i>→</i><span><b>Proposé : toujours au Trône, même quand tu es devant l'ordinateur.</b> Un seul endroit pour décider, sur le téléphone comme sur l'ordinateur, et Opale ne s'arrête jamais.</span></div>
+          <div class="option"><i>·</i><span>Un bouton « Je suis loin, Je suis là » dans le Trône, que tu touches en partant.</span></div>
+          <div class="option"><i>·</i><span>Automatique : si l'ordinateur reste sans réponse quinze minutes, tout passe au Trône.</span></div>
+        </div>
+      </div>
+      <div class="arbitrage">
+        <h3>2. Ce que la carte montre d'un message</h3>
+        <p class="q">Pour décider loin de l'ordinateur, il faut savoir qui écrit et ce qu'il dit.</p>
+        <div class="options">
+          <div class="option propose"><i>→</i><span><b>Proposé : le nom du contact et son message, pour toi seule</b>, effacés du Trône dès ta décision, et au plus tard après sept jours.</span></div>
+          <div class="option"><i>·</i><span>Le nom et un résumé d'une ligne, sans citer le message.</span></div>
+          <div class="option"><i>·</i><span>Un résumé sans nom, comme aujourd'hui.</span></div>
+        </div>
+      </div>
+      <div class="arbitrage">
+        <h3>3. Les proches et la famille</h3>
+        <p class="q">Le 31 octobre 2026, tu as choisi : jamais de trace au Trône pour eux. Loin de l'ordinateur, ils resteraient sans réponse.</p>
+        <div class="options">
+          <div class="option propose"><i>→</i><span><b>Proposé : au Trône aussi, pour toi seule, une réponse seulement.</b> Jamais de rendez-vous ni de relais pour eux, et le texte s'efface comme le reste.</span></div>
+          <div class="option"><i>·</i><span>Jamais au Trône : leurs messages attendent ton retour à l'ordinateur.</span></div>
+        </div>
+      </div>
+      <div class="arbitrage">
+        <h3>4. Une dépense que tu valides sur la carte</h3>
+        <p class="q">Aujourd'hui, une dépense d'Opale entre « à valider », puis se valide dans Dépenses.</p>
+        <div class="options">
+          <div class="option propose"><i>→</i><span><b>Proposé : un toucher suffit.</b> « Valider » sur la carte l'écrit déjà validée, à ton nom. Brice valide de même les cartes d'Onyx.</span></div>
+          <div class="option"><i>·</i><span>Elle entre encore « à valider », et se valide ensuite dans Dépenses.</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <p class="etiquette">Après ton « construis »</p>
+    <div class="etapes">
+      <div class="etape"><span class="quand">Étape 1</span><p><b>La carte au Trône.</b> Les genres rendez-vous et dépense, le message réservé au porteur et son effacement, une notification par tour avec le nombre de cartes, et l'écran « À valider » pensé pour le téléphone, ouvert par la notification.</p></div>
+      <div class="etape"><span class="quand">Étape 2</span><p><b>Opale sans question.</b> La charte et ses consignes : plus aucun sélecteur sur l'ordinateur, tout en cartes ; ses gestes permis d'avance dans son dossier. Le même texte part chez Onyx.</p></div>
+      <div class="etape"><span class="quand">Ensuite</span><p><b>Un premier essai réel</b> : tu sors, un message arrive, ta carte sonne, tu touches, et tu vérifies que la réponse est partie de ton WhatsApp.</p></div>
+    </div>
+  </section>
+
+</div>
+
+<script>
+(function () {
+  var PAS = [
+    { h: '14 h 02', t: 'A. K., une cliente, t\'écrit sur WhatsApp. Tu es sortie.',
+      wa: [{ c: 'eux', t: 'Bonsoir, vous avez une place samedi matin pour un retwist ?', s: '14 h 02' }],
+      trone: { notif: null, cartes: [] },
+      pc: [['14 h 00', 'Tour : rien de nouveau.']],
+      leg: 'Le message est arrivé sur ton téléphone et sur ton WhatsApp Web. Opale le verra à son tour suivant.' },
+    { h: '14 h 10', t: 'Opale lit le message et dépose une carte au Trône.',
+      wa: [{ c: 'eux', t: 'Bonsoir, vous avez une place samedi matin pour un retwist ?', s: '14 h 02' }],
+      trone: { notif: 'Opale · 1 carte à valider', cartes: ['rdv'] },
+      pc: [['14 h 00', 'Tour : rien de nouveau.'], ['14 h 10', 'Tour : 1 message de A. K. Fiche trouvée, samedi 10 h libre. Carte déposée au Trône, notification envoyée.']],
+      leg: 'L\'ordinateur ne t\'a rien demandé à l\'écran : son tour est allé jusqu\'au bout. Ton téléphone sonne, sans nom ni extrait.' },
+    { h: '14 h 25', t: 'Sur ton téléphone, tu touches « Poser et répondre ».',
+      wa: [{ c: 'eux', t: 'Bonsoir, vous avez une place samedi matin pour un retwist ?', s: '14 h 02' }],
+      trone: { notif: null, cartes: ['rdv-oui'] },
+      pc: [['14 h 10', 'Tour : 1 message de A. K. Carte déposée au Trône.'], ['14 h 20', 'Tour : rien de nouveau, la carte attend.']],
+      leg: 'Ta décision est au Trône. L\'ordinateur l\'exécutera à son prochain tour.' },
+    { h: '14 h 30', t: 'Opale pose le rendez-vous et répond depuis ton WhatsApp.',
+      wa: [{ c: 'eux', t: 'Bonsoir, vous avez une place samedi matin pour un retwist ?', s: '14 h 02' }, { c: 'nous', t: 'Oui samedi 10h c\'est bon pour toi', s: '14 h 30' }],
+      trone: { notif: null, cartes: ['rdv-fait'] },
+      pc: [['14 h 20', 'Tour : la carte attend.'], ['14 h 30', 'Tour : ta décision lue. Rendez-vous posé au Trône, réponse envoyée depuis WhatsApp Web, carte close.']],
+      leg: 'La confirmation officielle part ensuite de la Maison, avec le modèle habituel. La carte se ferme, le message s\'efface du Trône.' },
+    { h: '15 h 40', t: 'S., de l\'équipe, annonce une dépense.',
+      wa: [{ c: 'eux', t: 'J\'ai payé le gaz 6 000, reçu en photo', s: '15 h 38' }],
+      trone: { notif: 'Opale · 1 carte à valider', cartes: ['rdv-fait', 'depense'] },
+      pc: [['15 h 40', 'Tour : 1 message de S. Dépense lue, catégorie Local, Caisse Principale. Carte déposée au Trône.']],
+      leg: 'Un toucher sur « Valider » l\'écrit validée à ton nom, reçu joint, et elle sort de la Caisse Principale.' },
+    { h: '18 h 05', t: 'Ta cousine t\'écrit.',
+      wa: [{ c: 'eux', t: 'Tu passes ce soir ?', s: '18 h 03' }],
+      trone: { notif: 'Opale · 1 carte à valider', cartes: ['rdv-fait', 'depense-fait', 'proche'] },
+      pc: [['18 h 10', 'Tour : 1 message d\'une proche. Réponse proposée dans ta voix, carte déposée pour toi seule.']],
+      leg: 'Pour une proche, une réponse seulement : jamais de rendez-vous, de relais ni de journal. Le texte quitte le Trône dès ta décision.' },
+    { h: '22 h 30', t: 'Un message arrive tard.',
+      wa: [{ c: 'eux', t: 'Bonsoir, je peux venir mardi ?', s: '22 h 28' }],
+      trone: { notif: null, cartes: ['rdv-fait', 'depense-fait', 'proche-fait', 'nuit'] },
+      pc: [['22 h 30', 'Hors des heures de veille : passage seulement. La carte de demain matin est prête, aucune notification avant 7 h.']],
+      leg: 'Ton téléphone ne sonne pas la nuit. La carte t\'attend au réveil.' }
+  ];
+  var CARTES = {
+    'rdv': { g: 'Rendez-vous', q: 'A. K. · cliente', m: 'Bonsoir, vous avez une place samedi matin pour un retwist ?', p: 'Retwist samedi 7 novembre 2026 à 10 h, place libre. Réponse : « Oui samedi 10h c\'est bon pour toi »', b: ['Poser et répondre', 'Autre heure', 'Modifier la réponse', 'Non'], o: -1 },
+    'rdv-oui': { g: 'Rendez-vous', q: 'A. K. · cliente', m: 'Bonsoir, vous avez une place samedi matin pour un retwist ?', p: 'Retwist samedi 7 novembre 2026 à 10 h. Réponse : « Oui samedi 10h c\'est bon pour toi »', b: ['Poser et répondre', 'Autre heure', 'Modifier la réponse', 'Non'], o: 0, fait: 'Décidé à 14 h 25 : Opale l\'exécute à son prochain tour.' },
+    'rdv-fait': { g: 'Rendez-vous', q: 'A. K. · cliente', p: 'Retwist samedi 7 novembre 2026 à 10 h', b: [], faite: true, fait: 'Posé et répondu à 14 h 30.' },
+    'depense': { g: 'Dépense', q: 'S. · équipe', m: 'J\'ai payé le gaz 6 000, reçu en photo', p: '6 000 F · Gaz · Local · Caisse Principale · portée par S. · reçu joint', b: ['Valider', 'Corriger', 'Ce n\'est pas une dépense'], o: -1 },
+    'depense-fait': { g: 'Dépense', q: 'S. · équipe', p: '6 000 F · Gaz · Local', b: [], faite: true, fait: 'Validée à ton nom à 15 h 52.' },
+    'proche': { g: 'Réponse · pour toi seule', q: 'Ta cousine · proche', m: 'Tu passes ce soir ?', p: 'Réponse : « Pas ce soir, demain stp »', b: ['Envoyer', 'Modifier', 'Ne pas répondre'], o: -1 },
+    'proche-fait': { g: 'Réponse', q: 'Ta cousine · proche', p: 'Répondu à 18 h 20.', b: [], faite: true },
+    'nuit': { g: 'Rendez-vous · demain matin', q: 'M. D. · cliente', m: 'Bonsoir, je peux venir mardi ?', p: 'Mardi 3 novembre 2026 : 9 h, 11 h ou 14 h libres. Réponse proposée au choix de l\'heure.', b: ['9 h', '11 h', '14 h', 'Non'], o: -1 }
+  };
+  var i = 0;
+  var $ = function (id) { return document.getElementById(id); };
+  var esc = function (s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); };
+  function carte(k) {
+    var c = CARTES[k];
+    var h = '<div class="carte-v' + (c.faite ? ' faite' : '') + '"><span class="genre">' + esc(c.g) + '</span><span class="qui">' + esc(c.q) + '</span>';
+    if (c.m) h += '<span class="msg">' + esc(c.m) + '</span>';
+    h += '<span class="prop">' + esc(c.p) + '</span>';
+    if (c.b.length) h += '<span class="boutons">' + c.b.map(function (b, j) { return '<span class="' + (j === c.o ? 'oui' : '') + '">' + esc(b) + '</span>'; }).join('') + '</span>';
+    if (c.fait) h += '<span class="fait">' + esc(c.fait) + '</span>';
+    return h + '</div>';
+  }
+  function dessine() {
+    var p = PAS[i];
+    $('s-heure').textContent = p.h;
+    $('s-titre').textContent = p.t;
+    $('s-legende').textContent = p.leg;
+    $('s-points').innerHTML = PAS.map(function (_, j) { return '<i class="' + (j === i ? 'ici' : '') + '"></i>'; }).join('');
+    $('s-avant').disabled = i === 0;
+    $('s-apres').disabled = i === PAS.length - 1;
+    var w = '<div class="qui"><b>WhatsApp</b><small>ton téléphone</small></div>';
+    p.wa.forEach(function (b) { w += '<div class="bulle ' + b.c + '">' + esc(b.t) + '<small>' + esc(b.s) + '</small></div>'; });
+    $('s-wa').innerHTML = w;
+    var t = '<div class="qui"><b>Le Trône</b><small>ton téléphone</small></div>';
+    if (p.trone.notif) t += '<div class="notif"><small>Notification</small>' + esc(p.trone.notif) + '</div>';
+    var ouvertes = p.trone.cartes.filter(function (k) { return !CARTES[k].faite; }).length;
+    t += '<div class="ecran-tel"><div class="titre-ecran"><span>Opale · à valider</span><span>' + ouvertes + '</span></div>';
+    if (!p.trone.cartes.length) t += '<p class="vide" style="color:var(--vieux);font-size:12.5px;margin:0">Rien à valider.</p>';
+    p.trone.cartes.slice().reverse().forEach(function (k) { t += carte(k); });
+    t += '</div>';
+    $('s-trone').innerHTML = t;
+    var c = '<div class="barre"><span>Opale · l\'ordinateur</span><span>allumé</span></div><div class="corps">';
+    p.pc.forEach(function (l) { c += '<div class="log"><i>' + esc(l[0]) + '</i><span>' + esc(l[1]) + '</span></div>'; });
+    c += '<div class="rien">Aucune question à l\'écran. Aucune fenêtre de permission.</div></div>';
+    $('s-pc').innerHTML = c;
+  }
+  $('s-avant').addEventListener('click', function () { if (i > 0) { i--; dessine(); } });
+  $('s-apres').addEventListener('click', function () { if (i < PAS.length - 1) { i++; dessine(); } });
+  dessine();
+})();
+</script>
+
+</body>
+</html>
