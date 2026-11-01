@@ -42,6 +42,7 @@ import { RattraperUnCahier } from './RattraperUnCahier';
 import { useSaitIaMaison } from '../../../../shared/ia-maison';
 import { peutDemander } from '../../../../shared/ia-maison-pur';
 import { useEnvoiDeLaPiece } from '../vente/envoi-de-la-piece';
+import { ditLaPiecePartie, pieceDejaPartie } from '../../../../shared/une-piece-un-message-pur';
 import { BoutonDuPoint, FenetreDuPoint } from '../vente/FenetreDuPoint';
 import { rituelDeLaRepriseEffacee } from '../../../../shared/reprise-nue';
 import { cheminDeLaConversation } from '../../../../shared/conversations';
@@ -844,9 +845,21 @@ export default function Carnet() {
                 })()}
                 {/* LE CHEMIN INVERSE — 13 septembre 2026. L'annulation
                     d'encaissement y renvoyait depuis août, et il n'existait pas. */}
-                {a.status === 'honoré' && apptDueXof(a, byId) > 0 && (
-                  <button onClick={() => renvoieLaFacture(a)}>Envoyer la facture sur son WhatsApp</button>
-                )}
+                {a.status === 'honoré' && apptDueXof(a, byId) > 0 && (() => {
+                  /* UNE PIÈCE, UN SEUL WHATSAPP — 1er novembre 2026 : la pièce 0166
+                     est partie deux fois, à 14 h 37 puis à 22 h 08 depuis un autre
+                     poste. Quand le papier est déjà parti, le bouton le dit et
+                     s'appelle « Renvoyer » : le geste reste exprès, mais plus
+                     personne ne croit envoyer pour la première fois. La pièce se
+                     choisit comme `factureAEnvoyer` : celle du rituel, pas payée. */
+                  const piece = pieces.find((p) => p.apptId === a.id && p.kind === 'facture' && p.status !== 'payée');
+                  const partie = !!piece && pieceDejaPartie(piece);
+                  return (
+                    <button onClick={() => renvoieLaFacture(a)}>
+                      {partie && piece ? `Renvoyer la facture · déjà ${ditLaPiecePartie(piece)}` : 'Envoyer la facture sur son WhatsApp'}
+                    </button>
+                  );
+                })()}
                 {/* LA FACTURE DU FOYER — 27 octobre 2026 : les rendez-vous du même
                     compte ou du même numéro, ce jour-là, en une facture et un
                     message, avec le total. Chaque tête garde sa facture. */}

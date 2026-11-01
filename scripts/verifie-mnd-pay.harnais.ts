@@ -563,7 +563,7 @@ dit('l envoi transporte le paramètre du bouton jusqu à la fonction', true, /\.
   const FENETRE: ResultatDEnvoi = { ok: false, erreur: 'La fenêtre de 24 heures est fermée. WhatsApp n’accepte plus qu’un modèle approuvé.' };
   const joue = async (reponses: ResultatDEnvoi[], avecTapGo = true) => {
     const appels: EnvoiWhatsApp[] = [];
-    const r = await envoieLaFactureARegler({ client: cliente, pdf, resteDit: '10 000 F', jourIso: '2026-10-17', cle: 'inv-9',
+    const r = await envoieLaFactureARegler({ client: cliente, pdf, resteDit: '10 000 F', jourIso: '2026-10-17', cle: 'piece-inv-9',
       tapgo: avecTapGo ? tapgo : undefined, envoie: async (e) => { appels.push(e); return reponses.shift() ?? { ok: true, id: 'x' }; } });
     return { r, appels };
   };
@@ -595,7 +595,9 @@ dit('l envoi transporte le paramètre du bouton jusqu à la fonction', true, /\.
   dit('Tap & Go éteint, hors fenêtre : un seul essai, refus dit avec sa raison', [false, 1, true],
     [E.r.ok, E.appels.length, !E.r.ok && /Tap & Go/.test(E.r.erreur)]);
 
-  dit('une clé d unicité par pièce et par étape (deux postes n envoient pas deux fois)', ['facture-inv-9-mot', 'facture-inv-9-modele', 'facture-inv-9-lien'],
+  /* 1er novembre 2026 : UNE clé entière pour toute la chaîne, sans suffixe d étape (la pièce 0166 était
+     partie deux fois). Le mot, le modèle et le lien la partagent : une étape refusée par Meta la rend. */
+  dit('une seule clé d unicité, entière, partagée par le mot, le modèle et le lien', ['piece-inv-9', 'piece-inv-9', 'piece-inv-9'],
     C.appels.map((x) => x.cleUnique));
 
   const sans = await envoieLaFactureARegler({ client: { ...cliente, phone: '' }, pdf, resteDit: '1 F', jourIso: '2026-10-17', envoie: async () => ({ ok: true, id: 'x' }) });

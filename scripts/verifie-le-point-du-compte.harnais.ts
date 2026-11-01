@@ -134,9 +134,10 @@ const essai = async (reponses: ({ ok: true } | { ok: false; erreur: string })[],
   const sansNumero = await essai([{ ok: true }], { sansNumero: true });
   const sansTapGo = await essai([{ ok: false, erreur: 'la fenêtre de 24 heures est fermée' }], { sansTapGo: true });
   dit(9, 'l envoi : dans la fenetre, un seul message avec le PDF et le mot ; hors fenetre, le modele point_du_compte (PDF en tete, 4 variables, le bouton) ; refuse, le lien seul ; sans numero ni Tap & Go, rien ne part',
-    [[1, true, true, 'point-2026-10-28-2290190000001-mot'],
-      [2, 'point_du_compte', 'document', true, 4, 'r-abc', 'point-2026-10-28-2290190000001-modele'],
-      [3, 'paiement_en_attente', 'lien', 'point-2026-10-28-2290190000001-lien'],
+    /* 1er novembre 2026 : la clé est entière, sans suffixe d etape ; le mot, le modele et le lien la partagent. */
+    [[1, true, true, 'point-2026-10-28-2290190000001'],
+      [2, 'point_du_compte', 'document', true, 4, 'r-abc', 'point-2026-10-28-2290190000001'],
+      [3, 'paiement_en_attente', 'lien', 'point-2026-10-28-2290190000001'],
       [0, false], [1, false]],
     [[dansLaFenetre.appels.length, !!dansLaFenetre.appels[0]?.piece, /point du compte\n/.test(dansLaFenetre.appels[0]?.texte ?? ''), dansLaFenetre.appels[0]?.cleUnique],
       [horsFenetre.appels.length, horsFenetre.appels[1]?.modele, horsFenetre.appels[1]?.enTete, !!horsFenetre.appels[1]?.piece, horsFenetre.appels[1]?.variables?.length, horsFenetre.appels[1]?.boutonUrl, horsFenetre.appels[1]?.cleUnique],

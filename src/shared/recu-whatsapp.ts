@@ -56,7 +56,11 @@ export async function envoieLeRecu(o: {
   montant: string;
   jourIso: string;
   parQui?: string;
-  /** Une clé d'unicité : deux postes n'envoient qu'un reçu (règlement en ligne, 25 octobre 2026). */
+  /** Une clé d'unicité : deux postes n'envoient qu'un reçu (règlement en ligne,
+      25 octobre 2026). ENTIÈRE, sans suffixe d'étape (1er novembre 2026,
+      une-piece-un-message-pur.ts) : le mot et le modèle la partagent. La
+      fenêtre fermée se juge au serveur AVANT la réservation, et une étape
+      refusée par Meta rend la clé (« non-remis ») : la suivante la reprend. */
   cleUnique?: string;
 }): Promise<ResultatDEnvoi> {
   const tel = (o.client.phone ?? '').trim();
@@ -64,11 +68,11 @@ export async function envoieLeRecu(o: {
   const { invoiceEnPiece } = await import('./pdf');
   const piece = await invoiceEnPiece(o.pdf);
   const base = { numero: tel, piece, clientId: o.client.id, branchId: o.client.branchId, parQui: o.parQui };
-  const cle = (etape: string) => (o.cleUnique ? { cleUnique: `${o.cleUnique}-${etape}` } : {});
-  let r = await envoieSurWhatsApp({ ...base, texte: motDuRecu(o.client, o.montant, o.jourIso), ...cle('mot') });
+  const cle = o.cleUnique ? { cleUnique: o.cleUnique } : {};
+  let r = await envoieSurWhatsApp({ ...base, texte: motDuRecu(o.client, o.montant, o.jourIso), ...cle });
   if (!r.ok && /fenêtre/i.test(r.erreur)) {
     r = await envoieSurWhatsApp({
-      ...base, modele: MODELE_RECU, variables: variablesDuRecu(o.client, o.montant, o.jourIso), enTete: 'document', ...cle('modele'),
+      ...base, modele: MODELE_RECU, variables: variablesDuRecu(o.client, o.montant, o.jourIso), enTete: 'document', ...cle,
     });
   }
   return r;

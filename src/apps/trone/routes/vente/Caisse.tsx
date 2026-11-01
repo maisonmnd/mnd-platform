@@ -59,7 +59,9 @@ import {
   type DemandeMndPay, type ReglementDuTicket,
 } from '../../../../shared/mnd-pay-pur';
 import { assureLesCaissesMndPay, mndPayOuvert } from '../../../../shared/mnd-pay';
-import { envoieLeRecu, recuAEnvoyer } from '../../../../shared/recu-whatsapp';
+import { envoieLeRecu, MODELE_RECU, recuAEnvoyer } from '../../../../shared/recu-whatsapp';
+import { CLE_DE_LA_PIECE, enRouteAilleurs } from '../../../../shared/une-piece-un-message-pur';
+import { noteLaPiecePartie } from '../../../../shared/une-piece-un-message';
 import { PanneauMndPay } from './MndPay';
 import { JournalMndPay } from './JournalMndPay';
 
@@ -1137,10 +1139,21 @@ export default function Caisse() {
     }
     if (envoyerRecu && client?.phone && pay !== 'Lien WhatsApp' && recuPermis) {
       const montantDit = fmtMoney(argentDuJour.reduce((n, v) => n + v.amountXof, 0) || netXof, currency);
+      /* UNE PIÈCE, UN SEUL WHATSAPP (1er novembre 2026) : la clé de la pièce au
+         serveur, et la marque sur la pièce dès que le reçu a répondu, pour
+         qu'aucun autre geste ne renvoie ce papier (une-piece-un-message-pur.ts).
+         Pas de marque sur un « deja » sans waId : l'autre poste attend Meta. */
       void envoieLeRecu({
         client: { ...client, branchId: client.branchId }, pdf: receipt, montant: montantDit, jourIso: dateVente,
-        parQui: session?.user?.email ?? undefined,
-      }).then((r) => setRecuHint(r.ok ? (r.enAttente ? 'Reçu gardé : il partira sur son WhatsApp au retour du réseau.' : 'Reçu envoyé sur son WhatsApp.') : `Reçu non envoyé : ${r.erreur}`));
+        parQui: session?.user?.email ?? undefined, cleUnique: CLE_DE_LA_PIECE(inv.id),
+      }).then((r) => {
+        if (r.ok && !r.enAttente && !enRouteAilleurs(r)) noteLaPiecePartie(inv.id, { partieLe: r.quand ?? new Date().toISOString(), modele: MODELE_RECU, ...(r.deja ? { dAilleurs: true as const } : { parQui: session?.user?.email ?? undefined }) });
+        setRecuHint(r.ok
+          ? (r.enAttente ? 'Reçu gardé : il partira sur son WhatsApp au retour du réseau.'
+            : enRouteAilleurs(r) ? 'Un autre poste envoie ce reçu en ce moment : rien de plus n’est envoyé.'
+              : r.deja ? 'Reçu déjà parti sur son WhatsApp depuis un autre poste.' : 'Reçu envoyé sur son WhatsApp.')
+          : `Reçu non envoyé : ${r.erreur}`);
+      });
     }
     /* L'ÉCRAN DE RÉUSSITE (arbitrage 4) : ce qui est entré, par quel moyen,
        dans quelle caisse ; puis le ticket suivant ou son prochain rendez-vous. */

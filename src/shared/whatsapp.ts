@@ -48,8 +48,12 @@ export type EnvoiWhatsApp = {
 
 export type ResultatDEnvoi =
   /* `enAttente` (4 octobre 2026) : hors ligne, le message est gardé et partira
-     au retour du réseau ; il n'a pas encore d'identifiant. */
-  | { ok: true; id: string; waId?: string; quand?: string; enAttente?: true }
+     au retour du réseau ; il n'a pas encore d'identifiant.
+     `deja` (1er novembre 2026) : la clé d'unicité était déjà prise, le
+     serveur n'a rien envoyé et rend l'identifiant et l'instant du premier
+     envoi. C'est un `ok` : le message est bien chez elle, parti d'ailleurs ;
+     l'appelant qui marque une pièce « partie » le note `dAilleurs`. */
+  | { ok: true; id: string; waId?: string; quand?: string; enAttente?: true; deja?: true }
   | { ok: false; erreur: string };
 
 /* `motifDuRefus` vit dans `appels-en-attente` depuis le 29 octobre 2026 : le
@@ -82,11 +86,11 @@ export async function envoieSurWhatsApp(e: EnvoiWhatsApp): Promise<ResultatDEnvo
   /* HORS LIGNE, LE MESSAGE ATTEND (4 octobre 2026, `appels-en-attente`) : il
      part de lui-même au retour du réseau. Seul un message certainement pas
      parti est gardé, jamais un message refusé. */
-  const issue = await appelleOuGarde<{ id?: string; waId?: string; quand?: string }>('whatsapp-envoi', corps, `WhatsApp au ${numero}`);
+  const issue = await appelleOuGarde<{ id?: string; waId?: string; quand?: string; deja?: boolean }>('whatsapp-envoi', corps, `WhatsApp au ${numero}`);
   if ('enAttente' in issue) return { ok: true, id: '', enAttente: true };
   if ('erreur' in issue) return { ok: false, erreur: await motifDuRefus(issue.erreur) };
   const d = issue.data ?? {};
-  return { ok: true, id: d.id ?? '', waId: d.waId, quand: d.quand };
+  return { ok: true, id: d.id ?? '', waId: d.waId, quand: d.quand, ...(d.deja ? { deja: true as const } : {}) };
 }
 
 /** UNE ADRESSE SIGNÉE POUR UNE PIÈCE REÇUE, valable une heure. La base

@@ -4,7 +4,8 @@ import { useBranch } from '../../../shared/branches';
 import { fmtMoney } from '../../../shared/currency';
 import { useClients } from '../../../shared/clients';
 import { invoicesStore, useInvoices } from '../../../shared/finance';
-import { envoieLeRecu } from '../../../shared/recu-whatsapp';
+import { envoieLeRecu, MODELE_RECU } from '../../../shared/recu-whatsapp';
+import { enRouteAilleurs, marqueLaPiecePartie } from '../../../shared/une-piece-un-message-pur';
 import { quandTablePrete, tablePrete } from '../../../shared/sync';
 import { PART_POURBOIRE_DEFAUT, repartirPourboire, tipsStore, type Tip } from '../../../shared/tips';
 import { toast } from '../../../ds/components';
@@ -90,10 +91,24 @@ export function useReglementsEnLigne(): void {
         }).then((r) => {
           /* Parti, ou déjà parti d'un autre poste (la clé d'unicité répond
              « déjà », donc ok) : on le marque. Un refus se retentera au
-             prochain chargement. */
+             prochain chargement.
+             ET LA PIÈCE PORTE SA MARQUE « PARTIE » (1er novembre 2026,
+             une-piece-un-message-pur.ts) : le comptoir ne renverra plus ce
+             papier après un règlement en ligne. La clé `recu-en-ligne-…`
+             reste la sienne : ce reçu répond à SON geste, pas à une retouche
+             du comptoir. Jamais de marque sur un envoi gardé hors ligne :
+             rien n'est encore parti. Ni sur un « deja » sans waId : l'autre
+             poste attend encore Meta, et si Meta refuse, rien ne sera parti. */
           if (r.ok) {
             const quand = new Date().toISOString();
-            invoicesStore.set((prev) => prev.map((p) => (p.id === piece.id ? marqueLeReglement(p, t.r.id, 'recuLe', quand) : p)));
+            const partie = r.enAttente || enRouteAilleurs(r) ? null : {
+              partieLe: r.quand ?? quand, modele: MODELE_RECU, parQui: 'la Maison, automatiquement', ...(r.deja ? { dAilleurs: true as const } : {}),
+            };
+            invoicesStore.set((prev) => prev.map((p) => {
+              if (p.id !== piece.id) return p;
+              const q = marqueLeReglement(p, t.r.id, 'recuLe', quand);
+              return partie ? marqueLaPiecePartie(q, partie) : q;
+            }));
           } else {
             console.warn('[réglé en direct] reçu :', r.erreur);
           }

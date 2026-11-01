@@ -37,6 +37,7 @@ import { ChampDeDate } from '../../../../ds/dates';
 import { VieDeLaFacture, useEstDirection } from '../_vie';
 import { cheminDeLaConversation, lienWaMe } from '../../../../shared/conversations';
 import { adresseDuLien, noteLEnvoiDuFoyer, poseLeLienDeReglement, poseLeLienDuFoyer } from '../../../../shared/regler-la-seance';
+import { ditLaPiecePartie } from '../../../../shared/une-piece-un-message-pur';
 import { saitRegler, saitReglerLeFoyer, versionDuReglement } from '../../../../shared/regler-la-seance-serveur';
 import { appelDe } from '../../../../shared/civilite';
 import { aligneLeRituel, corrigeLeVersement, estLieALaPiece, sansTiroir, type CorrectionDeVersement } from '../../../../shared/caisse-du-versement';
@@ -61,6 +62,19 @@ function geoDestFromNote(note?: string): string | null {
 }
 
 type ThemeKey = Invoice['theme'];
+
+/* UNE PIÈCE, UN SEUL WHATSAPP — 1er novembre 2026. Le modèle Meta qui a porté
+   le papier, dit en clair sous la pastille de statut : « · facture », « · reçu ».
+   `modeleDit` d'envois.ts parle pour le fil des envois (« reçu de paiement ») ;
+   ici le mot se lit à côté du nom de la pièce, donc plus court. */
+const PAPIER_DIT: Record<string, string> = {
+  facture_du_rituel: 'facture',
+  recu_de_paiement: 'reçu',
+  paiement_en_attente: 'lien de paiement',
+  facture_du_foyer: 'facture du foyer',
+  point_du_compte: 'point du compte',
+};
+const papierDit = (modele: string): string => PAPIER_DIT[modele] ?? modele;
 
 const THEMES: Record<ThemeKey, { amb: string; verse: string; paths: string[] }> = {
   Rose: { amb: 'Parfum de rose', verse: 'Ce qui prend le temps d’éclore\nen garde le parfum plus longtemps.', paths: ['M24 11c7 0 12 5 12 11 0 6-5 10-10 10s-9-4-9-8 3-7 7-7 6 3 6 6-2 4-4 4', 'M24 32v22', 'M24 43c-5 0-9-3-10-8', 'M24 48c5 0 9-3 10-8'] },
@@ -1854,6 +1868,20 @@ export default function Factures() {
                 <div className="trv-doc__kind">{active.kind === 'devis' ? 'Devis' : 'Facture'} · {active.number}</div>
                 <span className={`trv-status ${statusClass(active.status)}`}>{active.status}</span>
               </div>
+              {/* UNE PIÈCE, UN SEUL WHATSAPP — 1er novembre 2026 : quand le papier
+                  est parti, la pièce le dit sous sa pastille, avec l'heure et le
+                  modèle. Lue sur `active` : le brouillon d'édition étale la pièce
+                  choisie et un brouillon neuf n'est jamais parti. */}
+              {(() => {
+                const wa = active.whatsapp;
+                if (!wa) return null;
+                const dit = ditLaPiecePartie(active);
+                return (
+                  <div style={{ fontFamily: 'var(--font-sans)', fontSize: 11, color: 'var(--ink-soft)', textAlign: 'right', marginTop: 4 }}>
+                    {dit.charAt(0).toUpperCase() + dit.slice(1)} · {papierDit(wa.modele)}
+                  </div>
+                );
+              })()}
 
               <div className="trv-doc__pour">Pour {prenomOf(active)},</div>
               <div className="trv-doc__verse">{theme.verse}</div>

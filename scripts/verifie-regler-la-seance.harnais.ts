@@ -146,8 +146,12 @@ const reg = /\/\^r-\(\[([a-z0-9]+)\]\{(\d+)\}\)\$\//.exec(payer);
 dit('payer.html mene r-<jeton> a regler.html, avec le meme alphabet et la meme longueur', [ALPHABET_DU_JETON, String(LONGUEUR_DU_JETON), true], [reg?.[1], reg?.[2], /location\.replace\('regler\.html\?r=' \+ rj\[1\]\)/.test(payer)]);
 dit('... et un lien Tap & Go d avant compose toujours', true, /if \(p\.has\('tg'\) && !rj\)/.test(payer) && /\^\(\\d\{3,8\}\)-\(\\d\{1,9\}\)\$/.test(payer));
 const envoi = sansCommentaires(lis('src/apps/trone/routes/vente/envoi-de-la-piece.ts'));
-dit('« Terminer la seance » : le lien seulement quand la fonction repond, le rituel du jour seulement',
-  [true, true, true], [/saitRegler\(await versionDuReglement\(\)\)/.test(envoi), /if \(!o\?\.memePasse && jourDuRituel !== aujourdhui\(\)\) return;\s*const p = await preparer/.test(envoi), /enLigne: !!lien/.test(envoi)]);
+/* 1er novembre 2026 (une piece, un seul WhatsApp) : entre la garde du jour et la preparation, la decision
+   d envoi tranche (une piece deja partie ne repart pas) ; la preparation (Tap & Go, PDF) vient apres. */
+dit('« Terminer la seance » : le lien seulement quand la fonction repond, le rituel du jour seulement, la decision avant de preparer',
+  [true, true, true], [/saitRegler\(await versionDuReglement\(\)\)/.test(envoi),
+    /if \(!o\?\.memePasse && jourDuRituel !== aujourdhui\(\)\) return;\s*const avant = laPiece\(pieceId\);\s*if \(!avant\) return;\s*const decision = decisionDEnvoi\(\{ piece: avant, geste: o\?\.renvoi \? 'renvoi' : 'auto'[^\n]*\n\s*if \(!decision\.envoie\) \{[^\n]*return; \}\s*const p = await preparer/.test(envoi),
+    /enLigne: !!lien/.test(envoi)]);
 /* UN RENDEZ-VOUS PASSÉ A DEUX GESTES — 26 octobre 2026 (sa décision) : « envoyer la facture » part
    exprès (memePasse), « Honorer sans prévenir » ne dit rien ; aucun autre bouton n'envoie pour un RDV passé. */
 for (const [fichier, nom] of [['src/apps/trone/routes/clients/actions.tsx', 'l encaissement'], ['src/apps/trone/routes/clients/Carnet.tsx', 'le Carnet']] as const) {
@@ -163,8 +167,15 @@ for (const [fichier, nom] of [['src/apps/trone/routes/clients/actions.tsx', 'l e
   dit(`${nom} : « Envoyer la facture sur son WhatsApp » sur un rituel honore qui doit encore, en renvoi`, [true, true],
     [/status === 'honoré' && apptDueXof\(\w+, byId\) > 0 && \(/.test(t), /envoiDeLaPiece\.aRegler\(r\.inv\.id, \w+\.date, \{ memePasse: true, renvoi: true \}\);/.test(t)]);
 }
-dit('le renvoi change de cle a chaque minute : une facture deja partie repart, un double toucher non', true,
-  /cle: o\?\.renvoi \? `\$\{p\.piece\.id\}-\$\{new Date\(\)\.toISOString\(\)\.slice\(0, 16\)\}` : p\.piece\.id,/.test(envoi));
+/* 1er novembre 2026 : la cle vit dans le contrat pur (CLE_DE_RENVOI, a la minute ; CLE_DE_LA_PIECE sinon),
+   et l envoi prend celle que la decision lui rend. La piece JAMAIS partie prend la cle de la piece AVANT
+   que le geste soit regarde : le bouton passe `renvoi` meme la premiere fois, et ce premier envoi doit
+   reserver `piece-<id>` au serveur (relecture du 1er novembre 2026). */
+const unePiece = sansCommentaires(lis('src/shared/une-piece-un-message-pur.ts'));
+dit('le renvoi change de cle a chaque minute : une facture deja partie repart, un double toucher non ; une piece vierge prend la cle de la piece, meme par le bouton', [true, true, true],
+  [/CLE_DE_RENVOI = \(pieceId: string, instantIso: string\): string =>\s*`piece-\$\{pieceId\}-renvoi-\$\{instantIso\.slice\(0, 16\)\}`;/.test(unePiece),
+    /if \(!pieceDejaPartie\(o\.piece\)\) return \{ envoie: true, cle: CLE_DE_LA_PIECE\(o\.piece\.id\) \};\s*if \(o\.geste === 'renvoi'\) return \{ envoie: true, cle: CLE_DE_RENVOI\(o\.piece\.id, o\.instant\) \};/.test(unePiece),
+    /cle: decision\.cle,/.test(envoi)]);
 dit('... et nul autre chemin n envoie la facture d un RDV passe', 4,
   ['src/apps/trone/routes/clients/actions.tsx', 'src/apps/trone/routes/clients/Carnet.tsx', 'src/apps/trone/routes/pilotage/Dashboard.tsx']
     .map((f) => (sansCommentaires(lis(f)).match(/memePasse: true/g) ?? []).length).reduce((a, b) => a + b, 0));

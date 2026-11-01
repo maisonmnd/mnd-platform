@@ -4,6 +4,7 @@ import { sameName } from './text';
 import { identiteCourante } from './journal';
 import type { TraceDuMoyen } from './trace-du-moyen-pur';
 import type { ReglementEnLigne } from './regler-la-seance-pur';
+import type { PiecePartie } from './une-piece-un-message-pur';
 
 /* Finances — factures/devis, dépenses, caisses. Montants stockés en XOF. */
 
@@ -208,6 +209,14 @@ export type Invoice = {
       que la fonction `regler-la-seance` pose avec son versement kkia-… ; le
       Trône y lit le pourboire de l'équipe, le reçu et l'annonce. */
   reglementsEnLigne?: ReglementEnLigne[];
+  /** LE PAPIER DE CETTE PIÈCE EST PARTI SUR SON WHATSAPP (1er novembre 2026) :
+      l'instant, le modèle, qui l'a envoyé ; `dAilleurs` quand un autre poste
+      l'avait déjà fait. La pièce 0166 est partie deux fois le même jour
+      parce que rien ne portait cette marque : une fois posée, aucun geste
+      du comptoir ne renvoie le papier, seul le bouton exprès « Renvoyer »
+      le peut (une-piece-un-message-pur.ts). Absent sur une pièce jamais
+      partie ; 0150 la pose sur celles parties avant elle. */
+  whatsapp?: PiecePartie;
   /** Part de la facture réglée par AVOIR (crédit prépayé du compte). C'est du
       revenu (compte dans invoiceTotal / le CA) mais PAS de l'argent physique :
       la Synthèse la route vers le poste « Avoir (crédit) », jamais une caisse. */

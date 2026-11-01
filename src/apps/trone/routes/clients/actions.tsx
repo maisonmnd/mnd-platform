@@ -49,6 +49,7 @@ import { PanneauMndPay } from '../vente/MndPay';
 import { CAISSE_MND_PAY, moyenDeLaPiece, type DemandeMndPay } from '../../../../shared/mnd-pay-pur';
 import { mndPayOuvert } from '../../../../shared/mnd-pay';
 import { useEnvoiDeLaPiece } from '../vente/envoi-de-la-piece';
+import { ditLaPiecePartie, pieceDejaPartie } from '../../../../shared/une-piece-un-message-pur';
 import { rdvsDuFoyerLeJour } from '../../../../shared/facture-du-foyer-pur';
 import { argentHorsDuCarnet, versementsAInscrireAuCarnet } from '../../../../shared/caisse-du-versement';
 import { ditCeQuiManque, familleDeTrace, traceAEcrire, traceSuffit, type TraceDuMoyen } from '../../../../shared/trace-du-moyen-pur';
@@ -3151,21 +3152,31 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour, init
           )}
           {/* RENVOYER LA FACTURE D'UN RITUEL HONORÉ QUI DOIT ENCORE — 26 octobre
               2026 (sa décision : « Oui, un bouton d'envoi »), même des jours après. */}
-          {appt.status === 'honoré' && apptDueXof(appt, byId) > 0 && (
-            <Button
-              variant="ghost"
-              onClick={() => {
-                const t = tarifsDuRituel(appt, {
-                  client, bands, sets, cats: categories, byId, tousServices: [...byId.values()], produits: produitsCatalogue,
-                });
-                const r = factureAEnvoyer(appt, byId, appt.branchId, t.prixPlein, t.gesteDe);
-                if (!r.ok) { toast(`Facture non émise : ${r.erreur}`); return; }
-                void envoiDeLaPiece.aRegler(r.inv.id, appt.date, { memePasse: true, renvoi: true });
-              }}
-            >
-              Envoyer la facture sur son WhatsApp
-            </Button>
-          )}
+          {appt.status === 'honoré' && apptDueXof(appt, byId) > 0 && (() => {
+            /* UNE PIÈCE, UN SEUL WHATSAPP — 1er novembre 2026 : la pièce 0166 est
+               partie deux fois, à 14 h 37 puis à 22 h 08 depuis un autre poste.
+               Quand le papier est déjà parti, le bouton le dit et s'appelle
+               « Renvoyer » : le geste reste exprès. La pièce se choisit comme
+               `factureAEnvoyer` : celle du rituel, pas payée. */
+            const piece = toutesLesPieces.find((i: Invoice) => i.apptId === appt.id && i.kind === 'facture' && i.status !== 'payée');
+            const partie = !!piece && pieceDejaPartie(piece);
+            return (
+              <Button
+                variant="ghost"
+                style={partie ? LIBELLE_LONG : undefined}
+                onClick={() => {
+                  const t = tarifsDuRituel(appt, {
+                    client, bands, sets, cats: categories, byId, tousServices: [...byId.values()], produits: produitsCatalogue,
+                  });
+                  const r = factureAEnvoyer(appt, byId, appt.branchId, t.prixPlein, t.gesteDe);
+                  if (!r.ok) { toast(`Facture non émise : ${r.erreur}`); return; }
+                  void envoiDeLaPiece.aRegler(r.inv.id, appt.date, { memePasse: true, renvoi: true });
+                }}
+              >
+                {partie && piece ? `Renvoyer la facture · déjà ${ditLaPiecePartie(piece)}` : 'Envoyer la facture sur son WhatsApp'}
+              </Button>
+            );
+          })()}
           {/* Le lien « Régler sa séance », suivi en direct (25 octobre 2026). */}
           <ReglementEnDirect appt={appt} />
         </EtapeEnc>

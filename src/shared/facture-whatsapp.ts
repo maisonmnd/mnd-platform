@@ -85,8 +85,14 @@ export async function envoieLaFactureARegler(o: {
   /** Le paramètre du bouton mène à la page « Régler sa séance » (r-<jeton>) :
       le mot le dit (25 octobre 2026). */
   enLigne?: boolean;
-  /** L'identifiant de la pièce : une clé d'unicité par étape, pour que deux
-      postes n'envoient pas deux fois la même facture. */
+  /** LA clé d'unicité de l'envoi, ENTIÈRE (`CLE_DE_LA_PIECE`, 1er novembre
+      2026, une-piece-un-message-pur.ts) : le mot, le modèle et le lien la
+      partagent, pour qu'un second poste n'envoie jamais le papier d'une
+      pièce déjà partie, à quelque étape que ce soit. La fenêtre fermée se
+      juge au serveur AVANT la réservation, et une étape refusée par Meta
+      rend la clé (« non-remis ») : la suivante la reprend. Jusqu'au
+      31 octobre 2026, c'était `facture-<id>-<étape>` : trois clés, et le
+      reçu du soir n'en avait aucune. */
   cle?: string;
   parQui?: string;
   /** L'envoi (le vrai par défaut ; le banc en passe un faux). */
@@ -98,21 +104,21 @@ export async function envoieLaFactureARegler(o: {
   const { invoiceEnPiece } = await import('./pdf');
   const piece = await invoiceEnPiece(o.pdf);
   const base = { numero: tel, clientId: o.client.id, branchId: o.client.branchId, parQui: o.parQui };
-  const cle = (etape: string) => (o.cle ? { cleUnique: `facture-${o.cle}-${etape}` } : {});
+  const cle = o.cle ? { cleUnique: o.cle } : {};
 
-  const r = await envoie({ ...base, piece, texte: motDeLaFacture(o.client, o.jourIso, o.resteDit, o.tapgo?.lien, o.enLigne), ...cle('mot') });
+  const r = await envoie({ ...base, piece, texte: motDeLaFacture(o.client, o.jourIso, o.resteDit, o.tapgo?.lien, o.enLigne), ...cle });
   if (r.ok || !/fenêtre/i.test(r.erreur)) return r;
   if (!o.tapgo) return { ok: false, erreur: 'la fenêtre de 24 heures est fermée et Tap & Go est éteint : le modèle de la facture a besoin de son bouton de paiement.' };
 
   const m = await envoie({
     ...base, piece, enTete: 'document', modele: MODELE_FACTURE,
-    variables: variablesDeLaFacture(o.client, o.jourIso, o.resteDit), boutonUrl: o.tapgo.parametre, ...cle('modele'),
+    variables: variablesDeLaFacture(o.client, o.jourIso, o.resteDit), boutonUrl: o.tapgo.parametre, ...cle,
   });
   if (m.ok || !refusDuModele(m.erreur)) return m;
 
   /* Le modèle neuf n'est pas (encore) approuvé : le lien de paiement, sans le PDF. */
   const l = await envoie({
-    ...base, modele: MODELE_TAPGO, variables: variablesTapGo(appelDe(o.client), o.tapgo.totalDit), boutonUrl: o.tapgo.parametre, ...cle('lien'),
+    ...base, modele: MODELE_TAPGO, variables: variablesTapGo(appelDe(o.client), o.tapgo.totalDit), boutonUrl: o.tapgo.parametre, ...cle,
   });
   return l.ok ? { ...l, repli: 'lien' } : { ok: false, erreur: `${l.erreur} (et « ${MODELE_FACTURE} » : ${m.erreur})` };
 }
@@ -143,21 +149,22 @@ export async function envoieLaFactureDuFoyer(o: {
   const { invoiceEnPiece } = await import('./pdf');
   const piece = await invoiceEnPiece(o.pdf);
   const base = { numero: tel, clientId: o.client.id, branchId: o.client.branchId, parQui: o.parQui };
-  const cle = (etape: string) => ({ cleUnique: `${o.cle}-${etape}` });
+  /* La clé entière, partagée par le mot, le modèle et le lien (1er novembre 2026). */
+  const cle = { cleUnique: o.cle };
   const mot = motDuFoyer({ appel: appelDe(o.client), quand: dateDite(o.jourIso), lignes: o.lignes, totalDit: o.totalDit, lien: o.tapgo?.lien, enLigne: o.enLigne });
 
-  const r = await envoie({ ...base, piece, texte: signeLeMessage(`${maisonNom()} · facture du foyer\n${mot}`), ...cle('mot') });
+  const r = await envoie({ ...base, piece, texte: signeLeMessage(`${maisonNom()} · facture du foyer\n${mot}`), ...cle });
   if (r.ok || !/fenêtre/i.test(r.erreur)) return r;
   if (!o.tapgo) return { ok: false, erreur: 'la fenêtre de 24 heures est fermée et Tap & Go est éteint : le modèle de la facture a besoin de son bouton de paiement.' };
 
   const m = await envoie({
     ...base, piece, enTete: 'document', modele: MODELE_FACTURE,
-    variables: [appelDe(o.client), dateDite(o.jourIso), FACTURE_DU_FOYER_JOINTE, o.totalDit], boutonUrl: o.tapgo.parametre, ...cle('modele'),
+    variables: [appelDe(o.client), dateDite(o.jourIso), FACTURE_DU_FOYER_JOINTE, o.totalDit], boutonUrl: o.tapgo.parametre, ...cle,
   });
   if (m.ok || !refusDuModele(m.erreur)) return m;
 
   const l = await envoie({
-    ...base, modele: MODELE_TAPGO, variables: variablesTapGo(appelDe(o.client), o.tapgo.totalDit), boutonUrl: o.tapgo.parametre, ...cle('lien'),
+    ...base, modele: MODELE_TAPGO, variables: variablesTapGo(appelDe(o.client), o.tapgo.totalDit), boutonUrl: o.tapgo.parametre, ...cle,
   });
   return l.ok ? { ...l, repli: 'lien' } : { ok: false, erreur: `${l.erreur} (et « ${MODELE_FACTURE} » : ${m.erreur})` };
 }
@@ -190,24 +197,25 @@ export async function envoieLePointDuCompte(o: {
   const { invoiceEnPiece } = await import('./pdf');
   const piece = await invoiceEnPiece(o.pdf);
   const base = { numero: tel, clientId: o.client.id, branchId: o.client.branchId, parQui: o.parQui };
-  const cle = (etape: string) => ({ cleUnique: `${o.cle}-${etape}` });
+  /* La clé entière, partagée par le mot, le modèle et le lien (1er novembre 2026). */
+  const cle = { cleUnique: o.cle };
   const mot = motDuPoint({
     appel: appelDe(o.client), quand: dateDite(o.jourIso), prenoms: o.prenoms, payeurParmiLesTetes: o.payeurParmiLesTetes,
     phrase: o.phrase, totalDit: o.totalDit, lien: o.tapgo?.lien, enLigne: o.enLigne,
   });
 
-  const r = await envoie({ ...base, piece, texte: signeLeMessage(`${maisonNom()} · point du compte\n${mot}`), ...cle('mot') });
+  const r = await envoie({ ...base, piece, texte: signeLeMessage(`${maisonNom()} · point du compte\n${mot}`), ...cle });
   if (r.ok || !/fenêtre/i.test(r.erreur)) return r;
   if (!o.tapgo) return { ok: false, erreur: 'la fenêtre de 24 heures est fermée et Tap & Go est éteint : le modèle du point a besoin de son bouton de paiement.' };
 
   const m = await envoie({
     ...base, piece, enTete: 'document', modele: MODELE_DU_POINT,
-    variables: variablesDuPoint(appelDe(o.client), dateDite(o.jourIso), o.phrase, o.totalDit), boutonUrl: o.tapgo.parametre, ...cle('modele'),
+    variables: variablesDuPoint(appelDe(o.client), dateDite(o.jourIso), o.phrase, o.totalDit), boutonUrl: o.tapgo.parametre, ...cle,
   });
   if (m.ok || !refusDuModele(m.erreur)) return m;
 
   const l = await envoie({
-    ...base, modele: MODELE_TAPGO, variables: variablesTapGo(appelDe(o.client), o.tapgo.totalDit), boutonUrl: o.tapgo.parametre, ...cle('lien'),
+    ...base, modele: MODELE_TAPGO, variables: variablesTapGo(appelDe(o.client), o.tapgo.totalDit), boutonUrl: o.tapgo.parametre, ...cle,
   });
   return l.ok ? { ...l, repli: 'lien' } : { ok: false, erreur: `${l.erreur} (et « ${MODELE_DU_POINT} » : ${m.erreur})` };
 }

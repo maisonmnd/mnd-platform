@@ -5,11 +5,13 @@ import { useSettings } from '../../../../shared/settings';
 import { maisonNom } from '../../../../shared/identite';
 import { invoiceResteXof, invoicesStore, quiEncaisse } from '../../../../shared/finance';
 import { demandeLePaiement, mndPayOuvert, versionDeMndPay } from '../../../../shared/mnd-pay';
-import { jourLocal, paiementTapGoDeLaPiece, parametreTapGo, saitLesFactures } from '../../../../shared/mnd-pay-pur';
-import { envoieLeRecu, recuAEnvoyer } from '../../../../shared/recu-whatsapp';
+import { jourLocal, MODELE_TAPGO, paiementTapGoDeLaPiece, parametreTapGo, saitLesFactures } from '../../../../shared/mnd-pay-pur';
+import { envoieLeRecu, MODELE_RECU, recuAEnvoyer } from '../../../../shared/recu-whatsapp';
 import { envoieLaFactureARegler, envoieLaFactureDuFoyer, envoieLePointDuCompte, MODELE_FACTURE, type ResultatDeLaFacture } from '../../../../shared/facture-whatsapp';
 import { cleDuFoyer } from '../../../../shared/facture-du-foyer-pur';
 import { cleDuPoint, MODELE_DU_POINT, phraseDuPoint, prenomsDuPoint } from '../../../../shared/point-du-compte-pur';
+import { decisionDEnvoi, enRouteAilleurs, PAPIER_DU_FOYER, pieceDejaPartie, type PiecePartie } from '../../../../shared/une-piece-un-message-pur';
+import { noteLaPiecePartie, noteLesPiecesParties } from '../../../../shared/une-piece-un-message';
 import { toast } from '../../../../ds/components';
 import { pdfDuFoyer, useLaPieceEnPdf } from './pdf-de-la-piece';
 import { adresseDuLien, noteLEnvoiDuFoyer, noteLEnvoiDuLien, poseLeLienDeReglement, poseLeLienDuFoyer } from '../../../../shared/regler-la-seance';
@@ -58,34 +60,77 @@ export function useEnvoiDeLaPiece() {
     return { piece, destinataire };
   };
 
-  const dit = (numero: string, r: ResultatDeLaFacture) => toast(r.ok
+  /* Ce que « deja » veut dire à l'écran (1er novembre 2026) : le renvoi exprès
+     touché deux fois dans la même minute (sa clé à la minute, le plus souvent
+     ce poste-ci, donc jamais « depuis un autre poste ») ; un autre poste qui
+     attend encore Meta (clé prise, sans waId : rien n'est su, rien n'est
+     marqué, voir `enRouteAilleurs`) ; ou un papier vraiment parti d'ailleurs. */
+  const ditLeDeja = (sujet: string, participe: 'partie' | 'parti', r: { deja?: true; waId?: string }, renvoi: boolean) => (renvoi
+    ? `${sujet} : ce renvoi vient de partir il y a moins d’une minute, rien de plus n’est envoyé.`
+    : enRouteAilleurs(r) ? `${sujet} : un autre poste l’envoie en ce moment, rien de plus n’est envoyé.`
+      : `${sujet} déjà ${participe} sur son WhatsApp depuis un autre poste : rien de plus n’est envoyé.`);
+  const dit = (numero: string, r: ResultatDeLaFacture, renvoi = false) => toast(r.ok
     ? (r.enAttente ? `Facture ${numero} gardée : elle partira sur son WhatsApp au retour du réseau.`
-      : r.repli === 'lien' ? `Facture ${numero} : le lien de paiement est parti sur son WhatsApp, sans le PDF tant que Meta n’a pas approuvé « ${MODELE_FACTURE} ».`
-        : `Facture ${numero} envoyée sur son WhatsApp.`)
+      : r.deja ? ditLeDeja(`Facture ${numero}`, 'partie', r, renvoi)
+        : r.repli === 'lien' ? `Facture ${numero} : le lien de paiement est parti sur son WhatsApp, sans le PDF tant que Meta n’a pas approuvé « ${MODELE_FACTURE} ».`
+          : `Facture ${numero} ${renvoi ? 'renvoyée' : 'envoyée'} sur son WhatsApp.`)
     : `Facture ${numero} non envoyée : ${r.erreur}`);
+
+  /* ══ UNE PIÈCE, UN SEUL WHATSAPP — 1er novembre 2026 ══════════════════
+     La pièce 0166, partie à 14 h 37 d'un poste (le rituel honoré), est
+     repartie à 22 h 08 d'un autre (l'encaissement du soir), même numéro,
+     même PDF : le reçu d'après règlement n'avait aucune clé, et rien ne
+     savait que la facture était déjà chez elle. Sa règle : « quand c'est
+     parti une fois, même quand on retouche, terminer, plus d'envoi ».
+     Désormais `decisionDEnvoi` (une-piece-un-message-pur.ts) tranche AVANT
+     de préparer quoi que ce soit, et chaque envoi qui a vraiment répondu
+     pose la marque sur la pièce. La marque dit le papier parti ; le lien
+     seul (`repli: 'lien'`) se dit tel quel. Jamais de marque sur un envoi
+     gardé hors ligne : rien n'est parti, la clé du serveur tiendra la porte
+     à son départ. Jamais non plus sur un `deja` sans waId : l'autre poste
+     attend encore Meta, et si Meta refuse, rien ne sera parti. `deja` avec
+     waId : parti d'un autre poste, dont on ne connaît pas la main d'ici. */
+  const infoDuDepart = (r: ResultatDeLaFacture & { ok: true }, papier: string): PiecePartie => ({
+    partieLe: r.quand ?? new Date().toISOString(),
+    modele: r.repli === 'lien' ? MODELE_TAPGO : papier,
+    ...(r.deja ? { dAilleurs: true as const } : { parQui: quiEncaisse() }),
+  });
+  const laPiece = (pieceId: string) => invoicesStore.get().find((i) => i.id === pieceId);
 
   /** Après un règlement reçu `jourDuPaiement` pour le rituel de `jourDuRituel` :
       seulement l'argent d'aujourd'hui, pour un rituel d'aujourd'hui ou à venir.
-      Jamais pour la régularisation d'un rituel passé (18 octobre 2026). */
+      Jamais pour la régularisation d'un rituel passé (18 octobre 2026). Jamais
+      si le papier de la pièce est déjà parti (1er novembre 2026) : le reçu
+      n'est pas renvoyé, et l'écran dit depuis quand. */
   const apresReglement = async (pieceId: string, montantXof: number, jourDuPaiement: string, jourDuRituel: string) => {
     if (!recuAEnvoyer({ jourDuPaiement, jourDuRituel, aujourdhui: aujourdhui() }) || !(montantXof > 0)) return;
+    const piece = laPiece(pieceId);
+    if (!piece) return;
+    const decision = decisionDEnvoi({ piece, geste: 'auto', instant: new Date().toISOString() });
+    /* « ne part pas », jamais « n'est pas renvoyé » : c'est la facture qui est partie, aucun reçu n'a existé. */
+    if (!decision.envoie) { toast(`Facture ${piece.number} ${decision.motif} : le reçu ne part pas.`); return; }
     const p = await preparer(pieceId);
     if (!p) return;
     const r = await envoieLeRecu({
       client: { ...p.destinataire, branchId: p.destinataire.branchId }, pdf: buildPdfData(p.piece),
-      montant: fmtMoney(montantXof, currency), jourIso: jourDuPaiement, parQui: quiEncaisse(),
+      montant: fmtMoney(montantXof, currency), jourIso: jourDuPaiement, parQui: quiEncaisse(), cleUnique: decision.cle,
     });
+    if (r.ok && !r.enAttente && !enRouteAilleurs(r)) noteLaPiecePartie(p.piece.id, infoDuDepart(r, MODELE_RECU));
     dit(p.piece.number, r);
   };
 
   /** Une facture à régler, pour le rituel de `jourDuRituel` : seulement s'il est d'aujourd'hui,
       sauf le geste exprès « Terminer la séance · envoyer la facture » d'un rendez-vous passé
       (`memePasse`, 26 octobre 2026, sa décision : deux gestes séparés, « Honorer sans
-      prévenir » garde le rattrapage silencieux). `renvoi` : le bouton « Envoyer la facture
-      sur son WhatsApp » d'un rituel déjà honoré la renvoie, même déjà partie (une clé
-      d'unicité à la minute : un double toucher n'envoie qu'une fois). */
+      prévenir » garde le rattrapage silencieux). Une pièce déjà partie ne repart par aucun
+      de ces gestes (1er novembre 2026) : seul `renvoi`, le bouton exprès « Renvoyer », la
+      renvoie, sur une clé d'unicité à la minute (un double toucher n'envoie qu'une fois). */
   const aRegler = async (pieceId: string, jourDuRituel: string, o?: { memePasse?: boolean; renvoi?: boolean }) => {
     if (!o?.memePasse && jourDuRituel !== aujourdhui()) return;
+    const avant = laPiece(pieceId);
+    if (!avant) return;
+    const decision = decisionDEnvoi({ piece: avant, geste: o?.renvoi ? 'renvoi' : 'auto', instant: new Date().toISOString() });
+    if (!decision.envoie) { toast(`Facture ${avant.number} ${decision.motif} : rien de plus n’est envoyé.`); return; }
     const p = await preparer(pieceId);
     if (!p) return;
     /* Le même Tap & Go que le pied du PDF : le reste, frais ajoutés. */
@@ -104,11 +149,14 @@ export function useEnvoiDeLaPiece() {
     const r = await envoieLaFactureARegler({
       client: { ...p.destinataire, branchId: p.destinataire.branchId }, pdf: buildPdfData(p.piece),
       resteDit: fmtMoney(reste, currency), jourIso: jourDuRituel, parQui: quiEncaisse(),
-      cle: o?.renvoi ? `${p.piece.id}-${new Date().toISOString().slice(0, 16)}` : p.piece.id,
+      cle: decision.cle,
       tapgo: lien ?? tapgo, enLigne: !!lien,
     });
     if (r.ok && jeton && p.piece.apptId) noteLEnvoiDuLien(p.piece.apptId);
-    dit(p.piece.number, r);
+    if (r.ok && !r.enAttente && !enRouteAilleurs(r)) noteLaPiecePartie(p.piece.id, infoDuDepart(r, MODELE_FACTURE));
+    /* « Renvoyée » seulement si le papier était déjà parti : le même bouton sur une pièce
+       vierge est un premier envoi, sur la clé de la pièce (1er novembre 2026). */
+    dit(p.piece.number, r, !!o?.renvoi && pieceDejaPartie(avant));
   };
 
   /** LA FACTURE DU FOYER — 27 octobre 2026 (« la facture de N. et de son
@@ -121,10 +169,20 @@ export function useEnvoiDeLaPiece() {
       la minute, comme la facture seule). */
   const foyer = async (pieceIds: readonly string[], jourDuRituel: string, o?: { renvoi?: boolean }) => {
     const toutes = invoicesStore.get();
-    const ouvertes = pieceIds
+    const aRegle = pieceIds
       .map((id) => toutes.find((i) => i.id === id))
       .filter((p): p is NonNullable<typeof p> => !!p && p.kind === 'facture' && invoiceResteXof(p) > 0);
-    if (ouvertes.length === 0) { toast('Rien à régler pour ce foyer : aucune facture n’est partie.'); return; }
+    /* « TERMINER » NE RENVOIE RIEN (1er novembre 2026, sa règle : « quand c'est
+       parti une fois, même quand on retouche, terminer, plus d'envoi ») : sans
+       `renvoi`, une facture déjà partie seule sort du foyer. Le bouton
+       d'après coup, geste exprès, garde tout. */
+    const ouvertes = o?.renvoi ? aRegle : aRegle.filter((p) => !pieceDejaPartie(p));
+    if (ouvertes.length === 0) {
+      toast(aRegle.length > 0
+        ? 'Les factures de ce foyer sont déjà parties sur son WhatsApp : rien de plus n’est envoyé.'
+        : 'Rien à régler pour ce foyer : aucune facture n’est partie.');
+      return;
+    }
     if (ouvertes.length === 1) { await aRegler(ouvertes[0].id, jourDuRituel, { memePasse: true, renvoi: o?.renvoi }); return; }
     /* À qui : le parent qui paie la première pièce, sinon la tête soignée (la règle de la facture). */
     const p0 = ouvertes[0];
@@ -169,10 +227,13 @@ export function useEnvoiDeLaPiece() {
       parQui: quiEncaisse(),
     });
     if (r.ok && jetonDuFoyer) noteLEnvoiDuFoyer(rdvs);
+    /* Chaque pièce du foyer porte la marque (1er novembre 2026) : aucune ne repartira seule. */
+    if (r.ok && !r.enAttente && !enRouteAilleurs(r)) noteLesPiecesParties(ouvertes.map((p) => p.id), infoDuDepart(r, PAPIER_DU_FOYER));
     toast(r.ok
       ? (r.enAttente ? 'Facture du foyer gardée : elle partira sur son WhatsApp au retour du réseau.'
-        : r.repli === 'lien' ? `Facture du foyer : le lien de paiement est parti sur son WhatsApp, sans le PDF tant que Meta n’a pas approuvé « ${MODELE_FACTURE} ».`
-          : `Facture du foyer envoyée sur son WhatsApp : ${ouvertes.length} factures, ${fmtMoney(totalXof, currency)}.`)
+        : r.deja ? ditLeDeja('Facture du foyer', 'partie', r, !!o?.renvoi)
+          : r.repli === 'lien' ? `Facture du foyer : le lien de paiement est parti sur son WhatsApp, sans le PDF tant que Meta n’a pas approuvé « ${MODELE_FACTURE} ».`
+            : `Facture du foyer envoyée sur son WhatsApp : ${ouvertes.length} factures, ${fmtMoney(totalXof, currency)}.`)
       : `Facture du foyer non envoyée : ${r.erreur}`);
   };
 
@@ -227,10 +288,13 @@ export function useEnvoiDeLaPiece() {
       parQui: quiEncaisse(),
     });
     if (r.ok && jeton) noteLEnvoiDuFoyer(rdvs);
+    /* Chaque pièce du point porte la marque (1er novembre 2026) : aucune ne repartira seule. */
+    if (r.ok && !r.enAttente && !enRouteAilleurs(r)) noteLesPiecesParties(ouvertes.map((p) => p.id), infoDuDepart(r, MODELE_DU_POINT));
     toast(r.ok
       ? (r.enAttente ? 'Point du compte gardé : il partira sur son WhatsApp au retour du réseau.'
-        : r.repli === 'lien' ? `Point du compte : le lien de paiement est parti sur son WhatsApp, sans le PDF tant que Meta n’a pas approuvé « ${MODELE_DU_POINT} ».`
-          : `Point du compte envoyé sur son WhatsApp : ${ouvertes.length} factures, ${fmtMoney(totalXof, currency)}.`)
+        : r.deja ? ditLeDeja('Point du compte', 'parti', r, !!o?.renvoi)
+          : r.repli === 'lien' ? `Point du compte : le lien de paiement est parti sur son WhatsApp, sans le PDF tant que Meta n’a pas approuvé « ${MODELE_DU_POINT} ».`
+            : `Point du compte envoyé sur son WhatsApp : ${ouvertes.length} factures, ${fmtMoney(totalXof, currency)}.`)
       : `Point du compte non envoyé : ${r.erreur}`);
     return r;
   };
