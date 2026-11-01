@@ -22,6 +22,11 @@ import {
   GENRES_DE_DECISION, GENRES_DE_RELAIS, REGLAGES_PAR_DEFAUT, aCotonou, doitPrevenirDuSommeil, echeanceOuvree, empreinteDuJetonAssistant,
   estUneTresse, etatDe, heureDite, motEstPropre, noteEstPropre, nouveauJetonAssistant, porteDeLAction, tournureInterdite, vocabulairePermis,
 } from '../src/shared/assistants-pur';
+import {
+  caisseDeLaDepense, categorieConnue, cheminDuRecu, doublonDeLaDepense, idDeLaDepense, lisLaDemandeDeDepense, lisLeRecu, pieceDuJournal,
+  porteurConnu, prestataireNomme, RECU_AU_PLUS_OCTETS,
+} from '../src/shared/assistants-depenses-pur';
+import { ficheCorrespond, ficheLisible, lisLaRecherche, motifDeLaBase, pieceDeLaLecture } from '../src/shared/assistants-fiches-pur';
 
 let ko = 0;
 const dit = (nom: string, attendu: unknown, obtenu: unknown) => {
@@ -81,6 +86,75 @@ dit('une tresse se reconnaît à la prestation ou à sa rubrique', [true, true, 
   estUneTresse('Nattes collées'), estUneTresse('Vanilles'), estUneTresse('Pose', 'Tresses et nattes'), estUneTresse('Création', 'Reprise de racines'),
 ]);
 dit('la porte de chaque action', ['jeton', 'souverain', null], [porteDeLAction('rdv.poser'), porteDeLAction('place.trancher'), porteDeLAction('sql')]);
+dit('les dépenses et la recherche d une fiche passent par la porte des assistants', ['jeton', 'jeton'], [porteDeLAction('depense.poser'), porteDeLAction('fiche.chercher')]);
+
+/* Les dépenses du jour (1er novembre 2026). Le 3 novembre 2026 sert de jour. */
+const J = '2026-11-03';
+const lueD = (d: Record<string, unknown>) => { const r = lisLaDemandeDeDepense(d, J); return r.ok ? 'ok' : r.motif; };
+dit('la demande de dépense : un montant lu, un objet sain, une date ni future ni trop ancienne, une catégorie',
+  ['ok', 'ok', 'montant', 'montant', 'montant-hors-borne', 'objet', 'objet', 'date-future', 'date-ancienne', 'ok', 'categorie'], [
+    lueD({ montantXof: 3500, objet: 'Eau', categorie: 'Local' }), lueD({ montantXof: '3 500', objet: 'Eau', categorie: 'Local' }),
+    lueD({ montantXof: 0, objet: 'Eau', categorie: 'Local' }), lueD({ montantXof: 2.5, objet: 'Eau', categorie: 'Local' }),
+    lueD({ montantXof: 2_000_001, objet: 'Groupe', categorie: 'Local' }), lueD({ montantXof: 500, objet: 'appel 0197000001', categorie: 'Local' }),
+    lueD({ montantXof: 500, objet: 'x', categorie: 'Local' }), lueD({ montantXof: 500, objet: 'Eau', categorie: 'Local', date: '2026-11-04' }),
+    lueD({ montantXof: 500, objet: 'Eau', categorie: 'Local', date: '2026-09-01' }), lueD({ montantXof: 500, objet: 'Eau', categorie: 'Local', date: '2026-09-04' }),
+    lueD({ montantXof: 500, objet: 'Eau', categorie: '' }),
+  ]);
+dit('… sans date, le jour de Cotonou ; « C en est une autre » se lit', ['2026-11-03', true],
+  [(lisLaDemandeDeDepense({ montantXof: 1000, objet: 'Zem', categorie: 'Logistique', autre: true }, J) as { v: { date: string } }).v.date,
+    (lisLaDemandeDeDepense({ montantXof: 1000, objet: 'Zem', categorie: 'Logistique', autre: true }, J) as { v: { autre: boolean } }).v.autre]);
+const CATS = [{ name: 'Local' }, { name: 'Logistique' }, { name: 'Matières premières' }];
+dit('la catégorie telle que la Maison l écrit, ou rien', ['Logistique', 'Matières premières', null], [categorieConnue('logistique', CATS), categorieConnue('matieres premieres', CATS), categorieConnue('Essence', CATS)]);
+const BOITES = [{ name: 'MoMo Privé', branchId: 'b' }, { name: 'Caisse Principale', branchId: 'b' }, { name: 'Ancienne', branchId: 'b', archiveeLe: '2026-10-01' }, { name: 'Ailleurs', branchId: 'z' }];
+dit('la caisse : nommée et vivante dans cette maison ; sans nom, la Caisse Principale, sinon la première vivante', [
+  { ok: true, caisse: 'MoMo Privé' }, { ok: false, caisses: ['MoMo Privé', 'Caisse Principale'] }, { ok: false, caisses: ['MoMo Privé', 'Caisse Principale'] },
+  { ok: true, caisse: 'Caisse Principale' }, { ok: true, caisse: 'MoMo Privé' }, { ok: true, caisse: 'Caisse Principale' }], [
+  caisseDeLaDepense('momo prive', BOITES, 'b'), caisseDeLaDepense('Ancienne', BOITES, 'b'), caisseDeLaDepense('Ailleurs', BOITES, 'b'),
+  caisseDeLaDepense(undefined, BOITES, 'b'), caisseDeLaDepense(undefined, [BOITES[0]], 'b'), caisseDeLaDepense(undefined, [], 'b')]);
+const PORTEURS = ['Brice A.', 'Sandrine maison', 'Aimé', 'Awa Un', 'Awa Deux'];
+dit('le porteur : le nom de la liste, ou un prénom qui ne désigne qu une personne ; jamais un second porteur', ['Brice A.', 'Sandrine maison', 'Aimé', null, null], [
+  porteurConnu('brice', PORTEURS), porteurConnu('SANDRINE', PORTEURS), porteurConnu('Aime', PORTEURS), porteurConnu('awa', PORTEURS), porteurConnu('Paul', PORTEURS)]);
+dit('un prestataire nommé n est jamais une dépense d assistant ; un prestataire rangé ne compte plus', ['Hermine', 'Ziadath', null, null], [
+  prestataireNomme(['Tresses Hermine', undefined], [{ name: 'Hermine' }, { name: 'Ziadath' }]), prestataireNomme(['Défaire', 'ZIADATH'], [{ name: 'Hermine' }, { name: 'Ziadath' }]),
+  prestataireNomme(['Hermione pagne'], [{ name: 'Hermine' }]), prestataireNomme(['Tresses Hermine'], [{ name: 'Hermine', archived: true }])]);
+const DU_JOUR = [
+  { id: 'g', branchId: 'b', date: J, amountXof: 6000, label: 'Gaz', porteur: 'Brice A.' },
+  { id: 'r', branchId: 'b', date: J, amountXof: 2000, label: 'Pain', validation: { etat: 'refusee', soumisPar: 'Opale' } },
+];
+const dbl = (label: string, amountXof: number, date = J, branchId = 'b') => doublonDeLaDepense({ branchId, date, amountXof, label }, DU_JOUR)?.id ?? null;
+dit('le doublon du jour : même maison, date, montant, objet voisin, non refusé', ['g', 'g', null, null, null, null, null], [
+  dbl('Gaz', 6000), dbl('Recharge de gaz', 6000), dbl('Eau', 6000), dbl('Gaz', 6500), dbl('Gaz', 6000, '2026-11-02'), dbl('Gaz', 6000, J, 'z'), dbl('Pain', 2000)]);
+const i1 = await idDeLaDepense('opale', 'opale:m1');
+dit('l identifiant de la dépense : le même pour le même geste, un autre pour un autre geste ou un autre assistant', [true, true, false, false],
+  [/^exp-opale-[0-9a-f]{20}$/.test(i1), i1 === await idDeLaDepense('opale', ' opale:m1 '), i1 === await idDeLaDepense('opale', 'opale:m2'), i1 === await idDeLaDepense('onyx', 'opale:m1')]);
+const b64 = (n: number) => Buffer.alloc(n, 7).toString('base64');
+const recu = (r: unknown) => { const x = lisLeRecu(r); return x.ok ? (x.recu ? x.recu.octets.length : null) : x.motif; };
+dit('le reçu : absent, un type connu, cinq Mo au plus, du base64', [null, 10, 'recu-type', 'recu-trop-lourd', 'recu-illisible'], [
+  recu(undefined), recu({ nom: 'r.jpg', type: 'image/jpeg', base64: b64(10) }), recu({ nom: 'r.gif', type: 'image/gif', base64: b64(10) }),
+  recu({ nom: 'r.jpg', type: 'image/jpeg', base64: b64(RECU_AU_PLUS_OCTETS + 1) }), recu({ nom: 'r.jpg', type: 'image/jpeg', base64: 'pas du base64 !' })]);
+dit('le chemin du reçu, comme une pièce jointe de dépense du Trône', 'b/depense/exp-x-recu-de-l-eau.jpg', cheminDuRecu('b', 'exp-x', 'reçu de l’eau.jpg'));
+dit('la ligne du journal : le montant et la catégorie, jamais l objet', 'Dépense à valider, 3 500 F, Local', pieceDuJournal(3500, 'Local'));
+
+/* La recherche d'une fiche (1er novembre 2026). */
+const num = (t: string) => { const c = t.replace(/\D/g, ''); return c.length >= 8 && c.length <= 15 ? c : null; };
+const rch = (d: Record<string, unknown>) => { const r = lisLaRecherche(d, num); return !r.ok ? r.motif : 'numero' in r ? r.numero : r.nom; };
+dit('la recherche : deux lettres au moins dont un mot de deux, ou un numéro ; des initiales seules ne cherchent pas', [
+  'nom-trop-court', 'nom-trop-court', ['awa'], ['gbessi', 'so'], '2290197000010', 'numero-invalide'], [
+  rch({ nom: 'A. S.' }), rch({ nom: 'x' }), rch({ nom: 'Awa' }), rch({ nom: 'Gbèssi So' }), rch({ numeroCle: '+229 01 97 00 00 10' }), rch({ numeroCle: '12' })]);
+dit('le filtre de la base laisse passer les accents', '%gb_ss_%', motifDeLaBase(['so', 'gbessi']));
+dit('chaque mot cherché commence un mot du nom', [true, true, false, false], [
+  ficheCorrespond('Gbèssi Sossou', ['gbes']), ficheCorrespond('Awa Banc', ['awa', 'ba']), ficheCorrespond('Awa Banc', ['awa', 'co']), ficheCorrespond('Banc Awa', ['wa'])]);
+const lisible = ficheLisible({ id: 'f', data: { name: 'Gbèssi Sossou', civilite: 'madame', phone: '+229 01 97 00 00 10', phone2: '', note: 'privée', sante: 'allergie', solde: 5000 } }, [
+  { id: 'a', date: '2026-11-05', time: '10:00', status: 'confirmé', serviceIds: ['s1'], updatedAt: 'u1' },
+  { id: 'b', date: '2026-11-01', time: '09:00', status: 'honoré', serviceIds: ['s1'] },
+  { id: 'c', date: '2026-11-06', time: '09:00', status: 'annulé', serviceIds: ['s1'] },
+  { id: 'd', date: '2026-11-04', time: '15:30', status: 'en attente', serviceIds: ['s1', 'inconnu'], updatedAt: 'u2' },
+], (id) => (id === 's1' ? 'Création' : undefined), J);
+dit('la fiche rendue : identifiant, nom, civilité, numéros, rendez-vous à venir non annulés, rien d autre', {
+  id: 'f', nom: 'Gbèssi Sossou', civilite: 'madame', numeros: ['+229 01 97 00 00 10'],
+  rdvs: [{ id: 'd', date: '2026-11-04', heure: '15:30', prestations: ['Création', 'Prestation'], updatedAt: 'u2' }, { id: 'a', date: '2026-11-05', heure: '10:00', prestations: ['Création'], updatedAt: 'u1' }],
+}, lisible);
+dit('la ligne du journal d une lecture : combien, jamais le nom', ['une recherche de fiche, aucune trouvée', 'une recherche de fiche, une trouvée', 'une recherche de fiche, 3 trouvées'], [pieceDeLaLecture(0), pieceDeLaLecture(1), pieceDeLaLecture(3)]);
 const e1 = await empreinteDuJetonAssistant('assistant-opale-test');
 dit('l empreinte du jeton : 64 hexadécimaux, la même après un blanc, jamais le jeton', [64, true, true, false],
   [e1.length, /^[0-9a-f]+$/.test(e1), e1 === await empreinteDuJetonAssistant(' assistant-opale-test '), e1.includes('opale-test')]);
@@ -156,6 +230,10 @@ class Requete {
   upsert(rows: Row | Row[], o?: { onConflict?: string; ignoreDuplicates?: boolean }) { this.op = 'upsert'; this.charge = Array.isArray(rows) ? rows : [rows]; this.options = o ?? {}; return this; }
   update(patch: Row) { this.op = 'update'; this.charge = [patch]; return this; }
   delete() { this.op = 'delete'; return this; }
+  ilike(c: string, motif: string) {
+    const re = new RegExp(`^${motif.split('').map((ch) => (ch === '%' ? '.*' : ch === '_' ? '.' : ch.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))).join('')}$`, 'i');
+    this.filtres.push((r) => re.test(String(valeur(r, c) ?? ''))); return this;
+  }
   async maybeSingle() { const r = this.execute(); return { data: r.data?.[0] ?? null, error: r.error }; }
   async single() { const r = this.execute(); return { data: r.data?.[0] ?? null, error: r.data?.[0] ? r.error : { message: 'aucune ligne' } }; }
   then<T>(res: (v: { data: Row[] | null; error: { message: string } | null }) => T, rej?: (e: unknown) => T) { return Promise.resolve(this.execute()).then(res, rej); }
@@ -198,7 +276,14 @@ class Requete {
     return { data: this.veutSelect ? [] : null, error: parties >= 0 ? null : { message: '' } };
   }
 }
+/* Le compartiment des pièces jointes (1er novembre 2026) : ce qui y est déposé, et une panne à la demande. */
+const depots: { compartiment: string; chemin: string; taille: number; type?: string }[] = [];
+let stockageEnPanne = false;
 const fabrique = (_url: string, _cle: string) => ({
+  storage: { from: (compartiment: string) => ({ upload: async (chemin: string, octets: Uint8Array, o?: { contentType?: string }) => {
+    if (stockageEnPanne) return { data: null, error: { message: 'compartiment indisponible' } };
+    depots.push({ compartiment, chemin, taille: octets.length, type: o?.contentType }); return { data: { path: chemin }, error: null };
+  } }) },
   from: (table: string) => new Requete(table),
   auth: { getUser: async (jwt: string) => (JWTS[jwt] ? { data: { user: { id: JWTS[jwt] } }, error: null } : { data: { user: null }, error: { message: 'invalide' } }) },
   rpc: async (nom: string, params: Row) => {
@@ -247,7 +332,7 @@ const aujourdhui = dateDans(0);
 const sansNom = (texte: string) => !/Awa|Codjo|Dossi|Efua|Fifa|Gbessi|Hola|Banc/.test(texte);
 
 const g = await handler!(new Request('http://f/assistants-maison', { method: 'GET' }));
-dit('GET : la santé, la version, le nombre d assistants, aucun secret', ['assistants-maison', '2026-10-31-b', 2, false],
+dit('GET : la santé, la version, le nombre d assistants, aucun secret', ['assistants-maison', '2026-11-01-a', 2, false],
   await g.json().then((x: { fonction?: string; version?: string; assistants?: number }) => [x.fonction, x.version, x.assistants, JSON.stringify(x).includes('service')]));
 dit('sans porte : refusé', [403, 'reserve-aux-assistants'], await appelle({}, { action: 'passage', controles: {} }).then((r) => [r.status, r.corps.motif]));
 dit('un jeton inconnu : refusé', [403, 'reserve-aux-assistants'], await appelle({ 'x-jeton-assistant': 'assistant-opale-faux' }, { action: 'passage', controles: {} }).then((r) => [r.status, r.corps.motif]));
@@ -498,6 +583,95 @@ dit('« Autre heure » par decision.trancher : annulé, la place refusée relay�
     ligne('assistants_relais', (r) => r.rdv_id === tenue2.corps.rdvId && r.genre === 'place-refusee')?.mot,
     ligne('assistants_decisions', (d) => d.id === decTenue2.id)?.tranchee, lignes('envois', (e) => String(e.id).includes(String(tenue2.corps.rdvId))).length]);
 
+/* Les dépenses du jour (1er novembre 2026). */
+tables.expense_categories = [{ id: 'ec-local', data: { id: 'ec-local', name: 'Local', subs: [] } }, { id: 'ec-log', data: { id: 'ec-log', name: 'Logistique', subs: [] } }];
+tables.cashboxes = [
+  { id: 'cb-1', data: { id: 'cb-1', branchId: 'br-test', name: 'Caisse Principale' } }, { id: 'cb-2', data: { id: 'cb-2', branchId: 'br-test', name: 'MoMo Privé' } },
+  { id: 'cb-3', data: { id: 'cb-3', branchId: 'br-test', name: 'Ancienne', archiveeLe: '2026-10-01' } },
+];
+tables.expenses = [{ id: 'exp-gaz', branch_id: 'br-test', data: { id: 'exp-gaz', branchId: 'br-test', label: 'Gaz', amountXof: 6000, date: aujourdhui, cashbox: 'Caisse Principale', category: 'Local', porteur: 'B. A.' } }];
+tables.documents.push({ key: 'mnd_porteurs', data: ['B. A.', 'Sandrine maison', 'Aimé'] }, { key: 'mnd_prestataires', data: [{ id: 'pv-h', name: 'Hermine' }, { id: 'pv-z', name: 'Ziadath' }] });
+const RECU = { nom: 'reçu eau.jpg', type: 'image/jpeg', base64: Buffer.from('un reçu').toString('base64') };
+const eau = { action: 'depense.poser', montantXof: 3500, objet: 'Eau', categorie: 'local', porteur: 'sandrine', idempotence: 'opale:m-eau', recu: RECU };
+const dp1 = await appelle(opale, eau);
+const lEau = ligne('expenses', (e) => e.id === dp1.corps.id);
+const dEau = (lEau?.data ?? {}) as Row;
+const jEau = tables.journal_gestes.filter((g) => (g.data as Row).pieceId === dp1.corps.id).pop()?.data as Row | undefined;
+dit('depense.poser : posée à valider, au nom d Opale, la catégorie et le porteur de la Maison, la Caisse Principale, le reçu dans le compartiment des pièces jointes',
+  [true, 'posee', 'br-test', 'Eau', 3500, aujourdhui, 'Local', 'Sandrine maison', 'Caisse Principale', 'attente', 'Opale', true, 'fil', true, 'image/jpeg', true],
+  [dp1.corps.ok, dp1.corps.verdict, lEau?.branch_id, dEau.label, dEau.amountXof, dEau.date, dEau.category, dEau.porteur, dEau.cashbox,
+    (dEau.validation as Row)?.etat, (dEau.validation as Row)?.soumisPar, String((dEau.fichier as Row)?.chemin).startsWith(`br-test/depense/${dp1.corps.id}-`),
+    depots[0]?.compartiment, depots[0]?.chemin === (dEau.fichier as Row)?.chemin, depots[0]?.type, String(dp1.corps.id).startsWith('exp-opale-')]);
+dit('… le journal : posé par Opale, porte assistant, le montant et la catégorie, jamais l objet', ['pose', 'expenses', 'Opale', 'assistant', 'Dépense à valider, 3 500 F, Local', false],
+  [jEau?.verbe, jEau?.table, jEau?.parNom, jEau?.porte, jEau?.piece, String(jEau?.piece).includes('Eau')]);
+const dp2 = await appelle(opale, eau);
+dit('… le même geste rejoué : rien de plus, ni ligne ni reçu', [true, 'deja', dp1.corps.id, 1, 1],
+  [dp2.corps.ok, dp2.corps.verdict, dp2.corps.id, lignes('expenses', (e) => e.id === dp1.corps.id).length, depots.length]);
+const gaz = { action: 'depense.poser', montantXof: 6000, objet: 'Gaz', categorie: 'Local', idempotence: 'opale:m-gaz' };
+const dp3 = await appelle(opale, gaz);
+dit('le doublon du jour : refusé, avec qui l a saisi ; rien n est écrit', [409, 'doublon', 'exp-gaz', 'B. A.', 2],
+  [dp3.status, dp3.corps.motif, (dp3.corps.deja as Row)?.id, (dp3.corps.deja as Row)?.saisiePar, tables.expenses.length]);
+const dp4 = await appelle(opale, { ...gaz, autre: true, idempotence: 'opale:m-gaz-autre' });
+dit('… « C en est une autre » : posée', [true, 'posee', 3], [dp4.corps.ok, dp4.corps.verdict, tables.expenses.length]);
+const dp5 = await appelle(opale, { action: 'depense.poser', montantXof: 12000, objet: 'Tresses Hermine', categorie: 'Local', idempotence: 'opale:m-h' });
+dit('un prestataire : refusé, sa mission naît du rituel ; rien n est écrit', [409, 'prestataire', 'Hermine', 3], [dp5.status, dp5.corps.motif, dp5.corps.prestataire, tables.expenses.length]);
+const refusD = async (d: Record<string, unknown>) => { const r = await appelle(opale, { action: 'depense.poser', montantXof: 500, objet: 'Pain', categorie: 'Local', idempotence: `opale:r-${Math.random()}`, ...d }); return [r.status, r.corps.motif]; };
+dit('les refus clairs : catégorie, caisse rangée, porteur inconnu, montant nul, date future, sans clé, reçu d un type inconnu', [
+  [400, 'categorie-inconnue'], [400, 'caisse-inconnue'], [400, 'porteur-inconnu'], [400, 'montant'], [400, 'date-future'], [400, 'idempotence'], [400, 'recu-type']], [
+  await refusD({ categorie: 'Essence' }), await refusD({ caisse: 'Ancienne' }), await refusD({ porteur: 'Paul' }), await refusD({ montantXof: 0 }),
+  await refusD({ date: dateDans(1) }), await refusD({ idempotence: '' }), await refusD({ recu: { nom: 'x.gif', type: 'image/gif', base64: 'eA==' } })]);
+dit('… le refus nomme ce que la Maison connaît', [['Local', 'Logistique'], ['Caisse Principale', 'MoMo Privé'], ['B. A.', 'Sandrine maison', 'Aimé']], [
+  (await appelle(opale, { action: 'depense.poser', montantXof: 500, objet: 'Pain', categorie: 'Essence', idempotence: 'opale:r-c' })).corps.categories,
+  (await appelle(opale, { action: 'depense.poser', montantXof: 500, objet: 'Pain', categorie: 'Local', caisse: 'Ancienne', idempotence: 'opale:r-k' })).corps.caisses,
+  (await appelle(opale, { action: 'depense.poser', montantXof: 500, objet: 'Pain', categorie: 'Local', porteur: 'Paul', idempotence: 'opale:r-p' })).corps.porteurs]);
+stockageEnPanne = true;
+const dp6 = await appelle(opale, { action: 'depense.poser', montantXof: 800, objet: 'Savon', categorie: 'Local', idempotence: 'opale:m-savon', recu: RECU });
+stockageEnPanne = false;
+dit('le reçu ne se dépose pas : refusé, rien n est écrit', [502, 'recu-non-depose', 3], [dp6.status, dp6.corps.motif, tables.expenses.length]);
+const dp7 = await appelle(onyx, { action: 'depense.poser', montantXof: 1000, objet: 'Zem', categorie: 'logistique', caisse: 'momo prive', idempotence: 'onyx:m-zem' });
+dit('Onyx pose au nom d Onyx, dans la caisse nommée', [true, 'Onyx', 'MoMo Privé', 'Logistique'], [dp7.corps.ok, ((ligne('expenses', (e) => e.id === dp7.corps.id)?.data as Row)?.validation as Row)?.soumisPar,
+  (ligne('expenses', (e) => e.id === dp7.corps.id)?.data as Row)?.cashbox, (ligne('expenses', (e) => e.id === dp7.corps.id)?.data as Row)?.category]);
+dit('un souverain ne pose pas une dépense par la porte des assistants', [403, 'mauvaise-porte'], await appelle(yeman, eau).then((r) => [r.status, r.corps.motif]));
+const ecranD = lit('src/apps/trone/routes/finances/Depenses.tsx');
+dit('l écran Dépenses montre la file à valider, qui l a saisie, la pièce jointe, Valider et Refuser', [true, true, true, true], [
+  ecranD.includes('aValider(toutesLesDepenses, branch.id)'), ecranD.includes('Saisie par <b>{e.validation?.soumisPar}</b>'),
+  ecranD.includes("{e.fichier ? ' · pièce jointe' : ' · aucune pièce jointe'}"), ecranD.includes('onClick={() => dirOui(e)}>Valider</button>')]);
+
+/* La recherche d'une fiche (1er novembre 2026). */
+tables.clients.push(
+  { id: 'cl-8', data: { name: 'Gbèssi Sossou', phone: '+229 01 97 00 00 10', civilite: 'madame', note: 'note privée', sante: 'allergie' } },
+  { id: 'cl-9', data: { name: 'Gbèssi Sossa', phone: '+229 01 97 00 00 11', archived: true } },
+);
+tables.appointments.push(
+  { id: 'rdv-g1', branch_id: 'br-test', data: { id: 'rdv-g1', clientId: 'cl-8', date: dateDans(3), time: '10:00', status: 'confirmé', serviceIds: ['s-creation'], note: 'note du carnet' }, updated_at: horloge() },
+  { id: 'rdv-g2', branch_id: 'br-test', data: { id: 'rdv-g2', clientId: 'cl-8', date: dateDans(-3), time: '10:00', status: 'honoré', serviceIds: ['s-creation'] }, updated_at: horloge() },
+  { id: 'rdv-g3', branch_id: 'br-test', data: { id: 'rdv-g3', clientId: 'cl-8', date: dateDans(5), time: '09:00', status: 'annulé', serviceIds: ['s-sinsin'] }, updated_at: horloge() },
+);
+const f1 = await appelle(opale, { action: 'fiche.chercher', nom: 'gbessi so' });
+const f1f = (f1.corps.fiches as Row[]) ?? [];
+dit('fiche.chercher par le nom, sans accent : une fiche, ses numéros, son rendez-vous à venir, rien d autre ; la fiche rangée ne sort pas',
+  [true, 1, 'cl-8', 'Gbèssi Sossou', 'madame', ['+229 01 97 00 00 10'], [['rdv-g1', dateDans(3), '10:00', ['Création']]], false, false, false],
+  [f1.corps.ok, f1f.length, f1f[0]?.id, f1f[0]?.nom, f1f[0]?.civilite, f1f[0]?.numeros, ((f1f[0]?.rdvs as Row[]) ?? []).map((r) => [r.id, r.date, r.heure, r.prestations]),
+    JSON.stringify(f1.corps).includes('note'), JSON.stringify(f1.corps).includes('allergie'), f1.corps.plus]);
+dit('… le rendez-vous rendu porte son updatedAt, pour déplacer ou annuler', true, typeof ((f1f[0]?.rdvs as Row[]) ?? [])[0]?.updatedAt === 'string' && String(((f1f[0]?.rdvs as Row[]) ?? [])[0]?.updatedAt).length > 10);
+const f2 = await appelle(opale, { action: 'fiche.chercher', nom: 'banc' });
+dit('… cinq fiches au plus, et « plus » le dit', [5, true], [((f2.corps.fiches as Row[]) ?? []).length, f2.corps.plus]);
+const f3 = await appelle(opale, { action: 'fiche.chercher', numeroCle: '2290197000004' });
+dit('… par le numéro : les fiches du numéro', ['cl-1', 'cl-3'], ((f3.corps.fiches as Row[]) ?? []).map((f) => f.id));
+dit('… des initiales seules, un numéro faux : refusés', [[400, 'nom-trop-court'], [400, 'numero-invalide']], [
+  await appelle(opale, { action: 'fiche.chercher', nom: 'A. S.' }).then((r) => [r.status, r.corps.motif]),
+  await appelle(opale, { action: 'fiche.chercher', numeroCle: '12' }).then((r) => [r.status, r.corps.motif])]);
+const lectures = tables.journal_gestes.filter((g) => (g.data as Row).verbe === 'lit').map((g) => g.data as Row);
+dit('… chaque lecture au journal : « lu », par l assistant, sans le nom cherché', [3, true, true, false],
+  [lectures.length, lectures.every((g) => g.parNom === 'Opale' && g.porte === 'assistant' && g.table === 'clients'), lectures[0]?.piece === 'une recherche de fiche, une trouvée',
+    JSON.stringify(lectures).toLowerCase().includes('gb')]);
+const ajoutees: Row[] = [];
+for (let k = 0; k < 57; k++) { const g = { id: `geste-plafond-${k}`, branch_id: 'br-test', data: { id: `geste-plafond-${k}`, parNom: 'Opale', porte: 'assistant', verbe: 'lit', table: 'clients', piece: 'une recherche de fiche, une trouvée', quand: new Date().toISOString() } }; tables.journal_gestes.push(g); ajoutees.push(g); }
+dit('soixante lectures par jour et par assistant : la soixante et unième est refusée, l autre assistant lit encore', [[429, 'plafond-des-lectures'], true], [
+  await appelle(opale, { action: 'fiche.chercher', nom: 'gbessi' }).then((r) => [r.status, r.corps.motif]),
+  (await appelle(onyx, { action: 'fiche.chercher', nom: 'gbessi' })).corps.ok]);
+tables.journal_gestes = tables.journal_gestes.filter((g) => !ajoutees.includes(g));
+
 /* Le journal et les téléphones, sans nom. */
 dit('tout le journal passe par la porte assistant, signé, sans nom de cliente', [true, true, true, true], [
   tables.journal_gestes.length >= 8, tables.journal_gestes.every((g) => (g.data as Row).porte === 'assistant'),
@@ -517,6 +691,10 @@ dit('… l empreinte d Opale, Onyx sans jeton, la RLS sur les quatre tables, auc
 const miens = [lit('scripts/serveur/assistants-maison.ts'), lit('scripts/assistants-maison-serveur.mjs'), sql].join('\n');
 dit('aucun numéro réel dans les sources, aucun tiret long dans les fichiers du chantier', [false, false],
   [/\+?229\s?\d{2}\s?\d{2}\s?\d{2}\s?\d{2}\s?\d{2}/.test(`${miens}\n${lit('src/shared/assistants-pur.ts')}`), miens.includes(String.fromCharCode(0x2014))]);
+
+const ecranJ = lit('src/apps/trone/routes/systeme/Journal.tsx');
+dit('l écran Journal et l écran Les assistants savent dire une lecture', [true, true, true], [
+  /lit: 'Lu'/.test(ecranJ), /\{ k: 'lit', l: 'Lu' \}/.test(ecranJ), /lit: 'a fait'/.test(lit('src/apps/trone/routes/pilotage/Assistants.tsx'))]);
 
 console.log(ko === 0 ? '\nLes assistants tiennent.' : `\n${ko} ECHEC.`);
 process.exit(ko ? 1 : 0);

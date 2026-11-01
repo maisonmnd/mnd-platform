@@ -46,13 +46,22 @@ import {
 } from '../../src/shared/assistants-pur';
 import { appelDe } from '../../src/shared/civilite';
 import { heureDeDepart, reglesDepuis } from '../../src/shared/salle-des-envois';
+import {
+  COMPARTIMENT_DES_RECUS, caisseDeLaDepense, categorieConnue, cheminDuRecu, doublonDeLaDepense, idDeLaDepense, libelleDeLaDepense,
+  lisLaDemandeDeDepense, lisLeRecu, pieceDuJournal, porteurConnu, prestataireNomme, saisiePar, type DepenseExistante,
+} from '../../src/shared/assistants-depenses-pur';
+import {
+  FICHES_AU_PLUS, LECTURES_PAR_JOUR, ficheCorrespond, ficheLisible, lisLaRecherche, motifDeLaBase, pieceDeLaLecture,
+} from '../../src/shared/assistants-fiches-pur';
 
 declare const Deno: {
   env: { get(nom: string): string | undefined };
   serve(f: (req: Request) => Promise<Response>): void;
 };
 
-const VERSION = '2026-10-31-b';
+const VERSION = '2026-11-01-a';
+/** La maison phare, quand l'assistant n'a pas de branche et que la table n'en dit pas. */
+const BRANCHE_PHARE = 'br-40r6u6frno';
 const ECRAN = 'Les assistants';
 const ADRESSE_DES_ASSISTANTS = '/trone/#/assistants';
 const ETIQUETTE_DES_NOTIFICATIONS = 'mnd-assistants';
@@ -236,7 +245,7 @@ class Serveur {
   }
 
   /* Les écritures communes. */
-  async journalise(parNom: string, g: { verbe: 'pose' | 'modifie' | 'efface'; table: string; pieceId: string; piece: string; branchId?: string | null; champs?: { champ: string; avant?: string; apres?: string }[] }): Promise<void> {
+  async journalise(parNom: string, g: { verbe: 'pose' | 'modifie' | 'efface' | 'lit'; table: string; pieceId: string; piece: string; branchId?: string | null; champs?: { champ: string; avant?: string; apres?: string }[] }): Promise<void> {
     const id = identifiant('geste');
     const geste = {
       id, ...(g.branchId ? { branchId: g.branchId } : {}), quand: new Date().toISOString(), parNom, porte: PORTE_ASSISTANT,
@@ -692,6 +701,139 @@ async function notifier(s: Serveur, moi: LigneAssistant, d: Corps): Promise<Resp
   return rendu({ sent: r.sent, ...(r.motif ? { motif: r.motif } : {}) });
 }
 
+/* ── LES DÉPENSES DU JOUR (1er novembre 2026) ─────────────────────────
+   Maquette « Dépenses du jour et achats », choix tranchés au sélecteur :
+   Opale propose au sélecteur, Yéman touche « Poser », et la dépense entre
+   ici « à valider » (validation.etat 'attente', soumisPar = le nom de
+   l'assistant). Elle ne sort d'aucune caisse avant le oui d'un souverain ou
+   d'un gérant, à l'écran Dépenses. Jamais un prestataire (sa mission naît du
+   rituel honoré), jamais un doublon du jour, jamais deux fois le même geste.
+   Les règles : shared/assistants-depenses-pur. */
+async function depensePoser(s: Serveur, moi: LigneAssistant, d: Corps): Promise<Response> {
+  const maintenantMs = Date.now();
+  const maintenant = new Date(maintenantMs).toISOString();
+  const aujourdhui = aCotonou(maintenantMs).dateISO;
+  const lue = lisLaDemandeDeDepense(d, aujourdhui);
+  if (!lue.ok) return refus(lue.motif, 400, lue.detail ? { detail: lue.detail } : {});
+  const v = lue.v;
+  const idempotence = chaine(d.idempotence);
+  if (!idempotence) return refus('idempotence');
+  const recuLu = lisLeRecu(d.recu);
+  if (!recuLu.ok) return refus(recuLu.motif);
+  const branchId = chaine(moi.branch_id) || (await s.brancheVedette())?.id || BRANCHE_PHARE;
+  const id = await idDeLaDepense(moi.id, idempotence);
+
+  /* ① LE MÊME GESTE, rejoué après un redémarrage : rien de plus. */
+  const { data: dejaLa } = await s.sb.from('expenses').select('id').eq('id', id).maybeSingle();
+  if (dejaLa) return rendu({ verdict: 'deja', id });
+
+  /* ② Ce que la Maison connaît : catégories, caisses, porteurs, prestataires. */
+  const [cats, boites, docs] = await Promise.all([
+    s.sb.from('expense_categories').select('id, data').limit(500),
+    s.sb.from('cashboxes').select('id, data').limit(1000),
+    s.sb.from('documents').select('key, data').in('key', ['mnd_porteurs', 'mnd_prestataires']),
+  ]);
+  const doc = (k: string): unknown => ((docs.data ?? []) as { key: string; data?: unknown }[]).find((x) => x.key === k)?.data;
+  const prestataires = (Array.isArray(doc('mnd_prestataires')) ? doc('mnd_prestataires') : []) as { name?: unknown; archived?: unknown }[];
+  const prestataire = prestataireNomme([v.objet, v.beneficiaire], prestataires);
+  if (prestataire) return refus('prestataire', 409, { prestataire, detail: 'sa mission naît du rituel honoré, son paiement fait la dépense' });
+  const categories = lignesDe(cats.data as Ligne[] | null) as { name?: unknown }[];
+  const categorie = categorieConnue(v.categorie, categories);
+  if (!categorie) return refus('categorie-inconnue', 400, { categories: categories.map((c) => chaine(c.name)).filter(Boolean) });
+  const caisse = caisseDeLaDepense(v.caisse, lignesDe(boites.data as Ligne[] | null), branchId);
+  if (!caisse.ok) return refus('caisse-inconnue', 400, { caisses: caisse.caisses });
+  let porteur: string | undefined;
+  if (v.porteur) {
+    const liste = Array.isArray(doc('mnd_porteurs')) ? (doc('mnd_porteurs') as unknown[]) : [];
+    porteur = porteurConnu(v.porteur, liste) ?? undefined;
+    if (!porteur) return refus('porteur-inconnu', 400, { porteurs: liste.map((x) => chaine(x)).filter(Boolean) });
+  }
+  const label = libelleDeLaDepense(v.objet, v.beneficiaire);
+
+  /* ③ LE DOUBLON DU JOUR : déjà au Trône, on le dit et on attend (« C'en est une autre » : `autre`). */
+  if (!v.autre) {
+    const { data: duJour } = await s.sb.from('expenses').select('id, data').eq('branch_id', branchId).eq('data->>date', v.date).limit(1000);
+    const doublon = doublonDeLaDepense({ branchId, date: v.date, amountXof: v.montantXof, label }, lignesDe(duJour as Ligne[] | null) as DepenseExistante[]);
+    if (doublon) {
+      return refus('doublon', 409, { deja: {
+        id: doublon.id, label: doublon.label, amountXof: doublon.amountXof, date: doublon.date, saisiePar: saisiePar(doublon),
+        ...(doublon.validation?.soumisLe ? { soumisLe: doublon.validation.soumisLe } : {}),
+      } });
+    }
+  }
+
+  /* ④ LE REÇU, là où le Trône range les pièces jointes des dépenses. */
+  let fichier: { chemin: string; nom: string; type: string; taille: number } | undefined;
+  if (recuLu.recu) {
+    const chemin = cheminDuRecu(branchId, id, recuLu.recu.nom);
+    const { error } = await s.sb.storage.from(COMPARTIMENT_DES_RECUS).upload(chemin, recuLu.recu.octets, { contentType: recuLu.recu.type, upsert: true });
+    if (error) { dis('reçu non déposé', { motif: String(error.message ?? '').slice(0, 80) }); return refus('recu-non-depose', 502); }
+    fichier = { chemin, nom: recuLu.recu.nom, type: recuLu.recu.type, taille: recuLu.recu.octets.length };
+  }
+
+  /* ⑤ LA LIGNE, À VALIDER. */
+  const depense = {
+    id, branchId, label, amountXof: v.montantXof, date: v.date, cashbox: caisse.caisse, category: categorie, recurring: null,
+    ...(porteur ? { porteur } : {}), ...(fichier ? { fichier } : {}),
+    validation: { etat: 'attente', soumisLe: maintenant, soumisPar: moi.nom },
+  };
+  const { error } = await s.sb.from('expenses').insert({ id, branch_id: branchId, data: depense });
+  if (error) {
+    const { data: posee } = await s.sb.from('expenses').select('id').eq('id', id).maybeSingle();
+    if (posee) return rendu({ verdict: 'deja', id });
+    dis('dépense non écrite', { motif: String(error.message ?? '').slice(0, 80) });
+    return refus('ecriture', 500);
+  }
+  await s.journalise(moi.nom, { verbe: 'pose', table: 'expenses', pieceId: id, piece: pieceDuJournal(v.montantXof, categorie), branchId });
+  return rendu({
+    verdict: 'posee', id, label, amountXof: v.montantXof, date: v.date, cashbox: caisse.caisse, category: categorie,
+    ...(porteur ? { porteur } : {}), recu: !!fichier,
+  });
+}
+
+/* ── RETROUVER UNE FICHE (1er novembre 2026), lecture seule ────────────
+   Le fil de Yéman à elle-même sert aussi aux rendez-vous : Opale retrouve la
+   fiche par son nom ou son numéro, et ses rendez-vous à venir, avant de
+   proposer au sélecteur puis de passer par `rdv.poser`, `rdv.deplacer` ou
+   `rdv.annuler`. Bornes : shared/assistants-fiches-pur. Une ligne « lu » au
+   journal, sans le nom cherché ; soixante lectures par jour et par assistant. */
+async function ficheChercher(s: Serveur, moi: LigneAssistant, d: Corps): Promise<Response> {
+  const maintenantMs = Date.now();
+  const aujourdhui = aCotonou(maintenantMs).dateISO;
+  const lue = lisLaRecherche({ nom: d.nom, numeroCle: d.numeroCle }, cleDuNumero);
+  if (!lue.ok) return refus(lue.motif);
+  const debutDuJour = new Date(Date.parse(`${aujourdhui}T00:00:00+01:00`)).toISOString();
+  const { data: lues } = await s.sb.from('journal_gestes').select('id')
+    .eq('data->>parNom', moi.nom).eq('data->>verbe', 'lit').gte('data->>quand', debutDuJour).limit(LECTURES_PAR_JOUR + 1);
+  if ((lues ?? []).length >= LECTURES_PAR_JOUR) return refus('plafond-des-lectures', 429, { auPlus: LECTURES_PAR_JOUR });
+
+  let trouvees: { id: string; data: Record<string, unknown> }[] = [];
+  if ('numero' in lue) {
+    const ids = (await s.fichesDuNumero(lue.numero)).map((f) => f.id).slice(0, 20);
+    if (ids.length) {
+      const { data } = await s.sb.from('clients').select('id, data').in('id', ids);
+      trouvees = (data ?? []) as { id: string; data: Record<string, unknown> }[];
+    }
+  } else {
+    const { data } = await s.sb.from('clients').select('id, data').ilike('data->>name', motifDeLaBase(lue.nom)).limit(300);
+    trouvees = ((data ?? []) as { id: string; data: Record<string, unknown> }[]).filter((r) => ficheCorrespond(chaine(r.data?.name), lue.nom));
+  }
+  trouvees = trouvees.filter((r) => r.data?.archived !== true).sort((a, b) => chaine(a.data?.name).localeCompare(chaine(b.data?.name), 'fr'));
+  const plus = trouvees.length > FICHES_AU_PLUS;
+  const { prestations } = await s.catalogue();
+  const nomDe = (id: string) => prestations.find((p) => p.id === id)?.name || undefined;
+  const fiches = [];
+  for (const f of trouvees.slice(0, FICHES_AU_PLUS)) {
+    const { data: appts } = await s.sb.from('appointments').select('id, data, updated_at').eq('data->>clientId', f.id).gte('data->>date', aujourdhui).limit(20);
+    const rdvs = ((appts ?? []) as { id: string; data: Rdv; updated_at: string }[]).map((a) => ({
+      id: a.id, date: a.data.date, time: a.data.time, status: a.data.status, serviceIds: a.data.serviceIds, updatedAt: a.updated_at,
+    }));
+    fiches.push(ficheLisible({ id: f.id, data: f.data ?? {} }, rdvs, nomDe, aujourdhui));
+  }
+  await s.journalise(moi.nom, { verbe: 'lit', table: 'clients', pieceId: identifiant('lecture'), piece: pieceDeLaLecture(fiches.length), branchId: moi.branch_id });
+  return rendu({ fiches, plus });
+}
+
 /* ── Les actions de la porte B (un souverain, depuis l'écran) ────────── */
 
 async function jetonDonner(s: Serveur, qui: Souverain, d: Corps): Promise<Response> {
@@ -867,6 +1009,8 @@ Deno.serve(async (req) => {
         case 'rdv.annuler': return await rdvAnnuler(s, moi, d);
         case 'note.poser': return await notePoser(s, moi, d);
         case 'notifier': return await notifier(s, moi, d);
+        case 'depense.poser': return await depensePoser(s, moi, d);
+        case 'fiche.chercher': return await ficheChercher(s, moi, d);
       }
     } else {
       const qui = porte.qui;

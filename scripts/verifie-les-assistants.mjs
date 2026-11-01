@@ -17,6 +17,8 @@ const racine = path.resolve(import.meta.dirname, '..');
 const prouve = process.argv.includes('--prouve');
 const PUR = 'src/shared/assistants-pur.ts';
 const SERVEUR = 'scripts/serveur/assistants-maison.ts';
+const DEP = 'src/shared/assistants-depenses-pur.ts';
+const FIC = 'src/shared/assistants-fiches-pur.ts';
 
 const PANNES = [
   // le cerveau pur
@@ -51,6 +53,31 @@ const PANNES = [
   ['le journal passe par la mauvaise porte', SERVEUR, 'parNom, porte: PORTE_ASSISTANT,', "parNom, porte: 'trone',"],
   ['le journal porte le nom de la cliente', SERVEUR, "piece: `Rendez-vous ${heure}${prestation ? `, ${prestation}` : ''}`, branchId });", "piece: `Rendez-vous ${heure}, ${fiche.name ?? ''}`, branchId });"],
   ['la notification au porteur porte le mot du relais', SERVEUR, 'this.notifieLePorteur(r.pour, r.genre, r.heure ? { heure: r.heure } : undefined)', 'this.notifieLePorteur(r.pour, r.genre, { heure: `${r.heure ?? \'\'} ${r.mot ?? \'\'}` })'],
+  // les dépenses du jour et la recherche d'une fiche (1er novembre 2026)
+  ['un montant nul passe', DEP, '  if (!Number.isFinite(montant) || montant <= 0) return', '  if (!Number.isFinite(montant)) return'],
+  ['une date future passe', DEP, "    if (d.date > aujourdhui) return { ok: false, motif: 'date-future' };\n", ''],
+  ['une caisse rangee sert encore', DEP, "String(c.branchId ?? '') === branchId && !c.archiveeLe", "String(c.branchId ?? '') === branchId"],
+  ['un porteur inconnu devient un second porteur', DEP, '  return parPrenom.length === 1 ? parPrenom[0] : null;', '  return parPrenom[0] ?? nom;'],
+  ['un prestataire passe en depense', DEP, '    if (premier && mots.has(premier)) return nom;', '    if (false) return nom;'],
+  ['une depense refusee compte encore comme doublon', DEP, "    if (e.validation?.etat === 'refusee') continue;\n", ''],
+  ['le doublon ignore le montant', DEP, '    if (Math.round(Number(e.amountXof ?? -1)) !== n.amountXof) continue;\n', ''],
+  ['l identifiant ne tient plus a la cle du geste', DEP, "encode(`${assistantId}|${String(idempotence ?? '').trim()}`)", 'encode(`${assistantId}|${Math.random()}`)'],
+  ['un recu trop lourd passe', DEP, 'export const RECU_AU_PLUS_OCTETS = 5 * 1024 * 1024;', 'export const RECU_AU_PLUS_OCTETS = 500 * 1024 * 1024;'],
+  ['le recu part ailleurs que dans les pieces jointes', DEP, "export const COMPARTIMENT_DES_RECUS = 'fil';", "export const COMPARTIMENT_DES_RECUS = 'recus';"],
+  ['des initiales seules cherchent', FIC, '  if (lettres < 2 || !mots.some((m) => m.length >= 2)) return', '  if (lettres < 1) return'],
+  ['plus de cinq fiches sortent', FIC, 'export const FICHES_AU_PLUS = 5;', 'export const FICHES_AU_PLUS = 50;'],
+  ['un rendez-vous annule sort', FIC, "r.date >= aujourdhui && r.status !== 'annulé'", 'r.date >= aujourdhui'],
+  ['un rendez-vous passe sort', FIC, "r.date >= aujourdhui && r.status !== 'annulé'", "r.status !== 'annulé'"],
+  ['les accents empechent de trouver', FIC, "replace(/[aeiouycn]/g, '_')", "replace(/[q]/g, '_')"],
+  ['la fiche rend sa note', FIC, '    numeros, rdvs: avenir,\n  };', '    numeros, rdvs: avenir, ...(d.note ? { note: d.note } : {}),\n  };'],
+  ['la depense nait acquise', SERVEUR, "validation: { etat: 'attente', soumisLe: maintenant, soumisPar: moi.nom },", "validation: { etat: 'validee', soumisLe: maintenant, soumisPar: moi.nom },"],
+  ['le meme geste se rejoue', SERVEUR, "  if (dejaLa) return rendu({ verdict: 'deja', id });", "  if (false) return rendu({ verdict: 'deja', id });"],
+  ['le doublon n est plus cherche', SERVEUR, '  if (!v.autre) {', '  if (false) {'],
+  ['le journal de la depense porte l objet', SERVEUR, 'piece: pieceDuJournal(v.montantXof, categorie), branchId });', 'piece: `${pieceDuJournal(v.montantXof, categorie)} ${v.objet}`, branchId });'],
+  ['une fiche rangee sort', SERVEUR, 'trouvees.filter((r) => r.data?.archived !== true)', 'trouvees.filter(() => true)'],
+  ['la recherche ne plafonne plus', SERVEUR, '  if ((lues ?? []).length >= LECTURES_PAR_JOUR) return', '  if (false) return'],
+  ['la lecture n est plus tracee', SERVEUR, "  await s.journalise(moi.nom, { verbe: 'lit',", "  if (false) await s.journalise(moi.nom, { verbe: 'lit',"],
+  ['le journal de la lecture porte le nom cherche', SERVEUR, 'piece: pieceDeLaLecture(fiches.length),', 'piece: `${pieceDeLaLecture(fiches.length)} ${chaine(d.nom)}`,'],
 ];
 
 const greffon = (panne) => ({

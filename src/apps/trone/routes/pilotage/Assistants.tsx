@@ -44,7 +44,7 @@ import './assistants.css';
    relais se dit par sa fiche du Trône quand on la connaît, sinon par la fin
    de son numéro. */
 
-const DIT_VERBE: Record<Geste['verbe'], string> = { pose: 'a posé', modifie: 'a modifié', efface: 'a effacé' };
+const DIT_VERBE: Record<Geste['verbe'], string> = { pose: 'a posé', modifie: 'a modifié', efface: 'a effacé', lit: 'a fait' };
 
 const DIT_APRES_LE_CHOIX: Record<string, string> = {
   envoyer: 'Tranché : l’assistant enverra au prochain passage.',

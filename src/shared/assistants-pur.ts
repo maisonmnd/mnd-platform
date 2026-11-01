@@ -467,6 +467,8 @@ export function tournureInterdite(texte: string | null | undefined): string | nu
 export const ACTIONS_DU_JETON = [
   'passage', 'relais.deposer', 'relais.traiter', 'decision.deposer', 'decision.executee',
   'rdv.poser', 'rdv.deplacer', 'rdv.annuler', 'note.poser', 'notifier',
+  /* 1er novembre 2026 : la dépense du jour posée « à valider », et la fiche retrouvée par son nom (lecture seule). */
+  'depense.poser', 'fiche.chercher',
 ] as const;
 export const ACTIONS_DU_SOUVERAIN = ['jeton.donner', 'jeton.retirer', 'decision.trancher', 'place.trancher'] as const;
 

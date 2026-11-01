@@ -72,7 +72,7 @@ Toujours lancée depuis `~/Onyx` (elle y trouve `reglages.json`) :
 
     cd ~/Onyx && node assistants-maison.mjs <sous-commande> ...
 
-- `--aide` liste les sous-commandes : `sante`, `passage`, `relais deposer|traiter`, `decision deposer|executee`, `rdv poser|deplacer|annuler`, `note poser`, `notifier`.
+- `--aide` liste les sous-commandes : `sante`, `passage`, `relais deposer|traiter`, `decision deposer|executee`, `rdv poser|deplacer|annuler`, `note poser`, `notifier`, `depense poser`, `fiche chercher` (charte, sections 16 et 17).
 - `--essai` montre la requête qui partirait, sans l'envoyer.
 - Un rendez-vous se pose par `rdv poser`, jamais à la souris dans le Trône.
 

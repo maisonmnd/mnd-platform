@@ -502,7 +502,10 @@ var ACTIONS_DU_JETON = [
   "rdv.deplacer",
   "rdv.annuler",
   "note.poser",
-  "notifier"
+  "notifier",
+  /* 1er novembre 2026 : la dépense du jour posée « à valider », et la fiche retrouvée par son nom (lecture seule). */
+  "depense.poser",
+  "fiche.chercher"
 ];
 var ACTIONS_DU_SOUVERAIN = ["jeton.donner", "jeton.retirer", "decision.trancher", "place.trancher"];
 var porteDeLAction = (action) => {
@@ -574,8 +577,183 @@ function heureDeDepart(maintenantMs, r) {
   return { partA: finDesHeuresCalmes(apresLaSalle, r), calme: true };
 }
 
+// src/shared/assistants-depenses-pur.ts
+var MONTANT_AU_PLUS_XOF = 2e6;
+var OBJET_AU_PLUS = 80;
+var JOURS_EN_ARRIERE = 60;
+var RECU_AU_PLUS_OCTETS = 5 * 1024 * 1024;
+var TYPES_DE_RECU = ["image/jpeg", "image/png", "image/webp", "application/pdf"];
+var CAISSE_PAR_DEFAUT = "Caisse Principale";
+var COMPARTIMENT_DES_RECUS = "fil";
+var DOSSIER_DES_RECUS = "depense";
+var sansAccents = (s) => String(s ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+var MOTS_VIDES = /* @__PURE__ */ new Set(["les", "des", "pour", "avec", "une", "aux", "sur", "par", "dans", "chez", "caisse", "principale"]);
+var motsDeLObjet = (t) => sansAccents(t).split(/[^a-z0-9]+/).filter((m) => m.length >= 3 && !MOTS_VIDES.has(m));
+var unTexteSain = (t, auPlus) => {
+  const v = String(t ?? "").replace(/\s+/g, " ").trim();
+  if (v.length < 2 || v.length > auPlus) return null;
+  if (/\d{8,}/.test(v.replace(/[\s.-]/g, ""))) return null;
+  return v;
+};
+function lisLaDemandeDeDepense(d, aujourdhui) {
+  const brut = d.montantXof;
+  const montant = typeof brut === "number" ? brut : typeof brut === "string" && /^\s*\d[\d\s.]*$/.test(brut) ? Number(brut.replace(/[\s.]/g, "")) : NaN;
+  if (!Number.isFinite(montant) || montant <= 0) return { ok: false, motif: "montant", detail: "un montant en francs, plus grand que zéro" };
+  if (!Number.isInteger(montant)) return { ok: false, motif: "montant", detail: "des francs entiers" };
+  if (montant > MONTANT_AU_PLUS_XOF) return { ok: false, motif: "montant-hors-borne", detail: `plus de ${MONTANT_AU_PLUS_XOF} F : à saisir au Trône` };
+  const objet = unTexteSain(String(d.objet ?? ""), OBJET_AU_PLUS);
+  if (!objet) return { ok: false, motif: "objet", detail: `deux à ${OBJET_AU_PLUS} signes, sans numéro` };
+  let beneficiaire;
+  if (d.beneficiaire !== void 0 && String(d.beneficiaire).trim()) {
+    const b = unTexteSain(String(d.beneficiaire), 60);
+    if (!b) return { ok: false, motif: "beneficiaire", detail: "deux à 60 signes, sans numéro" };
+    beneficiaire = b;
+  }
+  const categorie = String(d.categorie ?? "").trim();
+  if (!categorie) return { ok: false, motif: "categorie" };
+  let date = aujourdhui;
+  if (d.date !== void 0 && d.date !== "") {
+    if (typeof d.date !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(d.date) || Number.isNaN(Date.parse(`${d.date}T12:00:00Z`))) return { ok: false, motif: "date-invalide" };
+    if (d.date > aujourdhui) return { ok: false, motif: "date-future" };
+    const ecart = (Date.parse(`${aujourdhui}T12:00:00Z`) - Date.parse(`${d.date}T12:00:00Z`)) / 864e5;
+    if (ecart > JOURS_EN_ARRIERE) return { ok: false, motif: "date-ancienne", detail: `plus de ${JOURS_EN_ARRIERE} jours : à saisir au Trône` };
+    date = d.date;
+  }
+  const caisse = String(d.caisse ?? "").trim() || void 0;
+  const porteur = String(d.porteur ?? "").trim() || void 0;
+  return { ok: true, v: { montantXof: montant, objet, ...beneficiaire ? { beneficiaire } : {}, categorie, ...caisse ? { caisse } : {}, ...porteur ? { porteur } : {}, date, autre: d.autre === true } };
+}
+function categorieConnue(nom, categories) {
+  const cle = sansAccents(nom).trim();
+  for (const c of categories) {
+    const n = String(c.name ?? "").trim();
+    if (n && sansAccents(n) === cle) return n;
+  }
+  return null;
+}
+var vivantesDe = (caisses, branchId) => caisses.filter((c) => String(c.branchId ?? "") === branchId && !c.archiveeLe).map((c) => String(c.name ?? "").trim()).filter(Boolean);
+function caisseDeLaDepense(nom, caisses, branchId) {
+  const vivantes = vivantesDe(caisses, branchId);
+  if (nom) {
+    const trouvee = vivantes.find((c) => sansAccents(c) === sansAccents(nom).trim());
+    return trouvee ? { ok: true, caisse: trouvee } : { ok: false, caisses: vivantes };
+  }
+  return { ok: true, caisse: vivantes.find((c) => sansAccents(c) === sansAccents(CAISSE_PAR_DEFAUT)) ?? vivantes[0] ?? CAISSE_PAR_DEFAUT };
+}
+function porteurConnu(nom, liste) {
+  const noms = liste.map((x) => String(x ?? "").trim()).filter(Boolean);
+  const cle = sansAccents(nom).trim();
+  if (!cle) return null;
+  const exact = noms.find((n) => sansAccents(n) === cle);
+  if (exact) return exact;
+  const parPrenom = noms.filter((n) => sansAccents(n).split(/\s+/)[0] === cle.split(/\s+/)[0] && cle.split(/\s+/).length === 1);
+  return parPrenom.length === 1 ? parPrenom[0] : null;
+}
+function prestataireNomme(textes, prestataires) {
+  const mots = new Set(textes.flatMap((t) => sansAccents(t ?? "").split(/[^a-z0-9]+/)).filter(Boolean));
+  for (const p of prestataires) {
+    if (p.archived === true) continue;
+    const nom = String(p.name ?? "").trim();
+    const premier = sansAccents(nom).split(/[^a-z0-9]+/).find((m) => m.length >= 3);
+    if (premier && mots.has(premier)) return nom;
+  }
+  return null;
+}
+function doublonDeLaDepense(n, existantes) {
+  const siens = new Set(motsDeLObjet(n.label));
+  for (const e of existantes) {
+    if (String(e.branchId ?? "") !== n.branchId || e.date !== n.date) continue;
+    if (Math.round(Number(e.amountXof ?? -1)) !== n.amountXof) continue;
+    if (e.validation?.etat === "refusee") continue;
+    const leurs = motsDeLObjet(String(e.label ?? ""));
+    if (siens.size === 0 || leurs.length === 0 || leurs.some((m) => siens.has(m))) return e;
+  }
+  return null;
+}
+var saisiePar = (e) => String(e.validation?.soumisPar ?? "").trim() || String(e.porteur ?? "").trim() || "la Maison";
+var libelleDeLaDepense = (objet, beneficiaire) => beneficiaire ? `${beneficiaire} · ${objet}` : objet;
+var hex2 = (b) => Array.from(b, (x) => x.toString(16).padStart(2, "0")).join("");
+async function idDeLaDepense(assistantId, idempotence) {
+  const h = await globalThis.crypto.subtle.digest("SHA-256", new TextEncoder().encode(`${assistantId}|${String(idempotence ?? "").trim()}`));
+  return `exp-${assistantId}-${hex2(new Uint8Array(h)).slice(0, 20)}`;
+}
+function lisLeRecu(r) {
+  if (r === void 0 || r === null) return { ok: true, recu: null };
+  if (typeof r !== "object") return { ok: false, motif: "recu-illisible" };
+  const o = r;
+  const type = String(o.type ?? "").toLowerCase();
+  if (!TYPES_DE_RECU.includes(type)) return { ok: false, motif: "recu-type" };
+  const b64 = String(o.base64 ?? "").replace(/\s+/g, "");
+  if (!b64 || !/^[A-Za-z0-9+/]+={0,2}$/.test(b64)) return { ok: false, motif: "recu-illisible" };
+  if (Math.floor(b64.length * 3 / 4) > RECU_AU_PLUS_OCTETS + 3) return { ok: false, motif: "recu-trop-lourd" };
+  let octets;
+  try {
+    const bin = atob(b64);
+    octets = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) octets[i] = bin.charCodeAt(i);
+  } catch {
+    return { ok: false, motif: "recu-illisible" };
+  }
+  if (octets.length === 0) return { ok: false, motif: "recu-illisible" };
+  if (octets.length > RECU_AU_PLUS_OCTETS) return { ok: false, motif: "recu-trop-lourd" };
+  const nom = String(o.nom ?? "").trim() || `recu.${type === "application/pdf" ? "pdf" : type.split("/")[1]}`;
+  return { ok: true, recu: { nom: nom.slice(-120), type, octets } };
+}
+function cheminDuRecu(branchId, depenseId, nom) {
+  const propre = String(nom).normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^A-Za-z0-9._-]+/g, "-").slice(-80);
+  return `${branchId}/${DOSSIER_DES_RECUS}/${depenseId}-${propre}`;
+}
+var fr = (n) => `${String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, " ")} F`;
+var pieceDuJournal = (montantXof, categorie) => `Dépense à valider, ${fr(montantXof)}, ${categorie}`;
+
+// src/shared/assistants-fiches-pur.ts
+var FICHES_AU_PLUS = 5;
+var LECTURES_PAR_JOUR = 60;
+var RDV_AU_PLUS = 5;
+var motsDuNom = (t) => sansAccents(t).split(/[^a-z0-9]+/).filter(Boolean);
+function lisLaRecherche(d, numeroCle2) {
+  const brutNum = String(d.numeroCle ?? "").trim();
+  if (brutNum) {
+    const n = numeroCle2(brutNum);
+    return n ? { ok: true, numero: n } : { ok: false, motif: "numero-invalide" };
+  }
+  const mots = motsDuNom(String(d.nom ?? ""));
+  const lettres = mots.join("").replace(/[0-9]/g, "").length;
+  if (lettres < 2 || !mots.some((m) => m.length >= 2)) return { ok: false, motif: "nom-trop-court" };
+  return { ok: true, nom: mots };
+}
+function motifDeLaBase(mots) {
+  const long = [...mots].sort((a, b) => b.length - a.length)[0] ?? "";
+  return `%${long.replace(/[aeiouycn]/g, "_")}%`;
+}
+function ficheCorrespond(nomDeLaFiche, mots) {
+  const siens = motsDuNom(nomDeLaFiche);
+  return mots.length > 0 && mots.every((m) => siens.some((s) => s.startsWith(m)));
+}
+function ficheLisible(f, rdvs, nomDe, aujourdhui) {
+  const d = f.data;
+  const civ = String(d.civilite ?? "");
+  const numeros = [d.phone, d.phone2].map((x) => String(x ?? "").trim()).filter((x) => x.replace(/\D/g, "").length >= 8);
+  const avenir = rdvs.filter((r) => r.date >= aujourdhui && r.status !== "annulé").sort((a, b) => `${a.date} ${a.time ?? ""}`.localeCompare(`${b.date} ${b.time ?? ""}`)).slice(0, RDV_AU_PLUS).map((r) => ({
+    id: r.id,
+    date: r.date,
+    heure: String(r.time ?? ""),
+    prestations: (Array.isArray(r.serviceIds) ? r.serviceIds : []).map((s) => nomDe(String(s)) ?? "Prestation").filter(Boolean),
+    updatedAt: String(r.updatedAt ?? "")
+  }));
+  return {
+    id: f.id,
+    nom: String(d.name ?? "").trim(),
+    ...civ === "madame" || civ === "mademoiselle" || civ === "monsieur" ? { civilite: civ } : {},
+    numeros,
+    rdvs: avenir
+  };
+}
+var pieceDeLaLecture = (n) => `une recherche de fiche, ${n === 0 ? "aucune trouvée" : n === 1 ? "une trouvée" : `${n} trouvées`}`;
+
 // scripts/serveur/assistants-maison.ts
-var VERSION = "2026-10-31-b";
+var VERSION = "2026-11-01-a";
+var BRANCHE_PHARE = "br-40r6u6frno";
 var ECRAN = "Les assistants";
 var ADRESSE_DES_ASSISTANTS = "/trone/#/assistants";
 var ETIQUETTE_DES_NOTIFICATIONS = "mnd-assistants";
@@ -1262,6 +1440,138 @@ async function notifier(s, moi, d) {
   const r = await s.notifieLePorteur(pour, genre, detail);
   return rendu({ sent: r.sent, ...r.motif ? { motif: r.motif } : {} });
 }
+async function depensePoser(s, moi, d) {
+  const maintenantMs = Date.now();
+  const maintenant = new Date(maintenantMs).toISOString();
+  const aujourdhui = aCotonou(maintenantMs).dateISO;
+  const lue = lisLaDemandeDeDepense(d, aujourdhui);
+  if (!lue.ok) return refus(lue.motif, 400, lue.detail ? { detail: lue.detail } : {});
+  const v = lue.v;
+  const idempotence = chaine(d.idempotence);
+  if (!idempotence) return refus("idempotence");
+  const recuLu = lisLeRecu(d.recu);
+  if (!recuLu.ok) return refus(recuLu.motif);
+  const branchId = chaine(moi.branch_id) || (await s.brancheVedette())?.id || BRANCHE_PHARE;
+  const id = await idDeLaDepense(moi.id, idempotence);
+  const { data: dejaLa } = await s.sb.from("expenses").select("id").eq("id", id).maybeSingle();
+  if (dejaLa) return rendu({ verdict: "deja", id });
+  const [cats, boites, docs] = await Promise.all([
+    s.sb.from("expense_categories").select("id, data").limit(500),
+    s.sb.from("cashboxes").select("id, data").limit(1e3),
+    s.sb.from("documents").select("key, data").in("key", ["mnd_porteurs", "mnd_prestataires"])
+  ]);
+  const doc = (k) => (docs.data ?? []).find((x) => x.key === k)?.data;
+  const prestataires = Array.isArray(doc("mnd_prestataires")) ? doc("mnd_prestataires") : [];
+  const prestataire = prestataireNomme([v.objet, v.beneficiaire], prestataires);
+  if (prestataire) return refus("prestataire", 409, { prestataire, detail: "sa mission naît du rituel honoré, son paiement fait la dépense" });
+  const categories = lignesDe(cats.data);
+  const categorie = categorieConnue(v.categorie, categories);
+  if (!categorie) return refus("categorie-inconnue", 400, { categories: categories.map((c) => chaine(c.name)).filter(Boolean) });
+  const caisse = caisseDeLaDepense(v.caisse, lignesDe(boites.data), branchId);
+  if (!caisse.ok) return refus("caisse-inconnue", 400, { caisses: caisse.caisses });
+  let porteur;
+  if (v.porteur) {
+    const liste = Array.isArray(doc("mnd_porteurs")) ? doc("mnd_porteurs") : [];
+    porteur = porteurConnu(v.porteur, liste) ?? void 0;
+    if (!porteur) return refus("porteur-inconnu", 400, { porteurs: liste.map((x) => chaine(x)).filter(Boolean) });
+  }
+  const label = libelleDeLaDepense(v.objet, v.beneficiaire);
+  if (!v.autre) {
+    const { data: duJour } = await s.sb.from("expenses").select("id, data").eq("branch_id", branchId).eq("data->>date", v.date).limit(1e3);
+    const doublon = doublonDeLaDepense({ branchId, date: v.date, amountXof: v.montantXof, label }, lignesDe(duJour));
+    if (doublon) {
+      return refus("doublon", 409, { deja: {
+        id: doublon.id,
+        label: doublon.label,
+        amountXof: doublon.amountXof,
+        date: doublon.date,
+        saisiePar: saisiePar(doublon),
+        ...doublon.validation?.soumisLe ? { soumisLe: doublon.validation.soumisLe } : {}
+      } });
+    }
+  }
+  let fichier;
+  if (recuLu.recu) {
+    const chemin = cheminDuRecu(branchId, id, recuLu.recu.nom);
+    const { error: error2 } = await s.sb.storage.from(COMPARTIMENT_DES_RECUS).upload(chemin, recuLu.recu.octets, { contentType: recuLu.recu.type, upsert: true });
+    if (error2) {
+      dis("reçu non déposé", { motif: String(error2.message ?? "").slice(0, 80) });
+      return refus("recu-non-depose", 502);
+    }
+    fichier = { chemin, nom: recuLu.recu.nom, type: recuLu.recu.type, taille: recuLu.recu.octets.length };
+  }
+  const depense = {
+    id,
+    branchId,
+    label,
+    amountXof: v.montantXof,
+    date: v.date,
+    cashbox: caisse.caisse,
+    category: categorie,
+    recurring: null,
+    ...porteur ? { porteur } : {},
+    ...fichier ? { fichier } : {},
+    validation: { etat: "attente", soumisLe: maintenant, soumisPar: moi.nom }
+  };
+  const { error } = await s.sb.from("expenses").insert({ id, branch_id: branchId, data: depense });
+  if (error) {
+    const { data: posee } = await s.sb.from("expenses").select("id").eq("id", id).maybeSingle();
+    if (posee) return rendu({ verdict: "deja", id });
+    dis("dépense non écrite", { motif: String(error.message ?? "").slice(0, 80) });
+    return refus("ecriture", 500);
+  }
+  await s.journalise(moi.nom, { verbe: "pose", table: "expenses", pieceId: id, piece: pieceDuJournal(v.montantXof, categorie), branchId });
+  return rendu({
+    verdict: "posee",
+    id,
+    label,
+    amountXof: v.montantXof,
+    date: v.date,
+    cashbox: caisse.caisse,
+    category: categorie,
+    ...porteur ? { porteur } : {},
+    recu: !!fichier
+  });
+}
+async function ficheChercher(s, moi, d) {
+  const maintenantMs = Date.now();
+  const aujourdhui = aCotonou(maintenantMs).dateISO;
+  const lue = lisLaRecherche({ nom: d.nom, numeroCle: d.numeroCle }, numeroCle);
+  if (!lue.ok) return refus(lue.motif);
+  const debutDuJour = new Date(Date.parse(`${aujourdhui}T00:00:00+01:00`)).toISOString();
+  const { data: lues } = await s.sb.from("journal_gestes").select("id").eq("data->>parNom", moi.nom).eq("data->>verbe", "lit").gte("data->>quand", debutDuJour).limit(LECTURES_PAR_JOUR + 1);
+  if ((lues ?? []).length >= LECTURES_PAR_JOUR) return refus("plafond-des-lectures", 429, { auPlus: LECTURES_PAR_JOUR });
+  let trouvees = [];
+  if ("numero" in lue) {
+    const ids = (await s.fichesDuNumero(lue.numero)).map((f) => f.id).slice(0, 20);
+    if (ids.length) {
+      const { data } = await s.sb.from("clients").select("id, data").in("id", ids);
+      trouvees = data ?? [];
+    }
+  } else {
+    const { data } = await s.sb.from("clients").select("id, data").ilike("data->>name", motifDeLaBase(lue.nom)).limit(300);
+    trouvees = (data ?? []).filter((r) => ficheCorrespond(chaine(r.data?.name), lue.nom));
+  }
+  trouvees = trouvees.filter((r) => r.data?.archived !== true).sort((a, b) => chaine(a.data?.name).localeCompare(chaine(b.data?.name), "fr"));
+  const plus = trouvees.length > FICHES_AU_PLUS;
+  const { prestations } = await s.catalogue();
+  const nomDe = (id) => prestations.find((p) => p.id === id)?.name || void 0;
+  const fiches = [];
+  for (const f of trouvees.slice(0, FICHES_AU_PLUS)) {
+    const { data: appts } = await s.sb.from("appointments").select("id, data, updated_at").eq("data->>clientId", f.id).gte("data->>date", aujourdhui).limit(20);
+    const rdvs = (appts ?? []).map((a) => ({
+      id: a.id,
+      date: a.data.date,
+      time: a.data.time,
+      status: a.data.status,
+      serviceIds: a.data.serviceIds,
+      updatedAt: a.updated_at
+    }));
+    fiches.push(ficheLisible({ id: f.id, data: f.data ?? {} }, rdvs, nomDe, aujourdhui));
+  }
+  await s.journalise(moi.nom, { verbe: "lit", table: "clients", pieceId: identifiant("lecture"), piece: pieceDeLaLecture(fiches.length), branchId: moi.branch_id });
+  return rendu({ fiches, plus });
+}
 async function jetonDonner(s, qui, d) {
   const id = chaine(d.id).toLowerCase();
   if (!/^[a-z][a-z0-9-]{1,30}$/.test(id)) return refus("id-invalide");
@@ -1433,6 +1743,10 @@ Deno.serve(async (req) => {
           return await notePoser(s, moi, d);
         case "notifier":
           return await notifier(s, moi, d);
+        case "depense.poser":
+          return await depensePoser(s, moi, d);
+        case "fiche.chercher":
+          return await ficheChercher(s, moi, d);
       }
     } else {
       const qui = porte.qui;

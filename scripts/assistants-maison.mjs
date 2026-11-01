@@ -16,7 +16,7 @@
 
    Node 18 ou plus récent, aucune dépendance. `--aide` pour l'usage. */
 
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, statSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
@@ -72,6 +72,13 @@ Sous-commandes :
   rdv annuler --rdv <id> --updated-at <iso>
   note poser --rdv <id> --note "..."      (200 caractères au plus)
   notifier --pour moi|<id d'assistant> --genre <genre> [--heure "..."]
+  depense poser --montant <francs> --objet "..." --categorie <catégorie>
+            [--beneficiaire "..."] [--caisse "..."] [--porteur "..."] [--date AAAA-MM-JJ]
+            [--recu <fichier jpg, png, webp ou pdf>] [--cle <clé du message>] [--autre]
+            (posée « à valider » ; sans --cle : <assistant>:depense:<date>:<montant>:<objet> ;
+             --autre seulement quand Yéman a dit que ce n'est pas la dépense déjà au Trône)
+  fiche chercher --nom "..." | --numero <n>
+            (lecture seule : 5 fiches au plus, leurs numéros et leurs rendez-vous à venir)
 
 Options communes :
   --essai      affiche la requête qui partirait (jeton masqué), sans l'envoyer
@@ -88,7 +95,7 @@ Exemple (31 octobre 2026) :
 
 /* ── Les arguments ────────────────────────────────────────────────────── */
 
-const DRAPEAUX = new Set(['essai', 'aide', 'tenue', 'ajouter', 'notifier']);
+const DRAPEAUX = new Set(['essai', 'aide', 'tenue', 'ajouter', 'notifier', 'autre']);
 
 function litLesArguments(argv) {
   const mots = []; const options = {};
@@ -178,6 +185,19 @@ const genreParmi = (options, liste, dit) => {
 };
 const sansVide = (objet) => Object.fromEntries(Object.entries(objet).filter(([, v]) => v !== undefined && v !== ''));
 
+/* LE REÇU d'une dépense : un fichier local, lu et mis en base64 ; cinq Mo au plus (la fonction juge à son tour). */
+const TYPES_DU_RECU = { '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png', '.webp': 'image/webp', '.pdf': 'application/pdf' };
+function litLeRecu(options) {
+  const chemin = texte(options, 'recu');
+  if (!chemin) return undefined;
+  const plein = path.resolve(chemin);
+  if (!existsSync(plein)) throw new Erreur('recu-absent', `--recu : aucun fichier ${plein}`);
+  const type = TYPES_DU_RECU[path.extname(plein).toLowerCase()];
+  if (!type) throw new Erreur('recu-type', '--recu attend un jpg, png, webp ou pdf');
+  if (statSync(plein).size > 5 * 1024 * 1024) throw new Erreur('recu-trop-lourd', '--recu : cinq Mo au plus');
+  return { nom: path.basename(plein), type, base64: readFileSync(plein).toString('base64') };
+}
+
 /* ── Les sous-commandes → le corps de la requête ──────────────────────── */
 
 function corpsDe(mots, options, reglages) {
@@ -257,6 +277,31 @@ function corpsDe(mots, options, reglages) {
         detail: h ? { heure: h } : undefined,
       });
     }
+    case 'depense poser': {
+      const montant = exige(options, 'montant', '--montant <francs>').replace(/[\s.]/g, '');
+      if (!/^\d+$/.test(montant) || Number(montant) <= 0) throw new Erreur('option-invalide', '--montant attend des francs entiers, plus grands que zéro');
+      const objet = exige(options, 'objet', '--objet "..."');
+      const date = texte(options, 'date') ? dateISO(options) : undefined;
+      const autre = options.autre === true;
+      const cleParDefaut = `${reglages.assistant}:depense:${date ?? 'jour'}:${montant}:${objet.toLowerCase().replace(/\s+/g, '-')}${autre ? ':autre' : ''}`;
+      return sansVide({
+        action: 'depense.poser',
+        montantXof: Number(montant), objet,
+        beneficiaire: texte(options, 'beneficiaire') || undefined,
+        categorie: exige(options, 'categorie', '--categorie <catégorie>'),
+        caisse: texte(options, 'caisse') || undefined,
+        porteur: texte(options, 'porteur') || undefined,
+        date,
+        autre: autre ? true : undefined,
+        idempotence: texte(options, 'cle') || cleParDefaut,
+        recu: litLeRecu(options),
+      });
+    }
+    case 'fiche chercher': {
+      const n = numero(options, 'numero', false);
+      if (n) return { action: 'fiche.chercher', numeroCle: n };
+      return { action: 'fiche.chercher', nom: exige(options, 'nom', '--nom "..." ou --numero <n>') };
+    }
     default:
       throw new Erreur('sous-commande-inconnue', `${cle || '(rien)'} : voir --aide`);
   }
@@ -269,7 +314,8 @@ async function appelle(reglages, corps, essai) {
   const methode = corps ? 'POST' : 'GET';
   const enTetes = corps ? { 'content-type': 'application/json', [EN_TETE_DU_JETON_ASSISTANT]: reglages.jeton } : {};
   if (essai) {
-    ecris({ ok: true, essai: true, assistant: reglages.assistant, requete: { methode, url, enTetes: corps ? { ...enTetes, [EN_TETE_DU_JETON_ASSISTANT]: JETON_MASQUE } : {}, corps: corps ?? null } });
+    const montre = corps?.recu ? { ...corps, recu: { ...corps.recu, base64: `<${corps.recu.base64.length} signes>` } } : corps;
+    ecris({ ok: true, essai: true, assistant: reglages.assistant, requete: { methode, url, enTetes: corps ? { ...enTetes, [EN_TETE_DU_JETON_ASSISTANT]: JETON_MASQUE } : {}, corps: montre ?? null } });
     return 0;
   }
   const arret = new AbortController();

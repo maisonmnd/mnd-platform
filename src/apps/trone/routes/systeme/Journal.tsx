@@ -26,14 +26,17 @@ const VERBES: { k: GesteVerbe | 'tous'; l: string }[] = [
   { k: 'pose', l: 'Posé' },
   { k: 'modifie', l: 'Modifié' },
   { k: 'efface', l: 'Effacé' },
+  { k: 'lit', l: 'Lu' },
 ];
 
+/* 'lit' (1er novembre 2026) : la recherche d'une fiche par un assistant de
+   la Maison, tracée sans le nom cherché. */
 const LIBELLE_VERBE: Record<GesteVerbe, string> = {
-  pose: 'Posé', modifie: 'Modifié', efface: 'Effacé',
+  pose: 'Posé', modifie: 'Modifié', efface: 'Effacé', lit: 'Lu',
 };
 /** Le verbe conjugué — « a créé », « a modifié », « a supprimé ». */
 const DIT_VERBE: Record<GesteVerbe, string> = {
-  pose: 'a créé', modifie: 'a modifié', efface: 'a supprimé',
+  pose: 'a créé', modifie: 'a modifié', efface: 'a supprimé', lit: 'a fait',
 };
 
 const PORTES: Record<Geste['porte'], string> = {

@@ -14,7 +14,10 @@
 
 import { supabase } from './supabase';
 
-export type GesteVerbe = 'pose' | 'modifie' | 'efface';
+/** 'lit' (1er novembre 2026) : une lecture d'un assistant de la Maison
+    (`fiche.chercher` de la fonction assistants-maison), tracée sans le nom
+    cherché. Le Trône lui-même n'écrit jamais ce verbe. */
+export type GesteVerbe = 'pose' | 'modifie' | 'efface' | 'lit';
 
 /** Un changement nommé — « Prix · 60 000 F → 15 000 F ». */
 export type ChampChange = { champ: string; avant?: string; apres?: string };
