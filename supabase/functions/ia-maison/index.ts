@@ -71,7 +71,7 @@ const ANTHROPIC_API_KEY = (Deno.env.get('ANTHROPIC_API_KEY') ?? '').trim();
 const admin = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } });
 
 /** La version de ce fichier : `saitIaMaison` du Trône la compare. */
-const VERSION = '2026-10-24-a';
+const VERSION = '2026-11-01-a';
 
 const CORS: Record<string, string> = {
   'Access-Control-Allow-Origin': '*',
@@ -86,7 +86,7 @@ const json = (obj: unknown, status = 200) =>
    bloc entier ; `verifie-les-douze-lunes` (R8) confronte les deux. */
 /* ⟨ia-maison⟩ */
 /** Les huit chantiers, par leur clef : c'est ce que le compteur détaille. */
-export const CHANTIERS_IA = ['capture', 'recu', 'cahier', 'reponse-wa', 'avis', 'diagnostic', 'fiche-du-jour', 'lettre', 'prevision', 'question', 'processus'] as const;
+export const CHANTIERS_IA = ['capture', 'recu', 'cahier', 'reponse-wa', 'avis', 'diagnostic', 'fiche-du-jour', 'lettre', 'prevision', 'question', 'processus', 'achat'] as const;
 export type ChantierIa = (typeof CHANTIERS_IA)[number];
 
 /** Ce qu'on demande : lire une image (le plus fin) ou écrire un texte (le rapide). */
@@ -200,6 +200,10 @@ export const DEPARTEMENTS_PAR_CHANTIER: Record<ChantierIa, readonly string[]> = 
   prevision: [],
   question: [],
   processus: [],
+  /* L'ACHAT PAR PHOTOS (1er novembre 2026, maquette « Dépenses du jour et
+     achats ») : Stock et Achats vit au département de la vente ; les
+     finances y voient aussi. Claude lit les produits sur les photos. */
+  achat: ['dept-vente-caisse', 'dept-finances'],
 };
 export function peutDemander(role: string | undefined, chantier: ChantierIa, acces: Record<string, boolean> | undefined): boolean {
   if (!role) return false;
@@ -212,6 +216,8 @@ export function peutDemander(role: string | undefined, chantier: ChantierIa, acc
 export const saitIaMaison = (version: string | undefined): boolean => !!version && version >= '2026-10-19-a';
 /** La fonction qui connaît les trois chantiers du Tableau de bord et les 120 $. */
 export const saitLeTableauIntelligent = (version: string | undefined): boolean => !!version && version >= '2026-10-24-a';
+/** La fonction qui connaît le chantier de l'achat par photos (1er novembre 2026). */
+export const saitLAchatParPhotos = (version: string | undefined): boolean => !!version && version >= '2026-11-01-a';
 /* ⟨/ia-maison⟩ */
 
 /* CE QUI SORT VERS CLAUDE ET LE PLAFOND, RECOPIÉS ENTIERS comme dans

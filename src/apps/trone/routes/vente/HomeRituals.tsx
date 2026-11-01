@@ -24,6 +24,7 @@ import { uid } from '../../../../shared/store';
 import { gammeAReassortir } from '../../../../shared/agents-maison-pur';
 import { frDay, todayISO } from '../clients/_shared';
 import './vente.css';
+import SaisirUnAchat from './SaisirUnAchat';
 
 /* STOCK & ACHATS — le compagnon du catalogue, sur l'écran qui portait la Gamme.
 
@@ -46,7 +47,7 @@ const frJour = frDay;
 const codeDe = (fon: string): string =>
   (fon.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^A-Za-z0-9]/g, '').toUpperCase().slice(0, 4)) || 'LGN';
 
-type Onglet = 'vue' | 'achats' | 'journal' | 'comptage' | 'recettes' | 'gamme';
+type Onglet = 'vue' | 'saisir' | 'achats' | 'journal' | 'comptage' | 'recettes' | 'gamme';
 
 /* L'habit des pastilles d'état — trois mots, trois encres. */
 const ETAT_MOTS: Record<EtatReserve, string> = { rupture: 'Rupture', sous_seuil: 'Sous seuil', ok: 'En réserve' };
@@ -152,6 +153,9 @@ export default function HomeRituals() {
         <Chip actif={onglet === 'vue'} onClick={() => setOnglet('vue')}>
           Vue d’ensemble{manquants ? ` · ${manquants} à commander` : ''}
         </Chip>
+        {/* SAISIR UN ACHAT (1er novembre 2026, maquette « Dépenses du jour et
+            achats ») : un achat payé et emporté, saisi par ses photos en un geste. */}
+        <Chip actif={onglet === 'saisir'} onClick={() => setOnglet('saisir')}>Saisir un achat</Chip>
         <Chip actif={onglet === 'achats'} onClick={() => setOnglet('achats')}>
           Achats{bcOuverts ? ` · ${bcOuverts} en cours` : ''}
         </Chip>
@@ -162,6 +166,7 @@ export default function HomeRituals() {
       </div>
 
       {onglet === 'vue' && <OngletVue />}
+      {onglet === 'saisir' && <SaisirUnAchat onVoirLesAchats={() => setOnglet('achats')} />}
       {onglet === 'achats' && <OngletAchats />}
       {onglet === 'journal' && <OngletJournal />}
       {onglet === 'comptage' && <OngletComptage />}

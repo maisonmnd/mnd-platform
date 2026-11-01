@@ -123,6 +123,14 @@ export type CommandeFournisseur = {
   statut: StatutCommande;
   dateReceptionPrevue?: string;
   note?: string;
+  /** ══ L'ACHAT SAISI PAR PHOTOS — 1er novembre 2026 ══════════════════
+      Un bon né reçu par « Saisir un achat » porte l'identifiant de SA saisie
+      (un second « C'est saisi » ne refait rien), les photos prises chez le
+      fournisseur, et la dépense Matières premières qui l'a payé. Absents sur
+      tous les autres bons. Voir `shared/achat-par-photos`. */
+  saisieId?: string;
+  photos?: { chemin: string; nom: string; type: string; taille: number }[];
+  depenseId?: string;
 };
 
 export type LigneCommande = {
