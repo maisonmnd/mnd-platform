@@ -447,6 +447,19 @@ function Calendrier({ besoin: besoinInitial, initiales, surLaPorte }: Props) {
     () => (agenda ? prestationsReservables(agenda, besoin) : []),
     [agenda, besoin],
   );
+  /* DES GESTES AVEC LA CONSULTATION — 1er novembre 2026. « Sur tous les
+     boutons de réserver, le sélecteur multiservice doit marcher » (Yéman),
+     et au sélecteur : « les trois portes ». La réparation, la création et
+     MND Kids gardent LEUR consultation, cochée d'office ; on peut y ajouter
+     les gestes d'entretien du site (lavage, racines, soin, couleur) dans la
+     même venue. Le serveur les acceptait déjà (`lesGestesSeReservent` :
+     une consultation et des gestes réservables) ; l'écran les cachait. */
+  const ajouts = useMemo(
+    () => (agenda && consultation ? prestationsReservables(agenda, 'entretien') : []),
+    [agenda, consultation],
+  );
+  const offerts = useMemo(() => [...prestations, ...ajouts], [prestations, ajouts]);
+  const [ajoutsOuverts, setAjoutsOuverts] = useState(false);
   const bandes = useMemo(() => bandesTriees(agenda?.bandes ?? []), [agenda]);
   /* Le lien préparé s'applique quand le catalogue est là : les gestes que la
      porte ne propose pas sont écartés, un calibre inconnu se redemande. */
@@ -454,9 +467,9 @@ function Calendrier({ besoin: besoinInitial, initiales, surLaPorte }: Props) {
     if (!agenda || preparee) return;
     setPreparee(true);
     if (prepare.calibre && prepare.calibre !== 'inconnu' && !bandes.some((b) => b.id === prepare.calibre)) setCalibreId('');
-    const ok = prepare.gestes.filter((id) => prestations.some((p) => p.id === id)).slice(0, PLAFOND_GESTES);
+    const ok = prepare.gestes.filter((id) => offerts.some((p) => p.id === id)).slice(0, PLAFOND_GESTES);
     if (ok.length) { setServiceIds(ok); setRepondu(true); }
-  }, [agenda, preparee, prepare, prestations, bandes]);
+  }, [agenda, preparee, prepare, offerts, bandes]);
 
   /* BON RETOUR — la mémoire du téléphone se pose une fois, le catalogue
      arrivé, et seulement si la Maison n'a pas préparé la venue (son lien
@@ -519,9 +532,16 @@ function Calendrier({ besoin: besoinInitial, initiales, surLaPorte }: Props) {
   }, [groupes, plies]);
 
   const choisies = useMemo(
-    () => serviceIds.map((id) => prestations.find((s) => s.id === id)).filter(Boolean) as PrestationPublique[],
-    [serviceIds, prestations],
+    () => serviceIds.map((id) => offerts.find((s) => s.id === id)).filter(Boolean) as PrestationPublique[],
+    [serviceIds, offerts],
   );
+  /* Les familles des gestes qu'une consultation peut accueillir, dans
+     l'ordre du soin ; elles se plient comme les autres (`plies`). */
+  const groupesDesAjouts = useMemo(
+    () => (agenda && ajouts.length > 0 ? ordonneParLeSoin(groupesDePrestations(agenda, ajouts, 'entretien')) : []),
+    [agenda, ajouts],
+  );
+  const ajoutsPris = ajouts.some((s) => serviceIds.includes(s.id));
 
   /* LES TOTAUX, CUMULÉS (Yéman, au sélecteur : « la durée et le prix
      cumulés »). La durée est la SOMME VRAIE, celle du catalogue ; le
@@ -1100,7 +1120,7 @@ function Calendrier({ besoin: besoinInitial, initiales, surLaPorte }: Props) {
   const express = !consultation && !composer && formules.length > 0 && prepare.gestes.length === 0;
   const court = express || retour;
   const recapitulatif = `${choisies.map((x) => nomEnFrancaisWa(x.name).francais).join(' · ')}${dureeTotale ? ` · ${dit(dureeTotale)}` : ''}${prixTotal > 0 ? ` · ${prixFlou ? 'à partir de ' : ''}${fmtMoney(prixTotal, devise)}` : ''}`;
-  const lesCalibres = !consultation && bandes.length > 0 ? (
+  const lesCalibres = (!consultation || ajoutsOuverts || ajoutsPris) && bandes.length > 0 ? (
     <div className="calibres" role="group" aria-label="Vos locks">
       <span className="calibres__titre">Vos locks</span>
       <div className="calibres__choix">
@@ -1279,6 +1299,40 @@ function Calendrier({ besoin: besoinInitial, initiales, surLaPorte }: Props) {
           );
         })}
         {consultation && <p className="legende" style={{ marginTop: 12 }}>Une création ou une réparation commence toujours par une consultation. Le devis vient après, et vous décidez ensuite.</p>}
+        {/* AVEC LA CONSULTATION — 1er novembre 2026 : plié d'abord, pour que
+            la consultation reste le geste de la porte ; ouvert, le calibre
+            puis les familles, comme partout ailleurs sur le site. */}
+        {consultation && groupesDesAjouts.length > 0 && (
+          !ajoutsOuverts && !ajoutsPris ? (
+            <p style={{ marginTop: 12 }}>
+              <button type="button" className="btn btn--lien" onClick={() => setAjoutsOuverts(true)}>Ajouter un geste à la consultation</button>
+            </p>
+          ) : (
+            <div className="ajouts-consultation" style={{ marginTop: 18 }}>
+              <p className="sur">Avec la consultation</p>
+              <p className="legende" style={{ marginBottom: 10 }}>
+                Un lavage, un soin, une couleur : cochez ce que vous voulez faire dans la même venue. La Maison additionne la durée et le prix.
+              </p>
+              {lesCalibres}
+              {calibreId === '' && bandes.length > 0 ? (
+                <p className="legende">Dites d’abord combien de locks, à peu près : le prix de chaque geste en dépend.</p>
+              ) : groupesDesAjouts.map((g) => {
+                const deplie = ouvert[g.id];
+                const pris = g.items.filter((s) => serviceIds.includes(s.id)).length;
+                return (
+                  <div key={g.id} className={`famille${deplie ? ' est-depliee' : ''}`}>
+                    <button type="button" className="famille__tete" aria-expanded={!!deplie} onClick={() => basculerLaFamille(g.id)}>
+                      <span className="famille__nom">{g.titre}</span>
+                      <span className="famille__compte">{pris > 0 ? `${pris} sur ${g.items.length}` : `${g.items.length} ${g.items.length > 1 ? 'gestes' : 'geste'}`}</span>
+                      <span className="famille__chevron" aria-hidden="true" />
+                    </button>
+                    {deplie && <div className="gestes">{g.items.map(boutonGeste)}</div>}
+                  </div>
+                );
+              })}
+            </div>
+          )
+        )}
       </div>
       )}
       {pret && !court && (
