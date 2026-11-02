@@ -11,6 +11,7 @@ import { prenomSeul } from '../../../../shared/civilite';
 import { contientUnPrix } from '../../../../shared/campagnes-pur';
 import { RETENU, attendEncore, reglesDepuis } from '../../../../shared/salle-des-envois';
 import { devenuDe } from '../../../../shared/envois';
+import { lesJoursDits } from '../../../../shared/offres-pur';
 import {
   OFFER_AUDIENCES, OFFER_DAYS, OFFER_HOURS,
   useOffers, offerLiveNow,
@@ -54,6 +55,9 @@ export type OfferForm = {
   /* LA SAISON (18 septembre 2026). Vides pour une offre qui se répète, comme
      une heure creuse ; remplies pour Octobre Rose, Noël ou le Ramadan. */
   du: string; au: string;
+  /* LES JOURS DE LA VENUE (2 novembre 2026, le mercredi de la Maison). Vide :
+     l'offre vaut le jour où l'on regarde, comme avant. */
+  joursDeLaVenue: string[];
 };
 
 export const emptyOffer: OfferForm = {
@@ -61,7 +65,7 @@ export const emptyOffer: OfferForm = {
   /* Tous les jours par défaut (la Maison travaille surtout le week-end) et large plage horaire. */
   days: [...OFFER_DAYS], heureDebut: '08h', heureFin: '20h',
   serviceId: '', serviceIds: [], code: '', discountPct: '', du: '', au: '',
-  vitrine: false, parcours: '', bouton: '', conditions: '',
+  vitrine: false, parcours: '', bouton: '', conditions: '', joursDeLaVenue: [],
 };
 
 /* UNE OFFRE MUETTE (24 septembre 2026). « La cliente ne voit pas son total
@@ -341,6 +345,7 @@ export default function EditeurDesOffres({ abonnes }: { abonnes: ReadonlySet<str
       discountPct: o.discountPct != null ? String(o.discountPct) : '',
       du: o.du ?? '', au: o.au ?? '',
       vitrine: !!o.vitrine, parcours: o.parcours ?? '', bouton: o.bouton ?? '', conditions: o.conditions ?? '',
+      joursDeLaVenue: [...(o.joursDeLaVenue ?? [])],
     });
     /* Un code déjà posé est peut-être déjà parti : on ne le refabrique pas. */
     setCodeALaMain(!!o.code);
@@ -374,6 +379,11 @@ export default function EditeurDesOffres({ abonnes }: { abonnes: ReadonlySet<str
       parcours: offerForm.parcours || undefined,
       bouton: offerForm.bouton.trim() || undefined,
       conditions: offerForm.conditions.trim() || undefined,
+      /* LES JOURS DE LA VENUE (2 novembre 2026) : vides, ils ne s'écrivent
+         pas, et l'offre court comme avant, au jour où l'on regarde. */
+      joursDeLaVenue: offerForm.joursDeLaVenue.length
+        ? OFFER_DAYS.filter((d) => offerForm.joursDeLaVenue.includes(d))
+        : undefined,
     };
     if (offerEditId) {
       setOffers((prev) => prev.map((o) => (o.id === offerEditId ? { ...o, ...payload } : o)));
@@ -388,6 +398,14 @@ export default function EditeurDesOffres({ abonnes }: { abonnes: ReadonlySet<str
       days: f.days.includes(d)
         ? f.days.filter((x) => x !== d)
         : OFFER_DAYS.filter((x) => f.days.includes(x) || x === d),
+    }));
+
+  const toggleJourDeLaVenue = (d: string) =>
+    setOfferForm((f) => ({
+      ...f,
+      joursDeLaVenue: f.joursDeLaVenue.includes(d)
+        ? f.joursDeLaVenue.filter((x) => x !== d)
+        : OFFER_DAYS.filter((x) => f.joursDeLaVenue.includes(x) || x === d),
     }));
 
   const daysLabel = (o: InstantOffer) =>
@@ -679,6 +697,12 @@ export default function EditeurDesOffres({ abonnes }: { abonnes: ReadonlySet<str
                       <div className="tre-offer__meta-label">Jours</div>
                       <div className="tre-offer__meta-value" style={{ color: 'var(--ink)' }}>{daysLabel(o)}</div>
                     </div>
+                    {o.joursDeLaVenue?.length ? (
+                      <div>
+                        <div className="tre-offer__meta-label">Jours de la venue</div>
+                        <div className="tre-offer__meta-value" style={{ color: 'var(--copper-700)' }}>{o.joursDeLaVenue.join(' · ')}</div>
+                      </div>
+                    ) : null}
                     <div>
                       <div className="tre-offer__meta-label">Saison</div>
                       <div className="tre-offer__meta-value" style={{ color: 'var(--ink)' }}>
@@ -869,6 +893,25 @@ export default function EditeurDesOffres({ abonnes }: { abonnes: ReadonlySet<str
                   <button key={d} type="button" className={`tre-chip ${offerForm.days.includes(d) ? 'is-on' : ''}`} onClick={() => toggleDay(d)}>{d}</button>
                 ))}
               </div>
+            </Field>
+            {/* LES JOURS DE LA VENUE — 2 novembre 2026 (« Le mercredi de la
+                Maison », maquette « Remplir les fauteuils »). Les jours
+                d'affichage disent quand la cliente VOIT l'offre ; ceux-ci, le
+                jour où elle VIENT. Cochés, l'offre ne vaut que pour un
+                rendez-vous ces jours-là, dans sa saison, et se pose d'elle-même
+                sur lui : au site, dans Ma Couronne, dans la fenêtre du
+                rendez-vous et à la Caisse. Vides, rien ne change. */}
+            <Field label="Jours de la venue · laisser vide si l’offre vaut chaque jour">
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
+                {OFFER_DAYS.map((d) => (
+                  <button key={d} type="button" className={`tre-chip ${offerForm.joursDeLaVenue.includes(d) ? 'is-on' : ''}`} onClick={() => toggleJourDeLaVenue(d)}>{d}</button>
+                ))}
+              </div>
+              <p className="mnd-muted" style={{ fontSize: 11.5, margin: '6px 0 0', lineHeight: 1.45 }}>
+                {offerForm.joursDeLaVenue.length
+                  ? `Elle ne vaut que pour un rendez-vous ${lesJoursDits(offerForm.joursDeLaVenue)}, et se pose d’elle-même sur lui ; le jour où l’on regarde ne compte pas. Ni abonnement ni forfait, et jamais par-dessus un autre code.`
+                  : 'Aucun : elle vaut le jour où la cliente la voit, comme les offres de saison.'}
+              </p>
             </Field>
             {/* LA SAISON (18 septembre 2026). Vide pour une heure creuse, qui
                 se répète ; remplie pour Octobre Rose, Noël ou le Ramadan, qui

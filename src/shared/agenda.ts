@@ -69,6 +69,17 @@ export type Appointment = {
       `remisesLignes`. Lu depuis le 23 octobre 2026 pour l'arrondi du code
       au millier (`arrondiDuCodeAuRdv`). */
   codeOffre?: string;
+  /** L'OFFRE QUI PORTE CE CODE, par son identifiant : `demande-submit`
+      l'écrit depuis le 24 septembre 2026, Ma Couronne et la fenêtre du
+      rendez-vous aussi depuis le 2 novembre 2026 (le mercredi de la Maison,
+      posé d'office sur un rendez-vous de ce jour). */
+  offreId?: string;
+  /** LA MAISON A ÉCARTÉ L'OFFRE DU JOUR DE LA VENUE de ce rendez-vous — 2
+      novembre 2026. « Le comptoir garde la main » (maquette « Remplir les
+      fauteuils ») : « Ne pas l'appliquer » dans la fenêtre du rendez-vous ou
+      à la Caisse, et le mercredi de la Maison ne se repose plus de lui-même,
+      ni à la réouverture ni à l'encaissement. */
+  horsOffreDuJour?: boolean;
   /** LA LONGUEUR TRAVAILLÉE CE JOUR-LÀ. Elle commande le prix et la durée des
       prestations qui se facturent à la longueur (voir `prixParLongueur`).
 

@@ -32,7 +32,7 @@ import {
   honoreLeCode, normaliseLeCode,
 } from '../../../../shared/promos';
 import { useOffers } from '../../../../shared/offers';
-import { offreDuCode, offreDuCodePassee, remiseDeLOffreSurLeTicket, pourquoiLOffreNeCourtPas, remiseDuComptoirAuRendezVous, remiseDuComptoirEcrite } from '../../../../shared/offres-pur';
+import { offreDuCode, offreDuCodePassee, offreDuJourDeLaVenue, remiseDeLOffreSurLeTicket, pourquoiLOffreNeCourtPas, remiseDuComptoirAuRendezVous, remiseDuComptoirEcrite } from '../../../../shared/offres-pur';
 import { useAuth } from '../../../../shared/auth';
 import { ChampDeDate } from '../../../../ds/dates';
 import { useEstDirection } from '../_vie';
@@ -177,7 +177,13 @@ export default function Caisse() {
      pièce ne déplacerait pas un franc. */
   const [dateVente, setDateVente] = useState(() => todayIso());
 
-  const [codeTape, setCodeTape] = useState('');
+  /* CE QUE LA MAIN A TAPÉ. Le code qui compte (`codeTape`, plus bas) peut
+     venir d'elle, ou du mercredi de la Maison quand la case est vide
+     (2 novembre 2026). */
+  const [codeSaisi, setCodeTape] = useState('');
+  /* « Ne pas l'appliquer » : le ticket (son rendez-vous, ou sa date) que la
+     caissière a soustrait au mercredi de la Maison. */
+  const [mercrediEcarteSur, setMercrediEcarteSur] = useState<string | null>(null);
   const [offres] = useOffers();
   const [codes] = useCodesPromo();
   /* QUI A ACCEPTÉ LE CODE. Une remise sans nom derrière est une remise que
@@ -608,12 +614,35 @@ export default function Caisse() {
      il appartient à une tête. Sinon on cherche l'OFFRE de la branche qui porte ce
      code et qui court aujourd'hui ; hors saison, on dit ses dates plutôt que
      « inconnu ». La remise suit la règle du site (shared/offres-pur). */
-  const codeNominatif = codeDit(codeTape, codes, branch.id);
   const offresDeLaBranche = offres.filter((o) => !o.branchId || o.branchId === branch.id);
-  const offreCodee = !codeNominatif ? offreDuCode(offresDeLaBranche, codeTape) : null;
-  const offreHorsSaison = !codeNominatif && !offreCodee ? offreDuCodePassee(offresDeLaBranche, codeTape) : null;
+  /* ══ LE MERCREDI DE LA MAISON À LA CAISSE — 2 novembre 2026 ═══════════
+     « Le comptoir l'applique » (maquette « Remplir les fauteuils »,
+     arbitrage 4). Le jour qui compte est celui de la venue : le rendez-vous
+     soldé, sinon la date de la vente (la cliente de passage). Quand la case
+     du code est vide, que le rituel ne porte pas déjà un code (le site, Ma
+     Couronne ou la fenêtre du rendez-vous l'ont alors posé, et ses lignes
+     arrivent déjà remisées), qu'il n'est ni couvert ni au forfait, et que
+     l'offre couvre une prestation du ticket, son code se pose de lui-même
+     dans la case. Tout le reste suit la règle des codes d'offre : la remise
+     ligne à ligne, l'arrondi au millier (`leTicket`), la meilleure remise
+     face à celle déjà posée, et « MERCREDI15 · 15 % hors gamme » sur la
+     pièce (`libelleDuCode`). La caissière peut l'écarter. */
+  const rituelDuTicket = apptToSettle ? carnet.find((a) => a.id === apptToSettle) : undefined;
+  const venueDuTicket = rituelDuTicket?.date ?? dateVente;
+  const cleDuTicket = rituelDuTicket?.id ?? `vente-${venueDuTicket}`;
+  const offreDuMercredi = !codeSaisi.trim() ? offreDuJourDeLaVenue(offresDeLaBranche, {
+    branchId: branch.id, dateIso: venueDuTicket, serviceIds: lignesRemisables.map((l) => l.serviceId),
+    dejaUnCode: !!rituelDuTicket?.codeOffre,
+    couvertParAbonnement: !!rituelDuTicket?.coveredBySub || (rituelDuTicket?.seriesIndex ?? 1) > 1,
+    forfait: !!rituelDuTicket?.forfait,
+    ecartee: !!rituelDuTicket?.horsOffreDuJour || mercrediEcarteSur === cleDuTicket,
+  }) : null;
+  const codeTape = codeSaisi.trim() ? codeSaisi : (offreDuMercredi?.code ?? '');
+  const codeNominatif = codeDit(codeTape, codes, branch.id);
+  const offreCodee = !codeNominatif ? offreDuCode(offresDeLaBranche, codeTape, new Date(), venueDuTicket) : null;
+  const offreHorsSaison = !codeNominatif && !offreCodee ? offreDuCodePassee(offresDeLaBranche, codeTape, new Date(), venueDuTicket) : null;
   const refusDuCode = offreCodee ? null
-    : offreHorsSaison ? pourquoiLOffreNeCourtPas(offreHorsSaison)
+    : offreHorsSaison ? pourquoiLOffreNeCourtPas(offreHorsSaison, new Date(), venueDuTicket)
       : pourquoiLeCodeNeVautPas({
         tape: codeTape, codes, clientId, branchId: branch.id, maintenant: new Date().toISOString(),
       });
@@ -1696,6 +1725,20 @@ export default function Caisse() {
                 {!refusDuCode && offreCodee && promoBrutXof === 0 && (
                   <span style={{ fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--copper-700)' }}>
                     L’offre {offreCodee.title} ne couvre aucune prestation de ce ticket.
+                  </span>
+                )}
+                {/* LE MERCREDI DE LA MAISON SE DIT, ET S'ÉCARTE (2 novembre 2026) :
+                    posé de lui-même, il ne s'applique jamais en silence. */}
+                {offreDuMercredi && (
+                  <span style={{ fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--copper-700)', display: 'inline-flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                    {offreDuMercredi.title} : posé de lui-même, la venue tombe un jour de l’offre.
+                    <button type="button" className="mnd-btn mnd-btn--ghost mnd-btn--sm" onClick={() => setMercrediEcarteSur(cleDuTicket)}>Ne pas l’appliquer</button>
+                  </span>
+                )}
+                {!offreDuMercredi && !codeSaisi.trim() && mercrediEcarteSur === cleDuTicket && (
+                  <span style={{ fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--copper-700)', display: 'inline-flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                    L’offre du jour n’est pas appliquée à ce ticket.
+                    <button type="button" className="mnd-btn mnd-btn--ghost mnd-btn--sm" onClick={() => setMercrediEcarteSur(null)}>L’appliquer</button>
                   </span>
                 )}
               </div>

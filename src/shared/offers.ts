@@ -20,6 +20,15 @@ export type InstantOffer = {
   sub: string; // détail
   audience: string; // persona / segment qui la voit
   days: string[]; // jours d'affichage
+  /** LES JOURS DE LA VENUE — 2 novembre 2026 (« Le mercredi de la Maison »,
+      maquette « Remplir les fauteuils »). Mêmes libellés que `days`. `days`
+      dit quand la cliente VOIT l'offre ; celui-ci dit le jour où elle VIENT.
+      Posé, l'offre ne s'applique qu'à un rendez-vous dont la date tombe ces
+      jours-là, dans sa saison (`du`, `au`, lus sur cette date), et elle se
+      pose d'elle-même sur ce rendez-vous (`offreDuJourDeLaVenue`,
+      offres-pur). Absent ou vide, rien ne change : l'offre court comme
+      avant, au jour où l'on regarde. */
+  joursDeLaVenue?: string[];
   heureDebut: string;
   heureFin: string;
   active: boolean;

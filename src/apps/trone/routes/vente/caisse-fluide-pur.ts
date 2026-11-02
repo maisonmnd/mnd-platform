@@ -17,7 +17,7 @@
 
 import type { Appointment } from '../../../../shared/agenda';
 import type { Invoice, PaymentMethod } from '../../../../shared/finance';
-import { offreDuCode, remiseDeLOffreSurLeTicket, type OffreCodee } from '../../../../shared/offres-pur';
+import { offreDuCode, porteSurLeJourDeLaVenue, remiseDeLOffreSurLeTicket, type OffreCodee } from '../../../../shared/offres-pur';
 
 const minutesDe = (hhmm: string | undefined): number => {
   const m = /^(\d{1,2}):(\d{2})/.exec(hhmm ?? '');
@@ -96,7 +96,11 @@ export function offreAProposer<T extends OffreCodee & { title?: string }>(
   if (e.codeTape.trim() || !lignes.length) return null;
   let mieux: { offre: T; retireXof: number } | null = null;
   for (const o of offres) {
-    if (!o.code) continue;
+    /* UNE OFFRE DU JOUR DE LA VENUE NE SE PROPOSE PAS ICI — 2 novembre 2026 :
+       elle se pose d'elle-même sur un ticket de son jour (Caisse,
+       `offreDuJourDeLaVenue`), et jugée sur aujourd'hui elle viendrait
+       remiser le rituel d'un mardi encaissé un mercredi. */
+    if (!o.code || porteSurLeJourDeLaVenue(o)) continue;
     const vive = offreDuCode([o], o.code, e.maintenant ?? new Date());
     if (!vive) continue;
     const retire = remiseDeLOffreSurLeTicket(vive, lignes).retire;

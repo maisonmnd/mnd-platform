@@ -252,4 +252,9 @@ export const EN_BOOKING: Record<string, string> = {
   'Ce jour est au-delà de nos quatre mois : choisissez-en un plus proche.': 'This day is beyond our four months: please choose a closer one.',
   'Cette heure n’est pas libre ce jour-là : choisissez-en une autre.': 'This time is not free that day: please choose another.',
   '« {mot} » : lequel ?': '“{mot}”: which one?',
+  // Le mercredi de la Maison (2 novembre 2026) : le jour de l'offre en cuivre.
+  '{offre} · −{pct} % · −{montant}': '{offre} · −{pct}% · −{montant}',
+  '{jour}, {offre}, −{pct} %': '{jour}, {offre}, −{pct}%',
+  'En cuivre : {offre}, −{pct} % sur votre rituel, jusqu’au {date}.': 'In copper: {offre}, −{pct}% on your ritual, until {date}.',
+  'En cuivre : {offre}, −{pct} % sur votre rituel.': 'In copper: {offre}, −{pct}% on your ritual.',
 };

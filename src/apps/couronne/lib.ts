@@ -21,7 +21,7 @@ import {
   carteDesPlaces, creneauxLibres, joursDeLaFenetre, minutesDeHhmm as toMin, placesDuJour, type CreneauOccupe,
 } from '../../shared/agenda-pur';
 import { blocagesStore, plagesBloquees } from '../../shared/blocages';
-import { useOffers, offerLiveNow } from '../../shared/offers';
+import { useOffers, offerLiveNow, porteSurLeJourDeLaVenue } from '../../shared/offers';
 import { t, langue } from './i18n';
 import { boutiqueOuverte } from '../../shared/boutique-pur';
 
@@ -713,7 +713,12 @@ export function useLiveOffers(): { offers: Offer[]; endMin: number | null } {
       id: o.id,
       tag: o.tag,
       deal: o.deal,
-      discountPct: o.discountPct ?? 0,
+      /* UNE OFFRE DU JOUR DE LA VENUE NE PRÉ-REMPLIT PAS DE REMISE — 2 novembre
+         2026. Le mercredi de la Maison se voit tous les jours, mais ne vaut
+         que pour une venue le mercredi : la réservation la pose d'elle-même
+         sur un mercredi (offreDuJourDeLaVenue). Un pourcentage pré-rempli
+         l'aurait accordée au samedi. */
+      discountPct: porteSurLeJourDeLaVenue(o) ? 0 : (o.discountPct ?? 0),
       serviceId: o.serviceId,
       title: o.title,
       sub: o.sub,

@@ -1167,21 +1167,53 @@ async function laPlaceDemandee(o: {
    Entre les deux repères, RIEN qui ne soit dans l'original, à une différence
    près : `dansLaSaison` reçoit le jour en graphie ISO au lieu d'une Date,
    parce que le jour se calcule ici dans le fuseau de la Maison (Deno tourne
-   en UTC, et une saison qui finit le 30 se terminerait à 1 h du matin). */
+   en UTC, et une saison qui finit le 30 se terminerait à 1 h du matin).
+   `courtPourLaVenue` aussi, pour la même raison (2 novembre 2026 : le jour
+   de la venue, « Le mercredi de la Maison »). */
 /* ══ COPIE DE offres-pur : DÉBUT ══ */
 const CODE_MAX = 16;
 const codeNormalise = (v: unknown): string =>
   String(v ?? '').replace(/\s+/g, '').toUpperCase().slice(0, CODE_MAX);
-type OffreCodee = { active: boolean; du?: string; au?: string; code?: string; discountPct?: number; serviceIds?: string[] };
+type OffreCodee = { active: boolean; du?: string; au?: string; code?: string; discountPct?: number; serviceIds?: string[]; joursDeLaVenue?: string[] };
 const dansLaSaison = (o: { du?: string; au?: string }, j: string): boolean => {
   if (o.du && j < o.du) return false;
   if (o.au && j > o.au) return false;
   return true;
 };
-function offreDuCode<T extends OffreCodee>(offres: readonly T[], code: unknown, j: string): T | null {
+const JOURS_DES_OFFRES = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'] as const;
+function jourDeLaSemaine(dateIso: unknown): string | null {
+  const s = String(dateIso ?? '').slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return null;
+  const d = new Date(`${s}T12:00:00Z`);
+  if (Number.isNaN(d.getTime())) return null;
+  return JOURS_DES_OFFRES[(d.getUTCDay() + 6) % 7];
+}
+const porteSurLeJourDeLaVenue = (o: { joursDeLaVenue?: readonly string[] } | null | undefined): boolean =>
+  (o?.joursDeLaVenue?.length ?? 0) > 0;
+function laVenueTombeBien(
+  o: { joursDeLaVenue?: readonly string[]; du?: string; au?: string },
+  dateIso: string | null | undefined,
+): boolean {
+  if (!porteSurLeJourDeLaVenue(o)) return true;
+  const jour = jourDeLaSemaine(dateIso);
+  if (!jour || !o.joursDeLaVenue!.includes(jour)) return false;
+  const j = String(dateIso).slice(0, 10);
+  if (o.du && j < o.du) return false;
+  if (o.au && j > o.au) return false;
+  return true;
+}
+function courtPourLaVenue(
+  o: { joursDeLaVenue?: readonly string[]; du?: string; au?: string },
+  j: string,
+  venueIso?: string | null,
+): boolean {
+  if (!porteSurLeJourDeLaVenue(o)) return dansLaSaison(o, j);
+  return laVenueTombeBien(o, venueIso === undefined ? j : venueIso);
+}
+function offreDuCode<T extends OffreCodee>(offres: readonly T[], code: unknown, j: string, venueIso?: string | null): T | null {
   const c = codeNormalise(code);
   if (!c) return null;
-  return offres.find((o) => o.active && codeNormalise(o.code) === c && dansLaSaison(o, j)) ?? null;
+  return offres.find((o) => o.active && codeNormalise(o.code) === c && courtPourLaVenue(o, j, venueIso)) ?? null;
 }
 type LigneAPrix = { id: string; prixXof: number; ferme: boolean };
 type LigneRemisee = LigneAPrix & { net: number; remisee: boolean };
@@ -1232,6 +1264,9 @@ type VerdictDuCode = {
   code: string;
   offreId?: string;
   remisesLignes?: ({ pct: number } | null)[];
+  /** L'offre porte sur le jour de la venue (2 novembre 2026) : elle vaut à
+      chaque venue ces jours-là, pas une seule fois par personne. */
+  chaqueVenue?: boolean;
   raison?: RaisonDuCode;
   /** Le parrainage : le prénom de la marraine, l'id de sa demande (ou de sa
       fiche), le cadeau dit, et son numéro pour la prévenir. */
@@ -1264,17 +1299,27 @@ const raisonEnClair = (v: VerdictDuCode): string => {
     n'écrit pas de tableau : un rendez-vous sans remise n'en porte pas. */
 function remiseDuCode(o: {
   code: unknown; serviceIds: string[]; branchId: string; catalogue: ServiceEnBase[]; offres: (OffreCodee & { id?: string; branchId?: string })[];
+  /** Le jour du rendez-vous (2 novembre 2026). Sans lui, une offre du jour
+      de la venue ne court pour personne : on ne la juge pas sur aujourd'hui. */
+  date?: string;
 }): VerdictDuCode {
   const code = codeNormalise(o.code);
   if (!code) return { code: '' };
   /* De la branche du rendez-vous seulement ; une offre sans branche vaut partout. */
   const candidates = o.offres.filter((x) => !x.branchId || x.branchId === o.branchId);
-  const offre = offreDuCode(candidates, code, jourDeLaMaison());
+  /* LE MERCREDI SE JUGE SUR LA VENUE — 2 novembre 2026. MERCREDI15 tapé pour
+     un mardi ne court pas : c'est le jour du rendez-vous qui décide, pas
+     celui où la page s'ouvre. Les autres offres restent jugées sur
+     aujourd'hui, comme avant. */
+  const offre = offreDuCode(candidates, code, jourDeLaMaison(), o.date ?? null);
   if (!offre) return { code, raison: 'inconnu' };
   const lignes = lignesDuCode(o.serviceIds.map((id) => ligneAPrix(id, o.catalogue)), offre);
   const pct = Math.max(0, Math.min(90, Math.round(offre.discountPct ?? 0)));
   const remisesLignes = lignes.some((l) => l.remisee) ? lignes.map((l) => (l.remisee ? { pct } : null)) : undefined;
-  const base = { code, ...(offre.id ? { offreId: String(offre.id) } : {}) };
+  const base = {
+    code, ...(offre.id ? { offreId: String(offre.id) } : {}),
+    ...(porteSurLeJourDeLaVenue(offre) ? { chaqueVenue: true } : {}),
+  };
   if (remisesLignes) return { ...base, remisesLignes };
   /* Sans pourcentage, l'offre DONNE quelque chose que le calcul ne sait pas
      retirer : un styling, un soin, des heures. Avec un pourcentage, elle ne
@@ -2050,9 +2095,14 @@ Deno.serve(async (req) => {
     dureeMin = verdict.dureeMin;
     master = verdict.maitres[0] ?? '';
     nomsDesGestes = serviceIds.map((sid: string) => verdict.catalogue.find((x) => x.id === sid)?.data?.name ?? sid);
-    duCode = remiseDuCode({ code: codeEcrit, serviceIds, branchId, catalogue: verdict.catalogue, offres: verdict.offres });
-    /* Une fois par personne : la remise tombe, la réservation tient. */
-    if (duCode.remisesLignes && await codeDejaUtilise(duCode.code, telephone)) {
+    duCode = remiseDuCode({ code: codeEcrit, serviceIds, branchId, catalogue: verdict.catalogue, offres: verdict.offres, date });
+    /* Une fois par personne : la remise tombe, la réservation tient.
+       SAUF UNE OFFRE DU JOUR DE LA VENUE (2 novembre 2026) : « −15 % sur le
+       rituel posé un mercredi » vaut à chaque mercredi, comme au comptoir du
+       Trône qui la pose sur chaque rendez-vous de ce jour. La borner à une
+       fois ici aurait fait dire au site « déjà utilisé » à une cliente que la
+       Caisse remise quand même. */
+    if (duCode.remisesLignes && !duCode.chaqueVenue && await codeDejaUtilise(duCode.code, telephone)) {
       duCode = { code: duCode.code, offreId: duCode.offreId, raison: 'deja-utilise' };
     }
     /* Aucune offre ne le connaît : est-ce le code d'une marraine ? */

@@ -1667,6 +1667,18 @@
 }
 .mc-callegend { display: flex; align-items: center; gap: 7px; margin-top: 12px; font-size: 11px; font-weight: 400; color: var(--ink-soft); }
 .mc-callegend > span { width: 5px; height: 5px; border-radius: 50%; background: var(--mc-success); flex: 0 0 auto; }
+/* LE MERCREDI DE LA MAISON — 2 novembre 2026 (maquette « Remplir les
+   fauteuils ») : le jour de l'offre en cuivre, sa remise sous le chiffre.
+   Le cuivre TEXTE suit le thème (clair et sombre) ; le jour choisi garde
+   ses couleurs, la remise y passe en ivoire. */
+.mc-calday.is-offre { border-color: var(--mc-cuivre-texte); color: var(--mc-cuivre-texte); padding-bottom: 12px; }
+.mc-calday__offre { position: absolute; left: 0; right: 0; bottom: 3px; font-size: 9px; font-weight: 600; letter-spacing: .02em; color: var(--mc-cuivre-texte); }
+.mc-calday.is-sel .mc-calday__offre { color: var(--mc-sur-plein); }
+.mc-callegend--offre { margin-top: 6px; color: var(--mc-cuivre-texte); }
+.mc-callegend--offre > span { background: var(--mc-cuivre-texte); }
+.mc-place.is-offre { border-color: var(--mc-cuivre-texte); }
+.mc-place__offre { margin-left: 6px; font-size: 11.5px; font-weight: 600; color: var(--mc-cuivre-texte); }
+.mc-place.is-on .mc-place__offre { color: var(--color-ivoire); }
 
 .mc-slotcard {
   text-align: left;

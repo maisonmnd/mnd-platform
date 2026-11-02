@@ -49,6 +49,8 @@ import { invoicesStore, invoiceTotal, invoiceReglements, caissesHorsBilan, quiEn
 import { releveDeLAbonnee, formuleProposeePourReserver, dansLaVie } from '../../../../shared/abonnee-pur';
 import { jourDeCotonou } from '../../../../shared/ia-faits-pur';
 import { PALIER_DU_CODE_XOF } from '../vente/encaissement-pur';
+import { useOffers } from '../../../../shared/offers';
+import { arrondiDuNet, estUnCodeDuJour, offreDuJourDeLaVenue, poseLOffreDuJour, remisesDeLaMainSeules } from '../../../../shared/offres-pur';
 import { SeanceDeLaFormule } from './SeanceDeLaFormule';
 import { PiecesDuRendezVous } from './PiecesDuRendezVous';
 import type { PieceEnvoyee } from '../../../../shared/avant-le-fauteuil-pur';
@@ -1917,8 +1919,21 @@ function RdvModalCorps({
      blocs occupaient pourtant la moitié de l'écran. Ils se replient — et
      s'ouvrent d'eux-mêmes quand ils portent déjà quelque chose. */
   const [mainsOuvertes, setMainsOuvertes] = useState<string[]>([]);
-  /* LES REMISES DE LIGNE — tableau parallèle à `serviceIds`, comme les mains. */
-  const [remisesL, setRemisesL] = useState<({ pct?: number; xof?: number } | null)[]>(appt?.remisesLignes ?? []);
+  /* LES OFFRES, pour le mercredi de la Maison (2 novembre 2026). LE PASSÉ NE
+     BOUGE PAS : un rendez-vous honoré, payé en tout ou en partie, ou déjà
+     remisé au comptoir garde ses remises telles qu'elles sont. Le mercredi
+     ne s'y repose pas (la Caisse l'a peut-être déjà accordé en francs) et ne
+     s'en retire pas. */
+  const [offresDeLaMaison] = useOffers();
+  const rdvFige = !!appt && (appt.status === 'honoré' || apptPaidXof(appt) > 0 || (appt.remiseDuComptoirXof ?? 0) > 0);
+  /* LES REMISES DE LIGNE — tableau parallèle à `serviceIds`, comme les mains.
+     CELLES DE LA MAIN, depuis le 2 novembre 2026 : les −15 % du mercredi se
+     reposent à chaque rendu selon la date (`remisesL`, plus bas). */
+  const [remisesALaMain, setRemisesL] = useState<({ pct?: number; xof?: number } | null)[]>(
+    () => (!appt ? [] : rdvFige ? (appt.remisesLignes ?? []) : remisesDeLaMainSeules(appt, offresDeLaMaison)),
+  );
+  /* « Ne pas l'appliquer » : le comptoir garde la main, et son choix tient. */
+  const [mercrediEcarte, setMercrediEcarte] = useState<boolean>(!!appt?.horsOffreDuJour);
   /* LE REGARD DÉDUIT (10 octobre 2026) : posé d'un geste, écrit à l'enregistrement. */
   const [deduction, setDeduction] = useState<RegardADeduire | null>(null);
   const [remisesOuvertes, setRemisesOuvertes] = useState<string[]>([]);
@@ -2480,6 +2495,34 @@ function RdvModalCorps({
      9 octobre 2026 : par `brutDuRituel`, le calcul que lisent aussi le Carnet,
      la caisse et la facture d'un rendez-vous sans prix. La fenêtre n'a plus de
      formule à elle. */
+  /* ══ LE MERCREDI DE LA MAISON SE POSE DE LUI-MÊME — 2 novembre 2026 ══════
+     « Un rendez-vous posé un mercredi reçoit le code automatiquement, et
+     l'écran le dit » (maquette « Remplir les fauteuils », arbitrages 3 et 4).
+     La règle est celle du site et de Ma Couronne (`offreDuJourDeLaVenue`) :
+     la date du rendez-vous, sa saison, ses gestes couverts ; rien pour un
+     rituel couvert par l'abonnement ou au forfait, rien par-dessus un autre
+     code (ROSE15 posé par le site, une marraine). Le code de ce rendez-vous
+     qui EST celui d'un jour de la venue n'est pas « un autre code » : il se
+     repose, ou s'en va, avec la date. */
+  const codeDuRdv = appt?.codeOffre && (rdvFige || !estUnCodeDuJour(appt.codeOffre, offresDeLaMaison)) ? appt.codeOffre : undefined;
+  const offreDuMercredi = rdvFige ? null : offreDuJourDeLaVenue(offresDeLaMaison, {
+    branchId: branch.id, dateIso: date, serviceIds,
+    dejaUnCode: !!codeDuRdv,
+    /* Une séance de suite ne se paie pas (la série est réglée sur sa
+       première séance) : rien à remiser, et aucun code à compter. */
+    couvertParAbonnement: effCovered || estSuite || (appt?.seriesIndex ?? 1) > 1,
+    forfait: forfaitOn && String(forfaitStr).trim() !== '',
+    ecartee: mercrediEcarte,
+  });
+  const poseDuMercredi = poseLOffreDuJour(offreDuMercredi, serviceIds.map((id) => {
+    const sv = byId.get(id);
+    const p = sv ? Math.round(tarifs.prixPlein(sv) * (1 - tarifs.gesteDe(sv) / 100)) : 0;
+    return { id, prixXof: p, ferme: !!sv && p > 0 && prixFerme(sv, pricing) };
+  }), remisesALaMain);
+  /* LES REMISES DE LIGNE DU RENDEZ-VOUS : celles de la main, et celles du
+     mercredi quand il se pose. C'est ce tableau que tout lit ensuite : le
+     prix de chaque ligne, le total, le gel, l'enregistrement. */
+  const remisesL = poseDuMercredi?.remisesLignes ?? remisesALaMain;
   const grossBase = brutDuRituel({ serviceIds, remisesLignes: remisesL }, byId, tarifs);
   const servicesChanged = !!appt && [...appt.serviceIds].sort().join('|') !== [...serviceIds].sort().join('|');
   /* Prestation à prix variable ou sur devis : le montant se fixe au fauteuil. Le
@@ -2521,7 +2564,19 @@ function RdvModalCorps({
   const remisesChangees = signatureRemises(remisesL, serviceIds.length)
     !== signatureRemises(appt?.remisesLignes, serviceIds.length);
   const keepFrozen = !needsAmount && typeof frozenXof === 'number' && !servicesChanged && !refreshPrice && !remisesChangees;
-  const grossXof = keepFrozen ? (frozenXof as number) : grossBase;
+  /* LE NET D'UN CODE MONTE AU MILLIER ICI AUSSI — 2 novembre 2026. La règle
+     du 23 octobre 2026 (`arrondiDuCodeAuRdv`) ne se lisait que sur un
+     rendez-vous SANS prix : cette fenêtre, qui fige le prix, enregistrait
+     8 500 F là où le Carnet lisait 9 000 F. Un rendez-vous qui porte un code
+     dont les remises de ligne mordent (le mercredi de la Maison, ROSE15 posé
+     par le site) monte au millier supérieur, sans jamais rendre plus que la
+     remise. Le passé ne bouge pas : honoré ou déjà payé, rien ne s'arrondit ;
+     un prix libre à saisir non plus, son net n'est pas encore connu. */
+  const codeRetenu = poseDuMercredi?.codeOffre ?? codeDuRdv;
+  const arrondiDuCode = codeRetenu && !needsAmount && !(appt && (appt.status === 'honoré' || apptPaidXof(appt) > 0))
+    ? arrondiDuNet(grossBase, brutDuRituel({ serviceIds, remisesLignes: [] }, byId, tarifs) - grossBase, PALIER_DU_CODE_XOF)
+    : 0;
+  const grossXof = keepFrozen ? (frozenXof as number) : grossBase + arrondiDuCode;
 
   /* LE MONTANT CONVENU NE VAUT QUE POUR LES PRESTATIONS À PRIX LIBRE.
      Il REMPLAÇAIT le total du rituel : une reprise SÍNSIN à 45 000 F posée à
@@ -2578,9 +2633,9 @@ function RdvModalCorps({
      figé est INFÉRIEUR au prix du jour, l'écart est une remise explicite — le RDV
      et la facture montrent les mêmes prix pleins + la même remise. Ne vaut que pour
      les rituels tout-en-prix-fixe (variable/devis : montant saisi au fauteuil). */
-  const frozenRemiseXof = !needsAmount && keepFrozen && grossBase > effGross ? grossBase - effGross : 0;
+  const frozenRemiseXof = !needsAmount && keepFrozen && grossBase + arrondiDuCode > effGross ? grossBase + arrondiDuCode - effGross : 0;
   /* Information « prix d'origine ≠ tarif du jour » — ne vaut que pour les prix FIXES. */
-  const frozenDiffers = !needsAmount && typeof frozenXof === 'number' && Math.round(frozenXof) !== Math.round(grossBase);
+  const frozenDiffers = !needsAmount && typeof frozenXof === 'number' && Math.round(frozenXof) !== Math.round(grossBase + arrondiDuCode);
   /* Pourcentage d'abord, puis remise en CFA — jamais sous zéro. Même ordre que
      `apptNetXof`, sinon l'aperçu de la modale mentirait sur le net encaissé.
      Rituel couvert par l'abonnement → rien à facturer (0). */
@@ -3084,6 +3139,13 @@ function RdvModalCorps({
                 remisesLignes: remisesL.some((r) => (r?.pct ?? 0) > 0 || (r?.xof ?? 0) > 0)
                   ? serviceIds.map((_, k) => remisesL[k] ?? null)
                   : undefined,
+                /* LE MERCREDI DE LA MAISON (2 novembre 2026) : son code se pose
+                   avec ses remises, ou s'en va avec elles quand la date quitte
+                   le mercredi ; un autre code (ROSE15 du site) reste tel quel. */
+                ...(poseDuMercredi
+                  ? { codeOffre: poseDuMercredi.codeOffre, offreId: poseDuMercredi.offreId }
+                  : !rdvFige && estUnCodeDuJour(x.codeOffre, offresDeLaMaison) ? { codeOffre: undefined, offreId: undefined } : {}),
+                horsOffreDuJour: mercrediEcarte || undefined,
                 /* CE QU'ELLE EMPORTE — une Gamme vide ne s'ecrit pas : un champ
                    present et vide ferait croire a une intention posee. */
                 gamme: gamme.length > 0 ? gamme : undefined,
@@ -3157,7 +3219,7 @@ function RdvModalCorps({
                    celui d'avant tant que rien ne change ; toucher aux
                    prestations ou aux remises le recalcule, et c'est bien ce
                    qu'on veut alors. */
-                priceXof: effCovered ? 0 : needsAmount ? effGross : keepFrozen ? frozenXof : grossBase,
+                priceXof: effCovered ? 0 : needsAmount ? effGross : keepFrozen ? frozenXof : grossBase + arrondiDuCode,
                 depositServiceIds: effCovered ? [] : depositServiceIds,
                 depositXof: effCovered ? 0 : depositXof }
             : x,
@@ -3215,6 +3277,9 @@ function RdvModalCorps({
         remisesLignes: remisesL.some((r) => (r?.pct ?? 0) > 0 || (r?.xof ?? 0) > 0)
           ? serviceIds.map((_, k) => remisesL[k] ?? null)
           : undefined,
+        /* Le mercredi de la Maison, posé d'office (2 novembre 2026). */
+        ...(poseDuMercredi ? { codeOffre: poseDuMercredi.codeOffre, ...(poseDuMercredi.offreId ? { offreId: poseDuMercredi.offreId } : {}) } : {}),
+        horsOffreDuJour: mercrediEcarte || undefined,
         gamme: gamme.length > 0 ? gamme : undefined,
         date,
         time,
@@ -3245,7 +3310,7 @@ function RdvModalCorps({
            convenu ; cliente au prix personnalisé → SON prix, figé dès la prise. */
         /* MÊME RÈGLE SUR LE CHEMIN DES SÉRIES : un rituel est un fait, il
            porte son prix. Voir la note du chemin principal. */
-        priceXof: effCovered ? 0 : needsAmount ? effGross : grossBase,
+        priceXof: effCovered ? 0 : needsAmount ? effGross : grossBase + arrondiDuCode,
         depositServiceIds: effCovered ? [] : depositServiceIds,
         depositXof: effCovered ? 0 : depositXof,
       };
@@ -3939,8 +4004,10 @@ function RdvModalCorps({
                   prestation rempliraient l'écran d'un cas rare. */}
               {!sansPrix && (() => {
                 const pos = serviceIds.indexOf(sv.id);
-                const r = remisesL[pos] ?? {};
+                /* La main lit SES remises ; celle du mercredi se dit à part. */
+                const r = remisesALaMain[pos] ?? {};
                 const posee = (r.pct ?? 0) > 0 || (r.xof ?? 0) > 0;
+                const parLeMercredi = !posee && !!poseDuMercredi?.remisesLignes[pos];
                 const ouverte = posee || remisesOuvertes.includes(sv.id);
                 /* LE PRIX D'ORIGINE DE LA REMISE = le prix RÉEL de la ligne pour
                    cette cliente (`prixPlein` : personnalisé/calibre/longueur), le
@@ -3961,7 +4028,9 @@ function RdvModalCorps({
                       <span className="mnd-muted" style={{ fontSize: 11.5 }}>
                         {posee
                           ? <>Remise · <b style={{ color: 'var(--copper-700)', fontWeight: 600 }}>{argent(net)}</b> au lieu de {argent(plein)}</>
-                          : 'Au prix annoncé'}
+                          : parLeMercredi && offreDuMercredi
+                            ? <>{offreDuMercredi.title} · <b style={{ color: 'var(--copper-700)', fontWeight: 600 }}>−{offreDuMercredi.discountPct ?? 0} %</b>, code {offreDuMercredi.code}</>
+                            : 'Au prix annoncé'}
                       </span>
                       <button
                         type="button"
@@ -4461,7 +4530,7 @@ function RdvModalCorps({
           {typeof frozenXof === 'number' && servicesChanged && !needsAmount && (
             <div style={{ fontSize: 12, color: 'var(--copper-700)', background: 'var(--copper-50)', border: '1px solid var(--copper-300)', borderRadius: 'var(--radius-md)', padding: '9px 11px', lineHeight: 1.5 }}>
               Vous avez modifié les prestations : enregistrer recalculera ce rituel au tarif du jour
-              ({argent(grossBase)}), l’ancien prix de {argent(frozenXof)} sera abandonné.
+              ({argent(grossBase + arrondiDuCode)}), l’ancien prix de {argent(frozenXof)} sera abandonné.
             </div>
           )}
         </VoletRdv>
@@ -5066,7 +5135,7 @@ function RdvModalCorps({
           {frozenDiffers && !servicesChanged && !refreshPrice && !sansPrix && (
             <div style={{ fontSize: 12, color: 'var(--copper-700)', background: 'var(--copper-50)', border: '1px solid var(--copper-300)', borderRadius: 'var(--radius-md)', padding: '9px 11px', lineHeight: 1.5 }}>
               Prix d’origine conservé : <b>{argent(frozenXof!)}</b> (au tarif d’aujourd’hui,
-              ces prestations vaudraient {argent(grossBase)}). Il ne changera que si vous
+              ces prestations vaudraient {argent(grossBase + arrondiDuCode)}). Il ne changera que si vous
               modifiez les prestations, ou si vous l’actualisez :
               <div style={{ marginTop: 8 }}>
                 <button
@@ -5074,14 +5143,14 @@ function RdvModalCorps({
                   onClick={() => setRefreshPrice(true)}
                   style={{ cursor: 'pointer', background: 'var(--color-copper)', color: 'var(--color-ivoire)', border: 'none', borderRadius: 3, padding: '6px 12px', fontFamily: 'var(--font-sans)', fontSize: 11.5, fontWeight: 600 }}
                 >
-                  Actualiser au tarif du jour ({argent(grossBase)})
+                  Actualiser au tarif du jour ({argent(grossBase + arrondiDuCode)})
                 </button>
               </div>
             </div>
           )}
           {frozenDiffers && !servicesChanged && refreshPrice && !sansPrix && (
             <div style={{ fontSize: 12, color: 'var(--copper-700)', background: 'var(--copper-50)', border: '1px solid var(--copper-300)', borderRadius: 'var(--radius-md)', padding: '9px 11px', lineHeight: 1.5 }}>
-              Ré-tarifé au tarif du jour : <b>{argent(grossBase)}</b> (ancien prix
+              Ré-tarifé au tarif du jour : <b>{argent(grossBase + arrondiDuCode)}</b> (ancien prix
               {' '}{argent(frozenXof!)}). Enregistrez pour figer ce nouveau prix ; ré-encaissez
               ensuite pour que la facture porte les mêmes montants.
               <div style={{ marginTop: 8 }}>
@@ -5099,13 +5168,47 @@ function RdvModalCorps({
               avant d'enregistrer, puis figé sur le rendez-vous. */}
           {rdvPersonalized && !needsAmount && !keepFrozen && !effCovered && (
             <div style={{ fontSize: 12, color: 'var(--copper-700)', background: 'var(--copper-50)', border: '1px solid var(--copper-300)', borderRadius: 'var(--radius-md)', padding: '9px 11px', lineHeight: 1.5 }}>
-              Prix personnalisé : <b>{argent(grossBase)}</b>
+              Prix personnalisé : <b>{argent(grossBase + arrondiDuCode)}</b>
               {pricing.band ? <>, modèle {bandLabel(pricing.band, bands)} (×{pricing.band.coef})</> : null}
               {pricing.clientCoef !== 1 ? <> · Juste Prix ×{pricing.clientCoef}</> : null}
               {grossBase !== grossCatalogue ? <> · catalogue {argent(grossCatalogue)}</> : null}.
               Il sera figé sur ce rendez-vous à l’enregistrement.
             </div>
           )}
+          {/* LE MERCREDI DE LA MAISON, DIT À L'ÉCRAN — 2 novembre 2026. Posé de
+              lui-même sur un rendez-vous de ce jour ; le comptoir garde la main
+              (« Ne pas l'appliquer »), et ce qui l'empêche se dit. */}
+          {!sansPrix && (() => {
+            const possible = rdvFige ? null : offreDuJourDeLaVenue(offresDeLaMaison, { branchId: branch.id, dateIso: date, serviceIds });
+            if (!possible) return null;
+            const boite = { fontSize: 12, color: 'var(--copper-700)', background: 'var(--copper-50)', border: '1px solid var(--copper-300)', borderRadius: 'var(--radius-md)', padding: '9px 11px', lineHeight: 1.5 } as const;
+            const bouton = { cursor: 'pointer', background: 'none', color: 'var(--copper-700)', border: '1px solid var(--copper-300)', borderRadius: 3, padding: '4px 10px', fontFamily: 'var(--font-sans)', fontSize: 11.5, marginLeft: 8 } as const;
+            if (poseDuMercredi && offreDuMercredi) {
+              const sansLui = brutDuRituel({ serviceIds, remisesLignes: remisesALaMain }, byId, tarifs);
+              const retire = Math.max(0, sansLui - (grossBase + arrondiDuCode));
+              const n = poseDuMercredi.remisesLignes.filter((x, i) => !!x && !(remisesALaMain[i] && ((remisesALaMain[i]?.pct ?? 0) > 0 || (remisesALaMain[i]?.xof ?? 0) > 0))).length;
+              return (
+                <div style={boite}>
+                  <b>{offreDuMercredi.title}</b> · code {poseDuMercredi.codeOffre} · −{offreDuMercredi.discountPct ?? 0} % sur {n} {n > 1 ? 'gestes' : 'geste'}
+                  {retire > 0 ? <>, soit −{argent(retire)}{arrondiDuCode > 0 ? ' (arrondi au millier)' : ''}</> : null}.
+                  {' '}Il se pose de lui-même sur un rendez-vous de ce jour.
+                  <button type="button" style={bouton} onClick={() => setMercrediEcarte(true)}>Ne pas l’appliquer</button>
+                </div>
+              );
+            }
+            if (mercrediEcarte) {
+              return (
+                <div style={boite}>
+                  {possible.title} n’est pas appliqué à ce rendez-vous.
+                  <button type="button" style={bouton} onClick={() => setMercrediEcarte(false)}>L’appliquer</button>
+                </div>
+              );
+            }
+            const pourquoi = codeDuRdv ? `ce rendez-vous porte déjà le code ${codeDuRdv}`
+              : effCovered ? 'le rituel est couvert par l’abonnement'
+                : forfaitOn && String(forfaitStr).trim() !== '' ? 'un forfait est posé' : '';
+            return pourquoi ? <div style={boite}>{possible.title} ne s’ajoute pas : {pourquoi}.</div> : null;
+          })()}
           {/* LE RÉCAPITULATIF ENTIER SE TAIT. Le laisser avec des tirets partout
               n'apprend rien et donne l'air d'un écran cassé : mieux vaut qu'il
               n'y soit pas. */}
@@ -5124,7 +5227,7 @@ function RdvModalCorps({
               <>
                 <div className="trc-total__row">
                   <span>Prix du jour</span>
-                  <span className="trc-total__num">{argent(grossBase)}</span>
+                  <span className="trc-total__num">{argent(grossBase + arrondiDuCode)}</span>
                 </div>
                 <div className="trc-total__row">
                   <span>Remise · prix d’origine conservé</span>

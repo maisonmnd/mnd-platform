@@ -160,6 +160,9 @@ export type OffreDuSite = {
   code?: string;
   discountPct?: number;
   serviceIds?: string[];
+  /* LES JOURS DE LA VENUE — 2 novembre 2026 : l'offre ne vaut que pour une
+     venue ces jours-là (« Le mercredi de la Maison »), voir offres-pur. */
+  joursDeLaVenue?: string[];
 };
 
 export async function offresDuSite(): Promise<OffreDuSite[]> {

@@ -175,8 +175,10 @@ dit('la copie ne dit pas plus que l original : pas de remise en francs inventee'
 dit('l usage se cherche sur le numero, le code, et le code REELLEMENT applique', true,
   /'data->>telephone'/.test(sansCommentaires) && /'data->>code'/.test(sansCommentaires)
     && /'data->>codeApplique'/.test(sansCommentaires));
+/* UNE OFFRE DU JOUR DE LA VENUE (2 novembre 2026, le mercredi de la Maison)
+   vaut à chaque venue : elle seule passe outre, et nommément. */
 dit('la remise ne s accorde qu APRES avoir cherche un usage anterieur', true,
-  /if \(duCode\.remisesLignes && await codeDejaUtilise\(duCode\.code, telephone\)\)/.test(sansCommentaires));
+  /if \(duCode\.remisesLignes && !duCode\.chaqueVenue && await codeDejaUtilise\(duCode\.code, telephone\)\)/.test(sansCommentaires));
 dit('... et un usage trouve retire les remises, en gardant le code et sa raison', true,
   /duCode = \{ code: duCode\.code, offreId: duCode\.offreId, raison: 'deja-utilise' \}/.test(sansCommentaires));
 dit('le navigateur ne dicte jamais l usage deja pris', false, /\b(?:d|body)\.code(?:Applique|Raison)\b/.test(sansCommentaires));

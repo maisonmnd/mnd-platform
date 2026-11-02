@@ -12,6 +12,8 @@ import { SUCCESSEURS } from '../../shared/bascule-de-janvier-pur';
 import { fondeLaCouronne } from '../../shared/catalogue-pur';
 import { litLaPhrase, departage } from '../../shared/phrase-de-rendez-vous-pur';
 import { useSubscribers } from '../../shared/abonnements';
+import { useOffers } from '../../shared/offers';
+import { arrondiDuNet, ceQueLeCodeRetire, lignesDuCode, offreDuJourDeLaVenue, poseLOffreDuJour } from '../../shared/offres-pur';
 import { REGLES_DE_LA_MAISON } from '../../shared/abonnee-pur';
 import { useReleve } from './releve';
 import { askNotifyPermission, downloadIcs, notifyLocal, type IcsEvent } from '../../shared/ics';
@@ -288,6 +290,10 @@ export default function Booking({ prefill, onClose, toast, onVoirRdv }: Props) {
   const [time, setTime] = useState<string | null>(null);
   /* Séries multi-séances : chaque séance choisie (date + heure), dans l'ordre. */
   const [sessionDates, setSessionDates] = useState<{ iso: string; time: string }[]>([]);
+  /* La place touchée dans « Les prochaines places » (parcours express). Montée
+     ici le 2 novembre 2026 : le prix du rituel en dépend désormais (le
+     mercredi de la Maison), et il se calcule plus haut que la liste. */
+  const [placeExpress, setPlaceExpress] = useState<{ iso: string; heure: string } | null>(null);
   const [pay, setPay] = useState<PayKey | null>(null);
   const [paying, setPaying] = useState(false);
   /* Voie choisie à l'écran d'acompte : régler en ligne (défaut quand les rails
@@ -302,6 +308,25 @@ export default function Booking({ prefill, onClose, toast, onVoirRdv }: Props) {
 
   const discountPct = prefill?.discountPct ?? 0;
   const offerLabel = prefill?.offerLabel;
+
+  /* ══ LE MERCREDI DE LA MAISON — 2 novembre 2026 ═════════════════════
+     Maquette « Remplir les fauteuils », validée par Yéman : −15 % sur le
+     rituel posé un mercredi, jusqu'au 31 décembre 2026, hors formules et
+     abonnements, et il ne s'ajoute à aucun autre code. La règle vit dans
+     `offres-pur` (`offreDuJourDeLaVenue`), la même au site et au Trône.
+
+     LE JOUR QUI COMPTE EST CELUI DE SA VENUE : la première séance (c'est
+     elle qui porte le prix), sinon le jour touché au calendrier, sinon la
+     place touchée dans « Les prochaines places ». Jamais aujourd'hui.
+
+     UNE OFFRE DÉJÀ PRÉ-REMPLIE (une carte d'offre, `discountPct`) l'écarte :
+     une offre à la fois. */
+  const [offresDeLaMaison] = useOffers();
+  const jourDeLaVenue = sessionDates[0]?.iso ?? selIso ?? (step === EXPRESS ? placeExpress?.iso : undefined) ?? null;
+  const leMercrediPour = (iso: string | null | undefined) => offreDuJourDeLaVenue(offresDeLaMaison, {
+    branchId: branch.id, dateIso: iso, serviceIds: selectedIds, dejaUnCode: discountPct > 0,
+  });
+  const offreDuMercredi = leMercrediPour(jourDeLaVenue);
 
   /* ---- Prestations retenues (dans l'ordre du catalogue) et agrégats ---- */
   const selected = useMemo(
@@ -342,9 +367,17 @@ export default function Booking({ prefill, onClose, toast, onVoirRdv }: Props) {
       .filter((s) => !s.hidePrice && regimeTarifaire(s, tousCats).k === 'forfait')
       .reduce((n, s) => n + ici(s), 0);
     const remiseFamille = pctFamille > 0 ? Math.round(Math.max(0, connu - forfaits) * (pctFamille / 100)) : 0;
+    /* LE MERCREDI DE LA MAISON, LIGNE À LIGNE (2 novembre 2026) : seules les
+       prestations qu'il couvre, à prix ferme, bougent ; puis le net monte au
+       millier, comme au Trône (`arrondiDuCodeAuRdv`). 10 000 F font 9 000 F. */
+    const duMercredi = ceQueLeCodeRetire(lignesDuCode(
+      panier.filter((s) => !s.hidePrice).map((s) => ({ id: s.id, prixXof: ici(s), ferme: priceModeOf(s) !== 'devis' && prixFerme(s, pricing) })),
+      offreDuMercredi,
+    ));
+    const remiseMercredi = Math.max(0, duMercredi.retire - arrondiDuNet(duMercredi.net, duMercredi.retire));
     return {
-      connu, forfaits, pctFamille, remiseFamille,
-      prix: Math.max(0, Math.round(connu * (1 - discountPct / 100)) - remiseFamille),
+      connu, forfaits, pctFamille, remiseFamille, remiseMercredi,
+      prix: Math.max(0, Math.round((connu - remiseMercredi) * (1 - discountPct / 100)) - remiseFamille),
       variable: panier.some((s) => priceModeOf(s) === 'variable' && !prixFerme(s, pricing)),
       masque: panier.length > 0 && panier.every((s) => s.hidePrice),
       duree: panier.reduce((n, s) => n + personalDurationMin(s, pricingDuree), 0),
@@ -402,7 +435,13 @@ export default function Booking({ prefill, onClose, toast, onVoirRdv }: Props) {
   const priced = selected.filter((s) => !s.hidePrice);
   /* L'acompte se calcule sur les prix PERSONNALISÉS — le pourcentage de la
      maison s'applique à ce que la cliente paiera vraiment. */
-  const deposit = depositForServices(priced.map((s) => ({ id: s.id, priceXof: prixIci(s) })), discountPct);
+  /* Le mercredi de la Maison allège aussi l'acompte : il se compte sur le prix
+     qu'elle paiera, ligne à ligne (2 novembre 2026). */
+  const pctMercrediDe = (s: Service): number =>
+    offreDuMercredi && (offreDuMercredi.serviceIds ?? []).includes(s.id) && priceModeOf(s) !== 'devis' && prixFerme(s, pricing)
+      ? Math.max(0, Math.min(90, Math.round(offreDuMercredi.discountPct ?? 0))) : 0;
+  const prixNetIci = (s: Service): number => Math.round(prixIci(s) * (1 - pctMercrediDe(s) / 100));
+  const deposit = depositForServices(priced.map((s) => ({ id: s.id, priceXof: prixNetIci(s) })), discountPct);
   const hasDeposit = deposit > 0;
   /* Les taux pouvant différer d'une prestation à l'autre, on n'annonce un
      pourcentage que s'il est unique — sinon le montant parle seul. */
@@ -410,7 +449,7 @@ export default function Booking({ prefill, onClose, toast, onVoirRdv }: Props) {
   const depositPct = depositRates.length === 1 ? depositRates[0] : null;
   /* Base réellement soumise à l'acompte (≠ total : seules certaines prestations). */
   const depositBase = Math.round(
-    priced.filter((s) => depositPctFor(s.id) > 0).reduce((n, s) => n + prixIci(s), 0) * (1 - discountPct / 100),
+    priced.filter((s) => depositPctFor(s.id) > 0).reduce((n, s) => n + prixNetIci(s), 0) * (1 - discountPct / 100),
   );
 
   /* CE QUI LA CONCERNE, ELLE. Les créations existent en cinq versions, une par
@@ -831,9 +870,19 @@ export default function Booking({ prefill, onClose, toast, onVoirRdv }: Props) {
         seancesToujoursLibres,
       });
       setNeTenu(tenu);
+      /* LE MERCREDI DE LA MAISON SE POSE SUR LA PREMIÈRE SÉANCE (2 novembre
+         2026), celle qui porte le prix : son code et ses remises de ligne,
+         comme le site les pose (`poseLOffreDuJour`). Le Trône l'arrondit au
+         millier à la lecture, et la Caisse ne la remet pas une seconde fois. */
+      const poseDuMercredi = poseLOffreDuJour(offreDuMercredi, selectedIds.map((id) => {
+        const s = tousServices.find((x) => x.id === id);
+        const p = s && !s.hidePrice ? prixIci(s) : 0;
+        return { id, prixXof: p, ferme: !!s && p > 0 && priceModeOf(s) !== 'devis' && prixFerme(s, pricing) };
+      }));
       const newAppts: Appointment[] = sessionDates.map((sd, i) => {
         const notes = [...baseNotes];
         if (totalSessions > 1) notes.push(`Séance ${i + 1}/${totalSessions}`);
+        if (i === 0 && poseDuMercredi && offreDuMercredi) notes.push(`${offreDuMercredi.title} · code ${poseDuMercredi.codeOffre}`);
         return {
           /* La séance 1 porte l'identifiant RÉSERVÉ avant l'ouverture du widget :
              c'est lui qui a voyagé chez KkiaPay en `partnerId`, et par lui que le
@@ -870,8 +919,15 @@ export default function Booking({ prefill, onClose, toast, onVoirRdv }: Props) {
              variable (le montant se fixe au fauteuil). L'offre éventuelle est
              portée par discountPct — le net retombe sur le total annoncé. */
           ...(i === 0 && personalized && !anyHidden && !anyVariable
-            ? { priceXof: knownTotal, ...(discountPct > 0 ? { discountPct } : {}) }
+            /* Le prix figé est celui qu'elle a vu : le mercredi déduit et
+               arrondi au millier (2 novembre 2026). */
+            ? { priceXof: knownTotal - (poseDuMercredi ? chiffre.remiseMercredi : 0), ...(discountPct > 0 ? { discountPct } : {}) }
             : {}),
+          ...(i === 0 && poseDuMercredi ? {
+            codeOffre: poseDuMercredi.codeOffre,
+            ...(poseDuMercredi.offreId ? { offreId: poseDuMercredi.offreId } : {}),
+            remisesLignes: poseDuMercredi.remisesLignes,
+          } : {}),
           /* LA REMISE FAMILLE VOYAGE AVEC LE RENDEZ-VOUS — figée en francs
              (part hors forfaits × taux) : l'encaissement du Trône retranche
              ce montant exact, et la facture le nommera « Remise famille ».
@@ -1002,7 +1058,6 @@ export default function Booking({ prefill, onClose, toast, onVoirRdv }: Props) {
     return prochainesPlaces(jours, 6);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [vue, selected.length, totalSessions, occupesCharges, master, totalDuration, appts, tousServices, branch.id, occupes, blocages, exceptions, reglages]);
-  const [placeExpress, setPlaceExpress] = useState<{ iso: string; heure: string } | null>(null);
   const choisisLesGestes = (ids: string[]) => {
     setSelectedIds(ids);
     setSessionDates([]); setSelIso(null); setTime(null); setPlaceExpress(null);
@@ -1403,10 +1458,13 @@ export default function Booking({ prefill, onClose, toast, onVoirRdv }: Props) {
                   <div className="mc-places" role="group" aria-label={t('Les prochaines places')}>
                     {placesExpress.map(({ iso, place }) => {
                       const on = placeExpress?.iso === iso && placeExpress.heure === place.heure;
+                      /* Le mercredi de la Maison se lit sur la place (2 novembre 2026). */
+                      const duJour = leMercrediPour(iso);
                       return (
-                        <button key={`${iso}-${place.heure}`} type="button" className={`mc-place ${on ? 'is-on' : ''}`} aria-pressed={on}
+                        <button key={`${iso}-${place.heure}`} type="button" className={`mc-place ${on ? 'is-on' : ''}${duJour ? ' is-offre' : ''}`} aria-pressed={on}
                           onClick={() => setPlaceExpress({ iso, heure: place.heure })}>
                           {jourDit(iso)} · {place.heure}
+                          {duJour && <small className="mc-place__offre">−{duJour.discountPct ?? 0} %</small>}
                         </button>
                       );
                     })}
@@ -1673,12 +1731,20 @@ export default function Booking({ prefill, onClose, toast, onVoirRdv }: Props) {
                     <div className="mc-recapcard__svcname">{s.name}</div>
                     <div className="mc-recapcard__svcsub">{fmtDuration(s.durationMin)}</div>
                   </div>
-                  <div className="mc-recapcard__svcprice">{priceLabel(s, discountPct)}</div>
+                  <div className="mc-recapcard__svcprice">{priceLabel(s, discountPct || pctMercrediDe(s))}</div>
                 </div>
               ))}
               {discountPct > 0 && knownTotal > 0 && (
                 <div className="mc-recapcard__deal">
                   {offerLabel ?? t('Offre de saison')} · −{discountPct} % <s>{prix(knownTotal, currency)}</s>
+                </div>
+              )}
+              {/* LE MERCREDI DE LA MAISON SE LIT (2 novembre 2026) : son nom, son
+                  taux, ce qu'il retire, et le plein barré. */}
+              {offreDuMercredi && chiffre.remiseMercredi > 0 && knownTotal > 0 && (
+                <div className="mc-recapcard__deal mc-recapcard__deal--jour">
+                  {t('{offre} · −{pct} % · −{montant}', { offre: offreDuMercredi.title, pct: offreDuMercredi.discountPct ?? 0, montant: prix(chiffre.remiseMercredi, currency) })}
+                  {' '}<s>{prix(knownTotal, currency)}</s>
                 </div>
               )}
               {/* LE PRIX FAMILLE SE LIT (14 août) : la remise du compte, dite
@@ -1798,27 +1864,44 @@ export default function Booking({ prefill, onClose, toast, onVoirRdv }: Props) {
               {lettresDesJours().map((d, i) => <div key={i}>{d}</div>)}
             </div>
             <div className="mc-calgrid">
-              {calCells.map((c) =>
-                c.day === null ? (
-                  <span key={c.key} />
-                ) : (
+              {calCells.map((c) => {
+                if (c.day === null) return <span key={c.key} />;
+                /* LE MERCREDI EN CUIVRE, « −15 % » (2 novembre 2026, maquette
+                   « Remplir les fauteuils ») : seulement les jours où l'offre
+                   vaudrait pour CE rituel, dans sa saison. Pour une série, le
+                   jour de la première séance seul compte (elle porte le prix) :
+                   les suivantes ne se marquent pas. */
+                const duJour = c.free && (totalSessions === 1 || sessionDates.length === 0) ? leMercrediPour(c.iso) : null;
+                return (
                   <button
                     key={c.key}
-                    className={`mc-calday ${c.iso === selIso ? 'is-sel' : ''} ${c.free ? 'is-free' : 'is-off'}`}
+                    className={`mc-calday ${c.iso === selIso ? 'is-sel' : ''} ${c.free ? 'is-free' : 'is-off'}${duJour ? ' is-offre' : ''}`}
+                    aria-label={duJour ? t('{jour}, {offre}, −{pct} %', { jour: jourDit(c.iso!), offre: duJour.title, pct: duJour.discountPct ?? 0 }) : undefined}
                     onClick={() => {
                       if (!c.free) { toast(t('Aucune disponibilité ce jour.')); return; }
                       setSelIso(c.iso!); setTime(null);
                     }}
                   >
                     {c.day}
-                    {c.free && c.iso !== selIso && <i />}
+                    {duJour && <small className="mc-calday__offre">−{duJour.discountPct ?? 0} %</small>}
+                    {c.free && c.iso !== selIso && !duJour && <i />}
                   </button>
-                )
-              )}
+                );
+              })}
             </div>
             <div className="mc-callegend">
               <span />{t('Jours avec créneaux libres · {duree}', { duree: fmtDuration(totalDuration) })}
             </div>
+            {(() => {
+              const enCuivre = calCells.map((c) => (c.free && c.iso ? leMercrediPour(c.iso) : null)).find(Boolean);
+              return enCuivre ? (
+                <div className="mc-callegend mc-callegend--offre">
+                  <span />{enCuivre.au
+                    ? t('En cuivre : {offre}, −{pct} % sur votre rituel, jusqu’au {date}.', { offre: enCuivre.title, pct: enCuivre.discountPct ?? 0, date: jourDuRituel(enCuivre.au) })
+                    : t('En cuivre : {offre}, −{pct} % sur votre rituel.', { offre: enCuivre.title, pct: enCuivre.discountPct ?? 0 })}
+                </div>
+              ) : null;
+            })()}
 
             {selIso && (
               <div className="mc-fade">

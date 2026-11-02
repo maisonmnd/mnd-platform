@@ -179,32 +179,110 @@ export type OffreCodee = {
       une offre qui ne dit pas sur quoi elle porte ne retire rien, parce
       qu'un oubli de case ne doit jamais solder le catalogue entier. */
   serviceIds?: string[];
+  /** LES JOURS DE LA VENUE (2 novembre 2026), voir plus bas : posés, l'offre
+      ne vaut que pour un rendez-vous qui tombe ces jours-là. */
+  joursDeLaVenue?: string[];
 };
+
+/* ══ LE JOUR DE LA VENUE — 2 novembre 2026 ══════════════════════════
+   « Le mercredi de la Maison » (maquette « Remplir les fauteuils », validée
+   par Yéman ce jour : « construis »). Le mercredi est le jour le plus vide
+   (11 % des fauteuils, de septembre à novembre 2026) ; l'offre doit faire
+   venir CE jour-là.
+
+   JUSQU'ICI UNE OFFRE SE MONTRAIT LE JOUR OÙ L'ON REGARDE (`days`, et la
+   saison jugée sur aujourd'hui). Une « offre du mercredi » vue un mercredi
+   pour une venue le samedi se serait appliquée au samedi. `joursDeLaVenue`
+   dit l'autre chose : le jour où elle VIENT. Posé, il juge la date du
+   rendez-vous, et la saison se lit sur cette date-là ; le jour où l'on
+   regarde ne compte plus. `days` garde son sens d'affichage.
+
+   UNE OFFRE SANS CE CHAMP NE CHANGE PAS D'UN CHEVEU : c'est ce qui laisse
+   RENTREE10 et ROSE15 telles qu'elles ont couru. */
+
+/** Les jours, dans la graphie des offres, lundi d'abord. La même liste que
+    `OFFER_DAYS` (offers.ts), que ce module pur ne peut pas importer ; le banc
+    du mercredi exige qu'elles restent égales. */
+export const JOURS_DES_OFFRES = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'] as const;
+
+/** LE JOUR DE LA SEMAINE D'UNE DATE ISO, dans cette graphie. Lu à midi UTC
+    sur la seule date : aucun fuseau, ni celui du téléphone ni celui d'un
+    serveur, ne fait glisser un mercredi au mardi. Une date illisible ne
+    rend rien, plutôt qu'un jour deviné. */
+export function jourDeLaSemaine(dateIso: unknown): string | null {
+  const s = String(dateIso ?? '').slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return null;
+  const d = new Date(`${s}T12:00:00Z`);
+  if (Number.isNaN(d.getTime())) return null;
+  return JOURS_DES_OFFRES[(d.getUTCDay() + 6) % 7];
+}
+
+/** L'offre porte-t-elle sur le jour de la venue ? */
+export const porteSurLeJourDeLaVenue = (o: { joursDeLaVenue?: readonly string[] } | null | undefined): boolean =>
+  (o?.joursDeLaVenue?.length ?? 0) > 0;
+
+/** LA VENUE TOMBE-T-ELLE UN DE SES JOURS, DANS SA SAISON ? La saison se lit
+    sur la date de la venue : le mercredi 4 novembre 2026 réservé le 2 en
+    profite, le mercredi 6 janvier 2027 réservé en décembre non. Une offre
+    sans jours de la venue répond toujours oui : elle garde sa règle d'hier. */
+export function laVenueTombeBien(
+  o: { joursDeLaVenue?: readonly string[]; du?: string; au?: string },
+  dateIso: string | null | undefined,
+): boolean {
+  if (!porteSurLeJourDeLaVenue(o)) return true;
+  const jour = jourDeLaSemaine(dateIso);
+  if (!jour || !o.joursDeLaVenue!.includes(jour)) return false;
+  const j = String(dateIso).slice(0, 10);
+  if (o.du && j < o.du) return false;
+  if (o.au && j > o.au) return false;
+  return true;
+}
+
+/** L'OFFRE COURT-ELLE POUR CETTE VENUE ? Sans jours de la venue, c'est la
+    saison d'aujourd'hui, comme avant. Avec, c'est la date de la venue :
+    `venueIso` absent veut dire « aujourd'hui » (le ticket d'une cliente de
+    passage), `null` veut dire « pas encore de jour choisi », et une offre
+    du jour de la venue ne court alors pour personne. */
+export function courtPourLaVenue(
+  o: { joursDeLaVenue?: readonly string[]; du?: string; au?: string },
+  now = new Date(),
+  venueIso?: string | null,
+): boolean {
+  if (!porteSurLeJourDeLaVenue(o)) return dansLaSaison(o, now);
+  return laVenueTombeBien(o, venueIso === undefined ? isoDuJour(now) : venueIso);
+}
 
 /** L'OFFRE QUE CE CODE DÉSIGNE, si elle court aujourd'hui. Rend `null` pour
     un code inconnu comme pour un code hors saison : c'est à l'écran de dire
     lequel des deux, avec les dates, parce qu'un refus muet passe pour une
-    panne. */
+    panne.
+
+    `venueIso` (2 novembre 2026) : le jour du rendez-vous, pour une offre qui
+    porte sur le jour de la venue. Les offres sans ce champ ne le lisent pas. */
 export function offreDuCode<T extends OffreCodee>(
   offres: readonly T[],
   code: unknown,
   now = new Date(),
+  venueIso?: string | null,
 ): T | null {
   const c = codeNormalise(code);
   if (!c) return null;
-  return offres.find((o) => o.active && codeNormalise(o.code) === c && dansLaSaison(o, now)) ?? null;
+  return offres.find((o) => o.active && codeNormalise(o.code) === c && courtPourLaVenue(o, now, venueIso)) ?? null;
 }
 
 /** LE MÊME CODE, MAIS HORS DE SA SAISON. Sert uniquement à l'écrire :
-    « ce code a couru du 1er au 30 septembre » vaut mieux que « inconnu ». */
+    « ce code a couru du 1er au 30 septembre » vaut mieux que « inconnu ».
+    Une offre du jour de la venue y tombe aussi quand la venue n'est pas un
+    de ses jours : « ce code vaut pour un rendez-vous le mercredi ». */
 export function offreDuCodePassee<T extends OffreCodee>(
   offres: readonly T[],
   code: unknown,
   now = new Date(),
+  venueIso?: string | null,
 ): T | null {
   const c = codeNormalise(code);
   if (!c) return null;
-  return offres.find((o) => codeNormalise(o.code) === c && !(o.active && dansLaSaison(o, now))) ?? null;
+  return offres.find((o) => codeNormalise(o.code) === c && !(o.active && courtPourLaVenue(o, now, venueIso))) ?? null;
 }
 
 export type LigneAPrix = {
@@ -370,11 +448,36 @@ const jourDit = (iso?: string): string => {
   const j = Number(iso.slice(8, 10));
   return `${j === 1 ? '1er' : j} ${MOIS_DITS[Number(iso.slice(5, 7)) - 1]}`;
 };
+/** « 31 décembre 2026 » : une date dite à une cliente porte son année. */
+const jourDitAvecAn = (iso?: string): string => {
+  const d = jourDit(iso);
+  return d ? `${d} ${String(iso).slice(0, 4)}` : '';
+};
+const JOURS_EN_TOUTES_LETTRES: Record<string, string> = {
+  Lun: 'lundi', Mar: 'mardi', Mer: 'mercredi', Jeu: 'jeudi', Ven: 'vendredi', Sam: 'samedi', Dim: 'dimanche',
+};
+/** « le mercredi », « le mardi ou le mercredi », dans l'ordre de la semaine. */
+export const lesJoursDits = (jours: readonly string[]): string => {
+  const dits = JOURS_DES_OFFRES.filter((j) => jours.includes(j)).map((j) => `le ${JOURS_EN_TOUTES_LETTRES[j]}`);
+  if (dits.length <= 1) return dits[0] ?? '';
+  return `${dits.slice(0, -1).join(', ')} ou ${dits[dits.length - 1]}`;
+};
 
 /** POURQUOI CE CODE D'OFFRE NE VAUT PAS AUJOURD'HUI, dit avec ses dates : « inconnu »
     ferait accuser la caisse, « ce code vaut du 1er au 31 octobre » se discute. */
-export function pourquoiLOffreNeCourtPas(o: OffreCodee, now = new Date()): string {
+export function pourquoiLOffreNeCourtPas(o: OffreCodee, now = new Date(), venueIso?: string | null): string {
   if (!o.active) return 'Cette offre existe, mais elle n’est pas activée.';
+  /* LE JOUR DE LA VENUE SE DIT AVEC SES JOURS ET SON ANNÉE (2 novembre 2026) :
+     « ce code vaut pour un rendez-vous le mercredi, jusqu'au 31 décembre
+     2026 » se comprend au comptoir comme sur le site. */
+  if (porteSurLeJourDeLaVenue(o)) {
+    const quand = lesJoursDits(o.joursDeLaVenue ?? []);
+    const borne = o.au ? `, jusqu’au ${jourDitAvecAn(o.au)}` : '';
+    const venue = venueIso === undefined ? isoDuJour(now) : venueIso;
+    if (venue && o.du && venue.slice(0, 10) < o.du) return `Ce code vaut pour un rendez-vous ${quand} à partir du ${jourDitAvecAn(o.du)}${borne}.`;
+    if (venue && o.au && venue.slice(0, 10) > o.au) return `Ce code valait pour un rendez-vous ${quand}, jusqu’au ${jourDitAvecAn(o.au)}.`;
+    return `Ce code vaut pour un rendez-vous ${quand}${borne}.`;
+  }
   const jour = isoDuJour(now);
   if (o.du && jour < o.du) return `Ce code vaudra à partir du ${jourDit(o.du)}.`;
   if (o.au && jour > o.au) return `Ce code a couru jusqu’au ${jourDit(o.au)}.`;
@@ -389,4 +492,142 @@ export function pourquoiLOffreNeCourtPas(o: OffreCodee, now = new Date()): strin
 export function offresDuTrottoir<T extends { active?: boolean; du?: string; au?: string; vitrine?: boolean }>(liste: unknown): T[] {
   if (!Array.isArray(liste)) return [];
   return (liste as T[]).filter((o) => !!o && !!o.active && (!!o.du || !!o.au || !!o.vitrine));
+}
+
+/* ══ L'OFFRE QUI SE POSE D'ELLE-MÊME SUR UN RENDEZ-VOUS DU MERCREDI ═════
+   2 novembre 2026. « −15 % sur le rituel posé un mercredi, code MERCREDI15,
+   jusqu'au 31 décembre 2026 », « hors formules et abonnements », « ne
+   s'ajoute à aucun autre code », « partout : le site, Ma Couronne, et le
+   comptoir qui l'applique » (arbitrages 3 et 4, tranchés ce jour).
+
+   UNE SEULE RÈGLE POUR QUATRE PORTES. Le site, Ma Couronne, la fenêtre du
+   rendez-vous au Trône et la Caisse la lisent ici ; le bloc « Son prochain
+   rituel » de la Caisse, qui pose un rendez-vous, s'y branchera de même
+   (`offreDuJourDeLaVenue` puis `poseLOffreDuJour`). Le serveur du site
+   (demande-submit) la recopie, confrontée à celle-ci par son banc.
+
+   LE CODE SE POSE, IL NE SE DEVINE PAS AU COMPTOIR : un rendez-vous du
+   mercredi porte `codeOffre` et ses remises de ligne exactement comme le
+   site les pose depuis le 24 septembre 2026 ; « Ce que ça rapporte » le
+   compte comme les autres. */
+
+/** Ce qu'on sait du rendez-vous pour juger l'offre du jour de sa venue. */
+export type VenueAJuger = {
+  /** La maison du rendez-vous ; une offre sans branche vaut partout. */
+  branchId?: string;
+  /** Le jour du rendez-vous (ISO). Sans jour, aucune offre de ce genre. */
+  dateIso: string | null | undefined;
+  /** Ses gestes, dans l'ordre du rendez-vous. */
+  serviceIds: readonly string[];
+  /** Il porte déjà un code d'offre, un code nominatif ou celui d'une
+      marraine : l'offre du jour ne s'y ajoute pas. */
+  dejaUnCode?: boolean;
+  /** Couvert par un abonnement, ou séance d'un forfait ou d'une formule. */
+  couvertParAbonnement?: boolean;
+  /** Un forfait ponctuel est posé : le total négocié est le prix, on ne le
+      remise pas une seconde fois. */
+  forfait?: boolean;
+  /** La Maison l'a écartée de ce rendez-vous (`horsOffreDuJour`) : le
+      comptoir garde la main, et son choix tient à la réouverture. */
+  ecartee?: boolean;
+};
+
+/** L'OFFRE DU JOUR DE LA VENUE QUI VAUT POUR CE RENDEZ-VOUS, ou `null`.
+
+    Rien hors de ses jours ni hors de sa saison, rien pour un rendez-vous
+    couvert ou au forfait, rien par-dessus un autre code. Et rien pour une
+    offre qui ne couvre aucun de ses gestes : `serviceIds` VIDE NE VEUT PAS
+    DIRE TOUTES, ni ici ni ailleurs. À plusieurs, la plus forte remise. */
+export function offreDuJourDeLaVenue<T extends OffreCodee & { branchId?: string }>(
+  offres: readonly T[],
+  v: VenueAJuger,
+): T | null {
+  if (v.dejaUnCode || v.couvertParAbonnement || v.forfait || v.ecartee || !v.dateIso) return null;
+  const gestes = new Set(v.serviceIds);
+  let mieux: T | null = null;
+  for (const o of offres) {
+    if (!o || !o.active || !codeNormalise(o.code) || !porteSurLeJourDeLaVenue(o)) continue;
+    if (o.branchId && v.branchId && o.branchId !== v.branchId) continue;
+    if (!laVenueTombeBien(o, v.dateIso)) continue;
+    if (!(o.serviceIds ?? []).some((id) => gestes.has(id))) continue;
+    if (!mieux || (o.discountPct ?? 0) > (mieux.discountPct ?? 0)) mieux = o;
+  }
+  return mieux;
+}
+
+/** Une remise de ligne telle que le rendez-vous la porte. */
+type RemiseDeLigneLue = { pct?: number; xof?: number } | null | undefined;
+const remiseDeLaMain = (r: RemiseDeLigneLue): boolean => (r?.pct ?? 0) > 0 || (r?.xof ?? 0) > 0;
+
+/** CE QUE L'OFFRE ÉCRIT SUR LE RENDEZ-VOUS : son code, son identifiant, et
+    les remises de ligne parallèles à `serviceIds`, comme `demande-submit`
+    les écrit (`{ pct }` sur une ligne couverte au prix ferme, `null`
+    ailleurs). `null` quand l'offre ne retire rien : un code posé d'office
+    qui ne fait rien ne serait que du bruit au Carnet.
+
+    UNE LIGNE REMISÉE À LA MAIN GARDE SA REMISE : le code ne s'y ajoute pas,
+    et la main de la Maison l'emporte, comme partout. */
+export function poseLOffreDuJour(
+  offre: (OffreCodee & { id?: string }) | null | undefined,
+  lignes: readonly LigneAPrix[],
+  remisesDejaPosees: readonly RemiseDeLigneLue[] = [],
+): { codeOffre: string; offreId?: string; remisesLignes: ({ pct?: number; xof?: number } | null)[] } | null {
+  const code = codeNormalise(offre?.code);
+  if (!offre || !code) return null;
+  const pct = Math.max(0, Math.min(90, Math.round(offre.discountPct ?? 0)));
+  const r = lignesDuCode(lignes, offre);
+  let mord = false;
+  const remisesLignes = lignes.map((_, i) => {
+    const main = remisesDejaPosees[i];
+    if (remiseDeLaMain(main)) return { ...(main as { pct?: number; xof?: number }) };
+    if (r[i]?.remisee) { mord = true; return { pct }; }
+    return null;
+  });
+  if (!mord) return null;
+  return { codeOffre: code, ...(offre.id ? { offreId: String(offre.id) } : {}), remisesLignes };
+}
+
+/** LES REMISES QUE LA MAIN A POSÉES, celles du code d'un jour de la venue
+    ôtées. Sert à rouvrir un rendez-vous du mercredi : si on le déplace au
+    jeudi, ses −15 % doivent partir avec le code, et les remises de la Maison
+    rester. Une ligne couverte qui porte exactement le pourcentage de l'offre,
+    sans francs, est celle du code. Rend les remises telles quelles quand le
+    code du rendez-vous n'est pas celui d'une offre du jour de la venue. */
+export function remisesDeLaMainSeules(
+  rdv: { codeOffre?: string; serviceIds: readonly string[]; remisesLignes?: readonly RemiseDeLigneLue[] },
+  offres: readonly OffreCodee[],
+): ({ pct?: number; xof?: number } | null)[] {
+  const remises = (rdv.remisesLignes ?? []).map((r) => (r ? { ...r } : null));
+  const c = codeNormalise(rdv.codeOffre);
+  const offre = c ? offres.find((o) => porteSurLeJourDeLaVenue(o) && codeNormalise(o.code) === c) : undefined;
+  if (!offre) return remises;
+  const pct = Math.max(0, Math.min(90, Math.round(offre.discountPct ?? 0)));
+  const couvre = new Set(offre.serviceIds ?? []);
+  return remises.map((r, i) => (r && pct > 0 && r.pct === pct && !r.xof && couvre.has(rdv.serviceIds[i]) ? null : r));
+}
+
+/** Le code de ce rendez-vous est-il celui d'une offre du jour de la venue ?
+    Alors il n'est pas « un autre code » : il se repose, ou s'en va, avec la
+    date. */
+export const estUnCodeDuJour = (code: unknown, offres: readonly OffreCodee[]): boolean => {
+  const c = codeNormalise(code);
+  return !!c && offres.some((o) => porteSurLeJourDeLaVenue(o) && codeNormalise(o.code) === c);
+};
+
+/** LE PALIER DU NET D'UN CODE : le même que `PALIER_DU_CODE_XOF`
+    (encaissement-pur, 23 octobre 2026, « pas de monnaie », au 1 000 F
+    supérieur), que ce module pur ne peut pas lire. Le banc du mercredi exige
+    que les deux restent égaux. */
+export const PALIER_DU_NET_XOF = 1000;
+
+/** CE QUE L'ARRONDI REPREND AU CODE : le net monte au palier supérieur, et
+    l'arrondi ne rend jamais plus que la remise. Un lavage à 10 000 F un
+    mercredi : 8 500 F, puis 9 000 F. La même règle que `leTicket` et
+    `arrondiDuCodeAuRdv`, pour Ma Couronne et le site qui n'ont ni l'un ni
+    l'autre. */
+export function arrondiDuNet(netXof: number, remiseXof: number, palier = PALIER_DU_NET_XOF): number {
+  const remise = Math.max(0, Math.round(remiseXof));
+  if (remise <= 0 || palier <= 0) return 0;
+  const reste = Math.max(0, Math.round(netXof)) % palier;
+  return Math.min(remise, reste === 0 ? 0 : palier - reste);
 }

@@ -146,7 +146,8 @@ for (const s of TOUTES) {
   dit('une offre non activee se dit telle', 'Cette offre existe, mais elle n’est pas activée.', pourquoiLOffreNeCourtPas(offreDuCodePassee(offres, 'DORT20', le5)!, le5));
   dit('un code que personne ne porte reste inconnu', null, offreDuCode(offres, 'INCONNU', le5) ?? offreDuCodePassee(offres, 'INCONNU', le5));
   const caisse = readFileSync('src/apps/trone/routes/vente/Caisse.tsx', 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
-  dit('la caisse cherche l offre quand le code n est pas nominatif', true, /offreDuCode\(offresDeLaBranche, codeTape\)/.test(caisse) && /remiseDeLOffreSurLeTicket\(offreCodee, lignesRemisables\)/.test(caisse));
+  /* Le jour de la venue voyage depuis le 2 novembre 2026 (le mercredi de la Maison). */
+  dit('la caisse cherche l offre quand le code n est pas nominatif', true, /offreDuCode\(offresDeLaBranche, codeTape(?:, new Date\(\), venueDuTicket)?\)/.test(caisse) && /remiseDeLOffreSurLeTicket\(offreCodee, lignesRemisables\)/.test(caisse));
 }
 
 /* ── LA REMISE DU COMPTOIR S'ECRIT AU RENDEZ-VOUS (2 octobre 2026) ──

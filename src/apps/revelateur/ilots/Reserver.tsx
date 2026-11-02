@@ -14,7 +14,8 @@ import { TELEPHONE_MONDE, TELEPHONE_PAYS } from '../../../shared/geo';
 import { fmtMoney } from '../../../shared/currency';
 import type { CarteDesPlaces, CreneauOccupe } from '../../../shared/agenda-pur';
 import {
-  ceQueLeCodeRetire, codeNormalise, lignesDuCode, offreDuCode, offreDuCodePassee, type OffreCodee,
+  arrondiDuNet, ceQueLeCodeRetire, codeNormalise, lignesDuCode, offreDuCode, offreDuCodePassee, offreDuJourDeLaVenue,
+  porteSurLeJourDeLaVenue, pourquoiLOffreNeCourtPas, type OffreCodee,
 } from '../../../shared/offres-pur';
 import Demande from './Demande';
 import { raisonDuRefus } from '../refus-du-serveur';
@@ -559,10 +560,14 @@ function Calendrier({ besoin: besoinInitial, initiales, surLaPorte }: Props) {
      total opaque : une cliente doit voir LAQUELLE de ses prestations a
      bougé, sinon la surprise l'attend au comptoir. Le calcul vit dans
      `offres-pur`, éprouvé par son harnais ; ici on ne fait que l'afficher. */
-  const offreDuMoment = useMemo(() => offreDuCode(offres, code), [offres, code]);
+  /* LE JOUR CHOISI JUGE UNE OFFRE DU JOUR DE LA VENUE — 2 novembre 2026 (le
+     mercredi de la Maison) : MERCREDI15 ne court que pour une venue un
+     mercredi. Sans jour choisi (`null`), elle ne court pas encore. Les autres
+     offres l'ignorent et se jugent sur aujourd'hui, comme avant. */
+  const offreDuMoment = useMemo(() => offreDuCode(offres, code, new Date(), jour || null), [offres, code, jour]);
   const offrePassee = useMemo(
-    () => (offreDuMoment ? null : offreDuCodePassee(offres, code)),
-    [offres, code, offreDuMoment],
+    () => (offreDuMoment ? null : offreDuCodePassee(offres, code, new Date(), jour || null)),
+    [offres, code, offreDuMoment, jour],
   );
   /* LA REMISE DE BIENVENUE D'UNE MARRAINE se calcule exactement comme celle
      d'une offre : mêmes lignes, même barre sur le prix (7 octobre 2026). */
@@ -572,7 +577,20 @@ function Calendrier({ besoin: besoinInitial, initiales, surLaPorte }: Props) {
     () => (invitation?.remise ? { active: true, discountPct: invitation.remise.pct, serviceIds: invitation.remise.serviceIds } : null),
     [invitation],
   );
-  const offreAppliquee = offreDuMoment ?? offreDeBienvenue;
+  /* LE MERCREDI DE LA MAISON SE POSE DE LUI-MÊME — 2 novembre 2026. Une venue
+     un mercredi, dans sa saison, sur un geste qu'il couvre : −15 % sans rien
+     taper, et le code part avec la demande (le serveur le revérifie sur la
+     date). Il ne s'ajoute à aucun autre code : un code d'offre qui court, ou
+     celui d'une marraine, l'écarte. Un code mal tapé, qui n'ouvre rien, ne
+     le lui fait pas perdre. */
+  const unAutreCode = !!offreDuMoment || FORME_DU_CODE.test(codeNormalise(code));
+  const remiseDuMercredi = (iso: string | null | undefined) =>
+    offreDuJourDeLaVenue(offres, { branchId: agenda?.branchId, dateIso: iso, serviceIds, dejaUnCode: unAutreCode });
+  const offreDuJour = useMemo(
+    () => offreDuJourDeLaVenue(offres, { branchId: agenda?.branchId, dateIso: jour || null, serviceIds, dejaUnCode: unAutreCode }),
+    [offres, agenda?.branchId, jour, serviceIds, unAutreCode],
+  );
+  const offreAppliquee = offreDuMoment ?? offreDeBienvenue ?? offreDuJour;
   const lignes = useMemo(
     () => lignesDuCode(
       choisies.map((s) => ({ id: s.id, prixXof: prixFerme(s, ctx), ferme: prixFerme(s, ctx) > 0 })),
@@ -587,7 +605,14 @@ function Calendrier({ besoin: besoinInitial, initiales, surLaPorte }: Props) {
   const netDe = (id: string): number => lignes.find((l) => l.id === id)?.net ?? 0;
   const remisee = (id: string): boolean => !!lignes.find((l) => l.id === id)?.remisee;
 
-  const prixTotal = compte.net;
+  /* LE NET D'UN CODE MONTE AU MILLIER — 2 novembre 2026. La règle du 23
+     octobre 2026 (« pas de monnaie ») valait au Trône (`leTicket`,
+     `arrondiDuCodeAuRdv`) : le rendez-vous posé par le site s'y lisait déjà à
+     9 000 F quand cette page disait 8 500 F. Elle le dit désormais elle
+     aussi, et le code retire d'autant moins. */
+  const arrondi = arrondiDuNet(compte.net, compte.retire);
+  const retireNet = Math.max(0, compte.retire - arrondi);
+  const prixTotal = compte.net + arrondi;
   const prixFlou = choisies.some((s) => !prixFerme(s, ctx) || s.priceMode === 'variable');
   const plein = serviceIds.length >= PLAFOND_GESTES;
 
@@ -790,7 +815,10 @@ function Calendrier({ besoin: besoinInitial, initiales, surLaPorte }: Props) {
                fonction neuve (une publication des six sites un autre soir),
                le code d'une amie n'y ferait donc rien ; la neuve lit les deux. */
             ...(offreDuMoment ? { code: codeNormalise(code) }
-              : FORME_DU_CODE.test(codeNormalise(code)) ? { codeAmie: codeNormalise(code) } : {}),
+              : FORME_DU_CODE.test(codeNormalise(code)) ? { codeAmie: codeNormalise(code) }
+                /* Le mercredi de la Maison voyage par son code, comme une offre
+                   tapée : le serveur le revérifie sur la date du rendez-vous. */
+                : offreDuJour?.code ? { code: codeNormalise(offreDuJour.code) } : {}),
             serviceIds, date: jour, time: heure.heure, master: heure.maitre,
             ...(bandeChoisie ? { lockCount: lockCountAnnonce, calibre: bandeChoisie.name } : {}),
             /* L'INDICATIF ET POUR QUI voyagent (11 octobre 2026) : le serveur
@@ -1073,7 +1101,7 @@ function Calendrier({ besoin: besoinInitial, initiales, surLaPorte }: Props) {
             {offreDuMoment && compte.retire > 0 && (
               <>
                 <p className="code-offre__dit est-bonne">
-                  {offreDuMoment.title} · −{offreDuMoment.discountPct} % · le code retire {fmtMoney(compte.retire, devise)} sur {compte.combien} {compte.combien > 1 ? 'gestes' : 'geste'}.
+                  {offreDuMoment.title} · −{offreDuMoment.discountPct} % · le code retire {fmtMoney(retireNet, devise)} sur {compte.combien} {compte.combien > 1 ? 'gestes' : 'geste'}{arrondi > 0 ? ', arrondi au millier' : ''}.
                 </p>
                 {/* LA PROMESSE SE BORNE AVANT D'ÊTRE FAITE — 24 septembre
                     2026. « Le code est utilisable une fois par personne, non
@@ -1081,8 +1109,14 @@ function Calendrier({ besoin: besoinInitial, initiales, surLaPorte }: Props) {
                     moment où le numéro arrive : cette page ne sait pas encore
                     qui réserve. On le DIT donc ici, pendant qu'elle choisit,
                     plutôt que de la laisser l'apprendre au comptoir. */}
-                <p className="code-offre__dit">Une seule fois par personne, et une offre à la fois.</p>
+                <p className="code-offre__dit">{porteSurLeJourDeLaVenue(offreDuMoment) ? 'Une offre à la fois.' : 'Une seule fois par personne, et une offre à la fois.'}</p>
               </>
+            )}
+            {/* LE MERCREDI DE LA MAISON, POSÉ SANS RIEN TAPER — 2 novembre 2026. */}
+            {!offreDuMoment && !offreDeBienvenue && offreDuJour && compte.retire > 0 && (
+              <p className="code-offre__dit est-bonne">
+                {offreDuJour.title} · −{offreDuJour.discountPct} % · {fmtMoney(retireNet, devise)} de moins sur {compte.combien} {compte.combien > 1 ? 'gestes' : 'geste'}{arrondi > 0 ? ', arrondi au millier' : ''}. Le code {offreDuJour.code} part avec votre demande.
+              </p>
             )}
             {offreDuMoment && compte.retire === 0 && (
               <p className="code-offre__dit">
@@ -1091,7 +1125,8 @@ function Calendrier({ besoin: besoinInitial, initiales, surLaPorte }: Props) {
             )}
             {!offreDuMoment && offrePassee && (
               <p className="code-offre__dit">
-                {offrePassee.du && offrePassee.au
+                {porteSurLeJourDeLaVenue(offrePassee) ? pourquoiLOffreNeCourtPas(offrePassee, new Date(), jour || null)
+                  : offrePassee.du && offrePassee.au
                   ? `Ce code a couru du ${quandDit(offrePassee.du)} au ${quandDit(offrePassee.au)}. Il ne s’applique plus.`
                   : 'Ce code ne court plus.'}
               </p>
@@ -1100,7 +1135,7 @@ function Calendrier({ besoin: besoinInitial, initiales, surLaPorte }: Props) {
               compte.retire > 0 ? (
                 <>
                   <p className="code-offre__dit est-bonne">
-                    Bienvenue de la part de {invitation.prenom} · −{offreDeBienvenue.discountPct} % · {fmtMoney(compte.retire, devise)} de moins sur {compte.combien} {compte.combien > 1 ? 'soins' : 'soin'}.
+                    Bienvenue de la part de {invitation.prenom} · −{offreDeBienvenue.discountPct} % · {fmtMoney(retireNet, devise)} de moins sur {compte.combien} {compte.combien > 1 ? 'soins' : 'soin'}.
                   </p>
                   <p className="code-offre__dit">Sur les soins d’entretien, à votre première visite. Une seule remise à la fois : la meilleure s’applique.</p>
                 </>
@@ -1424,17 +1459,24 @@ function Calendrier({ besoin: besoinInitial, initiales, surLaPorte }: Props) {
                 {/* LES PROCHAINES PLACES — une touche. La Maison attribue
                     le maître : la cliente choisit un moment, pas une main. */}
                 <div className="places">
-                  {places.map(({ iso, place }) => (
-                    <button
-                      type="button"
-                      key={`${iso}-${place.heure}`}
-                      className={`place${jour === iso && heure?.heure === place.heure ? ' est-choisie' : ''}`}
-                      aria-pressed={jour === iso && heure?.heure === place.heure}
-                      onClick={() => prendreLaPlace(iso, place)}
-                    >
-                      <span>{jourProche(iso)}</span><b>{place.heure}</b>
-                    </button>
-                  ))}
+                  {places.map(({ iso, place }) => {
+                    /* LE MERCREDI SE MARQUE EN CUIVRE (2 novembre 2026) : la
+                       remise se lit avant de toucher la place. */
+                    const duJour = remiseDuMercredi(iso);
+                    return (
+                      <button
+                        type="button"
+                        key={`${iso}-${place.heure}`}
+                        className={`place${jour === iso && heure?.heure === place.heure ? ' est-choisie' : ''}${duJour ? ' est-offre' : ''}`}
+                        aria-pressed={jour === iso && heure?.heure === place.heure}
+                        aria-label={duJour ? `${jourProche(iso)} à ${place.heure}, ${duJour.title}, −${duJour.discountPct} %` : undefined}
+                        onClick={() => prendreLaPlace(iso, place)}
+                      >
+                        <span>{jourProche(iso)}</span><b>{place.heure}</b>
+                        {duJour && <small className="remise-du-jour">−{duJour.discountPct} %</small>}
+                      </button>
+                    );
+                  })}
                 </div>
                 {!autreJour ? (
                   <p><button type="button" className="btn btn--lien" onClick={() => setAutreJour(true)}>Un autre jour</button></p>
@@ -1445,11 +1487,13 @@ function Calendrier({ besoin: besoinInitial, initiales, surLaPorte }: Props) {
                     const c = jourCourt(j.iso);
                     /* LE MOIS EN TÊTE DE BANDE quand il change (11 octobre 2026). */
                     const nouveauMois = i === 0 || j.iso.slice(0, 7) !== jours[i - 1].iso.slice(0, 7);
+                    const duJour = remiseDuMercredi(j.iso);
                     return (
                       <Fragment key={j.iso}>
                         {nouveauMois && <span className="jours__mois">{moisEtAnnee(j.iso)}</span>}
-                        <button type="button" className={`jour${jour === j.iso ? ' est-choisi' : ''}`} aria-pressed={jour === j.iso} onClick={() => { setJour(j.iso); setHeure(null); }}>
+                        <button type="button" className={`jour${jour === j.iso ? ' est-choisi' : ''}${duJour ? ' est-offre' : ''}`} aria-pressed={jour === j.iso} onClick={() => { setJour(j.iso); setHeure(null); }}>
                           <span>{c.lettre}</span><b>{c.chiffre}</b>
+                          {duJour && <small className="remise-du-jour">−{duJour.discountPct} %</small>}
                         </button>
                       </Fragment>
                     );
@@ -1487,6 +1531,9 @@ function Calendrier({ besoin: besoinInitial, initiales, surLaPorte }: Props) {
             {dit(dureeTotale)}
             {prixTotal > 0 ? ` · ${prixFlou ? 'à partir de ' : ''}${fmtMoney(prixTotal, devise)}` : ''}
           </p>
+          {!offreDuMoment && !offreDeBienvenue && offreDuJour && compte.retire > 0 && (
+            <p className="legende remise-du-jour">{offreDuJour.title} · −{offreDuJour.discountPct} % · code {offreDuJour.code}</p>
+          )}
           {f.avantDeVenir[besoin] && (
             <div className="avant-de-venir"><b>Avant de venir</b><p>{f.avantDeVenir[besoin]}</p></div>
           )}
