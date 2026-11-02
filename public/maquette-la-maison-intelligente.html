@@ -1,0 +1,478 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+</head>
+<body>
+<title>La Maison intelligente</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500&family=Jost:wght@400;500&display=swap">
+<style>
+/* Mise en page : une colonne de lecture ; deux scènes qui se manipulent (le téléphone et le Trône pour Opale, l'écran d'achat pour Stock et Achats), puis les arbitrages. */
+:root {
+  --fond: #efe4d3;
+  --papier: #fbf7f0;
+  --encre: #1f2350;
+  --encre-douce: #4b4f72;
+  --cuivre: #a8622f;
+  --trait: #d9cbb5;
+  --vieux: #8a8270;
+  --vert: #3b8f5a;
+  --rouge: #a8433a;
+  --ecran: #1f2350;
+  --ecran-texte: #f3ece0;
+  --ecran-doux: #b9b6cf;
+  --ecran-trait: #3a3e6e;
+  --bulle-eux: #2b2f62;
+  --bulle-nous: #3b6b4f;
+  --vignette: #e7dccb;
+  --display: 'Cormorant Garamond', 'Times New Roman', serif;
+  --texte: 'Jost', 'Segoe UI', system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --fond: #15173a; --papier: #1f2250; --encre: #f3ece0; --encre-douce: #c9c4d8; --cuivre: #d38a52; --trait: #34386a; --vieux: #9d97b0; --vert: #5fb57f; --rouge: #d9776c;
+  --ecran: #0f1130; --ecran-texte: #f3ece0; --ecran-doux: #a9a6c4; --ecran-trait: #2c3060; --bulle-eux: #23264f; --bulle-nous: #2f5a42; --vignette: #2a2e5e; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --fond: #15173a; --papier: #1f2250; --encre: #f3ece0; --encre-douce: #c9c4d8; --cuivre: #d38a52; --trait: #34386a; --vieux: #9d97b0; --vert: #5fb57f; --rouge: #d9776c;
+  --ecran: #0f1130; --ecran-texte: #f3ece0; --ecran-doux: #a9a6c4; --ecran-trait: #2c3060; --bulle-eux: #23264f; --bulle-nous: #2f5a42; --vignette: #2a2e5e; color-scheme: dark }
+body { background: var(--fond); color: var(--encre); font-family: var(--texte); font-size: 15px; line-height: 1.6; }
+.page { max-width: 1000px; margin: 0 auto; padding-block: 40px 72px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: grid; gap: 56px; }
+h1, h2, h3 { font-family: var(--display); font-weight: 500; text-wrap: balance; margin: 0; }
+h1 { font-size: clamp(34px, 6vw, 52px); line-height: 1.05; }
+h2 { font-size: clamp(26px, 4.5vw, 34px); line-height: 1.1; }
+h3 { font-size: 21px; line-height: 1.2; }
+p { margin: 0; }
+.sur { font-size: 11px; letter-spacing: .18em; text-transform: uppercase; color: var(--cuivre); }
+.chapo { color: var(--encre-douce); max-width: 66ch; }
+.citation { font-family: var(--display); font-style: italic; font-size: 21px; line-height: 1.35; max-width: 60ch; }
+.bandeau { background: var(--encre); color: var(--fond); padding: 10px 14px; border-radius: 4px; font-size: 13px; }
+.entete { display: grid; gap: 16px; }
+.section { display: grid; gap: 18px; }
+.constat { border-left: 2px solid var(--cuivre); padding: 4px 0 4px 14px; color: var(--encre-douce); max-width: 70ch; display: grid; gap: 8px; }
+.constat b { color: var(--encre); font-weight: 500; }
+.etiquette { font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--vieux); }
+ul.net { margin: 0; padding-left: 18px; display: grid; gap: 6px; color: var(--encre-douce); max-width: 72ch; }
+ul.net b { color: var(--encre); font-weight: 500; }
+.deux { display: grid; grid-template-columns: repeat(auto-fit, minmax(270px, 1fr)); gap: 18px; }
+.carte { background: var(--papier); border: 1px solid var(--trait); border-radius: 4px; padding: 16px 18px; display: grid; gap: 8px; align-content: start; }
+.carte h3 { font-size: 19px; }
+.carte p, .carte li { color: var(--encre-douce); font-size: 14px; }
+.carte b { color: var(--encre); font-weight: 500; }
+button { font: inherit; }
+button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid var(--cuivre); outline-offset: 2px; }
+.num { font-variant-numeric: tabular-nums; }
+
+/* ── La scène d'Opale ── */
+.scene { display: grid; gap: 14px; }
+.pas-barre { display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: center; }
+.pas-barre .heure { font-family: var(--display); font-size: 26px; min-width: 84px; }
+.pas-barre .titre { color: var(--encre-douce); flex: 1 1 260px; min-width: 0; }
+.commandes { display: flex; gap: 8px; }
+.cmd { border: 1px solid var(--trait); background: var(--papier); color: var(--encre); border-radius: 99px; padding: 6px 16px; font-size: 13px; cursor: pointer; }
+.cmd.plein { background: var(--cuivre); border-color: var(--cuivre); color: #fff; }
+.cmd:disabled { opacity: .4; cursor: default; }
+.points { display: flex; gap: 6px; }
+.points i { width: 8px; height: 8px; border-radius: 99px; background: var(--trait); }
+.points i.ici { background: var(--cuivre); }
+.duo { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr); gap: 16px; align-items: start; }
+@media (max-width: 760px) { .duo { grid-template-columns: 1fr; } }
+.tel { background: var(--ecran); color: var(--ecran-texte); border-radius: 26px; border: 5px solid #0b0c22; padding: 16px 14px 14px; display: grid; gap: 10px; min-height: 470px; align-content: start; }
+.tel .qui { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; border-bottom: 1px solid var(--ecran-trait); padding-bottom: 8px; }
+.tel .qui b { font-family: var(--display); font-size: 19px; font-weight: 500; }
+.tel .qui small { color: var(--ecran-doux); font-size: 11px; letter-spacing: .12em; text-transform: uppercase; text-align: right; }
+.bulle { max-width: 92%; border-radius: 12px; padding: 7px 10px; font-size: 13.5px; line-height: 1.45; }
+.bulle.eux { background: var(--bulle-eux); justify-self: start; border-bottom-left-radius: 3px; }
+.bulle.nous { background: var(--bulle-nous); justify-self: end; border-bottom-right-radius: 3px; }
+.bulle small { display: block; color: var(--ecran-doux); font-size: 10.5px; margin-top: 2px; }
+.bulle .recu { display: block; margin-top: 6px; border: 1px dashed var(--ecran-trait); border-radius: 6px; padding: 10px; color: var(--ecran-doux); font-size: 11.5px; text-align: center; }
+.assist { border: 1px dashed var(--cuivre); border-radius: 10px; padding: 9px 11px; display: grid; gap: 7px; font-size: 13px; }
+.assist .nom { color: var(--cuivre); font-size: 11px; letter-spacing: .14em; text-transform: uppercase; }
+.assist .resume { color: var(--ecran-doux); }
+.assist .lu { background: rgba(255,255,255,.06); border-radius: 8px; padding: 6px 9px; display: grid; gap: 2px; }
+.assist .lu b { font-weight: 500; }
+.choix { display: flex; flex-wrap: wrap; gap: 5px; }
+.choix span { border: 1px solid var(--ecran-trait); border-radius: 99px; padding: 2px 10px; font-size: 11.5px; color: var(--ecran-doux); }
+.choix span.oui { border-color: var(--cuivre); color: var(--ecran-texte); background: rgba(211,138,82,.18); }
+.trone { background: var(--papier); border: 1px solid var(--trait); border-radius: 4px; display: grid; min-height: 470px; align-content: start; }
+.trone .barre { background: var(--encre); color: var(--fond); padding: 9px 14px; font-size: 11.5px; letter-spacing: .14em; text-transform: uppercase; display: flex; gap: 16px; flex-wrap: wrap; border-radius: 4px 4px 0 0; }
+.trone .barre .ici { color: #e9b58d; }
+.trone .corps { padding: 14px; display: grid; gap: 12px; }
+.tuiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+.tuile { border: 1px solid var(--trait); border-radius: 4px; padding: 10px 12px; display: grid; gap: 2px; font-size: 12.5px; color: var(--encre-douce); }
+.tuile b { color: var(--encre); font-weight: 500; font-family: var(--display); font-size: 22px; }
+.tuile.vive { border-color: var(--cuivre); }
+.liste { display: grid; gap: 0; font-size: 13px; }
+.liste .r { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 12px; padding: 8px 0; border-bottom: 1px solid var(--trait); color: var(--encre-douce); }
+.liste .r:last-child { border-bottom: 0; }
+.liste .r b { color: var(--encre); font-weight: 500; }
+.liste .r .montant { color: var(--encre); font-weight: 500; text-align: right; }
+.liste .r .trace { grid-column: 1 / -1; font-size: 11.5px; color: var(--vieux); }
+.liste .r .gestes { grid-column: 1 / -1; display: flex; gap: 6px; flex-wrap: wrap; }
+.liste .r .gestes span { border: 1px solid var(--trait); border-radius: 99px; padding: 1px 10px; font-size: 11.5px; }
+.liste .r .gestes span.oui { border-color: var(--cuivre); color: var(--cuivre); }
+.liste .r.attente { background: color-mix(in srgb, var(--cuivre) 8%, var(--papier)); padding-inline: 8px; border-radius: 4px; border-bottom: 0; margin-bottom: 6px; }
+.liste .vide { color: var(--vieux); font-size: 12.5px; padding: 6px 0; }
+.legende { color: var(--encre-douce); font-size: 14px; max-width: 72ch; }
+
+/* ── L'écran d'achat ── */
+.achat { background: var(--papier); border: 1px solid var(--trait); border-radius: 4px; display: grid; }
+.achat .barre { background: var(--encre); color: var(--fond); padding: 9px 14px; font-size: 11.5px; letter-spacing: .14em; text-transform: uppercase; display: flex; gap: 16px; flex-wrap: wrap; border-radius: 4px 4px 0 0; }
+.achat .barre .ici { color: #e9b58d; }
+.achat .corps { padding: 16px; display: grid; gap: 16px; }
+.champs { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px 14px; }
+.champ { display: grid; gap: 3px; min-width: 0; }
+.champ label { font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--vieux); }
+.champ input, .champ select { border: 1px solid var(--trait); background: var(--fond); color: var(--encre); border-radius: 3px; padding: 6px 8px; font: inherit; font-size: 14px; min-width: 0; width: 100%; box-sizing: border-box; }
+.photos { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.photo { width: 92px; height: 70px; border-radius: 4px; background: var(--vignette); border: 1px solid var(--trait); display: grid; place-items: center; font-size: 11px; color: var(--vieux); position: relative; overflow: hidden; }
+.photo svg { width: 70%; height: 70%; }
+.photo.ajout { border-style: dashed; background: transparent; }
+.lecture { font-size: 12.5px; color: var(--encre-douce); border-left: 2px solid var(--cuivre); padding-left: 10px; }
+.tab { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; min-width: 680px; font-size: 13.5px; }
+th { text-align: left; font-weight: 500; font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--vieux); padding: 6px 8px; border-bottom: 1px solid var(--trait); }
+td { padding: 6px 8px; border-bottom: 1px solid var(--trait); vertical-align: middle; color: var(--encre-douce); }
+td.n { text-align: right; font-variant-numeric: tabular-nums; color: var(--encre); }
+td input { border: 1px solid var(--trait); background: var(--fond); color: var(--encre); border-radius: 3px; padding: 4px 6px; font: inherit; font-size: 13.5px; width: 100%; box-sizing: border-box; min-width: 0; }
+td input.q { width: 56px; text-align: right; }
+td input.p { width: 84px; text-align: right; }
+.vig { width: 44px; height: 44px; border-radius: 4px; background: var(--vignette); display: grid; place-items: center; }
+.vig svg { width: 30px; height: 30px; }
+.fiche { font-size: 11.5px; border-radius: 99px; padding: 1px 9px; border: 1px solid var(--trait); white-space: nowrap; }
+.fiche.neuve { border-color: var(--cuivre); color: var(--cuivre); }
+.compteur { display: flex; flex-wrap: wrap; gap: 8px 22px; align-items: baseline; padding: 10px 14px; border-radius: 4px; background: color-mix(in srgb, var(--vert) 12%, var(--papier)); border: 1px solid color-mix(in srgb, var(--vert) 40%, var(--trait)); font-size: 14px; }
+.compteur.ecart { background: color-mix(in srgb, var(--rouge) 10%, var(--papier)); border-color: color-mix(in srgb, var(--rouge) 45%, var(--trait)); }
+.compteur b { font-family: var(--display); font-size: 22px; font-weight: 500; }
+.compteur .dit { flex: 1 1 220px; color: var(--encre-douce); min-width: 0; }
+.actions { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.bouton { border: 0; background: var(--cuivre); color: #fff; padding: 10px 22px; border-radius: 3px; font-size: 13px; letter-spacing: .14em; text-transform: uppercase; cursor: pointer; }
+.bouton:disabled { opacity: .45; cursor: default; }
+.bouton.doux { background: transparent; color: var(--encre); border: 1px solid var(--trait); }
+.resultat { border: 1px solid var(--vert); border-radius: 4px; padding: 14px 16px; display: grid; gap: 8px; background: color-mix(in srgb, var(--vert) 8%, var(--papier)); }
+.resultat ul { margin: 0; padding-left: 18px; display: grid; gap: 4px; color: var(--encre-douce); font-size: 14px; }
+.resultat b { color: var(--encre); font-weight: 500; }
+
+/* ── Arbitrages ── */
+.arbitrages { display: grid; gap: 14px; }
+.arbitrage { display: grid; gap: 8px; padding: 16px 18px; border-radius: 4px; background: var(--papier); border: 1px solid var(--trait); }
+.arbitrage h3 { font-size: 20px; }
+.arbitrage .q { color: var(--encre-douce); max-width: 72ch; }
+.options { display: grid; gap: 6px; }
+.option { display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 6px; font-size: 14px; color: var(--encre-douce); }
+.option i { font-style: normal; color: var(--vieux); }
+.option.propose { color: var(--encre); }
+.option.propose i { color: var(--cuivre); }
+.option b { font-weight: 500; }
+.etapes { display: grid; gap: 12px; }
+.etape { display: grid; grid-template-columns: 120px minmax(0, 1fr); gap: 14px; align-items: start; }
+.etape .quand { font-family: var(--display); font-size: 20px; color: var(--cuivre); }
+.etape p { color: var(--encre-douce); }
+.etape b { color: var(--encre); font-weight: 500; }
+@media (max-width: 560px) { .etape { grid-template-columns: 1fr; gap: 4px; } }
+@media (prefers-reduced-motion: no-preference) { .tel, .trone, .resultat { transition: opacity .2s; } }
+</style>
+<style>
+/* Ajouts propres à cette maquette : la carte de la Maison (SVG), le tableau des professionnels, les trois niveaux, la journée. */
+.carte-maison { background: var(--papier); border: 1px solid var(--trait); border-radius: 4px; padding: 10px; }
+.carte-maison svg { width: 100%; height: auto; display: block; font-family: var(--texte); }
+.carte-maison .noeud { fill: var(--papier); stroke: var(--trait); stroke-width: 1.2; }
+.carte-maison .noeud.pro { stroke: var(--cuivre); }
+.carte-maison .trone { fill: var(--encre); }
+.carte-maison .humain { fill: color-mix(in srgb, var(--cuivre) 14%, var(--papier)); stroke: var(--cuivre); }
+.carte-maison .monde { fill: color-mix(in srgb, var(--vert) 10%, var(--papier)); stroke: color-mix(in srgb, var(--vert) 50%, var(--trait)); stroke-dasharray: 3 3; }
+.carte-maison text { fill: var(--encre); font-size: 12.5px; }
+.carte-maison text.petit { fill: var(--encre-douce); font-size: 10px; }
+.carte-maison text.sur-trone { fill: var(--fond); font-family: var(--display); font-size: 18px; }
+.carte-maison text.nom { font-family: var(--display); font-size: 15px; }
+.carte-maison text.legende-svg { fill: var(--vieux); font-size: 10px; letter-spacing: .1em; text-transform: uppercase; }
+.carte-maison .lien { stroke: var(--trait); stroke-width: 1.2; fill: none; }
+.carte-maison .lien.cuivre { stroke: var(--cuivre); }
+.carte-maison .lien.pointille { stroke-dasharray: 4 3; }
+table.pros { border-collapse: collapse; width: 100%; min-width: 880px; font-size: 13px; }
+table.pros th { text-align: left; font-weight: 500; font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--vieux); padding: 6px 8px; border-bottom: 1px solid var(--trait); vertical-align: bottom; }
+table.pros td { padding: 8px; border-bottom: 1px solid var(--trait); color: var(--encre-douce); vertical-align: top; }
+table.pros td.nom { color: var(--encre); white-space: nowrap; }
+table.pros td.nom b { font-family: var(--display); font-size: 17px; font-weight: 500; display: block; }
+table.pros td.nom small { color: var(--vieux); font-size: 11px; }
+.etat { display: inline-block; border-radius: 99px; padding: 1px 9px; font-size: 11px; white-space: nowrap; border: 1px solid var(--trait); }
+.etat.ok { border-color: var(--vert); color: var(--vert); }
+.etat.maquette { border-color: var(--cuivre); color: var(--cuivre); }
+.niveaux { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; }
+.niveau { background: var(--papier); border: 1px solid var(--trait); border-radius: 4px; padding: 14px 16px; display: grid; gap: 8px; }
+.niveau h3 { font-size: 20px; }
+.niveau.seul { border-top: 3px solid var(--vert); }
+.niveau.carte { border-top: 3px solid var(--cuivre); }
+.niveau.jamais { border-top: 3px solid var(--rouge); }
+.niveau ul { margin: 0; padding-left: 18px; display: grid; gap: 4px; color: var(--encre-douce); font-size: 13.5px; }
+.journee { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
+.moment { background: var(--papier); border: 1px solid var(--trait); border-radius: 4px; padding: 10px 12px; display: grid; gap: 3px; font-size: 13px; color: var(--encre-douce); }
+.moment b { font-family: var(--display); font-size: 20px; color: var(--encre); font-weight: 500; }
+.moment .h { font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--cuivre); }
+.chiffres { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; }
+.chiffre { border: 1px solid var(--trait); border-radius: 4px; padding: 12px 14px; display: grid; gap: 2px; background: var(--papier); }
+.chiffre b { font-family: var(--display); font-size: 26px; font-weight: 500; color: var(--encre); }
+.chiffre span { font-size: 12.5px; color: var(--encre-douce); }
+.relais-ex { display: grid; gap: 6px; font-size: 13.5px; color: var(--encre-douce); }
+.relais-ex div { display: grid; grid-template-columns: 150px minmax(0, 1fr); gap: 10px; padding: 6px 0; border-bottom: 1px solid var(--trait); }
+.relais-ex div span:first-child { color: var(--encre); font-weight: 500; }
+@media (max-width: 560px) { .relais-ex div { grid-template-columns: 1fr; gap: 2px; } }
+</style>
+
+<div class="page">
+
+  <header class="entete">
+    <p class="sur">Maquette v0 · 2 novembre 2026 · à valider</p>
+    <h1>La Maison intelligente : tous les professionnels, reliés par le Trône.</h1>
+    <p class="citation">« Je ne veux pas créer les agents en désordre, un aujourd'hui, un demain. Je veux une nouvelle architecture de toute la Maison MND, de tous les professionnels dont on a besoin, qui doivent être coordonnés et reliés les uns aux autres. »</p>
+    <p class="chapo">Une Maison de deux personnes qui travaille comme une maison de vingt. Neuf professionnels, un par département du Trône, chacun avec son porteur, sa charte et ses limites. Ils ne se parlent que par le Trône, ils rendent compte chaque matin, et vous deux gardez la main sur tout ce qui engage la Maison. Cette page dessine la carte entière, puis l'ordre dans lequel la poser.</p>
+    <p class="bandeau">Première version, publiée tôt. Ce que tu corriges se refait à la même adresse.</p>
+  </header>
+
+  <section class="section">
+    <p class="etiquette">Ce qui existe déjà, et qu'on ne refait pas</p>
+    <div class="chiffres">
+      <div class="chiffre"><b>37</b><span>fonctions serveur du Trône, dont une vingtaine tournent seules la nuit et le jour</span></div>
+      <div class="chiffre"><b>12</b><span>chantiers où Claude lit ou écrit déjà pour la Maison</span></div>
+      <div class="chiffre"><b>6</b><span>assistants en ligne : Opale, Gérard, et les quatre agents du Tableau de bord</span></div>
+      <div class="chiffre"><b>9</b><span>départements du Trône, qui sont aussi les rôles</span></div>
+      <div class="chiffre"><b>200 $</b><span>de crédits Claude par mois, compris dans l'abonnement</span></div>
+    </div>
+    <div class="constat">
+      <p><b>Le désordre n'est pas dans ce qui a été construit, il est dans l'absence de carte.</b> Opale veille sur ton WhatsApp. Gérard écrit aux clientes. Quatre agents du Tableau de bord lisent le planning, la comptabilité, les avis et le stock, et proposent. Le Centre de commande fait un briefing. Les prévisions calculent. Chacun est né d'une demande, un jour. Aucun ne sait que les autres existent.</p>
+      <p><b>Ce que cette architecture ajoute</b> : un socle commun (une charte, un registre, des relais, des cartes, un conseil du matin), des noms et des porteurs, et l'ordre de construction. Ce qui est en ligne entre dans la carte à sa place ; ce qui manque se construit dans l'ordre.</p>
+    </div>
+  </section>
+
+  <section class="section" aria-labelledby="t-carte">
+    <p class="sur">La carte</p>
+    <h2 id="t-carte">Vous deux au-dessus, le Trône au milieu, les professionnels autour.</h2>
+    <div class="carte-maison">
+      <svg viewBox="0 0 900 560" role="img" aria-label="La carte de la Maison : Yéman et Brice en haut avec Opale et Onyx, le Trône au centre, sept professionnels autour, les clientes, les réseaux, l'équipe et les fournisseurs à l'extérieur.">
+        <!-- Liens -->
+        <g>
+          <line class="lien cuivre" x1="450" y1="92" x2="450" y2="228"/>
+          <line class="lien" x1="450" y1="280" x2="232" y2="300"/>
+          <line class="lien" x1="450" y1="280" x2="668" y2="300"/>
+          <line class="lien" x1="450" y1="280" x2="300" y2="420"/>
+          <line class="lien" x1="450" y1="280" x2="450" y2="440"/>
+          <line class="lien" x1="450" y1="280" x2="600" y2="420"/>
+          <line class="lien" x1="450" y1="280" x2="172" y2="180"/>
+          <line class="lien" x1="450" y1="280" x2="728" y2="180"/>
+          <line class="lien pointille" x1="232" y1="300" x2="90" y2="330"/>
+          <line class="lien pointille" x1="668" y1="300" x2="810" y2="330"/>
+          <line class="lien pointille" x1="300" y1="440" x2="190" y2="510"/>
+          <line class="lien pointille" x1="600" y1="440" x2="710" y2="510"/>
+        </g>
+        <!-- Direction -->
+        <rect class="noeud humain" x="300" y="30" width="300" height="62" rx="6"/>
+        <text class="nom" x="450" y="56" text-anchor="middle">Yéman et Brice · la direction</text>
+        <text class="petit" x="450" y="76" text-anchor="middle">Opale et Onyx, leurs assistants : WhatsApp personnel, dépenses, rendez-vous</text>
+        <!-- Saphir sur le lien -->
+        <rect class="noeud pro" x="372" y="128" width="156" height="56" rx="6"/>
+        <text class="nom" x="450" y="152" text-anchor="middle">Saphir</text>
+        <text class="petit" x="450" y="170" text-anchor="middle">le conseil du matin</text>
+        <!-- Trône -->
+        <circle class="trone" cx="450" cy="280" r="52"/>
+        <text class="sur-trone" x="450" y="276" text-anchor="middle">Le Trône</text>
+        <text class="petit" x="450" y="296" text-anchor="middle" style="fill:#d9cbb5">une seule vérité</text>
+        <!-- Professionnels -->
+        <rect class="noeud pro" x="154" y="270" width="156" height="56" rx="6"/>
+        <text class="nom" x="232" y="294" text-anchor="middle">Gérard</text>
+        <text class="petit" x="232" y="312" text-anchor="middle">les clientes, Clientèle</text>
+        <rect class="noeud pro" x="590" y="270" width="156" height="56" rx="6"/>
+        <text class="nom" x="668" y="294" text-anchor="middle">Ambre</text>
+        <text class="petit" x="668" y="312" text-anchor="middle">les réseaux, Marketing</text>
+        <rect class="noeud pro" x="222" y="420" width="156" height="56" rx="6"/>
+        <text class="nom" x="300" y="444" text-anchor="middle">Topaze</text>
+        <text class="petit" x="300" y="462" text-anchor="middle">l'équipe, Équipe et Académie</text>
+        <rect class="noeud pro" x="372" y="440" width="156" height="56" rx="6"/>
+        <text class="nom" x="450" y="464" text-anchor="middle">Grenat</text>
+        <text class="petit" x="450" y="482" text-anchor="middle">l'argent, Vente et Finances</text>
+        <rect class="noeud pro" x="522" y="420" width="156" height="56" rx="6"/>
+        <text class="nom" x="600" y="444" text-anchor="middle">Jade</text>
+        <text class="petit" x="600" y="462" text-anchor="middle">le stock, Atelier</text>
+        <rect class="noeud pro" x="94" y="150" width="156" height="56" rx="6"/>
+        <text class="nom" x="172" y="174" text-anchor="middle">Jaspe</text>
+        <text class="petit" x="172" y="192" text-anchor="middle">le gardien, Système</text>
+        <rect class="noeud pro" x="650" y="150" width="156" height="56" rx="6"/>
+        <text class="nom" x="728" y="174" text-anchor="middle">Le Bureau</text>
+        <text class="petit" x="728" y="192" text-anchor="middle">l'administratif, à part</text>
+        <!-- Monde -->
+        <rect class="noeud monde" x="20" y="306" width="130" height="48" rx="6"/>
+        <text x="85" y="327" text-anchor="middle">Les clientes</text>
+        <text class="petit" x="85" y="344" text-anchor="middle">WhatsApp, site, Couronne</text>
+        <rect class="noeud monde" x="750" y="306" width="130" height="48" rx="6"/>
+        <text x="815" y="327" text-anchor="middle">Le monde</text>
+        <text class="petit" x="815" y="344" text-anchor="middle">Instagram, Facebook, Google</text>
+        <rect class="noeud monde" x="120" y="490" width="140" height="48" rx="6"/>
+        <text x="190" y="511" text-anchor="middle">L'équipe</text>
+        <text class="petit" x="190" y="528" text-anchor="middle">maîtres, prestataires</text>
+        <rect class="noeud monde" x="640" y="490" width="140" height="48" rx="6"/>
+        <text x="710" y="511" text-anchor="middle">Les fournisseurs</text>
+        <text class="petit" x="710" y="528" text-anchor="middle">achats, livraisons</text>
+        <!-- Légende -->
+        <text class="legende-svg" x="20" y="548">Trait plein : par le Trône seulement · pointillé : la porte vers le dehors, toujours sous une charte</text>
+      </svg>
+    </div>
+    <p class="legende">Aucun trait ne relie deux professionnels entre eux : ils se parlent par le Trône, en relais, et tout relais se lit. Un seul trait cuivre monte vers vous : les cartes, et le conseil du matin.</p>
+  </section>
+
+  <section class="section">
+    <p class="etiquette">Les professionnels</p>
+    <div style="overflow-x:auto">
+      <table class="pros">
+        <thead><tr><th>Qui</th><th>Porteur</th><th>Chaque jour</th><th>Seul</th><th>En carte</th><th>Où il tourne</th><th>Aujourd'hui</th></tr></thead>
+        <tbody>
+          <tr><td class="nom"><b>Opale</b><small>Direction · Yéman</small></td><td>Yéman</td><td>Lit ton WhatsApp, propose tes réponses, pose tes rendez-vous et tes dépenses depuis ton fil.</td><td>Un pouce sur un « Ok ». Lire, classer.</td><td>Chaque réponse, rendez-vous, dépense.</td><td>Ton ordinateur, Chrome</td><td><span class="etat ok">en ligne</span></td></tr>
+          <tr><td class="nom"><b>Onyx</b><small>Direction · Brice</small></td><td>Brice</td><td>La même chose pour Brice, dans sa voix.</td><td>Idem.</td><td>Idem.</td><td>Le Mac de Brice, VS Code</td><td><span class="etat maquette">en installation</span></td></tr>
+          <tr><td class="nom"><b>Saphir</b><small>Direction · le conseil</small></td><td>Yéman et Brice</td><td>À 6 h 45 lit les bilans de tous. À 7 h écrit le Conseil du matin : une page sur le téléphone. Tient les priorités et les projets, arbitre les doublons, surveille les crédits.</td><td>Lire, résumer, classer, rappeler.</td><td>Une priorité qui change, un budget qui déborde.</td><td>Fonction serveur</td><td><span class="etat">à construire · reprend le Centre de commande et le Tableau de bord</span></td></tr>
+          <tr><td class="nom"><b>Gérard</b><small>Clientèle</small></td><td>Yéman</td><td>Le WhatsApp de la Maison : réserve, répond, garde les rendez-vous, envies entre deux séances, anniversaires, fêtes, relances, avis Google, briefing avant le fauteuil.</td><td>Modèles approuvés, réponses de la réception, réservation sous verrou.</td><td>Tout texte libre hors réception, toute remise, toute cliente endormie.</td><td>Fonctions serveur, crons</td><td><span class="etat ok">en ligne</span> lot 3 à finir</td></tr>
+          <tr><td class="nom"><b>Ambre</b><small>Marketing et Fidélité</small></td><td>Yéman</td><td>Instagram, Facebook, TikTok, LinkedIn, le Journal du site : plan du mardi, publications, réponses aux commentaires, bilan du lundi, veille internationale.</td><td>Publier dans le plan validé, répondre aux commentaires.</td><td>Le plan de la semaine, toute cliente ou enfant, tout argent.</td><td>Une machine avec Chrome</td><td><span class="etat maquette">maquette validée</span></td></tr>
+          <tr><td class="nom"><b>Grenat</b><small>Vente et Caisse, Finances</small></td><td>Brice</td><td>La clôture du soir, les dépenses à valider rangées, les factures en retard relancées, les missions à payer, les écarts de caisse, le bilan du mois, les prévisions.</td><td>Ranger, rapprocher, préparer, relancer par modèle.</td><td>Tout argent qui sort, tout écart, tout refus.</td><td>Fonction serveur</td><td><span class="etat">à construire · reprend l'agent comptabilité et les relances</span></td></tr>
+          <tr><td class="nom"><b>Jade</b><small>Atelier</small></td><td>Yéman</td><td>Le stock et le Laboratoire : réassort, bons prêts, achats par photos, fournisseurs à rappeler, inventaire du mois, recettes des gestes.</td><td>Compter, préparer un bon, lire un achat.</td><td>Envoyer un bon, créer un fournisseur, un écart d'inventaire.</td><td>Fonction serveur</td><td><span class="etat">à construire · reprend l'agent du stock et Saisir un achat</span></td></tr>
+          <tr><td class="nom"><b>Topaze</b><small>Équipe et Académie</small></td><td>Brice</td><td>Les fauteuils : jours creux et pleins, planning, pointage, congés, préparation de la paie, missions des prestataires, suivi de l'Académie et des évaluations.</td><td>Lire, préparer, rappeler.</td><td>Un planning changé, une paie, une mission payée, une sanction.</td><td>Fonction serveur</td><td><span class="etat">à construire · reprend l'agent du planning</span></td></tr>
+          <tr><td class="nom"><b>Jaspe</b><small>Système</small></td><td>Yéman</td><td>Le gardien : bancs, sauvegardes de nuit, versions des fonctions, conflits de synchro, jetons et accès, publication du Trône et du site, crédits par professionnel.</td><td>Vérifier, sauvegarder, publier ce qui est commité et vert.</td><td>Un accès, un jeton, une clé, une panne.</td><td>Une machine, et les fonctions</td><td><span class="etat">à construire · reprend l'agent de mise en ligne</span></td></tr>
+          <tr><td class="nom"><b>Le Bureau</b><small>à part de la Maison</small></td><td>Yéman</td><td>Les papiers de famille, les factures d'eau et d'électricité, les démarches, les mails de services. Jamais dans le Trône, par ta décision du 29 octobre 2026.</td><td>Lire, ranger, préparer.</td><td>Tout envoi, tout paiement.</td><td>Ton ordinateur</td><td><span class="etat ok">en ligne</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="legende">Les noms sont des pierres, comme Opale et Onyx ; ils se changent d'un mot. Gérard garde son nom : les clientes le connaissent. Le porteur est la personne qui reçoit les cartes du professionnel et répond de lui.</p>
+  </section>
+
+  <section class="section">
+    <p class="etiquette">Le socle commun</p>
+    <h2>Ce que chaque professionnel partage, et qui fait qu'ils sont reliés.</h2>
+    <ul class="net">
+      <li><b>Une charte unique</b>, celle des assistants reliés, élargie à tous : ce qu'un professionnel lit, écrit, ne fait jamais ; la voix de la Maison ; les trois niveaux ci-dessous.</li>
+      <li><b>Un registre</b> : chaque professionnel a sa ligne au Trône (éveillé, endormi, empêché, dernier passage), son jeton, son porteur. La direction voit les neuf d'un coup d'œil dans Les assistants.</li>
+      <li><b>Les relais</b> : la seule façon de se parler. Un relais a un genre fermé, cent caractères au plus, jamais un nom de cliente ni un texte privé. Il se lit, il se traite, il se trace.</li>
+      <li><b>Les cartes</b> : la seule façon de vous demander. Une carte au Trône, sur le téléphone, avec les boutons de son genre. Le modèle de « Je suis loin ».</li>
+      <li><b>Le journal des gestes</b> : tout ce qu'un professionnel fait porte sa signature. Rien d'anonyme, rien d'effacé.</li>
+      <li><b>Le Conseil du matin</b> : chaque professionnel dépose son bilan avant 6 h 45 ; Saphir le lit et vous écrit une page à 7 h.</li>
+      <li><b>Le livre des crédits</b> : un plafond par professionnel, dans les 200 $ du mois ; Saphir le lit, Jaspe le garde.</li>
+      <li><b>Les bancs</b> : chaque règle d'un professionnel est prouvée dans les deux sens avant d'être en ligne, comme aujourd'hui.</li>
+    </ul>
+    <div class="relais-ex" aria-label="Exemples de relais">
+      <div><span>Gérard → Jade</span><span>« Cinq clientes ont demandé le gel aloe cette semaine » : Jade le met au réassort.</span></div>
+      <div><span>Jade → Grenat</span><span>« Achat saisi, 46 000 F, Caisse Principale » : Grenat le voit à la clôture.</span></div>
+      <div><span>Grenat → Topaze</span><span>« Trois missions de prestataires à payer » : Topaze les met au planning de paie.</span></div>
+      <div><span>Topaze → Gérard</span><span>« Jeudi 14 h creux, deux fauteuils libres » : Gérard propose une envie aux clientes du quartier.</span></div>
+      <div><span>Ambre → Gérard</span><span>« Offre de novembre publiée, code NOV-xx » : Gérard la reconnaît au comptoir.</span></div>
+      <div><span>Jaspe → Saphir</span><span>« La fonction des rappels n'a pas tourné cette nuit » : le Conseil du matin le dit en premier.</span></div>
+    </div>
+  </section>
+
+  <section class="section">
+    <p class="etiquette">Les trois niveaux</p>
+    <h2>Ce qu'un professionnel fait seul, ce qu'il vous demande, ce qu'il ne fait jamais.</h2>
+    <div class="niveaux">
+      <div class="niveau seul">
+        <h3>Seul</h3>
+        <ul>
+          <li>Lire, compter, classer, rapprocher, préparer.</li>
+          <li>Publier ce qui est dans un plan que vous avez validé.</li>
+          <li>Répondre dans un modèle approuvé, ou dans le cadre de la réception.</li>
+          <li>Rappeler, relancer par modèle, déposer un relais.</li>
+          <li>Sauvegarder, vérifier, publier ce qui est commité et vert.</li>
+        </ul>
+      </div>
+      <div class="niveau carte">
+        <h3>En carte</h3>
+        <ul>
+          <li>Tout argent qui sort : une dépense, un paiement, une remise, une publicité.</li>
+          <li>Toute cliente ou enfant nommé en public, toute photo.</li>
+          <li>Tout message hors modèle, tout nouveau contact, tout plan de la semaine.</li>
+          <li>Un planning, une paie, une mission, un accès, un jeton.</li>
+          <li>Ce qu'il ne sait pas faire.</li>
+        </ul>
+      </div>
+      <div class="niveau jamais">
+        <h3>Jamais</h3>
+        <ul>
+          <li>Supprimer : il archive. Payer : il prépare.</li>
+          <li>Parler à un autre professionnel autrement que par le Trône.</li>
+          <li>Faire sortir un texte privé de là où il est né.</li>
+          <li>Lire la famille, les proches, le Bureau.</li>
+          <li>Se faire passer pour une personne à une question franche.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <p class="etiquette">Votre journée</p>
+    <div class="journee">
+      <div class="moment"><span class="h">7 h</span><b>Le Conseil</b><span>Une page sur le téléphone : ce qui s'est passé, ce qui attend, ce que chacun propose. Trois minutes.</span></div>
+      <div class="moment"><span class="h">La journée</span><b>Les cartes</b><span>Une notification, un toucher. Dix secondes chacune. Le reste tourne.</span></div>
+      <div class="moment"><span class="h">Lundi</span><b>Le bilan</b><span>Les chiffres de la semaine, par professionnel : abonnés, caisses, fauteuils, stock.</span></div>
+      <div class="moment"><span class="h">Mardi</span><b>Le plan d'Ambre</b><span>La semaine des réseaux validée en une fois.</span></div>
+      <div class="moment"><span class="h">Le soir</span><b>La clôture</b><span>Grenat ferme les caisses avec vous ; les écarts sont dits, pas découverts.</span></div>
+      <div class="moment"><span class="h">Le 1er du mois</span><b>Le mois</b><span>Bilan, paie préparée, inventaire, prévision du mois suivant.</span></div>
+    </div>
+  </section>
+
+  <section class="section">
+    <p class="etiquette">Pourquoi pas un outil du commerce</p>
+    <div class="constat">
+      <p>Les suites du commerce, Zoho, HubSpot, Odoo, et leurs agents, savent gérer des clients et des stocks en général. Ils ne connaissent ni la cadence d'une couronne, ni le registre des accords, ni la voix de la Maison, ni les cent soixante règles que le Trône a apprises depuis six mois et qu'un banc prouve chaque soir. Ils coûtent par siège et par mois. Ici, les professionnels naissent de ce que la Maison a déjà écrit, sur les crédits déjà compris.</p>
+    </div>
+  </section>
+
+  <section class="section">
+    <p class="etiquette">Quatre choix à trancher</p>
+    <div class="arbitrages">
+      <div class="arbitrage">
+        <h3>1. Où tourne la Maison intelligente</h3>
+        <p class="q">Opale vit sur ton ordinateur, Onyx sur le Mac de Brice, Gérard dans les fonctions serveur. Ambre et Jaspe ont besoin de Chrome, toute la journée.</p>
+        <div class="options">
+          <div class="option propose"><i>→</i><span><b>Proposé : une machine de la Maison, toujours allumée, au salon</b>, avec son propre compte Claude. Elle porte Ambre, Jaspe, et plus tard Opale et Onyx quand vous êtes loin. Tout ce qui n'a pas besoin de Chrome reste en fonctions serveur, qui tournent déjà seules.</span></div>
+          <div class="option"><i>·</i><span>Sur vos deux ordinateurs, comme aujourd'hui : ça s'arrête quand vous fermez.</span></div>
+          <div class="option"><i>·</i><span>Tout en fonctions serveur : impossible pour WhatsApp Web et Meta Business Suite, qui veulent un navigateur connecté.</span></div>
+        </div>
+      </div>
+      <div class="arbitrage">
+        <h3>2. Qui coordonne</h3>
+        <p class="q">Neuf professionnels qui déposent des relais et des cartes : quelqu'un doit lire l'ensemble.</p>
+        <div class="options">
+          <div class="option propose"><i>→</i><span><b>Proposé : Saphir, le conseil du matin.</b> Un professionnel de plus, qui ne fait rien d'autre que lire les bilans, écrire la page de 7 h, tenir les priorités et les crédits, et signaler les doublons. Il reprend le Centre de commande et le Tableau de bord intelligent.</span></div>
+          <div class="option"><i>·</i><span>Pas de coordinateur : le Trône seul, et vous lisez l'écran Les assistants.</span></div>
+          <div class="option"><i>·</i><span>Toi, par le Centre de commande, comme en octobre.</span></div>
+        </div>
+      </div>
+      <div class="arbitrage">
+        <h3>3. L'autonomie par défaut</h3>
+        <p class="q">Les trois niveaux ci-dessus sont la règle commune. Faut-il la même pour tous ?</p>
+        <div class="options">
+          <div class="option propose"><i>→</i><span><b>Proposé : les trois niveaux, les mêmes pour tous</b>, écrits une fois dans la charte. Un professionnel du dedans (Grenat, Jade, Topaze, Jaspe) agit seul plus souvent : il ne parle à personne dehors. Un professionnel du dehors (Gérard, Ambre) passe en carte dès qu'une personne ou de l'argent est en jeu.</span></div>
+          <div class="option"><i>·</i><span>Tout en carte pendant trois mois, puis on desserre.</span></div>
+          <div class="option"><i>·</i><span>Seul partout, sauf l'argent.</span></div>
+        </div>
+      </div>
+      <div class="arbitrage">
+        <h3>4. L'ordre et le rythme</h3>
+        <p class="q">Tout en même temps va vite et se désordonne ; un par mois dure jusqu'en mai.</p>
+        <div class="options">
+          <div class="option propose"><i>→</i><span><b>Proposé : le socle d'abord, deux semaines, puis deux professionnels par quinzaine.</b> Ambre et la fin de Gérard ; puis Grenat et Jade ; puis Topaze et Jaspe. Saphir naît avec le socle, en version simple, et grandit à chaque quinzaine. Huit semaines, et une lecture ensemble à quatre-vingt-dix jours.</span></div>
+          <div class="option"><i>·</i><span>Tout en parallèle, quatre semaines, plusieurs sessions à la fois.</span></div>
+          <div class="option"><i>·</i><span>Un professionnel par mois.</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <p class="etiquette">L'ordre, après ton « construis »</p>
+    <div class="etapes">
+      <div class="etape"><span class="quand">Semaines 1 et 2</span><p><b>Le socle.</b> La charte élargie à tous, le registre des neuf, les relais et les cartes pour tous les genres (réponse, rendez-vous, dépense, publication, contact, planning, accès), le mode « Je suis loin », le Conseil du matin de Saphir en version simple, le livre des crédits, l'écran Les assistants qui montre les neuf. La machine de la Maison installée si tu la choisis.</p></div>
+      <div class="etape"><span class="quand">Semaines 3 et 4</span><p><b>Le dehors.</b> Ambre : fondations, relance des pages, première semaine publiée. Gérard : le lot 3, les conversations lues et comprises. Opale et Onyx finis, en mode loin.</p></div>
+      <div class="etape"><span class="quand">Semaines 5 et 6</span><p><b>L'argent et le stock.</b> Grenat reprend l'agent comptabilité, la clôture du soir et les relances ; Jade reprend l'agent du stock et Saisir un achat. Leurs premiers bilans entrent au Conseil.</p></div>
+      <div class="etape"><span class="quand">Semaines 7 et 8</span><p><b>L'équipe et la garde.</b> Topaze reprend le planning, la paie préparée, les missions ; Jaspe reprend la mise en ligne, les bancs, les sauvegardes, les crédits. Saphir arbitre les premiers doublons.</p></div>
+      <div class="etape"><span class="quand">Jour 90</span><p><b>La lecture ensemble.</b> Ce que chaque professionnel a fait seul, ce qu'il vous a demandé, ce qu'il a coûté, ce qu'il a rapporté. Et la suite : l'API de Meta, la publicité, une seconde Maison.</p></div>
+    </div>
+  </section>
+
+</div>
+
+</body>
+</html>
