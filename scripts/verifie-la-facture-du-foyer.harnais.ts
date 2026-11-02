@@ -168,18 +168,25 @@ dit(5, 'cleDuFoyer : les deux ecritures du numero donnent la meme cle',
     nomDe: (p) => (p.forClientId === 'aine' ? 'Aine A' : 'Cadet A'), jourDe: () => '2026-10-27',
     fmt: (n) => `${n} F`, reglages: undefined, note: '',
   });
-  dit(10, 'le papier du foyer : celui des factures, une ligne par facture (le jour du rituel avec son annee, le numero), ses prestations a leur prix, le deja regle, le total des restes',
+  /* 2 novembre 2026 : « pourquoi le prix unitaire est 30 000, total 10 000 ? » et « le paiement doit être mis
+     en dessous d'un total avec les avances, et en clair le reste » (Yéman). La ligne porte le prix de sa
+     facture ; sous le total, l'avance (avec son jour) puis le reste ; « CLIENTES » quand il y a plusieurs têtes. */
+  dit(10, 'le papier du foyer : une ligne par facture a son prix (le jour du rituel avec son annee, le numero), ses prestations a leur prix ; le total des factures, l avance datee, le reste ; CLIENTES',
     ['releve', 'RÉCAPITULATIF DU FOYER', ['Aine A · 27 octobre 2026 · MND-2026-0163', 'Cadet A · 27 octobre 2026 · MND-2026-0162'],
-      [['SÍNSIN Signature · 35000 F', 'La sortie soignée · 2000 F'], ['KLƆKLƆ Essentiel · 5000 F', 'La sortie soignée · 2000 F', 'Déjà réglé le 27 octobre 2026 · − 3000 F']],
-      ['37000 F', '4000 F'], '41000 F', '20261028-3344'],
-    [papier.kind, papier.titre, papier.lines.map((l) => l.label), papier.lines.map((l) => l.detail), papier.lines.map((l) => l.total), papier.total, papier.number]);
-  /* « Remets le code QR de FedaPay et enlève Maison MND du bas du QR code » (Yéman, 28 octobre 2026, épreuve en main). */
+      [['SÍNSIN Signature · 35000 F', 'La sortie soignée · 2000 F'], ['KLƆKLƆ Essentiel · 5000 F', 'La sortie soignée · 2000 F']],
+      ['37000 F', '7000 F'], '44000 F', ['Avance reçue le 27 octobre 2026', '− 3000 F', '41000 F'], 'CLIENTES', '20261028-3344'],
+    [papier.kind, papier.titre, papier.lines.map((l) => l.label), papier.lines.map((l) => l.detail), papier.lines.map((l) => l.total), papier.total,
+      [papier.depositLabel, papier.deposit, papier.reste], papier.clientLabel, papier.number]);
+  /* La facture seule garde le QR Tap & Go ; le papier du foyer porte le MoMoPay de la Maison et son code,
+     montant compris (2 novembre 2026, « comme les codes MoMo *880*41*909099*montant# »). */
+  const tg = paiementDeLaPiece(41000, undefined);
   const eteint = paiementDeLaPiece(41000, { tapgo: { actif: false } } as any);
-  dit(11, 'de quoi payer : le QR Tap & Go de FedaPay, montant compris ; dessous le montant et le code Tap & Go, sans le nom de la Maison ; Tap & Go eteint, le MoMoPay 909099 sans nom',
-    ['tapgo', true, null, true, true, ['909099@momopay', null, true]],
-    [papier.momo?.genre ?? null, /^https:\/\//.test(papier.momo?.qr ?? ''), papier.momo?.marchand ?? null,
-      /^\d[\d\s  ]* F( frais compris)?$/.test(papier.momo?.codeDit ?? ''), /^\*601\*14\*\d+\*\d+#$/.test(papier.momo?.code ?? ''),
-      [eteint?.qr, eteint?.marchand ?? null, /909099/.test(eteint?.code ?? '')]]);
+  dit(11, 'de quoi payer : la facture seule garde le QR Tap & Go, montant et code dessous, sans nom ; Tap & Go eteint, le MoMoPay 909099 ; le foyer, le MoMoPay et *880*41*909099*reste#',
+    ['tapgo', true, null, true, true, ['909099@momopay', null, true], ['909099@momopay', '*880*41*909099*41500#', '41500 F, frais MoMo 1,2 % compris', null]],
+    [tg?.genre ?? null, /^https:\/\//.test(tg?.qr ?? ''), tg?.marchand ?? null,
+      /^\d[\d\s  ]* F( frais compris)?$/.test(tg?.codeDit ?? ''), /^\*601\*14\*\d+\*\d+#$/.test(tg?.code ?? ''),
+      [eteint?.qr, eteint?.marchand ?? null, /909099/.test(eteint?.code ?? '')],
+      [papier.momo?.qr, papier.momo?.code, papier.momo?.codeDit, papier.momo?.genre ?? null]]);
   const pdf = source('src/shared/pdf.ts');
   const fac = source('src/apps/trone/routes/vente/Factures.tsx');
   /* Le recapitulatif vit dans la fenetre du point du compte depuis le 28 octobre 2026. */
@@ -194,11 +201,18 @@ dit(5, 'cleDuFoyer : les deux ecritures du numero donnent la meme cle',
       fois(fac, 'summaryPdf(') + fois(fen, 'summaryPdf(')]);
   /* #13 (28 octobre 2026) : « celui d'aujourd'hui mais avec le tampon à droite au lieu du gauche »,
      et « tout en bas des factures il faut écrire Maison MND Code Marchand 909099 » (Yéman). */
-  dit(13, 'le sceau a droite, sous les totaux, la note sous lui ; le code marchand juste sous le RCCM, la devise dessous, sur chaque papier de la Maison',
-    [true, 1, true],
+  /* 2 novembre 2026, épreuve en main : la ligne du code marchand quitte le pied (le RCCM, puis la devise) ;
+     le reste à régler prend le corps du total ; le code sous le QR grandit ; plus de « factures réunies en une ». */
+  const envoi = source('src/apps/trone/routes/vente/envoi-de-la-piece.ts');
+  dit(13, 'le sceau a droite, sous les totaux ; le pied : le RCCM puis la devise, sans ligne du code marchand ; le reste en gras cuivre ; le code sous le QR plus grand ; le mot du foyer sans « reunies en une »',
+    [true, 1, true, 1, 1, 0, 1],
     [/if \(d\.status\) row\('Statut', d\.status\);\s*const yDuSceau = y - 2;/.test(pdf),
       fois(pdf, "doc.addImage(sceau, 'PNG', rx - TAILLE_DU_SCEAU, yDuSceau, TAILLE_DU_SCEAU, TAILLE_DU_SCEAU, undefined, 'FAST');"),
-      /W \/ 2, 280\.5, \{ align: 'center' \}\);\s*\}\s*if \(estLaMaisonMND\(d\.houseName\)\) \{\s*doc\.setFont\('helvetica', 'bold'\);\s*doc\.setFontSize\(8\);\s*doc\.setTextColor\(INDIGO\);\s*doc\.text\(`\$\{maisonNom\(\)\} · Code Marchand \$\{CODE_MOMOPAY\}`, W \/ 2, 285, \{ align: 'center' \}\);\s*\}\s*await pieDeLaMaison\(doc, W, 290\);/.test(pdf)]);
+      /W \/ 2, 280\.5, \{ align: 'center' \}\);\s*\}\s*(\/\*[\s\S]*?\*\/\s*)?await pieDeLaMaison\(doc, W, 286\);/.test(pdf),
+      fois(pdf, "row('Reste à régler', d.reste, true, COPPER);"),
+      fois(pdf, 'doc.setFontSize(8.5);\n        doc.setTextColor(INK);\n        doc.text(pdfSafe(d.momo.code)'),
+      fois(envoi, 'réunies en une'),
+      fois(envoi, 'note: motDuFoyer(')]);
 }
 
 if (process.exitCode) console.log('La facture du foyer ne tient pas.');

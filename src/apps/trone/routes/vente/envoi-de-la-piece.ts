@@ -13,7 +13,7 @@ import { cleDuPoint, MODELE_DU_POINT, phraseDuPoint, prenomsDuPoint } from '../.
 import { decisionDEnvoi, enRouteAilleurs, PAPIER_DU_FOYER, pieceDejaPartie, type PiecePartie } from '../../../../shared/une-piece-un-message-pur';
 import { noteLaPiecePartie, noteLesPiecesParties } from '../../../../shared/une-piece-un-message';
 import { toast } from '../../../../ds/components';
-import { pdfDuFoyer, useLaPieceEnPdf } from './pdf-de-la-piece';
+import { motDuFoyer, nomsDuFoyer, pdfDuFoyer, useLaPieceEnPdf } from './pdf-de-la-piece';
 import { adresseDuLien, noteLEnvoiDuFoyer, noteLEnvoiDuLien, poseLeLienDeReglement, poseLeLienDuFoyer } from '../../../../shared/regler-la-seance';
 import { saitRegler, saitReglerLeFoyer, saitReglerLePoint, versionDuReglement } from '../../../../shared/regler-la-seance-serveur';
 import { parametreDuLien } from '../../../../shared/regler-la-seance-pur';
@@ -208,17 +208,19 @@ export function useEnvoiDeLaPiece() {
     /* LE PAPIER : un relevé titré « FACTURE DU FOYER » sur le papier des
        factures (`pdfDuFoyer`, le même que le récapitulatif) : une ligne par
        facture (le PDF, lui, peut porter les numéros), le total, et de quoi payer. */
+    const nomDe = (p: typeof p0) => clients.find((c) => c.id === (p.forClientId ?? p.clientId))?.name ?? p.clientName ?? prenomDe(p);
     const pdf = pdfDuFoyer({
       titre: 'FACTURE DU FOYER',
       nomDuFichier: 'Facture-du-foyer',
       pieces: ouvertes,
       jourIso: jourDuRituel,
-      client: destinataire,
+      /* En tête, tous les enfants du foyer (2 novembre 2026), pas la seule première tête. */
+      client: { name: nomsDuFoyer(ouvertes.map(nomDe)), phone: destinataire.phone },
       houseSub: sousLeVerrou,
-      nomDe: (p) => clients.find((c) => c.id === (p.forClientId ?? p.clientId))?.name ?? p.clientName ?? prenomDe(p),
+      nomDe,
       fmt: (n) => fmtMoney(n, currency),
       reglages: settings.mndPay,
-      note: `${ouvertes.length} factures de la journée, réunies en une. Chacune reste au nom de celle ou celui qu'elle concerne.`,
+      note: motDuFoyer([...new Set(ouvertes.map(prenomDe))]),
     });
     const r = await envoieLaFactureDuFoyer({
       client: { ...destinataire, branchId: destinataire.branchId }, pdf, lignes,

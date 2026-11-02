@@ -9,7 +9,6 @@ import { maisonNom, DEVISE_COMPLETE, estLaMaisonMND } from './identite';
 import { ligneLegaleSousLeNom } from './registre';
 import { DEVISE_FON_B64 } from './devise-fon-b64';
 import { estIdentifiantMomo } from './momo';
-import { CODE_MOMOPAY } from './momopay-de-la-maison-pur';
 
 const INDIGO = '#1E2150';
 const COPPER = '#B97A4A';
@@ -578,6 +577,9 @@ export type InvoicePdfData = {
   houseSub?: string;
   date: string;
   clientName: string;
+  /** « CLIENTES » quand le papier porte plusieurs têtes (2 novembre 2026, le
+      foyer) ; « CLIENTE » sinon. */
+  clientLabel?: string;
   /** QUI RÈGLE, quand ce n'est pas celle qu'on a soignée — 28 août 2026.
       « Comment garder le nom des enfants sur la facture mais dire que c'est
       Merine le parent qui paye ? Sinon cela sème la confusion : le parent
@@ -599,6 +601,9 @@ export type InvoicePdfData = {
   remises?: { label: string; value: string }[];
   total: string;
   deposit?: string;
+  /** Le nom de la ligne de l'acompte quand « Acompte » ne dit pas assez
+      (2 novembre 2026, le foyer : « Avance reçue le 31 octobre 2026 »). */
+  depositLabel?: string;
   reste?: string;
   /** Pourboire remis avec le règlement — HORS total : il appartient aux
       maîtres, pas au chiffre de la Maison. Affiché pour que la pièce dise
@@ -691,7 +696,7 @@ async function construitLaFacture(d: InvoicePdfData): Promise<{ doc: any; filena
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(8);
   doc.setTextColor(SOFT);
-  doc.text('CLIENTE', M, y);
+  doc.text(d.clientLabel ?? 'CLIENTE', M, y);
   doc.setFont('times', 'normal');
   doc.setFontSize(13);
   doc.setTextColor(INK);
@@ -807,8 +812,10 @@ async function construitLaFacture(d: InvoicePdfData): Promise<{ doc: any; filena
   if (d.remises?.length) for (const r of d.remises) row(r.label, r.value, false, COPPER);
   else if (d.discount) row('Remise', d.discount, false, COPPER);
   row('Total', d.total, true);
-  if (d.deposit) row('Acompte', d.deposit, false, COPPER);
-  if (d.reste) row('Reste à régler', d.reste);
+  if (d.deposit) row(d.depositLabel ?? 'Acompte', d.deposit, false, COPPER);
+  /* LE RESTE SE VOIT — 2 novembre 2026 : « reste à solder n'est pas bien
+     visible sur les factures » (Yéman). Il prend le corps du total, en cuivre. */
+  if (d.reste) row('Reste à régler', d.reste, true, COPPER);
   /* Le pourboire se dit APRÈS le total — il ne s'y additionne pas : c'est un
      merci aux mains, pas une ligne de la Maison. */
   if (d.tip) row('Pourboire, merci', d.tip, false, COPPER);
@@ -889,9 +896,12 @@ async function construitLaFacture(d: InvoicePdfData): Promise<{ doc: any; filena
         yTxt += 3.2;
       }
       if (d.momo.code) {
+        /* Le code à composer, un peu plus grand (2 novembre 2026, épreuve en
+           main : « agrandir légèrement l'écriture du code MoMo Pay »). */
         doc.setFont('helvetica', 'bold');
+        doc.setFontSize(8.5);
         doc.setTextColor(INK);
-        doc.text(pdfSafe(d.momo.code), xQr + T, yTxt, { align: 'right' });
+        doc.text(pdfSafe(d.momo.code), xQr + T, yTxt + 0.6, { align: 'right' });
       }
     } catch { /* un QR qui échoue ne doit pas priver la cliente de sa facture */ }
   }
@@ -907,19 +917,11 @@ async function construitLaFacture(d: InvoicePdfData): Promise<{ doc: any; filena
     doc.setTextColor(SOFT);
     doc.text(pdfSafe(ligneLegaleSousLeNom(d.legal, maisonNom())), W / 2, 280.5, { align: 'center' });
   }
-  /* LE CODE MARCHAND AU PIED — 28 octobre 2026. « Tout en bas des factures il
-     faut écrire Maison MND Code Marchand 909099 » (Yéman) : sur chaque papier
-     de la Maison, soldé ou non, devis et relevés compris. Le QR ne vit que sur
-     une pièce à régler ; le code, lui, reste lisible partout. Épreuve en main,
-     le même jour : « le maintenir juste en dessous du RCCM ». La devise passe
-     dessous. */
-  if (estLaMaisonMND(d.houseName)) {
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(8);
-    doc.setTextColor(INDIGO);
-    doc.text(`${maisonNom()} · Code Marchand ${CODE_MOMOPAY}`, W / 2, 285, { align: 'center' });
-  }
-  await pieDeLaMaison(doc, W, 290);
+  /* LE PIED : LE RCCM, PUIS LA DEVISE — 2 novembre 2026. La ligne « Maison MND
+     · Code Marchand 909099 » (28 octobre 2026) en est retirée, épreuve en main :
+     le code marchand se lit déjà sous le QR et dans le code MoMo à composer.
+     La devise remonte sous le RCCM. */
+  await pieDeLaMaison(doc, W, 286);
 
   const filename = `${d.nomDuFichier ?? (d.kind === 'devis' ? 'Devis' : d.kind === 'releve' ? 'Releve' : 'Facture')}-${d.number}.pdf`;
   return { doc, filename };

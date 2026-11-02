@@ -62,9 +62,14 @@ const FAUTES = [
   { n: 9, fichier: 'src/shared/facture-whatsapp.ts', avant: 'dateDite(o.jourIso), FACTURE_DU_FOYER_JOINTE, o.totalDit]', apres: "dateDite(o.jourIso), 'ci-jointe', o.totalDit]" },
   /* #10 a #12 (28 octobre 2026) : le papier du foyer, son QR, les tampons. */
   { n: 10, fichier: PIECE, avant: '${fmtDateFr(o.jourDe ? o.jourDe(p) : p.date)}', apres: '${(o.jourDe ? o.jourDe(p) : p.date).slice(5)}' },
-  { n: 10, fichier: PIECE, avant: "      if (deja > 0) detail.push(`${dejaRegleLe(p)} · − ${o.fmt(deja)}`);\n", apres: '' },
-  { n: 10, fichier: PIECE, avant: "  return jours.length === 1 ? `Déjà réglé le ${fmtDateFr(jours[0])}` : 'Déjà réglé';", apres: "  return 'Déjà réglé';" },
-  { n: 10, fichier: PIECE, avant: '  const totalXof = o.pieces.reduce((n, p) => n + invoiceResteXof(p), 0);', apres: '  const totalXof = o.pieces.reduce((n, p) => n + invoiceTotal(p), 0);' },
+  { n: 10, fichier: PIECE, avant: '        total: o.fmt(invoiceTotal(p)),', apres: '        total: o.fmt(invoiceResteXof(p)),' },
+  { n: 10, fichier: PIECE, avant: "  return jours.length === 1 ? `Avance reçue le ${fmtDateFr(jours[0])}` : 'Avances reçues';", apres: "  return 'Acompte';" },
+  { n: 10, fichier: PIECE, avant: '  const totalXof = o.pieces.reduce((n, p) => n + invoiceTotal(p), 0);', apres: '  const totalXof = o.pieces.reduce((n, p) => n + invoiceResteXof(p), 0);' },
+  { n: 10, fichier: PIECE, avant: "? { clientLabel: 'CLIENTES' } : {}", apres: '? {} : {}' },
+  { n: 11, fichier: PIECE, avant: '{ momo: { qr: momopay.qr, code: momopay.code, codeDit:', apres: '{ momo: { ...paiementDeLaPiece(resteXof, o.reglages), codeDit:' },
+  { n: 11, fichier: PIECE, avant: '  const momopay = paiementMomoDeLaMaison(parMomo);', apres: '  const momopay = paiementMomoDeLaMaison(resteXof);' },
+  { n: 11, fichier: 'src/shared/momopay-de-la-maison-pur.ts', avant: 'export const TAUX_MOMOPAY_PCT = 1.2;', apres: 'export const TAUX_MOMOPAY_PCT = 1.8;' },
+  { n: 11, fichier: 'src/shared/momopay-de-la-maison-pur.ts', avant: '  return Math.ceil(reste / (1 - TAUX_MOMOPAY_PCT / 100) / 50 - 1e-9) * 50;', apres: '  return Math.ceil(reste * (1 + TAUX_MOMOPAY_PCT / 100));' },
   { n: 11, fichier: PIECE, avant: '    qr: tg.qr,', apres: '    qr: momopay.qr,' },
   { n: 11, fichier: PIECE, avant: "    genre: 'tapgo',\n", apres: '' },
   { n: 11, fichier: PIECE, avant: '    code: tg.code,', apres: '    code: momopay.code,' },
@@ -75,9 +80,10 @@ const FAUTES = [
   /* #13 : le sceau repart a gauche, ou au-dessus des totaux ; le code marchand se perd, ou se pose sur un papier qui n'est pas de la Maison. */
   { n: 13, fichier: 'src/shared/pdf.ts', avant: "doc.addImage(sceau, 'PNG', rx - TAILLE_DU_SCEAU, yDuSceau,", apres: "doc.addImage(sceau, 'PNG', M + 4, yDuSceau," },
   { n: 13, fichier: 'src/shared/pdf.ts', avant: '  const yDuSceau = y - 2;', apres: '  const yDuSceau = y - 40;' },
-  { n: 13, fichier: 'src/shared/pdf.ts', avant: 'Code Marchand ${CODE_MOMOPAY}', apres: '${CODE_MOMOPAY}' },
-  { n: 13, fichier: 'src/shared/pdf.ts', avant: '  await pieDeLaMaison(doc, W, 290);', apres: '  await pieDeLaMaison(doc, W, 285);' },
-  { n: 13, fichier: 'src/shared/pdf.ts', avant: "  if (estLaMaisonMND(d.houseName)) {\n    doc.setFont('helvetica', 'bold');\n    doc.setFontSize(8);\n    doc.setTextColor(INDIGO);", apres: "  {\n    doc.setFont('helvetica', 'bold');\n    doc.setFontSize(8);\n    doc.setTextColor(INDIGO);" },
+  { n: 13, fichier: 'src/shared/pdf.ts', avant: '     La devise remonte sous le RCCM. */\n  await pieDeLaMaison(doc, W, 286);', apres: "     La devise remonte sous le RCCM. */\n  doc.text('Code Marchand 909099', W / 2, 285, { align: 'center' });\n  await pieDeLaMaison(doc, W, 290);" },
+  { n: 13, fichier: 'src/shared/pdf.ts', avant: "row('Reste à régler', d.reste, true, COPPER);", apres: "row('Reste à régler', d.reste);" },
+  { n: 13, fichier: 'src/shared/pdf.ts', avant: '        doc.setFontSize(8.5);\n        doc.setTextColor(INK);', apres: '        doc.setTextColor(INK);' },
+  { n: 13, fichier: ENVOI, avant: 'note: motDuFoyer(', apres: "note: 'Factures de la journée, réunies en une.' || motDuFoyer(" },
 ];
 
 const md5 =(rel) => createHash('md5').update(readFileSync(path.join(racine, rel))).digest('hex');

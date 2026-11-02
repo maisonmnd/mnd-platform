@@ -19,6 +19,22 @@ export const MARCHAND_MOMOPAY = 'MAISON MND';
 export const NUMERO_MOMOPAY = '0191231961';
 export const QR_MOMOPAY = `${CODE_MOMOPAY}@momopay`;
 export const USSD_MOMOPAY = `*880*41*${CODE_MOMOPAY}*montant#`;
+
+/** LA COMMISSION DE MTN SUR CE QUE LE MOMOPAY ENCAISSE — 2 novembre 2026 :
+    « 1,2 % du montant collecté », TTC, prélevée sur le compte de la Maison
+    (contrat « compte de collecte et de paiement » de MAISON MND, 28 octobre
+    2026, article 6.1). */
+export const TAUX_MOMOPAY_PCT = 1.2;
+
+/** CE QUE LA CLIENTE PAIE PAR MOMOPAY POUR QUE LA MAISON REÇOIVE LE RESTE —
+    2 novembre 2026, au sélecteur : « frais dans le code MoMo ». Les 1,2 % se
+    prennent sur ce qui est payé : le montant se remonte (reste ÷ 0,988), puis
+    s'arrondit aux 50 F du dessus. 20 000 F → 20 250 F. */
+export const montantMomopayFraisCompris = (resteXof: number): number => {
+  const reste = Math.max(0, Math.round(Number.isFinite(resteXof) ? resteXof : 0));
+  if (reste <= 0) return 0;
+  return Math.ceil(reste / (1 - TAUX_MOMOPAY_PCT / 100) / 50 - 1e-9) * 50;
+};
 /** Les noms que l'ancien compte portait au Trône ou sur l'affiche. */
 const ANCIENS_MARCHANDS = ['ets acia1', 'acia1', 'acia 1', 'yeman', ''];
 
