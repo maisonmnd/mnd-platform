@@ -627,6 +627,8 @@ const regles: Regle[] = [
         'ia-maison': { fichier: 'src/shared/ia-maison-pur.ts', extrait: (s) => entre(s, 'ia-maison') },
         /* Le diagnostic photo des locks (19 octobre 2026), recopie dans diagnostic-locks. */
         'diagnostic-locks': { fichier: 'src/shared/ia-diagnostic-pur.ts', extrait: (s) => entre(s, 'diagnostic-locks') },
+        /* La veille des assistants (2 novembre 2026) : les reglages, les heures et le chien de garde, recopies dans push-notify. */
+        'veille-des-assistants': { fichier: 'src/shared/assistants-pur.ts', extrait: (s) => entre(s, 'veille-des-assistants') },
       };
       const fonctions: string[] = [];
       const marche = (d: string) => { for (const n of readdirSync(d)) { const p = `${d}/${n}`; if (statSync(p).isDirectory()) marche(p); else if (/\.(ts|js)$/.test(n)) fonctions.push(p); } };
@@ -666,6 +668,7 @@ const regles: Regle[] = [
       { nom: 'l original de prochaines-places change seul', mute: [P('src/shared/reservation-express.ts', 'export const PLACES_PAR_JOUR = 2;', 'export const PLACES_PAR_JOUR = 3;')] },
       { nom: 'un caractere change dans la copie ce-qui-tombe de push-notify', mute: [P('supabase/functions/push-notify/index.ts', 'const JOURS_DE_NOTIFICATION = [7, 1];', 'const JOURS_DE_NOTIFICATION = [7, 2];')] },
       { nom: 'un caractere change dans la copie ia-maison de la porte vers Claude', mute: [P('supabase/functions/ia-maison/index.ts', 'export const PLAFOND_DES_HUIT_USD = 120;', 'export const PLAFOND_DES_HUIT_USD = 121;')] },
+      { nom: 'un caractere change dans la copie veille-des-assistants de push-notify', mute: [P('supabase/functions/push-notify/index.ts', 'export const MARGE_DE_SOMMEIL_MIN = 15;', 'export const MARGE_DE_SOMMEIL_MIN = 16;')] },
     ],
   },
 

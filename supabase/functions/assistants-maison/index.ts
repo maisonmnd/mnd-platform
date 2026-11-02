@@ -26,9 +26,11 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 // src/shared/assistants-pur.ts
 var REGLAGES_PAR_DEFAUT = {
   rythmeMin: 10,
-  veilleDe: 8,
-  veilleA: 20,
-  silenceMin: 30,
+  veilleDe: 6,
+  veilleA: 24,
+  soirDe: 18,
+  rythmeSoirMin: 30,
+  silenceMin: 45,
   tenueHeures: 2
 };
 var reglagesComplets = (r) => {
@@ -37,11 +39,55 @@ var reglagesComplets = (r) => {
     rythmeMin: n(r?.rythmeMin, REGLAGES_PAR_DEFAUT.rythmeMin, 5, 60),
     veilleDe: n(r?.veilleDe, REGLAGES_PAR_DEFAUT.veilleDe, 0, 23),
     veilleA: n(r?.veilleA, REGLAGES_PAR_DEFAUT.veilleA, 1, 24),
+    soirDe: n(r?.soirDe, REGLAGES_PAR_DEFAUT.soirDe, 0, 24),
+    rythmeSoirMin: n(r?.rythmeSoirMin, REGLAGES_PAR_DEFAUT.rythmeSoirMin, 5, 60),
     silenceMin: n(r?.silenceMin, REGLAGES_PAR_DEFAUT.silenceMin, 15, 240),
     tenueHeures: n(r?.tenueHeures, REGLAGES_PAR_DEFAUT.tenueHeures, 1, 12)
   };
 };
-var SEUIL_SOMMEIL_MIN = 25;
+function dansLaVeille(heure, r) {
+  const h = Math.floor(heure);
+  return h >= r.veilleDe && h < r.veilleA;
+}
+function rythmeA(heure, r) {
+  if (!dansLaVeille(heure, r)) return null;
+  return Math.floor(heure) >= r.soirDe ? r.rythmeSoirMin : r.rythmeMin;
+}
+var MARGE_DE_SOMMEIL_MIN = 15;
+function seuilDeSommeilMin(depuisMs, jusquaMs, r) {
+  const debut = Math.min(depuisMs, jusquaMs);
+  const fin = Math.max(depuisMs, jusquaMs);
+  let plusLong = 0;
+  if (!Number.isFinite(debut) || !Number.isFinite(fin)) return Math.max(r.rythmeMin, r.rythmeSoirMin) + MARGE_DE_SOMMEIL_MIN;
+  for (let t = debut, k = 0; k <= 25; t += 36e5, k++) {
+    const rythme = rythmeA(aCotonou(Math.min(t, fin)).heure, r);
+    if (rythme !== null && rythme > plusLong) plusLong = rythme;
+    if (t >= fin) break;
+  }
+  return (plusLong || Math.max(r.rythmeMin, r.rythmeSoirMin)) + MARGE_DE_SOMMEIL_MIN;
+}
+var heureRondeDite = (h) => h % 24 === 0 ? "minuit" : `${h} h`;
+var MINUTE_DU_JOUR = 3;
+var MINUTE_DU_SOIR = 7;
+function minutesDuTour(rythme, depart) {
+  for (let decale = 0; decale < rythme; decale++) {
+    const o = (depart + decale) % rythme;
+    const m = [];
+    for (let x = o; x < 60; x += rythme) m.push(x);
+    if (!m.includes(0) && !m.includes(30)) return m;
+  }
+  return [depart];
+}
+var champDesMinutes = (m, rythme) => m.length <= 2 ? m.join(",") : `${m[0]}-59/${rythme}`;
+var champDesHeures = (de, a) => a - de === 1 ? `${de}` : `${de}-${a - 1}`;
+function cronsDeLaVeille(r) {
+  const crons = [];
+  const finDuJour = Math.min(r.soirDe, r.veilleA);
+  if (finDuJour > r.veilleDe) crons.push(`${champDesMinutes(minutesDuTour(r.rythmeMin, MINUTE_DU_JOUR), r.rythmeMin)} ${champDesHeures(r.veilleDe, finDuJour)} * * *`);
+  const debutDuSoir = Math.max(r.soirDe, r.veilleDe);
+  if (r.veilleA > debutDuSoir) crons.push(`${champDesMinutes(minutesDuTour(r.rythmeSoirMin, MINUTE_DU_SOIR), r.rythmeSoirMin)} ${champDesHeures(debutDuSoir, r.veilleA)} * * *`);
+  return crons;
+}
 var DECALAGE_COTONOU_MIN = 60;
 function aCotonou(ms) {
   const d = new Date(ms + DECALAGE_COTONOU_MIN * 6e4);
@@ -72,12 +118,14 @@ function empecheDit(c) {
   if (c.nonLus === false) return "la liste des non-lus ne se charge pas";
   return null;
 }
-function etatDe(a, maintenantMs, seuilMin = SEUIL_SOMMEIL_MIN) {
+function etatDe(a, maintenantMs, r = REGLAGES_PAR_DEFAUT) {
   if (!a.aUnJeton) return { etat: "sans-jeton", detail: "aucun jeton : l'assistant n'a jamais été relié" };
   const vu = Date.parse(a.vuLe ?? "");
   if (!Number.isFinite(vu)) return { etat: "endormi", detail: "jamais passé" };
   const ecartMin = Math.floor((maintenantMs - vu) / 6e4);
-  if (ecartMin > seuilMin) return { etat: "endormi", detail: `endormi depuis ${dureeDite(ecartMin)}` };
+  if (ecartMin > seuilDeSommeilMin(vu, maintenantMs, r)) {
+    return dansLaVeille(aCotonou(maintenantMs).heure, r) ? { etat: "endormi", detail: `endormi depuis ${dureeDite(ecartMin)}` } : { etat: "endormi", detail: `au repos jusqu'à ${heureRondeDite(r.veilleDe)}, comme chaque nuit` };
+  }
   const empeche = a.etat?.empeche ?? empecheDit(a.etat?.controles);
   if (empeche) return { etat: "empeche", detail: `empêché : ${empeche}` };
   return { etat: "eveille", detail: `dernier passage il y a ${dureeDite(ecartMin)}` };
@@ -752,7 +800,7 @@ function ficheLisible(f, rdvs, nomDe, aujourdhui) {
 var pieceDeLaLecture = (n) => `une recherche de fiche, ${n === 0 ? "aucune trouvée" : n === 1 ? "une trouvée" : `${n} trouvées`}`;
 
 // scripts/serveur/assistants-maison.ts
-var VERSION = "2026-11-01-a";
+var VERSION = "2026-11-02-a";
 var BRANCHE_PHARE = "br-40r6u6frno";
 var ECRAN = "Les assistants";
 var ADRESSE_DES_ASSISTANTS = "/trone/#/assistants";
@@ -1073,7 +1121,8 @@ async function passage(s, moi, d) {
   const controles = { chrome: c.chrome !== false, lie: c.lie !== false, nonLus: c.nonLus !== false };
   const precedentVuLe = moi.vu_le ?? null;
   const precedent = Date.parse(precedentVuLe ?? "");
-  const eveilleDepuis = Number.isFinite(precedent) && maintenantMs - precedent <= SEUIL_SOMMEIL_MIN * 6e4 && moi.eveille_depuis ? moi.eveille_depuis : maintenant;
+  const reglages = await s.reglages();
+  const eveilleDepuis = Number.isFinite(precedent) && maintenantMs - precedent <= seuilDeSommeilMin(precedent, maintenantMs, reglages) * 6e4 && moi.eveille_depuis ? moi.eveille_depuis : maintenant;
   const etat = { ...moi.etat ?? {} };
   delete etat.dortPrevenuLe;
   etat.controles = controles;
@@ -1091,8 +1140,7 @@ async function passage(s, moi, d) {
     delete etat.empechePrevenuLe;
   }
   await s.sb.from("assistants").update({ vu_le: maintenant, eveille_depuis: eveilleDepuis, etat }).eq("id", moi.id);
-  const [reglages, relaisLus, decisionsLues, tous] = await Promise.all([
-    s.reglages(),
+  const [relaisLus, decisionsLues, tous] = await Promise.all([
     s.sb.from("assistants_relais").select("*").eq("pour", moi.id).is("traite_le", null).order("quand", { ascending: true }).limit(200),
     s.sb.from("assistants_decisions").select("*").eq("assistant", moi.id).not("tranchee", "is", null).is("executee_le", null).order("cree_le", { ascending: true }).limit(200),
     s.assistants()
@@ -1100,10 +1148,12 @@ async function passage(s, moi, d) {
   const relais = (relaisLus.data ?? []).map(relaisDe).filter((r) => !relaisPerime(r, maintenantMs));
   const decisions = (decisionsLues.data ?? []).map(decisionDe);
   const autres = tous.filter((a) => a.id !== moi.id).map((a) => {
-    const e = etatDe(assistantDe(a), maintenantMs);
+    const e = etatDe(assistantDe(a), maintenantMs, reglages);
     return { id: a.id, nom: a.nom, etat: e.etat, detail: e.detail, vuLe: a.vu_le ?? null };
   });
-  return rendu({ assistant: { id: moi.id, nom: moi.nom }, precedentVuLe, eveilleDepuis, empeche: etat.empeche ?? null, notifie, reglages, relais, decisions, autres });
+  const heure = aCotonou(maintenantMs).heure;
+  const veille = { dansLaVeille: dansLaVeille(heure, reglages), rythmeMin: rythmeA(heure, reglages), crons: cronsDeLaVeille(reglages) };
+  return rendu({ assistant: { id: moi.id, nom: moi.nom }, precedentVuLe, eveilleDepuis, empeche: etat.empeche ?? null, notifie, reglages, veille, relais, decisions, autres });
 }
 async function relaisDeposer(s, moi, d) {
   const genre = d.genre;

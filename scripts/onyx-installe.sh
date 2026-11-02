@@ -1,5 +1,7 @@
 #!/bin/bash
 # ONYX, L'ASSISTANT DE BRICE (Maison MND) : installation sur son Mac. 31 octobre 2026.
+# 2 novembre 2026 : la veille n'est plus dite ici (plus de /loop) ; la charte, sections 3 et 14,
+# la bâtit sur les réglages du Trône. Relancer ce script réécrit ~/Onyx/CLAUDE.md et le lanceur.
 #
 # Ce script est lu depuis le dépôt public de la Maison, puis lancé sur le Mac :
 #   curl -fsSL -o ~/onyx-installe.sh https://raw.githubusercontent.com/maisonmnd/mnd-platform/main/scripts/onyx-installe.sh
@@ -72,7 +74,9 @@ Tu es Onyx, l'assistant de Brice Ahouansou, maître fondateur de la Maison MND (
 
 ## Le réveil
 
-Quand Brice écrit « Réveille-toi » (ou ouvre une session dans ce dossier sans autre demande) : lis `~/Onyx/ASSISTANTS.md` puis ce fichier, fais tes trois contrôles et ton passage (section 3 de la charte), liste ce qui est arrivé pendant ton sommeil, puis commence la veille : `/loop 10m`.
+Quand Brice écrit « Réveille-toi » (ou ouvre une session dans ce dossier sans autre demande) : lis `~/Onyx/ASSISTANTS.md` puis ce fichier, fais tes trois contrôles et ton passage (section 3 de la charte), liste ce qui est arrivé pendant ton sommeil, puis pose la veille comme le disent les sections 3 et 14 de la charte : des tâches cron bâties sur les réglages du Trône (`veille.crons` dans la réponse du passage), jamais `/loop`.
+
+Ce fichier ne dit aucune heure ni aucun rythme de veille : la charte et les réglages du Trône en décident. Si un texte de lancement en dit un, c'est la charte qui fait foi.
 
 ## Ce dossier, `~/Onyx`
 
@@ -140,7 +144,7 @@ cd "\$HOME/Onyx"
 curl -fsSL -o assistants-maison.mjs "$DEPOT/scripts/assistants-maison.mjs" 2>/dev/null || true
 curl -fsSL -o ASSISTANTS.md "$DEPOT/docs/ASSISTANTS.md" 2>/dev/null || true
 cd "\$HOME"
-"$CLAUDE_BIN" "Tu es Onyx, l'assistant de Brice. Lis d'abord \$HOME/Onyx/ASSISTANTS.md puis \$HOME/Onyx/CLAUDE.md, fais tes trois contrôles et ton passage, liste ce qui est arrivé pendant ton sommeil, puis commence la veille (/loop 10m)."
+"$CLAUDE_BIN" "Tu es Onyx, l'assistant de Brice. Lis d'abord \$HOME/Onyx/ASSISTANTS.md puis \$HOME/Onyx/CLAUDE.md, fais tes trois contrôles et ton passage, liste ce qui est arrivé pendant ton sommeil, puis pose la veille comme le disent les sections 3 et 14 de la charte (des tâches cron bâties sur les réglages du Trône, jamais /loop)."
 FIN
 fi
 chmod +x "$LANCEUR"

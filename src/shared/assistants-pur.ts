@@ -49,14 +49,33 @@ export type Assistant = {
   };
 };
 
-/* ── Les réglages (mnd_settings.assistants) ───────────────────────────── */
+/* ── Les réglages (mnd_settings.assistants) et les heures de la veille ── */
+
+/* ⟨veille-des-assistants⟩ */
+/* LES HEURES DE LA VEILLE, depuis le 2 novembre 2026 (décision de Yéman, pour
+   Opale et Onyx) : de `veilleDe` à `soirDe`, un tour toutes les `rythmeMin`
+   minutes ; de `soirDe` à `veilleA`, un tour toutes les `rythmeSoirMin` ;
+   hors de la veille, aucun tour. La veille ne passe pas minuit (`veilleA` 24
+   est minuit). Tout ce qui juge une heure ou un silence (l'état d'un
+   assistant, la série de ses passages, le chien de garde) part de ces
+   réglages, jamais d'une constante : un rythme du soir plus lent ne doit
+   faire ni un faux réveil, ni un faux sommeil.
+   Ce bloc, entre ses deux bornes, vit à l'identique dans
+   src/shared/assistants-pur.ts (l'original, qui fait foi) et dans
+   supabase/functions/push-notify/index.ts (le chien de garde, une fonction
+   Edge n'importe rien du dépôt) : le banc des assistants compare les deux
+   textes. */
 
 export type ReglagesAssistants = {
-  /** Minutes entre deux passages. */
+  /** Minutes entre deux tours, de `veilleDe` à `soirDe`. */
   rythmeMin?: number;
-  /** Heures de Cotonou entre lesquelles un assistant veille. */
+  /** Heures de Cotonou entre lesquelles un assistant veille (`veilleA` 24 : minuit). */
   veilleDe?: number;
   veilleA?: number;
+  /** L'heure de Cotonou où le rythme du soir prend le relais. */
+  soirDe?: number;
+  /** Minutes entre deux tours, de `soirDe` à `veilleA`. */
+  rythmeSoirMin?: number;
   /** Minutes de silence après lesquelles le Trône prévient le porteur. */
   silenceMin?: number;
   /** Heures ouvrées pendant lesquelles une place tenue attend son toucher. */
@@ -64,7 +83,7 @@ export type ReglagesAssistants = {
 };
 
 export const REGLAGES_PAR_DEFAUT: Required<ReglagesAssistants> = {
-  rythmeMin: 10, veilleDe: 8, veilleA: 20, silenceMin: 30, tenueHeures: 2,
+  rythmeMin: 10, veilleDe: 6, veilleA: 24, soirDe: 18, rythmeSoirMin: 30, silenceMin: 45, tenueHeures: 2,
 };
 
 export const reglagesComplets = (r?: ReglagesAssistants | null): Required<ReglagesAssistants> => {
@@ -74,13 +93,116 @@ export const reglagesComplets = (r?: ReglagesAssistants | null): Required<Reglag
     rythmeMin: n(r?.rythmeMin, REGLAGES_PAR_DEFAUT.rythmeMin, 5, 60),
     veilleDe: n(r?.veilleDe, REGLAGES_PAR_DEFAUT.veilleDe, 0, 23),
     veilleA: n(r?.veilleA, REGLAGES_PAR_DEFAUT.veilleA, 1, 24),
+    soirDe: n(r?.soirDe, REGLAGES_PAR_DEFAUT.soirDe, 0, 24),
+    rythmeSoirMin: n(r?.rythmeSoirMin, REGLAGES_PAR_DEFAUT.rythmeSoirMin, 5, 60),
     silenceMin: n(r?.silenceMin, REGLAGES_PAR_DEFAUT.silenceMin, 15, 240),
     tenueHeures: n(r?.tenueHeures, REGLAGES_PAR_DEFAUT.tenueHeures, 1, 12),
   };
 };
 
-/** Deux tours et une marge : au-delà, l'assistant dort. */
-export const SEUIL_SOMMEIL_MIN = 25;
+/** Cette heure de Cotonou (0 à 23 ; les minutes ne comptent pas : 5 h 59 est
+    5) est-elle dans la veille ? */
+export function dansLaVeille(heure: number, r: Required<ReglagesAssistants>): boolean {
+  const h = Math.floor(heure);
+  return h >= r.veilleDe && h < r.veilleA;
+}
+
+/** Le rythme en vigueur à cette heure de Cotonou, en minutes ; `null` hors de
+    la veille, où aucun tour ne part. */
+export function rythmeA(heure: number, r: Required<ReglagesAssistants>): number | null {
+  if (!dansLaVeille(heure, r)) return null;
+  return Math.floor(heure) >= r.soirDe ? r.rythmeSoirMin : r.rythmeMin;
+}
+
+/** Un tour en retard n'est pas un sommeil : la marge ajoutée au plus long
+    rythme en vigueur. */
+export const MARGE_DE_SOMMEIL_MIN = 15;
+
+/** Au-delà de ce silence (en minutes), l'assistant dort : le plus long rythme
+    en vigueur entre `depuisMs` et `jusquaMs`, plus la marge. Par défaut 25
+    le jour (10 + 15), 45 le soir (30 + 15), et 45 pour un écart qui passe
+    18 h. Un écart sans aucune heure de veille prend le plus long des deux
+    rythmes. */
+export function seuilDeSommeilMin(depuisMs: number, jusquaMs: number, r: Required<ReglagesAssistants>): number {
+  const debut = Math.min(depuisMs, jusquaMs);
+  const fin = Math.max(depuisMs, jusquaMs);
+  let plusLong = 0;
+  if (!Number.isFinite(debut) || !Number.isFinite(fin)) return Math.max(r.rythmeMin, r.rythmeSoirMin) + MARGE_DE_SOMMEIL_MIN;
+  /* Une lecture par heure traversée, puis la dernière : vingt-six suffisent à
+     voir toutes les heures d'une journée. */
+  for (let t = debut, k = 0; k <= 25; t += 3_600_000, k++) {
+    const rythme = rythmeA(aCotonou(Math.min(t, fin)).heure, r);
+    if (rythme !== null && rythme > plusLong) plusLong = rythme;
+    if (t >= fin) break;
+  }
+  return (plusLong || Math.max(r.rythmeMin, r.rythmeSoirMin)) + MARGE_DE_SOMMEIL_MIN;
+}
+
+/** L'ouverture de la veille (ms UTC) le jour de Cotonou où tombe `maintenantMs`. */
+export function debutDeLaVeilleMs(maintenantMs: number, r: Required<ReglagesAssistants>): number {
+  return Date.parse(`${aCotonou(maintenantMs).dateISO}T00:00:00Z`) + r.veilleDe * 3_600_000 - DECALAGE_COTONOU_MIN * 60_000;
+}
+
+/** Le chien de garde du Trône prévient le porteur : dans la veille, après le
+    silence réglé (jamais moins que le seuil de sommeil du rythme en vigueur :
+    un tour du soir n'est pas un sommeil), une seule fois par sommeil. Le
+    silence se compte depuis le dernier passage, ou depuis l'ouverture de la
+    veille du jour quand la nuit est passée entre-temps : à 6 h, une nuit sans
+    tour n'est pas un sommeil ; à 6 h 45, s'il n'est toujours pas passé, si. */
+export function doitPrevenirDuSommeil(
+  a: Pick<Assistant, 'aUnJeton' | 'vuLe' | 'etat'>,
+  maintenantMs: number,
+  r: Required<ReglagesAssistants>,
+): boolean {
+  if (!a.aUnJeton) return false;
+  const vu = Date.parse(a.vuLe ?? '');
+  if (!Number.isFinite(vu)) return false;
+  if (!dansLaVeille(aCotonou(maintenantMs).heure, r)) return false;
+  const depuis = Math.max(vu, debutDeLaVeilleMs(maintenantMs, r));
+  const silenceMin = Math.max(r.silenceMin, seuilDeSommeilMin(depuis, maintenantMs, r));
+  if (maintenantMs - depuis < silenceMin * 60_000) return false;
+  const prevenu = Date.parse(a.etat?.dortPrevenuLe ?? '');
+  return !(Number.isFinite(prevenu) && prevenu >= depuis);
+}
+/* ⟨/veille-des-assistants⟩ */
+
+/** Une heure ronde de la veille, dite : « 6 h », « 18 h », « minuit ». */
+export const heureRondeDite = (h: number): string => (h % 24 === 0 ? 'minuit' : `${h} h`);
+
+/* Les tâches cron de la veille (CronCreate de Claude Code, à l'heure de la
+   machine, qui doit être celle de Cotonou) : jamais sur :00 ni :30, où
+   tombent toutes les tâches du monde. Le tour du jour part à la minute 3,
+   celui du soir à la minute 7. */
+const MINUTE_DU_JOUR = 3;
+const MINUTE_DU_SOIR = 7;
+
+/** Les minutes d'un tour dans l'heure, à partir de `depart` puis tous les
+    `rythme` ; décalées d'une minute tant qu'une tombe sur :00 ou :30. */
+function minutesDuTour(rythme: number, depart: number): number[] {
+  for (let decale = 0; decale < rythme; decale++) {
+    const o = (depart + decale) % rythme;
+    const m: number[] = [];
+    for (let x = o; x < 60; x += rythme) m.push(x);
+    if (!m.includes(0) && !m.includes(30)) return m;
+  }
+  return [depart];
+}
+
+const champDesMinutes = (m: number[], rythme: number): string => (m.length <= 2 ? m.join(',') : `${m[0]}-59/${rythme}`);
+const champDesHeures = (de: number, a: number): string => (a - de === 1 ? `${de}` : `${de}-${a - 1}`);
+
+/** Les tâches cron de la veille, bâties sur les réglages : le rythme du jour
+    de `veilleDe` à `soirDe`, celui du soir de `soirDe` à `veilleA`. Par
+    défaut `3-59/10 6-17 * * *` et `7,37 18-23 * * *`. Une plage vide (un
+    soir qui commence avant la veille, ou après sa fin) ne donne pas de tâche. */
+export function cronsDeLaVeille(r: Required<ReglagesAssistants>): string[] {
+  const crons: string[] = [];
+  const finDuJour = Math.min(r.soirDe, r.veilleA);
+  if (finDuJour > r.veilleDe) crons.push(`${champDesMinutes(minutesDuTour(r.rythmeMin, MINUTE_DU_JOUR), r.rythmeMin)} ${champDesHeures(r.veilleDe, finDuJour)} * * *`);
+  const debutDuSoir = Math.max(r.soirDe, r.veilleDe);
+  if (r.veilleA > debutDuSoir) crons.push(`${champDesMinutes(minutesDuTour(r.rythmeSoirMin, MINUTE_DU_SOIR), r.rythmeSoirMin)} ${champDesHeures(debutDuSoir, r.veilleA)} * * *`);
+  return crons;
+}
 
 /* ── L'heure de Cotonou (UTC+1, sans heure d'été) ─────────────────────── */
 
@@ -122,13 +244,21 @@ export function empecheDit(c: Controles | undefined | null): string | null {
   return null;
 }
 
-export function etatDe(a: Pick<Assistant, 'aUnJeton' | 'vuLe' | 'etat'>, maintenantMs: number, seuilMin = SEUIL_SOMMEIL_MIN)
+/** L'état d'un assistant à cet instant. Le seuil du sommeil suit le rythme en
+    vigueur depuis son dernier passage (`seuilDeSommeilMin`) : trente minutes
+    entre deux tours du soir ne le font pas dormir. Hors de la veille, il dort
+    comme chaque nuit : le détail le dit sans alarme. */
+export function etatDe(a: Pick<Assistant, 'aUnJeton' | 'vuLe' | 'etat'>, maintenantMs: number, r: Required<ReglagesAssistants> = REGLAGES_PAR_DEFAUT)
   : { etat: EtatAssistant; detail: string } {
   if (!a.aUnJeton) return { etat: 'sans-jeton', detail: 'aucun jeton : l\'assistant n\'a jamais été relié' };
   const vu = Date.parse(a.vuLe ?? '');
   if (!Number.isFinite(vu)) return { etat: 'endormi', detail: 'jamais passé' };
   const ecartMin = Math.floor((maintenantMs - vu) / 60_000);
-  if (ecartMin > seuilMin) return { etat: 'endormi', detail: `endormi depuis ${dureeDite(ecartMin)}` };
+  if (ecartMin > seuilDeSommeilMin(vu, maintenantMs, r)) {
+    return dansLaVeille(aCotonou(maintenantMs).heure, r)
+      ? { etat: 'endormi', detail: `endormi depuis ${dureeDite(ecartMin)}` }
+      : { etat: 'endormi', detail: `au repos jusqu'à ${heureRondeDite(r.veilleDe)}, comme chaque nuit` };
+  }
   const empeche = a.etat?.empeche ?? empecheDit(a.etat?.controles);
   if (empeche) return { etat: 'empeche', detail: `empêché : ${empeche}` };
   return { etat: 'eveille', detail: `dernier passage il y a ${dureeDite(ecartMin)}` };
@@ -141,23 +271,6 @@ export const dureeDite = (min: number): string => {
   if (h < 48) return m ? `${h} h ${String(m).padStart(2, '0')}` : `${h} h`;
   return `${Math.floor(h / 24)} jours`;
 };
-
-/** Le chien de garde du Trône prévient le porteur : entre les heures de veille,
-    après `silenceMin` de silence, une seule fois par sommeil. */
-export function doitPrevenirDuSommeil(
-  a: Pick<Assistant, 'aUnJeton' | 'vuLe' | 'etat'>,
-  maintenantMs: number,
-  r: Required<ReglagesAssistants>,
-): boolean {
-  if (!a.aUnJeton) return false;
-  const vu = Date.parse(a.vuLe ?? '');
-  if (!Number.isFinite(vu)) return false;
-  if (maintenantMs - vu < r.silenceMin * 60_000) return false;
-  const { heure } = aCotonou(maintenantMs);
-  if (heure < r.veilleDe || heure >= r.veilleA) return false;
-  const prevenu = Date.parse(a.etat?.dortPrevenuLe ?? '');
-  return !(Number.isFinite(prevenu) && prevenu >= vu);
-}
 
 /* ── Les cercles d'un contact (gardés sur l'ordinateur du porteur) ────── */
 

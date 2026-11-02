@@ -19,6 +19,11 @@ const PUR = 'src/shared/assistants-pur.ts';
 const SERVEUR = 'scripts/serveur/assistants-maison.ts';
 const DEP = 'src/shared/assistants-depenses-pur.ts';
 const FIC = 'src/shared/assistants-fiches-pur.ts';
+const PUSH = 'supabase/functions/push-notify/index.ts';
+const CHARTE = 'docs/ASSISTANTS.md';
+const ONYX = 'scripts/onyx-installe.sh';
+const SQL_SOIR = 'supabase/reglage_soir_des_assistants_20261102.sql';
+const ECRAN = 'src/apps/trone/routes/pilotage/Assistants.tsx';
 
 const PANNES = [
   // le cerveau pur
@@ -26,8 +31,24 @@ const PANNES = [
   ['un numero passe le filtre du mot', PUR, "  if (/\\d{8,}/.test(t.replace(/[\\s.-]/g, ''))) return { ok: false, motif: 'un numéro : la clé du numéro a son champ' };\n", ''],
   ['un mot hors des faits passe', PUR, '    return { ok: false, motif: `un mot hors des faits de la Maison : « ${m} »` };', '    continue;'],
   ['l echeance ouvree compte le dimanche', PUR, '    if (!h.joursOuverts.includes(c.jour) || minuteDuJour >= ferme) {', '    if (minuteDuJour >= ferme) {'],
-  ['un assistant ne dort jamais', PUR, '  if (ecartMin > seuilMin) return', '  if (false) return'],
-  ['le chien de garde previent a chaque passage', PUR, '  return !(Number.isFinite(prevenu) && prevenu >= vu);', '  return true;'],
+  ['un assistant ne dort jamais', PUR, '  if (ecartMin > seuilDeSommeilMin(vu, maintenantMs, r)) {', '  if (false) {'],
+  ['le chien de garde previent a chaque passage', PUR, '  return !(Number.isFinite(prevenu) && prevenu >= depuis);', '  return true;'],
+  // la veille des reglages (2 novembre 2026)
+  ['le seuil du sommeil redevient une constante', PUR, '  return (plusLong || Math.max(r.rythmeMin, r.rythmeSoirMin)) + MARGE_DE_SOMMEIL_MIN;', '  return 25;'],
+  ['le soir prend le rythme du jour', PUR, '  return Math.floor(heure) >= r.soirDe ? r.rythmeSoirMin : r.rythmeMin;', '  return r.rythmeMin;'],
+  ['la veille commence une heure trop tot', PUR, '  return h >= r.veilleDe && h < r.veilleA;', '  return h >= r.veilleDe - 1 && h < r.veilleA;'],
+  ['la veille deborde apres minuit', PUR, '  return h >= r.veilleDe && h < r.veilleA;', '  return (h >= r.veilleDe && h < r.veilleA) || h === 0;'],
+  ['le chien de garde oublie la grace du matin', PUR, '  const depuis = Math.max(vu, debutDeLaVeilleMs(maintenantMs, r));', '  const depuis = vu;'],
+  ['le chien de garde crie entre deux tours du soir', PUR, '  const silenceMin = Math.max(r.silenceMin, seuilDeSommeilMin(depuis, maintenantMs, r));', '  const silenceMin = r.silenceMin;'],
+  ['le chien de garde se tait au matin d une nuit deja prevenue', PUR, '  return !(Number.isFinite(prevenu) && prevenu >= depuis);', '  return !(Number.isFinite(prevenu) && prevenu >= vu);'],
+  ['les cles du soir ne sont plus bornees', PUR, '    soirDe: n(r?.soirDe, REGLAGES_PAR_DEFAUT.soirDe, 0, 24),', '    soirDe: n(r?.soirDe, REGLAGES_PAR_DEFAUT.soirDe, -100, 100),'],
+  ['le rythme du soir n est plus borne', PUR, '    rythmeSoirMin: n(r?.rythmeSoirMin, REGLAGES_PAR_DEFAUT.rythmeSoirMin, 5, 60),', '    rythmeSoirMin: n(r?.rythmeSoirMin, REGLAGES_PAR_DEFAUT.rythmeSoirMin, 0, 600),'],
+  ['le defaut oublie le soir', PUR, 'soirDe: 18, rythmeSoirMin: 30, silenceMin: 45', 'soirDe: 24, rythmeSoirMin: 10, silenceMin: 45'],
+  ['une tache de veille tombe sur l heure ronde', PUR, '    if (!m.includes(0) && !m.includes(30)) return m;', '    return m;'],
+  ['la tache du soir ignore les heures reglees', PUR, 'champDesHeures(debutDuSoir, r.veilleA)', 'champDesHeures(18, 24)'],
+  ['la nuit se dit endormie comme le jour', PUR, "      : { etat: 'endormi', detail: `au repos jusqu'à ${heureRondeDite(r.veilleDe)}, comme chaque nuit` };", "      : { etat: 'endormi', detail: `endormi depuis ${dureeDite(ecartMin)}` };"],
+  ['la copie du chien de garde dans push-notify derive', PUSH, '  const depuis = Math.max(vu, debutDeLaVeilleMs(maintenantMs, r));', '  const depuis = vu;'],
+  ['push-notify garde son ancienne version', PUSH, "const VERSION = '2026-11-02-a';", "const VERSION = '2026-10-31-a';"],
   ['l heure dite oublie demain', PUR, '  if (dateISO === demain) return `demain ${h}`;\n', ''],
   ['les tournures interdites passent', PUR, '  for (const x of TOURNURES_INTERDITES) if (t.includes(retireLesAccents(x))) return x;\n', ''],
   ['l empreinte ne lit plus le jeton', PUR, "new TextEncoder().encode(String(jeton ?? '').trim())", "new TextEncoder().encode('')"],
@@ -37,6 +58,10 @@ const PANNES = [
   ['la mauvaise porte passe', SERVEUR, "    if (porte.genre !== exige) return refus('mauvaise-porte', 403);", "    if (false) return refus('mauvaise-porte', 403);"],
   ['un jeton inconnu ouvre quand meme', SERVEUR, ".eq('empreinte', empreinte).maybeSingle()", '.limit(1).maybeSingle()'],
   ['l empeche est prevenu a chaque passage', SERVEUR, '    if (!(Number.isFinite(prevenu) && prevenu >= Date.parse(eveilleDepuis))) {', '    if (true) {'],
+  ['la serie du soir se rompt a chaque tour', SERVEUR, 'seuilDeSommeilMin(precedent, maintenantMs, reglages) * 60_000', '25 * 60_000'],
+  ['l etat de l autre ignore les reglages', SERVEUR, 'etatDe(assistantDe(a), maintenantMs, reglages)', 'etatDe(assistantDe(a), maintenantMs)'],
+  ['le passage ne rend plus les crons', SERVEUR, 'crons: cronsDeLaVeille(reglages) }', 'crons: [] }'],
+  ['la version de la fonction ne bouge pas', SERVEUR, "const VERSION = '2026-11-02-a';", "const VERSION = '2026-11-01-a';"],
   ['le mot du relais n est plus filtre', SERVEUR, "    if (!juge.ok) return refus('mot-refuse', 400, { detail: juge.motif });", "    if (false) return refus('mot-refuse', 400, { detail: juge.motif });"],
   ['la tournure interdite passe dans une decision', SERVEUR, "  if (tournure) return refus('proposition-refusee', 400, { tournure });", "  if (false) return refus('proposition-refusee', 400, { tournure });"],
   ['une fiche inconnue est posee quand meme', SERVEUR, "  if (!fiche) return refus('fiche-inconnue', 404);", "  if (!fiche) fiche = { id: 'inconnue' };"],
@@ -75,6 +100,20 @@ const PANNES = [
   ['le doublon n est plus cherche', SERVEUR, '  if (!v.autre) {', '  if (false) {'],
   ['le journal de la depense porte l objet', SERVEUR, 'piece: pieceDuJournal(v.montantXof, categorie), branchId });', 'piece: `${pieceDuJournal(v.montantXof, categorie)} ${v.objet}`, branchId });'],
   ['une fiche rangee sort', SERVEUR, 'trouvees.filter((r) => r.data?.archived !== true)', 'trouvees.filter(() => true)'],
+  // les textes de la veille (2 novembre 2026), lus par le harnais
+  ['la charte remet un /loop', CHARTE, '**jamais par `/loop`**', '`/loop 10m`'],
+  ['la charte oublie les crons par defaut', CHARTE, 'Pour les réglages par défaut : `3-59/10 6-17 * * *` et `7,37 18-23 * * *`.', 'Pour les réglages par défaut : `*/10 6-17 * * *`.'],
+  ['la charte garde sa version d hier', CHARTE, '*Version du 2 novembre 2026', '*Version du 1er novembre 2026'],
+  ['la charte continue sur un autre fuseau', CHARTE, 'ne pose AUCUNE tâche de veille et ne fais pas ton passage', 'continue'],
+  ['la charte pose sans CronList', CHARTE, "**Avant d'en poser, `CronList`**", '**Pose**'],
+  ['la charte oublie la garde de l heure', CHARTE, "1. **La garde de l'heure, d'abord.**", '1. **Le tour.**'],
+  ['la charte croit que le tour suivant part sous le selecteur', CHARTE, '7. **Le sélecteur tient la session.**', '7. Le tour suivant repart quand même.'],
+  ['le lanceur d Onyx remet /loop', ONYX, 'jamais /loop).', '/loop 10m).'],
+  ['le CLAUDE.md d Onyx ne renvoie plus a la charte', ONYX, 'puis pose la veille comme le disent les sections 3 et 14 de la charte : des tâches cron', 'puis commence la veille : des tâches cron'],
+  ['le SQL du soir remplace au lieu de fusionner', SQL_SOIR, "coalesce(data->'assistants','{}'::jsonb) || '{\"soirDe\":18,\"rythmeSoirMin\":30}'::jsonb", "'{\"soirDe\":18,\"rythmeSoirMin\":30}'::jsonb"],
+  ['la copie de repli du soir sans RLS', SQL_SOIR, 'alter table public.repli_mnd_settings_20261102_soir enable row level security;\n', ''],
+  ["l ecran oublie le rythme du soir", ECRAN, "  { cle: 'rythmeSoirMin', libelle: 'Rythme du soir', unite: 'min', min: 5, max: 60 },\n", ''],
+  ["l ecran juge l etat sans les reglages", ECRAN, 'const e = etatDe(a, maintenant, r);', 'const e = etatDe(a, maintenant);'],
   ['la recherche ne plafonne plus', SERVEUR, '  if ((lues ?? []).length >= LECTURES_PAR_JOUR) return', '  if (false) return'],
   ['la lecture n est plus tracee', SERVEUR, "  await s.journalise(moi.nom, { verbe: 'lit',", "  if (false) await s.journalise(moi.nom, { verbe: 'lit',"],
   ['le journal de la lecture porte le nom cherche', SERVEUR, 'piece: pieceDeLaLecture(fiches.length),', 'piece: `${pieceDeLaLecture(fiches.length)} ${chaine(d.nom)}`,'],

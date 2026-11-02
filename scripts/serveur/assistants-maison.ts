@@ -14,7 +14,9 @@
    Une action de la porte A refuse la porte B, et inversement.
 
    CE QU'ELLE FAIT : le passage (l'état de l'assistant, ses relais, ses
-   décisions tranchées, l'état de l'autre), les relais entre assistants (un
+   décisions tranchées, l'état de l'autre, et depuis le 2 novembre 2026 la
+   veille bâtie sur les réglages : ses tâches cron, l'heure qui en est ou
+   non), les relais entre assistants (un
    seul champ libre, passé au filtre des faits), les décisions laissées au
    porteur, et les rendez-vous : jamais à la souris, toujours ici, sous une
    prise (une pose par cliente et par jour, tous assistants confondus), une
@@ -37,10 +39,10 @@
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import {
   ACTIONS_DU_JETON, CHOIX_PAR_GENRE, EN_TETE_DU_JETON_ASSISTANT, PORTE_ASSISTANT, RELAIS_DIT, RELAIS_QUI_DEMANDE_UN_GESTE,
-  SEUIL_SOMMEIL_MIN, aCotonou, corpsDeNotification, cleDeJour, echeanceOuvree, empecheDit, empreinteDuJetonAssistant,
+  aCotonou, corpsDeNotification, cleDeJour, cronsDeLaVeille, dansLaVeille, echeanceOuvree, empecheDit, empreinteDuJetonAssistant,
   estGenreDeDecision, estGenreDeRelais, estUneTresse, etatDe, heureDite, motEstPropre, motsDe, noteEstPropre,
-  nouveauJetonAssistant, numeroCle as cleDuNumero, porteDeLAction, reglagesComplets, relaisPerime, resumeEstPropre,
-  tournureInterdite, vocabulairePermis,
+  nouveauJetonAssistant, numeroCle as cleDuNumero, porteDeLAction, reglagesComplets, relaisPerime, resumeEstPropre, rythmeA,
+  seuilDeSommeilMin, tournureInterdite, vocabulairePermis,
   type Assistant, type ChoixDeDecision, type Controles, type Decision, type GenreDeDecision, type GenreDeRelais,
   type ReglagesAssistants, type Relais,
 } from '../../src/shared/assistants-pur';
@@ -59,7 +61,9 @@ declare const Deno: {
   serve(f: (req: Request) => Promise<Response>): void;
 };
 
-const VERSION = '2026-11-01-a';
+/* 2 novembre 2026 : la veille suit les réglages (rythme du jour et du soir) ;
+   le seuil du sommeil n'est plus une constante, le passage rend ses crons. */
+const VERSION = '2026-11-02-a';
 /** La maison phare, quand l'assistant n'a pas de branche et que la table n'en dit pas. */
 const BRANCHE_PHARE = 'br-40r6u6frno';
 const ECRAN = 'Les assistants';
@@ -356,8 +360,12 @@ async function passage(s: Serveur, moi: LigneAssistant, d: Corps): Promise<Respo
   const controles: Controles = { chrome: c.chrome !== false, lie: c.lie !== false, nonLus: c.nonLus !== false };
   const precedentVuLe = moi.vu_le ?? null;
   const precedent = Date.parse(precedentVuLe ?? '');
-  /* La série de passages tient si le précédent date de moins du seuil ; sinon, c'est un réveil. */
-  const eveilleDepuis = Number.isFinite(precedent) && maintenantMs - precedent <= SEUIL_SOMMEIL_MIN * 60_000 && moi.eveille_depuis
+  const reglages = await s.reglages();
+  /* La série de passages tient si le précédent date de moins du seuil du
+     rythme en vigueur depuis (25 minutes le jour, 45 le soir, par défaut) ;
+     sinon, c'est un réveil. Une constante sous le rythme du soir faisait de
+     chaque tour du soir un réveil, et un « empêché » redit à chaque tour. */
+  const eveilleDepuis = Number.isFinite(precedent) && maintenantMs - precedent <= seuilDeSommeilMin(precedent, maintenantMs, reglages) * 60_000 && moi.eveille_depuis
     ? moi.eveille_depuis : maintenant;
   const etat: Record<string, unknown> = { ...(moi.etat ?? {}) };
   delete etat.dortPrevenuLe;
@@ -378,8 +386,7 @@ async function passage(s: Serveur, moi: LigneAssistant, d: Corps): Promise<Respo
   }
   await s.sb.from('assistants').update({ vu_le: maintenant, eveille_depuis: eveilleDepuis, etat }).eq('id', moi.id);
 
-  const [reglages, relaisLus, decisionsLues, tous] = await Promise.all([
-    s.reglages(),
+  const [relaisLus, decisionsLues, tous] = await Promise.all([
     s.sb.from('assistants_relais').select('*').eq('pour', moi.id).is('traite_le', null).order('quand', { ascending: true }).limit(200),
     s.sb.from('assistants_decisions').select('*').eq('assistant', moi.id).not('tranchee', 'is', null).is('executee_le', null).order('cree_le', { ascending: true }).limit(200),
     s.assistants(),
@@ -387,10 +394,14 @@ async function passage(s: Serveur, moi: LigneAssistant, d: Corps): Promise<Respo
   const relais = ((relaisLus.data ?? []) as LigneRelais[]).map(relaisDe).filter((r) => !relaisPerime(r, maintenantMs));
   const decisions = ((decisionsLues.data ?? []) as LigneDecision[]).map(decisionDe);
   const autres = tous.filter((a) => a.id !== moi.id).map((a) => {
-    const e = etatDe(assistantDe(a), maintenantMs);
+    const e = etatDe(assistantDe(a), maintenantMs, reglages);
     return { id: a.id, nom: a.nom, etat: e.etat, detail: e.detail, vuLe: a.vu_le ?? null };
   });
-  return rendu({ assistant: { id: moi.id, nom: moi.nom }, precedentVuLe, eveilleDepuis, empeche: etat.empeche ?? null, notifie, reglages, relais, decisions, autres });
+  /* La veille, bâtie sur les réglages : l'assistant pose ses tâches cron
+     telles quelles (charte, section 3) et sait si cette heure en est. */
+  const heure = aCotonou(maintenantMs).heure;
+  const veille = { dansLaVeille: dansLaVeille(heure, reglages), rythmeMin: rythmeA(heure, reglages), crons: cronsDeLaVeille(reglages) };
+  return rendu({ assistant: { id: moi.id, nom: moi.nom }, precedentVuLe, eveilleDepuis, empeche: etat.empeche ?? null, notifie, reglages, veille, relais, decisions, autres });
 }
 
 async function relaisDeposer(s: Serveur, moi: LigneAssistant, d: Corps): Promise<Response> {

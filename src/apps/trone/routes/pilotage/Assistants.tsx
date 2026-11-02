@@ -31,11 +31,16 @@ import './assistants.css';
         confirme, se déplace ou se refuse ici ;
      ③ LES RELAIS : les trente derniers, de qui à qui, le genre, le mot ;
      ④ LE JOURNAL DU JOUR : les gestes entrés par la porte « assistant » ;
-     ⑤ LES RÉGLAGES : rythme, veille, silence, tenue (`settings.assistants`).
+     ⑤ LES RÉGLAGES : la veille (son début, sa fin, le rythme du jour et
+        celui du soir, depuis le 2 novembre 2026), le silence, la tenue
+        (`settings.assistants`). La fonction, le chien de garde et chaque
+        assistant à son passage lisent les mêmes : les tâches cron des
+        assistants en sont bâties, et l'état d'une tuile en dépend.
 
    RIEN NE SE LIT EN TEMPS RÉEL : à l'ouverture et toutes les 60 secondes.
-   Les assistants passent toutes les dix minutes ; une seconde près ne
-   change rien, et le téléphone du porteur n'a pas à tenir un canal ouvert.
+   Les assistants passent au rythme des réglages (par défaut toutes les dix
+   minutes le jour, toutes les trente le soir) ; une seconde près ne change
+   rien, et le téléphone du porteur n'a pas à tenir un canal ouvert.
 
    UN SEUL PANNEAU OUVERT, LE RÉSUMÉ SUR LA LIGNE, LA BARRE QUI SUIT : la
    grammaire des écrans en liste du Trône (Accès & personnel, 22 septembre
@@ -54,9 +59,15 @@ const DIT_APRES_LE_CHOIX: Record<string, string> = {
   'autre-heure': 'Autre heure proposée : l’assistant qui a posé la relaie à la cliente.',
 };
 
+/* Les bornes sont celles de `reglagesComplets` : hors d'elles, la Maison lit
+   la valeur par défaut, et le champ le dit. Dans l'ordre de la journée : le
+   début de la veille, le rythme du jour, l'heure du soir, le rythme du soir,
+   la fin de la veille (24 : minuit). */
 const CHAMPS_DES_REGLAGES: { cle: keyof ReglagesAssistants; libelle: string; unite: string; min: number; max: number }[] = [
-  { cle: 'rythmeMin', libelle: 'Rythme des passages', unite: 'min', min: 5, max: 60 },
   { cle: 'veilleDe', libelle: 'Veille à partir de', unite: 'h', min: 0, max: 23 },
+  { cle: 'rythmeMin', libelle: 'Rythme du jour', unite: 'min', min: 5, max: 60 },
+  { cle: 'soirDe', libelle: 'Rythme du soir à partir de', unite: 'h', min: 0, max: 24 },
+  { cle: 'rythmeSoirMin', libelle: 'Rythme du soir', unite: 'min', min: 5, max: 60 },
   { cle: 'veilleA', libelle: 'Veille jusqu’à', unite: 'h', min: 1, max: 24 },
   { cle: 'silenceMin', libelle: 'Silence avant de prévenir', unite: 'min', min: 15, max: 240 },
   { cle: 'tenueHeures', libelle: 'Une place tenue dure', unite: 'h ouvrées', min: 1, max: 12 },
@@ -210,7 +221,7 @@ export default function Assistants() {
           <div className="ast-carte"><p className="ast-doux ast-vide">Aucun assistant dans la table : la migration 0148 amorce Opale et Onyx.</p></div>
         )}
         {assistants.map((a) => {
-          const e = etatDe(a, maintenant);
+          const e = etatDe(a, maintenant, r);
           const c = compteurs(a);
           const occupe = enCours === `jeton:${a.id}`;
           return (

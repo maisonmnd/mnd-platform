@@ -139,9 +139,10 @@ export type Settings = {
       ordinateur (`postes`). La fonction `dictee-au-propre` les lit. */
   dictee?: ReglagesDictee;
   /** LES ASSISTANTS RELIÉS — 31 octobre 2026 (maquette TtHPKpjC…) : le rythme
-      des passages, les heures de veille, le silence avant d'avertir, la durée
-      d'une place tenue. La fonction `assistants-maison` et l'écran
-      « Les assistants » les lisent. */
+      des passages (du jour et, depuis le 2 novembre 2026, du soir), les
+      heures de veille, le silence avant d'avertir, la durée d'une place
+      tenue. La fonction `assistants-maison`, le chien de garde de
+      push-notify et l'écran « Les assistants » les lisent. */
   assistants?: ReglagesAssistants;
 };
 

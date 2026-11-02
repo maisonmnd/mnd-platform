@@ -1,7 +1,7 @@
 import { supabase } from './supabase';
 import type { Geste } from './journal';
 import {
-  ACTIONS_DU_SOUVERAIN, DECALAGE_COTONOU_MIN, PORTE_ASSISTANT, aCotonou,
+  ACTIONS_DU_SOUVERAIN, DECALAGE_COTONOU_MIN, MARGE_DE_SOMMEIL_MIN, PORTE_ASSISTANT, aCotonou, heureRondeDite,
   type Assistant, type ChoixDeDecision, type Decision, type GenreDeDecision, type GenreDeRelais, type Relais, type ReglagesAssistants,
 } from './assistants-pur';
 
@@ -94,9 +94,24 @@ export const GENRE_DE_DECISION_DIT: Record<GenreDeDecision, string> = {
 /** Le prénom d'un membre de l'équipe : le premier mot de son nom. */
 export const prenomDe = (nom: string | null | undefined): string => String(nom ?? '').trim().split(/\s+/)[0] ?? '';
 
-/** La ligne des réglages, telle que la maquette la dit. */
+/** La ligne des réglages, telle que la maquette la dit, avec la veille du
+    2 novembre 2026 : « Veille de 6 h à minuit · un tour toutes les 10 min,
+    toutes les 30 min dès 18 h · silence de 45 min = le porteur est prévenu
+    · une place tenue dure 2 h ouvrées ». Un silence plus court que le plus
+    long rythme et sa marge dit ce que le chien de garde attend vraiment. */
 export function reglagesDits(r: Required<ReglagesAssistants>): string {
-  return `Rythme ${r.rythmeMin} min · veille de ${r.veilleDe} h à ${r.veilleA} h · silence de ${r.silenceMin} min = le porteur est prévenu · une place tenue dure ${r.tenueHeures} h ouvrée${r.tenueHeures > 1 ? 's' : ''}`;
+  const jour = Math.min(r.soirDe, r.veilleA) > r.veilleDe;
+  const soir = r.veilleA > Math.max(r.soirDe, r.veilleDe);
+  const veille = !jour && !soir
+    ? 'Aucune heure de veille : la fin vient avant le début'
+    : `Veille de ${heureRondeDite(r.veilleDe)} à ${heureRondeDite(r.veilleA)} · ${jour && soir
+      ? `un tour toutes les ${r.rythmeMin} min, toutes les ${r.rythmeSoirMin} min dès ${heureRondeDite(r.soirDe)}`
+      : `un tour toutes les ${jour ? r.rythmeMin : r.rythmeSoirMin} min`}`;
+  const plancher = Math.max(jour ? r.rythmeMin : 0, soir ? r.rythmeSoirMin : 0) + MARGE_DE_SOMMEIL_MIN;
+  const silence = r.silenceMin >= plancher
+    ? `silence de ${r.silenceMin} min = le porteur est prévenu`
+    : `silence de ${r.silenceMin} min = le porteur est prévenu (${plancher} min aux heures du rythme le plus lent)`;
+  return `${veille} · ${silence} · une place tenue dure ${r.tenueHeures} h ouvrée${r.tenueHeures > 1 ? 's' : ''}`;
 }
 
 /** L'état d'un relais, en un mot : traité, lu, périmé, ou en attente. */

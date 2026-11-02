@@ -26,8 +26,9 @@ const TZ = 'Africa/Porto-Novo';
     passage de 8 h du secrétariat administratif (J-7 et la veille).
     31 octobre 2026 : le mode `to-staff` (un seul membre du personnel, le
     porteur d'un assistant) et le chien de garde des assistants reliés, au
-    cron du personnel. */
-const VERSION = '2026-10-31-a';
+    cron du personnel. 2 novembre 2026 : le chien de garde suit la veille
+    des réglages (rythme du soir, grâce du matin). */
+const VERSION = '2026-11-02-a';
 
 /* LA DATE ET L'HEURE TELLES QU'ON LES DIT — 10 octobre 2026 (revue de nuit).
    Le rappel disait « Rendez-vous le 2026-10-11 à 09:00 », puis un tiret
@@ -495,31 +496,56 @@ async function rappelDuSecretariat(): Promise<number> {
 
 /* ══ LES ASSISTANTS RELIÉS, 31 octobre 2026 ═══════════════════════════
    Chaque personne de la direction a son assistant : une session de Claude
-   Code sur son ordinateur, qui passe toutes les dix minutes par la fonction
-   `assistants-maison` et laisse son état dans la table `assistants`. Deux
-   maillons vivent ici :
+   Code sur son ordinateur, qui passe au rythme des réglages (depuis le
+   2 novembre 2026 : toutes les 10 minutes de 6 h à 18 h, toutes les 30 de
+   18 h à minuit, rien de minuit à 6 h) par la fonction `assistants-maison`
+   et laisse son état dans la table `assistants`. Deux maillons vivent ici :
      - le mode `to-staff` (plus bas, dans la porte) : la fonction
        `assistants-maison` (clé service) ou l'écran « Les assistants » (JWT
        d'un souverain) prévient UN membre du personnel, le porteur, sur son
        téléphone : une place tenue à confirmer, une décision qui attend, un
        assistant empêché ;
      - le chien de garde : à chaque passage du cron du personnel (quart
-       d'heure), un assistant relié (empreinte posée) dont le dernier passage
-       date de plus de `silenceMin`, entre les heures de veille, fait prévenir
-       son porteur, une seule fois par sommeil (`etat.dortPrevenuLe`).
-   Les petites fonctions pures qui suivent sont RECOPIÉES à l'identique de
+       d'heure), un assistant relié (empreinte posée) silencieux depuis plus
+       de `silenceMin` (jamais moins que le plus long rythme en vigueur et
+       sa marge), dans la veille, fait prévenir son porteur, une seule fois
+       par sommeil (`etat.dortPrevenuLe`). Le silence du matin se compte
+       depuis l'ouverture de la veille : une nuit sans tour n'est pas un
+       sommeil, et 6 h ne crie plus « Opale dort ».
+   Les petites fonctions pures qui suivent sont RECOPIÉES de
    src/shared/assistants-pur.ts (une fonction Edge n'importe rien du dépôt) :
-   l'original fait foi, le banc des assistants veille dessus. Aucun nom de
-   cliente, aucun extrait de message ne passe par ici : des faits de la
-   Maison, et le prénom de l'assistant. */
+   l'original fait foi ; le bloc ⟨veille-des-assistants⟩ est comparé mot pour
+   mot par le banc des assistants. Aucun nom de cliente, aucun extrait de
+   message ne passe par ici : des faits de la Maison, et le prénom de
+   l'assistant. */
 
-/* RECOPIÉ de assistants-pur.ts : les réglages (mnd_settings.assistants). */
+/* RECOPIÉ À L'IDENTIQUE de assistants-pur.ts, entre les bornes : les réglages,
+   les heures de la veille et la règle du chien de garde (2 novembre 2026). */
+/* ⟨veille-des-assistants⟩ */
+/* LES HEURES DE LA VEILLE, depuis le 2 novembre 2026 (décision de Yéman, pour
+   Opale et Onyx) : de `veilleDe` à `soirDe`, un tour toutes les `rythmeMin`
+   minutes ; de `soirDe` à `veilleA`, un tour toutes les `rythmeSoirMin` ;
+   hors de la veille, aucun tour. La veille ne passe pas minuit (`veilleA` 24
+   est minuit). Tout ce qui juge une heure ou un silence (l'état d'un
+   assistant, la série de ses passages, le chien de garde) part de ces
+   réglages, jamais d'une constante : un rythme du soir plus lent ne doit
+   faire ni un faux réveil, ni un faux sommeil.
+   Ce bloc, entre ses deux bornes, vit à l'identique dans
+   src/shared/assistants-pur.ts (l'original, qui fait foi) et dans
+   supabase/functions/push-notify/index.ts (le chien de garde, une fonction
+   Edge n'importe rien du dépôt) : le banc des assistants compare les deux
+   textes. */
+
 export type ReglagesAssistants = {
-  /** Minutes entre deux passages. */
+  /** Minutes entre deux tours, de `veilleDe` à `soirDe`. */
   rythmeMin?: number;
-  /** Heures de Cotonou entre lesquelles un assistant veille. */
+  /** Heures de Cotonou entre lesquelles un assistant veille (`veilleA` 24 : minuit). */
   veilleDe?: number;
   veilleA?: number;
+  /** L'heure de Cotonou où le rythme du soir prend le relais. */
+  soirDe?: number;
+  /** Minutes entre deux tours, de `soirDe` à `veilleA`. */
+  rythmeSoirMin?: number;
   /** Minutes de silence après lesquelles le Trône prévient le porteur. */
   silenceMin?: number;
   /** Heures ouvrées pendant lesquelles une place tenue attend son toucher. */
@@ -527,7 +553,7 @@ export type ReglagesAssistants = {
 };
 
 export const REGLAGES_PAR_DEFAUT: Required<ReglagesAssistants> = {
-  rythmeMin: 10, veilleDe: 8, veilleA: 20, silenceMin: 30, tenueHeures: 2,
+  rythmeMin: 10, veilleDe: 6, veilleA: 24, soirDe: 18, rythmeSoirMin: 30, silenceMin: 45, tenueHeures: 2,
 };
 
 export const reglagesComplets = (r?: ReglagesAssistants | null): Required<ReglagesAssistants> => {
@@ -537,10 +563,78 @@ export const reglagesComplets = (r?: ReglagesAssistants | null): Required<Reglag
     rythmeMin: n(r?.rythmeMin, REGLAGES_PAR_DEFAUT.rythmeMin, 5, 60),
     veilleDe: n(r?.veilleDe, REGLAGES_PAR_DEFAUT.veilleDe, 0, 23),
     veilleA: n(r?.veilleA, REGLAGES_PAR_DEFAUT.veilleA, 1, 24),
+    soirDe: n(r?.soirDe, REGLAGES_PAR_DEFAUT.soirDe, 0, 24),
+    rythmeSoirMin: n(r?.rythmeSoirMin, REGLAGES_PAR_DEFAUT.rythmeSoirMin, 5, 60),
     silenceMin: n(r?.silenceMin, REGLAGES_PAR_DEFAUT.silenceMin, 15, 240),
     tenueHeures: n(r?.tenueHeures, REGLAGES_PAR_DEFAUT.tenueHeures, 1, 12),
   };
 };
+
+/** Cette heure de Cotonou (0 à 23 ; les minutes ne comptent pas : 5 h 59 est
+    5) est-elle dans la veille ? */
+export function dansLaVeille(heure: number, r: Required<ReglagesAssistants>): boolean {
+  const h = Math.floor(heure);
+  return h >= r.veilleDe && h < r.veilleA;
+}
+
+/** Le rythme en vigueur à cette heure de Cotonou, en minutes ; `null` hors de
+    la veille, où aucun tour ne part. */
+export function rythmeA(heure: number, r: Required<ReglagesAssistants>): number | null {
+  if (!dansLaVeille(heure, r)) return null;
+  return Math.floor(heure) >= r.soirDe ? r.rythmeSoirMin : r.rythmeMin;
+}
+
+/** Un tour en retard n'est pas un sommeil : la marge ajoutée au plus long
+    rythme en vigueur. */
+export const MARGE_DE_SOMMEIL_MIN = 15;
+
+/** Au-delà de ce silence (en minutes), l'assistant dort : le plus long rythme
+    en vigueur entre `depuisMs` et `jusquaMs`, plus la marge. Par défaut 25
+    le jour (10 + 15), 45 le soir (30 + 15), et 45 pour un écart qui passe
+    18 h. Un écart sans aucune heure de veille prend le plus long des deux
+    rythmes. */
+export function seuilDeSommeilMin(depuisMs: number, jusquaMs: number, r: Required<ReglagesAssistants>): number {
+  const debut = Math.min(depuisMs, jusquaMs);
+  const fin = Math.max(depuisMs, jusquaMs);
+  let plusLong = 0;
+  if (!Number.isFinite(debut) || !Number.isFinite(fin)) return Math.max(r.rythmeMin, r.rythmeSoirMin) + MARGE_DE_SOMMEIL_MIN;
+  /* Une lecture par heure traversée, puis la dernière : vingt-six suffisent à
+     voir toutes les heures d'une journée. */
+  for (let t = debut, k = 0; k <= 25; t += 3_600_000, k++) {
+    const rythme = rythmeA(aCotonou(Math.min(t, fin)).heure, r);
+    if (rythme !== null && rythme > plusLong) plusLong = rythme;
+    if (t >= fin) break;
+  }
+  return (plusLong || Math.max(r.rythmeMin, r.rythmeSoirMin)) + MARGE_DE_SOMMEIL_MIN;
+}
+
+/** L'ouverture de la veille (ms UTC) le jour de Cotonou où tombe `maintenantMs`. */
+export function debutDeLaVeilleMs(maintenantMs: number, r: Required<ReglagesAssistants>): number {
+  return Date.parse(`${aCotonou(maintenantMs).dateISO}T00:00:00Z`) + r.veilleDe * 3_600_000 - DECALAGE_COTONOU_MIN * 60_000;
+}
+
+/** Le chien de garde du Trône prévient le porteur : dans la veille, après le
+    silence réglé (jamais moins que le seuil de sommeil du rythme en vigueur :
+    un tour du soir n'est pas un sommeil), une seule fois par sommeil. Le
+    silence se compte depuis le dernier passage, ou depuis l'ouverture de la
+    veille du jour quand la nuit est passée entre-temps : à 6 h, une nuit sans
+    tour n'est pas un sommeil ; à 6 h 45, s'il n'est toujours pas passé, si. */
+export function doitPrevenirDuSommeil(
+  a: Pick<Assistant, 'aUnJeton' | 'vuLe' | 'etat'>,
+  maintenantMs: number,
+  r: Required<ReglagesAssistants>,
+): boolean {
+  if (!a.aUnJeton) return false;
+  const vu = Date.parse(a.vuLe ?? '');
+  if (!Number.isFinite(vu)) return false;
+  if (!dansLaVeille(aCotonou(maintenantMs).heure, r)) return false;
+  const depuis = Math.max(vu, debutDeLaVeilleMs(maintenantMs, r));
+  const silenceMin = Math.max(r.silenceMin, seuilDeSommeilMin(depuis, maintenantMs, r));
+  if (maintenantMs - depuis < silenceMin * 60_000) return false;
+  const prevenu = Date.parse(a.etat?.dortPrevenuLe ?? '');
+  return !(Number.isFinite(prevenu) && prevenu >= depuis);
+}
+/* ⟨/veille-des-assistants⟩ */
 
 /* RECOPIÉ de assistants-pur.ts : l'heure de Cotonou (UTC+1, sans heure d'été). */
 export const DECALAGE_COTONOU_MIN = 60;
@@ -587,24 +681,6 @@ export const dureeDite = (min: number): string => {
   if (h < 48) return m ? `${h} h ${String(m).padStart(2, '0')}` : `${h} h`;
   return `${Math.floor(h / 24)} jours`;
 };
-
-/* RECOPIÉ de assistants-pur.ts : la règle du chien de garde. */
-/** Le chien de garde du Trône prévient le porteur : entre les heures de veille,
-    après `silenceMin` de silence, une seule fois par sommeil. */
-export function doitPrevenirDuSommeil(
-  a: Pick<Assistant, 'aUnJeton' | 'vuLe' | 'etat'>,
-  maintenantMs: number,
-  r: Required<ReglagesAssistants>,
-): boolean {
-  if (!a.aUnJeton) return false;
-  const vu = Date.parse(a.vuLe ?? '');
-  if (!Number.isFinite(vu)) return false;
-  if (maintenantMs - vu < r.silenceMin * 60_000) return false;
-  const { heure } = aCotonou(maintenantMs);
-  if (heure < r.veilleDe || heure >= r.veilleA) return false;
-  const prevenu = Date.parse(a.etat?.dortPrevenuLe ?? '');
-  return !(Number.isFinite(prevenu) && prevenu >= vu);
-}
 
 /* RECOPIÉ de assistants-pur.ts : les genres de relais, pour le corps d'une notification. */
 export const GENRES_DE_RELAIS = [
@@ -660,10 +736,12 @@ async function chienDeGardeDesAssistants(): Promise<number> {
     const depuis = dureeDite(Math.floor((maintenant - Date.parse(l.vu_le ?? '')) / 60_000));
     const { titre, corps } = corpsDeNotification('sommeil', { nom: l.nom, depuis });
     await sendToUsers([l.porteur_user_id], { title: titre, body: corps, url: ASSISTANTS_URL, tag: ASSISTANTS_TAG });
-    /* Une seule notification par sommeil : `dortPrevenuLe` ≥ `vu_le` fait
-       taire les passages suivants, jusqu'au prochain réveil. L'écriture ne
-       porte que si le passage n'a pas repris entre-temps (même `vu_le`) : on
-       n'écrase pas l'état frais d'un assistant qui vient de se réveiller. */
+    /* Une seule notification par sommeil : `dortPrevenuLe` posé après le
+       début du silence (le dernier passage, ou l'ouverture de la veille du
+       jour) fait taire les passages suivants, jusqu'au prochain réveil.
+       L'écriture ne porte que si le passage n'a pas repris entre-temps (même
+       `vu_le`) : on n'écrase pas l'état frais d'un assistant qui vient de se
+       réveiller. */
     await admin.from('assistants')
       .update({ etat: { ...etat, dortPrevenuLe: new Date(maintenant).toISOString() } })
       .eq('id', l.id).eq('vu_le', l.vu_le);

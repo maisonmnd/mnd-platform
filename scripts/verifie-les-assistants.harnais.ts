@@ -4,7 +4,11 @@
    ① Le cerveau pur : le filtre du mot d'un relais, l'échéance en heures
       ouvrées (un dimanche mène au mardi), l'état d'un assistant, le chien de
       garde du sommeil, l'heure dite, les tournures interdites, la note, les
-      tresses, le jeton et son empreinte.
+      tresses, le jeton et son empreinte. Depuis le 2 novembre 2026, la
+      veille bâtie sur les réglages : ses bornes (5 h 59, 6 h, 17 h 59, 18 h,
+      23 h 59, minuit), le rythme du soir qui n'endort pas, le seuil du
+      sommeil qui suit le rythme, la grâce du matin du chien de garde, les
+      tâches cron jamais sur :00 ni :30, les bornes des clés du soir.
    ② La fonction `assistants-maison`, regroupée depuis le dépôt, contre une
       base et un push-notify simulés : la santé, les deux portes et leurs
       refus, le passage (l'état, les relais, les décisions, l'autre), l'empêché
@@ -15,12 +19,15 @@
       la note, le jeton donné (l'empreinte écrite, jamais le jeton), la place
       tranchée et la confirmation officielle déposée, le journal.
    ③ Le câblage : la migration porte les genres du module pur et l'empreinte
-      d'Opale ; aucun nom privé dans les sources.
+      d'Opale ; aucun nom privé dans les sources ; push-notify porte le bloc
+      ⟨veille-des-assistants⟩ mot pour mot ; la charte, l'installateur
+      d'Onyx, le SQL du soir et l'écran disent la veille des réglages.
    Les numéros, fiches et messages du banc sont inventés : rien de réel ici. */
 import { readFileSync } from 'node:fs';
 import {
-  GENRES_DE_DECISION, GENRES_DE_RELAIS, REGLAGES_PAR_DEFAUT, aCotonou, doitPrevenirDuSommeil, echeanceOuvree, empreinteDuJetonAssistant,
-  estUneTresse, etatDe, heureDite, motEstPropre, noteEstPropre, nouveauJetonAssistant, porteDeLAction, tournureInterdite, vocabulairePermis,
+  GENRES_DE_DECISION, GENRES_DE_RELAIS, MARGE_DE_SOMMEIL_MIN, REGLAGES_PAR_DEFAUT, aCotonou, cronsDeLaVeille, dansLaVeille, doitPrevenirDuSommeil, echeanceOuvree,
+  empreinteDuJetonAssistant, estUneTresse, etatDe, heureDite, motEstPropre, noteEstPropre, nouveauJetonAssistant, porteDeLAction, reglagesComplets,
+  rythmeA, seuilDeSommeilMin, tournureInterdite, vocabulairePermis, type ReglagesAssistants,
 } from '../src/shared/assistants-pur';
 import {
   caisseDeLaDepense, categorieConnue, cheminDuRecu, doublonDeLaDepense, idDeLaDepense, lisLaDemandeDeDepense, lisLeRecu, pieceDuJournal,
@@ -66,13 +73,81 @@ dit('… avec le détail dit', ['endormi depuis 40 min', 'empêché : WhatsApp W
   etatDe({ aUnJeton: true, vuLe: ilYA(40), etat: {} }, ici).detail,
   etatDe({ aUnJeton: true, vuLe: ilYA(5), etat: { controles: { chrome: true, lie: false, nonLus: true } } }, ici).detail,
 ]);
-dit('le chien de garde : prévient après le silence, une fois, jamais la nuit, jamais sans jeton', [true, false, false, false, false], [
-  doitPrevenirDuSommeil({ aUnJeton: true, vuLe: ilYA(40), etat: {} }, ici, REGLAGES_PAR_DEFAUT),
-  doitPrevenirDuSommeil({ aUnJeton: true, vuLe: ilYA(40), etat: { dortPrevenuLe: ilYA(10) } }, ici, REGLAGES_PAR_DEFAUT),
-  doitPrevenirDuSommeil({ aUnJeton: true, vuLe: ilYA(40), etat: {} }, Date.UTC(2026, 10, 3, 21, 0), REGLAGES_PAR_DEFAUT),
+/* Le silence réglé par défaut est de 45 minutes depuis le 2 novembre 2026 ; 0 h 30 est hors de la veille. */
+dit('le chien de garde : prévient après le silence, une fois, jamais la nuit, pas avant le silence, jamais sans jeton', [true, false, false, false, false, false], [
+  doitPrevenirDuSommeil({ aUnJeton: true, vuLe: ilYA(50), etat: {} }, ici, REGLAGES_PAR_DEFAUT),
+  doitPrevenirDuSommeil({ aUnJeton: true, vuLe: ilYA(50), etat: { dortPrevenuLe: ilYA(5) } }, ici, REGLAGES_PAR_DEFAUT),
+  doitPrevenirDuSommeil({ aUnJeton: true, vuLe: ilYA(50), etat: {} }, Date.UTC(2026, 10, 3, 23, 30), REGLAGES_PAR_DEFAUT),
   doitPrevenirDuSommeil({ aUnJeton: true, vuLe: ilYA(10), etat: {} }, ici, REGLAGES_PAR_DEFAUT),
-  doitPrevenirDuSommeil({ aUnJeton: false, vuLe: ilYA(40), etat: {} }, ici, REGLAGES_PAR_DEFAUT),
+  doitPrevenirDuSommeil({ aUnJeton: true, vuLe: ilYA(40), etat: {} }, ici, REGLAGES_PAR_DEFAUT),
+  doitPrevenirDuSommeil({ aUnJeton: false, vuLe: ilYA(50), etat: {} }, ici, REGLAGES_PAR_DEFAUT),
 ]);
+
+/* ── LA VEILLE DES RÉGLAGES, 2 novembre 2026 : de 6 h à minuit, 10 minutes
+   jusqu'à 18 h, 30 ensuite, rien de minuit à 6 h. `aCotonouLe(j, h, m)` :
+   le j novembre 2026 à h:m, heure de Cotonou. */
+const D = REGLAGES_PAR_DEFAUT;
+const aCotonouLe = (j: number, h: number, m: number) => Date.UTC(2026, 10, j, h - 1, m);
+const isoDe = (ms: number) => new Date(ms).toISOString();
+const vuAvant = (ms: number, min: number) => isoDe(ms - min * 60_000);
+dit('les réglages par défaut : veille de 6 h à minuit, 10 min le jour, 30 le soir dès 18 h, 45 min de silence',
+  { rythmeMin: 10, veilleDe: 6, veilleA: 24, soirDe: 18, rythmeSoirMin: 30, silenceMin: 45, tenueHeures: 2 }, reglagesComplets(null));
+const BORNES: [number, number][] = [[5, 59], [6, 0], [17, 59], [18, 0], [23, 59], [0, 0]];
+dit('dansLaVeille à 5 h 59, 6 h, 17 h 59, 18 h, 23 h 59, minuit', [false, true, true, true, true, false],
+  BORNES.map(([h, m]) => dansLaVeille(aCotonou(aCotonouLe(3, h, m)).heure, D)));
+dit('rythmeA aux mêmes heures : rien, 10, 10, 30, 30, rien', [null, 10, 10, 30, 30, null],
+  BORNES.map(([h, m]) => rythmeA(aCotonou(aCotonouLe(3, h, m)).heure, D)));
+dit('les bornes des clés du soir : soirDe de 0 à 24 h, rythmeSoirMin de 5 à 60 min ; hors bornes ou pas un nombre, la valeur par défaut',
+  [[0, 5], [24, 60], [18, 30], [18, 30], [18, 30], [19, 45]],
+  ([{ soirDe: 0, rythmeSoirMin: 5 }, { soirDe: 24, rythmeSoirMin: 60 }, { soirDe: -1, rythmeSoirMin: 4 }, { soirDe: 25, rythmeSoirMin: 61 },
+    { soirDe: '19', rythmeSoirMin: null }, { soirDe: 19.4, rythmeSoirMin: 45 }] as unknown as ReglagesAssistants[])
+    .map((x) => { const c = reglagesComplets(x); return [c.soirDe, c.rythmeSoirMin]; }));
+dit('le seuil du sommeil suit le rythme : 25 min le jour, 45 le soir, 45 à cheval sur 18 h, 45 la nuit', [25, 45, 45, 45], [
+  seuilDeSommeilMin(aCotonouLe(3, 10, 0), aCotonouLe(3, 10, 30), D), seuilDeSommeilMin(aCotonouLe(3, 20, 7), aCotonouLe(3, 20, 37), D),
+  seuilDeSommeilMin(aCotonouLe(3, 17, 53), aCotonouLe(3, 18, 7), D), seuilDeSommeilMin(aCotonouLe(3, 1, 0), aCotonouLe(3, 2, 0), D)]);
+const soir = aCotonouLe(3, 20, 37);
+dit('le soir, trente minutes entre deux tours (trente-cinq pour un tour en retard) : éveillé ; quarante-six : endormi', ['eveille', 'eveille', 'endormi'], [
+  etatDe({ aUnJeton: true, vuLe: vuAvant(soir, 30), etat: {} }, soir, D).etat,
+  etatDe({ aUnJeton: true, vuLe: vuAvant(soir, 35), etat: {} }, soir, D).etat,
+  etatDe({ aUnJeton: true, vuLe: vuAvant(soir, 46), etat: {} }, soir, D).etat]);
+dit('… le jour, vingt-six minutes : endormi, le seuil du jour reste 25 min', 'endormi', etatDe({ aUnJeton: true, vuLe: ilYA(26), etat: {} }, ici, D).etat);
+dit('… la nuit, il dort comme chaque nuit, et le détail le dit sans alarme', { etat: 'endormi', detail: 'au repos jusqu\'à 6 h, comme chaque nuit' },
+  etatDe({ aUnJeton: true, vuLe: isoDe(aCotonouLe(3, 23, 37)), etat: {} }, aCotonouLe(4, 2, 0), D));
+const nuitVide = isoDe(aCotonouLe(3, 23, 37)); // le dernier tour du soir, puis rien jusqu'au matin
+dit('le chien de garde après une nuit sans tour : rien à 6 h, rien à 6 h 44, il prévient à 6 h 45 (veilleDe + silenceMin)', [false, false, true], [
+  doitPrevenirDuSommeil({ aUnJeton: true, vuLe: nuitVide, etat: {} }, aCotonouLe(4, 6, 0), D),
+  doitPrevenirDuSommeil({ aUnJeton: true, vuLe: nuitVide, etat: {} }, aCotonouLe(4, 6, 44), D),
+  doitPrevenirDuSommeil({ aUnJeton: true, vuLe: nuitVide, etat: {} }, aCotonouLe(4, 6, 45), D)]);
+dit('… prévenu la veille au soir, il prévient encore au matin ; prévenu ce matin, il se tait', [true, false], [
+  doitPrevenirDuSommeil({ aUnJeton: true, vuLe: isoDe(aCotonouLe(3, 23, 7)), etat: { dortPrevenuLe: isoDe(aCotonouLe(3, 23, 52)) } }, aCotonouLe(4, 6, 45), D),
+  doitPrevenirDuSommeil({ aUnJeton: true, vuLe: nuitVide, etat: { dortPrevenuLe: isoDe(aCotonouLe(4, 6, 45)) } }, aCotonouLe(4, 7, 0), D)]);
+dit('… un silence réglé plus court que le rythme du soir ne crie pas entre deux tours du soir, mais après le seuil, si', [false, true], [
+  doitPrevenirDuSommeil({ aUnJeton: true, vuLe: vuAvant(soir, 30), etat: {} }, soir, { ...D, silenceMin: 15 }),
+  doitPrevenirDuSommeil({ aUnJeton: true, vuLe: vuAvant(soir, 46), etat: {} }, soir, { ...D, silenceMin: 15 })]);
+dit('les tâches cron de la veille, bâties sur les réglages par défaut', ['3-59/10 6-17 * * *', '7,37 18-23 * * *'], cronsDeLaVeille(D));
+dit('… un rythme qui tomberait sur :30 se décale, un soir à minuit ne fait qu une tâche, un soir avant la veille aussi, une heure seule se dit seule', [
+  ['4-59/9 6-17 * * *', '7,37 18-23 * * *'], ['3-59/10 6-23 * * *'], ['7,37 8-21 * * *'], ['3-59/15 7 * * *', '7 8-19 * * *']], [
+  cronsDeLaVeille({ ...D, rythmeMin: 9 }), cronsDeLaVeille({ ...D, soirDe: 24 }), cronsDeLaVeille({ ...D, veilleDe: 8, veilleA: 22, soirDe: 6 }),
+  cronsDeLaVeille({ ...D, veilleDe: 7, soirDe: 8, veilleA: 20, rythmeMin: 15, rythmeSoirMin: 60 })]);
+const minutesDuCron = (cron: string): number[] => {
+  const champ = cron.split(' ')[0];
+  if (!champ.includes('/')) return champ.split(',').map(Number);
+  const [plage, pas] = champ.split('/'); const m: number[] = [];
+  for (let x = Number(plage.split('-')[0]); x < 60; x += Number(pas)) m.push(x);
+  return m;
+};
+let surLHeureRonde = 0; let ecartTropLong = 0;
+for (let rythme = 5; rythme <= 60; rythme++) {
+  for (const c of cronsDeLaVeille({ ...D, rythmeMin: rythme, rythmeSoirMin: rythme })) {
+    const m = minutesDuCron(c);
+    if (m.some((x) => x === 0 || x === 30)) surLHeureRonde += 1;
+    const ecarts = m.map((x, i) => (i + 1 < m.length ? m[i + 1] - x : 60 - x + m[0]));
+    const borne = 60 % rythme === 0 ? rythme : rythme + MARGE_DE_SOMMEIL_MIN;
+    if (Math.max(...ecarts) > borne) ecartTropLong += 1;
+  }
+}
+/* Un rythme qui ne divise pas l'heure (29, 53…) ne peut pas tomber juste d'une heure à l'autre : son écart le plus long reste sous le seuil du sommeil (rythme + 15), jamais un faux sommeil. */
+dit('… pour chaque rythme de 5 à 60 min : aucune minute sur :00 ni :30 ; le rythme juste quand il divise l heure, sinon jamais au-delà du seuil du sommeil, d une heure à l autre comprise', [0, 0], [surLHeureRonde, ecartTropLong]);
 dit('l heure dite : aujourd hui, demain, le jour de la semaine, puis la date', ['aujourd\'hui 10 h', 'demain 14 h 30', 'samedi 10 h', 'le 23 nov. 9 h'], [
   heureDite('2026-11-03', '10:00', ici), heureDite('2026-11-04', '14:30', ici), heureDite('2026-11-07', '10:00', ici), heureDite('2026-11-23', '09:00', ici),
 ]);
@@ -332,7 +407,7 @@ const aujourdhui = dateDans(0);
 const sansNom = (texte: string) => !/Awa|Codjo|Dossi|Efua|Fifa|Gbessi|Hola|Banc/.test(texte);
 
 const g = await handler!(new Request('http://f/assistants-maison', { method: 'GET' }));
-dit('GET : la santé, la version, le nombre d assistants, aucun secret', ['assistants-maison', '2026-11-01-a', 2, false],
+dit('GET : la santé, la version, le nombre d assistants, aucun secret', ['assistants-maison', '2026-11-02-a', 2, false],
   await g.json().then((x: { fonction?: string; version?: string; assistants?: number }) => [x.fonction, x.version, x.assistants, JSON.stringify(x).includes('service')]));
 dit('sans porte : refusé', [403, 'reserve-aux-assistants'], await appelle({}, { action: 'passage', controles: {} }).then((r) => [r.status, r.corps.motif]));
 dit('un jeton inconnu : refusé', [403, 'reserve-aux-assistants'], await appelle({ 'x-jeton-assistant': 'assistant-opale-faux' }, { action: 'passage', controles: {} }).then((r) => [r.status, r.corps.motif]));
@@ -362,9 +437,43 @@ dit('le passage : vu, éveillé depuis maintenant, l état écrit, les réglages
 const vu1 = opaleApres.vu_le; const serie1 = opaleApres.eveille_depuis;
 const p2 = await appelle(opale, { action: 'passage', controles: { chrome: true, lie: true, nonLus: true } });
 dit('… le second passage rend le précédent et garde la série', [vu1, serie1], [p2.corps.precedentVuLe, p2.corps.eveilleDepuis]);
-opaleApres.vu_le = new Date(Date.now() - 40 * 60_000).toISOString();
+/* Cinquante minutes : au-delà du seuil à toute heure (30 min le jour au rythme de 15 du banc, 45 le soir et la nuit). */
+opaleApres.vu_le = new Date(Date.now() - 50 * 60_000).toISOString();
 const p3 = await appelle(opale, { action: 'passage', controles: { chrome: true, lie: true, nonLus: true } });
-dit('… après quarante minutes de silence, c est un réveil : la série repart', true, p3.corps.eveilleDepuis !== serie1 && Date.parse(String(p3.corps.eveilleDepuis)) > Date.now() - 5_000);
+dit('… après cinquante minutes de silence, c est un réveil : la série repart', true, p3.corps.eveilleDepuis !== serie1 && Date.parse(String(p3.corps.eveilleDepuis)) > Date.now() - 5_000);
+
+/* Le rythme du soir (2 novembre 2026). L'horloge de la fonction est posée à
+   la main le temps de ces passages, dans deux jours : un soir, puis le
+   lendemain matin. Les lignes d'Opale et d'Onyx sont rendues telles quelles
+   ensuite : la suite du banc ne voit rien de ces heures. */
+const vraiMaintenant = Date.now;
+const minuitDuBanc = Date.parse(`${dateDans(2)}T00:00:00Z`) - 3_600_000;
+const aLHeure = (h: number, m: number) => minuitDuBanc + (h * 60 + m) * 60_000;
+const passeA = async (ms: number, qui: Record<string, string>, controles = { chrome: true, lie: true, nonLus: true }) => {
+  Date.now = () => ms;
+  try { return await appelle(qui, { action: 'passage', controles }); } finally { Date.now = vraiMaintenant; }
+};
+const opaleL = ligne('assistants', (x) => x.id === 'opale')!;
+const onyxL = ligne('assistants', (x) => x.id === 'onyx')!;
+const opaleAvantLeSoir = JSON.parse(JSON.stringify({ vu_le: opaleL.vu_le, eveille_depuis: opaleL.eveille_depuis, etat: opaleL.etat })) as Row;
+const s1 = await passeA(aLHeure(20, 7), opale);
+const s2 = await passeA(aLHeure(20, 37), opale);
+const s3 = await passeA(aLHeure(21, 12), opale);
+const s4 = await passeA(aLHeure(22, 0), opale);
+dit('le soir, trente minutes entre deux passages, et trente-cinq pour un tour en retard, gardent la série ; quarante-huit la rompent', [true, true, true, true], [
+  s1.corps.eveilleDepuis === isoDe(aLHeure(20, 7)), s2.corps.eveilleDepuis === s1.corps.eveilleDepuis, s3.corps.eveilleDepuis === s1.corps.eveilleDepuis,
+  s4.corps.eveilleDepuis === isoDe(aLHeure(22, 0))]);
+dit('… le passage rend la veille bâtie sur les réglages du Trône (ici, le rythme du jour à 15 min)',
+  { dansLaVeille: true, rythmeMin: 30, crons: ['3-59/15 6-17 * * *', '7,37 18-23 * * *'] }, s2.corps.veille);
+const avantLeSoir = pushs.length;
+for (const [h, m] of [[20, 7], [20, 37], [21, 7]]) await passeA(aLHeure(h, m), onyx, { chrome: true, lie: false, nonLus: true });
+dit('un empêché du soir n est dit qu une fois sur trois tours à trente minutes', 1, pushs.slice(avantLeSoir).filter((x) => x.corps.title === 'Onyx est empêché').length);
+Object.assign(onyxL, { vu_le: isoDe(aLHeure(34, 0) - 28 * 60_000), eveille_depuis: null, etat: {} });
+const s5 = await passeA(aLHeure(34, 0), opale);
+dit('… l état de l autre assistant suit les mêmes réglages : vingt-huit minutes au rythme de 15, il veille encore', 'eveille',
+  ((s5.corps.autres as Row[]) ?? []).find((x) => x.id === 'onyx')?.etat);
+Object.assign(onyxL, { vu_le: null, eveille_depuis: null, etat: {} });
+Object.assign(opaleL, opaleAvantLeSoir);
 
 /* L'empêché, prévenu une fois. */
 const avantEmpeche = pushs.length;
@@ -695,6 +804,42 @@ dit('aucun numéro réel dans les sources, aucun tiret long dans les fichiers du
 const ecranJ = lit('src/apps/trone/routes/systeme/Journal.tsx');
 dit('l écran Journal et l écran Les assistants savent dire une lecture', [true, true, true], [
   /lit: 'Lu'/.test(ecranJ), /\{ k: 'lit', l: 'Lu' \}/.test(ecranJ), /lit: 'a fait'/.test(lit('src/apps/trone/routes/pilotage/Assistants.tsx'))]);
+
+/* La veille des réglages (2 novembre 2026), du module pur jusqu'aux textes qui la disent. */
+const bloc = (f: string) => {
+  const t = lit(f); const a = t.indexOf('/* ⟨veille-des-assistants⟩ */'); const b = t.indexOf('/* ⟨/veille-des-assistants⟩ */');
+  return a >= 0 && b > a ? t.slice(a, b) : `ABSENT de ${f}`;
+};
+dit('push-notify porte le bloc ⟨veille-des-assistants⟩ du module pur, mot pour mot (réglages, veille, seuil, chien de garde)',
+  bloc('src/shared/assistants-pur.ts'), bloc('supabase/functions/push-notify/index.ts'));
+const push = lit('supabase/functions/push-notify/index.ts');
+dit('… et le chien de garde n en garde aucune autre copie, et dit sa version', [1, 1, true],
+  [push.split('export function doitPrevenirDuSommeil(').length - 1, push.split('export const REGLAGES_PAR_DEFAUT').length - 1, push.includes("const VERSION = '2026-11-02-a';")]);
+const charte = lit('docs/ASSISTANTS.md');
+const cronsParDefaut = cronsDeLaVeille(REGLAGES_PAR_DEFAUT);
+dit('la charte du 2 novembre 2026 : aucun /loop à rythme, les crons par défaut dits deux fois (sections 3 et 14), aucun ancien cron', [true, false, true, false], [
+  charte.includes('*Version du 2 novembre 2026'), /\/loop\s*\d/.test(charte),
+  cronsParDefaut.every((c) => charte.split(`\`${c}\``).length - 1 >= 2), charte.includes('*/10 6-17')]);
+dit('… l heure de Cotonou avant tout, CronList avant de poser, la garde de l heure à chaque tour, le sélecteur qui tient la session', [true, true, true, true], [
+  charte.includes('ne pose AUCUNE tâche de veille et ne fais pas ton passage'),
+  charte.includes('**Avant d\'en poser, `CronList`**') && charte.includes('`CronDelete`'),
+  charte.includes('1. **La garde de l\'heure, d\'abord.**'),
+  charte.includes('7. **Le sélecteur tient la session.**')]);
+const onyxSh = lit('scripts/onyx-installe.sh');
+dit('l installateur d Onyx ne dit plus aucun /loop : son CLAUDE.md et son lanceur renvoient aux sections 3 et 14', [false, 2], [
+  /\/loop\s*\d/.test(onyxSh), onyxSh.split('sections 3 et 14 de la charte').length - 1]);
+const sqlSoir = lit('supabase/reglage_soir_des_assistants_20261102.sql');
+dit('le SQL du soir : une copie de repli d abord, sous RLS, puis une fusion des deux clés du soir, jamais un remplacement', [true, true, true, true], [
+  sqlSoir.indexOf('create table if not exists public.repli_mnd_settings_20261102_soir') >= 0
+    && sqlSoir.indexOf('create table if not exists public.repli_mnd_settings_20261102_soir') < sqlSoir.indexOf('update public.documents'),
+  sqlSoir.includes('alter table public.repli_mnd_settings_20261102_soir enable row level security;'),
+  sqlSoir.includes(`coalesce(data->'assistants','{}'::jsonb) || '{"soirDe":18,"rythmeSoirMin":30}'::jsonb`),
+  /select data->'assistants'/.test(sqlSoir)]);
+const ecranA = lit('src/apps/trone/routes/pilotage/Assistants.tsx');
+dit('l écran Les assistants règle le soir avec les bornes du module pur, et juge l état sur les réglages', [true, true, true], [
+  ecranA.includes("{ cle: 'soirDe', libelle: 'Rythme du soir à partir de', unite: 'h', min: 0, max: 24 },"),
+  ecranA.includes("{ cle: 'rythmeSoirMin', libelle: 'Rythme du soir', unite: 'min', min: 5, max: 60 },"),
+  ecranA.includes('const e = etatDe(a, maintenant, r);')]);
 
 console.log(ko === 0 ? '\nLes assistants tiennent.' : `\n${ko} ECHEC.`);
 process.exit(ko ? 1 : 0);
